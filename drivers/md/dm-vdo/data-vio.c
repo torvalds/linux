@@ -929,25 +929,28 @@ void free_data_vio_pool(struct data_vio_pool *pool)
 	uds_free(pool);
 }
 
-static bool acquire_permit(struct limiter *limiter, struct bio *bio)
+static bool acquire_permit(struct limiter *limiter)
 {
-	if (limiter->busy >= limiter->limit) {
-		DEFINE_WAIT(wait);
-
-		bio_list_add(&limiter->new_waiters, bio);
-		prepare_to_wait_exclusive(&limiter->blocked_threads, &wait,
-					  TASK_UNINTERRUPTIBLE);
-		spin_unlock(&limiter->pool->lock);
-		io_schedule();
-		finish_wait(&limiter->blocked_threads, &wait);
+	if (limiter->busy >= limiter->limit)
 		return false;
-	}
 
 	WRITE_ONCE(limiter->busy, limiter->busy + 1);
 	if (limiter->max_busy < limiter->busy)
 		WRITE_ONCE(limiter->max_busy, limiter->busy);
-
 	return true;
+}
+
+static void wait_permit(struct limiter *limiter, struct bio *bio)
+	__releases(&limiter->pool->lock)
+{
+	DEFINE_WAIT(wait);
+
+	bio_list_add(&limiter->new_waiters, bio);
+	prepare_to_wait_exclusive(&limiter->blocked_threads, &wait,
+				  TASK_UNINTERRUPTIBLE);
+	spin_unlock(&limiter->pool->lock);
+	io_schedule();
+	finish_wait(&limiter->blocked_threads, &wait);
 }
 
 /**
@@ -965,11 +968,15 @@ void vdo_launch_bio(struct data_vio_pool *pool, struct bio *bio)
 	bio->bi_private = (void *) jiffies;
 	spin_lock(&pool->lock);
 	if ((bio_op(bio) == REQ_OP_DISCARD) &&
-	    !acquire_permit(&pool->discard_limiter, bio))
+	    !acquire_permit(&pool->discard_limiter)) {
+		wait_permit(&pool->discard_limiter, bio);
 		return;
+	}
 
-	if (!acquire_permit(&pool->limiter, bio))
+	if (!acquire_permit(&pool->limiter)) {
+		wait_permit(&pool->limiter, bio);
 		return;
+	}
 
 	data_vio = get_available_data_vio(pool);
 	spin_unlock(&pool->lock);
