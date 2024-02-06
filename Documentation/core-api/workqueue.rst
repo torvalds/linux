@@ -256,15 +256,11 @@ may queue at the same time.  Unless there is a specific need for
 throttling the number of active work items, specifying '0' is
 recommended.
 
-Some users depend on the strict execution ordering of ST wq.  The
-combination of ``@max_active`` of 1 and ``WQ_UNBOUND`` used to
-achieve this behavior.  Work items on such wq were always queued to the
-unbound worker-pools and only one work item could be active at any given
-time thus achieving the same ordering property as ST wq.
-
-In the current implementation the above configuration only guarantees
-ST behavior within a given NUMA node. Instead ``alloc_ordered_workqueue()`` should
-be used to achieve system-wide ST behavior.
+Some users depend on strict execution ordering where only one work item
+is in flight at any given time and the work items are processed in
+queueing order. While the combination of ``@max_active`` of 1 and
+``WQ_UNBOUND`` used to achieve this behavior, this is no longer the
+case. Use ``alloc_ordered_queue()`` instead.
 
 
 Example Execution Scenarios
