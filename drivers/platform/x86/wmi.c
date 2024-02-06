@@ -1093,10 +1093,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 			continue;
 
 		wblock = kzalloc(sizeof(*wblock), GFP_KERNEL);
-		if (!wblock) {
-			dev_err(wmi_bus_dev, "Failed to allocate %pUL\n", &gblock[i].guid);
+		if (!wblock)
 			continue;
-		}
 
 		wblock->acpi_device = device;
 		wblock->gblock = gblock[i];
