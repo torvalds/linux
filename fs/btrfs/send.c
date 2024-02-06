@@ -4186,7 +4186,13 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	 * This should never happen as the root dir always has the same ref
 	 * which is always '..'
 	 */
-	BUG_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
+	if (unlikely(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID)) {
+		btrfs_err(fs_info,
+			  "send: unexpected inode %llu in process_recorded_refs()",
+			  sctx->cur_ino);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	valid_path = fs_path_alloc();
 	if (!valid_path) {
