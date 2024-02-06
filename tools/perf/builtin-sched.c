@@ -3317,15 +3317,20 @@ static int perf_sched__map(struct perf_sched *sched)
 
 static int perf_sched__replay(struct perf_sched *sched)
 {
+	int ret;
 	unsigned long i;
+
+	mutex_init(&sched->start_work_mutex);
+	mutex_init(&sched->work_done_wait_mutex);
 
 	calibrate_run_measurement_overhead(sched);
 	calibrate_sleep_measurement_overhead(sched);
 
 	test_calibrations(sched);
 
-	if (perf_sched__read_events(sched))
-		return -1;
+	ret = perf_sched__read_events(sched);
+	if (ret)
+		goto out_mutex_destroy;
 
 	printf("nr_run_events:        %ld\n", sched->nr_run_events);
 	printf("nr_sleep_events:      %ld\n", sched->nr_sleep_events);
@@ -3350,7 +3355,11 @@ static int perf_sched__replay(struct perf_sched *sched)
 
 	sched->thread_funcs_exit = true;
 	destroy_tasks(sched);
-	return 0;
+
+out_mutex_destroy:
+	mutex_destroy(&sched->start_work_mutex);
+	mutex_destroy(&sched->work_done_wait_mutex);
+	return ret;
 }
 
 static void setup_sorting(struct perf_sched *sched, const struct option *options,
@@ -3588,8 +3597,6 @@ int cmd_sched(int argc, const char **argv)
 	unsigned int i;
 	int ret = 0;
 
-	mutex_init(&sched.start_work_mutex);
-	mutex_init(&sched.work_done_wait_mutex);
 	sched.curr_thread = calloc(MAX_CPUS, sizeof(*sched.curr_thread));
 	if (!sched.curr_thread) {
 		ret = -ENOMEM;
@@ -3677,8 +3684,6 @@ out:
 	free(sched.curr_pid);
 	free(sched.cpu_last_switched);
 	free(sched.curr_thread);
-	mutex_destroy(&sched.start_work_mutex);
-	mutex_destroy(&sched.work_done_wait_mutex);
 
 	return ret;
 }
