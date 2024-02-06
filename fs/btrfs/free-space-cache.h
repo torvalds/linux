@@ -114,8 +114,6 @@ int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 
 void btrfs_init_free_space_ctl(struct btrfs_block_group *block_group,
 			       struct btrfs_free_space_ctl *ctl);
-int __btrfs_add_free_space(struct btrfs_block_group *block_group, u64 bytenr,
-			   u64 size, enum btrfs_trim_state trim_state);
 int btrfs_add_free_space(struct btrfs_block_group *block_group,
 			 u64 bytenr, u64 size);
 int btrfs_add_free_space_unused(struct btrfs_block_group *block_group,
