@@ -3631,17 +3631,24 @@ unlock:
 }
 EXPORT_SYMBOL(register_nexthop_notifier);
 
+int __unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
+{
+	int err;
+
+	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
+						 nb);
+	if (!err)
+		nexthops_dump(net, nb, NEXTHOP_EVENT_DEL, NULL);
+	return err;
+}
+EXPORT_SYMBOL(__unregister_nexthop_notifier);
+
 int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
 {
 	int err;
 
 	rtnl_lock();
-	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
-						 nb);
-	if (err)
-		goto unlock;
-	nexthops_dump(net, nb, NEXTHOP_EVENT_DEL, NULL);
-unlock:
+	err = __unregister_nexthop_notifier(net, nb);
 	rtnl_unlock();
 	return err;
 }
