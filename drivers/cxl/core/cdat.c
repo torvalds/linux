@@ -334,8 +334,7 @@ static int cxl_qos_class_verify(struct cxl_memdev *cxlmd)
 
 	/* Check to make sure that the device's host bridge is under a root decoder */
 	rc = device_for_each_child(&root_port->dev,
-				   (void *)cxlmd->endpoint->host_bridge,
-				   match_cxlrd_hb);
+				   cxlmd->endpoint->host_bridge, match_cxlrd_hb);
 	if (!rc) {
 		reset_dpa_perf(&mds->ram_perf);
 		reset_dpa_perf(&mds->pmem_perf);
