@@ -34,7 +34,6 @@ enum {
 	 */
 	RECOVERY_JOURNAL_RESERVED_BLOCKS =
 		(MAXIMUM_VDO_USER_VIOS / RECOVERY_JOURNAL_ENTRIES_PER_BLOCK) + 2,
-	WRITE_FLAGS = REQ_OP_WRITE | REQ_PRIO | REQ_PREFLUSH | REQ_SYNC | REQ_FUA,
 };
 
 /**
@@ -1398,7 +1397,8 @@ static void write_block(struct vdo_waiter *waiter, void *context __always_unused
 	 * block itself is stable before allowing overwrites of the lbn's previous data.
 	 */
 	vdo_submit_metadata_vio(&block->vio, journal->origin + block->block_number,
-				complete_write_endio, handle_write_error, WRITE_FLAGS);
+				complete_write_endio, handle_write_error,
+				REQ_OP_WRITE | REQ_PRIO | REQ_PREFLUSH | REQ_SYNC | REQ_FUA);
 }
 
 
