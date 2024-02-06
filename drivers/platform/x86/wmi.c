@@ -130,26 +130,6 @@ static const void *find_guid_context(struct wmi_block *wblock,
 	return NULL;
 }
 
-static int get_subobj_info(acpi_handle handle, const char *pathname,
-			   struct acpi_device_info **info)
-{
-	acpi_handle subobj_handle;
-	acpi_status status;
-
-	status = acpi_get_handle(handle, pathname, &subobj_handle);
-	if (status == AE_NOT_FOUND)
-		return -ENOENT;
-
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	status = acpi_get_object_info(subobj_handle, info);
-	if (ACPI_FAILURE(status))
-		return -EIO;
-
-	return 0;
-}
-
 static acpi_status wmi_method_enable(struct wmi_block *wblock, bool enable)
 {
 	struct guid_block *block;
@@ -947,9 +927,10 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 			     struct wmi_block *wblock,
 			     struct acpi_device *device)
 {
-	struct acpi_device_info *info;
 	char method[WMI_ACPI_METHOD_NAME_SIZE];
-	int result;
+	struct acpi_device_info *info;
+	acpi_handle method_handle;
+	acpi_status status;
 	uint count;
 
 	if (wblock->gblock.flags & ACPI_WMI_EVENT) {
@@ -977,14 +958,18 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	 * we ignore this data block.
 	 */
 	get_acpi_method_name(wblock, 'Q', method);
-	result = get_subobj_info(device->handle, method, &info);
-
-	if (result) {
+	status = acpi_get_handle(device->handle, method, &method_handle);
+	if (ACPI_FAILURE(status)) {
 		dev_warn(wmi_bus_dev,
-			 "%s data block query control method not found\n",
+			 FW_BUG "%s data block query control method not found\n",
 			 method);
-		return result;
+
+		return -ENXIO;
 	}
+
+	status = acpi_get_object_info(method_handle, &info);
+	if (ACPI_FAILURE(status))
+		return -EIO;
 
 	wblock->dev.dev.type = &wmi_type_data;
 
