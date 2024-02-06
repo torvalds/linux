@@ -69,7 +69,7 @@
  *   ASAP to service heavy load, which is the only place where REQ_BACKGROUND might aid in load
  *   prioritization.
  */
-static unsigned int PASSTHROUGH_FLAGS = (REQ_PRIO | REQ_META | REQ_SYNC | REQ_RAHEAD);
+static blk_opf_t PASSTHROUGH_FLAGS = (REQ_PRIO | REQ_META | REQ_SYNC | REQ_RAHEAD);
 
 /**
  * DOC:
@@ -1570,7 +1570,7 @@ static void read_block(struct vdo_completion *completion)
 		result = vio_reset_bio(vio, (char *) data_vio->compression.block,
 				       read_endio, REQ_OP_READ, data_vio->mapped.pbn);
 	} else {
-		int opf = ((data_vio->user_bio->bi_opf & PASSTHROUGH_FLAGS) | REQ_OP_READ);
+		blk_opf_t opf = ((data_vio->user_bio->bi_opf & PASSTHROUGH_FLAGS) | REQ_OP_READ);
 
 		if (data_vio->is_partial) {
 			result = vio_reset_bio(vio, vio->data, read_endio, opf,

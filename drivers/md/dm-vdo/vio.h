@@ -119,10 +119,10 @@ static inline void initialize_vio(struct vio *vio, struct bio *bio,
 }
 
 void vdo_set_bio_properties(struct bio *bio, struct vio *vio, bio_end_io_t callback,
-			    unsigned int bi_opf, physical_block_number_t pbn);
+			    blk_opf_t bi_opf, physical_block_number_t pbn);
 
 int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
-		  unsigned int bi_opf, physical_block_number_t pbn);
+		  blk_opf_t bi_opf, physical_block_number_t pbn);
 
 void update_vio_error_stats(struct vio *vio, const char *format, ...)
 	__printf(2, 3);

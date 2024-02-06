@@ -338,7 +338,7 @@ void vdo_submit_data_vio(struct data_vio *data_vio)
  */
 void __submit_metadata_vio(struct vio *vio, physical_block_number_t physical,
 			   bio_end_io_t callback, vdo_action_fn error_handler,
-			   unsigned int operation, char *data)
+			   blk_opf_t operation, char *data)
 {
 	int result;
 	struct vdo_completion *completion = &vio->completion;

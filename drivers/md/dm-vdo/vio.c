@@ -172,7 +172,7 @@ void free_vio(struct vio *vio)
 
 /* Set bio properties for a VDO read or write. */
 void vdo_set_bio_properties(struct bio *bio, struct vio *vio, bio_end_io_t callback,
-			    unsigned int bi_opf, physical_block_number_t pbn)
+			    blk_opf_t bi_opf, physical_block_number_t pbn)
 {
 	struct vdo *vdo = vio->completion.vdo;
 	struct device_config *config = vdo->device_config;
@@ -193,7 +193,7 @@ void vdo_set_bio_properties(struct bio *bio, struct vio *vio, bio_end_io_t callb
  * vio associated with the bio.
  */
 int vio_reset_bio(struct vio *vio, char *data, bio_end_io_t callback,
-		  unsigned int bi_opf, physical_block_number_t pbn)
+		  blk_opf_t bi_opf, physical_block_number_t pbn)
 {
 	int bvec_count, offset, len, i;
 	struct bio *bio = vio->bio;
