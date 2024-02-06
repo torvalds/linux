@@ -970,7 +970,9 @@ static struct extent_map *__get_extent_map(struct inode *inode, struct page *pag
 {
 	struct extent_map *em;
 
-	if (em_cached && *em_cached) {
+	ASSERT(em_cached);
+
+	if (*em_cached) {
 		em = *em_cached;
 		if (extent_map_in_tree(em) && start >= em->start &&
 		    start < extent_map_end(em)) {
@@ -983,7 +985,7 @@ static struct extent_map *__get_extent_map(struct inode *inode, struct page *pag
 	}
 
 	em = btrfs_get_extent(BTRFS_I(inode), page, start, len);
-	if (em_cached && !IS_ERR(em)) {
+	if (!IS_ERR(em)) {
 		BUG_ON(*em_cached);
 		refcount_inc(&em->refs);
 		*em_cached = em;
@@ -1154,11 +1156,14 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 	u64 start = page_offset(page);
 	u64 end = start + PAGE_SIZE - 1;
 	struct btrfs_bio_ctrl bio_ctrl = { .opf = REQ_OP_READ };
+	struct extent_map *em_cached = NULL;
 	int ret;
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
-	ret = btrfs_do_readpage(page, NULL, &bio_ctrl, NULL);
+	ret = btrfs_do_readpage(page, &em_cached, &bio_ctrl, NULL);
+	free_extent_map(em_cached);
+
 	/*
 	 * If btrfs_do_readpage() failed we will want to submit the assembled
 	 * bio to do the cleanup.
@@ -1175,6 +1180,8 @@ static inline void contiguous_readpages(struct page *pages[], int nr_pages,
 {
 	struct btrfs_inode *inode = page_to_inode(pages[0]);
 	int index;
+
+	ASSERT(em_cached);
 
 	btrfs_lock_and_flush_ordered_range(inode, start, end, NULL);
 
