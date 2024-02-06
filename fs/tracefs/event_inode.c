@@ -85,8 +85,7 @@ static int eventfs_set_attr(struct mnt_idmap *idmap, struct dentry *dentry,
 
 	mutex_lock(&eventfs_mutex);
 	ei = dentry->d_fsdata;
-	/* The LSB is set when the eventfs_inode is being freed */
-	if (((unsigned long)ei & 1UL) || ei->is_freed) {
+	if (ei->is_freed) {
 		/* Do not allow changes if the event is about to be removed. */
 		mutex_unlock(&eventfs_mutex);
 		return -ENODEV;
@@ -276,34 +275,16 @@ static void free_ei(struct eventfs_inode *ei)
 void eventfs_set_ei_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 {
 	struct tracefs_inode *ti_parent;
-	struct eventfs_inode *ei_child, *tmp;
 	struct eventfs_inode *ei;
 	int i;
 
 	/* The top level events directory may be freed by this */
 	if (unlikely(ti->flags & TRACEFS_EVENT_TOP_INODE)) {
-		LIST_HEAD(ef_del_list);
-
 		mutex_lock(&eventfs_mutex);
-
 		ei = ti->private;
-
-		/* Record all the top level files */
-		list_for_each_entry_srcu(ei_child, &ei->children, list,
-					 lockdep_is_held(&eventfs_mutex)) {
-			list_add_tail(&ei_child->del_list, &ef_del_list);
-		}
-
 		/* Nothing should access this, but just in case! */
 		ti->private = NULL;
-
 		mutex_unlock(&eventfs_mutex);
-
-		/* Now safely free the top level files and their children */
-		list_for_each_entry_safe(ei_child, tmp, &ef_del_list, del_list) {
-			list_del(&ei_child->del_list);
-			eventfs_remove_dir(ei_child);
-		}
 
 		free_ei(ei);
 		return;
@@ -319,14 +300,6 @@ void eventfs_set_ei_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 	if (!ei)
 		goto out;
 
-	/*
-	 * If ei was freed, then the LSB bit is set for d_fsdata.
-	 * But this should not happen, as it should still have a
-	 * ref count that prevents it. Warn in case it does.
-	 */
-	if (WARN_ON_ONCE((unsigned long)ei & 1))
-		goto out;
-
 	/* This could belong to one of the files of the ei */
 	if (ei->dentry != dentry) {
 		for (i = 0; i < ei->nr_entries; i++) {
@@ -336,6 +309,8 @@ void eventfs_set_ei_status_free(struct tracefs_inode *ti, struct dentry *dentry)
 		if (WARN_ON_ONCE(i == ei->nr_entries))
 			goto out;
 		ei->d_children[i] = NULL;
+	} else if (ei->is_freed) {
+		free_ei(ei);
 	} else {
 		ei->dentry = NULL;
 	}
@@ -962,11 +937,63 @@ struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry 
 	return ERR_PTR(-ENOMEM);
 }
 
+static LLIST_HEAD(free_list);
+
+static void eventfs_workfn(struct work_struct *work)
+{
+        struct eventfs_inode *ei, *tmp;
+        struct llist_node *llnode;
+
+	llnode = llist_del_all(&free_list);
+        llist_for_each_entry_safe(ei, tmp, llnode, llist) {
+		/* This dput() matches the dget() from unhook_dentry() */
+		for (int i = 0; i < ei->nr_entries; i++) {
+			if (ei->d_children[i])
+				dput(ei->d_children[i]);
+		}
+		/* This should only get here if it had a dentry */
+		if (!WARN_ON_ONCE(!ei->dentry))
+			dput(ei->dentry);
+        }
+}
+
+static DECLARE_WORK(eventfs_work, eventfs_workfn);
+
 static void free_rcu_ei(struct rcu_head *head)
 {
 	struct eventfs_inode *ei = container_of(head, struct eventfs_inode, rcu);
 
+	if (ei->dentry) {
+		/* Do not free the ei until all references of dentry are gone */
+		if (llist_add(&ei->llist, &free_list))
+			queue_work(system_unbound_wq, &eventfs_work);
+		return;
+	}
+
+	/* If the ei doesn't have a dentry, neither should its children */
+	for (int i = 0; i < ei->nr_entries; i++) {
+		WARN_ON_ONCE(ei->d_children[i]);
+	}
+
 	free_ei(ei);
+}
+
+static void unhook_dentry(struct dentry *dentry)
+{
+	if (!dentry)
+		return;
+
+	/* Keep the dentry from being freed yet (see eventfs_workfn()) */
+	dget(dentry);
+
+	dentry->d_fsdata = NULL;
+	d_invalidate(dentry);
+	mutex_lock(&eventfs_mutex);
+	/* dentry should now have at least a single reference */
+	WARN_ONCE((int)d_count(dentry) < 1,
+		  "dentry %px (%s) less than one reference (%d) after invalidate\n",
+		  dentry, dentry->d_name.name, d_count(dentry));
+	mutex_unlock(&eventfs_mutex);
 }
 
 /**
@@ -1006,33 +1033,6 @@ static void eventfs_remove_rec(struct eventfs_inode *ei, struct list_head *head,
 	list_add_tail(&ei->del_list, head);
 }
 
-static void unhook_dentry(struct dentry **dentry, struct dentry **list)
-{
-	if (*dentry) {
-		unsigned long ptr = (unsigned long)*list;
-
-		/* Keep the dentry from being freed yet */
-		dget(*dentry);
-
-		/*
-		 * Paranoid: The dget() above should prevent the dentry
-		 * from being freed and calling eventfs_set_ei_status_free().
-		 * But just in case, set the link list LSB pointer to 1
-		 * and have eventfs_set_ei_status_free() check that to
-		 * make sure that if it does happen, it will not think
-		 * the d_fsdata is an eventfs_inode.
-		 *
-		 * For this to work, no eventfs_inode should be allocated
-		 * on a odd space, as the ef should always be allocated
-		 * to be at least word aligned. Check for that too.
-		 */
-		WARN_ON_ONCE(ptr & 1);
-
-		(*dentry)->d_fsdata = (void *)(ptr | 1);
-		*list = *dentry;
-		*dentry = NULL;
-	}
-}
 /**
  * eventfs_remove_dir - remove eventfs dir or file from list
  * @ei: eventfs_inode to be removed.
@@ -1043,39 +1043,27 @@ void eventfs_remove_dir(struct eventfs_inode *ei)
 {
 	struct eventfs_inode *tmp;
 	LIST_HEAD(ei_del_list);
-	struct dentry *dentry_list = NULL;
-	struct dentry *dentry;
-	int i;
 
 	if (!ei)
 		return;
 
+	/*
+	 * Move the deleted eventfs_inodes onto the ei_del_list
+	 * which will also set the is_freed value. Note, this has to be
+	 * done under the eventfs_mutex, but the deletions of
+	 * the dentries must be done outside the eventfs_mutex.
+	 * Hence moving them to this temporary list.
+	 */
 	mutex_lock(&eventfs_mutex);
 	eventfs_remove_rec(ei, &ei_del_list, 0);
-
-	list_for_each_entry_safe(ei, tmp, &ei_del_list, del_list) {
-		for (i = 0; i < ei->nr_entries; i++)
-			unhook_dentry(&ei->d_children[i], &dentry_list);
-		unhook_dentry(&ei->dentry, &dentry_list);
-		call_srcu(&eventfs_srcu, &ei->rcu, free_rcu_ei);
-	}
 	mutex_unlock(&eventfs_mutex);
 
-	while (dentry_list) {
-		unsigned long ptr;
-
-		dentry = dentry_list;
-		ptr = (unsigned long)dentry->d_fsdata & ~1UL;
-		dentry_list = (struct dentry *)ptr;
-		dentry->d_fsdata = NULL;
-		d_invalidate(dentry);
-		mutex_lock(&eventfs_mutex);
-		/* dentry should now have at least a single reference */
-		WARN_ONCE((int)d_count(dentry) < 1,
-			  "dentry %px (%s) less than one reference (%d) after invalidate\n",
-			  dentry, dentry->d_name.name, d_count(dentry));
-		mutex_unlock(&eventfs_mutex);
-		dput(dentry);
+	list_for_each_entry_safe(ei, tmp, &ei_del_list, del_list) {
+		for (int i = 0; i < ei->nr_entries; i++)
+			unhook_dentry(ei->d_children[i]);
+		unhook_dentry(ei->dentry);
+		list_del(&ei->del_list);
+		call_srcu(&eventfs_srcu, &ei->rcu, free_rcu_ei);
 	}
 }
 
