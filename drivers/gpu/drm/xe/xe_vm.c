@@ -37,8 +37,6 @@
 #include "generated/xe_wa_oob.h"
 #include "xe_wa.h"
 
-#define TEST_VM_ASYNC_OPS_ERROR
-
 static struct drm_gem_object *xe_vm_obj(struct xe_vm *vm)
 {
 	return vm->gpuvm.r_obj;
@@ -2062,7 +2060,6 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	struct drm_gem_object *obj = bo ? &bo->ttm.base : NULL;
 	struct drm_gpuva_ops *ops;
 	struct drm_gpuva_op *__op;
-	struct xe_vma_op *op;
 	struct drm_gpuvm_bo *vm_bo;
 	int err;
 
@@ -2108,15 +2105,6 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 	}
 	if (IS_ERR(ops))
 		return ops;
-
-#ifdef TEST_VM_ASYNC_OPS_ERROR
-	if (operation & FORCE_ASYNC_OP_ERROR) {
-		op = list_first_entry_or_null(&ops->list, struct xe_vma_op,
-					      base.entry);
-		if (op)
-			op->inject_error = true;
-	}
-#endif
 
 	drm_gpuva_for_each_op(__op, ops) {
 		struct xe_vma_op *op = gpuva_op_to_vma_op(__op);
@@ -2560,13 +2548,6 @@ static int xe_vma_op_execute(struct xe_vm *vm, struct xe_vma_op *op)
 
 	lockdep_assert_held_write(&vm->lock);
 
-#ifdef TEST_VM_ASYNC_OPS_ERROR
-	if (op->inject_error) {
-		op->inject_error = false;
-		return -ENOMEM;
-	}
-#endif
-
 	switch (op->base.op) {
 	case DRM_GPUVA_OP_MAP:
 		ret = __xe_vma_op_execute(vm, op->map.vma, op);
@@ -2726,16 +2707,9 @@ static int vm_bind_ioctl_ops_execute(struct xe_vm *vm,
 	return 0;
 }
 
-#ifdef TEST_VM_ASYNC_OPS_ERROR
-#define SUPPORTED_FLAGS	\
-	(FORCE_ASYNC_OP_ERROR | DRM_XE_VM_BIND_FLAG_READONLY | \
-	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | DRM_XE_VM_BIND_FLAG_NULL | 0xffff)
-#else
 #define SUPPORTED_FLAGS	\
 	(DRM_XE_VM_BIND_FLAG_READONLY | \
-	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | DRM_XE_VM_BIND_FLAG_NULL | \
-	 0xffff)
-#endif
+	 DRM_XE_VM_BIND_FLAG_IMMEDIATE | DRM_XE_VM_BIND_FLAG_NULL)
 #define XE_64K_PAGE_MASK 0xffffull
 #define ALL_DRM_XE_SYNCS_FLAGS (DRM_XE_SYNCS_FLAG_WAIT_FOR_OP)
 
