@@ -774,9 +774,6 @@ struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry 
 	fsnotify_mkdir(dentry->d_parent->d_inode, dentry);
 	tracefs_end_creating(dentry);
 
-	/* Will call dput when the directory is removed */
-	dget(dentry);
-
 	return ei;
 
  fail:
