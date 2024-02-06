@@ -3761,8 +3761,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 
 	/*
 	 * Set ns->disk->device->driver_data to ns so we can access
-	 * ns->logging_enabled in nvme_passthru_err_log_enabled_store() and
-	 * nvme_passthru_err_log_enabled_show().
+	 * ns->head->passthru_err_log_enabled in
+	 * nvme_io_passthru_err_log_enabled_[store | show]().
 	 */
 	dev_set_drvdata(disk_to_dev(ns->disk), ns);
 
