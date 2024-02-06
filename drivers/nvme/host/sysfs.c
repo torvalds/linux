@@ -48,8 +48,8 @@ static ssize_t nvme_adm_passthru_err_log_enabled_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct nvme_ctrl *ctrl = dev_get_drvdata(dev);
-	int err;
 	bool passthru_err_log_enabled;
+	int err;
 
 	err = kstrtobool(buf, &passthru_err_log_enabled);
 	if (err)
@@ -60,25 +60,34 @@ static ssize_t nvme_adm_passthru_err_log_enabled_store(struct device *dev,
 	return count;
 }
 
+static inline struct nvme_ns_head *dev_to_ns_head(struct device *dev)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	if (nvme_disk_is_ns_head(disk))
+		return disk->private_data;
+	return nvme_get_ns_from_dev(dev)->head;
+}
+
 static ssize_t nvme_io_passthru_err_log_enabled_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct nvme_ns *n = dev_get_drvdata(dev);
+	struct nvme_ns_head *head = dev_to_ns_head(dev);
 
-	return sysfs_emit(buf, n->passthru_err_log_enabled ? "on\n" : "off\n");
+	return sysfs_emit(buf, head->passthru_err_log_enabled ? "on\n" : "off\n");
 }
 
 static ssize_t nvme_io_passthru_err_log_enabled_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct nvme_ns *ns = dev_get_drvdata(dev);
-	int err;
+	struct nvme_ns_head *head = dev_to_ns_head(dev);
 	bool passthru_err_log_enabled;
+	int err;
 
 	err = kstrtobool(buf, &passthru_err_log_enabled);
 	if (err)
 		return -EINVAL;
-	ns->passthru_err_log_enabled = passthru_err_log_enabled;
+	head->passthru_err_log_enabled = passthru_err_log_enabled;
 
 	return count;
 }
@@ -90,15 +99,6 @@ static struct device_attribute dev_attr_adm_passthru_err_log_enabled = \
 static struct device_attribute dev_attr_io_passthru_err_log_enabled = \
 	__ATTR(passthru_err_log_enabled, S_IRUGO | S_IWUSR, \
 	nvme_io_passthru_err_log_enabled_show, nvme_io_passthru_err_log_enabled_store);
-
-static inline struct nvme_ns_head *dev_to_ns_head(struct device *dev)
-{
-	struct gendisk *disk = dev_to_disk(dev);
-
-	if (nvme_disk_is_ns_head(disk))
-		return disk->private_data;
-	return nvme_get_ns_from_dev(dev)->head;
-}
 
 static ssize_t wwid_show(struct device *dev, struct device_attribute *attr,
 		char *buf)
