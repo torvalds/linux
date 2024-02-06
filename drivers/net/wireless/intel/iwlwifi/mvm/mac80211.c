@@ -705,6 +705,13 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 		}
 	}
 
+	if (iwl_fw_lookup_cmd_ver(mvm->fw, WIDE_ID(LOCATION_GROUP,
+						   TOF_RANGE_REQ_CMD),
+				  IWL_FW_CMD_VER_UNKNOWN) >= 11) {
+		wiphy_ext_feature_set(hw->wiphy,
+				      NL80211_EXT_FEATURE_PROT_RANGE_NEGO_AND_MEASURE);
+	}
+
 	mvm->rts_threshold = IEEE80211_MAX_RTS_THRESHOLD;
 
 #ifdef CONFIG_PM_SLEEP
