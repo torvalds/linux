@@ -24,6 +24,7 @@ struct tracefs_inode {
  * @d_children: The array of dentries to represent the files when created
  * @data:	The private data to pass to the callbacks
  * @is_freed:	Flag set if the eventfs is on its way to be freed
+ *                Note if is_freed is set, then dentry is corrupted.
  * @nr_entries: The number of items in @entries
  */
 struct eventfs_inode {
@@ -31,7 +32,7 @@ struct eventfs_inode {
 	const struct eventfs_entry	*entries;
 	const char			*name;
 	struct list_head		children;
-	struct dentry			*dentry;
+	struct dentry			*dentry; /* Check is_freed to access */
 	struct dentry			*d_parent;
 	struct dentry			**d_children;
 	void				*data;
