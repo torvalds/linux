@@ -50,6 +50,7 @@ qcom-dcvs.ko
 dcc_v2.ko
 memory_dump_v2.ko
 msm_dma_iommu_mapping.ko
+kryo_arm64_edac.ko
 gcc-pitti.ko
 icc-debug.ko
 icc-rpm.ko
