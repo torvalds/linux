@@ -1980,6 +1980,7 @@ int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 
 	rtw89_config_entity_chandef(rtwdev, idx, &ctx->def);
 	cfg->idx = idx;
+	cfg->ref_count = 0;
 	hal->sub[idx].cfg = cfg;
 	return 0;
 }
@@ -2011,11 +2012,23 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 				 struct ieee80211_chanctx_conf *ctx)
 {
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	struct rtw89_entity_weight w = {};
 
 	rtwvif->sub_entity_idx = cfg->idx;
 	rtwvif->chanctx_assigned = true;
 	cfg->ref_count++;
 
+	if (cfg->idx == RTW89_SUB_ENTITY_0)
+		goto out;
+
+	rtw89_entity_calculate_weight(rtwdev, &w);
+	if (w.active_chanctxs != 1)
+		goto out;
+
+	/* put the first active chanctx at RTW89_SUB_ENTITY_0 */
+	rtw89_swap_sub_entity(rtwdev, cfg->idx, RTW89_SUB_ENTITY_0);
+
+out:
 	return rtw89_set_channel(rtwdev);
 }
 
