@@ -875,8 +875,8 @@ static int dsa_user_port_obj_del(struct net_device *dev, const void *ctx,
 	return err;
 }
 
-static inline netdev_tx_t dsa_user_netpoll_send_skb(struct net_device *dev,
-						    struct sk_buff *skb)
+static netdev_tx_t dsa_user_netpoll_send_skb(struct net_device *dev,
+					     struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct dsa_user_priv *p = netdev_priv(dev);
