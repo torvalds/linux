@@ -23,26 +23,25 @@ struct file_operations;
 
 struct eventfs_file;
 
-struct dentry *eventfs_create_events_dir(const char *name,
-					 struct dentry *parent);
+typedef int (*eventfs_callback)(const char *name, umode_t *mode, void **data,
+				const struct file_operations **fops);
 
-struct eventfs_file *eventfs_add_subsystem_dir(const char *name,
-					       struct dentry *parent);
+struct eventfs_entry {
+	const char			*name;
+	eventfs_callback		callback;
+};
 
-struct eventfs_file *eventfs_add_dir(const char *name,
-				     struct eventfs_file *ef_parent);
+struct eventfs_inode;
 
-int eventfs_add_file(const char *name, umode_t mode,
-		     struct eventfs_file *ef_parent, void *data,
-		     const struct file_operations *fops);
+struct eventfs_inode *eventfs_create_events_dir(const char *name, struct dentry *parent,
+						const struct eventfs_entry *entries,
+						int size, void *data);
 
-int eventfs_add_events_file(const char *name, umode_t mode,
-			 struct dentry *parent, void *data,
-			 const struct file_operations *fops);
+struct eventfs_inode *eventfs_create_dir(const char *name, struct eventfs_inode *parent,
+					 const struct eventfs_entry *entries,
+					 int size, void *data);
 
-void eventfs_remove(struct eventfs_file *ef);
-
-void eventfs_remove_events_dir(struct dentry *dentry);
+void eventfs_remove_dir(struct eventfs_inode *ei);
 
 struct dentry *tracefs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
