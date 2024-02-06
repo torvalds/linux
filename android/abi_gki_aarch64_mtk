@@ -152,6 +152,8 @@
   clk_bulk_put
   clk_bulk_put_all
   clk_bulk_unprepare
+  clkdev_add
+  clkdev_drop
   clk_disable
   clk_divider_ops
   clk_enable
@@ -473,6 +475,7 @@
   devm_devfreq_register_notifier
   devm_devfreq_remove_device
   devm_devfreq_unregister_notifier
+  devm_devfreq_unregister_opp_notifier
   devm_extcon_dev_allocate
   devm_extcon_dev_register
   devm_extcon_register_notifier
@@ -928,6 +931,8 @@
   find_vpid
   finish_wait
   firmware_request_nowarn
+  fixed_phy_register
+  fixed_phy_unregister
   flush_dcache_page
   flush_delayed_fput
   flush_delayed_work
@@ -989,6 +994,7 @@
   generic_file_llseek
   generic_handle_domain_irq
   generic_handle_irq
+  generic_handle_irq_safe
   genlmsg_multicast_allns
   genlmsg_put
   genl_register_family
@@ -1257,6 +1263,7 @@
   irq_create_of_mapping
   irq_dispose_mapping
   __irq_domain_add
+  irq_domain_create_simple
   irq_domain_free_irqs_common
   irq_domain_get_irq_data
   irq_domain_remove
@@ -1861,6 +1868,8 @@
   phy_ethtool_get_eee
   phy_ethtool_get_link_ksettings
   phy_ethtool_get_wol
+  phy_ethtool_ksettings_get
+  phy_ethtool_ksettings_set
   phy_ethtool_nway_reset
   phy_ethtool_set_eee
   phy_ethtool_set_link_ksettings
@@ -1886,13 +1895,16 @@
   phy_power_on
   phy_print_status
   phy_put
+  phy_register_fixup_for_uid
   phy_remove_link_mode
+  phy_save_page
   phy_set_mode_ext
   phy_start
   phy_start_aneg
   phy_stop
   phy_support_asym_pause
   phy_suspend
+  phy_unregister_fixup_for_uid
   pick_migrate_task
   pid_task
   pinconf_generic_parse_dt_config
