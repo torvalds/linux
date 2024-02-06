@@ -67,7 +67,7 @@ struct block_map_tree_segment {
 
 struct block_map_tree {
 	struct block_map_tree_segment *segments;
-} block_map_tree;
+};
 
 struct forest {
 	struct block_map *map;

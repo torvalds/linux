@@ -91,12 +91,12 @@ enum {
 };
 
 /** The maximum logical space is 4 petabytes, which is 1 terablock. */
-extern const block_count_t MAXIMUM_VDO_LOGICAL_BLOCKS;
+static const block_count_t MAXIMUM_VDO_LOGICAL_BLOCKS = 1024ULL * 1024 * 1024 * 1024;
 
 /** The maximum physical space is 256 terabytes, which is 64 gigablocks. */
-extern const block_count_t MAXIMUM_VDO_PHYSICAL_BLOCKS;
+static const block_count_t MAXIMUM_VDO_PHYSICAL_BLOCKS = 1024ULL * 1024 * 1024 * 64;
 
 /** unit test minimum */
-extern const block_count_t MINIMUM_VDO_SLAB_JOURNAL_BLOCKS;
+static const block_count_t MINIMUM_VDO_SLAB_JOURNAL_BLOCKS = 2;
 
 #endif /* VDO_CONSTANTS_H */

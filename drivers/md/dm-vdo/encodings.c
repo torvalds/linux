@@ -85,7 +85,7 @@ const struct header VDO_SLAB_DEPOT_HEADER_2_0 = {
 	.size = sizeof(struct slab_depot_state_2_0),
 };
 
-const struct header VDO_LAYOUT_HEADER_3_0 = {
+static const struct header VDO_LAYOUT_HEADER_3_0 = {
 	.id = VDO_LAYOUT,
 	.version = {
 		.major_version = 3,

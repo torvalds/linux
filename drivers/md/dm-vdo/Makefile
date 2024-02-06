@@ -9,7 +9,6 @@ dm-vdo-objs := \
 	chapter-index.o \
 	completion.o \
 	config.o \
-	constants.o \
 	data-vio.o \
 	dedupe.o \
 	delta-index.o \
