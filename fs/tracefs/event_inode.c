@@ -38,7 +38,6 @@ struct eventfs_inode {
  * @fop:	file_operations for file or directory
  * @iop:	inode_operations for file or directory
  * @data:	something that the caller will want to get to later on
- * @is_freed:	Flag set if the eventfs is on its way to be freed
  * @mode:	the permission that the file or directory should have
  */
 struct eventfs_file {
@@ -53,14 +52,15 @@ struct eventfs_file {
 	 * Union - used for deletion
 	 * @del_list:	list of eventfs_file to delete
 	 * @rcu:	eventfs_file to delete in RCU
+	 * @is_freed:	node is freed if one of the above is set
 	 */
 	union {
 		struct list_head	del_list;
 		struct rcu_head		rcu;
+		unsigned long		is_freed;
 	};
 	void				*data;
-	unsigned int			is_freed:1;
-	unsigned int			mode:31;
+	umode_t				mode;
 };
 
 static DEFINE_MUTEX(eventfs_mutex);
@@ -813,8 +813,6 @@ static void eventfs_remove_rec(struct eventfs_file *ef, struct list_head *head, 
 			eventfs_remove_rec(ef_child, head, level + 1);
 		}
 	}
-
-	ef->is_freed = 1;
 
 	list_del_rcu(&ef->list);
 	list_add_tail(&ef->del_list, head);
