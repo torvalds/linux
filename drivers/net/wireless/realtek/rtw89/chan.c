@@ -1893,6 +1893,41 @@ void rtw89_chanctx_proceed(struct rtw89_dev *rtwdev)
 	rtw89_queue_chanctx_work(rtwdev);
 }
 
+static void rtw89_swap_sub_entity(struct rtw89_dev *rtwdev,
+				  enum rtw89_sub_entity_idx idx1,
+				  enum rtw89_sub_entity_idx idx2)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_sub_entity tmp;
+	struct rtw89_vif *rtwvif;
+	u8 cur;
+
+	if (idx1 == idx2)
+		return;
+
+	hal->sub[idx1].cfg->idx = idx2;
+	hal->sub[idx2].cfg->idx = idx1;
+
+	tmp = hal->sub[idx1];
+	hal->sub[idx1] = hal->sub[idx2];
+	hal->sub[idx2] = tmp;
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		if (!rtwvif->chanctx_assigned)
+			continue;
+		if (rtwvif->sub_entity_idx == idx1)
+			rtwvif->sub_entity_idx = idx2;
+		else if (rtwvif->sub_entity_idx == idx2)
+			rtwvif->sub_entity_idx = idx1;
+	}
+
+	cur = atomic_read(&hal->roc_entity_idx);
+	if (cur == idx1)
+		atomic_set(&hal->roc_entity_idx, idx2);
+	else if (cur == idx2)
+		atomic_set(&hal->roc_entity_idx, idx1);
+}
+
 int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 			  struct ieee80211_chanctx_conf *ctx)
 {
@@ -1918,7 +1953,6 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
 	enum rtw89_entity_mode mode;
-	struct rtw89_vif *rtwvif;
 	u8 drop, roll;
 
 	drop = cfg->idx;
@@ -1934,16 +1968,7 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 	/* RTW89_SUB_ENTITY_0 is going to release, and another exists.
 	 * Make another roll down to RTW89_SUB_ENTITY_0 to replace.
 	 */
-	hal->sub[roll].cfg->idx = RTW89_SUB_ENTITY_0;
-	hal->sub[RTW89_SUB_ENTITY_0] = hal->sub[roll];
-
-	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
-		if (rtwvif->sub_entity_idx == roll)
-			rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
-	}
-
-	atomic_cmpxchg(&hal->roc_entity_idx, roll, RTW89_SUB_ENTITY_0);
-
+	rtw89_swap_sub_entity(rtwdev, RTW89_SUB_ENTITY_0, roll);
 	drop = roll;
 
 out:
