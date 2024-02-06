@@ -212,24 +212,51 @@ void rtw89_entity_init(struct rtw89_dev *rtwdev)
 	rtw89_config_default_chandef(rtwdev);
 }
 
+static void rtw89_entity_calculate_weight(struct rtw89_dev *rtwdev,
+					  struct rtw89_entity_weight *w)
+{
+	struct rtw89_hal *hal = &rtwdev->hal;
+	const struct rtw89_chanctx_cfg *cfg;
+	struct rtw89_vif *rtwvif;
+	int idx;
+
+	for_each_set_bit(idx, hal->entity_map, NUM_OF_RTW89_SUB_ENTITY) {
+		cfg = hal->sub[idx].cfg;
+		if (!cfg) {
+			/* doesn't run with chanctx ops; one channel at most */
+			w->active_chanctxs = 1;
+			break;
+		}
+
+		if (cfg->ref_count > 0)
+			w->active_chanctxs++;
+	}
+
+	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		if (rtwvif->chanctx_assigned)
+			w->active_roles++;
+	}
+}
+
 enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 {
 	DECLARE_BITMAP(recalc_map, NUM_OF_RTW89_SUB_ENTITY) = {};
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct cfg80211_chan_def *chandef;
+	struct rtw89_entity_weight w = {};
 	enum rtw89_entity_mode mode;
 	struct rtw89_chan chan;
-	u8 weight;
 	u8 idx;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
 	bitmap_copy(recalc_map, hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
 
-	weight = bitmap_weight(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY);
-	switch (weight) {
+	rtw89_entity_calculate_weight(rtwdev, &w);
+	switch (w.active_chanctxs) {
 	default:
-		rtw89_warn(rtwdev, "unknown ent chan weight: %d\n", weight);
+		rtw89_warn(rtwdev, "unknown ent chanctxs weight: %d\n",
+			   w.active_chanctxs);
 		bitmap_zero(recalc_map, NUM_OF_RTW89_SUB_ENTITY);
 		fallthrough;
 	case 0:
@@ -239,7 +266,14 @@ enum rtw89_entity_mode rtw89_entity_recalc(struct rtw89_dev *rtwdev)
 	case 1:
 		mode = RTW89_ENTITY_MODE_SCC;
 		break;
-	case 2:
+	case 2 ... NUM_OF_RTW89_SUB_ENTITY:
+		if (w.active_roles != NUM_OF_RTW89_MCC_ROLES) {
+			rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+				    "unhandled ent: %d chanctxs %d roles\n",
+				    w.active_chanctxs, w.active_roles);
+			return RTW89_ENTITY_MODE_UNHANDLED;
+		}
+
 		mode = rtw89_get_entity_mode(rtwdev);
 		if (mode == RTW89_ENTITY_MODE_MCC)
 			break;
@@ -582,6 +616,9 @@ static int rtw89_mcc_fill_all_roles(struct rtw89_dev *rtwdev)
 	int ret;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
+		if (!rtwvif->chanctx_assigned)
+			continue;
+
 		if (sel.bind_vif[rtwvif->sub_entity_idx]) {
 			rtw89_warn(rtwdev,
 				   "MCC skip extra vif <macid %d> on chanctx[%d]\n",
@@ -2007,6 +2044,7 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 
 	rtwvif->sub_entity_idx = cfg->idx;
 	rtwvif->chanctx_assigned = true;
+	cfg->ref_count++;
 	return 0;
 }
 
@@ -2014,6 +2052,9 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 				    struct rtw89_vif *rtwvif,
 				    struct ieee80211_chanctx_conf *ctx)
 {
+	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
 	rtwvif->chanctx_assigned = false;
+	cfg->ref_count--;
 }
