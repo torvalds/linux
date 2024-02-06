@@ -11,7 +11,7 @@
  * Copyright 2008 Jouni Malinen <jouni.malinen@atheros.com>
  * Copyright 2008 Colin McCabe <colin@cozybit.com>
  * Copyright 2015-2017	Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -4269,9 +4269,9 @@ enum nl80211_wmm_rule {
  *	allowed for peer-to-peer or adhoc communication under the control
  *	of a DFS master which operates on the same channel (FCC-594280 D01
  *	Section B.3). Should be used together with %NL80211_RRF_DFS only.
- * @NL80211_FREQUENCY_ATTR_NO_UHB_VLP_CLIENT: Client connection to VLP AP
+ * @NL80211_FREQUENCY_ATTR_NO_6GHZ_VLP_CLIENT: Client connection to VLP AP
  *	not allowed using this channel
- * @NL80211_FREQUENCY_ATTR_NO_UHB_AFC_CLIENT: Client connection to AFC AP
+ * @NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT: Client connection to AFC AP
  *	not allowed using this channel
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
@@ -4313,8 +4313,8 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_NO_EHT,
 	NL80211_FREQUENCY_ATTR_PSD,
 	NL80211_FREQUENCY_ATTR_DFS_CONCURRENT,
-	NL80211_FREQUENCY_ATTR_NO_UHB_VLP_CLIENT,
-	NL80211_FREQUENCY_ATTR_NO_UHB_AFC_CLIENT,
+	NL80211_FREQUENCY_ATTR_NO_6GHZ_VLP_CLIENT,
+	NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,
@@ -4327,6 +4327,10 @@ enum nl80211_frequency_attr {
 #define NL80211_FREQUENCY_ATTR_NO_IR		NL80211_FREQUENCY_ATTR_NO_IR
 #define NL80211_FREQUENCY_ATTR_GO_CONCURRENT \
 					NL80211_FREQUENCY_ATTR_IR_CONCURRENT
+#define NL80211_FREQUENCY_ATTR_NO_UHB_VLP_CLIENT \
+	NL80211_FREQUENCY_ATTR_NO_6GHZ_VLP_CLIENT
+#define NL80211_FREQUENCY_ATTR_NO_UHB_AFC_CLIENT \
+	NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT
 
 /**
  * enum nl80211_bitrate_attr - bitrate attributes
@@ -4517,8 +4521,8 @@ enum nl80211_sched_scan_match_attr {
 	peer-to-peer or adhoc communication under the control of a DFS master
 	which operates on the same channel (FCC-594280 D01 Section B.3).
 	Should be used together with %NL80211_RRF_DFS only.
- * @NL80211_RRF_NO_UHB_VLP_CLIENT: Client connection to VLP AP not allowed
- * @NL80211_RRF_NO_UHB_AFC_CLIENT: Client connection to AFC AP not allowed
+ * @NL80211_RRF_NO_6GHZ_VLP_CLIENT: Client connection to VLP AP not allowed
+ * @NL80211_RRF_NO_6GHZ_AFC_CLIENT: Client connection to AFC AP not allowed
  */
 enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_OFDM		= 1<<0,
@@ -4541,8 +4545,8 @@ enum nl80211_reg_rule_flags {
 	NL80211_RRF_NO_EHT		= 1<<19,
 	NL80211_RRF_PSD			= 1<<20,
 	NL80211_RRF_DFS_CONCURRENT	= 1<<21,
-	NL80211_RRF_NO_UHB_VLP_CLIENT	= 1<<22,
-	NL80211_RRF_NO_UHB_AFC_CLIENT	= 1<<23,
+	NL80211_RRF_NO_6GHZ_VLP_CLIENT	= 1<<22,
+	NL80211_RRF_NO_6GHZ_AFC_CLIENT	= 1<<23,
 };
 
 #define NL80211_RRF_PASSIVE_SCAN	NL80211_RRF_NO_IR
@@ -4551,6 +4555,8 @@ enum nl80211_reg_rule_flags {
 #define NL80211_RRF_NO_HT40		(NL80211_RRF_NO_HT40MINUS |\
 					 NL80211_RRF_NO_HT40PLUS)
 #define NL80211_RRF_GO_CONCURRENT	NL80211_RRF_IR_CONCURRENT
+#define NL80211_RRF_NO_UHB_VLP_CLIENT	NL80211_RRF_NO_6GHZ_VLP_CLIENT
+#define NL80211_RRF_NO_UHB_AFC_CLIENT	NL80211_RRF_NO_6GHZ_AFC_CLIENT
 
 /* For backport compatibility with older userspace */
 #define NL80211_RRF_NO_IR_ALL		(NL80211_RRF_NO_IR | __NL80211_RRF_NO_IBSS)
@@ -5098,13 +5104,16 @@ enum nl80211_bss_use_for {
  *	BSS isn't possible
  * @NL80211_BSS_CANNOT_USE_NSTR_NONPRIMARY: NSTR nonprimary links aren't
  *	supported by the device, and this BSS entry represents one.
- * @NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH: STA is not supporting
+ * @NL80211_BSS_CANNOT_USE_6GHZ_PWR_MISMATCH: STA is not supporting
  *	the AP power type (SP, VLP, AP) that the AP uses.
  */
 enum nl80211_bss_cannot_use_reasons {
 	NL80211_BSS_CANNOT_USE_NSTR_NONPRIMARY	= 1 << 0,
-	NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH	= 1 << 1,
+	NL80211_BSS_CANNOT_USE_6GHZ_PWR_MISMATCH	= 1 << 1,
 };
+
+#define NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH \
+	NL80211_BSS_CANNOT_USE_6GHZ_PWR_MISMATCH
 
 /**
  * enum nl80211_bss - netlink attributes for a BSS

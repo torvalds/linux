@@ -5,7 +5,7 @@
  * Copyright 2008-2011	Luis R. Rodriguez <mcgrof@qca.qualcomm.com>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright      2017  Intel Deutschland GmbH
- * Copyright (C) 2018 - 2023 Intel Corporation
+ * Copyright (C) 2018 - 2024 Intel Corporation
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1595,10 +1595,10 @@ static u32 map_regdom_flags(u32 rd_flags)
 		channel_flags |= IEEE80211_CHAN_NO_EHT;
 	if (rd_flags & NL80211_RRF_DFS_CONCURRENT)
 		channel_flags |= IEEE80211_CHAN_DFS_CONCURRENT;
-	if (rd_flags & NL80211_RRF_NO_UHB_VLP_CLIENT)
-		channel_flags |= IEEE80211_CHAN_NO_UHB_VLP_CLIENT;
-	if (rd_flags & NL80211_RRF_NO_UHB_AFC_CLIENT)
-		channel_flags |= IEEE80211_CHAN_NO_UHB_AFC_CLIENT;
+	if (rd_flags & NL80211_RRF_NO_6GHZ_VLP_CLIENT)
+		channel_flags |= IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT;
+	if (rd_flags & NL80211_RRF_NO_6GHZ_AFC_CLIENT)
+		channel_flags |= IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT;
 	if (rd_flags & NL80211_RRF_PSD)
 		channel_flags |= IEEE80211_CHAN_PSD;
 	return channel_flags;

@@ -5,7 +5,7 @@
  * Copyright 2008 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright 2016	Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -3041,9 +3041,9 @@ static bool cfg80211_uhb_power_type_valid(const u8 *ie,
 		case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
 			return true;
 		case IEEE80211_6GHZ_CTRL_REG_SP_AP:
-			return !(flags & IEEE80211_CHAN_NO_UHB_AFC_CLIENT);
+			return !(flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT);
 		case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
-			return !(flags & IEEE80211_CHAN_NO_UHB_VLP_CLIENT);
+			return !(flags & IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT);
 		}
 	}
 	return false;
@@ -3112,7 +3112,7 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		data->restrict_use = 1;
 		data->use_for = 0;
 		data->cannot_use_reasons =
-			NL80211_BSS_CANNOT_USE_UHB_PWR_MISMATCH;
+			NL80211_BSS_CANNOT_USE_6GHZ_PWR_MISMATCH;
 	}
 
 	if (ext) {
