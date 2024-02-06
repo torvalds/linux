@@ -594,17 +594,7 @@ static struct platform_driver gpu_cc_sm8550_driver = {
 	},
 };
 
-static int __init gpu_cc_sm8550_init(void)
-{
-	return platform_driver_register(&gpu_cc_sm8550_driver);
-}
-subsys_initcall(gpu_cc_sm8550_init);
-
-static void __exit gpu_cc_sm8550_exit(void)
-{
-	platform_driver_unregister(&gpu_cc_sm8550_driver);
-}
-module_exit(gpu_cc_sm8550_exit);
+module_platform_driver(gpu_cc_sm8550_driver);
 
 MODULE_DESCRIPTION("QTI GPUCC SM8550 Driver");
 MODULE_LICENSE("GPL");
