@@ -1365,12 +1365,10 @@ struct spi_replaced_transfers {
 
 extern int spi_split_transfers_maxsize(struct spi_controller *ctlr,
 				       struct spi_message *msg,
-				       size_t maxsize,
-				       gfp_t gfp);
+				       size_t maxsize);
 extern int spi_split_transfers_maxwords(struct spi_controller *ctlr,
 					struct spi_message *msg,
-					size_t maxwords,
-					gfp_t gfp);
+					size_t maxwords);
 
 /*---------------------------------------------------------------------------*/
 
