@@ -42,6 +42,11 @@ enum mhi_ch_state_type {
 	MHI_CH_STATE_TYPE_MAX,
 };
 
+#define MHI_CH_STATE_TYPE_LIST				\
+	ch_state_type(RESET,		"RESET")	\
+	ch_state_type(STOP,		"STOP")		\
+	ch_state_type_end(START,	"START")
+
 extern const char * const mhi_ch_state_type_str[MHI_CH_STATE_TYPE_MAX];
 #define TO_CH_STATE_TYPE_STR(state) (((state) >= MHI_CH_STATE_TYPE_MAX) ? \
 				     "INVALID_STATE" : \
@@ -49,6 +54,18 @@ extern const char * const mhi_ch_state_type_str[MHI_CH_STATE_TYPE_MAX];
 
 #define MHI_INVALID_BRSTMODE(mode) (mode != MHI_DB_BRST_DISABLE && \
 				    mode != MHI_DB_BRST_ENABLE)
+
+#define MHI_EE_LIST						\
+	mhi_ee(PBL,			"PRIMARY BOOTLOADER")	\
+	mhi_ee(SBL,			"SECONDARY BOOTLOADER")	\
+	mhi_ee(AMSS,			"MISSION MODE")		\
+	mhi_ee(RDDM,			"RAMDUMP DOWNLOAD MODE")\
+	mhi_ee(WFW,			"WLAN FIRMWARE")	\
+	mhi_ee(PTHRU,			"PASS THROUGH")		\
+	mhi_ee(EDL,			"EMERGENCY DOWNLOAD")	\
+	mhi_ee(FP,			"FLASH PROGRAMMER")	\
+	mhi_ee(DISABLE_TRANSITION,	"DISABLE")		\
+	mhi_ee_end(NOT_SUPPORTED,	"NOT SUPPORTED")
 
 extern const char * const mhi_ee_str[MHI_EE_MAX];
 #define TO_MHI_EXEC_STR(ee) (((ee) >= MHI_EE_MAX) ? \
@@ -72,6 +89,15 @@ enum dev_st_transition {
 	DEV_ST_TRANSITION_MAX,
 };
 
+#define DEV_ST_TRANSITION_LIST					\
+	dev_st_trans(PBL,		"PBL")			\
+	dev_st_trans(READY,		"READY")		\
+	dev_st_trans(SBL,		"SBL")			\
+	dev_st_trans(MISSION_MODE,	"MISSION MODE")		\
+	dev_st_trans(FP,		"FLASH PROGRAMMER")	\
+	dev_st_trans(SYS_ERR,		"SYS ERROR")		\
+	dev_st_trans_end(DISABLE,	"DISABLE")
+
 extern const char * const dev_state_tran_str[DEV_ST_TRANSITION_MAX];
 #define TO_DEV_STATE_TRANS_STR(state) (((state) >= DEV_ST_TRANSITION_MAX) ? \
 				"INVALID_STATE" : dev_state_tran_str[state])
@@ -93,6 +119,21 @@ enum mhi_pm_state {
 	MHI_PM_STATE_LD_ERR_FATAL_DETECT,
 	MHI_PM_STATE_MAX
 };
+
+#define MHI_PM_STATE_LIST							\
+	mhi_pm_state(DISABLE,			"DISABLE")			\
+	mhi_pm_state(POR,			"POWER ON RESET")		\
+	mhi_pm_state(M0,			"M0")				\
+	mhi_pm_state(M2,			"M2")				\
+	mhi_pm_state(M3_ENTER,			"M?->M3")			\
+	mhi_pm_state(M3,			"M3")				\
+	mhi_pm_state(M3_EXIT,			"M3->M0")			\
+	mhi_pm_state(FW_DL_ERR,			"Firmware Download Error")	\
+	mhi_pm_state(SYS_ERR_DETECT,		"SYS ERROR Detect")		\
+	mhi_pm_state(SYS_ERR_PROCESS,		"SYS ERROR Process")		\
+	mhi_pm_state(SYS_ERR_FAIL,		"SYS ERROR Failure")		\
+	mhi_pm_state(SHUTDOWN_PROCESS,		"SHUTDOWN Process")		\
+	mhi_pm_state_end(LD_ERR_FATAL_DETECT,	"Linkdown or Error Fatal Detect")
 
 #define MHI_PM_DISABLE					BIT(0)
 #define MHI_PM_POR					BIT(1)

@@ -20,51 +20,49 @@
 #include <linux/wait.h>
 #include "internal.h"
 
+#define CREATE_TRACE_POINTS
+#include "trace.h"
+
 static DEFINE_IDA(mhi_controller_ida);
 
+#undef mhi_ee
+#undef mhi_ee_end
+
+#define mhi_ee(a, b)		[MHI_EE_##a] = b,
+#define mhi_ee_end(a, b)	[MHI_EE_##a] = b,
+
 const char * const mhi_ee_str[MHI_EE_MAX] = {
-	[MHI_EE_PBL] = "PRIMARY BOOTLOADER",
-	[MHI_EE_SBL] = "SECONDARY BOOTLOADER",
-	[MHI_EE_AMSS] = "MISSION MODE",
-	[MHI_EE_RDDM] = "RAMDUMP DOWNLOAD MODE",
-	[MHI_EE_WFW] = "WLAN FIRMWARE",
-	[MHI_EE_PTHRU] = "PASS THROUGH",
-	[MHI_EE_EDL] = "EMERGENCY DOWNLOAD",
-	[MHI_EE_FP] = "FLASH PROGRAMMER",
-	[MHI_EE_DISABLE_TRANSITION] = "DISABLE",
-	[MHI_EE_NOT_SUPPORTED] = "NOT SUPPORTED",
+	MHI_EE_LIST
 };
+
+#undef dev_st_trans
+#undef dev_st_trans_end
+
+#define dev_st_trans(a, b)	[DEV_ST_TRANSITION_##a] = b,
+#define dev_st_trans_end(a, b)	[DEV_ST_TRANSITION_##a] = b,
 
 const char * const dev_state_tran_str[DEV_ST_TRANSITION_MAX] = {
-	[DEV_ST_TRANSITION_PBL] = "PBL",
-	[DEV_ST_TRANSITION_READY] = "READY",
-	[DEV_ST_TRANSITION_SBL] = "SBL",
-	[DEV_ST_TRANSITION_MISSION_MODE] = "MISSION MODE",
-	[DEV_ST_TRANSITION_FP] = "FLASH PROGRAMMER",
-	[DEV_ST_TRANSITION_SYS_ERR] = "SYS ERROR",
-	[DEV_ST_TRANSITION_DISABLE] = "DISABLE",
+	DEV_ST_TRANSITION_LIST
 };
+
+#undef ch_state_type
+#undef ch_state_type_end
+
+#define ch_state_type(a, b)	[MHI_CH_STATE_TYPE_##a] = b,
+#define ch_state_type_end(a, b)	[MHI_CH_STATE_TYPE_##a] = b,
 
 const char * const mhi_ch_state_type_str[MHI_CH_STATE_TYPE_MAX] = {
-	[MHI_CH_STATE_TYPE_RESET] = "RESET",
-	[MHI_CH_STATE_TYPE_STOP] = "STOP",
-	[MHI_CH_STATE_TYPE_START] = "START",
+	MHI_CH_STATE_TYPE_LIST
 };
 
+#undef mhi_pm_state
+#undef mhi_pm_state_end
+
+#define mhi_pm_state(a, b)	[MHI_PM_STATE_##a] = b,
+#define mhi_pm_state_end(a, b)	[MHI_PM_STATE_##a] = b,
+
 static const char * const mhi_pm_state_str[] = {
-	[MHI_PM_STATE_DISABLE] = "DISABLE",
-	[MHI_PM_STATE_POR] = "POWER ON RESET",
-	[MHI_PM_STATE_M0] = "M0",
-	[MHI_PM_STATE_M2] = "M2",
-	[MHI_PM_STATE_M3_ENTER] = "M?->M3",
-	[MHI_PM_STATE_M3] = "M3",
-	[MHI_PM_STATE_M3_EXIT] = "M3->M0",
-	[MHI_PM_STATE_FW_DL_ERR] = "Firmware Download Error",
-	[MHI_PM_STATE_SYS_ERR_DETECT] = "SYS ERROR Detect",
-	[MHI_PM_STATE_SYS_ERR_PROCESS] = "SYS ERROR Process",
-	[MHI_PM_STATE_SYS_ERR_FAIL] = "SYS ERROR Failure",
-	[MHI_PM_STATE_SHUTDOWN_PROCESS] = "SHUTDOWN Process",
-	[MHI_PM_STATE_LD_ERR_FATAL_DETECT] = "Linkdown or Error Fatal Detect",
+	MHI_PM_STATE_LIST
 };
 
 const char *to_mhi_pm_state_str(u32 state)
