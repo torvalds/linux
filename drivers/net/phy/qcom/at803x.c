@@ -504,41 +504,6 @@ static void at803x_link_change_notify(struct phy_device *phydev)
 	}
 }
 
-static int at803x_read_status(struct phy_device *phydev)
-{
-	struct at803x_ss_mask ss_mask = { 0 };
-	int err, old_link = phydev->link;
-
-	/* Update the link, but return if there was an error */
-	err = genphy_update_link(phydev);
-	if (err)
-		return err;
-
-	/* why bother the PHY if nothing can have changed */
-	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
-		return 0;
-
-	phydev->speed = SPEED_UNKNOWN;
-	phydev->duplex = DUPLEX_UNKNOWN;
-	phydev->pause = 0;
-	phydev->asym_pause = 0;
-
-	err = genphy_read_lpa(phydev);
-	if (err < 0)
-		return err;
-
-	ss_mask.speed_mask = AT803X_SS_SPEED_MASK;
-	ss_mask.speed_shift = __bf_shf(AT803X_SS_SPEED_MASK);
-	err = at803x_read_specific_status(phydev, ss_mask);
-	if (err < 0)
-		return err;
-
-	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete)
-		phy_resolve_aneg_pause(phydev);
-
-	return 0;
-}
-
 static int at803x_config_aneg(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
