@@ -752,31 +752,6 @@ static int eventfs_iterate(struct file *file, struct dir_context *ctx)
 	 * Need to create the dentries and inodes to have a consistent
 	 * inode number.
 	 */
-	list_for_each_entry_srcu(ei_child, &ei->children, list,
-				 srcu_read_lock_held(&eventfs_srcu)) {
-
-		if (c > 0) {
-			c--;
-			continue;
-		}
-
-		ctx->pos++;
-
-		if (ei_child->is_freed)
-			continue;
-
-		name = ei_child->name;
-
-		dentry = create_dir_dentry(ei, ei_child, ei_dentry);
-		if (!dentry)
-			goto out_dec;
-		ino = dentry->d_inode->i_ino;
-		dput(dentry);
-
-		if (!dir_emit(ctx, name, strlen(name), ino, DT_DIR))
-			goto out_dec;
-	}
-
 	for (i = 0; i < ei->nr_entries; i++) {
 		void *cdata = ei->data;
 
@@ -808,6 +783,31 @@ static int eventfs_iterate(struct file *file, struct dir_context *ctx)
 		dput(dentry);
 
 		if (!dir_emit(ctx, name, strlen(name), ino, DT_REG))
+			goto out_dec;
+	}
+
+	list_for_each_entry_srcu(ei_child, &ei->children, list,
+				 srcu_read_lock_held(&eventfs_srcu)) {
+
+		if (c > 0) {
+			c--;
+			continue;
+		}
+
+		ctx->pos++;
+
+		if (ei_child->is_freed)
+			continue;
+
+		name = ei_child->name;
+
+		dentry = create_dir_dentry(ei, ei_child, ei_dentry);
+		if (!dentry)
+			goto out_dec;
+		ino = dentry->d_inode->i_ino;
+		dput(dentry);
+
+		if (!dir_emit(ctx, name, strlen(name), ino, DT_DIR))
 			goto out_dec;
 	}
 	ret = 1;
