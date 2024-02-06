@@ -1145,7 +1145,7 @@ EXPORT_SYMBOL(cfg80211_chandef_dfs_cac_time);
 
 static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 					u32 center_freq, u32 bandwidth,
-					u32 prohibited_flags)
+					u32 prohibited_flags, bool monitor)
 {
 	struct ieee80211_channel *c;
 	u32 freq, start_freq, end_freq;
@@ -1155,7 +1155,11 @@ static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 
 	for (freq = start_freq; freq <= end_freq; freq += MHZ_TO_KHZ(20)) {
 		c = ieee80211_get_channel_khz(wiphy, freq);
-		if (!c || c->flags & prohibited_flags)
+		if (!c)
+			return false;
+		if (monitor && c->flags & IEEE80211_CHAN_CAN_MONITOR)
+			continue;
+		if (c->flags & prohibited_flags)
 			return false;
 	}
 
@@ -1215,9 +1219,9 @@ static bool cfg80211_edmg_usable(struct wiphy *wiphy, u8 edmg_channels,
 	return true;
 }
 
-bool cfg80211_chandef_usable(struct wiphy *wiphy,
-			     const struct cfg80211_chan_def *chandef,
-			     u32 prohibited_flags)
+bool _cfg80211_chandef_usable(struct wiphy *wiphy,
+			      const struct cfg80211_chan_def *chandef,
+			      u32 prohibited_flags, bool monitor)
 {
 	struct ieee80211_sta_ht_cap *ht_cap;
 	struct ieee80211_sta_vht_cap *vht_cap;
@@ -1379,14 +1383,22 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 
 	if (!cfg80211_secondary_chans_ok(wiphy,
 					 ieee80211_chandef_to_khz(chandef),
-					 width, prohibited_flags))
+					 width, prohibited_flags, monitor))
 		return false;
 
 	if (!chandef->center_freq2)
 		return true;
 	return cfg80211_secondary_chans_ok(wiphy,
 					   MHZ_TO_KHZ(chandef->center_freq2),
-					   width, prohibited_flags);
+					   width, prohibited_flags, monitor);
+}
+
+bool cfg80211_chandef_usable(struct wiphy *wiphy,
+			     const struct cfg80211_chan_def *chandef,
+			     u32 prohibited_flags)
+{
+	return _cfg80211_chandef_usable(wiphy, chandef, prohibited_flags,
+					false);
 }
 EXPORT_SYMBOL(cfg80211_chandef_usable);
 

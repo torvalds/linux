@@ -122,6 +122,9 @@ struct wiphy;
  *	not permitted using this channel
  * @IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT: Client connection with AFC AP
  *	not permitted using this channel
+ * @IEEE80211_CHAN_CAN_MONITOR: This channel can be used for monitor
+ *	mode even in the presence of other (regulatory) restrictions,
+ *	even if it is otherwise disabled.
  */
 enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DISABLED		= 1<<0,
@@ -148,6 +151,7 @@ enum ieee80211_channel_flags {
 	IEEE80211_CHAN_DFS_CONCURRENT	= 1<<21,
 	IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT = 1<<22,
 	IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT = 1<<23,
+	IEEE80211_CHAN_CAN_MONITOR	= 1<<24,
 };
 
 #define IEEE80211_CHAN_NO_HT40 \

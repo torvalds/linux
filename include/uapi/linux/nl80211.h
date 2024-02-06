@@ -4273,6 +4273,9 @@ enum nl80211_wmm_rule {
  *	not allowed using this channel
  * @NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT: Client connection to AFC AP
  *	not allowed using this channel
+ * @NL80211_FREQUENCY_ATTR_CAN_MONITOR: This channel can be used in monitor
+ *	mode despite other (regulatory) restrictions, even if the channel is
+ *	otherwise completely disabled.
  * @NL80211_FREQUENCY_ATTR_MAX: highest frequency attribute number
  *	currently defined
  * @__NL80211_FREQUENCY_ATTR_AFTER_LAST: internal use
@@ -4315,6 +4318,7 @@ enum nl80211_frequency_attr {
 	NL80211_FREQUENCY_ATTR_DFS_CONCURRENT,
 	NL80211_FREQUENCY_ATTR_NO_6GHZ_VLP_CLIENT,
 	NL80211_FREQUENCY_ATTR_NO_6GHZ_AFC_CLIENT,
+	NL80211_FREQUENCY_ATTR_CAN_MONITOR,
 
 	/* keep last */
 	__NL80211_FREQUENCY_ATTR_AFTER_LAST,

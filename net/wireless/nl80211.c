@@ -3218,9 +3218,9 @@ static bool nl80211_can_set_dev_channel(struct wireless_dev *wdev)
 		wdev->iftype == NL80211_IFTYPE_P2P_GO;
 }
 
-int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
-			  struct genl_info *info,
-			  struct cfg80211_chan_def *chandef)
+static int _nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
+				  struct genl_info *info, bool monitor,
+				  struct cfg80211_chan_def *chandef)
 {
 	struct netlink_ext_ack *extack = info->extack;
 	struct nlattr **attrs = info->attrs;
@@ -3245,10 +3245,9 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 	chandef->freq1_offset = control_freq % 1000;
 	chandef->center_freq2 = 0;
 
-	/* Primary channel not allowed */
-	if (!chandef->chan || chandef->chan->flags & IEEE80211_CHAN_DISABLED) {
+	if (!chandef->chan) {
 		NL_SET_ERR_MSG_ATTR(extack, attrs[NL80211_ATTR_WIPHY_FREQ],
-				    "Channel is disabled");
+				    "Unknown channel");
 		return -EINVAL;
 	}
 
@@ -3343,8 +3342,9 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 		return -EINVAL;
 	}
 
-	if (!cfg80211_chandef_usable(&rdev->wiphy, chandef,
-				     IEEE80211_CHAN_DISABLED)) {
+	if (!_cfg80211_chandef_usable(&rdev->wiphy, chandef,
+				      IEEE80211_CHAN_DISABLED,
+				      monitor)) {
 		NL_SET_ERR_MSG(extack, "(extension) channel is disabled");
 		return -EINVAL;
 	}
@@ -3357,6 +3357,13 @@ int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 	}
 
 	return 0;
+}
+
+int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
+			  struct genl_info *info,
+			  struct cfg80211_chan_def *chandef)
+{
+	return _nl80211_parse_chandef(rdev, info, false, chandef);
 }
 
 static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
@@ -3383,7 +3390,9 @@ static int __nl80211_set_channel(struct cfg80211_registered_device *rdev,
 		link_id = 0;
 	}
 
-	result = nl80211_parse_chandef(rdev, info, &chandef);
+	result = _nl80211_parse_chandef(rdev, info,
+					iftype == NL80211_IFTYPE_MONITOR,
+					&chandef);
 	if (result)
 		return result;
 
