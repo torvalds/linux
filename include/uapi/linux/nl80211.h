@@ -5757,6 +5757,8 @@ struct nl80211_pattern_support {
  *	%NL80211_ATTR_SCAN_FREQUENCIES contains more than one
  *	frequency, it means that the match occurred in more than one
  *	channel.
+ * @NL80211_WOWLAN_TRIG_UNPROTECTED_DEAUTH_DISASSOC: For wakeup reporting only.
+ *	Wake up happened due to unprotected deauth or disassoc frame in MFP.
  * @NUM_NL80211_WOWLAN_TRIG: number of wake on wireless triggers
  * @MAX_NL80211_WOWLAN_TRIG: highest wowlan trigger attribute number
  *
@@ -5784,6 +5786,7 @@ enum nl80211_wowlan_triggers {
 	NL80211_WOWLAN_TRIG_WAKEUP_TCP_NOMORETOKENS,
 	NL80211_WOWLAN_TRIG_NET_DETECT,
 	NL80211_WOWLAN_TRIG_NET_DETECT_RESULTS,
+	NL80211_WOWLAN_TRIG_UNPROTECTED_DEAUTH_DISASSOC,
 
 	/* keep last */
 	NUM_NL80211_WOWLAN_TRIG,
