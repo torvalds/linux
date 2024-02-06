@@ -903,7 +903,7 @@ static int defrag_collect_targets(struct btrfs_inode *inode,
 			goto add;
 
 		/* Skip too large extent */
-		if (range_len >= extent_thresh)
+		if (em->len >= extent_thresh)
 			goto next;
 
 		/*
