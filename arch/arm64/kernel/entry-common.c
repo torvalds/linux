@@ -130,7 +130,7 @@ static __always_inline void __exit_to_user_mode(void)
 static void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 {
 	do {
-		local_daif_restore(DAIF_PROCCTX);
+		local_irq_enable();
 
 		if (thread_flags & _TIF_NEED_RESCHED)
 			schedule();
@@ -153,7 +153,7 @@ static void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 		if (thread_flags & _TIF_FOREIGN_FPSTATE)
 			fpsimd_restore_current_state();
 
-		local_daif_mask();
+		local_irq_disable();
 		thread_flags = read_thread_flags();
 	} while (thread_flags & _TIF_WORK_MASK);
 }
@@ -162,11 +162,13 @@ static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 {
 	unsigned long flags;
 
-	local_daif_mask();
+	local_irq_disable();
 
 	flags = read_thread_flags();
 	if (unlikely(flags & _TIF_WORK_MASK))
 		do_notify_resume(regs, flags);
+
+	local_daif_mask();
 
 	lockdep_sys_exit();
 }
