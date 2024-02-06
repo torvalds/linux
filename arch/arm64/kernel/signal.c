@@ -16,8 +16,8 @@
 #include <linux/uaccess.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
-#include <linux/resume_user_mode.h>
 #include <linux/ratelimit.h>
+#include <linux/rseq.h>
 #include <linux/syscalls.h>
 
 #include <asm/daifflags.h>
@@ -1207,7 +1207,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-static void do_signal(struct pt_regs *regs)
+void do_signal(struct pt_regs *regs)
 {
 	unsigned long continue_addr = 0, restart_addr = 0;
 	int retval = 0;
@@ -1276,37 +1276,6 @@ static void do_signal(struct pt_regs *regs)
 	}
 
 	restore_saved_sigmask();
-}
-
-void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
-{
-	do {
-		local_daif_restore(DAIF_PROCCTX);
-
-		if (thread_flags & _TIF_NEED_RESCHED)
-			schedule();
-
-		if (thread_flags & _TIF_UPROBE)
-			uprobe_notify_resume(regs);
-
-		if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
-			clear_thread_flag(TIF_MTE_ASYNC_FAULT);
-			send_sig_fault(SIGSEGV, SEGV_MTEAERR,
-				       (void __user *)NULL, current);
-		}
-
-		if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
-			do_signal(regs);
-
-		if (thread_flags & _TIF_NOTIFY_RESUME)
-			resume_user_mode_work(regs);
-
-		if (thread_flags & _TIF_FOREIGN_FPSTATE)
-			fpsimd_restore_current_state();
-
-		local_daif_mask();
-		thread_flags = read_thread_flags();
-	} while (thread_flags & _TIF_WORK_MASK);
 }
 
 unsigned long __ro_after_init signal_minsigstksz;
