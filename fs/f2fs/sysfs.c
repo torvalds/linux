@@ -493,8 +493,8 @@ out:
 		spin_lock(&sbi->stat_lock);
 		if (t > (unsigned long)(sbi->user_block_count -
 				F2FS_OPTION(sbi).root_reserved_blocks -
-				sbi->blocks_per_seg *
-				SM_I(sbi)->additional_reserved_segments)) {
+				(SM_I(sbi)->additional_reserved_segments <<
+					sbi->log_blocks_per_seg))) {
 			spin_unlock(&sbi->stat_lock);
 			return -EINVAL;
 		}
@@ -551,7 +551,7 @@ out:
 	}
 
 	if (!strcmp(a->attr.name, "migration_granularity")) {
-		if (t == 0 || t > sbi->segs_per_sec)
+		if (t == 0 || t > SEGS_PER_SEC(sbi))
 			return -EINVAL;
 	}
 

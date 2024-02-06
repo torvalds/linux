@@ -259,7 +259,7 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 		p->ofs_unit = 1;
 	} else {
 		p->gc_mode = select_gc_type(sbi, gc_type);
-		p->ofs_unit = sbi->segs_per_sec;
+		p->ofs_unit = SEGS_PER_SEC(sbi);
 		if (__is_large_section(sbi)) {
 			p->dirty_bitmap = dirty_i->dirty_secmap;
 			p->max_search = count_bits(p->dirty_bitmap,
@@ -282,7 +282,8 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 
 	/* let's select beginning hot/small space first in no_heap mode*/
 	if (f2fs_need_rand_seg(sbi))
-		p->offset = get_random_u32_below(MAIN_SECS(sbi) * sbi->segs_per_sec);
+		p->offset = get_random_u32_below(MAIN_SECS(sbi) *
+						SEGS_PER_SEC(sbi));
 	else if (test_opt(sbi, NOHEAP) &&
 		(type == CURSEG_HOT_DATA || IS_NODESEG(type)))
 		p->offset = 0;
@@ -295,13 +296,13 @@ static unsigned int get_max_cost(struct f2fs_sb_info *sbi,
 {
 	/* SSR allocates in a segment unit */
 	if (p->alloc_mode == SSR)
-		return sbi->blocks_per_seg;
+		return BLKS_PER_SEG(sbi);
 	else if (p->alloc_mode == AT_SSR)
 		return UINT_MAX;
 
 	/* LFS */
 	if (p->gc_mode == GC_GREEDY)
-		return 2 * sbi->blocks_per_seg * p->ofs_unit;
+		return 2 * BLKS_PER_SEG(sbi) * p->ofs_unit;
 	else if (p->gc_mode == GC_CB)
 		return UINT_MAX;
 	else if (p->gc_mode == GC_AT)
@@ -496,9 +497,9 @@ static void add_victim_entry(struct f2fs_sb_info *sbi,
 			return;
 	}
 
-	for (i = 0; i < sbi->segs_per_sec; i++)
+	for (i = 0; i < SEGS_PER_SEC(sbi); i++)
 		mtime += get_seg_entry(sbi, start + i)->mtime;
-	mtime = div_u64(mtime, sbi->segs_per_sec);
+	mtime = div_u64(mtime, SEGS_PER_SEC(sbi));
 
 	/* Handle if the system time has changed by the user */
 	if (mtime < sit_i->min_mtime)
@@ -599,7 +600,6 @@ static void atssr_lookup_victim(struct f2fs_sb_info *sbi,
 	unsigned long long age;
 	unsigned long long max_mtime = sit_i->dirty_max_mtime;
 	unsigned long long min_mtime = sit_i->dirty_min_mtime;
-	unsigned int seg_blocks = sbi->blocks_per_seg;
 	unsigned int vblocks;
 	unsigned int dirty_threshold = max(am->max_candidate_count,
 					am->candidate_ratio *
@@ -629,7 +629,7 @@ next_node:
 	f2fs_bug_on(sbi, !vblocks);
 
 	/* rare case */
-	if (vblocks == seg_blocks)
+	if (vblocks == BLKS_PER_SEG(sbi))
 		goto skip_node;
 
 	iter++;
@@ -755,7 +755,7 @@ int f2fs_get_victim(struct f2fs_sb_info *sbi, unsigned int *result,
 	int ret = 0;
 
 	mutex_lock(&dirty_i->seglist_lock);
-	last_segment = MAIN_SECS(sbi) * sbi->segs_per_sec;
+	last_segment = MAIN_SECS(sbi) * SEGS_PER_SEC(sbi);
 
 	p.alloc_mode = alloc_mode;
 	p.age = age;
@@ -896,7 +896,7 @@ next:
 			else
 				sm->last_victim[p.gc_mode] = segno + p.ofs_unit;
 			sm->last_victim[p.gc_mode] %=
-				(MAIN_SECS(sbi) * sbi->segs_per_sec);
+				(MAIN_SECS(sbi) * SEGS_PER_SEC(sbi));
 			break;
 		}
 	}
@@ -1670,7 +1670,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	struct f2fs_summary_block *sum;
 	struct blk_plug plug;
 	unsigned int segno = start_segno;
-	unsigned int end_segno = start_segno + sbi->segs_per_sec;
+	unsigned int end_segno = start_segno + SEGS_PER_SEC(sbi);
 	int seg_freed = 0, migrated = 0;
 	unsigned char type = IS_DATASEG(get_seg_entry(sbi, segno)->type) ?
 						SUM_TYPE_DATA : SUM_TYPE_NODE;
@@ -1678,7 +1678,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	int submitted = 0;
 
 	if (__is_large_section(sbi))
-		end_segno = rounddown(end_segno, sbi->segs_per_sec);
+		end_segno = rounddown(end_segno, SEGS_PER_SEC(sbi));
 
 	/*
 	 * zone-capacity can be less than zone-size in zoned devices,
@@ -1686,7 +1686,7 @@ static int do_garbage_collect(struct f2fs_sb_info *sbi,
 	 * calculate the end segno in the zone which can be garbage collected
 	 */
 	if (f2fs_sb_has_blkzoned(sbi))
-		end_segno -= sbi->segs_per_sec -
+		end_segno -= SEGS_PER_SEC(sbi) -
 					f2fs_usable_segs_in_sec(sbi, segno);
 
 	sanity_check_seg_type(sbi, get_seg_entry(sbi, segno)->type);
@@ -1986,7 +1986,7 @@ static int free_segment_range(struct f2fs_sb_info *sbi,
 
 	/* Force block allocation for GC */
 	MAIN_SECS(sbi) -= secs;
-	start = MAIN_SECS(sbi) * sbi->segs_per_sec;
+	start = MAIN_SECS(sbi) * SEGS_PER_SEC(sbi);
 	end = MAIN_SEGS(sbi) - 1;
 
 	mutex_lock(&DIRTY_I(sbi)->seglist_lock);
@@ -2004,7 +2004,7 @@ static int free_segment_range(struct f2fs_sb_info *sbi,
 		f2fs_allocate_segment_for_resize(sbi, type, start, end);
 
 	/* do GC to move out valid blocks in the range */
-	for (segno = start; segno <= end; segno += sbi->segs_per_sec) {
+	for (segno = start; segno <= end; segno += SEGS_PER_SEC(sbi)) {
 		struct gc_inode_list gc_list = {
 			.ilist = LIST_HEAD_INIT(gc_list.ilist),
 			.iroot = RADIX_TREE_INIT(gc_list.iroot, GFP_NOFS),
@@ -2048,7 +2048,7 @@ static void update_sb_metadata(struct f2fs_sb_info *sbi, int secs)
 	int segment_count;
 	int segment_count_main;
 	long long block_count;
-	int segs = secs * sbi->segs_per_sec;
+	int segs = secs * SEGS_PER_SEC(sbi);
 
 	f2fs_down_write(&sbi->sb_lock);
 
@@ -2061,7 +2061,7 @@ static void update_sb_metadata(struct f2fs_sb_info *sbi, int secs)
 	raw_sb->segment_count = cpu_to_le32(segment_count + segs);
 	raw_sb->segment_count_main = cpu_to_le32(segment_count_main + segs);
 	raw_sb->block_count = cpu_to_le64(block_count +
-					(long long)segs * sbi->blocks_per_seg);
+			(long long)(segs << sbi->log_blocks_per_seg));
 	if (f2fs_is_multi_device(sbi)) {
 		int last_dev = sbi->s_ndevs - 1;
 		int dev_segs =
@@ -2076,8 +2076,8 @@ static void update_sb_metadata(struct f2fs_sb_info *sbi, int secs)
 
 static void update_fs_metadata(struct f2fs_sb_info *sbi, int secs)
 {
-	int segs = secs * sbi->segs_per_sec;
-	long long blks = (long long)segs * sbi->blocks_per_seg;
+	int segs = secs * SEGS_PER_SEC(sbi);
+	long long blks = (long long)segs << sbi->log_blocks_per_seg;
 	long long user_block_count =
 				le64_to_cpu(F2FS_CKPT(sbi)->user_block_count);
 
@@ -2119,7 +2119,7 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
 		int last_dev = sbi->s_ndevs - 1;
 		__u64 last_segs = FDEV(last_dev).total_segments;
 
-		if (block_count + last_segs * sbi->blocks_per_seg <=
+		if (block_count + (last_segs << sbi->log_blocks_per_seg) <=
 								old_block_count)
 			return -EINVAL;
 	}

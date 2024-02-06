@@ -1813,6 +1813,14 @@ struct f2fs_sb_info {
 #endif
 };
 
+/* Definitions to access f2fs_sb_info */
+#define BLKS_PER_SEG(sbi)					\
+	((sbi)->blocks_per_seg)
+#define BLKS_PER_SEC(sbi)					\
+	((sbi)->segs_per_sec << (sbi)->log_blocks_per_seg)
+#define SEGS_PER_SEC(sbi)					\
+	((sbi)->segs_per_sec)
+
 __printf(3, 4)
 void f2fs_printk(struct f2fs_sb_info *sbi, bool limit_rate, const char *fmt, ...);
 
@@ -2511,11 +2519,8 @@ static inline int get_dirty_pages(struct inode *inode)
 
 static inline int get_blocktype_secs(struct f2fs_sb_info *sbi, int block_type)
 {
-	unsigned int pages_per_sec = sbi->segs_per_sec * sbi->blocks_per_seg;
-	unsigned int segs = (get_pages(sbi, block_type) + pages_per_sec - 1) >>
-						sbi->log_blocks_per_seg;
-
-	return segs / sbi->segs_per_sec;
+	return div_u64(get_pages(sbi, block_type) + BLKS_PER_SEC(sbi) - 1,
+							BLKS_PER_SEC(sbi));
 }
 
 static inline block_t valid_user_blocks(struct f2fs_sb_info *sbi)
@@ -2579,7 +2584,7 @@ static inline block_t __start_cp_addr(struct f2fs_sb_info *sbi)
 	block_t start_addr = le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_blkaddr);
 
 	if (sbi->cur_cp_pack == 2)
-		start_addr += sbi->blocks_per_seg;
+		start_addr += BLKS_PER_SEG(sbi);
 	return start_addr;
 }
 
@@ -2588,7 +2593,7 @@ static inline block_t __start_cp_next_addr(struct f2fs_sb_info *sbi)
 	block_t start_addr = le32_to_cpu(F2FS_RAW_SUPER(sbi)->cp_blkaddr);
 
 	if (sbi->cur_cp_pack == 1)
-		start_addr += sbi->blocks_per_seg;
+		start_addr += BLKS_PER_SEG(sbi);
 	return start_addr;
 }
 
@@ -3458,7 +3463,7 @@ static inline __le32 *get_dnode_addr(struct inode *inode,
 		sizeof((f2fs_inode)->field))			\
 		<= (F2FS_OLD_ATTRIBUTE_SIZE + (extra_isize)))	\
 
-#define __is_large_section(sbi)		((sbi)->segs_per_sec > 1)
+#define __is_large_section(sbi)		(SEGS_PER_SEC(sbi) > 1)
 
 #define __is_meta_io(fio) (PAGE_TYPE_OF_BIO((fio)->type) == META)
 

@@ -354,7 +354,7 @@ static unsigned int adjust_por_ra_blocks(struct f2fs_sb_info *sbi,
 	if (blkaddr + 1 == next_blkaddr)
 		ra_blocks = min_t(unsigned int, RECOVERY_MAX_RA_BLOCKS,
 							ra_blocks * 2);
-	else if (next_blkaddr % sbi->blocks_per_seg)
+	else if (next_blkaddr % BLKS_PER_SEG(sbi))
 		ra_blocks = max_t(unsigned int, RECOVERY_MIN_RA_BLOCKS,
 							ra_blocks / 2);
 	return ra_blocks;

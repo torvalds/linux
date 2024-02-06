@@ -2841,7 +2841,7 @@ int f2fs_restore_node_summary(struct f2fs_sb_info *sbi,
 	int i, idx, last_offset, nrpages;
 
 	/* scan the node segment */
-	last_offset = sbi->blocks_per_seg;
+	last_offset = BLKS_PER_SEG(sbi);
 	addr = START_BLOCK(sbi, segno);
 	sum_entry = &sum->entries[0];
 
@@ -3158,7 +3158,7 @@ static int __get_nat_bitmaps(struct f2fs_sb_info *sbi)
 	if (!is_set_ckpt_flags(sbi, CP_NAT_BITS_FLAG))
 		return 0;
 
-	nat_bits_addr = __start_cp_addr(sbi) + sbi->blocks_per_seg -
+	nat_bits_addr = __start_cp_addr(sbi) + BLKS_PER_SEG(sbi) -
 						nm_i->nat_bits_blocks;
 	for (i = 0; i < nm_i->nat_bits_blocks; i++) {
 		struct page *page;

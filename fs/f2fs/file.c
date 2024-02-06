@@ -2580,7 +2580,6 @@ static int f2fs_defragment_range(struct f2fs_sb_info *sbi,
 					.m_may_create = false };
 	struct extent_info ei = {};
 	pgoff_t pg_start, pg_end, next_pgofs;
-	unsigned int blk_per_seg = sbi->blocks_per_seg;
 	unsigned int total = 0, sec_num;
 	block_t blk_end = 0;
 	bool fragmented = false;
@@ -2689,7 +2688,8 @@ do_map:
 		set_inode_flag(inode, FI_SKIP_WRITES);
 
 		idx = map.m_lblk;
-		while (idx < map.m_lblk + map.m_len && cnt < blk_per_seg) {
+		while (idx < map.m_lblk + map.m_len &&
+						cnt < BLKS_PER_SEG(sbi)) {
 			struct page *page;
 
 			page = f2fs_get_lock_data_page(inode, idx, true);
@@ -2709,7 +2709,7 @@ do_map:
 
 		map.m_lblk = idx;
 check:
-		if (map.m_lblk < pg_end && cnt < blk_per_seg)
+		if (map.m_lblk < pg_end && cnt < BLKS_PER_SEG(sbi))
 			goto do_map;
 
 		clear_inode_flag(inode, FI_SKIP_WRITES);
@@ -2978,8 +2978,8 @@ static int f2fs_ioc_flush_device(struct file *filp, unsigned long arg)
 
 	if (!f2fs_is_multi_device(sbi) || sbi->s_ndevs - 1 <= range.dev_num ||
 			__is_large_section(sbi)) {
-		f2fs_warn(sbi, "Can't flush %u in %d for segs_per_sec %u != 1",
-			  range.dev_num, sbi->s_ndevs, sbi->segs_per_sec);
+		f2fs_warn(sbi, "Can't flush %u in %d for SEGS_PER_SEC %u != 1",
+			  range.dev_num, sbi->s_ndevs, SEGS_PER_SEC(sbi));
 		return -EINVAL;
 	}
 
@@ -4081,7 +4081,6 @@ static int f2fs_ioc_decompress_file(struct file *filp)
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	pgoff_t page_idx = 0, last_idx;
-	unsigned int blk_per_seg = sbi->blocks_per_seg;
 	int cluster_size = fi->i_cluster_size;
 	int count, ret;
 
@@ -4125,7 +4124,7 @@ static int f2fs_ioc_decompress_file(struct file *filp)
 		if (ret < 0)
 			break;
 
-		if (get_dirty_pages(inode) >= blk_per_seg) {
+		if (get_dirty_pages(inode) >= BLKS_PER_SEG(sbi)) {
 			ret = filemap_fdatawrite(inode->i_mapping);
 			if (ret < 0)
 				break;
@@ -4160,7 +4159,6 @@ static int f2fs_ioc_compress_file(struct file *filp)
 	struct inode *inode = file_inode(filp);
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	pgoff_t page_idx = 0, last_idx;
-	unsigned int blk_per_seg = sbi->blocks_per_seg;
 	int cluster_size = F2FS_I(inode)->i_cluster_size;
 	int count, ret;
 
@@ -4203,7 +4201,7 @@ static int f2fs_ioc_compress_file(struct file *filp)
 		if (ret < 0)
 			break;
 
-		if (get_dirty_pages(inode) >= blk_per_seg) {
+		if (get_dirty_pages(inode) >= BLKS_PER_SEG(sbi)) {
 			ret = filemap_fdatawrite(inode->i_mapping);
 			if (ret < 0)
 				break;
