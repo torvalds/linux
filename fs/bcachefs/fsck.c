@@ -920,6 +920,31 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
+	if (u.bi_subvol) {
+		struct bch_subvolume s;
+
+		ret = bch2_subvolume_get(trans, u.bi_subvol, false, 0, &s);
+		if (ret && !bch2_err_matches(ret, ENOENT))
+			goto err;
+
+		if (fsck_err_on(ret,
+				c, inode_bi_subvol_missing,
+				"inode %llu:%u bi_subvol points to missing subvolume %u",
+				u.bi_inum, k.k->p.snapshot, u.bi_subvol) ||
+		    fsck_err_on(le64_to_cpu(s.inode) != u.bi_inum ||
+				!bch2_snapshot_is_ancestor(c, le32_to_cpu(s.snapshot),
+							   k.k->p.snapshot),
+				c, inode_bi_subvol_wrong,
+				"inode %llu:%u points to subvol %u, but subvol points to %llu:%u",
+				u.bi_inum, k.k->p.snapshot, u.bi_subvol,
+				le64_to_cpu(s.inode),
+				le32_to_cpu(s.snapshot))) {
+			u.bi_subvol = 0;
+			u.bi_parent_subvol = 0;
+			do_update = true;
+		}
+	}
+
 	if (do_update) {
 		ret = __bch2_fsck_write_inode(trans, &u, iter->pos.snapshot);
 		bch_err_msg(c, ret, "in fsck updating inode");
