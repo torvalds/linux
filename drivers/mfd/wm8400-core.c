@@ -100,7 +100,7 @@ static const struct regmap_config wm8400_regmap_config = {
 
 	.volatile_reg = wm8400_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /**
