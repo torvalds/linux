@@ -939,9 +939,15 @@ iwl_mvm_tx_tso_segment(struct sk_buff *skb, unsigned int num_subframes,
 	next = skb_gso_segment(skb, netdev_flags);
 	skb_shinfo(skb)->gso_size = mss;
 	skb_shinfo(skb)->gso_type = ipv4 ? SKB_GSO_TCPV4 : SKB_GSO_TCPV6;
-	if (WARN_ON_ONCE(IS_ERR(next)))
-		return -EINVAL;
-	else if (next)
+
+	if (IS_ERR(next) && PTR_ERR(next) == -ENOMEM)
+		return -ENOMEM;
+
+	if (WARN_ONCE(IS_ERR(next),
+		      "skb_gso_segment error: %d\n", (int)PTR_ERR(next)))
+		return PTR_ERR(next);
+
+	if (next)
 		consume_skb(skb);
 
 	skb_list_walk_safe(next, tmp, next) {
