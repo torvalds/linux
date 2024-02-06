@@ -35,8 +35,7 @@ struct eventfs_attr {
  * @entries:	the array of entries representing the files in the directory
  * @name:	the name of the directory to create
  * @children:	link list into the child eventfs_inode
- * @dentry:     the dentry of the directory
- * @d_children: The array of dentries to represent the files when created
+ * @events_dir: the dentry of the events directory
  * @entry_attrs: Saved mode and ownership of the @d_children
  * @attr:	Saved mode and ownership of eventfs_inode itself
  * @data:	The private data to pass to the callbacks
@@ -45,12 +44,12 @@ struct eventfs_attr {
  * @nr_entries: The number of items in @entries
  */
 struct eventfs_inode {
+	struct kref			kref;
 	struct list_head		list;
 	const struct eventfs_entry	*entries;
 	const char			*name;
 	struct list_head		children;
-	struct dentry			*dentry; /* Check is_freed to access */
-	struct dentry			**d_children;
+	struct dentry			*events_dir;
 	struct eventfs_attr		*entry_attrs;
 	struct eventfs_attr		attr;
 	void				*data;
