@@ -437,9 +437,7 @@ static int qca808x_led_hw_control_enable(struct phy_device *phydev, u8 index)
 		return -EINVAL;
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	return phy_clear_bits_mmd(phydev, MDIO_MMD_AN, reg,
-				  QCA808X_LED_FORCE_EN);
+	return qca808x_led_reg_hw_control_enable(phydev, reg);
 }
 
 static int qca808x_led_hw_is_supported(struct phy_device *phydev, u8 index,
@@ -480,16 +478,12 @@ static int qca808x_led_hw_control_set(struct phy_device *phydev, u8 index,
 static bool qca808x_led_hw_control_status(struct phy_device *phydev, u8 index)
 {
 	u16 reg;
-	int val;
 
 	if (index > 2)
 		return false;
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, reg);
-
-	return !(val & QCA808X_LED_FORCE_EN);
+	return qca808x_led_reg_hw_control_status(phydev, reg);
 }
 
 static int qca808x_led_hw_control_get(struct phy_device *phydev, u8 index,
@@ -557,44 +551,20 @@ static int qca808x_led_brightness_set(struct phy_device *phydev,
 	}
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	return phy_modify_mmd(phydev, MDIO_MMD_AN, reg,
-			      QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_MODE_MASK,
-			      QCA808X_LED_FORCE_EN | (value ? QCA808X_LED_FORCE_ON :
-							     QCA808X_LED_FORCE_OFF));
+	return qca808x_led_reg_brightness_set(phydev, reg, value);
 }
 
 static int qca808x_led_blink_set(struct phy_device *phydev, u8 index,
 				 unsigned long *delay_on,
 				 unsigned long *delay_off)
 {
-	int ret;
 	u16 reg;
 
 	if (index > 2)
 		return -EINVAL;
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	/* Set blink to 50% off, 50% on at 4Hz by default */
-	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_LED_GLOBAL,
-			     QCA808X_LED_BLINK_FREQ_MASK | QCA808X_LED_BLINK_DUTY_MASK,
-			     QCA808X_LED_BLINK_FREQ_4HZ | QCA808X_LED_BLINK_DUTY_50_50);
-	if (ret)
-		return ret;
-
-	/* We use BLINK_1 for normal blinking */
-	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, reg,
-			     QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_MODE_MASK,
-			     QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_BLINK_1);
-	if (ret)
-		return ret;
-
-	/* We set blink to 4Hz, aka 250ms */
-	*delay_on = 250 / 2;
-	*delay_off = 250 / 2;
-
-	return 0;
+	return qca808x_led_reg_blink_set(phydev, reg, delay_on, delay_off);
 }
 
 static int qca808x_led_polarity_set(struct phy_device *phydev, int index,

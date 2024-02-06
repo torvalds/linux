@@ -234,3 +234,10 @@ int at803x_cdt_start(struct phy_device *phydev, u32 cdt_start);
 int at803x_cdt_wait_for_completion(struct phy_device *phydev,
 				   u32 cdt_en);
 int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finished);
+int qca808x_led_reg_hw_control_enable(struct phy_device *phydev, u16 reg);
+bool qca808x_led_reg_hw_control_status(struct phy_device *phydev, u16 reg);
+int qca808x_led_reg_brightness_set(struct phy_device *phydev,
+				   u16 reg, enum led_brightness value);
+int qca808x_led_reg_blink_set(struct phy_device *phydev, u16 reg,
+			      unsigned long *delay_on,
+			      unsigned long *delay_off);
