@@ -372,7 +372,7 @@ void rtw89_core_set_chip_txpwr(struct rtw89_dev *rtwdev)
 	chip->ops->set_txpwr(rtwdev, chan, phy_idx);
 }
 
-void rtw89_set_channel(struct rtw89_dev *rtwdev)
+int rtw89_set_channel(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
@@ -399,7 +399,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 		break;
 	default:
 		WARN(1, "Invalid ent mode: %d\n", mode);
-		return;
+		return -EINVAL;
 	}
 
 	roc_idx = atomic_read(&hal->roc_entity_idx);
@@ -426,6 +426,7 @@ void rtw89_set_channel(struct rtw89_dev *rtwdev)
 	}
 
 	rtw89_set_entity_state(rtwdev, true);
+	return 0;
 }
 
 void rtw89_get_channel(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,

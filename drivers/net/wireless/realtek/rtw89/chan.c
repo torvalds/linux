@@ -1979,7 +1979,6 @@ int rtw89_chanctx_ops_add(struct rtw89_dev *rtwdev,
 		return -ENOENT;
 
 	rtw89_config_entity_chandef(rtwdev, idx, &ctx->def);
-	rtw89_set_channel(rtwdev);
 	cfg->idx = idx;
 	hal->sub[idx].cfg = cfg;
 	return 0;
@@ -1990,37 +1989,8 @@ void rtw89_chanctx_ops_remove(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_hal *hal = &rtwdev->hal;
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
-	enum rtw89_entity_mode mode;
-	u8 drop, roll;
 
-	drop = cfg->idx;
-	if (drop != RTW89_SUB_ENTITY_0)
-		goto out;
-
-	roll = find_next_bit(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY, drop + 1);
-
-	/* Follow rtw89_config_default_chandef() when rtw89_entity_recalc(). */
-	if (roll == NUM_OF_RTW89_SUB_ENTITY)
-		goto out;
-
-	/* RTW89_SUB_ENTITY_0 is going to release, and another exists.
-	 * Make another roll down to RTW89_SUB_ENTITY_0 to replace.
-	 */
-	rtw89_swap_sub_entity(rtwdev, RTW89_SUB_ENTITY_0, roll);
-	drop = roll;
-
-out:
-	mode = rtw89_get_entity_mode(rtwdev);
-	switch (mode) {
-	case RTW89_ENTITY_MODE_MCC:
-		rtw89_mcc_stop(rtwdev);
-		break;
-	default:
-		break;
-	}
-
-	clear_bit(drop, hal->entity_map);
-	rtw89_set_channel(rtwdev);
+	clear_bit(cfg->idx, hal->entity_map);
 }
 
 void rtw89_chanctx_ops_change(struct rtw89_dev *rtwdev,
@@ -2045,7 +2015,8 @@ int rtw89_chanctx_ops_assign_vif(struct rtw89_dev *rtwdev,
 	rtwvif->sub_entity_idx = cfg->idx;
 	rtwvif->chanctx_assigned = true;
 	cfg->ref_count++;
-	return 0;
+
+	return rtw89_set_channel(rtwdev);
 }
 
 void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
@@ -2053,8 +2024,48 @@ void rtw89_chanctx_ops_unassign_vif(struct rtw89_dev *rtwdev,
 				    struct ieee80211_chanctx_conf *ctx)
 {
 	struct rtw89_chanctx_cfg *cfg = (struct rtw89_chanctx_cfg *)ctx->drv_priv;
+	struct rtw89_hal *hal = &rtwdev->hal;
+	struct rtw89_entity_weight w = {};
+	enum rtw89_sub_entity_idx roll;
+	enum rtw89_entity_mode cur;
 
 	rtwvif->sub_entity_idx = RTW89_SUB_ENTITY_0;
 	rtwvif->chanctx_assigned = false;
 	cfg->ref_count--;
+
+	if (cfg->ref_count != 0)
+		goto out;
+
+	if (cfg->idx != RTW89_SUB_ENTITY_0)
+		goto out;
+
+	roll = find_next_bit(hal->entity_map, NUM_OF_RTW89_SUB_ENTITY,
+			     cfg->idx + 1);
+	/* Follow rtw89_config_default_chandef() when rtw89_entity_recalc(). */
+	if (roll == NUM_OF_RTW89_SUB_ENTITY)
+		goto out;
+
+	/* RTW89_SUB_ENTITY_0 is going to release, and another exists.
+	 * Make another roll down to RTW89_SUB_ENTITY_0 to replace.
+	 */
+	rtw89_swap_sub_entity(rtwdev, cfg->idx, roll);
+
+out:
+	rtw89_entity_calculate_weight(rtwdev, &w);
+
+	cur = rtw89_get_entity_mode(rtwdev);
+	switch (cur) {
+	case RTW89_ENTITY_MODE_MCC:
+		/* If still multi-roles, re-plan MCC for chanctx changes.
+		 * Otherwise, just stop MCC.
+		 */
+		rtw89_mcc_stop(rtwdev);
+		if (w.active_roles == NUM_OF_RTW89_MCC_ROLES)
+			rtw89_mcc_start(rtwdev);
+		break;
+	default:
+		break;
+	}
+
+	rtw89_set_channel(rtwdev);
 }
