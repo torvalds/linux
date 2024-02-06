@@ -912,9 +912,10 @@ static int at8031_config_intr(struct phy_device *phydev)
 static int at8031_read_status(struct phy_device *phydev)
 {
 	struct at803x_priv *priv = phydev->priv;
+	bool changed;
 
 	if (priv->is_1000basex)
-		return genphy_c37_read_status(phydev);
+		return genphy_c37_read_status(phydev, &changed);
 
 	return at803x_read_status(phydev);
 }
