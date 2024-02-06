@@ -324,7 +324,7 @@ int bch2_inode_unpack(struct bkey_s_c k,
 	return bch2_inode_unpack_slowpath(k, unpacked);
 }
 
-static int bch2_inode_peek_nowarn(struct btree_trans *trans,
+int bch2_inode_peek_nowarn(struct btree_trans *trans,
 		    struct btree_iter *iter,
 		    struct bch_inode_unpacked *inode,
 		    subvol_inum inum, unsigned flags)
