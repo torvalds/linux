@@ -488,7 +488,21 @@ static int lps0_device_attach(struct acpi_device *adev,
 		rev_id = 1;
 		lps0_dsm_func_mask = validate_dsm(adev->handle,
 					ACPI_LPS0_DSM_UUID, rev_id, &lps0_dsm_guid);
-		lps0_dsm_func_mask_microsoft = -EINVAL;
+		if (lps0_dsm_func_mask > 0 && lps0_dsm_func_mask_microsoft > 0) {
+			unsigned int func_mask;
+
+			/*
+			 * Avoid evaluating the same _DSM function for two
+			 * different UUIDs and prioritize the MSFT one.
+			 */
+			func_mask = lps0_dsm_func_mask & lps0_dsm_func_mask_microsoft;
+			if (func_mask) {
+				acpi_handle_info(adev->handle,
+						 "Duplicate LPS0 _DSM functions (mask: 0x%x)\n",
+						 func_mask);
+				lps0_dsm_func_mask &= ~func_mask;
+			}
+		}
 	}
 
 	if (lps0_dsm_func_mask < 0 && lps0_dsm_func_mask_microsoft < 0)
@@ -549,18 +563,21 @@ int acpi_s2idle_prepare_late(void)
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
 
 	/* LPS0 entry */
-	if (lps0_dsm_func_mask > 0)
-		acpi_sleep_run_lps0_dsm(acpi_s2idle_vendor_amd() ?
-					ACPI_LPS0_ENTRY_AMD :
-					ACPI_LPS0_ENTRY,
+	if (lps0_dsm_func_mask > 0 && acpi_s2idle_vendor_amd())
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY_AMD,
 					lps0_dsm_func_mask, lps0_dsm_guid);
+
 	if (lps0_dsm_func_mask_microsoft > 0) {
-		/* modern standby entry */
+		/* Modern Standby entry */
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_MS_ENTRY,
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY,
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
 	}
+
+	if (lps0_dsm_func_mask > 0 && !acpi_s2idle_vendor_amd())
+		acpi_sleep_run_lps0_dsm(ACPI_LPS0_ENTRY,
+					lps0_dsm_func_mask, lps0_dsm_guid);
 
 	list_for_each_entry(handler, &lps0_s2idle_devops_head, list_node) {
 		if (handler->prepare)
@@ -600,14 +617,14 @@ void acpi_s2idle_restore_early(void)
 					ACPI_LPS0_EXIT_AMD :
 					ACPI_LPS0_EXIT,
 					lps0_dsm_func_mask, lps0_dsm_guid);
-	if (lps0_dsm_func_mask_microsoft > 0)
+
+	if (lps0_dsm_func_mask_microsoft > 0) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_EXIT,
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
-
-	/* Modern standby exit */
-	if (lps0_dsm_func_mask_microsoft > 0)
+		/* Modern Standby exit */
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_MS_EXIT,
 				lps0_dsm_func_mask_microsoft, lps0_dsm_guid_microsoft);
+	}
 
 	/* Screen on */
 	if (lps0_dsm_func_mask_microsoft > 0)
