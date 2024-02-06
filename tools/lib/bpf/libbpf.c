@@ -6404,13 +6404,13 @@ static bool need_func_arg_type_fixup(const struct btf *btf, const struct bpf_pro
 	case BPF_PROG_TYPE_PERF_EVENT:
 		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct pt_regs) &&
 		    btf_is_struct(t) && strcmp(tname, "pt_regs") == 0)
-			return 0;
+			return true;
 		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct user_pt_regs) &&
 		    btf_is_struct(t) && strcmp(tname, "user_pt_regs") == 0)
-			return 0;
+			return true;
 		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct user_regs_struct) &&
 		    btf_is_struct(t) && strcmp(tname, "user_regs_struct") == 0)
-			return 0;
+			return true;
 		break;
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
 	case BPF_PROG_TYPE_RAW_TRACEPOINT_WRITABLE:
