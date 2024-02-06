@@ -1295,7 +1295,7 @@ static int acpi_wmi_probe(struct platform_device *device)
 
 	error = parse_wdg(wmi_bus_dev, device);
 	if (error) {
-		pr_err("Failed to parse WDG method\n");
+		dev_err(&device->dev, "Failed to parse _WDG method\n");
 		return error;
 	}
 
