@@ -213,12 +213,16 @@ static int wdt_stop(struct watchdog_device *wdd)
 
 /**
  *	wdt_set_timeout - set a new timeout value with watchdog ioctl
+ *	@wdd: pointer to the watchdog_device structure
  *	@t: timeout value in seconds
  *
  *	The hardware device has a 8 or 16 bit watchdog timer (depends on
  *	chip version) that can be configured to count seconds or minutes.
  *
  *	Used within WDIOC_SETTIMEOUT watchdog device ioctl.
+ *
+ *	Return: 0 if the timeout was set successfully, or a negative error code on
+ *	failure.
  */
 
 static int wdt_set_timeout(struct watchdog_device *wdd, unsigned int t)
