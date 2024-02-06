@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  *             Javier Cardona <javier@cozybit.com>
  */
@@ -94,6 +94,7 @@ enum mesh_deferred_task_flags {
  * @is_root: the destination station of this path is a root node
  * @is_gate: the destination station of this path is a mesh gate
  * @path_change_count: the number of path changes to destination
+ * @fast_tx_check: timestamp of last fast-xmit enable attempt
  *
  *
  * The dst address is unique in the mesh path table. Since the mesh_path is
