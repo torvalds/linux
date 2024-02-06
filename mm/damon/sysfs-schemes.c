@@ -127,17 +127,17 @@ static const struct kobj_type damon_sysfs_scheme_region_ktype = {
  *
  * Once the tried regions update request is received, the request handling
  * start function (damon_sysfs_scheme_update_regions_start()) sets the status
- * of all schemes as 'idle' again, and register ->before_damos_apply() and
- * ->after_sampling() callbacks.
+ * of all schemes as 'idle' again, and register ->before_damos_apply()
+ * callback.
  *
  * Then, the first followup ->before_damos_apply() callback
  * (damon_sysfs_before_damos_apply()) sets the status 'started'.  The first
- * ->after_sampling() callback (damon_sysfs_after_sampling()) after the call
- * is called only after the scheme is completely applied
- * to the given snapshot.  Hence the callback knows the situation by showing
- * 'started' status, and sets the status as 'finished'.  Then,
- * damon_sysfs_before_damos_apply() understands the situation by showing the
- * 'finished' status and do nothing.
+ * ->after_sampling() or ->after_aggregation() callback
+ *  (damon_sysfs_cmd_request_callback()) after the call is called only after
+ *  the scheme is completely applied to the given snapshot.  Hence the callback
+ *  knows the situation by showing 'started' status, and sets the status as
+ *  'finished'.  Then, damon_sysfs_before_damos_apply() understands the
+ *  situation by showing the 'finished' status and do nothing.
  *
  * If DAMOS is not applied to any region due to any reasons including the
  * access pattern, the watermarks, the quotas, and the filters,
@@ -2122,7 +2122,7 @@ static int damon_sysfs_before_damos_apply(struct damon_ctx *ctx,
  * callback is registered, damon_sysfs_lock should be held to ensure the
  * regions directories exist.
  */
-static int damon_sysfs_after_sampling(struct damon_ctx *ctx)
+void damos_sysfs_mark_finished_regions_updates(struct damon_ctx *ctx)
 {
 	struct damon_sysfs_schemes *sysfs_schemes =
 		damon_sysfs_schemes_for_damos_callback;
@@ -2138,8 +2138,6 @@ static int damon_sysfs_after_sampling(struct damon_ctx *ctx)
 			sysfs_regions->upd_status =
 				DAMOS_TRIED_REGIONS_UPD_FINISHED;
 	}
-
-	return 0;
 }
 
 /* Called from damon_sysfs_cmd_request_callback under damon_sysfs_lock */
@@ -2212,7 +2210,6 @@ int damon_sysfs_schemes_update_regions_start(
 	damos_tried_regions_init_upd_status(sysfs_schemes, ctx);
 	damos_regions_upd_total_bytes_only = total_bytes_only;
 	ctx->callback.before_damos_apply = damon_sysfs_before_damos_apply;
-	ctx->callback.after_sampling = damon_sysfs_after_sampling;
 	return 0;
 }
 
@@ -2241,7 +2238,6 @@ int damon_sysfs_schemes_update_regions_stop(struct damon_ctx *ctx)
 {
 	damon_sysfs_schemes_for_damos_callback = NULL;
 	ctx->callback.before_damos_apply = NULL;
-	ctx->callback.after_sampling = NULL;
 	damon_sysfs_schemes_region_idx = 0;
 	return 0;
 }

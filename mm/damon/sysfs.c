@@ -1379,11 +1379,13 @@ static int damon_sysfs_commit_schemes_quota_goals(
  * damon_sysfs_cmd_request_callback() - DAMON callback for handling requests.
  * @c:		The DAMON context of the callback.
  * @active:	Whether @c is not deactivated due to watermarks.
+ * @after_aggr:	Whether this is called from after_aggregation() callback.
  *
  * This function is periodically called back from the kdamond thread for @c.
  * Then, it checks if there is a waiting DAMON sysfs request and handles it.
  */
-static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active)
+static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active,
+		bool after_aggregation)
 {
 	struct damon_sysfs_kdamond *kdamond;
 	bool total_bytes_only = false;
@@ -1401,6 +1403,8 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active)
 		err = damon_sysfs_upd_schemes_stats(kdamond);
 		break;
 	case DAMON_SYSFS_CMD_COMMIT:
+		if (!after_aggregation)
+			goto out;
 		err = damon_sysfs_commit_input(kdamond);
 		break;
 	case DAMON_SYSFS_CMD_COMMIT_SCHEMES_QUOTA_GOALS:
@@ -1418,6 +1422,7 @@ static int damon_sysfs_cmd_request_callback(struct damon_ctx *c, bool active)
 				goto keep_lock_out;
 			}
 		} else {
+			damos_sysfs_mark_finished_regions_updates(c);
 			/*
 			 * Continue regions updating if DAMON is till
 			 * active and the update for all schemes is not
@@ -1450,7 +1455,16 @@ static int damon_sysfs_after_wmarks_check(struct damon_ctx *c)
 	 * after_wmarks_check() is called back while the context is deactivated
 	 * by watermarks.
 	 */
-	return damon_sysfs_cmd_request_callback(c, false);
+	return damon_sysfs_cmd_request_callback(c, false, false);
+}
+
+static int damon_sysfs_after_sampling(struct damon_ctx *c)
+{
+	/*
+	 * after_sampling() is called back only while the context is not
+	 * deactivated by watermarks.
+	 */
+	return damon_sysfs_cmd_request_callback(c, true, false);
 }
 
 static int damon_sysfs_after_aggregation(struct damon_ctx *c)
@@ -1459,7 +1473,7 @@ static int damon_sysfs_after_aggregation(struct damon_ctx *c)
 	 * after_aggregation() is called back only while the context is not
 	 * deactivated by watermarks.
 	 */
-	return damon_sysfs_cmd_request_callback(c, true);
+	return damon_sysfs_cmd_request_callback(c, true, true);
 }
 
 static struct damon_ctx *damon_sysfs_build_ctx(
@@ -1478,6 +1492,7 @@ static struct damon_ctx *damon_sysfs_build_ctx(
 	}
 
 	ctx->callback.after_wmarks_check = damon_sysfs_after_wmarks_check;
+	ctx->callback.after_sampling = damon_sysfs_after_sampling;
 	ctx->callback.after_aggregation = damon_sysfs_after_aggregation;
 	ctx->callback.before_terminate = damon_sysfs_before_terminate;
 	return ctx;
