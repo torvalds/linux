@@ -2092,6 +2092,7 @@ static void finish_uds_queue(void *ptr __always_unused)
 }
 
 static void close_index(struct hash_zones *zones)
+	__must_hold(&zones->lock)
 {
 	int result;
 
@@ -2113,6 +2114,7 @@ static void close_index(struct hash_zones *zones)
 }
 
 static void open_index(struct hash_zones *zones)
+	__must_hold(&zones->lock)
 {
 	/* ASSERTION: We enter in IS_CLOSED state. */
 	int result;
