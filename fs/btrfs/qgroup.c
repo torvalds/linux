@@ -2505,8 +2505,8 @@ int btrfs_qgroup_trace_subtree(struct btrfs_trans_handle *trans,
 	struct extent_buffer *eb = root_eb;
 	struct btrfs_path *path = NULL;
 
-	BUG_ON(root_level < 0 || root_level >= BTRFS_MAX_LEVEL);
-	BUG_ON(root_eb == NULL);
+	ASSERT(0 <= root_level && root_level < BTRFS_MAX_LEVEL);
+	ASSERT(root_eb != NULL);
 
 	if (!btrfs_qgroup_full_accounting(fs_info))
 		return 0;
