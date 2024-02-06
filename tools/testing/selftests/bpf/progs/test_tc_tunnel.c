@@ -20,6 +20,8 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+
 static const int cfg_port = 8000;
 
 static const int cfg_udp_src = 20000;
