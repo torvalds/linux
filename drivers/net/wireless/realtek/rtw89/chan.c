@@ -320,19 +320,12 @@ int rtw89_iterate_mcc_roles(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-/* For now, IEEE80211_HW_TIMING_BEACON_ONLY can make things simple to ensure
- * correctness of MCC calculation logic below. We have noticed that once driver
- * declares WIPHY_FLAG_SUPPORTS_MLO, the use of IEEE80211_HW_TIMING_BEACON_ONLY
- * will be restricted. We will make an alternative in driver when it is ready
- * for MLO.
- */
 static u32 rtw89_mcc_get_tbtt_ofst(struct rtw89_dev *rtwdev,
 				   struct rtw89_mcc_role *role, u64 tsf)
 {
 	struct rtw89_vif *rtwvif = role->rtwvif;
-	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	u32 bcn_intvl_us = ieee80211_tu_to_usec(role->beacon_interval);
-	u64 sync_tsf = vif->bss_conf.sync_tsf;
+	u64 sync_tsf = READ_ONCE(rtwvif->sync_bcn_tsf);
 	u32 remainder;
 
 	if (tsf < sync_tsf) {
