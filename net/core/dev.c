@@ -6179,6 +6179,7 @@ static void __busy_poll_stop(struct napi_struct *napi, bool skip_schedule)
 
 enum {
 	NAPI_F_PREFER_BUSY_POLL	= 1,
+	NAPI_F_END_ON_RESCHED	= 2,
 };
 
 static void busy_poll_stop(struct napi_struct *napi, void *have_poll_lock,
@@ -6285,6 +6286,8 @@ count:
 			break;
 
 		if (unlikely(need_resched())) {
+			if (flags & NAPI_F_END_ON_RESCHED)
+				break;
 			if (napi_poll)
 				busy_poll_stop(napi, have_poll_lock, flags, budget);
 			if (!IS_ENABLED(CONFIG_PREEMPT_RT))
@@ -6302,6 +6305,18 @@ count:
 		busy_poll_stop(napi, have_poll_lock, flags, budget);
 	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
 		preempt_enable();
+}
+
+void napi_busy_loop_rcu(unsigned int napi_id,
+			bool (*loop_end)(void *, unsigned long),
+			void *loop_end_arg, bool prefer_busy_poll, u16 budget)
+{
+	unsigned flags = NAPI_F_END_ON_RESCHED;
+
+	if (prefer_busy_poll)
+		flags |= NAPI_F_PREFER_BUSY_POLL;
+
+	__napi_busy_loop(napi_id, loop_end, loop_end_arg, flags, budget);
 }
 
 void napi_busy_loop(unsigned int napi_id,
