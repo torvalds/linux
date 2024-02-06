@@ -1089,7 +1089,6 @@ static void ti_csi2rx_cleanup_vb2q(struct ti_csi2rx_dev *csi)
 static int ti_csi2rx_probe(struct platform_device *pdev)
 {
 	struct ti_csi2rx_dev *csi;
-	struct resource *res;
 	int ret;
 
 	csi = devm_kzalloc(&pdev->dev, sizeof(*csi), GFP_KERNEL);
@@ -1100,9 +1099,7 @@ static int ti_csi2rx_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, csi);
 
 	mutex_init(&csi->mutex);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	csi->shim = devm_ioremap_resource(&pdev->dev, res);
+	csi->shim = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(csi->shim)) {
 		ret = PTR_ERR(csi->shim);
 		goto err_mutex;
