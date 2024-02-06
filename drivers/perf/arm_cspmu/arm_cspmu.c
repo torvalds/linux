@@ -100,13 +100,6 @@
 #define ARM_CSPMU_ACTIVE_CPU_MASK		0x0
 #define ARM_CSPMU_ASSOCIATED_CPU_MASK		0x1
 
-/* Check and use default if implementer doesn't provide attribute callback */
-#define CHECK_DEFAULT_IMPL_OPS(ops, callback)			\
-	do {							\
-		if (!ops->callback)				\
-			ops->callback = arm_cspmu_ ## callback;	\
-	} while (0)
-
 /*
  * Maximum poll count for reading counter value using high-low-high sequence.
  */
@@ -408,21 +401,32 @@ static struct arm_cspmu_impl_match *arm_cspmu_impl_match_get(u32 pmiidr)
 	return NULL;
 }
 
+#define DEFAULT_IMPL_OP(name)	.name = arm_cspmu_##name
+
 static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 {
 	int ret = 0;
-	struct arm_cspmu_impl_ops *impl_ops = &cspmu->impl.ops;
 	struct acpi_apmt_node *apmt_node = arm_cspmu_apmt_node(cspmu->dev);
 	struct arm_cspmu_impl_match *match;
 
-	/*
-	 * Get PMU implementer and product id from APMT node.
-	 * If APMT node doesn't have implementer/product id, try get it
-	 * from PMIIDR.
-	 */
-	cspmu->impl.pmiidr =
-		(apmt_node->impl_id) ? apmt_node->impl_id :
-				       readl(cspmu->base0 + PMIIDR);
+	/* Start with a default PMU implementation */
+	cspmu->impl.module = THIS_MODULE;
+	cspmu->impl.pmiidr = readl(cspmu->base0 + PMIIDR);
+	cspmu->impl.ops = (struct arm_cspmu_impl_ops) {
+		DEFAULT_IMPL_OP(get_event_attrs),
+		DEFAULT_IMPL_OP(get_format_attrs),
+		DEFAULT_IMPL_OP(get_identifier),
+		DEFAULT_IMPL_OP(get_name),
+		DEFAULT_IMPL_OP(is_cycle_counter_event),
+		DEFAULT_IMPL_OP(event_type),
+		DEFAULT_IMPL_OP(event_filter),
+		DEFAULT_IMPL_OP(set_ev_filter),
+		DEFAULT_IMPL_OP(event_attr_is_visible),
+	};
+
+	/* Firmware may override implementer/product ID from PMIIDR */
+	if (apmt_node->impl_id)
+		cspmu->impl.pmiidr = apmt_node->impl_id;
 
 	/* Find implementer specific attribute ops. */
 	match = arm_cspmu_impl_match_get(cspmu->impl.pmiidr);
@@ -450,24 +454,9 @@ static int arm_cspmu_init_impl_ops(struct arm_cspmu *cspmu)
 		}
 
 		mutex_unlock(&arm_cspmu_lock);
+	}
 
-		if (ret)
-			return ret;
-	} else
-		cspmu->impl.module = THIS_MODULE;
-
-	/* Use default callbacks if implementer doesn't provide one. */
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, get_event_attrs);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, get_format_attrs);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, get_identifier);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, get_name);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, is_cycle_counter_event);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, event_type);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, event_filter);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, event_attr_is_visible);
-	CHECK_DEFAULT_IMPL_OPS(impl_ops, set_ev_filter);
-
-	return 0;
+	return ret;
 }
 
 static struct attribute_group *
