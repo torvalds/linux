@@ -70,6 +70,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <linux/btf_ids.h>
 #include <linux/rbtree.h>
 #include <linux/zalloc.h>
 #include <linux/err.h>
@@ -78,7 +79,7 @@
 #include <subcmd/parse-options.h>
 
 #define BTF_IDS_SECTION	".BTF_ids"
-#define BTF_ID		"__BTF_ID__"
+#define BTF_ID_PREFIX	"__BTF_ID__"
 
 #define BTF_STRUCT	"struct"
 #define BTF_UNION	"union"
@@ -161,7 +162,7 @@ static int eprintf(int level, int var, const char *fmt, ...)
 
 static bool is_btf_id(const char *name)
 {
-	return name && !strncmp(name, BTF_ID, sizeof(BTF_ID) - 1);
+	return name && !strncmp(name, BTF_ID_PREFIX, sizeof(BTF_ID_PREFIX) - 1);
 }
 
 static struct btf_id *btf_id__find(struct rb_root *root, const char *name)
@@ -441,7 +442,7 @@ static int symbols_collect(struct object *obj)
 		 * __BTF_ID__TYPE__vfs_truncate__0
 		 * prefix =  ^
 		 */
-		prefix = name + sizeof(BTF_ID) - 1;
+		prefix = name + sizeof(BTF_ID_PREFIX) - 1;
 
 		/* struct */
 		if (!strncmp(prefix, BTF_STRUCT, sizeof(BTF_STRUCT) - 1)) {
@@ -649,19 +650,18 @@ static int cmp_id(const void *pa, const void *pb)
 static int sets_patch(struct object *obj)
 {
 	Elf_Data *data = obj->efile.idlist;
-	int *ptr = data->d_buf;
 	struct rb_node *next;
 
 	next = rb_first(&obj->sets);
 	while (next) {
-		unsigned long addr, idx;
+		struct btf_id_set8 *set8;
+		struct btf_id_set *set;
+		unsigned long addr, off;
 		struct btf_id *id;
-		int *base;
-		int cnt;
 
 		id   = rb_entry(next, struct btf_id, rb_node);
 		addr = id->addr[0];
-		idx  = addr - obj->efile.idlist_addr;
+		off = addr - obj->efile.idlist_addr;
 
 		/* sets are unique */
 		if (id->addr_cnt != 1) {
@@ -670,14 +670,21 @@ static int sets_patch(struct object *obj)
 			return -1;
 		}
 
-		idx = idx / sizeof(int);
-		base = &ptr[idx] + (id->is_set8 ? 2 : 1);
-		cnt = ptr[idx];
+		if (id->is_set) {
+			set = data->d_buf + off;
+			qsort(set->ids, set->cnt, sizeof(set->ids[0]), cmp_id);
+		} else {
+			set8 = data->d_buf + off;
+			/*
+			 * Make sure id is at the beginning of the pairs
+			 * struct, otherwise the below qsort would not work.
+			 */
+			BUILD_BUG_ON(set8->pairs != &set8->pairs[0].id);
+			qsort(set8->pairs, set8->cnt, sizeof(set8->pairs[0]), cmp_id);
+		}
 
 		pr_debug("sorting  addr %5lu: cnt %6d [%s]\n",
-			 (idx + 1) * sizeof(int), cnt, id->name);
-
-		qsort(base, cnt, id->is_set8 ? sizeof(uint64_t) : sizeof(int), cmp_id);
+			 off, id->is_set ? set->cnt : set8->cnt, id->name);
 
 		next = rb_next(next);
 	}
