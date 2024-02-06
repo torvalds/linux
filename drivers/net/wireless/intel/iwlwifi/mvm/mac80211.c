@@ -1448,7 +1448,7 @@ int iwl_mvm_post_channel_switch(struct ieee80211_hw *hw,
 
 		if (!fw_has_capa(&mvm->fw->ucode_capa,
 				 IWL_UCODE_TLV_CAPA_CHANNEL_SWITCH_CMD)) {
-			ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+			ret = iwl_mvm_enable_beacon_filter(mvm, vif);
 			if (ret)
 				goto out_unlock;
 
@@ -1632,7 +1632,7 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		goto out_remove_mac;
 
 	/* beacon filtering */
-	ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	if (ret)
 		goto out_remove_mac;
 
@@ -2575,7 +2575,7 @@ iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
 		iwl_mvm_stop_session_protection(mvm, vif);
 
 		iwl_mvm_sf_update(mvm, vif, false);
-		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
+		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
 	}
 
 	if (changes & (BSS_CHANGED_PS | BSS_CHANGED_P2P_PS | BSS_CHANGED_QOS |
@@ -2596,7 +2596,7 @@ iwl_mvm_bss_info_changed_station_common(struct iwl_mvm *mvm,
 			/* FIXME: need to update per link when FW API will
 			 * support it
 			 */
-			ret = iwl_mvm_enable_beacon_filter(mvm, vif, 0);
+			ret = iwl_mvm_enable_beacon_filter(mvm, vif);
 			if (ret)
 				IWL_ERR(mvm,
 					"failed to update CQM thresholds\n");
@@ -3797,7 +3797,7 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 					   NL80211_TDLS_ENABLE_LINK);
 	} else {
 		/* enable beacon filtering */
-		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif, 0));
+		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
 
 		mvmvif->authorized = 1;
 
@@ -3855,7 +3855,7 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 		mvmvif->authorized = 0;
 
 		/* disable beacon filtering */
-		iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+		iwl_mvm_disable_beacon_filter(mvm, vif);
 	}
 
 	return 0;
@@ -5299,8 +5299,8 @@ static int __iwl_mvm_mac_testmode_cmd(struct iwl_mvm *mvm,
 			return -EINVAL;
 
 		if (nla_get_u32(tb[IWL_MVM_TM_ATTR_BEACON_FILTER_STATE]))
-			return iwl_mvm_enable_beacon_filter(mvm, vif, 0);
-		return iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+			return iwl_mvm_enable_beacon_filter(mvm, vif);
+		return iwl_mvm_disable_beacon_filter(mvm, vif);
 	}
 
 	return -EOPNOTSUPP;
@@ -5384,7 +5384,7 @@ static int iwl_mvm_old_pre_chan_sw_sta(struct iwl_mvm *mvm,
 		iwl_mvm_csa_client_absent(mvm, vif);
 
 	if (mvmvif->bf_data.bf_enabled) {
-		int ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+		int ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 
 		if (ret)
 			return ret;
