@@ -1281,32 +1281,28 @@ static void do_signal(struct pt_regs *regs)
 void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 {
 	do {
-		if (thread_flags & _TIF_NEED_RESCHED) {
-			/* Unmask Debug and SError for the next task */
-			local_daif_restore(DAIF_PROCCTX_NOIRQ);
+		local_daif_restore(DAIF_PROCCTX);
 
+		if (thread_flags & _TIF_NEED_RESCHED)
 			schedule();
-		} else {
-			local_daif_restore(DAIF_PROCCTX);
 
-			if (thread_flags & _TIF_UPROBE)
-				uprobe_notify_resume(regs);
+		if (thread_flags & _TIF_UPROBE)
+			uprobe_notify_resume(regs);
 
-			if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
-				clear_thread_flag(TIF_MTE_ASYNC_FAULT);
-				send_sig_fault(SIGSEGV, SEGV_MTEAERR,
-					       (void __user *)NULL, current);
-			}
-
-			if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
-				do_signal(regs);
-
-			if (thread_flags & _TIF_NOTIFY_RESUME)
-				resume_user_mode_work(regs);
-
-			if (thread_flags & _TIF_FOREIGN_FPSTATE)
-				fpsimd_restore_current_state();
+		if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
+			clear_thread_flag(TIF_MTE_ASYNC_FAULT);
+			send_sig_fault(SIGSEGV, SEGV_MTEAERR,
+				       (void __user *)NULL, current);
 		}
+
+		if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+			do_signal(regs);
+
+		if (thread_flags & _TIF_NOTIFY_RESUME)
+			resume_user_mode_work(regs);
+
+		if (thread_flags & _TIF_FOREIGN_FPSTATE)
+			fpsimd_restore_current_state();
 
 		local_daif_mask();
 		thread_flags = read_thread_flags();
