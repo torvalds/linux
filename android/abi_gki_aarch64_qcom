@@ -1207,6 +1207,10 @@
   genlmsg_put
   genl_register_family
   genl_unregister_family
+  genphy_c45_an_config_aneg
+  genphy_c45_check_and_restart_aneg
+  genphy_c45_pma_setup_forced
+  genphy_c45_read_status
   __genphy_config_aneg
   genphy_read_abilities
   genphy_read_mmd_unsupported
@@ -2370,9 +2374,12 @@
   phy_mac_interrupt
   phy_modify
   phy_modify_mmd
+  phy_modify_mmd_changed
   phy_power_off
   phy_power_on
   phy_read_mmd
+  phy_resolve_aneg_linkmode
+  phy_set_max_speed
   phy_set_mode_ext
   phy_suspend
   phy_trigger_machine
