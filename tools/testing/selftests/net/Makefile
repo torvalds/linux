@@ -97,6 +97,8 @@ TEST_PROGS += vlan_hw_filter.sh
 TEST_FILES := settings
 TEST_FILES += in_netns.sh lib.sh net_helper.sh setup_loopback.sh setup_veth.sh
 
+TEST_INCLUDES := forwarding/lib.sh
+
 include ../lib.mk
 
 $(OUTPUT)/reuseport_bpf_numa: LDLIBS += -lnuma
