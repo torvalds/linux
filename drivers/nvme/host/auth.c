@@ -48,11 +48,6 @@ struct nvme_dhchap_queue_context {
 
 static struct workqueue_struct *nvme_auth_wq;
 
-#define nvme_auth_flags_from_qid(qid) \
-	(qid == 0) ? 0 : BLK_MQ_REQ_NOWAIT | BLK_MQ_REQ_RESERVED
-#define nvme_auth_queue_from_qid(ctrl, qid) \
-	(qid == 0) ? (ctrl)->fabrics_q : (ctrl)->connect_q
-
 static inline int ctrl_max_dhchaps(struct nvme_ctrl *ctrl)
 {
 	return ctrl->opts->nr_io_queues + ctrl->opts->nr_write_queues +
@@ -63,9 +58,14 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 			    void *data, size_t data_len, bool auth_send)
 {
 	struct nvme_command cmd = {};
-	blk_mq_req_flags_t flags = nvme_auth_flags_from_qid(qid);
-	struct request_queue *q = nvme_auth_queue_from_qid(ctrl, qid);
+	nvme_submit_flags_t flags = NVME_SUBMIT_RETRY;
+	struct request_queue *q = ctrl->fabrics_q;
 	int ret;
+
+	if (qid != 0) {
+		flags |= NVME_SUBMIT_NOWAIT | NVME_SUBMIT_RESERVED;
+		q = ctrl->connect_q;
+	}
 
 	cmd.auth_common.opcode = nvme_fabrics_command;
 	cmd.auth_common.secp = NVME_AUTH_DHCHAP_PROTOCOL_IDENTIFIER;
@@ -80,8 +80,7 @@ static int nvme_auth_submit(struct nvme_ctrl *ctrl, int qid,
 	}
 
 	ret = __nvme_submit_sync_cmd(q, &cmd, NULL, data, data_len,
-				     qid == 0 ? NVME_QID_ANY : qid,
-				     0, flags);
+				     qid == 0 ? NVME_QID_ANY : qid, flags);
 	if (ret > 0)
 		dev_warn(ctrl->device,
 			"qid %d auth_send failed with status %d\n", qid, ret);
@@ -897,7 +896,7 @@ static void nvme_ctrl_auth_work(struct work_struct *work)
 	 * If the ctrl is no connected, bail as reconnect will handle
 	 * authentication.
 	 */
-	if (ctrl->state != NVME_CTRL_LIVE)
+	if (nvme_ctrl_state(ctrl) != NVME_CTRL_LIVE)
 		return;
 
 	/* Authenticate admin queue first */

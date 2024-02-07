@@ -40,6 +40,7 @@
 #include <linux/string.h>
 
 #include <asm/bootinfo.h>
+#include <prom.h>
 
 int prom_argc;
 char **prom_argv;
