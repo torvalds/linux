@@ -29,11 +29,17 @@
  * a single array of slabs in order to eliminate the need for additional math in order to compute
  * which physical zone a PBN is in. It also has a block_allocator per zone.
  *
- * Load operations are required to be performed on a single thread. Normal operations are assumed
- * to be performed in the appropriate zone. Allocations and reference count updates must be done
- * from the thread of their physical zone. Requests to commit slab journal tail blocks from the
- * recovery journal must be done on the journal zone thread. Save operations are required to be
- * launched from the same thread as the original load operation.
+ * Each physical zone has a single dedicated queue and thread for performing all updates to the
+ * slabs assigned to that zone. The concurrency guarantees of this single-threaded model allow the
+ * code to omit more fine-grained locking for the various slab structures. Each physical zone
+ * maintains a separate copy of the slab summary to remove the need for explicit locking on that
+ * structure as well.
+ *
+ * Load operations must be performed on the admin thread. Normal operations, such as allocations
+ * and reference count updates, must be performed on the appropriate physical zone thread. Requests
+ * from the recovery journal to commit slab journal tail blocks must be scheduled from the recovery
+ * journal thread to run on the appropriate physical zone thread. Save operations must be launched
+ * from the same admin thread as the original load operation.
  */
 
 enum {

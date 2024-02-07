@@ -26,6 +26,10 @@
  * write amplification of writes by providing amortization of slab journal and block map page
  * updates.
  *
+ * The recovery journal has a single dedicated queue and thread for performing all journal updates.
+ * The concurrency guarantees of this single-threaded model allow the code to omit more
+ * fine-grained locking for recovery journal structures.
+ *
  * The journal consists of a set of on-disk blocks arranged as a circular log with monotonically
  * increasing sequence numbers. Three sequence numbers serve to define the active extent of the
  * journal. The 'head' is the oldest active block in the journal. The 'tail' is the end of the

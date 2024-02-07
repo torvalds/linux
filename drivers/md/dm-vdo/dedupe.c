@@ -14,6 +14,11 @@
  * deduplicate against a single block instead of being serialized through a PBN read lock. Only one
  * index query is needed for each hash_lock, instead of one for every data_vio.
  *
+ * Hash_locks are assigned to hash_zones by computing a modulus on the hash itself. Each hash_zone
+ * has a single dedicated queue and thread for performing all operations on the hash_locks assigned
+ * to that zone. The concurrency guarantees of this single-threaded model allow the code to omit
+ * more fine-grained locking for the hash_lock structures.
+ *
  * A hash_lock acts like a state machine perhaps more than as a lock. Other than the starting and
  * ending states INITIALIZING and BYPASSING, every state represents and is held for the duration of
  * an asynchronous operation. All state transitions are performed on the thread of the hash_zone

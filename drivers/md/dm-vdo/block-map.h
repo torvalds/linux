@@ -19,6 +19,21 @@
 #include "vio.h"
 #include "wait-queue.h"
 
+/*
+ * The block map is responsible for tracking all the logical to physical mappings of a VDO. It
+ * consists of a collection of 60 radix trees gradually allocated as logical addresses are used.
+ * Each tree is assigned to a logical zone such that it is easy to compute which zone must handle
+ * each logical address. Each logical zone also has a dedicated portion of the leaf page cache.
+ *
+ * Each logical zone has a single dedicated queue and thread for performing all updates to the
+ * radix trees assigned to that zone. The concurrency guarantees of this single-threaded model
+ * allow the code to omit more fine-grained locking for the block map structures.
+ *
+ * Load operations must be performed on the admin thread. Normal operations, such as reading and
+ * updating mappings, must be performed on the appropriate logical zone thread. Save operations
+ * must be launched from the same admin thread as the original load operation.
+ */
+
 enum {
 	BLOCK_MAP_VIO_POOL_SIZE = 64,
 };
