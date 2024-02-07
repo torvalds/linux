@@ -57,7 +57,7 @@ static void imx8mp_hdmi_pvi_bridge_enable(struct drm_bridge *bridge,
 	const struct drm_display_mode *mode;
 	struct drm_crtc_state *crtc_state;
 	struct drm_connector *connector;
-	u32 bus_flags, val;
+	u32 bus_flags = 0, val;
 
 	connector = drm_atomic_get_new_connector_for_encoder(state, bridge->encoder);
 	conn_state = drm_atomic_get_new_connector_state(state, connector);
@@ -110,7 +110,7 @@ imx8mp_hdmi_pvi_bridge_get_input_bus_fmts(struct drm_bridge *bridge,
 	struct drm_bridge_state *next_state;
 
 	if (!next_bridge->funcs->atomic_get_input_bus_fmts)
-		return 0;
+		return NULL;
 
 	next_state = drm_atomic_get_new_bridge_state(crtc_state->state,
 						     next_bridge);
