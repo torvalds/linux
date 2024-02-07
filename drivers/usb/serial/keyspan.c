@@ -921,7 +921,6 @@ static void usa28_indat_callback(struct urb *urb)
 
 	port =  urb->context;
 	p_priv = usb_get_serial_port_data(port);
-	data = urb->transfer_buffer;
 
 	if (urb != p_priv->in_urbs[p_priv->in_flip])
 		return;
