@@ -3028,7 +3028,7 @@ static long __video_do_ioctl(struct file *file,
 	if (v4l2_is_known_ioctl(cmd)) {
 		info = &v4l2_ioctls[_IOC_NR(cmd)];
 
-		if (!test_bit(_IOC_NR(cmd), vfd->valid_ioctls) &&
+		if (!is_valid_ioctl(vfd, cmd) &&
 		    !((info->flags & INFO_FL_CTRL) && vfh && vfh->ctrl_handler))
 			goto done;
 
