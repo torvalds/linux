@@ -473,7 +473,7 @@ static int spi_data_write(struct wilc *wilc, u8 *b, u32 sz)
  ********************************************/
 static u8 wilc_get_crc7(u8 *buffer, u32 len)
 {
-	return crc7_be(0xfe, buffer, len);
+	return crc7_be(0xfe, buffer, len) | 0x01;
 }
 
 static int wilc_spi_single_read(struct wilc *wilc, u8 cmd, u32 adr, void *b,
