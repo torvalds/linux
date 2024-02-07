@@ -4,7 +4,14 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
-DBGFS=/sys/kernel/debug/damon
+DBGFS=$(grep debugfs /proc/mounts --max-count 1 | awk '{print $2}')
+if [ "$DBGFS" = "" ]
+then
+	echo "debugfs not mounted"
+	exit $ksft_skip
+fi
+
+DBGFS+="/damon"
 
 if [ $EUID -ne 0 ];
 then
