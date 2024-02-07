@@ -706,6 +706,8 @@ xfs_mountfs(
 	/* enable fail_at_unmount as default */
 	mp->m_fail_unmount = true;
 
+	super_set_sysfs_name_id(mp->m_super);
+
 	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype,
 			       NULL, mp->m_super->s_id);
 	if (error)
