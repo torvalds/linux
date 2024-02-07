@@ -34,7 +34,6 @@ struct ipv6_devconf {
 	__s32		accept_ra_defrtr;
 	__u32		ra_defrtr_metric;
 	__s32		accept_ra_min_hop_limit;
-	__s32		accept_ra_min_lft;
 	__s32		accept_ra_pinfo;
 	__s32		ignore_routes_with_linkdown;
 #ifdef CONFIG_IPV6_ROUTER_PREF
@@ -87,7 +86,8 @@ struct ipv6_devconf {
 
 	struct ctl_table_header *sysctl_header;
 
-	ANDROID_KABI_RESERVE(1);
+	ANDROID_KABI_USE(1, struct { __s32 accept_ra_min_lft; u32 padding; });
+
 	ANDROID_KABI_RESERVE(2);
 	ANDROID_KABI_RESERVE(3);
 	ANDROID_KABI_RESERVE(4);
