@@ -892,7 +892,7 @@ static int bt_6lowpan_connect(bdaddr_t *addr, u8 dst_type)
 	chan->ops = &bt_6lowpan_chan_ops;
 
 	err = l2cap_chan_connect(chan, cpu_to_le16(L2CAP_PSM_IPSP), 0,
-				 addr, dst_type);
+				 addr, dst_type, L2CAP_CONN_TIMEOUT);
 
 	BT_DBG("chan %p err %d", chan, err);
 	if (err < 0)

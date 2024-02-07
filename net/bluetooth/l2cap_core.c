@@ -6925,7 +6925,7 @@ static void l2cap_chan_by_pid(struct l2cap_chan *chan, void *data)
 }
 
 int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
-		       bdaddr_t *dst, u8 dst_type)
+		       bdaddr_t *dst, u8 dst_type, u16 timeout)
 {
 	struct l2cap_conn *conn;
 	struct hci_conn *hcon;
@@ -7018,19 +7018,17 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 		if (hci_dev_test_flag(hdev, HCI_ADVERTISING))
 			hcon = hci_connect_le(hdev, dst, dst_type, false,
-					      chan->sec_level,
-					      HCI_LE_CONN_TIMEOUT,
+					      chan->sec_level, timeout,
 					      HCI_ROLE_SLAVE);
 		else
 			hcon = hci_connect_le_scan(hdev, dst, dst_type,
-						   chan->sec_level,
-						   HCI_LE_CONN_TIMEOUT,
+						   chan->sec_level, timeout,
 						   CONN_REASON_L2CAP_CHAN);
 
 	} else {
 		u8 auth_type = l2cap_get_auth_type(chan);
 		hcon = hci_connect_acl(hdev, dst, chan->sec_level, auth_type,
-				       CONN_REASON_L2CAP_CHAN);
+				       CONN_REASON_L2CAP_CHAN, timeout);
 	}
 
 	if (IS_ERR(hcon)) {

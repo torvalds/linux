@@ -6548,7 +6548,7 @@ static int __hci_acl_create_connection_sync(struct hci_dev *hdev, void *data)
 	err = __hci_cmd_sync_status_sk(hdev, HCI_OP_CREATE_CONN,
 				       sizeof(cp), &cp,
 				       HCI_EV_CONN_COMPLETE,
-				       HCI_ACL_CONN_TIMEOUT, NULL);
+				       conn->conn_timeout, NULL);
 
 	if (err == -ETIMEDOUT)
 		hci_abort_conn_sync(hdev, conn, HCI_ERROR_LOCAL_HOST_TERM);
