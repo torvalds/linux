@@ -2558,8 +2558,8 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 
 	ret = dualshock4_get_firmware_info(ds4);
 	if (ret) {
-		hid_err(hdev, "Failed to get firmware info from DualShock4\n");
-		return ERR_PTR(ret);
+		hid_warn(hdev, "Failed to get firmware info from DualShock4\n");
+		hid_warn(hdev, "HW/FW version data in sysfs will be invalid.\n");
 	}
 
 	ret = ps_devices_list_add(ps_dev);
