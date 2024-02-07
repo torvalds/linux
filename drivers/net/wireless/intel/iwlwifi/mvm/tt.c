@@ -562,7 +562,7 @@ int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 	struct temp_report_ths_cmd cmd = {0};
 	int ret;
 #ifdef CONFIG_THERMAL
-	int i, j, idx = 0;
+	int i, idx = 0;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -587,17 +587,6 @@ int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 
 	/*sort cmd array*/
 	sort(cmd.thresholds, idx, sizeof(s16), compare_temps, NULL);
-
-	/* we should save the indexes of trips because we sort
-	 * and compress the orginal array
-	 */
-	for (i = 0; i < idx; i++) {
-		for (j = 0; j < IWL_MAX_DTS_TRIPS; j++) {
-			if ((int)(le16_to_cpu(cmd.thresholds[i]) * 1000) ==
-			    mvm->tz_device.trips[j].temperature)
-				mvm->tz_device.fw_trips_index[i] = j;
-		}
-	}
 
 send:
 #endif
