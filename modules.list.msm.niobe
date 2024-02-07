@@ -60,3 +60,4 @@ qcom-cpufreq-hw.ko
 qcom_wdt_core.ko
 gh_virt_wdt.ko
 gic_intr_routing.ko
+kryo_arm64_edac.ko

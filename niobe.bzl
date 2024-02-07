@@ -26,6 +26,7 @@ def define_niobe():
         "drivers/cpufreq/qcom-cpufreq-hw.ko",
         "drivers/cpufreq/qcom-cpufreq-hw-debug.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
+        "drivers/edac/kryo_arm64_edac.ko",
         "drivers/edac/qcom_edac.ko",
         "drivers/firmware/arm_scmi/qcom_scmi_vendor.ko",
         "drivers/firmware/qcom-scm.ko",
