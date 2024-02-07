@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2018, Linaro Limited
-// Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+// Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -371,6 +371,8 @@ int slim_stream_enable(struct slim_stream_runtime *stream)
 		ret = ctrl->enable_stream(stream);
 		if (ret) {
 			mutex_unlock(&ctrl->stream_lock);
+			dev_err(ctrl->dev, "%s: ctrl->enable_stream ret %d\n",
+				__func__, ret);
 			return ret;
 		}
 
@@ -382,8 +384,10 @@ int slim_stream_enable(struct slim_stream_runtime *stream)
 	}
 
 	ret = slim_do_transfer(ctrl, &txn);
-	if (ret)
+	if (ret) {
+		dev_err(ctrl->dev, "%s: slim_do_transfer failed %d\n", __func__, ret);
 		return ret;
+	}
 
 	/* define channels first before activating them */
 	for (i = 0; i < stream->num_ports; i++) {
@@ -438,6 +442,7 @@ int slim_stream_disable(struct slim_stream_runtime *stream)
 		mutex_lock(&ctrl->stream_lock);
 		ret = ctrl->disable_stream(stream);
 		if (ret) {
+			dev_err(ctrl->dev, "%s: disable_stream failed %d\n", __func__, ret);
 			mutex_unlock(&ctrl->stream_lock);
 			return ret;
 		}
@@ -445,8 +450,10 @@ int slim_stream_disable(struct slim_stream_runtime *stream)
 	}
 
 	ret = slim_do_transfer(ctrl, &txn);
-	if (ret)
+	if (ret) {
+		dev_err(ctrl->dev, "%s: slim_do_transfer failed %d\n", __func__, ret);
 		return ret;
+	}
 
 	for (i = 0; i < stream->num_ports; i++)
 		slim_deactivate_remove_channel(stream, &stream->ports[i]);
