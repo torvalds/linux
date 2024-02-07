@@ -767,12 +767,92 @@ fsck_err:
 	goto out;
 }
 
+static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
+						struct btree_iter *iter,
+						struct bpos pos)
+{
+	return bch2_bkey_get_iter_typed(trans, iter, BTREE_ID_dirents, pos, 0, dirent);
+}
+
+static struct bkey_s_c_dirent inode_get_dirent(struct btree_trans *trans,
+					       struct btree_iter *iter,
+					       struct bch_inode_unpacked *inode,
+					       u32 *snapshot)
+{
+	if (inode->bi_subvol) {
+		u64 inum;
+		int ret = subvol_lookup(trans, inode->bi_parent_subvol, snapshot, &inum);
+		if (ret)
+			return ((struct bkey_s_c_dirent) { .k = ERR_PTR(ret) });
+	}
+
+	return dirent_get_by_pos(trans, iter, SPOS(inode->bi_dir, inode->bi_dir_offset, *snapshot));
+}
+
+static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,
+				   struct bkey_s_c_dirent d)
+{
+	return  inode->bi_dir		== d.k->p.inode &&
+		inode->bi_dir_offset	== d.k->p.offset;
+}
+
+static bool dirent_points_to_inode(struct bkey_s_c_dirent d,
+				   struct bch_inode_unpacked *inode)
+{
+	return d.v->d_type == DT_SUBVOL
+		? le32_to_cpu(d.v->d_child_subvol)	== inode->bi_subvol
+		: le64_to_cpu(d.v->d_inum)		== inode->bi_inum;
+}
+
 static int check_inode_deleted_list(struct btree_trans *trans, struct bpos p)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_deleted_inodes, p, 0);
 	int ret = bkey_err(k) ?: k.k->type == KEY_TYPE_set;
 	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+static int check_inode_dirent_inode(struct btree_trans *trans, struct bkey_s_c inode_k,
+				    struct bch_inode_unpacked *inode,
+				    u32 inode_snapshot, bool *write_inode)
+{
+	struct bch_fs *c = trans->c;
+	struct printbuf buf = PRINTBUF;
+
+	struct btree_iter dirent_iter = {};
+	struct bkey_s_c_dirent d = inode_get_dirent(trans, &dirent_iter, inode, &inode_snapshot);
+	int ret = bkey_err(d);
+	if (ret && !bch2_err_matches(ret, ENOENT))
+		return ret;
+
+	if (fsck_err_on(ret,
+			c, inode_points_to_missing_dirent,
+			"inode points to missing dirent\n%s",
+			(bch2_bkey_val_to_text(&buf, c, inode_k), buf.buf)) ||
+	    fsck_err_on(!ret && !dirent_points_to_inode(d, inode),
+			c, inode_points_to_wrong_dirent,
+			"inode points to dirent that does not point back:\n%s",
+			(bch2_bkey_val_to_text(&buf, c, inode_k),
+			 prt_newline(&buf),
+			 bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf))) {
+		/*
+		 * We just clear the backpointer fields for now. If we find a
+		 * dirent that points to this inode in check_dirents(), we'll
+		 * update it then; then when we get to check_path() if the
+		 * backpointer is still 0 we'll reattach it.
+		 */
+		inode->bi_dir = 0;
+		inode->bi_dir_offset = 0;
+		inode->bi_flags &= ~BCH_INODE_backptr_untrusted;
+		*write_inode = true;
+	}
+
+	ret = 0;
+fsck_err:
+	bch2_trans_iter_exit(trans, &dirent_iter);
+	printbuf_exit(&buf);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -920,6 +1000,12 @@ static int check_inode(struct btree_trans *trans,
 		do_update = true;
 	}
 
+	if (u.bi_dir || u.bi_dir_offset) {
+		ret = check_inode_dirent_inode(trans, k, &u, k.k->p.snapshot, &do_update);
+		if (ret)
+			goto err;
+	}
+
 	if (u.bi_subvol) {
 		struct bch_subvolume s;
 
@@ -975,28 +1061,6 @@ int bch2_check_inodes(struct bch_fs *c)
 	snapshots_seen_exit(&s);
 	bch_err_fn(c, ret);
 	return ret;
-}
-
-static struct bkey_s_c_dirent dirent_get_by_pos(struct btree_trans *trans,
-						struct btree_iter *iter,
-						struct bpos pos)
-{
-	return bch2_bkey_get_iter_typed(trans, iter, BTREE_ID_dirents, pos, 0, dirent);
-}
-
-static bool inode_points_to_dirent(struct bch_inode_unpacked *inode,
-				   struct bkey_s_c_dirent d)
-{
-	return  inode->bi_dir		== d.k->p.inode &&
-		inode->bi_dir_offset	== d.k->p.offset;
-}
-
-static bool dirent_points_to_inode(struct bkey_s_c_dirent d,
-				   struct bch_inode_unpacked *inode)
-{
-	return d.v->d_type == DT_SUBVOL
-		? le32_to_cpu(d.v->d_child_subvol)	== inode->bi_subvol
-		: le64_to_cpu(d.v->d_inum)		== inode->bi_inum;
 }
 
 static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
@@ -1486,7 +1550,7 @@ fsck_err:
 	return ret ?: trans_was_restarted(trans, restart_count);
 }
 
-static int check_inode_backpointer(struct btree_trans *trans,
+static int check_dirent_inode_dirent(struct btree_trans *trans,
 				   struct btree_iter *iter,
 				   struct bkey_s_c_dirent d,
 				   struct bch_inode_unpacked *target,
@@ -1585,7 +1649,7 @@ static int check_dirent_target(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	ret = check_inode_backpointer(trans, iter, d, target, target_snapshot);
+	ret = check_dirent_inode_dirent(trans, iter, d, target, target_snapshot);
 	if (ret)
 		goto err;
 
@@ -2011,18 +2075,7 @@ static int check_path(struct btree_trans *trans,
 		struct bkey_s_c_dirent d;
 		u32 parent_snapshot = snapshot;
 
-		if (inode->bi_subvol) {
-			u64 inum;
-
-			ret = subvol_lookup(trans, inode->bi_parent_subvol,
-					    &parent_snapshot, &inum);
-			if (ret)
-				break;
-		}
-
-		d = dirent_get_by_pos(trans, &dirent_iter,
-				      SPOS(inode->bi_dir, inode->bi_dir_offset,
-					   parent_snapshot));
+		d = inode_get_dirent(trans, &dirent_iter, inode, &parent_snapshot);
 		ret = bkey_err(d.s_c);
 		if (ret && !bch2_err_matches(ret, ENOENT))
 			break;
