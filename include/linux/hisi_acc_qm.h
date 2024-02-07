@@ -163,6 +163,11 @@ struct qm_dev_alg {
 	const char *alg;
 };
 
+struct qm_dev_dfx {
+	u32 dev_state;
+	u32 dev_timeout;
+};
+
 struct dfx_diff_registers {
 	u32 *regs;
 	u32 reg_offset;
@@ -191,6 +196,7 @@ struct qm_debug {
 	struct dentry *debug_root;
 	struct dentry *qm_d;
 	struct debugfs_file files[DEBUG_FILE_NUM];
+	struct qm_dev_dfx dev_dfx;
 	unsigned int *qm_last_words;
 	/* ACC engines recoreding last regs */
 	unsigned int *last_words;

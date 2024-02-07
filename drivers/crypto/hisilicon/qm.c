@@ -236,6 +236,12 @@
 
 #define QM_DEV_ALG_MAX_LEN		256
 
+ /* abnormal status value for stopping queue */
+#define QM_STOP_QUEUE_FAIL		1
+#define	QM_DUMP_SQC_FAIL		3
+#define	QM_DUMP_CQC_FAIL		4
+#define	QM_FINISH_WAIT			5
+
 #define QM_MK_CQC_DW3_V1(hop_num, pg_sz, buf_sz, cqe_sz) \
 	(((hop_num) << QM_CQ_HOP_NUM_SHIFT) | \
 	((pg_sz) << QM_CQ_PAGE_SIZE_SHIFT) | \
@@ -2037,43 +2043,25 @@ static void qp_stop_fail_cb(struct hisi_qp *qp)
 	}
 }
 
-/**
- * qm_drain_qp() - Drain a qp.
- * @qp: The qp we want to drain.
- *
- * Determine whether the queue is cleared by judging the tail pointers of
- * sq and cq.
- */
-static int qm_drain_qp(struct hisi_qp *qp)
+static int qm_wait_qp_empty(struct hisi_qm *qm, u32 *state, u32 qp_id)
 {
-	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
 	struct qm_sqc sqc;
 	struct qm_cqc cqc;
 	int ret, i = 0;
 
-	/* No need to judge if master OOO is blocked. */
-	if (qm_check_dev_error(qm))
-		return 0;
-
-	/* Kunpeng930 supports drain qp by device */
-	if (test_bit(QM_SUPPORT_STOP_QP, &qm->caps)) {
-		ret = qm_stop_qp(qp);
-		if (ret)
-			dev_err(dev, "Failed to stop qp(%u)!\n", qp->qp_id);
-		return ret;
-	}
-
 	while (++i) {
-		ret = qm_set_and_get_xqc(qm, QM_MB_CMD_SQC, &sqc, qp->qp_id, 1);
+		ret = qm_set_and_get_xqc(qm, QM_MB_CMD_SQC, &sqc, qp_id, 1);
 		if (ret) {
 			dev_err_ratelimited(dev, "Failed to dump sqc!\n");
+			*state = QM_DUMP_SQC_FAIL;
 			return ret;
 		}
 
-		ret = qm_set_and_get_xqc(qm, QM_MB_CMD_CQC, &cqc, qp->qp_id, 1);
+		ret = qm_set_and_get_xqc(qm, QM_MB_CMD_CQC, &cqc, qp_id, 1);
 		if (ret) {
 			dev_err_ratelimited(dev, "Failed to dump cqc!\n");
+			*state = QM_DUMP_CQC_FAIL;
 			return ret;
 		}
 
@@ -2082,14 +2070,58 @@ static int qm_drain_qp(struct hisi_qp *qp)
 			break;
 
 		if (i == MAX_WAIT_COUNTS) {
-			dev_err(dev, "Fail to empty queue %u!\n", qp->qp_id);
-			return -EBUSY;
+			dev_err(dev, "Fail to empty queue %u!\n", qp_id);
+			*state = QM_STOP_QUEUE_FAIL;
+			return -ETIMEDOUT;
 		}
 
 		usleep_range(WAIT_PERIOD_US_MIN, WAIT_PERIOD_US_MAX);
 	}
 
 	return 0;
+}
+
+/**
+ * qm_drain_qp() - Drain a qp.
+ * @qp: The qp we want to drain.
+ *
+ * If the device does not support stopping queue by sending mailbox,
+ * determine whether the queue is cleared by judging the tail pointers of
+ * sq and cq.
+ */
+static int qm_drain_qp(struct hisi_qp *qp)
+{
+	struct hisi_qm *qm = qp->qm;
+	struct hisi_qm *pf_qm = pci_get_drvdata(pci_physfn(qm->pdev));
+	u32 state = 0;
+	int ret;
+
+	/* No need to judge if master OOO is blocked. */
+	if (qm_check_dev_error(pf_qm))
+		return 0;
+
+	/* HW V3 supports drain qp by device */
+	if (test_bit(QM_SUPPORT_STOP_QP, &qm->caps)) {
+		ret = qm_stop_qp(qp);
+		if (ret) {
+			dev_err(&qm->pdev->dev, "Failed to stop qp!\n");
+			state = QM_STOP_QUEUE_FAIL;
+			goto set_dev_state;
+		}
+		return ret;
+	}
+
+	ret = qm_wait_qp_empty(qm, &state, qp->qp_id);
+	if (ret)
+		goto set_dev_state;
+
+	return 0;
+
+set_dev_state:
+	if (qm->debug.dev_dfx.dev_timeout)
+		qm->debug.dev_dfx.dev_state = state;
+
+	return ret;
 }
 
 static int qm_stop_qp_nolock(struct hisi_qp *qp)
@@ -2319,7 +2351,31 @@ static int hisi_qm_uacce_start_queue(struct uacce_queue *q)
 
 static void hisi_qm_uacce_stop_queue(struct uacce_queue *q)
 {
-	hisi_qm_stop_qp(q->priv);
+	struct hisi_qp *qp = q->priv;
+	struct hisi_qm *qm = qp->qm;
+	struct qm_dev_dfx *dev_dfx = &qm->debug.dev_dfx;
+	u32 i = 0;
+
+	hisi_qm_stop_qp(qp);
+
+	if (!dev_dfx->dev_timeout || !dev_dfx->dev_state)
+		return;
+
+	/*
+	 * After the queue fails to be stopped,
+	 * wait for a period of time before releasing the queue.
+	 */
+	while (++i) {
+		msleep(WAIT_PERIOD);
+
+		/* Since dev_timeout maybe modified, check i >= dev_timeout */
+		if (i >= dev_dfx->dev_timeout) {
+			dev_err(&qm->pdev->dev, "Stop q %u timeout, state %u\n",
+			       qp->qp_id, dev_dfx->dev_state);
+			dev_dfx->dev_state = QM_FINISH_WAIT;
+			break;
+		}
+	}
 }
 
 static int hisi_qm_is_q_updated(struct uacce_queue *q)

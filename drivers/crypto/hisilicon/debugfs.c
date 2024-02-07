@@ -1112,6 +1112,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
 void hisi_qm_debug_init(struct hisi_qm *qm)
 {
 	struct dfx_diff_registers *qm_regs = qm->debug.qm_diff_regs;
+	struct qm_dev_dfx *dev_dfx = &qm->debug.dev_dfx;
 	struct qm_dfx *dfx = &qm->debug.dfx;
 	struct dentry *qm_d;
 	void *data;
@@ -1140,6 +1141,10 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 
 	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
 			&qm_status_fops);
+
+	debugfs_create_u32("dev_state", 0444, qm->debug.qm_d, &dev_dfx->dev_state);
+	debugfs_create_u32("dev_timeout", 0644, qm->debug.qm_d, &dev_dfx->dev_timeout);
+
 	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
 		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
 		debugfs_create_file(qm_dfx_files[i].name,
