@@ -18,10 +18,8 @@
  * is more efficient. Both types of chapter index are implemented with a delta index.
  */
 
-enum {
-	/* The value returned when no entry is found in the chapter index. */
-	NO_CHAPTER_INDEX_ENTRY = U16_MAX,
-};
+/* The value returned when no entry is found in the chapter index. */
+#define NO_CHAPTER_INDEX_ENTRY U16_MAX
 
 struct open_chapter_index {
 	const struct index_geometry *geometry;

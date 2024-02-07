@@ -26,7 +26,7 @@
  * managed with volume_index_record structures.
  */
 
-static const u64 NO_CHAPTER = U64_MAX;
+#define NO_CHAPTER U64_MAX
 
 struct volume_index_stats {
 	/* Nanoseconds spent rebalancing */
