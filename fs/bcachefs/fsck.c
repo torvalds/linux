@@ -1009,6 +1009,16 @@ static int check_inode(struct btree_trans *trans,
 			goto err;
 	}
 
+	if (fsck_err_on(u.bi_parent_subvol &&
+			(u.bi_subvol == 0 ||
+			 u.bi_subvol == BCACHEFS_ROOT_SUBVOL),
+			c, inode_bi_parent_subvol_nonzero,
+			"inode %llu:%u has subvol %u but nonzero parent subvol %u",
+			u.bi_inum, k.k->p.snapshot, u.bi_subvol, u.bi_parent_subvol)) {
+		u.bi_parent_subvol = 0;
+		do_update = true;
+	}
+
 	if (u.bi_subvol) {
 		struct bch_subvolume s;
 
