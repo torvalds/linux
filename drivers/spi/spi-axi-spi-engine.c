@@ -7,7 +7,6 @@
 
 #include <linux/clk.h>
 #include <linux/fpga/adi-axi-common.h>
-#include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of.h>
@@ -57,6 +56,9 @@
 #define SPI_ENGINE_TRANSFER_WRITE		0x1
 #define SPI_ENGINE_TRANSFER_READ		0x2
 
+/* Arbitrary sync ID for use by host->cur_msg */
+#define AXI_SPI_ENGINE_CUR_MSG_SYNC_ID		0x1
+
 #define SPI_ENGINE_CMD(inst, arg1, arg2) \
 	(((inst) << 12) | ((arg1) << 8) | (arg2))
 
@@ -98,8 +100,6 @@ struct spi_engine_message_state {
 	unsigned int rx_length;
 	/** @rx_buf: Bytes not yet written to the RX FIFO. */
 	uint8_t *rx_buf;
-	/** @sync_id: ID to correlate SYNC interrupts with this message. */
-	u8 sync_id;
 };
 
 struct spi_engine {
@@ -109,7 +109,6 @@ struct spi_engine {
 	spinlock_t lock;
 
 	void __iomem *base;
-	struct ida sync_ida;
 	struct timer_list watchdog_timer;
 	struct spi_controller *controller;
 
@@ -483,9 +482,7 @@ static irqreturn_t spi_engine_irq(int irq, void *devid)
 	}
 
 	if (pending & SPI_ENGINE_INT_SYNC && msg) {
-		struct spi_engine_message_state *st = msg->state;
-
-		if (completed_id == st->sync_id) {
+		if (completed_id == AXI_SPI_ENGINE_CUR_MSG_SYNC_ID) {
 			if (timer_delete_sync(&spi_engine->watchdog_timer)) {
 				msg->status = 0;
 				msg->actual_length = msg->frame_length;
@@ -510,10 +507,8 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 				      struct spi_message *msg)
 {
 	struct spi_engine_program p_dry, *p;
-	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	struct spi_engine_message_state *st;
 	size_t size;
-	int ret;
 
 	st = kzalloc(sizeof(*st), GFP_KERNEL);
 	if (!st)
@@ -531,18 +526,10 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 		return -ENOMEM;
 	}
 
-	ret = ida_alloc_range(&spi_engine->sync_ida, 0, U8_MAX, GFP_KERNEL);
-	if (ret < 0) {
-		kfree(p);
-		kfree(st);
-		return ret;
-	}
-
-	st->sync_id = ret;
-
 	spi_engine_compile_message(msg, false, p);
 
-	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(st->sync_id));
+	spi_engine_program_add_cmd(p, false, SPI_ENGINE_CMD_SYNC(
+						AXI_SPI_ENGINE_CUR_MSG_SYNC_ID));
 
 	st->p = p;
 	st->cmd_buf = p->instructions;
@@ -555,10 +542,8 @@ static int spi_engine_prepare_message(struct spi_controller *host,
 static int spi_engine_unprepare_message(struct spi_controller *host,
 					struct spi_message *msg)
 {
-	struct spi_engine *spi_engine = spi_controller_get_devdata(host);
 	struct spi_engine_message_state *st = msg->state;
 
-	ida_free(&spi_engine->sync_ida, st->sync_id);
 	kfree(st->p);
 	kfree(st);
 
@@ -640,7 +625,6 @@ static int spi_engine_probe(struct platform_device *pdev)
 	spi_engine = spi_controller_get_devdata(host);
 
 	spin_lock_init(&spi_engine->lock);
-	ida_init(&spi_engine->sync_ida);
 	timer_setup(&spi_engine->watchdog_timer, spi_engine_timeout, TIMER_IRQSAFE);
 	spi_engine->controller = host;
 
