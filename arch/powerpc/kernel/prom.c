@@ -151,6 +151,9 @@ static void __init move_device_tree(void)
  * pa-features property is missing, or a 1/0 to indicate if the feature
  * is supported/not supported.  Note that the bit numbers are
  * big-endian to match the definition in PAPR.
+ * Note: the 'clear' flag clears the feature if the bit is set in the
+ * ibm,pa/pi-features property, it does not set the feature if the
+ * bit is clear.
  */
 struct ibm_feature {
 	unsigned long	cpu_features;	/* CPU_FTR_xxx bit */
@@ -159,7 +162,7 @@ struct ibm_feature {
 	unsigned int	cpu_user_ftrs2;	/* PPC_FEATURE2_xxx bit */
 	unsigned char	pabyte;		/* byte number in ibm,pa/pi-features */
 	unsigned char	pabit;		/* bit number (big-endian) */
-	unsigned char	invert;		/* if 1, pa bit set => clear feature */
+	unsigned char	clear;		/* if 1, pa bit set => clear feature */
 };
 
 static struct ibm_feature ibm_pa_features[] __initdata = {
@@ -220,12 +223,12 @@ static void __init scan_features(unsigned long node, const unsigned char *ftrs,
 		if (fp->pabyte >= ftrs[0])
 			continue;
 		bit = (ftrs[2 + fp->pabyte] >> (7 - fp->pabit)) & 1;
-		if (bit ^ fp->invert) {
+		if (bit && !fp->clear) {
 			cur_cpu_spec->cpu_features |= fp->cpu_features;
 			cur_cpu_spec->cpu_user_features |= fp->cpu_user_ftrs;
 			cur_cpu_spec->cpu_user_features2 |= fp->cpu_user_ftrs2;
 			cur_cpu_spec->mmu_features |= fp->mmu_features;
-		} else {
+		} else if (bit == fp->clear) {
 			cur_cpu_spec->cpu_features &= ~fp->cpu_features;
 			cur_cpu_spec->cpu_user_features &= ~fp->cpu_user_ftrs;
 			cur_cpu_spec->cpu_user_features2 &= ~fp->cpu_user_ftrs2;
