@@ -555,6 +555,22 @@ static int compare_temps(const void *a, const void *b)
 	return ((s16)le16_to_cpu(*(__le16 *)a) -
 		(s16)le16_to_cpu(*(__le16 *)b));
 }
+
+struct iwl_trip_walk_data {
+	__le16 *thresholds;
+	int count;
+};
+
+static int iwl_trip_temp_cb(struct thermal_trip *trip, void *arg)
+{
+	struct iwl_trip_walk_data *twd = arg;
+
+	if (trip->temperature == THERMAL_TEMP_INVALID)
+		return 0;
+
+	twd->thresholds[twd->count++] = cpu_to_le16((s16)(trip->temperature / 1000));
+	return 0;
+}
 #endif
 
 int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
@@ -562,31 +578,25 @@ int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 	struct temp_report_ths_cmd cmd = {0};
 	int ret;
 #ifdef CONFIG_THERMAL
-	int i, idx = 0;
+	struct iwl_trip_walk_data twd = { .thresholds = cmd.thresholds, .count = 0 };
 
 	lockdep_assert_held(&mvm->mutex);
 
 	if (!mvm->tz_device.tzone)
 		goto send;
 
-	/* The driver holds array of temperature trips that are unsorted
-	 * and uncompressed, the FW should get it compressed and sorted
+	/*
+	 * The thermal core holds an array of temperature trips that are
+	 * unsorted and uncompressed, the FW should get it compressed and
+	 * sorted.
 	 */
 
 	/* compress trips to cmd array, remove uninitialized values*/
-	for (i = 0; i < IWL_MAX_DTS_TRIPS; i++) {
-		if (mvm->tz_device.trips[i].temperature != THERMAL_TEMP_INVALID) {
-			cmd.thresholds[idx++] =
-				cpu_to_le16((s16)(mvm->tz_device.trips[i].temperature / 1000));
-		}
-	}
-	cmd.num_temps = cpu_to_le32(idx);
+	for_each_thermal_trip(mvm->tz_device.tzone, iwl_trip_temp_cb, &twd);
 
-	if (!idx)
-		goto send;
-
-	/*sort cmd array*/
-	sort(cmd.thresholds, idx, sizeof(s16), compare_temps, NULL);
+	cmd.num_temps = cpu_to_le32(twd.count);
+	if (twd.count)
+		sort(cmd.thresholds, twd.count, sizeof(s16), compare_temps, NULL);
 
 send:
 #endif
