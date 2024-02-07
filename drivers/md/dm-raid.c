@@ -4091,6 +4091,6 @@ MODULE_ALIAS("dm-raid10");
 MODULE_ALIAS("dm-raid4");
 MODULE_ALIAS("dm-raid5");
 MODULE_ALIAS("dm-raid6");
-MODULE_AUTHOR("Neil Brown <dm-devel@redhat.com>");
-MODULE_AUTHOR("Heinz Mauelshagen <dm-devel@redhat.com>");
+MODULE_AUTHOR("Neil Brown <dm-devel@lists.linux.dev>");
+MODULE_AUTHOR("Heinz Mauelshagen <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

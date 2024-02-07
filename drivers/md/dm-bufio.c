@@ -2998,6 +2998,6 @@ MODULE_PARM_DESC(allocated_vmalloc_bytes, "Memory allocated with vmalloc");
 module_param_named(current_allocated_bytes, dm_bufio_current_allocated, ulong, 0444);
 MODULE_PARM_DESC(current_allocated_bytes, "Memory currently used by the cache");
 
-MODULE_AUTHOR("Mikulas Patocka <dm-devel@redhat.com>");
+MODULE_AUTHOR("Mikulas Patocka <dm-devel@lists.linux.dev>");
 MODULE_DESCRIPTION(DM_NAME " buffered I/O library");
 MODULE_LICENSE("GPL");

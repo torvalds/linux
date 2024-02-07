@@ -2776,5 +2776,5 @@ static struct target_type writecache_target = {
 module_dm(writecache);
 
 MODULE_DESCRIPTION(DM_NAME " writecache target");
-MODULE_AUTHOR("Mikulas Patocka <dm-devel@redhat.com>");
+MODULE_AUTHOR("Mikulas Patocka <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");
