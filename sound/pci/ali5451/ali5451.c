@@ -243,9 +243,7 @@ struct snd_ali {
 	spinlock_t	reg_lock;
 	spinlock_t	voice_alloc;
 
-#ifdef CONFIG_PM_SLEEP
 	struct snd_ali_image image;
-#endif
 };
 
 static const struct pci_device_id snd_ali_ids[] = {
@@ -1824,7 +1822,6 @@ static int snd_ali_mixer(struct snd_ali *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int ali_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -1900,11 +1897,7 @@ static int ali_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ali_pm, ali_suspend, ali_resume);
-#define ALI_PM_OPS	&ali_pm
-#else
-#define ALI_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(ali_pm, ali_suspend, ali_resume);
 
 static void snd_ali_free(struct snd_card *card)
 {
@@ -2166,7 +2159,7 @@ static struct pci_driver ali5451_driver = {
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.driver = {
-		.pm = ALI_PM_OPS,
+		.pm = &ali_pm,
 	},
 };                                
 
