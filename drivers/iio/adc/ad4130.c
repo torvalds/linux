@@ -1821,7 +1821,7 @@ static int ad4130_setup_int_clk(struct ad4130_state *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct device_node *of_node = dev_of_node(dev);
-	struct clk_init_data init;
+	struct clk_init_data init = {};
 	const char *clk_name;
 	int ret;
 
