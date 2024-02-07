@@ -172,6 +172,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(McaBankDumpDW,                       PPSMC_MSG_McaBankDumpDW,                   0),
 	MSG_MAP(McaBankCeDumpDW,                     PPSMC_MSG_McaBankCeDumpDW,                 0),
 	MSG_MAP(SelectPLPDMode,                      PPSMC_MSG_SelectPLPDMode,                  0),
+	MSG_MAP(RmaDueToBadPageThreshold,            PPSMC_MSG_RmaDueToBadPageThreshold,        0),
 };
 
 // clang-format on
@@ -2381,6 +2382,24 @@ static int smu_v13_0_6_smu_send_hbm_bad_page_num(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v13_0_6_send_rma_reason(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret;
+
+	/* NOTE: the message is only valid on dGPU with pmfw 85.90.0 and above */
+	if ((adev->flags & AMD_IS_APU) || smu->smc_fw_version < 0x00555a00)
+		return 0;
+
+	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_RmaDueToBadPageThreshold, NULL);
+	if (ret)
+		dev_err(smu->adev->dev,
+			"[%s] failed to send BadPageThreshold event to SMU\n",
+			__func__);
+
+	return ret;
+}
+
 static int mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
 {
 	struct smu_context *smu = adev->powerplay.pp_handle;
@@ -3095,6 +3114,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.i2c_init = smu_v13_0_6_i2c_control_init,
 	.i2c_fini = smu_v13_0_6_i2c_control_fini,
 	.send_hbm_bad_pages_num = smu_v13_0_6_smu_send_hbm_bad_page_num,
+	.send_rma_reason = smu_v13_0_6_send_rma_reason,
 };
 
 void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)

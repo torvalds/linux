@@ -3679,3 +3679,13 @@ int smu_send_hbm_bad_channel_flag(struct smu_context *smu, uint32_t size)
 
 	return ret;
 }
+
+int smu_send_rma_reason(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (smu->ppt_funcs && smu->ppt_funcs->send_rma_reason)
+		ret = smu->ppt_funcs->send_rma_reason(smu);
+
+	return ret;
+}
