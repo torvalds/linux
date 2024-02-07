@@ -1012,7 +1012,7 @@ static int check_inode(struct btree_trans *trans,
 	if (fsck_err_on(u.bi_parent_subvol &&
 			(u.bi_subvol == 0 ||
 			 u.bi_subvol == BCACHEFS_ROOT_SUBVOL),
-			c, inode_bi_parent_subvol_nonzero,
+			c, inode_bi_parent_nonzero,
 			"inode %llu:%u has subvol %u but nonzero parent subvol %u",
 			u.bi_inum, k.k->p.snapshot, u.bi_subvol, u.bi_parent_subvol)) {
 		u.bi_parent_subvol = 0;
@@ -1685,27 +1685,6 @@ static int check_dirent_target(struct btree_trans *trans,
 
 		d = dirent_i_to_s_c(n);
 	}
-
-	if (fsck_err_on(d.v->d_type == DT_SUBVOL &&
-			target->bi_parent_subvol != le32_to_cpu(d.v->d_parent_subvol),
-			c, dirent_d_parent_subvol_wrong,
-			"dirent has wrong d_parent_subvol field: got %u, should be %u",
-			le32_to_cpu(d.v->d_parent_subvol),
-			target->bi_parent_subvol)) {
-		n = bch2_trans_kmalloc(trans, bkey_bytes(d.k));
-		ret = PTR_ERR_OR_ZERO(n);
-		if (ret)
-			goto err;
-
-		bkey_reassemble(&n->k_i, d.s_c);
-		n->v.d_parent_subvol = cpu_to_le32(target->bi_parent_subvol);
-
-		ret = bch2_trans_update(trans, iter, &n->k_i, 0);
-		if (ret)
-			goto err;
-
-		d = dirent_i_to_s_c(n);
-	}
 err:
 fsck_err:
 	printbuf_exit(&buf);
@@ -1718,6 +1697,7 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 {
 	struct bch_fs *c = trans->c;
 	struct bch_inode_unpacked subvol_root;
+	u32 parent_subvol = le32_to_cpu(d.v->d_parent_subvol);
 	u32 target_subvol = le32_to_cpu(d.v->d_child_subvol);
 	u32 target_snapshot;
 	u64 target_inum;
@@ -1737,6 +1717,17 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 			   &subvol_root, &target_snapshot);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
+
+	if (fsck_err_on(parent_subvol != subvol_root.bi_parent_subvol,
+			c, inode_bi_parent_wrong,
+			"subvol root %llu has wrong bi_parent_subvol: got %u, should be %u",
+			target_inum,
+			subvol_root.bi_parent_subvol, parent_subvol)) {
+		subvol_root.bi_parent_subvol = parent_subvol;
+		ret = __bch2_fsck_write_inode(trans, &subvol_root, target_snapshot);
+		if (ret)
+			return ret;
+	}
 
 	ret = check_dirent_target(trans, iter, d, &subvol_root,
 				  target_snapshot);

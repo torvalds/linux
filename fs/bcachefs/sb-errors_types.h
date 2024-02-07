@@ -231,7 +231,7 @@
 	x(dirent_name_dot_or_dotdot,				223)	\
 	x(dirent_name_has_slash,				224)	\
 	x(dirent_d_type_wrong,					225)	\
-	x(dirent_d_parent_subvol_wrong,				226)	\
+	x(inode_bi_parent_wrong,				226)	\
 	x(dirent_in_missing_dir_inode,				227)	\
 	x(dirent_in_non_dir_inode,				228)	\
 	x(dirent_to_missing_inode,				229)	\
