@@ -575,7 +575,7 @@ int iwl_mvm_send_temp_report_ths_cmd(struct iwl_mvm *mvm)
 
 	/* compress trips to cmd array, remove uninitialized values*/
 	for (i = 0; i < IWL_MAX_DTS_TRIPS; i++) {
-		if (mvm->tz_device.trips[i].temperature != INT_MIN) {
+		if (mvm->tz_device.trips[i].temperature != THERMAL_TEMP_INVALID) {
 			cmd.thresholds[idx++] =
 				cpu_to_le16((s16)(mvm->tz_device.trips[i].temperature / 1000));
 		}
@@ -675,6 +675,14 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 	BUILD_BUG_ON(ARRAY_SIZE(name) >= THERMAL_NAME_LENGTH);
 
 	sprintf(name, "iwlwifi_%u", atomic_inc_return(&counter) & 0xFF);
+	/*
+	 * 0 is a valid temperature,
+	 * so initialize the array with S16_MIN which invalid temperature
+	 */
+	for (i = 0 ; i < IWL_MAX_DTS_TRIPS; i++) {
+		mvm->tz_device.trips[i].temperature = THERMAL_TEMP_INVALID;
+		mvm->tz_device.trips[i].type = THERMAL_TRIP_PASSIVE;
+	}
 	mvm->tz_device.tzone = thermal_zone_device_register_with_trips(name,
 							mvm->tz_device.trips,
 							IWL_MAX_DTS_TRIPS,
@@ -693,15 +701,6 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 	if (ret) {
 		IWL_DEBUG_TEMP(mvm, "Failed to enable thermal zone\n");
 		thermal_zone_device_unregister(mvm->tz_device.tzone);
-		return;
-	}
-
-	/* 0 is a valid temperature,
-	 * so initialize the array with S16_MIN which invalid temperature
-	 */
-	for (i = 0 ; i < IWL_MAX_DTS_TRIPS; i++) {
-		mvm->tz_device.trips[i].temperature = INT_MIN;
-		mvm->tz_device.trips[i].type = THERMAL_TRIP_PASSIVE;
 	}
 }
 
