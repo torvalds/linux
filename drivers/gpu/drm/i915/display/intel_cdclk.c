@@ -1406,6 +1406,20 @@ static const struct intel_cdclk_vals lnl_cdclk_table[] = {
 	{}
 };
 
+static const int cdclk_squash_len = 16;
+
+static int cdclk_squash_divider(u16 waveform)
+{
+	return hweight16(waveform ?: 0xffff);
+}
+
+static int cdclk_divider(int cdclk, int vco, u16 waveform)
+{
+	/* 2 * cd2x divider */
+	return DIV_ROUND_CLOSEST(vco * cdclk_squash_divider(waveform),
+				 cdclk * cdclk_squash_len);
+}
+
 static int bxt_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 {
 	const struct intel_cdclk_vals *table = dev_priv->display.cdclk.table;
@@ -1744,10 +1758,10 @@ static u32 bxt_cdclk_cd2x_pipe(struct drm_i915_private *dev_priv, enum pipe pipe
 }
 
 static u32 bxt_cdclk_cd2x_div_sel(struct drm_i915_private *dev_priv,
-				  int cdclk, int vco)
+				  int cdclk, int vco, u16 waveform)
 {
 	/* cdclk = vco / 2 / div{1,1.5,2,4} */
-	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
+	switch (cdclk_divider(cdclk, vco, waveform)) {
 	default:
 		drm_WARN_ON(&dev_priv->drm,
 			    cdclk != dev_priv->display.cdclk.hw.bypass);
@@ -1826,13 +1840,6 @@ static bool cdclk_pll_is_unknown(unsigned int vco)
 	return vco == ~0;
 }
 
-static const int cdclk_squash_len = 16;
-
-static int cdclk_squash_divider(u16 waveform)
-{
-	return hweight16(waveform ?: 0xffff);
-}
-
 static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i915,
 						    const struct intel_cdclk_config *old_cdclk_config,
 						    const struct intel_cdclk_config *new_cdclk_config,
@@ -1906,16 +1913,12 @@ static u32 bxt_cdclk_ctl(struct drm_i915_private *i915,
 {
 	int cdclk = cdclk_config->cdclk;
 	int vco = cdclk_config->vco;
-	int unsquashed_cdclk;
 	u16 waveform;
 	u32 val;
 
 	waveform = cdclk_squash_waveform(i915, cdclk);
 
-	unsquashed_cdclk = DIV_ROUND_CLOSEST(cdclk * cdclk_squash_len,
-					     cdclk_squash_divider(waveform));
-
-	val = bxt_cdclk_cd2x_div_sel(i915, unsquashed_cdclk, vco) |
+	val = bxt_cdclk_cd2x_div_sel(i915, cdclk, vco, waveform) |
 		bxt_cdclk_cd2x_pipe(i915, pipe);
 
 	/*
