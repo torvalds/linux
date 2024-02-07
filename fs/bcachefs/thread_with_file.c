@@ -366,48 +366,65 @@ out:
 }
 
 __printf(3, 0)
-static void bch2_darray_vprintf(darray_char *out, gfp_t gfp, const char *fmt, va_list args)
+static ssize_t bch2_darray_vprintf(darray_char *out, gfp_t gfp, const char *fmt, va_list args)
 {
-	size_t len;
+	ssize_t ret;
 
 	do {
 		va_list args2;
+		size_t len;
+
 		va_copy(args2, args);
-
 		len = vsnprintf(out->data + out->nr, darray_room(*out), fmt, args2);
-	} while (len + 1 > darray_room(*out) && !darray_make_room_gfp(out, len + 1, gfp));
+		if (len + 1 <= darray_room(*out)) {
+			out->nr += len;
+			return len;
+		}
 
-	out->nr += min(len, darray_room(*out));
+		ret = darray_make_room_gfp(out, len + 1, gfp);
+	} while (ret == 0);
+
+	return ret;
 }
 
-void bch2_stdio_redirect_vprintf(struct stdio_redirect *stdio, bool nonblocking,
-				 const char *fmt, va_list args)
+ssize_t bch2_stdio_redirect_vprintf(struct stdio_redirect *stdio, bool nonblocking,
+				    const char *fmt, va_list args)
 {
 	struct stdio_buf *buf = &stdio->output;
 	unsigned long flags;
+	ssize_t ret;
 
-	if (!nonblocking)
-		wait_event(buf->wait, stdio_redirect_has_output_space(stdio));
-	else if (!stdio_redirect_has_output_space(stdio))
-		return;
-	if (stdio->done)
-		return;
-
+again:
 	spin_lock_irqsave(&buf->lock, flags);
-	bch2_darray_vprintf(&buf->buf, nonblocking ? GFP_NOWAIT : GFP_KERNEL, fmt, args);
+	ret = bch2_darray_vprintf(&buf->buf, GFP_NOWAIT, fmt, args);
 	spin_unlock_irqrestore(&buf->lock, flags);
 
+	if (ret < 0) {
+		if (nonblocking)
+			return -EAGAIN;
+
+		ret = wait_event_interruptible(buf->wait,
+				stdio_redirect_has_output_space(stdio));
+		if (ret)
+			return ret;
+		goto again;
+	}
+
 	wake_up(&buf->wait);
+	return ret;
 }
 
-void bch2_stdio_redirect_printf(struct stdio_redirect *stdio, bool nonblocking,
+ssize_t bch2_stdio_redirect_printf(struct stdio_redirect *stdio, bool nonblocking,
 				const char *fmt, ...)
 {
-
 	va_list args;
+	ssize_t ret;
+
 	va_start(args, fmt);
-	bch2_stdio_redirect_vprintf(stdio, nonblocking, fmt, args);
+	ret = bch2_stdio_redirect_vprintf(stdio, nonblocking, fmt, args);
 	va_end(args);
+
+	return ret;
 }
 
 #endif /* NO_BCACHEFS_FS */
