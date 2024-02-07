@@ -407,7 +407,7 @@ static inline u64 __ulseq_to_u64seq(struct printk_ringbuffer *rb, u32 ulseq)
 	 * Also the access to the ring buffer is always safe.
 	 */
 	rb_next_seq = prb_next_seq(rb);
-	seq = rb_next_seq - ((u32)rb_next_seq - ulseq);
+	seq = rb_next_seq - (s32)((u32)rb_next_seq - ulseq);
 
 	return seq;
 }
