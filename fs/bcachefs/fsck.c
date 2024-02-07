@@ -1692,6 +1692,31 @@ fsck_err:
 	return ret;
 }
 
+/* find a subvolume that's a descendent of @snapshot: */
+static int find_snapshot_subvol(struct btree_trans *trans, u32 snapshot, u32 *subvolid)
+{
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	int ret;
+
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_subvolumes, POS_MIN, 0, k, ret) {
+		if (k.k->type != KEY_TYPE_subvolume)
+			continue;
+
+		struct bkey_s_c_subvolume s = bkey_s_c_to_subvolume(k);
+		if (bch2_snapshot_is_ancestor(trans->c, le32_to_cpu(s.v->snapshot), snapshot)) {
+			bch2_trans_iter_exit(trans, &iter);
+			*subvolid = k.k->p.offset;
+			goto found;
+		}
+	}
+	if (!ret)
+		ret = -ENOENT;
+found:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
 static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *iter,
 				  struct bkey_s_c_dirent d)
 {
@@ -1699,9 +1724,35 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	struct bch_inode_unpacked subvol_root;
 	u32 parent_subvol = le32_to_cpu(d.v->d_parent_subvol);
 	u32 target_subvol = le32_to_cpu(d.v->d_child_subvol);
-	u32 target_snapshot;
-	u64 target_inum;
+	u32 target_snapshot, parent_snapshot;
+	u64 target_inum, parent_inum;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
+
+	ret = subvol_lookup(trans, parent_subvol, &parent_snapshot, &parent_inum);
+	if (ret && !bch2_err_matches(ret, ENOENT))
+		return ret;
+
+	if (fsck_err_on(ret, c, dirent_to_missing_parent_subvol,
+			"dirent parent_subvol points to missing subvolume\n%s",
+			(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf)) ||
+	    fsck_err_on(!ret && !bch2_snapshot_is_ancestor(c, parent_snapshot, d.k->p.snapshot),
+			c, dirent_not_visible_in_parent_subvol,
+			"dirent not visible in parent_subvol (not an ancestor of subvol snap %u)\n%s",
+			parent_snapshot,
+			(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf))) {
+		u32 new_parent_subvol;
+		ret = find_snapshot_subvol(trans, d.k->p.snapshot, &new_parent_subvol);
+		if (ret)
+			goto err;
+
+		struct bkey_i_dirent *new_dirent = bch2_bkey_make_mut_typed(trans, iter, &d.s_c, 0, dirent);
+		ret = PTR_ERR_OR_ZERO(new_dirent);
+		if (ret)
+			goto err;
+
+		new_dirent->v.d_parent_subvol = cpu_to_le32(new_parent_subvol);
+	}
 
 	ret = subvol_lookup(trans, target_subvol,
 			    &target_snapshot, &target_inum);
@@ -1709,8 +1760,8 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 		return ret;
 
 	if (fsck_err_on(ret, c, dirent_to_missing_subvol,
-			"dirent points to missing subvolume %u",
-			le32_to_cpu(d.v->d_child_subvol)))
+			"dirent points to missing subvolume\n%s",
+			(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf)))
 		return __remove_dirent(trans, d.k->p);
 
 	ret = lookup_inode(trans, target_inum,
@@ -1733,7 +1784,9 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 				  target_snapshot);
 	if (ret)
 		return ret;
+err:
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
