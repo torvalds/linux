@@ -1751,31 +1751,21 @@ static int bnxt_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return 0;
 }
 
-u32 _bnxt_fw_to_ethtool_adv_spds(u16 fw_speeds, u8 fw_pause)
+/* TODO: support 25GB, 40GB, 50GB with different cable type */
+void _bnxt_fw_to_linkmode(unsigned long *mode, u16 fw_speeds)
 {
-	u32 speed_mask = 0;
+	linkmode_zero(mode);
 
-	/* TODO: support 25GB, 40GB, 50GB with different cable type */
-	/* set the advertised speeds */
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_100MB)
-		speed_mask |= ADVERTISED_100baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mode);
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_1GB)
-		speed_mask |= ADVERTISED_1000baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, mode);
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_2_5GB)
-		speed_mask |= ADVERTISED_2500baseX_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_2500baseX_Full_BIT, mode);
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_10GB)
-		speed_mask |= ADVERTISED_10000baseT_Full;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, mode);
 	if (fw_speeds & BNXT_LINK_SPEED_MSK_40GB)
-		speed_mask |= ADVERTISED_40000baseCR4_Full;
-
-	if ((fw_pause & BNXT_LINK_PAUSE_BOTH) == BNXT_LINK_PAUSE_BOTH)
-		speed_mask |= ADVERTISED_Pause;
-	else if (fw_pause & BNXT_LINK_PAUSE_TX)
-		speed_mask |= ADVERTISED_Asym_Pause;
-	else if (fw_pause & BNXT_LINK_PAUSE_RX)
-		speed_mask |= ADVERTISED_Pause | ADVERTISED_Asym_Pause;
-
-	return speed_mask;
+		linkmode_set_bit(ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT, mode);
 }
 
 enum bnxt_media_type {
@@ -2643,23 +2633,22 @@ bnxt_force_link_speed(struct net_device *dev, u32 ethtool_speed, u32 lanes)
 	return 0;
 }
 
-u16 bnxt_get_fw_auto_link_speeds(u32 advertising)
+u16 bnxt_get_fw_auto_link_speeds(const unsigned long *mode)
 {
 	u16 fw_speed_mask = 0;
 
-	/* only support autoneg at speed 100, 1000, and 10000 */
-	if (advertising & (ADVERTISED_100baseT_Full |
-			   ADVERTISED_100baseT_Half)) {
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, mode) ||
+	    linkmode_test_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, mode))
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_100MB;
-	}
-	if (advertising & (ADVERTISED_1000baseT_Full |
-			   ADVERTISED_1000baseT_Half)) {
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, mode) ||
+	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, mode))
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_1GB;
-	}
-	if (advertising & ADVERTISED_10000baseT_Full)
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT, mode))
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_10GB;
 
-	if (advertising & ADVERTISED_40000baseCR4_Full)
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT, mode))
 		fw_speed_mask |= BNXT_LINK_SPEED_MSK_40GB;
 
 	return fw_speed_mask;
@@ -3886,10 +3875,11 @@ static int bnxt_set_eeprom(struct net_device *dev,
 
 static int bnxt_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp);
 	struct bnxt *bp = netdev_priv(dev);
 	struct ethtool_keee *eee = &bp->eee;
 	struct bnxt_link_info *link_info = &bp->link_info;
-	u32 advertising;
 	int rc = 0;
 
 	if (!BNXT_PHY_CFG_ABLE(bp))
@@ -3899,7 +3889,7 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&bp->link_lock);
-	advertising = _bnxt_fw_to_ethtool_adv_spds(link_info->advertising, 0);
+	_bnxt_fw_to_linkmode(advertising, link_info->advertising);
 	if (!edata->eee_enabled)
 		goto eee_ok;
 
@@ -3919,16 +3909,15 @@ static int bnxt_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 			edata->tx_lpi_timer = eee->tx_lpi_timer;
 		}
 	}
-	if (!edata->advertised_u32) {
-		edata->advertised_u32 = advertising & eee->supported_u32;
-	} else if (edata->advertised_u32 & ~advertising) {
-		netdev_warn(dev, "EEE advertised %x must be a subset of autoneg advertised speeds %x\n",
-			    edata->advertised_u32, advertising);
+	if (linkmode_empty(edata->advertised)) {
+		linkmode_and(edata->advertised, advertising, eee->supported);
+	} else if (linkmode_andnot(tmp, edata->advertised, advertising)) {
+		netdev_warn(dev, "EEE advertised must be a subset of autoneg advertised speeds\n");
 		rc = -EINVAL;
 		goto eee_exit;
 	}
 
-	eee->advertised_u32 = edata->advertised_u32;
+	linkmode_copy(eee->advertised, edata->advertised);
 	eee->tx_lpi_enabled = edata->tx_lpi_enabled;
 	eee->tx_lpi_timer = edata->tx_lpi_timer;
 eee_ok:
@@ -3954,12 +3943,12 @@ static int bnxt_get_eee(struct net_device *dev, struct ethtool_keee *edata)
 		/* Preserve tx_lpi_timer so that the last value will be used
 		 * by default when it is re-enabled.
 		 */
-		edata->advertised_u32 = 0;
+		linkmode_zero(edata->advertised);
 		edata->tx_lpi_enabled = 0;
 	}
 
 	if (!bp->eee.eee_active)
-		edata->lp_advertised_u32 = 0;
+		linkmode_zero(edata->lp_advertised);
 
 	return 0;
 }
