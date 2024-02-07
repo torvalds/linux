@@ -969,12 +969,17 @@ static int rproc_panic_handler(struct notifier_block *this,
 
 	/* wake up SOCCP during panic to run error handlers on SOCCP */
 	dev_info(adsp->dev, "waking SOCCP from panic path\n");
-	ret = rproc_set_state(adsp->rproc, true);
+	ret = qcom_smem_state_update_bits(adsp->wake_state,
+				    SOCCP_STATE_MASK,
+				    BIT(adsp->wake_bit));
+	if (ret) {
+		dev_err(adsp->dev, "failed to update smem bits for D3 to D0\n");
+		goto done;
+	}
+	ret = rproc_config_check(adsp, SOCCP_D0);
 	if (ret)
-		dev_err(adsp->dev, "state did not changed during panic\n");
-	else
-		dev_info(adsp->dev, "subsystem woke-up done from panic path\n");
-
+		dev_err(adsp->dev, "failed to change to D0\n");
+done:
 	return NOTIFY_DONE;
 }
 
