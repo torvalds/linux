@@ -96,6 +96,20 @@ class DamosQuota:
         if err != None:
             return err
 
+class DamosStats:
+    nr_tried = None
+    sz_tried = None
+    nr_applied = None
+    sz_applied = None
+    qt_exceeds = None
+
+    def __init__(self, nr_tried, sz_tried, nr_applied, sz_applied, qt_exceeds):
+        self.nr_tried = nr_tried
+        self.sz_tried = sz_tried
+        self.nr_applied = nr_applied
+        self.sz_applied = sz_applied
+        self.qt_exceeds = qt_exceeds
+
 class Damos:
     action = None
     access_pattern = None
@@ -104,6 +118,7 @@ class Damos:
     idx = None
     context = None
     tried_bytes = None
+    stats = None
 
     def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
                  quota=DamosQuota()):
@@ -321,6 +336,23 @@ class Kdamond:
                 if err != None:
                     return err
                 scheme.tried_bytes = int(content)
+
+    def update_schemes_stats(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'),
+                'update_schemes_stats')
+        if err != None:
+            return err
+        for context in self.contexts:
+            for scheme in context.schemes:
+                stat_values = []
+                for stat in ['nr_tried', 'sz_tried', 'nr_applied',
+                             'sz_applied', 'qt_exceeds']:
+                    content, err = read_file(
+                            os.path.join(scheme.sysfs_dir(), 'stats', stat))
+                    if err != None:
+                        return err
+                    stat_values.append(int(content))
+                scheme.stats = DamosStats(*stat_values)
 
 class Kdamonds:
     kdamonds = []
