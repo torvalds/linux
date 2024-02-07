@@ -800,7 +800,7 @@ static int au1550_spi_probe(struct platform_device *pdev)
 
 	init_completion(&hw->host_done);
 
-	hw->bitbang.master = hw->host;
+	hw->bitbang.ctlr = hw->host;
 	hw->bitbang.setup_transfer = au1550_spi_setupxfer;
 	hw->bitbang.chipselect = au1550_spi_chipsel;
 	hw->bitbang.txrx_bufs = au1550_spi_txrx_bufs;
