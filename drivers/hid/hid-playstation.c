@@ -287,6 +287,8 @@ struct dualsense_output_report {
 
 #define DS4_INPUT_REPORT_USB			0x01
 #define DS4_INPUT_REPORT_USB_SIZE		64
+#define DS4_INPUT_REPORT_BT_MINIMAL		0x01
+#define DS4_INPUT_REPORT_BT_MINIMAL_SIZE	10
 #define DS4_INPUT_REPORT_BT			0x11
 #define DS4_INPUT_REPORT_BT_SIZE		78
 #define DS4_OUTPUT_REPORT_USB			0x05
@@ -2196,6 +2198,7 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	int battery_status, i, j;
 	uint16_t sensor_timestamp;
 	unsigned long flags;
+	bool is_minimal = false;
 
 	/*
 	 * DualShock4 in USB uses the full HID report for reportID 1, but
@@ -2223,6 +2226,18 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 		ds4_report = &bt->common;
 		num_touch_reports = bt->num_touch_reports;
 		touch_reports = bt->touch_reports;
+	} else if (hdev->bus == BUS_BLUETOOTH &&
+		   report->id == DS4_INPUT_REPORT_BT_MINIMAL &&
+			 size == DS4_INPUT_REPORT_BT_MINIMAL_SIZE) {
+		/* Some third-party pads never switch to the full 0x11 report.
+		 * The short 0x01 report is 10 bytes long:
+		 *   u8 report_id == 0x01
+		 *   u8 first_bytes_of_full_report[9]
+		 * So let's reuse the full report parser, and stop it after
+		 * parsing the buttons.
+		 */
+		ds4_report = (struct dualshock4_input_report_common *)&data[1];
+		is_minimal = true;
 	} else {
 		hid_err(hdev, "Unhandled reportID=%d\n", report->id);
 		return -1;
@@ -2255,6 +2270,9 @@ static int dualshock4_parse_report(struct ps_device *ps_dev, struct hid_report *
 	input_report_key(ds4->gamepad, BTN_THUMBR, ds4_report->buttons[1] & DS_BUTTONS1_R3);
 	input_report_key(ds4->gamepad, BTN_MODE,   ds4_report->buttons[2] & DS_BUTTONS2_PS_HOME);
 	input_sync(ds4->gamepad);
+
+	if (is_minimal)
+		return 0;
 
 	/* Parse and calibrate gyroscope data. */
 	for (i = 0; i < ARRAY_SIZE(ds4_report->gyro); i++) {
