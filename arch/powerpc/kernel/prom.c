@@ -196,6 +196,7 @@ static struct ibm_feature ibm_pa_features[] __initdata = {
  */
 static struct ibm_feature ibm_pi_features[] __initdata = {
 	{ .pabyte = 0, .pabit = 3, .mmu_features  = MMU_FTR_NX_DSI },
+	{ .pabyte = 0, .pabit = 4, .cpu_features  = CPU_FTR_DBELL, .clear = 1 },
 };
 
 static void __init scan_features(unsigned long node, const unsigned char *ftrs,
