@@ -5,7 +5,12 @@
 //          Kumaravel Thiagarajan <Kumaravel.Thiagarajan@microchip.com>
 
 
+#include <linux/dma-mapping.h>
+#include <linux/iopoll.h>
+#include <linux/irq.h>
 #include <linux/module.h>
+#include <linux/msi.h>
+#include <linux/pci_regs.h>
 #include <linux/pci.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
@@ -32,7 +37,32 @@
 #define	SPI_MST_CTL_MODE_SEL		(BIT(2))
 #define	SPI_MST_CTL_GO			(BIT(0))
 
+#define SPI_SYSTEM_ADDR_BASE		(0x2000)
 #define	SPI_MST1_ADDR_BASE		(0x800)
+
+#define DEV_REV_REG			(SPI_SYSTEM_ADDR_BASE + 0x00)
+#define SPI_SYSLOCK_REG			(SPI_SYSTEM_ADDR_BASE + 0xA0)
+#define SPI_CONFIG_PERI_ENABLE_REG	(SPI_SYSTEM_ADDR_BASE + 0x108)
+
+#define SPI_PERI_ENBLE_PF_MASK		(GENMASK(17, 16))
+#define DEV_REV_MASK			(GENMASK(7, 0))
+
+#define SPI_SYSLOCK			BIT(4)
+
+/* DMA Related Registers */
+#define SPI_DMA_ADDR_BASE		(0x1000)
+#define SPI_DMA_GLOBAL_WR_ENGINE_EN	(SPI_DMA_ADDR_BASE + 0x0C)
+#define SPI_DMA_GLOBAL_RD_ENGINE_EN	(SPI_DMA_ADDR_BASE + 0x2C)
+#define SPI_DMA_INTR_IMWR_WDONE_LOW	(SPI_DMA_ADDR_BASE + 0x60)
+#define SPI_DMA_INTR_IMWR_WDONE_HIGH	(SPI_DMA_ADDR_BASE + 0x64)
+#define SPI_DMA_INTR_IMWR_WABORT_LOW	(SPI_DMA_ADDR_BASE + 0x68)
+#define SPI_DMA_INTR_IMWR_WABORT_HIGH	(SPI_DMA_ADDR_BASE + 0x6C)
+#define SPI_DMA_INTR_WR_IMWR_DATA	(SPI_DMA_ADDR_BASE + 0x70)
+#define SPI_DMA_INTR_IMWR_RDONE_LOW	(SPI_DMA_ADDR_BASE + 0xCC)
+#define SPI_DMA_INTR_IMWR_RDONE_HIGH	(SPI_DMA_ADDR_BASE + 0xD0)
+#define SPI_DMA_INTR_IMWR_RABORT_LOW	(SPI_DMA_ADDR_BASE + 0xD4)
+#define SPI_DMA_INTR_IMWR_RABORT_HIGH	(SPI_DMA_ADDR_BASE + 0xD8)
+#define SPI_DMA_INTR_RD_IMWR_DATA	(SPI_DMA_ADDR_BASE + 0xDC)
 
 /* x refers to SPI Host Controller HW instance id in the below macros - 0 or 1 */
 
@@ -50,6 +80,8 @@
 #define SPI_MAX_DATA_LEN			320
 
 #define PCI1XXXX_SPI_TIMEOUT			(msecs_to_jiffies(100))
+#define SYSLOCK_RETRY_CNT			(1000)
+#define SPI_DMA_ENGINE_EN			(0x1)
 
 #define SPI_INTR		BIT(8)
 #define SPI_FORCE_CE		BIT(4)
@@ -76,7 +108,10 @@ struct pci1xxxx_spi_internal {
 struct pci1xxxx_spi {
 	struct pci_dev *dev;
 	u8 total_hw_instances;
+	u8 dev_rev;
 	void __iomem *reg_base;
+	void __iomem *dma_offset_bar;
+	bool can_dma;
 	struct pci1xxxx_spi_internal *spi_int[] __counted_by(total_hw_instances);
 };
 
@@ -105,6 +140,112 @@ static const struct pci_device_id pci1xxxx_spi_pci_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pci, pci1xxxx_spi_pci_id_table);
+
+static int pci1xxxx_set_sys_lock(struct pci1xxxx_spi *par)
+{
+	writel(SPI_SYSLOCK, par->reg_base + SPI_SYSLOCK_REG);
+	return readl(par->reg_base + SPI_SYSLOCK_REG);
+}
+
+static int pci1xxxx_acquire_sys_lock(struct pci1xxxx_spi *par)
+{
+	u32 regval;
+
+	return readx_poll_timeout(pci1xxxx_set_sys_lock, par, regval,
+			   (regval & SPI_SYSLOCK), 100,
+			   SYSLOCK_RETRY_CNT * 100);
+}
+
+static void pci1xxxx_release_sys_lock(struct pci1xxxx_spi *par)
+{
+	writel(0x0, par->reg_base + SPI_SYSLOCK_REG);
+}
+
+static int pci1xxxx_check_spi_can_dma(struct pci1xxxx_spi *spi_bus, int irq)
+{
+	struct pci_dev *pdev = spi_bus->dev;
+	u32 pf_num;
+	u32 regval;
+	int ret;
+
+	/*
+	 * DEV REV Registers is a system register, HW Syslock bit
+	 * should be acquired before accessing the register
+	 */
+	ret = pci1xxxx_acquire_sys_lock(spi_bus);
+	if (ret) {
+		dev_err(&pdev->dev, "Error failed to acquire syslock\n");
+		return ret;
+	}
+
+	regval = readl(spi_bus->reg_base + DEV_REV_REG);
+	spi_bus->dev_rev = regval & DEV_REV_MASK;
+	if (spi_bus->dev_rev >= 0xC0) {
+		regval = readl(spi_bus->reg_base +
+			       SPI_CONFIG_PERI_ENABLE_REG);
+		pf_num = regval & SPI_PERI_ENBLE_PF_MASK;
+	}
+
+	pci1xxxx_release_sys_lock(spi_bus);
+
+	/*
+	 * DMA is supported only from C0 and SPI can use DMA only if
+	 * it is mapped to PF0
+	 */
+	if (spi_bus->dev_rev < 0xC0 || pf_num)
+		return -EOPNOTSUPP;
+
+	/*
+	 * DMA Supported only with MSI Interrupts
+	 * One of the SPI instance's MSI vector address and data
+	 * is used for DMA Interrupt
+	 */
+	if (!irq_get_msi_desc(irq)) {
+		dev_warn(&pdev->dev, "Error MSI Interrupt not supported, will operate in PIO mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	spi_bus->dma_offset_bar = pcim_iomap(pdev, 2, pci_resource_len(pdev, 2));
+	if (!spi_bus->dma_offset_bar) {
+		dev_warn(&pdev->dev, "Error failed to map dma bar, will operate in PIO mode\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64))) {
+		dev_warn(&pdev->dev, "Error failed to set DMA mask, will operate in PIO mode\n");
+		pcim_iounmap(pdev, spi_bus->dma_offset_bar);
+		spi_bus->dma_offset_bar = NULL;
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int pci1xxxx_spi_dma_init(struct pci1xxxx_spi *spi_bus, int irq)
+{
+	struct msi_msg msi;
+	int ret;
+
+	ret = pci1xxxx_check_spi_can_dma(spi_bus, irq);
+	if (ret)
+		return ret;
+
+	get_cached_msi_msg(irq, &msi);
+	writel(SPI_DMA_ENGINE_EN, spi_bus->dma_offset_bar + SPI_DMA_GLOBAL_WR_ENGINE_EN);
+	writel(SPI_DMA_ENGINE_EN, spi_bus->dma_offset_bar + SPI_DMA_GLOBAL_RD_ENGINE_EN);
+	writel(msi.address_hi, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_WDONE_HIGH);
+	writel(msi.address_hi, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_WABORT_HIGH);
+	writel(msi.address_hi, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_RDONE_HIGH);
+	writel(msi.address_hi, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_RABORT_HIGH);
+	writel(msi.address_lo, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_WDONE_LOW);
+	writel(msi.address_lo, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_WABORT_LOW);
+	writel(msi.address_lo, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_RDONE_LOW);
+	writel(msi.address_lo, spi_bus->dma_offset_bar + SPI_DMA_INTR_IMWR_RABORT_LOW);
+	writel(msi.data, spi_bus->dma_offset_bar + SPI_DMA_INTR_WR_IMWR_DATA);
+	writel(msi.data, spi_bus->dma_offset_bar + SPI_DMA_INTR_RD_IMWR_DATA);
+	spi_bus->can_dma = true;
+	return 0;
+}
 
 static void pci1xxxx_spi_set_cs(struct spi_device *spi, bool enable)
 {
@@ -323,6 +464,10 @@ static int pci1xxxx_spi_probe(struct pci_dev *pdev, const struct pci_device_id *
 				ret = -ENODEV;
 				goto error;
 			}
+
+			ret = pci1xxxx_spi_dma_init(spi_bus, spi_sub_ptr->irq);
+			if (ret && ret != -EOPNOTSUPP)
+				return ret;
 
 			/* This register is only applicable for 1st instance */
 			regval = readl(spi_bus->reg_base + SPI_PCI_CTRL_REG_OFFSET(0));
