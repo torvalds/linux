@@ -1778,8 +1778,10 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 		int retries;
 
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_SIZE, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
+		if (!buf) {
+			ret = -ENOMEM;
+			goto no_buffer_tail_check;
+		}
 
 		/* We should normally receive the feature report data we asked
 		 * for, but hidraw applications such as Steam can issue feature
@@ -1796,26 +1798,27 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 					continue;
 				}
 
-				hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
+				hid_warn(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
 				ret = -EILSEQ;
-				goto err_free;
 			} else {
 				break;
 			}
 		}
 	} else { /* Bluetooth */
 		buf = kzalloc(DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
+		if (!buf) {
+			ret = -ENOMEM;
+			goto no_buffer_tail_check;
+		}
 
 		ret = ps_get_report(hdev, DS4_FEATURE_REPORT_CALIBRATION_BT, buf,
 				DS4_FEATURE_REPORT_CALIBRATION_BT_SIZE, true);
-		if (ret) {
-			hid_err(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
-			goto err_free;
-		}
+
+		if (ret)
+			hid_warn(hdev, "Failed to retrieve DualShock4 calibration info: %d\n", ret);
 	}
 
+	/* Parse buffer. If the transfer failed, this safely copies zeroes. */
 	gyro_pitch_bias  = get_unaligned_le16(&buf[1]);
 	gyro_yaw_bias    = get_unaligned_le16(&buf[3]);
 	gyro_roll_bias   = get_unaligned_le16(&buf[5]);
@@ -1866,6 +1869,11 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 	ds4->gyro_calib_data[2].sens_numer = speed_2x*DS4_GYRO_RES_PER_DEG_S;
 	ds4->gyro_calib_data[2].sens_denom = abs(gyro_roll_plus - gyro_roll_bias) +
 			abs(gyro_roll_minus - gyro_roll_bias);
+
+	/* Done parsing the buffer, so let's free it. */
+	kfree(buf);
+
+no_buffer_tail_check:
 
 	/*
 	 * Sanity check gyro calibration data. This is needed to prevent crashes
@@ -1919,8 +1927,6 @@ static int dualshock4_get_calibration_data(struct dualshock4 *ds4)
 		}
 	}
 
-err_free:
-	kfree(buf);
 	return ret;
 }
 
@@ -2568,8 +2574,8 @@ static struct ps_device *dualshock4_create(struct hid_device *hdev)
 
 	ret = dualshock4_get_calibration_data(ds4);
 	if (ret) {
-		hid_err(hdev, "Failed to get calibration data from DualShock4\n");
-		goto err;
+		hid_warn(hdev, "Failed to get calibration data from DualShock4\n");
+		hid_warn(hdev, "Gyroscope and accelerometer will be inaccurate.\n");
 	}
 
 	ds4->gamepad = ps_gamepad_create(hdev, dualshock4_play_effect);
