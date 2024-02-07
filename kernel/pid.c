@@ -678,7 +678,26 @@ static struct file *__pidfd_fget(struct task_struct *task, int fd)
 
 	up_read(&task->signal->exec_update_lock);
 
-	return file ?: ERR_PTR(-EBADF);
+	if (!file) {
+		/*
+		 * It is possible that the target thread is exiting; it can be
+		 * either:
+		 * 1. before exit_signals(), which gives a real fd
+		 * 2. before exit_files() takes the task_lock() gives a real fd
+		 * 3. after exit_files() releases task_lock(), ->files is NULL;
+		 *    this has PF_EXITING, since it was set in exit_signals(),
+		 *    __pidfd_fget() returns EBADF.
+		 * In case 3 we get EBADF, but that really means ESRCH, since
+		 * the task is currently exiting and has freed its files
+		 * struct, so we fix it up.
+		 */
+		if (task->flags & PF_EXITING)
+			file = ERR_PTR(-ESRCH);
+		else
+			file = ERR_PTR(-EBADF);
+	}
+
+	return file;
 }
 
 static int pidfd_getfd(struct pid *pid, int fd)
