@@ -63,6 +63,15 @@
  * DMC will not change the active CDCLK frequency however, so that part
  * will still be performed by the driver directly.
  *
+ * Several methods exist to change the CDCLK frequency, which ones are
+ * supported depends on the platform:
+ * - Full PLL disable + re-enable with new VCO frequency. Pipes must be inactive.
+ * - CD2X divider update. Single pipe can be active as the divider update
+ *   can be synchronized with the pipe's start of vblank.
+ * - Crawl the PLL smoothly to the new VCO frequency. Pipes can be active.
+ * - Squash waveform update. Pipes can be active.
+ * - Crawl and squash can also be done back to back. Pipes can be active.
+ *
  * RAWCLK is a fixed frequency clock, often used by various auxiliary
  * blocks such as AUX CH or backlight PWM. Hence the only thing we
  * really need to know about RAWCLK is its frequency so that various
