@@ -251,14 +251,16 @@ EXPORT_SYMBOL_GPL(pci_epf_free_space);
  * @epf: the EPF device to whom allocate the memory
  * @size: the size of the memory that has to be allocated
  * @bar: the BAR number corresponding to the allocated register space
- * @align: alignment size for the allocation region
+ * @epc_features: the features provided by the EPC specific to this EPF
  * @type: Identifies if the allocation is for primary EPC or secondary EPC
  *
  * Invoke to allocate memory for the PCI EPF register space.
  */
 void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
-			  size_t align, enum pci_epc_interface_type type)
+			  const struct pci_epc_features *epc_features,
+			  enum pci_epc_interface_type type)
 {
+	size_t align = epc_features->align;
 	struct pci_epf_bar *epf_bar;
 	dma_addr_t phys_addr;
 	struct pci_epc *epc;

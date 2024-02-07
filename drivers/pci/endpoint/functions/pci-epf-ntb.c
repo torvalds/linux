@@ -1067,7 +1067,7 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb,
 	else if (size < ctrl_size + spad_size)
 		return -EINVAL;
 
-	base = pci_epf_alloc_space(epf, size, barno, align, type);
+	base = pci_epf_alloc_space(epf, size, barno, epc_features, type);
 	if (!base) {
 		dev_err(dev, "%s intf: Config/Status/SPAD alloc region fail\n",
 			pci_epc_interface_string(type));
