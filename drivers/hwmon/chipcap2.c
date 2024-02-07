@@ -670,7 +670,7 @@ static int cc2_request_ready_irq(struct cc2_data *data, struct device *dev)
 
 static int cc2_request_alarm_irqs(struct cc2_data *data, struct device *dev)
 {
-	int ret;
+	int ret = 0;
 
 	data->irq_low = fwnode_irq_get_byname(dev_fwnode(dev), "low");
 	if (data->irq_low > 0) {
@@ -679,8 +679,10 @@ static int cc2_request_alarm_irqs(struct cc2_data *data, struct device *dev)
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING,
 						dev_name(dev), data);
-		if (!ret)
-			data->rh_alarm.low_alarm_visible = true;
+		if (ret)
+			return ret;
+
+		data->rh_alarm.low_alarm_visible = true;
 	}
 
 	data->irq_high = fwnode_irq_get_byname(dev_fwnode(dev), "high");
@@ -690,8 +692,10 @@ static int cc2_request_alarm_irqs(struct cc2_data *data, struct device *dev)
 						IRQF_ONESHOT |
 						IRQF_TRIGGER_RISING,
 						dev_name(dev), data);
-		if (!ret)
-			data->rh_alarm.high_alarm_visible = true;
+		if (ret)
+			return ret;
+
+		data->rh_alarm.high_alarm_visible = true;
 	}
 
 	return ret;
