@@ -6,6 +6,7 @@
 #include <linux/errno.h>
 #include <linux/bug.h>
 #include "printk_ringbuffer.h"
+#include "internal.h"
 
 /**
  * DOC: printk_ringbuffer overview
@@ -303,6 +304,9 @@
  *
  *   desc_push_tail:B / desc_reserve:D
  *     set descriptor reusable (state), then push descriptor tail (id)
+ *
+ *   desc_update_last_finalized:A / desc_last_finalized_seq:A
+ *     store finalized record, then set new highest finalized sequence number
  */
 
 #define DATA_SIZE(data_ring)		_DATA_SIZE((data_ring)->size_bits)
@@ -1442,19 +1446,117 @@ fail_reopen:
 }
 
 /*
+ * @last_finalized_seq value guarantees that all records up to and including
+ * this sequence number are finalized and can be read. The only exception are
+ * too old records which have already been overwritten.
+ *
+ * It is also guaranteed that @last_finalized_seq only increases.
+ *
+ * Be aware that finalized records following non-finalized records are not
+ * reported because they are not yet available to the reader. For example,
+ * a new record stored via printk() will not be available to a printer if
+ * it follows a record that has not been finalized yet. However, once that
+ * non-finalized record becomes finalized, @last_finalized_seq will be
+ * appropriately updated and the full set of finalized records will be
+ * available to the printer. And since each printk() caller will either
+ * directly print or trigger deferred printing of all available unprinted
+ * records, all printk() messages will get printed.
+ */
+static u64 desc_last_finalized_seq(struct printk_ringbuffer *rb)
+{
+	struct prb_desc_ring *desc_ring = &rb->desc_ring;
+	unsigned long ulseq;
+
+	/*
+	 * Guarantee the sequence number is loaded before loading the
+	 * associated record in order to guarantee that the record can be
+	 * seen by this CPU. This pairs with desc_update_last_finalized:A.
+	 */
+	ulseq = atomic_long_read_acquire(&desc_ring->last_finalized_seq
+					); /* LMM(desc_last_finalized_seq:A) */
+
+	return __ulseq_to_u64seq(rb, ulseq);
+}
+
+static bool _prb_read_valid(struct printk_ringbuffer *rb, u64 *seq,
+			    struct printk_record *r, unsigned int *line_count);
+
+/*
+ * Check if there are records directly following @last_finalized_seq that are
+ * finalized. If so, update @last_finalized_seq to the latest of these
+ * records. It is not allowed to skip over records that are not yet finalized.
+ */
+static void desc_update_last_finalized(struct printk_ringbuffer *rb)
+{
+	struct prb_desc_ring *desc_ring = &rb->desc_ring;
+	u64 old_seq = desc_last_finalized_seq(rb);
+	unsigned long oldval;
+	unsigned long newval;
+	u64 finalized_seq;
+	u64 try_seq;
+
+try_again:
+	finalized_seq = old_seq;
+	try_seq = finalized_seq + 1;
+
+	/* Try to find later finalized records. */
+	while (_prb_read_valid(rb, &try_seq, NULL, NULL)) {
+		finalized_seq = try_seq;
+		try_seq++;
+	}
+
+	/* No update needed if no later finalized record was found. */
+	if (finalized_seq == old_seq)
+		return;
+
+	oldval = __u64seq_to_ulseq(old_seq);
+	newval = __u64seq_to_ulseq(finalized_seq);
+
+	/*
+	 * Set the sequence number of a later finalized record that has been
+	 * seen.
+	 *
+	 * Guarantee the record data is visible to other CPUs before storing
+	 * its sequence number. This pairs with desc_last_finalized_seq:A.
+	 *
+	 * Memory barrier involvement:
+	 *
+	 * If desc_last_finalized_seq:A reads from
+	 * desc_update_last_finalized:A, then desc_read:A reads from
+	 * _prb_commit:B.
+	 *
+	 * Relies on:
+	 *
+	 * RELEASE from _prb_commit:B to desc_update_last_finalized:A
+	 *    matching
+	 * ACQUIRE from desc_last_finalized_seq:A to desc_read:A
+	 *
+	 * Note: _prb_commit:B and desc_update_last_finalized:A can be
+	 *       different CPUs. However, the desc_update_last_finalized:A
+	 *       CPU (which performs the release) must have previously seen
+	 *       _prb_commit:B.
+	 */
+	if (!atomic_long_try_cmpxchg_release(&desc_ring->last_finalized_seq,
+				&oldval, newval)) { /* LMM(desc_update_last_finalized:A) */
+		old_seq = __ulseq_to_u64seq(rb, oldval);
+		goto try_again;
+	}
+}
+
+/*
  * Attempt to finalize a specified descriptor. If this fails, the descriptor
  * is either already final or it will finalize itself when the writer commits.
  */
-static void desc_make_final(struct prb_desc_ring *desc_ring, unsigned long id)
+static void desc_make_final(struct printk_ringbuffer *rb, unsigned long id)
 {
+	struct prb_desc_ring *desc_ring = &rb->desc_ring;
 	unsigned long prev_state_val = DESC_SV(id, desc_committed);
 	struct prb_desc *d = to_desc(desc_ring, id);
 
-	atomic_long_cmpxchg_relaxed(&d->state_var, prev_state_val,
-			DESC_SV(id, desc_finalized)); /* LMM(desc_make_final:A) */
-
-	/* Best effort to remember the last finalized @id. */
-	atomic_long_set(&desc_ring->last_finalized_id, id);
+	if (atomic_long_try_cmpxchg_relaxed(&d->state_var, &prev_state_val,
+			DESC_SV(id, desc_finalized))) { /* LMM(desc_make_final:A) */
+		desc_update_last_finalized(rb);
+	}
 }
 
 /**
@@ -1550,7 +1652,7 @@ bool prb_reserve(struct prb_reserved_entry *e, struct printk_ringbuffer *rb,
 	 * readers. (For seq==0 there is no previous descriptor.)
 	 */
 	if (info->seq > 0)
-		desc_make_final(desc_ring, DESC_ID(id - 1));
+		desc_make_final(rb, DESC_ID(id - 1));
 
 	r->text_buf = data_alloc(rb, r->text_buf_size, &d->text_blk_lpos, id);
 	/* If text data allocation fails, a data-less record is committed. */
@@ -1643,7 +1745,7 @@ void prb_commit(struct prb_reserved_entry *e)
 	 */
 	head_id = atomic_long_read(&desc_ring->head_id); /* LMM(prb_commit:A) */
 	if (head_id != e->id)
-		desc_make_final(desc_ring, e->id);
+		desc_make_final(e->rb, e->id);
 }
 
 /**
@@ -1663,12 +1765,9 @@ void prb_commit(struct prb_reserved_entry *e)
  */
 void prb_final_commit(struct prb_reserved_entry *e)
 {
-	struct prb_desc_ring *desc_ring = &e->rb->desc_ring;
-
 	_prb_commit(e, desc_finalized);
 
-	/* Best effort to remember the last finalized @id. */
-	atomic_long_set(&desc_ring->last_finalized_id, e->id);
+	desc_update_last_finalized(e->rb);
 }
 
 /*
@@ -2008,7 +2107,9 @@ u64 prb_first_valid_seq(struct printk_ringbuffer *rb)
  * newest sequence number available to readers will be.
  *
  * This provides readers a sequence number to jump to if all currently
- * available records should be skipped.
+ * available records should be skipped. It is guaranteed that all records
+ * previous to the returned value have been finalized and are (or were)
+ * available to the reader.
  *
  * Context: Any context.
  * Return: The sequence number of the next newest (not yet available) record
@@ -2016,34 +2117,19 @@ u64 prb_first_valid_seq(struct printk_ringbuffer *rb)
  */
 u64 prb_next_seq(struct printk_ringbuffer *rb)
 {
-	struct prb_desc_ring *desc_ring = &rb->desc_ring;
-	enum desc_state d_state;
-	unsigned long id;
 	u64 seq;
 
-	/* Check if the cached @id still points to a valid @seq. */
-	id = atomic_long_read(&desc_ring->last_finalized_id);
-	d_state = desc_read(desc_ring, id, NULL, &seq, NULL);
+	seq = desc_last_finalized_seq(rb);
 
-	if (d_state == desc_finalized || d_state == desc_reusable) {
-		/*
-		 * Begin searching after the last finalized record.
-		 *
-		 * On 0, the search must begin at 0 because of hack#2
-		 * of the bootstrapping phase it is not known if a
-		 * record at index 0 exists.
-		 */
-		if (seq != 0)
-			seq++;
-	} else {
-		/*
-		 * The information about the last finalized sequence number
-		 * has gone. It should happen only when there is a flood of
-		 * new messages and the ringbuffer is rapidly recycled.
-		 * Give up and start from the beginning.
-		 */
-		seq = 0;
-	}
+	/*
+	 * Begin searching after the last finalized record.
+	 *
+	 * On 0, the search must begin at 0 because of hack#2
+	 * of the bootstrapping phase it is not known if a
+	 * record at index 0 exists.
+	 */
+	if (seq != 0)
+		seq++;
 
 	/*
 	 * The information about the last finalized @seq might be inaccurate.
@@ -2085,7 +2171,7 @@ void prb_init(struct printk_ringbuffer *rb,
 	rb->desc_ring.infos = infos;
 	atomic_long_set(&rb->desc_ring.head_id, DESC0_ID(descbits));
 	atomic_long_set(&rb->desc_ring.tail_id, DESC0_ID(descbits));
-	atomic_long_set(&rb->desc_ring.last_finalized_id, DESC0_ID(descbits));
+	atomic_long_set(&rb->desc_ring.last_finalized_seq, 0);
 
 	rb->text_data_ring.size_bits = textbits;
 	rb->text_data_ring.data = text_buf;
