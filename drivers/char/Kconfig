@@ -476,4 +476,14 @@ config VIRTIO_EAVB
 	  interface for userspace. Say Y if you want to support virtual
 	  eavb.
 
+config MSM_SMD_PKT
+        bool "Enable device interface for some SMD packet ports"
+        default n
+        depends on RPMSG_QCOM_SMD
+        help
+         smd_pkt driver provides the interface for the userspace clients
+         to communicate over smd via device nodes. This enable the
+         usersapce clients to read and write to some smd packets channel
+         for MSM chipset.
+
 endmenu
