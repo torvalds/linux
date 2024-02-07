@@ -324,7 +324,9 @@ static int cc2_get_reg_val(struct cc2_data *data, u8 reg, long *val)
 	int ret;
 
 	ret = cc2_read_reg(data, reg, &reg_val);
-	*val = cc2_rh_convert(reg_val);
+	if (!ret)
+		*val = cc2_rh_convert(reg_val);
+
 	cc2_disable(data);
 
 	return ret;
