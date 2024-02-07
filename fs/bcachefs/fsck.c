@@ -1570,77 +1570,75 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 				   u32 target_snapshot)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter bp_iter = { NULL };
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
+
+	if (inode_points_to_dirent(target, d))
+		return 0;
 
 	if (!target->bi_dir &&
 	    !target->bi_dir_offset) {
 		target->bi_dir		= d.k->p.inode;
 		target->bi_dir_offset	= d.k->p.offset;
+		return __bch2_fsck_write_inode(trans, target, target_snapshot);
+	}
 
+	struct btree_iter bp_iter = { NULL };
+	struct bkey_s_c_dirent bp_dirent = dirent_get_by_pos(trans, &bp_iter,
+			      SPOS(target->bi_dir, target->bi_dir_offset, target_snapshot));
+	ret = bkey_err(bp_dirent);
+	if (ret && !bch2_err_matches(ret, ENOENT))
+		goto err;
+
+	bool backpointer_exists = !ret;
+	ret = 0;
+
+	if (fsck_err_on(!backpointer_exists,
+			c, inode_wrong_backpointer,
+			"inode %llu:%u has wrong backpointer:\n"
+			"got       %llu:%llu\n"
+			"should be %llu:%llu",
+			target->bi_inum, target_snapshot,
+			target->bi_dir,
+			target->bi_dir_offset,
+			d.k->p.inode,
+			d.k->p.offset)) {
+		target->bi_dir		= d.k->p.inode;
+		target->bi_dir_offset	= d.k->p.offset;
+		ret = __bch2_fsck_write_inode(trans, target, target_snapshot);
+		goto out;
+	}
+
+	bch2_bkey_val_to_text(&buf, c, d.s_c);
+	prt_newline(&buf);
+	if (backpointer_exists)
+		bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
+
+	if (fsck_err_on(backpointer_exists &&
+			(S_ISDIR(target->bi_mode) ||
+			 target->bi_subvol),
+			c, inode_dir_multiple_links,
+			"%s %llu:%u with multiple links\n%s",
+			S_ISDIR(target->bi_mode) ? "directory" : "subvolume",
+			target->bi_inum, target_snapshot, buf.buf)) {
+		ret = __remove_dirent(trans, d.k->p);
+		goto out;
+	}
+
+	/*
+	 * hardlinked file with nlink 0:
+	 * We're just adjusting nlink here so check_nlinks() will pick
+	 * it up, it ignores inodes with nlink 0
+	 */
+	if (fsck_err_on(backpointer_exists && !target->bi_nlink,
+			c, inode_multiple_links_but_nlink_0,
+			"inode %llu:%u type %s has multiple links but i_nlink 0\n%s",
+			target->bi_inum, target_snapshot, bch2_d_types[d.v->d_type], buf.buf)) {
+		target->bi_nlink++;
+		target->bi_flags &= ~BCH_INODE_unlinked;
 		ret = __bch2_fsck_write_inode(trans, target, target_snapshot);
 		if (ret)
 			goto err;
-	}
-
-	if (!inode_points_to_dirent(target, d)) {
-		struct bkey_s_c_dirent bp_dirent = dirent_get_by_pos(trans, &bp_iter,
-				      SPOS(target->bi_dir, target->bi_dir_offset, target_snapshot));
-		ret = bkey_err(bp_dirent);
-		if (ret && !bch2_err_matches(ret, ENOENT))
-			goto err;
-
-		bool backpointer_exists = !ret;
-		ret = 0;
-
-		bch2_bkey_val_to_text(&buf, c, d.s_c);
-		prt_newline(&buf);
-		if (backpointer_exists)
-			bch2_bkey_val_to_text(&buf, c, bp_dirent.s_c);
-
-		if (fsck_err_on(S_ISDIR(target->bi_mode) && backpointer_exists,
-				c, inode_dir_multiple_links,
-				"directory %llu:%u with multiple links\n%s",
-				target->bi_inum, target_snapshot, buf.buf)) {
-			ret = __remove_dirent(trans, d.k->p);
-			goto out;
-		}
-
-		/*
-		 * hardlinked file with nlink 0:
-		 * We're just adjusting nlink here so check_nlinks() will pick
-		 * it up, it ignores inodes with nlink 0
-		 */
-		if (fsck_err_on(backpointer_exists && !target->bi_nlink,
-				c, inode_multiple_links_but_nlink_0,
-				"inode %llu:%u type %s has multiple links but i_nlink 0\n%s",
-				target->bi_inum, target_snapshot, bch2_d_types[d.v->d_type], buf.buf)) {
-			target->bi_nlink++;
-			target->bi_flags &= ~BCH_INODE_unlinked;
-
-			ret = __bch2_fsck_write_inode(trans, target, target_snapshot);
-			if (ret)
-				goto err;
-		}
-
-		if (fsck_err_on(!backpointer_exists,
-				c, inode_wrong_backpointer,
-				"inode %llu:%u has wrong backpointer:\n"
-				"got       %llu:%llu\n"
-				"should be %llu:%llu",
-				target->bi_inum, target_snapshot,
-				target->bi_dir,
-				target->bi_dir_offset,
-				d.k->p.inode,
-				d.k->p.offset)) {
-			target->bi_dir		= d.k->p.inode;
-			target->bi_dir_offset	= d.k->p.offset;
-
-			ret = __bch2_fsck_write_inode(trans, target, target_snapshot);
-			if (ret)
-				goto err;
-		}
 	}
 out:
 err:
