@@ -1846,7 +1846,7 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 						    struct intel_cdclk_config *mid_cdclk_config)
 {
 	u16 old_waveform, new_waveform, mid_waveform;
-	int div = 2;
+	int old_div, new_div, mid_div;
 
 	/* Return if PLL is in an unknown state, force a complete disable and re-enable. */
 	if (cdclk_pll_is_unknown(old_cdclk_config->vco))
@@ -1865,6 +1865,18 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 	    old_waveform == new_waveform)
 		return false;
 
+	old_div = cdclk_divider(old_cdclk_config->cdclk,
+				old_cdclk_config->vco, old_waveform);
+	new_div = cdclk_divider(new_cdclk_config->cdclk,
+				new_cdclk_config->vco, new_waveform);
+
+	/*
+	 * Should not happen currently. We might need more midpoint
+	 * transitions if we need to also change the cd2x divider.
+	 */
+	if (drm_WARN_ON(&i915->drm, old_div != new_div))
+		return false;
+
 	*mid_cdclk_config = *new_cdclk_config;
 
 	/*
@@ -1877,15 +1889,17 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 
 	if (cdclk_squash_divider(new_waveform) > cdclk_squash_divider(old_waveform)) {
 		mid_cdclk_config->vco = old_cdclk_config->vco;
+		mid_div = old_div;
 		mid_waveform = new_waveform;
 	} else {
 		mid_cdclk_config->vco = new_cdclk_config->vco;
+		mid_div = new_div;
 		mid_waveform = old_waveform;
 	}
 
 	mid_cdclk_config->cdclk = DIV_ROUND_CLOSEST(cdclk_squash_divider(mid_waveform) *
 						    mid_cdclk_config->vco,
-						    cdclk_squash_len * div);
+						    cdclk_squash_len * mid_div);
 
 	/* make sure the mid clock came out sane */
 
