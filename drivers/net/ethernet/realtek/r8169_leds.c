@@ -20,11 +20,6 @@
 
 #define RTL8168_NUM_LEDS		3
 
-#define RTL8168_SUPPORTED_MODES \
-	(BIT(TRIGGER_NETDEV_LINK_1000) | BIT(TRIGGER_NETDEV_LINK_100) | \
-	 BIT(TRIGGER_NETDEV_LINK_10) | BIT(TRIGGER_NETDEV_RX) | \
-	 BIT(TRIGGER_NETDEV_TX))
-
 struct r8169_led_classdev {
 	struct led_classdev led;
 	struct net_device *ndev;
@@ -33,28 +28,35 @@ struct r8169_led_classdev {
 
 #define lcdev_to_r8169_ldev(lcdev) container_of(lcdev, struct r8169_led_classdev, led)
 
+static bool r8169_trigger_mode_is_valid(unsigned long flags)
+{
+	bool rx, tx;
+
+	if (flags & BIT(TRIGGER_NETDEV_HALF_DUPLEX))
+		return false;
+	if (flags & BIT(TRIGGER_NETDEV_FULL_DUPLEX))
+		return false;
+
+	rx = flags & BIT(TRIGGER_NETDEV_RX);
+	tx = flags & BIT(TRIGGER_NETDEV_TX);
+
+	return rx == tx;
+}
+
 static int rtl8168_led_hw_control_is_supported(struct led_classdev *led_cdev,
 					       unsigned long flags)
 {
 	struct r8169_led_classdev *ldev = lcdev_to_r8169_ldev(led_cdev);
 	struct rtl8169_private *tp = netdev_priv(ldev->ndev);
 	int shift = ldev->index * 4;
-	bool rx, tx;
 
-	if (flags & ~RTL8168_SUPPORTED_MODES)
-		goto nosupp;
-
-	rx = flags & BIT(TRIGGER_NETDEV_RX);
-	tx = flags & BIT(TRIGGER_NETDEV_TX);
-	if (rx != tx)
-		goto nosupp;
+	if (!r8169_trigger_mode_is_valid(flags)) {
+		/* Switch LED off to indicate that mode isn't supported */
+		rtl8168_led_mod_ctrl(tp, 0x000f << shift, 0);
+		return -EOPNOTSUPP;
+	}
 
 	return 0;
-
-nosupp:
-	/* Switch LED off to indicate that mode isn't supported */
-	rtl8168_led_mod_ctrl(tp, 0x000f << shift, 0);
-	return -EOPNOTSUPP;
 }
 
 static int rtl8168_led_hw_control_set(struct led_classdev *led_cdev,
