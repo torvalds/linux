@@ -1024,15 +1024,15 @@ static void __io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 {
-	if (req->ctx->task_complete && req->ctx->submitter_task != current) {
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (ctx->task_complete && ctx->submitter_task != current) {
 		req->io_task_work.func = io_req_task_complete;
 		io_req_task_work_add(req);
 	} else if (!(issue_flags & IO_URING_F_UNLOCKED) ||
-		   !(req->ctx->flags & IORING_SETUP_IOPOLL)) {
+		   !(ctx->flags & IORING_SETUP_IOPOLL)) {
 		__io_req_complete_post(req, issue_flags);
 	} else {
-		struct io_ring_ctx *ctx = req->ctx;
-
 		mutex_lock(&ctx->uring_lock);
 		__io_req_complete_post(req, issue_flags & ~IO_URING_F_UNLOCKED);
 		mutex_unlock(&ctx->uring_lock);
