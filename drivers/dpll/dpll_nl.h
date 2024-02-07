@@ -30,8 +30,6 @@ dpll_post_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
 void
 dpll_pin_post_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
 		   struct genl_info *info);
-int dpll_lock_dumpit(struct netlink_callback *cb);
-int dpll_unlock_dumpit(struct netlink_callback *cb);
 
 int dpll_nl_device_id_get_doit(struct sk_buff *skb, struct genl_info *info);
 int dpll_nl_device_get_doit(struct sk_buff *skb, struct genl_info *info);
