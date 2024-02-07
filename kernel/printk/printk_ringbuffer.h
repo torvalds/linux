@@ -378,6 +378,7 @@ bool prb_read_valid(struct printk_ringbuffer *rb, u64 seq,
 bool prb_read_valid_info(struct printk_ringbuffer *rb, u64 seq,
 			 struct printk_info *info, unsigned int *line_count);
 
+u64 prb_first_seq(struct printk_ringbuffer *rb);
 u64 prb_first_valid_seq(struct printk_ringbuffer *rb);
 u64 prb_next_seq(struct printk_ringbuffer *rb);
 
@@ -392,12 +393,12 @@ u64 prb_next_seq(struct printk_ringbuffer *rb);
 
 static inline u64 __ulseq_to_u64seq(struct printk_ringbuffer *rb, u32 ulseq)
 {
+	u64 rb_first_seq = prb_first_seq(rb);
 	u64 seq;
-	u64 rb_next_seq;
 
 	/*
 	 * The provided sequence is only the lower 32 bits of the ringbuffer
-	 * sequence. It needs to be expanded to 64bit. Get the next sequence
+	 * sequence. It needs to be expanded to 64bit. Get the first sequence
 	 * number from the ringbuffer and fold it.
 	 *
 	 * Having a 32bit representation in the console is sufficient.
@@ -406,8 +407,7 @@ static inline u64 __ulseq_to_u64seq(struct printk_ringbuffer *rb, u32 ulseq)
 	 *
 	 * Also the access to the ring buffer is always safe.
 	 */
-	rb_next_seq = prb_next_seq(rb);
-	seq = rb_next_seq - (s32)((u32)rb_next_seq - ulseq);
+	seq = rb_first_seq - (s32)((u32)rb_first_seq - ulseq);
 
 	return seq;
 }
