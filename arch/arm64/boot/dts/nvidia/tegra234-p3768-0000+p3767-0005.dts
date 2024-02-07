@@ -4,7 +4,7 @@
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/input/gpio-keys.h>
 
-#include "tegra234-p3767-0005.dtsi"
+#include "tegra234-p3767.dtsi"
 #include "tegra234-p3768-0000.dtsi"
 
 / {
