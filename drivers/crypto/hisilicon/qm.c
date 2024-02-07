@@ -2124,7 +2124,7 @@ set_dev_state:
 	return ret;
 }
 
-static int qm_stop_qp_nolock(struct hisi_qp *qp)
+static void qm_stop_qp_nolock(struct hisi_qp *qp)
 {
 	struct hisi_qm *qm = qp->qm;
 	struct device *dev = &qm->pdev->dev;
@@ -2138,7 +2138,7 @@ static int qm_stop_qp_nolock(struct hisi_qp *qp)
 	 */
 	if (atomic_read(&qp->qp_status.flags) != QP_START) {
 		qp->is_resetting = false;
-		return 0;
+		return;
 	}
 
 	atomic_set(&qp->qp_status.flags, QP_STOP);
@@ -2155,25 +2155,19 @@ static int qm_stop_qp_nolock(struct hisi_qp *qp)
 		qp_stop_fail_cb(qp);
 
 	dev_dbg(dev, "stop queue %u!", qp->qp_id);
-
-	return 0;
 }
 
 /**
  * hisi_qm_stop_qp() - Stop a qp in qm.
  * @qp: The qp we want to stop.
  *
- * This function is reverse of hisi_qm_start_qp. Return 0 if successful.
+ * This function is reverse of hisi_qm_start_qp.
  */
-int hisi_qm_stop_qp(struct hisi_qp *qp)
+void hisi_qm_stop_qp(struct hisi_qp *qp)
 {
-	int ret;
-
 	down_write(&qp->qm->qps_lock);
-	ret = qm_stop_qp_nolock(qp);
+	qm_stop_qp_nolock(qp);
 	up_write(&qp->qm->qps_lock);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(hisi_qm_stop_qp);
 
@@ -3120,25 +3114,18 @@ static int qm_restart(struct hisi_qm *qm)
 }
 
 /* Stop started qps in reset flow */
-static int qm_stop_started_qp(struct hisi_qm *qm)
+static void qm_stop_started_qp(struct hisi_qm *qm)
 {
-	struct device *dev = &qm->pdev->dev;
 	struct hisi_qp *qp;
-	int i, ret;
+	int i;
 
 	for (i = 0; i < qm->qp_num; i++) {
 		qp = &qm->qp_array[i];
-		if (qp && atomic_read(&qp->qp_status.flags) == QP_START) {
+		if (atomic_read(&qp->qp_status.flags) == QP_START) {
 			qp->is_resetting = true;
-			ret = qm_stop_qp_nolock(qp);
-			if (ret < 0) {
-				dev_err(dev, "Failed to stop qp%d!\n", i);
-				return ret;
-			}
+			qm_stop_qp_nolock(qp);
 		}
 	}
-
-	return 0;
 }
 
 /**
@@ -3201,11 +3188,8 @@ int hisi_qm_stop(struct hisi_qm *qm, enum qm_stop_reason r)
 			}
 		}
 
-		ret = qm_stop_started_qp(qm);
-		if (ret < 0) {
-			dev_err(dev, "Failed to stop started qp!\n");
-			goto err_unlock;
-		}
+		qm_stop_started_qp(qm);
+
 		hisi_qm_set_hw_reset(qm, QM_RESET_STOP_RX_OFFSET);
 	}
 
