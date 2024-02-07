@@ -1778,7 +1778,7 @@ static u32 bxt_cdclk_cd2x_div_sel(struct drm_i915_private *dev_priv,
 	}
 }
 
-static u32 cdclk_squash_waveform(struct drm_i915_private *dev_priv,
+static u16 cdclk_squash_waveform(struct drm_i915_private *dev_priv,
 				 int cdclk)
 {
 	const struct intel_cdclk_vals *table = dev_priv->display.cdclk.table;
