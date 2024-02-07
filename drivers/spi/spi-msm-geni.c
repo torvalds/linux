@@ -16,7 +16,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
-#include <linux/soc/qcom/geni-se.h>
 #include <linux/qcom-geni-se-common.h>
 #include <linux/msm_gpi.h>
 #include <linux/spi/spi.h>
