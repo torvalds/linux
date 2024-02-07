@@ -857,7 +857,7 @@ assign_copier_gtw_instance(struct snd_soc_component *comp, struct avs_tplg_modcf
 	}
 
 	/* If topology sets value don't overwrite it */
-	if (cfg->copier.vindex.i2s.instance)
+	if (cfg->copier.vindex.val)
 		return;
 
 	mach = dev_get_platdata(comp->card->dev);
