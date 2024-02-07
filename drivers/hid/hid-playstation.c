@@ -27,6 +27,11 @@ static DEFINE_IDA(ps_player_id_allocator);
 
 #define HID_PLAYSTATION_VERSION_PATCH 0x8000
 
+enum PS_TYPE {
+	PS_TYPE_PS4_DUALSHOCK4,
+	PS_TYPE_PS5_DUALSENSE,
+};
+
 /* Base class for playstation devices. */
 struct ps_device {
 	struct list_head list;
@@ -2687,17 +2692,14 @@ static int ps_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_stop;
 	}
 
-	if (hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER ||
-		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_2 ||
-		hdev->product == USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) {
+	if (id->driver_data == PS_TYPE_PS4_DUALSHOCK4) {
 		dev = dualshock4_create(hdev);
 		if (IS_ERR(dev)) {
 			hid_err(hdev, "Failed to create dualshock4.\n");
 			ret = PTR_ERR(dev);
 			goto err_close;
 		}
-	} else if (hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER ||
-		hdev->product == USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) {
+	} else if (id->driver_data == PS_TYPE_PS5_DUALSENSE) {
 		dev = dualsense_create(hdev);
 		if (IS_ERR(dev)) {
 			hid_err(hdev, "Failed to create dualsense.\n");
@@ -2731,16 +2733,26 @@ static void ps_remove(struct hid_device *hdev)
 
 static const struct hid_device_id ps_devices[] = {
 	/* Sony DualShock 4 controllers for PS4 */
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER) },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
+		.driver_data = PS_TYPE_PS4_DUALSHOCK4 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER),
+		.driver_data = PS_TYPE_PS4_DUALSHOCK4 },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2),
+		.driver_data = PS_TYPE_PS4_DUALSHOCK4 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_2),
+		.driver_data = PS_TYPE_PS4_DUALSHOCK4 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS4_CONTROLLER_DONGLE),
+		.driver_data = PS_TYPE_PS4_DUALSHOCK4 },
+
 	/* Sony DualSense controllers for PS5 */
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER) },
-	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER_2) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER),
+		.driver_data = PS_TYPE_PS5_DUALSENSE },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER),
+		.driver_data = PS_TYPE_PS5_DUALSENSE },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER_2),
+		.driver_data = PS_TYPE_PS5_DUALSENSE },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_SONY, USB_DEVICE_ID_SONY_PS5_CONTROLLER_2),
+		.driver_data = PS_TYPE_PS5_DUALSENSE },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, ps_devices);
