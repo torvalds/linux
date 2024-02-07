@@ -37,7 +37,6 @@
 
 		hda@3510000 {
 			nvidia,model = "NVIDIA Jetson Orin NX HDA";
-			status = "okay";
 		};
 
 		padctl@3520000 {
@@ -83,6 +82,10 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_aon TEGRA234_AON_GPIO(AA, 5) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	sound {
+		label = "NVIDIA Jetson Orin NX APE";
 	};
 
 	thermal-zones {

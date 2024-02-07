@@ -11,8 +11,18 @@
 	compatible = "nvidia,p3768-0000+p3767-0005", "nvidia,p3767-0005", "nvidia,tegra234";
 	model = "NVIDIA Jetson Orin Nano Developer Kit";
 
+	bus@0 {
+		hda@3510000 {
+			nvidia,model = "NVIDIA Jetson Orin Nano HDA";
+		};
+	};
+
 	pwm-fan {
 		cooling-levels = <0 88 187 255>;
+	};
+
+	sound {
+		label = "NVIDIA Jetson Orin Nano APE";
 	};
 
 	thermal-zones {
