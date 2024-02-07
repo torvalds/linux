@@ -3435,6 +3435,6 @@ void scsi_build_sense(struct scsi_cmnd *scmd, int desc, u8 key, u8 asc, u8 ascq)
 }
 EXPORT_SYMBOL_GPL(scsi_build_sense);
 
-#ifdef CONFIG_SCSI_KUNIT_TEST
+#ifdef CONFIG_SCSI_LIB_KUNIT_TEST
 #include "scsi_lib_test.c"
 #endif
