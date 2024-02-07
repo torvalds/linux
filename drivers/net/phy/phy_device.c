@@ -2778,6 +2778,22 @@ void phy_advertise_supported(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_advertise_supported);
 
 /**
+ * phy_advertise_eee_all - Advertise all supported EEE modes
+ * @phydev: target phy_device struct
+ *
+ * Description: Per default phylib preserves the EEE advertising at the time of
+ * phy probing, which might be a subset of the supported EEE modes. Use this
+ * function when all supported EEE modes should be advertised. This does not
+ * trigger auto-negotiation, so must be called before phy_start()/
+ * phylink_start() which will start auto-negotiation.
+ */
+void phy_advertise_eee_all(struct phy_device *phydev)
+{
+	linkmode_copy(phydev->advertising_eee, phydev->supported_eee);
+}
+EXPORT_SYMBOL_GPL(phy_advertise_eee_all);
+
+/**
  * phy_support_sym_pause - Enable support of symmetrical pause
  * @phydev: target phy_device struct
  *
