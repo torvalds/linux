@@ -272,6 +272,28 @@
 					assigned-clock-rates = <1536000>;
 					sound-name-prefix = "I2S3";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s3_cif: endpoint {
+								remote-endpoint = <&xbar_i2s3>;
+							};
+						};
+
+						i2s3_port: port@1 {
+							reg = <1>;
+
+							i2s3_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_i2s4: i2s@2901300 {
@@ -322,6 +344,28 @@
 					assigned-clock-rates = <1536000>;
 					sound-name-prefix = "I2S5";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							i2s5_cif: endpoint {
+								remote-endpoint = <&xbar_i2s5>;
+							};
+						};
+
+						i2s5_port: port@1 {
+							reg = <1>;
+
+							i2s5_dap: endpoint {
+								dai-format = "i2s";
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_i2s6: i2s@2901500 {
@@ -900,6 +944,27 @@
 					assigned-clock-rates = <3072000>;
 					sound-name-prefix = "DMIC1";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic1_cif: endpoint {
+								remote-endpoint = <&xbar_dmic1>;
+							};
+						};
+
+						dmic1_port: port@1 {
+							reg = <1>;
+
+							dmic1_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_dmic2: dmic@2904100 {
@@ -913,6 +978,27 @@
 					assigned-clock-rates = <3072000>;
 					sound-name-prefix = "DMIC2";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic2_cif: endpoint {
+								remote-endpoint = <&xbar_dmic2>;
+							};
+						};
+
+						dmic2_port: port@1 {
+							reg = <1>;
+
+							dmic2_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_dmic3: dmic@2904200 {
@@ -960,6 +1046,27 @@
 					assigned-clock-rates = <3072000>;
 					sound-name-prefix = "DMIC4";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dmic4_cif: endpoint {
+								remote-endpoint = <&xbar_dmic4>;
+							};
+						};
+
+						dmic4_port: port@1 {
+							reg = <1>;
+
+							dmic4_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_dspk1: dspk@2905000 {
@@ -973,6 +1080,27 @@
 					assigned-clock-rates = <12288000>;
 					sound-name-prefix = "DSPK1";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dspk1_cif: endpoint {
+								remote-endpoint = <&xbar_dspk1>;
+							};
+						};
+
+						dspk1_port: port@1 {
+							reg = <1>;
+
+							dspk1_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_dspk2: dspk@2905100 {
@@ -986,6 +1114,27 @@
 					assigned-clock-rates = <12288000>;
 					sound-name-prefix = "DSPK2";
 					status = "disabled";
+
+					ports {
+						#address-cells = <1>;
+						#size-cells = <0>;
+
+						port@0 {
+							reg = <0>;
+
+							dspk2_cif: endpoint {
+								remote-endpoint = <&xbar_dspk2>;
+							};
+						};
+
+						dspk2_port: port@1 {
+							reg = <1>;
+
+							dspk2_dap: endpoint {
+								/* placeholder for external codec */
+							};
+						};
+					};
 				};
 
 				tegra_ope1: processing-engine@2908000 {
@@ -1746,11 +1895,27 @@
 						};
 					};
 
+					xbar_i2s3_port: port@16 {
+						reg = <0x16>;
+
+						xbar_i2s3: endpoint {
+							remote-endpoint = <&i2s3_cif>;
+						};
+					};
+
 					xbar_i2s4_port: port@17 {
 						reg = <0x17>;
 
 						xbar_i2s4: endpoint {
 							remote-endpoint = <&i2s4_cif>;
+						};
+					};
+
+					xbar_i2s5_port: port@18 {
+						reg = <0x18>;
+
+						xbar_i2s5: endpoint {
+							remote-endpoint = <&i2s5_cif>;
 						};
 					};
 
@@ -1762,11 +1927,51 @@
 						};
 					};
 
+					xbar_dmic1_port: port@1a {
+						reg = <0x1a>;
+
+						xbar_dmic1: endpoint {
+							remote-endpoint = <&dmic1_cif>;
+						};
+					};
+
+					xbar_dmic2_port: port@1b {
+						reg = <0x1b>;
+
+						xbar_dmic2: endpoint {
+							remote-endpoint = <&dmic2_cif>;
+						};
+					};
+
 					xbar_dmic3_port: port@1c {
 						reg = <0x1c>;
 
 						xbar_dmic3: endpoint {
 							remote-endpoint = <&dmic3_cif>;
+						};
+					};
+
+					xbar_dmic4_port: port@1d {
+						reg = <0x1d>;
+
+						xbar_dmic4: endpoint {
+							remote-endpoint = <&dmic4_cif>;
+						};
+					};
+
+					xbar_dspk1_port: port@1e {
+						reg = <0x1e>;
+
+						xbar_dspk1: endpoint {
+							remote-endpoint = <&dspk1_cif>;
+						};
+					};
+
+					xbar_dspk2_port: port@1f {
+						reg = <0x1f>;
+
+						xbar_dspk2: endpoint {
+							remote-endpoint = <&dspk2_cif>;
 						};
 					};
 
