@@ -841,12 +841,6 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	}
 	test_reg_size = test_reg_bar_size + msix_table_size + pba_size;
 
-	if (epc_features->bar_fixed_size[test_reg_bar]) {
-		if (test_reg_size > bar_size[test_reg_bar])
-			return -ENOMEM;
-		test_reg_size = bar_size[test_reg_bar];
-	}
-
 	base = pci_epf_alloc_space(epf, test_reg_size, test_reg_bar,
 				   epc_features, PRIMARY_INTERFACE);
 	if (!base) {
@@ -888,8 +882,6 @@ static void pci_epf_configure_bar(struct pci_epf *epf,
 		bar_fixed_64bit = !!(epc_features->bar_fixed_64bit & (1 << i));
 		if (bar_fixed_64bit)
 			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
-		if (epc_features->bar_fixed_size[i])
-			bar_size[i] = epc_features->bar_fixed_size[i];
 	}
 }
 
