@@ -253,4 +253,5 @@ module_sdio_driver(mt7663s_driver);
 
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
+MODULE_DESCRIPTION("MediaTek MT7663S (SDIO) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");

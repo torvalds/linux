@@ -1018,5 +1018,6 @@ unregister_netdev:
 	return ERR_PTR(ret);
 }
 
+MODULE_DESCRIPTION("Atmel WILC1000 core wireless driver");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(WILC1000_FW(WILC1000_API_VER));
