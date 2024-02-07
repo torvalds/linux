@@ -1259,7 +1259,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			supp_he = supp_he || iftd->he_cap.has_he;
 			supp_eht = supp_eht || iftd->eht_cap.has_eht;
 
-			if (sband->band == NL80211_BAND_2GHZ)
+			if (band == NL80211_BAND_2GHZ)
 				he_40_mhz_cap =
 					IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G;
 			else
