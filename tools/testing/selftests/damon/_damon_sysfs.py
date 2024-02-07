@@ -70,18 +70,48 @@ class DamosAccessPattern:
         if err != None:
             return err
 
+class DamosQuota:
+    sz = None                   # size quota, in bytes
+    ms = None                   # time quota
+    reset_interval_ms = None    # quota reset interval
+    scheme = None               # owner scheme
+
+    def __init__(self, sz=0, ms=0, reset_interval_ms=0):
+        self.sz = sz
+        self.ms = ms
+        self.reset_interval_ms = reset_interval_ms
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), 'quotas')
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'bytes'), self.sz)
+        if err != None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'ms'), self.ms)
+        if err != None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'reset_interval_ms'),
+                         self.reset_interval_ms)
+        if err != None:
+            return err
+
 class Damos:
     action = None
     access_pattern = None
-    # todo: Support quotas, watermarks, stats, tried_regions
+    quota = None
+    # todo: Support watermarks, stats, tried_regions
     idx = None
     context = None
     tried_bytes = None
 
-    def __init__(self, action='stat', access_pattern=DamosAccessPattern()):
+    def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
+                 quota=DamosQuota()):
         self.action = action
         self.access_pattern = access_pattern
         self.access_pattern.scheme = self
+        self.quota = quota
+        self.quota.scheme = self
 
     def sysfs_dir(self):
         return os.path.join(
@@ -94,13 +124,7 @@ class Damos:
         err = self.access_pattern.stage()
         if err != None:
             return err
-
-        # disable quotas
-        err = write_file(os.path.join(self.sysfs_dir(), 'quotas', 'ms'), '0')
-        if err != None:
-            return err
-        err = write_file(
-                os.path.join(self.sysfs_dir(), 'quotas', 'bytes'), '0')
+        err = self.quota.stage()
         if err != None:
             return err
 
