@@ -77,6 +77,11 @@ struct fsuuid2 {
 	__u8	uuid[16];
 };
 
+struct fs_sysfs_path {
+	__u8			len;
+	__u8			name[128];
+};
+
 /* extent-same (dedupe) ioctls; these MUST match the btrfs ioctl definitions */
 #define FILE_DEDUPE_RANGE_SAME		0
 #define FILE_DEDUPE_RANGE_DIFFERS	1
@@ -230,6 +235,11 @@ struct fsxattr {
 #define FS_IOC_SETFSLABEL		_IOW(0x94, 50, char[FSLABEL_MAX])
 /* Returns the external filesystem UUID, the same one blkid returns */
 #define FS_IOC_GETFSUUID		_IOR(0x15, 0, struct fsuuid2)
+/*
+ * Returns the path component under /sys/fs/ that refers to this filesystem;
+ * also /sys/kernel/debug/ for filesystems with debugfs exports
+ */
+#define FS_IOC_GETFSSYSFSPATH		_IOR(0x15, 1, struct fs_sysfs_path)
 
 /*
  * Inode flags (FS_IOC_GETFLAGS / FS_IOC_SETFLAGS)
