@@ -129,7 +129,7 @@ Uso su specifici kernel
 
 A volte può essere utile eseguire RCU torture su un kernel già compilato, ad
 esempio quando lo si sta per mettere in proeduzione. In questo caso, il kernel
-dev'essere compilato con CONFIG_RCU_TORTUE_TEST=m, cosicché le verifiche possano
+dev'essere compilato con CONFIG_RCU_TORTURE_TEST=m, cosicché le verifiche possano
 essere avviate usano modprobe e terminate con rmmod.
 
 Per esempio, potreste usare questo script::
