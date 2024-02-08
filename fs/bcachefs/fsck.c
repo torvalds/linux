@@ -564,13 +564,12 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 }
 
 static struct inode_walker_entry *
-lookup_inode_for_snapshot(struct bch_fs *c, struct inode_walker *w,
-			  u32 snapshot, bool is_whiteout)
+lookup_inode_for_snapshot(struct bch_fs *c, struct inode_walker *w, struct bkey_s_c k)
 {
+	bool is_whiteout = k.k->type == KEY_TYPE_whiteout;
+	u32 snapshot = bch2_snapshot_equiv(c, k.k->p.snapshot);
+
 	struct inode_walker_entry *i;
-
-	snapshot = bch2_snapshot_equiv(c, snapshot);
-
 	__darray_for_each(w->inodes, i)
 		if (bch2_snapshot_is_ancestor(c, snapshot, i->snapshot))
 			goto found;
@@ -581,20 +580,24 @@ found:
 
 	if (snapshot != i->snapshot && !is_whiteout) {
 		struct inode_walker_entry new = *i;
-		size_t pos;
-		int ret;
 
 		new.snapshot = snapshot;
 		new.count = 0;
 
-		bch_info(c, "have key for inode %llu:%u but have inode in ancestor snapshot %u",
-			 w->last_pos.inode, snapshot, i->snapshot);
+		struct printbuf buf = PRINTBUF;
+		bch2_bkey_val_to_text(&buf, c, k);
+
+		bch_info(c, "have key for inode %llu:%u but have inode in ancestor snapshot %u\n"
+			 "unexpected because we should always update the inode when we update a key in that inode\n"
+			 "%s",
+			 w->last_pos.inode, snapshot, i->snapshot, buf.buf);
+		printbuf_exit(&buf);
 
 		while (i > w->inodes.data && i[-1].snapshot > snapshot)
 			--i;
 
-		pos = i - w->inodes.data;
-		ret = darray_insert_item(&w->inodes, pos, new);
+		size_t pos = i - w->inodes.data;
+		int ret = darray_insert_item(&w->inodes, pos, new);
 		if (ret)
 			return ERR_PTR(ret);
 
@@ -605,21 +608,21 @@ found:
 }
 
 static struct inode_walker_entry *walk_inode(struct btree_trans *trans,
-					     struct inode_walker *w, struct bpos pos,
-					     bool is_whiteout)
+					     struct inode_walker *w,
+					     struct bkey_s_c k)
 {
-	if (w->last_pos.inode != pos.inode) {
-		int ret = get_inodes_all_snapshots(trans, w, pos.inode);
+	if (w->last_pos.inode != k.k->p.inode) {
+		int ret = get_inodes_all_snapshots(trans, w, k.k->p.inode);
 		if (ret)
 			return ERR_PTR(ret);
-	} else if (bkey_cmp(w->last_pos, pos)) {
+	} else if (bkey_cmp(w->last_pos, k.k->p)) {
 		darray_for_each(w->inodes, i)
 			i->seen_this_pos = false;
 	}
 
-	w->last_pos = pos;
+	w->last_pos = k.k->p;
 
-	return lookup_inode_for_snapshot(trans->c, w, pos.snapshot, is_whiteout);
+	return lookup_inode_for_snapshot(trans->c, w, k);
 }
 
 static int __get_visible_inodes(struct btree_trans *trans,
@@ -1371,7 +1374,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			goto err;
 	}
 
-	i = walk_inode(trans, inode, equiv, k.k->type == KEY_TYPE_whiteout);
+	i = walk_inode(trans, inode, k);
 	ret = PTR_ERR_OR_ZERO(i);
 	if (ret)
 		goto err;
@@ -1792,7 +1795,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 
 	BUG_ON(!btree_iter_path(trans, iter)->should_be_locked);
 
-	i = walk_inode(trans, dir, equiv, k.k->type == KEY_TYPE_whiteout);
+	i = walk_inode(trans, dir, k);
 	ret = PTR_ERR_OR_ZERO(i);
 	if (ret < 0)
 		goto err;
@@ -1919,7 +1922,7 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	if (ret)
 		return ret;
 
-	i = walk_inode(trans, inode, k.k->p, k.k->type == KEY_TYPE_whiteout);
+	i = walk_inode(trans, inode, k);
 	ret = PTR_ERR_OR_ZERO(i);
 	if (ret)
 		return ret;
