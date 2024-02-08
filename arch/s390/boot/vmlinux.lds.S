@@ -123,6 +123,7 @@ SECTIONS
 	_end = .;
 
 	DWARF_DEBUG
+	ELF_DETAILS
 
 	/*
 	 * Sections that should stay zero sized, which is safer to
