@@ -181,6 +181,7 @@ def define_pitti():
         "drivers/video/backlight/qcom-spmi-wled.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
         "kernel/sched/walt/sched-walt.ko",
+        "kernel/trace/qcom_ipc_logging.ko",
         "net/qrtr/qrtr.ko",
         "net/qrtr/qrtr-smd.ko",
         "net/wireless/cfg80211.ko",
