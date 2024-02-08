@@ -63,6 +63,8 @@ OPTIONS
                              in browser mode
           perf-event-open  - Print perf_event_open() arguments and
                              return value
+          kmaps            - Print kernel and module maps (perf script
+                             and perf report without browser)
 
 --debug-file::
 	Write debug output to a specified file.

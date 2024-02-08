@@ -133,6 +133,8 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *session, FILE *fp
 size_t perf_session__fprintf_nr_events(struct perf_session *session, FILE *fp,
 				       bool skip_empty);
 
+void perf_session__dump_kmaps(struct perf_session *session);
+
 struct evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 

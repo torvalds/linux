@@ -4378,6 +4378,9 @@ script_found:
 
 	flush_scripting();
 
+	if (verbose > 2 || debug_kmaps)
+		perf_session__dump_kmaps(session);
+
 out_delete:
 	if (script.ptime_range) {
 		itrace_synth_opts__clear_time_range(&itrace_synth_opts);
