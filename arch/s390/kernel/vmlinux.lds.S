@@ -62,6 +62,9 @@ SECTIONS
 	.data.rel.ro : {
 		*(.data.rel.ro .data.rel.ro.*)
 	}
+	.got : {
+		*(.got)
+	}
 
 	. = ALIGN(PAGE_SIZE);
 	_sdata = .;		/* Start of data section */
@@ -240,6 +243,19 @@ SECTIONS
 	STABS_DEBUG
 	DWARF_DEBUG
 	ELF_DETAILS
+
+	/*
+	 * Sections that should stay zero sized, which is safer to
+	 * explicitly check instead of blindly discarding.
+	 */
+	.got.plt : {
+		*(.got.plt)
+	}
+	ASSERT(SIZEOF(.got.plt) == 0, "Unexpected GOT/PLT entries detected!")
+	.plt : {
+		*(.plt) *(.plt.*) *(.iplt) *(.igot .igot.plt)
+	}
+	ASSERT(SIZEOF(.plt) == 0, "Unexpected run-time procedure linkages detected!")
 
 	/* Sections to be discarded */
 	DISCARDS

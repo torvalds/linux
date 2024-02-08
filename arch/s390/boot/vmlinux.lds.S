@@ -39,6 +39,9 @@ SECTIONS
 		*(.rodata.*)
 		_erodata = . ;
 	}
+	.got : {
+		*(.got)
+	}
 	NOTES
 	.data :	{
 		_data = . ;
@@ -117,6 +120,19 @@ SECTIONS
 		QUAD(0x000000207a49504c)
 	}
 	_end = .;
+
+	/*
+	 * Sections that should stay zero sized, which is safer to
+	 * explicitly check instead of blindly discarding.
+	 */
+	.got.plt : {
+		*(.got.plt)
+	}
+	ASSERT(SIZEOF(.got.plt) == 0, "Unexpected GOT/PLT entries detected!")
+	.plt : {
+		*(.plt) *(.plt.*) *(.iplt) *(.igot .igot.plt)
+	}
+	ASSERT(SIZEOF(.plt) == 0, "Unexpected run-time procedure linkages detected!")
 
 	/* Sections to be discarded */
 	/DISCARD/ : {
