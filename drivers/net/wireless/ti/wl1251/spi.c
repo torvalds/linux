@@ -342,6 +342,7 @@ static struct spi_driver wl1251_spi_driver = {
 
 module_spi_driver(wl1251_spi_driver);
 
+MODULE_DESCRIPTION("TI WL1251 SPI helpers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Kalle Valo <kvalo@adurom.com>");
 MODULE_ALIAS("spi:wl1251");

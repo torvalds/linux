@@ -1418,5 +1418,6 @@ const struct ieee80211_ops mt7921_ops = {
 };
 EXPORT_SYMBOL_GPL(mt7921_ops);
 
+MODULE_DESCRIPTION("MediaTek MT7921 core driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
