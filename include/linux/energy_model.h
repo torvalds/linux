@@ -5,6 +5,7 @@
 #include <linux/device.h>
 #include <linux/jump_label.h>
 #include <linux/kobject.h>
+#include <linux/kref.h>
 #include <linux/rcupdate.h>
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/topology.h>
@@ -39,10 +40,12 @@ struct em_perf_state {
 /**
  * struct em_perf_table - Performance states table
  * @rcu:	RCU used for safe access and destruction
+ * @kref:	Reference counter to track the users
  * @state:	List of performance states, in ascending order
  */
 struct em_perf_table {
 	struct rcu_head rcu;
+	struct kref kref;
 	struct em_perf_state state[];
 };
 
@@ -184,6 +187,8 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 				struct em_data_callback *cb, cpumask_t *span,
 				bool microwatts);
 void em_dev_unregister_perf_domain(struct device *dev);
+struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd);
+void em_table_free(struct em_perf_table __rcu *table);
 
 /**
  * em_pd_get_efficient_state() - Get an efficient performance state from the EM
@@ -365,6 +370,12 @@ static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 {
 	return 0;
 }
+static inline
+struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd)
+{
+	return NULL;
+}
+static inline void em_table_free(struct em_perf_table __rcu *table) {}
 #endif
 
 #endif

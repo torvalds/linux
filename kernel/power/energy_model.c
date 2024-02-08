@@ -114,13 +114,36 @@ static void em_destroy_table_rcu(struct rcu_head *rp)
 	kfree(table);
 }
 
-static void em_free_table(struct em_perf_table __rcu *table)
+static void em_release_table_kref(struct kref *kref)
 {
+	struct em_perf_table __rcu *table;
+
+	/* It was the last owner of this table so we can free */
+	table = container_of(kref, struct em_perf_table, kref);
+
 	call_rcu(&table->rcu, em_destroy_table_rcu);
 }
 
-static struct em_perf_table __rcu *
-em_allocate_table(struct em_perf_domain *pd)
+/**
+ * em_table_free() - Handles safe free of the EM table when needed
+ * @table : EM table which is going to be freed
+ *
+ * No return values.
+ */
+void em_table_free(struct em_perf_table __rcu *table)
+{
+	kref_put(&table->kref, em_release_table_kref);
+}
+
+/**
+ * em_table_alloc() - Allocate a new EM table
+ * @pd		: EM performance domain for which this must be done
+ *
+ * Allocate a new EM table and initialize its kref to indicate that it
+ * has a user.
+ * Returns allocated table or NULL.
+ */
+struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd)
 {
 	struct em_perf_table __rcu *table;
 	int table_size;
@@ -128,6 +151,11 @@ em_allocate_table(struct em_perf_domain *pd)
 	table_size = sizeof(struct em_perf_state) * pd->nr_perf_states;
 
 	table = kzalloc(sizeof(*table) + table_size, GFP_KERNEL);
+	if (!table)
+		return NULL;
+
+	kref_init(&table->kref);
+
 	return table;
 }
 
@@ -186,7 +214,7 @@ static int em_create_runtime_table(struct em_perf_domain *pd)
 	struct em_perf_table __rcu *table;
 	int table_size;
 
-	table = em_allocate_table(pd);
+	table = em_table_alloc(pd);
 	if (!table)
 		return -ENOMEM;
 
@@ -512,7 +540,7 @@ void em_dev_unregister_perf_domain(struct device *dev)
 
 	kfree(dev->em_pd->table);
 
-	em_free_table(dev->em_pd->em_table);
+	em_table_free(dev->em_pd->em_table);
 
 	kfree(dev->em_pd);
 	dev->em_pd = NULL;
