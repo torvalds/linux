@@ -762,7 +762,7 @@ static bool intel_sdvo_get_timing(struct intel_sdvo *intel_sdvo, u8 cmd,
 }
 
 static bool intel_sdvo_set_input_timing(struct intel_sdvo *intel_sdvo,
-					 struct intel_sdvo_dtd *dtd)
+					struct intel_sdvo_dtd *dtd)
 {
 	return intel_sdvo_set_timing(intel_sdvo,
 				     SDVO_CMD_SET_INPUT_TIMINGS_PART1, dtd);
@@ -930,8 +930,8 @@ static bool intel_sdvo_check_supp_encode(struct intel_sdvo *intel_sdvo)
 
 	BUILD_BUG_ON(sizeof(encode) != 2);
 	return intel_sdvo_get_value(intel_sdvo,
-				  SDVO_CMD_GET_SUPP_ENCODE,
-				  &encode, sizeof(encode));
+				    SDVO_CMD_GET_SUPP_ENCODE,
+				    &encode, sizeof(encode));
 }
 
 static bool intel_sdvo_set_encode(struct intel_sdvo *intel_sdvo,
@@ -1995,30 +1995,30 @@ static bool intel_sdvo_get_capabilities(struct intel_sdvo *intel_sdvo, struct in
 		return false;
 
 	drm_dbg_kms(&i915->drm, "SDVO capabilities:\n"
-		      "  vendor_id: %d\n"
-		      "  device_id: %d\n"
-		      "  device_rev_id: %d\n"
-		      "  sdvo_version_major: %d\n"
-		      "  sdvo_version_minor: %d\n"
-		      "  sdvo_num_inputs: %d\n"
-		      "  smooth_scaling: %d\n"
-		      "  sharp_scaling: %d\n"
-		      "  up_scaling: %d\n"
-		      "  down_scaling: %d\n"
-		      "  stall_support: %d\n"
-		      "  output_flags: %d\n",
-		      caps->vendor_id,
-		      caps->device_id,
-		      caps->device_rev_id,
-		      caps->sdvo_version_major,
-		      caps->sdvo_version_minor,
-		      caps->sdvo_num_inputs,
-		      caps->smooth_scaling,
-		      caps->sharp_scaling,
-		      caps->up_scaling,
-		      caps->down_scaling,
-		      caps->stall_support,
-		      caps->output_flags);
+		    "  vendor_id: %d\n"
+		    "  device_id: %d\n"
+		    "  device_rev_id: %d\n"
+		    "  sdvo_version_major: %d\n"
+		    "  sdvo_version_minor: %d\n"
+		    "  sdvo_num_inputs: %d\n"
+		    "  smooth_scaling: %d\n"
+		    "  sharp_scaling: %d\n"
+		    "  up_scaling: %d\n"
+		    "  down_scaling: %d\n"
+		    "  stall_support: %d\n"
+		    "  output_flags: %d\n",
+		    caps->vendor_id,
+		    caps->device_id,
+		    caps->device_rev_id,
+		    caps->sdvo_version_major,
+		    caps->sdvo_version_minor,
+		    caps->sdvo_num_inputs,
+		    caps->smooth_scaling,
+		    caps->sharp_scaling,
+		    caps->up_scaling,
+		    caps->down_scaling,
+		    caps->stall_support,
+		    caps->output_flags);
 
 	return true;
 }
@@ -2050,7 +2050,7 @@ static u16 intel_sdvo_get_hotplug_support(struct intel_sdvo *intel_sdvo)
 		return 0;
 
 	if (!intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_HOT_PLUG_SUPPORT,
-					&hotplug, sizeof(hotplug)))
+				  &hotplug, sizeof(hotplug)))
 		return 0;
 
 	return hotplug;
@@ -2812,7 +2812,7 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, u16 type)
 	intel_connector = &intel_sdvo_connector->base;
 	connector = &intel_connector->base;
 	if (intel_sdvo_get_hotplug_support(intel_sdvo) &
-		intel_sdvo_connector->output_flag) {
+	    intel_sdvo_connector->output_flag) {
 		intel_sdvo->hotplug_active |= intel_sdvo_connector->output_flag;
 		/*
 		 * Some SDVO devices have one-shot hotplug interrupts.
@@ -3092,8 +3092,8 @@ static bool intel_sdvo_tv_create_property(struct intel_sdvo *intel_sdvo,
 
 
 	intel_sdvo_connector->tv_format =
-			drm_property_create(dev, DRM_MODE_PROP_ENUM,
-					    "mode", intel_sdvo_connector->format_supported_num);
+		drm_property_create(dev, DRM_MODE_PROP_ENUM,
+				    "mode", intel_sdvo_connector->format_supported_num);
 	if (!intel_sdvo_connector->tv_format)
 		return false;
 
@@ -3168,7 +3168,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->right, 0);
+					   intel_sdvo_connector->right, 0);
 		drm_dbg_kms(&i915->drm, "h_overscan: max %d, default %d, current %d\n",
 			    data_value[0], data_value[1], response);
 	}
@@ -3189,7 +3189,7 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 		intel_sdvo_connector->max_vscan = data_value[0];
 		intel_sdvo_connector->top =
 			drm_property_create_range(dev, 0,
-					    "top_margin", 0, data_value[0]);
+						  "top_margin", 0, data_value[0]);
 		if (!intel_sdvo_connector->top)
 			return false;
 
@@ -3198,12 +3198,12 @@ intel_sdvo_create_enhance_property_tv(struct intel_sdvo *intel_sdvo,
 
 		intel_sdvo_connector->bottom =
 			drm_property_create_range(dev, 0,
-					    "bottom_margin", 0, data_value[0]);
+						  "bottom_margin", 0, data_value[0]);
 		if (!intel_sdvo_connector->bottom)
 			return false;
 
 		drm_object_attach_property(&connector->base,
-					      intel_sdvo_connector->bottom, 0);
+					   intel_sdvo_connector->bottom, 0);
 		drm_dbg_kms(&i915->drm, "v_overscan: max %d, default %d, current %d\n",
 			    data_value[0], data_value[1], response);
 	}
@@ -3491,23 +3491,23 @@ bool intel_sdvo_init(struct drm_i915_private *dev_priv,
 		goto err_output;
 
 	drm_dbg_kms(&dev_priv->drm, "%s device VID/DID: %02X:%02X.%02X, "
-			"clock range %dMHz - %dMHz, "
-			"num inputs: %d, "
-			"output 1: %c, output 2: %c\n",
-			SDVO_NAME(intel_sdvo),
-			intel_sdvo->caps.vendor_id, intel_sdvo->caps.device_id,
-			intel_sdvo->caps.device_rev_id,
-			intel_sdvo->pixel_clock_min / 1000,
-			intel_sdvo->pixel_clock_max / 1000,
-			intel_sdvo->caps.sdvo_num_inputs,
-			/* check currently supported outputs */
-			intel_sdvo->caps.output_flags &
-			(SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_RGB0 |
-			 SDVO_OUTPUT_LVDS0 | SDVO_OUTPUT_SVID0 |
-			 SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_YPRPB0) ? 'Y' : 'N',
-			intel_sdvo->caps.output_flags &
-			(SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1 |
-			 SDVO_OUTPUT_LVDS1) ? 'Y' : 'N');
+		    "clock range %dMHz - %dMHz, "
+		    "num inputs: %d, "
+		    "output 1: %c, output 2: %c\n",
+		    SDVO_NAME(intel_sdvo),
+		    intel_sdvo->caps.vendor_id, intel_sdvo->caps.device_id,
+		    intel_sdvo->caps.device_rev_id,
+		    intel_sdvo->pixel_clock_min / 1000,
+		    intel_sdvo->pixel_clock_max / 1000,
+		    intel_sdvo->caps.sdvo_num_inputs,
+		    /* check currently supported outputs */
+		    intel_sdvo->caps.output_flags &
+		    (SDVO_OUTPUT_TMDS0 | SDVO_OUTPUT_RGB0 |
+		     SDVO_OUTPUT_LVDS0 | SDVO_OUTPUT_SVID0 |
+		     SDVO_OUTPUT_CVBS0 | SDVO_OUTPUT_YPRPB0) ? 'Y' : 'N',
+		    intel_sdvo->caps.output_flags &
+		    (SDVO_OUTPUT_TMDS1 | SDVO_OUTPUT_RGB1 |
+		     SDVO_OUTPUT_LVDS1) ? 'Y' : 'N');
 	return true;
 
 err_output:
