@@ -1167,7 +1167,7 @@ static struct qcom_icc_node slv_cats_1 = {
 	.qos.qos_mode = NOC_QOS_MODE_INVALID,
 };
 
-static struct qcom_icc_node *msm8909_bimc_nodes[] = {
+static struct qcom_icc_node * const msm8909_bimc_nodes[] = {
 	[MAS_APPS_PROC] = &mas_apps_proc,
 	[MAS_OXILI] = &mas_oxili,
 	[MAS_SNOC_BIMC_0] = &mas_snoc_bimc_0,
@@ -1196,7 +1196,7 @@ static const struct qcom_icc_desc msm8909_bimc = {
 	.ab_coeff = 154,
 };
 
-static struct qcom_icc_node *msm8909_pcnoc_nodes[] = {
+static struct qcom_icc_node * const msm8909_pcnoc_nodes[] = {
 	[MAS_AUDIO] = &mas_audio,
 	[MAS_SPDM] = &mas_spdm,
 	[MAS_DEHR] = &mas_dehr,
@@ -1263,7 +1263,7 @@ static const struct qcom_icc_desc msm8909_pcnoc = {
 	.qos_offset = 0x7000,
 };
 
-static struct qcom_icc_node *msm8909_snoc_nodes[] = {
+static struct qcom_icc_node * const msm8909_snoc_nodes[] = {
 	[MAS_QDSS_BAM] = &mas_qdss_bam,
 	[MAS_BIMC_SNOC] = &mas_bimc_snoc,
 	[MAS_MDP] = &mas_mdp,
