@@ -3168,10 +3168,10 @@ F:	drivers/hwmon/asus-ec-sensors.c
 
 ASUS NOTEBOOKS AND EEEPC ACPI/WMI EXTRAS DRIVERS
 M:	Corentin Chary <corentin.chary@gmail.com>
-L:	acpi4asus-user@lists.sourceforge.net
+M:	Luke D. Jones <luke@ljones.dev>
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
-W:	http://acpi4asus.sf.net
+W:	https://asus-linux.org/
 F:	drivers/platform/x86/asus*.c
 F:	drivers/platform/x86/eeepc*.c
 
@@ -5958,7 +5958,6 @@ S:	Maintained
 F:	drivers/platform/x86/dell/dell-wmi-descriptor.c
 
 DELL WMI HARDWARE PRIVACY SUPPORT
-M:	Perry Yuan <Perry.Yuan@dell.com>
 L:	Dell.Client.Kernel@dell.com
 L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
