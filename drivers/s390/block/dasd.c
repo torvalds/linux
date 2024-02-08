@@ -30,9 +30,6 @@
 #include <asm/itcw.h>
 #include <asm/diag.h>
 
-/* This is ugly... */
-#define PRINTK_HEADER "dasd:"
-
 #include "dasd_int.h"
 /*
  * SECTION: Constant definitions to be used within this file

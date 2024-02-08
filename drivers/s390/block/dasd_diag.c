@@ -8,8 +8,6 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd"
-
 #include <linux/kernel_stat.h>
 #include <linux/stddef.h>
 #include <linux/kernel.h>
@@ -30,8 +28,6 @@
 
 #include "dasd_int.h"
 #include "dasd_diag.h"
-
-#define PRINTK_HEADER "dasd(diag):"
 
 MODULE_LICENSE("GPL");
 

@@ -7,12 +7,8 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd-eckd"
-
 #include <linux/timer.h>
 #include <asm/idals.h>
-
-#define PRINTK_HEADER "dasd_erp(3990): "
 
 #include "dasd_int.h"
 #include "dasd_eckd.h"
@@ -2700,8 +2696,7 @@ dasd_3990_erp_handle_match_erp(struct dasd_ccw_req *erp_head,
 	while (erp_done != erp) {
 
 		if (erp_done == NULL)	/* end of chain reached */
-			panic(PRINTK_HEADER "Programming error in ERP! The "
-			      "original request was lost\n");
+			panic("Programming error in ERP! The original request was lost\n");
 
 		/* remove the request from the device queue */
 		list_del(&erp_done->blocklist);

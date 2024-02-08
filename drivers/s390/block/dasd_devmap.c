@@ -13,8 +13,6 @@
  *
  */
 
-#define KMSG_COMPONENT "dasd"
-
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -24,8 +22,6 @@
 #include <linux/uaccess.h>
 #include <asm/ipl.h>
 
-/* This is ugly... */
-#define PRINTK_HEADER "dasd_devmap:"
 #define DASD_MAX_PARAMS 256
 
 #include "dasd_int.h"
