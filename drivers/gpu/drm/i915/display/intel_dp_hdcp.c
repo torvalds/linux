@@ -36,8 +36,10 @@ static u32 transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
 	}
 }
 
-static void intel_dp_hdcp_wait_for_cp_irq(struct intel_hdcp *hdcp, int timeout)
+static void intel_dp_hdcp_wait_for_cp_irq(struct intel_connector *connector,
+					  int timeout)
 {
+	struct intel_hdcp *hdcp = &connector->hdcp;
 	long ret;
 
 #define C (hdcp->cp_irq_count_cached != atomic_read(&hdcp->cp_irq_count))
@@ -45,7 +47,8 @@ static void intel_dp_hdcp_wait_for_cp_irq(struct intel_hdcp *hdcp, int timeout)
 					       msecs_to_jiffies(timeout));
 
 	if (!ret)
-		DRM_DEBUG_KMS("Timedout at waiting for CP_IRQ\n");
+		drm_dbg_kms(connector->base.dev,
+			    "Timedout at waiting for CP_IRQ\n");
 }
 
 static
@@ -387,7 +390,8 @@ int hdcp2_detect_msg_availability(struct intel_connector *connector,
 			*msg_ready = true;
 		break;
 	default:
-		DRM_ERROR("Unidentified msg_id: %d\n", msg_id);
+		drm_err(connector->base.dev,
+			"Unidentified msg_id: %d\n", msg_id);
 		return -EINVAL;
 	}
 
@@ -421,7 +425,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_connector *connector,
 		 * As we want to check the msg availability at timeout, Ignoring
 		 * the timeout at wait for CP_IRQ.
 		 */
-		intel_dp_hdcp_wait_for_cp_irq(hdcp, timeout);
+		intel_dp_hdcp_wait_for_cp_irq(connector, timeout);
 		ret = hdcp2_detect_msg_availability(connector, msg_id,
 						    &msg_ready);
 		if (!msg_ready)
