@@ -120,7 +120,7 @@ static struct pci_driver dwc_pwm_driver = {
 	.remove = dwc_pwm_remove,
 	.id_table = dwc_pwm_id_table,
 	.driver = {
-		.pm = pm_ptr(&dwc_pwm_pm_ops),
+		.pm = pm_sleep_ptr(&dwc_pwm_pm_ops),
 	},
 };
 
