@@ -23,6 +23,9 @@
  */
 static DEFINE_MUTEX(em_pd_mutex);
 
+static void em_cpufreq_update_efficiencies(struct device *dev,
+					   struct em_perf_state *table);
+
 static bool _is_cpu_device(struct device *dev)
 {
 	return (dev->bus == &cpu_subsys);
@@ -103,6 +106,31 @@ static void em_debug_create_pd(struct device *dev) {}
 static void em_debug_remove_pd(struct device *dev) {}
 #endif
 
+static void em_destroy_table_rcu(struct rcu_head *rp)
+{
+	struct em_perf_table __rcu *table;
+
+	table = container_of(rp, struct em_perf_table, rcu);
+	kfree(table);
+}
+
+static void em_free_table(struct em_perf_table __rcu *table)
+{
+	call_rcu(&table->rcu, em_destroy_table_rcu);
+}
+
+static struct em_perf_table __rcu *
+em_allocate_table(struct em_perf_domain *pd)
+{
+	struct em_perf_table __rcu *table;
+	int table_size;
+
+	table_size = sizeof(struct em_perf_state) * pd->nr_perf_states;
+
+	table = kzalloc(sizeof(*table) + table_size, GFP_KERNEL);
+	return table;
+}
+
 static int em_compute_costs(struct device *dev, struct em_perf_state *table,
 			    struct em_data_callback *cb, int nr_states,
 			    unsigned long flags)
@@ -149,6 +177,24 @@ static int em_allocate_perf_table(struct em_perf_domain *pd,
 			    GFP_KERNEL);
 	if (!pd->table)
 		return -ENOMEM;
+
+	return 0;
+}
+
+static int em_create_runtime_table(struct em_perf_domain *pd)
+{
+	struct em_perf_table __rcu *table;
+	int table_size;
+
+	table = em_allocate_table(pd);
+	if (!table)
+		return -ENOMEM;
+
+	/* Initialize runtime table with existing data */
+	table_size = sizeof(struct em_perf_state) * pd->nr_perf_states;
+	memcpy(table->state, pd->table, table_size);
+
+	rcu_assign_pointer(pd->em_table, table);
 
 	return 0;
 }
@@ -242,6 +288,10 @@ static int em_create_pd(struct device *dev, int nr_states,
 		goto free_pd;
 
 	ret = em_create_perf_table(dev, pd, pd->table, cb, flags);
+	if (ret)
+		goto free_pd_table;
+
+	ret = em_create_runtime_table(pd);
 	if (ret)
 		goto free_pd_table;
 
@@ -461,6 +511,9 @@ void em_dev_unregister_perf_domain(struct device *dev)
 	em_debug_remove_pd(dev);
 
 	kfree(dev->em_pd->table);
+
+	em_free_table(dev->em_pd->em_table);
+
 	kfree(dev->em_pd);
 	dev->em_pd = NULL;
 	mutex_unlock(&em_pd_mutex);

@@ -37,8 +37,19 @@ struct em_perf_state {
 #define EM_PERF_STATE_INEFFICIENT BIT(0)
 
 /**
+ * struct em_perf_table - Performance states table
+ * @rcu:	RCU used for safe access and destruction
+ * @state:	List of performance states, in ascending order
+ */
+struct em_perf_table {
+	struct rcu_head rcu;
+	struct em_perf_state state[];
+};
+
+/**
  * struct em_perf_domain - Performance domain
  * @table:		List of performance states, in ascending order
+ * @em_table:		Pointer to the runtime modifiable em_perf_table
  * @nr_perf_states:	Number of performance states
  * @flags:		See "em_perf_domain flags"
  * @cpus:		Cpumask covering the CPUs of the domain. It's here
@@ -54,6 +65,7 @@ struct em_perf_state {
  */
 struct em_perf_domain {
 	struct em_perf_state *table;
+	struct em_perf_table __rcu *em_table;
 	int nr_perf_states;
 	unsigned long flags;
 	unsigned long cpus[];
