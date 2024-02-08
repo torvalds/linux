@@ -1767,15 +1767,21 @@ out:
 				return codec_index;
 
 			for (j = 0; j < codec_info_list[codec_index].dai_num ; j++) {
+				int current_be_id;
+
 				ret = create_sdw_dailink(card, &link_index, dai_links,
 							 sdw_be_num, adr_link,
 							 codec_conf, codec_conf_num,
-							 &be_id, &codec_conf_index,
+							 &current_be_id, &codec_conf_index,
 							 &ignore_pch_dmic, append_dai_type, i, j);
 				if (ret < 0) {
 					dev_err(dev, "failed to create dai link %d\n", link_index);
 					return ret;
 				}
+
+				/* Update the be_id to match the highest ID used for SDW link */
+				if (be_id < current_be_id)
+					be_id = current_be_id;
 			}
 
 			if (aggregation && endpoint->aggregated)
