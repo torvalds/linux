@@ -73,11 +73,12 @@ $(obj)/bzImage: $(obj)/vmlinux $(obj)/section_cmp.boot.data $(obj)/section_cmp.b
 $(obj)/section_cmp%: vmlinux $(obj)/vmlinux FORCE
 	$(call if_changed,section_cmp)
 
-LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup $(if $(CONFIG_VMLINUX_MAP),-Map=$(obj)/vmlinux.map) --build-id=sha1 -T
+LDFLAGS_vmlinux-$(CONFIG_LD_ORPHAN_WARN) := --orphan-handling=$(CONFIG_LD_ORPHAN_WARN_LEVEL)
+LDFLAGS_vmlinux := $(LDFLAGS_vmlinux-y) --oformat $(LD_BFD) -e startup $(if $(CONFIG_VMLINUX_MAP),-Map=$(obj)/vmlinux.map) --build-id=sha1 -T
 $(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS_ALL) FORCE
 	$(call if_changed,ld)
 
-LDFLAGS_vmlinux.syms := --oformat $(LD_BFD) -e startup -T
+LDFLAGS_vmlinux.syms := $(LDFLAGS_vmlinux-y) --oformat $(LD_BFD) -e startup -T
 $(obj)/vmlinux.syms: $(obj)/vmlinux.lds $(OBJECTS) FORCE
 	$(call if_changed,ld)
 
