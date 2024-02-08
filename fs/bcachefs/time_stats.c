@@ -70,11 +70,13 @@ static inline void time_stats_update_one(struct bch2_time_stats *stats,
 					      u64 start, u64 end)
 {
 	u64 duration, freq;
+	bool initted = stats->last_event != 0;
 
 	if (time_after64(end, start)) {
 		duration = end - start;
 		mean_and_variance_update(&stats->duration_stats, duration);
-		mean_and_variance_weighted_update(&stats->duration_stats_weighted, duration);
+		mean_and_variance_weighted_update(&stats->duration_stats_weighted,
+				duration, initted, TIME_STATS_MV_WEIGHT);
 		stats->max_duration = max(stats->max_duration, duration);
 		stats->min_duration = min(stats->min_duration, duration);
 		stats->total_duration += duration;
@@ -86,7 +88,8 @@ static inline void time_stats_update_one(struct bch2_time_stats *stats,
 	if (stats->last_event && time_after64(end, stats->last_event)) {
 		freq = end - stats->last_event;
 		mean_and_variance_update(&stats->freq_stats, freq);
-		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
+		mean_and_variance_weighted_update(&stats->freq_stats_weighted,
+				freq, initted, TIME_STATS_MV_WEIGHT);
 		stats->max_freq = max(stats->max_freq, freq);
 		stats->min_freq = min(stats->min_freq, freq);
 	}
@@ -118,15 +121,11 @@ void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 {
 	unsigned long flags;
 
-	WARN_ONCE(!stats->duration_stats_weighted.weight ||
-		  !stats->freq_stats_weighted.weight,
-		  "uninitialized bch2_time_stats");
-
 	if (!stats->buffer) {
 		spin_lock_irqsave(&stats->lock, flags);
 		time_stats_update_one(stats, start, end);
 
-		if (mean_and_variance_weighted_get_mean(stats->freq_stats_weighted) < 32 &&
+		if (mean_and_variance_weighted_get_mean(stats->freq_stats_weighted, TIME_STATS_MV_WEIGHT) < 32 &&
 		    stats->duration_stats.n > 1024)
 			stats->buffer =
 				alloc_percpu_gfp(struct time_stat_buffer,
@@ -158,8 +157,6 @@ void bch2_time_stats_exit(struct bch2_time_stats *stats)
 void bch2_time_stats_init(struct bch2_time_stats *stats)
 {
 	memset(stats, 0, sizeof(*stats));
-	stats->duration_stats_weighted.weight = 8;
-	stats->freq_stats_weighted.weight = 8;
 	stats->min_duration = U64_MAX;
 	stats->min_freq = U64_MAX;
 	spin_lock_init(&stats->lock);

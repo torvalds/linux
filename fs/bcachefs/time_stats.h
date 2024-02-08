@@ -80,8 +80,12 @@ struct bch2_time_stats {
 	struct quantiles quantiles;
 
 	struct mean_and_variance	  duration_stats;
-	struct mean_and_variance_weighted duration_stats_weighted;
 	struct mean_and_variance	  freq_stats;
+
+/* default weight for weighted mean and variance calculations */
+#define TIME_STATS_MV_WEIGHT	8
+
+	struct mean_and_variance_weighted duration_stats_weighted;
 	struct mean_and_variance_weighted freq_stats_weighted;
 	struct time_stat_buffer __percpu *buffer;
 };
