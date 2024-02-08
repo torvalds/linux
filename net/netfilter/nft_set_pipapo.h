@@ -144,10 +144,10 @@ struct nft_pipapo_scratch {
 
 /**
  * struct nft_pipapo_match - Data used for lookup and matching
- * @field_count		Amount of fields in set
+ * @field_count:	Amount of fields in set
  * @scratch:		Preallocated per-CPU maps for partial matching results
  * @bsize_max:		Maximum lookup table bucket size of all fields, in longs
- * @rcu			Matching data is swapped on commits
+ * @rcu:		Matching data is swapped on commits
  * @f:			Fields, with lookup and mapping tables
  */
 struct nft_pipapo_match {
