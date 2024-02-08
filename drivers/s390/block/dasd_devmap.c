@@ -1412,15 +1412,9 @@ dasd_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
 			break;
 		}
 
-		if (strlen(uid.vduit) > 0)
-			snprintf(uid_string, sizeof(uid_string),
-				 "%s.%s.%04x.%s.%s",
-				 uid.vendor, uid.serial, uid.ssid, ua_string,
-				 uid.vduit);
-		else
-			snprintf(uid_string, sizeof(uid_string),
-				 "%s.%s.%04x.%s",
-				 uid.vendor, uid.serial, uid.ssid, ua_string);
+		snprintf(uid_string, sizeof(uid_string), "%s.%s.%04x.%s%s%s",
+			 uid.vendor, uid.serial, uid.ssid, ua_string,
+			 uid.vduit[0] ? "." : "", uid.vduit);
 	}
 	dasd_put_device(device);
 

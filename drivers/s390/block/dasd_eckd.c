@@ -1072,22 +1072,14 @@ static void dasd_eckd_read_fc_security(struct dasd_device *device)
 	}
 }
 
-static void dasd_eckd_get_uid_string(struct dasd_conf *conf,
-				     char *print_uid)
+static void dasd_eckd_get_uid_string(struct dasd_conf *conf, char *print_uid)
 {
 	struct dasd_uid uid;
 
 	create_uid(conf, &uid);
-	if (strlen(uid.vduit) > 0)
-		snprintf(print_uid, DASD_UID_STRLEN,
-			 "%s.%s.%04x.%02x.%s",
-			 uid.vendor, uid.serial, uid.ssid,
-			 uid.real_unit_addr, uid.vduit);
-	else
-		snprintf(print_uid, DASD_UID_STRLEN,
-			 "%s.%s.%04x.%02x",
-			 uid.vendor, uid.serial, uid.ssid,
-			 uid.real_unit_addr);
+	snprintf(print_uid, DASD_UID_STRLEN, "%s.%s.%04x.%02x%s%s",
+		 uid.vendor, uid.serial, uid.ssid, uid.real_unit_addr,
+		 uid.vduit[0] ? "." : "", uid.vduit);
 }
 
 static int dasd_eckd_check_cabling(struct dasd_device *device,
