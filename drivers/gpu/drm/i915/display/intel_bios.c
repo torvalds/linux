@@ -2911,17 +2911,17 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 		return false;
 
 	if (sizeof(struct vbt_header) > size) {
-		DRM_DEBUG_DRIVER("VBT header incomplete\n");
+		DRM_DEBUG_KMS("VBT header incomplete\n");
 		return false;
 	}
 
 	if (memcmp(vbt->signature, "$VBT", 4)) {
-		DRM_DEBUG_DRIVER("VBT invalid signature\n");
+		DRM_DEBUG_KMS("VBT invalid signature\n");
 		return false;
 	}
 
 	if (vbt->vbt_size > size) {
-		DRM_DEBUG_DRIVER("VBT incomplete (vbt_size overflows)\n");
+		DRM_DEBUG_KMS("VBT incomplete (vbt_size overflows)\n");
 		return false;
 	}
 
@@ -2931,13 +2931,13 @@ bool intel_bios_is_valid_vbt(const void *buf, size_t size)
 			      vbt->bdb_offset,
 			      sizeof(struct bdb_header),
 			      size)) {
-		DRM_DEBUG_DRIVER("BDB header incomplete\n");
+		DRM_DEBUG_KMS("BDB header incomplete\n");
 		return false;
 	}
 
 	bdb = get_bdb_header(vbt);
 	if (range_overflows_t(size_t, vbt->bdb_offset, bdb->bdb_size, size)) {
-		DRM_DEBUG_DRIVER("BDB incomplete\n");
+		DRM_DEBUG_KMS("BDB incomplete\n");
 		return false;
 	}
 
