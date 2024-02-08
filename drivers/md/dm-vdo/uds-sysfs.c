@@ -9,10 +9,11 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "string-utils.h"
+
+#include "indexer.h"
 
 #define UDS_SYSFS_NAME "uds"
 

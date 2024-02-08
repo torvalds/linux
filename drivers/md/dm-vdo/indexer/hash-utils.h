@@ -6,9 +6,10 @@
 #ifndef UDS_HASH_UTILS_H
 #define UDS_HASH_UTILS_H
 
+#include "numeric.h"
+
 #include "geometry.h"
 #include "indexer.h"
-#include "numeric.h"
 
 /* Utilities for extracting portions of a request name for various uses. */
 

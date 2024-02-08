@@ -10,8 +10,9 @@
 #include <linux/bio.h>
 #include <linux/list.h>
 
-#include "indexer.h"
 #include "permassert.h"
+
+#include "indexer.h"
 
 #include "block-map.h"
 #include "completion.h"

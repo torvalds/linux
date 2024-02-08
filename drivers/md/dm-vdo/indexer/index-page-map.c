@@ -6,14 +6,15 @@
 #include "index-page-map.h"
 
 #include "errors.h"
-#include "hash-utils.h"
-#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "numeric.h"
 #include "permassert.h"
 #include "string-utils.h"
 #include "thread-utils.h"
+
+#include "hash-utils.h"
+#include "indexer.h"
 
 /*
  * The index page map is conceptually a two-dimensional array indexed by chapter number and index

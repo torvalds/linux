@@ -7,12 +7,13 @@
 
 #include <linux/log2.h>
 
-#include "config.h"
-#include "hash-utils.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "numeric.h"
 #include "permassert.h"
+
+#include "config.h"
+#include "hash-utils.h"
 
 /*
  * Each index zone has a dedicated open chapter zone structure which gets an equal share of the

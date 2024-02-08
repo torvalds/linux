@@ -8,10 +8,11 @@
 
 #include <linux/cache.h>
 
-#include "config.h"
-#include "io-factory.h"
 #include "numeric.h"
 #include "time-utils.h"
+
+#include "config.h"
+#include "io-factory.h"
 
 /*
  * A delta index is a key-value store, where each entry maps an address (the key) to a payload (the

@@ -9,12 +9,13 @@
 #include <linux/delay.h>
 #include <linux/dm-bufio.h>
 
-#include "chapter-index.h"
-#include "config.h"
-#include "index.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "permassert.h"
+
+#include "chapter-index.h"
+#include "config.h"
+#include "index.h"
 
 /*
  * Since the cache is small, it is implemented as a simple array of cache entries. Searching for a

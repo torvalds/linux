@@ -6,10 +6,11 @@
 
 #include "index.h"
 
-#include "funnel-requestqueue.h"
-#include "hash-utils.h"
 #include "logger.h"
 #include "memory-alloc.h"
+
+#include "funnel-requestqueue.h"
+#include "hash-utils.h"
 #include "sparse-cache.h"
 
 static const u64 NO_LAST_SAVE = U64_MAX;

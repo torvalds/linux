@@ -9,18 +9,19 @@
 #include <linux/dm-bufio.h>
 #include <linux/err.h>
 
-#include "chapter-index.h"
-#include "config.h"
 #include "errors.h"
-#include "geometry.h"
-#include "hash-utils.h"
-#include "index.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "permassert.h"
-#include "sparse-cache.h"
 #include "string-utils.h"
 #include "thread-utils.h"
+
+#include "chapter-index.h"
+#include "config.h"
+#include "geometry.h"
+#include "hash-utils.h"
+#include "index.h"
+#include "sparse-cache.h"
 
 /*
  * The first block of the volume layout is reserved for the volume header, which is no longer used.

@@ -10,16 +10,17 @@
 #include <linux/limits.h>
 #include <linux/log2.h>
 
-#include "config.h"
 #include "cpu.h"
 #include "errors.h"
-#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "numeric.h"
 #include "permassert.h"
 #include "string-utils.h"
 #include "time-utils.h"
+
+#include "config.h"
+#include "indexer.h"
 
 /*
  * The entries in a delta index could be stored in a single delta list, but to reduce search times

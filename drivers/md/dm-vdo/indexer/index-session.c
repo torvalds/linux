@@ -7,12 +7,13 @@
 
 #include <linux/atomic.h>
 
-#include "funnel-requestqueue.h"
-#include "index.h"
-#include "index-layout.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "time-utils.h"
+
+#include "funnel-requestqueue.h"
+#include "index.h"
+#include "index-layout.h"
 
 /*
  * The index session contains a lock (the request_mutex) which ensures that only one thread can
