@@ -2533,7 +2533,8 @@ static void ilk_compute_wm_reg_maximums(const struct drm_i915_private *dev_priv,
 	max->fbc = ilk_fbc_wm_reg_max(dev_priv);
 }
 
-static bool ilk_validate_wm_level(int level,
+static bool ilk_validate_wm_level(struct drm_i915_private *i915,
+				  int level,
 				  const struct ilk_wm_maximums *max,
 				  struct intel_wm_level *result)
 {
@@ -2556,14 +2557,17 @@ static bool ilk_validate_wm_level(int level,
 	 */
 	if (level == 0 && !result->enable) {
 		if (result->pri_val > max->pri)
-			DRM_DEBUG_KMS("Primary WM%d too large %u (max %u)\n",
-				      level, result->pri_val, max->pri);
+			drm_dbg_kms(&i915->drm,
+				    "Primary WM%d too large %u (max %u)\n",
+				    level, result->pri_val, max->pri);
 		if (result->spr_val > max->spr)
-			DRM_DEBUG_KMS("Sprite WM%d too large %u (max %u)\n",
-				      level, result->spr_val, max->spr);
+			drm_dbg_kms(&i915->drm,
+				    "Sprite WM%d too large %u (max %u)\n",
+				    level, result->spr_val, max->spr);
 		if (result->cur_val > max->cur)
-			DRM_DEBUG_KMS("Cursor WM%d too large %u (max %u)\n",
-				      level, result->cur_val, max->cur);
+			drm_dbg_kms(&i915->drm,
+				    "Cursor WM%d too large %u (max %u)\n",
+				    level, result->cur_val, max->cur);
 
 		result->pri_val = min_t(u32, result->pri_val, max->pri);
 		result->spr_val = min_t(u32, result->spr_val, max->spr);
@@ -2763,7 +2767,7 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	}
 }
 
-static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
+static bool ilk_validate_pipe_wm(struct drm_i915_private *dev_priv,
 				 struct intel_pipe_wm *pipe_wm)
 {
 	/* LP0 watermark maximums depend on this pipe alone */
@@ -2778,7 +2782,7 @@ static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
 	ilk_compute_wm_maximums(dev_priv, 0, &config, INTEL_DDB_PART_1_2, &max);
 
 	/* At least LP0 must be valid */
-	if (!ilk_validate_wm_level(0, &max, &pipe_wm->wm[0])) {
+	if (!ilk_validate_wm_level(dev_priv, 0, &max, &pipe_wm->wm[0])) {
 		drm_dbg_kms(&dev_priv->drm, "LP0 watermark invalid\n");
 		return false;
 	}
@@ -2847,7 +2851,7 @@ static int ilk_compute_pipe_wm(struct intel_atomic_state *state,
 		 * register maximums since such watermarks are
 		 * always invalid.
 		 */
-		if (!ilk_validate_wm_level(level, &max, wm)) {
+		if (!ilk_validate_wm_level(dev_priv, level, &max, wm)) {
 			memset(wm, 0, sizeof(*wm));
 			break;
 		}
@@ -2978,7 +2982,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 
 		if (level > last_enabled_level)
 			wm->enable = false;
-		else if (!ilk_validate_wm_level(level, max, wm))
+		else if (!ilk_validate_wm_level(dev_priv, level, max, wm))
 			/* make sure all following levels get disabled */
 			last_enabled_level = level - 1;
 
