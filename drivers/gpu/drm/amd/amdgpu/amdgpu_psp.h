@@ -203,7 +203,7 @@ struct psp_ras_context {
 #define GDDR6_MEM_TRAINING_DATA_SIZE_IN_BYTES	0x1000
 #define GDDR6_MEM_TRAINING_OFFSET		0x8000
 /*Define the VRAM size that will be encroached by BIST training.*/
-#define GDDR6_MEM_TRAINING_ENCROACHED_SIZE	0x2000000
+#define BIST_MEM_TRAINING_ENCROACHED_SIZE	0x2000000
 
 enum psp_memory_training_init_flag {
 	PSP_MEM_TRAIN_NOT_SUPPORT	= 0x0,
