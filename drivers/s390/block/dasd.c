@@ -1301,7 +1301,6 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 {
 	struct dasd_device *device;
 	int retries, rc;
-	char errorstring[ERRORLENGTH];
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
@@ -1340,10 +1339,8 @@ int dasd_term_IO(struct dasd_ccw_req *cqr)
 			rc = 0;
 			break;
 		default:
-			/* internal error 10 - unknown rc*/
-			snprintf(errorstring, ERRORLENGTH, "10 %d", rc);
-			dev_err(&device->cdev->dev, "An error occurred in the "
-				"DASD device driver, reason=%s\n", errorstring);
+			dev_err(&device->cdev->dev,
+				"Unexpected error during request termination %d\n", rc);
 			BUG();
 			break;
 		}
@@ -1362,7 +1359,6 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 {
 	struct dasd_device *device;
 	int rc;
-	char errorstring[ERRORLENGTH];
 
 	/* Check the cqr */
 	rc = dasd_check_cqr(cqr);
@@ -1382,10 +1378,8 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 		return -EPERM;
 	}
 	if (cqr->retries < 0) {
-		/* internal error 14 - start_IO run out of retries */
-		sprintf(errorstring, "14 %p", cqr);
-		dev_err(&device->cdev->dev, "An error occurred in the DASD "
-			"device driver, reason=%s\n", errorstring);
+		dev_err(&device->cdev->dev,
+			"Start I/O ran out of retries %p\n", cqr);
 		cqr->status = DASD_CQR_ERROR;
 		return -EIO;
 	}
@@ -1463,11 +1457,8 @@ int dasd_start_IO(struct dasd_ccw_req *cqr)
 			      "not accessible");
 		break;
 	default:
-		/* internal error 11 - unknown rc */
-		snprintf(errorstring, ERRORLENGTH, "11 %d", rc);
 		dev_err(&device->cdev->dev,
-			"An error occurred in the DASD device driver, "
-			"reason=%s\n", errorstring);
+			"Unexpected error during request start %d", rc);
 		BUG();
 		break;
 	}
@@ -1904,8 +1895,6 @@ static void __dasd_device_process_ccw_queue(struct dasd_device *device,
 static void __dasd_process_cqr(struct dasd_device *device,
 			       struct dasd_ccw_req *cqr)
 {
-	char errorstring[ERRORLENGTH];
-
 	switch (cqr->status) {
 	case DASD_CQR_SUCCESS:
 		cqr->status = DASD_CQR_DONE;
@@ -1917,11 +1906,8 @@ static void __dasd_process_cqr(struct dasd_device *device,
 		cqr->status = DASD_CQR_TERMINATED;
 		break;
 	default:
-		/* internal error 12 - wrong cqr status*/
-		snprintf(errorstring, ERRORLENGTH, "12 %p %x02", cqr, cqr->status);
 		dev_err(&device->cdev->dev,
-			"An error occurred in the DASD device driver, "
-			"reason=%s\n", errorstring);
+			"Unexpected CQR status %p %02x", cqr, cqr->status);
 		BUG();
 	}
 	if (cqr->callback)

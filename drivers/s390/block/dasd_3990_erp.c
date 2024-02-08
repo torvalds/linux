@@ -398,7 +398,6 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 	struct dasd_device *device = erp->startdev;
 	char msg_format = (sense[7] & 0xF0);
 	char msg_no = (sense[7] & 0x0F);
-	char errorstring[ERRORLENGTH];
 
 	switch (msg_format) {
 	case 0x00:		/* Format 0 - Program or System Checks */
@@ -1004,12 +1003,9 @@ dasd_3990_handle_env_data(struct dasd_ccw_req * erp, char *sense)
 		}
 		break;
 
-	default:	/* unknown message format - should not happen
-			   internal error 03 - unknown message format */
-		snprintf(errorstring, ERRORLENGTH, "03 %x02", msg_format);
+	default:
 		dev_err(&device->cdev->dev,
-			 "An error occurred in the DASD device driver, "
-			 "reason=%s\n", errorstring);
+			"Unknown message format %02x", msg_format);
 		break;
 	}			/* end switch message format */
 

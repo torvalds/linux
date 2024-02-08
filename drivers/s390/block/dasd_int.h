@@ -113,9 +113,6 @@ do { \
 			    __dev_id.ssid, __dev_id.devno, d_data);	\
 } while (0)
 
-/* limit size for an errorstring */
-#define ERRORLENGTH 30
-
 /* definition of dbf debug levels */
 #define	DBF_EMERG	0	/* system is unusable			*/
 #define	DBF_ALERT	1	/* action must be taken immediately	*/
