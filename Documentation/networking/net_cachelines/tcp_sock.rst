@@ -44,7 +44,7 @@ u16                           advmss                  -                   read_m
 u8                            compressed_ack                                                  
 u8:2                          dup_ack_counter                                                 
 u8:1                          tlp_retrans                                                     
-u8:1                          tcp_usec_ts                                                     
+u8:1                          tcp_usec_ts             read_mostly         read_mostly
 u32                           chrono_start            read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u32[3]                        chrono_stat             read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u8:2                          chrono_type             read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)

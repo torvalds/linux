@@ -224,6 +224,7 @@ struct tcp_sock {
 	u8	scaling_ratio;	/* see tcp_win_from_space() */
 	u8	chrono_type : 2,	/* current chronograph type */
 		repair      : 1,
+		tcp_usec_ts : 1, /* TSval values in usec */
 		is_sack_reneg:1,    /* in recovery from loss with SACK reneg? */
 		is_cwnd_limited:1;/* forward progress limited by snd_cwnd? */
 	__cacheline_group_end(tcp_sock_read_txrx);
@@ -368,8 +369,7 @@ struct tcp_sock {
 	u8	compressed_ack;
 	u8	dup_ack_counter:2,
 		tlp_retrans:1,	/* TLP is a retransmission */
-		tcp_usec_ts:1, /* TSval values in usec */
-		unused:4;
+		unused:5;
 	u8	thin_lto    : 1,/* Use linear timeouts for thin streams */
 		recvmsg_inq : 1,/* Indicate # of bytes in queue upon recvmsg */
 		fastopen_connect:1, /* FASTOPEN_CONNECT sockopt */
