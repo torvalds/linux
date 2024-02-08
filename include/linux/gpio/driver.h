@@ -629,7 +629,8 @@ int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc,
 				    struct lock_class_key *request_key);
 
 struct gpio_device *gpio_device_find(void *data,
-				int (*match)(struct gpio_chip *gc, void *data));
+				int (*match)(struct gpio_chip *gc,
+					     const void *data));
 struct gpio_device *gpio_device_find_by_label(const char *label);
 struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode);
 

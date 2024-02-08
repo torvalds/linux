@@ -1119,7 +1119,7 @@ EXPORT_SYMBOL_GPL(gpiochip_remove);
  */
 struct gpio_device *gpio_device_find(void *data,
 				     int (*match)(struct gpio_chip *gc,
-						  void *data))
+						  const void *data))
 {
 	struct gpio_device *gdev;
 
@@ -1141,7 +1141,7 @@ struct gpio_device *gpio_device_find(void *data,
 }
 EXPORT_SYMBOL_GPL(gpio_device_find);
 
-static int gpio_chip_match_by_label(struct gpio_chip *gc, void *label)
+static int gpio_chip_match_by_label(struct gpio_chip *gc, const void *label)
 {
 	return gc->label && !strcmp(gc->label, label);
 }
@@ -1161,7 +1161,7 @@ struct gpio_device *gpio_device_find_by_label(const char *label)
 }
 EXPORT_SYMBOL_GPL(gpio_device_find_by_label);
 
-static int gpio_chip_match_by_fwnode(struct gpio_chip *gc, void *fwnode)
+static int gpio_chip_match_by_fwnode(struct gpio_chip *gc, const void *fwnode)
 {
 	return device_match_fwnode(&gc->gpiodev->dev, fwnode);
 }
