@@ -2406,9 +2406,9 @@ static void btrfs_add_delalloc_inodes(struct btrfs_inode *inode)
 	spin_unlock(&root->delalloc_lock);
 }
 
-void __btrfs_del_delalloc_inode(struct btrfs_root *root,
-				struct btrfs_inode *inode)
+void __btrfs_del_delalloc_inode(struct btrfs_inode *inode)
 {
+	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	if (!list_empty(&inode->delalloc_inodes)) {
@@ -2426,12 +2426,11 @@ void __btrfs_del_delalloc_inode(struct btrfs_root *root,
 	}
 }
 
-static void btrfs_del_delalloc_inode(struct btrfs_root *root,
-				     struct btrfs_inode *inode)
+static void btrfs_del_delalloc_inode(struct btrfs_inode *inode)
 {
-	spin_lock(&root->delalloc_lock);
-	__btrfs_del_delalloc_inode(root, inode);
-	spin_unlock(&root->delalloc_lock);
+	spin_lock(&inode->root->delalloc_lock);
+	__btrfs_del_delalloc_inode(inode);
+	spin_unlock(&inode->root->delalloc_lock);
 }
 
 /*
@@ -2538,7 +2537,7 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 		if (do_list && inode->delalloc_bytes == 0 &&
 		    test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 					&inode->runtime_flags))
-			btrfs_del_delalloc_inode(root, inode);
+			btrfs_del_delalloc_inode(inode);
 		spin_unlock(&inode->lock);
 	}
 
