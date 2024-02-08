@@ -40,6 +40,7 @@ function commachecker()
 	;; "--per-node")	prefix=3
 	;; "--per-die")		prefix=3
 	;; "--per-cache")	prefix=3
+	;; "--per-cluster")	prefix=3
 	esac
 
 	while read line
@@ -99,6 +100,7 @@ then
 	check_system_wide_no_aggr "STD" "$perf_cmd"
 	check_per_core "STD" "$perf_cmd"
 	check_per_cache_instance "STD" "$perf_cmd"
+	check_per_cluster "STD" "$perf_cmd"
 	check_per_die "STD" "$perf_cmd"
 	check_per_socket "STD" "$perf_cmd"
 else

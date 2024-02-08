@@ -122,6 +122,18 @@ check_per_cache_instance()
 	echo "[Success]"
 }
 
+check_per_cluster()
+{
+	echo -n "Checking json output: per cluster "
+	if ParanoidAndNotRoot 0
+	then
+		echo "[Skip] paranoia and not root"
+		return
+	fi
+	perf stat -j --per-cluster -a true 2>&1 | $PYTHON $pythonchecker --per-cluster
+	echo "[Success]"
+}
+
 check_per_die()
 {
 	echo -n "Checking json output: per die "
@@ -200,6 +212,7 @@ then
 	check_system_wide_no_aggr
 	check_per_core
 	check_per_cache_instance
+	check_per_cluster
 	check_per_die
 	check_per_socket
 else
