@@ -995,9 +995,16 @@ int xe_vm_prepare_vma(struct drm_exec *exec, struct xe_vma *vma,
 	int err;
 
 	XE_WARN_ON(!vm);
-	err = drm_exec_prepare_obj(exec, xe_vm_obj(vm), num_shared);
-	if (!err && bo && !bo->vm)
-		err = drm_exec_prepare_obj(exec, &bo->ttm.base, num_shared);
+	if (num_shared)
+		err = drm_exec_prepare_obj(exec, xe_vm_obj(vm), num_shared);
+	else
+		err = drm_exec_lock_obj(exec, xe_vm_obj(vm));
+	if (!err && bo && !bo->vm) {
+		if (num_shared)
+			err = drm_exec_prepare_obj(exec, &bo->ttm.base, num_shared);
+		else
+			err = drm_exec_lock_obj(exec, &bo->ttm.base);
+	}
 
 	return err;
 }
