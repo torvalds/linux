@@ -6061,10 +6061,8 @@ static void stmmac_common_interrupt(struct stmmac_priv *priv)
 				priv->tx_path_in_lpi_mode = false;
 		}
 
-		for (queue = 0; queue < queues_count; queue++) {
-			status = stmmac_host_mtl_irq_status(priv, priv->hw,
-							    queue);
-		}
+		for (queue = 0; queue < queues_count; queue++)
+			stmmac_host_mtl_irq_status(priv, priv->hw, queue);
 
 		/* PCS link status */
 		if (priv->hw->pcs &&
