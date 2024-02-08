@@ -334,8 +334,9 @@ enum {
  * 0. If they are not renewed within a lease period, they become eligible for
  * destruction by the laundromat.
  *
- * These objects can also be destroyed prematurely by the fault injection code,
- * or if the client sends certain forms of SETCLIENTID or EXCHANGE_ID updates.
+ * These objects can also be destroyed if the client sends certain forms of
+ * SETCLIENTID or EXCHANGE_ID operations.
+ *
  * Care is taken *not* to do this however when the objects have an elevated
  * refcount.
  *
@@ -343,7 +344,7 @@ enum {
  *
  * o Each nfs4_clients is also hashed by name (the opaque quantity initially
  *   sent by the client to identify itself).
- * 	  
+ *
  * o cl_perclient list is used to ensure no dangling stateowner references
  *   when we expire the nfs4_client
  */
