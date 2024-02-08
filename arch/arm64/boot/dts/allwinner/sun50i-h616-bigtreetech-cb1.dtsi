@@ -93,7 +93,7 @@
 		interrupt-controller;
 		#interrupt-cells = <1>;
 
-		regulators{
+		regulators {
 			reg_dcdc1: dcdc1 {
 				regulator-name = "vdd-gpu-sys";
 				regulator-min-microvolt = <810000>;
