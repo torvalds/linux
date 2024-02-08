@@ -520,7 +520,7 @@ static const struct snd_soc_dapm_route rt1017_sdca_dapm_routes[] = {
 	{ "DP2TX", NULL, "V Sense" },
 };
 
-static struct sdw_slave_ops rt1017_sdca_slave_ops = {
+static const struct sdw_slave_ops rt1017_sdca_slave_ops = {
 	.read_prop = rt1017_sdca_read_prop,
 	.update_status = rt1017_sdca_update_status,
 };
