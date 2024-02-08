@@ -1275,6 +1275,7 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	int primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
 							desired_links);
+	const struct wiphy_iftype_ext_capab *ext_capa;
 	bool ret = true;
 	int link_id;
 
@@ -1282,6 +1283,12 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 		return false;
 
 	if (!(vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
+		return false;
+
+	ext_capa = cfg80211_get_iftype_ext_capa(mvm->hw->wiphy,
+						ieee80211_vif_type_p2p(vif));
+	if (!ext_capa ||
+	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
 		return false;
 
 	for_each_set_bit(link_id, &desired_links, IEEE80211_MLD_MAX_NUM_LINKS) {
