@@ -50,7 +50,7 @@ static const char * const jack_codecs[] = {
 	"rt5682"
 };
 
-static int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt5682_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -133,8 +133,6 @@ int sof_sdw_rt5682_init(struct snd_soc_card *card,
 	 */
 	if (!playback)
 		return 0;
-
-	dai_links->init = rt5682_rtd_init;
 
 	return 0;
 }

@@ -185,7 +185,7 @@ static const struct snd_soc_dapm_route *get_codec_name_and_route(struct snd_soc_
 		return rt1318_map;
 }
 
-static int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt_amp_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	const struct snd_soc_dapm_route *rt_amp_map;
@@ -295,7 +295,6 @@ int sof_sdw_rt_amp_init(struct snd_soc_card *card,
 		return 0;
 
 	info->amp_num++;
-	dai_links->init = rt_amp_spk_rtd_init;
 
 	if (info->amp_num == 2) {
 		sdw_dev1 = bus_find_device_by_name(&sdw_bus_type, NULL, dai_links->codecs[0].name);

@@ -74,7 +74,7 @@ static const char * const jack_codecs[] = {
 	"rt711"
 };
 
-static int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt711_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -185,8 +185,6 @@ int sof_sdw_rt711_init(struct snd_soc_card *card,
 		return ret;
 	}
 	ctx->headset_codec_dev = sdw_dev;
-
-	dai_links->init = rt711_rtd_init;
 
 	return 0;
 }

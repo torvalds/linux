@@ -35,7 +35,7 @@ static const struct snd_kcontrol_new rt712_spk_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
-static int rt712_spk_init(struct snd_soc_pcm_runtime *rtd)
+int rt712_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -73,8 +73,6 @@ int sof_sdw_rt712_spk_init(struct snd_soc_card *card,
 			   struct sof_sdw_codec_info *info,
 			   bool playback)
 {
-	dai_links->init = rt712_spk_init;
-
 	return 0;
 }
 
@@ -82,7 +80,7 @@ static const char * const dmics[] = {
 	"rt712-sdca-dmic"
 };
 
-static int rt712_sdca_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt712_sdca_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *codec_dai;
@@ -108,8 +106,6 @@ int sof_sdw_rt712_sdca_dmic_init(struct snd_soc_card *card,
 				 struct sof_sdw_codec_info *info,
 				 bool playback)
 {
-	dai_links->init = rt712_sdca_dmic_rtd_init;
-
 	return 0;
 }
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);

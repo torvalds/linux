@@ -27,7 +27,7 @@ static const struct snd_kcontrol_new maxim_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Right Spk"),
 };
 
-static int spk_init(struct snd_soc_pcm_runtime *rtd)
+int maxim_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -145,8 +145,6 @@ int sof_sdw_maxim_init(struct snd_soc_card *card,
 		       bool playback)
 {
 	info->amp_num++;
-	if (info->amp_num == 2)
-		dai_links->init = spk_init;
 
 	maxim_part_id = info->part_id;
 	switch (maxim_part_id) {
