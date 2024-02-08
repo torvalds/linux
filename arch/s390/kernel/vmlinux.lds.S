@@ -200,6 +200,18 @@ SECTIONS
 		*(.rela*)
 		__rela_dyn_end = .;
 	}
+	.dynamic ALIGN(8) : {
+		*(.dynamic)
+	}
+	.dynstr ALIGN(8) : {
+		*(.dynstr)
+	}
+	.hash ALIGN(8) : {
+		*(.hash)
+	}
+	.gnu.hash ALIGN(8) : {
+		*(.gnu.hash)
+	}
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
