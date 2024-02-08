@@ -186,6 +186,26 @@ static netdev_tx_t octep_vf_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+int octep_vf_get_if_stats(struct octep_vf_device *oct)
+{
+	struct octep_vf_iface_rxtx_stats vf_stats;
+	int ret, size;
+
+	memset(&vf_stats, 0, sizeof(struct octep_vf_iface_rxtx_stats));
+	ret = octep_vf_mbox_bulk_read(oct, OCTEP_PFVF_MBOX_CMD_GET_STATS,
+				      (u8 *)&vf_stats, &size);
+
+	if (ret)
+		return ret;
+
+	memcpy(&oct->iface_rx_stats, &vf_stats.iface_rx_stats,
+	       sizeof(struct octep_vf_iface_rx_stats));
+	memcpy(&oct->iface_tx_stats, &vf_stats.iface_tx_stats,
+	       sizeof(struct octep_vf_iface_tx_stats));
+
+	return 0;
+}
+
 int octep_vf_get_link_info(struct octep_vf_device *oct)
 {
 	int ret, size;
@@ -197,6 +217,46 @@ int octep_vf_get_link_info(struct octep_vf_device *oct)
 		return ret;
 	}
 	return 0;
+}
+
+/**
+ * octep_vf_get_stats64() - Get Octeon network device statistics.
+ *
+ * @netdev: kernel network device.
+ * @stats: pointer to stats structure to be filled in.
+ */
+static void octep_vf_get_stats64(struct net_device *netdev,
+				 struct rtnl_link_stats64 *stats)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	u64 tx_packets, tx_bytes, rx_packets, rx_bytes;
+	int q;
+
+	tx_packets = 0;
+	tx_bytes = 0;
+	rx_packets = 0;
+	rx_bytes = 0;
+	for (q = 0; q < oct->num_oqs; q++) {
+		struct octep_vf_iq *iq = oct->iq[q];
+		struct octep_vf_oq *oq = oct->oq[q];
+
+		tx_packets += iq->stats.instr_completed;
+		tx_bytes += iq->stats.bytes_sent;
+		rx_packets += oq->stats.packets;
+		rx_bytes += oq->stats.bytes;
+	}
+	stats->tx_packets = tx_packets;
+	stats->tx_bytes = tx_bytes;
+	stats->rx_packets = rx_packets;
+	stats->rx_bytes = rx_bytes;
+	if (!octep_vf_get_if_stats(oct)) {
+		stats->multicast = oct->iface_rx_stats.mcast_pkts;
+		stats->rx_errors = oct->iface_rx_stats.err_pkts;
+		stats->rx_dropped = oct->iface_rx_stats.dropped_pkts_fifo_full +
+				    oct->iface_rx_stats.err_pkts;
+		stats->rx_missed_errors = oct->iface_rx_stats.dropped_pkts_fifo_full;
+		stats->tx_dropped = oct->iface_tx_stats.dropped;
+	}
 }
 
 /**
@@ -239,11 +299,85 @@ static void octep_vf_tx_timeout(struct net_device *netdev, unsigned int txqueue)
 	schedule_work(&oct->tx_timeout_task);
 }
 
+static int octep_vf_set_mac(struct net_device *netdev, void *p)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	struct sockaddr *addr = (struct sockaddr *)p;
+	int err;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	err = octep_vf_mbox_set_mac_addr(oct, addr->sa_data);
+	if (err)
+		return err;
+
+	memcpy(oct->mac_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(netdev, addr->sa_data);
+
+	return 0;
+}
+
+static int octep_vf_change_mtu(struct net_device *netdev, int new_mtu)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	struct octep_vf_iface_link_info *link_info;
+	int err;
+
+	link_info = &oct->link_info;
+	if (link_info->mtu == new_mtu)
+		return 0;
+
+	err = octep_vf_mbox_set_mtu(oct, new_mtu);
+	if (!err) {
+		oct->link_info.mtu = new_mtu;
+		netdev->mtu = new_mtu;
+	}
+	return err;
+}
+
+static int octep_vf_set_features(struct net_device *netdev,
+				 netdev_features_t features)
+{
+	struct octep_vf_device *oct = netdev_priv(netdev);
+	u16 rx_offloads = 0, tx_offloads = 0;
+	int err;
+
+	/* We only support features received from firmware */
+	if ((features & netdev->hw_features) != features)
+		return -EINVAL;
+
+	if (features & NETIF_F_TSO)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_TSO;
+
+	if (features & NETIF_F_TSO6)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_TSO;
+
+	if (features & NETIF_F_IP_CSUM)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_CKSUM;
+
+	if (features & NETIF_F_IPV6_CSUM)
+		tx_offloads |= OCTEP_VF_TX_OFFLOAD_CKSUM;
+
+	if (features & NETIF_F_RXCSUM)
+		rx_offloads |= OCTEP_VF_RX_OFFLOAD_CKSUM;
+
+	err = octep_vf_mbox_set_offloads(oct, tx_offloads, rx_offloads);
+	if (!err)
+		netdev->features = features;
+
+	return err;
+}
+
 static const struct net_device_ops octep_vf_netdev_ops = {
 	.ndo_open                = octep_vf_open,
 	.ndo_stop                = octep_vf_stop,
 	.ndo_start_xmit          = octep_vf_start_xmit,
+	.ndo_get_stats64         = octep_vf_get_stats64,
 	.ndo_tx_timeout          = octep_vf_tx_timeout,
+	.ndo_set_mac_address     = octep_vf_set_mac,
+	.ndo_change_mtu          = octep_vf_change_mtu,
+	.ndo_set_features        = octep_vf_set_features,
 };
 
 static const char *octep_vf_devid_to_str(struct octep_vf_device *oct)
