@@ -1374,7 +1374,7 @@ bool q2spi_cmd_type_valid(struct q2spi_geni *q2spi, struct q2spi_request *q2spi_
 	}
 
 	if (q2spi_req->cmd != SOFT_RESET && !q2spi_req->data_len) {
-		pr_err("%s Invalid data len %d bytes\n", __func__, q2spi_req->data_len);
+		Q2SPI_DEBUG(q2spi, "%s Invalid data len %d bytes\n", __func__, q2spi_req->data_len);
 		return false;
 	}
 	return true;
@@ -1495,17 +1495,17 @@ static int q2spi_transfer_check(struct q2spi_geni *q2spi, struct q2spi_request *
 		return -EINVAL;
 
 	if (q2spi->hw_state_is_bad) {
-		Q2SPI_ERROR(q2spi, "%s Err Retries failed, check HW state\n", __func__);
+		Q2SPI_DEBUG(q2spi, "%s Err Retries failed, check HW state\n", __func__);
 		return -EPIPE;
 	}
 
 	if (!q2spi_check_var1_avail_buff(q2spi)) {
-		Q2SPI_ERROR(q2spi, "%s Err Short of var1 buffers\n", __func__);
+		Q2SPI_DEBUG(q2spi, "%s Err Short of var1 buffers\n", __func__);
 		return -EAGAIN;
 	}
 
 	if (len != sizeof(struct q2spi_request)) {
-		Q2SPI_ERROR(q2spi, "%s Err Invalid length %zx Expected %lx\n",
+		Q2SPI_DEBUG(q2spi, "%s Err Invalid length %zx Expected %lx\n",
 			    __func__, len, sizeof(struct q2spi_request));
 		return -EINVAL;
 	}
@@ -1524,7 +1524,7 @@ static int q2spi_transfer_check(struct q2spi_geni *q2spi, struct q2spi_request *
 		return -EINVAL;
 
 	if (q2spi_req->addr > Q2SPI_SLAVE_END_ADDR) {
-		Q2SPI_ERROR(q2spi, "%s Err Invalid address:%x\n", __func__, q2spi_req->addr);
+		Q2SPI_DEBUG(q2spi, "%s Err Invalid address:%x\n", __func__, q2spi_req->addr);
 		return -EINVAL;
 	}
 	return 0;
@@ -1632,7 +1632,7 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 			q2spi_pkt = cur_q2spi_pkt;
 			flow_id = q2spi_alloc_xfer_tid(q2spi);
 			if (flow_id < 0) {
-				Q2SPI_ERROR(q2spi, "%s Err failed to alloc xfer_tid flow_id:%d\n",
+				Q2SPI_DEBUG(q2spi, "%s Err failed to alloc xfer_tid flow_id:%d\n",
 					    __func__, flow_id);
 				return -EINVAL;
 			}
@@ -1680,7 +1680,7 @@ static ssize_t q2spi_response(struct file *filp, char __user *buf, size_t count,
 
 	Q2SPI_DEBUG(q2spi, "%s Enter PID=%d\n", __func__, current->pid);
 	if (q2spi->hw_state_is_bad) {
-		Q2SPI_ERROR(q2spi, "%s Err Retries failed, check HW state\n", __func__);
+		Q2SPI_DEBUG(q2spi, "%s Err Retries failed, check HW state\n", __func__);
 		return -EPIPE;
 	}
 	Q2SPI_DEBUG(q2spi, "%s list_empty_tx_list:%d list_empty_cr_list:%d\n",
