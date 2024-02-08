@@ -59,6 +59,9 @@ SECTIONS
 	} :text = 0x0700
 
 	RO_DATA(PAGE_SIZE)
+	.data.rel.ro : {
+		*(.data.rel.ro .data.rel.ro.*)
+	}
 
 	. = ALIGN(PAGE_SIZE);
 	_sdata = .;		/* Start of data section */
@@ -73,6 +76,9 @@ SECTIONS
 	__end_ro_after_init = .;
 
 	RW_DATA(0x100, PAGE_SIZE, THREAD_SIZE)
+	.data.rel : {
+		*(.data.rel*)
+	}
 	BOOT_DATA_PRESERVED
 
 	. = ALIGN(8);
