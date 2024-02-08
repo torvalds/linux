@@ -2659,7 +2659,7 @@ dasd_3990_erp_further_erp(struct dasd_ccw_req *erp)
 		 * necessary
 		 */
 		dev_err(&device->cdev->dev,
-			"ERP %p has run out of retries and failed\n", erp);
+			"ERP %px has run out of retries and failed\n", erp);
 
 		erp->status = DASD_CQR_FAILED;
 	}
@@ -2782,11 +2782,9 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 			    "ERP chain at BEGINNING of ERP-ACTION\n");
 		for (temp_erp = cqr;
 		     temp_erp != NULL; temp_erp = temp_erp->refers) {
-
 			dev_err(&device->cdev->dev,
-				    "ERP %p (%02x) refers to %p\n",
-				    temp_erp, temp_erp->status,
-				    temp_erp->refers);
+				"ERP %px (%02x) refers to %px\n",
+				temp_erp, temp_erp->status, temp_erp->refers);
 		}
 	}
 
@@ -2833,11 +2831,9 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 			    "ERP chain at END of ERP-ACTION\n");
 		for (temp_erp = erp;
 		     temp_erp != NULL; temp_erp = temp_erp->refers) {
-
 			dev_err(&device->cdev->dev,
-				    "ERP %p (%02x) refers to %p\n",
-				    temp_erp, temp_erp->status,
-				    temp_erp->refers);
+				"ERP %px (%02x) refers to %px\n",
+				temp_erp, temp_erp->status, temp_erp->refers);
 		}
 	}
 
