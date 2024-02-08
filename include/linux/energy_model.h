@@ -338,6 +338,23 @@ static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 	return pd->nr_perf_states;
 }
 
+/**
+ * em_perf_state_from_pd() - Get the performance states table of perf.
+ *				domain
+ * @pd		: performance domain for which this must be done
+ *
+ * To use this function the rcu_read_lock() should be hold. After the usage
+ * of the performance states table is finished, the rcu_read_unlock() should
+ * be called.
+ *
+ * Return: the pointer to performance states table of the performance domain
+ */
+static inline
+struct em_perf_state *em_perf_state_from_pd(struct em_perf_domain *pd)
+{
+	return rcu_dereference(pd->em_table)->state;
+}
+
 #else
 struct em_data_callback {};
 #define EM_ADV_DATA_CB(_active_power_cb, _cost_cb) { }
@@ -383,6 +400,11 @@ int em_dev_update_perf_domain(struct device *dev,
 			      struct em_perf_table __rcu *new_table)
 {
 	return -EINVAL;
+}
+static inline
+struct em_perf_state *em_perf_state_from_pd(struct em_perf_domain *pd)
+{
+	return NULL;
 }
 #endif
 
