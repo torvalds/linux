@@ -2385,10 +2385,10 @@ void btrfs_merge_delalloc_extent(struct btrfs_inode *inode, struct extent_state 
 	spin_unlock(&inode->lock);
 }
 
-static void btrfs_add_delalloc_inodes(struct btrfs_root *root,
-				      struct btrfs_inode *inode)
+static void btrfs_add_delalloc_inodes(struct btrfs_inode *inode)
 {
-	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	spin_lock(&root->delalloc_lock);
 	if (list_empty(&inode->delalloc_inodes)) {
@@ -2451,7 +2451,6 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 	 * bit, which is only set or cleared with irqs on
 	 */
 	if (!(state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
-		struct btrfs_root *root = inode->root;
 		u64 len = state->end + 1 - state->start;
 		u32 num_extents = count_max_extents(fs_info, len);
 		bool do_list = !btrfs_is_free_space_inode(inode);
@@ -2472,7 +2471,7 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 			inode->defrag_bytes += len;
 		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 					 &inode->runtime_flags))
-			btrfs_add_delalloc_inodes(root, inode);
+			btrfs_add_delalloc_inodes(inode);
 		spin_unlock(&inode->lock);
 	}
 
