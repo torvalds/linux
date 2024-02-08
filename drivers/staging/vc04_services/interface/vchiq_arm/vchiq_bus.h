@@ -34,7 +34,7 @@ static inline struct vchiq_driver *to_vchiq_driver(struct device_driver *d)
 	return container_of(d, struct vchiq_driver, driver);
 }
 
-extern struct bus_type vchiq_bus_type;
+extern const struct bus_type vchiq_bus_type;
 
 struct vchiq_device *
 vchiq_device_register(struct device *parent, const char *name);
