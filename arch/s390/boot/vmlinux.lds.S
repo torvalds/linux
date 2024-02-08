@@ -122,6 +122,8 @@ SECTIONS
 	}
 	_end = .;
 
+	DWARF_DEBUG
+
 	/*
 	 * Sections that should stay zero sized, which is safer to
 	 * explicitly check instead of blindly discarding.
