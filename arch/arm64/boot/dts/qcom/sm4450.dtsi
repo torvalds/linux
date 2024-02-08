@@ -17,7 +17,7 @@
 
 	chosen { };
 
-	clocks{
+	clocks {
 		xo_board: xo-board {
 			compatible = "fixed-clock";
 			clock-frequency = <76800000>;
