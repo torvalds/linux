@@ -209,6 +209,50 @@ static int em_allocate_perf_table(struct em_perf_domain *pd,
 	return 0;
 }
 
+/**
+ * em_dev_update_perf_domain() - Update runtime EM table for a device
+ * @dev		: Device for which the EM is to be updated
+ * @new_table	: The new EM table that is going to be used from now
+ *
+ * Update EM runtime modifiable table for the @dev using the provided @table.
+ *
+ * This function uses a mutex to serialize writers, so it must not be called
+ * from a non-sleeping context.
+ *
+ * Return 0 on success or an error code on failure.
+ */
+int em_dev_update_perf_domain(struct device *dev,
+			      struct em_perf_table __rcu *new_table)
+{
+	struct em_perf_table __rcu *old_table;
+	struct em_perf_domain *pd;
+
+	if (!dev)
+		return -EINVAL;
+
+	/* Serialize update/unregister or concurrent updates */
+	mutex_lock(&em_pd_mutex);
+
+	if (!dev->em_pd) {
+		mutex_unlock(&em_pd_mutex);
+		return -EINVAL;
+	}
+	pd = dev->em_pd;
+
+	kref_get(&new_table->kref);
+
+	old_table = pd->em_table;
+	rcu_assign_pointer(pd->em_table, new_table);
+
+	em_cpufreq_update_efficiencies(dev, new_table->state);
+
+	em_table_free(old_table);
+
+	mutex_unlock(&em_pd_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(em_dev_update_perf_domain);
+
 static int em_create_runtime_table(struct em_perf_domain *pd)
 {
 	struct em_perf_table __rcu *table;
