@@ -4783,7 +4783,7 @@ static int modify_prefix_route(struct inet6_ifaddr *ifp,
 		table = f6i->fib6_table;
 		spin_lock_bh(&table->tb6_lock);
 
-		if (!expires) {
+		if (!(flags & RTF_EXPIRES)) {
 			fib6_clean_expires(f6i);
 			fib6_remove_gc_list(f6i);
 		} else {
