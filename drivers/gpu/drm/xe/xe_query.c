@@ -540,14 +540,44 @@ query_uc_fw_version(struct xe_device *xe, struct drm_xe_device_query *query)
 		version = &guc->fw.versions.found[XE_UC_FW_VER_COMPATIBILITY];
 		break;
 	}
+	case XE_QUERY_UC_TYPE_HUC: {
+		struct xe_gt *media_gt = NULL;
+		struct xe_huc *huc;
+
+		if (MEDIA_VER(xe) >= 13) {
+			struct xe_tile *tile;
+			u8 gt_id;
+
+			for_each_tile(tile, xe, gt_id) {
+				if (tile->media_gt) {
+					media_gt = tile->media_gt;
+					break;
+				}
+			}
+		} else {
+			media_gt = xe->tiles[0].primary_gt;
+		}
+
+		if (!media_gt)
+			break;
+
+		huc = &media_gt->uc.huc;
+		if (huc->fw.status == XE_UC_FIRMWARE_RUNNING)
+			version = &huc->fw.versions.found[XE_UC_FW_VER_RELEASE];
+		break;
+	}
 	default:
 		return -EINVAL;
 	}
 
-	resp.branch_ver = 0;
-	resp.major_ver = version->major;
-	resp.minor_ver = version->minor;
-	resp.patch_ver = version->patch;
+	if (version) {
+		resp.branch_ver = 0;
+		resp.major_ver = version->major;
+		resp.minor_ver = version->minor;
+		resp.patch_ver = version->patch;
+	} else {
+		return -ENODEV;
+	}
 
 	if (copy_to_user(query_ptr, &resp, size))
 		return -EFAULT;
