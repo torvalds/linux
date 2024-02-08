@@ -276,17 +276,6 @@ static int em_compute_costs(struct device *dev, struct em_perf_state *table,
 	return 0;
 }
 
-static int em_allocate_perf_table(struct em_perf_domain *pd,
-				  int nr_states)
-{
-	pd->table = kcalloc(nr_states, sizeof(struct em_perf_state),
-			    GFP_KERNEL);
-	if (!pd->table)
-		return -ENOMEM;
-
-	return 0;
-}
-
 /**
  * em_dev_update_perf_domain() - Update runtime EM table for a device
  * @dev		: Device for which the EM is to be updated
@@ -330,24 +319,6 @@ int em_dev_update_perf_domain(struct device *dev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(em_dev_update_perf_domain);
-
-static int em_create_runtime_table(struct em_perf_domain *pd)
-{
-	struct em_perf_table __rcu *table;
-	int table_size;
-
-	table = em_table_alloc(pd);
-	if (!table)
-		return -ENOMEM;
-
-	/* Initialize runtime table with existing data */
-	table_size = sizeof(struct em_perf_state) * pd->nr_perf_states;
-	memcpy(table->state, pd->table, table_size);
-
-	rcu_assign_pointer(pd->em_table, table);
-
-	return 0;
-}
 
 static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 				struct em_perf_state *table,
@@ -409,6 +380,7 @@ static int em_create_pd(struct device *dev, int nr_states,
 			struct em_data_callback *cb, cpumask_t *cpus,
 			unsigned long flags)
 {
+	struct em_perf_table __rcu *em_table;
 	struct em_perf_domain *pd;
 	struct device *cpu_dev;
 	int cpu, ret, num_cpus;
@@ -435,17 +407,15 @@ static int em_create_pd(struct device *dev, int nr_states,
 
 	pd->nr_perf_states = nr_states;
 
-	ret = em_allocate_perf_table(pd, nr_states);
-	if (ret)
+	em_table = em_table_alloc(pd);
+	if (!em_table)
 		goto free_pd;
 
-	ret = em_create_perf_table(dev, pd, pd->table, cb, flags);
+	ret = em_create_perf_table(dev, pd, em_table->state, cb, flags);
 	if (ret)
 		goto free_pd_table;
 
-	ret = em_create_runtime_table(pd);
-	if (ret)
-		goto free_pd_table;
+	rcu_assign_pointer(pd->em_table, em_table);
 
 	if (_is_cpu_device(dev))
 		for_each_cpu(cpu, cpus) {
@@ -458,7 +428,7 @@ static int em_create_pd(struct device *dev, int nr_states,
 	return 0;
 
 free_pd_table:
-	kfree(pd->table);
+	kfree(em_table);
 free_pd:
 	kfree(pd);
 	return -EINVAL;
@@ -629,7 +599,7 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 
 	dev->em_pd->flags |= flags;
 
-	em_cpufreq_update_efficiencies(dev, dev->em_pd->table);
+	em_cpufreq_update_efficiencies(dev, dev->em_pd->em_table->state);
 
 	em_debug_create_pd(dev);
 	dev_info(dev, "EM: created perf domain\n");
@@ -665,8 +635,6 @@ void em_dev_unregister_perf_domain(struct device *dev)
 	 */
 	mutex_lock(&em_pd_mutex);
 	em_debug_remove_pd(dev);
-
-	kfree(dev->em_pd->table);
 
 	em_table_free(dev->em_pd->em_table);
 
