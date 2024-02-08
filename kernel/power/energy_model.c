@@ -237,15 +237,15 @@ static int em_create_pd(struct device *dev, int nr_states,
 	return 0;
 }
 
-static void em_cpufreq_update_efficiencies(struct device *dev)
+static void
+em_cpufreq_update_efficiencies(struct device *dev, struct em_perf_state *table)
 {
 	struct em_perf_domain *pd = dev->em_pd;
-	struct em_perf_state *table;
 	struct cpufreq_policy *policy;
 	int found = 0;
 	int i;
 
-	if (!_is_cpu_device(dev) || !pd)
+	if (!_is_cpu_device(dev))
 		return;
 
 	policy = cpufreq_cpu_get(cpumask_first(em_span_cpus(pd)));
@@ -253,8 +253,6 @@ static void em_cpufreq_update_efficiencies(struct device *dev)
 		dev_warn(dev, "EM: Access to CPUFreq policy failed\n");
 		return;
 	}
-
-	table = pd->table;
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 		if (!(table[i].flags & EM_PERF_STATE_INEFFICIENT))
@@ -397,7 +395,7 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 
 	dev->em_pd->flags |= flags;
 
-	em_cpufreq_update_efficiencies(dev);
+	em_cpufreq_update_efficiencies(dev, dev->em_pd->table);
 
 	em_debug_create_pd(dev);
 	dev_info(dev, "EM: created perf domain\n");
