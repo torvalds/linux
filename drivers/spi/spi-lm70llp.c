@@ -212,7 +212,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	/*
 	 * SPI and bitbang hookup.
 	 */
-	pp->bitbang.master = host;
+	pp->bitbang.ctlr = host;
 	pp->bitbang.chipselect = lm70_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = lm70_txrx;
 	pp->bitbang.flags = SPI_3WIRE;
@@ -264,7 +264,7 @@ static void spi_lm70llp_attach(struct parport *p)
 	 * the board info's (void *)controller_data.
 	 */
 	pp->info.controller_data = pp;
-	pp->spidev_lm70 = spi_new_device(pp->bitbang.master, &pp->info);
+	pp->spidev_lm70 = spi_new_device(pp->bitbang.ctlr, &pp->info);
 	if (pp->spidev_lm70)
 		dev_dbg(&pp->spidev_lm70->dev, "spidev_lm70 at %s\n",
 			dev_name(&pp->spidev_lm70->dev));
@@ -309,7 +309,7 @@ static void spi_lm70llp_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	spi_controller_put(pp->bitbang.master);
+	spi_controller_put(pp->bitbang.ctlr);
 
 	lm70llp = NULL;
 }

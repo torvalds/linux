@@ -462,7 +462,7 @@ SLAVE DMA ENGINE
 SPI
   devm_spi_alloc_master()
   devm_spi_alloc_slave()
-  devm_spi_register_master()
+  devm_spi_register_controller()
 
 WATCHDOG
   devm_watchdog_register_device()
