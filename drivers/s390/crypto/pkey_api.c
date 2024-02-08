@@ -293,33 +293,36 @@ static int pkey_ep11key2pkey(const u8 *key, size_t keylen,
 			     u8 *protkey, u32 *protkeylen, u32 *protkeytype)
 {
 	u32 nr_apqns, *apqns = NULL;
+	int i, j, rc = -ENODEV;
 	u16 card, dom;
-	int i, rc;
 
 	zcrypt_wait_api_operational();
 
-	/* build a list of apqns suitable for this key */
-	rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
-			    ZCRYPT_CEX7,
-			    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
-			    ep11_kb_wkvp(key, keylen));
-	if (rc)
-		goto out;
+	/* try two times in case of failure */
+	for (i = 0; i < 2 && rc; i++) {
 
-	/* go through the list of apqns and try to derive an pkey */
-	for (rc = -ENODEV, i = 0; i < nr_apqns; i++) {
-		card = apqns[i] >> 16;
-		dom = apqns[i] & 0xFFFF;
-		rc = ep11_kblob2protkey(card, dom, key, keylen,
-					protkey, protkeylen, protkeytype);
-		if (rc == 0)
-			break;
+		/* build a list of apqns suitable for this key */
+		rc = ep11_findcard2(&apqns, &nr_apqns, 0xFFFF, 0xFFFF,
+				    ZCRYPT_CEX7,
+				    ap_is_se_guest() ? EP11_API_V6 : EP11_API_V4,
+				    ep11_kb_wkvp(key, keylen));
+		if (rc)
+			continue; /* retry findcard on failure */
+
+		/* go through the list of apqns and try to derive an pkey */
+		for (rc = -ENODEV, j = 0; j < nr_apqns && rc; j++) {
+			card = apqns[j] >> 16;
+			dom = apqns[j] & 0xFFFF;
+			rc = ep11_kblob2protkey(card, dom, key, keylen,
+						protkey, protkeylen, protkeytype);
+		}
+
+		kfree(apqns);
 	}
 
-out:
-	kfree(apqns);
 	if (rc)
 		pr_debug("%s failed rc=%d\n", __func__, rc);
+
 	return rc;
 }
 
