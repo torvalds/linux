@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #ifndef __iwl_fw_dbg_tlv_h__
 #define __iwl_fw_dbg_tlv_h__
@@ -319,7 +319,7 @@ struct iwl_fw_ini_conf_set_tlv {
  * @IWL_FW_INI_CONFIG_SET_TYPE_CSR: for CSR configuration
  * @IWL_FW_INI_CONFIG_SET_TYPE_DBGC_DRAM_ADDR: for DBGC_DRAM_ADDR configuration
  * @IWL_FW_INI_CONFIG_SET_TYPE_PERIPH_SCRATCH_HWM: for PERIPH SCRATCH HWM configuration
- * @IWL_FW_INI_ALLOCATION_NUM: max number of configuration supported
+ * @IWL_FW_INI_CONFIG_SET_TYPE_MAX_NUM: max number of configuration supported
 */
 
 enum iwl_fw_ini_config_set_type {
@@ -360,6 +360,7 @@ enum iwl_fw_ini_allocation_id {
  * @IWL_FW_INI_LOCATION_SRAM_PATH: SRAM location
  * @IWL_FW_INI_LOCATION_DRAM_PATH: DRAM location
  * @IWL_FW_INI_LOCATION_NPK_PATH: NPK location
+ * @IWL_FW_INI_LOCATION_NUM: number of valid locations
  */
 enum iwl_fw_ini_buffer_location {
 	IWL_FW_INI_LOCATION_INVALID,
@@ -439,6 +440,7 @@ enum iwl_fw_ini_region_device_memory_subtype {
  * Hard coded time points in which the driver can send hcmd or perform dump
  * collection
  *
+ * @IWL_FW_INI_TIME_POINT_INVALID: invalid timepoint
  * @IWL_FW_INI_TIME_POINT_EARLY: pre loading the FW
  * @IWL_FW_INI_TIME_POINT_AFTER_ALIVE: first cmd from host after alive notif
  * @IWL_FW_INI_TIME_POINT_POST_INIT: last cmd in series of init sequence
@@ -553,7 +555,7 @@ enum iwl_fw_ini_dump_policy {
  * enum iwl_fw_ini_dump_type - Determines dump type based on size defined by FW.
  *
  * @IWL_FW_INI_DUMP_BRIEF : only dump the most important regions
- * @IWL_FW_INI_DEBUG_MEDIUM: dump more regions than "brief", but not all regions
+ * @IWL_FW_INI_DUMP_MEDIUM: dump more regions than "brief", but not all regions
  * @IWL_FW_INI_DUMP_VERBOSE : dump all regions
  */
 enum iwl_fw_ini_dump_type {
