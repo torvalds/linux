@@ -983,6 +983,8 @@ module_param(prefer_mdp5, bool, 0444);
 
 /* list all platforms supported by both mdp5 and dpu drivers */
 static const char *const msm_mdp5_dpu_migration[] = {
+	"qcom,sdm630-mdp5",
+	"qcom,sdm660-mdp5",
 	NULL,
 };
 
