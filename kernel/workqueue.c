@@ -4804,7 +4804,7 @@ static void link_pwq(struct pool_workqueue *pwq)
 	pwq->work_color = wq->work_color;
 
 	/* link in @pwq */
-	list_add_rcu(&pwq->pwqs_node, &wq->pwqs);
+	list_add_tail_rcu(&pwq->pwqs_node, &wq->pwqs);
 }
 
 /* obtain a pool matching @attr and create a pwq associating the pool and @wq */
