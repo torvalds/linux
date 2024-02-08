@@ -11,7 +11,7 @@
 #include <linux/dmaengine.h>
 
 struct lpc32xx_mlc_platform_data {
-	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
+	dma_filter_fn dma_filter;
 };
 
 #endif  /* __LINUX_MTD_LPC32XX_MLC_H */
