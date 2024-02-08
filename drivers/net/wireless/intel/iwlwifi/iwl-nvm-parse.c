@@ -156,6 +156,8 @@ static struct ieee80211_rate iwl_cfg80211_rates[] = {
  * @NVM_CHANNEL_80MHZ: 80 MHz channel okay
  * @NVM_CHANNEL_160MHZ: 160 MHz channel okay
  * @NVM_CHANNEL_DC_HIGH: DC HIGH required/allowed (?)
+ * @NVM_CHANNEL_VLP: client support connection to UHB VLP AP
+ * @NVM_CHANNEL_AFC: client support connection to UHB AFC AP
  */
 enum iwl_nvm_channel_flags {
 	NVM_CHANNEL_VALID		= BIT(0),
@@ -170,6 +172,8 @@ enum iwl_nvm_channel_flags {
 	NVM_CHANNEL_80MHZ		= BIT(10),
 	NVM_CHANNEL_160MHZ		= BIT(11),
 	NVM_CHANNEL_DC_HIGH		= BIT(12),
+	NVM_CHANNEL_VLP			= BIT(13),
+	NVM_CHANNEL_AFC			= BIT(14),
 };
 
 /**
@@ -309,7 +313,7 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 
 	/* Note: already can print up to 101 characters, 110 is the limit! */
 	IWL_DEBUG_DEV(dev, level,
-		      "Ch. %d: 0x%x:%s%s%s%s%s%s%s%s%s%s%s%s\n",
+		      "Ch. %d: 0x%x:%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		      chan, flags,
 		      CHECK_AND_PRINT_I(VALID),
 		      CHECK_AND_PRINT_I(IBSS),
@@ -322,7 +326,9 @@ static inline void iwl_nvm_print_channel_flags(struct device *dev, u32 level,
 		      CHECK_AND_PRINT_I(40MHZ),
 		      CHECK_AND_PRINT_I(80MHZ),
 		      CHECK_AND_PRINT_I(160MHZ),
-		      CHECK_AND_PRINT_I(DC_HIGH));
+		      CHECK_AND_PRINT_I(DC_HIGH),
+		      CHECK_AND_PRINT_I(VLP),
+		      CHECK_AND_PRINT_I(AFC));
 #undef CHECK_AND_PRINT_I
 }
 
@@ -365,6 +371,12 @@ static u32 iwl_get_channel_flags(u8 ch_num, int ch_idx, enum nl80211_band band,
 	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
 	    (flags & IEEE80211_CHAN_NO_IR))
 		flags |= IEEE80211_CHAN_IR_CONCURRENT;
+
+	/* Set the AP type for the UHB case. */
+	if (!(nvm_flags & NVM_CHANNEL_VLP))
+		flags |= IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT;
+	if (!(nvm_flags & NVM_CHANNEL_AFC))
+		flags |= IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT;
 
 	return flags;
 }
@@ -1600,7 +1612,8 @@ IWL_EXPORT_SYMBOL(iwl_parse_nvm_data);
 static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 				       int ch_idx, u16 nvm_flags,
 				       struct iwl_reg_capa reg_capa,
-				       const struct iwl_cfg *cfg)
+				       const struct iwl_cfg *cfg,
+				       bool uats_enabled)
 {
 	u32 flags = NL80211_RRF_NO_HT40;
 
@@ -1645,6 +1658,16 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 			flags &= ~NL80211_RRF_NO_IR;
 		}
 	}
+
+	/* Set the AP type for the UHB case. */
+	if (uats_enabled) {
+		if (!(nvm_flags & NVM_CHANNEL_VLP))
+			flags |= NL80211_RRF_NO_6GHZ_VLP_CLIENT;
+
+		if (!(nvm_flags & NVM_CHANNEL_AFC))
+			flags |= NL80211_RRF_NO_6GHZ_AFC_CLIENT;
+	}
+
 	/*
 	 * reg_capa is per regulatory domain so apply it for every channel
 	 */
@@ -1699,7 +1722,7 @@ static struct iwl_reg_capa iwl_get_reg_capa(u32 flags, u8 resp_ver)
 struct ieee80211_regdomain *
 iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 		       int num_of_ch, __le32 *channels, u16 fw_mcc,
-		       u16 geo_info, u32 cap, u8 resp_ver)
+		       u16 geo_info, u32 cap, u8 resp_ver, bool uats_enabled)
 {
 	int ch_idx;
 	u16 ch_flags;
@@ -1765,7 +1788,7 @@ iwl_parse_nvm_mcc_info(struct device *dev, const struct iwl_cfg *cfg,
 
 		reg_rule_flags = iwl_nvm_get_regdom_bw_flags(nvm_chan, ch_idx,
 							     ch_flags, reg_capa,
-							     cfg);
+							     cfg, uats_enabled);
 
 		/* we can't continue the same rule */
 		if (ch_idx == 0 || prev_reg_rule_flags != reg_rule_flags ||
