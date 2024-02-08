@@ -538,6 +538,8 @@
 				fsl,num-rx-queues = <1>;
 				fsl,stop-mode = <&gpr 0x10 4>;
 				fsl,magic-packet;
+				nvmem-cells = <&fec2_mac_addr>;
+				nvmem-cell-names = "mac-address";
 				status = "disabled";
 			};
 
@@ -898,6 +900,8 @@
 				fsl,num-rx-queues = <1>;
 				fsl,stop-mode = <&gpr 0x10 3>;
 				fsl,magic-packet;
+				nvmem-cells = <&fec1_mac_addr>;
+				nvmem-cell-names = "mac-address";
 				status = "disabled";
 			};
 
@@ -1004,6 +1008,14 @@
 
 				cpu_speed_grade: speed-grade@10 {
 					reg = <0x10 4>;
+				};
+
+				fec1_mac_addr: mac-addr@88 {
+					reg = <0x88 6>;
+				};
+
+				fec2_mac_addr: mac-addr@8e {
+					reg = <0x8e 6>;
 				};
 			};
 
