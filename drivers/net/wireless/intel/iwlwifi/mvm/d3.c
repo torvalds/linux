@@ -2997,7 +2997,7 @@ static void iwl_mvm_nd_match_info_handler(struct iwl_mvm *mvm,
 
 	if (results->matched_profiles) {
 		memcpy(results->matches, notif->matches, matches_len);
-		d3_data->nd_results_valid = TRUE;
+		d3_data->nd_results_valid = true;
 	}
 
 	/* no scan should be active at this point */

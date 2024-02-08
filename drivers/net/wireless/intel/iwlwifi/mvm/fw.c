@@ -1323,7 +1323,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 
 	if (le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_VLP_AP_SUPPORTED ||
 	    le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_AFC_AP_SUPPORTED)
-		mvm->fwrt.uats_enabled = TRUE;
+		mvm->fwrt.uats_enabled = true;
 }
 
 void iwl_mvm_get_bios_tables(struct iwl_mvm *mvm)
