@@ -1435,7 +1435,7 @@ static int qcom_ethqos_probe(struct platform_device *pdev)
 	}
 	ethqos->pdev = pdev;
 
-	ethqos_init_reqgulators(ethqos);
+	ethqos_init_regulators(ethqos);
 
 	if (ethqos_init_gpio(ethqos))
 		ETHQOSDBG("ethqos_init_gpio failed");
