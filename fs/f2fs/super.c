@@ -4247,7 +4247,7 @@ static int f2fs_scan_devices(struct f2fs_sb_info *sbi)
 
 	for (i = 0; i < max_devices; i++) {
 		if (i == 0)
-			FDEV(0).bdev_handle = sbi->sb->s_bdev_handle;
+			FDEV(0).bdev_handle = sb_bdev_handle(sbi->sb);
 		else if (!RDEV(i).path[0])
 			break;
 

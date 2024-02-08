@@ -467,7 +467,7 @@ xfs_open_devices(
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = -ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(mp, sb->s_bdev_handle);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, sb_bdev_handle(sb));
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
