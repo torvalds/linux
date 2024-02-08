@@ -22,7 +22,6 @@ config KVM
 	select KVM_COMMON
 	select HAVE_KVM_VCPU_ASYNC_IOCTL
 	select KVM_VFIO
-	select IRQ_BYPASS_MANAGER
 	select HAVE_KVM_IRQ_BYPASS
 
 config KVM_BOOK3S_HANDLER
