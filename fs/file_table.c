@@ -357,6 +357,30 @@ struct file *alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt,
 }
 EXPORT_SYMBOL(alloc_file_pseudo);
 
+struct file *alloc_file_pseudo_noaccount(struct inode *inode,
+					 struct vfsmount *mnt, const char *name,
+					 int flags,
+					 const struct file_operations *fops)
+{
+	int ret;
+	struct path path;
+	struct file *file;
+
+	ret = alloc_path_pseudo(name, inode, mnt, &path);
+	if (ret)
+		return ERR_PTR(ret);
+
+	file = alloc_empty_file_noaccount(flags, current_cred());
+	if (IS_ERR(file)) {
+		ihold(inode);
+		path_put(&path);
+		return file;
+	}
+	file_init_path(file, &path, fops);
+	return file;
+}
+EXPORT_SYMBOL_GPL(alloc_file_pseudo_noaccount);
+
 struct file *alloc_file_clone(struct file *base, int flags,
 				const struct file_operations *fops)
 {
