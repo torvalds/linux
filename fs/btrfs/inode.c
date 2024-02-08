@@ -2411,6 +2411,8 @@ void __btrfs_del_delalloc_inode(struct btrfs_inode *inode)
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
+	lockdep_assert_held(&root->delalloc_lock);
+
 	if (!list_empty(&inode->delalloc_inodes)) {
 		list_del_init(&inode->delalloc_inodes);
 		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
