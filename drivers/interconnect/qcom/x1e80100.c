@@ -1541,7 +1541,7 @@ static struct qcom_icc_bcm bcm_sn4 = {
 	.nodes = { &qnm_usb_anoc },
 };
 
-static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const aggre1_noc_nodes[] = {
@@ -1729,7 +1729,7 @@ static const struct qcom_icc_desc x1e80100_gem_noc = {
 	.num_bcms = ARRAY_SIZE(gem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *lpass_ag_noc_bcms[] = {
+static struct qcom_icc_bcm * const lpass_ag_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const lpass_ag_noc_nodes[] = {
@@ -1870,7 +1870,7 @@ static const struct qcom_icc_desc x1e80100_pcie_north_anoc = {
 	.num_bcms = ARRAY_SIZE(pcie_north_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *pcie_south_anoc_bcms[] = {
+static struct qcom_icc_bcm * const pcie_south_anoc_bcms[] = {
 };
 
 static struct qcom_icc_node * const pcie_south_anoc_nodes[] = {
@@ -1889,7 +1889,7 @@ static const struct qcom_icc_desc x1e80100_pcie_south_anoc = {
 	.num_bcms = ARRAY_SIZE(pcie_south_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn0,
 	&bcm_sn2,
 	&bcm_sn3,
@@ -1927,7 +1927,7 @@ static const struct qcom_icc_desc x1e80100_usb_center_anoc = {
 	.num_bcms = ARRAY_SIZE(usb_center_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *usb_north_anoc_bcms[] = {
+static struct qcom_icc_bcm * const usb_north_anoc_bcms[] = {
 };
 
 static struct qcom_icc_node * const usb_north_anoc_nodes[] = {
@@ -1943,7 +1943,7 @@ static const struct qcom_icc_desc x1e80100_usb_north_anoc = {
 	.num_bcms = ARRAY_SIZE(usb_north_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *usb_south_anoc_bcms[] = {
+static struct qcom_icc_bcm * const usb_south_anoc_bcms[] = {
 };
 
 static struct qcom_icc_node * const usb_south_anoc_nodes[] = {
