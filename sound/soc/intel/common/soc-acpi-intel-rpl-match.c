@@ -395,7 +395,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 	},
 	{
 		.comp_ids = &rpl_rt5682_hp,
-		.drv_name = "rpl_mx98360_rt5682",
+		.drv_name = "rpl_rt5682_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rpl_max98360a_amp,
 		.sof_tplg_filename = "sof-rpl-max98360a-rt5682.tplg",
@@ -423,7 +423,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_rpl_machines[] = {
 	},
 	{
 		.comp_ids = &rpl_rt5682_hp,
-		.drv_name = "rpl_rt1019_rt5682",
+		.drv_name = "rpl_rt5682_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rpl_rt1019p_amp,
 		.sof_tplg_filename = "sof-rpl-rt1019-rt5682.tplg",
