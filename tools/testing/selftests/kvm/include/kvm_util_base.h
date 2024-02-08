@@ -969,15 +969,18 @@ static inline void vcpu_dump(FILE *stream, struct kvm_vcpu *vcpu,
  * Input Args:
  *   vm - Virtual Machine
  *   vcpu_id - The id of the VCPU to add to the VM.
- *   guest_code - The vCPU's entry point
  */
-struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
-				  void *guest_code);
+struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id);
+void vcpu_arch_set_entry_point(struct kvm_vcpu *vcpu, void *guest_code);
 
 static inline struct kvm_vcpu *vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 					   void *guest_code)
 {
-	return vm_arch_vcpu_add(vm, vcpu_id, guest_code);
+	struct kvm_vcpu *vcpu = vm_arch_vcpu_add(vm, vcpu_id);
+
+	vcpu_arch_set_entry_point(vcpu, guest_code);
+
+	return vcpu;
 }
 
 /* Re-create a vCPU after restarting a VM, e.g. for state save/restore tests. */
