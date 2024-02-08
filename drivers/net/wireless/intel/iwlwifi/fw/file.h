@@ -216,6 +216,7 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	ADD_MODIFY_STA_KEY_API_S_VER_2.
  * @IWL_UCODE_TLV_API_STA_TYPE: This ucode supports station type assignement.
  * @IWL_UCODE_TLV_API_NAN2_VER2: This ucode supports NAN API version 2
+ * @IWL_UCODE_TLV_API_ADAPTIVE_DWELL: support for adaptive dwell in scanning
  * @IWL_UCODE_TLV_API_NEW_RX_STATS: should new RX STATISTICS API be used
  * @IWL_UCODE_TLV_API_QUOTA_LOW_LATENCY: Quota command includes a field
  *	indicating low latency direction.
@@ -239,10 +240,15 @@ typedef unsigned int __bitwise iwl_ucode_tlv_api_t;
  *	SCAN_OFFLOAD_PROFILES_QUERY_RSP_S.
  * @IWL_UCODE_TLV_API_MBSSID_HE: This ucode supports v2 of
  *	STA_CONTEXT_DOT11AX_API_S
+ * @IWL_UCODE_TLV_API_FTM_RTT_ACCURACY: version 7 of the range response API
+ *	is supported by FW, this indicates the RTT confidence value
  * @IWL_UCODE_TLV_API_SAR_TABLE_VER: This ucode supports different sar
  *	version tables.
  * @IWL_UCODE_TLV_API_REDUCED_SCAN_CONFIG: This ucode supports v3 of
- *  SCAN_CONFIG_DB_CMD_API_S.
+ *	SCAN_CONFIG_DB_CMD_API_S.
+ * @IWL_UCODE_TLV_API_ADWELL_HB_DEF_N_AP: support for setting adaptive dwell
+ *	number of APs in the 5 GHz band
+ * @IWL_UCODE_TLV_API_BAND_IN_RX_DATA: FW reports band number in RX notification
  * @IWL_UCODE_TLV_API_NO_HOST_DISABLE_TX: Firmware offloaded the station disable tx
  *	logic.
  * @IWL_UCODE_TLV_API_INT_DBG_BUF_CLEAR: Firmware supports clearing the debug
@@ -573,6 +579,7 @@ enum iwl_fw_dbg_reg_operator {
  * struct iwl_fw_dbg_reg_op - an operation on a register
  *
  * @op: &enum iwl_fw_dbg_reg_operator
+ * @reserved: reserved
  * @addr: offset of the register
  * @val: value
  */
@@ -619,6 +626,7 @@ struct iwl_fw_dbg_mem_seg_tlv {
  * @version: version of the TLV - currently 0
  * @monitor_mode: &enum iwl_fw_dbg_monitor_mode
  * @size_power: buffer size will be 2^(size_power + 11)
+ * @reserved: reserved
  * @base_reg: addr of the base addr register (PRPH)
  * @end_reg:  addr of the end addr register (PRPH)
  * @write_ptr_reg: the addr of the reg of the write pointer
@@ -729,6 +737,8 @@ enum iwl_fw_dbg_trigger_vif_type {
  * @trig_dis_ms: the time, in milliseconds, after an occurrence of this
  *	trigger in which another occurrence should be ignored.
  * @flags: &enum iwl_fw_dbg_trigger_flags
+ * @reserved: reserved (for alignment)
+ * @data: trigger data
  */
 struct iwl_fw_dbg_trigger_tlv {
 	__le32 id;
@@ -769,7 +779,7 @@ struct iwl_fw_dbg_trigger_missed_bcon {
 
 /**
  * struct iwl_fw_dbg_trigger_cmd - configures trigger for messages from FW.
- * cmds: the list of commands to trigger the collection on
+ * @cmds: the list of commands to trigger the collection on
  */
 struct iwl_fw_dbg_trigger_cmd {
 	struct cmd {
@@ -779,7 +789,7 @@ struct iwl_fw_dbg_trigger_cmd {
 } __packed;
 
 /**
- * iwl_fw_dbg_trigger_stats - configures trigger for statistics
+ * struct iwl_fw_dbg_trigger_stats - configures trigger for statistics
  * @stop_offset: the offset of the value to be monitored
  * @stop_threshold: the threshold above which to collect
  * @start_offset: the offset of the value to be monitored
