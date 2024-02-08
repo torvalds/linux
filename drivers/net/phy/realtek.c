@@ -680,14 +680,7 @@ static int rtl822x_config_aneg(struct phy_device *phydev)
 	int ret = 0;
 
 	if (phydev->autoneg == AUTONEG_ENABLE) {
-		u16 adv = 0;
-
-		if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-				      phydev->advertising))
-			adv |= MDIO_AN_10GBT_CTRL_ADV2_5G;
-		if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-				      phydev->advertising))
-			adv |= MDIO_AN_10GBT_CTRL_ADV5G;
+		u16 adv = linkmode_adv_to_mii_10gbt_adv_t(phydev->advertising);
 
 		ret = phy_modify_paged_changed(phydev, 0xa5d, 0x12,
 					       MDIO_AN_10GBT_CTRL_ADV2_5G |
@@ -710,15 +703,8 @@ static int rtl822x_read_status(struct phy_device *phydev)
 		if (lpadv < 0)
 			return lpadv;
 
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-				 phydev->lp_advertising,
-				 lpadv & MDIO_AN_10GBT_STAT_LP10G);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-				 phydev->lp_advertising,
-				 lpadv & MDIO_AN_10GBT_STAT_LP5G);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-				 phydev->lp_advertising,
-				 lpadv & MDIO_AN_10GBT_STAT_LP2_5G);
+		mii_10gbt_stat_mod_linkmode_lpa_t(phydev->lp_advertising,
+						  lpadv);
 	}
 
 	ret = genphy_read_status(phydev);
