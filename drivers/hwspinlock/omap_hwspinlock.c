@@ -117,25 +117,11 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	if (!bank)
 		return -ENOMEM;
 
-	platform_set_drvdata(pdev, bank);
-
 	for (i = 0, hwlock = &bank->lock[0]; i < num_locks; i++, hwlock++)
 		hwlock->priv = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
 
-	return hwspin_lock_register(bank, &pdev->dev, &omap_hwspinlock_ops,
+	return devm_hwspin_lock_register(&pdev->dev, bank, &omap_hwspinlock_ops,
 						base_id, num_locks);
-}
-
-static void omap_hwspinlock_remove(struct platform_device *pdev)
-{
-	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = hwspin_lock_unregister(bank);
-	if (ret) {
-		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return;
-	}
 }
 
 static const struct of_device_id omap_hwspinlock_of_match[] = {
@@ -148,7 +134,6 @@ MODULE_DEVICE_TABLE(of, omap_hwspinlock_of_match);
 
 static struct platform_driver omap_hwspinlock_driver = {
 	.probe		= omap_hwspinlock_probe,
-	.remove_new	= omap_hwspinlock_remove,
 	.driver		= {
 		.name	= "omap_hwspinlock",
 		.of_match_table = omap_hwspinlock_of_match,
