@@ -55,6 +55,9 @@ config KVM_ASYNC_PF_SYNC
 config HAVE_KVM_MSI
        bool
 
+config HAVE_KVM_READONLY_MEM
+       bool
+
 config HAVE_KVM_CPU_RELAX_INTERCEPT
        bool
 
