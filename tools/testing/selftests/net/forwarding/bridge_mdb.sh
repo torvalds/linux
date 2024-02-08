@@ -1102,14 +1102,17 @@ fwd_test()
 	echo
 	log_info "# Forwarding tests"
 
+	# Set the Max Response Delay to 100 centiseconds (1 second) so that the
+	# bridge will start forwarding according to its MDB soon after a
+	# multicast querier is enabled.
+	ip link set dev br0 type bridge mcast_query_response_interval 100
+
 	# Forwarding according to MDB entries only takes place when the bridge
 	# detects that there is a valid querier in the network. Set the bridge
 	# as the querier and assign it a valid IPv6 link-local address to be
 	# used as the source address for MLD queries.
 	ip -6 address add fe80::1/64 nodad dev br0
 	ip link set dev br0 type bridge mcast_querier 1
-	# Wait the default Query Response Interval (10 seconds) for the bridge
-	# to determine that there are no other queriers in the network.
 	sleep 10
 
 	fwd_test_host
@@ -1117,6 +1120,7 @@ fwd_test()
 
 	ip link set dev br0 type bridge mcast_querier 0
 	ip -6 address del fe80::1/64 dev br0
+	ip link set dev br0 type bridge mcast_query_response_interval 1000
 }
 
 ctrl_igmpv3_is_in_test()
