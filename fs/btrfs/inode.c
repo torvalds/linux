@@ -2385,7 +2385,7 @@ void btrfs_merge_delalloc_extent(struct btrfs_inode *inode, struct extent_state 
 	spin_unlock(&inode->lock);
 }
 
-static void btrfs_add_delalloc_inodes(struct btrfs_inode *inode)
+static void btrfs_add_delalloc_inode(struct btrfs_inode *inode)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -2472,7 +2472,7 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 			inode->defrag_bytes += len;
 		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 					 &inode->runtime_flags))
-			btrfs_add_delalloc_inodes(inode);
+			btrfs_add_delalloc_inode(inode);
 		spin_unlock(&inode->lock);
 	}
 
