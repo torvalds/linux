@@ -139,19 +139,25 @@ SYM_FUNC_END(aes_ecb_decrypt_zvkned)
 .endm
 
 .macro	aes_cbc_decrypt	keylen
+	srli		LEN, LEN, 2	// Convert LEN from bytes to words
 	vle32.v		v16, (IVP)	// Load IV
 1:
-	vle32.v		v17, (INP)	// Load ciphertext block
-	vmv.v.v		v18, v17	// Save ciphertext block
-	aes_decrypt	v17, \keylen	// Decrypt
-	vxor.vv		v17, v17, v16	// XOR with IV or prev ciphertext block
-	vse32.v		v17, (OUTP)	// Store plaintext block
-	vmv.v.v		v16, v18	// Next "IV" is prev ciphertext block
-	addi		INP, INP, 16
-	addi		OUTP, OUTP, 16
-	addi		LEN, LEN, -16
+	vsetvli		t0, LEN, e32, m4, ta, ma
+	vle32.v		v20, (INP)	// Load ciphertext blocks
+	vslideup.vi	v16, v20, 4	// Setup prev ciphertext blocks
+	addi		t1, t0, -4
+	vslidedown.vx	v24, v20, t1	// Save last ciphertext block
+	aes_decrypt	v20, \keylen	// Decrypt the blocks
+	vxor.vv		v20, v20, v16	// XOR with prev ciphertext blocks
+	vse32.v		v20, (OUTP)	// Store plaintext blocks
+	vmv.v.v		v16, v24	// Next "IV" is last ciphertext block
+	slli		t1, t0, 2	// Words to bytes
+	add		INP, INP, t1
+	add		OUTP, OUTP, t1
+	sub		LEN, LEN, t0
 	bnez		LEN, 1b
 
+	vsetivli	zero, 4, e32, m1, ta, ma
 	vse32.v		v16, (IVP)	// Store next IV
 	ret
 .endm
