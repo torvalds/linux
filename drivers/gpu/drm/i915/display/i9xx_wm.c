@@ -88,7 +88,7 @@ static const struct cxsr_latency *intel_get_cxsr_latency(struct drm_i915_private
 			return latency;
 	}
 
-	DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
+	drm_dbg_kms(&i915->drm, "Unknown FSB/MEM found, disable CxSR\n");
 
 	return NULL;
 }
@@ -524,6 +524,7 @@ static unsigned int intel_wm_method2(unsigned int pixel_rate,
 
 /**
  * intel_calculate_wm - calculate watermark level
+ * @i915: the device
  * @pixel_rate: pixel clock
  * @wm: chip FIFO params
  * @fifo_size: size of the FIFO buffer
@@ -541,7 +542,8 @@ static unsigned int intel_wm_method2(unsigned int pixel_rate,
  * past the watermark point.  If the FIFO drains completely, a FIFO underrun
  * will occur, and a display engine hang could result.
  */
-static unsigned int intel_calculate_wm(int pixel_rate,
+static unsigned int intel_calculate_wm(struct drm_i915_private *i915,
+				       int pixel_rate,
 				       const struct intel_watermark_params *wm,
 				       int fifo_size, int cpp,
 				       unsigned int latency_ns)
@@ -558,10 +560,10 @@ static unsigned int intel_calculate_wm(int pixel_rate,
 				   latency_ns / 100);
 	entries = DIV_ROUND_UP(entries, wm->cacheline_size) +
 		wm->guard_size;
-	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries);
+	drm_dbg_kms(&i915->drm, "FIFO entries required for mode: %d\n", entries);
 
 	wm_size = fifo_size - entries;
-	DRM_DEBUG_KMS("FIFO watermark level: %d\n", wm_size);
+	drm_dbg_kms(&i915->drm, "FIFO watermark level: %d\n", wm_size);
 
 	/* Don't promote wm_size to unsigned... */
 	if (wm_size > wm->max_wm)
@@ -649,7 +651,8 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 		int cpp = fb->format->cpp[0];
 
 		/* Display SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_display_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_display_wm,
 					pnv_display_wm.fifo_size,
 					cpp, latency->display_sr);
 		reg = intel_uncore_read(&dev_priv->uncore, DSPFW1);
@@ -659,20 +662,23 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 		drm_dbg_kms(&dev_priv->drm, "DSPFW1 register is %x\n", reg);
 
 		/* cursor SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_cursor_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_cursor_wm,
 					pnv_display_wm.fifo_size,
 					4, latency->cursor_sr);
 		intel_uncore_rmw(&dev_priv->uncore, DSPFW3, DSPFW_CURSOR_SR_MASK,
 				 FW_WM(wm, CURSOR_SR));
 
 		/* Display HPLL off SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_display_hplloff_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_display_hplloff_wm,
 					pnv_display_hplloff_wm.fifo_size,
 					cpp, latency->display_hpll_disable);
 		intel_uncore_rmw(&dev_priv->uncore, DSPFW3, DSPFW_HPLL_SR_MASK, FW_WM(wm, HPLL_SR));
 
 		/* cursor HPLL off SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_cursor_hplloff_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_cursor_hplloff_wm,
 					pnv_display_hplloff_wm.fifo_size,
 					4, latency->cursor_hpll_disable);
 		reg = intel_uncore_read(&dev_priv->uncore, DSPFW3);
@@ -2120,7 +2126,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		else
 			cpp = fb->format->cpp[0];
 
-		planea_wm = intel_calculate_wm(crtc->config->pixel_rate,
+		planea_wm = intel_calculate_wm(dev_priv, crtc->config->pixel_rate,
 					       wm_info, fifo_size, cpp,
 					       pessimal_latency_ns);
 	} else {
@@ -2147,7 +2153,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		else
 			cpp = fb->format->cpp[0];
 
-		planeb_wm = intel_calculate_wm(crtc->config->pixel_rate,
+		planeb_wm = intel_calculate_wm(dev_priv, crtc->config->pixel_rate,
 					       wm_info, fifo_size, cpp,
 					       pessimal_latency_ns);
 	} else {
@@ -2241,7 +2247,7 @@ static void i845_update_wm(struct drm_i915_private *dev_priv)
 	if (crtc == NULL)
 		return;
 
-	planea_wm = intel_calculate_wm(crtc->config->pixel_rate,
+	planea_wm = intel_calculate_wm(dev_priv, crtc->config->pixel_rate,
 				       &i845_wm_info,
 				       i845_get_fifo_size(dev_priv, PLANE_A),
 				       4, pessimal_latency_ns);
