@@ -57,14 +57,6 @@
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
 
-#define RTL_SUPPORTS_5000FULL			BIT(14)
-#define RTL_SUPPORTS_2500FULL			BIT(13)
-#define RTL_SUPPORTS_10000FULL			BIT(0)
-#define RTL_ADV_2500FULL			BIT(7)
-#define RTL_LPADV_10000FULL			BIT(11)
-#define RTL_LPADV_5000FULL			BIT(6)
-#define RTL_LPADV_2500FULL			BIT(5)
-
 #define RTL9000A_GINMR				0x14
 #define RTL9000A_GINMR_LINK_STATUS		BIT(4)
 
@@ -674,11 +666,11 @@ static int rtl822x_get_features(struct phy_device *phydev)
 		return val;
 
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-			 phydev->supported, val & RTL_SUPPORTS_2500FULL);
+			 phydev->supported, val & MDIO_PMA_SPEED_2_5G);
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-			 phydev->supported, val & RTL_SUPPORTS_5000FULL);
+			 phydev->supported, val & MDIO_PMA_SPEED_5G);
 	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-			 phydev->supported, val & RTL_SUPPORTS_10000FULL);
+			 phydev->supported, val & MDIO_SPEED_10G);
 
 	return genphy_read_abilities(phydev);
 }
@@ -688,14 +680,19 @@ static int rtl822x_config_aneg(struct phy_device *phydev)
 	int ret = 0;
 
 	if (phydev->autoneg == AUTONEG_ENABLE) {
-		u16 adv2500 = 0;
+		u16 adv = 0;
 
 		if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
 				      phydev->advertising))
-			adv2500 = RTL_ADV_2500FULL;
+			adv |= MDIO_AN_10GBT_CTRL_ADV2_5G;
+		if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				      phydev->advertising))
+			adv |= MDIO_AN_10GBT_CTRL_ADV5G;
 
 		ret = phy_modify_paged_changed(phydev, 0xa5d, 0x12,
-					       RTL_ADV_2500FULL, adv2500);
+					       MDIO_AN_10GBT_CTRL_ADV2_5G |
+					       MDIO_AN_10GBT_CTRL_ADV5G,
+					       adv);
 		if (ret < 0)
 			return ret;
 	}
@@ -714,11 +711,14 @@ static int rtl822x_read_status(struct phy_device *phydev)
 			return lpadv;
 
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-			phydev->lp_advertising, lpadv & RTL_LPADV_10000FULL);
+				 phydev->lp_advertising,
+				 lpadv & MDIO_AN_10GBT_STAT_LP10G);
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-			phydev->lp_advertising, lpadv & RTL_LPADV_5000FULL);
+				 phydev->lp_advertising,
+				 lpadv & MDIO_AN_10GBT_STAT_LP5G);
 		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-			phydev->lp_advertising, lpadv & RTL_LPADV_2500FULL);
+				 phydev->lp_advertising,
+				 lpadv & MDIO_AN_10GBT_STAT_LP2_5G);
 	}
 
 	ret = genphy_read_status(phydev);
@@ -736,7 +736,7 @@ static bool rtlgen_supports_2_5gbps(struct phy_device *phydev)
 	val = phy_read(phydev, 0x13);
 	phy_write(phydev, RTL821x_PAGE_SELECT, 0);
 
-	return val >= 0 && val & RTL_SUPPORTS_2500FULL;
+	return val >= 0 && val & MDIO_PMA_SPEED_2_5G;
 }
 
 static int rtlgen_match_phy_device(struct phy_device *phydev)
