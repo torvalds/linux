@@ -229,7 +229,7 @@ Asynchronous sub-device notifier for sub-devices
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 A driver that registers an asynchronous sub-device may also register an
-asynchronous notifier. This is called an asynchronous sub-device notifier andthe
+asynchronous notifier. This is called an asynchronous sub-device notifier and the
 process is similar to that of a bridge driver apart from that the notifier is
 initialised using :c:func:`v4l2_async_subdev_nf_init` instead. A sub-device
 notifier may complete only after the V4L2 device becomes available, i.e. there's
