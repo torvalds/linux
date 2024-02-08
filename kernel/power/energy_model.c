@@ -46,6 +46,7 @@ static void em_debug_create_ps(struct em_perf_state *ps, struct dentry *pd)
 	debugfs_create_ulong("frequency", 0444, d, &ps->frequency);
 	debugfs_create_ulong("power", 0444, d, &ps->power);
 	debugfs_create_ulong("cost", 0444, d, &ps->cost);
+	debugfs_create_ulong("performance", 0444, d, &ps->performance);
 	debugfs_create_ulong("inefficient", 0444, d, &ps->flags);
 }
 
@@ -157,6 +158,30 @@ struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd)
 	kref_init(&table->kref);
 
 	return table;
+}
+
+static void em_init_performance(struct device *dev, struct em_perf_domain *pd,
+				struct em_perf_state *table, int nr_states)
+{
+	u64 fmax, max_cap;
+	int i, cpu;
+
+	/* This is needed only for CPUs and EAS skip other devices */
+	if (!_is_cpu_device(dev))
+		return;
+
+	cpu = cpumask_first(em_span_cpus(pd));
+
+	/*
+	 * Calculate the performance value for each frequency with
+	 * linear relationship. The final CPU capacity might not be ready at
+	 * boot time, but the EM will be updated a bit later with correct one.
+	 */
+	fmax = (u64) table[nr_states - 1].frequency;
+	max_cap = (u64) arch_scale_cpu_capacity(cpu);
+	for (i = 0; i < nr_states; i++)
+		table[i].performance = div64_u64(max_cap * table[i].frequency,
+						 fmax);
 }
 
 static int em_compute_costs(struct device *dev, struct em_perf_state *table,
@@ -317,6 +342,8 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		table[i].power = power;
 		table[i].frequency = prev_freq = freq;
 	}
+
+	em_init_performance(dev, pd, table, nr_states);
 
 	ret = em_compute_costs(dev, table, cb, nr_states, flags);
 	if (ret)
