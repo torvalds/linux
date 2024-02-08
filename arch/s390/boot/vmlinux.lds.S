@@ -31,6 +31,7 @@ SECTIONS
 		_text = .;	/* Text */
 		*(.text)
 		*(.text.*)
+		INIT_TEXT
 		_etext = . ;
 	}
 	.rodata : {
