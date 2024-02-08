@@ -250,7 +250,7 @@ static void em_cpufreq_update_efficiencies(struct device *dev)
 
 	policy = cpufreq_cpu_get(cpumask_first(em_span_cpus(pd)));
 	if (!policy) {
-		dev_warn(dev, "EM: Access to CPUFreq policy failed");
+		dev_warn(dev, "EM: Access to CPUFreq policy failed\n");
 		return;
 	}
 
