@@ -118,4 +118,7 @@ int sof_intel_board_set_hdmi_in_link(struct device *dev,
 				     struct snd_soc_dai_link *link, int be_id,
 				     int ssp_hdmi);
 
+struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
+					  const char *dai_name[], int num_dais);
+
 #endif /* __SOF_INTEL_BOARD_HELPERS_H */
