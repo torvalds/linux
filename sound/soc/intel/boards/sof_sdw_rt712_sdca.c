@@ -67,15 +67,6 @@ int rt712_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_rt712_spk_init(struct snd_soc_card *card,
-			   const struct snd_soc_acpi_link_adr *link,
-			   struct snd_soc_dai_link *dai_links,
-			   struct sof_sdw_codec_info *info,
-			   bool playback)
-{
-	return 0;
-}
-
 static const char * const dmics[] = {
 	"rt712-sdca-dmic"
 };
@@ -97,15 +88,6 @@ int rt712_sdca_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	if (!card->components)
 		return -ENOMEM;
 
-	return 0;
-}
-
-int sof_sdw_rt712_sdca_dmic_init(struct snd_soc_card *card,
-				 const struct snd_soc_acpi_link_adr *link,
-				 struct snd_soc_dai_link *dai_links,
-				 struct sof_sdw_codec_info *info,
-				 bool playback)
-{
 	return 0;
 }
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);

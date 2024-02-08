@@ -108,18 +108,6 @@ int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_cs42l43_hs_init(struct snd_soc_card *card, const struct snd_soc_acpi_link_adr *link,
-			    struct snd_soc_dai_link *dai_links, struct sof_sdw_codec_info *info,
-			    bool playback)
-{
-	/*
-	 * No need to test if (!playback) like other codecs as cs42l43 uses separated dai for
-	 * playback and capture, and sof_sdw_cs42l43_init is only linked to the playback dai.
-	 */
-
-	return 0;
-}
-
 int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
@@ -145,9 +133,3 @@ int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_cs42l43_dmic_init(struct snd_soc_card *card, const struct snd_soc_acpi_link_adr *link,
-			      struct snd_soc_dai_link *dai_links, struct sof_sdw_codec_info *info,
-			      bool playback)
-{
-	return 0;
-}
