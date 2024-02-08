@@ -3631,17 +3631,24 @@ unlock:
 }
 EXPORT_SYMBOL(register_nexthop_notifier);
 
+int __unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
+{
+	int err;
+
+	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
+						 nb);
+	if (!err)
+		nexthops_dump(net, nb, NEXTHOP_EVENT_DEL, NULL);
+	return err;
+}
+EXPORT_SYMBOL(__unregister_nexthop_notifier);
+
 int unregister_nexthop_notifier(struct net *net, struct notifier_block *nb)
 {
 	int err;
 
 	rtnl_lock();
-	err = blocking_notifier_chain_unregister(&net->nexthop.notifier_chain,
-						 nb);
-	if (err)
-		goto unlock;
-	nexthops_dump(net, nb, NEXTHOP_EVENT_DEL, NULL);
-unlock:
+	err = __unregister_nexthop_notifier(net, nb);
 	rtnl_unlock();
 	return err;
 }
@@ -3737,16 +3744,20 @@ out:
 }
 EXPORT_SYMBOL(nexthop_res_grp_activity_update);
 
-static void __net_exit nexthop_net_exit_batch(struct list_head *net_list)
+static void __net_exit nexthop_net_exit_batch_rtnl(struct list_head *net_list,
+						   struct list_head *dev_to_kill)
 {
 	struct net *net;
 
-	rtnl_lock();
-	list_for_each_entry(net, net_list, exit_list) {
+	ASSERT_RTNL();
+	list_for_each_entry(net, net_list, exit_list)
 		flush_all_nexthops(net);
-		kfree(net->nexthop.devhash);
-	}
-	rtnl_unlock();
+}
+
+static void __net_exit nexthop_net_exit(struct net *net)
+{
+	kfree(net->nexthop.devhash);
+	net->nexthop.devhash = NULL;
 }
 
 static int __net_init nexthop_net_init(struct net *net)
@@ -3764,7 +3775,8 @@ static int __net_init nexthop_net_init(struct net *net)
 
 static struct pernet_operations nexthop_net_ops = {
 	.init = nexthop_net_init,
-	.exit_batch = nexthop_net_exit_batch,
+	.exit = nexthop_net_exit,
+	.exit_batch_rtnl = nexthop_net_exit_batch_rtnl,
 };
 
 static int __init nexthop_init(void)

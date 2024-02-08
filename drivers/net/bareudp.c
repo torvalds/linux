@@ -760,23 +760,18 @@ static void bareudp_destroy_tunnels(struct net *net, struct list_head *head)
 		unregister_netdevice_queue(bareudp->dev, head);
 }
 
-static void __net_exit bareudp_exit_batch_net(struct list_head *net_list)
+static void __net_exit bareudp_exit_batch_rtnl(struct list_head *net_list,
+					       struct list_head *dev_kill_list)
 {
 	struct net *net;
-	LIST_HEAD(list);
 
-	rtnl_lock();
 	list_for_each_entry(net, net_list, exit_list)
-		bareudp_destroy_tunnels(net, &list);
-
-	/* unregister the devices gathered above */
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
+		bareudp_destroy_tunnels(net, dev_kill_list);
 }
 
 static struct pernet_operations bareudp_net_ops = {
 	.init = bareudp_init_net,
-	.exit_batch = bareudp_exit_batch_net,
+	.exit_batch_rtnl = bareudp_exit_batch_rtnl,
 	.id   = &bareudp_net_id,
 	.size = sizeof(struct bareudp_net),
 };
