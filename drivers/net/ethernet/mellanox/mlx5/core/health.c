@@ -116,9 +116,9 @@ u32 mlx5_health_check_fatal_sensors(struct mlx5_core_dev *dev)
 		return MLX5_SENSOR_PCI_COMM_ERR;
 	if (pci_channel_offline(dev->pdev))
 		return MLX5_SENSOR_PCI_ERR;
-	if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
+	if (mlx5_get_nic_state(dev) == MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED)
 		return MLX5_SENSOR_NIC_DISABLED;
-	if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_SW_RESET)
+	if (mlx5_get_nic_state(dev) == MLX5_INITIAL_SEG_NIC_INTERFACE_SW_RESET)
 		return MLX5_SENSOR_NIC_SW_RESET;
 	if (sensor_fw_synd_rfr(dev))
 		return MLX5_SENSOR_FW_SYND_RFR;
@@ -185,7 +185,7 @@ static bool reset_fw_if_needed(struct mlx5_core_dev *dev)
 	/* Write the NIC interface field to initiate the reset, the command
 	 * interface address also resides here, don't overwrite it.
 	 */
-	mlx5_set_nic_state(dev, MLX5_NIC_IFC_SW_RESET);
+	mlx5_set_nic_state(dev, MLX5_INITIAL_SEG_NIC_INTERFACE_SW_RESET);
 
 	return true;
 }
@@ -246,13 +246,13 @@ recover_from_sw_reset:
 	/* Recover from SW reset */
 	end = jiffies + msecs_to_jiffies(delay_ms);
 	do {
-		if (mlx5_get_nic_state(dev) == MLX5_NIC_IFC_DISABLED)
+		if (mlx5_get_nic_state(dev) == MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED)
 			break;
 
 		msleep(20);
 	} while (!time_after(jiffies, end));
 
-	if (mlx5_get_nic_state(dev) != MLX5_NIC_IFC_DISABLED) {
+	if (mlx5_get_nic_state(dev) != MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED) {
 		dev_err(&dev->pdev->dev, "NIC IFC still %d after %lums.\n",
 			mlx5_get_nic_state(dev), delay_ms);
 	}
@@ -272,26 +272,26 @@ static void mlx5_handle_bad_state(struct mlx5_core_dev *dev)
 	u8 nic_interface = mlx5_get_nic_state(dev);
 
 	switch (nic_interface) {
-	case MLX5_NIC_IFC_FULL:
+	case MLX5_INITIAL_SEG_NIC_INTERFACE_FULL_DRIVER:
 		mlx5_core_warn(dev, "Expected to see disabled NIC but it is full driver\n");
 		break;
 
-	case MLX5_NIC_IFC_DISABLED:
+	case MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED:
 		mlx5_core_warn(dev, "starting teardown\n");
 		break;
 
-	case MLX5_NIC_IFC_NO_DRAM_NIC:
+	case MLX5_INITIAL_SEG_NIC_INTERFACE_NO_DRAM_NIC:
 		mlx5_core_warn(dev, "Expected to see disabled NIC but it is no dram nic\n");
 		break;
 
-	case MLX5_NIC_IFC_SW_RESET:
+	case MLX5_INITIAL_SEG_NIC_INTERFACE_SW_RESET:
 		/* The IFC mode field is 3 bits, so it will read 0x7 in 2 cases:
 		 * 1. PCI has been disabled (ie. PCI-AER, PF driver unloaded
 		 *    and this is a VF), this is not recoverable by SW reset.
 		 *    Logging of this is handled elsewhere.
 		 * 2. FW reset has been issued by another function, driver can
 		 *    be reloaded to recover after the mode switches to
-		 *    MLX5_NIC_IFC_DISABLED.
+		 *    MLX5_INITIAL_SEG_NIC_INTERFACE_DISABLED.
 		 */
 		if (dev->priv.health.fatal_error != MLX5_SENSOR_PCI_COMM_ERR)
 			mlx5_core_warn(dev, "NIC SW reset in progress\n");
@@ -555,10 +555,15 @@ static void mlx5_fw_reporter_err_work(struct work_struct *work)
 				      &fw_reporter_ctx);
 }
 
-static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
+static const struct devlink_health_reporter_ops mlx5_fw_reporter_pf_ops = {
 		.name = "fw",
 		.diagnose = mlx5_fw_reporter_diagnose,
 		.dump = mlx5_fw_reporter_dump,
+};
+
+static const struct devlink_health_reporter_ops mlx5_fw_reporter_ops = {
+		.name = "fw",
+		.diagnose = mlx5_fw_reporter_diagnose,
 };
 
 static int
@@ -646,10 +651,15 @@ static void mlx5_fw_fatal_reporter_err_work(struct work_struct *work)
 	}
 }
 
-static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
+static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_pf_ops = {
 		.name = "fw_fatal",
 		.recover = mlx5_fw_fatal_reporter_recover,
 		.dump = mlx5_fw_fatal_reporter_dump,
+};
+
+static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
+		.name = "fw_fatal",
+		.recover = mlx5_fw_fatal_reporter_recover,
 };
 
 #define MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD 180000
@@ -659,10 +669,14 @@ static const struct devlink_health_reporter_ops mlx5_fw_fatal_reporter_ops = {
 
 void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 {
+	const struct devlink_health_reporter_ops *fw_fatal_ops;
 	struct mlx5_core_health *health = &dev->priv.health;
+	const struct devlink_health_reporter_ops *fw_ops;
 	struct devlink *devlink = priv_to_devlink(dev);
 	u64 grace_period;
 
+	fw_fatal_ops = &mlx5_fw_fatal_reporter_pf_ops;
+	fw_ops = &mlx5_fw_reporter_pf_ops;
 	if (mlx5_core_is_ecpf(dev)) {
 		grace_period = MLX5_FW_REPORTER_ECPF_GRACEFUL_PERIOD;
 	} else if (mlx5_core_is_pf(dev)) {
@@ -670,18 +684,19 @@ void mlx5_fw_reporters_create(struct mlx5_core_dev *dev)
 	} else {
 		/* VF or SF */
 		grace_period = MLX5_FW_REPORTER_DEFAULT_GRACEFUL_PERIOD;
+		fw_fatal_ops = &mlx5_fw_fatal_reporter_ops;
+		fw_ops = &mlx5_fw_reporter_ops;
 	}
 
 	health->fw_reporter =
-		devl_health_reporter_create(devlink, &mlx5_fw_reporter_ops,
-					    0, dev);
+		devl_health_reporter_create(devlink, fw_ops, 0, dev);
 	if (IS_ERR(health->fw_reporter))
 		mlx5_core_warn(dev, "Failed to create fw reporter, err = %ld\n",
 			       PTR_ERR(health->fw_reporter));
 
 	health->fw_fatal_reporter =
 		devl_health_reporter_create(devlink,
-					    &mlx5_fw_fatal_reporter_ops,
+					    fw_fatal_ops,
 					    grace_period,
 					    dev);
 	if (IS_ERR(health->fw_fatal_reporter))
