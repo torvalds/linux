@@ -36,12 +36,45 @@ static const struct snd_soc_acpi_endpoint spk_r_endpoint = {
 	.group_id = 1,
 };
 
+static const struct snd_soc_acpi_endpoint rt712_endpoints[] = {
+	{
+		.num = 0,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+	{
+		.num = 1,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
+};
+
 static const struct snd_soc_acpi_adr_device rt711_sdca_0_adr[] = {
 	{
 		.adr = 0x000030025D071101ull,
 		.num_endpoints = 1,
 		.endpoints = &single_endpoint,
 		.name_prefix = "rt711"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt712_2_single_adr[] = {
+	{
+		.adr = 0x000230025D071201ull,
+		.num_endpoints = ARRAY_SIZE(rt712_endpoints),
+		.endpoints = rt712_endpoints,
+		.name_prefix = "rt712"
+	}
+};
+
+static const struct snd_soc_acpi_adr_device rt1712_3_single_adr[] = {
+	{
+		.adr = 0x000330025D171201ull,
+		.num_endpoints = 1,
+		.endpoints = &single_endpoint,
+		.name_prefix = "rt712-dmic"
 	}
 };
 
@@ -77,6 +110,20 @@ static const struct snd_soc_acpi_link_adr lnl_rvp[] = {
 		.mask = BIT(0),
 		.num_adr = ARRAY_SIZE(rt711_sdca_0_adr),
 		.adr_d = rt711_sdca_0_adr,
+	},
+	{}
+};
+
+static const struct snd_soc_acpi_link_adr lnl_712_only[] = {
+	{
+		.mask = BIT(2),
+		.num_adr = ARRAY_SIZE(rt712_2_single_adr),
+		.adr_d = rt712_2_single_adr,
+	},
+	{
+		.mask = BIT(3),
+		.num_adr = ARRAY_SIZE(rt1712_3_single_adr),
+		.adr_d = rt1712_3_single_adr,
 	},
 	{}
 };
@@ -137,6 +184,12 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_lnl_sdw_machines[] = {
 		.links = lnl_rvp,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-lnl-rt711.tplg",
+	},
+	{
+		.link_mask = BIT(2) | BIT(3),
+		.links = lnl_712_only,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-lnl-rt712-l2-rt1712-l3.tplg",
 	},
 	{},
 };
