@@ -59,3 +59,4 @@ qcom_glink_spss.ko
 qcom-cpufreq-hw.ko
 qcom_wdt_core.ko
 gh_virt_wdt.ko
+gic_intr_routing.ko
