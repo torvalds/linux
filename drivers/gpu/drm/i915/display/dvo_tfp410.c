@@ -173,7 +173,7 @@ static bool tfp410_init(struct intel_dvo_device *dvo,
 	struct tfp410_priv *tfp;
 	int id;
 
-	tfp = kzalloc(sizeof(struct tfp410_priv), GFP_KERNEL);
+	tfp = kzalloc(sizeof(*tfp), GFP_KERNEL);
 	if (tfp == NULL)
 		return false;
 
