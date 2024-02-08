@@ -16,6 +16,7 @@
 #ifndef _SSP_PL022_H
 #define _SSP_PL022_H
 
+#include <linux/dmaengine.h>
 #include <linux/types.h>
 
 /**
@@ -235,7 +236,7 @@ struct dma_chan;
 struct pl022_ssp_controller {
 	u16 bus_id;
 	u8 enable_dma:1;
-	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
+	dma_filter_fn dma_filter;
 	void *dma_rx_param;
 	void *dma_tx_param;
 	int autosuspend_delay;
