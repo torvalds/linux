@@ -20,7 +20,7 @@ struct bch_subvolume {
 	 * this subvolume:
 	 */
 	__le32			creation_parent;
-	__le32			pad;
+	__le32			fs_path_parent;
 	bch_le128		otime;
 };
 

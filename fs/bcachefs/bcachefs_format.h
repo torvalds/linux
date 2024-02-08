@@ -840,7 +840,8 @@ struct bch_sb_field_downgrade {
 	x(snapshot_skiplists,		BCH_VERSION(1,  1))		\
 	x(deleted_inodes,		BCH_VERSION(1,  2))		\
 	x(rebalance_work,		BCH_VERSION(1,  3))		\
-	x(member_seq,			BCH_VERSION(1,  4))
+	x(member_seq,			BCH_VERSION(1,  4))		\
+	x(subvolume_fs_parent,		BCH_VERSION(1,  5))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,

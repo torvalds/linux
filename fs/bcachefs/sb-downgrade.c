@@ -45,7 +45,10 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
 	  BCH_FSCK_ERR_unlinked_inode_not_on_deleted_list)	\
 	x(rebalance_work,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))
+	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))	\
+	x(subvolume_fs_parent,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_dirents),		\
+	  BCH_FSCK_ERR_subvol_fs_path_parent_wrong)
 
 #define DOWNGRADE_TABLE()
 

@@ -1744,11 +1744,12 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 				  struct bkey_s_c_dirent d)
 {
 	struct bch_fs *c = trans->c;
+	struct btree_iter subvol_iter = {};
 	struct bch_inode_unpacked subvol_root;
 	u32 parent_subvol = le32_to_cpu(d.v->d_parent_subvol);
 	u32 target_subvol = le32_to_cpu(d.v->d_child_subvol);
-	u32 target_snapshot, parent_snapshot;
-	u64 target_inum, parent_inum;
+	u32 parent_snapshot;
+	u64 parent_inum;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
@@ -1777,8 +1778,11 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 		new_dirent->v.d_parent_subvol = cpu_to_le32(new_parent_subvol);
 	}
 
-	ret = subvol_lookup(trans, target_subvol,
-			    &target_snapshot, &target_inum);
+	struct bkey_s_c_subvolume s =
+		bch2_bkey_get_iter_typed(trans, &subvol_iter,
+					 BTREE_ID_subvolumes, POS(0, target_subvol),
+					 0, subvolume);
+	ret = bkey_err(s.s_c);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
@@ -1791,8 +1795,24 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 		goto out;
 	}
 
-	ret = lookup_inode(trans, target_inum,
-			   &subvol_root, &target_snapshot);
+	if (fsck_err_on(le32_to_cpu(s.v->fs_path_parent) != parent_subvol,
+			c, subvol_fs_path_parent_wrong,
+			"subvol with wrong fs_path_parent, should be be %u\n%s",
+			parent_subvol,
+			(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+		struct bkey_i_subvolume *n =
+			bch2_bkey_make_mut_typed(trans, &subvol_iter, &s.s_c, 0, subvolume);
+		ret = PTR_ERR_OR_ZERO(n);
+		if (ret)
+			goto err;
+
+		n->v.fs_path_parent = cpu_to_le32(parent_subvol);
+	}
+
+	u64 target_inum = le64_to_cpu(s.v->inode);
+	u32 target_snapshot = le32_to_cpu(s.v->snapshot);
+
+	ret = lookup_inode(trans, target_inum, &subvol_root, &target_snapshot);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
@@ -1814,6 +1834,7 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 out:
 err:
 fsck_err:
+	bch2_trans_iter_exit(trans, &subvol_iter);
 	printbuf_exit(&buf);
 	return ret;
 }

@@ -107,6 +107,7 @@ int bch2_create_trans(struct btree_trans *trans,
 		u32 new_subvol, dir_snapshot;
 
 		ret = bch2_subvolume_create(trans, new_inode->bi_inum,
+					    dir.subvol,
 					    snapshot_src.subvol,
 					    &new_subvol, &snapshot,
 					    (flags & BCH_CREATE_SNAPSHOT_RO) != 0);
@@ -349,6 +350,22 @@ bool bch2_reinherit_attrs(struct bch_inode_unpacked *dst_u,
 	return ret;
 }
 
+static int subvol_update_parent(struct btree_trans *trans, u32 subvol, u32 new_parent)
+{
+	struct btree_iter iter;
+	struct bkey_i_subvolume *s =
+		bch2_bkey_get_mut_typed(trans, &iter,
+			BTREE_ID_subvolumes, POS(0, subvol),
+			BTREE_ITER_CACHED, subvolume);
+	int ret = PTR_ERR_OR_ZERO(s);
+	if (ret)
+		return ret;
+
+	s->v.fs_path_parent = cpu_to_le32(new_parent);
+	bch2_trans_iter_exit(trans, &iter);
+	return 0;
+}
+
 int bch2_rename_trans(struct btree_trans *trans,
 		      subvol_inum src_dir, struct bch_inode_unpacked *src_dir_u,
 		      subvol_inum dst_dir, struct bch_inode_unpacked *dst_dir_u,
@@ -406,6 +423,21 @@ int bch2_rename_trans(struct btree_trans *trans,
 	if (dst_inum.inum) {
 		ret = bch2_inode_peek(trans, &dst_inode_iter, dst_inode_u, dst_inum,
 				      BTREE_ITER_INTENT);
+		if (ret)
+			goto err;
+	}
+
+	if (src_inode_u->bi_subvol &&
+	    dst_dir.subvol != src_inode_u->bi_parent_subvol) {
+		ret = subvol_update_parent(trans, src_inode_u->bi_subvol, dst_dir.subvol);
+		if (ret)
+			goto err;
+	}
+
+	if (mode == BCH_RENAME_EXCHANGE &&
+	    dst_inode_u->bi_subvol &&
+	    src_dir.subvol != dst_inode_u->bi_parent_subvol) {
+		ret = subvol_update_parent(trans, dst_inode_u->bi_subvol, src_dir.subvol);
 		if (ret)
 			goto err;
 	}

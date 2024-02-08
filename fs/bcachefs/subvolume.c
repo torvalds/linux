@@ -20,6 +20,7 @@ static int check_subvol(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct bkey_s_c_subvolume subvol;
 	struct bch_snapshot snapshot;
+	struct printbuf buf = PRINTBUF;
 	unsigned snapid;
 	int ret = 0;
 
@@ -40,6 +41,20 @@ static int check_subvol(struct btree_trans *trans,
 		ret = bch2_subvolume_delete(trans, iter->pos.offset);
 		bch_err_msg(c, ret, "deleting subvolume %llu", iter->pos.offset);
 		return ret ?: -BCH_ERR_transaction_restart_nested;
+	}
+
+	if (fsck_err_on(subvol.k->p.offset == BCACHEFS_ROOT_SUBVOL &&
+			subvol.v->fs_path_parent,
+			c, subvol_root_fs_path_parent_nonzero,
+			"root subvolume has nonzero fs_path_parent\n%s",
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+		struct bkey_i_subvolume *n =
+			bch2_bkey_make_mut_typed(trans, iter, &subvol.s_c, 0, subvolume);
+		ret = PTR_ERR_OR_ZERO(n);
+		if (ret)
+			goto err;
+
+		n->v.fs_path_parent = 0;
 	}
 
 	struct bch_inode_unpacked inode;
@@ -102,9 +117,9 @@ static int check_subvol(struct btree_trans *trans,
 			SET_BCH_SUBVOLUME_SNAP(&s->v, true);
 		}
 	}
-
 err:
 fsck_err:
+	printbuf_exit(&buf);
 	return ret;
 }
 
@@ -143,8 +158,10 @@ void bch2_subvolume_to_text(struct printbuf *out, struct bch_fs *c,
 		   le64_to_cpu(s.v->inode),
 		   le32_to_cpu(s.v->snapshot));
 
-	if (bkey_val_bytes(s.k) > offsetof(struct bch_subvolume, creation_parent))
+	if (bkey_val_bytes(s.k) > offsetof(struct bch_subvolume, creation_parent)) {
 		prt_printf(out, " creation_parent %u", le32_to_cpu(s.v->creation_parent));
+		prt_printf(out, " fs_parent %u", le32_to_cpu(s.v->fs_path_parent));
+	}
 }
 
 static __always_inline int
@@ -391,6 +408,7 @@ int bch2_subvolume_unlink(struct btree_trans *trans, u32 subvolid)
 }
 
 int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
+			  u32 parent_subvolid,
 			  u32 src_subvolid,
 			  u32 *new_subvolid,
 			  u32 *new_snapshotid,
@@ -451,6 +469,7 @@ int bch2_subvolume_create(struct btree_trans *trans, u64 inode,
 	new_subvol->v.snapshot		= cpu_to_le32(new_nodes[0]);
 	new_subvol->v.inode		= cpu_to_le64(inode);
 	new_subvol->v.creation_parent	= cpu_to_le32(src_subvolid);
+	new_subvol->v.fs_path_parent	= cpu_to_le32(parent_subvolid);
 	new_subvol->v.otime.lo		= cpu_to_le64(bch2_current_time(c));
 	new_subvol->v.otime.hi		= 0;
 

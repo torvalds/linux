@@ -30,8 +30,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *);
 void bch2_delete_dead_snapshots_async(struct bch_fs *);
 
 int bch2_subvolume_unlink(struct btree_trans *, u32);
-int bch2_subvolume_create(struct btree_trans *, u64, u32,
-			  u32 *, u32 *, bool);
+int bch2_subvolume_create(struct btree_trans *, u64, u32, u32, u32 *, u32 *, bool);
 
 int bch2_fs_subvolumes_init(struct bch_fs *);
 
