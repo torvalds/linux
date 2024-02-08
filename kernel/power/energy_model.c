@@ -142,17 +142,25 @@ static int em_compute_costs(struct device *dev, struct em_perf_state *table,
 	return 0;
 }
 
+static int em_allocate_perf_table(struct em_perf_domain *pd,
+				  int nr_states)
+{
+	pd->table = kcalloc(nr_states, sizeof(struct em_perf_state),
+			    GFP_KERNEL);
+	if (!pd->table)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
-				int nr_states, struct em_data_callback *cb,
+				struct em_perf_state *table,
+				struct em_data_callback *cb,
 				unsigned long flags)
 {
 	unsigned long power, freq, prev_freq = 0;
-	struct em_perf_state *table;
+	int nr_states = pd->nr_perf_states;
 	int i, ret;
-
-	table = kcalloc(nr_states, sizeof(*table), GFP_KERNEL);
-	if (!table)
-		return -ENOMEM;
 
 	/* Build the list of performance states for this performance domain */
 	for (i = 0, freq = 0; i < nr_states; i++, freq++) {
@@ -165,7 +173,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		if (ret) {
 			dev_err(dev, "EM: invalid perf. state: %d\n",
 				ret);
-			goto free_ps_table;
+			return -EINVAL;
 		}
 
 		/*
@@ -175,7 +183,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		if (freq <= prev_freq) {
 			dev_err(dev, "EM: non-increasing freq: %lu\n",
 				freq);
-			goto free_ps_table;
+			return -EINVAL;
 		}
 
 		/*
@@ -185,7 +193,7 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		if (!power || power > EM_MAX_POWER) {
 			dev_err(dev, "EM: invalid power: %lu\n",
 				power);
-			goto free_ps_table;
+			return -EINVAL;
 		}
 
 		table[i].power = power;
@@ -194,16 +202,9 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 
 	ret = em_compute_costs(dev, table, cb, nr_states, flags);
 	if (ret)
-		goto free_ps_table;
-
-	pd->table = table;
-	pd->nr_perf_states = nr_states;
+		return -EINVAL;
 
 	return 0;
-
-free_ps_table:
-	kfree(table);
-	return -EINVAL;
 }
 
 static int em_create_pd(struct device *dev, int nr_states,
@@ -234,11 +235,15 @@ static int em_create_pd(struct device *dev, int nr_states,
 			return -ENOMEM;
 	}
 
-	ret = em_create_perf_table(dev, pd, nr_states, cb, flags);
-	if (ret) {
-		kfree(pd);
-		return ret;
-	}
+	pd->nr_perf_states = nr_states;
+
+	ret = em_allocate_perf_table(pd, nr_states);
+	if (ret)
+		goto free_pd;
+
+	ret = em_create_perf_table(dev, pd, pd->table, cb, flags);
+	if (ret)
+		goto free_pd_table;
 
 	if (_is_cpu_device(dev))
 		for_each_cpu(cpu, cpus) {
@@ -249,6 +254,12 @@ static int em_create_pd(struct device *dev, int nr_states,
 	dev->em_pd = pd;
 
 	return 0;
+
+free_pd_table:
+	kfree(pd->table);
+free_pd:
+	kfree(pd);
+	return -EINVAL;
 }
 
 static void
