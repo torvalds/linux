@@ -23,8 +23,6 @@ void ieee80211_check_wbrf_support(struct ieee80211_local *local)
 		return;
 
 	local->wbrf_supported = acpi_amd_wbrf_supported_producer(dev);
-	dev_dbg(dev, "WBRF is %s supported\n",
-		local->wbrf_supported ? "" : "not");
 }
 
 static void get_chan_freq_boundary(u32 center_freq, u32 bandwidth, u64 *start, u64 *end)
