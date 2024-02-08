@@ -2526,7 +2526,7 @@ EXPORT_SYMBOL_GPL(of_genpd_del_provider);
  * on failure.
  */
 static struct generic_pm_domain *genpd_get_from_provider(
-					struct of_phandle_args *genpdspec)
+					const struct of_phandle_args *genpdspec)
 {
 	struct generic_pm_domain *genpd = ERR_PTR(-ENOENT);
 	struct of_genpd_provider *provider;
@@ -2557,7 +2557,7 @@ static struct generic_pm_domain *genpd_get_from_provider(
  * Looks-up an I/O PM domain based upon phandle args provided and adds
  * the device to the PM domain. Returns a negative error code on failure.
  */
-int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
+int of_genpd_add_device(const struct of_phandle_args *genpdspec, struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	int ret;
@@ -2591,8 +2591,8 @@ EXPORT_SYMBOL_GPL(of_genpd_add_device);
  * provided and adds the subdomain to the parent PM domain. Returns a
  * negative error code on failure.
  */
-int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
-			   struct of_phandle_args *subdomain_spec)
+int of_genpd_add_subdomain(const struct of_phandle_args *parent_spec,
+			   const struct of_phandle_args *subdomain_spec)
 {
 	struct generic_pm_domain *parent, *subdomain;
 	int ret;
@@ -2629,8 +2629,8 @@ EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
  * provided and removes the subdomain from the parent PM domain. Returns a
  * negative error code on failure.
  */
-int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
-			      struct of_phandle_args *subdomain_spec)
+int of_genpd_remove_subdomain(const struct of_phandle_args *parent_spec,
+			      const struct of_phandle_args *subdomain_spec)
 {
 	struct generic_pm_domain *parent, *subdomain;
 	int ret;
