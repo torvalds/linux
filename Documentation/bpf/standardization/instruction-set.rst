@@ -1,11 +1,11 @@
 .. contents::
 .. sectnum::
 
-=======================================
-BPF Instruction Set Specification, v1.0
-=======================================
+======================================
+BPF Instruction Set Architecture (ISA)
+======================================
 
-This document specifies version 1.0 of the BPF instruction set.
+This document specifies the BPF instruction set architecture (ISA).
 
 Documentation conventions
 =========================
