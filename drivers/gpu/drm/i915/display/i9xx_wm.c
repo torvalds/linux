@@ -70,22 +70,21 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 	{0, 1, 400, 800, 6042, 36042, 6584, 36584},    /* DDR3-800 SC */
 };
 
-static const struct cxsr_latency *intel_get_cxsr_latency(bool is_desktop,
-							 bool is_ddr3,
-							 int fsb,
-							 int mem)
+static const struct cxsr_latency *intel_get_cxsr_latency(struct drm_i915_private *i915)
 {
-	const struct cxsr_latency *latency;
 	int i;
 
-	if (fsb == 0 || mem == 0)
+	if (i915->fsb_freq == 0 || i915->mem_freq == 0)
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
-		latency = &cxsr_latency_table[i];
+		const struct cxsr_latency *latency = &cxsr_latency_table[i];
+		bool is_desktop = !IS_MOBILE(i915);
+
 		if (is_desktop == latency->is_desktop &&
-		    is_ddr3 == latency->is_ddr3 &&
-		    fsb == latency->fsb_freq && mem == latency->mem_freq)
+		    i915->is_ddr3 == latency->is_ddr3 &&
+		    i915->fsb_freq == latency->fsb_freq &&
+		    i915->mem_freq == latency->mem_freq)
 			return latency;
 	}
 
@@ -634,10 +633,7 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 	u32 reg;
 	unsigned int wm;
 
-	latency = intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
-					 dev_priv->is_ddr3,
-					 dev_priv->fsb_freq,
-					 dev_priv->mem_freq);
+	latency = intel_get_cxsr_latency(dev_priv);
 	if (!latency) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Unknown FSB/MEM found, disable CxSR\n");
@@ -4016,10 +4012,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		g4x_setup_wm_latency(dev_priv);
 		dev_priv->display.funcs.wm = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
-		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
-					    dev_priv->is_ddr3,
-					    dev_priv->fsb_freq,
-					    dev_priv->mem_freq)) {
+		if (!intel_get_cxsr_latency(dev_priv)) {
 			drm_info(&dev_priv->drm,
 				 "failed to find known CxSR latency "
 				 "(found ddr%s fsb freq %d, mem freq %d), "
