@@ -186,6 +186,19 @@ static netdev_tx_t octep_vf_start_xmit(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
+int octep_vf_get_link_info(struct octep_vf_device *oct)
+{
+	int ret, size;
+
+	ret = octep_vf_mbox_bulk_read(oct, OCTEP_PFVF_MBOX_CMD_GET_LINK_INFO,
+				      (u8 *)&oct->link_info, &size);
+	if (ret) {
+		dev_err(&oct->pdev->dev, "Get VF link info failed via VF Mbox\n");
+		return ret;
+	}
+	return 0;
+}
+
 /**
  * octep_vf_tx_timeout_task - work queue task to Handle Tx queue timeout.
  *
@@ -412,10 +425,27 @@ static int octep_vf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto delete_mbox;
 	}
 
+	if (octep_vf_mbox_get_fw_info(octep_vf_dev)) {
+		dev_err(&pdev->dev, "unable to get fw info\n");
+		err = -EINVAL;
+		goto delete_mbox;
+	}
+
 	netdev->hw_features = NETIF_F_SG;
+	if (OCTEP_VF_TX_IP_CSUM(octep_vf_dev->fw_info.tx_ol_flags))
+		netdev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
+
+	if (OCTEP_VF_RX_IP_CSUM(octep_vf_dev->fw_info.rx_ol_flags))
+		netdev->hw_features |= NETIF_F_RXCSUM;
+
 	netdev->min_mtu = OCTEP_VF_MIN_MTU;
 	netdev->max_mtu = OCTEP_VF_MAX_MTU;
 	netdev->mtu = OCTEP_VF_DEFAULT_MTU;
+
+	if (OCTEP_VF_TX_TSO(octep_vf_dev->fw_info.tx_ol_flags)) {
+		netdev->hw_features |= NETIF_F_TSO;
+		netif_set_tso_max_size(netdev, netdev->max_mtu);
+	}
 
 	netdev->features |= netdev->hw_features;
 	octep_vf_get_mac_addr(octep_vf_dev, octep_vf_dev->mac_addr);
