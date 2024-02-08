@@ -2808,7 +2808,7 @@ enum compact_result try_to_compact_pages(gfp_t gfp_mask, unsigned int order,
  * reaching score targets due to various back-off conditions, such as,
  * contention on per-node or per-zone locks.
  */
-static void compact_node(pg_data_t *pgdat, bool proactive)
+static int compact_node(pg_data_t *pgdat, bool proactive)
 {
 	int zoneid;
 	struct zone *zone;
@@ -2826,6 +2826,9 @@ static void compact_node(pg_data_t *pgdat, bool proactive)
 		if (!populated_zone(zone))
 			continue;
 
+		if (fatal_signal_pending(current))
+			return -EINTR;
+
 		cc.zone = zone;
 
 		compact_zone(&cc, NULL);
@@ -2837,18 +2840,25 @@ static void compact_node(pg_data_t *pgdat, bool proactive)
 					     cc.total_free_scanned);
 		}
 	}
+
+	return 0;
 }
 
 /* Compact all zones of all nodes in the system */
-static void compact_nodes(void)
+static int compact_nodes(void)
 {
-	int nid;
+	int ret, nid;
 
 	/* Flush pending updates to the LRU lists */
 	lru_add_drain_all();
 
-	for_each_online_node(nid)
-		compact_node(NODE_DATA(nid), false);
+	for_each_online_node(nid) {
+		ret = compact_node(NODE_DATA(nid), false);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int compaction_proactiveness_sysctl_handler(struct ctl_table *table, int write,
@@ -2894,9 +2904,9 @@ static int sysctl_compaction_handler(struct ctl_table *table, int write,
 		return -EINVAL;
 
 	if (write)
-		compact_nodes();
+		ret = compact_nodes();
 
-	return 0;
+	return ret;
 }
 
 #if defined(CONFIG_SYSFS) && defined(CONFIG_NUMA)
