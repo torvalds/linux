@@ -144,7 +144,7 @@ static int tx4927_pci_config_read(struct pci_bus *bus, unsigned int devfn,
 
 	ret = mkaddr(bus, devfn, where, pcicptr);
 	if (ret != PCIBIOS_SUCCESSFUL) {
-		*val = 0xffffffff;
+		PCI_SET_ERROR_RESPONSE(val);
 		return ret;
 	}
 	switch (size) {
