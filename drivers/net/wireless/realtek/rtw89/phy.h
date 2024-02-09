@@ -510,6 +510,7 @@ struct rtw89_phy_gen_def {
 	const struct rtw89_ccx_regs *ccx;
 	const struct rtw89_physts_regs *physts;
 	const struct rtw89_cfo_regs *cfo;
+	u32 (*phy0_phy1_offset)(struct rtw89_dev *rtwdev, u32 addr);
 	void (*config_bb_gain)(struct rtw89_dev *rtwdev,
 			       const struct rtw89_reg2_def *reg,
 			       enum rtw89_rf_path rf_path,
