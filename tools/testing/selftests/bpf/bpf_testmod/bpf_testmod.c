@@ -555,7 +555,11 @@ static int bpf_dummy_reg(void *kdata)
 {
 	struct bpf_testmod_ops *ops = kdata;
 
-	ops->test_2(4, 3);
+	/* Some test cases (ex. struct_ops_maybe_null) may not have test_2
+	 * initialized, so we need to check for NULL.
+	 */
+	if (ops->test_2)
+		ops->test_2(4, 3);
 
 	return 0;
 }
@@ -573,9 +577,16 @@ static void bpf_testmod_test_2(int a, int b)
 {
 }
 
+static int bpf_testmod_ops__test_maybe_null(int dummy,
+					    struct task_struct *task__nullable)
+{
+	return 0;
+}
+
 static struct bpf_testmod_ops __bpf_testmod_ops = {
 	.test_1 = bpf_testmod_test_1,
 	.test_2 = bpf_testmod_test_2,
+	.test_maybe_null = bpf_testmod_ops__test_maybe_null,
 };
 
 struct bpf_struct_ops bpf_bpf_testmod_ops = {
