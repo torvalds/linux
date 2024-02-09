@@ -295,6 +295,9 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 	struct fuse_conn *fc = ff->fm->fc;
 	struct fuse_release_args *ra = &ff->args->release_args;
 
+	if (fuse_file_passthrough(ff))
+		fuse_passthrough_release(ff, fuse_inode_backing(fi));
+
 	/* Inode is NULL on error path of fuse_create_open() */
 	if (likely(fi)) {
 		spin_lock(&fi->lock);
@@ -1374,7 +1377,7 @@ static void fuse_dio_lock(struct kiocb *iocb, struct iov_iter *from,
 		 * have raced, so check it again.
 		 */
 		if (fuse_io_past_eof(iocb, from) ||
-		    fuse_file_uncached_io_start(inode, ff) != 0) {
+		    fuse_file_uncached_io_start(inode, ff, NULL) != 0) {
 			inode_unlock_shared(inode);
 			inode_lock(inode);
 			*exclusive = true;
@@ -2526,6 +2529,10 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 	/* DAX mmap is superior to direct_io mmap */
 	if (FUSE_IS_DAX(file_inode(file)))
 		return fuse_dax_mmap(file, vma);
+
+	/* TODO: implement mmap to backing file */
+	if (fuse_file_passthrough(ff))
+		return -ENODEV;
 
 	/*
 	 * FOPEN_DIRECT_IO handling is special compared to O_DIRECT,

@@ -8,6 +8,7 @@
 #include "fuse_i.h"
 
 #include <linux/file.h>
+#include <linux/backing-file.h>
 
 struct fuse_backing *fuse_backing_get(struct fuse_backing *fb)
 {
@@ -163,4 +164,62 @@ out:
 	pr_debug("%s: fb=0x%p, err=%i\n", __func__, fb, err);
 
 	return err;
+}
+
+/*
+ * Setup passthrough to a backing file.
+ *
+ * Returns an fb object with elevated refcount to be stored in fuse inode.
+ */
+struct fuse_backing *fuse_passthrough_open(struct file *file,
+					   struct inode *inode,
+					   int backing_id)
+{
+	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = ff->fm->fc;
+	struct fuse_backing *fb = NULL;
+	struct file *backing_file;
+	int err;
+
+	err = -EINVAL;
+	if (backing_id <= 0)
+		goto out;
+
+	rcu_read_lock();
+	fb = idr_find(&fc->backing_files_map, backing_id);
+	fb = fuse_backing_get(fb);
+	rcu_read_unlock();
+
+	err = -ENOENT;
+	if (!fb)
+		goto out;
+
+	/* Allocate backing file per fuse file to store fuse path */
+	backing_file = backing_file_open(&file->f_path, file->f_flags,
+					 &fb->file->f_path, fb->cred);
+	err = PTR_ERR(backing_file);
+	if (IS_ERR(backing_file)) {
+		fuse_backing_put(fb);
+		goto out;
+	}
+
+	err = 0;
+	ff->passthrough = backing_file;
+	ff->cred = get_cred(fb->cred);
+out:
+	pr_debug("%s: backing_id=%d, fb=0x%p, backing_file=0x%p, err=%i\n", __func__,
+		 backing_id, fb, ff->passthrough, err);
+
+	return err ? ERR_PTR(err) : fb;
+}
+
+void fuse_passthrough_release(struct fuse_file *ff, struct fuse_backing *fb)
+{
+	pr_debug("%s: fb=0x%p, backing_file=0x%p\n", __func__,
+		 fb, ff->passthrough);
+
+	fput(ff->passthrough);
+	ff->passthrough = NULL;
+	put_cred(ff->cred);
+	ff->cred = NULL;
 }
