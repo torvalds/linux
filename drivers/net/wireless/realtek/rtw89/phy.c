@@ -1025,22 +1025,30 @@ static void rtw89_phy_config_bb_reg(struct rtw89_dev *rtwdev,
 				    enum rtw89_rf_path rf_path,
 				    void *extra_data)
 {
-	if (reg->addr == 0xfe)
+	u32 addr;
+
+	if (reg->addr == 0xfe) {
 		mdelay(50);
-	else if (reg->addr == 0xfd)
+	} else if (reg->addr == 0xfd) {
 		mdelay(5);
-	else if (reg->addr == 0xfc)
+	} else if (reg->addr == 0xfc) {
 		mdelay(1);
-	else if (reg->addr == 0xfb)
+	} else if (reg->addr == 0xfb) {
 		udelay(50);
-	else if (reg->addr == 0xfa)
+	} else if (reg->addr == 0xfa) {
 		udelay(5);
-	else if (reg->addr == 0xf9)
+	} else if (reg->addr == 0xf9) {
 		udelay(1);
-	else if (reg->data == BYPASS_CR_DATA)
+	} else if (reg->data == BYPASS_CR_DATA) {
 		rtw89_debug(rtwdev, RTW89_DBG_PHY_TRACK, "Bypass CR 0x%x\n", reg->addr);
-	else
-		rtw89_phy_write32(rtwdev, reg->addr, reg->data);
+	} else {
+		addr = reg->addr;
+
+		if ((uintptr_t)extra_data == RTW89_PHY_1)
+			addr += rtw89_phy0_phy1_offset(rtwdev, reg->addr);
+
+		rtw89_phy_write32(rtwdev, addr, reg->data);
+	}
 }
 
 union rtw89_phy_bb_gain_arg {
@@ -1554,6 +1562,9 @@ void rtw89_phy_init_bb_reg(struct rtw89_dev *rtwdev)
 
 	bb_table = elm_info->bb_tbl ? elm_info->bb_tbl : chip->bb_table;
 	rtw89_phy_init_reg(rtwdev, bb_table, rtw89_phy_config_bb_reg, NULL);
+	if (rtwdev->dbcc_en)
+		rtw89_phy_init_reg(rtwdev, bb_table, rtw89_phy_config_bb_reg,
+				   (void *)RTW89_PHY_1);
 	rtw89_chip_init_txpwr_unit(rtwdev, RTW89_PHY_0);
 
 	bb_gain_table = elm_info->bb_gain ? elm_info->bb_gain : chip->bb_gain_table;
