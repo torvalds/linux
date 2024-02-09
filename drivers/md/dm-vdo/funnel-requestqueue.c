@@ -219,7 +219,7 @@ int uds_make_request_queue(const char *queue_name,
 		return result;
 	}
 
-	result = uds_create_thread(request_queue_worker, queue, queue_name,
+	result = vdo_create_thread(request_queue_worker, queue, queue_name,
 				   &queue->thread);
 	if (result != UDS_SUCCESS) {
 		uds_request_queue_finish(queue);
@@ -256,8 +256,6 @@ void uds_request_queue_enqueue(struct uds_request_queue *queue,
 
 void uds_request_queue_finish(struct uds_request_queue *queue)
 {
-	int result;
-
 	if (queue == NULL)
 		return;
 
@@ -272,9 +270,7 @@ void uds_request_queue_finish(struct uds_request_queue *queue)
 
 	if (queue->started) {
 		wake_up_worker(queue);
-		result = uds_join_threads(queue->thread);
-		if (result != UDS_SUCCESS)
-			uds_log_warning_strerror(result, "Failed to join worker thread");
+		vdo_join_threads(queue->thread);
 	}
 
 	uds_free_funnel_queue(queue->main_queue);

@@ -1633,7 +1633,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 	}
 
 	for (i = 0; i < config->read_threads; i++) {
-		result = uds_create_thread(read_thread_function, (void *) volume,
+		result = vdo_create_thread(read_thread_function, (void *) volume,
 					   "reader", &volume->reader_threads[i]);
 		if (result != UDS_SUCCESS) {
 			uds_free_volume(volume);
@@ -1675,7 +1675,7 @@ void uds_free_volume(struct volume *volume)
 		uds_broadcast_cond(&volume->read_threads_cond);
 		mutex_unlock(&volume->read_threads_mutex);
 		for (i = 0; i < volume->read_thread_count; i++)
-			uds_join_threads(volume->reader_threads[i]);
+			vdo_join_threads(volume->reader_threads[i]);
 		uds_free(volume->reader_threads);
 		volume->reader_threads = NULL;
 	}

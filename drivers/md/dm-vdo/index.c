@@ -744,7 +744,7 @@ static void stop_chapter_writer(struct chapter_writer *writer)
 	mutex_unlock(&writer->mutex);
 
 	if (writer_thread != NULL)
-		uds_join_threads(writer_thread);
+		vdo_join_threads(writer_thread);
 }
 
 static void free_chapter_writer(struct chapter_writer *writer)
@@ -796,7 +796,7 @@ static int make_chapter_writer(struct uds_index *index,
 			       collated_records_size +
 			       writer->open_chapter_index->memory_size);
 
-	result = uds_create_thread(close_chapters, writer, "writer", &writer->thread);
+	result = vdo_create_thread(close_chapters, writer, "writer", &writer->thread);
 	if (result != UDS_SUCCESS) {
 		free_chapter_writer(writer);
 		return result;
