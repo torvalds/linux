@@ -2591,7 +2591,8 @@ static __init int kvm_arm_init(void)
 	} else if (in_hyp_mode) {
 		kvm_info("VHE mode initialized successfully\n");
 	} else {
-		kvm_info("Hyp mode initialized successfully\n");
+		char mode = cpus_have_final_cap(ARM64_KVM_HVHE) ? 'h' : 'n';
+		kvm_info("Hyp mode (%cVHE) initialized successfully\n", mode);
 	}
 
 	/*
