@@ -20,11 +20,9 @@
  */
 static struct thread_registry allocating_threads;
 
-static bool allocations_allowed(void)
+static inline bool allocations_allowed(void)
 {
-	const bool *pointer = vdo_lookup_thread(&allocating_threads);
-
-	return (pointer != NULL) ? *pointer : false;
+	return vdo_lookup_thread(&allocating_threads) != NULL;
 }
 
 /*
