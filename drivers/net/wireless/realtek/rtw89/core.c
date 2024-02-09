@@ -4075,7 +4075,6 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 {
 	int ret;
 
-	rtwdev->mac.qta_mode = RTW89_QTA_SCC;
 	ret = rtw89_mac_init(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "mac init fail, ret:%d\n", ret);
@@ -4213,6 +4212,13 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	rtwdev->hal.rx_fltr = DEFAULT_AX_RX_FLTR;
 	rtwdev->dbcc_en = false;
 	rtwdev->mlo_dbcc_mode = MLO_DBCC_NOT_SUPPORT;
+	rtwdev->mac.qta_mode = RTW89_QTA_SCC;
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE) {
+		rtwdev->dbcc_en = true;
+		rtwdev->mac.qta_mode = RTW89_QTA_DBCC;
+		rtwdev->mlo_dbcc_mode = MLO_2_PLUS_0_1RF;
+	}
 
 	INIT_WORK(&btc->eapol_notify_work, rtw89_btc_ntfy_eapol_packet_work);
 	INIT_WORK(&btc->arp_notify_work, rtw89_btc_ntfy_arp_packet_work);
