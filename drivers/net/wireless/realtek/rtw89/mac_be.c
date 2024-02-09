@@ -1896,8 +1896,7 @@ static bool rtw89_mac_get_txpwr_cr_be(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx,
 				      u32 reg_base, u32 *cr)
 {
-	const struct rtw89_dle_mem *dle_mem = rtwdev->chip->dle_mem;
-	enum rtw89_qta_mode mode = dle_mem->mode;
+	enum rtw89_qta_mode mode = rtwdev->mac.qta_mode;
 	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, (enum rtw89_mac_idx)phy_idx,
