@@ -2108,7 +2108,9 @@ static int path_down(struct bch_fs *c, pathbuf *p,
 static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c inode_k)
 {
 	struct bch_fs *c = trans->c;
+	struct btree_iter inode_iter = {};
 	struct bch_inode_unpacked inode;
+	struct printbuf buf = PRINTBUF;
 	u32 snapshot = bch2_snapshot_equiv(c, inode_k.k->p.snapshot);
 	int ret = 0;
 
@@ -2134,14 +2136,12 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 
 		if (bch2_err_matches(ret, ENOENT)) {
 			if (fsck_err(c, inode_unreachable,
-				     "unreachable inode %llu:%u, type %s nlink %u backptr %llu:%llu",
-				     inode.bi_inum, snapshot,
-				     bch2_d_type_str(inode_d_type(&inode)),
-				     inode.bi_nlink,
-				     inode.bi_dir,
-				     inode.bi_dir_offset))
+				     "unreachable inode\n%s",
+				     (printbuf_reset(&buf),
+				      bch2_bkey_val_to_text(&buf, c, inode_k),
+				      buf.buf)))
 				ret = reattach_inode(trans, &inode, snapshot);
-			break;
+			goto out;
 		}
 
 		bch2_trans_iter_exit(trans, &dirent_iter);
@@ -2157,13 +2157,20 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 
 		snapshot = parent_snapshot;
 
-		ret = lookup_inode(trans, inode.bi_dir, &inode, &snapshot);
+		bch2_trans_iter_exit(trans, &inode_iter);
+		inode_k = bch2_bkey_get_iter(trans, &inode_iter, BTREE_ID_inodes,
+					     SPOS(0, inode.bi_dir, snapshot), 0);
+		ret = bkey_err(inode_k) ?:
+			!bkey_is_inode(inode_k.k) ? -BCH_ERR_ENOENT_inode
+			: bch2_inode_unpack(inode_k, &inode);
 		if (ret) {
 			/* Should have been caught in dirents pass */
 			if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				bch_err(c, "error looking up parent directory: %i", ret);
 			break;
 		}
+
+		snapshot = inode_k.k->p.snapshot;
 
 		if (path_is_dup(p, inode.bi_inum, snapshot)) {
 			/* XXX print path */
@@ -2188,7 +2195,10 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 			break;
 		}
 	}
+out:
 fsck_err:
+	bch2_trans_iter_exit(trans, &inode_iter);
+	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
 }
