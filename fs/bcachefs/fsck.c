@@ -1765,10 +1765,14 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
 
-	if (fsck_err_on(ret, c, dirent_to_missing_subvol,
-			"dirent points to missing subvolume\n%s",
-			(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf)))
-		return __remove_dirent(trans, d.k->p);
+	if (ret) {
+		if (fsck_err(c, dirent_to_missing_subvol,
+			     "dirent points to missing subvolume\n%s",
+			     (bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf)))
+			return __remove_dirent(trans, d.k->p);
+		ret = 0;
+		goto out;
+	}
 
 	ret = lookup_inode(trans, target_inum,
 			   &subvol_root, &target_snapshot);
@@ -1790,6 +1794,7 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 				  target_snapshot);
 	if (ret)
 		return ret;
+out:
 err:
 fsck_err:
 	printbuf_exit(&buf);
