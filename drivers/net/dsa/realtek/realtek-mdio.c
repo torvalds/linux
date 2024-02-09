@@ -25,6 +25,7 @@
 #include <linux/regmap.h>
 
 #include "realtek.h"
+#include "realtek-mdio.h"
 
 /* Read/write via mdiobus */
 #define REALTEK_MDIO_CTRL0_REG		31
@@ -140,7 +141,19 @@ static const struct regmap_config realtek_mdio_nolock_regmap_config = {
 	.disable_locking = true,
 };
 
-static int realtek_mdio_probe(struct mdio_device *mdiodev)
+/**
+ * realtek_mdio_probe() - Probe a platform device for an MDIO-connected switch
+ * @mdiodev: mdio_device to probe on.
+ *
+ * This function should be used as the .probe in an mdio_driver. It
+ * initializes realtek_priv and read data from the device-tree node. The switch
+ * is hard reset if a method is provided. It checks the switch chip ID and,
+ * finally, a DSA switch is registered.
+ *
+ * Context: Can sleep. Takes and releases priv->map_lock.
+ * Return: Returns 0 on success, a negative error on failure.
+ */
+int realtek_mdio_probe(struct mdio_device *mdiodev)
 {
 	struct realtek_priv *priv;
 	struct device *dev = &mdiodev->dev;
@@ -235,8 +248,20 @@ static int realtek_mdio_probe(struct mdio_device *mdiodev)
 
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(realtek_mdio_probe, REALTEK_DSA);
 
-static void realtek_mdio_remove(struct mdio_device *mdiodev)
+/**
+ * realtek_mdio_remove() - Remove the driver of an MDIO-connected switch
+ * @mdiodev: mdio_device to be removed.
+ *
+ * This function should be used as the .remove_new in an mdio_driver. First
+ * it unregisters the DSA switch and cleans internal data. If a method is
+ * provided, the hard reset is asserted to avoid traffic leakage.
+ *
+ * Context: Can sleep.
+ * Return: Nothing.
+ */
+void realtek_mdio_remove(struct mdio_device *mdiodev)
 {
 	struct realtek_priv *priv = dev_get_drvdata(&mdiodev->dev);
 
@@ -249,8 +274,21 @@ static void realtek_mdio_remove(struct mdio_device *mdiodev)
 	if (priv->reset)
 		gpiod_set_value(priv->reset, 1);
 }
+EXPORT_SYMBOL_NS_GPL(realtek_mdio_remove, REALTEK_DSA);
 
-static void realtek_mdio_shutdown(struct mdio_device *mdiodev)
+/**
+ * realtek_mdio_shutdown() - Shutdown the driver of a MDIO-connected switch
+ * @mdiodev: mdio_device shutting down.
+ *
+ * This function should be used as the .shutdown in an mdio_driver. It shuts
+ * down the DSA switch and cleans the platform driver data, to prevent
+ * realtek_mdio_remove() from running afterwards, which is possible if the
+ * parent bus implements its own .shutdown() as .remove().
+ *
+ * Context: Can sleep.
+ * Return: Nothing.
+ */
+void realtek_mdio_shutdown(struct mdio_device *mdiodev)
 {
 	struct realtek_priv *priv = dev_get_drvdata(&mdiodev->dev);
 
@@ -261,29 +299,7 @@ static void realtek_mdio_shutdown(struct mdio_device *mdiodev)
 
 	dev_set_drvdata(&mdiodev->dev, NULL);
 }
-
-static const struct of_device_id realtek_mdio_of_match[] = {
-#if IS_ENABLED(CONFIG_NET_DSA_REALTEK_RTL8366RB)
-	{ .compatible = "realtek,rtl8366rb", .data = &rtl8366rb_variant, },
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_REALTEK_RTL8365MB)
-	{ .compatible = "realtek,rtl8365mb", .data = &rtl8365mb_variant, },
-#endif
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, realtek_mdio_of_match);
-
-static struct mdio_driver realtek_mdio_driver = {
-	.mdiodrv.driver = {
-		.name = "realtek-mdio",
-		.of_match_table = realtek_mdio_of_match,
-	},
-	.probe  = realtek_mdio_probe,
-	.remove = realtek_mdio_remove,
-	.shutdown = realtek_mdio_shutdown,
-};
-
-mdio_module_driver(realtek_mdio_driver);
+EXPORT_SYMBOL_NS_GPL(realtek_mdio_shutdown, REALTEK_DSA);
 
 MODULE_AUTHOR("Luiz Angelo Daros de Luca <luizluca@gmail.com>");
 MODULE_DESCRIPTION("Driver for Realtek ethernet switch connected via MDIO interface");

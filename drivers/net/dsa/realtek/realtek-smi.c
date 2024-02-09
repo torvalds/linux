@@ -40,6 +40,7 @@
 #include <linux/if_bridge.h>
 
 #include "realtek.h"
+#include "realtek-smi.h"
 
 #define REALTEK_SMI_ACK_RETRY_COUNT		5
 
@@ -408,7 +409,19 @@ err_put_node:
 	return ret;
 }
 
-static int realtek_smi_probe(struct platform_device *pdev)
+/**
+ * realtek_smi_probe() - Probe a platform device for an SMI-connected switch
+ * @pdev: platform_device to probe on.
+ *
+ * This function should be used as the .probe in a platform_driver. It
+ * initializes realtek_priv and read data from the device-tree node. The switch
+ * is hard reset if a method is provided. It checks the switch chip ID and,
+ * finally, a DSA switch is registered.
+ *
+ * Context: Can sleep. Takes and releases priv->map_lock.
+ * Return: Returns 0 on success, a negative error on failure.
+ */
+int realtek_smi_probe(struct platform_device *pdev)
 {
 	const struct realtek_variant *var;
 	struct device *dev = &pdev->dev;
@@ -505,8 +518,20 @@ static int realtek_smi_probe(struct platform_device *pdev)
 	}
 	return 0;
 }
+EXPORT_SYMBOL_NS_GPL(realtek_smi_probe, REALTEK_DSA);
 
-static void realtek_smi_remove(struct platform_device *pdev)
+/**
+ * realtek_smi_remove() - Remove the driver of a SMI-connected switch
+ * @pdev: platform_device to be removed.
+ *
+ * This function should be used as the .remove_new in a platform_driver. First
+ * it unregisters the DSA switch and cleans internal data. If a method is
+ * provided, the hard reset is asserted to avoid traffic leakage.
+ *
+ * Context: Can sleep.
+ * Return: Nothing.
+ */
+void realtek_smi_remove(struct platform_device *pdev)
 {
 	struct realtek_priv *priv = platform_get_drvdata(pdev);
 
@@ -521,8 +546,21 @@ static void realtek_smi_remove(struct platform_device *pdev)
 	if (priv->reset)
 		gpiod_set_value(priv->reset, 1);
 }
+EXPORT_SYMBOL_NS_GPL(realtek_smi_remove, REALTEK_DSA);
 
-static void realtek_smi_shutdown(struct platform_device *pdev)
+/**
+ * realtek_smi_shutdown() - Shutdown the driver of a SMI-connected switch
+ * @pdev: platform_device shutting down.
+ *
+ * This function should be used as the .shutdown in a platform_driver. It shuts
+ * down the DSA switch and cleans the platform driver data, to prevent
+ * realtek_smi_remove() from running afterwards, which is possible if the
+ * parent bus implements its own .shutdown() as .remove().
+ *
+ * Context: Can sleep.
+ * Return: Nothing.
+ */
+void realtek_smi_shutdown(struct platform_device *pdev)
 {
 	struct realtek_priv *priv = platform_get_drvdata(pdev);
 
@@ -533,34 +571,7 @@ static void realtek_smi_shutdown(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, NULL);
 }
-
-static const struct of_device_id realtek_smi_of_match[] = {
-#if IS_ENABLED(CONFIG_NET_DSA_REALTEK_RTL8366RB)
-	{
-		.compatible = "realtek,rtl8366rb",
-		.data = &rtl8366rb_variant,
-	},
-#endif
-#if IS_ENABLED(CONFIG_NET_DSA_REALTEK_RTL8365MB)
-	{
-		.compatible = "realtek,rtl8365mb",
-		.data = &rtl8365mb_variant,
-	},
-#endif
-	{ /* sentinel */ },
-};
-MODULE_DEVICE_TABLE(of, realtek_smi_of_match);
-
-static struct platform_driver realtek_smi_driver = {
-	.driver = {
-		.name = "realtek-smi",
-		.of_match_table = realtek_smi_of_match,
-	},
-	.probe  = realtek_smi_probe,
-	.remove_new = realtek_smi_remove,
-	.shutdown = realtek_smi_shutdown,
-};
-module_platform_driver(realtek_smi_driver);
+EXPORT_SYMBOL_NS_GPL(realtek_smi_shutdown, REALTEK_DSA);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
 MODULE_DESCRIPTION("Driver for Realtek ethernet switch connected via SMI interface");
