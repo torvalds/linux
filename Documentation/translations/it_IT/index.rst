@@ -92,6 +92,7 @@ interfacciarsi con il resto del kernel.
 
    core-api/index
    Sincronizzazione nel kernel <locking/index>
+   subsystem-apis
 
 Strumenti e processi per lo sviluppo
 ====================================
