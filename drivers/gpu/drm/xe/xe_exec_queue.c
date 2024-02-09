@@ -60,7 +60,6 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 	q->fence_irq = &gt->fence_irq[hwe->class];
 	q->ring_ops = gt->ring_ops[hwe->class];
 	q->ops = gt->exec_queue_ops;
-	INIT_LIST_HEAD(&q->persistent.link);
 	INIT_LIST_HEAD(&q->compute.link);
 	INIT_LIST_HEAD(&q->multi_gt_link);
 
@@ -375,23 +374,6 @@ static int exec_queue_set_preemption_timeout(struct xe_device *xe,
 	return 0;
 }
 
-static int exec_queue_set_persistence(struct xe_device *xe, struct xe_exec_queue *q,
-				      u64 value, bool create)
-{
-	if (XE_IOCTL_DBG(xe, !create))
-		return -EINVAL;
-
-	if (XE_IOCTL_DBG(xe, xe_vm_in_preempt_fence_mode(q->vm)))
-		return -EINVAL;
-
-	if (value)
-		q->flags |= EXEC_QUEUE_FLAG_PERSISTENT;
-	else
-		q->flags &= ~EXEC_QUEUE_FLAG_PERSISTENT;
-
-	return 0;
-}
-
 static int exec_queue_set_job_timeout(struct xe_device *xe, struct xe_exec_queue *q,
 				      u64 value, bool create)
 {
@@ -465,7 +447,6 @@ static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY] = exec_queue_set_priority,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE] = exec_queue_set_timeslice,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT] = exec_queue_set_preemption_timeout,
-	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PERSISTENCE] = exec_queue_set_persistence,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT] = exec_queue_set_job_timeout,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER] = exec_queue_set_acc_trigger,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY] = exec_queue_set_acc_notify,
@@ -492,6 +473,9 @@ static int exec_queue_user_ext_set_property(struct xe_device *xe,
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.property, ARRAY_SIZE(exec_queue_set_property_funcs));
+	if (!exec_queue_set_property_funcs[idx])
+		return -EINVAL;
+
 	return exec_queue_set_property_funcs[idx](xe, q, ext.value,  create);
 }
 
@@ -703,8 +687,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 			/* The migration vm doesn't hold rpm ref */
 			xe_device_mem_access_get(xe);
 
-			flags = EXEC_QUEUE_FLAG_PERSISTENT | EXEC_QUEUE_FLAG_VM |
-				(id ? EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD : 0);
+			flags = EXEC_QUEUE_FLAG_VM | (id ? EXEC_QUEUE_FLAG_BIND_ENGINE_CHILD : 0);
 
 			migrate_vm = xe_migrate_get_vm(gt_to_tile(gt)->migrate);
 			new = xe_exec_queue_create(xe, migrate_vm, logical_mask,
@@ -755,9 +738,7 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 		}
 
 		q = xe_exec_queue_create(xe, vm, logical_mask,
-					 args->width, hwe,
-					 xe_vm_in_lr_mode(vm) ? 0 :
-					 EXEC_QUEUE_FLAG_PERSISTENT,
+					 args->width, hwe, 0,
 					 args->extensions);
 		up_read(&vm->lock);
 		xe_vm_put(vm);
@@ -773,8 +754,6 @@ int xe_exec_queue_create_ioctl(struct drm_device *dev, void *data,
 				goto put_exec_queue;
 		}
 	}
-
-	q->persistent.xef = xef;
 
 	mutex_lock(&xef->exec_queue.lock);
 	err = xa_alloc(&xef->exec_queue.xa, &id, q, xa_limit_32b, GFP_KERNEL);
@@ -918,10 +897,7 @@ int xe_exec_queue_destroy_ioctl(struct drm_device *dev, void *data,
 	if (XE_IOCTL_DBG(xe, !q))
 		return -ENOENT;
 
-	if (!(q->flags & EXEC_QUEUE_FLAG_PERSISTENT))
-		xe_exec_queue_kill(q);
-	else
-		xe_device_add_persistent_exec_queues(xe, q);
+	xe_exec_queue_kill(q);
 
 	trace_xe_exec_queue_close(q);
 	xe_exec_queue_put(q);
