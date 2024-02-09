@@ -1204,6 +1204,7 @@ replay_again:
 		.disposition = FILE_OPEN,
 		.create_options = cifs_create_options(cifs_sb, 0),
 		.fid = &fid,
+		.replay = !!(retries),
 	};
 
 	rc = SMB2_open_init(tcon, server,
@@ -1569,6 +1570,7 @@ replay_again:
 		.disposition = FILE_OPEN,
 		.create_options = cifs_create_options(cifs_sb, create_options),
 		.fid = &fid,
+		.replay = !!(retries),
 	};
 
 	if (qi.flags & PASSTHRU_FSCTL) {
@@ -2295,6 +2297,7 @@ replay_again:
 		.disposition = FILE_OPEN,
 		.create_options = cifs_create_options(cifs_sb, 0),
 		.fid = fid,
+		.replay = !!(retries),
 	};
 
 	rc = SMB2_open_init(tcon, server,
@@ -2681,6 +2684,7 @@ replay_again:
 		.disposition = FILE_OPEN,
 		.create_options = cifs_create_options(cifs_sb, 0),
 		.fid = &fid,
+		.replay = !!(retries),
 	};
 
 	rc = SMB2_open_init(tcon, server,
