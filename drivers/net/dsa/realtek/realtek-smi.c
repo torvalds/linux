@@ -331,7 +331,7 @@ static int realtek_smi_setup_mdio(struct dsa_switch *ds)
 {
 	struct realtek_priv *priv =  ds->priv;
 	struct device_node *mdio_np;
-	int ret;
+	int ret = 0;
 
 	mdio_np = of_get_child_by_name(priv->dev->of_node, "mdio");
 	if (!mdio_np) {
@@ -344,15 +344,14 @@ static int realtek_smi_setup_mdio(struct dsa_switch *ds)
 		ret = -ENOMEM;
 		goto err_put_node;
 	}
+
 	priv->user_mii_bus->priv = priv;
 	priv->user_mii_bus->name = "SMI user MII";
 	priv->user_mii_bus->read = realtek_smi_mdio_read;
 	priv->user_mii_bus->write = realtek_smi_mdio_write;
 	snprintf(priv->user_mii_bus->id, MII_BUS_ID_SIZE, "SMI-%d",
 		 ds->index);
-	priv->user_mii_bus->dev.of_node = mdio_np;
 	priv->user_mii_bus->parent = priv->dev;
-	ds->user_mii_bus = priv->user_mii_bus;
 
 	ret = devm_of_mdiobus_register(priv->dev, priv->user_mii_bus, mdio_np);
 	if (ret) {
@@ -360,8 +359,6 @@ static int realtek_smi_setup_mdio(struct dsa_switch *ds)
 			priv->user_mii_bus->id);
 		goto err_put_node;
 	}
-
-	return 0;
 
 err_put_node:
 	of_node_put(mdio_np);
@@ -428,8 +425,7 @@ EXPORT_SYMBOL_NS_GPL(realtek_smi_probe, REALTEK_DSA);
  * @pdev: platform_device to be removed.
  *
  * This function should be used as the .remove_new in a platform_driver. First
- * it unregisters the DSA switch and cleans internal data. Finally, it calls
- * the common remove function.
+ * it unregisters the DSA switch and then it calls the common remove function.
  *
  * Context: Can sleep.
  * Return: Nothing.
@@ -442,9 +438,6 @@ void realtek_smi_remove(struct platform_device *pdev)
 		return;
 
 	rtl83xx_unregister_switch(priv);
-
-	if (priv->user_mii_bus)
-		of_node_put(priv->user_mii_bus->dev.of_node);
 
 	rtl83xx_remove(priv);
 }
