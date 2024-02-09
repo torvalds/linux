@@ -1526,11 +1526,8 @@ static void rtw8922a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 				      0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BT_SHARE_A, B_BT_TRK_OFF_A, 0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_OP1DB_A, B_OP1DB_A, 0x80, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_OP1DB1_A, B_TIA0_A, 0x80, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_OP1DB1_A, B_TIA1_A, 0x80, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_A, B_BACKOFF_IBADC_A,
-				      0x34, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_A, B_BACKOFF_LNA_A, 0x0, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_OP1DB1_A, B_TIA10_A, 0x8080, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_A, B_LNA_IBADC_A, 0x34, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BKOFF_A, B_BKOFF_IBADC_A, 0x34, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_FORCE_FIR_B, B_FORCE_FIR_B, 0x3, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_RXBY_WBADC_B, B_RXBY_WBADC_B,
@@ -1539,11 +1536,8 @@ static void rtw8922a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 				      0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BT_SHARE_B, B_BT_TRK_OFF_B, 0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_LNA_OP, B_LNA6, 0x80, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_LNA_TIA, B_TIA0_B, 0x80, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_LNA_TIA, B_TIA1_B, 0x80, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_B, B_BACKOFF_IBADC_B,
-				      0x34, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_B, B_BACKOFF_LNA_B, 0x0, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_LNA_TIA, B_TIA10_B, 0x8080, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_B, B_LNA_IBADC_B, 0x34, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BKOFF_B, B_BKOFF_IBADC_B, 0x34, phy_idx);
 	} else {
 		rtw89_phy_write32_idx(rtwdev, R_FORCE_FIR_A, B_FORCE_FIR_A, 0x0, phy_idx);
@@ -1553,12 +1547,8 @@ static void rtw8922a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 				      0x1, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BT_SHARE_A, B_BT_TRK_OFF_A, 0x1, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_OP1DB_A, B_OP1DB_A, 0x1a, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_OP1DB1_A, B_TIA0_A, 0x2a, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_OP1DB1_A, B_TIA1_A, 0x2a, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_A, B_BACKOFF_IBADC_A,
-				      0x26, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_A, B_BACKOFF_LNA_A,
-				      0x1e, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_OP1DB1_A, B_TIA10_A, 0x2a2a, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_A, B_LNA_IBADC_A, 0x7a6, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BKOFF_A, B_BKOFF_IBADC_A, 0x26, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_FORCE_FIR_B, B_FORCE_FIR_B, 0x0, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_RXBY_WBADC_B, B_RXBY_WBADC_B,
@@ -1567,12 +1557,8 @@ static void rtw8922a_ctrl_nbtg_bt_tx(struct rtw89_dev *rtwdev, bool en,
 				      0x1, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BT_SHARE_B, B_BT_TRK_OFF_B, 0x1, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_LNA_OP, B_LNA6, 0x20, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_LNA_TIA, B_TIA0_B, 0x30, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_LNA_TIA, B_TIA1_B, 0x2a, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_B, B_BACKOFF_IBADC_B,
-				      0x26, phy_idx);
-		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_B, B_BACKOFF_LNA_B,
-				      0x1e, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_LNA_TIA, B_TIA10_B, 0x2a30, phy_idx);
+		rtw89_phy_write32_idx(rtwdev, R_BACKOFF_B, B_LNA_IBADC_B, 0x7a6, phy_idx);
 		rtw89_phy_write32_idx(rtwdev, R_BKOFF_B, B_BKOFF_IBADC_B, 0x26, phy_idx);
 	}
 }
