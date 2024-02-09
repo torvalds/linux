@@ -50,12 +50,6 @@ static int fuse_send_open(struct fuse_mount *fm, u64 nodeid,
 	return fuse_simple_request(fm, &args);
 }
 
-struct fuse_release_args {
-	struct fuse_args args;
-	struct fuse_release_in inarg;
-	struct inode *inode;
-};
-
 struct fuse_file *fuse_file_alloc(struct fuse_mount *fm, bool release)
 {
 	struct fuse_file *ff;
@@ -66,9 +60,8 @@ struct fuse_file *fuse_file_alloc(struct fuse_mount *fm, bool release)
 
 	ff->fm = fm;
 	if (release) {
-		ff->release_args = kzalloc(sizeof(*ff->release_args),
-					   GFP_KERNEL_ACCOUNT);
-		if (!ff->release_args) {
+		ff->args = kzalloc(sizeof(*ff->args), GFP_KERNEL_ACCOUNT);
+		if (!ff->args) {
 			kfree(ff);
 			return NULL;
 		}
@@ -87,7 +80,7 @@ struct fuse_file *fuse_file_alloc(struct fuse_mount *fm, bool release)
 
 void fuse_file_free(struct fuse_file *ff)
 {
-	kfree(ff->release_args);
+	kfree(ff->args);
 	mutex_destroy(&ff->readdir.lock);
 	kfree(ff);
 }
@@ -110,7 +103,7 @@ static void fuse_release_end(struct fuse_mount *fm, struct fuse_args *args,
 static void fuse_file_put(struct fuse_file *ff, bool sync)
 {
 	if (refcount_dec_and_test(&ff->count)) {
-		struct fuse_release_args *ra = ff->release_args;
+		struct fuse_release_args *ra = &ff->args->release_args;
 		struct fuse_args *args = (ra ? &ra->args : NULL);
 
 		if (ra && ra->inode)
@@ -147,20 +140,21 @@ struct fuse_file *fuse_file_open(struct fuse_mount *fm, u64 nodeid,
 	/* Default for no-open */
 	ff->open_flags = FOPEN_KEEP_CACHE | (isdir ? FOPEN_CACHE_DIR : 0);
 	if (open) {
-		struct fuse_open_out outarg;
+		/* Store outarg for fuse_finish_open() */
+		struct fuse_open_out *outargp = &ff->args->open_outarg;
 		int err;
 
-		err = fuse_send_open(fm, nodeid, open_flags, opcode, &outarg);
+		err = fuse_send_open(fm, nodeid, open_flags, opcode, outargp);
 		if (!err) {
-			ff->fh = outarg.fh;
-			ff->open_flags = outarg.open_flags;
+			ff->fh = outargp->fh;
+			ff->open_flags = outargp->open_flags;
 		} else if (err != -ENOSYS) {
 			fuse_file_free(ff);
 			return ERR_PTR(err);
 		} else {
 			/* No release needed */
-			kfree(ff->release_args);
-			ff->release_args = NULL;
+			kfree(ff->args);
+			ff->args = NULL;
 			if (isdir)
 				fc->no_opendir = 1;
 			else
@@ -299,7 +293,7 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 				 unsigned int flags, int opcode, bool sync)
 {
 	struct fuse_conn *fc = ff->fm->fc;
-	struct fuse_release_args *ra = ff->release_args;
+	struct fuse_release_args *ra = &ff->args->release_args;
 
 	/* Inode is NULL on error path of fuse_create_open() */
 	if (likely(fi)) {
@@ -317,6 +311,8 @@ static void fuse_prepare_release(struct fuse_inode *fi, struct fuse_file *ff,
 	if (!ra)
 		return;
 
+	/* ff->args was used for open outarg */
+	memset(ff->args, 0, sizeof(*ff->args));
 	ra->inarg.fh = ff->fh;
 	ra->inarg.flags = flags;
 	ra->args.in_numargs = 1;
@@ -339,7 +335,7 @@ void fuse_file_release(struct inode *inode, struct fuse_file *ff,
 		       unsigned int open_flags, fl_owner_t id, bool isdir)
 {
 	struct fuse_inode *fi = get_fuse_inode(inode);
-	struct fuse_release_args *ra = ff->release_args;
+	struct fuse_release_args *ra = &ff->args->release_args;
 	int opcode = isdir ? FUSE_RELEASEDIR : FUSE_RELEASE;
 
 	fuse_prepare_release(fi, ff, open_flags, opcode, false);

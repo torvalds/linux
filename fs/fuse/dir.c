@@ -615,7 +615,7 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	FUSE_ARGS(args);
 	struct fuse_forget_link *forget;
 	struct fuse_create_in inarg;
-	struct fuse_open_out outopen;
+	struct fuse_open_out *outopenp;
 	struct fuse_entry_out outentry;
 	struct fuse_inode *fi;
 	struct fuse_file *ff;
@@ -659,8 +659,10 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	args.out_numargs = 2;
 	args.out_args[0].size = sizeof(outentry);
 	args.out_args[0].value = &outentry;
-	args.out_args[1].size = sizeof(outopen);
-	args.out_args[1].value = &outopen;
+	/* Store outarg for fuse_finish_open() */
+	outopenp = &ff->args->open_outarg;
+	args.out_args[1].size = sizeof(*outopenp);
+	args.out_args[1].value = outopenp;
 
 	err = get_create_ext(&args, dir, entry, mode);
 	if (err)
@@ -676,9 +678,9 @@ static int fuse_create_open(struct inode *dir, struct dentry *entry,
 	    fuse_invalid_attr(&outentry.attr))
 		goto out_free_ff;
 
-	ff->fh = outopen.fh;
+	ff->fh = outopenp->fh;
 	ff->nodeid = outentry.nodeid;
-	ff->open_flags = outopen.open_flags;
+	ff->open_flags = outopenp->open_flags;
 	inode = fuse_iget(dir->i_sb, outentry.nodeid, outentry.generation,
 			  &outentry.attr, ATTR_TIMEOUT(&outentry), 0);
 	if (!inode) {

@@ -31,7 +31,7 @@ int fuse_file_cached_io_start(struct inode *inode, struct fuse_file *ff)
 	struct fuse_inode *fi = get_fuse_inode(inode);
 
 	/* There are no io modes if server does not implement open */
-	if (!ff->release_args)
+	if (!ff->args)
 		return 0;
 
 	spin_lock(&fi->lock);
@@ -103,6 +103,37 @@ void fuse_file_uncached_io_end(struct inode *inode, struct fuse_file *ff)
 	spin_unlock(&fi->lock);
 }
 
+/*
+ * Open flags that are allowed in combination with FOPEN_PASSTHROUGH.
+ * A combination of FOPEN_PASSTHROUGH and FOPEN_DIRECT_IO means that read/write
+ * operations go directly to the server, but mmap is done on the backing file.
+ * FOPEN_PASSTHROUGH mode should not co-exist with any users of the fuse inode
+ * page cache, so FOPEN_KEEP_CACHE is a strange and undesired combination.
+ */
+#define FOPEN_PASSTHROUGH_MASK \
+	(FOPEN_PASSTHROUGH | FOPEN_DIRECT_IO | FOPEN_PARALLEL_DIRECT_WRITES | \
+	 FOPEN_NOFLUSH)
+
+static int fuse_file_passthrough_open(struct inode *inode, struct file *file)
+{
+	struct fuse_file *ff = file->private_data;
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	int err;
+
+	/* Check allowed conditions for file open in passthrough mode */
+	if (!IS_ENABLED(CONFIG_FUSE_PASSTHROUGH) || !fc->passthrough ||
+	    (ff->open_flags & ~FOPEN_PASSTHROUGH_MASK))
+		return -EINVAL;
+
+	/* TODO: implement backing file open */
+	return -EOPNOTSUPP;
+
+	/* First passthrough file open denies caching inode io mode */
+	err = fuse_file_uncached_io_start(inode, ff);
+
+	return err;
+}
+
 /* Request access to submit new io to inode via open file */
 int fuse_file_io_open(struct file *file, struct inode *inode)
 {
@@ -113,7 +144,7 @@ int fuse_file_io_open(struct file *file, struct inode *inode)
 	 * io modes are not relevant with DAX and with server that does not
 	 * implement open.
 	 */
-	if (FUSE_IS_DAX(inode) || !ff->release_args)
+	if (FUSE_IS_DAX(inode) || !ff->args)
 		return 0;
 
 	/*
@@ -123,16 +154,21 @@ int fuse_file_io_open(struct file *file, struct inode *inode)
 		ff->open_flags &= ~FOPEN_PARALLEL_DIRECT_WRITES;
 
 	/*
+	 * First passthrough file open denies caching inode io mode.
 	 * First caching file open enters caching inode io mode.
 	 *
 	 * Note that if user opens a file open with O_DIRECT, but server did
 	 * not specify FOPEN_DIRECT_IO, a later fcntl() could remove O_DIRECT,
 	 * so we put the inode in caching mode to prevent parallel dio.
 	 */
-	if (ff->open_flags & FOPEN_DIRECT_IO)
+	if ((ff->open_flags & FOPEN_DIRECT_IO) &&
+	    !(ff->open_flags & FOPEN_PASSTHROUGH))
 		return 0;
 
-	err = fuse_file_cached_io_start(inode, ff);
+	if (ff->open_flags & FOPEN_PASSTHROUGH)
+		err = fuse_file_passthrough_open(inode, file);
+	else
+		err = fuse_file_cached_io_start(inode, ff);
 	if (err)
 		goto fail;
 

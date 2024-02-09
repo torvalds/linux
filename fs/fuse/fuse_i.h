@@ -213,15 +213,15 @@ enum {
 
 struct fuse_conn;
 struct fuse_mount;
-struct fuse_release_args;
+union fuse_file_args;
 
 /** FUSE specific file data */
 struct fuse_file {
 	/** Fuse connection for this file */
 	struct fuse_mount *fm;
 
-	/* Argument space reserved for release */
-	struct fuse_release_args *release_args;
+	/* Argument space reserved for open/release */
+	union fuse_file_args *args;
 
 	/** Kernel file handle guaranteed to be unique */
 	u64 kh;
@@ -318,6 +318,19 @@ struct fuse_args_pages {
 	struct page **pages;
 	struct fuse_page_desc *descs;
 	unsigned int num_pages;
+};
+
+struct fuse_release_args {
+	struct fuse_args args;
+	struct fuse_release_in inarg;
+	struct inode *inode;
+};
+
+union fuse_file_args {
+	/* Used during open() */
+	struct fuse_open_out open_outarg;
+	/* Used during release() */
+	struct fuse_release_args release_args;
 };
 
 #define FUSE_ARGS(args) struct fuse_args args = {}
