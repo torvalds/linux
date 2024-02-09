@@ -2391,17 +2391,14 @@ static void btrfs_add_delalloc_inode(struct btrfs_inode *inode)
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	spin_lock(&root->delalloc_lock);
-	if (list_empty(&inode->delalloc_inodes)) {
-		list_add_tail(&inode->delalloc_inodes, &root->delalloc_inodes);
-		set_bit(BTRFS_INODE_IN_DELALLOC_LIST, &inode->runtime_flags);
-		root->nr_delalloc_inodes++;
-		if (root->nr_delalloc_inodes == 1) {
-			spin_lock(&fs_info->delalloc_root_lock);
-			BUG_ON(!list_empty(&root->delalloc_root));
-			list_add_tail(&root->delalloc_root,
-				      &fs_info->delalloc_roots);
-			spin_unlock(&fs_info->delalloc_root_lock);
-		}
+	ASSERT(list_empty(&inode->delalloc_inodes));
+	list_add_tail(&inode->delalloc_inodes, &root->delalloc_inodes);
+	root->nr_delalloc_inodes++;
+	if (root->nr_delalloc_inodes == 1) {
+		spin_lock(&fs_info->delalloc_root_lock);
+		BUG_ON(!list_empty(&root->delalloc_root));
+		list_add_tail(&root->delalloc_root, &fs_info->delalloc_roots);
+		spin_unlock(&fs_info->delalloc_root_lock);
 	}
 	spin_unlock(&root->delalloc_lock);
 }
@@ -2413,10 +2410,14 @@ void __btrfs_del_delalloc_inode(struct btrfs_inode *inode)
 
 	lockdep_assert_held(&root->delalloc_lock);
 
+	/*
+	 * We may be called after the inode was already deleted from the list,
+	 * namely in the transaction abort path btrfs_destroy_delalloc_inodes(),
+	 * and then later through btrfs_clear_delalloc_extent() while the inode
+	 * still has ->delalloc_bytes > 0.
+	 */
 	if (!list_empty(&inode->delalloc_inodes)) {
 		list_del_init(&inode->delalloc_inodes);
-		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-			  &inode->runtime_flags);
 		root->nr_delalloc_inodes--;
 		if (!root->nr_delalloc_inodes) {
 			ASSERT(list_empty(&root->delalloc_inodes));
@@ -2444,6 +2445,8 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 {
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 
+	lockdep_assert_held(&inode->io_tree.lock);
+
 	if ((bits & EXTENT_DEFRAG) && !(bits & EXTENT_DELALLOC))
 		WARN_ON(1);
 	/*
@@ -2453,6 +2456,7 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 	 */
 	if (!(state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		u64 len = state->end + 1 - state->start;
+		u64 prev_delalloc_bytes;
 		u32 num_extents = count_max_extents(fs_info, len);
 		bool do_list = !btrfs_is_free_space_inode(inode);
 
@@ -2467,13 +2471,20 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 		percpu_counter_add_batch(&fs_info->delalloc_bytes, len,
 					 fs_info->delalloc_batch);
 		spin_lock(&inode->lock);
+		prev_delalloc_bytes = inode->delalloc_bytes;
 		inode->delalloc_bytes += len;
 		if (bits & EXTENT_DEFRAG)
 			inode->defrag_bytes += len;
-		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-					 &inode->runtime_flags))
-			btrfs_add_delalloc_inode(inode);
 		spin_unlock(&inode->lock);
+
+		/*
+		 * We don't need to be under the protection of the inode's lock,
+		 * because we are called while holding the inode's io_tree lock
+		 * and are therefore protected against concurrent calls of this
+		 * function and btrfs_clear_delalloc_extent().
+		 */
+		if (do_list && prev_delalloc_bytes == 0)
+			btrfs_add_delalloc_inode(inode);
 	}
 
 	if (!(state->state & EXTENT_DELALLOC_NEW) &&
@@ -2495,6 +2506,8 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 	u64 len = state->end + 1 - state->start;
 	u32 num_extents = count_max_extents(fs_info, len);
 
+	lockdep_assert_held(&inode->io_tree.lock);
+
 	if ((state->state & EXTENT_DEFRAG) && (bits & EXTENT_DEFRAG)) {
 		spin_lock(&inode->lock);
 		inode->defrag_bytes -= len;
@@ -2508,6 +2521,7 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 	 */
 	if ((state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = inode->root;
+		u64 new_delalloc_bytes;
 		bool do_list = !btrfs_is_free_space_inode(inode);
 
 		spin_lock(&inode->lock);
@@ -2536,11 +2550,17 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 					 fs_info->delalloc_batch);
 		spin_lock(&inode->lock);
 		inode->delalloc_bytes -= len;
-		if (do_list && inode->delalloc_bytes == 0 &&
-		    test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-					&inode->runtime_flags))
-			btrfs_del_delalloc_inode(inode);
+		new_delalloc_bytes = inode->delalloc_bytes;
 		spin_unlock(&inode->lock);
+
+		/*
+		 * We don't need to be under the protection of the inode's lock,
+		 * because we are called while holding the inode's io_tree lock
+		 * and are therefore protected against concurrent calls of this
+		 * function and btrfs_set_delalloc_extent().
+		 */
+		if (do_list && new_delalloc_bytes == 0)
+			btrfs_del_delalloc_inode(inode);
 	}
 
 	if ((state->state & EXTENT_DELALLOC_NEW) &&
