@@ -391,7 +391,7 @@ __EOF__
 		forceflavor="`echo $flavor | sed -e 's/^CONFIG/CONFIG_FORCE/'`"
 		deselectedflavors="`grep -v $flavor $T/rcutasksflavors | tr '\012' ' ' | tr -s ' ' | sed -e 's/ *$//'`"
 		echo " --- Running RCU Tasks Trace flavor $flavor `date`" >> $rtfdir/log
-		tools/testing/selftests/rcutorture/bin/kvm.sh --datestamp "$ds/results-rcutasksflavors/$flavor" --buildonly --configs "TINY01 TREE04" --kconfig "CONFIG_RCU_EXPERT=y CONFIG_RCU_SCALE_TEST=y $forceflavor=y $deselectedflavors" --trust-make > $T/$flavor.out 2>&1
+		tools/testing/selftests/rcutorture/bin/kvm.sh --datestamp "$ds/results-rcutasksflavors/$flavor" --buildonly --configs "TINY01 TREE04" --kconfig "CONFIG_RCU_EXPERT=y CONFIG_RCU_SCALE_TEST=y CONFIG_KPROBES=n CONFIG_RCU_TRACE=n CONFIG_TRACING=n CONFIG_BLK_DEV_IO_TRACE=n CONFIG_UPROBE_EVENTS=n $forceflavor=y $deselectedflavors" --trust-make > $T/$flavor.out 2>&1
 		retcode=$?
 		if test "$retcode" -ne 0
 		then
