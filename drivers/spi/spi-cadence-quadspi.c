@@ -1621,6 +1621,7 @@ static const struct spi_controller_mem_caps cqspi_mem_caps = {
 
 static int cqspi_setup_flash(struct cqspi_st *cqspi)
 {
+	unsigned int max_cs = cqspi->num_chipselect - 1;
 	struct platform_device *pdev = cqspi->pdev;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -1641,6 +1642,8 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 			dev_err(dev, "Chip select %d out of range.\n", cs);
 			of_node_put(np);
 			return -EINVAL;
+		} else if (cs < max_cs) {
+			max_cs = cs;
 		}
 
 		f_pdata = &cqspi->f_pdata[cs];
@@ -1654,6 +1657,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 		}
 	}
 
+	cqspi->num_chipselect = max_cs + 1;
 	return 0;
 }
 
@@ -1864,13 +1868,13 @@ static int cqspi_probe(struct platform_device *pdev)
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
 
-	host->num_chipselect = cqspi->num_chipselect;
-
 	ret = cqspi_setup_flash(cqspi);
 	if (ret) {
 		dev_err(dev, "failed to setup flash parameters %d\n", ret);
 		goto probe_setup_failed;
 	}
+
+	host->num_chipselect = cqspi->num_chipselect;
 
 	if (cqspi->use_direct_mode) {
 		ret = cqspi_request_mmap_dma(cqspi);
