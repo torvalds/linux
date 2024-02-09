@@ -409,18 +409,28 @@ static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	unsigned long exit_qualification;
 	u32 vm_exit_reason;
-	unsigned long exit_qualification = vcpu->arch.exit_qualification;
 
 	if (vmx->nested.pml_full) {
 		vm_exit_reason = EXIT_REASON_PML_FULL;
 		vmx->nested.pml_full = false;
-		exit_qualification &= INTR_INFO_UNBLOCK_NMI;
+
+		/*
+		 * PML Full and EPT Violation VM-Exits both use bit 12 to report
+		 * "NMI unblocking due to IRET", i.e. the bit can be propagated
+		 * as-is from the original EXIT_QUALIFICATION.
+		 */
+		exit_qualification = vmx_get_exit_qual(vcpu) & INTR_INFO_UNBLOCK_NMI;
 	} else {
 		if (fault->error_code & PFERR_RSVD_MASK) {
 			vm_exit_reason = EXIT_REASON_EPT_MISCONFIG;
 			exit_qualification = 0;
 		} else {
+			exit_qualification = fault->exit_qualification;
+			exit_qualification |= vmx_get_exit_qual(vcpu) &
+					      (EPT_VIOLATION_GVA_IS_VALID |
+					       EPT_VIOLATION_GVA_TRANSLATED);
 			vm_exit_reason = EXIT_REASON_EPT_VIOLATION;
 		}
 
