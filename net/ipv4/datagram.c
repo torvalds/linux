@@ -119,7 +119,7 @@ void ip4_datagram_release_cb(struct sock *sk)
 	rt = ip_route_output_ports(sock_net(sk), &fl4, sk, daddr,
 				   inet->inet_saddr, inet->inet_dport,
 				   inet->inet_sport, sk->sk_protocol,
-				   RT_CONN_FLAGS(sk), sk->sk_bound_dev_if);
+				   ip_sock_rt_tos(sk), sk->sk_bound_dev_if);
 
 	dst = !IS_ERR(rt) ? &rt->dst : NULL;
 	sk_dst_set(sk, dst);

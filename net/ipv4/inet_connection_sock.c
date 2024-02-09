@@ -1467,7 +1467,7 @@ static struct dst_entry *inet_csk_rebuild_route(struct sock *sk, struct flowi *f
 	rt = ip_route_output_ports(sock_net(sk), fl4, sk, daddr,
 				   inet->inet_saddr, inet->inet_dport,
 				   inet->inet_sport, sk->sk_protocol,
-				   RT_CONN_FLAGS(sk), sk->sk_bound_dev_if);
+				   ip_sock_rt_tos(sk), sk->sk_bound_dev_if);
 	if (IS_ERR(rt))
 		rt = NULL;
 	if (rt)
