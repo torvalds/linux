@@ -109,6 +109,8 @@ struct intel_dpll_mgr {
 	void (*update_ref_clks)(struct drm_i915_private *i915);
 	void (*dump_hw_state)(struct drm_i915_private *i915,
 			      const struct intel_dpll_hw_state *hw_state);
+	bool (*compare_hw_state)(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b);
 };
 
 static void
@@ -644,6 +646,15 @@ static void ibx_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->fp1);
 }
 
+static bool ibx_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->dpll == b->dpll &&
+		a->dpll_md == b->dpll_md &&
+		a->fp0 == b->fp0 &&
+		a->fp1 == b->fp1;
+}
+
 static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
 	.enable = ibx_pch_dpll_enable,
 	.disable = ibx_pch_dpll_disable,
@@ -662,6 +673,7 @@ static const struct intel_dpll_mgr pch_pll_mgr = {
 	.get_dplls = ibx_get_dpll,
 	.put_dplls = intel_put_dpll,
 	.dump_hw_state = ibx_dump_hw_state,
+	.compare_hw_state = ibx_compare_hw_state,
 };
 
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *i915,
@@ -1220,6 +1232,13 @@ static void hsw_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->wrpll, hw_state->spll);
 }
 
+static bool hsw_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->wrpll == b->wrpll &&
+		a->spll == b->spll;
+}
+
 static const struct intel_shared_dpll_funcs hsw_ddi_wrpll_funcs = {
 	.enable = hsw_ddi_wrpll_enable,
 	.disable = hsw_ddi_wrpll_disable,
@@ -1278,6 +1297,7 @@ static const struct intel_dpll_mgr hsw_pll_mgr = {
 	.put_dplls = intel_put_dpll,
 	.update_ref_clks = hsw_update_dpll_ref_clks,
 	.dump_hw_state = hsw_dump_hw_state,
+	.compare_hw_state = hsw_compare_hw_state,
 };
 
 struct skl_dpll_regs {
@@ -1929,6 +1949,14 @@ static void skl_dump_hw_state(struct drm_i915_private *i915,
 		      hw_state->cfgcr2);
 }
 
+static bool skl_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->ctrl1 == b->ctrl1 &&
+		a->cfgcr1 == b->cfgcr1 &&
+		a->cfgcr2 == b->cfgcr2;
+}
+
 static const struct intel_shared_dpll_funcs skl_ddi_pll_funcs = {
 	.enable = skl_ddi_pll_enable,
 	.disable = skl_ddi_pll_disable,
@@ -1959,6 +1987,7 @@ static const struct intel_dpll_mgr skl_pll_mgr = {
 	.put_dplls = intel_put_dpll,
 	.update_ref_clks = skl_update_dpll_ref_clks,
 	.dump_hw_state = skl_dump_hw_state,
+	.compare_hw_state = skl_compare_hw_state,
 };
 
 static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
@@ -2392,6 +2421,21 @@ static void bxt_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->pcsdw12);
 }
 
+static bool bxt_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->ebb0 == b->ebb0 &&
+		a->ebb4 == b->ebb4 &&
+		a->pll0 == b->pll0 &&
+		a->pll1 == b->pll1 &&
+		a->pll2 == b->pll2 &&
+		a->pll3 == b->pll3 &&
+		a->pll6 == b->pll6 &&
+		a->pll8 == b->pll8 &&
+		a->pll10 == b->pll10 &&
+		a->pcsdw12 == b->pcsdw12;
+}
+
 static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 	.enable = bxt_ddi_pll_enable,
 	.disable = bxt_ddi_pll_disable,
@@ -2413,6 +2457,7 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 	.put_dplls = intel_put_dpll,
 	.update_ref_clks = bxt_update_dpll_ref_clks,
 	.dump_hw_state = bxt_dump_hw_state,
+	.compare_hw_state = bxt_compare_hw_state,
 };
 
 static void icl_wrpll_get_multipliers(int bestdiv, int *pdiv,
@@ -4005,6 +4050,25 @@ static void icl_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->mg_pll_tdc_coldst_bias);
 }
 
+static bool icl_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	/* FIXME split combo vs. mg more thoroughly */
+	return a->cfgcr0 == b->cfgcr0 &&
+		a->cfgcr1 == b->cfgcr1 &&
+		a->div0 == b->div0 &&
+		a->mg_refclkin_ctl == b->mg_refclkin_ctl &&
+		a->mg_clktop2_coreclkctl1 == b->mg_clktop2_coreclkctl1 &&
+		a->mg_clktop2_hsclkctl == b->mg_clktop2_hsclkctl &&
+		a->mg_pll_div0 == b->mg_pll_div0 &&
+		a->mg_pll_div1 == b->mg_pll_div1 &&
+		a->mg_pll_lf == b->mg_pll_lf &&
+		a->mg_pll_frac_lock == b->mg_pll_frac_lock &&
+		a->mg_pll_ssc == b->mg_pll_ssc &&
+		a->mg_pll_bias == b->mg_pll_bias &&
+		a->mg_pll_tdc_coldst_bias == b->mg_pll_tdc_coldst_bias;
+}
+
 static const struct intel_shared_dpll_funcs combo_pll_funcs = {
 	.enable = combo_pll_enable,
 	.disable = combo_pll_disable,
@@ -4046,6 +4110,7 @@ static const struct intel_dpll_mgr icl_pll_mgr = {
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info ehl_plls[] = {
@@ -4063,6 +4128,7 @@ static const struct intel_dpll_mgr ehl_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct intel_shared_dpll_funcs dkl_pll_funcs = {
@@ -4094,6 +4160,7 @@ static const struct intel_dpll_mgr tgl_pll_mgr = {
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info rkl_plls[] = {
@@ -4110,6 +4177,7 @@ static const struct intel_dpll_mgr rkl_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info dg1_plls[] = {
@@ -4127,6 +4195,7 @@ static const struct intel_dpll_mgr dg1_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info adls_plls[] = {
@@ -4144,6 +4213,7 @@ static const struct intel_dpll_mgr adls_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info adlp_plls[] = {
@@ -4166,6 +4236,7 @@ static const struct intel_dpll_mgr adlp_pll_mgr = {
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 /**
@@ -4459,6 +4530,30 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 		 * infrastructure
 		 */
 		ibx_dump_hw_state(i915, hw_state);
+	}
+}
+
+/**
+ * intel_dpll_compare_hw_state - compare the two states
+ * @i915: i915 drm device
+ * @a: first DPLL hw state
+ * @b: second DPLL hw state
+ *
+ * Compare DPLL hw states @a and @b.
+ *
+ * Returns: true if the states are equal, false if the differ
+ */
+bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
+				 const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	if (i915->display.dpll.mgr) {
+		return i915->display.dpll.mgr->compare_hw_state(a, b);
+	} else {
+		/* fallback for platforms that don't use the shared dpll
+		 * infrastructure
+		 */
+		return ibx_compare_hw_state(a, b);
 	}
 }
 

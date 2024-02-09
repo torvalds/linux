@@ -4908,6 +4908,36 @@ pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
 	va_end(args);
 }
 
+static void
+pipe_config_pll_mismatch(bool fastset,
+			 const struct intel_crtc *crtc,
+			 const char *name,
+			 const struct intel_dpll_hw_state *a,
+			 const struct intel_dpll_hw_state *b)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (fastset) {
+		if (!drm_debug_enabled(DRM_UT_KMS))
+			return;
+
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] fastset requirement not met in %s\n",
+			    crtc->base.base.id, crtc->base.name, name);
+		drm_dbg_kms(&i915->drm, "expected:\n");
+		intel_dpll_dump_hw_state(i915, a);
+		drm_dbg_kms(&i915->drm, "found:\n");
+		intel_dpll_dump_hw_state(i915, b);
+	} else {
+		drm_err(&i915->drm, "[CRTC:%d:%s] mismatch in %s buffer\n",
+			crtc->base.base.id, crtc->base.name, name);
+		drm_err(&i915->drm, "expected:\n");
+		intel_dpll_dump_hw_state(i915, a);
+		drm_err(&i915->drm, "found:\n");
+		intel_dpll_dump_hw_state(i915, b);
+	}
+}
+
 static bool fastboot_enabled(struct drm_i915_private *dev_priv)
 {
 	/* Enable fastboot by default on Skylake and newer */
@@ -5017,7 +5047,17 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	} \
 } while (0)
 
-#define PIPE_CONF_CHECK_TIMINGS(name) do { \
+#define PIPE_CONF_CHECK_PLL(name) do { \
+	if (!intel_dpll_compare_hw_state(dev_priv, &current_config->name, \
+					 &pipe_config->name)) { \
+		pipe_config_pll_mismatch(fastset, crtc, __stringify(name), \
+					 &current_config->name, \
+					 &pipe_config->name); \
+		ret = false; \
+	} \
+} while (0)
+
+#define PIPE_CONF_CHECK_TIMINGS(name) do {     \
 	PIPE_CONF_CHECK_I(name.crtc_hdisplay); \
 	PIPE_CONF_CHECK_I(name.crtc_htotal); \
 	PIPE_CONF_CHECK_I(name.crtc_hblank_start); \
@@ -5224,40 +5264,8 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 		PIPE_CONF_CHECK_P(shared_dpll);
 
 	/* FIXME convert everything over the dpll_mgr */
-	if (dev_priv->display.dpll.mgr || HAS_GMCH(dev_priv)) {
-		PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
-		PIPE_CONF_CHECK_X(dpll_hw_state.dpll_md);
-		PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
-		PIPE_CONF_CHECK_X(dpll_hw_state.fp1);
-		PIPE_CONF_CHECK_X(dpll_hw_state.wrpll);
-		PIPE_CONF_CHECK_X(dpll_hw_state.spll);
-		PIPE_CONF_CHECK_X(dpll_hw_state.ctrl1);
-		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr1);
-		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr2);
-		PIPE_CONF_CHECK_X(dpll_hw_state.cfgcr0);
-		PIPE_CONF_CHECK_X(dpll_hw_state.div0);
-		PIPE_CONF_CHECK_X(dpll_hw_state.ebb0);
-		PIPE_CONF_CHECK_X(dpll_hw_state.ebb4);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll0);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll1);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll2);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll3);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll6);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll8);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll9);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pll10);
-		PIPE_CONF_CHECK_X(dpll_hw_state.pcsdw12);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_refclkin_ctl);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_clktop2_coreclkctl1);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_clktop2_hsclkctl);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_div0);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_div1);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_lf);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_frac_lock);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_ssc);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_bias);
-		PIPE_CONF_CHECK_X(dpll_hw_state.mg_pll_tdc_coldst_bias);
-	}
+	if (dev_priv->display.dpll.mgr || HAS_GMCH(dev_priv))
+		PIPE_CONF_CHECK_PLL(dpll_hw_state);
 
 	PIPE_CONF_CHECK_X(dsi_pll.ctrl);
 	PIPE_CONF_CHECK_X(dsi_pll.div);
