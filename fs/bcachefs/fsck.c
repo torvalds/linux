@@ -252,7 +252,7 @@ create_lostfound:
 		goto err;
 
 	ret =   bch2_dirent_create_snapshot(trans,
-				root_inode.bi_inum, snapshot, &root_hash_info,
+				0, root_inode.bi_inum, snapshot, &root_hash_info,
 				mode_to_type(lostfound->bi_mode),
 				&lostfound_str,
 				lostfound->bi_inum,
@@ -275,9 +275,24 @@ static int reattach_inode(struct btree_trans *trans,
 	char name_buf[20];
 	struct qstr name;
 	u64 dir_offset = 0;
+	u32 dirent_snapshot = inode_snapshot;
 	int ret;
 
-	ret = lookup_lostfound(trans, inode_snapshot, &lostfound);
+	if (inode->bi_subvol) {
+		inode->bi_parent_subvol = BCACHEFS_ROOT_SUBVOL;
+
+		u64 root_inum;
+		ret = subvol_lookup(trans, inode->bi_parent_subvol,
+				    &dirent_snapshot, &root_inum);
+		if (ret)
+			return ret;
+
+		snprintf(name_buf, sizeof(name_buf), "subvol-%u", inode->bi_subvol);
+	} else {
+		snprintf(name_buf, sizeof(name_buf), "%llu", inode->bi_inum);
+	}
+
+	ret = lookup_lostfound(trans, dirent_snapshot, &lostfound);
 	if (ret)
 		return ret;
 
@@ -291,14 +306,16 @@ static int reattach_inode(struct btree_trans *trans,
 
 	dir_hash = bch2_hash_info_init(trans->c, &lostfound);
 
-	snprintf(name_buf, sizeof(name_buf), "%llu", inode->bi_inum);
 	name = (struct qstr) QSTR(name_buf);
 
 	ret = bch2_dirent_create_snapshot(trans,
-				lostfound.bi_inum, inode_snapshot,
+				inode->bi_parent_subvol, lostfound.bi_inum,
+				dirent_snapshot,
 				&dir_hash,
 				inode_d_type(inode),
-				&name, inode->bi_inum, &dir_offset,
+				&name,
+				inode->bi_subvol ?: inode->bi_inum,
+				&dir_offset,
 				BCH_HASH_SET_MUST_CREATE);
 	if (ret)
 		return ret;
@@ -2135,6 +2152,7 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 		}
 
 		if (bch2_err_matches(ret, ENOENT)) {
+			ret = 0;
 			if (fsck_err(c, inode_unreachable,
 				     "unreachable inode\n%s",
 				     (printbuf_reset(&buf),
