@@ -10,6 +10,7 @@ struct realtek_interface_info {
 
 void rtl83xx_lock(void *ctx);
 void rtl83xx_unlock(void *ctx);
+int rtl83xx_setup_user_mdio(struct dsa_switch *ds);
 struct realtek_priv *
 rtl83xx_probe(struct device *dev,
 	      const struct realtek_interface_info *interface_info);

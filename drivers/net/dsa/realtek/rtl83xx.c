@@ -2,6 +2,7 @@
 
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/of_mdio.h>
 
 #include "realtek.h"
 #include "rtl83xx.h"
@@ -42,6 +43,73 @@ void rtl83xx_unlock(void *ctx)
 	mutex_unlock(&priv->map_lock);
 }
 EXPORT_SYMBOL_NS_GPL(rtl83xx_unlock, REALTEK_DSA);
+
+static int rtl83xx_user_mdio_read(struct mii_bus *bus, int addr, int regnum)
+{
+	struct realtek_priv *priv = bus->priv;
+
+	return priv->ops->phy_read(priv, addr, regnum);
+}
+
+static int rtl83xx_user_mdio_write(struct mii_bus *bus, int addr, int regnum,
+				   u16 val)
+{
+	struct realtek_priv *priv = bus->priv;
+
+	return priv->ops->phy_write(priv, addr, regnum, val);
+}
+
+/**
+ * rtl83xx_setup_user_mdio() - register the user mii bus driver
+ * @ds: DSA switch associated with this user_mii_bus
+ *
+ * Registers the MDIO bus for built-in Ethernet PHYs, and associates it with
+ * the mandatory 'mdio' child OF node of the switch.
+ *
+ * Context: Can sleep.
+ * Return: 0 on success, negative value for failure.
+ */
+int rtl83xx_setup_user_mdio(struct dsa_switch *ds)
+{
+	struct realtek_priv *priv = ds->priv;
+	struct device_node *mdio_np;
+	struct mii_bus *bus;
+	int ret = 0;
+
+	mdio_np = of_get_child_by_name(priv->dev->of_node, "mdio");
+	if (!mdio_np) {
+		dev_err(priv->dev, "no MDIO bus node\n");
+		return -ENODEV;
+	}
+
+	bus = devm_mdiobus_alloc(priv->dev);
+	if (!bus) {
+		ret = -ENOMEM;
+		goto err_put_node;
+	}
+
+	bus->priv = priv;
+	bus->name = "Realtek user MII";
+	bus->read = rtl83xx_user_mdio_read;
+	bus->write = rtl83xx_user_mdio_write;
+	snprintf(bus->id, MII_BUS_ID_SIZE, "%s:user_mii", dev_name(priv->dev));
+	bus->parent = priv->dev;
+
+	ret = devm_of_mdiobus_register(priv->dev, bus, mdio_np);
+	if (ret) {
+		dev_err(priv->dev, "unable to register MDIO bus %s\n",
+			bus->id);
+		goto err_put_node;
+	}
+
+	priv->user_mii_bus = bus;
+
+err_put_node:
+	of_node_put(mdio_np);
+
+	return ret;
+}
+EXPORT_SYMBOL_NS_GPL(rtl83xx_setup_user_mdio, REALTEK_DSA);
 
 /**
  * rtl83xx_probe() - probe a Realtek switch
