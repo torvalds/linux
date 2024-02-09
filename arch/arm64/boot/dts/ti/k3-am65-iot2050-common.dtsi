@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) Siemens AG, 2018-2021
+ * Copyright (c) Siemens AG, 2018-2024
  *
  * Authors:
  *   Le Jin <le.jin@siemens.com>
@@ -9,6 +9,7 @@
  * Common bits of the IOT2050 Basic and Advanced variants, PG1 and PG2
  */
 
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/net/ti-dp83867.h>
 
@@ -82,28 +83,46 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_pins_default>;
 
-		status-led-red {
+		led-0 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_STATUS;
+			label = "status-led-red";
 			gpios = <&wkup_gpio0 32 GPIO_ACTIVE_HIGH>;
 			panic-indicator;
 		};
 
-		status-led-green {
+		led-1 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_STATUS;
+			label = "status-led-green";
 			gpios = <&wkup_gpio0 24 GPIO_ACTIVE_HIGH>;
 		};
 
-		user-led1-red {
+		led-2 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_INDICATOR;
+			label = "user-led1-red";
 			gpios = <&pcal9535_3 14 GPIO_ACTIVE_HIGH>;
 		};
 
-		user-led1-green {
+		led-3 {
+			color = <LED_COLOR_ID_GREEN>;
+			function = LED_FUNCTION_INDICATOR;
+			label = "user-led1-green";
 			gpios = <&pcal9535_2 15 GPIO_ACTIVE_HIGH>;
 		};
 
-		user-led2-red {
+		led-4 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_INDICATOR;
+			label = "user-led2-red";
 			gpios = <&wkup_gpio0 17 GPIO_ACTIVE_HIGH>;
 		};
 
-		user-led2-green {
+		led-5 {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_INDICATOR;
+			label = "user-led2-green";
 			gpios = <&wkup_gpio0 22 GPIO_ACTIVE_HIGH>;
 		};
 	};
