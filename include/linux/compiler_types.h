@@ -284,8 +284,8 @@ struct ftrace_likely_data {
 # define __realloc_size(x, ...)
 #endif
 
-#ifndef asm_volatile_goto
-#define asm_volatile_goto(x...) asm goto(x)
+#ifndef asm_goto_output
+#define asm_goto_output(x...) asm goto(x)
 #endif
 
 #ifdef CONFIG_CC_HAS_ASM_INLINE

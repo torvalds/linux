@@ -2469,10 +2469,10 @@ static int kvm_cpu_vmxon(u64 vmxon_pointer)
 
 	cr4_set_bits(X86_CR4_VMXE);
 
-	asm_volatile_goto("1: vmxon %[vmxon_pointer]\n\t"
-			  _ASM_EXTABLE(1b, %l[fault])
-			  : : [vmxon_pointer] "m"(vmxon_pointer)
-			  : : fault);
+	asm goto("1: vmxon %[vmxon_pointer]\n\t"
+		  _ASM_EXTABLE(1b, %l[fault])
+		  : : [vmxon_pointer] "m"(vmxon_pointer)
+		  : : fault);
 	return 0;
 
 fault:
