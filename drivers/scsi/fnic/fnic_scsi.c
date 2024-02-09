@@ -680,7 +680,7 @@ static int fnic_fcpio_fw_reset_cmpl_handler(struct fnic *fnic,
 
 	spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
-	fnic_flush_tx(fnic);
+	queue_work(fnic_event_queue, &fnic->flush_work);
 
  reset_cmpl_handler_end:
 	fnic_clear_state_flags(fnic, FNIC_FLAGS_FWRESET);
@@ -736,7 +736,7 @@ static int fnic_fcpio_flogi_reg_cmpl_handler(struct fnic *fnic,
 		}
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
 
-		fnic_flush_tx(fnic);
+		queue_work(fnic_event_queue, &fnic->flush_work);
 		queue_work(fnic_event_queue, &fnic->frame_work);
 	} else {
 		spin_unlock_irqrestore(&fnic->fnic_lock, flags);
