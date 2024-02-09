@@ -4458,13 +4458,7 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
 		 */
-		drm_dbg_kms(&i915->drm,
-			    "dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
-			    "fp0: 0x%x, fp1: 0x%x\n",
-			    hw_state->dpll,
-			    hw_state->dpll_md,
-			    hw_state->fp0,
-			    hw_state->fp1);
+		ibx_dump_hw_state(i915, hw_state);
 	}
 }
 
