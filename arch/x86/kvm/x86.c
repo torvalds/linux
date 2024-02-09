@@ -5514,7 +5514,7 @@ static void kvm_vcpu_ioctl_x86_get_debugregs(struct kvm_vcpu *vcpu,
 	for (i = 0; i < ARRAY_SIZE(vcpu->arch.db); i++)
 		dbgregs->db[i] = vcpu->arch.db[i];
 
-	dbgregs->dr6 = kvm_get_dr(vcpu, 6);
+	dbgregs->dr6 = vcpu->arch.dr6;
 	dbgregs->dr7 = vcpu->arch.dr7;
 }
 

@@ -194,8 +194,8 @@ static void enter_smm_save_state_32(struct kvm_vcpu *vcpu,
 	for (i = 0; i < 8; i++)
 		smram->gprs[i] = kvm_register_read_raw(vcpu, i);
 
-	smram->dr6     = (u32)kvm_get_dr(vcpu, 6);
-	smram->dr7     = (u32)kvm_get_dr(vcpu, 7);
+	smram->dr6     = (u32)vcpu->arch.dr6;
+	smram->dr7     = (u32)vcpu->arch.dr7;
 
 	enter_smm_save_seg_32(vcpu, &smram->tr, &smram->tr_sel, VCPU_SREG_TR);
 	enter_smm_save_seg_32(vcpu, &smram->ldtr, &smram->ldtr_sel, VCPU_SREG_LDTR);
@@ -236,8 +236,8 @@ static void enter_smm_save_state_64(struct kvm_vcpu *vcpu,
 	smram->rip    = kvm_rip_read(vcpu);
 	smram->rflags = kvm_get_rflags(vcpu);
 
-	smram->dr6 = kvm_get_dr(vcpu, 6);
-	smram->dr7 = kvm_get_dr(vcpu, 7);
+	smram->dr6 = vcpu->arch.dr6;
+	smram->dr7 = vcpu->arch.dr7;
 
 	smram->cr0 = kvm_read_cr0(vcpu);
 	smram->cr3 = kvm_read_cr3(vcpu);
