@@ -2525,7 +2525,6 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 	if ((state->state & EXTENT_DELALLOC) && (bits & EXTENT_DELALLOC)) {
 		struct btrfs_root *root = inode->root;
 		u64 new_delalloc_bytes;
-		bool do_list = !btrfs_is_free_space_inode(inode);
 
 		spin_lock(&inode->lock);
 		btrfs_mod_outstanding_extents(inode, -num_extents);
@@ -2545,7 +2544,8 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 			return;
 
 		if (!btrfs_is_data_reloc_root(root) &&
-		    do_list && !(state->state & EXTENT_NORESERVE) &&
+		    !btrfs_is_free_space_inode(inode) &&
+		    !(state->state & EXTENT_NORESERVE) &&
 		    (bits & EXTENT_CLEAR_DATA_RESV))
 			btrfs_free_reserved_data_space_noquota(fs_info, len);
 
@@ -2562,7 +2562,7 @@ void btrfs_clear_delalloc_extent(struct btrfs_inode *inode,
 		 * and are therefore protected against concurrent calls of this
 		 * function and btrfs_set_delalloc_extent().
 		 */
-		if (do_list && new_delalloc_bytes == 0)
+		if (!btrfs_is_free_space_inode(inode) && new_delalloc_bytes == 0)
 			btrfs_del_delalloc_inode(inode);
 	}
 
