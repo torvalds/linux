@@ -141,7 +141,7 @@ struct search_list {
 	struct cached_chapter_index *entries[];
 };
 
-struct barrier {
+struct threads_barrier {
 	/* Lock for this barrier object */
 	struct semaphore lock;
 	/* Semaphore for threads waiting at this barrier */
@@ -161,25 +161,19 @@ struct sparse_cache {
 	struct search_list *search_lists[MAX_ZONES];
 	struct cached_chapter_index **scratch_entries;
 
-	struct barrier begin_update_barrier;
-	struct barrier end_update_barrier;
+	struct threads_barrier begin_update_barrier;
+	struct threads_barrier end_update_barrier;
 
 	struct cached_chapter_index chapters[];
 };
 
-static int uds_initialize_barrier(struct barrier *barrier, unsigned int thread_count)
+static void initialize_threads_barrier(struct threads_barrier *barrier,
+				       unsigned int thread_count)
 {
 	sema_init(&barrier->lock, 1);
 	barrier->arrived = 0;
 	barrier->thread_count = thread_count;
 	sema_init(&barrier->wait, 0);
-
-	return UDS_SUCCESS;
-}
-
-static int uds_destroy_barrier(struct barrier *barrier)
-{
-	return UDS_SUCCESS;
 }
 
 static inline void __down(struct semaphore *semaphore)
@@ -203,7 +197,7 @@ static inline void __down(struct semaphore *semaphore)
 	}
 }
 
-static int uds_enter_barrier(struct barrier *barrier)
+static void enter_threads_barrier(struct threads_barrier *barrier)
 {
 	__down(&barrier->lock);
 	if (++barrier->arrived == barrier->thread_count) {
@@ -219,8 +213,6 @@ static int uds_enter_barrier(struct barrier *barrier)
 		up(&barrier->lock);
 		__down(&barrier->wait);
 	}
-
-	return UDS_SUCCESS;
 }
 
 static int __must_check initialize_cached_chapter_index(struct cached_chapter_index *chapter,
@@ -287,44 +279,32 @@ int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int ca
 	 */
 	cache->skip_threshold = (SKIP_SEARCH_THRESHOLD / zone_count);
 
-	result = uds_initialize_barrier(&cache->begin_update_barrier, zone_count);
-	if (result != UDS_SUCCESS) {
-		uds_free_sparse_cache(cache);
-		return result;
-	}
-
-	result = uds_initialize_barrier(&cache->end_update_barrier, zone_count);
-	if (result != UDS_SUCCESS) {
-		uds_free_sparse_cache(cache);
-		return result;
-	}
+	initialize_threads_barrier(&cache->begin_update_barrier, zone_count);
+	initialize_threads_barrier(&cache->end_update_barrier, zone_count);
 
 	for (i = 0; i < capacity; i++) {
 		result = initialize_cached_chapter_index(&cache->chapters[i], geometry);
-		if (result != UDS_SUCCESS) {
-			uds_free_sparse_cache(cache);
-			return result;
-		}
+		if (result != UDS_SUCCESS)
+			goto out;
 	}
 
 	for (i = 0; i < zone_count; i++) {
 		result = make_search_list(cache, &cache->search_lists[i]);
-		if (result != UDS_SUCCESS) {
-			uds_free_sparse_cache(cache);
-			return result;
-		}
+		if (result != UDS_SUCCESS)
+			goto out;
 	}
 
 	/* purge_search_list() needs some temporary lists for sorting. */
 	result = uds_allocate(capacity * 2, struct cached_chapter_index *,
 			      "scratch entries", &cache->scratch_entries);
-	if (result != UDS_SUCCESS) {
-		uds_free_sparse_cache(cache);
-		return result;
-	}
+	if (result != UDS_SUCCESS)
+		goto out;
 
 	*cache_ptr = cache;
 	return UDS_SUCCESS;
+out:
+	uds_free_sparse_cache(cache);
+	return result;
 }
 
 static inline void set_skip_search(struct cached_chapter_index *chapter,
@@ -381,8 +361,6 @@ void uds_free_sparse_cache(struct sparse_cache *cache)
 		uds_free(cache->chapters[i].page_buffers);
 	}
 
-	uds_destroy_barrier(&cache->begin_update_barrier);
-	uds_destroy_barrier(&cache->end_update_barrier);
 	uds_free(cache);
 }
 
@@ -525,7 +503,7 @@ int uds_update_sparse_cache(struct index_zone *zone, u64 virtual_chapter)
 	 * Wait for every zone thread to reach its corresponding barrier request and invoke this
 	 * function before starting to modify the cache.
 	 */
-	uds_enter_barrier(&cache->begin_update_barrier);
+	enter_threads_barrier(&cache->begin_update_barrier);
 
 	/*
 	 * This is the start of the critical section: the zone zero thread is captain, effectively
@@ -553,7 +531,7 @@ int uds_update_sparse_cache(struct index_zone *zone, u64 virtual_chapter)
 	/*
 	 * This is the end of the critical section. All cache invariants must have been restored.
 	 */
-	uds_enter_barrier(&cache->end_update_barrier);
+	enter_threads_barrier(&cache->end_update_barrier);
 	return result;
 }
 
