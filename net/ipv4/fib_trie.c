@@ -501,7 +501,7 @@ static void tnode_free(struct key_vector *tn)
 
 	if (tnode_free_size >= READ_ONCE(sysctl_fib_sync_mem)) {
 		tnode_free_size = 0;
-		synchronize_rcu();
+		synchronize_net();
 	}
 }
 
