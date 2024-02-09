@@ -25,8 +25,8 @@ struct cond_var {
 struct thread;
 
 struct barrier {
-	/* Mutex for this barrier object */
-	struct semaphore mutex;
+	/* Lock for this barrier object */
+	struct semaphore lock;
 	/* Semaphore for threads waiting at the barrier */
 	struct semaphore wait;
 	/* Number of threads which have arrived */

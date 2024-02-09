@@ -136,19 +136,7 @@ int uds_join_threads(struct thread *thread)
 	return UDS_SUCCESS;
 }
 
-static inline int __must_check uds_initialize_semaphore(struct semaphore *semaphore,
-							unsigned int value)
-{
-	sema_init(semaphore, value);
-	return UDS_SUCCESS;
-}
-
-static inline int uds_destroy_semaphore(struct semaphore *semaphore)
-{
-	return UDS_SUCCESS;
-}
-
-static inline void uds_acquire_semaphore(struct semaphore *semaphore)
+static inline void __down(struct semaphore *semaphore)
 {
 	/*
 	 * Do not use down(semaphore). Instead use down_interruptible so that
@@ -169,53 +157,36 @@ static inline void uds_acquire_semaphore(struct semaphore *semaphore)
 	}
 }
 
-static inline void uds_release_semaphore(struct semaphore *semaphore)
-{
-	up(semaphore);
-}
-
 int uds_initialize_barrier(struct barrier *barrier, unsigned int thread_count)
 {
-	int result;
-
-	/* FIXME: must cleanup, uds_initialize_semaphore never fails! */
-	result = uds_initialize_semaphore(&barrier->mutex, 1);
-	if (result != UDS_SUCCESS)
-		return result;
-
+	sema_init(&barrier->lock, 1);
 	barrier->arrived = 0;
 	barrier->thread_count = thread_count;
-	return uds_initialize_semaphore(&barrier->wait, 0);
+	sema_init(&barrier->wait, 0);
+
+	return UDS_SUCCESS;
 }
 
 int uds_destroy_barrier(struct barrier *barrier)
 {
-	int result;
-
-	result = uds_destroy_semaphore(&barrier->mutex);
-	if (result != UDS_SUCCESS)
-		return result;
-
-	return uds_destroy_semaphore(&barrier->wait);
+	return UDS_SUCCESS;
 }
 
 int uds_enter_barrier(struct barrier *barrier)
 {
-	bool last_thread;
-
-	uds_acquire_semaphore(&barrier->mutex);
-	last_thread = (++barrier->arrived == barrier->thread_count);
-	if (last_thread) {
+	__down(&barrier->lock);
+	if (++barrier->arrived == barrier->thread_count) {
+		/* last thread */
 		int i;
 
 		for (i = 1; i < barrier->thread_count; i++)
-			uds_release_semaphore(&barrier->wait);
+			up(&barrier->wait);
 
 		barrier->arrived = 0;
-		uds_release_semaphore(&barrier->mutex);
+		up(&barrier->lock);
 	} else {
-		uds_release_semaphore(&barrier->mutex);
-		uds_acquire_semaphore(&barrier->wait);
+		up(&barrier->lock);
+		__down(&barrier->wait);
 	}
 
 	return UDS_SUCCESS;
