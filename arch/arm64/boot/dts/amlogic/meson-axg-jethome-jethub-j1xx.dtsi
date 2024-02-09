@@ -332,19 +332,3 @@
 		"", "", "", "", "", // 80 - 84
 		"", ""; // 85-86
 };
-
-&cpu0 {
-	#cooling-cells = <2>;
-};
-
-&cpu1 {
-	#cooling-cells = <2>;
-};
-
-&cpu2 {
-	#cooling-cells = <2>;
-};
-
-&cpu3 {
-	#cooling-cells = <2>;
-};
