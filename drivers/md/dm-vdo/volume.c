@@ -1627,17 +1627,8 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 		return result;
 	}
 
-	result = uds_init_cond(&volume->read_threads_read_done_cond);
-	if (result != UDS_SUCCESS) {
-		uds_free_volume(volume);
-		return result;
-	}
-
-	result = uds_init_cond(&volume->read_threads_cond);
-	if (result != UDS_SUCCESS) {
-		uds_free_volume(volume);
-		return result;
-	}
+	uds_init_cond(&volume->read_threads_read_done_cond);
+	uds_init_cond(&volume->read_threads_cond);
 
 	result = uds_allocate(config->read_threads, struct thread *, "reader threads",
 			      &volume->reader_threads);
@@ -1700,8 +1691,6 @@ void uds_free_volume(struct volume *volume)
 	if (volume->client != NULL)
 		dm_bufio_client_destroy(uds_forget(volume->client));
 
-	uds_destroy_cond(&volume->read_threads_cond);
-	uds_destroy_cond(&volume->read_threads_read_done_cond);
 	uds_destroy_mutex(&volume->read_threads_mutex);
 	uds_free_index_page_map(volume->index_page_map);
 	uds_free_radix_sorter(volume->radix_sorter);

@@ -754,7 +754,6 @@ static void free_chapter_writer(struct chapter_writer *writer)
 
 	stop_chapter_writer(writer);
 	uds_destroy_mutex(&writer->mutex);
-	uds_destroy_cond(&writer->cond);
 	uds_free_open_chapter_index(writer->open_chapter_index);
 	uds_free(writer->collated_records);
 	uds_free(writer);
@@ -781,12 +780,7 @@ static int make_chapter_writer(struct uds_index *index,
 		return result;
 	}
 
-	result = uds_init_cond(&writer->cond);
-	if (result != UDS_SUCCESS) {
-		uds_destroy_mutex(&writer->mutex);
-		uds_free(writer);
-		return result;
-	}
+	uds_init_cond(&writer->cond);
 
 	result = uds_allocate_cache_aligned(collated_records_size, "collated records",
 					    &writer->collated_records);

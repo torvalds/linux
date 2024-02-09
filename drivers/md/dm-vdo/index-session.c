@@ -230,36 +230,21 @@ static int __must_check make_empty_index_session(struct uds_index_session **inde
 		return result;
 	}
 
-	result = uds_init_cond(&session->request_cond);
-	if (result != UDS_SUCCESS) {
-		uds_destroy_mutex(&session->request_mutex);
-		uds_free(session);
-		return result;
-	}
+	uds_init_cond(&session->request_cond);
 
 	result = uds_init_mutex(&session->load_context.mutex);
 	if (result != UDS_SUCCESS) {
-		uds_destroy_cond(&session->request_cond);
 		uds_destroy_mutex(&session->request_mutex);
 		uds_free(session);
 		return result;
 	}
 
-	result = uds_init_cond(&session->load_context.cond);
-	if (result != UDS_SUCCESS) {
-		uds_destroy_mutex(&session->load_context.mutex);
-		uds_destroy_cond(&session->request_cond);
-		uds_destroy_mutex(&session->request_mutex);
-		uds_free(session);
-		return result;
-	}
+	uds_init_cond(&session->load_context.cond);
 
 	result = uds_make_request_queue("callbackW", &handle_callbacks,
 					&session->callback_queue);
 	if (result != UDS_SUCCESS) {
-		uds_destroy_cond(&session->load_context.cond);
 		uds_destroy_mutex(&session->load_context.mutex);
-		uds_destroy_cond(&session->request_cond);
 		uds_destroy_mutex(&session->request_mutex);
 		uds_free(session);
 		return result;
@@ -700,9 +685,7 @@ int uds_destroy_index_session(struct uds_index_session *index_session)
 	result = save_and_free_index(index_session);
 	uds_request_queue_finish(index_session->callback_queue);
 	index_session->callback_queue = NULL;
-	uds_destroy_cond(&index_session->load_context.cond);
 	uds_destroy_mutex(&index_session->load_context.mutex);
-	uds_destroy_cond(&index_session->request_cond);
 	uds_destroy_mutex(&index_session->request_mutex);
 	uds_log_debug("Destroyed index session");
 	uds_free(index_session);
@@ -757,4 +740,15 @@ int uds_get_index_session_stats(struct uds_index_session *index_session,
 	}
 
 	return UDS_SUCCESS;
+}
+
+void uds_wait_cond(struct cond_var *cv, struct mutex *mutex)
+{
+	DEFINE_WAIT(__wait);
+
+	prepare_to_wait(&cv->wait_queue, &__wait, TASK_IDLE);
+	uds_unlock_mutex(mutex);
+	schedule();
+	finish_wait(&cv->wait_queue, &__wait);
+	uds_lock_mutex(mutex);
 }

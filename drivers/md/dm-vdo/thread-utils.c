@@ -9,7 +9,6 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/kthread.h>
-#include <linux/sched.h>
 
 #include "errors.h"
 #include "logger.h"
@@ -134,15 +133,4 @@ int uds_join_threads(struct thread *thread)
 	mutex_unlock(&thread_mutex);
 	uds_free(thread);
 	return UDS_SUCCESS;
-}
-
-void uds_wait_cond(struct cond_var *cv, struct mutex *mutex)
-{
-	DEFINE_WAIT(__wait);
-
-	prepare_to_wait(&cv->wait_queue, &__wait, TASK_IDLE);
-	uds_unlock_mutex(mutex);
-	schedule();
-	finish_wait(&cv->wait_queue, &__wait);
-	uds_lock_mutex(mutex);
 }
