@@ -43,6 +43,8 @@ struct bnxt_led_cfg {
 
 #define BNXT_PXP_REG_LEN	0x3110
 
+#define BNXT_IP_PROTO_FULL_MASK	0xFF
+
 extern const struct ethtool_ops bnxt_ethtool_ops;
 
 u32 bnxt_get_rxfh_indir_size(struct net_device *dev);
