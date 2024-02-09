@@ -234,7 +234,7 @@ int bttv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f);
 /* ---------------------------------------------------------- */
 /* bttv-gpio.c */
 
-extern struct bus_type bttv_sub_bus_type;
+extern const struct bus_type bttv_sub_bus_type;
 int bttv_sub_add_device(struct bttv_core *core, char *name);
 int bttv_sub_del_devices(struct bttv_core *core);
 
