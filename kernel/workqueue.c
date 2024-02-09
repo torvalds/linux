@@ -5630,6 +5630,33 @@ void workqueue_set_max_active(struct workqueue_struct *wq, int max_active)
 EXPORT_SYMBOL_GPL(workqueue_set_max_active);
 
 /**
+ * workqueue_set_min_active - adjust min_active of an unbound workqueue
+ * @wq: target unbound workqueue
+ * @min_active: new min_active value
+ *
+ * Set min_active of an unbound workqueue. Unlike other types of workqueues, an
+ * unbound workqueue is not guaranteed to be able to process max_active
+ * interdependent work items. Instead, an unbound workqueue is guaranteed to be
+ * able to process min_active number of interdependent work items which is
+ * %WQ_DFL_MIN_ACTIVE by default.
+ *
+ * Use this function to adjust the min_active value between 0 and the current
+ * max_active.
+ */
+void workqueue_set_min_active(struct workqueue_struct *wq, int min_active)
+{
+	/* min_active is only meaningful for non-ordered unbound workqueues */
+	if (WARN_ON((wq->flags & (WQ_BH | WQ_UNBOUND | __WQ_ORDERED)) !=
+		    WQ_UNBOUND))
+		return;
+
+	mutex_lock(&wq->mutex);
+	wq->saved_min_active = clamp(min_active, 0, wq->saved_max_active);
+	wq_adjust_max_active(wq);
+	mutex_unlock(&wq->mutex);
+}
+
+/**
  * current_work - retrieve %current task's work struct
  *
  * Determine if %current task is a workqueue worker and what it's working on.
