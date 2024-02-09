@@ -3013,7 +3013,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 		ret = em_push(ctxt);
 	}
 
-	ops->get_dr(ctxt, 7, &dr7);
+	dr7 = ops->get_dr(ctxt, 7);
 	ops->set_dr(ctxt, 7, dr7 & ~(DR_LOCAL_ENABLE_MASK | DR_LOCAL_SLOWDOWN));
 
 	return ret;
@@ -3868,15 +3868,6 @@ static int check_cr_access(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static int check_dr7_gd(struct x86_emulate_ctxt *ctxt)
-{
-	unsigned long dr7;
-
-	ctxt->ops->get_dr(ctxt, 7, &dr7);
-
-	return dr7 & DR7_GD;
-}
-
 static int check_dr_read(struct x86_emulate_ctxt *ctxt)
 {
 	int dr = ctxt->modrm_reg;
@@ -3889,10 +3880,10 @@ static int check_dr_read(struct x86_emulate_ctxt *ctxt)
 	if ((cr4 & X86_CR4_DE) && (dr == 4 || dr == 5))
 		return emulate_ud(ctxt);
 
-	if (check_dr7_gd(ctxt)) {
+	if (ctxt->ops->get_dr(ctxt, 7) & DR7_GD) {
 		ulong dr6;
 
-		ctxt->ops->get_dr(ctxt, 6, &dr6);
+		dr6 = ctxt->ops->get_dr(ctxt, 6);
 		dr6 &= ~DR_TRAP_BITS;
 		dr6 |= DR6_BD | DR6_ACTIVE_LOW;
 		ctxt->ops->set_dr(ctxt, 6, dr6);
@@ -5451,7 +5442,7 @@ twobyte_insn:
 		ctxt->dst.val = ops->get_cr(ctxt, ctxt->modrm_reg);
 		break;
 	case 0x21: /* mov from dr to reg */
-		ops->get_dr(ctxt, ctxt->modrm_reg, &ctxt->dst.val);
+		ctxt->dst.val = ops->get_dr(ctxt, ctxt->modrm_reg);
 		break;
 	case 0x40 ... 0x4f:	/* cmov */
 		if (test_cc(ctxt->b, ctxt->eflags))

@@ -1399,22 +1399,19 @@ int kvm_set_dr(struct kvm_vcpu *vcpu, int dr, unsigned long val)
 }
 EXPORT_SYMBOL_GPL(kvm_set_dr);
 
-void kvm_get_dr(struct kvm_vcpu *vcpu, int dr, unsigned long *val)
+unsigned long kvm_get_dr(struct kvm_vcpu *vcpu, int dr)
 {
 	size_t size = ARRAY_SIZE(vcpu->arch.db);
 
 	switch (dr) {
 	case 0 ... 3:
-		*val = vcpu->arch.db[array_index_nospec(dr, size)];
-		break;
+		return vcpu->arch.db[array_index_nospec(dr, size)];
 	case 4:
 	case 6:
-		*val = vcpu->arch.dr6;
-		break;
+		return vcpu->arch.dr6;
 	case 5:
 	default: /* 7 */
-		*val = vcpu->arch.dr7;
-		break;
+		return vcpu->arch.dr7;
 	}
 }
 EXPORT_SYMBOL_GPL(kvm_get_dr);
@@ -5509,7 +5506,6 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 static void kvm_vcpu_ioctl_x86_get_debugregs(struct kvm_vcpu *vcpu,
 					     struct kvm_debugregs *dbgregs)
 {
-	unsigned long val;
 	unsigned int i;
 
 	memset(dbgregs, 0, sizeof(*dbgregs));
@@ -5518,8 +5514,7 @@ static void kvm_vcpu_ioctl_x86_get_debugregs(struct kvm_vcpu *vcpu,
 	for (i = 0; i < ARRAY_SIZE(vcpu->arch.db); i++)
 		dbgregs->db[i] = vcpu->arch.db[i];
 
-	kvm_get_dr(vcpu, 6, &val);
-	dbgregs->dr6 = val;
+	dbgregs->dr6 = kvm_get_dr(vcpu, 6);
 	dbgregs->dr7 = vcpu->arch.dr7;
 }
 
@@ -8173,10 +8168,9 @@ static void emulator_wbinvd(struct x86_emulate_ctxt *ctxt)
 	kvm_emulate_wbinvd_noskip(emul_to_vcpu(ctxt));
 }
 
-static void emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr,
-			    unsigned long *dest)
+static unsigned long emulator_get_dr(struct x86_emulate_ctxt *ctxt, int dr)
 {
-	kvm_get_dr(emul_to_vcpu(ctxt), dr, dest);
+	return kvm_get_dr(emul_to_vcpu(ctxt), dr);
 }
 
 static int emulator_set_dr(struct x86_emulate_ctxt *ctxt, int dr,
