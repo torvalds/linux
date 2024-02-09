@@ -1651,6 +1651,7 @@ static int rtl8366rb_get_mc_index(struct realtek_priv *priv, int port, int *val)
 
 static int rtl8366rb_set_mc_index(struct realtek_priv *priv, int port, int index)
 {
+	struct dsa_switch *ds = &priv->ds;
 	struct rtl8366rb *rb;
 	bool pvid_enabled;
 	int ret;
@@ -1675,7 +1676,7 @@ static int rtl8366rb_set_mc_index(struct realtek_priv *priv, int port, int index
 	 * not drop any untagged or C-tagged frames. Make sure to update the
 	 * filtering setting.
 	 */
-	if (dsa_port_is_vlan_filtering(dsa_to_port(priv->ds, port)))
+	if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 		ret = rtl8366rb_drop_untagged(priv, port, !pvid_enabled);
 
 	return ret;
