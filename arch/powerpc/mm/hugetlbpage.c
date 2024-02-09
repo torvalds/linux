@@ -614,8 +614,6 @@ void __init gigantic_hugetlb_cma_reserve(void)
 		 */
 		order = mmu_psize_to_shift(MMU_PAGE_16G) - PAGE_SHIFT;
 
-	if (order) {
-		VM_WARN_ON(order <= MAX_PAGE_ORDER);
+	if (order)
 		hugetlb_cma_reserve(order);
-	}
 }
