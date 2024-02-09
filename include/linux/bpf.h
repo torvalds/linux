@@ -1415,6 +1415,7 @@ struct bpf_jit_poke_descriptor {
 struct bpf_ctx_arg_aux {
 	u32 offset;
 	enum bpf_reg_type reg_type;
+	struct btf *btf;
 	u32 btf_id;
 };
 
