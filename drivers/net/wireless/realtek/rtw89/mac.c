@@ -3192,13 +3192,11 @@ static int set_cpuio_ax(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
-int rtw89_mac_dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode)
+int rtw89_mac_dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
+			       bool band1_en)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	const struct rtw89_dle_mem *cfg;
-	struct rtw89_cpuio_ctrl ctrl_para = {0};
-	u16 pkt_id;
-	int ret;
 
 	cfg = get_dle_mem_cfg(rtwdev, mode);
 	if (!cfg) {
@@ -3212,6 +3210,16 @@ int rtw89_mac_dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mod
 	}
 
 	dle_quota_cfg(rtwdev, cfg, INVALID_QT_WCPU);
+
+	return mac->dle_quota_change(rtwdev, band1_en);
+}
+
+static int dle_quota_change_ax(struct rtw89_dev *rtwdev, bool band1_en)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	struct rtw89_cpuio_ctrl ctrl_para = {0};
+	u16 pkt_id;
+	int ret;
 
 	ret = mac->dle_buf_req(rtwdev, 0x20, true, &pkt_id);
 	if (ret) {
@@ -3301,7 +3309,7 @@ static int band1_enable_ax(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
-	ret = rtw89_mac_dle_quota_change(rtwdev, rtwdev->mac.qta_mode);
+	ret = rtw89_mac_dle_quota_change(rtwdev, rtwdev->mac.qta_mode, true);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]DLE quota change %d\n", ret);
 		return ret;
@@ -6218,6 +6226,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.wde_quota_cfg = wde_quota_cfg_ax,
 	.ple_quota_cfg = ple_quota_cfg_ax,
 	.set_cpuio = set_cpuio_ax,
+	.dle_quota_change = dle_quota_change_ax,
 
 	.disable_cpu = rtw89_mac_disable_cpu_ax,
 	.fwdl_enable_wcpu = rtw89_mac_enable_cpu_ax,
