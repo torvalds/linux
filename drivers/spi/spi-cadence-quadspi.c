@@ -1635,7 +1635,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 			return ret;
 		}
 
-		if (cs >= CQSPI_MAX_CHIPSELECT) {
+		if (cs >= cqspi->num_chipselect) {
 			dev_err(dev, "Chip select %d out of range.\n", cs);
 			of_node_put(np);
 			return -EINVAL;
