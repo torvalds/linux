@@ -866,6 +866,8 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	rc = prep_cca_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out;
+	print_hex_dump_debug("ccareq: ", DUMP_PREFIX_ADDRESS, 16, 1,
+			     ap_msg.msg, ap_msg.len, false);
 
 	tdom = *domain;
 	if (perms != &ap_perms && tdom < AP_DOMAINS) {
@@ -953,6 +955,10 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 		*domain = AP_QID_QUEUE(qid);
 
 	rc = pref_zq->ops->send_cprb(userspace, pref_zq, xcrb, &ap_msg);
+	if (!rc) {
+		print_hex_dump_debug("ccarpl: ", DUMP_PREFIX_ADDRESS, 16, 1,
+				     ap_msg.msg, ap_msg.len, false);
+	}
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, mod, wgt);
@@ -1046,6 +1052,8 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	rc = prep_ep11_ap_msg(userspace, xcrb, &ap_msg, &func_code, &domain);
 	if (rc)
 		goto out_free;
+	print_hex_dump_debug("ep11req: ", DUMP_PREFIX_ADDRESS, 16, 1,
+			     ap_msg.msg, ap_msg.len, false);
 
 	if (perms != &ap_perms && domain < AUTOSEL_DOM) {
 		if (ap_msg.flags & AP_MSG_FLAG_ADMIN) {
@@ -1130,6 +1138,10 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 
 	qid = pref_zq->queue->qid;
 	rc = pref_zq->ops->send_ep11_cprb(userspace, pref_zq, xcrb, &ap_msg);
+	if (!rc) {
+		print_hex_dump_debug("ep11rpl: ", DUMP_PREFIX_ADDRESS, 16, 1,
+				     ap_msg.msg, ap_msg.len, false);
+	}
 
 	spin_lock(&zcrypt_list_lock);
 	zcrypt_drop_queue(pref_zc, pref_zq, mod, wgt);
