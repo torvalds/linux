@@ -4013,7 +4013,7 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 			       req->ssids[i].ssid_len);
 		}
 	} else {
-		arg->scan_flags |= WMI_SCAN_FLAG_PASSIVE;
+		arg->scan_f_passive = 1;
 	}
 
 	if (req->n_channels) {
@@ -9252,8 +9252,8 @@ static int ath11k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	arg->dwell_time_active = scan_time_msec;
 	arg->dwell_time_passive = scan_time_msec;
 	arg->max_scan_time = scan_time_msec;
-	arg->scan_flags |= WMI_SCAN_FLAG_PASSIVE;
-	arg->scan_flags |= WMI_SCAN_FILTER_PROBE_REQ;
+	arg->scan_f_passive = 1;
+	arg->scan_f_filter_prb_req = 1;
 	arg->burst_duration = duration;
 
 	ret = ath11k_start_scan(ar, arg);
