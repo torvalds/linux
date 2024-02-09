@@ -327,10 +327,10 @@ locked_port_mab_redirect()
 	RET=0
 	check_port_mab_support || return 0
 
-	bridge link set dev $swp1 learning on locked on mab on
 	tc qdisc add dev $swp1 clsact
 	tc filter add dev $swp1 ingress protocol all pref 1 handle 101 flower \
 		action mirred egress redirect dev $swp2
+	bridge link set dev $swp1 learning on locked on mab on
 
 	ping_do $h1 192.0.2.2
 	check_err $? "Ping did not work with redirection"
@@ -349,8 +349,8 @@ locked_port_mab_redirect()
 	check_err $? "Locked entry not created after deleting filter"
 
 	bridge fdb del `mac_get $h1` vlan 1 dev $swp1 master
-	tc qdisc del dev $swp1 clsact
 	bridge link set dev $swp1 learning off locked off mab off
+	tc qdisc del dev $swp1 clsact
 
 	log_test "Locked port MAB redirect"
 }
