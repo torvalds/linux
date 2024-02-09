@@ -32,6 +32,7 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cpu-type.h>
+#include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
 #include <asm/uasm.h>
 #include <asm/setup.h>
@@ -279,23 +280,6 @@ static inline void dump_handler(const char *symbol, const void *start, const voi
 /* The only general purpose registers allowed in TLB handlers. */
 #define K0		26
 #define K1		27
-
-/* Some CP0 registers */
-#define C0_INDEX	0, 0
-#define C0_ENTRYLO0	2, 0
-#define C0_TCBIND	2, 2
-#define C0_ENTRYLO1	3, 0
-#define C0_CONTEXT	4, 0
-#define C0_PAGEMASK	5, 0
-#define C0_PWBASE	5, 5
-#define C0_PWFIELD	5, 6
-#define C0_PWSIZE	5, 7
-#define C0_PWCTL	6, 6
-#define C0_BADVADDR	8, 0
-#define C0_PGD		9, 7
-#define C0_ENTRYHI	10, 0
-#define C0_EPC		14, 0
-#define C0_XCONTEXT	20, 0
 
 #ifdef CONFIG_64BIT
 # define GET_CONTEXT(buf, reg) UASM_i_MFC0(buf, reg, C0_XCONTEXT)

@@ -13,6 +13,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/log2.h>
+#include <asm/mipsregs.h>
 #include <asm/mmu_context.h>
 #include <asm/msa.h>
 #include <asm/setup.h>
@@ -50,33 +51,9 @@
 #define SP		29
 #define RA		31
 
-/* Some CP0 registers */
-#define C0_PWBASE	5, 5
-#define C0_HWRENA	7, 0
-#define C0_BADVADDR	8, 0
-#define C0_BADINSTR	8, 1
-#define C0_BADINSTRP	8, 2
-#define C0_PGD		9, 7
-#define C0_ENTRYHI	10, 0
-#define C0_GUESTCTL1	10, 4
-#define C0_STATUS	12, 0
-#define C0_GUESTCTL0	12, 6
-#define C0_CAUSE	13, 0
-#define C0_EPC		14, 0
-#define C0_EBASE	15, 1
-#define C0_CONFIG5	16, 5
-#define C0_DDATA_LO	28, 3
-#define C0_ERROREPC	30, 0
-
 #define CALLFRAME_SIZ   32
 
-#ifdef CONFIG_64BIT
-#define ST0_KX_IF_64	ST0_KX
-#else
-#define ST0_KX_IF_64	0
-#endif
-
-static unsigned int scratch_vcpu[2] = { C0_DDATA_LO };
+static unsigned int scratch_vcpu[2] = { C0_DDATALO };
 static unsigned int scratch_tmp[2] = { C0_ERROREPC };
 
 enum label_id {
