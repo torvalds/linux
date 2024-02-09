@@ -307,7 +307,6 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 	/* Easy case... */
 	if (!num_in_fence) {
 		fence = xe_exec_queue_last_fence_get(q, vm);
-		dma_fence_get(fence);
 		return fence;
 	}
 
@@ -322,7 +321,6 @@ xe_sync_in_fence_get(struct xe_sync_entry *sync, int num_sync,
 		}
 	}
 	fences[current_fence++] = xe_exec_queue_last_fence_get(q, vm);
-	dma_fence_get(fences[current_fence - 1]);
 	cf = dma_fence_array_create(num_in_fence, fences,
 				    vm->composite_fence_ctx,
 				    vm->composite_fence_seqno++,

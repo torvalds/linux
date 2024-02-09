@@ -335,7 +335,7 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 		return -EPROTO;
 
 	asid = FIELD_GET(PFD_ASID, msg[1]);
-	pf_queue = &gt->usm.pf_queue[asid % NUM_PF_QUEUE];
+	pf_queue = gt->usm.pf_queue + (asid % NUM_PF_QUEUE);
 
 	spin_lock_irqsave(&pf_queue->lock, flags);
 	full = pf_queue_full(pf_queue);

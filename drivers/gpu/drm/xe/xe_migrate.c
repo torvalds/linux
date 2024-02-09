@@ -170,11 +170,6 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 	if (!IS_DGFX(xe)) {
 		/* Write out batch too */
 		m->batch_base_ofs = NUM_PT_SLOTS * XE_PAGE_SIZE;
-		if (xe->info.has_usm) {
-			batch = tile->primary_gt->usm.bb_pool->bo;
-			m->usm_batch_base_ofs = m->batch_base_ofs;
-		}
-
 		for (i = 0; i < batch->size;
 		     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
 		     XE_PAGE_SIZE) {
@@ -184,6 +179,24 @@ static int xe_migrate_prepare_vm(struct xe_tile *tile, struct xe_migrate *m,
 			xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64,
 				  entry);
 			level++;
+		}
+		if (xe->info.has_usm) {
+			xe_tile_assert(tile, batch->size == SZ_1M);
+
+			batch = tile->primary_gt->usm.bb_pool->bo;
+			m->usm_batch_base_ofs = m->batch_base_ofs + SZ_1M;
+			xe_tile_assert(tile, batch->size == SZ_512K);
+
+			for (i = 0; i < batch->size;
+			     i += vm->flags & XE_VM_FLAG_64K ? XE_64K_PAGE_SIZE :
+			     XE_PAGE_SIZE) {
+				entry = vm->pt_ops->pte_encode_bo(batch, i,
+								  pat_index, 0);
+
+				xe_map_wr(xe, &bo->vmap, map_ofs + level * 8, u64,
+					  entry);
+				level++;
+			}
 		}
 	} else {
 		u64 batch_addr = xe_bo_addr(batch, 0, XE_PAGE_SIZE);
@@ -1204,8 +1217,11 @@ static bool no_in_syncs(struct xe_vm *vm, struct xe_exec_queue *q,
 	}
 	if (q) {
 		fence = xe_exec_queue_last_fence_get(q, vm);
-		if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags))
+		if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags)) {
+			dma_fence_put(fence);
 			return false;
+		}
+		dma_fence_put(fence);
 	}
 
 	return true;

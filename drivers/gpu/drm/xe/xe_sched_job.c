@@ -274,7 +274,6 @@ int xe_sched_job_last_fence_add_dep(struct xe_sched_job *job, struct xe_vm *vm)
 	struct dma_fence *fence;
 
 	fence = xe_exec_queue_last_fence_get(job->q, vm);
-	dma_fence_get(fence);
 
 	return drm_sched_job_add_dependency(&job->drm, fence);
 }
