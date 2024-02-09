@@ -136,10 +136,49 @@ int uds_join_threads(struct thread *thread)
 	return UDS_SUCCESS;
 }
 
+static inline int __must_check uds_initialize_semaphore(struct semaphore *semaphore,
+							unsigned int value)
+{
+	sema_init(semaphore, value);
+	return UDS_SUCCESS;
+}
+
+static inline int uds_destroy_semaphore(struct semaphore *semaphore)
+{
+	return UDS_SUCCESS;
+}
+
+static inline void uds_acquire_semaphore(struct semaphore *semaphore)
+{
+	/*
+	 * Do not use down(semaphore). Instead use down_interruptible so that
+	 * we do not get 120 second stall messages in kern.log.
+	 */
+	while (down_interruptible(semaphore) != 0) {
+		/*
+		 * If we're called from a user-mode process (e.g., "dmsetup
+		 * remove") while waiting for an operation that may take a
+		 * while (e.g., UDS index save), and a signal is sent (SIGINT,
+		 * SIGUSR2), then down_interruptible will not block. If that
+		 * happens, sleep briefly to avoid keeping the CPU locked up in
+		 * this loop. We could just call cond_resched, but then we'd
+		 * still keep consuming CPU time slices and swamp other threads
+		 * trying to do computational work. [VDO-4980]
+		 */
+		fsleep(1000);
+	}
+}
+
+static inline void uds_release_semaphore(struct semaphore *semaphore)
+{
+	up(semaphore);
+}
+
 int uds_initialize_barrier(struct barrier *barrier, unsigned int thread_count)
 {
 	int result;
 
+	/* FIXME: must cleanup, uds_initialize_semaphore never fails! */
 	result = uds_initialize_semaphore(&barrier->mutex, 1);
 	if (result != UDS_SUCCESS)
 		return result;
