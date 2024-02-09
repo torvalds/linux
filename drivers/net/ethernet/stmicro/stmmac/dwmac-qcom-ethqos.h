@@ -88,7 +88,7 @@ struct qcom_ethqos {
 
 };
 
-int ethqos_init_reqgulators(struct qcom_ethqos *ethqos);
+int ethqos_init_regulators(struct qcom_ethqos *ethqos);
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos);
 int ethqos_init_gpio(struct qcom_ethqos *ethqos);
 void ethqos_free_gpios(struct qcom_ethqos *ethqos);

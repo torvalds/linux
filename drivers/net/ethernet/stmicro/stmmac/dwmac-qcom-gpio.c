@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/*Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.*/
+/*Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.*/
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -54,7 +54,7 @@ static int setup_gpio_input_common
 	return ret;
 }
 
-int ethqos_init_reqgulators(struct qcom_ethqos *ethqos)
+int ethqos_init_regulators(struct qcom_ethqos *ethqos)
 {
 	int ret = 0;
 
@@ -142,7 +142,7 @@ reg_error:
 	ethqos_disable_regulators(ethqos);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(ethqos_init_reqgulators);
+EXPORT_SYMBOL_GPL(ethqos_init_regulators);
 
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos)
 {
