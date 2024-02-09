@@ -336,7 +336,7 @@ int netdev_name_node_alt_create(struct net_device *dev, const char *name)
 		return -ENOMEM;
 	netdev_name_node_add(net, name_node);
 	/* The node that holds dev->name acts as a head of per-device list. */
-	list_add_tail(&name_node->list, &dev->name_node->list);
+	list_add_tail_rcu(&name_node->list, &dev->name_node->list);
 
 	return 0;
 }
