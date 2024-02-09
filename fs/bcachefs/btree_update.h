@@ -62,6 +62,7 @@ int bch2_btree_delete_range_trans(struct btree_trans *, enum btree_id,
 int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
 			    struct bpos, struct bpos, unsigned, u64 *);
 
+int bch2_btree_bit_mod(struct btree_trans *, enum btree_id, struct bpos, bool);
 int bch2_btree_bit_mod_buffered(struct btree_trans *, enum btree_id, struct bpos, bool);
 
 static inline int bch2_btree_delete_at_buffered(struct btree_trans *trans,
