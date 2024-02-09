@@ -96,7 +96,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_tryget(c, p.ptr.dev);
 	if (!ca) {
-		if (fsck_err(c, ptr_to_invalid_device,
+		if (fsck_err(trans, ptr_to_invalid_device,
 			     "pointer to missing device %u\n"
 			     "while marking %s",
 			     p.ptr.dev,
@@ -108,7 +108,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 
 	struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 	if (!g) {
-		if (fsck_err(c, ptr_to_invalid_device,
+		if (fsck_err(trans, ptr_to_invalid_device,
 			     "pointer to invalid bucket on device %u\n"
 			     "while marking %s",
 			     p.ptr.dev,
@@ -121,7 +121,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 	enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
 
 	if (fsck_err_on(!g->gen_valid,
-			c, ptr_to_missing_alloc_key,
+			trans, ptr_to_missing_alloc_key,
 			"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
 			"while marking %s",
 			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
@@ -138,7 +138,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 	}
 
 	if (fsck_err_on(gen_cmp(p.ptr.gen, g->gen) > 0,
-			c, ptr_gen_newer_than_bucket_gen,
+			trans, ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
 			"while marking %s",
 			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
@@ -161,7 +161,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 	}
 
 	if (fsck_err_on(gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX,
-			c, ptr_gen_newer_than_bucket_gen,
+			trans, ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
 			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
@@ -172,7 +172,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 		*do_update = true;
 
 	if (fsck_err_on(!p.ptr.cached && gen_cmp(p.ptr.gen, g->gen) < 0,
-			c, stale_dirty_ptr,
+			trans, stale_dirty_ptr,
 			"bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
 			"while marking %s",
 			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
@@ -186,7 +186,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 		goto out;
 
 	if (fsck_err_on(bucket_data_type_mismatch(g->data_type, data_type),
-			c, ptr_bucket_data_type_mismatch,
+			trans, ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
@@ -210,7 +210,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 		struct gc_stripe *m = genradix_ptr(&c->gc_stripes, p.ec.idx);
 
 		if (fsck_err_on(!m || !m->alive,
-				c, ptr_to_missing_stripe,
+				trans, ptr_to_missing_stripe,
 				"pointer to nonexistent stripe %llu\n"
 				"while marking %s",
 				(u64) p.ec.idx,
@@ -219,7 +219,7 @@ static int bch2_check_fix_ptr(struct btree_trans *trans,
 			*do_update = true;
 
 		if (fsck_err_on(m && m->alive && !bch2_ptr_matches_stripe_m(m, p),
-				c, ptr_to_incorrect_stripe,
+				trans, ptr_to_incorrect_stripe,
 				"pointer does not match stripe %llu\n"
 				"while marking %s",
 				(u64) p.ec.idx,
@@ -387,8 +387,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	BUG_ON(!sectors);
 
 	if (gen_after(ptr->gen, b_gen)) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      ptr_gen_newer_than_bucket_gen,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u newer than bucket gen\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -401,8 +401,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      BCH_FSCK_ERR_ptr_too_stale,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      ptr_too_stale,
 			"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -421,8 +421,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (b_gen != ptr->gen) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      BCH_FSCK_ERR_stale_dirty_ptr,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      stale_dirty_ptr,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -437,8 +437,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if (bucket_data_type_mismatch(bucket_data_type, ptr_data_type)) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      BCH_FSCK_ERR_ptr_bucket_data_type_mismatch,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -452,8 +452,8 @@ int bch2_bucket_ref_update(struct btree_trans *trans, struct bch_dev *ca,
 	}
 
 	if ((u64) *bucket_sectors + sectors > U32_MAX) {
-		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      BCH_FSCK_ERR_bucket_sector_count_overflow,
+		bch2_fsck_err(trans, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
+			      bucket_sector_count_overflow,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
@@ -908,7 +908,7 @@ static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 
 	if (a->v.data_type && type && a->v.data_type != type) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
-			      BCH_FSCK_ERR_bucket_metadata_type_mismatch,
+			      bucket_metadata_type_mismatch,
 			"bucket %llu:%llu gen %u different types of data in same bucket: %s, %s\n"
 			"while marking %s",
 			iter.pos.inode, iter.pos.offset, a->v.gen,

@@ -1114,7 +1114,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_bucket_tryget_noerror(c, alloc_k.k->p);
 	if (fsck_err_on(!ca,
-			c, alloc_key_to_missing_dev_bucket,
+			trans, alloc_key_to_missing_dev_bucket,
 			"alloc key for invalid device:bucket %llu:%llu",
 			alloc_k.k->p.inode, alloc_k.k->p.offset))
 		ret = bch2_btree_delete_at(trans, alloc_iter, 0);
@@ -1134,7 +1134,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 		goto err;
 
 	if (fsck_err_on(k.k->type != discard_key_type,
-			c, need_discard_key_wrong,
+			trans, need_discard_key_wrong,
 			"incorrect key in need_discard btree (got %s should be %s)\n"
 			"  %s",
 			bch2_bkey_types[k.k->type],
@@ -1164,7 +1164,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 		goto err;
 
 	if (fsck_err_on(k.k->type != freespace_key_type,
-			c, freespace_key_wrong,
+			trans, freespace_key_wrong,
 			"incorrect key in freespace btree (got %s should be %s)\n"
 			"  %s",
 			bch2_bkey_types[k.k->type],
@@ -1195,7 +1195,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 		goto err;
 
 	if (fsck_err_on(a->gen != alloc_gen(k, gens_offset),
-			c, bucket_gens_key_wrong,
+			trans, bucket_gens_key_wrong,
 			"incorrect gen in bucket_gens btree (got %u should be %u)\n"
 			"  %s",
 			alloc_gen(k, gens_offset), a->gen,
@@ -1236,7 +1236,6 @@ int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
 				    struct bpos *end,
 				    struct btree_iter *freespace_iter)
 {
-	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
 	int ret;
@@ -1254,7 +1253,7 @@ int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
 	*end = bkey_min(k.k->p, *end);
 
 	if (fsck_err_on(k.k->type != KEY_TYPE_set,
-			c, freespace_hole_missing,
+			trans, freespace_hole_missing,
 			"hole in alloc btree missing in freespace btree\n"
 			"  device %llu buckets %llu-%llu",
 			freespace_iter->pos.inode,
@@ -1290,7 +1289,6 @@ int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
 				      struct bpos *end,
 				      struct btree_iter *bucket_gens_iter)
 {
-	struct bch_fs *c = trans->c;
 	struct bkey_s_c k;
 	struct printbuf buf = PRINTBUF;
 	unsigned i, gens_offset, gens_end_offset;
@@ -1314,7 +1312,7 @@ int bch2_check_alloc_hole_bucket_gens(struct btree_trans *trans,
 		bkey_reassemble(&g.k_i, k);
 
 		for (i = gens_offset; i < gens_end_offset; i++) {
-			if (fsck_err_on(g.v.gens[i], c,
+			if (fsck_err_on(g.v.gens[i], trans,
 					bucket_gens_hole_wrong,
 					"hole in alloc btree at %llu:%llu with nonzero gen in bucket_gens btree (%u)",
 					bucket_gens_pos_to_alloc(k.k->p, i).inode,
@@ -1372,8 +1370,8 @@ static noinline_for_stack int bch2_check_discard_freespace_key(struct btree_tran
 	if (ret)
 		return ret;
 
-	if (fsck_err_on(!bch2_dev_bucket_exists(c, pos), c,
-			need_discard_freespace_key_to_invalid_dev_bucket,
+	if (fsck_err_on(!bch2_dev_bucket_exists(c, pos),
+			trans, need_discard_freespace_key_to_invalid_dev_bucket,
 			"entry in %s btree for nonexistant dev:bucket %llu:%llu",
 			bch2_btree_id_str(iter->btree_id), pos.inode, pos.offset))
 		goto delete;
@@ -1382,8 +1380,8 @@ static noinline_for_stack int bch2_check_discard_freespace_key(struct btree_tran
 
 	if (fsck_err_on(a->data_type != state ||
 			(state == BCH_DATA_free &&
-			 genbits != alloc_freespace_genbits(*a)), c,
-			need_discard_freespace_key_bad,
+			 genbits != alloc_freespace_genbits(*a)),
+			trans, need_discard_freespace_key_bad,
 			"%s\n  incorrectly set at %s:%llu:%llu:0 (free %u, genbits %llu should be %llu)",
 			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
 			bch2_btree_id_str(iter->btree_id),
@@ -1430,7 +1428,7 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 
 	struct bch_dev *ca = bch2_dev_tryget_noerror(c, k.k->p.inode);
 	if (!ca) {
-		if (fsck_err(c, bucket_gens_to_invalid_dev,
+		if (fsck_err(trans, bucket_gens_to_invalid_dev,
 			     "bucket_gens key for invalid device:\n  %s",
 			     (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			ret = bch2_btree_delete_at(trans, iter, 0);
@@ -1438,8 +1436,8 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 	}
 
 	if (fsck_err_on(end <= ca->mi.first_bucket ||
-			start >= ca->mi.nbuckets, c,
-			bucket_gens_to_invalid_buckets,
+			start >= ca->mi.nbuckets,
+			trans, bucket_gens_to_invalid_buckets,
 			"bucket_gens key for invalid buckets:\n  %s",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		ret = bch2_btree_delete_at(trans, iter, 0);
@@ -1447,16 +1445,16 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 	}
 
 	for (b = start; b < ca->mi.first_bucket; b++)
-		if (fsck_err_on(g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK], c,
-				bucket_gens_nonzero_for_invalid_buckets,
+		if (fsck_err_on(g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK],
+				trans, bucket_gens_nonzero_for_invalid_buckets,
 				"bucket_gens key has nonzero gen for invalid bucket")) {
 			g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK] = 0;
 			need_update = true;
 		}
 
 	for (b = ca->mi.nbuckets; b < end; b++)
-		if (fsck_err_on(g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK], c,
-				bucket_gens_nonzero_for_invalid_buckets,
+		if (fsck_err_on(g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK],
+				trans, bucket_gens_nonzero_for_invalid_buckets,
 				"bucket_gens key has nonzero gen for invalid bucket")) {
 			g.v.gens[b & KEY_TYPE_BUCKET_GENS_MASK] = 0;
 			need_update = true;
@@ -1636,8 +1634,8 @@ static int bch2_check_alloc_to_lru_ref(struct btree_trans *trans,
 	if (a->data_type != BCH_DATA_cached)
 		return 0;
 
-	if (fsck_err_on(!a->io_time[READ], c,
-			alloc_key_cached_but_read_time_zero,
+	if (fsck_err_on(!a->io_time[READ],
+			trans, alloc_key_cached_but_read_time_zero,
 			"cached bucket with read_time 0\n"
 			"  %s",
 		(printbuf_reset(&buf),

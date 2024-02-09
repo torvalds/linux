@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
+#include "btree_iter.h"
 #include "error.h"
 #include "journal.h"
 #include "recovery_passes.h"
@@ -198,7 +199,8 @@ static const u8 fsck_flags_extra[] = {
 #undef x
 };
 
-int bch2_fsck_err(struct bch_fs *c,
+int __bch2_fsck_err(struct bch_fs *c,
+		  struct btree_trans *trans,
 		  enum bch_fsck_flags flags,
 		  enum bch_sb_error_id err,
 		  const char *fmt, ...)
@@ -214,6 +216,11 @@ int bch2_fsck_err(struct bch_fs *c,
 
 	if (!WARN_ON(err >= ARRAY_SIZE(fsck_flags_extra)))
 		flags |= fsck_flags_extra[err];
+
+	if (!c)
+		c = trans->c;
+
+	WARN_ON(!trans && bch2_current_has_btree_trans(c));
 
 	if ((flags & FSCK_CAN_FIX) &&
 	    test_bit(err, c->sb.errors_silent))

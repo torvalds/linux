@@ -61,7 +61,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		if (!bpos_eq(b->data->min_key, POS_MIN)) {
 			printbuf_reset(&buf);
 			bch2_bpos_to_text(&buf, b->data->min_key);
-			need_fsck_err(c, btree_root_bad_min_key,
+			need_fsck_err(trans, btree_root_bad_min_key,
 				      "btree root with incorrect min_key: %s", buf.buf);
 			goto topology_repair;
 		}
@@ -69,7 +69,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		if (!bpos_eq(b->data->max_key, SPOS_MAX)) {
 			printbuf_reset(&buf);
 			bch2_bpos_to_text(&buf, b->data->max_key);
-			need_fsck_err(c, btree_root_bad_max_key,
+			need_fsck_err(trans, btree_root_bad_max_key,
 				      "btree root with incorrect max_key: %s", buf.buf);
 			goto topology_repair;
 		}
@@ -105,7 +105,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			prt_str(&buf, "\n  next ");
 			bch2_bkey_val_to_text(&buf, c, k);
 
-			need_fsck_err(c, btree_node_topology_bad_min_key, "%s", buf.buf);
+			need_fsck_err(trans, btree_node_topology_bad_min_key, "%s", buf.buf);
 			goto topology_repair;
 		}
 
@@ -122,7 +122,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 			   bch2_btree_id_str(b->c.btree_id), b->c.level);
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
 
-		need_fsck_err(c, btree_node_topology_empty_interior_node, "%s", buf.buf);
+		need_fsck_err(trans, btree_node_topology_empty_interior_node, "%s", buf.buf);
 		goto topology_repair;
 	} else if (!bpos_eq(prev.k->k.p, b->key.k.p)) {
 		bch2_topology_error(c);
@@ -135,7 +135,7 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 		prt_str(&buf, "\n  last key ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(prev.k));
 
-		need_fsck_err(c, btree_node_topology_bad_max_key, "%s", buf.buf);
+		need_fsck_err(trans, btree_node_topology_bad_max_key, "%s", buf.buf);
 		goto topology_repair;
 	}
 out:

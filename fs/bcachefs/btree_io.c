@@ -585,7 +585,7 @@ static int __btree_err(int ret,
 	switch (ret) {
 	case -BCH_ERR_btree_node_read_err_fixable:
 		ret = !silent
-			? bch2_fsck_err(c, FSCK_CAN_FIX, err_type, "%s", out.buf)
+			? __bch2_fsck_err(c, NULL, FSCK_CAN_FIX, err_type, "%s", out.buf)
 			: -BCH_ERR_fsck_fix;
 		if (ret != -BCH_ERR_fsck_fix &&
 		    ret != -BCH_ERR_fsck_ignore)

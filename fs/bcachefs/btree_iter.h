@@ -883,6 +883,8 @@ void bch2_dump_trans_paths_updates(struct btree_trans *);
 struct btree_trans *__bch2_trans_get(struct bch_fs *, unsigned);
 void bch2_trans_put(struct btree_trans *);
 
+bool bch2_current_has_btree_trans(struct bch_fs *);
+
 extern const char *bch2_btree_transaction_fns[BCH_TRANSACTIONS_NR];
 unsigned bch2_trans_get_fn_idx(const char *);
 

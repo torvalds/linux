@@ -395,7 +395,7 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 
 	struct bpos bucket;
 	if (!bp_pos_to_bucket_nodev_noerror(c, k.k->p, &bucket)) {
-		if (fsck_err(c, backpointer_to_missing_device,
+		if (fsck_err(trans, backpointer_to_missing_device,
 			     "backpointer for missing device:\n%s",
 			     (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			ret = bch2_btree_delete_at(trans, bp_iter, 0);
@@ -407,8 +407,8 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 	if (ret)
 		goto out;
 
-	if (fsck_err_on(alloc_k.k->type != KEY_TYPE_alloc_v4, c,
-			backpointer_to_missing_alloc,
+	if (fsck_err_on(alloc_k.k->type != KEY_TYPE_alloc_v4,
+			trans, backpointer_to_missing_alloc,
 			"backpointer for nonexistent alloc key: %llu:%llu:0\n%s",
 			alloc_iter.pos.inode, alloc_iter.pos.offset,
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
@@ -505,7 +505,7 @@ found:
 	struct nonce nonce = extent_nonce(extent.k->version, p.crc);
 	struct bch_csum csum = bch2_checksum(c, p.crc.csum_type, nonce, data_buf, bytes);
 	if (fsck_err_on(bch2_crc_cmp(csum, p.crc.csum),
-			c, dup_backpointer_to_bad_csum_extent,
+			trans, dup_backpointer_to_bad_csum_extent,
 			"%s", buf.buf))
 		ret = drop_dev_and_update(trans, btree, extent, dev) ?: 1;
 fsck_err:
@@ -647,7 +647,7 @@ missing:
 	prt_printf(&buf, "\n  want:  ");
 	bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&n_bp_k.k_i));
 
-	if (fsck_err(c, ptr_to_missing_backpointer, "%s", buf.buf))
+	if (fsck_err(trans, ptr_to_missing_backpointer, "%s", buf.buf))
 		ret = bch2_bucket_backpointer_mod(trans, ca, bucket, bp, orig_k, true);
 
 	goto out;
@@ -908,7 +908,7 @@ static int check_one_backpointer(struct btree_trans *trans,
 		if (ret)
 			goto out;
 
-		if (fsck_err(c, backpointer_to_missing_ptr,
+		if (fsck_err(trans, backpointer_to_missing_ptr,
 			     "backpointer for missing %s\n  %s",
 			     bp.v->level ? "btree node" : "extent",
 			     (bch2_bkey_val_to_text(&buf, c, bp.s_c), buf.buf))) {

@@ -1087,8 +1087,8 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 		return ret;
 
 	ret = bkey_is_inode(k.k) ? 0 : -BCH_ERR_ENOENT_inode;
-	if (fsck_err_on(!bkey_is_inode(k.k), c,
-			deleted_inode_missing,
+	if (fsck_err_on(!bkey_is_inode(k.k),
+			trans, deleted_inode_missing,
 			"nonexistent inode %llu:%u in deleted_inodes btree",
 			pos.offset, pos.snapshot))
 		goto delete;
@@ -1100,7 +1100,7 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 	if (S_ISDIR(inode.bi_mode)) {
 		ret = bch2_empty_dir_snapshot(trans, pos.offset, 0, pos.snapshot);
 		if (fsck_err_on(bch2_err_matches(ret, ENOTEMPTY),
-				c, deleted_inode_is_dir,
+				trans, deleted_inode_is_dir,
 				"non empty directory %llu:%u in deleted_inodes btree",
 				pos.offset, pos.snapshot))
 			goto delete;
@@ -1108,15 +1108,14 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 			goto out;
 	}
 
-	if (fsck_err_on(!(inode.bi_flags & BCH_INODE_unlinked), c,
-			deleted_inode_not_unlinked,
+	if (fsck_err_on(!(inode.bi_flags & BCH_INODE_unlinked),
+			trans, deleted_inode_not_unlinked,
 			"non-deleted inode %llu:%u in deleted_inodes btree",
 			pos.offset, pos.snapshot))
 		goto delete;
 
 	if (c->sb.clean &&
-	    !fsck_err(c,
-		      deleted_inode_but_clean,
+	    !fsck_err(trans, deleted_inode_but_clean,
 		      "filesystem marked as clean but have deleted inode %llu:%u",
 		      pos.offset, pos.snapshot)) {
 		ret = 0;

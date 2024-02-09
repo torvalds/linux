@@ -3275,6 +3275,20 @@ void bch2_trans_put(struct btree_trans *trans)
 	}
 }
 
+bool bch2_current_has_btree_trans(struct bch_fs *c)
+{
+	seqmutex_lock(&c->btree_trans_lock);
+	struct btree_trans *trans;
+	bool ret = false;
+	list_for_each_entry(trans, &c->btree_trans_list, list)
+		if (trans->locking_wait.task == current) {
+			ret = true;
+			break;
+		}
+	seqmutex_unlock(&c->btree_trans_lock);
+	return ret;
+}
+
 static void __maybe_unused
 bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 				      struct btree_bkey_cached_common *b)
