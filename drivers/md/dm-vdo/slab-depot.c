@@ -4106,9 +4106,6 @@ static int allocate_components(struct slab_depot *depot,
 		};
 	}
 
-	if (result != VDO_SUCCESS)
-		return result;
-
 	slab_count = vdo_compute_slab_count(depot->first_block, depot->last_block,
 					    depot->slab_size_shift);
 	if (thread_config->physical_zone_count > slab_count) {
