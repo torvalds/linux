@@ -3394,36 +3394,31 @@ struct scan_req_params {
 	u32 idle_time;
 	u32 max_scan_time;
 	u32 probe_delay;
-	union {
-		struct {
-			u32 scan_f_passive:1,
-			    scan_f_bcast_probe:1,
-			    scan_f_cck_rates:1,
-			    scan_f_ofdm_rates:1,
-			    scan_f_chan_stat_evnt:1,
-			    scan_f_filter_prb_req:1,
-			    scan_f_bypass_dfs_chn:1,
-			    scan_f_continue_on_err:1,
-			    scan_f_offchan_mgmt_tx:1,
-			    scan_f_offchan_data_tx:1,
-			    scan_f_promisc_mode:1,
-			    scan_f_capture_phy_err:1,
-			    scan_f_strict_passive_pch:1,
-			    scan_f_half_rate:1,
-			    scan_f_quarter_rate:1,
-			    scan_f_force_active_dfs_chn:1,
-			    scan_f_add_tpc_ie_in_probe:1,
-			    scan_f_add_ds_ie_in_probe:1,
-			    scan_f_add_spoofed_mac_in_probe:1,
-			    scan_f_add_rand_seq_in_probe:1,
-			    scan_f_en_ie_whitelist_in_probe:1,
-			    scan_f_forced:1,
-			    scan_f_2ghz:1,
-			    scan_f_5ghz:1,
-			    scan_f_80mhz:1;
-		};
-		u32 scan_flags;
-	};
+	u32 scan_f_passive:1,
+	    scan_f_bcast_probe:1,
+	    scan_f_cck_rates:1,
+	    scan_f_ofdm_rates:1,
+	    scan_f_chan_stat_evnt:1,
+	    scan_f_filter_prb_req:1,
+	    scan_f_bypass_dfs_chn:1,
+	    scan_f_continue_on_err:1,
+	    scan_f_offchan_mgmt_tx:1,
+	    scan_f_offchan_data_tx:1,
+	    scan_f_promisc_mode:1,
+	    scan_f_capture_phy_err:1,
+	    scan_f_strict_passive_pch:1,
+	    scan_f_half_rate:1,
+	    scan_f_quarter_rate:1,
+	    scan_f_force_active_dfs_chn:1,
+	    scan_f_add_tpc_ie_in_probe:1,
+	    scan_f_add_ds_ie_in_probe:1,
+	    scan_f_add_spoofed_mac_in_probe:1,
+	    scan_f_add_rand_seq_in_probe:1,
+	    scan_f_en_ie_whitelist_in_probe:1,
+	    scan_f_forced:1,
+	    scan_f_2ghz:1,
+	    scan_f_5ghz:1,
+	    scan_f_80mhz:1;
 	enum scan_dwelltime_adaptive_mode adaptive_dwell_time_mode;
 	u32 burst_duration;
 	u32 num_chan;
