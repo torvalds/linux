@@ -417,6 +417,16 @@ static void nested_ept_inject_page_fault(struct kvm_vcpu *vcpu,
 		vmx->nested.pml_full = false;
 
 		/*
+		 * It should be impossible to trigger a nested PML Full VM-Exit
+		 * for anything other than an EPT Violation from L2.  KVM *can*
+		 * trigger nEPT page fault injection in response to an EPT
+		 * Misconfig, e.g. if the MMIO SPTE was stale and L1's EPT
+		 * tables also changed, but KVM should not treat EPT Misconfig
+		 * VM-Exits as writes.
+		 */
+		WARN_ON_ONCE(vmx->exit_reason.basic != EXIT_REASON_EPT_VIOLATION);
+
+		/*
 		 * PML Full and EPT Violation VM-Exits both use bit 12 to report
 		 * "NMI unblocking due to IRET", i.e. the bit can be propagated
 		 * as-is from the original EXIT_QUALIFICATION.
