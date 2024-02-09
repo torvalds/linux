@@ -1048,11 +1048,9 @@ dasd_3990_erp_com_rej(struct dasd_ccw_req * erp, char *sense)
 		set_bit(DASD_CQR_SUPPRESS_CR, &erp->refers->flags);
 		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 	} else {
-		/* fatal error -  set status to FAILED
-		   internal error 09 - Command Reject */
 		if (!test_bit(DASD_CQR_SUPPRESS_CR, &erp->flags))
 			dev_err(&device->cdev->dev,
-				"An error occurred in the DASD device driver, reason=09\n");
+				"An I/O command request was rejected\n");
 
 		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 	}
@@ -1120,13 +1118,7 @@ dasd_3990_erp_equip_check(struct dasd_ccw_req * erp, char *sense)
 	erp->function = dasd_3990_erp_equip_check;
 
 	if (sense[1] & SNS1_WRITE_INHIBITED) {
-		dev_info(&device->cdev->dev,
-			    "Write inhibited path encountered\n");
-
-		/* vary path offline
-		   internal error 04 - Path should be varied off-line.*/
-		dev_err(&device->cdev->dev, "An error occurred in the DASD "
-			"device driver, reason=%s\n", "04");
+		dev_err(&device->cdev->dev, "Write inhibited path encountered\n");
 
 		erp = dasd_3990_erp_action_1(erp);
 
@@ -1277,11 +1269,7 @@ dasd_3990_erp_inv_format(struct dasd_ccw_req * erp, char *sense)
 		erp = dasd_3990_erp_action_4(erp, sense);
 
 	} else {
-		/* internal error 06 - The track format is not valid*/
-		dev_err(&device->cdev->dev,
-			"An error occurred in the DASD device driver, "
-			"reason=%s\n", "06");
-
+		dev_err(&device->cdev->dev, "Track format is not valid\n");
 		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 	}
 
@@ -1655,9 +1643,8 @@ dasd_3990_erp_action_1B_32(struct dasd_ccw_req * default_erp, char *sense)
 				     sizeof(struct LO_eckd_data), device);
 
 	if (IS_ERR(erp)) {
-		/* internal error 01 - Unable to allocate ERP */
-		dev_err(&device->cdev->dev, "An error occurred in the DASD "
-			"device driver, reason=%s\n", "01");
+		DBF_DEV_EVENT(DBF_ERR, device, "%s",
+			      "Unable to allocate ERP request (1B 32)");
 		return dasd_3990_erp_cleanup(default_erp, DASD_CQR_FAILED);
 	}
 
@@ -1799,10 +1786,8 @@ dasd_3990_update_1B(struct dasd_ccw_req * previous_erp, char *sense)
 	cpa = previous_erp->irb.scsw.cmd.cpa;
 
 	if (cpa == 0) {
-		/* internal error 02 -
-		   Unable to determine address of the CCW to be restarted */
-		dev_err(&device->cdev->dev, "An error occurred in the DASD "
-			"device driver, reason=%s\n", "02");
+		dev_err(&device->cdev->dev,
+			"Unable to determine address of to be restarted CCW\n");
 
 		previous_erp->status = DASD_CQR_FAILED;
 
@@ -2001,15 +1986,9 @@ dasd_3990_erp_compound_config(struct dasd_ccw_req * erp, char *sense)
 {
 
 	if ((sense[25] & DASD_SENSE_BIT_1) && (sense[26] & DASD_SENSE_BIT_2)) {
-
-		/* set to suspended duplex state then restart
-		   internal error 05 - Set device to suspended duplex state
-		   should be done */
 		struct dasd_device *device = erp->startdev;
 		dev_err(&device->cdev->dev,
-			"An error occurred in the DASD device driver, "
-			"reason=%s\n", "05");
-
+			"Compound configuration error occurred\n");
 	}
 
 	erp->function = dasd_3990_erp_compound_config;
@@ -2145,10 +2124,9 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 			erp = dasd_3990_erp_int_req(erp);
 			break;
 
-		case 0x0F:  /* length mismatch during update write command
-			       internal error 08 - update write command error*/
-			dev_err(&device->cdev->dev, "An error occurred in the "
-				"DASD device driver, reason=%s\n", "08");
+		case 0x0F:
+			dev_err(&device->cdev->dev,
+				"Update write command error occurred\n");
 
 			erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 			break;
@@ -2157,12 +2135,9 @@ dasd_3990_erp_inspect_32(struct dasd_ccw_req * erp, char *sense)
 			erp = dasd_3990_erp_action_10_32(erp, sense);
 			break;
 
-		case 0x15:	/* next track outside defined extend
-				   internal error 07 - The next track is not
-				   within the defined storage extent */
+		case 0x15:
 			dev_err(&device->cdev->dev,
-				"An error occurred in the DASD device driver, "
-				"reason=%s\n", "07");
+				"Track outside defined extent error occurred\n");
 
 			erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 			break;
