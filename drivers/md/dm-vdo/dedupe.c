@@ -126,12 +126,12 @@
 #include <linux/spinlock.h>
 #include <linux/timer.h>
 
+#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "numeric.h"
 #include "permassert.h"
 #include "string-utils.h"
-#include "uds.h"
 
 #include "action-manager.h"
 #include "admin-state.h"

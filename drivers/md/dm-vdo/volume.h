@@ -14,13 +14,13 @@
 #include "chapter-index.h"
 #include "config.h"
 #include "geometry.h"
+#include "indexer.h"
 #include "index-layout.h"
 #include "index-page-map.h"
 #include "permassert.h"
 #include "radix-sort.h"
 #include "sparse-cache.h"
 #include "thread-utils.h"
-#include "uds.h"
 
 /*
  * The volume manages deduplication records on permanent storage. The term "volume" can also refer

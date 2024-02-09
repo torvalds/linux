@@ -6,7 +6,7 @@
 #ifndef UDS_REQUEST_QUEUE_H
 #define UDS_REQUEST_QUEUE_H
 
-#include "uds.h"
+#include "indexer.h"
 
 /*
  * A simple request queue which will handle new requests in the order in which they are received,

@@ -10,10 +10,10 @@
 
 #include "delta-index.h"
 #include "errors.h"
+#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "permassert.h"
-#include "uds.h"
 
 /*
  * An index volume is divided into a fixed number of fixed-size chapters, each consisting of a

@@ -7,8 +7,8 @@
 #define UDS_INDEX_LAYOUT_H
 
 #include "config.h"
+#include "indexer.h"
 #include "io-factory.h"
-#include "uds.h"
 
 /*
  * The index layout describes the format of the index on the underlying storage, and is responsible

@@ -7,7 +7,7 @@
 #define UDS_SPARSE_CACHE_H
 
 #include "geometry.h"
-#include "uds.h"
+#include "indexer.h"
 
 /*
  * The sparse cache is a cache of entire chapter indexes from sparse chapters used for searching

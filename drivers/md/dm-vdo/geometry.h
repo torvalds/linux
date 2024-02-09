@@ -6,7 +6,7 @@
 #ifndef UDS_INDEX_GEOMETRY_H
 #define UDS_INDEX_GEOMETRY_H
 
-#include "uds.h"
+#include "indexer.h"
 
 /*
  * The index_geometry records parameters that define the layout of a UDS index volume, and the size and

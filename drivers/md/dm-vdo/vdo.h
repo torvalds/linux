@@ -17,12 +17,12 @@
 #include "admin-state.h"
 #include "encodings.h"
 #include "funnel-workqueue.h"
+#include "indexer.h"
 #include "packer.h"
 #include "physical-zone.h"
 #include "statistics.h"
 #include "thread-registry.h"
 #include "types.h"
-#include "uds.h"
 
 enum notifier_state {
 	/* Notifications are allowed but not in progress */

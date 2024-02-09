@@ -10,8 +10,8 @@
 #include <linux/cache.h>
 
 #include "config.h"
+#include "indexer.h"
 #include "thread-utils.h"
-#include "uds.h"
 
 /*
  * The index session mediates all interactions with a UDS index. Once the index session is created,

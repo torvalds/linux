@@ -7,10 +7,10 @@
 
 #include "errors.h"
 #include "hash-utils.h"
+#include "indexer.h"
 #include "logger.h"
 #include "memory-alloc.h"
 #include "permassert.h"
-#include "uds.h"
 
 int uds_make_open_chapter_index(struct open_chapter_index **chapter_index,
 				const struct index_geometry *geometry, u64 volume_nonce)

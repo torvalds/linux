@@ -3,8 +3,8 @@
  * Copyright 2023 Red Hat
  */
 
-#ifndef UDS_H
-#define UDS_H
+#ifndef INDEXER_H
+#define INDEXER_H
 
 #include <linux/types.h>
 
@@ -326,4 +326,4 @@ int __must_check uds_get_index_session_stats(struct uds_index_session *session,
 /* This function will fail if any required field of the request is not set. */
 int __must_check uds_launch_request(struct uds_request *request);
 
-#endif /* UDS_H */
+#endif /* INDEXER_H */
