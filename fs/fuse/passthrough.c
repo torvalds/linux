@@ -124,6 +124,22 @@ ssize_t fuse_passthrough_splice_write(struct pipe_inode_info *pipe,
 	return ret;
 }
 
+ssize_t fuse_passthrough_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct fuse_file *ff = file->private_data;
+	struct file *backing_file = fuse_file_passthrough(ff);
+	struct backing_file_ctx ctx = {
+		.cred = ff->cred,
+		.user_file = file,
+		.accessed = fuse_file_accessed,
+	};
+
+	pr_debug("%s: backing_file=0x%p, start=%lu, end=%lu\n", __func__,
+		 backing_file, vma->vm_start, vma->vm_end);
+
+	return backing_file_mmap(backing_file, vma, &ctx);
+}
+
 struct fuse_backing *fuse_backing_get(struct fuse_backing *fb)
 {
 	if (fb && refcount_inc_not_zero(&fb->count))

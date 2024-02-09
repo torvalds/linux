@@ -2555,14 +2555,21 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct fuse_file *ff = file->private_data;
 	struct fuse_conn *fc = ff->fm->fc;
+	struct inode *inode = file_inode(file);
 	int rc;
 
 	/* DAX mmap is superior to direct_io mmap */
-	if (FUSE_IS_DAX(file_inode(file)))
+	if (FUSE_IS_DAX(inode))
 		return fuse_dax_mmap(file, vma);
 
-	/* TODO: implement mmap to backing file */
+	/*
+	 * If inode is in passthrough io mode, because it has some file open
+	 * in passthrough mode, either mmap to backing file or fail mmap,
+	 * because mixing cached mmap and passthrough io mode is not allowed.
+	 */
 	if (fuse_file_passthrough(ff))
+		return fuse_passthrough_mmap(file, vma);
+	else if (fuse_inode_backing(get_fuse_inode(inode)))
 		return -ENODEV;
 
 	/*
@@ -2589,7 +2596,7 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 		 * Also waits for parallel dio writers to go into serial mode
 		 * (exclusive instead of shared lock).
 		 */
-		rc = fuse_file_cached_io_start(file_inode(file), ff);
+		rc = fuse_file_cached_io_start(inode, ff);
 		if (rc)
 			return rc;
 	}
