@@ -2105,51 +2105,51 @@ static int path_down(struct bch_fs *c, pathbuf *p,
  *
  * XXX: we should also be verifying that inodes are in the right subvolumes
  */
-static int check_path(struct btree_trans *trans,
-		      pathbuf *p,
-		      struct bch_inode_unpacked *inode,
-		      u32 snapshot)
+static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c inode_k)
 {
 	struct bch_fs *c = trans->c;
+	struct bch_inode_unpacked inode;
+	u32 snapshot = bch2_snapshot_equiv(c, inode_k.k->p.snapshot);
 	int ret = 0;
 
-	snapshot = bch2_snapshot_equiv(c, snapshot);
 	p->nr = 0;
 
-	while (!(inode->bi_inum == BCACHEFS_ROOT_INO &&
-		 inode->bi_subvol == BCACHEFS_ROOT_SUBVOL)) {
+	BUG_ON(bch2_inode_unpack(inode_k, &inode));
+
+	while (!(inode.bi_inum == BCACHEFS_ROOT_INO &&
+		 inode.bi_subvol == BCACHEFS_ROOT_SUBVOL)) {
 		struct btree_iter dirent_iter;
 		struct bkey_s_c_dirent d;
 		u32 parent_snapshot = snapshot;
 
-		d = inode_get_dirent(trans, &dirent_iter, inode, &parent_snapshot);
+		d = inode_get_dirent(trans, &dirent_iter, &inode, &parent_snapshot);
 		ret = bkey_err(d.s_c);
 		if (ret && !bch2_err_matches(ret, ENOENT))
 			break;
 
-		if (!ret && !dirent_points_to_inode(d, inode)) {
+		if (!ret && !dirent_points_to_inode(d, &inode)) {
 			bch2_trans_iter_exit(trans, &dirent_iter);
 			ret = -BCH_ERR_ENOENT_dirent_doesnt_match_inode;
 		}
 
 		if (bch2_err_matches(ret, ENOENT)) {
-			if (fsck_err(c,  inode_unreachable,
+			if (fsck_err(c, inode_unreachable,
 				     "unreachable inode %llu:%u, type %s nlink %u backptr %llu:%llu",
-				     inode->bi_inum, snapshot,
-				     bch2_d_type_str(inode_d_type(inode)),
-				     inode->bi_nlink,
-				     inode->bi_dir,
-				     inode->bi_dir_offset))
-				ret = reattach_inode(trans, inode, snapshot);
+				     inode.bi_inum, snapshot,
+				     bch2_d_type_str(inode_d_type(&inode)),
+				     inode.bi_nlink,
+				     inode.bi_dir,
+				     inode.bi_dir_offset))
+				ret = reattach_inode(trans, &inode, snapshot);
 			break;
 		}
 
 		bch2_trans_iter_exit(trans, &dirent_iter);
 
-		if (!S_ISDIR(inode->bi_mode))
+		if (!S_ISDIR(inode.bi_mode))
 			break;
 
-		ret = path_down(c, p, inode->bi_inum, snapshot);
+		ret = path_down(c, p, inode.bi_inum, snapshot);
 		if (ret) {
 			bch_err(c, "memory allocation failure");
 			return ret;
@@ -2157,7 +2157,7 @@ static int check_path(struct btree_trans *trans,
 
 		snapshot = parent_snapshot;
 
-		ret = lookup_inode(trans, inode->bi_dir, inode, &snapshot);
+		ret = lookup_inode(trans, inode.bi_dir, &inode, &snapshot);
 		if (ret) {
 			/* Should have been caught in dirents pass */
 			if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -2165,26 +2165,26 @@ static int check_path(struct btree_trans *trans,
 			break;
 		}
 
-		if (path_is_dup(p, inode->bi_inum, snapshot)) {
+		if (path_is_dup(p, inode.bi_inum, snapshot)) {
 			/* XXX print path */
 			bch_err(c, "directory structure loop");
 
 			darray_for_each(*p, i)
 				pr_err("%llu:%u", i->inum, i->snapshot);
-			pr_err("%llu:%u", inode->bi_inum, snapshot);
+			pr_err("%llu:%u", inode.bi_inum, snapshot);
 
 			if (!fsck_err(c, dir_loop, "directory structure loop"))
 				return 0;
 
-			ret = remove_backpointer(trans, inode);
+			ret = remove_backpointer(trans, &inode);
 			if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				bch_err_msg(c, ret, "removing dirent");
 			if (ret)
 				break;
 
-			ret = reattach_inode(trans, inode, snapshot);
+			ret = reattach_inode(trans, &inode, snapshot);
 			if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
-				bch_err_msg(c, ret, "reattaching inode %llu", inode->bi_inum);
+				bch_err_msg(c, ret, "reattaching inode %llu", inode.bi_inum);
 			break;
 		}
 	}
@@ -2200,7 +2200,6 @@ fsck_err:
  */
 int bch2_check_directory_structure(struct bch_fs *c)
 {
-	struct bch_inode_unpacked u;
 	pathbuf path = { 0, };
 	int ret;
 
@@ -2213,12 +2212,10 @@ int bch2_check_directory_structure(struct bch_fs *c)
 			if (!bkey_is_inode(k.k))
 				continue;
 
-			BUG_ON(bch2_inode_unpack(k, &u));
-
-			if (u.bi_flags & BCH_INODE_unlinked)
+			if (bch2_inode_flags(k) & BCH_INODE_unlinked)
 				continue;
 
-			check_path(trans, &path, &u, iter.pos.snapshot);
+			check_path(trans, &path, k);
 		})));
 	darray_exit(&path);
 
