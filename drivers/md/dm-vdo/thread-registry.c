@@ -14,14 +14,14 @@
  * their normal operation. For example, we do not want to invoke the logger while holding a lock.
  */
 
-void uds_initialize_thread_registry(struct thread_registry *registry)
+void vdo_initialize_thread_registry(struct thread_registry *registry)
 {
 	INIT_LIST_HEAD(&registry->links);
 	spin_lock_init(&registry->lock);
 }
 
 /* Register the current thread and associate it with a data pointer. */
-void uds_register_thread(struct thread_registry *registry,
+void vdo_register_thread(struct thread_registry *registry,
 			 struct registered_thread *new_thread, const void *pointer)
 {
 	struct registered_thread *thread;
@@ -51,7 +51,7 @@ void uds_register_thread(struct thread_registry *registry,
 	}
 }
 
-void uds_unregister_thread(struct thread_registry *registry)
+void vdo_unregister_thread(struct thread_registry *registry)
 {
 	struct registered_thread *thread;
 	bool found_it = false;
@@ -74,7 +74,7 @@ void uds_unregister_thread(struct thread_registry *registry)
 	}
 }
 
-const void *uds_lookup_thread(struct thread_registry *registry)
+const void *vdo_lookup_thread(struct thread_registry *registry)
 {
 	struct registered_thread *thread;
 	const void *result = NULL;

@@ -15,14 +15,14 @@
 
 /*
  * UDS and VDO keep track of which threads are allowed to allocate memory freely, and which threads
- * must be careful to not do a memory allocation that does an I/O request. The allocating_threads
- * threads_registry and its associated methods implement this tracking.
+ * must be careful to not do a memory allocation that does an I/O request. The 'allocating_threads'
+ * thread_registry and its associated methods implement this tracking.
  */
 static struct thread_registry allocating_threads;
 
 static bool allocations_allowed(void)
 {
-	const bool *pointer = uds_lookup_thread(&allocating_threads);
+	const bool *pointer = vdo_lookup_thread(&allocating_threads);
 
 	return (pointer != NULL) ? *pointer : false;
 }
@@ -48,13 +48,13 @@ void uds_register_allocating_thread(struct registered_thread *new_thread,
 		flag_ptr = &allocation_always_allowed;
 	}
 
-	uds_register_thread(&allocating_threads, new_thread, flag_ptr);
+	vdo_register_thread(&allocating_threads, new_thread, flag_ptr);
 }
 
 /* Unregister the current thread as an allocating thread. */
 void uds_unregister_allocating_thread(void)
 {
-	uds_unregister_thread(&allocating_threads);
+	vdo_unregister_thread(&allocating_threads);
 }
 
 /*
@@ -384,7 +384,7 @@ int uds_duplicate_string(const char *string, const char *what, char **new_string
 void uds_memory_init(void)
 {
 	spin_lock_init(&memory_stats.lock);
-	uds_initialize_thread_registry(&allocating_threads);
+	vdo_initialize_thread_registry(&allocating_threads);
 }
 
 void uds_memory_exit(void)
