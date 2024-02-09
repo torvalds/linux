@@ -51,8 +51,8 @@ dm-vdo-objs := \
 	thread-cond-var.o \
 	thread-device.o \
 	thread-registry.o \
+	thread-utils.o \
 	uds-sysfs.o \
-	uds-threads.o \
 	vdo.o \
 	vio.o \
 	volume-index.o \

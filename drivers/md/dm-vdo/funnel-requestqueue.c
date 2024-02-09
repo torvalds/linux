@@ -12,7 +12,7 @@
 #include "funnel-queue.h"
 #include "logger.h"
 #include "memory-alloc.h"
-#include "uds-threads.h"
+#include "thread-utils.h"
 
 /*
  * This queue will attempt to handle requests in reasonably sized batches instead of reacting

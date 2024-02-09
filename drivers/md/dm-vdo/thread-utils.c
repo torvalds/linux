@@ -3,7 +3,7 @@
  * Copyright 2023 Red Hat
  */
 
-#include "uds-threads.h"
+#include "thread-utils.h"
 
 #include <linux/completion.h>
 #include <linux/delay.h>

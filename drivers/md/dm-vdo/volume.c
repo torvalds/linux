@@ -20,7 +20,7 @@
 #include "permassert.h"
 #include "sparse-cache.h"
 #include "string-utils.h"
-#include "uds-threads.h"
+#include "thread-utils.h"
 
 /*
  * The first block of the volume layout is reserved for the volume header, which is no longer used.

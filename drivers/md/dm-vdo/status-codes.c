@@ -8,7 +8,7 @@
 #include "errors.h"
 #include "logger.h"
 #include "permassert.h"
-#include "uds-threads.h"
+#include "thread-utils.h"
 
 const struct error_info vdo_status_list[] = {
 	{ "VDO_NOT_IMPLEMENTED", "Not implemented" },

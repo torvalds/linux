@@ -12,7 +12,7 @@
 #include <linux/sched.h>
 
 #include "thread-device.h"
-#include "uds-threads.h"
+#include "thread-utils.h"
 
 struct priority_name {
 	const char *name;

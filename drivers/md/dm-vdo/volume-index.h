@@ -10,8 +10,8 @@
 
 #include "config.h"
 #include "delta-index.h"
+#include "thread-utils.h"
 #include "uds.h"
-#include "uds-threads.h"
 
 /*
  * The volume index is the primary top-level index for UDS. It contains records which map a record

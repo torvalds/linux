@@ -3,8 +3,8 @@
  * Copyright 2023 Red Hat
  */
 
-#ifndef UDS_THREADS_H
-#define UDS_THREADS_H
+#ifndef THREAD_UTILS_H
+#define THREAD_UTILS_H
 
 #include <linux/atomic.h>
 #include <linux/delay.h>
@@ -14,7 +14,6 @@
 #include <linux/wait.h>
 
 #include "errors.h"
-#include "time-utils.h"
 
 /* Thread and synchronization utilities for UDS */
 

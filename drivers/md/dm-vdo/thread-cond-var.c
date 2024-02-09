@@ -7,8 +7,8 @@
 #include <linux/minmax.h>
 
 #include "errors.h"
+#include "thread-utils.h"
 #include "time-utils.h"
-#include "uds-threads.h"
 
 int uds_init_cond(struct cond_var *cv)
 {

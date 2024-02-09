@@ -19,8 +19,8 @@
 #include "permassert.h"
 #include "radix-sort.h"
 #include "sparse-cache.h"
+#include "thread-utils.h"
 #include "uds.h"
-#include "uds-threads.h"
 
 /*
  * The volume manages deduplication records on permanent storage. The term "volume" can also refer
