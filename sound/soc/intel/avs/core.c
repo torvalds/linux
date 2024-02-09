@@ -773,6 +773,7 @@ static struct pci_driver avs_pci_driver = {
 	.probe = avs_pci_probe,
 	.remove = avs_pci_remove,
 	.shutdown = avs_pci_shutdown,
+	.dev_groups = avs_attr_groups,
 	.driver = {
 		.pm = &avs_dev_pm,
 	},

@@ -1,0 +1,8 @@
+What:		/sys/devices/pci0000:00/<dev>/avs/fw_version
+Date:		February 2024
+Contact:	Cezary Rojewski <cezary.rojewski@intel.com>
+Description:
+		Version of AudioDSP firmware ASoC avs driver is communicating
+		with.
+
+		Format: %d.%d.%d.%d, type:major:minor:build.
