@@ -622,7 +622,7 @@ static void cleanup_net(struct work_struct *work)
 	 * the rcu_barrier() below isn't sufficient alone.
 	 * Also the pre_exit() and exit() methods need this barrier.
 	 */
-	synchronize_rcu();
+	synchronize_rcu_expedited();
 
 	rtnl_lock();
 	list_for_each_entry_reverse(ops, &pernet_list, list) {
