@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 	ksft_print_header();
 
 	if (prereq() || geteuid())
-		return ksft_exit_pass();
+		return ksft_exit_skip("Prerequisites unsatisfied\n");
 
 	ksft_set_plan(1);
 
