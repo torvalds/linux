@@ -11,6 +11,7 @@
 
 #include "k3-am652.dtsi"
 #include "k3-am65-iot2050-common.dtsi"
+#include "k3-am65-iot2050-arduino-connector.dtsi"
 
 / {
 	memory@80000000 {
