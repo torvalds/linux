@@ -274,6 +274,12 @@
 				pins = "PG8", "PG9";
 				function = "uart1";
 			};
+
+			/omit-if-no-ref/
+			x32clk_fanout_pin: x32clk-fanout-pin {
+				pins = "PG10";
+				function = "clock";
+			};
 		};
 
 		gic: interrupt-controller@3021000 {
