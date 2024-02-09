@@ -1107,7 +1107,7 @@ static int vdo_message(struct dm_target *ti, unsigned int argc, char **argv,
 
 	vdo = get_vdo_for_target(ti);
 	uds_register_allocating_thread(&allocating_thread, NULL);
-	uds_register_thread_device_id(&instance_thread, &vdo->instance);
+	vdo_register_thread_device_id(&instance_thread, &vdo->instance);
 
 	/*
 	 * Must be done here so we don't map return codes. The code in dm-ioctl expects a 1 for a
@@ -1120,7 +1120,7 @@ static int vdo_message(struct dm_target *ti, unsigned int argc, char **argv,
 		result = vdo_status_to_errno(process_vdo_message(vdo, argc, argv));
 	}
 
-	uds_unregister_thread_device_id();
+	vdo_unregister_thread_device_id();
 	uds_unregister_allocating_thread();
 	return result;
 }
@@ -1632,9 +1632,9 @@ static int construct_new_vdo(struct dm_target *ti, unsigned int argc, char **arg
 	if (result != VDO_SUCCESS)
 		return -ENOMEM;
 
-	uds_register_thread_device_id(&instance_thread, &instance);
+	vdo_register_thread_device_id(&instance_thread, &instance);
 	result = construct_new_vdo_registered(ti, argc, argv, instance);
-	uds_unregister_thread_device_id();
+	vdo_unregister_thread_device_id();
 	return result;
 }
 
@@ -1913,9 +1913,9 @@ static int vdo_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (vdo == NULL) {
 		result = construct_new_vdo(ti, argc, argv);
 	} else {
-		uds_register_thread_device_id(&instance_thread, &vdo->instance);
+		vdo_register_thread_device_id(&instance_thread, &vdo->instance);
 		result = update_existing_vdo(device_name, ti, argc, argv, vdo);
-		uds_unregister_thread_device_id();
+		vdo_unregister_thread_device_id();
 	}
 
 	uds_unregister_allocating_thread();
@@ -1935,7 +1935,7 @@ static void vdo_dtr(struct dm_target *ti)
 		unsigned int instance = vdo->instance;
 		struct registered_thread allocating_thread, instance_thread;
 
-		uds_register_thread_device_id(&instance_thread, &instance);
+		vdo_register_thread_device_id(&instance_thread, &instance);
 		uds_register_allocating_thread(&allocating_thread, NULL);
 
 		device_name = vdo_get_device_name(ti);
@@ -1945,7 +1945,7 @@ static void vdo_dtr(struct dm_target *ti)
 
 		vdo_destroy(uds_forget(vdo));
 		uds_log_info("device '%s' stopped", device_name);
-		uds_unregister_thread_device_id();
+		vdo_unregister_thread_device_id();
 		uds_unregister_allocating_thread();
 		release_instance(instance);
 	} else if (config == vdo->device_config) {
@@ -2104,7 +2104,7 @@ static void vdo_postsuspend(struct dm_target *ti)
 	const char *device_name;
 	int result;
 
-	uds_register_thread_device_id(&instance_thread, &vdo->instance);
+	vdo_register_thread_device_id(&instance_thread, &vdo->instance);
 	device_name = vdo_get_device_name(vdo->device_config->owning_target);
 	uds_log_info("suspending device '%s'", device_name);
 
@@ -2129,7 +2129,7 @@ static void vdo_postsuspend(struct dm_target *ti)
 				       device_name);
 	}
 
-	uds_unregister_thread_device_id();
+	vdo_unregister_thread_device_id();
 }
 
 /**
@@ -2846,11 +2846,11 @@ static int vdo_preresume(struct dm_target *ti)
 	struct vdo *vdo = get_vdo_for_target(ti);
 	int result;
 
-	uds_register_thread_device_id(&instance_thread, &vdo->instance);
+	vdo_register_thread_device_id(&instance_thread, &vdo->instance);
 	result = vdo_preresume_registered(ti, vdo);
 	if ((result == VDO_PARAMETER_MISMATCH) || (result == VDO_INVALID_ADMIN_STATE))
 		result = -EINVAL;
-	uds_unregister_thread_device_id();
+	vdo_unregister_thread_device_id();
 	return vdo_status_to_errno(result);
 }
 
@@ -2858,10 +2858,10 @@ static void vdo_resume(struct dm_target *ti)
 {
 	struct registered_thread instance_thread;
 
-	uds_register_thread_device_id(&instance_thread,
+	vdo_register_thread_device_id(&instance_thread,
 				      &get_vdo_for_target(ti)->instance);
 	uds_log_info("device '%s' resumed", vdo_get_device_name(ti));
-	uds_unregister_thread_device_id();
+	vdo_unregister_thread_device_id();
 }
 
 /*
@@ -2912,10 +2912,10 @@ static int __init vdo_init(void)
 	/*
 	 * UDS module level initialization must be done first, as VDO initialization depends on it
 	 */
-	uds_initialize_thread_device_registry();
 	uds_memory_init();
 	uds_init_sysfs();
 
+	vdo_initialize_thread_device_registry();
 	vdo_initialize_device_registry_once();
 	uds_log_info("loaded version %s", CURRENT_VERSION);
 

@@ -176,7 +176,7 @@ static void emit_log_message(int priority, const char *module, const char *prefi
 	}
 
 	/* Not at interrupt level; we have a process we can look at, and might have a device ID. */
-	device_instance = uds_get_thread_device_id();
+	device_instance = vdo_get_thread_device_id();
 	if (device_instance >= 0) {
 		emit_log_message_to_kernel(priority, "%s%u:%s: %s%pV%pV\n", module,
 					   device_instance, current->comm, prefix, vaf1,
