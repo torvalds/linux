@@ -4938,20 +4938,6 @@ pipe_config_pll_mismatch(bool fastset,
 	}
 }
 
-static bool fastboot_enabled(struct drm_i915_private *dev_priv)
-{
-	/* Enable fastboot by default on Skylake and newer */
-	if (DISPLAY_VER(dev_priv) >= 9)
-		return true;
-
-	/* Enable fastboot by default on VLV and CHV */
-	if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv))
-		return true;
-
-	/* Disabled by default on all others */
-	return false;
-}
-
 bool
 intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			  const struct intel_crtc_state *pipe_config,
@@ -4960,14 +4946,6 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	struct drm_i915_private *dev_priv = to_i915(current_config->uapi.crtc->dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
 	bool ret = true;
-	bool fixup_inherited = fastset &&
-		current_config->inherited && !pipe_config->inherited;
-
-	if (fixup_inherited && !fastboot_enabled(dev_priv)) {
-		drm_dbg_kms(&dev_priv->drm,
-			    "initial modeset and fastboot not set\n");
-		ret = false;
-	}
 
 #define PIPE_CONF_CHECK_X(name) do { \
 	if (current_config->name != pipe_config->name) { \
