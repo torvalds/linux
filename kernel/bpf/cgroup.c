@@ -1364,9 +1364,6 @@ int __cgroup_bpf_run_filter_skb(struct sock *sk,
 	struct cgroup *cgrp;
 	int ret;
 
-	if (!sk || !sk_fullsock(sk))
-		return 0;
-
 	if (sk->sk_family != AF_INET && sk->sk_family != AF_INET6)
 		return 0;
 
