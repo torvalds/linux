@@ -286,13 +286,8 @@ void uds_free_volume_index(struct volume_index *volume_index)
 	if (volume_index == NULL)
 		return;
 
-	if (volume_index->zones != NULL) {
-		unsigned int zone;
-
-		for (zone = 0; zone < volume_index->zone_count; zone++)
-			uds_destroy_mutex(&volume_index->zones[zone].hook_mutex);
+	if (volume_index->zones != NULL)
 		uds_free(uds_forget(volume_index->zones));
-	}
 
 	uninitialize_volume_sub_index(&volume_index->vi_non_hook);
 	uninitialize_volume_sub_index(&volume_index->vi_hook);
@@ -546,10 +541,10 @@ int uds_get_volume_index_record(struct volume_index *volume_index,
 			get_volume_sub_index_zone(&volume_index->vi_hook, name);
 		struct mutex *mutex = &volume_index->zones[zone].hook_mutex;
 
-		uds_lock_mutex(mutex);
+		mutex_lock(mutex);
 		result = get_volume_sub_index_record(&volume_index->vi_hook, name,
 						     record);
-		uds_unlock_mutex(mutex);
+		mutex_unlock(mutex);
 		/* Remember the mutex so that other operations on the index record can use it. */
 		record->mutex = mutex;
 	} else {
@@ -578,13 +573,13 @@ int uds_put_volume_index_record(struct volume_index_record *record, u64 virtual_
 	}
 	address = extract_address(sub_index, record->name);
 	if (unlikely(record->mutex != NULL))
-		uds_lock_mutex(record->mutex);
+		mutex_lock(record->mutex);
 	result = uds_put_delta_index_entry(&record->delta_entry, address,
 					   convert_virtual_to_index(sub_index,
 								    virtual_chapter),
 					   record->is_found ? record->name->name : NULL);
 	if (unlikely(record->mutex != NULL))
-		uds_unlock_mutex(record->mutex);
+		mutex_unlock(record->mutex);
 	switch (result) {
 	case UDS_SUCCESS:
 		record->virtual_chapter = virtual_chapter;
@@ -614,10 +609,10 @@ int uds_remove_volume_index_record(struct volume_index_record *record)
 	/* Mark the record so that it cannot be used again */
 	record->is_found = false;
 	if (unlikely(record->mutex != NULL))
-		uds_lock_mutex(record->mutex);
+		mutex_lock(record->mutex);
 	result = uds_remove_delta_index_entry(&record->delta_entry);
 	if (unlikely(record->mutex != NULL))
-		uds_unlock_mutex(record->mutex);
+		mutex_unlock(record->mutex);
 	return result;
 }
 
@@ -688,10 +683,10 @@ void uds_set_volume_index_zone_open_chapter(struct volume_index *volume_index,
 	 * chapter number is changing.
 	 */
 	if (has_sparse(volume_index)) {
-		uds_lock_mutex(mutex);
+		mutex_lock(mutex);
 		set_volume_sub_index_zone_open_chapter(&volume_index->vi_hook,
 						       zone_number, virtual_chapter);
-		uds_unlock_mutex(mutex);
+		mutex_unlock(mutex);
 	}
 }
 
@@ -730,12 +725,12 @@ int uds_set_volume_index_record_chapter(struct volume_index_record *record,
 	}
 
 	if (unlikely(record->mutex != NULL))
-		uds_lock_mutex(record->mutex);
+		mutex_lock(record->mutex);
 	result = uds_set_delta_entry_value(&record->delta_entry,
 					   convert_virtual_to_index(sub_index,
 								    virtual_chapter));
 	if (unlikely(record->mutex != NULL))
-		uds_unlock_mutex(record->mutex);
+		mutex_unlock(record->mutex);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -785,9 +780,9 @@ u64 uds_lookup_volume_index_name(const struct volume_index *volume_index,
 	if (!uds_is_volume_index_sample(volume_index, name))
 		return NO_CHAPTER;
 
-	uds_lock_mutex(mutex);
+	mutex_lock(mutex);
 	virtual_chapter = lookup_volume_sub_index_name(&volume_index->vi_hook, name);
-	uds_unlock_mutex(mutex);
+	mutex_unlock(mutex);
 
 	return virtual_chapter;
 }
@@ -1258,13 +1253,8 @@ int uds_make_volume_index(const struct uds_configuration *config, u64 volume_non
 		return result;
 	}
 
-	for (zone = 0; zone < config->zone_count; zone++) {
-		result = uds_init_mutex(&volume_index->zones[zone].hook_mutex);
-		if (result != UDS_SUCCESS) {
-			uds_free_volume_index(volume_index);
-			return result;
-		}
-	}
+	for (zone = 0; zone < config->zone_count; zone++)
+		mutex_init(&volume_index->zones[zone].hook_mutex);
 
 	split_configuration(config, &split);
 	result = initialize_volume_sub_index(&split.non_hook_config, volume_nonce, 'd',

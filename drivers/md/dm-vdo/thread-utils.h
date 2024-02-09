@@ -26,27 +26,4 @@ void uds_perform_once(atomic_t *once_state, void (*function) (void));
 
 int uds_join_threads(struct thread *thread);
 
-/* FIXME: all below wrappers should be removed! */
-
-static inline int __must_check uds_init_mutex(struct mutex *mutex)
-{
-	mutex_init(mutex);
-	return UDS_SUCCESS;
-}
-
-static inline int uds_destroy_mutex(struct mutex *mutex)
-{
-	return UDS_SUCCESS;
-}
-
-static inline void uds_lock_mutex(struct mutex *mutex)
-{
-	mutex_lock(mutex);
-}
-
-static inline void uds_unlock_mutex(struct mutex *mutex)
-{
-	mutex_unlock(mutex);
-}
-
 #endif /* UDS_THREADS_H */
