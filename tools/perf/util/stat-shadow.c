@@ -414,12 +414,7 @@ static int prepare_metric(struct evsel **metric_events,
 				val = NAN;
 				source_count = 0;
 			} else {
-				/*
-				 * If an event was scaled during stat gathering,
-				 * reverse the scale before computing the
-				 * metric.
-				 */
-				val = aggr->counts.val * (1.0 / metric_events[i]->scale);
+				val = aggr->counts.val;
 				source_count = evsel__source_count(metric_events[i]);
 			}
 		}
