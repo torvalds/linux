@@ -1053,7 +1053,7 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
 			      const struct cfg80211_chan_def *chandef);
 
 /**
- * cfg80211_chandef_primary_freq - calculate primary 40/80/160 MHz freq
+ * cfg80211_chandef_primary - calculate primary 40/80/160 MHz freq
  * @chandef: chandef to calculate for
  * @primary_chan_width: primary channel width to calculate center for
  * @punctured: punctured sub-channel bitmap, will be recalculated
