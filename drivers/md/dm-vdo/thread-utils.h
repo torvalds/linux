@@ -31,11 +31,29 @@ void uds_perform_once(atomic_t *once_state, void (*function) (void));
 
 int uds_join_threads(struct thread *thread);
 
-int __must_check uds_init_cond(struct cond_var *cond);
-int uds_signal_cond(struct cond_var *cond);
-int uds_broadcast_cond(struct cond_var *cond);
-int uds_wait_cond(struct cond_var *cond, struct mutex *mutex);
-int uds_destroy_cond(struct cond_var *cond);
+static inline int __must_check uds_init_cond(struct cond_var *cv)
+{
+	init_waitqueue_head(&cv->wait_queue);
+	return UDS_SUCCESS;
+}
+
+static inline void uds_signal_cond(struct cond_var *cv)
+{
+	wake_up(&cv->wait_queue);
+}
+
+static inline void uds_broadcast_cond(struct cond_var *cv)
+{
+	wake_up_all(&cv->wait_queue);
+}
+
+void uds_wait_cond(struct cond_var *cv, struct mutex *mutex);
+
+/* FIXME: all below wrappers should be removed! */
+
+static inline void uds_destroy_cond(struct cond_var *cv)
+{
+}
 
 static inline int __must_check uds_init_mutex(struct mutex *mutex)
 {
