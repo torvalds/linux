@@ -4852,10 +4852,12 @@ memcmp_diff_len(const u8 *a, const u8 *b, size_t len)
 }
 
 static void
-pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
-			    bool fastset, const char *name,
+pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
+			    const char *name,
 			    const u8 *a, const u8 *b, size_t len)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
 	if (fastset) {
 		if (!drm_debug_enabled(DRM_UT_KMS))
 			return;
@@ -4864,7 +4866,8 @@ pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 		len = memcmp_diff_len(a, b, len);
 
 		drm_dbg_kms(&dev_priv->drm,
-			    "fastset requirement not met in %s buffer\n", name);
+			    "[CRTC:%d:%s] fastset requirement not met in %s buffer\n",
+			    crtc->base.base.id, crtc->base.name, name);
 		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_NONE,
 			       16, 0, a, len, false);
 		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_NONE,
@@ -4873,7 +4876,8 @@ pipe_config_buffer_mismatch(struct drm_i915_private *dev_priv,
 		/* only dump up to the last difference */
 		len = memcmp_diff_len(a, b, len);
 
-		drm_err(&dev_priv->drm, "mismatch in %s buffer\n", name);
+		drm_err(&dev_priv->drm, "[CRTC:%d:%s] mismatch in %s buffer\n",
+			crtc->base.base.id, crtc->base.name, name);
 		print_hex_dump(KERN_ERR, "expected: ", DUMP_PREFIX_NONE,
 			       16, 0, a, len, false);
 		print_hex_dump(KERN_ERR, "found: ", DUMP_PREFIX_NONE,
@@ -5072,7 +5076,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	BUILD_BUG_ON(sizeof(current_config->name) != (len)); \
 	BUILD_BUG_ON(sizeof(pipe_config->name) != (len)); \
 	if (!intel_compare_buffer(current_config->name, pipe_config->name, (len))) { \
-		pipe_config_buffer_mismatch(dev_priv, fastset, __stringify(name), \
+		pipe_config_buffer_mismatch(fastset, crtc, __stringify(name), \
 					    current_config->name, \
 					    pipe_config->name, \
 					    (len)); \
