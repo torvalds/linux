@@ -7,12 +7,6 @@
 #define THREAD_UTILS_H
 
 #include <linux/atomic.h>
-#include <linux/delay.h>
-#include <linux/jiffies.h>
-#include <linux/mutex.h>
-#include <linux/semaphore.h>
-
-#include "errors.h"
 
 /* Thread and synchronization utilities */
 

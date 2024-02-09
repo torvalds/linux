@@ -11,6 +11,7 @@
 #include <linux/printk.h>
 #include <linux/sched.h>
 
+#include "errors.h"
 #include "thread-device.h"
 #include "thread-utils.h"
 
