@@ -2400,7 +2400,7 @@ static void btrfs_add_delalloc_inode(struct btrfs_inode *inode)
 	root->nr_delalloc_inodes++;
 	if (root->nr_delalloc_inodes == 1) {
 		spin_lock(&fs_info->delalloc_root_lock);
-		BUG_ON(!list_empty(&root->delalloc_root));
+		ASSERT(list_empty(&root->delalloc_root));
 		list_add_tail(&root->delalloc_root, &fs_info->delalloc_roots);
 		spin_unlock(&fs_info->delalloc_root_lock);
 	}
@@ -2426,7 +2426,7 @@ void __btrfs_del_delalloc_inode(struct btrfs_inode *inode)
 		if (!root->nr_delalloc_inodes) {
 			ASSERT(list_empty(&root->delalloc_inodes));
 			spin_lock(&fs_info->delalloc_root_lock);
-			BUG_ON(list_empty(&root->delalloc_root));
+			ASSERT(!list_empty(&root->delalloc_root));
 			list_del_init(&root->delalloc_root);
 			spin_unlock(&fs_info->delalloc_root_lock);
 		}
