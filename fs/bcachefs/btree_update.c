@@ -785,8 +785,8 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 	return ret;
 }
 
-int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
-		       struct bpos pos, bool set)
+int bch2_btree_bit_mod_buffered(struct btree_trans *trans, enum btree_id btree,
+				struct bpos pos, bool set)
 {
 	struct bkey_i k;
 

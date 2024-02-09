@@ -620,7 +620,8 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		bool old_deleted = bkey_is_deleted_inode(old);
 		bool new_deleted = bkey_is_deleted_inode(new.s_c);
 		if (old_deleted != new_deleted) {
-			int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new.k->p, new_deleted);
+			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes,
+							      new.k->p, new_deleted);
 			if (ret)
 				return ret;
 		}
@@ -1170,7 +1171,7 @@ fsck_err:
 	bch2_trans_iter_exit(trans, &inode_iter);
 	return ret;
 delete:
-	ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, pos, false);
+	ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes, pos, false);
 	goto out;
 }
 

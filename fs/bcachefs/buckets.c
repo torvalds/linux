@@ -1053,7 +1053,8 @@ int bch2_trigger_extent(struct btree_trans *trans,
 			  (int) bch2_bkey_needs_rebalance(c, old);
 
 		if (mod) {
-			int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new.k->p, mod > 0);
+			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
+							      new.k->p, mod > 0);
 			if (ret)
 				return ret;
 		}

@@ -44,8 +44,8 @@ static int __bch2_lru_set(struct btree_trans *trans, u16 lru_id,
 			  u64 dev_bucket, u64 time, bool set)
 {
 	return time
-		? bch2_btree_bit_mod(trans, BTREE_ID_lru,
-				     lru_pos(lru_id, dev_bucket, time), set)
+		? bch2_btree_bit_mod_buffered(trans, BTREE_ID_lru,
+					      lru_pos(lru_id, dev_bucket, time), set)
 		: 0;
 }
 
