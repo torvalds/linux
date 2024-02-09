@@ -42,6 +42,22 @@
 		usb1 = &usb1;
 	};
 
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb0_id>;
+		id-gpios = <&main_gpio1 19 GPIO_ACTIVE_HIGH>;
+		label = "USB_1";
+		self-powered;
+		vbus-supply = <&reg_usb0_vbus>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb0_ep>;
+			};
+		};
+	};
+
 	verdin_gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -149,6 +165,18 @@
 		states = <1800000 0x0>,
 			 <3300000 0x1>;
 		vin-supply = <&reg_sd_3v3_1v8>;
+	};
+
+	reg_usb0_vbus: regulator-usb0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usb0_en>;
+		enable-active-high;
+		/* Verdin USB_1_EN (SODIMM 155) */
+		gpio = <&main_gpio1 50 GPIO_ACTIVE_HIGH>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "USB_1_EN";
 	};
 
 	reserved-memory {
@@ -436,6 +464,13 @@
 		>;
 	};
 
+	/* Verdin USB_1_EN */
+	pinctrl_usb0_en: main-gpio1-50-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x0254, PIN_INPUT, 7) /* (C20) USB0_DRVVBUS.GPIO1_50 */ /* SODIMM 155 */
+		>;
+	};
+
 	/* On-module I2C - PMIC_I2C */
 	pinctrl_i2c0: main-i2c0-default-pins {
 		pinctrl-single,pins = <
@@ -657,13 +692,6 @@
 			AM62X_IOPAD(0x0004, PIN_OUTPUT,       5) /* (G25) OSPI0_LBCLKO.UART5_RTSn */ /* WiFi_UART_RTS */
 			AM62X_IOPAD(0x0034, PIN_INPUT_PULLUP, 5) /* (H21) OSPI0_CSn2.UART5_RXD    */ /* WiFi_UART_RXD */
 			AM62X_IOPAD(0x0038, PIN_OUTPUT,       5) /* (E24) OSPI0_CSn3.UART5_TXD    */ /* WiFi_UART_TXD */
-		>;
-	};
-
-	/* Verdin USB_1 */
-	pinctrl_usb0: main-usb0-default-pins {
-		pinctrl-single,pins = <
-			AM62X_IOPAD(0x0254, PIN_OUTPUT, 0) /* (C20) USB0_DRVVBUS */ /* SODIMM 155 */
 		>;
 	};
 
@@ -1013,7 +1041,7 @@
 		"",
 		"",
 		"SODIMM_17",
-		"", /* 50 */
+		"SODIMM_155", /* 50 */
 		"",
 		"",
 		"",
@@ -1428,11 +1456,16 @@
 	status = "disabled";
 };
 
-/* TODO: role swich using ID pin */
 &usb0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usb0>, <&pinctrl_usb0_id>;
+	adp-disable;
+	usb-role-switch;
 	status = "disabled";
+
+	port {
+		usb0_ep: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
+	};
 };
 
 /* Verdin USB_2 */
