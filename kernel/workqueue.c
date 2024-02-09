@@ -1787,14 +1787,12 @@ static bool pwq_activate_first_inactive(struct pool_workqueue *pwq, bool fill)
 }
 
 /**
- * unplug_oldest_pwq - restart an oldest plugged pool_workqueue
- * @wq: workqueue_struct to be restarted
+ * unplug_oldest_pwq - unplug the oldest pool_workqueue
+ * @wq: workqueue_struct where its oldest pwq is to be unplugged
  *
- * pwq's are linked into wq->pwqs with the oldest first. For ordered
- * workqueues, only the oldest pwq is unplugged, the others are plugged to
- * suspend execution until the oldest one is drained. When this happens, the
- * next oldest one (first plugged pwq in iteration) will be unplugged to
- * restart work item execution to ensure proper work item ordering.
+ * This function should only be called for ordered workqueues where only the
+ * oldest pwq is unplugged, the others are plugged to suspend execution to
+ * ensure proper work item ordering::
  *
  *    dfl_pwq --------------+     [P] - plugged
  *                          |
@@ -1804,6 +1802,11 @@ static bool pwq_activate_first_inactive(struct pool_workqueue *pwq, bool fill)
  *            1    3        5
  *            |    |        |
  *            2    4        6
+ *
+ * When the oldest pwq is drained and removed, this function should be called
+ * to unplug the next oldest one to start its work item execution. Note that
+ * pwq's are linked into wq->pwqs with the oldest first, so the first one in
+ * the list is the oldest.
  */
 static void unplug_oldest_pwq(struct workqueue_struct *wq)
 {
