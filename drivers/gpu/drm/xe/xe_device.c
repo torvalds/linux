@@ -83,9 +83,6 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-static void device_kill_persistent_exec_queues(struct xe_device *xe,
-					       struct xe_file *xef);
-
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct xe_device *xe = to_xe_device(dev);
@@ -102,8 +99,6 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	mutex_unlock(&xef->exec_queue.lock);
 	xa_destroy(&xef->exec_queue.xa);
 	mutex_destroy(&xef->exec_queue.lock);
-	device_kill_persistent_exec_queues(xe, xef);
-
 	mutex_lock(&xef->vm.lock);
 	xa_for_each(&xef->vm.xa, idx, vm)
 		xe_vm_close_and_put(vm);
@@ -254,9 +249,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 		if (err >= 0)
 			xa_erase(&xe->usm.asid_to_vm, asid);
 	}
-
-	drmm_mutex_init(&xe->drm, &xe->persistent_engines.lock);
-	INIT_LIST_HEAD(&xe->persistent_engines.list);
 
 	spin_lock_init(&xe->pinned.lock);
 	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
@@ -568,37 +560,6 @@ void xe_device_remove(struct xe_device *xe)
 
 void xe_device_shutdown(struct xe_device *xe)
 {
-}
-
-void xe_device_add_persistent_exec_queues(struct xe_device *xe, struct xe_exec_queue *q)
-{
-	mutex_lock(&xe->persistent_engines.lock);
-	list_add_tail(&q->persistent.link, &xe->persistent_engines.list);
-	mutex_unlock(&xe->persistent_engines.lock);
-}
-
-void xe_device_remove_persistent_exec_queues(struct xe_device *xe,
-					     struct xe_exec_queue *q)
-{
-	mutex_lock(&xe->persistent_engines.lock);
-	if (!list_empty(&q->persistent.link))
-		list_del(&q->persistent.link);
-	mutex_unlock(&xe->persistent_engines.lock);
-}
-
-static void device_kill_persistent_exec_queues(struct xe_device *xe,
-					       struct xe_file *xef)
-{
-	struct xe_exec_queue *q, *next;
-
-	mutex_lock(&xe->persistent_engines.lock);
-	list_for_each_entry_safe(q, next, &xe->persistent_engines.list,
-				 persistent.link)
-		if (q->persistent.xef == xef) {
-			xe_exec_queue_kill(q);
-			list_del_init(&q->persistent.link);
-		}
-	mutex_unlock(&xe->persistent_engines.lock);
 }
 
 void xe_device_wmb(struct xe_device *xe)
