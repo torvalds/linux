@@ -232,7 +232,7 @@ int rtl83xx_register_switch(struct realtek_priv *priv)
 
 	ds->priv = priv;
 	ds->dev = priv->dev;
-	ds->ops = priv->ds_ops;
+	ds->ops = priv->variant->ds_ops;
 	ds->num_ports = priv->num_ports;
 	priv->ds = ds;
 
