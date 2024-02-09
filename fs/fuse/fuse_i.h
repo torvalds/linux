@@ -129,6 +129,9 @@ struct fuse_inode {
 			/* Waitq for writepage completion */
 			wait_queue_head_t page_waitq;
 
+			/* waitq for direct-io completion */
+			wait_queue_head_t direct_io_waitq;
+
 			/* List of writepage requestst (pending or sent) */
 			struct rb_root writepages;
 		};
@@ -1353,6 +1356,8 @@ int fuse_fileattr_set(struct mnt_idmap *idmap,
 
 /* iomode.c */
 int fuse_file_cached_io_start(struct inode *inode, struct fuse_file *ff);
+int fuse_file_uncached_io_start(struct inode *inode, struct fuse_file *ff);
+void fuse_file_uncached_io_end(struct inode *inode, struct fuse_file *ff);
 
 int fuse_file_io_open(struct file *file, struct inode *inode);
 void fuse_file_io_release(struct fuse_file *ff, struct inode *inode);
