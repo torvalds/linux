@@ -2462,7 +2462,6 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 		u64 len = state->end + 1 - state->start;
 		u64 prev_delalloc_bytes;
 		u32 num_extents = count_max_extents(fs_info, len);
-		bool do_list = !btrfs_is_free_space_inode(inode);
 
 		spin_lock(&inode->lock);
 		btrfs_mod_outstanding_extents(inode, num_extents);
@@ -2487,7 +2486,7 @@ void btrfs_set_delalloc_extent(struct btrfs_inode *inode, struct extent_state *s
 		 * and are therefore protected against concurrent calls of this
 		 * function and btrfs_clear_delalloc_extent().
 		 */
-		if (do_list && prev_delalloc_bytes == 0)
+		if (!btrfs_is_free_space_inode(inode) && prev_delalloc_bytes == 0)
 			btrfs_add_delalloc_inode(inode);
 	}
 
