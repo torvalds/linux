@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
+#include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
