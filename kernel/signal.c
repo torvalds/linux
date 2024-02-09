@@ -47,6 +47,7 @@
 #include <linux/cgroup.h>
 #include <linux/audit.h>
 #include <linux/sysctl.h>
+#include <uapi/linux/pidfd.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/signal.h>
@@ -1436,7 +1437,8 @@ void lockdep_assert_task_sighand_held(struct task_struct *task)
 #endif
 
 /*
- * send signal info to all the members of a group
+ * send signal info to all the members of a thread group or to the
+ * individual thread if type == PIDTYPE_PID.
  */
 int group_send_sig_info(int sig, struct kernel_siginfo *info,
 			struct task_struct *p, enum pid_type type)
@@ -1478,7 +1480,8 @@ int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp)
 	return ret;
 }
 
-int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
+static int kill_pid_info_type(int sig, struct kernel_siginfo *info,
+				struct pid *pid, enum pid_type type)
 {
 	int error = -ESRCH;
 	struct task_struct *p;
@@ -1487,17 +1490,21 @@ int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
 		rcu_read_lock();
 		p = pid_task(pid, PIDTYPE_PID);
 		if (p)
-			error = group_send_sig_info(sig, info, p, PIDTYPE_TGID);
+			error = group_send_sig_info(sig, info, p, type);
 		rcu_read_unlock();
 		if (likely(!p || error != -ESRCH))
 			return error;
-
 		/*
 		 * The task was unhashed in between, try again.  If it
 		 * is dead, pid_task() will return NULL, if we race with
 		 * de_thread() it will find the new leader.
 		 */
 	}
+}
+
+int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
+{
+	return kill_pid_info_type(sig, info, pid, PIDTYPE_TGID);
 }
 
 static int kill_proc_info(int sig, struct kernel_siginfo *info, pid_t pid)
@@ -3873,14 +3880,10 @@ static struct pid *pidfd_to_pid(const struct file *file)
  * @info:   signal info
  * @flags:  future flags
  *
- * The syscall currently only signals via PIDTYPE_PID which covers
- * kill(<positive-pid>, <signal>. It does not signal threads or process
- * groups.
- * In order to extend the syscall to threads and process groups the @flags
- * argument should be used. In essence, the @flags argument will determine
- * what is signaled and not the file descriptor itself. Put in other words,
- * grouping is a property of the flags argument not a property of the file
- * descriptor.
+ * Send the signal to the thread group or to the individual thread depending
+ * on PIDFD_THREAD.
+ * In the future extension to @flags may be used to override the default scope
+ * of @pidfd.
  *
  * Return: 0 on success, negative errno on failure
  */
@@ -3891,6 +3894,7 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	struct fd f;
 	struct pid *pid;
 	kernel_siginfo_t kinfo;
+	enum pid_type type;
 
 	/* Enforce flags be set to 0 until we add an extension. */
 	if (flags)
@@ -3911,6 +3915,11 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 	if (!access_pidfd_pidns(pid))
 		goto err;
 
+	if (f.file->f_flags & PIDFD_THREAD)
+		type = PIDTYPE_PID;
+	else
+		type = PIDTYPE_TGID;
+
 	if (info) {
 		ret = copy_siginfo_from_user_any(&kinfo, info);
 		if (unlikely(ret))
@@ -3926,12 +3935,10 @@ SYSCALL_DEFINE4(pidfd_send_signal, int, pidfd, int, sig,
 		    (kinfo.si_code >= 0 || kinfo.si_code == SI_TKILL))
 			goto err;
 	} else {
-		prepare_kill_siginfo(sig, &kinfo, PIDTYPE_TGID);
+		prepare_kill_siginfo(sig, &kinfo, type);
 	}
 
-	/* TODO: respect PIDFD_THREAD */
-	ret = kill_pid_info(sig, &kinfo, pid);
-
+	ret = kill_pid_info_type(sig, &kinfo, pid, type);
 err:
 	fdput(f);
 	return ret;
