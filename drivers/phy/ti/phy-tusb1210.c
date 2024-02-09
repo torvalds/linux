@@ -17,6 +17,10 @@
 #include <linux/property.h>
 #include <linux/workqueue.h>
 
+#define TI_VENDOR_ID		0x0451
+#define TI_DEVICE_TUSB1210	0x1507
+#define TI_DEVICE_TUSB1211	0x1508
+
 #define TUSB1211_POWER_CONTROL				0x3d
 #define TUSB1211_POWER_CONTROL_SET			0x3e
 #define TUSB1211_POWER_CONTROL_CLEAR			0x3f
@@ -436,7 +440,7 @@ static void tusb1210_probe_charger_detect(struct tusb1210 *tusb)
 	if (!device_property_read_bool(dev->parent, "linux,phy_charger_detect"))
 		return;
 
-	if (ulpi->id.product != 0x1508) {
+	if (ulpi->id.product != TI_DEVICE_TUSB1211) {
 		dev_err(dev, "error charger detection is only supported on the TUSB1211\n");
 		return;
 	}
@@ -562,11 +566,9 @@ static void tusb1210_remove(struct ulpi *ulpi)
 	tusb1210_remove_charger_detect(tusb);
 }
 
-#define TI_VENDOR_ID 0x0451
-
 static const struct ulpi_device_id tusb1210_ulpi_id[] = {
-	{ TI_VENDOR_ID, 0x1507, },  /* TUSB1210 */
-	{ TI_VENDOR_ID, 0x1508, },  /* TUSB1211 */
+	{ TI_VENDOR_ID, TI_DEVICE_TUSB1210 },
+	{ TI_VENDOR_ID, TI_DEVICE_TUSB1211 },
 	{ },
 };
 MODULE_DEVICE_TABLE(ulpi, tusb1210_ulpi_id);
