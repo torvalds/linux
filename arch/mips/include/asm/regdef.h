@@ -14,6 +14,7 @@
 
 #include <asm/sgidefs.h>
 
+#ifdef __ASSEMBLY__
 #if _MIPS_SIM == _MIPS_SIM_ABI32
 
 /*
@@ -102,5 +103,6 @@
 #define ra	$31	/* return address */
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 || _MIPS_SIM == _MIPS_SIM_NABI32 */
+#endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_REGDEF_H */
