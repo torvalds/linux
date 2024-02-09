@@ -74,6 +74,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
 			#cooling-cells = <2>;
 		};
 
@@ -84,6 +85,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
 			#cooling-cells = <2>;
 		};
 
@@ -94,6 +96,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
 			#cooling-cells = <2>;
 		};
 
@@ -104,6 +107,7 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
 			#cooling-cells = <2>;
 		};
 
