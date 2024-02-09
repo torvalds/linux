@@ -83,6 +83,8 @@ static int __init boot_log_dump_init(void)
 	size_t text_len;
 
 	ret = boot_log_init();
+	if (ret < 0)
+		return ret;
 
 	kmsg_dump_rewind(&iter);
 	dumped_line = iter.next_seq;
@@ -92,7 +94,7 @@ static int __init boot_log_dump_init(void)
 	iter.cur_seq = dumped_line;
 	dump_thread = kthread_run(dump_thread_func, NULL, "dump_thread");
 
-	return ret;
+	return 0;
 }
 late_initcall(boot_log_dump_init);
 

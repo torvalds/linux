@@ -66,7 +66,6 @@ void register_log_minidump(struct printk_ringbuffer *prb)
 
 static int logbuf_vh_driver_probe(struct platform_device *pdev)
 {
-	int ret = 0;
 	struct printk_ringbuffer *prb = NULL;
 
 	if (!debug_symbol_available())
@@ -75,7 +74,7 @@ static int logbuf_vh_driver_probe(struct platform_device *pdev)
 	prb = *(struct printk_ringbuffer **)DEBUG_SYMBOL_LOOKUP(prb);
 	register_log_minidump(prb);
 
-	return ret;
+	return 0;
 }
 
 static int logbuf_vh_driver_remove(struct platform_device *pdev)
