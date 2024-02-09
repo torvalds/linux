@@ -84,6 +84,10 @@ enum dc_status dcn20_enable_stream_timing(
 void dcn20_disable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn20_enable_stream_gating(struct dc *dc, struct pipe_ctx *pipe_ctx);
 void dcn20_setup_vupdate_interrupt(struct dc *dc, struct pipe_ctx *pipe_ctx);
+void dcn20_reset_back_end_for_pipe(
+		struct dc *dc,
+		struct pipe_ctx *pipe_ctx,
+		struct dc_state *context);
 void dcn20_init_blank(
 		struct dc *dc,
 		struct timing_generator *tg);
