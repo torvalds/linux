@@ -168,6 +168,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
+		assert(!dso->kernel);
 		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {

@@ -25,21 +25,56 @@ static inline struct map_list_node *map_list_node__new(void)
 	return malloc(sizeof(struct map_list_node));
 }
 
-struct map *maps__find(struct maps *maps, u64 addr);
+/*
+ * Locking/sorting note:
+ *
+ * Sorting is done with the write lock, iteration and binary searching happens
+ * under the read lock requiring being sorted. There is a race between sorting
+ * releasing the write lock and acquiring the read lock for iteration/searching
+ * where another thread could insert and break the sorting of the maps. In
+ * practice inserting maps should be rare meaning that the race shouldn't lead
+ * to live lock. Removal of maps doesn't break being sorted.
+ */
 
 DECLARE_RC_STRUCT(maps) {
-	struct rb_root      entries;
 	struct rw_semaphore lock;
-	struct machine	 *machine;
-	struct map	 *last_search_by_name;
+	/**
+	 * @maps_by_address: array of maps sorted by their starting address if
+	 * maps_by_address_sorted is true.
+	 */
+	struct map	 **maps_by_address;
+	/**
+	 * @maps_by_name: optional array of maps sorted by their dso name if
+	 * maps_by_name_sorted is true.
+	 */
 	struct map	 **maps_by_name;
-	refcount_t	 refcnt;
-	unsigned int	 nr_maps;
-	unsigned int	 nr_maps_allocated;
+	struct machine	 *machine;
 #ifdef HAVE_LIBUNWIND_SUPPORT
-	void				*addr_space;
+	void		*addr_space;
 	const struct unwind_libunwind_ops *unwind_libunwind_ops;
 #endif
+	refcount_t	 refcnt;
+	/**
+	 * @nr_maps: number of maps_by_address, and possibly maps_by_name,
+	 * entries that contain maps.
+	 */
+	unsigned int	 nr_maps;
+	/**
+	 * @nr_maps_allocated: number of entries in maps_by_address and possibly
+	 * maps_by_name.
+	 */
+	unsigned int	 nr_maps_allocated;
+	/**
+	 * @last_search_by_name_idx: cache of last found by name entry's index
+	 * as frequent searches for the same dso name are common.
+	 */
+	unsigned int	 last_search_by_name_idx;
+	/** @maps_by_address_sorted: is maps_by_address sorted. */
+	bool		 maps_by_address_sorted;
+	/** @maps_by_name_sorted: is maps_by_name sorted. */
+	bool		 maps_by_name_sorted;
+	/** @ends_broken: does the map contain a map where end values are unset/unsorted? */
+	bool		 ends_broken;
 };
 
 #define KMAP_NAME_LEN 256
@@ -102,6 +137,7 @@ size_t maps__fprintf(struct maps *maps, FILE *fp);
 int maps__insert(struct maps *maps, struct map *map);
 void maps__remove(struct maps *maps, struct map *map);
 
+struct map *maps__find(struct maps *maps, u64 addr);
 struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp);
 struct symbol *maps__find_symbol_by_name(struct maps *maps, const char *name, struct map **mapp);
 
@@ -116,8 +152,6 @@ struct map *maps__find_by_name(struct maps *maps, const char *name);
 struct map *maps__find_next_entry(struct maps *maps, struct map *map);
 
 int maps__merge_in(struct maps *kmaps, struct map *new_map);
-
-void __maps__sort_by_name(struct maps *maps);
 
 void maps__fixup_end(struct maps *maps);
 
