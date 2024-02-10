@@ -155,7 +155,7 @@ static int thread_with_stdio_release(struct inode *inode, struct file *file)
 	bch2_thread_with_file_exit(&thr->thr);
 	darray_exit(&thr->stdio.input.buf);
 	darray_exit(&thr->stdio.output.buf);
-	thr->exit(thr);
+	thr->ops->exit(thr);
 	return 0;
 }
 
@@ -266,32 +266,28 @@ static int thread_with_stdio_fn(void *arg)
 {
 	struct thread_with_stdio *thr = arg;
 
-	thr->fn(thr);
+	thr->ops->fn(thr);
 
 	thread_with_stdio_done(thr);
 	return 0;
 }
 
 int bch2_run_thread_with_stdio(struct thread_with_stdio *thr,
-			       void (*exit)(struct thread_with_stdio *),
-			       void (*fn)(struct thread_with_stdio *))
+			       const struct thread_with_stdio_ops *ops)
 {
 	stdio_buf_init(&thr->stdio.input);
 	stdio_buf_init(&thr->stdio.output);
-	thr->exit	= exit;
-	thr->fn		= fn;
+	thr->ops = ops;
 
 	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdio_fops, thread_with_stdio_fn);
 }
 
 int bch2_run_thread_with_stdout(struct thread_with_stdio *thr,
-				void (*exit)(struct thread_with_stdio *),
-				void (*fn)(struct thread_with_stdio *))
+				const struct thread_with_stdio_ops *ops)
 {
 	stdio_buf_init(&thr->stdio.input);
 	stdio_buf_init(&thr->stdio.output);
-	thr->exit	= exit;
-	thr->fn		= fn;
+	thr->ops = ops;
 
 	return bch2_run_thread_with_file(&thr->thr, &thread_with_stdout_fops, thread_with_stdio_fn);
 }

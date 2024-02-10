@@ -165,6 +165,11 @@ static void bch2_fsck_offline_thread_fn(struct thread_with_stdio *stdio)
 		bch2_fs_stop(c);
 }
 
+static const struct thread_with_stdio_ops bch2_offline_fsck_ops = {
+	.exit		= bch2_fsck_thread_exit,
+	.fn		= bch2_fsck_offline_thread_fn,
+};
+
 static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_arg)
 {
 	struct bch_ioctl_fsck_offline arg;
@@ -217,9 +222,7 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	opt_set(thr->opts, stdio, (u64)(unsigned long)&thr->thr.stdio);
 
-	ret = bch2_run_thread_with_stdio(&thr->thr,
-			bch2_fsck_thread_exit,
-			bch2_fsck_offline_thread_fn);
+	ret = bch2_run_thread_with_stdio(&thr->thr, &bch2_offline_fsck_ops);
 err:
 	if (ret < 0) {
 		if (thr)
@@ -794,6 +797,11 @@ static void bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 	bch2_ro_ref_put(c);
 }
 
+static const struct thread_with_stdio_ops bch2_online_fsck_ops = {
+	.exit		= bch2_fsck_thread_exit,
+	.fn		= bch2_fsck_online_thread_fn,
+};
+
 static long bch2_ioctl_fsck_online(struct bch_fs *c,
 				   struct bch_ioctl_fsck_online arg)
 {
@@ -834,9 +842,7 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 			goto err;
 	}
 
-	ret = bch2_run_thread_with_stdio(&thr->thr,
-			bch2_fsck_thread_exit,
-			bch2_fsck_online_thread_fn);
+	ret = bch2_run_thread_with_stdio(&thr->thr, &bch2_online_fsck_ops);
 err:
 	if (ret < 0) {
 		bch_err_fn(c, ret);
