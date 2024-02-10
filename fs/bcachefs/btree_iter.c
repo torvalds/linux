@@ -2505,6 +2505,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 			k = bch2_btree_iter_peek_upto(&iter2, end);
 
 			if (k.k && !bkey_err(k)) {
+				swap(iter->key_cache_path, iter2.key_cache_path);
 				iter->k = iter2.k;
 				k.k = &iter->k;
 			}
