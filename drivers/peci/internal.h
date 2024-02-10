@@ -81,7 +81,7 @@ extern const struct attribute_group *peci_device_groups[];
 int peci_device_create(struct peci_controller *controller, u8 addr);
 void peci_device_destroy(struct peci_device *device);
 
-extern struct bus_type peci_bus_type;
+extern const struct bus_type peci_bus_type;
 extern const struct attribute_group *peci_bus_groups[];
 
 /**
