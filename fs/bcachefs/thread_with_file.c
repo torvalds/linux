@@ -247,12 +247,23 @@ static __poll_t thread_with_stdout_poll(struct file *file, struct poll_table_str
 	return mask;
 }
 
+static long thread_with_stdio_ioctl(struct file *file, unsigned int cmd, unsigned long p)
+{
+	struct thread_with_stdio *thr =
+		container_of(file->private_data, struct thread_with_stdio, thr);
+
+	if (thr->ops->unlocked_ioctl)
+		return thr->ops->unlocked_ioctl(thr, cmd, p);
+	return -ENOTTY;
+}
+
 static const struct file_operations thread_with_stdio_fops = {
 	.llseek		= no_llseek,
 	.read		= thread_with_stdio_read,
 	.write		= thread_with_stdio_write,
 	.poll		= thread_with_stdio_poll,
 	.release	= thread_with_stdio_release,
+	.unlocked_ioctl	= thread_with_stdio_ioctl,
 };
 
 static const struct file_operations thread_with_stdout_fops = {
@@ -260,6 +271,7 @@ static const struct file_operations thread_with_stdout_fops = {
 	.read		= thread_with_stdio_read,
 	.poll		= thread_with_stdout_poll,
 	.release	= thread_with_stdio_release,
+	.unlocked_ioctl	= thread_with_stdio_ioctl,
 };
 
 static int thread_with_stdio_fn(void *arg)
