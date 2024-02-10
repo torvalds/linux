@@ -38,7 +38,6 @@ const struct error_info vdo_status_list[] = {
 	{ "VDO_BAD_NONCE", "Bad nonce" },
 	{ "VDO_JOURNAL_OVERFLOW", "Journal sequence number overflow" },
 	{ "VDO_INVALID_ADMIN_STATE", "Invalid operation for current state" },
-	{ "VDO_CANT_ADD_SYSFS_NODE", "Failed to add sysfs node" },
 };
 
 static atomic_t vdo_status_codes_registered = ATOMIC_INIT(0);

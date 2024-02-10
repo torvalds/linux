@@ -97,7 +97,7 @@ u64 vdo_get_dedupe_index_timeout_count(struct hash_zones *zones);
 
 int vdo_message_dedupe_index(struct hash_zones *zones, const char *name);
 
-int vdo_add_dedupe_index_sysfs(struct hash_zones *zones);
+void vdo_set_dedupe_state_normal(struct hash_zones *zones);
 
 void vdo_start_dedupe_index(struct hash_zones *zones, bool create_flag);
 

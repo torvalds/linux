@@ -72,8 +72,6 @@ enum vdo_status_codes {
 	VDO_JOURNAL_OVERFLOW,
 	/* the VDO is not in a state to perform an admin operation */
 	VDO_INVALID_ADMIN_STATE,
-	/* failure adding a sysfs node */
-	VDO_CANT_ADD_SYSFS_NODE,
 	/* one more than last error code */
 	VDO_STATUS_CODE_LAST,
 	VDO_STATUS_CODE_BLOCK_END = VDO_ERRORS_BLOCK_END

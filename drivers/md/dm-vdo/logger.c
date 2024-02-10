@@ -56,11 +56,6 @@ int uds_get_log_level(void)
 	return log_level;
 }
 
-void uds_set_log_level(int new_log_level)
-{
-	log_level = new_log_level;
-}
-
 int uds_log_string_to_priority(const char *string)
 {
 	int i;

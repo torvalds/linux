@@ -28,19 +28,15 @@ dm-vdo-objs := \
 	packer.o \
 	permassert.o \
 	physical-zone.o \
-	pool-sysfs.o \
-	pool-sysfs-stats.o \
 	priority-table.o \
 	recovery-journal.o \
 	repair.o \
 	slab-depot.o \
 	status-codes.o \
 	string-utils.o \
-	sysfs.o \
 	thread-device.o \
 	thread-registry.o \
 	thread-utils.o \
-	uds-sysfs.o \
 	vdo.o \
 	vio.o \
 	wait-queue.o \

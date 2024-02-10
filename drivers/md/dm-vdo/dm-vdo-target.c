@@ -27,7 +27,6 @@
 #include "logger.h"
 #include "memory-alloc.h"
 #include "message-stats.h"
-#include "pool-sysfs.h"
 #include "recovery-journal.h"
 #include "repair.h"
 #include "slab-depot.h"
@@ -36,7 +35,6 @@
 #include "thread-device.h"
 #include "thread-registry.h"
 #include "types.h"
-#include "uds-sysfs.h"
 #include "vdo.h"
 #include "vio.h"
 
@@ -54,7 +52,6 @@ enum admin_phases {
 	GROW_PHYSICAL_PHASE_END,
 	GROW_PHYSICAL_PHASE_ERROR,
 	LOAD_PHASE_START,
-	LOAD_PHASE_STATS,
 	LOAD_PHASE_LOAD_DEPOT,
 	LOAD_PHASE_MAKE_DIRTY,
 	LOAD_PHASE_PREPARE_TO_ALLOCATE,
@@ -104,7 +101,6 @@ static const char * const ADMIN_PHASE_NAMES[] = {
 	"GROW_PHYSICAL_PHASE_END",
 	"GROW_PHYSICAL_PHASE_ERROR",
 	"LOAD_PHASE_START",
-	"LOAD_PHASE_STATS",
 	"LOAD_PHASE_LOAD_DEPOT",
 	"LOAD_PHASE_MAKE_DIRTY",
 	"LOAD_PHASE_PREPARE_TO_ALLOCATE",
@@ -947,8 +943,8 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * blocked task warnings in kernel logs. In order to avoid these warnings, we choose to
 	 * use the smallest reasonable value.
 	 *
-	 * The value is displayed in sysfs, and also used by dm-thin to determine whether to pass
-	 * down discards. The block layer splits large discards on this boundary when this is set.
+	 * The value is used by dm-thin to determine whether to pass down discards. The block layer
+	 * splits large discards on this boundary when this is set.
 	 */
 	limits->max_discard_sectors =
 		(vdo->device_config->max_discard_blocks * VDO_SECTORS_PER_BLOCK);
@@ -2175,32 +2171,6 @@ static enum slab_depot_load_type get_load_type(struct vdo *vdo)
 }
 
 /**
- * vdo_initialize_kobjects() - Initialize the vdo sysfs directory.
- * @vdo: The vdo being initialized.
- *
- * Return: VDO_SUCCESS or an error code.
- */
-static int vdo_initialize_kobjects(struct vdo *vdo)
-{
-	int result;
-	struct dm_target *target = vdo->device_config->owning_target;
-	struct mapped_device *md = dm_table_get_md(target->table);
-
-	kobject_init(&vdo->vdo_directory, &vdo_directory_type);
-	vdo->sysfs_added = true;
-	result = kobject_add(&vdo->vdo_directory, &disk_to_dev(dm_disk(md))->kobj,
-			     "vdo");
-	if (result != 0)
-		return VDO_CANT_ADD_SYSFS_NODE;
-
-	result = vdo_add_dedupe_index_sysfs(vdo->hash_zones);
-	if (result != 0)
-		return VDO_CANT_ADD_SYSFS_NODE;
-
-	return vdo_add_sysfs_stats_dir(vdo);
-}
-
-/**
  * load_callback() - Callback to do the destructive parts of loading a VDO.
  * @completion: The sub-task completion.
  */
@@ -2225,11 +2195,8 @@ static void load_callback(struct vdo_completion *completion)
 		vdo_allow_read_only_mode_entry(completion);
 		return;
 
-	case LOAD_PHASE_STATS:
-		vdo_continue_completion(completion, vdo_initialize_kobjects(vdo));
-		return;
-
 	case LOAD_PHASE_LOAD_DEPOT:
+		vdo_set_dedupe_state_normal(vdo->hash_zones);
 		if (vdo_is_read_only(vdo)) {
 			/*
 			 * In read-only mode we don't use the allocator and it may not even be
@@ -2866,7 +2833,7 @@ static void vdo_resume(struct dm_target *ti)
 static struct target_type vdo_target_bio = {
 	.features = DM_TARGET_SINGLETON,
 	.name = "vdo",
-	.version = { 8, 2, 0 },
+	.version = { 9, 0, 0 },
 	.module = THIS_MODULE,
 	.ctr = vdo_ctr,
 	.dtr = vdo_dtr,
@@ -2905,8 +2872,6 @@ static int __init vdo_init(void)
 
 	/* Memory tracking must be initialized first for accurate accounting. */
 	vdo_memory_init();
-	uds_init_sysfs();
-
 	vdo_initialize_thread_device_registry();
 	vdo_initialize_device_registry_once();
 	uds_log_info("loaded version %s", CURRENT_VERSION);
@@ -2933,7 +2898,6 @@ static int __init vdo_init(void)
 static void __exit vdo_exit(void)
 {
 	vdo_module_destroy();
-	uds_put_sysfs();
 	/* Memory tracking cleanup must be done last. */
 	vdo_memory_exit();
 }
