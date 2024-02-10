@@ -2765,6 +2765,9 @@ void bch2_trans_copy_iter(struct btree_iter *dst, struct btree_iter *src)
 	struct btree_trans *trans = src->trans;
 
 	*dst = *src;
+#ifdef TRACK_PATH_ALLOCATED
+	dst->ip_allocated = _RET_IP_;
+#endif
 	if (src->path)
 		__btree_path_get(trans->paths + src->path, src->flags & BTREE_ITER_INTENT);
 	if (src->update_path)
