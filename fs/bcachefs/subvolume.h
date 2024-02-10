@@ -23,6 +23,7 @@ int bch2_subvolume_trigger(struct btree_trans *, enum btree_id, unsigned,
 	.min_val_size	= 16,					\
 })
 
+int bch2_subvol_has_children(struct btree_trans *, u32);
 int bch2_subvolume_get(struct btree_trans *, unsigned,
 		       bool, int, struct bch_subvolume *);
 int bch2_subvolume_get_snapshot(struct btree_trans *, u32, u32 *);

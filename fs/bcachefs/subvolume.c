@@ -262,6 +262,19 @@ int bch2_subvolume_trigger(struct btree_trans *trans,
 	return 0;
 }
 
+int bch2_subvol_has_children(struct btree_trans *trans, u32 subvol)
+{
+	struct btree_iter iter;
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_subvolume_children, POS(subvol, 0), 0);
+	struct bkey_s_c k = bch2_btree_iter_peek(&iter);
+	bch2_trans_iter_exit(trans, &iter);
+
+	return bkey_err(k) ?: k.k && k.k->p.inode == subvol
+		? -BCH_ERR_ENOTEMPTY_subvol_not_empty
+		: 0;
+}
+
 static __always_inline int
 bch2_subvolume_get_inlined(struct btree_trans *trans, unsigned subvol,
 			   bool inconsistent_if_not_found,

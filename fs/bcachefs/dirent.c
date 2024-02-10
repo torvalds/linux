@@ -525,7 +525,7 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 subvol, u32 
 			struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 			if (d.v->d_type == DT_SUBVOL && le32_to_cpu(d.v->d_parent_subvol) != subvol)
 				continue;
-			ret = -ENOTEMPTY;
+			ret = -BCH_ERR_ENOTEMPTY_dir_not_empty;
 			break;
 		}
 	bch2_trans_iter_exit(trans, &iter);

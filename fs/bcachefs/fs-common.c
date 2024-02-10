@@ -243,7 +243,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		      struct bch_inode_unpacked *dir_u,
 		      struct bch_inode_unpacked *inode_u,
 		      const struct qstr *name,
-		      bool deleting_snapshot)
+		      bool deleting_subvol)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter dir_iter = { NULL };
@@ -271,18 +271,25 @@ int bch2_unlink_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (!deleting_snapshot && S_ISDIR(inode_u->bi_mode)) {
+	if (!deleting_subvol && S_ISDIR(inode_u->bi_mode)) {
 		ret = bch2_empty_dir_trans(trans, inum);
 		if (ret)
 			goto err;
 	}
 
-	if (deleting_snapshot && !inode_u->bi_subvol) {
+	if (deleting_subvol && !inode_u->bi_subvol) {
 		ret = -BCH_ERR_ENOENT_not_subvol;
 		goto err;
 	}
 
-	if (deleting_snapshot || inode_u->bi_subvol) {
+	if (inode_u->bi_subvol) {
+		/* Recursive subvolume destroy not allowed (yet?) */
+		ret = bch2_subvol_has_children(trans, inode_u->bi_subvol);
+		if (ret)
+			goto err;
+	}
+
+	if (deleting_subvol || inode_u->bi_subvol) {
 		ret = bch2_subvolume_unlink(trans, inode_u->bi_subvol);
 		if (ret)
 			goto err;
@@ -479,10 +486,10 @@ int bch2_rename_trans(struct btree_trans *trans,
 			goto err;
 		}
 
-		if (S_ISDIR(dst_inode_u->bi_mode) &&
-		    bch2_empty_dir_trans(trans, dst_inum)) {
-			ret = -ENOTEMPTY;
-			goto err;
+		if (S_ISDIR(dst_inode_u->bi_mode)) {
+			ret = bch2_empty_dir_trans(trans, dst_inum);
+			if (ret)
+				goto err;
 		}
 	}
 
