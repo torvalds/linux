@@ -2905,6 +2905,9 @@ static void __exit vdo_exit(void)
 module_init(vdo_init);
 module_exit(vdo_exit);
 
+module_param_named(log_level, vdo_log_level, uint, 0644);
+MODULE_PARM_DESC(log_level, "Log level for log messages");
+
 MODULE_DESCRIPTION(DM_NAME " target for transparent deduplication");
 MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");

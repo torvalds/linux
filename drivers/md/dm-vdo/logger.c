@@ -49,11 +49,17 @@ static const char *const PRIORITY_STRINGS[] = {
 	"DEBUG",
 };
 
-static int log_level = UDS_LOG_INFO;
+int vdo_log_level = UDS_LOG_DEFAULT;
 
 int uds_get_log_level(void)
 {
-	return log_level;
+	int log_level_latch = READ_ONCE(vdo_log_level);
+
+	if (unlikely(log_level_latch > UDS_LOG_MAX)) {
+		log_level_latch = UDS_LOG_DEFAULT;
+		WRITE_ONCE(vdo_log_level, log_level_latch);
+	}
+	return log_level_latch;
 }
 
 int uds_log_string_to_priority(const char *string)
