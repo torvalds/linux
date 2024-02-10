@@ -82,12 +82,9 @@
 		pinctrl-0 = <&pinctrl_wifi_pdn>;
 		gpio = <&lsio_gpio1 28 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		regulator-always-on;
 		regulator-name = "wifi_pwrdn_fake_regulator";
 		regulator-settling-time-us = <100>;
-
-		regulator-state-mem {
-			regulator-off-in-suspend;
-		};
 	};
 
 	reg_pcie_switch: regulator-pcie-switch {

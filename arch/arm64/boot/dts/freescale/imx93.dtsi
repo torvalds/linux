@@ -373,7 +373,7 @@
 					compatible = "fsl,imx93-src-slice";
 					reg = <0x44462400 0x400>, <0x44465800 0x400>;
 					#power-domain-cells = <0>;
-					clocks = <&clk IMX93_CLK_MEDIA_AXI>,
+					clocks = <&clk IMX93_CLK_NIC_MEDIA_GATE>,
 						 <&clk IMX93_CLK_MEDIA_APB>;
 				};
 			};

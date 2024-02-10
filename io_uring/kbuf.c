@@ -623,8 +623,8 @@ static int io_alloc_pbuf_ring(struct io_ring_ctx *ctx,
 	ibf = io_lookup_buf_free_entry(ctx, ring_size);
 	if (!ibf) {
 		ptr = io_mem_alloc(ring_size);
-		if (!ptr)
-			return -ENOMEM;
+		if (IS_ERR(ptr))
+			return PTR_ERR(ptr);
 
 		/* Allocate and store deferred free entry */
 		ibf = kmalloc(sizeof(*ibf), GFP_KERNEL_ACCOUNT);
@@ -743,14 +743,14 @@ void *io_pbuf_get_address(struct io_ring_ctx *ctx, unsigned long bgid)
 
 	bl = __io_buffer_get_list(ctx, smp_load_acquire(&ctx->io_bl), bgid);
 
+	if (!bl || !bl->is_mmap)
+		return NULL;
 	/*
 	 * Ensure the list is fully setup. Only strictly needed for RCU lookup
 	 * via mmap, and in that case only for the array indexed groups. For
 	 * the xarray lookups, it's either visible and ready, or not at all.
 	 */
 	if (!smp_load_acquire(&bl->is_ready))
-		return NULL;
-	if (!bl || !bl->is_mmap)
 		return NULL;
 
 	return bl->buf_ring;

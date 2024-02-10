@@ -17,11 +17,12 @@
 #define	PARISC_BUG_BREAK_ASM	"break 0x1f, 0x1fff"
 #define	PARISC_BUG_BREAK_INSN	0x03ffe01f  /* PARISC_BUG_BREAK_ASM */
 
-#if defined(CONFIG_64BIT)
-#define ASM_WORD_INSN		".dword\t"
+#ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
+# define __BUG_REL(val) ".word " __stringify(val) " - ."
 #else
-#define ASM_WORD_INSN		".word\t"
+# define __BUG_REL(val) ".word " __stringify(val)
 #endif
+
 
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 #define BUG()								\
@@ -29,14 +30,14 @@
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
 			     "\t.pushsection __bug_table,\"a\"\n"	\
-			     "\t.align %4\n"				\
-			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
+			     "\t.align 4\n"				\
+			     "2:\t" __BUG_REL(1b) "\n"			\
+			     "\t" __BUG_REL(%c0)  "\n"			\
 			     "\t.short %1, %2\n"			\
-			     "\t.blockz %3-2*%4-2*2\n"			\
+			     "\t.blockz %3-2*4-2*2\n"			\
 			     "\t.popsection"				\
 			     : : "i" (__FILE__), "i" (__LINE__),	\
-			     "i" (0), "i" (sizeof(struct bug_entry)),	\
-			     "i" (sizeof(long)) );			\
+			     "i" (0), "i" (sizeof(struct bug_entry)) );	\
 		unreachable();						\
 	} while(0)
 
@@ -54,15 +55,15 @@
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
 			     "\t.pushsection __bug_table,\"a\"\n"	\
-			     "\t.align %4\n"				\
-			     "2:\t" ASM_WORD_INSN "1b, %c0\n"		\
+			     "\t.align 4\n"				\
+			     "2:\t" __BUG_REL(1b) "\n"			\
+			     "\t" __BUG_REL(%c0)  "\n"			\
 			     "\t.short %1, %2\n"			\
-			     "\t.blockz %3-2*%4-2*2\n"			\
+			     "\t.blockz %3-2*4-2*2\n"			\
 			     "\t.popsection"				\
 			     : : "i" (__FILE__), "i" (__LINE__),	\
 			     "i" (BUGFLAG_WARNING|(flags)),		\
-			     "i" (sizeof(struct bug_entry)),		\
-			     "i" (sizeof(long)) );			\
+			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #else
 #define __WARN_FLAGS(flags)						\
@@ -70,14 +71,13 @@
 		asm volatile("\n"					\
 			     "1:\t" PARISC_BUG_BREAK_ASM "\n"		\
 			     "\t.pushsection __bug_table,\"a\"\n"	\
-			     "\t.align %2\n"				\
-			     "2:\t" ASM_WORD_INSN "1b\n"		\
+			     "\t.align 4\n"				\
+			     "2:\t" __BUG_REL(1b) "\n"			\
 			     "\t.short %0\n"				\
-			     "\t.blockz %1-%2-2\n"			\
+			     "\t.blockz %1-4-2\n"			\
 			     "\t.popsection"				\
 			     : : "i" (BUGFLAG_WARNING|(flags)),		\
-			     "i" (sizeof(struct bug_entry)),		\
-			     "i" (sizeof(long)) );			\
+			     "i" (sizeof(struct bug_entry)) );		\
 	} while(0)
 #endif
 
