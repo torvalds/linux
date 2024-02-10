@@ -1091,6 +1091,8 @@ static const struct key_entry ideapad_keymap[] = {
 	{ KE_KEY,	0x07 | IDEAPAD_WMI_KEY, { KEY_HELP } },
 	{ KE_KEY,	0x0e | IDEAPAD_WMI_KEY, { KEY_PICKUP_PHONE } },
 	{ KE_KEY,	0x0f | IDEAPAD_WMI_KEY, { KEY_HANGUP_PHONE } },
+	/* Refresh Rate Toggle (Fn+R) */
+	{ KE_KEY,	0x10 | IDEAPAD_WMI_KEY, { KEY_DISPLAYTOGGLE } },
 	/* Dark mode toggle */
 	{ KE_KEY,	0x13 | IDEAPAD_WMI_KEY, { KEY_PROG1 } },
 	/* Sound profile switch */
