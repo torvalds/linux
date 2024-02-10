@@ -52,13 +52,6 @@ static unsigned long get_align_bits(void)
 	return va_align.bits & get_align_mask();
 }
 
-unsigned long align_vdso_addr(unsigned long addr)
-{
-	unsigned long align_mask = get_align_mask();
-	addr = (addr + align_mask) & ~align_mask;
-	return addr | get_align_bits();
-}
-
 static int __init control_va_addr_alignment(char *str)
 {
 	/* guard against enabling this on other CPU families */
