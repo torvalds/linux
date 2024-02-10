@@ -571,7 +571,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	/* set correct codec name */
 	for (i = 0; i < ARRAY_SIZE(cht_dailink); i++)
-		if (!strcmp(card->dai_link[i].codecs->name,
+		if (card->dai_link[i].codecs->name &&
+		    !strcmp(card->dai_link[i].codecs->name,
 			    "i2c-10EC5645:00")) {
 			card->dai_link[i].codecs->name = drv->codec_name;
 			dai_index = i;
