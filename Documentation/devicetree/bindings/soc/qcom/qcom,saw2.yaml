@@ -36,6 +36,7 @@ properties:
           - qcom,msm8916-saw2-v3.0-cpu
           - qcom,msm8939-saw2-v3.0-cpu
           - qcom,msm8226-saw2-v2.1-cpu
+          - qcom,msm8226-saw2-v2.1-l2
           - qcom,msm8960-saw2-cpu
           - qcom,msm8974-saw2-v2.1-cpu
           - qcom,msm8974-saw2-v2.1-l2
