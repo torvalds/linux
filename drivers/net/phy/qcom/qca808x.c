@@ -2,7 +2,6 @@
 
 #include <linux/phy.h>
 #include <linux/module.h>
-#include <linux/ethtool_netlink.h>
 
 #include "qcom.h"
 
@@ -63,78 +62,6 @@
 #define QCA808X_DBG_AN_TEST			0xb
 #define QCA808X_HIBERNATION_EN			BIT(15)
 
-#define QCA808X_CDT_ENABLE_TEST			BIT(15)
-#define QCA808X_CDT_INTER_CHECK_DIS		BIT(13)
-#define QCA808X_CDT_STATUS			BIT(11)
-#define QCA808X_CDT_LENGTH_UNIT			BIT(10)
-
-#define QCA808X_MMD3_CDT_STATUS			0x8064
-#define QCA808X_MMD3_CDT_DIAG_PAIR_A		0x8065
-#define QCA808X_MMD3_CDT_DIAG_PAIR_B		0x8066
-#define QCA808X_MMD3_CDT_DIAG_PAIR_C		0x8067
-#define QCA808X_MMD3_CDT_DIAG_PAIR_D		0x8068
-#define QCA808X_CDT_DIAG_LENGTH_SAME_SHORT	GENMASK(15, 8)
-#define QCA808X_CDT_DIAG_LENGTH_CROSS_SHORT	GENMASK(7, 0)
-
-#define QCA808X_CDT_CODE_PAIR_A			GENMASK(15, 12)
-#define QCA808X_CDT_CODE_PAIR_B			GENMASK(11, 8)
-#define QCA808X_CDT_CODE_PAIR_C			GENMASK(7, 4)
-#define QCA808X_CDT_CODE_PAIR_D			GENMASK(3, 0)
-
-#define QCA808X_CDT_STATUS_STAT_TYPE		GENMASK(1, 0)
-#define QCA808X_CDT_STATUS_STAT_FAIL		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 0)
-#define QCA808X_CDT_STATUS_STAT_NORMAL		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 1)
-#define QCA808X_CDT_STATUS_STAT_SAME_OPEN	FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 2)
-#define QCA808X_CDT_STATUS_STAT_SAME_SHORT	FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_TYPE, 3)
-
-#define QCA808X_CDT_STATUS_STAT_MDI		GENMASK(3, 2)
-#define QCA808X_CDT_STATUS_STAT_MDI1		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_MDI, 1)
-#define QCA808X_CDT_STATUS_STAT_MDI2		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_MDI, 2)
-#define QCA808X_CDT_STATUS_STAT_MDI3		FIELD_PREP_CONST(QCA808X_CDT_STATUS_STAT_MDI, 3)
-
-/* NORMAL are MDI with type set to 0 */
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_NORMAL	QCA808X_CDT_STATUS_STAT_MDI1
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_OPEN		(QCA808X_CDT_STATUS_STAT_SAME_OPEN |\
-									 QCA808X_CDT_STATUS_STAT_MDI1)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_SHORT	(QCA808X_CDT_STATUS_STAT_SAME_SHORT |\
-									 QCA808X_CDT_STATUS_STAT_MDI1)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_NORMAL	QCA808X_CDT_STATUS_STAT_MDI2
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_OPEN		(QCA808X_CDT_STATUS_STAT_SAME_OPEN |\
-									 QCA808X_CDT_STATUS_STAT_MDI2)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_SHORT	(QCA808X_CDT_STATUS_STAT_SAME_SHORT |\
-									 QCA808X_CDT_STATUS_STAT_MDI2)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_NORMAL	QCA808X_CDT_STATUS_STAT_MDI3
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_OPEN		(QCA808X_CDT_STATUS_STAT_SAME_OPEN |\
-									 QCA808X_CDT_STATUS_STAT_MDI3)
-#define QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_SHORT	(QCA808X_CDT_STATUS_STAT_SAME_SHORT |\
-									 QCA808X_CDT_STATUS_STAT_MDI3)
-
-/* Added for reference of existence but should be handled by wait_for_completion already */
-#define QCA808X_CDT_STATUS_STAT_BUSY		(BIT(1) | BIT(3))
-
-#define QCA808X_MMD7_LED_GLOBAL			0x8073
-#define QCA808X_LED_BLINK_1			GENMASK(11, 6)
-#define QCA808X_LED_BLINK_2			GENMASK(5, 0)
-/* Values are the same for both BLINK_1 and BLINK_2 */
-#define QCA808X_LED_BLINK_FREQ_MASK		GENMASK(5, 3)
-#define QCA808X_LED_BLINK_FREQ_2HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x0)
-#define QCA808X_LED_BLINK_FREQ_4HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x1)
-#define QCA808X_LED_BLINK_FREQ_8HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x2)
-#define QCA808X_LED_BLINK_FREQ_16HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x3)
-#define QCA808X_LED_BLINK_FREQ_32HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x4)
-#define QCA808X_LED_BLINK_FREQ_64HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x5)
-#define QCA808X_LED_BLINK_FREQ_128HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x6)
-#define QCA808X_LED_BLINK_FREQ_256HZ		FIELD_PREP(QCA808X_LED_BLINK_FREQ_MASK, 0x7)
-#define QCA808X_LED_BLINK_DUTY_MASK		GENMASK(2, 0)
-#define QCA808X_LED_BLINK_DUTY_50_50		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x0)
-#define QCA808X_LED_BLINK_DUTY_75_25		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x1)
-#define QCA808X_LED_BLINK_DUTY_25_75		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x2)
-#define QCA808X_LED_BLINK_DUTY_33_67		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x3)
-#define QCA808X_LED_BLINK_DUTY_67_33		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x4)
-#define QCA808X_LED_BLINK_DUTY_17_83		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x5)
-#define QCA808X_LED_BLINK_DUTY_83_17		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x6)
-#define QCA808X_LED_BLINK_DUTY_8_92		FIELD_PREP(QCA808X_LED_BLINK_DUTY_MASK, 0x7)
-
 #define QCA808X_MMD7_LED2_CTRL			0x8074
 #define QCA808X_MMD7_LED2_FORCE_CTRL		0x8075
 #define QCA808X_MMD7_LED1_CTRL			0x8076
@@ -142,50 +69,8 @@
 #define QCA808X_MMD7_LED0_CTRL			0x8078
 #define QCA808X_MMD7_LED_CTRL(x)		(0x8078 - ((x) * 2))
 
-/* LED hw control pattern is the same for every LED */
-#define QCA808X_LED_PATTERN_MASK		GENMASK(15, 0)
-#define QCA808X_LED_SPEED2500_ON		BIT(15)
-#define QCA808X_LED_SPEED2500_BLINK		BIT(14)
-/* Follow blink trigger even if duplex or speed condition doesn't match */
-#define QCA808X_LED_BLINK_CHECK_BYPASS		BIT(13)
-#define QCA808X_LED_FULL_DUPLEX_ON		BIT(12)
-#define QCA808X_LED_HALF_DUPLEX_ON		BIT(11)
-#define QCA808X_LED_TX_BLINK			BIT(10)
-#define QCA808X_LED_RX_BLINK			BIT(9)
-#define QCA808X_LED_TX_ON_10MS			BIT(8)
-#define QCA808X_LED_RX_ON_10MS			BIT(7)
-#define QCA808X_LED_SPEED1000_ON		BIT(6)
-#define QCA808X_LED_SPEED100_ON			BIT(5)
-#define QCA808X_LED_SPEED10_ON			BIT(4)
-#define QCA808X_LED_COLLISION_BLINK		BIT(3)
-#define QCA808X_LED_SPEED1000_BLINK		BIT(2)
-#define QCA808X_LED_SPEED100_BLINK		BIT(1)
-#define QCA808X_LED_SPEED10_BLINK		BIT(0)
-
 #define QCA808X_MMD7_LED0_FORCE_CTRL		0x8079
 #define QCA808X_MMD7_LED_FORCE_CTRL(x)		(0x8079 - ((x) * 2))
-
-/* LED force ctrl is the same for every LED
- * No documentation exist for this, not even internal one
- * with NDA as QCOM gives only info about configuring
- * hw control pattern rules and doesn't indicate any way
- * to force the LED to specific mode.
- * These define comes from reverse and testing and maybe
- * lack of some info or some info are not entirely correct.
- * For the basic LED control and hw control these finding
- * are enough to support LED control in all the required APIs.
- *
- * On doing some comparison with implementation with qca807x,
- * it was found that it's 1:1 equal to it and confirms all the
- * reverse done. It was also found further specification with the
- * force mode and the blink modes.
- */
-#define QCA808X_LED_FORCE_EN			BIT(15)
-#define QCA808X_LED_FORCE_MODE_MASK		GENMASK(14, 13)
-#define QCA808X_LED_FORCE_BLINK_1		FIELD_PREP(QCA808X_LED_FORCE_MODE_MASK, 0x3)
-#define QCA808X_LED_FORCE_BLINK_2		FIELD_PREP(QCA808X_LED_FORCE_MODE_MASK, 0x2)
-#define QCA808X_LED_FORCE_ON			FIELD_PREP(QCA808X_LED_FORCE_MODE_MASK, 0x1)
-#define QCA808X_LED_FORCE_OFF			FIELD_PREP(QCA808X_LED_FORCE_MODE_MASK, 0x0)
 
 #define QCA808X_MMD7_LED_POLARITY_CTRL		0x901a
 /* QSDK sets by default 0x46 to this reg that sets BIT 6 for
@@ -406,86 +291,6 @@ static int qca808x_soft_reset(struct phy_device *phydev)
 	return ret;
 }
 
-static bool qca808x_cdt_fault_length_valid(int cdt_code)
-{
-	switch (cdt_code) {
-	case QCA808X_CDT_STATUS_STAT_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_NORMAL:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_NORMAL:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_NORMAL:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_SHORT:
-		return true;
-	default:
-		return false;
-	}
-}
-
-static int qca808x_cable_test_result_trans(int cdt_code)
-{
-	switch (cdt_code) {
-	case QCA808X_CDT_STATUS_STAT_NORMAL:
-		return ETHTOOL_A_CABLE_RESULT_CODE_OK;
-	case QCA808X_CDT_STATUS_STAT_SAME_SHORT:
-		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
-	case QCA808X_CDT_STATUS_STAT_SAME_OPEN:
-		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_NORMAL:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI1_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_NORMAL:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI2_SAME_SHORT:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_NORMAL:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_OPEN:
-	case QCA808X_CDT_STATUS_STAT_CROSS_SHORT_WITH_MDI3_SAME_SHORT:
-		return ETHTOOL_A_CABLE_RESULT_CODE_CROSS_SHORT;
-	case QCA808X_CDT_STATUS_STAT_FAIL:
-	default:
-		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
-	}
-}
-
-static int qca808x_cdt_fault_length(struct phy_device *phydev, int pair,
-				    int result)
-{
-	int val;
-	u32 cdt_length_reg = 0;
-
-	switch (pair) {
-	case ETHTOOL_A_CABLE_PAIR_A:
-		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_A;
-		break;
-	case ETHTOOL_A_CABLE_PAIR_B:
-		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_B;
-		break;
-	case ETHTOOL_A_CABLE_PAIR_C:
-		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_C;
-		break;
-	case ETHTOOL_A_CABLE_PAIR_D:
-		cdt_length_reg = QCA808X_MMD3_CDT_DIAG_PAIR_D;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, cdt_length_reg);
-	if (val < 0)
-		return val;
-
-	if (result == ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT)
-		val = FIELD_GET(QCA808X_CDT_DIAG_LENGTH_SAME_SHORT, val);
-	else
-		val = FIELD_GET(QCA808X_CDT_DIAG_LENGTH_CROSS_SHORT, val);
-
-	return at803x_cdt_fault_length(val);
-}
-
 static int qca808x_cable_test_start(struct phy_device *phydev)
 {
 	int ret;
@@ -523,81 +328,6 @@ static int qca808x_cable_test_start(struct phy_device *phydev)
 	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x8078, 0xc050);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x807a, 0xc060);
 	phy_write_mmd(phydev, MDIO_MMD_PCS, 0x807e, 0xb060);
-
-	return 0;
-}
-
-static int qca808x_cable_test_get_pair_status(struct phy_device *phydev, u8 pair,
-					      u16 status)
-{
-	int length, result;
-	u16 pair_code;
-
-	switch (pair) {
-	case ETHTOOL_A_CABLE_PAIR_A:
-		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_A, status);
-		break;
-	case ETHTOOL_A_CABLE_PAIR_B:
-		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_B, status);
-		break;
-	case ETHTOOL_A_CABLE_PAIR_C:
-		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_C, status);
-		break;
-	case ETHTOOL_A_CABLE_PAIR_D:
-		pair_code = FIELD_GET(QCA808X_CDT_CODE_PAIR_D, status);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	result = qca808x_cable_test_result_trans(pair_code);
-	ethnl_cable_test_result(phydev, pair, result);
-
-	if (qca808x_cdt_fault_length_valid(pair_code)) {
-		length = qca808x_cdt_fault_length(phydev, pair, result);
-		ethnl_cable_test_fault_length(phydev, pair, length);
-	}
-
-	return 0;
-}
-
-static int qca808x_cable_test_get_status(struct phy_device *phydev, bool *finished)
-{
-	int ret, val;
-
-	*finished = false;
-
-	val = QCA808X_CDT_ENABLE_TEST |
-	      QCA808X_CDT_LENGTH_UNIT;
-	ret = at803x_cdt_start(phydev, val);
-	if (ret)
-		return ret;
-
-	ret = at803x_cdt_wait_for_completion(phydev, QCA808X_CDT_ENABLE_TEST);
-	if (ret)
-		return ret;
-
-	val = phy_read_mmd(phydev, MDIO_MMD_PCS, QCA808X_MMD3_CDT_STATUS);
-	if (val < 0)
-		return val;
-
-	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_A, val);
-	if (ret)
-		return ret;
-
-	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_B, val);
-	if (ret)
-		return ret;
-
-	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_C, val);
-	if (ret)
-		return ret;
-
-	ret = qca808x_cable_test_get_pair_status(phydev, ETHTOOL_A_CABLE_PAIR_D, val);
-	if (ret)
-		return ret;
-
-	*finished = true;
 
 	return 0;
 }
@@ -707,9 +437,7 @@ static int qca808x_led_hw_control_enable(struct phy_device *phydev, u8 index)
 		return -EINVAL;
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	return phy_clear_bits_mmd(phydev, MDIO_MMD_AN, reg,
-				  QCA808X_LED_FORCE_EN);
+	return qca808x_led_reg_hw_control_enable(phydev, reg);
 }
 
 static int qca808x_led_hw_is_supported(struct phy_device *phydev, u8 index,
@@ -750,16 +478,12 @@ static int qca808x_led_hw_control_set(struct phy_device *phydev, u8 index,
 static bool qca808x_led_hw_control_status(struct phy_device *phydev, u8 index)
 {
 	u16 reg;
-	int val;
 
 	if (index > 2)
 		return false;
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	val = phy_read_mmd(phydev, MDIO_MMD_AN, reg);
-
-	return !(val & QCA808X_LED_FORCE_EN);
+	return qca808x_led_reg_hw_control_status(phydev, reg);
 }
 
 static int qca808x_led_hw_control_get(struct phy_device *phydev, u8 index,
@@ -827,44 +551,20 @@ static int qca808x_led_brightness_set(struct phy_device *phydev,
 	}
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	return phy_modify_mmd(phydev, MDIO_MMD_AN, reg,
-			      QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_MODE_MASK,
-			      QCA808X_LED_FORCE_EN | (value ? QCA808X_LED_FORCE_ON :
-							     QCA808X_LED_FORCE_OFF));
+	return qca808x_led_reg_brightness_set(phydev, reg, value);
 }
 
 static int qca808x_led_blink_set(struct phy_device *phydev, u8 index,
 				 unsigned long *delay_on,
 				 unsigned long *delay_off)
 {
-	int ret;
 	u16 reg;
 
 	if (index > 2)
 		return -EINVAL;
 
 	reg = QCA808X_MMD7_LED_FORCE_CTRL(index);
-
-	/* Set blink to 50% off, 50% on at 4Hz by default */
-	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, QCA808X_MMD7_LED_GLOBAL,
-			     QCA808X_LED_BLINK_FREQ_MASK | QCA808X_LED_BLINK_DUTY_MASK,
-			     QCA808X_LED_BLINK_FREQ_4HZ | QCA808X_LED_BLINK_DUTY_50_50);
-	if (ret)
-		return ret;
-
-	/* We use BLINK_1 for normal blinking */
-	ret = phy_modify_mmd(phydev, MDIO_MMD_AN, reg,
-			     QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_MODE_MASK,
-			     QCA808X_LED_FORCE_EN | QCA808X_LED_FORCE_BLINK_1);
-	if (ret)
-		return ret;
-
-	/* We set blink to 4Hz, aka 250ms */
-	*delay_on = 250 / 2;
-	*delay_off = 250 / 2;
-
-	return 0;
+	return qca808x_led_reg_blink_set(phydev, reg, delay_on, delay_off);
 }
 
 static int qca808x_led_polarity_set(struct phy_device *phydev, int index,
