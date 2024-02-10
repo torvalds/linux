@@ -5233,11 +5233,6 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	raw_spin_lock_init(&tp->mac_ocp_lock);
 	mutex_init(&tp->led_lock);
 
-	dev->tstats = devm_netdev_alloc_pcpu_stats(&pdev->dev,
-						   struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	/* Get the *optional* external "ether_clk" used on some boards */
 	tp->clk = devm_clk_get_optional_enabled(&pdev->dev, "ether_clk");
 	if (IS_ERR(tp->clk))
@@ -5351,6 +5346,8 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	dev->hw_features |= NETIF_F_RXALL;
 	dev->hw_features |= NETIF_F_RXFCS;
+
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	netdev_sw_irq_coalesce_default_on(dev);
 
