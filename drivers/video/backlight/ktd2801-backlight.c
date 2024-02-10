@@ -13,7 +13,7 @@
 #define KTD2801_MAX_BRIGHTNESS		255
 
 /* These values have been extracted from Samsung's driver. */
-const struct expresswire_timing ktd2801_timing = {
+static const struct expresswire_timing ktd2801_timing = {
 	.poweroff_us = 2600,
 	.detect_delay_us = 150,
 	.detect_us = 270,
