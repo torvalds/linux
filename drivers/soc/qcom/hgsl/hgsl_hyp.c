@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "hgsl_hyp.h"
@@ -109,6 +109,8 @@ static const char * const gsl_rpc_func_names[] = {
 	"RPC_PERFCOUNTERS_READ",
 	"RPC_NOTIFY_CLEANUP",
 	"RPC_COMMAND_RESETSTATUS",
+	"RPC_CONTEXT_QUERY_DBCQ",
+	"RPC_CONTEXT_REGISTER_DBCQ",
 	"RPC_FUNC_LAST" // insert new func BEFORE this line!
 };
 
