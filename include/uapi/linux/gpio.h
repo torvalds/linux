@@ -399,8 +399,8 @@ struct gpioline_info_changed {
  * a batch of input or output lines, but they must all have the same
  * characteristics, i.e. all inputs or all outputs, all active low etc
  * @default_values: if the %GPIOHANDLE_REQUEST_OUTPUT is set for a requested
- * line, this specifies the default output value, should be 0 (low) or
- * 1 (high), anything else than 0 or 1 will be interpreted as 1 (high)
+ * line, this specifies the default output value, should be 0 (inactive) or
+ * 1 (active).  Anything other than 0 or 1 will be interpreted as active.
  * @consumer_label: a desired consumer label for the selected GPIO line(s)
  * such as "my-bitbanged-relay"
  * @lines: number of lines requested in this request, i.e. the number of
@@ -426,8 +426,8 @@ struct gpiohandle_request {
  * %GPIOHANDLE_REQUEST_OUTPUT, %GPIOHANDLE_REQUEST_ACTIVE_LOW etc, added
  * together
  * @default_values: if the %GPIOHANDLE_REQUEST_OUTPUT is set in flags,
- * this specifies the default output value, should be 0 (low) or
- * 1 (high), anything else than 0 or 1 will be interpreted as 1 (high)
+ * this specifies the default output value, should be 0 (inactive) or
+ * 1 (active).  Anything other than 0 or 1 will be interpreted as active.
  * @padding: reserved for future use and should be zero filled
  *
  * Note: This struct is part of ABI v1 and is deprecated.
@@ -443,7 +443,8 @@ struct gpiohandle_config {
  * struct gpiohandle_data - Information of values on a GPIO handle
  * @values: when getting the state of lines this contains the current
  * state of a line, when setting the state of lines these should contain
- * the desired target state
+ * the desired target state.  States are 0 (inactive) or 1 (active).
+ * When setting, anything other than 0 or 1 will be interpreted as active.
  *
  * Note: This struct is part of ABI v1 and is deprecated.
  * Use ABI v2 and &struct gpio_v2_line_values instead.
