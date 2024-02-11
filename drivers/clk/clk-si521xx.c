@@ -282,7 +282,7 @@ static int si521xx_probe(struct i2c_client *client)
 	const u16 chip_info = (u16)(uintptr_t)device_get_match_data(&client->dev);
 	const struct clk_parent_data clk_parent_data = { .index = 0 };
 	const u8 data[3] = { SI521XX_REG_BC, 1, 1 };
-	unsigned char name[6] = "DIFF0";
+	unsigned char name[16] = "DIFF0";
 	struct clk_init_data init = {};
 	struct si521xx *si;
 	int i, ret;
@@ -316,7 +316,7 @@ static int si521xx_probe(struct i2c_client *client)
 	/* Register clock */
 	for (i = 0; i < hweight16(chip_info); i++) {
 		memset(&init, 0, sizeof(init));
-		snprintf(name, 6, "DIFF%d", i);
+		snprintf(name, sizeof(name), "DIFF%d", i);
 		init.name = name;
 		init.ops = &si521xx_diff_clk_ops;
 		init.parent_data = &clk_parent_data;

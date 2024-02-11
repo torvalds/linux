@@ -334,7 +334,6 @@ struct virtio_net_common_hdr {
 	};
 };
 
-static void virtnet_rq_free_unused_buf(struct virtqueue *vq, void *buf);
 static void virtnet_sq_free_unused_buf(struct virtqueue *vq, void *buf);
 
 static bool is_xdp_frame(void *ptr)
@@ -406,6 +405,17 @@ static struct page *get_a_page(struct receive_queue *rq, gfp_t gfp_mask)
 	} else
 		p = alloc_page(gfp_mask);
 	return p;
+}
+
+static void virtnet_rq_free_buf(struct virtnet_info *vi,
+				struct receive_queue *rq, void *buf)
+{
+	if (vi->mergeable_rx_bufs)
+		put_page(virt_to_head_page(buf));
+	else if (vi->big_packets)
+		give_pages(rq, buf);
+	else
+		put_page(virt_to_head_page(buf));
 }
 
 static void enable_delayed_refill(struct virtnet_info *vi)
@@ -634,17 +644,6 @@ static void *virtnet_rq_get_buf(struct receive_queue *rq, u32 *len, void **ctx)
 	return buf;
 }
 
-static void *virtnet_rq_detach_unused_buf(struct receive_queue *rq)
-{
-	void *buf;
-
-	buf = virtqueue_detach_unused_buf(rq->vq);
-	if (buf && rq->do_dma)
-		virtnet_rq_unmap(rq, buf, 0);
-
-	return buf;
-}
-
 static void virtnet_rq_init_one_sg(struct receive_queue *rq, void *buf, u32 len)
 {
 	struct virtnet_rq_dma *dma;
@@ -742,6 +741,20 @@ static void virtnet_rq_set_premapped(struct virtnet_info *vi)
 
 		vi->rq[i].do_dma = true;
 	}
+}
+
+static void virtnet_rq_unmap_free_buf(struct virtqueue *vq, void *buf)
+{
+	struct virtnet_info *vi = vq->vdev->priv;
+	struct receive_queue *rq;
+	int i = vq2rxq(vq);
+
+	rq = &vi->rq[i];
+
+	if (rq->do_dma)
+		virtnet_rq_unmap(rq, buf, 0);
+
+	virtnet_rq_free_buf(vi, rq, buf);
 }
 
 static void free_old_xmit_skbs(struct send_queue *sq, bool in_napi)
@@ -1258,7 +1271,7 @@ static struct sk_buff *receive_small(struct net_device *dev,
 	if (unlikely(len > GOOD_PACKET_LEN)) {
 		pr_debug("%s: rx error: len %u exceeds max size %d\n",
 			 dev->name, len, GOOD_PACKET_LEN);
-		dev->stats.rx_length_errors++;
+		DEV_STATS_INC(dev, rx_length_errors);
 		goto err;
 	}
 
@@ -1323,7 +1336,7 @@ static void mergeable_buf_free(struct receive_queue *rq, int num_buf,
 		if (unlikely(!buf)) {
 			pr_debug("%s: rx error: %d buffers missing\n",
 				 dev->name, num_buf);
-			dev->stats.rx_length_errors++;
+			DEV_STATS_INC(dev, rx_length_errors);
 			break;
 		}
 		u64_stats_add(&stats->bytes, len);
@@ -1432,7 +1445,7 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 			pr_debug("%s: rx error: %d buffers out of %d missing\n",
 				 dev->name, *num_buf,
 				 virtio16_to_cpu(vi->vdev, hdr->num_buffers));
-			dev->stats.rx_length_errors++;
+			DEV_STATS_INC(dev, rx_length_errors);
 			goto err;
 		}
 
@@ -1451,7 +1464,7 @@ static int virtnet_build_xdp_buff_mrg(struct net_device *dev,
 			put_page(page);
 			pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
 				 dev->name, len, (unsigned long)(truesize - room));
-			dev->stats.rx_length_errors++;
+			DEV_STATS_INC(dev, rx_length_errors);
 			goto err;
 		}
 
@@ -1630,7 +1643,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 	if (unlikely(len > truesize - room)) {
 		pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
 			 dev->name, len, (unsigned long)(truesize - room));
-		dev->stats.rx_length_errors++;
+		DEV_STATS_INC(dev, rx_length_errors);
 		goto err_skb;
 	}
 
@@ -1662,7 +1675,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 				 dev->name, num_buf,
 				 virtio16_to_cpu(vi->vdev,
 						 hdr->num_buffers));
-			dev->stats.rx_length_errors++;
+			DEV_STATS_INC(dev, rx_length_errors);
 			goto err_buf;
 		}
 
@@ -1676,7 +1689,7 @@ static struct sk_buff *receive_mergeable(struct net_device *dev,
 		if (unlikely(len > truesize - room)) {
 			pr_debug("%s: rx error: len %u exceeds truesize %lu\n",
 				 dev->name, len, (unsigned long)(truesize - room));
-			dev->stats.rx_length_errors++;
+			DEV_STATS_INC(dev, rx_length_errors);
 			goto err_skb;
 		}
 
@@ -1763,8 +1776,8 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 
 	if (unlikely(len < vi->hdr_len + ETH_HLEN)) {
 		pr_debug("%s: short packet %i\n", dev->name, len);
-		dev->stats.rx_length_errors++;
-		virtnet_rq_free_unused_buf(rq->vq, buf);
+		DEV_STATS_INC(dev, rx_length_errors);
+		virtnet_rq_free_buf(vi, rq, buf);
 		return;
 	}
 
@@ -1803,7 +1816,7 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 	return;
 
 frame_err:
-	dev->stats.rx_frame_errors++;
+	DEV_STATS_INC(dev, rx_frame_errors);
 	dev_kfree_skb(skb);
 }
 
@@ -2352,12 +2365,12 @@ static netdev_tx_t start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* This should not happen! */
 	if (unlikely(err)) {
-		dev->stats.tx_fifo_errors++;
+		DEV_STATS_INC(dev, tx_fifo_errors);
 		if (net_ratelimit())
 			dev_warn(&dev->dev,
 				 "Unexpected TXQ (%d) queue failure: %d\n",
 				 qnum, err);
-		dev->stats.tx_dropped++;
+		DEV_STATS_INC(dev, tx_dropped);
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -2392,7 +2405,7 @@ static int virtnet_rx_resize(struct virtnet_info *vi,
 	if (running)
 		napi_disable(&rq->napi);
 
-	err = virtqueue_resize(rq->vq, ring_num, virtnet_rq_free_unused_buf);
+	err = virtqueue_resize(rq->vq, ring_num, virtnet_rq_unmap_free_buf);
 	if (err)
 		netdev_err(vi->dev, "resize rx fail: rx queue index: %d err: %d\n", qindex, err);
 
@@ -2576,10 +2589,10 @@ static void virtnet_stats(struct net_device *dev,
 		tot->tx_errors  += terrors;
 	}
 
-	tot->tx_dropped = dev->stats.tx_dropped;
-	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
-	tot->rx_length_errors = dev->stats.rx_length_errors;
-	tot->rx_frame_errors = dev->stats.rx_frame_errors;
+	tot->tx_dropped = DEV_STATS_READ(dev, tx_dropped);
+	tot->tx_fifo_errors = DEV_STATS_READ(dev, tx_fifo_errors);
+	tot->rx_length_errors = DEV_STATS_READ(dev, rx_length_errors);
+	tot->rx_frame_errors = DEV_STATS_READ(dev, rx_frame_errors);
 }
 
 static void virtnet_ack_link_announce(struct virtnet_info *vi)
@@ -4031,19 +4044,6 @@ static void virtnet_sq_free_unused_buf(struct virtqueue *vq, void *buf)
 		xdp_return_frame(ptr_to_xdp(buf));
 }
 
-static void virtnet_rq_free_unused_buf(struct virtqueue *vq, void *buf)
-{
-	struct virtnet_info *vi = vq->vdev->priv;
-	int i = vq2rxq(vq);
-
-	if (vi->mergeable_rx_bufs)
-		put_page(virt_to_head_page(buf));
-	else if (vi->big_packets)
-		give_pages(&vi->rq[i], buf);
-	else
-		put_page(virt_to_head_page(buf));
-}
-
 static void free_unused_bufs(struct virtnet_info *vi)
 {
 	void *buf;
@@ -4057,10 +4057,10 @@ static void free_unused_bufs(struct virtnet_info *vi)
 	}
 
 	for (i = 0; i < vi->max_queue_pairs; i++) {
-		struct receive_queue *rq = &vi->rq[i];
+		struct virtqueue *vq = vi->rq[i].vq;
 
-		while ((buf = virtnet_rq_detach_unused_buf(rq)) != NULL)
-			virtnet_rq_free_unused_buf(rq->vq, buf);
+		while ((buf = virtqueue_detach_unused_buf(vq)) != NULL)
+			virtnet_rq_unmap_free_buf(vq, buf);
 		cond_resched();
 	}
 }

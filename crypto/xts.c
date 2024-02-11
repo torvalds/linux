@@ -28,7 +28,7 @@ struct xts_tfm_ctx {
 
 struct xts_instance_ctx {
 	struct crypto_skcipher_spawn spawn;
-	char name[CRYPTO_MAX_ALG_NAME];
+	struct crypto_cipher_spawn tweak_spawn;
 };
 
 struct xts_request_ctx {
@@ -306,7 +306,7 @@ static int xts_init_tfm(struct crypto_skcipher *tfm)
 
 	ctx->child = child;
 
-	tweak = crypto_alloc_cipher(ictx->name, 0, 0);
+	tweak = crypto_spawn_cipher(&ictx->tweak_spawn);
 	if (IS_ERR(tweak)) {
 		crypto_free_skcipher(ctx->child);
 		return PTR_ERR(tweak);
@@ -333,11 +333,13 @@ static void xts_free_instance(struct skcipher_instance *inst)
 	struct xts_instance_ctx *ictx = skcipher_instance_ctx(inst);
 
 	crypto_drop_skcipher(&ictx->spawn);
+	crypto_drop_cipher(&ictx->tweak_spawn);
 	kfree(inst);
 }
 
 static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
+	char name[CRYPTO_MAX_ALG_NAME];
 	struct skcipher_instance *inst;
 	struct xts_instance_ctx *ctx;
 	struct skcipher_alg *alg;
@@ -363,13 +365,13 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 				   cipher_name, 0, mask);
 	if (err == -ENOENT) {
 		err = -ENAMETOOLONG;
-		if (snprintf(ctx->name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
+		if (snprintf(name, CRYPTO_MAX_ALG_NAME, "ecb(%s)",
 			     cipher_name) >= CRYPTO_MAX_ALG_NAME)
 			goto err_free_inst;
 
 		err = crypto_grab_skcipher(&ctx->spawn,
 					   skcipher_crypto_instance(inst),
-					   ctx->name, 0, mask);
+					   name, 0, mask);
 	}
 
 	if (err)
@@ -398,21 +400,26 @@ static int xts_create(struct crypto_template *tmpl, struct rtattr **tb)
 	if (!strncmp(cipher_name, "ecb(", 4)) {
 		int len;
 
-		len = strscpy(ctx->name, cipher_name + 4, sizeof(ctx->name));
+		len = strscpy(name, cipher_name + 4, sizeof(name));
 		if (len < 2)
 			goto err_free_inst;
 
-		if (ctx->name[len - 1] != ')')
+		if (name[len - 1] != ')')
 			goto err_free_inst;
 
-		ctx->name[len - 1] = 0;
+		name[len - 1] = 0;
 
 		if (snprintf(inst->alg.base.cra_name, CRYPTO_MAX_ALG_NAME,
-			     "xts(%s)", ctx->name) >= CRYPTO_MAX_ALG_NAME) {
+			     "xts(%s)", name) >= CRYPTO_MAX_ALG_NAME) {
 			err = -ENAMETOOLONG;
 			goto err_free_inst;
 		}
 	} else
+		goto err_free_inst;
+
+	err = crypto_grab_cipher(&ctx->tweak_spawn,
+				 skcipher_crypto_instance(inst), name, 0, mask);
+	if (err)
 		goto err_free_inst;
 
 	inst->alg.base.cra_priority = alg->base.cra_priority;
