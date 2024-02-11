@@ -3,6 +3,9 @@
  * Copyright (c) 2022, Linaro Limited
  */
 
+#include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
+#include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
+#include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/spmi/spmi.h>
@@ -85,6 +88,37 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 			status = "disabled";
+
+			channel@3 {
+				reg = <PMK8350_ADC7_DIE_TEMP>;
+				qcom,pre-scaling = <1 1>;
+				label = "pmk8350_die_temp";
+			};
+
+			channel@44 {
+				reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
+				qcom,hw-settle-time = <200>;
+				qcom,ratiometric;
+				label = "pmk8350_xo_therm";
+			};
+
+			channel@103 {
+				reg = <PM8350_ADC7_DIE_TEMP(1)>;
+				qcom,pre-scaling = <1 1>;
+				label = "pmc8280_1_die_temp";
+			};
+
+			channel@303 {
+				reg = <PM8350_ADC7_DIE_TEMP(3)>;
+				qcom,pre-scaling = <1 1>;
+				label = "pmc8280_2_die_temp";
+			};
+
+			channel@403 {
+				reg = <PMR735A_ADC7_DIE_TEMP>;
+				qcom,pre-scaling = <1 1>;
+				label = "pmr735a_die_temp";
+			};
 		};
 
 		pmk8280_adc_tm: adc-tm@3400 {
