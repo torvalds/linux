@@ -71,6 +71,7 @@ static int boot_log_init(void)
 	 * is visible to other CPU's
 	 */
 	smp_mb();
+	return 0;
 
 out:
 	return ret;
