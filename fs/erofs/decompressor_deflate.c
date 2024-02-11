@@ -77,9 +77,10 @@ out_failed:
 }
 
 int z_erofs_load_deflate_config(struct super_block *sb,
-				struct erofs_super_block *dsb,
-				struct z_erofs_deflate_cfgs *dfl, int size)
+			struct erofs_super_block *dsb, void *data, int size)
 {
+	struct z_erofs_deflate_cfgs *dfl = data;
+
 	if (!dfl || size < sizeof(struct z_erofs_deflate_cfgs)) {
 		erofs_err(sb, "invalid deflate cfgs, size=%u", size);
 		return -EINVAL;

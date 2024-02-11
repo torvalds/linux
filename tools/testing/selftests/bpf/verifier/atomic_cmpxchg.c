@@ -84,17 +84,6 @@
 	.errstr = "!read_ok",
 },
 {
-	"Can't use cmpxchg on uninit memory",
-	.insns = {
-		BPF_MOV64_IMM(BPF_REG_0, 3),
-		BPF_MOV64_IMM(BPF_REG_2, 4),
-		BPF_ATOMIC_OP(BPF_DW, BPF_CMPXCHG, BPF_REG_10, BPF_REG_2, -8),
-		BPF_EXIT_INSN(),
-	},
-	.result = REJECT,
-	.errstr = "invalid read from stack",
-},
-{
 	"BPF_W cmpxchg should zero top 32 bits",
 	.insns = {
 		/* r0 = U64_MAX; */

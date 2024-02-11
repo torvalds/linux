@@ -1673,7 +1673,7 @@ static ssize_t _iwl_dbgfs_link_sta_##name##_write(struct file *file,	\
 	char buf[buflen] = {};						\
 	size_t buf_size = min(count, sizeof(buf) -  1);			\
 									\
-	if (copy_from_user(buf, user_buf, sizeof(buf)))			\
+	if (copy_from_user(buf, user_buf, buf_size))			\
 		return -EFAULT;						\
 									\
 	return _iwl_dbgfs_link_sta_wrap_write(iwl_dbgfs_##name##_write,	\
