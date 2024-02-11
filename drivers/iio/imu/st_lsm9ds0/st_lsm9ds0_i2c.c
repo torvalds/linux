@@ -41,7 +41,7 @@ MODULE_DEVICE_TABLE(i2c, st_lsm9ds0_id_table);
 
 static const struct acpi_device_id st_lsm9ds0_acpi_match[] = {
 	{"ACCL0001", (kernel_ulong_t)LSM303D_IMU_DEV_NAME},
-	{ },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, st_lsm9ds0_acpi_match);
 
