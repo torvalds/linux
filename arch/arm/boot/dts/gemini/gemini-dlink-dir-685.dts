@@ -27,10 +27,10 @@
 	gpio_keys {
 		compatible = "gpio-keys";
 
-		button-esc {
+		button-reset {
 			debounce-interval = <100>;
 			wakeup-source;
-			linux,code = <KEY_ESC>;
+			linux,code = <KEY_RESTART>;
 			label = "reset";
 			/* Collides with LPC_LAD[0], UART DCD, SSP 97RST */
 			gpios = <&gpio0 8 GPIO_ACTIVE_LOW>;

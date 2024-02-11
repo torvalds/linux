@@ -30,7 +30,7 @@
 		button-setup {
 			debounce-interval = <100>;
 			wakeup-source;
-			linux,code = <KEY_SETUP>;
+			linux,code = <KEY_RESTART>;
 			label = "factory reset";
 			/* Conflict with NAND flash */
 			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
