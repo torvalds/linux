@@ -10,7 +10,7 @@
 
 / {
 	model = "Wiliboard WBD-222";
-	compatible = "wiliboard,wbd222", "cortina,gemini";
+	compatible = "wiligear,wiliboard-wbd222", "cortina,gemini";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
