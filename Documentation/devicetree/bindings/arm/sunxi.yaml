@@ -841,6 +841,12 @@ properties:
           - const: sinlinx,sina33
           - const: allwinner,sun8i-a33
 
+      - description: Sipeed Longan Pi 3H board for the Sipeed Longan Module 3H
+        items:
+          - const: sipeed,longan-pi-3h
+          - const: sipeed,longan-module-3h
+          - const: allwinner,sun50i-h618
+
       - description: SourceParts PopStick v1.1
         items:
           - const: sourceparts,popstick-v1.1
