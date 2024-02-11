@@ -9,6 +9,7 @@
 #include <string.h>
 #include <regex.h>
 
+#include "internal.h"
 #include "lkc.h"
 
 struct symbol symbol_yes = {
@@ -160,9 +161,8 @@ static void sym_set_changed(struct symbol *sym)
 static void sym_set_all_changed(void)
 {
 	struct symbol *sym;
-	int i;
 
-	for_all_symbols(i, sym)
+	for_all_symbols(sym)
 		sym_set_changed(sym);
 }
 
@@ -475,9 +475,8 @@ void sym_calc_value(struct symbol *sym)
 void sym_clear_all_valid(void)
 {
 	struct symbol *sym;
-	int i;
 
-	for_all_symbols(i, sym)
+	for_all_symbols(sym)
 		sym->flags &= ~SYMBOL_VALID;
 	conf_set_changed(true);
 	sym_calc_value(modules_sym);
@@ -803,6 +802,8 @@ bool sym_is_changeable(struct symbol *sym)
 	return sym->visible > sym->rev_dep.tri;
 }
 
+HASHTABLE_DEFINE(sym_hashtable, SYMBOL_HASHSIZE);
+
 struct symbol *sym_lookup(const char *name, int flags)
 {
 	struct symbol *symbol;
@@ -817,9 +818,9 @@ struct symbol *sym_lookup(const char *name, int flags)
 			case 'n': return &symbol_no;
 			}
 		}
-		hash = strhash(name) % SYMBOL_HASHSIZE;
+		hash = strhash(name);
 
-		for (symbol = symbol_hash[hash]; symbol; symbol = symbol->next) {
+		hash_for_each_possible(sym_hashtable, symbol, node, hash) {
 			if (symbol->name &&
 			    !strcmp(symbol->name, name) &&
 			    (flags ? symbol->flags & flags
@@ -838,8 +839,7 @@ struct symbol *sym_lookup(const char *name, int flags)
 	symbol->type = S_UNKNOWN;
 	symbol->flags = flags;
 
-	symbol->next = symbol_hash[hash];
-	symbol_hash[hash] = symbol;
+	hash_add(sym_hashtable, &symbol->node, hash);
 
 	return symbol;
 }
@@ -859,9 +859,9 @@ struct symbol *sym_find(const char *name)
 		case 'n': return &symbol_no;
 		}
 	}
-	hash = strhash(name) % SYMBOL_HASHSIZE;
+	hash = strhash(name);
 
-	for (symbol = symbol_hash[hash]; symbol; symbol = symbol->next) {
+	hash_for_each_possible(sym_hashtable, symbol, node, hash) {
 		if (symbol->name &&
 		    !strcmp(symbol->name, name) &&
 		    !(symbol->flags & SYMBOL_CONST))
@@ -921,7 +921,7 @@ struct symbol **sym_re_search(const char *pattern)
 	if (regcomp(&re, pattern, REG_EXTENDED|REG_ICASE))
 		return NULL;
 
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		if (sym->flags & SYMBOL_CONST || !sym->name)
 			continue;
 		if (regexec(&re, sym->name, 1, match, 0))

@@ -18,8 +18,6 @@ void conf_set_message_callback(void (*fn)(const char *s));
 bool conf_errors(void);
 
 /* symbol.c */
-extern struct symbol * symbol_hash[SYMBOL_HASHSIZE];
-
 struct symbol * sym_lookup(const char *name, int flags);
 struct symbol * sym_find(const char *name);
 void print_symbol_for_listconfig(struct symbol *sym);
