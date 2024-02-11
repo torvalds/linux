@@ -16,10 +16,13 @@
  * and eliminates the need for absolute relocations that require runtime
  * processing on relocatable kernels.
  */
+#define __KSYM_ALIGN		".balign 4"
 #define __KSYM_REF(sym)		".long " #sym "- ."
 #elif defined(CONFIG_64BIT)
+#define __KSYM_ALIGN		".balign 8"
 #define __KSYM_REF(sym)		".quad " #sym
 #else
+#define __KSYM_ALIGN		".balign 4"
 #define __KSYM_REF(sym)		".long " #sym
 #endif
 
@@ -42,7 +45,7 @@
 	    "	.asciz \"" ns "\""					"\n"	\
 	    "	.previous"						"\n"	\
 	    "	.section \"___ksymtab" sec "+" #name "\", \"a\""	"\n"	\
-	    "	.balign	4"						"\n"	\
+		__KSYM_ALIGN						"\n"	\
 	    "__ksymtab_" #name ":"					"\n"	\
 		__KSYM_REF(sym)						"\n"	\
 		__KSYM_REF(__kstrtab_ ##name)				"\n"	\
@@ -63,6 +66,7 @@
 
 #define SYMBOL_CRC(sym, crc, sec)   \
 	asm(".section \"___kcrctab" sec "+" #sym "\",\"a\""	"\n" \
+	    ".balign 4"						"\n" \
 	    "__crc_" #sym ":"					"\n" \
 	    ".long " #crc					"\n" \
 	    ".previous"						"\n")
