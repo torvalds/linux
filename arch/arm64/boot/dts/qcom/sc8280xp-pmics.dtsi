@@ -87,7 +87,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
-			status = "disabled";
 
 			channel@3 {
 				reg = <PMK8350_ADC7_DIE_TEMP>;
@@ -160,6 +159,8 @@
 			compatible = "qcom,spmi-temp-alarm";
 			reg = <0xa00>;
 			interrupts-extended = <&spmi_bus 0x1 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
+			io-channels = <&pmk8280_vadc PM8350_ADC7_DIE_TEMP(1)>;
+			io-channel-names = "thermal";
 			#thermal-sensor-cells = <0>;
 		};
 
@@ -212,6 +213,8 @@
 			compatible = "qcom,spmi-temp-alarm";
 			reg = <0xa00>;
 			interrupts-extended = <&spmi_bus 0x2 0xa 0x0 IRQ_TYPE_EDGE_BOTH>;
+			io-channels = <&pmk8280_vadc PM8350_ADC7_DIE_TEMP(3)>;
+			io-channel-names = "thermal";
 			#thermal-sensor-cells = <0>;
 		};
 

@@ -604,10 +604,6 @@
 	};
 };
 
-&pmk8280_vadc {
-	status = "okay";
-};
-
 &qup0 {
 	status = "okay";
 };
