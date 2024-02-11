@@ -1448,7 +1448,7 @@ ssize_t fuse_direct_io(struct fuse_io_priv *io, struct iov_iter *iter,
 	if (!ia)
 		return -ENOMEM;
 
-	if (fopen_direct_io && fc->direct_io_relax) {
+	if (fopen_direct_io && fc->direct_io_allow_mmap) {
 		res = filemap_write_and_wait_range(mapping, pos, pos + count - 1);
 		if (res) {
 			fuse_io_free(ia);
@@ -1574,6 +1574,7 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	ssize_t res;
 	bool exclusive_lock =
 		!(ff->open_flags & FOPEN_PARALLEL_DIRECT_WRITES) ||
+		get_fuse_conn(inode)->direct_io_allow_mmap ||
 		iocb->ki_flags & IOCB_APPEND ||
 		fuse_direct_write_extending_i_size(iocb, from);
 
@@ -1581,6 +1582,7 @@ static ssize_t fuse_direct_write_iter(struct kiocb *iocb, struct iov_iter *from)
 	 * Take exclusive lock if
 	 * - Parallel direct writes are disabled - a user space decision
 	 * - Parallel direct writes are enabled and i_size is being extended.
+	 * - Shared mmap on direct_io file is supported (FUSE_DIRECT_IO_ALLOW_MMAP).
 	 *   This might not be needed at all, but needs further investigation.
 	 */
 	if (exclusive_lock)
@@ -2466,9 +2468,9 @@ static int fuse_file_mmap(struct file *file, struct vm_area_struct *vma)
 
 	if (ff->open_flags & FOPEN_DIRECT_IO) {
 		/* Can't provide the coherency needed for MAP_SHARED
-		 * if FUSE_DIRECT_IO_RELAX isn't set.
+		 * if FUSE_DIRECT_IO_ALLOW_MMAP isn't set.
 		 */
-		if ((vma->vm_flags & VM_MAYSHARE) && !fc->direct_io_relax)
+		if ((vma->vm_flags & VM_MAYSHARE) && !fc->direct_io_allow_mmap)
 			return -ENODEV;
 
 		invalidate_inode_pages2(file->f_mapping);

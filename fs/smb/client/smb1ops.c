@@ -976,62 +976,35 @@ static int cifs_query_symlink(const unsigned int xid,
 			      struct cifs_tcon *tcon,
 			      struct cifs_sb_info *cifs_sb,
 			      const char *full_path,
-			      char **target_path,
-			      struct kvec *rsp_iov)
+			      char **target_path)
 {
 	int rc;
-	int oplock = 0;
-	bool is_reparse_point = !!rsp_iov;
-	struct cifs_fid fid;
-	struct cifs_open_parms oparms;
 
-	cifs_dbg(FYI, "%s: path: %s\n", __func__, full_path);
+	cifs_tcon_dbg(FYI, "%s: path=%s\n", __func__, full_path);
 
-	if (is_reparse_point) {
-		cifs_dbg(VFS, "reparse points not handled for SMB1 symlinks\n");
+	if (!cap_unix(tcon->ses))
 		return -EOPNOTSUPP;
-	}
 
-	/* Check for unix extensions */
-	if (cap_unix(tcon->ses)) {
-		rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, target_path,
-					     cifs_sb->local_nls,
-					     cifs_remap(cifs_sb));
-		if (rc == -EREMOTE)
-			rc = cifs_unix_dfs_readlink(xid, tcon, full_path,
-						    target_path,
-						    cifs_sb->local_nls);
-
-		goto out;
-	}
-
-	oparms = (struct cifs_open_parms) {
-		.tcon = tcon,
-		.cifs_sb = cifs_sb,
-		.desired_access = FILE_READ_ATTRIBUTES,
-		.create_options = cifs_create_options(cifs_sb,
-						      OPEN_REPARSE_POINT),
-		.disposition = FILE_OPEN,
-		.path = full_path,
-		.fid = &fid,
-	};
-
-	rc = CIFS_open(xid, &oparms, &oplock, NULL);
-	if (rc)
-		goto out;
-
-	rc = CIFSSMBQuerySymLink(xid, tcon, fid.netfid, target_path,
-				 cifs_sb->local_nls);
-	if (rc)
-		goto out_close;
-
-	convert_delimiter(*target_path, '/');
-out_close:
-	CIFSSMBClose(xid, tcon, fid.netfid);
-out:
-	if (!rc)
-		cifs_dbg(FYI, "%s: target path: %s\n", __func__, *target_path);
+	rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, target_path,
+				     cifs_sb->local_nls, cifs_remap(cifs_sb));
+	if (rc == -EREMOTE)
+		rc = cifs_unix_dfs_readlink(xid, tcon, full_path,
+					    target_path, cifs_sb->local_nls);
 	return rc;
+}
+
+static int cifs_parse_reparse_point(struct cifs_sb_info *cifs_sb,
+				    struct kvec *rsp_iov,
+				    struct cifs_open_info_data *data)
+{
+	struct reparse_data_buffer *buf;
+	TRANSACT_IOCTL_RSP *io = rsp_iov->iov_base;
+	bool unicode = !!(io->hdr.Flags2 & SMBFLG2_UNICODE);
+	u32 plen = le16_to_cpu(io->ByteCount);
+
+	buf = (struct reparse_data_buffer *)((__u8 *)&io->hdr.Protocol +
+					     le32_to_cpu(io->DataOffset));
+	return parse_reparse_point(buf, plen, cifs_sb, unicode, data);
 }
 
 static bool
@@ -1214,6 +1187,7 @@ struct smb_version_operations smb1_operations = {
 	.is_path_accessible = cifs_is_path_accessible,
 	.can_echo = cifs_can_echo,
 	.query_path_info = cifs_query_path_info,
+	.query_reparse_point = cifs_query_reparse_point,
 	.query_file_info = cifs_query_file_info,
 	.get_srv_inum = cifs_get_srv_inum,
 	.set_path_size = CIFSSMBSetEOF,
@@ -1229,6 +1203,7 @@ struct smb_version_operations smb1_operations = {
 	.rename = CIFSSMBRename,
 	.create_hardlink = CIFSCreateHardLink,
 	.query_symlink = cifs_query_symlink,
+	.parse_reparse_point = cifs_parse_reparse_point,
 	.open = cifs_open_file,
 	.set_fid = cifs_set_fid,
 	.close = cifs_close_file,

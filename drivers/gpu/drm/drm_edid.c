@@ -2308,7 +2308,8 @@ int drm_edid_override_connector_update(struct drm_connector *connector)
 
 	override = drm_edid_override_get(connector);
 	if (override) {
-		num_modes = drm_edid_connector_update(connector, override);
+		if (drm_edid_connector_update(connector, override) == 0)
+			num_modes = drm_edid_connector_add_modes(connector);
 
 		drm_edid_free(override);
 
