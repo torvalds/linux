@@ -214,6 +214,8 @@ enum key_fields {
 	NPC_MPLS3_TTL,
 	NPC_MPLS4_LBTCBOS,
 	NPC_MPLS4_TTL,
+	NPC_TYPE_ICMP,
+	NPC_CODE_ICMP,
 	NPC_HEADER_FIELDS_MAX,
 	NPC_CHAN = NPC_HEADER_FIELDS_MAX, /* Valid when Rx */
 	NPC_PF_FUNC, /* Valid when Tx */
@@ -528,7 +530,7 @@ struct npc_lt_def {
 	u8	ltype_mask;
 	u8	ltype_match;
 	u8	lid;
-};
+} __packed;
 
 struct npc_lt_def_ipsec {
 	u8	ltype_mask;
@@ -536,7 +538,7 @@ struct npc_lt_def_ipsec {
 	u8	lid;
 	u8	spi_offset;
 	u8	spi_nz;
-};
+} __packed;
 
 struct npc_lt_def_apad {
 	u8	ltype_mask;

@@ -172,7 +172,7 @@ variables.
 Offset of the free_list's member. This value is used to compute the number
 of free pages.
 
-Each zone has a free_area structure array called free_area[MAX_ORDER + 1].
+Each zone has a free_area structure array called free_area[NR_PAGE_ORDERS].
 The free_list represents a linked list of free page blocks.
 
 (list_head, next|prev)
@@ -189,11 +189,11 @@ Offsets of the vmap_area's members. They carry vmalloc-specific
 information. Makedumpfile gets the start address of the vmalloc region
 from this.
 
-(zone.free_area, MAX_ORDER + 1)
--------------------------------
+(zone.free_area, NR_PAGE_ORDERS)
+--------------------------------
 
 Free areas descriptor. User-space tools use this value to iterate the
-free_area ranges. MAX_ORDER is used by the zone buddy allocator.
+free_area ranges. NR_PAGE_ORDERS is used by the zone buddy allocator.
 
 prb
 ---

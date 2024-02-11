@@ -116,7 +116,7 @@ struct amdgpu_mem_stats;
 #define AMDGPU_VM_FAULT_STOP_FIRST	1
 #define AMDGPU_VM_FAULT_STOP_ALWAYS	2
 
-/* Reserve 4MB VRAM for page tables */
+/* How much VRAM be reserved for page tables */
 #define AMDGPU_VM_RESERVED_VRAM		(8ULL << 20)
 
 /*
@@ -324,6 +324,7 @@ struct amdgpu_vm {
 	/* Last finished delayed update */
 	atomic64_t		tlb_seq;
 	struct dma_fence	*last_tlb_flush;
+	atomic64_t		kfd_last_flushed_seq;
 
 	/* How many times we had to re-generate the page tables */
 	uint64_t		generation;
@@ -445,6 +446,10 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 int amdgpu_vm_handle_moved(struct amdgpu_device *adev,
 			   struct amdgpu_vm *vm,
 			   struct ww_acquire_ctx *ticket);
+int amdgpu_vm_flush_compute_tlb(struct amdgpu_device *adev,
+				struct amdgpu_vm *vm,
+				uint32_t flush_type,
+				uint32_t xcc_mask);
 void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 			    struct amdgpu_vm *vm, struct amdgpu_bo *bo);
 int amdgpu_vm_update_range(struct amdgpu_device *adev, struct amdgpu_vm *vm,

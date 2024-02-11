@@ -28,6 +28,10 @@
 #define CS42L43_HP_TIMEOUT_MS		2000
 #define CS42L43_LOAD_TIMEOUT_MS		1000
 
+#define CS42L43_HP_ILIMIT_BACKOFF_MS	1000
+#define CS42L43_HP_ILIMIT_DECAY_MS	300
+#define CS42L43_HP_ILIMIT_MAX_COUNT	4
+
 #define CS42L43_ASP_MAX_CHANNELS	6
 #define CS42L43_N_EQ_COEFFS		15
 
@@ -88,6 +92,11 @@ struct cs42l43_codec {
 	bool button_detect_running;
 	bool jack_present;
 	int jack_override;
+
+	struct work_struct hp_ilimit_work;
+	struct delayed_work hp_ilimit_clear_work;
+	bool hp_ilimited;
+	int hp_ilimit_count;
 };
 
 #if IS_REACHABLE(CONFIG_SND_SOC_CS42L43_SDW)

@@ -621,6 +621,9 @@ void hda_ops_free(struct snd_sof_dev *sdev)
 
 		if (!hda_use_tplg_nhlt)
 			intel_nhlt_free(ipc4_data->nhlt);
+
+		kfree(sdev->private);
+		sdev->private = NULL;
 	}
 }
 EXPORT_SYMBOL_NS(hda_ops_free, SND_SOC_SOF_INTEL_HDA_COMMON);

@@ -60,6 +60,14 @@ config FIXED_PHY
 
 	  Currently tested with mpc866ads and mpc8349e-mitx.
 
+config RUST_PHYLIB_ABSTRACTIONS
+        bool "Rust PHYLIB abstractions support"
+        depends on RUST
+        depends on PHYLIB=y
+        help
+          Adds support needed for PHY drivers written in Rust. It provides
+          a wrapper around the C phylib core.
+
 config SFP
 	tristate "SFP cage support"
 	depends on I2C && PHYLINK
@@ -96,16 +104,21 @@ config ADIN1100_PHY
 	  Currently supports the:
 	  - ADIN1100 - Robust,Industrial, Low Power 10BASE-T1L Ethernet PHY
 
-config AQUANTIA_PHY
-	tristate "Aquantia PHYs"
-	help
-	  Currently supports the Aquantia AQ1202, AQ2104, AQR105, AQR405
+source "drivers/net/phy/aquantia/Kconfig"
 
 config AX88796B_PHY
 	tristate "Asix PHYs"
 	help
 	  Currently supports the Asix Electronics PHY found in the X-Surf 100
 	  AX88796B package.
+
+config AX88796B_RUST_PHY
+	bool "Rust reference driver for Asix PHYs"
+	depends on RUST_PHYLIB_ABSTRACTIONS && AX88796B_PHY
+	help
+	  Uses the Rust reference driver for Asix PHYs (ax88796b_rust.ko).
+	  The features are equivalent. It supports the Asix Electronics PHY
+	  found in the X-Surf 100 AX88796B package.
 
 config BROADCOM_PHY
 	tristate "Broadcom 54XX PHYs"
@@ -304,9 +317,10 @@ config NXP_CBTX_PHY
 config NXP_C45_TJA11XX_PHY
 	tristate "NXP C45 TJA11XX PHYs"
 	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on MACSEC || !MACSEC
 	help
 	  Enable support for NXP C45 TJA11XX PHYs.
-	  Currently supports the TJA1103 and TJA1120 PHYs.
+	  Currently supports the TJA1103, TJA1104 and TJA1120 PHYs.
 
 config NXP_TJA11XX_PHY
 	tristate "NXP TJA11xx PHYs support"
@@ -396,6 +410,19 @@ config DP83TD510_PHY
 	help
 	  Support for the DP83TD510 Ethernet 10Base-T1L PHY. This PHY supports
 	  a 10M single pair Ethernet connection for up to 1000 meter cable.
+
+config DP83TG720_PHY
+	tristate "Texas Instruments DP83TG720 Ethernet 1000Base-T1 PHY"
+	help
+	  The DP83TG720S-Q1 is an automotive Ethernet physical layer
+	  transceiver compliant with IEEE 802.3bp and Open Alliance
+	  standards. It supports key functions necessary for
+	  transmitting and receiving data over both unshielded and
+	  shielded single twisted-pair cables. This device offers
+	  flexible xMII interface options, including support for both
+	  RGMII and SGMII MAC interfaces. It's suitable for applications
+	  requiring high-speed data transmission in automotive
+	  networking environments.
 
 config VITESSE_PHY
 	tristate "Vitesse PHYs"

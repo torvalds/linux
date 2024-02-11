@@ -289,31 +289,21 @@ static int v9fs_drop_inode(struct inode *inode)
 static int v9fs_write_inode(struct inode *inode,
 			    struct writeback_control *wbc)
 {
-	struct v9fs_inode *v9inode;
-
 	/*
 	 * send an fsync request to server irrespective of
 	 * wbc->sync_mode.
 	 */
 	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
-
-	v9inode = V9FS_I(inode);
-	fscache_unpin_writeback(wbc, v9fs_inode_cookie(v9inode));
-
-	return 0;
+	return netfs_unpin_writeback(inode, wbc);
 }
 
 static int v9fs_write_inode_dotl(struct inode *inode,
 				 struct writeback_control *wbc)
 {
-	struct v9fs_inode *v9inode;
 
-	v9inode = V9FS_I(inode);
 	p9_debug(P9_DEBUG_VFS, "%s: inode %p\n", __func__, inode);
 
-	fscache_unpin_writeback(wbc, v9fs_inode_cookie(v9inode));
-
-	return 0;
+	return netfs_unpin_writeback(inode, wbc);
 }
 
 static const struct super_operations v9fs_super_ops = {

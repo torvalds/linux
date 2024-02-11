@@ -26,6 +26,7 @@
 #include "amdgpu.h"
 #include "amdgpu_ucode.h"
 #include "amdgpu_vpe.h"
+#include "amdgpu_smu.h"
 #include "soc15_common.h"
 #include "vpe_v6_1.h"
 
@@ -33,7 +34,179 @@
 /* VPE CSA resides in the 4th page of CSA */
 #define AMDGPU_CSA_VPE_OFFSET 	(4096 * 3)
 
+/* 1 second timeout */
+#define VPE_IDLE_TIMEOUT	msecs_to_jiffies(1000)
+
+#define VPE_MAX_DPM_LEVEL			4
+#define FIXED1_8_BITS_PER_FRACTIONAL_PART	8
+#define GET_PRATIO_INTEGER_PART(x)		((x) >> FIXED1_8_BITS_PER_FRACTIONAL_PART)
+
 static void vpe_set_ring_funcs(struct amdgpu_device *adev);
+
+static inline uint16_t div16_u16_rem(uint16_t dividend, uint16_t divisor, uint16_t *remainder)
+{
+	*remainder = dividend % divisor;
+	return dividend / divisor;
+}
+
+static inline uint16_t complete_integer_division_u16(
+	uint16_t dividend,
+	uint16_t divisor,
+	uint16_t *remainder)
+{
+	return div16_u16_rem(dividend, divisor, (uint16_t *)remainder);
+}
+
+static uint16_t vpe_u1_8_from_fraction(uint16_t numerator, uint16_t denominator)
+{
+	u16 arg1_value = numerator;
+	u16 arg2_value = denominator;
+
+	uint16_t remainder;
+
+	/* determine integer part */
+	uint16_t res_value = complete_integer_division_u16(
+		arg1_value, arg2_value, &remainder);
+
+	if (res_value > 127 /* CHAR_MAX */)
+		return 0;
+
+	/* determine fractional part */
+	{
+		unsigned int i = FIXED1_8_BITS_PER_FRACTIONAL_PART;
+
+		do {
+			remainder <<= 1;
+
+			res_value <<= 1;
+
+			if (remainder >= arg2_value) {
+				res_value |= 1;
+				remainder -= arg2_value;
+			}
+		} while (--i != 0);
+	}
+
+	/* round up LSB */
+	{
+		uint16_t summand = (remainder << 1) >= arg2_value;
+
+		if ((res_value + summand) > 32767 /* SHRT_MAX */)
+			return 0;
+
+		res_value += summand;
+	}
+
+	return res_value;
+}
+
+static uint16_t vpe_internal_get_pratio(uint16_t from_frequency, uint16_t to_frequency)
+{
+	uint16_t pratio = vpe_u1_8_from_fraction(from_frequency, to_frequency);
+
+	if (GET_PRATIO_INTEGER_PART(pratio) > 1)
+		pratio = 0;
+
+	return pratio;
+}
+
+/*
+ * VPE has 4 DPM levels from level 0 (lowerest) to 3 (highest),
+ * VPE FW will dynamically decide which level should be used according to current loading.
+ *
+ * Get VPE and SOC clocks from PM, and select the appropriate four clock values,
+ * calculate the ratios of adjusting from one clock to another.
+ * The VPE FW can then request the appropriate frequency from the PMFW.
+ */
+int amdgpu_vpe_configure_dpm(struct amdgpu_vpe *vpe)
+{
+	struct amdgpu_device *adev = vpe->ring.adev;
+	uint32_t dpm_ctl;
+
+	if (adev->pm.dpm_enabled) {
+		struct dpm_clocks clock_table = { 0 };
+		struct dpm_clock *VPEClks;
+		struct dpm_clock *SOCClks;
+		uint32_t idx;
+		uint32_t pratio_vmax_vnorm = 0, pratio_vnorm_vmid = 0, pratio_vmid_vmin = 0;
+		uint16_t pratio_vmin_freq = 0, pratio_vmid_freq = 0, pratio_vnorm_freq = 0, pratio_vmax_freq = 0;
+
+		dpm_ctl = RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable));
+		dpm_ctl |= 1; /* DPM enablement */
+		WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable), dpm_ctl);
+
+		/* Get VPECLK and SOCCLK */
+		if (amdgpu_dpm_get_dpm_clock_table(adev, &clock_table)) {
+			dev_dbg(adev->dev, "%s: get clock failed!\n", __func__);
+			goto disable_dpm;
+		}
+
+		SOCClks = clock_table.SocClocks;
+		VPEClks = clock_table.VPEClocks;
+
+		/* vpe dpm only cares 4 levels. */
+		for (idx = 0; idx < VPE_MAX_DPM_LEVEL; idx++) {
+			uint32_t soc_dpm_level;
+			uint32_t min_freq;
+
+			if (idx == 0)
+				soc_dpm_level = 0;
+			else
+				soc_dpm_level = (idx * 2) + 1;
+
+			/* clamp the max level */
+			if (soc_dpm_level > PP_SMU_NUM_VPECLK_DPM_LEVELS - 1)
+				soc_dpm_level = PP_SMU_NUM_VPECLK_DPM_LEVELS - 1;
+
+			min_freq = (SOCClks[soc_dpm_level].Freq < VPEClks[soc_dpm_level].Freq) ?
+				   SOCClks[soc_dpm_level].Freq : VPEClks[soc_dpm_level].Freq;
+
+			switch (idx) {
+			case 0:
+				pratio_vmin_freq = min_freq;
+				break;
+			case 1:
+				pratio_vmid_freq = min_freq;
+				break;
+			case 2:
+				pratio_vnorm_freq = min_freq;
+				break;
+			case 3:
+				pratio_vmax_freq = min_freq;
+				break;
+			default:
+				break;
+			}
+		}
+
+		if (pratio_vmin_freq && pratio_vmid_freq && pratio_vnorm_freq && pratio_vmax_freq) {
+			uint32_t pratio_ctl;
+
+			pratio_vmax_vnorm = (uint32_t)vpe_internal_get_pratio(pratio_vmax_freq, pratio_vnorm_freq);
+			pratio_vnorm_vmid = (uint32_t)vpe_internal_get_pratio(pratio_vnorm_freq, pratio_vmid_freq);
+			pratio_vmid_vmin = (uint32_t)vpe_internal_get_pratio(pratio_vmid_freq, pratio_vmin_freq);
+
+			pratio_ctl = pratio_vmax_vnorm | (pratio_vnorm_vmid << 9) | (pratio_vmid_vmin << 18);
+			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_pratio), pratio_ctl);		/* PRatio */
+			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_request_interval), 24000);	/* 1ms, unit=1/24MHz */
+			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_decision_threshold), 1200000);	/* 50ms */
+			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_busy_clamp_threshold), 1200000);/* 50ms */
+			WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_idle_clamp_threshold), 1200000);/* 50ms */
+			dev_dbg(adev->dev, "%s: configure vpe dpm pratio done!\n", __func__);
+		} else {
+			dev_dbg(adev->dev, "%s: invalid pratio parameters!\n", __func__);
+			goto disable_dpm;
+		}
+	}
+	return 0;
+
+disable_dpm:
+	dpm_ctl = RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable));
+	dpm_ctl &= 0xfffffffe; /* Disable DPM */
+	WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.dpm_enable), dpm_ctl);
+	dev_dbg(adev->dev, "%s: disable vpe dpm\n", __func__);
+	return 0;
+}
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev)
 {
@@ -134,6 +307,19 @@ static int vpe_early_init(void *handle)
 	return 0;
 }
 
+static void vpe_idle_work_handler(struct work_struct *work)
+{
+	struct amdgpu_device *adev =
+		container_of(work, struct amdgpu_device, vpe.idle_work.work);
+	unsigned int fences = 0;
+
+	fences += amdgpu_fence_count_emitted(&adev->vpe.ring);
+
+	if (fences == 0)
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE, AMD_PG_STATE_GATE);
+	else
+		schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
+}
 
 static int vpe_common_init(struct amdgpu_vpe *vpe)
 {
@@ -149,6 +335,9 @@ static int vpe_common_init(struct amdgpu_vpe *vpe)
 		dev_err(adev->dev, "VPE: failed to allocate cmdbuf bo %d\n", r);
 		return r;
 	}
+
+	vpe->context_started = false;
+	INIT_DELAYED_WORK(&adev->vpe.idle_work, vpe_idle_work_handler);
 
 	return 0;
 }
@@ -219,12 +408,17 @@ static int vpe_hw_fini(void *handle)
 
 	vpe_ring_stop(vpe);
 
+	/* Power off VPE */
+	amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE, AMD_PG_STATE_GATE);
+
 	return 0;
 }
 
 static int vpe_suspend(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	cancel_delayed_work_sync(&adev->vpe.idle_work);
 
 	return vpe_hw_fini(adev);
 }
@@ -430,6 +624,21 @@ static int vpe_set_clockgating_state(void *handle,
 static int vpe_set_powergating_state(void *handle,
 				     enum amd_powergating_state state)
 {
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_vpe *vpe = &adev->vpe;
+
+	if (!adev->pm.dpm_enabled)
+		dev_err(adev->dev, "Without PM, cannot support powergating\n");
+
+	dev_dbg(adev->dev, "%s: %s!\n", __func__, (state == AMD_PG_STATE_GATE) ? "GATE":"UNGATE");
+
+	if (state == AMD_PG_STATE_GATE) {
+		amdgpu_dpm_enable_vpe(adev, false);
+		vpe->context_started = false;
+	} else {
+		amdgpu_dpm_enable_vpe(adev, true);
+	}
+
 	return 0;
 }
 
@@ -595,6 +804,38 @@ err0:
 	return ret;
 }
 
+static void vpe_ring_begin_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+	struct amdgpu_vpe *vpe = &adev->vpe;
+
+	cancel_delayed_work_sync(&adev->vpe.idle_work);
+
+	/* Power on VPE and notify VPE of new context  */
+	if (!vpe->context_started) {
+		uint32_t context_notify;
+
+		/* Power on VPE */
+		amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE, AMD_PG_STATE_UNGATE);
+
+		/* Indicates that a job from a new context has been submitted. */
+		context_notify = RREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.context_indicator));
+		if ((context_notify & 0x1) == 0)
+			context_notify |= 0x1;
+		else
+			context_notify &= ~(0x1);
+		WREG32(vpe_get_reg_offset(vpe, 0, vpe->regs.context_indicator), context_notify);
+		vpe->context_started = true;
+	}
+}
+
+static void vpe_ring_end_use(struct amdgpu_ring *ring)
+{
+	struct amdgpu_device *adev = ring->adev;
+
+	schedule_delayed_work(&adev->vpe.idle_work, VPE_IDLE_TIMEOUT);
+}
+
 static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.type = AMDGPU_RING_TYPE_VPE,
 	.align_mask = 0xf,
@@ -625,6 +866,8 @@ static const struct amdgpu_ring_funcs vpe_ring_funcs = {
 	.init_cond_exec = vpe_ring_init_cond_exec,
 	.patch_cond_exec = vpe_ring_patch_cond_exec,
 	.preempt_ib = vpe_ring_preempt_ib,
+	.begin_use = vpe_ring_begin_use,
+	.end_use = vpe_ring_end_use,
 };
 
 static void vpe_set_ring_funcs(struct amdgpu_device *adev)

@@ -11,9 +11,6 @@
 #include "mpfs.dtsi"
 #include "mpfs-tysom-m-fabric.dtsi"
 
-/* Clock frequency (in Hz) of the rtcclk */
-#define MTIMER_FREQ		1000000
-
 / {
 	model = "Aldec TySOM-M-MPFS250T-REV2";
 	compatible = "aldec,tysom-m-mpfs250t-rev2", "microchip,mpfs";
@@ -32,10 +29,6 @@
 
 	chosen {
 		stdout-path = "serial1:115200n8";
-	};
-
-	cpus {
-		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	ddrc_cache_lo: memory@80000000 {

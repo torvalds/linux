@@ -2492,25 +2492,24 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 
 	switch (f_info->fltr_act) {
 	case ICE_FWD_TO_VSI:
-		act |= (f_info->fwd_id.hw_vsi_id << ICE_SINGLE_ACT_VSI_ID_S) &
-			ICE_SINGLE_ACT_VSI_ID_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_VSI_ID_M,
+				  f_info->fwd_id.hw_vsi_id);
 		if (f_info->lkup_type != ICE_SW_LKUP_VLAN)
 			act |= ICE_SINGLE_ACT_VSI_FORWARDING |
 				ICE_SINGLE_ACT_VALID_BIT;
 		break;
 	case ICE_FWD_TO_VSI_LIST:
 		act |= ICE_SINGLE_ACT_VSI_LIST;
-		act |= (f_info->fwd_id.vsi_list_id <<
-			ICE_SINGLE_ACT_VSI_LIST_ID_S) &
-			ICE_SINGLE_ACT_VSI_LIST_ID_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_VSI_LIST_ID_M,
+				  f_info->fwd_id.vsi_list_id);
 		if (f_info->lkup_type != ICE_SW_LKUP_VLAN)
 			act |= ICE_SINGLE_ACT_VSI_FORWARDING |
 				ICE_SINGLE_ACT_VALID_BIT;
 		break;
 	case ICE_FWD_TO_Q:
 		act |= ICE_SINGLE_ACT_TO_Q;
-		act |= (f_info->fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
-			ICE_SINGLE_ACT_Q_INDEX_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_Q_INDEX_M,
+				  f_info->fwd_id.q_id);
 		break;
 	case ICE_DROP_PACKET:
 		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_DROP |
@@ -2520,10 +2519,9 @@ ice_fill_sw_rule(struct ice_hw *hw, struct ice_fltr_info *f_info,
 		q_rgn = f_info->qgrp_size > 0 ?
 			(u8)ilog2(f_info->qgrp_size) : 0;
 		act |= ICE_SINGLE_ACT_TO_Q;
-		act |= (f_info->fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
-			ICE_SINGLE_ACT_Q_INDEX_M;
-		act |= (q_rgn << ICE_SINGLE_ACT_Q_REGION_S) &
-			ICE_SINGLE_ACT_Q_REGION_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_Q_INDEX_M,
+				  f_info->fwd_id.q_id);
+		act |= FIELD_PREP(ICE_SINGLE_ACT_Q_REGION_M, q_rgn);
 		break;
 	default:
 		return;
@@ -2649,7 +2647,7 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 		m_ent->fltr_info.fwd_id.hw_vsi_id;
 
 	act = ICE_LG_ACT_VSI_FORWARDING | ICE_LG_ACT_VALID_BIT;
-	act |= (id << ICE_LG_ACT_VSI_LIST_ID_S) & ICE_LG_ACT_VSI_LIST_ID_M;
+	act |= FIELD_PREP(ICE_LG_ACT_VSI_LIST_ID_M, id);
 	if (m_ent->vsi_count > 1)
 		act |= ICE_LG_ACT_VSI_LIST;
 	lg_act->act[0] = cpu_to_le32(act);
@@ -2657,16 +2655,15 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 	/* Second action descriptor type */
 	act = ICE_LG_ACT_GENERIC;
 
-	act |= (1 << ICE_LG_ACT_GENERIC_VALUE_S) & ICE_LG_ACT_GENERIC_VALUE_M;
+	act |= FIELD_PREP(ICE_LG_ACT_GENERIC_VALUE_M, 1);
 	lg_act->act[1] = cpu_to_le32(act);
 
-	act = (ICE_LG_ACT_GENERIC_OFF_RX_DESC_PROF_IDX <<
-	       ICE_LG_ACT_GENERIC_OFFSET_S) & ICE_LG_ACT_GENERIC_OFFSET_M;
+	act = FIELD_PREP(ICE_LG_ACT_GENERIC_OFFSET_M,
+			 ICE_LG_ACT_GENERIC_OFF_RX_DESC_PROF_IDX);
 
 	/* Third action Marker value */
 	act |= ICE_LG_ACT_GENERIC;
-	act |= (sw_marker << ICE_LG_ACT_GENERIC_VALUE_S) &
-		ICE_LG_ACT_GENERIC_VALUE_M;
+	act |= FIELD_PREP(ICE_LG_ACT_GENERIC_VALUE_M, sw_marker);
 
 	lg_act->act[2] = cpu_to_le32(act);
 
@@ -2675,9 +2672,9 @@ ice_add_marker_act(struct ice_hw *hw, struct ice_fltr_mgmt_list_entry *m_ent,
 			 ice_aqc_opc_update_sw_rules);
 
 	/* Update the action to point to the large action ID */
-	rx_tx->act = cpu_to_le32(ICE_SINGLE_ACT_PTR |
-				 ((l_id << ICE_SINGLE_ACT_PTR_VAL_S) &
-				  ICE_SINGLE_ACT_PTR_VAL_M));
+	act = ICE_SINGLE_ACT_PTR;
+	act |= FIELD_PREP(ICE_SINGLE_ACT_PTR_VAL_M, l_id);
+	rx_tx->act = cpu_to_le32(act);
 
 	/* Use the filter rule ID of the previously created rule with single
 	 * act. Once the update happens, hardware will treat this as large
@@ -4426,8 +4423,8 @@ ice_alloc_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 	int status;
 
 	buf->num_elems = cpu_to_le16(num_items);
-	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
-				      ICE_AQC_RES_TYPE_M) | alloc_shared);
+	buf->res_type = cpu_to_le16(FIELD_PREP(ICE_AQC_RES_TYPE_M, type) |
+				    alloc_shared);
 
 	status = ice_aq_alloc_free_res(hw, buf, buf_len, ice_aqc_opc_alloc_res);
 	if (status)
@@ -4454,8 +4451,8 @@ ice_free_res_cntr(struct ice_hw *hw, u8 type, u8 alloc_shared, u16 num_items,
 	int status;
 
 	buf->num_elems = cpu_to_le16(num_items);
-	buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
-				      ICE_AQC_RES_TYPE_M) | alloc_shared);
+	buf->res_type = cpu_to_le16(FIELD_PREP(ICE_AQC_RES_TYPE_M, type) |
+				    alloc_shared);
 	buf->elem[0].e.sw_resp = cpu_to_le16(counter_id);
 
 	status = ice_aq_alloc_free_res(hw, buf, buf_len, ice_aqc_opc_free_res);
@@ -4481,18 +4478,15 @@ int ice_share_res(struct ice_hw *hw, u16 type, u8 shared, u16 res_id)
 {
 	DEFINE_FLEX(struct ice_aqc_alloc_free_res_elem, buf, elem, 1);
 	u16 buf_len = __struct_size(buf);
+	u16 res_type;
 	int status;
 
 	buf->num_elems = cpu_to_le16(1);
+	res_type = FIELD_PREP(ICE_AQC_RES_TYPE_M, type);
 	if (shared)
-		buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
-					     ICE_AQC_RES_TYPE_M) |
-					    ICE_AQC_RES_TYPE_FLAG_SHARED);
-	else
-		buf->res_type = cpu_to_le16(((type << ICE_AQC_RES_TYPE_S) &
-					     ICE_AQC_RES_TYPE_M) &
-					    ~ICE_AQC_RES_TYPE_FLAG_SHARED);
+		res_type |= ICE_AQC_RES_TYPE_FLAG_SHARED;
 
+	buf->res_type = cpu_to_le16(res_type);
 	buf->elem[0].e.sw_resp = cpu_to_le16(res_id);
 	status = ice_aq_alloc_free_res(hw, buf, buf_len,
 				       ice_aqc_opc_share_res);
@@ -5024,8 +5018,8 @@ ice_add_sw_recipe(struct ice_hw *hw, struct ice_sw_recipe *rm,
 			entry->chain_idx = chain_idx;
 			content->result_indx =
 				ICE_AQ_RECIPE_RESULT_EN |
-				((chain_idx << ICE_AQ_RECIPE_RESULT_DATA_S) &
-				 ICE_AQ_RECIPE_RESULT_DATA_M);
+				FIELD_PREP(ICE_AQ_RECIPE_RESULT_DATA_M,
+					   chain_idx);
 			clear_bit(chain_idx, result_idx_bm);
 			chain_idx = find_first_bit(result_idx_bm,
 						   ICE_MAX_FV_WORDS);
@@ -6065,6 +6059,7 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	      rinfo->sw_act.fltr_act == ICE_FWD_TO_Q ||
 	      rinfo->sw_act.fltr_act == ICE_FWD_TO_QGRP ||
 	      rinfo->sw_act.fltr_act == ICE_DROP_PACKET ||
+	      rinfo->sw_act.fltr_act == ICE_MIRROR_PACKET ||
 	      rinfo->sw_act.fltr_act == ICE_NOP)) {
 		status = -EIO;
 		goto free_pkt_profile;
@@ -6077,9 +6072,11 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 	}
 
 	if (rinfo->sw_act.fltr_act == ICE_FWD_TO_VSI ||
-	    rinfo->sw_act.fltr_act == ICE_NOP)
+	    rinfo->sw_act.fltr_act == ICE_MIRROR_PACKET ||
+	    rinfo->sw_act.fltr_act == ICE_NOP) {
 		rinfo->sw_act.fwd_id.hw_vsi_id =
 			ice_get_hw_vsi_num(hw, vsi_handle);
+	}
 
 	if (rinfo->src_vsi)
 		rinfo->sw_act.src = ice_get_hw_vsi_num(hw, rinfo->src_vsi);
@@ -6115,37 +6112,44 @@ ice_add_adv_rule(struct ice_hw *hw, struct ice_adv_lkup_elem *lkups,
 		status = -ENOMEM;
 		goto free_pkt_profile;
 	}
-	if (!rinfo->flags_info.act_valid) {
-		act |= ICE_SINGLE_ACT_LAN_ENABLE;
-		act |= ICE_SINGLE_ACT_LB_ENABLE;
-	} else {
-		act |= rinfo->flags_info.act & (ICE_SINGLE_ACT_LAN_ENABLE |
-						ICE_SINGLE_ACT_LB_ENABLE);
+
+	if (rinfo->sw_act.fltr_act != ICE_MIRROR_PACKET) {
+		if (!rinfo->flags_info.act_valid) {
+			act |= ICE_SINGLE_ACT_LAN_ENABLE;
+			act |= ICE_SINGLE_ACT_LB_ENABLE;
+		} else {
+			act |= rinfo->flags_info.act & (ICE_SINGLE_ACT_LAN_ENABLE |
+							ICE_SINGLE_ACT_LB_ENABLE);
+		}
 	}
 
 	switch (rinfo->sw_act.fltr_act) {
 	case ICE_FWD_TO_VSI:
-		act |= (rinfo->sw_act.fwd_id.hw_vsi_id <<
-			ICE_SINGLE_ACT_VSI_ID_S) & ICE_SINGLE_ACT_VSI_ID_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_VSI_ID_M,
+				  rinfo->sw_act.fwd_id.hw_vsi_id);
 		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_VALID_BIT;
 		break;
 	case ICE_FWD_TO_Q:
 		act |= ICE_SINGLE_ACT_TO_Q;
-		act |= (rinfo->sw_act.fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
-		       ICE_SINGLE_ACT_Q_INDEX_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_Q_INDEX_M,
+				  rinfo->sw_act.fwd_id.q_id);
 		break;
 	case ICE_FWD_TO_QGRP:
 		q_rgn = rinfo->sw_act.qgrp_size > 0 ?
 			(u8)ilog2(rinfo->sw_act.qgrp_size) : 0;
 		act |= ICE_SINGLE_ACT_TO_Q;
-		act |= (rinfo->sw_act.fwd_id.q_id << ICE_SINGLE_ACT_Q_INDEX_S) &
-		       ICE_SINGLE_ACT_Q_INDEX_M;
-		act |= (q_rgn << ICE_SINGLE_ACT_Q_REGION_S) &
-		       ICE_SINGLE_ACT_Q_REGION_M;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_Q_INDEX_M,
+				  rinfo->sw_act.fwd_id.q_id);
+		act |= FIELD_PREP(ICE_SINGLE_ACT_Q_REGION_M, q_rgn);
 		break;
 	case ICE_DROP_PACKET:
 		act |= ICE_SINGLE_ACT_VSI_FORWARDING | ICE_SINGLE_ACT_DROP |
 		       ICE_SINGLE_ACT_VALID_BIT;
+		break;
+	case ICE_MIRROR_PACKET:
+		act |= ICE_SINGLE_ACT_OTHER_ACTS;
+		act |= FIELD_PREP(ICE_SINGLE_ACT_VSI_ID_M,
+				  rinfo->sw_act.fwd_id.hw_vsi_id);
 		break;
 	case ICE_NOP:
 		act |= FIELD_PREP(ICE_SINGLE_ACT_VSI_ID_M,

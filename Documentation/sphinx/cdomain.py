@@ -127,11 +127,7 @@ def setup(app):
 
     # Handle easy Sphinx 3.1+ simple new tags: :c:expr and .. c:namespace::
     app.connect('source-read', c_markups)
-
-    if (major == 1 and minor < 8):
-        app.override_domain(CDomain)
-    else:
-        app.add_domain(CDomain, override=True)
+    app.add_domain(CDomain, override=True)
 
     return dict(
         version = __version__,

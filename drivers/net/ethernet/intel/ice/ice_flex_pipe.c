@@ -1218,11 +1218,13 @@ ice_prof_has_mask(struct ice_hw *hw, enum ice_block blk, u8 prof, u16 *masks)
  * @blk: HW block
  * @fv: field vector to search for
  * @masks: masks for FV
+ * @symm: symmetric setting for RSS flows
  * @prof_id: receives the profile ID
  */
 static int
 ice_find_prof_id_with_mask(struct ice_hw *hw, enum ice_block blk,
-			   struct ice_fv_word *fv, u16 *masks, u8 *prof_id)
+			   struct ice_fv_word *fv, u16 *masks, bool symm,
+			   u8 *prof_id)
 {
 	struct ice_es *es = &hw->blk[blk].es;
 	u8 i;
@@ -1235,6 +1237,9 @@ ice_find_prof_id_with_mask(struct ice_hw *hw, enum ice_block blk,
 
 	for (i = 0; i < (u8)es->count; i++) {
 		u16 off = i * es->fvw;
+
+		if (blk == ICE_BLK_RSS && es->symm[i] != symm)
+			continue;
 
 		if (memcmp(&es->t[off], fv, es->fvw * sizeof(*fv)))
 			continue;
@@ -1409,13 +1414,13 @@ ice_write_prof_mask_reg(struct ice_hw *hw, enum ice_block blk, u16 mask_idx,
 	switch (blk) {
 	case ICE_BLK_RSS:
 		offset = GLQF_HMASK(mask_idx);
-		val = (idx << GLQF_HMASK_MSK_INDEX_S) & GLQF_HMASK_MSK_INDEX_M;
-		val |= (mask << GLQF_HMASK_MASK_S) & GLQF_HMASK_MASK_M;
+		val = FIELD_PREP(GLQF_HMASK_MSK_INDEX_M, idx);
+		val |= FIELD_PREP(GLQF_HMASK_MASK_M, mask);
 		break;
 	case ICE_BLK_FD:
 		offset = GLQF_FDMASK(mask_idx);
-		val = (idx << GLQF_FDMASK_MSK_INDEX_S) & GLQF_FDMASK_MSK_INDEX_M;
-		val |= (mask << GLQF_FDMASK_MASK_S) & GLQF_FDMASK_MASK_M;
+		val = FIELD_PREP(GLQF_FDMASK_MSK_INDEX_M, idx);
+		val |= FIELD_PREP(GLQF_FDMASK_MASK_M, mask);
 		break;
 	default:
 		ice_debug(hw, ICE_DBG_PKG, "No profile masks for block %d\n",
@@ -1716,15 +1721,16 @@ ice_update_prof_masking(struct ice_hw *hw, enum ice_block blk, u16 prof_id,
 }
 
 /**
- * ice_write_es - write an extraction sequence to hardware
+ * ice_write_es - write an extraction sequence and symmetric setting to hardware
  * @hw: pointer to the HW struct
  * @blk: the block in which to write the extraction sequence
  * @prof_id: the profile ID to write
  * @fv: pointer to the extraction sequence to write - NULL to clear extraction
+ * @symm: symmetric setting for RSS profiles
  */
 static void
 ice_write_es(struct ice_hw *hw, enum ice_block blk, u8 prof_id,
-	     struct ice_fv_word *fv)
+	     struct ice_fv_word *fv, bool symm)
 {
 	u16 off;
 
@@ -1737,6 +1743,9 @@ ice_write_es(struct ice_hw *hw, enum ice_block blk, u8 prof_id,
 		memcpy(&hw->blk[blk].es.t[off], fv,
 		       hw->blk[blk].es.fvw * sizeof(*fv));
 	}
+
+	if (blk == ICE_BLK_RSS)
+		hw->blk[blk].es.symm[prof_id] = symm;
 }
 
 /**
@@ -1753,7 +1762,7 @@ ice_prof_dec_ref(struct ice_hw *hw, enum ice_block blk, u8 prof_id)
 
 	if (hw->blk[blk].es.ref_count[prof_id] > 0) {
 		if (!--hw->blk[blk].es.ref_count[prof_id]) {
-			ice_write_es(hw, blk, prof_id, NULL);
+			ice_write_es(hw, blk, prof_id, NULL, false);
 			ice_free_prof_masks(hw, blk, prof_id);
 			return ice_free_prof_id(hw, blk, prof_id);
 		}
@@ -2116,8 +2125,10 @@ void ice_free_hw_tbls(struct ice_hw *hw)
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].prof_redir.t);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].es.t);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].es.ref_count);
+		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].es.symm);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].es.written);
 		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].es.mask_ena);
+		devm_kfree(ice_hw_to_dev(hw), hw->blk[i].prof_id.id);
 	}
 
 	list_for_each_entry_safe(r, rt, &hw->rss_list_head, l_entry) {
@@ -2150,6 +2161,7 @@ void ice_clear_hw_tbls(struct ice_hw *hw)
 
 	for (i = 0; i < ICE_BLK_COUNT; i++) {
 		struct ice_prof_redir *prof_redir = &hw->blk[i].prof_redir;
+		struct ice_prof_id *prof_id = &hw->blk[i].prof_id;
 		struct ice_prof_tcam *prof = &hw->blk[i].prof;
 		struct ice_xlt1 *xlt1 = &hw->blk[i].xlt1;
 		struct ice_xlt2 *xlt2 = &hw->blk[i].xlt2;
@@ -2178,8 +2190,11 @@ void ice_clear_hw_tbls(struct ice_hw *hw)
 
 		memset(es->t, 0, es->count * sizeof(*es->t) * es->fvw);
 		memset(es->ref_count, 0, es->count * sizeof(*es->ref_count));
+		memset(es->symm, 0, es->count * sizeof(*es->symm));
 		memset(es->written, 0, es->count * sizeof(*es->written));
 		memset(es->mask_ena, 0, es->count * sizeof(*es->mask_ena));
+
+		memset(prof_id->id, 0, prof_id->count * sizeof(*prof_id->id));
 	}
 }
 
@@ -2196,6 +2211,7 @@ int ice_init_hw_tbls(struct ice_hw *hw)
 	ice_init_all_prof_masks(hw);
 	for (i = 0; i < ICE_BLK_COUNT; i++) {
 		struct ice_prof_redir *prof_redir = &hw->blk[i].prof_redir;
+		struct ice_prof_id *prof_id = &hw->blk[i].prof_id;
 		struct ice_prof_tcam *prof = &hw->blk[i].prof;
 		struct ice_xlt1 *xlt1 = &hw->blk[i].xlt1;
 		struct ice_xlt2 *xlt2 = &hw->blk[i].xlt2;
@@ -2292,6 +2308,11 @@ int ice_init_hw_tbls(struct ice_hw *hw)
 		if (!es->ref_count)
 			goto err;
 
+		es->symm = devm_kcalloc(ice_hw_to_dev(hw), es->count,
+					sizeof(*es->symm), GFP_KERNEL);
+		if (!es->symm)
+			goto err;
+
 		es->written = devm_kcalloc(ice_hw_to_dev(hw), es->count,
 					   sizeof(*es->written), GFP_KERNEL);
 		if (!es->written)
@@ -2300,6 +2321,12 @@ int ice_init_hw_tbls(struct ice_hw *hw)
 		es->mask_ena = devm_kcalloc(ice_hw_to_dev(hw), es->count,
 					    sizeof(*es->mask_ena), GFP_KERNEL);
 		if (!es->mask_ena)
+			goto err;
+
+		prof_id->count = blk_sizes[i].prof_id;
+		prof_id->id = devm_kcalloc(ice_hw_to_dev(hw), prof_id->count,
+					   sizeof(*prof_id->id), GFP_KERNEL);
+		if (!prof_id->id)
 			goto err;
 	}
 	return 0;
@@ -2963,6 +2990,7 @@ ice_add_prof_attrib(struct ice_prof_map *prof, u8 ptg, u16 ptype,
  * @attr_cnt: number of elements in attr array
  * @es: extraction sequence (length of array is determined by the block)
  * @masks: mask for extraction sequence
+ * @symm: symmetric setting for RSS profiles
  *
  * This function registers a profile, which matches a set of PTYPES with a
  * particular extraction sequence. While the hardware profile is allocated
@@ -2972,7 +3000,7 @@ ice_add_prof_attrib(struct ice_prof_map *prof, u8 ptg, u16 ptype,
 int
 ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 	     const struct ice_ptype_attributes *attr, u16 attr_cnt,
-	     struct ice_fv_word *es, u16 *masks)
+	     struct ice_fv_word *es, u16 *masks, bool symm)
 {
 	u32 bytes = DIV_ROUND_UP(ICE_FLOW_PTYPE_MAX, BITS_PER_BYTE);
 	DECLARE_BITMAP(ptgs_used, ICE_XLT1_CNT);
@@ -2986,7 +3014,7 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 	mutex_lock(&hw->blk[blk].es.prof_map_lock);
 
 	/* search for existing profile */
-	status = ice_find_prof_id_with_mask(hw, blk, es, masks, &prof_id);
+	status = ice_find_prof_id_with_mask(hw, blk, es, masks, symm, &prof_id);
 	if (status) {
 		/* allocate profile ID */
 		status = ice_alloc_prof_id(hw, blk, &prof_id);
@@ -3009,7 +3037,7 @@ ice_add_prof(struct ice_hw *hw, enum ice_block blk, u64 id, u8 ptypes[],
 			goto err_ice_add_prof;
 
 		/* and write new es */
-		ice_write_es(hw, blk, prof_id, es);
+		ice_write_es(hw, blk, prof_id, es, symm);
 	}
 
 	ice_prof_inc_ref(hw, blk, prof_id);
@@ -3097,7 +3125,7 @@ err_ice_add_prof:
  * This will search for a profile tracking ID which was previously added.
  * The profile map lock should be held before calling this function.
  */
-static struct ice_prof_map *
+struct ice_prof_map *
 ice_search_prof_id(struct ice_hw *hw, enum ice_block blk, u64 id)
 {
 	struct ice_prof_map *entry = NULL;

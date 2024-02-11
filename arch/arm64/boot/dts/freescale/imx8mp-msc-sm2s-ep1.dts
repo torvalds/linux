@@ -57,8 +57,8 @@
 		clocks = <&clk IMX8MP_CLK_CLKOUT1>;
 		#sound-dai-cells = <0>;
 
-		VDDA-supply  = <&reg_vcc_3v3_audio>;
-		VDDD-supply  = <&reg_vcc_1v8_audio>;
+		VDDA-supply = <&reg_vcc_3v3_audio>;
+		VDDD-supply = <&reg_vcc_1v8_audio>;
 		VDDIO-supply = <&reg_vcc_1v8_audio>;
 	};
 };

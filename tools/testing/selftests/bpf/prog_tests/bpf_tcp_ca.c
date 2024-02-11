@@ -20,15 +20,14 @@
 
 static const unsigned int total_bytes = 10 * 1024 * 1024;
 static int expected_stg = 0xeB9F;
-static int stop, duration;
+static int stop;
 
 static int settcpca(int fd, const char *tcp_ca)
 {
 	int err;
 
 	err = setsockopt(fd, IPPROTO_TCP, TCP_CONGESTION, tcp_ca, strlen(tcp_ca));
-	if (CHECK(err == -1, "setsockopt(fd, TCP_CONGESTION)", "errno:%d\n",
-		  errno))
+	if (!ASSERT_NEQ(err, -1, "setsockopt"))
 		return -1;
 
 	return 0;
@@ -65,8 +64,7 @@ static void *server(void *arg)
 		bytes += nr_sent;
 	}
 
-	CHECK(bytes != total_bytes, "send", "%zd != %u nr_sent:%zd errno:%d\n",
-	      bytes, total_bytes, nr_sent, errno);
+	ASSERT_EQ(bytes, total_bytes, "send");
 
 done:
 	if (fd >= 0)
@@ -92,10 +90,11 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 	WRITE_ONCE(stop, 0);
 
 	lfd = socket(AF_INET6, SOCK_STREAM, 0);
-	if (CHECK(lfd == -1, "socket", "errno:%d\n", errno))
+	if (!ASSERT_NEQ(lfd, -1, "socket"))
 		return;
+
 	fd = socket(AF_INET6, SOCK_STREAM, 0);
-	if (CHECK(fd == -1, "socket", "errno:%d\n", errno)) {
+	if (!ASSERT_NEQ(fd, -1, "socket")) {
 		close(lfd);
 		return;
 	}
@@ -108,26 +107,27 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 	sa6.sin6_family = AF_INET6;
 	sa6.sin6_addr = in6addr_loopback;
 	err = bind(lfd, (struct sockaddr *)&sa6, addrlen);
-	if (CHECK(err == -1, "bind", "errno:%d\n", errno))
+	if (!ASSERT_NEQ(err, -1, "bind"))
 		goto done;
+
 	err = getsockname(lfd, (struct sockaddr *)&sa6, &addrlen);
-	if (CHECK(err == -1, "getsockname", "errno:%d\n", errno))
+	if (!ASSERT_NEQ(err, -1, "getsockname"))
 		goto done;
+
 	err = listen(lfd, 1);
-	if (CHECK(err == -1, "listen", "errno:%d\n", errno))
+	if (!ASSERT_NEQ(err, -1, "listen"))
 		goto done;
 
 	if (sk_stg_map) {
 		err = bpf_map_update_elem(bpf_map__fd(sk_stg_map), &fd,
 					  &expected_stg, BPF_NOEXIST);
-		if (CHECK(err, "bpf_map_update_elem(sk_stg_map)",
-			  "err:%d errno:%d\n", err, errno))
+		if (!ASSERT_OK(err, "bpf_map_update_elem(sk_stg_map)"))
 			goto done;
 	}
 
 	/* connect to server */
 	err = connect(fd, (struct sockaddr *)&sa6, addrlen);
-	if (CHECK(err == -1, "connect", "errno:%d\n", errno))
+	if (!ASSERT_NEQ(err, -1, "connect"))
 		goto done;
 
 	if (sk_stg_map) {
@@ -135,14 +135,13 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 
 		err = bpf_map_lookup_elem(bpf_map__fd(sk_stg_map), &fd,
 					  &tmp_stg);
-		if (CHECK(!err || errno != ENOENT,
-			  "bpf_map_lookup_elem(sk_stg_map)",
-			  "err:%d errno:%d\n", err, errno))
+		if (!ASSERT_ERR(err, "bpf_map_lookup_elem(sk_stg_map)") ||
+				!ASSERT_EQ(errno, ENOENT, "bpf_map_lookup_elem(sk_stg_map)"))
 			goto done;
 	}
 
 	err = pthread_create(&srv_thread, NULL, server, (void *)(long)lfd);
-	if (CHECK(err != 0, "pthread_create", "err:%d errno:%d\n", err, errno))
+	if (!ASSERT_OK(err, "pthread_create"))
 		goto done;
 
 	/* recv total_bytes */
@@ -156,13 +155,12 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 		bytes += nr_recv;
 	}
 
-	CHECK(bytes != total_bytes, "recv", "%zd != %u nr_recv:%zd errno:%d\n",
-	      bytes, total_bytes, nr_recv, errno);
+	ASSERT_EQ(bytes, total_bytes, "recv");
 
 	WRITE_ONCE(stop, 1);
 	pthread_join(srv_thread, &thread_ret);
-	CHECK(IS_ERR(thread_ret), "pthread_join", "thread_ret:%ld",
-	      PTR_ERR(thread_ret));
+	ASSERT_OK(IS_ERR(thread_ret), "thread_ret");
+
 done:
 	close(lfd);
 	close(fd);
@@ -174,7 +172,7 @@ static void test_cubic(void)
 	struct bpf_link *link;
 
 	cubic_skel = bpf_cubic__open_and_load();
-	if (CHECK(!cubic_skel, "bpf_cubic__open_and_load", "failed\n"))
+	if (!ASSERT_OK_PTR(cubic_skel, "bpf_cubic__open_and_load"))
 		return;
 
 	link = bpf_map__attach_struct_ops(cubic_skel->maps.cubic);
@@ -197,7 +195,7 @@ static void test_dctcp(void)
 	struct bpf_link *link;
 
 	dctcp_skel = bpf_dctcp__open_and_load();
-	if (CHECK(!dctcp_skel, "bpf_dctcp__open_and_load", "failed\n"))
+	if (!ASSERT_OK_PTR(dctcp_skel, "bpf_dctcp__open_and_load"))
 		return;
 
 	link = bpf_map__attach_struct_ops(dctcp_skel->maps.dctcp);
@@ -207,9 +205,7 @@ static void test_dctcp(void)
 	}
 
 	do_test("bpf_dctcp", dctcp_skel->maps.sk_stg_map);
-	CHECK(dctcp_skel->bss->stg_result != expected_stg,
-	      "Unexpected stg_result", "stg_result (%x) != expected_stg (%x)\n",
-	      dctcp_skel->bss->stg_result, expected_stg);
+	ASSERT_EQ(dctcp_skel->bss->stg_result, expected_stg, "stg_result");
 
 	bpf_link__destroy(link);
 	bpf_dctcp__destroy(dctcp_skel);

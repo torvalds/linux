@@ -187,7 +187,7 @@ static struct svc_serv *nfs_callback_create_svc(int minorversion)
 	 * Check whether we're already up and running.
 	 */
 	if (cb_info->serv)
-		return svc_get(cb_info->serv);
+		return cb_info->serv;
 
 	/*
 	 * Sanity check: if there's no task,
@@ -245,9 +245,10 @@ int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt)
 
 	cb_info->users++;
 err_net:
-	if (!cb_info->users)
-		cb_info->serv = NULL;
-	svc_put(serv);
+	if (!cb_info->users) {
+		svc_set_num_threads(cb_info->serv, NULL, 0);
+		svc_destroy(&cb_info->serv);
+	}
 err_create:
 	mutex_unlock(&nfs_callback_mutex);
 	return ret;
@@ -271,11 +272,9 @@ void nfs_callback_down(int minorversion, struct net *net)
 	nfs_callback_down_net(minorversion, serv, net);
 	cb_info->users--;
 	if (cb_info->users == 0) {
-		svc_get(serv);
 		svc_set_num_threads(serv, NULL, 0);
-		svc_put(serv);
 		dprintk("nfs_callback_down: service destroyed\n");
-		cb_info->serv = NULL;
+		svc_destroy(&cb_info->serv);
 	}
 	mutex_unlock(&nfs_callback_mutex);
 }

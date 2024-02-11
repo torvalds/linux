@@ -1,0 +1,72 @@
+[
+  {
+    "EventName": "INST_BRANCH_MISPREDICT",
+    "EventCode": "0x00000006",
+    "BriefDescription": "Mispredicted branch instructions"
+  },
+  {
+    "EventName": "INST_BRANCH",
+    "EventCode": "0x00000007",
+    "BriefDescription": "Retired branch instructions"
+  },
+  {
+    "EventName": "INST_JMP_MISPREDICT",
+    "EventCode": "0x00000008",
+    "BriefDescription": "Indirect branch mispredict"
+  },
+  {
+    "EventName": "INST_JMP",
+    "EventCode": "0x00000009",
+    "BriefDescription": "Retired jmp instructions"
+  },
+  {
+    "EventName": "INST_STORE",
+    "EventCode": "0x0000000b",
+    "BriefDescription": "Retired store instructions"
+  },
+  {
+    "EventName": "INST_ALU",
+    "EventCode": "0x0000001d",
+    "BriefDescription": "Retired ALU instructions"
+  },
+  {
+    "EventName": "INST_LDST",
+    "EventCode": "0x0000001e",
+    "BriefDescription": "Retired Load/Store instructions"
+  },
+  {
+    "EventName": "INST_VECTOR",
+    "EventCode": "0x0000001f",
+    "BriefDescription": "Retired Vector instructions"
+  },
+  {
+    "EventName": "INST_CSR",
+    "EventCode": "0x00000020",
+    "BriefDescription": "Retired CSR instructions"
+  },
+  {
+    "EventName": "INST_SYNC",
+    "EventCode": "0x00000021",
+    "BriefDescription": "Retired sync instructions (AMO/LR/SC instructions)"
+  },
+  {
+    "EventName": "INST_UNALIGNED_ACCESS",
+    "EventCode": "0x00000022",
+    "BriefDescription": "Retired Store/Load instructions with unaligned memory access"
+  },
+  {
+    "EventName": "INST_ECALL",
+    "EventCode": "0x00000025",
+    "BriefDescription": "Retired ecall instructions"
+  },
+  {
+    "EventName": "INST_LONG_JP",
+    "EventCode": "0x00000026",
+    "BriefDescription": "Retired long jump instructions"
+  },
+  {
+    "EventName": "INST_FP",
+    "EventCode": "0x0000002a",
+    "BriefDescription": "Retired FPU instructions"
+  }
+]

@@ -93,6 +93,17 @@ extern int mwriteprotect_range(struct mm_struct *dst_mm,
 extern long uffd_wp_range(struct vm_area_struct *vma,
 			  unsigned long start, unsigned long len, bool enable_wp);
 
+/* move_pages */
+void double_pt_lock(spinlock_t *ptl1, spinlock_t *ptl2);
+void double_pt_unlock(spinlock_t *ptl1, spinlock_t *ptl2);
+ssize_t move_pages(struct userfaultfd_ctx *ctx, struct mm_struct *mm,
+		   unsigned long dst_start, unsigned long src_start,
+		   unsigned long len, __u64 flags);
+int move_pages_huge_pmd(struct mm_struct *mm, pmd_t *dst_pmd, pmd_t *src_pmd, pmd_t dst_pmdval,
+			struct vm_area_struct *dst_vma,
+			struct vm_area_struct *src_vma,
+			unsigned long dst_addr, unsigned long src_addr);
+
 /* mm helpers */
 static inline bool is_mergeable_vm_userfaultfd_ctx(struct vm_area_struct *vma,
 					struct vm_userfaultfd_ctx vm_ctx)

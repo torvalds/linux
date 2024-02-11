@@ -256,6 +256,13 @@ void mlx5_devcom_unregister_component(struct mlx5_devcom_comp_dev *devcom)
 		devcom_free_comp_dev(devcom);
 }
 
+int mlx5_devcom_comp_get_size(struct mlx5_devcom_comp_dev *devcom)
+{
+	struct mlx5_devcom_comp *comp = devcom->comp;
+
+	return kref_read(&comp->ref);
+}
+
 int mlx5_devcom_send_event(struct mlx5_devcom_comp_dev *devcom,
 			   int event, int rollback_event,
 			   void *event_data)

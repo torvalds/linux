@@ -15,6 +15,7 @@
 / {
 	model = "TQ-Systems i.MX8MPlus TQMa8MPxL on MBa8MPxL";
 	compatible = "tq,imx8mp-tqma8mpql-mba8mpxl", "tq,imx8mp-tqma8mpql", "fsl,imx8mp";
+	chassis-type = "embedded";
 
 	chosen {
 		stdout-path = &uart4;
@@ -53,6 +54,21 @@
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <25000000>;
+	};
+
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		label = "X29";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_usbcon0>;
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+
+		port {
+			usb_dr_connector: endpoint {
+				remote-endpoint = <&usb3_dwc>;
+			};
+		};
 	};
 
 	fan0: pwm-fan {
@@ -602,7 +618,6 @@
 &usb3_1 {
 	fsl,disable-port-power-control;
 	fsl,permanently-attached;
-	dr_mode = "host";
 	status = "okay";
 };
 
@@ -626,13 +641,10 @@
 	role-switch-default-mode = "peripheral";
 	status = "okay";
 
-	connector {
-		compatible = "gpio-usb-b-connector", "usb-b-connector";
-		type = "micro";
-		label = "X29";
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_usbcon0>;
-		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+	port {
+		usb3_dwc: endpoint {
+			remote-endpoint = <&usb_dr_connector>;
+		};
 	};
 };
 

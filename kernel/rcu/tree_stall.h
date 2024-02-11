@@ -1061,6 +1061,7 @@ static int __init rcu_sysrq_init(void)
 }
 early_initcall(rcu_sysrq_init);
 
+#ifdef CONFIG_RCU_CPU_STALL_NOTIFIER
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1081,7 +1082,13 @@ static ATOMIC_NOTIFIER_HEAD(rcu_cpu_stall_notifier_list);
  */
 int rcu_stall_chain_notifier_register(struct notifier_block *n)
 {
-	return atomic_notifier_chain_register(&rcu_cpu_stall_notifier_list, n);
+	int rcsn = rcu_cpu_stall_notifiers;
+
+	WARN(1, "Adding %pS() to RCU stall notifier list (%s).\n", n->notifier_call,
+	     rcsn ? "possibly suppressing RCU CPU stall warnings" : "failed, so all is well");
+	if (rcsn)
+		return atomic_notifier_chain_register(&rcu_cpu_stall_notifier_list, n);
+	return -EEXIST;
 }
 EXPORT_SYMBOL_GPL(rcu_stall_chain_notifier_register);
 
@@ -1115,3 +1122,5 @@ int rcu_stall_notifier_call_chain(unsigned long val, void *v)
 {
 	return atomic_notifier_call_chain(&rcu_cpu_stall_notifier_list, val, v);
 }
+
+#endif // #ifdef CONFIG_RCU_CPU_STALL_NOTIFIER

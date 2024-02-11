@@ -76,7 +76,7 @@ static void drm_exec_unlock_all(struct drm_exec *exec)
  * If nr is non-zero then it is used as the initial objects table size.
  * In either case, the table will grow (be re-allocated) on demand.
  */
-void drm_exec_init(struct drm_exec *exec, uint32_t flags, unsigned nr)
+void drm_exec_init(struct drm_exec *exec, u32 flags, unsigned nr)
 {
 	if (!nr)
 		nr = PAGE_SIZE / sizeof(void *);

@@ -66,6 +66,8 @@ static bool opal_prd_range_is_valid(uint64_t addr, uint64_t size)
 		const char *label;
 
 		addrp = of_get_address(node, 0, &range_size, NULL);
+		if (!addrp)
+			continue;
 
 		range_addr = of_read_number(addrp, 2);
 		range_end = range_addr + range_size;

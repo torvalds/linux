@@ -572,6 +572,7 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 	__acquires(&call->user_mutex)
 {
 	struct rxrpc_conn_parameters cp;
+	struct rxrpc_peer *peer;
 	struct rxrpc_call *call;
 	struct key *key;
 
@@ -584,21 +585,29 @@ rxrpc_new_client_call_for_sendmsg(struct rxrpc_sock *rx, struct msghdr *msg,
 		return ERR_PTR(-EDESTADDRREQ);
 	}
 
+	peer = rxrpc_lookup_peer(rx->local, srx, GFP_KERNEL);
+	if (!peer) {
+		release_sock(&rx->sk);
+		return ERR_PTR(-ENOMEM);
+	}
+
 	key = rx->key;
 	if (key && !rx->key->payload.data[0])
 		key = NULL;
 
 	memset(&cp, 0, sizeof(cp));
 	cp.local		= rx->local;
+	cp.peer			= peer;
 	cp.key			= rx->key;
 	cp.security_level	= rx->min_sec_level;
 	cp.exclusive		= rx->exclusive | p->exclusive;
 	cp.upgrade		= p->upgrade;
 	cp.service_id		= srx->srx_service;
-	call = rxrpc_new_client_call(rx, &cp, srx, &p->call, GFP_KERNEL,
+	call = rxrpc_new_client_call(rx, &cp, &p->call, GFP_KERNEL,
 				     atomic_inc_return(&rxrpc_debug_id));
 	/* The socket is now unlocked */
 
+	rxrpc_put_peer(peer, rxrpc_peer_put_application);
 	_leave(" = %p\n", call);
 	return call;
 }

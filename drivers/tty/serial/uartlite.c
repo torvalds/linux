@@ -24,8 +24,13 @@
 #include <linux/pm_runtime.h>
 
 #define ULITE_NAME		"ttyUL"
+#if CONFIG_SERIAL_UARTLITE_NR_UARTS > 4
+#define ULITE_MAJOR             0       /* use dynamic node allocation */
+#define ULITE_MINOR             0
+#else
 #define ULITE_MAJOR		204
 #define ULITE_MINOR		187
+#endif
 #define ULITE_NR_UARTS		CONFIG_SERIAL_UARTLITE_NR_UARTS
 
 /* ---------------------------------------------------------------------
@@ -62,11 +67,11 @@ static struct uart_port *console_port;
 #endif
 
 /**
- * struct uartlite_data: Driver private data
- * reg_ops: Functions to read/write registers
- * clk: Our parent clock, if present
- * baud: The baud rate configured when this device was synthesized
- * cflags: The cflags for parity and data bits
+ * struct uartlite_data - Driver private data
+ * @reg_ops: Functions to read/write registers
+ * @clk: Our parent clock, if present
+ * @baud: The baud rate configured when this device was synthesized
+ * @cflags: The cflags for parity and data bits
  */
 struct uartlite_data {
 	const struct uartlite_reg_ops *reg_ops;
@@ -890,7 +895,7 @@ of_err:
 	return ret;
 }
 
-static int ulite_remove(struct platform_device *pdev)
+static void ulite_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = dev_get_drvdata(&pdev->dev);
 	struct uartlite_data *pdata = port->private_data;
@@ -900,7 +905,6 @@ static int ulite_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_dont_use_autosuspend(&pdev->dev);
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -908,7 +912,7 @@ MODULE_ALIAS("platform:uartlite");
 
 static struct platform_driver ulite_platform_driver = {
 	.probe = ulite_probe,
-	.remove = ulite_remove,
+	.remove_new = ulite_remove,
 	.driver = {
 		.name  = "uartlite",
 		.of_match_table = of_match_ptr(ulite_of_match),

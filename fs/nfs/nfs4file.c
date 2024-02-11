@@ -10,6 +10,7 @@
 #include <linux/mount.h>
 #include <linux/nfs_fs.h>
 #include <linux/nfs_ssc.h>
+#include <linux/splice.h>
 #include "delegation.h"
 #include "internal.h"
 #include "iostat.h"
@@ -195,8 +196,8 @@ static ssize_t nfs4_copy_file_range(struct file *file_in, loff_t pos_in,
 	ret = __nfs4_copy_file_range(file_in, pos_in, file_out, pos_out, count,
 				     flags);
 	if (ret == -EOPNOTSUPP || ret == -EXDEV)
-		ret = generic_copy_file_range(file_in, pos_in, file_out,
-					      pos_out, count, flags);
+		ret = splice_copy_file_range(file_in, pos_in, file_out,
+					     pos_out, count);
 	return ret;
 }
 

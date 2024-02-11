@@ -55,7 +55,7 @@ NOKPROBE_SYMBOL(insn_has_delayslot);
  * one; putting breakpoint on top of atomic ll/sc pair is bad idea;
  * so we need to prevent it and refuse kprobes insertion for such
  * instructions; cannot do much about breakpoint in the middle of
- * ll/sc pair; it is upto user to avoid those places
+ * ll/sc pair; it is up to user to avoid those places
  */
 static int insn_has_ll_or_sc(union mips_instruction insn)
 {

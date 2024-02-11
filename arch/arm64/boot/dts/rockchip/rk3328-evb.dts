@@ -11,6 +11,7 @@
 	compatible = "rockchip,rk3328-evb", "rockchip,rk3328";
 
 	aliases {
+		ethernet0 = &gmac2phy;
 		mmc0 = &sdmmc;
 		mmc1 = &sdio;
 		mmc2 = &emmc;

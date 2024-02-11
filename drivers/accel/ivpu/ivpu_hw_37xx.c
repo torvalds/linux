@@ -54,9 +54,11 @@
 
 #define ICB_0_1_IRQ_MASK ((((u64)ICB_1_IRQ_MASK) << 32) | ICB_0_IRQ_MASK)
 
-#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_37XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE)) | \
-			   (REG_FLD(VPU_37XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
+#define BUTTRESS_IRQ_MASK ((REG_FLD(VPU_37XX_BUTTRESS_INTERRUPT_STAT, ATS_ERR)) | \
 			   (REG_FLD(VPU_37XX_BUTTRESS_INTERRUPT_STAT, UFI_ERR)))
+
+#define BUTTRESS_ALL_IRQ_MASK (BUTTRESS_IRQ_MASK | \
+			       (REG_FLD(VPU_37XX_BUTTRESS_INTERRUPT_STAT, FREQ_CHANGE)))
 
 #define BUTTRESS_IRQ_ENABLE_MASK ((u32)~BUTTRESS_IRQ_MASK)
 #define BUTTRESS_IRQ_DISABLE_MASK ((u32)-1)
@@ -75,8 +77,12 @@ static void ivpu_hw_wa_init(struct ivpu_device *vdev)
 	vdev->wa.clear_runtime_mem = false;
 	vdev->wa.d3hot_after_power_off = true;
 
-	if (ivpu_device_id(vdev) == PCI_DEVICE_ID_MTL && ivpu_revision(vdev) < 4)
+	REGB_WR32(VPU_37XX_BUTTRESS_INTERRUPT_STAT, BUTTRESS_ALL_IRQ_MASK);
+	if (REGB_RD32(VPU_37XX_BUTTRESS_INTERRUPT_STAT) == BUTTRESS_ALL_IRQ_MASK) {
+		/* Writing 1s does not clear the interrupt status register */
 		vdev->wa.interrupt_clear_with_0 = true;
+		REGB_WR32(VPU_37XX_BUTTRESS_INTERRUPT_STAT, 0x0);
+	}
 
 	IVPU_PRINT_WA(punit_disabled);
 	IVPU_PRINT_WA(clear_runtime_mem);
@@ -869,24 +875,18 @@ static void ivpu_hw_37xx_irq_disable(struct ivpu_device *vdev)
 
 static void ivpu_hw_37xx_irq_wdt_nce_handler(struct ivpu_device *vdev)
 {
-	ivpu_err_ratelimited(vdev, "WDT NCE irq\n");
-
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "WDT NCE IRQ");
 }
 
 static void ivpu_hw_37xx_irq_wdt_mss_handler(struct ivpu_device *vdev)
 {
-	ivpu_err_ratelimited(vdev, "WDT MSS irq\n");
-
 	ivpu_hw_wdt_disable(vdev);
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "WDT MSS IRQ");
 }
 
 static void ivpu_hw_37xx_irq_noc_firewall_handler(struct ivpu_device *vdev)
 {
-	ivpu_err_ratelimited(vdev, "NOC Firewall irq\n");
-
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "NOC Firewall IRQ");
 }
 
 /* Handler for IRQs from VPU core (irqV) */
@@ -964,7 +964,7 @@ static bool ivpu_hw_37xx_irqb_handler(struct ivpu_device *vdev, int irq)
 		REGB_WR32(VPU_37XX_BUTTRESS_INTERRUPT_STAT, status);
 
 	if (schedule_recovery)
-		ivpu_pm_schedule_recovery(vdev);
+		ivpu_pm_trigger_recovery(vdev, "Buttress IRQ");
 
 	return true;
 }

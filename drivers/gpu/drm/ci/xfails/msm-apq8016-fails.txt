@@ -12,4 +12,8 @@ kms_cursor_legacy@pipe-A-single-bo,Fail
 kms_cursor_legacy@pipe-A-single-move,Fail
 kms_cursor_legacy@pipe-A-torture-bo,Fail
 kms_cursor_legacy@pipe-A-torture-move,Fail
+kms_force_connector_basic@force-edid,Fail
 kms_hdmi_inject@inject-4k,Fail
+kms_selftest@drm_format,Timeout
+kms_selftest@drm_format_helper,Timeout
+msm_mapping@ring,Fail

@@ -14,7 +14,6 @@ config FB_GEODE_LX
 	tristate "AMD Geode LX framebuffer support"
 	depends on FB && FB_GEODE
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
 	help
 	  Framebuffer driver for the display controller integrated into the
 	  AMD Geode LX processors.
@@ -28,7 +27,6 @@ config FB_GEODE_GX
 	tristate "AMD Geode GX framebuffer support"
 	depends on FB && FB_GEODE
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
 	help
 	  Framebuffer driver for the display controller integrated into the
 	  AMD Geode GX processors.
@@ -42,7 +40,6 @@ config FB_GEODE_GX1
 	tristate "AMD Geode GX1 framebuffer support"
 	depends on FB && FB_GEODE
 	select FB_IOMEM_HELPERS
-	select VIDEO_NOMODESET
 	help
 	  Framebuffer driver for the display controller integrated into the
 	  AMD Geode GX1 processor.

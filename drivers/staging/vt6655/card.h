@@ -43,20 +43,20 @@ void card_set_rspinf(struct vnt_private *priv, u8 bb_type);
 void CARDvUpdateBasicTopRate(struct vnt_private *priv);
 bool CARDbIsOFDMinBasicRate(struct vnt_private *priv);
 void CARDvSetFirstNextTBTT(struct vnt_private *priv,
-			   unsigned short wBeaconInterval);
+			   unsigned short beacon_interval);
 void CARDvUpdateNextTBTT(struct vnt_private *priv, u64 qwTSF,
-			 unsigned short wBeaconInterval);
+			 unsigned short beacon_interval);
 u64 vt6655_get_current_tsf(struct vnt_private *priv);
-u64 CARDqGetNextTBTT(u64 qwTSF, unsigned short wBeaconInterval);
-u64 CARDqGetTSFOffset(unsigned char rx_rate, u64 qwTSF1, u64 qwTSF2);
+u64 card_get_next_tbtt(u64 qwTSF, unsigned short beacon_interval);
+u64 card_get_tsf_offset(unsigned char rx_rate, u64 qwTSF1, u64 qwTSF2);
 unsigned char card_get_pkt_type(struct vnt_private *priv);
-void CARDvSafeResetTx(struct vnt_private *priv);
+void card_safe_reset_tx(struct vnt_private *priv);
 void CARDvSafeResetRx(struct vnt_private *priv);
-void CARDbRadioPowerOff(struct vnt_private *priv);
+void card_radio_power_off(struct vnt_private *priv);
 bool card_set_phy_parameter(struct vnt_private *priv, u8 bb_type);
 bool card_update_tsf(struct vnt_private *priv, unsigned char rx_rate,
-		    u64 qwBSSTimestamp);
-bool CARDbSetBeaconPeriod(struct vnt_private *priv,
-			  unsigned short wBeaconInterval);
+		    u64 bss_timestamp);
+bool card_set_beacon_period(struct vnt_private *priv,
+			  unsigned short beacon_interval);
 
 #endif /* __CARD_H__ */

@@ -19,7 +19,7 @@ properties:
 
   io-channels:
     minItems: 1
-    maxItems: 8 # Should be enough
+    maxItems: 51 # Should be enough
     description: >
       List of phandles to ADC channels to read the monitoring values
 

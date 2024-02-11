@@ -70,7 +70,7 @@ static int __hif_usb_tx(struct hif_device_usb *hif_dev);
 
 static void hif_usb_regout_cb(struct urb *urb)
 {
-	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
+	struct cmd_buf *cmd = urb->context;
 
 	switch (urb->status) {
 	case 0:
@@ -134,7 +134,7 @@ static int hif_usb_send_regout(struct hif_device_usb *hif_dev,
 
 static void hif_usb_mgmt_cb(struct urb *urb)
 {
-	struct cmd_buf *cmd = (struct cmd_buf *)urb->context;
+	struct cmd_buf *cmd = urb->context;
 	struct hif_device_usb *hif_dev;
 	unsigned long flags;
 	bool txok = true;
@@ -252,7 +252,7 @@ static inline void ath9k_skb_queue_complete(struct hif_device_usb *hif_dev,
 
 static void hif_usb_tx_cb(struct urb *urb)
 {
-	struct tx_buf *tx_buf = (struct tx_buf *) urb->context;
+	struct tx_buf *tx_buf = urb->context;
 	struct hif_device_usb *hif_dev;
 	bool txok = true;
 
@@ -687,7 +687,7 @@ invalid_pkt:
 
 static void ath9k_hif_usb_rx_cb(struct urb *urb)
 {
-	struct rx_buf *rx_buf = (struct rx_buf *)urb->context;
+	struct rx_buf *rx_buf = urb->context;
 	struct hif_device_usb *hif_dev = rx_buf->hif_dev;
 	struct sk_buff *skb = rx_buf->skb;
 	int ret;
@@ -734,7 +734,7 @@ free:
 
 static void ath9k_hif_usb_reg_in_cb(struct urb *urb)
 {
-	struct rx_buf *rx_buf = (struct rx_buf *)urb->context;
+	struct rx_buf *rx_buf = urb->context;
 	struct hif_device_usb *hif_dev = rx_buf->hif_dev;
 	struct sk_buff *skb = rx_buf->skb;
 	int ret;

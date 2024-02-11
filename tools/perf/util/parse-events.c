@@ -976,7 +976,7 @@ static int config_term_pmu(struct perf_event_attr *attr,
 			   struct parse_events_error *err)
 {
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_LEGACY_CACHE) {
-		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
+		struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 
 		if (!pmu) {
 			char *err_str;
@@ -986,15 +986,23 @@ static int config_term_pmu(struct perf_event_attr *attr,
 							   err_str, /*help=*/NULL);
 			return -EINVAL;
 		}
-		if (perf_pmu__supports_legacy_cache(pmu)) {
+		/*
+		 * Rewrite the PMU event to a legacy cache one unless the PMU
+		 * doesn't support legacy cache events or the event is present
+		 * within the PMU.
+		 */
+		if (perf_pmu__supports_legacy_cache(pmu) &&
+		    !perf_pmu__have_event(pmu, term->config)) {
 			attr->type = PERF_TYPE_HW_CACHE;
 			return parse_events__decode_legacy_cache(term->config, pmu->type,
 								 &attr->config);
-		} else
+		} else {
 			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+			term->no_value = true;
+		}
 	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_HARDWARE) {
-		const struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
+		struct perf_pmu *pmu = perf_pmus__find_by_type(attr->type);
 
 		if (!pmu) {
 			char *err_str;
@@ -1004,10 +1012,19 @@ static int config_term_pmu(struct perf_event_attr *attr,
 							   err_str, /*help=*/NULL);
 			return -EINVAL;
 		}
-		attr->type = PERF_TYPE_HARDWARE;
-		attr->config = term->val.num;
-		if (perf_pmus__supports_extended_type())
-			attr->config |= (__u64)pmu->type << PERF_PMU_TYPE_SHIFT;
+		/*
+		 * If the PMU has a sysfs or json event prefer it over
+		 * legacy. ARM requires this.
+		 */
+		if (perf_pmu__have_event(pmu, term->config)) {
+			term->type_term = PARSE_EVENTS__TERM_TYPE_USER;
+			term->no_value = true;
+		} else {
+			attr->type = PERF_TYPE_HARDWARE;
+			attr->config = term->val.num;
+			if (perf_pmus__supports_extended_type())
+				attr->config |= (__u64)pmu->type << PERF_PMU_TYPE_SHIFT;
+		}
 		return 0;
 	}
 	if (term->type_term == PARSE_EVENTS__TERM_TYPE_USER ||
@@ -1381,6 +1398,7 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	YYLTYPE *loc = loc_;
 	LIST_HEAD(config_terms);
 	struct parse_events_terms parsed_terms;
+	bool alias_rewrote_terms = false;
 
 	pmu = parse_state->fake_pmu ?: perf_pmus__find(name);
 
@@ -1433,7 +1451,15 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		return evsel ? 0 : -ENOMEM;
 	}
 
-	if (!parse_state->fake_pmu && perf_pmu__check_alias(pmu, &parsed_terms, &info, err)) {
+	/* Configure attr/terms with a known PMU, this will set hardcoded terms. */
+	if (config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
+		parse_events_terms__exit(&parsed_terms);
+		return -EINVAL;
+	}
+
+	/* Look for event names in the terms and rewrite into format based terms. */
+	if (!parse_state->fake_pmu && perf_pmu__check_alias(pmu, &parsed_terms,
+							    &info, &alias_rewrote_terms, err)) {
 		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
 	}
@@ -1447,11 +1473,9 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		strbuf_release(&sb);
 	}
 
-	/*
-	 * Configure hardcoded terms first, no need to check
-	 * return value when called with fail == 0 ;)
-	 */
-	if (config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
+	/* Configure attr/terms again if an alias was expanded. */
+	if (alias_rewrote_terms &&
+	    config_attr(&attr, &parsed_terms, parse_state->error, config_term_pmu)) {
 		parse_events_terms__exit(&parsed_terms);
 		return -EINVAL;
 	}

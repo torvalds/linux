@@ -93,14 +93,12 @@ static struct icc_node *exynos_generic_icc_xlate(struct of_phandle_args *spec,
 	return priv->node;
 }
 
-static int exynos_generic_icc_remove(struct platform_device *pdev)
+static void exynos_generic_icc_remove(struct platform_device *pdev)
 {
 	struct exynos_icc_priv *priv = platform_get_drvdata(pdev);
 
 	icc_provider_deregister(&priv->provider);
 	icc_nodes_remove(&priv->provider);
-
-	return 0;
 }
 
 static int exynos_generic_icc_probe(struct platform_device *pdev)
@@ -182,7 +180,7 @@ static struct platform_driver exynos_generic_icc_driver = {
 		.sync_state = icc_sync_state,
 	},
 	.probe = exynos_generic_icc_probe,
-	.remove = exynos_generic_icc_remove,
+	.remove_new = exynos_generic_icc_remove,
 };
 module_platform_driver(exynos_generic_icc_driver);
 

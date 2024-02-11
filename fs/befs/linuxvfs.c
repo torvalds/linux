@@ -671,9 +671,6 @@ static struct dentry *befs_get_parent(struct dentry *child)
 
 	parent = befs_iget(child->d_sb,
 			   (unsigned long)befs_ino->i_parent.start);
-	if (IS_ERR(parent))
-		return ERR_CAST(parent);
-
 	return d_obtain_alias(parent);
 }
 

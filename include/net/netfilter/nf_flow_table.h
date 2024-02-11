@@ -62,6 +62,8 @@ struct nf_flowtable_type {
 						  enum flow_offload_tuple_dir dir,
 						  struct nf_flow_rule *flow_rule);
 	void				(*free)(struct nf_flowtable *ft);
+	void				(*get)(struct nf_flowtable *ft);
+	void				(*put)(struct nf_flowtable *ft);
 	nf_hookfn			*hook;
 	struct module			*owner;
 };
@@ -72,12 +74,13 @@ enum nf_flowtable_flags {
 };
 
 struct nf_flowtable {
-	struct list_head		list;
-	struct rhashtable		rhashtable;
-	int				priority;
+	unsigned int			flags;		/* readonly in datapath */
+	int				priority;	/* control path (padding hole) */
+	struct rhashtable		rhashtable;	/* datapath, read-mostly members come first */
+
+	struct list_head		list;		/* slowpath parts */
 	const struct nf_flowtable_type	*type;
 	struct delayed_work		gc_work;
-	unsigned int			flags;
 	struct flow_block		flow_block;
 	struct rw_semaphore		flow_block_lock; /* Guards flow_block */
 	possible_net_t			net;
@@ -240,6 +243,11 @@ nf_flow_table_offload_add_cb(struct nf_flowtable *flow_table,
 	}
 
 	list_add_tail(&block_cb->list, &block->cb_list);
+	up_write(&flow_table->flow_block_lock);
+
+	if (flow_table->type->get)
+		flow_table->type->get(flow_table);
+	return 0;
 
 unlock:
 	up_write(&flow_table->flow_block_lock);
@@ -262,6 +270,9 @@ nf_flow_table_offload_del_cb(struct nf_flowtable *flow_table,
 		WARN_ON(true);
 	}
 	up_write(&flow_table->flow_block_lock);
+
+	if (flow_table->type->put)
+		flow_table->type->put(flow_table);
 }
 
 void flow_offload_route_init(struct flow_offload *flow,

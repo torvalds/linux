@@ -61,15 +61,13 @@ eprobe_mgr_put:
 	return ret;
 }
 
-static int fme_region_remove(struct platform_device *pdev)
+static void fme_region_remove(struct platform_device *pdev)
 {
 	struct fpga_region *region = platform_get_drvdata(pdev);
 	struct fpga_manager *mgr = region->mgr;
 
 	fpga_region_unregister(region);
 	fpga_mgr_put(mgr);
-
-	return 0;
 }
 
 static struct platform_driver fme_region_driver = {
@@ -77,7 +75,7 @@ static struct platform_driver fme_region_driver = {
 		.name    = DFL_FPGA_FME_REGION,
 	},
 	.probe   = fme_region_probe,
-	.remove  = fme_region_remove,
+	.remove_new = fme_region_remove,
 };
 
 module_platform_driver(fme_region_driver);

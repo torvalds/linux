@@ -225,7 +225,7 @@ static struct metric *metric__new(const struct pmu_metric *pm,
 
 	m->pmu = pm->pmu ?: "cpu";
 	m->metric_name = pm->metric_name;
-	m->default_metricgroup_name = pm->default_metricgroup_name;
+	m->default_metricgroup_name = pm->default_metricgroup_name ?: "";
 	m->modifier = NULL;
 	if (modifier) {
 		m->modifier = strdup(modifier);
@@ -286,7 +286,7 @@ static int setup_metric_events(const char *pmu, struct hashmap *ids,
 	*out_metric_events = NULL;
 	ids_size = hashmap__size(ids);
 
-	metric_events = calloc(sizeof(void *), ids_size + 1);
+	metric_events = calloc(ids_size + 1, sizeof(void *));
 	if (!metric_events)
 		return -ENOMEM;
 

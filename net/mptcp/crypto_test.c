@@ -70,3 +70,4 @@ static struct kunit_suite mptcp_crypto_suite = {
 kunit_test_suite(mptcp_crypto_suite);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KUnit tests for MPTCP Crypto");

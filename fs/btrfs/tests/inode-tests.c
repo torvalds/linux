@@ -211,9 +211,9 @@ static void setup_file_extents(struct btrfs_root *root, u32 sectorsize)
 		      sectorsize, BTRFS_FILE_EXTENT_REG, 0, slot);
 }
 
-static unsigned long prealloc_only = 0;
-static unsigned long compressed_only = 0;
-static unsigned long vacancy_only = 0;
+static u32 prealloc_only = 0;
+static u32 compressed_only = 0;
+static u32 vacancy_only = 0;
 
 static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 {
@@ -305,7 +305,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	/*
@@ -332,7 +332,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -355,7 +355,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != em->start) {
@@ -383,7 +383,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != em->start) {
@@ -412,7 +412,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -434,7 +434,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != orig_start) {
@@ -468,7 +468,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != prealloc_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 prealloc_only, em->flags);
 		goto out;
 	}
@@ -497,7 +497,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != prealloc_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 prealloc_only, em->flags);
 		goto out;
 	}
@@ -527,7 +527,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != orig_start) {
@@ -560,7 +560,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != prealloc_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 prealloc_only, em->flags);
 		goto out;
 	}
@@ -595,7 +595,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != compressed_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 compressed_only, em->flags);
 		goto out;
 	}
@@ -604,9 +604,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 em->start, em->orig_start);
 		goto out;
 	}
-	if (em->compress_type != BTRFS_COMPRESS_ZLIB) {
+	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
 		test_err("unexpected compress type, wanted %d, got %d",
-			 BTRFS_COMPRESS_ZLIB, em->compress_type);
+			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -629,7 +629,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != compressed_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 compressed_only, em->flags);
 		goto out;
 	}
@@ -638,9 +638,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 em->start, em->orig_start);
 		goto out;
 	}
-	if (em->compress_type != BTRFS_COMPRESS_ZLIB) {
+	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
 		test_err("unexpected compress type, wanted %d, got %d",
-			 BTRFS_COMPRESS_ZLIB, em->compress_type);
+			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
 		goto out;
 	}
 	disk_bytenr = em->block_start;
@@ -664,7 +664,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != em->start) {
@@ -692,7 +692,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != compressed_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 compressed_only, em->flags);
 		goto out;
 	}
@@ -701,9 +701,9 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 			 em->start, orig_start);
 		goto out;
 	}
-	if (em->compress_type != BTRFS_COMPRESS_ZLIB) {
+	if (extent_map_compression(em) != BTRFS_COMPRESS_ZLIB) {
 		test_err("unexpected compress type, wanted %d, got %d",
-			 BTRFS_COMPRESS_ZLIB, em->compress_type);
+			 BTRFS_COMPRESS_ZLIB, extent_map_compression(em));
 		goto out;
 	}
 	offset = em->start + em->len;
@@ -726,7 +726,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != em->start) {
@@ -758,7 +758,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != vacancy_only) {
-		test_err("unexpected flags set, want %lu have %lu",
+		test_err("unexpected flags set, want %u have %u",
 			 vacancy_only, em->flags);
 		goto out;
 	}
@@ -786,7 +786,7 @@ static noinline int test_btrfs_get_extent(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, want 0 have %lu", em->flags);
+		test_err("unexpected flags set, want 0 have %u", em->flags);
 		goto out;
 	}
 	if (em->orig_start != em->start) {
@@ -866,7 +866,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != vacancy_only) {
-		test_err("wrong flags, wanted %lu, have %lu", vacancy_only,
+		test_err("wrong flags, wanted %u, have %u", vacancy_only,
 			 em->flags);
 		goto out;
 	}
@@ -888,7 +888,7 @@ static int test_hole_first(u32 sectorsize, u32 nodesize)
 		goto out;
 	}
 	if (em->flags != 0) {
-		test_err("unexpected flags set, wanted 0 got %lu",
+		test_err("unexpected flags set, wanted 0 got %u",
 			 em->flags);
 		goto out;
 	}
@@ -1095,8 +1095,8 @@ int btrfs_test_inodes(u32 sectorsize, u32 nodesize)
 
 	test_msg("running inode tests");
 
-	set_bit(EXTENT_FLAG_COMPRESSED, &compressed_only);
-	set_bit(EXTENT_FLAG_PREALLOC, &prealloc_only);
+	compressed_only |= EXTENT_FLAG_COMPRESS_ZLIB;
+	prealloc_only |= EXTENT_FLAG_PREALLOC;
 
 	ret = test_btrfs_get_extent(sectorsize, nodesize);
 	if (ret)

@@ -1089,7 +1089,7 @@ xfs_dir2_sf_to_block(
 	int			newoffset;	/* offset from current entry */
 	unsigned int		offset = geo->data_entry_offset;
 	xfs_dir2_sf_entry_t	*sfep;		/* sf entry pointer */
-	xfs_dir2_sf_hdr_t	*oldsfp;	/* old shortform header  */
+	struct xfs_dir2_sf_hdr	*oldsfp = ifp->if_data;
 	xfs_dir2_sf_hdr_t	*sfp;		/* shortform header  */
 	__be16			*tagp;		/* end of data entry */
 	struct xfs_name		name;
@@ -1099,10 +1099,8 @@ xfs_dir2_sf_to_block(
 	ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
 	ASSERT(dp->i_disk_size >= offsetof(struct xfs_dir2_sf_hdr, parent));
 
-	oldsfp = (xfs_dir2_sf_hdr_t *)ifp->if_u1.if_data;
-
 	ASSERT(ifp->if_bytes == dp->i_disk_size);
-	ASSERT(ifp->if_u1.if_data != NULL);
+	ASSERT(oldsfp != NULL);
 	ASSERT(dp->i_disk_size >= xfs_dir2_sf_hdr_size(oldsfp->i8count));
 	ASSERT(dp->i_df.if_nextents == 0);
 

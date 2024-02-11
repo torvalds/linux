@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc.
+// Copyright(c) 2021, 2023 Advanced Micro Devices, Inc.
 //
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
 //
@@ -48,6 +48,7 @@ static struct acp_card_drvdata sof_rt5682s_rt1019_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
+	.platform = RENOIR,
 	.tdm_mode = false,
 };
 
@@ -58,6 +59,7 @@ static struct acp_card_drvdata sof_rt5682s_max_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
+	.platform = RENOIR,
 	.tdm_mode = false,
 };
 
@@ -68,6 +70,7 @@ static struct acp_card_drvdata sof_nau8825_data = {
 	.hs_codec_id = NAU8825,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
+	.platform = REMBRANDT,
 	.soc_mclk = true,
 	.tdm_mode = false,
 };
@@ -79,6 +82,7 @@ static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
 	.hs_codec_id = RT5682S,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
+	.platform = REMBRANDT,
 	.soc_mclk = true,
 	.tdm_mode = false,
 };
@@ -86,9 +90,11 @@ static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
 static struct acp_card_drvdata sof_nau8821_max98388_data = {
 	.hs_cpu_id = I2S_SP,
 	.amp_cpu_id = I2S_HS,
+	.bt_cpu_id = I2S_BT,
 	.dmic_cpu_id = NONE,
 	.hs_codec_id = NAU8821,
 	.amp_codec_id = MAX98388,
+	.bt_codec_id = NONE,
 	.dmic_codec_id = NONE,
 	.soc_mclk = true,
 	.tdm_mode = false,

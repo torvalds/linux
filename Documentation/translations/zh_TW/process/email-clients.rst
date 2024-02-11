@@ -15,7 +15,7 @@
  - Yinglin Luan <synmyth@gmail.com>
  - Xiaochen Wang <wangxiaochen0@gmail.com>
  - yaxinsn <yaxinsn@163.com>
- - Hu Haowen <src.res.211@gmail.com>
+ - Hu Haowen <2023002089@link.tyut.edu.cn>
 
 Linux郵件客戶端配置信息
 =======================

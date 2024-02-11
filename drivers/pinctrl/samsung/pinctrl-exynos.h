@@ -31,6 +31,7 @@
 #define EXYNOS7_WKUP_EMASK_OFFSET	0x900
 #define EXYNOS7_WKUP_EPEND_OFFSET	0xA00
 #define EXYNOS_SVC_OFFSET		0xB08
+#define EXYNOSAUTO_SVC_OFFSET		0xF008
 
 /* helpers to access interrupt service register */
 #define EXYNOS_SVC_GROUP_SHIFT		3
@@ -138,6 +139,30 @@
 		.eint_type	= EINT_TYPE_WKUP,		\
 		.eint_offset	= offs,				\
 		.name		= id				\
+	}
+
+#define EXYNOSV920_PIN_BANK_EINTG(pins, reg, id, con_offs, mask_offs, pend_offs)	\
+	{							\
+		.type			= &exynos850_bank_type_off,	\
+		.pctl_offset		= reg,				\
+		.nr_pins		= pins,				\
+		.eint_type		= EINT_TYPE_GPIO,		\
+		.eint_con_offset	= con_offs,			\
+		.eint_mask_offset	= mask_offs,			\
+		.eint_pend_offset	= pend_offs,			\
+		.name			= id				\
+	}
+
+#define EXYNOSV920_PIN_BANK_EINTW(pins, reg, id, con_offs, mask_offs, pend_offs)	\
+	{							\
+		.type			= &exynos850_bank_type_alive,	\
+		.pctl_offset		= reg,				\
+		.nr_pins		= pins,				\
+		.eint_type		= EINT_TYPE_WKUP,		\
+		.eint_con_offset	= con_offs,			\
+		.eint_mask_offset	= mask_offs,			\
+		.eint_pend_offset	= pend_offs,			\
+		.name			= id				\
 	}
 
 /**

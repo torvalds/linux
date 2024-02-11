@@ -64,8 +64,6 @@ struct iwl_cfg;
  *	received on the RSS queue(s). The queue parameter indicates which of the
  *	RSS queues received this frame; it will always be non-zero.
  *	This method must not sleep.
- * @async_cb: called when an ASYNC command with CMD_WANT_ASYNC_CALLBACK set
- *	completes. Must be atomic.
  * @queue_full: notifies that a HW queue is full.
  *	Must be atomic and called with BH disabled.
  * @queue_not_full: notifies that a HW queue is not full any more.
@@ -96,8 +94,6 @@ struct iwl_op_mode_ops {
 		   struct iwl_rx_cmd_buffer *rxb);
 	void (*rx_rss)(struct iwl_op_mode *op_mode, struct napi_struct *napi,
 		       struct iwl_rx_cmd_buffer *rxb, unsigned int queue);
-	void (*async_cb)(struct iwl_op_mode *op_mode,
-			 const struct iwl_device_cmd *cmd);
 	void (*queue_full)(struct iwl_op_mode *op_mode, int queue);
 	void (*queue_not_full)(struct iwl_op_mode *op_mode, int queue);
 	bool (*hw_rf_kill)(struct iwl_op_mode *op_mode, bool state);
@@ -145,13 +141,6 @@ static inline void iwl_op_mode_rx_rss(struct iwl_op_mode *op_mode,
 				      unsigned int queue)
 {
 	op_mode->ops->rx_rss(op_mode, napi, rxb, queue);
-}
-
-static inline void iwl_op_mode_async_cb(struct iwl_op_mode *op_mode,
-					const struct iwl_device_cmd *cmd)
-{
-	if (op_mode->ops->async_cb)
-		op_mode->ops->async_cb(op_mode, cmd);
 }
 
 static inline void iwl_op_mode_queue_full(struct iwl_op_mode *op_mode,

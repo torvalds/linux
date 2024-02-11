@@ -12,6 +12,7 @@
 #include <linux/zalloc.h>
 #include <linux/string.h>
 #include <bpf/bpf.h>
+#include <inttypes.h>
 
 #include "bpf_skel/lock_contention.skel.h"
 #include "bpf_skel/lock_data.h"
@@ -250,7 +251,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 		if (cgrp)
 			return cgrp->name;
 
-		snprintf(name_buf, sizeof(name_buf), "cgroup:%lu", cgrp_id);
+		snprintf(name_buf, sizeof(name_buf), "cgroup:%" PRIu64 "", cgrp_id);
 		return name_buf;
 	}
 
@@ -317,7 +318,7 @@ int lock_contention_read(struct lock_contention *con)
 	}
 
 	/* make sure it loads the kernel map */
-	map__load(maps__first(machine->kmaps)->map);
+	maps__load_first(machine->kmaps);
 
 	prev_key = NULL;
 	while (!bpf_map_get_next_key(fd, prev_key, &key)) {

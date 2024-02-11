@@ -119,7 +119,7 @@ INFO OPTIONS
 
 
 CONTENTION OPTIONS
---------------
+------------------
 
 -k::
 --key=<value>::

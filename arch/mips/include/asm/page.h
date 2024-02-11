@@ -173,7 +173,7 @@ static inline unsigned long ___pa(unsigned long x)
 	if (IS_ENABLED(CONFIG_64BIT)) {
 		/*
 		 * For MIPS64 the virtual address may either be in one of
-		 * the compatibility segements ckseg0 or ckseg1, or it may
+		 * the compatibility segments ckseg0 or ckseg1, or it may
 		 * be in xkphys.
 		 */
 		return x < CKSEG0 ? XPHYSADDR(x) : CPHYSADDR(x);

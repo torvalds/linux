@@ -49,7 +49,7 @@ static int loongson_pcibios_config_access(unsigned char access_type,
 		 */
 #ifdef CONFIG_CS5536
 		/* cs5536_pci_conf_read4/write4() will call _rdmsr/_wrmsr() to
-		 * access the regsters PCI_MSR_ADDR, PCI_MSR_DATA_LO,
+		 * access the registers PCI_MSR_ADDR, PCI_MSR_DATA_LO,
 		 * PCI_MSR_DATA_HI, which is bigger than PCI_MSR_CTRL, so, it
 		 * will not go this branch, but the others. so, no calling dead
 		 * loop here.

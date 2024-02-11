@@ -78,7 +78,7 @@ ifdef CONFIG_DRM_AMD_DC_FP
 # DCN
 ###############################################################################
 
-HWSS_DCN10 = dcn10_hwseq.o
+HWSS_DCN10 = dcn10_hwseq.o dcn10_init.o
 
 AMD_DAL_HWSS_DCN10 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn10/,$(HWSS_DCN10))
 
@@ -86,7 +86,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN10)
 
 ###############################################################################
 
-HWSS_DCN20 = dcn20_hwseq.o
+HWSS_DCN20 = dcn20_hwseq.o dcn20_init.o
 
 AMD_DAL_HWSS_DCN20 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn20/,$(HWSS_DCN20))
 
@@ -94,7 +94,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN20)
 
 ###############################################################################
 
-HWSS_DCN201 = dcn201_hwseq.o
+HWSS_DCN201 = dcn201_hwseq.o dcn201_init.o
 
 AMD_DAL_HWSS_DCN201 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn201/,$(HWSS_DCN201))
 
@@ -102,7 +102,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN201)
 
 ###############################################################################
 
-HWSS_DCN21 = dcn21_hwseq.o
+HWSS_DCN21 = dcn21_hwseq.o dcn21_init.o
 
 AMD_DAL_HWSS_DCN21 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn21/,$(HWSS_DCN21))
 
@@ -114,7 +114,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN21)
 
 ###############################################################################
 
-HWSS_DCN30 = dcn30_hwseq.o
+HWSS_DCN30 = dcn30_hwseq.o dcn30_init.o
 
 AMD_DAL_HWSS_DCN30 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn30/,$(HWSS_DCN30))
 
@@ -122,7 +122,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN30)
 
 ###############################################################################
 
-HWSS_DCN301 = dcn301_hwseq.o
+HWSS_DCN301 = dcn301_hwseq.o dcn301_init.o
 
 AMD_DAL_HWSS_DCN301 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn301/,$(HWSS_DCN301))
 
@@ -130,15 +130,17 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN301)
 
 ###############################################################################
 
-HWSS_DCN302 = dcn302_hwseq.o
+HWSS_DCN302 = dcn302_hwseq.o dcn302_init.o
 
 AMD_DAL_HWSS_DCN302 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn302/,$(HWSS_DCN302))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN302)
 
+
+
 ###############################################################################
 
-HWSS_DCN303 = dcn303_hwseq.o
+HWSS_DCN303 = dcn303_hwseq.o dcn303_init.o
 
 AMD_DAL_HWSS_DCN303 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn303/,$(HWSS_DCN303))
 
@@ -146,7 +148,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN303)
 
 ###############################################################################
 
-HWSS_DCN31 = dcn31_hwseq.o
+HWSS_DCN31 = dcn31_hwseq.o dcn31_init.o
 
 AMD_DAL_HWSS_DCN31 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn31/,$(HWSS_DCN31))
 
@@ -154,7 +156,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN31)
 
 ###############################################################################
 
-HWSS_DCN314 = dcn314_hwseq.o
+HWSS_DCN314 = dcn314_hwseq.o dcn314_init.o
 
 AMD_DAL_HWSS_DCN314 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn314/,$(HWSS_DCN314))
 
@@ -162,7 +164,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN314)
 
 ###############################################################################
 
-HWSS_DCN32 = dcn32_hwseq.o
+HWSS_DCN32 = dcn32_hwseq.o dcn32_init.o
 
 AMD_DAL_HWSS_DCN32 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn32/,$(HWSS_DCN32))
 
@@ -170,7 +172,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_HWSS_DCN32)
 
 ###############################################################################
 
-HWSS_DCN35 = dcn35_hwseq.o
+HWSS_DCN35 = dcn35_hwseq.o dcn35_init.o
 
 AMD_DAL_HWSS_DCN35 = $(addprefix $(AMDDALPATH)/dc/hwss/dcn35/,$(HWSS_DCN35))
 

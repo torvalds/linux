@@ -2,6 +2,7 @@
 /*
  * Copyright 2016 Broadcom
  */
+#include <linux/align.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -11,6 +12,7 @@
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
+#include <linux/sizes.h>
 
 #define MDIO_RATE_ADJ_EXT_OFFSET	0x000
 #define MDIO_RATE_ADJ_INT_OFFSET	0x004
@@ -220,12 +222,12 @@ static int mdio_mux_iproc_probe(struct platform_device *pdev)
 	md->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(md->base))
 		return PTR_ERR(md->base);
-	if (res->start & 0xfff) {
+	if (!IS_ALIGNED(res->start, SZ_4K)) {
 		/* For backward compatibility in case the
 		 * base address is specified with an offset.
 		 */
 		dev_info(&pdev->dev, "fix base address in dt-blob\n");
-		res->start &= ~0xfff;
+		res->start = ALIGN_DOWN(res->start, SZ_4K);
 		res->end = res->start + MDIO_REG_ADDR_SPACE_SIZE - 1;
 	}
 

@@ -4,9 +4,9 @@
  */
 
 #include <linux/linkage.h>
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/alternative-macros.h>
-#include <asm-generic/export.h>
 #include <asm/hwcap.h>
 #include <asm/insn-def.h>
 #include <asm/page.h>

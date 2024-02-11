@@ -64,9 +64,9 @@ static void bcm_vk_tty_wq_handler(struct work_struct *work)
 	struct bcm_vk_tty *vktty;
 	int card_status;
 	int count;
-	unsigned char c;
 	int i;
 	int wr;
+	u8 c;
 
 	card_status = vkread32(vk, BAR_0, BAR_CARD_STATUS);
 	if (BCM_VK_INTF_IS_DOWN(card_status))
@@ -192,7 +192,7 @@ static ssize_t bcm_vk_tty_write(struct tty_struct *tty, const u8 *buffer,
 	int index;
 	struct bcm_vk *vk;
 	struct bcm_vk_tty *vktty;
-	int i;
+	size_t i;
 
 	index = tty->index;
 	vk = dev_get_drvdata(tty->dev);

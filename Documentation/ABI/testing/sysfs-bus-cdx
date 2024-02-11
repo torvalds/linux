@@ -98,6 +98,13 @@ Description:
 
 		  # echo 1 > /sys/bus/cdx/devices/.../remove
 
+What:		/sys/bus/cdx/devices/.../resource<N>
+Date:		July 2023
+Contact:	puneet.gupta@amd.com
+Description:
+		The resource binary file contains the content of the memory
+		regions. These files can be m'maped from userspace.
+
 What:		/sys/bus/cdx/devices/.../modalias
 Date:		July 2023
 Contact:	nipun.gupta@amd.com

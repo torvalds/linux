@@ -1262,28 +1262,6 @@ TRACE_EVENT(nfsd_drc_mismatch,
 		__entry->ingress)
 );
 
-TRACE_EVENT_CONDITION(nfsd_drc_gc,
-	TP_PROTO(
-		const struct nfsd_net *nn,
-		unsigned long freed
-	),
-	TP_ARGS(nn, freed),
-	TP_CONDITION(freed > 0),
-	TP_STRUCT__entry(
-		__field(unsigned long long, boot_time)
-		__field(unsigned long, freed)
-		__field(int, total)
-	),
-	TP_fast_assign(
-		__entry->boot_time = nn->boot_time;
-		__entry->freed = freed;
-		__entry->total = atomic_read(&nn->num_drc_entries);
-	),
-	TP_printk("boot_time=%16llx total=%d freed=%lu",
-		__entry->boot_time, __entry->total, __entry->freed
-	)
-);
-
 TRACE_EVENT(nfsd_cb_args,
 	TP_PROTO(
 		const struct nfs4_client *clp,

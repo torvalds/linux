@@ -556,7 +556,6 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 	struct transaction_chp_stats_s *stats;
 	transaction_t *transaction;
 	journal_t *journal;
-	struct buffer_head *bh = jh2bh(jh);
 
 	JBUFFER_TRACE(jh, "entry");
 
@@ -568,16 +567,6 @@ int __jbd2_journal_remove_checkpoint(struct journal_head *jh)
 	journal = transaction->t_journal;
 
 	JBUFFER_TRACE(jh, "removing from transaction");
-
-	/*
-	 * If we have failed to write the buffer out to disk, the filesystem
-	 * may become inconsistent. We cannot abort the journal here since
-	 * we hold j_list_lock and we have to be careful about races with
-	 * jbd2_journal_destroy(). So mark the writeback IO error in the
-	 * journal here and we abort the journal later from a better context.
-	 */
-	if (buffer_write_io_error(bh))
-		set_bit(JBD2_CHECKPOINT_IO_ERROR, &journal->j_atomic_flags);
 
 	__buffer_unlink(jh);
 	jh->b_cp_transaction = NULL;

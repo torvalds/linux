@@ -1029,7 +1029,8 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			  IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
 			  IEEE80211_EHT_PHY_CAP3_CODEBOOK_4_2_SU_FDBK |
 			  IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK |
-			  IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK);
+			  IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK |
+			  IEEE80211_EHT_PHY_CAP3_TRIG_CQI_FDBK);
 		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[4] &=
 			~(IEEE80211_EHT_PHY_CAP4_PART_BW_DL_MU_MIMO |
 			  IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP);
@@ -1608,10 +1609,17 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	/* Set the GO concurrent flag only in case that NO_IR is set.
 	 * Otherwise it is meaningless
 	 */
-	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
-	    (flags & NL80211_RRF_NO_IR))
-		flags |= NL80211_RRF_GO_CONCURRENT;
-
+	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT)) {
+		if (flags & NL80211_RRF_NO_IR)
+			flags |= NL80211_RRF_GO_CONCURRENT;
+		if (flags & NL80211_RRF_DFS) {
+			flags |= NL80211_RRF_DFS_CONCURRENT;
+			/* Our device doesn't set active bit for DFS channels
+			 * however, once marked as DFS no-ir is not needed.
+			 */
+			flags &= ~NL80211_RRF_NO_IR;
+		}
+	}
 	/*
 	 * reg_capa is per regulatory domain so apply it for every channel
 	 */

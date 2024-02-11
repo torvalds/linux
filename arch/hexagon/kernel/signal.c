@@ -220,7 +220,7 @@ no_restart:
  * Architecture-specific wrappers for signal-related system calls
  */
 
-asmlinkage int sys_rt_sigreturn(void)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe __user *frame;

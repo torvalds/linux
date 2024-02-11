@@ -51,9 +51,10 @@ out:
 }
 
 static int crypto_cbc_encrypt(struct crypto_lskcipher *tfm, const u8 *src,
-			      u8 *dst, unsigned len, u8 *iv, bool final)
+			      u8 *dst, unsigned len, u8 *iv, u32 flags)
 {
 	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+	bool final = flags & CRYPTO_LSKCIPHER_FLAG_FINAL;
 	struct crypto_lskcipher *cipher = *ctx;
 	int rem;
 
@@ -119,9 +120,10 @@ out:
 }
 
 static int crypto_cbc_decrypt(struct crypto_lskcipher *tfm, const u8 *src,
-			      u8 *dst, unsigned len, u8 *iv, bool final)
+			      u8 *dst, unsigned len, u8 *iv, u32 flags)
 {
 	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+	bool final = flags & CRYPTO_LSKCIPHER_FLAG_FINAL;
 	struct crypto_lskcipher *cipher = *ctx;
 	int rem;
 

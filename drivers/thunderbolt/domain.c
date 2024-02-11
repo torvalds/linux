@@ -307,7 +307,7 @@ static const struct attribute_group *domain_attr_groups[] = {
 	NULL,
 };
 
-struct bus_type tb_bus_type = {
+const struct bus_type tb_bus_type = {
 	.name = "thunderbolt",
 	.match = tb_service_match,
 	.probe = tb_service_probe,

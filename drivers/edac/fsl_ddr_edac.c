@@ -612,7 +612,7 @@ err:
 	return res;
 }
 
-int fsl_mc_err_remove(struct platform_device *op)
+void fsl_mc_err_remove(struct platform_device *op)
 {
 	struct mem_ctl_info *mci = dev_get_drvdata(&op->dev);
 	struct fsl_mc_pdata *pdata = mci->pvt_info;
@@ -629,5 +629,4 @@ int fsl_mc_err_remove(struct platform_device *op)
 
 	edac_mc_del_mc(&op->dev);
 	edac_mc_free(mci);
-	return 0;
 }

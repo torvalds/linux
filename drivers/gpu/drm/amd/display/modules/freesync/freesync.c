@@ -81,6 +81,7 @@ fail_alloc_context:
 void mod_freesync_destroy(struct mod_freesync *mod_freesync)
 {
 	struct core_freesync *core_freesync = NULL;
+
 	if (mod_freesync == NULL)
 		return;
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
@@ -278,9 +279,8 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 		}
 	} else if (last_render_time_in_us > (max_render_time_in_us + in_out_vrr->btr.margin_in_us / 2)) {
 		/* Enter Below the Range */
-		if (!in_out_vrr->btr.btr_active) {
+		if (!in_out_vrr->btr.btr_active)
 			in_out_vrr->btr.btr_active = true;
-		}
 	}
 
 	/* BTR set to "not active" so disengage */
@@ -693,10 +693,12 @@ static void build_vrr_infopacket_fs2_data(enum color_transfer_func app_tf,
 	if (app_tf != TRANSFER_FUNC_UNKNOWN) {
 		infopacket->valid = true;
 
-		if (app_tf != TRANSFER_FUNC_PQ2084) {
+		if (app_tf == TRANSFER_FUNC_PQ2084)
+			infopacket->sb[9] |= 0x20; // PB9 = [Bit 5 = PQ EOTF Active]
+		else {
 			infopacket->sb[6] |= 0x08;  // PB6 = [Bit 3 = Native Color Active]
 			if (app_tf == TRANSFER_FUNC_GAMMA_22)
-				infopacket->sb[9] |= 0x04;  // PB6 = [Bit 2 = Gamma 2.2 EOTF Active]
+				infopacket->sb[9] |= 0x04;  // PB9 = [Bit 2 = Gamma 2.2 EOTF Active]
 		}
 	}
 }

@@ -99,10 +99,11 @@ config NVME_TARGET_TCP_TLS
 	  If unsure, say N.
 
 config NVME_TARGET_AUTH
-	bool "NVMe over Fabrics In-band Authentication support"
+	bool "NVMe over Fabrics In-band Authentication in target side"
 	depends on NVME_TARGET
 	select NVME_AUTH
 	help
-	  This enables support for NVMe over Fabrics In-band Authentication
+	  This enables support for NVMe over Fabrics In-band Authentication in
+	  target side.
 
 	  If unsure, say N.

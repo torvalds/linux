@@ -6,8 +6,9 @@
 #ifndef _SIW_MEM_H
 #define _SIW_MEM_H
 
-struct siw_umem *siw_umem_get(u64 start, u64 len, bool writable);
-void siw_umem_release(struct siw_umem *umem, bool dirty);
+struct siw_umem *siw_umem_get(struct ib_device *base_dave, u64 start,
+			      u64 len, int rights);
+void siw_umem_release(struct siw_umem *umem);
 struct siw_pbl *siw_pbl_alloc(u32 num_buf);
 dma_addr_t siw_pbl_get_buffer(struct siw_pbl *pbl, u64 off, int *len, int *idx);
 struct siw_mem *siw_mem_id2obj(struct siw_device *sdev, int stag_index);

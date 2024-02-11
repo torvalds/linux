@@ -122,11 +122,33 @@
 #define PHYSTS_RSVD BIT(RTW89_RX_TYPE_RSVD)
 #define PPDU_FILTER_BITMAP (PHYSTS_MGNT | PHYSTS_DATA)
 
+#define EDCCA_MAX 249
+#define EDCCA_TH_L2H_LB 66
+#define EDCCA_TH_REF 3
+#define EDCCA_HL_DIFF_NORMAL 8
+#define RSSI_UNIT_CONVER 110
+#define EDCCA_UNIT_CONVER 128
+
 enum rtw89_phy_c2h_ra_func {
 	RTW89_PHY_C2H_FUNC_STS_RPT,
 	RTW89_PHY_C2H_FUNC_MU_GPTBL_RPT,
 	RTW89_PHY_C2H_FUNC_TXSTS,
 	RTW89_PHY_C2H_FUNC_RA_MAX,
+};
+
+enum rtw89_phy_c2h_rfk_log_func {
+	RTW89_PHY_C2H_RFK_LOG_FUNC_IQK = 0,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_DPK = 1,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_DACK = 2,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_RXDCK = 3,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_TSSI = 4,
+	RTW89_PHY_C2H_RFK_LOG_FUNC_TXGAPK = 5,
+
+	RTW89_PHY_C2H_RFK_LOG_FUNC_NUM,
+};
+
+enum rtw89_phy_c2h_rfk_report_func {
+	RTW89_PHY_C2H_RFK_REPORT_FUNC_STATE = 0,
 };
 
 enum rtw89_phy_c2h_dm_func {
@@ -142,6 +164,8 @@ enum rtw89_phy_c2h_class {
 	RTW89_PHY_C2H_CLASS_RUA,
 	RTW89_PHY_C2H_CLASS_RA,
 	RTW89_PHY_C2H_CLASS_DM,
+	RTW89_PHY_C2H_RFK_LOG = 0x8,
+	RTW89_PHY_C2H_RFK_REPORT = 0x9,
 	RTW89_PHY_C2H_CLASS_BTC_MIN = 0x10,
 	RTW89_PHY_C2H_CLASS_BTC_MAX = 0x17,
 	RTW89_PHY_C2H_CLASS_MAX,
@@ -283,8 +307,6 @@ struct rtw89_txpwr_byrate_cfg {
 	u8 len;
 	u32 data;
 };
-
-#define DELTA_SWINGIDX_SIZE 30
 
 struct rtw89_txpwr_track_cfg {
 	const s8 (*delta_swingidx_6gb_n)[DELTA_SWINGIDX_SIZE];
@@ -478,6 +500,10 @@ struct rtw89_txpwr_limit_ru_be {
 	s8 ru106_26[RTW89_RU_SEC_NUM_BE];
 };
 
+struct rtw89_phy_rfk_log_fmt {
+	const struct rtw89_fw_element_hdr *elm[RTW89_PHY_C2H_RFK_LOG_FUNC_NUM];
+};
+
 struct rtw89_phy_gen_def {
 	u32 cr_base;
 	const struct rtw89_ccx_regs *ccx;
@@ -591,6 +617,22 @@ enum rtw89_gain_offset rtw89_subband_to_gain_offset_band_of_ofdm(enum rtw89_subb
 		return RTW89_GAIN_OFFSET_5G_MID;
 	case RTW89_CH_5G_BAND_4:
 		return RTW89_GAIN_OFFSET_5G_HIGH;
+	case RTW89_CH_6G_BAND_IDX0:
+		return RTW89_GAIN_OFFSET_6G_L0;
+	case RTW89_CH_6G_BAND_IDX1:
+		return RTW89_GAIN_OFFSET_6G_L1;
+	case RTW89_CH_6G_BAND_IDX2:
+		return RTW89_GAIN_OFFSET_6G_M0;
+	case RTW89_CH_6G_BAND_IDX3:
+		return RTW89_GAIN_OFFSET_6G_M1;
+	case RTW89_CH_6G_BAND_IDX4:
+		return RTW89_GAIN_OFFSET_6G_H0;
+	case RTW89_CH_6G_BAND_IDX5:
+		return RTW89_GAIN_OFFSET_6G_H1;
+	case RTW89_CH_6G_BAND_IDX6:
+		return RTW89_GAIN_OFFSET_6G_UH0;
+	case RTW89_CH_6G_BAND_IDX7:
+		return RTW89_GAIN_OFFSET_6G_UH1;
 	}
 }
 
@@ -764,6 +806,7 @@ void rtw89_phy_ra_updata_sta(struct rtw89_dev *rtwdev, struct ieee80211_sta *sta
 void rtw89_phy_rate_pattern_vif(struct rtw89_dev *rtwdev,
 				struct ieee80211_vif *vif,
 				const struct cfg80211_bitrate_mask *mask);
+bool rtw89_phy_c2h_chk_atomic(struct rtw89_dev *rtwdev, u8 class, u8 func);
 void rtw89_phy_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 			  u32 len, u8 class, u8 func);
 void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev);
@@ -791,5 +834,7 @@ u8 rtw89_encode_chan_idx(struct rtw89_dev *rtwdev, u8 central_ch, u8 band);
 void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
 			   u8 *ch, enum nl80211_band *band);
 void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan);
+void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev);
+void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev);
 
 #endif

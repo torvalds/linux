@@ -143,7 +143,7 @@ static void cvmx_boot_vector_init(void *mem)
 		uint64_t v = _cvmx_bootvector_data[i];
 
 		if (OCTEON_IS_OCTEON1PLUS() && (i == 0 || i == 7))
-			v &= 0xffffffff00000000ull; /* KScratch not availble. */
+			v &= 0xffffffff00000000ull; /* KScratch not available */
 		cvmx_write_csr(CVMX_MIO_BOOT_LOC_ADR, i * 8);
 		cvmx_write_csr(CVMX_MIO_BOOT_LOC_DAT, v);
 	}

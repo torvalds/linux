@@ -125,9 +125,6 @@ static struct dentry *__kernfs_fh_to_dentry(struct super_block *sb,
 
 	inode = kernfs_get_inode(sb, kn);
 	kernfs_put(kn);
-	if (!inode)
-		return ERR_PTR(-ESTALE);
-
 	return d_obtain_alias(inode);
 }
 

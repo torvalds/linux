@@ -10,15 +10,11 @@
 #    0        1       0  Don't update NC
 #    0        1       1  Add a STALE NC entry
 
+source lib.sh
 ret=0
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
 
 PAUSE_ON_FAIL=no
 PAUSE=no
-
-HOST_NS="ns-host"
-ROUTER_NS="ns-router"
 
 HOST_INTF="veth-host"
 ROUTER_INTF="veth-router"
@@ -28,11 +24,6 @@ HOST_ADDR="2000:20::2"
 SUBNET_WIDTH=64
 ROUTER_ADDR_WITH_MASK="${ROUTER_ADDR}/${SUBNET_WIDTH}"
 HOST_ADDR_WITH_MASK="${HOST_ADDR}/${SUBNET_WIDTH}"
-
-IP_HOST="ip -6 -netns ${HOST_NS}"
-IP_HOST_EXEC="ip netns exec ${HOST_NS}"
-IP_ROUTER="ip -6 -netns ${ROUTER_NS}"
-IP_ROUTER_EXEC="ip netns exec ${ROUTER_NS}"
 
 tcpdump_stdout=
 tcpdump_stderr=
@@ -76,8 +67,12 @@ setup()
 
 	# Setup two namespaces and a veth tunnel across them.
 	# On end of the tunnel is a router and the other end is a host.
-	ip netns add ${HOST_NS}
-	ip netns add ${ROUTER_NS}
+	setup_ns HOST_NS ROUTER_NS
+	IP_HOST="ip -6 -netns ${HOST_NS}"
+	IP_HOST_EXEC="ip netns exec ${HOST_NS}"
+	IP_ROUTER="ip -6 -netns ${ROUTER_NS}"
+	IP_ROUTER_EXEC="ip netns exec ${ROUTER_NS}"
+
 	${IP_ROUTER} link add ${ROUTER_INTF} type veth \
                 peer name ${HOST_INTF} netns ${HOST_NS}
 

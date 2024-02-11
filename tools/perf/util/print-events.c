@@ -66,7 +66,7 @@ void print_tracepoint_events(const struct print_callbacks *print_cb __maybe_unus
 
 	put_tracing_file(events_path);
 	if (events_fd < 0) {
-		printf("Error: failed to open tracing events directory\n");
+		pr_err("Error: failed to open tracing events directory\n");
 		return;
 	}
 

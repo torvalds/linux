@@ -574,7 +574,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	doutc(fsc->client, "%p\n", &ci->netfs.inode);
 
 	/* Set parameters for the netfs library */
-	netfs_inode_init(&ci->netfs, &ceph_netfs_ops);
+	netfs_inode_init(&ci->netfs, &ceph_netfs_ops, false);
 
 	spin_lock_init(&ci->i_ceph_lock);
 
@@ -694,7 +694,7 @@ void ceph_evict_inode(struct inode *inode)
 	percpu_counter_dec(&mdsc->metric.total_inodes);
 
 	truncate_inode_pages_final(&inode->i_data);
-	if (inode->i_state & I_PINNING_FSCACHE_WB)
+	if (inode->i_state & I_PINNING_NETFS_WB)
 		ceph_fscache_unuse_cookie(inode, true);
 	clear_inode(inode);
 

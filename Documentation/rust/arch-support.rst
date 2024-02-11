@@ -12,10 +12,11 @@ which uses ``libclang``.
 Below is a general summary of architectures that currently work. Level of
 support corresponds to ``S`` values in the ``MAINTAINERS`` file.
 
-============  ================  ==============================================
-Architecture  Level of support  Constraints
-============  ================  ==============================================
-``um``        Maintained        ``x86_64`` only.
-``x86``       Maintained        ``x86_64`` only.
-============  ================  ==============================================
+=============  ================  ==============================================
+Architecture   Level of support  Constraints
+=============  ================  ==============================================
+``loongarch``  Maintained        -
+``um``         Maintained        ``x86_64`` only.
+``x86``        Maintained        ``x86_64`` only.
+=============  ================  ==============================================
 

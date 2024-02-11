@@ -36,7 +36,7 @@
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
 #include <linux/cdev.h>
-#include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <linux/blk-mq.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
@@ -250,7 +250,7 @@ static int ublk_dev_param_zoned_apply(struct ublk_device *ub)
 {
 	const struct ublk_param_zoned *p = &ub->params.zoned;
 
-	disk_set_zoned(ub->ub_disk, BLK_ZONED_HM);
+	disk_set_zoned(ub->ub_disk);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, ub->ub_disk->queue);
 	blk_queue_required_elevator_features(ub->ub_disk->queue,
 					     ELEVATOR_F_ZBD_SEQ_WRITE);
@@ -893,12 +893,9 @@ static int ublk_map_io(const struct ublk_queue *ubq, const struct request *req,
 	 */
 	if (ublk_need_map_req(req)) {
 		struct iov_iter iter;
-		struct iovec iov;
 		const int dir = ITER_DEST;
 
-		import_single_range(dir, u64_to_user_ptr(io->addr), rq_bytes,
-				&iov, &iter);
-
+		import_ubuf(dir, u64_to_user_ptr(io->addr), rq_bytes, &iter);
 		return ublk_copy_user_pages(req, 0, &iter, dir);
 	}
 	return rq_bytes;
@@ -915,13 +912,11 @@ static int ublk_unmap_io(const struct ublk_queue *ubq,
 
 	if (ublk_need_unmap_req(req)) {
 		struct iov_iter iter;
-		struct iovec iov;
 		const int dir = ITER_SOURCE;
 
 		WARN_ON_ONCE(io->res > rq_bytes);
 
-		import_single_range(dir, u64_to_user_ptr(io->addr), io->res,
-				&iov, &iter);
+		import_ubuf(dir, u64_to_user_ptr(io->addr), io->res, &iter);
 		return ublk_copy_user_pages(req, 0, &iter, dir);
 	}
 	return rq_bytes;

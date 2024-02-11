@@ -14,11 +14,8 @@
 #include "../common/hid-sensors/hid-sensor-trigger.h"
 
 enum {
-	CHANNEL_SCAN_INDEX_INTENSITY,
-	CHANNEL_SCAN_INDEX_ILLUM,
-	CHANNEL_SCAN_INDEX_COLOR_TEMP,
-	CHANNEL_SCAN_INDEX_CHROMATICITY_X,
-	CHANNEL_SCAN_INDEX_CHROMATICITY_Y,
+	CHANNEL_SCAN_INDEX_INTENSITY = 0,
+	CHANNEL_SCAN_INDEX_ILLUM = 1,
 	CHANNEL_SCAN_INDEX_MAX
 };
 
@@ -68,40 +65,6 @@ static const struct iio_chan_spec als_channels[] = {
 		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
 		.scan_index = CHANNEL_SCAN_INDEX_ILLUM,
 	},
-	{
-		.type = IIO_COLORTEMP,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SCALE) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
-		.scan_index = CHANNEL_SCAN_INDEX_COLOR_TEMP,
-	},
-	{
-		.type = IIO_CHROMATICITY,
-		.modified = 1,
-		.channel2 = IIO_MOD_X,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SCALE) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
-		.scan_index = CHANNEL_SCAN_INDEX_CHROMATICITY_X,
-	},
-	{
-		.type = IIO_CHROMATICITY,
-		.modified = 1,
-		.channel2 = IIO_MOD_Y,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
-		BIT(IIO_CHAN_INFO_SCALE) |
-		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS) |
-		BIT(IIO_CHAN_INFO_HYSTERESIS_RELATIVE),
-		.scan_index = CHANNEL_SCAN_INDEX_CHROMATICITY_Y,
-	},
 	IIO_CHAN_SOFT_TIMESTAMP(CHANNEL_SCAN_INDEX_TIMESTAMP)
 };
 
@@ -139,21 +102,6 @@ static int als_read_raw(struct iio_dev *indio_dev,
 			report_id = als_state->als[chan->scan_index].report_id;
 			min = als_state->als[chan->scan_index].logical_minimum;
 			address = HID_USAGE_SENSOR_LIGHT_ILLUM;
-			break;
-		case  CHANNEL_SCAN_INDEX_COLOR_TEMP:
-			report_id = als_state->als[chan->scan_index].report_id;
-			min = als_state->als[chan->scan_index].logical_minimum;
-			address = HID_USAGE_SENSOR_LIGHT_COLOR_TEMPERATURE;
-			break;
-		case  CHANNEL_SCAN_INDEX_CHROMATICITY_X:
-			report_id = als_state->als[chan->scan_index].report_id;
-			min = als_state->als[chan->scan_index].logical_minimum;
-			address = HID_USAGE_SENSOR_LIGHT_CHROMATICITY_X;
-			break;
-		case  CHANNEL_SCAN_INDEX_CHROMATICITY_Y:
-			report_id = als_state->als[chan->scan_index].report_id;
-			min = als_state->als[chan->scan_index].logical_minimum;
-			address = HID_USAGE_SENSOR_LIGHT_CHROMATICITY_Y;
 			break;
 		default:
 			report_id = -1;
@@ -275,18 +223,6 @@ static int als_capture_sample(struct hid_sensor_hub_device *hsdev,
 		als_state->scan.illum[CHANNEL_SCAN_INDEX_ILLUM] = sample_data;
 		ret = 0;
 		break;
-	case HID_USAGE_SENSOR_LIGHT_COLOR_TEMPERATURE:
-		als_state->scan.illum[CHANNEL_SCAN_INDEX_COLOR_TEMP] = sample_data;
-		ret = 0;
-		break;
-	case HID_USAGE_SENSOR_LIGHT_CHROMATICITY_X:
-		als_state->scan.illum[CHANNEL_SCAN_INDEX_CHROMATICITY_X] = sample_data;
-		ret = 0;
-		break;
-	case HID_USAGE_SENSOR_LIGHT_CHROMATICITY_Y:
-		als_state->scan.illum[CHANNEL_SCAN_INDEX_CHROMATICITY_Y] = sample_data;
-		ret = 0;
-		break;
 	case HID_USAGE_SENSOR_TIME_TIMESTAMP:
 		als_state->timestamp = hid_sensor_convert_timestamp(&als_state->common_attributes,
 								    *(s64 *)raw_data);
@@ -320,38 +256,6 @@ static int als_parse_report(struct platform_device *pdev,
 
 		dev_dbg(&pdev->dev, "als %x:%x\n", st->als[i].index,
 			st->als[i].report_id);
-	}
-
-	ret = sensor_hub_input_get_attribute_info(hsdev, HID_INPUT_REPORT,
-				usage_id,
-				HID_USAGE_SENSOR_LIGHT_COLOR_TEMPERATURE,
-				&st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP]);
-	if (ret < 0)
-		return ret;
-	als_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_COLOR_TEMP,
-				st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP].size);
-
-	dev_dbg(&pdev->dev, "als %x:%x\n",
-		st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP].index,
-		st->als[CHANNEL_SCAN_INDEX_COLOR_TEMP].report_id);
-
-	for (i = 0; i < 2; i++) {
-		int next_scan_index = CHANNEL_SCAN_INDEX_CHROMATICITY_X + i;
-
-		ret = sensor_hub_input_get_attribute_info(hsdev,
-				HID_INPUT_REPORT, usage_id,
-				HID_USAGE_SENSOR_LIGHT_CHROMATICITY_X + i,
-				&st->als[next_scan_index]);
-		if (ret < 0)
-			return ret;
-
-		als_adjust_channel_bit_mask(channels,
-					CHANNEL_SCAN_INDEX_CHROMATICITY_X + i,
-					st->als[next_scan_index].size);
-
-		dev_dbg(&pdev->dev, "als %x:%x\n",
-			st->als[next_scan_index].index,
-			st->als[next_scan_index].report_id);
 	}
 
 	st->scale_precision = hid_sensor_format_scale(usage_id,

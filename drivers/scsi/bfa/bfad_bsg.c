@@ -2550,7 +2550,7 @@ out:
 static void bfad_reset_sdev_bflags(struct bfad_im_port_s *im_port,
 				   int lunmask_cfg)
 {
-	const u32 scan_flags = BLIST_NOREPORTLUN | BLIST_SPARSELUN;
+	const blist_flags_t scan_flags = BLIST_NOREPORTLUN | BLIST_SPARSELUN;
 	struct bfad_itnim_s *itnim;
 	struct scsi_device *sdev;
 	unsigned long flags;

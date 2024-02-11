@@ -121,7 +121,14 @@ static bool mlx5e_ipsec_update_esn_state(struct mlx5e_ipsec_sa_entry *sa_entry)
 	if (x->xso.type == XFRM_DEV_OFFLOAD_CRYPTO)
 		esn_msb = xfrm_replay_seqhi(x, htonl(seq_bottom));
 
-	sa_entry->esn_state.esn = esn;
+	if (sa_entry->esn_state.esn_msb)
+		sa_entry->esn_state.esn = esn;
+	else
+		/* According to RFC4303, section "3.3.3. Sequence Number Generation",
+		 * the first packet sent using a given SA will contain a sequence
+		 * number of 1.
+		 */
+		sa_entry->esn_state.esn = max_t(u32, esn, 1);
 	sa_entry->esn_state.esn_msb = esn_msb;
 
 	if (unlikely(overlap && seq_bottom < MLX5E_IPSEC_ESN_SCOPE_MID)) {
@@ -329,15 +336,41 @@ void mlx5e_ipsec_build_accel_xfrm_attrs(struct mlx5e_ipsec_sa_entry *sa_entry,
 	/* iv len */
 	aes_gcm->icv_len = x->aead->alg_icv_len;
 
+	attrs->dir = x->xso.dir;
+
 	/* esn */
 	if (x->props.flags & XFRM_STATE_ESN) {
 		attrs->replay_esn.trigger = true;
 		attrs->replay_esn.esn = sa_entry->esn_state.esn;
 		attrs->replay_esn.esn_msb = sa_entry->esn_state.esn_msb;
 		attrs->replay_esn.overlap = sa_entry->esn_state.overlap;
+		if (attrs->dir == XFRM_DEV_OFFLOAD_OUT)
+			goto skip_replay_window;
+
+		switch (x->replay_esn->replay_window) {
+		case 32:
+			attrs->replay_esn.replay_window =
+				MLX5_IPSEC_ASO_REPLAY_WIN_32BIT;
+			break;
+		case 64:
+			attrs->replay_esn.replay_window =
+				MLX5_IPSEC_ASO_REPLAY_WIN_64BIT;
+			break;
+		case 128:
+			attrs->replay_esn.replay_window =
+				MLX5_IPSEC_ASO_REPLAY_WIN_128BIT;
+			break;
+		case 256:
+			attrs->replay_esn.replay_window =
+				MLX5_IPSEC_ASO_REPLAY_WIN_256BIT;
+			break;
+		default:
+			WARN_ON(true);
+			return;
+		}
 	}
 
-	attrs->dir = x->xso.dir;
+skip_replay_window:
 	/* spi */
 	attrs->spi = be32_to_cpu(x->id.spi);
 
@@ -473,7 +506,8 @@ static int mlx5e_xfrm_validate_state(struct mlx5_core_dev *mdev,
 			return -EINVAL;
 		}
 
-		if (x->replay_esn && x->replay_esn->replay_window != 32 &&
+		if (x->replay_esn && x->xso.dir == XFRM_DEV_OFFLOAD_IN &&
+		    x->replay_esn->replay_window != 32 &&
 		    x->replay_esn->replay_window != 64 &&
 		    x->replay_esn->replay_window != 128 &&
 		    x->replay_esn->replay_window != 256) {
@@ -907,9 +941,11 @@ void mlx5e_ipsec_cleanup(struct mlx5e_priv *priv)
 		return;
 
 	mlx5e_accel_ipsec_fs_cleanup(ipsec);
-	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_TUNNEL)
+	if (ipsec->netevent_nb.notifier_call) {
 		unregister_netevent_notifier(&ipsec->netevent_nb);
-	if (mlx5_ipsec_device_caps(priv->mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
+		ipsec->netevent_nb.notifier_call = NULL;
+	}
+	if (ipsec->aso)
 		mlx5e_ipsec_aso_cleanup(ipsec);
 	destroy_workqueue(ipsec->wq);
 	kfree(ipsec);
@@ -1018,6 +1054,12 @@ static int mlx5e_xfrm_validate_policy(struct mlx5_core_dev *mdev,
 		}
 	}
 
+	if (x->xdo.type == XFRM_DEV_OFFLOAD_PACKET &&
+	    !(mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)) {
+		NL_SET_ERR_MSG_MOD(extack, "Packet offload is not supported");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -1113,14 +1155,6 @@ static const struct xfrmdev_ops mlx5e_ipsec_xfrmdev_ops = {
 	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
 	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
 	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
-};
-
-static const struct xfrmdev_ops mlx5e_ipsec_packet_xfrmdev_ops = {
-	.xdo_dev_state_add	= mlx5e_xfrm_add_state,
-	.xdo_dev_state_delete	= mlx5e_xfrm_del_state,
-	.xdo_dev_state_free	= mlx5e_xfrm_free_state,
-	.xdo_dev_offload_ok	= mlx5e_ipsec_offload_ok,
-	.xdo_dev_state_advance_esn = mlx5e_xfrm_advance_esn_state,
 
 	.xdo_dev_state_update_curlft = mlx5e_xfrm_update_curlft,
 	.xdo_dev_policy_add = mlx5e_xfrm_add_policy,
@@ -1138,11 +1172,7 @@ void mlx5e_ipsec_build_netdev(struct mlx5e_priv *priv)
 
 	mlx5_core_info(mdev, "mlx5e: IPSec ESP acceleration enabled\n");
 
-	if (mlx5_ipsec_device_caps(mdev) & MLX5_IPSEC_CAP_PACKET_OFFLOAD)
-		netdev->xfrmdev_ops = &mlx5e_ipsec_packet_xfrmdev_ops;
-	else
-		netdev->xfrmdev_ops = &mlx5e_ipsec_xfrmdev_ops;
-
+	netdev->xfrmdev_ops = &mlx5e_ipsec_xfrmdev_ops;
 	netdev->features |= NETIF_F_HW_ESP;
 	netdev->hw_enc_features |= NETIF_F_HW_ESP;
 

@@ -162,9 +162,8 @@ int tcp_sigpool_alloc_ahash(const char *alg, size_t scratch_size)
 		if (strcmp(cpool[i].alg, alg))
 			continue;
 
-		if (kref_read(&cpool[i].kref) > 0)
-			kref_get(&cpool[i].kref);
-		else
+		/* pairs with tcp_sigpool_release() */
+		if (!kref_get_unless_zero(&cpool[i].kref))
 			kref_init(&cpool[i].kref);
 		ret = i;
 		goto out;

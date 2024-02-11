@@ -8,9 +8,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/minmax.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/thermal.h>
 #include <linux/units.h>
 #include "thermal_hwmon.h"
@@ -127,7 +128,7 @@ static int loongson2_thermal_probe(struct platform_device *pdev)
 		if (!IS_ERR(tzd))
 			break;
 
-		if (PTR_ERR(tzd) != ENODEV)
+		if (PTR_ERR(tzd) != -ENODEV)
 			continue;
 
 		return dev_err_probe(dev, PTR_ERR(tzd), "failed to register");

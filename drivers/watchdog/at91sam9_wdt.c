@@ -324,7 +324,7 @@ static inline int of_at91wdt_init(struct device_node *np, struct at91wdt *wdt)
 }
 #endif
 
-static int __init at91wdt_probe(struct platform_device *pdev)
+static int at91wdt_probe(struct platform_device *pdev)
 {
 	int err;
 	struct at91wdt *wdt;
@@ -372,15 +372,13 @@ static int __init at91wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit at91wdt_remove(struct platform_device *pdev)
+static void at91wdt_remove(struct platform_device *pdev)
 {
 	struct at91wdt *wdt = platform_get_drvdata(pdev);
 	watchdog_unregister_device(&wdt->wdd);
 
 	pr_warn("I quit now, hardware will probably reboot!\n");
 	del_timer(&wdt->timer);
-
-	return 0;
 }
 
 #if defined(CONFIG_OF)
@@ -393,14 +391,14 @@ MODULE_DEVICE_TABLE(of, at91_wdt_dt_ids);
 #endif
 
 static struct platform_driver at91wdt_driver = {
-	.remove		= __exit_p(at91wdt_remove),
+	.probe		= at91wdt_probe,
+	.remove_new	= at91wdt_remove,
 	.driver		= {
 		.name	= "at91_wdt",
 		.of_match_table = of_match_ptr(at91_wdt_dt_ids),
 	},
 };
-
-module_platform_driver_probe(at91wdt_driver, at91wdt_probe);
+module_platform_driver(at91wdt_driver);
 
 MODULE_AUTHOR("Renaud CERRATO <r.cerrato@til-technologies.fr>");
 MODULE_DESCRIPTION("Watchdog driver for Atmel AT91SAM9x processors");

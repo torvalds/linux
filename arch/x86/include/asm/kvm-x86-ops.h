@@ -55,8 +55,10 @@ KVM_X86_OP(set_rflags)
 KVM_X86_OP(get_if_flag)
 KVM_X86_OP(flush_tlb_all)
 KVM_X86_OP(flush_tlb_current)
+#if IS_ENABLED(CONFIG_HYPERV)
 KVM_X86_OP_OPTIONAL(flush_remote_tlbs)
 KVM_X86_OP_OPTIONAL(flush_remote_tlbs_range)
+#endif
 KVM_X86_OP(flush_tlb_gva)
 KVM_X86_OP(flush_tlb_guest)
 KVM_X86_OP(vcpu_pre_run)
@@ -135,6 +137,7 @@ KVM_X86_OP(msr_filter_changed)
 KVM_X86_OP(complete_emulated_msr)
 KVM_X86_OP(vcpu_deliver_sipi_vector)
 KVM_X86_OP_OPTIONAL_RET0(vcpu_get_apicv_inhibit_reasons);
+KVM_X86_OP_OPTIONAL(get_untagged_addr)
 
 #undef KVM_X86_OP
 #undef KVM_X86_OP_OPTIONAL

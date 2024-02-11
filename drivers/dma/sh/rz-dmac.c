@@ -755,11 +755,11 @@ static struct dma_chan *rz_dmac_of_xlate(struct of_phandle_args *dma_spec,
 
 static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 			      struct rz_dmac_chan *channel,
-			      unsigned int index)
+			      u8 index)
 {
 	struct platform_device *pdev = to_platform_device(dmac->dev);
 	struct rz_lmdesc *lmdesc;
-	char pdev_irqname[5];
+	char pdev_irqname[6];
 	char *irqname;
 	int ret;
 
@@ -767,7 +767,7 @@ static int rz_dmac_chan_probe(struct rz_dmac *dmac,
 	channel->mid_rid = -EINVAL;
 
 	/* Request the channel interrupt. */
-	sprintf(pdev_irqname, "ch%u", index);
+	scnprintf(pdev_irqname, sizeof(pdev_irqname), "ch%u", index);
 	channel->irq = platform_get_irq_byname(pdev, pdev_irqname);
 	if (channel->irq < 0)
 		return channel->irq;
@@ -845,9 +845,9 @@ static int rz_dmac_probe(struct platform_device *pdev)
 	struct dma_device *engine;
 	struct rz_dmac *dmac;
 	int channel_num;
-	unsigned int i;
 	int ret;
 	int irq;
+	u8 i;
 
 	dmac = devm_kzalloc(&pdev->dev, sizeof(*dmac), GFP_KERNEL);
 	if (!dmac)

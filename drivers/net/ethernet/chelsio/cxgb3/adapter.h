@@ -237,7 +237,7 @@ struct adapter {
 	int msix_nvectors;
 	struct {
 		unsigned short vec;
-		char desc[22];
+		char desc[IFNAMSIZ + 1 + 12];	/* Needs space for "%s-%d" */
 	} msix_info[SGE_QSETS + 1];
 
 	/* T3 modules */

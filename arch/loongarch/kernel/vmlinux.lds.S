@@ -143,7 +143,6 @@ SECTIONS
 	_kernel_fsize = _edata - _text;
 	_kernel_vsize = _end - __initdata_begin;
 	_kernel_rsize = _edata - __initdata_begin;
-	_kernel_offset = kernel_offset - _text;
 #endif
 
 	.gptab.sdata : {

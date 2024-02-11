@@ -151,6 +151,17 @@ static int evm_find_protected_xattrs(struct dentry *dentry)
 	return count;
 }
 
+static int is_unsupported_fs(struct dentry *dentry)
+{
+	struct inode *inode = d_backing_inode(dentry);
+
+	if (inode->i_sb->s_iflags & SB_I_EVM_UNSUPPORTED) {
+		pr_info_once("%s not supported\n", inode->i_sb->s_type->name);
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * evm_verify_hmac - calculate and compare the HMAC with the EVM xattr
  *
@@ -180,6 +191,9 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	if (iint && (iint->evm_status == INTEGRITY_PASS ||
 		     iint->evm_status == INTEGRITY_PASS_IMMUTABLE))
 		return iint->evm_status;
+
+	if (is_unsupported_fs(dentry))
+		return INTEGRITY_UNKNOWN;
 
 	/* if status is not PASS, try to check again - against -ENOMEM */
 
@@ -408,6 +422,9 @@ enum integrity_status evm_verifyxattr(struct dentry *dentry,
 	if (!evm_key_loaded() || !evm_protected_xattr(xattr_name))
 		return INTEGRITY_UNKNOWN;
 
+	if (is_unsupported_fs(dentry))
+		return INTEGRITY_UNKNOWN;
+
 	if (!iint) {
 		iint = integrity_iint_find(d_backing_inode(dentry));
 		if (!iint)
@@ -491,15 +508,21 @@ static int evm_protect_xattr(struct mnt_idmap *idmap,
 	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
+		if (is_unsupported_fs(dentry))
+			return -EPERM;
 	} else if (!evm_protected_xattr(xattr_name)) {
 		if (!posix_xattr_acl(xattr_name))
 			return 0;
+		if (is_unsupported_fs(dentry))
+			return 0;
+
 		evm_status = evm_verify_current_integrity(dentry);
 		if ((evm_status == INTEGRITY_PASS) ||
 		    (evm_status == INTEGRITY_NOXATTRS))
 			return 0;
 		goto out;
-	}
+	} else if (is_unsupported_fs(dentry))
+		return 0;
 
 	evm_status = evm_verify_current_integrity(dentry);
 	if (evm_status == INTEGRITY_NOXATTRS) {
@@ -750,6 +773,9 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 	if (!(evm_initialized & EVM_INIT_HMAC))
 		return;
 
+	if (is_unsupported_fs(dentry))
+		return;
+
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
 }
 
@@ -814,8 +840,12 @@ int evm_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
 
+	if (is_unsupported_fs(dentry))
+		return 0;
+
 	if (!(ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)))
 		return 0;
+
 	evm_status = evm_verify_current_integrity(dentry);
 	/*
 	 * Writing attrs is safe for portable signatures, as portable signatures
@@ -859,8 +889,18 @@ void evm_inode_post_setattr(struct dentry *dentry, int ia_valid)
 	if (!(evm_initialized & EVM_INIT_HMAC))
 		return;
 
+	if (is_unsupported_fs(dentry))
+		return;
+
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
 		evm_update_evmxattr(dentry, NULL, NULL, 0);
+}
+
+int evm_inode_copy_up_xattr(const char *name)
+{
+	if (strcmp(name, XATTR_NAME_EVM) == 0)
+		return 1; /* Discard */
+	return -EOPNOTSUPP;
 }
 
 /*

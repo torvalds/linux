@@ -36,6 +36,7 @@ static const struct branch_mode branch_modes[] = {
 	BRANCH_OPT("stack", PERF_SAMPLE_BRANCH_CALL_STACK),
 	BRANCH_OPT("hw_index", PERF_SAMPLE_BRANCH_HW_INDEX),
 	BRANCH_OPT("priv", PERF_SAMPLE_BRANCH_PRIV_SAVE),
+	BRANCH_OPT("counter", PERF_SAMPLE_BRANCH_COUNTERS),
 	BRANCH_END
 };
 

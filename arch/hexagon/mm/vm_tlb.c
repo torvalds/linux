@@ -14,6 +14,7 @@
 #include <linux/sched.h>
 #include <asm/page.h>
 #include <asm/hexagon_vm.h>
+#include <asm/tlbflush.h>
 
 /*
  * Initial VM implementation has only one map active at a time, with

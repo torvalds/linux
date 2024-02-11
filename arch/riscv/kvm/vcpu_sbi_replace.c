@@ -204,6 +204,6 @@ static int kvm_sbi_ext_dbcn_handler(struct kvm_vcpu *vcpu,
 const struct kvm_vcpu_sbi_extension vcpu_sbi_ext_dbcn = {
 	.extid_start = SBI_EXT_DBCN,
 	.extid_end = SBI_EXT_DBCN,
-	.default_unavail = true,
+	.default_disabled = true,
 	.handler = kvm_sbi_ext_dbcn_handler,
 };

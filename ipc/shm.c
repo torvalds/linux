@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/hugetlb.h>
 #include <linux/shm.h>
+#include <uapi/linux/shm.h>
 #include <linux/init.h>
 #include <linux/file.h>
 #include <linux/mman.h>

@@ -212,7 +212,7 @@
 	keep-power-in-suspend;
 	wakeup-source;
 	vmmc-supply = <&reg_wlreg_on>;
-	vqmmc-supply =<&reg_3p3v>;
+	vqmmc-supply = <&reg_3p3v>;
 	status = "okay";
 
 	brcmf: wifi@1 {

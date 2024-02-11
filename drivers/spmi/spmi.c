@@ -448,11 +448,11 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 	int id;
 
 	if (WARN_ON(!parent))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	ctrl = kzalloc(sizeof(*ctrl) + size, GFP_KERNEL);
 	if (!ctrl)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	device_initialize(&ctrl->dev);
 	ctrl->dev.type = &spmi_ctrl_type;
@@ -466,7 +466,7 @@ struct spmi_controller *spmi_controller_alloc(struct device *parent,
 		dev_err(parent,
 			"unable to allocate SPMI controller identifier.\n");
 		spmi_controller_put(ctrl);
-		return NULL;
+		return ERR_PTR(id);
 	}
 
 	ctrl->nr = id;

@@ -324,8 +324,6 @@ void blk_mq_sched_dispatch_requests(struct blk_mq_hw_ctx *hctx)
 	if (unlikely(blk_mq_hctx_stopped(hctx) || blk_queue_quiesced(q)))
 		return;
 
-	hctx->run++;
-
 	/*
 	 * A return of -EAGAIN is an indication that hctx->dispatch is not
 	 * empty and we must run again in order to avoid starving flushes.

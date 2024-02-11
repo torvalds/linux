@@ -463,6 +463,7 @@ static struct snd_sof_dsp_ops sof_imx8ulp_ops = {
 			SNDRV_PCM_INFO_MMAP_VALID |
 			SNDRV_PCM_INFO_INTERLEAVED |
 			SNDRV_PCM_INFO_PAUSE |
+			SNDRV_PCM_INFO_BATCH |
 			SNDRV_PCM_INFO_NO_PERIOD_WAKEUP,
 
 	/* PM */

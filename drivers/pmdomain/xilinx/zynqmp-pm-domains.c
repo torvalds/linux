@@ -293,11 +293,9 @@ static int zynqmp_gpd_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int zynqmp_gpd_remove(struct platform_device *pdev)
+static void zynqmp_gpd_remove(struct platform_device *pdev)
 {
 	of_genpd_del_provider(pdev->dev.parent->of_node);
-
-	return 0;
 }
 
 static void zynqmp_gpd_sync_state(struct device *dev)
@@ -315,7 +313,7 @@ static struct platform_driver zynqmp_power_domain_driver = {
 		.sync_state = zynqmp_gpd_sync_state,
 	},
 	.probe = zynqmp_gpd_probe,
-	.remove = zynqmp_gpd_remove,
+	.remove_new = zynqmp_gpd_remove,
 };
 module_platform_driver(zynqmp_power_domain_driver);
 

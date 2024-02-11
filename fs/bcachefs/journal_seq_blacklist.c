@@ -267,7 +267,7 @@ retry:
 
 		while (!(ret = PTR_ERR_OR_ZERO(b)) &&
 		       b &&
-		       !test_bit(BCH_FS_STOPPING, &c->flags))
+		       !test_bit(BCH_FS_stopping, &c->flags))
 			b = bch2_btree_iter_next_node(&iter);
 
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))

@@ -782,7 +782,7 @@ static void get_azalia_clock_info_dp(
 	/*audio_dto_module = dpDtoSourceClockInkhz * 10,000;
 	 *  [khz] ->[100Hz] */
 	azalia_clock_info->audio_dto_module =
-		pll_info->dp_dto_source_clock_in_khz * 10;
+		pll_info->audio_dto_source_clock_in_khz * 10;
 }
 
 void dce_aud_wall_dto_setup(

@@ -2,7 +2,7 @@
 
 //! Kernel errors.
 //!
-//! C header: [`include/uapi/asm-generic/errno-base.h`](../../../include/uapi/asm-generic/errno-base.h)
+//! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
 use crate::str::CStr;
 
@@ -335,3 +335,7 @@ where
         Err(e) => T::from(e.to_errno() as i16),
     }
 }
+
+/// Error message for calling a default function of a [`#[vtable]`](macros::vtable) trait.
+pub const VTABLE_DEFAULT_ERROR: &str =
+    "This function must not be called, see the #[vtable] documentation.";

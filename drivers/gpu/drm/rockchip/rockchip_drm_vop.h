@@ -277,18 +277,6 @@ struct vop_data {
 /* dst alpha ctrl define */
 #define DST_FACTOR_M0(x)		(((x) & 0x7) << 6)
 
-/*
- * display output interface supported by rockchip lcdc
- */
-#define ROCKCHIP_OUT_MODE_P888	0
-#define ROCKCHIP_OUT_MODE_P666	1
-#define ROCKCHIP_OUT_MODE_P565	2
-/* for use special outface */
-#define ROCKCHIP_OUT_MODE_AAAA	15
-
-/* output flags */
-#define ROCKCHIP_OUTPUT_DSI_DUAL	BIT(0)
-
 enum alpha_mode {
 	ALPHA_STRAIGHT,
 	ALPHA_INVERSE,

@@ -851,13 +851,11 @@ static int linflex_probe(struct platform_device *pdev)
 	return uart_add_one_port(&linflex_reg, sport);
 }
 
-static int linflex_remove(struct platform_device *pdev)
+static void linflex_remove(struct platform_device *pdev)
 {
 	struct uart_port *sport = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&linflex_reg, sport);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -884,7 +882,7 @@ static SIMPLE_DEV_PM_OPS(linflex_pm_ops, linflex_suspend, linflex_resume);
 
 static struct platform_driver linflex_driver = {
 	.probe		= linflex_probe,
-	.remove		= linflex_remove,
+	.remove_new	= linflex_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= linflex_dt_ids,

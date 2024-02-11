@@ -659,13 +659,11 @@ static int serial_hs_lpc32xx_probe(struct platform_device *pdev)
 /*
  * Remove serial ports registered against a platform device.
  */
-static int serial_hs_lpc32xx_remove(struct platform_device *pdev)
+static void serial_hs_lpc32xx_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_hsuart_port *p = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&lpc32xx_hs_reg, &p->port);
-
-	return 0;
 }
 
 
@@ -702,7 +700,7 @@ MODULE_DEVICE_TABLE(of, serial_hs_lpc32xx_dt_ids);
 
 static struct platform_driver serial_hs_lpc32xx_driver = {
 	.probe		= serial_hs_lpc32xx_probe,
-	.remove		= serial_hs_lpc32xx_remove,
+	.remove_new	= serial_hs_lpc32xx_remove,
 	.suspend	= serial_hs_lpc32xx_suspend,
 	.resume		= serial_hs_lpc32xx_resume,
 	.driver		= {

@@ -45,7 +45,10 @@ trace_libc_inet_pton_backtrace() {
 		;;
 	ppc64|ppc64le)
 		eventattr='max-stack=4'
-		echo "gaih_inet.*\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
+		# Add gaih_inet to expected backtrace only if it is part of libc.
+		if nm $libc | grep -F -q gaih_inet.; then
+			echo "gaih_inet.*\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
+		fi
 		echo "getaddrinfo\+0x[[:xdigit:]]+[[:space:]]\($libc\)$" >> $expected
 		echo ".*(\+0x[[:xdigit:]]+|\[unknown\])[[:space:]]\(.*/bin/ping.*\)$" >> $expected
 		;;

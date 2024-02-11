@@ -768,10 +768,8 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_evad_reading_slot) +
 					sdev->fw_info_box.offset;
 	sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
-	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id) {
-		dev_info(sdev->dev, "no llp found, fall back to default HDA path");
+	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id)
 		info->llp_offset = 0;
-	}
 }
 
 static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,

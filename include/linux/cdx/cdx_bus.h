@@ -113,6 +113,7 @@ struct cdx_controller {
  * @dev_num: Device number for this device
  * @res: array of MMIO region entries
  * @res_attr: resource binary attribute
+ * @debugfs_dir: debugfs directory for this device
  * @res_count: number of valid MMIO regions
  * @dma_mask: Default DMA mask
  * @flags: CDX device flags
@@ -135,6 +136,8 @@ struct cdx_device {
 	u8 bus_num;
 	u8 dev_num;
 	struct resource res[MAX_CDX_DEV_RESOURCES];
+	struct bin_attribute *res_attr[MAX_CDX_DEV_RESOURCES];
+	struct dentry *debugfs_dir;
 	u8 res_count;
 	u64 dma_mask;
 	u16 flags;
@@ -147,6 +150,15 @@ struct cdx_device {
 #define to_cdx_device(_dev) \
 	container_of(_dev, struct cdx_device, dev)
 
+#define cdx_resource_start(dev, num)	((dev)->res[(num)].start)
+#define cdx_resource_end(dev, num)	((dev)->res[(num)].end)
+#define cdx_resource_flags(dev, num)	((dev)->res[(num)].flags)
+#define cdx_resource_len(dev, num) \
+	((cdx_resource_start((dev), (num)) == 0 &&	\
+	  cdx_resource_end((dev), (num)) ==		\
+	  cdx_resource_start((dev), (num))) ? 0 :	\
+	 (cdx_resource_end((dev), (num)) -		\
+	  cdx_resource_start((dev), (num)) + 1))
 /**
  * struct cdx_driver - CDX device driver
  * @driver: Generic device driver

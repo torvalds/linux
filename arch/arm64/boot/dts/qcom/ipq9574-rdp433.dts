@@ -8,69 +8,11 @@
 
 /dts-v1/;
 
-#include "ipq9574.dtsi"
+#include "ipq9574-rdp-common.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ9574/AP-AL02-C7";
 	compatible = "qcom,ipq9574-ap-al02-c7", "qcom,ipq9574";
-
-	aliases {
-		serial0 = &blsp1_uart2;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-
-	regulator_fixed_3p3: s3300 {
-		compatible = "regulator-fixed";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-name = "fixed_3p3";
-	};
-
-	regulator_fixed_0p925: s0925 {
-		compatible = "regulator-fixed";
-		regulator-min-microvolt = <925000>;
-		regulator-max-microvolt = <925000>;
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-name = "fixed_0p925";
-	};
-};
-
-&blsp1_uart2 {
-	pinctrl-0 = <&uart2_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
-&rpm_requests {
-	regulators {
-		compatible = "qcom,rpm-mp5496-regulators";
-
-		ipq9574_s1: s1 {
-		/*
-		 * During kernel bootup, the SoC runs at 800MHz with 875mV set by the bootloaders.
-		 * During regulator registration, kernel not knowing the initial voltage,
-		 * considers it as zero and brings up the regulators with minimum supported voltage.
-		 * Update the regulator-min-microvolt with SVS voltage of 725mV so that
-		 * the regulators are brought up with 725mV which is sufficient for all the
-		 * corner parts to operate at 800MHz
-		 */
-			regulator-min-microvolt = <725000>;
-			regulator-max-microvolt = <1075000>;
-		};
-
-		mp5496_l2: l2 {
-			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
-			regulator-always-on;
-			regulator-boot-on;
-		};
-	};
 };
 
 &sdhc_1 {
@@ -83,10 +25,6 @@
 	max-frequency = <384000000>;
 	bus-width = <8>;
 	status = "okay";
-};
-
-&sleep_clk {
-	clock-frequency = <32000>;
 };
 
 &tlmm {
@@ -121,31 +59,4 @@
 			bias-pull-down;
 		};
 	};
-};
-
-&usb_0_dwc3 {
-	dr_mode = "host";
-};
-
-&usb_0_qmpphy {
-	vdda-pll-supply = <&mp5496_l2>;
-	vdda-phy-supply = <&regulator_fixed_0p925>;
-
-	status = "okay";
-};
-
-&usb_0_qusbphy {
-	vdd-supply = <&regulator_fixed_0p925>;
-	vdda-pll-supply = <&mp5496_l2>;
-	vdda-phy-dpdm-supply = <&regulator_fixed_3p3>;
-
-	status = "okay";
-};
-
-&usb3 {
-	status = "okay";
-};
-
-&xo_board_clk {
-	clock-frequency = <24000000>;
 };

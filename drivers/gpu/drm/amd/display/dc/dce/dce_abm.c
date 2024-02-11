@@ -135,7 +135,7 @@ static void dmcu_set_backlight_level(
 			0, 1, 80000);
 }
 
-static void dce_abm_init(struct abm *abm, uint32_t backlight)
+static void dce_abm_init(struct abm *abm, uint32_t backlight, uint32_t user_level)
 {
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
@@ -162,7 +162,7 @@ static void dce_abm_init(struct abm *abm, uint32_t backlight)
 			BL1_PWM_TARGET_ABM_LEVEL, backlight);
 
 	REG_UPDATE(BL1_PWM_USER_LEVEL,
-			BL1_PWM_USER_LEVEL, backlight);
+			BL1_PWM_USER_LEVEL, user_level);
 
 	REG_UPDATE_2(DC_ABM1_LS_MIN_MAX_PIXEL_VALUE_THRES,
 			ABM1_LS_MIN_PIXEL_VALUE_THRES, 0,

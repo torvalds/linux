@@ -25,6 +25,24 @@ properties:
           - const: qcom,ipq6018-apcs-apps-global
       - items:
           - enum:
+              - qcom,qcs404-apcs-apps-global
+          - const: qcom,msm8916-apcs-kpss-global
+          - const: syscon
+      - items:
+          - enum:
+              - qcom,msm8976-apcs-kpss-global
+          - const: qcom,msm8994-apcs-kpss-global
+          - const: syscon
+      - items:
+          - enum:
+              - qcom,msm8998-apcs-hmss-global
+              - qcom,sdm660-apcs-hmss-global
+              - qcom,sm4250-apcs-hmss-global
+              - qcom,sm6115-apcs-hmss-global
+              - qcom,sm6125-apcs-hmss-global
+          - const: qcom,msm8994-apcs-kpss-global
+      - items:
+          - enum:
               - qcom,sc7180-apss-shared
               - qcom,sc8180x-apss-shared
               - qcom,sm8150-apss-shared
@@ -34,22 +52,14 @@ properties:
               - qcom,msm8916-apcs-kpss-global
               - qcom,msm8939-apcs-kpss-global
               - qcom,msm8953-apcs-kpss-global
-              - qcom,msm8976-apcs-kpss-global
               - qcom,msm8994-apcs-kpss-global
-              - qcom,qcs404-apcs-apps-global
               - qcom,sdx55-apcs-gcc
           - const: syscon
       - enum:
           - qcom,ipq6018-apcs-apps-global
-          - qcom,ipq8074-apcs-apps-global
           - qcom,msm8996-apcs-hmss-global
-          - qcom,msm8998-apcs-hmss-global
           - qcom,qcm2290-apcs-hmss-global
-          - qcom,sdm660-apcs-hmss-global
           - qcom,sdm845-apss-shared
-          - qcom,sm4250-apcs-hmss-global
-          - qcom,sm6115-apcs-hmss-global
-          - qcom,sm6125-apcs-hmss-global
 
   reg:
     maxItems: 1
@@ -80,10 +90,9 @@ allOf:
   - if:
       properties:
         compatible:
-          enum:
-            - qcom,msm8916-apcs-kpss-global
-            - qcom,msm8939-apcs-kpss-global
-            - qcom,qcs404-apcs-apps-global
+          contains:
+            enum:
+              - qcom,msm8916-apcs-kpss-global
     then:
       properties:
         clocks:
@@ -94,6 +103,25 @@ allOf:
           items:
             - const: pll
             - const: aux
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8939-apcs-kpss-global
+    then:
+      properties:
+        clocks:
+          items:
+            - description: primary pll parent of the clock driver
+            - description: auxiliary parent
+            - description: reference clock
+        clock-names:
+          items:
+            - const: pll
+            - const: aux
+            - const: ref
 
   - if:
       properties:
@@ -113,6 +141,7 @@ allOf:
             - const: ref
             - const: pll
             - const: aux
+
   - if:
       properties:
         compatible:
@@ -137,16 +166,10 @@ allOf:
         compatible:
           enum:
             - qcom,msm8953-apcs-kpss-global
-            - qcom,msm8976-apcs-kpss-global
             - qcom,msm8994-apcs-kpss-global
             - qcom,msm8996-apcs-hmss-global
-            - qcom,msm8998-apcs-hmss-global
             - qcom,qcm2290-apcs-hmss-global
-            - qcom,sdm660-apcs-hmss-global
             - qcom,sdm845-apss-shared
-            - qcom,sm4250-apcs-hmss-global
-            - qcom,sm6115-apcs-hmss-global
-            - qcom,sm6125-apcs-hmss-global
     then:
       properties:
         clocks: false
@@ -192,7 +215,8 @@ examples:
     #define GCC_APSS_AHB_CLK_SRC  1
     #define GCC_GPLL0_AO_OUT_MAIN 123
     apcs: mailbox@b011000 {
-        compatible = "qcom,qcs404-apcs-apps-global", "syscon";
+        compatible = "qcom,qcs404-apcs-apps-global",
+                     "qcom,msm8916-apcs-kpss-global", "syscon";
         reg = <0x0b011000 0x1000>;
         #mbox-cells = <1>;
         clocks = <&apcs_hfpll>, <&gcc GCC_GPLL0_AO_OUT_MAIN>;

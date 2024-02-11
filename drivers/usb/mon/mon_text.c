@@ -352,7 +352,7 @@ static int mon_text_open(struct inode *inode, struct file *file)
 	rp->r.rnf_error = mon_text_error;
 	rp->r.rnf_complete = mon_text_complete;
 
-	snprintf(rp->slab_name, SLAB_NAME_SZ, "mon_text_%p", rp);
+	scnprintf(rp->slab_name, SLAB_NAME_SZ, "mon_text_%p", rp);
 	rp->e_slab = kmem_cache_create(rp->slab_name,
 	    sizeof(struct mon_event_text), sizeof(long), 0,
 	    mon_text_ctor);
@@ -700,46 +700,28 @@ static const struct file_operations mon_fops_text_u = {
 
 int mon_text_add(struct mon_bus *mbus, const struct usb_bus *ubus)
 {
-	enum { NAMESZ = 10 };
+	enum { NAMESZ = 12 };
 	char name[NAMESZ];
 	int busnum = ubus? ubus->busnum: 0;
-	int rc;
 
 	if (mon_dir == NULL)
 		return 0;
 
 	if (ubus != NULL) {
-		rc = snprintf(name, NAMESZ, "%dt", busnum);
-		if (rc <= 0 || rc >= NAMESZ)
-			goto err_print_t;
+		scnprintf(name, NAMESZ, "%dt", busnum);
 		mbus->dent_t = debugfs_create_file(name, 0600, mon_dir, mbus,
 							     &mon_fops_text_t);
 	}
 
-	rc = snprintf(name, NAMESZ, "%du", busnum);
-	if (rc <= 0 || rc >= NAMESZ)
-		goto err_print_u;
+	scnprintf(name, NAMESZ, "%du", busnum);
 	mbus->dent_u = debugfs_create_file(name, 0600, mon_dir, mbus,
 					   &mon_fops_text_u);
 
-	rc = snprintf(name, NAMESZ, "%ds", busnum);
-	if (rc <= 0 || rc >= NAMESZ)
-		goto err_print_s;
+	scnprintf(name, NAMESZ, "%ds", busnum);
 	mbus->dent_s = debugfs_create_file(name, 0600, mon_dir, mbus,
 					   &mon_fops_stat);
 
 	return 1;
-
-err_print_s:
-	debugfs_remove(mbus->dent_u);
-	mbus->dent_u = NULL;
-err_print_u:
-	if (ubus != NULL) {
-		debugfs_remove(mbus->dent_t);
-		mbus->dent_t = NULL;
-	}
-err_print_t:
-	return 0;
 }
 
 void mon_text_del(struct mon_bus *mbus)

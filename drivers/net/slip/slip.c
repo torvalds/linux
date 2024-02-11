@@ -1437,5 +1437,6 @@ out:
 }
 
 #endif
+MODULE_DESCRIPTION("SLIP (serial line) protocol module");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_SLIP);

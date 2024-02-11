@@ -124,6 +124,7 @@ definitions:
   -
     name: ovs-frag-type
     name-prefix: ovs-frag-type-
+    enum-name: ovs-frag-type
     type: enum
     entries:
       -
@@ -269,6 +270,7 @@ definitions:
   -
     name: ovs-ufid-flags
     name-prefix: ovs-ufid-f-
+    enum-name:
     type: flags
     entries:
       - omit-key
@@ -288,6 +290,7 @@ definitions:
         doc: Basis used for computing hash.
   -
     name: ovs-hash-alg
+    enum-name: ovs-hash-alg
     type: enum
     doc: |
       Data path hash algorithm for computing Datapath hash. The algorithm type only specifies
@@ -339,6 +342,7 @@ definitions:
           MPLS tunnel attributes.
   -
     name: ct-state-flags
+    enum-name:
     type: flags
     name-prefix: ovs-cs-f-
     entries:
@@ -947,13 +951,11 @@ operations:
       do: &flow-get-op
         request:
           attributes:
-            - dp-ifindex
             - key
             - ufid
             - ufid-flags
         reply:
           attributes:
-            - dp-ifindex
             - key
             - ufid
             - mask
@@ -968,7 +970,6 @@ operations:
       do:
         request:
           attributes:
-            - dp-ifindex
             - key
             - ufid
             - mask

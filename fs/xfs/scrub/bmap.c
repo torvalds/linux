@@ -19,9 +19,11 @@
 #include "xfs_bmap_btree.h"
 #include "xfs_rmap.h"
 #include "xfs_rmap_btree.h"
+#include "xfs_health.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "scrub/health.h"
 #include "xfs_ag.h"
 
 /* Set us up with an inode's bmap. */
@@ -48,8 +50,17 @@ xchk_setup_inode_bmap(
 	if (S_ISREG(VFS_I(sc->ip)->i_mode) &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_BMBTA) {
 		struct address_space	*mapping = VFS_I(sc->ip)->i_mapping;
+		bool			is_repair = xchk_could_repair(sc);
 
 		xchk_ilock(sc, XFS_MMAPLOCK_EXCL);
+
+		/* Break all our leases, we're going to mess with things. */
+		if (is_repair) {
+			error = xfs_break_layouts(VFS_I(sc->ip),
+					&sc->ilock_flags, BREAK_WRITE);
+			if (error)
+				goto out;
+		}
 
 		inode_dio_wait(VFS_I(sc->ip));
 
@@ -71,10 +82,23 @@ xchk_setup_inode_bmap(
 			error = filemap_fdatawait_keep_errors(mapping);
 		if (error && (error != -ENOSPC && error != -EIO))
 			goto out;
+
+		/* Drop the page cache if we're repairing block mappings. */
+		if (is_repair) {
+			error = invalidate_inode_pages2(
+					VFS_I(sc->ip)->i_mapping);
+			if (error)
+				goto out;
+		}
+
 	}
 
 	/* Got the inode, lock it and we're ready to go. */
 	error = xchk_trans_alloc(sc, 0);
+	if (error)
+		goto out;
+
+	error = xchk_ino_dqattach(sc);
 	if (error)
 		goto out;
 
@@ -633,6 +657,82 @@ xchk_bmap_check_ag_rmaps(
 }
 
 /*
+ * Decide if we want to scan the reverse mappings to determine if the attr
+ * fork /really/ has zero space mappings.
+ */
+STATIC bool
+xchk_bmap_check_empty_attrfork(
+	struct xfs_inode	*ip)
+{
+	struct xfs_ifork	*ifp = &ip->i_af;
+
+	/*
+	 * If the dinode repair found a bad attr fork, it will reset the fork
+	 * to extents format with zero records and wait for the this scrubber
+	 * to reconstruct the block mappings.  If the fork is not in this
+	 * state, then the fork cannot have been zapped.
+	 */
+	if (ifp->if_format != XFS_DINODE_FMT_EXTENTS || ifp->if_nextents != 0)
+		return false;
+
+	/*
+	 * Files can have an attr fork in EXTENTS format with zero records for
+	 * several reasons:
+	 *
+	 * a) an attr set created a fork but ran out of space
+	 * b) attr replace deleted an old attr but failed during the set step
+	 * c) the data fork was in btree format when all attrs were deleted, so
+	 *    the fork was left in place
+	 * d) the inode repair code zapped the fork
+	 *
+	 * Only in case (d) do we want to scan the rmapbt to see if we need to
+	 * rebuild the attr fork.  The fork zap code clears all DAC permission
+	 * bits and zeroes the uid and gid, so avoid the scan if any of those
+	 * three conditions are not met.
+	 */
+	if ((VFS_I(ip)->i_mode & 0777) != 0)
+		return false;
+	if (!uid_eq(VFS_I(ip)->i_uid, GLOBAL_ROOT_UID))
+		return false;
+	if (!gid_eq(VFS_I(ip)->i_gid, GLOBAL_ROOT_GID))
+		return false;
+
+	return true;
+}
+
+/*
+ * Decide if we want to scan the reverse mappings to determine if the data
+ * fork /really/ has zero space mappings.
+ */
+STATIC bool
+xchk_bmap_check_empty_datafork(
+	struct xfs_inode	*ip)
+{
+	struct xfs_ifork	*ifp = &ip->i_df;
+
+	/* Don't support realtime rmap checks yet. */
+	if (XFS_IS_REALTIME_INODE(ip))
+		return false;
+
+	/*
+	 * If the dinode repair found a bad data fork, it will reset the fork
+	 * to extents format with zero records and wait for the this scrubber
+	 * to reconstruct the block mappings.  If the fork is not in this
+	 * state, then the fork cannot have been zapped.
+	 */
+	if (ifp->if_format != XFS_DINODE_FMT_EXTENTS || ifp->if_nextents != 0)
+		return false;
+
+	/*
+	 * If we encounter an empty data fork along with evidence that the fork
+	 * might not really be empty, we need to scan the reverse mappings to
+	 * decide if we're going to rebuild the fork.  Data forks with nonzero
+	 * file size are scanned.
+	 */
+	return i_size_read(VFS_I(ip)) != 0;
+}
+
+/*
  * Decide if we want to walk every rmap btree in the fs to make sure that each
  * rmap for this file fork has corresponding bmbt entries.
  */
@@ -641,7 +741,6 @@ xchk_bmap_want_check_rmaps(
 	struct xchk_bmap_info	*info)
 {
 	struct xfs_scrub	*sc = info->sc;
-	struct xfs_ifork	*ifp;
 
 	if (!xfs_has_rmapbt(sc->mp))
 		return false;
@@ -650,28 +749,10 @@ xchk_bmap_want_check_rmaps(
 	if (sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		return false;
 
-	/* Don't support realtime rmap checks yet. */
-	if (info->is_rt)
-		return false;
+	if (info->whichfork == XFS_ATTR_FORK)
+		return xchk_bmap_check_empty_attrfork(sc->ip);
 
-	/*
-	 * The inode repair code zaps broken inode forks by resetting them back
-	 * to EXTENTS format and zero extent records.  If we encounter a fork
-	 * in this state along with evidence that the fork isn't supposed to be
-	 * empty, we need to scan the reverse mappings to decide if we're going
-	 * to rebuild the fork.  Data forks with nonzero file size are scanned.
-	 * xattr forks are never empty of content, so they are always scanned.
-	 */
-	ifp = xfs_ifork_ptr(sc->ip, info->whichfork);
-	if (ifp->if_format == XFS_DINODE_FMT_EXTENTS && ifp->if_nextents == 0) {
-		if (info->whichfork == XFS_DATA_FORK &&
-		    i_size_read(VFS_I(sc->ip)) == 0)
-			return false;
-
-		return true;
-	}
-
-	return false;
+	return xchk_bmap_check_empty_datafork(sc->ip);
 }
 
 /* Make sure each rmap has a corresponding bmbt entry. */
@@ -939,7 +1020,20 @@ int
 xchk_bmap_data(
 	struct xfs_scrub	*sc)
 {
-	return xchk_bmap(sc, XFS_DATA_FORK);
+	int			error;
+
+	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_BMBTD_ZAPPED)) {
+		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	error = xchk_bmap(sc, XFS_DATA_FORK);
+	if (error)
+		return error;
+
+	/* If the data fork is clean, it is clearly not zapped. */
+	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_BMBTD_ZAPPED);
+	return 0;
 }
 
 /* Scrub an inode's attr fork. */
@@ -947,7 +1041,27 @@ int
 xchk_bmap_attr(
 	struct xfs_scrub	*sc)
 {
-	return xchk_bmap(sc, XFS_ATTR_FORK);
+	int			error;
+
+	/*
+	 * If the attr fork has been zapped, it's possible that forkoff was
+	 * reset to zero and hence sc->ip->i_afp is NULL.  We don't want the
+	 * NULL ifp check in xchk_bmap to conclude that the attr fork is ok,
+	 * so short circuit that logic by setting the corruption flag and
+	 * returning immediately.
+	 */
+	if (xchk_file_looks_zapped(sc, XFS_SICK_INO_BMBTA_ZAPPED)) {
+		xchk_ino_set_corrupt(sc, sc->ip->i_ino);
+		return 0;
+	}
+
+	error = xchk_bmap(sc, XFS_ATTR_FORK);
+	if (error)
+		return error;
+
+	/* If the attr fork is clean, it is clearly not zapped. */
+	xchk_mark_healthy_if_clean(sc, XFS_SICK_INO_BMBTA_ZAPPED);
+	return 0;
 }
 
 /* Scrub an inode's CoW fork. */

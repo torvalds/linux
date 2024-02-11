@@ -353,6 +353,8 @@ static PyObject *get_field_numeric_entry(struct tep_event *event,
 
 	if (is_array) {
 		list = PyList_New(field->arraylen);
+		if (!list)
+			Py_FatalError("couldn't create Python list");
 		item_size = field->size / field->arraylen;
 		n_items = field->arraylen;
 	} else {
@@ -754,7 +756,7 @@ static void regs_map(struct regs_dump *regs, uint64_t mask, const char *arch, ch
 	}
 }
 
-static void set_regs_in_dict(PyObject *dict,
+static int set_regs_in_dict(PyObject *dict,
 			     struct perf_sample *sample,
 			     struct evsel *evsel)
 {
@@ -770,6 +772,8 @@ static void set_regs_in_dict(PyObject *dict,
 	 */
 	int size = __sw_hweight64(attr->sample_regs_intr) * 28;
 	char *bf = malloc(size);
+	if (!bf)
+		return -1;
 
 	regs_map(&sample->intr_regs, attr->sample_regs_intr, arch, bf, size);
 
@@ -781,6 +785,8 @@ static void set_regs_in_dict(PyObject *dict,
 	pydict_set_item_string_decref(dict, "uregs",
 			_PyUnicode_FromString(bf));
 	free(bf);
+
+	return 0;
 }
 
 static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
@@ -920,7 +926,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			PyLong_FromUnsignedLongLong(sample->cyc_cnt));
 	}
 
-	set_regs_in_dict(dict, sample, evsel);
+	if (set_regs_in_dict(dict, sample, evsel))
+		Py_FatalError("Failed to setting regs in dict");
 
 	return dict;
 }
@@ -1918,12 +1925,18 @@ static int python_start_script(const char *script, int argc, const char **argv,
 	scripting_context->session = session;
 #if PY_MAJOR_VERSION < 3
 	command_line = malloc((argc + 1) * sizeof(const char *));
+	if (!command_line)
+		return -1;
+
 	command_line[0] = script;
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = argv[i - 1];
 	PyImport_AppendInittab(name, initperf_trace_context);
 #else
 	command_line = malloc((argc + 1) * sizeof(wchar_t *));
+	if (!command_line)
+		return -1;
+
 	command_line[0] = Py_DecodeLocale(script, NULL);
 	for (i = 1; i < argc + 1; i++)
 		command_line[i] = Py_DecodeLocale(argv[i - 1], NULL);

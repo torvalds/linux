@@ -818,7 +818,7 @@ static int ocfs2_write_zero_page(struct inode *inode, u64 abs_from,
 	/*
 	 * fs-writeback will release the dirty pages without page lock
 	 * whose offset are over inode size, the release happens at
-	 * block_write_full_page().
+	 * block_write_full_folio().
 	 */
 	i_size_write(inode, abs_to);
 	inode->i_blocks = ocfs2_inode_sector_count(inode);

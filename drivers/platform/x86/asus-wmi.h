@@ -39,6 +39,7 @@ struct quirk_entry {
 	bool wmi_backlight_set_devstate;
 	bool wmi_force_als_set;
 	bool wmi_ignore_fan;
+	bool filter_i8042_e1_extended_codes;
 	enum asus_wmi_tablet_switch_mode tablet_switch_mode;
 	int wapf;
 	/*
@@ -49,9 +50,6 @@ struct quirk_entry {
 	 */
 	int no_display_toggle;
 	u32 xusb2pr;
-
-	bool (*i8042_filter)(unsigned char data, unsigned char str,
-			     struct serio *serio);
 };
 
 struct asus_wmi_driver {
@@ -73,6 +71,9 @@ struct asus_wmi_driver {
 	 * Return ASUS_WMI_KEY_IGNORE in code if event should be ignored. */
 	void (*key_filter) (struct asus_wmi_driver *driver, int *code,
 			    unsigned int *value, bool *autorelease);
+	/* Optional standard i8042 filter */
+	bool (*i8042_filter)(unsigned char data, unsigned char str,
+			     struct serio *serio);
 
 	int (*probe) (struct platform_device *device);
 	void (*detect_quirks) (struct asus_wmi_driver *driver);

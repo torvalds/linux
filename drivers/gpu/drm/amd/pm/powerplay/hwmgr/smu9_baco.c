@@ -28,14 +28,13 @@
 #include "vega10_inc.h"
 #include "smu9_baco.h"
 
-int smu9_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap)
+bool smu9_baco_get_capability(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	uint32_t reg, data;
 
-	*cap = false;
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_BACO))
-		return 0;
+		return false;
 
 	WREG32(0x12074, 0xFFF0003B);
 	data = RREG32(0x12075);
@@ -44,10 +43,10 @@ int smu9_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap)
 		reg = RREG32_SOC15(NBIF, 0, mmRCC_BIF_STRAP0);
 
 		if (reg & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
-			*cap = true;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 int smu9_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state)

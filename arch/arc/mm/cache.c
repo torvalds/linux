@@ -145,10 +145,9 @@ dc_chk:
 	p_dc->sz_k = 1 << (dbcr.sz - 1);
 
 	n += scnprintf(buf + n, len - n,
-			"D-Cache\t\t: %uK, %dway/set, %uB Line, %s%s%s\n",
+			"D-Cache\t\t: %uK, %dway/set, %uB Line, %s%s\n",
 			p_dc->sz_k, assoc, p_dc->line_len,
 			vipt ? "VIPT" : "PIPT",
-			p_dc->colors > 1 ? " aliasing" : "",
 			IS_USED_CFG(CONFIG_ARC_HAS_DCACHE));
 
 slc_chk:
@@ -703,51 +702,10 @@ static inline void arc_slc_enable(void)
  * Exported APIs
  */
 
-/*
- * Handle cache congruency of kernel and userspace mappings of page when kernel
- * writes-to/reads-from
- *
- * The idea is to defer flushing of kernel mapping after a WRITE, possible if:
- *  -dcache is NOT aliasing, hence any U/K-mappings of page are congruent
- *  -U-mapping doesn't exist yet for page (finalised in update_mmu_cache)
- *  -In SMP, if hardware caches are coherent
- *
- * There's a corollary case, where kernel READs from a userspace mapped page.
- * If the U-mapping is not congruent to K-mapping, former needs flushing.
- */
 void flush_dcache_folio(struct folio *folio)
 {
-	struct address_space *mapping;
-
-	if (!cache_is_vipt_aliasing()) {
-		clear_bit(PG_dc_clean, &folio->flags);
-		return;
-	}
-
-	/* don't handle anon pages here */
-	mapping = folio_flush_mapping(folio);
-	if (!mapping)
-		return;
-
-	/*
-	 * pagecache page, file not yet mapped to userspace
-	 * Make a note that K-mapping is dirty
-	 */
-	if (!mapping_mapped(mapping)) {
-		clear_bit(PG_dc_clean, &folio->flags);
-	} else if (folio_mapped(folio)) {
-		/* kernel reading from page with U-mapping */
-		phys_addr_t paddr = (unsigned long)folio_address(folio);
-		unsigned long vaddr = folio_pos(folio);
-
-		/*
-		 * vaddr is not actually the virtual address, but is
-		 * congruent to every user mapping.
-		 */
-		if (addr_not_cache_congruent(paddr, vaddr))
-			__flush_dcache_pages(paddr, vaddr,
-						folio_nr_pages(folio));
-	}
+	clear_bit(PG_dc_clean, &folio->flags);
+	return;
 }
 EXPORT_SYMBOL(flush_dcache_folio);
 
@@ -921,44 +879,6 @@ noinline void flush_cache_all(void)
 
 }
 
-#ifdef CONFIG_ARC_CACHE_VIPT_ALIASING
-
-void flush_cache_mm(struct mm_struct *mm)
-{
-	flush_cache_all();
-}
-
-void flush_cache_page(struct vm_area_struct *vma, unsigned long u_vaddr,
-		      unsigned long pfn)
-{
-	phys_addr_t paddr = pfn << PAGE_SHIFT;
-
-	u_vaddr &= PAGE_MASK;
-
-	__flush_dcache_pages(paddr, u_vaddr, 1);
-
-	if (vma->vm_flags & VM_EXEC)
-		__inv_icache_pages(paddr, u_vaddr, 1);
-}
-
-void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
-		       unsigned long end)
-{
-	flush_cache_all();
-}
-
-void flush_anon_page(struct vm_area_struct *vma, struct page *page,
-		     unsigned long u_vaddr)
-{
-	/* TBD: do we really need to clear the kernel mapping */
-	__flush_dcache_pages((phys_addr_t)page_address(page), u_vaddr, 1);
-	__flush_dcache_pages((phys_addr_t)page_address(page),
-			    (phys_addr_t)page_address(page), 1);
-
-}
-
-#endif
-
 void copy_user_highpage(struct page *to, struct page *from,
 	unsigned long u_vaddr, struct vm_area_struct *vma)
 {
@@ -966,46 +886,11 @@ void copy_user_highpage(struct page *to, struct page *from,
 	struct folio *dst = page_folio(to);
 	void *kfrom = kmap_atomic(from);
 	void *kto = kmap_atomic(to);
-	int clean_src_k_mappings = 0;
-
-	/*
-	 * If SRC page was already mapped in userspace AND it's U-mapping is
-	 * not congruent with K-mapping, sync former to physical page so that
-	 * K-mapping in memcpy below, sees the right data
-	 *
-	 * Note that while @u_vaddr refers to DST page's userspace vaddr, it is
-	 * equally valid for SRC page as well
-	 *
-	 * For !VIPT cache, all of this gets compiled out as
-	 * addr_not_cache_congruent() is 0
-	 */
-	if (page_mapcount(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
-		__flush_dcache_pages((unsigned long)kfrom, u_vaddr, 1);
-		clean_src_k_mappings = 1;
-	}
 
 	copy_page(kto, kfrom);
 
-	/*
-	 * Mark DST page K-mapping as dirty for a later finalization by
-	 * update_mmu_cache(). Although the finalization could have been done
-	 * here as well (given that both vaddr/paddr are available).
-	 * But update_mmu_cache() already has code to do that for other
-	 * non copied user pages (e.g. read faults which wire in pagecache page
-	 * directly).
-	 */
 	clear_bit(PG_dc_clean, &dst->flags);
-
-	/*
-	 * if SRC was already usermapped and non-congruent to kernel mapping
-	 * sync the kernel mapping back to physical page
-	 */
-	if (clean_src_k_mappings) {
-		__flush_dcache_pages((unsigned long)kfrom,
-					(unsigned long)kfrom, 1);
-	} else {
-		clear_bit(PG_dc_clean, &src->flags);
-	}
+	clear_bit(PG_dc_clean, &src->flags);
 
 	kunmap_atomic(kto);
 	kunmap_atomic(kfrom);
@@ -1140,17 +1025,8 @@ static noinline void __init arc_cache_init_master(void)
 			      dc->line_len, L1_CACHE_BYTES);
 
 		/* check for D-Cache aliasing on ARCompact: ARCv2 has PIPT */
-		if (is_isa_arcompact()) {
-			int handled = IS_ENABLED(CONFIG_ARC_CACHE_VIPT_ALIASING);
-
-			if (dc->colors > 1) {
-				if (!handled)
-					panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-				if (CACHE_COLORS_NUM != dc->colors)
-					panic("CACHE_COLORS_NUM not optimized for config\n");
-			} else if (handled && dc->colors == 1) {
-				panic("Disable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
-			}
+		if (is_isa_arcompact() && dc->colors > 1) {
+			panic("Aliasing VIPT cache not supported\n");
 		}
 	}
 

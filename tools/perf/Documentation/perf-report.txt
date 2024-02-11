@@ -118,6 +118,9 @@ OPTIONS
 	- retire_lat: On X86, this reports pipeline stall of this instruction compared
 	  to the previous instruction in cycles. And currently supported only on X86
 	- simd: Flags describing a SIMD operation. "e" for empty Arm SVE predicate. "p" for partial Arm SVE predicate
+	- type: Data type of sample memory access.
+	- typeoff: Offset in the data type of sample memory access.
+	- symoff: Offset in the symbol.
 
 	By default, comm, dso and symbol keys are used.
 	(i.e. --sort comm,dso,symbol)

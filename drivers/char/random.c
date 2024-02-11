@@ -1364,7 +1364,6 @@ static void __cold try_to_generate_entropy(void)
 SYSCALL_DEFINE3(getrandom, char __user *, ubuf, size_t, len, unsigned int, flags)
 {
 	struct iov_iter iter;
-	struct iovec iov;
 	int ret;
 
 	if (flags & ~(GRND_NONBLOCK | GRND_RANDOM | GRND_INSECURE))
@@ -1385,7 +1384,7 @@ SYSCALL_DEFINE3(getrandom, char __user *, ubuf, size_t, len, unsigned int, flags
 			return ret;
 	}
 
-	ret = import_single_range(ITER_DEST, ubuf, len, &iov, &iter);
+	ret = import_ubuf(ITER_DEST, ubuf, len, &iter);
 	if (unlikely(ret))
 		return ret;
 	return get_random_bytes_user(&iter);
@@ -1491,7 +1490,6 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 		return 0;
 	case RNDADDENTROPY: {
 		struct iov_iter iter;
-		struct iovec iov;
 		ssize_t ret;
 		int len;
 
@@ -1503,7 +1501,7 @@ static long random_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 			return -EINVAL;
 		if (get_user(len, p++))
 			return -EFAULT;
-		ret = import_single_range(ITER_SOURCE, p, len, &iov, &iter);
+		ret = import_ubuf(ITER_SOURCE, p, len, &iter);
 		if (unlikely(ret))
 			return ret;
 		ret = write_pool_user(&iter);

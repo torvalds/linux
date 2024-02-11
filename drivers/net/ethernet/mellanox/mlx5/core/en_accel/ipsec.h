@@ -189,29 +189,24 @@ struct mlx5e_ipsec_ft {
 	u32 refcnt;
 };
 
+struct mlx5e_ipsec_drop {
+	struct mlx5_flow_handle *rule;
+	struct mlx5_fc *fc;
+};
+
 struct mlx5e_ipsec_rule {
 	struct mlx5_flow_handle *rule;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_pkt_reformat *pkt_reformat;
 	struct mlx5_fc *fc;
+	struct mlx5e_ipsec_drop replay;
+	struct mlx5e_ipsec_drop auth;
+	struct mlx5e_ipsec_drop trailer;
 };
 
 struct mlx5e_ipsec_miss {
 	struct mlx5_flow_group *group;
 	struct mlx5_flow_handle *rule;
-};
-
-struct mlx5e_ipsec_rx {
-	struct mlx5e_ipsec_ft ft;
-	struct mlx5e_ipsec_miss pol;
-	struct mlx5e_ipsec_miss sa;
-	struct mlx5e_ipsec_rule status;
-	struct mlx5e_ipsec_miss status_drop;
-	struct mlx5_fc *status_drop_cnt;
-	struct mlx5e_ipsec_fc *fc;
-	struct mlx5_fs_chains *chains;
-	u8 allow_tunnel_mode : 1;
-	struct xarray ipsec_obj_id_map;
 };
 
 struct mlx5e_ipsec_tx_create_attr {
@@ -248,6 +243,7 @@ struct mlx5e_ipsec {
 	struct mlx5_ipsec_fs *roce;
 	u8 is_uplink_rep: 1;
 	struct mlx5e_ipsec_mpv_work mpv_work;
+	struct xarray ipsec_obj_id_map;
 };
 
 struct mlx5e_ipsec_esn_state {

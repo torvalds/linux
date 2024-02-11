@@ -19,13 +19,11 @@ if VIRTUALIZATION
 
 config KVM
 	bool
-	select PREEMPT_NOTIFIERS
-	select HAVE_KVM_EVENTFD
+	select KVM_COMMON
 	select HAVE_KVM_VCPU_ASYNC_IOCTL
 	select KVM_VFIO
 	select IRQ_BYPASS_MANAGER
 	select HAVE_KVM_IRQ_BYPASS
-	select INTERVAL_TREE
 
 config KVM_BOOK3S_HANDLER
 	bool
@@ -42,7 +40,7 @@ config KVM_BOOK3S_64_HANDLER
 config KVM_BOOK3S_PR_POSSIBLE
 	bool
 	select KVM_MMIO
-	select MMU_NOTIFIER
+	select KVM_GENERIC_MMU_NOTIFIER
 
 config KVM_BOOK3S_HV_POSSIBLE
 	bool
@@ -85,7 +83,7 @@ config KVM_BOOK3S_64_HV
 	tristate "KVM for POWER7 and later using hypervisor mode in host"
 	depends on KVM_BOOK3S_64 && PPC_POWERNV
 	select KVM_BOOK3S_HV_POSSIBLE
-	select MMU_NOTIFIER
+	select KVM_GENERIC_MMU_NOTIFIER
 	select CMA
 	help
 	  Support running unmodified book3s_64 guest kernels in
@@ -194,7 +192,7 @@ config KVM_E500V2
 	depends on !CONTEXT_TRACKING_USER
 	select KVM
 	select KVM_MMIO
-	select MMU_NOTIFIER
+	select KVM_GENERIC_MMU_NOTIFIER
 	help
 	  Support running unmodified E500 guest kernels in virtual machines on
 	  E500v2 host processors.
@@ -211,7 +209,7 @@ config KVM_E500MC
 	select KVM
 	select KVM_MMIO
 	select KVM_BOOKE_HV
-	select MMU_NOTIFIER
+	select KVM_GENERIC_MMU_NOTIFIER
 	help
 	  Support running unmodified E500MC/E5500/E6500 guest kernels in
 	  virtual machines on E500MC/E5500/E6500 host processors.
@@ -225,7 +223,6 @@ config KVM_MPIC
 	bool "KVM in-kernel MPIC emulation"
 	depends on KVM && PPC_E500
 	select HAVE_KVM_IRQCHIP
-	select HAVE_KVM_IRQFD
 	select HAVE_KVM_IRQ_ROUTING
 	select HAVE_KVM_MSI
 	help
@@ -238,7 +235,6 @@ config KVM_XICS
 	bool "KVM in-kernel XICS emulation"
 	depends on KVM_BOOK3S_64 && !KVM_MPIC
 	select HAVE_KVM_IRQCHIP
-	select HAVE_KVM_IRQFD
 	default y
 	help
 	  Include support for the XICS (eXternal Interrupt Controller

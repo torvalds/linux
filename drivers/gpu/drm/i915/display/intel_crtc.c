@@ -553,8 +553,15 @@ void intel_pipe_update_start(struct intel_atomic_state *state,
 
 	intel_psr_lock(new_crtc_state);
 
-	if (new_crtc_state->do_async_flip)
+	if (new_crtc_state->do_async_flip) {
+		spin_lock_irq(&crtc->base.dev->event_lock);
+		/* arm the event for the flip done irq handler */
+		crtc->flip_done_event = new_crtc_state->uapi.event;
+		spin_unlock_irq(&crtc->base.dev->event_lock);
+
+		new_crtc_state->uapi.event = NULL;
 		return;
+	}
 
 	if (intel_crtc_needs_vblank_work(new_crtc_state))
 		intel_crtc_vblank_work_init(new_crtc_state);

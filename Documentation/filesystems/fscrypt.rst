@@ -31,15 +31,15 @@ However, except for filenames, fscrypt does not encrypt filesystem
 metadata.
 
 Unlike eCryptfs, which is a stacked filesystem, fscrypt is integrated
-directly into supported filesystems --- currently ext4, F2FS, and
-UBIFS.  This allows encrypted files to be read and written without
-caching both the decrypted and encrypted pages in the pagecache,
-thereby nearly halving the memory used and bringing it in line with
-unencrypted files.  Similarly, half as many dentries and inodes are
-needed.  eCryptfs also limits encrypted filenames to 143 bytes,
-causing application compatibility issues; fscrypt allows the full 255
-bytes (NAME_MAX).  Finally, unlike eCryptfs, the fscrypt API can be
-used by unprivileged users, with no need to mount anything.
+directly into supported filesystems --- currently ext4, F2FS, UBIFS,
+and CephFS.  This allows encrypted files to be read and written
+without caching both the decrypted and encrypted pages in the
+pagecache, thereby nearly halving the memory used and bringing it in
+line with unencrypted files.  Similarly, half as many dentries and
+inodes are needed.  eCryptfs also limits encrypted filenames to 143
+bytes, causing application compatibility issues; fscrypt allows the
+full 255 bytes (NAME_MAX).  Finally, unlike eCryptfs, the fscrypt API
+can be used by unprivileged users, with no need to mount anything.
 
 fscrypt does not support encrypting files in-place.  Instead, it
 supports marking an empty directory as encrypted.  Then, after
@@ -1382,7 +1382,8 @@ directory.)  These structs are defined as follows::
             u8 contents_encryption_mode;
             u8 filenames_encryption_mode;
             u8 flags;
-            u8 __reserved[4];
+            u8 log2_data_unit_size;
+            u8 __reserved[3];
             u8 master_key_identifier[FSCRYPT_KEY_IDENTIFIER_SIZE];
             u8 nonce[FSCRYPT_FILE_NONCE_SIZE];
     };

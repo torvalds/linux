@@ -19,6 +19,7 @@
 #include <asm/dsp.h>
 #include <asm/sim.h>
 #include <asm/unistd.h>
+#include <asm/syscalls.h>
 
 #include "signal-common.h"
 

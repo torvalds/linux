@@ -23,7 +23,6 @@ tmpdir=$1
 #
 rm -rf -- "${tmpdir}"
 mkdir -p -- "${tmpdir}/boot"
-dirs=boot
 
 
 #
@@ -38,12 +37,9 @@ fi
 
 
 #
-# Try to install modules
+# Install modules
 #
-if grep -q '^CONFIG_MODULES=y' include/config/auto.conf; then
-	make ARCH="${ARCH}" -f ${srctree}/Makefile INSTALL_MOD_PATH="${tmpdir}" modules_install
-	dirs="$dirs lib"
-fi
+make ARCH="${ARCH}" -f ${srctree}/Makefile INSTALL_MOD_PATH="${tmpdir}" modules_install
 
 
 #

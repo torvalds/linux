@@ -185,15 +185,23 @@ static int avs_i2s_test_probe(struct platform_device *pdev)
 	return devm_snd_soc_register_card(dev, card);
 }
 
+static const struct platform_device_id avs_i2s_test_driver_ids[] = {
+	{
+		.name = "avs_i2s_test",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(platform, avs_i2s_test_driver_ids);
+
 static struct platform_driver avs_i2s_test_driver = {
 	.probe = avs_i2s_test_probe,
 	.driver = {
 		.name = "avs_i2s_test",
 		.pm = &snd_soc_pm_ops,
 	},
+	.id_table = avs_i2s_test_driver_ids,
 };
 
 module_platform_driver(avs_i2s_test_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:avs_i2s_test");

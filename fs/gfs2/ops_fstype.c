@@ -117,7 +117,7 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	mapping->host = sb->s_bdev->bd_inode;
 	mapping->flags = 0;
 	mapping_set_gfp_mask(mapping, GFP_NOFS);
-	mapping->private_data = NULL;
+	mapping->i_private_data = NULL;
 	mapping->writeback_index = 0;
 
 	spin_lock_init(&sdp->sd_log_lock);
@@ -1073,7 +1073,7 @@ hostdata_error:
 void gfs2_lm_unmount(struct gfs2_sbd *sdp)
 {
 	const struct lm_lockops *lm = sdp->sd_lockstruct.ls_ops;
-	if (likely(!gfs2_withdrawn(sdp)) && lm->lm_unmount)
+	if (!gfs2_withdrawing_or_withdrawn(sdp) && lm->lm_unmount)
 		lm->lm_unmount(sdp);
 }
 

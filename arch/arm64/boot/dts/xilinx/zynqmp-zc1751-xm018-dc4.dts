@@ -116,17 +116,21 @@
 	status = "okay";
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethernet_phy0>;
-	ethernet_phy0: ethernet-phy@0 { /* Marvell 88e1512 */
-		reg = <0>;
-	};
-	ethernet_phy7: ethernet-phy@7 { /* Vitesse VSC8211 */
-		reg = <7>;
-	};
-	ethernet_phy3: ethernet-phy@3 { /* Realtek RTL8211DN */
-		reg = <3>;
-	};
-	ethernet_phy8: ethernet-phy@8 { /* Vitesse VSC8211 */
-		reg = <8>;
+	mdio: mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		ethernet_phy0: ethernet-phy@0 { /* Marvell 88e1512 */
+			reg = <0>;
+		};
+		ethernet_phy7: ethernet-phy@7 { /* Vitesse VSC8211 */
+			reg = <7>;
+		};
+		ethernet_phy3: ethernet-phy@3 { /* Realtek RTL8211DN */
+			reg = <3>;
+		};
+		ethernet_phy8: ethernet-phy@8 { /* Vitesse VSC8211 */
+			reg = <8>;
+		};
 	};
 };
 

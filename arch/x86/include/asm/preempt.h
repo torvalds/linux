@@ -6,7 +6,6 @@
 #include <asm/percpu.h>
 #include <asm/current.h>
 
-#include <linux/thread_info.h>
 #include <linux/static_call_types.h>
 
 /* We use the MSB mostly because its available */

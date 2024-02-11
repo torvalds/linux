@@ -109,12 +109,6 @@ static irqreturn_t starfive_cryp_irq(int irq, void *priv)
 		tasklet_schedule(&cryp->hash_done);
 	}
 
-	if (status & STARFIVE_IE_FLAG_PKA_DONE) {
-		mask |= STARFIVE_IE_MASK_PKA_DONE;
-		writel(mask, cryp->base + STARFIVE_IE_MASK_OFFSET);
-		complete(&cryp->pka_done);
-	}
-
 	return IRQ_HANDLED;
 }
 
@@ -159,8 +153,6 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 		return dev_err_probe(&pdev->dev, PTR_ERR(cryp->rst),
 				     "Error getting hardware reset line\n");
 
-	init_completion(&cryp->pka_done);
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -168,7 +160,7 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, starfive_cryp_irq, 0, pdev->name,
 			       (void *)cryp);
 	if (ret)
-		return dev_err_probe(&pdev->dev, irq,
+		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to register interrupt handler\n");
 
 	clk_prepare_enable(cryp->hclk);
@@ -180,12 +172,8 @@ static int starfive_cryp_probe(struct platform_device *pdev)
 	spin_unlock(&dev_list.lock);
 
 	ret = starfive_dma_init(cryp);
-	if (ret) {
-		if (ret == -EPROBE_DEFER)
-			goto err_probe_defer;
-		else
-			goto err_dma_init;
-	}
+	if (ret)
+		goto err_dma_init;
 
 	/* Initialize crypto engine */
 	cryp->engine = crypto_engine_alloc_init(&pdev->dev, 1);
@@ -233,7 +221,7 @@ err_dma_init:
 
 	tasklet_kill(&cryp->aes_done);
 	tasklet_kill(&cryp->hash_done);
-err_probe_defer:
+
 	return ret;
 }
 

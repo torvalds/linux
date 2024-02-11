@@ -30,7 +30,7 @@
 #include "dcn_calc_auto.h"
 #include "dal_asic_id.h"
 #include "resource.h"
-#include "dcn10/dcn10_resource.h"
+#include "resource/dcn10/dcn10_resource.h"
 #include "dcn10/dcn10_hubbub.h"
 #include "dml/dml1_display_rq_dlg_calc.h"
 

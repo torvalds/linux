@@ -95,8 +95,8 @@ examples:
       versal_clk: clock-controller {
         #clock-cells = <1>;
         compatible = "xlnx,versal-clk";
-        clocks = <&ref>, <&alt_ref>, <&pl_alt_ref>;
-        clock-names = "ref", "alt_ref", "pl_alt_ref";
+        clocks = <&ref>, <&pl_alt_ref>;
+        clock-names = "ref", "pl_alt_ref";
       };
     };
 

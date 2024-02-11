@@ -51,7 +51,7 @@ examples:
         reg = <0x03210000 0x2000>;
         wcd938x_rx: codec@0,4 {
             compatible = "sdw20217010d00";
-            reg  = <0 4>;
+            reg = <0 4>;
             qcom,rx-port-mapping = <1 2 3 4 5>;
         };
     };
@@ -62,7 +62,7 @@ examples:
         reg = <0x03230000 0x2000>;
         wcd938x_tx: codec@0,3 {
             compatible = "sdw20217010d00";
-            reg  = <0 3>;
+            reg = <0 3>;
             qcom,tx-port-mapping = <2 3 4 5>;
         };
     };

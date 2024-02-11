@@ -663,7 +663,7 @@ static int dw8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dw8250_remove(struct platform_device *pdev)
+static void dw8250_remove(struct platform_device *pdev)
 {
 	struct dw8250_data *data = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -680,8 +680,6 @@ static int dw8250_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
-
-	return 0;
 }
 
 static int dw8250_suspend(struct device *dev)
@@ -777,6 +775,7 @@ static const struct acpi_device_id dw8250_acpi_match[] = {
 	{ "INT33C5", (kernel_ulong_t)&dw8250_dw_apb },
 	{ "INT3434", (kernel_ulong_t)&dw8250_dw_apb },
 	{ "INT3435", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "INTC10EE", (kernel_ulong_t)&dw8250_dw_apb },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
@@ -789,7 +788,7 @@ static struct platform_driver dw8250_platform_driver = {
 		.acpi_match_table = dw8250_acpi_match,
 	},
 	.probe			= dw8250_probe,
-	.remove			= dw8250_remove,
+	.remove_new		= dw8250_remove,
 };
 
 module_platform_driver(dw8250_platform_driver);

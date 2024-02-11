@@ -195,6 +195,9 @@ int graph_util_is_ports0(struct device_node *port);
 int graph_util_parse_dai(struct device *dev, struct device_node *ep,
 			 struct snd_soc_dai_link_component *dlc, int *is_single_link);
 
+int graph_util_parse_link_direction(struct device_node *np,
+				    bool *is_playback_only, bool *is_capture_only);
+
 #ifdef DEBUG
 static inline void simple_util_debug_dai(struct simple_util_priv *priv,
 					 char *name,

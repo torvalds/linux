@@ -997,7 +997,7 @@ static int alloc_isa_irq_from_domain(struct irq_domain *domain,
 	/*
 	 * Legacy ISA IRQ has already been allocated, just add pin to
 	 * the pin list associated with this IRQ and program the IOAPIC
-	 * entry. The IOAPIC entry
+	 * entry.
 	 */
 	if (irq_data && irq_data->parent_data) {
 		if (!mp_check_pin_attr(irq, info))

@@ -152,11 +152,11 @@ static int pxa_ssp_probe(struct platform_device *pdev)
 	if (dev->of_node) {
 		const struct of_device_id *id =
 			of_match_device(of_match_ptr(pxa_ssp_of_ids), dev);
-		ssp->type = (int) id->data;
+		ssp->type = (uintptr_t) id->data;
 	} else {
 		const struct platform_device_id *id =
 			platform_get_device_id(pdev);
-		ssp->type = (int) id->driver_data;
+		ssp->type = id->driver_data;
 
 		/* PXA2xx/3xx SSP ports starts from 1 and the internal pdev->id
 		 * starts from 0, do a translation here

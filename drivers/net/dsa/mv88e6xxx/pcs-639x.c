@@ -465,6 +465,7 @@ mv88e639x_pcs_select(struct mv88e6xxx_chip *chip, int port,
 	case PHY_INTERFACE_MODE_10GBASER:
 	case PHY_INTERFACE_MODE_XAUI:
 	case PHY_INTERFACE_MODE_RXAUI:
+	case PHY_INTERFACE_MODE_USXGMII:
 		return &mpcs->xg_pcs;
 
 	default:
@@ -873,7 +874,8 @@ static int mv88e6393x_xg_pcs_post_config(struct phylink_pcs *pcs,
 	struct mv88e639x_pcs *mpcs = xg_pcs_to_mv88e639x_pcs(pcs);
 	int err;
 
-	if (interface == PHY_INTERFACE_MODE_10GBASER) {
+	if (interface == PHY_INTERFACE_MODE_10GBASER ||
+	    interface == PHY_INTERFACE_MODE_USXGMII) {
 		err = mv88e6393x_erratum_5_2(mpcs);
 		if (err)
 			return err;
@@ -886,12 +888,37 @@ static int mv88e6393x_xg_pcs_post_config(struct phylink_pcs *pcs,
 	return mv88e639x_xg_pcs_enable(mpcs);
 }
 
+static void mv88e6393x_xg_pcs_get_state(struct phylink_pcs *pcs,
+					struct phylink_link_state *state)
+{
+	struct mv88e639x_pcs *mpcs = xg_pcs_to_mv88e639x_pcs(pcs);
+	u16 status, lp_status;
+	int err;
+
+	if (state->interface != PHY_INTERFACE_MODE_USXGMII)
+		return mv88e639x_xg_pcs_get_state(pcs, state);
+
+	state->link = false;
+
+	err = mv88e639x_read(mpcs, MV88E6390_USXGMII_PHY_STATUS, &status);
+	err = err ? : mv88e639x_read(mpcs, MV88E6390_USXGMII_LP_STATUS, &lp_status);
+	if (err) {
+		dev_err(mpcs->mdio.dev.parent,
+			"can't read USXGMII status: %pe\n", ERR_PTR(err));
+		return;
+	}
+
+	state->link = !!(status & MDIO_USXGMII_LINK);
+	state->an_complete = state->link;
+	phylink_decode_usxgmii_word(state, lp_status);
+}
+
 static const struct phylink_pcs_ops mv88e6393x_xg_pcs_ops = {
 	.pcs_enable = mv88e6393x_xg_pcs_enable,
 	.pcs_disable = mv88e6393x_xg_pcs_disable,
 	.pcs_pre_config = mv88e6393x_xg_pcs_pre_config,
 	.pcs_post_config = mv88e6393x_xg_pcs_post_config,
-	.pcs_get_state = mv88e639x_xg_pcs_get_state,
+	.pcs_get_state = mv88e6393x_xg_pcs_get_state,
 	.pcs_config = mv88e639x_xg_pcs_config,
 };
 

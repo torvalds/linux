@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/input.h>
 #include <linux/input/navpoint.h>
 #include <linux/interrupt.h>
@@ -32,7 +32,7 @@ struct navpoint {
 	struct ssp_device	*ssp;
 	struct input_dev	*input;
 	struct device		*dev;
-	int			gpio;
+	struct gpio_desc	*gpiod;
 	int			index;
 	u8			data[1 + HEADER_LENGTH(0xff)];
 };
@@ -170,16 +170,14 @@ static void navpoint_up(struct navpoint *navpoint)
 		dev_err(navpoint->dev,
 			"timeout waiting for SSSR[CSS] to clear\n");
 
-	if (gpio_is_valid(navpoint->gpio))
-		gpio_set_value(navpoint->gpio, 1);
+	gpiod_set_value(navpoint->gpiod, 1);
 }
 
 static void navpoint_down(struct navpoint *navpoint)
 {
 	struct ssp_device *ssp = navpoint->ssp;
 
-	if (gpio_is_valid(navpoint->gpio))
-		gpio_set_value(navpoint->gpio, 0);
+	gpiod_set_value(navpoint->gpiod, 0);
 
 	pxa_ssp_write_reg(ssp, SSCR0, 0);
 
@@ -216,18 +214,9 @@ static int navpoint_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	if (gpio_is_valid(pdata->gpio)) {
-		error = gpio_request_one(pdata->gpio, GPIOF_OUT_INIT_LOW,
-					 "SYNAPTICS_ON");
-		if (error)
-			return error;
-	}
-
 	ssp = pxa_ssp_request(pdata->port, pdev->name);
-	if (!ssp) {
-		error = -ENODEV;
-		goto err_free_gpio;
-	}
+	if (!ssp)
+		return -ENODEV;
 
 	/* HaRET does not disable devices before jumping into Linux */
 	if (pxa_ssp_read_reg(ssp, SSCR0) & SSCR0_SSE) {
@@ -242,10 +231,18 @@ static int navpoint_probe(struct platform_device *pdev)
 		goto err_free_mem;
 	}
 
+	navpoint->gpiod = gpiod_get_optional(&pdev->dev,
+					     NULL, GPIOD_OUT_LOW);
+	if (IS_ERR(navpoint->gpiod)) {
+		error = PTR_ERR(navpoint->gpiod);
+		dev_err(&pdev->dev, "error getting GPIO\n");
+		goto err_free_mem;
+	}
+	gpiod_set_consumer_name(navpoint->gpiod, "SYNAPTICS_ON");
+
 	navpoint->ssp = ssp;
 	navpoint->input = input;
 	navpoint->dev = &pdev->dev;
-	navpoint->gpio = pdata->gpio;
 
 	input->name = pdev->name;
 	input->dev.parent = &pdev->dev;
@@ -288,17 +285,12 @@ err_free_mem:
 	input_free_device(input);
 	kfree(navpoint);
 	pxa_ssp_free(ssp);
-err_free_gpio:
-	if (gpio_is_valid(pdata->gpio))
-		gpio_free(pdata->gpio);
 
 	return error;
 }
 
 static void navpoint_remove(struct platform_device *pdev)
 {
-	const struct navpoint_platform_data *pdata =
-					dev_get_platdata(&pdev->dev);
 	struct navpoint *navpoint = platform_get_drvdata(pdev);
 	struct ssp_device *ssp = navpoint->ssp;
 
@@ -308,9 +300,6 @@ static void navpoint_remove(struct platform_device *pdev)
 	kfree(navpoint);
 
 	pxa_ssp_free(ssp);
-
-	if (gpio_is_valid(pdata->gpio))
-		gpio_free(pdata->gpio);
 }
 
 static int navpoint_suspend(struct device *dev)

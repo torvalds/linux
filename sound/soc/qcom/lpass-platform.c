@@ -1384,4 +1384,4 @@ int asoc_qcom_lpass_platform_register(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(asoc_qcom_lpass_platform_register);
 
 MODULE_DESCRIPTION("QTi LPASS Platform Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

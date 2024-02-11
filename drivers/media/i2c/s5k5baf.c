@@ -1118,10 +1118,18 @@ out:
 	return ret;
 }
 
-static int s5k5baf_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5k5baf_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&state->lock);
 	fi->interval.numerator = state->fiv;
@@ -1131,8 +1139,8 @@ static int s5k5baf_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static void s5k5baf_set_frame_interval(struct s5k5baf *state,
-				       struct v4l2_subdev_frame_interval *fi)
+static void __s5k5baf_set_frame_interval(struct s5k5baf *state,
+					 struct v4l2_subdev_frame_interval *fi)
 {
 	struct v4l2_fract *i = &fi->interval;
 
@@ -1155,13 +1163,21 @@ static void s5k5baf_set_frame_interval(struct s5k5baf *state,
 			  state->fiv);
 }
 
-static int s5k5baf_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int s5k5baf_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct s5k5baf *state = to_s5k5baf(sd);
 
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
+
 	mutex_lock(&state->lock);
-	s5k5baf_set_frame_interval(state, fi);
+	__s5k5baf_set_frame_interval(state, fi);
 	mutex_unlock(&state->lock);
 	return 0;
 }
@@ -1273,7 +1289,7 @@ static int s5k5baf_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mf = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *mf;
 		return 0;
 	}
@@ -1307,7 +1323,7 @@ static int s5k5baf_set_fmt(struct v4l2_subdev *sd,
 	mf->field = V4L2_FIELD_NONE;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = *mf;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = *mf;
 		return 0;
 	}
 
@@ -1379,11 +1395,11 @@ static int s5k5baf_get_selection(struct v4l2_subdev *sd,
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		if (rtype == R_COMPOSE)
-			sel->r = *v4l2_subdev_get_try_compose(sd, sd_state,
-							      sel->pad);
+			sel->r = *v4l2_subdev_state_get_compose(sd_state,
+								sel->pad);
 		else
-			sel->r = *v4l2_subdev_get_try_crop(sd, sd_state,
-							   sel->pad);
+			sel->r = *v4l2_subdev_state_get_crop(sd_state,
+							     sel->pad);
 		return 0;
 	}
 
@@ -1472,14 +1488,11 @@ static int s5k5baf_set_selection(struct v4l2_subdev *sd,
 
 	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
 		rects = (struct v4l2_rect * []) {
-				&s5k5baf_cis_rect,
-				v4l2_subdev_get_try_crop(sd, sd_state,
-							 PAD_CIS),
-				v4l2_subdev_get_try_compose(sd, sd_state,
-							    PAD_CIS),
-				v4l2_subdev_get_try_crop(sd, sd_state,
-							 PAD_OUT)
-			};
+			&s5k5baf_cis_rect,
+			v4l2_subdev_state_get_crop(sd_state, PAD_CIS),
+			v4l2_subdev_state_get_compose(sd_state, PAD_CIS),
+			v4l2_subdev_state_get_crop(sd_state, PAD_OUT)
+		};
 		s5k5baf_set_rect_and_adjust(rects, rtype, &sel->r);
 		return 0;
 	}
@@ -1529,11 +1542,11 @@ static const struct v4l2_subdev_pad_ops s5k5baf_pad_ops = {
 	.set_fmt		= s5k5baf_set_fmt,
 	.get_selection		= s5k5baf_get_selection,
 	.set_selection		= s5k5baf_set_selection,
+	.get_frame_interval	= s5k5baf_get_frame_interval,
+	.set_frame_interval	= s5k5baf_set_frame_interval,
 };
 
 static const struct v4l2_subdev_video_ops s5k5baf_video_ops = {
-	.g_frame_interval	= s5k5baf_g_frame_interval,
-	.s_frame_interval	= s5k5baf_s_frame_interval,
 	.s_stream		= s5k5baf_s_stream,
 };
 
@@ -1696,22 +1709,22 @@ static int s5k5baf_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *mf;
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, PAD_CIS);
+	mf = v4l2_subdev_state_get_format(fh->state, PAD_CIS);
 	s5k5baf_try_cis_format(mf);
 
 	if (s5k5baf_is_cis_subdev(sd))
 		return 0;
 
-	mf = v4l2_subdev_get_try_format(sd, fh->state, PAD_OUT);
+	mf = v4l2_subdev_state_get_format(fh->state, PAD_OUT);
 	mf->colorspace = s5k5baf_formats[0].colorspace;
 	mf->code = s5k5baf_formats[0].code;
 	mf->width = s5k5baf_cis_rect.width;
 	mf->height = s5k5baf_cis_rect.height;
 	mf->field = V4L2_FIELD_NONE;
 
-	*v4l2_subdev_get_try_crop(sd, fh->state, PAD_CIS) = s5k5baf_cis_rect;
-	*v4l2_subdev_get_try_compose(sd, fh->state, PAD_CIS) = s5k5baf_cis_rect;
-	*v4l2_subdev_get_try_crop(sd, fh->state, PAD_OUT) = s5k5baf_cis_rect;
+	*v4l2_subdev_state_get_crop(fh->state, PAD_CIS) = s5k5baf_cis_rect;
+	*v4l2_subdev_state_get_compose(fh->state, PAD_CIS) = s5k5baf_cis_rect;
+	*v4l2_subdev_state_get_crop(fh->state, PAD_OUT) = s5k5baf_cis_rect;
 
 	return 0;
 }

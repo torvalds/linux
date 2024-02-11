@@ -176,7 +176,8 @@ int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 	struct btree_iter inode_iter = { NULL };
 	int ret;
 
-	ret = bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_INTENT);
+	ret   = bch2_subvol_is_ro_trans(trans, inum.subvol) ?:
+		bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_INTENT);
 	if (ret)
 		return ret;
 
@@ -589,8 +590,9 @@ err:
 	mutex_unlock(&inode->ei_update_lock);
 
 	if (value &&
-	    (opt_id == Opt_background_compression ||
-	     opt_id == Opt_background_target))
+	    (opt_id == Opt_background_target ||
+	     opt_id == Opt_background_compression ||
+	     (opt_id == Opt_compression && !inode_opt_get(c, &inode->ei_inode, background_compression))))
 		bch2_set_rebalance_needs_scan(c, inode->ei_inode.bi_inum);
 
 	return bch2_err_class(ret);

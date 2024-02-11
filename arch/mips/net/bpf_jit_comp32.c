@@ -95,7 +95,7 @@
 /*
  * Mapping of 64-bit eBPF registers to 32-bit native MIPS registers.
  *
- * 1) Native register pairs are ordered according to CPU endiannes, following
+ * 1) Native register pairs are ordered according to CPU endianness, following
  *    the MIPS convention for passing 64-bit arguments and return values.
  * 2) The eBPF return value, arguments and callee-saved registers are mapped
  *    to their native MIPS equivalents.

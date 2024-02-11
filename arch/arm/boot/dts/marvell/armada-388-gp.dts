@@ -237,8 +237,8 @@
 		gpio-fan {
 			compatible = "gpio-fan";
 			gpios = <&expander1 3 GPIO_ACTIVE_HIGH>;
-			gpio-fan,speed-map = <	 0 0
-					      3000 1>;
+			gpio-fan,speed-map = <	 0 0>,
+					     <3000 1>;
 		};
 	};
 

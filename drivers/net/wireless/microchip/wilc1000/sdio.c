@@ -106,9 +106,10 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 		size = cmd->count;
 
 	if (cmd->use_global_buf) {
-		if (size > sizeof(u32))
-			return -EINVAL;
-
+		if (size > sizeof(u32)) {
+			ret = -EINVAL;
+			goto out;
+		}
 		buf = sdio_priv->cmd53_buf;
 	}
 
@@ -123,7 +124,7 @@ static int wilc_sdio_cmd53(struct wilc *wilc, struct sdio_cmd53 *cmd)
 		if (cmd->use_global_buf)
 			memcpy(cmd->buffer, buf, size);
 	}
-
+out:
 	sdio_release_host(func);
 
 	if (ret)

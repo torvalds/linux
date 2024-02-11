@@ -1809,15 +1809,8 @@ config DEBUG_UNCOMPRESS
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
 		     !DEBUG_BRCMSTB_UART && !DEBUG_SEMIHOSTING
 	help
-	  This option influences the normal decompressor output for
-	  multiplatform kernels.  Normally, multiplatform kernels disable
-	  decompressor output because it is not possible to know where to
-	  send the decompressor output.
-
-	  When this option is set, the selected DEBUG_LL output method
-	  will be re-used for normal decompressor output on multiplatform
-	  kernels.
-	  
+	  Say Y here to enable debug output in the decompressor code, using
+	  the selected DEBUG_LL output method.
 
 config UNCOMPRESS_INCLUDE
 	string

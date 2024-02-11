@@ -219,9 +219,10 @@ struct gve_adminq_register_page_list {
 	__be32 page_list_id;
 	__be32 num_pages;
 	__be64 page_address_list_addr;
+	__be64 page_size;
 };
 
-static_assert(sizeof(struct gve_adminq_register_page_list) == 16);
+static_assert(sizeof(struct gve_adminq_register_page_list) == 24);
 
 struct gve_adminq_unregister_page_list {
 	__be32 page_list_id;

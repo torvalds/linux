@@ -920,6 +920,79 @@ int genphy_c45_pma_baset1_read_abilities(struct phy_device *phydev)
 EXPORT_SYMBOL_GPL(genphy_c45_pma_baset1_read_abilities);
 
 /**
+ * genphy_c45_pma_read_ext_abilities - read supported link modes from PMA
+ * @phydev: target phy_device struct
+ *
+ * Read the supported link modes from the PMA/PMD extended ability register
+ * (Register 1.11).
+ */
+int genphy_c45_pma_read_ext_abilities(struct phy_device *phydev)
+{
+	int val;
+
+	val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_EXTABLE);
+	if (val < 0)
+		return val;
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBLRM);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBKX4);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10GBKR);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_1000BT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_1000BKX);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_100BTX);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_100BTX);
+
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10BT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+			 phydev->supported,
+			 val & MDIO_PMA_EXTABLE_10BT);
+
+	if (val & MDIO_PMA_EXTABLE_NBT) {
+		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
+				   MDIO_PMA_NG_EXTABLE);
+		if (val < 0)
+			return val;
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_NG_EXTABLE_2_5GBT);
+
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+				 phydev->supported,
+				 val & MDIO_PMA_NG_EXTABLE_5GBT);
+	}
+
+	if (val & MDIO_PMA_EXTABLE_BT1) {
+		val = genphy_c45_pma_baset1_read_abilities(phydev);
+		if (val < 0)
+			return val;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(genphy_c45_pma_read_ext_abilities);
+
+/**
  * genphy_c45_pma_read_abilities - read supported link modes from PMA
  * @phydev: target phy_device struct
  *
@@ -962,63 +1035,9 @@ int genphy_c45_pma_read_abilities(struct phy_device *phydev)
 			 val & MDIO_PMA_STAT2_10GBER);
 
 	if (val & MDIO_PMA_STAT2_EXTABLE) {
-		val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_EXTABLE);
+		val = genphy_c45_pma_read_ext_abilities(phydev);
 		if (val < 0)
 			return val;
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBLRM);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBT);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBKX4);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10GBKR);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_1000BT);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_1000BKX);
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_100BTX);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_100BTX);
-
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10BT);
-		linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-				 phydev->supported,
-				 val & MDIO_PMA_EXTABLE_10BT);
-
-		if (val & MDIO_PMA_EXTABLE_NBT) {
-			val = phy_read_mmd(phydev, MDIO_MMD_PMAPMD,
-					   MDIO_PMA_NG_EXTABLE);
-			if (val < 0)
-				return val;
-
-			linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-					 phydev->supported,
-					 val & MDIO_PMA_NG_EXTABLE_2_5GBT);
-
-			linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-					 phydev->supported,
-					 val & MDIO_PMA_NG_EXTABLE_5GBT);
-		}
-
-		if (val & MDIO_PMA_EXTABLE_BT1) {
-			val = genphy_c45_pma_baset1_read_abilities(phydev);
-			if (val < 0)
-				return val;
-		}
 	}
 
 	/* This is optional functionality. If not supported, we may get an error

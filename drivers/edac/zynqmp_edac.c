@@ -426,7 +426,7 @@ free_dev_ctl:
 	return ret;
 }
 
-static int edac_remove(struct platform_device *pdev)
+static void edac_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *dci = platform_get_drvdata(pdev);
 	struct edac_priv *priv = dci->pvt_info;
@@ -440,8 +440,6 @@ static int edac_remove(struct platform_device *pdev)
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(dci);
-
-	return 0;
 }
 
 static const struct of_device_id zynqmp_ocm_edac_match[] = {
@@ -457,7 +455,7 @@ static struct platform_driver zynqmp_ocm_edac_driver = {
 		   .of_match_table = zynqmp_ocm_edac_match,
 		   },
 	.probe = edac_probe,
-	.remove = edac_remove,
+	.remove_new = edac_remove,
 };
 
 module_platform_driver(zynqmp_ocm_edac_driver);

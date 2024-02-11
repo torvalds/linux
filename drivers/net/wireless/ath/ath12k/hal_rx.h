@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HAL_RX_H
@@ -61,6 +61,7 @@ enum hal_rx_bw {
 	HAL_RX_BW_40MHZ,
 	HAL_RX_BW_80MHZ,
 	HAL_RX_BW_160MHZ,
+	HAL_RX_BW_320MHZ,
 	HAL_RX_BW_MAX,
 };
 

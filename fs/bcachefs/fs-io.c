@@ -79,7 +79,7 @@ void bch2_inode_flush_nocow_writes_async(struct bch_fs *c,
 			continue;
 
 		bio = container_of(bio_alloc_bioset(ca->disk_sb.bdev, 0,
-						    REQ_OP_FLUSH,
+						    REQ_OP_WRITE|REQ_PREFLUSH,
 						    GFP_KERNEL,
 						    &c->nocow_flush_bioset),
 				   struct nocow_flush, bio);
@@ -192,13 +192,17 @@ int bch2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
-	int ret, ret2, ret3;
+	int ret;
 
 	ret = file_write_and_wait_range(file, start, end);
-	ret2 = sync_inode_metadata(&inode->v, 1);
-	ret3 = bch2_flush_inode(c, inode);
-
-	return bch2_err_class(ret ?: ret2 ?: ret3);
+	if (ret)
+		goto out;
+	ret = sync_inode_metadata(&inode->v, 1);
+	if (ret)
+		goto out;
+	ret = bch2_flush_inode(c, inode);
+out:
+	return bch2_err_class(ret);
 }
 
 /* truncate: */
@@ -671,8 +675,11 @@ static int __bchfs_fallocate(struct bch_inode_info *inode, int mode,
 
 		bch2_i_sectors_acct(c, inode, &quota_res, i_sectors_delta);
 
-		drop_locks_do(trans,
-			(bch2_mark_pagecache_reserved(inode, hole_start, iter.pos.offset), 0));
+		if (bch2_mark_pagecache_reserved(inode, &hole_start,
+						 iter.pos.offset, true))
+			drop_locks_do(trans,
+				bch2_mark_pagecache_reserved(inode, &hole_start,
+							     iter.pos.offset, false));
 bkey_err:
 		bch2_quota_reservation_put(c, inode, &quota_res);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
@@ -861,7 +868,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 	    abs(pos_src - pos_dst) < len)
 		return -EINVAL;
 
-	bch2_lock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
+	lock_two_nondirectories(&src->v, &dst->v);
+	bch2_lock_inodes(INODE_PAGECACHE_BLOCK, src, dst);
 
 	inode_dio_wait(&src->v);
 	inode_dio_wait(&dst->v);
@@ -914,7 +922,8 @@ loff_t bch2_remap_file_range(struct file *file_src, loff_t pos_src,
 		ret = bch2_flush_inode(c, dst);
 err:
 	bch2_quota_reservation_put(c, dst, &quota_res);
-	bch2_unlock_inodes(INODE_LOCK|INODE_PAGECACHE_BLOCK, src, dst);
+	bch2_unlock_inodes(INODE_PAGECACHE_BLOCK, src, dst);
+	unlock_two_nondirectories(&src->v, &dst->v);
 
 	return bch2_err_class(ret);
 }

@@ -434,13 +434,7 @@ struct iio_trigger; /* forward declaration */
  * @update_scan_mode:	function to configure device and scan buffer when
  *			channels have changed
  * @debugfs_reg_access:	function to read or write register value of device
- * @of_xlate:		function pointer to obtain channel specifier index.
- *			When #iio-cells is greater than '0', the driver could
- *			provide a custom of_xlate function that reads the
- *			*args* and returns the appropriate index in registered
- *			IIO channels array.
  * @fwnode_xlate:	fwnode based function pointer to obtain channel specifier index.
- *			Functionally the same as @of_xlate.
  * @hwfifo_set_watermark: function pointer to set the current hardware
  *			fifo watermark level; see hwfifo_* entries in
  *			Documentation/ABI/testing/sysfs-bus-iio for details on

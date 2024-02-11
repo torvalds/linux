@@ -12,6 +12,7 @@
 #include <sound/hda_codec.h>
 #include <sound/soc.h>
 #include <linux/pm_runtime.h>
+#include <linux/spi/spi.h>
 #include "hda_local.h"
 #include "hda_auto_parser.h"
 #include "hda_jack.h"
@@ -504,7 +505,6 @@ static void cs35l41_shutdown_dsp(struct cs35l41_hda *cs35l41)
 
 	cs_dsp_stop(dsp);
 	cs_dsp_power_down(dsp);
-	cs35l41->firmware_running = false;
 	dev_dbg(cs35l41->dev, "Unloaded Firmware\n");
 }
 
@@ -550,7 +550,7 @@ static void cs35l41_hda_play_start(struct device *dev)
 
 	cs35l41->playback_started = true;
 
-	if (cs35l41->firmware_running) {
+	if (cs35l41->cs_dsp.running) {
 		regmap_multi_reg_write(reg, cs35l41_hda_config_dsp,
 				       ARRAY_SIZE(cs35l41_hda_config_dsp));
 		regmap_update_bits(reg, CS35L41_PWR_CTRL2,
@@ -580,7 +580,7 @@ static void cs35l41_mute(struct device *dev, bool mute)
 			regmap_multi_reg_write(reg, cs35l41_hda_mute, ARRAY_SIZE(cs35l41_hda_mute));
 		} else {
 			dev_dbg(dev, "Unmuting\n");
-			if (cs35l41->firmware_running) {
+			if (cs35l41->cs_dsp.running) {
 				regmap_multi_reg_write(reg, cs35l41_hda_unmute_dsp,
 						ARRAY_SIZE(cs35l41_hda_unmute_dsp));
 			} else {
@@ -599,7 +599,7 @@ static void cs35l41_hda_play_done(struct device *dev)
 	dev_dbg(dev, "Play (Complete)\n");
 
 	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 1,
-			      cs35l41->firmware_running);
+			      &cs35l41->cs_dsp);
 	cs35l41_mute(dev, false);
 }
 
@@ -612,7 +612,7 @@ static void cs35l41_hda_pause_start(struct device *dev)
 
 	cs35l41_mute(dev, true);
 	cs35l41_global_enable(dev, reg, cs35l41->hw_cfg.bst_type, 0,
-			      cs35l41->firmware_running);
+			      &cs35l41->cs_dsp);
 }
 
 static void cs35l41_hda_pause_done(struct device *dev)
@@ -625,7 +625,7 @@ static void cs35l41_hda_pause_done(struct device *dev)
 	regmap_update_bits(reg, CS35L41_PWR_CTRL2, CS35L41_AMP_EN_MASK, 0 << CS35L41_AMP_EN_SHIFT);
 	if (cs35l41->hw_cfg.bst_type == CS35L41_EXT_BOOST)
 		regmap_write(reg, CS35L41_GPIO1_CTRL1, 0x00000001);
-	if (cs35l41->firmware_running) {
+	if (cs35l41->cs_dsp.running) {
 		cs35l41_set_cspl_mbox_cmd(dev, reg, CSPL_MBOX_CMD_PAUSE);
 		regmap_update_bits(reg, CS35L41_PWR_CTRL2,
 				   CS35L41_VMON_EN_MASK | CS35L41_IMON_EN_MASK,
@@ -675,7 +675,7 @@ static void cs35l41_hda_playback_hook(struct device *dev, int action)
 		break;
 	case HDA_GEN_PCM_ACT_CLOSE:
 		mutex_lock(&cs35l41->fw_mutex);
-		if (!cs35l41->firmware_running && cs35l41->request_fw_load &&
+		if (!cs35l41->cs_dsp.running && cs35l41->request_fw_load &&
 		    !cs35l41->fw_request_ongoing) {
 			dev_info(dev, "Requesting Firmware Load after HDA_GEN_PCM_ACT_CLOSE\n");
 			cs35l41->fw_request_ongoing = true;
@@ -761,10 +761,9 @@ static int cs35l41_verify_id(struct cs35l41_hda *cs35l41, unsigned int *regid, u
 static int cs35l41_ready_for_reset(struct cs35l41_hda *cs35l41)
 {
 	mutex_lock(&cs35l41->fw_mutex);
-	if (cs35l41->firmware_running) {
+	if (cs35l41->cs_dsp.running) {
 		cs35l41->cs_dsp.running = false;
 		cs35l41->cs_dsp.booted = false;
-		cs35l41->firmware_running = false;
 	}
 	regcache_mark_dirty(cs35l41->regmap);
 	mutex_unlock(&cs35l41->fw_mutex);
@@ -925,7 +924,7 @@ static int cs35l41_runtime_suspend(struct device *dev)
 
 	mutex_lock(&cs35l41->fw_mutex);
 
-	if (cs35l41->firmware_running) {
+	if (cs35l41->cs_dsp.running) {
 		ret = cs35l41_enter_hibernate(cs35l41->dev, cs35l41->regmap,
 					      cs35l41->hw_cfg.bst_type);
 		if (ret)
@@ -960,7 +959,7 @@ static int cs35l41_runtime_resume(struct device *dev)
 
 	regcache_cache_only(cs35l41->regmap, false);
 
-	if (cs35l41->firmware_running)	{
+	if (cs35l41->cs_dsp.running)	{
 		ret = cs35l41_exit_hibernate(cs35l41->dev, cs35l41->regmap);
 		if (ret) {
 			dev_warn(cs35l41->dev, "Unable to exit Hibernate.");
@@ -997,6 +996,11 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 	unsigned int fw_status;
 	__be32 halo_sts;
 	int ret;
+
+	if (cs35l41->bypass_fw) {
+		dev_warn(cs35l41->dev, "Bypassing Firmware.\n");
+		return 0;
+	}
 
 	ret = cs35l41_init_dsp(cs35l41);
 	if (ret) {
@@ -1052,8 +1056,6 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 		goto clean_dsp;
 	}
 
-	cs35l41->firmware_running = true;
-
 	return 0;
 
 clean_dsp:
@@ -1063,10 +1065,10 @@ clean_dsp:
 
 static void cs35l41_load_firmware(struct cs35l41_hda *cs35l41, bool load)
 {
-	if (cs35l41->firmware_running && !load) {
+	if (cs35l41->cs_dsp.running && !load) {
 		dev_dbg(cs35l41->dev, "Unloading Firmware\n");
 		cs35l41_shutdown_dsp(cs35l41);
-	} else if (!cs35l41->firmware_running && load) {
+	} else if (!cs35l41->cs_dsp.running && load) {
 		dev_dbg(cs35l41->dev, "Loading Firmware\n");
 		cs35l41_smart_amp(cs35l41);
 	} else {
@@ -1346,7 +1348,7 @@ static int cs35l41_hda_bind(struct device *dev, struct device *master, void *mas
 		 cs35l41->acpi_subsystem_id, cs35l41->hw_cfg.bst_type,
 		 cs35l41->hw_cfg.gpio1.func == CS35l41_VSPK_SWITCH,
 		 cs35l41->hw_cfg.spk_pos ? 'R' : 'L',
-		 cs35l41->firmware_running, cs35l41->speaker_id);
+		 cs35l41->cs_dsp.running, cs35l41->speaker_id);
 
 	return ret;
 }
@@ -1592,6 +1594,7 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	u32 values[HDA_MAX_COMPONENTS];
 	struct acpi_device *adev;
 	struct device *physdev;
+	struct spi_device *spi;
 	const char *sub;
 	char *property;
 	size_t nval;
@@ -1614,7 +1617,7 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	ret = cs35l41_add_dsd_properties(cs35l41, physdev, id, hid);
 	if (!ret) {
 		dev_info(cs35l41->dev, "Using extra _DSD properties, bypassing _DSD in ACPI\n");
-		goto put_physdev;
+		goto out;
 	}
 
 	property = "cirrus,dev-index";
@@ -1705,7 +1708,19 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 		hw_cfg->bst_type = CS35L41_EXT_BOOST;
 
 	hw_cfg->valid = true;
+out:
 	put_device(physdev);
+
+	cs35l41->bypass_fw = false;
+	if (cs35l41->control_bus == SPI) {
+		spi = to_spi_device(cs35l41->dev);
+		if (spi->max_speed_hz < CS35L41_MAX_ACCEPTABLE_SPI_SPEED_HZ) {
+			dev_warn(cs35l41->dev,
+				 "SPI speed is too slow to support firmware download: %d Hz.\n",
+				 spi->max_speed_hz);
+			cs35l41->bypass_fw = true;
+		}
+	}
 
 	return 0;
 
@@ -1715,14 +1730,13 @@ err:
 	hw_cfg->gpio1.valid = false;
 	hw_cfg->gpio2.valid = false;
 	acpi_dev_put(cs35l41->dacpi);
-put_physdev:
 	put_device(physdev);
 
 	return ret;
 }
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
-		      struct regmap *regmap)
+		      struct regmap *regmap, enum control_bus control_bus)
 {
 	unsigned int regid, reg_revid;
 	struct cs35l41_hda *cs35l41;
@@ -1741,6 +1755,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	cs35l41->dev = dev;
 	cs35l41->irq = irq;
 	cs35l41->regmap = regmap;
+	cs35l41->control_bus = control_bus;
 	dev_set_drvdata(dev, cs35l41);
 
 	ret = cs35l41_hda_read_acpi(cs35l41, device_name, id);
@@ -1830,6 +1845,7 @@ err:
 	if (cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type))
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
+	gpiod_put(cs35l41->cs_gpio);
 	acpi_dev_put(cs35l41->dacpi);
 	kfree(cs35l41->acpi_subsystem_id);
 
@@ -1857,6 +1873,7 @@ void cs35l41_hda_remove(struct device *dev)
 	if (cs35l41_safe_reset(cs35l41->regmap, cs35l41->hw_cfg.bst_type))
 		gpiod_set_value_cansleep(cs35l41->reset_gpio, 0);
 	gpiod_put(cs35l41->reset_gpio);
+	gpiod_put(cs35l41->cs_gpio);
 	kfree(cs35l41->acpi_subsystem_id);
 }
 EXPORT_SYMBOL_NS_GPL(cs35l41_hda_remove, SND_HDA_SCODEC_CS35L41);

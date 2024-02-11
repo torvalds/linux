@@ -1532,21 +1532,29 @@ static void intel_dsi_unprepare(struct intel_encoder *encoder)
 	}
 }
 
-static void intel_dsi_encoder_destroy(struct drm_encoder *encoder)
-{
-	struct intel_dsi *intel_dsi = enc_to_intel_dsi(to_intel_encoder(encoder));
-
-	intel_dsi_vbt_gpio_cleanup(intel_dsi);
-	intel_encoder_destroy(encoder);
-}
-
 static const struct drm_encoder_funcs intel_dsi_funcs = {
-	.destroy = intel_dsi_encoder_destroy,
+	.destroy = intel_encoder_destroy,
 };
+
+static enum drm_mode_status vlv_dsi_mode_valid(struct drm_connector *connector,
+					       struct drm_display_mode *mode)
+{
+	struct drm_i915_private *i915 = to_i915(connector->dev);
+
+	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		enum drm_mode_status status;
+
+		status = intel_cpu_transcoder_mode_valid(i915, mode);
+		if (status != MODE_OK)
+			return status;
+	}
+
+	return intel_dsi_mode_valid(connector, mode);
+}
 
 static const struct drm_connector_helper_funcs intel_dsi_connector_helper_funcs = {
 	.get_modes = intel_dsi_get_modes,
-	.mode_valid = intel_dsi_mode_valid,
+	.mode_valid = vlv_dsi_mode_valid,
 	.atomic_check = intel_digital_connector_atomic_check,
 };
 

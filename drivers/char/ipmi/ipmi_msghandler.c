@@ -3053,7 +3053,7 @@ static void cleanup_bmc_work(struct work_struct *work)
 	int id = bmc->pdev.id; /* Unregister overwrites id */
 
 	platform_device_unregister(&bmc->pdev);
-	ida_simple_remove(&ipmi_bmc_ida, id);
+	ida_free(&ipmi_bmc_ida, id);
 }
 
 static void
@@ -3169,7 +3169,7 @@ static int __ipmi_bmc_register(struct ipmi_smi *intf,
 
 		bmc->pdev.name = "ipmi_bmc";
 
-		rv = ida_simple_get(&ipmi_bmc_ida, 0, 0, GFP_KERNEL);
+		rv = ida_alloc(&ipmi_bmc_ida, GFP_KERNEL);
 		if (rv < 0) {
 			kfree(bmc);
 			goto out;

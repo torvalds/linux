@@ -104,7 +104,6 @@ extern const struct dev_pm_ops dcss_dev_pm_ops;
 /* BLKCTL */
 int dcss_blkctl_init(struct dcss_dev *dcss, unsigned long blkctl_base);
 void dcss_blkctl_cfg(struct dcss_blkctl *blkctl);
-void dcss_blkctl_exit(struct dcss_blkctl *blkctl);
 
 /* CTXLD */
 int dcss_ctxld_init(struct dcss_dev *dcss, unsigned long ctxld_base);

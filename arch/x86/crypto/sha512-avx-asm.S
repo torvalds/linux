@@ -84,7 +84,7 @@ frame_size = frame_WK + WK_SIZE
 
 # Useful QWORD "arrays" for simpler memory references
 # MSG, DIGEST, K_t, W_t are arrays
-# WK_2(t) points to 1 of 2 qwords at frame.WK depdending on t being odd/even
+# WK_2(t) points to 1 of 2 qwords at frame.WK depending on t being odd/even
 
 # Input message (arg1)
 #define MSG(i)    8*i(msg)

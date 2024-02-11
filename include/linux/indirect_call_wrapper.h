@@ -11,7 +11,7 @@
  *  @__VA_ARGS__: arguments for @f
  *
  * Avoid retpoline overhead for known builtin, checking @f vs each of them and
- * eventually invoking directly the builtin function. The functions are check
+ * eventually invoking directly the builtin function. The functions are checked
  * in the given order. Fallback to the indirect call.
  */
 #define INDIRECT_CALL_1(f, f1, ...)					\

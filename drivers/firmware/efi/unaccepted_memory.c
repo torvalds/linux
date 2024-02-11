@@ -101,7 +101,7 @@ retry:
 	 * overlap on physical address level.
 	 */
 	list_for_each_entry(entry, &accepting_list, list) {
-		if (entry->end < range.start)
+		if (entry->end <= range.start)
 			continue;
 		if (entry->start >= range.end)
 			continue;

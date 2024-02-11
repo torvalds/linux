@@ -22,6 +22,8 @@
 #include <net/ip6_route.h>
 #include "ar-internal.h"
 
+static const struct sockaddr_rxrpc rxrpc_null_addr;
+
 /*
  * Hash a peer key.
  */
@@ -457,39 +459,53 @@ void rxrpc_destroy_all_peers(struct rxrpc_net *rxnet)
 }
 
 /**
- * rxrpc_kernel_get_peer - Get the peer address of a call
+ * rxrpc_kernel_get_call_peer - Get the peer address of a call
  * @sock: The socket on which the call is in progress.
  * @call: The call to query
- * @_srx: Where to place the result
  *
- * Get the address of the remote peer in a call.
+ * Get a record for the remote peer in a call.
  */
-void rxrpc_kernel_get_peer(struct socket *sock, struct rxrpc_call *call,
-			   struct sockaddr_rxrpc *_srx)
+struct rxrpc_peer *rxrpc_kernel_get_call_peer(struct socket *sock, struct rxrpc_call *call)
 {
-	*_srx = call->peer->srx;
+	return call->peer;
 }
-EXPORT_SYMBOL(rxrpc_kernel_get_peer);
+EXPORT_SYMBOL(rxrpc_kernel_get_call_peer);
 
 /**
  * rxrpc_kernel_get_srtt - Get a call's peer smoothed RTT
- * @sock: The socket on which the call is in progress.
- * @call: The call to query
- * @_srtt: Where to store the SRTT value.
+ * @peer: The peer to query
  *
- * Get the call's peer smoothed RTT in uS.
+ * Get the call's peer smoothed RTT in uS or UINT_MAX if we have no samples.
  */
-bool rxrpc_kernel_get_srtt(struct socket *sock, struct rxrpc_call *call,
-			   u32 *_srtt)
+unsigned int rxrpc_kernel_get_srtt(const struct rxrpc_peer *peer)
 {
-	struct rxrpc_peer *peer = call->peer;
-
-	if (peer->rtt_count == 0) {
-		*_srtt = 1000000; /* 1S */
-		return false;
-	}
-
-	*_srtt = call->peer->srtt_us >> 3;
-	return true;
+	return peer->rtt_count > 0 ? peer->srtt_us >> 3 : UINT_MAX;
 }
 EXPORT_SYMBOL(rxrpc_kernel_get_srtt);
+
+/**
+ * rxrpc_kernel_remote_srx - Get the address of a peer
+ * @peer: The peer to query
+ *
+ * Get a pointer to the address from a peer record.  The caller is responsible
+ * for making sure that the address is not deallocated.
+ */
+const struct sockaddr_rxrpc *rxrpc_kernel_remote_srx(const struct rxrpc_peer *peer)
+{
+	return peer ? &peer->srx : &rxrpc_null_addr;
+}
+EXPORT_SYMBOL(rxrpc_kernel_remote_srx);
+
+/**
+ * rxrpc_kernel_remote_addr - Get the peer transport address of a call
+ * @peer: The peer to query
+ *
+ * Get a pointer to the transport address from a peer record.  The caller is
+ * responsible for making sure that the address is not deallocated.
+ */
+const struct sockaddr *rxrpc_kernel_remote_addr(const struct rxrpc_peer *peer)
+{
+	return (const struct sockaddr *)
+		(peer ? &peer->srx.transport : &rxrpc_null_addr.transport);
+}
+EXPORT_SYMBOL(rxrpc_kernel_remote_addr);

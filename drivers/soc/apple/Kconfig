@@ -4,9 +4,22 @@ if ARCH_APPLE || COMPILE_TEST
 
 menu "Apple SoC drivers"
 
+config APPLE_MAILBOX
+	tristate "Apple SoC mailboxes"
+	depends on PM
+	depends on ARCH_APPLE || (64BIT && COMPILE_TEST)
+	default ARCH_APPLE
+	help
+	  Apple SoCs have various co-processors required for certain
+	  peripherals to work (NVMe, display controller, etc.). This
+	  driver adds support for the mailbox controller used to
+	  communicate with those.
+
+	  Say Y here if you have an Apple SoC.
+
 config APPLE_RTKIT
 	tristate "Apple RTKit co-processor IPC protocol"
-	depends on MAILBOX
+	depends on APPLE_MAILBOX
 	depends on ARCH_APPLE || COMPILE_TEST
 	default ARCH_APPLE
 	help

@@ -84,7 +84,7 @@ static struct pulse *pulse_create(void)
 
 static void pulse_unlock_wait(struct pulse *p)
 {
-	i915_active_unlock_wait(&p->active);
+	wait_var_event_timeout(&p->active, i915_active_is_idle(&p->active), HZ);
 }
 
 static int __live_idle_pulse(struct intel_engine_cs *engine,

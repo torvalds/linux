@@ -158,8 +158,6 @@
 #define LOCOMO_LPT_TOH(TOH)	((TOH & 0x7) << 4)
 #define LOCOMO_LPT_TOL(TOL)	((TOL & 0x7))
 
-extern struct bus_type locomo_bus_type;
-
 #define LOCOMO_DEVID_KEYBOARD	0
 #define LOCOMO_DEVID_FRONTLIGHT	1
 #define LOCOMO_DEVID_BACKLIGHT	2

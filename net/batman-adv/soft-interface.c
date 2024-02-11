@@ -301,12 +301,13 @@ static netdev_tx_t batadv_interface_tx(struct sk_buff *skb,
 
 send:
 		if (do_bcast && !is_broadcast_ether_addr(ethhdr->h_dest)) {
-			forw_mode = batadv_mcast_forw_mode(bat_priv, skb,
+			forw_mode = batadv_mcast_forw_mode(bat_priv, skb, vid,
 							   &mcast_is_routable);
 			switch (forw_mode) {
 			case BATADV_FORW_BCAST:
 				break;
 			case BATADV_FORW_UCASTS:
+			case BATADV_FORW_MCAST:
 				do_bcast = false;
 				break;
 			case BATADV_FORW_NONE:
@@ -365,6 +366,8 @@ send:
 		} else if (forw_mode == BATADV_FORW_UCASTS) {
 			ret = batadv_mcast_forw_send(bat_priv, skb, vid,
 						     mcast_is_routable);
+		} else if (forw_mode == BATADV_FORW_MCAST) {
+			ret = batadv_mcast_forw_mcsend(bat_priv, skb);
 		} else {
 			if (batadv_dat_snoop_outgoing_arp_request(bat_priv,
 								  skb))
@@ -762,6 +765,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->mcast.num_want_all_unsnoopables, 0);
 	atomic_set(&bat_priv->mcast.num_want_all_ipv4, 0);
 	atomic_set(&bat_priv->mcast.num_want_all_ipv6, 0);
+	atomic_set(&bat_priv->mcast.num_no_mc_ptype_capa, 0);
 #endif
 	atomic_set(&bat_priv->gw.mode, BATADV_GW_MODE_OFF);
 	atomic_set(&bat_priv->gw.bandwidth_down, 100);
@@ -925,6 +929,18 @@ static const struct {
 	{ "tt_response_rx" },
 	{ "tt_roam_adv_tx" },
 	{ "tt_roam_adv_rx" },
+#ifdef CONFIG_BATMAN_ADV_MCAST
+	{ "mcast_tx" },
+	{ "mcast_tx_bytes" },
+	{ "mcast_tx_local" },
+	{ "mcast_tx_local_bytes" },
+	{ "mcast_rx" },
+	{ "mcast_rx_bytes" },
+	{ "mcast_rx_local" },
+	{ "mcast_rx_local_bytes" },
+	{ "mcast_fwd" },
+	{ "mcast_fwd_bytes" },
+#endif
 #ifdef CONFIG_BATMAN_ADV_DAT
 	{ "dat_get_tx" },
 	{ "dat_get_rx" },

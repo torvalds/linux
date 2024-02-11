@@ -473,7 +473,7 @@ err_mem:
 	return err;
 }
 
-static int timbuart_remove(struct platform_device *dev)
+static void timbuart_remove(struct platform_device *dev)
 {
 	struct timbuart_port *uart = platform_get_drvdata(dev);
 
@@ -481,8 +481,6 @@ static int timbuart_remove(struct platform_device *dev)
 	uart_remove_one_port(&timbuart_driver, &uart->port);
 	uart_unregister_driver(&timbuart_driver);
 	kfree(uart);
-
-	return 0;
 }
 
 static struct platform_driver timbuart_platform_driver = {
@@ -490,7 +488,7 @@ static struct platform_driver timbuart_platform_driver = {
 		.name	= "timb-uart",
 	},
 	.probe		= timbuart_probe,
-	.remove		= timbuart_remove,
+	.remove_new	= timbuart_remove,
 };
 
 module_platform_driver(timbuart_platform_driver);

@@ -16,7 +16,7 @@
 
 #ifdef CONFIG_64BIT
 #define DEFAULT_MAP_WINDOW	(UL(1) << (MMAP_VA_BITS - 1))
-#define STACK_TOP_MAX		TASK_SIZE_64
+#define STACK_TOP_MAX		TASK_SIZE
 
 #define arch_get_mmap_end(addr, len, flags)			\
 ({								\
@@ -73,6 +73,43 @@
 struct task_struct;
 struct pt_regs;
 
+/*
+ * We use a flag to track in-kernel Vector context. Currently the flag has the
+ * following meaning:
+ *
+ *  - bit 0: indicates whether the in-kernel Vector context is active. The
+ *    activation of this state disables the preemption. On a non-RT kernel, it
+ *    also disable bh.
+ *  - bits 8: is used for tracking preemptible kernel-mode Vector, when
+ *    RISCV_ISA_V_PREEMPTIVE is enabled. Calling kernel_vector_begin() does not
+ *    disable the preemption if the thread's kernel_vstate.datap is allocated.
+ *    Instead, the kernel set this bit field. Then the trap entry/exit code
+ *    knows if we are entering/exiting the context that owns preempt_v.
+ *     - 0: the task is not using preempt_v
+ *     - 1: the task is actively using preempt_v. But whether does the task own
+ *          the preempt_v context is decided by bits in RISCV_V_CTX_DEPTH_MASK.
+ *  - bit 16-23 are RISCV_V_CTX_DEPTH_MASK, used by context tracking routine
+ *     when preempt_v starts:
+ *     - 0: the task is actively using, and own preempt_v context.
+ *     - non-zero: the task was using preempt_v, but then took a trap within.
+ *       Thus, the task does not own preempt_v. Any use of Vector will have to
+ *       save preempt_v, if dirty, and fallback to non-preemptible kernel-mode
+ *       Vector.
+ *  - bit 30: The in-kernel preempt_v context is saved, and requries to be
+ *    restored when returning to the context that owns the preempt_v.
+ *  - bit 31: The in-kernel preempt_v context is dirty, as signaled by the
+ *    trap entry code. Any context switches out-of current task need to save
+ *    it to the task's in-kernel V context. Also, any traps nesting on-top-of
+ *    preempt_v requesting to use V needs a save.
+ */
+#define RISCV_V_CTX_DEPTH_MASK		0x00ff0000
+
+#define RISCV_V_CTX_UNIT_DEPTH		0x00010000
+#define RISCV_KERNEL_MODE_V		0x00000001
+#define RISCV_PREEMPT_V			0x00000100
+#define RISCV_PREEMPT_V_DIRTY		0x80000000
+#define RISCV_PREEMPT_V_NEED_RESTORE	0x40000000
+
 /* CPU-specific state of a task */
 struct thread_struct {
 	/* Callee-saved registers */
@@ -81,9 +118,11 @@ struct thread_struct {
 	unsigned long s[12];	/* s[0]: frame pointer */
 	struct __riscv_d_ext_state fstate;
 	unsigned long bad_cause;
-	unsigned long vstate_ctrl;
+	u32 riscv_v_flags;
+	u32 vstate_ctrl;
 	struct __riscv_v_ext_state vstate;
 	unsigned long align_ctl;
+	struct __riscv_v_ext_state kernel_vstate;
 };
 
 /* Whitelist the fstate from the task_struct for hardened usercopy */

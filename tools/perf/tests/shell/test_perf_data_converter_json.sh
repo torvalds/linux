@@ -6,16 +6,9 @@ set -e
 
 err=0
 
-if [ "$PYTHON" = "" ] ; then
-	if which python3 > /dev/null ; then
-		PYTHON=python3
-	elif which python > /dev/null ; then
-		PYTHON=python
-	else
-		echo Skipping test, python not detected please set environment variable PYTHON.
-		exit 2
-	fi
-fi
+shelldir=$(dirname "$0")
+# shellcheck source=lib/setup_python.sh
+. "${shelldir}"/lib/setup_python.sh
 
 perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 result=$(mktemp /tmp/__perf_test.output.json.XXXXX)

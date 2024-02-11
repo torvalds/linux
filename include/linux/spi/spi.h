@@ -20,6 +20,9 @@
 
 #include <uapi/linux/spi/spi.h>
 
+/* Max no. of CS supported per spi device */
+#define SPI_CS_CNT_MAX 16
+
 struct dma_chan;
 struct software_node;
 struct ptp_system_timestamp;
@@ -132,7 +135,8 @@ extern void spi_transfer_cs_change_delay_exec(struct spi_message *msg,
  * @max_speed_hz: Maximum clock rate to be used with this chip
  *	(on this board); may be changed by the device's driver.
  *	The spi_transfer.speed_hz can override this for each transfer.
- * @chip_select: Chipselect, distinguishing chips handled by @controller.
+ * @chip_select: Array of physical chipselect, spi->chipselect[i] gives
+ *	the corresponding physical CS for logical CS i.
  * @mode: The spi mode defines how data is clocked out and in.
  *	This may be changed by the device's driver.
  *	The "active low" default for chipselect mode can be overridden
@@ -157,8 +161,8 @@ extern void spi_transfer_cs_change_delay_exec(struct spi_message *msg,
  *	the device will bind to the named driver and only the named driver.
  *	Do not set directly, because core frees it; use driver_set_override() to
  *	set or clear it.
- * @cs_gpiod: GPIO descriptor of the chipselect line (optional, NULL when
- *	not using a GPIO line)
+ * @cs_gpiod: Array of GPIO descriptors of the corresponding chipselect lines
+ *	(optional, NULL when not using a GPIO line)
  * @word_delay: delay to be inserted between consecutive
  *	words of a transfer
  * @cs_setup: delay to be introduced by the controller after CS is asserted
@@ -167,6 +171,7 @@ extern void spi_transfer_cs_change_delay_exec(struct spi_message *msg,
  *	deasserted. If @cs_change_delay is used from @spi_transfer, then the
  *	two delays will be added up.
  * @pcpu_statistics: statistics for the spi_device
+ * @cs_index_mask: Bit mask of the active chipselect(s) in the chipselect array
  *
  * A @spi_device is used to interchange data between an SPI slave
  * (usually a discrete chip) and CPU memory.
@@ -182,7 +187,7 @@ struct spi_device {
 	struct spi_controller	*controller;
 	struct spi_controller	*master;	/* Compatibility layer */
 	u32			max_speed_hz;
-	u8			chip_select;
+	u8			chip_select[SPI_CS_CNT_MAX];
 	u8			bits_per_word;
 	bool			rt;
 #define SPI_NO_TX		BIT(31)		/* No transmit wire */
@@ -213,7 +218,7 @@ struct spi_device {
 	void			*controller_data;
 	char			modalias[SPI_NAME_SIZE];
 	const char		*driver_override;
-	struct gpio_desc	*cs_gpiod;	/* Chip select GPIO descriptor */
+	struct gpio_desc	*cs_gpiod[SPI_CS_CNT_MAX];	/* Chip select gpio desc */
 	struct spi_delay	word_delay; /* Inter-word delay */
 	/* CS delays */
 	struct spi_delay	cs_setup;
@@ -222,6 +227,13 @@ struct spi_device {
 
 	/* The statistics */
 	struct spi_statistics __percpu	*pcpu_statistics;
+
+	/* Bit mask of the chipselect(s) that the driver need to use from
+	 * the chipselect array.When the controller is capable to handle
+	 * multiple chip selects & memories are connected in parallel
+	 * then more than one bit need to be set in cs_index_mask.
+	 */
+	u32			cs_index_mask : SPI_CS_CNT_MAX;
 
 	/*
 	 * Likely need more hooks for more protocol options affecting how
@@ -279,22 +291,33 @@ static inline void *spi_get_drvdata(const struct spi_device *spi)
 
 static inline u8 spi_get_chipselect(const struct spi_device *spi, u8 idx)
 {
-	return spi->chip_select;
+	return spi->chip_select[idx];
 }
 
 static inline void spi_set_chipselect(struct spi_device *spi, u8 idx, u8 chipselect)
 {
-	spi->chip_select = chipselect;
+	spi->chip_select[idx] = chipselect;
 }
 
 static inline struct gpio_desc *spi_get_csgpiod(const struct spi_device *spi, u8 idx)
 {
-	return spi->cs_gpiod;
+	return spi->cs_gpiod[idx];
 }
 
 static inline void spi_set_csgpiod(struct spi_device *spi, u8 idx, struct gpio_desc *csgpiod)
 {
-	spi->cs_gpiod = csgpiod;
+	spi->cs_gpiod[idx] = csgpiod;
+}
+
+static inline bool spi_is_csgpiod(struct spi_device *spi)
+{
+	u8 idx;
+
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
+		if (spi_get_csgpiod(spi, idx))
+			return true;
+	}
+	return false;
 }
 
 /**
@@ -399,6 +422,8 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @bus_lock_spinlock: spinlock for SPI bus locking
  * @bus_lock_mutex: mutex for exclusion of multiple callers
  * @bus_lock_flag: indicates that the SPI bus is locked for exclusive use
+ * @multi_cs_cap: indicates that the SPI Controller can assert/de-assert
+ *	more than one chip select at once.
  * @setup: updates the device mode and clocking records used by a
  *	device's SPI controller; protocol code may call this.  This
  *	must fail if an unrecognized or unsupported mode is requested.
@@ -461,10 +486,13 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  *                  - return 1 if the transfer is still in progress. When
  *                    the driver is finished with this transfer it must
  *                    call spi_finalize_current_transfer() so the subsystem
- *                    can issue the next transfer. Note: transfer_one and
- *                    transfer_one_message are mutually exclusive; when both
- *                    are set, the generic subsystem does not call your
- *                    transfer_one callback.
+ *                    can issue the next transfer. If the transfer fails, the
+ *                    driver must set the flag SPI_TRANS_FAIL_IO to
+ *                    spi_transfer->error first, before calling
+ *                    spi_finalize_current_transfer().
+ *                    Note: transfer_one and transfer_one_message are mutually
+ *                    exclusive; when both are set, the generic subsystem does
+ *                    not call your transfer_one callback.
  * @handle_err: the subsystem calls the driver to handle an error that occurs
  *		in the generic implementation of transfer_one_message().
  * @mem_ops: optimized/dedicated operations for interactions with SPI memory.
@@ -567,6 +595,11 @@ struct spi_controller {
 #define SPI_CONTROLLER_MUST_TX		BIT(4)	/* Requires tx */
 #define SPI_CONTROLLER_GPIO_SS		BIT(5)	/* GPIO CS must select slave */
 #define SPI_CONTROLLER_SUSPENDED	BIT(6)	/* Currently suspended */
+	/*
+	 * The spi-controller has multi chip select capability and can
+	 * assert/de-assert more than one chip select at once.
+	 */
+#define SPI_CONTROLLER_MULTI_CS		BIT(7)
 
 	/* Flag indicating if the allocation of this struct is devres-managed */
 	bool			devm_allocated;
@@ -677,7 +710,8 @@ struct spi_controller {
 	bool				rt;
 	bool				auto_runtime_pm;
 	bool				cur_msg_mapped;
-	char				last_cs;
+	char				last_cs[SPI_CS_CNT_MAX];
+	char				last_cs_index_mask;
 	bool				last_cs_mode_high;
 	bool                            fallback;
 	struct completion               xfer_completion;
@@ -1040,6 +1074,7 @@ struct spi_transfer {
 	unsigned	len;
 
 #define SPI_TRANS_FAIL_NO_START	BIT(0)
+#define SPI_TRANS_FAIL_IO	BIT(1)
 	u16		error;
 
 	dma_addr_t	tx_dma;
@@ -1637,8 +1672,6 @@ spi_transfer_is_last(struct spi_controller *ctlr, struct spi_transfer *xfer)
 
 /* Compatibility layer */
 #define spi_master			spi_controller
-
-#define SPI_MASTER_HALF_DUPLEX		SPI_CONTROLLER_HALF_DUPLEX
 
 #define spi_master_get_devdata(_ctlr)	spi_controller_get_devdata(_ctlr)
 #define spi_master_set_devdata(_ctlr, _data)	\

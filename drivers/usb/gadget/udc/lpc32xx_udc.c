@@ -3174,13 +3174,16 @@ i2c_fail:
 	return retval;
 }
 
-static int lpc32xx_udc_remove(struct platform_device *pdev)
+static void lpc32xx_udc_remove(struct platform_device *pdev)
 {
 	struct lpc32xx_udc *udc = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&udc->gadget);
-	if (udc->driver)
-		return -EBUSY;
+	if (udc->driver) {
+		dev_err(&pdev->dev,
+			"Driver still in use but removing anyhow\n");
+		return;
+	}
 
 	udc_clk_set(udc, 1);
 	udc_disable(udc);
@@ -3194,8 +3197,6 @@ static int lpc32xx_udc_remove(struct platform_device *pdev)
 			  udc->udca_v_base, udc->udca_p_base);
 
 	clk_disable_unprepare(udc->usb_slv_clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -3255,7 +3256,7 @@ MODULE_DEVICE_TABLE(of, lpc32xx_udc_of_match);
 
 static struct platform_driver lpc32xx_udc_driver = {
 	.probe		= lpc32xx_udc_probe,
-	.remove		= lpc32xx_udc_remove,
+	.remove_new	= lpc32xx_udc_remove,
 	.shutdown	= lpc32xx_udc_shutdown,
 	.suspend	= lpc32xx_udc_suspend,
 	.resume		= lpc32xx_udc_resume,

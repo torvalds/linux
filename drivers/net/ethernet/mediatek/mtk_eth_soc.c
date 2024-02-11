@@ -1159,15 +1159,18 @@ static int mtk_init_fq_dma(struct mtk_eth *eth)
 	phy_ring_tail = eth->phy_scratch_ring + soc->txrx.txd_size * (cnt - 1);
 
 	for (i = 0; i < cnt; i++) {
+		dma_addr_t addr = dma_addr + i * MTK_QDMA_PAGE_SIZE;
 		struct mtk_tx_dma_v2 *txd;
 
 		txd = eth->scratch_ring + i * soc->txrx.txd_size;
-		txd->txd1 = dma_addr + i * MTK_QDMA_PAGE_SIZE;
+		txd->txd1 = addr;
 		if (i < cnt - 1)
 			txd->txd2 = eth->phy_scratch_ring +
 				    (i + 1) * soc->txrx.txd_size;
 
 		txd->txd3 = TX_DMA_PLEN0(MTK_QDMA_PAGE_SIZE);
+		if (MTK_HAS_CAPS(soc->caps, MTK_36BIT_DMA))
+			txd->txd3 |= TX_DMA_PREP_ADDR64(addr);
 		txd->txd4 = 0;
 		if (mtk_is_netsys_v2_or_greater(eth)) {
 			txd->txd5 = 0;
@@ -4758,7 +4761,10 @@ static int mtk_probe(struct platform_device *pdev)
 	}
 
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_36BIT_DMA)) {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(36));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(36));
+		if (!err)
+			err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+
 		if (err) {
 			dev_err(&pdev->dev, "Wrong DMA config\n");
 			return -EINVAL;

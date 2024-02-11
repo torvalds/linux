@@ -471,6 +471,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_fdb_get		 = br_fdb_get,
 	.ndo_mdb_add		 = br_mdb_add,
 	.ndo_mdb_del		 = br_mdb_del,
+	.ndo_mdb_del_bulk	 = br_mdb_del_bulk,
 	.ndo_mdb_dump		 = br_mdb_dump,
 	.ndo_mdb_get		 = br_mdb_get,
 	.ndo_bridge_getlink	 = br_getlink,

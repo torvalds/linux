@@ -366,7 +366,8 @@ retry:
 	bch2_trans_begin(trans);
 	acl = _acl;
 
-	ret = bch2_inode_peek(trans, &inode_iter, &inode_u, inode_inum(inode),
+	ret   = bch2_subvol_is_ro_trans(trans, inode->ei_subvol) ?:
+		bch2_inode_peek(trans, &inode_iter, &inode_u, inode_inum(inode),
 			      BTREE_ITER_INTENT);
 	if (ret)
 		goto btree_err;

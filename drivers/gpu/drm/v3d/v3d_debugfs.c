@@ -62,9 +62,9 @@ static const struct v3d_reg_def v3d_core_reg_defs[] = {
 	REGDEF(33, 71, V3D_PTB_BPCA),
 	REGDEF(33, 71, V3D_PTB_BPCS),
 
-	REGDEF(33, 41, V3D_GMP_STATUS(33)),
-	REGDEF(33, 41, V3D_GMP_CFG(33)),
-	REGDEF(33, 41, V3D_GMP_VIO_ADDR(33)),
+	REGDEF(33, 42, V3D_GMP_STATUS(33)),
+	REGDEF(33, 42, V3D_GMP_CFG(33)),
+	REGDEF(33, 42, V3D_GMP_VIO_ADDR(33)),
 
 	REGDEF(33, 71, V3D_ERR_FDBGO),
 	REGDEF(33, 71, V3D_ERR_FDBGB),
@@ -74,13 +74,13 @@ static const struct v3d_reg_def v3d_core_reg_defs[] = {
 
 static const struct v3d_reg_def v3d_csd_reg_defs[] = {
 	REGDEF(41, 71, V3D_CSD_STATUS),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG0(41)),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG1(41)),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG2(41)),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG3(41)),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG4(41)),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG5(41)),
-	REGDEF(41, 41, V3D_CSD_CURRENT_CFG6(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG0(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG1(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG2(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG3(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG4(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG5(41)),
+	REGDEF(41, 42, V3D_CSD_CURRENT_CFG6(41)),
 	REGDEF(71, 71, V3D_CSD_CURRENT_CFG0(71)),
 	REGDEF(71, 71, V3D_CSD_CURRENT_CFG1(71)),
 	REGDEF(71, 71, V3D_CSD_CURRENT_CFG2(71)),
@@ -260,11 +260,26 @@ static int v3d_measure_clock(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int v3d_debugfs_mm(struct seq_file *m, void *unused)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct drm_debugfs_entry *entry = m->private;
+	struct drm_device *dev = entry->dev;
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+
+	spin_lock(&v3d->mm_lock);
+	drm_mm_print(&v3d->mm, &p);
+	spin_unlock(&v3d->mm_lock);
+
+	return 0;
+}
+
 static const struct drm_debugfs_info v3d_debugfs_list[] = {
 	{"v3d_ident", v3d_v3d_debugfs_ident, 0},
 	{"v3d_regs", v3d_v3d_debugfs_regs, 0},
 	{"measure_clock", v3d_measure_clock, 0},
 	{"bo_stats", v3d_debugfs_bo_stats, 0},
+	{"v3d_mm", v3d_debugfs_mm, 0},
 };
 
 void

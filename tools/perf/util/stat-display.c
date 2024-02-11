@@ -898,7 +898,7 @@ static bool hybrid_uniquify(struct evsel *evsel, struct perf_stat_config *config
 
 static void uniquify_counter(struct perf_stat_config *config, struct evsel *counter)
 {
-	if (config->no_merge || hybrid_uniquify(counter, config))
+	if (config->aggr_mode == AGGR_NONE || hybrid_uniquify(counter, config))
 		uniquify_event_name(counter);
 }
 

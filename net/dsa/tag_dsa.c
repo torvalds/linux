@@ -406,4 +406,5 @@ static struct dsa_tag_driver *dsa_tag_drivers[] = {
 
 module_dsa_tag_drivers(dsa_tag_drivers);
 
+MODULE_DESCRIPTION("DSA tag driver for Marvell switches using DSA headers");
 MODULE_LICENSE("GPL");

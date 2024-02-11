@@ -8,6 +8,11 @@
 #ifndef PVPANIC_H_
 #define PVPANIC_H_
 
+#include <linux/compiler_types.h>
+
+struct attribute_group;
+struct device;
+
 int devm_pvpanic_probe(struct device *dev, void __iomem *base);
 extern const struct attribute_group *pvpanic_dev_groups[];
 

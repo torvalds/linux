@@ -757,6 +757,7 @@ const struct cpumask *cpu_clustergroup_mask(int cpu)
 {
 	return cpu_l2c_shared_mask(cpu);
 }
+EXPORT_SYMBOL_GPL(cpu_clustergroup_mask);
 
 static void impress_friends(void)
 {

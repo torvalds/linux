@@ -467,6 +467,13 @@ bool dc_link_setup_psr(struct dc_link *link,
 	return link->dc->link_srv->edp_setup_psr(link, stream, psr_config, psr_context);
 }
 
+bool dc_link_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
+		bool wait, bool force_static, const unsigned int *power_opts)
+{
+	return link->dc->link_srv->edp_set_replay_allow_active(link, allow_active, wait,
+			force_static, power_opts);
+}
+
 bool dc_link_get_replay_state(const struct dc_link *link, uint64_t *state)
 {
 	return link->dc->link_srv->edp_get_replay_state(link, state);
@@ -497,7 +504,7 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 	link->dc->link_srv->enable_hpd_filter(link, enable);
 }
 
-bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
+bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
 {
 	return dc->link_srv->validate_dpia_bandwidth(streams, count);
 }

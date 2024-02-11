@@ -515,6 +515,10 @@ function barf
 	mov	x11, x1	// actual data
 	mov	x12, x2	// data size
 
+#ifdef SSVE
+	mrs	x13, S3_3_C4_C2_2
+#endif
+
 	puts	"Mismatch: PID="
 	mov	x0, x20
 	bl	putdec
@@ -533,6 +537,12 @@ function barf
 	mov	x1, x12
 	bl	dumphex
 	puts	"]\n"
+
+#ifdef SSVE
+	puts	"\tSVCR: "
+	mov	x0, x13
+	bl	putdecn
+#endif
 
 	mov	x8, #__NR_getpid
 	svc	#0

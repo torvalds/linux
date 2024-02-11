@@ -2379,7 +2379,17 @@ void vxlan_xmit_one(struct sk_buff *skb, struct net_device *dev,
 		else
 			udp_sum = !(flags & VXLAN_F_UDP_ZERO_CSUM6_TX);
 #if IS_ENABLED(CONFIG_IPV6)
-		key.label = vxlan->cfg.label;
+		switch (vxlan->cfg.label_policy) {
+		case VXLAN_LABEL_FIXED:
+			key.label = vxlan->cfg.label;
+			break;
+		case VXLAN_LABEL_INHERIT:
+			key.label = ip_tunnel_get_flowlabel(old_iph, skb);
+			break;
+		default:
+			DEBUG_NET_WARN_ON_ONCE(1);
+			goto drop;
+		}
 #endif
 	} else {
 		if (!info) {
@@ -3225,6 +3235,7 @@ static const struct net_device_ops vxlan_netdev_ether_ops = {
 	.ndo_fdb_get		= vxlan_fdb_get,
 	.ndo_mdb_add		= vxlan_mdb_add,
 	.ndo_mdb_del		= vxlan_mdb_del,
+	.ndo_mdb_del_bulk	= vxlan_mdb_del_bulk,
 	.ndo_mdb_dump		= vxlan_mdb_dump,
 	.ndo_mdb_get		= vxlan_mdb_get,
 	.ndo_fill_metadata_dst	= vxlan_fill_metadata_dst,
@@ -3366,6 +3377,7 @@ static const struct nla_policy vxlan_policy[IFLA_VXLAN_MAX + 1] = {
 	[IFLA_VXLAN_DF]		= { .type = NLA_U8 },
 	[IFLA_VXLAN_VNIFILTER]	= { .type = NLA_U8 },
 	[IFLA_VXLAN_LOCALBYPASS]	= NLA_POLICY_MAX(NLA_U8, 1),
+	[IFLA_VXLAN_LABEL_POLICY]       = NLA_POLICY_MAX(NLA_U32, VXLAN_LABEL_MAX),
 };
 
 static int vxlan_validate(struct nlattr *tb[], struct nlattr *data[],
@@ -3740,6 +3752,12 @@ static int vxlan_config_validate(struct net *src_net, struct vxlan_config *conf,
 		return -EINVAL;
 	}
 
+	if (conf->label_policy && !use_ipv6) {
+		NL_SET_ERR_MSG(extack,
+			       "Label policy only applies to IPv6 VXLAN devices");
+		return -EINVAL;
+	}
+
 	if (conf->remote_ifindex) {
 		struct net_device *lowerdev;
 
@@ -4082,6 +4100,8 @@ static int vxlan_nl2conf(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_VXLAN_LABEL])
 		conf->label = nla_get_be32(data[IFLA_VXLAN_LABEL]) &
 			     IPV6_FLOWLABEL_MASK;
+	if (data[IFLA_VXLAN_LABEL_POLICY])
+		conf->label_policy = nla_get_u32(data[IFLA_VXLAN_LABEL_POLICY]);
 
 	if (data[IFLA_VXLAN_LEARNING]) {
 		err = vxlan_nl2flag(conf, data, IFLA_VXLAN_LEARNING,
@@ -4398,6 +4418,7 @@ static size_t vxlan_get_size(const struct net_device *dev)
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_TOS */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_DF */
 		nla_total_size(sizeof(__be32)) + /* IFLA_VXLAN_LABEL */
+		nla_total_size(sizeof(__u32)) +  /* IFLA_VXLAN_LABEL_POLICY */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_LEARNING */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_PROXY */
 		nla_total_size(sizeof(__u8)) +	/* IFLA_VXLAN_RSC */
@@ -4471,6 +4492,7 @@ static int vxlan_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_VXLAN_TOS, vxlan->cfg.tos) ||
 	    nla_put_u8(skb, IFLA_VXLAN_DF, vxlan->cfg.df) ||
 	    nla_put_be32(skb, IFLA_VXLAN_LABEL, vxlan->cfg.label) ||
+	    nla_put_u32(skb, IFLA_VXLAN_LABEL_POLICY, vxlan->cfg.label_policy) ||
 	    nla_put_u8(skb, IFLA_VXLAN_LEARNING,
 		       !!(vxlan->cfg.flags & VXLAN_F_LEARN)) ||
 	    nla_put_u8(skb, IFLA_VXLAN_PROXY,

@@ -166,10 +166,8 @@ int bch2_create_trans(struct btree_trans *trans,
 		if (ret)
 			goto err;
 
-		if (c->sb.version >= bcachefs_metadata_version_inode_backpointers) {
-			new_inode->bi_dir		= dir_u->bi_inum;
-			new_inode->bi_dir_offset	= dir_offset;
-		}
+		new_inode->bi_dir		= dir_u->bi_inum;
+		new_inode->bi_dir_offset	= dir_offset;
 	}
 
 	inode_iter.flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
@@ -228,10 +226,8 @@ int bch2_link_trans(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (c->sb.version >= bcachefs_metadata_version_inode_backpointers) {
-		inode_u->bi_dir		= dir.inum;
-		inode_u->bi_dir_offset	= dir_offset;
-	}
+	inode_u->bi_dir		= dir.inum;
+	inode_u->bi_dir_offset	= dir_offset;
 
 	ret =   bch2_inode_write(trans, &dir_iter, dir_u) ?:
 		bch2_inode_write(trans, &inode_iter, inode_u);
@@ -414,21 +410,19 @@ int bch2_rename_trans(struct btree_trans *trans,
 			goto err;
 	}
 
-	if (c->sb.version >= bcachefs_metadata_version_inode_backpointers) {
-		src_inode_u->bi_dir		= dst_dir_u->bi_inum;
-		src_inode_u->bi_dir_offset	= dst_offset;
+	src_inode_u->bi_dir		= dst_dir_u->bi_inum;
+	src_inode_u->bi_dir_offset	= dst_offset;
 
-		if (mode == BCH_RENAME_EXCHANGE) {
-			dst_inode_u->bi_dir		= src_dir_u->bi_inum;
-			dst_inode_u->bi_dir_offset	= src_offset;
-		}
+	if (mode == BCH_RENAME_EXCHANGE) {
+		dst_inode_u->bi_dir		= src_dir_u->bi_inum;
+		dst_inode_u->bi_dir_offset	= src_offset;
+	}
 
-		if (mode == BCH_RENAME_OVERWRITE &&
-		    dst_inode_u->bi_dir		== dst_dir_u->bi_inum &&
-		    dst_inode_u->bi_dir_offset	== src_offset) {
-			dst_inode_u->bi_dir		= 0;
-			dst_inode_u->bi_dir_offset	= 0;
-		}
+	if (mode == BCH_RENAME_OVERWRITE &&
+	    dst_inode_u->bi_dir		== dst_dir_u->bi_inum &&
+	    dst_inode_u->bi_dir_offset	== src_offset) {
+		dst_inode_u->bi_dir		= 0;
+		dst_inode_u->bi_dir_offset	= 0;
 	}
 
 	if (mode == BCH_RENAME_OVERWRITE) {

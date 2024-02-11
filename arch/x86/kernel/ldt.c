@@ -7,7 +7,7 @@
  * This handles calls from both 32bit and 64bit mode.
  *
  * Lock order:
- *	contex.ldt_usr_sem
+ *	context.ldt_usr_sem
  *	  mmap_lock
  *	    context.lock
  */
@@ -49,7 +49,7 @@ void load_mm_ldt(struct mm_struct *mm)
 	/*
 	 * Any change to mm->context.ldt is followed by an IPI to all
 	 * CPUs with the mm active.  The LDT will not be freed until
-	 * after the IPI is handled by all such CPUs.  This means that,
+	 * after the IPI is handled by all such CPUs.  This means that
 	 * if the ldt_struct changes before we return, the values we see
 	 * will be safe, and the new values will be loaded before we run
 	 * any user code.
@@ -685,7 +685,7 @@ SYSCALL_DEFINE3(modify_ldt, int , func , void __user * , ptr ,
 	}
 	/*
 	 * The SYSCALL_DEFINE() macros give us an 'unsigned long'
-	 * return type, but tht ABI for sys_modify_ldt() expects
+	 * return type, but the ABI for sys_modify_ldt() expects
 	 * 'int'.  This cast gives us an int-sized value in %rax
 	 * for the return code.  The 'unsigned' is necessary so
 	 * the compiler does not try to sign-extend the negative

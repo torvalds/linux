@@ -10,7 +10,7 @@
 #ifndef __SI476X_PLATFORM_H__
 #define __SI476X_PLATFORM_H__
 
-/* It is possible to select one of the four adresses using pins A0
+/* It is possible to select one of the four addresses using pins A0
  * and A1 on SI476x */
 #define SI476X_I2C_ADDR_1	0x60
 #define SI476X_I2C_ADDR_2	0x61

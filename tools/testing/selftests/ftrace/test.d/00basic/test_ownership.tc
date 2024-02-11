@@ -1,0 +1,114 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: Test file and directory owership changes for eventfs
+
+original_group=`stat -c "%g" .`
+original_owner=`stat -c "%u" .`
+
+mount_point=`stat -c '%m' .`
+mount_options=`mount | grep "$mount_point" | sed -e 's/.*(\(.*\)).*/\1/'`
+
+# find another owner and group that is not the original
+other_group=`tac /etc/group | grep -v ":$original_group:" | head -1 | cut -d: -f3`
+other_owner=`tac /etc/passwd | grep -v ":$original_owner:" | head -1 | cut -d: -f3`
+
+# Remove any group ownership already
+new_options=`echo "$mount_options" | sed -e "s/gid=[0-9]*/gid=$other_group/"`
+
+if [ "$new_options" = "$mount_options" ]; then
+	new_options="$mount_options,gid=$other_group"
+	mount_options="$mount_options,gid=$original_group"
+fi
+
+canary="events/timer events/timer/timer_cancel events/timer/timer_cancel/format"
+
+test() {
+	file=$1
+	test_group=$2
+
+	owner=`stat -c "%u" $file`
+	group=`stat -c "%g" $file`
+
+	echo "testing $file $owner=$original_owner and $group=$test_group"
+	if [ $owner -ne $original_owner ]; then
+		exit_fail
+	fi
+	if [ $group -ne $test_group ]; then
+		exit_fail
+	fi
+
+	# Note, the remount does not update ownership so test going to and from owner
+	echo "test owner $file to $other_owner"
+	chown $other_owner $file
+	owner=`stat -c "%u" $file`
+	if [ $owner -ne $other_owner ]; then
+		exit_fail
+	fi
+
+	chown $original_owner $file
+	owner=`stat -c "%u" $file`
+	if [ $owner -ne $original_owner ]; then
+		exit_fail
+	fi
+
+}
+
+run_tests() {
+	for d in "." "events" "events/sched" "events/sched/sched_switch" "events/sched/sched_switch/enable" $canary; do
+		test "$d" $other_group
+	done
+
+	chgrp $original_group events
+	test "events" $original_group
+	for d in "." "events/sched" "events/sched/sched_switch" "events/sched/sched_switch/enable" $canary; do
+		test "$d" $other_group
+	done
+
+	chgrp $original_group events/sched
+	test "events/sched" $original_group
+	for d in "." "events/sched/sched_switch" "events/sched/sched_switch/enable" $canary; do
+		test "$d" $other_group
+	done
+
+	chgrp $original_group events/sched/sched_switch
+	test "events/sched/sched_switch" $original_group
+	for d in "." "events/sched/sched_switch/enable" $canary; do
+		test "$d" $other_group
+	done
+
+	chgrp $original_group events/sched/sched_switch/enable
+	test "events/sched/sched_switch/enable" $original_group
+	for d in "." $canary; do
+		test "$d" $other_group
+	done
+}
+
+mount -o remount,"$new_options" .
+
+run_tests
+
+mount -o remount,"$mount_options" .
+
+for d in "." "events" "events/sched" "events/sched/sched_switch" "events/sched/sched_switch/enable" $canary; do
+	test "$d" $original_group
+done
+
+# check instances as well
+
+chgrp $other_group instances
+
+instance="$(mktemp -u test-XXXXXX)"
+
+mkdir instances/$instance
+
+cd instances/$instance
+
+run_tests
+
+cd ../..
+
+rmdir instances/$instance
+
+chgrp $original_group instances
+
+exit 0

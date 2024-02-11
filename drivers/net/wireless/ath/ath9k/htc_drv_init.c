@@ -63,12 +63,12 @@ static const struct ieee80211_tpt_blink ath9k_htc_tpt_blink[] = {
 
 static void ath9k_htc_op_ps_wakeup(struct ath_common *common)
 {
-	ath9k_htc_ps_wakeup((struct ath9k_htc_priv *) common->priv);
+	ath9k_htc_ps_wakeup(common->priv);
 }
 
 static void ath9k_htc_op_ps_restore(struct ath_common *common)
 {
-	ath9k_htc_ps_restore((struct ath9k_htc_priv *) common->priv);
+	ath9k_htc_ps_restore(common->priv);
 }
 
 static const struct ath_ps_ops ath9k_htc_ps_ops = {
@@ -235,7 +235,7 @@ static unsigned int ath9k_regread(void *hw_priv, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	__be32 val, reg = cpu_to_be32(reg_offset);
 	int r;
 
@@ -257,7 +257,7 @@ static void ath9k_multi_regread(void *hw_priv, u32 *addr,
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	__be32 tmpaddr[8];
 	__be32 tmpval[8];
 	int i, ret;
@@ -282,7 +282,7 @@ static void ath9k_multi_regread(void *hw_priv, u32 *addr,
 
 static void ath9k_regwrite_multi(struct ath_common *common)
 {
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	u32 rsp_status;
 	int r;
 
@@ -303,7 +303,7 @@ static void ath9k_regwrite_single(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	const __be32 buf[2] = {
 		cpu_to_be32(reg_offset),
 		cpu_to_be32(val),
@@ -324,7 +324,7 @@ static void ath9k_regwrite_buffer(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 
 	mutex_lock(&priv->wmi->multi_write_mutex);
 
@@ -347,7 +347,7 @@ static void ath9k_regwrite(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 
 	if (atomic_read(&priv->wmi->mwrite_cnt))
 		ath9k_regwrite_buffer(hw_priv, val, reg_offset);
@@ -359,7 +359,7 @@ static void ath9k_enable_regwrite_buffer(void *hw_priv)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 
 	atomic_inc(&priv->wmi->mwrite_cnt);
 }
@@ -368,7 +368,7 @@ static void ath9k_regwrite_flush(void *hw_priv)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 
 	atomic_dec(&priv->wmi->mwrite_cnt);
 
@@ -385,7 +385,7 @@ static void ath9k_reg_rmw_buffer(void *hw_priv,
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	u32 rsp_status;
 	int r;
 
@@ -423,7 +423,7 @@ static void ath9k_reg_rmw_flush(void *hw_priv)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	u32 rsp_status;
 	int r;
 
@@ -455,7 +455,7 @@ static void ath9k_enable_rmw_buffer(void *hw_priv)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 
 	if (test_bit(HTC_FWFLAG_NO_RMW, &priv->fw_flags))
 		return;
@@ -468,7 +468,7 @@ static void ath9k_reg_rmw_single(void *hw_priv,
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 	struct register_rmw buf, buf_ret;
 	int ret;
 
@@ -490,7 +490,7 @@ static u32 ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 clr)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
+	struct ath9k_htc_priv *priv = common->priv;
 
 	if (test_bit(HTC_FWFLAG_NO_RMW, &priv->fw_flags)) {
 		u32 val;
@@ -518,7 +518,7 @@ static void ath_usb_read_cachesize(struct ath_common *common, int *csz)
 
 static bool ath_usb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 {
-	struct ath_hw *ah = (struct ath_hw *) common->ah;
+	struct ath_hw *ah = common->ah;
 
 	(void)REG_READ(ah, AR5416_EEPROM_OFFSET + (off << AR5416_EEPROM_S));
 
@@ -970,7 +970,7 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 
 err_init:
 	ath9k_stop_wmi(priv);
-	hif_dev = (struct hif_device_usb *)htc_handle->hif_dev;
+	hif_dev = htc_handle->hif_dev;
 	ath9k_hif_usb_dealloc_urbs(hif_dev);
 	ath9k_destroy_wmi(priv);
 err_free:
@@ -988,7 +988,7 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug)
 
 		ath9k_deinit_device(htc_handle->drv_priv);
 		ath9k_stop_wmi(htc_handle->drv_priv);
-		ath9k_hif_usb_dealloc_urbs((struct hif_device_usb *)htc_handle->hif_dev);
+		ath9k_hif_usb_dealloc_urbs(htc_handle->hif_dev);
 		ath9k_destroy_wmi(htc_handle->drv_priv);
 		ieee80211_free_hw(htc_handle->drv_priv->hw);
 	}

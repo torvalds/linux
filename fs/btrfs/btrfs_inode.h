@@ -69,6 +69,8 @@ enum {
 	BTRFS_INODE_VERITY_IN_PROGRESS,
 	/* Set when this inode is a free space inode. */
 	BTRFS_INODE_FREE_SPACE_INODE,
+	/* Set when there are no capabilities in XATTs for the inode. */
+	BTRFS_INODE_NO_CAP_XATTR,
 };
 
 /* in memory btrfs inode */
@@ -107,9 +109,11 @@ struct btrfs_inode {
 
 	/*
 	 * Keep track of where the inode has extent items mapped in order to
-	 * make sure the i_size adjustments are accurate
+	 * make sure the i_size adjustments are accurate. Not required when the
+	 * filesystem is NO_HOLES, the status can't be set while mounted as
+	 * it's a mkfs-time feature.
 	 */
-	struct extent_io_tree file_extent_tree;
+	struct extent_io_tree *file_extent_tree;
 
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
@@ -487,7 +491,7 @@ struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
 struct inode *btrfs_iget(struct super_block *s, u64 ino, struct btrfs_root *root);
 struct extent_map *btrfs_get_extent(struct btrfs_inode *inode,
 				    struct page *page, size_t pg_offset,
-				    u64 start, u64 end);
+				    u64 start, u64 len);
 int btrfs_update_inode(struct btrfs_trans_handle *trans,
 		       struct btrfs_inode *inode);
 int btrfs_update_inode_fallback(struct btrfs_trans_handle *trans,

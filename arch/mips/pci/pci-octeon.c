@@ -376,7 +376,7 @@ static void octeon_pci_initialize(void)
 	ctl_status.s.timer = 1;
 	cvmx_write_csr(CVMX_NPI_CTL_STATUS, ctl_status.u64);
 
-	/* Deassert PCI reset and advertize PCX Host Mode Device Capability
+	/* Deassert PCI reset and advertise PCX Host Mode Device Capability
 	   (64b) */
 	cvmx_write_csr(CVMX_CIU_SOFT_PRST, 0x4);
 	cvmx_read_csr(CVMX_CIU_SOFT_PRST);

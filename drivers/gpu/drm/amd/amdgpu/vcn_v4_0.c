@@ -100,6 +100,31 @@ static int vcn_v4_0_early_init(void *handle)
 	return amdgpu_vcn_early_init(adev);
 }
 
+static int vcn_v4_0_fw_shared_init(struct amdgpu_device *adev, int inst_idx)
+{
+	volatile struct amdgpu_vcn4_fw_shared *fw_shared;
+
+	fw_shared = adev->vcn.inst[inst_idx].fw_shared.cpu_addr;
+	fw_shared->present_flag_0 = cpu_to_le32(AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE);
+	fw_shared->sq.is_enabled = 1;
+
+	fw_shared->present_flag_0 |= cpu_to_le32(AMDGPU_VCN_SMU_DPM_INTERFACE_FLAG);
+	fw_shared->smu_dpm_interface.smu_interface_type = (adev->flags & AMD_IS_APU) ?
+		AMDGPU_VCN_SMU_DPM_INTERFACE_APU : AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU;
+
+	if (amdgpu_ip_version(adev, VCN_HWIP, 0) ==
+	    IP_VERSION(4, 0, 2)) {
+		fw_shared->present_flag_0 |= AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT;
+		fw_shared->drm_key_wa.method =
+			AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING;
+	}
+
+	if (amdgpu_vcnfw_log)
+		amdgpu_vcn_fwlog_init(&adev->vcn.inst[inst_idx]);
+
+	return 0;
+}
+
 /**
  * vcn_v4_0_sw_init - sw init for VCN block
  *
@@ -124,8 +149,6 @@ static int vcn_v4_0_sw_init(void *handle)
 		return r;
 
 	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
-		volatile struct amdgpu_vcn4_fw_shared *fw_shared;
-
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
@@ -161,23 +184,7 @@ static int vcn_v4_0_sw_init(void *handle)
 		if (r)
 			return r;
 
-		fw_shared = adev->vcn.inst[i].fw_shared.cpu_addr;
-		fw_shared->present_flag_0 = cpu_to_le32(AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE);
-		fw_shared->sq.is_enabled = 1;
-
-		fw_shared->present_flag_0 |= cpu_to_le32(AMDGPU_VCN_SMU_DPM_INTERFACE_FLAG);
-		fw_shared->smu_dpm_interface.smu_interface_type = (adev->flags & AMD_IS_APU) ?
-			AMDGPU_VCN_SMU_DPM_INTERFACE_APU : AMDGPU_VCN_SMU_DPM_INTERFACE_DGPU;
-
-		if (amdgpu_ip_version(adev, VCN_HWIP, 0) ==
-		    IP_VERSION(4, 0, 2)) {
-			fw_shared->present_flag_0 |= AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT;
-			fw_shared->drm_key_wa.method =
-				AMDGPU_DRM_KEY_INJECT_WORKAROUND_VCNFW_ASD_HANDSHAKING;
-		}
-
-		if (amdgpu_vcnfw_log)
-			amdgpu_vcn_fwlog_init(&adev->vcn.inst[i]);
+		vcn_v4_0_fw_shared_init(adev, i);
 	}
 
 	if (amdgpu_sriov_vf(adev)) {
@@ -1273,6 +1280,9 @@ static int vcn_v4_0_start_sriov(struct amdgpu_device *adev)
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
+		// Must re/init fw_shared at beginning
+		vcn_v4_0_fw_shared_init(adev, i);
+
 		table_size = 0;
 
 		MMSCH_V4_0_INSERT_DIRECT_RD_MOD_WT(SOC15_REG_OFFSET(VCN, i,
@@ -2008,22 +2018,6 @@ static int vcn_v4_0_set_powergating_state(void *handle, enum amd_powergating_sta
 }
 
 /**
- * vcn_v4_0_set_interrupt_state - set VCN block interrupt state
- *
- * @adev: amdgpu_device pointer
- * @source: interrupt sources
- * @type: interrupt types
- * @state: interrupt states
- *
- * Set VCN block interrupt state
- */
-static int vcn_v4_0_set_interrupt_state(struct amdgpu_device *adev, struct amdgpu_irq_src *source,
-      unsigned type, enum amdgpu_interrupt_state state)
-{
-	return 0;
-}
-
-/**
  * vcn_v4_0_set_ras_interrupt_state - set VCN block RAS interrupt state
  *
  * @adev: amdgpu_device pointer
@@ -2087,7 +2081,6 @@ static int vcn_v4_0_process_interrupt(struct amdgpu_device *adev, struct amdgpu_
 }
 
 static const struct amdgpu_irq_src_funcs vcn_v4_0_irq_funcs = {
-	.set = vcn_v4_0_set_interrupt_state,
 	.process = vcn_v4_0_process_interrupt,
 };
 

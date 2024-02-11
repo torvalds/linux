@@ -1407,18 +1407,51 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 					  struct sk_buff *skb,
 					  struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	const struct rtw89_rxinfo *rxinfo = (const struct rtw89_rxinfo *)skb->data;
+	const struct rtw89_rxinfo_user *user;
+	enum rtw89_chip_gen chip_gen = rtwdev->chip->chip_gen;
+	int rx_cnt_size = RTW89_PPDU_MAC_RX_CNT_SIZE;
 	bool rx_cnt_valid = false;
+	bool invalid = false;
 	u8 plcp_size = 0;
-	u8 usr_num = 0;
 	u8 *phy_sts;
+	u8 usr_num;
+	int i;
+
+	if (chip_gen == RTW89_CHIP_BE) {
+		invalid = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_INVALID_V1);
+		rx_cnt_size = RTW89_PPDU_MAC_RX_CNT_SIZE_V1;
+	}
+
+	if (invalid)
+		return -EINVAL;
 
 	rx_cnt_valid = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_RX_CNT_VLD);
-	plcp_size = le32_get_bits(rxinfo->w1, RTW89_RXINFO_W1_PLCP_LEN) << 3;
-	usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM);
-	if (usr_num > RTW89_PPDU_MAX_USR) {
-		rtw89_warn(rtwdev, "Invalid user number in mac info\n");
+	if (chip_gen == RTW89_CHIP_BE) {
+		plcp_size = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_PLCP_LEN_V1) << 3;
+		usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM_V1);
+	} else {
+		plcp_size = le32_get_bits(rxinfo->w1, RTW89_RXINFO_W1_PLCP_LEN) << 3;
+		usr_num = le32_get_bits(rxinfo->w0, RTW89_RXINFO_W0_USR_NUM);
+	}
+	if (usr_num > chip->ppdu_max_usr) {
+		rtw89_warn(rtwdev, "Invalid user number (%d) in mac info\n",
+			   usr_num);
 		return -EINVAL;
+	}
+
+	/* For WiFi 7 chips, RXWD.mac_id of PPDU status is not set by hardware,
+	 * so update mac_id by rxinfo_user[].mac_id.
+	 */
+	for (i = 0; i < usr_num && chip_gen == RTW89_CHIP_BE; i++) {
+		user = &rxinfo->user[i];
+		if (!le32_get_bits(user->w0, RTW89_RXINFO_USER_MAC_ID_VALID))
+			continue;
+
+		phy_ppdu->mac_id =
+			le32_get_bits(user->w0, RTW89_RXINFO_USER_MACID);
+		break;
 	}
 
 	phy_sts = skb->data + RTW89_PPDU_MAC_INFO_SIZE;
@@ -1427,8 +1460,11 @@ static int rtw89_core_rx_process_mac_ppdu(struct rtw89_dev *rtwdev,
 	if (usr_num & BIT(0))
 		phy_sts += RTW89_PPDU_MAC_INFO_USR_SIZE;
 	if (rx_cnt_valid)
-		phy_sts += RTW89_PPDU_MAC_RX_CNT_SIZE;
+		phy_sts += rx_cnt_size;
 	phy_sts += plcp_size;
+
+	if (phy_sts > skb->data + skb->len)
+		return -EINVAL;
 
 	phy_ppdu->buf = phy_sts;
 	phy_ppdu->len = skb->data + skb->len - phy_sts;
@@ -1477,13 +1513,23 @@ static void rtw89_core_rx_process_phy_ppdu_iter(void *data,
 static u16 rtw89_core_get_phy_status_ie_len(struct rtw89_dev *rtwdev,
 					    const struct rtw89_phy_sts_iehdr *iehdr)
 {
-	static const u8 physts_ie_len_tab[32] = {
-		16, 32, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
-		VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 16, 24, VAR_LEN,
-		VAR_LEN, VAR_LEN, 0, 24, 24, 24, 24, 32, 32, 32, 32
+	static const u8 physts_ie_len_tabs[RTW89_CHIP_GEN_NUM][32] = {
+		[RTW89_CHIP_AX] = {
+			16, 32, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
+			VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 16, 24, VAR_LEN,
+			VAR_LEN, VAR_LEN, 0, 24, 24, 24, 24, 32, 32, 32, 32
+		},
+		[RTW89_CHIP_BE] = {
+			32, 40, 24, 24, 8, 8, 8, 8, VAR_LEN, 8, VAR_LEN, 176, VAR_LEN,
+			VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, VAR_LEN, 16, 24, VAR_LEN,
+			VAR_LEN, VAR_LEN, 0, 24, 24, 24, 24, 32, 32, 32, 32
+		},
 	};
+	const u8 *physts_ie_len_tab;
 	u16 ie_len;
 	u8 ie;
+
+	physts_ie_len_tab = physts_ie_len_tabs[rtwdev->chip->chip_gen];
 
 	ie = le32_get_bits(iehdr->w0, RTW89_PHY_STS_IEHDR_TYPE);
 	if (physts_ie_len_tab[ie] != VAR_LEN)
@@ -1563,8 +1609,16 @@ static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
 {
 	const struct rtw89_phy_sts_hdr *hdr = phy_ppdu->buf;
 	u32 len_from_header;
+	bool physts_valid;
+
+	physts_valid = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_VALID);
+	if (!physts_valid)
+		return -EINVAL;
 
 	len_from_header = le32_get_bits(hdr->w0, RTW89_PHY_STS_HDR_W0_LEN) << 3;
+
+	if (rtwdev->chip->chip_gen == RTW89_CHIP_BE)
+		len_from_header += PHY_STS_HDR_LEN;
 
 	if (len_from_header != phy_ppdu->len) {
 		rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "phy ppdu len mismatch\n");
@@ -2052,13 +2106,19 @@ static void rtw89_core_rx_process_ppdu_sts(struct rtw89_dev *rtwdev,
 					     .mac_id = desc_info->mac_id};
 	int ret;
 
-	if (desc_info->mac_info_valid)
-		rtw89_core_rx_process_mac_ppdu(rtwdev, skb, &phy_ppdu);
+	if (desc_info->mac_info_valid) {
+		ret = rtw89_core_rx_process_mac_ppdu(rtwdev, skb, &phy_ppdu);
+		if (ret)
+			goto out;
+	}
+
 	ret = rtw89_core_rx_process_phy_ppdu(rtwdev, &phy_ppdu);
 	if (ret)
-		rtw89_debug(rtwdev, RTW89_DBG_TXRX, "process ppdu failed\n");
+		goto out;
 
 	rtw89_core_rx_process_phy_sts(rtwdev, &phy_ppdu);
+
+out:
 	rtw89_core_rx_pending_skb(rtwdev, &phy_ppdu, desc_info, skb);
 	dev_kfree_skb_any(skb);
 }
@@ -2823,9 +2883,6 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 	lockdep_assert_held(&rtwdev->mutex);
 
-	ieee80211_queue_delayed_work(hw, &rtwvif->roc.roc_work,
-				     msecs_to_jiffies(rtwvif->roc.duration));
-
 	rtw89_leave_ips_by_hwflags(rtwdev);
 	rtw89_leave_lps(rtwdev);
 	rtw89_chanctx_pause(rtwdev, RTW89_CHANCTX_PAUSE_REASON_ROC);
@@ -2847,6 +2904,9 @@ void rtw89_roc_start(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 			  B_AX_A_UC_CAM_MATCH | B_AX_A_BC_CAM_MATCH);
 
 	ieee80211_ready_on_channel(hw);
+	cancel_delayed_work(&rtwvif->roc.roc_work);
+	ieee80211_queue_delayed_work(hw, &rtwvif->roc.roc_work,
+				     msecs_to_jiffies(rtwvif->roc.duration));
 }
 
 void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
@@ -2886,7 +2946,7 @@ void rtw89_roc_end(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 
 	if (hw->conf.flags & IEEE80211_CONF_IDLE)
 		ieee80211_queue_delayed_work(hw, &roc->roc_work,
-					     RTW89_ROC_IDLE_TIMEOUT);
+					     msecs_to_jiffies(RTW89_ROC_IDLE_TIMEOUT));
 }
 
 void rtw89_roc_work(struct work_struct *work)
@@ -3069,6 +3129,7 @@ static void rtw89_track_work(struct work_struct *work)
 	rtw89_phy_tx_path_div_track(rtwdev);
 	rtw89_phy_antdiv_track(rtwdev);
 	rtw89_phy_ul_tb_ctrl_track(rtwdev);
+	rtw89_phy_edcca_track(rtwdev);
 	rtw89_tas_track(rtwdev);
 	rtw89_chanctx_track(rtwdev);
 
@@ -3895,10 +3956,7 @@ int rtw89_core_start(struct rtw89_dev *rtwdev)
 	/* efuse process */
 
 	/* pre-config BB/RF, BB reset/RFC reset */
-	ret = rtw89_chip_disable_bb_rf(rtwdev);
-	if (ret)
-		return ret;
-	ret = rtw89_chip_enable_bb_rf(rtwdev);
+	ret = rtw89_chip_reset_bb_rf(rtwdev);
 	if (ret)
 		return ret;
 
@@ -4156,17 +4214,18 @@ out:
 
 static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	int ret;
 
 	ret = rtw89_mac_partial_init(rtwdev, false);
 	if (ret)
 		return ret;
 
-	ret = rtw89_parse_efuse_map(rtwdev);
+	ret = mac->parse_efuse_map(rtwdev);
 	if (ret)
 		return ret;
 
-	ret = rtw89_parse_phycap_map(rtwdev);
+	ret = mac->parse_phycap_map(rtwdev);
 	if (ret)
 		return ret;
 
@@ -4175,6 +4234,8 @@ static int rtw89_chip_efuse_info_setup(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_core_setup_phycap(rtwdev);
+
+	rtw89_hci_mac_pre_deinit(rtwdev);
 
 	rtw89_mac_pwr_off(rtwdev);
 

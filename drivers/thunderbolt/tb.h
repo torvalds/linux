@@ -125,6 +125,7 @@ struct tb_switch_tmu {
  * @device_name: Name of the device (or %NULL if not known)
  * @link_speed: Speed of the link in Gb/s
  * @link_width: Width of the upstream facing link
+ * @preferred_link_width: Router preferred link width (only set for Gen 4 links)
  * @link_usb4: Upstream link is USB4
  * @generation: Switch Thunderbolt generation
  * @cap_plug_events: Offset to the plug events capability (%0 if not found)
@@ -178,6 +179,7 @@ struct tb_switch {
 	const char *device_name;
 	unsigned int link_speed;
 	enum tb_link_width link_width;
+	enum tb_link_width preferred_link_width;
 	bool link_usb4;
 	unsigned int generation;
 	int cap_plug_events;
@@ -566,6 +568,22 @@ static inline struct tb_port *tb_port_at(u64 route, struct tb_switch *sw)
 	if (WARN_ON(port > sw->config.max_port_number))
 		return NULL;
 	return &sw->ports[port];
+}
+
+static inline const char *tb_width_name(enum tb_link_width width)
+{
+	switch (width) {
+	case TB_LINK_WIDTH_SINGLE:
+		return "symmetric, single lane";
+	case TB_LINK_WIDTH_DUAL:
+		return "symmetric, dual lanes";
+	case TB_LINK_WIDTH_ASYM_TX:
+		return "asymmetric, 3 transmitters, 1 receiver";
+	case TB_LINK_WIDTH_ASYM_RX:
+		return "asymmetric, 3 receivers, 1 transmitter";
+	default:
+		return "unknown";
+	}
 }
 
 /**

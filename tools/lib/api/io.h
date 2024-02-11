@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <linux/types.h>
 
 struct io {
 	/* File descriptor being read/ */
@@ -140,8 +141,8 @@ static inline int io__get_dec(struct io *io, __u64 *dec)
 	}
 }
 
-/* Read up to and including the first newline following the pattern of getline. */
-static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
+/* Read up to and including the first delim. */
+static inline ssize_t io__getdelim(struct io *io, char **line_out, size_t *line_len_out, int delim)
 {
 	char buf[128];
 	int buf_pos = 0;
@@ -151,7 +152,7 @@ static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_l
 
 	/* TODO: reuse previously allocated memory. */
 	free(*line_out);
-	while (ch != '\n') {
+	while (ch != delim) {
 		ch = io__get_char(io);
 
 		if (ch < 0)
@@ -182,6 +183,11 @@ err_out:
 	free(line);
 	*line_out = NULL;
 	return -ENOMEM;
+}
+
+static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
+{
+	return io__getdelim(io, line_out, line_len_out, /*delim=*/'\n');
 }
 
 #endif /* __API_IO__ */

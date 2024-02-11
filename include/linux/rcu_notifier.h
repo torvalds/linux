@@ -13,7 +13,7 @@
 #define RCU_STALL_NOTIFY_NORM	1
 #define RCU_STALL_NOTIFY_EXP	2
 
-#ifdef CONFIG_RCU_STALL_COMMON
+#if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
 
 #include <linux/notifier.h>
 #include <linux/types.h>
@@ -21,12 +21,12 @@
 int rcu_stall_chain_notifier_register(struct notifier_block *n);
 int rcu_stall_chain_notifier_unregister(struct notifier_block *n);
 
-#else // #ifdef CONFIG_RCU_STALL_COMMON
+#else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
 
 // No RCU CPU stall warnings in Tiny RCU.
 static inline int rcu_stall_chain_notifier_register(struct notifier_block *n) { return -EEXIST; }
 static inline int rcu_stall_chain_notifier_unregister(struct notifier_block *n) { return -ENOENT; }
 
-#endif // #else // #ifdef CONFIG_RCU_STALL_COMMON
+#endif // #else // #if defined(CONFIG_RCU_STALL_COMMON) && defined(CONFIG_RCU_CPU_STALL_NOTIFIER)
 
 #endif /* __LINUX_RCU_NOTIFIER_H */

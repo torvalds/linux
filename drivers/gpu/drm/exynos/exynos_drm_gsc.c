@@ -1309,15 +1309,13 @@ err_pm_dis:
 	return ret;
 }
 
-static int gsc_remove(struct platform_device *pdev)
+static void gsc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
 	component_del(dev, &gsc_component_ops);
 	pm_runtime_dont_use_autosuspend(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static int __maybe_unused gsc_runtime_suspend(struct device *dev)
@@ -1343,7 +1341,7 @@ static int __maybe_unused gsc_runtime_resume(struct device *dev)
 	for (i = 0; i < ctx->num_clocks; i++) {
 		ret = clk_prepare_enable(ctx->clocks[i]);
 		if (ret) {
-			while (--i > 0)
+			while (--i >= 0)
 				clk_disable_unprepare(ctx->clocks[i]);
 			return ret;
 		}
@@ -1422,7 +1420,7 @@ MODULE_DEVICE_TABLE(of, exynos_drm_gsc_of_match);
 
 struct platform_driver gsc_driver = {
 	.probe		= gsc_probe,
-	.remove		= gsc_remove,
+	.remove_new	= gsc_remove,
 	.driver		= {
 		.name	= "exynos-drm-gsc",
 		.owner	= THIS_MODULE,

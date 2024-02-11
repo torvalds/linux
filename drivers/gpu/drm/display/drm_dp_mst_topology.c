@@ -5491,6 +5491,7 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
  *   - 0 if the new state is valid
  *   - %-ENOSPC, if the new state is invalid, because of BW limitation
  *         @failing_port is set to:
+ *
  *         - The non-root port where a BW limit check failed
  *           with all the ports downstream of @failing_port passing
  *           the BW limit check.
@@ -5499,6 +5500,7 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
  *         - %NULL if the BW limit check failed at the root port
  *           with all the ports downstream of the root port passing
  *           the BW limit check.
+ *
  *   - %-EINVAL, if the new state is invalid, because the root port has
  *     too many payloads.
  */
@@ -5926,7 +5928,6 @@ static int drm_dp_mst_register_i2c_bus(struct drm_dp_mst_port *port)
 	aux->ddc.algo_data = aux;
 	aux->ddc.retries = 3;
 
-	aux->ddc.class = I2C_CLASS_DDC;
 	aux->ddc.owner = THIS_MODULE;
 	/* FIXME: set the kdev of the port's connector as parent */
 	aux->ddc.dev.parent = parent_dev;

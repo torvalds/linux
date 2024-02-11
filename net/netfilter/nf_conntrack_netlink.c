@@ -992,12 +992,12 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 	if (err)
 		goto err_filter;
 
-	if (!cda[CTA_FILTER])
-		return filter;
-
 	err = ctnetlink_parse_zone(cda[CTA_ZONE], &filter->zone);
 	if (err < 0)
 		goto err_filter;
+
+	if (!cda[CTA_FILTER])
+		return filter;
 
 	err = ctnetlink_parse_filter(cda[CTA_FILTER], filter);
 	if (err < 0)
@@ -1043,7 +1043,7 @@ err_filter:
 
 static bool ctnetlink_needs_filter(u8 family, const struct nlattr * const *cda)
 {
-	return family || cda[CTA_MARK] || cda[CTA_FILTER] || cda[CTA_STATUS];
+	return family || cda[CTA_MARK] || cda[CTA_FILTER] || cda[CTA_STATUS] || cda[CTA_ZONE];
 }
 
 static int ctnetlink_start(struct netlink_callback *cb)
@@ -1146,6 +1146,10 @@ static int ctnetlink_filter_match(struct nf_conn *ct, void *data)
 	 * then match everything.
 	 */
 	if (filter->family && nf_ct_l3num(ct) != filter->family)
+		goto ignore_entry;
+
+	if (filter->zone.id != NF_CT_DEFAULT_ZONE_ID &&
+	    !nf_ct_zone_equal_any(ct, &filter->zone))
 		goto ignore_entry;
 
 	if (filter->orig_flags) {

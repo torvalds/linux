@@ -38,6 +38,10 @@ properties:
       - const: main
       - const: patch-address
 
+  reset-gpios:
+    description: GPIO used for the HRESET pin.
+    maxItems: 1
+
   wakeup-source: true
 
   interrupts:
@@ -90,6 +94,7 @@ additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/irq.h>
     i2c {
         #address-cells = <1>;
@@ -106,6 +111,7 @@ examples:
 
             pinctrl-names = "default";
             pinctrl-0 = <&typec_pins>;
+            reset-gpios = <&gpio1 6 GPIO_ACTIVE_HIGH>;
 
             typec_con: connector {
                 compatible = "usb-c-connector";

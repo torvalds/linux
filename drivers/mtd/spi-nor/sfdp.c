@@ -446,6 +446,7 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	u32 dword;
 	u16 half;
 	u8 erase_mask;
+	u8 wait_states, mode_clocks, opcode;
 
 	/* JESD216 Basic Flash Parameter Table length is at least 9 DWORDs. */
 	if (bfpt_header->length < BFPT_DWORD_MAX_JESD216)
@@ -630,6 +631,32 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	/* Stop here if not JESD216 rev C or later. */
 	if (bfpt_header->length == BFPT_DWORD_MAX_JESD216B)
 		return spi_nor_post_bfpt_fixups(nor, bfpt_header, &bfpt);
+
+	/* Parse 1-1-8 read instruction */
+	opcode = FIELD_GET(BFPT_DWORD17_RD_1_1_8_CMD, bfpt.dwords[SFDP_DWORD(17)]);
+	if (opcode) {
+		mode_clocks = FIELD_GET(BFPT_DWORD17_RD_1_1_8_MODE_CLOCKS,
+					bfpt.dwords[SFDP_DWORD(17)]);
+		wait_states = FIELD_GET(BFPT_DWORD17_RD_1_1_8_WAIT_STATES,
+					bfpt.dwords[SFDP_DWORD(17)]);
+		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_1_8;
+		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_1_8],
+					  mode_clocks, wait_states, opcode,
+					  SNOR_PROTO_1_1_8);
+	}
+
+	/* Parse 1-8-8 read instruction */
+	opcode = FIELD_GET(BFPT_DWORD17_RD_1_8_8_CMD, bfpt.dwords[SFDP_DWORD(17)]);
+	if (opcode) {
+		mode_clocks = FIELD_GET(BFPT_DWORD17_RD_1_8_8_MODE_CLOCKS,
+					bfpt.dwords[SFDP_DWORD(17)]);
+		wait_states = FIELD_GET(BFPT_DWORD17_RD_1_8_8_WAIT_STATES,
+					bfpt.dwords[SFDP_DWORD(17)]);
+		params->hwcaps.mask |= SNOR_HWCAPS_READ_1_8_8;
+		spi_nor_set_read_settings(&params->reads[SNOR_CMD_READ_1_8_8],
+					  mode_clocks, wait_states, opcode,
+					  SNOR_PROTO_1_8_8);
+	}
 
 	/* 8D-8D-8D command extension. */
 	switch (bfpt.dwords[SFDP_DWORD(18)] & BFPT_DWORD18_CMD_EXT_MASK) {
@@ -968,6 +995,8 @@ static int spi_nor_parse_4bait(struct spi_nor *nor,
 		{ SNOR_HWCAPS_READ_1_1_1_DTR,	BIT(13) },
 		{ SNOR_HWCAPS_READ_1_2_2_DTR,	BIT(14) },
 		{ SNOR_HWCAPS_READ_1_4_4_DTR,	BIT(15) },
+		{ SNOR_HWCAPS_READ_1_1_8,	BIT(20) },
+		{ SNOR_HWCAPS_READ_1_8_8,	BIT(21) },
 	};
 	static const struct sfdp_4bait programs[] = {
 		{ SNOR_HWCAPS_PP,		BIT(6) },

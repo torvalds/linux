@@ -5,7 +5,6 @@
 #include <mach/maple.h>
 
 struct device;
-extern struct bus_type maple_bus_type;
 
 /* Maple Bus command and response codes */
 enum maple_code {

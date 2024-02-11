@@ -1216,7 +1216,7 @@ int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
 
 	ret = check_qp_type(hr_dev, init_attr->qp_type, !!udata);
 	if (ret)
-		return ret;
+		goto err_out;
 
 	if (init_attr->qp_type == IB_QPT_XRC_TGT)
 		hr_qp->xrcdn = to_hr_xrcd(init_attr->xrcd)->xrcdn;
@@ -1230,6 +1230,10 @@ int hns_roce_create_qp(struct ib_qp *qp, struct ib_qp_init_attr *init_attr,
 	if (ret)
 		ibdev_err(ibdev, "create QP type 0x%x failed(%d)\n",
 			  init_attr->qp_type, ret);
+
+err_out:
+	if (ret)
+		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_QP_CREATE_ERR_CNT]);
 
 	return ret;
 }
@@ -1366,6 +1370,8 @@ int hns_roce_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 out:
 	mutex_unlock(&hr_qp->mutex);
+	if (ret)
+		atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_QP_MODIFY_ERR_CNT]);
 
 	return ret;
 }

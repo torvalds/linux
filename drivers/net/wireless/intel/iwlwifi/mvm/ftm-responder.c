@@ -39,7 +39,7 @@ static int iwl_mvm_ftm_responder_set_bw_v1(struct cfg80211_chan_def *chandef,
 		*ctrl_ch_position = iwl_mvm_get_ctrl_pos(chandef);
 		break;
 	default:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -77,7 +77,7 @@ static int iwl_mvm_ftm_responder_set_bw_v2(struct cfg80211_chan_def *chandef,
 		}
 		fallthrough;
 	default:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -291,7 +291,7 @@ iwl_mvm_ftm_responder_dyn_cfg_cmd(struct iwl_mvm *mvm,
 	default:
 		IWL_ERR(mvm, "Unsupported DYN_CONFIG_CMD version %u\n",
 			cmd_ver);
-		ret = -ENOTSUPP;
+		ret = -EOPNOTSUPP;
 	}
 
 	return ret;
@@ -333,7 +333,7 @@ int iwl_mvm_ftm_respoder_add_pasn_sta(struct iwl_mvm *mvm,
 
 	if (cmd_ver < 3) {
 		IWL_ERR(mvm, "Adding PASN station not supported by FW\n");
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if ((!hltk || !hltk_len) && (!tk || !tk_len)) {

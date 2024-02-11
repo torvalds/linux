@@ -93,12 +93,13 @@ sub parse_abi {
 	return if ($mode & S_IFDIR);
 	return if ($file =~ m,/README,);
 	return if ($file =~ m,/\.,);
+	return if ($file =~ m,\.(rej|org|orig|bak)$,);
 
 	my $name = $file;
 	$name =~ s,.*/,,;
 
 	my $fn = $file;
-	$fn =~ s,Documentation/ABI/,,;
+	$fn =~ s,.*Documentation/ABI/,,;
 
 	my $nametag = "File $fn";
 	$data{$nametag}->{what} = "File $name";

@@ -1,0 +1,125 @@
+[
+    {
+        "ArchStdEvent": "BR_IMMED_SPEC"
+    },
+    {
+        "ArchStdEvent": "BR_RETURN_SPEC"
+    },
+    {
+        "ArchStdEvent": "BR_INDIRECT_SPEC"
+    },
+    {
+        "ArchStdEvent": "BR_MIS_PRED"
+    },
+    {
+        "ArchStdEvent": "BR_PRED"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, branch not taken",
+        "EventCode": "0x8107",
+        "EventName": "BR_SKIP_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, branch not taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, immediate branch taken",
+        "EventCode": "0x8108",
+        "EventName": "BR_IMMED_TAKEN_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, immediate branch taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, indirect branch excluding return retired",
+        "EventCode": "0x810c",
+        "EventName": "BR_INDNR_TAKEN_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, indirect branch excluding return retired"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted immediate branch",
+        "EventCode": "0x8110",
+        "EventName": "BR_IMMED_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted immediate branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted immediate branch",
+        "EventCode": "0x8111",
+        "EventName": "BR_IMMED_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted immediate branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted indirect branch",
+        "EventCode": "0x8112",
+        "EventName": "BR_IND_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted indirect branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted indirect branch",
+        "EventCode": "0x8113",
+        "EventName": "BR_IND_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted indirect branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted procedure return",
+        "EventCode": "0x8114",
+        "EventName": "BR_RETURN_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted procedure return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted procedure return",
+        "EventCode": "0x8115",
+        "EventName": "BR_RETURN_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted procedure return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted indirect branch excluding return",
+        "EventCode": "0x8116",
+        "EventName": "BR_INDNR_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted indirect branch excluding return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted indirect branch excluding return",
+        "EventCode": "0x8117",
+        "EventName": "BR_INDNR_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted indirect branch excluding return"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted branch, taken",
+        "EventCode": "0x8118",
+        "EventName": "BR_TAKEN_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted branch, taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted branch, taken",
+        "EventCode": "0x8119",
+        "EventName": "BR_TAKEN_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted branch, taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted branch, not taken",
+        "EventCode": "0x811a",
+        "EventName": "BR_SKIP_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted branch, not taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, mispredicted branch, not taken",
+        "EventCode": "0x811b",
+        "EventName": "BR_SKIP_MIS_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, mispredicted branch, not taken"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, predicted branch",
+        "EventCode": "0x811c",
+        "EventName": "BR_PRED_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, predicted branch"
+    },
+    {
+        "PublicDescription": "Instruction architecturally executed, indirect branch",
+        "EventCode": "0x811d",
+        "EventName": "BR_IND_RETIRED",
+        "BriefDescription": "Instruction architecturally executed, indirect branch"
+    },
+    {
+        "PublicDescription": "Branch Record captured.",
+        "EventCode": "0x811f",
+        "EventName": "BRB_FILTRATE",
+        "BriefDescription": "Branch Record captured."
+    }
+]

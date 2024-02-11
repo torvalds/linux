@@ -15,6 +15,13 @@ struct {
 } sock_map SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_SOCKMAP);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, __u64);
+} nop_map SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_SOCKHASH);
 	__uint(max_entries, 2);
 	__type(key, __u32);

@@ -56,6 +56,16 @@ config REGULATOR_USERSPACE_CONSUMER
 
 	  If unsure, say no.
 
+config REGULATOR_NETLINK_EVENTS
+	bool "Enable support for receiving regulator events via netlink"
+	depends on NET
+	help
+	  Enabling this option allows the kernel to broadcast regulator events using
+	  the netlink mechanism. User-space applications can subscribe to these events
+	  for real-time updates on various regulator events.
+
+	  If unsure, say no.
+
 config REGULATOR_88PG86X
 	tristate "Marvell 88PG86X voltage regulators"
 	depends on I2C

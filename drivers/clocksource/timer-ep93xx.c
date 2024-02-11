@@ -155,9 +155,8 @@ static int __init ep93xx_timer_of_init(struct device_node *np)
 	ep93xx_tcu = tcu;
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq == 0)
-		irq = -EINVAL;
-	if (irq < 0) {
+	if (!irq) {
+		ret = -EINVAL;
 		pr_err("EP93XX Timer Can't parse IRQ %d", irq);
 		goto out_free;
 	}

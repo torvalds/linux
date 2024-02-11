@@ -301,7 +301,7 @@ void dma_resv_add_fence(struct dma_resv *obj, struct dma_fence *fence,
 
 		dma_resv_list_entry(fobj, i, obj, &old, &old_usage);
 		if ((old->context == fence->context && old_usage >= usage &&
-		     dma_fence_is_later(fence, old)) ||
+		     dma_fence_is_later_or_same(fence, old)) ||
 		    dma_fence_is_signaled(old)) {
 			dma_resv_list_set(fobj, i, fence, usage);
 			dma_fence_put(old);
@@ -405,7 +405,7 @@ static void dma_resv_iter_walk_unlocked(struct dma_resv_iter *cursor)
  *
  * Beware that the iterator can be restarted.  Code which accumulates statistics
  * or similar needs to check for this with dma_resv_iter_is_restarted(). For
- * this reason prefer the locked dma_resv_iter_first() whenver possible.
+ * this reason prefer the locked dma_resv_iter_first() whenever possible.
  *
  * Returns the first fence from an unlocked dma_resv obj.
  */
@@ -428,7 +428,7 @@ EXPORT_SYMBOL(dma_resv_iter_first_unlocked);
  *
  * Beware that the iterator can be restarted.  Code which accumulates statistics
  * or similar needs to check for this with dma_resv_iter_is_restarted(). For
- * this reason prefer the locked dma_resv_iter_next() whenver possible.
+ * this reason prefer the locked dma_resv_iter_next() whenever possible.
  *
  * Returns the next fence from an unlocked dma_resv obj.
  */

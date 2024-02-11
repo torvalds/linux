@@ -676,10 +676,10 @@ struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (is_multicast_ether_addr(dst))
-		return ERR_PTR(-ENOTSUPP);
+		return ERR_PTR(-EOPNOTSUPP);
 
 	if (atomic_add_unless(&sdata->u.mesh.mpaths, 1, MESH_MAX_MPATHS) == 0)
 		return ERR_PTR(-ENOSPC);
@@ -719,10 +719,10 @@ int mpp_path_add(struct ieee80211_sub_if_data *sdata,
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (is_multicast_ether_addr(dst))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	new_mpath = mesh_path_new(sdata, dst, GFP_ATOMIC);
 

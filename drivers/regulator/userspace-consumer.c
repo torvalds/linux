@@ -194,7 +194,7 @@ err_enable:
 	return ret;
 }
 
-static int regulator_userspace_consumer_remove(struct platform_device *pdev)
+static void regulator_userspace_consumer_remove(struct platform_device *pdev)
 {
 	struct userspace_consumer_data *data = platform_get_drvdata(pdev);
 
@@ -202,8 +202,6 @@ static int regulator_userspace_consumer_remove(struct platform_device *pdev)
 
 	if (data->enabled && !data->no_autoswitch)
 		regulator_bulk_disable(data->num_supplies, data->supplies);
-
-	return 0;
 }
 
 static const struct of_device_id regulator_userspace_consumer_of_match[] = {
@@ -213,7 +211,7 @@ static const struct of_device_id regulator_userspace_consumer_of_match[] = {
 
 static struct platform_driver regulator_userspace_consumer_driver = {
 	.probe		= regulator_userspace_consumer_probe,
-	.remove		= regulator_userspace_consumer_remove,
+	.remove_new	= regulator_userspace_consumer_remove,
 	.driver		= {
 		.name		= "reg-userspace-consumer",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,

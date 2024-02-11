@@ -968,9 +968,12 @@ static int qcom_pcie_post_init_2_7_0(struct qcom_pcie *pcie)
 
 static int qcom_pcie_enable_aspm(struct pci_dev *pdev, void *userdata)
 {
-	/* Downstream devices need to be in D0 state before enabling PCI PM substates */
-	pci_set_power_state(pdev, PCI_D0);
-	pci_enable_link_state(pdev, PCIE_LINK_STATE_ALL);
+	/*
+	 * Downstream devices need to be in D0 state before enabling PCI PM
+	 * substates.
+	 */
+	pci_set_power_state_locked(pdev, PCI_D0);
+	pci_enable_link_state_locked(pdev, PCIE_LINK_STATE_ALL);
 
 	return 0;
 }
@@ -1244,9 +1247,9 @@ static void qcom_pcie_host_post_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops qcom_pcie_dw_ops = {
-	.host_init	= qcom_pcie_host_init,
-	.host_deinit	= qcom_pcie_host_deinit,
-	.host_post_init	= qcom_pcie_host_post_init,
+	.init		= qcom_pcie_host_init,
+	.deinit		= qcom_pcie_host_deinit,
+	.post_init	= qcom_pcie_host_post_init,
 };
 
 /* Qcom IP rev.: 2.1.0	Synopsys IP rev.: 4.01a */

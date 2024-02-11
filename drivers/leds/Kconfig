@@ -95,14 +95,18 @@ config LEDS_ARIEL
 	  Say Y to if your machine is a Dell Wyse 3020 thin client.
 
 config LEDS_AW200XX
-	tristate "LED support for Awinic AW20036/AW20054/AW20072"
+	tristate "LED support for Awinic AW20036/AW20054/AW20072/AW20108"
 	depends on LEDS_CLASS
 	depends on I2C
 	help
-	  This option enables support for the AW20036/AW20054/AW20072 LED driver.
-	  It is a 3x12/6x9/6x12 matrix LED driver programmed via
-	  an I2C interface, up to 36/54/72 LEDs or 12/18/24 RGBs,
-	  3 pattern controllers for auto breathing or group dimming control.
+	  This option enables support for the Awinic AW200XX LED controllers.
+	  It is a matrix LED driver programmed via an I2C interface. Devices have
+	  a set of individually controlled LEDs and support 3 pattern controllers
+	  for auto breathing or group dimming control. Supported devices:
+	    - AW20036 (3x12) 36 LEDs
+	    - AW20054 (6x9)  54 LEDs
+	    - AW20072 (6x12) 72 LEDs
+	    - AW20108 (9x12) 108 LEDs
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-aw200xx.
@@ -110,6 +114,7 @@ config LEDS_AW200XX
 config LEDS_AW2013
 	tristate "LED support for Awinic AW2013"
 	depends on LEDS_CLASS && I2C && OF
+	select REGMAP_I2C
 	help
 	  This option enables support for the AW2013 3-channel
 	  LED driver.
@@ -297,6 +302,15 @@ config LEDS_COBALT_RAQ
 	select LEDS_TRIGGERS
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
+
+config LEDS_SUN50I_A100
+	tristate "LED support for Allwinner A100 RGB LED controller"
+	depends on LEDS_CLASS_MULTICOLOR
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  This option enables support for the RGB LED controller found
+	  in some Allwinner sunxi SoCs, including A100, R329, and D1.
+	  It uses a one-wire interface to control up to 1024 LEDs.
 
 config LEDS_SUNFIRE
 	tristate "LED support for SunFire servers."
@@ -637,6 +651,17 @@ config LEDS_ADP5520
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-adp5520.
+
+config LEDS_MAX5970
+	tristate "LED Support for Maxim 5970"
+	depends on LEDS_CLASS
+	depends on MFD_MAX5970
+	help
+	  This option enables support for the Maxim MAX5970 & MAX5978 smart
+	  switch indication LEDs via the I2C bus.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-max5970.
 
 config LEDS_MC13783
 	tristate "LED Support for MC13XXX PMIC"

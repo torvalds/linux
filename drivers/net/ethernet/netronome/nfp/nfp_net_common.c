@@ -1176,7 +1176,8 @@ static void nfp_net_rx_dim_work(struct work_struct *work)
 	 * count.
 	 */
 	factor = nn->tlv_caps.me_freq_mhz / 16;
-	if (nfp_net_coalesce_para_check(factor * moder.usec, moder.pkts))
+	if (nfp_net_coalesce_para_check(factor * moder.usec) ||
+	    nfp_net_coalesce_para_check(moder.pkts))
 		return;
 
 	/* copy RX interrupt coalesce parameters */
@@ -1205,7 +1206,8 @@ static void nfp_net_tx_dim_work(struct work_struct *work)
 	 * count.
 	 */
 	factor = nn->tlv_caps.me_freq_mhz / 16;
-	if (nfp_net_coalesce_para_check(factor * moder.usec, moder.pkts))
+	if (nfp_net_coalesce_para_check(factor * moder.usec) ||
+	    nfp_net_coalesce_para_check(moder.pkts))
 		return;
 
 	/* copy TX interrupt coalesce parameters */
@@ -1763,6 +1765,186 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
 }
 
+static void
+nfp_net_fs_fill_v4(struct nfp_net *nn, struct nfp_fs_entry *entry, u32 op, u32 *addr)
+{
+	unsigned int i;
+
+	union {
+		struct {
+			__be16 loc;
+			u8 k_proto, m_proto;
+			__be32 k_sip, m_sip, k_dip, m_dip;
+			__be16 k_sport, m_sport, k_dport, m_dport;
+		};
+		__be32 val[7];
+	} v4_rule;
+
+	nn_writel(nn, *addr, op);
+	*addr += sizeof(u32);
+
+	v4_rule.loc     = cpu_to_be16(entry->loc);
+	v4_rule.k_proto = entry->key.l4_proto;
+	v4_rule.m_proto = entry->msk.l4_proto;
+	v4_rule.k_sip   = entry->key.sip4;
+	v4_rule.m_sip   = entry->msk.sip4;
+	v4_rule.k_dip   = entry->key.dip4;
+	v4_rule.m_dip   = entry->msk.dip4;
+	v4_rule.k_sport = entry->key.sport;
+	v4_rule.m_sport = entry->msk.sport;
+	v4_rule.k_dport = entry->key.dport;
+	v4_rule.m_dport = entry->msk.dport;
+
+	for (i = 0; i < ARRAY_SIZE(v4_rule.val); i++, *addr += sizeof(__be32))
+		nn_writel(nn, *addr, be32_to_cpu(v4_rule.val[i]));
+}
+
+static void
+nfp_net_fs_fill_v6(struct nfp_net *nn, struct nfp_fs_entry *entry, u32 op, u32 *addr)
+{
+	unsigned int i;
+
+	union {
+		struct {
+			__be16 loc;
+			u8 k_proto, m_proto;
+			__be32 k_sip[4], m_sip[4], k_dip[4], m_dip[4];
+			__be16 k_sport, m_sport, k_dport, m_dport;
+		};
+		__be32 val[19];
+	} v6_rule;
+
+	nn_writel(nn, *addr, op);
+	*addr += sizeof(u32);
+
+	v6_rule.loc     = cpu_to_be16(entry->loc);
+	v6_rule.k_proto = entry->key.l4_proto;
+	v6_rule.m_proto = entry->msk.l4_proto;
+	for (i = 0; i < 4; i++) {
+		v6_rule.k_sip[i] = entry->key.sip6[i];
+		v6_rule.m_sip[i] = entry->msk.sip6[i];
+		v6_rule.k_dip[i] = entry->key.dip6[i];
+		v6_rule.m_dip[i] = entry->msk.dip6[i];
+	}
+	v6_rule.k_sport = entry->key.sport;
+	v6_rule.m_sport = entry->msk.sport;
+	v6_rule.k_dport = entry->key.dport;
+	v6_rule.m_dport = entry->msk.dport;
+
+	for (i = 0; i < ARRAY_SIZE(v6_rule.val); i++, *addr += sizeof(__be32))
+		nn_writel(nn, *addr, be32_to_cpu(v6_rule.val[i]));
+}
+
+#define NFP_FS_QUEUE_ID	GENMASK(22, 16)
+#define NFP_FS_ACT	GENMASK(15, 0)
+#define NFP_FS_ACT_DROP	BIT(0)
+#define NFP_FS_ACT_Q	BIT(1)
+static void
+nfp_net_fs_fill_act(struct nfp_net *nn, struct nfp_fs_entry *entry, u32 addr)
+{
+	u32 action = 0; /* 0 means default passthrough */
+
+	if (entry->action == RX_CLS_FLOW_DISC)
+		action = NFP_FS_ACT_DROP;
+	else if (!(entry->flow_type & FLOW_RSS))
+		action = FIELD_PREP(NFP_FS_QUEUE_ID, entry->action) | NFP_FS_ACT_Q;
+
+	nn_writel(nn, addr, action);
+}
+
+int nfp_net_fs_add_hw(struct nfp_net *nn, struct nfp_fs_entry *entry)
+{
+	u32 addr = nn->tlv_caps.mbox_off + NFP_NET_CFG_MBOX_SIMPLE_VAL;
+	int err;
+
+	err = nfp_net_mbox_lock(nn, NFP_NET_CFG_FS_SZ);
+	if (err)
+		return err;
+
+	switch (entry->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case IPV4_USER_FLOW:
+		nfp_net_fs_fill_v4(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_ADD_V4, &addr);
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case IPV6_USER_FLOW:
+		nfp_net_fs_fill_v6(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_ADD_V6, &addr);
+		break;
+	case ETHER_FLOW:
+		nn_writel(nn, addr, NFP_NET_CFG_MBOX_CMD_FS_ADD_ETHTYPE);
+		addr += sizeof(u32);
+		nn_writew(nn, addr, be16_to_cpu(entry->key.l3_proto));
+		addr += sizeof(u32);
+		break;
+	}
+
+	nfp_net_fs_fill_act(nn, entry, addr);
+
+	err = nfp_net_mbox_reconfig_and_unlock(nn, NFP_NET_CFG_MBOX_CMD_FLOW_STEER);
+	if (err) {
+		nn_err(nn, "Add new fs rule failed with %d\n", err);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int nfp_net_fs_del_hw(struct nfp_net *nn, struct nfp_fs_entry *entry)
+{
+	u32 addr = nn->tlv_caps.mbox_off + NFP_NET_CFG_MBOX_SIMPLE_VAL;
+	int err;
+
+	err = nfp_net_mbox_lock(nn, NFP_NET_CFG_FS_SZ);
+	if (err)
+		return err;
+
+	switch (entry->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case IPV4_USER_FLOW:
+		nfp_net_fs_fill_v4(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_DEL_V4, &addr);
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case IPV6_USER_FLOW:
+		nfp_net_fs_fill_v6(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_DEL_V6, &addr);
+		break;
+	case ETHER_FLOW:
+		nn_writel(nn, addr, NFP_NET_CFG_MBOX_CMD_FS_DEL_ETHTYPE);
+		addr += sizeof(u32);
+		nn_writew(nn, addr, be16_to_cpu(entry->key.l3_proto));
+		addr += sizeof(u32);
+		break;
+	}
+
+	nfp_net_fs_fill_act(nn, entry, addr);
+
+	err = nfp_net_mbox_reconfig_and_unlock(nn, NFP_NET_CFG_MBOX_CMD_FLOW_STEER);
+	if (err) {
+		nn_err(nn, "Delete fs rule failed with %d\n", err);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void nfp_net_fs_clean(struct nfp_net *nn)
+{
+	struct nfp_fs_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &nn->fs.list, node) {
+		nfp_net_fs_del_hw(nn, entry);
+		list_del(&entry->node);
+		kfree(entry);
+	}
+}
+
 static void nfp_net_stat64(struct net_device *netdev,
 			   struct rtnl_link_stats64 *stats)
 {
@@ -1934,7 +2116,10 @@ nfp_net_features_check(struct sk_buff *skb, struct net_device *dev,
 	if (skb_is_gso(skb)) {
 		u32 hdrlen;
 
-		hdrlen = skb_inner_tcp_all_headers(skb);
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			hdrlen = skb_inner_transport_offset(skb) + sizeof(struct udphdr);
+		else
+			hdrlen = skb_inner_tcp_all_headers(skb);
 
 		/* Assume worst case scenario of having longest possible
 		 * metadata prepend - 8B
@@ -2237,7 +2422,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.extend, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -2266,6 +2451,7 @@ void nfp_net_info(struct nfp_net *nn)
 						      "RXCSUM_COMPLETE " : "",
 		nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR ? "LIVE_ADDR " : "",
 		nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER ? "MULTICAST_FILTER " : "",
+		nn->cap_w1 & NFP_NET_CFG_CTRL_USO ? "USO " : "",
 		nfp_app_extra_cap(nn->app, nn));
 }
 
@@ -2514,6 +2700,8 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	if ((nn->cap & NFP_NET_CFG_CTRL_LSO && nn->fw_ver.major > 2) ||
 	    nn->cap & NFP_NET_CFG_CTRL_LSO2) {
 		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
+		if (nn->cap_w1 & NFP_NET_CFG_CTRL_USO)
+			netdev->hw_features |= NETIF_F_GSO_UDP_L4;
 		nn->dp.ctrl |= nn->cap & NFP_NET_CFG_CTRL_LSO2 ?:
 					 NFP_NET_CFG_CTRL_LSO;
 	}
@@ -2740,6 +2928,8 @@ int nfp_net_init(struct nfp_net *nn)
 	INIT_LIST_HEAD(&nn->mbox_amsg.list);
 	INIT_WORK(&nn->mbox_amsg.work, nfp_net_mbox_amsg_work);
 
+	INIT_LIST_HEAD(&nn->fs.list);
+
 	return register_netdev(nn->dp.netdev);
 
 err_clean_mbox:
@@ -2759,6 +2949,7 @@ void nfp_net_clean(struct nfp_net *nn)
 	unregister_netdev(nn->dp.netdev);
 	nfp_net_ipsec_clean(nn);
 	nfp_ccm_mbox_clean(nn);
+	nfp_net_fs_clean(nn);
 	flush_work(&nn->mbox_amsg.work);
 	nfp_net_reconfig_wait_posted(nn);
 }

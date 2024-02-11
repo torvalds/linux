@@ -31,6 +31,10 @@ static const char * const qm_debug_file_name[] = {
 	[CLEAR_ENABLE] = "clear_enable",
 };
 
+static const char * const qm_s[] = {
+	"work", "stop",
+};
+
 struct qm_dfx_item {
 	const char *name;
 	u32 offset;
@@ -53,34 +57,34 @@ static struct qm_dfx_item qm_dfx_files[] = {
 #define CNT_CYC_REGS_NUM		10
 static const struct debugfs_reg32 qm_dfx_regs[] = {
 	/* XXX_CNT are reading clear register */
-	{"QM_ECC_1BIT_CNT               ",  0x104000ull},
-	{"QM_ECC_MBIT_CNT               ",  0x104008ull},
-	{"QM_DFX_MB_CNT                 ",  0x104018ull},
-	{"QM_DFX_DB_CNT                 ",  0x104028ull},
-	{"QM_DFX_SQE_CNT                ",  0x104038ull},
-	{"QM_DFX_CQE_CNT                ",  0x104048ull},
-	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050ull},
-	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058ull},
-	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060ull},
-	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4ull},
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
-	{"QM_ECC_1BIT_INF               ",  0x104004ull},
-	{"QM_ECC_MBIT_INF               ",  0x10400cull},
-	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0ull},
-	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4ull},
-	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8ull},
-	{"QM_DFX_FF_ST0                 ",  0x1040c8ull},
-	{"QM_DFX_FF_ST1                 ",  0x1040ccull},
-	{"QM_DFX_FF_ST2                 ",  0x1040d0ull},
-	{"QM_DFX_FF_ST3                 ",  0x1040d4ull},
-	{"QM_DFX_FF_ST4                 ",  0x1040d8ull},
-	{"QM_DFX_FF_ST5                 ",  0x1040dcull},
-	{"QM_DFX_FF_ST6                 ",  0x1040e0ull},
-	{"QM_IN_IDLE_ST                 ",  0x1040e4ull},
+	{"QM_ECC_1BIT_CNT               ",  0x104000},
+	{"QM_ECC_MBIT_CNT               ",  0x104008},
+	{"QM_DFX_MB_CNT                 ",  0x104018},
+	{"QM_DFX_DB_CNT                 ",  0x104028},
+	{"QM_DFX_SQE_CNT                ",  0x104038},
+	{"QM_DFX_CQE_CNT                ",  0x104048},
+	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050},
+	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058},
+	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060},
+	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200},
+	{"QM_ECC_1BIT_INF               ",  0x104004},
+	{"QM_ECC_MBIT_INF               ",  0x10400c},
+	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0},
+	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4},
+	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8},
+	{"QM_DFX_FF_ST0                 ",  0x1040c8},
+	{"QM_DFX_FF_ST1                 ",  0x1040cc},
+	{"QM_DFX_FF_ST2                 ",  0x1040d0},
+	{"QM_DFX_FF_ST3                 ",  0x1040d4},
+	{"QM_DFX_FF_ST4                 ",  0x1040d8},
+	{"QM_DFX_FF_ST5                 ",  0x1040dc},
+	{"QM_DFX_FF_ST6                 ",  0x1040e0},
+	{"QM_IN_IDLE_ST                 ",  0x1040e4},
 };
 
 static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200},
 };
 
 /* define the QM's dfx regs region and region length */

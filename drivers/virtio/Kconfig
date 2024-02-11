@@ -60,6 +60,11 @@ config VIRTIO_PCI
 
 	  If unsure, say M.
 
+config VIRTIO_PCI_ADMIN_LEGACY
+	bool
+	depends on VIRTIO_PCI && (X86 || COMPILE_TEST)
+	default y
+
 config VIRTIO_PCI_LEGACY
 	bool "Support for legacy virtio draft 0.9.X and older devices"
 	default y

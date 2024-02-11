@@ -44,14 +44,6 @@ static inline void vsp1_rpf_write(struct vsp1_rwpf *rpf,
 }
 
 /* -----------------------------------------------------------------------------
- * V4L2 Subdevice Operations
- */
-
-static const struct v4l2_subdev_ops rpf_ops = {
-	.pad    = &vsp1_rwpf_pad_ops,
-};
-
-/* -----------------------------------------------------------------------------
  * VSP1 Entity Operations
  */
 
@@ -89,10 +81,10 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 
 	/* Format */
 	sink_format = vsp1_entity_get_pad_format(&rpf->entity,
-						 rpf->entity.config,
+						 rpf->entity.state,
 						 RWPF_PAD_SINK);
 	source_format = vsp1_entity_get_pad_format(&rpf->entity,
-						   rpf->entity.config,
+						   rpf->entity.state,
 						   RWPF_PAD_SOURCE);
 
 	infmt = VI6_RPF_INFMT_CIPM
@@ -166,7 +158,7 @@ static void rpf_configure_stream(struct vsp1_entity *entity,
 		const struct v4l2_rect *compose;
 
 		compose = vsp1_entity_get_pad_selection(pipe->brx,
-							pipe->brx->config,
+							pipe->brx->state,
 							rpf->brx_input,
 							V4L2_SEL_TGT_COMPOSE);
 		left = compose->left;
@@ -310,7 +302,7 @@ static void rpf_configure_partition(struct vsp1_entity *entity,
 	 * offsets are needed, as planes 2 and 3 always have identical
 	 * strides.
 	 */
-	crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.config);
+	crop = *vsp1_rwpf_get_crop(rpf, rpf->entity.state);
 
 	/*
 	 * Partition Algorithm Control
@@ -411,7 +403,7 @@ struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index)
 	rpf->entity.index = index;
 
 	sprintf(name, "rpf.%u", index);
-	ret = vsp1_entity_init(vsp1, &rpf->entity, name, 2, &rpf_ops,
+	ret = vsp1_entity_init(vsp1, &rpf->entity, name, 2, &vsp1_rwpf_subdev_ops,
 			       MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER);
 	if (ret < 0)
 		return ERR_PTR(ret);

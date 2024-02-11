@@ -418,7 +418,7 @@ static int find_drr_eligible_stream(struct dc_state *display_state)
 	int i;
 
 	for (i = 0; i < display_state->stream_count; i++) {
-		if (display_state->streams[i]->mall_stream_config.type == SUBVP_NONE
+		if (dc_state_get_stream_subvp_type(display_state, display_state->streams[i]) == SUBVP_NONE
 			&& display_state->streams[i]->ignore_msa_timing_param) {
 			// Use ignore_msa_timing_param flag to identify as DRR
 			return i;
@@ -634,6 +634,8 @@ static bool dml2_validate_and_build_resource(const struct dc *in_dc, struct dc_s
 		dml2_extract_watermark_set(&context->bw_ctx.bw.dcn.watermarks.b, &dml2->v20.dml_core_ctx);
 		memcpy(&context->bw_ctx.bw.dcn.watermarks.c, &dml2->v20.g6_temp_read_watermark_set, sizeof(context->bw_ctx.bw.dcn.watermarks.c));
 		dml2_extract_watermark_set(&context->bw_ctx.bw.dcn.watermarks.d, &dml2->v20.dml_core_ctx);
+		//copy for deciding zstate use
+		context->bw_ctx.dml.vba.StutterPeriod = context->bw_ctx.dml2->v20.dml_core_ctx.mp.StutterPeriod;
 	}
 
 	return result;
@@ -691,10 +693,15 @@ bool dml2_validate(const struct dc *in_dc, struct dc_state *context, bool fast_v
 	return out;
 }
 
+static inline struct dml2_context *dml2_allocate_memory(void)
+{
+	return (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+}
+
 bool dml2_create(const struct dc *in_dc, const struct dml2_configuration_options *config, struct dml2_context **dml2)
 {
 	// Allocate Mode Lib Ctx
-	*dml2 = (struct dml2_context *) kzalloc(sizeof(struct dml2_context), GFP_KERNEL);
+	*dml2 = dml2_allocate_memory();
 
 	if (!(*dml2))
 		return false;
@@ -744,4 +751,26 @@ void dml2_extract_dram_and_fclk_change_support(struct dml2_context *dml2,
 {
 	*fclk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.FCLKChangeSupport[0];
 	*dram_clk_change_support = (unsigned int) dml2->v20.dml_core_ctx.ms.support.DRAMClockChangeSupport[0];
+}
+
+void dml2_copy(struct dml2_context *dst_dml2,
+	struct dml2_context *src_dml2)
+{
+	/* copy Mode Lib Ctx */
+	memcpy(dst_dml2, src_dml2, sizeof(struct dml2_context));
+}
+
+bool dml2_create_copy(struct dml2_context **dst_dml2,
+	struct dml2_context *src_dml2)
+{
+	/* Allocate Mode Lib Ctx */
+	*dst_dml2 = dml2_allocate_memory();
+
+	if (!(*dst_dml2))
+		return false;
+
+	/* copy Mode Lib Ctx */
+	dml2_copy(*dst_dml2, src_dml2);
+
+	return true;
 }

@@ -421,25 +421,6 @@ static struct skcipher_alg nitrox_skciphers[] = { {
 	.exit = nitrox_skcipher_exit,
 }, {
 	.base = {
-		.cra_name = "cfb(aes)",
-		.cra_driver_name = "n5_cfb(aes)",
-		.cra_priority = PRIO,
-		.cra_flags = CRYPTO_ALG_ASYNC | CRYPTO_ALG_ALLOCATES_MEMORY,
-		.cra_blocksize = AES_BLOCK_SIZE,
-		.cra_ctxsize = sizeof(struct nitrox_crypto_ctx),
-		.cra_alignmask = 0,
-		.cra_module = THIS_MODULE,
-	},
-	.min_keysize = AES_MIN_KEY_SIZE,
-	.max_keysize = AES_MAX_KEY_SIZE,
-	.ivsize = AES_BLOCK_SIZE,
-	.setkey = nitrox_aes_setkey,
-	.encrypt = nitrox_aes_encrypt,
-	.decrypt = nitrox_aes_decrypt,
-	.init = nitrox_skcipher_init,
-	.exit = nitrox_skcipher_exit,
-}, {
-	.base = {
 		.cra_name = "xts(aes)",
 		.cra_driver_name = "n5_xts(aes)",
 		.cra_priority = PRIO,

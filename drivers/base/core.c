@@ -298,7 +298,7 @@ static inline bool device_link_flag_is_sync_state_only(u32 flags)
  * Check if @target depends on @dev or any device dependent on it (its child or
  * its consumer etc).  Return 1 if that is the case or 0 otherwise.
  */
-int device_is_dependent(struct device *dev, void *target)
+static int device_is_dependent(struct device *dev, void *target)
 {
 	struct device_link *link;
 	int ret;
@@ -1641,7 +1641,7 @@ static void device_links_purge(struct device *dev)
 #define FW_DEVLINK_FLAGS_RPM		(FW_DEVLINK_FLAGS_ON | \
 					 DL_FLAG_PM_RUNTIME)
 
-static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_ON;
+static u32 fw_devlink_flags = FW_DEVLINK_FLAGS_RPM;
 static int __init fw_devlink_setup(char *arg)
 {
 	if (!arg)
@@ -4944,13 +4944,14 @@ define_dev_printk_level(_dev_info, KERN_INFO);
  *
  * 	return dev_err_probe(dev, err, ...);
  *
- * Note that it is deemed acceptable to use this function for error
- * prints during probe even if the @err is known to never be -EPROBE_DEFER.
+ * Using this helper in your probe function is totally fine even if @err is
+ * known to never be -EPROBE_DEFER.
  * The benefit compared to a normal dev_err() is the standardized format
- * of the error code and the fact that the error code is returned.
+ * of the error code, it being emitted symbolically (i.e. you get "EAGAIN"
+ * instead of "-35") and the fact that the error code is returned which allows
+ * more compact error paths.
  *
  * Returns @err.
- *
  */
 int dev_err_probe(const struct device *dev, int err, const char *fmt, ...)
 {

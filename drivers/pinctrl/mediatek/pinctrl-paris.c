@@ -1131,9 +1131,8 @@ static int mtk_paris_pinctrl_resume(struct device *device)
 	return mtk_eint_do_resume(pctl->eint);
 }
 
-const struct dev_pm_ops mtk_paris_pinctrl_pm_ops = {
-	.suspend_noirq = mtk_paris_pinctrl_suspend,
-	.resume_noirq = mtk_paris_pinctrl_resume,
+EXPORT_GPL_DEV_SLEEP_PM_OPS(mtk_paris_pinctrl_pm_ops) = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_paris_pinctrl_suspend, mtk_paris_pinctrl_resume)
 };
 
 MODULE_LICENSE("GPL v2");

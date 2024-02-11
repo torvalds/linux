@@ -118,10 +118,9 @@ EBUSY
     ``VIDIOC_SUBDEV_S_CROP``
 
 EINVAL
-    The struct :c:type:`v4l2_subdev_crop` ``pad``
-    references a non-existing pad, the ``which`` field references a
-    non-existing format, or cropping is not supported on the given
-    subdev pad.
+    The struct :c:type:`v4l2_subdev_crop` ``pad`` references a non-existing pad,
+    the ``which`` field has an unsupported value, or cropping is not supported
+    on the given subdev pad.
 
 EPERM
     The ``VIDIOC_SUBDEV_S_CROP`` ioctl has been called on a read-only subdevice

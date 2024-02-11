@@ -26,6 +26,11 @@ properties:
   vdd-supply: true
   vss-supply: true
 
+  adi,rbuf-gain2-en:
+    description: Specify to allow an external amplifier to be connected in a
+      gain of two configuration.
+    type: boolean
+
 required:
   - compatible
   - reg

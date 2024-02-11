@@ -30,7 +30,6 @@
 #include <drm/drm_simple_kms_helper.h>
 
 #include "rockchip_drm_drv.h"
-#include "rockchip_drm_vop.h"
 
 #define RK3288_GRF_SOC_CON6		0x25c
 #define RK3288_EDP_LCDC_SEL		BIT(5)
@@ -343,6 +342,9 @@ static int rockchip_dp_bind(struct device *dev, struct device *master,
 		DRM_ERROR("failed to create drm encoder\n");
 		return ret;
 	}
+
+	rockchip_drm_encoder_set_crtc_endpoint_id(&dp->encoder,
+						  dev->of_node, 0, 0);
 
 	dp->plat_data.encoder = &dp->encoder.encoder;
 

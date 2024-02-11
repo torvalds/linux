@@ -1,8 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-# MPC8610 HPCD Machine Support
-snd-soc-mpc8610-hpcd-objs := mpc8610_hpcd.o
-obj-$(CONFIG_SND_SOC_MPC8610_HPCD) += snd-soc-mpc8610-hpcd.o
-
 # P1022 DS Machine Support
 snd-soc-p1022-ds-objs := p1022_ds.o
 obj-$(CONFIG_SND_SOC_P1022_DS) += snd-soc-p1022-ds.o

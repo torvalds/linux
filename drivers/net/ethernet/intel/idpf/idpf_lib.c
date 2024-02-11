@@ -783,6 +783,8 @@ static int idpf_cfg_netdev(struct idpf_vport *vport)
 	/* setup watchdog timeout value to be 5 second */
 	netdev->watchdog_timeo = 5 * HZ;
 
+	netdev->dev_port = idx;
+
 	/* configure default MTU size */
 	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = vport->max_mtu;
@@ -1055,6 +1057,71 @@ static void idpf_vport_dealloc(struct idpf_vport *vport)
 
 	adapter->vports[i] = NULL;
 	adapter->next_vport = idpf_get_free_slot(adapter);
+}
+
+/**
+ * idpf_is_hsplit_supported - check whether the header split is supported
+ * @vport: virtual port to check the capability for
+ *
+ * Return: true if it's supported by the HW/FW, false if not.
+ */
+static bool idpf_is_hsplit_supported(const struct idpf_vport *vport)
+{
+	return idpf_is_queue_model_split(vport->rxq_model) &&
+	       idpf_is_cap_ena_all(vport->adapter, IDPF_HSPLIT_CAPS,
+				   IDPF_CAP_HSPLIT);
+}
+
+/**
+ * idpf_vport_get_hsplit - get the current header split feature state
+ * @vport: virtual port to query the state for
+ *
+ * Return: ``ETHTOOL_TCP_DATA_SPLIT_UNKNOWN`` if not supported,
+ *         ``ETHTOOL_TCP_DATA_SPLIT_DISABLED`` if disabled,
+ *         ``ETHTOOL_TCP_DATA_SPLIT_ENABLED`` if active.
+ */
+u8 idpf_vport_get_hsplit(const struct idpf_vport *vport)
+{
+	const struct idpf_vport_user_config_data *config;
+
+	if (!idpf_is_hsplit_supported(vport))
+		return ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+
+	config = &vport->adapter->vport_config[vport->idx]->user_config;
+
+	return test_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags) ?
+	       ETHTOOL_TCP_DATA_SPLIT_ENABLED :
+	       ETHTOOL_TCP_DATA_SPLIT_DISABLED;
+}
+
+/**
+ * idpf_vport_set_hsplit - enable or disable header split on a given vport
+ * @vport: virtual port to configure
+ * @val: Ethtool flag controlling the header split state
+ *
+ * Return: true on success, false if not supported by the HW.
+ */
+bool idpf_vport_set_hsplit(const struct idpf_vport *vport, u8 val)
+{
+	struct idpf_vport_user_config_data *config;
+
+	if (!idpf_is_hsplit_supported(vport))
+		return val == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+
+	config = &vport->adapter->vport_config[vport->idx]->user_config;
+
+	switch (val) {
+	case ETHTOOL_TCP_DATA_SPLIT_UNKNOWN:
+		/* Default is to enable */
+	case ETHTOOL_TCP_DATA_SPLIT_ENABLED:
+		__set_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags);
+		return true;
+	case ETHTOOL_TCP_DATA_SPLIT_DISABLED:
+		__clear_bit(__IDPF_USER_FLAG_HSPLIT, config->user_flags);
+		return true;
+	default:
+		return false;
+	}
 }
 
 /**

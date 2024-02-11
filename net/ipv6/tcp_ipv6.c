@@ -881,7 +881,7 @@ static void tcp_v6_send_response(const struct sock *sk, struct sk_buff *skb, u32
 	if (tcp_key_is_md5(key))
 		tot_len += TCPOLEN_MD5SIG_ALIGNED;
 	if (tcp_key_is_ao(key))
-		tot_len += tcp_ao_len(key->ao_key);
+		tot_len += tcp_ao_len_aligned(key->ao_key);
 
 #ifdef CONFIG_MPTCP
 	if (rst && !tcp_key_is_md5(key)) {
@@ -1699,7 +1699,7 @@ ipv6_pktoptions:
 	if (TCP_SKB_CB(opt_skb)->end_seq == tp->rcv_nxt &&
 	    !((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))) {
 		if (np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo)
-			np->mcast_oif = tcp_v6_iif(opt_skb);
+			WRITE_ONCE(np->mcast_oif, tcp_v6_iif(opt_skb));
 		if (np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim)
 			WRITE_ONCE(np->mcast_hops,
 				   ipv6_hdr(opt_skb)->hop_limit);

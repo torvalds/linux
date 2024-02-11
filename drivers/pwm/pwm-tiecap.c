@@ -269,7 +269,6 @@ static void ecap_pwm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void ecap_pwm_save_context(struct ecap_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
@@ -312,15 +311,14 @@ static int ecap_pwm_resume(struct device *dev)
 	ecap_pwm_restore_context(pc);
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ecap_pwm_pm_ops, ecap_pwm_suspend, ecap_pwm_resume);
 
 static struct platform_driver ecap_pwm_driver = {
 	.driver = {
 		.name = "ecap",
 		.of_match_table = ecap_of_match,
-		.pm = &ecap_pwm_pm_ops,
+		.pm = pm_ptr(&ecap_pwm_pm_ops),
 	},
 	.probe = ecap_pwm_probe,
 	.remove_new = ecap_pwm_remove,

@@ -240,9 +240,9 @@ struct v4l2_rect *atomisp_subdev_get_rect(struct v4l2_subdev *sd,
 	if (which == V4L2_SUBDEV_FORMAT_TRY) {
 		switch (target) {
 		case V4L2_SEL_TGT_CROP:
-			return v4l2_subdev_get_try_crop(sd, sd_state, pad);
+			return v4l2_subdev_state_get_crop(sd_state, pad);
 		case V4L2_SEL_TGT_COMPOSE:
-			return v4l2_subdev_get_try_compose(sd, sd_state, pad);
+			return v4l2_subdev_state_get_compose(sd_state, pad);
 		}
 	}
 
@@ -264,7 +264,7 @@ struct v4l2_mbus_framefmt
 	struct atomisp_sub_device *isp_sd = v4l2_get_subdevdata(sd);
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 
 	return &isp_sd->fmt[pad].fmt;
 }

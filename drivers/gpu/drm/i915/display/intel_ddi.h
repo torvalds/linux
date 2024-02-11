@@ -70,8 +70,7 @@ void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
 bool intel_ddi_connector_get_hw_state(struct intel_connector *intel_connector);
 void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 				    bool state);
-void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
-					 struct intel_crtc_state *crtc_state);
+void intel_ddi_compute_min_voltage_level(struct intel_crtc_state *crtc_state);
 int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       enum transcoder cpu_transcoder,
 			       bool enable, u32 hdcp_mask);

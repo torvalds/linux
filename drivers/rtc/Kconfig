@@ -373,6 +373,19 @@ config RTC_DRV_MAX8997
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-max8997.
 
+config RTC_DRV_MAX31335
+	tristate "Analog Devices MAX31335"
+	depends on I2C
+	depends on COMMON_CLK
+	depends on HWMON || HWMON=n
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Analog Devices
+	  MAX31335.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-max31335.
+
 config RTC_DRV_MAX77686
 	tristate "Maxim MAX77686"
 	depends on MFD_MAX77686 || MFD_MAX77620 || MFD_MAX77714 || COMPILE_TEST
@@ -577,6 +590,18 @@ config RTC_DRV_TPS6586X
 	  TI Power Management IC TPS6586X supports RTC functionality
 	  along with alarm. This driver supports the RTC driver for
 	  the TPS6586X RTC module.
+
+config RTC_DRV_TPS6594
+	tristate "TI TPS6594 RTC driver"
+	depends on MFD_TPS6594
+	default MFD_TPS6594
+	help
+	  TI Power Management IC TPS6594 supports RTC functionality
+	  along with alarm. This driver supports the RTC driver for
+	  the TPS6594 RTC module.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-tps6594.
 
 config RTC_DRV_TPS65910
 	tristate "TI TPS65910 RTC driver"
@@ -1705,6 +1730,7 @@ config RTC_DRV_LPC24XX
 	tristate "NXP RTC for LPC178x/18xx/408x/43xx"
 	depends on ARCH_LPC18XX || COMPILE_TEST
 	depends on OF && HAS_IOMEM
+	depends on COMMON_CLK
 	help
 	  This enables support for the NXP RTC found which can be found on
 	  NXP LPC178x/18xx/408x/43xx devices.
@@ -1929,6 +1955,17 @@ config RTC_DRV_TI_K3
 
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-ti-k3".
+
+config RTC_DRV_MA35D1
+	tristate "Nuvoton MA35D1 RTC"
+	depends on ARCH_MA35 || COMPILE_TEST
+	select REGMAP_MMIO
+	help
+	   If you say yes here you get support for the Nuvoton MA35D1
+	   On-Chip Real Time Clock.
+
+	   This driver can also be built as a module, if so, the module
+	   will be called "rtc-ma35d1".
 
 comment "HID Sensor RTC drivers"
 

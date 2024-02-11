@@ -25,7 +25,6 @@
 
 #include "dccg.h"
 #include "clk_mgr_internal.h"
-
 #include "dcn32/dcn32_clk_mgr_smu_msg.h"
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
@@ -34,7 +33,7 @@
 #include "core_types.h"
 #include "dm_helpers.h"
 #include "link.h"
-
+#include "dc_state_priv.h"
 #include "atomfirmware.h"
 #include "smu13_driver_if.h"
 
@@ -458,20 +457,56 @@ static int dcn32_get_dispclk_from_dentist(struct clk_mgr *clk_mgr_base)
 	return 0;
 }
 
-static void dcn32_auto_dpm_test_log(struct dc_clocks *new_clocks, struct clk_mgr_internal *clk_mgr)
+static bool dcn32_check_native_scaling(struct pipe_ctx *pipe)
 {
-    unsigned int dispclk_khz_reg    = REG_READ(CLK1_CLK0_CURRENT_CNT); // DISPCLK
-    unsigned int dppclk_khz_reg     = REG_READ(CLK1_CLK1_CURRENT_CNT); // DPPCLK
-    unsigned int dprefclk_khz_reg   = REG_READ(CLK1_CLK2_CURRENT_CNT); // DPREFCLK
-    unsigned int dcfclk_khz_reg     = REG_READ(CLK1_CLK3_CURRENT_CNT); // DCFCLK
-    unsigned int dtbclk_khz_reg     = REG_READ(CLK1_CLK4_CURRENT_CNT); // DTBCLK
-    unsigned int fclk_khz_reg       = REG_READ(CLK4_CLK0_CURRENT_CNT); // FCLK
+	bool is_native_scaling = false;
+	int width = pipe->plane_state->src_rect.width;
+	int height = pipe->plane_state->src_rect.height;
+
+	if (pipe->stream->timing.h_addressable == width &&
+			pipe->stream->timing.v_addressable == height &&
+			pipe->plane_state->dst_rect.width == width &&
+			pipe->plane_state->dst_rect.height == height)
+		is_native_scaling = true;
+
+	return is_native_scaling;
+}
+
+static void dcn32_auto_dpm_test_log(
+		struct dc_clocks *new_clocks,
+		struct clk_mgr_internal *clk_mgr,
+		struct dc_state *context)
+{
+	unsigned int dispclk_khz_reg, dppclk_khz_reg, dprefclk_khz_reg, dcfclk_khz_reg, dtbclk_khz_reg,
+				 fclk_khz_reg, mall_ss_size_bytes;
+	int dramclk_khz_override, fclk_khz_override, num_fclk_levels;
+
+	struct pipe_ctx *pipe_ctx_list[MAX_PIPES];
+	int active_pipe_count = 0;
+
+	for (int i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->stream && dc_state_get_pipe_subvp_type(context, pipe_ctx) != SUBVP_PHANTOM) {
+			pipe_ctx_list[active_pipe_count] = pipe_ctx;
+			active_pipe_count++;
+		}
+	}
+
+	mall_ss_size_bytes = context->bw_ctx.bw.dcn.mall_ss_size_bytes;
+
+    dispclk_khz_reg    = REG_READ(CLK1_CLK0_CURRENT_CNT); // DISPCLK
+    dppclk_khz_reg     = REG_READ(CLK1_CLK1_CURRENT_CNT); // DPPCLK
+    dprefclk_khz_reg   = REG_READ(CLK1_CLK2_CURRENT_CNT); // DPREFCLK
+    dcfclk_khz_reg     = REG_READ(CLK1_CLK3_CURRENT_CNT); // DCFCLK
+    dtbclk_khz_reg     = REG_READ(CLK1_CLK4_CURRENT_CNT); // DTBCLK
+    fclk_khz_reg       = REG_READ(CLK4_CLK0_CURRENT_CNT); // FCLK
 
     // Overrides for these clocks in case there is no p_state change support
-    int dramclk_khz_override = new_clocks->dramclk_khz;
-    int fclk_khz_override = new_clocks->fclk_khz;
+    dramclk_khz_override = new_clocks->dramclk_khz;
+    fclk_khz_override = new_clocks->fclk_khz;
 
-    int num_fclk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1;
+    num_fclk_levels = clk_mgr->base.bw_params->clk_table.num_entries_per_clk.num_fclk_levels - 1;
 
     if (!new_clocks->p_state_change_support) {
 	    dramclk_khz_override = clk_mgr->base.bw_params->max_memclk_mhz * 1000;
@@ -488,16 +523,49 @@ static void dcn32_auto_dpm_test_log(struct dc_clocks *new_clocks, struct clk_mgr
 	//
 	//				AutoDPMTest: clk1:%d - clk2:%d - clk3:%d - clk4:%d\n"
 	////////////////////////////////////////////////////////////////////////////
-	if (new_clocks &&
+	if (new_clocks && active_pipe_count > 0 &&
 		new_clocks->dramclk_khz > 0 &&
 		new_clocks->fclk_khz > 0 &&
 		new_clocks->dcfclk_khz > 0 &&
 		new_clocks->dppclk_khz > 0) {
 
+		uint32_t pix_clk_list[MAX_PIPES] = {0};
+		int p_state_list[MAX_PIPES] = {0};
+		int disp_src_width_list[MAX_PIPES] = {0};
+		int disp_src_height_list[MAX_PIPES] = {0};
+		uint64_t disp_src_refresh_list[MAX_PIPES] = {0};
+		bool is_scaled_list[MAX_PIPES] = {0};
+
+		for (int i = 0; i < active_pipe_count; i++) {
+			struct pipe_ctx *curr_pipe_ctx = pipe_ctx_list[i];
+			uint64_t refresh_rate;
+
+			pix_clk_list[i] = curr_pipe_ctx->stream->timing.pix_clk_100hz;
+			p_state_list[i] = curr_pipe_ctx->p_state_type;
+
+			refresh_rate = (curr_pipe_ctx->stream->timing.pix_clk_100hz * (uint64_t)100 +
+				curr_pipe_ctx->stream->timing.v_total * curr_pipe_ctx->stream->timing.h_total - (uint64_t)1);
+			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.v_total);
+			refresh_rate = div_u64(refresh_rate, curr_pipe_ctx->stream->timing.h_total);
+			disp_src_refresh_list[i] = refresh_rate;
+
+			if (curr_pipe_ctx->plane_state) {
+				is_scaled_list[i] = !(dcn32_check_native_scaling(curr_pipe_ctx));
+				disp_src_width_list[i] = curr_pipe_ctx->plane_state->src_rect.width;
+				disp_src_height_list[i] = curr_pipe_ctx->plane_state->src_rect.height;
+			}
+		}
+
 		DC_LOG_AUTO_DPM_TEST("AutoDPMTest: dramclk:%d - fclk:%d - "
 			"dcfclk:%d - dppclk:%d - dispclk_hw:%d - "
 			"dppclk_hw:%d - dprefclk_hw:%d - dcfclk_hw:%d - "
-			"dtbclk_hw:%d - fclk_hw:%d\n",
+			"dtbclk_hw:%d - fclk_hw:%d - pix_clk_0:%d - pix_clk_1:%d - "
+			"pix_clk_2:%d - pix_clk_3:%d - mall_ss_size:%d - p_state_type_0:%d - "
+			"p_state_type_1:%d - p_state_type_2:%d - p_state_type_3:%d - "
+			"pix_width_0:%d - pix_height_0:%d - refresh_rate_0:%lld - is_scaled_0:%d - "
+			"pix_width_1:%d - pix_height_1:%d - refresh_rate_1:%lld - is_scaled_1:%d - "
+			"pix_width_2:%d - pix_height_2:%d - refresh_rate_2:%lld - is_scaled_2:%d - "
+			"pix_width_3:%d - pix_height_3:%d - refresh_rate_3:%lld - is_scaled_3:%d - LOG_END\n",
 			dramclk_khz_override,
 			fclk_khz_override,
 			new_clocks->dcfclk_khz,
@@ -507,7 +575,14 @@ static void dcn32_auto_dpm_test_log(struct dc_clocks *new_clocks, struct clk_mgr
 			dprefclk_khz_reg,
 			dcfclk_khz_reg,
 			dtbclk_khz_reg,
-			fclk_khz_reg);
+			fclk_khz_reg,
+			pix_clk_list[0], pix_clk_list[1], pix_clk_list[3], pix_clk_list[2],
+			mall_ss_size_bytes,
+			p_state_list[0], p_state_list[1], p_state_list[2], p_state_list[3],
+			disp_src_width_list[0], disp_src_height_list[0], disp_src_refresh_list[0], is_scaled_list[0],
+			disp_src_width_list[1], disp_src_height_list[1], disp_src_refresh_list[1], is_scaled_list[1],
+			disp_src_width_list[2], disp_src_height_list[2], disp_src_refresh_list[2], is_scaled_list[2],
+			disp_src_width_list[3], disp_src_height_list[3], disp_src_refresh_list[3], is_scaled_list[3]);
 	}
 }
 
@@ -680,6 +755,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 		/* DCCG requires KHz precision for DTBCLK */
 		clk_mgr_base->clks.ref_dtbclk_khz =
 				dcn32_smu_set_hard_min_by_freq(clk_mgr, PPCLK_DTBCLK, khz_to_mhz_ceil(new_clocks->ref_dtbclk_khz));
+
 		dcn32_update_clocks_update_dtb_dto(clk_mgr, context, clk_mgr_base->clks.ref_dtbclk_khz);
 	}
 
@@ -708,7 +784,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 
 	if (dc->config.enable_auto_dpm_test_logs) {
-	    dcn32_auto_dpm_test_log(new_clocks, clk_mgr);
+	    dcn32_auto_dpm_test_log(new_clocks, clk_mgr, context);
 	}
 }
 

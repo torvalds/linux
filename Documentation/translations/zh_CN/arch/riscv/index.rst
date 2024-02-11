@@ -17,6 +17,7 @@ RISC-V 体系结构
 .. toctree::
     :maxdepth: 1
 
+    boot
     boot-image-header
     vm-layout
     patch-acceptance

@@ -894,7 +894,7 @@ static int tb_switch_tmu_change_mode(struct tb_switch *sw)
 
 	ret = tb_switch_set_tmu_mode_params(sw, sw->tmu.mode_request);
 	if (ret)
-		return ret;
+		goto out;
 
 	/* Program the new mode and the downstream router lane adapter */
 	switch (sw->tmu.mode_request) {

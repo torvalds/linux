@@ -840,6 +840,7 @@ struct nfsd4_compoundargs {
 	u32				minorversion;
 	u32				client_opcnt;
 	u32				opcnt;
+	bool				splice_ok;
 	struct nfsd4_op			*ops;
 	struct nfsd4_op			iops[8];
 };

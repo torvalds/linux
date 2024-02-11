@@ -13,6 +13,7 @@
 #include <sound/soc.h>
 #include <sound/sof.h>
 #include "sof-priv.h"
+#include "sof-of-dev.h"
 #include "ops.h"
 
 #define CREATE_TRACE_POINTS
@@ -143,6 +144,233 @@ void sof_set_fw_state(struct snd_sof_dev *sdev, enum sof_fw_state new_state)
 }
 EXPORT_SYMBOL(sof_set_fw_state);
 
+static struct snd_sof_of_mach *sof_of_machine_select(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_sof_of_mach *mach = desc->of_machines;
+
+	if (!mach)
+		return NULL;
+
+	for (; mach->compatible; mach++) {
+		if (of_machine_is_compatible(mach->compatible)) {
+			sof_pdata->tplg_filename = mach->sof_tplg_filename;
+			if (mach->fw_filename)
+				sof_pdata->fw_filename = mach->fw_filename;
+
+			return mach;
+		}
+	}
+
+	return NULL;
+}
+
+/* SOF Driver enumeration */
+static int sof_machine_check(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *sof_pdata = sdev->pdata;
+	const struct sof_dev_desc *desc = sof_pdata->desc;
+	struct snd_soc_acpi_mach *mach;
+
+	if (!IS_ENABLED(CONFIG_SND_SOC_SOF_FORCE_NOCODEC_MODE)) {
+		const struct snd_sof_of_mach *of_mach;
+
+		if (IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC_DEBUG_SUPPORT) &&
+		    sof_debug_check_flag(SOF_DBG_FORCE_NOCODEC))
+			goto nocodec;
+
+		/* find machine */
+		mach = snd_sof_machine_select(sdev);
+		if (mach) {
+			sof_pdata->machine = mach;
+
+			if (sof_pdata->subsystem_id_set) {
+				mach->mach_params.subsystem_vendor = sof_pdata->subsystem_vendor;
+				mach->mach_params.subsystem_device = sof_pdata->subsystem_device;
+				mach->mach_params.subsystem_id_set = true;
+			}
+
+			snd_sof_set_mach_params(mach, sdev);
+			return 0;
+		}
+
+		of_mach = sof_of_machine_select(sdev);
+		if (of_mach) {
+			sof_pdata->of_machine = of_mach;
+			return 0;
+		}
+
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_NOCODEC)) {
+			dev_err(sdev->dev, "error: no matching ASoC machine driver found - aborting probe\n");
+			return -ENODEV;
+		}
+	} else {
+		dev_warn(sdev->dev, "Force to use nocodec mode\n");
+	}
+
+nocodec:
+	/* select nocodec mode */
+	dev_warn(sdev->dev, "Using nocodec machine driver\n");
+	mach = devm_kzalloc(sdev->dev, sizeof(*mach), GFP_KERNEL);
+	if (!mach)
+		return -ENOMEM;
+
+	mach->drv_name = "sof-nocodec";
+	if (!sof_pdata->tplg_filename)
+		sof_pdata->tplg_filename = desc->nocodec_tplg_filename;
+
+	sof_pdata->machine = mach;
+	snd_sof_set_mach_params(mach, sdev);
+
+	return 0;
+}
+
+static int sof_select_ipc_and_paths(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct sof_loadable_file_profile *base_profile = &plat_data->ipc_file_profile_base;
+	struct sof_loadable_file_profile out_profile;
+	struct device *dev = sdev->dev;
+	int ret;
+
+	if (base_profile->ipc_type != plat_data->desc->ipc_default)
+		dev_info(dev,
+			 "Module parameter used, overriding default IPC %d to %d\n",
+			 plat_data->desc->ipc_default, base_profile->ipc_type);
+
+	if (base_profile->fw_path)
+		dev_dbg(dev, "Module parameter used, changed fw path to %s\n",
+			base_profile->fw_path);
+	else if (base_profile->fw_path_postfix)
+		dev_dbg(dev, "Path postfix appended to default fw path: %s\n",
+			base_profile->fw_path_postfix);
+
+	if (base_profile->fw_lib_path)
+		dev_dbg(dev, "Module parameter used, changed fw_lib path to %s\n",
+			base_profile->fw_lib_path);
+	else if (base_profile->fw_lib_path_postfix)
+		dev_dbg(dev, "Path postfix appended to default fw_lib path: %s\n",
+			base_profile->fw_lib_path_postfix);
+
+	if (base_profile->fw_name)
+		dev_dbg(dev, "Module parameter used, changed fw filename to %s\n",
+			base_profile->fw_name);
+
+	if (base_profile->tplg_path)
+		dev_dbg(dev, "Module parameter used, changed tplg path to %s\n",
+			base_profile->tplg_path);
+
+	if (base_profile->tplg_name)
+		dev_dbg(dev, "Module parameter used, changed tplg name to %s\n",
+			base_profile->tplg_name);
+
+	ret = sof_create_ipc_file_profile(sdev, base_profile, &out_profile);
+	if (ret)
+		return ret;
+
+	plat_data->ipc_type = out_profile.ipc_type;
+	plat_data->fw_filename = out_profile.fw_name;
+	plat_data->fw_filename_prefix = out_profile.fw_path;
+	plat_data->fw_lib_prefix = out_profile.fw_lib_path;
+	plat_data->tplg_filename_prefix = out_profile.tplg_path;
+
+	return 0;
+}
+
+static int validate_sof_ops(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	/* init ops, if necessary */
+	ret = sof_ops_init(sdev);
+	if (ret < 0)
+		return ret;
+
+	/* check all mandatory ops */
+	if (!sof_ops(sdev) || !sof_ops(sdev)->probe) {
+		dev_err(sdev->dev, "missing mandatory ops\n");
+		sof_ops_free(sdev);
+		return -EINVAL;
+	}
+
+	if (!sdev->dspless_mode_selected &&
+	    (!sof_ops(sdev)->run || !sof_ops(sdev)->block_read ||
+	     !sof_ops(sdev)->block_write || !sof_ops(sdev)->send_msg ||
+	     !sof_ops(sdev)->load_firmware || !sof_ops(sdev)->ipc_msg_data)) {
+		dev_err(sdev->dev, "missing mandatory DSP ops\n");
+		sof_ops_free(sdev);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int sof_init_sof_ops(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct sof_loadable_file_profile *base_profile = &plat_data->ipc_file_profile_base;
+
+	/* check IPC support */
+	if (!(BIT(base_profile->ipc_type) & plat_data->desc->ipc_supported_mask)) {
+		dev_err(sdev->dev,
+			"ipc_type %d is not supported on this platform, mask is %#x\n",
+			base_profile->ipc_type, plat_data->desc->ipc_supported_mask);
+		return -EINVAL;
+	}
+
+	/*
+	 * Save the selected IPC type and a topology name override before
+	 * selecting ops since platform code might need this information
+	 */
+	plat_data->ipc_type = base_profile->ipc_type;
+	plat_data->tplg_filename = base_profile->tplg_name;
+
+	return validate_sof_ops(sdev);
+}
+
+static int sof_init_environment(struct snd_sof_dev *sdev)
+{
+	struct snd_sof_pdata *plat_data = sdev->pdata;
+	struct sof_loadable_file_profile *base_profile = &plat_data->ipc_file_profile_base;
+	int ret;
+
+	/* probe the DSP hardware */
+	ret = snd_sof_probe(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to probe DSP %d\n", ret);
+		sof_ops_free(sdev);
+		return ret;
+	}
+
+	/* check machine info */
+	ret = sof_machine_check(sdev);
+	if (ret < 0) {
+		dev_err(sdev->dev, "failed to get machine info %d\n", ret);
+		goto err_machine_check;
+	}
+
+	ret = sof_select_ipc_and_paths(sdev);
+	if (!ret && plat_data->ipc_type != base_profile->ipc_type) {
+		/* IPC type changed, re-initialize the ops */
+		sof_ops_free(sdev);
+
+		ret = validate_sof_ops(sdev);
+		if (ret < 0) {
+			snd_sof_remove(sdev);
+			return ret;
+		}
+	}
+
+err_machine_check:
+	if (ret) {
+		snd_sof_remove(sdev);
+		sof_ops_free(sdev);
+	}
+
+	return ret;
+}
+
 /*
  *			FW Boot State Transition Diagram
  *
@@ -188,22 +416,12 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	struct snd_sof_pdata *plat_data = sdev->pdata;
 	int ret;
 
-	/* probe the DSP hardware */
-	ret = snd_sof_probe(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to probe DSP %d\n", ret);
-		goto probe_err;
-	}
+	/* Initialize loadable file paths and check the environment validity */
+	ret = sof_init_environment(sdev);
+	if (ret)
+		return ret;
 
 	sof_set_fw_state(sdev, SOF_FW_BOOT_PREPARE);
-
-	/* check machine info */
-	ret = sof_machine_check(sdev);
-	if (ret < 0) {
-		dev_err(sdev->dev, "error: failed to get machine info %d\n",
-			ret);
-		goto dsp_err;
-	}
 
 	/* set up platform component driver */
 	snd_sof_new_platform_drv(sdev);
@@ -324,9 +542,7 @@ fw_load_err:
 ipc_err:
 dbg_err:
 	snd_sof_free_debug(sdev);
-dsp_err:
 	snd_sof_remove(sdev);
-probe_err:
 	snd_sof_remove_late(sdev);
 	sof_ops_free(sdev);
 
@@ -381,33 +597,10 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 		}
 	}
 
-	/* check IPC support */
-	if (!(BIT(plat_data->ipc_type) & plat_data->desc->ipc_supported_mask)) {
-		dev_err(dev, "ipc_type %d is not supported on this platform, mask is %#x\n",
-			plat_data->ipc_type, plat_data->desc->ipc_supported_mask);
-		return -EINVAL;
-	}
-
-	/* init ops, if necessary */
-	ret = sof_ops_init(sdev);
-	if (ret < 0)
+	/* Initialize sof_ops based on the initial selected IPC version */
+	ret = sof_init_sof_ops(sdev);
+	if (ret)
 		return ret;
-
-	/* check all mandatory ops */
-	if (!sof_ops(sdev) || !sof_ops(sdev)->probe) {
-		sof_ops_free(sdev);
-		dev_err(dev, "missing mandatory ops\n");
-		return -EINVAL;
-	}
-
-	if (!sdev->dspless_mode_selected &&
-	    (!sof_ops(sdev)->run || !sof_ops(sdev)->block_read ||
-	     !sof_ops(sdev)->block_write || !sof_ops(sdev)->send_msg ||
-	     !sof_ops(sdev)->load_firmware || !sof_ops(sdev)->ipc_msg_data)) {
-		sof_ops_free(sdev);
-		dev_err(dev, "missing mandatory DSP ops\n");
-		return -EINVAL;
-	}
 
 	INIT_LIST_HEAD(&sdev->pcm_list);
 	INIT_LIST_HEAD(&sdev->kcontrol_list);
@@ -526,6 +719,40 @@ int snd_sof_device_shutdown(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(snd_sof_device_shutdown);
+
+/* Machine driver registering and unregistering */
+int sof_machine_register(struct snd_sof_dev *sdev, void *pdata)
+{
+	struct snd_sof_pdata *plat_data = pdata;
+	const char *drv_name;
+	const void *mach;
+	int size;
+
+	drv_name = plat_data->machine->drv_name;
+	mach = plat_data->machine;
+	size = sizeof(*plat_data->machine);
+
+	/* register machine driver, pass machine info as pdata */
+	plat_data->pdev_mach =
+		platform_device_register_data(sdev->dev, drv_name,
+					      PLATFORM_DEVID_NONE, mach, size);
+	if (IS_ERR(plat_data->pdev_mach))
+		return PTR_ERR(plat_data->pdev_mach);
+
+	dev_dbg(sdev->dev, "created machine %s\n",
+		dev_name(&plat_data->pdev_mach->dev));
+
+	return 0;
+}
+EXPORT_SYMBOL(sof_machine_register);
+
+void sof_machine_unregister(struct snd_sof_dev *sdev, void *pdata)
+{
+	struct snd_sof_pdata *plat_data = pdata;
+
+	platform_device_unregister(plat_data->pdev_mach);
+}
+EXPORT_SYMBOL(sof_machine_unregister);
 
 MODULE_AUTHOR("Liam Girdwood");
 MODULE_DESCRIPTION("Sound Open Firmware (SOF) Core");

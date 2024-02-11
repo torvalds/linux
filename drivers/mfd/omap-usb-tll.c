@@ -270,7 +270,7 @@ static int usbtll_omap_probe(struct platform_device *pdev)
  *
  * Reverses the effect of usbtll_omap_probe().
  */
-static int usbtll_omap_remove(struct platform_device *pdev)
+static void usbtll_omap_remove(struct platform_device *pdev)
 {
 	struct usbtll_omap *tll = platform_get_drvdata(pdev);
 	int i;
@@ -287,7 +287,6 @@ static int usbtll_omap_remove(struct platform_device *pdev)
 	}
 
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static const struct of_device_id usbtll_omap_dt_ids[] = {
@@ -303,7 +302,7 @@ static struct platform_driver usbtll_omap_driver = {
 		.of_match_table = usbtll_omap_dt_ids,
 	},
 	.probe		= usbtll_omap_probe,
-	.remove		= usbtll_omap_remove,
+	.remove_new	= usbtll_omap_remove,
 };
 
 int omap_tll_init(struct usbhs_omap_platform_data *pdata)

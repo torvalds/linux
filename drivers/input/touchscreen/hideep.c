@@ -928,8 +928,7 @@ static ssize_t hideep_fw_version_show(struct device *dev,
 	ssize_t len;
 
 	mutex_lock(&ts->dev_mutex);
-	len = scnprintf(buf, PAGE_SIZE, "%04x\n",
-			be16_to_cpu(ts->dwz_info.release_ver));
+	len = sysfs_emit(buf, "%04x\n", be16_to_cpu(ts->dwz_info.release_ver));
 	mutex_unlock(&ts->dev_mutex);
 
 	return len;
@@ -943,8 +942,7 @@ static ssize_t hideep_product_id_show(struct device *dev,
 	ssize_t len;
 
 	mutex_lock(&ts->dev_mutex);
-	len = scnprintf(buf, PAGE_SIZE, "%04x\n",
-			be16_to_cpu(ts->dwz_info.product_id));
+	len = sysfs_emit(buf, "%04x\n", be16_to_cpu(ts->dwz_info.product_id));
 	mutex_unlock(&ts->dev_mutex);
 
 	return len;

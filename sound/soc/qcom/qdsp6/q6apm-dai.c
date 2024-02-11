@@ -134,7 +134,7 @@ static void event_handler(uint32_t opcode, uint32_t token, uint32_t *payload, vo
 		prtd->state = Q6APM_STREAM_STOPPED;
 		break;
 	case APM_CLIENT_EVENT_DATA_WRITE_DONE:
-	        spin_lock_irqsave(&prtd->lock, flags);
+		spin_lock_irqsave(&prtd->lock, flags);
 		prtd->pos += prtd->pcm_count;
 		spin_unlock_irqrestore(&prtd->lock, flags);
 		snd_pcm_period_elapsed(substream);
@@ -143,7 +143,7 @@ static void event_handler(uint32_t opcode, uint32_t token, uint32_t *payload, vo
 
 		break;
 	case APM_CLIENT_EVENT_DATA_READ_DONE:
-	        spin_lock_irqsave(&prtd->lock, flags);
+		spin_lock_irqsave(&prtd->lock, flags);
 		prtd->pos += prtd->pcm_count;
 		spin_unlock_irqrestore(&prtd->lock, flags);
 		snd_pcm_period_elapsed(substream);

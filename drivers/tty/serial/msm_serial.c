@@ -24,6 +24,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/pm_opp.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -1131,7 +1132,7 @@ static int msm_set_baud_rate(struct uart_port *port, unsigned int baud,
 	uart_port_unlock_irqrestore(port, flags);
 
 	entry = msm_find_best_baud(port, baud, &rate);
-	clk_set_rate(msm_port->clk, rate);
+	dev_pm_opp_set_rate(port->dev, rate);
 	baud = rate / 16 / entry->divisor;
 
 	uart_port_lock_irqsave(port, &flags);
@@ -1186,6 +1187,7 @@ static void msm_init_clock(struct uart_port *port)
 {
 	struct msm_port *msm_port = to_msm_port(port);
 
+	dev_pm_opp_set_rate(port->dev, port->uartclk);
 	clk_prepare_enable(msm_port->clk);
 	clk_prepare_enable(msm_port->pclk);
 	msm_serial_set_mnd_regs(port);
@@ -1239,6 +1241,7 @@ err_irq:
 
 	clk_disable_unprepare(msm_port->pclk);
 	clk_disable_unprepare(msm_port->clk);
+	dev_pm_opp_set_rate(port->dev, 0);
 
 	return ret;
 }
@@ -1254,6 +1257,7 @@ static void msm_shutdown(struct uart_port *port)
 		msm_release_dma(msm_port);
 
 	clk_disable_unprepare(msm_port->clk);
+	dev_pm_opp_set_rate(port->dev, 0);
 
 	free_irq(port->irq, port);
 }
@@ -1419,11 +1423,13 @@ static void msm_power(struct uart_port *port, unsigned int state,
 
 	switch (state) {
 	case 0:
+		dev_pm_opp_set_rate(port->dev, port->uartclk);
 		clk_prepare_enable(msm_port->clk);
 		clk_prepare_enable(msm_port->pclk);
 		break;
 	case 3:
 		clk_disable_unprepare(msm_port->clk);
+		dev_pm_opp_set_rate(port->dev, 0);
 		clk_disable_unprepare(msm_port->pclk);
 		break;
 	default:
@@ -1789,7 +1795,7 @@ static int msm_serial_probe(struct platform_device *pdev)
 	struct resource *resource;
 	struct uart_port *port;
 	const struct of_device_id *id;
-	int irq, line;
+	int irq, line, ret;
 
 	if (pdev->dev.of_node)
 		line = of_alias_get_id(pdev->dev.of_node, "serial");
@@ -1824,6 +1830,15 @@ static int msm_serial_probe(struct platform_device *pdev)
 			return PTR_ERR(msm_port->pclk);
 	}
 
+	ret = devm_pm_opp_set_clkname(&pdev->dev, "core");
+	if (ret)
+		return ret;
+
+	/* OPP table is optional */
+	ret = devm_pm_opp_of_add_table(&pdev->dev);
+	if (ret && ret != -ENODEV)
+		return dev_err_probe(&pdev->dev, ret, "invalid OPP table\n");
+
 	port->uartclk = clk_get_rate(msm_port->clk);
 	dev_info(&pdev->dev, "uartclk = %d\n", port->uartclk);
 
@@ -1843,13 +1858,11 @@ static int msm_serial_probe(struct platform_device *pdev)
 	return uart_add_one_port(&msm_uart_driver, port);
 }
 
-static int msm_serial_remove(struct platform_device *pdev)
+static void msm_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&msm_uart_driver, port);
-
-	return 0;
 }
 
 static const struct of_device_id msm_match_table[] = {
@@ -1882,7 +1895,7 @@ static const struct dev_pm_ops msm_serial_dev_pm_ops = {
 };
 
 static struct platform_driver msm_platform_driver = {
-	.remove = msm_serial_remove,
+	.remove_new = msm_serial_remove,
 	.probe = msm_serial_probe,
 	.driver = {
 		.name = "msm_serial",
