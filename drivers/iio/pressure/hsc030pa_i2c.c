@@ -8,6 +8,7 @@
  * Datasheet: https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/common/documents/sps-siot-sleep-mode-technical-note-008286-1-en-ciid-155793.pdf
  */
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
@@ -24,6 +25,8 @@ static int hsc_i2c_recv(struct hsc_data *data)
 	struct i2c_client *client = to_i2c_client(data->dev);
 	struct i2c_msg msg;
 	int ret;
+
+	msleep_interruptible(HSC_RESP_TIME_MS);
 
 	msg.addr = client->addr;
 	msg.flags = client->flags | I2C_M_RD;

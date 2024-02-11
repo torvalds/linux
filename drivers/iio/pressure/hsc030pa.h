@@ -13,6 +13,7 @@
 #include <linux/iio/iio.h>
 
 #define HSC_REG_MEASUREMENT_RD_SIZE 4
+#define HSC_RESP_TIME_MS            2
 
 struct device;
 

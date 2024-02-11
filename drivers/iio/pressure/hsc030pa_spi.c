@@ -8,6 +8,7 @@
  * Datasheet: https://prod-edam.honeywell.com/content/dam/honeywell-edam/sps/siot/en-us/products/sensors/pressure-sensors/common/documents/sps-siot-sleep-mode-technical-note-008286-1-en-ciid-155793.pdf
  */
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -28,6 +29,7 @@ static int hsc_spi_recv(struct hsc_data *data)
 		.len = HSC_REG_MEASUREMENT_RD_SIZE,
 	};
 
+	msleep_interruptible(HSC_RESP_TIME_MS);
 	return spi_sync_transfer(spi, &xfer, 1);
 }
 
