@@ -914,8 +914,8 @@ static int gmc_v6_0_hw_init(void *handle)
 
 	if (amdgpu_emu_mode == 1)
 		return amdgpu_gmc_vram_checking(adev);
-	else
-		return r;
+
+	return 0;
 }
 
 static int gmc_v6_0_hw_fini(void *handle)

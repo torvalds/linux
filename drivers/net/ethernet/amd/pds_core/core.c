@@ -125,7 +125,7 @@ static int pdsc_qcq_intr_alloc(struct pdsc *pdsc, struct pdsc_qcq *qcq)
 
 	snprintf(name, sizeof(name), "%s-%d-%s",
 		 PDS_CORE_DRV_NAME, pdsc->pdev->bus->number, qcq->q.name);
-	index = pdsc_intr_alloc(pdsc, name, pdsc_adminq_isr, qcq);
+	index = pdsc_intr_alloc(pdsc, name, pdsc_adminq_isr, pdsc);
 	if (index < 0)
 		return index;
 	qcq->intx = index;
@@ -407,10 +407,7 @@ int pdsc_setup(struct pdsc *pdsc, bool init)
 	int numdescs;
 	int err;
 
-	if (init)
-		err = pdsc_dev_init(pdsc);
-	else
-		err = pdsc_dev_reinit(pdsc);
+	err = pdsc_dev_init(pdsc);
 	if (err)
 		return err;
 
@@ -452,6 +449,7 @@ int pdsc_setup(struct pdsc *pdsc, bool init)
 	if (init)
 		pdsc_debugfs_add_viftype(pdsc);
 
+	refcount_set(&pdsc->adminq_refcnt, 1);
 	clear_bit(PDSC_S_FW_DEAD, &pdsc->state);
 	return 0;
 
@@ -466,6 +464,8 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 
 	if (!pdsc->pdev->is_virtfn)
 		pdsc_devcmd_reset(pdsc);
+	if (pdsc->adminqcq.work.func)
+		cancel_work_sync(&pdsc->adminqcq.work);
 	pdsc_qcq_free(pdsc, &pdsc->notifyqcq);
 	pdsc_qcq_free(pdsc, &pdsc->adminqcq);
 
@@ -476,10 +476,9 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 		for (i = 0; i < pdsc->nintrs; i++)
 			pdsc_intr_free(pdsc, i);
 
-		if (removing) {
-			kfree(pdsc->intr_info);
-			pdsc->intr_info = NULL;
-		}
+		kfree(pdsc->intr_info);
+		pdsc->intr_info = NULL;
+		pdsc->nintrs = 0;
 	}
 
 	if (pdsc->kern_dbpage) {
@@ -487,6 +486,7 @@ void pdsc_teardown(struct pdsc *pdsc, bool removing)
 		pdsc->kern_dbpage = NULL;
 	}
 
+	pci_free_irq_vectors(pdsc->pdev);
 	set_bit(PDSC_S_FW_DEAD, &pdsc->state);
 }
 
@@ -512,7 +512,25 @@ void pdsc_stop(struct pdsc *pdsc)
 					   PDS_CORE_INTR_MASK_SET);
 }
 
-static void pdsc_fw_down(struct pdsc *pdsc)
+static void pdsc_adminq_wait_and_dec_once_unused(struct pdsc *pdsc)
+{
+	/* The driver initializes the adminq_refcnt to 1 when the adminq is
+	 * allocated and ready for use. Other users/requesters will increment
+	 * the refcnt while in use. If the refcnt is down to 1 then the adminq
+	 * is not in use and the refcnt can be cleared and adminq freed. Before
+	 * calling this function the driver will set PDSC_S_FW_DEAD, which
+	 * prevent subsequent attempts to use the adminq and increment the
+	 * refcnt to fail. This guarantees that this function will eventually
+	 * exit.
+	 */
+	while (!refcount_dec_if_one(&pdsc->adminq_refcnt)) {
+		dev_dbg_ratelimited(pdsc->dev, "%s: adminq in use\n",
+				    __func__);
+		cpu_relax();
+	}
+}
+
+void pdsc_fw_down(struct pdsc *pdsc)
 {
 	union pds_core_notifyq_comp reset_event = {
 		.reset.ecode = cpu_to_le16(PDS_EVENT_RESET),
@@ -520,9 +538,14 @@ static void pdsc_fw_down(struct pdsc *pdsc)
 	};
 
 	if (test_and_set_bit(PDSC_S_FW_DEAD, &pdsc->state)) {
-		dev_err(pdsc->dev, "%s: already happening\n", __func__);
+		dev_warn(pdsc->dev, "%s: already happening\n", __func__);
 		return;
 	}
+
+	if (pdsc->pdev->is_virtfn)
+		return;
+
+	pdsc_adminq_wait_and_dec_once_unused(pdsc);
 
 	/* Notify clients of fw_down */
 	if (pdsc->fw_reporter)
@@ -533,7 +556,7 @@ static void pdsc_fw_down(struct pdsc *pdsc)
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_RECOVERY);
 }
 
-static void pdsc_fw_up(struct pdsc *pdsc)
+void pdsc_fw_up(struct pdsc *pdsc)
 {
 	union pds_core_notifyq_comp reset_event = {
 		.reset.ecode = cpu_to_le16(PDS_EVENT_RESET),
@@ -543,6 +566,11 @@ static void pdsc_fw_up(struct pdsc *pdsc)
 
 	if (!test_bit(PDSC_S_FW_DEAD, &pdsc->state)) {
 		dev_err(pdsc->dev, "%s: fw not dead\n", __func__);
+		return;
+	}
+
+	if (pdsc->pdev->is_virtfn) {
+		clear_bit(PDSC_S_FW_DEAD, &pdsc->state);
 		return;
 	}
 
