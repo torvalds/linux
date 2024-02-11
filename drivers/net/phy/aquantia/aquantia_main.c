@@ -727,6 +727,15 @@ static int aqr113c_config_init(struct phy_device *phydev)
 	if (ret < 0)
 		return ret;
 
+	ret = phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_PMA_TXDIS,
+				 MDIO_PMD_TXDIS_GLOBAL);
+	if (ret)
+		return ret;
+
+	ret = aqr107_wait_processor_intensive_op(phydev);
+	if (ret)
+		return ret;
+
 	return aqr107_fill_interface_modes(phydev);
 }
 
