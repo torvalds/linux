@@ -10,6 +10,8 @@
 
 #include <linux/types.h>
 
+#include <linux/iio/iio.h>
+
 #define HSC_REG_MEASUREMENT_RD_SIZE 4
 
 struct device;
