@@ -406,7 +406,7 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 	struct hsc_data *hsc;
 	struct iio_dev *indio_dev;
 	const char *triplet;
-	u64 tmp;
+	s64 tmp;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*hsc));
