@@ -473,8 +473,7 @@ assign_val:
 
 void conf_parse(const char *name)
 {
-	struct symbol *sym;
-	int i;
+	struct menu *menu;
 
 	autoconf_cmd = str_new();
 
@@ -517,10 +516,23 @@ void conf_parse(const char *name)
 	}
 
 	menu_finalize(&rootmenu);
-	for_all_symbols(i, sym) {
-		if (sym_check_deps(sym))
+
+	menu = &rootmenu;
+	while (menu) {
+		if (menu->sym && sym_check_deps(menu->sym))
 			yynerrs++;
+
+		if (menu->list) {
+			menu = menu->list;
+			continue;
+		}
+
+		while (!menu->next && menu->parent)
+			menu = menu->parent;
+
+		menu = menu->next;
 	}
+
 	if (yynerrs)
 		exit(1);
 	conf_set_changed(true);
