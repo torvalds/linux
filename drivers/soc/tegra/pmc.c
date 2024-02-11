@@ -2903,11 +2903,16 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 		if (IS_ERR(pmc->aotag))
 			return PTR_ERR(pmc->aotag);
 
+		/* "scratch" is an optional aperture */
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"scratch");
-		pmc->scratch = devm_ioremap_resource(&pdev->dev, res);
-		if (IS_ERR(pmc->scratch))
-			return PTR_ERR(pmc->scratch);
+		if (res) {
+			pmc->scratch = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(pmc->scratch))
+				return PTR_ERR(pmc->scratch);
+		} else {
+			pmc->scratch = NULL;
+		}
 	}
 
 	pmc->clk = devm_clk_get_optional(&pdev->dev, "pclk");
@@ -2919,12 +2924,15 @@ static int tegra_pmc_probe(struct platform_device *pdev)
 	 * PMC should be last resort for restarting since it soft-resets
 	 * CPU without resetting everything else.
 	 */
-	err = devm_register_reboot_notifier(&pdev->dev,
-					    &tegra_pmc_reboot_notifier);
-	if (err) {
-		dev_err(&pdev->dev, "unable to register reboot notifier, %d\n",
-			err);
-		return err;
+	if (pmc->scratch) {
+		err = devm_register_reboot_notifier(&pdev->dev,
+						    &tegra_pmc_reboot_notifier);
+		if (err) {
+			dev_err(&pdev->dev,
+				"unable to register reboot notifier, %d\n",
+				err);
+			return err;
+		}
 	}
 
 	err = devm_register_sys_off_handler(&pdev->dev,
