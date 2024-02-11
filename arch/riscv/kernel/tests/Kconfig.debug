@@ -6,7 +6,7 @@ config AS_HAS_ULEB128
 
 menuconfig RUNTIME_KERNEL_TESTING_MENU
        bool "arch/riscv/kernel runtime Testing"
-       def_bool y
+       default y
        help
          Enable riscv kernel runtime testing.
 
