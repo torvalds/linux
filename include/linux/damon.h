@@ -522,8 +522,20 @@ struct damon_ctx {
 	struct damon_attrs attrs;
 
 /* private: internal use only */
-	struct timespec64 last_aggregation;
-	struct timespec64 last_ops_update;
+	/* number of sample intervals that passed since this context started */
+	unsigned long passed_sample_intervals;
+	/*
+	 * number of sample intervals that should be passed before next
+	 * aggregation
+	 */
+	unsigned long next_aggregation_sis;
+	/*
+	 * number of sample intervals that should be passed before next ops
+	 * update
+	 */
+	unsigned long next_ops_update_sis;
+	/* for waiting until the execution of the kdamond_fn is started */
+	struct completion kdamond_started;
 
 /* public: */
 	struct task_struct *kdamond;

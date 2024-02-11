@@ -472,7 +472,7 @@ int pmc_core_send_ltr_ignore(struct pmc_dev *pmcdev, u32 value)
 	 * is based on the contiguous indexes from ltr_show output.
 	 * pmc index and ltr index needs to be calculated from it.
 	 */
-	for (pmc_index = 0; pmc_index < ARRAY_SIZE(pmcdev->pmcs) && ltr_index > 0; pmc_index++) {
+	for (pmc_index = 0; pmc_index < ARRAY_SIZE(pmcdev->pmcs) && ltr_index >= 0; pmc_index++) {
 		pmc = pmcdev->pmcs[pmc_index];
 
 		if (!pmc)

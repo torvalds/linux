@@ -5255,6 +5255,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	PIPE_CONF_CHECK_BOOL(hdmi_scrambling);
 	PIPE_CONF_CHECK_BOOL(hdmi_high_tmds_clock_ratio);
 	PIPE_CONF_CHECK_BOOL(has_infoframe);
+	PIPE_CONF_CHECK_BOOL(enhanced_framing);
 	PIPE_CONF_CHECK_BOOL(fec_enable);
 
 	PIPE_CONF_CHECK_BOOL_INCOMPLETE(has_audio);
@@ -5972,6 +5973,17 @@ static int intel_async_flip_check_hw(struct intel_atomic_state *state, struct in
 	if (old_crtc_state->active_planes != new_crtc_state->active_planes) {
 		drm_dbg_kms(&i915->drm,
 			    "[CRTC:%d:%s] Active planes cannot be in async flip\n",
+			    crtc->base.base.id, crtc->base.name);
+		return -EINVAL;
+	}
+
+	/*
+	 * FIXME: Bigjoiner+async flip is busted currently.
+	 * Remove this check once the issues are fixed.
+	 */
+	if (new_crtc_state->bigjoiner_pipes) {
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] async flip disallowed with bigjoiner\n",
 			    crtc->base.base.id, crtc->base.name);
 		return -EINVAL;
 	}

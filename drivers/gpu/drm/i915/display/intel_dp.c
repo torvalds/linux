@@ -2312,6 +2312,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
 
+	pipe_config->enhanced_framing =
+		drm_dp_enhanced_frame_cap(intel_dp->dpcd);
+
 	if (pipe_config->dsc.compression_enable)
 		output_bpp = pipe_config->dsc.compressed_bpp;
 	else

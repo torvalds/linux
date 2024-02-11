@@ -526,7 +526,8 @@ struct mlx5_esw_flow_attr {
 	u8	total_vlan;
 	struct {
 		u32 flags;
-		struct mlx5_eswitch_rep *rep;
+		bool vport_valid;
+		u16 vport;
 		struct mlx5_pkt_reformat *pkt_reformat;
 		struct mlx5_core_dev *mdev;
 		struct mlx5_termtbl_handle *termtbl;

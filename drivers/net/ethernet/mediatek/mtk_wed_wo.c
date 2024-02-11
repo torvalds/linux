@@ -291,6 +291,9 @@ mtk_wed_wo_queue_tx_clean(struct mtk_wed_wo *wo, struct mtk_wed_wo_queue *q)
 	for (i = 0; i < q->n_desc; i++) {
 		struct mtk_wed_wo_queue_entry *entry = &q->entry[i];
 
+		if (!entry->buf)
+			continue;
+
 		dma_unmap_single(wo->hw->dev, entry->addr, entry->len,
 				 DMA_TO_DEVICE);
 		skb_free_frag(entry->buf);

@@ -543,6 +543,10 @@ static void tasdev_fw_ready(const struct firmware *fmw, void *context)
 
 	tas_priv->fw_state = TASDEVICE_DSP_FW_ALL_OK;
 	tasdevice_prmg_load(tas_priv, 0);
+	if (tas_priv->fmw->nr_programs > 0)
+		tas_priv->cur_prog = 0;
+	if (tas_priv->fmw->nr_configurations > 0)
+		tas_priv->cur_conf = 0;
 
 	/* If calibrated data occurs error, dsp will still works with default
 	 * calibrated data inside algo.

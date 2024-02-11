@@ -178,18 +178,21 @@ TRACE_EVENT(9p_protocol_dump,
 		    __field(	void *,		clnt				)
 		    __field(	__u8,		type				)
 		    __field(	__u16,		tag				)
-		    __array(	unsigned char,	line,	P9_PROTO_DUMP_SZ	)
+		    __dynamic_array(unsigned char, line,
+				min_t(size_t, pdu->capacity, P9_PROTO_DUMP_SZ))
 		    ),
 
 	    TP_fast_assign(
 		    __entry->clnt   =  clnt;
 		    __entry->type   =  pdu->id;
 		    __entry->tag    =  pdu->tag;
-		    memcpy(__entry->line, pdu->sdata, P9_PROTO_DUMP_SZ);
+		    memcpy(__get_dynamic_array(line), pdu->sdata,
+				__get_dynamic_array_len(line));
 		    ),
-	    TP_printk("clnt %lu %s(tag = %d)\n%.3x: %16ph\n%.3x: %16ph\n",
+	    TP_printk("clnt %lu %s(tag = %d)\n%*ph\n",
 		      (unsigned long)__entry->clnt, show_9p_op(__entry->type),
-		      __entry->tag, 0, __entry->line, 16, __entry->line + 16)
+		      __entry->tag, __get_dynamic_array_len(line),
+		      __get_dynamic_array(line))
  );
 
 
