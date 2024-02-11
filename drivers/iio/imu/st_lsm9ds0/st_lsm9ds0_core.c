@@ -7,10 +7,10 @@
  * Author: Andy Shevchenko <andriy.shevchenko@linux.intel.com>
  */
 
-#include <linux/device.h>
+#include <linux/array_size.h>
+#include <linux/dev_printk.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
 #include <linux/iio/common/st_sensors.h>
