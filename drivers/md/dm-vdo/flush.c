@@ -100,7 +100,7 @@ static struct vdo_flush *vdo_waiter_as_flush(struct vdo_waiter *waiter)
 
 static void *allocate_flush(gfp_t gfp_mask, void *pool_data)
 {
-	struct vdo_flush *flush;
+	struct vdo_flush *flush = NULL;
 
 	if ((gfp_mask & GFP_NOWAIT) == GFP_NOWAIT) {
 		flush = uds_allocate_memory_nowait(sizeof(struct vdo_flush), __func__);
