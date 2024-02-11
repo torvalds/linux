@@ -556,6 +556,7 @@ static int process_entry(struct volume *volume, struct queued_read *entry)
 
 	mutex_unlock(&volume->read_threads_mutex);
 	page_data = dm_bufio_read(volume->client, page_number, &page->buffer);
+	mutex_lock(&volume->read_threads_mutex);
 	if (IS_ERR(page_data)) {
 		result = -PTR_ERR(page_data);
 		uds_log_warning_strerror(result,
@@ -564,7 +565,6 @@ static int process_entry(struct volume *volume, struct queued_read *entry)
 		cancel_page_in_cache(&volume->page_cache, page_number, page);
 		return result;
 	}
-	mutex_lock(&volume->read_threads_mutex);
 
 	if (entry->invalid) {
 		uds_log_warning("Page %u invalidated after read", page_number);
