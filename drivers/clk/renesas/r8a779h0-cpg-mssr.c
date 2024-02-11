@@ -173,6 +173,9 @@ static const struct cpg_core_clk r8a779h0_core_clks[] = {
 };
 
 static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
+	DEF_MOD("avb0:rgmii0",	211,	R8A779H0_CLK_S0D8_HSC),
+	DEF_MOD("avb1:rgmii1",	212,	R8A779H0_CLK_S0D8_HSC),
+	DEF_MOD("avb2:rgmii2",	213,	R8A779H0_CLK_S0D8_HSC),
 	DEF_MOD("hscif0",	514,	R8A779H0_CLK_SASYNCPERD1),
 	DEF_MOD("hscif1",	515,	R8A779H0_CLK_SASYNCPERD1),
 	DEF_MOD("hscif2",	516,	R8A779H0_CLK_SASYNCPERD1),
