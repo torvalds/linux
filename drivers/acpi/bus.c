@@ -1097,7 +1097,7 @@ static void acpi_device_remove(struct device *dev)
 	put_device(dev);
 }
 
-struct bus_type acpi_bus_type = {
+const struct bus_type acpi_bus_type = {
 	.name		= "acpi",
 	.match		= acpi_bus_match,
 	.probe		= acpi_device_probe,
