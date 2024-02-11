@@ -2780,7 +2780,7 @@ static inline int vc_translate_ascii(const struct vc_data *vc, int c)
 
 /**
  * vc_sanitize_unicode - Replace invalid Unicode code points with ``U+FFFD``
- * @c: the received character, or ``U+FFFD`` for invalid sequences.
+ * @c: the received code point
  */
 static inline int vc_sanitize_unicode(const int c)
 {
@@ -2793,13 +2793,21 @@ static inline int vc_sanitize_unicode(const int c)
 /**
  * vc_translate_unicode - Combine UTF-8 into Unicode in &vc_data.vc_utf_char
  * @vc: virtual console
- * @c: character to translate
- * @rescan: we return true if we need more (continuation) data
+ * @c: UTF-8 byte to translate
+ * @rescan: set to true iff @c wasn't consumed here and needs to be re-processed
  *
- * * &vc_data.vc_utf_char is the being-constructed unicode character.
+ * * &vc_data.vc_utf_char is the being-constructed Unicode code point.
  * * &vc_data.vc_utf_count is the number of continuation bytes still expected to
  *   arrive.
  * * &vc_data.vc_npar is the number of continuation bytes arrived so far.
+ *
+ * Return:
+ * * %-1 - Input OK so far, @c consumed, further bytes expected.
+ * * %0xFFFD - Possibility 1: input invalid, @c may have been consumed (see
+ *             desc. of @rescan). Possibility 2: input OK, @c consumed,
+ *             ``U+FFFD`` is the resulting code point. ``U+FFFD`` is valid,
+ *             ``REPLACEMENT CHARACTER``.
+ * * otherwise - Input OK, @c consumed, resulting code point returned.
  */
 static int vc_translate_unicode(struct vc_data *vc, int c, bool *rescan)
 {
