@@ -2012,9 +2012,10 @@ static void mlx5e_tc_del_fdb_peer_flow(struct mlx5e_tc_flow *flow,
 	list_for_each_entry_safe(peer_flow, tmp, &flow->peer_flows, peer_flows) {
 		if (peer_index != mlx5_get_dev_index(peer_flow->priv->mdev))
 			continue;
+
+		list_del(&peer_flow->peer_flows);
 		if (refcount_dec_and_test(&peer_flow->refcnt)) {
 			mlx5e_tc_del_fdb_flow(peer_flow->priv, peer_flow);
-			list_del(&peer_flow->peer_flows);
 			kfree(peer_flow);
 		}
 	}

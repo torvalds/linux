@@ -90,12 +90,14 @@ static u32 estimate_sustainable_power(struct thermal_zone_device *tz)
 	u32 sustainable_power = 0;
 	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
+	const struct thermal_trip *trip_max_desired_temperature =
+			&tz->trips[params->trip_max_desired_temperature];
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		struct thermal_cooling_device *cdev = instance->cdev;
 		u32 min_power;
 
-		if (instance->trip != params->trip_max_desired_temperature)
+		if (instance->trip != trip_max_desired_temperature)
 			continue;
 
 		if (!cdev_is_power_actor(cdev))
@@ -383,12 +385,13 @@ static int allocate_power(struct thermal_zone_device *tz,
 {
 	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
+	const struct thermal_trip *trip_max_desired_temperature =
+			&tz->trips[params->trip_max_desired_temperature];
 	u32 *req_power, *max_power, *granted_power, *extra_actor_power;
 	u32 *weighted_req_power;
 	u32 total_req_power, max_allocatable_power, total_weighted_req_power;
 	u32 total_granted_power, power_range;
 	int i, num_actors, total_weight, ret = 0;
-	int trip_max_desired_temperature = params->trip_max_desired_temperature;
 
 	num_actors = 0;
 	total_weight = 0;
@@ -564,12 +567,14 @@ static void allow_maximum_power(struct thermal_zone_device *tz, bool update)
 {
 	struct thermal_instance *instance;
 	struct power_allocator_params *params = tz->governor_data;
+	const struct thermal_trip *trip_max_desired_temperature =
+			&tz->trips[params->trip_max_desired_temperature];
 	u32 req_power;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		struct thermal_cooling_device *cdev = instance->cdev;
 
-		if ((instance->trip != params->trip_max_desired_temperature) ||
+		if ((instance->trip != trip_max_desired_temperature) ||
 		    (!cdev_is_power_actor(instance->cdev)))
 			continue;
 
@@ -710,7 +715,7 @@ static int power_allocator_throttle(struct thermal_zone_device *tz, int trip_id)
 
 	ret = __thermal_zone_get_trip(tz, params->trip_switch_on, &trip);
 	if (!ret && (tz->temperature < trip.temperature)) {
-		update = (tz->last_temperature >= trip.temperature);
+		update = tz->passive;
 		tz->passive = 0;
 		reset_pid_controller(params);
 		allow_maximum_power(tz, update);

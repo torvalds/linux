@@ -55,11 +55,11 @@ TODOList:
    :maxdepth: 1
 
    process/license-rules
+   dev-tools/index
 
 TODOList:
 
 * doc-guide/index
-* dev-tools/index
 * dev-tools/testing-overview
 * kernel-hacking/index
 * rust/index

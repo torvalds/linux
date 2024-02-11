@@ -69,7 +69,7 @@ bool is_ses_using_iface(struct cifs_ses *ses, struct cifs_server_iface *iface)
 
 /* channel helper functions. assumed that chan_lock is held by caller. */
 
-unsigned int
+int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
 			struct TCP_Server_Info *server)
 {
@@ -85,14 +85,17 @@ cifs_ses_get_chan_index(struct cifs_ses *ses,
 		cifs_dbg(VFS, "unable to get chan index for server: 0x%llx",
 			 server->conn_id);
 	WARN_ON(1);
-	return 0;
+	return CIFS_INVAL_CHAN_INDEX;
 }
 
 void
 cifs_chan_set_in_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
 {
-	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
 
 	ses->chans[chan_index].in_reconnect = true;
 }
@@ -102,6 +105,8 @@ cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
 
 	ses->chans[chan_index].in_reconnect = false;
 }
@@ -111,6 +116,8 @@ cifs_chan_in_reconnect(struct cifs_ses *ses,
 			  struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return true;	/* err on the safer side */
 
 	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
 }
@@ -120,6 +127,8 @@ cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
 
 	set_bit(chan_index, &ses->chans_need_reconnect);
 	cifs_dbg(FYI, "Set reconnect bitmask for chan %u; now 0x%lx\n",
@@ -131,6 +140,8 @@ cifs_chan_clear_need_reconnect(struct cifs_ses *ses,
 			       struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return;
 
 	clear_bit(chan_index, &ses->chans_need_reconnect);
 	cifs_dbg(FYI, "Cleared reconnect bitmask for chan %u; now 0x%lx\n",
@@ -142,6 +153,8 @@ cifs_chan_needs_reconnect(struct cifs_ses *ses,
 			  struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return true;	/* err on the safer side */
 
 	return CIFS_CHAN_NEEDS_RECONNECT(ses, chan_index);
 }
@@ -151,6 +164,8 @@ cifs_chan_is_iface_active(struct cifs_ses *ses,
 			  struct TCP_Server_Info *server)
 {
 	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX)
+		return true;	/* err on the safer side */
 
 	return ses->chans[chan_index].iface &&
 		ses->chans[chan_index].iface->is_active;
@@ -276,6 +291,64 @@ int cifs_try_adding_channels(struct cifs_ses *ses)
 }
 
 /*
+ * called when multichannel is disabled by the server.
+ * this always gets called from smb2_reconnect
+ * and cannot get called in parallel threads.
+ */
+void
+cifs_disable_secondary_channels(struct cifs_ses *ses)
+{
+	int i, chan_count;
+	struct TCP_Server_Info *server;
+	struct cifs_server_iface *iface;
+
+	spin_lock(&ses->chan_lock);
+	chan_count = ses->chan_count;
+	if (chan_count == 1)
+		goto done;
+
+	ses->chan_count = 1;
+
+	/* for all secondary channels reset the need reconnect bit */
+	ses->chans_need_reconnect &= 1;
+
+	for (i = 1; i < chan_count; i++) {
+		iface = ses->chans[i].iface;
+		server = ses->chans[i].server;
+
+		/*
+		 * remove these references first, since we need to unlock
+		 * the chan_lock here, since iface_lock is a higher lock
+		 */
+		ses->chans[i].iface = NULL;
+		ses->chans[i].server = NULL;
+		spin_unlock(&ses->chan_lock);
+
+		if (iface) {
+			spin_lock(&ses->iface_lock);
+			kref_put(&iface->refcount, release_iface);
+			iface->num_channels--;
+			if (iface->weight_fulfilled)
+				iface->weight_fulfilled--;
+			spin_unlock(&ses->iface_lock);
+		}
+
+		if (server) {
+			if (!server->terminate) {
+				server->terminate = true;
+				cifs_signal_cifsd_for_reconnect(server, false);
+			}
+			cifs_put_tcp_session(server, false);
+		}
+
+		spin_lock(&ses->chan_lock);
+	}
+
+done:
+	spin_unlock(&ses->chan_lock);
+}
+
+/*
  * update the iface for the channel if necessary.
  * will return 0 when iface is updated, 1 if removed, 2 otherwise
  * Must be called with chan_lock held.
@@ -293,7 +366,7 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 
 	spin_lock(&ses->chan_lock);
 	chan_index = cifs_ses_get_chan_index(ses, server);
-	if (!chan_index) {
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
 		spin_unlock(&ses->chan_lock);
 		return 0;
 	}
@@ -403,6 +476,11 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 
 	spin_lock(&ses->chan_lock);
 	chan_index = cifs_ses_get_chan_index(ses, server);
+	if (chan_index == CIFS_INVAL_CHAN_INDEX) {
+		spin_unlock(&ses->chan_lock);
+		return 0;
+	}
+
 	ses->chans[chan_index].iface = iface;
 
 	/* No iface is found. if secondary chan, drop connection */
@@ -569,14 +647,10 @@ cifs_ses_add_channel(struct cifs_ses *ses,
 
 out:
 	if (rc && chan->server) {
-		/*
-		 * we should avoid race with these delayed works before we
-		 * remove this channel
-		 */
-		cancel_delayed_work_sync(&chan->server->echo);
-		cancel_delayed_work_sync(&chan->server->reconnect);
+		cifs_put_tcp_session(chan->server, 0);
 
 		spin_lock(&ses->chan_lock);
+
 		/* we rely on all bits beyond chan_count to be clear */
 		cifs_chan_clear_need_reconnect(ses, chan->server);
 		ses->chan_count--;
@@ -586,8 +660,6 @@ out:
 		 */
 		WARN_ON(ses->chan_count < 1);
 		spin_unlock(&ses->chan_lock);
-
-		cifs_put_tcp_session(chan->server, 0);
 	}
 
 	kfree(ctx->UNC);

@@ -26,6 +26,7 @@
 #include <linux/pgtable.h>
 #include <linux/swap.h>
 #include <linux/cma.h>
+#include <linux/crash_dump.h>
 #include "internal.h"
 #include "slab.h"
 #include "shuffle.h"
@@ -378,6 +379,11 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 
 		if (!memblock_has_mirror()) {
 			pr_warn("The system has no mirror memory, ignore kernelcore=mirror.\n");
+			goto out;
+		}
+
+		if (is_kdump_kernel()) {
+			pr_warn("The system is under kdump, ignore kernelcore=mirror.\n");
 			goto out;
 		}
 

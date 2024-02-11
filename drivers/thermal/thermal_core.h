@@ -87,7 +87,7 @@ struct thermal_instance {
 	char name[THERMAL_NAME_LENGTH];
 	struct thermal_zone_device *tz;
 	struct thermal_cooling_device *cdev;
-	int trip;
+	const struct thermal_trip *trip;
 	bool initialized;
 	unsigned long upper;	/* Highest cooling state for this trip point */
 	unsigned long lower;	/* Lowest cooling state for this trip point */
@@ -119,6 +119,8 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 void __thermal_zone_set_trips(struct thermal_zone_device *tz);
 int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip);
+int thermal_zone_trip_id(struct thermal_zone_device *tz,
+			 const struct thermal_trip *trip);
 int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp);
 
 /* sysfs I/F */

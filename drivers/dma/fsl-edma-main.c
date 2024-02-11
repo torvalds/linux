@@ -26,6 +26,8 @@
 #define ARGS_RX                         BIT(0)
 #define ARGS_REMOTE                     BIT(1)
 #define ARGS_MULTI_FIFO                 BIT(2)
+#define ARGS_EVEN_CH                    BIT(3)
+#define ARGS_ODD_CH                     BIT(4)
 
 static void fsl_edma_synchronize(struct dma_chan *chan)
 {
@@ -158,6 +160,12 @@ static struct dma_chan *fsl_edma3_xlate(struct of_phandle_args *dma_spec,
 		fsl_chan->is_rxchan = dma_spec->args[2] & ARGS_RX;
 		fsl_chan->is_remote = dma_spec->args[2] & ARGS_REMOTE;
 		fsl_chan->is_multi_fifo = dma_spec->args[2] & ARGS_MULTI_FIFO;
+
+		if ((dma_spec->args[2] & ARGS_EVEN_CH) && (i & 0x1))
+			continue;
+
+		if ((dma_spec->args[2] & ARGS_ODD_CH) && !(i & 0x1))
+			continue;
 
 		if (!b_chmux && i == dma_spec->args[0]) {
 			chan = dma_get_slave_channel(chan);
