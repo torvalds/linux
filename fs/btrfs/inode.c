@@ -1747,6 +1747,8 @@ static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 	u64 count;
 	int ret;
 
+	lock_extent(io_tree, start, end, NULL);
+
 	/*
 	 * If EXTENT_NORESERVE is set it means that when the buffered write was
 	 * made we had not enough available data space and therefore we did not
@@ -1977,8 +1979,6 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	 */
 	ASSERT(!btrfs_is_zoned(fs_info) || btrfs_is_data_reloc_root(root));
 
-	lock_extent(&inode->io_tree, start, end, NULL);
-
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
@@ -1994,6 +1994,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 		struct btrfs_key found_key;
 		struct btrfs_file_extent_item *fi;
 		struct extent_buffer *leaf;
+		struct extent_state *cached_state = NULL;
 		u64 extent_end;
 		u64 ram_bytes;
 		u64 nocow_end;
@@ -2131,6 +2132,8 @@ must_cow:
 		}
 
 		nocow_end = cur_offset + nocow_args.num_bytes - 1;
+		lock_extent(&inode->io_tree, cur_offset, nocow_end, &cached_state);
+
 		is_prealloc = extent_type == BTRFS_FILE_EXTENT_PREALLOC;
 		if (is_prealloc) {
 			u64 orig_start = found_key.offset - nocow_args.extent_offset;
@@ -2144,6 +2147,8 @@ must_cow:
 					  ram_bytes, BTRFS_COMPRESS_NONE,
 					  BTRFS_ORDERED_PREALLOC);
 			if (IS_ERR(em)) {
+				unlock_extent(&inode->io_tree, cur_offset,
+					      nocow_end, &cached_state);
 				btrfs_dec_nocow_writers(nocow_bg);
 				ret = PTR_ERR(em);
 				goto error;
@@ -2164,6 +2169,8 @@ must_cow:
 				btrfs_drop_extent_map_range(inode, cur_offset,
 							    nocow_end, false);
 			}
+			unlock_extent(&inode->io_tree, cur_offset,
+				      nocow_end, &cached_state);
 			ret = PTR_ERR(ordered);
 			goto error;
 		}
@@ -2182,6 +2189,7 @@ must_cow:
 					     EXTENT_DELALLOC |
 					     EXTENT_CLEAR_DATA_RESV,
 					     PAGE_UNLOCK | PAGE_SET_ORDERED);
+		free_extent_state(cached_state);
 
 		cur_offset = extent_end;
 
@@ -2217,13 +2225,20 @@ error:
 	 */
 	if (cow_start != (u64)-1)
 		cur_offset = cow_start;
-	if (cur_offset < end)
+
+	/*
+	 * We need to lock the extent here because we're clearing DELALLOC and
+	 * we're not locked at this point.
+	 */
+	if (cur_offset < end) {
+		lock_extent(&inode->io_tree, cur_offset, end, NULL);
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
 					     locked_page, EXTENT_LOCKED |
 					     EXTENT_DELALLOC | EXTENT_DEFRAG |
 					     EXTENT_DO_ACCOUNTING, PAGE_UNLOCK |
 					     PAGE_START_WRITEBACK |
 					     PAGE_END_WRITEBACK);
+	}
 	btrfs_free_path(path);
 	return ret;
 }
