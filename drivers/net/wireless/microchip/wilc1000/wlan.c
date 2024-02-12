@@ -12,11 +12,6 @@
 
 #define WAKE_UP_TRIAL_RETRY		10000
 
-static inline bool is_wilc1000(u32 id)
-{
-	return (id & (~WILC_CHIP_REV_FIELD)) == WILC_1000_BASE_ID;
-}
-
 static inline void acquire_bus(struct wilc *wilc, enum bus_acquire acquire)
 {
 	mutex_lock(&wilc->hif_cs);
