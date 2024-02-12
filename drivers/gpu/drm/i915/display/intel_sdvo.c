@@ -2202,11 +2202,15 @@ intel_sdvo_detect(struct drm_connector *connector, bool force)
 
 static int intel_sdvo_get_ddc_modes(struct drm_connector *connector)
 {
+	struct drm_i915_private *i915 = to_i915(connector->dev);
 	int num_modes = 0;
 	const struct drm_edid *drm_edid;
 
 	drm_dbg_kms(connector->dev, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
+
+	if (!intel_display_driver_check_access(i915))
+		return drm_edid_connector_add_modes(connector);
 
 	/* set the bus switch and get the modes */
 	drm_edid = intel_sdvo_get_edid(connector);
