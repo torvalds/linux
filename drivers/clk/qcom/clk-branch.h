@@ -64,6 +64,7 @@ struct clk_mem_branch {
 #define CBCR_FORCE_MEM_PERIPH_OFF	BIT(12)
 #define CBCR_WAKEUP			GENMASK(11, 8)
 #define CBCR_SLEEP			GENMASK(7, 4)
+#define CBCR_CLOCK_ENABLE		BIT(0)
 
 static inline void qcom_branch_set_force_mem_core(struct regmap *regmap,
 						  struct clk_branch clk, bool on)
@@ -96,6 +97,11 @@ static inline void qcom_branch_set_sleep(struct regmap *regmap, struct clk_branc
 {
 	regmap_update_bits(regmap, clk.halt_reg, CBCR_SLEEP,
 			   FIELD_PREP(CBCR_SLEEP, val));
+}
+
+static inline void qcom_branch_set_clk_en(struct regmap *regmap, u32 cbcr)
+{
+	regmap_update_bits(regmap, cbcr, CBCR_CLOCK_ENABLE, CBCR_CLOCK_ENABLE);
 }
 
 extern const struct clk_ops clk_branch_ops;
