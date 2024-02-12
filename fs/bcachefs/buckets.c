@@ -778,6 +778,16 @@ static int __trigger_extent(struct btree_trans *trans,
 			return ret;
 	}
 
+	if (acc_replicas_key.replicas.nr_devs && !level && k.k->p.snapshot) {
+		struct disk_accounting_pos acc_snapshot_key = {
+			.type			= BCH_DISK_ACCOUNTING_snapshot,
+			.snapshot.id		= k.k->p.snapshot,
+		};
+		ret = bch2_disk_accounting_mod(trans, &acc_snapshot_key, &replicas_sectors, 1, gc);
+		if (ret)
+			return ret;
+	}
+
 	if (acct_compression_key.compression.type) {
 		if (flags & BTREE_TRIGGER_overwrite)
 			bch2_u64s_neg(compression_acct, ARRAY_SIZE(compression_acct));

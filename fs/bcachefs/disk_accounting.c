@@ -146,6 +146,9 @@ void bch2_accounting_key_to_text(struct printbuf *out, struct disk_accounting_po
 	case BCH_DISK_ACCOUNTING_compression:
 		bch2_prt_compression_type(out, k->compression.type);
 		break;
+	case BCH_DISK_ACCOUNTING_snapshot:
+		prt_printf(out, "id=%u", k->snapshot.id);
+		break;
 	}
 }
 
