@@ -9,6 +9,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
 #include <linux/math64.h>
+#include <linux/string.h>
 
 #define verbose(env, fmt, args...) bpf_verifier_log_write(env, fmt, ##args)
 
@@ -362,6 +363,8 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 				  const char *prefix_fmt, ...)
 {
 	const struct bpf_line_info *linfo;
+	const struct btf *btf;
+	const char *s, *fname;
 
 	if (!bpf_verifier_log_needed(&env->log))
 		return;
@@ -378,9 +381,15 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 		va_end(args);
 	}
 
-	verbose(env, "%s\n",
-		ltrim(btf_name_by_offset(env->prog->aux->btf,
-					 linfo->line_off)));
+	btf = env->prog->aux->btf;
+	s = ltrim(btf_name_by_offset(btf, linfo->line_off));
+	verbose(env, "%s", s); /* source code line */
+
+	s = btf_name_by_offset(btf, linfo->file_name_off);
+	/* leave only file name */
+	fname = strrchr(s, '/');
+	fname = fname ? fname + 1 : s;
+	verbose(env, " @ %s:%u\n", fname, BPF_LINE_INFO_LINE_NUM(linfo->line_col));
 
 	env->prev_linfo = linfo;
 }
