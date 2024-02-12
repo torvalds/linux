@@ -1977,6 +1977,8 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	 */
 	ASSERT(!btrfs_is_zoned(fs_info) || btrfs_is_data_reloc_root(root));
 
+	lock_extent(&inode->io_tree, start, end, NULL);
+
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;
@@ -2250,11 +2252,6 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 	int ret;
 
 	/*
-	 * We're unlocked by the different fill functions below.
-	 */
-	lock_extent(&inode->io_tree, start, end, NULL);
-
-	/*
 	 * The range must cover part of the @locked_page, or a return of 1
 	 * can confuse the caller.
 	 */
@@ -2265,6 +2262,11 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		ret = run_delalloc_nocow(inode, locked_page, start, end);
 		goto out;
 	}
+
+	/*
+	 * We're unlocked by the different fill functions below.
+	 */
+	lock_extent(&inode->io_tree, start, end, NULL);
 
 	if (btrfs_inode_can_compress(inode) &&
 	    inode_need_compress(inode, start, end) &&
