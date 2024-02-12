@@ -296,7 +296,7 @@ EXPORT_SYMBOL_GPL(wmidev_instance_count);
  * @guid_string: 36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
  * @instance: Instance index
  * @method_id: Method ID to call
- * @in: Buffer containing input for the method call
+ * @in: Mandatory buffer containing input for the method call
  * @out: Empty buffer to return the method results
  *
  * Call an ACPI-WMI method, the caller must free @out.
@@ -326,7 +326,7 @@ EXPORT_SYMBOL_GPL(wmi_evaluate_method);
  * @wdev: A wmi bus device from a driver
  * @instance: Instance index
  * @method_id: Method ID to call
- * @in: Buffer containing input for the method call
+ * @in: Mandatory buffer containing input for the method call
  * @out: Empty buffer to return the method results
  *
  * Call an ACPI-WMI method, the caller must free @out.
@@ -347,26 +347,25 @@ acpi_status wmidev_evaluate_method(struct wmi_device *wdev, u8 instance, u32 met
 	block = &wblock->gblock;
 	handle = wblock->acpi_device->handle;
 
+	if (!in)
+		return AE_BAD_DATA;
+
 	if (!(block->flags & ACPI_WMI_METHOD))
 		return AE_BAD_DATA;
 
 	if (block->instance_count <= instance)
 		return AE_BAD_PARAMETER;
 
-	input.count = 2;
+	input.count = 3;
 	input.pointer = params;
+
 	params[0].type = ACPI_TYPE_INTEGER;
 	params[0].integer.value = instance;
 	params[1].type = ACPI_TYPE_INTEGER;
 	params[1].integer.value = method_id;
-
-	if (in) {
-		input.count = 3;
-
-		params[2].type = get_param_acpi_type(wblock);
-		params[2].buffer.length = in->length;
-		params[2].buffer.pointer = in->pointer;
-	}
+	params[2].type = get_param_acpi_type(wblock);
+	params[2].buffer.length = in->length;
+	params[2].buffer.pointer = in->pointer;
 
 	get_acpi_method_name(wblock, 'M', method);
 
