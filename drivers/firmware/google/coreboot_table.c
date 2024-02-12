@@ -28,8 +28,17 @@ static int coreboot_bus_match(struct device *dev, struct device_driver *drv)
 {
 	struct coreboot_device *device = CB_DEV(dev);
 	struct coreboot_driver *driver = CB_DRV(drv);
+	const struct coreboot_device_id *id;
 
-	return device->entry.tag == driver->tag;
+	if (!driver->id_table)
+		return 0;
+
+	for (id = driver->id_table; id->tag; id++) {
+		if (device->entry.tag == id->tag)
+			return 1;
+	}
+
+	return 0;
 }
 
 static int coreboot_bus_probe(struct device *dev)
