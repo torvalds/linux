@@ -834,7 +834,7 @@ static int start_restoring_volume_sub_index(struct volume_sub_index *sub_index,
 		decode_u32_le(buffer, &offset, &header.first_list);
 		decode_u32_le(buffer, &offset, &header.list_count);
 
-		result = ASSERT(offset = sizeof(buffer),
+		result = ASSERT(offset == sizeof(buffer),
 				"%zu bytes decoded of %zu expected", offset,
 				sizeof(buffer));
 		if (result != UDS_SUCCESS)
