@@ -562,6 +562,11 @@ static int qca807x_phy_package_config_init_once(struct phy_device *phydev)
 	struct qca807x_shared_priv *priv = shared->priv;
 	int val, ret;
 
+	/* Make sure PHY follow PHY package mode if enforced */
+	if (priv->package_mode != PHY_INTERFACE_MODE_NA &&
+	    phydev->interface != priv->package_mode)
+		return -EINVAL;
+
 	phy_lock_mdio_bus(phydev);
 
 	/* Set correct PHY package mode */
@@ -717,11 +722,6 @@ static int qca807x_probe(struct phy_device *phydev)
 
 	shared = phydev->shared;
 	shared_priv = shared->priv;
-
-	/* Make sure PHY follow PHY package mode if enforced */
-	if (shared_priv->package_mode != PHY_INTERFACE_MODE_NA &&
-	    phydev->interface != shared_priv->package_mode)
-		return -EINVAL;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
