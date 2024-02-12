@@ -158,6 +158,8 @@ struct clock_info {
 	u32 version;
 	int num_clocks;
 	int max_async_req;
+	bool notify_rate_changed_cmd;
+	bool notify_rate_change_requested_cmd;
 	atomic_t cur_async_req;
 	struct scmi_clock_info *clk;
 	int (*clock_config_set)(const struct scmi_protocol_handle *ph,
@@ -204,6 +206,17 @@ scmi_clock_protocol_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret) {
+		if (!ph->hops->protocol_msg_check(ph, CLOCK_RATE_NOTIFY, NULL))
+			ci->notify_rate_changed_cmd = true;
+
+		if (!ph->hops->protocol_msg_check(ph,
+						  CLOCK_RATE_CHANGE_REQUESTED_NOTIFY,
+						  NULL))
+			ci->notify_rate_change_requested_cmd = true;
+	}
+
 	return ret;
 }
 
@@ -329,13 +342,14 @@ scmi_clock_get_permissions(const struct scmi_protocol_handle *ph, u32 clk_id,
 }
 
 static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
-				     u32 clk_id, struct scmi_clock_info *clk,
+				     u32 clk_id, struct clock_info *cinfo,
 				     u32 version)
 {
 	int ret;
 	u32 attributes;
 	struct scmi_xfer *t;
 	struct scmi_msg_resp_clock_attributes *attr;
+	struct scmi_clock_info *clk = cinfo->clk + clk_id;
 
 	ret = ph->xops->xfer_get_init(ph, CLOCK_ATTRIBUTES,
 				      sizeof(clk_id), sizeof(*attr), &t);
@@ -368,9 +382,11 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 						    NULL, clk->name,
 						    SCMI_MAX_STR_SIZE);
 
-		if (SUPPORTS_RATE_CHANGED_NOTIF(attributes))
+		if (cinfo->notify_rate_changed_cmd &&
+		    SUPPORTS_RATE_CHANGED_NOTIF(attributes))
 			clk->rate_changed_notifications = true;
-		if (SUPPORTS_RATE_CHANGE_REQUESTED_NOTIF(attributes))
+		if (cinfo->notify_rate_change_requested_cmd &&
+		    SUPPORTS_RATE_CHANGE_REQUESTED_NOTIF(attributes))
 			clk->rate_change_requested_notifications = true;
 		if (SUPPORTS_PARENT_CLOCK(attributes))
 			scmi_clock_possible_parents(ph, clk_id, clk);
@@ -896,6 +912,28 @@ static const struct scmi_clk_proto_ops clk_proto_ops = {
 	.parent_get = scmi_clock_get_parent,
 };
 
+static bool scmi_clk_notify_supported(const struct scmi_protocol_handle *ph,
+				      u8 evt_id, u32 src_id)
+{
+	bool supported;
+	struct scmi_clock_info *clk;
+	struct clock_info *ci = ph->get_priv(ph);
+
+	if (evt_id >= ARRAY_SIZE(evt_2_cmd))
+		return false;
+
+	clk = scmi_clock_domain_lookup(ci, src_id);
+	if (IS_ERR(clk))
+		return false;
+
+	if (evt_id == SCMI_EVENT_CLOCK_RATE_CHANGED)
+		supported = clk->rate_changed_notifications;
+	else
+		supported = clk->rate_change_requested_notifications;
+
+	return supported;
+}
+
 static int scmi_clk_rate_notify(const struct scmi_protocol_handle *ph,
 				u32 clk_id, int message_id, bool enable)
 {
@@ -980,6 +1018,7 @@ static const struct scmi_event clk_events[] = {
 };
 
 static const struct scmi_event_ops clk_event_ops = {
+	.is_notify_supported = scmi_clk_notify_supported,
 	.get_num_sources = scmi_clk_get_num_sources,
 	.set_notify_enabled = scmi_clk_set_notify_enabled,
 	.fill_custom_report = scmi_clk_fill_custom_report,
@@ -1021,7 +1060,7 @@ static int scmi_clock_protocol_init(const struct scmi_protocol_handle *ph)
 	for (clkid = 0; clkid < cinfo->num_clocks; clkid++) {
 		struct scmi_clock_info *clk = cinfo->clk + clkid;
 
-		ret = scmi_clock_attributes_get(ph, clkid, clk, version);
+		ret = scmi_clock_attributes_get(ph, clkid, cinfo, version);
 		if (!ret)
 			scmi_clock_describe_rates_get(ph, clkid, clk);
 	}
