@@ -41,6 +41,7 @@ config LEDS_QCOM_LPG
 	tristate "LED support for Qualcomm LPG"
 	depends on OF
 	depends on PWM
+	depends on QCOM_PBS || !QCOM_PBS
 	depends on SPMI
 	help
 	  This option enables support for the Light Pulse Generator found in a
