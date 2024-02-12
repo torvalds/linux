@@ -180,9 +180,6 @@ static inline void locks_wake_up(struct file_lock *fl)
 	wake_up(&fl->c.flc_wait);
 }
 
-/* for walking lists of file_locks linked by fl_list */
-#define for_each_file_lock(_fl, _head)	list_for_each_entry(_fl, _head, c.flc_list)
-
 /* fs/locks.c */
 void locks_free_lock_context(struct inode *inode);
 void locks_free_lock(struct file_lock *fl);
@@ -282,8 +279,6 @@ static inline bool lock_is_write(struct file_lock *fl)
 static inline void locks_wake_up(struct file_lock *fl)
 {
 }
-
-#define for_each_file_lock(_fl, _head)	while(false)
 
 static inline void
 locks_free_lock_context(struct inode *inode)
@@ -413,6 +408,9 @@ locks_inode_context(const struct inode *inode)
 }
 
 #endif /* !CONFIG_FILE_LOCKING */
+
+/* for walking lists of file_locks linked by fl_list */
+#define for_each_file_lock(_fl, _head)	list_for_each_entry(_fl, _head, c.flc_list)
 
 static inline int locks_lock_file_wait(struct file *filp, struct file_lock *fl)
 {
