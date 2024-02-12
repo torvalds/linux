@@ -1988,7 +1988,7 @@ static noinline int run_delalloc_nocow(struct btrfs_inode *inode,
 	nocow_args.end = end;
 	nocow_args.writeback_path = true;
 
-	while (1) {
+	while (cur_offset <= end) {
 		struct btrfs_block_group *nocow_bg = NULL;
 		struct btrfs_ordered_extent *ordered;
 		struct btrfs_key found_key;
@@ -2192,8 +2192,6 @@ must_cow:
 		 */
 		if (ret)
 			goto error;
-		if (cur_offset > end)
-			break;
 	}
 	btrfs_release_path(path);
 
