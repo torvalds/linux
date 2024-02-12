@@ -6,7 +6,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
-extern struct bus_type macio_bus_type;
+extern const struct bus_type macio_bus_type;
 
 /* MacIO device driver is defined later */
 struct macio_driver;
