@@ -561,13 +561,10 @@ static int prq_to_iommu_prot(struct page_req_dsc *req)
 	return prot;
 }
 
-static int intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
-				struct page_req_dsc *desc)
+static void intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
+				 struct page_req_dsc *desc)
 {
 	struct iopf_fault event = { };
-
-	if (!dev || !dev_is_pci(dev))
-		return -ENODEV;
 
 	/* Fill in event data for device specific processing */
 	event.fault.type = IOMMU_FAULT_PAGE_REQ;
@@ -601,7 +598,7 @@ static int intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 		event.fault.prm.private_data[0] = ktime_to_ns(ktime_get());
 	}
 
-	return iommu_report_device_fault(dev, &event);
+	iommu_report_device_fault(dev, &event);
 }
 
 static void handle_bad_prq_event(struct intel_iommu *iommu,
@@ -704,12 +701,10 @@ bad_req:
 		if (!pdev)
 			goto bad_req;
 
-		if (intel_svm_prq_report(iommu, &pdev->dev, req))
-			handle_bad_prq_event(iommu, req, QI_RESP_INVALID);
-		else
-			trace_prq_report(iommu, &pdev->dev, req->qw_0, req->qw_1,
-					 req->priv_data[0], req->priv_data[1],
-					 iommu->prq_seq_number++);
+		intel_svm_prq_report(iommu, &pdev->dev, req);
+		trace_prq_report(iommu, &pdev->dev, req->qw_0, req->qw_1,
+				 req->priv_data[0], req->priv_data[1],
+				 iommu->prq_seq_number++);
 		pci_dev_put(pdev);
 prq_advance:
 		head = (head + sizeof(*req)) & PRQ_RING_MASK;

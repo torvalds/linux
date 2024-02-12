@@ -176,26 +176,22 @@ static struct iopf_group *iopf_group_alloc(struct iommu_fault_param *iopf_param,
  * freed after the device has stopped generating page faults (or the iommu
  * hardware has been set to block the page faults) and the pending page faults
  * have been flushed.
- *
- * Return: 0 on success and <0 on error.
  */
-int iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
+void iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 {
 	struct iommu_fault *fault = &evt->fault;
 	struct iommu_fault_param *iopf_param;
 	struct iopf_group abort_group = {};
 	struct iopf_group *group;
-	int ret;
 
 	iopf_param = iopf_get_dev_fault_param(dev);
 	if (WARN_ON(!iopf_param))
-		return -ENODEV;
+		return;
 
 	if (!(fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
-		ret = report_partial_fault(iopf_param, fault);
+		report_partial_fault(iopf_param, fault);
 		iopf_put_dev_fault_param(iopf_param);
 		/* A request that is not the last does not need to be ack'd */
-		return ret;
 	}
 
 	/*
@@ -207,25 +203,21 @@ int iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 	 * leaving, otherwise partial faults will be stuck.
 	 */
 	group = iopf_group_alloc(iopf_param, evt, &abort_group);
-	if (group == &abort_group) {
-		ret = -ENOMEM;
+	if (group == &abort_group)
 		goto err_abort;
-	}
 
 	group->domain = get_domain_for_iopf(dev, fault);
-	if (!group->domain) {
-		ret = -EINVAL;
+	if (!group->domain)
 		goto err_abort;
-	}
 
 	/*
 	 * On success iopf_handler must call iopf_group_response() and
 	 * iopf_free_group()
 	 */
-	ret = group->domain->iopf_handler(group);
-	if (ret)
+	if (group->domain->iopf_handler(group))
 		goto err_abort;
-	return 0;
+
+	return;
 
 err_abort:
 	iopf_group_response(group, IOMMU_PAGE_RESP_FAILURE);
@@ -233,7 +225,6 @@ err_abort:
 		__iopf_free_group(group);
 	else
 		iopf_free_group(group);
-	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_report_device_fault);
 
