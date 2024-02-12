@@ -261,7 +261,9 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	for (i = 0; i < dc->current_state->stream_count; i++) {
 		/* MALL SS messaging is not supported with PSR at this time */
 		if (dc->current_state->streams[i] != NULL &&
-				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED)
+				dc->current_state->streams[i]->link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED &&
+				(dc->current_state->stream_count > 1 || (!dc->current_state->streams[i]->dpms_off &&
+						dc->current_state->stream_status[i].plane_count > 0)))
 			return false;
 	}
 
