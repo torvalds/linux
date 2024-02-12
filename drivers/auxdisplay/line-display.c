@@ -12,6 +12,7 @@
 
 #include <linux/device.h>
 #include <linux/idr.h>
+#include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -166,9 +167,11 @@ static ssize_t scroll_step_ms_store(struct device *dev,
 {
 	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
 	unsigned int ms;
+	int err;
 
-	if (kstrtouint(buf, 10, &ms) != 0)
-		return -EINVAL;
+	err = kstrtouint(buf, 10, &ms);
+	if (err)
+		return err;
 
 	linedisp->scroll_rate = msecs_to_jiffies(ms);
 	if (linedisp->message && linedisp->message_len > linedisp->num_chars) {
