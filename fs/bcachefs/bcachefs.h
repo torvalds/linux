@@ -266,6 +266,9 @@ do {									\
 #define bch2_fmt(_c, fmt)		bch2_log_msg(_c, fmt "\n")
 
 __printf(2, 3)
+void bch2_print_opts(struct bch_opts *, const char *, ...);
+
+__printf(2, 3)
 void __bch2_print(struct bch_fs *c, const char *fmt, ...);
 
 #define maybe_dev_to_fs(_c)	_Generic((_c),				\

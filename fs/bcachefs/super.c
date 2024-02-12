@@ -87,6 +87,23 @@ const char * const bch2_fs_flag_strs[] = {
 	NULL
 };
 
+void bch2_print_opts(struct bch_opts *opts, const char *fmt, ...)
+{
+	struct stdio_redirect *stdio = (void *)(unsigned long)opts->stdio;
+
+	va_list args;
+	va_start(args, fmt);
+	if (likely(!stdio)) {
+		vprintk(fmt, args);
+	} else {
+		if (fmt[0] == KERN_SOH[0])
+			fmt += 2;
+
+		bch2_stdio_redirect_vprintf(stdio, true, fmt, args);
+	}
+	va_end(args);
+}
+
 void __bch2_print(struct bch_fs *c, const char *fmt, ...)
 {
 	struct stdio_redirect *stdio = bch2_fs_stdio_redirect(c);
