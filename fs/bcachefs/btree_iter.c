@@ -1520,7 +1520,7 @@ static noinline void btree_paths_realloc(struct btree_trans *trans)
 {
 	unsigned nr = trans->nr_paths * 2;
 
-	void *p = kzalloc(BITS_TO_LONGS(nr) * sizeof(unsigned long) +
+	void *p = kvzalloc(BITS_TO_LONGS(nr) * sizeof(unsigned long) +
 			  sizeof(struct btree_trans_paths) +
 			  nr * sizeof(struct btree_path) +
 			  nr * sizeof(btree_path_idx_t) + 8 +
@@ -3091,7 +3091,7 @@ void bch2_trans_put(struct btree_trans *trans)
 	trans->paths		= NULL;
 
 	if (paths_allocated != trans->_paths_allocated)
-		kfree_rcu_mightsleep(paths_allocated);
+		kvfree_rcu_mightsleep(paths_allocated);
 
 	if (trans->mem_bytes == BTREE_TRANS_MEM_MAX)
 		mempool_free(trans->mem, &c->btree_trans_mem_pool);
