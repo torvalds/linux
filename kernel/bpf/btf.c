@@ -5702,6 +5702,21 @@ bool btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 	const char *tname, *ctx_tname;
 
 	t = btf_type_by_id(btf, t->type);
+
+	/* KPROBE programs allow bpf_user_pt_regs_t typedef, which we need to
+	 * check before we skip all the typedef below.
+	 */
+	if (prog_type == BPF_PROG_TYPE_KPROBE) {
+		while (btf_type_is_modifier(t) && !btf_type_is_typedef(t))
+			t = btf_type_by_id(btf, t->type);
+
+		if (btf_type_is_typedef(t)) {
+			tname = btf_name_by_offset(btf, t->name_off);
+			if (tname && strcmp(tname, "bpf_user_pt_regs_t") == 0)
+				return true;
+		}
+	}
+
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
 	if (!btf_type_is_struct(t)) {
