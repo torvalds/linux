@@ -991,10 +991,6 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_cleanup_gdev_srcu;
 
-	ret = of_gpiochip_add(gc);
-	if (ret)
-		goto err_free_gpiochip_mask;
-
 	for (i = 0; i < gc->ngpio; i++) {
 		struct gpio_desc *desc = &gdev->descs[i];
 
@@ -1002,7 +998,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		if (ret) {
 			for (j = 0; j < i; j++)
 				cleanup_srcu_struct(&gdev->descs[j].srcu);
-			goto err_remove_of_chip;
+			goto err_free_gpiochip_mask;
 		}
 
 		if (gc->get_direction && gpiochip_line_is_valid(gc, i)) {
@@ -1014,9 +1010,13 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		}
 	}
 
-	ret = gpiochip_add_pin_ranges(gc);
+	ret = of_gpiochip_add(gc);
 	if (ret)
 		goto err_cleanup_desc_srcu;
+
+	ret = gpiochip_add_pin_ranges(gc);
+	if (ret)
+		goto err_remove_of_chip;
 
 	acpi_gpiochip_add(gc);
 
@@ -1055,12 +1055,12 @@ err_remove_irqchip_mask:
 	gpiochip_irqchip_free_valid_mask(gc);
 err_remove_acpi_chip:
 	acpi_gpiochip_remove(gc);
-err_cleanup_desc_srcu:
-	for (i = 0; i < gdev->ngpio; i++)
-		cleanup_srcu_struct(&gdev->descs[i].srcu);
 err_remove_of_chip:
 	gpiochip_free_hogs(gc);
 	of_gpiochip_remove(gc);
+err_cleanup_desc_srcu:
+	for (i = 0; i < gdev->ngpio; i++)
+		cleanup_srcu_struct(&gdev->descs[i].srcu);
 err_free_gpiochip_mask:
 	gpiochip_remove_pin_ranges(gc);
 	gpiochip_free_valid_mask(gc);
