@@ -41,6 +41,8 @@ struct genl_info;
  *	do additional, common, filtering and return an error
  * @post_doit: called after an operation's doit callback, it may
  *	undo operations done by pre_doit, for example release locks
+ * @bind: called when family multicast group is added to a netlink socket
+ * @unbind: called when family multicast group is removed from a netlink socket
  * @module: pointer to the owning module (set to THIS_MODULE)
  * @mcgrps: multicast groups used by this family
  * @n_mcgrps: number of multicast groups
@@ -84,6 +86,8 @@ struct genl_family {
 	void			(*post_doit)(const struct genl_split_ops *ops,
 					     struct sk_buff *skb,
 					     struct genl_info *info);
+	int			(*bind)(int mcgrp);
+	void			(*unbind)(int mcgrp);
 	const struct genl_ops *	ops;
 	const struct genl_small_ops *small_ops;
 	const struct genl_split_ops *split_ops;
