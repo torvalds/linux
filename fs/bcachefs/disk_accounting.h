@@ -78,11 +78,9 @@ static inline struct bpos disk_accounting_pos_to_bpos(struct disk_accounting_pos
 	return ret;
 }
 
-int bch2_disk_accounting_mod(struct btree_trans *,
-			     struct disk_accounting_pos *,
-			     s64 *, unsigned);
-int bch2_mod_dev_cached_sectors(struct btree_trans *trans,
-				unsigned dev, s64 sectors);
+int bch2_disk_accounting_mod(struct btree_trans *, struct disk_accounting_pos *,
+			     s64 *, unsigned, bool);
+int bch2_mod_dev_cached_sectors(struct btree_trans *, unsigned, s64, bool);
 
 int bch2_accounting_invalid(struct bch_fs *, struct bkey_s_c,
 			    enum bch_validate_flags, struct printbuf *);
@@ -106,15 +104,15 @@ static inline int accounting_pos_cmp(const void *_l, const void *_r)
 	return bpos_cmp(*l, *r);
 }
 
-int bch2_accounting_mem_mod_slowpath(struct bch_fs *, struct bkey_s_c_accounting);
+int bch2_accounting_mem_mod_slowpath(struct bch_fs *, struct bkey_s_c_accounting, bool);
 
-static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_accounting a)
+static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_accounting a, bool gc)
 {
-	struct bch_accounting_mem *acc = &c->accounting;
+	struct bch_accounting_mem *acc = &c->accounting[gc];
 	unsigned idx = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
 				       accounting_pos_cmp, &a.k->p);
 	if (unlikely(idx >= acc->k.nr))
-		return bch2_accounting_mem_mod_slowpath(c, a);
+		return bch2_accounting_mem_mod_slowpath(c, a, gc);
 
 	unsigned offset = acc->k.data[idx].offset;
 
@@ -129,41 +127,51 @@ static inline int __bch2_accounting_mem_mod(struct bch_fs *c, struct bkey_s_c_ac
  * Update in memory counters so they match the btree update we're doing; called
  * from transaction commit path
  */
-static inline int bch2_accounting_mem_mod(struct btree_trans *trans, struct
-					  bkey_s_c_accounting a)
+static inline int bch2_accounting_mem_mod_locked(struct btree_trans *trans, struct bkey_s_c_accounting a, bool gc)
 {
 	struct bch_fs *c = trans->c;
-	struct disk_accounting_pos acc_k;
-	bpos_to_disk_accounting_pos(&acc_k, a.k->p);
 
-	switch (acc_k.type) {
-	case BCH_DISK_ACCOUNTING_persistent_reserved:
-		trans->fs_usage_delta.reserved += acc_k.persistent_reserved.nr_replicas * a.v->d[0];
-		break;
-	case BCH_DISK_ACCOUNTING_replicas:
-		fs_usage_data_type_to_base(&trans->fs_usage_delta, acc_k.replicas.data_type, a.v->d[0]);
-		break;
-	case BCH_DISK_ACCOUNTING_dev_data_type:
-		rcu_read_lock();
-		struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
-		if (ca) {
-			this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
-			this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
-			this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].fragmented, a.v->d[2]);
+	if (!gc) {
+		struct disk_accounting_pos acc_k;
+		bpos_to_disk_accounting_pos(&acc_k, a.k->p);
+
+		switch (acc_k.type) {
+		case BCH_DISK_ACCOUNTING_persistent_reserved:
+			trans->fs_usage_delta.reserved += acc_k.persistent_reserved.nr_replicas * a.v->d[0];
+			break;
+		case BCH_DISK_ACCOUNTING_replicas:
+			fs_usage_data_type_to_base(&trans->fs_usage_delta, acc_k.replicas.data_type, a.v->d[0]);
+			break;
+		case BCH_DISK_ACCOUNTING_dev_data_type:
+			rcu_read_lock();
+			struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+			if (ca) {
+				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].buckets, a.v->d[0]);
+				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].sectors, a.v->d[1]);
+				this_cpu_add(ca->usage->d[acc_k.dev_data_type.data_type].fragmented, a.v->d[2]);
+			}
+			rcu_read_unlock();
+			break;
 		}
-		rcu_read_unlock();
-		break;
 	}
-	return __bch2_accounting_mem_mod(c, a);
+
+	return __bch2_accounting_mem_mod(c, a, gc);
 }
 
-static inline void bch2_accounting_mem_read_counters(struct bch_fs *c,
-						     unsigned idx,
-						     u64 *v, unsigned nr)
+static inline int bch2_accounting_mem_add(struct btree_trans *trans, struct bkey_s_c_accounting a, bool gc)
+{
+	percpu_down_read(&trans->c->mark_lock);
+	int ret = bch2_accounting_mem_mod_locked(trans, a, gc);
+	percpu_up_read(&trans->c->mark_lock);
+	return ret;
+}
+
+static inline void bch2_accounting_mem_read_counters(struct bch_fs *c, unsigned idx,
+						     u64 *v, unsigned nr, bool gc)
 {
 	memset(v, 0, sizeof(*v) * nr);
 
-	struct bch_accounting_mem *acc = &c->accounting;
+	struct bch_accounting_mem *acc = &c->accounting[0];
 	if (unlikely(idx >= acc->k.nr))
 		return;
 
@@ -177,19 +185,23 @@ static inline void bch2_accounting_mem_read_counters(struct bch_fs *c,
 static inline void bch2_accounting_mem_read(struct bch_fs *c, struct bpos p,
 					    u64 *v, unsigned nr)
 {
-	struct bch_accounting_mem *acc = &c->accounting;
+	struct bch_accounting_mem *acc = &c->accounting[0];
 	unsigned idx = eytzinger0_find(acc->k.data, acc->k.nr, sizeof(acc->k.data[0]),
 				       accounting_pos_cmp, &p);
 
-	bch2_accounting_mem_read_counters(c, idx, v, nr);
+	bch2_accounting_mem_read_counters(c, idx, v, nr, false);
 }
 
 int bch2_fs_replicas_usage_read(struct bch_fs *, darray_char *);
 
+int bch2_accounting_gc_done(struct bch_fs *);
+
 int bch2_accounting_read(struct bch_fs *);
 
 int bch2_dev_usage_remove(struct bch_fs *, unsigned);
-int bch2_dev_usage_init(struct bch_dev *);
+int bch2_dev_usage_init(struct bch_dev *, bool);
+
+void bch2_accounting_free(struct bch_accounting_mem *);
 void bch2_fs_accounting_exit(struct bch_fs *);
 
 #endif /* _BCACHEFS_DISK_ACCOUNTING_H */

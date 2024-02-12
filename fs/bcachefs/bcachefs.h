@@ -546,7 +546,6 @@ struct bch_dev {
 	struct rw_semaphore	bucket_lock;
 
 	struct bch_dev_usage __percpu	*usage;
-	struct bch_dev_usage __percpu	*usage_gc;
 
 	/* Allocator: */
 	u64			new_fs_bucket_idx;
@@ -741,7 +740,7 @@ struct bch_fs {
 
 	struct bch_dev __rcu	*devs[BCH_SB_MEMBERS_MAX];
 
-	struct bch_accounting_mem accounting;
+	struct bch_accounting_mem accounting[2];
 
 	struct bch_replicas_cpu replicas;
 	struct bch_replicas_cpu replicas_gc;
@@ -890,7 +889,6 @@ struct bch_fs {
 
 	seqcount_t			usage_lock;
 	struct bch_fs_usage_base __percpu *usage;
-	struct bch_fs_usage __percpu	*usage_gc;
 	u64 __percpu		*online_reserved;
 
 	struct io_clock		io_clock[2];

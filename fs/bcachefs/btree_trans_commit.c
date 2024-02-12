@@ -724,7 +724,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 				a->k.version = journal_pos_to_bversion(&trans->journal_res,
 								(u64 *) entry - (u64 *) trans->journal_entries);
 				BUG_ON(bversion_zero(a->k.version));
-				ret = bch2_accounting_mem_mod(trans, accounting_i_to_s_c(a));
+				ret = bch2_accounting_mem_mod_locked(trans, accounting_i_to_s_c(a), false);
 				if (ret)
 					goto revert_fs_usage;
 			}
@@ -812,7 +812,7 @@ revert_fs_usage:
 			struct bkey_s_accounting a = bkey_i_to_s_accounting(entry2->start);
 
 			bch2_accounting_neg(a);
-			bch2_accounting_mem_mod(trans, a.c);
+			bch2_accounting_mem_mod_locked(trans, a.c, false);
 			bch2_accounting_neg(a);
 		}
 	percpu_up_read(&c->mark_lock);

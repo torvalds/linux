@@ -600,41 +600,26 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		       struct bkey_s new,
 		       enum btree_iter_update_trigger_flags flags)
 {
-	s64 nr = (s64) bkey_is_inode(new.k) - (s64) bkey_is_inode(old.k);
-
-	if (flags & BTREE_TRIGGER_transactional) {
-		if (nr) {
-			struct disk_accounting_pos acc = {
-				.type = BCH_DISK_ACCOUNTING_nr_inodes
-			};
-
-			int ret = bch2_disk_accounting_mod(trans, &acc, &nr, 1);
-			if (ret)
-				return ret;
-		}
-
-		bool old_deleted = bkey_is_deleted_inode(old);
-		bool new_deleted = bkey_is_deleted_inode(new.s_c);
-		if (old_deleted != new_deleted) {
-			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes,
-							      new.k->p, new_deleted);
-			if (ret)
-				return ret;
-		}
-	}
-
 	if ((flags & BTREE_TRIGGER_atomic) && (flags & BTREE_TRIGGER_insert)) {
 		BUG_ON(!trans->journal_res.seq);
-
 		bkey_s_to_inode_v3(new).v->bi_journal_seq = cpu_to_le64(trans->journal_res.seq);
 	}
 
-	if (flags & BTREE_TRIGGER_gc) {
-		struct bch_fs *c = trans->c;
+	s64 nr = bkey_is_inode(new.k) - bkey_is_inode(old.k);
+	if ((flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc)) && nr) {
+		struct disk_accounting_pos acc = { .type = BCH_DISK_ACCOUNTING_nr_inodes };
+		int ret = bch2_disk_accounting_mod(trans, &acc, &nr, 1, flags & BTREE_TRIGGER_gc);
+		if (ret)
+			return ret;
+	}
 
-		percpu_down_read(&c->mark_lock);
-		this_cpu_add(c->usage_gc->b.nr_inodes, nr);
-		percpu_up_read(&c->mark_lock);
+	int deleted_delta =	(int) bkey_is_deleted_inode(new.s_c) -
+				(int) bkey_is_deleted_inode(old);
+	if ((flags & BTREE_TRIGGER_transactional) && deleted_delta) {
+		int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes,
+						      new.k->p, deleted_delta > 0);
+		if (ret)
+			return ret;
 	}
 
 	return 0;

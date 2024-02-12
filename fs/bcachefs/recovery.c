@@ -1031,8 +1031,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 		goto err;
 
 	for_each_member_device(c, ca) {
-		ret = bch2_dev_usage_init(ca);
-		bch_err_msg(c, ret, "initializing device usage");
+		ret = bch2_dev_usage_init(ca, false);
 		if (ret) {
 			bch2_dev_put(ca);
 			goto err;

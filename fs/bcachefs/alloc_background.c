@@ -774,7 +774,7 @@ static inline int bch2_dev_data_type_accounting_mod(struct btree_trans *trans, s
 	};
 	s64 d[3] = { delta_buckets, delta_sectors, delta_fragmented };
 
-	return bch2_disk_accounting_mod(trans, &acc, d, 3);
+	return bch2_disk_accounting_mod(trans, &acc, d, 3, flags & BTREE_TRIGGER_gc);
 }
 
 int bch2_alloc_key_to_dev_counters(struct btree_trans *trans, struct bch_dev *ca,
@@ -894,7 +894,8 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		if ((flags & BTREE_TRIGGER_bucket_invalidate) &&
 		    old_a->cached_sectors) {
 			ret = bch2_mod_dev_cached_sectors(trans, ca->dev_idx,
-					 -((s64) old_a->cached_sectors));
+					 -((s64) old_a->cached_sectors),
+					 flags & BTREE_TRIGGER_gc);
 			if (ret)
 				goto err;
 		}
@@ -972,35 +973,6 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 
 		if (statechange(a->data_type == BCH_DATA_need_gc_gens))
 			bch2_gc_gens_async(c);
-	}
-
-	if ((flags & BTREE_TRIGGER_gc) &&
-	    (flags & BTREE_TRIGGER_bucket_invalidate)) {
-		struct bch_alloc_v4 new_a_convert;
-		const struct bch_alloc_v4 *new_a = bch2_alloc_to_v4(new.s_c, &new_a_convert);
-
-		percpu_down_read(&c->mark_lock);
-		struct bucket *g = gc_bucket(ca, new.k->p.offset);
-		if (unlikely(!g)) {
-			percpu_up_read(&c->mark_lock);
-			goto invalid_bucket;
-		}
-		g->gen_valid	= 1;
-
-		bucket_lock(g);
-
-		g->gen_valid		= 1;
-		g->gen			= new_a->gen;
-		g->data_type		= new_a->data_type;
-		g->stripe		= new_a->stripe;
-		g->stripe_redundancy	= new_a->stripe_redundancy;
-		g->dirty_sectors	= new_a->dirty_sectors;
-		g->cached_sectors	= new_a->cached_sectors;
-
-		bucket_unlock(g);
-		percpu_up_read(&c->mark_lock);
-
-		bch2_dev_usage_update(c, ca, old_a, new_a);
 	}
 err:
 	printbuf_exit(&buf);

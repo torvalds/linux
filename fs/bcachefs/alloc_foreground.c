@@ -1708,15 +1708,13 @@ void bch2_fs_alloc_debug_to_text(struct printbuf *out, struct bch_fs *c)
 
 	prt_printf(out, "capacity\t%llu\n",		c->capacity);
 	prt_printf(out, "reserved\t%llu\n",		c->reserved);
-	percpu_down_read(&c->mark_lock);
-	prt_printf(out, "hidden\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.hidden));
-	prt_printf(out, "btree\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.btree));
-	prt_printf(out, "data\t%llu\n",				bch2_fs_usage_read_one(c, &c->usage_base->b.data));
-	prt_printf(out, "cached\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.cached));
-	prt_printf(out, "reserved\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.reserved));
-	prt_printf(out, "online_reserved\t%llu\n",		percpu_u64_get(c->online_reserved));
-	prt_printf(out, "nr_inodes\t%llu\n",			bch2_fs_usage_read_one(c, &c->usage_base->b.nr_inodes));
-	percpu_up_read(&c->mark_lock);
+	prt_printf(out, "hidden\t%llu\n",		percpu_u64_get(&c->usage->hidden));
+	prt_printf(out, "btree\t%llu\n",		percpu_u64_get(&c->usage->btree));
+	prt_printf(out, "data\t%llu\n",			percpu_u64_get(&c->usage->data));
+	prt_printf(out, "cached\t%llu\n",		percpu_u64_get(&c->usage->cached));
+	prt_printf(out, "reserved\t%llu\n",		percpu_u64_get(&c->usage->reserved));
+	prt_printf(out, "online_reserved\t%llu\n",	percpu_u64_get(c->online_reserved));
+	prt_printf(out, "nr_inodes\t%llu\n",		percpu_u64_get(&c->usage->nr_inodes));
 
 	prt_newline(out);
 	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");

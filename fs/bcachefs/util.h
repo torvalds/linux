@@ -719,9 +719,7 @@ static inline void percpu_u64_set(u64 __percpu *dst, u64 src)
 
 static inline void acc_u64s(u64 *acc, const u64 *src, unsigned nr)
 {
-	unsigned i;
-
-	for (i = 0; i < nr; i++)
+	for (unsigned i = 0; i < nr; i++)
 		acc[i] += src[i];
 }
 

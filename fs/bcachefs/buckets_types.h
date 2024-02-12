@@ -57,13 +57,6 @@ struct bch_fs_usage_base {
 	u64			nr_inodes;
 };
 
-struct bch_fs_usage {
-	/* all fields are in units of 512 byte sectors: */
-	struct bch_fs_usage_base b;
-	u64			persistent_reserved[BCH_REPLICAS_MAX];
-	u64			replicas[];
-};
-
 struct bch_fs_usage_short {
 	u64			capacity;
 	u64			used;

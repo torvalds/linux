@@ -273,16 +273,6 @@ static inline u64 dev_buckets_available(struct bch_dev *ca,
 
 /* Filesystem usage: */
 
-static inline unsigned __fs_usage_u64s(unsigned nr_replicas)
-{
-	return sizeof(struct bch_fs_usage) / sizeof(u64) + nr_replicas;
-}
-
-static inline unsigned fs_usage_u64s(struct bch_fs *c)
-{
-	return __fs_usage_u64s(READ_ONCE(c->replicas.nr));
-}
-
 static inline unsigned dev_usage_u64s(void)
 {
 	return sizeof(struct bch_dev_usage) / sizeof(u64);
@@ -290,12 +280,6 @@ static inline unsigned dev_usage_u64s(void)
 
 struct bch_fs_usage_short
 bch2_fs_usage_read_short(struct bch_fs *);
-
-void bch2_dev_usage_update(struct bch_fs *, struct bch_dev *,
-			   const struct bch_alloc_v4 *,
-			   const struct bch_alloc_v4 *);
-int bch2_update_replicas(struct bch_fs *, struct bkey_s_c,
-			 struct bch_replicas_entry_v1 *, s64);
 
 int bch2_bucket_ref_update(struct btree_trans *, struct bch_dev *,
 			   struct bkey_s_c, const struct bch_extent_ptr *,
