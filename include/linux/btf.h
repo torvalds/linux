@@ -531,10 +531,9 @@ s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id);
 int register_btf_id_dtor_kfuncs(const struct btf_id_dtor_kfunc *dtors, u32 add_cnt,
 				struct module *owner);
 struct btf_struct_meta *btf_find_struct_meta(const struct btf *btf, u32 btf_id);
-const struct btf_type *
-btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
-		      const struct btf_type *t, enum bpf_prog_type prog_type,
-		      int arg);
+bool btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+			   const struct btf_type *t, enum bpf_prog_type prog_type,
+			   int arg);
 int get_kern_ctx_btf_id(struct bpf_verifier_log *log, enum bpf_prog_type prog_type);
 bool btf_types_are_same(const struct btf *btf1, u32 id1,
 			const struct btf *btf2, u32 id2);
@@ -574,12 +573,12 @@ static inline struct btf_struct_meta *btf_find_struct_meta(const struct btf *btf
 {
 	return NULL;
 }
-static inline const struct btf_member *
-btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
-		      const struct btf_type *t, enum bpf_prog_type prog_type,
-		      int arg)
+static inline bool
+btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+		     const struct btf_type *t, enum bpf_prog_type prog_type,
+		     int arg)
 {
-	return NULL;
+	return false;
 }
 static inline int get_kern_ctx_btf_id(struct bpf_verifier_log *log,
 				      enum bpf_prog_type prog_type) {

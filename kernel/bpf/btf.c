@@ -5694,10 +5694,9 @@ static int find_kern_ctx_type_id(enum bpf_prog_type prog_type)
 	return ctx_type->type;
 }
 
-const struct btf_type *
-btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
-		      const struct btf_type *t, enum bpf_prog_type prog_type,
-		      int arg)
+bool btf_is_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
+			  const struct btf_type *t, enum bpf_prog_type prog_type,
+			  int arg)
 {
 	const struct btf_type *ctx_type;
 	const char *tname, *ctx_tname;
@@ -5711,26 +5710,26 @@ btf_get_prog_ctx_type(struct bpf_verifier_log *log, const struct btf *btf,
 		 * is not supported yet.
 		 * BPF_PROG_TYPE_RAW_TRACEPOINT is fine.
 		 */
-		return NULL;
+		return false;
 	}
 	tname = btf_name_by_offset(btf, t->name_off);
 	if (!tname) {
 		bpf_log(log, "arg#%d struct doesn't have a name\n", arg);
-		return NULL;
+		return false;
 	}
 
 	ctx_type = find_canonical_prog_ctx_type(prog_type);
 	if (!ctx_type) {
 		bpf_log(log, "btf_vmlinux is malformed\n");
 		/* should not happen */
-		return NULL;
+		return false;
 	}
 again:
 	ctx_tname = btf_name_by_offset(btf_vmlinux, ctx_type->name_off);
 	if (!ctx_tname) {
 		/* should not happen */
 		bpf_log(log, "Please fix kernel include/linux/bpf_types.h\n");
-		return NULL;
+		return false;
 	}
 	/* only compare that prog's ctx type name is the same as
 	 * kernel expects. No need to compare field by field.
@@ -5740,20 +5739,20 @@ again:
 	 * { // no fields of skb are ever used }
 	 */
 	if (strcmp(ctx_tname, "__sk_buff") == 0 && strcmp(tname, "sk_buff") == 0)
-		return ctx_type;
+		return true;
 	if (strcmp(ctx_tname, "xdp_md") == 0 && strcmp(tname, "xdp_buff") == 0)
-		return ctx_type;
+		return true;
 	if (strcmp(ctx_tname, tname)) {
 		/* bpf_user_pt_regs_t is a typedef, so resolve it to
 		 * underlying struct and check name again
 		 */
 		if (!btf_type_is_modifier(ctx_type))
-			return NULL;
+			return false;
 		while (btf_type_is_modifier(ctx_type))
 			ctx_type = btf_type_by_id(btf_vmlinux, ctx_type->type);
 		goto again;
 	}
-	return ctx_type;
+	return true;
 }
 
 /* forward declarations for arch-specific underlying types of
@@ -5905,7 +5904,7 @@ static int btf_translate_to_vmlinux(struct bpf_verifier_log *log,
 				     enum bpf_prog_type prog_type,
 				     int arg)
 {
-	if (!btf_get_prog_ctx_type(log, btf, t, prog_type, arg))
+	if (!btf_is_prog_ctx_type(log, btf, t, prog_type, arg))
 		return -ENOENT;
 	return find_kern_ctx_type_id(prog_type);
 }
@@ -7211,7 +7210,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog)
 		if (!btf_type_is_ptr(t))
 			goto skip_pointer;
 
-		if ((tags & ARG_TAG_CTX) || btf_get_prog_ctx_type(log, btf, t, prog_type, i)) {
+		if ((tags & ARG_TAG_CTX) || btf_is_prog_ctx_type(log, btf, t, prog_type, i)) {
 			if (tags & ~ARG_TAG_CTX) {
 				bpf_log(log, "arg#%d has invalid combination of tags\n", i);
 				return -EINVAL;
