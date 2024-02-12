@@ -2312,6 +2312,9 @@ static int intel_sdvo_get_tv_modes(struct drm_connector *connector)
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
 
+	if (!intel_display_driver_check_access(i915))
+		return 0;
+
 	/*
 	 * Read the list of supported input resolutions for the selected TV
 	 * format.
