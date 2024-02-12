@@ -5746,6 +5746,9 @@ again:
 		bpf_log(log, "Please fix kernel include/linux/bpf_types.h\n");
 		return false;
 	}
+	/* program types without named context types work only with arg:ctx tag */
+	if (ctx_tname[0] == '\0')
+		return false;
 	/* only compare that prog's ctx type name is the same as
 	 * kernel expects. No need to compare field by field.
 	 * It's ok for bpf prog to do:
