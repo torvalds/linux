@@ -1642,7 +1642,6 @@ static bool run_delalloc_compressed(struct btrfs_inode *inode,
 	if (!ctx)
 		return false;
 
-	unlock_extent(&inode->io_tree, start, end, NULL);
 	set_bit(BTRFS_INODE_HAS_ASYNC_EXTENT, &inode->runtime_flags);
 
 	async_chunk = ctx->chunks;
@@ -2276,15 +2275,15 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 		goto out;
 	}
 
-	/*
-	 * We're unlocked by the different fill functions below.
-	 */
-	lock_extent(&inode->io_tree, start, end, NULL);
-
 	if (btrfs_inode_can_compress(inode) &&
 	    inode_need_compress(inode, start, end) &&
 	    run_delalloc_compressed(inode, locked_page, start, end, wbc))
 		return 1;
+
+	/*
+	 * We're unlocked by the different fill functions below.
+	 */
+	lock_extent(&inode->io_tree, start, end, NULL);
 
 	if (zoned)
 		ret = run_delalloc_cow(inode, locked_page, start, end, wbc,
