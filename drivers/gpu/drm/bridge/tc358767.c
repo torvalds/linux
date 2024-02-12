@@ -617,8 +617,13 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 			continue;
 		for (i_post = 0; i_post < ARRAY_SIZE(ext_div); i_post++) {
 			for (div = 1; div <= 16; div++) {
-				u32 clk;
+				u32 clk, iclk;
 				u64 tmp;
+
+				/* PCLK PLL input unit clock ... 6..40 MHz */
+				iclk = refclk / (div * ext_div[i_pre]);
+				if (iclk < 6000000 || iclk > 40000000)
+					continue;
 
 				tmp = pixelclock * ext_div[i_pre] *
 				      ext_div[i_post] * div;

@@ -82,19 +82,34 @@
   tags:
     - $RUNNER_TAG
 
-msm:sc7180:
+.msm-sc7180:
   extends:
     - .lava-igt:arm64
   stage: msm
-  parallel: 4
   variables:
     DRIVER_NAME: msm
-    DEVICE_TYPE: sc7180-trogdor-lazor-limozeen
-    DTB: sc7180-trogdor-lazor-limozeen-nots-r5
     BOOT_METHOD: depthcharge
     KERNEL_IMAGE_TYPE: ""
-    GPU_VERSION: sc7180
+
+msm:sc7180-trogdor-lazor-limozeen:
+  extends:
+    - .msm-sc7180
+  parallel: 4
+  variables:
+    DEVICE_TYPE: sc7180-trogdor-lazor-limozeen
+    DTB: sc7180-trogdor-lazor-limozeen-nots-r5
+    GPU_VERSION: ${DEVICE_TYPE}
     RUNNER_TAG: mesa-ci-x86-64-lava-sc7180-trogdor-lazor-limozeen
+
+msm:sc7180-trogdor-kingoftown:
+  extends:
+    - .msm-sc7180
+  parallel: 6
+  variables:
+    DEVICE_TYPE: sc7180-trogdor-kingoftown
+    DTB: sc7180-trogdor-kingoftown
+    GPU_VERSION: ${DEVICE_TYPE}
+    RUNNER_TAG: mesa-ci-x86-64-lava-sc7180-trogdor-kingoftown
 
 msm:apq8016:
   extends:
@@ -324,6 +339,7 @@ virtio_gpu:none:
     GPU_VERSION: none
   extends:
     - .test-gl
+    - .test-rules
   tags:
     - kvm
   script:

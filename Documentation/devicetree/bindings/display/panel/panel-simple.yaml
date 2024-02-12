@@ -141,6 +141,8 @@ properties:
       - edt,etm0700g0edh6
         # Emerging Display Technology Corp. LVDS WSVGA TFT Display with capacitive touch
       - edt,etml0700y5dha
+        # Emerging Display Technology Corp. 10.1" LVDS WXGA TFT Display with capacitive touch
+      - edt,etml1010g3dra
         # Emerging Display Technology Corp. 5.7" VGA TFT LCD panel with
         # capacitive touch
       - edt,etmv570g2dhu

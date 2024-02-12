@@ -112,7 +112,7 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct drm_nouveau_svm_bind *args = data;
-	unsigned target, cmd, priority;
+	unsigned target, cmd;
 	unsigned long addr, end;
 	struct mm_struct *mm;
 
@@ -135,9 +135,6 @@ nouveau_svmm_bind(struct drm_device *dev, void *data,
 	default:
 		return -EINVAL;
 	}
-
-	priority = args->header >> NOUVEAU_SVM_BIND_PRIORITY_SHIFT;
-	priority &= NOUVEAU_SVM_BIND_PRIORITY_MASK;
 
 	/* FIXME support CPU target ie all target value < GPU_VRAM */
 	target = args->header >> NOUVEAU_SVM_BIND_TARGET_SHIFT;
@@ -926,15 +923,14 @@ nouveau_pfns_map(struct nouveau_svmm *svmm, struct mm_struct *mm,
 		 unsigned long addr, u64 *pfns, unsigned long npages)
 {
 	struct nouveau_pfnmap_args *args = nouveau_pfns_to_args(pfns);
-	int ret;
 
 	args->p.addr = addr;
 	args->p.size = npages << PAGE_SHIFT;
 
 	mutex_lock(&svmm->mutex);
 
-	ret = nvif_object_ioctl(&svmm->vmm->vmm.object, args,
-				struct_size(args, p.phys, npages), NULL);
+	nvif_object_ioctl(&svmm->vmm->vmm.object, args,
+			  struct_size(args, p.phys, npages), NULL);
 
 	mutex_unlock(&svmm->mutex);
 }

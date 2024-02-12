@@ -2091,9 +2091,6 @@ static int tc358743_probe(struct i2c_client *client)
 	state->mbus_fmt_code = MEDIA_BUS_FMT_RGB888_1X24;
 
 	sd->dev = &client->dev;
-	err = v4l2_async_register_subdev(sd);
-	if (err < 0)
-		goto err_hdl;
 
 	mutex_init(&state->confctl_mutex);
 
@@ -2149,6 +2146,10 @@ static int tc358743_probe(struct i2c_client *client)
 
 	err = v4l2_ctrl_handler_setup(sd->ctrl_handler);
 	if (err)
+		goto err_work_queues;
+
+	err = v4l2_async_register_subdev(sd);
+	if (err < 0)
 		goto err_work_queues;
 
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
