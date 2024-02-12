@@ -188,8 +188,16 @@ static struct attribute *linedisp_attrs[] = {
 };
 ATTRIBUTE_GROUPS(linedisp);
 
+static void linedisp_release(struct device *dev)
+{
+	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
+
+	kfree(linedisp->message);
+}
+
 static const struct device_type linedisp_type = {
 	.groups	= linedisp_groups,
+	.release = linedisp_release,
 };
 
 /**
@@ -253,7 +261,6 @@ void linedisp_unregister(struct linedisp *linedisp)
 {
 	device_del(&linedisp->dev);
 	del_timer_sync(&linedisp->timer);
-	kfree(linedisp->message);
 	put_device(&linedisp->dev);
 }
 EXPORT_SYMBOL_GPL(linedisp_unregister);
