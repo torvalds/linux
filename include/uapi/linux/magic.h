@@ -101,5 +101,6 @@
 #define DMA_BUF_MAGIC		0x444d4142	/* "DMAB" */
 #define DEVMEM_MAGIC		0x454d444d	/* "DMEM" */
 #define SECRETMEM_MAGIC		0x5345434d	/* "SECM" */
+#define PID_FS_MAGIC		0x50494446	/* "PIDF" */
 
 #endif /* __LINUX_MAGIC_H__ */
