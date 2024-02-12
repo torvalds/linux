@@ -895,8 +895,8 @@ static bool is_pp_page(struct page *page)
 	return (page->pp_magic & ~0x3UL) == PP_SIGNATURE;
 }
 
-static int skb_pp_cow_data(struct page_pool *pool, struct sk_buff **pskb,
-			   unsigned int headroom)
+int skb_pp_cow_data(struct page_pool *pool, struct sk_buff **pskb,
+		    unsigned int headroom)
 {
 #if IS_ENABLED(CONFIG_PAGE_POOL)
 	u32 size, truesize, len, max_head_size, off;
@@ -975,6 +975,7 @@ static int skb_pp_cow_data(struct page_pool *pool, struct sk_buff **pskb,
 	return -EOPNOTSUPP;
 #endif
 }
+EXPORT_SYMBOL(skb_pp_cow_data);
 
 int skb_cow_data_for_xdp(struct page_pool *pool, struct sk_buff **pskb,
 			 struct bpf_prog *prog)
