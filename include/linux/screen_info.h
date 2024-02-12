@@ -9,6 +9,7 @@
  */
 #define SCREEN_INFO_MAX_RESOURCES	3
 
+struct pci_dev;
 struct resource;
 
 static inline bool __screen_info_has_lfb(unsigned int type)
@@ -103,6 +104,15 @@ static inline unsigned int screen_info_video_type(const struct screen_info *si)
 }
 
 ssize_t screen_info_resources(const struct screen_info *si, struct resource *r, size_t num);
+
+#if defined(CONFIG_PCI)
+struct pci_dev *screen_info_pci_dev(const struct screen_info *si);
+#else
+static inline struct pci_dev *screen_info_pci_dev(const struct screen_info *si)
+{
+	return NULL;
+}
+#endif
 
 extern struct screen_info screen_info;
 
