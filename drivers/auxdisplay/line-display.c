@@ -11,6 +11,7 @@
 #include <generated/utsrelease.h>
 
 #include <linux/device.h>
+#include <linux/idr.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -188,11 +189,14 @@ static struct attribute *linedisp_attrs[] = {
 };
 ATTRIBUTE_GROUPS(linedisp);
 
+static DEFINE_IDA(linedisp_id);
+
 static void linedisp_release(struct device *dev)
 {
 	struct linedisp *linedisp = container_of(dev, struct linedisp, dev);
 
 	kfree(linedisp->message);
+	ida_free(&linedisp_id, linedisp->id);
 }
 
 static const struct device_type linedisp_type = {
@@ -214,7 +218,6 @@ int linedisp_register(struct linedisp *linedisp, struct device *parent,
 		      unsigned int num_chars, char *buf,
 		      void (*update)(struct linedisp *linedisp))
 {
-	static atomic_t linedisp_id = ATOMIC_INIT(-1);
 	int err;
 
 	memset(linedisp, 0, sizeof(*linedisp));
@@ -225,9 +228,13 @@ int linedisp_register(struct linedisp *linedisp, struct device *parent,
 	linedisp->num_chars = num_chars;
 	linedisp->scroll_rate = DEFAULT_SCROLL_RATE;
 
+	err = ida_alloc(&linedisp_id, GFP_KERNEL);
+	if (err < 0)
+		return err;
+	linedisp->id = err;
+
 	device_initialize(&linedisp->dev);
-	dev_set_name(&linedisp->dev, "linedisp.%lu",
-		     (unsigned long)atomic_inc_return(&linedisp_id));
+	dev_set_name(&linedisp->dev, "linedisp.%u", linedisp->id);
 
 	/* initialise a timer for scrolling the message */
 	timer_setup(&linedisp->timer, linedisp_scroll, 0);

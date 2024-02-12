@@ -22,6 +22,7 @@
  * @message_len: the length of the @message string
  * @scroll_pos: index of the first character of @message currently displayed
  * @scroll_rate: scroll interval in jiffies
+ * @id: instance id of this display
  */
 struct linedisp {
 	struct device dev;
@@ -33,6 +34,7 @@ struct linedisp {
 	unsigned int message_len;
 	unsigned int scroll_pos;
 	unsigned int scroll_rate;
+	unsigned int id;
 };
 
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
