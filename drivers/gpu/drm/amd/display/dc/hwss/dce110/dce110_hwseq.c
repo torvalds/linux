@@ -1183,9 +1183,9 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		dto_params.timing = &pipe_ctx->stream->timing;
 		dp_hpo_inst = pipe_ctx->stream_res.hpo_dp_stream_enc->inst;
 		if (dccg) {
-			dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 			dccg->funcs->disable_symclk32_se(dccg, dp_hpo_inst);
 			dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst, dp_hpo_inst);
+			dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 		}
 	} else if (dccg && dccg->funcs->disable_symclk_se) {
 		dccg->funcs->disable_symclk_se(dccg, stream_enc->stream_enc_inst,
@@ -1476,7 +1476,7 @@ static enum dc_status dce110_enable_stream_timing(
 	return DC_OK;
 }
 
-static enum dc_status apply_single_controller_ctx_to_hw(
+enum dc_status dce110_apply_single_controller_ctx_to_hw(
 		struct pipe_ctx *pipe_ctx,
 		struct dc_state *context,
 		struct dc *dc)
@@ -2302,7 +2302,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->top_pipe || pipe_ctx->prev_odm_pipe)
 			continue;
 
-		status = apply_single_controller_ctx_to_hw(
+		status = dce110_apply_single_controller_ctx_to_hw(
 				pipe_ctx,
 				context,
 				dc);

@@ -434,6 +434,7 @@ struct dc_config {
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
+	unsigned int disable_ips_in_vpb;
 };
 
 enum visual_confirm {

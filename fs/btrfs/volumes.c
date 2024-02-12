@@ -3087,7 +3087,6 @@ struct btrfs_chunk_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 	map = btrfs_find_chunk_map(fs_info, logical, length);
 
 	if (unlikely(!map)) {
-		read_unlock(&fs_info->mapping_tree_lock);
 		btrfs_crit(fs_info,
 			   "unable to find chunk map for logical %llu length %llu",
 			   logical, length);
@@ -3095,7 +3094,6 @@ struct btrfs_chunk_map *btrfs_get_chunk_map(struct btrfs_fs_info *fs_info,
 	}
 
 	if (unlikely(map->start > logical || map->start + map->chunk_len <= logical)) {
-		read_unlock(&fs_info->mapping_tree_lock);
 		btrfs_crit(fs_info,
 			   "found a bad chunk map, wanted %llu-%llu, found %llu-%llu",
 			   logical, logical + length, map->start,

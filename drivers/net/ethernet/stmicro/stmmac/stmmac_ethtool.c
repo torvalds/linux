@@ -549,44 +549,79 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	}
 }
 
+static u64 stmmac_get_rx_normal_irq_n(struct stmmac_priv *priv, int q)
+{
+	u64 total;
+	int cpu;
+
+	total = 0;
+	for_each_possible_cpu(cpu) {
+		struct stmmac_pcpu_stats *pcpu;
+		unsigned int start;
+		u64 irq_n;
+
+		pcpu = per_cpu_ptr(priv->xstats.pcpu_stats, cpu);
+		do {
+			start = u64_stats_fetch_begin(&pcpu->syncp);
+			irq_n = u64_stats_read(&pcpu->rx_normal_irq_n[q]);
+		} while (u64_stats_fetch_retry(&pcpu->syncp, start));
+		total += irq_n;
+	}
+	return total;
+}
+
+static u64 stmmac_get_tx_normal_irq_n(struct stmmac_priv *priv, int q)
+{
+	u64 total;
+	int cpu;
+
+	total = 0;
+	for_each_possible_cpu(cpu) {
+		struct stmmac_pcpu_stats *pcpu;
+		unsigned int start;
+		u64 irq_n;
+
+		pcpu = per_cpu_ptr(priv->xstats.pcpu_stats, cpu);
+		do {
+			start = u64_stats_fetch_begin(&pcpu->syncp);
+			irq_n = u64_stats_read(&pcpu->tx_normal_irq_n[q]);
+		} while (u64_stats_fetch_retry(&pcpu->syncp, start));
+		total += irq_n;
+	}
+	return total;
+}
+
 static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int start;
-	int q, stat;
-	char *p;
+	int q;
 
 	for (q = 0; q < tx_cnt; q++) {
 		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[q];
-		struct stmmac_txq_stats snapshot;
+		u64 pkt_n;
 
 		do {
-			start = u64_stats_fetch_begin(&txq_stats->syncp);
-			snapshot = *txq_stats;
-		} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&txq_stats->napi_syncp);
+			pkt_n = u64_stats_read(&txq_stats->napi.tx_pkt_n);
+		} while (u64_stats_fetch_retry(&txq_stats->napi_syncp, start));
 
-		p = (char *)&snapshot + offsetof(struct stmmac_txq_stats, tx_pkt_n);
-		for (stat = 0; stat < STMMAC_TXQ_STATS; stat++) {
-			*data++ = (*(u64 *)p);
-			p += sizeof(u64);
-		}
+		*data++ = pkt_n;
+		*data++ = stmmac_get_tx_normal_irq_n(priv, q);
 	}
 
 	for (q = 0; q < rx_cnt; q++) {
 		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[q];
-		struct stmmac_rxq_stats snapshot;
+		u64 pkt_n;
 
 		do {
-			start = u64_stats_fetch_begin(&rxq_stats->syncp);
-			snapshot = *rxq_stats;
-		} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&rxq_stats->napi_syncp);
+			pkt_n = u64_stats_read(&rxq_stats->napi.rx_pkt_n);
+		} while (u64_stats_fetch_retry(&rxq_stats->napi_syncp, start));
 
-		p = (char *)&snapshot + offsetof(struct stmmac_rxq_stats, rx_pkt_n);
-		for (stat = 0; stat < STMMAC_RXQ_STATS; stat++) {
-			*data++ = (*(u64 *)p);
-			p += sizeof(u64);
-		}
+		*data++ = pkt_n;
+		*data++ = stmmac_get_rx_normal_irq_n(priv, q);
 	}
 }
 
@@ -645,39 +680,49 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	pos = j;
 	for (i = 0; i < rx_queues_count; i++) {
 		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[i];
-		struct stmmac_rxq_stats snapshot;
+		struct stmmac_napi_rx_stats snapshot;
+		u64 n_irq;
 
 		j = pos;
 		do {
-			start = u64_stats_fetch_begin(&rxq_stats->syncp);
-			snapshot = *rxq_stats;
-		} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&rxq_stats->napi_syncp);
+			snapshot = rxq_stats->napi;
+		} while (u64_stats_fetch_retry(&rxq_stats->napi_syncp, start));
 
-		data[j++] += snapshot.rx_pkt_n;
-		data[j++] += snapshot.rx_normal_irq_n;
-		normal_irq_n += snapshot.rx_normal_irq_n;
-		napi_poll += snapshot.napi_poll;
+		data[j++] += u64_stats_read(&snapshot.rx_pkt_n);
+		n_irq = stmmac_get_rx_normal_irq_n(priv, i);
+		data[j++] += n_irq;
+		normal_irq_n += n_irq;
+		napi_poll += u64_stats_read(&snapshot.poll);
 	}
 
 	pos = j;
 	for (i = 0; i < tx_queues_count; i++) {
 		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[i];
-		struct stmmac_txq_stats snapshot;
+		struct stmmac_napi_tx_stats napi_snapshot;
+		struct stmmac_q_tx_stats q_snapshot;
+		u64 n_irq;
 
 		j = pos;
 		do {
-			start = u64_stats_fetch_begin(&txq_stats->syncp);
-			snapshot = *txq_stats;
-		} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&txq_stats->q_syncp);
+			q_snapshot = txq_stats->q;
+		} while (u64_stats_fetch_retry(&txq_stats->q_syncp, start));
+		do {
+			start = u64_stats_fetch_begin(&txq_stats->napi_syncp);
+			napi_snapshot = txq_stats->napi;
+		} while (u64_stats_fetch_retry(&txq_stats->napi_syncp, start));
 
-		data[j++] += snapshot.tx_pkt_n;
-		data[j++] += snapshot.tx_normal_irq_n;
-		normal_irq_n += snapshot.tx_normal_irq_n;
-		data[j++] += snapshot.tx_clean;
-		data[j++] += snapshot.tx_set_ic_bit;
-		data[j++] += snapshot.tx_tso_frames;
-		data[j++] += snapshot.tx_tso_nfrags;
-		napi_poll += snapshot.napi_poll;
+		data[j++] += u64_stats_read(&napi_snapshot.tx_pkt_n);
+		n_irq = stmmac_get_tx_normal_irq_n(priv, i);
+		data[j++] += n_irq;
+		normal_irq_n += n_irq;
+		data[j++] += u64_stats_read(&napi_snapshot.tx_clean);
+		data[j++] += u64_stats_read(&q_snapshot.tx_set_ic_bit) +
+			u64_stats_read(&napi_snapshot.tx_set_ic_bit);
+		data[j++] += u64_stats_read(&q_snapshot.tx_tso_frames);
+		data[j++] += u64_stats_read(&q_snapshot.tx_tso_nfrags);
+		napi_poll += u64_stats_read(&napi_snapshot.poll);
 	}
 	normal_irq_n += priv->xstats.rx_early_irq;
 	data[j++] = normal_irq_n;

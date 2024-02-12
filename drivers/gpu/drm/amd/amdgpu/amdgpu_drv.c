@@ -2255,6 +2255,10 @@ retry_init:
 	if (ret)
 		goto err_pci;
 
+	ret = amdgpu_amdkfd_drm_client_create(adev);
+	if (ret)
+		goto err_pci;
+
 	/*
 	 * 1. don't init fbdev on hw without DCE
 	 * 2. don't init fbdev if there are no connectors
@@ -2472,6 +2476,7 @@ static int amdgpu_pmops_suspend(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 
+	adev->suspend_complete = false;
 	if (amdgpu_acpi_is_s0ix_active(adev))
 		adev->in_s0ix = true;
 	else if (amdgpu_acpi_is_s3_active(adev))
@@ -2486,6 +2491,7 @@ static int amdgpu_pmops_suspend_noirq(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 
+	adev->suspend_complete = true;
 	if (amdgpu_acpi_should_gpu_reset(adev))
 		return amdgpu_asic_reset(adev);
 

@@ -62,7 +62,6 @@ config MAC80211_KUNIT_TEST
 	depends on KUNIT
 	depends on MAC80211
 	default KUNIT_ALL_TESTS
-	depends on !KERNEL_6_2
 	help
 	  Enable this option to test mac80211 internals with kunit.
 

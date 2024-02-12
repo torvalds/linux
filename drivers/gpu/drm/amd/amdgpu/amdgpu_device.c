@@ -4121,23 +4121,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 				}
 			}
 		} else {
-			switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-			case IP_VERSION(13, 0, 0):
-			case IP_VERSION(13, 0, 7):
-			case IP_VERSION(13, 0, 10):
-				r = psp_gpu_reset(adev);
-				break;
-			default:
-				tmp = amdgpu_reset_method;
-				/* It should do a default reset when loading or reloading the driver,
-				 * regardless of the module parameter reset_method.
-				 */
-				amdgpu_reset_method = AMD_RESET_METHOD_NONE;
-				r = amdgpu_asic_reset(adev);
-				amdgpu_reset_method = tmp;
-				break;
-			}
-
+			tmp = amdgpu_reset_method;
+			/* It should do a default reset when loading or reloading the driver,
+			 * regardless of the module parameter reset_method.
+			 */
+			amdgpu_reset_method = AMD_RESET_METHOD_NONE;
+			r = amdgpu_asic_reset(adev);
+			amdgpu_reset_method = tmp;
 			if (r) {
 				dev_err(adev->dev, "asic reset on init failed\n");
 				goto failed;
@@ -5031,7 +5021,7 @@ bool amdgpu_device_has_job_running(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		spin_lock(&ring->sched.job_list_lock);
@@ -5170,7 +5160,7 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		/* Clear job fence from fence drv to avoid force_completion
@@ -5637,7 +5627,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
-			if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
 			drm_sched_stop(&ring->sched, job ? &job->base : NULL);
@@ -5706,7 +5696,7 @@ skip_hw_reset:
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
-			if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
 			drm_sched_start(&ring->sched, true);
@@ -6061,7 +6051,7 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = adev->rings[i];
 
-			if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
 			drm_sched_stop(&ring->sched, NULL);
@@ -6189,7 +6179,7 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		drm_sched_start(&ring->sched, true);

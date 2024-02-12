@@ -684,7 +684,7 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 		timestamp.hwtstamp = ns_to_ktime(ns);
 		skb_tstamp_tx(ptp->tx_skb, &timestamp);
 	} else {
-		netdev_WARN_ONCE(bp->dev,
+		netdev_warn_once(bp->dev,
 				 "TS query for TX timer failed rc = %x\n", rc);
 	}
 

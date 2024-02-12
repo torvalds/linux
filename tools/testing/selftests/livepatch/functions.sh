@@ -42,17 +42,6 @@ function die() {
 	exit 1
 }
 
-# save existing dmesg so we can detect new content
-function save_dmesg() {
-	SAVED_DMESG=$(mktemp --tmpdir -t klp-dmesg-XXXXXX)
-	dmesg > "$SAVED_DMESG"
-}
-
-# cleanup temporary dmesg file from save_dmesg()
-function cleanup_dmesg_file() {
-	rm -f "$SAVED_DMESG"
-}
-
 function push_config() {
 	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
 			awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
@@ -99,7 +88,6 @@ function set_ftrace_enabled() {
 
 function cleanup() {
 	pop_config
-	cleanup_dmesg_file
 }
 
 # setup_config - save the current config and set a script exit trap that
@@ -280,7 +268,15 @@ function set_pre_patch_ret {
 function start_test {
 	local test="$1"
 
-	save_dmesg
+	# Dump something unique into the dmesg log, then stash the entry
+	# in LAST_DMESG.  The check_result() function will use it to
+	# find new kernel messages since the test started.
+	local last_dmesg_msg="livepatch kselftest timestamp: $(date --rfc-3339=ns)"
+	log "$last_dmesg_msg"
+	loop_until 'dmesg | grep -q "$last_dmesg_msg"' ||
+		die "buffer busy? can't find canary dmesg message: $last_dmesg_msg"
+	LAST_DMESG=$(dmesg | grep "$last_dmesg_msg")
+
 	echo -n "TEST: $test ... "
 	log "===== TEST: $test ====="
 }
@@ -291,23 +287,24 @@ function check_result {
 	local expect="$*"
 	local result
 
-	# Note: when comparing dmesg output, the kernel log timestamps
-	# help differentiate repeated testing runs.  Remove them with a
-	# post-comparison sed filter.
-
-	result=$(dmesg | comm --nocheck-order -13 "$SAVED_DMESG" - | \
+	# Test results include any new dmesg entry since LAST_DMESG, then:
+	# - include lines matching keywords
+	# - exclude lines matching keywords
+	# - filter out dmesg timestamp prefixes
+	result=$(dmesg | awk -v last_dmesg="$LAST_DMESG" 'p; $0 == last_dmesg { p=1 }' | \
 		 grep -e 'livepatch:' -e 'test_klp' | \
 		 grep -v '\(tainting\|taints\) kernel' | \
 		 sed 's/^\[[ 0-9.]*\] //')
 
 	if [[ "$expect" == "$result" ]] ; then
 		echo "ok"
+	elif [[ "$result" == "" ]] ; then
+		echo -e "not ok\n\nbuffer overrun? can't find canary dmesg entry: $LAST_DMESG\n"
+		die "livepatch kselftest(s) failed"
 	else
 		echo -e "not ok\n\n$(diff -upr --label expected --label result <(echo "$expect") <(echo "$result"))\n"
 		die "livepatch kselftest(s) failed"
 	fi
-
-	cleanup_dmesg_file
 }
 
 # check_sysfs_rights(modname, rel_path, expected_rights) - check sysfs

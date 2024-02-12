@@ -1678,7 +1678,7 @@ static int amdgpu_debugfs_test_ib_show(struct seq_file *m, void *unused)
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 		drm_sched_wqueue_stop(&ring->sched);
 	}
@@ -1694,7 +1694,7 @@ static int amdgpu_debugfs_test_ib_show(struct seq_file *m, void *unused)
 	for (i = 0; i < AMDGPU_MAX_RINGS; i++) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 		drm_sched_wqueue_start(&ring->sched);
 	}
@@ -1916,8 +1916,8 @@ static int amdgpu_debugfs_ib_preempt(void *data, u64 val)
 
 	ring = adev->rings[val];
 
-	if (!ring || !ring->funcs->preempt_ib ||
-	    !drm_sched_wqueue_ready(&ring->sched))
+	if (!amdgpu_ring_sched_ready(ring) ||
+	    !ring->funcs->preempt_ib)
 		return -EINVAL;
 
 	/* the last preemption failed */
