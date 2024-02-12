@@ -153,7 +153,7 @@ Description:	(RW) Reports the current state of the autoreset feature
 
 		Device auto reset is disabled by default.
 
-		The values are::
+		The values are:
 
 		* 1/Yy/on: auto reset enabled. If the device encounters an
 		  unrecoverable error, it will be reset automatically.
