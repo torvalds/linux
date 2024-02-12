@@ -694,6 +694,7 @@ properties:
       - description: Powkiddy RK3566 Handheld Gaming Console
         items:
           - enum:
+              - powkiddy,rgb10max3
               - powkiddy,rgb30
               - powkiddy,rk2023
               - powkiddy,x55
