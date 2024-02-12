@@ -1677,8 +1677,8 @@ static int disp_cc_x1e80100_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, DISP_CC_MISC_CMD, 0x10, 0x10);
 
 	/* Keep clocks always enabled */
-	regmap_update_bits(regmap, 0xe074, BIT(0), BIT(0)); /* disp_cc_sleep_clk */
-	regmap_update_bits(regmap, 0xe054, BIT(0), BIT(0)); /* disp_cc_xo_clk */
+	qcom_branch_set_clk_en(regmap, 0xe074); /* DISP_CC_SLEEP_CLK */
+	qcom_branch_set_clk_en(regmap, 0xe054); /* DISP_CC_XO_CLK */
 
 	ret = qcom_cc_really_probe(pdev, &disp_cc_x1e80100_desc, regmap);
 	if (ret)

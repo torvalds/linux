@@ -638,7 +638,7 @@ static int gpu_cc_x1e80100_probe(struct platform_device *pdev)
 	clk_lucid_evo_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);
 
 	/* Keep clocks always enabled */
-	regmap_update_bits(regmap, 0x93a4, BIT(0), BIT(0)); /* gpu_cc_cb_clk */
+	qcom_branch_set_clk_en(regmap, 0x93a4); /* GPU_CC_CB_CLK */
 
 	return qcom_cc_really_probe(pdev, &gpu_cc_x1e80100_desc, regmap);
 }
