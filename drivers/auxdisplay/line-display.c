@@ -263,7 +263,7 @@ out_del_timer:
 	put_device(&linedisp->dev);
 	return err;
 }
-EXPORT_SYMBOL_GPL(linedisp_register);
+EXPORT_SYMBOL_NS_GPL(linedisp_register, LINEDISP);
 
 /**
  * linedisp_unregister - unregister a character line display
@@ -276,6 +276,6 @@ void linedisp_unregister(struct linedisp *linedisp)
 	del_timer_sync(&linedisp->timer);
 	put_device(&linedisp->dev);
 }
-EXPORT_SYMBOL_GPL(linedisp_unregister);
+EXPORT_SYMBOL_NS_GPL(linedisp_unregister, LINEDISP);
 
 MODULE_LICENSE("GPL");
