@@ -59,7 +59,6 @@
 #include <linux/bvec.h>
 #include <linux/net.h>
 #include <net/sock.h>
-#include <net/af_unix.h>
 #include <linux/anon_inodes.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>

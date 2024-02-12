@@ -5,6 +5,7 @@
 #include <linux/io_uring/cmd.h>
 #include <linux/security.h>
 #include <linux/nospec.h>
+#include <net/sock.h>
 
 #include <uapi/linux/io_uring.h>
 #include <asm/ioctls.h>

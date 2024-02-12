@@ -11,6 +11,7 @@
 #include <linux/nospec.h>
 #include <linux/compat.h>
 #include <linux/io_uring/cmd.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <uapi/linux/io_uring.h>
 
