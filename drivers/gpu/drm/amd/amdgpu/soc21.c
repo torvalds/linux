@@ -185,6 +185,12 @@ static int soc21_query_video_codecs(struct amdgpu_device *adev, bool encode,
 			}
 		}
 		return 0;
+	case IP_VERSION(4, 0, 6):
+		if (encode)
+			*codecs = &vcn_4_0_0_video_codecs_encode_vcn0;
+		else
+			*codecs = &vcn_4_0_0_video_codecs_decode_vcn0;
+		return 0;
 	default:
 		return -EINVAL;
 	}
