@@ -204,6 +204,9 @@ int iwl_uefi_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_uefi_get_eckv(struct iwl_fw_runtime *fwrt, u32 *extl_clk);
 int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,
 		     u32 *value);
+void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_uats_table(struct iwl_trans *trans,
+			    struct iwl_fw_runtime *fwrt);
 #else /* CONFIG_EFI */
 static inline void *iwl_uefi_get_pnvm(struct iwl_trans *trans, size_t *len)
 {
@@ -283,13 +286,7 @@ static inline int iwl_uefi_get_dsm(struct iwl_fw_runtime *fwrt,
 {
 	return -ENOENT;
 }
-#endif /* CONFIG_EFI */
 
-#if defined(CONFIG_EFI) && defined(CONFIG_ACPI)
-void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt);
-int iwl_uefi_get_uats_table(struct iwl_trans *trans,
-			    struct iwl_fw_runtime *fwrt);
-#else
 static inline
 void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt)
 {
@@ -301,5 +298,5 @@ int iwl_uefi_get_uats_table(struct iwl_trans *trans,
 {
 	return 0;
 }
-#endif
+#endif /* CONFIG_EFI */
 #endif /* __iwl_fw_uefi__ */
