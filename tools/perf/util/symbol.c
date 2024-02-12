@@ -248,14 +248,31 @@ void symbols__fixup_end(struct rb_root_cached *symbols, bool is_kallsyms)
 		 * segment is very big.  Therefore do not fill this gap and do
 		 * not assign it to the kernel dso map (kallsyms).
 		 *
+		 * Also BPF code can be allocated separately from text segments
+		 * and modules.  So the last entry in a module should not fill
+		 * the gap too.
+		 *
 		 * In kallsyms, it determines module symbols using '[' character
 		 * like in:
 		 *   ffffffffc1937000 T hdmi_driver_init  [snd_hda_codec_hdmi]
 		 */
 		if (prev->end == prev->start) {
+			const char *prev_mod;
+			const char *curr_mod;
+
+			if (!is_kallsyms) {
+				prev->end = curr->start;
+				continue;
+			}
+
+			prev_mod = strchr(prev->name, '[');
+			curr_mod = strchr(curr->name, '[');
+
 			/* Last kernel/module symbol mapped to end of page */
-			if (is_kallsyms && (!strchr(prev->name, '[') !=
-					    !strchr(curr->name, '[')))
+			if (!prev_mod != !curr_mod)
+				prev->end = roundup(prev->end + 4096, 4096);
+			/* Last symbol in the previous module */
+			else if (prev_mod && strcmp(prev_mod, curr_mod))
 				prev->end = roundup(prev->end + 4096, 4096);
 			else
 				prev->end = curr->start;
