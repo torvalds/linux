@@ -115,7 +115,8 @@ struct thermal_soc_data {
 };
 
 static struct thermal_trip trips[] = {
-	[IMX_TRIP_PASSIVE]  = { .type = THERMAL_TRIP_PASSIVE  },
+	[IMX_TRIP_PASSIVE]  = { .type = THERMAL_TRIP_PASSIVE,
+				.flags = THERMAL_TRIP_FLAG_RW_TEMP },
 	[IMX_TRIP_CRITICAL] = { .type = THERMAL_TRIP_CRITICAL },
 };
 
@@ -700,7 +701,7 @@ static int imx_thermal_probe(struct platform_device *pdev)
 	data->tz = thermal_zone_device_register_with_trips("imx_thermal_zone",
 							   trips,
 							   ARRAY_SIZE(trips),
-							   BIT(IMX_TRIP_PASSIVE), data,
+							   0, data,
 							   &imx_tz_ops, NULL,
 							   IMX_PASSIVE_DELAY,
 							   IMX_POLLING_DELAY);
