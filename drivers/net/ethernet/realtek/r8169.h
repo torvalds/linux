@@ -85,3 +85,6 @@ void r8169_get_led_name(struct rtl8169_private *tp, int idx,
 int rtl8168_get_led_mode(struct rtl8169_private *tp);
 int rtl8168_led_mod_ctrl(struct rtl8169_private *tp, u16 mask, u16 val);
 void rtl8168_init_leds(struct net_device *ndev);
+int rtl8125_get_led_mode(struct rtl8169_private *tp, int index);
+int rtl8125_set_led_mode(struct rtl8169_private *tp, int index, u16 mode);
+void rtl8125_init_leds(struct net_device *ndev);
