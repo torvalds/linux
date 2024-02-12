@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -98,24 +98,12 @@ static struct qcom_icc_node xm_sdc2 = {
 	.links = { SLAVE_A1NOC_SNOC },
 };
 
-static struct qcom_icc_qosbox xm_ufs_mem_qos = {
-	.regs = icc_qnoc_qos_regs[ICC_QNOC_QOSGEN_TYPE_RPMH],
-	.num_ports = 1,
-	.offsets = { 0xf200 },
-	.config = &(struct qos_config) {
-		.prio = 2,
-		.urg_fwd = 0,
-		.prio_fwd_disable = 1,
-	},
-};
-
 static struct qcom_icc_node xm_ufs_mem = {
 	.name = "xm_ufs_mem",
 	.id = MASTER_UFS_MEM,
 	.channels = 1,
 	.buswidth = 16,
 	.noc_ops = &qcom_qnoc4_ops,
-	.qosbox = &xm_ufs_mem_qos,
 	.num_links = 1,
 	.links = { SLAVE_A1NOC_SNOC },
 };
