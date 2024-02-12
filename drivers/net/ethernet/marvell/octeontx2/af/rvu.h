@@ -443,6 +443,13 @@ struct mbox_wq_info {
 	struct workqueue_struct *mbox_wq;
 };
 
+struct channel_fwdata {
+	struct sdp_node_info info;
+	u8 valid;
+#define RVU_CHANL_INFO_RESERVED	379
+	u8 reserved[RVU_CHANL_INFO_RESERVED];
+};
+
 struct rvu_fwdata {
 #define RVU_FWDATA_HEADER_MAGIC	0xCFDA	/* Custom Firmware Data*/
 #define RVU_FWDATA_VERSION	0x0001
@@ -461,7 +468,8 @@ struct rvu_fwdata {
 	u64 msixtr_base;
 	u32 ptp_ext_clk_rate;
 	u32 ptp_ext_tstamp;
-#define FWDATA_RESERVED_MEM 1022
+	struct channel_fwdata channel_data;
+#define FWDATA_RESERVED_MEM 1014
 	u64 reserved[FWDATA_RESERVED_MEM];
 #define CGX_MAX         9
 #define CGX_LMACS_MAX   4
