@@ -1055,18 +1055,47 @@ static int scmi_perf_set_notify_enabled(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
+static int
+scmi_perf_xlate_opp_to_freq(struct perf_dom_info *dom,
+			    unsigned int index, unsigned long *freq)
+{
+	struct scmi_opp *opp;
+
+	if (!dom || !freq)
+		return -EINVAL;
+
+	if (!dom->level_indexing_mode) {
+		opp = xa_load(&dom->opps_by_lvl, index);
+		if (!opp)
+			return -ENODEV;
+
+		*freq = opp->perf * dom->mult_factor;
+	} else {
+		opp = xa_load(&dom->opps_by_idx, index);
+		if (!opp)
+			return -ENODEV;
+
+		*freq = opp->indicative_freq * dom->mult_factor;
+	}
+
+	return 0;
+}
+
 static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, ktime_t timestamp,
 					  const void *payld, size_t payld_sz,
 					  void *report, u32 *src_id)
 {
+	int ret;
 	void *rep = NULL;
+	struct perf_dom_info *dom;
 
 	switch (evt_id) {
 	case SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED:
 	{
 		const struct scmi_perf_limits_notify_payld *p = payld;
 		struct scmi_perf_limits_report *r = report;
+		unsigned long freq_min, freq_max;
 
 		if (sizeof(*p) != payld_sz)
 			break;
@@ -1076,14 +1105,36 @@ static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 		r->domain_id = le32_to_cpu(p->domain_id);
 		r->range_max = le32_to_cpu(p->range_max);
 		r->range_min = le32_to_cpu(p->range_min);
+		/* Check if the reported domain exist at all */
+		dom = scmi_perf_domain_lookup(ph, r->domain_id);
+		if (IS_ERR(dom))
+			break;
+		/*
+		 * Event will be reported from this point on...
+		 * ...even if, later, xlated frequencies were not retrieved.
+		 */
 		*src_id = r->domain_id;
 		rep = r;
+
+		ret = scmi_perf_xlate_opp_to_freq(dom, r->range_max, &freq_max);
+		if (ret)
+			break;
+
+		ret = scmi_perf_xlate_opp_to_freq(dom, r->range_min, &freq_min);
+		if (ret)
+			break;
+
+		/* Report translated freqs ONLY if both available */
+		r->range_max_freq = freq_max;
+		r->range_min_freq = freq_min;
+
 		break;
 	}
 	case SCMI_EVENT_PERFORMANCE_LEVEL_CHANGED:
 	{
 		const struct scmi_perf_level_notify_payld *p = payld;
 		struct scmi_perf_level_report *r = report;
+		unsigned long freq;
 
 		if (sizeof(*p) != payld_sz)
 			break;
@@ -1091,9 +1142,27 @@ static void *scmi_perf_fill_custom_report(const struct scmi_protocol_handle *ph,
 		r->timestamp = timestamp;
 		r->agent_id = le32_to_cpu(p->agent_id);
 		r->domain_id = le32_to_cpu(p->domain_id);
+		/* Report translated freqs ONLY if available */
 		r->performance_level = le32_to_cpu(p->performance_level);
+		/* Check if the reported domain exist at all */
+		dom = scmi_perf_domain_lookup(ph, r->domain_id);
+		if (IS_ERR(dom))
+			break;
+		/*
+		 * Event will be reported from this point on...
+		 * ...even if, later, xlated frequencies were not retrieved.
+		 */
 		*src_id = r->domain_id;
 		rep = r;
+
+		/* Report translated freqs ONLY if available */
+		ret = scmi_perf_xlate_opp_to_freq(dom, r->performance_level,
+						  &freq);
+		if (ret)
+			break;
+
+		r->performance_level_freq = freq;
+
 		break;
 	}
 	default:

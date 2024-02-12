@@ -956,6 +956,8 @@ struct scmi_perf_limits_report {
 	unsigned int	domain_id;
 	unsigned int	range_max;
 	unsigned int	range_min;
+	unsigned long	range_max_freq;
+	unsigned long	range_min_freq;
 };
 
 struct scmi_perf_level_report {
@@ -963,6 +965,7 @@ struct scmi_perf_level_report {
 	unsigned int	agent_id;
 	unsigned int	domain_id;
 	unsigned int	performance_level;
+	unsigned long	performance_level_freq;
 };
 
 struct scmi_sensor_trip_point_report {
