@@ -2855,6 +2855,7 @@ static int vxlan_init(struct net_device *dev)
 	if (err)
 		goto err_gro_cells_destroy;
 
+	netdev_lockdep_set_classes(dev);
 	return 0;
 
 err_gro_cells_destroy:
