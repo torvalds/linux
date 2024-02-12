@@ -16,8 +16,8 @@
  *	Double Floating-point to Single Floating-point
  *
  *  External Interfaces:
- *	dbl_to_sgl_fcnvff(srcptr,nullptr,dstptr,status)
- *	sgl_to_dbl_fcnvff(srcptr,nullptr,dstptr,status)
+ *	dbl_to_sgl_fcnvff(srcptr,_nullptr,dstptr,status)
+ *	sgl_to_dbl_fcnvff(srcptr,_nullptr,dstptr,status)
  *
  *  Internal Interfaces:
  *
@@ -40,7 +40,7 @@
 int
 sgl_to_dbl_fcnvff(
 	    sgl_floating_point *srcptr,
-	    unsigned int *nullptr,
+	    unsigned int *_nullptr,
 	    dbl_floating_point *dstptr,
 	    unsigned int *status)
 {
@@ -127,7 +127,7 @@ sgl_to_dbl_fcnvff(
 int
 dbl_to_sgl_fcnvff(
 		    dbl_floating_point *srcptr,
-		    unsigned int *nullptr,
+		    unsigned int *_nullptr,
 		    sgl_floating_point *dstptr,
 		    unsigned int *status)
 {

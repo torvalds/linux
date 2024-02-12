@@ -14,8 +14,8 @@
  *	Quad Floating-point Round to Integer (returns unimplemented)
  *
  *  External Interfaces:
- *	dbl_frnd(srcptr,nullptr,dstptr,status)
- *	sgl_frnd(srcptr,nullptr,dstptr,status)
+ *	dbl_frnd(srcptr,_nullptr,dstptr,status)
+ *	sgl_frnd(srcptr,_nullptr,dstptr,status)
  *
  * END_DESC
 */
@@ -33,7 +33,7 @@
 /*ARGSUSED*/
 int
 sgl_frnd(sgl_floating_point *srcptr,
-	unsigned int *nullptr,
+	unsigned int *_nullptr,
 	sgl_floating_point *dstptr,
 	unsigned int *status)
 {
@@ -138,7 +138,7 @@ sgl_frnd(sgl_floating_point *srcptr,
 int
 dbl_frnd(
 	dbl_floating_point *srcptr,
-	unsigned int *nullptr,
+	unsigned int *_nullptr,
 	dbl_floating_point *dstptr,
 	unsigned int *status)
 {
