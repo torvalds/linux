@@ -448,41 +448,60 @@ EXPORT_SYMBOL_GPL(iopf_queue_add_device);
  * @queue: IOPF queue
  * @dev: device to remove
  *
- * Caller makes sure that no more faults are reported for this device.
+ * Removing a device from an iopf_queue. It's recommended to follow these
+ * steps when removing a device:
  *
- * Return: 0 on success and <0 on error.
+ * - Disable new PRI reception: Turn off PRI generation in the IOMMU hardware
+ *   and flush any hardware page request queues. This should be done before
+ *   calling into this helper.
+ * - Acknowledge all outstanding PRQs to the device: Respond to all outstanding
+ *   page requests with IOMMU_PAGE_RESP_INVALID, indicating the device should
+ *   not retry. This helper function handles this.
+ * - Disable PRI on the device: After calling this helper, the caller could
+ *   then disable PRI on the device.
+ *
+ * Calling iopf_queue_remove_device() essentially disassociates the device.
+ * The fault_param might still exist, but iommu_page_response() will do
+ * nothing. The device fault parameter reference count has been properly
+ * passed from iommu_report_device_fault() to the fault handling work, and
+ * will eventually be released after iommu_page_response().
  */
-int iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
+void iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
 {
-	int ret = 0;
 	struct iopf_fault *iopf, *next;
+	struct iommu_page_response resp;
 	struct dev_iommu *param = dev->iommu;
 	struct iommu_fault_param *fault_param;
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
 
 	mutex_lock(&queue->lock);
 	mutex_lock(&param->lock);
 	fault_param = rcu_dereference_check(param->fault_param,
 					    lockdep_is_held(&param->lock));
-	if (!fault_param) {
-		ret = -ENODEV;
+
+	if (WARN_ON(!fault_param || fault_param->queue != queue))
 		goto unlock;
-	}
 
-	if (fault_param->queue != queue) {
-		ret = -EINVAL;
-		goto unlock;
-	}
-
-	if (!list_empty(&fault_param->faults)) {
-		ret = -EBUSY;
-		goto unlock;
-	}
-
-	list_del(&fault_param->queue_list);
-
-	/* Just in case some faults are still stuck */
+	mutex_lock(&fault_param->lock);
 	list_for_each_entry_safe(iopf, next, &fault_param->partial, list)
 		kfree(iopf);
+
+	list_for_each_entry_safe(iopf, next, &fault_param->faults, list) {
+		memset(&resp, 0, sizeof(struct iommu_page_response));
+		resp.pasid = iopf->fault.prm.pasid;
+		resp.grpid = iopf->fault.prm.grpid;
+		resp.code = IOMMU_PAGE_RESP_INVALID;
+
+		if (iopf->fault.prm.flags & IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID)
+			resp.flags = IOMMU_PAGE_RESP_PASID_VALID;
+
+		ops->page_response(dev, iopf, &resp);
+		list_del(&iopf->list);
+		kfree(iopf);
+	}
+	mutex_unlock(&fault_param->lock);
+
+	list_del(&fault_param->queue_list);
 
 	/* dec the ref owned by iopf_queue_add_device() */
 	rcu_assign_pointer(param->fault_param, NULL);
@@ -490,8 +509,6 @@ int iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
 unlock:
 	mutex_unlock(&param->lock);
 	mutex_unlock(&queue->lock);
-
-	return ret;
 }
 EXPORT_SYMBOL_GPL(iopf_queue_remove_device);
 
