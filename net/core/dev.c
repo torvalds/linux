@@ -153,6 +153,8 @@
 #include <linux/prandom.h>
 #include <linux/once_lite.h>
 #include <net/netdev_rx_queue.h>
+#include <net/page_pool/types.h>
+#include <net/page_pool/helpers.h>
 
 #include "dev.h"
 #include "net-sysfs.h"
@@ -449,6 +451,12 @@ static RAW_NOTIFIER_HEAD(netdev_chain);
 
 DEFINE_PER_CPU_ALIGNED(struct softnet_data, softnet_data);
 EXPORT_PER_CPU_SYMBOL(softnet_data);
+
+/* Page_pool has a lockless array/stack to alloc/recycle pages.
+ * PP consumers must pay attention to run APIs in the appropriate context
+ * (e.g. NAPI context).
+ */
+static DEFINE_PER_CPU_ALIGNED(struct page_pool *, system_page_pool);
 
 #ifdef CONFIG_LOCKDEP
 /*
@@ -11724,6 +11732,27 @@ static void __init net_dev_struct_check(void)
  *
  */
 
+/* We allocate 256 pages for each CPU if PAGE_SHIFT is 12 */
+#define SYSTEM_PERCPU_PAGE_POOL_SIZE	((1 << 20) / PAGE_SIZE)
+
+static int net_page_pool_create(int cpuid)
+{
+#if IS_ENABLED(CONFIG_PAGE_POOL)
+	struct page_pool_params page_pool_params = {
+		.pool_size = SYSTEM_PERCPU_PAGE_POOL_SIZE,
+		.nid = NUMA_NO_NODE,
+	};
+	struct page_pool *pp_ptr;
+
+	pp_ptr = page_pool_create_percpu(&page_pool_params, cpuid);
+	if (IS_ERR(pp_ptr))
+		return -ENOMEM;
+
+	per_cpu(system_page_pool, cpuid) = pp_ptr;
+#endif
+	return 0;
+}
+
 /*
  *       This is called single threaded during boot, so no need
  *       to take the rtnl semaphore.
@@ -11776,6 +11805,9 @@ static int __init net_dev_init(void)
 		init_gro_hash(&sd->backlog);
 		sd->backlog.poll = process_backlog;
 		sd->backlog.weight = weight_p;
+
+		if (net_page_pool_create(i))
+			goto out;
 	}
 
 	dev_boot_phase = 0;
@@ -11803,6 +11835,19 @@ static int __init net_dev_init(void)
 	WARN_ON(rc < 0);
 	rc = 0;
 out:
+	if (rc < 0) {
+		for_each_possible_cpu(i) {
+			struct page_pool *pp_ptr;
+
+			pp_ptr = per_cpu(system_page_pool, i);
+			if (!pp_ptr)
+				continue;
+
+			page_pool_destroy(pp_ptr);
+			per_cpu(system_page_pool, i) = NULL;
+		}
+	}
+
 	return rc;
 }
 

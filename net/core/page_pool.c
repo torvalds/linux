@@ -171,12 +171,15 @@ static void page_pool_producer_unlock(struct page_pool *pool,
 }
 
 static int page_pool_init(struct page_pool *pool,
-			  const struct page_pool_params *params)
+			  const struct page_pool_params *params,
+			  int cpuid)
 {
 	unsigned int ring_qsize = 1024; /* Default */
 
 	memcpy(&pool->p, &params->fast, sizeof(pool->p));
 	memcpy(&pool->slow, &params->slow, sizeof(pool->slow));
+
+	pool->cpuid = cpuid;
 
 	/* Validate only known flags were used */
 	if (pool->p.flags & ~(PP_FLAG_ALL))
@@ -253,10 +256,12 @@ static void page_pool_uninit(struct page_pool *pool)
 }
 
 /**
- * page_pool_create() - create a page pool.
+ * page_pool_create_percpu() - create a page pool for a given cpu.
  * @params: parameters, see struct page_pool_params
+ * @cpuid: cpu identifier
  */
-struct page_pool *page_pool_create(const struct page_pool_params *params)
+struct page_pool *
+page_pool_create_percpu(const struct page_pool_params *params, int cpuid)
 {
 	struct page_pool *pool;
 	int err;
@@ -265,7 +270,7 @@ struct page_pool *page_pool_create(const struct page_pool_params *params)
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
-	err = page_pool_init(pool, params);
+	err = page_pool_init(pool, params, cpuid);
 	if (err < 0)
 		goto err_free;
 
@@ -281,6 +286,16 @@ err_free:
 	pr_warn("%s() gave up with errno %d\n", __func__, err);
 	kfree(pool);
 	return ERR_PTR(err);
+}
+EXPORT_SYMBOL(page_pool_create_percpu);
+
+/**
+ * page_pool_create() - create a page pool
+ * @params: parameters, see struct page_pool_params
+ */
+struct page_pool *page_pool_create(const struct page_pool_params *params)
+{
+	return page_pool_create_percpu(params, -1);
 }
 EXPORT_SYMBOL(page_pool_create);
 
