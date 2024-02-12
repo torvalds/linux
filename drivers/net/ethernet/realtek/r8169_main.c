@@ -619,6 +619,7 @@ struct rtl8169_private {
 	struct page *Rx_databuff[NUM_RX_DESC];	/* Rx data buffers */
 	struct ring_info tx_skb[NUM_TX_DESC];	/* Tx data buffers */
 	u16 cp_cmd;
+	u16 tx_lpi_timer;
 	u32 irq_mask;
 	int irq;
 	struct clk *clk;
@@ -2031,6 +2032,22 @@ static int rtl_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
+static void rtl_set_eee_txidle_timer(struct rtl8169_private *tp)
+{
+	unsigned int timer_val = READ_ONCE(tp->dev->mtu) + ETH_HLEN + 0x20;
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_61:
+	case RTL_GIGA_MAC_VER_63:
+	case RTL_GIGA_MAC_VER_65:
+		tp->tx_lpi_timer = timer_val;
+		RTL_W16(tp, EEE_TXIDLE_TIMER_8125, timer_val);
+		break;
+	default:
+		break;
+	}
+}
+
 static int rtl8169_get_eee(struct net_device *dev, struct ethtool_keee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
@@ -2289,14 +2306,8 @@ static void rtl8125a_config_eee_mac(struct rtl8169_private *tp)
 	r8168_mac_ocp_modify(tp, 0xeb62, 0, BIT(2) | BIT(1));
 }
 
-static void rtl8125_set_eee_txidle_timer(struct rtl8169_private *tp)
-{
-	RTL_W16(tp, EEE_TXIDLE_TIMER_8125, tp->dev->mtu + ETH_HLEN + 0x20);
-}
-
 static void rtl8125b_config_eee_mac(struct rtl8169_private *tp)
 {
-	rtl8125_set_eee_txidle_timer(tp);
 	r8168_mac_ocp_modify(tp, 0xe040, 0, BIT(1) | BIT(0));
 }
 
@@ -3829,6 +3840,8 @@ static void rtl_hw_start(struct  rtl8169_private *tp)
 	rtl_hw_aspm_clkreq_enable(tp, false);
 	RTL_W16(tp, CPlusCmd, tp->cp_cmd);
 
+	rtl_set_eee_txidle_timer(tp);
+
 	if (tp->mac_version <= RTL_GIGA_MAC_VER_06)
 		rtl_hw_start_8169(tp);
 	else if (rtl_is_8125(tp))
@@ -3862,14 +3875,7 @@ static int rtl8169_change_mtu(struct net_device *dev, int new_mtu)
 	dev->mtu = new_mtu;
 	netdev_update_features(dev);
 	rtl_jumbo_config(tp);
-
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_61 ... RTL_GIGA_MAC_VER_65:
-		rtl8125_set_eee_txidle_timer(tp);
-		break;
-	default:
-		break;
-	}
+	rtl_set_eee_txidle_timer(tp);
 
 	return 0;
 }
