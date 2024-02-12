@@ -45,6 +45,7 @@ properties:
   reset-gpios: true
 
   backlight: true
+  rotation: true
 
 required:
   - compatible
