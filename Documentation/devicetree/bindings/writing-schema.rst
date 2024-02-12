@@ -31,7 +31,7 @@ $schema
   Indicates the meta-schema the schema file adheres to.
 
 title
-  A one-line description on the contents of the binding schema.
+  A one-line description of the hardware being described in the binding schema.
 
 maintainers
   A DT specific property. Contains a list of email address(es)
@@ -39,7 +39,7 @@ maintainers
 
 description
   Optional. A multi-line text block containing any detailed
-  information about this binding. It should contain things such as what the block
+  information about this hardware. It should contain things such as what the block
   or device does, standards the device conforms to, and links to datasheets for
   more information.
 
