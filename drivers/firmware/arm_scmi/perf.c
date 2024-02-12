@@ -182,6 +182,8 @@ struct scmi_perf_info {
 	enum scmi_power_scale power_scale;
 	u64 stats_addr;
 	u32 stats_size;
+	bool notify_lvl_cmd;
+	bool notify_lim_cmd;
 	struct perf_dom_info *dom_info;
 };
 
@@ -222,6 +224,15 @@ static int scmi_perf_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret) {
+		if (!ph->hops->protocol_msg_check(ph, PERF_NOTIFY_LEVEL, NULL))
+			pi->notify_lvl_cmd = true;
+
+		if (!ph->hops->protocol_msg_check(ph, PERF_NOTIFY_LIMITS, NULL))
+			pi->notify_lim_cmd = true;
+	}
+
 	return ret;
 }
 
@@ -239,6 +250,7 @@ static void scmi_perf_xa_destroy(void *data)
 static int
 scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 				struct perf_dom_info *dom_info,
+				bool notify_lim_cmd, bool notify_lvl_cmd,
 				u32 version)
 {
 	int ret;
@@ -260,8 +272,12 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 
 		dom_info->set_limits = SUPPORTS_SET_LIMITS(flags);
 		dom_info->info.set_perf = SUPPORTS_SET_PERF_LVL(flags);
-		dom_info->perf_limit_notify = SUPPORTS_PERF_LIMIT_NOTIFY(flags);
-		dom_info->perf_level_notify = SUPPORTS_PERF_LEVEL_NOTIFY(flags);
+		if (notify_lim_cmd)
+			dom_info->perf_limit_notify =
+				SUPPORTS_PERF_LIMIT_NOTIFY(flags);
+		if (notify_lvl_cmd)
+			dom_info->perf_level_notify =
+				SUPPORTS_PERF_LEVEL_NOTIFY(flags);
 		dom_info->perf_fastchannels = SUPPORTS_PERF_FASTCHANNELS(flags);
 		if (PROTOCOL_REV_MAJOR(version) >= 0x4)
 			dom_info->level_indexing_mode =
@@ -993,6 +1009,27 @@ static const struct scmi_perf_proto_ops perf_proto_ops = {
 	.power_scale_get = scmi_power_scale_get,
 };
 
+static bool scmi_perf_notify_supported(const struct scmi_protocol_handle *ph,
+				       u8 evt_id, u32 src_id)
+{
+	bool supported;
+	struct perf_dom_info *dom;
+
+	if (evt_id >= ARRAY_SIZE(evt_2_cmd))
+		return false;
+
+	dom = scmi_perf_domain_lookup(ph, src_id);
+	if (IS_ERR(dom))
+		return false;
+
+	if (evt_id == SCMI_EVENT_PERFORMANCE_LIMITS_CHANGED)
+		supported = dom->perf_limit_notify;
+	else
+		supported = dom->perf_level_notify;
+
+	return supported;
+}
+
 static int scmi_perf_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					u8 evt_id, u32 src_id, bool enable)
 {
@@ -1082,6 +1119,7 @@ static const struct scmi_event perf_events[] = {
 };
 
 static const struct scmi_event_ops perf_event_ops = {
+	.is_notify_supported = scmi_perf_notify_supported,
 	.get_num_sources = scmi_perf_get_num_sources,
 	.set_notify_enabled = scmi_perf_set_notify_enabled,
 	.fill_custom_report = scmi_perf_fill_custom_report,
@@ -1126,7 +1164,8 @@ static int scmi_perf_protocol_init(const struct scmi_protocol_handle *ph)
 		struct perf_dom_info *dom = pinfo->dom_info + domain;
 
 		dom->id = domain;
-		scmi_perf_domain_attributes_get(ph, dom, version);
+		scmi_perf_domain_attributes_get(ph, dom, pinfo->notify_lim_cmd,
+						pinfo->notify_lvl_cmd, version);
 		scmi_perf_describe_levels_get(ph, dom, version);
 
 		if (dom->perf_fastchannels)
