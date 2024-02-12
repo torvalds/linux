@@ -2037,6 +2037,11 @@ static void rtl_set_eee_txidle_timer(struct rtl8169_private *tp)
 	unsigned int timer_val = READ_ONCE(tp->dev->mtu) + ETH_HLEN + 0x20;
 
 	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_46:
+	case RTL_GIGA_MAC_VER_48:
+		tp->tx_lpi_timer = timer_val;
+		r8168_mac_ocp_write(tp, 0xe048, timer_val);
+		break;
 	case RTL_GIGA_MAC_VER_61:
 	case RTL_GIGA_MAC_VER_63:
 	case RTL_GIGA_MAC_VER_65:
