@@ -274,5 +274,8 @@ int main(void)
 	DEVID(vchiq_device_id);
 	DEVID_FIELD(vchiq_device_id, name);
 
+	DEVID(coreboot_device_id);
+	DEVID_FIELD(coreboot_device_id, tag);
+
 	return 0;
 }
