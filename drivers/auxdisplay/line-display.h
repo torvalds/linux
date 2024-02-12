@@ -11,6 +11,9 @@
 #ifndef _LINEDISP_H
 #define _LINEDISP_H
 
+#include <linux/device.h>
+#include <linux/timer_types.h>
+
 /**
  * struct linedisp - character line display private data structure
  * @dev: the line display device

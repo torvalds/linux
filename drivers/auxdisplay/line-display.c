@@ -10,8 +10,11 @@
 
 #include <generated/utsrelease.h>
 
+#include <linux/container_of.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/idr.h>
+#include <linux/jiffies.h>
 #include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/slab.h>
