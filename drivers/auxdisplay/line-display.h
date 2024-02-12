@@ -14,13 +14,43 @@
 #include <linux/device.h>
 #include <linux/timer_types.h>
 
+#include <linux/map_to_7segment.h>
+#include <linux/map_to_14segment.h>
+
 struct linedisp;
 
 /**
+ * enum linedisp_map_type - type of the character mapping
+ * @LINEDISP_MAP_SEG7: Map characters to 7 segment display
+ * @LINEDISP_MAP_SEG14: Map characters to 14 segment display
+ */
+enum linedisp_map_type {
+	LINEDISP_MAP_SEG7,
+	LINEDISP_MAP_SEG14,
+};
+
+/**
+ * struct linedisp_map - character mapping
+ * @type: type of the character mapping
+ * @map: conversion character mapping
+ * @size: size of the @map
+ */
+struct linedisp_map {
+	enum linedisp_map_type type;
+	union {
+		struct seg7_conversion_map seg7;
+		struct seg14_conversion_map seg14;
+	} map;
+	unsigned int size;
+};
+
+/**
  * struct linedisp_ops - character line display operations
+ * @get_map_type: Function called to get the character mapping, if required
  * @update: Function called to update the display. This must not sleep!
  */
 struct linedisp_ops {
+	int (*get_map_type)(struct linedisp *linedisp);
 	void (*update)(struct linedisp *linedisp);
 };
 
@@ -41,6 +71,7 @@ struct linedisp {
 	struct device dev;
 	struct timer_list timer;
 	const struct linedisp_ops *ops;
+	struct linedisp_map *map;
 	char *buf;
 	char *message;
 	unsigned int num_chars;
