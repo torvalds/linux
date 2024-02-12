@@ -2053,14 +2053,34 @@ static void rtl_set_eee_txidle_timer(struct rtl8169_private *tp)
 	}
 }
 
+static unsigned int r8169_get_tx_lpi_timer_us(struct rtl8169_private *tp)
+{
+	unsigned int speed = tp->phydev->speed;
+	unsigned int timer = tp->tx_lpi_timer;
+
+	if (!timer || speed == SPEED_UNKNOWN)
+		return 0;
+
+	/* tx_lpi_timer value is in bytes */
+	return DIV_ROUND_CLOSEST(timer * BITS_PER_BYTE, speed);
+}
+
 static int rtl8169_get_eee(struct net_device *dev, struct ethtool_keee *data)
 {
 	struct rtl8169_private *tp = netdev_priv(dev);
+	int ret;
 
 	if (!rtl_supports_eee(tp))
 		return -EOPNOTSUPP;
 
-	return phy_ethtool_get_eee(tp->phydev, data);
+	ret = phy_ethtool_get_eee(tp->phydev, data);
+	if (ret)
+		return ret;
+
+	data->tx_lpi_timer = r8169_get_tx_lpi_timer_us(tp);
+	data->tx_lpi_enabled = data->tx_lpi_timer ? data->eee_enabled : false;
+
+	return 0;
 }
 
 static int rtl8169_set_eee(struct net_device *dev, struct ethtool_keee *data)
