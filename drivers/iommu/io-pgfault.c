@@ -78,12 +78,33 @@ static struct iommu_domain *get_domain_for_iopf(struct device *dev,
 	return domain;
 }
 
+/* Non-last request of a group. Postpone until the last one. */
+static int report_partial_fault(struct iommu_fault_param *fault_param,
+				struct iommu_fault *fault)
+{
+	struct iopf_fault *iopf;
+
+	iopf = kzalloc(sizeof(*iopf), GFP_KERNEL);
+	if (!iopf)
+		return -ENOMEM;
+
+	iopf->fault = *fault;
+
+	mutex_lock(&fault_param->lock);
+	list_add(&iopf->list, &fault_param->partial);
+	mutex_unlock(&fault_param->lock);
+
+	return 0;
+}
+
 /**
- * iommu_handle_iopf - IO Page Fault handler
- * @fault: fault event
- * @iopf_param: the fault parameter of the device.
+ * iommu_report_device_fault() - Report fault event to device driver
+ * @dev: the device
+ * @evt: fault event data
  *
- * Add a fault to the device workqueue, to be handled by mm.
+ * Called by IOMMU drivers when a fault is detected, typically in a threaded IRQ
+ * handler. When this function fails and the fault is recoverable, it is the
+ * caller's responsibility to complete the fault.
  *
  * This module doesn't handle PCI PASID Stop Marker; IOMMU drivers must discard
  * them before reporting faults. A PASID Stop Marker (LRW = 0b100) doesn't
@@ -118,34 +139,37 @@ static struct iommu_domain *get_domain_for_iopf(struct device *dev,
  *
  * Return: 0 on success and <0 on error.
  */
-static int iommu_handle_iopf(struct iommu_fault *fault,
-			     struct iommu_fault_param *iopf_param)
+int iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 {
-	int ret;
-	struct iopf_group *group;
-	struct iommu_domain *domain;
+	struct iommu_fault *fault = &evt->fault;
+	struct iommu_fault_param *iopf_param;
 	struct iopf_fault *iopf, *next;
-	struct device *dev = iopf_param->dev;
-
-	lockdep_assert_held(&iopf_param->lock);
+	struct iommu_domain *domain;
+	struct iopf_group *group;
+	int ret;
 
 	if (fault->type != IOMMU_FAULT_PAGE_REQ)
-		/* Not a recoverable page fault */
 		return -EOPNOTSUPP;
 
+	iopf_param = iopf_get_dev_fault_param(dev);
+	if (!iopf_param)
+		return -ENODEV;
+
 	if (!(fault->prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE)) {
-		iopf = kzalloc(sizeof(*iopf), GFP_KERNEL);
-		if (!iopf)
-			return -ENOMEM;
+		ret = report_partial_fault(iopf_param, fault);
+		iopf_put_dev_fault_param(iopf_param);
 
-		iopf->fault = *fault;
-
-		/* Non-last request of a group. Postpone until the last one */
-		list_add(&iopf->list, &iopf_param->partial);
-
-		return 0;
+		return ret;
 	}
 
+	/*
+	 * This is the last page fault of a group. Allocate an iopf group and
+	 * pass it to domain's page fault handler. The group holds a reference
+	 * count of the fault parameter. It will be released after response or
+	 * error path of this function. If an error is returned, the caller
+	 * will send a response to the hardware. We need to clean up before
+	 * leaving, otherwise partial faults will be stuck.
+	 */
 	domain = get_domain_for_iopf(dev, fault);
 	if (!domain) {
 		ret = -EINVAL;
@@ -154,11 +178,6 @@ static int iommu_handle_iopf(struct iommu_fault *fault,
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group) {
-		/*
-		 * The caller will send a response to the hardware. But we do
-		 * need to clean up before leaving, otherwise partial faults
-		 * will be stuck.
-		 */
 		ret = -ENOMEM;
 		goto cleanup_partial;
 	}
@@ -166,144 +185,44 @@ static int iommu_handle_iopf(struct iommu_fault *fault,
 	group->fault_param = iopf_param;
 	group->last_fault.fault = *fault;
 	INIT_LIST_HEAD(&group->faults);
+	INIT_LIST_HEAD(&group->pending_node);
 	group->domain = domain;
 	list_add(&group->last_fault.list, &group->faults);
 
 	/* See if we have partial faults for this group */
+	mutex_lock(&iopf_param->lock);
 	list_for_each_entry_safe(iopf, next, &iopf_param->partial, list) {
 		if (iopf->fault.prm.grpid == fault->prm.grpid)
 			/* Insert *before* the last fault */
 			list_move(&iopf->list, &group->faults);
 	}
-
+	list_add(&group->pending_node, &iopf_param->faults);
 	mutex_unlock(&iopf_param->lock);
+
 	ret = domain->iopf_handler(group);
-	mutex_lock(&iopf_param->lock);
-	if (ret)
+	if (ret) {
+		mutex_lock(&iopf_param->lock);
+		list_del_init(&group->pending_node);
+		mutex_unlock(&iopf_param->lock);
 		iopf_free_group(group);
+	}
 
 	return ret;
+
 cleanup_partial:
+	mutex_lock(&iopf_param->lock);
 	list_for_each_entry_safe(iopf, next, &iopf_param->partial, list) {
 		if (iopf->fault.prm.grpid == fault->prm.grpid) {
 			list_del(&iopf->list);
 			kfree(iopf);
 		}
 	}
-	return ret;
-}
-
-/**
- * iommu_report_device_fault() - Report fault event to device driver
- * @dev: the device
- * @evt: fault event data
- *
- * Called by IOMMU drivers when a fault is detected, typically in a threaded IRQ
- * handler. When this function fails and the fault is recoverable, it is the
- * caller's responsibility to complete the fault.
- *
- * Return 0 on success, or an error.
- */
-int iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
-{
-	bool last_prq = evt->fault.type == IOMMU_FAULT_PAGE_REQ &&
-		(evt->fault.prm.flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE);
-	struct iommu_fault_param *fault_param;
-	struct iopf_fault *evt_pending;
-	int ret;
-
-	fault_param = iopf_get_dev_fault_param(dev);
-	if (!fault_param)
-		return -EINVAL;
-
-	mutex_lock(&fault_param->lock);
-	if (last_prq) {
-		evt_pending = kmemdup(evt, sizeof(struct iopf_fault),
-				      GFP_KERNEL);
-		if (!evt_pending) {
-			ret = -ENOMEM;
-			goto err_unlock;
-		}
-		list_add_tail(&evt_pending->list, &fault_param->faults);
-	}
-
-	ret = iommu_handle_iopf(&evt->fault, fault_param);
-	if (ret)
-		goto err_free;
-
-	mutex_unlock(&fault_param->lock);
-	/* The reference count of fault_param is now held by iopf_group. */
-	if (!last_prq)
-		iopf_put_dev_fault_param(fault_param);
-
-	return 0;
-err_free:
-	if (last_prq) {
-		list_del(&evt_pending->list);
-		kfree(evt_pending);
-	}
-err_unlock:
-	mutex_unlock(&fault_param->lock);
-	iopf_put_dev_fault_param(fault_param);
+	mutex_unlock(&iopf_param->lock);
+	iopf_put_dev_fault_param(iopf_param);
 
 	return ret;
 }
 EXPORT_SYMBOL_GPL(iommu_report_device_fault);
-
-static int iommu_page_response(struct iopf_group *group,
-			       struct iommu_page_response *msg)
-{
-	bool needs_pasid;
-	int ret = -EINVAL;
-	struct iopf_fault *evt;
-	struct iommu_fault_page_request *prm;
-	struct device *dev = group->fault_param->dev;
-	const struct iommu_ops *ops = dev_iommu_ops(dev);
-	bool has_pasid = msg->flags & IOMMU_PAGE_RESP_PASID_VALID;
-	struct iommu_fault_param *fault_param = group->fault_param;
-
-	/* Only send response if there is a fault report pending */
-	mutex_lock(&fault_param->lock);
-	if (list_empty(&fault_param->faults)) {
-		dev_warn_ratelimited(dev, "no pending PRQ, drop response\n");
-		goto done_unlock;
-	}
-	/*
-	 * Check if we have a matching page request pending to respond,
-	 * otherwise return -EINVAL
-	 */
-	list_for_each_entry(evt, &fault_param->faults, list) {
-		prm = &evt->fault.prm;
-		if (prm->grpid != msg->grpid)
-			continue;
-
-		/*
-		 * If the PASID is required, the corresponding request is
-		 * matched using the group ID, the PASID valid bit and the PASID
-		 * value. Otherwise only the group ID matches request and
-		 * response.
-		 */
-		needs_pasid = prm->flags & IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID;
-		if (needs_pasid && (!has_pasid || msg->pasid != prm->pasid))
-			continue;
-
-		if (!needs_pasid && has_pasid) {
-			/* No big deal, just clear it. */
-			msg->flags &= ~IOMMU_PAGE_RESP_PASID_VALID;
-			msg->pasid = 0;
-		}
-
-		ret = ops->page_response(dev, evt, msg);
-		list_del(&evt->list);
-		kfree(evt);
-		break;
-	}
-
-done_unlock:
-	mutex_unlock(&fault_param->lock);
-
-	return ret;
-}
 
 /**
  * iopf_queue_flush_dev - Ensure that all queued faults have been processed
@@ -346,18 +265,26 @@ EXPORT_SYMBOL_GPL(iopf_queue_flush_dev);
 int iopf_group_response(struct iopf_group *group,
 			enum iommu_page_response_code status)
 {
+	struct iommu_fault_param *fault_param = group->fault_param;
 	struct iopf_fault *iopf = &group->last_fault;
+	struct device *dev = group->fault_param->dev;
+	const struct iommu_ops *ops = dev_iommu_ops(dev);
 	struct iommu_page_response resp = {
 		.pasid = iopf->fault.prm.pasid,
 		.grpid = iopf->fault.prm.grpid,
 		.code = status,
 	};
+	int ret = -EINVAL;
 
-	if ((iopf->fault.prm.flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID) &&
-	    (iopf->fault.prm.flags & IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID))
-		resp.flags = IOMMU_PAGE_RESP_PASID_VALID;
+	/* Only send response if there is a fault report pending */
+	mutex_lock(&fault_param->lock);
+	if (!list_empty(&group->pending_node)) {
+		ret = ops->page_response(dev, &group->last_fault, &resp);
+		list_del_init(&group->pending_node);
+	}
+	mutex_unlock(&fault_param->lock);
 
-	return iommu_page_response(group, &resp);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(iopf_group_response);
 
@@ -468,8 +395,9 @@ EXPORT_SYMBOL_GPL(iopf_queue_add_device);
  */
 void iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
 {
-	struct iopf_fault *iopf, *next;
-	struct iommu_page_response resp;
+	struct iopf_fault *partial_iopf;
+	struct iopf_fault *next;
+	struct iopf_group *group, *temp;
 	struct dev_iommu *param = dev->iommu;
 	struct iommu_fault_param *fault_param;
 	const struct iommu_ops *ops = dev_iommu_ops(dev);
@@ -483,21 +411,19 @@ void iopf_queue_remove_device(struct iopf_queue *queue, struct device *dev)
 		goto unlock;
 
 	mutex_lock(&fault_param->lock);
-	list_for_each_entry_safe(iopf, next, &fault_param->partial, list)
-		kfree(iopf);
+	list_for_each_entry_safe(partial_iopf, next, &fault_param->partial, list)
+		kfree(partial_iopf);
 
-	list_for_each_entry_safe(iopf, next, &fault_param->faults, list) {
-		memset(&resp, 0, sizeof(struct iommu_page_response));
-		resp.pasid = iopf->fault.prm.pasid;
-		resp.grpid = iopf->fault.prm.grpid;
-		resp.code = IOMMU_PAGE_RESP_INVALID;
-
-		if (iopf->fault.prm.flags & IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID)
-			resp.flags = IOMMU_PAGE_RESP_PASID_VALID;
+	list_for_each_entry_safe(group, temp, &fault_param->faults, pending_node) {
+		struct iopf_fault *iopf = &group->last_fault;
+		struct iommu_page_response resp = {
+			.pasid = iopf->fault.prm.pasid,
+			.grpid = iopf->fault.prm.grpid,
+			.code = IOMMU_PAGE_RESP_INVALID
+		};
 
 		ops->page_response(dev, iopf, &resp);
-		list_del(&iopf->list);
-		kfree(iopf);
+		list_del_init(&group->pending_node);
 	}
 	mutex_unlock(&fault_param->lock);
 
