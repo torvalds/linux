@@ -5,6 +5,10 @@ qcom_wdt_core.ko
 gh_virt_wdt.ko
 qcom-scm.ko
 qcom-mpm.ko
+glink_pkt.ko
+qcom_glink.ko
+qcom_glink_rpm.ko
+qcom_glink_smem.ko
 rpm-smd.ko
 pinctrl-msm.ko
 pinctrl-pitti.ko
