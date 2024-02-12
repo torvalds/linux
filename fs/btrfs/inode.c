@@ -2250,6 +2250,11 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 	int ret;
 
 	/*
+	 * We're unlocked by the different fill functions below.
+	 */
+	lock_extent(&inode->io_tree, start, end, NULL);
+
+	/*
 	 * The range must cover part of the @locked_page, or a return of 1
 	 * can confuse the caller.
 	 */
