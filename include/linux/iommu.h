@@ -574,9 +574,8 @@ struct iommu_ops {
 	int (*dev_enable_feat)(struct device *dev, enum iommu_dev_features f);
 	int (*dev_disable_feat)(struct device *dev, enum iommu_dev_features f);
 
-	int (*page_response)(struct device *dev,
-			     struct iopf_fault *evt,
-			     struct iommu_page_response *msg);
+	void (*page_response)(struct device *dev, struct iopf_fault *evt,
+			      struct iommu_page_response *msg);
 
 	int (*def_domain_type)(struct device *dev);
 	void (*remove_dev_pasid)(struct device *dev, ioasid_t pasid);
@@ -1547,8 +1546,8 @@ void iopf_queue_free(struct iopf_queue *queue);
 int iopf_queue_discard_partial(struct iopf_queue *queue);
 void iopf_free_group(struct iopf_group *group);
 int iommu_report_device_fault(struct device *dev, struct iopf_fault *evt);
-int iopf_group_response(struct iopf_group *group,
-			enum iommu_page_response_code status);
+void iopf_group_response(struct iopf_group *group,
+			 enum iommu_page_response_code status);
 #else
 static inline int
 iopf_queue_add_device(struct iopf_queue *queue, struct device *dev)
@@ -1590,10 +1589,9 @@ iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
 	return -ENODEV;
 }
 
-static inline int iopf_group_response(struct iopf_group *group,
-				      enum iommu_page_response_code status)
+static inline void iopf_group_response(struct iopf_group *group,
+				       enum iommu_page_response_code status)
 {
-	return -ENODEV;
 }
 #endif /* CONFIG_IOMMU_IOPF */
 #endif /* __LINUX_IOMMU_H */

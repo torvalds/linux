@@ -920,31 +920,29 @@ static int arm_smmu_cmdq_batch_submit(struct arm_smmu_device *smmu,
 	return arm_smmu_cmdq_issue_cmdlist(smmu, cmds->cmds, cmds->num, true);
 }
 
-static int arm_smmu_page_response(struct device *dev,
-				  struct iopf_fault *unused,
-				  struct iommu_page_response *resp)
+static void arm_smmu_page_response(struct device *dev, struct iopf_fault *unused,
+				   struct iommu_page_response *resp)
 {
 	struct arm_smmu_cmdq_ent cmd = {0};
 	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 	int sid = master->streams[0].id;
 
-	if (master->stall_enabled) {
-		cmd.opcode		= CMDQ_OP_RESUME;
-		cmd.resume.sid		= sid;
-		cmd.resume.stag		= resp->grpid;
-		switch (resp->code) {
-		case IOMMU_PAGE_RESP_INVALID:
-		case IOMMU_PAGE_RESP_FAILURE:
-			cmd.resume.resp = CMDQ_RESUME_0_RESP_ABORT;
-			break;
-		case IOMMU_PAGE_RESP_SUCCESS:
-			cmd.resume.resp = CMDQ_RESUME_0_RESP_RETRY;
-			break;
-		default:
-			return -EINVAL;
-		}
-	} else {
-		return -ENODEV;
+	if (WARN_ON(!master->stall_enabled))
+		return;
+
+	cmd.opcode		= CMDQ_OP_RESUME;
+	cmd.resume.sid		= sid;
+	cmd.resume.stag		= resp->grpid;
+	switch (resp->code) {
+	case IOMMU_PAGE_RESP_INVALID:
+	case IOMMU_PAGE_RESP_FAILURE:
+		cmd.resume.resp = CMDQ_RESUME_0_RESP_ABORT;
+		break;
+	case IOMMU_PAGE_RESP_SUCCESS:
+		cmd.resume.resp = CMDQ_RESUME_0_RESP_RETRY;
+		break;
+	default:
+		break;
 	}
 
 	arm_smmu_cmdq_issue_cmd(master->smmu, &cmd);
@@ -954,8 +952,6 @@ static int arm_smmu_page_response(struct device *dev,
 	 * terminated... at some point in the future. PRI_RESP is fire and
 	 * forget.
 	 */
-
-	return 0;
 }
 
 /* Context descriptor manipulation functions */
@@ -1516,16 +1512,6 @@ static int arm_smmu_handle_evt(struct arm_smmu_device *smmu, u64 *evt)
 	}
 
 	ret = iommu_report_device_fault(master->dev, &fault_evt);
-	if (ret && flt->type == IOMMU_FAULT_PAGE_REQ) {
-		/* Nobody cared, abort the access */
-		struct iommu_page_response resp = {
-			.pasid		= flt->prm.pasid,
-			.grpid		= flt->prm.grpid,
-			.code		= IOMMU_PAGE_RESP_FAILURE,
-		};
-		arm_smmu_page_response(master->dev, &fault_evt, &resp);
-	}
-
 out_unlock:
 	mutex_unlock(&smmu->streams_mutex);
 	return ret;
