@@ -48,7 +48,7 @@
 
 struct platform_driver;
 
-extern struct bus_type ibmebus_bus_type;
+extern const struct bus_type ibmebus_bus_type;
 
 int ibmebus_register_driver(struct platform_driver *drv);
 void ibmebus_unregister_driver(struct platform_driver *drv);
