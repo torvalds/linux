@@ -1336,6 +1336,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	bool extent_reserved = false;
 	int ret = 0;
 
+	lock_extent(&inode->io_tree, start, end, NULL);
+
 	if (btrfs_is_free_space_inode(inode)) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1722,8 +1724,6 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 	u64 done_offset = end;
 	int ret;
 
-	lock_extent(&inode->io_tree, start, end, NULL);
-
 	while (start <= end) {
 		ret = cow_file_range(inode, locked_page, start, end, &done_offset,
 				     true, false);
@@ -1744,11 +1744,10 @@ static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 	const bool is_reloc_ino = btrfs_is_data_reloc_root(inode->root);
 	const u64 range_bytes = end + 1 - start;
 	struct extent_io_tree *io_tree = &inode->io_tree;
+	struct extent_state *cached_state = NULL;
 	u64 range_start = start;
 	u64 count;
 	int ret;
-
-	lock_extent(io_tree, start, end, NULL);
 
 	/*
 	 * If EXTENT_NORESERVE is set it means that when the buffered write was
@@ -1782,6 +1781,7 @@ static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 	 * group that contains that extent to RO mode and therefore force COW
 	 * when starting writeback.
 	 */
+	lock_extent(io_tree, start, end, &cached_state);
 	count = count_range_bits(io_tree, &range_start, end, range_bytes,
 				 EXTENT_NORESERVE, 0, NULL);
 	if (count > 0 || is_space_ino || is_reloc_ino) {
@@ -1800,6 +1800,7 @@ static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 			clear_extent_bit(io_tree, start, end, EXTENT_NORESERVE,
 					 NULL);
 	}
+	unlock_extent(io_tree, start, end, &cached_state);
 
 	/*
 	 * Don't try to create inline extents, as a mix of inline extent that
@@ -2282,14 +2283,12 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 	    run_delalloc_compressed(inode, locked_page, start, end, wbc))
 		return 1;
 
-	if (zoned) {
+	if (zoned)
 		ret = run_delalloc_cow(inode, locked_page, start, end, wbc,
 				       true);
-	} else {
-		lock_extent(&inode->io_tree, start, end, NULL);
+	else
 		ret = cow_file_range(inode, locked_page, start, end, NULL,
 				     false, false);
-	}
 
 out:
 	if (ret < 0)
