@@ -92,8 +92,10 @@ additionalProperties / unevaluatedProperties
       'unevaluatedProperties: false'.  Typically bus or common-part schemas.
 
 examples
-  Optional. A list of one or more DTS hunks implementing the
-  binding. Note: YAML doesn't allow leading tabs, so spaces must be used instead.
+  Optional. A list of one or more DTS hunks implementing this binding only.
+  Example should not contain unrelated device nodes, e.g. consumer nodes in a
+  provider binding, other nodes referenced by phandle.
+  Note: YAML doesn't allow leading tabs, so spaces must be used instead.
 
 Unless noted otherwise, all properties are required.
 
