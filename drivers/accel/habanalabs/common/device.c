@@ -1035,14 +1035,14 @@ static void device_early_fini(struct hl_device *hdev)
 
 static bool is_pci_link_healthy(struct hl_device *hdev)
 {
-	u16 vendor_id;
+	u16 device_id;
 
 	if (!hdev->pdev)
 		return false;
 
-	pci_read_config_word(hdev->pdev, PCI_VENDOR_ID, &vendor_id);
+	pci_read_config_word(hdev->pdev, PCI_DEVICE_ID, &device_id);
 
-	return (vendor_id == PCI_VENDOR_ID_HABANALABS);
+	return (device_id == hdev->pdev->device);
 }
 
 static int hl_device_eq_heartbeat_check(struct hl_device *hdev)
