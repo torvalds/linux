@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "buckets.h"
+#include "disk_accounting.h"
 #include "journal.h"
 #include "replicas.h"
 #include "super-io.h"
@@ -418,8 +419,6 @@ int bch2_replicas_gc_start(struct bch_fs *c, unsigned typemask)
  */
 int bch2_replicas_gc2(struct bch_fs *c)
 {
-	return 0;
-#if 0
 	struct bch_replicas_cpu new = { 0 };
 	unsigned i, nr;
 	int ret = 0;
@@ -449,20 +448,26 @@ retry:
 		struct bch_replicas_entry_v1 *e =
 			cpu_replicas_entry(&c->replicas, i);
 
-		if (e->data_type == BCH_DATA_journal ||
-		    c->usage_base->replicas[i] ||
-		    percpu_u64_get(&c->usage[0]->replicas[i]) ||
-		    percpu_u64_get(&c->usage[1]->replicas[i]) ||
-		    percpu_u64_get(&c->usage[2]->replicas[i]) ||
-		    percpu_u64_get(&c->usage[3]->replicas[i]))
+		struct disk_accounting_pos k = {
+			.type = BCH_DISK_ACCOUNTING_replicas,
+		};
+
+		memcpy(&k.replicas, e, replicas_entry_bytes(e));
+
+		u64 v = 0;
+		bch2_accounting_mem_read(c, disk_accounting_pos_to_bpos(&k), &v, 1);
+
+		if (e->data_type == BCH_DATA_journal || v)
 			memcpy(cpu_replicas_entry(&new, new.nr++),
 			       e, new.entry_size);
 	}
 
 	bch2_cpu_replicas_sort(&new);
 
-	ret =   bch2_cpu_replicas_to_sb_replicas(c, &new) ?:
-		replicas_table_update(c, &new);
+	ret = bch2_cpu_replicas_to_sb_replicas(c, &new);
+
+	if (!ret)
+		swap(c->replicas, new);
 
 	kfree(new.entries);
 
@@ -474,7 +479,6 @@ retry:
 	mutex_unlock(&c->sb_lock);
 
 	return ret;
-#endif
 }
 
 /* Replicas tracking - superblock: */
