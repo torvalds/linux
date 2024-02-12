@@ -1239,7 +1239,7 @@ rollback:
 	netdev_name_node_del(dev->name_node);
 	write_unlock(&dev_base_lock);
 
-	synchronize_rcu();
+	synchronize_net();
 
 	write_lock(&dev_base_lock);
 	netdev_name_node_add(net, dev->name_node);
