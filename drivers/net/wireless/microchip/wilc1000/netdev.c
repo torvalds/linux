@@ -878,8 +878,7 @@ static const struct net_device_ops wilc_netdev_ops = {
 
 void wilc_netdev_cleanup(struct wilc *wilc)
 {
-	struct wilc_vif *vif;
-	int srcu_idx, ifc_cnt = 0;
+	struct wilc_vif *vif, *vif_tmp;
 
 	if (!wilc)
 		return;
@@ -889,31 +888,18 @@ void wilc_netdev_cleanup(struct wilc *wilc)
 		wilc->firmware = NULL;
 	}
 
-	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
-		if (vif->ndev)
-			unregister_netdev(vif->ndev);
-	}
-	srcu_read_unlock(&wilc->srcu, srcu_idx);
-
-	wilc_wfi_deinit_mon_interface(wilc, false);
-	destroy_workqueue(wilc->hif_workqueue);
-
-	while (ifc_cnt < WILC_NUM_CONCURRENT_IFC) {
+	list_for_each_entry_safe(vif, vif_tmp, &wilc->vif_list, list) {
 		mutex_lock(&wilc->vif_mutex);
-		if (wilc->vif_num <= 0) {
-			mutex_unlock(&wilc->vif_mutex);
-			break;
-		}
-		vif = wilc_get_wl_to_vif(wilc);
-		if (!IS_ERR(vif))
-			list_del_rcu(&vif->list);
-
+		list_del_rcu(&vif->list);
 		wilc->vif_num--;
 		mutex_unlock(&wilc->vif_mutex);
 		synchronize_srcu(&wilc->srcu);
-		ifc_cnt++;
+		if (vif->ndev)
+			unregister_netdev(vif->ndev);
 	}
+
+	wilc_wfi_deinit_mon_interface(wilc, false);
+	destroy_workqueue(wilc->hif_workqueue);
 
 	wilc_wlan_cfg_deinit(wilc);
 	wlan_deinit_locks(wilc);
