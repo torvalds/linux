@@ -1133,7 +1133,6 @@ struct dwc3_scratchpad_array {
  *	2	- No de-emphasis
  *	3	- Reserved
  * @dis_metastability_quirk: set to disable metastability quirk.
- * @host_vbus_glitches_quirk: set to avoid vbus glitch during xhci reset.
  * @dis_split_quirk: set to disable split boundary.
  * @wakeup_configured: set if the device is configured for remote wakeup.
  * @suspended: set to track suspend event due to U3/L2.
@@ -1355,7 +1354,6 @@ struct dwc3 {
 	unsigned		tx_de_emphasis:2;
 
 	unsigned		dis_metastability_quirk:1;
-	unsigned		host_vbus_glitches_quirk:1;
 
 	unsigned		dis_split_quirk:1;
 	unsigned		async_callbacks:1;

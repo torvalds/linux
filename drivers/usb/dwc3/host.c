@@ -114,8 +114,7 @@ int dwc3_host_init(struct dwc3 *dwc)
 	 * Some platforms need to power off all Root hub ports immediately after DWC3 set to host
 	 * mode to avoid VBUS glitch happen when xhci get reset later.
 	 */
-	if (dwc->host_vbus_glitches_quirk)
-		dwc3_power_off_all_roothub_ports(dwc);
+	dwc3_power_off_all_roothub_ports(dwc);
 
 	irq = dwc3_host_get_irq(dwc);
 	if (irq < 0)
