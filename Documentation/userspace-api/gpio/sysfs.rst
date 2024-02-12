@@ -87,9 +87,9 @@ and have the following read/write attributes:
 		allow userspace to reconfigure this GPIO's direction.
 
 	"value" ...
-		reads as either 0 (low) or 1 (high). If the GPIO
+		reads as either 0 (inactive) or 1 (active). If the GPIO
 		is configured as an output, this value may be written;
-		any nonzero value is treated as high.
+		any nonzero value is treated as active.
 
 		If the pin can be configured as interrupt-generating interrupt
 		and if it has been configured to generate interrupts (see the
