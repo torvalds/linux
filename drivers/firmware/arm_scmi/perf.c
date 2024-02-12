@@ -326,9 +326,9 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 					    dom_info->id, NULL, dom_info->info.name,
 					    SCMI_MAX_STR_SIZE);
 
+	xa_init(&dom_info->opps_by_lvl);
 	if (dom_info->level_indexing_mode) {
 		xa_init(&dom_info->opps_by_idx);
-		xa_init(&dom_info->opps_by_lvl);
 		hash_init(dom_info->opps_by_freq);
 	}
 
@@ -371,13 +371,21 @@ static int iter_perf_levels_update_state(struct scmi_iterator_state *st,
 }
 
 static inline void
-process_response_opp(struct scmi_opp *opp, unsigned int loop_idx,
+process_response_opp(struct device *dev, struct perf_dom_info *dom,
+		     struct scmi_opp *opp, unsigned int loop_idx,
 		     const struct scmi_msg_resp_perf_describe_levels *r)
 {
+	int ret;
+
 	opp->perf = le32_to_cpu(r->opp[loop_idx].perf_val);
 	opp->power = le32_to_cpu(r->opp[loop_idx].power);
 	opp->trans_latency_us =
 		le16_to_cpu(r->opp[loop_idx].transition_latency_us);
+
+	ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
+	if (ret)
+		dev_warn(dev, "Failed to add opps_by_lvl at %d - ret:%d\n",
+			 opp->perf, ret);
 }
 
 static inline void
@@ -385,16 +393,21 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 			struct scmi_opp *opp, unsigned int loop_idx,
 			const struct scmi_msg_resp_perf_describe_levels_v4 *r)
 {
+	int ret;
+
 	opp->perf = le32_to_cpu(r->opp[loop_idx].perf_val);
 	opp->power = le32_to_cpu(r->opp[loop_idx].power);
 	opp->trans_latency_us =
 		le16_to_cpu(r->opp[loop_idx].transition_latency_us);
 
+	ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
+	if (ret)
+		dev_warn(dev, "Failed to add opps_by_lvl at %d - ret:%d\n",
+			 opp->perf, ret);
+
 	/* Note that PERF v4 reports always five 32-bit words */
 	opp->indicative_freq = le32_to_cpu(r->opp[loop_idx].indicative_freq);
 	if (dom->level_indexing_mode) {
-		int ret;
-
 		opp->level_index = le32_to_cpu(r->opp[loop_idx].level_index);
 
 		ret = xa_insert(&dom->opps_by_idx, opp->level_index, opp,
@@ -403,12 +416,6 @@ process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
 			dev_warn(dev,
 				 "Failed to add opps_by_idx at %d - ret:%d\n",
 				 opp->level_index, ret);
-
-		ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
-		if (ret)
-			dev_warn(dev,
-				 "Failed to add opps_by_lvl at %d - ret:%d\n",
-				 opp->perf, ret);
 
 		hash_add(dom->opps_by_freq, &opp->hash, opp->indicative_freq);
 	}
@@ -424,7 +431,8 @@ iter_perf_levels_process_response(const struct scmi_protocol_handle *ph,
 
 	opp = &p->perf_dom->opp[st->desc_index + st->loop_idx];
 	if (PROTOCOL_REV_MAJOR(p->version) <= 0x3)
-		process_response_opp(opp, st->loop_idx, response);
+		process_response_opp(ph->dev, p->perf_dom, opp, st->loop_idx,
+				     response);
 	else
 		process_response_opp_v4(ph->dev, p->perf_dom, opp, st->loop_idx,
 					response);
