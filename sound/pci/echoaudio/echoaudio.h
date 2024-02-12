@@ -422,9 +422,7 @@ struct echoaudio {
 	u32 __iomem *dsp_registers;		/* DSP's register base */
 	u32 active_mask;			/* Chs. active mask or
 						 * punks out */
-#ifdef CONFIG_PM_SLEEP
 	const struct firmware *fw_cache[8];	/* Cached firmwares */
-#endif
 
 #ifdef ECHOCARD_HAS_MIDI
 	u16 mtc_state;				/* State for MIDI input parsing state machine */

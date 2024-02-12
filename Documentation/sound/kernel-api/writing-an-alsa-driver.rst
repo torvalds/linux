@@ -3864,14 +3864,16 @@ corresponding destructor.
 
 And next, set suspend/resume callbacks to the pci_driver::
 
-  static SIMPLE_DEV_PM_OPS(snd_my_pm_ops, mychip_suspend, mychip_resume);
+  static DEFINE_SIMPLE_DEV_PM_OPS(snd_my_pm_ops, mychip_suspend, mychip_resume);
 
   static struct pci_driver driver = {
           .name = KBUILD_MODNAME,
           .id_table = snd_my_ids,
           .probe = snd_my_probe,
           .remove = snd_my_remove,
-          .driver.pm = &snd_my_pm_ops,
+          .driver = {
+                  .pm = &snd_my_pm_ops,
+          },
   };
 
 Module Parameters
