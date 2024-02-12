@@ -62,6 +62,7 @@ struct st7703 {
 
 	struct dentry *debugfs;
 	const struct st7703_panel_desc *desc;
+	enum drm_panel_orientation orientation;
 };
 
 struct st7703_panel_desc {
@@ -743,12 +744,20 @@ static int st7703_get_modes(struct drm_panel *panel,
 	return 1;
 }
 
+static enum drm_panel_orientation st7703_get_orientation(struct drm_panel *panel)
+{
+	struct st7703 *st7703 = panel_to_st7703(panel);
+
+	return st7703->orientation;
+}
+
 static const struct drm_panel_funcs st7703_drm_funcs = {
 	.disable   = st7703_disable,
 	.unprepare = st7703_unprepare,
 	.prepare   = st7703_prepare,
 	.enable	   = st7703_enable,
 	.get_modes = st7703_get_modes,
+	.get_orientation = st7703_get_orientation,
 };
 
 static int allpixelson_set(void *data, u64 val)
@@ -816,6 +825,10 @@ static int st7703_probe(struct mipi_dsi_device *dsi)
 	if (IS_ERR(ctx->iovcc))
 		return dev_err_probe(dev, PTR_ERR(ctx->iovcc),
 				     "Failed to request iovcc regulator\n");
+
+	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &ctx->orientation);
+	if (ret < 0)
+		return dev_err_probe(&dsi->dev, ret, "Failed to get orientation\n");
 
 	drm_panel_init(&ctx->panel, dev, &st7703_drm_funcs,
 		       DRM_MODE_CONNECTOR_DSI);
