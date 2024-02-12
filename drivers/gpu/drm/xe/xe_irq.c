@@ -442,7 +442,7 @@ static irqreturn_t dg1_irq_handler(int irq, void *arg)
 		 * irq as device is inaccessible.
 		 */
 		if (master_ctl == REG_GENMASK(31, 0)) {
-			dev_dbg(tile_to_xe(tile)->drm.dev,
+			drm_dbg(&tile_to_xe(tile)->drm,
 				"Ignore this IRQ as device might be in DPC containment.\n");
 			return IRQ_HANDLED;
 		}
