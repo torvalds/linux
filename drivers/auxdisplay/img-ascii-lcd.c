@@ -22,12 +22,12 @@ struct img_ascii_lcd_ctx;
  * struct img_ascii_lcd_config - Configuration information about an LCD model
  * @num_chars: the number of characters the LCD can display
  * @external_regmap: true if registers are in a system controller, else false
- * @update: function called to update the LCD
+ * @ops: character line display operations
  */
 struct img_ascii_lcd_config {
 	unsigned int num_chars;
 	bool external_regmap;
-	void (*update)(struct linedisp *linedisp);
+	const struct linedisp_ops ops;
 };
 
 /**
@@ -75,7 +75,9 @@ static void boston_update(struct linedisp *linedisp)
 
 static struct img_ascii_lcd_config boston_config = {
 	.num_chars = 8,
-	.update = boston_update,
+	.ops = {
+		.update = boston_update,
+	},
 };
 
 /*
@@ -103,7 +105,9 @@ static void malta_update(struct linedisp *linedisp)
 static struct img_ascii_lcd_config malta_config = {
 	.num_chars = 8,
 	.external_regmap = true,
-	.update = malta_update,
+	.ops = {
+		.update = malta_update,
+	},
 };
 
 /*
@@ -203,7 +207,9 @@ static void sead3_update(struct linedisp *linedisp)
 static struct img_ascii_lcd_config sead3_config = {
 	.num_chars = 16,
 	.external_regmap = true,
-	.update = sead3_update,
+	.ops = {
+		.update = sead3_update,
+	},
 };
 
 static const struct of_device_id img_ascii_lcd_matches[] = {
@@ -248,7 +254,7 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 	}
 
 	err = linedisp_register(&ctx->linedisp, dev, cfg->num_chars, ctx->curr,
-				cfg->update);
+				&cfg->ops);
 	if (err)
 		return err;
 

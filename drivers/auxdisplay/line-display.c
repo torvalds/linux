@@ -50,7 +50,7 @@ static void linedisp_scroll(struct timer_list *t)
 	}
 
 	/* update the display */
-	linedisp->update(linedisp);
+	linedisp->ops->update(linedisp);
 
 	/* move on to the next character */
 	linedisp->scroll_pos++;
@@ -94,7 +94,7 @@ static int linedisp_display(struct linedisp *linedisp, const char *msg,
 		linedisp->message = NULL;
 		linedisp->message_len = 0;
 		memset(linedisp->buf, ' ', linedisp->num_chars);
-		linedisp->update(linedisp);
+		linedisp->ops->update(linedisp);
 		return 0;
 	}
 
@@ -216,20 +216,20 @@ static const struct device_type linedisp_type = {
  * @parent: parent device
  * @num_chars: the number of characters that can be displayed
  * @buf: pointer to a buffer that can hold @num_chars characters
- * @update: Function called to update the display.  This must not sleep!
+ * @ops: character line display operations
  *
  * Return: zero on success, else a negative error code.
  */
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
 		      unsigned int num_chars, char *buf,
-		      void (*update)(struct linedisp *linedisp))
+		      const struct linedisp_ops *ops)
 {
 	int err;
 
 	memset(linedisp, 0, sizeof(*linedisp));
 	linedisp->dev.parent = parent;
 	linedisp->dev.type = &linedisp_type;
-	linedisp->update = update;
+	linedisp->ops = ops;
 	linedisp->buf = buf;
 	linedisp->num_chars = num_chars;
 	linedisp->scroll_rate = DEFAULT_SCROLL_RATE;

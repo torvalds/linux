@@ -14,11 +14,21 @@
 #include <linux/device.h>
 #include <linux/timer_types.h>
 
+struct linedisp;
+
+/**
+ * struct linedisp_ops - character line display operations
+ * @update: Function called to update the display. This must not sleep!
+ */
+struct linedisp_ops {
+	void (*update)(struct linedisp *linedisp);
+};
+
 /**
  * struct linedisp - character line display private data structure
  * @dev: the line display device
  * @timer: timer used to implement scrolling
- * @update: function called to update the display
+ * @ops: character line display operations
  * @buf: pointer to the buffer for the string currently displayed
  * @message: the full message to display or scroll on the display
  * @num_chars: the number of characters that can be displayed
@@ -30,7 +40,7 @@
 struct linedisp {
 	struct device dev;
 	struct timer_list timer;
-	void (*update)(struct linedisp *linedisp);
+	const struct linedisp_ops *ops;
 	char *buf;
 	char *message;
 	unsigned int num_chars;
@@ -42,7 +52,7 @@ struct linedisp {
 
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
 		      unsigned int num_chars, char *buf,
-		      void (*update)(struct linedisp *linedisp));
+		      const struct linedisp_ops *ops);
 void linedisp_unregister(struct linedisp *linedisp);
 
 #endif /* LINEDISP_H */
