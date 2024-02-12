@@ -251,7 +251,7 @@ static void iommu_sva_handle_iopf(struct work_struct *work)
 
 static int iommu_sva_iopf_handler(struct iopf_group *group)
 {
-	struct iommu_fault_param *fault_param = group->dev->iommu->fault_param;
+	struct iommu_fault_param *fault_param = group->fault_param;
 
 	INIT_WORK(&group->work, iommu_sva_handle_iopf);
 	if (!queue_work(fault_param->queue->wq, &group->work))

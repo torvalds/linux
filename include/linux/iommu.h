@@ -41,6 +41,7 @@ struct iommu_dirty_ops;
 struct notifier_block;
 struct iommu_sva;
 struct iommu_dma_cookie;
+struct iommu_fault_param;
 
 #define IOMMU_FAULT_PERM_READ	(1 << 0) /* read */
 #define IOMMU_FAULT_PERM_WRITE	(1 << 1) /* write */
@@ -129,8 +130,9 @@ struct iopf_group {
 	struct iopf_fault last_fault;
 	struct list_head faults;
 	struct work_struct work;
-	struct device *dev;
 	struct iommu_domain *domain;
+	/* The device's fault data parameter. */
+	struct iommu_fault_param *fault_param;
 };
 
 /**
@@ -679,6 +681,8 @@ struct iommu_device {
 /**
  * struct iommu_fault_param - per-device IOMMU fault data
  * @lock: protect pending faults list
+ * @users: user counter to manage the lifetime of the data
+ * @rcu: rcu head for kfree_rcu()
  * @dev: the device that owns this param
  * @queue: IOPF queue
  * @queue_list: index into queue->devices
@@ -688,6 +692,8 @@ struct iommu_device {
  */
 struct iommu_fault_param {
 	struct mutex lock;
+	refcount_t users;
+	struct rcu_head rcu;
 
 	struct device *dev;
 	struct iopf_queue *queue;
@@ -715,7 +721,7 @@ struct iommu_fault_param {
  */
 struct dev_iommu {
 	struct mutex lock;
-	struct iommu_fault_param	*fault_param;
+	struct iommu_fault_param __rcu	*fault_param;
 	struct iommu_fwspec		*fwspec;
 	struct iommu_device		*iommu_dev;
 	void				*priv;
@@ -1543,7 +1549,6 @@ void iopf_queue_free(struct iopf_queue *queue);
 int iopf_queue_discard_partial(struct iopf_queue *queue);
 void iopf_free_group(struct iopf_group *group);
 int iommu_report_device_fault(struct device *dev, struct iopf_fault *evt);
-int iommu_page_response(struct device *dev, struct iommu_page_response *msg);
 int iopf_group_response(struct iopf_group *group,
 			enum iommu_page_response_code status);
 #else
@@ -1584,12 +1589,6 @@ static inline void iopf_free_group(struct iopf_group *group)
 
 static inline int
 iommu_report_device_fault(struct device *dev, struct iopf_fault *evt)
-{
-	return -ENODEV;
-}
-
-static inline int
-iommu_page_response(struct device *dev, struct iommu_page_response *msg)
 {
 	return -ENODEV;
 }
