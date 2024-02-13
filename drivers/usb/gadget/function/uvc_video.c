@@ -398,7 +398,8 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 
 	case -EXDEV:
 		uvcg_dbg(&video->uvc->func, "VS request missed xfer.\n");
-		queue->flags |= UVC_QUEUE_DROP_INCOMPLETE;
+		if (req->length != 0)
+			queue->flags |= UVC_QUEUE_DROP_INCOMPLETE;
 		break;
 
 	case -ESHUTDOWN:	/* disconnect from host. */
