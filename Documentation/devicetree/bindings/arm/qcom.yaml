@@ -190,6 +190,13 @@ properties:
 
       - items:
           - enum:
+              - samsung,kltechn
+          - const: samsung,klte
+          - const: qcom,msm8974pro
+          - const: qcom,msm8974
+
+      - items:
+          - enum:
               - acer,a1-724
               - alcatel,idol347
               - asus,z00l
