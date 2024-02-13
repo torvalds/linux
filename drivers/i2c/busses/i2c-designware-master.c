@@ -633,119 +633,6 @@ i2c_dw_read(struct dw_i2c_dev *dev)
 	}
 }
 
-/*
- * Prepare controller for a transaction and call i2c_dw_xfer_msg.
- */
-static int
-i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
-{
-	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
-	int ret;
-
-	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
-
-	pm_runtime_get_sync(dev->dev);
-
-	/*
-	 * Initiate I2C message transfer when polling mode is enabled,
-	 * As it is polling based transfer mechanism, which does not support
-	 * interrupt based functionalities of existing DesignWare driver.
-	 */
-	switch (dev->flags & MODEL_MASK) {
-	case MODEL_AMD_NAVI_GPU:
-		ret = amd_i2c_dw_xfer_quirk(adap, msgs, num);
-		goto done_nolock;
-	case MODEL_WANGXUN_SP:
-		ret = txgbe_i2c_dw_xfer_quirk(adap, msgs, num);
-		goto done_nolock;
-	default:
-		break;
-	}
-
-	reinit_completion(&dev->cmd_complete);
-	dev->msgs = msgs;
-	dev->msgs_num = num;
-	dev->cmd_err = 0;
-	dev->msg_write_idx = 0;
-	dev->msg_read_idx = 0;
-	dev->msg_err = 0;
-	dev->status = 0;
-	dev->abort_source = 0;
-	dev->rx_outstanding = 0;
-
-	ret = i2c_dw_acquire_lock(dev);
-	if (ret)
-		goto done_nolock;
-
-	ret = i2c_dw_wait_bus_not_busy(dev);
-	if (ret < 0)
-		goto done;
-
-	/* Start the transfers */
-	i2c_dw_xfer_init(dev);
-
-	/* Wait for tx to complete */
-	if (!wait_for_completion_timeout(&dev->cmd_complete, adap->timeout)) {
-		dev_err(dev->dev, "controller timed out\n");
-		/* i2c_dw_init implicitly disables the adapter */
-		i2c_recover_bus(&dev->adapter);
-		i2c_dw_init_master(dev);
-		ret = -ETIMEDOUT;
-		goto done;
-	}
-
-	/*
-	 * We must disable the adapter before returning and signaling the end
-	 * of the current transfer. Otherwise the hardware might continue
-	 * generating interrupts which in turn causes a race condition with
-	 * the following transfer.  Needs some more investigation if the
-	 * additional interrupts are a hardware bug or this driver doesn't
-	 * handle them correctly yet.
-	 */
-	__i2c_dw_disable_nowait(dev);
-
-	if (dev->msg_err) {
-		ret = dev->msg_err;
-		goto done;
-	}
-
-	/* No error */
-	if (likely(!dev->cmd_err && !dev->status)) {
-		ret = num;
-		goto done;
-	}
-
-	/* We have an error */
-	if (dev->cmd_err == DW_IC_ERR_TX_ABRT) {
-		ret = i2c_dw_handle_tx_abort(dev);
-		goto done;
-	}
-
-	if (dev->status)
-		dev_err(dev->dev,
-			"transfer terminated early - interrupt latency too high?\n");
-
-	ret = -EIO;
-
-done:
-	i2c_dw_release_lock(dev);
-
-done_nolock:
-	pm_runtime_mark_last_busy(dev->dev);
-	pm_runtime_put_autosuspend(dev->dev);
-
-	return ret;
-}
-
-static const struct i2c_algorithm i2c_dw_algo = {
-	.master_xfer = i2c_dw_xfer,
-	.functionality = i2c_dw_func,
-};
-
-static const struct i2c_adapter_quirks i2c_dw_quirks = {
-	.flags = I2C_AQ_NO_ZERO_LEN,
-};
-
 static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 {
 	unsigned int stat, dummy;
@@ -871,6 +758,119 @@ tx_aborted:
 
 	return IRQ_HANDLED;
 }
+
+/*
+ * Prepare controller for a transaction and call i2c_dw_xfer_msg.
+ */
+static int
+i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
+{
+	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
+	int ret;
+
+	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
+
+	pm_runtime_get_sync(dev->dev);
+
+	/*
+	 * Initiate I2C message transfer when polling mode is enabled,
+	 * As it is polling based transfer mechanism, which does not support
+	 * interrupt based functionalities of existing DesignWare driver.
+	 */
+	switch (dev->flags & MODEL_MASK) {
+	case MODEL_AMD_NAVI_GPU:
+		ret = amd_i2c_dw_xfer_quirk(adap, msgs, num);
+		goto done_nolock;
+	case MODEL_WANGXUN_SP:
+		ret = txgbe_i2c_dw_xfer_quirk(adap, msgs, num);
+		goto done_nolock;
+	default:
+		break;
+	}
+
+	reinit_completion(&dev->cmd_complete);
+	dev->msgs = msgs;
+	dev->msgs_num = num;
+	dev->cmd_err = 0;
+	dev->msg_write_idx = 0;
+	dev->msg_read_idx = 0;
+	dev->msg_err = 0;
+	dev->status = 0;
+	dev->abort_source = 0;
+	dev->rx_outstanding = 0;
+
+	ret = i2c_dw_acquire_lock(dev);
+	if (ret)
+		goto done_nolock;
+
+	ret = i2c_dw_wait_bus_not_busy(dev);
+	if (ret < 0)
+		goto done;
+
+	/* Start the transfers */
+	i2c_dw_xfer_init(dev);
+
+	/* Wait for tx to complete */
+	if (!wait_for_completion_timeout(&dev->cmd_complete, adap->timeout)) {
+		dev_err(dev->dev, "controller timed out\n");
+		/* i2c_dw_init_master() implicitly disables the adapter */
+		i2c_recover_bus(&dev->adapter);
+		i2c_dw_init_master(dev);
+		ret = -ETIMEDOUT;
+		goto done;
+	}
+
+	/*
+	 * We must disable the adapter before returning and signaling the end
+	 * of the current transfer. Otherwise the hardware might continue
+	 * generating interrupts which in turn causes a race condition with
+	 * the following transfer. Needs some more investigation if the
+	 * additional interrupts are a hardware bug or this driver doesn't
+	 * handle them correctly yet.
+	 */
+	__i2c_dw_disable_nowait(dev);
+
+	if (dev->msg_err) {
+		ret = dev->msg_err;
+		goto done;
+	}
+
+	/* No error */
+	if (likely(!dev->cmd_err && !dev->status)) {
+		ret = num;
+		goto done;
+	}
+
+	/* We have an error */
+	if (dev->cmd_err == DW_IC_ERR_TX_ABRT) {
+		ret = i2c_dw_handle_tx_abort(dev);
+		goto done;
+	}
+
+	if (dev->status)
+		dev_err(dev->dev,
+			"transfer terminated early - interrupt latency too high?\n");
+
+	ret = -EIO;
+
+done:
+	i2c_dw_release_lock(dev);
+
+done_nolock:
+	pm_runtime_mark_last_busy(dev->dev);
+	pm_runtime_put_autosuspend(dev->dev);
+
+	return ret;
+}
+
+static const struct i2c_algorithm i2c_dw_algo = {
+	.master_xfer = i2c_dw_xfer,
+	.functionality = i2c_dw_func,
+};
+
+static const struct i2c_adapter_quirks i2c_dw_quirks = {
+	.flags = I2C_AQ_NO_ZERO_LEN,
+};
 
 void i2c_dw_configure_master(struct dw_i2c_dev *dev)
 {
