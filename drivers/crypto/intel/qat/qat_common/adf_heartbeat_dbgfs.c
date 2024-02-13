@@ -160,16 +160,17 @@ static ssize_t adf_hb_error_inject_write(struct file *file,
 					 size_t count, loff_t *ppos)
 {
 	struct adf_accel_dev *accel_dev = file->private_data;
-	size_t written_chars;
 	char buf[3];
 	int ret;
 
 	/* last byte left as string termination */
-	if (count != 2)
+	if (*ppos != 0 || count != 2)
 		return -EINVAL;
 
-	written_chars = simple_write_to_buffer(buf, sizeof(buf) - 1,
-					       ppos, user_buf, count);
+	if (copy_from_user(buf, user_buf, count))
+		return -EFAULT;
+	buf[count] = '\0';
+
 	if (buf[0] != '1')
 		return -EINVAL;
 
@@ -183,7 +184,7 @@ static ssize_t adf_hb_error_inject_write(struct file *file,
 
 	dev_info(&GET_DEV(accel_dev), "Heartbeat error injection enabled\n");
 
-	return written_chars;
+	return count;
 }
 
 static const struct file_operations adf_hb_error_inject_fops = {
