@@ -1426,7 +1426,7 @@ static const struct attribute_group *mdio_bus_dev_groups[] = {
 	NULL,
 };
 
-struct bus_type mdio_bus_type = {
+const struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.dev_groups	= mdio_bus_dev_groups,
 	.match		= mdio_bus_match,

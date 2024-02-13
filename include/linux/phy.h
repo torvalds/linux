@@ -2129,7 +2129,7 @@ static inline bool phy_package_probe_once(struct phy_device *phydev)
 	return __phy_package_set_once(phydev, PHY_SHARED_F_PROBE_DONE);
 }
 
-extern struct bus_type mdio_bus_type;
+extern const struct bus_type mdio_bus_type;
 
 struct mdio_board_info {
 	const char	*bus_id;

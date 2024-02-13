@@ -1604,7 +1604,6 @@ EXPORT_SYMBOL(phy_attach_direct);
 struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 			      phy_interface_t interface)
 {
-	struct bus_type *bus = &mdio_bus_type;
 	struct phy_device *phydev;
 	struct device *d;
 	int rc;
@@ -1615,7 +1614,7 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 	/* Search the list of PHY devices on the mdio bus for the
 	 * PHY with the requested name
 	 */
-	d = bus_find_device_by_name(bus, NULL, bus_id);
+	d = bus_find_device_by_name(&mdio_bus_type, NULL, bus_id);
 	if (!d) {
 		pr_err("PHY %s not found\n", bus_id);
 		return ERR_PTR(-ENODEV);
