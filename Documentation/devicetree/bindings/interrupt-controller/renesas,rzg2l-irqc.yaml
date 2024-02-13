@@ -44,7 +44,7 @@ properties:
     maxItems: 1
 
   interrupts:
-    minItems: 41
+    minItems: 45
     items:
       - description: NMI interrupt
       - description: IRQ0 interrupt
@@ -88,9 +88,15 @@ properties:
       - description: GPIO interrupt, TINT30
       - description: GPIO interrupt, TINT31
       - description: Bus error interrupt
+      - description: ECCRAM0 or combined ECCRAM0/1 1bit error interrupt
+      - description: ECCRAM0 or combined ECCRAM0/1 2bit error interrupt
+      - description: ECCRAM0 or combined ECCRAM0/1 error overflow interrupt
+      - description: ECCRAM1 1bit error interrupt
+      - description: ECCRAM1 2bit error interrupt
+      - description: ECCRAM1 error overflow interrupt
 
   interrupt-names:
-    minItems: 41
+    minItems: 45
     items:
       - const: nmi
       - const: irq0
@@ -134,6 +140,12 @@ properties:
       - const: tint30
       - const: tint31
       - const: bus-err
+      - const: ec7tie1-0
+      - const: ec7tie2-0
+      - const: ec7tiovf-0
+      - const: ec7tie1-1
+      - const: ec7tie2-1
+      - const: ec7tiovf-1
 
   clocks:
     maxItems: 2
@@ -156,6 +168,7 @@ required:
   - interrupt-controller
   - reg
   - interrupts
+  - interrupt-names
   - clocks
   - clock-names
   - power-domains
@@ -169,16 +182,19 @@ allOf:
         compatible:
           contains:
             enum:
-              - renesas,r9a07g043u-irqc
               - renesas,r9a08g045-irqc
     then:
       properties:
         interrupts:
-          minItems: 42
+          maxItems: 45
         interrupt-names:
-          minItems: 42
-      required:
-        - interrupt-names
+          maxItems: 45
+    else:
+      properties:
+        interrupts:
+          minItems: 48
+        interrupt-names:
+          minItems: 48
 
 unevaluatedProperties: false
 
@@ -233,7 +249,14 @@ examples:
                      <GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>,
                      <GIC_SPI 474 IRQ_TYPE_LEVEL_HIGH>,
-                     <GIC_SPI 475 IRQ_TYPE_LEVEL_HIGH>;
+                     <GIC_SPI 475 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 34 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 35 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 36 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 37 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 38 IRQ_TYPE_EDGE_RISING>,
+                     <GIC_SPI 39 IRQ_TYPE_EDGE_RISING>;
         interrupt-names = "nmi",
                           "irq0", "irq1", "irq2", "irq3",
                           "irq4", "irq5", "irq6", "irq7",
@@ -244,7 +267,10 @@ examples:
                           "tint16", "tint17", "tint18", "tint19",
                           "tint20", "tint21", "tint22", "tint23",
                           "tint24", "tint25", "tint26", "tint27",
-                          "tint28", "tint29", "tint30", "tint31";
+                          "tint28", "tint29", "tint30", "tint31",
+                          "bus-err", "ec7tie1-0", "ec7tie2-0",
+                          "ec7tiovf-0", "ec7tie1-1", "ec7tie2-1",
+                          "ec7tiovf-1";
         clocks = <&cpg CPG_MOD R9A07G044_IA55_CLK>,
                  <&cpg CPG_MOD R9A07G044_IA55_PCLK>;
         clock-names = "clk", "pclk";
