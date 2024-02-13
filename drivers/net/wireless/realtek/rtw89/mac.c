@@ -5099,6 +5099,84 @@ rtw89_mac_c2h_mcc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 
 	rtw89_complete_cond(&rtwdev->mcc.wait, cond, &data);
 }
 
+static void
+rtw89_mac_c2h_mrc_tsf_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	const struct rtw89_c2h_mrc_tsf_rpt *c2h_rpt;
+	struct rtw89_completion_data data = {};
+	struct rtw89_mac_mrc_tsf_rpt *rpt;
+	unsigned int i;
+
+	c2h_rpt = (const struct rtw89_c2h_mrc_tsf_rpt *)c2h->data;
+	rpt = (struct rtw89_mac_mrc_tsf_rpt *)data.buf;
+	rpt->num = min_t(u8, RTW89_MAC_MRC_MAX_REQ_TSF_NUM,
+			 le32_get_bits(c2h_rpt->w2,
+				       RTW89_C2H_MRC_TSF_RPT_W2_REQ_TSF_NUM));
+
+	for (i = 0; i < rpt->num; i++) {
+		u32 tsf_high = le32_to_cpu(c2h_rpt->infos[i].tsf_high);
+		u32 tsf_low = le32_to_cpu(c2h_rpt->infos[i].tsf_low);
+
+		rpt->tsfs[i] = (u64)tsf_high << 32 | tsf_low;
+
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "MRC C2H TSF RPT: index %u> %llu\n",
+			    i, rpt->tsfs[i]);
+	}
+
+	rtw89_complete_cond(wait, RTW89_MRC_WAIT_COND_REQ_TSF, &data);
+}
+
+static void
+rtw89_mac_c2h_mrc_status_rpt(struct rtw89_dev *rtwdev, struct sk_buff *c2h, u32 len)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	const struct rtw89_c2h_mrc_status_rpt *c2h_rpt;
+	struct rtw89_completion_data data = {};
+	enum rtw89_mac_mrc_status status;
+	unsigned int cond;
+	bool next = false;
+	u32 tsf_high;
+	u32 tsf_low;
+	u8 sch_idx;
+	u8 func;
+
+	c2h_rpt = (const struct rtw89_c2h_mrc_status_rpt *)c2h->data;
+	sch_idx = le32_get_bits(c2h_rpt->w2, RTW89_C2H_MRC_STATUS_RPT_W2_SCH_IDX);
+	status = le32_get_bits(c2h_rpt->w2, RTW89_C2H_MRC_STATUS_RPT_W2_STATUS);
+	tsf_high = le32_to_cpu(c2h_rpt->tsf_high);
+	tsf_low = le32_to_cpu(c2h_rpt->tsf_low);
+
+	switch (status) {
+	case RTW89_MAC_MRC_START_SCH_OK:
+		func = H2C_FUNC_START_MRC;
+		break;
+	case RTW89_MAC_MRC_STOP_SCH_OK:
+		/* H2C_FUNC_DEL_MRC without STOP_ONLY, so wait for DEL_SCH_OK */
+		func = H2C_FUNC_DEL_MRC;
+		next = true;
+		break;
+	case RTW89_MAC_MRC_DEL_SCH_OK:
+		func = H2C_FUNC_DEL_MRC;
+		break;
+	default:
+		rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+			    "invalid MRC C2H STS RPT: status %d\n", status);
+		return;
+	}
+
+	rtw89_debug(rtwdev, RTW89_DBG_CHAN,
+		    "MRC C2H STS RPT: sch_idx %d, status %d, tsf %llu\n",
+		    sch_idx, status, (u64)tsf_high << 32 | tsf_low);
+
+	if (next)
+		return;
+
+	cond = RTW89_MRC_WAIT_COND(sch_idx, func);
+	rtw89_complete_cond(wait, cond, &data);
+}
+
 static
 void (* const rtw89_mac_c2h_ofld_handler[])(struct rtw89_dev *rtwdev,
 					    struct sk_buff *c2h, u32 len) = {
@@ -5128,6 +5206,13 @@ void (* const rtw89_mac_c2h_mcc_handler[])(struct rtw89_dev *rtwdev,
 	[RTW89_MAC_C2H_FUNC_MCC_REQ_ACK] = rtw89_mac_c2h_mcc_req_ack,
 	[RTW89_MAC_C2H_FUNC_MCC_TSF_RPT] = rtw89_mac_c2h_mcc_tsf_rpt,
 	[RTW89_MAC_C2H_FUNC_MCC_STATUS_RPT] = rtw89_mac_c2h_mcc_status_rpt,
+};
+
+static
+void (* const rtw89_mac_c2h_mrc_handler[])(struct rtw89_dev *rtwdev,
+					   struct sk_buff *c2h, u32 len) = {
+	[RTW89_MAC_C2H_FUNC_MRC_TSF_RPT] = rtw89_mac_c2h_mrc_tsf_rpt,
+	[RTW89_MAC_C2H_FUNC_MRC_STATUS_RPT] = rtw89_mac_c2h_mrc_status_rpt,
 };
 
 static void rtw89_mac_c2h_scanofld_rsp_atomic(struct rtw89_dev *rtwdev,
@@ -5180,6 +5265,8 @@ bool rtw89_mac_c2h_chk_atomic(struct rtw89_dev *rtwdev, struct sk_buff *c2h,
 		}
 	case RTW89_MAC_C2H_CLASS_MCC:
 		return true;
+	case RTW89_MAC_C2H_CLASS_MRC:
+		return true;
 	}
 }
 
@@ -5201,6 +5288,10 @@ void rtw89_mac_c2h_handle(struct rtw89_dev *rtwdev, struct sk_buff *skb,
 	case RTW89_MAC_C2H_CLASS_MCC:
 		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MCC)
 			handler = rtw89_mac_c2h_mcc_handler[func];
+		break;
+	case RTW89_MAC_C2H_CLASS_MRC:
+		if (func < NUM_OF_RTW89_MAC_C2H_FUNC_MRC)
+			handler = rtw89_mac_c2h_mrc_handler[func];
 		break;
 	case RTW89_MAC_C2H_CLASS_FWDBG:
 		return;

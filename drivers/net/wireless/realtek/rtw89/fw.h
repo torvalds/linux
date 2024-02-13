@@ -3474,6 +3474,8 @@ struct rtw89_h2c_mrc_del {
 #define RTW89_H2C_MRC_DEL_W0_STOP_SLOT_IDX GENMASK(15, 8)
 #define RTW89_H2C_MRC_DEL_W0_SPECIFIC_ROLE_MACID GENMASK(31, 16)
 
+#define RTW89_MAC_MRC_MAX_REQ_TSF_NUM 2
+
 struct rtw89_h2c_mrc_req_tsf {
 	u8 req_tsf_num;
 	u8 infos[] __counted_by(req_tsf_num);
@@ -3709,6 +3711,13 @@ static_assert(sizeof(struct rtw89_mac_mcc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE)
 	le32_get_bits(*((const __le32 *)(c2h) + 3), GENMASK(31, 0))
 #define RTW89_GET_MAC_C2H_MCC_STATUS_RPT_TSF_HIGH(c2h) \
 	le32_get_bits(*((const __le32 *)(c2h) + 4), GENMASK(31, 0))
+
+struct rtw89_mac_mrc_tsf_rpt {
+	unsigned int num;
+	u64 tsfs[RTW89_MAC_MRC_MAX_REQ_TSF_NUM];
+};
+
+static_assert(sizeof(struct rtw89_mac_mrc_tsf_rpt) <= RTW89_COMPLETION_BUF_SIZE);
 
 struct rtw89_c2h_mrc_tsf_rpt_info {
 	__le32 tsf_low;
@@ -4129,7 +4138,16 @@ enum rtw89_mrc_h2c_func {
 	H2C_FUNC_MRC_SYNC		= 0x4,
 	H2C_FUNC_MRC_UPD_DURATION	= 0x5,
 	H2C_FUNC_MRC_UPD_BITMAP		= 0x6,
+
+	NUM_OF_RTW89_MRC_H2C_FUNC,
 };
+
+/* can consider MRC's sch_idx as MCC's group */
+#define RTW89_MRC_WAIT_COND(sch_idx, func) \
+	((sch_idx) * NUM_OF_RTW89_MRC_H2C_FUNC + (func))
+
+#define RTW89_MRC_WAIT_COND_REQ_TSF \
+	RTW89_MRC_WAIT_COND(0 /* don't care */, H2C_FUNC_MRC_REQ_TSF)
 
 #define H2C_CAT_OUTSRC			0x2
 

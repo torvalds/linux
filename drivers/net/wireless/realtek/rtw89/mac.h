@@ -409,6 +409,8 @@ enum rtw89_mac_c2h_mcc_func {
 enum rtw89_mac_c2h_mrc_func {
 	RTW89_MAC_C2H_FUNC_MRC_TSF_RPT = 0,
 	RTW89_MAC_C2H_FUNC_MRC_STATUS_RPT = 1,
+
+	NUM_OF_RTW89_MAC_C2H_FUNC_MRC,
 };
 
 enum rtw89_mac_c2h_class {

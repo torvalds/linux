@@ -3918,7 +3918,7 @@ enum rtw89_host_rpr_mode {
 	RTW89_RPR_MODE_STF
 };
 
-#define RTW89_COMPLETION_BUF_SIZE 24
+#define RTW89_COMPLETION_BUF_SIZE 40
 #define RTW89_WAIT_COND_IDLE UINT_MAX
 
 struct rtw89_completion_data {
