@@ -587,7 +587,7 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
 	return ret;
 }
 
-void __init default_find_smp_config(void)
+void __init mpparse_find_mptable(void)
 {
 	unsigned int address;
 
