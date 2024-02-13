@@ -94,10 +94,6 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 		q->parallel.composite_fence_ctx = dma_fence_context_alloc(1);
 		q->parallel.composite_fence_seqno = XE_FENCE_INITIAL_SEQNO;
 	}
-	if (q->flags & EXEC_QUEUE_FLAG_VM) {
-		q->bind.fence_ctx = dma_fence_context_alloc(1);
-		q->bind.fence_seqno = XE_FENCE_INITIAL_SEQNO;
-	}
 
 	return q;
 }

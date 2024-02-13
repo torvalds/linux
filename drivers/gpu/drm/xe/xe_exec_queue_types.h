@@ -115,26 +115,15 @@ struct xe_exec_queue {
 		struct list_head link;
 	} persistent;
 
-	union {
-		/**
-		 * @parallel: parallel submission state
-		 */
-		struct {
-			/** @parallel.composite_fence_ctx: context composite fence */
-			u64 composite_fence_ctx;
-			/** @parallel.composite_fence_seqno: seqno for composite fence */
-			u32 composite_fence_seqno;
-		} parallel;
-		/**
-		 * @bind: bind submission state
-		 */
-		struct {
-			/** @bind.fence_ctx: context bind fence */
-			u64 fence_ctx;
-			/** @bind.fence_seqno: seqno for bind fence */
-			u32 fence_seqno;
-		} bind;
-	};
+	/**
+	 * @parallel: parallel submission state
+	 */
+	struct {
+		/** @parallel.composite_fence_ctx: context composite fence */
+		u64 composite_fence_ctx;
+		/** @parallel.composite_fence_seqno: seqno for composite fence */
+		u32 composite_fence_seqno;
+	} parallel;
 
 	/** @sched_props: scheduling properties */
 	struct {
