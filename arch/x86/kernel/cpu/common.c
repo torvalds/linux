@@ -73,8 +73,8 @@
 u32 elf_hwcap2 __read_mostly;
 
 /* Number of siblings per CPU package */
-unsigned int smp_num_siblings __ro_after_init = 1;
-EXPORT_SYMBOL(smp_num_siblings);
+unsigned int __max_threads_per_core __ro_after_init = 1;
+EXPORT_SYMBOL(__max_threads_per_core);
 
 unsigned int __max_dies_per_package __ro_after_init = 1;
 EXPORT_SYMBOL(__max_dies_per_package);
@@ -2251,7 +2251,7 @@ void __init arch_cpu_finalize_init(void)
 	 * identify_boot_cpu() initialized SMT support information, let the
 	 * core code know.
 	 */
-	cpu_smt_set_num_threads(smp_num_siblings, smp_num_siblings);
+	cpu_smt_set_num_threads(__max_threads_per_core, __max_threads_per_core);
 
 	if (!IS_ENABLED(CONFIG_SMP)) {
 		pr_info("CPU: ");

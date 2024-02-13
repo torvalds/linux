@@ -181,7 +181,7 @@ static inline u64 p4_clear_ht_bit(u64 config)
 static inline int p4_ht_active(void)
 {
 #ifdef CONFIG_SMP
-	return smp_num_siblings > 1;
+	return __max_threads_per_core > 1;
 #endif
 	return 0;
 }
@@ -189,7 +189,7 @@ static inline int p4_ht_active(void)
 static inline int p4_ht_thread(int cpu)
 {
 #ifdef CONFIG_SMP
-	if (smp_num_siblings == 2)
+	if (__max_threads_per_core == 2)
 		return cpu != cpumask_first(this_cpu_cpumask_var_ptr(cpu_sibling_map));
 #endif
 	return 0;

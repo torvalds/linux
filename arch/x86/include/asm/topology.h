@@ -145,6 +145,7 @@ extern const struct cpumask *cpu_clustergroup_mask(int cpu);
 
 extern unsigned int __max_dies_per_package;
 extern unsigned int __max_logical_packages;
+extern unsigned int __max_threads_per_core;
 
 static inline unsigned int topology_max_packages(void)
 {

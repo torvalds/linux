@@ -76,7 +76,7 @@ bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 #ifdef CONFIG_SMP
 static void cpu_mark_primary_thread(unsigned int cpu, unsigned int apicid)
 {
-	if (!(apicid & (smp_num_siblings - 1)))
+	if (!(apicid & (__max_threads_per_core - 1)))
 		cpumask_set_cpu(cpu, &__cpu_primary_thread_mask);
 }
 #else
@@ -429,8 +429,8 @@ void __init topology_init_possible_cpus(void)
 	 * Can't use order delta here as order(cnta) can be equal
 	 * order(cntb) even if cnta != cntb.
 	 */
-	smp_num_siblings = DIV_ROUND_UP(cntb, cnta);
-	pr_info("Max. threads per core: %3u\n", smp_num_siblings);
+	__max_threads_per_core = DIV_ROUND_UP(cntb, cnta);
+	pr_info("Max. threads per core: %3u\n", __max_threads_per_core);
 
 	pr_info("Allowing %u present CPUs plus %u hotplug CPUs\n", assigned, disabled);
 	if (topo_info.nr_rejected_cpus)

@@ -8,8 +8,6 @@
 #include <asm/current.h>
 #include <asm/thread_info.h>
 
-extern unsigned int smp_num_siblings;
-
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_core_map);
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_die_map);
