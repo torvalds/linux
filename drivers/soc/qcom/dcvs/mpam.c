@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -97,6 +97,7 @@ static struct platform_driver qcom_mpam_driver = {
 	.driver = {
 		.name = "qcom-mpam",
 		.of_match_table = qcom_mpam_table,
+		.suppress_bind_attrs = true,
 	},
 	.probe = mpam_dev_probe,
 };
