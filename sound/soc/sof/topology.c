@@ -2356,23 +2356,29 @@ static int sof_dspless_widget_ready(struct snd_soc_component *scomp, int index,
 	if (WIDGET_IS_DAI(w->id)) {
 		struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 		struct snd_sof_widget *swidget;
-		struct snd_sof_dai dai;
+		struct snd_sof_dai *sdai;
 		int ret;
 
 		swidget = kzalloc(sizeof(*swidget), GFP_KERNEL);
 		if (!swidget)
 			return -ENOMEM;
 
-		memset(&dai, 0, sizeof(dai));
+		sdai = kzalloc(sizeof(*sdai), GFP_KERNEL);
+		if (!sdai) {
+			kfree(swidget);
+			return -ENOMEM;
+		}
 
-		ret = sof_connect_dai_widget(scomp, w, tw, &dai);
+		ret = sof_connect_dai_widget(scomp, w, tw, sdai);
 		if (ret) {
 			kfree(swidget);
+			kfree(sdai);
 			return ret;
 		}
 
 		swidget->scomp = scomp;
 		swidget->widget = w;
+		swidget->private = sdai;
 		mutex_init(&swidget->setup_mutex);
 		w->dobj.private = swidget;
 		list_add(&swidget->list, &sdev->widget_list);
@@ -2396,6 +2402,7 @@ static int sof_dspless_widget_unload(struct snd_soc_component *scomp,
 
 		/* remove and free swidget object */
 		list_del(&swidget->list);
+		kfree(swidget->private);
 		kfree(swidget);
 	}
 
