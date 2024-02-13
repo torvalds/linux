@@ -146,6 +146,8 @@ extern const struct cpumask *cpu_clustergroup_mask(int cpu);
 extern unsigned int __max_dies_per_package;
 extern unsigned int __max_logical_packages;
 extern unsigned int __max_threads_per_core;
+extern unsigned int __num_threads_per_package;
+extern unsigned int __num_cores_per_package;
 
 static inline unsigned int topology_max_packages(void)
 {
@@ -155,6 +157,16 @@ static inline unsigned int topology_max_packages(void)
 static inline unsigned int topology_max_dies_per_package(void)
 {
 	return __max_dies_per_package;
+}
+
+static inline unsigned int topology_num_cores_per_package(void)
+{
+	return __num_cores_per_package;
+}
+
+static inline unsigned int topology_num_threads_per_package(void)
+{
+	return __num_threads_per_package;
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
