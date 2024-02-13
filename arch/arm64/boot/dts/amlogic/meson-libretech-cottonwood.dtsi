@@ -150,7 +150,7 @@
 		gpio-open-drain;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -171,7 +171,7 @@
 		pwm-dutycycle-range = <100 0>;
 	};
 
-	vddio_ao18: regulator-vddio_ao18 {
+	vddio_ao18: regulator-vddio-ao18 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO18";
 		regulator-min-microvolt = <1800000>;
@@ -180,7 +180,7 @@
 		vin-supply = <&vddao_3v3>;
 	};
 
-	vddio_c: regulator-vddio_c {
+	vddio_c: regulator-vddio-c {
 		compatible = "regulator-gpio";
 		regulator-name = "VDDIO_C";
 		regulator-min-microvolt = <1800000>;

@@ -66,7 +66,7 @@
 		clock-names = "ext_clock";
 	};
 
-	flash_1v8: regulator-flash_1v8 {
+	flash_1v8: regulator-flash-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "FLASH_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -75,7 +75,7 @@
 		regulator-always-on;
 	};
 
-	dc_in: regulator-dc_in {
+	dc_in: regulator-dc-in {
 		compatible = "regulator-fixed";
 		regulator-name = "DC_IN";
 		regulator-min-microvolt = <5000000>;
@@ -83,7 +83,7 @@
 		regulator-always-on;
 	};
 
-	vcc_1v8: regulator-vcc_1v8 {
+	vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -92,7 +92,7 @@
 		regulator-always-on;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -102,7 +102,7 @@
 		/* FIXME: actually controlled by VDDCPU_B_EN */
 	};
 
-	vcc_5v: regulator-vcc_5v {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_5V";
 		regulator-min-microvolt = <5000000>;
@@ -112,7 +112,7 @@
 		gpio = <&gpio GPIOH_8 GPIO_OPEN_DRAIN>;
 	};
 
-	vddao_1v8: regulator-vddao_1v8 {
+	vddao_1v8: regulator-vddao-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -121,7 +121,7 @@
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;

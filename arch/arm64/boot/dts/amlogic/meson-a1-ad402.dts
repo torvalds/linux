@@ -106,7 +106,7 @@
 	pinctrl-0 = <&spifc_pins>;
 	pinctrl-names = "default";
 
-	spi_nand@0 {
+	flash@0 {
 		compatible = "spi-nand";
 		status = "okay";
 		reg = <0>;

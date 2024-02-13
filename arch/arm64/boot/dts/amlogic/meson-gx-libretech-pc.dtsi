@@ -84,7 +84,7 @@
 		reg = <0x0 0x0 0x0 0x80000000>;
 	};
 
-	ao_5v: regulator-ao_5v {
+	ao_5v: regulator-ao-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "AO_5V";
 		regulator-min-microvolt = <5000000>;
@@ -93,7 +93,7 @@
 		regulator-always-on;
 	};
 
-	dc_in: regulator-dc_in {
+	dc_in: regulator-dc-in {
 		compatible = "regulator-fixed";
 		regulator-name = "DC_IN";
 		regulator-min-microvolt = <5000000>;
@@ -120,7 +120,7 @@
 		};
 	};
 
-	vcc_card: regulator-vcc_card {
+	vcc_card: regulator-vcc-card {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_CARD";
 		regulator-min-microvolt = <3300000>;
@@ -141,7 +141,7 @@
 		gpio = <&gpio GPIOH_3 GPIO_OPEN_DRAIN>;
 	};
 
-	vddio_ao18: regulator-vddio_ao18 {
+	vddio_ao18: regulator-vddio-ao18 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO18";
 		regulator-min-microvolt = <1800000>;
@@ -150,7 +150,7 @@
 		regulator-always-on;
 	};
 
-	vddio_ao3v3: regulator-vddio_ao3v3 {
+	vddio_ao3v3: regulator-vddio-ao3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO3V3";
 		regulator-min-microvolt = <3300000>;
@@ -159,7 +159,7 @@
 		regulator-always-on;
 	};
 
-	vddio_boot: regulator-vddio_boot {
+	vddio_boot: regulator-vddio-boot {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_BOOT";
 		regulator-min-microvolt = <1800000>;

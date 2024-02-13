@@ -43,7 +43,7 @@
 	};
 
 	/* Powers the SATA Disk 0 regulator, which is enabled when a disk load is detected */
-	p12v_0: regulator-p12v_0 {
+	p12v_0: regulator-p12v-0 {
 		compatible = "regulator-fixed";
 		regulator-name = "P12V_0";
 		regulator-min-microvolt = <12000000>;
@@ -56,7 +56,7 @@
 	};
 
 	/* Powers the SATA Disk 1 regulator, which is enabled when a disk load is detected */
-	p12v_1: regulator-p12v_1 {
+	p12v_1: regulator-p12v-1 {
 		compatible = "regulator-fixed";
 		regulator-name = "P12V_1";
 		regulator-min-microvolt = <12000000>;
