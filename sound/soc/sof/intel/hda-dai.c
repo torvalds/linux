@@ -83,12 +83,8 @@ hda_dai_get_ops(struct snd_pcm_substream *substream, struct snd_soc_dai *cpu_dai
 
 	sdev = widget_to_sdev(w);
 
-	/*
-	 * The swidget parameter of hda_select_dai_widget_ops() is ignored in
-	 * case of DSPless mode
-	 */
 	if (sdev->dspless_mode_selected)
-		return hda_select_dai_widget_ops(sdev, NULL);
+		return hda_select_dai_widget_ops(sdev, swidget);
 
 	sdai = swidget->private;
 
