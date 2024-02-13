@@ -98,7 +98,8 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 	memcpy(&sof_lnl_ops, &sof_hda_common_ops, sizeof(struct snd_sof_dsp_ops));
 
 	/* probe */
-	sof_lnl_ops.probe = lnl_hda_dsp_probe;
+	if (!sdev->dspless_mode_selected)
+		sof_lnl_ops.probe = lnl_hda_dsp_probe;
 
 	/* shutdown */
 	sof_lnl_ops.shutdown = hda_dsp_shutdown;
@@ -128,8 +129,10 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 	/* TODO: add core_get and core_put */
 
 	/* PM */
-	sof_lnl_ops.resume			= lnl_hda_dsp_resume;
-	sof_lnl_ops.runtime_resume		= lnl_hda_dsp_runtime_resume;
+	if (!sdev->dspless_mode_selected) {
+		sof_lnl_ops.resume = lnl_hda_dsp_resume;
+		sof_lnl_ops.runtime_resume = lnl_hda_dsp_runtime_resume;
+	}
 
 	sof_lnl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
 
