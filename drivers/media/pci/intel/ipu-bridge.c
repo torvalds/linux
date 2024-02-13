@@ -766,6 +766,8 @@ static int ipu_bridge_check_fwnode_graph(struct fwnode_handle *fwnode)
 	return ipu_bridge_check_fwnode_graph(fwnode->secondary);
 }
 
+static DEFINE_MUTEX(ipu_bridge_mutex);
+
 int ipu_bridge_init(struct device *dev,
 		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode)
 {
@@ -773,6 +775,8 @@ int ipu_bridge_init(struct device *dev,
 	struct ipu_bridge *bridge;
 	unsigned int i;
 	int ret;
+
+	guard(mutex)(&ipu_bridge_mutex);
 
 	if (!ipu_bridge_check_fwnode_graph(dev_fwnode(dev)))
 		return 0;
