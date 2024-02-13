@@ -25,6 +25,7 @@
 #include "xe_reg_sr.h"
 #include "xe_rtp.h"
 #include "xe_sched_job.h"
+#include "xe_sriov.h"
 #include "xe_tuning.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
@@ -766,6 +767,10 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	snapshot->forcewake.ref = xe_force_wake_ref(gt_to_fw(hwe->gt),
 						    hwe->domain);
 	snapshot->mmio_base = hwe->mmio_base;
+
+	/* no more VF accessible data below this point */
+	if (IS_SRIOV_VF(gt_to_xe(hwe->gt)))
+		return snapshot;
 
 	snapshot->reg.ring_execlist_status =
 		hw_engine_mmio_read32(hwe, RING_EXECLIST_STATUS_LO(0));
