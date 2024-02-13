@@ -77,7 +77,7 @@ static bool fake_topology(struct topo_scan *tscan)
 	topology_set_dom(tscan, TOPO_SMT_DOMAIN, 0, 1);
 	topology_set_dom(tscan, TOPO_CORE_DOMAIN, 0, 1);
 
-	return tscan->c->cpuid_level < 1 || xen_pv_domain();
+	return tscan->c->cpuid_level < 1;
 }
 
 static void parse_topology(struct topo_scan *tscan, bool early)

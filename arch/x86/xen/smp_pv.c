@@ -156,11 +156,9 @@ static void __init xen_pv_smp_config(void)
 
 	topology_register_boot_apic(apicid++);
 
-	for (i = 1; i < nr_cpu_ids; i++) {
-		if (HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL) < 0)
-			break;
+	for (i = 1; i < nr_cpu_ids; i++)
 		topology_register_apic(apicid++, CPU_ACPIID_INVALID, true);
-	}
+
 	/* Pretend to be a proper enumerated system */
 	smp_found_config = 1;
 }
@@ -451,5 +449,10 @@ void __init xen_smp_init(void)
 	/* Avoid searching for BIOS MP tables */
 	x86_init.mpparse.find_mptable		= x86_init_noop;
 	x86_init.mpparse.early_parse_smp_cfg	= x86_init_noop;
-	x86_init.mpparse.parse_smp_cfg		= xen_pv_smp_config;
+
+	/* XEN/PV Dom0 has halfways sane topology information via CPUID/MADT */
+	if (xen_initial_domain())
+		x86_init.mpparse.parse_smp_cfg	= x86_init_noop;
+	else
+		x86_init.mpparse.parse_smp_cfg	= xen_pv_smp_config;
 }

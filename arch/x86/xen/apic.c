@@ -43,19 +43,19 @@ static u32 xen_apic_read(u32 reg)
 	struct xen_platform_op op = {
 		.cmd = XENPF_get_cpuinfo,
 		.interface_version = XENPF_INTERFACE_VERSION,
-		.u.pcpu_info.xen_cpuid = 0,
 	};
-	int ret;
-
-	/* Shouldn't need this as APIC is turned off for PV, and we only
-	 * get called on the bootup processor. But just in case. */
-	if (!xen_initial_domain() || smp_processor_id())
-		return 0;
+	int ret, cpu;
 
 	if (reg == APIC_LVR)
 		return 0x14;
 	if (reg != APIC_ID)
 		return 0;
+
+	cpu = smp_processor_id();
+	if (!xen_initial_domain())
+		return cpu ? cpuid_to_apicid[cpu] << 24 : 0;
+
+	op.u.pcpu_info.xen_cpuid = cpu;
 
 	ret = HYPERVISOR_platform_op(&op);
 	if (ret)
