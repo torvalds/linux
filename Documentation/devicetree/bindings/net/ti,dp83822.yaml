@@ -62,6 +62,24 @@ properties:
        for the PHY.  The internal delay for the PHY is fixed to 3.5ns relative
        to transmit data.
 
+  ti,cfg-dac-minus-one-bp:
+    description: |
+       DP83826 PHY only.
+       Sets the voltage ratio (with respect to the nominal value)
+       of the logical level -1 for the MLT-3 encoded TX data.
+    enum: [5000, 5625, 6250, 6875, 7500, 8125, 8750, 9375, 10000,
+           10625, 11250, 11875, 12500, 13125, 13750, 14375, 15000]
+    default: 10000
+
+  ti,cfg-dac-plus-one-bp:
+    description: |
+       DP83826 PHY only.
+       Sets the voltage ratio (with respect to the nominal value)
+       of the logical level +1 for the MLT-3 encoded TX data.
+    enum: [5000, 5625, 6250, 6875, 7500, 8125, 8750, 9375, 10000,
+           10625, 11250, 11875, 12500, 13125, 13750, 14375, 15000]
+    default: 10000
+
 required:
   - reg
 
