@@ -967,6 +967,8 @@ static int rproc_panic_handler(struct notifier_block *this,
 	struct qcom_adsp *adsp = container_of(this, struct qcom_adsp, panic_blk);
 	int ret;
 
+	if (!adsp)
+		return NOTIFY_DONE;
 	/* wake up SOCCP during panic to run error handlers on SOCCP */
 	dev_info(adsp->dev, "waking SOCCP from panic path\n");
 	ret = qcom_smem_state_update_bits(adsp->wake_state,
