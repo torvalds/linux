@@ -284,7 +284,7 @@ static const char * __must_check get_page_state_name(enum vdo_page_buffer_state 
 {
 	int result;
 	static const char * const state_names[] = {
-		"UDS_FREE", "INCOMING", "FAILED", "RESIDENT", "DIRTY", "OUTGOING"
+		"FREE", "INCOMING", "FAILED", "RESIDENT", "DIRTY", "OUTGOING"
 	};
 
 	BUILD_BUG_ON(ARRAY_SIZE(state_names) != PAGE_STATE_COUNT);
