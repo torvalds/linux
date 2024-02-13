@@ -73,7 +73,6 @@ static void cpu_bringup(void)
 	}
 	cpu = smp_processor_id();
 	smp_store_cpu_info(cpu);
-	cpu_data(cpu).x86_max_cores = 1;
 	set_cpu_sibling_map(cpu);
 
 	speculative_store_bypass_ht_init();
@@ -223,8 +222,6 @@ static void __init xen_pv_smp_prepare_cpus(unsigned int max_cpus)
 	xen_init_lock_cpu(0);
 
 	smp_prepare_cpus_common();
-
-	cpu_data(0).x86_max_cores = 1;
 
 	speculative_store_bypass_ht_init();
 
