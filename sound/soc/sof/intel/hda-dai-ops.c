@@ -633,12 +633,11 @@ hda_select_dai_widget_ops(struct snd_sof_dev *sdev, struct snd_sof_widget *swidg
 	{
 		struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
 		struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
-		struct sof_ipc4_copier *ipc4_copier = sdai->private;
 		const struct sof_intel_dsp_desc *chip;
 
 		chip = get_chip_info(sdev->pdata);
 
-		switch (ipc4_copier->dai_type) {
+		switch (sdai->type) {
 		case SOF_DAI_INTEL_HDA:
 			if (pipeline->use_chain_dma)
 				return &hda_ipc4_chain_dma_ops;
