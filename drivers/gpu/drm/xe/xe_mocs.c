@@ -13,6 +13,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_sriov.h"
 #include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
@@ -538,6 +539,9 @@ void xe_mocs_init(struct xe_gt *gt)
 {
 	struct xe_mocs_info table;
 	unsigned int flags;
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
 
 	/*
 	 * MOCS settings are split between "GLOB_MOCS" and/or "LNCFCMOCS"
