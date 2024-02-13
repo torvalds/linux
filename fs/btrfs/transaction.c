@@ -1957,19 +1957,6 @@ static void update_super_roots(struct btrfs_fs_info *fs_info)
 		super->uuid_tree_generation = root_item->generation;
 }
 
-int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
-{
-	struct btrfs_transaction *trans;
-	int ret = 0;
-
-	spin_lock(&info->trans_lock);
-	trans = info->running_transaction;
-	if (trans)
-		ret = (trans->state >= TRANS_STATE_COMMIT_START);
-	spin_unlock(&info->trans_lock);
-	return ret;
-}
-
 int btrfs_transaction_blocked(struct btrfs_fs_info *info)
 {
 	struct btrfs_transaction *trans;

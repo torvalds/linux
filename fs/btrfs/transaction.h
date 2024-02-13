@@ -277,7 +277,6 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 				struct extent_io_tree *dirty_pages, int mark);
 int btrfs_wait_tree_log_extents(struct btrfs_root *root, int mark);
 int btrfs_transaction_blocked(struct btrfs_fs_info *info);
-int btrfs_transaction_in_commit(struct btrfs_fs_info *info);
 void btrfs_put_transaction(struct btrfs_transaction *transaction);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
