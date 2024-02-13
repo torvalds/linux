@@ -745,11 +745,6 @@ static void uv_send_IPI_all(int vector)
 	uv_send_IPI_mask(cpu_online_mask, vector);
 }
 
-static u32 set_apic_id(u32 id)
-{
-	return id;
-}
-
 static int uv_probe(void)
 {
 	return apic == &apic_x2apic_uv_x;
@@ -769,7 +764,6 @@ static struct apic apic_x2apic_uv_x __ro_after_init = {
 
 	.max_apic_id			= UINT_MAX,
 	.get_apic_id			= x2apic_get_apic_id,
-	.set_apic_id			= set_apic_id,
 
 	.calc_dest_apicid		= apic_default_calc_apicid,
 

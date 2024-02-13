@@ -2485,9 +2485,6 @@ EXPORT_SYMBOL_GPL(x86_msi_msg_get_destid);
 
 static void __init apic_bsp_up_setup(void)
 {
-#ifdef CONFIG_X86_64
-	apic_write(APIC_ID, apic->set_apic_id(boot_cpu_physical_apicid));
-#endif
 	reset_phys_cpu_present_map(boot_cpu_physical_apicid);
 }
 

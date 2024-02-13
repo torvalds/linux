@@ -72,7 +72,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 
 	.max_apic_id			= 0xFE,
 	.get_apic_id			= bigsmp_get_apic_id,
-	.set_apic_id			= NULL,
 
 	.calc_dest_apicid		= apic_default_calc_apicid,
 
