@@ -545,7 +545,7 @@ static int ena_alloc_rx_buffer(struct ena_ring *rx_ring,
 
 	/* We handle DMA here */
 	page = ena_alloc_map_page(rx_ring, &dma);
-	if (unlikely(IS_ERR(page)))
+	if (IS_ERR(page))
 		return PTR_ERR(page);
 
 	netif_dbg(rx_ring->adapter, rx_status, rx_ring->netdev,
