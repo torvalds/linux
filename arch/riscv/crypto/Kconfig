@@ -3,14 +3,14 @@
 menu "Accelerated Cryptographic Algorithms for CPU (riscv)"
 
 config CRYPTO_AES_RISCV64
-	tristate "Ciphers: AES, modes: ECB, CBC, CTR, XTS"
+	tristate "Ciphers: AES, modes: ECB, CBC, CTS, CTR, XTS"
 	depends on 64BIT && RISCV_ISA_V && TOOLCHAIN_HAS_VECTOR_CRYPTO
 	select CRYPTO_ALGAPI
 	select CRYPTO_LIB_AES
 	select CRYPTO_SKCIPHER
 	help
 	  Block cipher: AES cipher algorithms
-	  Length-preserving ciphers: AES with ECB, CBC, CTR, XTS
+	  Length-preserving ciphers: AES with ECB, CBC, CTS, CTR, XTS
 
 	  Architecture: riscv64 using:
 	  - Zvkned vector crypto extension
