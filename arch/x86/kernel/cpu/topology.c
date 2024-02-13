@@ -32,17 +32,12 @@ static struct {
 	unsigned int		nr_disabled_cpus;
 	unsigned int		nr_rejected_cpus;
 	u32			boot_cpu_apic_id;
+	u32			real_bsp_apic_id;
 } topo_info __read_mostly = {
 	.nr_assigned_cpus	= 1,
 	.boot_cpu_apic_id	= BAD_APICID,
+	.real_bsp_apic_id	= BAD_APICID,
 };
-
-/*
- * Processor to be disabled specified by kernel parameter
- * disable_cpu_apicid=<int>, mostly used for the kdump 2nd kernel to
- * avoid undefined behaviour caused by sending INIT from AP to BSP.
- */
-static u32 disabled_cpu_apicid __ro_after_init = BAD_APICID;
 
 bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 {
@@ -123,34 +118,40 @@ static void topo_set_cpuids(unsigned int cpu, u32 apic_id, u32 acpi_id)
 		cpu_mark_primary_thread(cpu, apic_id);
 }
 
-/**
- * topology_register_apic - Register an APIC in early topology maps
- * @apic_id:	The APIC ID to set up
- * @acpi_id:	The ACPI ID associated to the APIC
- * @present:	True if the corresponding CPU is present
- */
-void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
+static __init bool check_for_real_bsp(u32 apic_id)
+{
+	/*
+	 * There is no real good way to detect whether this a kdump()
+	 * kernel, but except on the Voyager SMP monstrosity which is not
+	 * longer supported, the real BSP APIC ID is the first one which is
+	 * enumerated by firmware. That allows to detect whether the boot
+	 * CPU is the real BSP. If it is not, then do not register the APIC
+	 * because sending INIT to the real BSP would reset the whole
+	 * system.
+	 *
+	 * The first APIC ID which is enumerated by firmware is detectable
+	 * because the boot CPU APIC ID is registered before that without
+	 * invoking this code.
+	 */
+	if (topo_info.real_bsp_apic_id != BAD_APICID)
+		return false;
+
+	if (apic_id == topo_info.boot_cpu_apic_id) {
+		topo_info.real_bsp_apic_id = apic_id;
+		return false;
+	}
+
+	pr_warn("Boot CPU APIC ID not the first enumerated APIC ID: %x > %x\n",
+		topo_info.boot_cpu_apic_id, apic_id);
+	pr_warn("Crash kernel detected. Disabling real BSP to prevent machine INIT\n");
+
+	topo_info.real_bsp_apic_id = apic_id;
+	return true;
+}
+
+static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 {
 	int cpu;
-
-	if (apic_id >= MAX_LOCAL_APIC) {
-		pr_err_once("APIC ID %x exceeds kernel limit of: %x\n", apic_id, MAX_LOCAL_APIC - 1);
-		topo_info.nr_rejected_cpus++;
-		return;
-	}
-
-	if (disabled_cpu_apicid == apic_id) {
-		pr_info("Disabling CPU as requested via 'disable_cpu_apicid=0x%x'.\n", apic_id);
-		topo_info.nr_rejected_cpus++;
-		return;
-	}
-
-	/* CPU numbers exhausted? */
-	if (apic_id != topo_info.boot_cpu_apic_id && topo_info.nr_assigned_cpus >= nr_cpu_ids) {
-		pr_warn_once("CPU limit of %d reached. Ignoring further CPUs\n", nr_cpu_ids);
-		topo_info.nr_rejected_cpus++;
-		return;
-	}
 
 	if (present) {
 		set_bit(apic_id, phys_cpu_present_map);
@@ -172,6 +173,35 @@ void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
 }
 
 /**
+ * topology_register_apic - Register an APIC in early topology maps
+ * @apic_id:	The APIC ID to set up
+ * @acpi_id:	The ACPI ID associated to the APIC
+ * @present:	True if the corresponding CPU is present
+ */
+void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
+{
+	if (apic_id >= MAX_LOCAL_APIC) {
+		pr_err_once("APIC ID %x exceeds kernel limit of: %x\n", apic_id, MAX_LOCAL_APIC - 1);
+		topo_info.nr_rejected_cpus++;
+		return;
+	}
+
+	if (check_for_real_bsp(apic_id)) {
+		topo_info.nr_rejected_cpus++;
+		return;
+	}
+
+	/* CPU numbers exhausted? */
+	if (apic_id != topo_info.boot_cpu_apic_id && topo_info.nr_assigned_cpus >= nr_cpu_ids) {
+		pr_warn_once("CPU limit of %d reached. Ignoring further CPUs\n", nr_cpu_ids);
+		topo_info.nr_rejected_cpus++;
+		return;
+	}
+
+	topo_register_apic(apic_id, acpi_id, present);
+}
+
+/**
  * topology_register_boot_apic - Register the boot CPU APIC
  * @apic_id:	The APIC ID to set up
  *
@@ -182,7 +212,7 @@ void __init topology_register_boot_apic(u32 apic_id)
 	WARN_ON_ONCE(topo_info.boot_cpu_apic_id != BAD_APICID);
 
 	topo_info.boot_cpu_apic_id = apic_id;
-	topology_register_apic(apic_id, CPU_ACPIID_INVALID, true);
+	topo_register_apic(apic_id, CPU_ACPIID_INVALID, true);
 }
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
@@ -335,12 +365,3 @@ static int __init setup_possible_cpus(char *str)
 }
 early_param("possible_cpus", setup_possible_cpus);
 #endif
-
-static int __init apic_set_disabled_cpu_apicid(char *arg)
-{
-	if (!arg || !get_option(&arg, &disabled_cpu_apicid))
-		return -EINVAL;
-
-	return 0;
-}
-early_param("disable_cpu_apicid", apic_set_disabled_cpu_apicid);
