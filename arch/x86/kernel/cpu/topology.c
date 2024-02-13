@@ -107,14 +107,6 @@ static int allocate_logical_cpuid(u32 apic_id)
 	if (cpu >= 0)
 		return cpu;
 
-	/* Allocate a new cpuid. */
-	if (nr_logical_cpuids >= nr_cpu_ids) {
-		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %u reached. "
-			     "Processor %d/0x%x and the rest are ignored.\n",
-			     nr_cpu_ids, nr_logical_cpuids, apic_id);
-		return -EINVAL;
-	}
-
 	cpuid_to_apicid[nr_logical_cpuids] = apic_id;
 	return nr_logical_cpuids++;
 }
@@ -135,7 +127,7 @@ static void cpu_update_apic(int cpu, u32 apicid)
 
 static int generic_processor_info(int apicid)
 {
-	int cpu, max = nr_cpu_ids;
+	int cpu;
 
 	/* The boot CPU must be set before MADT/MPTABLE parsing happens */
 	if (cpuid_to_apicid[0] == BAD_APICID)
@@ -155,21 +147,12 @@ static int generic_processor_info(int apicid)
 	}
 
 	if (num_processors >= nr_cpu_ids) {
-		int thiscpu = max + disabled_cpus;
-
-		pr_warn("APIC: NR_CPUS/possible_cpus limit of %i reached. "
-			"Processor %d/0x%x ignored.\n", max, thiscpu, apicid);
-
+		pr_warn_once("APIC: CPU limit of %d reached. Ignoring further CPUs\n", nr_cpu_ids);
 		disabled_cpus++;
-		return -EINVAL;
+		return -ENOSPC;
 	}
 
 	cpu = allocate_logical_cpuid(apicid);
-	if (cpu < 0) {
-		disabled_cpus++;
-		return -EINVAL;
-	}
-
 	cpu_update_apic(cpu, apicid);
 	return cpu;
 }
