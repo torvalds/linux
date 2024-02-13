@@ -288,7 +288,6 @@ struct apic {
 	/* Probe, setup and smpboot functions */
 	int	(*probe)(void);
 	int	(*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
-	bool	(*apic_id_registered)(void);
 
 	void	(*init_apic_ldr)(void);
 	u32	(*cpu_present_to_apicid)(int mps_cpu);
