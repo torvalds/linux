@@ -16,6 +16,7 @@ void cpu_init_topology(struct cpuinfo_x86 *c);
 void cpu_parse_topology(struct cpuinfo_x86 *c);
 void topology_set_dom(struct topo_scan *tscan, enum x86_topology_domains dom,
 		      unsigned int shift, unsigned int ncpus);
+bool cpu_parse_topology_ext(struct topo_scan *tscan);
 
 static inline u32 topo_shift_apicid(u32 apicid, enum x86_topology_domains dom)
 {
@@ -34,6 +35,17 @@ static inline u32 topo_relative_domain_id(u32 apicid, enum x86_topology_domains 
 static inline u32 topo_domain_mask(enum x86_topology_domains dom)
 {
 	return (1U << x86_topo_system.dom_shifts[dom]) - 1;
+}
+
+/*
+ * Update a domain level after the fact without propagating. Used to fixup
+ * broken CPUID enumerations.
+ */
+static inline void topology_update_dom(struct topo_scan *tscan, enum x86_topology_domains dom,
+				       unsigned int shift, unsigned int ncpus)
+{
+	tscan->dom_shifts[dom] = shift;
+	tscan->dom_ncpus[dom] = ncpus;
 }
 
 #endif /* ARCH_X86_TOPOLOGY_H */
