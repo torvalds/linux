@@ -157,6 +157,13 @@ struct sof_firmware {
 	u32 payload_offset;
 };
 
+enum sof_dai_access {
+	SOF_DAI_DSP_ACCESS,	/* access from DSP only */
+	SOF_DAI_HOST_ACCESS,	/* access from host only */
+
+	SOF_DAI_ACCESS_NUM
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU

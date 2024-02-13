@@ -574,6 +574,11 @@ struct sof_intel_hda_stream {
 #define SOF_STREAM_SD_OFFSET_CRST 0x1
 
 /*
+ * DAI support
+ */
+bool hda_is_chain_dma_supported(struct snd_sof_dev *sdev, u32 dai_type);
+
+/*
  * DSP Core services.
  */
 int hda_dsp_probe_early(struct snd_sof_dev *sdev);
