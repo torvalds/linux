@@ -371,7 +371,7 @@ aoeblk_gdalloc(void *vp)
 		goto err_mempool;
 	}
 
-	gd = blk_mq_alloc_disk(set, d);
+	gd = blk_mq_alloc_disk(set, NULL, d);
 	if (IS_ERR(gd)) {
 		pr_err("aoe: cannot allocate block queue for %ld.%d\n",
 			d->aoemajor, d->aoeminor);

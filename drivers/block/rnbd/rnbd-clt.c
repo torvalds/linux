@@ -1408,7 +1408,7 @@ static int rnbd_client_setup_device(struct rnbd_clt_dev *dev,
 	dev->size = le64_to_cpu(rsp->nsectors) *
 			le16_to_cpu(rsp->logical_block_size);
 
-	dev->gd = blk_mq_alloc_disk(&dev->sess->tag_set, dev);
+	dev->gd = blk_mq_alloc_disk(&dev->sess->tag_set, NULL, dev);
 	if (IS_ERR(dev->gd))
 		return PTR_ERR(dev->gd);
 	dev->queue = dev->gd->queue;

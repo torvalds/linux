@@ -4966,7 +4966,7 @@ static int rbd_init_disk(struct rbd_device *rbd_dev)
 	if (err)
 		return err;
 
-	disk = blk_mq_alloc_disk(&rbd_dev->tag_set, rbd_dev);
+	disk = blk_mq_alloc_disk(&rbd_dev->tag_set, NULL, rbd_dev);
 	if (IS_ERR(disk)) {
 		err = PTR_ERR(disk);
 		goto out_tag_set;

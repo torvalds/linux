@@ -333,7 +333,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		goto out_kfree_tag_set;
 
 	/* Create gendisk */
-	gd = blk_mq_alloc_disk(new->tag_set, new);
+	gd = blk_mq_alloc_disk(new->tag_set, NULL, new);
 	if (IS_ERR(gd)) {
 		ret = PTR_ERR(gd);
 		goto out_free_tag_set;

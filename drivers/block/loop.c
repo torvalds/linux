@@ -2025,7 +2025,7 @@ static int loop_add(int i)
 	if (err)
 		goto out_free_idr;
 
-	disk = lo->lo_disk = blk_mq_alloc_disk(&lo->tag_set, lo);
+	disk = lo->lo_disk = blk_mq_alloc_disk(&lo->tag_set, NULL, lo);
 	if (IS_ERR(disk)) {
 		err = PTR_ERR(disk);
 		goto out_cleanup_tags;

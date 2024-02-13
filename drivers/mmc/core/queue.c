@@ -447,7 +447,7 @@ struct gendisk *mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card)
 		return ERR_PTR(ret);
 		
 
-	disk = blk_mq_alloc_disk(&mq->tag_set, mq);
+	disk = blk_mq_alloc_disk(&mq->tag_set, NULL, mq);
 	if (IS_ERR(disk)) {
 		blk_mq_free_tag_set(&mq->tag_set);
 		return disk;

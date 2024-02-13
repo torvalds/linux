@@ -2147,7 +2147,7 @@ static int null_add_dev(struct nullb_device *dev)
 			goto out_cleanup_queues;
 
 		nullb->tag_set->timeout = 5 * HZ;
-		nullb->disk = blk_mq_alloc_disk(nullb->tag_set, nullb);
+		nullb->disk = blk_mq_alloc_disk(nullb->tag_set, NULL, nullb);
 		if (IS_ERR(nullb->disk)) {
 			rv = PTR_ERR(nullb->disk);
 			goto out_cleanup_tags;

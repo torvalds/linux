@@ -4518,7 +4518,7 @@ static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct gendisk *disk;
 
-	disk = blk_mq_alloc_disk(&tag_sets[drive], NULL);
+	disk = blk_mq_alloc_disk(&tag_sets[drive], NULL, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 
