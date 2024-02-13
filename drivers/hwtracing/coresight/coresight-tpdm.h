@@ -153,6 +153,7 @@
 		__ATTR(name, 0644, enable_ts_show,		\
 		enable_ts_store),		\
 		mem,						\
+		0,						\
 	   }							\
 	})[0].attr.attr)
 
