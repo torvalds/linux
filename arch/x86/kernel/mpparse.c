@@ -473,7 +473,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
-void __init mpparse_get_smp_config(unsigned int early)
+static __init void mpparse_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf;
 

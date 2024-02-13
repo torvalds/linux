@@ -1130,15 +1130,11 @@ void __init setup_arch(char **cmdline_p)
 	early_quirks();
 
 	/*
-	 * Read APIC and some other early information from ACPI tables.
+	 * Parse SMP configuration. Try ACPI first and then the platform
+	 * specific parser.
 	 */
 	acpi_boot_init();
-	x86_dtb_parse_smp_config();
-
-	/*
-	 * get boot-time SMP configuration:
-	 */
-	get_smp_config();
+	x86_init.mpparse.parse_smp_cfg();
 
 	/*
 	 * Systems w/o ACPI and mptables might not have it mapped the local

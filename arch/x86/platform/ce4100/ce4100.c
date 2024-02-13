@@ -140,7 +140,6 @@ void __init x86_ce4100_early_setup(void)
 	x86_init.mpparse.find_mptable		= x86_init_noop;
 	x86_init.mpparse.early_parse_smp_cfg	= x86_init_noop;
 	x86_init.mpparse.parse_smp_cfg		= x86_dtb_parse_smp_config;
-	x86_init.mpparse.get_smp_config		= x86_init_uint_noop;
 	x86_init.pci.init			= ce4100_pci_init;
 	x86_init.pci.init_irq			= sdv_pci_init;
 

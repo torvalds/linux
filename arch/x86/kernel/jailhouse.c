@@ -89,7 +89,7 @@ static void __init jailhouse_x2apic_init(void)
 #endif
 }
 
-static void __init jailhouse_get_smp_config(unsigned int early)
+static void __init jailhouse_parse_smp_config(void)
 {
 	struct ioapic_domain_cfg ioapic_cfg = {
 		.type = IOAPIC_DOMAIN_STRICT,
@@ -116,11 +116,6 @@ static void __init jailhouse_get_smp_config(unsigned int early)
 			jailhouse_setup_irq(4);
 		}
 	}
-}
-
-static void __init jailhouse_parse_smp_config(void)
-{
-	jailhouse_get_smp_config(false);
 }
 
 static void jailhouse_no_restart(void)
@@ -211,7 +206,6 @@ static void __init jailhouse_init_platform(void)
 	x86_init.mpparse.find_mptable		= x86_init_noop;
 	x86_init.mpparse.early_parse_smp_cfg	= x86_init_noop;
 	x86_init.mpparse.parse_smp_cfg		= jailhouse_parse_smp_config;
-	x86_init.mpparse.get_smp_config		= jailhouse_get_smp_config;
 	x86_init.pci.arch_init			= jailhouse_pci_arch_init;
 
 	x86_platform.calibrate_cpu		= jailhouse_get_tsc;
