@@ -45,10 +45,10 @@
 #define PWRER_OFFS		0x14	/* Power Shutoff/Resume Error */
 
 
-#define SYSCSR_TIMEOUT		100
+#define SYSCSR_TIMEOUT		1000
 #define SYSCSR_DELAY_US		1
 
-#define PWRER_RETRIES		100
+#define PWRER_RETRIES		1000
 #define PWRER_DELAY_US		1
 
 #define SYSCISR_TIMEOUT		1000
