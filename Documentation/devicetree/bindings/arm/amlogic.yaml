@@ -146,6 +146,7 @@ properties:
           - enum:
               - amediatech,x96-max
               - amlogic,u200
+              - freebox,fbx8am
               - radxa,zero
               - seirobotics,sei510
           - const: amlogic,g12a
