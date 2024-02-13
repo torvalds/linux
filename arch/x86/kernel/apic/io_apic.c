@@ -2498,17 +2498,9 @@ static int io_apic_get_unique_id(int ioapic, int apic_id)
 	unsigned long flags;
 	int i = 0;
 
-	/*
-	 * The P4 platform supports up to 256 APIC IDs on two separate APIC
-	 * buses (one for LAPICs, one for IOAPICs), where predecessors only
-	 * supports up to 16 on one shared APIC bus.
-	 *
-	 * TBD: Expand LAPIC/IOAPIC support on P4-class systems to take full
-	 *      advantage of new APIC bus architecture.
-	 */
-
+	/* Initialize the ID map */
 	if (physids_empty(apic_id_map))
-		apic->ioapic_phys_id_map(&phys_cpu_present_map, &apic_id_map);
+		apic_id_map = phys_cpu_present_map;
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	reg_00.raw = io_apic_read(ioapic, 0);
@@ -2520,14 +2512,10 @@ static int io_apic_get_unique_id(int ioapic, int apic_id)
 		apic_id = reg_00.bits.ID;
 	}
 
-	/*
-	 * Every APIC in a system must have a unique ID or we get lots of nice
-	 * 'stuck on smp_invalidate_needed IPI wait' messages.
-	 */
-	if (apic->check_apicid_used(&apic_id_map, apic_id)) {
-
+	/* Every APIC in a system must have a unique ID */
+	if (physid_isset(apic_id, apic_id_map)) {
 		for (i = 0; i < broadcast_id; i++) {
-			if (!apic->check_apicid_used(&apic_id_map, i))
+			if (!physid_isset(i, apic_id_map))
 				break;
 		}
 
