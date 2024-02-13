@@ -19,3 +19,9 @@ Description:
 		- none
 		- host
 		- device
+
+What:		/sys/class/usb_role/<switch>/connector
+Date:		Feb 2024
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Optional symlink to the USB Type-C connector.
