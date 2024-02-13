@@ -7,23 +7,31 @@
  *  Copyright (C) 2022 Microchip Technology Inc., All Rights Reserved.
  */
 
+#include <linux/array_size.h>
 #include <linux/bitfield.h>
-#include <linux/bitops.h>
-#include <linux/delay.h>
+#include <linux/bits.h>
+#include <linux/circ_buf.h>
+#include <linux/device.h>
+#include <linux/errno.h>
+#include <linux/gfp_types.h>
 #include <linux/io.h>
 #include <linux/iopoll.h>
-#include <linux/kernel.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/overflow.h>
 #include <linux/pci.h>
+#include <linux/pm.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
-#include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
-#include <linux/units.h>
+#include <linux/time.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <linux/8250_pci.h>
+#include <linux/types.h>
+#include <linux/units.h>
 
 #include <asm/byteorder.h>
 
