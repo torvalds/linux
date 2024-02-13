@@ -2,13 +2,8 @@
 #ifndef MFD_TMIO_H
 #define MFD_TMIO_H
 
-#include <linux/device.h>
-#include <linux/fb.h>
-#include <linux/io.h>
-#include <linux/jiffies.h>
-#include <linux/mmc/card.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 /* tmio MMC platform flags */
 /*
@@ -58,8 +53,6 @@
 
 /* Some controllers have a CBSY bit */
 #define TMIO_MMC_HAVE_CBSY		BIT(11)
-
-struct dma_chan;
 
 /*
  * data for the MMC controller
