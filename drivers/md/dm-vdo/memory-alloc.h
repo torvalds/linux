@@ -35,7 +35,7 @@ int __must_check vdo_allocate_memory(size_t size, size_t align, const char *what
  * @what: What is being allocated (for error logging)
  * @ptr: A pointer to hold the allocated memory
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  */
 static inline int __vdo_do_allocation(size_t count, size_t size, size_t extra,
 				      size_t align, const char *what, void *ptr)
@@ -65,7 +65,7 @@ static inline int __vdo_do_allocation(size_t count, size_t size, size_t extra,
  * @WHAT: What is being allocated (for error logging)
  * @PTR: A pointer to hold the allocated memory
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  */
 #define vdo_allocate(COUNT, TYPE, WHAT, PTR) \
 	__vdo_do_allocation(COUNT, sizeof(TYPE), 0, __alignof__(TYPE), WHAT, PTR)
@@ -81,7 +81,7 @@ static inline int __vdo_do_allocation(size_t count, size_t size, size_t extra,
  * @WHAT: What is being allocated (for error logging)
  * @PTR: A pointer to hold the allocated memory
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  */
 #define vdo_allocate_extended(TYPE1, COUNT, TYPE2, WHAT, PTR)		\
 	__extension__({							\
@@ -105,7 +105,7 @@ static inline int __vdo_do_allocation(size_t count, size_t size, size_t extra,
  * @what: What is being allocated (for error logging)
  * @ptr: A pointer to hold the allocated memory
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  */
 static inline int __must_check vdo_allocate_cache_aligned(size_t size, const char *what, void *ptr)
 {

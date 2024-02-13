@@ -194,7 +194,7 @@ static inline bool use_kmalloc(size_t size)
  * @what: What is being allocated (for error logging)
  * @ptr: A pointer to hold the allocated memory
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  */
 int vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr)
 {
@@ -216,12 +216,12 @@ int vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr)
 	unsigned long start_time;
 	void *p = NULL;
 
-	if (ptr == NULL)
-		return UDS_INVALID_ARGUMENT;
+	if (unlikely(ptr == NULL))
+		return -EINVAL;
 
 	if (size == 0) {
 		*((void **) ptr) = NULL;
-		return UDS_SUCCESS;
+		return VDO_SUCCESS;
 	}
 
 	if (allocations_restricted)
@@ -245,7 +245,7 @@ int vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr)
 	} else {
 		struct vmalloc_block_info *block;
 
-		if (vdo_allocate(1, struct vmalloc_block_info, __func__, &block) == UDS_SUCCESS) {
+		if (vdo_allocate(1, struct vmalloc_block_info, __func__, &block) == VDO_SUCCESS) {
 			/*
 			 * It is possible for __vmalloc to fail to allocate memory because there
 			 * are no pages available. A short sleep may allow the page reclaimer
@@ -290,7 +290,7 @@ int vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr)
 	}
 
 	*((void **) ptr) = p;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /*
@@ -335,7 +335,7 @@ void vdo_free(void *ptr)
  * @what: What is being allocated (for error logging)
  * @new_ptr: A pointer to hold the reallocated pointer
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  */
 int vdo_reallocate_memory(void *ptr, size_t old_size, size_t size, const char *what,
 			  void *new_ptr)
@@ -345,11 +345,11 @@ int vdo_reallocate_memory(void *ptr, size_t old_size, size_t size, const char *w
 	if (size == 0) {
 		vdo_free(ptr);
 		*(void **) new_ptr = NULL;
-		return UDS_SUCCESS;
+		return VDO_SUCCESS;
 	}
 
 	result = vdo_allocate(size, char, what, new_ptr);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	if (ptr != NULL) {
@@ -360,7 +360,7 @@ int vdo_reallocate_memory(void *ptr, size_t old_size, size_t size, const char *w
 		vdo_free(ptr);
 	}
 
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 int vdo_duplicate_string(const char *string, const char *what, char **new_string)
@@ -369,12 +369,12 @@ int vdo_duplicate_string(const char *string, const char *what, char **new_string
 	u8 *dup;
 
 	result = vdo_allocate(strlen(string) + 1, u8, what, &dup);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	memcpy(dup, string, strlen(string) + 1);
 	*new_string = dup;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 void vdo_memory_init(void)
