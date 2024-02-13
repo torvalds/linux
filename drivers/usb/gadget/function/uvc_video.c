@@ -594,10 +594,7 @@ static void uvcg_video_pump(struct work_struct *work)
 		 */
 		spin_lock_irqsave(&queue->irqlock, flags);
 		buf = uvcg_queue_head(queue);
-
-		if (buf != NULL) {
-			video->encode(req, video, buf);
-		} else {
+		if (!buf) {
 			/*
 			 * Either the queue has been disconnected or no video buffer
 			 * available for bulk transfer. Either way, stop processing
@@ -606,6 +603,8 @@ static void uvcg_video_pump(struct work_struct *work)
 			spin_unlock_irqrestore(&queue->irqlock, flags);
 			break;
 		}
+
+		video->encode(req, video, buf);
 
 		spin_unlock_irqrestore(&queue->irqlock, flags);
 
