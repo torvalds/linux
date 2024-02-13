@@ -272,6 +272,10 @@ int topology_hotplug_apic(u32 apic_id, u32 acpi_id)
 	if (apic_id >= MAX_LOCAL_APIC)
 		return -EINVAL;
 
+	/* Reject if the APIC ID was not registered during enumeration. */
+	if (!test_bit(apic_id, apic_maps[TOPO_SMT_DOMAIN].map))
+		return -ENODEV;
+
 	cpu = topo_lookup_cpuid(apic_id);
 	if (cpu < 0) {
 		if (topo_info.nr_assigned_cpus >= nr_cpu_ids)
