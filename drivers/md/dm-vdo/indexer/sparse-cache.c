@@ -222,12 +222,12 @@ static int __must_check initialize_cached_chapter_index(struct cached_chapter_in
 	chapter->virtual_chapter = NO_CHAPTER;
 	chapter->index_pages_count = geometry->index_pages_per_chapter;
 
-	result = uds_allocate(chapter->index_pages_count, struct delta_index_page,
+	result = vdo_allocate(chapter->index_pages_count, struct delta_index_page,
 			      __func__, &chapter->index_pages);
 	if (result != UDS_SUCCESS)
 		return result;
 
-	return uds_allocate(chapter->index_pages_count, struct dm_buffer *,
+	return vdo_allocate(chapter->index_pages_count, struct dm_buffer *,
 			    "sparse index volume pages", &chapter->page_buffers);
 }
 
@@ -241,7 +241,7 @@ static int __must_check make_search_list(struct sparse_cache *cache,
 
 	bytes = (sizeof(struct search_list) +
 		 (cache->capacity * sizeof(struct cached_chapter_index *)));
-	result = uds_allocate_cache_aligned(bytes, "search list", &list);
+	result = vdo_allocate_cache_aligned(bytes, "search list", &list);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -264,7 +264,7 @@ int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int ca
 	unsigned int bytes;
 
 	bytes = (sizeof(struct sparse_cache) + (capacity * sizeof(struct cached_chapter_index)));
-	result = uds_allocate_cache_aligned(bytes, "sparse cache", &cache);
+	result = vdo_allocate_cache_aligned(bytes, "sparse cache", &cache);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -294,7 +294,7 @@ int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int ca
 	}
 
 	/* purge_search_list() needs some temporary lists for sorting. */
-	result = uds_allocate(capacity * 2, struct cached_chapter_index *,
+	result = vdo_allocate(capacity * 2, struct cached_chapter_index *,
 			      "scratch entries", &cache->scratch_entries);
 	if (result != UDS_SUCCESS)
 		goto out;
@@ -338,7 +338,7 @@ static void release_cached_chapter_index(struct cached_chapter_index *chapter)
 
 	for (i = 0; i < chapter->index_pages_count; i++) {
 		if (chapter->page_buffers[i] != NULL)
-			dm_bufio_release(uds_forget(chapter->page_buffers[i]));
+			dm_bufio_release(vdo_forget(chapter->page_buffers[i]));
 	}
 }
 
@@ -349,18 +349,18 @@ void uds_free_sparse_cache(struct sparse_cache *cache)
 	if (cache == NULL)
 		return;
 
-	uds_free(cache->scratch_entries);
+	vdo_free(cache->scratch_entries);
 
 	for (i = 0; i < cache->zone_count; i++)
-		uds_free(cache->search_lists[i]);
+		vdo_free(cache->search_lists[i]);
 
 	for (i = 0; i < cache->capacity; i++) {
 		release_cached_chapter_index(&cache->chapters[i]);
-		uds_free(cache->chapters[i].index_pages);
-		uds_free(cache->chapters[i].page_buffers);
+		vdo_free(cache->chapters[i].index_pages);
+		vdo_free(cache->chapters[i].page_buffers);
 	}
 
-	uds_free(cache);
+	vdo_free(cache);
 }
 
 /*

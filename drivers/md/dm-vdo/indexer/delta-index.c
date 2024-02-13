@@ -296,12 +296,12 @@ void uds_uninitialize_delta_index(struct delta_index *delta_index)
 		return;
 
 	for (z = 0; z < delta_index->zone_count; z++) {
-		uds_free(uds_forget(delta_index->delta_zones[z].new_offsets));
-		uds_free(uds_forget(delta_index->delta_zones[z].delta_lists));
-		uds_free(uds_forget(delta_index->delta_zones[z].memory));
+		vdo_free(vdo_forget(delta_index->delta_zones[z].new_offsets));
+		vdo_free(vdo_forget(delta_index->delta_zones[z].delta_lists));
+		vdo_free(vdo_forget(delta_index->delta_zones[z].memory));
 	}
 
-	uds_free(delta_index->delta_zones);
+	vdo_free(delta_index->delta_zones);
 	memset(delta_index, 0, sizeof(struct delta_index));
 }
 
@@ -311,17 +311,17 @@ static int initialize_delta_zone(struct delta_zone *delta_zone, size_t size,
 {
 	int result;
 
-	result = uds_allocate(size, u8, "delta list", &delta_zone->memory);
+	result = vdo_allocate(size, u8, "delta list", &delta_zone->memory);
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = uds_allocate(list_count + 2, u64, "delta list temp",
+	result = vdo_allocate(list_count + 2, u64, "delta list temp",
 			      &delta_zone->new_offsets);
 	if (result != UDS_SUCCESS)
 		return result;
 
 	/* Allocate the delta lists. */
-	result = uds_allocate(list_count + 2, struct delta_list, "delta lists",
+	result = vdo_allocate(list_count + 2, struct delta_list, "delta lists",
 			      &delta_zone->delta_lists);
 	if (result != UDS_SUCCESS)
 		return result;
@@ -352,7 +352,7 @@ int uds_initialize_delta_index(struct delta_index *delta_index, unsigned int zon
 	unsigned int z;
 	size_t zone_memory;
 
-	result = uds_allocate(zone_count, struct delta_zone, "Delta Index Zones",
+	result = vdo_allocate(zone_count, struct delta_zone, "Delta Index Zones",
 			      &delta_index->delta_zones);
 	if (result != UDS_SUCCESS)
 		return result;
@@ -1047,7 +1047,7 @@ int uds_finish_restoring_delta_index(struct delta_index *delta_index,
 	unsigned int z;
 	u8 *data;
 
-	result = uds_allocate(DELTA_LIST_MAX_BYTE_COUNT, u8, __func__, &data);
+	result = vdo_allocate(DELTA_LIST_MAX_BYTE_COUNT, u8, __func__, &data);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -1062,7 +1062,7 @@ int uds_finish_restoring_delta_index(struct delta_index *delta_index,
 		}
 	}
 
-	uds_free(data);
+	vdo_free(data);
 	return saved_result;
 }
 

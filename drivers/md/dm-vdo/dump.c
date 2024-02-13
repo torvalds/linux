@@ -79,7 +79,7 @@ static void do_dump(struct vdo *vdo, unsigned int dump_options_requested,
 	if ((dump_options_requested & FLAG_SHOW_VDO_STATUS) != 0)
 		vdo_dump_status(vdo);
 
-	uds_report_memory_usage();
+	vdo_report_memory_usage();
 	uds_log_info("end of %s dump", UDS_LOGGING_MODULE_NAME);
 }
 

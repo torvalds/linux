@@ -241,7 +241,7 @@ struct vdo_slab {
 	/* The number of free blocks */
 	u32 free_blocks;
 	/* The array of reference counts */
-	vdo_refcount_t *counters; /* use uds_allocate() to align data ptr */
+	vdo_refcount_t *counters; /* use vdo_allocate() to align data ptr */
 
 	/* The saved block pointer and array indexes for the free block search */
 	struct search_cursor search_cursor;

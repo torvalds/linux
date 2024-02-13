@@ -61,7 +61,7 @@ int uds_make_index_geometry(size_t bytes_per_page, u32 record_pages_per_chapter,
 	int result;
 	struct index_geometry *geometry;
 
-	result = uds_allocate(1, struct index_geometry, "geometry", &geometry);
+	result = vdo_allocate(1, struct index_geometry, "geometry", &geometry);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -121,7 +121,7 @@ int uds_copy_index_geometry(struct index_geometry *source,
 
 void uds_free_index_geometry(struct index_geometry *geometry)
 {
-	uds_free(geometry);
+	vdo_free(geometry);
 }
 
 u32 __must_check uds_map_to_physical_chapter(const struct index_geometry *geometry,

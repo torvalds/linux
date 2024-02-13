@@ -591,31 +591,31 @@ static int __must_check initialize_lock_counter(struct recovery_journal *journal
 	struct thread_config *config = &vdo->thread_config;
 	struct lock_counter *counter = &journal->lock_counter;
 
-	result = uds_allocate(journal->size, u16, __func__, &counter->journal_counters);
+	result = vdo_allocate(journal->size, u16, __func__, &counter->journal_counters);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_allocate(journal->size, atomic_t, __func__,
+	result = vdo_allocate(journal->size, atomic_t, __func__,
 			      &counter->journal_decrement_counts);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_allocate(journal->size * config->logical_zone_count, u16, __func__,
+	result = vdo_allocate(journal->size * config->logical_zone_count, u16, __func__,
 			      &counter->logical_counters);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_allocate(journal->size, atomic_t, __func__,
+	result = vdo_allocate(journal->size, atomic_t, __func__,
 			      &counter->logical_zone_counts);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_allocate(journal->size * config->physical_zone_count, u16, __func__,
+	result = vdo_allocate(journal->size * config->physical_zone_count, u16, __func__,
 			      &counter->physical_counters);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = uds_allocate(journal->size, atomic_t, __func__,
+	result = vdo_allocate(journal->size, atomic_t, __func__,
 			      &counter->physical_zone_counts);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -670,14 +670,14 @@ static int initialize_recovery_block(struct vdo *vdo, struct recovery_journal *j
 	 * Allocate a full block for the journal block even though not all of the space is used
 	 * since the VIO needs to write a full disk block.
 	 */
-	result = uds_allocate(VDO_BLOCK_SIZE, char, __func__, &data);
+	result = vdo_allocate(VDO_BLOCK_SIZE, char, __func__, &data);
 	if (result != VDO_SUCCESS)
 		return result;
 
 	result = allocate_vio_components(vdo, VIO_TYPE_RECOVERY_JOURNAL,
 					 VIO_PRIORITY_HIGH, block, 1, data, &block->vio);
 	if (result != VDO_SUCCESS) {
-		uds_free(data);
+		vdo_free(data);
 		return result;
 	}
 
@@ -709,7 +709,7 @@ int vdo_decode_recovery_journal(struct recovery_journal_state_7_0 state, nonce_t
 	struct recovery_journal *journal;
 	int result;
 
-	result = uds_allocate_extended(struct recovery_journal,
+	result = vdo_allocate_extended(struct recovery_journal,
 				       RECOVERY_JOURNAL_RESERVED_BLOCKS,
 				       struct recovery_journal_block, __func__,
 				       &journal);
@@ -787,13 +787,13 @@ void vdo_free_recovery_journal(struct recovery_journal *journal)
 	if (journal == NULL)
 		return;
 
-	uds_free(uds_forget(journal->lock_counter.logical_zone_counts));
-	uds_free(uds_forget(journal->lock_counter.physical_zone_counts));
-	uds_free(uds_forget(journal->lock_counter.journal_counters));
-	uds_free(uds_forget(journal->lock_counter.journal_decrement_counts));
-	uds_free(uds_forget(journal->lock_counter.logical_counters));
-	uds_free(uds_forget(journal->lock_counter.physical_counters));
-	free_vio(uds_forget(journal->flush_vio));
+	vdo_free(vdo_forget(journal->lock_counter.logical_zone_counts));
+	vdo_free(vdo_forget(journal->lock_counter.physical_zone_counts));
+	vdo_free(vdo_forget(journal->lock_counter.journal_counters));
+	vdo_free(vdo_forget(journal->lock_counter.journal_decrement_counts));
+	vdo_free(vdo_forget(journal->lock_counter.logical_counters));
+	vdo_free(vdo_forget(journal->lock_counter.physical_counters));
+	free_vio(vdo_forget(journal->flush_vio));
 
 	/*
 	 * FIXME: eventually, the journal should be constructed in a quiescent state which
@@ -810,11 +810,11 @@ void vdo_free_recovery_journal(struct recovery_journal *journal)
 	for (i = 0; i < RECOVERY_JOURNAL_RESERVED_BLOCKS; i++) {
 		struct recovery_journal_block *block = &journal->blocks[i];
 
-		uds_free(uds_forget(block->vio.data));
+		vdo_free(vdo_forget(block->vio.data));
 		free_vio_components(&block->vio);
 	}
 
-	uds_free(journal);
+	vdo_free(journal);
 }
 
 /**

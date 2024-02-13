@@ -35,7 +35,7 @@ static char *buffer_to_string(const char *buf, size_t length)
 {
 	char *string;
 
-	if (uds_allocate(length + 1, char, __func__, &string) != UDS_SUCCESS)
+	if (vdo_allocate(length + 1, char, __func__, &string) != UDS_SUCCESS)
 		return NULL;
 
 	memcpy(string, buf, length);
@@ -118,7 +118,7 @@ static ssize_t parameter_store(struct kobject *kobj, struct attribute *attr,
 		return -ENOMEM;
 
 	pa->store_string(string);
-	uds_free(string);
+	vdo_free(string);
 	return length;
 }
 

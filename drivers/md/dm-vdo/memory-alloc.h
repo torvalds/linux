@@ -3,8 +3,8 @@
  * Copyright 2023 Red Hat
  */
 
-#ifndef UDS_MEMORY_ALLOC_H
-#define UDS_MEMORY_ALLOC_H
+#ifndef VDO_MEMORY_ALLOC_H
+#define VDO_MEMORY_ALLOC_H
 
 #include <linux/cache.h>
 #include <linux/io.h> /* for PAGE_SIZE */
@@ -12,8 +12,8 @@
 #include "permassert.h"
 #include "thread-registry.h"
 
-/* Custom memory allocation function for UDS that tracks memory usage */
-int __must_check uds_allocate_memory(size_t size, size_t align, const char *what, void *ptr);
+/* Custom memory allocation function that tracks memory usage */
+int __must_check vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr);
 
 /*
  * Allocate storage based on element counts, sizes, and alignment.
@@ -37,7 +37,7 @@ int __must_check uds_allocate_memory(size_t size, size_t align, const char *what
  *
  * Return: UDS_SUCCESS or an error code
  */
-static inline int uds_do_allocation(size_t count, size_t size, size_t extra,
+static inline int vdo_do_allocation(size_t count, size_t size, size_t extra,
 				    size_t align, const char *what, void *ptr)
 {
 	size_t total_size = count * size + extra;
@@ -53,7 +53,7 @@ static inline int uds_do_allocation(size_t count, size_t size, size_t extra,
 		total_size = SIZE_MAX;
 	}
 
-	return uds_allocate_memory(total_size, align, what, ptr);
+	return vdo_allocate_memory(total_size, align, what, ptr);
 }
 
 /*
@@ -67,8 +67,8 @@ static inline int uds_do_allocation(size_t count, size_t size, size_t extra,
  *
  * Return: UDS_SUCCESS or an error code
  */
-#define uds_allocate(COUNT, TYPE, WHAT, PTR) \
-	uds_do_allocation(COUNT, sizeof(TYPE), 0, __alignof__(TYPE), WHAT, PTR)
+#define vdo_allocate(COUNT, TYPE, WHAT, PTR) \
+	vdo_do_allocation(COUNT, sizeof(TYPE), 0, __alignof__(TYPE), WHAT, PTR)
 
 /*
  * Allocate one object of an indicated type, followed by one or more elements of a second type,
@@ -83,12 +83,12 @@ static inline int uds_do_allocation(size_t count, size_t size, size_t extra,
  *
  * Return: UDS_SUCCESS or an error code
  */
-#define uds_allocate_extended(TYPE1, COUNT, TYPE2, WHAT, PTR)            \
+#define vdo_allocate_extended(TYPE1, COUNT, TYPE2, WHAT, PTR)            \
 	__extension__({                                                  \
 		int _result;						 \
 		TYPE1 **_ptr = (PTR);                                    \
 		BUILD_BUG_ON(__alignof__(TYPE1) < __alignof__(TYPE2));   \
-		_result = uds_do_allocation(COUNT,                       \
+		_result = vdo_do_allocation(COUNT,                       \
 					    sizeof(TYPE2),               \
 					    sizeof(TYPE1),               \
 					    __alignof__(TYPE1),          \
@@ -107,9 +107,9 @@ static inline int uds_do_allocation(size_t count, size_t size, size_t extra,
  *
  * Return: UDS_SUCCESS or an error code
  */
-static inline int __must_check uds_allocate_cache_aligned(size_t size, const char *what, void *ptr)
+static inline int __must_check vdo_allocate_cache_aligned(size_t size, const char *what, void *ptr)
 {
-	return uds_allocate_memory(size, L1_CACHE_BYTES, what, ptr);
+	return vdo_allocate_memory(size, L1_CACHE_BYTES, what, ptr);
 }
 
 /*
@@ -121,18 +121,18 @@ static inline int __must_check uds_allocate_cache_aligned(size_t size, const cha
  *
  * Return: pointer to the memory, or NULL if the memory is not available.
  */
-void *__must_check uds_allocate_memory_nowait(size_t size, const char *what);
+void *__must_check vdo_allocate_memory_nowait(size_t size, const char *what);
 
-int __must_check uds_reallocate_memory(void *ptr, size_t old_size, size_t size,
+int __must_check vdo_reallocate_memory(void *ptr, size_t old_size, size_t size,
 				       const char *what, void *new_ptr);
 
-int __must_check uds_duplicate_string(const char *string, const char *what,
+int __must_check vdo_duplicate_string(const char *string, const char *what,
 				      char **new_string);
 
-/* Free memory allocated with uds_allocate(). */
-void uds_free(void *ptr);
+/* Free memory allocated with vdo_allocate(). */
+void vdo_free(void *ptr);
 
-static inline void *__uds_forget(void **ptr_ptr)
+static inline void *__vdo_forget(void **ptr_ptr)
 {
 	void *ptr = *ptr_ptr;
 
@@ -144,19 +144,19 @@ static inline void *__uds_forget(void **ptr_ptr)
  * Null out a pointer and return a copy to it. This macro should be used when passing a pointer to
  * a function for which it is not safe to access the pointer once the function returns.
  */
-#define uds_forget(ptr) __uds_forget((void **) &(ptr))
+#define vdo_forget(ptr) __vdo_forget((void **) &(ptr))
 
-void uds_memory_init(void);
+void vdo_memory_init(void);
 
-void uds_memory_exit(void);
+void vdo_memory_exit(void);
 
-void uds_register_allocating_thread(struct registered_thread *new_thread,
+void vdo_register_allocating_thread(struct registered_thread *new_thread,
 				    const bool *flag_ptr);
 
-void uds_unregister_allocating_thread(void);
+void vdo_unregister_allocating_thread(void);
 
-void uds_get_memory_stats(u64 *bytes_used, u64 *peak_bytes_used);
+void vdo_get_memory_stats(u64 *bytes_used, u64 *peak_bytes_used);
 
-void uds_report_memory_usage(void);
+void vdo_report_memory_usage(void);
 
-#endif /* UDS_MEMORY_ALLOC_H */
+#endif /* VDO_MEMORY_ALLOC_H */

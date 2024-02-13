@@ -88,7 +88,7 @@ static int launch_zone_message(struct uds_zone_message message, unsigned int zon
 	int result;
 	struct uds_request *request;
 
-	result = uds_allocate(1, struct uds_request, __func__, &request);
+	result = vdo_allocate(1, struct uds_request, __func__, &request);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -623,7 +623,7 @@ static void execute_zone_request(struct uds_request *request)
 		}
 
 		/* Once the message is processed it can be freed. */
-		uds_free(uds_forget(request));
+		vdo_free(vdo_forget(request));
 		return;
 	}
 
@@ -755,8 +755,8 @@ static void free_chapter_writer(struct chapter_writer *writer)
 
 	stop_chapter_writer(writer);
 	uds_free_open_chapter_index(writer->open_chapter_index);
-	uds_free(writer->collated_records);
-	uds_free(writer);
+	vdo_free(writer->collated_records);
+	vdo_free(writer);
 }
 
 static int make_chapter_writer(struct uds_index *index,
@@ -767,7 +767,7 @@ static int make_chapter_writer(struct uds_index *index,
 	size_t collated_records_size =
 		(sizeof(struct uds_volume_record) * index->volume->geometry->records_per_chapter);
 
-	result = uds_allocate_extended(struct chapter_writer, index->zone_count,
+	result = vdo_allocate_extended(struct chapter_writer, index->zone_count,
 				       struct open_chapter_zone *, "Chapter Writer",
 				       &writer);
 	if (result != UDS_SUCCESS)
@@ -777,7 +777,7 @@ static int make_chapter_writer(struct uds_index *index,
 	mutex_init(&writer->mutex);
 	uds_init_cond(&writer->cond);
 
-	result = uds_allocate_cache_aligned(collated_records_size, "collated records",
+	result = vdo_allocate_cache_aligned(collated_records_size, "collated records",
 					    &writer->collated_records);
 	if (result != UDS_SUCCESS) {
 		free_chapter_writer(writer);
@@ -1118,7 +1118,7 @@ static void free_index_zone(struct index_zone *zone)
 
 	uds_free_open_chapter(zone->open_chapter);
 	uds_free_open_chapter(zone->writing_chapter);
-	uds_free(zone);
+	vdo_free(zone);
 }
 
 static int make_index_zone(struct uds_index *index, unsigned int zone_number)
@@ -1126,7 +1126,7 @@ static int make_index_zone(struct uds_index *index, unsigned int zone_number)
 	int result;
 	struct index_zone *zone;
 
-	result = uds_allocate(1, struct index_zone, "index zone", &zone);
+	result = vdo_allocate(1, struct index_zone, "index zone", &zone);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -1163,7 +1163,7 @@ int uds_make_index(struct uds_configuration *config, enum uds_open_index_type op
 	u64 nonce;
 	unsigned int z;
 
-	result = uds_allocate_extended(struct uds_index, config->zone_count,
+	result = vdo_allocate_extended(struct uds_index, config->zone_count,
 				       struct uds_request_queue *, "index", &index);
 	if (result != UDS_SUCCESS)
 		return result;
@@ -1176,7 +1176,7 @@ int uds_make_index(struct uds_configuration *config, enum uds_open_index_type op
 		return result;
 	}
 
-	result = uds_allocate(index->zone_count, struct index_zone *, "zones",
+	result = vdo_allocate(index->zone_count, struct index_zone *, "zones",
 			      &index->zones);
 	if (result != UDS_SUCCESS) {
 		uds_free_index(index);
@@ -1289,12 +1289,12 @@ void uds_free_index(struct uds_index *index)
 	if (index->zones != NULL) {
 		for (i = 0; i < index->zone_count; i++)
 			free_index_zone(index->zones[i]);
-		uds_free(index->zones);
+		vdo_free(index->zones);
 	}
 
 	uds_free_volume(index->volume);
-	uds_free_index_layout(uds_forget(index->layout));
-	uds_free(index);
+	uds_free_index_layout(vdo_forget(index->layout));
+	vdo_free(index);
 }
 
 /* Wait for the chapter writer to complete any outstanding writes. */

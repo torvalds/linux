@@ -239,7 +239,7 @@ static int make_pbn_lock_pool(size_t capacity, struct pbn_lock_pool **pool_ptr)
 	struct pbn_lock_pool *pool;
 	int result;
 
-	result = uds_allocate_extended(struct pbn_lock_pool, capacity, idle_pbn_lock,
+	result = vdo_allocate_extended(struct pbn_lock_pool, capacity, idle_pbn_lock,
 				       __func__, &pool);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -270,7 +270,7 @@ static void free_pbn_lock_pool(struct pbn_lock_pool *pool)
 	ASSERT_LOG_ONLY(pool->borrowed == 0,
 			"All PBN locks must be returned to the pool before it is freed, but %zu locks are still on loan",
 			pool->borrowed);
-	uds_free(pool);
+	vdo_free(pool);
 }
 
 /**
@@ -344,7 +344,7 @@ static int initialize_zone(struct vdo *vdo, struct physical_zones *zones)
 	zone->next = &zones->zones[(zone_number + 1) % vdo->thread_config.physical_zone_count];
 	result = vdo_make_default_thread(vdo, zone->thread_id);
 	if (result != VDO_SUCCESS) {
-		free_pbn_lock_pool(uds_forget(zone->lock_pool));
+		free_pbn_lock_pool(vdo_forget(zone->lock_pool));
 		vdo_int_map_free(zone->pbn_operations);
 		return result;
 	}
@@ -367,7 +367,7 @@ int vdo_make_physical_zones(struct vdo *vdo, struct physical_zones **zones_ptr)
 	if (zone_count == 0)
 		return VDO_SUCCESS;
 
-	result = uds_allocate_extended(struct physical_zones, zone_count,
+	result = vdo_allocate_extended(struct physical_zones, zone_count,
 				       struct physical_zone, __func__, &zones);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -398,11 +398,11 @@ void vdo_free_physical_zones(struct physical_zones *zones)
 	for (index = 0; index < zones->zone_count; index++) {
 		struct physical_zone *zone = &zones->zones[index];
 
-		free_pbn_lock_pool(uds_forget(zone->lock_pool));
-		vdo_int_map_free(uds_forget(zone->pbn_operations));
+		free_pbn_lock_pool(vdo_forget(zone->lock_pool));
+		vdo_int_map_free(vdo_forget(zone->pbn_operations));
 	}
 
-	uds_free(zones);
+	vdo_free(zones);
 }
 
 /**
@@ -460,7 +460,7 @@ int vdo_attempt_physical_zone_pbn_lock(struct physical_zone *zone,
 
 	if (lock != NULL) {
 		/* The lock is already held, so we don't need the borrowed one. */
-		return_pbn_lock_to_pool(zone->lock_pool, uds_forget(new_lock));
+		return_pbn_lock_to_pool(zone->lock_pool, vdo_forget(new_lock));
 		result = ASSERT(lock->holder_count > 0, "physical block %llu lock held",
 				(unsigned long long) pbn);
 		if (result != VDO_SUCCESS)

@@ -198,7 +198,7 @@ static void wait_for_pending_searches(struct page_cache *cache, u32 physical_pag
 static void release_page_buffer(struct cached_page *page)
 {
 	if (page->buffer != NULL)
-		dm_bufio_release(uds_forget(page->buffer));
+		dm_bufio_release(vdo_forget(page->buffer));
 }
 
 static void clear_cache_page(struct page_cache *cache, struct cached_page *page)
@@ -1482,7 +1482,7 @@ int __must_check uds_replace_volume_storage(struct volume *volume,
 	if (volume->sparse_cache != NULL)
 		uds_invalidate_sparse_cache(volume->sparse_cache);
 	if (volume->client != NULL)
-		dm_bufio_client_destroy(uds_forget(volume->client));
+		dm_bufio_client_destroy(vdo_forget(volume->client));
 
 	return uds_open_volume_bufio(layout, volume->geometry->bytes_per_page,
 				     volume->reserved_buffers, &volume->client);
@@ -1507,22 +1507,22 @@ static int __must_check initialize_page_cache(struct page_cache *cache,
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = uds_allocate(VOLUME_CACHE_MAX_QUEUED_READS, struct queued_read,
+	result = vdo_allocate(VOLUME_CACHE_MAX_QUEUED_READS, struct queued_read,
 			      "volume read queue", &cache->read_queue);
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = uds_allocate(cache->zone_count, struct search_pending_counter,
+	result = vdo_allocate(cache->zone_count, struct search_pending_counter,
 			      "Volume Cache Zones", &cache->search_pending_counters);
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = uds_allocate(cache->indexable_pages, u16, "page cache index",
+	result = vdo_allocate(cache->indexable_pages, u16, "page cache index",
 			      &cache->index);
 	if (result != UDS_SUCCESS)
 		return result;
 
-	result = uds_allocate(cache->cache_slots, struct cached_page, "page cache cache",
+	result = vdo_allocate(cache->cache_slots, struct cached_page, "page cache cache",
 			      &cache->cache);
 	if (result != UDS_SUCCESS)
 		return result;
@@ -1546,7 +1546,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 	unsigned int reserved_buffers;
 	int result;
 
-	result = uds_allocate(1, struct volume, "volume", &volume);
+	result = vdo_allocate(1, struct volume, "volume", &volume);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -1583,7 +1583,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 		return result;
 	}
 
-	result = uds_allocate(geometry->records_per_page,
+	result = vdo_allocate(geometry->records_per_page,
 			      const struct uds_volume_record *, "record pointers",
 			      &volume->record_pointers);
 	if (result != UDS_SUCCESS) {
@@ -1624,7 +1624,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 	uds_init_cond(&volume->read_threads_read_done_cond);
 	uds_init_cond(&volume->read_threads_cond);
 
-	result = uds_allocate(config->read_threads, struct thread *, "reader threads",
+	result = vdo_allocate(config->read_threads, struct thread *, "reader threads",
 			      &volume->reader_threads);
 	if (result != UDS_SUCCESS) {
 		uds_free_volume(volume);
@@ -1654,10 +1654,10 @@ static void uninitialize_page_cache(struct page_cache *cache)
 		for (i = 0; i < cache->cache_slots; i++)
 			release_page_buffer(&cache->cache[i]);
 	}
-	uds_free(cache->index);
-	uds_free(cache->cache);
-	uds_free(cache->search_pending_counters);
-	uds_free(cache->read_queue);
+	vdo_free(cache->index);
+	vdo_free(cache->cache);
+	vdo_free(cache->search_pending_counters);
+	vdo_free(cache->read_queue);
 }
 
 void uds_free_volume(struct volume *volume)
@@ -1675,7 +1675,7 @@ void uds_free_volume(struct volume *volume)
 		mutex_unlock(&volume->read_threads_mutex);
 		for (i = 0; i < volume->read_thread_count; i++)
 			vdo_join_threads(volume->reader_threads[i]);
-		uds_free(volume->reader_threads);
+		vdo_free(volume->reader_threads);
 		volume->reader_threads = NULL;
 	}
 
@@ -1683,11 +1683,11 @@ void uds_free_volume(struct volume *volume)
 	uninitialize_page_cache(&volume->page_cache);
 	uds_free_sparse_cache(volume->sparse_cache);
 	if (volume->client != NULL)
-		dm_bufio_client_destroy(uds_forget(volume->client));
+		dm_bufio_client_destroy(vdo_forget(volume->client));
 
 	uds_free_index_page_map(volume->index_page_map);
 	uds_free_radix_sorter(volume->radix_sorter);
-	uds_free(volume->geometry);
-	uds_free(volume->record_pointers);
-	uds_free(volume);
+	vdo_free(volume->geometry);
+	vdo_free(volume->record_pointers);
+	vdo_free(volume);
 }

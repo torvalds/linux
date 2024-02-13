@@ -789,20 +789,20 @@ static int initialize_data_vio(struct data_vio *data_vio, struct vdo *vdo)
 	int result;
 
 	BUILD_BUG_ON(VDO_BLOCK_SIZE > PAGE_SIZE);
-	result = uds_allocate_memory(VDO_BLOCK_SIZE, 0, "data_vio data",
+	result = vdo_allocate_memory(VDO_BLOCK_SIZE, 0, "data_vio data",
 				     &data_vio->vio.data);
 	if (result != VDO_SUCCESS)
 		return uds_log_error_strerror(result,
 					      "data_vio data allocation failure");
 
-	result = uds_allocate_memory(VDO_BLOCK_SIZE, 0, "compressed block",
+	result = vdo_allocate_memory(VDO_BLOCK_SIZE, 0, "compressed block",
 				     &data_vio->compression.block);
 	if (result != VDO_SUCCESS) {
 		return uds_log_error_strerror(result,
 					      "data_vio compressed block allocation failure");
 	}
 
-	result = uds_allocate_memory(VDO_BLOCK_SIZE, 0, "vio scratch",
+	result = vdo_allocate_memory(VDO_BLOCK_SIZE, 0, "vio scratch",
 				     &data_vio->scratch_block);
 	if (result != VDO_SUCCESS)
 		return uds_log_error_strerror(result,
@@ -825,10 +825,10 @@ static void destroy_data_vio(struct data_vio *data_vio)
 	if (data_vio == NULL)
 		return;
 
-	vdo_free_bio(uds_forget(data_vio->vio.bio));
-	uds_free(uds_forget(data_vio->vio.data));
-	uds_free(uds_forget(data_vio->compression.block));
-	uds_free(uds_forget(data_vio->scratch_block));
+	vdo_free_bio(vdo_forget(data_vio->vio.bio));
+	vdo_free(vdo_forget(data_vio->vio.data));
+	vdo_free(vdo_forget(data_vio->compression.block));
+	vdo_free(vdo_forget(data_vio->scratch_block));
 }
 
 /**
@@ -845,7 +845,7 @@ int make_data_vio_pool(struct vdo *vdo, data_vio_count_t pool_size,
 	struct data_vio_pool *pool;
 	data_vio_count_t i;
 
-	result = uds_allocate_extended(struct data_vio_pool, pool_size, struct data_vio,
+	result = vdo_allocate_extended(struct data_vio_pool, pool_size, struct data_vio,
 				       __func__, &pool);
 	if (result != UDS_SUCCESS)
 		return result;
@@ -867,7 +867,7 @@ int make_data_vio_pool(struct vdo *vdo, data_vio_count_t pool_size,
 
 	result = uds_make_funnel_queue(&pool->queue);
 	if (result != UDS_SUCCESS) {
-		free_data_vio_pool(uds_forget(pool));
+		free_data_vio_pool(vdo_forget(pool));
 		return result;
 	}
 
@@ -924,8 +924,8 @@ void free_data_vio_pool(struct data_vio_pool *pool)
 		destroy_data_vio(data_vio);
 	}
 
-	uds_free_funnel_queue(uds_forget(pool->queue));
-	uds_free(pool);
+	uds_free_funnel_queue(vdo_forget(pool->queue));
+	vdo_free(pool);
 }
 
 static bool acquire_permit(struct limiter *limiter)
@@ -1431,7 +1431,7 @@ void release_data_vio_allocation_lock(struct data_vio *data_vio, bool reset)
 		allocation->pbn = VDO_ZERO_BLOCK;
 
 	vdo_release_physical_zone_pbn_lock(allocation->zone, locked_pbn,
-					   uds_forget(allocation->lock));
+					   vdo_forget(allocation->lock));
 }
 
 /**

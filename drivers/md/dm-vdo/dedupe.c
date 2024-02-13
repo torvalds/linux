@@ -700,7 +700,7 @@ static void unlock_duplicate_pbn(struct vdo_completion *completion)
 			"must have a duplicate lock to release");
 
 	vdo_release_physical_zone_pbn_lock(agent->duplicate.zone, agent->duplicate.pbn,
-					   uds_forget(lock->duplicate_lock));
+					   vdo_forget(lock->duplicate_lock));
 	if (lock->state == VDO_HASH_LOCK_BYPASSING) {
 		complete_data_vio(completion);
 		return;
@@ -896,7 +896,7 @@ static int __must_check acquire_lock(struct hash_zone *zone,
 	result = vdo_int_map_put(zone->hash_lock_map, hash_lock_key(new_lock),
 				 new_lock, (replace_lock != NULL), (void **) &lock);
 	if (result != VDO_SUCCESS) {
-		return_hash_lock_to_pool(zone, uds_forget(new_lock));
+		return_hash_lock_to_pool(zone, vdo_forget(new_lock));
 		return result;
 	}
 
@@ -915,7 +915,7 @@ static int __must_check acquire_lock(struct hash_zone *zone,
 		lock->registered = true;
 	} else {
 		/* There's already a lock for the hash, so we don't need the borrowed lock. */
-		return_hash_lock_to_pool(zone, uds_forget(new_lock));
+		return_hash_lock_to_pool(zone, vdo_forget(new_lock));
 	}
 
 	*lock_ptr = lock;
@@ -1980,7 +1980,7 @@ static void transfer_allocation_lock(struct data_vio *data_vio)
 	 * Since the lock is being transferred, the holder count doesn't change (and isn't even
 	 * safe to examine on this thread).
 	 */
-	hash_lock->duplicate_lock = uds_forget(allocation->lock);
+	hash_lock->duplicate_lock = vdo_forget(allocation->lock);
 }
 
 /**
@@ -2025,7 +2025,7 @@ void vdo_share_compressed_write_lock(struct data_vio *data_vio,
 
 static void dedupe_kobj_release(struct kobject *directory)
 {
-	uds_free(container_of(directory, struct hash_zones, dedupe_directory));
+	vdo_free(container_of(directory, struct hash_zones, dedupe_directory));
 }
 
 static ssize_t dedupe_status_show(struct kobject *directory, struct attribute *attr,
@@ -2083,12 +2083,12 @@ static void start_uds_queue(void *ptr)
 	 */
 	struct vdo_thread *thread = vdo_get_work_queue_owner(vdo_get_current_work_queue());
 
-	uds_register_allocating_thread(&thread->allocating_thread, NULL);
+	vdo_register_allocating_thread(&thread->allocating_thread, NULL);
 }
 
 static void finish_uds_queue(void *ptr __always_unused)
 {
-	uds_unregister_allocating_thread();
+	vdo_unregister_allocating_thread();
 }
 
 static void close_index(struct hash_zones *zones)
@@ -2259,7 +2259,7 @@ static int initialize_index(struct vdo *vdo, struct hash_zones *zones)
 	result = vdo_make_thread(vdo, vdo->thread_config.dedupe_thread, &uds_queue_type,
 				 1, NULL);
 	if (result != VDO_SUCCESS) {
-		uds_destroy_index_session(uds_forget(zones->index_session));
+		uds_destroy_index_session(vdo_forget(zones->index_session));
 		uds_log_error("UDS index queue initialization failed (%d)", result);
 		return result;
 	}
@@ -2417,7 +2417,7 @@ static int __must_check initialize_zone(struct vdo *vdo, struct hash_zones *zone
 	vdo_set_completion_callback(&zone->completion, timeout_index_operations_callback,
 				    zone->thread_id);
 	INIT_LIST_HEAD(&zone->lock_pool);
-	result = uds_allocate(LOCK_POOL_CAPACITY, struct hash_lock, "hash_lock array",
+	result = vdo_allocate(LOCK_POOL_CAPACITY, struct hash_lock, "hash_lock array",
 			      &zone->lock_array);
 	if (result != VDO_SUCCESS)
 		return result;
@@ -2471,14 +2471,14 @@ int vdo_make_hash_zones(struct vdo *vdo, struct hash_zones **zones_ptr)
 	if (zone_count == 0)
 		return VDO_SUCCESS;
 
-	result = uds_allocate_extended(struct hash_zones, zone_count, struct hash_zone,
+	result = vdo_allocate_extended(struct hash_zones, zone_count, struct hash_zone,
 				       __func__, &zones);
 	if (result != VDO_SUCCESS)
 		return result;
 
 	result = initialize_index(vdo, zones);
 	if (result != VDO_SUCCESS) {
-		uds_free(zones);
+		vdo_free(zones);
 		return result;
 	}
 
@@ -2510,7 +2510,7 @@ void vdo_finish_dedupe_index(struct hash_zones *zones)
 	if (zones == NULL)
 		return;
 
-	uds_destroy_index_session(uds_forget(zones->index_session));
+	uds_destroy_index_session(vdo_forget(zones->index_session));
 }
 
 /**
@@ -2524,14 +2524,14 @@ void vdo_free_hash_zones(struct hash_zones *zones)
 	if (zones == NULL)
 		return;
 
-	uds_free(uds_forget(zones->manager));
+	vdo_free(vdo_forget(zones->manager));
 
 	for (i = 0; i < zones->zone_count; i++) {
 		struct hash_zone *zone = &zones->zones[i];
 
-		uds_free_funnel_queue(uds_forget(zone->timed_out_complete));
-		vdo_int_map_free(uds_forget(zone->hash_lock_map));
-		uds_free(uds_forget(zone->lock_array));
+		uds_free_funnel_queue(vdo_forget(zone->timed_out_complete));
+		vdo_int_map_free(vdo_forget(zone->hash_lock_map));
+		vdo_free(vdo_forget(zone->lock_array));
 	}
 
 	if (zones->index_session != NULL)
@@ -2539,7 +2539,7 @@ void vdo_free_hash_zones(struct hash_zones *zones)
 
 	ratelimit_state_exit(&zones->ratelimiter);
 	if (vdo_get_admin_state_code(&zones->state) == VDO_ADMIN_STATE_NEW)
-		uds_free(zones);
+		vdo_free(zones);
 	else
 		kobject_put(&zones->dedupe_directory);
 }

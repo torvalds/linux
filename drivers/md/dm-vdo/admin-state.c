@@ -206,7 +206,7 @@ bool vdo_finish_operation(struct admin_state *state, int result)
 	if (!state->starting) {
 		vdo_set_admin_state_code(state, state->next_state);
 		if (state->waiter != NULL)
-			vdo_launch_completion(uds_forget(state->waiter));
+			vdo_launch_completion(vdo_forget(state->waiter));
 	}
 
 	return true;
