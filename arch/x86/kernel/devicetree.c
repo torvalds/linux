@@ -302,7 +302,7 @@ void __init x86_flattree_get_config(void)
 }
 #endif
 
-void __init x86_dtb_init(void)
+void __init x86_dtb_parse_smp_config(void)
 {
 	if (!of_have_populated_dt())
 		return;
