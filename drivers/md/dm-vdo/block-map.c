@@ -223,11 +223,11 @@ static int __must_check allocate_cache_components(struct vdo_page_cache *cache)
 
 	result = vdo_allocate(cache->page_count, struct page_info, "page infos",
 			      &cache->infos);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = vdo_allocate_memory(size, VDO_BLOCK_SIZE, "cache pages", &cache->pages);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = vdo_int_map_create(cache->page_count, &cache->page_map);
@@ -2874,7 +2874,7 @@ int vdo_decode_block_map(struct block_map_state_2_0 state, block_count_t logical
 	result = vdo_allocate_extended(struct block_map,
 				       vdo->thread_config.logical_zone_count,
 				       struct block_map_zone, __func__, &map);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	map->vdo = vdo;

@@ -847,7 +847,7 @@ int make_data_vio_pool(struct vdo *vdo, data_vio_count_t pool_size,
 
 	result = vdo_allocate_extended(struct data_vio_pool, pool_size, struct data_vio,
 				       __func__, &pool);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	ASSERT_LOG_ONLY((discard_limit <= pool_size),

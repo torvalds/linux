@@ -2379,7 +2379,7 @@ static int allocate_slab_counters(struct vdo_slab *slab)
 	bytes = (slab->reference_block_count * COUNTS_PER_BLOCK) + (2 * BYTES_PER_WORD);
 	result = vdo_allocate(bytes, vdo_refcount_t, "ref counts array",
 			      &slab->counters);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		vdo_free(vdo_forget(slab->reference_blocks));
 		return result;
 	}

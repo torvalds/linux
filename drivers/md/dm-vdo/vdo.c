@@ -545,7 +545,7 @@ int vdo_make(unsigned int instance, struct device_config *config, char **reason,
 	*reason = "Unspecified error";
 
 	result = vdo_allocate(1, struct vdo, __func__, &vdo);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		*reason = "Cannot allocate VDO";
 		return result;
 	}

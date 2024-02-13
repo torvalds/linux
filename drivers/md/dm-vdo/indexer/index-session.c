@@ -222,7 +222,7 @@ static int __must_check make_empty_index_session(struct uds_index_session **inde
 	struct uds_index_session *session;
 
 	result = vdo_allocate(1, struct uds_index_session, __func__, &session);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	mutex_init(&session->request_mutex);

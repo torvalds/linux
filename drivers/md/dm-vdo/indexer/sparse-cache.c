@@ -224,7 +224,7 @@ static int __must_check initialize_cached_chapter_index(struct cached_chapter_in
 
 	result = vdo_allocate(chapter->index_pages_count, struct delta_index_page,
 			      __func__, &chapter->index_pages);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	return vdo_allocate(chapter->index_pages_count, struct dm_buffer *,
@@ -242,7 +242,7 @@ static int __must_check make_search_list(struct sparse_cache *cache,
 	bytes = (sizeof(struct search_list) +
 		 (cache->capacity * sizeof(struct cached_chapter_index *)));
 	result = vdo_allocate_cache_aligned(bytes, "search list", &list);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	list->capacity = cache->capacity;
@@ -265,7 +265,7 @@ int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int ca
 
 	bytes = (sizeof(struct sparse_cache) + (capacity * sizeof(struct cached_chapter_index)));
 	result = vdo_allocate_cache_aligned(bytes, "sparse cache", &cache);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	cache->geometry = geometry;
@@ -296,7 +296,7 @@ int uds_make_sparse_cache(const struct index_geometry *geometry, unsigned int ca
 	/* purge_search_list() needs some temporary lists for sorting. */
 	result = vdo_allocate(capacity * 2, struct cached_chapter_index *,
 			      "scratch entries", &cache->scratch_entries);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		goto out;
 
 	*cache_ptr = cache;

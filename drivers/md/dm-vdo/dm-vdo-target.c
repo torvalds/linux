@@ -280,7 +280,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 
 	result = vdo_allocate(substring_count + 1, char *, "string-splitting array",
 			      &substrings);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	for (s = string; *s != 0; s++) {
@@ -289,7 +289,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 
 			result = vdo_allocate(length + 1, char, "split string",
 					      &substrings[current_substring]);
-			if (result != UDS_SUCCESS) {
+			if (result != VDO_SUCCESS) {
 				free_string_array(substrings);
 				return result;
 			}
@@ -310,7 +310,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 
 	result = vdo_allocate(length + 1, char, "split string",
 			      &substrings[current_substring]);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		free_string_array(substrings);
 		return result;
 	}
@@ -1527,7 +1527,7 @@ static size_t get_bit_array_size(unsigned int bit_count)
  * Since the array is initially NULL, this also initializes the array the first time we allocate an
  * instance number.
  *
- * Return: UDS_SUCCESS or an error code from the allocation
+ * Return: VDO_SUCCESS or an error code from the allocation
  */
 static int grow_bit_array(void)
 {
@@ -1540,19 +1540,19 @@ static int grow_bit_array(void)
 				       get_bit_array_size(instances.bit_count),
 				       get_bit_array_size(new_count),
 				       "instance number bit array", &new_words);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	instances.bit_count = new_count;
 	instances.words = new_words;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /**
  * allocate_instance() - Allocate an instance number.
  * @instance_ptr: A point to hold the instance number
  *
- * Return: UDS_SUCCESS or an error code
+ * Return: VDO_SUCCESS or an error code
  *
  * This function must be called while holding the instances lock.
  */
@@ -1564,7 +1564,7 @@ static int allocate_instance(unsigned int *instance_ptr)
 	/* If there are no unallocated instances, grow the bit array. */
 	if (instances.count >= instances.bit_count) {
 		result = grow_bit_array();
-		if (result != UDS_SUCCESS)
+		if (result != VDO_SUCCESS)
 			return result;
 	}
 
@@ -1587,7 +1587,7 @@ static int allocate_instance(unsigned int *instance_ptr)
 	instances.count++;
 	instances.next = instance + 1;
 	*instance_ptr = instance;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 static int construct_new_vdo_registered(struct dm_target *ti, unsigned int argc,

@@ -326,7 +326,7 @@ int uds_make_configuration(const struct uds_parameters *params,
 		return result;
 
 	result = vdo_allocate(1, struct uds_configuration, __func__, &config);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = uds_make_index_geometry(DEFAULT_BYTES_PER_PAGE, record_pages_per_chapter,

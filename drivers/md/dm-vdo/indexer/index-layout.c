@@ -487,7 +487,7 @@ static int __must_check make_index_save_region_table(struct index_save_layout *i
 	result = vdo_allocate_extended(struct region_table, region_count,
 				       struct layout_region,
 				       "layout region table for ISL", &table);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	lr = &table->regions[0];
@@ -546,7 +546,7 @@ static int __must_check write_index_save_header(struct index_save_layout *isl,
 	size_t offset = 0;
 
 	result = vdo_allocate(table->encoded_size, u8, "index save data", &buffer);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	encode_region_table(buffer, &offset, table);
@@ -670,7 +670,7 @@ static int __must_check make_layout_region_table(struct index_layout *layout,
 	result = vdo_allocate_extended(struct region_table, region_count,
 				       struct layout_region, "layout region table",
 				       &table);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	lr = &table->regions[0];
@@ -716,7 +716,7 @@ static int __must_check write_layout_header(struct index_layout *layout,
 	size_t offset = 0;
 
 	result = vdo_allocate(table->encoded_size, u8, "layout data", &buffer);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	encode_region_table(buffer, &offset, table);
@@ -807,7 +807,7 @@ static int create_index_layout(struct index_layout *layout, struct uds_configura
 
 	result = vdo_allocate(sizes.save_count, struct index_save_layout, __func__,
 			      &layout->index.saves);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	initialize_layout(layout, &sizes);
@@ -1165,7 +1165,7 @@ static int __must_check load_region_table(struct buffered_reader *reader,
 	result = vdo_allocate_extended(struct region_table, header.region_count,
 				       struct layout_region,
 				       "single file layout region table", &table);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	table->header = header;
@@ -1202,7 +1202,7 @@ static int __must_check read_super_block_data(struct buffered_reader *reader,
 	size_t offset = 0;
 
 	result = vdo_allocate(saved_size, u8, "super block data", &buffer);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = uds_read_from_buffered_reader(reader, buffer, saved_size);
@@ -1337,7 +1337,7 @@ static int __must_check reconstitute_layout(struct index_layout *layout,
 
 	result = vdo_allocate(layout->super.max_saves, struct index_save_layout,
 			      __func__, &layout->index.saves);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	layout->total_blocks = table->header.region_blocks;
@@ -1696,7 +1696,7 @@ int uds_make_index_layout(struct uds_configuration *config, bool new_layout,
 		return result;
 
 	result = vdo_allocate(1, struct index_layout, __func__, &layout);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = create_layout_factory(layout, config);

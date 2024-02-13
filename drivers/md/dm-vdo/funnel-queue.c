@@ -15,7 +15,7 @@ int uds_make_funnel_queue(struct funnel_queue **queue_ptr)
 	struct funnel_queue *queue;
 
 	result = vdo_allocate(1, struct funnel_queue, "funnel queue", &queue);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	/*

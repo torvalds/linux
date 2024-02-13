@@ -1509,22 +1509,22 @@ static int __must_check initialize_page_cache(struct page_cache *cache,
 
 	result = vdo_allocate(VOLUME_CACHE_MAX_QUEUED_READS, struct queued_read,
 			      "volume read queue", &cache->read_queue);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = vdo_allocate(cache->zone_count, struct search_pending_counter,
 			      "Volume Cache Zones", &cache->search_pending_counters);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = vdo_allocate(cache->indexable_pages, u16, "page cache index",
 			      &cache->index);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = vdo_allocate(cache->cache_slots, struct cached_page, "page cache cache",
 			      &cache->cache);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	/* Initialize index values to invalid values. */
@@ -1547,7 +1547,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 	int result;
 
 	result = vdo_allocate(1, struct volume, "volume", &volume);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	volume->nonce = uds_get_volume_nonce(layout);
@@ -1586,7 +1586,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 	result = vdo_allocate(geometry->records_per_page,
 			      const struct uds_volume_record *, "record pointers",
 			      &volume->record_pointers);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_free_volume(volume);
 		return result;
 	}
@@ -1626,7 +1626,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 
 	result = vdo_allocate(config->read_threads, struct thread *, "reader threads",
 			      &volume->reader_threads);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_free_volume(volume);
 		return result;
 	}

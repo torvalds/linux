@@ -1213,7 +1213,7 @@ static int initialize_volume_sub_index(const struct uds_configuration *config,
 	/* The following arrays are initialized to all zeros. */
 	result = vdo_allocate(params.list_count, u64, "first chapter to flush",
 			      &sub_index->flush_chapters);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	return vdo_allocate(zone_count, struct volume_sub_index_zone,
@@ -1229,7 +1229,7 @@ int uds_make_volume_index(const struct uds_configuration *config, u64 volume_non
 	int result;
 
 	result = vdo_allocate(1, struct volume_index, "volume index", &volume_index);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	volume_index->zone_count = config->zone_count;
@@ -1251,7 +1251,7 @@ int uds_make_volume_index(const struct uds_configuration *config, u64 volume_non
 
 	result = vdo_allocate(config->zone_count, struct volume_index_zone,
 			      "volume index zones", &volume_index->zones);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_free_volume_index(volume_index);
 		return result;
 	}

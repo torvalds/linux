@@ -199,7 +199,7 @@ int uds_make_request_queue(const char *queue_name,
 	struct uds_request_queue *queue;
 
 	result = vdo_allocate(1, struct uds_request_queue, __func__, &queue);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	queue->processor = processor;

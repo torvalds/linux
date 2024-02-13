@@ -152,7 +152,7 @@ static u64 hash_key(u64 key)
  * @map: The map to initialize.
  * @capacity: The initial capacity of the map.
  *
- * Return: UDS_SUCCESS or an error code.
+ * Return: VDO_SUCCESS or an error code.
  */
 static int allocate_buckets(struct int_map *map, size_t capacity)
 {
@@ -174,7 +174,7 @@ static int allocate_buckets(struct int_map *map, size_t capacity)
  *                    tells the map to use its own small default).
  * @map_ptr: Output, a pointer to hold the new int_map.
  *
- * Return: UDS_SUCCESS or an error code.
+ * Return: VDO_SUCCESS or an error code.
  */
 int vdo_int_map_create(size_t initial_capacity, struct int_map **map_ptr)
 {
@@ -183,7 +183,7 @@ int vdo_int_map_create(size_t initial_capacity, struct int_map **map_ptr)
 	size_t capacity;
 
 	result = vdo_allocate(1, struct int_map, "struct int_map", &map);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	/* Use the default capacity if the caller did not specify one. */
@@ -196,13 +196,13 @@ int vdo_int_map_create(size_t initial_capacity, struct int_map **map_ptr)
 	capacity = capacity * 100 / DEFAULT_LOAD;
 
 	result = allocate_buckets(map, capacity);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		vdo_int_map_free(vdo_forget(map));
 		return result;
 	}
 
 	*map_ptr = map;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /**
@@ -368,7 +368,7 @@ void *vdo_int_map_get(struct int_map *map, u64 key)
  *
  * Resizes and rehashes all the existing entries, storing them in the new buckets.
  *
- * Return: UDS_SUCCESS or an error code.
+ * Return: VDO_SUCCESS or an error code.
  */
 static int resize_buckets(struct int_map *map)
 {
@@ -384,7 +384,7 @@ static int resize_buckets(struct int_map *map)
 	uds_log_info("%s: attempting resize from %zu to %zu, current size=%zu",
 		     __func__, map->capacity, new_capacity, map->size);
 	result = allocate_buckets(map, new_capacity);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		*map = old_map;
 		return result;
 	}
@@ -407,7 +407,7 @@ static int resize_buckets(struct int_map *map)
 
 	/* Destroy the old bucket array. */
 	vdo_free(vdo_forget(old_map.buckets));
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /**
@@ -647,7 +647,7 @@ int vdo_int_map_put(struct int_map *map, u64 key, void *new_value, bool update,
 		 * large maps).
 		 */
 		result = resize_buckets(map);
-		if (result != UDS_SUCCESS)
+		if (result != VDO_SUCCESS)
 			return result;
 
 		/*

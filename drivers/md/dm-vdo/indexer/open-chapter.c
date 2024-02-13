@@ -71,14 +71,14 @@ int uds_make_open_chapter(const struct index_geometry *geometry, unsigned int zo
 	result = vdo_allocate_extended(struct open_chapter_zone, slot_count,
 				       struct open_chapter_zone_slot, "open chapter",
 				       &open_chapter);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	open_chapter->slot_count = slot_count;
 	open_chapter->capacity = capacity;
 	result = vdo_allocate_cache_aligned(records_size(open_chapter), "record pages",
 					    &open_chapter->records);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_free_open_chapter(open_chapter);
 		return result;
 	}

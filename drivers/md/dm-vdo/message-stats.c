@@ -420,7 +420,7 @@ int vdo_write_stats(struct vdo *vdo, char *buf, unsigned int maxlen)
 	int result;
 
 	result = vdo_allocate(1, struct vdo_statistics, __func__, &stats);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_log_error("Cannot allocate memory to write VDO statistics");
 		return result;
 	}

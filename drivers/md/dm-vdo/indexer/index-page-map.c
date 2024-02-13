@@ -39,14 +39,14 @@ int uds_make_index_page_map(const struct index_geometry *geometry,
 	struct index_page_map *map;
 
 	result = vdo_allocate(1, struct index_page_map, "page map", &map);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	map->geometry = geometry;
 	map->entries_per_chapter = geometry->index_pages_per_chapter - 1;
 	result = vdo_allocate(get_entry_count(geometry), u16, "Index Page Map Entries",
 			      &map->entries);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_free_index_page_map(map);
 		return result;
 	}
@@ -119,7 +119,7 @@ int uds_write_index_page_map(struct index_page_map *map, struct buffered_writer 
 	u32 i;
 
 	result = vdo_allocate(saved_size, u8, "page map data", &buffer);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	memcpy(buffer, PAGE_MAP_MAGIC, PAGE_MAP_MAGIC_LENGTH);
@@ -146,7 +146,7 @@ int uds_read_index_page_map(struct index_page_map *map, struct buffered_reader *
 	u32 i;
 
 	result = vdo_allocate(saved_size, u8, "page map data", &buffer);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = uds_read_from_buffered_reader(reader, buffer, saved_size);

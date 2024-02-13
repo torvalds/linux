@@ -21,7 +21,7 @@ int uds_make_open_chapter_index(struct open_chapter_index **chapter_index,
 	struct open_chapter_index *index;
 
 	result = vdo_allocate(1, struct open_chapter_index, "open chapter index", &index);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	/*

@@ -383,7 +383,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 	result = vdo_allocate_extended(struct io_submitter, thread_count,
 				       struct bio_queue_data, "bio submission data",
 				       &io_submitter);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	io_submitter->bio_queue_rotation_interval = rotation_interval;
