@@ -6669,6 +6669,372 @@ int rtw89_fw_h2c_mcc_set_duration(struct rtw89_dev *rtwdev,
 	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
 }
 
+static
+u32 rtw89_fw_h2c_mrc_add_slot(struct rtw89_dev *rtwdev,
+			      const struct rtw89_fw_mrc_add_slot_arg *slot_arg,
+			      struct rtw89_h2c_mrc_add_slot *slot_h2c)
+{
+	bool fill_h2c = !!slot_h2c;
+	unsigned int i;
+
+	if (!fill_h2c)
+		goto calc_len;
+
+	slot_h2c->w0 = le32_encode_bits(slot_arg->duration,
+					RTW89_H2C_MRC_ADD_SLOT_W0_DURATION) |
+		       le32_encode_bits(slot_arg->courtesy_en,
+					RTW89_H2C_MRC_ADD_SLOT_W0_COURTESY_EN) |
+		       le32_encode_bits(slot_arg->role_num,
+					RTW89_H2C_MRC_ADD_SLOT_W0_ROLE_NUM);
+	slot_h2c->w1 = le32_encode_bits(slot_arg->courtesy_period,
+					RTW89_H2C_MRC_ADD_SLOT_W1_COURTESY_PERIOD) |
+		       le32_encode_bits(slot_arg->courtesy_target,
+					RTW89_H2C_MRC_ADD_SLOT_W1_COURTESY_TARGET);
+
+	for (i = 0; i < slot_arg->role_num; i++) {
+		slot_h2c->roles[i].w0 =
+			le32_encode_bits(slot_arg->roles[i].macid,
+					 RTW89_H2C_MRC_ADD_ROLE_W0_MACID) |
+			le32_encode_bits(slot_arg->roles[i].role_type,
+					 RTW89_H2C_MRC_ADD_ROLE_W0_ROLE_TYPE) |
+			le32_encode_bits(slot_arg->roles[i].is_master,
+					 RTW89_H2C_MRC_ADD_ROLE_W0_IS_MASTER) |
+			le32_encode_bits(slot_arg->roles[i].en_tx_null,
+					 RTW89_H2C_MRC_ADD_ROLE_W0_TX_NULL_EN) |
+			le32_encode_bits(false,
+					 RTW89_H2C_MRC_ADD_ROLE_W0_IS_ALT_ROLE) |
+			le32_encode_bits(false,
+					 RTW89_H2C_MRC_ADD_ROLE_W0_ROLE_ALT_EN);
+		slot_h2c->roles[i].w1 =
+			le32_encode_bits(slot_arg->roles[i].central_ch,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_CENTRAL_CH_SEG) |
+			le32_encode_bits(slot_arg->roles[i].primary_ch,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_PRI_CH) |
+			le32_encode_bits(slot_arg->roles[i].bw,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_BW) |
+			le32_encode_bits(slot_arg->roles[i].band,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_CH_BAND_TYPE) |
+			le32_encode_bits(slot_arg->roles[i].null_early,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_NULL_EARLY) |
+			le32_encode_bits(false,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_RFK_BY_PASS) |
+			le32_encode_bits(true,
+					 RTW89_H2C_MRC_ADD_ROLE_W1_CAN_BTC);
+		slot_h2c->roles[i].macid_main_bitmap =
+			cpu_to_le32(slot_arg->roles[i].macid_main_bitmap);
+		slot_h2c->roles[i].macid_paired_bitmap =
+			cpu_to_le32(slot_arg->roles[i].macid_paired_bitmap);
+	}
+
+calc_len:
+	return struct_size(slot_h2c, roles, slot_arg->role_num);
+}
+
+int rtw89_fw_h2c_mrc_add(struct rtw89_dev *rtwdev,
+			 const struct rtw89_fw_mrc_add_arg *arg)
+{
+	struct rtw89_h2c_mrc_add *h2c_head;
+	struct sk_buff *skb;
+	unsigned int i;
+	void *tmp;
+	u32 len;
+	int ret;
+
+	len = sizeof(*h2c_head);
+	for (i = 0; i < arg->slot_num; i++)
+		len += rtw89_fw_h2c_mrc_add_slot(rtwdev, &arg->slots[i], NULL);
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc add\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	tmp = skb->data;
+
+	h2c_head = tmp;
+	h2c_head->w0 = le32_encode_bits(arg->sch_idx,
+					RTW89_H2C_MRC_ADD_W0_SCH_IDX) |
+		       le32_encode_bits(arg->sch_type,
+					RTW89_H2C_MRC_ADD_W0_SCH_TYPE) |
+		       le32_encode_bits(arg->slot_num,
+					RTW89_H2C_MRC_ADD_W0_SLOT_NUM) |
+		       le32_encode_bits(arg->btc_in_sch,
+					RTW89_H2C_MRC_ADD_W0_BTC_IN_SCH);
+
+	tmp += sizeof(*h2c_head);
+	for (i = 0; i < arg->slot_num; i++)
+		tmp += rtw89_fw_h2c_mrc_add_slot(rtwdev, &arg->slots[i], tmp);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_ADD_MRC, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		dev_kfree_skb_any(skb);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+int rtw89_fw_h2c_mrc_start(struct rtw89_dev *rtwdev,
+			   const struct rtw89_fw_mrc_start_arg *arg)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct rtw89_h2c_mrc_start *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc start\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mrc_start *)skb->data;
+
+	h2c->w0 = le32_encode_bits(arg->sch_idx,
+				   RTW89_H2C_MRC_START_W0_SCH_IDX) |
+		  le32_encode_bits(arg->old_sch_idx,
+				   RTW89_H2C_MRC_START_W0_OLD_SCH_IDX) |
+		  le32_encode_bits(arg->action,
+				   RTW89_H2C_MRC_START_W0_ACTION);
+
+	h2c->start_tsf_high = cpu_to_le32(arg->start_tsf >> 32);
+	h2c->start_tsf_low = cpu_to_le32(arg->start_tsf);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_START_MRC, 0, 0,
+			      len);
+
+	cond = RTW89_MRC_WAIT_COND(arg->sch_idx, H2C_FUNC_START_MRC);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+int rtw89_fw_h2c_mrc_del(struct rtw89_dev *rtwdev, u8 sch_idx)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct rtw89_h2c_mrc_del *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	unsigned int cond;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc del\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mrc_del *)skb->data;
+
+	h2c->w0 = le32_encode_bits(sch_idx, RTW89_H2C_MRC_DEL_W0_SCH_IDX);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_DEL_MRC, 0, 0,
+			      len);
+
+	cond = RTW89_MRC_WAIT_COND(sch_idx, H2C_FUNC_DEL_MRC);
+	return rtw89_h2c_tx_and_wait(rtwdev, skb, wait, cond);
+}
+
+int rtw89_fw_h2c_mrc_req_tsf(struct rtw89_dev *rtwdev,
+			     const struct rtw89_fw_mrc_req_tsf_arg *arg,
+			     struct rtw89_mac_mrc_tsf_rpt *rpt)
+{
+	struct rtw89_wait_info *wait = &rtwdev->mcc.wait;
+	struct rtw89_h2c_mrc_req_tsf *h2c;
+	struct rtw89_mac_mrc_tsf_rpt *tmp;
+	struct sk_buff *skb;
+	unsigned int i;
+	u32 len;
+	int ret;
+
+	len = struct_size(h2c, infos, arg->num);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc req tsf\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mrc_req_tsf *)skb->data;
+
+	h2c->req_tsf_num = arg->num;
+	for (i = 0; i < arg->num; i++)
+		h2c->infos[i] =
+			u8_encode_bits(arg->infos[i].band,
+				       RTW89_H2C_MRC_REQ_TSF_INFO_BAND) |
+			u8_encode_bits(arg->infos[i].port,
+				       RTW89_H2C_MRC_REQ_TSF_INFO_PORT);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_MRC_REQ_TSF, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx_and_wait(rtwdev, skb, wait, RTW89_MRC_WAIT_COND_REQ_TSF);
+	if (ret)
+		return ret;
+
+	tmp = (struct rtw89_mac_mrc_tsf_rpt *)wait->data.buf;
+	*rpt = *tmp;
+
+	return 0;
+}
+
+int rtw89_fw_h2c_mrc_upd_bitmap(struct rtw89_dev *rtwdev,
+				const struct rtw89_fw_mrc_upd_bitmap_arg *arg)
+{
+	struct rtw89_h2c_mrc_upd_bitmap *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc upd bitmap\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mrc_upd_bitmap *)skb->data;
+
+	h2c->w0 = le32_encode_bits(arg->sch_idx,
+				   RTW89_H2C_MRC_UPD_BITMAP_W0_SCH_IDX) |
+		  le32_encode_bits(arg->action,
+				   RTW89_H2C_MRC_UPD_BITMAP_W0_ACTION) |
+		  le32_encode_bits(arg->macid,
+				   RTW89_H2C_MRC_UPD_BITMAP_W0_MACID);
+	h2c->w1 = le32_encode_bits(arg->client_macid,
+				   RTW89_H2C_MRC_UPD_BITMAP_W1_CLIENT_MACID);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_MRC_UPD_BITMAP, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		dev_kfree_skb_any(skb);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+int rtw89_fw_h2c_mrc_sync(struct rtw89_dev *rtwdev,
+			  const struct rtw89_fw_mrc_sync_arg *arg)
+{
+	struct rtw89_h2c_mrc_sync *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc sync\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mrc_sync *)skb->data;
+
+	h2c->w0 = le32_encode_bits(true, RTW89_H2C_MRC_SYNC_W0_SYNC_EN) |
+		  le32_encode_bits(arg->src.port,
+				   RTW89_H2C_MRC_SYNC_W0_SRC_PORT) |
+		  le32_encode_bits(arg->src.band,
+				   RTW89_H2C_MRC_SYNC_W0_SRC_BAND) |
+		  le32_encode_bits(arg->dest.port,
+				   RTW89_H2C_MRC_SYNC_W0_DEST_PORT) |
+		  le32_encode_bits(arg->dest.band,
+				   RTW89_H2C_MRC_SYNC_W0_DEST_BAND);
+	h2c->w1 = le32_encode_bits(arg->offset, RTW89_H2C_MRC_SYNC_W1_OFFSET);
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_MRC_SYNC, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		dev_kfree_skb_any(skb);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+int rtw89_fw_h2c_mrc_upd_duration(struct rtw89_dev *rtwdev,
+				  const struct rtw89_fw_mrc_upd_duration_arg *arg)
+{
+	struct rtw89_h2c_mrc_upd_duration *h2c;
+	struct sk_buff *skb;
+	unsigned int i;
+	u32 len;
+	int ret;
+
+	len = struct_size(h2c, slots, arg->slot_num);
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for mrc upd duration\n");
+		return -ENOMEM;
+	}
+
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_mrc_upd_duration *)skb->data;
+
+	h2c->w0 = le32_encode_bits(arg->sch_idx,
+				   RTW89_H2C_MRC_UPD_DURATION_W0_SCH_IDX) |
+		  le32_encode_bits(arg->slot_num,
+				   RTW89_H2C_MRC_UPD_DURATION_W0_SLOT_NUM) |
+		  le32_encode_bits(false,
+				   RTW89_H2C_MRC_UPD_DURATION_W0_BTC_IN_SCH);
+
+	h2c->start_tsf_high = cpu_to_le32(arg->start_tsf >> 32);
+	h2c->start_tsf_low = cpu_to_le32(arg->start_tsf);
+
+	for (i = 0; i < arg->slot_num; i++) {
+		h2c->slots[i] =
+			le32_encode_bits(arg->slots[i].slot_idx,
+					 RTW89_H2C_MRC_UPD_DURATION_SLOT_SLOT_IDX) |
+			le32_encode_bits(arg->slots[i].duration,
+					 RTW89_H2C_MRC_UPD_DURATION_SLOT_DURATION);
+	}
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_MAC,
+			      H2C_CL_MRC,
+			      H2C_FUNC_MRC_UPD_DURATION, 0, 0,
+			      len);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		dev_kfree_skb_any(skb);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 static bool __fw_txpwr_entry_zero_ext(const void *ext_ptr, u8 ext_len)
 {
 	static const u8 zeros[U8_MAX] = {};
