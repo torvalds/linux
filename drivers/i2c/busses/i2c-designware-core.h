@@ -352,6 +352,14 @@ static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
 	dev->status &= ~STATUS_ACTIVE;
 }
 
+static inline void __i2c_dw_write_intr_mask(struct dw_i2c_dev *dev,
+					    unsigned int intr_mask)
+{
+	unsigned int val = dev->flags & ACCESS_POLLING ? 0 : intr_mask;
+
+	regmap_write(dev->map, DW_IC_INTR_MASK, val);
+}
+
 void __i2c_dw_disable(struct dw_i2c_dev *dev);
 
 extern void i2c_dw_configure_master(struct dw_i2c_dev *dev);
