@@ -318,7 +318,7 @@ static int split_string(const char *string, char separator, char ***substring_ar
 	current_substring++;
 	/* substrings[current_substring] is NULL already */
 	*substring_array_ptr = substrings;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /*
@@ -356,7 +356,7 @@ static int join_strings(char **substring_array, size_t array_length, char separa
 		*(current_position - 1) = '\0';
 
 	*string_ptr = output;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /**
@@ -484,7 +484,7 @@ static int parse_one_thread_config_spec(const char *spec,
 	int result;
 
 	result = split_string(spec, '=', &fields);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	if ((fields[0] == NULL) || (fields[1] == NULL) || (fields[2] != NULL)) {
@@ -495,7 +495,7 @@ static int parse_one_thread_config_spec(const char *spec,
 	}
 
 	result = kstrtouint(fields[1], 10, &count);
-	if (result != UDS_SUCCESS) {
+	if (result) {
 		uds_log_error("thread config string error: integer value needed, found \"%s\"",
 			      fields[1]);
 		free_string_array(fields);
@@ -537,7 +537,7 @@ static int parse_thread_config_string(const char *string,
 		unsigned int i;
 
 		result = split_string(string, ',', &specs);
-		if (result != UDS_SUCCESS)
+		if (result != VDO_SUCCESS)
 			return result;
 
 		for (i = 0; specs[i] != NULL; i++) {
@@ -607,7 +607,7 @@ static int parse_one_key_value_pair(const char *key, const char *value,
 
 	/* The remaining arguments must have integral values. */
 	result = kstrtouint(value, 10, &count);
-	if (result != UDS_SUCCESS) {
+	if (result) {
 		uds_log_error("optional config string error: integer value needed, found \"%s\"",
 			      value);
 		return result;
@@ -2913,7 +2913,7 @@ static int __init vdo_init(void)
 
 	/* Add VDO errors to the set of errors registered by the indexer. */
 	result = vdo_register_status_codes();
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		uds_log_error("vdo_register_status_codes failed %d", result);
 		vdo_module_destroy();
 		return result;
