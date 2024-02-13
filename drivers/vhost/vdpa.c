@@ -595,6 +595,9 @@ static long vhost_vdpa_suspend(struct vhost_vdpa *v)
 	const struct vdpa_config_ops *ops = vdpa->config;
 	int ret;
 
+	if (!(ops->get_status(vdpa) & VIRTIO_CONFIG_S_DRIVER_OK))
+		return 0;
+
 	if (!ops->suspend)
 		return -EOPNOTSUPP;
 
@@ -614,6 +617,9 @@ static long vhost_vdpa_resume(struct vhost_vdpa *v)
 	struct vdpa_device *vdpa = v->vdpa;
 	const struct vdpa_config_ops *ops = vdpa->config;
 	int ret;
+
+	if (!(ops->get_status(vdpa) & VIRTIO_CONFIG_S_DRIVER_OK))
+		return 0;
 
 	if (!ops->resume)
 		return -EOPNOTSUPP;
