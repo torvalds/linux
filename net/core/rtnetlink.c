@@ -2956,7 +2956,7 @@ static int do_setlink(const struct sk_buff *skb,
 		write_lock(&dev_base_lock);
 		if (dev->link_mode ^ value)
 			status |= DO_SETLINK_NOTIFY;
-		dev->link_mode = value;
+		WRITE_ONCE(dev->link_mode, value);
 		write_unlock(&dev_base_lock);
 	}
 
