@@ -84,32 +84,38 @@ early_initcall(smp_init_primary_thread_mask);
 static inline void cpu_mark_primary_thread(unsigned int cpu, unsigned int apicid) { }
 #endif
 
+static int topo_lookup_cpuid(u32 apic_id)
+{
+	int i;
+
+	/* CPU# to APICID mapping is persistent once it is established */
+	for (i = 0; i < nr_logical_cpuids; i++) {
+		if (cpuid_to_apicid[i] == apic_id)
+			return i;
+	}
+	return -ENODEV;
+}
+
 /*
  * Should use this API to allocate logical CPU IDs to keep nr_logical_cpuids
  * and cpuid_to_apicid[] synchronized.
  */
-static int allocate_logical_cpuid(int apicid)
+static int allocate_logical_cpuid(u32 apic_id)
 {
-	int i;
+	int cpu = topo_lookup_cpuid(apic_id);
 
-	/*
-	 * cpuid <-> apicid mapping is persistent, so when a cpu is up,
-	 * check if the kernel has allocated a cpuid for it.
-	 */
-	for (i = 0; i < nr_logical_cpuids; i++) {
-		if (cpuid_to_apicid[i] == apicid)
-			return i;
-	}
+	if (cpu >= 0)
+		return cpu;
 
 	/* Allocate a new cpuid. */
 	if (nr_logical_cpuids >= nr_cpu_ids) {
 		WARN_ONCE(1, "APIC: NR_CPUS/possible_cpus limit of %u reached. "
 			     "Processor %d/0x%x and the rest are ignored.\n",
-			     nr_cpu_ids, nr_logical_cpuids, apicid);
+			     nr_cpu_ids, nr_logical_cpuids, apic_id);
 		return -EINVAL;
 	}
 
-	cpuid_to_apicid[nr_logical_cpuids] = apicid;
+	cpuid_to_apicid[nr_logical_cpuids] = apic_id;
 	return nr_logical_cpuids++;
 }
 
@@ -125,12 +131,6 @@ static void cpu_update_apic(int cpu, u32 apicid)
 
 	if (system_state != SYSTEM_BOOTING)
 		cpu_mark_primary_thread(cpu, apicid);
-}
-
-void __init topology_register_boot_apic(u32 apic_id)
-{
-	cpuid_to_apicid[0] = apic_id;
-	cpu_update_apic(0, apic_id);
 }
 
 int generic_processor_info(int apicid)
@@ -173,6 +173,83 @@ int generic_processor_info(int apicid)
 	cpu_update_apic(cpu, apicid);
 	return cpu;
 }
+
+/**
+ * topology_register_apic - Register an APIC in early topology maps
+ * @apic_id:	The APIC ID to set up
+ * @acpi_id:	The ACPI ID associated to the APIC
+ * @present:	True if the corresponding CPU is present
+ */
+void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
+{
+	int cpu;
+
+	if (apic_id >= MAX_LOCAL_APIC) {
+		pr_err_once("APIC ID %x exceeds kernel limit of: %x\n", apic_id, MAX_LOCAL_APIC - 1);
+		return;
+	}
+
+	if (!present) {
+		disabled_cpus++;
+		return;
+	}
+
+	cpu = generic_processor_info(apic_id);
+	if (cpu >= 0)
+		early_per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
+}
+
+/**
+ * topology_register_boot_apic - Register the boot CPU APIC
+ * @apic_id:	The APIC ID to set up
+ *
+ * Separate so CPU #0 can be assigned
+ */
+void __init topology_register_boot_apic(u32 apic_id)
+{
+	cpuid_to_apicid[0] = apic_id;
+	cpu_update_apic(0, apic_id);
+}
+
+#ifdef CONFIG_ACPI_HOTPLUG_CPU
+/**
+ * topology_hotplug_apic - Handle a physical hotplugged APIC after boot
+ * @apic_id:	The APIC ID to set up
+ * @acpi_id:	The ACPI ID associated to the APIC
+ */
+int topology_hotplug_apic(u32 apic_id, u32 acpi_id)
+{
+	int cpu;
+
+	if (apic_id >= MAX_LOCAL_APIC)
+		return -EINVAL;
+
+	cpu = topo_lookup_cpuid(apic_id);
+	if (cpu < 0) {
+		cpu = generic_processor_info(apic_id);
+		if (cpu >= 0)
+			per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
+	}
+	return cpu;
+}
+
+/**
+ * topology_hotunplug_apic - Remove a physical hotplugged APIC after boot
+ * @cpu:	The CPU number for which the APIC ID is removed
+ */
+void topology_hotunplug_apic(unsigned int cpu)
+{
+	u32 apic_id = cpuid_to_apicid[cpu];
+
+	if (apic_id == BAD_APICID)
+		return;
+
+	per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
+	clear_bit(apic_id, phys_cpu_present_map);
+	set_cpu_present(cpu, false);
+	num_processors--;
+}
+#endif
 
 static int __init apic_set_disabled_cpu_apicid(char *arg)
 {
