@@ -1131,6 +1131,8 @@ void __init setup_arch(char **cmdline_p)
 
 	early_quirks();
 
+	topology_apply_cmdline_limits_early();
+
 	/*
 	 * Parse SMP configuration. Try ACPI first and then the platform
 	 * specific parser.
@@ -1138,13 +1140,10 @@ void __init setup_arch(char **cmdline_p)
 	acpi_boot_init();
 	x86_init.mpparse.parse_smp_cfg();
 
-	/*
-	 * Systems w/o ACPI and mptables might not have it mapped the local
-	 * APIC yet, but prefill_possible_map() might need to access it.
-	 */
+	/* Last opportunity to detect and map the local APIC */
 	init_apic_mappings();
 
-	prefill_possible_map();
+	topology_init_possible_cpus();
 
 	init_cpu_to_node();
 	init_gi_nodes();
