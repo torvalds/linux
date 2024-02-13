@@ -623,14 +623,7 @@ static void uvcg_video_pump(struct work_struct *work)
 			uvcg_queue_cancel(queue, 0);
 			break;
 		}
-
-		/* The request is owned by  the endpoint / ready list. */
-		req = NULL;
 	}
-
-	if (!req)
-		return;
-
 	spin_lock_irqsave(&video->req_lock, flags);
 	if (video->is_enabled)
 		list_add_tail(&req->list, &video->req_free);
