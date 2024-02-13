@@ -30,8 +30,10 @@ static struct {
 	unsigned int		nr_assigned_cpus;
 	unsigned int		nr_disabled_cpus;
 	unsigned int		nr_rejected_cpus;
+	u32			boot_cpu_apic_id;
 } topo_info __read_mostly = {
 	.nr_assigned_cpus	= 1,
+	.boot_cpu_apic_id	= BAD_APICID,
 };
 
 /*
@@ -82,78 +84,6 @@ early_initcall(smp_init_primary_thread_mask);
 #else
 static inline void cpu_mark_primary_thread(unsigned int cpu, unsigned int apicid) { }
 #endif
-
-static int topo_lookup_cpuid(u32 apic_id)
-{
-	int i;
-
-	/* CPU# to APICID mapping is persistent once it is established */
-	for (i = 0; i < topo_info.nr_assigned_cpus; i++) {
-		if (cpuid_to_apicid[i] == apic_id)
-			return i;
-	}
-	return -ENODEV;
-}
-
-/*
- * Should use this API to allocate logical CPU IDs to keep nr_logical_cpuids
- * and cpuid_to_apicid[] synchronized.
- */
-static int allocate_logical_cpuid(u32 apic_id)
-{
-	int cpu = topo_lookup_cpuid(apic_id);
-
-	if (cpu >= 0)
-		return cpu;
-
-	return topo_info.nr_assigned_cpus++;
-}
-
-static void cpu_update_apic(unsigned int cpu, u32 apic_id)
-{
-#if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
-	early_per_cpu(x86_cpu_to_apicid, cpu) = apic_id;
-#endif
-	cpuid_to_apicid[cpu] = apic_id;
-	set_cpu_possible(cpu, true);
-	set_bit(apic_id, phys_cpu_present_map);
-	set_cpu_present(cpu, true);
-
-	if (system_state != SYSTEM_BOOTING)
-		cpu_mark_primary_thread(cpu, apic_id);
-}
-
-static int generic_processor_info(int apicid)
-{
-	int cpu;
-
-	/* The boot CPU must be set before MADT/MPTABLE parsing happens */
-	if (cpuid_to_apicid[0] == BAD_APICID)
-		panic("Boot CPU APIC not registered yet\n");
-
-	if (apicid == boot_cpu_physical_apicid)
-		return 0;
-
-	if (disabled_cpu_apicid == apicid) {
-		int thiscpu = topo_info.nr_assigned_cpus + topo_info.nr_disabled_cpus;
-
-		pr_warn("APIC: Disabling requested cpu. Processor %d/0x%x ignored.\n",
-			thiscpu, apicid);
-
-		topo_info.nr_rejected_cpus++;
-		return -ENODEV;
-	}
-
-	if (topo_info.nr_assigned_cpus >= nr_cpu_ids) {
-		pr_warn_once("APIC: CPU limit of %d reached. Ignoring further CPUs\n", nr_cpu_ids);
-		topo_info.nr_rejected_cpus++;
-		return -ENOSPC;
-	}
-
-	cpu = allocate_logical_cpuid(apicid);
-	cpu_update_apic(cpu, apicid);
-	return cpu;
-}
 
 static int __initdata setup_possible_cpus = -1;
 
@@ -222,6 +152,43 @@ __init void prefill_possible_map(void)
 		set_cpu_possible(i, true);
 }
 
+static int topo_lookup_cpuid(u32 apic_id)
+{
+	int i;
+
+	/* CPU# to APICID mapping is persistent once it is established */
+	for (i = 0; i < topo_info.nr_assigned_cpus; i++) {
+		if (cpuid_to_apicid[i] == apic_id)
+			return i;
+	}
+	return -ENODEV;
+}
+
+static int topo_get_cpunr(u32 apic_id)
+{
+	int cpu = topo_lookup_cpuid(apic_id);
+
+	if (cpu >= 0)
+		return cpu;
+
+	return topo_info.nr_assigned_cpus++;
+}
+
+static void topo_set_cpuids(unsigned int cpu, u32 apic_id, u32 acpi_id)
+{
+#if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
+	early_per_cpu(x86_cpu_to_apicid, cpu) = apic_id;
+	early_per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
+#endif
+	cpuid_to_apicid[cpu] = apic_id;
+
+	set_cpu_possible(cpu, true);
+	set_cpu_present(cpu, true);
+
+	if (system_state != SYSTEM_BOOTING)
+		cpu_mark_primary_thread(cpu, apic_id);
+}
+
 /**
  * topology_register_apic - Register an APIC in early topology maps
  * @apic_id:	The APIC ID to set up
@@ -234,17 +201,40 @@ void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
 
 	if (apic_id >= MAX_LOCAL_APIC) {
 		pr_err_once("APIC ID %x exceeds kernel limit of: %x\n", apic_id, MAX_LOCAL_APIC - 1);
+		topo_info.nr_rejected_cpus++;
 		return;
 	}
 
-	if (!present) {
+	if (disabled_cpu_apicid == apic_id) {
+		pr_info("Disabling CPU as requested via 'disable_cpu_apicid=0x%x'.\n", apic_id);
+		topo_info.nr_rejected_cpus++;
+		return;
+	}
+
+	/* CPU numbers exhausted? */
+	if (apic_id != topo_info.boot_cpu_apic_id && topo_info.nr_assigned_cpus >= nr_cpu_ids) {
+		pr_warn_once("CPU limit of %d reached. Ignoring further CPUs\n", nr_cpu_ids);
+		topo_info.nr_rejected_cpus++;
+		return;
+	}
+
+	if (present) {
+		set_bit(apic_id, phys_cpu_present_map);
+
+		/*
+		 * Double registration is valid in case of the boot CPU
+		 * APIC because that is registered before the enumeration
+		 * of the APICs via firmware parsers or VM guest
+		 * mechanisms.
+		 */
+		if (apic_id == topo_info.boot_cpu_apic_id)
+			cpu = 0;
+		else
+			cpu = topo_get_cpunr(apic_id);
+		topo_set_cpuids(cpu, apic_id, acpi_id);
+	} else {
 		topo_info.nr_disabled_cpus++;
-		return;
 	}
-
-	cpu = generic_processor_info(apic_id);
-	if (cpu >= 0)
-		early_per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
 }
 
 /**
@@ -255,8 +245,10 @@ void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
  */
 void __init topology_register_boot_apic(u32 apic_id)
 {
-	cpuid_to_apicid[0] = apic_id;
-	cpu_update_apic(0, apic_id);
+	WARN_ON_ONCE(topo_info.boot_cpu_apic_id != BAD_APICID);
+
+	topo_info.boot_cpu_apic_id = apic_id;
+	topology_register_apic(apic_id, CPU_ACPIID_INVALID, true);
 }
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
@@ -274,10 +266,13 @@ int topology_hotplug_apic(u32 apic_id, u32 acpi_id)
 
 	cpu = topo_lookup_cpuid(apic_id);
 	if (cpu < 0) {
-		cpu = generic_processor_info(apic_id);
-		if (cpu >= 0)
-			per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
+		if (topo_info.nr_assigned_cpus >= nr_cpu_ids)
+			return -ENOSPC;
+
+		cpu = topo_assign_cpunr(apic_id);
 	}
+	set_bit(apic_id, phys_cpu_present_map);
+	topo_set_cpuids(cpu, apic_id, acpi_id);
 	return cpu;
 }
 
