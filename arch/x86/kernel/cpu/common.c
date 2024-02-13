@@ -1716,22 +1716,11 @@ static void generic_identify(struct cpuinfo_x86 *c)
 #endif
 }
 
-/*
- * Validate that ACPI/mptables have the same information about the
- * effective APIC id and update the package map.
- */
-static void validate_apic_and_package_id(struct cpuinfo_x86 *c)
+static void update_package_map(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	unsigned int cpu = smp_processor_id();
-	u32 apicid;
 
-	apicid = apic->cpu_present_to_apicid(cpu);
-
-	if (apicid != c->topo.apicid) {
-		pr_err(FW_BUG "CPU%u: APIC id mismatch. Firmware: %x APIC: %x\n",
-		       cpu, apicid, c->topo.initial_apicid);
-	}
 	BUG_ON(topology_update_package_map(c->topo.pkg_id, cpu));
 	BUG_ON(topology_update_die_map(c->topo.die_id, cpu));
 #else
@@ -1923,7 +1912,7 @@ void identify_secondary_cpu(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_32
 	enable_sep_cpu();
 #endif
-	validate_apic_and_package_id(c);
+	update_package_map(c);
 	x86_spec_ctrl_setup_ap();
 	update_srbds_msr();
 	if (boot_cpu_has_bug(X86_BUG_GDS))

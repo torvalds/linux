@@ -177,6 +177,18 @@ void cpu_parse_topology(struct cpuinfo_x86 *c)
 
 	parse_topology(&tscan, false);
 
+	if (IS_ENABLED(CONFIG_X86_LOCAL_APIC)) {
+		if (c->topo.initial_apicid != c->topo.apicid) {
+			pr_err(FW_BUG "CPU%4u: APIC ID mismatch. CPUID: 0x%04x APIC: 0x%04x\n",
+			       cpu, c->topo.initial_apicid, c->topo.apicid);
+		}
+
+		if (c->topo.apicid != cpuid_to_apicid[cpu]) {
+			pr_err(FW_BUG "CPU%4u: APIC ID mismatch. Firmware: 0x%04x APIC: 0x%04x\n",
+			       cpu, cpuid_to_apicid[cpu], c->topo.apicid);
+		}
+	}
+
 	for (dom = TOPO_SMT_DOMAIN; dom < TOPO_MAX_DOMAIN; dom++) {
 		if (tscan.dom_shifts[dom] == x86_topo_system.dom_shifts[dom])
 			continue;

@@ -46,15 +46,14 @@ extern void x86_32_probe_apic(void);
 static inline void x86_32_probe_apic(void) { }
 #endif
 
-#ifdef CONFIG_X86_LOCAL_APIC
+extern u32 cpuid_to_apicid[];
 
+#ifdef CONFIG_X86_LOCAL_APIC
 extern int apic_verbosity;
 extern int local_apic_timer_c2_ok;
 
 extern bool apic_is_disabled;
 extern unsigned int lapic_timer_period;
-
-extern u32 cpuid_to_apicid[];
 
 extern enum apic_intr_mode_id apic_intr_mode;
 enum apic_intr_mode_id {
