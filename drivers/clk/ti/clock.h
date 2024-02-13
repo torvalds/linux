@@ -216,6 +216,7 @@ int ti_clk_parse_divider_data(int *div_table, int num_dividers, int max_div,
 
 int ti_clk_get_reg_addr(struct device_node *node, int index,
 			struct clk_omap_reg *reg);
+int ti_clk_get_legacy_bit_shift(struct device_node *node);
 void ti_dt_clocks_register(struct ti_dt_clk *oclks);
 int ti_clk_retry_init(struct device_node *node, void *user,
 		      ti_of_clk_init_cb_t func);

@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/list.h>
+#include <linux/minmax.h>
 #include <linux/regmap.h>
 #include <linux/string_helpers.h>
 #include <linux/memblock.h>
@@ -307,8 +308,9 @@ int __init ti_clk_retry_init(struct device_node *node, void *user,
 int ti_clk_get_reg_addr(struct device_node *node, int index,
 			struct clk_omap_reg *reg)
 {
-	u32 val;
-	int i;
+	u32 clksel_addr, val;
+	bool is_clksel = false;
+	int i, err;
 
 	for (i = 0; i < CLK_MAX_MEMMAPS; i++) {
 		if (clocks_node_ptr[i] == node->parent)
@@ -324,17 +326,58 @@ int ti_clk_get_reg_addr(struct device_node *node, int index,
 
 	reg->index = i;
 
-	if (of_property_read_u32_index(node, "reg", index, &val)) {
-		if (of_property_read_u32_index(node->parent, "reg",
-					       index, &val)) {
-			pr_err("%pOFn or parent must have reg[%d]!\n",
-			       node, index);
+	if (of_device_is_compatible(node->parent, "ti,clksel")) {
+		err = of_property_read_u32_index(node->parent, "reg", index, &clksel_addr);
+		if (err) {
+			pr_err("%pOFn parent clksel must have reg[%d]!\n", node, index);
 			return -EINVAL;
 		}
+		is_clksel = true;
 	}
 
+	err = of_property_read_u32_index(node, "reg", index, &val);
+	if (err && is_clksel) {
+		/* Legacy clksel with no reg and a possible ti,bit-shift property */
+		reg->offset = clksel_addr;
+		reg->bit = ti_clk_get_legacy_bit_shift(node);
+		reg->ptr = NULL;
+
+		return 0;
+	}
+
+	/* Updated clksel clock with a proper reg property */
+	if (is_clksel) {
+		reg->offset = clksel_addr;
+		reg->bit = val;
+		reg->ptr = NULL;
+		return 0;
+	}
+
+	/* Other clocks that may or may not have ti,bit-shift property  */
 	reg->offset = val;
+	reg->bit = ti_clk_get_legacy_bit_shift(node);
 	reg->ptr = NULL;
+
+	return 0;
+}
+
+/**
+ * ti_clk_get_legacy_bit_shift - get bit shift for a clock register
+ * @node: device node for the clock
+ *
+ * Gets the clock register bit shift using the legacy ti,bit-shift
+ * property. Only needed for legacy clock, and can be eventually
+ * dropped once all the composite clocks use a clksel node with a
+ * proper reg property.
+ */
+int ti_clk_get_legacy_bit_shift(struct device_node *node)
+{
+	int err;
+	u32 val;
+
+	err = of_property_read_u32(node, "ti,bit-shift", &val);
+	if (!err && in_range(val, 0, 32))
+		return val;
 
 	return 0;
 }
