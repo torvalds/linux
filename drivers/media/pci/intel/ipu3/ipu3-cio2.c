@@ -1667,29 +1667,12 @@ static void cio2_queues_exit(struct cio2_device *cio2)
 		cio2_queue_exit(cio2, &cio2->queue[i]);
 }
 
-static int cio2_check_fwnode_graph(struct fwnode_handle *fwnode)
-{
-	struct fwnode_handle *endpoint;
-
-	if (IS_ERR_OR_NULL(fwnode))
-		return -EINVAL;
-
-	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (endpoint) {
-		fwnode_handle_put(endpoint);
-		return 0;
-	}
-
-	return cio2_check_fwnode_graph(fwnode->secondary);
-}
-
 /**************** PCI interface ****************/
 
 static int cio2_pci_probe(struct pci_dev *pci_dev,
 			  const struct pci_device_id *id)
 {
 	struct device *dev = &pci_dev->dev;
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct cio2_device *cio2;
 	int r;
 
@@ -1698,17 +1681,9 @@ static int cio2_pci_probe(struct pci_dev *pci_dev,
 	 * if the device has no endpoints then we can try to build those as
 	 * software_nodes parsed from SSDB.
 	 */
-	r = cio2_check_fwnode_graph(fwnode);
-	if (r) {
-		if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary)) {
-			dev_err(dev, "fwnode graph has no endpoints connected\n");
-			return -EINVAL;
-		}
-
-		r = ipu_bridge_init(dev, ipu_bridge_parse_ssdb);
-		if (r)
-			return r;
-	}
+	r = ipu_bridge_init(dev, ipu_bridge_parse_ssdb);
+	if (r)
+		return r;
 
 	cio2 = devm_kzalloc(dev, sizeof(*cio2), GFP_KERNEL);
 	if (!cio2)
