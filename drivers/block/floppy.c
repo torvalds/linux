@@ -530,14 +530,13 @@ static struct format_descr format_req;
 static char *floppy_track_buffer;
 static int max_buffer_sectors;
 
-typedef void (*done_f)(int);
 static const struct cont_t {
 	void (*interrupt)(void);
 				/* this is called after the interrupt of the
 				 * main command */
 	void (*redo)(void);	/* this is called to retry the operation */
 	void (*error)(void);	/* this is called to tally an error */
-	done_f done;		/* this is called to say if the operation has
+	void (*done)(int);	/* this is called to say if the operation has
 				 * succeeded/failed */
 } *cont;
 
@@ -982,6 +981,10 @@ static void scandrives(void)
 }
 
 static void empty(void)
+{
+}
+
+static void empty_done(int result)
 {
 }
 
@@ -1998,14 +2001,14 @@ static const struct cont_t wakeup_cont = {
 	.interrupt	= empty,
 	.redo		= do_wakeup,
 	.error		= empty,
-	.done		= (done_f)empty
+	.done		= empty_done,
 };
 
 static const struct cont_t intr_cont = {
 	.interrupt	= empty,
 	.redo		= process_fd_request,
 	.error		= empty,
-	.done		= (done_f)empty
+	.done		= empty_done,
 };
 
 /* schedules handler, waiting for completion. May be interrupted, will then
