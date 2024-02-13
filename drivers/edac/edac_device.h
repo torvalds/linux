@@ -99,18 +99,12 @@ struct edac_dev_sysfs_attribute {
  *	can have an array of the following. The show and store functions
  *	will be filled in with the show/store function in the
  *	low level driver.
- *
- *	The 'value' field will be the actual value field used for
- *	counting
  */
 struct edac_dev_sysfs_block_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
 	ssize_t (*store)(struct kobject *, struct attribute *,
 			const char *, size_t);
-	struct edac_device_block *block;
-
-	unsigned int value;
 };
 
 /* device block control structure */
