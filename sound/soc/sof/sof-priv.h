@@ -338,6 +338,8 @@ struct snd_sof_dsp_ops {
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
 
+	bool (*is_chain_dma_supported)(struct snd_sof_dev *sdev, u32 dai_type); /* optional */
+
 	/* ALSA HW info flags, will be stored in snd_pcm_runtime.hw.info */
 	u32 hw_info;
 
