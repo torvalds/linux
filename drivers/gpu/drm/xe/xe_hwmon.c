@@ -17,6 +17,7 @@
 #include "xe_mmio.h"
 #include "xe_pcode.h"
 #include "xe_pcode_api.h"
+#include "xe_sriov.h"
 
 enum xe_hwmon_reg {
 	REG_PKG_RAPL_LIMIT,
@@ -744,6 +745,10 @@ void xe_hwmon_register(struct xe_device *xe)
 
 	/* hwmon is available only for dGfx */
 	if (!IS_DGFX(xe))
+		return;
+
+	/* hwmon is not available on VFs */
+	if (IS_SRIOV_VF(xe))
 		return;
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);
