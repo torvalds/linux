@@ -301,5 +301,6 @@ void acpi_mipi_check_crs_csi2(acpi_handle handle);
 void acpi_mipi_scan_crs_csi2(void);
 void acpi_mipi_init_crs_csi2_swnodes(void);
 void acpi_mipi_crs_csi2_cleanup(void);
+bool acpi_graph_ignore_port(acpi_handle handle);
 
 #endif /* _ACPI_INTERNAL_H_ */

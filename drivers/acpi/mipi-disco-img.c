@@ -19,6 +19,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 #include <linux/limits.h>
 #include <linux/list.h>
 #include <linux/module.h>
@@ -722,4 +723,74 @@ void acpi_mipi_crs_csi2_cleanup(void)
 
 	list_for_each_entry_safe(csi2, csi2_tmp, &acpi_mipi_crs_csi2_list, entry)
 		acpi_mipi_del_crs_csi2(csi2);
+}
+
+static const struct dmi_system_id dmi_ignore_port_nodes[] = {
+	{
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "XPS 9315"),
+		},
+	},
+	{ 0 }
+};
+
+static const char *strnext(const char *s1, const char *s2)
+{
+	s1 = strstr(s1, s2);
+
+	if (!s1)
+		return NULL;
+
+	return s1 + strlen(s2);
+}
+
+/**
+ * acpi_graph_ignore_port - Tell whether a port node should be ignored
+ * @handle: The ACPI handle of the node (which may be a port node)
+ *
+ * Returns true if a port node should be ignored and the data to that should
+ * come from other sources instead (Windows ACPI definitions and
+ * ipu-bridge). This is currently used to ignore bad port nodes related to IPU6
+ * ("IPU?") and camera sensor devices ("LNK?") in certain Dell systems with
+ * Intel VSC.
+ */
+bool acpi_graph_ignore_port(acpi_handle handle)
+{
+	const char *path = NULL, *orig_path;
+	static bool dmi_tested, ignore_port;
+
+	if (!dmi_tested) {
+		ignore_port = dmi_first_match(dmi_ignore_port_nodes);
+		dmi_tested = true;
+	}
+
+	if (!ignore_port)
+		return false;
+
+	/* Check if the device is either "IPU" or "LNK" (sensor). */
+	orig_path = acpi_handle_path(handle);
+	if (!orig_path)
+		return false;
+	path = strnext(orig_path, "IPU");
+	if (!path)
+		path = strnext(orig_path, "LNK");
+	if (!path)
+		goto out_free;
+
+	if (!(path[0] >= '0' && path[0] <= '9' && path[1] == '.'))
+		goto out_free;
+
+	/* Check if the node has a "PRT" prefix. */
+	path = strnext(path, "PRT");
+	if (path && path[0] >= '0' && path[0] <= '9' && !path[1]) {
+		acpi_handle_debug(handle, "ignoring data node\n");
+
+		kfree(orig_path);
+		return true;
+	}
+
+out_free:
+	kfree(orig_path);
+	return false;
 }
