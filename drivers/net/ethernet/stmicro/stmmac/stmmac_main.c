@@ -3965,6 +3965,9 @@ static int __stmmac_open(struct net_device *dev,
 	/* We may have called phylink_speed_down before */
 	phylink_speed_up(priv->phylink);
 
+	if (!priv->phy_irq_enabled)
+		priv->plat->phy_irq_enable(priv);
+
 	ret = stmmac_request_irq(dev);
 	if (ret)
 		goto irq_error;
@@ -4027,6 +4030,9 @@ static int stmmac_release(struct net_device *dev)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	u32 chan;
+
+	if (priv->phy_irq_enabled)
+		priv->plat->phy_irq_disable(priv);
 
 	if (device_may_wakeup(priv->device))
 		phylink_speed_down(priv->phylink, false);
