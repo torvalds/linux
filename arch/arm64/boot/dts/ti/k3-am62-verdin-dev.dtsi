@@ -206,7 +206,6 @@
 
 /* Verdin SD_1 */
 &sdhci1 {
-	ti,driver-strength-ohm = <33>;
 	status = "okay";
 };
 

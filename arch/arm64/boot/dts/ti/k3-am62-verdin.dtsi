@@ -1435,7 +1435,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci0>;
 	non-removable;
-	ti,driver-strength-ohm = <50>;
 	status = "okay";
 };
 
@@ -1444,7 +1443,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_sdhci1>;
 	disable-wp;
-	ti,driver-strength-ohm = <50>;
 	vmmc-supply = <&reg_sdhc1_vmmc>;
 	vqmmc-supply = <&reg_sdhc1_vqmmc>;
 	status = "disabled";
