@@ -1146,7 +1146,7 @@
 				regulator-always-on;
 				regulator-boot-on;
 				regulator-max-microvolt = <850000>;
-				regulator-min-microvolt = <850000>;
+				regulator-min-microvolt = <750000>;
 				regulator-name = "+VDD_CORE (PMIC BUCK1)";
 			};
 
