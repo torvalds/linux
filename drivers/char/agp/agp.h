@@ -138,7 +138,6 @@ struct agp_bridge_data {
 	unsigned long gart_bus_addr;
 	unsigned long gatt_bus_addr;
 	u32 mode;
-	enum chipset_type type;
 	unsigned long *key_list;
 	atomic_t current_memory_agp;
 	atomic_t agp_in_use;
