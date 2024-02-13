@@ -12,6 +12,7 @@
 #include <linux/of.h>
 #include <linux/phy.h>
 #include <linux/netdevice.h>
+#include <linux/bitfield.h>
 
 #define DP83822_PHY_ID	        0x2000a240
 #define DP83825S_PHY_ID		0x2000a140
@@ -33,6 +34,10 @@
 #define MII_DP83822_RESET_CTRL	0x1f
 #define MII_DP83822_GENCFG	0x465
 #define MII_DP83822_SOR1	0x467
+
+/* DP83826 specific registers */
+#define MII_DP83826_VOD_CFG1	0x30b
+#define MII_DP83826_VOD_CFG2	0x30c
 
 /* GENCFG */
 #define DP83822_SIG_DET_LOW	BIT(0)
@@ -110,6 +115,19 @@
 #define DP83822_RX_ER_STR_MASK	GENMASK(9, 8)
 #define DP83822_RX_ER_SHIFT	8
 
+/* DP83826: VOD_CFG1 & VOD_CFG2 */
+#define DP83826_VOD_CFG1_MINUS_MDIX_MASK	GENMASK(13, 12)
+#define DP83826_VOD_CFG1_MINUS_MDI_MASK		GENMASK(11, 6)
+#define DP83826_VOD_CFG2_MINUS_MDIX_MASK	GENMASK(15, 12)
+#define DP83826_VOD_CFG2_PLUS_MDIX_MASK		GENMASK(11, 6)
+#define DP83826_VOD_CFG2_PLUS_MDI_MASK		GENMASK(5, 0)
+#define DP83826_CFG_DAC_MINUS_MDIX_5_TO_4	GENMASK(5, 4)
+#define DP83826_CFG_DAC_MINUS_MDIX_3_TO_0	GENMASK(3, 0)
+#define DP83826_CFG_DAC_PERCENT_PER_STEP	625
+#define DP83826_CFG_DAC_PERCENT_DEFAULT		10000
+#define DP83826_CFG_DAC_MINUS_DEFAULT		0x30
+#define DP83826_CFG_DAC_PLUS_DEFAULT		0x10
+
 #define MII_DP83822_FIBER_ADVERTISE    (ADVERTISED_TP | ADVERTISED_MII | \
 					ADVERTISED_FIBRE | \
 					ADVERTISED_Pause | ADVERTISED_Asym_Pause)
@@ -118,6 +136,8 @@ struct dp83822_private {
 	bool fx_signal_det_low;
 	int fx_enabled;
 	u16 fx_sd_enable;
+	u8 cfg_dac_minus;
+	u8 cfg_dac_plus;
 };
 
 static int dp83822_set_wol(struct phy_device *phydev,
@@ -233,7 +253,7 @@ static int dp83822_config_intr(struct phy_device *phydev)
 				DP83822_ENERGY_DET_INT_EN |
 				DP83822_LINK_QUAL_INT_EN);
 
-		/* Private data pointer is NULL on DP83825/26 */
+		/* Private data pointer is NULL on DP83825 */
 		if (!dp83822 || !dp83822->fx_enabled)
 			misr_status |= DP83822_ANEG_COMPLETE_INT_EN |
 				       DP83822_DUP_MODE_CHANGE_INT_EN |
@@ -254,7 +274,7 @@ static int dp83822_config_intr(struct phy_device *phydev)
 				DP83822_PAGE_RX_INT_EN |
 				DP83822_EEE_ERROR_CHANGE_INT_EN);
 
-		/* Private data pointer is NULL on DP83825/26 */
+		/* Private data pointer is NULL on DP83825 */
 		if (!dp83822 || !dp83822->fx_enabled)
 			misr_status |= DP83822_ANEG_ERR_INT_EN |
 				       DP83822_WOL_PKT_INT_EN;
@@ -474,6 +494,43 @@ static int dp83822_config_init(struct phy_device *phydev)
 	return dp8382x_disable_wol(phydev);
 }
 
+static int dp83826_config_init(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	u16 val, mask;
+	int ret;
+
+	if (dp83822->cfg_dac_minus != DP83826_CFG_DAC_MINUS_DEFAULT) {
+		val = FIELD_PREP(DP83826_VOD_CFG1_MINUS_MDI_MASK, dp83822->cfg_dac_minus) |
+		      FIELD_PREP(DP83826_VOD_CFG1_MINUS_MDIX_MASK,
+				 FIELD_GET(DP83826_CFG_DAC_MINUS_MDIX_5_TO_4,
+					   dp83822->cfg_dac_minus));
+		mask = DP83826_VOD_CFG1_MINUS_MDIX_MASK | DP83826_VOD_CFG1_MINUS_MDI_MASK;
+		ret = phy_modify_mmd(phydev, DP83822_DEVADDR, MII_DP83826_VOD_CFG1, mask, val);
+		if (ret)
+			return ret;
+
+		val = FIELD_PREP(DP83826_VOD_CFG2_MINUS_MDIX_MASK,
+				 FIELD_GET(DP83826_CFG_DAC_MINUS_MDIX_3_TO_0,
+					   dp83822->cfg_dac_minus));
+		mask = DP83826_VOD_CFG2_MINUS_MDIX_MASK;
+		ret = phy_modify_mmd(phydev, DP83822_DEVADDR, MII_DP83826_VOD_CFG2, mask, val);
+		if (ret)
+			return ret;
+	}
+
+	if (dp83822->cfg_dac_plus != DP83826_CFG_DAC_PLUS_DEFAULT) {
+		val = FIELD_PREP(DP83826_VOD_CFG2_PLUS_MDIX_MASK, dp83822->cfg_dac_plus) |
+		      FIELD_PREP(DP83826_VOD_CFG2_PLUS_MDI_MASK, dp83822->cfg_dac_plus);
+		mask = DP83826_VOD_CFG2_PLUS_MDIX_MASK | DP83826_VOD_CFG2_PLUS_MDI_MASK;
+		ret = phy_modify_mmd(phydev, DP83822_DEVADDR, MII_DP83826_VOD_CFG2, mask, val);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int dp8382x_config_init(struct phy_device *phydev)
 {
 	return dp8382x_disable_wol(phydev);
@@ -509,10 +566,43 @@ static int dp83822_of_init(struct phy_device *phydev)
 
 	return 0;
 }
+
+static int dp83826_to_dac_minus_one_regval(int percent)
+{
+	int tmp = DP83826_CFG_DAC_PERCENT_DEFAULT - percent;
+
+	return tmp / DP83826_CFG_DAC_PERCENT_PER_STEP;
+}
+
+static int dp83826_to_dac_plus_one_regval(int percent)
+{
+	int tmp = percent - DP83826_CFG_DAC_PERCENT_DEFAULT;
+
+	return tmp / DP83826_CFG_DAC_PERCENT_PER_STEP;
+}
+
+static void dp83826_of_init(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822 = phydev->priv;
+	struct device *dev = &phydev->mdio.dev;
+	u32 val;
+
+	dp83822->cfg_dac_minus = DP83826_CFG_DAC_MINUS_DEFAULT;
+	if (!device_property_read_u32(dev, "ti,cfg-dac-minus-one-bp", &val))
+		dp83822->cfg_dac_minus += dp83826_to_dac_minus_one_regval(val);
+
+	dp83822->cfg_dac_plus = DP83826_CFG_DAC_PLUS_DEFAULT;
+	if (!device_property_read_u32(dev, "ti,cfg-dac-plus-one-bp", &val))
+		dp83822->cfg_dac_plus += dp83826_to_dac_plus_one_regval(val);
+}
 #else
 static int dp83822_of_init(struct phy_device *phydev)
 {
 	return 0;
+}
+
+static void dp83826_of_init(struct phy_device *phydev)
+{
 }
 #endif /* CONFIG_OF_MDIO */
 
@@ -567,6 +657,22 @@ static int dp83822_probe(struct phy_device *phydev)
 	return 0;
 }
 
+static int dp83826_probe(struct phy_device *phydev)
+{
+	struct dp83822_private *dp83822;
+
+	dp83822 = devm_kzalloc(&phydev->mdio.dev, sizeof(*dp83822),
+			       GFP_KERNEL);
+	if (!dp83822)
+		return -ENOMEM;
+
+	phydev->priv = dp83822;
+
+	dp83826_of_init(phydev);
+
+	return 0;
+}
+
 static int dp83822_suspend(struct phy_device *phydev)
 {
 	int value;
@@ -610,6 +716,22 @@ static int dp83822_resume(struct phy_device *phydev)
 		.resume = dp83822_resume,			\
 	}
 
+#define DP83826_PHY_DRIVER(_id, _name)				\
+	{							\
+		PHY_ID_MATCH_MODEL(_id),			\
+		.name		= (_name),			\
+		/* PHY_BASIC_FEATURES */			\
+		.probe          = dp83826_probe,		\
+		.soft_reset	= dp83822_phy_reset,		\
+		.config_init	= dp83826_config_init,		\
+		.get_wol = dp83822_get_wol,			\
+		.set_wol = dp83822_set_wol,			\
+		.config_intr = dp83822_config_intr,		\
+		.handle_interrupt = dp83822_handle_interrupt,	\
+		.suspend = dp83822_suspend,			\
+		.resume = dp83822_resume,			\
+	}
+
 #define DP8382X_PHY_DRIVER(_id, _name)				\
 	{							\
 		PHY_ID_MATCH_MODEL(_id),			\
@@ -628,8 +750,8 @@ static int dp83822_resume(struct phy_device *phydev)
 static struct phy_driver dp83822_driver[] = {
 	DP83822_PHY_DRIVER(DP83822_PHY_ID, "TI DP83822"),
 	DP8382X_PHY_DRIVER(DP83825I_PHY_ID, "TI DP83825I"),
-	DP8382X_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
-	DP8382X_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
+	DP83826_PHY_DRIVER(DP83826C_PHY_ID, "TI DP83826C"),
+	DP83826_PHY_DRIVER(DP83826NC_PHY_ID, "TI DP83826NC"),
 	DP8382X_PHY_DRIVER(DP83825S_PHY_ID, "TI DP83825S"),
 	DP8382X_PHY_DRIVER(DP83825CM_PHY_ID, "TI DP83825M"),
 	DP8382X_PHY_DRIVER(DP83825CS_PHY_ID, "TI DP83825CS"),
