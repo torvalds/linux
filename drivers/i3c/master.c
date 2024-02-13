@@ -335,7 +335,7 @@ static void i3c_device_remove(struct device *dev)
 	i3c_device_free_ibi(i3cdev);
 }
 
-struct bus_type i3c_bus_type = {
+const struct bus_type i3c_bus_type = {
 	.name = "i3c",
 	.match = i3c_device_match,
 	.probe = i3c_device_probe,
