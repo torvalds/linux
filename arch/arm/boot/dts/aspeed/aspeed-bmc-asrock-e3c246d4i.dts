@@ -68,6 +68,18 @@
 	};
 };
 
+&spi1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_spi1_default>;
+	flash@0 {
+		status = "okay";
+		label = "bios";
+		m25p,fast-read;
+		spi-max-frequency = <25000000>; /* 25 MHz */
+	};
+};
+
 &uart5 {
 	status = "okay";
 };
