@@ -92,7 +92,7 @@ static int co_cache_error_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, p);
 
 	p->ed = edac_device_alloc_ctl_info(0, "cpu", num_possible_cpus(),
-					   "cache", 2, 0, NULL, 0,
+					   "cache", 2, 0,
 					   edac_device_alloc_index());
 	if (!p->ed)
 		goto err;

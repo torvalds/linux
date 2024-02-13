@@ -208,7 +208,6 @@ struct edac_device_ctl_info {
 	u32 nr_instances;
 	struct edac_device_instance *instances;
 	struct edac_device_block *blocks;
-	struct edac_dev_sysfs_block_attribute *attribs;
 
 	/* Event counters for the this whole EDAC Device */
 	struct edac_device_counter counters;
@@ -236,8 +235,6 @@ extern struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		char *edac_device_name, unsigned nr_instances,
 		char *edac_block_name, unsigned nr_blocks,
 		unsigned offset_value,
-		struct edac_dev_sysfs_block_attribute *block_attributes,
-		unsigned nr_attribs,
 		int device_index);
 
 /* The offset value can be:
@@ -347,7 +344,6 @@ static inline void __edac_device_free_ctl_info(struct edac_device_ctl_info *ci)
 {
 	if (ci) {
 		kfree(ci->pvt_info);
-		kfree(ci->attribs);
 		kfree(ci->blocks);
 		kfree(ci->instances);
 		kfree(ci);
