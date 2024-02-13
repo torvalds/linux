@@ -4868,6 +4868,9 @@ struct rtw89_mcc_role {
 	struct rtw89_mcc_policy policy;
 	struct rtw89_mcc_limit limit;
 
+	/* only valid when running with FW MRC mechanism */
+	u8 slot_idx;
+
 	/* byte-array in LE order for FW */
 	u8 macid_bitmap[BITS_TO_BYTES(RTW89_MAX_MAC_ID_NUM)];
 
@@ -4911,7 +4914,11 @@ struct rtw89_mcc_sync {
 	bool enable;
 	u16 offset; /* TU */
 	u8 macid_src;
+	u8 band_src;
+	u8 port_src;
 	u8 macid_tgt;
+	u8 band_tgt;
+	u8 port_tgt;
 };
 
 struct rtw89_mcc_config {
