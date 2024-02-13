@@ -2028,6 +2028,8 @@ phys_addr_t get_phy_fb_start_address(struct AstRVAS *pAstRVAS)
 	u32 dw_offset = get_screen_offset(pAstRVAS);
 
 	pAstRVAS->FBInfo.qwFBPhysStart = DDR_BASE + pAstRVAS->FBInfo.dwDRAMSize - pAstRVAS->FBInfo.dwVGASize + dw_offset;
+	if (pAstRVAS->rvas_index == 1)
+		pAstRVAS->FBInfo.qwFBPhysStart -= pAstRVAS->FBInfo.dwVGASize;
 
 	VIDEO_DBG("Frame buffer start address: %#x, dram size: %#x, vga size: %#x\n",
 		  pAstRVAS->FBInfo.qwFBPhysStart,
