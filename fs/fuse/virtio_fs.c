@@ -306,6 +306,8 @@ static int virtio_fs_add_instance(struct virtio_device *vdev,
 
 	mutex_unlock(&virtio_fs_mutex);
 
+	kobject_uevent(&fs->kobj, KOBJ_ADD);
+
 	return 0;
 }
 
@@ -1565,9 +1567,22 @@ static struct file_system_type virtio_fs_type = {
 	.kill_sb	= virtio_kill_sb,
 };
 
+static int virtio_fs_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
+{
+	const struct virtio_fs *fs = container_of(kobj, struct virtio_fs, kobj);
+
+	add_uevent_var(env, "TAG=%s", fs->tag);
+	return 0;
+}
+
+static const struct kset_uevent_ops virtio_fs_uevent_ops = {
+	.uevent = virtio_fs_uevent,
+};
+
 static int __init virtio_fs_sysfs_init(void)
 {
-	virtio_fs_kset = kset_create_and_add("virtiofs", NULL, fs_kobj);
+	virtio_fs_kset = kset_create_and_add("virtiofs", &virtio_fs_uevent_ops,
+					     fs_kobj);
 	if (!virtio_fs_kset)
 		return -ENOMEM;
 	return 0;
