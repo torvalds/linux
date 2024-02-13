@@ -53,4 +53,15 @@ static inline void topology_update_dom(struct topo_scan *tscan, enum x86_topolog
 	tscan->dom_ncpus[dom] = ncpus;
 }
 
+#ifdef CONFIG_X86_LOCAL_APIC
+unsigned int topology_unit_count(u32 apicid, enum x86_topology_domains which_units,
+				 enum x86_topology_domains at_level);
+#else
+static inline unsigned int topology_unit_count(u32 apicid, enum x86_topology_domains which_units,
+					       enum x86_topology_domains at_level)
+{
+	return 1;
+}
+#endif
+
 #endif /* ARCH_X86_TOPOLOGY_H */

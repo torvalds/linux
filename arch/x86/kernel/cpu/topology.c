@@ -257,6 +257,49 @@ int topology_get_logical_id(u32 apicid, enum x86_topology_domains at_level)
 }
 EXPORT_SYMBOL_GPL(topology_get_logical_id);
 
+/**
+ * topology_unit_count - Retrieve the count of specified units at a given topology domain level
+ * @apicid:		The APIC ID which specifies the search range
+ * @which_units:	The domain level specifying the units to count
+ * @at_level:		The domain level at which @which_units have to be counted
+ *
+ * This returns the number of possible units according to the enumerated
+ * information.
+ *
+ * E.g. topology_count_units(apicid, TOPO_CORE_DOMAIN, TOPO_PKG_DOMAIN)
+ * counts the number of possible cores in the package to which @apicid
+ * belongs.
+ *
+ * @at_level must obviously be greater than @which_level to produce useful
+ * results.  If @at_level is equal to @which_units the result is
+ * unsurprisingly 1. If @at_level is less than @which_units the results
+ * is by definition undefined and the function returns 0.
+ */
+unsigned int topology_unit_count(u32 apicid, enum x86_topology_domains which_units,
+				 enum x86_topology_domains at_level)
+{
+	/* Remove the bits below @at_level to get the proper level ID of @apicid */
+	unsigned int lvlid = topo_apicid(apicid, at_level);
+	unsigned int id, end, cnt = 0;
+
+	if (lvlid >= MAX_LOCAL_APIC)
+		return 0;
+	if (!test_bit(lvlid, apic_maps[at_level].map))
+		return 0;
+	if (which_units > at_level)
+		return 0;
+	if (which_units == at_level)
+		return 1;
+
+	/* Calculate the exclusive end */
+	end = lvlid + (1U << x86_topo_system.dom_shifts[at_level]);
+	/* Unfortunately there is no bitmap_weight_range() */
+	for (id = find_next_bit(apic_maps[which_units].map, end, lvlid);
+	     id < end; id = find_next_bit(apic_maps[which_units].map, end, ++id))
+		cnt++;
+	return cnt;
+}
+
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
 /**
  * topology_hotplug_apic - Handle a physical hotplugged APIC after boot

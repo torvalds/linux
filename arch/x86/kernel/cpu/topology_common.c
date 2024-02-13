@@ -155,23 +155,13 @@ static void topo_set_ids(struct topo_scan *tscan)
 	c->topo.core_id = (apicid & topo_domain_mask(TOPO_PKG_DOMAIN)) >>
 		x86_topo_system.dom_shifts[TOPO_SMT_DOMAIN];
 
+	/* Maximum number of cores on this package */
+	c->x86_max_cores = topology_unit_count(apicid, TOPO_CORE_DOMAIN, TOPO_PKG_DOMAIN);
+
 	c->topo.amd_node_id = tscan->amd_node_id;
 
 	if (c->x86_vendor == X86_VENDOR_AMD)
 		cpu_topology_fixup_amd(tscan);
-}
-
-static void topo_set_max_cores(struct topo_scan *tscan)
-{
-	/*
-	 * Bug compatible for now. This is broken on hybrid systems:
-	 * 8 cores SMT + 8 cores w/o SMT
-	 * tscan.dom_ncpus[TOPO_DIEGRP_DOMAIN] = 24; 24 / 2 = 12 !!
-	 *
-	 * Cannot be fixed without further topology enumeration changes.
-	 */
-	tscan->c->x86_max_cores = tscan->dom_ncpus[TOPO_DIEGRP_DOMAIN] >>
-		x86_topo_system.dom_shifts[TOPO_SMT_DOMAIN];
 }
 
 void cpu_parse_topology(struct cpuinfo_x86 *c)
@@ -201,7 +191,6 @@ void cpu_parse_topology(struct cpuinfo_x86 *c)
 	}
 
 	topo_set_ids(&tscan);
-	topo_set_max_cores(&tscan);
 }
 
 void __init cpu_init_topology(struct cpuinfo_x86 *c)
@@ -223,7 +212,6 @@ void __init cpu_init_topology(struct cpuinfo_x86 *c)
 	}
 
 	topo_set_ids(&tscan);
-	topo_set_max_cores(&tscan);
 
 	/*
 	 * AMD systems have Nodes per package which cannot be mapped to
