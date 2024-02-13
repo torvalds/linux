@@ -29,6 +29,7 @@
 #include <asm/idtentry.h>
 #include <asm/desc.h>
 #include <asm/cpu.h>
+#include <asm/apic.h>
 #include <asm/io_apic.h>
 
 #include <xen/interface/xen.h>
@@ -150,34 +151,16 @@ int xen_smp_intr_init_pv(unsigned int cpu)
 
 static void __init xen_pv_smp_config(void)
 {
-	int i, rc;
-	unsigned int subtract = 0;
+	u32 apicid = 0;
+	int i;
 
-	num_processors = 0;
-	disabled_cpus = 0;
-	for (i = 0; i < nr_cpu_ids; i++) {
-		rc = HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL);
-		if (rc >= 0) {
-			num_processors++;
-			set_cpu_possible(i, true);
-		} else {
-			set_cpu_possible(i, false);
-			set_cpu_present(i, false);
-			subtract++;
-		}
+	topology_register_boot_apic(apicid++);
+
+	for (i = 1; i < nr_cpu_ids; i++) {
+		if (HYPERVISOR_vcpu_op(VCPUOP_is_up, i, NULL) < 0)
+			break;
+		topology_register_apic(apicid++, CPU_ACPIID_INVALID, true);
 	}
-#ifdef CONFIG_HOTPLUG_CPU
-	/* This is akin to using 'nr_cpus' on the Linux command line.
-	 * Which is OK as when we use 'dom0_max_vcpus=X' we can only
-	 * have up to X, while nr_cpu_ids is greater than X. This
-	 * normally is not a problem, except when CPU hotplugging
-	 * is involved and then there might be more than X CPUs
-	 * in the guest - which will not work as there is no
-	 * hypercall to expand the max number of VCPUs an already
-	 * running guest has. So cap it up to X. */
-	if (subtract)
-		set_nr_cpu_ids(nr_cpu_ids - subtract);
-#endif
 	/* Pretend to be a proper enumerated system */
 	smp_found_config = 1;
 }
