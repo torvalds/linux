@@ -598,7 +598,11 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 		}
 
 		ipc4_copier->copier_config = (uint32_t *)blob;
-		ipc4_copier->data.gtw_cfg.config_length = sizeof(*blob) >> 2;
+		/* set data.gtw_cfg.config_length based on device_count */
+		ipc4_copier->data.gtw_cfg.config_length = (sizeof(blob->gw_attr) +
+							   sizeof(blob->alh_cfg.device_count) +
+							   sizeof(*blob->alh_cfg.mapping) *
+							   blob->alh_cfg.device_count) >> 2;
 		break;
 	}
 	case SOF_DAI_INTEL_SSP:
