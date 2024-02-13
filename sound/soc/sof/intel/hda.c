@@ -1231,6 +1231,7 @@ int hda_dsp_probe(struct snd_sof_dev *sdev)
 {
 	struct pci_dev *pci = to_pci_dev(sdev->dev);
 	struct sof_intel_hda_dev *hdev = sdev->pdata->hw_pdata;
+	const struct sof_intel_dsp_desc *chip;
 	int ret = 0;
 
 	hdev->dmic_dev = platform_device_register_data(sdev->dev, "dmic-codec",
@@ -1344,12 +1345,28 @@ skip_dsp_setup:
 		INIT_DELAYED_WORK(&hdev->d0i3_work, hda_dsp_d0i3_work);
 	}
 
+	chip = get_chip_info(sdev->pdata);
+	if (chip && chip->hw_ip_version >= SOF_INTEL_ACE_2_0) {
+		ret = hda_sdw_startup(sdev);
+		if (ret < 0) {
+			dev_err(sdev->dev, "could not startup SoundWire links\n");
+			goto disable_pp_cap;
+		}
+
+		hda_sdw_int_enable(sdev, true);
+	}
+
 	init_waitqueue_head(&hdev->waitq);
 
 	hdev->nhlt = intel_nhlt_init(sdev->dev);
 
 	return 0;
 
+disable_pp_cap:
+	if (!sdev->dspless_mode_selected) {
+		hda_dsp_ctrl_ppcap_int_enable(sdev, false);
+		hda_dsp_ctrl_ppcap_enable(sdev, false);
+	}
 free_ipc_irq:
 	free_irq(sdev->ipc_irq, sdev);
 free_irq_vector:
