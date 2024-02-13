@@ -607,7 +607,7 @@ void __init intel_hfi_init(void)
 
 	/* There is one HFI instance per die/package. */
 	max_hfi_instances = topology_max_packages() *
-			    topology_max_die_per_package();
+			    topology_max_dies_per_package();
 
 	/*
 	 * This allocation may fail. CPU hotplug callbacks must check

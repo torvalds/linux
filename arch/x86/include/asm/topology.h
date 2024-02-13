@@ -152,7 +152,7 @@ static inline unsigned int topology_max_packages(void)
 	return __max_logical_packages;
 }
 
-static inline unsigned int topology_max_die_per_package(void)
+static inline unsigned int topology_max_dies_per_package(void)
 {
 	return __max_dies_per_package;
 }
