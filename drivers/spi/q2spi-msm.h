@@ -701,6 +701,6 @@ void q2spi_dump_client_error_regs(struct q2spi_geni *q2spi);
 int q2spi_geni_resources_on(struct q2spi_geni *q2spi);
 void q2spi_geni_resources_off(struct q2spi_geni *q2spi);
 int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr);
-int q2spi_wakeup_gpio(struct q2spi_geni *q2spi);
+int q2spi_wakeup_hw_through_gpio(struct q2spi_geni *q2spi);
 
 #endif /* _SPI_Q2SPI_MSM_H_ */
