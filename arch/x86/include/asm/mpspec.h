@@ -60,12 +60,16 @@ static inline void early_get_smp_config(void)
 extern void e820__memblock_alloc_reserved_mpc_new(void);
 extern int enable_update_mptable;
 extern void mpparse_find_mptable(void);
-extern void default_get_smp_config(unsigned int early);
+extern void mpparse_parse_early_smp_config(void);
+extern void mpparse_parse_smp_config(void);
+extern void mpparse_get_smp_config(unsigned int early);
 #else
 static inline void e820__memblock_alloc_reserved_mpc_new(void) { }
-#define enable_update_mptable	0
-#define mpparse_find_mptable	x86_init_noop
-#define default_get_smp_config	x86_init_uint_noop
+#define enable_update_mptable		0
+#define mpparse_find_mptable		x86_init_noop
+#define mpparse_parse_early_smp_config	x86_init_noop
+#define mpparse_parse_smp_config	x86_init_noop
+#define mpparse_get_smp_config		x86_init_uint_noop
 #endif
 
 int generic_processor_info(int apicid);

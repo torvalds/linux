@@ -473,7 +473,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
 /*
  * Scan the memory blocks for an SMP configuration block.
  */
-void __init default_get_smp_config(unsigned int early)
+void __init mpparse_get_smp_config(unsigned int early)
 {
 	struct mpf_intel *mpf;
 
@@ -536,6 +536,16 @@ void __init default_get_smp_config(unsigned int early)
 	 */
 out:
 	early_memunmap(mpf, sizeof(*mpf));
+}
+
+void __init mpparse_parse_early_smp_config(void)
+{
+	mpparse_get_smp_config(true);
+}
+
+void __init mpparse_parse_smp_config(void)
+{
+	mpparse_get_smp_config(false);
 }
 
 static void __init smp_reserve_memory(struct mpf_intel *mpf)

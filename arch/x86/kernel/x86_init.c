@@ -71,7 +71,7 @@ struct x86_init_ops x86_init __initdata = {
 	.mpparse = {
 		.setup_ioapic_ids	= x86_init_noop,
 		.find_mptable		= mpparse_find_mptable,
-		.get_smp_config		= default_get_smp_config,
+		.get_smp_config		= mpparse_get_smp_config,
 	},
 
 	.irqs = {
