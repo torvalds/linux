@@ -216,7 +216,6 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 
 	rtlusb->rx_max_size = rtlpriv->cfg->usb_interface_cfg->rx_max_size;
 	rtlusb->rx_urb_num = rtlpriv->cfg->usb_interface_cfg->rx_urb_num;
-	rtlusb->in_ep = rtlpriv->cfg->usb_interface_cfg->in_ep_num;
 	rtlusb->usb_rx_hdl = rtlpriv->cfg->usb_interface_cfg->usb_rx_hdl;
 	rtlusb->usb_rx_segregate_hdl =
 		rtlpriv->cfg->usb_interface_cfg->usb_rx_segregate_hdl;
@@ -248,20 +247,38 @@ static int _rtl_usb_init(struct ieee80211_hw *hw)
 
 		pep_desc = &usb_intf->cur_altsetting->endpoint[epidx].desc;
 
-		if (usb_endpoint_dir_in(pep_desc))
+		if (usb_endpoint_dir_in(pep_desc)) {
+			if (usb_endpoint_xfer_bulk(pep_desc)) {
+				/* The vendor drivers assume there is only one
+				 * bulk in ep and that it's the first in ep.
+				 */
+				if (rtlusb->in_ep_nums == 0)
+					rtlusb->in_ep = usb_endpoint_num(pep_desc);
+				else
+					pr_warn("%s: bulk in endpoint is not the first in endpoint\n",
+						__func__);
+			}
+
 			rtlusb->in_ep_nums++;
-		else if (usb_endpoint_dir_out(pep_desc))
+		} else if (usb_endpoint_dir_out(pep_desc)) {
+			if (rtlusb->out_ep_nums < RTL_USB_MAX_BULKOUT_NUM) {
+				if (usb_endpoint_xfer_bulk(pep_desc))
+					rtlusb->out_eps[rtlusb->out_ep_nums] =
+							usb_endpoint_num(pep_desc);
+			} else {
+				pr_warn("%s: found more bulk out endpoints than the expected %d\n",
+					__func__, RTL_USB_MAX_BULKOUT_NUM);
+			}
+
 			rtlusb->out_ep_nums++;
+		}
 
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG,
 			"USB EP(0x%02x), MaxPacketSize=%d, Interval=%d\n",
 			pep_desc->bEndpointAddress, pep_desc->wMaxPacketSize,
 			pep_desc->bInterval);
 	}
-	if (rtlusb->in_ep_nums <  rtlpriv->cfg->usb_interface_cfg->in_ep_num) {
-		pr_err("Too few input end points found\n");
-		return -EINVAL;
-	}
+
 	if (rtlusb->out_ep_nums == 0) {
 		pr_err("No output end points found\n");
 		return -EINVAL;
