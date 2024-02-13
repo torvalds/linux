@@ -201,8 +201,6 @@ struct global_params {
  * @prev_aperf:		Last APERF value read from APERF MSR
  * @prev_mperf:		Last MPERF value read from MPERF MSR
  * @prev_tsc:		Last timestamp counter (TSC) value
- * @prev_cummulative_iowait: IO Wait time difference from last and
- *			current sample
  * @sample:		Storage for storing last Sample data
  * @min_perf_ratio:	Minimum capacity in terms of PERF or HWP ratios
  * @max_perf_ratio:	Maximum capacity in terms of PERF or HWP ratios
@@ -241,7 +239,6 @@ struct cpudata {
 	u64	prev_aperf;
 	u64	prev_mperf;
 	u64	prev_tsc;
-	u64	prev_cummulative_iowait;
 	struct sample sample;
 	int32_t	min_perf_ratio;
 	int32_t	max_perf_ratio;
