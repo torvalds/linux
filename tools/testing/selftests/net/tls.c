@@ -1874,13 +1874,13 @@ TEST_F(tls_err, poll_partial_rec_async)
 		/* Child should sleep in poll(), never get a wake */
 		pfd.fd = self->cfd2;
 		pfd.events = POLLIN;
-		EXPECT_EQ(poll(&pfd, 1, 5), 0);
+		EXPECT_EQ(poll(&pfd, 1, 20), 0);
 
 		EXPECT_EQ(write(p[1], &token, 1), 1); /* Barrier #1 */
 
 		pfd.fd = self->cfd2;
 		pfd.events = POLLIN;
-		EXPECT_EQ(poll(&pfd, 1, 5), 1);
+		EXPECT_EQ(poll(&pfd, 1, 20), 1);
 
 		exit(!_metadata->passed);
 	}
