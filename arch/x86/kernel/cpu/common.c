@@ -1591,6 +1591,8 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		setup_force_cpu_cap(X86_FEATURE_CPUID);
 		cpu_parse_early_param();
 
+		cpu_init_topology(c);
+
 		if (this_cpu->c_early_init)
 			this_cpu->c_early_init(c);
 
@@ -1601,6 +1603,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 			this_cpu->c_bsp_init(c);
 	} else {
 		setup_clear_cpu_cap(X86_FEATURE_CPUID);
+		cpu_init_topology(c);
 	}
 
 	get_cpu_address_sizes(c);
@@ -1748,18 +1751,6 @@ static void generic_identify(struct cpuinfo_x86 *c)
 
 	get_cpu_address_sizes(c);
 
-	if (c->cpuid_level >= 0x00000001) {
-		c->topo.initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
-#ifdef CONFIG_X86_32
-# ifdef CONFIG_SMP
-		c->topo.apicid = apic->phys_pkg_id(c->topo.initial_apicid, 0);
-# else
-		c->topo.apicid = c->topo.initial_apicid;
-# endif
-#endif
-		c->topo.pkg_id = c->topo.initial_apicid;
-	}
-
 	get_model_name(c); /* Default name */
 
 	/*
@@ -1818,9 +1809,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
 	c->x86_coreid_bits = 0;
-	c->topo.cu_id = 0xff;
-	c->topo.llc_id = BAD_APICID;
-	c->topo.l2c_id = BAD_APICID;
 #ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
 	c->x86_phys_bits = 36;
@@ -1839,6 +1827,8 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 
 	generic_identify(c);
 
+	cpu_parse_topology(c);
+
 	if (this_cpu->c_identify)
 		this_cpu->c_identify(c);
 
@@ -1846,9 +1836,9 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	apply_forced_caps(c);
 
 #ifdef CONFIG_X86_64
-	c->topo.apicid = apic->phys_pkg_id(c->topo.initial_apicid, 0);
+	if (!topo_is_converted(c))
+		c->topo.apicid = apic->phys_pkg_id(c->topo.initial_apicid, 0);
 #endif
-
 
 	/*
 	 * Set default APIC and TSC_DEADLINE MSR fencing flag. AMD and

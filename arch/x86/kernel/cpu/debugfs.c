@@ -5,6 +5,8 @@
 #include <asm/apic.h>
 #include <asm/processor.h>
 
+#include "cpu.h"
+
 static int cpu_debug_show(struct seq_file *m, void *p)
 {
 	unsigned long cpu = (unsigned long)m->private;
@@ -42,11 +44,47 @@ static const struct file_operations dfs_cpu_ops = {
 	.release	= single_release,
 };
 
+static int dom_debug_show(struct seq_file *m, void *p)
+{
+	static const char *domain_names[TOPO_MAX_DOMAIN] = {
+		[TOPO_SMT_DOMAIN]	= "Thread",
+		[TOPO_CORE_DOMAIN]	= "Core",
+		[TOPO_MODULE_DOMAIN]	= "Module",
+		[TOPO_TILE_DOMAIN]	= "Tile",
+		[TOPO_DIE_DOMAIN]	= "Die",
+		[TOPO_DIEGRP_DOMAIN]	= "DieGrp",
+		[TOPO_PKG_DOMAIN]	= "Package",
+	};
+	unsigned int dom, nthreads = 1;
+
+	for (dom = 0; dom < TOPO_MAX_DOMAIN; dom++) {
+		nthreads *= x86_topo_system.dom_size[dom];
+		seq_printf(m, "domain: %-10s shift: %u dom_size: %5u max_threads: %5u\n",
+			   domain_names[dom], x86_topo_system.dom_shifts[dom],
+			   x86_topo_system.dom_size[dom], nthreads);
+	}
+	return 0;
+}
+
+static int dom_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dom_debug_show, inode->i_private);
+}
+
+static const struct file_operations dfs_dom_ops = {
+	.open		= dom_debug_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static __init int cpu_init_debugfs(void)
 {
 	struct dentry *dir, *base = debugfs_create_dir("topo", arch_debugfs_dir);
 	unsigned long id;
 	char name[24];
+
+	debugfs_create_file("domains", 0444, base, NULL, &dfs_dom_ops);
 
 	dir = debugfs_create_dir("cpus", base);
 	for_each_possible_cpu(id) {

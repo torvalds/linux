@@ -1,0 +1,188 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/cpu.h>
+
+#include <xen/xen.h>
+
+#include <asm/apic.h>
+#include <asm/processor.h>
+#include <asm/smp.h>
+
+#include "cpu.h"
+
+struct x86_topology_system x86_topo_system __ro_after_init;
+
+void topology_set_dom(struct topo_scan *tscan, enum x86_topology_domains dom,
+		      unsigned int shift, unsigned int ncpus)
+{
+	tscan->dom_shifts[dom] = shift;
+	tscan->dom_ncpus[dom] = ncpus;
+
+	/* Propagate to the upper levels */
+	for (dom++; dom < TOPO_MAX_DOMAIN; dom++) {
+		tscan->dom_shifts[dom] = tscan->dom_shifts[dom - 1];
+		tscan->dom_ncpus[dom] = tscan->dom_ncpus[dom - 1];
+	}
+}
+
+bool topo_is_converted(struct cpuinfo_x86 *c)
+{
+	/* Temporary until everything is converted over. */
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+	case X86_VENDOR_CENTAUR:
+	case X86_VENDOR_INTEL:
+	case X86_VENDOR_HYGON:
+	case X86_VENDOR_ZHAOXIN:
+		return false;
+	default:
+		/* Let all UP systems use the below */
+		return true;
+	}
+}
+
+static bool fake_topology(struct topo_scan *tscan)
+{
+	/*
+	 * Preset the CORE level shift for CPUID less systems and XEN_PV,
+	 * which has useless CPUID information.
+	 */
+	topology_set_dom(tscan, TOPO_SMT_DOMAIN, 0, 1);
+	topology_set_dom(tscan, TOPO_CORE_DOMAIN, 1, 1);
+
+	return tscan->c->cpuid_level < 1 || xen_pv_domain();
+}
+
+static void parse_topology(struct topo_scan *tscan, bool early)
+{
+	const struct cpuinfo_topology topo_defaults = {
+		.cu_id			= 0xff,
+		.llc_id			= BAD_APICID,
+		.l2c_id			= BAD_APICID,
+	};
+	struct cpuinfo_x86 *c = tscan->c;
+	struct {
+		u32	unused0		: 16,
+			nproc		:  8,
+			apicid		:  8;
+	} ebx;
+
+	c->topo = topo_defaults;
+
+	if (fake_topology(tscan))
+		return;
+
+	/* Preset Initial APIC ID from CPUID leaf 1 */
+	cpuid_leaf_reg(1, CPUID_EBX, &ebx);
+	c->topo.initial_apicid = ebx.apicid;
+
+	/*
+	 * The initial invocation from early_identify_cpu() happens before
+	 * the APIC is mapped or X2APIC enabled. For establishing the
+	 * topology, that's not required. Use the initial APIC ID.
+	 */
+	if (early)
+		c->topo.apicid = c->topo.initial_apicid;
+	else
+		c->topo.apicid = read_apic_id();
+
+	/* The above is sufficient for UP */
+	if (!IS_ENABLED(CONFIG_SMP))
+		return;
+}
+
+static void topo_set_ids(struct topo_scan *tscan)
+{
+	struct cpuinfo_x86 *c = tscan->c;
+	u32 apicid = c->topo.apicid;
+
+	c->topo.pkg_id = topo_shift_apicid(apicid, TOPO_PKG_DOMAIN);
+	c->topo.die_id = topo_shift_apicid(apicid, TOPO_DIE_DOMAIN);
+
+	/* Package relative core ID */
+	c->topo.core_id = (apicid & topo_domain_mask(TOPO_PKG_DOMAIN)) >>
+		x86_topo_system.dom_shifts[TOPO_SMT_DOMAIN];
+}
+
+static void topo_set_max_cores(struct topo_scan *tscan)
+{
+	/*
+	 * Bug compatible for now. This is broken on hybrid systems:
+	 * 8 cores SMT + 8 cores w/o SMT
+	 * tscan.dom_ncpus[TOPO_DIEGRP_DOMAIN] = 24; 24 / 2 = 12 !!
+	 *
+	 * Cannot be fixed without further topology enumeration changes.
+	 */
+	tscan->c->x86_max_cores = tscan->dom_ncpus[TOPO_DIEGRP_DOMAIN] >>
+		x86_topo_system.dom_shifts[TOPO_SMT_DOMAIN];
+}
+
+void cpu_parse_topology(struct cpuinfo_x86 *c)
+{
+	unsigned int dom, cpu = smp_processor_id();
+	struct topo_scan tscan = { .c = c, };
+
+	parse_topology(&tscan, false);
+
+	if (!topo_is_converted(c))
+		return;
+
+	for (dom = TOPO_SMT_DOMAIN; dom < TOPO_MAX_DOMAIN; dom++) {
+		if (tscan.dom_shifts[dom] == x86_topo_system.dom_shifts[dom])
+			continue;
+		pr_err(FW_BUG "CPU%d: Topology domain %u shift %u != %u\n", cpu, dom,
+		       tscan.dom_shifts[dom], x86_topo_system.dom_shifts[dom]);
+	}
+
+	/* Bug compatible with the existing parsers */
+	if (tscan.dom_ncpus[TOPO_SMT_DOMAIN] > smp_num_siblings) {
+		if (system_state == SYSTEM_BOOTING) {
+			pr_warn_once("CPU%d: SMT detected and enabled late\n", cpu);
+			smp_num_siblings = tscan.dom_ncpus[TOPO_SMT_DOMAIN];
+		} else {
+			pr_warn_once("CPU%d: SMT detected after init. Too late!\n", cpu);
+		}
+	}
+
+	topo_set_ids(&tscan);
+	topo_set_max_cores(&tscan);
+}
+
+void __init cpu_init_topology(struct cpuinfo_x86 *c)
+{
+	struct topo_scan tscan = { .c = c, };
+	unsigned int dom, sft;
+
+	parse_topology(&tscan, true);
+
+	if (!topo_is_converted(c))
+		return;
+
+	/* Copy the shift values and calculate the unit sizes. */
+	memcpy(x86_topo_system.dom_shifts, tscan.dom_shifts, sizeof(x86_topo_system.dom_shifts));
+
+	dom = TOPO_SMT_DOMAIN;
+	x86_topo_system.dom_size[dom] = 1U << x86_topo_system.dom_shifts[dom];
+
+	for (dom++; dom < TOPO_MAX_DOMAIN; dom++) {
+		sft = x86_topo_system.dom_shifts[dom] - x86_topo_system.dom_shifts[dom - 1];
+		x86_topo_system.dom_size[dom] = 1U << sft;
+	}
+
+	topo_set_ids(&tscan);
+	topo_set_max_cores(&tscan);
+
+	/*
+	 * Bug compatible with the existing code. If the boot CPU does not
+	 * have SMT this ends up with one sibling. This needs way deeper
+	 * changes further down the road to get it right during early boot.
+	 */
+	smp_num_siblings = tscan.dom_ncpus[TOPO_SMT_DOMAIN];
+
+	/*
+	 * Neither it's clear whether there are as many dies as the APIC
+	 * space indicating die level is. But assume that the actual number
+	 * of CPUs gives a proper indication for now to stay bug compatible.
+	 */
+	__max_die_per_package = tscan.dom_ncpus[TOPO_DIE_DOMAIN] /
+		tscan.dom_ncpus[TOPO_DIE_DOMAIN - 1];
+}
