@@ -37,8 +37,8 @@ int __must_check vdo_allocate_memory(size_t size, size_t align, const char *what
  *
  * Return: UDS_SUCCESS or an error code
  */
-static inline int vdo_do_allocation(size_t count, size_t size, size_t extra,
-				    size_t align, const char *what, void *ptr)
+static inline int __vdo_do_allocation(size_t count, size_t size, size_t extra,
+				      size_t align, const char *what, void *ptr)
 {
 	size_t total_size = count * size + extra;
 
@@ -68,7 +68,7 @@ static inline int vdo_do_allocation(size_t count, size_t size, size_t extra,
  * Return: UDS_SUCCESS or an error code
  */
 #define vdo_allocate(COUNT, TYPE, WHAT, PTR) \
-	vdo_do_allocation(COUNT, sizeof(TYPE), 0, __alignof__(TYPE), WHAT, PTR)
+	__vdo_do_allocation(COUNT, sizeof(TYPE), 0, __alignof__(TYPE), WHAT, PTR)
 
 /*
  * Allocate one object of an indicated type, followed by one or more elements of a second type,
@@ -83,18 +83,18 @@ static inline int vdo_do_allocation(size_t count, size_t size, size_t extra,
  *
  * Return: UDS_SUCCESS or an error code
  */
-#define vdo_allocate_extended(TYPE1, COUNT, TYPE2, WHAT, PTR)            \
-	__extension__({                                                  \
-		int _result;						 \
-		TYPE1 **_ptr = (PTR);                                    \
-		BUILD_BUG_ON(__alignof__(TYPE1) < __alignof__(TYPE2));   \
-		_result = vdo_do_allocation(COUNT,                       \
-					    sizeof(TYPE2),               \
-					    sizeof(TYPE1),               \
-					    __alignof__(TYPE1),          \
-					    WHAT,                        \
-					    _ptr);                       \
-		_result;                                                 \
+#define vdo_allocate_extended(TYPE1, COUNT, TYPE2, WHAT, PTR)		\
+	__extension__({							\
+		int _result;						\
+		TYPE1 **_ptr = (PTR);					\
+		BUILD_BUG_ON(__alignof__(TYPE1) < __alignof__(TYPE2));	\
+		_result = __vdo_do_allocation(COUNT,			\
+					      sizeof(TYPE2),		\
+					      sizeof(TYPE1),		\
+					      __alignof__(TYPE1),	\
+					      WHAT,			\
+					      _ptr);			\
+		_result;						\
 	})
 
 /*
