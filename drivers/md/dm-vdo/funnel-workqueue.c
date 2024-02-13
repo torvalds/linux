@@ -367,7 +367,7 @@ static int make_simple_work_queue(const char *thread_name_prefix, const char *na
 	wait_for_completion(&started);
 
 	*queue_ptr = queue;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 /**
