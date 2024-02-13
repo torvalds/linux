@@ -86,8 +86,8 @@ int vdo_get_compressed_block_fragment(enum block_mapping_state mapping_state,
  */
 static inline void assert_on_packer_thread(struct packer *packer, const char *caller)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == packer->thread_id),
-			"%s() called from packer thread", caller);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == packer->thread_id),
+			    "%s() called from packer thread", caller);
 }
 
 /**
@@ -569,9 +569,9 @@ void vdo_attempt_packing(struct data_vio *data_vio)
 
 	assert_on_packer_thread(packer, __func__);
 
-	result = ASSERT((status.stage == DATA_VIO_COMPRESSING),
-			"attempt to pack data_vio not ready for packing, stage: %u",
-			status.stage);
+	result = VDO_ASSERT((status.stage == DATA_VIO_COMPRESSING),
+			    "attempt to pack data_vio not ready for packing, stage: %u",
+			    status.stage);
 	if (result != VDO_SUCCESS)
 		return;
 
@@ -671,7 +671,7 @@ void vdo_remove_lock_holder_from_packer(struct vdo_completion *completion)
 
 	lock_holder = vdo_forget(data_vio->compression.lock_holder);
 	bin = lock_holder->compression.bin;
-	ASSERT_LOG_ONLY((bin != NULL), "data_vio in packer has a bin");
+	VDO_ASSERT_LOG_ONLY((bin != NULL), "data_vio in packer has a bin");
 
 	slot = lock_holder->compression.slot;
 	bin->slots_used--;

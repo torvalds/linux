@@ -281,8 +281,9 @@ int uds_register_error_block(const char *block_name, int first_error,
 		.infos = infos,
 	};
 
-	result = ASSERT(first_error < next_free_error, "well-defined error block range");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(first_error < next_free_error,
+			    "well-defined error block range");
+	if (result != VDO_SUCCESS)
 		return result;
 
 	if (registered_errors.count == registered_errors.allocated) {

@@ -85,9 +85,9 @@ static inline void vdo_fail_completion(struct vdo_completion *completion, int re
 static inline int vdo_assert_completion_type(struct vdo_completion *completion,
 					     enum vdo_completion_type expected)
 {
-	return ASSERT(expected == completion->type,
-		      "completion type should be %u, not %u", expected,
-		      completion->type);
+	return VDO_ASSERT(expected == completion->type,
+			  "completion type should be %u, not %u", expected,
+			  completion->type);
 }
 
 static inline void vdo_set_completion_callback(struct vdo_completion *completion,

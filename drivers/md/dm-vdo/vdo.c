@@ -425,9 +425,9 @@ int vdo_make_thread(struct vdo *vdo, thread_id_t thread_id,
 		type = &default_queue_type;
 
 	if (thread->queue != NULL) {
-		return ASSERT(vdo_work_queue_type_is(thread->queue, type),
-			      "already constructed vdo thread %u is of the correct type",
-			      thread_id);
+		return VDO_ASSERT(vdo_work_queue_type_is(thread->queue, type),
+				  "already constructed vdo thread %u is of the correct type",
+				  thread_id);
 	}
 
 	thread->vdo = vdo;
@@ -448,8 +448,8 @@ static int register_vdo(struct vdo *vdo)
 	int result;
 
 	write_lock(&registry.lock);
-	result = ASSERT(filter_vdos_locked(vdo_is_equal, vdo) == NULL,
-			"VDO not already registered");
+	result = VDO_ASSERT(filter_vdos_locked(vdo_is_equal, vdo) == NULL,
+			    "VDO not already registered");
 	if (result == VDO_SUCCESS) {
 		INIT_LIST_HEAD(&vdo->registration);
 		list_add_tail(&vdo->registration, &registry.links);
@@ -1050,8 +1050,8 @@ int vdo_register_read_only_listener(struct vdo *vdo, void *listener,
 	struct read_only_listener *read_only_listener;
 	int result;
 
-	result = ASSERT(thread_id != vdo->thread_config.dedupe_thread,
-			"read only listener not registered on dedupe thread");
+	result = VDO_ASSERT(thread_id != vdo->thread_config.dedupe_thread,
+			    "read only listener not registered on dedupe thread");
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1704,8 +1704,8 @@ void vdo_dump_status(const struct vdo *vdo)
  */
 void vdo_assert_on_admin_thread(const struct vdo *vdo, const char *name)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == vdo->thread_config.admin_thread),
-			"%s called on admin thread", name);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == vdo->thread_config.admin_thread),
+			    "%s called on admin thread", name);
 }
 
 /**
@@ -1718,9 +1718,9 @@ void vdo_assert_on_admin_thread(const struct vdo *vdo, const char *name)
 void vdo_assert_on_logical_zone_thread(const struct vdo *vdo, zone_count_t logical_zone,
 				       const char *name)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() ==
-			 vdo->thread_config.logical_threads[logical_zone]),
-			"%s called on logical thread", name);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() ==
+			     vdo->thread_config.logical_threads[logical_zone]),
+			    "%s called on logical thread", name);
 }
 
 /**
@@ -1733,9 +1733,9 @@ void vdo_assert_on_logical_zone_thread(const struct vdo *vdo, zone_count_t logic
 void vdo_assert_on_physical_zone_thread(const struct vdo *vdo,
 					zone_count_t physical_zone, const char *name)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() ==
-			 vdo->thread_config.physical_threads[physical_zone]),
-			"%s called on physical thread", name);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() ==
+			     vdo->thread_config.physical_threads[physical_zone]),
+			    "%s called on physical thread", name);
 }
 
 /**
@@ -1773,7 +1773,7 @@ int vdo_get_physical_zone(const struct vdo *vdo, physical_block_number_t pbn,
 
 	/* With the PBN already checked, we should always succeed in finding a slab. */
 	slab = vdo_get_slab(vdo->depot, pbn);
-	result = ASSERT(slab != NULL, "vdo_get_slab must succeed on all valid PBNs");
+	result = VDO_ASSERT(slab != NULL, "vdo_get_slab must succeed on all valid PBNs");
 	if (result != VDO_SUCCESS)
 		return result;
 

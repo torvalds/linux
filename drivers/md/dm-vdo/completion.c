@@ -60,7 +60,7 @@ void vdo_initialize_completion(struct vdo_completion *completion,
 
 static inline void assert_incomplete(struct vdo_completion *completion)
 {
-	ASSERT_LOG_ONLY(!completion->complete, "completion is not complete");
+	VDO_ASSERT_LOG_ONLY(!completion->complete, "completion is not complete");
 }
 
 /**
@@ -111,10 +111,10 @@ void vdo_enqueue_completion(struct vdo_completion *completion,
 	struct vdo *vdo = completion->vdo;
 	thread_id_t thread_id = completion->callback_thread_id;
 
-	if (ASSERT(thread_id < vdo->thread_config.thread_count,
-		   "thread_id %u (completion type %d) is less than thread count %u",
-		   thread_id, completion->type,
-		   vdo->thread_config.thread_count) != UDS_SUCCESS)
+	if (VDO_ASSERT(thread_id < vdo->thread_config.thread_count,
+		       "thread_id %u (completion type %d) is less than thread count %u",
+		       thread_id, completion->type,
+		       vdo->thread_config.thread_count) != VDO_SUCCESS)
 		BUG();
 
 	completion->requeue = false;

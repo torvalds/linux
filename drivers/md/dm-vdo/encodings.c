@@ -320,8 +320,8 @@ int __must_check vdo_parse_geometry_block(u8 *block, struct volume_geometry *geo
 
 	decode_volume_geometry(block, &offset, geometry, header.version.major_version);
 
-	result = ASSERT(header.size == offset + sizeof(u32),
-			"should have decoded up to the geometry checksum");
+	result = VDO_ASSERT(header.size == offset + sizeof(u32),
+			    "should have decoded up to the geometry checksum");
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -380,25 +380,25 @@ static int decode_block_map_state_2_0(u8 *buffer, size_t *offset,
 	initial_offset = *offset;
 
 	decode_u64_le(buffer, offset, &flat_page_origin);
-	result = ASSERT(flat_page_origin == VDO_BLOCK_MAP_FLAT_PAGE_ORIGIN,
-			"Flat page origin must be %u (recorded as %llu)",
-			VDO_BLOCK_MAP_FLAT_PAGE_ORIGIN,
-			(unsigned long long) state->flat_page_origin);
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(flat_page_origin == VDO_BLOCK_MAP_FLAT_PAGE_ORIGIN,
+			    "Flat page origin must be %u (recorded as %llu)",
+			    VDO_BLOCK_MAP_FLAT_PAGE_ORIGIN,
+			    (unsigned long long) state->flat_page_origin);
+	if (result != VDO_SUCCESS)
 		return result;
 
 	decode_u64_le(buffer, offset, &flat_page_count);
-	result = ASSERT(flat_page_count == 0,
-			"Flat page count must be 0 (recorded as %llu)",
-			(unsigned long long) state->flat_page_count);
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(flat_page_count == 0,
+			    "Flat page count must be 0 (recorded as %llu)",
+			    (unsigned long long) state->flat_page_count);
+	if (result != VDO_SUCCESS)
 		return result;
 
 	decode_u64_le(buffer, offset, &root_origin);
 	decode_u64_le(buffer, offset, &root_count);
 
-	result = ASSERT(VDO_BLOCK_MAP_HEADER_2_0.size == *offset - initial_offset,
-			"decoded block map component size must match header size");
+	result = VDO_ASSERT(VDO_BLOCK_MAP_HEADER_2_0.size == *offset - initial_offset,
+			    "decoded block map component size must match header size");
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -425,8 +425,8 @@ static void encode_block_map_state_2_0(u8 *buffer, size_t *offset,
 	encode_u64_le(buffer, offset, state.root_origin);
 	encode_u64_le(buffer, offset, state.root_count);
 
-	ASSERT_LOG_ONLY(VDO_BLOCK_MAP_HEADER_2_0.size == *offset - initial_offset,
-			"encoded block map component size must match header size");
+	VDO_ASSERT_LOG_ONLY(VDO_BLOCK_MAP_HEADER_2_0.size == *offset - initial_offset,
+			    "encoded block map component size must match header size");
 }
 
 /**
@@ -477,8 +477,8 @@ static void encode_recovery_journal_state_7_0(u8 *buffer, size_t *offset,
 	encode_u64_le(buffer, offset, state.logical_blocks_used);
 	encode_u64_le(buffer, offset, state.block_map_data_blocks);
 
-	ASSERT_LOG_ONLY(VDO_RECOVERY_JOURNAL_HEADER_7_0.size == *offset - initial_offset,
-			"encoded recovery journal component size must match header size");
+	VDO_ASSERT_LOG_ONLY(VDO_RECOVERY_JOURNAL_HEADER_7_0.size == *offset - initial_offset,
+			    "encoded recovery journal component size must match header size");
 }
 
 /**
@@ -508,9 +508,9 @@ static int __must_check decode_recovery_journal_state_7_0(u8 *buffer, size_t *of
 	decode_u64_le(buffer, offset, &logical_blocks_used);
 	decode_u64_le(buffer, offset, &block_map_data_blocks);
 
-	result = ASSERT(VDO_RECOVERY_JOURNAL_HEADER_7_0.size == *offset - initial_offset,
-			"decoded recovery journal component size must match header size");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(VDO_RECOVERY_JOURNAL_HEADER_7_0.size == *offset - initial_offset,
+			    "decoded recovery journal component size must match header size");
+	if (result != VDO_SUCCESS)
 		return result;
 
 	*state = (struct recovery_journal_state_7_0) {
@@ -566,8 +566,8 @@ static void encode_slab_depot_state_2_0(u8 *buffer, size_t *offset,
 	encode_u64_le(buffer, offset, state.last_block);
 	buffer[(*offset)++] = state.zone_count;
 
-	ASSERT_LOG_ONLY(VDO_SLAB_DEPOT_HEADER_2_0.size == *offset - initial_offset,
-			"encoded block map component size must match header size");
+	VDO_ASSERT_LOG_ONLY(VDO_SLAB_DEPOT_HEADER_2_0.size == *offset - initial_offset,
+			    "encoded block map component size must match header size");
 }
 
 /**
@@ -618,9 +618,9 @@ static int decode_slab_depot_state_2_0(u8 *buffer, size_t *offset,
 	decode_u64_le(buffer, offset, &last_block);
 	zone_count = buffer[(*offset)++];
 
-	result = ASSERT(VDO_SLAB_DEPOT_HEADER_2_0.size == *offset - initial_offset,
-			"decoded slab depot component size must match header size");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(VDO_SLAB_DEPOT_HEADER_2_0.size == *offset - initial_offset,
+			    "decoded slab depot component size must match header size");
+	if (result != VDO_SUCCESS)
 		return result;
 
 	*state = (struct slab_depot_state_2_0) {
@@ -970,7 +970,7 @@ struct partition *vdo_get_known_partition(struct layout *layout, enum partition_
 	struct partition *partition;
 	int result = vdo_get_partition(layout, id, &partition);
 
-	ASSERT_LOG_ONLY(result == VDO_SUCCESS, "layout has expected partition: %u", id);
+	VDO_ASSERT_LOG_ONLY(result == VDO_SUCCESS, "layout has expected partition: %u", id);
 
 	return partition;
 }
@@ -982,8 +982,8 @@ static void encode_layout(u8 *buffer, size_t *offset, const struct layout *layou
 	struct header header = VDO_LAYOUT_HEADER_3_0;
 
 	BUILD_BUG_ON(sizeof(enum partition_id) != sizeof(u8));
-	ASSERT_LOG_ONLY(layout->num_partitions <= U8_MAX,
-			"layout partition count must fit in a byte");
+	VDO_ASSERT_LOG_ONLY(layout->num_partitions <= U8_MAX,
+			    "layout partition count must fit in a byte");
 
 	vdo_encode_header(buffer, offset, &header);
 
@@ -992,8 +992,8 @@ static void encode_layout(u8 *buffer, size_t *offset, const struct layout *layou
 	encode_u64_le(buffer, offset, layout->last_free);
 	buffer[(*offset)++] = layout->num_partitions;
 
-	ASSERT_LOG_ONLY(sizeof(struct layout_3_0) == *offset - initial_offset,
-			"encoded size of a layout header must match structure");
+	VDO_ASSERT_LOG_ONLY(sizeof(struct layout_3_0) == *offset - initial_offset,
+			    "encoded size of a layout header must match structure");
 
 	for (partition = layout->head; partition != NULL; partition = partition->next) {
 		buffer[(*offset)++] = partition->id;
@@ -1003,8 +1003,8 @@ static void encode_layout(u8 *buffer, size_t *offset, const struct layout *layou
 		encode_u64_le(buffer, offset, partition->count);
 	}
 
-	ASSERT_LOG_ONLY(header.size == *offset - initial_offset,
-			"encoded size of a layout must match header size");
+	VDO_ASSERT_LOG_ONLY(header.size == *offset - initial_offset,
+			    "encoded size of a layout must match header size");
 }
 
 static int decode_layout(u8 *buffer, size_t *offset, physical_block_number_t start,
@@ -1035,8 +1035,8 @@ static int decode_layout(u8 *buffer, size_t *offset, physical_block_number_t sta
 		.partition_count = partition_count,
 	};
 
-	result = ASSERT(sizeof(struct layout_3_0) == *offset - initial_offset,
-			"decoded size of a layout header must match structure");
+	result = VDO_ASSERT(sizeof(struct layout_3_0) == *offset - initial_offset,
+			    "decoded size of a layout header must match structure");
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -1208,29 +1208,29 @@ int vdo_validate_config(const struct vdo_config *config,
 	struct slab_config slab_config;
 	int result;
 
-	result = ASSERT(config->slab_size > 0, "slab size unspecified");
-	if (result != UDS_SUCCESS)
-		return result;
-
-	result = ASSERT(is_power_of_2(config->slab_size),
-			"slab size must be a power of two");
-	if (result != UDS_SUCCESS)
-		return result;
-
-	result = ASSERT(config->slab_size <= (1 << MAX_VDO_SLAB_BITS),
-			"slab size must be less than or equal to 2^%d",
-			MAX_VDO_SLAB_BITS);
+	result = VDO_ASSERT(config->slab_size > 0, "slab size unspecified");
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(config->slab_journal_blocks >= MINIMUM_VDO_SLAB_JOURNAL_BLOCKS,
-			"slab journal size meets minimum size");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(is_power_of_2(config->slab_size),
+			    "slab size must be a power of two");
+	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(config->slab_journal_blocks <= config->slab_size,
-			"slab journal size is within expected bound");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(config->slab_size <= (1 << MAX_VDO_SLAB_BITS),
+			    "slab size must be less than or equal to 2^%d",
+			    MAX_VDO_SLAB_BITS);
+	if (result != VDO_SUCCESS)
+		return result;
+
+	result = VDO_ASSERT(config->slab_journal_blocks >= MINIMUM_VDO_SLAB_JOURNAL_BLOCKS,
+			    "slab journal size meets minimum size");
+	if (result != VDO_SUCCESS)
+		return result;
+
+	result = VDO_ASSERT(config->slab_journal_blocks <= config->slab_size,
+			    "slab journal size is within expected bound");
+	if (result != VDO_SUCCESS)
 		return result;
 
 	result = vdo_configure_slab(config->slab_size, config->slab_journal_blocks,
@@ -1238,20 +1238,20 @@ int vdo_validate_config(const struct vdo_config *config,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT((slab_config.data_blocks >= 1),
-			"slab must be able to hold at least one block");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT((slab_config.data_blocks >= 1),
+			    "slab must be able to hold at least one block");
+	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(config->physical_blocks > 0, "physical blocks unspecified");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(config->physical_blocks > 0, "physical blocks unspecified");
+	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(config->physical_blocks <= MAXIMUM_VDO_PHYSICAL_BLOCKS,
-			"physical block count %llu exceeds maximum %llu",
-			(unsigned long long) config->physical_blocks,
-			(unsigned long long) MAXIMUM_VDO_PHYSICAL_BLOCKS);
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(config->physical_blocks <= MAXIMUM_VDO_PHYSICAL_BLOCKS,
+			    "physical block count %llu exceeds maximum %llu",
+			    (unsigned long long) config->physical_blocks,
+			    (unsigned long long) MAXIMUM_VDO_PHYSICAL_BLOCKS);
+	if (result != VDO_SUCCESS)
 		return VDO_OUT_OF_RANGE;
 
 	if (physical_block_count != config->physical_blocks) {
@@ -1262,9 +1262,9 @@ int vdo_validate_config(const struct vdo_config *config,
 	}
 
 	if (logical_block_count > 0) {
-		result = ASSERT((config->logical_blocks > 0),
-				"logical blocks unspecified");
-		if (result != UDS_SUCCESS)
+		result = VDO_ASSERT((config->logical_blocks > 0),
+				    "logical blocks unspecified");
+		if (result != VDO_SUCCESS)
 			return result;
 
 		if (logical_block_count != config->logical_blocks) {
@@ -1275,19 +1275,19 @@ int vdo_validate_config(const struct vdo_config *config,
 		}
 	}
 
-	result = ASSERT(config->logical_blocks <= MAXIMUM_VDO_LOGICAL_BLOCKS,
-			"logical blocks too large");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(config->logical_blocks <= MAXIMUM_VDO_LOGICAL_BLOCKS,
+			    "logical blocks too large");
+	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(config->recovery_journal_size > 0,
-			"recovery journal size unspecified");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(config->recovery_journal_size > 0,
+			    "recovery journal size unspecified");
+	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(is_power_of_2(config->recovery_journal_size),
-			"recovery journal size must be a power of two");
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(is_power_of_2(config->recovery_journal_size),
+			    "recovery journal size must be a power of two");
+	if (result != VDO_SUCCESS)
 		return result;
 
 	return result;
@@ -1341,8 +1341,8 @@ static int __must_check decode_components(u8 *buffer, size_t *offset,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	ASSERT_LOG_ONLY(*offset == VDO_COMPONENT_DATA_OFFSET + VDO_COMPONENT_DATA_SIZE,
-			"All decoded component data was used");
+	VDO_ASSERT_LOG_ONLY(*offset == VDO_COMPONENT_DATA_OFFSET + VDO_COMPONENT_DATA_SIZE,
+			    "All decoded component data was used");
 	return VDO_SUCCESS;
 }
 
@@ -1416,8 +1416,8 @@ static void vdo_encode_component_states(u8 *buffer, size_t *offset,
 	encode_slab_depot_state_2_0(buffer, offset, states->slab_depot);
 	encode_block_map_state_2_0(buffer, offset, states->block_map);
 
-	ASSERT_LOG_ONLY(*offset == VDO_COMPONENT_DATA_OFFSET + VDO_COMPONENT_DATA_SIZE,
-			"All super block component data was encoded");
+	VDO_ASSERT_LOG_ONLY(*offset == VDO_COMPONENT_DATA_OFFSET + VDO_COMPONENT_DATA_SIZE,
+			    "All super block component data was encoded");
 }
 
 /**
@@ -1440,8 +1440,8 @@ void vdo_encode_super_block(u8 *buffer, struct vdo_component_states *states)
 	 * Even though the buffer is a full block, to avoid the potential corruption from a torn
 	 * write, the entire encoding must fit in the first sector.
 	 */
-	ASSERT_LOG_ONLY(offset <= VDO_SECTOR_SIZE,
-			"entire superblock must fit in one sector");
+	VDO_ASSERT_LOG_ONLY(offset <= VDO_SECTOR_SIZE,
+			    "entire superblock must fit in one sector");
 }
 
 /**
@@ -1476,8 +1476,8 @@ int vdo_decode_super_block(u8 *buffer)
 	checksum = vdo_crc32(buffer, offset);
 	decode_u32_le(buffer, &offset, &saved_checksum);
 
-	result = ASSERT(offset == VDO_SUPER_BLOCK_FIXED_SIZE + VDO_COMPONENT_DATA_SIZE,
-			"must have decoded entire superblock payload");
+	result = VDO_ASSERT(offset == VDO_SUPER_BLOCK_FIXED_SIZE + VDO_COMPONENT_DATA_SIZE,
+			    "must have decoded entire superblock payload");
 	if (result != VDO_SUCCESS)
 		return result;
 

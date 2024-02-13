@@ -82,14 +82,14 @@ int allocate_vio_components(struct vdo *vdo, enum vio_type vio_type,
 	struct bio *bio;
 	int result;
 
-	result = ASSERT(block_count <= MAX_BLOCKS_PER_VIO,
-			"block count %u does not exceed maximum %u", block_count,
-			MAX_BLOCKS_PER_VIO);
+	result = VDO_ASSERT(block_count <= MAX_BLOCKS_PER_VIO,
+			    "block count %u does not exceed maximum %u", block_count,
+			    MAX_BLOCKS_PER_VIO);
 	if (result != VDO_SUCCESS)
 		return result;
 
-	result = ASSERT(((vio_type != VIO_TYPE_UNINITIALIZED) && (vio_type != VIO_TYPE_DATA)),
-			"%d is a metadata type", vio_type);
+	result = VDO_ASSERT(((vio_type != VIO_TYPE_UNINITIALIZED) && (vio_type != VIO_TYPE_DATA)),
+			    "%d is a metadata type", vio_type);
 	if (result != VDO_SUCCESS)
 		return result;
 
@@ -363,13 +363,13 @@ void free_vio_pool(struct vio_pool *pool)
 		return;
 
 	/* Remove all available vios from the object pool. */
-	ASSERT_LOG_ONLY(!vdo_waitq_has_waiters(&pool->waiting),
-			"VIO pool must not have any waiters when being freed");
-	ASSERT_LOG_ONLY((pool->busy_count == 0),
-			"VIO pool must not have %zu busy entries when being freed",
-			pool->busy_count);
-	ASSERT_LOG_ONLY(list_empty(&pool->busy),
-			"VIO pool must not have busy entries when being freed");
+	VDO_ASSERT_LOG_ONLY(!vdo_waitq_has_waiters(&pool->waiting),
+			    "VIO pool must not have any waiters when being freed");
+	VDO_ASSERT_LOG_ONLY((pool->busy_count == 0),
+			    "VIO pool must not have %zu busy entries when being freed",
+			    pool->busy_count);
+	VDO_ASSERT_LOG_ONLY(list_empty(&pool->busy),
+			    "VIO pool must not have busy entries when being freed");
 
 	list_for_each_entry_safe(pooled, tmp, &pool->available, pool_entry) {
 		list_del(&pooled->pool_entry);
@@ -377,8 +377,8 @@ void free_vio_pool(struct vio_pool *pool)
 		pool->size--;
 	}
 
-	ASSERT_LOG_ONLY(pool->size == 0,
-			"VIO pool must not have missing entries when being freed");
+	VDO_ASSERT_LOG_ONLY(pool->size == 0,
+			    "VIO pool must not have missing entries when being freed");
 
 	vdo_free(vdo_forget(pool->buffer));
 	vdo_free(pool);
@@ -403,8 +403,8 @@ void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter)
 {
 	struct pooled_vio *pooled;
 
-	ASSERT_LOG_ONLY((pool->thread_id == vdo_get_callback_thread_id()),
-			"acquire from active vio_pool called from correct thread");
+	VDO_ASSERT_LOG_ONLY((pool->thread_id == vdo_get_callback_thread_id()),
+			    "acquire from active vio_pool called from correct thread");
 
 	if (list_empty(&pool->available)) {
 		vdo_waitq_enqueue_waiter(&pool->waiting, waiter);
@@ -424,8 +424,8 @@ void acquire_vio_from_pool(struct vio_pool *pool, struct vdo_waiter *waiter)
  */
 void return_vio_to_pool(struct vio_pool *pool, struct pooled_vio *vio)
 {
-	ASSERT_LOG_ONLY((pool->thread_id == vdo_get_callback_thread_id()),
-			"vio pool entry returned on same thread as it was acquired");
+	VDO_ASSERT_LOG_ONLY((pool->thread_id == vdo_get_callback_thread_id()),
+			    "vio pool entry returned on same thread as it was acquired");
 
 	vio->vio.completion.error_handler = NULL;
 	vio->vio.completion.parent = NULL;
@@ -465,8 +465,8 @@ void vdo_count_bios(struct atomic_bio_stats *bio_stats, struct bio *bio)
 		 * shouldn't exist.
 		 */
 	default:
-		ASSERT_LOG_ONLY(0, "Bio operation %d not a write, read, discard, or empty flush",
-				bio_op(bio));
+		VDO_ASSERT_LOG_ONLY(0, "Bio operation %d not a write, read, discard, or empty flush",
+				    bio_op(bio));
 	}
 
 	if ((bio->bi_opf & REQ_PREFLUSH) != 0)

@@ -177,8 +177,8 @@ static void apply_to_zone(struct vdo_completion *completion)
 	zone_count_t zone;
 	struct action_manager *manager = as_action_manager(completion);
 
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == get_acting_zone_thread_id(manager)),
-			"%s() called on acting zones's thread", __func__);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == get_acting_zone_thread_id(manager)),
+			    "%s() called on acting zones's thread", __func__);
 
 	zone = manager->acting_zone++;
 	if (manager->acting_zone == manager->zones) {
@@ -357,8 +357,8 @@ bool vdo_schedule_operation_with_context(struct action_manager *manager,
 {
 	struct action *current_action;
 
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == manager->initiator_thread_id),
-			"action initiated from correct thread");
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == manager->initiator_thread_id),
+			    "action initiated from correct thread");
 	if (!manager->current_action->in_use) {
 		current_action = manager->current_action;
 	} else if (!manager->current_action->next->in_use) {

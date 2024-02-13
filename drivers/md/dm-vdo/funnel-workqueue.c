@@ -110,14 +110,14 @@ static struct vdo_completion *poll_for_completion(struct simple_work_queue *queu
 static void enqueue_work_queue_completion(struct simple_work_queue *queue,
 					  struct vdo_completion *completion)
 {
-	ASSERT_LOG_ONLY(completion->my_queue == NULL,
-			"completion %px (fn %px) to enqueue (%px) is not already queued (%px)",
-			completion, completion->callback, queue, completion->my_queue);
+	VDO_ASSERT_LOG_ONLY(completion->my_queue == NULL,
+			    "completion %px (fn %px) to enqueue (%px) is not already queued (%px)",
+			    completion, completion->callback, queue, completion->my_queue);
 	if (completion->priority == VDO_WORK_Q_DEFAULT_PRIORITY)
 		completion->priority = queue->common.type->default_priority;
 
-	if (ASSERT(completion->priority <= queue->common.type->max_priority,
-		   "priority is in range for queue") != VDO_SUCCESS)
+	if (VDO_ASSERT(completion->priority <= queue->common.type->max_priority,
+		       "priority is in range for queue") != VDO_SUCCESS)
 		completion->priority = 0;
 
 	completion->my_queue = &queue->common;
@@ -222,9 +222,9 @@ static struct vdo_completion *wait_for_next_completion(struct simple_work_queue 
 static void process_completion(struct simple_work_queue *queue,
 			       struct vdo_completion *completion)
 {
-	if (ASSERT(completion->my_queue == &queue->common,
-		   "completion %px from queue %px marked as being in this queue (%px)",
-		   completion, queue, completion->my_queue) == UDS_SUCCESS)
+	if (VDO_ASSERT(completion->my_queue == &queue->common,
+		       "completion %px from queue %px marked as being in this queue (%px)",
+		       completion, queue, completion->my_queue) == VDO_SUCCESS)
 		completion->my_queue = NULL;
 
 	vdo_run_completion(completion);
@@ -319,9 +319,9 @@ static int make_simple_work_queue(const char *thread_name_prefix, const char *na
 	struct task_struct *thread = NULL;
 	int result;
 
-	ASSERT_LOG_ONLY((type->max_priority <= VDO_WORK_Q_MAX_PRIORITY),
-			"queue priority count %u within limit %u", type->max_priority,
-			VDO_WORK_Q_MAX_PRIORITY);
+	VDO_ASSERT_LOG_ONLY((type->max_priority <= VDO_WORK_Q_MAX_PRIORITY),
+			    "queue priority count %u within limit %u", type->max_priority,
+			    VDO_WORK_Q_MAX_PRIORITY);
 
 	result = vdo_allocate(1, struct simple_work_queue, "simple work queue", &queue);
 	if (result != VDO_SUCCESS)

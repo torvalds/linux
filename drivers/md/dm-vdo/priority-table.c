@@ -127,8 +127,8 @@ void vdo_reset_priority_table(struct priority_table *table)
 void vdo_priority_table_enqueue(struct priority_table *table, unsigned int priority,
 				struct list_head *entry)
 {
-	ASSERT_LOG_ONLY((priority <= table->max_priority),
-			"entry priority must be valid for the table");
+	VDO_ASSERT_LOG_ONLY((priority <= table->max_priority),
+			    "entry priority must be valid for the table");
 
 	/* Append the entry to the queue in the specified bucket. */
 	list_move_tail(entry, &table->buckets[priority].queue);

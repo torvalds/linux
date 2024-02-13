@@ -232,8 +232,8 @@ static bool check_for_drain_complete_locked(struct data_vio_pool *pool)
 	if (pool->limiter.busy > 0)
 		return false;
 
-	ASSERT_LOG_ONLY((pool->discard_limiter.busy == 0),
-			"no outstanding discard permits");
+	VDO_ASSERT_LOG_ONLY((pool->discard_limiter.busy == 0),
+			    "no outstanding discard permits");
 
 	return (bio_list_empty(&pool->limiter.new_waiters) &&
 		bio_list_empty(&pool->discard_limiter.new_waiters));
@@ -277,9 +277,9 @@ static void acknowledge_data_vio(struct data_vio *data_vio)
 	if (bio == NULL)
 		return;
 
-	ASSERT_LOG_ONLY((data_vio->remaining_discard <=
-			 (u32) (VDO_BLOCK_SIZE - data_vio->offset)),
-			"data_vio to acknowledge is not an incomplete discard");
+	VDO_ASSERT_LOG_ONLY((data_vio->remaining_discard <=
+			     (u32) (VDO_BLOCK_SIZE - data_vio->offset)),
+			    "data_vio to acknowledge is not an incomplete discard");
 
 	data_vio->user_bio = NULL;
 	vdo_count_bios(&vdo->stats.bios_acknowledged, bio);
@@ -443,7 +443,7 @@ static void attempt_logical_block_lock(struct vdo_completion *completion)
 		return;
 	}
 
-	result = ASSERT(lock_holder->logical.locked, "logical block lock held");
+	result = VDO_ASSERT(lock_holder->logical.locked, "logical block lock held");
 	if (result != VDO_SUCCESS) {
 		continue_data_vio_with_error(data_vio, result);
 		return;
@@ -627,9 +627,9 @@ static void update_limiter(struct limiter *limiter)
 	struct bio_list *waiters = &limiter->waiters;
 	data_vio_count_t available = limiter->limit - limiter->busy;
 
-	ASSERT_LOG_ONLY((limiter->release_count <= limiter->busy),
-			"Release count %u is not more than busy count %u",
-			limiter->release_count, limiter->busy);
+	VDO_ASSERT_LOG_ONLY((limiter->release_count <= limiter->busy),
+			    "Release count %u is not more than busy count %u",
+			    limiter->release_count, limiter->busy);
 
 	get_waiters(limiter);
 	for (; (limiter->release_count > 0) && !bio_list_empty(waiters); limiter->release_count--)
@@ -850,8 +850,8 @@ int make_data_vio_pool(struct vdo *vdo, data_vio_count_t pool_size,
 	if (result != VDO_SUCCESS)
 		return result;
 
-	ASSERT_LOG_ONLY((discard_limit <= pool_size),
-			"discard limit does not exceed pool size");
+	VDO_ASSERT_LOG_ONLY((discard_limit <= pool_size),
+			    "discard limit does not exceed pool size");
 	initialize_limiter(&pool->discard_limiter, pool, assign_discard_permit,
 			   discard_limit);
 	pool->discard_limiter.permitted_waiters = &pool->permitted_discards;
@@ -908,15 +908,15 @@ void free_data_vio_pool(struct data_vio_pool *pool)
 	BUG_ON(atomic_read(&pool->processing));
 
 	spin_lock(&pool->lock);
-	ASSERT_LOG_ONLY((pool->limiter.busy == 0),
-			"data_vio pool must not have %u busy entries when being freed",
-			pool->limiter.busy);
-	ASSERT_LOG_ONLY((bio_list_empty(&pool->limiter.waiters) &&
-			 bio_list_empty(&pool->limiter.new_waiters)),
-			"data_vio pool must not have threads waiting to read or write when being freed");
-	ASSERT_LOG_ONLY((bio_list_empty(&pool->discard_limiter.waiters) &&
-			 bio_list_empty(&pool->discard_limiter.new_waiters)),
-			"data_vio pool must not have threads waiting to discard when being freed");
+	VDO_ASSERT_LOG_ONLY((pool->limiter.busy == 0),
+			    "data_vio pool must not have %u busy entries when being freed",
+			    pool->limiter.busy);
+	VDO_ASSERT_LOG_ONLY((bio_list_empty(&pool->limiter.waiters) &&
+			     bio_list_empty(&pool->limiter.new_waiters)),
+			    "data_vio pool must not have threads waiting to read or write when being freed");
+	VDO_ASSERT_LOG_ONLY((bio_list_empty(&pool->discard_limiter.waiters) &&
+			     bio_list_empty(&pool->discard_limiter.new_waiters)),
+			    "data_vio pool must not have threads waiting to discard when being freed");
 	spin_unlock(&pool->lock);
 
 	list_for_each_entry_safe(data_vio, tmp, &pool->available, pool_entry) {
@@ -961,8 +961,8 @@ void vdo_launch_bio(struct data_vio_pool *pool, struct bio *bio)
 {
 	struct data_vio *data_vio;
 
-	ASSERT_LOG_ONLY(!vdo_is_state_quiescent(&pool->state),
-			"data_vio_pool not quiescent on acquire");
+	VDO_ASSERT_LOG_ONLY(!vdo_is_state_quiescent(&pool->state),
+			    "data_vio_pool not quiescent on acquire");
 
 	bio->bi_private = (void *) jiffies;
 	spin_lock(&pool->lock);
@@ -998,8 +998,8 @@ static void initiate_drain(struct admin_state *state)
 
 static void assert_on_vdo_cpu_thread(const struct vdo *vdo, const char *name)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == vdo->thread_config.cpu_thread),
-			"%s called on cpu thread", name);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == vdo->thread_config.cpu_thread),
+			    "%s called on cpu thread", name);
 }
 
 /**
@@ -1173,17 +1173,17 @@ static void release_lock(struct data_vio *data_vio, struct lbn_lock *lock)
 		/*  The lock is not locked, so it had better not be registered in the lock map. */
 		struct data_vio *lock_holder = vdo_int_map_get(lock_map, lock->lbn);
 
-		ASSERT_LOG_ONLY((data_vio != lock_holder),
-				"no logical block lock held for block %llu",
-				(unsigned long long) lock->lbn);
+		VDO_ASSERT_LOG_ONLY((data_vio != lock_holder),
+				    "no logical block lock held for block %llu",
+				    (unsigned long long) lock->lbn);
 		return;
 	}
 
 	/* Release the lock by removing the lock from the map. */
 	lock_holder = vdo_int_map_remove(lock_map, lock->lbn);
-	ASSERT_LOG_ONLY((data_vio == lock_holder),
-			"logical block lock mismatch for block %llu",
-			(unsigned long long) lock->lbn);
+	VDO_ASSERT_LOG_ONLY((data_vio == lock_holder),
+			    "logical block lock mismatch for block %llu",
+			    (unsigned long long) lock->lbn);
 	lock->locked = false;
 }
 
@@ -1193,7 +1193,7 @@ static void transfer_lock(struct data_vio *data_vio, struct lbn_lock *lock)
 	struct data_vio *lock_holder, *next_lock_holder;
 	int result;
 
-	ASSERT_LOG_ONLY(lock->locked, "lbn_lock with waiters is not locked");
+	VDO_ASSERT_LOG_ONLY(lock->locked, "lbn_lock with waiters is not locked");
 
 	/* Another data_vio is waiting for the lock, transfer it in a single lock map operation. */
 	next_lock_holder =
@@ -1210,9 +1210,9 @@ static void transfer_lock(struct data_vio *data_vio, struct lbn_lock *lock)
 		return;
 	}
 
-	ASSERT_LOG_ONLY((lock_holder == data_vio),
-			"logical block lock mismatch for block %llu",
-			(unsigned long long) lock->lbn);
+	VDO_ASSERT_LOG_ONLY((lock_holder == data_vio),
+			    "logical block lock mismatch for block %llu",
+			    (unsigned long long) lock->lbn);
 	lock->locked = false;
 
 	/*
@@ -1275,10 +1275,10 @@ static void finish_cleanup(struct data_vio *data_vio)
 {
 	struct vdo_completion *completion = &data_vio->vio.completion;
 
-	ASSERT_LOG_ONLY(data_vio->allocation.lock == NULL,
-			"complete data_vio has no allocation lock");
-	ASSERT_LOG_ONLY(data_vio->hash_lock == NULL,
-			"complete data_vio has no hash lock");
+	VDO_ASSERT_LOG_ONLY(data_vio->allocation.lock == NULL,
+			    "complete data_vio has no allocation lock");
+	VDO_ASSERT_LOG_ONLY(data_vio->hash_lock == NULL,
+			    "complete data_vio has no hash lock");
 	if ((data_vio->remaining_discard <= VDO_BLOCK_SIZE) ||
 	    (completion->result != VDO_SUCCESS)) {
 		struct data_vio_pool *pool = completion->vdo->data_vio_pool;
@@ -1404,8 +1404,8 @@ void data_vio_allocate_data_block(struct data_vio *data_vio,
 {
 	struct allocation *allocation = &data_vio->allocation;
 
-	ASSERT_LOG_ONLY((allocation->pbn == VDO_ZERO_BLOCK),
-			"data_vio does not have an allocation");
+	VDO_ASSERT_LOG_ONLY((allocation->pbn == VDO_ZERO_BLOCK),
+			    "data_vio does not have an allocation");
 	allocation->write_lock_type = write_lock_type;
 	allocation->zone = vdo_get_next_allocation_zone(data_vio->logical.zone);
 	allocation->first_allocation_zone = allocation->zone->zone_number;
@@ -1796,11 +1796,11 @@ static void compress_data_vio(struct vdo_completion *completion)
  */
 void launch_compress_data_vio(struct data_vio *data_vio)
 {
-	ASSERT_LOG_ONLY(!data_vio->is_duplicate, "compressing a non-duplicate block");
-	ASSERT_LOG_ONLY(data_vio->hash_lock != NULL,
-			"data_vio to compress has a hash_lock");
-	ASSERT_LOG_ONLY(data_vio_has_allocation(data_vio),
-			"data_vio to compress has an allocation");
+	VDO_ASSERT_LOG_ONLY(!data_vio->is_duplicate, "compressing a non-duplicate block");
+	VDO_ASSERT_LOG_ONLY(data_vio->hash_lock != NULL,
+			    "data_vio to compress has a hash_lock");
+	VDO_ASSERT_LOG_ONLY(data_vio_has_allocation(data_vio),
+			    "data_vio to compress has an allocation");
 
 	/*
 	 * There are 4 reasons why a data_vio which has reached this point will not be eligible for
@@ -1841,7 +1841,7 @@ static void hash_data_vio(struct vdo_completion *completion)
 	struct data_vio *data_vio = as_data_vio(completion);
 
 	assert_data_vio_on_cpu_thread(data_vio);
-	ASSERT_LOG_ONLY(!data_vio->is_zero, "zero blocks should not be hashed");
+	VDO_ASSERT_LOG_ONLY(!data_vio->is_zero, "zero blocks should not be hashed");
 
 	murmurhash3_128(data_vio->vio.data, VDO_BLOCK_SIZE, 0x62ea60be,
 			&data_vio->record_name);
@@ -1856,7 +1856,7 @@ static void hash_data_vio(struct vdo_completion *completion)
 static void prepare_for_dedupe(struct data_vio *data_vio)
 {
 	/* We don't care what thread we are on. */
-	ASSERT_LOG_ONLY(!data_vio->is_zero, "must not prepare to dedupe zero blocks");
+	VDO_ASSERT_LOG_ONLY(!data_vio->is_zero, "must not prepare to dedupe zero blocks");
 
 	/*
 	 * Before we can dedupe, we need to know the record name, so the first
@@ -1929,11 +1929,11 @@ static void acknowledge_write_callback(struct vdo_completion *completion)
 	struct data_vio *data_vio = as_data_vio(completion);
 	struct vdo *vdo = completion->vdo;
 
-	ASSERT_LOG_ONLY((!vdo_uses_bio_ack_queue(vdo) ||
-			 (vdo_get_callback_thread_id() == vdo->thread_config.bio_ack_thread)),
-			"%s() called on bio ack queue", __func__);
-	ASSERT_LOG_ONLY(data_vio_has_flush_generation_lock(data_vio),
-			"write VIO to be acknowledged has a flush generation lock");
+	VDO_ASSERT_LOG_ONLY((!vdo_uses_bio_ack_queue(vdo) ||
+			     (vdo_get_callback_thread_id() == vdo->thread_config.bio_ack_thread)),
+			    "%s() called on bio ack queue", __func__);
+	VDO_ASSERT_LOG_ONLY(data_vio_has_flush_generation_lock(data_vio),
+			    "write VIO to be acknowledged has a flush generation lock");
 	acknowledge_data_vio(data_vio);
 	if (data_vio->new_mapped.pbn == VDO_ZERO_BLOCK) {
 		/* This is a zero write or discard */
@@ -1998,8 +1998,8 @@ static void handle_allocation_error(struct vdo_completion *completion)
 
 static int assert_is_discard(struct data_vio *data_vio)
 {
-	int result = ASSERT(data_vio->is_discard,
-			    "data_vio with no block map page is a discard");
+	int result = VDO_ASSERT(data_vio->is_discard,
+				"data_vio with no block map page is a discard");
 
 	return ((result == VDO_SUCCESS) ? result : VDO_READ_ONLY);
 }

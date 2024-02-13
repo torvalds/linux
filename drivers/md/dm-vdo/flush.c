@@ -59,8 +59,8 @@ struct flusher {
  */
 static inline void assert_on_flusher_thread(struct flusher *flusher, const char *caller)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == flusher->thread_id),
-			"%s() called from flusher thread", caller);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == flusher->thread_id),
+			    "%s() called from flusher thread", caller);
 }
 
 /**
@@ -272,8 +272,8 @@ static void flush_vdo(struct vdo_completion *completion)
 	int result;
 
 	assert_on_flusher_thread(flusher, __func__);
-	result = ASSERT(vdo_is_state_normal(&flusher->state),
-			"flusher is in normal operation");
+	result = VDO_ASSERT(vdo_is_state_normal(&flusher->state),
+			    "flusher is in normal operation");
 	if (result != VDO_SUCCESS) {
 		vdo_enter_read_only_mode(flusher->vdo, result);
 		vdo_complete_flush(flush);
@@ -330,11 +330,11 @@ void vdo_complete_flushes(struct flusher *flusher)
 		if (flush->flush_generation >= oldest_active_generation)
 			return;
 
-		ASSERT_LOG_ONLY((flush->flush_generation ==
-				 flusher->first_unacknowledged_generation),
-				"acknowledged next expected flush, %llu, was: %llu",
-				(unsigned long long) flusher->first_unacknowledged_generation,
-				(unsigned long long) flush->flush_generation);
+		VDO_ASSERT_LOG_ONLY((flush->flush_generation ==
+				     flusher->first_unacknowledged_generation),
+				    "acknowledged next expected flush, %llu, was: %llu",
+				    (unsigned long long) flusher->first_unacknowledged_generation,
+				    (unsigned long long) flush->flush_generation);
 		vdo_waitq_dequeue_waiter(&flusher->pending_flushes);
 		vdo_complete_flush(flush);
 		flusher->first_unacknowledged_generation++;
@@ -400,8 +400,8 @@ void vdo_launch_flush(struct vdo *vdo, struct bio *bio)
 	struct flusher *flusher = vdo->flusher;
 	const struct admin_state_code *code = vdo_get_admin_state_code(&flusher->state);
 
-	ASSERT_LOG_ONLY(!code->quiescent, "Flushing not allowed in state %s",
-			code->name);
+	VDO_ASSERT_LOG_ONLY(!code->quiescent, "Flushing not allowed in state %s",
+			    code->name);
 
 	spin_lock(&flusher->lock);
 

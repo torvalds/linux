@@ -67,10 +67,10 @@ static inline void assert_vio_in_bio_zone(struct vio *vio)
 	thread_id_t expected = get_vio_bio_zone_thread_id(vio);
 	thread_id_t thread_id = vdo_get_callback_thread_id();
 
-	ASSERT_LOG_ONLY((expected == thread_id),
-			"vio I/O for physical block %llu on thread %u, should be on bio zone thread %u",
-			(unsigned long long) pbn_from_vio_bio(vio->bio), thread_id,
-			expected);
+	VDO_ASSERT_LOG_ONLY((expected == thread_id),
+			    "vio I/O for physical block %llu on thread %u, should be on bio zone thread %u",
+			    (unsigned long long) pbn_from_vio_bio(vio->bio), thread_id,
+			    expected);
 }
 
 int vdo_create_bio(struct bio **bio_ptr);

@@ -976,8 +976,8 @@ find_entry_starting_next_page(struct repair_completion *repair,
 		if (needs_sort) {
 			struct numbered_block_mapping *just_sorted_entry =
 				sort_next_heap_element(repair);
-			ASSERT_LOG_ONLY(just_sorted_entry < current_entry,
-					"heap is returning elements in an unexpected order");
+			VDO_ASSERT_LOG_ONLY(just_sorted_entry < current_entry,
+					    "heap is returning elements in an unexpected order");
 		}
 
 		current_entry--;
@@ -1129,8 +1129,8 @@ static void recover_block_map(struct vdo_completion *completion)
 
 	repair->current_entry = &repair->entries[repair->block_map_entry_count - 1];
 	first_sorted_entry = sort_next_heap_element(repair);
-	ASSERT_LOG_ONLY(first_sorted_entry == repair->current_entry,
-			"heap is returning elements in an unexpected order");
+	VDO_ASSERT_LOG_ONLY(first_sorted_entry == repair->current_entry,
+			    "heap is returning elements in an unexpected order");
 
 	/* Prevent any page from being processed until all pages have been launched. */
 	repair->launching = true;
@@ -1489,8 +1489,8 @@ static int extract_new_mappings(struct repair_completion *repair)
 		repair->block_map_entry_count++;
 	}
 
-	result = ASSERT((repair->block_map_entry_count <= repair->entry_count),
-			"approximate entry count is an upper bound");
+	result = VDO_ASSERT((repair->block_map_entry_count <= repair->entry_count),
+			    "approximate entry count is an upper bound");
 	if (result != VDO_SUCCESS)
 		vdo_enter_read_only_mode(vdo, result);
 

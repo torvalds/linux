@@ -904,8 +904,8 @@ static int vdo_map_bio(struct dm_target *ti, struct bio *bio)
 	struct vdo_work_queue *current_work_queue;
 	const struct admin_state_code *code = vdo_get_admin_state_code(&vdo->admin.state);
 
-	ASSERT_LOG_ONLY(code->normal, "vdo should not receive bios while in state %s",
-			code->name);
+	VDO_ASSERT_LOG_ONLY(code->normal, "vdo should not receive bios while in state %s",
+			    code->name);
 
 	/* Count all incoming bios. */
 	vdo_count_bios(&vdo->stats.bios_in, bio);
@@ -1244,9 +1244,9 @@ static int perform_admin_operation(struct vdo *vdo, u32 starting_phase,
 /* Assert that we are operating on the correct thread for the current phase. */
 static void assert_admin_phase_thread(struct vdo *vdo, const char *what)
 {
-	ASSERT_LOG_ONLY(vdo_get_callback_thread_id() == get_thread_id_for_phase(vdo),
-			"%s on correct thread for %s", what,
-			ADMIN_PHASE_NAMES[vdo->admin.phase]);
+	VDO_ASSERT_LOG_ONLY(vdo_get_callback_thread_id() == get_thread_id_for_phase(vdo),
+			    "%s on correct thread for %s", what,
+			    ADMIN_PHASE_NAMES[vdo->admin.phase]);
 }
 
 /**
@@ -1424,11 +1424,11 @@ static void release_instance(unsigned int instance)
 {
 	mutex_lock(&instances_lock);
 	if (instance >= instances.bit_count) {
-		ASSERT_LOG_ONLY(false,
-				"instance number %u must be less than bit count %u",
-				instance, instances.bit_count);
+		VDO_ASSERT_LOG_ONLY(false,
+				    "instance number %u must be less than bit count %u",
+				    instance, instances.bit_count);
 	} else if (test_bit(instance, instances.words) == 0) {
-		ASSERT_LOG_ONLY(false, "instance number %u must be allocated", instance);
+		VDO_ASSERT_LOG_ONLY(false, "instance number %u must be allocated", instance);
 	} else {
 		__clear_bit(instance, instances.words);
 		instances.count -= 1;
@@ -1577,9 +1577,9 @@ static int allocate_instance(unsigned int *instance_ptr)
 	if (instance >= instances.bit_count) {
 		/* Nothing free after next, so wrap around to instance zero. */
 		instance = find_first_zero_bit(instances.words, instances.bit_count);
-		result = ASSERT(instance < instances.bit_count,
-				"impossibly, no zero bit found");
-		if (result != UDS_SUCCESS)
+		result = VDO_ASSERT(instance < instances.bit_count,
+				    "impossibly, no zero bit found");
+		if (result != VDO_SUCCESS)
 			return result;
 	}
 
@@ -1729,8 +1729,8 @@ static int prepare_to_grow_physical(struct vdo *vdo, block_count_t new_physical_
 
 	uds_log_info("Preparing to resize physical to %llu",
 		     (unsigned long long) new_physical_blocks);
-	ASSERT_LOG_ONLY((new_physical_blocks > current_physical_blocks),
-			"New physical size is larger than current physical size");
+	VDO_ASSERT_LOG_ONLY((new_physical_blocks > current_physical_blocks),
+			    "New physical size is larger than current physical size");
 	result = perform_admin_operation(vdo, PREPARE_GROW_PHYSICAL_PHASE_START,
 					 check_may_grow_physical,
 					 finish_operation_callback,
@@ -1829,8 +1829,8 @@ static int prepare_to_modify(struct dm_target *ti, struct device_config *config,
 
 		uds_log_info("Preparing to resize logical to %llu",
 			     (unsigned long long) config->logical_blocks);
-		ASSERT_LOG_ONLY((config->logical_blocks > logical_blocks),
-				"New logical size is larger than current size");
+		VDO_ASSERT_LOG_ONLY((config->logical_blocks > logical_blocks),
+				    "New logical size is larger than current size");
 
 		result = vdo_prepare_to_grow_block_map(vdo->block_map,
 						       config->logical_blocks);
@@ -2890,9 +2890,9 @@ static void vdo_module_destroy(void)
 	if (dm_registered)
 		dm_unregister_target(&vdo_target_bio);
 
-	ASSERT_LOG_ONLY(instances.count == 0,
-			"should have no instance numbers still in use, but have %u",
-			instances.count);
+	VDO_ASSERT_LOG_ONLY(instances.count == 0,
+			    "should have no instance numbers still in use, but have %u",
+			    instances.count);
 	vdo_free(instances.words);
 	memset(&instances, 0, sizeof(struct instance_tracker));
 

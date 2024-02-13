@@ -142,8 +142,8 @@ void vdo_free_logical_zones(struct logical_zones *zones)
 
 static inline void assert_on_zone_thread(struct logical_zone *zone, const char *what)
 {
-	ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == zone->thread_id),
-			"%s() called on correct thread", what);
+	VDO_ASSERT_LOG_ONLY((vdo_get_callback_thread_id() == zone->thread_id),
+			    "%s() called on correct thread", what);
 }
 
 /**
@@ -247,10 +247,10 @@ void vdo_increment_logical_zone_flush_generation(struct logical_zone *zone,
 						 sequence_number_t expected_generation)
 {
 	assert_on_zone_thread(zone, __func__);
-	ASSERT_LOG_ONLY((zone->flush_generation == expected_generation),
-			"logical zone %u flush generation %llu should be %llu before increment",
-			zone->zone_number, (unsigned long long) zone->flush_generation,
-			(unsigned long long) expected_generation);
+	VDO_ASSERT_LOG_ONLY((zone->flush_generation == expected_generation),
+			    "logical zone %u flush generation %llu should be %llu before increment",
+			    zone->zone_number, (unsigned long long) zone->flush_generation,
+			    (unsigned long long) expected_generation);
 
 	zone->flush_generation++;
 	zone->ios_in_flush_generation = 0;
@@ -267,7 +267,7 @@ void vdo_acquire_flush_generation_lock(struct data_vio *data_vio)
 	struct logical_zone *zone = data_vio->logical.zone;
 
 	assert_on_zone_thread(zone, __func__);
-	ASSERT_LOG_ONLY(vdo_is_state_normal(&zone->state), "vdo state is normal");
+	VDO_ASSERT_LOG_ONLY(vdo_is_state_normal(&zone->state), "vdo state is normal");
 
 	data_vio->flush_generation = zone->flush_generation;
 	list_add_tail(&data_vio->write_entry, &zone->write_vios);
@@ -332,10 +332,10 @@ void vdo_release_flush_generation_lock(struct data_vio *data_vio)
 		return;
 
 	list_del_init(&data_vio->write_entry);
-	ASSERT_LOG_ONLY((zone->oldest_active_generation <= data_vio->flush_generation),
-			"data_vio releasing lock on generation %llu is not older than oldest active generation %llu",
-			(unsigned long long) data_vio->flush_generation,
-			(unsigned long long) zone->oldest_active_generation);
+	VDO_ASSERT_LOG_ONLY((zone->oldest_active_generation <= data_vio->flush_generation),
+			    "data_vio releasing lock on generation %llu is not older than oldest active generation %llu",
+			    (unsigned long long) data_vio->flush_generation,
+			    (unsigned long long) zone->oldest_active_generation);
 
 	if (!update_oldest_active_generation(zone) || zone->notifying)
 		return;
