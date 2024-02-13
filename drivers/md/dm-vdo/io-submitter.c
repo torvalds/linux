@@ -300,7 +300,7 @@ static bool try_bio_map_merge(struct vio *vio)
 	mutex_unlock(&bio_queue_data->lock);
 
 	/* We don't care about failure of int_map_put in this case. */
-	ASSERT_LOG_ONLY(result == UDS_SUCCESS, "bio map insertion succeeds");
+	ASSERT_LOG_ONLY(result == VDO_SUCCESS, "bio map insertion succeeds");
 	return merged;
 }
 
@@ -403,7 +403,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 		 */
 		result = vdo_int_map_create(max_requests_active * 2,
 					    &bio_queue_data->map);
-		if (result != 0) {
+		if (result != VDO_SUCCESS) {
 			/*
 			 * Clean up the partially initialized bio-queue entirely and indicate that
 			 * initialization failed.

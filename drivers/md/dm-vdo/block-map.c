@@ -231,7 +231,7 @@ static int __must_check allocate_cache_components(struct vdo_page_cache *cache)
 		return result;
 
 	result = vdo_int_map_create(cache->page_count, &cache->page_map);
-	if (result != UDS_SUCCESS)
+	if (result != VDO_SUCCESS)
 		return result;
 
 	return initialize_info(cache);
@@ -390,7 +390,7 @@ static int __must_check set_info_pbn(struct page_info *info, physical_block_numb
 
 	if (pbn != NO_PAGE) {
 		result = vdo_int_map_put(cache->page_map, pbn, info, true, NULL);
-		if (result != UDS_SUCCESS)
+		if (result != VDO_SUCCESS)
 			return result;
 	}
 	return VDO_SUCCESS;
