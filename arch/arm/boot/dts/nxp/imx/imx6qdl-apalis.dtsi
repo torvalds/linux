@@ -626,7 +626,6 @@
 		blocks = <0x5>;
 		id = <0>;
 		interrupts = <10 IRQ_TYPE_LEVEL_LOW>;
-		interrupt-controller;
 		interrupt-parent = <&gpio4>;
 		irq-trigger = <0x1>;
 		pinctrl-names = "default";
