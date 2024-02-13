@@ -6496,7 +6496,13 @@ do_more:
 		if (test_opt(sb, DISCARD)) {
 			err = ext4_issue_discard(sb, block_group, bit,
 						 count_clusters, NULL);
-			if (err && err != -EOPNOTSUPP)
+			/*
+			 * Ignore EOPNOTSUPP error. This is consistent with
+			 * what happens when using journal.
+			 */
+			if (err == -EOPNOTSUPP)
+				err = 0;
+			if (err)
 				ext4_msg(sb, KERN_WARNING, "discard request in"
 					 " group:%u block:%d count:%lu failed"
 					 " with %d", block_group, bit, count,
