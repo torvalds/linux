@@ -45,7 +45,7 @@ EXPORT_EARLY_PER_CPU_SYMBOL(x86_cpu_to_acpiid);
 DECLARE_BITMAP(phys_cpu_present_map, MAX_LOCAL_APIC) __read_mostly;
 
 /* Used for CPU number allocation and parallel CPU bringup */
-u32 cpuid_to_apicid[] __read_mostly = { [0 ... NR_CPUS - 1] = BAD_APICID, };
+u32 cpuid_to_apicid[] __ro_after_init = { [0 ... NR_CPUS - 1] = BAD_APICID, };
 
 /* Bitmaps to mark registered APICs at each topology domain */
 static struct { DECLARE_BITMAP(map, MAX_LOCAL_APIC); } apic_maps[TOPO_MAX_DOMAIN] __ro_after_init;
@@ -60,7 +60,7 @@ static struct {
 	unsigned int		nr_rejected_cpus;
 	u32			boot_cpu_apic_id;
 	u32			real_bsp_apic_id;
-} topo_info __read_mostly = {
+} topo_info __ro_after_init = {
 	.nr_assigned_cpus	= 1,
 	.boot_cpu_apic_id	= BAD_APICID,
 	.real_bsp_apic_id	= BAD_APICID,
@@ -133,7 +133,7 @@ static int topo_lookup_cpuid(u32 apic_id)
 	return -ENODEV;
 }
 
-static int topo_get_cpunr(u32 apic_id)
+static __init int topo_get_cpunr(u32 apic_id)
 {
 	int cpu = topo_lookup_cpuid(apic_id);
 
@@ -149,8 +149,6 @@ static void topo_set_cpuids(unsigned int cpu, u32 apic_id, u32 acpi_id)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apic_id;
 	early_per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
 #endif
-	cpuid_to_apicid[cpu] = apic_id;
-
 	set_cpu_possible(cpu, true);
 	set_cpu_present(cpu, true);
 
@@ -206,6 +204,8 @@ static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 			cpu = 0;
 		else
 			cpu = topo_get_cpunr(apic_id);
+
+		cpuid_to_apicid[cpu] = apic_id;
 		topo_set_cpuids(cpu, apic_id, acpi_id);
 	} else {
 		topo_info.nr_disabled_cpus++;
@@ -277,12 +277,9 @@ int topology_hotplug_apic(u32 apic_id, u32 acpi_id)
 		return -ENODEV;
 
 	cpu = topo_lookup_cpuid(apic_id);
-	if (cpu < 0) {
-		if (topo_info.nr_assigned_cpus >= nr_cpu_ids)
-			return -ENOSPC;
+	if (cpu < 0)
+		return -ENOSPC;
 
-		cpu = topo_assign_cpunr(apic_id);
-	}
 	set_bit(apic_id, phys_cpu_present_map);
 	topo_set_cpuids(cpu, apic_id, acpi_id);
 	return cpu;
@@ -353,6 +350,7 @@ void __init topology_init_possible_cpus(void)
 	unsigned int disabled = topo_info.nr_disabled_cpus;
 	unsigned int total = assigned + disabled;
 	unsigned int cpu, allowed = 1;
+	u32 apicid;
 
 	if (!restrict_to_up()) {
 		if (WARN_ON_ONCE(assigned > nr_cpu_ids)) {
@@ -381,8 +379,17 @@ void __init topology_init_possible_cpus(void)
 	init_cpu_present(cpumask_of(0));
 	init_cpu_possible(cpumask_of(0));
 
+	/* Assign CPU numbers to non-present CPUs */
+	for (apicid = 0; disabled; disabled--, apicid++) {
+		apicid = find_next_andnot_bit(apic_maps[TOPO_SMT_DOMAIN].map, phys_cpu_present_map,
+					      MAX_LOCAL_APIC, apicid);
+		if (apicid >= MAX_LOCAL_APIC)
+			break;
+		cpuid_to_apicid[topo_info.nr_assigned_cpus++] = apicid;
+	}
+
 	for (cpu = 0; cpu < allowed; cpu++) {
-		u32 apicid = cpuid_to_apicid[cpu];
+		apicid = cpuid_to_apicid[cpu];
 
 		set_cpu_possible(cpu, true);
 
