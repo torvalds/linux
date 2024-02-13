@@ -149,17 +149,17 @@ struct mlxbf_pmc_block_info {
  */
 struct mlxbf_pmc_context {
 	struct platform_device *pdev;
-	uint32_t total_blocks;
-	uint32_t tile_count;
-	uint8_t llt_enable;
-	uint8_t mss_enable;
-	uint32_t group_num;
+	u32 total_blocks;
+	u32 tile_count;
+	u8 llt_enable;
+	u8 mss_enable;
+	u32 group_num;
 	struct device *hwmon_dev;
 	const char *block_name[MLXBF_PMC_MAX_BLOCKS];
 	struct mlxbf_pmc_block_info block[MLXBF_PMC_MAX_BLOCKS];
 	const struct attribute_group *groups[MLXBF_PMC_MAX_BLOCKS];
 	bool svc_sreg_support;
-	uint32_t sreg_tbl_perf;
+	u32 sreg_tbl_perf;
 	unsigned int event_set;
 };
 
@@ -865,8 +865,7 @@ static struct mlxbf_pmc_context *pmc;
 static const char *mlxbf_pmc_svc_uuid_str = "89c036b4-e7d7-11e6-8797-001aca00bfc4";
 
 /* Calls an SMC to access a performance register */
-static int mlxbf_pmc_secure_read(void __iomem *addr, uint32_t command,
-				 uint64_t *result)
+static int mlxbf_pmc_secure_read(void __iomem *addr, u32 command, u64 *result)
 {
 	struct arm_smccc_res res;
 	int status, err = 0;
@@ -892,8 +891,7 @@ static int mlxbf_pmc_secure_read(void __iomem *addr, uint32_t command,
 }
 
 /* Read from a performance counter */
-static int mlxbf_pmc_read(void __iomem *addr, uint32_t command,
-			  uint64_t *result)
+static int mlxbf_pmc_read(void __iomem *addr, u32 command, u64 *result)
 {
 	if (pmc->svc_sreg_support)
 		return mlxbf_pmc_secure_read(addr, command, result);
@@ -907,22 +905,21 @@ static int mlxbf_pmc_read(void __iomem *addr, uint32_t command,
 }
 
 /* Convenience function for 32-bit reads */
-static int mlxbf_pmc_readl(void __iomem *addr, uint32_t *result)
+static int mlxbf_pmc_readl(void __iomem *addr, u32 *result)
 {
-	uint64_t read_out;
+	u64 read_out;
 	int status;
 
 	status = mlxbf_pmc_read(addr, MLXBF_PMC_READ_REG_32, &read_out);
 	if (status)
 		return status;
-	*result = (uint32_t)read_out;
+	*result = (u32)read_out;
 
 	return 0;
 }
 
 /* Calls an SMC to access a performance register */
-static int mlxbf_pmc_secure_write(void __iomem *addr, uint32_t command,
-				  uint64_t value)
+static int mlxbf_pmc_secure_write(void __iomem *addr, u32 command, u64 value)
 {
 	struct arm_smccc_res res;
 	int status, err = 0;
@@ -945,7 +942,7 @@ static int mlxbf_pmc_secure_write(void __iomem *addr, uint32_t command,
 }
 
 /* Write to a performance counter */
-static int mlxbf_pmc_write(void __iomem *addr, int command, uint64_t value)
+static int mlxbf_pmc_write(void __iomem *addr, int command, u64 value)
 {
 	if (pmc->svc_sreg_support)
 		return mlxbf_pmc_secure_write(addr, command, value);
@@ -959,7 +956,7 @@ static int mlxbf_pmc_write(void __iomem *addr, int command, uint64_t value)
 }
 
 /* Check if the register offset is within the mapped region for the block */
-static bool mlxbf_pmc_valid_range(int blk_num, uint32_t offset)
+static bool mlxbf_pmc_valid_range(int blk_num, u32 offset)
 {
 	if ((offset >= 0) && !(offset % MLXBF_PMC_REG_SIZE) &&
 	    (offset + MLXBF_PMC_REG_SIZE <= pmc->block[blk_num].blk_size))
@@ -1082,7 +1079,7 @@ static char *mlxbf_pmc_get_event_name(const char *blk, int evt)
 /* Method to enable/disable/reset l3cache counters */
 static int mlxbf_pmc_config_l3_counters(int blk_num, bool enable, bool reset)
 {
-	uint32_t perfcnt_cfg = 0;
+	u32 perfcnt_cfg = 0;
 
 	if (enable)
 		perfcnt_cfg |= MLXBF_PMC_L3C_PERF_CNT_CFG_EN;
@@ -1095,12 +1092,9 @@ static int mlxbf_pmc_config_l3_counters(int blk_num, bool enable, bool reset)
 }
 
 /* Method to handle l3cache counter programming */
-static int mlxbf_pmc_program_l3_counter(int blk_num, uint32_t cnt_num,
-					uint32_t evt)
+static int mlxbf_pmc_program_l3_counter(int blk_num, u32 cnt_num, u32 evt)
 {
-	uint32_t perfcnt_sel_1 = 0;
-	uint32_t perfcnt_sel = 0;
-	uint32_t *wordaddr;
+	u32 perfcnt_sel_1 = 0, perfcnt_sel = 0, *wordaddr;
 	void __iomem *pmcaddr;
 	int ret;
 
@@ -1162,11 +1156,10 @@ static int mlxbf_pmc_program_l3_counter(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to handle crspace counter programming */
-static int mlxbf_pmc_program_crspace_counter(int blk_num, uint32_t cnt_num,
-					     uint32_t evt)
+static int mlxbf_pmc_program_crspace_counter(int blk_num, u32 cnt_num, u32 evt)
 {
-	uint32_t word;
 	void *addr;
+	u32 word;
 	int ret;
 
 	addr = pmc->block[blk_num].mmio_base +
@@ -1187,7 +1180,7 @@ static int mlxbf_pmc_program_crspace_counter(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to clear crspace counter value */
-static int mlxbf_pmc_clear_crspace_counter(int blk_num, uint32_t cnt_num)
+static int mlxbf_pmc_clear_crspace_counter(int blk_num, u32 cnt_num)
 {
 	void *addr;
 
@@ -1199,10 +1192,9 @@ static int mlxbf_pmc_clear_crspace_counter(int blk_num, uint32_t cnt_num)
 }
 
 /* Method to program a counter to monitor an event */
-static int mlxbf_pmc_program_counter(int blk_num, uint32_t cnt_num,
-				     uint32_t evt, bool is_l3)
+static int mlxbf_pmc_program_counter(int blk_num, u32 cnt_num, u32 evt, bool is_l3)
 {
-	uint64_t perfctl, perfevt, perfmon_cfg;
+	u64 perfctl, perfevt, perfmon_cfg;
 
 	if (cnt_num >= pmc->block[blk_num].counters)
 		return -ENODEV;
@@ -1263,12 +1255,11 @@ static int mlxbf_pmc_program_counter(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to handle l3 counter reads */
-static int mlxbf_pmc_read_l3_counter(int blk_num, uint32_t cnt_num,
-				     uint64_t *result)
+static int mlxbf_pmc_read_l3_counter(int blk_num, u32 cnt_num, u64 *result)
 {
-	uint32_t perfcnt_low = 0, perfcnt_high = 0;
-	uint64_t value;
+	u32 perfcnt_low = 0, perfcnt_high = 0;
 	int status;
+	u64 value;
 
 	status = mlxbf_pmc_readl(pmc->block[blk_num].mmio_base +
 					 MLXBF_PMC_L3C_PERF_CNT_LOW +
@@ -1295,11 +1286,10 @@ static int mlxbf_pmc_read_l3_counter(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to handle crspace counter reads */
-static int mlxbf_pmc_read_crspace_counter(int blk_num, uint32_t cnt_num,
-					  uint64_t *result)
+static int mlxbf_pmc_read_crspace_counter(int blk_num, u32 cnt_num, u64 *result)
 {
-	uint32_t value;
 	int status = 0;
+	u32 value;
 
 	status = mlxbf_pmc_readl(pmc->block[blk_num].mmio_base +
 		MLXBF_PMC_CRSPACE_PERFMON_VAL0(pmc->block[blk_num].counters) +
@@ -1313,11 +1303,10 @@ static int mlxbf_pmc_read_crspace_counter(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to read the counter value */
-static int mlxbf_pmc_read_counter(int blk_num, uint32_t cnt_num, bool is_l3,
-				  uint64_t *result)
+static int mlxbf_pmc_read_counter(int blk_num, u32 cnt_num, bool is_l3, u64 *result)
 {
-	uint32_t perfcfg_offset, perfval_offset;
-	uint64_t perfmon_cfg;
+	u32 perfcfg_offset, perfval_offset;
+	u64 perfmon_cfg;
 	int status;
 
 	if (cnt_num >= pmc->block[blk_num].counters)
@@ -1351,13 +1340,11 @@ static int mlxbf_pmc_read_counter(int blk_num, uint32_t cnt_num, bool is_l3,
 }
 
 /* Method to read L3 block event */
-static int mlxbf_pmc_read_l3_event(int blk_num, uint32_t cnt_num,
-				   uint64_t *result)
+static int mlxbf_pmc_read_l3_event(int blk_num, u32 cnt_num, u64 *result)
 {
-	uint32_t perfcnt_sel = 0, perfcnt_sel_1 = 0;
-	uint32_t *wordaddr;
+	u32 perfcnt_sel = 0, perfcnt_sel_1 = 0, *wordaddr;
 	void __iomem *pmcaddr;
-	uint64_t evt;
+	u64 evt;
 
 	/* Select appropriate register information */
 	switch (cnt_num) {
@@ -1405,10 +1392,9 @@ static int mlxbf_pmc_read_l3_event(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to read crspace block event */
-static int mlxbf_pmc_read_crspace_event(int blk_num, uint32_t cnt_num,
-					uint64_t *result)
+static int mlxbf_pmc_read_crspace_event(int blk_num, u32 cnt_num, u64 *result)
 {
-	uint32_t word, evt;
+	u32 word, evt;
 	void *addr;
 	int ret;
 
@@ -1429,11 +1415,10 @@ static int mlxbf_pmc_read_crspace_event(int blk_num, uint32_t cnt_num,
 }
 
 /* Method to find the event currently being monitored by a counter */
-static int mlxbf_pmc_read_event(int blk_num, uint32_t cnt_num, bool is_l3,
-				uint64_t *result)
+static int mlxbf_pmc_read_event(int blk_num, u32 cnt_num, bool is_l3, u64 *result)
 {
-	uint32_t perfcfg_offset, perfval_offset;
-	uint64_t perfmon_cfg, perfevt;
+	u32 perfcfg_offset, perfval_offset;
+	u64 perfmon_cfg, perfevt;
 
 	if (cnt_num >= pmc->block[blk_num].counters)
 		return -EINVAL;
@@ -1469,9 +1454,9 @@ static int mlxbf_pmc_read_event(int blk_num, uint32_t cnt_num, bool is_l3,
 }
 
 /* Method to read a register */
-static int mlxbf_pmc_read_reg(int blk_num, uint32_t offset, uint64_t *result)
+static int mlxbf_pmc_read_reg(int blk_num, u32 offset, u64 *result)
 {
-	uint32_t ecc_out;
+	u32 ecc_out;
 
 	if (strstr(pmc->block_name[blk_num], "ecc")) {
 		if (mlxbf_pmc_readl(pmc->block[blk_num].mmio_base + offset,
@@ -1490,7 +1475,7 @@ static int mlxbf_pmc_read_reg(int blk_num, uint32_t offset, uint64_t *result)
 }
 
 /* Method to write to a register */
-static int mlxbf_pmc_write_reg(int blk_num, uint32_t offset, uint64_t data)
+static int mlxbf_pmc_write_reg(int blk_num, u32 offset, u64 data)
 {
 	if (strstr(pmc->block_name[blk_num], "ecc")) {
 		return mlxbf_pmc_write(pmc->block[blk_num].mmio_base + offset,
@@ -1512,7 +1497,7 @@ static ssize_t mlxbf_pmc_counter_show(struct device *dev,
 		attr, struct mlxbf_pmc_attribute, dev_attr);
 	int blk_num, cnt_num, offset;
 	bool is_l3 = false;
-	uint64_t value;
+	u64 value;
 
 	blk_num = attr_counter->nr;
 	cnt_num = attr_counter->index;
@@ -1546,7 +1531,7 @@ static ssize_t mlxbf_pmc_counter_store(struct device *dev,
 		attr, struct mlxbf_pmc_attribute, dev_attr);
 	int blk_num, cnt_num, offset, err, data;
 	bool is_l3 = false;
-	uint64_t evt_num;
+	u64 evt_num;
 
 	blk_num = attr_counter->nr;
 	cnt_num = attr_counter->index;
@@ -1597,7 +1582,7 @@ static ssize_t mlxbf_pmc_event_show(struct device *dev,
 		attr, struct mlxbf_pmc_attribute, dev_attr);
 	int blk_num, cnt_num, err;
 	bool is_l3 = false;
-	uint64_t evt_num;
+	u64 evt_num;
 	char *evt_name;
 
 	blk_num = attr_event->nr;
@@ -1686,7 +1671,7 @@ static ssize_t mlxbf_pmc_enable_show(struct device *dev,
 {
 	struct mlxbf_pmc_attribute *attr_enable = container_of(
 		attr, struct mlxbf_pmc_attribute, dev_attr);
-	uint32_t perfcnt_cfg, word;
+	u32 perfcnt_cfg, word;
 	int blk_num, value;
 
 	blk_num = attr_enable->nr;
@@ -1718,7 +1703,7 @@ static ssize_t mlxbf_pmc_enable_store(struct device *dev,
 	struct mlxbf_pmc_attribute *attr_enable = container_of(
 		attr, struct mlxbf_pmc_attribute, dev_attr);
 	int err, en, blk_num;
-	uint32_t word;
+	u32 word;
 
 	blk_num = attr_enable->nr;
 
@@ -1914,7 +1899,7 @@ static bool mlxbf_pmc_guid_match(const guid_t *guid,
 /* Helper to map the Performance Counters from the varios blocks */
 static int mlxbf_pmc_map_counters(struct device *dev)
 {
-	uint64_t info[MLXBF_PMC_INFO_SZ];
+	u64 info[MLXBF_PMC_INFO_SZ];
 	int i, tile_num, ret;
 
 	for (i = 0; i < pmc->total_blocks; ++i) {
