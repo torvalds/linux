@@ -726,11 +726,10 @@ out:
 	return err;
 }
 
-static int cmp_dirty_idx(const struct ubifs_lprops **a,
-			 const struct ubifs_lprops **b)
+static int cmp_dirty_idx(const void *a, const void *b)
 {
-	const struct ubifs_lprops *lpa = *a;
-	const struct ubifs_lprops *lpb = *b;
+	const struct ubifs_lprops *lpa = *(const struct ubifs_lprops **)a;
+	const struct ubifs_lprops *lpb = *(const struct ubifs_lprops **)b;
 
 	return lpa->dirty + lpa->free - lpb->dirty - lpb->free;
 }
@@ -754,7 +753,7 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c)
 	       sizeof(void *) * c->dirty_idx.cnt);
 	/* Sort it so that the dirtiest is now at the end */
 	sort(c->dirty_idx.arr, c->dirty_idx.cnt, sizeof(void *),
-	     (int (*)(const void *, const void *))cmp_dirty_idx, NULL);
+	     cmp_dirty_idx, NULL);
 	dbg_find("found %d dirty index LEBs", c->dirty_idx.cnt);
 	if (c->dirty_idx.cnt)
 		dbg_find("dirtiest index LEB is %d with dirty %d and free %d",
