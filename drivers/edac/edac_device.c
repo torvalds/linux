@@ -160,7 +160,6 @@ edac_device_alloc_ctl_info(unsigned pvt_sz, char *dev_name, unsigned nr_instance
 				 */
 				attrib->attr = attrib_spec[attr].attr;
 				attrib->show = attrib_spec[attr].show;
-				attrib->store = attrib_spec[attr].store;
 
 				edac_dbg(4, "alloc-attrib=%p attrib_name='%s' attrib-spec=%p spec-name=%s\n",
 					 attrib, attrib->attr.name,

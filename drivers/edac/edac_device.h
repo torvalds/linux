@@ -95,16 +95,13 @@ struct edac_dev_sysfs_attribute {
  *
  *	used in leaf 'block' nodes for adding controls/attributes
  *
- *	each block in each instance of the containing control structure
- *	can have an array of the following. The show and store functions
- *	will be filled in with the show/store function in the
- *	low level driver.
+ *	each block in each instance of the containing control structure can
+ *	have an array of the following. The show function will be filled in
+ *	with the show function in the low level driver.
  */
 struct edac_dev_sysfs_block_attribute {
 	struct attribute attr;
 	ssize_t (*show)(struct kobject *, struct attribute *, char *);
-	ssize_t (*store)(struct kobject *, struct attribute *,
-			const char *, size_t);
 };
 
 /* device block control structure */

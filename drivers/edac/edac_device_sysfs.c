@@ -457,35 +457,19 @@ static ssize_t edac_dev_block_show(struct kobject *kobj,
 	return -EIO;
 }
 
-/* Function to 'store' fields into the edac_dev 'block' structure */
-static ssize_t edac_dev_block_store(struct kobject *kobj,
-				struct attribute *attr,
-				const char *buffer, size_t count)
-{
-	struct edac_dev_sysfs_block_attribute *block_attr;
-
-	block_attr = to_block_attr(attr);
-
-	if (block_attr->store)
-		return block_attr->store(kobj, attr, buffer, count);
-	return -EIO;
-}
-
 /* edac_dev file operations for a 'block' */
 static const struct sysfs_ops device_block_ops = {
 	.show = edac_dev_block_show,
-	.store = edac_dev_block_store
 };
 
-#define BLOCK_ATTR(_name,_mode,_show,_store)        \
+#define BLOCK_ATTR(_name,_mode,_show)        \
 static struct edac_dev_sysfs_block_attribute attr_block_##_name = {	\
 	.attr = {.name = __stringify(_name), .mode = _mode },   \
 	.show   = _show,                                        \
-	.store  = _store,                                       \
 };
 
-BLOCK_ATTR(ce_count, S_IRUGO, block_ce_count_show, NULL);
-BLOCK_ATTR(ue_count, S_IRUGO, block_ue_count_show, NULL);
+BLOCK_ATTR(ce_count, S_IRUGO, block_ce_count_show);
+BLOCK_ATTR(ue_count, S_IRUGO, block_ue_count_show);
 
 /* list of edac_dev 'block' attributes */
 static struct attribute *device_block_attrs[] = {
