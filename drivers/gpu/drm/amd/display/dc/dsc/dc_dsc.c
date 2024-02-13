@@ -137,6 +137,11 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 	if (link_encoding == DC_LINK_ENCODING_DP_128b_132b)
 		kbps = apply_128b_132b_stream_overhead(timing, kbps);
 
+	if (link_encoding == DC_LINK_ENCODING_HDMI_FRL &&
+			timing->vic == 0 && timing->hdmi_vic == 0 &&
+			timing->frl_uncompressed_video_bandwidth_in_kbps != 0)
+		kbps = timing->frl_uncompressed_video_bandwidth_in_kbps;
+
 	return kbps;
 }
 

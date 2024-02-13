@@ -134,7 +134,7 @@ struct psp_funcs {
 	int (*update_spirom)(struct psp_context *psp, uint64_t fw_pri_mc_addr);
 	int (*vbflash_stat)(struct psp_context *psp);
 	int (*fatal_error_recovery_quirk)(struct psp_context *psp);
-	int (*query_boot_status)(struct psp_context *psp);
+	bool (*get_ras_capability)(struct psp_context *psp);
 };
 
 struct ta_funcs {
@@ -502,6 +502,9 @@ int psp_ras_enable_features(struct psp_context *psp,
 int psp_ras_trigger_error(struct psp_context *psp,
 			  struct ta_ras_trigger_error_input *info, uint32_t instance_mask);
 int psp_ras_terminate(struct psp_context *psp);
+int psp_ras_query_address(struct psp_context *psp,
+			  struct ta_ras_query_address_input *addr_in,
+			  struct ta_ras_query_address_output *addr_out);
 
 int psp_hdcp_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
 int psp_dtm_invoke(struct psp_context *psp, uint32_t ta_cmd_id);
@@ -538,7 +541,5 @@ int psp_spatial_partition(struct psp_context *psp, int mode);
 int is_psp_fw_valid(struct psp_bin_desc bin);
 
 int amdgpu_psp_wait_for_bootloader(struct amdgpu_device *adev);
-
-int amdgpu_psp_query_boot_status(struct amdgpu_device *adev);
-
+bool amdgpu_psp_get_ras_capability(struct psp_context *psp);
 #endif

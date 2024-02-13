@@ -742,9 +742,10 @@ void amdgpu_amdkfd_debug_mem_fence(struct amdgpu_device *adev)
 	amdgpu_device_flush_hdp(adev, NULL);
 }
 
-void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev, bool reset)
+void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
+	enum amdgpu_ras_block block, bool reset)
 {
-	amdgpu_umc_poison_handler(adev, reset);
+	amdgpu_umc_poison_handler(adev, block, reset);
 }
 
 int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,

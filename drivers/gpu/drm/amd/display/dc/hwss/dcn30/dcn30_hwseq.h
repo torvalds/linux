@@ -52,6 +52,9 @@ bool dcn30_mmhubbub_warmup(
 	unsigned int num_dwb,
 	struct dc_writeback_info *wb_info);
 
+void dcn30_log_color_state(struct dc *dc,
+			   struct dc_log_buffer_ctx *log_ctx);
+
 bool dcn30_set_blend_lut(struct pipe_ctx *pipe_ctx,
 		const struct dc_plane_state *plane_state);
 
@@ -89,8 +92,5 @@ void dcn30_set_hubp_blank(const struct dc *dc,
 
 void dcn30_prepare_bandwidth(struct dc *dc,
 	struct dc_state *context);
-
-void dcn30_set_static_screen_control(struct pipe_ctx **pipe_ctx,
-		int num_pipes, const struct dc_static_screen_params *params);
 
 #endif /* __DC_HWSS_DCN30_H__ */

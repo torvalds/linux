@@ -543,7 +543,8 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
 		.dpp_program_blnd_lut = NULL,
 		.dpp_program_shaper_lut = NULL,
-		.dpp_program_3dlut = NULL
+		.dpp_program_3dlut = NULL,
+		.dpp_get_gamut_remap = dpp1_cm_get_gamut_remap,
 };
 
 static struct dpp_caps dcn10_dpp_cap = {

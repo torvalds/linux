@@ -45,6 +45,7 @@
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
 #include "amdgpu_mca.h"
+#include "amdgpu_aca.h"
 #include "smu_cmn.h"
 #include "mp/mp_13_0_6_offset.h"
 #include "mp/mp_13_0_6_sh_mask.h"
@@ -1438,7 +1439,10 @@ static int smu_v13_0_6_irq_process(struct amdgpu_device *adev,
 							entry->src_data[1]);
 					schedule_work(&smu->throttling_logging_work);
 				}
-
+				break;
+			default:
+				dev_dbg(adev->dev, "Unhandled context id %d from client:%d!\n",
+									ctxid, client_id);
 				break;
 			}
 		}
@@ -2547,18 +2551,22 @@ static int mca_umc_mca_get_err_count(const struct mca_ras_info *mca_ras, struct 
 				     enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
 {
 	uint64_t status0;
+	uint32_t ext_error_code;
+	uint32_t odecc_err_cnt;
 
 	status0 = entry->regs[MCA_REG_IDX_STATUS];
+	ext_error_code = MCA_REG__STATUS__ERRORCODEEXT(status0);
+	odecc_err_cnt = MCA_REG__MISC0__ERRCNT(entry->regs[MCA_REG_IDX_MISC0]);
 
 	if (!REG_GET_FIELD(status0, MCMP1_STATUST0, Val)) {
 		*count = 0;
 		return 0;
 	}
 
-	if (type == AMDGPU_MCA_ERROR_TYPE_UE && umc_v12_0_is_uncorrectable_error(adev, status0))
-		*count = 1;
-	else if (type == AMDGPU_MCA_ERROR_TYPE_CE && umc_v12_0_is_correctable_error(adev, status0))
-		*count = 1;
+	if (umc_v12_0_is_deferred_error(adev, status0) ||
+	    umc_v12_0_is_uncorrectable_error(adev, status0) ||
+	    umc_v12_0_is_correctable_error(adev, status0))
+		*count = (ext_error_code == 0) ? odecc_err_cnt : 1;
 
 	return 0;
 }
@@ -2857,6 +2865,143 @@ static const struct amdgpu_mca_smu_funcs smu_v13_0_6_mca_smu_funcs = {
 	.mca_get_valid_mca_count = mca_smu_get_valid_mca_count,
 };
 
+static int aca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+
+	return smu_v13_0_6_mca_set_debug_mode(smu, enable);
+}
+
+static int smu_v13_0_6_get_valid_aca_count(struct smu_context *smu, enum aca_error_type type, u32 *count)
+{
+	uint32_t msg;
+	int ret;
+
+	if (!count)
+		return -EINVAL;
+
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+		msg = SMU_MSG_QueryValidMcaCount;
+		break;
+	case ACA_ERROR_TYPE_CE:
+		msg = SMU_MSG_QueryValidMcaCeCount;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	ret = smu_cmn_send_smc_msg(smu, msg, count);
+	if (ret) {
+		*count = 0;
+		return ret;
+	}
+
+	return 0;
+}
+
+static int aca_smu_get_valid_aca_count(struct amdgpu_device *adev,
+				       enum aca_error_type type, u32 *count)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
+
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+	case ACA_ERROR_TYPE_CE:
+		ret = smu_v13_0_6_get_valid_aca_count(smu, type, count);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static int __smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_type type,
+				       int idx, int offset, u32 *val)
+{
+	uint32_t msg, param;
+
+	switch (type) {
+	case ACA_ERROR_TYPE_UE:
+		msg = SMU_MSG_McaBankDumpDW;
+		break;
+	case ACA_ERROR_TYPE_CE:
+		msg = SMU_MSG_McaBankCeDumpDW;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	param = ((idx & 0xffff) << 16) | (offset & 0xfffc);
+
+	return smu_cmn_send_smc_msg_with_param(smu, msg, param, (uint32_t *)val);
+}
+
+static int smu_v13_0_6_aca_bank_dump(struct smu_context *smu, enum aca_error_type type,
+				     int idx, int offset, u32 *val, int count)
+{
+	int ret, i;
+
+	if (!val)
+		return -EINVAL;
+
+	for (i = 0; i < count; i++) {
+		ret = __smu_v13_0_6_aca_bank_dump(smu, type, idx, offset + (i << 2), &val[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int aca_bank_read_reg(struct amdgpu_device *adev, enum aca_error_type type,
+			     int idx, int reg_idx, u64 *val)
+{
+	struct smu_context *smu = adev->powerplay.pp_handle;
+	u32 data[2] = {0, 0};
+	int ret;
+
+	if (!val || reg_idx >= ACA_REG_IDX_COUNT)
+		return -EINVAL;
+
+	ret = smu_v13_0_6_aca_bank_dump(smu, type, idx, reg_idx * 8, data, ARRAY_SIZE(data));
+	if (ret)
+		return ret;
+
+	*val = (u64)data[1] << 32 | data[0];
+
+	dev_dbg(adev->dev, "mca read bank reg: type:%s, index: %d, reg_idx: %d, val: 0x%016llx\n",
+		type == ACA_ERROR_TYPE_UE ? "UE" : "CE", idx, reg_idx, *val);
+
+	return 0;
+}
+
+static int aca_smu_get_valid_aca_bank(struct amdgpu_device *adev,
+				      enum aca_error_type type, int idx, struct aca_bank *bank)
+{
+	int i, ret, count;
+
+	count = min_t(int, 16, ARRAY_SIZE(bank->regs));
+	for (i = 0; i < count; i++) {
+		ret = aca_bank_read_reg(adev, type, idx, i, &bank->regs[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static const struct aca_smu_funcs smu_v13_0_6_aca_smu_funcs = {
+	.max_ue_bank_count = 12,
+	.max_ce_bank_count = 12,
+	.set_debug_mode = aca_smu_set_debug_mode,
+	.get_valid_aca_count = aca_smu_get_valid_aca_count,
+	.get_valid_aca_bank = aca_smu_get_valid_aca_bank,
+};
+
 static int smu_v13_0_6_select_xgmi_plpd_policy(struct smu_context *smu,
 					       enum pp_xgmi_plpd_mode mode)
 {
@@ -2893,13 +3038,6 @@ static int smu_v13_0_6_select_xgmi_plpd_policy(struct smu_context *smu,
 			mode);
 
 	return ret;
-}
-
-static ssize_t smu_v13_0_6_get_ecc_info(struct smu_context *smu,
-			void *table)
-{
-	/* Support ecc info by default */
-	return 0;
 }
 
 static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
@@ -2956,7 +3094,6 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.i2c_init = smu_v13_0_6_i2c_control_init,
 	.i2c_fini = smu_v13_0_6_i2c_control_fini,
 	.send_hbm_bad_pages_num = smu_v13_0_6_smu_send_hbm_bad_page_num,
-	.get_ecc_info = smu_v13_0_6_get_ecc_info,
 };
 
 void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
@@ -2969,4 +3106,5 @@ void smu_v13_0_6_set_ppt_funcs(struct smu_context *smu)
 	smu->smc_driver_if_version = SMU13_0_6_DRIVER_IF_VERSION;
 	smu_v13_0_set_smu_mailbox_registers(smu);
 	amdgpu_mca_smu_init_funcs(smu->adev, &smu_v13_0_6_mca_smu_funcs);
+	amdgpu_aca_set_smu_funcs(smu->adev, &smu_v13_0_6_aca_smu_funcs);
 }

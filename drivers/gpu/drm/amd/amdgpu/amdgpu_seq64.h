@@ -25,10 +25,9 @@
 #ifndef __AMDGPU_SEQ64_H__
 #define __AMDGPU_SEQ64_H__
 
-#define AMDGPU_SEQ64_SIZE		(2ULL << 20)
-#define AMDGPU_MAX_SEQ64_SLOTS		(AMDGPU_SEQ64_SIZE / (sizeof(u64) * 8))
-#define AMDGPU_SEQ64_VADDR_OFFSET	0x50000
-#define AMDGPU_SEQ64_VADDR_START	(AMDGPU_VA_RESERVED_SIZE + AMDGPU_SEQ64_VADDR_OFFSET)
+#include "amdgpu_vm.h"
+
+#define AMDGPU_MAX_SEQ64_SLOTS         (AMDGPU_VA_RESERVED_SEQ64_SIZE / sizeof(u64))
 
 struct amdgpu_seq64 {
 	struct amdgpu_bo *sbo;
@@ -42,7 +41,7 @@ int amdgpu_seq64_init(struct amdgpu_device *adev);
 int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *gpu_addr, u64 **cpu_addr);
 void amdgpu_seq64_free(struct amdgpu_device *adev, u64 gpu_addr);
 int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		     struct amdgpu_bo_va **bo_va, u64 seq64_addr, uint32_t size);
+		     struct amdgpu_bo_va **bo_va);
 void amdgpu_seq64_unmap(struct amdgpu_device *adev, struct amdgpu_fpriv *fpriv);
 
 #endif

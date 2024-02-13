@@ -827,9 +827,7 @@ struct dc_dsc_config {
 	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
 	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
 	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
-#if defined(CONFIG_DRM_AMD_DC_FP)
 	bool is_frl; /* indicate if DSC is applied based on HDMI FRL sink's capability */
-#endif
 	bool is_dp; /* indicate if DSC is applied based on DP's capability */
 	uint32_t mst_pbn; /* pbn of display on dsc mst hub */
 	const struct dc_dsc_rc_params_override *rc_params_ovrd; /* DM owned memory. If not NULL, apply custom dsc rc params */
@@ -942,6 +940,7 @@ struct dc_crtc_timing {
 	uint32_t hdmi_vic;
 	uint32_t rid;
 	uint32_t fr_index;
+	uint32_t frl_uncompressed_video_bandwidth_in_kbps;
 	enum dc_timing_3d_format timing_3d_format;
 	enum dc_color_depth display_color_depth;
 	enum dc_pixel_encoding pixel_encoding;

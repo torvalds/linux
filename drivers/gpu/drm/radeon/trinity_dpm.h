@@ -64,8 +64,7 @@ struct trinity_ps {
 
 #define TRINITY_NUM_NBPSTATES   4
 
-struct trinity_uvd_clock_table_entry
-{
+struct trinity_uvd_clock_table_entry {
 	u32 vclk;
 	u32 dclk;
 	u8 vclk_did;

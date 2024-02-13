@@ -514,7 +514,7 @@ static int smu_v11_0_atom_get_smu_clockinfo(struct amdgpu_device *adev,
 					    getsmuclockinfo);
 
 	ret = amdgpu_atom_execute_table(adev->mode_info.atom_context, index,
-					(uint32_t *)&input);
+					(uint32_t *)&input, sizeof(input));
 	if (ret)
 		return -EINVAL;
 
@@ -1432,24 +1432,24 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 		dev_emerg(adev->dev, "ERROR: System is going to shutdown due to GPU HW CTF!\n");
 		orderly_poweroff(true);
 	} else if (client_id == SOC15_IH_CLIENTID_MP1) {
-		if (src_id == 0xfe) {
+		if (src_id == SMU_IH_INTERRUPT_ID_TO_DRIVER) {
 			/* ACK SMUToHost interrupt */
 			data = RREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL);
 			data = REG_SET_FIELD(data, MP1_SMN_IH_SW_INT_CTRL, INT_ACK, 1);
 			WREG32_SOC15(MP1, 0, mmMP1_SMN_IH_SW_INT_CTRL, data);
 
 			switch (ctxid) {
-			case 0x3:
+			case SMU_IH_INTERRUPT_CONTEXT_ID_AC:
 				dev_dbg(adev->dev, "Switched to AC mode!\n");
 				schedule_work(&smu->interrupt_work);
 				adev->pm.ac_power = true;
 				break;
-			case 0x4:
+			case SMU_IH_INTERRUPT_CONTEXT_ID_DC:
 				dev_dbg(adev->dev, "Switched to DC mode!\n");
 				schedule_work(&smu->interrupt_work);
 				adev->pm.ac_power = false;
 				break;
-			case 0x7:
+			case SMU_IH_INTERRUPT_CONTEXT_ID_THERMAL_THROTTLING:
 				/*
 				 * Increment the throttle interrupt counter
 				 */
@@ -1461,6 +1461,10 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				if (__ratelimit(&adev->throttling_logging_rs))
 					schedule_work(&smu->throttling_logging_work);
 
+				break;
+			default:
+				dev_dbg(adev->dev, "Unhandled context id %d from client:%d!\n",
+									ctxid, client_id);
 				break;
 			}
 		}
@@ -1504,7 +1508,7 @@ int smu_v11_0_register_irq_handler(struct smu_context *smu)
 		return ret;
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
-				0xfe,
+				SMU_IH_INTERRUPT_ID_TO_DRIVER,
 				irq_src);
 	if (ret)
 		return ret;

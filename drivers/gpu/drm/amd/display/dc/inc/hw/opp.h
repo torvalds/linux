@@ -23,6 +23,22 @@
  *
  */
 
+/**
+ * DOC: overview
+ *
+ * The Output Plane Processor (OPP) block groups have functions that format
+ * pixel streams such that they are suitable for display at the display device.
+ * The key functions contained in the OPP are:
+ *
+ * - Adaptive Backlight Modulation (ABM)
+ * - Formatter (FMT) which provide pixel-by-pixel operations for format the
+ *   incoming pixel stream.
+ * - Output Buffer that provide pixel replication, and overlapping.
+ * - Interface between MPC and OPTC.
+ * - Clock and reset generation.
+ * - CRC generation.
+ */
+
 #ifndef __DAL_OPP_H__
 #define __DAL_OPP_H__
 

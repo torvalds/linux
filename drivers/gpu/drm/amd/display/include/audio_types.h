@@ -27,11 +27,21 @@
 #define __AUDIO_TYPES_H__
 
 #include "signal_types.h"
+#include "fixed31_32.h"
+#include "dc_dp_types.h"
 
 #define AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 20
 #define MAX_HW_AUDIO_INFO_DISPLAY_NAME_SIZE_IN_CHARS 18
 #define MULTI_CHANNEL_SPLIT_NO_ASSO_INFO 0xFFFFFFFF
 
+struct audio_dp_link_info {
+	uint32_t link_bandwidth_kbps;
+	uint32_t hblank_min_symbol_width;
+	enum dp_link_encoding encoding;
+	enum dc_link_rate link_rate;
+	enum dc_lane_count lane_count;
+	bool is_mst;
+};
 
 struct audio_crtc_info {
 	uint32_t h_total;
@@ -42,7 +52,10 @@ struct audio_crtc_info {
 	uint32_t calculated_pixel_clock_100Hz; /* in 100Hz */
 	uint32_t refresh_rate;
 	enum dc_color_depth color_depth;
+	enum dc_pixel_encoding pixel_encoding;
 	bool interlaced;
+	uint32_t dsc_bits_per_pixel;
+	uint32_t dsc_num_slices;
 };
 struct azalia_clock_info {
 	uint32_t pixel_clock_in_10khz;
@@ -95,6 +108,8 @@ struct audio_output {
 	enum signal_type signal;
 	/* video timing */
 	struct audio_crtc_info crtc_info;
+	/* DP link info */
+	struct audio_dp_link_info dp_link_info;
 	/* PLL for audio */
 	struct audio_pll_info pll_info;
 };

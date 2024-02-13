@@ -26,23 +26,12 @@
 #ifndef DMUB_CMD_H
 #define DMUB_CMD_H
 
-#if defined(_TEST_HARNESS) || defined(FPGA_USB4)
-#include "dmub_fw_types.h"
-#include "include_legacy/atomfirmware.h"
-
-#if defined(_TEST_HARNESS)
-#include <string.h>
-#endif
-#else
-
 #include <asm/byteorder.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 
 #include "atomfirmware.h"
-
-#endif // defined(_TEST_HARNESS) || defined(FPGA_USB4)
 
 //<DMUB_TYPES>==================================================================
 /* Basic type definitions. */
@@ -403,15 +392,16 @@ union replay_debug_flags {
 
 		/**
 		 * 0x400 (bit 10)
-		 * @force_disable_ips1: Force disable IPS1 state
+		 * @enable_ips_visual_confirm: Enable IPS visual confirm when entering IPS
+		 * If we enter IPS2, the Visual confirm bar will change to yellow
 		 */
-		uint32_t force_disable_ips1 : 1;
+		uint32_t enable_ips_visual_confirm : 1;
 
 		/**
 		 * 0x800 (bit 11)
-		 * @force_disable_ips2: Force disable IPS2 state
+		 * @enable_ips_residency_profiling: Enable IPS residency profiling
 		 */
-		uint32_t force_disable_ips2 : 1;
+		uint32_t enable_ips_residency_profiling : 1;
 
 		uint32_t reserved : 20;
 	} bitfields;
@@ -1270,11 +1260,11 @@ struct dmub_cmd_PLAT_54186_wa {
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_HIGH_C; /**< reg value */
 	uint32_t DCSURF_PRIMARY_SURFACE_ADDRESS_C; /**< reg value */
 	struct {
-		uint8_t hubp_inst : 4; /**< HUBP instance */
-		uint8_t tmz_surface : 1; /**< TMZ enable or disable */
-		uint8_t immediate :1; /**< Immediate flip */
-		uint8_t vmid : 4; /**< VMID */
-		uint8_t grph_stereo : 1; /**< 1 if stereo */
+		uint32_t hubp_inst : 4; /**< HUBP instance */
+		uint32_t tmz_surface : 1; /**< TMZ enable or disable */
+		uint32_t immediate :1; /**< Immediate flip */
+		uint32_t vmid : 4; /**< VMID */
+		uint32_t grph_stereo : 1; /**< 1 if stereo */
 		uint32_t reserved : 21; /**< Reserved */
 	} flip_params; /**< Pageflip parameters */
 	uint32_t reserved[9]; /**< Reserved bits */

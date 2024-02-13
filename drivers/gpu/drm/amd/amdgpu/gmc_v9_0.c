@@ -829,23 +829,25 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
 	ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
-	/* This is necessary for a HW workaround under SRIOV as well
-	 * as GFXOFF under bare metal
-	 */
 	if (vmhub >= AMDGPU_MMHUB0(0))
 		inst = GET_INST(GC, 0);
 	else
 		inst = vmhub;
+
+	/* This is necessary for SRIOV as well as for GFXOFF to function
+	 * properly under bare metal
+	 */
 	if (adev->gfx.kiq[inst].ring.sched.ready &&
 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
 		uint32_t req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
 		uint32_t ack = hub->vm_inv_eng0_ack + hub->eng_distance * eng;
 
-		amdgpu_virt_kiq_reg_write_reg_wait(adev, req, ack, inv_req,
-						   1 << vmid, inst);
+		amdgpu_gmc_fw_reg_write_reg_wait(adev, req, ack, inv_req,
+						 1 << vmid, inst);
 		return;
 	}
 
+	/* This path is needed before KIQ/MES/GFXOFF are set up */
 	spin_lock(&adev->gmc.invalidate_lock);
 
 	/*
@@ -1947,14 +1949,6 @@ static int gmc_v9_0_init_mem_ranges(struct amdgpu_device *adev)
 
 static void gmc_v9_4_3_init_vram_info(struct amdgpu_device *adev)
 {
-	static const u32 regBIF_BIOS_SCRATCH_4 = 0x50;
-	u32 vram_info;
-
-	/* Only for dGPU, vendor informaton is reliable */
-	if (!amdgpu_sriov_vf(adev) && !(adev->flags & AMD_IS_APU)) {
-		vram_info = RREG32(regBIF_BIOS_SCRATCH_4);
-		adev->gmc.vram_vendor = vram_info & 0xF;
-	}
 	adev->gmc.vram_type = AMDGPU_VRAM_TYPE_HBM;
 	adev->gmc.vram_width = 128 * 64;
 }

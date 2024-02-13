@@ -51,7 +51,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.266"
+#define DC_VER "3.2.271"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -429,12 +429,12 @@ struct dc_config {
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
 	int sdpif_request_limit_words_per_umc;
-	bool use_old_fixed_vs_sequence;
 	bool dc_mode_clk_limit_support;
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
 	unsigned int disable_ips_in_vpb;
+	bool usb4_bw_alloc_support;
 };
 
 enum visual_confirm {
@@ -987,9 +987,11 @@ struct dc_debug_options {
 	bool psp_disabled_wa;
 	unsigned int ips2_eval_delay_us;
 	unsigned int ips2_entry_delay_us;
+	bool disable_dmub_reallow_idle;
 	bool disable_timeout;
 	bool disable_extblankadj;
 	unsigned int static_screen_wait_frames;
+	bool force_chroma_subsampling_1tap;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1068,6 +1070,7 @@ struct dc {
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
+	enum dc_acpi_cm_power_state power_state;
 };
 
 enum frame_buffer_mode {
@@ -2219,11 +2222,9 @@ struct dc_sink_dsc_caps {
 	// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
 	// 'false' if they are sink's DSC caps
 	bool is_virtual_dpcd_dsc;
-#if defined(CONFIG_DRM_AMD_DC_FP)
 	// 'true' if MST topology supports DSC passthrough for sink
 	// 'false' if MST topology does not support DSC passthrough
 	bool is_dsc_passthrough_supported;
-#endif
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
@@ -2325,6 +2326,7 @@ bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_
 				struct dc_cursor_attributes *cursor_attr);
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow);
+void dc_exit_ips_for_hw_access(struct dc *dc);
 bool dc_dmub_is_ips_idle_state(struct dc *dc);
 
 /* set min and max memory clock to lowest and highest DPM level, respectively */
