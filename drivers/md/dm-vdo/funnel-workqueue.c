@@ -98,7 +98,7 @@ static struct vdo_completion *poll_for_completion(struct simple_work_queue *queu
 	int i;
 
 	for (i = queue->common.type->max_priority; i >= 0; i--) {
-		struct funnel_queue_entry *link = uds_funnel_queue_poll(queue->priority_lists[i]);
+		struct funnel_queue_entry *link = vdo_funnel_queue_poll(queue->priority_lists[i]);
 
 		if (link != NULL)
 			return container_of(link, struct vdo_completion, work_queue_entry_link);
@@ -123,7 +123,7 @@ static void enqueue_work_queue_completion(struct simple_work_queue *queue,
 	completion->my_queue = &queue->common;
 
 	/* Funnel queue handles the synchronization for the put. */
-	uds_funnel_queue_put(queue->priority_lists[completion->priority],
+	vdo_funnel_queue_put(queue->priority_lists[completion->priority],
 			     &completion->work_queue_entry_link);
 
 	/*
@@ -275,7 +275,7 @@ static void free_simple_work_queue(struct simple_work_queue *queue)
 	unsigned int i;
 
 	for (i = 0; i <= VDO_WORK_Q_MAX_PRIORITY; i++)
-		uds_free_funnel_queue(queue->priority_lists[i]);
+		vdo_free_funnel_queue(queue->priority_lists[i]);
 	vdo_free(queue->common.name);
 	vdo_free(queue);
 }
@@ -340,8 +340,8 @@ static int make_simple_work_queue(const char *thread_name_prefix, const char *na
 	}
 
 	for (i = 0; i <= type->max_priority; i++) {
-		result = uds_make_funnel_queue(&queue->priority_lists[i]);
-		if (result != UDS_SUCCESS) {
+		result = vdo_make_funnel_queue(&queue->priority_lists[i]);
+		if (result != VDO_SUCCESS) {
 			free_simple_work_queue(queue);
 			return result;
 		}

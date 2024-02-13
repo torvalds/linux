@@ -69,11 +69,11 @@ static inline struct uds_request *poll_queues(struct uds_request_queue *queue)
 {
 	struct funnel_queue_entry *entry;
 
-	entry = uds_funnel_queue_poll(queue->retry_queue);
+	entry = vdo_funnel_queue_poll(queue->retry_queue);
 	if (entry != NULL)
 		return container_of(entry, struct uds_request, queue_link);
 
-	entry = uds_funnel_queue_poll(queue->main_queue);
+	entry = vdo_funnel_queue_poll(queue->main_queue);
 	if (entry != NULL)
 		return container_of(entry, struct uds_request, queue_link);
 
@@ -82,8 +82,8 @@ static inline struct uds_request *poll_queues(struct uds_request_queue *queue)
 
 static inline bool are_queues_idle(struct uds_request_queue *queue)
 {
-	return uds_is_funnel_queue_idle(queue->retry_queue) &&
-	       uds_is_funnel_queue_idle(queue->main_queue);
+	return vdo_is_funnel_queue_idle(queue->retry_queue) &&
+	       vdo_is_funnel_queue_idle(queue->main_queue);
 }
 
 /*
@@ -207,14 +207,14 @@ int uds_make_request_queue(const char *queue_name,
 	atomic_set(&queue->dormant, false);
 	init_waitqueue_head(&queue->wait_head);
 
-	result = uds_make_funnel_queue(&queue->main_queue);
-	if (result != UDS_SUCCESS) {
+	result = vdo_make_funnel_queue(&queue->main_queue);
+	if (result != VDO_SUCCESS) {
 		uds_request_queue_finish(queue);
 		return result;
 	}
 
-	result = uds_make_funnel_queue(&queue->retry_queue);
-	if (result != UDS_SUCCESS) {
+	result = vdo_make_funnel_queue(&queue->retry_queue);
+	if (result != VDO_SUCCESS) {
 		uds_request_queue_finish(queue);
 		return result;
 	}
@@ -244,7 +244,7 @@ void uds_request_queue_enqueue(struct uds_request_queue *queue,
 	bool unbatched = request->unbatched;
 
 	sub_queue = request->requeued ? queue->retry_queue : queue->main_queue;
-	uds_funnel_queue_put(sub_queue, &request->queue_link);
+	vdo_funnel_queue_put(sub_queue, &request->queue_link);
 
 	/*
 	 * We must wake the worker thread when it is dormant. A read fence isn't needed here since
@@ -273,7 +273,7 @@ void uds_request_queue_finish(struct uds_request_queue *queue)
 		vdo_join_threads(queue->thread);
 	}
 
-	uds_free_funnel_queue(queue->main_queue);
-	uds_free_funnel_queue(queue->retry_queue);
+	vdo_free_funnel_queue(queue->main_queue);
+	vdo_free_funnel_queue(queue->retry_queue);
 	vdo_free(queue);
 }

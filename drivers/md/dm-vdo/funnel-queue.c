@@ -9,7 +9,7 @@
 #include "memory-alloc.h"
 #include "permassert.h"
 
-int uds_make_funnel_queue(struct funnel_queue **queue_ptr)
+int vdo_make_funnel_queue(struct funnel_queue **queue_ptr)
 {
 	int result;
 	struct funnel_queue *queue;
@@ -27,10 +27,10 @@ int uds_make_funnel_queue(struct funnel_queue **queue_ptr)
 	queue->oldest = &queue->stub;
 
 	*queue_ptr = queue;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
-void uds_free_funnel_queue(struct funnel_queue *queue)
+void vdo_free_funnel_queue(struct funnel_queue *queue)
 {
 	vdo_free(queue);
 }
@@ -40,7 +40,7 @@ static struct funnel_queue_entry *get_oldest(struct funnel_queue *queue)
 	/*
 	 * Barrier requirements: We need a read barrier between reading a "next" field pointer
 	 * value and reading anything it points to. There's an accompanying barrier in
-	 * uds_funnel_queue_put() between its caller setting up the entry and making it visible.
+	 * vdo_funnel_queue_put() between its caller setting up the entry and making it visible.
 	 */
 	struct funnel_queue_entry *oldest = queue->oldest;
 	struct funnel_queue_entry *next = READ_ONCE(oldest->next);
@@ -80,7 +80,7 @@ static struct funnel_queue_entry *get_oldest(struct funnel_queue *queue)
 		 * Put the stub entry back on the queue, ensuring a successor will eventually be
 		 * seen.
 		 */
-		uds_funnel_queue_put(queue, &queue->stub);
+		vdo_funnel_queue_put(queue, &queue->stub);
 
 		/* Check again for a successor. */
 		next = READ_ONCE(oldest->next);
@@ -100,7 +100,7 @@ static struct funnel_queue_entry *get_oldest(struct funnel_queue *queue)
  * Poll a queue, removing the oldest entry if the queue is not empty. This function must only be
  * called from a single consumer thread.
  */
-struct funnel_queue_entry *uds_funnel_queue_poll(struct funnel_queue *queue)
+struct funnel_queue_entry *vdo_funnel_queue_poll(struct funnel_queue *queue)
 {
 	struct funnel_queue_entry *oldest = get_oldest(queue);
 
@@ -134,7 +134,7 @@ struct funnel_queue_entry *uds_funnel_queue_poll(struct funnel_queue *queue)
  * or more entries being added such that the list view is incomplete, this function will report the
  * queue as empty.
  */
-bool uds_is_funnel_queue_empty(struct funnel_queue *queue)
+bool vdo_is_funnel_queue_empty(struct funnel_queue *queue)
 {
 	return get_oldest(queue) == NULL;
 }
@@ -143,9 +143,9 @@ bool uds_is_funnel_queue_empty(struct funnel_queue *queue)
  * Check whether the funnel queue is idle or not. If the queue has entries available to be
  * retrieved, it is not idle. If the queue is in a transition state with one or more entries being
  * added such that the list view is incomplete, it may not be possible to retrieve an entry with
- * the uds_funnel_queue_poll() function, but the queue will not be considered idle.
+ * the vdo_funnel_queue_poll() function, but the queue will not be considered idle.
  */
-bool uds_is_funnel_queue_idle(struct funnel_queue *queue)
+bool vdo_is_funnel_queue_idle(struct funnel_queue *queue)
 {
 	/*
 	 * Oldest is not the stub, so there's another entry, though if next is NULL we can't
