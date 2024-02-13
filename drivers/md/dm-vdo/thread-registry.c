@@ -5,6 +5,7 @@
 
 #include "thread-registry.h"
 
+#include <asm/current.h>
 #include <linux/rculist.h>
 
 #include "permassert.h"

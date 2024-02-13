@@ -5,6 +5,7 @@
 
 #include "thread-utils.h"
 
+#include <asm/current.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/mutex.h>

@@ -5,6 +5,7 @@
 
 #include "logger.h"
 
+#include <asm/current.h>
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <linux/module.h>
