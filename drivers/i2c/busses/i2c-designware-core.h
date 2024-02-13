@@ -212,6 +212,7 @@ struct reset_control;
  * @msg_err: error status of the current transfer
  * @status: i2c master status, one of STATUS_*
  * @abort_source: copy of the TX_ABRT_SOURCE register
+ * @sw_mask: SW mask of DW_IC_INTR_MASK used in polling mode
  * @irq: interrupt number for the i2c master
  * @flags: platform specific flags like type of IO accessors or model
  * @adapter: i2c subsystem adapter node
@@ -270,6 +271,7 @@ struct dw_i2c_dev {
 	int			msg_err;
 	unsigned int		status;
 	unsigned int		abort_source;
+	unsigned int		sw_mask;
 	int			irq;
 	u32			flags;
 	struct i2c_adapter	adapter;
@@ -358,6 +360,7 @@ static inline void __i2c_dw_write_intr_mask(struct dw_i2c_dev *dev,
 	unsigned int val = dev->flags & ACCESS_POLLING ? 0 : intr_mask;
 
 	regmap_write(dev->map, DW_IC_INTR_MASK, val);
+	dev->sw_mask = intr_mask;
 }
 
 static inline void __i2c_dw_read_intr_mask(struct dw_i2c_dev *dev,
@@ -365,6 +368,8 @@ static inline void __i2c_dw_read_intr_mask(struct dw_i2c_dev *dev,
 {
 	if (!(dev->flags & ACCESS_POLLING))
 		regmap_read(dev->map, DW_IC_INTR_MASK, intr_mask);
+	else
+		*intr_mask = dev->sw_mask;
 }
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev);

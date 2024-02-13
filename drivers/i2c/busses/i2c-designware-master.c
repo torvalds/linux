@@ -354,67 +354,6 @@ static int amd_i2c_dw_xfer_quirk(struct i2c_adapter *adap, struct i2c_msg *msgs,
 	return 0;
 }
 
-static int i2c_dw_poll_tx_empty(struct dw_i2c_dev *dev)
-{
-	u32 val;
-
-	return regmap_read_poll_timeout(dev->map, DW_IC_RAW_INTR_STAT, val,
-					val & DW_IC_INTR_TX_EMPTY,
-					100, 1000);
-}
-
-static int i2c_dw_poll_rx_full(struct dw_i2c_dev *dev)
-{
-	u32 val;
-
-	return regmap_read_poll_timeout(dev->map, DW_IC_RAW_INTR_STAT, val,
-					val & DW_IC_INTR_RX_FULL,
-					100, 1000);
-}
-
-static int txgbe_i2c_dw_xfer_quirk(struct i2c_adapter *adap, struct i2c_msg *msgs,
-				   int num_msgs)
-{
-	struct dw_i2c_dev *dev = i2c_get_adapdata(adap);
-	int msg_idx, buf_len, data_idx, ret;
-	unsigned int val, stop = 0;
-	u8 *buf;
-
-	dev->msgs = msgs;
-	dev->msgs_num = num_msgs;
-	i2c_dw_xfer_init(dev);
-
-	for (msg_idx = 0; msg_idx < num_msgs; msg_idx++) {
-		buf = msgs[msg_idx].buf;
-		buf_len = msgs[msg_idx].len;
-
-		for (data_idx = 0; data_idx < buf_len; data_idx++) {
-			if (msg_idx == num_msgs - 1 && data_idx == buf_len - 1)
-				stop |= BIT(9);
-
-			if (msgs[msg_idx].flags & I2C_M_RD) {
-				regmap_write(dev->map, DW_IC_DATA_CMD, 0x100 | stop);
-
-				ret = i2c_dw_poll_rx_full(dev);
-				if (ret)
-					return ret;
-
-				regmap_read(dev->map, DW_IC_DATA_CMD, &val);
-				buf[data_idx] = val;
-			} else {
-				ret = i2c_dw_poll_tx_empty(dev);
-				if (ret)
-					return ret;
-
-				regmap_write(dev->map, DW_IC_DATA_CMD,
-					     buf[data_idx] | stop);
-			}
-		}
-	}
-
-	return num_msgs;
-}
-
 /*
  * Initiate (and continue) low level master read/write transaction.
  * This function is only called from i2c_dw_isr, and pumping i2c_msg
@@ -649,7 +588,12 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 	 *
 	 * The raw version might be useful for debugging purposes.
 	 */
-	regmap_read(dev->map, DW_IC_INTR_STAT, &stat);
+	if (!(dev->flags & ACCESS_POLLING)) {
+		regmap_read(dev->map, DW_IC_INTR_STAT, &stat);
+	} else {
+		regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
+		stat &= dev->sw_mask;
+	}
 
 	/*
 	 * Do not use the IC_CLR_INTR register to clear interrupts, or
@@ -689,37 +633,8 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 	return stat;
 }
 
-/*
- * Interrupt service routine. This gets called whenever an I2C master interrupt
- * occurs.
- */
-static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
+static void i2c_dw_process_transfer(struct dw_i2c_dev *dev, unsigned int stat)
 {
-	struct dw_i2c_dev *dev = dev_id;
-	unsigned int stat, enabled;
-
-	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
-	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
-	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
-		return IRQ_NONE;
-	if (pm_runtime_suspended(dev->dev) || stat == GENMASK(31, 0))
-		return IRQ_NONE;
-	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
-
-	stat = i2c_dw_read_clear_intrbits(dev);
-
-	if (!(dev->status & STATUS_ACTIVE)) {
-		/*
-		 * Unexpected interrupt in driver point of view. State
-		 * variables are either unset or stale so acknowledge and
-		 * disable interrupts for suppressing further interrupts if
-		 * interrupt really came from this HW (E.g. firmware has left
-		 * the HW active).
-		 */
-		__i2c_dw_write_intr_mask(dev, 0);
-		return IRQ_HANDLED;
-	}
-
 	if (stat & DW_IC_INTR_TX_ABRT) {
 		dev->cmd_err |= DW_IC_ERR_TX_ABRT;
 		dev->status &= ~STATUS_MASK;
@@ -755,8 +670,69 @@ tx_aborted:
 		__i2c_dw_write_intr_mask(dev, 0);
 		__i2c_dw_write_intr_mask(dev, stat);
 	}
+}
+
+/*
+ * Interrupt service routine. This gets called whenever an I2C master interrupt
+ * occurs.
+ */
+static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
+{
+	struct dw_i2c_dev *dev = dev_id;
+	unsigned int stat, enabled;
+
+	regmap_read(dev->map, DW_IC_ENABLE, &enabled);
+	regmap_read(dev->map, DW_IC_RAW_INTR_STAT, &stat);
+	if (!enabled || !(stat & ~DW_IC_INTR_ACTIVITY))
+		return IRQ_NONE;
+	if (pm_runtime_suspended(dev->dev) || stat == GENMASK(31, 0))
+		return IRQ_NONE;
+	dev_dbg(dev->dev, "enabled=%#x stat=%#x\n", enabled, stat);
+
+	stat = i2c_dw_read_clear_intrbits(dev);
+
+	if (!(dev->status & STATUS_ACTIVE)) {
+		/*
+		 * Unexpected interrupt in driver point of view. State
+		 * variables are either unset or stale so acknowledge and
+		 * disable interrupts for suppressing further interrupts if
+		 * interrupt really came from this HW (E.g. firmware has left
+		 * the HW active).
+		 */
+		__i2c_dw_write_intr_mask(dev, 0);
+		return IRQ_HANDLED;
+	}
+
+	i2c_dw_process_transfer(dev, stat);
 
 	return IRQ_HANDLED;
+}
+
+static int i2c_dw_wait_transfer(struct dw_i2c_dev *dev)
+{
+	unsigned long timeout = dev->adapter.timeout;
+	unsigned int stat;
+	int ret;
+
+	if (!(dev->flags & ACCESS_POLLING)) {
+		ret = wait_for_completion_timeout(&dev->cmd_complete, timeout);
+	} else {
+		timeout += jiffies;
+		do {
+			ret = try_wait_for_completion(&dev->cmd_complete);
+			if (ret)
+				break;
+
+			stat = i2c_dw_read_clear_intrbits(dev);
+			if (stat)
+				i2c_dw_process_transfer(dev, stat);
+			else
+				/* Try save some power */
+				usleep_range(3, 25);
+		} while (time_before(jiffies, timeout));
+	}
+
+	return ret ? 0 : -ETIMEDOUT;
 }
 
 /*
@@ -772,17 +748,9 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	pm_runtime_get_sync(dev->dev);
 
-	/*
-	 * Initiate I2C message transfer when polling mode is enabled,
-	 * As it is polling based transfer mechanism, which does not support
-	 * interrupt based functionalities of existing DesignWare driver.
-	 */
 	switch (dev->flags & MODEL_MASK) {
 	case MODEL_AMD_NAVI_GPU:
 		ret = amd_i2c_dw_xfer_quirk(adap, msgs, num);
-		goto done_nolock;
-	case MODEL_WANGXUN_SP:
-		ret = txgbe_i2c_dw_xfer_quirk(adap, msgs, num);
 		goto done_nolock;
 	default:
 		break;
@@ -811,12 +779,12 @@ i2c_dw_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	i2c_dw_xfer_init(dev);
 
 	/* Wait for tx to complete */
-	if (!wait_for_completion_timeout(&dev->cmd_complete, adap->timeout)) {
+	ret = i2c_dw_wait_transfer(dev);
+	if (ret) {
 		dev_err(dev->dev, "controller timed out\n");
 		/* i2c_dw_init_master() implicitly disables the adapter */
 		i2c_recover_bus(&dev->adapter);
 		i2c_dw_init_master(dev);
-		ret = -ETIMEDOUT;
 		goto done;
 	}
 
