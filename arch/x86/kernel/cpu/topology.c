@@ -23,24 +23,23 @@ DECLARE_BITMAP(phys_cpu_present_map, MAX_LOCAL_APIC) __read_mostly;
 u32 cpuid_to_apicid[] __read_mostly = { [0 ... NR_CPUS - 1] = BAD_APICID, };
 
 /*
+ * Keep track of assigned, disabled and rejected CPUs. Present assigned
+ * with 1 as CPU #0 is reserved for the boot CPU.
+ */
+static struct {
+	unsigned int		nr_assigned_cpus;
+	unsigned int		nr_disabled_cpus;
+	unsigned int		nr_rejected_cpus;
+} topo_info __read_mostly = {
+	.nr_assigned_cpus	= 1,
+};
+
+/*
  * Processor to be disabled specified by kernel parameter
  * disable_cpu_apicid=<int>, mostly used for the kdump 2nd kernel to
  * avoid undefined behaviour caused by sending INIT from AP to BSP.
  */
 static u32 disabled_cpu_apicid __ro_after_init = BAD_APICID;
-
-static unsigned int num_processors;
-static unsigned int disabled_cpus;
-
-/*
- * The number of allocated logical CPU IDs. Since logical CPU IDs are allocated
- * contiguously, it equals to current allocated max logical CPU ID plus 1.
- * All allocated CPU IDs should be in the [0, nr_logical_cpuids) range,
- * so the maximum of nr_logical_cpuids is nr_cpu_ids.
- *
- * NOTE: Reserve 0 for BSP.
- */
-static int nr_logical_cpuids = 1;
 
 bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
 {
@@ -75,7 +74,7 @@ static int __init smp_init_primary_thread_mask(void)
 		return 0;
 	}
 
-	for (cpu = 0; cpu < nr_logical_cpuids; cpu++)
+	for (cpu = 0; cpu < topo_info.nr_assigned_cpus; cpu++)
 		cpu_mark_primary_thread(cpu, cpuid_to_apicid[cpu]);
 	return 0;
 }
@@ -89,7 +88,7 @@ static int topo_lookup_cpuid(u32 apic_id)
 	int i;
 
 	/* CPU# to APICID mapping is persistent once it is established */
-	for (i = 0; i < nr_logical_cpuids; i++) {
+	for (i = 0; i < topo_info.nr_assigned_cpus; i++) {
 		if (cpuid_to_apicid[i] == apic_id)
 			return i;
 	}
@@ -107,22 +106,21 @@ static int allocate_logical_cpuid(u32 apic_id)
 	if (cpu >= 0)
 		return cpu;
 
-	cpuid_to_apicid[nr_logical_cpuids] = apic_id;
-	return nr_logical_cpuids++;
+	return topo_info.nr_assigned_cpus++;
 }
 
-static void cpu_update_apic(int cpu, u32 apicid)
+static void cpu_update_apic(unsigned int cpu, u32 apic_id)
 {
 #if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
-	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
+	early_per_cpu(x86_cpu_to_apicid, cpu) = apic_id;
 #endif
+	cpuid_to_apicid[cpu] = apic_id;
 	set_cpu_possible(cpu, true);
-	set_bit(apicid, phys_cpu_present_map);
+	set_bit(apic_id, phys_cpu_present_map);
 	set_cpu_present(cpu, true);
-	num_processors++;
 
 	if (system_state != SYSTEM_BOOTING)
-		cpu_mark_primary_thread(cpu, apicid);
+		cpu_mark_primary_thread(cpu, apic_id);
 }
 
 static int generic_processor_info(int apicid)
@@ -137,18 +135,18 @@ static int generic_processor_info(int apicid)
 		return 0;
 
 	if (disabled_cpu_apicid == apicid) {
-		int thiscpu = num_processors + disabled_cpus;
+		int thiscpu = topo_info.nr_assigned_cpus + topo_info.nr_disabled_cpus;
 
 		pr_warn("APIC: Disabling requested cpu. Processor %d/0x%x ignored.\n",
 			thiscpu, apicid);
 
-		disabled_cpus++;
+		topo_info.nr_rejected_cpus++;
 		return -ENODEV;
 	}
 
-	if (num_processors >= nr_cpu_ids) {
+	if (topo_info.nr_assigned_cpus >= nr_cpu_ids) {
 		pr_warn_once("APIC: CPU limit of %d reached. Ignoring further CPUs\n", nr_cpu_ids);
-		disabled_cpus++;
+		topo_info.nr_rejected_cpus++;
 		return -ENOSPC;
 	}
 
@@ -178,14 +176,16 @@ static int __initdata setup_possible_cpus = -1;
  */
 __init void prefill_possible_map(void)
 {
+	unsigned int num_processors = topo_info.nr_assigned_cpus;
+	unsigned int disabled_cpus = topo_info.nr_disabled_cpus;
 	int i, possible;
 
 	i = setup_max_cpus ?: 1;
 	if (setup_possible_cpus == -1) {
-		possible = num_processors;
+		possible = topo_info.nr_assigned_cpus;
 #ifdef CONFIG_HOTPLUG_CPU
 		if (setup_max_cpus)
-			possible += disabled_cpus;
+			possible += num_processors;
 #else
 		if (possible > i)
 			possible = i;
@@ -238,7 +238,7 @@ void __init topology_register_apic(u32 apic_id, u32 acpi_id, bool present)
 	}
 
 	if (!present) {
-		disabled_cpus++;
+		topo_info.nr_disabled_cpus++;
 		return;
 	}
 
@@ -295,7 +295,6 @@ void topology_hotunplug_apic(unsigned int cpu)
 	per_cpu(x86_cpu_to_apicid, cpu) = BAD_APICID;
 	clear_bit(apic_id, phys_cpu_present_map);
 	set_cpu_present(cpu, false);
-	num_processors--;
 }
 #endif
 
