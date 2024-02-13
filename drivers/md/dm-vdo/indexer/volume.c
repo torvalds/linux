@@ -1634,7 +1634,7 @@ int uds_make_volume(const struct uds_configuration *config, struct index_layout 
 	for (i = 0; i < config->read_threads; i++) {
 		result = vdo_create_thread(read_thread_function, (void *) volume,
 					   "reader", &volume->reader_threads[i]);
-		if (result != UDS_SUCCESS) {
+		if (result != VDO_SUCCESS) {
 			uds_free_volume(volume);
 			return result;
 		}

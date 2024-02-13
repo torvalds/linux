@@ -119,7 +119,7 @@ int vdo_create_thread(void (*thread_function)(void *), void *thread_data,
 	}
 
 	*new_thread = thread;
-	return UDS_SUCCESS;
+	return VDO_SUCCESS;
 }
 
 void vdo_join_threads(struct thread *thread)

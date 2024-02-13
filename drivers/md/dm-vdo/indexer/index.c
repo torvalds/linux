@@ -798,7 +798,7 @@ static int make_chapter_writer(struct uds_index *index,
 			       writer->open_chapter_index->memory_size);
 
 	result = vdo_create_thread(close_chapters, writer, "writer", &writer->thread);
-	if (result != UDS_SUCCESS) {
+	if (result != VDO_SUCCESS) {
 		free_chapter_writer(writer);
 		return result;
 	}
