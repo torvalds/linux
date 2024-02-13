@@ -132,7 +132,7 @@ void pcmcia_put_socket(struct pcmcia_socket *skt);
  * Stuff internal to module "pcmcia".
  */
 /* ds.c */
-extern struct bus_type pcmcia_bus_type;
+extern const struct bus_type pcmcia_bus_type;
 
 struct pcmcia_device;
 
