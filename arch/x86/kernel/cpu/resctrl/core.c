@@ -587,7 +587,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 			mbm_setup_overflow_handler(d, 0);
 		}
 		if (is_llc_occupancy_enabled() && cpu == d->cqm_work_cpu &&
-		    has_busy_rmid(r, d)) {
+		    has_busy_rmid(d)) {
 			cancel_delayed_work(&d->cqm_limbo);
 			cqm_setup_limbo_handler(d, 0);
 		}
@@ -598,11 +598,12 @@ static void clear_closid_rmid(int cpu)
 {
 	struct resctrl_pqr_state *state = this_cpu_ptr(&pqr_state);
 
-	state->default_closid = 0;
-	state->default_rmid = 0;
-	state->cur_closid = 0;
-	state->cur_rmid = 0;
-	wrmsr(MSR_IA32_PQR_ASSOC, 0, 0);
+	state->default_closid = RESCTRL_RESERVED_CLOSID;
+	state->default_rmid = RESCTRL_RESERVED_RMID;
+	state->cur_closid = RESCTRL_RESERVED_CLOSID;
+	state->cur_rmid = RESCTRL_RESERVED_RMID;
+	wrmsr(MSR_IA32_PQR_ASSOC, RESCTRL_RESERVED_RMID,
+	      RESCTRL_RESERVED_CLOSID);
 }
 
 static int resctrl_online_cpu(unsigned int cpu)
