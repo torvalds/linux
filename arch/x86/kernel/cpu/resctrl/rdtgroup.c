@@ -111,7 +111,7 @@ void rdt_staged_configs_clear(void)
  * - Our choices on how to configure each resource become progressively more
  *   limited as the number of resources grows.
  */
-static int closid_free_map;
+static unsigned long closid_free_map;
 static int closid_free_map_len;
 
 int closids_supported(void)
@@ -130,8 +130,8 @@ static void closid_init(void)
 
 	closid_free_map = BIT_MASK(rdt_min_closid) - 1;
 
-	/* CLOSID 0 is always reserved for the default group */
-	closid_free_map &= ~1;
+	/* RESCTRL_RESERVED_CLOSID is always reserved for the default group */
+	__clear_bit(RESCTRL_RESERVED_CLOSID, &closid_free_map);
 	closid_free_map_len = rdt_min_closid;
 }
 
@@ -139,17 +139,21 @@ static int closid_alloc(void)
 {
 	u32 closid = ffs(closid_free_map);
 
+	lockdep_assert_held(&rdtgroup_mutex);
+
 	if (closid == 0)
 		return -ENOSPC;
 	closid--;
-	closid_free_map &= ~(1 << closid);
+	__clear_bit(closid, &closid_free_map);
 
 	return closid;
 }
 
 void closid_free(int closid)
 {
-	closid_free_map |= 1 << closid;
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	__set_bit(closid, &closid_free_map);
 }
 
 /**
@@ -161,7 +165,9 @@ void closid_free(int closid)
  */
 static bool closid_allocated(unsigned int closid)
 {
-	return (closid_free_map & (1 << closid)) == 0;
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	return !test_bit(closid, &closid_free_map);
 }
 
 /**
