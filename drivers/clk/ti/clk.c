@@ -7,6 +7,7 @@
  * Tero Kristo <t-kristo@ti.com>
  */
 
+#include <linux/cleanup.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
@@ -114,19 +115,25 @@ int ti_clk_setup_ll_ops(struct ti_clk_ll_ops *ops)
 
 /*
  * Eventually we could standardize to using '_' for clk-*.c files to follow the
- * TRM naming and leave out the tmp name here.
+ * TRM naming.
  */
 static struct device_node *ti_find_clock_provider(struct device_node *from,
 						  const char *name)
 {
+	char *tmp __free(kfree) = NULL;
 	struct device_node *np;
 	bool found = false;
 	const char *n;
-	char *tmp;
+	char *p;
 
 	tmp = kstrdup_and_replace(name, '-', '_', GFP_KERNEL);
 	if (!tmp)
 		return NULL;
+
+	/* Ignore a possible address for the node name */
+	p = strchr(tmp, '@');
+	if (p)
+		*p = '\0';
 
 	/* Node named "clock" with "clock-output-names" */
 	for_each_of_allnodes_from(from, np) {
@@ -140,7 +147,6 @@ static struct device_node *ti_find_clock_provider(struct device_node *from,
 			break;
 		}
 	}
-	kfree(tmp);
 
 	if (found) {
 		of_node_put(from);
@@ -148,7 +154,7 @@ static struct device_node *ti_find_clock_provider(struct device_node *from,
 	}
 
 	/* Fall back to using old node name base provider name */
-	return of_find_node_by_name(from, name);
+	return of_find_node_by_name(from, tmp);
 }
 
 /**
