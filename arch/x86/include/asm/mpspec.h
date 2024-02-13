@@ -86,9 +86,6 @@ typedef struct physid_mask physid_mask_t;
 #define physid_set(physid, map)			set_bit(physid, (map).mask)
 #define physid_isset(physid, map)		test_bit(physid, (map).mask)
 
-#define physids_or(dst, src1, src2)					\
-	bitmap_or((dst).mask, (src1).mask, (src2).mask, MAX_LOCAL_APIC)
-
 #define physids_clear(map)					\
 	bitmap_zero((map).mask, MAX_LOCAL_APIC)
 
