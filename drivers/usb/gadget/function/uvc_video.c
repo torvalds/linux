@@ -370,6 +370,7 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 	struct uvc_video *video = ureq->video;
 	struct uvc_video_queue *queue = &video->queue;
 	struct uvc_buffer *last_buf;
+	struct usb_request *to_queue = req;
 	unsigned long flags;
 	bool is_bulk = video->max_payload_size;
 	int ret = 0;
@@ -425,59 +426,59 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 	 * we're still streaming before queueing the usb_request
 	 * back to req_free
 	 */
-	if (video->is_enabled) {
-		/*
-		 * Here we check whether any request is available in the ready
-		 * list. If it is, queue it to the ep and add the current
-		 * usb_request to the req_free list - for video_pump to fill in.
-		 * Otherwise, just use the current usb_request to queue a 0
-		 * length request to the ep. Since we always add to the req_free
-		 * list if we dequeue from the ready list, there will never
-		 * be a situation where the req_free list is completely out of
-		 * requests and cannot recover.
-		 */
-		struct usb_request *to_queue = req;
-
-		to_queue->length = 0;
-		if (!list_empty(&video->req_ready)) {
-			to_queue = list_first_entry(&video->req_ready,
-				struct usb_request, list);
-			list_del(&to_queue->list);
-			list_add_tail(&req->list, &video->req_free);
-			/*
-			 * Queue work to the wq as well since it is possible that a
-			 * buffer may not have been completely encoded with the set of
-			 * in-flight usb requests for whih the complete callbacks are
-			 * firing.
-			 * In that case, if we do not queue work to the worker thread,
-			 * the buffer will never be marked as complete - and therefore
-			 * not be returned to userpsace. As a result,
-			 * dequeue -> queue -> dequeue flow of uvc buffers will not
-			 * happen.
-			 */
-			queue_work(video->async_wq, &video->pump);
-		}
-		/*
-		 * Queue to the endpoint. The actual queueing to ep will
-		 * only happen on one thread - the async_wq for bulk endpoints
-		 * and this thread for isoc endpoints.
-		 */
-		ret = uvcg_video_usb_req_queue(video, to_queue, !is_bulk);
-		if (ret < 0) {
-			/*
-			 * Endpoint error, but the stream is still enabled.
-			 * Put request back in req_free for it to be cleaned
-			 * up later.
-			 */
-			list_add_tail(&to_queue->list, &video->req_free);
-		}
-	} else {
+	if (!video->is_enabled) {
 		uvc_video_free_request(ureq, ep);
-		ret = 0;
-	}
-	spin_unlock_irqrestore(&video->req_lock, flags);
-	if (ret < 0)
+		spin_unlock_irqrestore(&video->req_lock, flags);
 		uvcg_queue_cancel(queue, 0);
+
+		return;
+	}
+
+	/*
+	 * Here we check whether any request is available in the ready
+	 * list. If it is, queue it to the ep and add the current
+	 * usb_request to the req_free list - for video_pump to fill in.
+	 * Otherwise, just use the current usb_request to queue a 0
+	 * length request to the ep. Since we always add to the req_free
+	 * list if we dequeue from the ready list, there will never
+	 * be a situation where the req_free list is completely out of
+	 * requests and cannot recover.
+	 */
+	to_queue->length = 0;
+	if (!list_empty(&video->req_ready)) {
+		to_queue = list_first_entry(&video->req_ready,
+			struct usb_request, list);
+		list_del(&to_queue->list);
+		list_add_tail(&req->list, &video->req_free);
+		/*
+		 * Queue work to the wq as well since it is possible that a
+		 * buffer may not have been completely encoded with the set of
+		 * in-flight usb requests for whih the complete callbacks are
+		 * firing.
+		 * In that case, if we do not queue work to the worker thread,
+		 * the buffer will never be marked as complete - and therefore
+		 * not be returned to userpsace. As a result,
+		 * dequeue -> queue -> dequeue flow of uvc buffers will not
+		 * happen.
+		 */
+		queue_work(video->async_wq, &video->pump);
+	}
+	/*
+	 * Queue to the endpoint. The actual queueing to ep will
+	 * only happen on one thread - the async_wq for bulk endpoints
+	 * and this thread for isoc endpoints.
+	 */
+	ret = uvcg_video_usb_req_queue(video, to_queue, !is_bulk);
+	if (ret < 0) {
+		/*
+		 * Endpoint error, but the stream is still enabled.
+		 * Put request back in req_free for it to be cleaned
+		 * up later.
+		 */
+		list_add_tail(&to_queue->list, &video->req_free);
+	}
+
+	spin_unlock_irqrestore(&video->req_lock, flags);
 }
 
 static int
