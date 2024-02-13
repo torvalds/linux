@@ -20,6 +20,7 @@
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 #include "xe_wopcm.h"
 
 #define XELPG_GGTT_PTE_PAT0	BIT_ULL(52)
@@ -144,7 +145,11 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	unsigned int gsm_size;
 
-	gsm_size = probe_gsm_size(pdev);
+	if (IS_SRIOV_VF(xe))
+		gsm_size = SZ_8M; /* GGTT is expected to be 4GiB */
+	else
+		gsm_size = probe_gsm_size(pdev);
+
 	if (gsm_size == 0) {
 		drm_err(&xe->drm, "Hardware reported no preallocated GSM\n");
 		return -ENOMEM;
