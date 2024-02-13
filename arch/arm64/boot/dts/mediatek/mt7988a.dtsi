@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only OR MIT
 
+#include <dt-bindings/clock/mediatek,mt7988-clk.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/phy/phy.h>
 
 / {
 	compatible = "mediatek,mt7988a";
@@ -78,7 +80,7 @@
 			#interrupt-cells = <3>;
 		};
 
-		clock-controller@10001000 {
+		infracfg: clock-controller@10001000 {
 			compatible = "mediatek,mt7988-infracfg", "syscon";
 			reg = <0 0x10001000 0 0x1000>;
 			#clock-cells = <1>;
@@ -101,6 +103,34 @@
 			compatible = "mediatek,mt7988-apmixedsys";
 			reg = <0 0x1001e000 0 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		usb@11190000 {
+			compatible = "mediatek,mt7988-xhci", "mediatek,mtk-xhci";
+			reg = <0 0x11190000 0 0x2e00>,
+			      <0 0x11193e00 0 0x0100>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&infracfg CLK_INFRA_USB_SYS>,
+				 <&infracfg CLK_INFRA_USB_REF>,
+				 <&infracfg CLK_INFRA_66M_USB_HCK>,
+				 <&infracfg CLK_INFRA_133M_USB_HCK>,
+				 <&infracfg CLK_INFRA_USB_XHCI>;
+			clock-names = "sys_ck", "ref_ck", "mcu_ck", "dma_ck", "xhci_ck";
+		};
+
+		usb@11200000 {
+			compatible = "mediatek,mt7988-xhci", "mediatek,mtk-xhci";
+			reg = <0 0x11200000 0 0x2e00>,
+			      <0 0x11203e00 0 0x0100>;
+			reg-names = "mac", "ippc";
+			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&infracfg CLK_INFRA_USB_SYS_CK_P1>,
+				 <&infracfg CLK_INFRA_USB_CK_P1>,
+				 <&infracfg CLK_INFRA_66M_USB_HCK_CK_P1>,
+				 <&infracfg CLK_INFRA_133M_USB_HCK_CK_P1>,
+				 <&infracfg CLK_INFRA_USB_XHCI_CK_P1>;
+			clock-names = "sys_ck", "ref_ck", "mcu_ck", "dma_ck", "xhci_ck";
 		};
 
 		clock-controller@11f40000 {
