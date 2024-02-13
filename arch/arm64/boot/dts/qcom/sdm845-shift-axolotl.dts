@@ -60,7 +60,7 @@
 	};
 
 	reserved-memory {
-		framebuffer_region@9d400000 {
+		framebuffer@9d400000 {
 			reg = <0x0 0x9d400000 0x0 (1080 * 2160 * 4)>;
 			no-map;
 		};

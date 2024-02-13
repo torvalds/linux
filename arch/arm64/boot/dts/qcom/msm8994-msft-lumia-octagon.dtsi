@@ -377,7 +377,7 @@
 &blsp2_i2c1 {
 	status = "okay";
 
-	sideinteraction: ad7147_captouch@2c {
+	sideinteraction: touch@2c {
 		compatible = "ad,ad7147_captouch";
 		reg = <0x2c>;
 

@@ -817,7 +817,7 @@
 				bits = <1 3>;
 			};
 
-			gpu_speed_bin: gpu_speed_bin@1d2 {
+			gpu_speed_bin: gpu-speed-bin@1d2 {
 				reg = <0x1d2 0x2>;
 				bits = <5 8>;
 			};

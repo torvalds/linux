@@ -115,7 +115,7 @@
 			no-map;
 		};
 
-		trusted_apps_mem: trusted_apps@c1800000 {
+		trusted_apps_mem: trusted-apps@c1800000 {
 			reg = <0x0 0xc1800000 0x0 0x1c00000>;
 			no-map;
 		};

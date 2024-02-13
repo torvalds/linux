@@ -2472,7 +2472,7 @@
 					type = "passive";
 				};
 
-				gpu_crit: gpu_crit {
+				gpu_crit: gpu-crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";

@@ -967,7 +967,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			gpu_speed_bin: gpu_speed_bin@133 {
+			gpu_speed_bin: gpu-speed-bin@133 {
 				reg = <0x133 0x1>;
 				bits = <5 3>;
 			};
@@ -2463,7 +2463,7 @@
 				bias-disable;
 			};
 
-			qup_spi6_default: qup-spi6_default-state {
+			qup_spi6_default: qup-spi6-default-state {
 				pins = "gpio4", "gpio5", "gpio6", "gpio7";
 				function = "qup6";
 				drive-strength = <6>;
@@ -2477,7 +2477,7 @@
 				bias-disable;
 			};
 
-			qup_spi7_default: qup-spi7_default-state {
+			qup_spi7_default: qup-spi7-default-state {
 				pins = "gpio98", "gpio99", "gpio100", "gpio101";
 				function = "qup7";
 				drive-strength = <6>;
@@ -5110,7 +5110,7 @@
 					hysteresis = <2000>;
 					type = "hot";
 				};
-				cluster0_crit: cluster0_crit {
+				cluster0_crit: cluster0-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -5130,7 +5130,7 @@
 					hysteresis = <2000>;
 					type = "hot";
 				};
-				cluster1_crit: cluster1_crit {
+				cluster1_crit: cluster1-crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";

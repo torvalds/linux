@@ -782,12 +782,12 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			qusb2p_hstx_trim: hstx_trim@24e {
+			qusb2p_hstx_trim: hstx-trim@24e {
 				reg = <0x24e 0x2>;
 				bits = <5 4>;
 			};
 
-			qusb2s_hstx_trim: hstx_trim@24f {
+			qusb2s_hstx_trim: hstx-trim@24f {
 				reg = <0x24f 0x1>;
 				bits = <1 4>;
 			};
