@@ -719,6 +719,16 @@ static int dom_data_init(struct rdt_resource *r)
 	return 0;
 }
 
+static void __exit dom_data_exit(void)
+{
+	mutex_lock(&rdtgroup_mutex);
+
+	kfree(rmid_ptrs);
+	rmid_ptrs = NULL;
+
+	mutex_unlock(&rdtgroup_mutex);
+}
+
 static struct mon_evt llc_occupancy_event = {
 	.name		= "llc_occupancy",
 	.evtid		= QOS_L3_OCCUP_EVENT_ID,
@@ -812,6 +822,11 @@ int __init rdt_get_mon_l3_config(struct rdt_resource *r)
 	r->mon_capable = true;
 
 	return 0;
+}
+
+void __exit rdt_put_mon_l3_config(void)
+{
+	dom_data_exit();
 }
 
 void __init intel_rdt_mbm_apply_quirk(void)
