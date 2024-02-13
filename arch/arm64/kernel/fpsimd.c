@@ -1134,6 +1134,8 @@ void cpu_enable_sve(const struct arm64_cpu_capabilities *__always_unused p)
 {
 	write_sysreg(read_sysreg(CPACR_EL1) | CPACR_EL1_ZEN_EL1EN, CPACR_EL1);
 	isb();
+
+	write_sysreg_s(0, SYS_ZCR_EL1);
 }
 
 void __init sve_setup(void)
