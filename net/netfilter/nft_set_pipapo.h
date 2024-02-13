@@ -106,6 +106,7 @@ union nft_pipapo_map_bucket {
  * struct nft_pipapo_field - Lookup, mapping tables and related data for a field
  * @rules:	Number of inserted rules
  * @bsize:	Size of each bucket in lookup table, in longs
+ * @rules_alloc: Number of allocated rules, always >= rules
  * @groups:	Amount of bit groups
  * @bb:		Number of bits grouped together in lookup table buckets
  * @lt:		Lookup table: 'groups' rows of buckets
@@ -114,6 +115,7 @@ union nft_pipapo_map_bucket {
 struct nft_pipapo_field {
 	unsigned int rules;
 	unsigned int bsize;
+	unsigned int rules_alloc;
 	u8 groups;
 	u8 bb;
 	unsigned long *lt;
