@@ -3,8 +3,8 @@
  * Copyright © 2023 Intel Corporation
  */
 
-#ifndef _GUC_ACTIONS_PF_ABI_H
-#define _GUC_ACTIONS_PF_ABI_H
+#ifndef _ABI_GUC_ACTIONS_SRIOV_ABI_H
+#define _ABI_GUC_ACTIONS_SRIOV_ABI_H
 
 #include "guc_communication_ctb_abi.h"
 
