@@ -516,7 +516,7 @@ static inline void idxd_set_user_intr(struct idxd_device *idxd, bool enable)
 	iowrite32(reg.bits, idxd->reg_base + IDXD_GENCFG_OFFSET);
 }
 
-extern struct bus_type dsa_bus_type;
+extern const struct bus_type dsa_bus_type;
 
 extern bool support_enqcmd;
 extern struct ida idxd_ida;
