@@ -5,6 +5,7 @@
  * Copyright (C) 2022 Renesas Electronics Corp.
  */
 
+#include <linux/delay.h>
 #include "rzg2l-cru.h"
 
 struct rzg2l_cru_ip_format {
@@ -70,6 +71,8 @@ static int rzg2l_cru_ip_s_stream(struct v4l2_subdev *sd, int enable)
 			ret = 0;
 		if (ret)
 			return ret;
+
+		fsleep(1000);
 
 		ret = rzg2l_cru_start_image_processing(cru);
 		if (ret) {
