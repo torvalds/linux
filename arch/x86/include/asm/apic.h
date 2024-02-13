@@ -48,7 +48,10 @@ static inline void x86_32_probe_apic(void) { }
 
 extern u32 cpuid_to_apicid[];
 
+#define CPU_ACPIID_INVALID	U32_MAX
+
 #ifdef CONFIG_X86_LOCAL_APIC
+
 extern int apic_verbosity;
 extern int local_apic_timer_c2_ok;
 
