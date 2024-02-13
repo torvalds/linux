@@ -29,8 +29,8 @@ u32 cpuid_to_apicid[] __read_mostly = { [0 ... NR_CPUS - 1] = BAD_APICID, };
  */
 static u32 disabled_cpu_apicid __ro_after_init = BAD_APICID;
 
-unsigned int num_processors;
-unsigned disabled_cpus;
+static unsigned int num_processors;
+static unsigned int disabled_cpus;
 
 /*
  * The number of allocated logical CPU IDs. Since logical CPU IDs are allocated
@@ -174,6 +174,71 @@ static int generic_processor_info(int apicid)
 	return cpu;
 }
 
+static int __initdata setup_possible_cpus = -1;
+
+/*
+ * cpu_possible_mask should be static, it cannot change as cpu's
+ * are onlined, or offlined. The reason is per-cpu data-structures
+ * are allocated by some modules at init time, and don't expect to
+ * do this dynamically on cpu arrival/departure.
+ * cpu_present_mask on the other hand can change dynamically.
+ * In case when cpu_hotplug is not compiled, then we resort to current
+ * behaviour, which is cpu_possible == cpu_present.
+ * - Ashok Raj
+ *
+ * Three ways to find out the number of additional hotplug CPUs:
+ * - If the BIOS specified disabled CPUs in ACPI/mptables use that.
+ * - The user can overwrite it with possible_cpus=NUM
+ * - Otherwise don't reserve additional CPUs.
+ * We do this because additional CPUs waste a lot of memory.
+ * -AK
+ */
+__init void prefill_possible_map(void)
+{
+	int i, possible;
+
+	i = setup_max_cpus ?: 1;
+	if (setup_possible_cpus == -1) {
+		possible = num_processors;
+#ifdef CONFIG_HOTPLUG_CPU
+		if (setup_max_cpus)
+			possible += disabled_cpus;
+#else
+		if (possible > i)
+			possible = i;
+#endif
+	} else
+		possible = setup_possible_cpus;
+
+	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
+
+	/* nr_cpu_ids could be reduced via nr_cpus= */
+	if (possible > nr_cpu_ids) {
+		pr_warn("%d Processors exceeds NR_CPUS limit of %u\n",
+			possible, nr_cpu_ids);
+		possible = nr_cpu_ids;
+	}
+
+#ifdef CONFIG_HOTPLUG_CPU
+	if (!setup_max_cpus)
+#endif
+	if (possible > i) {
+		pr_warn("%d Processors exceeds max_cpus limit of %u\n",
+			possible, setup_max_cpus);
+		possible = i;
+	}
+
+	set_nr_cpu_ids(possible);
+
+	pr_info("Allowing %d CPUs, %d hotplug CPUs\n",
+		possible, max_t(int, possible - num_processors, 0));
+
+	reset_cpu_possible_mask();
+
+	for (i = 0; i < possible; i++)
+		set_cpu_possible(i, true);
+}
+
 /**
  * topology_register_apic - Register an APIC in early topology maps
  * @apic_id:	The APIC ID to set up
@@ -250,6 +315,13 @@ void topology_hotunplug_apic(unsigned int cpu)
 	num_processors--;
 }
 #endif
+
+static int __init _setup_possible_cpus(char *str)
+{
+	get_option(&str, &setup_possible_cpus);
+	return 0;
+}
+early_param("possible_cpus", _setup_possible_cpus);
 
 static int __init apic_set_disabled_cpu_apicid(char *arg)
 {

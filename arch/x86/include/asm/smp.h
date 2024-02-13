@@ -9,7 +9,6 @@
 #include <asm/thread_info.h>
 
 extern int smp_num_siblings;
-extern unsigned int num_processors;
 
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_sibling_map);
 DECLARE_PER_CPU_READ_MOSTLY(cpumask_var_t, cpu_core_map);
@@ -173,8 +172,6 @@ static inline struct cpumask *cpu_llc_shared_mask(int cpu)
 	return (struct cpumask *)cpumask_of(0);
 }
 #endif /* CONFIG_SMP */
-
-extern unsigned disabled_cpus;
 
 #ifdef CONFIG_DEBUG_NMI_SELFTEST
 extern void nmi_selftest(void);
