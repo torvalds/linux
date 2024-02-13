@@ -23,6 +23,8 @@
 #include <linux/serial_core.h>
 #include <linux/pgtable.h>
 
+#include <xen/xen.h>
+
 #include <asm/e820/api.h>
 #include <asm/irqdomain.h>
 #include <asm/pci_x86.h>
@@ -166,7 +168,8 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 
 static __init void acpi_register_lapic(u32 apic_id, u32 acpi_id, bool present)
 {
-	topology_register_apic(apic_id, acpi_id, present);
+	if (!xen_pv_domain())
+		topology_register_apic(apic_id, acpi_id, present);
 }
 
 static bool __init acpi_is_processor_usable(u32 lapic_flags)
@@ -1087,7 +1090,8 @@ static int __init early_acpi_parse_madt_lapic_addr_ovr(void)
 		return count;
 	}
 
-	register_lapic_address(acpi_lapic_addr);
+	if (!xen_pv_domain())
+		register_lapic_address(acpi_lapic_addr);
 
 	return count;
 }
