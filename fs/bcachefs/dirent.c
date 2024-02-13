@@ -508,7 +508,7 @@ u64 bch2_dirent_lookup(struct bch_fs *c, subvol_inum dir,
 	return ret;
 }
 
-int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 snapshot)
+int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 subvol, u32 snapshot)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -518,6 +518,9 @@ int bch2_empty_dir_snapshot(struct btree_trans *trans, u64 dir, u32 snapshot)
 			   SPOS(dir, 0, snapshot),
 			   POS(dir, U64_MAX), 0, k, ret)
 		if (k.k->type == KEY_TYPE_dirent) {
+			struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
+			if (d.v->d_type == DT_SUBVOL && le32_to_cpu(d.v->d_parent_subvol) != subvol)
+				continue;
 			ret = -ENOTEMPTY;
 			break;
 		}
@@ -531,7 +534,7 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 	u32 snapshot;
 
 	return bch2_subvolume_get_snapshot(trans, dir.subvol, &snapshot) ?:
-		bch2_empty_dir_snapshot(trans, dir.inum, snapshot);
+		bch2_empty_dir_snapshot(trans, dir.inum, dir.subvol, snapshot);
 }
 
 int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
