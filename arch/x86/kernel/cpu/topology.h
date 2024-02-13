@@ -15,7 +15,6 @@ struct topo_scan {
 	u16			amd_node_id;
 };
 
-bool topo_is_converted(struct cpuinfo_x86 *c);
 void cpu_init_topology(struct cpuinfo_x86 *c);
 void cpu_parse_topology(struct cpuinfo_x86 *c);
 void topology_set_dom(struct topo_scan *tscan, enum x86_topology_domains dom,

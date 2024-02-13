@@ -68,18 +68,6 @@ static void parse_legacy(struct topo_scan *tscan)
 	topology_set_dom(tscan, TOPO_CORE_DOMAIN, core_shift, cores);
 }
 
-bool topo_is_converted(struct cpuinfo_x86 *c)
-{
-	/* Temporary until everything is converted over. */
-	switch (boot_cpu_data.x86_vendor) {
-	case X86_VENDOR_HYGON:
-		return false;
-	default:
-		/* Let all UP systems use the below */
-		return true;
-	}
-}
-
 static bool fake_topology(struct topo_scan *tscan)
 {
 	/*
@@ -144,6 +132,10 @@ static void parse_topology(struct topo_scan *tscan, bool early)
 		if (!IS_ENABLED(CONFIG_CPU_SUP_INTEL) || !cpu_parse_topology_ext(tscan))
 			parse_legacy(tscan);
 		break;
+	case X86_VENDOR_HYGON:
+		if (IS_ENABLED(CONFIG_CPU_SUP_HYGON))
+			cpu_parse_topology_amd(tscan);
+		break;
 	}
 }
 
@@ -187,9 +179,6 @@ void cpu_parse_topology(struct cpuinfo_x86 *c)
 
 	parse_topology(&tscan, false);
 
-	if (!topo_is_converted(c))
-		return;
-
 	for (dom = TOPO_SMT_DOMAIN; dom < TOPO_MAX_DOMAIN; dom++) {
 		if (tscan.dom_shifts[dom] == x86_topo_system.dom_shifts[dom])
 			continue;
@@ -217,9 +206,6 @@ void __init cpu_init_topology(struct cpuinfo_x86 *c)
 	unsigned int dom, sft;
 
 	parse_topology(&tscan, true);
-
-	if (!topo_is_converted(c))
-		return;
 
 	/* Copy the shift values and calculate the unit sizes. */
 	memcpy(x86_topo_system.dom_shifts, tscan.dom_shifts, sizeof(x86_topo_system.dom_shifts));
