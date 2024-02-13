@@ -348,8 +348,8 @@ void __init topology_init_possible_cpus(void)
 {
 	unsigned int assigned = topo_info.nr_assigned_cpus;
 	unsigned int disabled = topo_info.nr_disabled_cpus;
+	unsigned int cnta, cntb, cpu, allowed = 1;
 	unsigned int total = assigned + disabled;
-	unsigned int cpu, allowed = 1;
 	u32 apicid;
 
 	if (!restrict_to_up()) {
@@ -371,6 +371,24 @@ void __init topology_init_possible_cpus(void)
 
 	total_cpus = allowed;
 	set_nr_cpu_ids(allowed);
+
+	cnta = domain_weight(TOPO_PKG_DOMAIN);
+	cntb = domain_weight(TOPO_DIE_DOMAIN);
+	__max_logical_packages = cnta;
+	__max_dies_per_package = 1U << (get_count_order(cntb) - get_count_order(cnta));
+
+	pr_info("Max. logical packages: %3u\n", cnta);
+	pr_info("Max. logical dies:     %3u\n", cntb);
+	pr_info("Max. dies per package: %3u\n", __max_dies_per_package);
+
+	cnta = domain_weight(TOPO_CORE_DOMAIN);
+	cntb = domain_weight(TOPO_SMT_DOMAIN);
+	/*
+	 * Can't use order delta here as order(cnta) can be equal
+	 * order(cntb) even if cnta != cntb.
+	 */
+	smp_num_siblings = DIV_ROUND_UP(cntb, cnta);
+	pr_info("Max. threads per core: %3u\n", smp_num_siblings);
 
 	pr_info("Allowing %u present CPUs plus %u hotplug CPUs\n", assigned, disabled);
 	if (topo_info.nr_rejected_cpus)

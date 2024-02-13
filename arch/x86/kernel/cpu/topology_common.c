@@ -196,16 +196,6 @@ void cpu_parse_topology(struct cpuinfo_x86 *c)
 		       tscan.dom_shifts[dom], x86_topo_system.dom_shifts[dom]);
 	}
 
-	/* Bug compatible with the existing parsers */
-	if (tscan.dom_ncpus[TOPO_SMT_DOMAIN] > smp_num_siblings) {
-		if (system_state == SYSTEM_BOOTING) {
-			pr_warn_once("CPU%d: SMT detected and enabled late\n", cpu);
-			smp_num_siblings = tscan.dom_ncpus[TOPO_SMT_DOMAIN];
-		} else {
-			pr_warn_once("CPU%d: SMT detected after init. Too late!\n", cpu);
-		}
-	}
-
 	topo_set_ids(&tscan);
 	topo_set_max_cores(&tscan);
 }
@@ -231,20 +221,6 @@ void __init cpu_init_topology(struct cpuinfo_x86 *c)
 	topo_set_ids(&tscan);
 	topo_set_max_cores(&tscan);
 
-	/*
-	 * Bug compatible with the existing code. If the boot CPU does not
-	 * have SMT this ends up with one sibling. This needs way deeper
-	 * changes further down the road to get it right during early boot.
-	 */
-	smp_num_siblings = tscan.dom_ncpus[TOPO_SMT_DOMAIN];
-
-	/*
-	 * Neither it's clear whether there are as many dies as the APIC
-	 * space indicating die level is. But assume that the actual number
-	 * of CPUs gives a proper indication for now to stay bug compatible.
-	 */
-	__max_die_per_package = tscan.dom_ncpus[TOPO_DIE_DOMAIN] /
-		tscan.dom_ncpus[TOPO_DIE_DOMAIN - 1];
 	/*
 	 * AMD systems have Nodes per package which cannot be mapped to
 	 * APIC ID.
