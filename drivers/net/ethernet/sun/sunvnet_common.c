@@ -39,7 +39,7 @@
  */
 #define	VNET_MAX_RETRIES	10
 
-MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("Sun LDOM virtual network support library");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1");

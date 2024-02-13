@@ -2405,7 +2405,7 @@ static void __exit ip6gre_fini(void)
 module_init(ip6gre_init);
 module_exit(ip6gre_fini);
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("D. Kozlov (xeb@mail.ru)");
+MODULE_AUTHOR("D. Kozlov <xeb@mail.ru>");
 MODULE_DESCRIPTION("GRE over IPv6 tunneling device");
 MODULE_ALIAS_RTNL_LINK("ip6gre");
 MODULE_ALIAS_RTNL_LINK("ip6gretap");

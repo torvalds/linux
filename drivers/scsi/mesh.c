@@ -54,7 +54,7 @@
 #define KERN_DEBUG KERN_WARNING
 #endif
 
-MODULE_AUTHOR("Paul Mackerras (paulus@samba.org)");
+MODULE_AUTHOR("Paul Mackerras <paulus@samba.org>");
 MODULE_DESCRIPTION("PowerMac MESH SCSI driver");
 MODULE_LICENSE("GPL");
 
