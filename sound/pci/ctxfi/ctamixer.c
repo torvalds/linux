@@ -292,7 +292,7 @@ static int put_amixer_rsc(struct amixer_mgr *mgr, struct amixer *amixer)
 	return 0;
 }
 
-int amixer_mgr_create(struct hw *hw, struct amixer_mgr **ramixer_mgr)
+int amixer_mgr_create(struct hw *hw, void **ramixer_mgr)
 {
 	int err;
 	struct amixer_mgr *amixer_mgr;
@@ -321,8 +321,9 @@ error:
 	return err;
 }
 
-int amixer_mgr_destroy(struct amixer_mgr *amixer_mgr)
+int amixer_mgr_destroy(void *ptr)
 {
+	struct amixer_mgr *amixer_mgr = ptr;
 	rsc_mgr_uninit(&amixer_mgr->mgr);
 	kfree(amixer_mgr);
 	return 0;
@@ -446,7 +447,7 @@ static int put_sum_rsc(struct sum_mgr *mgr, struct sum *sum)
 	return 0;
 }
 
-int sum_mgr_create(struct hw *hw, struct sum_mgr **rsum_mgr)
+int sum_mgr_create(struct hw *hw, void **rsum_mgr)
 {
 	int err;
 	struct sum_mgr *sum_mgr;
@@ -475,8 +476,9 @@ error:
 	return err;
 }
 
-int sum_mgr_destroy(struct sum_mgr *sum_mgr)
+int sum_mgr_destroy(void *ptr)
 {
+	struct sum_mgr *sum_mgr = ptr;
 	rsc_mgr_uninit(&sum_mgr->mgr);
 	kfree(sum_mgr);
 	return 0;
