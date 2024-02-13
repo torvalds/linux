@@ -161,13 +161,6 @@ int __init amd_numa_init(void)
 	 */
 	cores = topology_get_domain_size(TOPO_CORE_DOMAIN);
 
-	/*
-	 * Scan MPTABLE to map the local APIC and ensure that the boot CPU
-	 * APIC ID is valid. This is required because on pre ACPI/SRAT
-	 * systems IO-APICs are mapped before the boot CPU.
-	 */
-	early_get_smp_config();
-
 	apicid = boot_cpu_physical_apicid;
 	if (apicid > 0)
 		pr_info("BSP APIC ID: %02x\n", apicid);

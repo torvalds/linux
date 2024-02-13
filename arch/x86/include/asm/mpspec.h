@@ -46,11 +46,6 @@ extern int smp_found_config;
 # define smp_found_config 0
 #endif
 
-static inline void early_get_smp_config(void)
-{
-	x86_init.mpparse.early_parse_smp_cfg();
-}
-
 #ifdef CONFIG_X86_MPPARSE
 extern void e820__memblock_alloc_reserved_mpc_new(void);
 extern int enable_update_mptable;
