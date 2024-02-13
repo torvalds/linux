@@ -1336,16 +1336,16 @@ test_pmtu_ipvX_over_bridged_vxlanY_or_geneveY_exception() {
 		else
 			TCPDST="TCP:[${dst}]:50000"
 		fi
-		${ns_b} socat -T 3 -u -6 TCP-LISTEN:50000 STDOUT > $tmpoutfile &
+		${ns_b} socat -T 3 -u -6 TCP-LISTEN:50000,reuseaddr STDOUT > $tmpoutfile &
 		local socat_pid=$!
 
 		wait_local_port_listen ${NS_B} 50000 tcp
 
 		dd if=/dev/zero status=none bs=1M count=1 | ${target} socat -T 3 -u STDIN $TCPDST,connect-timeout=3
 
+		wait ${socat_pid}
 		size=$(du -sb $tmpoutfile)
 		size=${size%%/tmp/*}
-		wait ${socat_pid}
 
 		[ $size -ne 1048576 ] && err "File size $size mismatches exepcted value in locally bridged vxlan test" && return 1
 	done
