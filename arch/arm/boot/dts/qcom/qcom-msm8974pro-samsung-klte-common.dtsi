@@ -661,6 +661,12 @@
 		reg = <1>;
 		compatible = "brcm,bcm4329-fmac";
 
+		/*
+		 * Allow all klte* variants to load the same NVRAM file,
+		 * as they have little difference in the WiFi part.
+		 */
+		brcm,board-type = "samsung,klte";
+
 		interrupt-parent = <&tlmm>;
 		interrupts = <92 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "host-wake";
