@@ -1460,7 +1460,7 @@ void restore_boot_irq_mode(void)
  */
 static void __init setup_ioapic_ids_from_mpc_nocheck(void)
 {
-	physid_mask_t phys_id_present_map;
+	DECLARE_BITMAP(phys_id_present_map, MAX_LOCAL_APIC);
 	const u32 broadcast_id = 0xF;
 	union IO_APIC_reg_00 reg_00;
 	unsigned char old_id;
@@ -1471,7 +1471,7 @@ static void __init setup_ioapic_ids_from_mpc_nocheck(void)
 	 * This is broken; anything with a real cpu count has to
 	 * circumvent this idiocy regardless.
 	 */
-	phys_id_present_map = phys_cpu_present_map;
+	copy_phys_cpu_present_map(phys_id_present_map);
 
 	/*
 	 * Set the IOAPIC ID to the value stored in the MPC table.
@@ -1496,21 +1496,21 @@ static void __init setup_ioapic_ids_from_mpc_nocheck(void)
 		 * system must have a unique ID or we get lots of nice
 		 * 'stuck on smp_invalidate_needed IPI wait' messages.
 		 */
-		if (physid_isset(mpc_ioapic_id(ioapic_idx), phys_id_present_map)) {
+		if (test_bit(mpc_ioapic_id(ioapic_idx), phys_id_present_map)) {
 			pr_err(FW_BUG "IO-APIC#%d ID %d is already used!...\n",
 			       ioapic_idx, mpc_ioapic_id(ioapic_idx));
 			for (i = 0; i < broadcast_id; i++)
-				if (!physid_isset(i, phys_id_present_map))
+				if (!test_bit(i, phys_id_present_map))
 					break;
 			if (i >= broadcast_id)
 				panic("Max APIC ID exceeded!\n");
 			pr_err("... fixing up to %d. (tell your hw vendor)\n", i);
-			physid_set(i, phys_id_present_map);
+			set_bit(i, phys_id_present_map);
 			ioapics[ioapic_idx].mp_config.apicid = i;
 		} else {
 			apic_printk(APIC_VERBOSE, "Setting %d in the phys_id_present_map\n",
 				    mpc_ioapic_id(ioapic_idx));
-			physid_set(mpc_ioapic_id(ioapic_idx), phys_id_present_map);
+			set_bit(mpc_ioapic_id(ioapic_idx), phys_id_present_map);
 		}
 
 		/*
@@ -2491,15 +2491,15 @@ unsigned int arch_dynirq_lower_bound(unsigned int from)
 #ifdef CONFIG_X86_32
 static int io_apic_get_unique_id(int ioapic, int apic_id)
 {
-	static physid_mask_t apic_id_map = PHYSID_MASK_NONE;
+	static DECLARE_BITMAP(apic_id_map, MAX_LOCAL_APIC);
 	const u32 broadcast_id = 0xF;
 	union IO_APIC_reg_00 reg_00;
 	unsigned long flags;
 	int i = 0;
 
 	/* Initialize the ID map */
-	if (physids_empty(apic_id_map))
-		apic_id_map = phys_cpu_present_map;
+	if (bitmap_empty(apic_id_map, MAX_LOCAL_APIC))
+		copy_phys_cpu_present_map(apic_id_map);
 
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	reg_00.raw = io_apic_read(ioapic, 0);
@@ -2512,9 +2512,9 @@ static int io_apic_get_unique_id(int ioapic, int apic_id)
 	}
 
 	/* Every APIC in a system must have a unique ID */
-	if (physid_isset(apic_id, apic_id_map)) {
+	if (test_bit(apic_id, apic_id_map)) {
 		for (i = 0; i < broadcast_id; i++) {
-			if (!physid_isset(i, apic_id_map))
+			if (!test_bit(i, apic_id_map))
 				break;
 		}
 
@@ -2525,7 +2525,7 @@ static int io_apic_get_unique_id(int ioapic, int apic_id)
 		apic_id = i;
 	}
 
-	physid_set(apic_id, apic_id_map);
+	set_bit(apic_id, apic_id_map);
 
 	if (reg_00.bits.ID != apic_id) {
 		reg_00.bits.ID = apic_id;
