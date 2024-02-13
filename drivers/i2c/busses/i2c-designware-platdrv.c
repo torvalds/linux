@@ -290,7 +290,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	dev->flags = (uintptr_t)device_get_match_data(&pdev->dev);
 	if (device_property_present(&pdev->dev, "wx,i2c-snps-model"))
-		dev->flags = MODEL_WANGXUN_SP;
+		dev->flags = MODEL_WANGXUN_SP | ACCESS_POLLING;
 
 	dev->dev = &pdev->dev;
 	dev->irq = irq;
