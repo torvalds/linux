@@ -22,7 +22,6 @@
 #ifndef _EDAC_DEVICE_H_
 #define _EDAC_DEVICE_H_
 
-#include <linux/completion.h>
 #include <linux/device.h>
 #include <linux/edac.h>
 #include <linux/kobject.h>
@@ -190,8 +189,6 @@ struct edac_device_ctl_info {
 	void *pvt_info;		/* pointer to 'private driver' info */
 
 	unsigned long start_time;	/* edac_device load start time (jiffies) */
-
-	struct completion removal_complete;
 
 	/* sysfs top name under 'edac' directory
 	 * and instance name:
