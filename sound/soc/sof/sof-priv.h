@@ -595,6 +595,7 @@ struct snd_sof_dev {
 	struct list_head dfsentry_list;
 	bool dbg_dump_printed;
 	bool ipc_dump_printed;
+	bool d3_prevented; /* runtime pm use count incremented to prevent context lost */
 
 	/* firmware loader */
 	struct sof_ipc_fw_ready fw_ready;
