@@ -133,7 +133,7 @@ static void cpu_update_apic(int cpu, u32 apicid)
 		cpu_mark_primary_thread(cpu, apicid);
 }
 
-int generic_processor_info(int apicid)
+static int generic_processor_info(int apicid)
 {
 	int cpu, max = nr_cpu_ids;
 
