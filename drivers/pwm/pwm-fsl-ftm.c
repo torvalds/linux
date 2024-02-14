@@ -40,7 +40,6 @@ struct fsl_pwm_periodcfg {
 };
 
 struct fsl_pwm_chip {
-	struct pwm_chip chip;
 	struct mutex lock;
 	struct regmap *regmap;
 
@@ -55,7 +54,7 @@ struct fsl_pwm_chip {
 
 static inline struct fsl_pwm_chip *to_fsl_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct fsl_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static void ftm_clear_write_protection(struct fsl_pwm_chip *fpc)
@@ -398,15 +397,14 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	void __iomem *base;
 	int ret;
 
-	fpc = devm_kzalloc(&pdev->dev, sizeof(*fpc), GFP_KERNEL);
-	if (!fpc)
-		return -ENOMEM;
-	chip = &fpc->chip;
+	chip = devm_pwmchip_alloc(&pdev->dev, 8, sizeof(*fpc));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	fpc = to_fsl_chip(chip);
 
 	mutex_init(&fpc->lock);
 
 	fpc->soc = of_device_get_match_data(&pdev->dev);
-	chip->dev = &pdev->dev;
 
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
@@ -446,9 +444,7 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(fpc->ipg_clk))
 		fpc->ipg_clk = fpc->clk[FSL_PWM_CLK_SYS];
 
-
 	chip->ops = &fsl_pwm_ops;
-	chip->npwm = 8;
 
 	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret < 0) {
