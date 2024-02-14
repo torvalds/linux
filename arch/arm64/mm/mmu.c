@@ -1486,3 +1486,35 @@ void ptep_modify_prot_commit(struct vm_area_struct *vma, unsigned long addr, pte
 {
 	set_pte_at(vma->vm_mm, addr, ptep, pte);
 }
+
+/*
+ * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
+ * avoiding the possibility of conflicting TLB entries being allocated.
+ */
+void __cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap, bool cnp)
+{
+	typedef void (ttbr_replace_func)(phys_addr_t);
+	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
+	ttbr_replace_func *replace_phys;
+	unsigned long daif;
+
+	/* phys_to_ttbr() zeros lower 2 bits of ttbr with 52-bit PA */
+	phys_addr_t ttbr1 = phys_to_ttbr(virt_to_phys(pgdp));
+
+	if (cnp)
+		ttbr1 |= TTBR_CNP_BIT;
+
+	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
+
+	__cpu_install_idmap(idmap);
+
+	/*
+	 * We really don't want to take *any* exceptions while TTBR1 is
+	 * in the process of being replaced so mask everything.
+	 */
+	daif = local_daif_save();
+	replace_phys(ttbr1);
+	local_daif_restore(daif);
+
+	cpu_uninstall_idmap();
+}
