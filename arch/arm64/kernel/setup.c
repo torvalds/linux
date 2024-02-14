@@ -288,7 +288,7 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	 * mappings from the start, avoiding the cost of rewriting
 	 * everything later.
 	 */
-	arm64_use_ng_mappings = kaslr_requires_kpti();
+	arm64_use_ng_mappings = kaslr_enabled() && kaslr_requires_kpti();
 
 	early_fixmap_init();
 	early_ioremap_init();

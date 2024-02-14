@@ -1620,46 +1620,6 @@ has_useable_cnp(const struct arm64_cpu_capabilities *entry, int scope)
 	return has_cpuid_feature(entry, scope);
 }
 
-/*
- * This check is triggered during the early boot before the cpufeature
- * is initialised. Checking the status on the local CPU allows the boot
- * CPU to detect the need for non-global mappings and thus avoiding a
- * pagetable re-write after all the CPUs are booted. This check will be
- * anyway run on individual CPUs, allowing us to get the consistent
- * state once the SMP CPUs are up and thus make the switch to non-global
- * mappings if required.
- */
-bool kaslr_requires_kpti(void)
-{
-	if (!IS_ENABLED(CONFIG_RANDOMIZE_BASE))
-		return false;
-
-	/*
-	 * E0PD does a similar job to KPTI so can be used instead
-	 * where available.
-	 */
-	if (IS_ENABLED(CONFIG_ARM64_E0PD)) {
-		u64 mmfr2 = read_sysreg_s(SYS_ID_AA64MMFR2_EL1);
-		if (cpuid_feature_extract_unsigned_field(mmfr2,
-						ID_AA64MMFR2_EL1_E0PD_SHIFT))
-			return false;
-	}
-
-	/*
-	 * Systems affected by Cavium erratum 24756 are incompatible
-	 * with KPTI.
-	 */
-	if (IS_ENABLED(CONFIG_CAVIUM_ERRATUM_27456)) {
-		extern const struct midr_range cavium_erratum_27456_cpus[];
-
-		if (is_midr_in_range_list(read_cpuid_id(),
-					  cavium_erratum_27456_cpus))
-			return false;
-	}
-
-	return kaslr_enabled();
-}
-
 static bool __meltdown_safe = true;
 static int __kpti_forced; /* 0: not forced, >0: forced on, <0: forced off */
 
@@ -1712,7 +1672,7 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 	}
 
 	/* Useful for KASLR robustness */
-	if (kaslr_requires_kpti()) {
+	if (kaslr_enabled() && kaslr_requires_kpti()) {
 		if (!__kpti_forced) {
 			str = "KASLR";
 			__kpti_forced = 1;
