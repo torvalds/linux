@@ -50,13 +50,13 @@ active_slave_changed()
 	local old_active_slave=$1
 	local new_active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" \
 				".[].linkinfo.info_data.active_slave")
-	test "$old_active_slave" != "$new_active_slave"
+	[ "$new_active_slave" != "$old_active_slave" -a "$new_active_slave" != "null" ]
 }
 
 check_active_slave()
 {
 	local target_active_slave=$1
-	slowwait 2 active_slave_changed $active_slave
+	slowwait 5 active_slave_changed $active_slave
 	active_slave=$(cmd_jq "ip -n ${s_ns} -d -j link show bond0" ".[].linkinfo.info_data.active_slave")
 	test "$active_slave" = "$target_active_slave"
 	check_err $? "Current active slave is $active_slave but not $target_active_slave"
