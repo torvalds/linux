@@ -249,20 +249,11 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 	struct pwm_chip *chip;
 	int ret, npwm;
 
-	pwmc = kzalloc(sizeof(*pwmc), GFP_KERNEL);
-	if (!pwmc)
-		return -ENOMEM;
-
 	connection = gb_connection_create(gbphy_dev->bundle,
 					  le16_to_cpu(gbphy_dev->cport_desc->id),
 					  NULL);
-	if (IS_ERR(connection)) {
-		ret = PTR_ERR(connection);
-		goto exit_pwmc_free;
-	}
-
-	pwmc->connection = connection;
-	gb_gbphy_set_data(gbphy_dev, chip);
+	if (IS_ERR(connection))
+		return PTR_ERR(connection);
 
 	ret = gb_connection_enable(connection);
 	if (ret)
@@ -274,28 +265,34 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 		goto exit_connection_disable;
 	npwm = ret;
 
-	chip = &pwmc->chip;
+	chip = pwmchip_alloc(&gbphy_dev->dev, npwm, sizeof(*pwmc));
+	if (IS_ERR(chip)) {
+		ret = PTR_ERR(chip);
+		goto exit_connection_disable;
+	}
+	gb_gbphy_set_data(gbphy_dev, chip);
 
-	chip->dev = &gbphy_dev->dev;
+	pwmc = pwm_chip_to_gb_pwm_chip(chip);
+	pwmc->connection = connection;
+
 	chip->ops = &gb_pwm_ops;
-	chip->npwm = npwm;
 
 	ret = pwmchip_add(chip);
 	if (ret) {
 		dev_err(&gbphy_dev->dev,
 			"failed to register PWM: %d\n", ret);
-		goto exit_connection_disable;
+		goto exit_pwmchip_put;
 	}
 
 	gbphy_runtime_put_autosuspend(gbphy_dev);
 	return 0;
 
+exit_pwmchip_put:
+	pwmchip_put(chip);
 exit_connection_disable:
 	gb_connection_disable(connection);
 exit_connection_destroy:
 	gb_connection_destroy(connection);
-exit_pwmc_free:
-	kfree(pwmc);
 	return ret;
 }
 
@@ -311,9 +308,9 @@ static void gb_pwm_remove(struct gbphy_device *gbphy_dev)
 		gbphy_runtime_get_noresume(gbphy_dev);
 
 	pwmchip_remove(chip);
+	pwmchip_put(chip);
 	gb_connection_disable(connection);
 	gb_connection_destroy(connection);
-	kfree(pwmc);
 }
 
 static const struct gbphy_device_id gb_pwm_id_table[] = {
