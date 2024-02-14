@@ -51,7 +51,7 @@ enum board_ids {
 	board_ahci_43bit_dma,
 	board_ahci_ign_iferr,
 	board_ahci_no_debounce_delay,
-	board_ahci_nomsi,
+	board_ahci_no_msi,
 	/*
 	 * board_ahci_pcs_quirk is for legacy Intel platforms.
 	 * Modern Intel platforms should use board_ahci instead.
@@ -151,7 +151,7 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_nomsi] = {
+	[board_ahci_no_msi] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_MSI),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
@@ -621,8 +621,8 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	 * Samsung SSDs found on some macbooks.  NCQ times out if MSI is
 	 * enabled.  https://bugzilla.kernel.org/show_bug.cgi?id=60731
 	 */
-	{ PCI_VDEVICE(SAMSUNG, 0x1600), board_ahci_nomsi },
-	{ PCI_VDEVICE(SAMSUNG, 0xa800), board_ahci_nomsi },
+	{ PCI_VDEVICE(SAMSUNG, 0x1600), board_ahci_no_msi },
+	{ PCI_VDEVICE(SAMSUNG, 0xa800), board_ahci_no_msi },
 
 	/* Enmotus */
 	{ PCI_DEVICE(0x1c44, 0x8000), board_ahci },
