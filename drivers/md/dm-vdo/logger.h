@@ -45,10 +45,6 @@ extern int vdo_log_level;
 
 int uds_get_log_level(void);
 
-int uds_log_string_to_priority(const char *string);
-
-const char *uds_log_priority_to_string(int priority);
-
 void uds_log_embedded_message(int priority, const char *module, const char *prefix,
 			      const char *fmt1, va_list args1, const char *fmt2, ...)
 	__printf(4, 0) __printf(6, 7);
