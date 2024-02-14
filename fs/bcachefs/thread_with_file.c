@@ -384,6 +384,8 @@ static ssize_t bch2_darray_vprintf(darray_char *out, gfp_t gfp, const char *fmt,
 
 		va_copy(args2, args);
 		len = vsnprintf(out->data + out->nr, darray_room(*out), fmt, args2);
+		va_end(args2);
+
 		if (len + 1 <= darray_room(*out)) {
 			out->nr += len;
 			return len;
