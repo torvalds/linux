@@ -132,12 +132,12 @@ static int rcar_pwm_set_counter(struct rcar_pwm_chip *rp, int div, int duty_ns,
 
 static int rcar_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	return pm_runtime_get_sync(chip->dev);
+	return pm_runtime_get_sync(pwmchip_parent(chip));
 }
 
 static void rcar_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
-	pm_runtime_put(chip->dev);
+	pm_runtime_put(pwmchip_parent(chip));
 }
 
 static int rcar_pwm_enable(struct rcar_pwm_chip *rp)
