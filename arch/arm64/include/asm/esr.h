@@ -117,15 +117,9 @@
 #define ESR_ELx_FSC_ACCESS	(0x08)
 #define ESR_ELx_FSC_FAULT	(0x04)
 #define ESR_ELx_FSC_PERM	(0x0C)
-#define ESR_ELx_FSC_SEA_TTW0	(0x14)
-#define ESR_ELx_FSC_SEA_TTW1	(0x15)
-#define ESR_ELx_FSC_SEA_TTW2	(0x16)
-#define ESR_ELx_FSC_SEA_TTW3	(0x17)
+#define ESR_ELx_FSC_SEA_TTW(n)	(0x14 + (n))
 #define ESR_ELx_FSC_SECC	(0x18)
-#define ESR_ELx_FSC_SECC_TTW0	(0x1c)
-#define ESR_ELx_FSC_SECC_TTW1	(0x1d)
-#define ESR_ELx_FSC_SECC_TTW2	(0x1e)
-#define ESR_ELx_FSC_SECC_TTW3	(0x1f)
+#define ESR_ELx_FSC_SECC_TTW(n)	(0x1c + (n))
 
 /* ISS field definitions for Data Aborts */
 #define ESR_ELx_ISV_SHIFT	(24)
@@ -394,6 +388,9 @@ static inline bool esr_is_data_abort(unsigned long esr)
 
 static inline bool esr_fsc_is_translation_fault(unsigned long esr)
 {
+	/* Translation fault, level -1 */
+	if ((esr & ESR_ELx_FSC) == 0b101011)
+		return true;
 	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_FAULT;
 }
 
