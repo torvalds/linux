@@ -124,6 +124,21 @@ static inline bool arch_validate_flags(unsigned long flags)
 #define arch_validate_flags arch_validate_flags
 #endif
 
+#ifndef arch_validate_mmap_prot
+/*
+ * This is called from mmap(), which ignores unknown prot bits so the default
+ * is to accept anything.
+ *
+ * Returns true if the prot flags are valid
+ */
+static inline bool arch_validate_mmap_prot(unsigned long prot,
+					   unsigned long addr)
+{
+	return true;
+}
+#define arch_validate_mmap_prot arch_validate_mmap_prot
+#endif
+
 /*
  * Optimisation macro.  It is equivalent to:
  *      (x & bit1) ? bit2 : 0
