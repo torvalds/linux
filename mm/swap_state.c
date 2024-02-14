@@ -311,8 +311,19 @@ void free_page_and_swap_cache(struct page *page)
 void free_pages_and_swap_cache(struct encoded_page **pages, int nr)
 {
 	lru_add_drain();
-	for (int i = 0; i < nr; i++)
-		free_swap_cache(encoded_page_ptr(pages[i]));
+	for (int i = 0; i < nr; i++) {
+		struct page *page = encoded_page_ptr(pages[i]);
+
+		/*
+		 * Skip over the "nr_pages" entry. It's sufficient to call
+		 * free_swap_cache() only once per folio.
+		 */
+		if (unlikely(encoded_page_flags(pages[i]) &
+			     ENCODED_PAGE_BIT_NR_PAGES_NEXT))
+			i++;
+
+		free_swap_cache(page);
+	}
 	release_pages(pages, nr);
 }
 

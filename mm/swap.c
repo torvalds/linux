@@ -967,10 +967,16 @@ void release_pages(release_pages_arg arg, int nr)
 	unsigned int lock_batch;
 
 	for (i = 0; i < nr; i++) {
+		unsigned int nr_refs = 1;
 		struct folio *folio;
 
 		/* Turn any of the argument types into a folio */
 		folio = page_folio(encoded_page_ptr(encoded[i]));
+
+		/* Is our next entry actually "nr_pages" -> "nr_refs" ? */
+		if (unlikely(encoded_page_flags(encoded[i]) &
+			     ENCODED_PAGE_BIT_NR_PAGES_NEXT))
+			nr_refs = encoded_nr_pages(encoded[++i]);
 
 		/*
 		 * Make sure the IRQ-safe lock-holding time does not get
@@ -990,14 +996,14 @@ void release_pages(release_pages_arg arg, int nr)
 				unlock_page_lruvec_irqrestore(lruvec, flags);
 				lruvec = NULL;
 			}
-			if (put_devmap_managed_page(&folio->page))
+			if (put_devmap_managed_page_refs(&folio->page, nr_refs))
 				continue;
-			if (folio_put_testzero(folio))
+			if (folio_ref_sub_and_test(folio, nr_refs))
 				free_zone_device_page(&folio->page);
 			continue;
 		}
 
-		if (!folio_put_testzero(folio))
+		if (!folio_ref_sub_and_test(folio, nr_refs))
 			continue;
 
 		if (folio_test_large(folio)) {
