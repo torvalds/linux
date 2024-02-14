@@ -55,6 +55,7 @@ PROVIDE(__pi_memstart_offset_seed	= memstart_offset_seed);
 PROVIDE(__pi_init_idmap_pg_dir		= init_idmap_pg_dir);
 PROVIDE(__pi_init_pg_dir		= init_pg_dir);
 PROVIDE(__pi_init_pg_end		= init_pg_end);
+PROVIDE(__pi_swapper_pg_dir		= swapper_pg_dir);
 
 PROVIDE(__pi__text			= _text);
 PROVIDE(__pi__stext               	= _stext);

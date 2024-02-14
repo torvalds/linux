@@ -124,8 +124,12 @@ static void __init map_kernel(u64 kaslr_offset, u64 va_offset, int root_level)
 			    text_prot, true, root_level);
 		map_segment(init_pg_dir, NULL, va_offset, __inittext_begin,
 			    __inittext_end, text_prot, false, root_level);
-		dsb(ishst);
 	}
+
+	/* Copy the root page table to its final location */
+	memcpy((void *)swapper_pg_dir + va_offset, init_pg_dir, PGD_SIZE);
+	dsb(ishst);
+	idmap_cpu_replace_ttbr1(swapper_pg_dir);
 }
 
 static void __init map_fdt(u64 fdt)

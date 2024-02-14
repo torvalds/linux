@@ -170,37 +170,3 @@ void *__init fixmap_remap_fdt(phys_addr_t dt_phys, int *size, pgprot_t prot)
 
 	return dt_virt;
 }
-
-/*
- * Copy the fixmap region into a new pgdir.
- */
-void __init fixmap_copy(pgd_t *pgdir)
-{
-	if (!READ_ONCE(pgd_val(*pgd_offset_pgd(pgdir, FIXADDR_TOT_START)))) {
-		/*
-		 * The fixmap falls in a separate pgd to the kernel, and doesn't
-		 * live in the carveout for the swapper_pg_dir. We can simply
-		 * re-use the existing dir for the fixmap.
-		 */
-		set_pgd(pgd_offset_pgd(pgdir, FIXADDR_TOT_START),
-			READ_ONCE(*pgd_offset_k(FIXADDR_TOT_START)));
-	} else if (CONFIG_PGTABLE_LEVELS > 3) {
-		pgd_t *bm_pgdp;
-		p4d_t *bm_p4dp;
-		pud_t *bm_pudp;
-		/*
-		 * The fixmap shares its top level pgd entry with the kernel
-		 * mapping. This can really only occur when we are running
-		 * with 16k/4 levels, so we can simply reuse the pud level
-		 * entry instead.
-		 */
-		BUG_ON(!IS_ENABLED(CONFIG_ARM64_16K_PAGES));
-		bm_pgdp = pgd_offset_pgd(pgdir, FIXADDR_TOT_START);
-		bm_p4dp = p4d_offset(bm_pgdp, FIXADDR_TOT_START);
-		bm_pudp = pud_set_fixmap_offset(bm_p4dp, FIXADDR_TOT_START);
-		pud_populate(&init_mm, bm_pudp, lm_alias(bm_pmd));
-		pud_clear_fixmap();
-	} else {
-		BUG();
-	}
-}

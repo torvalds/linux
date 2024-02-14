@@ -648,18 +648,15 @@ void mark_rodata_ro(void)
 	debug_checkwx();
 }
 
-static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
-				      pgprot_t prot, struct vm_struct *vma,
-				      int flags, unsigned long vm_flags)
+static void __init declare_vma(struct vm_struct *vma,
+			       void *va_start, void *va_end,
+			       unsigned long vm_flags)
 {
 	phys_addr_t pa_start = __pa_symbol(va_start);
 	unsigned long size = va_end - va_start;
 
 	BUG_ON(!PAGE_ALIGNED(pa_start));
 	BUG_ON(!PAGE_ALIGNED(size));
-
-	__create_pgd_mapping(pgdp, pa_start, (unsigned long)va_start, size, prot,
-			     early_pgtable_alloc, flags);
 
 	if (!(vm_flags & VM_NO_GUARD))
 		size += PAGE_SIZE;
@@ -673,12 +670,12 @@ static void __init map_kernel_segment(pgd_t *pgdp, void *va_start, void *va_end,
 	vm_area_add_early(vma);
 }
 
+#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 static pgprot_t kernel_exec_prot(void)
 {
 	return rodata_enabled ? PAGE_KERNEL_ROX : PAGE_KERNEL_EXEC;
 }
 
-#ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 static int __init map_entry_trampoline(void)
 {
 	int i;
@@ -713,60 +710,17 @@ core_initcall(map_entry_trampoline);
 #endif
 
 /*
- * Open coded check for BTI, only for use to determine configuration
- * for early mappings for before the cpufeature code has run.
+ * Declare the VMA areas for the kernel
  */
-static bool arm64_early_this_cpu_has_bti(void)
+static void __init declare_kernel_vmas(void)
 {
-	u64 pfr1;
+	static struct vm_struct vmlinux_seg[KERNEL_SEGMENT_COUNT];
 
-	if (!IS_ENABLED(CONFIG_ARM64_BTI_KERNEL))
-		return false;
-
-	pfr1 = __read_sysreg_by_encoding(SYS_ID_AA64PFR1_EL1);
-	return cpuid_feature_extract_unsigned_field(pfr1,
-						    ID_AA64PFR1_EL1_BT_SHIFT);
-}
-
-/*
- * Create fine-grained mappings for the kernel.
- */
-static void __init map_kernel(pgd_t *pgdp)
-{
-	static struct vm_struct vmlinux_text, vmlinux_rodata, vmlinux_inittext,
-				vmlinux_initdata, vmlinux_data;
-
-	/*
-	 * External debuggers may need to write directly to the text
-	 * mapping to install SW breakpoints. Allow this (only) when
-	 * explicitly requested with rodata=off.
-	 */
-	pgprot_t text_prot = kernel_exec_prot();
-
-	/*
-	 * If we have a CPU that supports BTI and a kernel built for
-	 * BTI then mark the kernel executable text as guarded pages
-	 * now so we don't have to rewrite the page tables later.
-	 */
-	if (arm64_early_this_cpu_has_bti())
-		text_prot = __pgprot_modify(text_prot, PTE_GP, PTE_GP);
-
-	/*
-	 * Only rodata will be remapped with different permissions later on,
-	 * all other segments are allowed to use contiguous mappings.
-	 */
-	map_kernel_segment(pgdp, _stext, _etext, text_prot, &vmlinux_text, 0,
-			   VM_NO_GUARD);
-	map_kernel_segment(pgdp, __start_rodata, __inittext_begin, PAGE_KERNEL,
-			   &vmlinux_rodata, NO_CONT_MAPPINGS, VM_NO_GUARD);
-	map_kernel_segment(pgdp, __inittext_begin, __inittext_end, text_prot,
-			   &vmlinux_inittext, 0, VM_NO_GUARD);
-	map_kernel_segment(pgdp, __initdata_begin, __initdata_end, PAGE_KERNEL,
-			   &vmlinux_initdata, 0, VM_NO_GUARD);
-	map_kernel_segment(pgdp, _data, _end, PAGE_KERNEL, &vmlinux_data, 0, 0);
-
-	fixmap_copy(pgdp);
-	kasan_copy_shadow(pgdp);
+	declare_vma(&vmlinux_seg[0], _stext, _etext, VM_NO_GUARD);
+	declare_vma(&vmlinux_seg[1], __start_rodata, __inittext_begin, VM_NO_GUARD);
+	declare_vma(&vmlinux_seg[2], __inittext_begin, __inittext_end, VM_NO_GUARD);
+	declare_vma(&vmlinux_seg[3], __initdata_begin, __initdata_end, VM_NO_GUARD);
+	declare_vma(&vmlinux_seg[4], _data, _end, 0);
 }
 
 void __pi_map_range(u64 *pgd, u64 start, u64 end, u64 pa, pgprot_t prot,
@@ -802,23 +756,12 @@ static void __init create_idmap(void)
 
 void __init paging_init(void)
 {
-	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
-	extern pgd_t init_idmap_pg_dir[];
-
-	map_kernel(pgdp);
-	map_mem(pgdp);
-
-	pgd_clear_fixmap();
-
-	cpu_replace_ttbr1(lm_alias(swapper_pg_dir), init_idmap_pg_dir);
-	init_mm.pgd = swapper_pg_dir;
-
-	memblock_phys_free(__pa_symbol(init_pg_dir),
-			   __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
+	map_mem(swapper_pg_dir);
 
 	memblock_allow_resize();
 
 	create_idmap();
+	declare_kernel_vmas();
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG
