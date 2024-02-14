@@ -113,7 +113,7 @@ struct delta_index {
  */
 struct delta_index_page {
 	struct delta_index delta_index;
-	/* These values are loaded from the DeltaPageHeader */
+	/* These values are loaded from the delta_page_header */
 	u32 lowest_list_number;
 	u32 highest_list_number;
 	u64 virtual_chapter_number;

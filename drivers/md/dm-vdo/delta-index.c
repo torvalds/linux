@@ -47,7 +47,7 @@
  *
  * The delta in each entry is encoded with a variable-length Huffman code to minimize the memory
  * used by small deltas. The Huffman code is specified by three parameters, which can be computed
- * from the desired mean delta when the index is full. (See compute_coding constants() for
+ * from the desired mean delta when the index is full. (See compute_coding_constants() for
  * details.)
  *
  * The bit field utilities used to read and write delta entries assume that it is possible to read
@@ -294,8 +294,7 @@ void uds_reset_delta_index(const struct delta_index *delta_index)
  * - The next INCR values code using MINBITS+2 bits.
  * - (and so on).
  */
-static void compute_coding_constants(u32 mean_delta, u16 *min_bits, u32 *min_keys,
-				     u32 *incr_keys)
+static void compute_coding_constants(u32 mean_delta, u16 *min_bits, u32 *min_keys, u32 *incr_keys)
 {
 	/*
 	 * We want to compute the rounded value of log(2) * mean_delta. Since we cannot always use
@@ -617,8 +616,7 @@ static inline void set_zero(u8 *memory, u64 offset, u32 size)
  * Move several bits from a higher to a lower address, moving the lower addressed bits first. The
  * size and memory offsets are measured in bits.
  */
-static void move_bits_down(const u8 *from, u64 from_offset, u8 *to, u64 to_offset,
-			   u32 size)
+static void move_bits_down(const u8 *from, u64 from_offset, u8 *to, u64 to_offset, u32 size)
 {
 	const u8 *source;
 	u8 *destination;
@@ -658,8 +656,7 @@ static void move_bits_down(const u8 *from, u64 from_offset, u8 *to, u64 to_offse
  * Move several bits from a lower to a higher address, moving the higher addressed bits first. The
  * size and memory offsets are measured in bits.
  */
-static void move_bits_up(const u8 *from, u64 from_offset, u8 *to, u64 to_offset,
-			 u32 size)
+static void move_bits_up(const u8 *from, u64 from_offset, u8 *to, u64 to_offset, u32 size)
 {
 	const u8 *source;
 	u8 *destination;
@@ -1006,8 +1003,7 @@ static int restore_delta_list_to_zone(struct delta_zone *delta_zone,
 	return UDS_SUCCESS;
 }
 
-static int restore_delta_list_data(struct delta_index *delta_index,
-				   unsigned int load_zone,
+static int restore_delta_list_data(struct delta_index *delta_index, unsigned int load_zone,
 				   struct buffered_reader *buffered_reader, u8 *data)
 {
 	int result;
@@ -1016,9 +1012,10 @@ static int restore_delta_list_data(struct delta_index *delta_index,
 	unsigned int new_zone;
 
 	result = uds_read_from_buffered_reader(buffered_reader, buffer, sizeof(buffer));
-	if (result != UDS_SUCCESS)
+	if (result != UDS_SUCCESS) {
 		return uds_log_warning_strerror(result,
 						"failed to read delta list data");
+	}
 
 	save_info = (struct delta_list_save_info) {
 		.tag = buffer[0],
@@ -1028,9 +1025,10 @@ static int restore_delta_list_data(struct delta_index *delta_index,
 	};
 
 	if ((save_info.bit_offset >= BITS_PER_BYTE) ||
-	    (save_info.byte_count > DELTA_LIST_MAX_BYTE_COUNT))
+	    (save_info.byte_count > DELTA_LIST_MAX_BYTE_COUNT)) {
 		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
 						"corrupt delta list data");
+	}
 
 	/* Make sure the data is intended for this delta index. */
 	if (save_info.tag != delta_index->tag)
@@ -1422,8 +1420,7 @@ static void set_delta(struct delta_index_entry *delta_entry, u32 delta)
 {
 	const struct delta_zone *delta_zone = delta_entry->delta_zone;
 	u32 key_bits = (delta_zone->min_bits +
-			((delta_zone->incr_keys -
-			  delta_zone->min_keys + delta) /
+			((delta_zone->incr_keys - delta_zone->min_keys + delta) /
 			 delta_zone->incr_keys));
 
 	delta_entry->delta = delta;
