@@ -48,6 +48,7 @@ struct pg_state {
 	struct ptdump_state ptdump;
 	struct seq_file *seq;
 	const struct addr_marker *marker;
+	const struct mm_struct *mm;
 	unsigned long start_address;
 	int level;
 	u64 current_prot;
@@ -144,12 +145,12 @@ static const struct prot_bits pte_bits[] = {
 
 struct pg_level {
 	const struct prot_bits *bits;
-	const char *name;
-	size_t num;
+	char name[4];
+	int num;
 	u64 mask;
 };
 
-static struct pg_level pg_level[] = {
+static struct pg_level pg_level[] __ro_after_init = {
 	{ /* pgd */
 		.name	= "PGD",
 		.bits	= pte_bits,
@@ -159,11 +160,11 @@ static struct pg_level pg_level[] = {
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	}, { /* pud */
-		.name	= (CONFIG_PGTABLE_LEVELS > 3) ? "PUD" : "PGD",
+		.name	= "PUD",
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	}, { /* pmd */
-		.name	= (CONFIG_PGTABLE_LEVELS > 2) ? "PMD" : "PGD",
+		.name	= "PMD",
 		.bits	= pte_bits,
 		.num	= ARRAY_SIZE(pte_bits),
 	}, { /* pte */
@@ -227,6 +228,11 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
 	static const char units[] = "KMGTPE";
 	u64 prot = 0;
 
+	/* check if the current level has been folded dynamically */
+	if ((level == 1 && mm_p4d_folded(st->mm)) ||
+	    (level == 2 && mm_pud_folded(st->mm)))
+		level = 0;
+
 	if (level >= 0)
 		prot = val & pg_level[level].mask;
 
@@ -288,6 +294,7 @@ void ptdump_walk(struct seq_file *s, struct ptdump_info *info)
 	st = (struct pg_state){
 		.seq = s,
 		.marker = info->markers,
+		.mm = info->mm,
 		.level = -1,
 		.ptdump = {
 			.note_page = note_page,
