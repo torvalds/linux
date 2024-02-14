@@ -85,6 +85,7 @@ EXPORT_SYMBOL(machine_id);
 
 int boot_cpuid = -1;
 EXPORT_SYMBOL_GPL(boot_cpuid);
+int __initdata boot_core_hwid = -1;
 
 #ifdef CONFIG_PPC64
 int boot_cpu_hwid = -1;
@@ -492,12 +493,26 @@ void __init smp_setup_cpu_maps(void)
 			avail = !of_property_match_string(dn,
 					"enable-method", "spin-table");
 
-		cpu = assign_threads(cpu, nthreads, avail, intserv);
+		if (boot_core_hwid >= 0) {
+			if (cpu == 0) {
+				pr_info("Skipping CPU node %pOF to allow for boot core.\n", dn);
+				cpu = nthreads;
+				continue;
+			}
 
-		if (cpu >= nr_cpu_ids) {
+			if (be32_to_cpu(intserv[0]) == boot_core_hwid) {
+				pr_info("Renumbered boot core %pOF to logical 0\n", dn);
+				assign_threads(0, nthreads, avail, intserv);
+				of_node_put(dn);
+				break;
+			}
+		} else if (cpu >= nr_cpu_ids) {
 			of_node_put(dn);
 			break;
 		}
+
+		if (cpu < nr_cpu_ids)
+			cpu = assign_threads(cpu, nthreads, avail, intserv);
 	}
 
 	/* If no SMT supported, nthreads is forced to 1 */
