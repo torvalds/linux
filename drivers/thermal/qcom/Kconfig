@@ -21,6 +21,17 @@ config QCOM_SPMI_ADC_TM5
 	  Thermal client sets threshold temperature for both warm and cool and
 	  gets updated when a threshold is reached.
 
+config QCOM_SPMI_MBG_TM
+	tristate "Qualcomm Technologies, Inc. SPMI PMIC MBG Temperature monitor"
+	depends on OF && SPMI && IIO
+	select REGMAP_SPMI
+	help
+	 This enables a thermal driver for the MBG thermal monitoring device.
+	 It shows up in sysfs as a thermal sensor with two trip points.
+	 It notifies the thermal framework when level 1 high threshold is
+	 violated. The temperature reported by the thermal sensor reflects
+	 the real time die temperature through ADC channel.
+
 config QCOM_SPMI_TEMP_ALARM
 	tristate "Qualcomm SPMI PMIC Temperature Alarm"
 	depends on OF && SPMI && IIO
