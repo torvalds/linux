@@ -210,7 +210,7 @@ static int atmel_pwm_calculate_cprd_and_pres(struct pwm_chip *chip,
 	shift = fls(cycles) - atmel_pwm->data->cfg.period_bits;
 
 	if (shift > PWM_MAX_PRES) {
-		dev_err(chip->dev, "pres exceeds the maximum value\n");
+		dev_err(pwmchip_parent(chip), "pres exceeds the maximum value\n");
 		return -EINVAL;
 	} else if (shift > 0) {
 		*pres = shift;
@@ -318,7 +318,7 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		ret = atmel_pwm_calculate_cprd_and_pres(chip, clkrate, state, &cprd,
 							&pres);
 		if (ret) {
-			dev_err(chip->dev,
+			dev_err(pwmchip_parent(chip),
 				"failed to calculate cprd and prescaler\n");
 			return ret;
 		}
@@ -330,7 +330,7 @@ static int atmel_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		} else {
 			ret = clk_enable(atmel_pwm->clk);
 			if (ret) {
-				dev_err(chip->dev, "failed to enable clock\n");
+				dev_err(pwmchip_parent(chip), "failed to enable clock\n");
 				return ret;
 			}
 		}
@@ -478,7 +478,7 @@ static int atmel_pwm_enable_clk_if_on(struct pwm_chip *chip, bool on)
 	for (i = 0; i < cnt; i++) {
 		ret = clk_enable(atmel_pwm->clk);
 		if (ret) {
-			dev_err(chip->dev,
+			dev_err(pwmchip_parent(chip),
 				"failed to enable clock for pwm %pe\n",
 				ERR_PTR(ret));
 
