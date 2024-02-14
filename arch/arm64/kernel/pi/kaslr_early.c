@@ -17,7 +17,7 @@
 #include <asm/pgtable.h>
 
 /* taken from lib/string.c */
-static char *__strstr(const char *s1, const char *s2)
+static char *__init __strstr(const char *s1, const char *s2)
 {
 	size_t l1, l2;
 
@@ -33,7 +33,7 @@ static char *__strstr(const char *s1, const char *s2)
 	}
 	return NULL;
 }
-static bool cmdline_contains_nokaslr(const u8 *cmdline)
+static bool __init cmdline_contains_nokaslr(const u8 *cmdline)
 {
 	const u8 *str;
 
@@ -41,7 +41,7 @@ static bool cmdline_contains_nokaslr(const u8 *cmdline)
 	return str == cmdline || (str > cmdline && *(str - 1) == ' ');
 }
 
-static bool is_kaslr_disabled_cmdline(void *fdt)
+static bool __init is_kaslr_disabled_cmdline(void *fdt)
 {
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
 		int node;
@@ -67,17 +67,19 @@ out:
 	return cmdline_contains_nokaslr(CONFIG_CMDLINE);
 }
 
-static u64 get_kaslr_seed(void *fdt)
+static u64 __init get_kaslr_seed(void *fdt)
 {
+	static char const chosen_str[] __initconst = "chosen";
+	static char const seed_str[] __initconst = "kaslr-seed";
 	int node, len;
 	fdt64_t *prop;
 	u64 ret;
 
-	node = fdt_path_offset(fdt, "/chosen");
+	node = fdt_path_offset(fdt, chosen_str);
 	if (node < 0)
 		return 0;
 
-	prop = fdt_getprop_w(fdt, node, "kaslr-seed", &len);
+	prop = fdt_getprop_w(fdt, node, seed_str, &len);
 	if (!prop || len != sizeof(u64))
 		return 0;
 
@@ -86,7 +88,7 @@ static u64 get_kaslr_seed(void *fdt)
 	return ret;
 }
 
-asmlinkage u64 kaslr_early_init(void *fdt)
+asmlinkage u64 __init kaslr_early_init(void *fdt)
 {
 	u64 seed, range;
 
