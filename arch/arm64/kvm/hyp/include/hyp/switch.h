@@ -157,7 +157,7 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
-	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0, tmp;
+	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0;
 	u64 r_val, w_val;
 
 	CHECK_FGT_MASKS(HFGRTR_EL2);
@@ -174,13 +174,6 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 	ctxt_sys_reg(hctxt, HFGRTR_EL2) = read_sysreg_s(SYS_HFGRTR_EL2);
 	ctxt_sys_reg(hctxt, HFGWTR_EL2) = read_sysreg_s(SYS_HFGWTR_EL2);
 
-	if (cpus_have_final_cap(ARM64_SME)) {
-		tmp = HFGxTR_EL2_nSMPRI_EL1_MASK | HFGxTR_EL2_nTPIDR2_EL0_MASK;
-
-		r_clr |= tmp;
-		w_clr |= tmp;
-	}
-
 	/*
 	 * Trap guest writes to TCR_EL1 to prevent it from enabling HA or HD.
 	 */
@@ -195,15 +188,11 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 	compute_undef_clr_set(vcpu, kvm, HFGRTR_EL2, r_clr, r_set);
 	compute_undef_clr_set(vcpu, kvm, HFGWTR_EL2, w_clr, w_set);
 
-	/* The default to trap everything not handled or supported in KVM. */
-	tmp = HFGxTR_EL2_nAMAIR2_EL1 | HFGxTR_EL2_nMAIR2_EL1 | HFGxTR_EL2_nS2POR_EL1 |
-	      HFGxTR_EL2_nPOR_EL1 | HFGxTR_EL2_nPOR_EL0 | HFGxTR_EL2_nACCDATA_EL1;
-
-	r_val = __HFGRTR_EL2_nMASK & ~tmp;
+	r_val = __HFGRTR_EL2_nMASK;
 	r_val |= r_set;
 	r_val &= ~r_clr;
 
-	w_val = __HFGWTR_EL2_nMASK & ~tmp;
+	w_val = __HFGWTR_EL2_nMASK;
 	w_val |= w_set;
 	w_val &= ~w_clr;
 
