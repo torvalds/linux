@@ -165,6 +165,9 @@ asmlinkage void __init early_map_kernel(u64 boot_status, void *fdt)
 	chosen = fdt_path_offset(fdt, chosen_str);
 	init_feature_override(boot_status, fdt, chosen);
 
+	if (VA_BITS > VA_BITS_MIN && cpu_has_lva())
+		sysreg_clear_set(tcr_el1, TCR_T1SZ_MASK, TCR_T1SZ(VA_BITS));
+
 	/*
 	 * The virtual KASLR displacement modulo 2MiB is decided by the
 	 * physical placement of the image, as otherwise, we might not be able

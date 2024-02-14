@@ -995,6 +995,15 @@ static inline bool cpu_has_pac(void)
 					    &id_aa64isar2_override);
 }
 
+static inline bool cpu_has_lva(void)
+{
+	u64 mmfr2;
+
+	mmfr2 = read_sysreg_s(SYS_ID_AA64MMFR2_EL1);
+	return cpuid_feature_extract_unsigned_field(mmfr2,
+						    ID_AA64MMFR2_EL1_VARange_SHIFT);
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif
