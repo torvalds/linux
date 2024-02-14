@@ -9824,6 +9824,33 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 	return 0;
 }
 
+static void ath11k_mac_setup_mac_address_list(struct ath11k *ar)
+{
+	struct mac_address *addresses;
+	u16 n_addresses;
+	int i;
+
+	if (!ar->ab->hw_params.support_dual_stations)
+		return;
+
+	n_addresses = ar->ab->hw_params.num_vdevs;
+	addresses = kcalloc(n_addresses, sizeof(*addresses), GFP_KERNEL);
+	if (!addresses)
+		return;
+
+	memcpy(addresses[0].addr, ar->mac_addr, ETH_ALEN);
+	for (i = 1; i < n_addresses; i++) {
+		memcpy(addresses[i].addr, ar->mac_addr, ETH_ALEN);
+		/* set Local Administered Address bit */
+		addresses[i].addr[0] |= 0x2;
+
+		addresses[i].addr[0] += (i - 1) << 4;
+	}
+
+	ar->hw->wiphy->addresses = addresses;
+	ar->hw->wiphy->n_addresses = n_addresses;
+}
+
 static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
@@ -9947,6 +9974,8 @@ static void __ath11k_mac_unregister(struct ath11k *ar)
 	kfree(ar->hw->wiphy->iface_combinations[0].limits);
 	kfree(ar->hw->wiphy->iface_combinations);
 
+	kfree(ar->hw->wiphy->addresses);
+
 	SET_IEEE80211_DEV(ar->hw, NULL);
 }
 
@@ -9989,6 +10018,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ath11k_pdev_caps_update(ar);
 
 	SET_IEEE80211_PERM_ADDR(ar->hw, ar->mac_addr);
+	ath11k_mac_setup_mac_address_list(ar);
 
 	SET_IEEE80211_DEV(ar->hw, ab->dev);
 
