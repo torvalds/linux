@@ -1235,9 +1235,10 @@ static int perform_admin_operation(struct vdo *vdo, u32 starting_phase,
 	 * Using the "interruptible" interface means that Linux will not log a message when we wait
 	 * for more than 120 seconds.
 	 */
-	while (wait_for_completion_interruptible(&admin->callback_sync) != 0)
-		/* * However, if we get a signal in a user-mode process, we could spin... */
+	while (wait_for_completion_interruptible(&admin->callback_sync)) {
+		/* However, if we get a signal in a user-mode process, we could spin... */
 		fsleep(1000);
+	}
 
 	result = admin->completion.result;
 	/* pairs with implicit barrier in cmpxchg above */

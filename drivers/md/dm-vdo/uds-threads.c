@@ -6,6 +6,7 @@
 #include "uds-threads.h"
 
 #include <linux/completion.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/kthread.h>
 #include <linux/sched.h>
@@ -125,9 +126,8 @@ int uds_create_thread(void (*thread_function)(void *), void *thread_data,
 
 int uds_join_threads(struct thread *thread)
 {
-	while (wait_for_completion_interruptible(&thread->thread_done) != 0)
-		/* empty loop */
-		;
+	while (wait_for_completion_interruptible(&thread->thread_done))
+		fsleep(1000);
 
 	mutex_lock(&thread_mutex);
 	hlist_del(&thread->thread_links);
