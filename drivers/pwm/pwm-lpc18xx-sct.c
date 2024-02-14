@@ -92,7 +92,6 @@ struct lpc18xx_pwm_data {
 };
 
 struct lpc18xx_pwm_chip {
-	struct device *dev;
 	struct pwm_chip chip;
 	void __iomem *base;
 	struct clk *pwm_clk;
@@ -289,7 +288,7 @@ static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 				    LPC18XX_PWM_EVENT_MAX);
 
 	if (event >= LPC18XX_PWM_EVENT_MAX) {
-		dev_err(lpc18xx_pwm->dev,
+		dev_err(chip->dev,
 			"maximum number of simultaneous channels reached\n");
 		return -EBUSY;
 	}
@@ -357,8 +356,6 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 				   GFP_KERNEL);
 	if (!lpc18xx_pwm)
 		return -ENOMEM;
-
-	lpc18xx_pwm->dev = &pdev->dev;
 
 	lpc18xx_pwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lpc18xx_pwm->base))
