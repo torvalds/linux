@@ -488,6 +488,9 @@ SYM_FUNC_START(__cpu_setup)
 	mov		x9, #64 - VA_BITS
 alternative_if ARM64_HAS_VA52
 	tcr_set_t1sz	tcr, x9
+#ifdef CONFIG_ARM64_LPA2
+	orr		tcr, tcr, #TCR_DS
+#endif
 alternative_else_nop_endif
 #endif
 

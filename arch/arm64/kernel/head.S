@@ -89,6 +89,7 @@ SYM_CODE_START(primary_entry)
 	mov	sp, x1
 	mov	x29, xzr
 	adrp	x0, init_idmap_pg_dir
+	mov	x1, xzr
 	bl	__pi_create_init_idmap
 
 	/*
@@ -473,9 +474,16 @@ SYM_FUNC_END(__enable_mmu)
 
 #ifdef CONFIG_ARM64_VA_BITS_52
 SYM_FUNC_START(__cpu_secondary_check52bitva)
+#ifndef CONFIG_ARM64_LPA2
 	mrs_s	x0, SYS_ID_AA64MMFR2_EL1
 	and	x0, x0, ID_AA64MMFR2_EL1_VARange_MASK
 	cbnz	x0, 2f
+#else
+	mrs	x0, id_aa64mmfr0_el1
+	sbfx	x0, x0, #ID_AA64MMFR0_EL1_TGRAN_SHIFT, 4
+	cmp	x0, #ID_AA64MMFR0_EL1_TGRAN_LPA2
+	b.ge	2f
+#endif
 
 	update_early_cpu_boot_status \
 		CPU_STUCK_IN_KERNEL | CPU_STUCK_REASON_52_BIT_VA, x0, x1

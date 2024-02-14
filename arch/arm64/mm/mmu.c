@@ -582,8 +582,12 @@ static void __init map_mem(pgd_t *pgdp)
 	 * entries at any level are being shared between the linear region and
 	 * the vmalloc region. Check whether this is true for the PGD level, in
 	 * which case it is guaranteed to be true for all other levels as well.
+	 * (Unless we are running with support for LPA2, in which case the
+	 * entire reduced VA space is covered by a single pgd_t which will have
+	 * been populated without the PXNTable attribute by the time we get here.)
 	 */
-	BUILD_BUG_ON(pgd_index(direct_map_end - 1) == pgd_index(direct_map_end));
+	BUILD_BUG_ON(pgd_index(direct_map_end - 1) == pgd_index(direct_map_end) &&
+		     pgd_index(_PAGE_OFFSET(VA_BITS_MIN)) != PTRS_PER_PGD - 1);
 
 	early_kfence_pool = arm64_kfence_alloc_pool();
 

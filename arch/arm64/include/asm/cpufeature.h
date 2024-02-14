@@ -1008,6 +1008,24 @@ static inline bool cpu_has_lva(void)
 						    ID_AA64MMFR2_EL1_VARange_SHIFT);
 }
 
+static inline bool cpu_has_lpa2(void)
+{
+#ifdef CONFIG_ARM64_LPA2
+	u64 mmfr0;
+	int feat;
+
+	mmfr0 = read_sysreg(id_aa64mmfr0_el1);
+	mmfr0 &= ~id_aa64mmfr0_override.mask;
+	mmfr0 |= id_aa64mmfr0_override.val;
+	feat = cpuid_feature_extract_signed_field(mmfr0,
+						  ID_AA64MMFR0_EL1_TGRAN_SHIFT);
+
+	return feat >= ID_AA64MMFR0_EL1_TGRAN_LPA2;
+#else
+	return false;
+#endif
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif

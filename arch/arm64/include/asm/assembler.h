@@ -581,11 +581,17 @@ alternative_endif
  * but we have to add an offset so that the TTBR1 address corresponds with the
  * pgdir entry that covers the lowest 48-bit addressable VA.
  *
+ * Note that this trick is only used for LVA/64k pages - LPA2/4k pages uses an
+ * additional paging level, and on LPA2/16k pages, we would end up with a root
+ * level table with only 2 entries, which is suboptimal in terms of TLB
+ * utilization, so there we fall back to 47 bits of translation if LPA2 is not
+ * supported.
+ *
  * orr is used as it can cover the immediate value (and is idempotent).
  * 	ttbr: Value of ttbr to set, modified.
  */
 	.macro	offset_ttbr1, ttbr, tmp
-#ifdef CONFIG_ARM64_VA_BITS_52
+#if defined(CONFIG_ARM64_VA_BITS_52) && !defined(CONFIG_ARM64_LPA2)
 	mrs	\tmp, tcr_el1
 	and	\tmp, \tmp, #TCR_T1SZ_MASK
 	cmp	\tmp, #TCR_T1SZ(VA_BITS_MIN)
