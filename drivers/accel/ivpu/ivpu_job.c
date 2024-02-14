@@ -46,7 +46,7 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 e
 		goto err_free_cmdq;
 	}
 
-	cmdq->mem = ivpu_bo_alloc_internal(vdev, 0, SZ_4K, DRM_IVPU_BO_WC);
+	cmdq->mem = ivpu_bo_create_global(vdev, SZ_4K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!cmdq->mem)
 		goto err_erase_xa;
 
@@ -74,7 +74,7 @@ static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *c
 	if (!cmdq)
 		return;
 
-	ivpu_bo_free_internal(cmdq->mem);
+	ivpu_bo_free(cmdq->mem);
 	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
 	kfree(cmdq);
 }
