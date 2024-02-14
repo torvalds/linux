@@ -781,6 +781,17 @@ static int genphy_c45_read_eee_lpa(struct phy_device *phydev,
 		mii_eee_cap1_mod_linkmode_t(lpa, val);
 	}
 
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP2_FEATURES)) {
+		/* IEEE 802.3-2022 45.2.7.17 EEE link partner ability 2
+		 * (Register 7.63)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_LPABLE2);
+		if (val < 0)
+			return val;
+
+		mii_eee_cap2_mod_linkmode_adv_t(lpa, val);
+	}
+
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
 			      phydev->supported_eee)) {
 		/* IEEE 802.3cg-2019 45.2.7.26 10BASE-T1 AN status register
