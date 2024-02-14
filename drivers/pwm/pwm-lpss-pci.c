@@ -34,8 +34,6 @@ static int pwm_lpss_probe_pci(struct pci_dev *pdev,
 	if (IS_ERR(lpwm))
 		return PTR_ERR(lpwm);
 
-	pci_set_drvdata(pdev, lpwm);
-
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 

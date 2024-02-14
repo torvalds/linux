@@ -35,8 +35,6 @@ static int pwm_lpss_probe_platform(struct platform_device *pdev)
 	if (IS_ERR(lpwm))
 		return PTR_ERR(lpwm);
 
-	platform_set_drvdata(pdev, lpwm);
-
 	/*
 	 * On Cherry Trail devices the GFX0._PS0 AML checks if the controller
 	 * is on and if it is not on it turns it on and restores what it
