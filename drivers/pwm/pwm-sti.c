@@ -94,7 +94,6 @@ struct sti_pwm_chip {
 	struct regmap_field *pwm_cpt_en;
 	struct regmap_field *pwm_cpt_int_en;
 	struct regmap_field *pwm_cpt_int_stat;
-	struct pwm_chip chip;
 	struct pwm_device *cur;
 	unsigned long configured;
 	unsigned int en_count;
@@ -114,7 +113,7 @@ static const struct reg_field sti_pwm_regfields[MAX_REGFIELDS] = {
 
 static inline struct sti_pwm_chip *to_sti_pwmchip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct sti_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 /*
@@ -507,23 +506,7 @@ static int sti_pwm_probe_dt(struct sti_pwm_chip *pc)
 {
 	struct device *dev = pc->dev;
 	const struct reg_field *reg_fields;
-	struct device_node *np = dev->of_node;
 	struct sti_pwm_compat_data *cdata = pc->cdata;
-	u32 num_devs;
-	int ret;
-
-	ret = of_property_read_u32(np, "st,pwm-num-chan", &num_devs);
-	if (!ret)
-		cdata->pwm_num_devs = num_devs;
-
-	ret = of_property_read_u32(np, "st,capture-num-chan", &num_devs);
-	if (!ret)
-		cdata->cpt_num_devs = num_devs;
-
-	if (!cdata->pwm_num_devs && !cdata->cpt_num_devs) {
-		dev_err(dev, "No channels configured\n");
-		return -EINVAL;
-	}
 
 	reg_fields = cdata->reg_fields;
 
@@ -569,16 +552,33 @@ static const struct regmap_config sti_pwm_regmap_config = {
 static int sti_pwm_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	u32 num_devs;
+	unsigned int pwm_num_devs = 0;
+	unsigned int cpt_num_devs = 0;
 	struct sti_pwm_compat_data *cdata;
 	struct pwm_chip *chip;
 	struct sti_pwm_chip *pc;
 	unsigned int i;
 	int irq, ret;
 
-	pc = devm_kzalloc(dev, sizeof(*pc), GFP_KERNEL);
-	if (!pc)
-		return -ENOMEM;
-	chip = &pc->chip;
+	ret = of_property_read_u32(np, "st,pwm-num-chan", &num_devs);
+	if (!ret)
+		pwm_num_devs = num_devs;
+
+	ret = of_property_read_u32(np, "st,capture-num-chan", &num_devs);
+	if (!ret)
+		cpt_num_devs = num_devs;
+
+	if (!pwm_num_devs && !cpt_num_devs) {
+		dev_err(dev, "No channels configured\n");
+		return -EINVAL;
+	}
+
+	chip = devm_pwmchip_alloc(dev, max(pwm_num_devs, cpt_num_devs), sizeof(*pc));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	pc = to_sti_pwmchip(chip);
 
 	cdata = devm_kzalloc(dev, sizeof(*cdata), GFP_KERNEL);
 	if (!cdata)
@@ -611,8 +611,8 @@ static int sti_pwm_probe(struct platform_device *pdev)
 	cdata->reg_fields = sti_pwm_regfields;
 	cdata->max_prescale = 0xff;
 	cdata->max_pwm_cnt = 255;
-	cdata->pwm_num_devs = 0;
-	cdata->cpt_num_devs = 0;
+	cdata->pwm_num_devs = pwm_num_devs;
+	cdata->cpt_num_devs = cpt_num_devs;
 
 	pc->cdata = cdata;
 	pc->dev = dev;
@@ -655,9 +655,7 @@ static int sti_pwm_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
-	chip->dev = dev;
 	chip->ops = &sti_pwm_ops;
-	chip->npwm = max(cdata->pwm_num_devs, cdata->cpt_num_devs);
 
 	for (i = 0; i < cdata->cpt_num_devs; i++) {
 		struct sti_cpt_ddata *ddata = &cdata->ddata[i];
