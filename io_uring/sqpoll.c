@@ -246,6 +246,13 @@ static unsigned int io_sq_tw(struct llist_node **retry_list, int max_entries)
 	return count;
 }
 
+static bool io_sq_tw_pending(struct llist_node *retry_list)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	return retry_list || !llist_empty(&tctx->task_list);
+}
+
 static int io_sq_thread(void *data)
 {
 	struct llist_node *retry_list = NULL;
@@ -301,7 +308,7 @@ static int io_sq_thread(void *data)
 		}
 
 		prepare_to_wait(&sqd->wait, &wait, TASK_INTERRUPTIBLE);
-		if (!io_sqd_events_pending(sqd) && !task_work_pending(current)) {
+		if (!io_sqd_events_pending(sqd) && !io_sq_tw_pending(retry_list)) {
 			bool needs_sched = true;
 
 			list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
