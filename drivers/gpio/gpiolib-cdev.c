@@ -206,7 +206,7 @@ static long linehandle_ioctl(struct file *file, unsigned int cmd,
 
 	guard(srcu)(&lh->gdev->srcu);
 
-	if (!rcu_dereference(lh->gdev->chip))
+	if (!rcu_access_pointer(lh->gdev->chip))
 		return -ENODEV;
 
 	switch (cmd) {
@@ -1521,7 +1521,7 @@ static long linereq_ioctl(struct file *file, unsigned int cmd,
 
 	guard(srcu)(&lr->gdev->srcu);
 
-	if (!rcu_dereference(lr->gdev->chip))
+	if (!rcu_access_pointer(lr->gdev->chip))
 		return -ENODEV;
 
 	switch (cmd) {
@@ -1552,7 +1552,7 @@ static __poll_t linereq_poll(struct file *file,
 
 	guard(srcu)(&lr->gdev->srcu);
 
-	if (!rcu_dereference(lr->gdev->chip))
+	if (!rcu_access_pointer(lr->gdev->chip))
 		return EPOLLHUP | EPOLLERR;
 
 	poll_wait(file, &lr->wait, wait);
@@ -1574,7 +1574,7 @@ static ssize_t linereq_read(struct file *file, char __user *buf,
 
 	guard(srcu)(&lr->gdev->srcu);
 
-	if (!rcu_dereference(lr->gdev->chip))
+	if (!rcu_access_pointer(lr->gdev->chip))
 		return -ENODEV;
 
 	if (count < sizeof(le))
@@ -1875,7 +1875,7 @@ static __poll_t lineevent_poll(struct file *file,
 
 	guard(srcu)(&le->gdev->srcu);
 
-	if (!rcu_dereference(le->gdev->chip))
+	if (!rcu_access_pointer(le->gdev->chip))
 		return EPOLLHUP | EPOLLERR;
 
 	poll_wait(file, &le->wait, wait);
@@ -1913,7 +1913,7 @@ static ssize_t lineevent_read(struct file *file, char __user *buf,
 
 	guard(srcu)(&le->gdev->srcu);
 
-	if (!rcu_dereference(le->gdev->chip))
+	if (!rcu_access_pointer(le->gdev->chip))
 		return -ENODEV;
 
 	/*
@@ -1996,7 +1996,7 @@ static long lineevent_ioctl(struct file *file, unsigned int cmd,
 
 	guard(srcu)(&le->gdev->srcu);
 
-	if (!rcu_dereference(le->gdev->chip))
+	if (!rcu_access_pointer(le->gdev->chip))
 		return -ENODEV;
 
 	/*
@@ -2510,7 +2510,7 @@ static long gpio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	guard(srcu)(&gdev->srcu);
 
 	/* We fail any subsequent ioctl():s when the chip is gone */
-	if (!rcu_dereference(gdev->chip))
+	if (!rcu_access_pointer(gdev->chip))
 		return -ENODEV;
 
 	/* Fill in the struct and pass to userspace */
@@ -2595,7 +2595,7 @@ static __poll_t lineinfo_watch_poll(struct file *file,
 
 	guard(srcu)(&cdev->gdev->srcu);
 
-	if (!rcu_dereference(cdev->gdev->chip))
+	if (!rcu_access_pointer(cdev->gdev->chip))
 		return EPOLLHUP | EPOLLERR;
 
 	poll_wait(file, &cdev->wait, pollt);
@@ -2618,7 +2618,7 @@ static ssize_t lineinfo_watch_read(struct file *file, char __user *buf,
 
 	guard(srcu)(&cdev->gdev->srcu);
 
-	if (!rcu_dereference(cdev->gdev->chip))
+	if (!rcu_access_pointer(cdev->gdev->chip))
 		return -ENODEV;
 
 #ifndef CONFIG_GPIO_CDEV_V1
@@ -2696,7 +2696,7 @@ static int gpio_chrdev_open(struct inode *inode, struct file *file)
 	guard(srcu)(&gdev->srcu);
 
 	/* Fail on open if the backing gpiochip is gone */
-	if (!rcu_dereference(gdev->chip))
+	if (!rcu_access_pointer(gdev->chip))
 		return -ENODEV;
 
 	cdev = kzalloc(sizeof(*cdev), GFP_KERNEL);
@@ -2796,8 +2796,7 @@ int gpiolib_cdev_register(struct gpio_device *gdev, dev_t devt)
 
 	guard(srcu)(&gdev->srcu);
 
-	gc = rcu_dereference(gdev->chip);
-	if (!gc)
+	if (!rcu_access_pointer(gdev->chip))
 		return -ENODEV;
 
 	chip_dbg(gc, "added GPIO chardev (%d:%d)\n", MAJOR(devt), gdev->id);
