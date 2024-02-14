@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include "linux/spinlock.h"
 #include <linux/minmax.h>
 #include "misc.h"
 #include "ctree.h"
@@ -1915,7 +1916,9 @@ lose_precision:
  */
 static u64 calc_unalloc_target(struct btrfs_fs_info *fs_info)
 {
-	return BTRFS_UNALLOC_BLOCK_GROUP_TARGET * calc_effective_data_chunk_size(fs_info);
+	u64 chunk_sz = calc_effective_data_chunk_size(fs_info);
+
+	return BTRFS_UNALLOC_BLOCK_GROUP_TARGET * chunk_sz;
 }
 
 /*
@@ -1951,14 +1954,13 @@ static int calc_dynamic_reclaim_threshold(struct btrfs_space_info *space_info)
 	u64 unused = alloc - used;
 	u64 want = target > unalloc ? target - unalloc : 0;
 	u64 data_chunk_size = calc_effective_data_chunk_size(fs_info);
-	/* Cast to int is OK because want <= target */
-	int ratio = calc_pct_ratio(want, target);
 
-	/* If we have no unused space, don't bother, it won't work anyway */
+	/* If we have no unused space, don't bother, it won't work anyway. */
 	if (unused < data_chunk_size)
 		return 0;
 
-	return ratio;
+	/* Cast to int is OK because want <= target. */
+	return calc_pct_ratio(want, target);
 }
 
 int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info)
@@ -2000,6 +2002,46 @@ static int do_reclaim_sweep(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
+void btrfs_space_info_update_reclaimable(struct btrfs_space_info *space_info, s64 bytes)
+{
+	u64 chunk_sz = calc_effective_data_chunk_size(space_info->fs_info);
+
+	lockdep_assert_held(&space_info->lock);
+	space_info->reclaimable_bytes += bytes;
+
+	if (space_info->reclaimable_bytes >= chunk_sz)
+		btrfs_set_periodic_reclaim_ready(space_info, true);
+}
+
+void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool ready)
+{
+	lockdep_assert_held(&space_info->lock);
+	if (!READ_ONCE(space_info->periodic_reclaim))
+		return;
+	if (ready != space_info->periodic_reclaim_ready) {
+		space_info->periodic_reclaim_ready = ready;
+		if (!ready)
+			space_info->reclaimable_bytes = 0;
+	}
+}
+
+bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info)
+{
+	bool ret;
+
+	if (space_info->flags & BTRFS_BLOCK_GROUP_SYSTEM)
+		return false;
+	if (!READ_ONCE(space_info->periodic_reclaim))
+		return false;
+
+	spin_lock(&space_info->lock);
+	ret = space_info->periodic_reclaim_ready;
+	btrfs_set_periodic_reclaim_ready(space_info, false);
+	spin_unlock(&space_info->lock);
+
+	return ret;
+}
+
 int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
 {
 	int ret;
@@ -2007,9 +2049,7 @@ int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info)
 	struct btrfs_space_info *space_info;
 
 	list_for_each_entry(space_info, &fs_info->space_info, list) {
-		if (space_info->flags & BTRFS_BLOCK_GROUP_SYSTEM)
-			continue;
-		if (!READ_ONCE(space_info->periodic_reclaim))
+		if (!btrfs_should_periodic_reclaim(space_info))
 			continue;
 		for (raid = 0; raid < BTRFS_NR_RAID_TYPES; raid++) {
 			ret = do_reclaim_sweep(fs_info, space_info, raid);

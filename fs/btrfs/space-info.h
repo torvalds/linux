@@ -196,6 +196,17 @@ struct btrfs_space_info {
 	 * threshold in the cleaner thread.
 	 */
 	bool periodic_reclaim;
+
+	/*
+	 * Periodic reclaim should be a no-op if a space_info hasn't
+	 * freed any space since the last time we tried.
+	 */
+	bool periodic_reclaim_ready;
+
+	/*
+	 * Net bytes freed or allocated since the last reclaim pass.
+	 */
+	s64 reclaimable_bytes;
 };
 
 struct reserve_ticket {
@@ -278,6 +289,9 @@ void btrfs_dump_space_info_for_trans_abort(struct btrfs_fs_info *fs_info);
 void btrfs_init_async_reclaim_work(struct btrfs_fs_info *fs_info);
 u64 btrfs_account_ro_block_groups_free_space(struct btrfs_space_info *sinfo);
 
+void btrfs_space_info_update_reclaimable(struct btrfs_space_info *space_info, s64 bytes);
+void btrfs_set_periodic_reclaim_ready(struct btrfs_space_info *space_info, bool ready);
+bool btrfs_should_periodic_reclaim(struct btrfs_space_info *space_info);
 int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info);
 int btrfs_reclaim_sweep(struct btrfs_fs_info *fs_info);
 
