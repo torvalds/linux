@@ -216,16 +216,15 @@ SYM_FUNC_ALIAS(__pi_idmap_cpu_replace_ttbr1, idmap_cpu_replace_ttbr1)
 	.macro	kpti_mk_tbl_ng, type, num_entries
 	add	end_\type\()p, cur_\type\()p, #\num_entries * 8
 .Ldo_\type:
-	ldr	\type, [cur_\type\()p]		// Load the entry
+	ldr	\type, [cur_\type\()p], #8	// Load the entry and advance
 	tbz	\type, #0, .Lnext_\type		// Skip invalid and
 	tbnz	\type, #11, .Lnext_\type	// non-global entries
 	orr	\type, \type, #PTE_NG		// Same bit for blocks and pages
-	str	\type, [cur_\type\()p]		// Update the entry
+	str	\type, [cur_\type\()p, #-8]	// Update the entry
 	.ifnc	\type, pte
 	tbnz	\type, #1, .Lderef_\type
 	.endif
 .Lnext_\type:
-	add	cur_\type\()p, cur_\type\()p, #8
 	cmp	cur_\type\()p, end_\type\()p
 	b.ne	.Ldo_\type
 	.endm
@@ -235,18 +234,18 @@ SYM_FUNC_ALIAS(__pi_idmap_cpu_replace_ttbr1, idmap_cpu_replace_ttbr1)
 	 * fixmap slot associated with the current level.
 	 */
 	.macro	kpti_map_pgtbl, type, level
-	str	xzr, [temp_pte, #8 * (\level + 1)]	// break before make
+	str	xzr, [temp_pte, #8 * (\level + 2)]	// break before make
 	dsb	nshst
-	add	pte, temp_pte, #PAGE_SIZE * (\level + 1)
+	add	pte, temp_pte, #PAGE_SIZE * (\level + 2)
 	lsr	pte, pte, #12
 	tlbi	vaae1, pte
 	dsb	nsh
 	isb
 
 	phys_to_pte pte, cur_\type\()p
-	add	cur_\type\()p, temp_pte, #PAGE_SIZE * (\level + 1)
+	add	cur_\type\()p, temp_pte, #PAGE_SIZE * (\level + 2)
 	orr	pte, pte, pte_flags
-	str	pte, [temp_pte, #8 * (\level + 1)]
+	str	pte, [temp_pte, #8 * (\level + 2)]
 	dsb	nshst
 	.endm
 
@@ -279,12 +278,20 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 	end_ptep	.req	x15
 	pte		.req	x16
 	valid		.req	x17
+	cur_p4dp	.req	x19
+	end_p4dp	.req	x20
 
 	mov	x5, x3				// preserve temp_pte arg
 	mrs	swapper_ttb, ttbr1_el1
 	adr_l	flag_ptr, __idmap_kpti_flag
 
 	cbnz	cpu, __idmap_kpti_secondary
+
+#if CONFIG_PGTABLE_LEVELS > 4
+	stp	x29, x30, [sp, #-32]!
+	mov	x29, sp
+	stp	x19, x20, [sp, #16]
+#endif
 
 	/* We're the boot CPU. Wait for the others to catch up */
 	sevl
@@ -303,9 +310,32 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 	mov_q	pte_flags, KPTI_NG_PTE_FLAGS
 
 	/* Everybody is enjoying the idmap, so we can rewrite swapper. */
+
+#ifdef CONFIG_ARM64_LPA2
+	/*
+	 * If LPA2 support is configured, but 52-bit virtual addressing is not
+	 * enabled at runtime, we will fall back to one level of paging less,
+	 * and so we have to walk swapper_pg_dir as if we dereferenced its
+	 * address from a PGD level entry, and terminate the PGD level loop
+	 * right after.
+	 */
+	adrp	pgd, swapper_pg_dir	// walk &swapper_pg_dir at the next level
+	mov	cur_pgdp, end_pgdp	// must be equal to terminate the PGD loop
+alternative_if_not ARM64_HAS_VA52
+	b	.Lderef_pgd		// skip to the next level
+alternative_else_nop_endif
+	/*
+	 * LPA2 based 52-bit virtual addressing requires 52-bit physical
+	 * addressing to be enabled as well. In this case, the shareability
+	 * bits are repurposed as physical address bits, and should not be
+	 * set in pte_flags.
+	 */
+	bic	pte_flags, pte_flags, #PTE_SHARED
+#endif
+
 	/* PGD */
 	adrp		cur_pgdp, swapper_pg_dir
-	kpti_map_pgtbl	pgd, 0
+	kpti_map_pgtbl	pgd, -1
 	kpti_mk_tbl_ng	pgd, PTRS_PER_PGD
 
 	/* Ensure all the updated entries are visible to secondary CPUs */
@@ -318,16 +348,33 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 
 	/* Set the flag to zero to indicate that we're all done */
 	str	wzr, [flag_ptr]
+#if CONFIG_PGTABLE_LEVELS > 4
+	ldp	x19, x20, [sp, #16]
+	ldp	x29, x30, [sp], #32
+#endif
 	ret
 
 .Lderef_pgd:
+	/* P4D */
+	.if		CONFIG_PGTABLE_LEVELS > 4
+	p4d		.req	x30
+	pte_to_phys	cur_p4dp, pgd
+	kpti_map_pgtbl	p4d, 0
+	kpti_mk_tbl_ng	p4d, PTRS_PER_P4D
+	b		.Lnext_pgd
+	.else		/* CONFIG_PGTABLE_LEVELS <= 4 */
+	p4d		.req	pgd
+	.set		.Lnext_p4d, .Lnext_pgd
+	.endif
+
+.Lderef_p4d:
 	/* PUD */
 	.if		CONFIG_PGTABLE_LEVELS > 3
 	pud		.req	x10
-	pte_to_phys	cur_pudp, pgd
+	pte_to_phys	cur_pudp, p4d
 	kpti_map_pgtbl	pud, 1
 	kpti_mk_tbl_ng	pud, PTRS_PER_PUD
-	b		.Lnext_pgd
+	b		.Lnext_p4d
 	.else		/* CONFIG_PGTABLE_LEVELS <= 3 */
 	pud		.req	pgd
 	.set		.Lnext_pud, .Lnext_pgd
@@ -371,6 +418,9 @@ SYM_TYPED_FUNC_START(idmap_kpti_install_ng_mappings)
 	.unreq	end_ptep
 	.unreq	pte
 	.unreq	valid
+	.unreq	cur_p4dp
+	.unreq	end_p4dp
+	.unreq	p4d
 
 	/* Secondary CPUs end up here */
 __idmap_kpti_secondary:

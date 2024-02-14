@@ -1765,6 +1765,9 @@ static int __init __kpti_install_ng_mappings(void *__unused)
 	pgd_t *kpti_ng_temp_pgd;
 	u64 alloc = 0;
 
+	if (levels == 5 && !pgtable_l5_enabled())
+		levels = 4;
+
 	remap_fn = (void *)__pa_symbol(idmap_kpti_install_ng_mappings);
 
 	if (!cpu) {
@@ -1778,9 +1781,9 @@ static int __init __kpti_install_ng_mappings(void *__unused)
 		//
 		// The physical pages are laid out as follows:
 		//
-		// +--------+-/-------+-/------ +-\\--------+
-		// :  PTE[] : | PMD[] : | PUD[] : || PGD[]  :
-		// +--------+-\-------+-\------ +-//--------+
+		// +--------+-/-------+-/------ +-/------ +-\\\--------+
+		// :  PTE[] : | PMD[] : | PUD[] : | P4D[] : ||| PGD[]  :
+		// +--------+-\-------+-\------ +-\------ +-///--------+
 		//      ^
 		// The first page is mapped into this hierarchy at a PMD_SHIFT
 		// aligned virtual address, so that we can manipulate the PTE
