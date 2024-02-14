@@ -606,7 +606,7 @@ static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
 	priv->have_complementary_output = (ccer != 0);
 }
 
-static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv,
+static unsigned int stm32_pwm_detect_channels(struct regmap *regmap,
 					      unsigned int *num_enabled)
 {
 	u32 ccer, ccer_backup;
@@ -615,10 +615,10 @@ static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv,
 	 * If channels enable bits don't exist writing 1 will have no
 	 * effect so we can detect and count them.
 	 */
-	regmap_read(priv->regmap, TIM_CCER, &ccer_backup);
-	regmap_set_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE);
-	regmap_read(priv->regmap, TIM_CCER, &ccer);
-	regmap_write(priv->regmap, TIM_CCER, ccer_backup);
+	regmap_read(regmap, TIM_CCER, &ccer_backup);
+	regmap_set_bits(regmap, TIM_CCER, TIM_CCER_CCXE);
+	regmap_read(regmap, TIM_CCER, &ccer);
+	regmap_write(regmap, TIM_CCER, ccer_backup);
 
 	*num_enabled = hweight32(ccer_backup & TIM_CCER_CCXE);
 
@@ -657,7 +657,7 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 
 	chip->dev = dev;
 	chip->ops = &stm32pwm_ops;
-	chip->npwm = stm32_pwm_detect_channels(priv, &num_enabled);
+	chip->npwm = stm32_pwm_detect_channels(ddata->regmap, &num_enabled);
 
 	/* Initialize clock refcount to number of enabled PWM channels. */
 	for (i = 0; i < num_enabled; i++)
