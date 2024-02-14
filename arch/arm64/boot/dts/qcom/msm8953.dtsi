@@ -2947,10 +2947,10 @@
 				};
 			};
 
-			cs-voice-dai-link {
-				link-name = "CS-Voice";
+			voicemmode1-dai-link {
+				link-name = "VoiceMMode1";
 				cpu {
-					sound-dai = <&q6voicedai CS_VOICE>;
+					sound-dai = <&q6voicedai VOICEMMODE1>;
 				};
 			};
 
@@ -3113,7 +3113,7 @@
 
 						q6voicedai: dais {
 							compatible = "qcom,q6voice-dais";
-							#sound-dai-cells = <0>;
+							#sound-dai-cells = <1>;
 						};
 					};
 
