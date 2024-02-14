@@ -221,7 +221,8 @@ struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 {
 	if (!desc)
 		return NULL;
-	return rcu_dereference(desc->gdev->chip);
+
+	return gpio_device_get_chip(desc->gdev);
 }
 EXPORT_SYMBOL_GPL(gpiod_to_chip);
 
@@ -291,7 +292,7 @@ EXPORT_SYMBOL(gpio_device_get_label);
  */
 struct gpio_chip *gpio_device_get_chip(struct gpio_device *gdev)
 {
-	return rcu_dereference(gdev->chip);
+	return rcu_dereference_check(gdev->chip, 1);
 }
 EXPORT_SYMBOL_GPL(gpio_device_get_chip);
 
