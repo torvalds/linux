@@ -22,11 +22,16 @@ KCSAN_SANITIZE	:= n
 UBSAN_SANITIZE	:= n
 KCOV_INSTRUMENT	:= n
 
+hostprogs	:= relacheck
+
+quiet_cmd_piobjcopy = $(quiet_cmd_objcopy)
+      cmd_piobjcopy = $(cmd_objcopy) && $(obj)/relacheck $(@) $(<)
+
 $(obj)/%.pi.o: OBJCOPYFLAGS := --prefix-symbols=__pi_ \
 			       --remove-section=.note.gnu.property \
 			       --prefix-alloc-sections=.init
-$(obj)/%.pi.o: $(obj)/%.o FORCE
-	$(call if_changed,objcopy)
+$(obj)/%.pi.o: $(obj)/%.o $(obj)/relacheck FORCE
+	$(call if_changed,piobjcopy)
 
 $(obj)/lib-%.o: $(srctree)/lib/%.c FORCE
 	$(call if_changed_rule,cc_o_c)
