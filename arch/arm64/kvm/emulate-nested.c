@@ -2018,6 +2018,17 @@ bool triage_sysreg_trap(struct kvm_vcpu *vcpu, int *sr_index)
 		goto local;
 
 	/*
+	 * If a sysreg can be trapped using a FGT, first check whether we
+	 * trap for the purpose of forbidding the feature. In that case,
+	 * inject an UNDEF.
+	 */
+	if (tc.fgt != __NO_FGT_GROUP__ &&
+	    (vcpu->kvm->arch.fgu[tc.fgt] & BIT(tc.bit))) {
+		kvm_inject_undefined(vcpu);
+		return true;
+	}
+
+	/*
 	 * If we're not nesting, immediately return to the caller, with the
 	 * sysreg index, should we have it.
 	 */
