@@ -466,10 +466,9 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 		return PTR_ERR(ctl->base);
 
 	clk = devm_clk_get_enabled(&pdev->dev, NULL);
-	if (IS_ERR(clk)) {
-		dev_err(&pdev->dev, "clk_get failed with %ld\n", PTR_ERR(clk));
-		return PTR_ERR(clk);
-	}
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk),
+				     "clk_get failed\n");
 
 	ctl->clk_rate = clk_get_rate(clk);
 	if (!ctl->clk_rate)
@@ -477,22 +476,20 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 
 	version = axi_ioread(ADI_AXI_REG_VERSION, ctl);
 	if (ADI_AXI_PCORE_VER_MAJOR(version) !=
-	    ADI_AXI_PCORE_VER_MAJOR((*id))) {
-		dev_err(&pdev->dev, "Major version mismatch. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
-			ADI_AXI_PCORE_VER_MAJOR(*id),
-			ADI_AXI_PCORE_VER_MINOR(*id),
-			ADI_AXI_PCORE_VER_PATCH(*id),
-			ADI_AXI_PCORE_VER_MAJOR(version),
-			ADI_AXI_PCORE_VER_MINOR(version),
-			ADI_AXI_PCORE_VER_PATCH(version));
-		return -ENODEV;
-	}
+	    ADI_AXI_PCORE_VER_MAJOR((*id)))
+		return dev_err_probe(&pdev->dev, -ENODEV,
+				     "Major version mismatch. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
+				     ADI_AXI_PCORE_VER_MAJOR(*id),
+				     ADI_AXI_PCORE_VER_MINOR(*id),
+				     ADI_AXI_PCORE_VER_PATCH(*id),
+				     ADI_AXI_PCORE_VER_MAJOR(version),
+				     ADI_AXI_PCORE_VER_MINOR(version),
+				     ADI_AXI_PCORE_VER_PATCH(version));
 
 	ret = axi_fan_control_init(ctl, &pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to initialize device\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to initialize device\n");
 
 	ctl->hdev = devm_hwmon_device_register_with_info(&pdev->dev,
 							 name,
@@ -511,10 +508,9 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 					axi_fan_control_irq_handler,
 					IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
 					pdev->driver_override, ctl);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to request an irq, %d", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to request an irq\n");
 
 	return 0;
 }
