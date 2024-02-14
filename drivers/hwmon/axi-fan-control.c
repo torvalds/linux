@@ -84,7 +84,7 @@ static ssize_t axi_fan_control_show(struct device *dev, struct device_attribute 
 
 	temp = DIV_ROUND_CLOSEST_ULL(temp * 509314ULL, 65535) - 280230;
 
-	return sprintf(buf, "%u\n", temp);
+	return sysfs_emit(buf, "%u\n", temp);
 }
 
 static ssize_t axi_fan_control_store(struct device *dev, struct device_attribute *da,
