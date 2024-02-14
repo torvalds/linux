@@ -34,7 +34,6 @@ struct sprd_pwm_chn {
 
 struct sprd_pwm_chip {
 	void __iomem *base;
-	struct device *dev;
 	struct pwm_chip chip;
 	struct sprd_pwm_chn chn[SPRD_PWM_CHN_NUM];
 };
@@ -85,7 +84,7 @@ static int sprd_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	ret = clk_bulk_prepare_enable(SPRD_PWM_CHN_CLKS_NUM, chn->clks);
 	if (ret) {
-		dev_err(spc->dev, "failed to enable pwm%u clocks\n",
+		dev_err(pwmchip_parent(chip), "failed to enable pwm%u clocks\n",
 			pwm->hwpwm);
 		return ret;
 	}
@@ -182,7 +181,7 @@ static int sprd_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			ret = clk_bulk_prepare_enable(SPRD_PWM_CHN_CLKS_NUM,
 						      chn->clks);
 			if (ret) {
-				dev_err(spc->dev,
+				dev_err(pwmchip_parent(chip),
 					"failed to enable pwm%u clocks\n",
 					pwm->hwpwm);
 				return ret;
@@ -265,7 +264,6 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(spc->base))
 		return PTR_ERR(spc->base);
 
-	spc->dev = &pdev->dev;
 	memcpy(spc->chn, chn, sizeof(chn));
 
 	spc->chip.dev = &pdev->dev;
