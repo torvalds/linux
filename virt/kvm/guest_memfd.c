@@ -19,8 +19,8 @@ static struct folio *kvm_gmem_get_folio(struct inode *inode, pgoff_t index)
 
 	/* TODO: Support huge pages. */
 	folio = filemap_grab_folio(inode->i_mapping, index);
-	if (IS_ERR_OR_NULL(folio))
-		return NULL;
+	if (IS_ERR(folio))
+		return folio;
 
 	/*
 	 * Use the up-to-date flag to track whether or not the memory has been
@@ -146,8 +146,8 @@ static long kvm_gmem_allocate(struct inode *inode, loff_t offset, loff_t len)
 		}
 
 		folio = kvm_gmem_get_folio(inode, index);
-		if (!folio) {
-			r = -ENOMEM;
+		if (IS_ERR(folio)) {
+			r = PTR_ERR(folio);
 			break;
 		}
 
@@ -505,8 +505,8 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 	}
 
 	folio = kvm_gmem_get_folio(file_inode(file), index);
-	if (!folio) {
-		r = -ENOMEM;
+	if (IS_ERR(folio)) {
+		r = PTR_ERR(folio);
 		goto out_fput;
 	}
 
