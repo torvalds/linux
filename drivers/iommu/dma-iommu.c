@@ -29,7 +29,9 @@
 #include <linux/spinlock.h>
 #include <linux/swiotlb.h>
 #include <linux/vmalloc.h>
+#ifndef __GENKSYMS__
 #include <trace/events/swiotlb.h>
+#endif
 #include <trace/hooks/iommu.h>
 
 #include "dma-iommu.h"
