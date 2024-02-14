@@ -124,8 +124,6 @@ static void emit_log_message_to_kernel(int priority, const char *fmt, ...)
 		printk(KERN_WARNING "%pV", &vaf);
 		break;
 	case UDS_LOG_NOTICE:
-		printk(KERN_NOTICE "%pV", &vaf);
-		break;
 	case UDS_LOG_INFO:
 		printk(KERN_INFO "%pV", &vaf);
 		break;

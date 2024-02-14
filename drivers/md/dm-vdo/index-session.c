@@ -378,7 +378,7 @@ int uds_open_index(enum uds_open_index_type open_type,
 
 	session->parameters = *parameters;
 	format_dev_t(name, parameters->bdev->bd_dev);
-	uds_log_notice("%s: %s", get_open_type_string(open_type), name);
+	uds_log_info("%s: %s", get_open_type_string(open_type), name);
 
 	result = initialize_index_session(session, open_type);
 	if (result != UDS_SUCCESS)
