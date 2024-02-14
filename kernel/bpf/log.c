@@ -382,15 +382,28 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 				  u32 insn_off,
 				  const char *prefix_fmt, ...)
 {
-	const struct bpf_line_info *linfo;
+	const struct bpf_line_info *linfo, *prev_linfo;
 	const struct btf *btf;
 	const char *s, *fname;
 
 	if (!bpf_verifier_log_needed(&env->log))
 		return;
 
+	prev_linfo = env->prev_linfo;
 	linfo = find_linfo(env, insn_off);
-	if (!linfo || linfo == env->prev_linfo)
+	if (!linfo || linfo == prev_linfo)
+		return;
+
+	/* It often happens that two separate linfo records point to the same
+	 * source code line, but have differing column numbers. Given verifier
+	 * log doesn't emit column information, from user perspective we just
+	 * end up emitting the same source code line twice unnecessarily.
+	 * So instead check that previous and current linfo record point to
+	 * the same file (file_name_offs match) and the same line number, and
+	 * avoid emitting duplicated source code line in such case.
+	 */
+	if (prev_linfo && linfo->file_name_off == prev_linfo->file_name_off &&
+	    BPF_LINE_INFO_LINE_NUM(linfo->line_col) == BPF_LINE_INFO_LINE_NUM(prev_linfo->line_col))
 		return;
 
 	if (prefix_fmt) {
