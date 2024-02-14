@@ -3482,7 +3482,7 @@ int kvm_handle_sys_reg(struct kvm_vcpu *vcpu)
 
 	trace_kvm_handle_sys_reg(esr);
 
-	if (__check_nv_sr_forward(vcpu, &sr_idx))
+	if (triage_sysreg_trap(vcpu, &sr_idx))
 		return 1;
 
 	params = esr_sys64_to_params(esr);
