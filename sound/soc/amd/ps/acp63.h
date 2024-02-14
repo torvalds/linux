@@ -226,12 +226,11 @@ struct sdw_dma_ring_buf_reg {
  * @is_pdm_dev: flag set to true when ACP PDM controller exists
  * @is_pdm_config: flat set to true when PDM configuration is selected from BIOS
  * @is_sdw_config: flag set to true when SDW configuration is selected from BIOS
+ * @sdw_en_stat: flag set to true when any one of the SoundWire manager instance is enabled
  * @addr: pci ioremap address
  * @reg_range: ACP reigister range
  * @sdw0-dma_intr_stat: DMA interrupt status array for SoundWire manager-SW0 instance
  * @sdw_dma_intr_stat: DMA interrupt status array for SoundWire manager-SW1 instance
- * @acp_reset: flag set to true when bus reset is applied across all
- * the active SoundWire manager instances
  */
 
 struct acp63_dev_data {
@@ -248,11 +247,11 @@ struct acp63_dev_data {
 	bool is_pdm_dev;
 	bool is_pdm_config;
 	bool is_sdw_config;
+	bool sdw_en_stat;
 	u32 addr;
 	u32 reg_range;
 	u16 sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
 	u16 sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
-	bool acp_reset;
 };
 
 int snd_amd_acp_find_config(struct pci_dev *pci);

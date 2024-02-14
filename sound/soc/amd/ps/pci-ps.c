@@ -503,13 +503,6 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	}
 	adata->addr = addr;
 	adata->reg_range = ACP63_REG_END - ACP63_REG_START;
-	/*
-	 * By default acp_reset flag is set to true. i.e acp_deinit() and acp_init()
-	 * will be invoked for all ACP configurations during suspend/resume callbacks.
-	 * This flag should be set to false only when SoundWire manager power mode
-	 * set to ClockStopMode.
-	 */
-	adata->acp_reset = true;
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
 	mutex_init(&adata->acp_lock);
@@ -552,31 +545,46 @@ disable_pci:
 	return ret;
 }
 
+static bool check_acp_sdw_enable_status(struct acp63_dev_data *adata)
+{
+	u32 sdw0_en, sdw1_en;
+
+	sdw0_en = readl(adata->acp63_base + ACP_SW0_EN);
+	sdw1_en = readl(adata->acp63_base + ACP_SW1_EN);
+	return (sdw0_en || sdw1_en);
+}
+
 static int __maybe_unused snd_acp63_suspend(struct device *dev)
 {
 	struct acp63_dev_data *adata;
-	int ret = 0;
+	int ret;
 
 	adata = dev_get_drvdata(dev);
-	if (adata->acp_reset) {
-		ret = acp63_deinit(adata->acp63_base, dev);
-		if (ret)
-			dev_err(dev, "ACP de-init failed\n");
+	if (adata->is_sdw_dev) {
+		adata->sdw_en_stat = check_acp_sdw_enable_status(adata);
+		if (adata->sdw_en_stat)
+			return 0;
 	}
+	ret = acp63_deinit(adata->acp63_base, dev);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+
 	return ret;
 }
 
 static int __maybe_unused snd_acp63_resume(struct device *dev)
 {
 	struct acp63_dev_data *adata;
-	int ret = 0;
+	int ret;
 
 	adata = dev_get_drvdata(dev);
-	if (adata->acp_reset) {
-		ret = acp63_init(adata->acp63_base, dev);
-		if (ret)
-			dev_err(dev, "ACP init failed\n");
-	}
+	if (adata->sdw_en_stat)
+		return 0;
+
+	ret = acp63_init(adata->acp63_base, dev);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+
 	return ret;
 }
 
