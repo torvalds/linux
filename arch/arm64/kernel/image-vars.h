@@ -38,7 +38,9 @@ PROVIDE(__pi___memset			= __pi_memset);
 
 PROVIDE(__pi_id_aa64isar1_override	= id_aa64isar1_override);
 PROVIDE(__pi_id_aa64isar2_override	= id_aa64isar2_override);
+PROVIDE(__pi_id_aa64mmfr0_override	= id_aa64mmfr0_override);
 PROVIDE(__pi_id_aa64mmfr1_override	= id_aa64mmfr1_override);
+PROVIDE(__pi_id_aa64mmfr2_override	= id_aa64mmfr2_override);
 PROVIDE(__pi_id_aa64pfr0_override	= id_aa64pfr0_override);
 PROVIDE(__pi_id_aa64pfr1_override	= id_aa64pfr1_override);
 PROVIDE(__pi_id_aa64smfr0_override	= id_aa64smfr0_override);

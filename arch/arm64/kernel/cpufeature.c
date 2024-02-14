@@ -655,7 +655,9 @@ static const struct arm64_ftr_bits ftr_raz[] = {
 #define ARM64_FTR_REG(id, table)		\
 	__ARM64_FTR_REG_OVERRIDE(#id, id, table, &no_override)
 
+struct arm64_ftr_override id_aa64mmfr0_override;
 struct arm64_ftr_override id_aa64mmfr1_override;
+struct arm64_ftr_override id_aa64mmfr2_override;
 struct arm64_ftr_override id_aa64pfr0_override;
 struct arm64_ftr_override id_aa64pfr1_override;
 struct arm64_ftr_override id_aa64zfr0_override;
@@ -719,10 +721,12 @@ static const struct __ftr_reg_entry {
 			       &id_aa64isar2_override),
 
 	/* Op1 = 0, CRn = 0, CRm = 7 */
-	ARM64_FTR_REG(SYS_ID_AA64MMFR0_EL1, ftr_id_aa64mmfr0),
+	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64MMFR0_EL1, ftr_id_aa64mmfr0,
+			       &id_aa64mmfr0_override),
 	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64MMFR1_EL1, ftr_id_aa64mmfr1,
 			       &id_aa64mmfr1_override),
-	ARM64_FTR_REG(SYS_ID_AA64MMFR2_EL1, ftr_id_aa64mmfr2),
+	ARM64_FTR_REG_OVERRIDE(SYS_ID_AA64MMFR2_EL1, ftr_id_aa64mmfr2,
+			       &id_aa64mmfr2_override),
 	ARM64_FTR_REG(SYS_ID_AA64MMFR3_EL1, ftr_id_aa64mmfr3),
 
 	/* Op1 = 1, CRn = 0, CRm = 0 */

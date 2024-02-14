@@ -59,6 +59,35 @@ static const struct ftr_set_desc mmfr1 __prel64_initconst = {
 	},
 };
 
+
+static bool __init mmfr2_varange_filter(u64 val)
+{
+	int __maybe_unused feat;
+
+	if (val)
+		return false;
+
+#ifdef CONFIG_ARM64_LPA2
+	feat = cpuid_feature_extract_signed_field(read_sysreg(id_aa64mmfr0_el1),
+						  ID_AA64MMFR0_EL1_TGRAN_SHIFT);
+	if (feat >= ID_AA64MMFR0_EL1_TGRAN_LPA2) {
+		id_aa64mmfr0_override.val |=
+			(ID_AA64MMFR0_EL1_TGRAN_LPA2 - 1) << ID_AA64MMFR0_EL1_TGRAN_SHIFT;
+		id_aa64mmfr0_override.mask |= 0xfU << ID_AA64MMFR0_EL1_TGRAN_SHIFT;
+	}
+#endif
+	return true;
+}
+
+static const struct ftr_set_desc mmfr2 __prel64_initconst = {
+	.name		= "id_aa64mmfr2",
+	.override	= &id_aa64mmfr2_override,
+	.fields		= {
+		FIELD("varange", ID_AA64MMFR2_EL1_VARange_SHIFT, mmfr2_varange_filter),
+		{}
+	},
+};
+
 static bool __init pfr0_sve_filter(u64 val)
 {
 	/*
@@ -167,6 +196,7 @@ static const struct ftr_set_desc sw_features __prel64_initconst = {
 static const
 PREL64(const struct ftr_set_desc, reg) regs[] __prel64_initconst = {
 	{ &mmfr1	},
+	{ &mmfr2	},
 	{ &pfr0 	},
 	{ &pfr1 	},
 	{ &isar1	},
@@ -192,6 +222,7 @@ static const struct {
 	{ "arm64.nomte",		"id_aa64pfr1.mte=0" },
 	{ "nokaslr",			"arm64_sw.nokaslr=1" },
 	{ "rodata=off",			"arm64_sw.rodataoff=1" },
+	{ "arm64.nolva",		"id_aa64mmfr2.varange=0" },
 };
 
 static int __init parse_hexdigit(const char *p, u64 *v)

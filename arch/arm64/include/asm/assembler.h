@@ -576,18 +576,21 @@ alternative_endif
 	.endm
 
 /*
- * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
+ * If the kernel is built for 52-bit virtual addressing but the hardware only
+ * supports 48 bits, we cannot program the pgdir address into TTBR1 directly,
+ * but we have to add an offset so that the TTBR1 address corresponds with the
+ * pgdir entry that covers the lowest 48-bit addressable VA.
+ *
  * orr is used as it can cover the immediate value (and is idempotent).
- * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
  * 	ttbr: Value of ttbr to set, modified.
  */
 	.macro	offset_ttbr1, ttbr, tmp
 #ifdef CONFIG_ARM64_VA_BITS_52
-	mrs_s	\tmp, SYS_ID_AA64MMFR2_EL1
-	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_EL1_VARange_SHIFT)
-	cbnz	\tmp, .Lskipoffs_\@
-	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
-.Lskipoffs_\@ :
+	mrs	\tmp, tcr_el1
+	and	\tmp, \tmp, #TCR_T1SZ_MASK
+	cmp	\tmp, #TCR_T1SZ(VA_BITS_MIN)
+	orr	\tmp, \ttbr, #TTBR1_BADDR_4852_OFFSET
+	csel	\ttbr, \tmp, \ttbr, eq
 #endif
 	.endm
 
