@@ -1025,7 +1025,7 @@ static void free_empty_pud_table(p4d_t *p4dp, unsigned long addr,
 	if (CONFIG_PGTABLE_LEVELS <= 3)
 		return;
 
-	if (!pgtable_range_aligned(start, end, floor, ceiling, PGDIR_MASK))
+	if (!pgtable_range_aligned(start, end, floor, ceiling, P4D_MASK))
 		return;
 
 	/*
@@ -1048,8 +1048,8 @@ static void free_empty_p4d_table(pgd_t *pgdp, unsigned long addr,
 				 unsigned long end, unsigned long floor,
 				 unsigned long ceiling)
 {
-	unsigned long next;
 	p4d_t *p4dp, p4d;
+	unsigned long i, next, start = addr;
 
 	do {
 		next = p4d_addr_end(addr, end);
@@ -1061,6 +1061,27 @@ static void free_empty_p4d_table(pgd_t *pgdp, unsigned long addr,
 		WARN_ON(!p4d_present(p4d));
 		free_empty_pud_table(p4dp, addr, next, floor, ceiling);
 	} while (addr = next, addr < end);
+
+	if (!pgtable_l5_enabled())
+		return;
+
+	if (!pgtable_range_aligned(start, end, floor, ceiling, PGDIR_MASK))
+		return;
+
+	/*
+	 * Check whether we can free the p4d page if the rest of the
+	 * entries are empty. Overlap with other regions have been
+	 * handled by the floor/ceiling check.
+	 */
+	p4dp = p4d_offset(pgdp, 0UL);
+	for (i = 0; i < PTRS_PER_P4D; i++) {
+		if (!p4d_none(READ_ONCE(p4dp[i])))
+			return;
+	}
+
+	pgd_clear(pgdp);
+	__flush_tlb_kernel_pgtable(start);
+	free_hotplug_pgtable_page(virt_to_page(p4dp));
 }
 
 static void free_empty_tables(unsigned long addr, unsigned long end,
@@ -1144,6 +1165,12 @@ int pmd_set_huge(pmd_t *pmdp, phys_addr_t phys, pgprot_t prot)
 	set_pmd(pmdp, new_pmd);
 	return 1;
 }
+
+#ifndef __PAGETABLE_P4D_FOLDED
+void p4d_clear_huge(p4d_t *p4dp)
+{
+}
+#endif
 
 int pud_clear_huge(pud_t *pudp)
 {
