@@ -366,7 +366,6 @@ static int zcdn_create(const char *name)
 {
 	dev_t devt;
 	int i, rc = 0;
-	char nodename[ZCDN_MAX_NAME];
 	struct zcdn_device *zcdndev;
 
 	if (mutex_lock_interruptible(&ap_perms_mutex))
@@ -407,13 +406,11 @@ static int zcdn_create(const char *name)
 	zcdndev->device.devt = devt;
 	zcdndev->device.groups = zcdn_dev_attr_groups;
 	if (name[0])
-		strncpy(nodename, name, sizeof(nodename));
+		rc = dev_set_name(&zcdndev->device, "%s", name);
 	else
-		snprintf(nodename, sizeof(nodename),
-			 ZCRYPT_NAME "_%d", (int)MINOR(devt));
-	nodename[sizeof(nodename) - 1] = '\0';
-	if (dev_set_name(&zcdndev->device, nodename)) {
-		rc = -EINVAL;
+		rc = dev_set_name(&zcdndev->device, ZCRYPT_NAME "_%d", (int)MINOR(devt));
+	if (rc) {
+		kfree(zcdndev);
 		goto unlockout;
 	}
 	rc = device_register(&zcdndev->device);
@@ -676,7 +673,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 	for_each_zcrypt_card(zc) {
 		/* Check for usable accelerator or CCA card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
-		    !(zc->card->functions & 0x18000000))
+		    !(zc->card->hwinfo.accel || zc->card->hwinfo.cca))
 			continue;
 		/* Check for size limits */
 		if (zc->min_mod_size > mex->inputdatalength ||
@@ -696,7 +693,7 @@ static long zcrypt_rsa_modexpo(struct ap_perms *perms,
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is usable and eligible */
 			if (!zq->online || !zq->ops->rsa_modexpo ||
-			    !zq->queue->config || zq->queue->chkstop)
+			    !ap_queue_usable(zq->queue))
 				continue;
 			/* check if device node has admission for this queue */
 			if (!zcrypt_check_queue(perms,
@@ -781,7 +778,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 	for_each_zcrypt_card(zc) {
 		/* Check for usable accelerator or CCA card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
-		    !(zc->card->functions & 0x18000000))
+		    !(zc->card->hwinfo.accel || zc->card->hwinfo.cca))
 			continue;
 		/* Check for size limits */
 		if (zc->min_mod_size > crt->inputdatalength ||
@@ -801,7 +798,7 @@ static long zcrypt_rsa_crt(struct ap_perms *perms,
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is usable and eligible */
 			if (!zq->online || !zq->ops->rsa_modexpo_crt ||
-			    !zq->queue->config || zq->queue->chkstop)
+			    !ap_queue_usable(zq->queue))
 				continue;
 			/* check if device node has admission for this queue */
 			if (!zcrypt_check_queue(perms,
@@ -896,7 +893,7 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 	for_each_zcrypt_card(zc) {
 		/* Check for usable CCA card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
-		    !(zc->card->functions & 0x10000000))
+		    !zc->card->hwinfo.cca)
 			continue;
 		/* Check for user selected CCA card */
 		if (xcrb->user_defined != AUTOSELECT &&
@@ -919,7 +916,7 @@ static long _zcrypt_send_cprb(bool userspace, struct ap_perms *perms,
 		for_each_zcrypt_queue(zq, zc) {
 			/* check for device usable and eligible */
 			if (!zq->online || !zq->ops->send_cprb ||
-			    !zq->queue->config || zq->queue->chkstop ||
+			    !ap_queue_usable(zq->queue) ||
 			    (tdom != AUTOSEL_DOM &&
 			     tdom != AP_QID_QUEUE(zq->queue->qid)))
 				continue;
@@ -1067,7 +1064,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 	for_each_zcrypt_card(zc) {
 		/* Check for usable EP11 card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
-		    !(zc->card->functions & 0x04000000))
+		    !zc->card->hwinfo.ep11)
 			continue;
 		/* Check for user selected EP11 card */
 		if (targets &&
@@ -1090,7 +1087,7 @@ static long _zcrypt_send_ep11_cprb(bool userspace, struct ap_perms *perms,
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is usable and eligible */
 			if (!zq->online || !zq->ops->send_ep11_cprb ||
-			    !zq->queue->config || zq->queue->chkstop ||
+			    !ap_queue_usable(zq->queue) ||
 			    (targets &&
 			     !is_desired_ep11_queue(zq->queue->qid,
 						    target_num, targets)))
@@ -1180,7 +1177,7 @@ static long zcrypt_rng(char *buffer)
 	for_each_zcrypt_card(zc) {
 		/* Check for usable CCA card */
 		if (!zc->online || !zc->card->config || zc->card->chkstop ||
-		    !(zc->card->functions & 0x10000000))
+		    !zc->card->hwinfo.cca)
 			continue;
 		/* get weight index of the card device	*/
 		wgt = zc->speed_rating[func_code];
@@ -1189,7 +1186,7 @@ static long zcrypt_rng(char *buffer)
 		for_each_zcrypt_queue(zq, zc) {
 			/* check if device is usable and eligible */
 			if (!zq->online || !zq->ops->rng ||
-			    !zq->queue->config || zq->queue->chkstop)
+			    !ap_queue_usable(zq->queue))
 				continue;
 			if (!zcrypt_queue_compare(zq, pref_zq, wgt, pref_wgt))
 				continue;
@@ -1241,7 +1238,7 @@ static void zcrypt_device_status_mask(struct zcrypt_device_status *devstatus)
 			queue = AP_QID_QUEUE(zq->queue->qid);
 			stat = &devstatus[card * AP_DOMAINS + queue];
 			stat->hwtype = zc->card->ap_dev.device_type;
-			stat->functions = zc->card->functions >> 26;
+			stat->functions = zc->card->hwinfo.fac >> 26;
 			stat->qid = zq->queue->qid;
 			stat->online = zq->online ? 0x01 : 0x00;
 		}
@@ -1266,7 +1263,7 @@ void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus)
 			queue = AP_QID_QUEUE(zq->queue->qid);
 			stat = &devstatus[card * AP_DOMAINS + queue];
 			stat->hwtype = zc->card->ap_dev.device_type;
-			stat->functions = zc->card->functions >> 26;
+			stat->functions = zc->card->hwinfo.fac >> 26;
 			stat->qid = zq->queue->qid;
 			stat->online = zq->online ? 0x01 : 0x00;
 		}
@@ -1289,7 +1286,7 @@ int zcrypt_device_status_ext(int card, int queue,
 			if (card == AP_QID_CARD(zq->queue->qid) &&
 			    queue == AP_QID_QUEUE(zq->queue->qid)) {
 				devstat->hwtype = zc->card->ap_dev.device_type;
-				devstat->functions = zc->card->functions >> 26;
+				devstat->functions = zc->card->hwinfo.fac >> 26;
 				devstat->qid = zq->queue->qid;
 				devstat->online = zq->online ? 0x01 : 0x00;
 				spin_unlock(&zcrypt_list_lock);

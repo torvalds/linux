@@ -14,7 +14,7 @@
 #include <asm/auxvec.h>
 #include <asm/byteorder.h>
 #include <asm/cacheinfo.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 
 /*
  * These are used to set parameters in the core dumps.

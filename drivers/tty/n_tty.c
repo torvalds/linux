@@ -249,15 +249,12 @@ static void n_tty_check_throttle(struct tty_struct *tty)
 	if (ldata->icanon && ldata->canon_head == ldata->read_tail)
 		return;
 
-	while (1) {
-		int throttled;
+	do {
 		tty_set_flow_change(tty, TTY_THROTTLE_SAFE);
 		if (N_TTY_BUF_SIZE - read_cnt(ldata) >= TTY_THRESHOLD_THROTTLE)
 			break;
-		throttled = tty_throttle_safe(tty);
-		if (!throttled)
-			break;
-	}
+	} while (!tty_throttle_safe(tty));
+
 	__tty_set_flow_change(tty, 0);
 }
 
@@ -279,16 +276,14 @@ static void n_tty_check_unthrottle(struct tty_struct *tty)
 	 * we won't get any more characters.
 	 */
 
-	while (1) {
-		int unthrottled;
+	do {
 		tty_set_flow_change(tty, TTY_UNTHROTTLE_SAFE);
 		if (chars_in_buffer(tty) > TTY_THRESHOLD_UNTHROTTLE)
 			break;
+
 		n_tty_kick_worker(tty);
-		unthrottled = tty_unthrottle_safe(tty);
-		if (!unthrottled)
-			break;
-	}
+	} while (!tty_unthrottle_safe(tty));
+
 	__tty_set_flow_change(tty, 0);
 }
 
@@ -1965,26 +1960,27 @@ static bool copy_from_read_buf(const struct tty_struct *tty, u8 **kbp,
 	size_t head = smp_load_acquire(&ldata->commit_head);
 	size_t tail = MASK(ldata->read_tail);
 
-	n = min(head - ldata->read_tail, N_TTY_BUF_SIZE - tail);
-	n = min(*nr, n);
-	if (n) {
-		u8 *from = read_buf_addr(ldata, tail);
-		memcpy(*kbp, from, n);
-		is_eof = n == 1 && *from == EOF_CHAR(tty);
-		tty_audit_add_data(tty, from, n);
-		zero_buffer(tty, from, n);
-		smp_store_release(&ldata->read_tail, ldata->read_tail + n);
-		/* Turn single EOF into zero-length read */
-		if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
-		    (head == ldata->read_tail))
-			return false;
-		*kbp += n;
-		*nr -= n;
+	n = min3(head - ldata->read_tail, N_TTY_BUF_SIZE - tail, *nr);
+	if (!n)
+		return false;
 
-		/* If we have more to copy, let the caller know */
-		return head != ldata->read_tail;
-	}
-	return false;
+	u8 *from = read_buf_addr(ldata, tail);
+	memcpy(*kbp, from, n);
+	is_eof = n == 1 && *from == EOF_CHAR(tty);
+	tty_audit_add_data(tty, from, n);
+	zero_buffer(tty, from, n);
+	smp_store_release(&ldata->read_tail, ldata->read_tail + n);
+
+	/* Turn single EOF into zero-length read */
+	if (L_EXTPROC(tty) && ldata->icanon && is_eof &&
+	    head == ldata->read_tail)
+		return false;
+
+	*kbp += n;
+	*nr -= n;
+
+	/* If we have more to copy, let the caller know */
+	return head != ldata->read_tail;
 }
 
 /**
@@ -2154,9 +2150,8 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 	struct n_tty_data *ldata = tty->disc_data;
 	u8 *kb = kbuf;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
-	int c;
 	int minimum, time;
-	ssize_t retval = 0;
+	ssize_t retval;
 	long timeout;
 	bool packet;
 	size_t old_tail;
@@ -2192,9 +2187,9 @@ static ssize_t n_tty_read(struct tty_struct *tty, struct file *file, u8 *kbuf,
 		return kb - kbuf;
 	}
 
-	c = job_control(tty, file);
-	if (c < 0)
-		return c;
+	retval = job_control(tty, file);
+	if (retval < 0)
+		return retval;
 
 	/*
 	 *	Internal serialization of reads.
@@ -2499,7 +2494,7 @@ static int n_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 		       unsigned long arg)
 {
 	struct n_tty_data *ldata = tty->disc_data;
-	int retval;
+	unsigned int num;
 
 	switch (cmd) {
 	case TIOCOUTQ:
@@ -2507,11 +2502,11 @@ static int n_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
 	case TIOCINQ:
 		down_write(&tty->termios_rwsem);
 		if (L_ICANON(tty) && !L_EXTPROC(tty))
-			retval = inq_canon(ldata);
+			num = inq_canon(ldata);
 		else
-			retval = read_cnt(ldata);
+			num = read_cnt(ldata);
 		up_write(&tty->termios_rwsem);
-		return put_user(retval, (unsigned int __user *) arg);
+		return put_user(num, (unsigned int __user *) arg);
 	default:
 		return n_tty_ioctl_helper(tty, cmd, arg);
 	}

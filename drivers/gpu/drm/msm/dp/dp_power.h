@@ -81,17 +81,6 @@ int dp_power_clk_enable(struct dp_power *power, enum dp_pm_type pm_type,
 int dp_power_client_init(struct dp_power *power);
 
 /**
- * dp_power_clinet_deinit() - de-initialize clock and regulator modules
- *
- * @power: instance of power module
- * return: 0 for success, error for failure.
- *
- * This API will de-initialize the DisplayPort's clocks and regulator
- * modules.
- */
-void dp_power_client_deinit(struct dp_power *power);
-
-/**
  * dp_power_get() - configure and get the DisplayPort power module data
  *
  * @parser: instance of parser module

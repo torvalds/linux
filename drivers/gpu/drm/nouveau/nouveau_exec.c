@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-#include <drm/drm_exec.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_gem.h"
 #include "nouveau_mem.h"
@@ -86,67 +84,43 @@
  */
 
 static int
-nouveau_exec_job_submit(struct nouveau_job *job)
+nouveau_exec_job_submit(struct nouveau_job *job,
+			struct drm_gpuvm_exec *vme)
 {
 	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
 	struct nouveau_cli *cli = job->cli;
 	struct nouveau_uvmm *uvmm = nouveau_cli_uvmm(cli);
-	struct drm_exec *exec = &job->exec;
-	struct drm_gem_object *obj;
-	unsigned long index;
 	int ret;
 
-	ret = nouveau_fence_new(&exec_job->fence);
+	/* Create a new fence, but do not emit yet. */
+	ret = nouveau_fence_create(&exec_job->fence, exec_job->chan);
 	if (ret)
 		return ret;
 
 	nouveau_uvmm_lock(uvmm);
-	drm_exec_init(exec, DRM_EXEC_INTERRUPTIBLE_WAIT |
-			    DRM_EXEC_IGNORE_DUPLICATES);
-	drm_exec_until_all_locked(exec) {
-		struct drm_gpuva *va;
-
-		drm_gpuva_for_each_va(va, &uvmm->umgr) {
-			if (unlikely(va == &uvmm->umgr.kernel_alloc_node))
-				continue;
-
-			ret = drm_exec_prepare_obj(exec, va->gem.obj, 1);
-			drm_exec_retry_on_contention(exec);
-			if (ret)
-				goto err_uvmm_unlock;
-		}
+	ret = drm_gpuvm_exec_lock(vme);
+	if (ret) {
+		nouveau_uvmm_unlock(uvmm);
+		return ret;
 	}
 	nouveau_uvmm_unlock(uvmm);
 
-	drm_exec_for_each_locked_object(exec, index, obj) {
-		struct nouveau_bo *nvbo = nouveau_gem_object(obj);
-
-		ret = nouveau_bo_validate(nvbo, true, false);
-		if (ret)
-			goto err_exec_fini;
+	ret = drm_gpuvm_exec_validate(vme);
+	if (ret) {
+		drm_gpuvm_exec_unlock(vme);
+		return ret;
 	}
 
 	return 0;
-
-err_uvmm_unlock:
-	nouveau_uvmm_unlock(uvmm);
-err_exec_fini:
-	drm_exec_fini(exec);
-	return ret;
-
 }
 
 static void
-nouveau_exec_job_armed_submit(struct nouveau_job *job)
+nouveau_exec_job_armed_submit(struct nouveau_job *job,
+			      struct drm_gpuvm_exec *vme)
 {
-	struct drm_exec *exec = &job->exec;
-	struct drm_gem_object *obj;
-	unsigned long index;
-
-	drm_exec_for_each_locked_object(exec, index, obj)
-		dma_resv_add_fence(obj->resv, job->done_fence, job->resv_usage);
-
-	drm_exec_fini(exec);
+	drm_gpuvm_exec_resv_add_fence(vme, job->done_fence,
+				      job->resv_usage, job->resv_usage);
+	drm_gpuvm_exec_unlock(vme);
 }
 
 static struct dma_fence *
@@ -170,13 +144,17 @@ nouveau_exec_job_run(struct nouveau_job *job)
 		nv50_dma_push(chan, p->va, p->va_len, no_prefetch);
 	}
 
-	ret = nouveau_fence_emit(fence, chan);
+	ret = nouveau_fence_emit(fence);
 	if (ret) {
+		nouveau_fence_unref(&exec_job->fence);
 		NV_PRINTK(err, job->cli, "error fencing pushbuf: %d\n", ret);
 		WIND_RING(chan);
 		return ERR_PTR(ret);
 	}
 
+	/* The fence was emitted successfully, set the job's fence pointer to
+	 * NULL in order to avoid freeing it up when the job is cleaned up.
+	 */
 	exec_job->fence = NULL;
 
 	return &fence->base;
@@ -187,9 +165,10 @@ nouveau_exec_job_free(struct nouveau_job *job)
 {
 	struct nouveau_exec_job *exec_job = to_nouveau_exec_job(job);
 
+	nouveau_job_done(job);
 	nouveau_job_free(job);
 
-	nouveau_fence_unref(&exec_job->fence);
+	kfree(exec_job->fence);
 	kfree(exec_job->push.s);
 	kfree(exec_job);
 }
@@ -206,9 +185,7 @@ nouveau_exec_job_timeout(struct nouveau_job *job)
 	NV_PRINTK(warn, job->cli, "job timeout, channel %d killed!\n",
 		  chan->chid);
 
-	nouveau_sched_entity_fini(job->entity);
-
-	return DRM_GPU_SCHED_STAT_ENODEV;
+	return DRM_GPU_SCHED_STAT_NOMINAL;
 }
 
 static struct nouveau_job_ops nouveau_exec_job_ops = {
@@ -254,10 +231,12 @@ nouveau_exec_job_init(struct nouveau_exec_job **pjob,
 		}
 	}
 
+	args.file_priv = __args->file_priv;
 	job->chan = __args->chan;
 
-	args.sched_entity = __args->sched_entity;
-	args.file_priv = __args->file_priv;
+	args.sched = __args->sched;
+	/* Plus one to account for the HW fence. */
+	args.credits = job->push.count + 1;
 
 	args.in_sync.count = __args->in_sync.count;
 	args.in_sync.s = __args->in_sync.s;
@@ -374,7 +353,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	struct nouveau_channel *chan = NULL;
 	struct nouveau_exec_job_args args = {};
 	struct drm_nouveau_exec *req = data;
-	int ret = 0;
+	int push_max, ret = 0;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
@@ -399,9 +378,10 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (!chan->dma.ib_max)
 		return nouveau_abi16_put(abi16, -ENOSYS);
 
-	if (unlikely(req->push_count > NOUVEAU_GEM_MAX_PUSH)) {
+	push_max = nouveau_exec_push_max_from_ib_max(chan->dma.ib_max);
+	if (unlikely(req->push_count > push_max)) {
 		NV_PRINTK(err, cli, "pushbuf push count exceeds limit: %d max %d\n",
-			 req->push_count, NOUVEAU_GEM_MAX_PUSH);
+			  req->push_count, push_max);
 		return nouveau_abi16_put(abi16, -EINVAL);
 	}
 
@@ -409,7 +389,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	args.sched_entity = &chan16->sched_entity;
+	args.sched = &chan16->sched;
 	args.file_priv = file_priv;
 	args.chan = chan;
 

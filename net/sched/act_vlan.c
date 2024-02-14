@@ -151,7 +151,7 @@ static int tcf_vlan_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	switch (parm->v_action) {
 	case TCA_VLAN_ACT_POP:

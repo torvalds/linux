@@ -307,6 +307,8 @@ const struct pmc_reg_map adl_reg_map = {
 	.lpm_sts = adl_lpm_maps,
 	.lpm_status_offset = ADL_LPM_STATUS_OFFSET,
 	.lpm_live_status_offset = ADL_LPM_LIVE_STATUS_OFFSET,
+	.pson_residency_offset = TGL_PSON_RESIDENCY_OFFSET,
+	.pson_residency_counter_step = TGL_PSON_RES_COUNTER_STEP,
 };
 
 int adl_core_init(struct pmc_dev *pmcdev)
@@ -314,16 +316,15 @@ int adl_core_init(struct pmc_dev *pmcdev)
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
 	int ret;
 
+	pmcdev->suspend = cnl_suspend;
+	pmcdev->resume = cnl_resume;
+
 	pmc->map = &adl_reg_map;
 	ret = get_primary_reg_base(pmc);
 	if (ret)
 		return ret;
 
-	/* Due to a hardware limitation, the GBE LTR blocks PC10
-	 * when a cable is attached. Tell the PMC to ignore it.
-	 */
-	dev_dbg(&pmcdev->pdev->dev, "ignoring GBE LTR\n");
-	pmc_core_send_ltr_ignore(pmcdev, 3);
+	pmc_core_get_low_power_modes(pmcdev);
 
 	return 0;
 }

@@ -23,10 +23,10 @@
 #include <asm/io.h>
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
+#include <asm/setup.h>
+#include <asm/tlbex.h>
 
 #undef DEBUG_TLB
-
-extern void build_tlb_refill_handler(void);
 
 /* CP0 hazard avoidance. */
 #define BARRIER				\
@@ -183,7 +183,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 	int idx, pid;
 
 	/*
-	 * Handle debugger faulting in for debugee.
+	 * Handle debugger faulting in for debuggee.
 	 */
 	if (current->active_mm != vma->vm_mm)
 		return;

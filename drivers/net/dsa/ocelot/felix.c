@@ -42,22 +42,22 @@ static struct net_device *felix_classify_db(struct dsa_db db)
 	}
 }
 
-static int felix_cpu_port_for_master(struct dsa_switch *ds,
-				     struct net_device *master)
+static int felix_cpu_port_for_conduit(struct dsa_switch *ds,
+				      struct net_device *conduit)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct dsa_port *cpu_dp;
 	int lag;
 
-	if (netif_is_lag_master(master)) {
+	if (netif_is_lag_master(conduit)) {
 		mutex_lock(&ocelot->fwd_domain_lock);
-		lag = ocelot_bond_get_id(ocelot, master);
+		lag = ocelot_bond_get_id(ocelot, conduit);
 		mutex_unlock(&ocelot->fwd_domain_lock);
 
 		return lag;
 	}
 
-	cpu_dp = master->dsa_ptr;
+	cpu_dp = conduit->dsa_ptr;
 	return cpu_dp->index;
 }
 
@@ -366,7 +366,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
  * is the mode through which frames can be injected from and extracted to an
  * external CPU, over Ethernet. In NXP SoCs, the "external CPU" is the ARM CPU
  * running Linux, and this forms a DSA setup together with the enetc or fman
- * DSA master.
+ * DSA conduit.
  */
 static void felix_npi_port_init(struct ocelot *ocelot, int port)
 {
@@ -441,16 +441,16 @@ static unsigned long felix_tag_npi_get_host_fwd_mask(struct dsa_switch *ds)
 	return BIT(ocelot->num_phys_ports);
 }
 
-static int felix_tag_npi_change_master(struct dsa_switch *ds, int port,
-				       struct net_device *master,
-				       struct netlink_ext_ack *extack)
+static int felix_tag_npi_change_conduit(struct dsa_switch *ds, int port,
+					struct net_device *conduit,
+					struct netlink_ext_ack *extack)
 {
 	struct dsa_port *dp = dsa_to_port(ds, port), *other_dp;
 	struct ocelot *ocelot = ds->priv;
 
-	if (netif_is_lag_master(master)) {
+	if (netif_is_lag_master(conduit)) {
 		NL_SET_ERR_MSG_MOD(extack,
-				   "LAG DSA master only supported using ocelot-8021q");
+				   "LAG DSA conduit only supported using ocelot-8021q");
 		return -EOPNOTSUPP;
 	}
 
@@ -459,24 +459,24 @@ static int felix_tag_npi_change_master(struct dsa_switch *ds, int port,
 	 * come back up until they're all changed to the new one.
 	 */
 	dsa_switch_for_each_user_port(other_dp, ds) {
-		struct net_device *slave = other_dp->slave;
+		struct net_device *user = other_dp->user;
 
-		if (other_dp != dp && (slave->flags & IFF_UP) &&
-		    dsa_port_to_master(other_dp) != master) {
+		if (other_dp != dp && (user->flags & IFF_UP) &&
+		    dsa_port_to_conduit(other_dp) != conduit) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Cannot change while old master still has users");
+					   "Cannot change while old conduit still has users");
 			return -EOPNOTSUPP;
 		}
 	}
 
 	felix_npi_port_deinit(ocelot, ocelot->npi);
-	felix_npi_port_init(ocelot, felix_cpu_port_for_master(ds, master));
+	felix_npi_port_init(ocelot, felix_cpu_port_for_conduit(ds, conduit));
 
 	return 0;
 }
 
 /* Alternatively to using the NPI functionality, that same hardware MAC
- * connected internally to the enetc or fman DSA master can be configured to
+ * connected internally to the enetc or fman DSA conduit can be configured to
  * use the software-defined tag_8021q frame format. As far as the hardware is
  * concerned, it thinks it is a "dumb switch" - the queues of the CPU port
  * module are now disconnected from it, but can still be accessed through
@@ -486,7 +486,7 @@ static const struct felix_tag_proto_ops felix_tag_npi_proto_ops = {
 	.setup			= felix_tag_npi_setup,
 	.teardown		= felix_tag_npi_teardown,
 	.get_host_fwd_mask	= felix_tag_npi_get_host_fwd_mask,
-	.change_master		= felix_tag_npi_change_master,
+	.change_conduit		= felix_tag_npi_change_conduit,
 };
 
 static int felix_tag_8021q_setup(struct dsa_switch *ds)
@@ -561,11 +561,11 @@ static unsigned long felix_tag_8021q_get_host_fwd_mask(struct dsa_switch *ds)
 	return dsa_cpu_ports(ds);
 }
 
-static int felix_tag_8021q_change_master(struct dsa_switch *ds, int port,
-					 struct net_device *master,
-					 struct netlink_ext_ack *extack)
+static int felix_tag_8021q_change_conduit(struct dsa_switch *ds, int port,
+					  struct net_device *conduit,
+					  struct netlink_ext_ack *extack)
 {
-	int cpu = felix_cpu_port_for_master(ds, master);
+	int cpu = felix_cpu_port_for_conduit(ds, conduit);
 	struct ocelot *ocelot = ds->priv;
 
 	ocelot_port_unassign_dsa_8021q_cpu(ocelot, port);
@@ -578,7 +578,7 @@ static const struct felix_tag_proto_ops felix_tag_8021q_proto_ops = {
 	.setup			= felix_tag_8021q_setup,
 	.teardown		= felix_tag_8021q_teardown,
 	.get_host_fwd_mask	= felix_tag_8021q_get_host_fwd_mask,
-	.change_master		= felix_tag_8021q_change_master,
+	.change_conduit		= felix_tag_8021q_change_conduit,
 };
 
 static void felix_set_host_flood(struct dsa_switch *ds, unsigned long mask,
@@ -741,14 +741,14 @@ static void felix_port_set_host_flood(struct dsa_switch *ds, int port,
 			     !!felix->host_flood_mc_mask, true);
 }
 
-static int felix_port_change_master(struct dsa_switch *ds, int port,
-				    struct net_device *master,
-				    struct netlink_ext_ack *extack)
+static int felix_port_change_conduit(struct dsa_switch *ds, int port,
+				     struct net_device *conduit,
+				     struct netlink_ext_ack *extack)
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 
-	return felix->tag_proto_ops->change_master(ds, port, master, extack);
+	return felix->tag_proto_ops->change_conduit(ds, port, conduit, extack);
 }
 
 static int felix_set_ageing_time(struct dsa_switch *ds,
@@ -953,7 +953,7 @@ static int felix_lag_join(struct dsa_switch *ds, int port,
 	if (!dsa_is_cpu_port(ds, port))
 		return 0;
 
-	return felix_port_change_master(ds, port, lag.dev, extack);
+	return felix_port_change_conduit(ds, port, lag.dev, extack);
 }
 
 static int felix_lag_leave(struct dsa_switch *ds, int port,
@@ -967,7 +967,7 @@ static int felix_lag_leave(struct dsa_switch *ds, int port,
 	if (!dsa_is_cpu_port(ds, port))
 		return 0;
 
-	return felix_port_change_master(ds, port, lag.dev, NULL);
+	return felix_port_change_conduit(ds, port, lag.dev, NULL);
 }
 
 static int felix_lag_change(struct dsa_switch *ds, int port)
@@ -1116,10 +1116,10 @@ static int felix_port_enable(struct dsa_switch *ds, int port,
 		return 0;
 
 	if (ocelot->npi >= 0) {
-		struct net_device *master = dsa_port_to_master(dp);
+		struct net_device *conduit = dsa_port_to_conduit(dp);
 
-		if (felix_cpu_port_for_master(ds, master) != ocelot->npi) {
-			dev_err(ds->dev, "Multiple masters are not allowed\n");
+		if (felix_cpu_port_for_conduit(ds, conduit) != ocelot->npi) {
+			dev_err(ds->dev, "Multiple conduits are not allowed\n");
 			return -EINVAL;
 		}
 	}
@@ -2164,7 +2164,7 @@ const struct dsa_switch_ops felix_switch_ops = {
 	.port_add_dscp_prio		= felix_port_add_dscp_prio,
 	.port_del_dscp_prio		= felix_port_del_dscp_prio,
 	.port_set_host_flood		= felix_port_set_host_flood,
-	.port_change_master		= felix_port_change_master,
+	.port_change_conduit		= felix_port_change_conduit,
 };
 EXPORT_SYMBOL_GPL(felix_switch_ops);
 
@@ -2176,7 +2176,7 @@ struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port)
 	if (!dsa_is_user_port(ds, port))
 		return NULL;
 
-	return dsa_to_port(ds, port)->slave;
+	return dsa_to_port(ds, port)->user;
 }
 EXPORT_SYMBOL_GPL(felix_port_to_netdev);
 

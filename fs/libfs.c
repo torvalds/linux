@@ -41,6 +41,9 @@ EXPORT_SYMBOL(simple_getattr);
 
 int simple_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
+	u64 id = huge_encode_dev(dentry->d_sb->s_dev);
+
+	buf->f_fsid = u64_to_fsid(id);
 	buf->f_type = dentry->d_sb->s_magic;
 	buf->f_bsize = PAGE_SIZE;
 	buf->f_namelen = NAME_MAX;
@@ -101,15 +104,16 @@ EXPORT_SYMBOL(dcache_dir_close);
  * If no such element exists, NULL is returned.
  */
 static struct dentry *scan_positives(struct dentry *cursor,
-					struct list_head *p,
+					struct hlist_node **p,
 					loff_t count,
 					struct dentry *last)
 {
 	struct dentry *dentry = cursor->d_parent, *found = NULL;
 
 	spin_lock(&dentry->d_lock);
-	while ((p = p->next) != &dentry->d_subdirs) {
-		struct dentry *d = list_entry(p, struct dentry, d_child);
+	while (*p) {
+		struct dentry *d = hlist_entry(*p, struct dentry, d_sib);
+		p = &d->d_sib.next;
 		// we must at least skip cursors, to avoid livelocks
 		if (d->d_flags & DCACHE_DENTRY_CURSOR)
 			continue;
@@ -123,8 +127,10 @@ static struct dentry *scan_positives(struct dentry *cursor,
 			count = 1;
 		}
 		if (need_resched()) {
-			list_move(&cursor->d_child, p);
-			p = &cursor->d_child;
+			if (!hlist_unhashed(&cursor->d_sib))
+				__hlist_del(&cursor->d_sib);
+			hlist_add_behind(&cursor->d_sib, &d->d_sib);
+			p = &cursor->d_sib.next;
 			spin_unlock(&dentry->d_lock);
 			cond_resched();
 			spin_lock(&dentry->d_lock);
@@ -156,13 +162,12 @@ loff_t dcache_dir_lseek(struct file *file, loff_t offset, int whence)
 		inode_lock_shared(dentry->d_inode);
 
 		if (offset > 2)
-			to = scan_positives(cursor, &dentry->d_subdirs,
+			to = scan_positives(cursor, &dentry->d_children.first,
 					    offset - 2, NULL);
 		spin_lock(&dentry->d_lock);
+		hlist_del_init(&cursor->d_sib);
 		if (to)
-			list_move(&cursor->d_child, &to->d_child);
-		else
-			list_del_init(&cursor->d_child);
+			hlist_add_behind(&cursor->d_sib, &to->d_sib);
 		spin_unlock(&dentry->d_lock);
 		dput(to);
 
@@ -184,19 +189,16 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct dentry *dentry = file->f_path.dentry;
 	struct dentry *cursor = file->private_data;
-	struct list_head *anchor = &dentry->d_subdirs;
 	struct dentry *next = NULL;
-	struct list_head *p;
+	struct hlist_node **p;
 
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
 	if (ctx->pos == 2)
-		p = anchor;
-	else if (!list_empty(&cursor->d_child))
-		p = &cursor->d_child;
+		p = &dentry->d_children.first;
 	else
-		return 0;
+		p = &cursor->d_sib.next;
 
 	while ((next = scan_positives(cursor, p, 1, next)) != NULL) {
 		if (!dir_emit(ctx, next->d_name.name, next->d_name.len,
@@ -204,13 +206,12 @@ int dcache_readdir(struct file *file, struct dir_context *ctx)
 			      fs_umode_to_dtype(d_inode(next)->i_mode)))
 			break;
 		ctx->pos++;
-		p = &next->d_child;
+		p = &next->d_sib.next;
 	}
 	spin_lock(&dentry->d_lock);
+	hlist_del_init(&cursor->d_sib);
 	if (next)
-		list_move_tail(&cursor->d_child, &next->d_child);
-	else
-		list_del_init(&cursor->d_child);
+		hlist_add_before(&cursor->d_sib, &next->d_sib);
 	spin_unlock(&dentry->d_lock);
 	dput(next);
 
@@ -396,6 +397,8 @@ static loff_t offset_dir_llseek(struct file *file, loff_t offset, int whence)
 		return -EINVAL;
 	}
 
+	/* In this case, ->private_data is protected by f_pos_lock */
+	file->private_data = NULL;
 	return vfs_setpos(file, offset, U32_MAX);
 }
 
@@ -425,7 +428,7 @@ static bool offset_dir_emit(struct dir_context *ctx, struct dentry *dentry)
 			  inode->i_ino, fs_umode_to_dtype(inode->i_mode));
 }
 
-static void offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
+static void *offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
 {
 	struct offset_ctx *so_ctx = inode->i_op->get_offset_ctx(inode);
 	XA_STATE(xas, &so_ctx->xa, ctx->pos);
@@ -434,7 +437,7 @@ static void offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
 	while (true) {
 		dentry = offset_find_next(&xas);
 		if (!dentry)
-			break;
+			return ERR_PTR(-ENOENT);
 
 		if (!offset_dir_emit(ctx, dentry)) {
 			dput(dentry);
@@ -444,6 +447,7 @@ static void offset_iterate_dir(struct inode *inode, struct dir_context *ctx)
 		dput(dentry);
 		ctx->pos = xas.xa_index + 1;
 	}
+	return NULL;
 }
 
 /**
@@ -476,7 +480,12 @@ static int offset_readdir(struct file *file, struct dir_context *ctx)
 	if (!dir_emit_dots(file, ctx))
 		return 0;
 
-	offset_iterate_dir(d_inode(dir), ctx);
+	/* In this case, ->private_data is protected by f_pos_lock */
+	if (ctx->pos == 2)
+		file->private_data = NULL;
+	else if (file->private_data == ERR_PTR(-ENOENT))
+		return 0;
+	file->private_data = offset_iterate_dir(d_inode(dir), ctx);
 	return 0;
 }
 
@@ -489,12 +498,11 @@ const struct file_operations simple_offset_dir_operations = {
 
 static struct dentry *find_next_child(struct dentry *parent, struct dentry *prev)
 {
-	struct dentry *child = NULL;
-	struct list_head *p = prev ? &prev->d_child : &parent->d_subdirs;
+	struct dentry *child = NULL, *d;
 
 	spin_lock(&parent->d_lock);
-	while ((p = p->next) != &parent->d_subdirs) {
-		struct dentry *d = container_of(p, struct dentry, d_child);
+	d = prev ? d_next_sibling(prev) : d_first_child(parent);
+	hlist_for_each_entry_from(d, d_sib) {
 		if (simple_positive(d)) {
 			spin_lock_nested(&d->d_lock, DENTRY_D_LOCK_NESTED);
 			if (simple_positive(d))
@@ -541,7 +549,8 @@ void simple_recursive_removal(struct dentry *dentry,
 				dput(victim);		// unpin it
 			}
 			if (victim == dentry) {
-				inode->i_mtime = inode_set_ctime_current(inode);
+				inode_set_mtime_to_ts(inode,
+						      inode_set_ctime_current(inode));
 				if (d_is_dir(dentry))
 					drop_nlink(inode);
 				inode_unlock(inode);
@@ -582,7 +591,7 @@ static int pseudo_fs_fill_super(struct super_block *s, struct fs_context *fc)
 	 */
 	root->i_ino = 1;
 	root->i_mode = S_IFDIR | S_IRUSR | S_IWUSR;
-	root->i_atime = root->i_mtime = inode_set_ctime_current(root);
+	simple_inode_init_ts(root);
 	s->s_root = d_make_root(root);
 	if (!s->s_root)
 		return -ENOMEM;
@@ -638,8 +647,8 @@ int simple_link(struct dentry *old_dentry, struct inode *dir, struct dentry *den
 {
 	struct inode *inode = d_inode(old_dentry);
 
-	dir->i_mtime = inode_set_ctime_to_ts(dir,
-					     inode_set_ctime_current(inode));
+	inode_set_mtime_to_ts(dir,
+			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
 	inc_nlink(inode);
 	ihold(inode);
 	dget(dentry);
@@ -654,7 +663,7 @@ int simple_empty(struct dentry *dentry)
 	int ret = 0;
 
 	spin_lock(&dentry->d_lock);
-	list_for_each_entry(child, &dentry->d_subdirs, d_child) {
+	hlist_for_each_entry(child, &dentry->d_children, d_sib) {
 		spin_lock_nested(&child->d_lock, DENTRY_D_LOCK_NESTED);
 		if (simple_positive(child)) {
 			spin_unlock(&child->d_lock);
@@ -673,8 +682,8 @@ int simple_unlink(struct inode *dir, struct dentry *dentry)
 {
 	struct inode *inode = d_inode(dentry);
 
-	dir->i_mtime = inode_set_ctime_to_ts(dir,
-					     inode_set_ctime_current(inode));
+	inode_set_mtime_to_ts(dir,
+			      inode_set_ctime_to_ts(dir, inode_set_ctime_current(inode)));
 	drop_nlink(inode);
 	dput(dentry);
 	return 0;
@@ -709,9 +718,10 @@ void simple_rename_timestamp(struct inode *old_dir, struct dentry *old_dentry,
 {
 	struct inode *newino = d_inode(new_dentry);
 
-	old_dir->i_mtime = inode_set_ctime_current(old_dir);
+	inode_set_mtime_to_ts(old_dir, inode_set_ctime_current(old_dir));
 	if (new_dir != old_dir)
-		new_dir->i_mtime = inode_set_ctime_current(new_dir);
+		inode_set_mtime_to_ts(new_dir,
+				      inode_set_ctime_current(new_dir));
 	inode_set_ctime_current(d_inode(old_dentry));
 	if (newino)
 		inode_set_ctime_current(newino);
@@ -907,7 +917,6 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 		      const struct tree_descr *files)
 {
 	struct inode *inode;
-	struct dentry *root;
 	struct dentry *dentry;
 	int i;
 
@@ -926,12 +935,12 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 	 */
 	inode->i_ino = 1;
 	inode->i_mode = S_IFDIR | 0755;
-	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 	inode->i_op = &simple_dir_inode_operations;
 	inode->i_fop = &simple_dir_operations;
 	set_nlink(inode, 2);
-	root = d_make_root(inode);
-	if (!root)
+	s->s_root = d_make_root(inode);
+	if (!s->s_root)
 		return -ENOMEM;
 	for (i = 0; !files->name || files->name[0]; i++, files++) {
 		if (!files->name)
@@ -943,27 +952,21 @@ int simple_fill_super(struct super_block *s, unsigned long magic,
 				"with an index of 1!\n", __func__,
 				s->s_type->name);
 
-		dentry = d_alloc_name(root, files->name);
+		dentry = d_alloc_name(s->s_root, files->name);
 		if (!dentry)
-			goto out;
+			return -ENOMEM;
 		inode = new_inode(s);
 		if (!inode) {
 			dput(dentry);
-			goto out;
+			return -ENOMEM;
 		}
 		inode->i_mode = S_IFREG | files->mode;
-		inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
+		simple_inode_init_ts(inode);
 		inode->i_fop = files->ops;
 		inode->i_ino = i;
 		d_add(dentry, inode);
 	}
-	s->s_root = root;
 	return 0;
-out:
-	d_genocide(root);
-	shrink_dcache_parent(root);
-	dput(root);
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(simple_fill_super);
 
@@ -1308,6 +1311,47 @@ ssize_t simple_attr_write_signed(struct file *file, const char __user *buf,
 EXPORT_SYMBOL_GPL(simple_attr_write_signed);
 
 /**
+ * generic_encode_ino32_fh - generic export_operations->encode_fh function
+ * @inode:   the object to encode
+ * @fh:      where to store the file handle fragment
+ * @max_len: maximum length to store there (in 4 byte units)
+ * @parent:  parent directory inode, if wanted
+ *
+ * This generic encode_fh function assumes that the 32 inode number
+ * is suitable for locating an inode, and that the generation number
+ * can be used to check that it is still valid.  It places them in the
+ * filehandle fragment where export_decode_fh expects to find them.
+ */
+int generic_encode_ino32_fh(struct inode *inode, __u32 *fh, int *max_len,
+			    struct inode *parent)
+{
+	struct fid *fid = (void *)fh;
+	int len = *max_len;
+	int type = FILEID_INO32_GEN;
+
+	if (parent && (len < 4)) {
+		*max_len = 4;
+		return FILEID_INVALID;
+	} else if (len < 2) {
+		*max_len = 2;
+		return FILEID_INVALID;
+	}
+
+	len = 2;
+	fid->i32.ino = inode->i_ino;
+	fid->i32.gen = inode->i_generation;
+	if (parent) {
+		fid->i32.parent_ino = parent->i_ino;
+		fid->i32.parent_gen = parent->i_generation;
+		len = 4;
+		type = FILEID_INO32_GEN_PARENT;
+	}
+	*max_len = len;
+	return type;
+}
+EXPORT_SYMBOL_GPL(generic_encode_ino32_fh);
+
+/**
  * generic_fh_to_dentry - generic helper for the fh_to_dentry export operation
  * @sb:		filesystem to do the file handle conversion on
  * @fid:	file handle to convert
@@ -1520,7 +1564,7 @@ struct inode *alloc_anon_inode(struct super_block *s)
 	inode->i_uid = current_fsuid();
 	inode->i_gid = current_fsgid();
 	inode->i_flags |= S_PRIVATE;
-	inode->i_atime = inode->i_mtime = inode_set_ctime_current(inode);
+	simple_inode_init_ts(inode);
 	return inode;
 }
 EXPORT_SYMBOL(alloc_anon_inode);
@@ -1903,6 +1947,7 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 		 * We don't know how much we wrote, so just return the number of
 		 * bytes which were direct-written
 		 */
+		iocb->ki_pos -= buffered_written;
 		if (direct_written)
 			return direct_written;
 		return err;
@@ -1911,3 +1956,20 @@ ssize_t direct_write_fallback(struct kiocb *iocb, struct iov_iter *iter,
 	return direct_written + buffered_written;
 }
 EXPORT_SYMBOL_GPL(direct_write_fallback);
+
+/**
+ * simple_inode_init_ts - initialize the timestamps for a new inode
+ * @inode: inode to be initialized
+ *
+ * When a new inode is created, most filesystems set the timestamps to the
+ * current time. Add a helper to do this.
+ */
+struct timespec64 simple_inode_init_ts(struct inode *inode)
+{
+	struct timespec64 ts = inode_set_ctime_current(inode);
+
+	inode_set_atime_to_ts(inode, ts);
+	inode_set_mtime_to_ts(inode, ts);
+	return ts;
+}
+EXPORT_SYMBOL(simple_inode_init_ts);

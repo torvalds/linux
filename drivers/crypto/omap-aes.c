@@ -1255,7 +1255,7 @@ err_data:
 	return err;
 }
 
-static int omap_aes_remove(struct platform_device *pdev)
+static void omap_aes_remove(struct platform_device *pdev)
 {
 	struct omap_aes_dev *dd = platform_get_drvdata(pdev);
 	struct aead_engine_alg *aalg;
@@ -1285,8 +1285,6 @@ static int omap_aes_remove(struct platform_device *pdev)
 	pm_runtime_disable(dd->dev);
 
 	sysfs_remove_group(&dd->dev->kobj, &omap_aes_attr_group);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1307,7 +1305,7 @@ static SIMPLE_DEV_PM_OPS(omap_aes_pm_ops, omap_aes_suspend, omap_aes_resume);
 
 static struct platform_driver omap_aes_driver = {
 	.probe	= omap_aes_probe,
-	.remove	= omap_aes_remove,
+	.remove_new = omap_aes_remove,
 	.driver	= {
 		.name	= "omap-aes",
 		.pm	= &omap_aes_pm_ops,

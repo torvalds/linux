@@ -281,11 +281,16 @@ struct link_service {
 			const unsigned int *power_opts);
 	bool (*edp_setup_replay)(struct dc_link *link,
 			const struct dc_stream_state *stream);
+	bool (*edp_send_replay_cmd)(struct dc_link *link,
+			enum replay_FW_Message_type msg,
+			union dmub_replay_cmd_set *cmd_data);
 	bool (*edp_set_coasting_vtotal)(
 			struct dc_link *link, uint16_t coasting_vtotal);
 	bool (*edp_replay_residency)(const struct dc_link *link,
 			unsigned int *residency, const bool is_start,
 			const bool is_alpm);
+	bool (*edp_set_replay_power_opt_and_coasting_vtotal)(struct dc_link *link,
+			const unsigned int *power_opts, uint16_t coasting_vtotal);
 
 	bool (*edp_wait_for_t12)(struct dc_link *link);
 	bool (*edp_is_ilr_optimization_required)(struct dc_link *link,
@@ -295,6 +300,7 @@ struct link_service {
 	bool (*edp_receiver_ready_T9)(struct dc_link *link);
 	bool (*edp_receiver_ready_T7)(struct dc_link *link);
 	bool (*edp_power_alpm_dpcd_enable)(struct dc_link *link, bool enable);
+	void (*edp_set_panel_power)(struct dc_link *link, bool powerOn);
 
 
 	/*************************** DP CTS ************************************/

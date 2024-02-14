@@ -560,7 +560,7 @@ post_pm_err:
 	return rc;
 }
 
-static int cctrng_remove(struct platform_device *pdev)
+static void cctrng_remove(struct platform_device *pdev)
 {
 	struct cctrng_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -570,8 +570,6 @@ static int cctrng_remove(struct platform_device *pdev)
 	cc_trng_pm_fini(drvdata);
 
 	dev_info(dev, "ARM cctrng device terminated\n");
-
-	return 0;
 }
 
 static int __maybe_unused cctrng_suspend(struct device *dev)
@@ -654,7 +652,7 @@ static struct platform_driver cctrng_driver = {
 		.pm = &cctrng_pm,
 	},
 	.probe = cctrng_probe,
-	.remove = cctrng_remove,
+	.remove_new = cctrng_remove,
 };
 
 module_platform_driver(cctrng_driver);

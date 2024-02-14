@@ -27,6 +27,7 @@
 static unsigned int offset;
 static unsigned int ino = 721;
 static time_t default_mtime;
+static bool do_file_mtime;
 static bool do_csum = false;
 
 struct file_handler {
@@ -329,6 +330,7 @@ static int cpio_mkfile(const char *name, const char *location,
 	int file;
 	int retval;
 	int rc = -1;
+	time_t mtime;
 	int namesize;
 	unsigned int i;
 	uint32_t csum = 0;
@@ -347,16 +349,21 @@ static int cpio_mkfile(const char *name, const char *location,
 		goto error;
 	}
 
-	if (buf.st_mtime > 0xffffffff) {
-		fprintf(stderr, "%s: Timestamp exceeds maximum cpio timestamp, clipping.\n",
-			location);
-		buf.st_mtime = 0xffffffff;
-	}
+	if (do_file_mtime) {
+		mtime = default_mtime;
+	} else {
+		mtime = buf.st_mtime;
+		if (mtime > 0xffffffff) {
+			fprintf(stderr, "%s: Timestamp exceeds maximum cpio timestamp, clipping.\n",
+					location);
+			mtime = 0xffffffff;
+		}
 
-	if (buf.st_mtime < 0) {
-		fprintf(stderr, "%s: Timestamp negative, clipping.\n",
-			location);
-		buf.st_mtime = 0;
+		if (mtime < 0) {
+			fprintf(stderr, "%s: Timestamp negative, clipping.\n",
+					location);
+			mtime = 0;
+		}
 	}
 
 	if (buf.st_size > 0xffffffff) {
@@ -387,7 +394,7 @@ static int cpio_mkfile(const char *name, const char *location,
 			(long) uid,		/* uid */
 			(long) gid,		/* gid */
 			nlinks,			/* nlink */
-			(long) buf.st_mtime,	/* mtime */
+			(long) mtime,		/* mtime */
 			size,			/* filesize */
 			3,			/* major */
 			1,			/* minor */
@@ -536,8 +543,9 @@ static void usage(const char *prog)
 		"file /sbin/kinit /usr/src/klibc/kinit/kinit 0755 0 0\n"
 		"\n"
 		"<timestamp> is time in seconds since Epoch that will be used\n"
-		"as mtime for symlinks, special files and directories. The default\n"
-		"is to use the current time for these entries.\n"
+		"as mtime for symlinks, directories, regular and special files.\n"
+		"The default is to use the current time for all files, but\n"
+		"preserve modification time for regular files.\n"
 		"-c: calculate and store 32-bit checksums for file data.\n",
 		prog);
 }
@@ -594,6 +602,7 @@ int main (int argc, char *argv[])
 				usage(argv[0]);
 				exit(1);
 			}
+			do_file_mtime = true;
 			break;
 		case 'c':
 			do_csum = true;

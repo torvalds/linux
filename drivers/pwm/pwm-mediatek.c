@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
@@ -218,7 +217,7 @@ static int pwm_mediatek_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = pwm_mediatek_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = pwm_mediatek_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 
@@ -230,7 +229,6 @@ static int pwm_mediatek_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops pwm_mediatek_ops = {
 	.apply = pwm_mediatek_apply,
-	.owner = THIS_MODULE,
 };
 
 static int pwm_mediatek_probe(struct platform_device *pdev)

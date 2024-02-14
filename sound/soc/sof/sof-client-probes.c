@@ -381,8 +381,6 @@ static const struct snd_soc_component_driver sof_probes_component = {
 	.legacy_dai_naming = 1,
 };
 
-SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
-
 static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 				   const struct auxiliary_device_id *id)
 {
@@ -423,13 +421,13 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	priv->host_ops = ops;
 
 	switch (sof_client_get_ipc_type(cdev)) {
-#ifdef CONFIG_SND_SOC_SOF_INTEL_IPC4
-	case SOF_INTEL_IPC4:
+#ifdef CONFIG_SND_SOC_SOF_IPC4
+	case SOF_IPC_TYPE_4:
 		priv->ipc_ops = &ipc4_probe_ops;
 		break;
 #endif
 #ifdef CONFIG_SND_SOC_SOF_IPC3
-	case SOF_IPC:
+	case SOF_IPC_TYPE_3:
 		priv->ipc_ops = &ipc3_probe_ops;
 		break;
 #endif
@@ -475,7 +473,7 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 	links[0].cpus = &cpus[0];
 	links[0].num_cpus = 1;
 	links[0].cpus->dai_name = "Probe Extraction CPU DAI";
-	links[0].codecs = dummy;
+	links[0].codecs = &snd_soc_dummy_dlc;
 	links[0].num_codecs = 1;
 	links[0].platforms = platform_component;
 	links[0].num_platforms = ARRAY_SIZE(platform_component);

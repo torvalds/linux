@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019, 2021-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -57,6 +57,14 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @STA_DISABLE_TX_CMD: &struct iwl_mvm_sta_disable_tx_cmd
 	 */
 	STA_DISABLE_TX_CMD = 0xD,
+	/**
+	 * @ROC_CMD: &struct iwl_roc_req
+	 */
+	ROC_CMD = 0xE,
+	/**
+	 * @ROC_NOTIF: &struct iwl_roc_notif
+	 */
+	ROC_NOTIF = 0xF8,
 	/**
 	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
 	 */

@@ -33,11 +33,11 @@ static void create_inner_maps(enum bpf_map_type map_type,
 {
 	int map_fd, map_index, ret;
 	__u32 map_key = 0, map_id;
-	char map_name[15];
+	char map_name[16];
 
 	for (map_index = 0; map_index < OUTER_MAP_ENTRIES; map_index++) {
 		memset(map_name, 0, sizeof(map_name));
-		sprintf(map_name, "inner_map_fd_%d", map_index);
+		snprintf(map_name, sizeof(map_name), "inner_map_fd_%d", map_index);
 		map_fd = bpf_map_create(map_type, map_name, sizeof(__u32),
 					sizeof(__u32), 1, NULL);
 		CHECK(map_fd < 0,

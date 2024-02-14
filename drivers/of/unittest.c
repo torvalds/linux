@@ -456,6 +456,9 @@ static void __init of_unittest_parse_phandle_with_args(void)
 
 		unittest(passed, "index %i - data error on node %pOF rc=%i\n",
 			 i, args.np, rc);
+
+		if (rc == 0)
+			of_node_put(args.np);
 	}
 
 	/* Check for missing list property */
@@ -545,8 +548,9 @@ static void __init of_unittest_parse_phandle_with_args(void)
 
 static void __init of_unittest_parse_phandle_with_args_map(void)
 {
-	struct device_node *np, *p0, *p1, *p2, *p3;
+	struct device_node *np, *p[6] = {};
 	struct of_phandle_args args;
+	unsigned int prefs[6];
 	int i, rc;
 
 	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-b");
@@ -555,34 +559,24 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 		return;
 	}
 
-	p0 = of_find_node_by_path("/testcase-data/phandle-tests/provider0");
-	if (!p0) {
-		pr_err("missing testcase data\n");
-		return;
-	}
-
-	p1 = of_find_node_by_path("/testcase-data/phandle-tests/provider1");
-	if (!p1) {
-		pr_err("missing testcase data\n");
-		return;
-	}
-
-	p2 = of_find_node_by_path("/testcase-data/phandle-tests/provider2");
-	if (!p2) {
-		pr_err("missing testcase data\n");
-		return;
-	}
-
-	p3 = of_find_node_by_path("/testcase-data/phandle-tests/provider3");
-	if (!p3) {
-		pr_err("missing testcase data\n");
-		return;
+	p[0] = of_find_node_by_path("/testcase-data/phandle-tests/provider0");
+	p[1] = of_find_node_by_path("/testcase-data/phandle-tests/provider1");
+	p[2] = of_find_node_by_path("/testcase-data/phandle-tests/provider2");
+	p[3] = of_find_node_by_path("/testcase-data/phandle-tests/provider3");
+	p[4] = of_find_node_by_path("/testcase-data/phandle-tests/provider4");
+	p[5] = of_find_node_by_path("/testcase-data/phandle-tests/provider5");
+	for (i = 0; i < ARRAY_SIZE(p); ++i) {
+		if (!p[i]) {
+			pr_err("missing testcase data\n");
+			return;
+		}
+		prefs[i] = kref_read(&p[i]->kobj.kref);
 	}
 
 	rc = of_count_phandle_with_args(np, "phandle-list", "#phandle-cells");
-	unittest(rc == 7, "of_count_phandle_with_args() returned %i, expected 7\n", rc);
+	unittest(rc == 8, "of_count_phandle_with_args() returned %i, expected 8\n", rc);
 
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < 9; i++) {
 		bool passed = true;
 
 		memset(&args, 0, sizeof(args));
@@ -593,13 +587,13 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 		switch (i) {
 		case 0:
 			passed &= !rc;
-			passed &= (args.np == p1);
+			passed &= (args.np == p[1]);
 			passed &= (args.args_count == 1);
 			passed &= (args.args[0] == 1);
 			break;
 		case 1:
 			passed &= !rc;
-			passed &= (args.np == p3);
+			passed &= (args.np == p[3]);
 			passed &= (args.args_count == 3);
 			passed &= (args.args[0] == 2);
 			passed &= (args.args[1] == 5);
@@ -610,28 +604,36 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 			break;
 		case 3:
 			passed &= !rc;
-			passed &= (args.np == p0);
+			passed &= (args.np == p[0]);
 			passed &= (args.args_count == 0);
 			break;
 		case 4:
 			passed &= !rc;
-			passed &= (args.np == p1);
+			passed &= (args.np == p[1]);
 			passed &= (args.args_count == 1);
 			passed &= (args.args[0] == 3);
 			break;
 		case 5:
 			passed &= !rc;
-			passed &= (args.np == p0);
+			passed &= (args.np == p[0]);
 			passed &= (args.args_count == 0);
 			break;
 		case 6:
 			passed &= !rc;
-			passed &= (args.np == p2);
+			passed &= (args.np == p[2]);
 			passed &= (args.args_count == 2);
 			passed &= (args.args[0] == 15);
 			passed &= (args.args[1] == 0x20);
 			break;
 		case 7:
+			passed &= !rc;
+			passed &= (args.np == p[3]);
+			passed &= (args.args_count == 3);
+			passed &= (args.args[0] == 2);
+			passed &= (args.args[1] == 5);
+			passed &= (args.args[2] == 3);
+			break;
+		case 8:
 			passed &= (rc == -ENOENT);
 			break;
 		default:
@@ -640,6 +642,9 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 
 		unittest(passed, "index %i - data error on node %s rc=%i\n",
 			 i, args.np->full_name, rc);
+
+		if (rc == 0)
+			of_node_put(args.np);
 	}
 
 	/* Check for missing list property */
@@ -686,6 +691,13 @@ static void __init of_unittest_parse_phandle_with_args_map(void)
 		   "OF: /testcase-data/phandle-tests/consumer-b: #phandle-cells = 2 found 1");
 
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+
+	for (i = 0; i < ARRAY_SIZE(p); ++i) {
+		unittest(prefs[i] == kref_read(&p[i]->kobj.kref),
+			 "provider%d: expected:%d got:%d\n",
+			 i, prefs[i], kref_read(&p[i]->kobj.kref));
+		of_node_put(p[i]);
+	}
 }
 
 static void __init of_unittest_property_string(void)
@@ -1184,6 +1196,82 @@ static void __init of_unittest_reg(void)
 		np, addr);
 
 	of_node_put(np);
+}
+
+struct of_unittest_expected_res {
+	int index;
+	struct resource res;
+};
+
+static void __init of_unittest_check_addr(const char *node_path,
+					  const struct of_unittest_expected_res *tab_exp,
+					  unsigned int tab_exp_count)
+{
+	const struct of_unittest_expected_res *expected;
+	struct device_node *np;
+	struct resource res;
+	unsigned int count;
+	int ret;
+
+	if (!IS_ENABLED(CONFIG_OF_ADDRESS))
+		return;
+
+	np = of_find_node_by_path(node_path);
+	if (!np) {
+		pr_err("missing testcase data (%s)\n", node_path);
+		return;
+	}
+
+	expected = tab_exp;
+	count = tab_exp_count;
+	while (count--) {
+		ret = of_address_to_resource(np, expected->index, &res);
+		unittest(!ret, "of_address_to_resource(%pOF, %d) returned error %d\n",
+			 np, expected->index, ret);
+		unittest(resource_type(&res) == resource_type(&expected->res) &&
+			 res.start == expected->res.start &&
+			 resource_size(&res) == resource_size(&expected->res),
+			"of_address_to_resource(%pOF, %d) wrong resource %pR, expected %pR\n",
+			np, expected->index, &res, &expected->res);
+		expected++;
+	}
+
+	of_node_put(np);
+}
+
+static const struct of_unittest_expected_res of_unittest_reg_2cell_expected_res[] = {
+	{.index = 0, .res = DEFINE_RES_MEM(0xa0a01000, 0x100) },
+	{.index = 1, .res = DEFINE_RES_MEM(0xa0a02000, 0x100) },
+	{.index = 2, .res = DEFINE_RES_MEM(0xc0c01000, 0x100) },
+	{.index = 3, .res = DEFINE_RES_MEM(0xd0d01000, 0x100) },
+};
+
+static const struct of_unittest_expected_res of_unittest_reg_3cell_expected_res[] = {
+	{.index = 0, .res = DEFINE_RES_MEM(0xa0a01000, 0x100) },
+	{.index = 1, .res = DEFINE_RES_MEM(0xa0b02000, 0x100) },
+	{.index = 2, .res = DEFINE_RES_MEM(0xc0c01000, 0x100) },
+	{.index = 3, .res = DEFINE_RES_MEM(0xc0c09000, 0x100) },
+	{.index = 4, .res = DEFINE_RES_MEM(0xd0d01000, 0x100) },
+};
+
+static const struct of_unittest_expected_res of_unittest_reg_pci_expected_res[] = {
+	{.index = 0, .res = DEFINE_RES_MEM(0xe8001000, 0x1000) },
+	{.index = 1, .res = DEFINE_RES_MEM(0xea002000, 0x2000) },
+};
+
+static void __init of_unittest_translate_addr(void)
+{
+	of_unittest_check_addr("/testcase-data/address-tests2/bus-2cell@10000000/device@100000",
+			       of_unittest_reg_2cell_expected_res,
+			       ARRAY_SIZE(of_unittest_reg_2cell_expected_res));
+
+	of_unittest_check_addr("/testcase-data/address-tests2/bus-3cell@20000000/local-bus@100000/device@f1001000",
+			       of_unittest_reg_3cell_expected_res,
+			       ARRAY_SIZE(of_unittest_reg_3cell_expected_res));
+
+	of_unittest_check_addr("/testcase-data/address-tests2/pcie@d1070000/pci@0,0/dev@0,0/local-bus@0/dev@e0000000",
+			       of_unittest_reg_pci_expected_res,
+			       ARRAY_SIZE(of_unittest_reg_pci_expected_res));
 }
 
 static void __init of_unittest_parse_interrupts(void)
@@ -4034,6 +4122,7 @@ static int __init of_unittest(void)
 	of_unittest_bus_ranges();
 	of_unittest_bus_3cell_ranges();
 	of_unittest_reg();
+	of_unittest_translate_addr();
 	of_unittest_match_node();
 	of_unittest_platform_populate();
 	of_unittest_overlay();

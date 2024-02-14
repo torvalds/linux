@@ -23,35 +23,31 @@ SECTIONS
 	.gnu.version_d	: { *(.gnu.version_d) }
 	.gnu.version_r	: { *(.gnu.version_r) }
 
-	.note		: { *(.note.*) }		:text	:note
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
-	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
-	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
-
-	.rodata		: { *(.rodata .rodata.* .gnu.linkonce.r.*) }
-
-	/*
-	 * This linker script is used both with -r and with -shared.
-	 * For the layouts to match, we need to skip more than enough
-	 * space for the dynamic symbol table, etc. If this amount is
-	 * insufficient, ld -shared will error; simply increase it here.
-	 */
-	. = 0x800;
-	.text		: { *(.text .text.*) }		:text
-
-	. = ALIGN(4);
-	.alternative : {
-		__alt_start = .;
-		*(.alternative)
-		__alt_end = .;
-	}
-
-	.data		: {
+	.rodata		: {
+		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.got.plt) *(.got)
 		*(.data .data.* .gnu.linkonce.d.*)
 		*(.dynbss)
 		*(.bss .bss.* .gnu.linkonce.b.*)
+	}
+
+	.note		: { *(.note.*) }		:text	:note
+
+	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
+	.eh_frame	: { KEEP (*(.eh_frame)) }	:text
+
+	/*
+	 * Text is well-separated from actual data: there's plenty of
+	 * stuff that isn't used at runtime in between.
+	 */
+	. = ALIGN(16);
+	.text		: { *(.text .text.*) }		:text
+
+	. = ALIGN(4);
+	.alternative : {
+		*(.alternative)
 	}
 }
 

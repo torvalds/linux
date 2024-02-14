@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Parts of this file are
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2023 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <linux/export.h>
@@ -18,7 +18,7 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	if (!rdev->ops->stop_ap)
 		return -EOPNOTSUPP;
@@ -52,9 +52,9 @@ static int ___cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 	return err;
 }
 
-int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, int link_id,
-		       bool notify)
+int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
+		     struct net_device *dev, int link_id,
+		     bool notify)
 {
 	unsigned int link;
 	int ret = 0;
@@ -71,18 +71,4 @@ int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 	}
 
 	return ret;
-}
-
-int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev, int link_id,
-		     bool notify)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	wdev_lock(wdev);
-	err = __cfg80211_stop_ap(rdev, dev, link_id, notify);
-	wdev_unlock(wdev);
-
-	return err;
 }

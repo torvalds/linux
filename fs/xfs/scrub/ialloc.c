@@ -585,7 +585,7 @@ xchk_iallocbt_rec(
 	uint16_t			holemask;
 
 	xfs_inobt_btrec_to_irec(mp, rec, &irec);
-	if (xfs_inobt_check_irec(bs->cur, &irec) != NULL) {
+	if (xfs_inobt_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
@@ -708,11 +708,10 @@ xchk_iallocbt_xref_rmap_inodes(
 		xchk_btree_xref_set_corrupt(sc, sc->sa.rmap_cur, 0);
 }
 
-/* Scrub the inode btrees for some AG. */
-STATIC int
+/* Scrub one of the inode btrees for some AG. */
+int
 xchk_iallocbt(
-	struct xfs_scrub	*sc,
-	xfs_btnum_t		which)
+	struct xfs_scrub	*sc)
 {
 	struct xfs_btree_cur	*cur;
 	struct xchk_iallocbt	iabt = {
@@ -720,9 +719,23 @@ xchk_iallocbt(
 		.next_startino	= NULLAGINO,
 		.next_cluster_ino = NULLAGINO,
 	};
+	xfs_btnum_t		which;
 	int			error;
 
-	cur = which == XFS_BTNUM_INO ? sc->sa.ino_cur : sc->sa.fino_cur;
+	switch (sc->sm->sm_type) {
+	case XFS_SCRUB_TYPE_INOBT:
+		cur = sc->sa.ino_cur;
+		which = XFS_BTNUM_INO;
+		break;
+	case XFS_SCRUB_TYPE_FINOBT:
+		cur = sc->sa.fino_cur;
+		which = XFS_BTNUM_FINO;
+		break;
+	default:
+		ASSERT(0);
+		return -EIO;
+	}
+
 	error = xchk_btree(sc, cur, xchk_iallocbt_rec, &XFS_RMAP_OINFO_INOBT,
 			&iabt);
 	if (error)
@@ -741,20 +754,6 @@ xchk_iallocbt(
 		xchk_iallocbt_xref_rmap_inodes(sc, which, iabt.inodes);
 
 	return error;
-}
-
-int
-xchk_inobt(
-	struct xfs_scrub	*sc)
-{
-	return xchk_iallocbt(sc, XFS_BTNUM_INO);
-}
-
-int
-xchk_finobt(
-	struct xfs_scrub	*sc)
-{
-	return xchk_iallocbt(sc, XFS_BTNUM_FINO);
 }
 
 /* See if an inode btree has (or doesn't have) an inode chunk record. */

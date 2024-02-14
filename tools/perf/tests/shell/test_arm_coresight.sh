@@ -136,7 +136,9 @@ arm_cs_iterate_devices() {
 
 arm_cs_etm_traverse_path_test() {
 	# Iterate for every ETM device
-	for dev in /sys/bus/coresight/devices/etm*; do
+	for dev in /sys/bus/event_source/devices/cs_etm/cpu*; do
+		# Canonicalize the path
+		dev=`readlink -f $dev`
 
 		# Find the ETM device belonging to which CPU
 		cpu=`cat $dev/cpu`

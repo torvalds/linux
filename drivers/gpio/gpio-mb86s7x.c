@@ -20,7 +20,6 @@
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 
-#include "gpiolib.h"
 #include "gpiolib-acpi.h"
 
 /*
@@ -205,15 +204,13 @@ static int mb86s70_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mb86s70_gpio_remove(struct platform_device *pdev)
+static void mb86s70_gpio_remove(struct platform_device *pdev)
 {
 	struct mb86s70_gpio_chip *gchip = platform_get_drvdata(pdev);
 
 	acpi_gpiochip_free_interrupts(&gchip->gc);
 	gpiochip_remove(&gchip->gc);
 	clk_disable_unprepare(gchip->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mb86s70_gpio_dt_ids[] = {
@@ -237,7 +234,7 @@ static struct platform_driver mb86s70_gpio_driver = {
 		.acpi_match_table = ACPI_PTR(mb86s70_gpio_acpi_ids),
 	},
 	.probe = mb86s70_gpio_probe,
-	.remove = mb86s70_gpio_remove,
+	.remove_new = mb86s70_gpio_remove,
 };
 module_platform_driver(mb86s70_gpio_driver);
 

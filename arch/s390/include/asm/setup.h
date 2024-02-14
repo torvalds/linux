@@ -28,7 +28,6 @@
 #define MACHINE_FLAG_TOPOLOGY	BIT(10)
 #define MACHINE_FLAG_TE		BIT(11)
 #define MACHINE_FLAG_TLB_LC	BIT(12)
-#define MACHINE_FLAG_VX		BIT(13)
 #define MACHINE_FLAG_TLB_GUEST	BIT(14)
 #define MACHINE_FLAG_NX		BIT(15)
 #define MACHINE_FLAG_GS		BIT(16)
@@ -72,7 +71,6 @@ extern unsigned int zlib_dfltcc_support;
 #define ZLIB_DFLTCC_INFLATE_ONLY	3
 #define ZLIB_DFLTCC_FULL_DEBUG		4
 
-extern int noexec_disabled;
 extern unsigned long ident_map_size;
 extern unsigned long max_mappable;
 
@@ -91,7 +89,6 @@ extern unsigned long mio_wb_bit_mask;
 #define MACHINE_HAS_TOPOLOGY	(S390_lowcore.machine_flags & MACHINE_FLAG_TOPOLOGY)
 #define MACHINE_HAS_TE		(S390_lowcore.machine_flags & MACHINE_FLAG_TE)
 #define MACHINE_HAS_TLB_LC	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_LC)
-#define MACHINE_HAS_VX		(S390_lowcore.machine_flags & MACHINE_FLAG_VX)
 #define MACHINE_HAS_TLB_GUEST	(S390_lowcore.machine_flags & MACHINE_FLAG_TLB_GUEST)
 #define MACHINE_HAS_NX		(S390_lowcore.machine_flags & MACHINE_FLAG_NX)
 #define MACHINE_HAS_GS		(S390_lowcore.machine_flags & MACHINE_FLAG_GS)
@@ -125,9 +122,6 @@ static inline void vmcp_cma_reserve(void) { }
 #endif
 
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
-
-void cmma_init(void);
-void cmma_init_nodat(void);
 
 extern void (*_machine_restart)(char *command);
 extern void (*_machine_halt)(void);

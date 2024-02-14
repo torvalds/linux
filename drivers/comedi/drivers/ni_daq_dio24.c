@@ -45,7 +45,7 @@ static int dio24_auto_attach(struct comedi_device *dev,
 
 	/* 8255 dio */
 	s = &dev->subdevices[0];
-	return subdev_8255_init(dev, s, NULL, 0x00);
+	return subdev_8255_io_init(dev, s, 0x00);
 }
 
 static struct comedi_driver driver_dio24 = {

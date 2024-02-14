@@ -26,6 +26,8 @@
 
 #include <linux/module.h>
 
+#include <asm/hwtest.h>
+
 int hwreg_present(volatile void *regp)
 {
 	int ret = 0;

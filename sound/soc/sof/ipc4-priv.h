@@ -81,6 +81,7 @@ struct sof_ipc4_fw_data {
 	u32 mtrace_log_bytes;
 	int max_num_pipelines;
 	u32 max_libs_count;
+	bool fw_context_save;
 
 	int (*load_library)(struct snd_sof_dev *sdev,
 			    struct sof_ipc4_fw_library *fw_lib, bool reload);
@@ -115,9 +116,15 @@ int sof_ipc4_reload_fw_libraries(struct snd_sof_dev *sdev);
 struct sof_ipc4_fw_module *sof_ipc4_find_module_by_uuid(struct snd_sof_dev *sdev,
 							const guid_t *uuid);
 
+struct snd_sof_widget *sof_ipc4_find_swidget_by_ids(struct snd_sof_dev *sdev,
+						    u32 module_id, int instance_id);
+
 struct sof_ipc4_base_module_cfg;
 void sof_ipc4_update_cpc_from_manifest(struct snd_sof_dev *sdev,
 				       struct sof_ipc4_fw_module *fw_module,
 				       struct sof_ipc4_base_module_cfg *basecfg);
+
+size_t sof_ipc4_find_debug_slot_offset_by_type(struct snd_sof_dev *sdev,
+					       u32 slot_type);
 
 #endif

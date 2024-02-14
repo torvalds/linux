@@ -209,7 +209,7 @@ static bool __send_ipi_mask(const struct cpumask *mask, int vector,
 
 		/*
 		 * This particular version of the IPI hypercall can
-		 * only target upto 64 CPUs.
+		 * only target up to 64 CPUs.
 		 */
 		if (vcpu >= 64)
 			goto do_ex_hypercall;

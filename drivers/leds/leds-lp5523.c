@@ -972,7 +972,6 @@ static const struct i2c_device_id lp5523_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, lp5523_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id of_lp5523_leds_match[] = {
 	{ .compatible = "national,lp5523", },
 	{ .compatible = "ti,lp55231", },
@@ -980,12 +979,11 @@ static const struct of_device_id of_lp5523_leds_match[] = {
 };
 
 MODULE_DEVICE_TABLE(of, of_lp5523_leds_match);
-#endif
 
 static struct i2c_driver lp5523_driver = {
 	.driver = {
 		.name	= "lp5523x",
-		.of_match_table = of_match_ptr(of_lp5523_leds_match),
+		.of_match_table = of_lp5523_leds_match,
 	},
 	.probe		= lp5523_probe,
 	.remove		= lp5523_remove,

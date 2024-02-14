@@ -50,10 +50,8 @@ static u32 goldfish_tty_line_count = 8;
 static u32 goldfish_tty_current_line_count;
 static struct goldfish_tty *goldfish_ttys;
 
-static void do_rw_io(struct goldfish_tty *qtty,
-		     unsigned long address,
-		     unsigned int count,
-		     int is_write)
+static void do_rw_io(struct goldfish_tty *qtty, unsigned long address,
+		     size_t count, bool is_write)
 {
 	unsigned long irq_flags;
 	void __iomem *base = qtty->base;
@@ -73,10 +71,8 @@ static void do_rw_io(struct goldfish_tty *qtty,
 	spin_unlock_irqrestore(&qtty->lock, irq_flags);
 }
 
-static void goldfish_tty_rw(struct goldfish_tty *qtty,
-			    unsigned long addr,
-			    unsigned int count,
-			    int is_write)
+static void goldfish_tty_rw(struct goldfish_tty *qtty, unsigned long addr,
+			    size_t count, bool is_write)
 {
 	dma_addr_t dma_handle;
 	enum dma_data_direction dma_dir;
@@ -125,20 +121,18 @@ static void goldfish_tty_rw(struct goldfish_tty *qtty,
 	}
 }
 
-static void goldfish_tty_do_write(int line, const u8 *buf, unsigned int count)
+static void goldfish_tty_do_write(int line, const u8 *buf, size_t count)
 {
 	struct goldfish_tty *qtty = &goldfish_ttys[line];
-	unsigned long address = (unsigned long)(void *)buf;
 
-	goldfish_tty_rw(qtty, address, count, 1);
+	goldfish_tty_rw(qtty, (unsigned long)buf, count, true);
 }
 
 static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 {
 	struct goldfish_tty *qtty = dev_id;
 	void __iomem *base = qtty->base;
-	unsigned long address;
-	unsigned char *buf;
+	u8 *buf;
 	u32 count;
 
 	count = gf_ioread32(base + GOLDFISH_TTY_REG_BYTES_READY);
@@ -147,8 +141,7 @@ static irqreturn_t goldfish_tty_interrupt(int irq, void *dev_id)
 
 	count = tty_prepare_flip_string(&qtty->port, &buf, count);
 
-	address = (unsigned long)(void *)buf;
-	goldfish_tty_rw(qtty, address, count, 0);
+	goldfish_tty_rw(qtty, (unsigned long)buf, count, false);
 
 	tty_flip_buffer_push(&qtty->port);
 	return IRQ_HANDLED;

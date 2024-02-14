@@ -233,7 +233,7 @@ err_pm_stop:
 	return ret;
 }
 
-static int stm32_vrefbuf_remove(struct platform_device *pdev)
+static void stm32_vrefbuf_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 	struct stm32_vrefbuf *priv = rdev_get_drvdata(rdev);
@@ -244,8 +244,6 @@ static int stm32_vrefbuf_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-
-	return 0;
 };
 
 static int __maybe_unused stm32_vrefbuf_runtime_suspend(struct device *dev)
@@ -282,7 +280,7 @@ MODULE_DEVICE_TABLE(of, stm32_vrefbuf_of_match);
 
 static struct platform_driver stm32_vrefbuf_driver = {
 	.probe = stm32_vrefbuf_probe,
-	.remove = stm32_vrefbuf_remove,
+	.remove_new = stm32_vrefbuf_remove,
 	.driver = {
 		.name  = "stm32-vrefbuf",
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

@@ -20,6 +20,7 @@
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
 
+MODULE_DESCRIPTION("ST-Ericsson CAIF modem protocol USB support");
 MODULE_LICENSE("GPL");
 
 #define CFUSB_PAD_DESCR_SZ 1	/* Alignment descriptor length */

@@ -98,8 +98,8 @@ examples:
              regulator-name = "buck1";
              regulator-min-microvolt = <400000>;
              regulator-max-microvolt = <3587500>;
-             regulator-min-microamp  = <460000>;
-             regulator-max-microamp  = <7600000>;
+             regulator-min-microamp = <460000>;
+             regulator-max-microamp = <7600000>;
              regulator-boot-on;
              mps,buck-ovp-disable;
              mps,buck-phase-delay = /bits/ 8 <2>;

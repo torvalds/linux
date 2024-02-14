@@ -637,7 +637,6 @@ xfs_mountfs(
 	struct xfs_sb		*sbp = &(mp->m_sb);
 	struct xfs_inode	*rip;
 	struct xfs_ino_geometry	*igeo = M_IGEO(mp);
-	uint64_t		resblks;
 	uint			quotamount = 0;
 	uint			quotaflags = 0;
 	int			error = 0;
@@ -974,8 +973,7 @@ xfs_mountfs(
 	 * we were already there on the last unmount. Warn if this occurs.
 	 */
 	if (!xfs_is_readonly(mp)) {
-		resblks = xfs_default_resblks(mp);
-		error = xfs_reserve_blocks(mp, &resblks, NULL);
+		error = xfs_reserve_blocks(mp, xfs_default_resblks(mp));
 		if (error)
 			xfs_warn(mp,
 	"Unable to allocate reserve blocks. Continuing without reserve pool.");
@@ -1021,7 +1019,7 @@ xfs_mountfs(
  out_log_dealloc:
 	xfs_log_mount_cancel(mp);
  out_inodegc_shrinker:
-	unregister_shrinker(&mp->m_inodegc_shrinker);
+	shrinker_free(mp->m_inodegc_shrinker);
  out_fail_wait:
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp)
 		xfs_buftarg_drain(mp->m_logdev_targp);
@@ -1053,7 +1051,6 @@ void
 xfs_unmountfs(
 	struct xfs_mount	*mp)
 {
-	uint64_t		resblks;
 	int			error;
 
 	/*
@@ -1090,8 +1087,7 @@ xfs_unmountfs(
 	 * we only every apply deltas to the superblock and hence the incore
 	 * value does not matter....
 	 */
-	resblks = 0;
-	error = xfs_reserve_blocks(mp, &resblks, NULL);
+	error = xfs_reserve_blocks(mp, 0);
 	if (error)
 		xfs_warn(mp, "Unable to free reserved block pool. "
 				"Freespace may not be correct on next mount.");
@@ -1104,7 +1100,7 @@ xfs_unmountfs(
 #if defined(DEBUG)
 	xfs_errortag_clearall(mp);
 #endif
-	unregister_shrinker(&mp->m_inodegc_shrinker);
+	shrinker_free(mp->m_inodegc_shrinker);
 	xfs_free_perag(mp);
 
 	xfs_errortag_del(mp);

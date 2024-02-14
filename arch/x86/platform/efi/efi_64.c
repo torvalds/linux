@@ -474,17 +474,32 @@ void __init efi_dump_pagetable(void)
  * can not change under us.
  * It should be ensured that there are no concurrent calls to this function.
  */
-void efi_enter_mm(void)
+static void efi_enter_mm(void)
 {
 	efi_prev_mm = current->active_mm;
 	current->active_mm = &efi_mm;
 	switch_mm(efi_prev_mm, &efi_mm, NULL);
 }
 
-void efi_leave_mm(void)
+static void efi_leave_mm(void)
 {
 	current->active_mm = efi_prev_mm;
 	switch_mm(&efi_mm, efi_prev_mm, NULL);
+}
+
+void arch_efi_call_virt_setup(void)
+{
+	efi_sync_low_kernel_mappings();
+	efi_fpu_begin();
+	firmware_restrict_branch_speculation_start();
+	efi_enter_mm();
+}
+
+void arch_efi_call_virt_teardown(void)
+{
+	efi_leave_mm();
+	firmware_restrict_branch_speculation_end();
+	efi_fpu_end();
 }
 
 static DEFINE_SPINLOCK(efi_runtime_lock);

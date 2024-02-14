@@ -30,19 +30,6 @@ void cnd_isp_irq_enable(
     const isp_ID_t		ID,
     const bool			cnd);
 
-/*! Read the state of cell ISP[ID]
-
- \param	ID[in]				ISP identifier
- \param	state[out]			isp state structure
- \param	stall[out]			isp stall conditions
-
- \return none, state = ISP[ID].state, stall = ISP[ID].stall
- */
-void isp_get_state(
-    const isp_ID_t		ID,
-    isp_state_t			*state,
-    isp_stall_t			*stall);
-
 /*! Write to the status and control register of ISP[ID]
 
  \param	ID[in]				ISP identifier

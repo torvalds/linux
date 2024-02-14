@@ -357,7 +357,7 @@ static int stm32_qspi_get_mode(u8 buswidth)
 
 static int stm32_qspi_send(struct spi_device *spi, const struct spi_mem_op *op)
 {
-	struct stm32_qspi *qspi = spi_controller_get_devdata(spi->master);
+	struct stm32_qspi *qspi = spi_controller_get_devdata(spi->controller);
 	struct stm32_qspi_flash *flash = &qspi->flash[spi_get_chipselect(spi, 0)];
 	u32 ccr, cr;
 	int timeout, err = 0, err_poll_status = 0;
@@ -448,7 +448,7 @@ static int stm32_qspi_poll_status(struct spi_mem *mem, const struct spi_mem_op *
 				  unsigned long polling_rate_us,
 				  unsigned long timeout_ms)
 {
-	struct stm32_qspi *qspi = spi_controller_get_devdata(mem->spi->master);
+	struct stm32_qspi *qspi = spi_controller_get_devdata(mem->spi->controller);
 	int ret;
 
 	if (!spi_mem_supports_op(mem, op))
@@ -476,7 +476,7 @@ static int stm32_qspi_poll_status(struct spi_mem *mem, const struct spi_mem_op *
 
 static int stm32_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
-	struct stm32_qspi *qspi = spi_controller_get_devdata(mem->spi->master);
+	struct stm32_qspi *qspi = spi_controller_get_devdata(mem->spi->controller);
 	int ret;
 
 	ret = pm_runtime_resume_and_get(qspi->dev);
@@ -500,7 +500,7 @@ static int stm32_qspi_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 static int stm32_qspi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 {
-	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->master);
+	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->controller);
 
 	if (desc->info.op_tmpl.data.dir == SPI_MEM_DATA_OUT)
 		return -EOPNOTSUPP;
@@ -518,7 +518,7 @@ static int stm32_qspi_dirmap_create(struct spi_mem_dirmap_desc *desc)
 static ssize_t stm32_qspi_dirmap_read(struct spi_mem_dirmap_desc *desc,
 				      u64 offs, size_t len, void *buf)
 {
-	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->master);
+	struct stm32_qspi *qspi = spi_controller_get_devdata(desc->mem->spi->controller);
 	struct spi_mem_op op;
 	u32 addr_max;
 	int ret;
@@ -640,7 +640,7 @@ end_of_transfer:
 
 static int stm32_qspi_setup(struct spi_device *spi)
 {
-	struct spi_controller *ctrl = spi->master;
+	struct spi_controller *ctrl = spi->controller;
 	struct stm32_qspi *qspi = spi_controller_get_devdata(ctrl);
 	struct stm32_qspi_flash *flash;
 	u32 presc, mode;
@@ -775,7 +775,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret, irq;
 
-	ctrl = devm_spi_alloc_master(dev, sizeof(*qspi));
+	ctrl = devm_spi_alloc_host(dev, sizeof(*qspi));
 	if (!ctrl)
 		return -ENOMEM;
 
@@ -861,7 +861,7 @@ static int stm32_qspi_probe(struct platform_device *pdev)
 	pm_runtime_enable(dev);
 	pm_runtime_get_noresume(dev);
 
-	ret = spi_register_master(ctrl);
+	ret = spi_register_controller(ctrl);
 	if (ret)
 		goto err_pm_runtime_free;
 
@@ -892,7 +892,7 @@ static void stm32_qspi_remove(struct platform_device *pdev)
 	struct stm32_qspi *qspi = platform_get_drvdata(pdev);
 
 	pm_runtime_get_sync(qspi->dev);
-	spi_unregister_master(qspi->ctrl);
+	spi_unregister_controller(qspi->ctrl);
 	/* disable qspi */
 	writel_relaxed(0, qspi->io_base + QSPI_CR);
 	stm32_qspi_dma_free(qspi);

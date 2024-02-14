@@ -74,7 +74,6 @@ modules.order
 #
 # RPM spec file (make rpm-pkg)
 #
-/*.spec
 /rpmbuild/
 
 #
@@ -97,6 +96,7 @@ modules.order
 #
 !.clang-format
 !.cocciconfig
+!.editorconfig
 !.get_maintainer.ignore
 !.gitattributes
 !.gitignore

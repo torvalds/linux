@@ -68,13 +68,16 @@ void wfx_tx_queues_init(struct wfx_vif *wvif)
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i) {
 		skb_queue_head_init(&wvif->tx_queue[i].normal);
 		skb_queue_head_init(&wvif->tx_queue[i].cab);
+		skb_queue_head_init(&wvif->tx_queue[i].offchan);
 		wvif->tx_queue[i].priority = priorities[i];
 	}
 }
 
 bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
 {
-	return skb_queue_empty_lockless(&queue->normal) && skb_queue_empty_lockless(&queue->cab);
+	return skb_queue_empty_lockless(&queue->normal) &&
+	       skb_queue_empty_lockless(&queue->cab) &&
+	       skb_queue_empty_lockless(&queue->offchan);
 }
 
 void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
@@ -103,8 +106,9 @@ static void __wfx_tx_queue_drop(struct wfx_vif *wvif,
 void wfx_tx_queue_drop(struct wfx_vif *wvif, struct wfx_queue *queue,
 		       struct sk_buff_head *dropped)
 {
-	__wfx_tx_queue_drop(wvif, &queue->cab, dropped);
 	__wfx_tx_queue_drop(wvif, &queue->normal, dropped);
+	__wfx_tx_queue_drop(wvif, &queue->cab, dropped);
+	__wfx_tx_queue_drop(wvif, &queue->offchan, dropped);
 	wake_up(&wvif->wdev->tx_dequeue);
 }
 
@@ -113,7 +117,9 @@ void wfx_tx_queues_put(struct wfx_vif *wvif, struct sk_buff *skb)
 	struct wfx_queue *queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 
-	if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
+	if (tx_info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		skb_queue_tail(&queue->offchan, skb);
+	else if (tx_info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM)
 		skb_queue_tail(&queue->cab, skb);
 	else
 		skb_queue_tail(&queue->normal, skb);
@@ -123,13 +129,11 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 {
 	struct wfx_queue *queue;
 	struct wfx_vif *wvif;
-	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device", __func__);
 	while ((skb = skb_dequeue(&wdev->tx_pending)) != NULL) {
-		hif = (struct wfx_hif_msg *)skb->data;
-		wvif = wdev_to_wvif(wdev, hif->interface);
+		wvif = wfx_skb_wvif(wdev, skb);
 		if (wvif) {
 			queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
 			WARN_ON(skb_get_queue_mapping(skb) > 3);
@@ -155,7 +159,7 @@ struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 		if (req->packet_id != packet_id)
 			continue;
 		spin_unlock_bh(&wdev->tx_pending.lock);
-		wvif = wdev_to_wvif(wdev, hif->interface);
+		wvif = wfx_skb_wvif(wdev, skb);
 		if (wvif) {
 			queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
 			WARN_ON(skb_get_queue_mapping(skb) > 3);
@@ -245,6 +249,26 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			num_queues++;
 		}
 	}
+
+	wvif = NULL;
+	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {
+		for (i = 0; i < num_queues; i++) {
+			skb = skb_dequeue(&queues[i]->offchan);
+			if (!skb)
+				continue;
+			hif = (struct wfx_hif_msg *)skb->data;
+			/* Offchan frames are assigned to a special interface.
+			 * The only interface allowed to send data during scan.
+			 */
+			WARN_ON(hif->interface != 2);
+			atomic_inc(&queues[i]->pending_frames);
+			trace_queues_stats(wdev, queues[i]);
+			return skb;
+		}
+	}
+
+	if (mutex_is_locked(&wdev->scan_lock))
+		return NULL;
 
 	wvif = NULL;
 	while ((wvif = wvif_iterate(wdev, wvif)) != NULL) {

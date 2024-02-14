@@ -23,7 +23,6 @@
 #include <linux/log2.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 

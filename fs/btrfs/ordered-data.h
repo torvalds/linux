@@ -6,13 +6,6 @@
 #ifndef BTRFS_ORDERED_DATA_H
 #define BTRFS_ORDERED_DATA_H
 
-/* one of these per inode */
-struct btrfs_ordered_inode_tree {
-	spinlock_t lock;
-	struct rb_root tree;
-	struct rb_node *last;
-};
-
 struct btrfs_ordered_sum {
 	/*
 	 * Logical start address and length for of the blocks covered by
@@ -104,13 +97,6 @@ struct btrfs_ordered_extent {
 	u64 bytes_left;
 
 	/*
-	 * the end of the ordered extent which is behind it but
-	 * didn't update disk_i_size. Please see the comment of
-	 * btrfs_ordered_update_i_size();
-	 */
-	u64 outstanding_isize;
-
-	/*
 	 * If we get truncated we need to adjust the file extent we enter for
 	 * this ordered extent so that we do not expose stale data.
 	 */
@@ -151,15 +137,9 @@ struct btrfs_ordered_extent {
 	struct completion completion;
 	struct btrfs_work flush_work;
 	struct list_head work_list;
-};
 
-static inline void
-btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
-{
-	spin_lock_init(&t->lock);
-	t->tree = RB_ROOT;
-	t->last = NULL;
-}
+	struct list_head bioc_list;
+};
 
 int btrfs_finish_one_ordered(struct btrfs_ordered_extent *ordered_extent);
 int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);

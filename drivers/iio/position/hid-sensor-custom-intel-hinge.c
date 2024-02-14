@@ -342,7 +342,7 @@ error_remove_trigger:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int hid_hinge_remove(struct platform_device *pdev)
+static void hid_hinge_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -351,8 +351,6 @@ static int hid_hinge_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	hid_sensor_remove_trigger(indio_dev, &st->common_attributes);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_hinge_ids[] = {
@@ -371,7 +369,7 @@ static struct platform_driver hid_hinge_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_hinge_probe,
-	.remove		= hid_hinge_remove,
+	.remove_new	= hid_hinge_remove,
 };
 module_platform_driver(hid_hinge_platform_driver);
 

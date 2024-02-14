@@ -22,6 +22,8 @@
 #include "gf100.h"
 #include "ram.h"
 
+#include <subdev/gsp.h>
+
 bool
 tu102_fb_vpr_scrub_required(struct nvkm_fb *fb)
 {
@@ -46,6 +48,9 @@ tu102_fb = {
 int
 tu102_fb_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_fb **pfb)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return r535_fb_new(&tu102_fb, device, type, inst, pfb);
+
 	return gf100_fb_new_(&tu102_fb, device, type, inst, pfb);
 }
 

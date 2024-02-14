@@ -27,10 +27,10 @@
 #include <linux/scatterlist.h>
 #include <linux/ctype.h>
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/sha2.h>
 #include <crypto/skcipher.h>
+#include <crypto/utils.h>
 
 #include "encrypted.h"
 #include "ecryptfs_format.h"

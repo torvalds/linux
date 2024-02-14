@@ -102,11 +102,11 @@
 	.endm
 
 	/*
-	 * void sha512_ce_transform(struct sha512_state *sst, u8 const *src,
-	 *			  int blocks)
+	 * int __sha512_ce_transform(struct sha512_state *sst, u8 const *src,
+	 *			     int blocks)
 	 */
 	.text
-SYM_FUNC_START(sha512_ce_transform)
+SYM_FUNC_START(__sha512_ce_transform)
 	/* load state */
 	ld1		{v8.2d-v11.2d}, [x0]
 
@@ -203,4 +203,4 @@ CPU_LE(	rev64		v19.16b, v19.16b	)
 3:	st1		{v8.2d-v11.2d}, [x0]
 	mov		w0, w2
 	ret
-SYM_FUNC_END(sha512_ce_transform)
+SYM_FUNC_END(__sha512_ce_transform)

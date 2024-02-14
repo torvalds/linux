@@ -151,7 +151,7 @@ struct dio {
 	};
 } ____cacheline_aligned_in_smp;
 
-static struct kmem_cache *dio_cache __read_mostly;
+static struct kmem_cache *dio_cache __ro_after_init;
 
 /*
  * How many pages are in the queue?
@@ -1114,7 +1114,7 @@ ssize_t __blockdev_direct_IO(struct kiocb *iocb, struct inode *inode,
 	loff_t offset = iocb->ki_pos;
 	const loff_t end = offset + count;
 	struct dio *dio;
-	struct dio_submit sdio = { 0, };
+	struct dio_submit sdio = { NULL, };
 	struct buffer_head map_bh = { 0, };
 	struct blk_plug plug;
 	unsigned long align = offset | iov_iter_alignment(iter);

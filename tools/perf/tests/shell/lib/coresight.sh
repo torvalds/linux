@@ -17,6 +17,8 @@ DIR="$TOOLS/$TEST"
 BIN="$DIR/$TEST"
 # If the test tool/binary does not exist and is executable then skip the test
 if ! test -x "$BIN"; then exit 2; fi
+# If CoreSight is not available, skip the test
+perf list cs_etm | grep -q cs_etm || exit 2
 DATD="."
 # If the data dir env is set then make the data dir use that instead of ./
 if test -n "$PERF_TEST_CORESIGHT_DATADIR"; then

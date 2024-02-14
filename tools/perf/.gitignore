@@ -39,6 +39,9 @@ trace/beauty/generated/
 pmu-events/pmu-events.c
 pmu-events/jevents
 pmu-events/metric_test.log
+tests/shell/*.shellcheck_log
+tests/shell/coresight/*.shellcheck_log
+tests/shell/lib/*.shellcheck_log
 feature/
 libapi/
 libbpf/
@@ -49,3 +52,4 @@ libtraceevent/
 libtraceevent_plugins/
 fixdep
 Documentation/doc.dep
+python_ext_build/

@@ -172,11 +172,11 @@
 #define IEEE80211_SN_MODULO		(IEEE80211_MAX_SN + 1)
 
 
-/* PV1 Layout 11ah 9.8.3.1 */
+/* PV1 Layout IEEE 802.11-2020 9.8.3.1 */
 #define IEEE80211_PV1_FCTL_VERS		0x0003
 #define IEEE80211_PV1_FCTL_FTYPE	0x001c
 #define IEEE80211_PV1_FCTL_STYPE	0x00e0
-#define IEEE80211_PV1_FCTL_TODS		0x0100
+#define IEEE80211_PV1_FCTL_FROMDS		0x0100
 #define IEEE80211_PV1_FCTL_MOREFRAGS	0x0200
 #define IEEE80211_PV1_FCTL_PM		0x0400
 #define IEEE80211_PV1_FCTL_MOREDATA	0x0800
@@ -306,6 +306,13 @@ static inline u16 ieee80211_sn_sub(u16 sn1, u16 sn2)
 #define IEEE80211_TRIGGER_TYPE_GCR_MU_BAR	0x5
 #define IEEE80211_TRIGGER_TYPE_BQRP		0x6
 #define IEEE80211_TRIGGER_TYPE_NFRP		0x7
+
+/* UL-bandwidth within common_info of trigger frame */
+#define IEEE80211_TRIGGER_ULBW_MASK		0xc0000
+#define IEEE80211_TRIGGER_ULBW_20MHZ		0x0
+#define IEEE80211_TRIGGER_ULBW_40MHZ		0x1
+#define IEEE80211_TRIGGER_ULBW_80MHZ		0x2
+#define IEEE80211_TRIGGER_ULBW_160_80P80MHZ	0x3
 
 struct ieee80211_hdr {
 	__le16 frame_control;
@@ -951,17 +958,24 @@ struct ieee80211_wide_bw_chansw_ie {
  * @dtim_count: DTIM Count
  * @dtim_period: DTIM Period
  * @bitmap_ctrl: Bitmap Control
+ * @required_octet: "Syntatic sugar" to force the struct size to the
+ *                  minimum valid size when carried in a non-S1G PPDU
  * @virtual_map: Partial Virtual Bitmap
  *
  * This structure represents the payload of the "TIM element" as
- * described in IEEE Std 802.11-2020 section 9.4.2.5.
+ * described in IEEE Std 802.11-2020 section 9.4.2.5. Note that this
+ * definition is only applicable when the element is carried in a
+ * non-S1G PPDU. When the TIM is carried in an S1G PPDU, the Bitmap
+ * Control and Partial Virtual Bitmap may not be present.
  */
 struct ieee80211_tim_ie {
 	u8 dtim_count;
 	u8 dtim_period;
 	u8 bitmap_ctrl;
-	/* variable size: 1 - 251 bytes */
-	u8 virtual_map[1];
+	union {
+		u8 required_octet;
+		DECLARE_FLEX_ARRAY(u8, virtual_map);
+	};
 } __packed;
 
 /**
@@ -1237,6 +1251,30 @@ struct ieee80211_twt_setup {
 	u8 length;
 	u8 control;
 	u8 params[];
+} __packed;
+
+#define IEEE80211_TTLM_MAX_CNT				2
+#define IEEE80211_TTLM_CONTROL_DIRECTION		0x03
+#define IEEE80211_TTLM_CONTROL_DEF_LINK_MAP		0x04
+#define IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT	0x08
+#define IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT	0x10
+#define IEEE80211_TTLM_CONTROL_LINK_MAP_SIZE		0x20
+
+#define IEEE80211_TTLM_DIRECTION_DOWN		0
+#define IEEE80211_TTLM_DIRECTION_UP		1
+#define IEEE80211_TTLM_DIRECTION_BOTH		2
+
+/**
+ * struct ieee80211_ttlm_elem - TID-To-Link Mapping element
+ *
+ * Defined in section 9.4.2.314 in P802.11be_D4
+ *
+ * @control: the first part of control field
+ * @optional: the second part of control field
+ */
+struct ieee80211_ttlm_elem {
+	u8 control;
+	u8 optional[];
 } __packed;
 
 struct ieee80211_mgmt {
@@ -1673,6 +1711,8 @@ struct ieee80211_mcs_info {
 #define IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT	2
 #define		IEEE80211_HT_MCS_TX_MAX_STREAMS	4
 #define IEEE80211_HT_MCS_TX_UNEQUAL_MODULATION	0x10
+
+#define IEEE80211_HT_MCS_CHAINS(mcs) ((mcs) == 32 ? 1 : (1 + ((mcs) >> 3)))
 
 /*
  * 802.11n D5.0 20.3.5 / 20.6 says:
@@ -2680,6 +2720,7 @@ static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
 
 #define IEEE80211_6GHZ_CTRL_REG_LPI_AP	0
 #define IEEE80211_6GHZ_CTRL_REG_SP_AP	1
+#define IEEE80211_6GHZ_CTRL_REG_VLP_AP	2
 
 /**
  * struct ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
@@ -2790,11 +2831,13 @@ ieee80211_he_oper_size(const u8 *he_oper_ie)
 static inline const struct ieee80211_he_6ghz_oper *
 ieee80211_he_6ghz_oper(const struct ieee80211_he_operation *he_oper)
 {
-	const u8 *ret = (const void *)&he_oper->optional;
+	const u8 *ret;
 	u32 he_oper_params;
 
 	if (!he_oper)
 		return NULL;
+
+	ret = (const void *)&he_oper->optional;
 
 	he_oper_params = le32_to_cpu(he_oper->he_oper_params);
 
@@ -3130,6 +3173,28 @@ ieee80211_eht_oper_size_ok(const u8 *data, u8 len)
 	}
 
 	return len >= needed;
+}
+
+#define IEEE80211_BW_IND_DIS_SUBCH_PRESENT	BIT(1)
+
+struct ieee80211_bandwidth_indication {
+	u8 params;
+	struct ieee80211_eht_operation_info info;
+} __packed;
+
+static inline bool
+ieee80211_bandwidth_indication_size_ok(const u8 *data, u8 len)
+{
+	const struct ieee80211_bandwidth_indication *bwi = (const void *)data;
+
+	if (len < sizeof(*bwi))
+		return false;
+
+	if (bwi->params & IEEE80211_BW_IND_DIS_SUBCH_PRESENT &&
+	    len < sizeof(*bwi) + 2)
+		return false;
+
+	return true;
 }
 
 #define LISTEN_INT_USF	GENMASK(15, 14)
@@ -3589,6 +3654,8 @@ enum ieee80211_eid_ext {
 	WLAN_EID_EXT_EHT_OPERATION = 106,
 	WLAN_EID_EXT_EHT_MULTI_LINK = 107,
 	WLAN_EID_EXT_EHT_CAPABILITY = 108,
+	WLAN_EID_EXT_TID_TO_LINK_MAPPING = 109,
+	WLAN_EID_EXT_BANDWIDTH_INDICATION = 135,
 };
 
 /* Action category code */
@@ -4356,6 +4423,36 @@ static inline bool ieee80211_is_public_action(struct ieee80211_hdr *hdr,
 }
 
 /**
+ * ieee80211_is_protected_dual_of_public_action - check if skb contains a
+ * protected dual of public action management frame
+ * @skb: the skb containing the frame, length will be checked
+ *
+ * Return: true if the skb contains a protected dual of public action
+ * management frame, false otherwise.
+ */
+static inline bool
+ieee80211_is_protected_dual_of_public_action(struct sk_buff *skb)
+{
+	u8 action;
+
+	if (!ieee80211_is_public_action((void *)skb->data, skb->len) ||
+	    skb->len < IEEE80211_MIN_ACTION_SIZE + 1)
+		return false;
+
+	action = *(u8 *)(skb->data + IEEE80211_MIN_ACTION_SIZE);
+
+	return action != WLAN_PUB_ACTION_20_40_BSS_COEX &&
+		action != WLAN_PUB_ACTION_DSE_REG_LOC_ANN &&
+		action != WLAN_PUB_ACTION_MSMT_PILOT &&
+		action != WLAN_PUB_ACTION_TDLS_DISCOVER_RES &&
+		action != WLAN_PUB_ACTION_LOC_TRACK_NOTI &&
+		action != WLAN_PUB_ACTION_FTM_REQUEST &&
+		action != WLAN_PUB_ACTION_FTM_RESPONSE &&
+		action != WLAN_PUB_ACTION_FILS_DISCOVERY &&
+		action != WLAN_PUB_ACTION_VENDOR_SPECIFIC;
+}
+
+/**
  * _ieee80211_is_group_privacy_action - check if frame is a group addressed
  * privacy action frame
  * @hdr: the frame
@@ -4426,12 +4523,11 @@ static inline bool ieee80211_check_tim(const struct ieee80211_tim_ie *tim,
 /**
  * ieee80211_get_tdls_action - get tdls packet action (or -1, if not tdls packet)
  * @skb: the skb containing the frame, length will not be checked
- * @hdr_size: the size of the ieee80211_hdr that starts at skb->data
  *
  * This function assumes the frame is a data frame, and that the network header
  * is in the correct place.
  */
-static inline int ieee80211_get_tdls_action(struct sk_buff *skb, u32 hdr_size)
+static inline int ieee80211_get_tdls_action(struct sk_buff *skb)
 {
 	if (!skb_is_nonlinear(skb) &&
 	    skb->len > (skb_network_offset(skb) + 2)) {
@@ -5123,6 +5219,39 @@ static inline bool ieee80211_mle_reconf_sta_prof_size_ok(const u8 *data,
 
 	return prof->sta_info_len >= info_len &&
 	       fixed + prof->sta_info_len - 1 <= len;
+}
+
+static inline bool ieee80211_tid_to_link_map_size_ok(const u8 *data, size_t len)
+{
+	const struct ieee80211_ttlm_elem *t2l = (const void *)data;
+	u8 control, fixed = sizeof(*t2l), elem_len = 0;
+
+	if (len < fixed)
+		return false;
+
+	control = t2l->control;
+
+	if (control & IEEE80211_TTLM_CONTROL_SWITCH_TIME_PRESENT)
+		elem_len += 2;
+	if (control & IEEE80211_TTLM_CONTROL_EXPECTED_DUR_PRESENT)
+		elem_len += 3;
+
+	if (!(control & IEEE80211_TTLM_CONTROL_DEF_LINK_MAP)) {
+		u8 bm_size;
+
+		elem_len += 1;
+		if (len < fixed + elem_len)
+			return false;
+
+		if (control & IEEE80211_TTLM_CONTROL_LINK_MAP_SIZE)
+			bm_size = 1;
+		else
+			bm_size = 2;
+
+		elem_len += hweight8(t2l->optional[0]) * bm_size;
+	}
+
+	return len >= fixed + elem_len;
 }
 
 #define for_each_mle_subelement(_elem, _data, _len)			\

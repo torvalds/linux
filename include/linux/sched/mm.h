@@ -403,6 +403,10 @@ DECLARE_PER_CPU(struct mem_cgroup *, int_active_memcg);
  * __GFP_ACCOUNT allocations till the end of the scope will be charged to the
  * given memcg.
  *
+ * Please, make sure that caller has a reference to the passed memcg structure,
+ * so its lifetime is guaranteed to exceed the scope between two
+ * set_active_memcg() calls.
+ *
  * NOTE: This function can nest. Users must save the return value and
  * reset the previous value after their own charging scope is over.
  */

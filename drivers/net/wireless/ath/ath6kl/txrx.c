@@ -708,7 +708,7 @@ void ath6kl_tx_complete(struct htc_target *target,
 				 packet->endpoint >= ENDPOINT_MAX))
 			continue;
 
-		ath6kl_cookie = (struct ath6kl_cookie *)packet->pkt_cntxt;
+		ath6kl_cookie = packet->pkt_cntxt;
 		if (WARN_ON_ONCE(!ath6kl_cookie))
 			continue;
 

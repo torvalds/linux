@@ -1043,7 +1043,7 @@ res_err:
 	return err;
 }
 
-static int img_hash_remove(struct platform_device *pdev)
+static void img_hash_remove(struct platform_device *pdev)
 {
 	struct img_hash_dev *hdev;
 
@@ -1061,8 +1061,6 @@ static int img_hash_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(hdev->hash_clk);
 	clk_disable_unprepare(hdev->sys_clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1101,7 +1099,7 @@ static const struct dev_pm_ops img_hash_pm_ops = {
 
 static struct platform_driver img_hash_driver = {
 	.probe		= img_hash_probe,
-	.remove		= img_hash_remove,
+	.remove_new	= img_hash_remove,
 	.driver		= {
 		.name	= "img-hash-accelerator",
 		.pm	= &img_hash_pm_ops,

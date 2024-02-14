@@ -20,10 +20,10 @@ struct qdisc_walker {
 	int	(*fn)(struct Qdisc *, unsigned long cl, struct qdisc_walker *);
 };
 
-static inline void *qdisc_priv(struct Qdisc *q)
-{
-	return &q->privdata;
-}
+#define qdisc_priv(q)							\
+	_Generic(q,							\
+		 const struct Qdisc * : (const void *)&q->privdata,	\
+		 struct Qdisc * : (void *)&q->privdata)
 
 static inline struct Qdisc *qdisc_from_priv(void *priv)
 {
@@ -273,24 +273,6 @@ static inline void taprio_offload_free(struct tc_taprio_qopt_offload *offload)
 static inline void skb_txtime_consumed(struct sk_buff *skb)
 {
 	skb->tstamp = ktime_set(0, 0);
-}
-
-struct tc_skb_cb {
-	struct qdisc_skb_cb qdisc_cb;
-
-	u16 mru;
-	u8 post_ct:1;
-	u8 post_ct_snat:1;
-	u8 post_ct_dnat:1;
-	u16 zone; /* Only valid if post_ct = true */
-};
-
-static inline struct tc_skb_cb *tc_skb_cb(const struct sk_buff *skb)
-{
-	struct tc_skb_cb *cb = (struct tc_skb_cb *)skb->cb;
-
-	BUILD_BUG_ON(sizeof(*cb) > sizeof_field(struct sk_buff, cb));
-	return cb;
 }
 
 static inline bool tc_qdisc_stats_dump(struct Qdisc *sch,

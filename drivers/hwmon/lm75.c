@@ -7,11 +7,11 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/jiffies.h>
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
-#include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
@@ -25,6 +25,7 @@
 
 enum lm75_type {		/* keep sorted in alphabetical order */
 	adt75,
+	as6200,
 	at30ts74,
 	ds1775,
 	ds75,
@@ -55,6 +56,7 @@ enum lm75_type {		/* keep sorted in alphabetical order */
 
 /**
  * struct lm75_params - lm75 configuration parameters.
+ * @config_reg_16bits:	Configure register size is 2 bytes.
  * @set_mask:		Bits to set in configuration register when configuring
  *			the chip.
  * @clr_mask:		Bits to clear in configuration register when configuring
@@ -75,17 +77,20 @@ enum lm75_type {		/* keep sorted in alphabetical order */
  * @sample_times:	All the possible sample times to be set. Mandatory if
  *			num_sample_times is larger than 1. If set, number of
  *			entries must match num_sample_times.
+ * @alarm:		Alarm bit is supported.
  */
 
 struct lm75_params {
-	u8			set_mask;
-	u8			clr_mask;
+	bool			config_reg_16bits;
+	u16			set_mask;
+	u16			clr_mask;
 	u8			default_resolution;
 	u8			resolution_limits;
 	const u8		*resolutions;
 	unsigned int		default_sample_time;
 	u8			num_sample_times;
 	const unsigned int	*sample_times;
+	bool			alarm;
 };
 
 /* Addresses scanned */
@@ -104,8 +109,8 @@ struct lm75_data {
 	struct i2c_client		*client;
 	struct regmap			*regmap;
 	struct regulator		*vs;
-	u8				orig_conf;
-	u8				current_conf;
+	u16				orig_conf;
+	u16				current_conf;
 	u8				resolution;	/* In bits, 9 to 16 */
 	unsigned int			sample_time;	/* In ms */
 	enum lm75_type			kind;
@@ -127,6 +132,15 @@ static const struct lm75_params device_params[] = {
 		.clr_mask = 1 << 5,	/* not one-shot mode */
 		.default_resolution = 12,
 		.default_sample_time = MSEC_PER_SEC / 10,
+	},
+	[as6200] = {
+		.config_reg_16bits = true,
+		.set_mask = 0x94C0,	/* 8 sample/s, 4 CF, positive polarity */
+		.default_resolution = 12,
+		.default_sample_time = 125,
+		.num_sample_times = 4,
+		.sample_times = (unsigned int []){ 125, 250, 1000, 4000 },
+		.alarm = true,
 	},
 	[at30ts74] = {
 		.set_mask = 3 << 5,	/* 12-bit mode*/
@@ -255,8 +269,9 @@ static const struct lm75_params device_params[] = {
 		.resolutions = (u8 []) {9, 10, 11, 12 },
 	},
 	[tmp112] = {
-		.set_mask = 3 << 5,	/* 8 samples / second */
-		.clr_mask = 1 << 7,	/* no one-shot mode*/
+		.config_reg_16bits = true,
+		.set_mask = 0x60C0,	/* 12-bit mode, 8 samples / second */
+		.clr_mask = 1 << 15,	/* no one-shot mode*/
 		.default_resolution = 12,
 		.default_sample_time = 125,
 		.num_sample_times = 4,
@@ -317,25 +332,49 @@ static inline long lm75_reg_to_mc(s16 temp, u8 resolution)
 	return ((temp >> (16 - resolution)) * 1000) >> (resolution - 8);
 }
 
-static int lm75_write_config(struct lm75_data *data, u8 set_mask,
-			     u8 clr_mask)
+static int lm75_write_config(struct lm75_data *data, u16 set_mask,
+			     u16 clr_mask)
 {
-	u8 value;
+	unsigned int value;
 
-	clr_mask |= LM75_SHUTDOWN;
+	clr_mask |= LM75_SHUTDOWN << (8 * data->params->config_reg_16bits);
 	value = data->current_conf & ~clr_mask;
 	value |= set_mask;
 
 	if (data->current_conf != value) {
 		s32 err;
-
-		err = i2c_smbus_write_byte_data(data->client, LM75_REG_CONF,
-						value);
+		if (data->params->config_reg_16bits)
+			err = regmap_write(data->regmap, LM75_REG_CONF, value);
+		else
+			err = i2c_smbus_write_byte_data(data->client,
+							LM75_REG_CONF,
+							value);
 		if (err)
 			return err;
 		data->current_conf = value;
 	}
 	return 0;
+}
+
+static int lm75_read_config(struct lm75_data *data)
+{
+	int ret;
+	unsigned int status;
+
+	if (data->params->config_reg_16bits) {
+		ret = regmap_read(data->regmap, LM75_REG_CONF, &status);
+		return ret ? ret : status;
+	}
+
+	return i2c_smbus_read_byte_data(data->client, LM75_REG_CONF);
+}
+
+static irqreturn_t lm75_alarm_handler(int irq, void *private)
+{
+	struct device *hwmon_dev = private;
+
+	hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_alarm, 0);
+	return IRQ_HANDLED;
 }
 
 static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
@@ -366,6 +405,9 @@ static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
 		case hwmon_temp_max_hyst:
 			reg = LM75_REG_HYST;
 			break;
+		case hwmon_temp_alarm:
+			reg = LM75_REG_CONF;
+			break;
 		default:
 			return -EINVAL;
 		}
@@ -373,7 +415,17 @@ static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
 		if (err < 0)
 			return err;
 
-		*val = lm75_reg_to_mc(regval, data->resolution);
+		if (attr == hwmon_temp_alarm) {
+			switch (data->kind) {
+			case as6200:
+				*val = (regval >> 5) & 0x1;
+				break;
+			default:
+				return -EINVAL;
+			}
+		} else {
+			*val = lm75_reg_to_mc(regval, data->resolution);
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -436,6 +488,7 @@ static int lm75_update_interval(struct device *dev, long val)
 			data->resolution = data->params->resolutions[index];
 		break;
 	case tmp112:
+	case as6200:
 		err = regmap_read(data->regmap, LM75_REG_CONF, &reg);
 		if (err < 0)
 			return err;
@@ -503,6 +556,10 @@ static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
 		case hwmon_temp_max:
 		case hwmon_temp_max_hyst:
 			return 0644;
+		case hwmon_temp_alarm:
+			if (config_data->params->alarm)
+				return 0444;
+			break;
 		}
 		break;
 	default:
@@ -515,7 +572,8 @@ static const struct hwmon_channel_info * const lm75_info[] = {
 	HWMON_CHANNEL_INFO(chip,
 			   HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL),
 	HWMON_CHANNEL_INFO(temp,
-			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST),
+			   HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST |
+			   HWMON_T_ALARM),
 	NULL
 };
 
@@ -623,7 +681,7 @@ static int lm75_probe(struct i2c_client *client)
 		return err;
 
 	/* Cache original configuration */
-	status = i2c_smbus_read_byte_data(client, LM75_REG_CONF);
+	status = lm75_read_config(data);
 	if (status < 0) {
 		dev_dbg(dev, "Can't read config? %d\n", status);
 		return status;
@@ -646,6 +704,23 @@ static int lm75_probe(struct i2c_client *client)
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
 
+	if (client->irq) {
+		if (data->params->alarm) {
+			err = devm_request_threaded_irq(dev,
+							client->irq,
+							NULL,
+							&lm75_alarm_handler,
+							IRQF_ONESHOT,
+							client->name,
+							hwmon_dev);
+			if (err)
+				return err;
+		} else {
+			 /* alarm is only supported for chips with alarm bit */
+			dev_err(dev, "alarm interrupt is not supported\n");
+		}
+	}
+
 	dev_info(dev, "%s: sensor '%s'\n", dev_name(hwmon_dev), client->name);
 
 	return 0;
@@ -653,6 +728,7 @@ static int lm75_probe(struct i2c_client *client)
 
 static const struct i2c_device_id lm75_ids[] = {
 	{ "adt75", adt75, },
+	{ "as6200", as6200, },
 	{ "at30ts74", at30ts74, },
 	{ "ds1775", ds1775, },
 	{ "ds75", ds75, },
@@ -688,6 +764,10 @@ static const struct of_device_id __maybe_unused lm75_of_match[] = {
 	{
 		.compatible = "adi,adt75",
 		.data = (void *)adt75
+	},
+	{
+		.compatible = "ams,as6200",
+		.data = (void *)as6200
 	},
 	{
 		.compatible = "atmel,at30ts74",

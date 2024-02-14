@@ -687,6 +687,14 @@ static inline void list_splice_tail_init(struct list_head *list,
 	for (pos = (head)->next; !list_is_head(pos, (head)); pos = pos->next)
 
 /**
+ * list_for_each_reverse - iterate backwards over a list
+ * @pos:	the &struct list_head to use as a loop cursor.
+ * @head:	the head for your list.
+ */
+#define list_for_each_reverse(pos, head) \
+	for (pos = (head)->prev; pos != (head); pos = pos->prev)
+
+/**
  * list_for_each_rcu - Iterate over a list in an RCU-safe fashion
  * @pos:	the &struct list_head to use as a loop cursor.
  * @head:	the head for your list.
@@ -1109,6 +1117,26 @@ static inline void hlist_move_list(struct hlist_head *old,
 	if (new->first)
 		new->first->pprev = &new->first;
 	old->first = NULL;
+}
+
+/**
+ * hlist_splice_init() - move all entries from one list to another
+ * @from: hlist_head from which entries will be moved
+ * @last: last entry on the @from list
+ * @to:   hlist_head to which entries will be moved
+ *
+ * @to can be empty, @from must contain at least @last.
+ */
+static inline void hlist_splice_init(struct hlist_head *from,
+				     struct hlist_node *last,
+				     struct hlist_head *to)
+{
+	if (to->first)
+		to->first->pprev = &last->next;
+	last->next = to->first;
+	to->first = from->first;
+	from->first->pprev = &to->first;
+	from->first = NULL;
 }
 
 #define hlist_entry(ptr, type, member) container_of(ptr,type,member)

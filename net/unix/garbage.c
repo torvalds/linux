@@ -314,6 +314,17 @@ void unix_gc(void)
 	/* Here we are. Hitlist is filled. Die. */
 	__skb_queue_purge(&hitlist);
 
+#if IS_ENABLED(CONFIG_AF_UNIX_OOB)
+	list_for_each_entry_safe(u, next, &gc_candidates, link) {
+		struct sk_buff *skb = u->oob_skb;
+
+		if (skb) {
+			u->oob_skb = NULL;
+			kfree_skb(skb);
+		}
+	}
+#endif
+
 	spin_lock(&unix_gc_lock);
 
 	/* There could be io_uring registered files, just push them back to

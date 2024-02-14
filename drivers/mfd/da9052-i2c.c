@@ -13,14 +13,11 @@
 #include <linux/mfd/core.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/reg.h>
 
-#ifdef CONFIG_OF
-#include <linux/of.h>
-#include <linux/of_device.h>
-#endif
 
 /* I2C safe register check */
 static inline bool i2c_safe_reg(unsigned char reg)

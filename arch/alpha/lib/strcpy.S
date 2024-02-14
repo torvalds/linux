@@ -6,7 +6,7 @@
  * Copy a null-terminated string from SRC to DST.  Return a pointer
  * to the null-terminator in the source.
  */
-#include <asm/export.h>
+#include <linux/export.h>
 	.text
 
 	.align 3

@@ -45,4 +45,6 @@ void arch_efi_call_virt_teardown(void);
 
 unsigned long stext_offset(void);
 
+void efi_icache_sync(unsigned long start, unsigned long end);
+
 #endif /* _ASM_EFI_H */

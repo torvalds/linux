@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 
 #define MMA8450_DRV_NAME	"mma8450"
 

@@ -1074,11 +1074,6 @@ static bool kvm_fixup_exception(struct ex_regs *regs)
 	return true;
 }
 
-void kvm_exit_unexpected_vector(uint32_t value)
-{
-	ucall(UCALL_UNHANDLED, 1, value);
-}
-
 void route_exception(struct ex_regs *regs)
 {
 	typedef void(*handler)(struct ex_regs *);
@@ -1092,7 +1087,10 @@ void route_exception(struct ex_regs *regs)
 	if (kvm_fixup_exception(regs))
 		return;
 
-	kvm_exit_unexpected_vector(regs->vector);
+	ucall_assert(UCALL_UNHANDLED,
+		     "Unhandled exception in guest", __FILE__, __LINE__,
+		     "Unhandled exception '0x%lx' at guest RIP '0x%lx'",
+		     regs->vector, regs->rip);
 }
 
 void vm_init_descriptor_tables(struct kvm_vm *vm)
@@ -1135,12 +1133,8 @@ void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	if (get_ucall(vcpu, &uc) == UCALL_UNHANDLED) {
-		uint64_t vector = uc.args[0];
-
-		TEST_FAIL("Unexpected vectored event in guest (vector:0x%lx)",
-			  vector);
-	}
+	if (get_ucall(vcpu, &uc) == UCALL_UNHANDLED)
+		REPORT_GUEST_ASSERT(uc);
 }
 
 const struct kvm_cpuid_entry2 *get_cpuid_entry(const struct kvm_cpuid2 *cpuid,

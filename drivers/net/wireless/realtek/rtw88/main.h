@@ -342,8 +342,10 @@ enum rtw_regulatory_domains {
 	RTW_REGD_UKRAINE	= 7,
 	RTW_REGD_MEXICO		= 8,
 	RTW_REGD_CN		= 9,
-	RTW_REGD_WW,
+	RTW_REGD_QATAR		= 10,
+	RTW_REGD_UK		= 11,
 
+	RTW_REGD_WW,
 	RTW_REGD_MAX
 };
 
@@ -520,6 +522,12 @@ struct rtw_channel_params {
 struct rtw_hw_reg {
 	u32 addr;
 	u32 mask;
+};
+
+struct rtw_hw_reg_desc {
+	u32 addr;
+	u32 mask;
+	const char *desc;
 };
 
 struct rtw_ltecoex_addr {
@@ -2080,18 +2088,6 @@ static inline struct ieee80211_vif *rtwvif_to_vif(struct rtw_vif *rtwvif)
 	void *p = rtwvif;
 
 	return container_of(p, struct ieee80211_vif, drv_priv);
-}
-
-static inline bool rtw_ssid_equal(struct cfg80211_ssid *a,
-				  struct cfg80211_ssid *b)
-{
-	if (!a || !b || a->ssid_len != b->ssid_len)
-		return false;
-
-	if (memcmp(a->ssid, b->ssid, a->ssid_len))
-		return false;
-
-	return true;
 }
 
 static inline void rtw_chip_efuse_grant_on(struct rtw_dev *rtwdev)

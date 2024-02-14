@@ -6,7 +6,6 @@
  */
 
 #include <linux/mtd/rawnand.h>
-#include <linux/of_gpio.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 

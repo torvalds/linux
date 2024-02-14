@@ -53,6 +53,7 @@
 #include <linux/seccomp.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
+#include <linux/syscall_user_dispatch.h>
 #include <linux/jiffies.h>
 #include <linux/futex.h>
 #include <linux/compat.h>
@@ -99,6 +100,7 @@
 #include <linux/stackprotector.h>
 #include <linux/user_events.h>
 #include <linux/iommu.h>
+#include <linux/rseq.h>
 
 #include <asm/pgalloc.h>
 #include <linux/uaccess.h>
@@ -165,7 +167,6 @@ void __weak arch_release_task_struct(struct task_struct *tsk)
 {
 }
 
-#ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 static struct kmem_cache *task_struct_cachep;
 
 static inline struct task_struct *alloc_task_struct_node(int node)
@@ -177,9 +178,6 @@ static inline void free_task_struct(struct task_struct *tsk)
 {
 	kmem_cache_free(task_struct_cachep, tsk);
 }
-#endif
-
-#ifndef CONFIG_ARCH_THREAD_STACK_ALLOCATOR
 
 /*
  * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
@@ -412,24 +410,6 @@ void thread_stack_cache_init(void)
 }
 
 # endif /* THREAD_SIZE >= PAGE_SIZE || defined(CONFIG_VMAP_STACK) */
-#else /* CONFIG_ARCH_THREAD_STACK_ALLOCATOR */
-
-static int alloc_thread_stack_node(struct task_struct *tsk, int node)
-{
-	unsigned long *stack;
-
-	stack = arch_alloc_thread_stack_node(tsk, node);
-	tsk->stack = stack;
-	return stack ? 0 : -ENOMEM;
-}
-
-static void free_thread_stack(struct task_struct *tsk)
-{
-	arch_free_thread_stack(tsk);
-	tsk->stack = NULL;
-}
-
-#endif /* !CONFIG_ARCH_THREAD_STACK_ALLOCATOR */
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
 static struct kmem_cache *signal_cachep;
@@ -650,7 +630,6 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 	int retval;
 	unsigned long charge = 0;
 	LIST_HEAD(uf);
-	VMA_ITERATOR(old_vmi, oldmm, 0);
 	VMA_ITERATOR(vmi, mm, 0);
 
 	uprobe_start_dup_mmap();
@@ -678,16 +657,22 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		goto out;
 	khugepaged_fork(mm, oldmm);
 
-	retval = vma_iter_bulk_alloc(&vmi, oldmm->map_count);
-	if (retval)
+	/* Use __mt_dup() to efficiently build an identical maple tree. */
+	retval = __mt_dup(&oldmm->mm_mt, &mm->mm_mt, GFP_KERNEL);
+	if (unlikely(retval))
 		goto out;
 
 	mt_clear_in_rcu(vmi.mas.tree);
-	for_each_vma(old_vmi, mpnt) {
+	for_each_vma(vmi, mpnt) {
 		struct file *file;
 
 		vma_start_write(mpnt);
 		if (mpnt->vm_flags & VM_DONTCOPY) {
+			retval = vma_iter_clear_gfp(&vmi, mpnt->vm_start,
+						    mpnt->vm_end, GFP_KERNEL);
+			if (retval)
+				goto loop_out;
+
 			vm_stat_account(mm, mpnt->vm_flags, -vma_pages(mpnt));
 			continue;
 		}
@@ -733,7 +718,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 
 			get_file(file);
 			i_mmap_lock_write(mapping);
-			if (tmp->vm_flags & VM_SHARED)
+			if (vma_is_shared_maywrite(tmp))
 				mapping_allow_writable(mapping);
 			flush_dcache_mmap_lock(mapping);
 			/* insert tmp into the share list, just after mpnt */
@@ -749,9 +734,11 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		if (is_vm_hugetlb_page(tmp))
 			hugetlb_dup_vma_private(tmp);
 
-		/* Link the vma into the MT */
-		if (vma_iter_bulk_store(&vmi, tmp))
-			goto fail_nomem_vmi_store;
+		/*
+		 * Link the vma into the MT. After using __mt_dup(), memory
+		 * allocation is not necessary here, so it cannot fail.
+		 */
+		vma_iter_bulk_store(&vmi, tmp);
 
 		mm->map_count++;
 		if (!(tmp->vm_flags & VM_WIPEONFORK))
@@ -760,15 +747,28 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 		if (tmp->vm_ops && tmp->vm_ops->open)
 			tmp->vm_ops->open(tmp);
 
-		if (retval)
+		if (retval) {
+			mpnt = vma_next(&vmi);
 			goto loop_out;
+		}
 	}
 	/* a new mm has just been created */
 	retval = arch_dup_mmap(oldmm, mm);
 loop_out:
 	vma_iter_free(&vmi);
-	if (!retval)
+	if (!retval) {
 		mt_set_in_rcu(vmi.mas.tree);
+	} else if (mpnt) {
+		/*
+		 * The entire maple tree has already been duplicated. If the
+		 * mmap duplication fails, mark the failure point with
+		 * XA_ZERO_ENTRY. In exit_mmap(), if this marker is encountered,
+		 * stop releasing VMAs that have not been duplicated after this
+		 * point.
+		 */
+		mas_set_range(&vmi.mas, mpnt->vm_start, mpnt->vm_end - 1);
+		mas_store(&vmi.mas, XA_ZERO_ENTRY);
+	}
 out:
 	mmap_write_unlock(mm);
 	flush_tlb_mm(oldmm);
@@ -778,8 +778,6 @@ fail_uprobe_end:
 	uprobe_end_dup_mmap();
 	return retval;
 
-fail_nomem_vmi_store:
-	unlink_anon_vmas(tmp);
 fail_nomem_anon_vma_fork:
 	mpol_put(vma_policy(tmp));
 fail_nomem_policy:
@@ -1021,7 +1019,6 @@ static void set_max_threads(unsigned int max_threads_suggested)
 int arch_task_struct_size __read_mostly;
 #endif
 
-#ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 static void task_struct_whitelist(unsigned long *offset, unsigned long *size)
 {
 	/* Fetch thread_struct whitelist for the architecture. */
@@ -1036,12 +1033,10 @@ static void task_struct_whitelist(unsigned long *offset, unsigned long *size)
 	else
 		*offset += offsetof(struct task_struct, thread);
 }
-#endif /* CONFIG_ARCH_TASK_STRUCT_ALLOCATOR */
 
 void __init fork_init(void)
 {
 	int i;
-#ifndef CONFIG_ARCH_TASK_STRUCT_ALLOCATOR
 #ifndef ARCH_MIN_TASKALIGN
 #define ARCH_MIN_TASKALIGN	0
 #endif
@@ -1054,7 +1049,6 @@ void __init fork_init(void)
 			arch_task_struct_size, align,
 			SLAB_PANIC|SLAB_ACCOUNT,
 			useroffset, usersize, NULL);
-#endif
 
 	/* do the arch specific task caches init */
 	arch_task_cache_init();
@@ -1179,7 +1173,7 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 	tsk->use_memdelay = 0;
 #endif
 
-#ifdef CONFIG_IOMMU_SVA
+#ifdef CONFIG_ARCH_HAS_CPU_PASID
 	tsk->pasid_activated = 0;
 #endif
 
@@ -1288,7 +1282,7 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
 	hugetlb_count_init(mm);
 
 	if (current->mm) {
-		mm->flags = current->mm->flags & MMF_INIT_MASK;
+		mm->flags = mmf_init_flags(current->mm->flags);
 		mm->def_flags = current->mm->def_flags & VM_INIT_DEF_MASK;
 	} else {
 		mm->flags = default_dump_filter;
@@ -1393,6 +1387,8 @@ EXPORT_SYMBOL_GPL(mmput_async);
 
 /**
  * set_mm_exe_file - change a reference to the mm's executable file
+ * @mm: The mm to change.
+ * @new_exe_file: The new file to use.
  *
  * This changes mm's executable file (shown as symlink /proc/[pid]/exe).
  *
@@ -1432,6 +1428,8 @@ int set_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 
 /**
  * replace_mm_exe_file - replace a reference to the mm's executable file
+ * @mm: The mm to change.
+ * @new_exe_file: The new file to use.
  *
  * This changes mm's executable file (shown as symlink /proc/[pid]/exe).
  *
@@ -1483,6 +1481,7 @@ int replace_mm_exe_file(struct mm_struct *mm, struct file *new_exe_file)
 
 /**
  * get_mm_exe_file - acquire a reference to the mm's executable file
+ * @mm: The mm of interest.
  *
  * Returns %NULL if mm has no associated executable file.
  * User must release file via fput().
@@ -1492,15 +1491,14 @@ struct file *get_mm_exe_file(struct mm_struct *mm)
 	struct file *exe_file;
 
 	rcu_read_lock();
-	exe_file = rcu_dereference(mm->exe_file);
-	if (exe_file && !get_file_rcu(exe_file))
-		exe_file = NULL;
+	exe_file = get_file_rcu(&mm->exe_file);
 	rcu_read_unlock();
 	return exe_file;
 }
 
 /**
  * get_task_exe_file - acquire a reference to the task's executable file
+ * @task: The task.
  *
  * Returns %NULL if task's mm (if any) has no associated executable file or
  * this is a kernel thread with borrowed mm (see the comment above get_task_mm).
@@ -1523,6 +1521,7 @@ struct file *get_task_exe_file(struct task_struct *task)
 
 /**
  * get_task_mm - acquire a reference to the task's mm
+ * @task: The task.
  *
  * Returns %NULL if the task has no mm.  Checks PF_KTHREAD (meaning
  * this kernel workthread has transiently adopted a user mm with use_mm,
@@ -1583,7 +1582,7 @@ static void complete_vfork_done(struct task_struct *tsk)
 static int wait_for_vfork_done(struct task_struct *child,
 				struct completion *vfork)
 {
-	unsigned int state = TASK_UNINTERRUPTIBLE|TASK_KILLABLE|TASK_FREEZABLE;
+	unsigned int state = TASK_KILLABLE|TASK_FREEZABLE;
 	int killed;
 
 	cgroup_enter_frozen();
@@ -1749,6 +1748,7 @@ static int copy_fs(unsigned long clone_flags, struct task_struct *tsk)
 	if (clone_flags & CLONE_FS) {
 		/* tsk->fs is already what we want */
 		spin_lock(&fs->lock);
+		/* "users" and "in_exec" locked for check_unsafe_exec() */
 		if (fs->in_exec) {
 			spin_unlock(&fs->lock);
 			return -EAGAIN;
@@ -2102,11 +2102,11 @@ const struct file_operations pidfd_fops = {
  * __pidfd_prepare - allocate a new pidfd_file and reserve a pidfd
  * @pid:   the struct pid for which to create a pidfd
  * @flags: flags of the new @pidfd
- * @pidfd: the pidfd to return
+ * @ret: Where to return the file for the pidfd.
  *
  * Allocate a new file that stashes @pid and reserve a new pidfd number in the
  * caller's file descriptor table. The pidfd is reserved but not installed yet.
-
+ *
  * The helper doesn't perform checks on @pid which makes it useful for pidfds
  * created via CLONE_PIDFD where @pid has no task attached when the pidfd and
  * pidfd file are prepared.
@@ -2153,7 +2153,7 @@ static int __pidfd_prepare(struct pid *pid, unsigned int flags, struct file **re
  * pidfd_prepare - allocate a new pidfd_file and reserve a pidfd
  * @pid:   the struct pid for which to create a pidfd
  * @flags: flags of the new @pidfd
- * @pidfd: the pidfd to return
+ * @ret: Where to return the pidfd.
  *
  * Allocate a new file that stashes @pid and reserve a new pidfd number in the
  * caller's file descriptor table. The pidfd is reserved but not installed yet.
@@ -2406,10 +2406,6 @@ __latent_entropy struct task_struct *copy_process(
 	p->io_uring = NULL;
 #endif
 
-#if defined(SPLIT_RSS_COUNTING)
-	memset(&p->rss_stat, 0, sizeof(p->rss_stat));
-#endif
-
 	p->default_timer_slack_ns = current->timer_slack_ns;
 
 #ifdef CONFIG_PSI
@@ -2576,7 +2572,6 @@ __latent_entropy struct task_struct *copy_process(
 	p->dirty_paused_when = 0;
 
 	p->pdeath_signal = 0;
-	INIT_LIST_HEAD(&p->thread_group);
 	p->task_works = NULL;
 	clear_posix_cputimers_work(p);
 
@@ -2704,8 +2699,6 @@ __latent_entropy struct task_struct *copy_process(
 			atomic_inc(&current->signal->live);
 			refcount_inc(&current->signal->sigcnt);
 			task_join_group_stop(p);
-			list_add_tail_rcu(&p->thread_group,
-					  &p->group_leader->thread_group);
 			list_add_tail_rcu(&p->thread_node,
 					  &p->signal->thread_head);
 		}
@@ -2930,7 +2923,7 @@ pid_t kernel_clone(struct kernel_clone_args *args)
 		get_task_struct(p);
 	}
 
-	if (IS_ENABLED(CONFIG_LRU_GEN) && !(clone_flags & CLONE_VM)) {
+	if (IS_ENABLED(CONFIG_LRU_GEN_WALKS_MMU) && !(clone_flags & CLONE_VM)) {
 		/* lock the task to synchronize with memcg migration */
 		task_lock(p);
 		lru_gen_add_mm(p->mm);
@@ -3144,7 +3137,7 @@ static inline bool clone3_stack_valid(struct kernel_clone_args *kargs)
 		if (!access_ok((void __user *)kargs->stack, kargs->stack_size))
 			return false;
 
-#if !defined(CONFIG_STACK_GROWSUP) && !defined(CONFIG_IA64)
+#if !defined(CONFIG_STACK_GROWSUP)
 		kargs->stack += kargs->stack_size;
 #endif
 	}
@@ -3181,7 +3174,7 @@ static bool clone3_args_valid(struct kernel_clone_args *kargs)
 }
 
 /**
- * clone3 - create a new process with specific properties
+ * sys_clone3 - create a new process with specific properties
  * @uargs: argument structure
  * @size:  size of @uargs
  *

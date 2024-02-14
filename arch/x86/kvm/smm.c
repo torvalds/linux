@@ -324,7 +324,6 @@ void enter_smm(struct kvm_vcpu *vcpu)
 
 	cr0 = vcpu->arch.cr0 & ~(X86_CR0_PE | X86_CR0_EM | X86_CR0_TS | X86_CR0_PG);
 	static_call(kvm_x86_set_cr0)(vcpu, cr0);
-	vcpu->arch.cr0 = cr0;
 
 	static_call(kvm_x86_set_cr4)(vcpu, 0);
 

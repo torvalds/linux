@@ -51,7 +51,7 @@
 		regulator-max-microvolt = <330000>;
 	};
 
-	soc {
+	soc@0 {
 		eccmgr {
 			sdmmca-ecc@ff8c8c00 {
 				compatible = "altr,socfpga-s10-sdmmc-ecc",
@@ -102,7 +102,7 @@
 &nand {
 	status = "okay";
 
-	flash@0 {
+	nand@0 {
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -176,8 +176,6 @@
 		spi-max-frequency = <100000000>;
 
 		m25p,fast-read;
-		cdns,page-size = <256>;
-		cdns,block-size = <16>;
 		cdns,read-delay = <1>;
 		cdns,tshsl-ns = <50>;
 		cdns,tsd2d-ns = <50>;

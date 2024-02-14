@@ -132,7 +132,7 @@ unregister_debugfs:
 	return ret;
 }
 
-static int wilco_ec_remove(struct platform_device *pdev)
+static void wilco_ec_remove(struct platform_device *pdev)
 {
 	struct wilco_ec_device *ec = platform_get_drvdata(pdev);
 
@@ -142,7 +142,6 @@ static int wilco_ec_remove(struct platform_device *pdev)
 	platform_device_unregister(ec->rtc_pdev);
 	if (ec->debugfs_pdev)
 		platform_device_unregister(ec->debugfs_pdev);
-	return 0;
 }
 
 static const struct acpi_device_id wilco_ec_acpi_device_ids[] = {
@@ -157,7 +156,7 @@ static struct platform_driver wilco_ec_driver = {
 		.acpi_match_table = wilco_ec_acpi_device_ids,
 	},
 	.probe = wilco_ec_probe,
-	.remove = wilco_ec_remove,
+	.remove_new = wilco_ec_remove,
 };
 
 module_platform_driver(wilco_ec_driver);

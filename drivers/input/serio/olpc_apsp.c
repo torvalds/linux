@@ -238,7 +238,7 @@ err_pad:
 	return error;
 }
 
-static int olpc_apsp_remove(struct platform_device *pdev)
+static void olpc_apsp_remove(struct platform_device *pdev)
 {
 	struct olpc_apsp *priv = platform_get_drvdata(pdev);
 
@@ -246,8 +246,6 @@ static int olpc_apsp_remove(struct platform_device *pdev)
 
 	serio_unregister_port(priv->kbio);
 	serio_unregister_port(priv->padio);
-
-	return 0;
 }
 
 static const struct of_device_id olpc_apsp_dt_ids[] = {
@@ -258,7 +256,7 @@ MODULE_DEVICE_TABLE(of, olpc_apsp_dt_ids);
 
 static struct platform_driver olpc_apsp_driver = {
 	.probe		= olpc_apsp_probe,
-	.remove		= olpc_apsp_remove,
+	.remove_new	= olpc_apsp_remove,
 	.driver		= {
 		.name	= "olpc-apsp",
 		.of_match_table = olpc_apsp_dt_ids,

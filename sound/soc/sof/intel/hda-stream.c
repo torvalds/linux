@@ -38,7 +38,7 @@ static char *hda_hstream_dbg_get_stream_info_str(struct hdac_stream *hstream)
 	struct snd_soc_pcm_runtime *rtd;
 
 	if (hstream->substream)
-		rtd = asoc_substream_to_rtd(hstream->substream);
+		rtd = snd_soc_substream_to_rtd(hstream->substream);
 	else if (hstream->cstream)
 		rtd = hstream->cstream->private_data;
 	else
@@ -668,7 +668,7 @@ int hda_dsp_stream_hw_params(struct snd_sof_dev *sdev,
 			snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR,
 					 sd_offset +
 					 SOF_HDA_ADSP_REG_SD_FIFOSIZE);
-		hstream->fifo_size &= 0xffff;
+		hstream->fifo_size &= SOF_HDA_SD_FIFOSIZE_FIFOS_MASK;
 		hstream->fifo_size += 1;
 	} else {
 		hstream->fifo_size = 0;

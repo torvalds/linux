@@ -16,11 +16,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_fdt.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/perf_event.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -1731,6 +1729,12 @@ static const struct xgene_pmu_data xgene_pmu_v2_data = {
 	.id   = PCP_PMU_V2,
 };
 
+#ifdef CONFIG_ACPI
+static const struct xgene_pmu_data xgene_pmu_v3_data = {
+	.id   = PCP_PMU_V3,
+};
+#endif
+
 static const struct xgene_pmu_ops xgene_pmu_ops = {
 	.mask_int = xgene_pmu_mask_int,
 	.unmask_int = xgene_pmu_unmask_int,
@@ -1773,9 +1777,9 @@ static const struct of_device_id xgene_pmu_of_match[] = {
 MODULE_DEVICE_TABLE(of, xgene_pmu_of_match);
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id xgene_pmu_acpi_match[] = {
-	{"APMC0D5B", PCP_PMU_V1},
-	{"APMC0D5C", PCP_PMU_V2},
-	{"APMC0D83", PCP_PMU_V3},
+	{"APMC0D5B", (kernel_ulong_t)&xgene_pmu_data},
+	{"APMC0D5C", (kernel_ulong_t)&xgene_pmu_v2_data},
+	{"APMC0D83", (kernel_ulong_t)&xgene_pmu_v3_data},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, xgene_pmu_acpi_match);
@@ -1831,7 +1835,6 @@ static int xgene_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 static int xgene_pmu_probe(struct platform_device *pdev)
 {
 	const struct xgene_pmu_data *dev_data;
-	const struct of_device_id *of_id;
 	struct xgene_pmu *xgene_pmu;
 	int irq, rc;
 	int version;
@@ -1850,24 +1853,10 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	xgene_pmu->dev = &pdev->dev;
 	platform_set_drvdata(pdev, xgene_pmu);
 
-	version = -EINVAL;
-	of_id = of_match_device(xgene_pmu_of_match, &pdev->dev);
-	if (of_id) {
-		dev_data = (const struct xgene_pmu_data *) of_id->data;
-		version = dev_data->id;
-	}
-
-#ifdef CONFIG_ACPI
-	if (ACPI_COMPANION(&pdev->dev)) {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(xgene_pmu_acpi_match, &pdev->dev);
-		if (acpi_id)
-			version = (int) acpi_id->driver_data;
-	}
-#endif
-	if (version < 0)
+	dev_data = device_get_match_data(&pdev->dev);
+	if (!dev_data)
 		return -ENODEV;
+	version = dev_data->id;
 
 	if (version == PCP_PMU_V3)
 		xgene_pmu->ops = &xgene_pmu_v3_ops;

@@ -69,6 +69,7 @@ properties:
             maxItems: 1
 
           i2c-alias:
+            $ref: /schemas/types.yaml#/definitions/uint32
             description:
               The I2C address used for the serializer. Transactions to this
               address on the I2C bus where the deserializer resides are

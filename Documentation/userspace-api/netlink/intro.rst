@@ -234,6 +234,10 @@ ACK attributes may be present::
   | ** optionally extended ACK                 |
   ----------------------------------------------
 
+Note that some implementations may issue custom ``NLMSG_DONE`` messages
+in reply to ``do`` action requests. In that case the payload is
+implementation-specific and may also be absent.
+
 .. _res_fam:
 
 Resolving the Family ID
@@ -527,6 +531,8 @@ size of the CPU architecture, whichever is bigger. Particular Netlink
 families may, however, require a larger buffer. 32kB buffer is recommended
 for most efficient handling of dumps (larger buffer fits more dumped
 objects and therefore fewer recvmsg() calls are needed).
+
+.. _classic_netlink:
 
 Classic Netlink
 ===============

@@ -9,7 +9,6 @@
 #include "log.h"
 
 static int epfd = -1;
-static unsigned short nrhandler;
 static sig_atomic_t exit_mainloop;
 
 struct mainloop_data {
@@ -17,8 +16,6 @@ struct mainloop_data {
 	void *data;
 	int fd;
 };
-
-static struct mainloop_data **mds;
 
 #define MAX_EVENTS 10
 
@@ -61,13 +58,6 @@ int mainloop_add(int fd, mainloop_callback_t cb, void *data)
 
 	struct mainloop_data *md;
 
-	if (fd >= nrhandler) {
-		mds = realloc(mds, sizeof(*mds) * (fd + 1));
-		if (!mds)
-			return -1;
-		nrhandler = fd + 1;
-	}
-
 	md = malloc(sizeof(*md));
 	if (!md)
 		return -1;
@@ -76,7 +66,6 @@ int mainloop_add(int fd, mainloop_callback_t cb, void *data)
 	md->cb = cb;
 	md->fd = fd;
 
-	mds[fd] = md;
 	ev.data.ptr = md;
 
 	if (epoll_ctl(epfd, EPOLL_CTL_ADD, fd, &ev) < 0) {
@@ -89,13 +78,8 @@ int mainloop_add(int fd, mainloop_callback_t cb, void *data)
 
 int mainloop_del(int fd)
 {
-	if (fd >= nrhandler)
-		return -1;
-
 	if (epoll_ctl(epfd, EPOLL_CTL_DEL, fd, NULL) < 0)
 		return -1;
-
-	free(mds[fd]);
 
 	return 0;
 }

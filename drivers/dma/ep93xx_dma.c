@@ -213,7 +213,7 @@ struct ep93xx_dma_engine {
 #define INTERRUPT_NEXT_BUFFER	2
 
 	size_t			num_channels;
-	struct ep93xx_dma_chan	channels[];
+	struct ep93xx_dma_chan	channels[] __counted_by(num_channels);
 };
 
 static inline struct device *chan2dev(struct ep93xx_dma_chan *edmac)

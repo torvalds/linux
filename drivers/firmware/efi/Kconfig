@@ -4,7 +4,7 @@ menu "EFI (Extensible Firmware Interface) Support"
 
 config EFI_ESRT
 	bool
-	depends on EFI && !IA64
+	depends on EFI
 	default y
 
 config EFI_VARS_PSTORE
@@ -123,7 +123,7 @@ config EFI_BOOTLOADER_CONTROL
 
 config EFI_CAPSULE_LOADER
 	tristate "EFI capsule loader"
-	depends on EFI && !IA64
+	depends on EFI
 	help
 	  This option exposes a loader interface "/dev/efi_capsule_loader" for
 	  users to load EFI capsules. This driver requires working runtime
@@ -224,7 +224,7 @@ config EFI_DISABLE_PCI_DMA
 
 config EFI_EARLYCON
 	def_bool y
-	depends on SERIAL_EARLYCON && !ARM && !IA64
+	depends on SERIAL_EARLYCON && !ARM
 	select FONT_SUPPORT
 	select ARCH_USE_MEMREMAP_PROT
 
@@ -301,3 +301,18 @@ config UEFI_CPER_X86
 	bool
 	depends on UEFI_CPER && X86
 	default y
+
+config TEE_STMM_EFI
+	tristate "TEE-based EFI runtime variable service driver"
+	depends on EFI && OPTEE
+	help
+	  Select this config option if TEE is compiled to include StandAloneMM
+	  as a separate secure partition. It has the ability to check and store
+	  EFI variables on an RPMB or any other non-volatile medium used by
+	  StandAloneMM.
+
+	  Enabling this will change the EFI runtime services from the firmware
+	  provided functions to TEE calls.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called tee_stmm_efi.

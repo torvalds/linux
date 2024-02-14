@@ -1317,12 +1317,6 @@ bool rtl_tx_mgmt_proc(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	__le16 fc = rtl_get_fc(skb);
 
-	if (rtlpriv->dm.supp_phymode_switch &&
-	    mac->link_state < MAC80211_LINKED &&
-	    (ieee80211_is_auth(fc) || ieee80211_is_probe_req(fc))) {
-		if (rtlpriv->cfg->ops->chk_switch_dmdp)
-			rtlpriv->cfg->ops->chk_switch_dmdp(hw);
-	}
 	if (ieee80211_is_auth(fc)) {
 		rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG, "MAC80211_LINKING\n");
 
@@ -1408,10 +1402,6 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 
 				sta_entry =
 					(struct rtl_sta_info *)sta->drv_priv;
-				if (!sta_entry) {
-					rcu_read_unlock();
-					return true;
-				}
 				capab =
 				  le16_to_cpu(mgmt->u.action.u.addba_req.capab);
 				tid = (capab &
@@ -1766,8 +1756,6 @@ int rtl_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	if (!sta_entry)
-		return -ENXIO;
 	tid_data = &sta_entry->tids[tid];
 
 	rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG,
@@ -1824,8 +1812,6 @@ int rtl_rx_agg_start(struct ieee80211_hw *hw,
 	}
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	if (!sta_entry)
-		return -ENXIO;
 	tid_data = &sta_entry->tids[tid];
 
 	rtl_dbg(rtlpriv, COMP_RECV, DBG_DMESG,

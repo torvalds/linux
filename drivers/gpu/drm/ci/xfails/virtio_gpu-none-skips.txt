@@ -1,0 +1,6 @@
+# Hits a "refcount_t: underflow; use-after-free" in virtio_gpu_fence_event_process
+# When run in a particular order with other tests
+kms_cursor_legacy.*
+
+# Job just hangs without any output
+kms_flip@flip-vs-suspend.*

@@ -48,6 +48,7 @@ void arch_uninstall_hw_breakpoint(struct perf_event *bp);
 void hw_breakpoint_pmu_read(struct perf_event *bp);
 int check_hw_breakpoint(struct pt_regs *regs);
 void clear_ptrace_hw_breakpoint(struct task_struct *tsk);
+void restore_dbreak(void);
 
 #else
 

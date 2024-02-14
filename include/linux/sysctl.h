@@ -210,11 +210,6 @@ struct ctl_table_root {
 	int (*permissions)(struct ctl_table_header *head, struct ctl_table *table);
 };
 
-/* struct ctl_path describes where in the hierarchy a table is added */
-struct ctl_path {
-	const char *procname;
-};
-
 #define register_sysctl(path, table)	\
 	register_sysctl_sz(path, table, ARRAY_SIZE(table))
 
@@ -242,6 +237,7 @@ extern void __register_sysctl_init(const char *path, struct ctl_table *table,
 extern struct ctl_table_header *register_sysctl_mount_point(const char *path);
 
 void do_sysctl_args(void);
+bool sysctl_is_alias(char *param);
 int do_proc_douintvec(struct ctl_table *table, int write,
 		      void *buffer, size_t *lenp, loff_t *ppos,
 		      int (*conv)(unsigned long *lvalp,
@@ -253,8 +249,6 @@ extern int pwrsw_enabled;
 extern int unaligned_enabled;
 extern int unaligned_dump_stack;
 extern int no_unaligned_warning;
-
-#define SYSCTL_PERM_EMPTY_DIR	(1 << 0)
 
 #else /* CONFIG_SYSCTL */
 
@@ -286,6 +280,11 @@ static inline void setup_sysctl_set(struct ctl_table_set *p,
 
 static inline void do_sysctl_args(void)
 {
+}
+
+static inline bool sysctl_is_alias(char *param)
+{
+	return false;
 }
 #endif /* CONFIG_SYSCTL */
 

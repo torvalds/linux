@@ -14,7 +14,7 @@ struct nvkm_event {
 	int index_nr;
 
 	spinlock_t refs_lock;
-	spinlock_t list_lock;
+	rwlock_t list_lock;
 	int *refs;
 
 	struct list_head ntfy;
@@ -38,7 +38,7 @@ nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
 		int types_nr, int index_nr, struct nvkm_event *event)
 {
 	spin_lock_init(&event->refs_lock);
-	spin_lock_init(&event->list_lock);
+	rwlock_init(&event->list_lock);
 	return __nvkm_event_init(func, subdev, types_nr, index_nr, event);
 }
 

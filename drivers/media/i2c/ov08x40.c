@@ -2432,9 +2432,6 @@ struct ov08x40 {
 
 	/* Mutex for serialized access */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 };
 
 #define to_ov08x40(_sd)	container_of(_sd, struct ov08x40, sd)
@@ -2539,7 +2536,7 @@ static int ov08x40_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	const struct ov08x40_mode *default_mode = &supported_modes[0];
 	struct ov08x40 *ov08x = to_ov08x40(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	mutex_lock(&ov08x->mutex);
 
@@ -2777,10 +2774,9 @@ static int ov08x40_do_get_pad_format(struct ov08x40 *ov08x,
 				     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
-	struct v4l2_subdev *sd = &ov08x->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		ov08x40_update_pad_format(ov08x->cur_mode, fmt);
@@ -2829,7 +2825,7 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov08x40_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ov08x->cur_mode = mode;
@@ -2915,10 +2911,6 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov08x->mutex);
-	if (ov08x->streaming == enable) {
-		mutex_unlock(&ov08x->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2937,7 +2929,6 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov08x->streaming = enable;
 	mutex_unlock(&ov08x->mutex);
 
 	return ret;
@@ -2947,37 +2938,6 @@ err_rpm_put:
 err_unlock:
 	mutex_unlock(&ov08x->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused ov08x40_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov08x40 *ov08x = to_ov08x40(sd);
-
-	if (ov08x->streaming)
-		ov08x40_stop_streaming(ov08x);
-
-	return 0;
-}
-
-static int __maybe_unused ov08x40_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov08x40 *ov08x = to_ov08x40(sd);
-	int ret;
-
-	if (ov08x->streaming) {
-		ret = ov08x40_start_streaming(ov08x);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	ov08x40_stop_streaming(ov08x);
-	ov08x->streaming = false;
 	return ret;
 }
 
@@ -3294,10 +3254,6 @@ static void ov08x40_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 }
 
-static const struct dev_pm_ops ov08x40_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov08x40_suspend, ov08x40_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov08x40_acpi_ids[] = {
 	{"OVTI08F4"},
@@ -3310,7 +3266,6 @@ MODULE_DEVICE_TABLE(acpi, ov08x40_acpi_ids);
 static struct i2c_driver ov08x40_i2c_driver = {
 	.driver = {
 		.name = "ov08x40",
-		.pm = &ov08x40_pm_ops,
 		.acpi_match_table = ACPI_PTR(ov08x40_acpi_ids),
 	},
 	.probe = ov08x40_probe,

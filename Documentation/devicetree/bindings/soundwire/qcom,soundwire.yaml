@@ -209,17 +209,6 @@ properties:
   label:
     maxItems: 1
 
-patternProperties:
-  "^.*@[0-9a-f],[0-9a-f]$":
-    type: object
-    additionalProperties: true
-    description:
-      Child nodes for a standalone audio codec or speaker amplifier IC.
-      It has RX and TX Soundwire secondary devices.
-    properties:
-      compatible:
-        pattern: "^sdw[0-9a-f]{1}[0-9a-f]{4}[0-9a-f]{4}[0-9a-f]{2}$"
-
 required:
   - compatible
   - reg
@@ -240,7 +229,10 @@ oneOf:
   - required:
       - qcom,ports-sinterval
 
-additionalProperties: false
+allOf:
+  - $ref: soundwire-controller.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

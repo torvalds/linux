@@ -887,7 +887,7 @@ static ssize_t config_csum_show(struct device *dev,
 	cfg_csum = wdt->param.xmls_id1;
 	cfg_csum = (cfg_csum << 16) | wdt->param.xmls_id2;
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", cfg_csum);
+	return sysfs_emit(buf, "%x\n", cfg_csum);
 }
 
 static ssize_t fw_version_show(struct device *dev,
@@ -896,7 +896,7 @@ static ssize_t fw_version_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct wdt87xx_data *wdt = i2c_get_clientdata(client);
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", wdt->param.fw_id);
+	return sysfs_emit(buf, "%x\n", wdt->param.fw_id);
 }
 
 static ssize_t plat_id_show(struct device *dev,
@@ -905,7 +905,7 @@ static ssize_t plat_id_show(struct device *dev,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct wdt87xx_data *wdt = i2c_get_clientdata(client);
 
-	return scnprintf(buf, PAGE_SIZE, "%x\n", wdt->param.plat_id);
+	return sysfs_emit(buf, "%x\n", wdt->param.plat_id);
 }
 
 static ssize_t update_config_store(struct device *dev,
@@ -944,10 +944,7 @@ static struct attribute *wdt87xx_attrs[] = {
 	&dev_attr_update_fw.attr,
 	NULL
 };
-
-static const struct attribute_group wdt87xx_attr_group = {
-	.attrs = wdt87xx_attrs,
-};
+ATTRIBUTE_GROUPS(wdt87xx);
 
 static void wdt87xx_report_contact(struct input_dev *input,
 				   struct wdt87xx_sys_param *param,
@@ -1104,12 +1101,6 @@ static int wdt87xx_ts_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &wdt87xx_attr_group);
-	if (error) {
-		dev_err(&client->dev, "create sysfs failed: %d\n", error);
-		return error;
-	}
-
 	return 0;
 }
 
@@ -1172,8 +1163,9 @@ static struct i2c_driver wdt87xx_driver = {
 	.probe		= wdt87xx_ts_probe,
 	.id_table	= wdt87xx_dev_id,
 	.driver	= {
-		.name	= WDT87XX_NAME,
-		.pm     = pm_sleep_ptr(&wdt87xx_pm_ops),
+		.name = WDT87XX_NAME,
+		.dev_groups = wdt87xx_groups,
+		.pm = pm_sleep_ptr(&wdt87xx_pm_ops),
 		.acpi_match_table = ACPI_PTR(wdt87xx_acpi_id),
 	},
 };

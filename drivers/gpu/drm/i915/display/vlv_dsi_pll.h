@@ -32,7 +32,16 @@ u32 bxt_dsi_get_pclk(struct intel_encoder *encoder,
 		     struct intel_crtc_state *config);
 void bxt_dsi_reset_clocks(struct intel_encoder *encoder, enum port port);
 
+#ifdef I915
 void assert_dsi_pll_enabled(struct drm_i915_private *i915);
 void assert_dsi_pll_disabled(struct drm_i915_private *i915);
+#else
+static inline void assert_dsi_pll_enabled(struct drm_i915_private *i915)
+{
+}
+static inline void assert_dsi_pll_disabled(struct drm_i915_private *i915)
+{
+}
+#endif
 
 #endif /* __VLV_DSI_PLL_H__ */

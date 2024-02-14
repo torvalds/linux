@@ -12,9 +12,7 @@
 #include <linux/pm.h>
 #include <linux/ahci_platform.h>
 #include <linux/device.h>
-#include <linux/of_address.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/libata.h>
 #include "ahci.h"
@@ -90,7 +88,7 @@ MODULE_DEVICE_TABLE(acpi, ahci_qoriq_acpi_match);
 static int ahci_qoriq_hardreset(struct ata_link *link, unsigned int *class,
 			  unsigned long deadline)
 {
-	const unsigned long *timing = sata_ehc_deb_timing(&link->eh_context);
+	const unsigned int *timing = sata_ehc_deb_timing(&link->eh_context);
 	void __iomem *port_mmio = ahci_port_base(link->ap);
 	u32 px_cmd, px_is, px_val;
 	struct ata_port *ap = link->ap;

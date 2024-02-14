@@ -441,6 +441,7 @@ int of_property_read_string(const struct device_node *np, const char *propname,
 				const char **out_string)
 {
 	const struct property *prop = of_find_property(np, propname, NULL);
+
 	if (!prop)
 		return -EINVAL;
 	if (!prop->length)
@@ -1217,9 +1218,9 @@ static struct device_node *parse_##fname(struct device_node *np,	     \
  *
  * @parse_prop: function name
  *	parse_prop() finds the node corresponding to a supplier phandle
- * @parse_prop.np: Pointer to device node holding supplier phandle property
- * @parse_prop.prop_name: Name of property holding a phandle value
- * @parse_prop.index: For properties holding a list of phandles, this is the
+ *  parse_prop.np: Pointer to device node holding supplier phandle property
+ *  parse_prop.prop_name: Name of property holding a phandle value
+ *  parse_prop.index: For properties holding a list of phandles, this is the
  *		      index into the list
  * @optional: Describes whether a supplier is mandatory or not
  * @node_not_dev: The consumer node containing the property is never converted
@@ -1267,6 +1268,7 @@ DEFINE_SIMPLE_PROP(resets, "resets", "#reset-cells")
 DEFINE_SIMPLE_PROP(leds, "leds", NULL)
 DEFINE_SIMPLE_PROP(backlight, "backlight", NULL)
 DEFINE_SIMPLE_PROP(panel, "panel", NULL)
+DEFINE_SIMPLE_PROP(msi_parent, "msi-parent", "#msi-cells")
 DEFINE_SUFFIX_PROP(regulators, "-supply", NULL)
 DEFINE_SUFFIX_PROP(gpio, "-gpio", "#gpio-cells")
 
@@ -1356,6 +1358,7 @@ static const struct supplier_bindings of_supplier_bindings[] = {
 	{ .parse_prop = parse_leds, },
 	{ .parse_prop = parse_backlight, },
 	{ .parse_prop = parse_panel, },
+	{ .parse_prop = parse_msi_parent, },
 	{ .parse_prop = parse_gpio_compat, },
 	{ .parse_prop = parse_interrupts, },
 	{ .parse_prop = parse_regulators, },

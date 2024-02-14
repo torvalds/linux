@@ -93,8 +93,8 @@ struct process_symbol_args {
 	u64	   start;
 };
 
-static int find_symbol_cb(void *arg, const char *name, char type,
-			  u64 start)
+static int find_func_symbol_cb(void *arg, const char *name, char type,
+			       u64 start)
 {
 	struct process_symbol_args *args = arg;
 
@@ -110,12 +110,36 @@ static int find_symbol_cb(void *arg, const char *name, char type,
 	return 1;
 }
 
+static int find_any_symbol_cb(void *arg, const char *name,
+			      char type __maybe_unused, u64 start)
+{
+	struct process_symbol_args *args = arg;
+
+	if (strcmp(name, args->name))
+		return 0;
+
+	args->start = start;
+	return 1;
+}
+
 int kallsyms__get_function_start(const char *kallsyms_filename,
 				 const char *symbol_name, u64 *addr)
 {
 	struct process_symbol_args args = { .name = symbol_name, };
 
-	if (kallsyms__parse(kallsyms_filename, &args, find_symbol_cb) <= 0)
+	if (kallsyms__parse(kallsyms_filename, &args, find_func_symbol_cb) <= 0)
+		return -1;
+
+	*addr = args.start;
+	return 0;
+}
+
+int kallsyms__get_symbol_start(const char *kallsyms_filename,
+			       const char *symbol_name, u64 *addr)
+{
+	struct process_symbol_args args = { .name = symbol_name, };
+
+	if (kallsyms__parse(kallsyms_filename, &args, find_any_symbol_cb) <= 0)
 		return -1;
 
 	*addr = args.start;
@@ -593,13 +617,13 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
 		maps = machine__kernel_maps(machine);
-		load_map = true;
+		load_map = !symbol_conf.lazy_load_kernel_maps;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
 		maps = machine__kernel_maps(machine);
-		load_map = true;
+		load_map = !symbol_conf.lazy_load_kernel_maps;
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest) {
 		al->level = 'u';
 	} else {

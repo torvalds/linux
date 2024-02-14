@@ -46,6 +46,7 @@
 
 #define PTP_PPS_HI_INCR				0xF60ULL
 #define PTP_PPS_LO_INCR				0xF68ULL
+#define PTP_PPS_THRESH_LO			0xF50ULL
 #define PTP_PPS_THRESH_HI			0xF58ULL
 
 #define PTP_CLOCK_LO				0xF08ULL
@@ -411,28 +412,11 @@ void ptp_start(struct rvu *rvu, u64 sclk, u32 ext_clk_freq, u32 extts)
 	}
 
 	clock_cfg |= PTP_CLOCK_CFG_PTP_EN;
-	clock_cfg |= PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV;
 	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
 	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
 	clock_cfg &= ~PTP_CLOCK_CFG_ATOMIC_OP_MASK;
 	clock_cfg |= (ATOMIC_SET << 26);
 	writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
-
-	/* Set 50% duty cycle for 1Hz output */
-	writeq(0x1dcd650000000000, ptp->reg_base + PTP_PPS_HI_INCR);
-	writeq(0x1dcd650000000000, ptp->reg_base + PTP_PPS_LO_INCR);
-	if (cn10k_ptp_errata(ptp)) {
-		/* The ptp_clock_hi rollsover to zero once clock cycle before it
-		 * reaches one second boundary. so, program the pps_lo_incr in
-		 * such a way that the pps threshold value comparison at one
-		 * second boundary will succeed and pps edge changes. After each
-		 * one second boundary, the hrtimer handler will be invoked and
-		 * reprograms the pps threshold value.
-		 */
-		ptp->clock_period = NSEC_PER_SEC / ptp->clock_rate;
-		writeq((0x1dcd6500ULL - ptp->clock_period) << 32,
-		       ptp->reg_base + PTP_PPS_LO_INCR);
-	}
 
 	if (cn10k_ptp_errata(ptp))
 		clock_comp = ptp_calc_adjusted_comp(ptp->clock_rate);
@@ -465,19 +449,67 @@ static int ptp_set_thresh(struct ptp *ptp, u64 thresh)
 	return 0;
 }
 
-static int ptp_extts_on(struct ptp *ptp, int on)
+static int ptp_config_hrtimer(struct ptp *ptp, int on)
 {
 	u64 ptp_clock_hi;
 
-	if (cn10k_ptp_errata(ptp)) {
-		if (on) {
-			ptp_clock_hi = readq(ptp->reg_base + PTP_CLOCK_HI);
-			ptp_hrtimer_start(ptp, (ktime_t)ptp_clock_hi);
-		} else {
-			if (hrtimer_active(&ptp->hrtimer))
-				hrtimer_cancel(&ptp->hrtimer);
-		}
+	if (on) {
+		ptp_clock_hi = readq(ptp->reg_base + PTP_CLOCK_HI);
+		ptp_hrtimer_start(ptp, (ktime_t)ptp_clock_hi);
+	} else {
+		if (hrtimer_active(&ptp->hrtimer))
+			hrtimer_cancel(&ptp->hrtimer);
 	}
+
+	return 0;
+}
+
+static int ptp_pps_on(struct ptp *ptp, int on, u64 period)
+{
+	u64 clock_cfg;
+
+	clock_cfg = readq(ptp->reg_base + PTP_CLOCK_CFG);
+	if (on) {
+		if (cn10k_ptp_errata(ptp) && period != NSEC_PER_SEC) {
+			dev_err(&ptp->pdev->dev, "Supports max period value as 1 second\n");
+			return -EINVAL;
+		}
+
+		if (period > (8 * NSEC_PER_SEC)) {
+			dev_err(&ptp->pdev->dev, "Supports max period as 8 seconds\n");
+			return -EINVAL;
+		}
+
+		clock_cfg |= PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV;
+		writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
+
+		writeq(0, ptp->reg_base + PTP_PPS_THRESH_HI);
+		writeq(0, ptp->reg_base + PTP_PPS_THRESH_LO);
+
+		/* Configure high/low phase time */
+		period = period / 2;
+		writeq(((u64)period << 32), ptp->reg_base + PTP_PPS_HI_INCR);
+		writeq(((u64)period << 32), ptp->reg_base + PTP_PPS_LO_INCR);
+	} else {
+		clock_cfg &= ~(PTP_CLOCK_CFG_PPS_EN | PTP_CLOCK_CFG_PPS_INV);
+		writeq(clock_cfg, ptp->reg_base + PTP_CLOCK_CFG);
+	}
+
+	if (on && cn10k_ptp_errata(ptp)) {
+		/* The ptp_clock_hi rollsover to zero once clock cycle before it
+		 * reaches one second boundary. so, program the pps_lo_incr in
+		 * such a way that the pps threshold value comparison at one
+		 * second boundary will succeed and pps edge changes. After each
+		 * one second boundary, the hrtimer handler will be invoked and
+		 * reprograms the pps threshold value.
+		 */
+		ptp->clock_period = NSEC_PER_SEC / ptp->clock_rate;
+		writeq((0x1dcd6500ULL - ptp->clock_period) << 32,
+		       ptp->reg_base + PTP_PPS_LO_INCR);
+	}
+
+	if (cn10k_ptp_errata(ptp))
+		ptp_config_hrtimer(ptp, on);
 
 	return 0;
 }
@@ -613,8 +645,8 @@ int rvu_mbox_handler_ptp_op(struct rvu *rvu, struct ptp_req *req,
 	case PTP_OP_SET_THRESH:
 		err = ptp_set_thresh(rvu->ptp, req->thresh);
 		break;
-	case PTP_OP_EXTTS_ON:
-		err = ptp_extts_on(rvu->ptp, req->extts_on);
+	case PTP_OP_PPS_ON:
+		err = ptp_pps_on(rvu->ptp, req->pps_on, req->period);
 		break;
 	case PTP_OP_ADJTIME:
 		ptp_atomic_adjtime(rvu->ptp, req->delta);

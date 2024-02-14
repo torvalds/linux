@@ -7,7 +7,6 @@
 #ifndef _NOLIBC_SYS_H
 #define _NOLIBC_SYS_H
 
-#include <stdarg.h>
 #include "std.h"
 
 /* system includes */
@@ -22,9 +21,11 @@
 #include <linux/fcntl.h> /* for O_* and AT_* */
 #include <linux/stat.h>  /* for statx() */
 #include <linux/prctl.h>
+#include <linux/resource.h>
 
 #include "arch.h"
 #include "errno.h"
+#include "stdarg.h"
 #include "types.h"
 
 
@@ -42,6 +43,16 @@
 		? (({ SET_ERRNO(-__sysret_arg); }), -1) /* ret -1 with errno = -arg */ \
 		: __sysret_arg;                         /* return original value */ \
 })
+
+/* Syscall ENOSYS helper: Avoids unused-parameter warnings and provides a
+ * debugging hook.
+ */
+
+static __inline__ int __nolibc_enosys(const char *syscall, ...)
+{
+	(void)syscall;
+	return -ENOSYS;
+}
 
 
 /* Functions in this file only describe syscalls. They're declared static so
@@ -133,7 +144,7 @@ int sys_chmod(const char *path, mode_t mode)
 #elif defined(__NR_chmod)
 	return my_syscall2(__NR_chmod, path, mode);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path, mode);
 #endif
 }
 
@@ -156,7 +167,7 @@ int sys_chown(const char *path, uid_t owner, gid_t group)
 #elif defined(__NR_chown)
 	return my_syscall3(__NR_chown, path, owner, group);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path, owner, group);
 #endif
 }
 
@@ -230,7 +241,7 @@ int sys_dup2(int old, int new)
 #elif defined(__NR_dup2)
 	return my_syscall2(__NR_dup2, old, new);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, old, new);
 #endif
 }
 
@@ -312,7 +323,7 @@ pid_t sys_fork(void)
 #elif defined(__NR_fork)
 	return my_syscall0(__NR_fork);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__);
 #endif
 }
 #endif
@@ -486,7 +497,7 @@ int sys_gettimeofday(struct timeval *tv, struct timezone *tz)
 #ifdef __NR_gettimeofday
 	return my_syscall2(__NR_gettimeofday, tv, tz);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, tv, tz);
 #endif
 }
 
@@ -563,7 +574,7 @@ int sys_link(const char *old, const char *new)
 #elif defined(__NR_link)
 	return my_syscall2(__NR_link, old, new);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, old, new);
 #endif
 }
 
@@ -584,7 +595,7 @@ off_t sys_lseek(int fd, off_t offset, int whence)
 #ifdef __NR_lseek
 	return my_syscall3(__NR_lseek, fd, offset, whence);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, fd, offset, whence);
 #endif
 }
 
@@ -607,7 +618,7 @@ int sys_mkdir(const char *path, mode_t mode)
 #elif defined(__NR_mkdir)
 	return my_syscall2(__NR_mkdir, path, mode);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path, mode);
 #endif
 }
 
@@ -629,7 +640,7 @@ int sys_rmdir(const char *path)
 #elif defined(__NR_unlinkat)
 	return my_syscall3(__NR_unlinkat, AT_FDCWD, path, AT_REMOVEDIR);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path);
 #endif
 }
 
@@ -652,7 +663,7 @@ long sys_mknod(const char *path, mode_t mode, dev_t dev)
 #elif defined(__NR_mknod)
 	return my_syscall3(__NR_mknod, path, mode, dev);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path, mode, dev);
 #endif
 }
 
@@ -742,7 +753,7 @@ int sys_open(const char *path, int flags, mode_t mode)
 #elif defined(__NR_open)
 	return my_syscall3(__NR_open, path, flags, mode);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path, flags, mode);
 #endif
 }
 
@@ -842,7 +853,7 @@ int sys_poll(struct pollfd *fds, int nfds, int timeout)
 #elif defined(__NR_poll)
 	return my_syscall3(__NR_poll, fds, nfds, timeout);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, fds, nfds, timeout);
 #endif
 }
 
@@ -889,6 +900,43 @@ int reboot(int cmd)
 
 
 /*
+ * int getrlimit(int resource, struct rlimit *rlim);
+ * int setrlimit(int resource, const struct rlimit *rlim);
+ */
+
+static __attribute__((unused))
+int sys_prlimit64(pid_t pid, int resource,
+		  const struct rlimit64 *new_limit, struct rlimit64 *old_limit)
+{
+	return my_syscall4(__NR_prlimit64, pid, resource, new_limit, old_limit);
+}
+
+static __attribute__((unused))
+int getrlimit(int resource, struct rlimit *rlim)
+{
+	struct rlimit64 rlim64;
+	int ret;
+
+	ret = __sysret(sys_prlimit64(0, resource, NULL, &rlim64));
+	rlim->rlim_cur = rlim64.rlim_cur;
+	rlim->rlim_max = rlim64.rlim_max;
+
+	return ret;
+}
+
+static __attribute__((unused))
+int setrlimit(int resource, const struct rlimit *rlim)
+{
+	struct rlimit64 rlim64 = {
+		.rlim_cur = rlim->rlim_cur,
+		.rlim_max = rlim->rlim_max,
+	};
+
+	return __sysret(sys_prlimit64(0, resource, &rlim64, NULL));
+}
+
+
+/*
  * int sched_yield(void);
  */
 
@@ -920,7 +968,11 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 		struct timeval *t;
 	} arg = { .n = nfds, .r = rfds, .w = wfds, .e = efds, .t = timeout };
 	return my_syscall1(__NR_select, &arg);
-#elif defined(__ARCH_WANT_SYS_PSELECT6) && defined(__NR_pselect6)
+#elif defined(__NR__newselect)
+	return my_syscall5(__NR__newselect, nfds, rfds, wfds, efds, timeout);
+#elif defined(__NR_select)
+	return my_syscall5(__NR_select, nfds, rfds, wfds, efds, timeout);
+#elif defined(__NR_pselect6)
 	struct timespec t;
 
 	if (timeout) {
@@ -928,13 +980,8 @@ int sys_select(int nfds, fd_set *rfds, fd_set *wfds, fd_set *efds, struct timeva
 		t.tv_nsec = timeout->tv_usec * 1000;
 	}
 	return my_syscall6(__NR_pselect6, nfds, rfds, wfds, efds, timeout ? &t : NULL, NULL);
-#elif defined(__NR__newselect) || defined(__NR_select)
-#ifndef __NR__newselect
-#define __NR__newselect __NR_select
-#endif
-	return my_syscall5(__NR__newselect, nfds, rfds, wfds, efds, timeout);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, nfds, rfds, wfds, efds, timeout);
 #endif
 }
 
@@ -989,7 +1036,7 @@ int sys_statx(int fd, const char *path, int flags, unsigned int mask, struct sta
 #ifdef __NR_statx
 	return my_syscall5(__NR_statx, fd, path, flags, mask, buf);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, fd, path, flags, mask, buf);
 #endif
 }
 
@@ -1047,7 +1094,7 @@ int sys_symlink(const char *old, const char *new)
 #elif defined(__NR_symlink)
 	return my_syscall2(__NR_symlink, old, new);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, old, new);
 #endif
 }
 
@@ -1104,7 +1151,7 @@ int sys_unlink(const char *path)
 #elif defined(__NR_unlink)
 	return my_syscall1(__NR_unlink, path);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, path);
 #endif
 }
 
@@ -1127,7 +1174,7 @@ pid_t sys_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
 #ifdef __NR_wait4
 	return my_syscall4(__NR_wait4, pid, status, options, rusage);
 #else
-	return -ENOSYS;
+	return __nolibc_enosys(__func__, pid, status, options, rusage);
 #endif
 }
 

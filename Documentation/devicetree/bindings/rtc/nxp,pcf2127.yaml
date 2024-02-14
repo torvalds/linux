@@ -18,6 +18,7 @@ properties:
       - nxp,pca2129
       - nxp,pcf2127
       - nxp,pcf2129
+      - nxp,pcf2131
 
   reg:
     maxItems: 1

@@ -47,6 +47,7 @@
 	};
 
 	cbass_main: bus@f4000 {
+		bootph-all;
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -85,6 +86,7 @@
 			 <0x00 0x04000000 0x00 0x04000000 0x00 0x01ff1400>;
 
 		cbass_mcu: bus@4000000 {
+			bootph-all;
 			compatible = "simple-bus";
 			#address-cells = <2>;
 			#size-cells = <2>;

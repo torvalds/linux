@@ -311,6 +311,8 @@ static int ep93xxfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	unsigned int offset = vma->vm_pgoff << PAGE_SHIFT;
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	if (offset < info->fix.smem_len) {
 		return dma_mmap_wc(info->device, vma, info->screen_base,
 				   info->fix.smem_start, info->fix.smem_len);
@@ -404,12 +406,11 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 
 static const struct fb_ops ep93xxfb_ops = {
 	.owner		= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= ep93xxfb_check_var,
 	.fb_set_par	= ep93xxfb_set_par,
 	.fb_blank	= ep93xxfb_blank,
-	.fb_fillrect	= cfb_fillrect,
-	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_DRAW,
 	.fb_setcolreg	= ep93xxfb_setcolreg,
 	.fb_mmap	= ep93xxfb_mmap,
 };

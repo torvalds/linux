@@ -227,6 +227,7 @@ struct mci_slot_pdata {
 /**
  * struct mci_platform_data - board-specific MMC/SDcard configuration
  * @dma_slave: DMA slave interface to use in data transfers.
+ * @dma_filter: Filtering function to filter the DMA channel
  * @slot: Per-slot configuration data.
  */
 struct mci_platform_data {
@@ -674,8 +675,10 @@ atmci_of_init(struct platform_device *pdev)
 					      "cd", GPIOD_IN, "cd-gpios");
 		err = PTR_ERR_OR_ZERO(pdata->slot[slot_id].detect_pin);
 		if (err) {
-			if (err != -ENOENT)
+			if (err != -ENOENT) {
+				of_node_put(cnp);
 				return ERR_PTR(err);
+			}
 			pdata->slot[slot_id].detect_pin = NULL;
 		}
 
@@ -687,8 +690,10 @@ atmci_of_init(struct platform_device *pdev)
 					      "wp", GPIOD_IN, "wp-gpios");
 		err = PTR_ERR_OR_ZERO(pdata->slot[slot_id].wp_pin);
 		if (err) {
-			if (err != -ENOENT)
+			if (err != -ENOENT) {
+				of_node_put(cnp);
 				return ERR_PTR(err);
+			}
 			pdata->slot[slot_id].wp_pin = NULL;
 		}
 	}

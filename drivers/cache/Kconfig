@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "Cache Drivers"
+
+config AX45MP_L2_CACHE
+	bool "Andes Technology AX45MP L2 Cache controller"
+	depends on RISCV
+	select RISCV_NONSTANDARD_CACHE_OPS
+	help
+	  Support for the L2 cache controller on Andes Technology AX45MP platforms.
+
+config SIFIVE_CCACHE
+	bool "Sifive Composable Cache controller"
+	depends on ARCH_SIFIVE || ARCH_STARFIVE
+	help
+	  Support for the composable cache controller on SiFive platforms.
+
+endmenu

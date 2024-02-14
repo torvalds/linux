@@ -244,9 +244,7 @@ struct mt9m111 {
 	bool is_streaming;
 	/* user point of view - 0: falling 1: rising edge */
 	unsigned int pclk_sample:1;
-#ifdef CONFIG_MEDIA_CONTROLLER
 	struct media_pad pad;
-#endif
 };
 
 static const struct mt9m111_mode_info mt9m111_mode_data[MT9M111_NUM_MODES] = {
@@ -527,13 +525,9 @@ static int mt9m111_get_fmt(struct v4l2_subdev *sd,
 		return -EINVAL;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
-		mf = v4l2_subdev_get_try_format(sd, sd_state, format->pad);
+		mf = v4l2_subdev_state_get_format(sd_state, format->pad);
 		format->format = *mf;
 		return 0;
-#else
-		return -EINVAL;
-#endif
 	}
 
 	mf->width	= mt9m111->width;
@@ -677,7 +671,7 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *mf;
+		*v4l2_subdev_state_get_format(sd_state, 0) = *mf;
 		return 0;
 	}
 
@@ -1051,18 +1045,27 @@ static const struct v4l2_subdev_core_ops mt9m111_subdev_core_ops = {
 #endif
 };
 
-static int mt9m111_g_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int mt9m111_get_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	fi->interval = mt9m111->frame_interval;
 
 	return 0;
 }
 
-static int mt9m111_s_frame_interval(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_frame_interval *fi)
+static int mt9m111_set_frame_interval(struct v4l2_subdev *sd,
+				      struct v4l2_subdev_state *sd_state,
+				      struct v4l2_subdev_frame_interval *fi)
 {
 	struct mt9m111 *mt9m111 = container_of(sd, struct mt9m111, subdev);
 	const struct mt9m111_mode_info *mode;
@@ -1071,6 +1074,13 @@ static int mt9m111_s_frame_interval(struct v4l2_subdev *sd,
 
 	if (mt9m111->is_streaming)
 		return -EBUSY;
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	if (fi->pad != 0)
 		return -EINVAL;
@@ -1117,12 +1127,11 @@ static int mt9m111_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
-static int mt9m111_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state)
+static int mt9m111_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
-#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	struct v4l2_mbus_framefmt *format =
-		v4l2_subdev_get_try_format(sd, sd_state, 0);
+		v4l2_subdev_state_get_format(sd_state, 0);
 
 	format->width	= MT9M111_MAX_WIDTH;
 	format->height	= MT9M111_MAX_HEIGHT;
@@ -1132,7 +1141,7 @@ static int mt9m111_init_cfg(struct v4l2_subdev *sd,
 	format->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
 	format->quantization	= V4L2_QUANTIZATION_DEFAULT;
 	format->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
-#endif
+
 	return 0;
 }
 
@@ -1158,17 +1167,16 @@ static int mt9m111_get_mbus_config(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 	.s_stream	= mt9m111_s_stream,
-	.g_frame_interval = mt9m111_g_frame_interval,
-	.s_frame_interval = mt9m111_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
-	.init_cfg	= mt9m111_init_cfg,
 	.enum_mbus_code = mt9m111_enum_mbus_code,
 	.get_selection	= mt9m111_get_selection,
 	.set_selection	= mt9m111_set_selection,
 	.get_fmt	= mt9m111_get_fmt,
 	.set_fmt	= mt9m111_set_fmt,
+	.get_frame_interval = mt9m111_get_frame_interval,
+	.set_frame_interval = mt9m111_set_frame_interval,
 	.get_mbus_config = mt9m111_get_mbus_config,
 };
 
@@ -1176,6 +1184,10 @@ static const struct v4l2_subdev_ops mt9m111_subdev_ops = {
 	.core	= &mt9m111_subdev_core_ops,
 	.video	= &mt9m111_subdev_video_ops,
 	.pad	= &mt9m111_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mt9m111_internal_ops = {
+	.init_state	= mt9m111_init_state,
 };
 
 /*
@@ -1282,6 +1294,7 @@ static int mt9m111_probe(struct i2c_client *client)
 	mt9m111->ctx = &context_b;
 
 	v4l2_i2c_subdev_init(&mt9m111->subdev, client, &mt9m111_subdev_ops);
+	mt9m111->subdev.internal_ops = &mt9m111_internal_ops;
 	mt9m111->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
 				 V4L2_SUBDEV_FL_HAS_EVENTS;
 
@@ -1315,13 +1328,11 @@ static int mt9m111_probe(struct i2c_client *client)
 		return ret;
 	}
 
-#ifdef CONFIG_MEDIA_CONTROLLER
 	mt9m111->pad.flags = MEDIA_PAD_FL_SOURCE;
 	mt9m111->subdev.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&mt9m111->subdev.entity, 1, &mt9m111->pad);
 	if (ret < 0)
 		goto out_hdlfree;
-#endif
 
 	mt9m111->current_mode = &mt9m111_mode_data[MT9M111_MODE_SXGA_15FPS];
 	mt9m111->frame_interval.numerator = 1;
@@ -1350,10 +1361,8 @@ static int mt9m111_probe(struct i2c_client *client)
 	return 0;
 
 out_entityclean:
-#ifdef CONFIG_MEDIA_CONTROLLER
 	media_entity_cleanup(&mt9m111->subdev.entity);
 out_hdlfree:
-#endif
 	v4l2_ctrl_handler_free(&mt9m111->hdl);
 
 	return ret;

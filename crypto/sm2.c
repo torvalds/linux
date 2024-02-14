@@ -278,9 +278,13 @@ int sm2_compute_z_digest(struct shash_desc *desc,
 	if (!ec)
 		return -ENOMEM;
 
-	err = __sm2_set_pub_key(ec, key, keylen);
+	err = sm2_ec_ctx_init(ec);
 	if (err)
 		goto out_free_ec;
+
+	err = __sm2_set_pub_key(ec, key, keylen);
+	if (err)
+		goto out_deinit_ec;
 
 	bits_len = SM2_DEFAULT_USERID_LEN * 8;
 	entl[0] = bits_len >> 8;

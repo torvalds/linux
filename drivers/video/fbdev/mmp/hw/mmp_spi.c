@@ -91,7 +91,7 @@ static int lcd_spi_setup(struct spi_device *spi)
 	writel(tmp, reg_base + LCD_SPU_SPI_CTRL);
 
 	/*
-	 * After set mode it need a time to pull up the spi singals,
+	 * After set mode it needs some time to pull up the spi signals,
 	 * or it would cause the wrong waveform when send spi command,
 	 * especially on pxa910h
 	 */

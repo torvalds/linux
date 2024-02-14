@@ -9,11 +9,11 @@
 
 bool ast_astdp_is_connected(struct ast_device *ast)
 {
-	if (!ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, ASTDP_MCU_FW_EXECUTING))
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING))
 		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDF, ASTDP_HPD))
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))
 		return false;
-	if (!ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDC, ASTDP_LINK_SUCCESS))
+	if (!ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS))
 		return false;
 	return true;
 }
@@ -29,22 +29,22 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 	 * CRDF[b0]: DP HPD
 	 * CRE5[b0]: Host reading EDID process is done
 	 */
-	if (!(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, ASTDP_MCU_FW_EXECUTING) &&
-		ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDF, ASTDP_HPD) &&
-		ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5,
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) &&
+		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
+		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD) &&
+		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 								ASTDP_HOST_EDID_READ_DONE_MASK))) {
 		goto err_astdp_edid_not_ready;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 							0x00);
 
 	for (i = 0; i < 32; i++) {
 		/*
 		 * CRE4[7:0]: Read-Pointer for EDID (Unit: 4bytes); valid range: 0~64
 		 */
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE4,
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE4,
 				       ASTDP_AND_CLEAR_MASK, (u8)i);
 		j = 0;
 
@@ -52,9 +52,9 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 		 * CRD7[b0]: valid flag for EDID
 		 * CRD6[b0]: mirror read pointer for EDID
 		 */
-		while ((ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD7,
+		while ((ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD7,
 				ASTDP_EDID_VALID_FLAG_MASK) != 0x01) ||
-			(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD6,
+			(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD6,
 						ASTDP_EDID_READ_POINTER_MASK) != i)) {
 			/*
 			 * Delay are getting longer with each retry.
@@ -64,11 +64,11 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 			 */
 			mdelay(j+1);
 
-			if (!(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1,
+			if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1,
 							ASTDP_MCU_FW_EXECUTING) &&
-				ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDC,
+				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC,
 							ASTDP_LINK_SUCCESS) &&
-				ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDF, ASTDP_HPD))) {
+				ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD))) {
 				goto err_astdp_jump_out_loop_of_edid;
 			}
 
@@ -77,13 +77,13 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 				goto err_astdp_jump_out_loop_of_edid;
 		}
 
-		*(ediddata) = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT,
+		*(ediddata) = ast_get_index_reg_mask(ast, AST_IO_VGACRI,
 							0xD8, ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 1) = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD9,
+		*(ediddata + 1) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD9,
 								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 2) = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDA,
+		*(ediddata + 2) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDA,
 								ASTDP_EDID_READ_DATA_MASK);
-		*(ediddata + 3) = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDB,
+		*(ediddata + 3) = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDB,
 								ASTDP_EDID_READ_DATA_MASK);
 
 		if (i == 31) {
@@ -103,25 +103,25 @@ int ast_astdp_read_edid(struct drm_device *dev, u8 *ediddata)
 		ediddata += 4;
 	}
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 							ASTDP_HOST_EDID_READ_DONE);
 
 	return 0;
 
 err_astdp_jump_out_loop_of_edid:
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5,
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 							(u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 							ASTDP_HOST_EDID_READ_DONE);
 	return (~(j+256) + 1);
 
 err_astdp_edid_not_ready:
-	if (!(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, ASTDP_MCU_FW_EXECUTING)))
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING)))
 		return (~0xD1 + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDC, ASTDP_LINK_SUCCESS)))
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS)))
 		return (~0xDC + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDF, ASTDP_HPD)))
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)))
 		return (~0xDF + 1);
-	if (!(ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
+	if (!(ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE5, ASTDP_HOST_EDID_READ_DONE_MASK)))
 		return (~0xE5 + 1);
 
 	return	0;
@@ -137,7 +137,7 @@ void ast_dp_launch(struct drm_device *dev)
 	struct ast_device *ast = to_ast_device(dev);
 
 	// Wait one second then timeout.
-	while (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xD1, ASTDP_MCU_FW_EXECUTING) !=
+	while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xD1, ASTDP_MCU_FW_EXECUTING) !=
 		ASTDP_MCU_FW_EXECUTING) {
 		i++;
 		// wait 100 ms
@@ -153,7 +153,7 @@ void ast_dp_launch(struct drm_device *dev)
 	if (!bDPExecute)
 		drm_err(dev, "Wait DPMCU executing timeout\n");
 
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5,
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE5,
 			       (u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 			       ASTDP_HOST_EDID_READ_DONE);
 }
@@ -164,14 +164,14 @@ void ast_dp_power_on_off(struct drm_device *dev, bool on)
 {
 	struct ast_device *ast = to_ast_device(dev);
 	// Read and Turn off DP PHY sleep
-	u8 bE3 = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE3, AST_DP_VIDEO_ENABLE);
+	u8 bE3 = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, AST_DP_VIDEO_ENABLE);
 
 	// Turn on DP PHY sleep
 	if (!on)
 		bE3 |= AST_DP_PHY_SLEEP;
 
 	// DP Power on/off
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_PHY_SLEEP, bE3);
 }
 
 
@@ -182,13 +182,13 @@ void ast_dp_set_on_off(struct drm_device *dev, bool on)
 	u8 video_on_off = on;
 
 	// Video On/Off
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE3, (u8) ~AST_DP_VIDEO_ENABLE, on);
 
 	// If DP plug in and link successful then check video on / off status
-	if (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDC, ASTDP_LINK_SUCCESS) &&
-		ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDF, ASTDP_HPD)) {
+	if (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDC, ASTDP_LINK_SUCCESS) &&
+		ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF, ASTDP_HPD)) {
 		video_on_off <<= 4;
-		while (ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xDF,
+		while (ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xDF,
 						ASTDP_MIRROR_VIDEO_ENABLE) != video_on_off) {
 			// wait 1 ms
 			mdelay(1);
@@ -264,8 +264,8 @@ void ast_dp_set_mode(struct drm_crtc *crtc, struct ast_vbios_mode_info *vbios_mo
 	 * CRE1[7:0]: MISC1 (default: 0x00)
 	 * CRE2[7:0]: video format index (0x00 ~ 0x20 or 0x40 ~ 0x50)
 	 */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE0, ASTDP_AND_CLEAR_MASK,
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE0, ASTDP_AND_CLEAR_MASK,
 			       ASTDP_MISC0_24bpp);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE1, ASTDP_AND_CLEAR_MASK, ASTDP_MISC1);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE2, ASTDP_AND_CLEAR_MASK, ModeIdx);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE1, ASTDP_AND_CLEAR_MASK, ASTDP_MISC1);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xE2, ASTDP_AND_CLEAR_MASK, ModeIdx);
 }

@@ -37,9 +37,6 @@ struct omap_tw4030_pdata {
 	bool	has_digimic0;
 	bool	has_digimic1;
 	u8	has_linein;
-
-	/* Jack detect GPIO or  <= 0 if it is not implemented */
-	int jack_detect;
 };
 
 #endif /* _OMAP_TWL4030_H_ */

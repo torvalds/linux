@@ -95,7 +95,7 @@ properties:
               synchronization is selected.
             default: 1
 
-          field-active-even: true
+          field-even-active: true
 
           bus-width: true
 
@@ -144,7 +144,7 @@ properties:
                   synchronization is selected.
                 default: 1
 
-              field-active-even: true
+              field-even-active: true
 
               bus-width: true
 

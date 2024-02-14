@@ -32,6 +32,7 @@
 #include <linux/ucs2_string.h>
 #include <linux/memblock.h>
 #include <linux/security.h>
+#include <linux/notifier.h>
 
 #include <asm/early_ioremap.h>
 
@@ -147,7 +148,7 @@ static ssize_t systab_show(struct kobject *kobj,
 	if (efi.smbios != EFI_INVALID_TABLE_ADDR)
 		str += sprintf(str, "SMBIOS=0x%lx\n", efi.smbios);
 
-	if (IS_ENABLED(CONFIG_IA64) || IS_ENABLED(CONFIG_X86))
+	if (IS_ENABLED(CONFIG_X86))
 		str = efi_systab_show_arch(str);
 
 	return str - buf;
@@ -186,6 +187,9 @@ static const struct attribute_group efi_subsys_attr_group = {
 	.attrs = efi_subsys_attrs,
 	.is_visible = efi_attr_is_visible,
 };
+
+struct blocking_notifier_head efivar_ops_nh;
+EXPORT_SYMBOL_GPL(efivar_ops_nh);
 
 static struct efivars generic_efivars;
 static struct efivar_operations generic_ops;
@@ -231,6 +235,18 @@ static void generic_ops_unregister(void)
 	efivars_unregister(&generic_efivars);
 }
 
+void efivars_generic_ops_register(void)
+{
+	generic_ops_register();
+}
+EXPORT_SYMBOL_GPL(efivars_generic_ops_register);
+
+void efivars_generic_ops_unregister(void)
+{
+	generic_ops_unregister();
+}
+EXPORT_SYMBOL_GPL(efivars_generic_ops_unregister);
+
 #ifdef CONFIG_EFI_CUSTOM_SSDT_OVERLAYS
 #define EFIVAR_SSDT_NAME_MAX	16UL
 static char efivar_ssdt[EFIVAR_SSDT_NAME_MAX] __initdata;
@@ -273,9 +289,13 @@ static __init int efivar_ssdt_load(void)
 		if (status == EFI_NOT_FOUND) {
 			break;
 		} else if (status == EFI_BUFFER_TOO_SMALL) {
-			name = krealloc(name, name_size, GFP_KERNEL);
-			if (!name)
+			efi_char16_t *name_tmp =
+				krealloc(name, name_size, GFP_KERNEL);
+			if (!name_tmp) {
+				kfree(name);
 				return -ENOMEM;
+			}
+			name = name_tmp;
 			continue;
 		}
 
@@ -414,6 +434,8 @@ static int __init efisubsys_init(void)
 		efivar_ssdt_load();
 		platform_device_register_simple("efivars", 0, NULL, 0);
 	}
+
+	BLOCKING_INIT_NOTIFIER_HEAD(&efivar_ops_nh);
 
 	error = sysfs_create_group(efi_kobj, &efi_subsys_attr_group);
 	if (error) {
@@ -623,6 +645,34 @@ static __init int match_config_table(const efi_guid_t *guid,
 	return 0;
 }
 
+/**
+ * reserve_unaccepted - Map and reserve unaccepted configuration table
+ * @unaccepted: Pointer to unaccepted memory table
+ *
+ * memblock_add() makes sure that the table is mapped in direct mapping. During
+ * normal boot it happens automatically because the table is allocated from
+ * usable memory. But during crashkernel boot only memory specifically reserved
+ * for crash scenario is mapped. memblock_add() forces the table to be mapped
+ * in crashkernel case.
+ *
+ * Align the range to the nearest page borders. Ranges smaller than page size
+ * are not going to be mapped.
+ *
+ * memblock_reserve() makes sure that future allocations will not touch the
+ * table.
+ */
+
+static __init void reserve_unaccepted(struct efi_unaccepted_memory *unaccepted)
+{
+	phys_addr_t start, size;
+
+	start = PAGE_ALIGN_DOWN(efi.unaccepted);
+	size = PAGE_ALIGN(sizeof(*unaccepted) + unaccepted->size);
+
+	memblock_add(start, size);
+	memblock_reserve(start, size);
+}
+
 int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 				   int count,
 				   const efi_config_table_type_t *arch_tables)
@@ -751,11 +801,9 @@ int __init efi_config_parse_tables(const efi_config_table_t *config_tables,
 
 		unaccepted = early_memremap(efi.unaccepted, sizeof(*unaccepted));
 		if (unaccepted) {
-			unsigned long size;
 
 			if (unaccepted->version == 1) {
-				size = sizeof(*unaccepted) + unaccepted->size;
-				memblock_reserve(efi.unaccepted, size);
+				reserve_unaccepted(unaccepted);
 			} else {
 				efi.unaccepted = EFI_INVALID_TABLE_ADDR;
 			}
@@ -777,7 +825,6 @@ int __init efi_systab_check_header(const efi_table_hdr_t *systab_hdr)
 	return 0;
 }
 
-#ifndef CONFIG_IA64
 static const efi_char16_t *__init map_fw_vendor(unsigned long fw_vendor,
 						size_t size)
 {
@@ -793,10 +840,6 @@ static void __init unmap_fw_vendor(const void *fw_vendor, size_t size)
 {
 	early_memunmap((void *)fw_vendor, size);
 }
-#else
-#define map_fw_vendor(p, s)	__va(p)
-#define unmap_fw_vendor(v, s)
-#endif
 
 void __init efi_systab_report_header(const efi_table_hdr_t *systab_hdr,
 				     unsigned long fw_vendor)
@@ -900,11 +943,6 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
 }
 
 /*
- * IA64 has a funky EFI memory map that doesn't work the same way as
- * other architectures.
- */
-#ifndef CONFIG_IA64
-/*
  * efi_mem_attributes - lookup memmap attributes for physical address
  * @phys_addr: the physical address to lookup
  *
@@ -951,7 +989,6 @@ int efi_mem_type(unsigned long phys_addr)
 	}
 	return -EINVAL;
 }
-#endif
 
 int efi_status_to_err(efi_status_t status)
 {

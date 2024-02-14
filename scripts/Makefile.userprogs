@@ -19,19 +19,19 @@ user-cobjs	:= $(addprefix $(obj)/, $(user-cobjs))
 user_ccflags	= -Wp,-MMD,$(depfile) $(KBUILD_USERCFLAGS) $(userccflags) \
 			$($(target-stem)-userccflags)
 user_ldflags	= $(KBUILD_USERLDFLAGS) $(userldflags) $($(target-stem)-userldflags)
+user_ldlibs	= $(userldlibs) $($(target-stem)-userldlibs)
 
 # Create an executable from a single .c file
 quiet_cmd_user_cc_c = CC [U]  $@
       cmd_user_cc_c = $(CC) $(user_ccflags) $(user_ldflags) -o $@ $< \
-		      $($(target-stem)-userldlibs)
+		      $(user_ldlibs)
 $(user-csingle): $(obj)/%: $(src)/%.c FORCE
 	$(call if_changed_dep,user_cc_c)
 
 # Link an executable based on list of .o files
 quiet_cmd_user_ld = LD [U]  $@
       cmd_user_ld = $(CC) $(user_ldflags) -o $@ \
-		    $(addprefix $(obj)/, $($(target-stem)-objs)) \
-		    $($(target-stem)-userldlibs)
+		    $(addprefix $(obj)/, $($(target-stem)-objs)) $(user_ldlibs)
 $(user-cmulti): FORCE
 	$(call if_changed,user_ld)
 $(call multi_depend, $(user-cmulti), , -objs)

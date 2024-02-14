@@ -56,8 +56,15 @@ static u32 nbio_v7_9_get_rev_id(struct amdgpu_device *adev)
 {
 	u32 tmp;
 
+	tmp = IP_VERSION_SUBREV(amdgpu_ip_version_full(adev, NBIO_HWIP, 0));
+	/* If it is VF or subrevision holds a non-zero value, that should be used */
+	if (tmp || amdgpu_sriov_vf(adev))
+		return tmp;
+
+	/* If discovery subrev is not updated, use register version */
 	tmp = RREG32_SOC15(NBIO, 0, regRCC_STRAP0_RCC_DEV0_EPF0_STRAP0);
-	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0, STRAP_ATI_REV_ID_DEV0_F0);
+	tmp = REG_GET_FIELD(tmp, RCC_STRAP0_RCC_DEV0_EPF0_STRAP0,
+			    STRAP_ATI_REV_ID_DEV0_F0);
 
 	return tmp;
 }
@@ -173,8 +180,6 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 	default:
 		break;
 	}
-
-	return;
 }
 
 static void nbio_v7_9_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
@@ -426,6 +431,12 @@ static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
 	u32 inst_mask;
 	int i;
 
+	if (amdgpu_sriov_vf(adev))
+		adev->rmmio_remap.reg_offset =
+			SOC15_REG_OFFSET(
+				NBIO, 0,
+				regBIF_BX_DEV0_EPF0_VF0_HDP_MEM_COHERENCY_FLUSH_CNTL)
+			<< 2;
 	WREG32_SOC15(NBIO, 0, regXCC_DOORBELL_FENCE,
 		0xff & ~(adev->gfx.xcc_mask));
 
@@ -436,6 +447,24 @@ static void nbio_v7_9_init_registers(struct amdgpu_device *adev)
 		WREG32_SOC15_EXT(NBIO, i, regXCC_DOORBELL_FENCE, i,
 			XCC_DOORBELL_FENCE__SHUB_SLV_MODE_MASK);
 
+	}
+
+	if (!amdgpu_sriov_vf(adev)) {
+		u32 baco_cntl;
+		for_each_inst(i, adev->aid_mask) {
+			baco_cntl = RREG32_SOC15(NBIO, i, regBIF_BX0_BACO_CNTL);
+			if (baco_cntl & (BIF_BX0_BACO_CNTL__BACO_DUMMY_EN_MASK |
+					 BIF_BX0_BACO_CNTL__BACO_EN_MASK)) {
+				baco_cntl &= ~(
+					BIF_BX0_BACO_CNTL__BACO_DUMMY_EN_MASK |
+					BIF_BX0_BACO_CNTL__BACO_EN_MASK);
+				dev_dbg(adev->dev,
+					"Unsetting baco dummy mode %x",
+					baco_cntl);
+				WREG32_SOC15(NBIO, i, regBIF_BX0_BACO_CNTL,
+					     baco_cntl);
+			}
+		}
 	}
 }
 
@@ -538,15 +567,17 @@ const struct amdgpu_nbio_funcs nbio_v7_9_funcs = {
 static void nbio_v7_9_query_ras_error_count(struct amdgpu_device *adev,
 					void *ras_error_status)
 {
-	return;
 }
 
 static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device *adev)
 {
 	uint32_t bif_doorbell_intr_cntl;
 	struct ras_manager *obj = amdgpu_ras_find_obj(adev, adev->nbio.ras_if);
-	struct ras_err_data err_data = {0, 0, 0, NULL};
+	struct ras_err_data err_data;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
+
+	if (amdgpu_ras_error_data_init(&err_data))
+		return;
 
 	bif_doorbell_intr_cntl = RREG32_SOC15(NBIO, 0, regBIF_BX0_BIF_DOORBELL_INT_CNTL);
 
@@ -572,8 +603,7 @@ static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 
 			if (err_data.ce_count)
 				dev_info(adev->dev, "%ld correctable hardware "
-						"errors detected in %s block, "
-						"no user action is needed.\n",
+						"errors detected in %s block\n",
 						obj->err_data.ce_count,
 						get_ras_block_str(adev->nbio.ras_if));
 
@@ -586,12 +616,9 @@ static void nbio_v7_9_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 
 		dev_info(adev->dev, "RAS controller interrupt triggered "
 					"by NBIF error\n");
-
-		/* ras_controller_int is dedicated for nbif ras error,
-		 * not the global interrupt for sync flood
-		 */
-		amdgpu_ras_reset_gpu(adev);
 	}
+
+	amdgpu_ras_error_data_fini(&err_data);
 }
 
 static void nbio_v7_9_handle_ras_err_event_athub_intr_no_bifring(struct amdgpu_device *adev)

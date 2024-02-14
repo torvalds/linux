@@ -50,7 +50,7 @@ struct evdev_client {
 	bool revoked;
 	unsigned long *evmasks[EV_CNT];
 	unsigned int bufsize;
-	struct input_event buffer[];
+	struct input_event buffer[] __counted_by(bufsize);
 };
 
 static size_t evdev_get_mask_cnt(unsigned int type)

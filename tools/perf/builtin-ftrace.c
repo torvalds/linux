@@ -333,7 +333,7 @@ static int set_tracing_func_irqinfo(struct perf_ftrace *ftrace)
 
 static int reset_tracing_cpu(void)
 {
-	struct perf_cpu_map *cpumap = perf_cpu_map__new(NULL);
+	struct perf_cpu_map *cpumap = perf_cpu_map__new_online_cpus();
 	int ret;
 
 	ret = set_tracing_cpumask(cpumap);

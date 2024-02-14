@@ -56,6 +56,11 @@ static struct uclogic_raw_event_hook_test test_events[] = {
 	},
 };
 
+static void fake_work(struct work_struct *work)
+{
+
+}
+
 static void hid_test_uclogic_exec_event_hook_test(struct kunit *test)
 {
 	struct uclogic_params p = {0, };
@@ -76,6 +81,8 @@ static void hid_test_uclogic_exec_event_hook_test(struct kunit *test)
 		filter->event = kunit_kzalloc(test, filter->size, GFP_KERNEL);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, filter->event);
 		memcpy(filter->event, &hook_events[n].event[0], filter->size);
+
+		INIT_WORK(&filter->work, fake_work);
 
 		list_add_tail(&filter->list, &p.event_hooks->list);
 	}

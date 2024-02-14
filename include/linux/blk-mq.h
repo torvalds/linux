@@ -32,8 +32,6 @@ typedef __u32 __bitwise req_flags_t;
 #define RQF_FLUSH_SEQ		((__force req_flags_t)(1 << 4))
 /* merge of different types, fail separately */
 #define RQF_MIXED_MERGE		((__force req_flags_t)(1 << 5))
-/* track inflight for MQ */
-#define RQF_MQ_INFLIGHT		((__force req_flags_t)(1 << 6))
 /* don't call prep for this one */
 #define RQF_DONTPREP		((__force req_flags_t)(1 << 7))
 /* use hctx->sched_tags */
@@ -392,9 +390,6 @@ struct blk_mq_hw_ctx {
 	 * that request is allocated. Else, this member is not used.
 	 */
 	struct blk_mq_tags	*sched_tags;
-
-	/** @run: Number of dispatched requests. */
-	unsigned long		run;
 
 	/** @numa_node: NUMA node the storage adapter has been connected to. */
 	unsigned int		numa_node;
@@ -832,6 +827,12 @@ void blk_mq_end_request_batch(struct io_comp_batch *ib);
  */
 static inline bool blk_mq_need_time_stamp(struct request *rq)
 {
+	/*
+	 * passthrough io doesn't use iostat accounting, cgroup stats
+	 * and io scheduler functionalities.
+	 */
+	if (blk_rq_is_passthrough(rq))
+		return false;
 	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_USE_SCHED));
 }
 

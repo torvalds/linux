@@ -35,7 +35,8 @@ intel_pin_fb_obj_dpt(struct drm_framebuffer *fb,
 	 * We are not syncing against the binding (and potential migrations)
 	 * below, so this vm must never be async.
 	 */
-	GEM_WARN_ON(vm->bind_async_flags);
+	if (drm_WARN_ON(&dev_priv->drm, vm->bind_async_flags))
+		return ERR_PTR(-EINVAL);
 
 	if (WARN_ON(!i915_gem_object_is_framebuffer(obj)))
 		return ERR_PTR(-EINVAL);

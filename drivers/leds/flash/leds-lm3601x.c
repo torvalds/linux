@@ -123,7 +123,7 @@ static const struct regmap_config lm3601x_regmap = {
 	.max_register = LM3601X_DEV_ID_REG,
 	.reg_defaults = lm3601x_regmap_defs,
 	.num_reg_defaults = ARRAY_SIZE(lm3601x_regmap_defs),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_reg = lm3601x_volatile_reg,
 };
 

@@ -83,3 +83,4 @@ module_exit(exit_rc_map_pinnacle_grey)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("pinnacle-grey remote controller keytable");

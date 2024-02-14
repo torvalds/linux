@@ -273,7 +273,7 @@ static int rgmii_probe(struct platform_device *ofdev)
 	return rc;
 }
 
-static int rgmii_remove(struct platform_device *ofdev)
+static void rgmii_remove(struct platform_device *ofdev)
 {
 	struct rgmii_instance *dev = platform_get_drvdata(ofdev);
 
@@ -281,8 +281,6 @@ static int rgmii_remove(struct platform_device *ofdev)
 
 	iounmap(dev->base);
 	kfree(dev);
-
-	return 0;
 }
 
 static const struct of_device_id rgmii_match[] =
@@ -302,7 +300,7 @@ static struct platform_driver rgmii_driver = {
 		.of_match_table = rgmii_match,
 	},
 	.probe = rgmii_probe,
-	.remove = rgmii_remove,
+	.remove_new = rgmii_remove,
 };
 
 int __init rgmii_init(void)

@@ -341,4 +341,5 @@ static void __exit exit_basic(void)
 
 module_init(init_basic)
 module_exit(exit_basic)
+MODULE_DESCRIPTION("TC basic classifier");
 MODULE_LICENSE("GPL");

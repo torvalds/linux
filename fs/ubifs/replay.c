@@ -23,7 +23,6 @@
 #include "ubifs.h"
 #include <linux/list_sort.h>
 #include <crypto/hash.h>
-#include <crypto/algapi.h>
 
 /**
  * struct replay_entry - replay list entry.
@@ -366,6 +365,7 @@ static void destroy_replay_list(struct ubifs_info *c)
  * @lnum: node logical eraseblock number
  * @offs: node offset
  * @len: node length
+ * @hash: node hash
  * @key: node key
  * @sqnum: sequence number
  * @deletion: non-zero if this is a deletion
@@ -418,6 +418,7 @@ static int insert_node(struct ubifs_info *c, int lnum, int offs, int len,
  * @lnum: node logical eraseblock number
  * @offs: node offset
  * @len: node length
+ * @hash: node hash
  * @key: node key
  * @name: directory entry name
  * @nlen: directory entry name length

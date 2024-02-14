@@ -79,8 +79,6 @@ static int mpfs_rng_probe(struct platform_device *pdev)
 	rng_priv->rng.read = mpfs_rng_read;
 	rng_priv->rng.name = pdev->name;
 
-	platform_set_drvdata(pdev, rng_priv);
-
 	ret = devm_hwrng_register(&pdev->dev, &rng_priv->rng);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "Failed to register MPFS hwrng\n");

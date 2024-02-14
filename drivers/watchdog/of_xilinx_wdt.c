@@ -10,14 +10,13 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/ioport.h>
 #include <linux/watchdog.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 
 /* Register offsets for the Wdt device */
 #define XWT_TWCSR0_OFFSET   0x0 /* Control/Status Register0 */
@@ -188,7 +187,7 @@ static int xwdt_probe(struct platform_device *pdev)
 
 	watchdog_set_nowayout(xilinx_wdt_wdd, enable_once);
 
-	xdev->clk = devm_clk_get_enabled(dev, NULL);
+	xdev->clk = devm_clk_get_prepared(dev, NULL);
 	if (IS_ERR(xdev->clk)) {
 		if (PTR_ERR(xdev->clk) != -ENOENT)
 			return PTR_ERR(xdev->clk);
@@ -219,17 +218,24 @@ static int xwdt_probe(struct platform_device *pdev)
 	spin_lock_init(&xdev->spinlock);
 	watchdog_set_drvdata(xilinx_wdt_wdd, xdev);
 
+	rc = clk_enable(xdev->clk);
+	if (rc) {
+		dev_err(dev, "unable to enable clock\n");
+		return rc;
+	}
+
 	rc = xwdt_selftest(xdev);
 	if (rc == XWT_TIMER_FAILED) {
 		dev_err(dev, "SelfTest routine error\n");
+		clk_disable(xdev->clk);
 		return rc;
 	}
+
+	clk_disable(xdev->clk);
 
 	rc = devm_watchdog_register_device(dev, xilinx_wdt_wdd);
 	if (rc)
 		return rc;
-
-	clk_disable(xdev->clk);
 
 	dev_info(dev, "Xilinx Watchdog Timer with timeout %ds\n",
 		 xilinx_wdt_wdd->timeout);

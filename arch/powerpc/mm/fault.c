@@ -266,14 +266,15 @@ static bool access_error(bool is_write, bool is_exec, struct vm_area_struct *vma
 	}
 
 	/*
-	 * VM_READ, VM_WRITE and VM_EXEC all imply read permissions, as
-	 * defined in protection_map[].  Read faults can only be caused by
-	 * a PROT_NONE mapping, or with a PROT_EXEC-only mapping on Radix.
+	 * VM_READ, VM_WRITE and VM_EXEC may imply read permissions, as
+	 * defined in protection_map[].  In that case Read faults can only be
+	 * caused by a PROT_NONE mapping. However a non exec access on a
+	 * VM_EXEC only mapping is invalid anyway, so report it as such.
 	 */
 	if (unlikely(!vma_is_accessible(vma)))
 		return true;
 
-	if (unlikely(radix_enabled() && ((vma->vm_flags & VM_ACCESS_FLAGS) == VM_EXEC)))
+	if ((vma->vm_flags & VM_ACCESS_FLAGS) == VM_EXEC)
 		return true;
 
 	/*
@@ -496,6 +497,8 @@ static int ___do_page_fault(struct pt_regs *regs, unsigned long address,
 		goto done;
 	}
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
+	if (fault & VM_FAULT_MAJOR)
+		flags |= FAULT_FLAG_TRIED;
 
 	if (fault_signal_pending(fault, regs))
 		return user_mode(regs) ? 0 : SIGBUS;

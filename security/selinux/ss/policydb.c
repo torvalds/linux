@@ -409,16 +409,9 @@ out:
 static u32 filenametr_hash(const void *k)
 {
 	const struct filename_trans_key *ft = k;
-	unsigned long hash;
-	unsigned int byte_num;
-	unsigned char focus;
+	unsigned long salt = ft->ttype ^ ft->tclass;
 
-	hash = ft->ttype ^ ft->tclass;
-
-	byte_num = 0;
-	while ((focus = ft->name[byte_num++]))
-		hash = partial_name_hash(focus, hash);
-	return hash;
+	return full_name_hash((void *)salt, ft->name, strlen(ft->name));
 }
 
 static int filenametr_cmp(const void *k1, const void *k2)
@@ -491,7 +484,7 @@ static u32 role_trans_hash(const void *k)
 {
 	const struct role_trans_key *key = k;
 
-	return key->role + (key->type << 3) + (key->tclass << 5);
+	return jhash_3words(key->role, key->type, (u32)key->tclass << 16 | key->tclass, 0);
 }
 
 static int role_trans_cmp(const void *k1, const void *k2)
@@ -684,9 +677,9 @@ static void hash_eval(struct hashtab *h, const char *hash_name)
 	struct hashtab_info info;
 
 	hashtab_stat(h, &info);
-	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, longest chain length %d\n",
+	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, longest chain length %d, sum of chain length^2 %llu\n",
 		 hash_name, h->nel, info.slots_used, h->size,
-		 info.max_chain_len);
+		 info.max_chain_len, info.chain2_len_sum);
 }
 
 static void symtab_hash_eval(struct symtab *s)
@@ -864,6 +857,8 @@ void policydb_destroy(struct policydb *p)
 int policydb_load_isids(struct policydb *p, struct sidtab *s)
 {
 	struct ocontext *head, *c;
+	bool isid_init_supported = ebitmap_get_bit(&p->policycaps,
+						   POLICYDB_CAP_USERSPACE_INITIAL_CONTEXT);
 	int rc;
 
 	rc = sidtab_init(s);
@@ -887,12 +882,37 @@ int policydb_load_isids(struct policydb *p, struct sidtab *s)
 		if (!name)
 			continue;
 
+		/*
+		 * Also ignore SECINITSID_INIT if the policy doesn't declare
+		 * support for it
+		 */
+		if (sid == SECINITSID_INIT && !isid_init_supported)
+			continue;
+
 		rc = sidtab_set_initial(s, sid, &c->context[0]);
 		if (rc) {
 			pr_err("SELinux:  unable to load initial SID %s.\n",
 			       name);
 			sidtab_destroy(s);
 			return rc;
+		}
+
+		/*
+		 * If the policy doesn't support the "userspace_initial_context"
+		 * capability, set SECINITSID_INIT to the same context as
+		 * SECINITSID_KERNEL. This ensures the same behavior as before
+		 * the reintroduction of SECINITSID_INIT, where all tasks
+		 * started before policy load would initially get the context
+		 * corresponding to SECINITSID_KERNEL.
+		 */
+		if (sid == SECINITSID_KERNEL && !isid_init_supported) {
+			rc = sidtab_set_initial(s, SECINITSID_INIT, &c->context[0]);
+			if (rc) {
+				pr_err("SELinux:  unable to load initial SID %s.\n",
+				       name);
+				sidtab_destroy(s);
+				return rc;
+			}
 		}
 	}
 	return 0;

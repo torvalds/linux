@@ -18,6 +18,7 @@
 #include <linux/radix-tree.h>
 #include <linux/atomic.h>
 #include <asm/sections.h>
+#include <asm/ctlreg.h>
 #include <asm/bug.h>
 #include <asm/page.h>
 #include <asm/uv.h>
@@ -25,7 +26,7 @@
 extern pgd_t swapper_pg_dir[];
 extern pgd_t invalid_pg_dir[];
 extern void paging_init(void);
-extern unsigned long s390_invalid_asce;
+extern struct ctlreg s390_invalid_asce;
 
 enum {
 	PG_DIRECT_MAP_4K = 0,
@@ -769,6 +770,7 @@ static inline int pud_write(pud_t pud)
 	return (pud_val(pud) & _REGION3_ENTRY_WRITE) != 0;
 }
 
+#define pmd_dirty pmd_dirty
 static inline int pmd_dirty(pmd_t pmd)
 {
 	return (pmd_val(pmd) & _SEGMENT_ENTRY_DIRTY) != 0;

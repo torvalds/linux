@@ -1233,9 +1233,9 @@ static struct rtw_debugfs_priv rtw_debug_priv_dm_cap = {
 #define rtw_debugfs_add_core(name, mode, fopname, parent)		\
 	do {								\
 		rtw_debug_priv_ ##name.rtwdev = rtwdev;			\
-		if (!debugfs_create_file(#name, mode,			\
+		if (IS_ERR(debugfs_create_file(#name, mode,		\
 					 parent, &rtw_debug_priv_ ##name,\
-					 &file_ops_ ##fopname))		\
+					 &file_ops_ ##fopname)))	\
 			pr_debug("Unable to initialize debugfs:%s\n",	\
 			       #name);					\
 	} while (0)
@@ -1314,8 +1314,8 @@ void rtw_debugfs_init(struct rtw_dev *rtwdev)
 
 #ifdef CONFIG_RTW88_DEBUG
 
-void __rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
-	       const char *fmt, ...)
+void rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
+	     const char *fmt, ...)
 {
 	struct va_format vaf = {
 		.fmt = fmt,
@@ -1330,6 +1330,6 @@ void __rtw_dbg(struct rtw_dev *rtwdev, enum rtw_debug_mask mask,
 
 	va_end(args);
 }
-EXPORT_SYMBOL(__rtw_dbg);
+EXPORT_SYMBOL(rtw_dbg);
 
 #endif /* CONFIG_RTW88_DEBUG */

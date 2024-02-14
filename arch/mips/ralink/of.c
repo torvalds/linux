@@ -14,7 +14,7 @@
 #include <linux/of_fdt.h>
 #include <linux/kernel.h>
 #include <linux/memblock.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 
 #include <asm/reboot.h>

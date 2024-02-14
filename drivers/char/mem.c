@@ -31,10 +31,6 @@
 #include <linux/uaccess.h>
 #include <linux/security.h>
 
-#ifdef CONFIG_IA64
-# include <linux/efi.h>
-#endif
-
 #define DEVMEM_MINOR	1
 #define DEVPORT_MINOR	4
 
@@ -277,13 +273,6 @@ int __weak phys_mem_access_prot_allowed(struct file *file,
 #ifdef pgprot_noncached
 static int uncached_access(struct file *file, phys_addr_t addr)
 {
-#if defined(CONFIG_IA64)
-	/*
-	 * On ia64, we ignore O_DSYNC because we cannot tolerate memory
-	 * attribute aliases.
-	 */
-	return !(efi_mem_attributes(addr) & EFI_MEMORY_WB);
-#else
 	/*
 	 * Accessing memory above the top the kernel knows about or through a
 	 * file pointer
@@ -292,7 +281,6 @@ static int uncached_access(struct file *file, phys_addr_t addr)
 	if (file->f_flags & O_DSYNC)
 		return 1;
 	return addr >= __pa(high_memory);
-#endif
 }
 #endif
 
@@ -640,6 +628,7 @@ static int open_port(struct inode *inode, struct file *filp)
 #define full_lseek      null_lseek
 #define write_zero	write_null
 #define write_iter_zero	write_iter_null
+#define splice_write_zero	splice_write_null
 #define open_mem	open_port
 
 static const struct file_operations __maybe_unused mem_fops = {
@@ -677,6 +666,8 @@ static const struct file_operations zero_fops = {
 	.read_iter	= read_iter_zero,
 	.read		= read_zero,
 	.write_iter	= write_iter_zero,
+	.splice_read	= copy_splice_read,
+	.splice_write	= splice_write_zero,
 	.mmap		= mmap_zero,
 	.get_unmapped_area = get_unmapped_area_zero,
 #ifndef CONFIG_MMU
@@ -688,6 +679,7 @@ static const struct file_operations full_fops = {
 	.llseek		= full_lseek,
 	.read_iter	= read_iter_zero,
 	.write		= write_full,
+	.splice_read	= copy_splice_read,
 };
 
 static const struct memdev {

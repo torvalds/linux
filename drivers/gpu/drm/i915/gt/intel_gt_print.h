@@ -16,6 +16,9 @@
 #define gt_warn(_gt, _fmt, ...) \
 	drm_warn(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 
+#define gt_warn_once(_gt, _fmt, ...) \
+	drm_warn_once(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
+
 #define gt_notice(_gt, _fmt, ...) \
 	drm_notice(&(_gt)->i915->drm, "GT%u: " _fmt, (_gt)->info.id, ##__VA_ARGS__)
 

@@ -64,7 +64,7 @@ static bool perf_probe_api(setup_probe_fn_t fn)
 	struct perf_cpu cpu;
 	int ret, i = 0;
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	if (!cpus)
 		return false;
 	cpu = perf_cpu_map__cpu(cpus, 0);
@@ -140,7 +140,7 @@ bool perf_can_record_cpu_wide(void)
 	struct perf_cpu cpu;
 	int fd;
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	if (!cpus)
 		return false;
 

@@ -58,8 +58,7 @@ static int uniphier_glue_reset_probe(struct platform_device *pdev)
 		    priv->data->nrsts > MAX_RSTS))
 		return -EINVAL;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->rdata.membase = devm_ioremap_resource(dev, res);
+	priv->rdata.membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(priv->rdata.membase))
 		return PTR_ERR(priv->rdata.membase);
 

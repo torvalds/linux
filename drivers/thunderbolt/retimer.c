@@ -94,6 +94,7 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 		goto err_nvm;
 
 	rt->nvm = nvm;
+	dev_dbg(&rt->dev, "NVM version %x.%x\n", nvm->major, nvm->minor);
 	return 0;
 
 err_nvm:

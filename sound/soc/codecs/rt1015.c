@@ -546,6 +546,16 @@ static int rt1015_bypass_boost_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static const char * const rt1015_dac_output_vol_select[] = {
+	"immediate",
+	"zero detection + immediate change",
+	"zero detection + inc/dec change",
+	"zero detection + soft inc/dec change",
+};
+
+static SOC_ENUM_SINGLE_DECL(rt1015_dac_vol_ctl_enum,
+	RT1015_DAC3, 2, rt1015_dac_output_vol_select);
+
 static const struct snd_kcontrol_new rt1015_snd_controls[] = {
 	SOC_SINGLE_TLV("DAC Playback Volume", RT1015_DAC1, RT1015_DAC_VOL_SFT,
 		127, 0, dac_vol_tlv),
@@ -556,6 +566,9 @@ static const struct snd_kcontrol_new rt1015_snd_controls[] = {
 	SOC_ENUM("Mono LR Select", rt1015_mono_lr_sel),
 	SOC_SINGLE_EXT("Bypass Boost", SND_SOC_NOPM, 0, 1, 0,
 		rt1015_bypass_boost_get, rt1015_bypass_boost_put),
+
+	/* DAC Output Volume Control */
+	SOC_ENUM("DAC Output Control", rt1015_dac_vol_ctl_enum),
 };
 
 static int rt1015_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,

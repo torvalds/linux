@@ -15,6 +15,8 @@
 
 #include "common.h"
 
+#define SCMI_UEVENT_MODALIAS_FMT	"arm_ffa:%04x:%pUb"
+
 static DEFINE_IDA(ffa_bus_id);
 
 static int ffa_device_match(struct device *dev, struct device_driver *drv)
@@ -63,9 +65,19 @@ static int ffa_device_uevent(const struct device *dev, struct kobj_uevent_env *e
 {
 	const struct ffa_device *ffa_dev = to_ffa_dev(dev);
 
-	return add_uevent_var(env, "MODALIAS=arm_ffa:%04x:%pUb",
+	return add_uevent_var(env, "MODALIAS=" SCMI_UEVENT_MODALIAS_FMT,
 			      ffa_dev->vm_id, &ffa_dev->uuid);
 }
+
+static ssize_t modalias_show(struct device *dev,
+			     struct device_attribute *attr, char *buf)
+{
+	struct ffa_device *ffa_dev = to_ffa_dev(dev);
+
+	return sysfs_emit(buf, SCMI_UEVENT_MODALIAS_FMT, ffa_dev->vm_id,
+			  &ffa_dev->uuid);
+}
+static DEVICE_ATTR_RO(modalias);
 
 static ssize_t partition_id_show(struct device *dev,
 				 struct device_attribute *attr, char *buf)
@@ -88,6 +100,7 @@ static DEVICE_ATTR_RO(uuid);
 static struct attribute *ffa_device_attributes_attrs[] = {
 	&dev_attr_partition_id.attr,
 	&dev_attr_uuid.attr,
+	&dev_attr_modalias.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(ffa_device_attributes);
@@ -193,6 +206,7 @@ struct ffa_device *ffa_device_register(const uuid_t *uuid, int vm_id,
 	dev->release = ffa_release_device;
 	dev_set_name(&ffa_dev->dev, "arm-ffa-%d", id);
 
+	ffa_dev->id = id;
 	ffa_dev->vm_id = vm_id;
 	ffa_dev->ops = ops;
 	uuid_copy(&ffa_dev->uuid, uuid);

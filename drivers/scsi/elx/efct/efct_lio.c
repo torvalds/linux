@@ -1611,6 +1611,8 @@ static const struct target_core_fabric_ops efct_lio_ops = {
 	.sess_get_initiator_sid		= NULL,
 	.tfc_tpg_base_attrs		= efct_lio_tpg_attrs,
 	.tfc_tpg_attrib_attrs           = efct_lio_tpg_attrib_attrs,
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static const struct target_core_fabric_ops efct_lio_npiv_ops = {
@@ -1646,6 +1648,9 @@ static const struct target_core_fabric_ops efct_lio_npiv_ops = {
 	.sess_get_initiator_sid		= NULL,
 	.tfc_tpg_base_attrs		= efct_lio_npiv_tpg_attrs,
 	.tfc_tpg_attrib_attrs		= efct_lio_npiv_tpg_attrib_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 int efct_scsi_tgt_driver_init(void)

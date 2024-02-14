@@ -15,8 +15,8 @@
 #include <linux/i2c.h>
 #include <linux/lockdep.h>
 #include <linux/mfd/core.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
 
@@ -270,7 +270,6 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	const struct lochnagar_config *config = NULL;
-	const struct of_device_id *of_id;
 	struct lochnagar *lochnagar;
 	struct gpio_desc *reset, *present;
 	unsigned int val;
@@ -282,11 +281,7 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 	if (!lochnagar)
 		return -ENOMEM;
 
-	of_id = of_match_device(lochnagar_of_match, dev);
-	if (!of_id)
-		return -EINVAL;
-
-	config = of_id->data;
+	config = i2c_get_match_data(i2c);
 
 	lochnagar->dev = dev;
 	mutex_init(&lochnagar->analogue_config_lock);
@@ -379,7 +374,7 @@ static int lochnagar_i2c_probe(struct i2c_client *i2c)
 static struct i2c_driver lochnagar_i2c_driver = {
 	.driver = {
 		.name = "lochnagar",
-		.of_match_table = of_match_ptr(lochnagar_of_match),
+		.of_match_table = lochnagar_of_match,
 		.suppress_bind_attrs = true,
 	},
 	.probe = lochnagar_i2c_probe,

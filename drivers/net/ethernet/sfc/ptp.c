@@ -108,11 +108,17 @@
 #define	PTP_MIN_LENGTH		63
 
 #define PTP_ADDR_IPV4		0xe0000181	/* 224.0.1.129 */
-#define PTP_ADDR_IPV6		{0xff, 0x0e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, \
-				0, 0x01, 0x81}	/* ff0e::181 */
+
+/* ff0e::181 */
+static const struct in6_addr ptp_addr_ipv6 = { { {
+	0xff, 0x0e, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x01, 0x81 } } };
+
+/* 01-1B-19-00-00-00 */
+static const u8 ptp_addr_ether[ETH_ALEN] __aligned(2) = {
+	0x01, 0x1b, 0x19, 0x00, 0x00, 0x00 };
+
 #define PTP_EVENT_PORT		319
 #define PTP_GENERAL_PORT	320
-#define PTP_ADDR_ETHER		{0x01, 0x1b, 0x19, 0, 0, 0} /* 01-1B-19-00-00-00 */
 
 /* Annoyingly the format of the version numbers are different between
  * versions 1 and 2 so it isn't possible to simply look for 1 or 2.
@@ -295,7 +301,7 @@ struct efx_ptp_data {
 	bool reset_required;
 	struct list_head rxfilters_mcast;
 	struct list_head rxfilters_ucast;
-	struct hwtstamp_config config;
+	struct kernel_hwtstamp_config config;
 	bool enabled;
 	unsigned int mode;
 	void (*ns_to_nic_time)(s64 ns, u32 *nic_major, u32 *nic_minor);
@@ -1296,7 +1302,7 @@ static int efx_ptp_insert_ipv4_filter(struct efx_nic *efx,
 
 static int efx_ptp_insert_ipv6_filter(struct efx_nic *efx,
 				      struct list_head *filter_list,
-				      struct in6_addr *addr, u16 port,
+				      const struct in6_addr *addr, u16 port,
 				      unsigned long expiry)
 {
 	struct efx_filter_spec spec;
@@ -1309,11 +1315,10 @@ static int efx_ptp_insert_ipv6_filter(struct efx_nic *efx,
 static int efx_ptp_insert_eth_multicast_filter(struct efx_nic *efx)
 {
 	struct efx_ptp_data *ptp = efx->ptp_data;
-	const u8 addr[ETH_ALEN] = PTP_ADDR_ETHER;
 	struct efx_filter_spec spec;
 
 	efx_ptp_init_filter(efx, &spec);
-	efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC, addr);
+	efx_filter_set_eth_local(&spec, EFX_FILTER_VID_UNSPEC, ptp_addr_ether);
 	spec.match_flags |= EFX_FILTER_MATCH_ETHER_TYPE;
 	spec.ether_type = htons(ETH_P_1588);
 	return efx_ptp_insert_filter(efx, &ptp->rxfilters_mcast, &spec, 0);
@@ -1346,15 +1351,13 @@ static int efx_ptp_insert_multicast_filters(struct efx_nic *efx)
 	 * PTP over IPv6 and Ethernet
 	 */
 	if (efx_ptp_use_mac_tx_timestamps(efx)) {
-		struct in6_addr ipv6_addr = {{PTP_ADDR_IPV6}};
-
 		rc = efx_ptp_insert_ipv6_filter(efx, &ptp->rxfilters_mcast,
-						&ipv6_addr, PTP_EVENT_PORT, 0);
+						&ptp_addr_ipv6, PTP_EVENT_PORT, 0);
 		if (rc < 0)
 			goto fail;
 
 		rc = efx_ptp_insert_ipv6_filter(efx, &ptp->rxfilters_mcast,
-						&ipv6_addr, PTP_GENERAL_PORT, 0);
+						&ptp_addr_ipv6, PTP_GENERAL_PORT, 0);
 		if (rc < 0)
 			goto fail;
 
@@ -1379,9 +1382,7 @@ static bool efx_ptp_valid_unicast_event_pkt(struct sk_buff *skb)
 			ip_hdr(skb)->protocol == IPPROTO_UDP &&
 			udp_hdr(skb)->source == htons(PTP_EVENT_PORT);
 	} else if (skb->protocol == htons(ETH_P_IPV6)) {
-		struct in6_addr mcast_addr = {{PTP_ADDR_IPV6}};
-
-		return !ipv6_addr_equal(&ipv6_hdr(skb)->daddr, &mcast_addr) &&
+		return !ipv6_addr_equal(&ipv6_hdr(skb)->daddr, &ptp_addr_ipv6) &&
 			ipv6_hdr(skb)->nexthdr == IPPROTO_UDP &&
 			udp_hdr(skb)->source == htons(PTP_EVENT_PORT);
 	}
@@ -1847,7 +1848,7 @@ int efx_ptp_change_mode(struct efx_nic *efx, bool enable_wanted,
 	return 0;
 }
 
-static int efx_ptp_ts_init(struct efx_nic *efx, struct hwtstamp_config *init)
+static int efx_ptp_ts_init(struct efx_nic *efx, struct kernel_hwtstamp_config *init)
 {
 	int rc;
 
@@ -1894,33 +1895,25 @@ void efx_ptp_get_ts_info(struct efx_nic *efx, struct ethtool_ts_info *ts_info)
 	ts_info->rx_filters = ptp->efx->type->hwtstamp_filters;
 }
 
-int efx_ptp_set_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+int efx_ptp_set_ts_config(struct efx_nic *efx,
+			  struct kernel_hwtstamp_config *config,
+			  struct netlink_ext_ack __always_unused *extack)
 {
-	struct hwtstamp_config config;
-	int rc;
-
 	/* Not a PTP enabled port */
 	if (!efx->ptp_data)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
-		return -EFAULT;
-
-	rc = efx_ptp_ts_init(efx, &config);
-	if (rc != 0)
-		return rc;
-
-	return copy_to_user(ifr->ifr_data, &config, sizeof(config))
-		? -EFAULT : 0;
+	return efx_ptp_ts_init(efx, config);
 }
 
-int efx_ptp_get_ts_config(struct efx_nic *efx, struct ifreq *ifr)
+int efx_ptp_get_ts_config(struct efx_nic *efx,
+			  struct kernel_hwtstamp_config *config)
 {
+	/* Not a PTP enabled port */
 	if (!efx->ptp_data)
 		return -EOPNOTSUPP;
-
-	return copy_to_user(ifr->ifr_data, &efx->ptp_data->config,
-			    sizeof(efx->ptp_data->config)) ? -EFAULT : 0;
+	*config = efx->ptp_data->config;
+	return 0;
 }
 
 static void ptp_event_failure(struct efx_nic *efx, int expected_frag_len)

@@ -8,19 +8,13 @@
 struct mnt_namespace {
 	struct ns_common	ns;
 	struct mount *	root;
-	/*
-	 * Traversal and modification of .list is protected by either
-	 * - taking namespace_sem for write, OR
-	 * - taking namespace_sem for read AND taking .ns_lock.
-	 */
-	struct list_head	list;
-	spinlock_t		ns_lock;
+	struct rb_root		mounts; /* Protected by namespace_sem */
 	struct user_namespace	*user_ns;
 	struct ucounts		*ucounts;
 	u64			seq;	/* Sequence number to prevent loops */
 	wait_queue_head_t poll;
 	u64 event;
-	unsigned int		mounts; /* # of mounts in the namespace */
+	unsigned int		nr_mounts; /* # of mounts in the namespace */
 	unsigned int		pending_mounts;
 } __randomize_layout;
 
@@ -55,7 +49,10 @@ struct mount {
 	struct list_head mnt_child;	/* and going through their mnt_child */
 	struct list_head mnt_instance;	/* mount instance on sb->s_mounts */
 	const char *mnt_devname;	/* Name of device e.g. /dev/dsk/hda1 */
-	struct list_head mnt_list;
+	union {
+		struct rb_node mnt_node;	/* Under ns->mounts */
+		struct list_head mnt_list;
+	};
 	struct list_head mnt_expire;	/* link in fs-specific expiry list */
 	struct list_head mnt_share;	/* circular list of shared mounts */
 	struct list_head mnt_slave_list;/* list of slave mounts */
@@ -72,7 +69,8 @@ struct mount {
 	struct fsnotify_mark_connector __rcu *mnt_fsnotify_marks;
 	__u32 mnt_fsnotify_mask;
 #endif
-	int mnt_id;			/* mount identifier */
+	int mnt_id;			/* mount identifier, reused */
+	u64 mnt_id_unique;		/* mount ID unique until reboot */
 	int mnt_group_id;		/* peer group identifier */
 	int mnt_expiry_mark;		/* true if marked for expiry */
 	struct hlist_head mnt_pins;
@@ -127,7 +125,6 @@ struct proc_mounts {
 	struct mnt_namespace *ns;
 	struct path root;
 	int (*show)(struct seq_file *, struct vfsmount *);
-	struct mount cursor;
 };
 
 extern const struct seq_operations mounts_op;
@@ -144,6 +141,14 @@ static inline bool is_local_mountpoint(struct dentry *dentry)
 static inline bool is_anon_ns(struct mnt_namespace *ns)
 {
 	return ns->seq == 0;
+}
+
+static inline void move_from_ns(struct mount *mnt, struct list_head *dt_list)
+{
+	WARN_ON(!(mnt->mnt.mnt_flags & MNT_ONRB));
+	mnt->mnt.mnt_flags &= ~MNT_ONRB;
+	rb_erase(&mnt->mnt_node, &mnt->mnt_ns->mounts);
+	list_add_tail(&mnt->mnt_list, dt_list);
 }
 
 extern void mnt_cursor_del(struct mnt_namespace *ns, struct mount *cursor);

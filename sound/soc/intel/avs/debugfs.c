@@ -236,6 +236,9 @@ static int strace_open(struct inode *inode, struct file *file)
 	struct avs_dev *adev = inode->i_private;
 	int ret;
 
+	if (!try_module_get(adev->dev->driver->owner))
+		return -ENODEV;
+
 	if (kfifo_initialized(&adev->trace_fifo))
 		return -EBUSY;
 
@@ -270,6 +273,7 @@ static int strace_release(struct inode *inode, struct file *file)
 
 	spin_unlock_irqrestore(&adev->trace_lock, flags);
 
+	module_put(adev->dev->driver->owner);
 	return 0;
 }
 

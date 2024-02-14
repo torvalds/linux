@@ -80,28 +80,28 @@ static int cros_typec_get_switch_handles(struct cros_typec_port *port,
 	port->mux = fwnode_typec_mux_get(fwnode);
 	if (IS_ERR(port->mux)) {
 		ret = PTR_ERR(port->mux);
-		dev_dbg(dev, "Mux handle not found: %d.\n", ret);
+		dev_err_probe(dev, ret, "Mux handle not found\n");
 		goto mux_err;
 	}
 
 	port->retimer = fwnode_typec_retimer_get(fwnode);
 	if (IS_ERR(port->retimer)) {
 		ret = PTR_ERR(port->retimer);
-		dev_dbg(dev, "Retimer handle not found: %d.\n", ret);
+		dev_err_probe(dev, ret, "Retimer handle not found\n");
 		goto retimer_sw_err;
 	}
 
 	port->ori_sw = fwnode_typec_switch_get(fwnode);
 	if (IS_ERR(port->ori_sw)) {
 		ret = PTR_ERR(port->ori_sw);
-		dev_dbg(dev, "Orientation switch handle not found: %d\n", ret);
+		dev_err_probe(dev, ret, "Orientation switch handle not found\n");
 		goto ori_sw_err;
 	}
 
 	port->role_sw = fwnode_usb_role_switch_get(fwnode);
 	if (IS_ERR(port->role_sw)) {
 		ret = PTR_ERR(port->role_sw);
-		dev_dbg(dev, "USB role switch handle not found: %d\n", ret);
+		dev_err_probe(dev, ret, "USB role switch handle not found\n");
 		goto role_sw_err;
 	}
 
@@ -271,9 +271,9 @@ static int cros_typec_register_port_altmodes(struct cros_typec_data *typec,
 	struct typec_altmode *amode;
 
 	/* All PD capable CrOS devices are assumed to support DP altmode. */
-	desc.svid = USB_TYPEC_DP_SID,
-	desc.mode = USB_TYPEC_DP_MODE,
-	desc.vdo = DP_PORT_VDO,
+	desc.svid = USB_TYPEC_DP_SID;
+	desc.mode = USB_TYPEC_DP_MODE;
+	desc.vdo = DP_PORT_VDO;
 	amode = typec_port_register_altmode(port->port, &desc);
 	if (IS_ERR(amode))
 		return PTR_ERR(amode);
@@ -287,8 +287,8 @@ static int cros_typec_register_port_altmodes(struct cros_typec_data *typec,
 	 * here for now.
 	 */
 	memset(&desc, 0, sizeof(desc));
-	desc.svid = USB_TYPEC_TBT_SID,
-	desc.mode = TYPEC_ANY_MODE,
+	desc.svid = USB_TYPEC_TBT_SID;
+	desc.mode = TYPEC_ANY_MODE;
 	amode = typec_port_register_altmode(port->port, &desc);
 	if (IS_ERR(amode))
 		return PTR_ERR(amode);
@@ -492,6 +492,8 @@ static int cros_typec_enable_dp(struct cros_typec_data *typec,
 {
 	struct cros_typec_port *port = typec->ports[port_num];
 	struct typec_displayport_data dp_data;
+	u32 cable_tbt_vdo;
+	u32 cable_dp_vdo;
 	int ret;
 
 	if (typec->pd_ctrl_ver < 2) {
@@ -523,6 +525,32 @@ static int cros_typec_enable_dp(struct cros_typec_data *typec,
 
 	port->state.data = &dp_data;
 	port->state.mode = TYPEC_MODAL_STATE(ffs(pd_ctrl->dp_mode));
+
+	/* Get cable VDO for cables with DPSID to check DPAM2.1 is supported */
+	cable_dp_vdo = cros_typec_get_cable_vdo(port, USB_TYPEC_DP_SID);
+
+	/**
+	 * Get cable VDO for thunderbolt cables and cables with DPSID but does not
+	 * support DPAM2.1.
+	 */
+	cable_tbt_vdo = cros_typec_get_cable_vdo(port, USB_TYPEC_TBT_SID);
+
+	if (cable_dp_vdo & DP_CAP_DPAM_VERSION) {
+		dp_data.conf |= cable_dp_vdo;
+	} else if (cable_tbt_vdo) {
+		dp_data.conf |=  TBT_CABLE_SPEED(cable_tbt_vdo) << DP_CONF_SIGNALLING_SHIFT;
+
+		/* Cable Type */
+		if (cable_tbt_vdo & TBT_CABLE_OPTICAL)
+			dp_data.conf |= DP_CONF_CABLE_TYPE_OPTICAL << DP_CONF_CABLE_TYPE_SHIFT;
+		else if (cable_tbt_vdo & TBT_CABLE_RETIMER)
+			dp_data.conf |= DP_CONF_CABLE_TYPE_RE_TIMER << DP_CONF_CABLE_TYPE_SHIFT;
+		else if (cable_tbt_vdo & TBT_CABLE_ACTIVE_PASSIVE)
+			dp_data.conf |= DP_CONF_CABLE_TYPE_RE_DRIVER << DP_CONF_CABLE_TYPE_SHIFT;
+	} else if (PD_IDH_PTYPE(port->c_identity.id_header) == IDH_PTYPE_PCABLE) {
+		dp_data.conf |= VDO_TYPEC_CABLE_SPEED(port->c_identity.vdo[0]) <<
+				DP_CONF_SIGNALLING_SHIFT;
+	}
 
 	ret = cros_typec_retimer_set(port->retimer, port->state);
 	if (!ret)

@@ -152,7 +152,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 	cur_page = out_pages[*cur_out / PAGE_SIZE];
 	/* Allocate a new page */
 	if (!cur_page) {
-		cur_page = alloc_page(GFP_NOFS);
+		cur_page = btrfs_alloc_compr_page();
 		if (!cur_page)
 			return -ENOMEM;
 		out_pages[*cur_out / PAGE_SIZE] = cur_page;
@@ -178,7 +178,7 @@ static int copy_compressed_data_to_page(char *compressed_data,
 		cur_page = out_pages[*cur_out / PAGE_SIZE];
 		/* Allocate a new page */
 		if (!cur_page) {
-			cur_page = alloc_page(GFP_NOFS);
+			cur_page = btrfs_alloc_compr_page();
 			if (!cur_page)
 				return -ENOMEM;
 			out_pages[*cur_out / PAGE_SIZE] = cur_page;
@@ -425,16 +425,16 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 }
 
 int lzo_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
+	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
+	const u32 sectorsize = fs_info->sectorsize;
 	size_t in_len;
 	size_t out_len;
 	size_t max_segment_len = WORKSPACE_BUF_LENGTH;
 	int ret = 0;
-	char *kaddr;
-	unsigned long bytes;
 
 	if (srclen < LZO_LEN || srclen > max_segment_len + LZO_LEN * 2)
 		return -EUCLEAN;
@@ -451,7 +451,7 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 	}
 	data_in += LZO_LEN;
 
-	out_len = PAGE_SIZE;
+	out_len = sectorsize;
 	ret = lzo1x_decompress_safe(data_in, in_len, workspace->buf, &out_len);
 	if (ret != LZO_E_OK) {
 		pr_warn("BTRFS: decompress failed!\n");
@@ -459,29 +459,13 @@ int lzo_decompress(struct list_head *ws, const u8 *data_in,
 		goto out;
 	}
 
-	if (out_len < start_byte) {
+	ASSERT(out_len <= sectorsize);
+	memcpy_to_page(dest_page, dest_pgoff, workspace->buf, out_len);
+	/* Early end, considered as an error. */
+	if (unlikely(out_len < destlen)) {
 		ret = -EIO;
-		goto out;
+		memzero_page(dest_page, dest_pgoff + out_len, destlen - out_len);
 	}
-
-	/*
-	 * the caller is already checking against PAGE_SIZE, but lets
-	 * move this check closer to the memcpy/memset
-	 */
-	destlen = min_t(unsigned long, destlen, PAGE_SIZE);
-	bytes = min_t(unsigned long, destlen, out_len - start_byte);
-
-	kaddr = kmap_local_page(dest_page);
-	memcpy(kaddr, workspace->buf + start_byte, bytes);
-
-	/*
-	 * btrfs_getblock is doing a zero on the tail of the page too,
-	 * but this will cover anything missing from the decompressed
-	 * data.
-	 */
-	if (bytes < destlen)
-		memset(kaddr+bytes, 0, destlen-bytes);
-	kunmap_local(kaddr);
 out:
 	return ret;
 }

@@ -1115,14 +1115,12 @@ exit_remove_files:
 	return err;
 }
 
-static int pc87427_remove(struct platform_device *pdev)
+static void pc87427_remove(struct platform_device *pdev)
 {
 	struct pc87427_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	pc87427_remove_files(&pdev->dev);
-
-	return 0;
 }
 
 
@@ -1131,7 +1129,7 @@ static struct platform_driver pc87427_driver = {
 		.name	= DRVNAME,
 	},
 	.probe		= pc87427_probe,
-	.remove		= pc87427_remove,
+	.remove_new	= pc87427_remove,
 };
 
 static int __init pc87427_device_add(const struct pc87427_sio_data *sio_data)

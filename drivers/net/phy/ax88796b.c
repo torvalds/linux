@@ -90,7 +90,7 @@ static void asix_ax88772a_link_change_notify(struct phy_device *phydev)
 	 */
 	if (phydev->state == PHY_NOLINK) {
 		phy_init_hw(phydev);
-		phy_start_aneg(phydev);
+		_phy_start_aneg(phydev);
 	}
 }
 

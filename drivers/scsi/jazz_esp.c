@@ -176,7 +176,7 @@ fail:
 	return err;
 }
 
-static int esp_jazz_remove(struct platform_device *dev)
+static void esp_jazz_remove(struct platform_device *dev)
 {
 	struct esp *esp = dev_get_drvdata(&dev->dev);
 	unsigned int irq = esp->host->irq;
@@ -189,8 +189,6 @@ static int esp_jazz_remove(struct platform_device *dev)
 			  esp->command_block_dma);
 
 	scsi_host_put(esp->host);
-
-	return 0;
 }
 
 /* work with hotplug and coldplug */
@@ -198,7 +196,7 @@ MODULE_ALIAS("platform:jazz_esp");
 
 static struct platform_driver esp_jazz_driver = {
 	.probe		= esp_jazz_probe,
-	.remove		= esp_jazz_remove,
+	.remove_new	= esp_jazz_remove,
 	.driver	= {
 		.name	= "jazz_esp",
 	},

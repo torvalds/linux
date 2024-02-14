@@ -549,9 +549,9 @@ Buffer Flags
       - 0x00000400
       - The buffer has been prepared for I/O and can be queued by the
 	application. Drivers set or clear this flag when the
-	:ref:`VIDIOC_QUERYBUF`,
+	:ref:`VIDIOC_QUERYBUF <VIDIOC_QUERYBUF>`,
 	:ref:`VIDIOC_PREPARE_BUF <VIDIOC_QBUF>`,
-	:ref:`VIDIOC_QBUF` or
+	:ref:`VIDIOC_QBUF <VIDIOC_QBUF>` or
 	:ref:`VIDIOC_DQBUF <VIDIOC_QBUF>` ioctl is called.
     * .. _`V4L2-BUF-FLAG-NO-CACHE-INVALIDATE`:
 

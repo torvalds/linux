@@ -105,7 +105,7 @@ devlink_resource_validate_size(struct devlink_resource *resource, u64 size,
 	return err;
 }
 
-int devlink_nl_cmd_resource_set(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_resource_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct devlink_resource *resource;
@@ -285,7 +285,7 @@ err_resource_put:
 	return err;
 }
 
-int devlink_nl_cmd_resource_dump(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_resource_dump_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 

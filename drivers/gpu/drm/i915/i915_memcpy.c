@@ -23,6 +23,8 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/string.h>
+#include <linux/cpufeature.h>
 #include <asm/fpu/api.h>
 
 #include "i915_memcpy.h"

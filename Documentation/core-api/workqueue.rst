@@ -244,7 +244,7 @@ unbound worker-pools and only one work item could be active at any given
 time thus achieving the same ordering property as ST wq.
 
 In the current implementation the above configuration only guarantees
-ST behavior within a given NUMA node. Instead ``alloc_ordered_queue()`` should
+ST behavior within a given NUMA node. Instead ``alloc_ordered_workqueue()`` should
 be used to achieve system-wide ST behavior.
 
 
@@ -379,7 +379,7 @@ Workqueue currently supports the following affinity scopes.
   cases. This is the default affinity scope.
 
 ``numa``
-  CPUs are grouped according to NUMA bounaries.
+  CPUs are grouped according to NUMA boundaries.
 
 ``system``
   All CPUs are put in the same group. Workqueue makes no effort to process a
@@ -390,7 +390,7 @@ The default affinity scope can be changed with the module parameter
 scope can be changed using ``apply_workqueue_attrs()``.
 
 If ``WQ_SYSFS`` is set, the workqueue will have the following affinity scope
-related interface files under its ``/sys/devices/virtual/WQ_NAME/``
+related interface files under its ``/sys/devices/virtual/workqueue/WQ_NAME/``
 directory.
 
 ``affinity_scope``
@@ -446,7 +446,7 @@ The command used: ::
 
 There are 24 issuers, each issuing 64 IOs concurrently. ``--verify=sha512``
 makes ``fio`` generate and read back the content each time which makes
-execution locality matter between the issuer and ``kcryptd``. The followings
+execution locality matter between the issuer and ``kcryptd``. The following
 are the read bandwidths and CPU utilizations depending on different affinity
 scope settings on ``kcryptd`` measured over five runs. Bandwidths are in
 MiBps, and CPU util in percents.

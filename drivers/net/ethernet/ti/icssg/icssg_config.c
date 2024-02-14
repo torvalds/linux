@@ -379,9 +379,9 @@ int icssg_config(struct prueth *prueth, struct prueth_emac *emac, int slice)
 
 /* Bitmask for ICSSG r30 commands */
 static const struct icssg_r30_cmd emac_r32_bitmask[] = {
-	{{0xffff0004, 0xffff0100, 0xffff0100, EMAC_NONE}},	/* EMAC_PORT_DISABLE */
+	{{0xffff0004, 0xffff0100, 0xffff0004, EMAC_NONE}},	/* EMAC_PORT_DISABLE */
 	{{0xfffb0040, 0xfeff0200, 0xfeff0200, EMAC_NONE}},	/* EMAC_PORT_BLOCK */
-	{{0xffbb0000, 0xfcff0000, 0xdcff0000, EMAC_NONE}},	/* EMAC_PORT_FORWARD */
+	{{0xffbb0000, 0xfcff0000, 0xdcfb0000, EMAC_NONE}},	/* EMAC_PORT_FORWARD */
 	{{0xffbb0000, 0xfcff0000, 0xfcff2000, EMAC_NONE}},	/* EMAC_PORT_FORWARD_WO_LEARNING */
 	{{0xffff0001, EMAC_NONE,  EMAC_NONE, EMAC_NONE}},	/* ACCEPT ALL */
 	{{0xfffe0002, EMAC_NONE,  EMAC_NONE, EMAC_NONE}},	/* ACCEPT TAGGED */
@@ -433,6 +433,17 @@ int emac_set_port_state(struct prueth_emac *emac,
 	return ret;
 }
 
+void icssg_config_half_duplex(struct prueth_emac *emac)
+{
+	u32 val;
+
+	if (!emac->half_duplex)
+		return;
+
+	val = get_random_u32();
+	writel(val, emac->dram.va + HD_RAND_SEED_OFFSET);
+}
+
 void icssg_config_set_speed(struct prueth_emac *emac)
 {
 	u8 fw_speed;
@@ -452,6 +463,9 @@ void icssg_config_set_speed(struct prueth_emac *emac)
 		netdev_err(emac->ndev, "Unsupported link speed\n");
 		return;
 	}
+
+	if (emac->duplex == DUPLEX_HALF)
+		fw_speed |= FW_LINK_SPEED_HD;
 
 	writeb(fw_speed, emac->dram.va + PORT_LINK_SPEED_OFFSET);
 }

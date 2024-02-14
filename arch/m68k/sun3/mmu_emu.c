@@ -27,6 +27,7 @@
 #include <asm/mmu_context.h>
 #include <asm/dvma.h>
 
+#include "sun3.h"
 
 #undef DEBUG_MMU_EMU
 #define DEBUG_PROM_MAPS
@@ -67,7 +68,7 @@ static unsigned char ctx_avail = CONTEXTS_NUM-1;
 unsigned long rom_pages[256];
 
 /* Print a PTE value in symbolic form. For debugging. */
-void print_pte (pte_t pte)
+static void print_pte(pte_t pte)
 {
 #if 0
 	/* Verbose version. */
@@ -206,32 +207,32 @@ void __init mmu_emu_init(unsigned long bootmem_end)
    context for when they're cleared */
 void clear_context(unsigned long context)
 {
-     unsigned char oldctx;
-     unsigned long i;
+	unsigned char oldctx;
+	unsigned long i;
 
-     if(context) {
-	     if(!ctx_alloc[context])
-		     panic("%s: context not allocated\n", __func__);
+	if (context) {
+		if (!ctx_alloc[context])
+			panic("%s: context not allocated\n", __func__);
 
-	     ctx_alloc[context]->context = SUN3_INVALID_CONTEXT;
-	     ctx_alloc[context] = (struct mm_struct *)0;
-	     ctx_avail++;
-     }
+		ctx_alloc[context]->context = SUN3_INVALID_CONTEXT;
+		ctx_alloc[context] = (struct mm_struct *)0;
+		ctx_avail++;
+	}
 
-     oldctx = sun3_get_context();
+	oldctx = sun3_get_context();
 
-     sun3_put_context(context);
+	sun3_put_context(context);
 
-     for(i = 0; i < SUN3_INVALID_PMEG; i++) {
-	     if((pmeg_ctx[i] == context) && (pmeg_alloc[i] == 1)) {
-		     sun3_put_segmap(pmeg_vaddr[i], SUN3_INVALID_PMEG);
-		     pmeg_ctx[i] = 0;
-		     pmeg_alloc[i] = 0;
-		     pmeg_vaddr[i] = 0;
-	     }
-     }
+	for (i = 0; i < SUN3_INVALID_PMEG; i++) {
+		if ((pmeg_ctx[i] == context) && (pmeg_alloc[i] == 1)) {
+			sun3_put_segmap(pmeg_vaddr[i], SUN3_INVALID_PMEG);
+			pmeg_ctx[i] = 0;
+			pmeg_alloc[i] = 0;
+			pmeg_vaddr[i] = 0;
+		}
+	}
 
-     sun3_put_context(oldctx);
+	sun3_put_context(oldctx);
 }
 
 /* gets an empty context.  if full, kills the next context listed to

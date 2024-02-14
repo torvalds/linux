@@ -571,7 +571,7 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		/* Write implies read */
 		vm_flags |= VM_WRITE;
 		/* If EPAN is absent then exec implies read */
-		if (!cpus_have_const_cap(ARM64_HAS_EPAN))
+		if (!alternative_has_cap_unlikely(ARM64_HAS_EPAN))
 			vm_flags |= VM_EXEC;
 	}
 
@@ -607,6 +607,8 @@ static int __kprobes do_page_fault(unsigned long far, unsigned long esr,
 		goto done;
 	}
 	count_vm_vma_lock_event(VMA_LOCK_RETRY);
+	if (fault & VM_FAULT_MAJOR)
+		mm_flags |= FAULT_FLAG_TRIED;
 
 	/* Quick path to respond to signals */
 	if (fault_signal_pending(fault, regs)) {

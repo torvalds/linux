@@ -52,4 +52,5 @@ obj-$(subst m,y,$(CONFIG_IPV6)) += inet6_hashtables.o
 ifneq ($(CONFIG_IPV6),)
 obj-$(CONFIG_NET_UDP_TUNNEL) += ip6_udp_tunnel.o
 obj-y += mcast_snoop.o
+obj-$(CONFIG_TCP_AO) += tcp_ao.o
 endif

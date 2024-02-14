@@ -11,8 +11,6 @@
 
 #define		MAX_SILENT_RESET_RX_SLOT_NUM	10
 
-#define RX_MPDU_QUEUE				0
-
 enum rtl819x_loopback {
 	RTL819X_NO_LOOPBACK = 0,
 	RTL819X_MAC_LOOPBACK = 1,

@@ -146,7 +146,7 @@ static int tcf_connmark_init(struct net *net, struct nlattr *nla,
 	} else if (ret > 0) {
 		ci = to_connmark(*a);
 		if (bind) {
-			err = 0;
+			err = ACT_P_BOUND;
 			goto out_free;
 		}
 		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {

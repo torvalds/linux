@@ -39,7 +39,7 @@ __naked void with_valid_return_code_test3(void)
 
 SEC("netfilter")
 __description("bpf_exit with invalid return code. test4")
-__failure __msg("R0 has value (0x2; 0x0)")
+__failure __msg("R0 has smin=2 smax=2 should have been in [0, 1]")
 __naked void with_invalid_return_code_test4(void)
 {
 	asm volatile ("					\

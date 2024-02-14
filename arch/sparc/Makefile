@@ -76,9 +76,8 @@ install:
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/sparc/kernel/syscalls all
 
-PHONY += vdso_install
-vdso_install:
-	$(Q)$(MAKE) $(build)=arch/sparc/vdso $@
+vdso-install-$(CONFIG_SPARC64)	+= arch/sparc/vdso/vdso64.so.dbg
+vdso-install-$(CONFIG_COMPAT)	+= arch/sparc/vdso/vdso32.so.dbg
 
 # This is the image used for packaging
 KBUILD_IMAGE := $(boot)/zImage

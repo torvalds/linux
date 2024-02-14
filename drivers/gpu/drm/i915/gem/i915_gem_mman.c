@@ -235,6 +235,7 @@ static vm_fault_t i915_error_to_vmf_fault(int err)
 	case 0:
 	case -EAGAIN:
 	case -ENOSPC: /* transient failure to evict? */
+	case -ENOBUFS: /* temporarily out of fences? */
 	case -ERESTARTSYS:
 	case -EINTR:
 	case -EBUSY:
@@ -915,11 +916,7 @@ static struct file *mmap_singleton(struct drm_i915_private *i915)
 {
 	struct file *file;
 
-	rcu_read_lock();
-	file = READ_ONCE(i915->gem.mmap_singleton);
-	if (file && !get_file_rcu(file))
-		file = NULL;
-	rcu_read_unlock();
+	file = get_file_active(&i915->gem.mmap_singleton);
 	if (file)
 		return file;
 

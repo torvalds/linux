@@ -243,6 +243,12 @@ The output directory is often set using "O=..." on the commandline.
 
 The value can be overridden in which case the default value is ignored.
 
+INSTALL_DTBS_PATH
+-----------------
+INSTALL_DTBS_PATH specifies where to install device tree blobs for
+relocations required by build roots.  This is not defined in the
+makefile but the argument can be passed to make if needed.
+
 KBUILD_ABS_SRCTREE
 --------------------------------------------------
 Kbuild uses a relative path to point to the tree when possible. For instance,

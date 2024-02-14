@@ -413,7 +413,7 @@ static int devlink_sb_pool_set(struct devlink *devlink, unsigned int sb_index,
 	return -EOPNOTSUPP;
 }
 
-int devlink_nl_cmd_sb_pool_set_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_sb_pool_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	enum devlink_sb_threshold_type threshold_type;
@@ -621,8 +621,8 @@ static int devlink_sb_port_pool_set(struct devlink_port *devlink_port,
 	return -EOPNOTSUPP;
 }
 
-int devlink_nl_cmd_sb_port_pool_set_doit(struct sk_buff *skb,
-					 struct genl_info *info)
+int devlink_nl_sb_port_pool_set_doit(struct sk_buff *skb,
+				     struct genl_info *info)
 {
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
@@ -861,8 +861,8 @@ static int devlink_sb_tc_pool_bind_set(struct devlink_port *devlink_port,
 	return -EOPNOTSUPP;
 }
 
-int devlink_nl_cmd_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
-					    struct genl_info *info)
+int devlink_nl_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
+					struct genl_info *info)
 {
 	struct devlink_port *devlink_port = info->user_ptr[1];
 	struct devlink *devlink = info->user_ptr[0];
@@ -900,8 +900,7 @@ int devlink_nl_cmd_sb_tc_pool_bind_set_doit(struct sk_buff *skb,
 					   pool_index, threshold, info->extack);
 }
 
-int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
-					struct genl_info *info)
+int devlink_nl_sb_occ_snapshot_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
@@ -916,8 +915,8 @@ int devlink_nl_cmd_sb_occ_snapshot_doit(struct sk_buff *skb,
 	return -EOPNOTSUPP;
 }
 
-int devlink_nl_cmd_sb_occ_max_clear_doit(struct sk_buff *skb,
-					 struct genl_info *info)
+int devlink_nl_sb_occ_max_clear_doit(struct sk_buff *skb,
+				     struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;

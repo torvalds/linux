@@ -40,7 +40,7 @@
  * struct rz_mtu3_channel_io_map - MTU3 pwm channel map
  *
  * @base_pwm_number: First PWM of a channel
- * @num: number of IOs on the HW channel.
+ * @num_channel_ios: number of IOs on the HW channel.
  */
 struct rz_mtu3_channel_io_map {
 	u8 base_pwm_number;
@@ -438,7 +438,6 @@ static const struct pwm_ops rz_mtu3_pwm_ops = {
 	.free = rz_mtu3_pwm_free,
 	.get_state = rz_mtu3_pwm_get_state,
 	.apply = rz_mtu3_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int rz_mtu3_pwm_pm_runtime_suspend(struct device *dev)

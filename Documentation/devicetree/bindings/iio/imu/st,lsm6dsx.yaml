@@ -93,6 +93,9 @@ properties:
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
 
+  mount-matrix:
+    description: an optional 3x3 mounting rotation matrix
+
 required:
   - compatible
   - reg

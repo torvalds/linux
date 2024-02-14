@@ -1470,7 +1470,7 @@ err_chan_free:
 	return ret;
 }
 
-static int sun6i_dma_remove(struct platform_device *pdev)
+static void sun6i_dma_remove(struct platform_device *pdev)
 {
 	struct sun6i_dma_dev *sdc = platform_get_drvdata(pdev);
 
@@ -1484,13 +1484,11 @@ static int sun6i_dma_remove(struct platform_device *pdev)
 	reset_control_assert(sdc->rstc);
 
 	sun6i_dma_free(sdc);
-
-	return 0;
 }
 
 static struct platform_driver sun6i_dma_driver = {
 	.probe		= sun6i_dma_probe,
-	.remove		= sun6i_dma_remove,
+	.remove_new	= sun6i_dma_remove,
 	.driver = {
 		.name		= "sun6i-dma",
 		.of_match_table	= sun6i_dma_match,

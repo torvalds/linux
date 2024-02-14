@@ -459,6 +459,14 @@ static void mcde_remove(struct platform_device *pdev)
 	regulator_disable(mcde->epod);
 }
 
+static void mcde_shutdown(struct platform_device *pdev)
+{
+	struct drm_device *drm = platform_get_drvdata(pdev);
+
+	if (drm->registered)
+		drm_atomic_helper_shutdown(drm);
+}
+
 static const struct of_device_id mcde_of_match[] = {
 	{
 		.compatible = "ste,mcde",
@@ -473,6 +481,7 @@ static struct platform_driver mcde_driver = {
 	},
 	.probe = mcde_probe,
 	.remove_new = mcde_remove,
+	.shutdown = mcde_shutdown,
 };
 
 static struct platform_driver *const component_drivers[] = {

@@ -30,8 +30,7 @@ import getopt
 import Gnuplot
 from numpy import *
 from decimal import *
-sys.path.append('../intel_pstate_tracer')
-#import intel_pstate_tracer
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "intel_pstate_tracer"))
 import intel_pstate_tracer as ipt
 
 __license__ = "GPL version 2"

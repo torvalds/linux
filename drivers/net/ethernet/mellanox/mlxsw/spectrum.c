@@ -2692,6 +2692,63 @@ static void mlxsw_sp_traps_fini(struct mlxsw_sp *mlxsw_sp)
 	kfree(mlxsw_sp->trap);
 }
 
+static int mlxsw_sp_lag_pgt_init(struct mlxsw_sp *mlxsw_sp)
+{
+	char sgcr_pl[MLXSW_REG_SGCR_LEN];
+	u16 max_lag;
+	int err;
+
+	if (mlxsw_core_lag_mode(mlxsw_sp->core) !=
+	    MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW)
+		return 0;
+
+	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
+	if (err)
+		return err;
+
+	/* In DDD mode, which we by default use, each LAG entry is 8 PGT
+	 * entries. The LAG table address needs to be 8-aligned, but that ought
+	 * to be the case, since the LAG table is allocated first.
+	 */
+	err = mlxsw_sp_pgt_mid_alloc_range(mlxsw_sp, &mlxsw_sp->lag_pgt_base,
+					   max_lag * 8);
+	if (err)
+		return err;
+	if (WARN_ON_ONCE(mlxsw_sp->lag_pgt_base % 8)) {
+		err = -EINVAL;
+		goto err_mid_alloc_range;
+	}
+
+	mlxsw_reg_sgcr_pack(sgcr_pl, mlxsw_sp->lag_pgt_base);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sgcr), sgcr_pl);
+	if (err)
+		goto err_mid_alloc_range;
+
+	return 0;
+
+err_mid_alloc_range:
+	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, mlxsw_sp->lag_pgt_base,
+				    max_lag * 8);
+	return err;
+}
+
+static void mlxsw_sp_lag_pgt_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	u16 max_lag;
+	int err;
+
+	if (mlxsw_core_lag_mode(mlxsw_sp->core) !=
+	    MLXSW_CMD_MBOX_CONFIG_PROFILE_LAG_MODE_SW)
+		return;
+
+	err = mlxsw_core_max_lag(mlxsw_sp->core, &max_lag);
+	if (err)
+		return;
+
+	mlxsw_sp_pgt_mid_free_range(mlxsw_sp, mlxsw_sp->lag_pgt_base,
+				    max_lag * 8);
+}
+
 #define MLXSW_SP_LAG_SEED_INIT 0xcafecafe
 
 static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
@@ -2723,16 +2780,27 @@ static int mlxsw_sp_lag_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_LAG_MEMBERS))
 		return -EIO;
 
+	err = mlxsw_sp_lag_pgt_init(mlxsw_sp);
+	if (err)
+		return err;
+
 	mlxsw_sp->lags = kcalloc(max_lag, sizeof(struct mlxsw_sp_upper),
 				 GFP_KERNEL);
-	if (!mlxsw_sp->lags)
-		return -ENOMEM;
+	if (!mlxsw_sp->lags) {
+		err = -ENOMEM;
+		goto err_kcalloc;
+	}
 
 	return 0;
+
+err_kcalloc:
+	mlxsw_sp_lag_pgt_fini(mlxsw_sp);
+	return err;
 }
 
 static void mlxsw_sp_lag_fini(struct mlxsw_sp *mlxsw_sp)
 {
+	mlxsw_sp_lag_pgt_fini(mlxsw_sp);
 	kfree(mlxsw_sp->lags);
 }
 
@@ -3113,10 +3181,19 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_pgt_init;
 	}
 
-	err = mlxsw_sp_fids_init(mlxsw_sp);
+	/* Initialize before FIDs so that the LAG table is at the start of PGT
+	 * and 8-aligned without overallocation.
+	 */
+	err = mlxsw_sp_lag_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize LAG\n");
+		goto err_lag_init;
+	}
+
+	err = mlxsw_sp->fid_core_ops->init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize FIDs\n");
-		goto err_fids_init;
+		goto err_fid_core_init;
 	}
 
 	err = mlxsw_sp_policers_init(mlxsw_sp);
@@ -3141,12 +3218,6 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize buffers\n");
 		goto err_buffers_init;
-	}
-
-	err = mlxsw_sp_lag_init(mlxsw_sp);
-	if (err) {
-		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize LAG\n");
-		goto err_lag_init;
 	}
 
 	/* Initialize SPAN before router and switchdev, so that those components
@@ -3300,8 +3371,6 @@ err_counter_pool_init:
 err_switchdev_init:
 	mlxsw_sp_span_fini(mlxsw_sp);
 err_span_init:
-	mlxsw_sp_lag_fini(mlxsw_sp);
-err_lag_init:
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 err_buffers_init:
 	mlxsw_sp_devlink_traps_fini(mlxsw_sp);
@@ -3310,8 +3379,10 @@ err_devlink_traps_init:
 err_traps_init:
 	mlxsw_sp_policers_fini(mlxsw_sp);
 err_policers_init:
-	mlxsw_sp_fids_fini(mlxsw_sp);
-err_fids_init:
+	mlxsw_sp->fid_core_ops->fini(mlxsw_sp);
+err_fid_core_init:
+	mlxsw_sp_lag_fini(mlxsw_sp);
+err_lag_init:
 	mlxsw_sp_pgt_fini(mlxsw_sp);
 err_pgt_init:
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
@@ -3345,7 +3416,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp1_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp1_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp1_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp1_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1;
 	mlxsw_sp->pgt_smpe_index_valid = true;
 
@@ -3379,7 +3450,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp2_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp2_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp2_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp2_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2;
 	mlxsw_sp->pgt_smpe_index_valid = false;
 
@@ -3413,7 +3484,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp2_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp2_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp2_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp2_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3;
 	mlxsw_sp->pgt_smpe_index_valid = false;
 
@@ -3447,7 +3518,7 @@ static int mlxsw_sp4_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp2_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp2_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp2_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp2_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP4;
 	mlxsw_sp->pgt_smpe_index_valid = false;
 
@@ -3477,12 +3548,12 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_counter_pool_fini(mlxsw_sp);
 	mlxsw_sp_switchdev_fini(mlxsw_sp);
 	mlxsw_sp_span_fini(mlxsw_sp);
-	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_buffers_fini(mlxsw_sp);
 	mlxsw_sp_devlink_traps_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_policers_fini(mlxsw_sp);
-	mlxsw_sp_fids_fini(mlxsw_sp);
+	mlxsw_sp->fid_core_ops->fini(mlxsw_sp);
+	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_pgt_fini(mlxsw_sp);
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 	mlxsw_sp_parsing_fini(mlxsw_sp);
@@ -3526,6 +3597,8 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 	},
 	.used_cqe_time_stamp_type	= 1,
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+	.lag_mode_prefer_sw		= true,
+	.flood_mode_prefer_cff		= true,
 };
 
 /* Reduce number of LAGs from full capacity (256) to the maximum supported LAGs
@@ -3553,6 +3626,8 @@ static const struct mlxsw_config_profile mlxsw_sp4_config_profile = {
 	},
 	.used_cqe_time_stamp_type	= 1,
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+	.lag_mode_prefer_sw		= true,
+	.flood_mode_prefer_cff		= true,
 };
 
 static void
@@ -4442,6 +4517,10 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->lagged = 1;
 	lag->ref_count++;
 
+	err = mlxsw_sp_fid_port_join_lag(mlxsw_sp_port);
+	if (err)
+		goto err_fid_port_join_lag;
+
 	/* Port is no longer usable as a router interface */
 	if (mlxsw_sp_port->default_vlan->fid)
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
@@ -4461,6 +4540,8 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 err_replay:
 	mlxsw_sp_router_port_leave_lag(mlxsw_sp_port, lag_dev);
 err_router_join:
+	mlxsw_sp_fid_port_leave_lag(mlxsw_sp_port);
+err_fid_port_join_lag:
 	lag->ref_count--;
 	mlxsw_sp_port->lagged = 0;
 	mlxsw_core_lag_mapping_clear(mlxsw_sp->core, lag_id,
@@ -4495,6 +4576,8 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	 * are memeber in
 	 */
 	mlxsw_sp_port_lag_uppers_cleanup(mlxsw_sp_port, lag_dev);
+
+	mlxsw_sp_fid_port_leave_lag(mlxsw_sp_port);
 
 	if (lag->ref_count == 1)
 		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);

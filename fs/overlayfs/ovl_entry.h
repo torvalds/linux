@@ -8,6 +8,7 @@
 struct ovl_config {
 	char *upperdir;
 	char *workdir;
+	char **lowerdirs;
 	bool default_permissions;
 	int redirect_mode;
 	int verity_mode;
@@ -39,16 +40,9 @@ struct ovl_layer {
 	int idx;
 	/* One fsid per unique underlying sb (upper fsid == 0) */
 	int fsid;
-	char *name;
+	/* xwhiteouts were found on this layer */
+	bool has_xwhiteouts;
 };
-
-/*
- * ovl_free_fs() relies on @mnt being the first member when unmounting
- * the private mounts created for each layer. Let's check both the
- * offset and type.
- */
-static_assert(offsetof(struct ovl_layer, mnt) == 0);
-static_assert(__same_type(typeof_member(struct ovl_layer, mnt), struct vfsmount *));
 
 struct ovl_path {
 	const struct ovl_layer *layer;
@@ -67,14 +61,12 @@ struct ovl_fs {
 	unsigned int numfs;
 	/* Number of data-only lower layers */
 	unsigned int numdatalayer;
-	const struct ovl_layer *layers;
+	struct ovl_layer *layers;
 	struct ovl_sb *fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
-	/* workdir is the 'work' directory under workbasedir */
+	/* workdir is the 'work' or 'index' directory under workbasedir */
 	struct dentry *workdir;
-	/* index directory listing overlay inodes by origin file handle */
-	struct dentry *indexdir;
 	long namelen;
 	/* pathnames of lower and upper dirs, for show_options */
 	struct ovl_config config;
@@ -89,7 +81,6 @@ struct ovl_fs {
 	/* Traps in ovl inode cache */
 	struct inode *workbasedir_trap;
 	struct inode *workdir_trap;
-	struct inode *indexdir_trap;
 	/* -1: disabled, 0: same fs, 1..32: number of unused ino bits */
 	int xino_mode;
 	/* For allocation of non-persistent inode numbers */

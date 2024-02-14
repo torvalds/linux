@@ -73,13 +73,14 @@ static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
 
 static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	enum rtw89_mac_fwd_target fwd_target = enable ?
 					       RTW89_FWD_DONT_CARE :
 					       RTW89_FWD_TO_HOST;
 
-	rtw89_mac_typ_fltr_opt(rtwdev, RTW89_MGNT, fwd_target, RTW89_MAC_0);
-	rtw89_mac_typ_fltr_opt(rtwdev, RTW89_CTRL, fwd_target, RTW89_MAC_0);
-	rtw89_mac_typ_fltr_opt(rtwdev, RTW89_DATA, fwd_target, RTW89_MAC_0);
+	mac->typ_fltr_opt(rtwdev, RTW89_MGNT, fwd_target, RTW89_MAC_0);
+	mac->typ_fltr_opt(rtwdev, RTW89_CTRL, fwd_target, RTW89_MAC_0);
+	mac->typ_fltr_opt(rtwdev, RTW89_DATA, fwd_target, RTW89_MAC_0);
 }
 
 static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
@@ -488,6 +489,8 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	struct rtw89_wow_param *rtw_wow = &rtwdev->wow;
 	struct ieee80211_vif *wow_vif = rtw_wow->wow_vif;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)wow_vif->drv_priv;
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+	bool include_bb = !!chip->bbmcu_nr;
 	struct ieee80211_sta *wow_sta;
 	struct rtw89_sta *rtwsta = NULL;
 	bool is_conn = true;
@@ -501,7 +504,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 	else
 		is_conn = false;
 
-	ret = rtw89_fw_download(rtwdev, fw_type);
+	ret = rtw89_fw_download(rtwdev, fw_type, include_bb);
 	if (ret) {
 		rtw89_warn(rtwdev, "download fw failed\n");
 		return ret;

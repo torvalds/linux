@@ -501,8 +501,8 @@ static void ucsi_ccg_nvidia_altmode(struct ucsi_ccg *uc,
 	case NVIDIA_FTB_DP_OFFSET:
 		if (alt[0].mid == USB_TYPEC_NVIDIA_VLINK_DBG_VDO)
 			alt[0].mid = USB_TYPEC_NVIDIA_VLINK_DP_VDO |
-				DP_CAP_DP_SIGNALING | DP_CAP_USB |
-				DP_CONF_SET_PIN_ASSIGN(BIT(DP_PIN_ASSIGN_E));
+				     DP_CAP_DP_SIGNALLING(0) | DP_CAP_USB |
+				     DP_CONF_SET_PIN_ASSIGN(BIT(DP_PIN_ASSIGN_E));
 		break;
 	case NVIDIA_FTB_DBG_OFFSET:
 		if (alt[0].mid == USB_TYPEC_NVIDIA_VLINK_DP_VDO)

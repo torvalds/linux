@@ -21,13 +21,13 @@
  * (IPA_SHIFT - 4).
  */
 #define stage2_pgtable_levels(ipa)	ARM64_HW_PGTABLE_LEVELS((ipa) - 4)
-#define kvm_stage2_levels(kvm)		VTCR_EL2_LVLS(kvm->arch.vtcr)
+#define kvm_stage2_levels(mmu)		VTCR_EL2_LVLS((mmu)->vtcr)
 
 /*
  * kvm_mmmu_cache_min_pages() is the number of pages required to install
  * a stage-2 translation. We pre-allocate the entry level page table at
  * the VM creation.
  */
-#define kvm_mmu_cache_min_pages(kvm)	(kvm_stage2_levels(kvm) - 1)
+#define kvm_mmu_cache_min_pages(mmu)	(kvm_stage2_levels(mmu) - 1)
 
 #endif	/* __ARM64_S2_PGTABLE_H_ */

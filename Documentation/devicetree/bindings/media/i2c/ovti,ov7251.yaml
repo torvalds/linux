@@ -1,0 +1,109 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/media/i2c/ovti,ov7251.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: OmniVision OV7251 Image Sensor
+
+description:
+  The Omnivision OV7251 is a 1/7.5-Inch CMOS active pixel digital image sensor
+  with an active array size of 640H x 480V. It is programmable through a serial
+  I2C interface.
+
+maintainers:
+  - Todor Tomov <todor.too@gmail.com>
+
+properties:
+  compatible:
+    const: ovti,ov7251
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    description: XCLK Input Clock
+
+  clock-names:
+    const: xclk
+
+  clock-frequency:
+    description: Frequency of the xclk clock in Hz.
+
+  vdda-supply:
+    description: Analog voltage supply, 2.8 volts
+
+  vddd-supply:
+    description: Digital core voltage supply, 1.2 volts
+
+  vdddo-supply:
+    description: Digital I/O voltage supply, 1.8 volts
+
+  enable-gpios:
+    maxItems: 1
+    description:
+      Reference to the GPIO connected to the XSHUTDOWN pin, if any. Polarity
+      is GPIO_ACTIVE_HIGH.
+
+  port:
+    description: Digital Output Port
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          clock-lanes:
+            maximum: 1
+
+          data-lanes:
+            maxItems: 1
+
+          link-frequencies: true
+
+        required:
+          - data-lanes
+          - link-frequencies
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - vdddo-supply
+  - vdda-supply
+  - port
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        camera@3c {
+            compatible = "ovti,ov7251";
+            reg = <0x3c>;
+            clocks = <&clks 1>;
+            clock-frequency = <24000000>;
+            vdddo-supply = <&ov7251_vdddo_1v8>;
+            vdda-supply = <&ov7251_vdda_2v8>;
+            vddd-supply = <&ov7251_vddd_1v5>;
+            enable-gpios = <&gpio1 19 GPIO_ACTIVE_HIGH>;
+
+            port {
+                ov7251_ep: endpoint {
+                    remote-endpoint = <&csi0_ep>;
+                    clock-lanes = <1>;
+                    data-lanes = <0>;
+                    link-frequencies = /bits/ 64 <240000000 319200000>;
+                };
+            };
+        };
+    };
+...

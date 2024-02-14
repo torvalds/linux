@@ -24,7 +24,8 @@ static int mlx5e_set_int_port_tunnel(struct mlx5e_priv *priv,
 
 	route_dev = dev_get_by_index(dev_net(e->out_dev), e->route_dev_ifindex);
 
-	if (!route_dev || !netif_is_ovs_master(route_dev))
+	if (!route_dev || !netif_is_ovs_master(route_dev) ||
+	    attr->parse_attr->filter_dev == e->out_dev)
 		goto out;
 
 	err = mlx5e_set_fwd_to_int_port_actions(priv, attr, e->route_dev_ifindex,
@@ -1063,7 +1064,8 @@ int mlx5e_tc_tun_encap_dests_set(struct mlx5e_priv *priv,
 
 		out_priv = netdev_priv(encap_dev);
 		rpriv = out_priv->ppriv;
-		esw_attr->dests[out_index].rep = rpriv->rep;
+		esw_attr->dests[out_index].vport_valid = true;
+		esw_attr->dests[out_index].vport = rpriv->rep->vport;
 		esw_attr->dests[out_index].mdev = out_priv->mdev;
 	}
 

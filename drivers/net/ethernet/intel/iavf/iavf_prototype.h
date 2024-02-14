@@ -45,8 +45,6 @@ enum iavf_status iavf_aq_set_rss_lut(struct iavf_hw *hw, u16 seid,
 enum iavf_status iavf_aq_set_rss_key(struct iavf_hw *hw, u16 seid,
 				     struct iavf_aqc_get_set_rss_key_data *key);
 
-enum iavf_status iavf_set_mac_type(struct iavf_hw *hw);
-
 extern struct iavf_rx_ptype_decoded iavf_ptype_lookup[];
 
 static inline struct iavf_rx_ptype_decoded decode_rx_desc_ptype(u8 ptype)

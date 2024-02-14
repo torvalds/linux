@@ -11,15 +11,14 @@ maintainers:
 
 select: false
 
-$defs:
-
-  dai-channels:
+properties:
+  convert-channels:
     description: Number of audio channels used by DAI
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 32
 
-  dai-sample-format:
+  convert-sample-format:
     description: Audio sample format used by DAI
     $ref: /schemas/types.yaml#/definitions/string
     enum:
@@ -29,12 +28,10 @@ $defs:
       - s24_3le
       - s32_le
 
-  dai-sample-rate:
+  convert-rate:
     description: Audio sample rate used by DAI
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 8000
     maximum: 192000
-
-properties: {}
 
 additionalProperties: true

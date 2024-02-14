@@ -147,7 +147,7 @@ adv748x_csi2_get_pad_format(struct v4l2_subdev *sd,
 	struct adv748x_csi2 *tx = adv748x_sd_to_csi2(sd);
 
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 
 	return &tx->format;
 }

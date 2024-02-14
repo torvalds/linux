@@ -79,6 +79,18 @@ static int gve_verify_driver_compatibility(struct gve_priv *priv)
 	return err;
 }
 
+static netdev_features_t gve_features_check(struct sk_buff *skb,
+					    struct net_device *dev,
+					    netdev_features_t features)
+{
+	struct gve_priv *priv = netdev_priv(dev);
+
+	if (!gve_is_gqi(priv))
+		return gve_features_check_dqo(skb, dev, features);
+
+	return features;
+}
+
 static netdev_tx_t gve_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct gve_priv *priv = netdev_priv(dev);
@@ -190,7 +202,7 @@ static int gve_alloc_stats_report(struct gve_priv *priv)
 	rx_stats_num = (GVE_RX_STATS_REPORT_NUM + NIC_RX_STATS_REPORT_NUM) *
 		       priv->rx_cfg.num_queues;
 	priv->stats_report_len = struct_size(priv->stats_report, stats,
-					     tx_stats_num + rx_stats_num);
+					     size_add(tx_stats_num, rx_stats_num));
 	priv->stats_report =
 		dma_alloc_coherent(&priv->pdev->dev, priv->stats_report_len,
 				   &priv->stats_report_bus, GFP_KERNEL);
@@ -254,9 +266,12 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 	if (block->tx) {
 		if (block->tx->q_num < priv->tx_cfg.num_queues)
 			reschedule |= gve_tx_poll(block, budget);
-		else
+		else if (budget)
 			reschedule |= gve_xdp_poll(block, budget);
 	}
+
+	if (!budget)
+		return 0;
 
 	if (block->rx) {
 		work_done = gve_rx_poll(block, budget);
@@ -281,7 +296,7 @@ static int gve_napi_poll(struct napi_struct *napi, int budget)
 		if (block->rx)
 			reschedule |= gve_rx_work_pending(block->rx);
 
-		if (reschedule && napi_reschedule(napi))
+		if (reschedule && napi_schedule(napi))
 			iowrite32be(GVE_IRQ_MASK, irq_doorbell);
 	}
 	return work_done;
@@ -297,6 +312,9 @@ static int gve_napi_poll_dqo(struct napi_struct *napi, int budget)
 
 	if (block->tx)
 		reschedule |= gve_tx_poll_dqo(block, /*do_clean=*/true);
+
+	if (!budget)
+		return 0;
 
 	if (block->rx) {
 		work_done = gve_rx_poll_dqo(block, budget);
@@ -1310,7 +1328,7 @@ static int gve_open(struct net_device *dev)
 		/* Hard code this for now. This may be tuned in the future for
 		 * performance.
 		 */
-		priv->data_buffer_size_dqo = GVE_RX_BUFFER_SIZE_DQO;
+		priv->data_buffer_size_dqo = GVE_DEFAULT_RX_BUFFER_SIZE;
 	}
 	err = gve_create_rings(priv);
 	if (err)
@@ -1646,7 +1664,7 @@ static int verify_xdp_configuration(struct net_device *dev)
 		return -EOPNOTSUPP;
 	}
 
-	if (dev->mtu > (PAGE_SIZE / 2) - sizeof(struct ethhdr) - GVE_RX_PAD) {
+	if (dev->mtu > GVE_DEFAULT_RX_BUFFER_SIZE - sizeof(struct ethhdr) - GVE_RX_PAD) {
 		netdev_warn(dev, "XDP is not supported for mtu %d.\n",
 			    dev->mtu);
 		return -EOPNOTSUPP;
@@ -1873,6 +1891,7 @@ err:
 
 static const struct net_device_ops gve_netdev_ops = {
 	.ndo_start_xmit		=	gve_start_xmit,
+	.ndo_features_check	=	gve_features_check,
 	.ndo_open		=	gve_open,
 	.ndo_stop		=	gve_close,
 	.ndo_get_stats64	=	gve_get_stats,

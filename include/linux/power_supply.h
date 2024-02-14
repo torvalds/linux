@@ -767,7 +767,6 @@ struct power_supply_battery_info {
 	int bti_resistance_tolerance;
 };
 
-extern struct atomic_notifier_head power_supply_notifier;
 extern int power_supply_reg_notifier(struct notifier_block *nb);
 extern void power_supply_unreg_notifier(struct notifier_block *nb);
 #if IS_ENABLED(CONFIG_POWER_SUPPLY)

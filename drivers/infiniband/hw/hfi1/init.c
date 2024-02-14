@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or BSD-3-Clause
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright(c) 2015 - 2020 Intel Corporation.
  * Copyright(c) 2021 Cornelis Networks.
@@ -1027,7 +1027,6 @@ static void shutdown_device(struct hfi1_devdata *dd)
 	msix_clean_up_interrupts(dd);
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
-		ppd = dd->pport + pidx;
 		for (i = 0; i < dd->num_rcv_contexts; i++) {
 			rcd = hfi1_rcd_get_by_index(dd, i);
 			hfi1_rcvctrl(dd, HFI1_RCVCTRL_TAILUPD_DIS |

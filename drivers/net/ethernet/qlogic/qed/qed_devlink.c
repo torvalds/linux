@@ -66,12 +66,12 @@ qed_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 		return err;
 	}
 
-	err = devlink_fmsg_binary_pair_put(fmsg, "dump_data",
-					   p_dbg_data_buf, dbg_data_buf_size);
+	devlink_fmsg_binary_pair_put(fmsg, "dump_data", p_dbg_data_buf,
+				     dbg_data_buf_size);
 
 	vfree(p_dbg_data_buf);
 
-	return err;
+	return 0;
 }
 
 static int

@@ -81,7 +81,7 @@ much older and less secure than the default dialect SMB3 which includes
 many advanced security features such as downgrade attack detection
 and encrypted shares and stronger signing and authentication algorithms.
 There are additional mount options that may be helpful for SMB3 to get
-improved POSIX behavior (NB: can use vers=3.0 to force only SMB3, never 2.1):
+improved POSIX behavior (NB: can use vers=3 to force SMB3 or later, never 2.1):
 
    ``mfsymlinks`` and either ``cifsacl`` or ``modefromsid`` (usually with ``idsfromsid``)
 
@@ -715,6 +715,7 @@ DebugData		Displays information about active CIFS sessions and
 Stats			Lists summary resource usage information as well as per
 			share statistics.
 open_files		List all the open file handles on all active SMB sessions.
+mount_params            List of all mount parameters available for the module
 ======================= =======================================================
 
 Configuration pseudo-files:
@@ -863,6 +864,11 @@ module loading or during the runtime by using the interface::
 i.e.::
 
     echo "value" > /sys/module/cifs/parameters/<param>
+
+More detailed descriptions of the available module parameters and their values
+can be seen by doing:
+
+    modinfo cifs (or modinfo smb3)
 
 ================= ==========================================================
 1. enable_oplocks Enable or disable oplocks. Oplocks are enabled by default.

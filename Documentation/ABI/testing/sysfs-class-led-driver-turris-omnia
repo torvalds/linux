@@ -12,3 +12,17 @@ Description:	(RW) On the front panel of the Turris Omnia router there is also
 		able to change this setting from software.
 
 		Format: %i
+
+What:		/sys/class/leds/<led>/device/gamma_correction
+Date:		August 2023
+KernelVersion:	6.6
+Contact:	Marek Behún <kabel@kernel.org>
+Description:	(RW) Newer versions of the microcontroller firmware of the
+		Turris Omnia router support gamma correction for the RGB LEDs.
+		This feature can be enabled/disabled by writing to this file.
+
+		If the feature is not supported because the MCU firmware is too
+		old, the file always reads as 0, and writing to the file results
+		in the EOPNOTSUPP error.
+
+		Format: %i

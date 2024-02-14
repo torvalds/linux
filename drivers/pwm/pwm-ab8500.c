@@ -181,7 +181,6 @@ static int ab8500_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops ab8500_pwm_ops = {
 	.apply = ab8500_pwm_apply,
 	.get_state = ab8500_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int ab8500_pwm_probe(struct platform_device *pdev)

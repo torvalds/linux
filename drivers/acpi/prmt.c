@@ -69,7 +69,7 @@ struct prm_module_info {
 	bool updatable;
 
 	struct list_head module_list;
-	struct prm_handler_info handlers[];
+	struct prm_handler_info handlers[] __counted_by(handler_count);
 };
 
 static u64 efi_pa_va_lookup(u64 pa)

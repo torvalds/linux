@@ -79,7 +79,7 @@ The hardware tags all traffic internally with a port-based VLAN (pvid), or it
 decodes the VLAN information from the 802.1Q tag. Advanced VLAN classification
 is not possible. Once attributed a VLAN tag, frames are checked against the
 port's membership rules and dropped at ingress if they don't match any VLAN.
-This behavior is available when switch ports are enslaved to a bridge with
+This behavior is available when switch ports join a bridge with
 ``vlan_filtering 1``.
 
 Normally the hardware is not configurable with respect to VLAN awareness, but
@@ -122,7 +122,7 @@ on egress. Using ``vlan_filtering=1``, the behavior is the other way around:
 offloaded flows can be steered to TX queues based on the VLAN PCP, but the DSA
 net devices are no longer able to do that. To inject frames into a hardware TX
 queue with VLAN awareness active, it is necessary to create a VLAN
-sub-interface on the DSA master port, and send normal (0x8100) VLAN-tagged
+sub-interface on the DSA conduit port, and send normal (0x8100) VLAN-tagged
 towards the switch, with the VLAN PCP bits set appropriately.
 
 Management traffic (having DMAC 01-80-C2-xx-xx-xx or 01-19-1B-xx-xx-xx) is the
@@ -389,7 +389,7 @@ MDIO bus and PHY management
 The SJA1105 does not have an MDIO bus and does not perform in-band AN either.
 Therefore there is no link state notification coming from the switch device.
 A board would need to hook up the PHYs connected to the switch to any other
-MDIO bus available to Linux within the system (e.g. to the DSA master's MDIO
+MDIO bus available to Linux within the system (e.g. to the DSA conduit's MDIO
 bus). Link state management then works by the driver manually keeping in sync
 (over SPI commands) the MAC link speed with the settings negotiated by the PHY.
 

@@ -13,7 +13,7 @@
 
 / {
 	model = "Linksys WRV54G / Gemtek GTWX5715";
-	compatible = "linksys,wrv54g", "gemtek,gtwx5715", "intel,ixp42x";
+	compatible = "linksys,wrv54g", "intel,ixp42x";
 	#address-cells = <1>;
 	#size-cells = <1>;
 

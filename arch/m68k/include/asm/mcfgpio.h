@@ -8,16 +8,16 @@
 #ifndef mcfgpio_h
 #define mcfgpio_h
 
-#ifdef CONFIG_GPIOLIB
-#include <linux/gpio.h>
-#else
-
 int __mcfgpio_get_value(unsigned gpio);
 void __mcfgpio_set_value(unsigned gpio, int value);
 int __mcfgpio_direction_input(unsigned gpio);
 int __mcfgpio_direction_output(unsigned gpio, int value);
 int __mcfgpio_request(unsigned gpio);
 void __mcfgpio_free(unsigned gpio);
+
+#ifdef CONFIG_GPIOLIB
+#include <linux/gpio.h>
+#else
 
 /* our alternate 'gpiolib' functions */
 static inline int __gpio_get_value(unsigned gpio)

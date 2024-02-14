@@ -418,6 +418,12 @@ static u32 ih_v6_0_get_wptr(struct amdgpu_device *adev,
 	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
 	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
+
+	/* Unset the CLEAR_OVERFLOW bit immediately so new overflows
+	 * can be detected.
+	 */
+	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 0);
+	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
 out:
 	return (wptr & ih->ptr_mask);
 }
@@ -641,8 +647,6 @@ static void ih_v6_0_update_clockgating_state(struct amdgpu_device *adev,
 		if (def != data)
 			WREG32_SOC15(OSSSYS, 0, regIH_CLK_CTRL, data);
 	}
-
-	return;
 }
 
 static int ih_v6_0_set_clockgating_state(void *handle,
@@ -726,8 +730,6 @@ static void ih_v6_0_get_clockgating_state(void *handle, u64 *flags)
 
 	if (!RREG32_SOC15(OSSSYS, 0, regIH_CLK_CTRL))
 		*flags |= AMD_CG_SUPPORT_IH_CG;
-
-	return;
 }
 
 static const struct amd_ip_funcs ih_v6_0_ip_funcs = {

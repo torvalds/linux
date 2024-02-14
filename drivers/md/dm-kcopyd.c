@@ -807,7 +807,7 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	 */
 	if (!(job->flags & BIT(DM_KCOPYD_WRITE_SEQ))) {
 		for (i = 0; i < job->num_dests; i++) {
-			if (bdev_zoned_model(dests[i].bdev) == BLK_ZONED_HM) {
+			if (bdev_is_zoned(dests[i].bdev)) {
 				job->flags |= BIT(DM_KCOPYD_WRITE_SEQ);
 				break;
 			}

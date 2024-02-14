@@ -9,8 +9,10 @@
 #define IWL_UEFI_REDUCED_POWER_NAME	L"UefiCnvWlanReducedPower"
 #define IWL_UEFI_SGOM_NAME		L"UefiCnvWlanSarGeoOffsetMapping"
 #define IWL_UEFI_STEP_NAME		L"UefiCnvCommonSTEP"
+#define IWL_UEFI_UATS_NAME		L"CnvUefiWlanUATS"
 
 #define IWL_SGOM_MAP_SIZE		339
+#define IWL_UATS_MAP_SIZE		339
 
 struct pnvm_sku_package {
 	u8 rev;
@@ -23,6 +25,11 @@ struct pnvm_sku_package {
 struct uefi_cnv_wlan_sgom_data {
 	u8 revision;
 	u8 offset_map[IWL_SGOM_MAP_SIZE - 1];
+} __packed;
+
+struct uefi_cnv_wlan_uats_data {
+	u8 revision;
+	u8 offset_map[IWL_UATS_MAP_SIZE - 1];
 } __packed;
 
 struct uefi_cnv_common_step_data {
@@ -82,10 +89,20 @@ iwl_uefi_handle_tlv_mem_desc(struct iwl_trans *trans, const u8 *data,
 
 #if defined(CONFIG_EFI) && defined(CONFIG_ACPI)
 void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt);
+int iwl_uefi_get_uats_table(struct iwl_trans *trans,
+			    struct iwl_fw_runtime *fwrt);
 #else
 static inline
 void iwl_uefi_get_sgom_table(struct iwl_trans *trans, struct iwl_fw_runtime *fwrt)
 {
 }
+
+static inline
+int iwl_uefi_get_uats_table(struct iwl_trans *trans,
+			    struct iwl_fw_runtime *fwrt)
+{
+	return 0;
+}
+
 #endif
 #endif /* __iwl_fw_uefi__ */

@@ -290,9 +290,6 @@ struct imx208 {
 	 */
 	struct mutex imx208_mx;
 
-	/* Streaming on/off */
-	bool streaming;
-
 	/* OTP data */
 	bool otp_read;
 	char otp_data[IMX208_OTP_SIZE];
@@ -398,7 +395,7 @@ static int imx208_write_regs(struct imx208 *imx208,
 static int imx208_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 {
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	/* Initialize try_fmt */
 	try_fmt->width = supported_modes[0].width;
@@ -551,9 +548,8 @@ static int __imx208_get_pad_format(struct imx208 *imx208,
 				   struct v4l2_subdev_format *fmt)
 {
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&imx208->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		imx208_mode_to_pad_format(imx208, imx208->cur_mode, fmt);
 
@@ -594,7 +590,7 @@ static int imx208_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	imx208_mode_to_pad_format(imx208, mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		imx208->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(imx208->link_freq, mode->link_freq_index);
@@ -714,15 +710,13 @@ static int imx208_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&imx208->imx208_mx);
-	if (imx208->streaming == enable) {
-		mutex_unlock(&imx208->imx208_mx);
-		return 0;
-	}
 
 	if (enable) {
-		ret = pm_runtime_get_sync(&client->dev);
-		if (ret < 0)
-			goto err_rpm_put;
+		ret = pm_runtime_resume_and_get(&client->dev);
+		if (ret) {
+			mutex_unlock(&imx208->imx208_mx);
+			return ret;
+		}
 
 		/*
 		 * Apply default & customized values
@@ -736,7 +730,6 @@ static int imx208_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	imx208->streaming = enable;
 	mutex_unlock(&imx208->imx208_mx);
 
 	/* vflip and hflip cannot change during streaming */
@@ -748,40 +741,6 @@ static int imx208_set_stream(struct v4l2_subdev *sd, int enable)
 err_rpm_put:
 	pm_runtime_put(&client->dev);
 	mutex_unlock(&imx208->imx208_mx);
-
-	return ret;
-}
-
-static int __maybe_unused imx208_suspend(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx208 *imx208 = to_imx208(sd);
-
-	if (imx208->streaming)
-		imx208_stop_streaming(imx208);
-
-	return 0;
-}
-
-static int __maybe_unused imx208_resume(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct imx208 *imx208 = to_imx208(sd);
-	int ret;
-
-	if (imx208->streaming) {
-		ret = imx208_start_streaming(imx208);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	imx208_stop_streaming(imx208);
-	imx208->streaming = 0;
 
 	return ret;
 }
@@ -819,11 +778,9 @@ static int imx208_read_otp(struct imx208 *imx208)
 	if (imx208->otp_read)
 		goto out_unlock;
 
-	ret = pm_runtime_get_sync(&client->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&client->dev);
+	ret = pm_runtime_resume_and_get(&client->dev);
+	if (ret)
 		goto out_unlock;
-	}
 
 	ret = imx208_identify_module(imx208);
 	if (ret)
@@ -1081,10 +1038,6 @@ static void imx208_remove(struct i2c_client *client)
 	mutex_destroy(&imx208->imx208_mx);
 }
 
-static const struct dev_pm_ops imx208_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(imx208_suspend, imx208_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id imx208_acpi_ids[] = {
 	{ "INT3478" },
@@ -1097,7 +1050,6 @@ MODULE_DEVICE_TABLE(acpi, imx208_acpi_ids);
 static struct i2c_driver imx208_i2c_driver = {
 	.driver = {
 		.name = "imx208",
-		.pm = &imx208_pm_ops,
 		.acpi_match_table = ACPI_PTR(imx208_acpi_ids),
 	},
 	.probe = imx208_probe,

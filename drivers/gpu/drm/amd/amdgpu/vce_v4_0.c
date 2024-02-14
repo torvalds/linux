@@ -486,11 +486,6 @@ static int vce_v4_0_sw_init(void *handle)
 			return r;
 	}
 
-
-	r = amdgpu_vce_entity_init(adev);
-	if (r)
-		return r;
-
 	r = amdgpu_virt_alloc_mm_table(adev);
 	if (r)
 		return r;

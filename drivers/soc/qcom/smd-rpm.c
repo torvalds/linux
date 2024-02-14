@@ -142,7 +142,7 @@ out:
 	mutex_unlock(&rpm->lock);
 	return ret;
 }
-EXPORT_SYMBOL(qcom_rpm_smd_write);
+EXPORT_SYMBOL_GPL(qcom_rpm_smd_write);
 
 static int qcom_smd_rpm_callback(struct rpmsg_device *rpdev,
 				 void *data,

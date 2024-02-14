@@ -198,7 +198,6 @@ static const struct pwm_ops rcar_pwm_ops = {
 	.request = rcar_pwm_request,
 	.free = rcar_pwm_free,
 	.apply = rcar_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int rcar_pwm_probe(struct platform_device *pdev)

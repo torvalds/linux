@@ -2665,6 +2665,7 @@ static int atafb_set_par(struct fb_info *info)
 
 static struct fb_ops atafb_ops = {
 	.owner =	THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= atafb_check_var,
 	.fb_set_par	= atafb_set_par,
 	.fb_blank =	atafb_blank,
@@ -2673,6 +2674,7 @@ static struct fb_ops atafb_ops = {
 	.fb_copyarea	= atafb_copyarea,
 	.fb_imageblit	= atafb_imageblit,
 	.fb_ioctl =	atafb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static void check_default_par(int detected_mode)

@@ -369,6 +369,12 @@ static int nsim_init_netdevsim_vf(struct netdevsim *ns)
 	return err;
 }
 
+static void nsim_exit_netdevsim(struct netdevsim *ns)
+{
+	nsim_udp_tunnels_info_destroy(ns->netdev);
+	mock_phc_destroy(ns->phc);
+}
+
 struct netdevsim *
 nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 {
@@ -417,8 +423,7 @@ void nsim_destroy(struct netdevsim *ns)
 	}
 	rtnl_unlock();
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port))
-		nsim_udp_tunnels_info_destroy(dev);
-	mock_phc_destroy(ns->phc);
+		nsim_exit_netdevsim(ns);
 	free_netdev(dev);
 }
 
@@ -470,4 +475,5 @@ static void __exit nsim_module_exit(void)
 module_init(nsim_module_init);
 module_exit(nsim_module_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Simulated networking device for testing");
 MODULE_ALIAS_RTNL_LINK(DRV_NAME);

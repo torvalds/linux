@@ -109,7 +109,7 @@ static const struct ttm_pool_test_case ttm_pool_basic_cases[] = {
 	},
 	{
 		.description = "Above the allocation limit",
-		.order = MAX_ORDER + 1,
+		.order = MAX_PAGE_ORDER + 1,
 	},
 	{
 		.description = "One page, with coherent DMA mappings enabled",
@@ -118,7 +118,7 @@ static const struct ttm_pool_test_case ttm_pool_basic_cases[] = {
 	},
 	{
 		.description = "Above the allocation limit, with coherent DMA mappings enabled",
-		.order = MAX_ORDER + 1,
+		.order = MAX_PAGE_ORDER + 1,
 		.use_dma_alloc = true,
 	},
 };
@@ -165,7 +165,7 @@ static void ttm_pool_alloc_basic(struct kunit *test)
 	fst_page = tt->pages[0];
 	last_page = tt->pages[tt->num_pages - 1];
 
-	if (params->order <= MAX_ORDER) {
+	if (params->order <= MAX_PAGE_ORDER) {
 		if (params->use_dma_alloc) {
 			KUNIT_ASSERT_NOT_NULL(test, (void *)fst_page->private);
 			KUNIT_ASSERT_NOT_NULL(test, (void *)last_page->private);
@@ -182,7 +182,7 @@ static void ttm_pool_alloc_basic(struct kunit *test)
 			 * order 0 blocks
 			 */
 			KUNIT_ASSERT_EQ(test, fst_page->private,
-					min_t(unsigned int, MAX_ORDER,
+					min_t(unsigned int, MAX_PAGE_ORDER,
 					      params->order));
 			KUNIT_ASSERT_EQ(test, last_page->private, 0);
 		}

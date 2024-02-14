@@ -388,20 +388,18 @@ static int phram_probe(struct platform_device *pdev)
 			       PAGE_SIZE);
 }
 
-static int phram_remove(struct platform_device *pdev)
+static void phram_remove(struct platform_device *pdev)
 {
 	struct phram_mtd_list *phram = platform_get_drvdata(pdev);
 
 	mtd_device_unregister(&phram->mtd);
 	phram_unmap(phram);
 	kfree(phram);
-
-	return 0;
 }
 
 static struct platform_driver phram_driver = {
 	.probe		= phram_probe,
-	.remove		= phram_remove,
+	.remove_new	= phram_remove,
 	.driver		= {
 		.name		= "phram",
 		.of_match_table	= of_match_ptr(phram_of_match),

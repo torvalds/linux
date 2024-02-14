@@ -65,7 +65,7 @@
 			rgb {
 				status = "okay";
 
-				port@0 {
+				port {
 					lcd_output: endpoint {
 						remote-endpoint = <&lvds_encoder_input>;
 						bus-width = <18>;

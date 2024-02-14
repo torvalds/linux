@@ -63,6 +63,10 @@
 #define GAUDI_LINUX_FW_FILE	"habanalabs/gaudi/gaudi-fit.itb"
 #define GAUDI_TPC_FW_FILE	"habanalabs/gaudi/gaudi_tpc.bin"
 
+MODULE_FIRMWARE(GAUDI_BOOT_FIT_FILE);
+MODULE_FIRMWARE(GAUDI_LINUX_FW_FILE);
+MODULE_FIRMWARE(GAUDI_TPC_FW_FILE);
+
 #define GAUDI_DMA_POOL_BLK_SIZE		0x100 /* 256 bytes */
 
 #define GAUDI_RESET_TIMEOUT_MSEC	2000		/* 2000ms */
@@ -660,7 +664,7 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
 
-	strncpy(prop->cpucp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
+	strscpy_pad(prop->cpucp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
 					CARD_NAME_MAX_LEN);
 
 	prop->max_pending_cs = GAUDI_MAX_PENDING_CS;
@@ -4619,8 +4623,7 @@ static int gaudi_scrub_device_dram(struct hl_device *hdev, u64 val)
 static int gaudi_scrub_device_mem(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 wait_to_idle_time = hdev->pdev ? HBM_SCRUBBING_TIMEOUT_US :
-			min_t(u64, HBM_SCRUBBING_TIMEOUT_US * 10, HL_SIM_MAX_TIMEOUT_US);
+	u64 wait_to_idle_time = HBM_SCRUBBING_TIMEOUT_US;
 	u64 addr, size, val = hdev->memory_scrub_val;
 	ktime_t timeout;
 	int rc = 0;
@@ -4904,7 +4907,7 @@ static int gaudi_pin_memory_before_cs(struct hl_device *hdev,
 
 	list_add_tail(&userptr->job_node, parser->job_userptr_list);
 
-	rc = hdev->asic_funcs->asic_dma_map_sgtable(hdev, userptr->sgt, dir);
+	rc = hl_dma_map_sgtable(hdev, userptr->sgt, dir);
 	if (rc) {
 		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
 		goto unpin_memory;
@@ -8000,7 +8003,7 @@ static int gaudi_cpucp_info_get(struct hl_device *hdev)
 		return rc;
 
 	if (!strlen(prop->cpucp_info.card_name))
-		strncpy(prop->cpucp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
+		strscpy_pad(prop->cpucp_info.card_name, GAUDI_DEFAULT_CARD_NAME,
 				CARD_NAME_MAX_LEN);
 
 	hdev->card_type = le32_to_cpu(hdev->asic_prop.cpucp_info.card_type);
@@ -9140,9 +9143,9 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.asic_dma_pool_free = gaudi_dma_pool_free,
 	.cpu_accessible_dma_pool_alloc = gaudi_cpu_accessible_dma_pool_alloc,
 	.cpu_accessible_dma_pool_free = gaudi_cpu_accessible_dma_pool_free,
-	.hl_dma_unmap_sgtable = hl_dma_unmap_sgtable,
+	.dma_unmap_sgtable = hl_asic_dma_unmap_sgtable,
 	.cs_parser = gaudi_cs_parser,
-	.asic_dma_map_sgtable = hl_dma_map_sgtable,
+	.dma_map_sgtable = hl_asic_dma_map_sgtable,
 	.add_end_of_cb_packets = gaudi_add_end_of_cb_packets,
 	.update_eq_ci = gaudi_update_eq_ci,
 	.context_switch = gaudi_context_switch,

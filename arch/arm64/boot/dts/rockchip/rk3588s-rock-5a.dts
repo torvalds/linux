@@ -12,9 +12,9 @@
 	compatible = "radxa,rock-5a", "rockchip,rk3588s";
 
 	aliases {
+		ethernet0 = &gmac1;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
-		serial2 = &uart2;
 	};
 
 	analog-sound {
@@ -112,6 +112,10 @@
 		regulator-max-microvolt = <1100000>;
 		vin-supply = <&vcc5v0_sys>;
 	};
+};
+
+&combphy2_psu {
+	status = "okay";
 };
 
 &cpu_b0 {
@@ -732,5 +736,9 @@
 };
 
 &usb_host1_ohci {
+	status = "okay";
+};
+
+&usb_host2_xhci {
 	status = "okay";
 };

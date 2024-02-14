@@ -693,6 +693,25 @@ TESTPAGEFLAG_FALSE(Ksm, ksm)
 u64 stable_page_flags(struct page *page);
 
 /**
+ * folio_xor_flags_has_waiters - Change some folio flags.
+ * @folio: The folio.
+ * @mask: Bits set in this word will be changed.
+ *
+ * This must only be used for flags which are changed with the folio
+ * lock held.  For example, it is unsafe to use for PG_dirty as that
+ * can be set without the folio lock held.  It can also only be used
+ * on flags which are in the range 0-6 as some of the implementations
+ * only affect those bits.
+ *
+ * Return: Whether there are tasks waiting on the folio.
+ */
+static inline bool folio_xor_flags_has_waiters(struct folio *folio,
+		unsigned long mask)
+{
+	return xor_unlock_is_negative_byte(mask, folio_flags(folio, 0));
+}
+
+/**
  * folio_test_uptodate - Is this folio up to date?
  * @folio: The folio.
  *
@@ -753,18 +772,13 @@ static __always_inline void SetPageUptodate(struct page *page)
 
 CLEARPAGEFLAG(Uptodate, uptodate, PF_NO_TAIL)
 
-bool __folio_start_writeback(struct folio *folio, bool keep_write);
-bool set_page_writeback(struct page *page);
+void __folio_start_writeback(struct folio *folio, bool keep_write);
+void set_page_writeback(struct page *page);
 
 #define folio_start_writeback(folio)			\
 	__folio_start_writeback(folio, false)
 #define folio_start_writeback_keepwrite(folio)	\
 	__folio_start_writeback(folio, true)
-
-static inline bool test_set_page_writeback(struct page *page)
-{
-	return set_page_writeback(page);
-}
 
 static __always_inline bool folio_test_head(struct folio *folio)
 {

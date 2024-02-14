@@ -38,6 +38,14 @@ struct timing_sync_info {
 	bool master;
 };
 
+struct mall_stream_config {
+	/* MALL stream config to indicate if the stream is phantom or not.
+	 * We will use a phantom stream to indicate that the pipe is phantom.
+	 */
+	enum mall_stream_type type;
+	struct dc_stream_state *paired_stream;	// master / slave stream
+};
+
 struct dc_stream_status {
 	int primary_otg_inst;
 	int stream_enc_inst;
@@ -50,6 +58,7 @@ struct dc_stream_status {
 	struct timing_sync_info timing_sync_info;
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 	bool is_abm_supported;
+	struct mall_stream_config mall_stream_config;
 };
 
 enum hubp_dmdata_mode {
@@ -147,31 +156,6 @@ struct test_pattern {
 
 #define SUBVP_DRR_MARGIN_US 100 // 100us for DRR margin (SubVP + DRR)
 
-enum mall_stream_type {
-	SUBVP_NONE, // subvp not in use
-	SUBVP_MAIN, // subvp in use, this stream is main stream
-	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
-};
-
-struct mall_stream_config {
-	/* MALL stream config to indicate if the stream is phantom or not.
-	 * We will use a phantom stream to indicate that the pipe is phantom.
-	 */
-	enum mall_stream_type type;
-	struct dc_stream_state *paired_stream;	// master / slave stream
-};
-
-/* Temp struct used to save and restore MALL config
- * during validation.
- *
- * TODO: Move MALL config into dc_state instead of stream struct
- * to avoid needing to save/restore.
- */
-struct mall_temp_config {
-	struct mall_stream_config mall_stream_config[MAX_PIPES];
-	bool is_phantom_plane[MAX_PIPES];
-};
-
 struct dc_stream_debug_options {
 	char force_odm_combine_segments;
 };
@@ -188,7 +172,6 @@ struct dc_stream_state {
 	struct link_encoder *link_enc;
 	struct dc_stream_debug_options debug;
 	struct dc_panel_patch sink_patches;
-	union display_content_support content_support;
 	struct dc_crtc_timing timing;
 	struct dc_crtc_timing_adjust adjust;
 	struct dc_info_packet vrr_infopacket;
@@ -212,6 +195,7 @@ struct dc_stream_state {
 	struct dc_csc_transform csc_color_matrix;
 
 	enum dc_color_space output_color_space;
+	enum display_content_type content_type;
 	enum dc_dither_option dither_option;
 
 	enum view_3d_format view_format;
@@ -301,8 +285,7 @@ struct dc_stream_state {
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
 	bool fpo_in_use;
-	struct mall_stream_config mall_stream_config;
-	bool skip_edp_power_down;
+	bool is_phantom;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -416,44 +399,13 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *h_position,
 				  uint32_t *v_position);
 
-enum dc_status dc_add_stream_to_ctx(
-			struct dc *dc,
-		struct dc_state *new_ctx,
-		struct dc_stream_state *stream);
-
-enum dc_status dc_remove_stream_from_ctx(
-		struct dc *dc,
-			struct dc_state *new_ctx,
-			struct dc_stream_state *stream);
-
-
-bool dc_add_plane_to_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context);
-
-bool dc_remove_plane_from_context(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state *plane_state,
-		struct dc_state *context);
-
-bool dc_rem_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_state *context);
-
-bool dc_add_all_planes_for_stream(
-		const struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_plane_state * const *plane_states,
-		int plane_count,
-		struct dc_state *context);
-
 bool dc_stream_add_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_writeback_info *wb_info);
+
+bool dc_stream_fc_disable_writeback(struct dc *dc,
+		struct dc_stream_state *stream,
+		uint32_t dwb_pipe_inst);
 
 bool dc_stream_remove_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
@@ -515,17 +467,8 @@ void update_stream_signal(struct dc_stream_state *stream, struct dc_sink *sink);
 void dc_stream_retain(struct dc_stream_state *dc_stream);
 void dc_stream_release(struct dc_stream_state *dc_stream);
 
-struct dc_stream_status *dc_stream_get_status_from_state(
-	struct dc_state *state,
-	struct dc_stream_state *stream);
 struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *dc_stream);
-
-#ifndef TRIM_FSFT
-bool dc_optimize_timing_for_fsft(
-	struct dc_stream_state *pStream,
-	unsigned int max_input_rate_in_khz);
-#endif
 
 /*******************************************************************************
  * Cursor interfaces - To manages the cursor within a stream

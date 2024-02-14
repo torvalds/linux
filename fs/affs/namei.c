@@ -532,9 +532,6 @@ static struct dentry *affs_get_parent(struct dentry *child)
 	parent = affs_iget(child->d_sb,
 			   be32_to_cpu(AFFS_TAIL(child->d_sb, bh)->parent));
 	brelse(bh);
-	if (IS_ERR(parent))
-		return ERR_CAST(parent);
-
 	return d_obtain_alias(parent);
 }
 
@@ -568,6 +565,7 @@ static struct dentry *affs_fh_to_parent(struct super_block *sb, struct fid *fid,
 }
 
 const struct export_operations affs_export_ops = {
+	.encode_fh = generic_encode_ino32_fh,
 	.fh_to_dentry = affs_fh_to_dentry,
 	.fh_to_parent = affs_fh_to_parent,
 	.get_parent = affs_get_parent,

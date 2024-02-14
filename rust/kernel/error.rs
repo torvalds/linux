@@ -2,7 +2,7 @@
 
 //! Kernel errors.
 //!
-//! C header: [`include/uapi/asm-generic/errno-base.h`](../../../include/uapi/asm-generic/errno-base.h)
+//! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
 use crate::str::CStr;
 
@@ -37,7 +37,7 @@ pub mod code {
     declare_err!(E2BIG, "Argument list too long.");
     declare_err!(ENOEXEC, "Exec format error.");
     declare_err!(EBADF, "Bad file number.");
-    declare_err!(ECHILD, "Exec format error.");
+    declare_err!(ECHILD, "No child processes.");
     declare_err!(EAGAIN, "Try again.");
     declare_err!(ENOMEM, "Out of memory.");
     declare_err!(EACCES, "Permission denied.");
@@ -133,7 +133,7 @@ impl Error {
     /// Returns the error encoded as a pointer.
     #[allow(dead_code)]
     pub(crate) fn to_ptr<T>(self) -> *mut T {
-        // SAFETY: self.0 is a valid error due to its invariant.
+        // SAFETY: `self.0` is a valid error due to its invariant.
         unsafe { bindings::ERR_PTR(self.0.into()) as *mut _ }
     }
 
@@ -335,3 +335,7 @@ where
         Err(e) => T::from(e.to_errno() as i16),
     }
 }
+
+/// Error message for calling a default function of a [`#[vtable]`](macros::vtable) trait.
+pub const VTABLE_DEFAULT_ERROR: &str =
+    "This function must not be called, see the #[vtable] documentation.";

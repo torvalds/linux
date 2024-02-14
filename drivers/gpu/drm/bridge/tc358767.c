@@ -2005,7 +2005,7 @@ static const struct regmap_config tc_regmap_config = {
 	.val_bits = 32,
 	.reg_stride = 4,
 	.max_register = PLL_DBG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.readable_reg = tc_readable_reg,
 	.volatile_table = &tc_volatile_table,
 	.writeable_reg = tc_writeable_reg,
@@ -2273,7 +2273,7 @@ static int tc_probe(struct i2c_client *client)
 	} else {
 		if (tc->hpd_pin < 0 || tc->hpd_pin > 1) {
 			dev_err(dev, "failed to parse HPD number\n");
-			return ret;
+			return -EINVAL;
 		}
 	}
 

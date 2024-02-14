@@ -20,6 +20,7 @@
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/hardirq.h>
+#include <asm/traps.h>
 
 void bad_page_fault(struct pt_regs*, unsigned long, int);
 

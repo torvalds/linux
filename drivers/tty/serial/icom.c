@@ -929,7 +929,7 @@ static inline void check_modem_status(struct icom_port *icom_port)
 	char delta_status;
 	unsigned char status;
 
-	spin_lock(&icom_port->uart_port.lock);
+	uart_port_lock(&icom_port->uart_port);
 
 	/*modem input register */
 	status = readb(&icom_port->dram->isr);
@@ -951,7 +951,7 @@ static inline void check_modem_status(struct icom_port *icom_port)
 				      port.delta_msr_wait);
 		old_status = status;
 	}
-	spin_unlock(&icom_port->uart_port.lock);
+	uart_port_unlock(&icom_port->uart_port);
 }
 
 static void xmit_interrupt(u16 port_int_reg, struct icom_port *icom_port)
@@ -1093,7 +1093,7 @@ static void process_interrupt(u16 port_int_reg,
 			      struct icom_port *icom_port)
 {
 
-	spin_lock(&icom_port->uart_port.lock);
+	uart_port_lock(&icom_port->uart_port);
 	trace(icom_port, "INTERRUPT", port_int_reg);
 
 	if (port_int_reg & (INT_XMIT_COMPLETED | INT_XMIT_DISABLED))
@@ -1102,7 +1102,7 @@ static void process_interrupt(u16 port_int_reg,
 	if (port_int_reg & INT_RCV_COMPLETED)
 		recv_interrupt(port_int_reg, icom_port);
 
-	spin_unlock(&icom_port->uart_port.lock);
+	uart_port_unlock(&icom_port->uart_port);
 }
 
 static irqreturn_t icom_interrupt(int irq, void *dev_id)
@@ -1186,14 +1186,14 @@ static unsigned int icom_tx_empty(struct uart_port *port)
 	int ret;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	if (le16_to_cpu(icom_port->statStg->xmit[0].flags) &
 	    SA_FLAGS_READY_TO_XMIT)
 		ret = TIOCSER_TEMT;
 	else
 		ret = 0;
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 	return ret;
 }
 
@@ -1276,7 +1276,7 @@ static void icom_send_xchar(struct uart_port *port, char ch)
 
 	/* wait .1 sec to send char */
 	for (index = 0; index < 10; index++) {
-		spin_lock_irqsave(&port->lock, flags);
+		uart_port_lock_irqsave(port, &flags);
 		xdata = readb(&icom_port->dram->xchar);
 		if (xdata == 0x00) {
 			trace(icom_port, "QUICK_WRITE", 0);
@@ -1284,10 +1284,10 @@ static void icom_send_xchar(struct uart_port *port, char ch)
 
 			/* flush write operation */
 			xdata = readb(&icom_port->dram->xchar);
-			spin_unlock_irqrestore(&port->lock, flags);
+			uart_port_unlock_irqrestore(port, flags);
 			break;
 		}
-		spin_unlock_irqrestore(&port->lock, flags);
+		uart_port_unlock_irqrestore(port, flags);
 		msleep(10);
 	}
 }
@@ -1307,7 +1307,7 @@ static void icom_break(struct uart_port *port, int break_state)
 	unsigned char cmdReg;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	trace(icom_port, "BREAK", 0);
 	cmdReg = readb(&icom_port->dram->CmdReg);
 	if (break_state == -1) {
@@ -1315,7 +1315,7 @@ static void icom_break(struct uart_port *port, int break_state)
 	} else {
 		writeb(cmdReg & ~CMD_SND_BREAK, &icom_port->dram->CmdReg);
 	}
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static int icom_open(struct uart_port *port)
@@ -1365,7 +1365,7 @@ static void icom_set_termios(struct uart_port *port, struct ktermios *termios,
 	unsigned long offset;
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	trace(icom_port, "CHANGE_SPEED", 0);
 
 	cflag = termios->c_cflag;
@@ -1516,7 +1516,7 @@ static void icom_set_termios(struct uart_port *port, struct ktermios *termios,
 	trace(icom_port, "XR_ENAB", 0);
 	writeb(CMD_XMIT_RCV_ENABLE, &icom_port->dram->CmdReg);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *icom_type(struct uart_port *port)

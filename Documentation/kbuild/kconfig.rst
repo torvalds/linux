@@ -56,6 +56,15 @@ KCONFIG_OVERWRITECONFIG
 If you set KCONFIG_OVERWRITECONFIG in the environment, Kconfig will not
 break symlinks when .config is a symlink to somewhere else.
 
+KCONFIG_WARN_UNKNOWN_SYMBOLS
+----------------------------
+This environment variable makes Kconfig warn about all unrecognized
+symbols in the config input.
+
+KCONFIG_WERROR
+--------------
+If set, Kconfig treats warnings as errors.
+
 `CONFIG_`
 ---------
 If you set `CONFIG_` in the environment, Kconfig will prefix all symbols
@@ -212,6 +221,10 @@ Searching in menuconfig:
 	first (and in alphabetical order), then come all other symbols,
 	sorted in alphabetical order.
 
+	In this menu, pressing the key in the (#) prefix will jump
+	directly to that location. You will be returned to the current
+	search results after exiting this new menu.
+
 ----------------------------------------------------------------------
 
 User interface options for 'menuconfig'
@@ -263,6 +276,10 @@ Searching in nconfig:
 
 	F8 (SymSearch) searches the configuration symbols for the
 	given string or regular expression (regex).
+
+	In the SymSearch, pressing the key in the (#) prefix will
+	jump directly to that location. You will be returned to the
+	current search results after exiting this new menu.
 
 NCONFIG_MODE
 ------------

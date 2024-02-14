@@ -56,6 +56,24 @@
 #define IMX334_REG_MIN		0x00
 #define IMX334_REG_MAX		0xfffff
 
+/* Test Pattern Control */
+#define IMX334_REG_TP		0x329e
+#define IMX334_TP_COLOR_HBARS	0xA
+#define IMX334_TP_COLOR_VBARS	0xB
+
+#define IMX334_TPG_EN_DOUT	0x329c
+#define IMX334_TP_ENABLE	0x1
+#define IMX334_TP_DISABLE	0x0
+
+#define IMX334_TPG_COLORW	0x32a0
+#define IMX334_TPG_COLORW_120P	0x13
+
+#define IMX334_TP_CLK_EN	0x3148
+#define IMX334_TP_CLK_EN_VAL	0x10
+#define IMX334_TP_CLK_DIS_VAL	0x0
+
+#define IMX334_DIG_CLP_MODE	0x3280
+
 /**
  * struct imx334_reg - imx334 sensor register
  * @address: Register address
@@ -120,7 +138,6 @@ struct imx334_mode {
  * @mutex: Mutex for serializing sensor controls
  * @menu_skip_mask: Menu skip mask for link_freq_ctrl
  * @cur_code: current selected format code
- * @streaming: Flag indicating streaming state
  */
 struct imx334 {
 	struct device *dev;
@@ -143,7 +160,6 @@ struct imx334 {
 	struct mutex mutex;
 	unsigned long menu_skip_mask;
 	u32 cur_code;
-	bool streaming;
 };
 
 static const s64 link_freq[] = {
@@ -428,6 +444,18 @@ static const struct imx334_reg mode_3840x2160_regs[] = {
 	{0x3a27, 0x00},
 	{0x3a28, 0x5f},
 	{0x3a29, 0x00},
+};
+
+static const char * const imx334_test_pattern_menu[] = {
+	"Disabled",
+	"Vertical Color Bars",
+	"Horizontal Color Bars",
+};
+
+static const int imx334_test_pattern_val[] = {
+	IMX334_TP_DISABLE,
+	IMX334_TP_COLOR_HBARS,
+	IMX334_TP_COLOR_VBARS,
 };
 
 static const struct imx334_reg raw10_framefmt_regs[] = {
@@ -716,6 +744,26 @@ static int imx334_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_HBLANK:
 		ret = 0;
 		break;
+	case V4L2_CID_TEST_PATTERN:
+		if (ctrl->val) {
+			imx334_write_reg(imx334, IMX334_TP_CLK_EN, 1,
+					 IMX334_TP_CLK_EN_VAL);
+			imx334_write_reg(imx334, IMX334_DIG_CLP_MODE, 1, 0x0);
+			imx334_write_reg(imx334, IMX334_TPG_COLORW, 1,
+					 IMX334_TPG_COLORW_120P);
+			imx334_write_reg(imx334, IMX334_REG_TP, 1,
+					 imx334_test_pattern_val[ctrl->val]);
+			imx334_write_reg(imx334, IMX334_TPG_EN_DOUT, 1,
+					 IMX334_TP_ENABLE);
+		} else {
+			imx334_write_reg(imx334, IMX334_DIG_CLP_MODE, 1, 0x1);
+			imx334_write_reg(imx334, IMX334_TP_CLK_EN, 1,
+					 IMX334_TP_CLK_DIS_VAL);
+			imx334_write_reg(imx334, IMX334_TPG_EN_DOUT, 1,
+					 IMX334_TP_DISABLE);
+		}
+		ret = 0;
+		break;
 	default:
 		dev_err(imx334->dev, "Invalid control %d", ctrl->id);
 		ret = -EINVAL;
@@ -831,7 +879,7 @@ static int imx334_get_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		fmt->format.code = imx334->cur_code;
@@ -872,7 +920,7 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *framefmt;
 
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else if (imx334->cur_mode != mode || imx334->cur_code != fmt->format.code) {
 		imx334->cur_code = fmt->format.code;
@@ -887,14 +935,14 @@ static int imx334_set_pad_format(struct v4l2_subdev *sd,
 }
 
 /**
- * imx334_init_pad_cfg() - Initialize sub-device pad configuration
+ * imx334_init_state() - Initialize sub-device state
  * @sd: pointer to imx334 V4L2 sub-device structure
  * @sd_state: V4L2 sub-device state
  *
  * Return: 0 if successful, error code otherwise.
  */
-static int imx334_init_pad_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int imx334_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct imx334 *imx334 = to_imx334(sd);
 	struct v4l2_subdev_format fmt = { 0 };
@@ -1001,11 +1049,6 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 
 	mutex_lock(&imx334->mutex);
 
-	if (imx334->streaming == enable) {
-		mutex_unlock(&imx334->mutex);
-		return 0;
-	}
-
 	if (enable) {
 		ret = pm_runtime_resume_and_get(imx334->dev);
 		if (ret < 0)
@@ -1018,8 +1061,6 @@ static int imx334_set_stream(struct v4l2_subdev *sd, int enable)
 		imx334_stop_streaming(imx334);
 		pm_runtime_put(imx334->dev);
 	}
-
-	imx334->streaming = enable;
 
 	mutex_unlock(&imx334->mutex);
 
@@ -1149,7 +1190,6 @@ static const struct v4l2_subdev_video_ops imx334_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
-	.init_cfg = imx334_init_pad_cfg,
 	.enum_mbus_code = imx334_enum_mbus_code,
 	.enum_frame_size = imx334_enum_frame_size,
 	.get_fmt = imx334_get_pad_format,
@@ -1159,6 +1199,10 @@ static const struct v4l2_subdev_pad_ops imx334_pad_ops = {
 static const struct v4l2_subdev_ops imx334_subdev_ops = {
 	.video = &imx334_video_ops,
 	.pad = &imx334_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx334_internal_ops = {
+	.init_state = imx334_init_state,
 };
 
 /**
@@ -1222,7 +1266,7 @@ static int imx334_init_controls(struct imx334 *imx334)
 	u32 lpfr;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 6);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 7);
 	if (ret)
 		return ret;
 
@@ -1282,6 +1326,11 @@ static int imx334_init_controls(struct imx334 *imx334)
 	if (imx334->hblank_ctrl)
 		imx334->hblank_ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
+	v4l2_ctrl_new_std_menu_items(ctrl_hdlr, &imx334_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(imx334_test_pattern_menu) - 1,
+				     0, 0, imx334_test_pattern_menu);
+
 	if (ctrl_hdlr->error) {
 		dev_err(imx334->dev, "control init failed: %d",
 			ctrl_hdlr->error);
@@ -1313,6 +1362,7 @@ static int imx334_probe(struct i2c_client *client)
 
 	/* Initialize subdev */
 	v4l2_i2c_subdev_init(&imx334->sd, client, &imx334_subdev_ops);
+	imx334->sd.internal_ops = &imx334_internal_ops;
 
 	ret = imx334_parse_hw_config(imx334);
 	if (ret) {

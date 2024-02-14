@@ -13,6 +13,11 @@
 / {
 	compatible = "rockchip,rk3066a";
 
+	aliases {
+		gpio4 = &gpio4;
+		gpio6 = &gpio6;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

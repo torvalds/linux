@@ -142,6 +142,44 @@ enum btc_lps_state {
 	BTC_LPS_RF_ON = 2
 };
 
+#define R_BTC_BB_BTG_RX 0x980
+#define R_BTC_BB_PRE_AGC_S1 0x476C
+#define R_BTC_BB_PRE_AGC_S0 0x4688
+
+#define B_BTC_BB_GNT_MUX GENMASK(20, 17)
+#define B_BTC_BB_PRE_AGC_MASK GENMASK(31, 24)
+#define B_BTC_BB_PRE_AGC_VAL BIT(31)
+
+#define BTC_REG_NOTFOUND 0xff
+
+enum btc_ant_div_pos {
+	BTC_ANT_DIV_MAIN = 0,
+	BTC_ANT_DIV_AUX = 1,
+};
+
+enum btc_get_reg_status {
+	BTC_CSTATUS_TXDIV_POS = 0,
+	BTC_CSTATUS_RXDIV_POS = 1,
+	BTC_CSTATUS_BB_GNT_MUX = 2,
+	BTC_CSTATUS_BB_GNT_MUX_MON = 3,
+	BTC_CSTATUS_BB_PRE_AGC = 4,
+	BTC_CSTATUS_BB_PRE_AGC_MON = 5,
+};
+
+enum btc_preagc_type {
+	BTC_PREAGC_DISABLE,
+	BTC_PREAGC_ENABLE,
+	BTC_PREAGC_BB_FWCTRL,
+	BTC_PREAGC_NOTFOUND,
+};
+
+enum btc_btgctrl_type {
+	BTC_BTGCTRL_DISABLE,
+	BTC_BTGCTRL_ENABLE,
+	BTC_BTGCTRL_BB_GNT_FWCTRL,
+	BTC_BTGCTRL_BB_GNT_NOTFOUND,
+};
+
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev);
 void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode);

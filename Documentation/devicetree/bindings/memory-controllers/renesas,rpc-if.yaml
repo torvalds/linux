@@ -80,6 +80,8 @@ properties:
 patternProperties:
   "flash@[0-9a-f]+$":
     type: object
+    additionalProperties: true
+
     properties:
       compatible:
         contains:

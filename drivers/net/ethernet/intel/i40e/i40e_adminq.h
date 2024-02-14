@@ -4,7 +4,8 @@
 #ifndef _I40E_ADMINQ_H_
 #define _I40E_ADMINQ_H_
 
-#include "i40e_osdep.h"
+#include <linux/mutex.h>
+#include "i40e_alloc.h"
 #include "i40e_adminq_cmd.h"
 
 #define I40E_ADMINQ_DESC(R, i)   \
@@ -28,13 +29,6 @@ struct i40e_adminq_ring {
 	/* used for interrupt processing */
 	u16 next_to_use;
 	u16 next_to_clean;
-
-	/* used for queue tracking */
-	u32 head;
-	u32 tail;
-	u32 len;
-	u32 bah;
-	u32 bal;
 };
 
 /* ASQ transaction details */

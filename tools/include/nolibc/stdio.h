@@ -7,13 +7,12 @@
 #ifndef _NOLIBC_STDIO_H
 #define _NOLIBC_STDIO_H
 
-#include <stdarg.h>
-
 #include "std.h"
 #include "arch.h"
 #include "errno.h"
 #include "types.h"
 #include "sys.h"
+#include "stdarg.h"
 #include "stdlib.h"
 #include "string.h"
 
@@ -213,7 +212,7 @@ char *fgets(char *s, int size, FILE *stream)
  *  - %s
  *  - unknown modifiers are ignored.
  */
-static __attribute__((unused))
+static __attribute__((unused, format(printf, 2, 0)))
 int vfprintf(FILE *stream, const char *fmt, va_list args)
 {
 	char escape, lpref, c;
@@ -319,7 +318,7 @@ int vfprintf(FILE *stream, const char *fmt, va_list args)
 	return written;
 }
 
-static __attribute__((unused))
+static __attribute__((unused, format(printf, 1, 0)))
 int vprintf(const char *fmt, va_list args)
 {
 	return vfprintf(stdout, fmt, args);

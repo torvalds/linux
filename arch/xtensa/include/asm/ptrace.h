@@ -106,6 +106,9 @@ static inline unsigned long regs_return_value(struct pt_regs *regs)
 	return regs->areg[2];
 }
 
+int do_syscall_trace_enter(struct pt_regs *regs);
+void do_syscall_trace_leave(struct pt_regs *regs);
+
 #else	/* __ASSEMBLY__ */
 
 # include <asm/asm-offsets.h>

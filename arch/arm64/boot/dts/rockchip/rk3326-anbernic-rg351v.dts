@@ -1,0 +1,44 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+#include "rk3326-anbernic-rg351m.dtsi"
+
+/ {
+	model = "Anbernic RG351V";
+	compatible = "anbernic,rg351v", "rockchip,rk3326";
+
+	gpio_keys_vol: gpio-keys-vol {
+		compatible = "gpio-keys";
+		autorepeat;
+
+		button-vol-down {
+			gpios = <&gpio2 RK_PA1 GPIO_ACTIVE_LOW>;
+			label = "VOLUMEDOWN";
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		button-vol-up {
+			gpios = <&gpio2 RK_PA0 GPIO_ACTIVE_LOW>;
+			label = "VOLUMEUP";
+			linux,code = <KEY_VOLUMEUP>;
+		};
+	};
+};
+
+&internal_display {
+	compatible = "anbernic,rg351v-panel", "newvision,nv3051d";
+	vdd-supply = <&vcc_lcd>;
+};
+
+&io_domains {
+	vccio1-supply = <&vccio_sd>;
+};
+
+&vcc_sd {
+	regulator-max-microvolt = <3000000>;
+	regulator-min-microvolt = <1800000>;
+};
+
+&vccio_sd {
+	regulator-max-microvolt = <1800000>;
+};

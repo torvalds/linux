@@ -31,6 +31,10 @@ static const char * const qm_debug_file_name[] = {
 	[CLEAR_ENABLE] = "clear_enable",
 };
 
+static const char * const qm_s[] = {
+	"work", "stop",
+};
+
 struct qm_dfx_item {
 	const char *name;
 	u32 offset;
@@ -53,34 +57,34 @@ static struct qm_dfx_item qm_dfx_files[] = {
 #define CNT_CYC_REGS_NUM		10
 static const struct debugfs_reg32 qm_dfx_regs[] = {
 	/* XXX_CNT are reading clear register */
-	{"QM_ECC_1BIT_CNT               ",  0x104000ull},
-	{"QM_ECC_MBIT_CNT               ",  0x104008ull},
-	{"QM_DFX_MB_CNT                 ",  0x104018ull},
-	{"QM_DFX_DB_CNT                 ",  0x104028ull},
-	{"QM_DFX_SQE_CNT                ",  0x104038ull},
-	{"QM_DFX_CQE_CNT                ",  0x104048ull},
-	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050ull},
-	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058ull},
-	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060ull},
-	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4ull},
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
-	{"QM_ECC_1BIT_INF               ",  0x104004ull},
-	{"QM_ECC_MBIT_INF               ",  0x10400cull},
-	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0ull},
-	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4ull},
-	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8ull},
-	{"QM_DFX_FF_ST0                 ",  0x1040c8ull},
-	{"QM_DFX_FF_ST1                 ",  0x1040ccull},
-	{"QM_DFX_FF_ST2                 ",  0x1040d0ull},
-	{"QM_DFX_FF_ST3                 ",  0x1040d4ull},
-	{"QM_DFX_FF_ST4                 ",  0x1040d8ull},
-	{"QM_DFX_FF_ST5                 ",  0x1040dcull},
-	{"QM_DFX_FF_ST6                 ",  0x1040e0ull},
-	{"QM_IN_IDLE_ST                 ",  0x1040e4ull},
+	{"QM_ECC_1BIT_CNT               ",  0x104000},
+	{"QM_ECC_MBIT_CNT               ",  0x104008},
+	{"QM_DFX_MB_CNT                 ",  0x104018},
+	{"QM_DFX_DB_CNT                 ",  0x104028},
+	{"QM_DFX_SQE_CNT                ",  0x104038},
+	{"QM_DFX_CQE_CNT                ",  0x104048},
+	{"QM_DFX_SEND_SQE_TO_ACC_CNT    ",  0x104050},
+	{"QM_DFX_WB_SQE_FROM_ACC_CNT    ",  0x104058},
+	{"QM_DFX_ACC_FINISH_CNT         ",  0x104060},
+	{"QM_DFX_CQE_ERR_CNT            ",  0x1040b4},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200},
+	{"QM_ECC_1BIT_INF               ",  0x104004},
+	{"QM_ECC_MBIT_INF               ",  0x10400c},
+	{"QM_DFX_ACC_RDY_VLD0           ",  0x1040a0},
+	{"QM_DFX_ACC_RDY_VLD1           ",  0x1040a4},
+	{"QM_DFX_AXI_RDY_VLD            ",  0x1040a8},
+	{"QM_DFX_FF_ST0                 ",  0x1040c8},
+	{"QM_DFX_FF_ST1                 ",  0x1040cc},
+	{"QM_DFX_FF_ST2                 ",  0x1040d0},
+	{"QM_DFX_FF_ST3                 ",  0x1040d4},
+	{"QM_DFX_FF_ST4                 ",  0x1040d8},
+	{"QM_DFX_FF_ST5                 ",  0x1040dc},
+	{"QM_DFX_FF_ST6                 ",  0x1040e0},
+	{"QM_IN_IDLE_ST                 ",  0x1040e4},
 };
 
 static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
-	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200ull},
+	{"QM_DFX_FUNS_ACTIVE_ST         ",  0x200},
 };
 
 /* define the QM's dfx regs region and region length */
@@ -137,8 +141,8 @@ static void dump_show(struct hisi_qm *qm, void *info,
 static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_sqc *sqc, *sqc_curr;
-	dma_addr_t sqc_dma;
+	struct qm_sqc *sqc_curr;
+	struct qm_sqc sqc;
 	u32 qp_id;
 	int ret;
 
@@ -151,35 +155,29 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 		return -EINVAL;
 	}
 
-	sqc = hisi_qm_ctx_alloc(qm, sizeof(*sqc), &sqc_dma);
-	if (IS_ERR(sqc))
-		return PTR_ERR(sqc);
+	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_SQC, &sqc, qp_id, 1);
+	if (!ret) {
+		dump_show(qm, &sqc, sizeof(struct qm_sqc), name);
 
-	ret = hisi_qm_mb(qm, QM_MB_CMD_SQC, sqc_dma, qp_id, 1);
-	if (ret) {
-		down_read(&qm->qps_lock);
-		if (qm->sqc) {
-			sqc_curr = qm->sqc + qp_id;
-
-			dump_show(qm, sqc_curr, sizeof(*sqc), "SOFT SQC");
-		}
-		up_read(&qm->qps_lock);
-
-		goto free_ctx;
+		return 0;
 	}
 
-	dump_show(qm, sqc, sizeof(*sqc), name);
+	down_read(&qm->qps_lock);
+	if (qm->sqc) {
+		sqc_curr = qm->sqc + qp_id;
 
-free_ctx:
-	hisi_qm_ctx_free(qm, sizeof(*sqc), sqc, &sqc_dma);
+		dump_show(qm, sqc_curr, sizeof(*sqc_curr), "SOFT SQC");
+	}
+	up_read(&qm->qps_lock);
+
 	return 0;
 }
 
 static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_cqc *cqc, *cqc_curr;
-	dma_addr_t cqc_dma;
+	struct qm_cqc *cqc_curr;
+	struct qm_cqc cqc;
 	u32 qp_id;
 	int ret;
 
@@ -192,34 +190,29 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 		return -EINVAL;
 	}
 
-	cqc = hisi_qm_ctx_alloc(qm, sizeof(*cqc), &cqc_dma);
-	if (IS_ERR(cqc))
-		return PTR_ERR(cqc);
+	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_CQC, &cqc, qp_id, 1);
+	if (!ret) {
+		dump_show(qm, &cqc, sizeof(struct qm_cqc), name);
 
-	ret = hisi_qm_mb(qm, QM_MB_CMD_CQC, cqc_dma, qp_id, 1);
-	if (ret) {
-		down_read(&qm->qps_lock);
-		if (qm->cqc) {
-			cqc_curr = qm->cqc + qp_id;
-
-			dump_show(qm, cqc_curr, sizeof(*cqc), "SOFT CQC");
-		}
-		up_read(&qm->qps_lock);
-
-		goto free_ctx;
+		return 0;
 	}
 
-	dump_show(qm, cqc, sizeof(*cqc), name);
+	down_read(&qm->qps_lock);
+	if (qm->cqc) {
+		cqc_curr = qm->cqc + qp_id;
 
-free_ctx:
-	hisi_qm_ctx_free(qm, sizeof(*cqc), cqc, &cqc_dma);
+		dump_show(qm, cqc_curr, sizeof(*cqc_curr), "SOFT CQC");
+	}
+	up_read(&qm->qps_lock);
+
 	return 0;
 }
 
 static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	dma_addr_t xeqc_dma;
+	struct qm_aeqc aeqc;
+	struct qm_eqc eqc;
 	size_t size;
 	void *xeqc;
 	int ret;
@@ -233,23 +226,19 @@ static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 	if (!strcmp(name, "EQC")) {
 		cmd = QM_MB_CMD_EQC;
 		size = sizeof(struct qm_eqc);
+		xeqc = &eqc;
 	} else {
 		cmd = QM_MB_CMD_AEQC;
 		size = sizeof(struct qm_aeqc);
+		xeqc = &aeqc;
 	}
 
-	xeqc = hisi_qm_ctx_alloc(qm, size, &xeqc_dma);
-	if (IS_ERR(xeqc))
-		return PTR_ERR(xeqc);
-
-	ret = hisi_qm_mb(qm, cmd, xeqc_dma, 0, 1);
+	ret = qm_set_and_get_xqc(qm, cmd, xeqc, 0, 1);
 	if (ret)
-		goto err_free_ctx;
+		return ret;
 
 	dump_show(qm, xeqc, size, name);
 
-err_free_ctx:
-	hisi_qm_ctx_free(qm, size, xeqc, &xeqc_dma);
 	return ret;
 }
 

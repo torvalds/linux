@@ -199,7 +199,7 @@
 *
 *****************************************************************************/
 
-typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS {
+typedef struct _MPI2_SYSTEM_INTERFACE_REGS {
 	U32 Doorbell;		/*0x00 */
 	U32 WriteSequence;	/*0x04 */
 	U32 HostDiagnostic;	/*0x08 */

@@ -35,6 +35,7 @@
 #include <linux/nfs_page.h>
 #include <linux/workqueue.h>
 
+struct nfs4_exception;
 struct nfs4_opendata;
 
 enum {
@@ -245,7 +246,9 @@ extern size_t max_response_pages(struct nfs_server *server);
 extern int nfs4_proc_getdeviceinfo(struct nfs_server *server,
 				   struct pnfs_device *dev,
 				   const struct cred *cred);
-extern struct pnfs_layout_segment* nfs4_proc_layoutget(struct nfs4_layoutget *lgp, long *timeout);
+extern struct pnfs_layout_segment *
+nfs4_proc_layoutget(struct nfs4_layoutget *lgp,
+		    struct nfs4_exception *exception);
 extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp, bool sync);
 
 /* pnfs.c */

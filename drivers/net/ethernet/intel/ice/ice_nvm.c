@@ -571,8 +571,8 @@ ice_get_nvm_ver_info(struct ice_hw *hw, enum ice_bank_select bank, struct ice_nv
 		return status;
 	}
 
-	nvm->major = (ver & ICE_NVM_VER_HI_MASK) >> ICE_NVM_VER_HI_SHIFT;
-	nvm->minor = (ver & ICE_NVM_VER_LO_MASK) >> ICE_NVM_VER_LO_SHIFT;
+	nvm->major = FIELD_GET(ICE_NVM_VER_HI_MASK, ver);
+	nvm->minor = FIELD_GET(ICE_NVM_VER_LO_MASK, ver);
 
 	status = ice_read_nvm_sr_copy(hw, bank, ICE_SR_NVM_EETRACK_LO, &eetrack_lo);
 	if (status) {
@@ -706,9 +706,9 @@ ice_get_orom_ver_info(struct ice_hw *hw, enum ice_bank_select bank, struct ice_o
 
 	combo_ver = le32_to_cpu(civd.combo_ver);
 
-	orom->major = (u8)((combo_ver & ICE_OROM_VER_MASK) >> ICE_OROM_VER_SHIFT);
-	orom->patch = (u8)(combo_ver & ICE_OROM_VER_PATCH_MASK);
-	orom->build = (u16)((combo_ver & ICE_OROM_VER_BUILD_MASK) >> ICE_OROM_VER_BUILD_SHIFT);
+	orom->major = FIELD_GET(ICE_OROM_VER_MASK, combo_ver);
+	orom->patch = FIELD_GET(ICE_OROM_VER_PATCH_MASK, combo_ver);
+	orom->build = FIELD_GET(ICE_OROM_VER_BUILD_MASK, combo_ver);
 
 	return 0;
 }
@@ -950,7 +950,8 @@ static int ice_determine_active_flash_banks(struct ice_hw *hw)
 	}
 
 	/* Check that the control word indicates validity */
-	if ((ctrl_word & ICE_SR_CTRL_WORD_1_M) >> ICE_SR_CTRL_WORD_1_S != ICE_SR_CTRL_WORD_VALID) {
+	if (FIELD_GET(ICE_SR_CTRL_WORD_1_M, ctrl_word) !=
+	    ICE_SR_CTRL_WORD_VALID) {
 		ice_debug(hw, ICE_DBG_NVM, "Shadow RAM control word is invalid\n");
 		return -EIO;
 	}
@@ -1027,7 +1028,7 @@ int ice_init_nvm(struct ice_hw *hw)
 	 * as the blank mode may be used in the factory line.
 	 */
 	gens_stat = rd32(hw, GLNVM_GENS);
-	sr_size = (gens_stat & GLNVM_GENS_SR_SIZE_M) >> GLNVM_GENS_SR_SIZE_S;
+	sr_size = FIELD_GET(GLNVM_GENS_SR_SIZE_M, gens_stat);
 
 	/* Switching to words (sr_size contains power of 2) */
 	flash->sr_words = BIT(sr_size) * ICE_SR_WORDS_IN_1KB;

@@ -11,9 +11,13 @@
 
 #define NS_TEST			"fib_lookup_ns"
 #define IPV6_IFACE_ADDR		"face::face"
+#define IPV6_IFACE_ADDR_SEC	"cafe::cafe"
+#define IPV6_ADDR_DST		"face::3"
 #define IPV6_NUD_FAILED_ADDR	"face::1"
 #define IPV6_NUD_STALE_ADDR	"face::2"
 #define IPV4_IFACE_ADDR		"10.0.0.254"
+#define IPV4_IFACE_ADDR_SEC	"10.1.0.254"
+#define IPV4_ADDR_DST		"10.2.0.254"
 #define IPV4_NUD_FAILED_ADDR	"10.0.0.1"
 #define IPV4_NUD_STALE_ADDR	"10.0.0.2"
 #define IPV4_TBID_ADDR		"172.0.0.254"
@@ -31,6 +35,7 @@ struct fib_lookup_test {
 	const char *desc;
 	const char *daddr;
 	int expected_ret;
+	const char *expected_src;
 	int lookup_flags;
 	__u32 tbid;
 	__u8 dmac[6];
@@ -69,6 +74,22 @@ static const struct fib_lookup_test tests[] = {
 	  .daddr = IPV6_TBID_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
 	  .lookup_flags = BPF_FIB_LOOKUP_DIRECT | BPF_FIB_LOOKUP_TBID, .tbid = 100,
 	  .dmac = DMAC_INIT2, },
+	{ .desc = "IPv4 set src addr from netdev",
+	  .daddr = IPV4_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_src = IPV4_IFACE_ADDR,
+	  .lookup_flags = BPF_FIB_LOOKUP_SRC | BPF_FIB_LOOKUP_SKIP_NEIGH, },
+	{ .desc = "IPv6 set src addr from netdev",
+	  .daddr = IPV6_NUD_FAILED_ADDR, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_src = IPV6_IFACE_ADDR,
+	  .lookup_flags = BPF_FIB_LOOKUP_SRC | BPF_FIB_LOOKUP_SKIP_NEIGH, },
+	{ .desc = "IPv4 set prefsrc addr from route",
+	  .daddr = IPV4_ADDR_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_src = IPV4_IFACE_ADDR_SEC,
+	  .lookup_flags = BPF_FIB_LOOKUP_SRC | BPF_FIB_LOOKUP_SKIP_NEIGH, },
+	{ .desc = "IPv6 set prefsrc addr route",
+	  .daddr = IPV6_ADDR_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_src = IPV6_IFACE_ADDR_SEC,
+	  .lookup_flags = BPF_FIB_LOOKUP_SRC | BPF_FIB_LOOKUP_SKIP_NEIGH, },
 };
 
 static int ifindex;
@@ -96,6 +117,13 @@ static int setup_netns(void)
 	SYS(fail, "ip addr add %s/24 dev veth1", IPV4_IFACE_ADDR);
 	SYS(fail, "ip neigh add %s dev veth1 nud failed", IPV4_NUD_FAILED_ADDR);
 	SYS(fail, "ip neigh add %s dev veth1 lladdr %s nud stale", IPV4_NUD_STALE_ADDR, DMAC);
+
+	/* Setup for prefsrc IP addr selection */
+	SYS(fail, "ip addr add %s/24 dev veth1", IPV4_IFACE_ADDR_SEC);
+	SYS(fail, "ip route add %s/32 dev veth1 src %s", IPV4_ADDR_DST, IPV4_IFACE_ADDR_SEC);
+
+	SYS(fail, "ip addr add %s/64 dev veth1 nodad", IPV6_IFACE_ADDR_SEC);
+	SYS(fail, "ip route add %s/128 dev veth1 src %s", IPV6_ADDR_DST, IPV6_IFACE_ADDR_SEC);
 
 	/* Setup for tbid lookup tests */
 	SYS(fail, "ip addr add %s/24 dev veth2", IPV4_TBID_ADDR);
@@ -133,9 +161,12 @@ static int set_lookup_params(struct bpf_fib_lookup *params, const struct fib_loo
 
 	if (inet_pton(AF_INET6, test->daddr, params->ipv6_dst) == 1) {
 		params->family = AF_INET6;
-		ret = inet_pton(AF_INET6, IPV6_IFACE_ADDR, params->ipv6_src);
-		if (!ASSERT_EQ(ret, 1, "inet_pton(IPV6_IFACE_ADDR)"))
-			return -1;
+		if (!(test->lookup_flags & BPF_FIB_LOOKUP_SRC)) {
+			ret = inet_pton(AF_INET6, IPV6_IFACE_ADDR, params->ipv6_src);
+			if (!ASSERT_EQ(ret, 1, "inet_pton(IPV6_IFACE_ADDR)"))
+				return -1;
+		}
+
 		return 0;
 	}
 
@@ -143,9 +174,12 @@ static int set_lookup_params(struct bpf_fib_lookup *params, const struct fib_loo
 	if (!ASSERT_EQ(ret, 1, "convert IP[46] address"))
 		return -1;
 	params->family = AF_INET;
-	ret = inet_pton(AF_INET, IPV4_IFACE_ADDR, &params->ipv4_src);
-	if (!ASSERT_EQ(ret, 1, "inet_pton(IPV4_IFACE_ADDR)"))
-		return -1;
+
+	if (!(test->lookup_flags & BPF_FIB_LOOKUP_SRC)) {
+		ret = inet_pton(AF_INET, IPV4_IFACE_ADDR, &params->ipv4_src);
+		if (!ASSERT_EQ(ret, 1, "inet_pton(IPV4_IFACE_ADDR)"))
+			return -1;
+	}
 
 	return 0;
 }
@@ -154,6 +188,40 @@ static void mac_str(char *b, const __u8 *mac)
 {
 	sprintf(b, "%02X:%02X:%02X:%02X:%02X:%02X",
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
+static void assert_src_ip(struct bpf_fib_lookup *fib_params, const char *expected_src)
+{
+	int ret;
+	__u32 src6[4];
+	__be32 src4;
+
+	switch (fib_params->family) {
+	case AF_INET6:
+		ret = inet_pton(AF_INET6, expected_src, src6);
+		ASSERT_EQ(ret, 1, "inet_pton(expected_src)");
+
+		ret = memcmp(src6, fib_params->ipv6_src, sizeof(fib_params->ipv6_src));
+		if (!ASSERT_EQ(ret, 0, "fib_lookup ipv6 src")) {
+			char str_src6[64];
+
+			inet_ntop(AF_INET6, fib_params->ipv6_src, str_src6,
+				  sizeof(str_src6));
+			printf("ipv6 expected %s actual %s ", expected_src,
+			       str_src6);
+		}
+
+		break;
+	case AF_INET:
+		ret = inet_pton(AF_INET, expected_src, &src4);
+		ASSERT_EQ(ret, 1, "inet_pton(expected_src)");
+
+		ASSERT_EQ(fib_params->ipv4_src, src4, "fib_lookup ipv4 src");
+
+		break;
+	default:
+		PRINT_FAIL("invalid addr family: %d", fib_params->family);
+	}
 }
 
 void test_fib_lookup(void)
@@ -206,6 +274,9 @@ void test_fib_lookup(void)
 
 		ASSERT_EQ(skel->bss->fib_lookup_ret, tests[i].expected_ret,
 			  "fib_lookup_ret");
+
+		if (tests[i].expected_src)
+			assert_src_ip(fib_params, tests[i].expected_src);
 
 		ret = memcmp(tests[i].dmac, fib_params->dmac, sizeof(tests[i].dmac));
 		if (!ASSERT_EQ(ret, 0, "dmac not match")) {

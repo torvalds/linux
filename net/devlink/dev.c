@@ -4,6 +4,7 @@
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
  */
 
+#include <linux/device.h>
 #include <net/genetlink.h>
 #include <net/sock.h>
 #include "devl_internal.h"
@@ -138,6 +139,23 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static int devlink_nl_nested_fill(struct sk_buff *msg, struct devlink *devlink)
+{
+	unsigned long rel_index;
+	void *unused;
+	int err;
+
+	xa_for_each(&devlink->nested_rels, rel_index, unused) {
+		err = devlink_rel_devlink_handle_put(msg, devlink,
+						     rel_index,
+						     DEVLINK_ATTR_NESTED_DEVLINK,
+						     NULL);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
 static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
 			   enum devlink_command cmd, u32 portid,
 			   u32 seq, int flags)
@@ -164,6 +182,10 @@ static int devlink_nl_fill(struct sk_buff *msg, struct devlink *devlink,
 		goto dev_stats_nest_cancel;
 
 	nla_nest_end(msg, dev_stats);
+
+	if (devlink_nl_nested_fill(msg, devlink))
+		goto nla_put_failure;
+
 	genlmsg_end(msg, hdr);
 	return 0;
 
@@ -180,7 +202,10 @@ static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 	int err;
 
 	WARN_ON(cmd != DEVLINK_CMD_NEW && cmd != DEVLINK_CMD_DEL);
-	WARN_ON(!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED));
+	WARN_ON(!devl_is_registered(devlink));
+
+	if (!devlink_nl_notify_need(devlink))
+		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg)
@@ -192,8 +217,7 @@ static void devlink_notify(struct devlink *devlink, enum devlink_command cmd)
 		return;
 	}
 
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
-				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+	devlink_nl_notify_send(devlink, msg);
 }
 
 int devlink_nl_get_doit(struct sk_buff *skb, struct genl_info *info)
@@ -229,6 +253,34 @@ int devlink_nl_get_dumpit(struct sk_buff *msg, struct netlink_callback *cb)
 {
 	return devlink_nl_dumpit(msg, cb, devlink_nl_get_dump_one);
 }
+
+static void devlink_rel_notify_cb(struct devlink *devlink, u32 obj_index)
+{
+	devlink_notify(devlink, DEVLINK_CMD_NEW);
+}
+
+static void devlink_rel_cleanup_cb(struct devlink *devlink, u32 obj_index,
+				   u32 rel_index)
+{
+	xa_erase(&devlink->nested_rels, rel_index);
+}
+
+int devl_nested_devlink_set(struct devlink *devlink,
+			    struct devlink *nested_devlink)
+{
+	u32 rel_index;
+	int err;
+
+	err = devlink_rel_nested_in_add(&rel_index, devlink->index, 0,
+					devlink_rel_notify_cb,
+					devlink_rel_cleanup_cb,
+					nested_devlink);
+	if (err)
+		return err;
+	return xa_insert(&devlink->nested_rels, rel_index,
+			 xa_mk_value(0), GFP_KERNEL);
+}
+EXPORT_SYMBOL_GPL(devl_nested_devlink_set);
 
 void devlink_notify_register(struct devlink *devlink)
 {
@@ -372,6 +424,19 @@ static void devlink_reload_netns_change(struct devlink *devlink,
 	devlink_notify_unregister(devlink);
 	write_pnet(&devlink->_net, dest_net);
 	devlink_notify_register(devlink);
+	devlink_rel_nested_in_notify(devlink);
+}
+
+static void devlink_reload_reinit_sanity_check(struct devlink *devlink)
+{
+	WARN_ON(!list_empty(&devlink->trap_policer_list));
+	WARN_ON(!list_empty(&devlink->trap_group_list));
+	WARN_ON(!list_empty(&devlink->trap_list));
+	WARN_ON(!list_empty(&devlink->dpipe_table_list));
+	WARN_ON(!list_empty(&devlink->sb_list));
+	WARN_ON(!list_empty(&devlink->rate_list));
+	WARN_ON(!list_empty(&devlink->linecard_list));
+	WARN_ON(!xa_empty(&devlink->ports));
 }
 
 int devlink_reload(struct devlink *devlink, struct net *dest_net,
@@ -382,6 +447,13 @@ int devlink_reload(struct devlink *devlink, struct net *dest_net,
 	u32 remote_reload_stats[DEVLINK_RELOAD_STATS_ARRAY_SIZE];
 	struct net *curr_net;
 	int err;
+
+	/* Make sure the reload operations are invoked with the device lock
+	 * held to allow drivers to trigger functionality that expects it
+	 * (e.g., PCI reset) and to close possible races between these
+	 * operations and probe/remove.
+	 */
+	device_lock_assert(devlink->dev);
 
 	memcpy(remote_reload_stats, devlink->stats.remote_reload_stats,
 	       sizeof(remote_reload_stats));
@@ -394,8 +466,10 @@ int devlink_reload(struct devlink *devlink, struct net *dest_net,
 	if (dest_net && !net_eq(dest_net, curr_net))
 		devlink_reload_netns_change(devlink, curr_net, dest_net);
 
-	if (action == DEVLINK_RELOAD_ACTION_DRIVER_REINIT)
+	if (action == DEVLINK_RELOAD_ACTION_DRIVER_REINIT) {
 		devlink_params_driverinit_load_new(devlink);
+		devlink_reload_reinit_sanity_check(devlink);
+	}
 
 	err = devlink->ops->reload_up(devlink, action, limit, actions_performed, extack);
 	devlink_reload_failed_set(devlink, !!err);
@@ -442,7 +516,7 @@ free_msg:
 	return -EMSGSIZE;
 }
 
-int devlink_nl_cmd_reload(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_reload_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	enum devlink_reload_action action;
@@ -608,7 +682,7 @@ nla_put_failure:
 	return err;
 }
 
-int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	struct sk_buff *msg;
@@ -629,7 +703,7 @@ int devlink_nl_cmd_eswitch_get_doit(struct sk_buff *skb, struct genl_info *info)
 	return genlmsg_reply(msg, info);
 }
 
-int devlink_nl_cmd_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_eswitch_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct devlink *devlink = info->user_ptr[0];
 	const struct devlink_ops *ops = devlink->ops;
@@ -927,7 +1001,7 @@ static void __devlink_flash_update_notify(struct devlink *devlink,
 		cmd != DEVLINK_CMD_FLASH_UPDATE_END &&
 		cmd != DEVLINK_CMD_FLASH_UPDATE_STATUS);
 
-	if (!xa_get_mark(&devlinks, devlink->index, DEVLINK_REGISTERED))
+	if (!devl_is_registered(devlink) || !devlink_nl_notify_need(devlink))
 		return;
 
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -938,8 +1012,7 @@ static void __devlink_flash_update_notify(struct devlink *devlink,
 	if (err)
 		goto out_free_msg;
 
-	genlmsg_multicast_netns(&devlink_nl_family, devlink_net(devlink),
-				msg, 0, DEVLINK_MCGRP_CONFIG, GFP_KERNEL);
+	devlink_nl_notify_send(devlink, msg);
 	return;
 
 out_free_msg:
@@ -1058,7 +1131,7 @@ static int devlink_flash_component_get(struct devlink *devlink,
 	return 0;
 }
 
-int devlink_nl_cmd_flash_update(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_flash_update_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *nla_overwrite_mask, *nla_file_name;
 	struct devlink_flash_update_params params = {};
@@ -1301,7 +1374,7 @@ static const struct nla_policy devlink_selftest_nl_policy[DEVLINK_ATTR_SELFTEST_
 	[DEVLINK_ATTR_SELFTEST_ID_FLASH] = { .type = NLA_FLAG },
 };
 
-int devlink_nl_cmd_selftests_run(struct sk_buff *skb, struct genl_info *info)
+int devlink_nl_selftests_run_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct nlattr *tb[DEVLINK_ATTR_SELFTEST_ID_MAX + 1];
 	struct devlink *devlink = info->user_ptr[0];

@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
- * Copyright (C) 2018 - 2019, 2022 Intel Corporation
+ * Copyright(C) 2018 - 2019, 2022 - 2023 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -1001,7 +1001,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	if (priv->lib->set_channel_switch(priv, ch_switch)) {
 		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
 		priv->switch_channel = 0;
-		ieee80211_chswitch_done(ctx->vif, false);
+		ieee80211_chswitch_done(ctx->vif, false, 0);
 	}
 
 out:
@@ -1024,7 +1024,7 @@ void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 		return;
 
 	if (ctx->vif)
-		ieee80211_chswitch_done(ctx->vif, is_success);
+		ieee80211_chswitch_done(ctx->vif, is_success, 0);
 }
 
 static void iwlagn_configure_filter(struct ieee80211_hw *hw,

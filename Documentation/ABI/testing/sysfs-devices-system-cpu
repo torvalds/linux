@@ -354,9 +354,6 @@ Description:	Parameters for the CPU cache attributes
 			- ReadWriteAllocate:
 					both writeallocate and readallocate
 
-		attributes:
-			    LEGACY used only on IA64 and is same as write_policy
-
 		coherency_line_size:
 				     the minimum amount of data in bytes that gets
 				     transferred from memory to cache

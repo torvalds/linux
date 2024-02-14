@@ -521,7 +521,8 @@ static void init_bdb_blocks(struct drm_i915_private *i915,
 }
 
 static void
-fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
+fill_detail_timing_data(struct drm_i915_private *i915,
+			struct drm_display_mode *panel_fixed_mode,
 			const struct lvds_dvo_timing *dvo_timing)
 {
 	panel_fixed_mode->hdisplay = (dvo_timing->hactive_hi << 8) |
@@ -561,11 +562,17 @@ fill_detail_timing_data(struct drm_display_mode *panel_fixed_mode,
 	panel_fixed_mode->height_mm = (dvo_timing->vimage_hi << 8) |
 		dvo_timing->vimage_lo;
 
-	/* Some VBTs have bogus h/vtotal values */
-	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal)
-		panel_fixed_mode->htotal = panel_fixed_mode->hsync_end + 1;
-	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal)
-		panel_fixed_mode->vtotal = panel_fixed_mode->vsync_end + 1;
+	/* Some VBTs have bogus h/vsync_end values */
+	if (panel_fixed_mode->hsync_end > panel_fixed_mode->htotal) {
+		drm_dbg_kms(&i915->drm, "reducing hsync_end %d->%d\n",
+			    panel_fixed_mode->hsync_end, panel_fixed_mode->htotal);
+		panel_fixed_mode->hsync_end = panel_fixed_mode->htotal;
+	}
+	if (panel_fixed_mode->vsync_end > panel_fixed_mode->vtotal) {
+		drm_dbg_kms(&i915->drm, "reducing vsync_end %d->%d\n",
+			    panel_fixed_mode->vsync_end, panel_fixed_mode->vtotal);
+		panel_fixed_mode->vsync_end = panel_fixed_mode->vtotal;
+	}
 
 	drm_mode_set_name(panel_fixed_mode);
 }
@@ -849,7 +856,7 @@ parse_lfp_panel_dtd(struct drm_i915_private *i915,
 	if (!panel_fixed_mode)
 		return;
 
-	fill_detail_timing_data(panel_fixed_mode, panel_dvo_timing);
+	fill_detail_timing_data(i915, panel_fixed_mode, panel_dvo_timing);
 
 	panel->vbt.lfp_lvds_vbt_mode = panel_fixed_mode;
 
@@ -1109,7 +1116,7 @@ parse_sdvo_panel_data(struct drm_i915_private *i915,
 	struct drm_display_mode *panel_fixed_mode;
 	int index;
 
-	index = i915->params.vbt_sdvo_panel_type;
+	index = i915->display.params.vbt_sdvo_panel_type;
 	if (index == -2) {
 		drm_dbg_kms(&i915->drm,
 			    "Ignore SDVO panel mode from BIOS VBT tables.\n");
@@ -1134,7 +1141,7 @@ parse_sdvo_panel_data(struct drm_i915_private *i915,
 	if (!panel_fixed_mode)
 		return;
 
-	fill_detail_timing_data(panel_fixed_mode, &dtds->dtds[index]);
+	fill_detail_timing_data(i915, panel_fixed_mode, &dtds->dtds[index]);
 
 	panel->vbt.sdvo_lvds_vbt_mode = panel_fixed_mode;
 
@@ -1507,9 +1514,9 @@ parse_edp(struct drm_i915_private *i915,
 		u8 vswing;
 
 		/* Don't read from VBT if module parameter has valid value*/
-		if (i915->params.edp_vswing) {
+		if (i915->display.params.edp_vswing) {
 			panel->vbt.edp.low_vswing =
-				i915->params.edp_vswing == 1;
+				i915->display.params.edp_vswing == 1;
 		} else {
 			vswing = (edp->edp_vswing_preemph >> (panel_type * 4)) & 0xF;
 			panel->vbt.edp.low_vswing = vswing == 0;
@@ -2194,14 +2201,16 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	const u8 *ddc_pin_map;
 	int i, n_entries;
 
-	if (HAS_PCH_MTP(i915) || IS_ALDERLAKE_P(i915)) {
+	if (IS_DGFX(i915))
+		return vbt_pin;
+
+	if (INTEL_PCH_TYPE(i915) >= PCH_LNL || HAS_PCH_MTP(i915) ||
+	    IS_ALDERLAKE_P(i915)) {
 		ddc_pin_map = adlp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adlp_ddc_pin_map);
 	} else if (IS_ALDERLAKE_S(i915)) {
 		ddc_pin_map = adls_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adls_ddc_pin_map);
-	} else if (INTEL_PCH_TYPE(i915) >= PCH_DG1) {
-		return vbt_pin;
 	} else if (IS_ROCKETLAKE(i915) && INTEL_PCH_TYPE(i915) == PCH_TGP) {
 		ddc_pin_map = rkl_pch_tgp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(rkl_pch_tgp_ddc_pin_map);
@@ -2465,6 +2474,27 @@ static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 	devdata->child.device_type |= DEVICE_TYPE_NOT_HDMI_OUTPUT;
 }
 
+static void sanitize_hdmi_level_shift(struct intel_bios_encoder_data *devdata,
+				      enum port port)
+{
+	struct drm_i915_private *i915 = devdata->i915;
+
+	if (!intel_bios_encoder_supports_dvi(devdata))
+		return;
+
+	/*
+	 * Some BDW machines (eg. HP Pavilion 15-ab) shipped
+	 * with a HSW VBT where the level shifter value goes
+	 * up to 11, whereas the BDW max is 9.
+	 */
+	if (IS_BROADWELL(i915) && devdata->child.hdmi_level_shifter_value > 9) {
+		drm_dbg_kms(&i915->drm, "Bogus port %c VBT HDMI level shift %d, adjusting to %d\n",
+			    port_name(port), devdata->child.hdmi_level_shifter_value, 9);
+
+		devdata->child.hdmi_level_shifter_value = 9;
+	}
+}
+
 static bool
 intel_bios_encoder_supports_crt(const struct intel_bios_encoder_data *devdata)
 {
@@ -2644,6 +2674,7 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 	}
 
 	sanitize_device_type(devdata, port);
+	sanitize_hdmi_level_shift(devdata, port);
 }
 
 static bool has_ddi_port_info(struct drm_i915_private *i915)
@@ -3384,8 +3415,8 @@ static void fill_dsc(struct intel_crtc_state *crtc_state,
 
 	crtc_state->pipe_bpp = bpc * 3;
 
-	crtc_state->dsc.compressed_bpp = min(crtc_state->pipe_bpp,
-					     VBT_DSC_MAX_BPP(dsc->max_bpp));
+	crtc_state->dsc.compressed_bpp_x16 = to_bpp_x16(min(crtc_state->pipe_bpp,
+							    VBT_DSC_MAX_BPP(dsc->max_bpp)));
 
 	/*
 	 * FIXME: This is ugly, and slice count should take DSC engine
@@ -3444,8 +3475,7 @@ bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			if (!devdata->dsc)
 				return false;
 
-			if (crtc_state)
-				fill_dsc(crtc_state, devdata->dsc, dsc_max_bpc);
+			fill_dsc(crtc_state, devdata->dsc, dsc_max_bpc);
 
 			return true;
 		}
@@ -3538,6 +3568,27 @@ enum aux_ch intel_bios_dp_aux_ch(const struct intel_bios_encoder_data *devdata)
 		return AUX_CH_NONE;
 
 	return map_aux_ch(devdata->i915, devdata->child.aux_channel);
+}
+
+bool intel_bios_dp_has_shared_aux_ch(const struct intel_bios_encoder_data *devdata)
+{
+	struct drm_i915_private *i915;
+	u8 aux_channel;
+	int count = 0;
+
+	if (!devdata || !devdata->child.aux_channel)
+		return false;
+
+	i915 = devdata->i915;
+	aux_channel = devdata->child.aux_channel;
+
+	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node) {
+		if (intel_bios_encoder_supports_dp(devdata) &&
+		    aux_channel == devdata->child.aux_channel)
+			count++;
+	}
+
+	return count > 1;
 }
 
 int intel_bios_dp_boost_level(const struct intel_bios_encoder_data *devdata)

@@ -82,117 +82,16 @@ enum zpci_ioat_dtype {
 #define ZPCI_TABLE_VALID_MASK		0x20
 #define ZPCI_TABLE_PROT_MASK		0x200
 
-static inline unsigned int calc_rtx(dma_addr_t ptr)
-{
-	return ((unsigned long) ptr >> ZPCI_RT_SHIFT) & ZPCI_INDEX_MASK;
-}
+struct zpci_iommu_ctrs {
+	atomic64_t		mapped_pages;
+	atomic64_t		unmapped_pages;
+	atomic64_t		global_rpcits;
+	atomic64_t		sync_map_rpcits;
+	atomic64_t		sync_rpcits;
+};
 
-static inline unsigned int calc_sx(dma_addr_t ptr)
-{
-	return ((unsigned long) ptr >> ZPCI_ST_SHIFT) & ZPCI_INDEX_MASK;
-}
+struct zpci_dev;
 
-static inline unsigned int calc_px(dma_addr_t ptr)
-{
-	return ((unsigned long) ptr >> PAGE_SHIFT) & ZPCI_PT_MASK;
-}
-
-static inline void set_pt_pfaa(unsigned long *entry, phys_addr_t pfaa)
-{
-	*entry &= ZPCI_PTE_FLAG_MASK;
-	*entry |= (pfaa & ZPCI_PTE_ADDR_MASK);
-}
-
-static inline void set_rt_sto(unsigned long *entry, phys_addr_t sto)
-{
-	*entry &= ZPCI_RTE_FLAG_MASK;
-	*entry |= (sto & ZPCI_RTE_ADDR_MASK);
-	*entry |= ZPCI_TABLE_TYPE_RTX;
-}
-
-static inline void set_st_pto(unsigned long *entry, phys_addr_t pto)
-{
-	*entry &= ZPCI_STE_FLAG_MASK;
-	*entry |= (pto & ZPCI_STE_ADDR_MASK);
-	*entry |= ZPCI_TABLE_TYPE_SX;
-}
-
-static inline void validate_rt_entry(unsigned long *entry)
-{
-	*entry &= ~ZPCI_TABLE_VALID_MASK;
-	*entry &= ~ZPCI_TABLE_OFFSET_MASK;
-	*entry |= ZPCI_TABLE_VALID;
-	*entry |= ZPCI_TABLE_LEN_RTX;
-}
-
-static inline void validate_st_entry(unsigned long *entry)
-{
-	*entry &= ~ZPCI_TABLE_VALID_MASK;
-	*entry |= ZPCI_TABLE_VALID;
-}
-
-static inline void invalidate_pt_entry(unsigned long *entry)
-{
-	WARN_ON_ONCE((*entry & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_INVALID);
-	*entry &= ~ZPCI_PTE_VALID_MASK;
-	*entry |= ZPCI_PTE_INVALID;
-}
-
-static inline void validate_pt_entry(unsigned long *entry)
-{
-	WARN_ON_ONCE((*entry & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID);
-	*entry &= ~ZPCI_PTE_VALID_MASK;
-	*entry |= ZPCI_PTE_VALID;
-}
-
-static inline void entry_set_protected(unsigned long *entry)
-{
-	*entry &= ~ZPCI_TABLE_PROT_MASK;
-	*entry |= ZPCI_TABLE_PROTECTED;
-}
-
-static inline void entry_clr_protected(unsigned long *entry)
-{
-	*entry &= ~ZPCI_TABLE_PROT_MASK;
-	*entry |= ZPCI_TABLE_UNPROTECTED;
-}
-
-static inline int reg_entry_isvalid(unsigned long entry)
-{
-	return (entry & ZPCI_TABLE_VALID_MASK) == ZPCI_TABLE_VALID;
-}
-
-static inline int pt_entry_isvalid(unsigned long entry)
-{
-	return (entry & ZPCI_PTE_VALID_MASK) == ZPCI_PTE_VALID;
-}
-
-static inline unsigned long *get_rt_sto(unsigned long entry)
-{
-	if ((entry & ZPCI_TABLE_TYPE_MASK) == ZPCI_TABLE_TYPE_RTX)
-		return phys_to_virt(entry & ZPCI_RTE_ADDR_MASK);
-	else
-		return NULL;
-
-}
-
-static inline unsigned long *get_st_pto(unsigned long entry)
-{
-	if ((entry & ZPCI_TABLE_TYPE_MASK) == ZPCI_TABLE_TYPE_SX)
-		return phys_to_virt(entry & ZPCI_STE_ADDR_MASK);
-	else
-		return NULL;
-}
-
-/* Prototypes */
-void dma_free_seg_table(unsigned long);
-unsigned long *dma_alloc_cpu_table(gfp_t gfp);
-void dma_cleanup_tables(unsigned long *);
-unsigned long *dma_walk_cpu_trans(unsigned long *rto, dma_addr_t dma_addr,
-				  gfp_t gfp);
-void dma_update_cpu_trans(unsigned long *entry, phys_addr_t page_addr, int flags);
-
-extern const struct dma_map_ops s390_pci_dma_ops;
-
+struct zpci_iommu_ctrs *zpci_get_iommu_ctrs(struct zpci_dev *zdev);
 
 #endif

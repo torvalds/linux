@@ -17,8 +17,7 @@ arch_string()
 
 asm_errno_file()
 {
-	local arch="$1"
-	local header
+	arch="$1"
 
 	header="$toolsdir/arch/$arch/include/uapi/asm/errno.h"
 	if test -r "$header"; then
@@ -30,8 +29,7 @@ asm_errno_file()
 
 create_errno_lookup_func()
 {
-	local arch=$(arch_string "$1")
-	local nr name
+	arch=$(arch_string "$1")
 
 	printf "static const char *errno_to_name__%s(int err)\n{\n\tswitch (err) {\n" $arch
 
@@ -44,8 +42,8 @@ create_errno_lookup_func()
 
 process_arch()
 {
-	local arch="$1"
-	local asm_errno=$(asm_errno_file "$arch")
+	arch="$1"
+	asm_errno=$(asm_errno_file "$arch")
 
 	$gcc $CFLAGS $include_path -E -dM -x c $asm_errno \
 		|grep -hE '^#define[[:blank:]]+(E[^[:blank:]]+)[[:blank:]]+([[:digit:]]+).*' \
@@ -56,17 +54,16 @@ process_arch()
 
 create_arch_errno_table_func()
 {
-	local archlist="$1"
-	local default="$2"
-	local arch
+	archlist="$1"
+	default="$2"
 
-	printf 'const char *arch_syscalls__strerrno(const char *arch, int err)\n'
+	printf 'arch_syscalls__strerrno_t *arch_syscalls__strerrno_function(const char *arch)\n'
 	printf '{\n'
 	for arch in $archlist; do
 		printf '\tif (!strcmp(arch, "%s"))\n' $(arch_string "$arch")
-		printf '\t\treturn errno_to_name__%s(err);\n' $(arch_string "$arch")
+		printf '\t\treturn errno_to_name__%s;\n' $(arch_string "$arch")
 	done
-	printf '\treturn errno_to_name__%s(err);\n' $(arch_string "$default")
+	printf '\treturn errno_to_name__%s;\n' $(arch_string "$default")
 	printf '}\n'
 }
 
@@ -79,7 +76,9 @@ EoHEADER
 
 # Create list of architectures that have a specific errno.h.
 archlist=""
-for arch in $(find $toolsdir/arch -maxdepth 1 -mindepth 1 -type d -printf "%f\n" | sort -r); do
+for f in $toolsdir/arch/*/include/uapi/asm/errno.h; do
+	d=${f%/include/uapi/asm/errno.h}
+	arch="${d##*/}"
 	test -f $toolsdir/arch/$arch/include/uapi/asm/errno.h && archlist="$archlist $arch"
 done
 

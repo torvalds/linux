@@ -1028,6 +1028,7 @@ static struct fb_ops nvidia_fb_ops = {
 	.owner          = THIS_MODULE,
 	.fb_open        = nvidiafb_open,
 	.fb_release     = nvidiafb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var   = nvidiafb_check_var,
 	.fb_set_par     = nvidiafb_set_par,
 	.fb_setcolreg   = nvidiafb_setcolreg,
@@ -1038,6 +1039,7 @@ static struct fb_ops nvidia_fb_ops = {
 	.fb_imageblit   = nvidiafb_imageblit,
 	.fb_cursor      = nvidiafb_cursor,
 	.fb_sync        = nvidiafb_sync,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int nvidiafb_suspend_late(struct device *dev, pm_message_t mesg)

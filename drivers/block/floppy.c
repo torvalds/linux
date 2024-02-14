@@ -3079,7 +3079,7 @@ static void raw_cmd_free(struct floppy_raw_cmd **ptr)
 	}
 }
 
-#define MAX_LEN (1UL << MAX_ORDER << PAGE_SHIFT)
+#define MAX_LEN (1UL << MAX_PAGE_ORDER << PAGE_SHIFT)
 
 static int raw_cmd_copyin(int cmd, void __user *param,
 				 struct floppy_raw_cmd **rcmd)
@@ -3215,8 +3215,10 @@ static int invalidate_drive(struct gendisk *disk)
 	/* invalidate the buffer track to force a reread */
 	set_bit((long)disk->private_data, &fake_change);
 	process_fd_request();
-	if (disk_check_media_change(disk))
+	if (disk_check_media_change(disk)) {
+		bdev_mark_dead(disk->part0, true);
 		floppy_revalidate(disk);
+	}
 	return 0;
 }
 

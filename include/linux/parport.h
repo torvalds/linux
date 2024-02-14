@@ -180,8 +180,6 @@ struct ieee1284_info {
 	struct semaphore irq;
 };
 
-#define PARPORT_NAME_MAX_LEN 15
-
 /* A parallel port */
 struct parport {
 	unsigned long base;	/* base address */

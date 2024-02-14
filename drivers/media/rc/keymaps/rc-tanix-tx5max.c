@@ -66,3 +66,4 @@ module_exit(exit_rc_map_tanix_tx5max)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com>");
+MODULE_DESCRIPTION("Tanix TX5 max STB remote controller keytable");

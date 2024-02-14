@@ -110,7 +110,7 @@ static const char *get_shadow_bug_type(struct kasan_report_info *info)
 		bug_type = "use-after-free";
 		break;
 	case KASAN_SLAB_FREE:
-	case KASAN_SLAB_FREETRACK:
+	case KASAN_SLAB_FREE_META:
 		bug_type = "slab-use-after-free";
 		break;
 	case KASAN_ALLOCA_LEFT:
@@ -173,8 +173,8 @@ void kasan_complete_mode_report_info(struct kasan_report_info *info)
 		memcpy(&info->alloc_track, &alloc_meta->alloc_track,
 		       sizeof(info->alloc_track));
 
-	if (*(u8 *)kasan_mem_to_shadow(info->object) == KASAN_SLAB_FREETRACK) {
-		/* Free meta must be present with KASAN_SLAB_FREETRACK. */
+	if (*(u8 *)kasan_mem_to_shadow(info->object) == KASAN_SLAB_FREE_META) {
+		/* Free meta must be present with KASAN_SLAB_FREE_META. */
 		free_meta = kasan_get_free_meta(info->cache, info->object);
 		memcpy(&info->free_track, &free_meta->free_track,
 		       sizeof(info->free_track));
@@ -220,7 +220,7 @@ static bool __must_check tokenize_frame_descr(const char **frame_descr,
 		const size_t tok_len = sep - *frame_descr;
 
 		if (tok_len + 1 > max_tok_len) {
-			pr_err("KASAN internal error: frame description too long: %s\n",
+			pr_err("internal error: frame description too long: %s\n",
 			       *frame_descr);
 			return false;
 		}
@@ -233,7 +233,7 @@ static bool __must_check tokenize_frame_descr(const char **frame_descr,
 	*frame_descr = sep + 1;
 
 	if (value != NULL && kstrtoul(token, 10, value)) {
-		pr_err("KASAN internal error: not a valid number: %s\n", token);
+		pr_err("internal error: not a valid number: %s\n", token);
 		return false;
 	}
 
@@ -323,7 +323,7 @@ static bool __must_check get_address_stack_frame_info(const void *addr,
 
 	frame = (const unsigned long *)(mem_ptr + KASAN_GRANULE_SIZE);
 	if (frame[0] != KASAN_CURRENT_STACK_FRAME_MAGIC) {
-		pr_err("KASAN internal error: frame info validation failed; invalid marker: %lu\n",
+		pr_err("internal error: frame has invalid marker: %lu\n",
 		       frame[0]);
 		return false;
 	}

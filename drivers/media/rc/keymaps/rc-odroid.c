@@ -52,3 +52,4 @@ module_exit(exit_rc_map_odroid)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com");
+MODULE_DESCRIPTION("HardKernel ODROID remote controller keytable");

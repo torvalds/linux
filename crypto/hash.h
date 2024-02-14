@@ -12,6 +12,16 @@
 
 #include "internal.h"
 
+static inline struct crypto_istat_hash *hash_get_stat(
+	struct hash_alg_common *alg)
+{
+#ifdef CONFIG_CRYPTO_STATS
+	return &alg->stat;
+#else
+	return NULL;
+#endif
+}
+
 static inline int crypto_hash_report_stat(struct sk_buff *skb,
 					  struct crypto_alg *alg,
 					  const char *type)
@@ -31,9 +41,7 @@ static inline int crypto_hash_report_stat(struct sk_buff *skb,
 	return nla_put(skb, CRYPTOCFGA_STAT_HASH, sizeof(rhash), &rhash);
 }
 
-int crypto_init_shash_ops_async(struct crypto_tfm *tfm);
-struct crypto_ahash *crypto_clone_shash_ops_async(struct crypto_ahash *nhash,
-						  struct crypto_ahash *hash);
+extern const struct crypto_type crypto_shash_type;
 
 int hash_prepare_alg(struct hash_alg_common *alg);
 

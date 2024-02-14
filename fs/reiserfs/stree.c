@@ -1407,7 +1407,7 @@ void reiserfs_delete_solid_item(struct reiserfs_transaction_handle *th,
 	INITIALIZE_PATH(path);
 	int item_len = 0;
 	int tb_init = 0;
-	struct cpu_key cpu_key;
+	struct cpu_key cpu_key = {};
 	int retval;
 	int quota_cut_bytes = 0;
 
@@ -2003,7 +2003,8 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
-				inode->i_mtime = current_time(inode);
+				inode_set_mtime_to_ts(inode,
+						      current_time(inode));
 				inode_set_ctime_current(inode);
 			}
 			reiserfs_update_sd(th, inode);
@@ -2028,7 +2029,7 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 update_and_out:
 	if (update_timestamps) {
 		/* this is truncate, not file closing */
-		inode->i_mtime = current_time(inode);
+		inode_set_mtime_to_ts(inode, current_time(inode));
 		inode_set_ctime_current(inode);
 	}
 	reiserfs_update_sd(th, inode);

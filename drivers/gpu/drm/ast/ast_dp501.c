@@ -31,17 +31,17 @@ static int ast_load_dp501_microcode(struct drm_device *dev)
 static void send_ack(struct ast_device *ast)
 {
 	u8 sendack;
-	sendack = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9b, 0xff);
+	sendack = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0x9b, 0xff);
 	sendack |= 0x80;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9b, 0x00, sendack);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9b, 0x00, sendack);
 }
 
 static void send_nack(struct ast_device *ast)
 {
 	u8 sendack;
-	sendack = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9b, 0xff);
+	sendack = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0x9b, 0xff);
 	sendack &= ~0x80;
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9b, 0x00, sendack);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9b, 0x00, sendack);
 }
 
 static bool wait_ack(struct ast_device *ast)
@@ -49,7 +49,7 @@ static bool wait_ack(struct ast_device *ast)
 	u8 waitack;
 	u32 retry = 0;
 	do {
-		waitack = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd2, 0xff);
+		waitack = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd2, 0xff);
 		waitack &= 0x80;
 		udelay(100);
 	} while ((!waitack) && (retry++ < 1000));
@@ -65,7 +65,7 @@ static bool wait_nack(struct ast_device *ast)
 	u8 waitack;
 	u32 retry = 0;
 	do {
-		waitack = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd2, 0xff);
+		waitack = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd2, 0xff);
 		waitack &= 0x80;
 		udelay(100);
 	} while ((waitack) && (retry++ < 1000));
@@ -78,12 +78,12 @@ static bool wait_nack(struct ast_device *ast)
 
 static void set_cmd_trigger(struct ast_device *ast)
 {
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9b, ~0x40, 0x40);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9b, ~0x40, 0x40);
 }
 
 static void clear_cmd_trigger(struct ast_device *ast)
 {
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9b, ~0x40, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9b, ~0x40, 0x00);
 }
 
 #if 0
@@ -92,7 +92,7 @@ static bool wait_fw_ready(struct ast_device *ast)
 	u8 waitready;
 	u32 retry = 0;
 	do {
-		waitready = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd2, 0xff);
+		waitready = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd2, 0xff);
 		waitready &= 0x40;
 		udelay(100);
 	} while ((!waitready) && (retry++ < 1000));
@@ -110,7 +110,7 @@ static bool ast_write_cmd(struct drm_device *dev, u8 data)
 	int retry = 0;
 	if (wait_nack(ast)) {
 		send_nack(ast);
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9a, 0x00, data);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9a, 0x00, data);
 		send_ack(ast);
 		set_cmd_trigger(ast);
 		do {
@@ -132,7 +132,7 @@ static bool ast_write_data(struct drm_device *dev, u8 data)
 
 	if (wait_nack(ast)) {
 		send_nack(ast);
-		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9a, 0x00, data);
+		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9a, 0x00, data);
 		send_ack(ast);
 		if (wait_ack(ast)) {
 			send_nack(ast);
@@ -153,7 +153,7 @@ static bool ast_read_data(struct drm_device *dev, u8 *data)
 
 	if (wait_ack(ast) == false)
 		return false;
-	tmp = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd3, 0xff);
+	tmp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd3, 0xff);
 	*data = tmp;
 	if (wait_nack(ast) == false) {
 		send_nack(ast);
@@ -166,7 +166,7 @@ static bool ast_read_data(struct drm_device *dev, u8 *data)
 static void clear_cmd(struct ast_device *ast)
 {
 	send_nack(ast);
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x9a, 0x00, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0x9a, 0x00, 0x00);
 }
 #endif
 
@@ -265,9 +265,9 @@ static bool ast_launch_m68k(struct drm_device *dev)
 		data |= 0x800;
 		ast_moutdwm(ast, 0x1e6e2040, data);
 
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0x99, 0xfc); /* D[1:0]: Reserved Video Buffer */
+		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0x99, 0xfc); /* D[1:0]: Reserved Video Buffer */
 		jreg |= 0x02;
-		ast_set_index_reg(ast, AST_IO_CRTC_PORT, 0x99, jreg);
+		ast_set_index_reg(ast, AST_IO_VGACRI, 0x99, jreg);
 	}
 	return true;
 }
@@ -354,7 +354,7 @@ static bool ast_init_dvo(struct drm_device *dev)
 	ast_write32(ast, 0xf000, 0x1);
 	ast_write32(ast, 0x12000, 0x1688a8a8);
 
-	jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd0, 0xff);
+	jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd0, 0xff);
 	if (!(jreg & 0x80)) {
 		/* Init SCU DVO Settings */
 		data = ast_read32(ast, 0x12008);
@@ -413,7 +413,7 @@ static bool ast_init_dvo(struct drm_device *dev)
 	ast_write32(ast, 0x1202c, data);
 
 	/* Init VGA DVO Settings */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xcf, 0x80);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x80);
 	return true;
 }
 
@@ -442,7 +442,7 @@ static void ast_init_analog(struct drm_device *dev)
 	ast_write32(ast, 0, data);
 
 	/* Disable DVO */
-	ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xcf, 0x00);
+	ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xa3, 0xcf, 0x00);
 }
 
 void ast_init_3rdtx(struct drm_device *dev)
@@ -451,7 +451,7 @@ void ast_init_3rdtx(struct drm_device *dev)
 	u8 jreg;
 
 	if (IS_AST_GEN4(ast) || IS_AST_GEN5(ast)) {
-		jreg = ast_get_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xd1, 0xff);
+		jreg = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xd1, 0xff);
 		switch (jreg & 0x0e) {
 		case 0x04:
 			ast_init_dvo(dev);

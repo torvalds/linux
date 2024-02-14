@@ -681,12 +681,13 @@ struct iwl_tfh_tb {
 
 /**
  * struct iwl_tfd - Transmit Frame Descriptor (TFD)
- * @ __reserved1[3] reserved
- * @ num_tbs 0-4 number of active tbs
- *	     5   reserved
- *	     6-7 padding (not used)
- * @ tbs[20]	transmit frame buffer descriptors
- * @ __pad	padding
+ * @__reserved1: reserved
+ * @num_tbs:
+ *  0-4 number of active tbs
+ *  5   reserved
+ *  6-7 padding (not used)
+ * @tbs: transmit frame buffer descriptors
+ * @__pad: padding
  */
 struct iwl_tfd {
 	u8 __reserved1[3];

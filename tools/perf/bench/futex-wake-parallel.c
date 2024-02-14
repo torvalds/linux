@@ -264,7 +264,7 @@ int bench_futex_wake_parallel(int argc, const char **argv)
 			err(EXIT_FAILURE, "mlockall");
 	}
 
-	cpu = perf_cpu_map__new(NULL);
+	cpu = perf_cpu_map__new_online_cpus();
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 

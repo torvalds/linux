@@ -39,6 +39,12 @@ properties:
   power-domains:
     maxItems: 1
 
+  renesas,csi-no-ss:
+    type: boolean
+    description:
+      The CSI Slave Selection (SS) pin won't be used to enable transmission and
+      reception. Only available when in target mode.
+
 required:
   - compatible
   - reg
@@ -49,6 +55,9 @@ required:
   - power-domains
   - '#address-cells'
   - '#size-cells'
+
+dependencies:
+  renesas,csi-no-ss: [ spi-slave ]
 
 unevaluatedProperties: false
 

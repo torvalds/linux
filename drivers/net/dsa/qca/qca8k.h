@@ -454,11 +454,12 @@ struct qca8k_priv {
 	struct qca8k_ports_config ports_config;
 	struct regmap *regmap;
 	struct mii_bus *bus;
+	struct mii_bus *internal_mdio_bus;
 	struct dsa_switch *ds;
 	struct mutex reg_mutex;
 	struct device *dev;
 	struct gpio_desc *reset_gpio;
-	struct net_device *mgmt_master; /* Track if mdio/mib Ethernet is available */
+	struct net_device *mgmt_conduit; /* Track if mdio/mib Ethernet is available */
 	struct qca8k_mgmt_eth_data mgmt_eth_data;
 	struct qca8k_mib_eth_data mib_eth_data;
 	struct qca8k_mdio_cache mdio_cache;

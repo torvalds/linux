@@ -3,16 +3,12 @@
 #ifndef __NOUVEAU_EXEC_H__
 #define __NOUVEAU_EXEC_H__
 
-#include <drm/drm_exec.h>
-
 #include "nouveau_drv.h"
 #include "nouveau_sched.h"
 
 struct nouveau_exec_job_args {
 	struct drm_file *file_priv;
-	struct nouveau_sched_entity *sched_entity;
-
-	struct drm_exec exec;
+	struct nouveau_sched *sched;
 	struct nouveau_channel *chan;
 
 	struct {
@@ -50,5 +46,15 @@ int nouveau_exec_job_init(struct nouveau_exec_job **job,
 
 int nouveau_exec_ioctl_exec(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
+
+static inline unsigned int
+nouveau_exec_push_max_from_ib_max(int ib_max)
+{
+	/* Limit the number of IBs per job to half the size of the ring in order
+	 * to avoid the ring running dry between submissions and preserve one
+	 * more slot for the job's HW fence.
+	 */
+	return ib_max > 1 ? ib_max / 2 - 1 : 0;
+}
 
 #endif

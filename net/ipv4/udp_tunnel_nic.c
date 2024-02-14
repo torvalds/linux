@@ -47,7 +47,7 @@ struct udp_tunnel_nic {
 
 	unsigned int n_tables;
 	unsigned long missed;
-	struct udp_tunnel_nic_table_entry **entries;
+	struct udp_tunnel_nic_table_entry *entries[] __counted_by(n_tables);
 };
 
 /* We ensure all work structs are done using driver state, but not the code.
@@ -725,15 +725,11 @@ udp_tunnel_nic_alloc(const struct udp_tunnel_nic_info *info,
 	struct udp_tunnel_nic *utn;
 	unsigned int i;
 
-	utn = kzalloc(sizeof(*utn), GFP_KERNEL);
+	utn = kzalloc(struct_size(utn, entries, n_tables), GFP_KERNEL);
 	if (!utn)
 		return NULL;
 	utn->n_tables = n_tables;
 	INIT_WORK(&utn->work, udp_tunnel_nic_device_sync_work);
-
-	utn->entries = kmalloc_array(n_tables, sizeof(void *), GFP_KERNEL);
-	if (!utn->entries)
-		goto err_free_utn;
 
 	for (i = 0; i < n_tables; i++) {
 		utn->entries[i] = kcalloc(info->tables[i].n_entries,
@@ -747,8 +743,6 @@ udp_tunnel_nic_alloc(const struct udp_tunnel_nic_info *info,
 err_free_prev_entries:
 	while (i--)
 		kfree(utn->entries[i]);
-	kfree(utn->entries);
-err_free_utn:
 	kfree(utn);
 	return NULL;
 }
@@ -759,7 +753,6 @@ static void udp_tunnel_nic_free(struct udp_tunnel_nic *utn)
 
 	for (i = 0; i < utn->n_tables; i++)
 		kfree(utn->entries[i]);
-	kfree(utn->entries);
 	kfree(utn);
 }
 

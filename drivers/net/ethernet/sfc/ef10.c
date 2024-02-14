@@ -3706,13 +3706,13 @@ static int efx_ef10_ptp_set_ts_sync_events(struct efx_nic *efx, bool en,
 }
 
 static int efx_ef10_ptp_set_ts_config_vf(struct efx_nic *efx,
-					 struct hwtstamp_config *init)
+					 struct kernel_hwtstamp_config *init)
 {
 	return -EOPNOTSUPP;
 }
 
 static int efx_ef10_ptp_set_ts_config(struct efx_nic *efx,
-				      struct hwtstamp_config *init)
+				      struct kernel_hwtstamp_config *init)
 {
 	int rc;
 

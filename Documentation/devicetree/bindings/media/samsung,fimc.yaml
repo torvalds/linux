@@ -57,6 +57,7 @@ properties:
     patternProperties:
       "^port@[01]$":
         $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description:
           Camera A and camera B inputs.
 
@@ -117,7 +118,7 @@ examples:
         #clock-cells = <1>;
         #address-cells = <1>;
         #size-cells = <1>;
-        ranges = <0x0 0x0 0x18000000>;
+        ranges = <0x0 0x0 0xba1000>;
 
         clocks = <&clock CLK_SCLK_CAM0>, <&clock CLK_SCLK_CAM1>,
                  <&clock CLK_PIXELASYNCM0>, <&clock CLK_PIXELASYNCM1>;
@@ -132,9 +133,9 @@ examples:
         pinctrl-0 = <&cam_port_a_clk_active &cam_port_b_clk_active>;
         pinctrl-names = "default";
 
-        fimc@11800000 {
+        fimc@0 {
             compatible = "samsung,exynos4212-fimc";
-            reg = <0x11800000 0x1000>;
+            reg = <0x00000000 0x1000>;
             interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&clock CLK_FIMC0>,
                      <&clock CLK_SCLK_FIMC0>;
@@ -151,9 +152,9 @@ examples:
 
         /* ... FIMC 1-3 */
 
-        csis@11880000 {
+        csis@80000 {
             compatible = "samsung,exynos4210-csis";
-            reg = <0x11880000 0x4000>;
+            reg = <0x00080000 0x4000>;
             interrupts = <GIC_SPI 78 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&clock CLK_CSIS0>,
                      <&clock CLK_SCLK_CSIS0>;
@@ -186,9 +187,9 @@ examples:
 
         /* ... CSIS 1 */
 
-        fimc-lite@12390000 {
+        fimc-lite@b90000 {
               compatible = "samsung,exynos4212-fimc-lite";
-              reg = <0x12390000 0x1000>;
+              reg = <0xb90000 0x1000>;
               interrupts = <GIC_SPI 105 IRQ_TYPE_LEVEL_HIGH>;
               power-domains = <&pd_isp>;
               clocks = <&isp_clock CLK_ISP_FIMC_LITE0>;
@@ -198,9 +199,9 @@ examples:
 
         /* ... FIMC-LITE 1 */
 
-        fimc-is@12000000 {
+        fimc-is@800000 {
             compatible = "samsung,exynos4212-fimc-is";
-            reg = <0x12000000 0x260000>;
+            reg = <0x00800000 0x260000>;
             interrupts = <GIC_SPI 90 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&isp_clock CLK_ISP_FIMC_LITE0>,
@@ -236,18 +237,15 @@ examples:
                      <&sysmmu_fimc_fd>, <&sysmmu_fimc_mcuctl>;
             iommu-names = "isp", "drc", "fd", "mcuctl";
             power-domains = <&pd_isp>;
+            samsung,pmu-syscon = <&pmu_system_controller>;
 
             #address-cells = <1>;
             #size-cells = <1>;
             ranges;
 
-            pmu@10020000 {
-                reg = <0x10020000 0x3000>;
-            };
-
-            i2c-isp@12140000 {
+            i2c-isp@940000 {
                 compatible = "samsung,exynos4212-i2c-isp";
-                reg = <0x12140000 0x100>;
+                reg = <0x00940000 0x100>;
                 clocks = <&isp_clock CLK_ISP_I2C1_ISP>;
                 clock-names = "i2c_isp";
                 pinctrl-0 = <&fimc_is_i2c1>;

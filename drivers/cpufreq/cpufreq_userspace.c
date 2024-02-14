@@ -15,8 +15,11 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 
-static DEFINE_PER_CPU(unsigned int, cpu_is_managed);
-static DEFINE_MUTEX(userspace_mutex);
+struct userspace_policy {
+	unsigned int is_managed;
+	unsigned int setspeed;
+	struct mutex mutex;
+};
 
 /**
  * cpufreq_set - set the CPU frequency
@@ -28,19 +31,19 @@ static DEFINE_MUTEX(userspace_mutex);
 static int cpufreq_set(struct cpufreq_policy *policy, unsigned int freq)
 {
 	int ret = -EINVAL;
-	unsigned int *setspeed = policy->governor_data;
+	struct userspace_policy *userspace = policy->governor_data;
 
 	pr_debug("cpufreq_set for cpu %u, freq %u kHz\n", policy->cpu, freq);
 
-	mutex_lock(&userspace_mutex);
-	if (!per_cpu(cpu_is_managed, policy->cpu))
+	mutex_lock(&userspace->mutex);
+	if (!userspace->is_managed)
 		goto err;
 
-	*setspeed = freq;
+	userspace->setspeed = freq;
 
 	ret = __cpufreq_driver_target(policy, freq, CPUFREQ_RELATION_L);
  err:
-	mutex_unlock(&userspace_mutex);
+	mutex_unlock(&userspace->mutex);
 	return ret;
 }
 
@@ -51,67 +54,74 @@ static ssize_t show_speed(struct cpufreq_policy *policy, char *buf)
 
 static int cpufreq_userspace_policy_init(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed;
+	struct userspace_policy *userspace;
 
-	setspeed = kzalloc(sizeof(*setspeed), GFP_KERNEL);
-	if (!setspeed)
+	userspace = kzalloc(sizeof(*userspace), GFP_KERNEL);
+	if (!userspace)
 		return -ENOMEM;
 
-	policy->governor_data = setspeed;
+	mutex_init(&userspace->mutex);
+
+	policy->governor_data = userspace;
 	return 0;
 }
 
+/*
+ * Any routine that writes to the policy struct will hold the "rwsem" of
+ * policy struct that means it is free to free "governor_data" here.
+ */
 static void cpufreq_userspace_policy_exit(struct cpufreq_policy *policy)
 {
-	mutex_lock(&userspace_mutex);
 	kfree(policy->governor_data);
 	policy->governor_data = NULL;
-	mutex_unlock(&userspace_mutex);
 }
 
 static int cpufreq_userspace_policy_start(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
+	struct userspace_policy *userspace = policy->governor_data;
 
 	BUG_ON(!policy->cur);
 	pr_debug("started managing cpu %u\n", policy->cpu);
 
-	mutex_lock(&userspace_mutex);
-	per_cpu(cpu_is_managed, policy->cpu) = 1;
-	*setspeed = policy->cur;
-	mutex_unlock(&userspace_mutex);
+	mutex_lock(&userspace->mutex);
+	userspace->is_managed = 1;
+	userspace->setspeed = policy->cur;
+	mutex_unlock(&userspace->mutex);
 	return 0;
 }
 
 static void cpufreq_userspace_policy_stop(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
+	struct userspace_policy *userspace = policy->governor_data;
 
 	pr_debug("managing cpu %u stopped\n", policy->cpu);
 
-	mutex_lock(&userspace_mutex);
-	per_cpu(cpu_is_managed, policy->cpu) = 0;
-	*setspeed = 0;
-	mutex_unlock(&userspace_mutex);
+	mutex_lock(&userspace->mutex);
+	userspace->is_managed = 0;
+	userspace->setspeed = 0;
+	mutex_unlock(&userspace->mutex);
 }
 
 static void cpufreq_userspace_policy_limits(struct cpufreq_policy *policy)
 {
-	unsigned int *setspeed = policy->governor_data;
+	struct userspace_policy *userspace = policy->governor_data;
 
-	mutex_lock(&userspace_mutex);
+	mutex_lock(&userspace->mutex);
 
 	pr_debug("limit event for cpu %u: %u - %u kHz, currently %u kHz, last set to %u kHz\n",
-		 policy->cpu, policy->min, policy->max, policy->cur, *setspeed);
+		 policy->cpu, policy->min, policy->max, policy->cur, userspace->setspeed);
 
-	if (policy->max < *setspeed)
-		__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
-	else if (policy->min > *setspeed)
-		__cpufreq_driver_target(policy, policy->min, CPUFREQ_RELATION_L);
+	if (policy->max < userspace->setspeed)
+		__cpufreq_driver_target(policy, policy->max,
+					CPUFREQ_RELATION_H);
+	else if (policy->min > userspace->setspeed)
+		__cpufreq_driver_target(policy, policy->min,
+					CPUFREQ_RELATION_L);
 	else
-		__cpufreq_driver_target(policy, *setspeed, CPUFREQ_RELATION_L);
+		__cpufreq_driver_target(policy, userspace->setspeed,
+					CPUFREQ_RELATION_L);
 
-	mutex_unlock(&userspace_mutex);
+	mutex_unlock(&userspace->mutex);
 }
 
 static struct cpufreq_governor cpufreq_gov_userspace = {

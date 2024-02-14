@@ -12,6 +12,9 @@ PROPERTIES
                         "qcom,hfpll-apq8064", "qcom,hfpll"
                         "qcom,hfpll-msm8974", "qcom,hfpll"
                         "qcom,hfpll-msm8960", "qcom,hfpll"
+                        "qcom,msm8976-hfpll-a53", "qcom,hfpll"
+                        "qcom,msm8976-hfpll-a72", "qcom,hfpll"
+                        "qcom,msm8976-hfpll-cci", "qcom,hfpll"
 
 - reg:
 	Usage: required

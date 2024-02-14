@@ -70,7 +70,7 @@ examples:
 
     phy@84000 {
         compatible = "qcom,ipq6018-qmp-pcie-phy";
-        reg = <0x0 0x00084000 0x0 0x1000>;
+        reg = <0x00084000 0x1000>;
 
         clocks = <&gcc GCC_PCIE0_AUX_CLK>,
                  <&gcc GCC_PCIE0_AHB_CLK>,

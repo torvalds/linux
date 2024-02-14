@@ -131,8 +131,8 @@ static irqreturn_t chv3_i2s_isr(int irq, void *data)
 static int chv3_dma_open(struct snd_soc_component *component,
 			 struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	int res;
 
 	snd_soc_set_runtime_hwparams(substream, &chv3_dma_hw);
@@ -152,8 +152,8 @@ static int chv3_dma_open(struct snd_soc_component *component,
 static int chv3_dma_close(struct snd_soc_component *component,
 			  struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 
 	if (substream->pstr->stream == SNDRV_PCM_STREAM_CAPTURE)
 		chv3_i2s_wr(i2s, I2S_RX_ENABLE, 0);
@@ -166,7 +166,7 @@ static int chv3_dma_close(struct snd_soc_component *component,
 static int chv3_dma_pcm_construct(struct snd_soc_component *component,
 				  struct snd_soc_pcm_runtime *rtd)
 {
-	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	struct snd_pcm_substream *substream;
 	int res;
 
@@ -200,8 +200,8 @@ static int chv3_dma_hw_params(struct snd_soc_component *component,
 static int chv3_dma_prepare(struct snd_soc_component *component,
 			    struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int buffer_bytes, period_bytes, period_size;
 
 	buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
@@ -229,8 +229,8 @@ static int chv3_dma_prepare(struct snd_soc_component *component,
 static snd_pcm_uframes_t chv3_dma_pointer(struct snd_soc_component *component,
 					  struct snd_pcm_substream *substream)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	u32 frame_bytes, buffer_bytes;
 	u32 idx_bytes;
 
@@ -252,8 +252,8 @@ static int chv3_dma_ack(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct chv3_i2s_dev *i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	unsigned int bytes, idx;
 
 	bytes = frames_to_bytes(runtime, runtime->control->appl_ptr);

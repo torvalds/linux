@@ -67,7 +67,7 @@ struct ipa_power {
 	spinlock_t spinlock;	/* used with STOPPED/STARTED power flags */
 	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
-	struct icc_bulk_data interconnect[];
+	struct icc_bulk_data interconnect[] __counted_by(interconnect_count);
 };
 
 /* Initialize interconnects required for IPA operation */

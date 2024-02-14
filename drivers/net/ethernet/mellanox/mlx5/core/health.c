@@ -365,6 +365,8 @@ static const char *hsynd_str(u8 synd)
 		return "FFSER error";
 	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_HIGH_TEMP_ERR:
 		return "High temperature";
+	case MLX5_INITIAL_SEG_HEALTH_SYNDROME_ICM_PCI_POISONED_ERR:
+		return "ICM fetch PCI data poisoned error";
 	default:
 		return "unrecognized error";
 	}
@@ -448,14 +450,15 @@ mlx5_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
-	u8 synd;
-	int err;
+	u8 synd = ioread8(&h->synd);
 
-	synd = ioread8(&h->synd);
-	err = devlink_fmsg_u8_pair_put(fmsg, "Syndrome", synd);
-	if (err || !synd)
-		return err;
-	return devlink_fmsg_string_pair_put(fmsg, "Description", hsynd_str(synd));
+	if (!synd)
+		return 0;
+
+	devlink_fmsg_u8_pair_put(fmsg, "Syndrome", synd);
+	devlink_fmsg_string_pair_put(fmsg, "Description", hsynd_str(synd));
+
+	return 0;
 }
 
 struct mlx5_fw_reporter_ctx {
@@ -463,94 +466,47 @@ struct mlx5_fw_reporter_ctx {
 	int miss_counter;
 };
 
-static int
+static void
 mlx5_fw_reporter_ctx_pairs_put(struct devlink_fmsg *fmsg,
 			       struct mlx5_fw_reporter_ctx *fw_reporter_ctx)
 {
-	int err;
-
-	err = devlink_fmsg_u8_pair_put(fmsg, "syndrome",
-				       fw_reporter_ctx->err_synd);
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "fw_miss_counter",
-					fw_reporter_ctx->miss_counter);
-	if (err)
-		return err;
-	return 0;
+	devlink_fmsg_u8_pair_put(fmsg, "syndrome", fw_reporter_ctx->err_synd);
+	devlink_fmsg_u32_pair_put(fmsg, "fw_miss_counter", fw_reporter_ctx->miss_counter);
 }
 
-static int
+static void
 mlx5_fw_reporter_heath_buffer_data_put(struct mlx5_core_dev *dev,
 				       struct devlink_fmsg *fmsg)
 {
 	struct mlx5_core_health *health = &dev->priv.health;
 	struct health_buffer __iomem *h = health->health;
 	u8 rfr_severity;
-	int err;
 	int i;
 
 	if (!ioread8(&h->synd))
-		return 0;
+		return;
 
-	err = devlink_fmsg_pair_nest_start(fmsg, "health buffer");
-	if (err)
-		return err;
-	err = devlink_fmsg_obj_nest_start(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "assert_var");
-	if (err)
-		return err;
-
-	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++) {
-		err = devlink_fmsg_u32_put(fmsg, ioread32be(h->assert_var + i));
-		if (err)
-			return err;
-	}
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "assert_exit_ptr",
-					ioread32be(&h->assert_exit_ptr));
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "assert_callra",
-					ioread32be(&h->assert_callra));
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "time", ioread32be(&h->time));
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "hw_id", ioread32be(&h->hw_id));
-	if (err)
-		return err;
+	devlink_fmsg_pair_nest_start(fmsg, "health buffer");
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_arr_pair_nest_start(fmsg, "assert_var");
+	for (i = 0; i < ARRAY_SIZE(h->assert_var); i++)
+		devlink_fmsg_u32_put(fmsg, ioread32be(h->assert_var + i));
+	devlink_fmsg_arr_pair_nest_end(fmsg);
+	devlink_fmsg_u32_pair_put(fmsg, "assert_exit_ptr",
+				  ioread32be(&h->assert_exit_ptr));
+	devlink_fmsg_u32_pair_put(fmsg, "assert_callra",
+				  ioread32be(&h->assert_callra));
+	devlink_fmsg_u32_pair_put(fmsg, "time", ioread32be(&h->time));
+	devlink_fmsg_u32_pair_put(fmsg, "hw_id", ioread32be(&h->hw_id));
 	rfr_severity = ioread8(&h->rfr_severity);
-	err = devlink_fmsg_u8_pair_put(fmsg, "rfr", mlx5_health_get_rfr(rfr_severity));
-	if (err)
-		return err;
-	err = devlink_fmsg_u8_pair_put(fmsg, "severity", mlx5_health_get_severity(rfr_severity));
-	if (err)
-		return err;
-	err = devlink_fmsg_u8_pair_put(fmsg, "irisc_index",
-				       ioread8(&h->irisc_index));
-	if (err)
-		return err;
-	err = devlink_fmsg_u8_pair_put(fmsg, "synd", ioread8(&h->synd));
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "ext_synd",
-					ioread16be(&h->ext_synd));
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "raw_fw_ver",
-					ioread32be(&h->fw_ver));
-	if (err)
-		return err;
-	err = devlink_fmsg_obj_nest_end(fmsg);
-	if (err)
-		return err;
-	return devlink_fmsg_pair_nest_end(fmsg);
+	devlink_fmsg_u8_pair_put(fmsg, "rfr", mlx5_health_get_rfr(rfr_severity));
+	devlink_fmsg_u8_pair_put(fmsg, "severity", mlx5_health_get_severity(rfr_severity));
+	devlink_fmsg_u8_pair_put(fmsg, "irisc_index", ioread8(&h->irisc_index));
+	devlink_fmsg_u8_pair_put(fmsg, "synd", ioread8(&h->synd));
+	devlink_fmsg_u32_pair_put(fmsg, "ext_synd", ioread16be(&h->ext_synd));
+	devlink_fmsg_u32_pair_put(fmsg, "raw_fw_ver", ioread32be(&h->fw_ver));
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
 }
 
 static int
@@ -568,14 +524,11 @@ mlx5_fw_reporter_dump(struct devlink_health_reporter *reporter,
 	if (priv_ctx) {
 		struct mlx5_fw_reporter_ctx *fw_reporter_ctx = priv_ctx;
 
-		err = mlx5_fw_reporter_ctx_pairs_put(fmsg, fw_reporter_ctx);
-		if (err)
-			return err;
+		mlx5_fw_reporter_ctx_pairs_put(fmsg, fw_reporter_ctx);
 	}
 
-	err = mlx5_fw_reporter_heath_buffer_data_put(dev, fmsg);
-	if (err)
-		return err;
+	mlx5_fw_reporter_heath_buffer_data_put(dev, fmsg);
+
 	return mlx5_fw_tracer_get_saved_traces_objects(dev->tracer, fmsg);
 }
 
@@ -641,12 +594,10 @@ mlx5_fw_fatal_reporter_dump(struct devlink_health_reporter *reporter,
 	if (priv_ctx) {
 		struct mlx5_fw_reporter_ctx *fw_reporter_ctx = priv_ctx;
 
-		err = mlx5_fw_reporter_ctx_pairs_put(fmsg, fw_reporter_ctx);
-		if (err)
-			goto free_data;
+		mlx5_fw_reporter_ctx_pairs_put(fmsg, fw_reporter_ctx);
 	}
 
-	err = devlink_fmsg_binary_pair_put(fmsg, "crdump_data", cr_data, crdump_size);
+	devlink_fmsg_binary_pair_put(fmsg, "crdump_data", cr_data, crdump_size);
 
 free_data:
 	kvfree(cr_data);

@@ -37,10 +37,26 @@ properties:
   max77693-muic:
     type: object
     additionalProperties: false
+    deprecated: true
 
     properties:
       compatible:
         const: maxim,max77693-muic
+
+    required:
+      - compatible
+
+  muic:
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: maxim,max77693-muic
+
+      connector:
+        $ref: /schemas/connector/usb-connector.yaml#
+        unevaluatedProperties: false
 
     required:
       - compatible
@@ -104,6 +120,38 @@ examples:
                     regulator-name = "CHARGER";
                     regulator-min-microamp = <60000>;
                     regulator-max-microamp = <2580000>;
+                };
+            };
+
+            muic {
+                compatible = "maxim,max77693-muic";
+
+                connector {
+                    compatible = "samsung,usb-connector-11pin",
+                                 "usb-b-connector";
+                    label = "micro-USB";
+                    type = "micro";
+
+                    ports {
+                        #address-cells = <1>;
+                        #size-cells = <0>;
+
+                        port@0 {
+                            reg = <0>;
+
+                            muic_to_usb: endpoint {
+                                remote-endpoint = <&usb_to_muic>;
+                            };
+                        };
+
+                        port@3 {
+                            reg = <3>;
+
+                            muic_to_mhl: endpoint {
+                                remote-endpoint = <&mhl_to_muic>;
+                            };
+                        };
+                    };
                 };
             };
 

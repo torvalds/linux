@@ -98,7 +98,7 @@ static int nvme_send_pr_command(struct block_device *bdev,
 		struct nvme_command *c, void *data, unsigned int data_len)
 {
 	if (IS_ENABLED(CONFIG_NVME_MULTIPATH) &&
-	    bdev->bd_disk->fops == &nvme_ns_head_ops)
+	    nvme_disk_is_ns_head(bdev->bd_disk))
 		return nvme_send_ns_head_pr_command(bdev, c, data, data_len);
 
 	return nvme_send_ns_pr_command(bdev->bd_disk->private_data, c, data,

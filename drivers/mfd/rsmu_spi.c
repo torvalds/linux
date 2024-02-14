@@ -262,7 +262,7 @@ MODULE_DEVICE_TABLE(of, rsmu_spi_of_match);
 static struct spi_driver rsmu_spi_driver = {
 	.driver = {
 		.name = "rsmu-spi",
-		.of_match_table = of_match_ptr(rsmu_spi_of_match),
+		.of_match_table = rsmu_spi_of_match,
 	},
 	.probe = rsmu_spi_probe,
 	.remove	= rsmu_spi_remove,

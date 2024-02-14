@@ -30,6 +30,7 @@
 		};
 
 		serial@31d0000 {
+			current-speed = <115200>;
 			status = "okay";
 		};
 

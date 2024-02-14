@@ -492,6 +492,11 @@ static const struct snd_soc_acpi_codecs adl_nau8318_amp = {
 	.codecs = {"NVTN2012"}
 };
 
+static struct snd_soc_acpi_codecs adl_rt5650_amp = {
+	.num_codecs = 1,
+	.codecs = {"10EC5650"}
+};
+
 struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	{
 		.comp_ids = &adl_rt5682_rt5682s_hp,
@@ -523,14 +528,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	},
 	{
 		.id = "10508825",
-		.drv_name = "adl_max98373_8825",
+		.drv_name = "adl_nau8825_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98373_amp,
 		.sof_tplg_filename = "sof-adl-max98373-nau8825.tplg",
 	},
 	{
 		.id = "10508825",
-		.drv_name = "adl_mx98360a_8825",
+		.drv_name = "adl_nau8825_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98360a_amp,
 		.sof_tplg_filename = "sof-adl-max98360a-nau8825.tplg",
@@ -544,14 +549,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	},
 	{
 		.id = "10508825",
-		.drv_name = "adl_rt1015p_8825",
+		.drv_name = "adl_nau8825_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_rt1015p_amp,
 		.sof_tplg_filename = "sof-adl-rt1015-nau8825.tplg",
 	},
 	{
 		.id = "10508825",
-		.drv_name = "adl_nau8318_8825",
+		.drv_name = "adl_nau8825_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_nau8318_amp,
 		.sof_tplg_filename = "sof-adl-nau8318-nau8825.tplg",
@@ -601,6 +606,20 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "adl_rt5650",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &adl_rt5650_amp,
+		.sof_tplg_filename = "sof-adl-rt5650.tplg",
+	},
+	{
+		.id = "DLGS7219",
+		.drv_name = "adl_mx98360_da7219",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &adl_max98360a_amp,
+		.sof_tplg_filename = "sof-adl-max98360a-da7219.tplg",
 	},
 	/* place amp-only boards in the end of table */
 	{
@@ -656,16 +675,16 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_sdw_machines[] = {
 		.sof_tplg_filename = "sof-adl-rt1316-l2-mono-rt714-l3.tplg",
 	},
 	{
-		.link_mask = 0x3, /* rt1316 on link1 & rt714 on link0 */
-		.links = adl_sdw_rt1316_link1_rt714_link0,
-		.drv_name = "sof_sdw",
-		.sof_tplg_filename = "sof-adl-rt1316-l1-mono-rt714-l0.tplg",
-	},
-	{
 		.link_mask = 0x7, /* rt714 on link0 & two rt1316s on link1 and link2 */
 		.links = adl_sdw_rt1316_link12_rt714_link0,
 		.drv_name = "sof_sdw",
 		.sof_tplg_filename = "sof-adl-rt1316-l12-rt714-l0.tplg",
+	},
+	{
+		.link_mask = 0x3, /* rt1316 on link1 & rt714 on link0 */
+		.links = adl_sdw_rt1316_link1_rt714_link0,
+		.drv_name = "sof_sdw",
+		.sof_tplg_filename = "sof-adl-rt1316-l1-mono-rt714-l0.tplg",
 	},
 	{
 		.link_mask = 0x5, /* 2 active links required */

@@ -6,7 +6,7 @@
 struct contention_key {
 	u32 stack_id;
 	u32 pid;
-	u64 lock_addr;
+	u64 lock_addr_or_cgroup;
 };
 
 #define TASK_COMM_LEN  16
@@ -39,6 +39,7 @@ enum lock_aggr_mode {
 	LOCK_AGGR_ADDR = 0,
 	LOCK_AGGR_TASK,
 	LOCK_AGGR_CALLER,
+	LOCK_AGGR_CGROUP,
 };
 
 enum lock_class_sym {

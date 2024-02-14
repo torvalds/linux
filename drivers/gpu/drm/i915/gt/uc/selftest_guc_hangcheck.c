@@ -74,7 +74,7 @@ static int intel_hang_guc(void *arg)
 		goto err;
 	}
 
-	rq = igt_spinner_create_request(&spin, ce, MI_NOOP);
+	rq = igt_spinner_create_request(&spin, ce, MI_ARB_CHECK);
 	intel_context_put(ce);
 	if (IS_ERR(rq)) {
 		ret = PTR_ERR(rq);

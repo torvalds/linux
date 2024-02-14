@@ -32,8 +32,7 @@ my $python_cmd = "";
 my $activate_cmd;
 my $min_version;
 my $cur_version;
-my $rec_version = "1.7.9";	# PDF won't build here
-my $min_pdf_version = "2.4.4";	# Min version where pdf builds
+my $rec_version = "3.4.3";
 my $latest_avail_ver;
 
 #
@@ -791,9 +790,6 @@ sub recommend_sphinx_version($)
 
 	# Version is OK. Nothing to do.
 	if ($cur_version && ($cur_version ge $rec_version)) {
-		if ($cur_version lt $min_pdf_version) {
-			print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
-		}
 		return;
 	};
 
@@ -841,10 +837,6 @@ sub recommend_sphinx_version($)
 			printf "\nNeed to activate Sphinx (version $latest_avail_ver) on virtualenv with:\n";
 			printf "\t. $activate_cmd\n";
 			deactivate_help();
-
-			if ($latest_avail_ver lt $min_pdf_version) {
-				print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
-			}
 
 			return;
 		}

@@ -357,6 +357,8 @@
 		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
 		adc {
 			compatible = "gw,gsc-adc";
@@ -642,7 +644,6 @@
 		pinctrl-0 = <&pinctrl_ksz>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <18 IRQ_TYPE_EDGE_FALLING>;
-		phy-mode = "rgmii-id";
 
 		ports {
 			#address-cells = <1>;
@@ -678,7 +679,6 @@
 
 			port@5 {
 				reg = <5>;
-				label = "cpu";
 				ethernet = <&fec1>;
 				phy-mode = "rgmii-id";
 

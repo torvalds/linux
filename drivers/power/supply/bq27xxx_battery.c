@@ -2162,6 +2162,28 @@ void bq27xxx_battery_teardown(struct bq27xxx_device_info *di)
 }
 EXPORT_SYMBOL_GPL(bq27xxx_battery_teardown);
 
+#ifdef CONFIG_PM_SLEEP
+static int bq27xxx_battery_suspend(struct device *dev)
+{
+	struct bq27xxx_device_info *di = dev_get_drvdata(dev);
+
+	cancel_delayed_work(&di->work);
+	return 0;
+}
+
+static int bq27xxx_battery_resume(struct device *dev)
+{
+	struct bq27xxx_device_info *di = dev_get_drvdata(dev);
+
+	schedule_delayed_work(&di->work, 0);
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
+SIMPLE_DEV_PM_OPS(bq27xxx_battery_battery_pm_ops,
+		  bq27xxx_battery_suspend, bq27xxx_battery_resume);
+EXPORT_SYMBOL_GPL(bq27xxx_battery_battery_pm_ops);
+
 MODULE_AUTHOR("Rodolfo Giometti <giometti@linux.it>");
 MODULE_DESCRIPTION("BQ27xxx battery monitor driver");
 MODULE_LICENSE("GPL");

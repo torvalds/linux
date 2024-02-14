@@ -36,9 +36,6 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 					      display_e2e_pipe_params_st *pipes,
 					      int pipe_cnt);
 
-uint8_t dcn32_predict_pipe_split(struct dc_state *context,
-				  display_e2e_pipe_params_st *pipe_e2e);
-
 void dcn32_set_phantom_stream_timing(struct dc *dc,
 				     struct dc_state *context,
 				     struct pipe_ctx *ref_pipe,

@@ -113,7 +113,7 @@ static bool supports_filesystem(const char *const filesystem)
 {
 	char str[32];
 	int len;
-	bool res;
+	bool res = true;
 	FILE *const inf = fopen("/proc/filesystems", "r");
 
 	/*
@@ -125,14 +125,16 @@ static bool supports_filesystem(const char *const filesystem)
 
 	/* filesystem can be null for bind mounts. */
 	if (!filesystem)
-		return true;
+		goto out;
 
 	len = snprintf(str, sizeof(str), "nodev\t%s\n", filesystem);
 	if (len >= sizeof(str))
 		/* Ignores too-long filesystem names. */
-		return true;
+		goto out;
 
 	res = fgrep(inf, str);
+
+out:
 	fclose(inf);
 	return res;
 }
@@ -587,7 +589,7 @@ TEST_F_FORK(layout1, file_and_dir_access_rights)
 	ASSERT_EQ(0, close(ruleset_fd));
 }
 
-TEST_F_FORK(layout0, unknown_access_rights)
+TEST_F_FORK(layout0, ruleset_with_unknown_access)
 {
 	__u64 access_mask;
 
@@ -601,6 +603,67 @@ TEST_F_FORK(layout0, unknown_access_rights)
 						      sizeof(ruleset_attr), 0));
 		ASSERT_EQ(EINVAL, errno);
 	}
+}
+
+TEST_F_FORK(layout0, rule_with_unknown_access)
+{
+	__u64 access;
+	struct landlock_path_beneath_attr path_beneath = {};
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = ACCESS_ALL,
+	};
+	const int ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+
+	ASSERT_LE(0, ruleset_fd);
+
+	path_beneath.parent_fd =
+		open(TMP_DIR, O_PATH | O_DIRECTORY | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath.parent_fd);
+
+	for (access = 1ULL << 63; access != ACCESS_LAST; access >>= 1) {
+		path_beneath.allowed_access = access;
+		EXPECT_EQ(-1, landlock_add_rule(ruleset_fd,
+						LANDLOCK_RULE_PATH_BENEATH,
+						&path_beneath, 0));
+		EXPECT_EQ(EINVAL, errno);
+	}
+	ASSERT_EQ(0, close(path_beneath.parent_fd));
+	ASSERT_EQ(0, close(ruleset_fd));
+}
+
+TEST_F_FORK(layout1, rule_with_unhandled_access)
+{
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	struct landlock_path_beneath_attr path_beneath = {};
+	int ruleset_fd;
+	__u64 access;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	path_beneath.parent_fd = open(file1_s1d2, O_PATH | O_CLOEXEC);
+	ASSERT_LE(0, path_beneath.parent_fd);
+
+	for (access = 1; access > 0; access <<= 1) {
+		int err;
+
+		path_beneath.allowed_access = access;
+		err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_PATH_BENEATH,
+					&path_beneath, 0);
+		if (access == ruleset_attr.handled_access_fs) {
+			EXPECT_EQ(0, err);
+		} else {
+			EXPECT_EQ(-1, err);
+			EXPECT_EQ(EINVAL, errno);
+		}
+	}
+
+	EXPECT_EQ(0, close(path_beneath.parent_fd));
+	EXPECT_EQ(0, close(ruleset_fd));
 }
 
 static void add_path_beneath(struct __test_metadata *const _metadata,
@@ -673,16 +736,6 @@ static int create_ruleset(struct __test_metadata *const _metadata,
 				 rules[i].path);
 	}
 	return ruleset_fd;
-}
-
-static void enforce_ruleset(struct __test_metadata *const _metadata,
-			    const int ruleset_fd)
-{
-	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
-	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0))
-	{
-		TH_LOG("Failed to enforce ruleset: %s", strerror(errno));
-	}
 }
 
 TEST_F_FORK(layout0, proc_nsfs)
@@ -1629,6 +1682,65 @@ TEST_F_FORK(layout1, move_mount)
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
 			      dir_s1d2, 0));
+	ASSERT_EQ(EPERM, errno);
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+TEST_F_FORK(layout1, topology_changes_with_net_only)
+{
+	const struct landlock_ruleset_attr ruleset_net = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+	};
+	int ruleset_fd;
+
+	/* Add network restrictions. */
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_net, sizeof(ruleset_net), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Mount, remount, move_mount, umount, and pivot_root checks. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(0, mount_opt(&mnt_tmp, dir_s1d2));
+	ASSERT_EQ(0, mount(NULL, dir_s1d2, NULL, MS_PRIVATE | MS_REC, NULL));
+	ASSERT_EQ(0, syscall(__NR_move_mount, AT_FDCWD, dir_s1d2, AT_FDCWD,
+			     dir_s2d2, 0));
+	ASSERT_EQ(0, umount(dir_s2d2));
+	ASSERT_EQ(0, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
+	ASSERT_EQ(0, chdir("/"));
+	clear_cap(_metadata, CAP_SYS_ADMIN);
+}
+
+TEST_F_FORK(layout1, topology_changes_with_net_and_fs)
+{
+	const struct landlock_ruleset_attr ruleset_net_fs = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP |
+				      LANDLOCK_ACCESS_NET_CONNECT_TCP,
+		.handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
+	};
+	int ruleset_fd;
+
+	/* Add network and filesystem restrictions. */
+	ruleset_fd = landlock_create_ruleset(&ruleset_net_fs,
+					     sizeof(ruleset_net_fs), 0);
+	ASSERT_LE(0, ruleset_fd);
+	enforce_ruleset(_metadata, ruleset_fd);
+	ASSERT_EQ(0, close(ruleset_fd));
+
+	/* Mount, remount, move_mount, umount, and pivot_root checks. */
+	set_cap(_metadata, CAP_SYS_ADMIN);
+	ASSERT_EQ(-1, mount_opt(&mnt_tmp, dir_s1d2));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, mount(NULL, dir_s3d2, NULL, MS_PRIVATE | MS_REC, NULL));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, syscall(__NR_move_mount, AT_FDCWD, dir_s3d2, AT_FDCWD,
+			      dir_s2d2, 0));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, umount(dir_s3d2));
+	ASSERT_EQ(EPERM, errno);
+	ASSERT_EQ(-1, syscall(__NR_pivot_root, dir_s3d2, dir_s3d3));
 	ASSERT_EQ(EPERM, errno);
 	clear_cap(_metadata, CAP_SYS_ADMIN);
 }
@@ -3576,7 +3688,7 @@ FIXTURE_TEARDOWN(ftruncate)
 FIXTURE_VARIANT(ftruncate)
 {
 	const __u64 handled;
-	const __u64 permitted;
+	const __u64 allowed;
 	const int expected_open_result;
 	const int expected_ftruncate_result;
 };
@@ -3585,7 +3697,7 @@ FIXTURE_VARIANT(ftruncate)
 FIXTURE_VARIANT_ADD(ftruncate, w_w) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE,
-	.permitted = LANDLOCK_ACCESS_FS_WRITE_FILE,
+	.allowed = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = 0,
 };
@@ -3594,7 +3706,7 @@ FIXTURE_VARIANT_ADD(ftruncate, w_w) {
 FIXTURE_VARIANT_ADD(ftruncate, t_t) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_TRUNCATE,
+	.allowed = LANDLOCK_ACCESS_FS_TRUNCATE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = 0,
 };
@@ -3603,7 +3715,7 @@ FIXTURE_VARIANT_ADD(ftruncate, t_t) {
 FIXTURE_VARIANT_ADD(ftruncate, wt_w) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_WRITE_FILE,
+	.allowed = LANDLOCK_ACCESS_FS_WRITE_FILE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = EACCES,
 };
@@ -3612,8 +3724,7 @@ FIXTURE_VARIANT_ADD(ftruncate, wt_w) {
 FIXTURE_VARIANT_ADD(ftruncate, wt_wt) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_WRITE_FILE |
-		     LANDLOCK_ACCESS_FS_TRUNCATE,
+	.allowed = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
 	.expected_open_result = 0,
 	.expected_ftruncate_result = 0,
 };
@@ -3622,7 +3733,7 @@ FIXTURE_VARIANT_ADD(ftruncate, wt_wt) {
 FIXTURE_VARIANT_ADD(ftruncate, wt_t) {
 	/* clang-format on */
 	.handled = LANDLOCK_ACCESS_FS_WRITE_FILE | LANDLOCK_ACCESS_FS_TRUNCATE,
-	.permitted = LANDLOCK_ACCESS_FS_TRUNCATE,
+	.allowed = LANDLOCK_ACCESS_FS_TRUNCATE,
 	.expected_open_result = EACCES,
 };
 
@@ -3632,7 +3743,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate)
 	const struct rule rules[] = {
 		{
 			.path = path,
-			.access = variant->permitted,
+			.access = variant->allowed,
 		},
 		{},
 	};
@@ -3673,7 +3784,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 		const struct rule rules[] = {
 			{
 				.path = path,
-				.access = variant->permitted,
+				.access = variant->allowed,
 			},
 			{},
 		};

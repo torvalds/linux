@@ -473,11 +473,6 @@ static int __init rmem_cma_setup(struct reserved_mem *rmem)
 		return -EBUSY;
 	}
 
-	if (memblock_is_region_reserved(rmem->base, rmem->size)) {
-		pr_info("Reserved memory: overlap with other memblock reserved region\n");
-		return -EBUSY;
-	}
-
 	if (!of_get_flat_dt_prop(node, "reusable", NULL) ||
 	    of_get_flat_dt_prop(node, "no-map", NULL))
 		return -EINVAL;

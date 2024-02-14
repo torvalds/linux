@@ -32,6 +32,7 @@ struct ovl_fs_context {
 	size_t nr_data;
 	struct ovl_opt_set set;
 	struct ovl_fs_context_layer *lower;
+	char *lowerdir_all; /* user provided lowerdir string */
 };
 
 int ovl_init_fs_context(struct fs_context *fc);

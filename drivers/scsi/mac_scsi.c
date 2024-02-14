@@ -523,7 +523,7 @@ fail_init:
 	return error;
 }
 
-static int __exit mac_scsi_remove(struct platform_device *pdev)
+static void __exit mac_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 
@@ -532,11 +532,10 @@ static int __exit mac_scsi_remove(struct platform_device *pdev)
 		free_irq(instance->irq, instance);
 	NCR5380_exit(instance);
 	scsi_host_put(instance);
-	return 0;
 }
 
 static struct platform_driver mac_scsi_driver = {
-	.remove = __exit_p(mac_scsi_remove),
+	.remove_new = __exit_p(mac_scsi_remove),
 	.driver = {
 		.name	= DRV_MODULE_NAME,
 	},

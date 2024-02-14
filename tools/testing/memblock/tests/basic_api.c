@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
+#include "basic_api.h"
 #include <string.h>
 #include <linux/memblock.h>
-#include "basic_api.h"
 
 #define EXPECTED_MEMBLOCK_REGIONS			128
 #define FUNC_ADD					"memblock_add"

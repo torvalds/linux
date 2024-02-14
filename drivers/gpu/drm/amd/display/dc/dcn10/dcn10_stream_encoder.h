@@ -188,6 +188,9 @@ struct dcn10_stream_enc_registers {
 	uint32_t HDMI_GENERIC_PACKET_CONTROL10;
 	uint32_t DIG_CLOCK_PATTERN;
 	uint32_t DIG_FIFO_CTRL0;
+	uint32_t DIG_FE_CLK_CNTL;
+	uint32_t DIG_FE_EN_CNTL;
+	uint32_t STREAM_MAPPER_CONTROL;
 };
 
 
@@ -574,7 +577,22 @@ struct dcn10_stream_enc_registers {
 	type DIG_FIFO_READ_START_LEVEL;\
 	type DIG_FIFO_ENABLE;\
 	type DIG_FIFO_RESET;\
-	type DIG_FIFO_RESET_DONE
+	type DIG_FIFO_RESET_DONE;\
+	type PIXEL_ENCODING_TYPE;\
+	type UNCOMPRESSED_PIXEL_FORMAT;\
+	type UNCOMPRESSED_COMPONENT_DEPTH
+
+#define SE_REG_FIELD_LIST_DCN3_5_COMMON(type) \
+	type DIG_FE_CLK_EN;\
+	type DIG_FE_MODE;\
+	type DIG_FE_SOFT_RESET;\
+	type DIG_FE_ENABLE;\
+	type DIG_FE_SYMCLK_FE_G_CLOCK_ON;\
+	type DIG_FE_DISPCLK_G_CLOCK_ON;\
+	type DIG_FE_SYMCLK_FE_G_AFMT_CLOCK_ON;\
+	type DIG_FE_SYMCLK_FE_G_TMDS_CLOCK_ON;\
+	type DIG_FE_SOCCLK_G_AFMT_CLOCK_ON;\
+	type DIG_STREAM_LINK_TARGET
 
 struct dcn10_stream_encoder_shift {
 	SE_REG_FIELD_LIST_DCN1_0(uint8_t);
@@ -582,7 +600,7 @@ struct dcn10_stream_encoder_shift {
 	SE_REG_FIELD_LIST_DCN2_0(uint8_t);
 	SE_REG_FIELD_LIST_DCN3_0(uint8_t);
 	SE_REG_FIELD_LIST_DCN3_2(uint8_t);
-
+	SE_REG_FIELD_LIST_DCN3_5_COMMON(uint8_t);
 };
 
 struct dcn10_stream_encoder_mask {
@@ -591,7 +609,7 @@ struct dcn10_stream_encoder_mask {
 	SE_REG_FIELD_LIST_DCN2_0(uint32_t);
 	SE_REG_FIELD_LIST_DCN3_0(uint32_t);
 	SE_REG_FIELD_LIST_DCN3_2(uint32_t);
-
+	SE_REG_FIELD_LIST_DCN3_5_COMMON(uint32_t);
 };
 
 struct dcn10_stream_encoder {

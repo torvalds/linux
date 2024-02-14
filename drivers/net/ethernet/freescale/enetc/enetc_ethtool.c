@@ -690,25 +690,26 @@ static u32 enetc_get_rxfh_indir_size(struct net_device *ndev)
 	return priv->si->num_rss;
 }
 
-static int enetc_get_rxfh(struct net_device *ndev, u32 *indir, u8 *key,
-			  u8 *hfunc)
+static int enetc_get_rxfh(struct net_device *ndev,
+			  struct ethtool_rxfh_param *rxfh)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_hw *hw = &priv->si->hw;
 	int err = 0, i;
 
 	/* return hash function */
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
 	/* return hash key */
-	if (key && hw->port)
+	if (rxfh->key && hw->port)
 		for (i = 0; i < ENETC_RSSHASH_KEY_SIZE / 4; i++)
-			((u32 *)key)[i] = enetc_port_rd(hw, ENETC_PRSSK(i));
+			((u32 *)rxfh->key)[i] = enetc_port_rd(hw,
+							      ENETC_PRSSK(i));
 
 	/* return RSS table */
-	if (indir)
-		err = enetc_get_rss_table(priv->si, indir, priv->si->num_rss);
+	if (rxfh->indir)
+		err = enetc_get_rss_table(priv->si, rxfh->indir,
+					  priv->si->num_rss);
 
 	return err;
 }
@@ -722,20 +723,22 @@ void enetc_set_rss_key(struct enetc_hw *hw, const u8 *bytes)
 }
 EXPORT_SYMBOL_GPL(enetc_set_rss_key);
 
-static int enetc_set_rxfh(struct net_device *ndev, const u32 *indir,
-			  const u8 *key, const u8 hfunc)
+static int enetc_set_rxfh(struct net_device *ndev,
+			  struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
 {
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct enetc_hw *hw = &priv->si->hw;
 	int err = 0;
 
 	/* set hash key, if PF */
-	if (key && hw->port)
-		enetc_set_rss_key(hw, key);
+	if (rxfh->key && hw->port)
+		enetc_set_rss_key(hw, rxfh->key);
 
 	/* set RSS table */
-	if (indir)
-		err = enetc_set_rss_table(priv->si, indir, priv->si->num_rss);
+	if (rxfh->indir)
+		err = enetc_set_rss_table(priv->si, rxfh->indir,
+					  priv->si->num_rss);
 
 	return err;
 }

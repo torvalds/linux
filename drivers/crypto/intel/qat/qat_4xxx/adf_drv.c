@@ -8,12 +8,10 @@
 #include <adf_cfg.h>
 #include <adf_common_drv.h>
 #include <adf_dbgfs.h>
-#include <adf_heartbeat.h>
+#include <adf_gen4_config.h>
+#include <adf_gen4_hw_data.h>
 
 #include "adf_4xxx_hw_data.h"
-#include "qat_compression.h"
-#include "qat_crypto.h"
-#include "adf_transport_access_macros.h"
 
 static const struct pci_device_id adf_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ADF_4XXX_PCI_DEVICE_ID), },
@@ -22,30 +20,6 @@ static const struct pci_device_id adf_pci_tbl[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
-
-enum configs {
-	DEV_CFG_CY = 0,
-	DEV_CFG_DC,
-	DEV_CFG_SYM,
-	DEV_CFG_ASYM,
-	DEV_CFG_ASYM_SYM,
-	DEV_CFG_ASYM_DC,
-	DEV_CFG_DC_ASYM,
-	DEV_CFG_SYM_DC,
-	DEV_CFG_DC_SYM,
-};
-
-static const char * const services_operations[] = {
-	ADF_CFG_CY,
-	ADF_CFG_DC,
-	ADF_CFG_SYM,
-	ADF_CFG_ASYM,
-	ADF_CFG_ASYM_SYM,
-	ADF_CFG_ASYM_DC,
-	ADF_CFG_DC_ASYM,
-	ADF_CFG_SYM_DC,
-	ADF_CFG_DC_SYM,
-};
 
 static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 {
@@ -56,269 +30,6 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	adf_dbgfs_exit(accel_dev);
 	adf_cfg_dev_remove(accel_dev);
 	adf_devmgr_rm_dev(accel_dev, NULL);
-}
-
-static int adf_cfg_dev_init(struct adf_accel_dev *accel_dev)
-{
-	const char *config;
-	int ret;
-
-	config = accel_dev->accel_id % 2 ? ADF_CFG_DC : ADF_CFG_CY;
-
-	ret = adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
-	if (ret)
-		return ret;
-
-	/* Default configuration is crypto only for even devices
-	 * and compression for odd devices
-	 */
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC,
-					  ADF_SERVICES_ENABLED, config,
-					  ADF_STR);
-	if (ret)
-		return ret;
-
-	adf_heartbeat_save_cfg_param(accel_dev, ADF_CFG_HB_TIMER_MIN_MS);
-
-	return 0;
-}
-
-static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
-{
-	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	int banks = GET_MAX_BANKS(accel_dev);
-	int cpus = num_online_cpus();
-	unsigned long bank, val;
-	int instances;
-	int ret;
-	int i;
-
-	if (adf_hw_dev_has_crypto(accel_dev))
-		instances = min(cpus, banks / 2);
-	else
-		instances = 0;
-
-	for (i = 0; i < instances; i++) {
-		val = i;
-		bank = i * 2;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_BANK_NUM, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &bank, ADF_DEC);
-		if (ret)
-			goto err;
-
-		bank += 1;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_BANK_NUM, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &bank, ADF_DEC);
-		if (ret)
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_ETRMGR_CORE_AFFINITY,
-			 i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_SIZE, i);
-		val = 128;
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 512;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_SIZE, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 0;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_TX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 0;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_TX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 1;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_ASYM_RX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 1;
-		snprintf(key, sizeof(key), ADF_CY "%d" ADF_RING_SYM_RX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = ADF_COALESCING_DEF_TIME;
-		snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-	}
-
-	val = i;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
-					  &val, ADF_DEC);
-	if (ret)
-		goto err;
-
-	val = 0;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
-					  &val, ADF_DEC);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	dev_err(&GET_DEV(accel_dev), "Failed to add configuration for crypto\n");
-	return ret;
-}
-
-static int adf_comp_dev_config(struct adf_accel_dev *accel_dev)
-{
-	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
-	int banks = GET_MAX_BANKS(accel_dev);
-	int cpus = num_online_cpus();
-	unsigned long val;
-	int instances;
-	int ret;
-	int i;
-
-	if (adf_hw_dev_has_compression(accel_dev))
-		instances = min(cpus, banks);
-	else
-		instances = 0;
-
-	for (i = 0; i < instances; i++) {
-		val = i;
-		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_BANK_NUM, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 512;
-		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_SIZE, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 0;
-		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_TX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = 1;
-		snprintf(key, sizeof(key), ADF_DC "%d" ADF_RING_DC_RX, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC,
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-
-		val = ADF_COALESCING_DEF_TIME;
-		snprintf(key, sizeof(key), ADF_ETRMGR_COALESCE_TIMER_FORMAT, i);
-		ret = adf_cfg_add_key_value_param(accel_dev, "Accelerator0",
-						  key, &val, ADF_DEC);
-		if (ret)
-			goto err;
-	}
-
-	val = i;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
-					  &val, ADF_DEC);
-	if (ret)
-		goto err;
-
-	val = 0;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
-					  &val, ADF_DEC);
-	if (ret)
-		goto err;
-
-	return 0;
-err:
-	dev_err(&GET_DEV(accel_dev), "Failed to add configuration for compression\n");
-	return ret;
-}
-
-static int adf_no_dev_config(struct adf_accel_dev *accel_dev)
-{
-	unsigned long val;
-	int ret;
-
-	val = 0;
-	ret = adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
-					  &val, ADF_DEC);
-	if (ret)
-		return ret;
-
-	return adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
-					  &val, ADF_DEC);
-}
-
-int adf_gen4_dev_config(struct adf_accel_dev *accel_dev)
-{
-	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
-	int ret;
-
-	ret = adf_cfg_section_add(accel_dev, ADF_KERNEL_SEC);
-	if (ret)
-		goto err;
-
-	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
-	if (ret)
-		goto err;
-
-	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
-				      ADF_SERVICES_ENABLED, services);
-	if (ret)
-		goto err;
-
-	ret = sysfs_match_string(services_operations, services);
-	if (ret < 0)
-		goto err;
-
-	switch (ret) {
-	case DEV_CFG_CY:
-	case DEV_CFG_ASYM_SYM:
-		ret = adf_crypto_dev_config(accel_dev);
-		break;
-	case DEV_CFG_DC:
-		ret = adf_comp_dev_config(accel_dev);
-		break;
-	default:
-		ret = adf_no_dev_config(accel_dev);
-		break;
-	}
-
-	if (ret)
-		goto err;
-
-	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
-
-	return ret;
-
-err:
-	dev_err(&GET_DEV(accel_dev), "Failed to configure QAT driver\n");
-	return ret;
 }
 
 static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -370,7 +81,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adf_init_hw_data_4xxx(accel_dev->hw_device, ent->device);
 
 	pci_read_config_byte(pdev, PCI_REVISION_ID, &accel_pci_dev->revid);
-	pci_read_config_dword(pdev, ADF_4XXX_FUSECTL4_OFFSET, &hw_data->fuses);
+	pci_read_config_dword(pdev, ADF_GEN4_FUSECTL4_OFFSET, &hw_data->fuses);
 
 	/* Get Accelerators and Accelerators Engines masks */
 	hw_data->accel_mask = hw_data->get_accel_mask(hw_data);
@@ -403,7 +114,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 
-	ret = adf_cfg_dev_init(accel_dev);
+	ret = adf_gen4_cfg_dev_init(accel_dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize configuration.\n");
 		goto out_err;
@@ -418,7 +129,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Find and map all the device's BARS */
-	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM) & ADF_4XXX_BAR_MASK;
+	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM) & ADF_GEN4_BAR_MASK;
 
 	ret = pcim_iomap_regions_request_all(pdev, bar_mask, pci_name(pdev));
 	if (ret) {
@@ -440,6 +151,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 
+	accel_dev->ras_errors.enabled = true;
 	adf_dbgfs_init(accel_dev);
 
 	ret = adf_dev_up(accel_dev, true);
@@ -489,3 +201,4 @@ MODULE_FIRMWARE(ADF_4XXX_MMP);
 MODULE_DESCRIPTION("Intel(R) QuickAssist Technology");
 MODULE_VERSION(ADF_DRV_VERSION);
 MODULE_SOFTDEP("pre: crypto-intel_qat");
+MODULE_IMPORT_NS(CRYPTO_QAT);

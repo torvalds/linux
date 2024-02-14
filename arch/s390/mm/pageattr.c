@@ -75,7 +75,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 			break;
 		}
 		table = (unsigned long *)((unsigned long)old & mask);
-		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce);
+		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce.val);
 	} else if (MACHINE_HAS_IDTE) {
 		cspg(old, *old, new);
 	} else {
@@ -373,7 +373,7 @@ static int change_page_attr_alias(unsigned long addr, unsigned long end,
 	return rc;
 }
 
-int __set_memory(unsigned long addr, int numpages, unsigned long flags)
+int __set_memory(unsigned long addr, unsigned long numpages, unsigned long flags)
 {
 	unsigned long end;
 	int rc;

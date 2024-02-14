@@ -239,19 +239,18 @@ err:
 	return ret;
 }
 
-static int da9062_thermal_remove(struct platform_device *pdev)
+static void da9062_thermal_remove(struct platform_device *pdev)
 {
 	struct	da9062_thermal *thermal = platform_get_drvdata(pdev);
 
 	free_irq(thermal->irq, thermal);
 	cancel_delayed_work_sync(&thermal->work);
 	thermal_zone_device_unregister(thermal->zone);
-	return 0;
 }
 
 static struct platform_driver da9062_thermal_driver = {
 	.probe	= da9062_thermal_probe,
-	.remove	= da9062_thermal_remove,
+	.remove_new = da9062_thermal_remove,
 	.driver	= {
 		.name	= "da9062-thermal",
 		.of_match_table = da9062_compatible_reg_id_table,

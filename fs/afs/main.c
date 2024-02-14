@@ -41,8 +41,6 @@ const char afs_init_sysname[] = "arm_linux26";
 const char afs_init_sysname[] = "aarch64_linux26";
 #elif defined(CONFIG_X86_32)
 const char afs_init_sysname[] = "i386_linux26";
-#elif defined(CONFIG_IA64)
-const char afs_init_sysname[] = "ia64_linux26";
 #elif defined(CONFIG_PPC64)
 const char afs_init_sysname[] = "ppc64_linux26";
 #elif defined(CONFIG_PPC32)
@@ -158,6 +156,7 @@ static void __net_exit afs_net_exit(struct net *net_ns)
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
 	afs_put_sysnames(net->sysnames);
+	kfree_rcu(rcu_access_pointer(net->address_prefs), rcu);
 }
 
 static struct pernet_operations afs_net_ops = {

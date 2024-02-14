@@ -200,11 +200,12 @@ struct xsk_umem_config {
 	__u32 frame_size;
 	__u32 frame_headroom;
 	__u32 flags;
+	__u32 tx_metadata_len;
 };
 
 int xsk_attach_xdp_program(struct bpf_program *prog, int ifindex, u32 xdp_flags);
 void xsk_detach_xdp_program(int ifindex, u32 xdp_flags);
-int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk);
+int xsk_update_xskmap(struct bpf_map *map, struct xsk_socket *xsk, u32 index);
 void xsk_clear_xskmap(struct bpf_map *map);
 bool xsk_is_in_mode(u32 ifindex, int mode);
 

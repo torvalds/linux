@@ -434,6 +434,7 @@ config VIRTIO_NET
 	tristate "Virtio network driver"
 	depends on VIRTIO
 	select NET_FAILOVER
+	select DIMLIB
 	help
 	  This is the virtual network driver for virtio.  It can be used with
 	  QEMU based VMMs (like KVM or Xen).  Say Y or M.
@@ -447,6 +448,15 @@ config NLMON
 	  messages if they tap into the netlink device, record pcaps for further
 	  diagnostics, etc. This is mostly intended for developers or support
 	  to debug netlink issues. If unsure, say N.
+
+config NETKIT
+	bool "BPF-programmable network device"
+	depends on BPF_SYSCALL
+	help
+	  The netkit device is a virtual networking device where BPF programs
+	  can be attached to the device(s) transmission routine in order to
+	  implement the driver's internal logic. The device can be configured
+	  to operate in L3 or L2 mode. If unsure, say N.
 
 config NET_VRF
 	tristate "Virtual Routing and Forwarding (Lite)"

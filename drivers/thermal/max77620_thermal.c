@@ -114,12 +114,8 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 
 	mtherm->tz_device = devm_thermal_of_zone_register(&pdev->dev, 0,
 				mtherm, &max77620_thermal_ops);
-	if (IS_ERR(mtherm->tz_device)) {
-		ret = PTR_ERR(mtherm->tz_device);
-		dev_err(&pdev->dev, "Failed to register thermal zone: %d\n",
-			ret);
-		return ret;
-	}
+	if (IS_ERR(mtherm->tz_device))
+		return PTR_ERR(mtherm->tz_device);
 
 	ret = devm_request_threaded_irq(&pdev->dev, mtherm->irq_tjalarm1, NULL,
 					max77620_thermal_irq,
@@ -138,8 +134,6 @@ static int max77620_thermal_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to request irq2: %d\n", ret);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, mtherm);
 
 	return 0;
 }

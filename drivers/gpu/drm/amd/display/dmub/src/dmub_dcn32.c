@@ -26,33 +26,40 @@
 #include "../dmub_srv.h"
 #include "dmub_reg.h"
 #include "dmub_dcn32.h"
+#include "dc/dc_types.h"
+#include "dc_hw_types.h"
 
 #include "dcn/dcn_3_2_0_offset.h"
 #include "dcn/dcn_3_2_0_sh_mask.h"
 
 #define DCN_BASE__INST0_SEG2                       0x000034C0
 
-#define BASE_INNER(seg) DCN_BASE__INST0_SEG##seg
+#define BASE_INNER(seg) ctx->dcn_reg_offsets[seg]
 #define CTX dmub
 #define REGS dmub->regs_dcn32
-#define REG_OFFSET_EXP(reg_name) (BASE(reg##reg_name##_BASE_IDX) + reg##reg_name)
+#define REG_OFFSET_EXP(reg_name) BASE(reg##reg_name##_BASE_IDX) + reg##reg_name
 
-const struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs = {
-#define DMUB_SR(reg) REG_OFFSET_EXP(reg),
-	{
-		DMUB_DCN32_REGS()
-		DMCUB_INTERNAL_REGS()
-	},
+void dmub_srv_dcn32_regs_init(struct dmub_srv *dmub,  struct dc_context *ctx)
+{
+	struct dmub_srv_dcn32_regs *regs = dmub->regs_dcn32;
+
+#define REG_STRUCT regs
+
+#define DMUB_SR(reg) REG_STRUCT->offset.reg = REG_OFFSET_EXP(reg);
+	DMUB_DCN32_REGS()
+	DMCUB_INTERNAL_REGS()
 #undef DMUB_SR
 
-#define DMUB_SF(reg, field) FD_MASK(reg, field),
-		{ DMUB_DCN32_FIELDS() },
+#define DMUB_SF(reg, field) REG_STRUCT->mask.reg##__##field = FD_MASK(reg, field);
+	DMUB_DCN32_FIELDS()
 #undef DMUB_SF
 
-#define DMUB_SF(reg, field) FD_SHIFT(reg, field),
-		{ DMUB_DCN32_FIELDS() },
+#define DMUB_SF(reg, field) REG_STRUCT->shift.reg##__##field = FD_SHIFT(reg, field);
+	DMUB_DCN32_FIELDS()
 #undef DMUB_SF
-};
+
+#undef REG_STRUCT
+}
 
 static void dmub_dcn32_get_fb_base_offset(struct dmub_srv *dmub,
 		uint64_t *fb_base,
@@ -499,4 +506,33 @@ void dmub_dcn32_clear_inbox0_ack_register(struct dmub_srv *dmub)
 uint32_t dmub_dcn32_read_inbox0_ack_register(struct dmub_srv *dmub)
 {
 	return REG_READ(DMCUB_SCRATCH17);
+}
+
+void dmub_dcn32_save_surf_addr(struct dmub_srv *dmub, const struct dc_plane_address *addr, uint8_t subvp_index)
+{
+	uint32_t index = 0;
+
+	if (subvp_index == 0) {
+		index = REG_READ(DMCUB_SCRATCH15);
+		if (index) {
+			REG_WRITE(DMCUB_SCRATCH9, addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH11, addr->grph.meta_addr.low_part);
+		} else {
+			REG_WRITE(DMCUB_SCRATCH12,  addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH13, addr->grph.meta_addr.low_part);
+		}
+		REG_WRITE(DMCUB_SCRATCH15, !index);
+	} else if (subvp_index == 1) {
+		index = REG_READ(DMCUB_SCRATCH23);
+		if (index) {
+			REG_WRITE(DMCUB_SCRATCH18, addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH19, addr->grph.meta_addr.low_part);
+		} else {
+			REG_WRITE(DMCUB_SCRATCH20,  addr->grph.addr.low_part);
+			REG_WRITE(DMCUB_SCRATCH22, addr->grph.meta_addr.low_part);
+		}
+		REG_WRITE(DMCUB_SCRATCH23, !index);
+	} else {
+		return;
+	}
 }

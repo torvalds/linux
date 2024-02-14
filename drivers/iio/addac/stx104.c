@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/gpio/regmap.h>
+#include <linux/i8254.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/types.h>
 #include <linux/isa.h>
@@ -55,6 +56,7 @@ MODULE_PARM_DESC(base, "Apex Embedded Systems STX104 base addresses");
 #define STX104_ADC_STATUS (STX104_AIO_BASE + 0x8)
 #define STX104_ADC_CONTROL (STX104_AIO_BASE + 0x9)
 #define STX104_ADC_CONFIGURATION (STX104_AIO_BASE + 0x11)
+#define STX104_I8254_BASE (STX104_AIO_BASE + 0x12)
 
 #define STX104_AIO_DATA_STRIDE 2
 #define STX104_DAC_OFFSET(_channel) (STX104_DAC_BASE + STX104_AIO_DATA_STRIDE * (_channel))
@@ -77,6 +79,7 @@ MODULE_PARM_DESC(base, "Apex Embedded Systems STX104 base addresses");
 /* ADC Configuration */
 #define STX104_GAIN GENMASK(1, 0)
 #define STX104_ADBU BIT(2)
+#define STX104_RBK GENMASK(7, 4)
 #define STX104_BIPOLAR 0
 #define STX104_GAIN_X1 0
 #define STX104_GAIN_X2 1
@@ -166,6 +169,32 @@ static const struct regmap_config dio_regmap_config = {
 	.reg_base = STX104_DIO_REG,
 	.val_bits = 8,
 	.io_port = true,
+};
+
+static const struct regmap_range pit_wr_ranges[] = {
+	regmap_reg_range(0x0, 0x3),
+};
+static const struct regmap_range pit_rd_ranges[] = {
+	regmap_reg_range(0x0, 0x2),
+};
+static const struct regmap_access_table pit_wr_table = {
+	.yes_ranges = pit_wr_ranges,
+	.n_yes_ranges = ARRAY_SIZE(pit_wr_ranges),
+};
+static const struct regmap_access_table pit_rd_table = {
+	.yes_ranges = pit_rd_ranges,
+	.n_yes_ranges = ARRAY_SIZE(pit_rd_ranges),
+};
+
+static const struct regmap_config pit_regmap_config = {
+	.name = "i8254",
+	.reg_bits = 8,
+	.reg_stride = 1,
+	.reg_base = STX104_I8254_BASE,
+	.val_bits = 8,
+	.io_port = true,
+	.wr_table = &pit_wr_table,
+	.rd_table = &pit_rd_table,
 };
 
 static int stx104_read_raw(struct iio_dev *indio_dev,
@@ -339,6 +368,21 @@ static const char *stx104_names[STX104_NGPIO] = {
 	"DIN0", "DIN1", "DIN2", "DIN3", "DOUT0", "DOUT1", "DOUT2", "DOUT3"
 };
 
+static int bank_select_i8254(struct regmap *map)
+{
+	const u8 select_i8254[] = { 0x3, 0xB, 0xA };
+	size_t i;
+	int err;
+
+	for (i = 0; i < ARRAY_SIZE(select_i8254); i++) {
+		err = regmap_write_bits(map, STX104_ADC_CONFIGURATION, STX104_RBK, select_i8254[i]);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int stx104_init_hw(struct stx104_iio *const priv)
 {
 	int err;
@@ -361,7 +405,7 @@ static int stx104_init_hw(struct stx104_iio *const priv)
 	if (err)
 		return err;
 
-	return 0;
+	return bank_select_i8254(priv->aio_ctl_map);
 }
 
 static int stx104_probe(struct device *dev, unsigned int id)
@@ -369,6 +413,7 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	struct iio_dev *indio_dev;
 	struct stx104_iio *priv;
 	struct gpio_regmap_config gpio_config;
+	struct i8254_regmap_config pit_config;
 	void __iomem *stx104_base;
 	struct regmap *aio_ctl_map;
 	struct regmap *aio_data_map;
@@ -405,6 +450,11 @@ static int stx104_probe(struct device *dev, unsigned int id)
 	if (IS_ERR(dio_map))
 		return dev_err_probe(dev, PTR_ERR(dio_map),
 				     "Unable to initialize dio register map\n");
+
+	pit_config.map = devm_regmap_init_mmio(dev, stx104_base, &pit_regmap_config);
+	if (IS_ERR(pit_config.map))
+		return dev_err_probe(dev, PTR_ERR(pit_config.map),
+				     "Unable to initialize i8254 register map\n");
 
 	priv = iio_priv(indio_dev);
 	priv->aio_ctl_map = aio_ctl_map;
@@ -449,7 +499,13 @@ static int stx104_probe(struct device *dev, unsigned int id)
 		.drvdata = dio_map,
 	};
 
-	return PTR_ERR_OR_ZERO(devm_gpio_regmap_register(dev, &gpio_config));
+	err = PTR_ERR_OR_ZERO(devm_gpio_regmap_register(dev, &gpio_config));
+	if (err)
+		return err;
+
+	pit_config.parent = dev;
+
+	return devm_i8254_regmap_register(dev, &pit_config);
 }
 
 static struct isa_driver stx104_driver = {
@@ -464,3 +520,4 @@ module_isa_driver(stx104_driver, num_stx104);
 MODULE_AUTHOR("William Breathitt Gray <vilhelm.gray@gmail.com>");
 MODULE_DESCRIPTION("Apex Embedded Systems STX104 IIO driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(I8254);

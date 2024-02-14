@@ -621,3 +621,4 @@ static void __exit tbf_module_exit(void)
 module_init(tbf_module_init)
 module_exit(tbf_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Token Bucket Filter qdisc");

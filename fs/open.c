@@ -304,6 +304,10 @@ int vfs_fallocate(struct file *file, int mode, loff_t offset, loff_t len)
 	if (ret)
 		return ret;
 
+	ret = fsnotify_file_area_perm(file, MAY_WRITE, &offset, len);
+	if (ret)
+		return ret;
+
 	if (S_ISFIFO(inode->i_mode))
 		return -ESPIPE;
 
@@ -442,7 +446,8 @@ static const struct cred *access_override_creds(void)
 	 * 'get_current_cred()' function), that will clear the
 	 * non_rcu field, because now that other user may be
 	 * expecting RCU freeing. But normal thread-synchronous
-	 * cred accesses will keep things non-RCY.
+	 * cred accesses will keep things non-racy to avoid RCU
+	 * freeing.
 	 */
 	override_cred->non_rcu = 1;
 
@@ -870,6 +875,30 @@ SYSCALL_DEFINE3(fchown, unsigned int, fd, uid_t, user, gid_t, group)
 	return ksys_fchown(fd, user, group);
 }
 
+static inline int file_get_write_access(struct file *f)
+{
+	int error;
+
+	error = get_write_access(f->f_inode);
+	if (unlikely(error))
+		return error;
+	error = mnt_get_write_access(f->f_path.mnt);
+	if (unlikely(error))
+		goto cleanup_inode;
+	if (unlikely(f->f_mode & FMODE_BACKING)) {
+		error = mnt_get_write_access(backing_file_user_path(f)->mnt);
+		if (unlikely(error))
+			goto cleanup_mnt;
+	}
+	return 0;
+
+cleanup_mnt:
+	mnt_put_write_access(f->f_path.mnt);
+cleanup_inode:
+	put_write_access(f->f_inode);
+	return error;
+}
+
 static int do_dentry_open(struct file *f,
 			  struct inode *inode,
 			  int (*open)(struct inode *, struct file *))
@@ -892,14 +921,9 @@ static int do_dentry_open(struct file *f,
 	if ((f->f_mode & (FMODE_READ | FMODE_WRITE)) == FMODE_READ) {
 		i_readcount_inc(inode);
 	} else if (f->f_mode & FMODE_WRITE && !special_file(inode->i_mode)) {
-		error = get_write_access(inode);
+		error = file_get_write_access(f);
 		if (unlikely(error))
 			goto cleanup_file;
-		error = __mnt_want_write(f->f_path.mnt);
-		if (unlikely(error)) {
-			put_write_access(inode);
-			goto cleanup_file;
-		}
 		f->f_mode |= FMODE_WRITER;
 	}
 
@@ -1069,8 +1093,6 @@ struct file *dentry_open(const struct path *path, int flags,
 	int error;
 	struct file *f;
 
-	validate_creds(cred);
-
 	/* We must always pass in a valid mount pointer. */
 	BUG_ON(!path->mnt);
 
@@ -1109,7 +1131,6 @@ struct file *dentry_create(const struct path *path, int flags, umode_t mode,
 	struct file *f;
 	int error;
 
-	validate_creds(cred);
 	f = alloc_empty_file(flags, cred);
 	if (IS_ERR(f))
 		return f;
@@ -1160,45 +1181,6 @@ struct file *kernel_file_open(const struct path *path, int flags,
 	return f;
 }
 EXPORT_SYMBOL_GPL(kernel_file_open);
-
-/**
- * backing_file_open - open a backing file for kernel internal use
- * @path:	path of the file to open
- * @flags:	open flags
- * @real_path:	path of the backing file
- * @cred:	credentials for open
- *
- * Open a backing file for a stackable filesystem (e.g., overlayfs).
- * @path may be on the stackable filesystem and backing inode on the
- * underlying filesystem. In this case, we want to be able to return
- * the @real_path of the backing inode. This is done by embedding the
- * returned file into a container structure that also stores the path of
- * the backing inode on the underlying filesystem, which can be
- * retrieved using backing_file_real_path().
- */
-struct file *backing_file_open(const struct path *path, int flags,
-			       const struct path *real_path,
-			       const struct cred *cred)
-{
-	struct file *f;
-	int error;
-
-	f = alloc_empty_backing_file(flags, cred);
-	if (IS_ERR(f))
-		return f;
-
-	f->f_path = *path;
-	path_get(real_path);
-	*backing_file_real_path(f) = *real_path;
-	error = do_dentry_open(f, d_inode(real_path->dentry), NULL);
-	if (error) {
-		fput(f);
-		f = ERR_PTR(error);
-	}
-
-	return f;
-}
-EXPORT_SYMBOL_GPL(backing_file_open);
 
 #define WILL_CREATE(flags)	(flags & (O_CREAT | __O_TMPFILE))
 #define O_PATH_FLAGS		(O_DIRECTORY | O_NOFOLLOW | O_PATH | O_CLOEXEC)
@@ -1559,7 +1541,7 @@ SYSCALL_DEFINE1(close, unsigned int, fd)
 	int retval;
 	struct file *file;
 
-	file = close_fd_get_file(fd);
+	file = file_close_fd(fd);
 	if (!file)
 		return -EBADF;
 

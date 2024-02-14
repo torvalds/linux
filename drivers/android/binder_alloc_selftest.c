@@ -72,6 +72,10 @@ enum buf_end_align_type {
 	 * buf1 ]|[ buf2 | buf2 | buf2 ][ ...
 	 */
 	NEXT_NEXT_UNALIGNED,
+	/**
+	 * @LOOP_END: The number of enum values in &buf_end_align_type.
+	 * It is used for controlling loop termination.
+	 */
 	LOOP_END,
 };
 
@@ -93,11 +97,11 @@ static bool check_buffer_pages_allocated(struct binder_alloc *alloc,
 					 struct binder_buffer *buffer,
 					 size_t size)
 {
-	void __user *page_addr;
-	void __user *end;
+	unsigned long page_addr;
+	unsigned long end;
 	int page_index;
 
-	end = (void __user *)PAGE_ALIGN((uintptr_t)buffer->user_data + size);
+	end = PAGE_ALIGN(buffer->user_data + size);
 	page_addr = buffer->user_data;
 	for (; page_addr < end; page_addr += PAGE_SIZE) {
 		page_index = (page_addr - alloc->buffer) / PAGE_SIZE;
@@ -119,7 +123,7 @@ static void binder_selftest_alloc_buf(struct binder_alloc *alloc,
 	int i;
 
 	for (i = 0; i < BUFFER_NUM; i++) {
-		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0, 0);
+		buffers[i] = binder_alloc_new_buf(alloc, sizes[i], 0, 0, 0);
 		if (IS_ERR(buffers[i]) ||
 		    !check_buffer_pages_allocated(alloc, buffers[i],
 						  sizes[i])) {
@@ -158,8 +162,8 @@ static void binder_selftest_free_page(struct binder_alloc *alloc)
 	int i;
 	unsigned long count;
 
-	while ((count = list_lru_count(&binder_alloc_lru))) {
-		list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
+	while ((count = list_lru_count(&binder_freelist))) {
+		list_lru_walk(&binder_freelist, binder_alloc_free_page,
 			      NULL, count);
 	}
 
@@ -183,7 +187,7 @@ static void binder_selftest_alloc_free(struct binder_alloc *alloc,
 
 	/* Allocate from lru. */
 	binder_selftest_alloc_buf(alloc, buffers, sizes, seq);
-	if (list_lru_count(&binder_alloc_lru))
+	if (list_lru_count(&binder_freelist))
 		pr_err("lru list should be empty but is not\n");
 
 	binder_selftest_free_buf(alloc, buffers, sizes, seq, end);

@@ -1628,14 +1628,12 @@ static bool pcpu_memcg_pre_alloc_hook(size_t size, gfp_t gfp,
 	if (!memcg_kmem_online() || !(gfp & __GFP_ACCOUNT))
 		return true;
 
-	objcg = get_obj_cgroup_from_current();
+	objcg = current_obj_cgroup();
 	if (!objcg)
 		return true;
 
-	if (obj_cgroup_charge(objcg, gfp, pcpu_obj_full_size(size))) {
-		obj_cgroup_put(objcg);
+	if (obj_cgroup_charge(objcg, gfp, pcpu_obj_full_size(size)))
 		return false;
-	}
 
 	*objcgp = objcg;
 	return true;
@@ -1649,6 +1647,7 @@ static void pcpu_memcg_post_alloc_hook(struct obj_cgroup *objcg,
 		return;
 
 	if (likely(chunk && chunk->obj_cgroups)) {
+		obj_cgroup_get(objcg);
 		chunk->obj_cgroups[off >> PCPU_MIN_ALLOC_SHIFT] = objcg;
 
 		rcu_read_lock();
@@ -1657,7 +1656,6 @@ static void pcpu_memcg_post_alloc_hook(struct obj_cgroup *objcg,
 		rcu_read_unlock();
 	} else {
 		obj_cgroup_uncharge(objcg, pcpu_obj_full_size(size));
-		obj_cgroup_put(objcg);
 	}
 }
 
@@ -2245,6 +2243,37 @@ static void pcpu_balance_workfn(struct work_struct *work)
 }
 
 /**
+ * pcpu_alloc_size - the size of the dynamic percpu area
+ * @ptr: pointer to the dynamic percpu area
+ *
+ * Returns the size of the @ptr allocation.  This is undefined for statically
+ * defined percpu variables as there is no corresponding chunk->bound_map.
+ *
+ * RETURNS:
+ * The size of the dynamic percpu area.
+ *
+ * CONTEXT:
+ * Can be called from atomic context.
+ */
+size_t pcpu_alloc_size(void __percpu *ptr)
+{
+	struct pcpu_chunk *chunk;
+	unsigned long bit_off, end;
+	void *addr;
+
+	if (!ptr)
+		return 0;
+
+	addr = __pcpu_ptr_to_addr(ptr);
+	/* No pcpu_lock here: ptr has not been freed, so chunk is still alive */
+	chunk = pcpu_chunk_addr_search(addr);
+	bit_off = (addr - chunk->base_addr) / PCPU_MIN_ALLOC_SIZE;
+	end = find_next_bit(chunk->bound_map, pcpu_chunk_map_bits(chunk),
+			    bit_off + 1);
+	return (end - bit_off) * PCPU_MIN_ALLOC_SIZE;
+}
+
+/**
  * free_percpu - free percpu area
  * @ptr: pointer to area to free
  *
@@ -2267,12 +2296,10 @@ void free_percpu(void __percpu *ptr)
 	kmemleak_free_percpu(ptr);
 
 	addr = __pcpu_ptr_to_addr(ptr);
-
-	spin_lock_irqsave(&pcpu_lock, flags);
-
 	chunk = pcpu_chunk_addr_search(addr);
 	off = addr - chunk->base_addr;
 
+	spin_lock_irqsave(&pcpu_lock, flags);
 	size = pcpu_free_area(chunk, off);
 
 	pcpu_memcg_free_hook(chunk, off, size);
@@ -3306,13 +3333,7 @@ int __init pcpu_page_first_chunk(size_t reserved_size, pcpu_fc_cpu_to_node_fn_t 
 		if (rc < 0)
 			panic("failed to map percpu area, err=%d\n", rc);
 
-		/*
-		 * FIXME: Archs with virtual cache should flush local
-		 * cache for the linear mapping here - something
-		 * equivalent to flush_cache_vmap() on the local cpu.
-		 * flush_cache_vmap() can't be used as most supporting
-		 * data structures are not set up yet.
-		 */
+		flush_cache_vmap_early(unit_addr, unit_addr + ai->unit_size);
 
 		/* copy static data */
 		memcpy((void *)unit_addr, __per_cpu_load, ai->static_size);

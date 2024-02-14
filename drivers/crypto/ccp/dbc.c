@@ -9,6 +9,7 @@
 
 #include "dbc.h"
 
+#define DBC_DEFAULT_TIMEOUT		(10 * MSEC_PER_SEC)
 struct error_map {
 	u32 psp;
 	int ret;
@@ -37,22 +38,37 @@ static struct error_map error_codes[] = {
 	{0x0,	0x0},
 };
 
-static int send_dbc_cmd(struct psp_dbc_device *dbc_dev,
-			enum psp_platform_access_msg msg)
+static inline int send_dbc_cmd_thru_ext(struct psp_dbc_device *dbc_dev, int msg)
+{
+	dbc_dev->mbox->ext_req.header.sub_cmd_id = msg;
+
+	return psp_extended_mailbox_cmd(dbc_dev->psp,
+					DBC_DEFAULT_TIMEOUT,
+					(struct psp_ext_request *)dbc_dev->mbox);
+}
+
+static inline int send_dbc_cmd_thru_pa(struct psp_dbc_device *dbc_dev, int msg)
+{
+	return psp_send_platform_access_msg(msg,
+					    (struct psp_request *)dbc_dev->mbox);
+}
+
+static int send_dbc_cmd(struct psp_dbc_device *dbc_dev, int msg)
 {
 	int ret;
 
-	dbc_dev->mbox->req.header.status = 0;
-	ret = psp_send_platform_access_msg(msg, (struct psp_request *)dbc_dev->mbox);
+	*dbc_dev->result = 0;
+	ret = dbc_dev->use_ext ? send_dbc_cmd_thru_ext(dbc_dev, msg) :
+				 send_dbc_cmd_thru_pa(dbc_dev, msg);
 	if (ret == -EIO) {
 		int i;
 
 		dev_dbg(dbc_dev->dev,
 			 "msg 0x%x failed with PSP error: 0x%x\n",
-			 msg, dbc_dev->mbox->req.header.status);
+			 msg, *dbc_dev->result);
 
 		for (i = 0; error_codes[i].psp; i++) {
-			if (dbc_dev->mbox->req.header.status == error_codes[i].psp)
+			if (*dbc_dev->result == error_codes[i].psp)
 				return error_codes[i].ret;
 		}
 	}
@@ -64,7 +80,7 @@ static int send_dbc_nonce(struct psp_dbc_device *dbc_dev)
 {
 	int ret;
 
-	dbc_dev->mbox->req.header.payload_size = sizeof(dbc_dev->mbox->dbc_nonce);
+	*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_nonce);
 	ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_GET_NONCE);
 	if (ret == -EAGAIN) {
 		dev_dbg(dbc_dev->dev, "retrying get nonce\n");
@@ -76,9 +92,9 @@ static int send_dbc_nonce(struct psp_dbc_device *dbc_dev)
 
 static int send_dbc_parameter(struct psp_dbc_device *dbc_dev)
 {
-	dbc_dev->mbox->req.header.payload_size = sizeof(dbc_dev->mbox->dbc_param);
+	struct dbc_user_param *user_param = (struct dbc_user_param *)dbc_dev->payload;
 
-	switch (dbc_dev->mbox->dbc_param.user.msg_index) {
+	switch (user_param->msg_index) {
 	case PARAM_SET_FMAX_CAP:
 	case PARAM_SET_PWR_CAP:
 	case PARAM_SET_GFX_MODE:
@@ -125,8 +141,7 @@ static long dbc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case DBCIOCNONCE:
-		if (copy_from_user(&dbc_dev->mbox->dbc_nonce.user, argp,
-				   sizeof(struct dbc_user_nonce))) {
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_nonce))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
@@ -135,43 +150,39 @@ static long dbc_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if (ret)
 			goto unlock;
 
-		if (copy_to_user(argp, &dbc_dev->mbox->dbc_nonce.user,
-				 sizeof(struct dbc_user_nonce))) {
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_nonce))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
 		break;
 	case DBCIOCUID:
-		dbc_dev->mbox->req.header.payload_size = sizeof(dbc_dev->mbox->dbc_set_uid);
-		if (copy_from_user(&dbc_dev->mbox->dbc_set_uid.user, argp,
-				   sizeof(struct dbc_user_setuid))) {
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_setuid))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
 
+		*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_setuid);
 		ret = send_dbc_cmd(dbc_dev, PSP_DYNAMIC_BOOST_SET_UID);
 		if (ret)
 			goto unlock;
 
-		if (copy_to_user(argp, &dbc_dev->mbox->dbc_set_uid.user,
-				 sizeof(struct dbc_user_setuid))) {
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_setuid))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
 		break;
 	case DBCIOCPARAM:
-		if (copy_from_user(&dbc_dev->mbox->dbc_param.user, argp,
-				   sizeof(struct dbc_user_param))) {
+		if (copy_from_user(dbc_dev->payload, argp, sizeof(struct dbc_user_param))) {
 			ret = -EFAULT;
 			goto unlock;
 		}
 
+		*dbc_dev->payload_size = dbc_dev->header_size + sizeof(struct dbc_user_param);
 		ret = send_dbc_parameter(dbc_dev);
 		if (ret)
 			goto unlock;
 
-		if (copy_to_user(argp, &dbc_dev->mbox->dbc_param.user,
-				 sizeof(struct dbc_user_param)))  {
+		if (copy_to_user(argp, dbc_dev->payload, sizeof(struct dbc_user_param)))  {
 			ret = -EFAULT;
 			goto unlock;
 		}
@@ -197,15 +208,12 @@ int dbc_dev_init(struct psp_device *psp)
 	struct psp_dbc_device *dbc_dev;
 	int ret;
 
-	if (!PSP_FEATURE(psp, DBC))
-		return 0;
-
 	dbc_dev = devm_kzalloc(dev, sizeof(*dbc_dev), GFP_KERNEL);
 	if (!dbc_dev)
 		return -ENOMEM;
 
 	BUILD_BUG_ON(sizeof(union dbc_buffer) > PAGE_SIZE);
-	dbc_dev->mbox = (void *)devm_get_free_pages(dev, GFP_KERNEL, 0);
+	dbc_dev->mbox = (void *)devm_get_free_pages(dev, GFP_KERNEL | __GFP_ZERO, 0);
 	if (!dbc_dev->mbox) {
 		ret = -ENOMEM;
 		goto cleanup_dev;
@@ -213,6 +221,20 @@ int dbc_dev_init(struct psp_device *psp)
 
 	psp->dbc_data = dbc_dev;
 	dbc_dev->dev = dev;
+	dbc_dev->psp = psp;
+
+	if (PSP_CAPABILITY(psp, DBC_THRU_EXT)) {
+		dbc_dev->use_ext = true;
+		dbc_dev->payload_size = &dbc_dev->mbox->ext_req.header.payload_size;
+		dbc_dev->result = &dbc_dev->mbox->ext_req.header.status;
+		dbc_dev->payload = &dbc_dev->mbox->ext_req.buf;
+		dbc_dev->header_size = sizeof(struct psp_ext_req_buffer_hdr);
+	} else {
+		dbc_dev->payload_size = &dbc_dev->mbox->pa_req.header.payload_size;
+		dbc_dev->result = &dbc_dev->mbox->pa_req.header.status;
+		dbc_dev->payload = &dbc_dev->mbox->pa_req.buf;
+		dbc_dev->header_size = sizeof(struct psp_req_buffer_hdr);
+	}
 
 	ret = send_dbc_nonce(dbc_dev);
 	if (ret == -EACCES) {

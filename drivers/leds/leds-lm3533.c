@@ -718,7 +718,7 @@ err_deregister:
 	return ret;
 }
 
-static int lm3533_led_remove(struct platform_device *pdev)
+static void lm3533_led_remove(struct platform_device *pdev)
 {
 	struct lm3533_led *led = platform_get_drvdata(pdev);
 
@@ -726,8 +726,6 @@ static int lm3533_led_remove(struct platform_device *pdev)
 
 	lm3533_ctrlbank_disable(&led->cb);
 	led_classdev_unregister(&led->cdev);
-
-	return 0;
 }
 
 static void lm3533_led_shutdown(struct platform_device *pdev)
@@ -746,7 +744,7 @@ static struct platform_driver lm3533_led_driver = {
 		.name = "lm3533-leds",
 	},
 	.probe		= lm3533_led_probe,
-	.remove		= lm3533_led_remove,
+	.remove_new	= lm3533_led_remove,
 	.shutdown	= lm3533_led_shutdown,
 };
 module_platform_driver(lm3533_led_driver);

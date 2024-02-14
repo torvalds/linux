@@ -29,8 +29,8 @@
 #else /* ...!ASSEMBLY */
 
 #include <linux/build_bug.h>
-#include <linux/kernel.h>
 #include <linux/stringify.h>
+#include <asm/asm.h>
 
 #ifdef CONFIG_SMP
 

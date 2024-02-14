@@ -257,6 +257,13 @@ static u8 get_input_report(u8 current_index, int sensor_idx, int report_id,
 		else
 			als_input.illuminance_value =
 				(int)sensor_virt_addr[0] / AMD_SFH_FW_MULTIPLIER;
+
+		if (sensor_idx == ACS_IDX) {
+			als_input.light_color_temp = sensor_virt_addr[1];
+			als_input.chromaticity_x_value = sensor_virt_addr[2];
+			als_input.chromaticity_y_value = sensor_virt_addr[3];
+		}
+
 		report_size = sizeof(als_input);
 		memcpy(input_report, &als_input, sizeof(als_input));
 		break;

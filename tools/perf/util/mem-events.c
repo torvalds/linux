@@ -37,7 +37,7 @@ struct perf_mem_event * __weak perf_mem_events__ptr(int i)
 	return &perf_mem_events[i];
 }
 
-char * __weak perf_mem_events__name(int i, char *pmu_name  __maybe_unused)
+const char * __weak perf_mem_events__name(int i, const char *pmu_name  __maybe_unused)
 {
 	struct perf_mem_event *e = perf_mem_events__ptr(i);
 
@@ -53,7 +53,7 @@ char * __weak perf_mem_events__name(int i, char *pmu_name  __maybe_unused)
 		return mem_loads_name;
 	}
 
-	return (char *)e->name;
+	return e->name;
 }
 
 __weak bool is_mem_loads_aux_event(struct evsel *leader __maybe_unused)
@@ -100,11 +100,14 @@ int perf_mem_events__parse(const char *str)
 	return -1;
 }
 
-static bool perf_mem_event__supported(const char *mnt, char *sysfs_name)
+static bool perf_mem_event__supported(const char *mnt, struct perf_pmu *pmu,
+				      struct perf_mem_event *e)
 {
+	char sysfs_name[100];
 	char path[PATH_MAX];
 	struct stat st;
 
+	scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name, pmu->name);
 	scnprintf(path, PATH_MAX, "%s/devices/%s", mnt, sysfs_name);
 	return !stat(path, &st);
 }
@@ -120,7 +123,6 @@ int perf_mem_events__init(void)
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		struct perf_mem_event *e = perf_mem_events__ptr(j);
-		char sysfs_name[100];
 		struct perf_pmu *pmu = NULL;
 
 		/*
@@ -136,12 +138,12 @@ int perf_mem_events__init(void)
 		 * of core PMU.
 		 */
 		while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-			scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name, pmu->name);
-			e->supported |= perf_mem_event__supported(mnt, sysfs_name);
+			e->supported |= perf_mem_event__supported(mnt, pmu, e);
+			if (e->supported) {
+				found = true;
+				break;
+			}
 		}
-
-		if (e->supported)
-			found = true;
 	}
 
 	return found ? 0 : -ENOENT;
@@ -167,13 +169,10 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 						    int idx)
 {
 	const char *mnt = sysfs__mount();
-	char sysfs_name[100];
 	struct perf_pmu *pmu = NULL;
 
 	while ((pmu = perf_pmus__scan(pmu)) != NULL) {
-		scnprintf(sysfs_name, sizeof(sysfs_name), e->sysfs_name,
-			  pmu->name);
-		if (!perf_mem_event__supported(mnt, sysfs_name)) {
+		if (!perf_mem_event__supported(mnt, pmu, e)) {
 			pr_err("failed: event '%s' not supported\n",
 			       perf_mem_events__name(idx, pmu->name));
 		}
@@ -183,10 +182,9 @@ static void perf_mem_events__print_unsupport_hybrid(struct perf_mem_event *e,
 int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 				 char **rec_tmp, int *tmp_nr)
 {
+	const char *mnt = sysfs__mount();
 	int i = *argv_nr, k = 0;
 	struct perf_mem_event *e;
-	struct perf_pmu *pmu;
-	char *s;
 
 	for (int j = 0; j < PERF_MEM_EVENTS__MAX; j++) {
 		e = perf_mem_events__ptr(j);
@@ -203,21 +201,27 @@ int perf_mem_events__record_args(const char **rec_argv, int *argv_nr,
 			rec_argv[i++] = "-e";
 			rec_argv[i++] = perf_mem_events__name(j, NULL);
 		} else {
+			struct perf_pmu *pmu = NULL;
+
 			if (!e->supported) {
 				perf_mem_events__print_unsupport_hybrid(e, j);
 				return -1;
 			}
 
 			while ((pmu = perf_pmus__scan(pmu)) != NULL) {
+				const char *s = perf_mem_events__name(j, pmu->name);
+
+				if (!perf_mem_event__supported(mnt, pmu, e))
+					continue;
+
 				rec_argv[i++] = "-e";
-				s = perf_mem_events__name(j, pmu->name);
 				if (s) {
-					s = strdup(s);
-					if (!s)
+					char *copy = strdup(s);
+					if (!copy)
 						return -1;
 
-					rec_argv[i++] = s;
-					rec_tmp[k++] = s;
+					rec_argv[i++] = copy;
+					rec_tmp[k++] = copy;
 				}
 			}
 		}

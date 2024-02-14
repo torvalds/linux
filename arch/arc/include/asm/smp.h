@@ -29,6 +29,8 @@ extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 extern void __init smp_init_cpus(void);
 extern void first_lines_of_secondary(void);
 extern const char *arc_platform_smp_cpuinfo(void);
+extern void arc_platform_smp_wait_to_boot(int);
+extern void start_kernel_secondary(void);
 
 /*
  * API expected BY platform smp code (FROM arch smp code)

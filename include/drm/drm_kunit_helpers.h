@@ -3,6 +3,8 @@
 #ifndef DRM_KUNIT_HELPERS_H_
 #define DRM_KUNIT_HELPERS_H_
 
+#include <linux/device.h>
+
 #include <kunit/test.h>
 
 struct drm_device;
@@ -51,7 +53,7 @@ __drm_kunit_helper_alloc_drm_device(struct kunit *test,
 {
 	struct drm_driver *driver;
 
-	driver = kunit_kzalloc(test, sizeof(*driver), GFP_KERNEL);
+	driver = devm_kzalloc(dev, sizeof(*driver), GFP_KERNEL);
 	KUNIT_ASSERT_NOT_NULL(test, driver);
 
 	driver->driver_features = features;

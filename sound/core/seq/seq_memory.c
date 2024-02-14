@@ -187,8 +187,13 @@ int snd_seq_expand_var_event(const struct snd_seq_event *event, int count, char 
 	err = expand_var_event(event, 0, len, buf, in_kernel);
 	if (err < 0)
 		return err;
-	if (len != newlen)
-		memset(buf + len, 0, newlen - len);
+	if (len != newlen) {
+		if (in_kernel)
+			memset(buf + len, 0, newlen - len);
+		else if (clear_user((__force void __user *)buf + len,
+				    newlen - len))
+			return -EFAULT;
+	}
 	return newlen;
 }
 EXPORT_SYMBOL(snd_seq_expand_var_event);
@@ -437,7 +442,8 @@ int snd_seq_pool_init(struct snd_seq_pool *pool)
 	if (snd_BUG_ON(!pool))
 		return -EINVAL;
 
-	cellptr = kvmalloc_array(sizeof(struct snd_seq_event_cell), pool->size,
+	cellptr = kvmalloc_array(pool->size,
+				 sizeof(struct snd_seq_event_cell),
 				 GFP_KERNEL);
 	if (!cellptr)
 		return -ENOMEM;

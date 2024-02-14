@@ -22,9 +22,3 @@ config IMX_SCU
 
 	  This driver manages the IPC interface between host CPU and the
 	  SCU firmware running on M4.
-
-config IMX_SCU_PD
-	bool "IMX SCU Power Domain driver"
-	depends on IMX_SCU
-	help
-	  The System Controller Firmware (SCFW) based power domain driver.

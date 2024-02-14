@@ -1,6 +1,6 @@
 config FPGA_KUNIT_TESTS
-	tristate "KUnit test for the FPGA subsystem" if !KUNIT_ALL_TESTS
-	depends on FPGA && FPGA_REGION && FPGA_BRIDGE && KUNIT=y
+	bool "KUnit test for the FPGA subsystem" if !KUNIT_ALL_TESTS
+	depends on FPGA=y && FPGA_REGION=y && FPGA_BRIDGE=y && KUNIT=y && MODULES=n
 	default KUNIT_ALL_TESTS
         help
           This builds unit tests for the FPGA subsystem

@@ -65,6 +65,16 @@ enum reg2_op {
 	revbd_op	= 0x0f,
 	revh2w_op	= 0x10,
 	revhd_op	= 0x11,
+	extwh_op	= 0x16,
+	extwb_op	= 0x17,
+	iocsrrdb_op     = 0x19200,
+	iocsrrdh_op     = 0x19201,
+	iocsrrdw_op     = 0x19202,
+	iocsrrdd_op     = 0x19203,
+	iocsrwrb_op     = 0x19204,
+	iocsrwrh_op     = 0x19205,
+	iocsrwrw_op     = 0x19206,
+	iocsrwrd_op     = 0x19207,
 };
 
 enum reg2i5_op {
@@ -318,6 +328,13 @@ struct reg2bstrd_format {
 	unsigned int opcode : 10;
 };
 
+struct reg2csr_format {
+	unsigned int rd : 5;
+	unsigned int rj : 5;
+	unsigned int csr : 14;
+	unsigned int opcode : 8;
+};
+
 struct reg3_format {
 	unsigned int rd : 5;
 	unsigned int rj : 5;
@@ -346,6 +363,7 @@ union loongarch_instruction {
 	struct reg2i14_format	reg2i14_format;
 	struct reg2i16_format	reg2i16_format;
 	struct reg2bstrd_format	reg2bstrd_format;
+	struct reg2csr_format   reg2csr_format;
 	struct reg3_format	reg3_format;
 	struct reg3sa2_format	reg3sa2_format;
 };
@@ -556,6 +574,8 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 DEF_EMIT_REG2_FORMAT(revb2h, revb2h_op)
 DEF_EMIT_REG2_FORMAT(revb2w, revb2w_op)
 DEF_EMIT_REG2_FORMAT(revbd, revbd_op)
+DEF_EMIT_REG2_FORMAT(extwh, extwh_op)
+DEF_EMIT_REG2_FORMAT(extwb, extwb_op)
 
 #define DEF_EMIT_REG2I5_FORMAT(NAME, OP)				\
 static inline void emit_##NAME(union loongarch_instruction *insn,	\
@@ -607,6 +627,9 @@ DEF_EMIT_REG2I12_FORMAT(lu52id, lu52id_op)
 DEF_EMIT_REG2I12_FORMAT(andi, andi_op)
 DEF_EMIT_REG2I12_FORMAT(ori, ori_op)
 DEF_EMIT_REG2I12_FORMAT(xori, xori_op)
+DEF_EMIT_REG2I12_FORMAT(ldb, ldb_op)
+DEF_EMIT_REG2I12_FORMAT(ldh, ldh_op)
+DEF_EMIT_REG2I12_FORMAT(ldw, ldw_op)
 DEF_EMIT_REG2I12_FORMAT(ldbu, ldbu_op)
 DEF_EMIT_REG2I12_FORMAT(ldhu, ldhu_op)
 DEF_EMIT_REG2I12_FORMAT(ldwu, ldwu_op)
@@ -685,9 +708,12 @@ static inline void emit_##NAME(union loongarch_instruction *insn,	\
 	insn->reg3_format.rk = rk;					\
 }
 
+DEF_EMIT_REG3_FORMAT(addw, addw_op)
 DEF_EMIT_REG3_FORMAT(addd, addd_op)
 DEF_EMIT_REG3_FORMAT(subd, subd_op)
 DEF_EMIT_REG3_FORMAT(muld, muld_op)
+DEF_EMIT_REG3_FORMAT(divd, divd_op)
+DEF_EMIT_REG3_FORMAT(modd, modd_op)
 DEF_EMIT_REG3_FORMAT(divdu, divdu_op)
 DEF_EMIT_REG3_FORMAT(moddu, moddu_op)
 DEF_EMIT_REG3_FORMAT(and, and_op)
@@ -699,6 +725,9 @@ DEF_EMIT_REG3_FORMAT(srlw, srlw_op)
 DEF_EMIT_REG3_FORMAT(srld, srld_op)
 DEF_EMIT_REG3_FORMAT(sraw, sraw_op)
 DEF_EMIT_REG3_FORMAT(srad, srad_op)
+DEF_EMIT_REG3_FORMAT(ldxb, ldxb_op)
+DEF_EMIT_REG3_FORMAT(ldxh, ldxh_op)
+DEF_EMIT_REG3_FORMAT(ldxw, ldxw_op)
 DEF_EMIT_REG3_FORMAT(ldxbu, ldxbu_op)
 DEF_EMIT_REG3_FORMAT(ldxhu, ldxhu_op)
 DEF_EMIT_REG3_FORMAT(ldxwu, ldxwu_op)

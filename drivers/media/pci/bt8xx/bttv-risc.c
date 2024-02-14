@@ -68,9 +68,7 @@ bttv_risc_packed(struct bttv *btv, struct btcx_riscmem *risc,
 	sg = sglist;
 	for (line = 0; line < store_lines; line++) {
 		if ((line >= (store_lines - VCR_HACK_LINES)) &&
-		    (btv->opt_vcr_hack ||
-		    (V4L2_FIELD_HAS_BOTH(btv->field) ||
-		     btv->field == V4L2_FIELD_ALTERNATE)))
+		    btv->opt_vcr_hack)
 			continue;
 		while (offset && offset >= sg_dma_len(sg)) {
 			offset -= sg_dma_len(sg);

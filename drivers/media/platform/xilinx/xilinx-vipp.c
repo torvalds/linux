@@ -55,11 +55,18 @@ xvip_graph_find_entity(struct xvip_composite_device *xdev,
 {
 	struct xvip_graph_entity *entity;
 	struct v4l2_async_connection *asd;
+	struct list_head *lists[] = {
+		&xdev->notifier.done_list,
+		&xdev->notifier.waiting_list
+	};
+	unsigned int i;
 
-	list_for_each_entry(asd, &xdev->notifier.done_list, asc_entry) {
-		entity = to_xvip_entity(asd);
-		if (entity->asd.match.fwnode == fwnode)
-			return entity;
+	for (i = 0; i < ARRAY_SIZE(lists); i++) {
+		list_for_each_entry(asd, lists[i], asc_entry) {
+			entity = to_xvip_entity(asd);
+			if (entity->asd.match.fwnode == fwnode)
+				return entity;
+		}
 	}
 
 	return NULL;

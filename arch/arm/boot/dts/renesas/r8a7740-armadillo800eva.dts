@@ -132,7 +132,7 @@
 		i2c-gpio,delay-us = <5>;
 	};
 
-	backlight {
+	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&tpu 2 33333 PWM_POLARITY_INVERTED>;
 		brightness-levels = <0 1 2 4 8 16 32 64 128 255>;
@@ -141,6 +141,18 @@
 		pinctrl-names = "default";
 		power-supply = <&reg_5p0v>;
 		enable-gpios = <&pfc 61 GPIO_ACTIVE_HIGH>;
+	};
+
+	panel {
+		compatible = "ampire,am-800480l1tmqw-t00h";
+		backlight = <&backlight>;
+		power-supply = <&reg_5p0v>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&lcdc0_rgb>;
+			};
+		};
 	};
 
 	sound {
@@ -228,10 +240,22 @@
 	};
 };
 
-&pfc {
+&lcdc0 {
 	pinctrl-0 = <&lcd0_pins>;
 	pinctrl-names = "default";
 
+	status = "okay";
+
+	ports {
+		port@0 {
+			endpoint {
+				remote-endpoint = <&panel_in>;
+			};
+		};
+	};
+};
+
+&pfc {
 	ether_pins: ether {
 		groups = "gether_mii", "gether_int";
 		function = "gether";

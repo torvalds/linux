@@ -5,10 +5,10 @@ class TdcPlugin:
         super().__init__()
         print(' -- {}.__init__'.format(self.sub_class))
 
-    def pre_suite(self, testcount, testidlist):
+    def pre_suite(self, testcount, testlist):
         '''run commands before test_runner goes into a test loop'''
         self.testcount = testcount
-        self.testidlist = testidlist
+        self.testlist = testlist
         if self.args.verbose > 1:
             print(' -- {}.pre_suite'.format(self.sub_class))
 

@@ -98,6 +98,8 @@
 #define ST_EPOF				0x80
 /* Status transfer size, 16 bytes status, 16 byte result flags */
 #define ST_SIZE				0x20
+/* 1-wire data i/o fifo size, 128 bytes */
+#define FIFO_SIZE			0x80
 
 /* Result Register flags */
 #define RR_DETECT			0xA5 /* New device detected */
@@ -614,13 +616,10 @@ static int ds_read_byte(struct ds_device *dev, u8 *byte)
 	return 0;
 }
 
-static int ds_read_block(struct ds_device *dev, u8 *buf, int len)
+static int read_block_chunk(struct ds_device *dev, u8 *buf, int len)
 {
 	struct ds_status st;
 	int err;
-
-	if (len > 64*1024)
-		return -E2BIG;
 
 	memset(buf, 0xFF, len);
 
@@ -636,6 +635,24 @@ static int ds_read_block(struct ds_device *dev, u8 *buf, int len)
 
 	memset(buf, 0x00, len);
 	err = ds_recv_data(dev, buf, len);
+
+	return err;
+}
+
+static int ds_read_block(struct ds_device *dev, u8 *buf, int len)
+{
+	int err, to_read, rem = len;
+
+	if (len > 64 * 1024)
+		return -E2BIG;
+
+	do {
+		to_read = rem <= FIFO_SIZE ? rem : FIFO_SIZE;
+		err = read_block_chunk(dev, &buf[len - rem], to_read);
+		if (err < 0)
+			return err;
+		rem -= to_read;
+	} while (rem);
 
 	return err;
 }

@@ -31,8 +31,6 @@
 #include <asm/bootparam.h>
 #include <asm/x86_init.h>
 
-extern u64 relocated_ramdisk;
-
 /* Interrupt control for vSMPowered x86_64 systems */
 #ifdef CONFIG_X86_64
 void vsmp_init(void);
@@ -126,6 +124,7 @@ void clear_bss(void);
 #ifdef __i386__
 
 asmlinkage void __init __noreturn i386_start_kernel(void);
+void __init mk_early_pgtbl_32(void);
 
 #else
 asmlinkage void __init __noreturn x86_64_start_kernel(char *real_mode);

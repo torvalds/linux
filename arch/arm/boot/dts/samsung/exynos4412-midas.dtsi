@@ -137,21 +137,21 @@
 
 		key-down {
 			gpios = <&gpx3 3 GPIO_ACTIVE_LOW>;
-			linux,code = <114>;
+			linux,code = <KEY_VOLUMEDOWN>;
 			label = "volume down";
 			debounce-interval = <10>;
 		};
 
 		key-up {
 			gpios = <&gpx2 2 GPIO_ACTIVE_LOW>;
-			linux,code = <115>;
+			linux,code = <KEY_VOLUMEUP>;
 			label = "volume up";
 			debounce-interval = <10>;
 		};
 
 		key-power {
 			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			label = "power";
 			debounce-interval = <10>;
 			wakeup-source;
@@ -159,7 +159,7 @@
 
 		key-ok {
 			gpios = <&gpx0 1 GPIO_ACTIVE_LOW>;
-			linux,code = <139>;
+			linux,code = <KEY_OK>;
 			label = "ok";
 			debounce-interval = <10>;
 			wakeup-source;

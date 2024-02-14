@@ -360,8 +360,10 @@ static int jpeg_v4_0_3_hw_fini(void *handle)
 
 	cancel_delayed_work_sync(&adev->jpeg.idle_work);
 
-	if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
-		ret = jpeg_v4_0_3_set_powergating_state(adev, AMD_PG_STATE_GATE);
+	if (!amdgpu_sriov_vf(adev)) {
+		if (adev->jpeg.cur_state != AMD_PG_STATE_GATE)
+			ret = jpeg_v4_0_3_set_powergating_state(adev, AMD_PG_STATE_GATE);
+	}
 
 	return ret;
 }
@@ -652,9 +654,11 @@ static void jpeg_v4_0_3_dec_ring_set_wptr(struct amdgpu_ring *ring)
  */
 static void jpeg_v4_0_3_dec_ring_insert_start(struct amdgpu_ring *ring)
 {
-	amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x62a04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
+	if (!amdgpu_sriov_vf(ring->adev)) {
+		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
+			0, 0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x62a04); /* PCTL0_MMHUB_DEEPSLEEP_IB */
+	}
 
 	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
 		0, 0, PACKETJ_TYPE0));
@@ -670,9 +674,11 @@ static void jpeg_v4_0_3_dec_ring_insert_start(struct amdgpu_ring *ring)
  */
 static void jpeg_v4_0_3_dec_ring_insert_end(struct amdgpu_ring *ring)
 {
-	amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
-		0, 0, PACKETJ_TYPE0));
-	amdgpu_ring_write(ring, 0x62a04);
+	if (!amdgpu_sriov_vf(ring->adev)) {
+		amdgpu_ring_write(ring, PACKETJ(regUVD_JRBC_EXTERNAL_REG_INTERNAL_OFFSET,
+			0, 0, PACKETJ_TYPE0));
+		amdgpu_ring_write(ring, 0x62a04);
+	}
 
 	amdgpu_ring_write(ring, PACKETJ(JRBC_DEC_EXTERNAL_REG_WRITE_ADDR,
 		0, 0, PACKETJ_TYPE0));
@@ -947,6 +953,11 @@ static int jpeg_v4_0_3_set_powergating_state(void *handle,
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int ret;
+
+	if (amdgpu_sriov_vf(adev)) {
+		adev->jpeg.cur_state = AMD_PG_STATE_UNGATE;
+		return 0;
+	}
 
 	if (state == adev->jpeg.cur_state)
 		return 0;

@@ -2,6 +2,7 @@
 config VIDEO_CCS
 	tristate "MIPI CCS/SMIA++/SMIA sensor support"
 	depends on HAVE_CLK
+	select V4L2_CCI_I2C
 	select VIDEO_CCS_PLL
 	help
 	  This is a generic driver for MIPI CCS, SMIA++ and SMIA compliant

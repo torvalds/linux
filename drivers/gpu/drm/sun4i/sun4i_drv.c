@@ -413,6 +413,11 @@ static void sun4i_drv_remove(struct platform_device *pdev)
 	component_master_del(&pdev->dev, &sun4i_drv_master_ops);
 }
 
+static void sun4i_drv_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
+}
+
 static const struct of_device_id sun4i_drv_of_table[] = {
 	{ .compatible = "allwinner,sun4i-a10-display-engine" },
 	{ .compatible = "allwinner,sun5i-a10s-display-engine" },
@@ -437,6 +442,7 @@ MODULE_DEVICE_TABLE(of, sun4i_drv_of_table);
 static struct platform_driver sun4i_drv_platform_driver = {
 	.probe		= sun4i_drv_probe,
 	.remove_new	= sun4i_drv_remove,
+	.shutdown	= sun4i_drv_shutdown,
 	.driver		= {
 		.name		= "sun4i-drm",
 		.of_match_table	= sun4i_drv_of_table,

@@ -503,9 +503,8 @@ out:
  * architecture dependent calling conventions. 7+ can be supported in the
  * future.
  */
-__diag_push();
-__diag_ignore_all("-Wmissing-prototypes",
-		  "Global functions as their definitions will be in vmlinux BTF");
+__bpf_kfunc_start_defs();
+
 __bpf_kfunc int bpf_fentry_test1(int a)
 {
 	return a + 1;
@@ -543,6 +542,7 @@ struct bpf_fentry_test_t {
 
 int noinline bpf_fentry_test7(struct bpf_fentry_test_t *arg)
 {
+	asm volatile ("": "+r"(arg));
 	return (long)arg;
 }
 
@@ -600,11 +600,22 @@ __bpf_kfunc void bpf_kfunc_call_test_release(struct prog_test_ref_kfunc *p)
 	refcount_dec(&p->cnt);
 }
 
+__bpf_kfunc void bpf_kfunc_call_test_release_dtor(void *p)
+{
+	bpf_kfunc_call_test_release(p);
+}
+CFI_NOSEAL(bpf_kfunc_call_test_release_dtor);
+
 __bpf_kfunc void bpf_kfunc_call_memb_release(struct prog_test_member *p)
 {
 }
 
-__diag_pop();
+__bpf_kfunc void bpf_kfunc_call_memb_release_dtor(void *p)
+{
+}
+CFI_NOSEAL(bpf_kfunc_call_memb_release_dtor);
+
+__bpf_kfunc_end_defs();
 
 BTF_SET8_START(bpf_test_modify_return_ids)
 BTF_ID_FLAGS(func, bpf_modify_return_test)
@@ -1671,9 +1682,9 @@ static const struct btf_kfunc_id_set bpf_prog_test_kfunc_set = {
 
 BTF_ID_LIST(bpf_prog_test_dtor_kfunc_ids)
 BTF_ID(struct, prog_test_ref_kfunc)
-BTF_ID(func, bpf_kfunc_call_test_release)
+BTF_ID(func, bpf_kfunc_call_test_release_dtor)
 BTF_ID(struct, prog_test_member)
-BTF_ID(func, bpf_kfunc_call_memb_release)
+BTF_ID(func, bpf_kfunc_call_memb_release_dtor)
 
 static int __init bpf_prog_test_run_init(void)
 {

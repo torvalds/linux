@@ -256,20 +256,18 @@ err_release_ports:
 	return err;
 }
 
-static int ideapad_remove(struct platform_device *pdev)
+static void ideapad_remove(struct platform_device *pdev)
 {
 	i8042_remove_filter(slidebar_i8042_filter);
 	input_unregister_device(slidebar_input_dev);
 	release_region(IDEAPAD_BASE, 3);
-
-	return 0;
 }
 
 static struct platform_driver slidebar_drv = {
 	.driver = {
 		.name = "ideapad_slidebar",
 	},
-	.remove = ideapad_remove,
+	.remove_new = ideapad_remove,
 };
 
 static int __init ideapad_dmi_check(const struct dmi_system_id *id)

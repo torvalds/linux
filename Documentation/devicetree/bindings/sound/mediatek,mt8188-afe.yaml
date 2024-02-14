@@ -29,7 +29,7 @@ properties:
     maxItems: 1
     description: |
       Shared memory region for AFE memif.  A "shared-dma-pool".
-      See ../reserved-memory/reserved-memory.yaml for details.
+      See dtschema reserved-memory/shared-dma-pool.yaml for details.
 
   mediatek,topckgen:
     $ref: /schemas/types.yaml#/definitions/phandle

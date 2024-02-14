@@ -114,6 +114,7 @@ if		{ return IF; }
 else		{ return ELSE; }
 source_count	{ return SOURCE_COUNT; }
 has_event	{ return HAS_EVENT; }
+strcmp_cpuid_str	{ return STRCMP_CPUID_STR; }
 {literal}	{ return literal(yyscanner, sctx); }
 {number}	{ return value(yyscanner); }
 {symbol}	{ return str(yyscanner, ID, sctx->runtime); }

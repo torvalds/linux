@@ -12,7 +12,7 @@
 #ifndef _LINUX_SURFACE_AGGREGATOR_SERIAL_HUB_H
 #define _LINUX_SURFACE_AGGREGATOR_SERIAL_HUB_H
 
-#include <linux/crc-ccitt.h>
+#include <linux/crc-itu-t.h>
 #include <linux/kref.h>
 #include <linux/ktime.h>
 #include <linux/list.h>
@@ -188,7 +188,7 @@ static_assert(sizeof(struct ssh_command) == 8);
  */
 static inline u16 ssh_crc(const u8 *buf, size_t len)
 {
-	return crc_ccitt_false(0xffff, buf, len);
+	return crc_itu_t(0xffff, buf, len);
 }
 
 /*

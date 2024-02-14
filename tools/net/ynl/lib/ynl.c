@@ -145,8 +145,10 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 	const struct nlattr *attr;
 	const char *str = NULL;
 
-	if (!(nlh->nlmsg_flags & NLM_F_ACK_TLVS))
+	if (!(nlh->nlmsg_flags & NLM_F_ACK_TLVS)) {
+		yerr_msg(ys, "%s", strerror(ys->err.code));
 		return MNL_CB_OK;
+	}
 
 	mnl_attr_for_each(attr, nlh, hlen) {
 		unsigned int len, type;
@@ -189,12 +191,12 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 			     str ? " (" : "");
 
 		start = mnl_nlmsg_get_payload_offset(ys->nlh,
-						     sizeof(struct genlmsghdr));
+						     ys->family->hdr_len);
 		end = mnl_nlmsg_get_payload_tail(ys->nlh);
 
 		off = ys->err.attr_offs;
 		off -= sizeof(struct nlmsghdr);
-		off -= sizeof(struct genlmsghdr);
+		off -= ys->family->hdr_len;
 
 		n += ynl_err_walk(ys, start, end, off, ys->req_policy,
 				  &bad_attr[n], sizeof(bad_attr) - n, NULL);
@@ -215,14 +217,14 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 			     bad_attr[0] ? ", " : (str ? " (" : ""));
 
 		start = mnl_nlmsg_get_payload_offset(ys->nlh,
-						     sizeof(struct genlmsghdr));
+						     ys->family->hdr_len);
 		end = mnl_nlmsg_get_payload_tail(ys->nlh);
 
 		nest_pol = ys->req_policy;
 		if (tb[NLMSGERR_ATTR_MISS_NEST]) {
 			off = mnl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_NEST]);
 			off -= sizeof(struct nlmsghdr);
-			off -= sizeof(struct genlmsghdr);
+			off -= ys->family->hdr_len;
 
 			n += ynl_err_walk(ys, start, end, off, ys->req_policy,
 					  &miss_attr[n], sizeof(miss_attr) - n,
@@ -249,6 +251,8 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		yerr_msg(ys, "Kernel %s: %s%s",
 			 ys->err.code ? "error" : "warning",
 			 bad_attr, miss_attr);
+	else
+		yerr_msg(ys, "%s", strerror(ys->err.code));
 
 	return MNL_CB_OK;
 }
@@ -352,6 +356,12 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
 		     "Invalid attribute (u64 %s)", policy->name);
 		return -1;
+	case YNL_PT_UINT:
+		if (len == sizeof(__u32) || len == sizeof(__u64))
+			break;
+		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
+		     "Invalid attribute (uint %s)", policy->name);
+		return -1;
 	case YNL_PT_FLAG:
 		/* Let flags grow into real attrs, why not.. */
 		break;
@@ -372,6 +382,12 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 			break;
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
 		     "Invalid attribute (string %s)", policy->name);
+		return -1;
+	case YNL_PT_BITFIELD32:
+		if (len == sizeof(struct nla_bitfield32))
+			break;
+		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,
+		     "Invalid attribute (bitfield32 %s)", policy->name);
 		return -1;
 	default:
 		yerr(yarg->ys, YNL_ERROR_ATTR_INVALID,

@@ -65,14 +65,14 @@ int vfio_ccw_sch_quiesce(struct subchannel *sch)
 		 * cancel/halt/clear completion.
 		 */
 		private->completion = &completion;
-		spin_unlock_irq(sch->lock);
+		spin_unlock_irq(&sch->lock);
 
 		if (ret == -EBUSY)
 			wait_for_completion_timeout(&completion, 3*HZ);
 
 		private->completion = NULL;
 		flush_workqueue(vfio_ccw_work_q);
-		spin_lock_irq(sch->lock);
+		spin_lock_irq(&sch->lock);
 		ret = cio_disable_subchannel(sch);
 	} while (ret == -EBUSY);
 
@@ -112,7 +112,7 @@ void vfio_ccw_sch_io_todo(struct work_struct *work)
 		private->state = VFIO_CCW_STATE_IDLE;
 
 	if (private->io_trigger)
-		eventfd_signal(private->io_trigger, 1);
+		eventfd_signal(private->io_trigger);
 }
 
 void vfio_ccw_crw_todo(struct work_struct *work)
@@ -122,7 +122,7 @@ void vfio_ccw_crw_todo(struct work_struct *work)
 	private = container_of(work, struct vfio_ccw_private, crw_work);
 
 	if (!list_empty(&private->crw) && private->crw_trigger)
-		eventfd_signal(private->crw_trigger, 1);
+		eventfd_signal(private->crw_trigger);
 }
 
 /*
@@ -249,7 +249,7 @@ static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 	unsigned long flags;
 	int rc = -EAGAIN;
 
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 	if (!device_is_registered(&sch->dev))
 		goto out_unlock;
 
@@ -264,7 +264,7 @@ static int vfio_ccw_sch_event(struct subchannel *sch, int process)
 	}
 
 out_unlock:
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 
 	return rc;
 }

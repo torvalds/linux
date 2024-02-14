@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2013 - 2019 Intel Corporation. */
 
+#include <linux/bitfield.h>
 #include "fm10k_pf.h"
 #include "fm10k_vf.h"
 
@@ -865,8 +866,7 @@ static s32 fm10k_iov_assign_default_mac_vlan_pf(struct fm10k_hw *hw,
 	 * register is RO from the VF, so the PF must do this even in the
 	 * case of notifying the VF of a new VID via the mailbox.
 	 */
-	txqctl = ((u32)vf_vid << FM10K_TXQCTL_VID_SHIFT) &
-		 FM10K_TXQCTL_VID_MASK;
+	txqctl = FIELD_PREP(FM10K_TXQCTL_VID_MASK, vf_vid);
 	txqctl |= (vf_idx << FM10K_TXQCTL_TC_SHIFT) |
 		  FM10K_TXQCTL_VF | vf_idx;
 
@@ -1575,8 +1575,7 @@ static s32 fm10k_get_fault_pf(struct fm10k_hw *hw, int type,
 	if (func & FM10K_FAULT_FUNC_PF)
 		fault->func = 0;
 	else
-		fault->func = 1 + ((func & FM10K_FAULT_FUNC_VF_MASK) >>
-				   FM10K_FAULT_FUNC_VF_SHIFT);
+		fault->func = 1 + FIELD_GET(FM10K_FAULT_FUNC_VF_MASK, func);
 
 	/* record fault type */
 	fault->type = func & FM10K_FAULT_FUNC_TYPE_MASK;

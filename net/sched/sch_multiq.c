@@ -410,3 +410,4 @@ module_init(multiq_module_init)
 module_exit(multiq_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Multi queue to hardware queue mapping qdisc");

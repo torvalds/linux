@@ -322,7 +322,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "md5",
 				.cra_driver_name = "md5-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -355,7 +354,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "sha1",
 				.cra_driver_name = "sha1-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -388,7 +386,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "sha224",
 				.cra_driver_name = "sha224-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -421,7 +418,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "sha256",
 				.cra_driver_name = "sha256-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -455,7 +451,6 @@ static struct sun8i_ss_alg_template ss_algs[] = {
 				.cra_name = "hmac(sha1)",
 				.cra_driver_name = "hmac-sha1-sun8i-ss",
 				.cra_priority = 300,
-				.cra_alignmask = 3,
 				.cra_flags = CRYPTO_ALG_TYPE_AHASH |
 					CRYPTO_ALG_ASYNC |
 					CRYPTO_ALG_NEED_FALLBACK,
@@ -908,7 +903,7 @@ error_pm:
 	return err;
 }
 
-static int sun8i_ss_remove(struct platform_device *pdev)
+static void sun8i_ss_remove(struct platform_device *pdev)
 {
 	struct sun8i_ss_dev *ss = platform_get_drvdata(pdev);
 
@@ -921,8 +916,6 @@ static int sun8i_ss_remove(struct platform_device *pdev)
 	sun8i_ss_free_flows(ss, MAXFLOW - 1);
 
 	sun8i_ss_pm_exit(ss);
-
-	return 0;
 }
 
 static const struct of_device_id sun8i_ss_crypto_of_match_table[] = {
@@ -936,7 +929,7 @@ MODULE_DEVICE_TABLE(of, sun8i_ss_crypto_of_match_table);
 
 static struct platform_driver sun8i_ss_driver = {
 	.probe		 = sun8i_ss_probe,
-	.remove		 = sun8i_ss_remove,
+	.remove_new	 = sun8i_ss_remove,
 	.driver		 = {
 		.name		= "sun8i-ss",
 		.pm             = &sun8i_ss_pm_ops,

@@ -30,8 +30,6 @@
 #include <linux/uuid.h>
 #include <linux/workqueue.h>
 
-#define	MEI_ACE_DRIVER_NAME	"ivsc_ace"
-
 /* indicating driver message */
 #define	ACE_DRV_MSG		1
 /* indicating set command */
@@ -408,6 +406,9 @@ static int mei_ace_setup_dev_link(struct mei_ace *ace)
 	if (!csi_dev) {
 		ret = -EPROBE_DEFER;
 		goto err;
+	} else if (!dev_fwnode(csi_dev)) {
+		ret = -EPROBE_DEFER;
+		goto err_put;
 	}
 
 	/* setup link between mei_ace and mei_csi */
@@ -554,14 +555,14 @@ static const struct dev_pm_ops mei_ace_pm_ops = {
 			     0x9B, 0x78, 0x03, 0x61, 0x63, 0x5E, 0x24, 0x47)
 
 static const struct mei_cl_device_id mei_ace_tbl[] = {
-	{ MEI_ACE_DRIVER_NAME, MEI_ACE_UUID, MEI_CL_VERSION_ANY },
+	{ .uuid = MEI_ACE_UUID, .version = MEI_CL_VERSION_ANY },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(mei, mei_ace_tbl);
 
 static struct mei_cl_driver mei_ace_driver = {
 	.id_table = mei_ace_tbl,
-	.name = MEI_ACE_DRIVER_NAME,
+	.name = KBUILD_MODNAME,
 
 	.probe = mei_ace_probe,
 	.remove = mei_ace_remove,

@@ -156,8 +156,8 @@ static int ntfs_link(struct dentry *ode, struct inode *dir, struct dentry *de)
 	err = ntfs_link_inode(inode, de);
 
 	if (!err) {
-		dir->i_mtime = inode_set_ctime_to_ts(inode,
-						     inode_set_ctime_current(dir));
+		inode_set_ctime_current(inode);
+		inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 		mark_inode_dirty(inode);
 		mark_inode_dirty(dir);
 		d_instantiate(de, inode);
@@ -181,6 +181,9 @@ static int ntfs_unlink(struct inode *dir, struct dentry *dentry)
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
 
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
+
 	ni_lock_dir(ni);
 
 	err = ntfs_unlink_inode(dir, dentry);
@@ -198,6 +201,9 @@ static int ntfs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 {
 	u32 size = strlen(symname);
 	struct inode *inode;
+
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
 
 	inode = ntfs_create_inode(idmap, dir, dentry, NULL, S_IFLNK | 0777, 0,
 				  symname, size, NULL);
@@ -226,6 +232,9 @@ static int ntfs_rmdir(struct inode *dir, struct dentry *dentry)
 {
 	struct ntfs_inode *ni = ntfs_i(dir);
 	int err;
+
+	if (unlikely(ntfs3_forced_shutdown(dir->i_sb)))
+		return -EIO;
 
 	ni_lock_dir(ni);
 
@@ -263,6 +272,9 @@ static int ntfs_rename(struct mnt_idmap *idmap, struct inode *dir,
 	static_assert(SIZEOF_ATTRIBUTE_FILENAME_MAX + sizeof(struct NTFS_DE) <
 		      1024);
 	static_assert(PATH_MAX >= 4 * 1024);
+
+	if (unlikely(ntfs3_forced_shutdown(sb)))
+		return -EIO;
 
 	if (flags & ~RENAME_NOREPLACE)
 		return -EINVAL;
@@ -373,7 +385,7 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 
 #ifdef CONFIG_NTFS3_FS_POSIX_ACL
 	if (IS_POSIXACL(dir)) {
-		/* 
+		/*
 		 * Load in cache current acl to avoid ni_lock(dir):
 		 * ntfs_create_inode -> ntfs_init_acl -> posix_acl_create ->
 		 * ntfs_get_acl -> ntfs_get_acl_ex -> ni_lock

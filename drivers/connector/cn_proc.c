@@ -54,7 +54,7 @@ static int cn_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 	enum proc_cn_mcast_op mc_op;
 	uintptr_t val;
 
-	if (!dsk || !data)
+	if (!dsk || !dsk->sk_user_data || !data)
 		return 0;
 
 	ptr = (__u32 *)data;
@@ -108,8 +108,9 @@ static inline void send_msg(struct cn_msg *msg)
 		filter_data[1] = 0;
 	}
 
-	cn_netlink_send_mult(msg, msg->len, 0, CN_IDX_PROC, GFP_NOWAIT,
-			     cn_filter, (void *)filter_data);
+	if (cn_netlink_send_mult(msg, msg->len, 0, CN_IDX_PROC, GFP_NOWAIT,
+			     cn_filter, (void *)filter_data) == -ESRCH)
+		atomic_set(&proc_event_num_listeners, 0);
 
 	local_unlock(&local_event.lock);
 }

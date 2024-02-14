@@ -22,7 +22,7 @@
 
 extern int mem_init_done;
 
-/**
+/*
  * OK, this one's a bit tricky... ioremap can get called before memory is
  * initialized (early serial console does this) and will want to alloc a page
  * for its mapping.  No userspace pages will ever get allocated before memory

@@ -345,6 +345,7 @@ static const struct dccg_funcs dccg32_funcs = {
 	.otg_drop_pixel = dccg32_otg_drop_pixel,
 	.set_pixel_rate_div = dccg32_set_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg32_trigger_dio_fifo_resync,
+	.set_dtbclk_p_src = dccg32_set_dtbclk_p_src,
 };
 
 struct dccg *dccg32_create(

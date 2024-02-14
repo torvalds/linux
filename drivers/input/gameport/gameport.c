@@ -519,12 +519,32 @@ EXPORT_SYMBOL(gameport_set_phys);
 
 static void gameport_default_trigger(struct gameport *gameport)
 {
+#ifdef CONFIG_HAS_IOPORT
 	outb(0xff, gameport->io);
+#endif
 }
 
 static unsigned char gameport_default_read(struct gameport *gameport)
 {
+#ifdef CONFIG_HAS_IOPORT
 	return inb(gameport->io);
+#else
+	return 0xff;
+#endif
+}
+
+static void gameport_setup_default_handlers(struct gameport *gameport)
+{
+	if ((!gameport->trigger || !gameport->read) &&
+	    !IS_ENABLED(CONFIG_HAS_IOPORT))
+		dev_err(&gameport->dev,
+			"I/O port access is required for %s (%s) but is not available\n",
+			gameport->phys, gameport->name);
+
+	if (!gameport->trigger)
+		gameport->trigger = gameport_default_trigger;
+	if (!gameport->read)
+		gameport->read = gameport_default_read;
 }
 
 /*
@@ -545,11 +565,7 @@ static void gameport_init_port(struct gameport *gameport)
 	if (gameport->parent)
 		gameport->dev.parent = &gameport->parent->dev;
 
-	if (!gameport->trigger)
-		gameport->trigger = gameport_default_trigger;
-	if (!gameport->read)
-		gameport->read = gameport_default_read;
-
+	gameport_setup_default_handlers(gameport);
 	INIT_LIST_HEAD(&gameport->node);
 	spin_lock_init(&gameport->timer_lock);
 	timer_setup(&gameport->poll_timer, gameport_run_poll_handler, 0);

@@ -24,7 +24,7 @@
 #define rd64(a, reg)		readq((a)->hw_addr + (reg))
 
 #define ice_flush(a)		rd32((a), GLGEN_STAT)
-#define ICE_M(m, s)		((m) << (s))
+#define ICE_M(m, s)		((m ## U) << (s))
 
 struct ice_dma_mem {
 	void *va;

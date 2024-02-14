@@ -55,6 +55,13 @@ static const char *dr_action_id_to_str(enum mlx5dr_action_type action_id)
 	return action_type_to_str[action_id];
 }
 
+static bool mlx5dr_action_supp_fwd_fdb_multi_ft(struct mlx5_core_dev *dev)
+{
+	return (MLX5_CAP_GEN(dev, steering_format_version) < MLX5_STEERING_FORMAT_CONNECTX_6DX ||
+		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table_limit_regc) ||
+		MLX5_CAP_ESW_FLOWTABLE(dev, fdb_multi_path_any_table));
+}
+
 static const enum dr_action_valid_state
 next_action_state[DR_ACTION_DOMAIN_MAX][DR_ACTION_STATE_MAX][DR_ACTION_TYP_MAX] = {
 	[DR_ACTION_DOMAIN_NIC_INGRESS] = {
@@ -781,6 +788,7 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 		switch (action_type) {
 		case DR_ACTION_TYP_DROP:
 			attr.final_icm_addr = nic_dmn->drop_icm_addr;
+			attr.hit_gvmi = nic_dmn->drop_icm_addr >> 48;
 			break;
 		case DR_ACTION_TYP_FT:
 			dest_action = action;
@@ -866,11 +874,17 @@ int mlx5dr_actions_build_ste_arr(struct mlx5dr_matcher *matcher,
 							action->sampler->tx_icm_addr;
 			break;
 		case DR_ACTION_TYP_VPORT:
-			attr.hit_gvmi = action->vport->caps->vhca_gvmi;
-			dest_action = action;
-			attr.final_icm_addr = rx_rule ?
-				action->vport->caps->icm_address_rx :
-				action->vport->caps->icm_address_tx;
+			if (unlikely(rx_rule && action->vport->caps->num == MLX5_VPORT_UPLINK)) {
+				/* can't go to uplink on RX rule - dropping instead */
+				attr.final_icm_addr = nic_dmn->drop_icm_addr;
+				attr.hit_gvmi = nic_dmn->drop_icm_addr >> 48;
+			} else {
+				attr.hit_gvmi = action->vport->caps->vhca_gvmi;
+				dest_action = action;
+				attr.final_icm_addr = rx_rule ?
+						      action->vport->caps->icm_address_rx :
+						      action->vport->caps->icm_address_tx;
+			}
 			break;
 		case DR_ACTION_TYP_POP_VLAN:
 			if (!rx_rule && !(dmn->ste_ctx->actions_caps &
@@ -1167,8 +1181,11 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 	struct mlx5dr_action **ref_actions;
 	struct mlx5dr_action *action;
 	bool reformat_req = false;
+	bool is_ft_wire = false;
+	u16 num_dst_ft = 0;
 	u32 num_of_ref = 0;
 	u32 ref_act_cnt;
+	u16 last_dest;
 	int ret;
 	int i;
 
@@ -1210,11 +1227,22 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 			break;
 
 		case DR_ACTION_TYP_FT:
+			if (num_dst_ft &&
+			    !mlx5dr_action_supp_fwd_fdb_multi_ft(dmn->mdev)) {
+				mlx5dr_dbg(dmn, "multiple FT destinations not supported\n");
+				goto free_ref_actions;
+			}
+			num_dst_ft++;
 			hw_dests[i].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-			if (dest_action->dest_tbl->is_fw_tbl)
+			if (dest_action->dest_tbl->is_fw_tbl) {
 				hw_dests[i].ft_id = dest_action->dest_tbl->fw_tbl.id;
-			else
+			} else {
 				hw_dests[i].ft_id = dest_action->dest_tbl->tbl->table_id;
+				if (dest_action->dest_tbl->is_wire_ft) {
+					is_ft_wire = true;
+					last_dest = i;
+				}
+			}
 			break;
 
 		default:
@@ -1222,6 +1250,13 @@ mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 			goto free_ref_actions;
 		}
 	}
+
+	/* In multidest, the FW does the iterator in the RX except of the last
+	 * one that done in the TX.
+	 * So, if one of the ft target is wire, put it at the end of the dest list.
+	 */
+	if (is_ft_wire && num_dst_ft > 1)
+		swap(hw_dests[last_dest], hw_dests[num_of_dests - 1]);
 
 	action = dr_action_create_generic(DR_ACTION_TYP_FT);
 	if (!action)

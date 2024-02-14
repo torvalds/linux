@@ -300,7 +300,7 @@ static int starfive_trng_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, irq, starfive_trng_irq, 0, pdev->name,
 			       (void *)trng);
 	if (ret)
-		return dev_err_probe(&pdev->dev, irq,
+		return dev_err_probe(&pdev->dev, ret,
 				     "Failed to register interrupt handler\n");
 
 	trng->hclk = devm_clk_get(&pdev->dev, "hclk");
@@ -369,8 +369,12 @@ static int __maybe_unused starfive_trng_resume(struct device *dev)
 	return 0;
 }
 
-static DEFINE_SIMPLE_DEV_PM_OPS(starfive_trng_pm_ops, starfive_trng_suspend,
-				starfive_trng_resume);
+static const struct dev_pm_ops starfive_trng_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(starfive_trng_suspend,
+				starfive_trng_resume)
+	SET_RUNTIME_PM_OPS(starfive_trng_suspend,
+			   starfive_trng_resume, NULL)
+};
 
 static const struct of_device_id trng_dt_ids[] __maybe_unused = {
 	{ .compatible = "starfive,jh7110-trng" },

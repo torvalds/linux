@@ -116,6 +116,7 @@
 #include <linux/freezer.h>
 #include <linux/file.h>
 #include <linux/btf_ids.h>
+#include <linux/bpf-cgroup.h>
 
 #include "scm.h"
 
@@ -211,8 +212,6 @@ static inline bool unix_secdata_eq(struct scm_cookie *scm, struct sk_buff *skb)
 	return true;
 }
 #endif /* CONFIG_SECURITY_NETWORK */
-
-#define unix_peer(sk) (unix_sk(sk)->peer)
 
 static inline int unix_our_peer(struct sock *sk, struct sock *osk)
 {
@@ -680,7 +679,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	 *	  What the above comment does talk about? --ANK(980817)
 	 */
 
-	if (unix_tot_inflight)
+	if (READ_ONCE(unix_tot_inflight))
 		unix_gc();		/* Garbage collect fds */
 }
 
@@ -1345,13 +1344,11 @@ static void unix_state_double_lock(struct sock *sk1, struct sock *sk2)
 		unix_state_lock(sk1);
 		return;
 	}
-	if (sk1 < sk2) {
-		unix_state_lock(sk1);
-		unix_state_lock_nested(sk2);
-	} else {
-		unix_state_lock(sk2);
-		unix_state_lock_nested(sk1);
-	}
+	if (sk1 > sk2)
+		swap(sk1, sk2);
+
+	unix_state_lock(sk1);
+	unix_state_lock_nested(sk2, U_LOCK_SECOND);
 }
 
 static void unix_state_double_unlock(struct sock *sk1, struct sock *sk2)
@@ -1378,6 +1375,10 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 
 	if (addr->sa_family != AF_UNSPEC) {
 		err = unix_validate_addr(sunaddr, alen);
+		if (err)
+			goto out;
+
+		err = BPF_CGROUP_RUN_PROG_UNIX_CONNECT_LOCK(sk, addr, &alen);
 		if (err)
 			goto out;
 
@@ -1490,6 +1491,10 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	if (err)
 		goto out;
 
+	err = BPF_CGROUP_RUN_PROG_UNIX_CONNECT_LOCK(sk, uaddr, &addr_len);
+	if (err)
+		goto out;
+
 	if ((test_bit(SOCK_PASSCRED, &sock->flags) ||
 	     test_bit(SOCK_PASSPIDFD, &sock->flags)) && !u->addr) {
 		err = unix_autobind(sk);
@@ -1584,7 +1589,7 @@ restart:
 		goto out_unlock;
 	}
 
-	unix_state_lock_nested(sk);
+	unix_state_lock_nested(sk, U_LOCK_SECOND);
 
 	if (sk->sk_state != st) {
 		unix_state_unlock(sk);
@@ -1770,6 +1775,13 @@ static int unix_getname(struct socket *sock, struct sockaddr *uaddr, int peer)
 	} else {
 		err = addr->len;
 		memcpy(sunaddr, addr->name, addr->len);
+
+		if (peer)
+			BPF_CGROUP_RUN_SA_PROG(sk, uaddr, &err,
+					       CGROUP_UNIX_GETPEERNAME);
+		else
+			BPF_CGROUP_RUN_SA_PROG(sk, uaddr, &err,
+					       CGROUP_UNIX_GETSOCKNAME);
 	}
 	sock_put(sk);
 out:
@@ -1920,6 +1932,13 @@ static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 
 	if (msg->msg_namelen) {
 		err = unix_validate_addr(sunaddr, msg->msg_namelen);
+		if (err)
+			goto out;
+
+		err = BPF_CGROUP_RUN_PROG_UNIX_SENDMSG_LOCK(sk,
+							    msg->msg_name,
+							    &msg->msg_namelen,
+							    NULL);
 		if (err)
 			goto out;
 	} else {
@@ -2390,8 +2409,13 @@ int __unix_dgram_recvmsg(struct sock *sk, struct msghdr *msg, size_t size,
 						EPOLLOUT | EPOLLWRNORM |
 						EPOLLWRBAND);
 
-	if (msg->msg_name)
+	if (msg->msg_name) {
 		unix_copy_addr(msg, skb->sk);
+
+		BPF_CGROUP_RUN_PROG_UNIX_RECVMSG_LOCK(sk,
+						      msg->msg_name,
+						      &msg->msg_namelen);
+	}
 
 	if (size > skb->len - skip)
 		size = skb->len - skip;
@@ -2553,15 +2577,16 @@ static int unix_stream_recv_urg(struct unix_stream_read_state *state)
 
 	if (!(state->flags & MSG_PEEK))
 		WRITE_ONCE(u->oob_skb, NULL);
-
+	else
+		skb_get(oob_skb);
 	unix_state_unlock(sk);
 
 	chunk = state->recv_actor(oob_skb, 0, chunk, state);
 
-	if (!(state->flags & MSG_PEEK)) {
+	if (!(state->flags & MSG_PEEK))
 		UNIXCB(oob_skb).consumed += 1;
-		kfree_skb(oob_skb);
-	}
+
+	consume_skb(oob_skb);
 
 	mutex_unlock(&u->iolock);
 
@@ -2744,6 +2769,11 @@ unlock:
 			DECLARE_SOCKADDR(struct sockaddr_un *, sunaddr,
 					 state->msg->msg_name);
 			unix_copy_addr(state->msg, skb->sk);
+
+			BPF_CGROUP_RUN_PROG_UNIX_RECVMSG_LOCK(sk,
+							      state->msg->msg_name,
+							      &state->msg->msg_namelen);
+
 			sunaddr = NULL;
 		}
 
@@ -3311,7 +3341,7 @@ static const struct seq_operations unix_seq_ops = {
 	.show   = unix_seq_show,
 };
 
-#if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL)
+#ifdef CONFIG_BPF_SYSCALL
 struct bpf_unix_iter_state {
 	struct seq_net_private p;
 	unsigned int cur_sk;
@@ -3573,7 +3603,7 @@ static struct pernet_operations unix_net_ops = {
 	.exit = unix_net_exit,
 };
 
-#if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
 DEFINE_BPF_ITER_FUNC(unix, struct bpf_iter_meta *meta,
 		     struct unix_sock *unix_sk, uid_t uid)
 
@@ -3673,7 +3703,7 @@ static int __init af_unix_init(void)
 	register_pernet_subsys(&unix_net_ops);
 	unix_bpf_build_proto();
 
-#if IS_BUILTIN(CONFIG_UNIX) && defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
+#if defined(CONFIG_BPF_SYSCALL) && defined(CONFIG_PROC_FS)
 	bpf_iter_register();
 #endif
 
@@ -3681,20 +3711,5 @@ out:
 	return rc;
 }
 
-static void __exit af_unix_exit(void)
-{
-	sock_unregister(PF_UNIX);
-	proto_unregister(&unix_dgram_proto);
-	proto_unregister(&unix_stream_proto);
-	unregister_pernet_subsys(&unix_net_ops);
-}
-
-/* Earlier than device_initcall() so that other drivers invoking
-   request_module() don't end up in a loop when modprobe tries
-   to use a UNIX socket. But later than subsys_initcall() because
-   we depend on stuff initialised there */
+/* Later than subsys_initcall() because we depend on stuff initialised there */
 fs_initcall(af_unix_init);
-module_exit(af_unix_exit);
-
-MODULE_LICENSE("GPL");
-MODULE_ALIAS_NETPROTO(PF_UNIX);

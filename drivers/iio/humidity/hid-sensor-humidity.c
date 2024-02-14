@@ -260,7 +260,7 @@ error_remove_trigger:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int hid_humidity_remove(struct platform_device *pdev)
+static void hid_humidity_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = dev_get_platdata(&pdev->dev);
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -269,8 +269,6 @@ static int hid_humidity_remove(struct platform_device *pdev)
 	iio_device_unregister(indio_dev);
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_HUMIDITY);
 	hid_sensor_remove_trigger(indio_dev, &humid_st->common_attributes);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_humidity_ids[] = {
@@ -289,7 +287,7 @@ static struct platform_driver hid_humidity_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_humidity_probe,
-	.remove		= hid_humidity_remove,
+	.remove_new	= hid_humidity_remove,
 };
 module_platform_driver(hid_humidity_platform_driver);
 

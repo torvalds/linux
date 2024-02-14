@@ -29,117 +29,6 @@ static int ngbe_phy_write_reg_internal(struct mii_bus *bus, int phy_addr, int re
 	return 0;
 }
 
-static int ngbe_phy_read_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum)
-{
-	u32 command, val, device_type = 0;
-	struct wx *wx = bus->priv;
-	int ret;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0xF);
-	/* setup and write the address cycle command */
-	command = WX_MSCA_RA(regnum) |
-		  WX_MSCA_PA(phy_addr) |
-		  WX_MSCA_DA(device_type);
-	wr32(wx, WX_MSCA, command);
-	command = WX_MSCC_CMD(WX_MSCA_CMD_READ) |
-		  WX_MSCC_BUSY |
-		  WX_MDIO_CLK(6);
-	wr32(wx, WX_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
-				100000, false, wx, WX_MSCC);
-	if (ret) {
-		wx_err(wx, "Mdio read c22 command did not complete.\n");
-		return ret;
-	}
-
-	return (u16)rd32(wx, WX_MSCC);
-}
-
-static int ngbe_phy_write_reg_mdi_c22(struct mii_bus *bus, int phy_addr, int regnum, u16 value)
-{
-	u32 command, val, device_type = 0;
-	struct wx *wx = bus->priv;
-	int ret;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0xF);
-	/* setup and write the address cycle command */
-	command = WX_MSCA_RA(regnum) |
-		  WX_MSCA_PA(phy_addr) |
-		  WX_MSCA_DA(device_type);
-	wr32(wx, WX_MSCA, command);
-	command = value |
-		  WX_MSCC_CMD(WX_MSCA_CMD_WRITE) |
-		  WX_MSCC_BUSY |
-		  WX_MDIO_CLK(6);
-	wr32(wx, WX_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
-				100000, false, wx, WX_MSCC);
-	if (ret)
-		wx_err(wx, "Mdio write c22 command did not complete.\n");
-
-	return ret;
-}
-
-static int ngbe_phy_read_reg_mdi_c45(struct mii_bus *bus, int phy_addr, int devnum, int regnum)
-{
-	struct wx *wx = bus->priv;
-	u32 val, command;
-	int ret;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0x0);
-	/* setup and write the address cycle command */
-	command = WX_MSCA_RA(regnum) |
-		  WX_MSCA_PA(phy_addr) |
-		  WX_MSCA_DA(devnum);
-	wr32(wx, WX_MSCA, command);
-	command = WX_MSCC_CMD(WX_MSCA_CMD_READ) |
-		  WX_MSCC_BUSY |
-		  WX_MDIO_CLK(6);
-	wr32(wx, WX_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
-				100000, false, wx, WX_MSCC);
-	if (ret) {
-		wx_err(wx, "Mdio read c45 command did not complete.\n");
-		return ret;
-	}
-
-	return (u16)rd32(wx, WX_MSCC);
-}
-
-static int ngbe_phy_write_reg_mdi_c45(struct mii_bus *bus, int phy_addr,
-				      int devnum, int regnum, u16 value)
-{
-	struct wx *wx = bus->priv;
-	int ret, command;
-	u16 val;
-
-	wr32(wx, NGBE_MDIO_CLAUSE_SELECT, 0x0);
-	/* setup and write the address cycle command */
-	command = WX_MSCA_RA(regnum) |
-		  WX_MSCA_PA(phy_addr) |
-		  WX_MSCA_DA(devnum);
-	wr32(wx, WX_MSCA, command);
-	command = value |
-		  WX_MSCC_CMD(WX_MSCA_CMD_WRITE) |
-		  WX_MSCC_BUSY |
-		  WX_MDIO_CLK(6);
-	wr32(wx, WX_MSCC, command);
-
-	/* wait to complete */
-	ret = read_poll_timeout(rd32, val, !(val & WX_MSCC_BUSY), 1000,
-				100000, false, wx, WX_MSCC);
-	if (ret)
-		wx_err(wx, "Mdio write c45 command did not complete.\n");
-
-	return ret;
-}
-
 static int ngbe_phy_read_reg_c22(struct mii_bus *bus, int phy_addr, int regnum)
 {
 	struct wx *wx = bus->priv;
@@ -148,7 +37,7 @@ static int ngbe_phy_read_reg_c22(struct mii_bus *bus, int phy_addr, int regnum)
 	if (wx->mac_type == em_mac_type_mdi)
 		phy_data = ngbe_phy_read_reg_internal(bus, phy_addr, regnum);
 	else
-		phy_data = ngbe_phy_read_reg_mdi_c22(bus, phy_addr, regnum);
+		phy_data = wx_phy_read_reg_mdi_c22(bus, phy_addr, regnum);
 
 	return phy_data;
 }
@@ -162,27 +51,33 @@ static int ngbe_phy_write_reg_c22(struct mii_bus *bus, int phy_addr,
 	if (wx->mac_type == em_mac_type_mdi)
 		ret = ngbe_phy_write_reg_internal(bus, phy_addr, regnum, value);
 	else
-		ret = ngbe_phy_write_reg_mdi_c22(bus, phy_addr, regnum, value);
+		ret = wx_phy_write_reg_mdi_c22(bus, phy_addr, regnum, value);
 
 	return ret;
 }
 
-static void ngbe_handle_link_change(struct net_device *dev)
+static void ngbe_mac_config(struct phylink_config *config, unsigned int mode,
+			    const struct phylink_link_state *state)
 {
-	struct wx *wx = netdev_priv(dev);
-	struct phy_device *phydev;
+}
+
+static void ngbe_mac_link_down(struct phylink_config *config,
+			       unsigned int mode, phy_interface_t interface)
+{
+}
+
+static void ngbe_mac_link_up(struct phylink_config *config,
+			     struct phy_device *phy,
+			     unsigned int mode, phy_interface_t interface,
+			     int speed, int duplex,
+			     bool tx_pause, bool rx_pause)
+{
+	struct wx *wx = phylink_to_wx(config);
 	u32 lan_speed, reg;
 
-	phydev = wx->phydev;
-	if (!(wx->link != phydev->link ||
-	      wx->speed != phydev->speed ||
-	      wx->duplex != phydev->duplex))
-		return;
+	wx_fc_enable(wx, tx_pause, rx_pause);
 
-	wx->link = phydev->link;
-	wx->speed = phydev->speed;
-	wx->duplex = phydev->duplex;
-	switch (phydev->speed) {
+	switch (speed) {
 	case SPEED_10:
 		lan_speed = 0;
 		break;
@@ -194,54 +89,51 @@ static void ngbe_handle_link_change(struct net_device *dev)
 		lan_speed = 2;
 		break;
 	}
+
 	wr32m(wx, NGBE_CFG_LAN_SPEED, 0x3, lan_speed);
 
-	if (phydev->link) {
-		reg = rd32(wx, WX_MAC_TX_CFG);
-		reg &= ~WX_MAC_TX_CFG_SPEED_MASK;
-		reg |= WX_MAC_TX_CFG_SPEED_1G | WX_MAC_TX_CFG_TE;
-		wr32(wx, WX_MAC_TX_CFG, reg);
-		/* Re configure MAC RX */
-		reg = rd32(wx, WX_MAC_RX_CFG);
-		wr32(wx, WX_MAC_RX_CFG, reg);
-		wr32(wx, WX_MAC_PKT_FLT, WX_MAC_PKT_FLT_PR);
-		reg = rd32(wx, WX_MAC_WDG_TIMEOUT);
-		wr32(wx, WX_MAC_WDG_TIMEOUT, reg);
-	}
-	phy_print_status(phydev);
+	reg = rd32(wx, WX_MAC_TX_CFG);
+	reg &= ~WX_MAC_TX_CFG_SPEED_MASK;
+	reg |= WX_MAC_TX_CFG_SPEED_1G | WX_MAC_TX_CFG_TE;
+	wr32(wx, WX_MAC_TX_CFG, reg);
+
+	/* Re configure MAC Rx */
+	reg = rd32(wx, WX_MAC_RX_CFG);
+	wr32(wx, WX_MAC_RX_CFG, reg);
+	wr32(wx, WX_MAC_PKT_FLT, WX_MAC_PKT_FLT_PR);
+	reg = rd32(wx, WX_MAC_WDG_TIMEOUT);
+	wr32(wx, WX_MAC_WDG_TIMEOUT, reg);
 }
 
-int ngbe_phy_connect(struct wx *wx)
-{
-	int ret;
+static const struct phylink_mac_ops ngbe_mac_ops = {
+	.mac_config = ngbe_mac_config,
+	.mac_link_down = ngbe_mac_link_down,
+	.mac_link_up = ngbe_mac_link_up,
+};
 
-	ret = phy_connect_direct(wx->netdev,
-				 wx->phydev,
-				 ngbe_handle_link_change,
-				 PHY_INTERFACE_MODE_RGMII_ID);
-	if (ret) {
-		wx_err(wx, "PHY connect failed.\n");
-		return ret;
-	}
+static int ngbe_phylink_init(struct wx *wx)
+{
+	struct phylink_config *config;
+	phy_interface_t phy_mode;
+	struct phylink *phylink;
+
+	config = &wx->phylink_config;
+	config->dev = &wx->netdev->dev;
+	config->type = PHYLINK_NETDEV;
+	config->mac_capabilities = MAC_1000FD | MAC_100FD | MAC_10FD |
+				   MAC_SYM_PAUSE | MAC_ASYM_PAUSE;
+	config->mac_managed_pm = true;
+
+	phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
+	__set_bit(PHY_INTERFACE_MODE_RGMII_ID, config->supported_interfaces);
+
+	phylink = phylink_create(config, NULL, phy_mode, &ngbe_mac_ops);
+	if (IS_ERR(phylink))
+		return PTR_ERR(phylink);
+
+	wx->phylink = phylink;
 
 	return 0;
-}
-
-static void ngbe_phy_fixup(struct wx *wx)
-{
-	struct phy_device *phydev = wx->phydev;
-	struct ethtool_eee eee;
-
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_10baseT_Half_BIT);
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_100baseT_Half_BIT);
-	phy_remove_link_mode(phydev, ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
-
-	phydev->mac_managed_pm = true;
-	if (wx->mac_type != em_mac_type_mdi)
-		return;
-	/* disable EEE, internal phy does not support eee */
-	memset(&eee, 0, sizeof(eee));
-	phy_ethtool_set_eee(phydev, &eee);
 }
 
 int ngbe_mdio_init(struct wx *wx)
@@ -262,8 +154,8 @@ int ngbe_mdio_init(struct wx *wx)
 	mii_bus->priv = wx;
 
 	if (wx->mac_type == em_mac_type_rgmii) {
-		mii_bus->read_c45 = ngbe_phy_read_reg_mdi_c45;
-		mii_bus->write_c45 = ngbe_phy_write_reg_mdi_c45;
+		mii_bus->read_c45 = wx_phy_read_reg_mdi_c45;
+		mii_bus->write_c45 = wx_phy_write_reg_mdi_c45;
 	}
 
 	snprintf(mii_bus->id, MII_BUS_ID_SIZE, "ngbe-%x", pci_dev_id(pdev));
@@ -276,11 +168,16 @@ int ngbe_mdio_init(struct wx *wx)
 		return -ENODEV;
 
 	phy_attached_info(wx->phydev);
-	ngbe_phy_fixup(wx);
 
 	wx->link = 0;
 	wx->speed = 0;
 	wx->duplex = 0;
+
+	ret = ngbe_phylink_init(wx);
+	if (ret) {
+		wx_err(wx, "failed to init phylink: %d\n", ret);
+		return ret;
+	}
 
 	return 0;
 }

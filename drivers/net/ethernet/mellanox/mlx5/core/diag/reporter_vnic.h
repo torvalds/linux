@@ -9,8 +9,8 @@
 void mlx5_reporter_vnic_create(struct mlx5_core_dev *dev);
 void mlx5_reporter_vnic_destroy(struct mlx5_core_dev *dev);
 
-int mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
-					 struct devlink_fmsg *fmsg,
-					 u16 vport_num, bool other_vport);
+void mlx5_reporter_vnic_diagnose_counters(struct mlx5_core_dev *dev,
+					  struct devlink_fmsg *fmsg,
+					  u16 vport_num, bool other_vport);
 
 #endif /* __MLX5_REPORTER_VNIC_H */

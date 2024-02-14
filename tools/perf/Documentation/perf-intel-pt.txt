@@ -683,7 +683,7 @@ Buffer handling
 ~~~~~~~~~~~~~~~
 
 There may be buffer limitations (i.e. single ToPa entry) which means that actual
-buffer sizes are limited to powers of 2 up to 4MiB (MAX_ORDER).  In order to
+buffer sizes are limited to powers of 2 up to 4MiB (MAX_PAGE_ORDER).  In order to
 provide other sizes, and in particular an arbitrarily large size, multiple
 buffers are logically concatenated.  However an interrupt must be used to switch
 between buffers.  That has two potential problems:

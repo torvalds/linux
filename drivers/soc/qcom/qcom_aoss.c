@@ -260,7 +260,7 @@ int qmp_send(struct qmp *qmp, const char *fmt, ...)
 
 	return ret;
 }
-EXPORT_SYMBOL(qmp_send);
+EXPORT_SYMBOL_GPL(qmp_send);
 
 static int qmp_qdss_clk_prepare(struct clk_hw *hw)
 {
@@ -458,7 +458,7 @@ struct qmp *qmp_get(struct device *dev)
 	}
 	return qmp;
 }
-EXPORT_SYMBOL(qmp_get);
+EXPORT_SYMBOL_GPL(qmp_get);
 
 /**
  * qmp_put() - release a qmp handle
@@ -473,7 +473,7 @@ void qmp_put(struct qmp *qmp)
 	if (!IS_ERR_OR_NULL(qmp))
 		put_device(qmp->dev);
 }
-EXPORT_SYMBOL(qmp_put);
+EXPORT_SYMBOL_GPL(qmp_put);
 
 static int qmp_probe(struct platform_device *pdev)
 {
@@ -533,7 +533,7 @@ err_free_mbox:
 	return ret;
 }
 
-static int qmp_remove(struct platform_device *pdev)
+static void qmp_remove(struct platform_device *pdev)
 {
 	struct qmp *qmp = platform_get_drvdata(pdev);
 
@@ -542,8 +542,6 @@ static int qmp_remove(struct platform_device *pdev)
 
 	qmp_close(qmp);
 	mbox_free_channel(qmp->mbox_chan);
-
-	return 0;
 }
 
 static const struct of_device_id qmp_dt_match[] = {
@@ -565,7 +563,7 @@ static struct platform_driver qmp_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = qmp_probe,
-	.remove	= qmp_remove,
+	.remove_new = qmp_remove,
 };
 module_platform_driver(qmp_driver);
 

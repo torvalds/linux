@@ -172,6 +172,7 @@ enum offs_rev {
 
 #define MT_MDP_DCR0			MT_MDP(0x000)
 #define MT_MDP_DCR0_DAMSDU_EN		BIT(15)
+#define MT_MDP_DCR0_RX_HDR_TRANS_EN	BIT(19)
 
 #define MT_MDP_DCR1			MT_MDP(0x004)
 #define MT_MDP_DCR1_MAX_RX_LEN		GENMASK(15, 3)

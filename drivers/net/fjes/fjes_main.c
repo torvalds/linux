@@ -1030,7 +1030,7 @@ static int fjes_poll(struct napi_struct *napi, int budget)
 		}
 
 		if (((long)jiffies - (long)adapter->rx_last_jiffies) < 3) {
-			napi_reschedule(napi);
+			napi_schedule(napi);
 		} else {
 			spin_lock(&hw->rx_status_lock);
 			for (epidx = 0; epidx < hw->max_epid; epidx++) {
@@ -1438,7 +1438,7 @@ err_out:
 }
 
 /* fjes_remove - Device Removal Routine */
-static int fjes_remove(struct platform_device *plat_dev)
+static void fjes_remove(struct platform_device *plat_dev)
 {
 	struct net_device *netdev = dev_get_drvdata(&plat_dev->dev);
 	struct fjes_adapter *adapter = netdev_priv(netdev);
@@ -1462,8 +1462,6 @@ static int fjes_remove(struct platform_device *plat_dev)
 	netif_napi_del(&adapter->napi);
 
 	free_netdev(netdev);
-
-	return 0;
 }
 
 static struct platform_driver fjes_driver = {
@@ -1471,7 +1469,7 @@ static struct platform_driver fjes_driver = {
 		.name = DRV_NAME,
 	},
 	.probe = fjes_probe,
-	.remove = fjes_remove,
+	.remove_new = fjes_remove,
 };
 
 static acpi_status

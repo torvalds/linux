@@ -1009,7 +1009,7 @@ err_unregister:
 	return err;
 }
 
-static int mtk_hsdma_remove(struct platform_device *pdev)
+static void mtk_hsdma_remove(struct platform_device *pdev)
 {
 	struct mtk_hsdma_device *hsdma = platform_get_drvdata(pdev);
 	struct mtk_hsdma_vchan *vc;
@@ -1034,13 +1034,11 @@ static int mtk_hsdma_remove(struct platform_device *pdev)
 
 	dma_async_device_unregister(&hsdma->ddev);
 	of_dma_controller_free(pdev->dev.of_node);
-
-	return 0;
 }
 
 static struct platform_driver mtk_hsdma_driver = {
 	.probe		= mtk_hsdma_probe,
-	.remove		= mtk_hsdma_remove,
+	.remove_new	= mtk_hsdma_remove,
 	.driver = {
 		.name		= KBUILD_MODNAME,
 		.of_match_table	= mtk_hsdma_match,

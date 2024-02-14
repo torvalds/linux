@@ -34,8 +34,9 @@ static const struct regmap_access_table tps65086_volatile_table = {
 static const struct regmap_config tps65086_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.volatile_table = &tps65086_volatile_table,
+	.max_register = TPS65086_OC_STATUS,
 };
 
 static const struct regmap_irq tps65086_irqs[] = {

@@ -15,7 +15,7 @@ kernel headers directly.
 Internally kernel uses the YAML specs to generate:
 
  - the C uAPI header
- - documentation of the protocol as a ReST file
+ - documentation of the protocol as a ReST file - see :ref:`Documentation/networking/netlink_spec/index.rst <specs>`
  - policy tables for input attribute validation
  - operation tables
 
@@ -85,11 +85,6 @@ name
 
 Name of the family. Name identifies the family in a unique way, since
 the Family IDs are allocated dynamically.
-
-version
-~~~~~~~
-
-Generic Netlink family version, default is 1.
 
 protocol
 ~~~~~~~~
@@ -408,10 +403,21 @@ This section describes the attribute types supported by the ``genetlink``
 compatibility level. Refer to documentation of different levels for additional
 attribute types.
 
-Scalar integer types
+Common integer types
 --------------------
 
-Fixed-width integer types:
+``sint`` and ``uint`` represent signed and unsigned 64 bit integers.
+If the value can fit on 32 bits only 32 bits are carried in netlink
+messages, otherwise full 64 bits are carried. Note that the payload
+is only aligned to 4B, so the full 64 bit value may be unaligned!
+
+Common integer types should be preferred over fix-width types in majority
+of cases.
+
+Fix-width integer types
+-----------------------
+
+Fixed-width integer types include:
 ``u8``, ``u16``, ``u32``, ``u64``, ``s8``, ``s16``, ``s32``, ``s64``.
 
 Note that types smaller than 32 bit should be avoided as using them
@@ -420,6 +426,9 @@ See :ref:`pad_type` for padding of 64 bit attributes.
 
 The payload of the attribute is the integer in host order unless ``byte-order``
 specifies otherwise.
+
+64 bit values are usually aligned by the kernel but it is recommended
+that the user space is able to deal with unaligned values.
 
 .. _pad_type:
 

@@ -230,13 +230,13 @@ ath5k_chip_name(enum ath5k_srev_type type, u_int16_t val)
 }
 static unsigned int ath5k_ioread32(void *hw_priv, u32 reg_offset)
 {
-	struct ath5k_hw *ah = (struct ath5k_hw *) hw_priv;
+	struct ath5k_hw *ah = hw_priv;
 	return ath5k_hw_reg_read(ah, reg_offset);
 }
 
 static void ath5k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 {
-	struct ath5k_hw *ah = (struct ath5k_hw *) hw_priv;
+	struct ath5k_hw *ah = hw_priv;
 	ath5k_hw_reg_write(ah, val, reg_offset);
 }
 
@@ -1770,7 +1770,7 @@ ath5k_tx_frame_completed(struct ath5k_hw *ah, struct sk_buff *skb,
 		ah->stats.antenna_tx[0]++; /* invalid */
 
 	trace_ath5k_tx_complete(ah, skb, txq, ts);
-	ieee80211_tx_status(ah->hw, skb);
+	ieee80211_tx_status_skb(ah->hw, skb);
 }
 
 static void

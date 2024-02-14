@@ -33,6 +33,27 @@ current DV timings they use the
 the DV timings as seen by the video receiver applications use the
 :ref:`VIDIOC_QUERY_DV_TIMINGS` ioctl.
 
+When the hardware detects a video source change (e.g. the video
+signal appears or disappears, or the video resolution changes), then
+it will issue a `V4L2_EVENT_SOURCE_CHANGE` event. Use the
+:ref:`ioctl VIDIOC_SUBSCRIBE_EVENT <VIDIOC_SUBSCRIBE_EVENT>` and the
+:ref:`VIDIOC_DQEVENT` to check if this event was reported.
+
+If the video signal changed, then the application has to stop
+streaming, free all buffers, and call the :ref:`VIDIOC_QUERY_DV_TIMINGS`
+to obtain the new video timings, and if they are valid, it can set
+those by calling the :ref:`ioctl VIDIOC_S_DV_TIMINGS <VIDIOC_G_DV_TIMINGS>`.
+This will also update the format, so use the :ref:`ioctl VIDIOC_G_FMT <VIDIOC_G_FMT>`
+to obtain the new format. Now the application can allocate new buffers
+and start streaming again.
+
+The :ref:`VIDIOC_QUERY_DV_TIMINGS` will just report what the
+hardware detects, it will never change the configuration. If the
+currently set timings and the actually detected timings differ, then
+typically this will mean that you will not be able to capture any
+video. The correct approach is to rely on the `V4L2_EVENT_SOURCE_CHANGE`
+event so you know when something changed.
+
 Applications can make use of the :ref:`input-capabilities` and
 :ref:`output-capabilities` flags to determine whether the digital
 video ioctls can be used with the given input or output.

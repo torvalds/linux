@@ -352,18 +352,17 @@ EXPORT_SYMBOL(ap_test_config_ctrl_domain);
 /*
  * ap_queue_info(): Check and get AP queue info.
  * Returns: 1 if APQN exists and info is filled,
- *	    0 if APQN seems to exit but there is no info
+ *	    0 if APQN seems to exist but there is no info
  *	      available (eg. caused by an asynch pending error)
  *	   -1 invalid APQN, TAPQ error or AP queue status which
  *	      indicates there is no APQN.
  */
-static int ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
-			 int *q_depth, int *q_ml, bool *q_decfg, bool *q_cstop)
+static int ap_queue_info(ap_qid_t qid, struct ap_tapq_hwinfo *hwinfo,
+			 bool *decfg, bool *cstop)
 {
 	struct ap_queue_status status;
-	struct ap_tapq_gr2 tapq_info;
 
-	tapq_info.value = 0;
+	hwinfo->value = 0;
 
 	/* make sure we don't run into a specifiation exception */
 	if (AP_QID_CARD(qid) > ap_max_adapter_id ||
@@ -371,11 +370,7 @@ static int ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 		return -1;
 
 	/* call TAPQ on this APQN */
-	status = ap_test_queue(qid, ap_apft_available(), &tapq_info);
-
-	/* handle pending async error with return 'no info available' */
-	if (status.async)
-		return 0;
+	status = ap_test_queue(qid, ap_apft_available(), hwinfo);
 
 	switch (status.response_code) {
 	case AP_RESPONSE_NORMAL:
@@ -383,26 +378,23 @@ static int ap_queue_info(ap_qid_t qid, int *q_type, unsigned int *q_fac,
 	case AP_RESPONSE_DECONFIGURED:
 	case AP_RESPONSE_CHECKSTOPPED:
 	case AP_RESPONSE_BUSY:
-		/*
-		 * According to the architecture in all these cases the
-		 * info should be filled. All bits 0 is not possible as
-		 * there is at least one of the mode bits set.
-		 */
-		if (WARN_ON_ONCE(!tapq_info.value))
-			return 0;
-		*q_type = tapq_info.at;
-		*q_fac = tapq_info.fac;
-		*q_depth = tapq_info.qd;
-		*q_ml = tapq_info.ml;
-		*q_decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
-		*q_cstop = status.response_code == AP_RESPONSE_CHECKSTOPPED;
-		return 1;
+		/* For all these RCs the tapq info should be available */
+		break;
 	default:
-		/*
-		 * A response code which indicates, there is no info available.
-		 */
-		return -1;
+		/* On a pending async error the info should be available */
+		if (!status.async)
+			return -1;
+		break;
 	}
+
+	/* There should be at least one of the mode bits set */
+	if (WARN_ON_ONCE(!hwinfo->value))
+		return 0;
+
+	*decfg = status.response_code == AP_RESPONSE_DECONFIGURED;
+	*cstop = status.response_code == AP_RESPONSE_CHECKSTOPPED;
+
+	return 1;
 }
 
 void ap_wait(enum ap_sm_wait wait)
@@ -645,11 +637,11 @@ static int ap_uevent(const struct device *dev, struct kobj_uevent_env *env)
 			return rc;
 
 		/* Add MODE=<accel|cca|ep11> */
-		if (ap_test_bit(&ac->functions, AP_FUNC_ACCEL))
+		if (ac->hwinfo.accel)
 			rc = add_uevent_var(env, "MODE=accel");
-		else if (ap_test_bit(&ac->functions, AP_FUNC_COPRO))
+		else if (ac->hwinfo.cca)
 			rc = add_uevent_var(env, "MODE=cca");
-		else if (ap_test_bit(&ac->functions, AP_FUNC_EP11))
+		else if (ac->hwinfo.ep11)
 			rc = add_uevent_var(env, "MODE=ep11");
 		if (rc)
 			return rc;
@@ -657,11 +649,11 @@ static int ap_uevent(const struct device *dev, struct kobj_uevent_env *env)
 		struct ap_queue *aq = to_ap_queue(&ap_dev->device);
 
 		/* Add MODE=<accel|cca|ep11> */
-		if (ap_test_bit(&aq->card->functions, AP_FUNC_ACCEL))
+		if (aq->card->hwinfo.accel)
 			rc = add_uevent_var(env, "MODE=accel");
-		else if (ap_test_bit(&aq->card->functions, AP_FUNC_COPRO))
+		else if (aq->card->hwinfo.cca)
 			rc = add_uevent_var(env, "MODE=cca");
-		else if (ap_test_bit(&aq->card->functions, AP_FUNC_EP11))
+		else if (aq->card->hwinfo.ep11)
 			rc = add_uevent_var(env, "MODE=ep11");
 		if (rc)
 			return rc;
@@ -1022,6 +1014,10 @@ EXPORT_SYMBOL(ap_driver_unregister);
 
 void ap_bus_force_rescan(void)
 {
+	/* Only trigger AP bus scans after the initial scan is done */
+	if (atomic64_read(&ap_scan_bus_count) <= 0)
+		return;
+
 	/* processing a asynchronous bus rescan */
 	del_timer(&ap_config_timer);
 	queue_work(system_long_wq, &ap_scan_work);
@@ -1798,12 +1794,12 @@ static inline void ap_scan_rm_card_dev_and_queue_devs(struct ap_card *ac)
  */
 static inline void ap_scan_domains(struct ap_card *ac)
 {
-	int rc, dom, depth, type, ml;
+	struct ap_tapq_hwinfo hwinfo;
 	bool decfg, chkstop;
 	struct ap_queue *aq;
 	struct device *dev;
-	unsigned int func;
 	ap_qid_t qid;
+	int rc, dom;
 
 	/*
 	 * Go through the configuration for the domains and compare them
@@ -1826,8 +1822,7 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			goto put_dev_and_continue;
 		}
 		/* domain is valid, get info from this APQN */
-		rc = ap_queue_info(qid, &type, &func, &depth,
-				   &ml, &decfg, &chkstop);
+		rc = ap_queue_info(qid, &hwinfo, &decfg, &chkstop);
 		switch (rc) {
 		case -1:
 			if (dev) {
@@ -1852,6 +1847,7 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			aq->card = ac;
 			aq->config = !decfg;
 			aq->chkstop = chkstop;
+			aq->se_bstate = hwinfo.bs;
 			dev = &aq->ap_dev.device;
 			dev->bus = &ap_bus_type;
 			dev->parent = &ac->ap_dev.device;
@@ -1865,19 +1861,24 @@ static inline void ap_scan_domains(struct ap_card *ac)
 			}
 			/* get it and thus adjust reference counter */
 			get_device(dev);
-			if (decfg)
+			if (decfg) {
 				AP_DBF_INFO("%s(%d,%d) new (decfg) queue dev created\n",
 					    __func__, ac->id, dom);
-			else if (chkstop)
+			} else if (chkstop) {
 				AP_DBF_INFO("%s(%d,%d) new (chkstop) queue dev created\n",
 					    __func__, ac->id, dom);
-			else
+			} else {
+				/* nudge the queue's state machine */
+				ap_queue_init_state(aq);
 				AP_DBF_INFO("%s(%d,%d) new queue dev created\n",
 					    __func__, ac->id, dom);
+			}
 			goto put_dev_and_continue;
 		}
 		/* handle state changes on already existing queue device */
 		spin_lock_bh(&aq->lock);
+		/* SE bind state */
+		aq->se_bstate = hwinfo.bs;
 		/* checkstop state */
 		if (chkstop && !aq->chkstop) {
 			/* checkstop on */
@@ -1895,10 +1896,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		} else if (!chkstop && aq->chkstop) {
 			/* checkstop off */
 			aq->chkstop = false;
-			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
-				aq->dev_state = AP_DEV_STATE_OPERATING;
-				aq->sm_state = AP_SM_STATE_RESET_START;
-			}
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_DBG("%s(%d,%d) queue dev checkstop off\n",
 				   __func__, ac->id, dom);
@@ -1922,10 +1921,8 @@ static inline void ap_scan_domains(struct ap_card *ac)
 		} else if (!decfg && !aq->config) {
 			/* config on this queue device */
 			aq->config = true;
-			if (aq->dev_state > AP_DEV_STATE_UNINITIATED) {
-				aq->dev_state = AP_DEV_STATE_OPERATING;
-				aq->sm_state = AP_SM_STATE_RESET_START;
-			}
+			if (aq->dev_state > AP_DEV_STATE_UNINITIATED)
+				_ap_queue_init_state(aq);
 			spin_unlock_bh(&aq->lock);
 			AP_DBF_DBG("%s(%d,%d) queue dev config on\n",
 				   __func__, ac->id, dom);
@@ -1955,11 +1952,11 @@ put_dev_and_continue:
  */
 static inline void ap_scan_adapter(int ap)
 {
-	int rc, dom, depth, type, comp_type, ml;
+	struct ap_tapq_hwinfo hwinfo;
+	int rc, dom, comp_type;
 	bool decfg, chkstop;
 	struct ap_card *ac;
 	struct device *dev;
-	unsigned int func;
 	ap_qid_t qid;
 
 	/* Is there currently a card device for this adapter ? */
@@ -1989,8 +1986,7 @@ static inline void ap_scan_adapter(int ap)
 	for (dom = 0; dom <= ap_max_domain_id; dom++)
 		if (ap_test_config_usage_domain(dom)) {
 			qid = AP_MKQID(ap, dom);
-			if (ap_queue_info(qid, &type, &func, &depth,
-					  &ml, &decfg, &chkstop) > 0)
+			if (ap_queue_info(qid, &hwinfo, &decfg, &chkstop) > 0)
 				break;
 		}
 	if (dom > ap_max_domain_id) {
@@ -2006,7 +2002,7 @@ static inline void ap_scan_adapter(int ap)
 		}
 		return;
 	}
-	if (!type) {
+	if (!hwinfo.at) {
 		/* No apdater type info available, an unusable adapter */
 		if (ac) {
 			AP_DBF_INFO("%s(%d) no valid type (0) info, rm card and queue devs\n",
@@ -2019,18 +2015,18 @@ static inline void ap_scan_adapter(int ap)
 		}
 		return;
 	}
+	hwinfo.value &= TAPQ_CARD_HWINFO_MASK; /* filter card specific hwinfo */
 	if (ac) {
 		/* Check APQN against existing card device for changes */
-		if (ac->raw_hwtype != type) {
+		if (ac->hwinfo.at != hwinfo.at) {
 			AP_DBF_INFO("%s(%d) hwtype %d changed, rm card and queue devs\n",
-				    __func__, ap, type);
+				    __func__, ap, hwinfo.at);
 			ap_scan_rm_card_dev_and_queue_devs(ac);
 			put_device(dev);
 			ac = NULL;
-		} else if ((ac->functions & TAPQ_CARD_FUNC_CMP_MASK) !=
-			   (func & TAPQ_CARD_FUNC_CMP_MASK)) {
+		} else if (ac->hwinfo.fac != hwinfo.fac) {
 			AP_DBF_INFO("%s(%d) functions 0x%08x changed, rm card and queue devs\n",
-				    __func__, ap, func);
+				    __func__, ap, hwinfo.fac);
 			ap_scan_rm_card_dev_and_queue_devs(ac);
 			put_device(dev);
 			ac = NULL;
@@ -2064,13 +2060,13 @@ static inline void ap_scan_adapter(int ap)
 
 	if (!ac) {
 		/* Build a new card device */
-		comp_type = ap_get_compatible_type(qid, type, func);
+		comp_type = ap_get_compatible_type(qid, hwinfo.at, hwinfo.fac);
 		if (!comp_type) {
 			AP_DBF_WARN("%s(%d) type %d, can't get compatibility type\n",
-				    __func__, ap, type);
+				    __func__, ap, hwinfo.at);
 			return;
 		}
-		ac = ap_card_create(ap, depth, type, comp_type, func, ml);
+		ac = ap_card_create(ap, hwinfo, comp_type);
 		if (!ac) {
 			AP_DBF_WARN("%s(%d) ap_card_create() failed\n",
 				    __func__, ap);
@@ -2101,13 +2097,13 @@ static inline void ap_scan_adapter(int ap)
 		get_device(dev);
 		if (decfg)
 			AP_DBF_INFO("%s(%d) new (decfg) card dev type=%d func=0x%08x created\n",
-				    __func__, ap, type, func);
+				    __func__, ap, hwinfo.at, hwinfo.fac);
 		else if (chkstop)
 			AP_DBF_INFO("%s(%d) new (chkstop) card dev type=%d func=0x%08x created\n",
-				    __func__, ap, type, func);
+				    __func__, ap, hwinfo.at, hwinfo.fac);
 		else
 			AP_DBF_INFO("%s(%d) new card dev type=%d func=0x%08x created\n",
-				    __func__, ap, type, func);
+				    __func__, ap, hwinfo.at, hwinfo.fac);
 	}
 
 	/* Verify the domains and the queue devices for this card */

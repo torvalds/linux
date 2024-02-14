@@ -79,9 +79,11 @@ static inline struct vsp1_rwpf *entity_to_rwpf(struct vsp1_entity *entity)
 struct vsp1_rwpf *vsp1_rpf_create(struct vsp1_device *vsp1, unsigned int index);
 struct vsp1_rwpf *vsp1_wpf_create(struct vsp1_device *vsp1, unsigned int index);
 
+void vsp1_wpf_stop(struct vsp1_rwpf *wpf);
+
 int vsp1_rwpf_init_ctrls(struct vsp1_rwpf *rwpf, unsigned int ncontrols);
 
-extern const struct v4l2_subdev_pad_ops vsp1_rwpf_pad_ops;
+extern const struct v4l2_subdev_ops vsp1_rwpf_subdev_ops;
 
 struct v4l2_rect *vsp1_rwpf_get_crop(struct vsp1_rwpf *rwpf,
 				     struct v4l2_subdev_state *sd_state);

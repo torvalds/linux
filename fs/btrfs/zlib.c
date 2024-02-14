@@ -121,7 +121,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 	workspace->strm.total_in = 0;
 	workspace->strm.total_out = 0;
 
-	out_page = alloc_page(GFP_NOFS);
+	out_page = btrfs_alloc_compr_page();
 	if (out_page == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -200,7 +200,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = alloc_page(GFP_NOFS);
+			out_page = btrfs_alloc_compr_page();
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;
@@ -236,7 +236,7 @@ int zlib_compress_pages(struct list_head *ws, struct address_space *mapping,
 				ret = -E2BIG;
 				goto out;
 			}
-			out_page = alloc_page(GFP_NOFS);
+			out_page = btrfs_alloc_compr_page();
 			if (out_page == NULL) {
 				ret = -ENOMEM;
 				goto out;
@@ -354,18 +354,13 @@ done:
 }
 
 int zlib_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen)
 {
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	int ret = 0;
 	int wbits = MAX_WBITS;
-	unsigned long bytes_left;
-	unsigned long total_out = 0;
-	unsigned long pg_offset = 0;
-
-	destlen = min_t(unsigned long, destlen, PAGE_SIZE);
-	bytes_left = destlen;
+	unsigned long to_copy;
 
 	workspace->strm.next_in = data_in;
 	workspace->strm.avail_in = srclen;
@@ -390,60 +385,30 @@ int zlib_decompress(struct list_head *ws, const u8 *data_in,
 		return -EIO;
 	}
 
-	while (bytes_left > 0) {
-		unsigned long buf_start;
-		unsigned long buf_offset;
-		unsigned long bytes;
+	/*
+	 * Everything (in/out buf) should be at most one sector, there should
+	 * be no need to switch any input/output buffer.
+	 */
+	ret = zlib_inflate(&workspace->strm, Z_FINISH);
+	to_copy = min(workspace->strm.total_out, destlen);
+	if (ret != Z_STREAM_END)
+		goto out;
 
-		ret = zlib_inflate(&workspace->strm, Z_NO_FLUSH);
-		if (ret != Z_OK && ret != Z_STREAM_END)
-			break;
+	memcpy_to_page(dest_page, dest_pgoff, workspace->buf, to_copy);
 
-		buf_start = total_out;
-		total_out = workspace->strm.total_out;
-
-		if (total_out == buf_start) {
-			ret = -EIO;
-			break;
-		}
-
-		if (total_out <= start_byte)
-			goto next;
-
-		if (total_out > start_byte && buf_start < start_byte)
-			buf_offset = start_byte - buf_start;
-		else
-			buf_offset = 0;
-
-		bytes = min(PAGE_SIZE - pg_offset,
-			    PAGE_SIZE - (buf_offset % PAGE_SIZE));
-		bytes = min(bytes, bytes_left);
-
-		memcpy_to_page(dest_page, pg_offset,
-			       workspace->buf + buf_offset, bytes);
-
-		pg_offset += bytes;
-		bytes_left -= bytes;
-next:
-		workspace->strm.next_out = workspace->buf;
-		workspace->strm.avail_out = workspace->buf_size;
-	}
-
-	if (ret != Z_STREAM_END && bytes_left != 0)
+out:
+	if (unlikely(to_copy != destlen)) {
+		pr_warn_ratelimited("BTRFS: infalte failed, decompressed=%lu expected=%zu\n",
+					to_copy, destlen);
 		ret = -EIO;
-	else
+	} else {
 		ret = 0;
+	}
 
 	zlib_inflateEnd(&workspace->strm);
 
-	/*
-	 * this should only happen if zlib returned fewer bytes than we
-	 * expected.  btrfs_get_block is responsible for zeroing from the
-	 * end of the inline extent (destlen) to the end of the page
-	 */
-	if (pg_offset < destlen) {
-		memzero_page(dest_page, pg_offset, destlen - pg_offset);
-	}
+	if (unlikely(to_copy < destlen))
+		memzero_page(dest_page, dest_pgoff + to_copy, destlen - to_copy);
 	return ret;
 }
 

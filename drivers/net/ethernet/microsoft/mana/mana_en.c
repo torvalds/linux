@@ -91,63 +91,137 @@ static unsigned int mana_checksum_info(struct sk_buff *skb)
 	return 0;
 }
 
+static void mana_add_sge(struct mana_tx_package *tp, struct mana_skb_head *ash,
+			 int sg_i, dma_addr_t da, int sge_len, u32 gpa_mkey)
+{
+	ash->dma_handle[sg_i] = da;
+	ash->size[sg_i] = sge_len;
+
+	tp->wqe_req.sgl[sg_i].address = da;
+	tp->wqe_req.sgl[sg_i].mem_key = gpa_mkey;
+	tp->wqe_req.sgl[sg_i].size = sge_len;
+}
+
 static int mana_map_skb(struct sk_buff *skb, struct mana_port_context *apc,
-			struct mana_tx_package *tp)
+			struct mana_tx_package *tp, int gso_hs)
 {
 	struct mana_skb_head *ash = (struct mana_skb_head *)skb->head;
+	int hsg = 1; /* num of SGEs of linear part */
 	struct gdma_dev *gd = apc->ac->gdma_dev;
+	int skb_hlen = skb_headlen(skb);
+	int sge0_len, sge1_len = 0;
 	struct gdma_context *gc;
 	struct device *dev;
 	skb_frag_t *frag;
 	dma_addr_t da;
+	int sg_i;
 	int i;
 
 	gc = gd->gdma_context;
 	dev = gc->dev;
-	da = dma_map_single(dev, skb->data, skb_headlen(skb), DMA_TO_DEVICE);
 
+	if (gso_hs && gso_hs < skb_hlen) {
+		sge0_len = gso_hs;
+		sge1_len = skb_hlen - gso_hs;
+	} else {
+		sge0_len = skb_hlen;
+	}
+
+	da = dma_map_single(dev, skb->data, sge0_len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, da))
 		return -ENOMEM;
 
-	ash->dma_handle[0] = da;
-	ash->size[0] = skb_headlen(skb);
+	mana_add_sge(tp, ash, 0, da, sge0_len, gd->gpa_mkey);
 
-	tp->wqe_req.sgl[0].address = ash->dma_handle[0];
-	tp->wqe_req.sgl[0].mem_key = gd->gpa_mkey;
-	tp->wqe_req.sgl[0].size = ash->size[0];
-
-	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		frag = &skb_shinfo(skb)->frags[i];
-		da = skb_frag_dma_map(dev, frag, 0, skb_frag_size(frag),
-				      DMA_TO_DEVICE);
-
+	if (sge1_len) {
+		sg_i = 1;
+		da = dma_map_single(dev, skb->data + sge0_len, sge1_len,
+				    DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, da))
 			goto frag_err;
 
-		ash->dma_handle[i + 1] = da;
-		ash->size[i + 1] = skb_frag_size(frag);
+		mana_add_sge(tp, ash, sg_i, da, sge1_len, gd->gpa_mkey);
+		hsg = 2;
+	}
 
-		tp->wqe_req.sgl[i + 1].address = ash->dma_handle[i + 1];
-		tp->wqe_req.sgl[i + 1].mem_key = gd->gpa_mkey;
-		tp->wqe_req.sgl[i + 1].size = ash->size[i + 1];
+	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
+		sg_i = hsg + i;
+
+		frag = &skb_shinfo(skb)->frags[i];
+		da = skb_frag_dma_map(dev, frag, 0, skb_frag_size(frag),
+				      DMA_TO_DEVICE);
+		if (dma_mapping_error(dev, da))
+			goto frag_err;
+
+		mana_add_sge(tp, ash, sg_i, da, skb_frag_size(frag),
+			     gd->gpa_mkey);
 	}
 
 	return 0;
 
 frag_err:
-	for (i = i - 1; i >= 0; i--)
-		dma_unmap_page(dev, ash->dma_handle[i + 1], ash->size[i + 1],
+	for (i = sg_i - 1; i >= hsg; i--)
+		dma_unmap_page(dev, ash->dma_handle[i], ash->size[i],
 			       DMA_TO_DEVICE);
 
-	dma_unmap_single(dev, ash->dma_handle[0], ash->size[0], DMA_TO_DEVICE);
+	for (i = hsg - 1; i >= 0; i--)
+		dma_unmap_single(dev, ash->dma_handle[i], ash->size[i],
+				 DMA_TO_DEVICE);
 
 	return -ENOMEM;
+}
+
+/* Handle the case when GSO SKB linear length is too large.
+ * MANA NIC requires GSO packets to put only the packet header to SGE0.
+ * So, we need 2 SGEs for the skb linear part which contains more than the
+ * header.
+ * Return a positive value for the number of SGEs, or a negative value
+ * for an error.
+ */
+static int mana_fix_skb_head(struct net_device *ndev, struct sk_buff *skb,
+			     int gso_hs)
+{
+	int num_sge = 1 + skb_shinfo(skb)->nr_frags;
+	int skb_hlen = skb_headlen(skb);
+
+	if (gso_hs < skb_hlen) {
+		num_sge++;
+	} else if (gso_hs > skb_hlen) {
+		if (net_ratelimit())
+			netdev_err(ndev,
+				   "TX nonlinear head: hs:%d, skb_hlen:%d\n",
+				   gso_hs, skb_hlen);
+
+		return -EINVAL;
+	}
+
+	return num_sge;
+}
+
+/* Get the GSO packet's header size */
+static int mana_get_gso_hs(struct sk_buff *skb)
+{
+	int gso_hs;
+
+	if (skb->encapsulation) {
+		gso_hs = skb_inner_tcp_all_headers(skb);
+	} else {
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
+			gso_hs = skb_transport_offset(skb) +
+				 sizeof(struct udphdr);
+		} else {
+			gso_hs = skb_tcp_all_headers(skb);
+		}
+	}
+
+	return gso_hs;
 }
 
 netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	enum mana_tx_pkt_format pkt_fmt = MANA_SHORT_PKT_FMT;
 	struct mana_port_context *apc = netdev_priv(ndev);
+	int gso_hs = 0; /* zero for non-GSO pkts */
 	u16 txq_idx = skb_get_queue_mapping(skb);
 	struct gdma_dev *gd = apc->ac->gdma_dev;
 	bool ipv4 = false, ipv6 = false;
@@ -159,7 +233,6 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	struct mana_txq *txq;
 	struct mana_cq *cq;
 	int err, len;
-	u16 ihs;
 
 	if (unlikely(!apc->port_is_up))
 		goto tx_drop;
@@ -209,19 +282,6 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	pkg.wqe_req.client_data_unit = 0;
 
 	pkg.wqe_req.num_sge = 1 + skb_shinfo(skb)->nr_frags;
-	WARN_ON_ONCE(pkg.wqe_req.num_sge > MAX_TX_WQE_SGL_ENTRIES);
-
-	if (pkg.wqe_req.num_sge <= ARRAY_SIZE(pkg.sgl_array)) {
-		pkg.wqe_req.sgl = pkg.sgl_array;
-	} else {
-		pkg.sgl_ptr = kmalloc_array(pkg.wqe_req.num_sge,
-					    sizeof(struct gdma_sge),
-					    GFP_ATOMIC);
-		if (!pkg.sgl_ptr)
-			goto tx_drop_count;
-
-		pkg.wqe_req.sgl = pkg.sgl_ptr;
-	}
 
 	if (skb->protocol == htons(ETH_P_IP))
 		ipv4 = true;
@@ -229,6 +289,26 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		ipv6 = true;
 
 	if (skb_is_gso(skb)) {
+		int num_sge;
+
+		gso_hs = mana_get_gso_hs(skb);
+
+		num_sge = mana_fix_skb_head(ndev, skb, gso_hs);
+		if (num_sge > 0)
+			pkg.wqe_req.num_sge = num_sge;
+		else
+			goto tx_drop_count;
+
+		u64_stats_update_begin(&tx_stats->syncp);
+		if (skb->encapsulation) {
+			tx_stats->tso_inner_packets++;
+			tx_stats->tso_inner_bytes += skb->len - gso_hs;
+		} else {
+			tx_stats->tso_packets++;
+			tx_stats->tso_bytes += skb->len - gso_hs;
+		}
+		u64_stats_update_end(&tx_stats->syncp);
+
 		pkg.tx_oob.s_oob.is_outer_ipv4 = ipv4;
 		pkg.tx_oob.s_oob.is_outer_ipv6 = ipv6;
 
@@ -252,28 +332,6 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 						 &ipv6_hdr(skb)->daddr, 0,
 						 IPPROTO_TCP, 0);
 		}
-
-		if (skb->encapsulation) {
-			ihs = skb_inner_tcp_all_headers(skb);
-			u64_stats_update_begin(&tx_stats->syncp);
-			tx_stats->tso_inner_packets++;
-			tx_stats->tso_inner_bytes += skb->len - ihs;
-			u64_stats_update_end(&tx_stats->syncp);
-		} else {
-			if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) {
-				ihs = skb_transport_offset(skb) + sizeof(struct udphdr);
-			} else {
-				ihs = skb_tcp_all_headers(skb);
-				if (ipv6_has_hopopt_jumbo(skb))
-					ihs -= sizeof(struct hop_jumbo_hdr);
-			}
-
-			u64_stats_update_begin(&tx_stats->syncp);
-			tx_stats->tso_packets++;
-			tx_stats->tso_bytes += skb->len - ihs;
-			u64_stats_update_end(&tx_stats->syncp);
-		}
-
 	} else if (skb->ip_summed == CHECKSUM_PARTIAL) {
 		csum_type = mana_checksum_info(skb);
 
@@ -296,11 +354,25 @@ netdev_tx_t mana_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		} else {
 			/* Can't do offload of this type of checksum */
 			if (skb_checksum_help(skb))
-				goto free_sgl_ptr;
+				goto tx_drop_count;
 		}
 	}
 
-	if (mana_map_skb(skb, apc, &pkg)) {
+	WARN_ON_ONCE(pkg.wqe_req.num_sge > MAX_TX_WQE_SGL_ENTRIES);
+
+	if (pkg.wqe_req.num_sge <= ARRAY_SIZE(pkg.sgl_array)) {
+		pkg.wqe_req.sgl = pkg.sgl_array;
+	} else {
+		pkg.sgl_ptr = kmalloc_array(pkg.wqe_req.num_sge,
+					    sizeof(struct gdma_sge),
+					    GFP_ATOMIC);
+		if (!pkg.sgl_ptr)
+			goto tx_drop_count;
+
+		pkg.wqe_req.sgl = pkg.sgl_ptr;
+	}
+
+	if (mana_map_skb(skb, apc, &pkg, gso_hs)) {
 		u64_stats_update_begin(&tx_stats->syncp);
 		tx_stats->mana_map_err++;
 		u64_stats_update_end(&tx_stats->syncp);
@@ -1172,6 +1244,7 @@ static int mana_create_eq(struct mana_context *ac)
 	spec.eq.log2_throttle_limit = LOG2_EQ_THROTTLE;
 
 	for (i = 0; i < gc->max_num_queues; i++) {
+		spec.eq.msix_index = (i + 1) % gc->num_msix_usable;
 		err = mana_gd_create_mana_eq(gd, &spec, &ac->eqs[i].eq);
 		if (err)
 			goto out;
@@ -1258,11 +1331,16 @@ static void mana_unmap_skb(struct sk_buff *skb, struct mana_port_context *apc)
 	struct mana_skb_head *ash = (struct mana_skb_head *)skb->head;
 	struct gdma_context *gc = apc->ac->gdma_dev->gdma_context;
 	struct device *dev = gc->dev;
-	int i;
+	int hsg, i;
 
-	dma_unmap_single(dev, ash->dma_handle[0], ash->size[0], DMA_TO_DEVICE);
+	/* Number of SGEs of linear part */
+	hsg = (skb_is_gso(skb) && skb_headlen(skb) > ash->size[0]) ? 2 : 1;
 
-	for (i = 1; i < skb_shinfo(skb)->nr_frags + 1; i++)
+	for (i = 0; i < hsg; i++)
+		dma_unmap_single(dev, ash->dma_handle[i], ash->size[i],
+				 DMA_TO_DEVICE);
+
+	for (i = hsg; i < skb_shinfo(skb)->nr_frags + hsg; i++)
 		dma_unmap_page(dev, ash->dma_handle[i], ash->size[i],
 			       DMA_TO_DEVICE);
 }
@@ -1317,19 +1395,23 @@ static void mana_poll_tx_cq(struct mana_cq *cq)
 		case CQE_TX_VPORT_IDX_OUT_OF_RANGE:
 		case CQE_TX_VPORT_DISABLED:
 		case CQE_TX_VLAN_TAGGING_VIOLATION:
-			WARN_ONCE(1, "TX: CQE error %d: ignored.\n",
-				  cqe_oob->cqe_hdr.cqe_type);
+			if (net_ratelimit())
+				netdev_err(ndev, "TX: CQE error %d\n",
+					   cqe_oob->cqe_hdr.cqe_type);
+
 			apc->eth_stats.tx_cqe_err++;
 			break;
 
 		default:
-			/* If the CQE type is unexpected, log an error, assert,
-			 * and go through the error path.
+			/* If the CQE type is unknown, log an error,
+			 * and still free the SKB, update tail, etc.
 			 */
-			WARN_ONCE(1, "TX: Unexpected CQE type %d: HW BUG?\n",
-				  cqe_oob->cqe_hdr.cqe_type);
+			if (net_ratelimit())
+				netdev_err(ndev, "TX: unknown CQE type %d\n",
+					   cqe_oob->cqe_hdr.cqe_type);
+
 			apc->eth_stats.tx_cqe_unknown_type++;
-			return;
+			break;
 		}
 
 		if (WARN_ON_ONCE(txq->gdma_txq_id != completions[i].wq_num))
@@ -2056,6 +2138,7 @@ static int mana_create_page_pool(struct mana_rxq *rxq, struct gdma_context *gc)
 	pprm.pool_size = RX_BUFFERS_PER_QUEUE;
 	pprm.nid = gc->numa_node;
 	pprm.napi = &rxq->rx_cq.napi;
+	pprm.netdev = rxq->ndev;
 
 	rxq->page_pool = page_pool_create(&pprm);
 
@@ -2304,13 +2387,33 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 
 	mana_gd_init_req_hdr(&req.hdr, MANA_QUERY_GF_STAT,
 			     sizeof(req), sizeof(resp));
-	req.req_stats = STATISTICS_FLAGS_HC_TX_BYTES |
+	req.req_stats = STATISTICS_FLAGS_RX_DISCARDS_NO_WQE |
+			STATISTICS_FLAGS_RX_ERRORS_VPORT_DISABLED |
+			STATISTICS_FLAGS_HC_RX_BYTES |
+			STATISTICS_FLAGS_HC_RX_UCAST_PACKETS |
+			STATISTICS_FLAGS_HC_RX_UCAST_BYTES |
+			STATISTICS_FLAGS_HC_RX_MCAST_PACKETS |
+			STATISTICS_FLAGS_HC_RX_MCAST_BYTES |
+			STATISTICS_FLAGS_HC_RX_BCAST_PACKETS |
+			STATISTICS_FLAGS_HC_RX_BCAST_BYTES |
+			STATISTICS_FLAGS_TX_ERRORS_GF_DISABLED |
+			STATISTICS_FLAGS_TX_ERRORS_VPORT_DISABLED |
+			STATISTICS_FLAGS_TX_ERRORS_INVAL_VPORT_OFFSET_PACKETS |
+			STATISTICS_FLAGS_TX_ERRORS_VLAN_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_ETH_TYPE_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_SA_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_SQPDID_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_CQPDID_ENFORCEMENT |
+			STATISTICS_FLAGS_TX_ERRORS_MTU_VIOLATION |
+			STATISTICS_FLAGS_TX_ERRORS_INVALID_OOB |
+			STATISTICS_FLAGS_HC_TX_BYTES |
 			STATISTICS_FLAGS_HC_TX_UCAST_PACKETS |
 			STATISTICS_FLAGS_HC_TX_UCAST_BYTES |
 			STATISTICS_FLAGS_HC_TX_MCAST_PACKETS |
 			STATISTICS_FLAGS_HC_TX_MCAST_BYTES |
 			STATISTICS_FLAGS_HC_TX_BCAST_PACKETS |
-			STATISTICS_FLAGS_HC_TX_BCAST_BYTES;
+			STATISTICS_FLAGS_HC_TX_BCAST_BYTES |
+			STATISTICS_FLAGS_TX_ERRORS_GDMA_ERROR;
 
 	err = mana_send_request(apc->ac, &req, sizeof(req), &resp,
 				sizeof(resp));
@@ -2326,6 +2429,30 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 		return;
 	}
 
+	apc->eth_stats.hc_rx_discards_no_wqe = resp.rx_discards_nowqe;
+	apc->eth_stats.hc_rx_err_vport_disabled = resp.rx_err_vport_disabled;
+	apc->eth_stats.hc_rx_bytes = resp.hc_rx_bytes;
+	apc->eth_stats.hc_rx_ucast_pkts = resp.hc_rx_ucast_pkts;
+	apc->eth_stats.hc_rx_ucast_bytes = resp.hc_rx_ucast_bytes;
+	apc->eth_stats.hc_rx_bcast_pkts = resp.hc_rx_bcast_pkts;
+	apc->eth_stats.hc_rx_bcast_bytes = resp.hc_rx_bcast_bytes;
+	apc->eth_stats.hc_rx_mcast_pkts = resp.hc_rx_mcast_pkts;
+	apc->eth_stats.hc_rx_mcast_bytes = resp.hc_rx_mcast_bytes;
+	apc->eth_stats.hc_tx_err_gf_disabled = resp.tx_err_gf_disabled;
+	apc->eth_stats.hc_tx_err_vport_disabled = resp.tx_err_vport_disabled;
+	apc->eth_stats.hc_tx_err_inval_vportoffset_pkt =
+					     resp.tx_err_inval_vport_offset_pkt;
+	apc->eth_stats.hc_tx_err_vlan_enforcement =
+					     resp.tx_err_vlan_enforcement;
+	apc->eth_stats.hc_tx_err_eth_type_enforcement =
+					     resp.tx_err_ethtype_enforcement;
+	apc->eth_stats.hc_tx_err_sa_enforcement = resp.tx_err_SA_enforcement;
+	apc->eth_stats.hc_tx_err_sqpdid_enforcement =
+					     resp.tx_err_SQPDID_enforcement;
+	apc->eth_stats.hc_tx_err_cqpdid_enforcement =
+					     resp.tx_err_CQPDID_enforcement;
+	apc->eth_stats.hc_tx_err_mtu_violation = resp.tx_err_mtu_violation;
+	apc->eth_stats.hc_tx_err_inval_oob = resp.tx_err_inval_oob;
 	apc->eth_stats.hc_tx_bytes = resp.hc_tx_bytes;
 	apc->eth_stats.hc_tx_ucast_pkts = resp.hc_tx_ucast_pkts;
 	apc->eth_stats.hc_tx_ucast_bytes = resp.hc_tx_ucast_bytes;
@@ -2333,6 +2460,7 @@ void mana_query_gf_stats(struct mana_port_context *apc)
 	apc->eth_stats.hc_tx_bcast_bytes = resp.hc_tx_bcast_bytes;
 	apc->eth_stats.hc_tx_mcast_pkts = resp.hc_tx_mcast_pkts;
 	apc->eth_stats.hc_tx_mcast_bytes = resp.hc_tx_mcast_bytes;
+	apc->eth_stats.hc_tx_err_gdma = resp.tx_err_gdma;
 }
 
 static int mana_init_port(struct net_device *ndev)
@@ -2606,8 +2734,9 @@ static int mana_probe_port(struct mana_context *ac, int port_idx,
 	ndev->features = ndev->hw_features | NETIF_F_HW_VLAN_CTAG_TX |
 			 NETIF_F_HW_VLAN_CTAG_RX;
 	ndev->vlan_features = ndev->features;
-	ndev->xdp_features = NETDEV_XDP_ACT_BASIC | NETDEV_XDP_ACT_REDIRECT |
-			     NETDEV_XDP_ACT_NDO_XMIT;
+	xdp_set_features_flag(ndev, NETDEV_XDP_ACT_BASIC |
+			      NETDEV_XDP_ACT_REDIRECT |
+			      NETDEV_XDP_ACT_NDO_XMIT);
 
 	err = register_netdev(ndev);
 	if (err) {

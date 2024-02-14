@@ -31,7 +31,7 @@ properties:
     const: xlnx,zynqmp-pinctrl
 
 patternProperties:
-  '^(.*-)?(default|gpio)$':
+  '^(.*-)?(default|gpio-grp)$':
     type: object
     patternProperties:
       '^mux':

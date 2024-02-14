@@ -356,8 +356,8 @@ static struct device *qca8k_cled_hw_control_get_device(struct led_classdev *ldev
 	dp = dsa_to_port(priv->ds, qca8k_phy_to_port(led->port_num));
 	if (!dp)
 		return NULL;
-	if (dp->slave)
-		return &dp->slave->dev;
+	if (dp->user)
+		return &dp->user->dev;
 	return NULL;
 }
 
@@ -366,7 +366,6 @@ qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwnode_handle *port, int p
 {
 	struct fwnode_handle *led = NULL, *leds = NULL;
 	struct led_init_data init_data = { };
-	struct dsa_switch *ds = priv->ds;
 	enum led_default_state state;
 	struct qca8k_led *port_led;
 	int led_num, led_index;
@@ -429,7 +428,8 @@ qca8k_parse_port_leds(struct qca8k_priv *priv, struct fwnode_handle *port, int p
 		init_data.default_label = ":port";
 		init_data.fwnode = led;
 		init_data.devname_mandatory = true;
-		init_data.devicename = kasprintf(GFP_KERNEL, "%s:0%d", ds->slave_mii_bus->id,
+		init_data.devicename = kasprintf(GFP_KERNEL, "%s:0%d",
+						 priv->internal_mdio_bus->id,
 						 port_num);
 		if (!init_data.devicename)
 			return -ENOMEM;

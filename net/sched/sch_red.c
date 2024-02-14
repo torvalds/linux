@@ -563,3 +563,4 @@ module_init(red_module_init)
 module_exit(red_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Random Early Detection qdisc");

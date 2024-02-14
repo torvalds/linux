@@ -50,9 +50,14 @@ static int get_zswap_stored_pages(size_t *value)
 	return read_int("/sys/kernel/debug/zswap/stored_pages", value);
 }
 
-static int get_zswap_written_back_pages(size_t *value)
+static int get_cg_wb_count(const char *cg)
 {
-	return read_int("/sys/kernel/debug/zswap/written_back_pages", value);
+	return cg_read_key_long(cg, "memory.stat", "zswp_wb");
+}
+
+static long get_zswpout(const char *cgroup)
+{
+	return cg_read_key_long(cgroup, "memory.stat", "zswpout ");
 }
 
 static int allocate_bytes(const char *cgroup, void *arg)
@@ -68,17 +73,30 @@ static int allocate_bytes(const char *cgroup, void *arg)
 	return 0;
 }
 
-/*
- * When trying to store a memcg page in zswap, if the memcg hits its memory
- * limit in zswap, writeback should not be triggered.
- *
- * This was fixed with commit 0bdf0efa180a("zswap: do not shrink if cgroup may
- * not zswap"). Needs to be revised when a per memcg writeback mechanism is
- * implemented.
- */
-static int test_no_invasive_cgroup_shrink(const char *root)
+static char *setup_test_group_1M(const char *root, const char *name)
 {
-	size_t written_back_before, written_back_after;
+	char *group_name = cg_name(root, name);
+
+	if (!group_name)
+		return NULL;
+	if (cg_create(group_name))
+		goto fail;
+	if (cg_write(group_name, "memory.max", "1M")) {
+		cg_destroy(group_name);
+		goto fail;
+	}
+	return group_name;
+fail:
+	free(group_name);
+	return NULL;
+}
+
+/*
+ * Sanity test to check that pages are written into zswap.
+ */
+static int test_zswap_usage(const char *root)
+{
+	long zswpout_before, zswpout_after;
 	int ret = KSFT_FAIL;
 	char *test_group;
 
@@ -90,23 +108,78 @@ static int test_no_invasive_cgroup_shrink(const char *root)
 		goto out;
 	if (cg_write(test_group, "memory.max", "1M"))
 		goto out;
-	if (cg_write(test_group, "memory.zswap.max", "10K"))
+
+	zswpout_before = get_zswpout(test_group);
+	if (zswpout_before < 0) {
+		ksft_print_msg("Failed to get zswpout\n");
 		goto out;
-	if (get_zswap_written_back_pages(&written_back_before))
+	}
+
+	/* Allocate more than memory.max to push memory into zswap */
+	if (cg_run(test_group, allocate_bytes, (void *)MB(4)))
 		goto out;
 
-	/* Allocate 10x memory.max to push memory into zswap */
-	if (cg_run(test_group, allocate_bytes, (void *)MB(10)))
+	/* Verify that pages come into zswap */
+	zswpout_after = get_zswpout(test_group);
+	if (zswpout_after <= zswpout_before) {
+		ksft_print_msg("zswpout does not increase after test program\n");
 		goto out;
+	}
+	ret = KSFT_PASS;
 
-	/* Verify that no writeback happened because of the memcg allocation */
-	if (get_zswap_written_back_pages(&written_back_after))
-		goto out;
-	if (written_back_after == written_back_before)
-		ret = KSFT_PASS;
 out:
 	cg_destroy(test_group);
 	free(test_group);
+	return ret;
+}
+
+/*
+ * When trying to store a memcg page in zswap, if the memcg hits its memory
+ * limit in zswap, writeback should affect only the zswapped pages of that
+ * memcg.
+ */
+static int test_no_invasive_cgroup_shrink(const char *root)
+{
+	int ret = KSFT_FAIL;
+	size_t control_allocation_size = MB(10);
+	char *control_allocation, *wb_group = NULL, *control_group = NULL;
+
+	/* Set up */
+	wb_group = setup_test_group_1M(root, "per_memcg_wb_test1");
+	if (!wb_group)
+		return KSFT_FAIL;
+	if (cg_write(wb_group, "memory.zswap.max", "10K"))
+		goto out;
+	control_group = setup_test_group_1M(root, "per_memcg_wb_test2");
+	if (!control_group)
+		goto out;
+
+	/* Push some test_group2 memory into zswap */
+	if (cg_enter_current(control_group))
+		goto out;
+	control_allocation = malloc(control_allocation_size);
+	for (int i = 0; i < control_allocation_size; i += 4095)
+		control_allocation[i] = 'a';
+	if (cg_read_key_long(control_group, "memory.stat", "zswapped") < 1)
+		goto out;
+
+	/* Allocate 10x memory.max to push wb_group memory into zswap and trigger wb */
+	if (cg_run(wb_group, allocate_bytes, (void *)MB(10)))
+		goto out;
+
+	/* Verify that only zswapped memory from gwb_group has been written back */
+	if (get_cg_wb_count(wb_group) > 0 && get_cg_wb_count(control_group) == 0)
+		ret = KSFT_PASS;
+out:
+	cg_enter_current(root);
+	if (control_group) {
+		cg_destroy(control_group);
+		free(control_group);
+	}
+	cg_destroy(wb_group);
+	free(wb_group);
+	if (control_allocation)
+		free(control_allocation);
 	return ret;
 }
 
@@ -235,6 +308,7 @@ struct zswap_test {
 	int (*fn)(const char *root);
 	const char *name;
 } tests[] = {
+	T(test_zswap_usage),
 	T(test_no_kmem_bypass),
 	T(test_no_invasive_cgroup_shrink),
 };

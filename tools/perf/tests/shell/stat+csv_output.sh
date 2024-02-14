@@ -6,7 +6,8 @@
 
 set -e
 
-. $(dirname $0)/lib/stat_output.sh
+# shellcheck source=lib/stat_output.sh
+. "$(dirname $0)"/lib/stat_output.sh
 
 csv_sep=@
 

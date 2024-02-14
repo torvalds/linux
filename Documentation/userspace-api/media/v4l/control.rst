@@ -143,8 +143,12 @@ Control IDs
     recognise the difference between digital and analogue gain use
     controls ``V4L2_CID_DIGITAL_GAIN`` and ``V4L2_CID_ANALOGUE_GAIN``.
 
+.. _v4l2-cid-hflip:
+
 ``V4L2_CID_HFLIP`` ``(boolean)``
     Mirror the picture horizontally.
+
+.. _v4l2-cid-vflip:
 
 ``V4L2_CID_VFLIP`` ``(boolean)``
     Mirror the picture vertically.

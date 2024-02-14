@@ -25,19 +25,7 @@ properties:
   interrupts:
     maxItems: 1
 
-  interrupt-controller: true
-  "#interrupt-cells": true
-  gpio-controller: true
   gpio-reserved-ranges: true
-  "#gpio-cells": true
-  gpio-ranges: true
-  wakeup-parent: true
-
-required:
-  - compatible
-  - reg
-
-additionalProperties: false
 
 patternProperties:
   "-state$":
@@ -107,6 +95,12 @@ $defs:
 
     required:
       - pins
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
 
 examples:
   - |

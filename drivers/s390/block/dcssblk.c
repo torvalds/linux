@@ -411,13 +411,13 @@ removeseg:
 			segment_unload(entry->segment_name);
 	}
 	list_del(&dev_info->lh);
+	up_write(&dcssblk_devices_sem);
 
 	dax_remove_host(dev_info->gd);
 	kill_dax(dev_info->dax_dev);
 	put_dax(dev_info->dax_dev);
 	del_gendisk(dev_info->gd);
 	put_disk(dev_info->gd);
-	up_write(&dcssblk_devices_sem);
 
 	if (device_remove_file_self(dev, attr)) {
 		device_unregister(dev);
@@ -790,17 +790,16 @@ dcssblk_remove_store(struct device *dev, struct device_attribute *attr, const ch
 	}
 
 	list_del(&dev_info->lh);
+	/* unload all related segments */
+	list_for_each_entry(entry, &dev_info->seg_list, lh)
+		segment_unload(entry->segment_name);
+	up_write(&dcssblk_devices_sem);
+
 	dax_remove_host(dev_info->gd);
 	kill_dax(dev_info->dax_dev);
 	put_dax(dev_info->dax_dev);
 	del_gendisk(dev_info->gd);
 	put_disk(dev_info->gd);
-
-	/* unload all related segments */
-	list_for_each_entry(entry, &dev_info->seg_list, lh)
-		segment_unload(entry->segment_name);
-
-	up_write(&dcssblk_devices_sem);
 
 	device_unregister(&dev_info->dev);
 	put_device(&dev_info->dev);

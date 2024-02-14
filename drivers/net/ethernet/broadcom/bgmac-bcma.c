@@ -362,4 +362,5 @@ module_init(bgmac_init)
 module_exit(bgmac_exit)
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom iProc GBit BCMA interface driver");
 MODULE_LICENSE("GPL");

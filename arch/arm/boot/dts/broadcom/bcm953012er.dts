@@ -84,6 +84,14 @@
 			label = "cpu";
 			ethernet = <&gmac0>;
 		};
+
+		port@7 {
+			status = "disabled";
+		};
+
+		port@8 {
+			status = "disabled";
+		};
 	};
 };
 

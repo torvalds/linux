@@ -159,13 +159,13 @@ static inline u8 gfs2_testbit(const struct gfs2_rbm *rbm, bool use_clone)
 }
 
 /**
- * gfs2_bit_search
+ * gfs2_bit_search - search bitmap for a state
  * @ptr: Pointer to bitmap data
  * @mask: Mask to use (normally 0x55555.... but adjusted for search start)
  * @state: The state we are searching for
  *
- * We xor the bitmap data with a patter which is the bitwise opposite
- * of what we are looking for, this gives rise to a pattern of ones
+ * We xor the bitmap data with a pattern which is the bitwise opposite
+ * of what we are looking for. This gives rise to a pattern of ones
  * wherever there is a match. Since we have two bits per entry, we
  * take this pattern, shift it down by one place and then and it with
  * the original. All the even bit positions (0,2,4, etc) then represent
@@ -1188,7 +1188,7 @@ static void rgrp_set_bitmap_flags(struct gfs2_rgrpd *rgd)
 
 /**
  * gfs2_rgrp_go_instantiate - Read in a RG's header and bitmaps
- * @gh: the glock holder representing the rgrpd to read in
+ * @gl: the glock representing the rgrpd to read in
  *
  * Read in all of a Resource Group's header and bitmap blocks.
  * Caller must eventually call gfs2_rgrp_brelse() to free the bitmaps.
@@ -1967,7 +1967,7 @@ static bool gfs2_rgrp_congested(const struct gfs2_rgrpd *rgd, int loops)
 }
 
 /**
- * gfs2_rgrp_used_recently
+ * gfs2_rgrp_used_recently - test if an rgrp has been used recently
  * @rs: The block reservation with the rgrp to test
  * @msecs: The time limit in milliseconds
  *
@@ -2306,7 +2306,7 @@ void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_rgrpd *rgd,
 		       (unsigned long long)rgd->rd_addr, rgd->rd_flags,
 		       rgd->rd_free, rgd->rd_free_clone, rgd->rd_dinodes,
 		       rgd->rd_requested, rgd->rd_reserved, rgd->rd_extfail_pt);
-	if (rgd->rd_sbd->sd_args.ar_rgrplvb) {
+	if (rgd->rd_sbd->sd_args.ar_rgrplvb && rgd->rd_rgl) {
 		struct gfs2_rgrp_lvb *rgl = rgd->rd_rgl;
 
 		gfs2_print_dbg(seq, "%s  L: f:%02x b:%u i:%u\n", fs_id_buf,
@@ -2411,13 +2411,12 @@ static void gfs2_set_alloc_start(struct gfs2_rbm *rbm,
  * @bn: Used to return the starting block number
  * @nblocks: requested number of blocks/extent length (value/result)
  * @dinode: 1 if we're allocating a dinode block, else 0
- * @generation: the generation number of the inode
  *
  * Returns: 0 or error
  */
 
 int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
-		      bool dinode, u64 *generation)
+		      bool dinode)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct buffer_head *dibh;
@@ -2477,10 +2476,13 @@ int gfs2_alloc_blocks(struct gfs2_inode *ip, u64 *bn, unsigned int *nblocks,
 	rbm.rgd->rd_free -= *nblocks;
 	spin_unlock(&rbm.rgd->rd_rsspin);
 	if (dinode) {
+		u64 generation;
+
 		rbm.rgd->rd_dinodes++;
-		*generation = rbm.rgd->rd_igeneration++;
-		if (*generation == 0)
-			*generation = rbm.rgd->rd_igeneration++;
+		generation = rbm.rgd->rd_igeneration++;
+		if (generation == 0)
+			generation = rbm.rgd->rd_igeneration++;
+		ip->i_generation = generation;
 	}
 
 	gfs2_trans_add_meta(rbm.rgd->rd_gl, rbm.rgd->rd_bits[0].bi_bh);

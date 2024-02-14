@@ -149,3 +149,4 @@ module_exit(exit_rc_map_dreambox)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Emanuel Strobel <emanuel.strobel@yahoo.com>");
+MODULE_DESCRIPTION("Dreambox RC10/RC0 and RC20/RC-BT remote controller keytable");

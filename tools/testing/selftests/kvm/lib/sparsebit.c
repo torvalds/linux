@@ -634,7 +634,6 @@ static void node_reduce(struct sparsebit *s, struct node *nodep)
 				tmp = node_prev(s, nodep);
 
 			node_rm(s, nodep);
-			nodep = NULL;
 
 			nodep = tmp;
 			reduction_performed = true;

@@ -18,16 +18,15 @@
 		samsung,audio-widgets =
 			"Headphone", "Headphone Jack",
 			"Speakers", "Speakers";
-		samsung,audio-routing =
-			"Headphone Jack", "HPL",
-			"Headphone Jack", "HPR",
-			"Headphone Jack", "MICBIAS",
-			"IN12", "Headphone Jack",
-			"Speakers", "SPKL",
-			"Speakers", "SPKR",
-			"I2S Playback", "Mixer DAI TX",
-			"HiFi Playback", "Mixer DAI TX",
-			"Mixer DAI RX", "HiFi Capture";
+		audio-routing = "Headphone Jack", "HPL",
+				"Headphone Jack", "HPR",
+				"Headphone Jack", "MICBIAS",
+				"IN12", "Headphone Jack",
+				"Speakers", "SPKL",
+				"Speakers", "SPKR",
+				"I2S Playback", "Mixer DAI TX",
+				"HiFi Playback", "Mixer DAI TX",
+				"Mixer DAI RX", "HiFi Capture";
 
 		cpu {
 			sound-dai = <&i2s0 0>, <&i2s0 1>;

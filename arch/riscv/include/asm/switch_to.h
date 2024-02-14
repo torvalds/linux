@@ -9,7 +9,7 @@
 #include <linux/jump_label.h>
 #include <linux/sched/task_stack.h>
 #include <asm/vector.h>
-#include <asm/hwcap.h>
+#include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 #include <asm/csr.h>
@@ -53,8 +53,7 @@ static inline void __switch_to_fpu(struct task_struct *prev,
 	struct pt_regs *regs;
 
 	regs = task_pt_regs(prev);
-	if (unlikely(regs->status & SR_SD))
-		fstate_save(prev, regs);
+	fstate_save(prev, regs);
 	fstate_restore(next, task_pt_regs(next));
 }
 

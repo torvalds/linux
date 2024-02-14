@@ -139,6 +139,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("dir_mode", Opt_dirmode),
 	fsparam_u32("port", Opt_port),
 	fsparam_u32("min_enc_offload", Opt_min_enc_offload),
+	fsparam_u32("retrans", Opt_retrans),
 	fsparam_u32("esize", Opt_min_enc_offload),
 	fsparam_u32("bsize", Opt_blocksize),
 	fsparam_u32("rasize", Opt_rasize),
@@ -150,6 +151,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_u32("closetimeo", Opt_closetimeo),
 	fsparam_u32("echo_interval", Opt_echo_interval),
 	fsparam_u32("max_credits", Opt_max_credits),
+	fsparam_u32("max_cached_dirs", Opt_max_cached_dirs),
 	fsparam_u32("handletimeout", Opt_handletimeout),
 	fsparam_u64("snapshot", Opt_snapshot),
 	fsparam_u32("max_channels", Opt_max_channels),
@@ -209,7 +211,7 @@ cifs_parse_security_flavors(struct fs_context *fc, char *value, struct smb3_fs_c
 
 	switch (match_token(value, cifs_secflavor_tokens, args)) {
 	case Opt_sec_krb5p:
-		cifs_errorf(fc, "sec=krb5p is not supported!\n");
+		cifs_errorf(fc, "sec=krb5p is not supported. Use sec=krb5,seal instead\n");
 		return 1;
 	case Opt_sec_krb5i:
 		ctx->sign = true;
@@ -1063,6 +1065,9 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	case Opt_min_enc_offload:
 		ctx->min_offload = result.uint_32;
 		break;
+	case Opt_retrans:
+		ctx->retrans = result.uint_32;
+		break;
 	case Opt_blocksize:
 		/*
 		 * inode blocksize realistically should never need to be
@@ -1164,6 +1169,14 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		/* If more than one channel requested ... they want multichan */
 		if (result.uint_32 > 1)
 			ctx->multichannel = true;
+		break;
+	case Opt_max_cached_dirs:
+		if (result.uint_32 < 1) {
+			cifs_errorf(fc, "%s: Invalid max_cached_dirs, needs to be 1 or more\n",
+				    __func__);
+			goto cifs_parse_mount_err;
+		}
+		ctx->max_cached_dirs = result.uint_32;
 		break;
 	case Opt_handletimeout:
 		ctx->handle_timeout = result.uint_32;
@@ -1532,6 +1545,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
  cifs_parse_mount_err:
 	kfree_sensitive(ctx->password);
+	ctx->password = NULL;
 	return -EINVAL;
 }
 
@@ -1592,7 +1606,7 @@ int smb3_init_fs_context(struct fs_context *fc)
 	ctx->acregmax = CIFS_DEF_ACTIMEO;
 	ctx->acdirmax = CIFS_DEF_ACTIMEO;
 	ctx->closetimeo = SMB3_DEF_DCLOSETIMEO;
-
+	ctx->max_cached_dirs = MAX_CACHED_FIDS;
 	/* Most clients set timeout to 0, allows server to use its default */
 	ctx->handle_timeout = 0; /* See MS-SMB2 spec section 2.2.14.2.12 */
 
@@ -1608,6 +1622,8 @@ int smb3_init_fs_context(struct fs_context *fc)
 
 	ctx->backupuid_specified = false; /* no backup intent for a user */
 	ctx->backupgid_specified = false; /* no backup intent for a group */
+
+	ctx->retrans = 1;
 
 /*
  *	short int override_uid = -1;

@@ -71,15 +71,13 @@ extern bool arm64_use_ng_mappings;
 #define PTE_MAYBE_NG		(arm64_use_ng_mappings ? PTE_NG : 0)
 #define PMD_MAYBE_NG		(arm64_use_ng_mappings ? PMD_SECT_NG : 0)
 
+#define lpa2_is_enabled()	false
+
 /*
  * If we have userspace only BTI we don't want to mark kernel pages
  * guarded even if the system does support BTI.
  */
-#ifdef CONFIG_ARM64_BTI_KERNEL
-#define PTE_MAYBE_GP		(system_supports_bti() ? PTE_GP : 0)
-#else
-#define PTE_MAYBE_GP		0
-#endif
+#define PTE_MAYBE_GP		(system_supports_bti_kernel() ? PTE_GP : 0)
 
 #define PAGE_KERNEL		__pgprot(_PAGE_KERNEL)
 #define PAGE_KERNEL_RO		__pgprot(_PAGE_KERNEL_RO)

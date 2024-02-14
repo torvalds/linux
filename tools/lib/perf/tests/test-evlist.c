@@ -46,7 +46,7 @@ static int test_stat_cpu(void)
 	};
 	int err, idx;
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	__T("failed to create cpus", cpus);
 
 	evlist = perf_evlist__new();
@@ -261,7 +261,7 @@ static int test_mmap_thread(void)
 	threads = perf_thread_map__new_dummy();
 	__T("failed to create threads", threads);
 
-	cpus = perf_cpu_map__dummy_new();
+	cpus = perf_cpu_map__new_any_cpu();
 	__T("failed to create cpus", cpus);
 
 	perf_thread_map__set_pid(threads, 0, pid);
@@ -350,7 +350,7 @@ static int test_mmap_cpus(void)
 
 	attr.config = id;
 
-	cpus = perf_cpu_map__new(NULL);
+	cpus = perf_cpu_map__new_online_cpus();
 	__T("failed to create cpus", cpus);
 
 	evlist = perf_evlist__new();

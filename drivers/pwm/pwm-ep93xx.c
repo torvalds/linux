@@ -159,7 +159,6 @@ static const struct pwm_ops ep93xx_pwm_ops = {
 	.request = ep93xx_pwm_request,
 	.free = ep93xx_pwm_free,
 	.apply = ep93xx_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int ep93xx_pwm_probe(struct platform_device *pdev)

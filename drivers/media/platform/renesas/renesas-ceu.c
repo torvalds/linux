@@ -1183,17 +1183,13 @@ static int ceu_enum_input(struct file *file, void *priv,
 			  struct v4l2_input *inp)
 {
 	struct ceu_device *ceudev = video_drvdata(file);
-	struct ceu_subdev *ceusd;
 
 	if (inp->index >= ceudev->num_sd)
 		return -EINVAL;
 
-	ceusd = ceudev->subdevs[inp->index];
-
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = 0;
-	snprintf(inp->name, sizeof(inp->name), "Camera%u: %s",
-		 inp->index, ceusd->v4l2_sd->name);
+	snprintf(inp->name, sizeof(inp->name), "Camera %u", inp->index);
 
 	return 0;
 }
@@ -1403,7 +1399,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 	q->mem_ops		= &vb2_dma_contig_memops;
 	q->buf_struct_size	= sizeof(struct ceu_buffer);
 	q->timestamp_flags	= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed	= 2;
+	q->min_queued_buffers	= 2;
 	q->lock			= &ceudev->mlock;
 	q->dev			= ceudev->v4l2_dev.dev;
 

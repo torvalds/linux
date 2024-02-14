@@ -8,6 +8,56 @@
  * archs.
  */
 
+/*
+ * Low-level interface mapping flags/field names to bits
+ */
+
+/* Flags for _DESC_S (non-system) descriptors */
+#define _DESC_ACCESSED		0x0001
+#define _DESC_DATA_WRITABLE	0x0002
+#define _DESC_CODE_READABLE	0x0002
+#define _DESC_DATA_EXPAND_DOWN	0x0004
+#define _DESC_CODE_CONFORMING	0x0004
+#define _DESC_CODE_EXECUTABLE	0x0008
+
+/* Common flags */
+#define _DESC_S			0x0010
+#define _DESC_DPL(dpl)		((dpl) << 5)
+#define _DESC_PRESENT		0x0080
+
+#define _DESC_LONG_CODE		0x2000
+#define _DESC_DB		0x4000
+#define _DESC_GRANULARITY_4K	0x8000
+
+/* System descriptors have a numeric "type" field instead of flags */
+#define _DESC_SYSTEM(code)	(code)
+
+/*
+ * High-level interface mapping intended usage to low-level combinations
+ * of flags
+ */
+
+#define _DESC_DATA		(_DESC_S | _DESC_PRESENT | _DESC_ACCESSED | \
+				 _DESC_DATA_WRITABLE)
+#define _DESC_CODE		(_DESC_S | _DESC_PRESENT | _DESC_ACCESSED | \
+				 _DESC_CODE_READABLE | _DESC_CODE_EXECUTABLE)
+
+#define DESC_DATA16		(_DESC_DATA)
+#define DESC_CODE16		(_DESC_CODE)
+
+#define DESC_DATA32		(_DESC_DATA | _DESC_GRANULARITY_4K | _DESC_DB)
+#define DESC_DATA32_BIOS	(_DESC_DATA | _DESC_DB)
+
+#define DESC_CODE32		(_DESC_CODE | _DESC_GRANULARITY_4K | _DESC_DB)
+#define DESC_CODE32_BIOS	(_DESC_CODE | _DESC_DB)
+
+#define DESC_TSS32		(_DESC_SYSTEM(9) | _DESC_PRESENT)
+
+#define DESC_DATA64		(_DESC_DATA | _DESC_GRANULARITY_4K | _DESC_DB)
+#define DESC_CODE64		(_DESC_CODE | _DESC_GRANULARITY_4K | _DESC_LONG_CODE)
+
+#define DESC_USER		(_DESC_DPL(3))
+
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
@@ -22,19 +72,19 @@ struct desc_struct {
 
 #define GDT_ENTRY_INIT(flags, base, limit)			\
 	{							\
-		.limit0		= (u16) (limit),		\
-		.limit1		= ((limit) >> 16) & 0x0F,	\
-		.base0		= (u16) (base),			\
-		.base1		= ((base) >> 16) & 0xFF,	\
-		.base2		= ((base) >> 24) & 0xFF,	\
-		.type		= (flags & 0x0f),		\
-		.s		= (flags >> 4) & 0x01,		\
-		.dpl		= (flags >> 5) & 0x03,		\
-		.p		= (flags >> 7) & 0x01,		\
-		.avl		= (flags >> 12) & 0x01,		\
-		.l		= (flags >> 13) & 0x01,		\
-		.d		= (flags >> 14) & 0x01,		\
-		.g		= (flags >> 15) & 0x01,		\
+		.limit0		= ((limit) >>  0) & 0xFFFF,	\
+		.limit1		= ((limit) >> 16) & 0x000F,	\
+		.base0		= ((base)  >>  0) & 0xFFFF,	\
+		.base1		= ((base)  >> 16) & 0x00FF,	\
+		.base2		= ((base)  >> 24) & 0x00FF,	\
+		.type		= ((flags) >>  0) & 0x000F,	\
+		.s		= ((flags) >>  4) & 0x0001,	\
+		.dpl		= ((flags) >>  5) & 0x0003,	\
+		.p		= ((flags) >>  7) & 0x0001,	\
+		.avl		= ((flags) >> 12) & 0x0001,	\
+		.l		= ((flags) >> 13) & 0x0001,	\
+		.d		= ((flags) >> 14) & 0x0001,	\
+		.g		= ((flags) >> 15) & 0x0001,	\
 	}
 
 enum {
@@ -94,6 +144,7 @@ struct gate_struct {
 
 typedef struct gate_struct gate_desc;
 
+#ifndef _SETUP
 static inline unsigned long gate_offset(const gate_desc *g)
 {
 #ifdef CONFIG_X86_64
@@ -108,6 +159,7 @@ static inline unsigned long gate_segment(const gate_desc *g)
 {
 	return g->segment;
 }
+#endif
 
 struct desc_ptr {
 	unsigned short size;

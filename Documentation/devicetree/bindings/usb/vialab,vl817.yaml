@@ -37,7 +37,6 @@ properties:
 required:
   - compatible
   - reg
-  - reset-gpios
   - vdd-supply
   - peer-hub
 

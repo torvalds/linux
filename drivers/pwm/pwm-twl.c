@@ -294,7 +294,7 @@ static int twl4030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = twl_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = twl_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 
@@ -319,7 +319,7 @@ static int twl6030_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = twl_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = twl_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 
@@ -333,12 +333,10 @@ static const struct pwm_ops twl4030_pwm_ops = {
 	.apply = twl4030_pwm_apply,
 	.request = twl4030_pwm_request,
 	.free = twl4030_pwm_free,
-	.owner = THIS_MODULE,
 };
 
 static const struct pwm_ops twl6030_pwm_ops = {
 	.apply = twl6030_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int twl_pwm_probe(struct platform_device *pdev)

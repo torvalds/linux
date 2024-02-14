@@ -791,10 +791,10 @@ config INPUT_IQS626A
 	  module will be called iqs626a.
 
 config INPUT_IQS7222
-	tristate "Azoteq IQS7222A/B/C capacitive touch controller"
+	tristate "Azoteq IQS7222A/B/C/D capacitive touch controller"
 	depends on I2C
 	help
-	  Say Y to enable support for the Azoteq IQS7222A/B/C family
+	  Say Y to enable support for the Azoteq IQS7222A/B/C/D family
 	  of capacitive touch controllers.
 
 	  To compile this driver as a module, choose M here: the

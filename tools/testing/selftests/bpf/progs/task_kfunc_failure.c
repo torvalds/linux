@@ -248,7 +248,7 @@ int BPF_PROG(task_kfunc_from_pid_no_null_check, struct task_struct *task, u64 cl
 }
 
 SEC("lsm/task_free")
-__failure __msg("reg type unsupported for arg#0 function")
+__failure __msg("R1 must be a rcu pointer")
 int BPF_PROG(task_kfunc_from_lsm_task_free, struct task_struct *task)
 {
 	struct task_struct *acquired;

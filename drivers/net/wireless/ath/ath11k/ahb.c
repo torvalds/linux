@@ -6,6 +6,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/dma-mapping.h>
@@ -802,8 +803,8 @@ static int ath11k_core_get_rproc(struct ath11k_base *ab)
 
 	prproc = rproc_get_by_phandle(rproc_phandle);
 	if (!prproc) {
-		ath11k_err(ab, "failed to get rproc\n");
-		return -EINVAL;
+		ath11k_dbg(ab, ATH11K_DBG_AHB, "failed to get rproc, deferring\n");
+		return -EPROBE_DEFER;
 	}
 	ab_ahb->tgt_rproc = prproc;
 
@@ -1084,19 +1085,12 @@ static int ath11k_ahb_fw_resource_deinit(struct ath11k_base *ab)
 static int ath11k_ahb_probe(struct platform_device *pdev)
 {
 	struct ath11k_base *ab;
-	const struct of_device_id *of_id;
 	const struct ath11k_hif_ops *hif_ops;
 	const struct ath11k_pci_ops *pci_ops;
 	enum ath11k_hw_rev hw_rev;
 	int ret;
 
-	of_id = of_match_device(ath11k_ahb_of_match, &pdev->dev);
-	if (!of_id) {
-		dev_err(&pdev->dev, "failed to find matching device tree id\n");
-		return -EINVAL;
-	}
-
-	hw_rev = (uintptr_t)of_id->data;
+	hw_rev = (uintptr_t)device_get_match_data(&pdev->dev);
 
 	switch (hw_rev) {
 	case ATH11K_HW_IPQ8074:
@@ -1257,7 +1251,7 @@ static void ath11k_ahb_free_resources(struct ath11k_base *ab)
 	platform_set_drvdata(pdev, NULL);
 }
 
-static int ath11k_ahb_remove(struct platform_device *pdev)
+static void ath11k_ahb_remove(struct platform_device *pdev)
 {
 	struct ath11k_base *ab = platform_get_drvdata(pdev);
 
@@ -1273,8 +1267,6 @@ static int ath11k_ahb_remove(struct platform_device *pdev)
 
 qmi_fail:
 	ath11k_ahb_free_resources(ab);
-
-	return 0;
 }
 
 static void ath11k_ahb_shutdown(struct platform_device *pdev)
@@ -1302,7 +1294,7 @@ static struct platform_driver ath11k_ahb_driver = {
 		.of_match_table = ath11k_ahb_of_match,
 	},
 	.probe  = ath11k_ahb_probe,
-	.remove = ath11k_ahb_remove,
+	.remove_new = ath11k_ahb_remove,
 	.shutdown = ath11k_ahb_shutdown,
 };
 

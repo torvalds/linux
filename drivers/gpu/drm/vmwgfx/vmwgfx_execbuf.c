@@ -1151,7 +1151,7 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 				 SVGAMobId *id,
 				 struct vmw_bo **vmw_bo_p)
 {
-	struct vmw_bo *vmw_bo;
+	struct vmw_bo *vmw_bo, *tmp_bo;
 	uint32_t handle = *id;
 	struct vmw_relocation *reloc;
 	int ret;
@@ -1164,7 +1164,8 @@ static int vmw_translate_mob_ptr(struct vmw_private *dev_priv,
 	}
 	vmw_bo_placement_set(vmw_bo, VMW_BO_DOMAIN_MOB, VMW_BO_DOMAIN_MOB);
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo);
-	vmw_user_bo_unref(vmw_bo);
+	tmp_bo = vmw_bo;
+	vmw_user_bo_unref(&tmp_bo);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1206,7 +1207,7 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 				   SVGAGuestPtr *ptr,
 				   struct vmw_bo **vmw_bo_p)
 {
-	struct vmw_bo *vmw_bo;
+	struct vmw_bo *vmw_bo, *tmp_bo;
 	uint32_t handle = ptr->gmrId;
 	struct vmw_relocation *reloc;
 	int ret;
@@ -1220,7 +1221,8 @@ static int vmw_translate_guest_ptr(struct vmw_private *dev_priv,
 	vmw_bo_placement_set(vmw_bo, VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM,
 			     VMW_BO_DOMAIN_GMR | VMW_BO_DOMAIN_VRAM);
 	ret = vmw_validation_add_bo(sw_context->ctx, vmw_bo);
-	vmw_user_bo_unref(vmw_bo);
+	tmp_bo = vmw_bo;
+	vmw_user_bo_unref(&tmp_bo);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1619,7 +1621,7 @@ static int vmw_cmd_tex_state(struct vmw_private *dev_priv,
 {
 	VMW_DECLARE_CMD_VAR(*cmd, SVGA3dCmdSetTextureState);
 	SVGA3dTextureState *last_state = (SVGA3dTextureState *)
-	  ((unsigned long) header + header->size + sizeof(header));
+	  ((unsigned long) header + header->size + sizeof(*header));
 	SVGA3dTextureState *cur_state = (SVGA3dTextureState *)
 		((unsigned long) header + sizeof(*cmd));
 	struct vmw_resource *ctx;

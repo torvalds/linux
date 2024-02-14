@@ -207,7 +207,7 @@ struct snd_seq_ev_raw32 {
 struct snd_seq_ev_ext {
 	unsigned int len;	/* length of data */
 	void *ptr;		/* pointer to data (note: maybe 64-bit) */
-} __attribute__((packed));
+} __packed;
 
 struct snd_seq_result {
 	int event;		/* processed event type */
@@ -251,7 +251,7 @@ struct snd_seq_ev_quote {
 	struct snd_seq_addr origin;		/* original sender */
 	unsigned short value;		/* optional data */
 	struct snd_seq_event *event;		/* quoted event */
-} __attribute__((packed));
+} __packed;
 
 union snd_seq_event_data { /* event data... */
 	struct snd_seq_ev_note note;

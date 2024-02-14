@@ -262,7 +262,7 @@ static const struct xattr_handler *squashfs_xattr_handler(int type)
 	}
 }
 
-const struct xattr_handler *squashfs_xattr_handlers[] = {
+const struct xattr_handler * const squashfs_xattr_handlers[] = {
 	&squashfs_xattr_user_handler,
 	&squashfs_xattr_trusted_handler,
 	&squashfs_xattr_security_handler,

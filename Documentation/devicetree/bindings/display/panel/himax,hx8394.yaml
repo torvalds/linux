@@ -23,6 +23,7 @@ properties:
     items:
       - enum:
           - hannstar,hsd060bhw4
+          - powkiddy,x55-panel
       - const: himax,hx8394
 
   reg: true
@@ -30,6 +31,8 @@ properties:
   reset-gpios: true
 
   backlight: true
+
+  rotation: true
 
   port: true
 

@@ -68,8 +68,7 @@ static void gsc_work(struct work_struct *work)
 				 * A proxy failure right after firmware load means the proxy-init
 				 * step has failed so mark GSC as not usable after this
 				 */
-				drm_err(&gt->i915->drm,
-					"GSC proxy handler failed to init\n");
+				gt_err(gt, "GSC proxy handler failed to init\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 			}
 			goto out_put;
@@ -83,11 +82,10 @@ static void gsc_work(struct work_struct *work)
 			 * status register to check if the proxy init was actually successful
 			 */
 			if (intel_gsc_uc_fw_proxy_init_done(gsc, false)) {
-				drm_dbg(&gt->i915->drm, "GSC Proxy initialized\n");
+				gt_dbg(gt, "GSC Proxy initialized\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_RUNNING);
 			} else {
-				drm_err(&gt->i915->drm,
-					"GSC status reports proxy init not complete\n");
+				gt_err(gt, "GSC status reports proxy init not complete\n");
 				intel_uc_fw_change_status(&gsc->fw, INTEL_UC_FIRMWARE_LOAD_FAIL);
 			}
 		}

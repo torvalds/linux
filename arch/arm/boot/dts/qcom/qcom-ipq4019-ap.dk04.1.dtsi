@@ -98,7 +98,7 @@
 			};
 		};
 
-		pci@40000000 {
+		pcie@40000000 {
 			status = "okay";
 			perst-gpios = <&tlmm 38 GPIO_ACTIVE_LOW>;
 		};

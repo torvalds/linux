@@ -15,7 +15,6 @@
 
 #include "system_global.h"
 
-#ifndef ISP2401
 
 #include "input_formatter.h"
 #include <type_support.h>
@@ -243,4 +242,3 @@ void input_formatter_bin_get_state(
 				  HIVE_STR2MEM_EN_STAT_UPDATE_ADDRESS);
 	return;
 }
-#endif

@@ -197,18 +197,16 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	return PTR_ERR_OR_ZERO(devdata->backup);
 }
 
-static int wm831x_backup_remove(struct platform_device *pdev)
+static void wm831x_backup_remove(struct platform_device *pdev)
 {
 	struct wm831x_backup *devdata = platform_get_drvdata(pdev);
 
 	power_supply_unregister(devdata->backup);
-
-	return 0;
 }
 
 static struct platform_driver wm831x_backup_driver = {
 	.probe = wm831x_backup_probe,
-	.remove = wm831x_backup_remove,
+	.remove_new = wm831x_backup_remove,
 	.driver = {
 		.name = "wm831x-backup",
 	},

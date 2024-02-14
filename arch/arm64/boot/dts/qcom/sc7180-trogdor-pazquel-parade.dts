@@ -10,6 +10,7 @@
 #include "sc7180-trogdor.dtsi"
 #include "sc7180-trogdor-parade-ps8640.dtsi"
 #include "sc7180-trogdor-pazquel.dtsi"
+#include "sc7180-trogdor-rt5682i-sku.dtsi"
 
 / {
 	model = "Google Pazquel (Parade)";

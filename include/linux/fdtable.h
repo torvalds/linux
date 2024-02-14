@@ -83,12 +83,17 @@ struct dentry;
 static inline struct file *files_lookup_fd_raw(struct files_struct *files, unsigned int fd)
 {
 	struct fdtable *fdt = rcu_dereference_raw(files->fdt);
+	unsigned long mask = array_index_mask_nospec(fd, fdt->max_fds);
+	struct file *needs_masking;
 
-	if (fd < fdt->max_fds) {
-		fd = array_index_nospec(fd, fdt->max_fds);
-		return rcu_dereference_raw(fdt->fd[fd]);
-	}
-	return NULL;
+	/*
+	 * 'mask' is zero for an out-of-bounds fd, all ones for ok.
+	 * 'fd&mask' is 'fd' for ok, or 0 for out of bounds.
+	 *
+	 * Accessing fdt->fd[0] is ok, but needs masking of the result.
+	 */
+	needs_masking = rcu_dereference_raw(fdt->fd[fd&mask]);
+	return (struct file *)(mask & (unsigned long)needs_masking);
 }
 
 static inline struct file *files_lookup_fd_locked(struct files_struct *files, unsigned int fd)
@@ -98,20 +103,9 @@ static inline struct file *files_lookup_fd_locked(struct files_struct *files, un
 	return files_lookup_fd_raw(files, fd);
 }
 
-static inline struct file *files_lookup_fd_rcu(struct files_struct *files, unsigned int fd)
-{
-	RCU_LOCKDEP_WARN(!rcu_read_lock_held(),
-			   "suspicious rcu_dereference_check() usage");
-	return files_lookup_fd_raw(files, fd);
-}
-
-static inline struct file *lookup_fd_rcu(unsigned int fd)
-{
-	return files_lookup_fd_rcu(current->files, fd);
-}
-
-struct file *task_lookup_fd_rcu(struct task_struct *task, unsigned int fd);
-struct file *task_lookup_next_fd_rcu(struct task_struct *task, unsigned int *fd);
+struct file *lookup_fdget_rcu(unsigned int fd);
+struct file *task_lookup_fdget_rcu(struct task_struct *task, unsigned int fd);
+struct file *task_lookup_next_fdget_rcu(struct task_struct *task, unsigned int *fd);
 
 struct task_struct;
 
@@ -125,7 +119,7 @@ int iterate_fd(struct files_struct *, unsigned,
 
 extern int close_fd(unsigned int fd);
 extern int __close_range(unsigned int fd, unsigned int max_fd, unsigned int flags);
-extern struct file *close_fd_get_file(unsigned int fd);
+extern struct file *file_close_fd(unsigned int fd);
 extern int unshare_fd(unsigned long unshare_flags, unsigned int max_fds,
 		      struct files_struct **new_fdp);
 

@@ -10,7 +10,6 @@
 #ifndef _RSLIB_H_
 #define _RSLIB_H_
 
-#include <linux/list.h>
 #include <linux/types.h>	/* for gfp_t */
 #include <linux/gfp.h>		/* for GFP_KERNEL */
 

@@ -213,7 +213,7 @@ static int test__cpu_map_intersect(struct test_suite *test __maybe_unused,
 
 static int test__cpu_map_equal(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	struct perf_cpu_map *any = perf_cpu_map__dummy_new();
+	struct perf_cpu_map *any = perf_cpu_map__new_any_cpu();
 	struct perf_cpu_map *one = perf_cpu_map__new("1");
 	struct perf_cpu_map *two = perf_cpu_map__new("2");
 	struct perf_cpu_map *empty = perf_cpu_map__intersect(one, two);

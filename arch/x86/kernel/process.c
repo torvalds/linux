@@ -257,13 +257,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	if (!ret && unlikely(test_tsk_thread_flag(current, TIF_IO_BITMAP)))
 		io_bitmap_share(p);
 
-	/*
-	 * If copy_thread() if failing, don't leak the shadow stack possibly
-	 * allocated in shstk_alloc_thread_stack() above.
-	 */
-	if (ret)
-		shstk_free(p);
-
 	return ret;
 }
 
@@ -484,7 +477,7 @@ void native_tss_update_io_bitmap(void)
 	/*
 	 * Make sure that the TSS limit is covering the IO bitmap. It might have
 	 * been cut down by a VMEXIT to 0x67 which would cause a subsequent I/O
-	 * access from user space to trigger a #GP because tbe bitmap is outside
+	 * access from user space to trigger a #GP because the bitmap is outside
 	 * the TSS limit.
 	 */
 	refresh_tss_limit();

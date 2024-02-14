@@ -188,12 +188,12 @@ static irqreturn_t mps2_uart_rxirq(int irq, void *data)
 	if (unlikely(!(irqflag & UARTn_INT_RX)))
 		return IRQ_NONE;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	mps2_uart_write8(port, UARTn_INT_RX, UARTn_INT);
 	mps2_uart_rx_chars(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -206,12 +206,12 @@ static irqreturn_t mps2_uart_txirq(int irq, void *data)
 	if (unlikely(!(irqflag & UARTn_INT_TX)))
 		return IRQ_NONE;
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	mps2_uart_write8(port, UARTn_INT_TX, UARTn_INT);
 	mps2_uart_tx_chars(port);
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return IRQ_HANDLED;
 }
@@ -222,7 +222,7 @@ static irqreturn_t mps2_uart_oerrirq(int irq, void *data)
 	struct uart_port *port = data;
 	u8 irqflag = mps2_uart_read8(port, UARTn_INT);
 
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	if (irqflag & UARTn_INT_RX_OVERRUN) {
 		struct tty_port *tport = &port->state->port;
@@ -244,7 +244,7 @@ static irqreturn_t mps2_uart_oerrirq(int irq, void *data)
 		handled = IRQ_HANDLED;
 	}
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 
 	return handled;
 }
@@ -356,12 +356,12 @@ mps2_uart_set_termios(struct uart_port *port, struct ktermios *termios,
 
 	bauddiv = DIV_ROUND_CLOSEST(port->uartclk, baud);
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 	mps2_uart_write32(port, bauddiv, UARTn_BAUDDIV);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	if (tty_termios_baud_rate(termios))
 		tty_termios_encode_baud_rate(termios, baud, baud);

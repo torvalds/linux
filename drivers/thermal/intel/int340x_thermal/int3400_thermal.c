@@ -609,9 +609,9 @@ static int int3400_thermal_probe(struct platform_device *pdev)
 
 	evaluate_odvp(priv);
 
-	priv->thermal = thermal_zone_device_register("INT3400 Thermal", 0, 0,
-						priv, &int3400_thermal_ops,
-						&int3400_thermal_params, 0, 0);
+	priv->thermal = thermal_tripless_zone_device_register("INT3400 Thermal", priv,
+							      &int3400_thermal_ops,
+							      &int3400_thermal_params);
 	if (IS_ERR(priv->thermal)) {
 		result = PTR_ERR(priv->thermal);
 		goto free_art_trt;
@@ -674,7 +674,7 @@ free_priv:
 	return result;
 }
 
-static int int3400_thermal_remove(struct platform_device *pdev)
+static void int3400_thermal_remove(struct platform_device *pdev)
 {
 	struct int3400_thermal_priv *priv = platform_get_drvdata(pdev);
 
@@ -698,7 +698,6 @@ static int int3400_thermal_remove(struct platform_device *pdev)
 	kfree(priv->trts);
 	kfree(priv->arts);
 	kfree(priv);
-	return 0;
 }
 
 static const struct acpi_device_id int3400_thermal_match[] = {
@@ -714,7 +713,7 @@ MODULE_DEVICE_TABLE(acpi, int3400_thermal_match);
 
 static struct platform_driver int3400_thermal_driver = {
 	.probe = int3400_thermal_probe,
-	.remove = int3400_thermal_remove,
+	.remove_new = int3400_thermal_remove,
 	.driver = {
 		   .name = "int3400 thermal",
 		   .acpi_match_table = ACPI_PTR(int3400_thermal_match),

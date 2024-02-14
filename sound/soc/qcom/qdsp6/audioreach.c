@@ -267,6 +267,21 @@ void *audioreach_alloc_apm_cmd_pkt(int pkt_size, uint32_t opcode, uint32_t token
 }
 EXPORT_SYMBOL_GPL(audioreach_alloc_apm_cmd_pkt);
 
+static void audioreach_set_channel_mapping(u8 *ch_map, int num_channels)
+{
+	if (num_channels == 1) {
+		ch_map[0] =  PCM_CHANNEL_FL;
+	} else if (num_channels == 2) {
+		ch_map[0] =  PCM_CHANNEL_FL;
+		ch_map[1] =  PCM_CHANNEL_FR;
+	} else if (num_channels == 4) {
+		ch_map[0] =  PCM_CHANNEL_FL;
+		ch_map[1] =  PCM_CHANNEL_FR;
+		ch_map[2] =  PCM_CHANNEL_LS;
+		ch_map[3] =  PCM_CHANNEL_RS;
+	}
+}
+
 static void apm_populate_container_config(struct apm_container_obj *cfg,
 					  struct audioreach_container *cont)
 {
@@ -829,10 +844,15 @@ static int audioreach_mfc_set_media_format(struct q6apm_graph *graph,
 	media_format->num_channels = cfg->num_channels;
 
 	if (num_channels == 1) {
-		media_format->channel_mapping[0] = PCM_CHANNEL_L;
+		media_format->channel_mapping[0] = PCM_CHANNEL_FL;
 	} else if (num_channels == 2) {
-		media_format->channel_mapping[0] = PCM_CHANNEL_L;
-		media_format->channel_mapping[1] = PCM_CHANNEL_R;
+		media_format->channel_mapping[0] = PCM_CHANNEL_FL;
+		media_format->channel_mapping[1] = PCM_CHANNEL_FR;
+	} else if (num_channels == 4) {
+		media_format->channel_mapping[0] = PCM_CHANNEL_FL;
+		media_format->channel_mapping[1] = PCM_CHANNEL_FR;
+		media_format->channel_mapping[2] = PCM_CHANNEL_LS;
+		media_format->channel_mapping[3] = PCM_CHANNEL_RS;
 	}
 
 	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
@@ -864,12 +884,8 @@ static int audioreach_set_compr_media_format(struct media_format *media_fmt_hdr,
 		mp3_cfg->endianness = PCM_LITTLE_ENDIAN;
 		mp3_cfg->num_channels = mcfg->num_channels;
 
-		if (mcfg->num_channels == 1) {
-			mp3_cfg->channel_mapping[0] =  PCM_CHANNEL_L;
-		} else if (mcfg->num_channels == 2) {
-			mp3_cfg->channel_mapping[0] =  PCM_CHANNEL_L;
-			mp3_cfg->channel_mapping[1] =  PCM_CHANNEL_R;
-		}
+		audioreach_set_channel_mapping(mp3_cfg->channel_mapping,
+					       mcfg->num_channels);
 		break;
 	case SND_AUDIOCODEC_AAC:
 		media_fmt_hdr->data_format = DATA_FORMAT_RAW_COMPRESSED;
@@ -1057,7 +1073,7 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 	int rc, payload_size;
 	struct gpr_pkt *pkt;
 
-	if (num_channels > 2) {
+	if (num_channels > 4) {
 		dev_err(graph->dev, "Error: Invalid channels (%d)!\n", num_channels);
 		return -EINVAL;
 	}
@@ -1089,13 +1105,8 @@ static int audioreach_pcm_set_media_format(struct q6apm_graph *graph,
 	media_cfg->q_factor = mcfg->bit_width - 1;
 	media_cfg->bits_per_sample = mcfg->bit_width;
 
-	if (num_channels == 1) {
-		media_cfg->channel_mapping[0] = PCM_CHANNEL_L;
-	} else if (num_channels == 2) {
-		media_cfg->channel_mapping[0] = PCM_CHANNEL_L;
-		media_cfg->channel_mapping[1] = PCM_CHANNEL_R;
-
-	}
+	audioreach_set_channel_mapping(media_cfg->channel_mapping,
+				       num_channels);
 
 	rc = q6apm_send_cmd_sync(graph->apm, pkt, 0);
 
@@ -1116,7 +1127,7 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 	struct gpr_pkt *pkt;
 	void *p;
 
-	if (num_channels > 2) {
+	if (num_channels > 4) {
 		dev_err(graph->dev, "Error: Invalid channels (%d)!\n", num_channels);
 		return -EINVAL;
 	}
@@ -1153,12 +1164,8 @@ static int audioreach_shmem_set_media_format(struct q6apm_graph *graph,
 		cfg->endianness = PCM_LITTLE_ENDIAN;
 		cfg->num_channels = mcfg->num_channels;
 
-		if (mcfg->num_channels == 1)
-			cfg->channel_mapping[0] =  PCM_CHANNEL_L;
-		else if (num_channels == 2) {
-			cfg->channel_mapping[0] =  PCM_CHANNEL_L;
-			cfg->channel_mapping[1] =  PCM_CHANNEL_R;
-		}
+		audioreach_set_channel_mapping(cfg->channel_mapping,
+					       num_channels);
 	} else {
 		rc = audioreach_set_compr_media_format(header, p, mcfg);
 		if (rc) {

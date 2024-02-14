@@ -30,6 +30,7 @@ subdir-ccflags-y += \
 		-I$(FULL_AMD_PATH)/pm/swsmu/smu11 \
 		-I$(FULL_AMD_PATH)/pm/swsmu/smu12 \
 		-I$(FULL_AMD_PATH)/pm/swsmu/smu13 \
+		-I$(FULL_AMD_PATH)/pm/swsmu/smu14 \
 		-I$(FULL_AMD_PATH)/pm/powerplay/inc \
 		-I$(FULL_AMD_PATH)/pm/powerplay/smumgr\
 		-I$(FULL_AMD_PATH)/pm/powerplay/hwmgr \

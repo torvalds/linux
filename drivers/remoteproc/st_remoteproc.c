@@ -16,10 +16,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_reserved_mem.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/remoteproc.h>
 #include <linux/reset.h>
@@ -341,7 +340,6 @@ static int st_rproc_parse_dt(struct platform_device *pdev)
 static int st_rproc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct st_rproc *ddata;
 	struct device_node *np = dev->of_node;
 	struct rproc *rproc;
@@ -349,19 +347,17 @@ static int st_rproc_probe(struct platform_device *pdev)
 	int enabled;
 	int ret, i;
 
-	match = of_match_device(st_rproc_match, dev);
-	if (!match || !match->data) {
-		dev_err(dev, "No device match found\n");
-		return -ENODEV;
-	}
-
 	rproc = rproc_alloc(dev, np->name, &st_rproc_ops, NULL, sizeof(*ddata));
 	if (!rproc)
 		return -ENOMEM;
 
 	rproc->has_iommu = false;
 	ddata = rproc->priv;
-	ddata->config = (struct st_rproc_config *)match->data;
+	ddata->config = (struct st_rproc_config *)device_get_match_data(dev);
+	if (!ddata->config) {
+		ret = -ENODEV;
+		goto free_rproc;
+	}
 
 	platform_set_drvdata(pdev, rproc);
 

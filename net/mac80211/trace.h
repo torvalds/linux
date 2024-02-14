@@ -2512,6 +2512,31 @@ TRACE_EVENT(drv_net_setup_tc,
 	)
 );
 
+TRACE_EVENT(drv_can_activate_links,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 u16 active_links),
+
+	TP_ARGS(local, sdata, active_links),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u16, active_links)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->active_links = active_links;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT " requested active_links:0x%04x\n",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->active_links
+	)
+);
+
 TRACE_EVENT(drv_change_vif_links,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
@@ -2839,23 +2864,26 @@ TRACE_EVENT(api_sta_block_awake,
 );
 
 TRACE_EVENT(api_chswitch_done,
-	TP_PROTO(struct ieee80211_sub_if_data *sdata, bool success),
+	TP_PROTO(struct ieee80211_sub_if_data *sdata, bool success,
+		 unsigned int link_id),
 
-	TP_ARGS(sdata, success),
+	TP_ARGS(sdata, success, link_id),
 
 	TP_STRUCT__entry(
 		VIF_ENTRY
 		__field(bool, success)
+		__field(unsigned int, link_id)
 	),
 
 	TP_fast_assign(
 		VIF_ASSIGN;
 		__entry->success = success;
+		__entry->link_id = link_id;
 	),
 
 	TP_printk(
-		VIF_PR_FMT " success=%d",
-		VIF_PR_ARG, __entry->success
+		VIF_PR_FMT " success=%d link_id=%d",
+		VIF_PR_ARG, __entry->success, __entry->link_id
 	)
 );
 

@@ -1,0 +1,97 @@
+
+config BCACHEFS_FS
+	tristate "bcachefs filesystem support (EXPERIMENTAL)"
+	depends on BLOCK
+	select EXPORTFS
+	select CLOSURES
+	select LIBCRC32C
+	select CRC64
+	select FS_POSIX_ACL
+	select LZ4_COMPRESS
+	select LZ4_DECOMPRESS
+	select LZ4HC_COMPRESS
+	select LZ4HC_DECOMPRESS
+	select ZLIB_DEFLATE
+	select ZLIB_INFLATE
+	select ZSTD_COMPRESS
+	select ZSTD_DECOMPRESS
+	select CRYPTO_SHA256
+	select CRYPTO_CHACHA20
+	select CRYPTO_POLY1305
+	select KEYS
+	select RAID6_PQ
+	select XOR_BLOCKS
+	select XXHASH
+	select SRCU
+	select SYMBOLIC_ERRNAME
+	help
+	The bcachefs filesystem - a modern, copy on write filesystem, with
+	support for multiple devices, compression, checksumming, etc.
+
+config BCACHEFS_QUOTA
+	bool "bcachefs quota support"
+	depends on BCACHEFS_FS
+	select QUOTACTL
+
+config BCACHEFS_ERASURE_CODING
+	bool "bcachefs erasure coding (RAID5/6) support (EXPERIMENTAL)"
+	depends on BCACHEFS_FS
+	select QUOTACTL
+	help
+	This enables the "erasure_code" filesysystem and inode option, which
+	organizes data into reed-solomon stripes instead of ordinary
+	replication.
+
+	WARNING: this feature is still undergoing on disk format changes, and
+	should only be enabled for testing purposes.
+
+config BCACHEFS_POSIX_ACL
+	bool "bcachefs POSIX ACL support"
+	depends on BCACHEFS_FS
+	select FS_POSIX_ACL
+
+config BCACHEFS_DEBUG
+	bool "bcachefs debugging"
+	depends on BCACHEFS_FS
+	help
+	Enables many extra debugging checks and assertions.
+
+	The resulting code will be significantly slower than normal; you
+	probably shouldn't select this option unless you're a developer.
+
+config BCACHEFS_TESTS
+	bool "bcachefs unit and performance tests"
+	depends on BCACHEFS_FS
+	help
+	Include some unit and performance tests for the core btree code
+
+config BCACHEFS_LOCK_TIME_STATS
+       bool "bcachefs lock time statistics"
+       depends on BCACHEFS_FS
+       help
+       Expose statistics for how long we held a lock in debugfs
+
+config BCACHEFS_NO_LATENCY_ACCT
+	bool "disable latency accounting and time stats"
+	depends on BCACHEFS_FS
+	help
+	This disables device latency tracking and time stats, only for performance testing
+
+config BCACHEFS_SIX_OPTIMISTIC_SPIN
+	bool "Optimistic spinning for six locks"
+	depends on BCACHEFS_FS
+	depends on SMP
+	default y
+	help
+	Instead of immediately sleeping when attempting to take a six lock that
+	is held by another thread, spin for a short while, as long as the
+	thread owning the lock is running.
+
+config MEAN_AND_VARIANCE_UNIT_TEST
+	tristate "mean_and_variance unit tests" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on BCACHEFS_FS
+	default KUNIT_ALL_TESTS
+	help
+	  This option enables the kunit tests for mean_and_variance module.
+	  If unsure, say N.

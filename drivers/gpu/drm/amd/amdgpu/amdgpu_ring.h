@@ -44,6 +44,7 @@ struct amdgpu_vm;
 #define AMDGPU_MAX_COMPUTE_RINGS	8
 #define AMDGPU_MAX_VCE_RINGS		3
 #define AMDGPU_MAX_UVD_ENC_RINGS	2
+#define AMDGPU_MAX_VPE_RINGS		2
 
 enum amdgpu_ring_priority_level {
 	AMDGPU_RING_PRIO_0,
@@ -77,8 +78,10 @@ enum amdgpu_ring_type {
 	AMDGPU_RING_TYPE_VCN_DEC	= AMDGPU_HW_IP_VCN_DEC,
 	AMDGPU_RING_TYPE_VCN_ENC	= AMDGPU_HW_IP_VCN_ENC,
 	AMDGPU_RING_TYPE_VCN_JPEG	= AMDGPU_HW_IP_VCN_JPEG,
+	AMDGPU_RING_TYPE_VPE		= AMDGPU_HW_IP_VPE,
 	AMDGPU_RING_TYPE_KIQ,
-	AMDGPU_RING_TYPE_MES
+	AMDGPU_RING_TYPE_MES,
+	AMDGPU_RING_TYPE_UMSCH_MM,
 };
 
 enum amdgpu_ib_pool_type {
@@ -447,5 +450,5 @@ int amdgpu_ib_schedule(struct amdgpu_ring *ring, unsigned num_ibs,
 int amdgpu_ib_pool_init(struct amdgpu_device *adev);
 void amdgpu_ib_pool_fini(struct amdgpu_device *adev);
 int amdgpu_ib_ring_tests(struct amdgpu_device *adev);
-
+bool amdgpu_ring_sched_ready(struct amdgpu_ring *ring);
 #endif

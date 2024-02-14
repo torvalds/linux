@@ -82,29 +82,19 @@ properties:
               - shiratech,stm32mp157a-iot-box # IoT Box
               - shiratech,stm32mp157a-stinger96 # Stinger96
               - st,stm32mp157c-ed1
+              - st,stm32mp157c-ed1-scmi
               - st,stm32mp157a-dk1
+              - st,stm32mp157a-dk1-scmi
               - st,stm32mp157c-dk2
+              - st,stm32mp157c-dk2-scmi
           - const: st,stm32mp157
 
-      - items:
-          - const: st,stm32mp157a-dk1-scmi
-          - const: st,stm32mp157a-dk1
-          - const: st,stm32mp157
-      - items:
-          - const: st,stm32mp157c-dk2-scmi
-          - const: st,stm32mp157c-dk2
-          - const: st,stm32mp157
-      - items:
-          - const: st,stm32mp157c-ed1-scmi
-          - const: st,stm32mp157c-ed1
-          - const: st,stm32mp157
       - items:
           - const: st,stm32mp157c-ev1
           - const: st,stm32mp157c-ed1
           - const: st,stm32mp157
       - items:
           - const: st,stm32mp157c-ev1-scmi
-          - const: st,stm32mp157c-ev1
           - const: st,stm32mp157c-ed1
           - const: st,stm32mp157
 
@@ -146,6 +136,7 @@ properties:
               - lxa,stm32mp157c-mc1      # Linux Automation MC-1
               - lxa,stm32mp157c-tac-gen1 # Linux Automation TAC (Generation 1)
               - lxa,stm32mp157c-tac-gen2 # Linux Automation TAC (Generation 2)
+              - oct,stm32mp157c-osd32-red # Octavo OSD32MP1 RED board
           - const: oct,stm32mp15xx-osd32
           - enum:
               - st,stm32mp157

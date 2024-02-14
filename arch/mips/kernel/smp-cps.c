@@ -392,7 +392,7 @@ static void cps_smp_finish(void)
 	local_irq_enable();
 }
 
-#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC)
+#if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_KEXEC_CORE)
 
 enum cpu_death {
 	CPU_DEATH_HALT,
@@ -429,7 +429,7 @@ static void cps_shutdown_this_cpu(enum cpu_death death)
 	}
 }
 
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 
 static void cps_kexec_nonboot_cpu(void)
 {
@@ -439,9 +439,9 @@ static void cps_kexec_nonboot_cpu(void)
 		cps_shutdown_this_cpu(CPU_DEATH_POWER);
 }
 
-#endif /* CONFIG_KEXEC */
+#endif /* CONFIG_KEXEC_CORE */
 
-#endif /* CONFIG_HOTPLUG_CPU || CONFIG_KEXEC */
+#endif /* CONFIG_HOTPLUG_CPU || CONFIG_KEXEC_CORE */
 
 #ifdef CONFIG_HOTPLUG_CPU
 
@@ -610,7 +610,7 @@ static const struct plat_smp_ops cps_smp_ops = {
 	.cpu_die		= cps_cpu_die,
 	.cleanup_dead_cpu	= cps_cleanup_dead_cpu,
 #endif
-#ifdef CONFIG_KEXEC
+#ifdef CONFIG_KEXEC_CORE
 	.kexec_nonboot_cpu	= cps_kexec_nonboot_cpu,
 #endif
 };

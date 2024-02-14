@@ -42,6 +42,7 @@
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/mman.h>
+#include <asm/syscalls.h>
 
 #ifdef __MIPSEB__
 #define merge_64(r1, r2) ((((r1) & 0xffffffffUL) << 32) + ((r2) & 0xffffffffUL))

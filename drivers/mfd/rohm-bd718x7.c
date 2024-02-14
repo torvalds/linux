@@ -14,7 +14,7 @@
 #include <linux/mfd/rohm-bd718x7.h>
 #include <linux/mfd/core.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 

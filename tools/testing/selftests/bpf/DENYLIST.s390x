@@ -1,29 +1,5 @@
 # TEMPORARY
 # Alphabetical order
-bloom_filter_map                         # failed to find kernel BTF type ID of '__x64_sys_getpgid': -3                (?)
-bpf_cookie                               # failed to open_and_load program: -524 (trampoline)
-bpf_loop                                 # attaches to __x64_sys_nanosleep
-cgrp_local_storage                       # prog_attach unexpected error: -524                                          (trampoline)
-dynptr/test_dynptr_skb_data
-dynptr/test_skb_readonly
-fexit_sleep                              # fexit_skel_load fexit skeleton failed                                       (trampoline)
+exceptions				 # JIT does not support calling kfunc bpf_throw				       (exceptions)
 get_stack_raw_tp                         # user_stack corrupted user stack                                             (no backchain userspace)
-iters/testmod_seq*                       # s390x doesn't support kfuncs in modules yet
-kprobe_multi_bench_attach                # bpf_program__attach_kprobe_multi_opts unexpected error: -95
-kprobe_multi_test                        # relies on fentry
-ksyms_btf/weak_ksyms*                    # test_ksyms_weak__open_and_load unexpected error: -22                        (kfunc)
-ksyms_module                             # test_ksyms_module__open_and_load unexpected error: -9                       (?)
-ksyms_module_libbpf                      # JIT does not support calling kernel function                                (kfunc)
-ksyms_module_lskel                       # test_ksyms_module_lskel__open_and_load unexpected error: -9                 (?)
-module_attach                            # skel_attach skeleton attach failed: -524                                    (trampoline)
-ringbuf                                  # skel_load skeleton load failed                                              (?)
 stacktrace_build_id                      # compare_map_keys stackid_hmap vs. stackmap err -2 errno 2                   (?)
-test_lsm                                 # attach unexpected error: -524                                               (trampoline)
-trace_printk                             # trace_printk__load unexpected error: -2 (errno 2)                           (?)
-trace_vprintk                            # trace_vprintk__open_and_load unexpected error: -9                           (?)
-unpriv_bpf_disabled                      # fentry
-user_ringbuf                             # failed to find kernel BTF type ID of '__s390x_sys_prctl': -3                (?)
-verif_stats                              # trace_vprintk__open_and_load unexpected error: -9                           (?)
-xdp_bonding                              # failed to auto-attach program 'trace_on_entry': -524                        (trampoline)
-xdp_metadata                             # JIT does not support calling kernel function                                (kfunc)
-test_task_under_cgroup                   # JIT does not support calling kernel function                                (kfunc)

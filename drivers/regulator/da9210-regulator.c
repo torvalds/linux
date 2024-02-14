@@ -10,7 +10,7 @@
 #include <linux/irq.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regmap.h>
 
@@ -135,16 +135,6 @@ static int da9210_i2c_probe(struct i2c_client *i2c)
 	struct regulator_dev *rdev = NULL;
 	struct regulator_config config = { };
 	int error;
-	const struct of_device_id *match;
-
-	if (i2c->dev.of_node && !pdata) {
-		match = of_match_device(of_match_ptr(da9210_dt_ids),
-						&i2c->dev);
-		if (!match) {
-			dev_err(&i2c->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
-	}
 
 	chip = devm_kzalloc(&i2c->dev, sizeof(struct da9210), GFP_KERNEL);
 	if (!chip)

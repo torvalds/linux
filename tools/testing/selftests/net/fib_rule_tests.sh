@@ -3,14 +3,9 @@
 
 # This test is for checking IPv4 and IPv6 FIB rules API
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
-
+source lib.sh
 ret=0
-
 PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
-IP="ip -netns testns"
-IP_PEER="ip -netns peerns"
 
 RTABLE=100
 RTABLE_PEER=101
@@ -84,8 +79,8 @@ check_nettest()
 setup()
 {
 	set -e
-	ip netns add testns
-	$IP link set dev lo up
+	setup_ns testns
+	IP="ip -netns $testns"
 
 	$IP link add dummy0 type dummy
 	$IP link set dev dummy0 up
@@ -98,18 +93,19 @@ setup()
 cleanup()
 {
 	$IP link del dev dummy0 &> /dev/null
-	ip netns del testns
+	cleanup_ns $testns
 }
 
 setup_peer()
 {
 	set -e
 
-	ip netns add peerns
+	setup_ns peerns
+	IP_PEER="ip -netns $peerns"
 	$IP_PEER link set dev lo up
 
-	ip link add name veth0 netns testns type veth \
-		peer name veth1 netns peerns
+	ip link add name veth0 netns $testns type veth \
+		peer name veth1 netns $peerns
 	$IP link set dev veth0 up
 	$IP_PEER link set dev veth1 up
 
@@ -131,7 +127,7 @@ setup_peer()
 cleanup_peer()
 {
 	$IP link del dev veth0
-	ip netns del peerns
+	ip netns del $peerns
 }
 
 fib_check_iproute_support()
@@ -270,11 +266,11 @@ fib_rule6_connect_test()
 	# (Not-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
 	# The ECN bits shouldn't influence the result of the test.
 	for dsfield in 0x04 0x05 0x06 0x07; do
-		nettest -q -6 -B -t 5 -N testns -O peerns -U -D \
+		nettest -q -6 -B -t 5 -N $testns -O $peerns -U -D \
 			-Q "${dsfield}" -l 2001:db8::1:11 -r 2001:db8::1:11
 		log_test $? 0 "rule6 dsfield udp connect (dsfield ${dsfield})"
 
-		nettest -q -6 -B -t 5 -N testns -O peerns -Q "${dsfield}" \
+		nettest -q -6 -B -t 5 -N $testns -O $peerns -Q "${dsfield}" \
 			-l 2001:db8::1:11 -r 2001:db8::1:11
 		log_test $? 0 "rule6 dsfield tcp connect (dsfield ${dsfield})"
 	done
@@ -337,11 +333,11 @@ fib_rule4_test()
 
 	# need enable forwarding and disable rp_filter temporarily as all the
 	# addresses are in the same subnet and egress device == ingress device.
-	ip netns exec testns sysctl -qw net.ipv4.ip_forward=1
-	ip netns exec testns sysctl -qw net.ipv4.conf.$DEV.rp_filter=0
+	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec $testns sysctl -qw net.ipv4.conf.$DEV.rp_filter=0
 	match="from $SRC_IP iif $DEV"
 	fib_rule4_test_match_n_redirect "$match" "$match" "iif redirect to table"
-	ip netns exec testns sysctl -qw net.ipv4.ip_forward=0
+	ip netns exec $testns sysctl -qw net.ipv4.ip_forward=0
 
 	# Reject dsfield (tos) options which have ECN bits set
 	for cnt in $(seq 1 3); do
@@ -407,11 +403,11 @@ fib_rule4_connect_test()
 	# (Not-ECT: 0, ECT(1): 1, ECT(0): 2, CE: 3).
 	# The ECN bits shouldn't influence the result of the test.
 	for dsfield in 0x04 0x05 0x06 0x07; do
-		nettest -q -B -t 5 -N testns -O peerns -D -U -Q "${dsfield}" \
+		nettest -q -B -t 5 -N $testns -O $peerns -D -U -Q "${dsfield}" \
 			-l 198.51.100.11 -r 198.51.100.11
 		log_test $? 0 "rule4 dsfield udp connect (dsfield ${dsfield})"
 
-		nettest -q -B -t 5 -N testns -O peerns -Q "${dsfield}" \
+		nettest -q -B -t 5 -N $testns -O $peerns -Q "${dsfield}" \
 			-l 198.51.100.11 -r 198.51.100.11
 		log_test $? 0 "rule4 dsfield tcp connect (dsfield ${dsfield})"
 	done

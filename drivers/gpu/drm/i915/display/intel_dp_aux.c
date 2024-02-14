@@ -14,6 +14,21 @@
 #include "intel_pps.h"
 #include "intel_tc.h"
 
+#define AUX_CH_NAME_BUFSIZE	6
+
+static const char *aux_ch_name(struct drm_i915_private *i915,
+			       char *buf, int size, enum aux_ch aux_ch)
+{
+	if (DISPLAY_VER(i915) >= 13 && aux_ch >= AUX_CH_D_XELPD)
+		snprintf(buf, size, "%c", 'A' + aux_ch - AUX_CH_D_XELPD + AUX_CH_D);
+	else if (DISPLAY_VER(i915) >= 12 && aux_ch >= AUX_CH_USBC1)
+		snprintf(buf, size, "USBC%c", '1' + aux_ch - AUX_CH_USBC1);
+	else
+		snprintf(buf, size, "%c", 'A' + aux_ch);
+
+	return buf;
+}
+
 u32 intel_dp_aux_pack(const u8 *src, int src_bytes)
 {
 	int i;
@@ -59,7 +74,7 @@ intel_dp_aux_wait_done(struct intel_dp *intel_dp)
 
 static u32 g4x_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	if (index)
 		return 0;
@@ -68,12 +83,12 @@ static u32 g4x_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * The clock divider is based off the hrawclk, and would like to run at
 	 * 2MHz.  So, take the hrawclk value and divide by 2000 and use that
 	 */
-	return DIV_ROUND_CLOSEST(RUNTIME_INFO(dev_priv)->rawclk_freq, 2000);
+	return DIV_ROUND_CLOSEST(RUNTIME_INFO(i915)->rawclk_freq, 2000);
 }
 
 static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	u32 freq;
 
@@ -86,18 +101,18 @@ static u32 ilk_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 	 * divide by 2000 and use that
 	 */
 	if (dig_port->aux_ch == AUX_CH_A)
-		freq = dev_priv->display.cdclk.hw.cdclk;
+		freq = i915->display.cdclk.hw.cdclk;
 	else
-		freq = RUNTIME_INFO(dev_priv)->rawclk_freq;
+		freq = RUNTIME_INFO(i915)->rawclk_freq;
 	return DIV_ROUND_CLOSEST(freq, 2000);
 }
 
 static u32 hsw_get_aux_clock_divider(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 
-	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(dev_priv)) {
+	if (dig_port->aux_ch != AUX_CH_A && HAS_PCH_LPT_H(i915)) {
 		/* Workaround for non-ULT HSW */
 		switch (index) {
 		case 0: return 63;
@@ -150,12 +165,11 @@ static u32 g4x_get_aux_send_ctl(struct intel_dp *intel_dp,
 				u32 aux_clock_divider)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *dev_priv =
-			to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	u32 timeout;
 
 	/* Max timeout value on G4x-BDW: 1.6ms */
-	if (IS_BROADWELL(dev_priv))
+	if (IS_BROADWELL(i915))
 		timeout = DP_AUX_CH_CTL_TIME_OUT_600us;
 	else
 		timeout = DP_AUX_CH_CTL_TIME_OUT_400us;
@@ -214,8 +228,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 		  u32 aux_send_ctl_flags)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *i915 =
-			to_i915(dig_port->base.base.dev);
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
 	bool is_tc_port = intel_phy_is_tc(i915, phy);
 	i915_reg_t ch_ctl, ch_data[5];
@@ -516,9 +529,40 @@ intel_dp_aux_transfer(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 	return ret;
 }
 
+static i915_reg_t vlv_aux_ctl_reg(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
+
+	switch (aux_ch) {
+	case AUX_CH_B:
+	case AUX_CH_C:
+	case AUX_CH_D:
+		return VLV_DP_AUX_CH_CTL(aux_ch);
+	default:
+		MISSING_CASE(aux_ch);
+		return VLV_DP_AUX_CH_CTL(AUX_CH_B);
+	}
+}
+
+static i915_reg_t vlv_aux_data_reg(struct intel_dp *intel_dp, int index)
+{
+	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
+	enum aux_ch aux_ch = dig_port->aux_ch;
+
+	switch (aux_ch) {
+	case AUX_CH_B:
+	case AUX_CH_C:
+	case AUX_CH_D:
+		return VLV_DP_AUX_CH_DATA(aux_ch, index);
+	default:
+		MISSING_CASE(aux_ch);
+		return VLV_DP_AUX_CH_DATA(AUX_CH_B, index);
+	}
+}
+
 static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -535,7 +579,6 @@ static i915_reg_t g4x_aux_ctl_reg(struct intel_dp *intel_dp)
 
 static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -552,7 +595,6 @@ static i915_reg_t g4x_aux_data_reg(struct intel_dp *intel_dp, int index)
 
 static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -571,7 +613,6 @@ static i915_reg_t ilk_aux_ctl_reg(struct intel_dp *intel_dp)
 
 static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -590,7 +631,6 @@ static i915_reg_t ilk_aux_data_reg(struct intel_dp *intel_dp, int index)
 
 static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -610,7 +650,6 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 
 static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -630,7 +669,6 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 
 static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -653,7 +691,6 @@ static i915_reg_t tgl_aux_ctl_reg(struct intel_dp *intel_dp)
 
 static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -676,7 +713,7 @@ static i915_reg_t tgl_aux_data_reg(struct intel_dp *intel_dp, int index)
 
 static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -687,16 +724,16 @@ static i915_reg_t xelpdp_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-		return XELPDP_DP_AUX_CH_CTL(aux_ch);
+		return XELPDP_DP_AUX_CH_CTL(i915, aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
-		return XELPDP_DP_AUX_CH_CTL(AUX_CH_A);
+		return XELPDP_DP_AUX_CH_CTL(i915, AUX_CH_A);
 	}
 }
 
 static i915_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	enum aux_ch aux_ch = dig_port->aux_ch;
 
@@ -707,10 +744,10 @@ static i915_reg_t xelpdp_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_USBC2:
 	case AUX_CH_USBC3:
 	case AUX_CH_USBC4:
-		return XELPDP_DP_AUX_CH_DATA(aux_ch, index);
+		return XELPDP_DP_AUX_CH_DATA(i915, aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
-		return XELPDP_DP_AUX_CH_DATA(AUX_CH_A, index);
+		return XELPDP_DP_AUX_CH_DATA(i915, AUX_CH_A, index);
 	}
 }
 
@@ -724,58 +761,53 @@ void intel_dp_aux_fini(struct intel_dp *intel_dp)
 
 void intel_dp_aux_init(struct intel_dp *intel_dp)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &dig_port->base;
 	enum aux_ch aux_ch = dig_port->aux_ch;
+	char buf[AUX_CH_NAME_BUFSIZE];
 
-	if (DISPLAY_VER(dev_priv) >= 14) {
+	if (DISPLAY_VER(i915) >= 14) {
 		intel_dp->aux_ch_ctl_reg = xelpdp_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = xelpdp_aux_data_reg;
-	} else if (DISPLAY_VER(dev_priv) >= 12) {
+	} else if (DISPLAY_VER(i915) >= 12) {
 		intel_dp->aux_ch_ctl_reg = tgl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = tgl_aux_data_reg;
-	} else if (DISPLAY_VER(dev_priv) >= 9) {
+	} else if (DISPLAY_VER(i915) >= 9) {
 		intel_dp->aux_ch_ctl_reg = skl_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = skl_aux_data_reg;
-	} else if (HAS_PCH_SPLIT(dev_priv)) {
+	} else if (HAS_PCH_SPLIT(i915)) {
 		intel_dp->aux_ch_ctl_reg = ilk_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = ilk_aux_data_reg;
+	} else if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)) {
+		intel_dp->aux_ch_ctl_reg = vlv_aux_ctl_reg;
+		intel_dp->aux_ch_data_reg = vlv_aux_data_reg;
 	} else {
 		intel_dp->aux_ch_ctl_reg = g4x_aux_ctl_reg;
 		intel_dp->aux_ch_data_reg = g4x_aux_data_reg;
 	}
 
-	if (DISPLAY_VER(dev_priv) >= 9)
+	if (DISPLAY_VER(i915) >= 9)
 		intel_dp->get_aux_clock_divider = skl_get_aux_clock_divider;
-	else if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+	else if (IS_BROADWELL(i915) || IS_HASWELL(i915))
 		intel_dp->get_aux_clock_divider = hsw_get_aux_clock_divider;
-	else if (HAS_PCH_SPLIT(dev_priv))
+	else if (HAS_PCH_SPLIT(i915))
 		intel_dp->get_aux_clock_divider = ilk_get_aux_clock_divider;
 	else
 		intel_dp->get_aux_clock_divider = g4x_get_aux_clock_divider;
 
-	if (DISPLAY_VER(dev_priv) >= 9)
+	if (DISPLAY_VER(i915) >= 9)
 		intel_dp->get_aux_send_ctl = skl_get_aux_send_ctl;
 	else
 		intel_dp->get_aux_send_ctl = g4x_get_aux_send_ctl;
 
-	intel_dp->aux.drm_dev = &dev_priv->drm;
+	intel_dp->aux.drm_dev = &i915->drm;
 	drm_dp_aux_init(&intel_dp->aux);
 
 	/* Failure to allocate our preferred name is not critical */
-	if (DISPLAY_VER(dev_priv) >= 13 && aux_ch >= AUX_CH_D_XELPD)
-		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
-					       aux_ch_name(aux_ch - AUX_CH_D_XELPD + AUX_CH_D),
-					       encoder->base.name);
-	else if (DISPLAY_VER(dev_priv) >= 12 && aux_ch >= AUX_CH_USBC1)
-		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX USBC%c/%s",
-					       aux_ch - AUX_CH_USBC1 + '1',
-					       encoder->base.name);
-	else
-		intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %c/%s",
-					       aux_ch_name(aux_ch),
-					       encoder->base.name);
+	intel_dp->aux.name = kasprintf(GFP_KERNEL, "AUX %s/%s",
+				       aux_ch_name(i915, buf, sizeof(buf), aux_ch),
+				       encoder->base.name);
 
 	intel_dp->aux.transfer = intel_dp_aux_transfer;
 	cpu_latency_qos_add_request(&intel_dp->pm_qos, PM_QOS_DEFAULT_VALUE);
@@ -819,6 +851,7 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 	struct intel_encoder *other;
 	const char *source;
 	enum aux_ch aux_ch;
+	char buf[AUX_CH_NAME_BUFSIZE];
 
 	aux_ch = intel_bios_dp_aux_ch(encoder->devdata);
 	source = "VBT";
@@ -836,16 +869,17 @@ enum aux_ch intel_dp_aux_ch(struct intel_encoder *encoder)
 	other = get_encoder_by_aux_ch(encoder, aux_ch);
 	if (other) {
 		drm_dbg_kms(&i915->drm,
-			    "[ENCODER:%d:%s] AUX CH %c already claimed by [ENCODER:%d:%s]\n",
-			    encoder->base.base.id, encoder->base.name, aux_ch_name(aux_ch),
+			    "[ENCODER:%d:%s] AUX CH %s already claimed by [ENCODER:%d:%s]\n",
+			    encoder->base.base.id, encoder->base.name,
+			    aux_ch_name(i915, buf, sizeof(buf), aux_ch),
 			    other->base.base.id, other->base.name);
 		return AUX_CH_NONE;
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "[ENCODER:%d:%s] Using AUX CH %c (%s)\n",
+		    "[ENCODER:%d:%s] Using AUX CH %s (%s)\n",
 		    encoder->base.base.id, encoder->base.name,
-		    aux_ch_name(aux_ch), source);
+		    aux_ch_name(i915, buf, sizeof(buf), aux_ch), source);
 
 	return aux_ch;
 }

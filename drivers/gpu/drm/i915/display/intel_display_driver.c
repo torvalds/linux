@@ -31,6 +31,7 @@
 #include "intel_display_irq.h"
 #include "intel_display_power.h"
 #include "intel_display_types.h"
+#include "intel_display_wa.h"
 #include "intel_dkl_phy.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
@@ -88,6 +89,8 @@ void intel_display_driver_init_hw(struct drm_i915_private *i915)
 	intel_update_cdclk(i915);
 	intel_cdclk_dump_config(i915, &i915->display.cdclk.hw, "Current CDCLK");
 	cdclk_state->logical = cdclk_state->actual = i915->display.cdclk.hw;
+
+	intel_display_wa_apply(i915);
 }
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
@@ -178,6 +181,13 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 	if (!HAS_DISPLAY(i915))
 		return;
 
+	spin_lock_init(&i915->display.fb_tracking.lock);
+	mutex_init(&i915->display.backlight.lock);
+	mutex_init(&i915->display.audio.mutex);
+	mutex_init(&i915->display.wm.wm_mutex);
+	mutex_init(&i915->display.pps.mutex);
+	mutex_init(&i915->display.hdcp.hdcp_mutex);
+
 	intel_display_irq_init(i915);
 	intel_dkl_phy_init(i915);
 	intel_color_init_hooks(i915);
@@ -248,10 +258,6 @@ int intel_display_driver_probe_noirq(struct drm_i915_private *i915)
 	ret = intel_pmdemand_init(i915);
 	if (ret)
 		goto cleanup_vga_client_pw_domain_dmc;
-
-	init_llist_head(&i915->display.atomic_helper.free_list);
-	INIT_WORK(&i915->display.atomic_helper.free_work,
-		  intel_atomic_helper_free_state_worker);
 
 	intel_init_quirks(i915);
 
@@ -377,6 +383,8 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 void intel_display_driver_register(struct drm_i915_private *i915)
 {
+	struct drm_printer p = drm_debug_printer("i915 display info:");
+
 	if (!HAS_DISPLAY(i915))
 		return;
 
@@ -404,6 +412,9 @@ void intel_display_driver_register(struct drm_i915_private *i915)
 	 * fbdev->async_cookie.
 	 */
 	drm_kms_helper_poll_init(&i915->drm);
+
+	intel_display_device_info_print(DISPLAY_INFO(i915),
+					DISPLAY_RUNTIME_INFO(i915), &p);
 }
 
 /* part #1: call before irq uninstall */
@@ -414,9 +425,6 @@ void intel_display_driver_remove(struct drm_i915_private *i915)
 
 	flush_workqueue(i915->display.wq.flip);
 	flush_workqueue(i915->display.wq.modeset);
-
-	flush_work(&i915->display.atomic_helper.free_work);
-	drm_WARN_ON(&i915->drm, !llist_empty(&i915->display.atomic_helper.free_list));
 
 	/*
 	 * MST topology needs to be suspended so we don't have any calls to

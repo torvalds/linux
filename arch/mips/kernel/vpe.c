@@ -6,9 +6,9 @@
  * Copyright (C) 2004, 2005 MIPS Technologies, Inc.  All rights reserved.
  * Copyright (C) 2013 Imagination Technologies Ltd.
  *
- * VPE spport module for loading a MIPS SP program into VPE1. The SP
+ * VPE support module for loading a MIPS SP program into VPE1. The SP
  * environment is rather simple since there are no TLBs. It needs
- * to be relocatable (or partiall linked). Initialize your stack in
+ * to be relocatable (or partially linked). Initialize your stack in
  * the startup-code. The loader looks for the symbol __start and sets
  * up the execution to resume from there. To load and run, simply do
  * a cat SP 'binary' to the /dev/vpe1 device.

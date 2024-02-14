@@ -147,14 +147,14 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_trans_cachep)
 		goto fail_cachep8;
 
-	error = register_shrinker(&gfs2_qd_shrinker, "gfs2-qd");
+	error = gfs2_qd_shrinker_init();
 	if (error)
 		goto fail_shrinker;
 
 	error = -ENOMEM;
-	gfs_recovery_wq = alloc_workqueue("gfs_recovery",
+	gfs2_recovery_wq = alloc_workqueue("gfs2_recovery",
 					  WQ_MEM_RECLAIM | WQ_FREEZABLE, 0);
-	if (!gfs_recovery_wq)
+	if (!gfs2_recovery_wq)
 		goto fail_wq1;
 
 	gfs2_control_wq = alloc_workqueue("gfs2_control",
@@ -162,7 +162,7 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_control_wq)
 		goto fail_wq2;
 
-	gfs2_freeze_wq = alloc_workqueue("freeze_workqueue", 0, 0);
+	gfs2_freeze_wq = alloc_workqueue("gfs2_freeze", 0, 0);
 
 	if (!gfs2_freeze_wq)
 		goto fail_wq3;
@@ -194,9 +194,9 @@ fail_mempool:
 fail_wq3:
 	destroy_workqueue(gfs2_control_wq);
 fail_wq2:
-	destroy_workqueue(gfs_recovery_wq);
+	destroy_workqueue(gfs2_recovery_wq);
 fail_wq1:
-	unregister_shrinker(&gfs2_qd_shrinker);
+	gfs2_qd_shrinker_exit();
 fail_shrinker:
 	kmem_cache_destroy(gfs2_trans_cachep);
 fail_cachep8:
@@ -229,12 +229,12 @@ fail_lru:
 
 static void __exit exit_gfs2_fs(void)
 {
-	unregister_shrinker(&gfs2_qd_shrinker);
+	gfs2_qd_shrinker_exit();
 	gfs2_glock_exit();
 	gfs2_unregister_debugfs();
 	unregister_filesystem(&gfs2_fs_type);
 	unregister_filesystem(&gfs2meta_fs_type);
-	destroy_workqueue(gfs_recovery_wq);
+	destroy_workqueue(gfs2_recovery_wq);
 	destroy_workqueue(gfs2_control_wq);
 	destroy_workqueue(gfs2_freeze_wq);
 	list_lru_destroy(&gfs2_qd_lru);

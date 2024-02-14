@@ -259,6 +259,8 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 		drm_property_blob_get(crtc_state->post_csc_lut);
 
 	crtc_state->update_pipe = false;
+	crtc_state->update_m_n = false;
+	crtc_state->update_lrr = false;
 	crtc_state->disable_lp_wm = false;
 	crtc_state->disable_cxsr = false;
 	crtc_state->update_wm_pre = false;
@@ -329,9 +331,6 @@ void intel_atomic_state_free(struct drm_atomic_state *_state)
 
 	drm_atomic_state_default_release(&state->base);
 	kfree(state->global_objs);
-
-	i915_sw_fence_fini(&state->commit_ready);
-
 	kfree(state);
 }
 

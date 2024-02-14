@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2019, Red Hat, Inc.
  */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -279,10 +278,10 @@ enum stage {
 	vcpu_run(__vcpu);						\
 	get_ucall(__vcpu, &uc);						\
 	if (uc.cmd == UCALL_ABORT) {					\
-		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");		\
+		REPORT_GUEST_ASSERT(uc);				\
 	}								\
-	ASSERT_EQ(uc.cmd, UCALL_SYNC);					\
-	ASSERT_EQ(uc.args[1], __stage);					\
+	TEST_ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
+	TEST_ASSERT_EQ(uc.args[1], __stage);				\
 })									\
 
 static void prepare_mem12(void)
@@ -469,7 +468,7 @@ static __uint128_t cut_to_size(int size, __uint128_t val)
 	case 16:
 		return val;
 	}
-	GUEST_ASSERT_1(false, "Invalid size");
+	GUEST_FAIL("Invalid size = %u", size);
 	return 0;
 }
 
@@ -598,7 +597,7 @@ static bool _cmpxchg(int size, void *target, __uint128_t *old_addr, __uint128_t 
 			return ret;
 		}
 	}
-	GUEST_ASSERT_1(false, "Invalid size");
+	GUEST_FAIL("Invalid size = %u", size);
 	return 0;
 }
 
@@ -808,7 +807,7 @@ static void test_termination(void)
 	HOST_SYNC(t.vcpu, STAGE_IDLED);
 	MOP(t.vm, ABSOLUTE, READ, &teid, sizeof(teid), GADDR(prefix + 168));
 	/* Bits 56, 60, 61 form a code, 0 being the only one allowing for termination */
-	ASSERT_EQ(teid & teid_mask, 0);
+	TEST_ASSERT_EQ(teid & teid_mask, 0);
 
 	kvm_vm_free(t.kvm_vm);
 }

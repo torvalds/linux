@@ -19,6 +19,7 @@
 #include <linux/uio.h>
 #include <asm/rtas.h>
 #include <asm/inst.h>
+#include <asm/fadump.h>
 
 #ifdef DEBUG
 #include <asm/udbg.h>
@@ -91,6 +92,17 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn,
 
 	return csize;
 }
+
+/*
+ * Return true only when kexec based kernel dump capturing method is used.
+ * This ensures all restritions applied for kdump case are not automatically
+ * applied for fadump case.
+ */
+bool is_kdump_kernel(void)
+{
+	return !is_fadump_active() && elfcorehdr_addr != ELFCORE_ADDR_MAX;
+}
+EXPORT_SYMBOL_GPL(is_kdump_kernel);
 
 #ifdef CONFIG_PPC_RTAS
 /*

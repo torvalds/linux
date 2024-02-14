@@ -5,6 +5,7 @@
  * Copyright Gavin Shan, IBM Corporation 2016.
  */
 
+#include <linux/bitfield.h>
 #include <linux/libfdt.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -731,7 +732,7 @@ static int pnv_php_enable_msix(struct pnv_php_slot *php_slot)
 
 	/* Check hotplug MSIx entry is in range */
 	pcie_capability_read_word(pdev, PCI_EXP_FLAGS, &pcie_flag);
-	entry.entry = (pcie_flag & PCI_EXP_FLAGS_IRQ) >> 9;
+	entry.entry = FIELD_GET(PCI_EXP_FLAGS_IRQ, pcie_flag);
 	if (entry.entry >= nr_entries)
 		return -ERANGE;
 

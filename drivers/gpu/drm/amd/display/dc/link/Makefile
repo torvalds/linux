@@ -33,7 +33,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_LINK)
 ###############################################################################
 # accessories
 ###############################################################################
-LINK_ACCESSORIES = link_dp_trace.o link_dp_cts.o link_fpga.o
+LINK_ACCESSORIES = link_dp_trace.o link_dp_cts.o
 
 AMD_DAL_LINK_ACCESSORIES = $(addprefix $(AMDDALPATH)/dc/link/accessories/, \
 $(LINK_ACCESSORIES))

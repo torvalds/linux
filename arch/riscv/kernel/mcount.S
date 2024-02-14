@@ -4,12 +4,12 @@
 #include <linux/init.h>
 #include <linux/linkage.h>
 #include <linux/cfi_types.h>
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/csr.h>
 #include <asm/unistd.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm-generic/export.h>
 #include <asm/ftrace.h>
 
 	.text
@@ -61,7 +61,7 @@ SYM_TYPED_FUNC_START(ftrace_stub_graph)
 	ret
 SYM_FUNC_END(ftrace_stub_graph)
 
-ENTRY(return_to_handler)
+SYM_FUNC_START(return_to_handler)
 /*
  * On implementing the frame point test, the ideal way is to compare the
  * s0 (frame pointer, if enabled) on entry and the sp (stack pointer) on return.
@@ -76,25 +76,25 @@ ENTRY(return_to_handler)
 	mv	a2, a0
 	RESTORE_RET_ABI_STATE
 	jalr	a2
-ENDPROC(return_to_handler)
+SYM_FUNC_END(return_to_handler)
 #endif
 
 #ifndef CONFIG_DYNAMIC_FTRACE
-ENTRY(MCOUNT_NAME)
+SYM_FUNC_START(MCOUNT_NAME)
 	la	t4, ftrace_stub
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	la	t0, ftrace_graph_return
 	REG_L	t1, 0(t0)
-	bne	t1, t4, do_ftrace_graph_caller
+	bne	t1, t4, .Ldo_ftrace_graph_caller
 
 	la	t3, ftrace_graph_entry
 	REG_L	t2, 0(t3)
 	la	t6, ftrace_graph_entry_stub
-	bne	t2, t6, do_ftrace_graph_caller
+	bne	t2, t6, .Ldo_ftrace_graph_caller
 #endif
 	la	t3, ftrace_trace_function
 	REG_L	t5, 0(t3)
-	bne	t5, t4, do_trace
+	bne	t5, t4, .Ldo_trace
 	ret
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -102,7 +102,7 @@ ENTRY(MCOUNT_NAME)
  * A pseudo representation for the function graph tracer:
  * prepare_to_return(&ra_to_caller_of_caller, ra_to_caller)
  */
-do_ftrace_graph_caller:
+.Ldo_ftrace_graph_caller:
 	addi	a0, s0, -SZREG
 	mv	a1, ra
 #ifdef HAVE_FUNCTION_GRAPH_FP_TEST
@@ -118,7 +118,7 @@ do_ftrace_graph_caller:
  * A pseudo representation for the function tracer:
  * (*ftrace_trace_function)(ra_to_caller, ra_to_caller_of_caller)
  */
-do_trace:
+.Ldo_trace:
 	REG_L	a1, -SZREG(s0)
 	mv	a0, ra
 
@@ -126,6 +126,6 @@ do_trace:
 	jalr	t5
 	RESTORE_ABI_STATE
 	ret
-ENDPROC(MCOUNT_NAME)
+SYM_FUNC_END(MCOUNT_NAME)
 #endif
 EXPORT_SYMBOL(MCOUNT_NAME)

@@ -7,6 +7,7 @@ FILES=                                          \
          test-bionic.bin                        \
          test-dwarf.bin                         \
          test-dwarf_getlocations.bin            \
+         test-dwarf_getcfi.bin                  \
          test-eventfd.bin                       \
          test-fortify-source.bin                \
          test-get_current_dir_name.bin          \
@@ -152,6 +153,9 @@ $(OUTPUT)test-dwarf.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-dwarf_getlocations.bin:
+	$(BUILD) $(DWARFLIBS)
+
+$(OUTPUT)test-dwarf_getcfi.bin:
 	$(BUILD) $(DWARFLIBS)
 
 $(OUTPUT)test-libelf-getphdrnum.bin:
@@ -340,7 +344,7 @@ $(OUTPUT)test-jvmti-cmlr.bin:
 	$(BUILD)
 
 $(OUTPUT)test-llvm.bin:
-	$(BUILDXX) -std=gnu++14 				\
+	$(BUILDXX) -std=gnu++17 				\
 		-I$(shell $(LLVM_CONFIG) --includedir) 		\
 		-L$(shell $(LLVM_CONFIG) --libdir)		\
 		$(shell $(LLVM_CONFIG) --libs Core BPF)		\
@@ -348,17 +352,15 @@ $(OUTPUT)test-llvm.bin:
 		> $(@:.bin=.make.output) 2>&1
 
 $(OUTPUT)test-llvm-version.bin:
-	$(BUILDXX) -std=gnu++14					\
+	$(BUILDXX) -std=gnu++17					\
 		-I$(shell $(LLVM_CONFIG) --includedir)		\
 		> $(@:.bin=.make.output) 2>&1
 
 $(OUTPUT)test-clang.bin:
-	$(BUILDXX) -std=gnu++14					\
+	$(BUILDXX) -std=gnu++17					\
 		-I$(shell $(LLVM_CONFIG) --includedir) 		\
 		-L$(shell $(LLVM_CONFIG) --libdir)		\
-		-Wl,--start-group -lclangBasic -lclangDriver	\
-		  -lclangFrontend -lclangEdit -lclangLex	\
-		  -lclangAST -Wl,--end-group 			\
+		-Wl,--start-group -lclang-cpp -Wl,--end-group	\
 		$(shell $(LLVM_CONFIG) --libs Core option)	\
 		$(shell $(LLVM_CONFIG) --system-libs)		\
 		> $(@:.bin=.make.output) 2>&1

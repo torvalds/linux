@@ -356,6 +356,12 @@ static const struct attribute_group tsc200x_attr_group = {
 	.attrs		= tsc200x_attrs,
 };
 
+const struct attribute_group *tsc200x_groups[] = {
+	&tsc200x_attr_group,
+	NULL
+};
+EXPORT_SYMBOL_GPL(tsc200x_groups);
+
 static void tsc200x_esd_work(struct work_struct *work)
 {
 	struct tsc200x *ts = container_of(work, struct tsc200x, esd_work.work);
@@ -553,25 +559,17 @@ int tsc200x_probe(struct device *dev, int irq, const struct input_id *tsc_id,
 		return error;
 
 	dev_set_drvdata(dev, ts);
-	error = sysfs_create_group(&dev->kobj, &tsc200x_attr_group);
-	if (error) {
-		dev_err(dev,
-			"Failed to create sysfs attributes, err: %d\n", error);
-		goto disable_regulator;
-	}
 
 	error = input_register_device(ts->idev);
 	if (error) {
 		dev_err(dev,
 			"Failed to register input device, err: %d\n", error);
-		goto err_remove_sysfs;
+		goto disable_regulator;
 	}
 
 	irq_set_irq_wake(irq, 1);
 	return 0;
 
-err_remove_sysfs:
-	sysfs_remove_group(&dev->kobj, &tsc200x_attr_group);
 disable_regulator:
 	regulator_disable(ts->vio);
 	return error;
@@ -581,8 +579,6 @@ EXPORT_SYMBOL_GPL(tsc200x_probe);
 void tsc200x_remove(struct device *dev)
 {
 	struct tsc200x *ts = dev_get_drvdata(dev);
-
-	sysfs_remove_group(&dev->kobj, &tsc200x_attr_group);
 
 	regulator_disable(ts->vio);
 }

@@ -132,6 +132,8 @@ struct sja1105_info {
 	int max_frame_mem;
 	int num_ports;
 	bool multiple_cascade_ports;
+	/* Every {port, TXQ} has its own CBS shaper */
+	bool fixed_cbs_mapping;
 	enum dsa_tag_protocol tag_proto;
 	const struct sja1105_dynamic_table_ops *dyn_ops;
 	const struct sja1105_table_ops *static_ops;
@@ -264,6 +266,8 @@ struct sja1105_private {
 	 * the switch doesn't confuse them with one another.
 	 */
 	struct mutex mgmt_lock;
+	/* Serializes accesses to the FDB */
+	struct mutex fdb_lock;
 	/* PTP two-step TX timestamp ID, and its serialization lock */
 	spinlock_t ts_id_lock;
 	u8 ts_id;

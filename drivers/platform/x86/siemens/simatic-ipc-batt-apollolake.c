@@ -25,9 +25,9 @@ static struct gpiod_lookup_table simatic_ipc_batt_gpio_table_127e = {
 	},
 };
 
-static int simatic_ipc_batt_apollolake_remove(struct platform_device *pdev)
+static void simatic_ipc_batt_apollolake_remove(struct platform_device *pdev)
 {
-	return simatic_ipc_batt_remove(pdev, &simatic_ipc_batt_gpio_table_127e);
+	simatic_ipc_batt_remove(pdev, &simatic_ipc_batt_gpio_table_127e);
 }
 
 static int simatic_ipc_batt_apollolake_probe(struct platform_device *pdev)
@@ -37,7 +37,7 @@ static int simatic_ipc_batt_apollolake_probe(struct platform_device *pdev)
 
 static struct platform_driver simatic_ipc_batt_driver = {
 	.probe = simatic_ipc_batt_apollolake_probe,
-	.remove = simatic_ipc_batt_apollolake_remove,
+	.remove_new = simatic_ipc_batt_apollolake_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 	},

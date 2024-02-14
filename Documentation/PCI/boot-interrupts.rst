@@ -61,7 +61,7 @@ Conditions
 ==========
 
 The use of threaded interrupts is the most likely condition to trigger
-this problem today. Threaded interrupts may not be reenabled after the IRQ
+this problem today. Threaded interrupts may not be re-enabled after the IRQ
 handler wakes. These "one shot" conditions mean that the threaded interrupt
 needs to keep the interrupt line masked until the threaded handler has run.
 Especially when dealing with high data rate interrupts, the thread needs to

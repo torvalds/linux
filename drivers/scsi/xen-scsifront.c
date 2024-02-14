@@ -743,7 +743,7 @@ static int scsifront_sdev_configure(struct scsi_device *sdev)
 	if (info->host_active == STATE_ERROR)
 		return -EIO;
 
-	if (info && current == info->curr) {
+	if (current == info->curr) {
 		err = xenbus_printf(XBT_NIL, info->dev->nodename,
 			      info->dev_state_path, "%d", XenbusStateConnected);
 		if (err) {
@@ -761,7 +761,7 @@ static void scsifront_sdev_destroy(struct scsi_device *sdev)
 	struct vscsifrnt_info *info = shost_priv(sdev->host);
 	int err;
 
-	if (info && current == info->curr) {
+	if (current == info->curr) {
 		err = xenbus_printf(XBT_NIL, info->dev->nodename,
 			      info->dev_state_path, "%d", XenbusStateClosed);
 		if (err)
@@ -903,7 +903,7 @@ static int scsifront_probe(struct xenbus_device *dev,
 		xenbus_dev_fatal(dev, err, "fail to allocate scsi host");
 		return err;
 	}
-	info = (struct vscsifrnt_info *)host->hostdata;
+	info = shost_priv(host);
 
 	dev_set_drvdata(&dev->dev, info);
 	info->dev = dev;

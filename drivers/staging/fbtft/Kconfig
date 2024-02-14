@@ -4,12 +4,8 @@ menuconfig FB_TFT
 	depends on FB && SPI
 	depends on FB_DEVICE
 	depends on GPIOLIB || COMPILE_TEST
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
-	select FB_SYS_FOPS
-	select FB_DEFERRED_IO
 	select FB_BACKLIGHT
+	select FB_SYSMEM_HELPERS_DEFERRED
 
 config FB_TFT_AGM1264K_FL
 	tristate "FB driver for the AGM1264K-FL LCD display"

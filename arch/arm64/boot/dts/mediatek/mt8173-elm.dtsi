@@ -245,8 +245,7 @@
 		reg = <0x1a>;
 		avdd-supply = <&mt6397_vgp1_reg>;
 		cpvdd-supply = <&mt6397_vcama_reg>;
-		interrupt-parent = <&pio>;
-		interrupts = <3 IRQ_TYPE_EDGE_BOTH>;
+		interrupts-extended = <&pio 3 IRQ_TYPE_EDGE_BOTH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&rt5650_irq>;
 		#sound-dai-cells = <1>;
@@ -308,8 +307,7 @@
 	da9211: da9211@68 {
 		compatible = "dlg,da9211";
 		reg = <0x68>;
-		interrupt-parent = <&pio>;
-		interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 15 IRQ_TYPE_LEVEL_LOW>;
 
 		regulators {
 			da9211_vcpu_reg: BUCKA {
@@ -353,8 +351,7 @@
 	touchscreen: touchscreen@10 {
 		compatible = "elan,ekth3500";
 		reg = <0x10>;
-		interrupt-parent = <&pio>;
-		interrupts = <88 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 88 IRQ_TYPE_LEVEL_LOW>;
 	};
 };
 
@@ -366,8 +363,7 @@
 
 	trackpad: trackpad@15 {
 		compatible = "elan,ekth3000";
-		interrupt-parent = <&pio>;
-		interrupts = <117 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 117 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x15>;
 		vcc-supply = <&mt6397_vgp6_reg>;
 		wakeup-source;
@@ -439,8 +435,7 @@
 	btmrvl: btmrvl@2 {
 		compatible = "marvell,sd8897-bt";
 		reg = <2>;
-		interrupt-parent = <&pio>;
-		interrupts = <119 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 119 IRQ_TYPE_LEVEL_LOW>;
 		marvell,wakeup-pin = /bits/ 16 <0x0d>;
 		marvell,wakeup-gap-ms = /bits/ 16 <0x64>;
 	};
@@ -448,8 +443,7 @@
 	mwifiex: mwifiex@1 {
 		compatible = "marvell,sd8897";
 		reg = <1>;
-		interrupt-parent = <&pio>;
-		interrupts = <38 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 38 IRQ_TYPE_LEVEL_LOW>;
 		marvell,wakeup-pin = <3>;
 	};
 };
@@ -933,8 +927,7 @@
 		compatible = "mediatek,mt6397";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		interrupt-parent = <&pio>;
-		interrupts = <11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts-extended = <&pio 11 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 
@@ -1160,8 +1153,7 @@
 		compatible = "google,cros-ec-spi";
 		reg = <0x0>;
 		spi-max-frequency = <12000000>;
-		interrupt-parent = <&pio>;
-		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		interrupts-extended = <&pio 0 IRQ_TYPE_LEVEL_LOW>;
 		google,cros-ec-spi-msg-delay = <500>;
 
 		i2c_tunnel: i2c-tunnel0 {

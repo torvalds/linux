@@ -398,32 +398,32 @@ int amdgpu_uvd_sw_fini(struct amdgpu_device *adev)
  * amdgpu_uvd_entity_init - init entity
  *
  * @adev: amdgpu_device pointer
+ * @ring: amdgpu_ring pointer to check
  *
+ * Initialize the entity used for handle management in the kernel driver.
  */
-int amdgpu_uvd_entity_init(struct amdgpu_device *adev)
+int amdgpu_uvd_entity_init(struct amdgpu_device *adev, struct amdgpu_ring *ring)
 {
-	struct amdgpu_ring *ring;
-	struct drm_gpu_scheduler *sched;
-	int r;
+	if (ring == &adev->uvd.inst[0].ring) {
+		struct drm_gpu_scheduler *sched = &ring->sched;
+		int r;
 
-	ring = &adev->uvd.inst[0].ring;
-	sched = &ring->sched;
-	r = drm_sched_entity_init(&adev->uvd.entity, DRM_SCHED_PRIORITY_NORMAL,
-				  &sched, 1, NULL);
-	if (r) {
-		DRM_ERROR("Failed setting up UVD kernel entity.\n");
-		return r;
+		r = drm_sched_entity_init(&adev->uvd.entity, DRM_SCHED_PRIORITY_NORMAL,
+					  &sched, 1, NULL);
+		if (r) {
+			DRM_ERROR("Failed setting up UVD kernel entity.\n");
+			return r;
+		}
 	}
 
 	return 0;
 }
 
-int amdgpu_uvd_suspend(struct amdgpu_device *adev)
+int amdgpu_uvd_prepare_suspend(struct amdgpu_device *adev)
 {
 	unsigned int size;
 	void *ptr;
 	int i, j, idx;
-	bool in_ras_intr = amdgpu_ras_intr_triggered();
 
 	cancel_delayed_work_sync(&adev->uvd.idle_work);
 
@@ -452,7 +452,7 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 
 		if (drm_dev_enter(adev_to_drm(adev), &idx)) {
 			/* re-write 0 since err_event_athub will corrupt VCPU buffer */
-			if (in_ras_intr)
+			if (amdgpu_ras_intr_triggered())
 				memset(adev->uvd.inst[j].saved_bo, 0, size);
 			else
 				memcpy_fromio(adev->uvd.inst[j].saved_bo, ptr, size);
@@ -461,7 +461,12 @@ int amdgpu_uvd_suspend(struct amdgpu_device *adev)
 		}
 	}
 
-	if (in_ras_intr)
+	return 0;
+}
+
+int amdgpu_uvd_suspend(struct amdgpu_device *adev)
+{
+	if (amdgpu_ras_intr_triggered())
 		DRM_WARN("UVD VCPU state may lost due to RAS ERREVENT_ATHUB_INTERRUPT\n");
 
 	return 0;

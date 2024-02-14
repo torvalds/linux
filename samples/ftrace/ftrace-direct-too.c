@@ -19,6 +19,34 @@ void my_direct_func(struct vm_area_struct *vma, unsigned long address,
 
 extern void my_tramp(void *);
 
+#ifdef CONFIG_RISCV
+#include <asm/asm.h>
+
+asm (
+"       .pushsection    .text, \"ax\", @progbits\n"
+"       .type           my_tramp, @function\n"
+"       .globl          my_tramp\n"
+"   my_tramp:\n"
+"       addi	sp,sp,-5*"SZREG"\n"
+"       "REG_S"	a0,0*"SZREG"(sp)\n"
+"       "REG_S"	a1,1*"SZREG"(sp)\n"
+"       "REG_S"	a2,2*"SZREG"(sp)\n"
+"       "REG_S"	t0,3*"SZREG"(sp)\n"
+"       "REG_S"	ra,4*"SZREG"(sp)\n"
+"       call	my_direct_func\n"
+"       "REG_L"	a0,0*"SZREG"(sp)\n"
+"       "REG_L"	a1,1*"SZREG"(sp)\n"
+"       "REG_L"	a2,2*"SZREG"(sp)\n"
+"       "REG_L"	t0,3*"SZREG"(sp)\n"
+"       "REG_L"	ra,4*"SZREG"(sp)\n"
+"       addi	sp,sp,5*"SZREG"\n"
+"       jr	t0\n"
+"       .size           my_tramp, .-my_tramp\n"
+"       .popsection\n"
+);
+
+#endif /* CONFIG_RISCV */
+
 #ifdef CONFIG_X86_64
 
 #include <asm/ibt.h>

@@ -38,7 +38,6 @@ struct cpuinfo_32bit {
 };
 
 struct cpuinfo_arm64 {
-	struct cpu	cpu;
 	struct kobject	kobj;
 	u64		reg_ctr;
 	u64		reg_cntfrq;
@@ -63,12 +62,6 @@ struct cpuinfo_arm64 {
 	u64		reg_id_aa64smfr0;
 
 	struct cpuinfo_32bit	aarch32;
-
-	/* pseudo-ZCR for recording maximum ZCR_EL1 LEN value: */
-	u64		reg_zcr;
-
-	/* pseudo-SMCR for recording maximum SMCR_EL1 LEN value: */
-	u64		reg_smcr;
 };
 
 DECLARE_PER_CPU(struct cpuinfo_arm64, cpu_data);

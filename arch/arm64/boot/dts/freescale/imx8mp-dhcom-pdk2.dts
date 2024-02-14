@@ -186,9 +186,9 @@
 
 &pcie_phy {
 	clock-names = "ref";
-	clocks = <&clk IMX8MP_SYS_PLL2_100M>;
+	clocks = <&hsio_blk_ctrl>;
 	fsl,clkreq-unsupported;
-	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_UNUSED>;
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_OUTPUT>;
 	status = "okay";
 };
 

@@ -118,18 +118,17 @@ err:
 	return res;
 }
 
-static int highbank_l2_err_remove(struct platform_device *pdev)
+static void highbank_l2_err_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *dci = platform_get_drvdata(pdev);
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(dci);
-	return 0;
 }
 
 static struct platform_driver highbank_l2_edac_driver = {
 	.probe = highbank_l2_err_probe,
-	.remove = highbank_l2_err_remove,
+	.remove_new = highbank_l2_err_remove,
 	.driver = {
 		.name = "hb_l2_edac",
 		.of_match_table = hb_l2_err_of_match,

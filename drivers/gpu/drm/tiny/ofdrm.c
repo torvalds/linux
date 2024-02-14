@@ -19,7 +19,6 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -758,7 +757,11 @@ static const uint64_t ofdrm_primary_plane_format_modifiers[] = {
 static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 						   struct drm_atomic_state *new_state)
 {
+	struct drm_device *dev = plane->dev;
+	struct ofdrm_device *odev = ofdrm_device_of_dev(dev);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(new_state, plane);
+	struct drm_shadow_plane_state *new_shadow_plane_state =
+		to_drm_shadow_plane_state(new_plane_state);
 	struct drm_framebuffer *new_fb = new_plane_state->fb;
 	struct drm_crtc *new_crtc = new_plane_state->crtc;
 	struct drm_crtc_state *new_crtc_state = NULL;
@@ -776,6 +779,16 @@ static int ofdrm_primary_plane_helper_atomic_check(struct drm_plane *plane,
 		return ret;
 	else if (!new_plane_state->visible)
 		return 0;
+
+	if (new_fb->format != odev->format) {
+		void *buf;
+
+		/* format conversion necessary; reserve buffer */
+		buf = drm_format_conv_state_reserve(&new_shadow_plane_state->fmtcnv_state,
+						    odev->pitch, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+	}
 
 	new_crtc_state = drm_atomic_get_new_crtc_state(new_state, new_plane_state->crtc);
 
@@ -817,7 +830,7 @@ static void ofdrm_primary_plane_helper_atomic_update(struct drm_plane *plane,
 
 		iosys_map_incr(&dst, drm_fb_clip_offset(dst_pitch, dst_format, &dst_clip));
 		drm_fb_blit(&dst, &dst_pitch, dst_format->format, shadow_plane_state->data, fb,
-			    &damage);
+			    &damage, &shadow_plane_state->fmtcnv_state);
 	}
 
 	drm_dev_exit(idx);

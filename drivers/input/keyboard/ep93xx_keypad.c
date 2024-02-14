@@ -308,11 +308,9 @@ static int ep93xx_keypad_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ep93xx_keypad_remove(struct platform_device *pdev)
+static void ep93xx_keypad_remove(struct platform_device *pdev)
 {
 	dev_pm_clear_wake_irq(&pdev->dev);
-
-	return 0;
 }
 
 static struct platform_driver ep93xx_keypad_driver = {
@@ -321,7 +319,7 @@ static struct platform_driver ep93xx_keypad_driver = {
 		.pm	= pm_sleep_ptr(&ep93xx_keypad_pm_ops),
 	},
 	.probe		= ep93xx_keypad_probe,
-	.remove		= ep93xx_keypad_remove,
+	.remove_new	= ep93xx_keypad_remove,
 };
 module_platform_driver(ep93xx_keypad_driver);
 

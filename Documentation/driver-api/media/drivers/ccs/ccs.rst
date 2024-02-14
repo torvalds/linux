@@ -30,7 +30,7 @@ that purpose, selection target ``V4L2_SEL_TGT_COMPOSE`` is supported on the
 sink pad (0).
 
 Additionally, if a device has no scaler or digital crop functionality, the
-source pad (1) expses another digital crop selection rectangle that can only
+source pad (1) exposes another digital crop selection rectangle that can only
 crop at the end of the lines and frames.
 
 Scaler
@@ -77,6 +77,14 @@ For SMIA (non-++) compliant devices the static data file name is
 
 vvvv or vv denotes MIPI and SMIA manufacturer IDs respectively, mmmm model ID
 and rrrr or rr revision number.
+
+CCS tools
+~~~~~~~~~
+
+`CCS tools <https://github.com/MIPI-Alliance/ccs-tools/>`_ is a set of
+tools for working with CCS static data files. CCS tools includes a
+definition of the human-readable CCS static data YAML format and includes a
+program to convert it to a binary.
 
 Register definition generator
 -----------------------------

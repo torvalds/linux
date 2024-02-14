@@ -439,6 +439,7 @@ static int __tegra_channel_try_format(struct tegra_vi_channel *chan,
 		.which = V4L2_SUBDEV_FORMAT_ACTIVE,
 		.target = V4L2_SEL_TGT_CROP_BOUNDS,
 	};
+	struct v4l2_rect *try_crop;
 	int ret;
 
 	subdev = tegra_channel_get_remote_source_subdev(chan);
@@ -473,24 +474,25 @@ static int __tegra_channel_try_format(struct tegra_vi_channel *chan,
 	 * Attempt to obtain the format size from subdev.
 	 * If not available, try to get crop boundary from subdev.
 	 */
+	try_crop = v4l2_subdev_state_get_crop(sd_state, 0);
 	fse.code = fmtinfo->code;
 	ret = v4l2_subdev_call(subdev, pad, enum_frame_size, sd_state, &fse);
 	if (ret) {
 		if (!v4l2_subdev_has_op(subdev, pad, get_selection)) {
-			sd_state->pads->try_crop.width = 0;
-			sd_state->pads->try_crop.height = 0;
+			try_crop->width = 0;
+			try_crop->height = 0;
 		} else {
 			ret = v4l2_subdev_call(subdev, pad, get_selection,
 					       NULL, &sdsel);
 			if (ret)
 				return -EINVAL;
 
-			sd_state->pads->try_crop.width = sdsel.r.width;
-			sd_state->pads->try_crop.height = sdsel.r.height;
+			try_crop->width = sdsel.r.width;
+			try_crop->height = sdsel.r.height;
 		}
 	} else {
-		sd_state->pads->try_crop.width = fse.max_width;
-		sd_state->pads->try_crop.height = fse.max_height;
+		try_crop->width = fse.max_width;
+		try_crop->height = fse.max_height;
 	}
 
 	ret = v4l2_subdev_call(subdev, pad, set_fmt, sd_state, &fmt);
@@ -1172,7 +1174,7 @@ static int tegra_channel_init(struct tegra_vi_channel *chan)
 	chan->queue.ops = &tegra_channel_queue_qops;
 	chan->queue.mem_ops = &vb2_dma_contig_memops;
 	chan->queue.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	chan->queue.min_buffers_needed = 2;
+	chan->queue.min_queued_buffers = 2;
 	chan->queue.dev = vi->dev;
 	ret = vb2_queue_init(&chan->queue);
 	if (ret < 0) {
@@ -1455,17 +1457,18 @@ static int __maybe_unused vi_runtime_suspend(struct device *dev)
 }
 
 /*
- * Graph Management
+ * Find the entity matching a given fwnode in an v4l2_async_notifier list
  */
 static struct tegra_vi_graph_entity *
-tegra_vi_graph_find_entity(struct tegra_vi_channel *chan,
+tegra_vi_graph_find_entity(struct list_head *list,
 			   const struct fwnode_handle *fwnode)
 {
 	struct tegra_vi_graph_entity *entity;
 	struct v4l2_async_connection *asd;
 
-	list_for_each_entry(asd, &chan->notifier.done_list, asc_entry) {
+	list_for_each_entry(asd, list, asc_entry) {
 		entity = to_tegra_vi_graph_entity(asd);
+
 		if (entity->asd.match.fwnode == fwnode)
 			return entity;
 	}
@@ -1532,7 +1535,8 @@ static int tegra_vi_graph_build(struct tegra_vi_channel *chan,
 		}
 
 		/* find the remote entity from notifier list */
-		ent = tegra_vi_graph_find_entity(chan, link.remote_node);
+		ent = tegra_vi_graph_find_entity(&chan->notifier.done_list,
+						 link.remote_node);
 		if (!ent) {
 			dev_err(vi->dev, "no entity found for %pOF\n",
 				to_of_node(link.remote_node));
@@ -1664,7 +1668,8 @@ static int tegra_vi_graph_notify_bound(struct v4l2_async_notifier *notifier,
 	 * Locate the entity corresponding to the bound subdev and store the
 	 * subdev pointer.
 	 */
-	entity = tegra_vi_graph_find_entity(chan, subdev->fwnode);
+	entity = tegra_vi_graph_find_entity(&chan->notifier.waiting_list,
+					    subdev->fwnode);
 	if (!entity) {
 		dev_err(vi->dev, "no entity for subdev %s\n", subdev->name);
 		return -EINVAL;
@@ -1713,7 +1718,8 @@ static int tegra_vi_graph_parse_one(struct tegra_vi_channel *chan,
 
 		/* skip entities that are already processed */
 		if (device_match_fwnode(vi->dev, remote) ||
-		    tegra_vi_graph_find_entity(chan, remote)) {
+		    tegra_vi_graph_find_entity(&chan->notifier.waiting_list,
+					       remote)) {
 			fwnode_handle_put(remote);
 			continue;
 		}
@@ -1940,7 +1946,7 @@ rpm_disable:
 	return ret;
 }
 
-static int tegra_vi_remove(struct platform_device *pdev)
+static void tegra_vi_remove(struct platform_device *pdev)
 {
 	struct tegra_vi *vi = platform_get_drvdata(pdev);
 
@@ -1949,8 +1955,6 @@ static int tegra_vi_remove(struct platform_device *pdev)
 	if (vi->ops->vi_enable)
 		vi->ops->vi_enable(vi, false);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
 
 static const struct of_device_id tegra_vi_of_id_table[] = {
@@ -1975,5 +1979,5 @@ struct platform_driver tegra_vi_driver = {
 		.pm = &tegra_vi_pm_ops,
 	},
 	.probe = tegra_vi_probe,
-	.remove = tegra_vi_remove,
+	.remove_new = tegra_vi_remove,
 };

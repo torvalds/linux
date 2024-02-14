@@ -42,11 +42,11 @@ properties:
       are required for the normal controller work. iATU memory IO region is
       also required if the space is unrolled (IP-core version >= 4.80a).
     minItems: 2
-    maxItems: 5
+    maxItems: 7
 
   reg-names:
     minItems: 2
-    maxItems: 5
+    maxItems: 7
     items:
       oneOf:
         - description:

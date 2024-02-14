@@ -24,7 +24,7 @@ enum {
 struct als_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
-	struct hid_sensor_hub_attribute_info als_illum;
+	struct hid_sensor_hub_attribute_info als[CHANNEL_SCAN_INDEX_MAX];
 	struct {
 		u32 illum[CHANNEL_SCAN_INDEX_MAX];
 		u64 timestamp __aligned(8);
@@ -99,8 +99,8 @@ static int als_read_raw(struct iio_dev *indio_dev,
 		switch (chan->scan_index) {
 		case  CHANNEL_SCAN_INDEX_INTENSITY:
 		case  CHANNEL_SCAN_INDEX_ILLUM:
-			report_id = als_state->als_illum.report_id;
-			min = als_state->als_illum.logical_minimum;
+			report_id = als_state->als[chan->scan_index].report_id;
+			min = als_state->als[chan->scan_index].logical_minimum;
 			address = HID_USAGE_SENSOR_LIGHT_ILLUM;
 			break;
 		default:
@@ -242,22 +242,24 @@ static int als_parse_report(struct platform_device *pdev,
 				struct als_state *st)
 {
 	int ret;
+	int i;
 
-	ret = sensor_hub_input_get_attribute_info(hsdev, HID_INPUT_REPORT,
-			usage_id,
-			HID_USAGE_SENSOR_LIGHT_ILLUM,
-			&st->als_illum);
-	if (ret < 0)
-		return ret;
-	als_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_INTENSITY,
-				    st->als_illum.size);
-	als_adjust_channel_bit_mask(channels, CHANNEL_SCAN_INDEX_ILLUM,
-					st->als_illum.size);
+	for (i = 0; i <= CHANNEL_SCAN_INDEX_ILLUM; ++i) {
+		ret = sensor_hub_input_get_attribute_info(hsdev,
+						HID_INPUT_REPORT,
+						usage_id,
+						HID_USAGE_SENSOR_LIGHT_ILLUM,
+						&st->als[i]);
+		if (ret < 0)
+			return ret;
+		als_adjust_channel_bit_mask(channels, i, st->als[i].size);
 
-	dev_dbg(&pdev->dev, "als %x:%x\n", st->als_illum.index,
-			st->als_illum.report_id);
+		dev_dbg(&pdev->dev, "als %x:%x\n", st->als[i].index,
+			st->als[i].report_id);
+	}
 
-	st->scale_precision = hid_sensor_format_scale(usage_id, &st->als_illum,
+	st->scale_precision = hid_sensor_format_scale(usage_id,
+				&st->als[CHANNEL_SCAN_INDEX_INTENSITY],
 				&st->scale_pre_decml, &st->scale_post_decml);
 
 	return ret;
@@ -347,7 +349,7 @@ error_remove_trigger:
 }
 
 /* Function to deinitialize the processing for usage id */
-static int hid_als_remove(struct platform_device *pdev)
+static void hid_als_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
@@ -356,8 +358,6 @@ static int hid_als_remove(struct platform_device *pdev)
 	sensor_hub_remove_callback(hsdev, hsdev->usage);
 	iio_device_unregister(indio_dev);
 	hid_sensor_remove_trigger(indio_dev, &als_state->common_attributes);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_als_ids[] = {
@@ -380,7 +380,7 @@ static struct platform_driver hid_als_platform_driver = {
 		.pm	= &hid_sensor_pm_ops,
 	},
 	.probe		= hid_als_probe,
-	.remove		= hid_als_remove,
+	.remove_new	= hid_als_remove,
 };
 module_platform_driver(hid_als_platform_driver);
 

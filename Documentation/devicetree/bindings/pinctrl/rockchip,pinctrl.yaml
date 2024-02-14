@@ -115,6 +115,8 @@ additionalProperties:
   type: object
   additionalProperties:
     type: object
+    additionalProperties: false
+
     properties:
       rockchip,pins:
         $ref: /schemas/types.yaml#/definitions/uint32-matrix

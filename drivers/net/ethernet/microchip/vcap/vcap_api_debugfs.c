@@ -300,7 +300,7 @@ static int vcap_show_admin(struct vcap_control *vctrl,
 	vcap_show_admin_info(vctrl, admin, out);
 	list_for_each_entry(elem, &admin->rules, list) {
 		vrule = vcap_decode_rule(elem);
-		if (IS_ERR_OR_NULL(vrule)) {
+		if (IS_ERR(vrule)) {
 			ret = PTR_ERR(vrule);
 			break;
 		}

@@ -789,3 +789,4 @@ module_init(mqprio_module_init);
 module_exit(mqprio_module_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Classful multiqueue prio qdisc");

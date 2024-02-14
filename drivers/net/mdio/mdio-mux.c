@@ -55,6 +55,27 @@ out:
 	return r;
 }
 
+static int mdio_mux_read_c45(struct mii_bus *bus, int phy_id, int dev_addr,
+			     int regnum)
+{
+	struct mdio_mux_child_bus *cb = bus->priv;
+	struct mdio_mux_parent_bus *pb = cb->parent;
+	int r;
+
+	mutex_lock_nested(&pb->mii_bus->mdio_lock, MDIO_MUTEX_MUX);
+	r = pb->switch_fn(pb->current_child, cb->bus_number, pb->switch_data);
+	if (r)
+		goto out;
+
+	pb->current_child = cb->bus_number;
+
+	r = pb->mii_bus->read_c45(pb->mii_bus, phy_id, dev_addr, regnum);
+out:
+	mutex_unlock(&pb->mii_bus->mdio_lock);
+
+	return r;
+}
+
 /*
  * The parent bus' lock is used to order access to the switch_fn.
  */
@@ -74,6 +95,28 @@ static int mdio_mux_write(struct mii_bus *bus, int phy_id,
 	pb->current_child = cb->bus_number;
 
 	r = pb->mii_bus->write(pb->mii_bus, phy_id, regnum, val);
+out:
+	mutex_unlock(&pb->mii_bus->mdio_lock);
+
+	return r;
+}
+
+static int mdio_mux_write_c45(struct mii_bus *bus, int phy_id, int dev_addr,
+			      int regnum, u16 val)
+{
+	struct mdio_mux_child_bus *cb = bus->priv;
+	struct mdio_mux_parent_bus *pb = cb->parent;
+
+	int r;
+
+	mutex_lock_nested(&pb->mii_bus->mdio_lock, MDIO_MUTEX_MUX);
+	r = pb->switch_fn(pb->current_child, cb->bus_number, pb->switch_data);
+	if (r)
+		goto out;
+
+	pb->current_child = cb->bus_number;
+
+	r = pb->mii_bus->write_c45(pb->mii_bus, phy_id, dev_addr, regnum, val);
 out:
 	mutex_unlock(&pb->mii_bus->mdio_lock);
 
@@ -147,8 +190,8 @@ int mdio_mux_init(struct device *dev,
 		r = of_property_read_u32(child_bus_node, "reg", &v);
 		if (r) {
 			dev_err(dev,
-				"Error: Failed to find reg for child %pOF\n",
-				child_bus_node);
+				"Error: Failed to find reg for child %pOF: %pe\n",
+				child_bus_node, ERR_PTR(r));
 			continue;
 		}
 
@@ -171,8 +214,14 @@ int mdio_mux_init(struct device *dev,
 		snprintf(cb->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x.%x",
 			 cb->mii_bus->name, pb->parent_id, v);
 		cb->mii_bus->parent = dev;
-		cb->mii_bus->read = mdio_mux_read;
-		cb->mii_bus->write = mdio_mux_write;
+		if (parent_bus->read)
+			cb->mii_bus->read = mdio_mux_read;
+		if (parent_bus->write)
+			cb->mii_bus->write = mdio_mux_write;
+		if (parent_bus->read_c45)
+			cb->mii_bus->read_c45 = mdio_mux_read_c45;
+		if (parent_bus->write_c45)
+			cb->mii_bus->write_c45 = mdio_mux_write_c45;
 		r = of_mdiobus_register(cb->mii_bus, child_bus_node);
 		if (r) {
 			mdiobus_free(cb->mii_bus);
@@ -182,8 +231,8 @@ int mdio_mux_init(struct device *dev,
 			}
 			devm_kfree(dev, cb);
 			dev_err(dev,
-				"Error: Failed to register MDIO bus for child %pOF\n",
-				child_bus_node);
+				"Error: Failed to register MDIO bus for child %pOF: %pe\n",
+				child_bus_node, ERR_PTR(r));
 		} else {
 			cb->next = pb->children;
 			pb->children = cb;

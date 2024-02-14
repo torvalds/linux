@@ -52,9 +52,6 @@ u64 vabits_actual __ro_after_init = VA_BITS_MIN;
 EXPORT_SYMBOL(vabits_actual);
 #endif
 
-u64 kimage_vaddr __ro_after_init = (u64)&_text;
-EXPORT_SYMBOL(kimage_vaddr);
-
 u64 kimage_voffset __ro_after_init;
 EXPORT_SYMBOL(kimage_voffset);
 
@@ -673,6 +670,9 @@ static pgprot_t kernel_exec_prot(void)
 static int __init map_entry_trampoline(void)
 {
 	int i;
+
+	if (!arm64_kernel_unmapped_at_el0())
+		return 0;
 
 	pgprot_t prot = kernel_exec_prot();
 	phys_addr_t pa_start = __pa_symbol(__entry_tramp_text_start);
@@ -1469,8 +1469,7 @@ early_initcall(prevent_bootmem_remove_init);
 
 pte_t ptep_modify_prot_start(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
-	if (IS_ENABLED(CONFIG_ARM64_ERRATUM_2645198) &&
-	    cpus_have_const_cap(ARM64_WORKAROUND_2645198)) {
+	if (alternative_has_cap_unlikely(ARM64_WORKAROUND_2645198)) {
 		/*
 		 * Break-before-make (BBM) is required for all user space mappings
 		 * when the permission changes from executable to non-executable

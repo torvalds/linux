@@ -11,9 +11,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 

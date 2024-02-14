@@ -1872,7 +1872,7 @@ static irqreturn_t dfl_irq_handler(int irq, void *arg)
 {
 	struct eventfd_ctx *trigger = arg;
 
-	eventfd_signal(trigger, 1);
+	eventfd_signal(trigger);
 	return IRQ_HANDLED;
 }
 
@@ -2008,8 +2008,8 @@ long dfl_feature_ioctl_set_irq(struct platform_device *pdev,
 	    (hdr.start + hdr.count < hdr.start))
 		return -EINVAL;
 
-	fds = memdup_user((void __user *)(arg + sizeof(hdr)),
-			  array_size(hdr.count, sizeof(s32)));
+	fds = memdup_array_user((void __user *)(arg + sizeof(hdr)),
+				hdr.count, sizeof(s32));
 	if (IS_ERR(fds))
 		return PTR_ERR(fds);
 

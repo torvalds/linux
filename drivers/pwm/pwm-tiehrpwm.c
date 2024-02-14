@@ -12,7 +12,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 /* EHRPWM registers and bits definitions */
 
@@ -437,7 +437,6 @@ static int ehrpwm_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops ehrpwm_pwm_ops = {
 	.free = ehrpwm_pwm_free,
 	.apply = ehrpwm_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id ehrpwm_of_match[] = {
@@ -522,7 +521,6 @@ static void ehrpwm_pwm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
@@ -590,16 +588,15 @@ static int ehrpwm_pwm_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
-			 ehrpwm_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
+				ehrpwm_pwm_resume);
 
 static struct platform_driver ehrpwm_pwm_driver = {
 	.driver = {
 		.name = "ehrpwm",
 		.of_match_table = ehrpwm_of_match,
-		.pm = &ehrpwm_pwm_pm_ops,
+		.pm = pm_ptr(&ehrpwm_pwm_pm_ops),
 	},
 	.probe = ehrpwm_pwm_probe,
 	.remove_new = ehrpwm_pwm_remove,

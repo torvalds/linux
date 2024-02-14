@@ -21,7 +21,7 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include "nct6775.h"
 
@@ -155,23 +155,13 @@ static const struct regmap_config nct6775_i2c_regmap_config = {
 static int nct6775_i2c_probe(struct i2c_client *client)
 {
 	struct nct6775_data *data;
-	const struct of_device_id *of_id;
-	const struct i2c_device_id *i2c_id;
 	struct device *dev = &client->dev;
-
-	of_id = of_match_device(nct6775_i2c_of_match, dev);
-	i2c_id = i2c_match_id(nct6775_i2c_id, client);
-
-	if (of_id && (unsigned long)of_id->data != i2c_id->driver_data)
-		dev_notice(dev, "Device mismatch: %s in device tree, %s detected\n",
-			   of_id->name, i2c_id->name);
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	data->kind = i2c_id->driver_data;
-
+	data->kind = (enum kinds)(uintptr_t)i2c_get_match_data(client);
 	data->read_only = true;
 	data->driver_data = client;
 	data->driver_init = nct6775_i2c_probe_init;

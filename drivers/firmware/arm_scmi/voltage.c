@@ -10,6 +10,9 @@
 
 #include "protocols.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x20000
+
 #define VOLTAGE_DOMS_NUM_MASK		GENMASK(15, 0)
 #define REMAINING_LEVELS_MASK		GENMASK(31, 16)
 #define RETURNED_LEVELS_MASK		GENMASK(11, 0)
@@ -242,7 +245,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 			if (SUPPORTS_EXTENDED_NAMES(attributes))
 				ph->hops->extended_name_get(ph,
 							VOLTAGE_DOMAIN_NAME_GET,
-							v->id, v->name,
+							v->id, NULL, v->name,
 							SCMI_MAX_STR_SIZE);
 			if (SUPPORTS_ASYNC_LEVEL_SET(attributes))
 				v->async_level_set = true;
@@ -432,7 +435,7 @@ static int scmi_voltage_protocol_init(const struct scmi_protocol_handle *ph)
 		dev_warn(ph->dev, "No Voltage domains found.\n");
 	}
 
-	return ph->set_priv(ph, vinfo);
+	return ph->set_priv(ph, vinfo, version);
 }
 
 static const struct scmi_protocol scmi_voltage = {
@@ -440,6 +443,7 @@ static const struct scmi_protocol scmi_voltage = {
 	.owner = THIS_MODULE,
 	.instance_init = &scmi_voltage_protocol_init,
 	.ops = &voltage_proto_ops,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(voltage, scmi_voltage)

@@ -41,6 +41,11 @@ Architecture overview
                           |   Fast cache    |     |  ptr-ring cache  |
                           +-----------------+     +------------------+
 
+Monitoring
+==========
+Information about page pools on the system can be accessed via the netdev
+genetlink family (see Documentation/netlink/specs/netdev.yaml).
+
 API interface
 =============
 The number of pools created **must** match the number of hardware queues
@@ -58,7 +63,9 @@ a page will cause no race conditions is enough.
 
 .. kernel-doc:: include/net/page_pool/helpers.h
    :identifiers: page_pool_put_page page_pool_put_full_page
-		 page_pool_recycle_direct page_pool_dev_alloc_pages
+		 page_pool_recycle_direct page_pool_free_va
+		 page_pool_dev_alloc_pages page_pool_dev_alloc_frag
+		 page_pool_dev_alloc page_pool_dev_alloc_va
 		 page_pool_get_dma_addr page_pool_get_dma_dir
 
 .. kernel-doc:: net/core/page_pool.c
@@ -105,8 +112,9 @@ page_pool_get_stats() and structures described below are available.
 It takes a  pointer to a ``struct page_pool`` and a pointer to a struct
 page_pool_stats allocated by the caller.
 
-The API will fill in the provided struct page_pool_stats with
-statistics about the page_pool.
+Older drivers expose page pool statistics via ethtool or debugfs.
+The same statistics are accessible via the netlink netdev family
+in a driver-independent fashion.
 
 .. kernel-doc:: include/net/page_pool/types.h
    :identifiers: struct page_pool_recycle_stats

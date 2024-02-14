@@ -69,15 +69,6 @@ enum iavf_debug_mask {
  * the Firmware and AdminQ are intended to insulate the driver from most of the
  * future changes, but these structures will also do part of the job.
  */
-enum iavf_mac_type {
-	IAVF_MAC_UNKNOWN = 0,
-	IAVF_MAC_XL710,
-	IAVF_MAC_VF,
-	IAVF_MAC_X722,
-	IAVF_MAC_X722_VF,
-	IAVF_MAC_GENERIC,
-};
-
 enum iavf_vsi_type {
 	IAVF_VSI_MAIN	= 0,
 	IAVF_VSI_VMDQ1	= 1,
@@ -110,11 +101,8 @@ struct iavf_hw_capabilities {
 };
 
 struct iavf_mac_info {
-	enum iavf_mac_type type;
 	u8 addr[ETH_ALEN];
 	u8 perm_addr[ETH_ALEN];
-	u8 san_addr[ETH_ALEN];
-	u16 max_fcoeq;
 };
 
 /* PCI bus types */

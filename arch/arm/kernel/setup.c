@@ -15,10 +15,10 @@
 #include <linux/console.h>
 #include <linux/seq_file.h>
 #include <linux/screen_info.h>
-#include <linux/of_platform.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
 #include <linux/libfdt.h>
+#include <linux/of.h>
 #include <linux/of_fdt.h>
 #include <linux/cpu.h>
 #include <linux/interrupt.h>
@@ -928,9 +928,8 @@ static void __init request_standard_resources(const struct machine_desc *mdesc)
 		request_resource(&ioport_resource, &lp2);
 }
 
-#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE) || \
-    defined(CONFIG_EFI)
-struct screen_info screen_info = {
+#if defined(CONFIG_VGA_CONSOLE)
+struct screen_info vgacon_screen_info = {
  .orig_video_lines	= 30,
  .orig_video_cols	= 80,
  .orig_video_mode	= 0,
@@ -1010,7 +1009,8 @@ static void __init reserve_crashkernel(void)
 
 	total_mem = get_total_mem();
 	ret = parse_crashkernel(boot_command_line, total_mem,
-				&crash_size, &crash_base);
+				&crash_size, &crash_base,
+				NULL, NULL);
 	/* invalid value specified or crashkernel=0 */
 	if (ret || !crash_size)
 		return;
@@ -1193,7 +1193,7 @@ void __init setup_arch(char **cmdline_p)
 
 #ifdef CONFIG_VT
 #if defined(CONFIG_VGA_CONSOLE)
-	conswitchp = &vga_con;
+	vgacon_register_screen(&vgacon_screen_info);
 #endif
 #endif
 

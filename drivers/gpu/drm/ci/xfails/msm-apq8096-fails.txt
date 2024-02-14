@@ -1,0 +1,4 @@
+kms_3d,Fail
+kms_addfb_basic@addfb25-bad-modifier,Fail
+kms_force_connector_basic@force-edid,Fail
+kms_hdmi_inject@inject-4k,Fail
