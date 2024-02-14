@@ -150,7 +150,7 @@ static void remove_vmalloc_block(void *ptr)
 	if (block != NULL)
 		vdo_free(block);
 	else
-		uds_log_info("attempting to remove ptr %px not found in vmalloc list", ptr);
+		vdo_log_info("attempting to remove ptr %px not found in vmalloc list", ptr);
 }
 
 /*
@@ -284,7 +284,7 @@ int vdo_allocate_memory(size_t size, size_t align, const char *what, void *ptr)
 		memalloc_noio_restore(noio_flags);
 
 	if (unlikely(p == NULL)) {
-		uds_log_error("Could not allocate %zu bytes for %s in %u msecs",
+		vdo_log_error("Could not allocate %zu bytes for %s in %u msecs",
 			      size, what, jiffies_to_msecs(jiffies - start_time));
 		return -ENOMEM;
 	}
@@ -391,7 +391,7 @@ void vdo_memory_exit(void)
 	VDO_ASSERT_LOG_ONLY(memory_stats.vmalloc_bytes == 0,
 			    "vmalloc memory used (%zd bytes in %zd blocks) is returned to the kernel",
 			    memory_stats.vmalloc_bytes, memory_stats.vmalloc_blocks);
-	uds_log_debug("peak usage %zd bytes", memory_stats.peak_bytes);
+	vdo_log_debug("peak usage %zd bytes", memory_stats.peak_bytes);
 }
 
 void vdo_get_memory_stats(u64 *bytes_used, u64 *peak_bytes_used)
@@ -426,13 +426,13 @@ void vdo_report_memory_usage(void)
 	peak_usage = memory_stats.peak_bytes;
 	spin_unlock_irqrestore(&memory_stats.lock, flags);
 	total_bytes = kmalloc_bytes + vmalloc_bytes;
-	uds_log_info("current module memory tracking (actual allocation sizes, not requested):");
-	uds_log_info("  %llu bytes in %llu kmalloc blocks",
+	vdo_log_info("current module memory tracking (actual allocation sizes, not requested):");
+	vdo_log_info("  %llu bytes in %llu kmalloc blocks",
 		     (unsigned long long) kmalloc_bytes,
 		     (unsigned long long) kmalloc_blocks);
-	uds_log_info("  %llu bytes in %llu vmalloc blocks",
+	vdo_log_info("  %llu bytes in %llu vmalloc blocks",
 		     (unsigned long long) vmalloc_bytes,
 		     (unsigned long long) vmalloc_blocks);
-	uds_log_info("  total %llu bytes, peak usage %llu bytes",
+	vdo_log_info("  total %llu bytes, peak usage %llu bytes",
 		     (unsigned long long) total_bytes, (unsigned long long) peak_usage);
 }

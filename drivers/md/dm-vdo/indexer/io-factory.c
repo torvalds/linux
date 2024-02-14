@@ -365,7 +365,7 @@ void uds_free_buffered_writer(struct buffered_writer *writer)
 	flush_previous_buffer(writer);
 	result = -dm_bufio_write_dirty_buffers(writer->client);
 	if (result != UDS_SUCCESS)
-		uds_log_warning_strerror(result, "%s: failed to sync storage", __func__);
+		vdo_log_warning_strerror(result, "%s: failed to sync storage", __func__);
 
 	dm_bufio_client_destroy(writer->client);
 	uds_put_io_factory(writer->factory);

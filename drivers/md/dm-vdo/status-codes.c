@@ -87,8 +87,8 @@ int vdo_register_status_codes(void)
  */
 int vdo_status_to_errno(int error)
 {
-	char error_name[UDS_MAX_ERROR_NAME_SIZE];
-	char error_message[UDS_MAX_ERROR_MESSAGE_SIZE];
+	char error_name[VDO_MAX_ERROR_NAME_SIZE];
+	char error_message[VDO_MAX_ERROR_MESSAGE_SIZE];
 
 	/* 0 is success, negative a system error code */
 	if (likely(error <= 0))
@@ -103,7 +103,7 @@ int vdo_status_to_errno(int error)
 	case VDO_READ_ONLY:
 		return -EIO;
 	default:
-		uds_log_info("%s: mapping internal status code %d (%s: %s) to EIO",
+		vdo_log_info("%s: mapping internal status code %d (%s: %s) to EIO",
 			     __func__, error,
 			     uds_string_error_name(error, error_name, sizeof(error_name)),
 			     uds_string_error(error, error_message, sizeof(error_message)));

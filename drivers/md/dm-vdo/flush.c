@@ -108,7 +108,7 @@ static void *allocate_flush(gfp_t gfp_mask, void *pool_data)
 		int result = vdo_allocate(1, struct vdo_flush, __func__, &flush);
 
 		if (result != VDO_SUCCESS)
-			uds_log_error_strerror(result, "failed to allocate spare flush");
+			vdo_log_error_strerror(result, "failed to allocate spare flush");
 	}
 
 	if (flush != NULL) {
@@ -349,11 +349,11 @@ void vdo_complete_flushes(struct flusher *flusher)
  */
 void vdo_dump_flusher(const struct flusher *flusher)
 {
-	uds_log_info("struct flusher");
-	uds_log_info("  flush_generation=%llu first_unacknowledged_generation=%llu",
+	vdo_log_info("struct flusher");
+	vdo_log_info("  flush_generation=%llu first_unacknowledged_generation=%llu",
 		     (unsigned long long) flusher->flush_generation,
 		     (unsigned long long) flusher->first_unacknowledged_generation);
-	uds_log_info("  notifiers queue is %s; pending_flushes queue is %s",
+	vdo_log_info("  notifiers queue is %s; pending_flushes queue is %s",
 		     (vdo_waitq_has_waiters(&flusher->notifiers) ? "not empty" : "empty"),
 		     (vdo_waitq_has_waiters(&flusher->pending_flushes) ? "not empty" : "empty"));
 }

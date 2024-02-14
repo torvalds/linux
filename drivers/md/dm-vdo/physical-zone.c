@@ -163,7 +163,7 @@ static void release_pbn_lock_provisional_reference(struct pbn_lock *lock,
 
 	result = vdo_release_block_reference(allocator, locked_pbn);
 	if (result != VDO_SUCCESS) {
-		uds_log_error_strerror(result,
+		vdo_log_error_strerror(result,
 				       "Failed to release reference to %s physical block %llu",
 				       lock->implementation->release_reason,
 				       (unsigned long long) locked_pbn);
@@ -294,7 +294,7 @@ static int __must_check borrow_pbn_lock_from_pool(struct pbn_lock_pool *pool,
 	idle_pbn_lock *idle;
 
 	if (pool->borrowed >= pool->capacity)
-		return uds_log_error_strerror(VDO_LOCK_ERROR,
+		return vdo_log_error_strerror(VDO_LOCK_ERROR,
 					      "no free PBN locks left to borrow");
 	pool->borrowed += 1;
 
@@ -499,7 +499,7 @@ static int allocate_and_lock_block(struct allocation *allocation)
 
 	if (lock->holder_count > 0) {
 		/* This block is already locked, which should be impossible. */
-		return uds_log_error_strerror(VDO_LOCK_ERROR,
+		return vdo_log_error_strerror(VDO_LOCK_ERROR,
 					      "Newly allocated block %llu was spuriously locked (holder_count=%u)",
 					      (unsigned long long) allocation->pbn,
 					      lock->holder_count);

@@ -375,7 +375,7 @@ int uds_initialize_delta_index(struct delta_index *delta_index, unsigned int zon
 			 */
 			if (delta_index->list_count <= first_list_in_zone) {
 				uds_uninitialize_delta_index(delta_index);
-				return uds_log_error_strerror(UDS_INVALID_ARGUMENT,
+				return vdo_log_error_strerror(UDS_INVALID_ARGUMENT,
 							      "%u delta lists not enough for %u zones",
 							      list_count, zone_count);
 			}
@@ -732,7 +732,7 @@ int uds_pack_delta_index_page(const struct delta_index *delta_index, u64 header_
 	free_bits -= GUARD_BITS;
 	if (free_bits < IMMUTABLE_HEADER_SIZE) {
 		/* This page is too small to store any delta lists. */
-		return uds_log_error_strerror(UDS_OVERFLOW,
+		return vdo_log_error_strerror(UDS_OVERFLOW,
 					      "Chapter Index Page of %zu bytes is too small",
 					      memory_size);
 	}
@@ -843,7 +843,7 @@ int uds_start_restoring_delta_index(struct delta_index *delta_index,
 		result = uds_read_from_buffered_reader(buffered_readers[z], buffer,
 						       sizeof(buffer));
 		if (result != UDS_SUCCESS) {
-			return uds_log_warning_strerror(result,
+			return vdo_log_warning_strerror(result,
 							"failed to read delta index header");
 		}
 
@@ -860,23 +860,23 @@ int uds_start_restoring_delta_index(struct delta_index *delta_index,
 				    "%zu bytes decoded of %zu expected", offset,
 				    sizeof(struct delta_index_header));
 		if (result != VDO_SUCCESS) {
-			return uds_log_warning_strerror(result,
+			return vdo_log_warning_strerror(result,
 							"failed to read delta index header");
 		}
 
 		if (memcmp(header.magic, DELTA_INDEX_MAGIC, MAGIC_SIZE) != 0) {
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"delta index file has bad magic number");
 		}
 
 		if (zone_count != header.zone_count) {
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"delta index files contain mismatched zone counts (%u,%u)",
 							zone_count, header.zone_count);
 		}
 
 		if (header.zone_number != z) {
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"delta index zone %u found in slot %u",
 							header.zone_number, z);
 		}
@@ -887,7 +887,7 @@ int uds_start_restoring_delta_index(struct delta_index *delta_index,
 		collision_count += header.collision_count;
 
 		if (first_list[z] != list_next) {
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"delta index file for zone %u starts with list %u instead of list %u",
 							z, first_list[z], list_next);
 		}
@@ -896,13 +896,13 @@ int uds_start_restoring_delta_index(struct delta_index *delta_index,
 	}
 
 	if (list_next != delta_index->list_count) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"delta index files contain %u delta lists instead of %u delta lists",
 						list_next, delta_index->list_count);
 	}
 
 	if (collision_count > record_count) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"delta index files contain %llu collisions and %llu records",
 						(unsigned long long) collision_count,
 						(unsigned long long) record_count);
@@ -927,7 +927,7 @@ int uds_start_restoring_delta_index(struct delta_index *delta_index,
 							       size_data,
 							       sizeof(size_data));
 			if (result != UDS_SUCCESS) {
-				return uds_log_warning_strerror(result,
+				return vdo_log_warning_strerror(result,
 								"failed to read delta index size");
 			}
 
@@ -960,7 +960,7 @@ static int restore_delta_list_to_zone(struct delta_zone *delta_zone,
 	u32 list_number = save_info->index - delta_zone->first_list;
 
 	if (list_number >= delta_zone->list_count) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"invalid delta list number %u not in range [%u,%u)",
 						save_info->index, delta_zone->first_list,
 						delta_zone->first_list + delta_zone->list_count);
@@ -968,7 +968,7 @@ static int restore_delta_list_to_zone(struct delta_zone *delta_zone,
 
 	delta_list = &delta_zone->delta_lists[list_number + 1];
 	if (delta_list->size == 0) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"unexpected delta list number %u",
 						save_info->index);
 	}
@@ -976,7 +976,7 @@ static int restore_delta_list_to_zone(struct delta_zone *delta_zone,
 	bit_count = delta_list->size + save_info->bit_offset;
 	byte_count = BITS_TO_BYTES(bit_count);
 	if (save_info->byte_count != byte_count) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"unexpected delta list size %u != %u",
 						save_info->byte_count, byte_count);
 	}
@@ -996,7 +996,7 @@ static int restore_delta_list_data(struct delta_index *delta_index, unsigned int
 
 	result = uds_read_from_buffered_reader(buffered_reader, buffer, sizeof(buffer));
 	if (result != UDS_SUCCESS) {
-		return uds_log_warning_strerror(result,
+		return vdo_log_warning_strerror(result,
 						"failed to read delta list data");
 	}
 
@@ -1009,7 +1009,7 @@ static int restore_delta_list_data(struct delta_index *delta_index, unsigned int
 
 	if ((save_info.bit_offset >= BITS_PER_BYTE) ||
 	    (save_info.byte_count > DELTA_LIST_MAX_BYTE_COUNT)) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"corrupt delta list data");
 	}
 
@@ -1018,7 +1018,7 @@ static int restore_delta_list_data(struct delta_index *delta_index, unsigned int
 		return UDS_CORRUPT_DATA;
 
 	if (save_info.index >= delta_index->list_count) {
-		return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						"invalid delta list number %u of %u",
 						save_info.index,
 						delta_index->list_count);
@@ -1027,7 +1027,7 @@ static int restore_delta_list_data(struct delta_index *delta_index, unsigned int
 	result = uds_read_from_buffered_reader(buffered_reader, data,
 					       save_info.byte_count);
 	if (result != UDS_SUCCESS) {
-		return uds_log_warning_strerror(result,
+		return vdo_log_warning_strerror(result,
 						"failed to read delta list data");
 	}
 
@@ -1102,7 +1102,7 @@ static int flush_delta_list(struct delta_zone *zone, u32 flush_index)
 	result = uds_write_to_buffered_writer(zone->buffered_writer, buffer,
 					      sizeof(buffer));
 	if (result != UDS_SUCCESS) {
-		uds_log_warning_strerror(result, "failed to write delta list memory");
+		vdo_log_warning_strerror(result, "failed to write delta list memory");
 		return result;
 	}
 
@@ -1110,7 +1110,7 @@ static int flush_delta_list(struct delta_zone *zone, u32 flush_index)
 					      zone->memory + get_delta_list_byte_start(delta_list),
 					      get_delta_list_byte_size(delta_list));
 	if (result != UDS_SUCCESS)
-		uds_log_warning_strerror(result, "failed to write delta list memory");
+		vdo_log_warning_strerror(result, "failed to write delta list memory");
 
 	return result;
 }
@@ -1144,7 +1144,7 @@ int uds_start_saving_delta_index(const struct delta_index *delta_index,
 
 	result = uds_write_to_buffered_writer(buffered_writer, buffer, offset);
 	if (result != UDS_SUCCESS)
-		return uds_log_warning_strerror(result,
+		return vdo_log_warning_strerror(result,
 						"failed to write delta index header");
 
 	for (i = 0; i < delta_zone->list_count; i++) {
@@ -1156,7 +1156,7 @@ int uds_start_saving_delta_index(const struct delta_index *delta_index,
 		result = uds_write_to_buffered_writer(buffered_writer, data,
 						      sizeof(data));
 		if (result != UDS_SUCCESS)
-			return uds_log_warning_strerror(result,
+			return vdo_log_warning_strerror(result,
 							"failed to write delta list size");
 	}
 
@@ -1197,7 +1197,7 @@ int uds_write_guard_delta_list(struct buffered_writer *buffered_writer)
 
 	result = uds_write_to_buffered_writer(buffered_writer, buffer, sizeof(buffer));
 	if (result != UDS_SUCCESS)
-		uds_log_warning_strerror(result, "failed to write guard delta list");
+		vdo_log_warning_strerror(result, "failed to write guard delta list");
 
 	return UDS_SUCCESS;
 }
@@ -1378,7 +1378,7 @@ noinline int uds_next_delta_index_entry(struct delta_index_entry *delta_entry)
 		 * This is not an assertion because uds_validate_chapter_index_page() wants to
 		 * handle this error.
 		 */
-		uds_log_warning("Decoded past the end of the delta list");
+		vdo_log_warning("Decoded past the end of the delta list");
 		return UDS_CORRUPT_DATA;
 	}
 
@@ -1959,7 +1959,7 @@ u32 uds_get_delta_index_page_count(u32 entry_count, u32 list_count, u32 mean_del
 
 void uds_log_delta_index_entry(struct delta_index_entry *delta_entry)
 {
-	uds_log_ratelimit(uds_log_info,
+	vdo_log_ratelimit(vdo_log_info,
 			  "List 0x%X Key 0x%X Offset 0x%X%s%s List_size 0x%X%s",
 			  delta_entry->list_number, delta_entry->key,
 			  delta_entry->offset, delta_entry->at_end ? " end" : "",

@@ -363,8 +363,8 @@ struct physical_zone *vdo_get_next_allocation_zone(struct logical_zone *zone)
  */
 void vdo_dump_logical_zone(const struct logical_zone *zone)
 {
-	uds_log_info("logical_zone %u", zone->zone_number);
-	uds_log_info("  flush_generation=%llu oldest_active_generation=%llu notification_generation=%llu notifying=%s ios_in_flush_generation=%llu",
+	vdo_log_info("logical_zone %u", zone->zone_number);
+	vdo_log_info("  flush_generation=%llu oldest_active_generation=%llu notification_generation=%llu notifying=%s ios_in_flush_generation=%llu",
 		     (unsigned long long) READ_ONCE(zone->flush_generation),
 		     (unsigned long long) READ_ONCE(zone->oldest_active_generation),
 		     (unsigned long long) READ_ONCE(zone->notification_generation),

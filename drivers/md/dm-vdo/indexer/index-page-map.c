@@ -167,7 +167,7 @@ int uds_read_index_page_map(struct index_page_map *map, struct buffered_reader *
 		decode_u16_le(buffer, &offset, &map->entries[i]);
 
 	vdo_free(buffer);
-	uds_log_debug("read index page map, last update %llu",
+	vdo_log_debug("read index page map, last update %llu",
 		      (unsigned long long) map->last_update);
 	return UDS_SUCCESS;
 }

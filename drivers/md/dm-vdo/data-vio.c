@@ -792,25 +792,25 @@ static int initialize_data_vio(struct data_vio *data_vio, struct vdo *vdo)
 	result = vdo_allocate_memory(VDO_BLOCK_SIZE, 0, "data_vio data",
 				     &data_vio->vio.data);
 	if (result != VDO_SUCCESS)
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "data_vio data allocation failure");
 
 	result = vdo_allocate_memory(VDO_BLOCK_SIZE, 0, "compressed block",
 				     &data_vio->compression.block);
 	if (result != VDO_SUCCESS) {
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "data_vio compressed block allocation failure");
 	}
 
 	result = vdo_allocate_memory(VDO_BLOCK_SIZE, 0, "vio scratch",
 				     &data_vio->scratch_block);
 	if (result != VDO_SUCCESS)
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "data_vio scratch allocation failure");
 
 	result = vdo_create_bio(&bio);
 	if (result != VDO_SUCCESS)
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "data_vio data bio allocation failure");
 
 	vdo_initialize_completion(&data_vio->decrement_completion, vdo,
@@ -1025,7 +1025,7 @@ void resume_data_vio_pool(struct data_vio_pool *pool, struct vdo_completion *com
 
 static void dump_limiter(const char *name, struct limiter *limiter)
 {
-	uds_log_info("%s: %u of %u busy (max %u), %s", name, limiter->busy,
+	vdo_log_info("%s: %u of %u busy (max %u), %s", name, limiter->busy,
 		     limiter->limit, limiter->max_busy,
 		     ((bio_list_empty(&limiter->waiters) &&
 		       bio_list_empty(&limiter->new_waiters)) ?
@@ -1323,7 +1323,7 @@ static void perform_cleanup_stage(struct data_vio *data_vio,
 		if ((data_vio->recovery_sequence_number > 0) &&
 		    (READ_ONCE(vdo->read_only_notifier.read_only_error) == VDO_SUCCESS) &&
 		    (data_vio->vio.completion.result != VDO_READ_ONLY))
-			uds_log_warning("VDO not read-only when cleaning data_vio with RJ lock");
+			vdo_log_warning("VDO not read-only when cleaning data_vio with RJ lock");
 		fallthrough;
 
 	case VIO_RELEASE_LOGICAL:
@@ -1353,7 +1353,7 @@ static void enter_read_only_mode(struct vdo_completion *completion)
 	if (completion->result != VDO_READ_ONLY) {
 		struct data_vio *data_vio = as_data_vio(completion);
 
-		uds_log_error_strerror(completion->result,
+		vdo_log_error_strerror(completion->result,
 				       "Preparing to enter read-only mode: data_vio for LBN %llu (becoming mapped to %llu, previously mapped to %llu, allocated %llu) is completing with a fatal error after operation %s",
 				       (unsigned long long) data_vio->logical.lbn,
 				       (unsigned long long) data_vio->new_mapped.pbn,
@@ -1449,14 +1449,14 @@ int uncompress_data_vio(struct data_vio *data_vio,
 						       &fragment_offset, &fragment_size);
 
 	if (result != VDO_SUCCESS) {
-		uds_log_debug("%s: compressed fragment error %d", __func__, result);
+		vdo_log_debug("%s: compressed fragment error %d", __func__, result);
 		return result;
 	}
 
 	size = LZ4_decompress_safe((block->data + fragment_offset), buffer,
 				   fragment_size, VDO_BLOCK_SIZE);
 	if (size != VDO_BLOCK_SIZE) {
-		uds_log_debug("%s: lz4 error", __func__);
+		vdo_log_debug("%s: lz4 error", __func__);
 		return VDO_INVALID_FRAGMENT;
 	}
 

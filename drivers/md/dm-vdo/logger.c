@@ -16,14 +16,14 @@
 #include "thread-device.h"
 #include "thread-utils.h"
 
-int vdo_log_level = UDS_LOG_DEFAULT;
+int vdo_log_level = VDO_LOG_DEFAULT;
 
-int uds_get_log_level(void)
+int vdo_get_log_level(void)
 {
 	int log_level_latch = READ_ONCE(vdo_log_level);
 
-	if (unlikely(log_level_latch > UDS_LOG_MAX)) {
-		log_level_latch = UDS_LOG_DEFAULT;
+	if (unlikely(log_level_latch > VDO_LOG_MAX)) {
+		log_level_latch = VDO_LOG_DEFAULT;
 		WRITE_ONCE(vdo_log_level, log_level_latch);
 	}
 	return log_level_latch;
@@ -54,7 +54,7 @@ static void emit_log_message_to_kernel(int priority, const char *fmt, ...)
 	va_list args;
 	struct va_format vaf;
 
-	if (priority > uds_get_log_level())
+	if (priority > vdo_get_log_level())
 		return;
 
 	va_start(args, fmt);
@@ -62,22 +62,22 @@ static void emit_log_message_to_kernel(int priority, const char *fmt, ...)
 	vaf.va = &args;
 
 	switch (priority) {
-	case UDS_LOG_EMERG:
-	case UDS_LOG_ALERT:
-	case UDS_LOG_CRIT:
+	case VDO_LOG_EMERG:
+	case VDO_LOG_ALERT:
+	case VDO_LOG_CRIT:
 		pr_crit("%pV", &vaf);
 		break;
-	case UDS_LOG_ERR:
+	case VDO_LOG_ERR:
 		pr_err("%pV", &vaf);
 		break;
-	case UDS_LOG_WARNING:
+	case VDO_LOG_WARNING:
 		pr_warn("%pV", &vaf);
 		break;
-	case UDS_LOG_NOTICE:
-	case UDS_LOG_INFO:
+	case VDO_LOG_NOTICE:
+	case VDO_LOG_INFO:
 		pr_info("%pV", &vaf);
 		break;
-	case UDS_LOG_DEBUG:
+	case VDO_LOG_DEBUG:
 		pr_debug("%pV", &vaf);
 		break;
 	default:
@@ -150,7 +150,7 @@ static void emit_log_message(int priority, const char *module, const char *prefi
 }
 
 /*
- * uds_log_embedded_message() - Log a message embedded within another message.
+ * vdo_log_embedded_message() - Log a message embedded within another message.
  * @priority: the priority at which to log the message
  * @module: the name of the module doing the logging
  * @prefix: optional string prefix to message, may be NULL
@@ -158,7 +158,7 @@ static void emit_log_message(int priority, const char *module, const char *prefi
  * @args1: arguments for message first part (required)
  * @fmt2: format of message second part
  */
-void uds_log_embedded_message(int priority, const char *module, const char *prefix,
+void vdo_log_embedded_message(int priority, const char *module, const char *prefix,
 			      const char *fmt1, va_list args1, const char *fmt2, ...)
 {
 	va_list args1_copy;
@@ -168,7 +168,7 @@ void uds_log_embedded_message(int priority, const char *module, const char *pref
 	va_start(args2, fmt2);
 
 	if (module == NULL)
-		module = UDS_LOGGING_MODULE_NAME;
+		module = VDO_LOGGING_MODULE_NAME;
 
 	if (prefix == NULL)
 		prefix = "";
@@ -191,41 +191,41 @@ void uds_log_embedded_message(int priority, const char *module, const char *pref
 	va_end(args2);
 }
 
-int uds_vlog_strerror(int priority, int errnum, const char *module, const char *format,
+int vdo_vlog_strerror(int priority, int errnum, const char *module, const char *format,
 		      va_list args)
 {
-	char errbuf[UDS_MAX_ERROR_MESSAGE_SIZE];
+	char errbuf[VDO_MAX_ERROR_MESSAGE_SIZE];
 	const char *message = uds_string_error(errnum, errbuf, sizeof(errbuf));
 
-	uds_log_embedded_message(priority, module, NULL, format, args, ": %s (%d)",
+	vdo_log_embedded_message(priority, module, NULL, format, args, ": %s (%d)",
 				 message, errnum);
 	return errnum;
 }
 
-int __uds_log_strerror(int priority, int errnum, const char *module, const char *format, ...)
+int __vdo_log_strerror(int priority, int errnum, const char *module, const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
-	uds_vlog_strerror(priority, errnum, module, format, args);
+	vdo_vlog_strerror(priority, errnum, module, format, args);
 	va_end(args);
 	return errnum;
 }
 
-void uds_log_backtrace(int priority)
+void vdo_log_backtrace(int priority)
 {
-	if (priority > uds_get_log_level())
+	if (priority > vdo_get_log_level())
 		return;
 
 	dump_stack();
 }
 
-void __uds_log_message(int priority, const char *module, const char *format, ...)
+void __vdo_log_message(int priority, const char *module, const char *format, ...)
 {
 	va_list args;
 
 	va_start(args, format);
-	uds_log_embedded_message(priority, module, NULL, format, args, "%s", "");
+	vdo_log_embedded_message(priority, module, NULL, format, args, "%s", "");
 	va_end(args);
 }
 
@@ -233,7 +233,7 @@ void __uds_log_message(int priority, const char *module, const char *format, ...
  * Sleep or delay a few milliseconds in an attempt to allow the log buffers to be flushed lest they
  * be overrun.
  */
-void uds_pause_for_logger(void)
+void vdo_pause_for_logger(void)
 {
 	fsleep(4000);
 }

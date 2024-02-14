@@ -804,7 +804,7 @@ void vdo_free_recovery_journal(struct recovery_journal *journal)
 				    "journal being freed has no active tail blocks");
 	} else if (!vdo_is_state_saved(&journal->state) &&
 		   !list_empty(&journal->active_tail_blocks)) {
-		uds_log_warning("journal being freed has uncommitted entries");
+		vdo_log_warning("journal being freed has uncommitted entries");
 	}
 
 	for (i = 0; i < RECOVERY_JOURNAL_RESERVED_BLOCKS; i++) {
@@ -1305,7 +1305,7 @@ static void handle_write_error(struct vdo_completion *completion)
 	struct recovery_journal *journal = block->journal;
 
 	vio_record_metadata_io_error(as_vio(completion));
-	uds_log_error_strerror(completion->result,
+	vdo_log_error_strerror(completion->result,
 			       "cannot write recovery journal block %llu",
 			       (unsigned long long) block->sequence_number);
 	enter_journal_read_only_mode(journal, completion->result);
@@ -1719,7 +1719,7 @@ vdo_get_recovery_journal_statistics(const struct recovery_journal *journal)
  */
 static void dump_recovery_block(const struct recovery_journal_block *block)
 {
-	uds_log_info("    sequence number %llu; entries %u; %s; %zu entry waiters; %zu commit waiters",
+	vdo_log_info("    sequence number %llu; entries %u; %s; %zu entry waiters; %zu commit waiters",
 		     (unsigned long long) block->sequence_number, block->entry_count,
 		     (block->committing ? "committing" : "waiting"),
 		     vdo_waitq_num_waiters(&block->entry_waiters),
@@ -1736,8 +1736,8 @@ void vdo_dump_recovery_journal_statistics(const struct recovery_journal *journal
 	const struct recovery_journal_block *block;
 	struct recovery_journal_statistics stats = vdo_get_recovery_journal_statistics(journal);
 
-	uds_log_info("Recovery Journal");
-	uds_log_info("	block_map_head=%llu slab_journal_head=%llu last_write_acknowledged=%llu tail=%llu block_map_reap_head=%llu slab_journal_reap_head=%llu disk_full=%llu slab_journal_commits_requested=%llu entry_waiters=%zu",
+	vdo_log_info("Recovery Journal");
+	vdo_log_info("	block_map_head=%llu slab_journal_head=%llu last_write_acknowledged=%llu tail=%llu block_map_reap_head=%llu slab_journal_reap_head=%llu disk_full=%llu slab_journal_commits_requested=%llu entry_waiters=%zu",
 		     (unsigned long long) journal->block_map_head,
 		     (unsigned long long) journal->slab_journal_head,
 		     (unsigned long long) journal->last_write_acknowledged,
@@ -1747,16 +1747,16 @@ void vdo_dump_recovery_journal_statistics(const struct recovery_journal *journal
 		     (unsigned long long) stats.disk_full,
 		     (unsigned long long) stats.slab_journal_commits_requested,
 		     vdo_waitq_num_waiters(&journal->entry_waiters));
-	uds_log_info("	entries: started=%llu written=%llu committed=%llu",
+	vdo_log_info("	entries: started=%llu written=%llu committed=%llu",
 		     (unsigned long long) stats.entries.started,
 		     (unsigned long long) stats.entries.written,
 		     (unsigned long long) stats.entries.committed);
-	uds_log_info("	blocks: started=%llu written=%llu committed=%llu",
+	vdo_log_info("	blocks: started=%llu written=%llu committed=%llu",
 		     (unsigned long long) stats.blocks.started,
 		     (unsigned long long) stats.blocks.written,
 		     (unsigned long long) stats.blocks.committed);
 
-	uds_log_info("	active blocks:");
+	vdo_log_info("	active blocks:");
 	list_for_each_entry(block, &journal->active_tail_blocks, list_node)
 		dump_recovery_block(block);
 }

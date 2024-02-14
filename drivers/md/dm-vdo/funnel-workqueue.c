@@ -485,7 +485,7 @@ static void dump_simple_work_queue(struct simple_work_queue *queue)
 		thread_status = atomic_read(&queue->idle) ? "idle" : "running";
 	}
 
-	uds_log_info("workQ %px (%s) %s (%c)", &queue->common, queue->common.name,
+	vdo_log_info("workQ %px (%s) %s (%c)", &queue->common, queue->common.name,
 		     thread_status, task_state_report);
 
 	/* ->waiting_worker_threads wait queue status? anyone waiting? */

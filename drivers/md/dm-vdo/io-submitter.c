@@ -408,7 +408,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 			 * Clean up the partially initialized bio-queue entirely and indicate that
 			 * initialization failed.
 			 */
-			uds_log_error("bio map initialization failed %d", result);
+			vdo_log_error("bio map initialization failed %d", result);
 			vdo_cleanup_io_submitter(io_submitter);
 			vdo_free_io_submitter(io_submitter);
 			return result;
@@ -423,7 +423,7 @@ int vdo_make_io_submitter(unsigned int thread_count, unsigned int rotation_inter
 			 * initialization failed.
 			 */
 			vdo_int_map_free(vdo_forget(bio_queue_data->map));
-			uds_log_error("bio queue initialization failed %d", result);
+			vdo_log_error("bio queue initialization failed %d", result);
 			vdo_cleanup_io_submitter(io_submitter);
 			vdo_free_io_submitter(io_submitter);
 			return result;

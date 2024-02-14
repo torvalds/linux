@@ -259,14 +259,14 @@ static int fill_delta_chapter_index(struct open_chapter_zone **chapter_zones,
 			overflow_count++;
 			break;
 		default:
-			uds_log_error_strerror(result,
+			vdo_log_error_strerror(result,
 					       "failed to build open chapter index");
 			return result;
 		}
 	}
 
 	if (overflow_count > 0)
-		uds_log_warning("Failed to add %d entries to chapter index",
+		vdo_log_warning("Failed to add %d entries to chapter index",
 				overflow_count);
 
 	return UDS_SUCCESS;
@@ -417,7 +417,7 @@ int uds_load_open_chapter(struct uds_index *index, struct buffered_reader *reade
 		return result;
 
 	if (memcmp(OPEN_CHAPTER_VERSION, version, sizeof(version)) != 0) {
-		return uds_log_error_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_error_strerror(UDS_CORRUPT_DATA,
 					      "Invalid open chapter version: %.*s",
 					      (int) sizeof(version), version);
 	}

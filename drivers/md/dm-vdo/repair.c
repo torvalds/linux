@@ -265,13 +265,13 @@ static void finish_repair(struct vdo_completion *completion)
 	free_repair_completion(vdo_forget(repair));
 
 	if (vdo_state_requires_read_only_rebuild(vdo->load_state)) {
-		uds_log_info("Read-only rebuild complete");
+		vdo_log_info("Read-only rebuild complete");
 		vdo_launch_completion(parent);
 		return;
 	}
 
 	/* FIXME: shouldn't this say either "recovery" or "repair"? */
-	uds_log_info("Rebuild complete");
+	vdo_log_info("Rebuild complete");
 
 	/*
 	 * Now that we've freed the repair completion and its vast array of journal entries, we
@@ -291,9 +291,9 @@ static void abort_repair(struct vdo_completion *completion)
 	struct repair_completion *repair = as_repair_completion(completion);
 
 	if (vdo_state_requires_read_only_rebuild(completion->vdo->load_state))
-		uds_log_info("Read-only rebuild aborted");
+		vdo_log_info("Read-only rebuild aborted");
 	else
-		uds_log_warning("Recovery aborted");
+		vdo_log_warning("Recovery aborted");
 
 	free_repair_completion(vdo_forget(repair));
 	vdo_continue_completion(parent, result);
@@ -329,10 +329,10 @@ static void drain_slab_depot(struct vdo_completion *completion)
 
 	prepare_repair_completion(repair, finish_repair, VDO_ZONE_TYPE_ADMIN);
 	if (vdo_state_requires_read_only_rebuild(vdo->load_state)) {
-		uds_log_info("Saving rebuilt state");
+		vdo_log_info("Saving rebuilt state");
 		operation = VDO_ADMIN_STATE_REBUILDING;
 	} else {
-		uds_log_info("Replayed %zu journal entries into slab journals",
+		vdo_log_info("Replayed %zu journal entries into slab journals",
 			     repair->entries_added_to_slab_journals);
 		operation = VDO_ADMIN_STATE_RECOVERING;
 	}
@@ -350,7 +350,7 @@ static void flush_block_map_updates(struct vdo_completion *completion)
 {
 	vdo_assert_on_admin_thread(completion->vdo, __func__);
 
-	uds_log_info("Flushing block map changes");
+	vdo_log_info("Flushing block map changes");
 	prepare_repair_completion(as_repair_completion(completion), drain_slab_depot,
 				  VDO_ZONE_TYPE_ADMIN);
 	vdo_drain_block_map(completion->vdo->block_map, VDO_ADMIN_STATE_RECOVERING,
@@ -449,7 +449,7 @@ static bool process_slot(struct block_map_page *page, struct vdo_completion *com
 	if (result == VDO_SUCCESS)
 		return true;
 
-	uds_log_error_strerror(result,
+	vdo_log_error_strerror(result,
 			       "Could not adjust reference count for PBN %llu, slot %u mapped to PBN %llu",
 			       (unsigned long long) vdo_get_block_map_page_pbn(page),
 			       slot, (unsigned long long) mapping.pbn);
@@ -615,7 +615,7 @@ static int process_entry(physical_block_number_t pbn, struct vdo_completion *com
 	int result;
 
 	if ((pbn == VDO_ZERO_BLOCK) || !vdo_is_physical_data_block(depot, pbn)) {
-		return uds_log_error_strerror(VDO_BAD_CONFIGURATION,
+		return vdo_log_error_strerror(VDO_BAD_CONFIGURATION,
 					      "PBN %llu out of range",
 					      (unsigned long long) pbn);
 	}
@@ -623,7 +623,7 @@ static int process_entry(physical_block_number_t pbn, struct vdo_completion *com
 	result = vdo_adjust_reference_count_for_rebuild(depot, pbn,
 							VDO_JOURNAL_BLOCK_MAP_REMAPPING);
 	if (result != VDO_SUCCESS) {
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "Could not adjust reference count for block map tree PBN %llu",
 					      (unsigned long long) pbn);
 	}
@@ -758,7 +758,7 @@ static int validate_recovery_journal_entry(const struct vdo *vdo,
 	    !vdo_is_valid_location(&entry->unmapping) ||
 	    !vdo_is_physical_data_block(vdo->depot, entry->mapping.pbn) ||
 	    !vdo_is_physical_data_block(vdo->depot, entry->unmapping.pbn)) {
-		return uds_log_error_strerror(VDO_CORRUPT_JOURNAL,
+		return vdo_log_error_strerror(VDO_CORRUPT_JOURNAL,
 					      "Invalid entry: %s (%llu, %u) from %llu to %llu is not within bounds",
 					      vdo_get_journal_operation_name(entry->operation),
 					      (unsigned long long) entry->slot.pbn,
@@ -772,7 +772,7 @@ static int validate_recovery_journal_entry(const struct vdo *vdo,
 	     (entry->mapping.pbn == VDO_ZERO_BLOCK) ||
 	     (entry->unmapping.state != VDO_MAPPING_STATE_UNMAPPED) ||
 	     (entry->unmapping.pbn != VDO_ZERO_BLOCK))) {
-		return uds_log_error_strerror(VDO_CORRUPT_JOURNAL,
+		return vdo_log_error_strerror(VDO_CORRUPT_JOURNAL,
 					      "Invalid entry: %s (%llu, %u) from %llu to %llu is not a valid tree mapping",
 					      vdo_get_journal_operation_name(entry->operation),
 					      (unsigned long long) entry->slot.pbn,
@@ -875,7 +875,7 @@ void vdo_replay_into_slab_journals(struct block_allocator *allocator, void *cont
 		.entry_count = 0,
 	};
 
-	uds_log_info("Replaying entries into slab journals for zone %u",
+	vdo_log_info("Replaying entries into slab journals for zone %u",
 		     allocator->zone_number);
 	completion->parent = repair;
 	add_slab_journal_entries(completion);
@@ -907,7 +907,7 @@ static void flush_block_map(struct vdo_completion *completion)
 
 	vdo_assert_on_admin_thread(completion->vdo, __func__);
 
-	uds_log_info("Flushing block map changes");
+	vdo_log_info("Flushing block map changes");
 	prepare_repair_completion(repair, load_slab_depot, VDO_ZONE_TYPE_ADMIN);
 	operation = (vdo_state_requires_read_only_rebuild(completion->vdo->load_state) ?
 		     VDO_ADMIN_STATE_REBUILDING :
@@ -1107,7 +1107,7 @@ static void recover_block_map(struct vdo_completion *completion)
 		vdo_state_requires_read_only_rebuild(vdo->load_state);
 
 	if (repair->block_map_entry_count == 0) {
-		uds_log_info("Replaying 0 recovery entries into block map");
+		vdo_log_info("Replaying 0 recovery entries into block map");
 		vdo_free(vdo_forget(repair->journal_data));
 		launch_repair_completion(repair, load_slab_depot, VDO_ZONE_TYPE_ADMIN);
 		return;
@@ -1124,7 +1124,7 @@ static void recover_block_map(struct vdo_completion *completion)
 	};
 	min_heapify_all(&repair->replay_heap, &repair_min_heap);
 
-	uds_log_info("Replaying %zu recovery entries into block map",
+	vdo_log_info("Replaying %zu recovery entries into block map",
 		     repair->block_map_entry_count);
 
 	repair->current_entry = &repair->entries[repair->block_map_entry_count - 1];
@@ -1437,7 +1437,7 @@ static int validate_heads(struct repair_completion *repair)
 		return VDO_SUCCESS;
 
 
-	return uds_log_error_strerror(VDO_CORRUPT_JOURNAL,
+	return vdo_log_error_strerror(VDO_CORRUPT_JOURNAL,
 				      "Journal tail too early. block map head: %llu, slab journal head: %llu, tail: %llu",
 				      (unsigned long long) repair->block_map_head,
 				      (unsigned long long) repair->slab_journal_head,
@@ -1571,7 +1571,7 @@ static int parse_journal_for_recovery(struct repair_completion *repair)
 		header = get_recovery_journal_block_header(journal, repair->journal_data, i);
 		if (header.metadata_type == VDO_METADATA_RECOVERY_JOURNAL) {
 			/* This is an old format block, so we need to upgrade */
-			uds_log_error_strerror(VDO_UNSUPPORTED_VERSION,
+			vdo_log_error_strerror(VDO_UNSUPPORTED_VERSION,
 					       "Recovery journal is in the old format, a read-only rebuild is required.");
 			vdo_enter_read_only_mode(repair->completion.vdo,
 						 VDO_UNSUPPORTED_VERSION);
@@ -1628,7 +1628,7 @@ static int parse_journal_for_recovery(struct repair_completion *repair)
 	if (result != VDO_SUCCESS)
 		return result;
 
-	uds_log_info("Highest-numbered recovery journal block has sequence number %llu, and the highest-numbered usable block is %llu",
+	vdo_log_info("Highest-numbered recovery journal block has sequence number %llu, and the highest-numbered usable block is %llu",
 		     (unsigned long long) repair->highest_tail,
 		     (unsigned long long) repair->tail);
 
@@ -1656,7 +1656,7 @@ static void finish_journal_load(struct vdo_completion *completion)
 	if (++repair->vios_complete != repair->vio_count)
 		return;
 
-	uds_log_info("Finished reading recovery journal");
+	vdo_log_info("Finished reading recovery journal");
 	uninitialize_vios(repair);
 	prepare_repair_completion(repair, recover_block_map, VDO_ZONE_TYPE_LOGICAL);
 	vdo_continue_completion(&repair->completion, parse_journal(repair));
@@ -1701,12 +1701,12 @@ void vdo_repair(struct vdo_completion *parent)
 	vdo_assert_on_admin_thread(vdo, __func__);
 
 	if (vdo->load_state == VDO_FORCE_REBUILD) {
-		uds_log_warning("Rebuilding reference counts to clear read-only mode");
+		vdo_log_warning("Rebuilding reference counts to clear read-only mode");
 		vdo->states.vdo.read_only_recoveries++;
 	} else if (vdo->load_state == VDO_REBUILD_FOR_UPGRADE) {
-		uds_log_warning("Rebuilding reference counts for upgrade");
+		vdo_log_warning("Rebuilding reference counts for upgrade");
 	} else {
-		uds_log_warning("Device was dirty, rebuilding reference counts");
+		vdo_log_warning("Device was dirty, rebuilding reference counts");
 	}
 
 	result = vdo_allocate_extended(struct repair_completion, page_count,

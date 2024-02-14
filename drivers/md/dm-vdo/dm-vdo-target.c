@@ -232,9 +232,9 @@ static int get_version_number(int argc, char **argv, char **error_ptr,
 	}
 
 	if (*version_ptr != TABLE_VERSION) {
-		uds_log_warning("Detected version mismatch between kernel module and tools kernel: %d, tool: %d",
+		vdo_log_warning("Detected version mismatch between kernel module and tools kernel: %d, tool: %d",
 				TABLE_VERSION, *version_ptr);
-		uds_log_warning("Please consider upgrading management tools to match kernel.");
+		vdo_log_warning("Please consider upgrading management tools to match kernel.");
 	}
 	return VDO_SUCCESS;
 }
@@ -399,10 +399,10 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	/* Handle limited thread parameters */
 	if (strcmp(thread_param_type, "bioRotationInterval") == 0) {
 		if (count == 0) {
-			uds_log_error("thread config string error:  'bioRotationInterval' of at least 1 is required");
+			vdo_log_error("thread config string error:  'bioRotationInterval' of at least 1 is required");
 			return -EINVAL;
 		} else if (count > VDO_BIO_ROTATION_INTERVAL_LIMIT) {
-			uds_log_error("thread config string error: 'bioRotationInterval' cannot be higher than %d",
+			vdo_log_error("thread config string error: 'bioRotationInterval' cannot be higher than %d",
 				      VDO_BIO_ROTATION_INTERVAL_LIMIT);
 			return -EINVAL;
 		}
@@ -411,7 +411,7 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	}
 	if (strcmp(thread_param_type, "logical") == 0) {
 		if (count > MAX_VDO_LOGICAL_ZONES) {
-			uds_log_error("thread config string error: at most %d 'logical' threads are allowed",
+			vdo_log_error("thread config string error: at most %d 'logical' threads are allowed",
 				      MAX_VDO_LOGICAL_ZONES);
 			return -EINVAL;
 		}
@@ -420,7 +420,7 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	}
 	if (strcmp(thread_param_type, "physical") == 0) {
 		if (count > MAX_VDO_PHYSICAL_ZONES) {
-			uds_log_error("thread config string error: at most %d 'physical' threads are allowed",
+			vdo_log_error("thread config string error: at most %d 'physical' threads are allowed",
 				      MAX_VDO_PHYSICAL_ZONES);
 			return -EINVAL;
 		}
@@ -429,7 +429,7 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	}
 	/* Handle other thread count parameters */
 	if (count > MAXIMUM_VDO_THREADS) {
-		uds_log_error("thread config string error: at most %d '%s' threads are allowed",
+		vdo_log_error("thread config string error: at most %d '%s' threads are allowed",
 			      MAXIMUM_VDO_THREADS, thread_param_type);
 		return -EINVAL;
 	}
@@ -439,7 +439,7 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	}
 	if (strcmp(thread_param_type, "cpu") == 0) {
 		if (count == 0) {
-			uds_log_error("thread config string error: at least one 'cpu' thread required");
+			vdo_log_error("thread config string error: at least one 'cpu' thread required");
 			return -EINVAL;
 		}
 		config->cpu_threads = count;
@@ -451,7 +451,7 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	}
 	if (strcmp(thread_param_type, "bio") == 0) {
 		if (count == 0) {
-			uds_log_error("thread config string error: at least one 'bio' thread required");
+			vdo_log_error("thread config string error: at least one 'bio' thread required");
 			return -EINVAL;
 		}
 		config->bio_threads = count;
@@ -462,7 +462,7 @@ static int process_one_thread_config_spec(const char *thread_param_type,
 	 * Don't fail, just log. This will handle version mismatches between user mode tools and
 	 * kernel.
 	 */
-	uds_log_info("unknown thread parameter type \"%s\"", thread_param_type);
+	vdo_log_info("unknown thread parameter type \"%s\"", thread_param_type);
 	return VDO_SUCCESS;
 }
 
@@ -484,7 +484,7 @@ static int parse_one_thread_config_spec(const char *spec,
 		return result;
 
 	if ((fields[0] == NULL) || (fields[1] == NULL) || (fields[2] != NULL)) {
-		uds_log_error("thread config string error: expected thread parameter assignment, saw \"%s\"",
+		vdo_log_error("thread config string error: expected thread parameter assignment, saw \"%s\"",
 			      spec);
 		free_string_array(fields);
 		return -EINVAL;
@@ -492,7 +492,7 @@ static int parse_one_thread_config_spec(const char *spec,
 
 	result = kstrtouint(fields[1], 10, &count);
 	if (result) {
-		uds_log_error("thread config string error: integer value needed, found \"%s\"",
+		vdo_log_error("thread config string error: integer value needed, found \"%s\"",
 			      fields[1]);
 		free_string_array(fields);
 		return result;
@@ -564,12 +564,12 @@ static int process_one_key_value_pair(const char *key, unsigned int value,
 	/* Non thread optional parameters */
 	if (strcmp(key, "maxDiscard") == 0) {
 		if (value == 0) {
-			uds_log_error("optional parameter error: at least one max discard block required");
+			vdo_log_error("optional parameter error: at least one max discard block required");
 			return -EINVAL;
 		}
 		/* Max discard sectors in blkdev_issue_discard is UINT_MAX >> 9 */
 		if (value > (UINT_MAX / VDO_BLOCK_SIZE)) {
-			uds_log_error("optional parameter error: at most %d max discard	 blocks are allowed",
+			vdo_log_error("optional parameter error: at most %d max discard	 blocks are allowed",
 				      UINT_MAX / VDO_BLOCK_SIZE);
 			return -EINVAL;
 		}
@@ -604,7 +604,7 @@ static int parse_one_key_value_pair(const char *key, const char *value,
 	/* The remaining arguments must have integral values. */
 	result = kstrtouint(value, 10, &count);
 	if (result) {
-		uds_log_error("optional config string error: integer value needed, found \"%s\"",
+		vdo_log_error("optional config string error: integer value needed, found \"%s\"",
 			      value);
 		return result;
 	}
@@ -745,7 +745,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 		return VDO_BAD_CONFIGURATION;
 	}
 
-	uds_log_info("table line: %s", config->original_string);
+	vdo_log_info("table line: %s", config->original_string);
 
 	config->thread_counts = (struct thread_count_config) {
 		.bio_ack_threads = 1,
@@ -872,7 +872,7 @@ static int parse_device_config(int argc, char **argv, struct dm_target *ti,
 	result = dm_get_device(ti, config->parent_device_name,
 			       dm_table_get_mode(ti->table), &config->owned_device);
 	if (result != 0) {
-		uds_log_error("couldn't open device \"%s\": error %d",
+		vdo_log_error("couldn't open device \"%s\": error %d",
 			      config->parent_device_name, result);
 		handle_parse_error(config, error_ptr, "Unable to open storage device");
 		return VDO_BAD_CONFIGURATION;
@@ -1029,12 +1029,12 @@ static int __must_check process_vdo_message_locked(struct vdo *vdo, unsigned int
 			return 0;
 		}
 
-		uds_log_warning("invalid argument '%s' to dmsetup compression message",
+		vdo_log_warning("invalid argument '%s' to dmsetup compression message",
 				argv[1]);
 		return -EINVAL;
 	}
 
-	uds_log_warning("unrecognized dmsetup message '%s' received", argv[0]);
+	vdo_log_warning("unrecognized dmsetup message '%s' received", argv[0]);
 	return -EINVAL;
 }
 
@@ -1091,7 +1091,7 @@ static int vdo_message(struct dm_target *ti, unsigned int argc, char **argv,
 	int result;
 
 	if (argc == 0) {
-		uds_log_warning("unspecified dmsetup message");
+		vdo_log_warning("unspecified dmsetup message");
 		return -EINVAL;
 	}
 
@@ -1211,7 +1211,7 @@ static int perform_admin_operation(struct vdo *vdo, u32 starting_phase,
 	struct vdo_administrator *admin = &vdo->admin;
 
 	if (atomic_cmpxchg(&admin->busy, 0, 1) != 0) {
-		return uds_log_error_strerror(VDO_COMPONENT_BUSY,
+		return vdo_log_error_strerror(VDO_COMPONENT_BUSY,
 					      "Can't start %s operation, another operation is already in progress",
 					      type);
 	}
@@ -1285,7 +1285,7 @@ static int __must_check decode_from_super_block(struct vdo *vdo)
 	 * block, just accept it.
 	 */
 	if (vdo->states.vdo.config.logical_blocks < config->logical_blocks) {
-		uds_log_warning("Growing logical size: a logical size of %llu blocks was specified, but that differs from the %llu blocks configured in the vdo super block",
+		vdo_log_warning("Growing logical size: a logical size of %llu blocks was specified, but that differs from the %llu blocks configured in the vdo super block",
 				(unsigned long long) config->logical_blocks,
 				(unsigned long long) vdo->states.vdo.config.logical_blocks);
 		vdo->states.vdo.config.logical_blocks = config->logical_blocks;
@@ -1328,14 +1328,14 @@ static int __must_check decode_vdo(struct vdo *vdo)
 	journal_length =
 		vdo_get_recovery_journal_length(vdo->states.vdo.config.recovery_journal_size);
 	if (maximum_age > (journal_length / 2)) {
-		return uds_log_error_strerror(VDO_BAD_CONFIGURATION,
+		return vdo_log_error_strerror(VDO_BAD_CONFIGURATION,
 					      "maximum age: %llu exceeds limit %llu",
 					      (unsigned long long) maximum_age,
 					      (unsigned long long) (journal_length / 2));
 	}
 
 	if (maximum_age == 0) {
-		return uds_log_error_strerror(VDO_BAD_CONFIGURATION,
+		return vdo_log_error_strerror(VDO_BAD_CONFIGURATION,
 					      "maximum age must be greater than 0");
 	}
 
@@ -1451,19 +1451,19 @@ static int vdo_initialize(struct dm_target *ti, unsigned int instance,
 	u64 logical_size = to_bytes(ti->len);
 	block_count_t logical_blocks = logical_size / block_size;
 
-	uds_log_info("loading device '%s'", vdo_get_device_name(ti));
-	uds_log_debug("Logical block size     = %llu", (u64) config->logical_block_size);
-	uds_log_debug("Logical blocks         = %llu", logical_blocks);
-	uds_log_debug("Physical block size    = %llu", (u64) block_size);
-	uds_log_debug("Physical blocks        = %llu", config->physical_blocks);
-	uds_log_debug("Block map cache blocks = %u", config->cache_size);
-	uds_log_debug("Block map maximum age  = %u", config->block_map_maximum_age);
-	uds_log_debug("Deduplication          = %s", (config->deduplication ? "on" : "off"));
-	uds_log_debug("Compression            = %s", (config->compression ? "on" : "off"));
+	vdo_log_info("loading device '%s'", vdo_get_device_name(ti));
+	vdo_log_debug("Logical block size     = %llu", (u64) config->logical_block_size);
+	vdo_log_debug("Logical blocks         = %llu", logical_blocks);
+	vdo_log_debug("Physical block size    = %llu", (u64) block_size);
+	vdo_log_debug("Physical blocks        = %llu", config->physical_blocks);
+	vdo_log_debug("Block map cache blocks = %u", config->cache_size);
+	vdo_log_debug("Block map maximum age  = %u", config->block_map_maximum_age);
+	vdo_log_debug("Deduplication          = %s", (config->deduplication ? "on" : "off"));
+	vdo_log_debug("Compression            = %s", (config->compression ? "on" : "off"));
 
 	vdo = vdo_find_matching(vdo_uses_device, config);
 	if (vdo != NULL) {
-		uds_log_error("Existing vdo already uses device %s",
+		vdo_log_error("Existing vdo already uses device %s",
 			      vdo->device_config->parent_device_name);
 		ti->error = "Cannot share storage device with already-running VDO";
 		return VDO_BAD_CONFIGURATION;
@@ -1471,7 +1471,7 @@ static int vdo_initialize(struct dm_target *ti, unsigned int instance,
 
 	result = vdo_make(instance, config, &ti->error, &vdo);
 	if (result != VDO_SUCCESS) {
-		uds_log_error("Could not create VDO device. (VDO error %d, message %s)",
+		vdo_log_error("Could not create VDO device. (VDO error %d, message %s)",
 			      result, ti->error);
 		vdo_destroy(vdo);
 		return result;
@@ -1483,7 +1483,7 @@ static int vdo_initialize(struct dm_target *ti, unsigned int instance,
 		ti->error = ((result == VDO_INVALID_ADMIN_STATE) ?
 			     "Pre-load is only valid immediately after initialization" :
 			     "Cannot load metadata from device");
-		uds_log_error("Could not start VDO device. (VDO error %d, message %s)",
+		vdo_log_error("Could not start VDO device. (VDO error %d, message %s)",
 			      result, ti->error);
 		vdo_destroy(vdo);
 		return result;
@@ -1594,7 +1594,7 @@ static int construct_new_vdo_registered(struct dm_target *ti, unsigned int argc,
 
 	result = parse_device_config(argc, argv, ti, &config);
 	if (result != VDO_SUCCESS) {
-		uds_log_error_strerror(result, "parsing failed: %s", ti->error);
+		vdo_log_error_strerror(result, "parsing failed: %s", ti->error);
 		release_instance(instance);
 		return -EINVAL;
 	}
@@ -1723,7 +1723,7 @@ static int prepare_to_grow_physical(struct vdo *vdo, block_count_t new_physical_
 	int result;
 	block_count_t current_physical_blocks = vdo->states.vdo.config.physical_blocks;
 
-	uds_log_info("Preparing to resize physical to %llu",
+	vdo_log_info("Preparing to resize physical to %llu",
 		     (unsigned long long) new_physical_blocks);
 	VDO_ASSERT_LOG_ONLY((new_physical_blocks > current_physical_blocks),
 			    "New physical size is larger than current physical size");
@@ -1746,7 +1746,7 @@ static int prepare_to_grow_physical(struct vdo *vdo, block_count_t new_physical_
 		return result;
 	}
 
-	uds_log_info("Done preparing to resize physical");
+	vdo_log_info("Done preparing to resize physical");
 	return VDO_SUCCESS;
 }
 
@@ -1823,7 +1823,7 @@ static int prepare_to_modify(struct dm_target *ti, struct device_config *config,
 	if (config->logical_blocks > vdo->device_config->logical_blocks) {
 		block_count_t logical_blocks = vdo->states.vdo.config.logical_blocks;
 
-		uds_log_info("Preparing to resize logical to %llu",
+		vdo_log_info("Preparing to resize logical to %llu",
 			     (unsigned long long) config->logical_blocks);
 		VDO_ASSERT_LOG_ONLY((config->logical_blocks > logical_blocks),
 				    "New logical size is larger than current size");
@@ -1835,7 +1835,7 @@ static int prepare_to_modify(struct dm_target *ti, struct device_config *config,
 			return result;
 		}
 
-		uds_log_info("Done preparing to resize logical");
+		vdo_log_info("Done preparing to resize logical");
 	}
 
 	if (config->physical_blocks > vdo->device_config->physical_blocks) {
@@ -1861,7 +1861,7 @@ static int prepare_to_modify(struct dm_target *ti, struct device_config *config,
 	if (strcmp(config->parent_device_name, vdo->device_config->parent_device_name) != 0) {
 		const char *device_name = vdo_get_device_name(config->owning_target);
 
-		uds_log_info("Updating backing device of %s from %s to %s", device_name,
+		vdo_log_info("Updating backing device of %s from %s to %s", device_name,
 			     vdo->device_config->parent_device_name,
 			     config->parent_device_name);
 	}
@@ -1879,7 +1879,7 @@ static int update_existing_vdo(const char *device_name, struct dm_target *ti,
 	if (result != VDO_SUCCESS)
 		return -EINVAL;
 
-	uds_log_info("preparing to modify device '%s'", device_name);
+	vdo_log_info("preparing to modify device '%s'", device_name);
 	result = prepare_to_modify(ti, config, vdo);
 	if (result != VDO_SUCCESS) {
 		free_device_config(config);
@@ -1929,12 +1929,12 @@ static void vdo_dtr(struct dm_target *ti)
 		vdo_register_allocating_thread(&allocating_thread, NULL);
 
 		device_name = vdo_get_device_name(ti);
-		uds_log_info("stopping device '%s'", device_name);
+		vdo_log_info("stopping device '%s'", device_name);
 		if (vdo->dump_on_shutdown)
 			vdo_dump_all(vdo, "device shutdown");
 
 		vdo_destroy(vdo_forget(vdo));
-		uds_log_info("device '%s' stopped", device_name);
+		vdo_log_info("device '%s' stopped", device_name);
 		vdo_unregister_thread_device_id();
 		vdo_unregister_allocating_thread();
 		release_instance(instance);
@@ -2096,7 +2096,7 @@ static void vdo_postsuspend(struct dm_target *ti)
 
 	vdo_register_thread_device_id(&instance_thread, &vdo->instance);
 	device_name = vdo_get_device_name(vdo->device_config->owning_target);
-	uds_log_info("suspending device '%s'", device_name);
+	vdo_log_info("suspending device '%s'", device_name);
 
 	/*
 	 * It's important to note any error here does not actually stop device-mapper from
@@ -2110,12 +2110,12 @@ static void vdo_postsuspend(struct dm_target *ti)
 		 * Treat VDO_READ_ONLY as a success since a read-only suspension still leaves the
 		 * VDO suspended.
 		 */
-		uds_log_info("device '%s' suspended", device_name);
+		vdo_log_info("device '%s' suspended", device_name);
 	} else if (result == VDO_INVALID_ADMIN_STATE) {
-		uds_log_error("Suspend invoked while in unexpected state: %s",
+		vdo_log_error("Suspend invoked while in unexpected state: %s",
 			      vdo_get_admin_state(vdo)->name);
 	} else {
-		uds_log_error_strerror(result, "Suspend of device '%s' failed",
+		vdo_log_error_strerror(result, "Suspend of device '%s' failed",
 				       device_name);
 	}
 
@@ -2288,13 +2288,13 @@ static void handle_load_error(struct vdo_completion *completion)
 
 	if (vdo_state_requires_read_only_rebuild(vdo->load_state) &&
 	    (vdo->admin.phase == LOAD_PHASE_MAKE_DIRTY)) {
-		uds_log_error_strerror(completion->result, "aborting load");
+		vdo_log_error_strerror(completion->result, "aborting load");
 		vdo->admin.phase = LOAD_PHASE_DRAIN_JOURNAL;
 		load_callback(vdo_forget(completion));
 		return;
 	}
 
-	uds_log_error_strerror(completion->result,
+	vdo_log_error_strerror(completion->result,
 			       "Entering read-only mode due to load error");
 	vdo->admin.phase = LOAD_PHASE_WAIT_FOR_READ_ONLY;
 	vdo_enter_read_only_mode(vdo, completion->result);
@@ -2386,7 +2386,7 @@ static void resume_callback(struct vdo_completion *completion)
 
 		if (enable != was_enabled)
 			WRITE_ONCE(vdo->compressing, enable);
-		uds_log_info("compression is %s", (enable ? "enabled" : "disabled"));
+		vdo_log_info("compression is %s", (enable ? "enabled" : "disabled"));
 
 		vdo_resume_packer(vdo->packer, completion);
 		return;
@@ -2426,7 +2426,7 @@ static void grow_logical_callback(struct vdo_completion *completion)
 	switch (advance_phase(vdo)) {
 	case GROW_LOGICAL_PHASE_START:
 		if (vdo_is_read_only(vdo)) {
-			uds_log_error_strerror(VDO_READ_ONLY,
+			vdo_log_error_strerror(VDO_READ_ONLY,
 					       "Can't grow logical size of a read-only VDO");
 			vdo_set_completion_result(completion, VDO_READ_ONLY);
 			break;
@@ -2505,7 +2505,7 @@ static int perform_grow_logical(struct vdo *vdo, block_count_t new_logical_block
 		return VDO_SUCCESS;
 	}
 
-	uds_log_info("Resizing logical to %llu",
+	vdo_log_info("Resizing logical to %llu",
 		     (unsigned long long) new_logical_blocks);
 	if (vdo->block_map->next_entry_count != new_logical_blocks)
 		return VDO_PARAMETER_MISMATCH;
@@ -2516,7 +2516,7 @@ static int perform_grow_logical(struct vdo *vdo, block_count_t new_logical_block
 	if (result != VDO_SUCCESS)
 		return result;
 
-	uds_log_info("Logical blocks now %llu", (unsigned long long) new_logical_blocks);
+	vdo_log_info("Logical blocks now %llu", (unsigned long long) new_logical_blocks);
 	return VDO_SUCCESS;
 }
 
@@ -2576,7 +2576,7 @@ static void grow_physical_callback(struct vdo_completion *completion)
 	switch (advance_phase(vdo)) {
 	case GROW_PHYSICAL_PHASE_START:
 		if (vdo_is_read_only(vdo)) {
-			uds_log_error_strerror(VDO_READ_ONLY,
+			vdo_log_error_strerror(VDO_READ_ONLY,
 					       "Can't grow physical size of a read-only VDO");
 			vdo_set_completion_result(completion, VDO_READ_ONLY);
 			break;
@@ -2685,7 +2685,7 @@ static int perform_grow_physical(struct vdo *vdo, block_count_t new_physical_blo
 	if (result != VDO_SUCCESS)
 		return result;
 
-	uds_log_info("Physical block count was %llu, now %llu",
+	vdo_log_info("Physical block count was %llu, now %llu",
 		     (unsigned long long) old_physical_blocks,
 		     (unsigned long long) new_physical_blocks);
 	return VDO_SUCCESS;
@@ -2707,13 +2707,13 @@ static int __must_check apply_new_vdo_configuration(struct vdo *vdo,
 
 	result = perform_grow_logical(vdo, config->logical_blocks);
 	if (result != VDO_SUCCESS) {
-		uds_log_error("grow logical operation failed, result = %d", result);
+		vdo_log_error("grow logical operation failed, result = %d", result);
 		return result;
 	}
 
 	result = perform_grow_physical(vdo, config->physical_blocks);
 	if (result != VDO_SUCCESS)
-		uds_log_error("resize operation failed, result = %d", result);
+		vdo_log_error("resize operation failed, result = %d", result);
 
 	return result;
 }
@@ -2728,14 +2728,14 @@ static int vdo_preresume_registered(struct dm_target *ti, struct vdo *vdo)
 	backing_blocks = get_underlying_device_block_count(vdo);
 	if (backing_blocks < config->physical_blocks) {
 		/* FIXME: can this still happen? */
-		uds_log_error("resume of device '%s' failed: backing device has %llu blocks but VDO physical size is %llu blocks",
+		vdo_log_error("resume of device '%s' failed: backing device has %llu blocks but VDO physical size is %llu blocks",
 			      device_name, (unsigned long long) backing_blocks,
 			      (unsigned long long) config->physical_blocks);
 		return -EINVAL;
 	}
 
 	if (vdo_get_admin_state(vdo) == VDO_ADMIN_STATE_PRE_LOADED) {
-		uds_log_info("starting device '%s'", device_name);
+		vdo_log_info("starting device '%s'", device_name);
 		result = perform_admin_operation(vdo, LOAD_PHASE_START, load_callback,
 						 handle_load_error, "load");
 		if ((result != VDO_SUCCESS) && (result != VDO_READ_ONLY)) {
@@ -2743,7 +2743,7 @@ static int vdo_preresume_registered(struct dm_target *ti, struct vdo *vdo)
 			 * Something has gone very wrong. Make sure everything has drained and
 			 * leave the device in an unresumable state.
 			 */
-			uds_log_error_strerror(result,
+			vdo_log_error_strerror(result,
 					       "Start failed, could not load VDO metadata");
 			vdo->suspend_type = VDO_ADMIN_STATE_STOPPING;
 			perform_admin_operation(vdo, SUSPEND_PHASE_START,
@@ -2753,10 +2753,10 @@ static int vdo_preresume_registered(struct dm_target *ti, struct vdo *vdo)
 		}
 
 		/* Even if the VDO is read-only, it is now able to handle read requests. */
-		uds_log_info("device '%s' started", device_name);
+		vdo_log_info("device '%s' started", device_name);
 	}
 
-	uds_log_info("resuming device '%s'", device_name);
+	vdo_log_info("resuming device '%s'", device_name);
 
 	/* If this fails, the VDO was not in a state to be resumed. This should never happen. */
 	result = apply_new_vdo_configuration(vdo, config);
@@ -2774,7 +2774,7 @@ static int vdo_preresume_registered(struct dm_target *ti, struct vdo *vdo)
 	 * written to disk.
 	 */
 	if (result != VDO_SUCCESS) {
-		uds_log_error_strerror(result,
+		vdo_log_error_strerror(result,
 				       "Commit of modifications to device '%s' failed",
 				       device_name);
 		vdo_enter_read_only_mode(vdo, result);
@@ -2795,7 +2795,7 @@ static int vdo_preresume_registered(struct dm_target *ti, struct vdo *vdo)
 	}
 
 	if (result != VDO_SUCCESS)
-		uds_log_error("resume of device '%s' failed with error: %d", device_name,
+		vdo_log_error("resume of device '%s' failed with error: %d", device_name,
 			      result);
 
 	return result;
@@ -2821,7 +2821,7 @@ static void vdo_resume(struct dm_target *ti)
 
 	vdo_register_thread_device_id(&instance_thread,
 				      &get_vdo_for_target(ti)->instance);
-	uds_log_info("device '%s' resumed", vdo_get_device_name(ti));
+	vdo_log_info("device '%s' resumed", vdo_get_device_name(ti));
 	vdo_unregister_thread_device_id();
 }
 
@@ -2852,7 +2852,7 @@ static bool dm_registered;
 
 static void vdo_module_destroy(void)
 {
-	uds_log_debug("unloading");
+	vdo_log_debug("unloading");
 
 	if (dm_registered)
 		dm_unregister_target(&vdo_target_bio);
@@ -2863,7 +2863,7 @@ static void vdo_module_destroy(void)
 	vdo_free(instances.words);
 	memset(&instances, 0, sizeof(struct instance_tracker));
 
-	uds_log_info("unloaded version %s", CURRENT_VERSION);
+	vdo_log_info("unloaded version %s", CURRENT_VERSION);
 }
 
 static int __init vdo_init(void)
@@ -2874,19 +2874,19 @@ static int __init vdo_init(void)
 	vdo_memory_init();
 	vdo_initialize_thread_device_registry();
 	vdo_initialize_device_registry_once();
-	uds_log_info("loaded version %s", CURRENT_VERSION);
+	vdo_log_info("loaded version %s", CURRENT_VERSION);
 
 	/* Add VDO errors to the set of errors registered by the indexer. */
 	result = vdo_register_status_codes();
 	if (result != VDO_SUCCESS) {
-		uds_log_error("vdo_register_status_codes failed %d", result);
+		vdo_log_error("vdo_register_status_codes failed %d", result);
 		vdo_module_destroy();
 		return result;
 	}
 
 	result = dm_register_target(&vdo_target_bio);
 	if (result < 0) {
-		uds_log_error("dm_register_target failed %d", result);
+		vdo_log_error("dm_register_target failed %d", result);
 		vdo_module_destroy();
 		return result;
 	}

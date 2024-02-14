@@ -33,54 +33,54 @@ static bool are_matching_configurations(struct uds_configuration *saved_config,
 	bool result = true;
 
 	if (saved_geometry->record_pages_per_chapter != geometry->record_pages_per_chapter) {
-		uds_log_error("Record pages per chapter (%u) does not match (%u)",
+		vdo_log_error("Record pages per chapter (%u) does not match (%u)",
 			      saved_geometry->record_pages_per_chapter,
 			      geometry->record_pages_per_chapter);
 		result = false;
 	}
 
 	if (saved_geometry->chapters_per_volume != geometry->chapters_per_volume) {
-		uds_log_error("Chapter count (%u) does not match (%u)",
+		vdo_log_error("Chapter count (%u) does not match (%u)",
 			      saved_geometry->chapters_per_volume,
 			      geometry->chapters_per_volume);
 		result = false;
 	}
 
 	if (saved_geometry->sparse_chapters_per_volume != geometry->sparse_chapters_per_volume) {
-		uds_log_error("Sparse chapter count (%u) does not match (%u)",
+		vdo_log_error("Sparse chapter count (%u) does not match (%u)",
 			      saved_geometry->sparse_chapters_per_volume,
 			      geometry->sparse_chapters_per_volume);
 		result = false;
 	}
 
 	if (saved_config->cache_chapters != user->cache_chapters) {
-		uds_log_error("Cache size (%u) does not match (%u)",
+		vdo_log_error("Cache size (%u) does not match (%u)",
 			      saved_config->cache_chapters, user->cache_chapters);
 		result = false;
 	}
 
 	if (saved_config->volume_index_mean_delta != user->volume_index_mean_delta) {
-		uds_log_error("Volume index mean delta (%u) does not match (%u)",
+		vdo_log_error("Volume index mean delta (%u) does not match (%u)",
 			      saved_config->volume_index_mean_delta,
 			      user->volume_index_mean_delta);
 		result = false;
 	}
 
 	if (saved_geometry->bytes_per_page != geometry->bytes_per_page) {
-		uds_log_error("Bytes per page value (%zu) does not match (%zu)",
+		vdo_log_error("Bytes per page value (%zu) does not match (%zu)",
 			      saved_geometry->bytes_per_page, geometry->bytes_per_page);
 		result = false;
 	}
 
 	if (saved_config->sparse_sample_rate != user->sparse_sample_rate) {
-		uds_log_error("Sparse sample rate (%u) does not match (%u)",
+		vdo_log_error("Sparse sample rate (%u) does not match (%u)",
 			      saved_config->sparse_sample_rate,
 			      user->sparse_sample_rate);
 		result = false;
 	}
 
 	if (saved_config->nonce != user->nonce) {
-		uds_log_error("Nonce (%llu) does not match (%llu)",
+		vdo_log_error("Nonce (%llu) does not match (%llu)",
 			      (unsigned long long) saved_config->nonce,
 			      (unsigned long long) user->nonce);
 		result = false;
@@ -109,11 +109,11 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 	result = uds_read_from_buffered_reader(reader, version_buffer,
 					       INDEX_CONFIG_VERSION_LENGTH);
 	if (result != UDS_SUCCESS)
-		return uds_log_error_strerror(result, "cannot read index config version");
+		return vdo_log_error_strerror(result, "cannot read index config version");
 
 	if (!is_version(INDEX_CONFIG_VERSION_6_02, version_buffer) &&
 	    !is_version(INDEX_CONFIG_VERSION_8_02, version_buffer)) {
-		return uds_log_error_strerror(UDS_CORRUPT_DATA,
+		return vdo_log_error_strerror(UDS_CORRUPT_DATA,
 					      "unsupported configuration version: '%.*s'",
 					      INDEX_CONFIG_VERSION_LENGTH,
 					      version_buffer);
@@ -121,7 +121,7 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 
 	result = uds_read_from_buffered_reader(reader, buffer, sizeof(buffer));
 	if (result != UDS_SUCCESS)
-		return uds_log_error_strerror(result, "cannot read config data");
+		return vdo_log_error_strerror(result, "cannot read config data");
 
 	decode_u32_le(buffer, &offset, &geometry.record_pages_per_chapter);
 	decode_u32_le(buffer, &offset, &geometry.chapters_per_volume);
@@ -149,7 +149,7 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 		result = uds_read_from_buffered_reader(reader, remapping,
 						       sizeof(remapping));
 		if (result != UDS_SUCCESS)
-			return uds_log_error_strerror(result, "cannot read converted config");
+			return vdo_log_error_strerror(result, "cannot read converted config");
 
 		offset = 0;
 		decode_u64_le(remapping, &offset,
@@ -159,7 +159,7 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 	}
 
 	if (!are_matching_configurations(&config, &geometry, user_config)) {
-		uds_log_warning("Supplied configuration does not match save");
+		vdo_log_warning("Supplied configuration does not match save");
 		return UDS_NO_INDEX;
 	}
 
@@ -263,7 +263,7 @@ static int compute_memory_sizes(uds_memory_config_size_t mem_gb, bool sparse,
 				 DEFAULT_CHAPTERS_PER_VOLUME);
 		*record_pages_per_chapter = DEFAULT_RECORD_PAGES_PER_CHAPTER;
 	} else {
-		uds_log_error("received invalid memory size");
+		vdo_log_error("received invalid memory size");
 		return -EINVAL;
 	}
 
@@ -292,7 +292,7 @@ static unsigned int __must_check normalize_zone_count(unsigned int requested)
 	if (zone_count > MAX_ZONES)
 		zone_count = MAX_ZONES;
 
-	uds_log_info("Using %u indexing zone%s for concurrency.",
+	vdo_log_info("Using %u indexing zone%s for concurrency.",
 		     zone_count, zone_count == 1 ? "" : "s");
 	return zone_count;
 }
@@ -364,13 +364,13 @@ void uds_log_configuration(struct uds_configuration *config)
 {
 	struct index_geometry *geometry = config->geometry;
 
-	uds_log_debug("Configuration:");
-	uds_log_debug("  Record pages per chapter:   %10u", geometry->record_pages_per_chapter);
-	uds_log_debug("  Chapters per volume:        %10u", geometry->chapters_per_volume);
-	uds_log_debug("  Sparse chapters per volume: %10u", geometry->sparse_chapters_per_volume);
-	uds_log_debug("  Cache size (chapters):      %10u", config->cache_chapters);
-	uds_log_debug("  Volume index mean delta:    %10u", config->volume_index_mean_delta);
-	uds_log_debug("  Bytes per page:             %10zu", geometry->bytes_per_page);
-	uds_log_debug("  Sparse sample rate:         %10u", config->sparse_sample_rate);
-	uds_log_debug("  Nonce:                      %llu", (unsigned long long) config->nonce);
+	vdo_log_debug("Configuration:");
+	vdo_log_debug("  Record pages per chapter:   %10u", geometry->record_pages_per_chapter);
+	vdo_log_debug("  Chapters per volume:        %10u", geometry->chapters_per_volume);
+	vdo_log_debug("  Sparse chapters per volume: %10u", geometry->sparse_chapters_per_volume);
+	vdo_log_debug("  Cache size (chapters):      %10u", config->cache_chapters);
+	vdo_log_debug("  Volume index mean delta:    %10u", config->volume_index_mean_delta);
+	vdo_log_debug("  Bytes per page:             %10zu", geometry->bytes_per_page);
+	vdo_log_debug("  Sparse sample rate:         %10u", config->sparse_sample_rate);
+	vdo_log_debug("  Nonce:                      %llu", (unsigned long long) config->nonce);
 }

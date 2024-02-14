@@ -225,13 +225,13 @@ static int compute_volume_sub_index_parameters(const struct uds_configuration *c
 	params->address_bits = bits_per(address_count - 1);
 	params->chapter_bits = bits_per(rounded_chapters - 1);
 	if ((u32) params->list_count != params->list_count) {
-		return uds_log_warning_strerror(UDS_INVALID_ARGUMENT,
+		return vdo_log_warning_strerror(UDS_INVALID_ARGUMENT,
 						"cannot initialize volume index with %llu delta lists",
 						(unsigned long long) params->list_count);
 	}
 
 	if (params->address_bits > 31) {
-		return uds_log_warning_strerror(UDS_INVALID_ARGUMENT,
+		return vdo_log_warning_strerror(UDS_INVALID_ARGUMENT,
 						"cannot initialize volume index with %u address bits",
 						params->address_bits);
 	}
@@ -568,7 +568,7 @@ int uds_put_volume_index_record(struct volume_index_record *record, u64 virtual_
 		u64 low = get_zone_for_record(record)->virtual_chapter_low;
 		u64 high = get_zone_for_record(record)->virtual_chapter_high;
 
-		return uds_log_warning_strerror(UDS_INVALID_ARGUMENT,
+		return vdo_log_warning_strerror(UDS_INVALID_ARGUMENT,
 						"cannot put record into chapter number %llu that is out of the valid range %llu to %llu",
 						(unsigned long long) virtual_chapter,
 						(unsigned long long) low,
@@ -590,7 +590,7 @@ int uds_put_volume_index_record(struct volume_index_record *record, u64 virtual_
 		record->is_found = true;
 		break;
 	case UDS_OVERFLOW:
-		uds_log_ratelimit(uds_log_warning_strerror, UDS_OVERFLOW,
+		vdo_log_ratelimit(vdo_log_warning_strerror, UDS_OVERFLOW,
 				  "Volume index entry dropped due to overflow condition");
 		uds_log_delta_index_entry(&record->delta_entry);
 		break;
@@ -606,7 +606,7 @@ int uds_remove_volume_index_record(struct volume_index_record *record)
 	int result;
 
 	if (!record->is_found)
-		return uds_log_warning_strerror(UDS_BAD_STATE,
+		return vdo_log_warning_strerror(UDS_BAD_STATE,
 						"illegal operation on new record");
 
 	/* Mark the record so that it cannot be used again */
@@ -644,7 +644,7 @@ static void set_volume_sub_index_zone_open_chapter(struct volume_sub_index *sub_
 			1 + (used_bits - sub_index->max_zone_bits) / sub_index->chapter_zone_bits;
 
 		if (expire_count == 1) {
-			uds_log_ratelimit(uds_log_info,
+			vdo_log_ratelimit(vdo_log_info,
 					  "zone %u:  At chapter %llu, expiring chapter %llu early",
 					  zone_number,
 					  (unsigned long long) virtual_chapter,
@@ -662,7 +662,7 @@ static void set_volume_sub_index_zone_open_chapter(struct volume_sub_index *sub_
 					zone->virtual_chapter_high - zone->virtual_chapter_low;
 				zone->virtual_chapter_low = zone->virtual_chapter_high;
 			}
-			uds_log_ratelimit(uds_log_info,
+			vdo_log_ratelimit(vdo_log_info,
 					  "zone %u:  At chapter %llu, expiring chapters %llu to %llu early",
 					  zone_number,
 					  (unsigned long long) virtual_chapter,
@@ -713,14 +713,14 @@ int uds_set_volume_index_record_chapter(struct volume_index_record *record,
 	int result;
 
 	if (!record->is_found)
-		return uds_log_warning_strerror(UDS_BAD_STATE,
+		return vdo_log_warning_strerror(UDS_BAD_STATE,
 						"illegal operation on new record");
 
 	if (!is_virtual_chapter_indexed(record, virtual_chapter)) {
 		u64 low = get_zone_for_record(record)->virtual_chapter_low;
 		u64 high = get_zone_for_record(record)->virtual_chapter_high;
 
-		return uds_log_warning_strerror(UDS_INVALID_ARGUMENT,
+		return vdo_log_warning_strerror(UDS_INVALID_ARGUMENT,
 						"cannot set chapter number %llu that is out of the valid range %llu to %llu",
 						(unsigned long long) virtual_chapter,
 						(unsigned long long) low,
@@ -820,7 +820,7 @@ static int start_restoring_volume_sub_index(struct volume_sub_index *sub_index,
 		result = uds_read_from_buffered_reader(readers[i], buffer,
 						       sizeof(buffer));
 		if (result != UDS_SUCCESS) {
-			return uds_log_warning_strerror(result,
+			return vdo_log_warning_strerror(result,
 							"failed to read volume index header");
 		}
 
@@ -839,14 +839,14 @@ static int start_restoring_volume_sub_index(struct volume_sub_index *sub_index,
 			result = UDS_CORRUPT_DATA;
 
 		if (memcmp(header.magic, MAGIC_START_5, MAGIC_SIZE) != 0) {
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"volume index file had bad magic number");
 		}
 
 		if (sub_index->volume_nonce == 0) {
 			sub_index->volume_nonce = header.volume_nonce;
 		} else if (header.volume_nonce != sub_index->volume_nonce) {
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"volume index volume nonce incorrect");
 		}
 
@@ -857,7 +857,7 @@ static int start_restoring_volume_sub_index(struct volume_sub_index *sub_index,
 			u64 low = header.virtual_chapter_low;
 			u64 high = header.virtual_chapter_high;
 
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"Inconsistent volume index zone files: Chapter range is [%llu,%llu], chapter range %d is [%llu,%llu]",
 							(unsigned long long) virtual_chapter_low,
 							(unsigned long long) virtual_chapter_high,
@@ -873,7 +873,7 @@ static int start_restoring_volume_sub_index(struct volume_sub_index *sub_index,
 			result = uds_read_from_buffered_reader(readers[i], decoded,
 							       sizeof(u64));
 			if (result != UDS_SUCCESS) {
-				return uds_log_warning_strerror(result,
+				return vdo_log_warning_strerror(result,
 								"failed to read volume index flush ranges");
 			}
 
@@ -891,7 +891,7 @@ static int start_restoring_volume_sub_index(struct volume_sub_index *sub_index,
 	result = uds_start_restoring_delta_index(&sub_index->delta_index, readers,
 						 reader_count);
 	if (result != UDS_SUCCESS)
-		return uds_log_warning_strerror(result, "restoring delta index failed");
+		return vdo_log_warning_strerror(result, "restoring delta index failed");
 
 	return UDS_SUCCESS;
 }
@@ -916,7 +916,7 @@ static int start_restoring_volume_index(struct volume_index *volume_index,
 		result = uds_read_from_buffered_reader(buffered_readers[i], buffer,
 						       sizeof(buffer));
 		if (result != UDS_SUCCESS) {
-			return uds_log_warning_strerror(result,
+			return vdo_log_warning_strerror(result,
 							"failed to read volume index header");
 		}
 
@@ -931,13 +931,13 @@ static int start_restoring_volume_index(struct volume_index *volume_index,
 			result = UDS_CORRUPT_DATA;
 
 		if (memcmp(header.magic, MAGIC_START_6, MAGIC_SIZE) != 0)
-			return uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			return vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 							"volume index file had bad magic number");
 
 		if (i == 0) {
 			volume_index->sparse_sample_rate = header.sparse_sample_rate;
 		} else if (volume_index->sparse_sample_rate != header.sparse_sample_rate) {
-			uds_log_warning_strerror(UDS_CORRUPT_DATA,
+			vdo_log_warning_strerror(UDS_CORRUPT_DATA,
 						 "Inconsistent sparse sample rate in delta index zone files: %u vs. %u",
 						 volume_index->sparse_sample_rate,
 						 header.sparse_sample_rate);
@@ -1031,7 +1031,7 @@ static int start_saving_volume_sub_index(const struct volume_sub_index *sub_inde
 
 	result = uds_write_to_buffered_writer(buffered_writer, buffer, offset);
 	if (result != UDS_SUCCESS)
-		return uds_log_warning_strerror(result,
+		return vdo_log_warning_strerror(result,
 						"failed to write volume index header");
 
 	for (i = 0; i < list_count; i++) {
@@ -1041,7 +1041,7 @@ static int start_saving_volume_sub_index(const struct volume_sub_index *sub_inde
 		result = uds_write_to_buffered_writer(buffered_writer, encoded,
 						      sizeof(u64));
 		if (result != UDS_SUCCESS) {
-			return uds_log_warning_strerror(result,
+			return vdo_log_warning_strerror(result,
 							"failed to write volume index flush ranges");
 		}
 	}
@@ -1074,7 +1074,7 @@ static int start_saving_volume_index(const struct volume_index *volume_index,
 
 	result = uds_write_to_buffered_writer(writer, buffer, offset);
 	if (result != UDS_SUCCESS) {
-		uds_log_warning_strerror(result, "failed to write volume index header");
+		vdo_log_warning_strerror(result, "failed to write volume index header");
 		return result;
 	}
 
@@ -1264,7 +1264,7 @@ int uds_make_volume_index(const struct uds_configuration *config, u64 volume_non
 					     &volume_index->vi_non_hook);
 	if (result != UDS_SUCCESS) {
 		uds_free_volume_index(volume_index);
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "Error creating non hook volume index");
 	}
 
@@ -1272,7 +1272,7 @@ int uds_make_volume_index(const struct uds_configuration *config, u64 volume_non
 					     &volume_index->vi_hook);
 	if (result != UDS_SUCCESS) {
 		uds_free_volume_index(volume_index);
-		return uds_log_error_strerror(result,
+		return vdo_log_error_strerror(result,
 					      "Error creating hook volume index");
 	}
 

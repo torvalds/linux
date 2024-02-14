@@ -215,8 +215,8 @@ const char *uds_string_error_name(int errnum, char *buf, size_t buflen)
  */
 int uds_status_to_errno(int error)
 {
-	char error_name[UDS_MAX_ERROR_NAME_SIZE];
-	char error_message[UDS_MAX_ERROR_MESSAGE_SIZE];
+	char error_name[VDO_MAX_ERROR_NAME_SIZE];
+	char error_message[VDO_MAX_ERROR_MESSAGE_SIZE];
 
 	/* 0 is success, and negative values are already system error codes. */
 	if (likely(error <= 0))
@@ -248,7 +248,7 @@ int uds_status_to_errno(int error)
 
 	default:
 		/* Translate an unexpected error into something generic. */
-		uds_log_info("%s: mapping status code %d (%s: %s) to -EIO",
+		vdo_log_info("%s: mapping status code %d (%s: %s) to -EIO",
 			     __func__, error,
 			     uds_string_error_name(error, error_name,
 						   sizeof(error_name)),

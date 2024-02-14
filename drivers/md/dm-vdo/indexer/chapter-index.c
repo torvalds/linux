@@ -166,7 +166,7 @@ int uds_pack_open_chapter_index_page(struct open_chapter_index *chapter_index,
 
 		if (removals == 0) {
 			uds_get_delta_index_stats(delta_index, &stats);
-			uds_log_warning("The chapter index for chapter %llu contains %llu entries with %llu collisions",
+			vdo_log_warning("The chapter index for chapter %llu contains %llu entries with %llu collisions",
 					(unsigned long long) chapter_number,
 					(unsigned long long) stats.record_count,
 					(unsigned long long) stats.collision_count);
@@ -198,7 +198,7 @@ int uds_pack_open_chapter_index_page(struct open_chapter_index *chapter_index,
 	}
 
 	if (removals > 0) {
-		uds_log_warning("To avoid chapter index page overflow in chapter %llu, %u entries were removed from the chapter index",
+		vdo_log_warning("To avoid chapter index page overflow in chapter %llu, %u entries were removed from the chapter index",
 				(unsigned long long) chapter_number, removals);
 	}
 

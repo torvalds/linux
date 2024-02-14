@@ -104,7 +104,7 @@ int uds_launch_request(struct uds_request *request)
 	int result;
 
 	if (request->callback == NULL) {
-		uds_log_error("missing required callback");
+		vdo_log_error("missing required callback");
 		return -EINVAL;
 	}
 
@@ -116,7 +116,7 @@ int uds_launch_request(struct uds_request *request)
 	case UDS_UPDATE:
 		break;
 	default:
-		uds_log_error("received invalid callback type");
+		vdo_log_error("received invalid callback type");
 		return -EINVAL;
 	}
 
@@ -244,7 +244,7 @@ static int __must_check make_empty_index_session(struct uds_index_session **inde
 int uds_create_index_session(struct uds_index_session **session)
 {
 	if (session == NULL) {
-		uds_log_error("missing session pointer");
+		vdo_log_error("missing session pointer");
 		return -EINVAL;
 	}
 
@@ -257,10 +257,10 @@ static int __must_check start_loading_index_session(struct uds_index_session *in
 
 	mutex_lock(&index_session->request_mutex);
 	if (index_session->state & IS_FLAG_SUSPENDED) {
-		uds_log_info("Index session is suspended");
+		vdo_log_info("Index session is suspended");
 		result = -EBUSY;
 	} else if (index_session->state != 0) {
-		uds_log_info("Index is already loaded");
+		vdo_log_info("Index is already loaded");
 		result = -EBUSY;
 	} else {
 		index_session->state |= IS_FLAG_LOADING;
@@ -290,7 +290,7 @@ static int initialize_index_session(struct uds_index_session *index_session,
 
 	result = uds_make_configuration(&index_session->parameters, &config);
 	if (result != UDS_SUCCESS) {
-		uds_log_error_strerror(result, "Failed to allocate config");
+		vdo_log_error_strerror(result, "Failed to allocate config");
 		return result;
 	}
 
@@ -298,7 +298,7 @@ static int initialize_index_session(struct uds_index_session *index_session,
 	result = uds_make_index(config, open_type, &index_session->load_context,
 				enter_callback_stage, &index_session->index);
 	if (result != UDS_SUCCESS)
-		uds_log_error_strerror(result, "Failed to make index");
+		vdo_log_error_strerror(result, "Failed to make index");
 	else
 		uds_log_configuration(config);
 
@@ -332,15 +332,15 @@ int uds_open_index(enum uds_open_index_type open_type,
 	char name[BDEVNAME_SIZE];
 
 	if (parameters == NULL) {
-		uds_log_error("missing required parameters");
+		vdo_log_error("missing required parameters");
 		return -EINVAL;
 	}
 	if (parameters->bdev == NULL) {
-		uds_log_error("missing required block device");
+		vdo_log_error("missing required block device");
 		return -EINVAL;
 	}
 	if (session == NULL) {
-		uds_log_error("missing required session pointer");
+		vdo_log_error("missing required session pointer");
 		return -EINVAL;
 	}
 
@@ -350,11 +350,11 @@ int uds_open_index(enum uds_open_index_type open_type,
 
 	session->parameters = *parameters;
 	format_dev_t(name, parameters->bdev->bd_dev);
-	uds_log_info("%s: %s", get_open_type_string(open_type), name);
+	vdo_log_info("%s: %s", get_open_type_string(open_type), name);
 
 	result = initialize_index_session(session, open_type);
 	if (result != UDS_SUCCESS)
-		uds_log_error_strerror(result, "Failed %s",
+		vdo_log_error_strerror(result, "Failed %s",
 				       get_open_type_string(open_type));
 
 	finish_loading_index_session(session, result);
@@ -426,7 +426,7 @@ int uds_suspend_index_session(struct uds_index_session *session, bool save)
 
 	if ((session->state & IS_FLAG_WAITING) || (session->state & IS_FLAG_DESTROYING)) {
 		no_work = true;
-		uds_log_info("Index session is already changing state");
+		vdo_log_info("Index session is already changing state");
 		result = -EBUSY;
 	} else if (session->state & IS_FLAG_SUSPENDED) {
 		no_work = true;
@@ -485,7 +485,7 @@ int uds_resume_index_session(struct uds_index_session *session,
 
 	mutex_lock(&session->request_mutex);
 	if (session->state & IS_FLAG_WAITING) {
-		uds_log_info("Index session is already changing state");
+		vdo_log_info("Index session is already changing state");
 		no_work = true;
 		result = -EBUSY;
 	} else if (!(session->state & IS_FLAG_SUSPENDED)) {
@@ -562,7 +562,7 @@ static int save_and_free_index(struct uds_index_session *index_session)
 	if (!suspended) {
 		result = uds_save_index(index);
 		if (result != UDS_SUCCESS)
-			uds_log_warning_strerror(result,
+			vdo_log_warning_strerror(result,
 						 "ignoring error from save_index");
 	}
 	uds_free_index(index);
@@ -598,7 +598,7 @@ int uds_close_index(struct uds_index_session *index_session)
 	}
 
 	if (index_session->state & IS_FLAG_SUSPENDED) {
-		uds_log_info("Index session is suspended");
+		vdo_log_info("Index session is suspended");
 		result = -EBUSY;
 	} else if ((index_session->state & IS_FLAG_DESTROYING) ||
 		   !(index_session->state & IS_FLAG_LOADED)) {
@@ -611,10 +611,10 @@ int uds_close_index(struct uds_index_session *index_session)
 	if (result != UDS_SUCCESS)
 		return uds_status_to_errno(result);
 
-	uds_log_debug("Closing index");
+	vdo_log_debug("Closing index");
 	wait_for_no_requests_in_progress(index_session);
 	result = save_and_free_index(index_session);
-	uds_log_debug("Closed index");
+	vdo_log_debug("Closed index");
 
 	mutex_lock(&index_session->request_mutex);
 	index_session->state &= ~IS_FLAG_CLOSING;
@@ -629,7 +629,7 @@ int uds_destroy_index_session(struct uds_index_session *index_session)
 	int result;
 	bool load_pending = false;
 
-	uds_log_debug("Destroying index session");
+	vdo_log_debug("Destroying index session");
 
 	/* Wait for any current index state change to complete. */
 	mutex_lock(&index_session->request_mutex);
@@ -641,7 +641,7 @@ int uds_destroy_index_session(struct uds_index_session *index_session)
 
 	if (index_session->state & IS_FLAG_DESTROYING) {
 		mutex_unlock(&index_session->request_mutex);
-		uds_log_info("Index session is already closing");
+		vdo_log_info("Index session is already closing");
 		return -EBUSY;
 	}
 
@@ -672,7 +672,7 @@ int uds_destroy_index_session(struct uds_index_session *index_session)
 	result = save_and_free_index(index_session);
 	uds_request_queue_finish(index_session->callback_queue);
 	index_session->callback_queue = NULL;
-	uds_log_debug("Destroyed index session");
+	vdo_log_debug("Destroyed index session");
 	vdo_free(index_session);
 	return uds_status_to_errno(result);
 }
@@ -710,7 +710,7 @@ int uds_get_index_session_stats(struct uds_index_session *index_session,
 				struct uds_index_stats *stats)
 {
 	if (stats == NULL) {
-		uds_log_error("received a NULL index stats pointer");
+		vdo_log_error("received a NULL index stats pointer");
 		return -EINVAL;
 	}
 

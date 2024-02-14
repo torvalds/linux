@@ -304,7 +304,7 @@ static int __must_check read_geometry_block(struct vdo *vdo)
 	result = blk_status_to_errno(vio->bio->bi_status);
 	free_vio(vdo_forget(vio));
 	if (result != 0) {
-		uds_log_error_strerror(result, "synchronous read failed");
+		vdo_log_error_strerror(result, "synchronous read failed");
 		vdo_free(block);
 		return -EIO;
 	}
@@ -493,7 +493,7 @@ static int initialize_vdo(struct vdo *vdo, struct device_config *config,
 		return result;
 	}
 
-	uds_log_info("zones: %d logical, %d physical, %d hash; total threads: %d",
+	vdo_log_info("zones: %d logical, %d physical, %d hash; total threads: %d",
 		     config->thread_counts.logical_zones,
 		     config->thread_counts.physical_zones,
 		     config->thread_counts.hash_zones, vdo->thread_config.thread_count);
@@ -841,7 +841,7 @@ int vdo_synchronous_flush(struct vdo *vdo)
 
 	atomic64_inc(&vdo->stats.flush_out);
 	if (result != 0) {
-		uds_log_error_strerror(result, "synchronous flush failed");
+		vdo_log_error_strerror(result, "synchronous flush failed");
 		result = -EIO;
 	}
 
@@ -928,7 +928,7 @@ static void handle_save_error(struct vdo_completion *completion)
 		container_of(as_vio(completion), struct vdo_super_block, vio);
 
 	vio_record_metadata_io_error(&super_block->vio);
-	uds_log_error_strerror(completion->result, "super block save failed");
+	vdo_log_error_strerror(completion->result, "super block save failed");
 	/*
 	 * Mark the super block as unwritable so that we won't attempt to write it again. This
 	 * avoids the case where a growth attempt fails writing the super block with the new size,
@@ -1154,7 +1154,7 @@ static void make_thread_read_only(struct vdo_completion *completion)
 		thread->is_read_only = true;
 		listener = thread->listeners;
 		if (thread_id == 0)
-			uds_log_error_strerror(READ_ONCE(notifier->read_only_error),
+			vdo_log_error_strerror(READ_ONCE(notifier->read_only_error),
 					       "Unrecoverable error, entering read-only mode");
 	} else {
 		/* We've just finished notifying a listener */
@@ -1329,7 +1329,7 @@ void vdo_enter_recovery_mode(struct vdo *vdo)
 	if (vdo_in_read_only_mode(vdo))
 		return;
 
-	uds_log_info("Entering recovery mode");
+	vdo_log_info("Entering recovery mode");
 	vdo_set_state(vdo, VDO_RECOVERING);
 }
 
@@ -1382,7 +1382,7 @@ static void set_compression_callback(struct vdo_completion *completion)
 		}
 	}
 
-	uds_log_info("compression is %s", (*enable ? "enabled" : "disabled"));
+	vdo_log_info("compression is %s", (*enable ? "enabled" : "disabled"));
 	*enable = was_enabled;
 	complete_synchronous_action(completion);
 }

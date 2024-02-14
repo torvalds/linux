@@ -1287,7 +1287,7 @@ static bool acquire_provisional_reference(struct data_vio *agent, struct pbn_loc
 	if (result == VDO_SUCCESS)
 		return true;
 
-	uds_log_warning_strerror(result,
+	vdo_log_warning_strerror(result,
 				 "Error acquiring provisional reference for dedupe candidate; aborting dedupe");
 	agent->is_duplicate = false;
 	vdo_release_physical_zone_pbn_lock(agent->duplicate.zone,
@@ -1614,7 +1614,7 @@ static bool decode_uds_advice(struct dedupe_context *context)
 
 	version = encoding->data[offset++];
 	if (version != UDS_ADVICE_VERSION) {
-		uds_log_error("invalid UDS advice version code %u", version);
+		vdo_log_error("invalid UDS advice version code %u", version);
 		return false;
 	}
 
@@ -1625,7 +1625,7 @@ static bool decode_uds_advice(struct dedupe_context *context)
 
 	/* Don't use advice that's clearly meaningless. */
 	if ((advice->state == VDO_MAPPING_STATE_UNMAPPED) || (advice->pbn == VDO_ZERO_BLOCK)) {
-		uds_log_debug("Invalid advice from deduplication server: pbn %llu, state %u. Giving up on deduplication of logical block %llu",
+		vdo_log_debug("Invalid advice from deduplication server: pbn %llu, state %u. Giving up on deduplication of logical block %llu",
 			      (unsigned long long) advice->pbn, advice->state,
 			      (unsigned long long) data_vio->logical.lbn);
 		atomic64_inc(&vdo->stats.invalid_advice_pbn_count);
@@ -1634,7 +1634,7 @@ static bool decode_uds_advice(struct dedupe_context *context)
 
 	result = vdo_get_physical_zone(vdo, advice->pbn, &advice->zone);
 	if ((result != VDO_SUCCESS) || (advice->zone == NULL)) {
-		uds_log_debug("Invalid physical block number from deduplication server: %llu, giving up on deduplication of logical block %llu",
+		vdo_log_debug("Invalid physical block number from deduplication server: %llu, giving up on deduplication of logical block %llu",
 			      (unsigned long long) advice->pbn,
 			      (unsigned long long) data_vio->logical.lbn);
 		atomic64_inc(&vdo->stats.invalid_advice_pbn_count);
@@ -2053,7 +2053,7 @@ static void close_index(struct hash_zones *zones)
 	result = uds_close_index(zones->index_session);
 
 	if (result != UDS_SUCCESS)
-		uds_log_error_strerror(result, "Error closing index");
+		vdo_log_error_strerror(result, "Error closing index");
 	spin_lock(&zones->lock);
 	zones->index_state = IS_CLOSED;
 	zones->error_flag |= result != UDS_SUCCESS;
@@ -2080,7 +2080,7 @@ static void open_index(struct hash_zones *zones)
 	result = uds_open_index(create_flag ? UDS_CREATE : UDS_LOAD,
 				&zones->parameters, zones->index_session);
 	if (result != UDS_SUCCESS)
-		uds_log_error_strerror(result, "Error opening index");
+		vdo_log_error_strerror(result, "Error opening index");
 
 	spin_lock(&zones->lock);
 	if (!create_flag) {
@@ -2104,7 +2104,7 @@ static void open_index(struct hash_zones *zones)
 		zones->index_target = IS_CLOSED;
 		zones->error_flag = true;
 		spin_unlock(&zones->lock);
-		uds_log_info("Setting UDS index target state to error");
+		vdo_log_info("Setting UDS index target state to error");
 		spin_lock(&zones->lock);
 	}
 	/*
@@ -2160,7 +2160,7 @@ static void report_dedupe_timeouts(struct hash_zones *zones, unsigned int timeou
 		u64 unreported = atomic64_read(&zones->timeouts);
 
 		unreported -= zones->reported_timeouts;
-		uds_log_debug("UDS index timeout on %llu requests",
+		vdo_log_debug("UDS index timeout on %llu requests",
 			      (unsigned long long) unreported);
 		zones->reported_timeouts += unreported;
 	}
@@ -2207,7 +2207,7 @@ static int initialize_index(struct vdo *vdo, struct hash_zones *zones)
 				 1, NULL);
 	if (result != VDO_SUCCESS) {
 		uds_destroy_index_session(vdo_forget(zones->index_session));
-		uds_log_error("UDS index queue initialization failed (%d)", result);
+		vdo_log_error("UDS index queue initialization failed (%d)", result);
 		return result;
 	}
 
@@ -2502,7 +2502,7 @@ static void initiate_suspend_index(struct admin_state *state)
 
 		result = uds_suspend_index_session(zones->index_session, save);
 		if (result != UDS_SUCCESS)
-			uds_log_error_strerror(result, "Error suspending dedupe index");
+			vdo_log_error_strerror(result, "Error suspending dedupe index");
 	}
 
 	vdo_finish_draining(state);
@@ -2585,7 +2585,7 @@ static void resume_index(void *context, struct vdo_completion *parent)
 	zones->parameters.bdev = config->owned_device->bdev;
 	result = uds_resume_index_session(zones->index_session, zones->parameters.bdev);
 	if (result != UDS_SUCCESS)
-		uds_log_error_strerror(result, "Error resuming dedupe index");
+		vdo_log_error_strerror(result, "Error resuming dedupe index");
 
 	spin_lock(&zones->lock);
 	vdo_resume_if_quiescent(&zones->state);
@@ -2665,7 +2665,7 @@ static void get_index_statistics(struct hash_zones *zones,
 
 	result = uds_get_index_session_stats(zones->index_session, &index_stats);
 	if (result != UDS_SUCCESS) {
-		uds_log_error_strerror(result, "Error reading index stats");
+		vdo_log_error_strerror(result, "Error reading index stats");
 		return;
 	}
 
@@ -2750,7 +2750,7 @@ static void dump_hash_lock(const struct hash_lock *lock)
 	 * unambiguous. 'U' indicates a lock not registered in the map.
 	 */
 	state = get_hash_lock_state_name(lock->state);
-	uds_log_info("  hl %px: %3.3s %c%llu/%u rc=%u wc=%zu agt=%px",
+	vdo_log_info("  hl %px: %3.3s %c%llu/%u rc=%u wc=%zu agt=%px",
 		     lock, state, (lock->registered ? 'D' : 'U'),
 		     (unsigned long long) lock->duplicate.pbn,
 		     lock->duplicate.state, lock->reference_count,
@@ -2784,11 +2784,11 @@ static void dump_hash_zone(const struct hash_zone *zone)
 	data_vio_count_t i;
 
 	if (zone->hash_lock_map == NULL) {
-		uds_log_info("struct hash_zone %u: NULL map", zone->zone_number);
+		vdo_log_info("struct hash_zone %u: NULL map", zone->zone_number);
 		return;
 	}
 
-	uds_log_info("struct hash_zone %u: mapSize=%zu",
+	vdo_log_info("struct hash_zone %u: mapSize=%zu",
 		     zone->zone_number, vdo_int_map_size(zone->hash_lock_map));
 	for (i = 0; i < LOCK_POOL_CAPACITY; i++)
 		dump_hash_lock(&zone->lock_array[i]);
@@ -2808,9 +2808,9 @@ void vdo_dump_hash_zones(struct hash_zones *zones)
 	target = (zones->changing ? index_state_to_string(zones, zones->index_target) : NULL);
 	spin_unlock(&zones->lock);
 
-	uds_log_info("UDS index: state: %s", state);
+	vdo_log_info("UDS index: state: %s", state);
 	if (target != NULL)
-		uds_log_info("UDS index: changing to state: %s", target);
+		vdo_log_info("UDS index: changing to state: %s", target);
 
 	for (zone = 0; zone < zones->zone_count; zone++)
 		dump_hash_zone(&zones->zones[zone]);
@@ -2957,7 +2957,7 @@ static void set_target_state(struct hash_zones *zones, enum index_state target,
 	spin_unlock(&zones->lock);
 
 	if (old_state != new_state)
-		uds_log_info("Setting UDS index target state to %s", new_state);
+		vdo_log_info("Setting UDS index target state to %s", new_state);
 }
 
 const char *vdo_get_dedupe_index_state_name(struct hash_zones *zones)

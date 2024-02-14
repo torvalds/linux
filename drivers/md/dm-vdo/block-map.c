@@ -264,7 +264,7 @@ static void report_cache_pressure(struct vdo_page_cache *cache)
 	ADD_ONCE(cache->stats.cache_pressure, 1);
 	if (cache->waiter_count > cache->page_count) {
 		if ((cache->pressure_report % LOG_INTERVAL) == 0)
-			uds_log_info("page cache pressure %u", cache->stats.cache_pressure);
+			vdo_log_info("page cache pressure %u", cache->stats.cache_pressure);
 
 		if (++cache->pressure_report >= DISPLAY_INTERVAL)
 			cache->pressure_report = 0;
@@ -483,7 +483,7 @@ static void complete_with_page(struct page_info *info,
 	bool available = vdo_page_comp->writable ? is_present(info) : is_valid(info);
 
 	if (!available) {
-		uds_log_error_strerror(VDO_BAD_PAGE,
+		vdo_log_error_strerror(VDO_BAD_PAGE,
 				       "Requested cache page %llu in state %s is not %s",
 				       (unsigned long long) info->pbn,
 				       get_page_state_name(info->state),
@@ -563,7 +563,7 @@ static void set_persistent_error(struct vdo_page_cache *cache, const char *conte
 	struct vdo *vdo = cache->vdo;
 
 	if ((result != VDO_READ_ONLY) && !vdo_is_read_only(vdo)) {
-		uds_log_error_strerror(result, "VDO Page Cache persistent error: %s",
+		vdo_log_error_strerror(result, "VDO Page Cache persistent error: %s",
 				       context);
 		vdo_enter_read_only_mode(vdo, result);
 	}
@@ -704,7 +704,7 @@ static void page_is_loaded(struct vdo_completion *completion)
 	validity = vdo_validate_block_map_page(page, nonce, info->pbn);
 	if (validity == VDO_BLOCK_MAP_PAGE_BAD) {
 		physical_block_number_t pbn = vdo_get_block_map_page_pbn(page);
-		int result = uds_log_error_strerror(VDO_BAD_PAGE,
+		int result = vdo_log_error_strerror(VDO_BAD_PAGE,
 						    "Expected page %llu but got page %llu instead",
 						    (unsigned long long) info->pbn,
 						    (unsigned long long) pbn);
@@ -894,7 +894,7 @@ static void allocate_free_page(struct page_info *info)
 
 	if (!vdo_waitq_has_waiters(&cache->free_waiters)) {
 		if (cache->stats.cache_pressure > 0) {
-			uds_log_info("page cache pressure relieved");
+			vdo_log_info("page cache pressure relieved");
 			WRITE_ONCE(cache->stats.cache_pressure, 0);
 		}
 
@@ -1012,7 +1012,7 @@ static void handle_page_write_error(struct vdo_completion *completion)
 
 	/* If we're already read-only, write failures are to be expected. */
 	if (result != VDO_READ_ONLY) {
-		uds_log_ratelimit(uds_log_error,
+		vdo_log_ratelimit(vdo_log_error,
 				  "failed to write block map page %llu",
 				  (unsigned long long) info->pbn);
 	}
@@ -1397,7 +1397,7 @@ bool vdo_copy_valid_page(char *buffer, nonce_t nonce,
 	}
 
 	if (validity == VDO_BLOCK_MAP_PAGE_BAD) {
-		uds_log_error_strerror(VDO_BAD_PAGE,
+		vdo_log_error_strerror(VDO_BAD_PAGE,
 				       "Expected page %llu but got page %llu instead",
 				       (unsigned long long) pbn,
 				       (unsigned long long) vdo_get_block_map_page_pbn(loaded));
@@ -1785,7 +1785,7 @@ static void continue_with_loaded_page(struct data_vio *data_vio,
 		vdo_unpack_block_map_entry(&page->entries[slot.block_map_slot.slot]);
 
 	if (is_invalid_tree_entry(vdo_from_data_vio(data_vio), &mapping, lock->height)) {
-		uds_log_error_strerror(VDO_BAD_MAPPING,
+		vdo_log_error_strerror(VDO_BAD_MAPPING,
 				       "Invalid block map tree PBN: %llu with state %u for page index %u at height %u",
 				       (unsigned long long) mapping.pbn, mapping.state,
 				       lock->tree_slots[lock->height - 1].page_index,
@@ -2263,7 +2263,7 @@ void vdo_find_block_map_slot(struct data_vio *data_vio)
 	/* The page at this height has been allocated and loaded. */
 	mapping = vdo_unpack_block_map_entry(&page->entries[tree_slot.block_map_slot.slot]);
 	if (is_invalid_tree_entry(vdo_from_data_vio(data_vio), &mapping, lock->height)) {
-		uds_log_error_strerror(VDO_BAD_MAPPING,
+		vdo_log_error_strerror(VDO_BAD_MAPPING,
 				       "Invalid block map tree PBN: %llu with state %u for page index %u at height %u",
 				       (unsigned long long) mapping.pbn, mapping.state,
 				       lock->tree_slots[lock->height - 1].page_index,
@@ -3140,7 +3140,7 @@ static int __must_check set_mapped_location(struct data_vio *data_vio,
 	 * Log the corruption even if we wind up ignoring it for write VIOs, converting all cases
 	 * to VDO_BAD_MAPPING.
 	 */
-	uds_log_error_strerror(VDO_BAD_MAPPING,
+	vdo_log_error_strerror(VDO_BAD_MAPPING,
 			       "PBN %llu with state %u read from the block map was invalid",
 			       (unsigned long long) mapped.pbn, mapped.state);
 

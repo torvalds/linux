@@ -381,7 +381,7 @@ static int resize_buckets(struct int_map *map)
 	/* Re-initialize the map to be empty and 50% larger. */
 	size_t new_capacity = map->capacity / 2 * 3;
 
-	uds_log_info("%s: attempting resize from %zu to %zu, current size=%zu",
+	vdo_log_info("%s: attempting resize from %zu to %zu, current size=%zu",
 		     __func__, map->capacity, new_capacity, map->size);
 	result = allocate_buckets(map, new_capacity);
 	if (result != VDO_SUCCESS) {

@@ -748,7 +748,7 @@ static void dump_packer_bin(const struct packer_bin *bin, bool canceled)
 		/* Don't dump empty bins. */
 		return;
 
-	uds_log_info("	  %sBin slots_used=%u free_space=%zu",
+	vdo_log_info("	  %sBin slots_used=%u free_space=%zu",
 		     (canceled ? "Canceled" : ""), bin->slots_used, bin->free_space);
 
 	/*
@@ -767,8 +767,8 @@ void vdo_dump_packer(const struct packer *packer)
 {
 	struct packer_bin *bin;
 
-	uds_log_info("packer");
-	uds_log_info("	flushGeneration=%llu state %s  packer_bin_count=%llu",
+	vdo_log_info("packer");
+	vdo_log_info("	flushGeneration=%llu state %s  packer_bin_count=%llu",
 		     (unsigned long long) packer->flush_generation,
 		     vdo_get_admin_state_code(&packer->state)->name,
 		     (unsigned long long) packer->size);

@@ -58,12 +58,12 @@ static void do_dump(struct vdo *vdo, unsigned int dump_options_requested,
 	u32 active, maximum;
 	s64 outstanding;
 
-	uds_log_info("%s dump triggered via %s", UDS_LOGGING_MODULE_NAME, why);
+	vdo_log_info("%s dump triggered via %s", VDO_LOGGING_MODULE_NAME, why);
 	active = get_data_vio_pool_active_requests(vdo->data_vio_pool);
 	maximum = get_data_vio_pool_maximum_requests(vdo->data_vio_pool);
 	outstanding = (atomic64_read(&vdo->stats.bios_submitted) -
 		       atomic64_read(&vdo->stats.bios_completed));
-	uds_log_info("%u device requests outstanding (max %u), %lld bio requests outstanding, device '%s'",
+	vdo_log_info("%u device requests outstanding (max %u), %lld bio requests outstanding, device '%s'",
 		     active, maximum, outstanding,
 		     vdo_get_device_name(vdo->device_config->owning_target));
 	if (((dump_options_requested & FLAG_SHOW_QUEUES) != 0) && (vdo->threads != NULL)) {
@@ -80,7 +80,7 @@ static void do_dump(struct vdo *vdo, unsigned int dump_options_requested,
 		vdo_dump_status(vdo);
 
 	vdo_report_memory_usage();
-	uds_log_info("end of %s dump", UDS_LOGGING_MODULE_NAME);
+	vdo_log_info("end of %s dump", VDO_LOGGING_MODULE_NAME);
 }
 
 static int parse_dump_options(unsigned int argc, char *const *argv,
@@ -114,7 +114,7 @@ static int parse_dump_options(unsigned int argc, char *const *argv,
 			}
 		}
 		if (j == ARRAY_SIZE(option_names)) {
-			uds_log_warning("dump option name '%s' unknown", argv[i]);
+			vdo_log_warning("dump option name '%s' unknown", argv[i]);
 			options_okay = false;
 		}
 	}
@@ -159,13 +159,13 @@ static void dump_vio_waiters(struct vdo_wait_queue *waitq, char *wait_on)
 
 	data_vio = vdo_waiter_as_data_vio(first);
 
-	uds_log_info("      %s is locked. Waited on by: vio %px pbn %llu lbn %llu d-pbn %llu lastOp %s",
+	vdo_log_info("      %s is locked. Waited on by: vio %px pbn %llu lbn %llu d-pbn %llu lastOp %s",
 		     wait_on, data_vio, data_vio->allocation.pbn, data_vio->logical.lbn,
 		     data_vio->duplicate.pbn, get_data_vio_operation_name(data_vio));
 
 	for (waiter = first->next_waiter; waiter != first; waiter = waiter->next_waiter) {
 		data_vio = vdo_waiter_as_data_vio(waiter);
-		uds_log_info("     ... and : vio %px pbn %llu lbn %llu d-pbn %llu lastOp %s",
+		vdo_log_info("     ... and : vio %px pbn %llu lbn %llu d-pbn %llu lastOp %s",
 			     data_vio, data_vio->allocation.pbn, data_vio->logical.lbn,
 			     data_vio->duplicate.pbn,
 			     get_data_vio_operation_name(data_vio));
@@ -258,7 +258,7 @@ void dump_data_vio(void *data)
 
 	encode_vio_dump_flags(data_vio, flags_dump_buffer);
 
-	uds_log_info("	vio %px %s%s %s %s%s", data_vio,
+	vdo_log_info("	vio %px %s%s %s %s%s", data_vio,
 		     vio_block_number_dump_buffer,
 		     vio_flush_generation_buffer,
 		     get_data_vio_operation_name(data_vio),

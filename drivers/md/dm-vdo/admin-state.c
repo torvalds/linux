@@ -228,12 +228,12 @@ static int __must_check begin_operation(struct admin_state *state,
 	const struct admin_state_code *next_state = get_next_state(state, operation);
 
 	if (next_state == NULL) {
-		result = uds_log_error_strerror(VDO_INVALID_ADMIN_STATE,
+		result = vdo_log_error_strerror(VDO_INVALID_ADMIN_STATE,
 						"Can't start %s from %s",
 						operation->name,
 						vdo_get_admin_state_code(state)->name);
 	} else if (state->waiter != NULL) {
-		result = uds_log_error_strerror(VDO_COMPONENT_BUSY,
+		result = vdo_log_error_strerror(VDO_COMPONENT_BUSY,
 						"Can't start %s with extant waiter",
 						operation->name);
 	} else {
@@ -291,7 +291,7 @@ static bool check_code(bool valid, const struct admin_state_code *code, const ch
 	if (valid)
 		return true;
 
-	result = uds_log_error_strerror(VDO_INVALID_ADMIN_STATE,
+	result = vdo_log_error_strerror(VDO_INVALID_ADMIN_STATE,
 					"%s is not a %s", code->name, what);
 	if (waiter != NULL)
 		vdo_continue_completion(waiter, result);
@@ -334,7 +334,7 @@ bool vdo_start_draining(struct admin_state *state,
 	}
 
 	if (!code->normal) {
-		uds_log_error_strerror(VDO_INVALID_ADMIN_STATE, "can't start %s from %s",
+		vdo_log_error_strerror(VDO_INVALID_ADMIN_STATE, "can't start %s from %s",
 				       operation->name, code->name);
 		vdo_continue_completion(waiter, VDO_INVALID_ADMIN_STATE);
 		return false;
