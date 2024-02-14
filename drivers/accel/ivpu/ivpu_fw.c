@@ -468,6 +468,8 @@ static void ivpu_fw_boot_params_print(struct ivpu_device *vdev, struct vpu_boot_
 		 boot_params->d0i3_residency_time_us);
 	ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
 		 boot_params->d0i3_entry_vpu_ts);
+	ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
+		 boot_params->system_time_us);
 }
 
 void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params *boot_params)
@@ -479,11 +481,14 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 		boot_params->d0i3_residency_time_us =
 			ktime_us_delta(ktime_get_boottime(), vdev->hw->d0i3_entry_host_ts);
 		boot_params->d0i3_entry_vpu_ts = vdev->hw->d0i3_entry_vpu_ts;
+		boot_params->system_time_us = ktime_to_us(ktime_get_real());
 
 		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_residency_time_us = %lld\n",
 			 boot_params->d0i3_residency_time_us);
 		ivpu_dbg(vdev, FW_BOOT, "boot_params.d0i3_entry_vpu_ts = %llu\n",
 			 boot_params->d0i3_entry_vpu_ts);
+		ivpu_dbg(vdev, FW_BOOT, "boot_params.system_time_us = %llu\n",
+			 boot_params->system_time_us);
 
 		boot_params->save_restore_ret_address = 0;
 		vdev->pm->is_warmboot = true;
@@ -561,6 +566,7 @@ void ivpu_fw_boot_params_setup(struct ivpu_device *vdev, struct vpu_boot_params 
 	boot_params->d0i3_residency_time_us = 0;
 	boot_params->d0i3_entry_vpu_ts = 0;
 
+	boot_params->system_time_us = ktime_to_us(ktime_get_real());
 	wmb(); /* Flush WC buffers after writing bootparams */
 
 	ivpu_fw_boot_params_print(vdev, boot_params);
