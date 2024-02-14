@@ -48,13 +48,11 @@ static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
 MODULE_PARM_DESC(firmware, "VPU firmware binary in /lib/firmware/..");
 
-/* TODO: Remove mtl_vpu.bin from names after transition to generation based FW names */
 static struct {
 	int gen;
 	const char *name;
 } fw_names[] = {
 	{ IVPU_HW_37XX, "vpu_37xx.bin" },
-	{ IVPU_HW_37XX, "mtl_vpu.bin" },
 	{ IVPU_HW_37XX, "intel/vpu/vpu_37xx_v0.0.bin" },
 	{ IVPU_HW_40XX, "vpu_40xx.bin" },
 	{ IVPU_HW_40XX, "intel/vpu/vpu_40xx_v0.0.bin" },
