@@ -20,12 +20,40 @@
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/proc-fns.h>
-#include <asm-generic/mm_hooks.h>
 #include <asm/cputype.h>
 #include <asm/sysreg.h>
 #include <asm/tlbflush.h>
 
 extern bool rodata_full;
+
+static inline int arch_dup_mmap(struct mm_struct *oldmm,
+				struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void arch_exit_mmap(struct mm_struct *mm)
+{
+}
+
+static inline void arch_unmap(struct mm_struct *mm,
+			unsigned long start, unsigned long end)
+{
+}
+
+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+		bool write, bool execute, bool foreign)
+{
+	if (IS_ENABLED(CONFIG_ARM64_WXN) && execute &&
+	    (vma->vm_flags & (VM_WRITE | VM_EXEC)) == (VM_WRITE | VM_EXEC)) {
+		pr_warn_ratelimited(
+			"process %s (%d) attempted to execute from writable memory\n",
+			current->comm, current->pid);
+		/* disallow unless the nowxn override is set */
+		return !arm64_wxn_enabled();
+	}
+	return true;
+}
 
 static inline void contextidr_thread_switch(struct task_struct *next)
 {

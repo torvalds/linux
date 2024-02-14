@@ -18,6 +18,7 @@
 #define ARM64_SW_FEATURE_OVERRIDE_NOKASLR	0
 #define ARM64_SW_FEATURE_OVERRIDE_HVHE		4
 #define ARM64_SW_FEATURE_OVERRIDE_RODATA_OFF	8
+#define ARM64_SW_FEATURE_OVERRIDE_NOWXN		12
 
 #ifndef __ASSEMBLY__
 
@@ -960,6 +961,13 @@ static inline bool arm64_test_sw_feature_override(int feat)
 static inline bool kaslr_disabled_cmdline(void)
 {
 	return arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_NOKASLR);
+}
+
+static inline bool arm64_wxn_enabled(void)
+{
+	if (!IS_ENABLED(CONFIG_ARM64_WXN))
+		return false;
+	return !arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_NOWXN);
 }
 
 u32 get_kvm_ipa_limit(void);

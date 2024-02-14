@@ -1608,6 +1608,17 @@ config RODATA_FULL_DEFAULT_ENABLED
 	  This requires the linear region to be mapped down to pages,
 	  which may adversely affect performance in some cases.
 
+config ARM64_WXN
+	bool "Enable WXN attribute so all writable mappings are non-exec"
+	help
+	  Set the WXN bit in the SCTLR system register so that all writable
+	  mappings are treated as if the PXN/UXN bit is set as well.
+	  If this is set to Y, it can still be disabled at runtime by
+	  passing 'arm64.nowxn' on the kernel command line.
+
+	  This should only be set if no software needs to be supported that
+	  relies on being able to execute from writable mappings.
+
 config ARM64_SW_TTBR0_PAN
 	bool "Emulate Privileged Access Never using TTBR0_EL1 switching"
 	help
