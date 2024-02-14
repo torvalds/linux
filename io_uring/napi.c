@@ -122,7 +122,7 @@ static bool io_napi_busy_loop_should_end(void *data,
 
 	if (signal_pending(current))
 		return true;
-	if (io_should_wake(iowq))
+	if (io_should_wake(iowq) || io_has_work(iowq->ctx))
 		return true;
 	if (io_napi_busy_loop_timeout(start_time, iowq->napi_busy_poll_to))
 		return true;

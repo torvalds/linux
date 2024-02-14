@@ -448,4 +448,15 @@ static inline bool io_file_can_poll(struct io_kiocb *req)
 	}
 	return false;
 }
+
+enum {
+	IO_CHECK_CQ_OVERFLOW_BIT,
+	IO_CHECK_CQ_DROPPED_BIT,
+};
+
+static inline bool io_has_work(struct io_ring_ctx *ctx)
+{
+	return test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq) ||
+	       !llist_empty(&ctx->work_llist);
+}
 #endif

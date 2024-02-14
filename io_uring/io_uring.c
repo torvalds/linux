@@ -122,11 +122,6 @@
 #define IO_COMPL_BATCH			32
 #define IO_REQ_ALLOC_BATCH		8
 
-enum {
-	IO_CHECK_CQ_OVERFLOW_BIT,
-	IO_CHECK_CQ_DROPPED_BIT,
-};
-
 struct io_defer_entry {
 	struct list_head	list;
 	struct io_kiocb		*req;
@@ -2477,12 +2472,6 @@ int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr)
 	 /* Commit SQ ring head once we've consumed and submitted all SQEs */
 	io_commit_sqring(ctx);
 	return ret;
-}
-
-static inline bool io_has_work(struct io_ring_ctx *ctx)
-{
-	return test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq) ||
-	       !llist_empty(&ctx->work_llist);
 }
 
 static int io_wake_function(struct wait_queue_entry *curr, unsigned int mode,
