@@ -915,6 +915,45 @@ extern struct arm64_ftr_override id_aa64isar2_override;
 
 extern struct arm64_ftr_override arm64_sw_feature_override;
 
+static inline
+u64 arm64_apply_feature_override(u64 val, int feat, int width,
+				 const struct arm64_ftr_override *override)
+{
+	u64 oval = override->val;
+
+	/*
+	 * When it encounters an invalid override (e.g., an override that
+	 * cannot be honoured due to a missing CPU feature), the early idreg
+	 * override code will set the mask to 0x0 and the value to non-zero for
+	 * the field in question. In order to determine whether the override is
+	 * valid or not for the field we are interested in, we first need to
+	 * disregard bits belonging to other fields.
+	 */
+	oval &= GENMASK_ULL(feat + width - 1, feat);
+
+	/*
+	 * The override is valid if all value bits are accounted for in the
+	 * mask. If so, replace the masked bits with the override value.
+	 */
+	if (oval == (oval & override->mask)) {
+		val &= ~override->mask;
+		val |= oval;
+	}
+
+	/* Extract the field from the updated value */
+	return cpuid_feature_extract_unsigned_field(val, feat);
+}
+
+static inline bool arm64_test_sw_feature_override(int feat)
+{
+	/*
+	 * Software features are pseudo CPU features that have no underlying
+	 * CPUID system register value to apply the override to.
+	 */
+	return arm64_apply_feature_override(0, feat, 4,
+					    &arm64_sw_feature_override);
+}
+
 u32 get_kvm_ipa_limit(void);
 void dump_cpu_features(void);
 

@@ -2042,14 +2042,7 @@ static bool has_nested_virt_support(const struct arm64_cpu_capabilities *cap,
 static bool hvhe_possible(const struct arm64_cpu_capabilities *entry,
 			  int __unused)
 {
-	u64 val;
-
-	val = read_sysreg(id_aa64mmfr1_el1);
-	if (!cpuid_feature_extract_unsigned_field(val, ID_AA64MMFR1_EL1_VH_SHIFT))
-		return false;
-
-	val = arm64_sw_feature_override.val & arm64_sw_feature_override.mask;
-	return cpuid_feature_extract_unsigned_field(val, ARM64_SW_FEATURE_OVERRIDE_HVHE);
+	return arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_HVHE);
 }
 
 #ifdef CONFIG_ARM64_PAN
