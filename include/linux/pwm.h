@@ -272,6 +272,7 @@ struct pwm_ops {
  * @npwm: number of PWMs controlled by this chip
  * @of_xlate: request a PWM device given a device tree PWM specifier
  * @atomic: can the driver's ->apply() be called in atomic context
+ * @uses_pwmchip_alloc: signals if pwmchip_allow was used to allocate this chip
  * @driver_data: Private pointer for driver specific info
  * @pwms: array of PWM devices allocated by the framework
  */
@@ -287,6 +288,7 @@ struct pwm_chip {
 	bool atomic;
 
 	/* only used internally by the PWM framework */
+	bool uses_pwmchip_alloc;
 	void *driver_data;
 	struct pwm_device *pwms;
 };

@@ -481,6 +481,7 @@ struct pwm_chip *pwmchip_alloc(struct device *parent, unsigned int npwm, size_t 
 
 	chip->dev = parent;
 	chip->npwm = npwm;
+	chip->uses_pwmchip_alloc = true;
 
 	pwmchip_set_drvdata(chip, pwmchip_priv(chip));
 
@@ -559,6 +560,15 @@ int __pwmchip_add(struct pwm_chip *chip, struct module *owner)
 	int ret;
 
 	if (!chip || !pwmchip_parent(chip) || !chip->ops || !chip->npwm)
+		return -EINVAL;
+
+	/*
+	 * a struct pwm_chip must be allocated using (devm_)pwmchip_alloc,
+	 * otherwise the embedded struct device might disappear too early
+	 * resulting in memory corruption.
+	 * Catch drivers that were not converted appropriately.
+	 */
+	if (!chip->uses_pwmchip_alloc)
 		return -EINVAL;
 
 	if (!pwm_ops_check(chip))
