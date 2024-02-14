@@ -802,7 +802,7 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 	guard(srcu)(&gdev->srcu);
 
 	chip = srcu_dereference(gdev->chip, &gdev->srcu);
-	if (chip)
+	if (!chip)
 		return;
 
 	/* unregister gpiod class devices owned by sysfs */
