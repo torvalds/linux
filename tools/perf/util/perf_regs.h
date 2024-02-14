@@ -26,8 +26,7 @@ enum {
 int arch_sdt_arg_parse_op(char *old_op, char **new_op);
 uint64_t arch__intr_reg_mask(void);
 uint64_t arch__user_reg_mask(void);
-
-extern const struct sample_reg sample_reg_masks[];
+const struct sample_reg *arch__sample_reg_masks(void);
 
 const char *perf_reg_name(int id, const char *arch);
 int perf_reg_value(u64 *valp, struct regs_dump *regs, int id);
