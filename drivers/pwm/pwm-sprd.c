@@ -34,13 +34,12 @@ struct sprd_pwm_chn {
 
 struct sprd_pwm_chip {
 	void __iomem *base;
-	struct pwm_chip chip;
 	struct sprd_pwm_chn chn[SPRD_PWM_CHN_NUM];
 };
 
 static inline struct sprd_pwm_chip* sprd_pwm_from_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct sprd_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 /*
@@ -248,6 +247,7 @@ static int sprd_pwm_clk_init(struct device *dev,
 
 static int sprd_pwm_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	struct sprd_pwm_chip *spc;
 	struct sprd_pwm_chn chn[SPRD_PWM_CHN_NUM];
 	int ret, npwm;
@@ -256,9 +256,10 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 	if (npwm < 0)
 		return npwm;
 
-	spc = devm_kzalloc(&pdev->dev, sizeof(*spc), GFP_KERNEL);
-	if (!spc)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, npwm, sizeof(*spc));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	spc = sprd_pwm_from_chip(chip);
 
 	spc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(spc->base))
@@ -266,11 +267,9 @@ static int sprd_pwm_probe(struct platform_device *pdev)
 
 	memcpy(spc->chn, chn, sizeof(chn));
 
-	spc->chip.dev = &pdev->dev;
-	spc->chip.ops = &sprd_pwm_ops;
-	spc->chip.npwm = npwm;
+	chip->ops = &sprd_pwm_ops;
 
-	ret = devm_pwmchip_add(&pdev->dev, &spc->chip);
+	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret)
 		dev_err(&pdev->dev, "failed to add PWM chip\n");
 
