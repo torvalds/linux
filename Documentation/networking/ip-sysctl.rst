@@ -2503,7 +2503,7 @@ use_tempaddr - INTEGER
 
 temp_valid_lft - INTEGER
 	valid lifetime (in seconds) for temporary addresses. If less than the
-	minimum required lifetime (typically 5 seconds), temporary addresses
+	minimum required lifetime (typically 5-7 seconds), temporary addresses
 	will not be created.
 
 	Default: 172800 (2 days)
@@ -2511,7 +2511,7 @@ temp_valid_lft - INTEGER
 temp_prefered_lft - INTEGER
 	Preferred lifetime (in seconds) for temporary addresses. If
 	temp_prefered_lft is less than the minimum required lifetime (typically
-	5 seconds), temporary addresses will not be created. If
+	5-7 seconds), temporary addresses will not be created. If
 	temp_prefered_lft is greater than temp_valid_lft, the preferred lifetime
 	is temp_valid_lft.
 
