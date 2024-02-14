@@ -68,7 +68,7 @@
 			+ EARLY_PGDS((vstart), (vend), add) 	/* each PGDIR needs a next level page table */	\
 			+ EARLY_PUDS((vstart), (vend), add)	/* each PUD needs a next level page table */	\
 			+ EARLY_PMDS((vstart), (vend), add))	/* each PMD needs a next level page table */
-#define INIT_DIR_SIZE (PAGE_SIZE * EARLY_PAGES(KIMAGE_VADDR, _end, EXTRA_PAGE))
+#define INIT_DIR_SIZE (PAGE_SIZE * (EARLY_PAGES(KIMAGE_VADDR, _end, EXTRA_PAGE) + EARLY_SEGMENT_EXTRA_PAGES))
 
 /* the initial ID map may need two extra pages if it needs to be extended */
 #if VA_BITS < 48
@@ -87,6 +87,15 @@
 #define SWAPPER_BLOCK_SHIFT	PAGE_SHIFT
 #define SWAPPER_BLOCK_SIZE	PAGE_SIZE
 #define SWAPPER_TABLE_SHIFT	PMD_SHIFT
+#endif
+
+/* The number of segments in the kernel image (text, rodata, inittext, initdata, data+bss) */
+#define KERNEL_SEGMENT_COUNT	5
+
+#if SWAPPER_BLOCK_SIZE > SEGMENT_ALIGN
+#define EARLY_SEGMENT_EXTRA_PAGES (KERNEL_SEGMENT_COUNT + 1)
+#else
+#define EARLY_SEGMENT_EXTRA_PAGES 0
 #endif
 
 /*
