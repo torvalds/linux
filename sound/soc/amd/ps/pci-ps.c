@@ -554,6 +554,19 @@ static bool check_acp_sdw_enable_status(struct acp63_dev_data *adata)
 	return (sdw0_en || sdw1_en);
 }
 
+static void handle_acp63_sdw_pme_event(struct acp63_dev_data *adata)
+{
+	u32 val;
+
+	val = readl(adata->acp63_base + ACP_SW0_WAKE_EN);
+	if (val && adata->sdw->pdev[0])
+		pm_request_resume(&adata->sdw->pdev[0]->dev);
+
+	val = readl(adata->acp63_base + ACP_SW1_WAKE_EN);
+	if (val && adata->sdw->pdev[1])
+		pm_request_resume(&adata->sdw->pdev[1]->dev);
+}
+
 static int __maybe_unused snd_acp63_suspend(struct device *dev)
 {
 	struct acp63_dev_data *adata;
@@ -570,6 +583,26 @@ static int __maybe_unused snd_acp63_suspend(struct device *dev)
 		dev_err(dev, "ACP de-init failed\n");
 
 	return ret;
+}
+
+static int __maybe_unused snd_acp63_runtime_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->sdw_en_stat)
+		return 0;
+
+	ret = acp63_init(adata->acp63_base, dev);
+	if (ret) {
+		dev_err(dev, "ACP init failed\n");
+		return ret;
+	}
+
+	if (!adata->sdw_en_stat)
+		handle_acp63_sdw_pme_event(adata);
+	return 0;
 }
 
 static int __maybe_unused snd_acp63_resume(struct device *dev)
@@ -589,7 +622,7 @@ static int __maybe_unused snd_acp63_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
-	SET_RUNTIME_PM_OPS(snd_acp63_suspend, snd_acp63_resume, NULL)
+	SET_RUNTIME_PM_OPS(snd_acp63_suspend, snd_acp63_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(snd_acp63_suspend, snd_acp63_resume)
 };
 
