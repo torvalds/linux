@@ -620,9 +620,9 @@ properties:
           - const: openailab,eaidk-610
           - const: rockchip,rk3399
 
-      - description: Orange Pi RK3399 board
+      - description: Xunlong Orange Pi RK3399 board
         items:
-          - const: rockchip,rk3399-orangepi
+          - const: xunlong,rk3399-orangepi
           - const: rockchip,rk3399
 
       - description: Phytec phyCORE-RK3288 Rapid Development Kit
