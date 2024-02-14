@@ -706,6 +706,22 @@ int genphy_c45_write_eee_adv(struct phy_device *phydev, unsigned long *adv)
 			changed = 1;
 	}
 
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP2_FEATURES)) {
+		val = linkmode_to_mii_eee_cap2_t(adv);
+
+		/* IEEE 802.3-2022 45.2.7.16 EEE advertisement 2
+		 * (Register 7.62)
+		 */
+		val = phy_modify_mmd_changed(phydev, MDIO_MMD_AN,
+					     MDIO_AN_EEE_ADV2,
+					     MDIO_EEE_2_5GT | MDIO_EEE_5GT,
+					     val);
+		if (val < 0)
+			return val;
+		if (val > 0)
+			changed = 1;
+	}
+
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
 			      phydev->supported_eee)) {
 		val = linkmode_adv_to_mii_10base_t1_t(adv);
@@ -743,6 +759,17 @@ int genphy_c45_read_eee_adv(struct phy_device *phydev, unsigned long *adv)
 			return val;
 
 		mii_eee_cap1_mod_linkmode_t(adv, val);
+	}
+
+	if (linkmode_intersects(phydev->supported_eee, PHY_EEE_CAP2_FEATURES)) {
+		/* IEEE 802.3-2022 45.2.7.16 EEE advertisement 2
+		 * (Register 7.62)
+		 */
+		val = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_AN_EEE_ADV2);
+		if (val < 0)
+			return val;
+
+		mii_eee_cap2_mod_linkmode_adv_t(adv, val);
 	}
 
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10baseT1L_Full_BIT,
