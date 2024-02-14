@@ -577,16 +577,10 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 	if (IS_ERR(our_chip->base))
 		return PTR_ERR(our_chip->base);
 
-	our_chip->base_clk = devm_clk_get(&pdev->dev, "timers");
+	our_chip->base_clk = devm_clk_get_enabled(&pdev->dev, "timers");
 	if (IS_ERR(our_chip->base_clk)) {
 		dev_err(dev, "failed to get timer base clk\n");
 		return PTR_ERR(our_chip->base_clk);
-	}
-
-	ret = clk_prepare_enable(our_chip->base_clk);
-	if (ret < 0) {
-		dev_err(dev, "failed to enable base clock\n");
-		return ret;
 	}
 
 	for (chan = 0; chan < SAMSUNG_PWM_NUM; ++chan)
@@ -599,10 +593,9 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	ret = pwmchip_add(chip);
+	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret < 0) {
 		dev_err(dev, "failed to register PWM chip\n");
-		clk_disable_unprepare(our_chip->base_clk);
 		return ret;
 	}
 
@@ -612,16 +605,6 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 		!IS_ERR(our_chip->tclk1) ? clk_get_rate(our_chip->tclk1) : 0);
 
 	return 0;
-}
-
-static void pwm_samsung_remove(struct platform_device *pdev)
-{
-	struct pwm_chip *chip = platform_get_drvdata(pdev);
-	struct samsung_pwm_chip *our_chip = to_samsung_pwm_chip(chip);
-
-	pwmchip_remove(chip);
-
-	clk_disable_unprepare(our_chip->base_clk);
 }
 
 static int pwm_samsung_resume(struct device *dev)
@@ -666,7 +649,6 @@ static struct platform_driver pwm_samsung_driver = {
 		.of_match_table = of_match_ptr(samsung_pwm_matches),
 	},
 	.probe		= pwm_samsung_probe,
-	.remove_new	= pwm_samsung_remove,
 };
 module_platform_driver(pwm_samsung_driver);
 
