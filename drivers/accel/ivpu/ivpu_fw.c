@@ -46,7 +46,7 @@
 
 static char *ivpu_firmware;
 module_param_named_unsafe(firmware, ivpu_firmware, charp, 0644);
-MODULE_PARM_DESC(firmware, "VPU firmware binary in /lib/firmware/..");
+MODULE_PARM_DESC(firmware, "NPU firmware binary in /lib/firmware/..");
 
 static struct {
 	int gen;

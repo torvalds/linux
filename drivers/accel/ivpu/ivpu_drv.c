@@ -45,11 +45,11 @@ MODULE_PARM_DESC(test_mode, "Test mode mask. See IVPU_TEST_MODE_* macros.");
 
 u8 ivpu_pll_min_ratio;
 module_param_named(pll_min_ratio, ivpu_pll_min_ratio, byte, 0644);
-MODULE_PARM_DESC(pll_min_ratio, "Minimum PLL ratio used to set VPU frequency");
+MODULE_PARM_DESC(pll_min_ratio, "Minimum PLL ratio used to set NPU frequency");
 
 u8 ivpu_pll_max_ratio = U8_MAX;
 module_param_named(pll_max_ratio, ivpu_pll_max_ratio, byte, 0644);
-MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set VPU frequency");
+MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set NPU frequency");
 
 bool ivpu_disable_mmu_cont_pages;
 module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0644);
@@ -328,13 +328,13 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 	ivpu_ipc_consumer_del(vdev, &cons);
 
 	if (!ret && ipc_hdr.data_addr != IVPU_IPC_BOOT_MSG_DATA_ADDR) {
-		ivpu_err(vdev, "Invalid VPU ready message: 0x%x\n",
+		ivpu_err(vdev, "Invalid NPU ready message: 0x%x\n",
 			 ipc_hdr.data_addr);
 		return -EIO;
 	}
 
 	if (!ret)
-		ivpu_dbg(vdev, PM, "VPU ready message received successfully\n");
+		ivpu_dbg(vdev, PM, "NPU ready message received successfully\n");
 
 	return ret;
 }

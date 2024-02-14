@@ -194,7 +194,7 @@ static inline int ivpu_hw_gen(struct ivpu_device *vdev)
 	case PCI_DEVICE_ID_LNL:
 		return IVPU_HW_40XX;
 	default:
-		ivpu_err(vdev, "Unknown VPU device\n");
+		ivpu_err(vdev, "Unknown NPU device\n");
 		return 0;
 	}
 }

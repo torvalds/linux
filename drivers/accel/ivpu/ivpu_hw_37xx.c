@@ -228,7 +228,7 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 
 		ret = ivpu_hw_37xx_wait_for_vpuip_bar(vdev);
 		if (ret) {
-			ivpu_err(vdev, "Timed out waiting for VPUIP bar\n");
+			ivpu_err(vdev, "Timed out waiting for NPU IP bar\n");
 			return ret;
 		}
 	}
@@ -742,10 +742,10 @@ static int ivpu_hw_37xx_power_down(struct ivpu_device *vdev)
 	ivpu_hw_37xx_save_d0i3_entry_timestamp(vdev);
 
 	if (!ivpu_hw_37xx_is_idle(vdev))
-		ivpu_warn(vdev, "VPU not idle during power down\n");
+		ivpu_warn(vdev, "NPU not idle during power down\n");
 
 	if (ivpu_hw_37xx_reset(vdev)) {
-		ivpu_err(vdev, "Failed to reset VPU\n");
+		ivpu_err(vdev, "Failed to reset NPU\n");
 		ret = -EIO;
 	}
 
