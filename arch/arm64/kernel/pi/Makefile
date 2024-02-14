@@ -39,6 +39,7 @@ $(obj)/lib-%.o: $(srctree)/lib/%.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
 obj-y					:= idreg-override.pi.o \
+					   map_kernel.pi.o map_range.pi.o \
 					   lib-fdt.pi.o lib-fdt_ro.pi.o
 obj-$(CONFIG_RELOCATABLE)		+= relocate.pi.o
 obj-$(CONFIG_RANDOMIZE_BASE)		+= kaslr_early.pi.o

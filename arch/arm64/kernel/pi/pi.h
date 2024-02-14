@@ -2,6 +2,8 @@
 // Copyright 2023 Google LLC
 // Author: Ard Biesheuvel <ardb@google.com>
 
+#include <linux/types.h>
+
 #define __prel64_initconst	__section(".init.rodata.prel64")
 
 #define PREL64(type, name)	union { type *name; prel64_t name ## _prel; }
@@ -16,3 +18,15 @@ static inline void *prel64_to_pointer(const prel64_t *offset)
 		return NULL;
 	return (void *)offset + *offset;
 }
+
+extern bool dynamic_scs_is_enabled;
+
+void init_feature_override(u64 boot_status, const void *fdt, int chosen);
+u64 kaslr_early_init(void *fdt, int chosen);
+void relocate_kernel(u64 offset);
+int scs_patch(const u8 eh_frame[], int size);
+
+void map_range(u64 *pgd, u64 start, u64 end, u64 pa, pgprot_t prot,
+	       int level, pte_t *tbl, bool may_use_cont, u64 va_offset);
+
+asmlinkage void early_map_kernel(u64 boot_status, void *fdt);

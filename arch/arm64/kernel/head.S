@@ -81,7 +81,6 @@
 	 *  x20        primary_entry() .. __primary_switch()    CPU boot mode
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
-	 *  x23        __primary_switch()                       physical misalignment/KASLR offset
 	 *  x25        primary_entry() .. start_kernel()        supported VA size
 	 *  x28        create_idmap()                           callee preserved temp register
 	 */
@@ -407,24 +406,6 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	bl	dcache_inval_poc
 0:	ret	x28
 SYM_FUNC_END(create_idmap)
-
-SYM_FUNC_START_LOCAL(create_kernel_mapping)
-	adrp	x0, init_pg_dir
-	mov_q	x5, KIMAGE_VADDR		// compile time __va(_text)
-#ifdef CONFIG_RELOCATABLE
-	add	x5, x5, x23			// add KASLR displacement
-#endif
-	adrp	x6, _end			// runtime __pa(_end)
-	adrp	x3, _text			// runtime __pa(_text)
-	sub	x6, x6, x3			// _end - _text
-	add	x6, x6, x5			// runtime __va(_end)
-	mov_q	x7, SWAPPER_RW_MMUFLAGS
-
-	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
-
-	dsb	ishst				// sync with page table walker
-	ret
-SYM_FUNC_END(create_kernel_mapping)
 
 	/*
 	 * Initialize CPU registers with task-specific and cpu-specific context.
@@ -752,44 +733,13 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
 
-	// Clear BSS
-	adrp	x0, __bss_start
-	mov	x1, xzr
-	adrp	x2, init_pg_end
-	sub	x2, x2, x0
-	bl	__pi_memset
-	dsb	ishst				// Make zero page visible to PTW
-
 	adrp	x1, early_init_stack
 	mov	sp, x1
 	mov	x29, xzr
 	mov	x0, x20				// pass the full boot status
 	mov	x1, x22				// pass the low FDT mapping
-	bl	__pi_init_feature_override	// Parse cpu feature overrides
+	bl	__pi_early_map_kernel		// Map and relocate the kernel
 
-#ifdef CONFIG_RELOCATABLE
-	adrp	x23, KERNEL_START
-	and	x23, x23, MIN_KIMG_ALIGN - 1
-#ifdef CONFIG_RANDOMIZE_BASE
-	mov	x0, x22
-	bl	__pi_kaslr_early_init
-	bic	x0, x0, #SZ_2M - 1
-	orr	x23, x23, x0			// record kernel offset
-#endif
-#endif
-	bl	create_kernel_mapping
-
-	adrp	x1, init_pg_dir
-	load_ttbr1 x1, x1, x2
-#ifdef CONFIG_RELOCATABLE
-	mov	x0, x23
-	bl	__pi_relocate_kernel
-#endif
-#ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
-	ldr	x0, =__eh_frame_start
-	ldr	x1, =__eh_frame_end
-	bl	__pi_scs_patch_vmlinux
-#endif
 	ldr	x8, =__primary_switched
 	adrp	x0, KERNEL_START		// __pa(KERNEL_START)
 	br	x8

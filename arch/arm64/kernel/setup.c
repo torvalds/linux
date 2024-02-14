@@ -283,13 +283,6 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 
 	kaslr_init();
 
-	/*
-	 * If know now we are going to need KPTI then use non-global
-	 * mappings from the start, avoiding the cost of rewriting
-	 * everything later.
-	 */
-	arm64_use_ng_mappings = kaslr_enabled() && kaslr_requires_kpti();
-
 	early_fixmap_init();
 	early_ioremap_init();
 

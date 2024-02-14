@@ -126,9 +126,9 @@ jiffies = jiffies_64;
 #ifdef CONFIG_UNWIND_TABLES
 #define UNWIND_DATA_SECTIONS				\
 	.eh_frame : {					\
-		__eh_frame_start = .;			\
+		__pi___eh_frame_start = .;		\
 		*(.eh_frame)				\
-		__eh_frame_end = .;			\
+		__pi___eh_frame_end = .;		\
 	}
 #else
 #define UNWIND_DATA_SECTIONS

@@ -7,6 +7,8 @@
 #include <linux/init.h>
 #include <linux/types.h>
 
+#include "pi.h"
+
 extern const Elf64_Rela rela_start[], rela_end[];
 extern const u64 relr_start[], relr_end[];
 

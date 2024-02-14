@@ -11,6 +11,10 @@
 
 #include <asm/scs.h>
 
+#include "pi.h"
+
+bool dynamic_scs_is_enabled;
+
 //
 // This minimal DWARF CFI parser is partially based on the code in
 // arch/arc/kernel/unwind.c, and on the document below:
@@ -45,8 +49,6 @@
 #define DW_CFA_GNU_args_size                0x2e
 #define DW_CFA_GNU_negative_offset_extended 0x2f
 #define DW_CFA_hi_user                      0x3f
-
-extern const u8 __eh_frame_start[], __eh_frame_end[];
 
 enum {
 	PACIASP		= 0xd503233f,
@@ -249,14 +251,4 @@ int scs_patch(const u8 eh_frame[], int size)
 		size -= sizeof(frame->size) + frame->size;
 	}
 	return 0;
-}
-
-asmlinkage void __init scs_patch_vmlinux(const u8 start[], const u8 end[])
-{
-	if (!should_patch_pac_into_scs())
-		return;
-
-	scs_patch(start, end - start);
-	asm("ic ialluis");
-	isb();
 }

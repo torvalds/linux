@@ -16,17 +16,17 @@
 #include <asm/memory.h>
 #include <asm/pgtable.h>
 
+#include "pi.h"
+
 extern u16 memstart_offset_seed;
 
-static u64 __init get_kaslr_seed(void *fdt)
+static u64 __init get_kaslr_seed(void *fdt, int node)
 {
-	static char const chosen_str[] __initconst = "chosen";
 	static char const seed_str[] __initconst = "kaslr-seed";
-	int node, len;
 	fdt64_t *prop;
 	u64 ret;
+	int len;
 
-	node = fdt_path_offset(fdt, chosen_str);
 	if (node < 0)
 		return 0;
 
@@ -39,14 +39,14 @@ static u64 __init get_kaslr_seed(void *fdt)
 	return ret;
 }
 
-asmlinkage u64 __init kaslr_early_init(void *fdt)
+u64 __init kaslr_early_init(void *fdt, int chosen)
 {
 	u64 seed, range;
 
 	if (kaslr_disabled_cmdline())
 		return 0;
 
-	seed = get_kaslr_seed(fdt);
+	seed = get_kaslr_seed(fdt, chosen);
 	if (!seed) {
 		if (!__early_cpu_has_rndr() ||
 		    !__arm64_rndr((unsigned long *)&seed))

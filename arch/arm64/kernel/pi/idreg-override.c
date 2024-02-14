@@ -308,37 +308,35 @@ static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 	} while (1);
 }
 
-static __init const u8 *get_bootargs_cmdline(const void *fdt)
+static __init const u8 *get_bootargs_cmdline(const void *fdt, int node)
 {
+	static char const bootargs[] __initconst = "bootargs";
 	const u8 *prop;
-	int node;
 
-	node = fdt_path_offset(fdt, "/chosen");
 	if (node < 0)
 		return NULL;
 
-	prop = fdt_getprop(fdt, node, "bootargs", NULL);
+	prop = fdt_getprop(fdt, node, bootargs, NULL);
 	if (!prop)
 		return NULL;
 
 	return strlen(prop) ? prop : NULL;
 }
 
-static __init void parse_cmdline(const void *fdt)
+static __init void parse_cmdline(const void *fdt, int chosen)
 {
-	const u8 *prop = get_bootargs_cmdline(fdt);
+	static char const cmdline[] __initconst = CONFIG_CMDLINE;
+	const u8 *prop = get_bootargs_cmdline(fdt, chosen);
 
 	if (IS_ENABLED(CONFIG_CMDLINE_FORCE) || !prop)
-		__parse_cmdline(CONFIG_CMDLINE, true);
+		__parse_cmdline(cmdline, true);
 
 	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE) && prop)
 		__parse_cmdline(prop, true);
 }
 
-/* Keep checkers quiet */
-void init_feature_override(u64 boot_status, const void *fdt);
-
-asmlinkage void __init init_feature_override(u64 boot_status, const void *fdt)
+void __init init_feature_override(u64 boot_status, const void *fdt,
+				  int chosen)
 {
 	struct arm64_ftr_override *override;
 	const struct ftr_set_desc *reg;
@@ -354,7 +352,7 @@ asmlinkage void __init init_feature_override(u64 boot_status, const void *fdt)
 
 	__boot_status = boot_status;
 
-	parse_cmdline(fdt);
+	parse_cmdline(fdt, chosen);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		reg = prel64_pointer(regs[i].reg);

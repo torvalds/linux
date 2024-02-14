@@ -195,6 +195,7 @@ SYM_TYPED_FUNC_START(idmap_cpu_replace_ttbr1)
 
 	ret
 SYM_FUNC_END(idmap_cpu_replace_ttbr1)
+SYM_FUNC_ALIAS(__pi_idmap_cpu_replace_ttbr1, idmap_cpu_replace_ttbr1)
 	.popsection
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
