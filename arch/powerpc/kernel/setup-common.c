@@ -411,6 +411,25 @@ static void __init cpu_init_thread_core_maps(int tpc)
 
 u32 *cpu_to_phys_id = NULL;
 
+static int assign_threads(unsigned int cpu, unsigned int nthreads, bool present,
+			  const __be32 *hw_ids)
+{
+	for (int i = 0; i < nthreads && cpu < nr_cpu_ids; i++) {
+		__be32 hwid;
+
+		hwid = be32_to_cpu(hw_ids[i]);
+
+		DBG("    thread %d -> cpu %d (hard id %d)\n", i, cpu, hwid);
+
+		set_cpu_present(cpu, present);
+		set_cpu_possible(cpu, true);
+		cpu_to_phys_id[cpu] = hwid;
+		cpu++;
+	}
+
+	return cpu;
+}
+
 /**
  * setup_cpu_maps - initialize the following cpu maps:
  *                  cpu_possible_mask
@@ -446,7 +465,7 @@ void __init smp_setup_cpu_maps(void)
 	for_each_node_by_type(dn, "cpu") {
 		const __be32 *intserv;
 		__be32 cpu_be;
-		int j, len;
+		int len;
 
 		DBG("  * %pOF...\n", dn);
 
@@ -473,16 +492,7 @@ void __init smp_setup_cpu_maps(void)
 			avail = !of_property_match_string(dn,
 					"enable-method", "spin-table");
 
-		for (j = 0; j < nthreads && cpu < nr_cpu_ids; j++) {
-
-			DBG("    thread %d -> cpu %d (hard id %d)\n",
-			    j, cpu, be32_to_cpu(intserv[j]));
-
-			set_cpu_present(cpu, avail);
-			set_cpu_possible(cpu, true);
-			cpu_to_phys_id[cpu] = be32_to_cpu(intserv[j]);
-			cpu++;
-		}
+		cpu = assign_threads(cpu, nthreads, avail, intserv);
 
 		if (cpu >= nr_cpu_ids) {
 			of_node_put(dn);
