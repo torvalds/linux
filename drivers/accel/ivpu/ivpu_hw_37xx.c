@@ -13,7 +13,7 @@
 #include "ivpu_pm.h"
 
 #define TILE_FUSE_ENABLE_BOTH        0x0
-#define TILE_SKU_BOTH_MTL            0x3630
+#define TILE_SKU_BOTH                0x3630
 
 /* Work point configuration values */
 #define CONFIG_1_TILE                0x01
@@ -599,7 +599,7 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 	struct ivpu_hw_info *hw = vdev->hw;
 
 	hw->tile_fuse = TILE_FUSE_ENABLE_BOTH;
-	hw->sku = TILE_SKU_BOTH_MTL;
+	hw->sku = TILE_SKU_BOTH;
 	hw->config = WP_CONFIG_2_TILE_4_3_RATIO;
 
 	ivpu_pll_init_frequency_ratios(vdev);
