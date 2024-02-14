@@ -61,6 +61,7 @@ enum board_ids {
 	 * without testing that the platform actually works without the quirk.)
 	 */
 	board_ahci_pcs_quirk,
+	board_ahci_pcs_quirk_no_devslp,
 	board_ahci_pcs_quirk_no_sntf,
 	board_ahci_yes_fbs,
 
@@ -167,6 +168,14 @@ static const struct ata_port_info ahci_port_info[] = {
 	},
 	[board_ahci_pcs_quirk] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_INTEL_PCS_QUIRK),
+		.flags		= AHCI_FLAG_COMMON,
+		.pio_mask	= ATA_PIO4,
+		.udma_mask	= ATA_UDMA6,
+		.port_ops	= &ahci_ops,
+	},
+	[board_ahci_pcs_quirk_no_devslp] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_INTEL_PCS_QUIRK |
+				 AHCI_HFLAG_NO_DEVSLP),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -420,7 +429,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x06d7), board_ahci_pcs_quirk }, /* Comet Lake-H RAID */
 	{ PCI_VDEVICE(INTEL, 0xa386), board_ahci_pcs_quirk }, /* Comet Lake PCH-V RAID */
 	{ PCI_VDEVICE(INTEL, 0x0f22), board_ahci_pcs_quirk }, /* Bay Trail AHCI */
-	{ PCI_VDEVICE(INTEL, 0x0f23), board_ahci_pcs_quirk }, /* Bay Trail AHCI */
+	{ PCI_VDEVICE(INTEL, 0x0f23), board_ahci_pcs_quirk_no_devslp }, /* Bay Trail AHCI */
 	{ PCI_VDEVICE(INTEL, 0x22a3), board_ahci_pcs_quirk }, /* Cherry Tr. AHCI */
 	{ PCI_VDEVICE(INTEL, 0x5ae3), board_ahci_pcs_quirk }, /* ApolloLake AHCI */
 	{ PCI_VDEVICE(INTEL, 0x34d3), board_ahci_pcs_quirk }, /* Ice Lake LP AHCI */
@@ -1420,17 +1429,6 @@ static bool ahci_broken_online(struct pci_dev *pdev)
 	return pdev->bus->number == (val >> 8) && pdev->devfn == (val & 0xff);
 }
 
-static bool ahci_broken_devslp(struct pci_dev *pdev)
-{
-	/* device with broken DEVSLP but still showing SDS capability */
-	static const struct pci_device_id ids[] = {
-		{ PCI_VDEVICE(INTEL, 0x0f23)}, /* Valleyview SoC */
-		{}
-	};
-
-	return pci_match_id(ids, pdev);
-}
-
 #ifdef CONFIG_ATA_ACPI
 static void ahci_gtf_filter_workaround(struct ata_host *host)
 {
@@ -1822,10 +1820,6 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	sysfs_add_file_to_group(&pdev->dev.kobj,
 				&dev_attr_remapped_nvme.attr,
 				NULL);
-
-	/* must set flag prior to save config in order to take effect */
-	if (ahci_broken_devslp(pdev))
-		hpriv->flags |= AHCI_HFLAG_NO_DEVSLP;
 
 #ifdef CONFIG_ARM64
 	if (pdev->vendor == PCI_VENDOR_ID_HUAWEI &&
