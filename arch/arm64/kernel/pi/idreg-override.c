@@ -159,6 +159,7 @@ static const struct ftr_set_desc sw_features __prel64_initconst = {
 	.fields		= {
 		FIELD("nokaslr", ARM64_SW_FEATURE_OVERRIDE_NOKASLR, NULL),
 		FIELD("hvhe", ARM64_SW_FEATURE_OVERRIDE_HVHE, hvhe_filter),
+		FIELD("rodataoff", ARM64_SW_FEATURE_OVERRIDE_RODATA_OFF, NULL),
 		{}
 	},
 };
@@ -190,6 +191,7 @@ static const struct {
 	{ "arm64.nomops",		"id_aa64isar2.mops=0" },
 	{ "arm64.nomte",		"id_aa64pfr1.mte=0" },
 	{ "nokaslr",			"arm64_sw.nokaslr=1" },
+	{ "rodata=off",			"arm64_sw.rodataoff=1" },
 };
 
 static int __init parse_hexdigit(const char *p, u64 *v)
