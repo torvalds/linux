@@ -757,22 +757,21 @@ static void __init map_kernel(pgd_t *pgdp)
 	kasan_copy_shadow(pgdp);
 }
 
+void __pi_map_range(u64 *pgd, u64 start, u64 end, u64 pa, pgprot_t prot,
+		    int level, pte_t *tbl, bool may_use_cont, u64 va_offset);
+
+static u8 idmap_ptes[IDMAP_LEVELS - 1][PAGE_SIZE] __aligned(PAGE_SIZE) __ro_after_init,
+	  kpti_ptes[IDMAP_LEVELS - 1][PAGE_SIZE] __aligned(PAGE_SIZE) __ro_after_init;
+
 static void __init create_idmap(void)
 {
 	u64 start = __pa_symbol(__idmap_text_start);
-	u64 size = __pa_symbol(__idmap_text_end) - start;
-	pgd_t *pgd = idmap_pg_dir;
-	u64 pgd_phys;
+	u64 end   = __pa_symbol(__idmap_text_end);
+	u64 ptep  = __pa_symbol(idmap_ptes);
 
-	/* check if we need an additional level of translation */
-	if (VA_BITS < 48 && idmap_t0sz < (64 - VA_BITS_MIN)) {
-		pgd_phys = early_pgtable_alloc(PAGE_SHIFT);
-		set_pgd(&idmap_pg_dir[start >> VA_BITS],
-			__pgd(pgd_phys | P4D_TYPE_TABLE));
-		pgd = __va(pgd_phys);
-	}
-	__create_pgd_mapping(pgd, start, start, size, PAGE_KERNEL_ROX,
-			     early_pgtable_alloc, 0);
+	__pi_map_range(&ptep, start, end, start, PAGE_KERNEL_ROX,
+		       IDMAP_ROOT_LEVEL, (pte_t *)idmap_pg_dir, false,
+		       __phys_to_virt(ptep) - ptep);
 
 	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0)) {
 		extern u32 __idmap_kpti_flag;
@@ -782,8 +781,10 @@ static void __init create_idmap(void)
 		 * The KPTI G-to-nG conversion code needs a read-write mapping
 		 * of its synchronization flag in the ID map.
 		 */
-		__create_pgd_mapping(pgd, pa, pa, sizeof(u32), PAGE_KERNEL,
-				     early_pgtable_alloc, 0);
+		ptep = __pa_symbol(kpti_ptes);
+		__pi_map_range(&ptep, pa, pa + sizeof(u32), pa, PAGE_KERNEL,
+			       IDMAP_ROOT_LEVEL, (pte_t *)idmap_pg_dir, false,
+			       __phys_to_virt(ptep) - ptep);
 	}
 }
 
@@ -808,6 +809,7 @@ void __init paging_init(void)
 	memblock_allow_resize();
 
 	create_idmap();
+	idmap_t0sz = TCR_T0SZ(IDMAP_VA_BITS);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

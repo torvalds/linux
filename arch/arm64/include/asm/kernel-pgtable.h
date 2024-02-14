@@ -35,6 +35,9 @@
 #define SWAPPER_PGTABLE_LEVELS	(CONFIG_PGTABLE_LEVELS)
 #endif
 
+#define IDMAP_VA_BITS		48
+#define IDMAP_LEVELS		ARM64_HW_PGTABLE_LEVELS(IDMAP_VA_BITS)
+#define IDMAP_ROOT_LEVEL	(4 - IDMAP_LEVELS)
 
 /*
  * A relocatable kernel may execute from an address that differs from the one at

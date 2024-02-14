@@ -421,9 +421,9 @@ SYM_FUNC_START(__cpu_setup)
 	mair	.req	x17
 	tcr	.req	x16
 	mov_q	mair, MAIR_EL1_SET
-	mov_q	tcr, TCR_TxSZ(VA_BITS) | TCR_CACHE_FLAGS | TCR_SMP_FLAGS | \
-			TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
-			TCR_TBI0 | TCR_A1 | TCR_KASAN_SW_FLAGS | TCR_MTE_FLAGS
+	mov_q	tcr, TCR_T0SZ(IDMAP_VA_BITS) | TCR_T1SZ(VA_BITS) | TCR_CACHE_FLAGS | \
+		     TCR_SMP_FLAGS | TCR_TG_FLAGS | TCR_KASLR_FLAGS | TCR_ASID16 | \
+		     TCR_TBI0 | TCR_A1 | TCR_KASAN_SW_FLAGS | TCR_MTE_FLAGS
 
 	tcr_clear_errata_bits tcr, x9, x5
 
@@ -431,10 +431,7 @@ SYM_FUNC_START(__cpu_setup)
 	sub		x9, xzr, x0
 	add		x9, x9, #64
 	tcr_set_t1sz	tcr, x9
-#else
-	idmap_get_t0sz	x9
 #endif
-	tcr_set_t0sz	tcr, x9
 
 	/*
 	 * Set the IPS bits in TCR_EL1.

@@ -729,6 +729,11 @@ SYM_FUNC_START_LOCAL(__no_granule_support)
 SYM_FUNC_END(__no_granule_support)
 
 SYM_FUNC_START_LOCAL(__primary_switch)
+	mrs		x1, tcr_el1
+	mov		x2, #64 - VA_BITS
+	tcr_set_t0sz	x1, x2
+	msr		tcr_el1, x1
+
 	adrp	x1, reserved_pg_dir
 	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
