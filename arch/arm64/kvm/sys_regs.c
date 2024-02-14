@@ -3995,8 +3995,5 @@ int __init kvm_sys_reg_table_init(void)
 	if (!first_idreg)
 		return -EINVAL;
 
-	if (kvm_get_mode() == KVM_MODE_NV)
-		return populate_nv_trap_config();
-
-	return 0;
+	return populate_nv_trap_config();
 }
