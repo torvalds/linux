@@ -3597,8 +3597,8 @@ void vdo_dump_block_allocator(const struct block_allocator *allocator)
 
 		vdo_log_info("  slab journal: entry_waiters=%zu waiting_to_commit=%s updating_slab_summary=%s head=%llu unreapable=%llu tail=%llu next_commit=%llu summarized=%llu last_summarized=%llu recovery_lock=%llu dirty=%s",
 			     vdo_waitq_num_waiters(&journal->entry_waiters),
-			     uds_bool_to_string(journal->waiting_to_commit),
-			     uds_bool_to_string(journal->updating_slab_summary),
+			     vdo_bool_to_string(journal->waiting_to_commit),
+			     vdo_bool_to_string(journal->updating_slab_summary),
 			     (unsigned long long) journal->head,
 			     (unsigned long long) journal->unreapable,
 			     (unsigned long long) journal->tail,
@@ -3606,7 +3606,7 @@ void vdo_dump_block_allocator(const struct block_allocator *allocator)
 			     (unsigned long long) journal->summarized,
 			     (unsigned long long) journal->last_summarized,
 			     (unsigned long long) journal->recovery_lock,
-			     uds_bool_to_string(journal->recovery_lock != 0));
+			     vdo_bool_to_string(journal->recovery_lock != 0));
 		/*
 		 * Given the frequency with which the locks are just a tiny bit off, it might be
 		 * worth dumping all the locks, but that might be too much logging.

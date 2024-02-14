@@ -5,7 +5,7 @@
 
 #include "string-utils.h"
 
-char *uds_append_to_buffer(char *buffer, char *buf_end, const char *fmt, ...)
+char *vdo_append_to_buffer(char *buffer, char *buf_end, const char *fmt, ...)
 {
 	va_list args;
 	size_t n;

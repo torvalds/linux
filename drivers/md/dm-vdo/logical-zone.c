@@ -368,6 +368,6 @@ void vdo_dump_logical_zone(const struct logical_zone *zone)
 		     (unsigned long long) READ_ONCE(zone->flush_generation),
 		     (unsigned long long) READ_ONCE(zone->oldest_active_generation),
 		     (unsigned long long) READ_ONCE(zone->notification_generation),
-		     uds_bool_to_string(READ_ONCE(zone->notifying)),
+		     vdo_bool_to_string(READ_ONCE(zone->notifying)),
 		     (unsigned long long) READ_ONCE(zone->ios_in_flush_generation));
 }

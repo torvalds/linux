@@ -340,7 +340,7 @@ static int join_strings(char **substring_array, size_t array_length, char separa
 	current_position = &output[0];
 
 	for (i = 0; (i < array_length) && (substring_array[i] != NULL); i++) {
-		current_position = uds_append_to_buffer(current_position,
+		current_position = vdo_append_to_buffer(current_position,
 							output + string_length, "%s",
 							substring_array[i]);
 		*current_position = separator;
