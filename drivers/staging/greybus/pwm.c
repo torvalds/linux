@@ -46,9 +46,6 @@ static int gb_pwm_activate_operation(struct pwm_chip *chip, u8 which)
 	struct gbphy_device *gbphy_dev;
 	int ret;
 
-	if (which > pwmc->pwm_max)
-		return -EINVAL;
-
 	request.which = which;
 
 	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
@@ -70,9 +67,6 @@ static int gb_pwm_deactivate_operation(struct pwm_chip *chip, u8 which)
 	struct gb_pwm_deactivate_request request;
 	struct gbphy_device *gbphy_dev;
 	int ret;
-
-	if (which > pwmc->pwm_max)
-		return -EINVAL;
 
 	request.which = which;
 
@@ -96,9 +90,6 @@ static int gb_pwm_config_operation(struct pwm_chip *chip,
 	struct gb_pwm_config_request request;
 	struct gbphy_device *gbphy_dev;
 	int ret;
-
-	if (which > pwmc->pwm_max)
-		return -EINVAL;
 
 	request.which = which;
 	request.duty = cpu_to_le32(duty);
@@ -125,9 +116,6 @@ static int gb_pwm_set_polarity_operation(struct pwm_chip *chip,
 	struct gbphy_device *gbphy_dev;
 	int ret;
 
-	if (which > pwmc->pwm_max)
-		return -EINVAL;
-
 	request.which = which;
 	request.polarity = polarity;
 
@@ -151,9 +139,6 @@ static int gb_pwm_enable_operation(struct pwm_chip *chip, u8 which)
 	struct gbphy_device *gbphy_dev;
 	int ret;
 
-	if (which > pwmc->pwm_max)
-		return -EINVAL;
-
 	request.which = which;
 
 	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
@@ -175,9 +160,6 @@ static int gb_pwm_disable_operation(struct pwm_chip *chip, u8 which)
 	struct gb_pwm_disable_request request;
 	struct gbphy_device *gbphy_dev;
 	int ret;
-
-	if (which > pwmc->pwm_max)
-		return -EINVAL;
 
 	request.which = which;
 
