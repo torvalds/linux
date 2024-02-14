@@ -80,26 +80,42 @@
 	 *  x19        primary_entry() .. start_kernel()        whether we entered with the MMU on
 	 *  x20        primary_entry() .. __primary_switch()    CPU boot mode
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
-	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x25        primary_entry() .. start_kernel()        supported VA size
-	 *  x28        create_idmap()                           callee preserved temp register
 	 */
 SYM_CODE_START(primary_entry)
 	bl	record_mmu_state
 	bl	preserve_boot_args
-	bl	create_idmap
+
+	adrp	x1, early_init_stack
+	mov	sp, x1
+	mov	x29, xzr
+	adrp	x0, init_idmap_pg_dir
+	bl	__pi_create_init_idmap
+
+	/*
+	 * If the page tables have been populated with non-cacheable
+	 * accesses (MMU disabled), invalidate those tables again to
+	 * remove any speculatively loaded cache lines.
+	 */
+	cbnz	x19, 0f
+	dmb     sy
+	mov	x1, x0				// end of used region
+	adrp    x0, init_idmap_pg_dir
+	adr_l	x2, dcache_inval_poc
+	blr	x2
+	b	1f
 
 	/*
 	 * If we entered with the MMU and caches on, clean the ID mapped part
 	 * of the primary boot code to the PoC so we can safely execute it with
 	 * the MMU off.
 	 */
-	cbz	x19, 0f
-	adrp	x0, __idmap_text_start
+0:	adrp	x0, __idmap_text_start
 	adr_l	x1, __idmap_text_end
 	adr_l	x2, dcache_clean_poc
 	blr	x2
-0:	mov	x0, x19
+
+1:	mov	x0, x19
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	mov	x20, x0
 
@@ -174,238 +190,6 @@ SYM_CODE_START_LOCAL(preserve_boot_args)
 0:	str_l   x19, mmu_enabled_at_boot, x0
 	ret
 SYM_CODE_END(preserve_boot_args)
-
-/*
- * Macro to populate page table entries, these entries can be pointers to the next level
- * or last level entries pointing to physical memory.
- *
- *	tbl:	page table address
- *	rtbl:	pointer to page table or physical memory
- *	index:	start index to write
- *	eindex:	end index to write - [index, eindex] written to
- *	flags:	flags for pagetable entry to or in
- *	inc:	increment to rtbl between each entry
- *	tmp1:	temporary variable
- *
- * Preserves:	tbl, eindex, flags, inc
- * Corrupts:	index, tmp1
- * Returns:	rtbl
- */
-	.macro populate_entries, tbl, rtbl, index, eindex, flags, inc, tmp1
-.Lpe\@:	phys_to_pte \tmp1, \rtbl
-	orr	\tmp1, \tmp1, \flags	// tmp1 = table entry
-	str	\tmp1, [\tbl, \index, lsl #3]
-	add	\rtbl, \rtbl, \inc	// rtbl = pa next level
-	add	\index, \index, #1
-	cmp	\index, \eindex
-	b.ls	.Lpe\@
-	.endm
-
-/*
- * Compute indices of table entries from virtual address range. If multiple entries
- * were needed in the previous page table level then the next page table level is assumed
- * to be composed of multiple pages. (This effectively scales the end index).
- *
- *	vstart:	virtual address of start of range
- *	vend:	virtual address of end of range - we map [vstart, vend]
- *	shift:	shift used to transform virtual address into index
- *	order:  #imm 2log(number of entries in page table)
- *	istart:	index in table corresponding to vstart
- *	iend:	index in table corresponding to vend
- *	count:	On entry: how many extra entries were required in previous level, scales
- *			  our end index.
- *		On exit: returns how many extra entries required for next page table level
- *
- * Preserves:	vstart, vend
- * Returns:	istart, iend, count
- */
-	.macro compute_indices, vstart, vend, shift, order, istart, iend, count
-	ubfx	\istart, \vstart, \shift, \order
-	ubfx	\iend, \vend, \shift, \order
-	add	\iend, \iend, \count, lsl \order
-	sub	\count, \iend, \istart
-	.endm
-
-/*
- * Map memory for specified virtual address range. Each level of page table needed supports
- * multiple entries. If a level requires n entries the next page table level is assumed to be
- * formed from n pages.
- *
- *	tbl:	location of page table
- *	rtbl:	address to be used for first level page table entry (typically tbl + PAGE_SIZE)
- *	vstart:	virtual address of start of range
- *	vend:	virtual address of end of range - we map [vstart, vend - 1]
- *	flags:	flags to use to map last level entries
- *	phys:	physical address corresponding to vstart - physical memory is contiguous
- *	order:  #imm 2log(number of entries in PGD table)
- *
- * If extra_shift is set, an extra level will be populated if the end address does
- * not fit in 'extra_shift' bits. This assumes vend is in the TTBR0 range.
- *
- * Temporaries:	istart, iend, tmp, count, sv - these need to be different registers
- * Preserves:	vstart, flags
- * Corrupts:	tbl, rtbl, vend, istart, iend, tmp, count, sv
- */
-	.macro map_memory, tbl, rtbl, vstart, vend, flags, phys, order, istart, iend, tmp, count, sv, extra_shift
-	sub \vend, \vend, #1
-	add \rtbl, \tbl, #PAGE_SIZE
-	mov \count, #0
-
-	.ifnb	\extra_shift
-	tst	\vend, #~((1 << (\extra_shift)) - 1)
-	b.eq	.L_\@
-	compute_indices \vstart, \vend, #\extra_shift, #(PAGE_SHIFT - 3), \istart, \iend, \count
-	mov \sv, \rtbl
-	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
-	mov \tbl, \sv
-	.endif
-.L_\@:
-	compute_indices \vstart, \vend, #PGDIR_SHIFT, #\order, \istart, \iend, \count
-	mov \sv, \rtbl
-	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
-	mov \tbl, \sv
-
-#if SWAPPER_PGTABLE_LEVELS > 3
-	compute_indices \vstart, \vend, #PUD_SHIFT, #(PAGE_SHIFT - 3), \istart, \iend, \count
-	mov \sv, \rtbl
-	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
-	mov \tbl, \sv
-#endif
-
-#if SWAPPER_PGTABLE_LEVELS > 2
-	compute_indices \vstart, \vend, #SWAPPER_TABLE_SHIFT, #(PAGE_SHIFT - 3), \istart, \iend, \count
-	mov \sv, \rtbl
-	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
-	mov \tbl, \sv
-#endif
-
-	compute_indices \vstart, \vend, #SWAPPER_BLOCK_SHIFT, #(PAGE_SHIFT - 3), \istart, \iend, \count
-	bic \rtbl, \phys, #SWAPPER_BLOCK_SIZE - 1
-	populate_entries \tbl, \rtbl, \istart, \iend, \flags, #SWAPPER_BLOCK_SIZE, \tmp
-	.endm
-
-/*
- * Remap a subregion created with the map_memory macro with modified attributes
- * or output address. The entire remapped region must have been covered in the
- * invocation of map_memory.
- *
- * x0: last level table address (returned in first argument to map_memory)
- * x1: start VA of the existing mapping
- * x2: start VA of the region to update
- * x3: end VA of the region to update (exclusive)
- * x4: start PA associated with the region to update
- * x5: attributes to set on the updated region
- * x6: order of the last level mappings
- */
-SYM_FUNC_START_LOCAL(remap_region)
-	sub	x3, x3, #1		// make end inclusive
-
-	// Get the index offset for the start of the last level table
-	lsr	x1, x1, x6
-	bfi	x1, xzr, #0, #PAGE_SHIFT - 3
-
-	// Derive the start and end indexes into the last level table
-	// associated with the provided region
-	lsr	x2, x2, x6
-	lsr	x3, x3, x6
-	sub	x2, x2, x1
-	sub	x3, x3, x1
-
-	mov	x1, #1
-	lsl	x6, x1, x6		// block size at this level
-
-	populate_entries x0, x4, x2, x3, x5, x6, x7
-	ret
-SYM_FUNC_END(remap_region)
-
-SYM_FUNC_START_LOCAL(create_idmap)
-	mov	x28, lr
-	/*
-	 * The ID map carries a 1:1 mapping of the physical address range
-	 * covered by the loaded image, which could be anywhere in DRAM. This
-	 * means that the required size of the VA (== PA) space is decided at
-	 * boot time, and could be more than the configured size of the VA
-	 * space for ordinary kernel and user space mappings.
-	 *
-	 * There are three cases to consider here:
-	 * - 39 <= VA_BITS < 48, and the ID map needs up to 48 VA bits to cover
-	 *   the placement of the image. In this case, we configure one extra
-	 *   level of translation on the fly for the ID map only. (This case
-	 *   also covers 42-bit VA/52-bit PA on 64k pages).
-	 *
-	 * - VA_BITS == 48, and the ID map needs more than 48 VA bits. This can
-	 *   only happen when using 64k pages, in which case we need to extend
-	 *   the root level table rather than add a level. Note that we can
-	 *   treat this case as 'always extended' as long as we take care not
-	 *   to program an unsupported T0SZ value into the TCR register.
-	 *
-	 * - Combinations that would require two additional levels of
-	 *   translation are not supported, e.g., VA_BITS==36 on 16k pages, or
-	 *   VA_BITS==39/4k pages with 5-level paging, where the input address
-	 *   requires more than 47 or 48 bits, respectively.
-	 */
-#if (VA_BITS < 48)
-#define IDMAP_PGD_ORDER	(VA_BITS - PGDIR_SHIFT)
-#define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
-
-	/*
-	 * If VA_BITS < 48, we have to configure an additional table level.
-	 * First, we have to verify our assumption that the current value of
-	 * VA_BITS was chosen such that all translation levels are fully
-	 * utilised, and that lowering T0SZ will always result in an additional
-	 * translation level to be configured.
-	 */
-#if VA_BITS != EXTRA_SHIFT
-#error "Mismatch between VA_BITS and page size/number of translation levels"
-#endif
-#else
-#define IDMAP_PGD_ORDER	(PHYS_MASK_SHIFT - PGDIR_SHIFT)
-#define EXTRA_SHIFT
-	/*
-	 * If VA_BITS == 48, we don't have to configure an additional
-	 * translation level, but the top-level table has more entries.
-	 */
-#endif
-	adrp	x0, init_idmap_pg_dir
-	adrp	x3, _text
-	adrp	x6, _end + MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE
-	mov_q	x7, SWAPPER_RX_MMUFLAGS
-
-	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
-
-	/* Remap [.init].data, BSS and the kernel page tables r/w in the ID map */
-	adrp	x1, _text
-	adrp	x2, __initdata_begin
-	adrp	x3, _end
-	bic	x4, x2, #SWAPPER_BLOCK_SIZE - 1
-	mov_q	x5, SWAPPER_RW_MMUFLAGS
-	mov	x6, #SWAPPER_BLOCK_SHIFT
-	bl	remap_region
-
-	/* Remap the FDT after the kernel image */
-	adrp	x1, _text
-	adrp	x22, _end + SWAPPER_BLOCK_SIZE
-	bic	x2, x22, #SWAPPER_BLOCK_SIZE - 1
-	bfi	x22, x21, #0, #SWAPPER_BLOCK_SHIFT		// remapped FDT address
-	add	x3, x2, #MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE
-	bic	x4, x21, #SWAPPER_BLOCK_SIZE - 1
-	mov_q	x5, SWAPPER_RW_MMUFLAGS
-	mov	x6, #SWAPPER_BLOCK_SHIFT
-	bl	remap_region
-
-	/*
-	 * Since the page tables have been populated with non-cacheable
-	 * accesses (MMU disabled), invalidate those tables again to
-	 * remove any speculatively loaded cache lines.
-	 */
-	cbnz	x19, 0f				// skip cache invalidation if MMU is on
-	dmb	sy
-
-	adrp	x0, init_idmap_pg_dir
-	adrp	x1, init_idmap_pg_end
-	bl	dcache_inval_poc
-0:	ret	x28
-SYM_FUNC_END(create_idmap)
 
 	/*
 	 * Initialize CPU registers with task-specific and cpu-specific context.
@@ -729,11 +513,6 @@ SYM_FUNC_START_LOCAL(__no_granule_support)
 SYM_FUNC_END(__no_granule_support)
 
 SYM_FUNC_START_LOCAL(__primary_switch)
-	mrs		x1, tcr_el1
-	mov		x2, #64 - VA_BITS
-	tcr_set_t0sz	x1, x2
-	msr		tcr_el1, x1
-
 	adrp	x1, reserved_pg_dir
 	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
@@ -742,7 +521,7 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	mov	sp, x1
 	mov	x29, xzr
 	mov	x0, x20				// pass the full boot status
-	mov	x1, x22				// pass the low FDT mapping
+	mov	x1, x21				// pass the FDT
 	bl	__pi_early_map_kernel		// Map and relocate the kernel
 
 	ldr	x8, =__primary_switched

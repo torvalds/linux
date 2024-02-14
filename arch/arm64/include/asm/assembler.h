@@ -346,20 +346,6 @@ alternative_cb_end
 	.endm
 
 /*
- * idmap_get_t0sz - get the T0SZ value needed to cover the ID map
- *
- * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
- * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
- * this number conveniently equals the number of leading zeroes in
- * the physical address of _end.
- */
-	.macro	idmap_get_t0sz, reg
-	adrp	\reg, _end
-	orr	\reg, \reg, #(1 << VA_BITS_MIN) - 1
-	clz	\reg, \reg
-	.endm
-
-/*
  * tcr_compute_pa_size - set TCR.(I)PS to the highest supported
  * ID_AA64MMFR0_EL1.PARange value
  *

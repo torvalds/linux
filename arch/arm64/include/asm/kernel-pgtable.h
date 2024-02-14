@@ -29,6 +29,7 @@
 #define SWAPPER_TABLE_SHIFT	(SWAPPER_BLOCK_SHIFT + PAGE_SHIFT - 3)
 
 #define SWAPPER_PGTABLE_LEVELS		(CONFIG_PGTABLE_LEVELS - SWAPPER_SKIP_LEVEL)
+#define INIT_IDMAP_PGTABLE_LEVELS	(IDMAP_LEVELS - SWAPPER_SKIP_LEVEL)
 
 #define IDMAP_VA_BITS		48
 #define IDMAP_LEVELS		ARM64_HW_PGTABLE_LEVELS(IDMAP_VA_BITS)
@@ -48,44 +49,39 @@
 #define EARLY_ENTRIES(vstart, vend, shift, add) \
 	(SPAN_NR_ENTRIES(vstart, vend, shift) + (add))
 
-#define EARLY_LEVEL(lvl, vstart, vend, add)	\
-	(SWAPPER_PGTABLE_LEVELS > lvl ? EARLY_ENTRIES(vstart, vend, SWAPPER_BLOCK_SHIFT + lvl * (PAGE_SHIFT - 3), add) : 0)
+#define EARLY_LEVEL(lvl, lvls, vstart, vend, add)	\
+	(lvls > lvl ? EARLY_ENTRIES(vstart, vend, SWAPPER_BLOCK_SHIFT + lvl * (PAGE_SHIFT - 3), add) : 0)
 
-#define EARLY_PAGES(vstart, vend, add) (1 	/* PGDIR page */				\
-	+ EARLY_LEVEL(3, (vstart), (vend), add) /* each entry needs a next level page table */	\
-	+ EARLY_LEVEL(2, (vstart), (vend), add)	/* each entry needs a next level page table */	\
-	+ EARLY_LEVEL(1, (vstart), (vend), add))/* each entry needs a next level page table */
-#define INIT_DIR_SIZE (PAGE_SIZE * (EARLY_PAGES(KIMAGE_VADDR, _end, EXTRA_PAGE) + EARLY_SEGMENT_EXTRA_PAGES))
+#define EARLY_PAGES(lvls, vstart, vend, add) (1 	/* PGDIR page */				\
+	+ EARLY_LEVEL(3, (lvls), (vstart), (vend), add) /* each entry needs a next level page table */	\
+	+ EARLY_LEVEL(2, (lvls), (vstart), (vend), add)	/* each entry needs a next level page table */	\
+	+ EARLY_LEVEL(1, (lvls), (vstart), (vend), add))/* each entry needs a next level page table */
+#define INIT_DIR_SIZE (PAGE_SIZE * (EARLY_PAGES(SWAPPER_PGTABLE_LEVELS, KIMAGE_VADDR, _end, EXTRA_PAGE) \
+				    + EARLY_SEGMENT_EXTRA_PAGES))
 
-/* the initial ID map may need two extra pages if it needs to be extended */
-#if VA_BITS < 48
-#define INIT_IDMAP_DIR_SIZE	((INIT_IDMAP_DIR_PAGES + 2) * PAGE_SIZE)
-#else
-#define INIT_IDMAP_DIR_SIZE	(INIT_IDMAP_DIR_PAGES * PAGE_SIZE)
-#endif
-#define INIT_IDMAP_DIR_PAGES	EARLY_PAGES(KIMAGE_VADDR, _end + MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE, 1)
+#define INIT_IDMAP_DIR_PAGES	(EARLY_PAGES(INIT_IDMAP_PGTABLE_LEVELS, KIMAGE_VADDR, _end, 1))
+#define INIT_IDMAP_DIR_SIZE	((INIT_IDMAP_DIR_PAGES + EARLY_IDMAP_EXTRA_PAGES) * PAGE_SIZE)
+
+#define INIT_IDMAP_FDT_PAGES	(EARLY_PAGES(INIT_IDMAP_PGTABLE_LEVELS, 0UL, UL(MAX_FDT_SIZE), 1) - 1)
+#define INIT_IDMAP_FDT_SIZE	((INIT_IDMAP_FDT_PAGES + EARLY_IDMAP_EXTRA_FDT_PAGES) * PAGE_SIZE)
 
 /* The number of segments in the kernel image (text, rodata, inittext, initdata, data+bss) */
 #define KERNEL_SEGMENT_COUNT	5
 
 #if SWAPPER_BLOCK_SIZE > SEGMENT_ALIGN
 #define EARLY_SEGMENT_EXTRA_PAGES (KERNEL_SEGMENT_COUNT + 1)
-#else
-#define EARLY_SEGMENT_EXTRA_PAGES 0
-#endif
-
 /*
- * Initial memory map attributes.
+ * The initial ID map consists of the kernel image, mapped as two separate
+ * segments, and may appear misaligned wrt the swapper block size. This means
+ * we need 3 additional pages. The DT could straddle a swapper block boundary,
+ * so it may need 2.
  */
-#define SWAPPER_PTE_FLAGS	(PTE_TYPE_PAGE | PTE_AF | PTE_SHARED | PTE_UXN)
-#define SWAPPER_PMD_FLAGS	(PMD_TYPE_SECT | PMD_SECT_AF | PMD_SECT_S | PTE_UXN)
-
-#ifdef CONFIG_ARM64_4K_PAGES
-#define SWAPPER_RW_MMUFLAGS	(PMD_ATTRINDX(MT_NORMAL) | SWAPPER_PMD_FLAGS | PTE_WRITE)
-#define SWAPPER_RX_MMUFLAGS	(SWAPPER_RW_MMUFLAGS | PMD_SECT_RDONLY)
+#define EARLY_IDMAP_EXTRA_PAGES		3
+#define EARLY_IDMAP_EXTRA_FDT_PAGES	2
 #else
-#define SWAPPER_RW_MMUFLAGS	(PTE_ATTRINDX(MT_NORMAL) | SWAPPER_PTE_FLAGS | PTE_WRITE)
-#define SWAPPER_RX_MMUFLAGS	(SWAPPER_RW_MMUFLAGS | PTE_RDONLY)
+#define EARLY_SEGMENT_EXTRA_PAGES	0
+#define EARLY_IDMAP_EXTRA_PAGES		0
+#define EARLY_IDMAP_EXTRA_FDT_PAGES	0
 #endif
 
 #endif	/* __ASM_KERNEL_PGTABLE_H */

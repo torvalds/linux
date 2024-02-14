@@ -45,8 +45,6 @@
 #define NO_CONT_MAPPINGS	BIT(1)
 #define NO_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is not used */
 
-int idmap_t0sz __ro_after_init;
-
 #if VA_BITS > 48
 u64 vabits_actual __ro_after_init = VA_BITS_MIN;
 EXPORT_SYMBOL(vabits_actual);
@@ -793,8 +791,6 @@ void __init paging_init(void)
 	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
 	extern pgd_t init_idmap_pg_dir[];
 
-	idmap_t0sz = 63UL - __fls(__pa_symbol(_end) | GENMASK(VA_BITS_MIN - 1, 0));
-
 	map_kernel(pgdp);
 	map_mem(pgdp);
 
@@ -809,7 +805,6 @@ void __init paging_init(void)
 	memblock_allow_resize();
 
 	create_idmap();
-	idmap_t0sz = TCR_T0SZ(IDMAP_VA_BITS);
 }
 
 #ifdef CONFIG_MEMORY_HOTPLUG

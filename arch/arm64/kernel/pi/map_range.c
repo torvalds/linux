@@ -86,3 +86,15 @@ void __init map_range(u64 *pte, u64 start, u64 end, u64 pa, pgprot_t prot,
 		tbl++;
 	}
 }
+
+asmlinkage u64 __init create_init_idmap(pgd_t *pg_dir)
+{
+	u64 ptep = (u64)pg_dir + PAGE_SIZE;
+
+	map_range(&ptep, (u64)_stext, (u64)__initdata_begin, (u64)_stext,
+		  PAGE_KERNEL_ROX, IDMAP_ROOT_LEVEL, (pte_t *)pg_dir, false, 0);
+	map_range(&ptep, (u64)__initdata_begin, (u64)_end, (u64)__initdata_begin,
+		  PAGE_KERNEL, IDMAP_ROOT_LEVEL, (pte_t *)pg_dir, false, 0);
+
+	return ptep;
+}

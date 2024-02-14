@@ -61,11 +61,9 @@ static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
 }
 
 /*
- * TCR.T0SZ value to use when the ID map is active. Usually equals
- * TCR_T0SZ(VA_BITS), unless system RAM is positioned very high in
- * physical memory, in which case it will be smaller.
+ * TCR.T0SZ value to use when the ID map is active.
  */
-extern int idmap_t0sz;
+#define idmap_t0sz	TCR_T0SZ(IDMAP_VA_BITS)
 
 /*
  * Ensure TCR.T0SZ is set to the provided value.
