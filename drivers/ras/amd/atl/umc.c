@@ -239,6 +239,57 @@ static unsigned long convert_dram_to_norm_addr_mi300(unsigned long addr)
 	return addr;
 }
 
+/*
+ * When a DRAM ECC error occurs on MI300 systems, it is recommended to retire
+ * all memory within that DRAM row. This applies to the memory with a DRAM
+ * bank.
+ *
+ * To find the memory addresses, loop through permutations of the DRAM column
+ * bits and find the System Physical address of each. The column bits are used
+ * to calculate the intermediate Normalized address, so all permutations should
+ * be checked.
+ *
+ * See amd_atl::convert_dram_to_norm_addr_mi300() for MI300 address formats.
+ */
+#define MI300_NUM_COL		BIT(HWEIGHT(MI300_UMC_MCA_COL))
+static void retire_row_mi300(struct atl_err *a_err)
+{
+	unsigned long addr;
+	struct page *p;
+	u8 col;
+
+	for (col = 0; col < MI300_NUM_COL; col++) {
+		a_err->addr &= ~MI300_UMC_MCA_COL;
+		a_err->addr |= FIELD_PREP(MI300_UMC_MCA_COL, col);
+
+		addr = amd_convert_umc_mca_addr_to_sys_addr(a_err);
+		if (IS_ERR_VALUE(addr))
+			continue;
+
+		addr = PHYS_PFN(addr);
+
+		/*
+		 * Skip invalid or already poisoned pages to avoid unnecessary
+		 * error messages from memory_failure().
+		 */
+		p = pfn_to_online_page(addr);
+		if (!p)
+			continue;
+
+		if (PageHWPoison(p))
+			continue;
+
+		memory_failure(addr, 0);
+	}
+}
+
+void amd_retire_dram_row(struct atl_err *a_err)
+{
+	if (df_cfg.rev == DF4p5 && df_cfg.flags.heterogeneous)
+		return retire_row_mi300(a_err);
+}
+EXPORT_SYMBOL_GPL(amd_retire_dram_row);
+
 static unsigned long get_addr(unsigned long addr)
 {
 	if (df_cfg.rev == DF4p5 && df_cfg.flags.heterogeneous)
