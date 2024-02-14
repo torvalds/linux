@@ -42,10 +42,9 @@ struct uevent_sock {
 
 #ifdef CONFIG_NET
 static LIST_HEAD(uevent_sock_list);
-#endif
-
 /* This lock protects uevent_sock_list */
 static DEFINE_MUTEX(uevent_sock_mutex);
+#endif
 
 /* the strings here must match the enum in include/linux/kobject.h */
 static const char *kobject_actions[] = {
@@ -315,6 +314,7 @@ static int uevent_net_broadcast_untagged(struct kobj_uevent_env *env,
 	int retval = 0;
 
 	/* send netlink message */
+	mutex_lock(&uevent_sock_mutex);
 	list_for_each_entry(ue_sk, &uevent_sock_list, list) {
 		struct sock *uevent_sock = ue_sk->sk;
 
@@ -334,6 +334,7 @@ static int uevent_net_broadcast_untagged(struct kobj_uevent_env *env,
 		if (retval == -ENOBUFS || retval == -ESRCH)
 			retval = 0;
 	}
+	mutex_unlock(&uevent_sock_mutex);
 	consume_skb(skb);
 
 	return retval;
@@ -589,10 +590,8 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	if (retval)
 		goto exit;
 
-	mutex_lock(&uevent_sock_mutex);
 	retval = kobject_uevent_net_broadcast(kobj, env, action_string,
 					      devpath);
-	mutex_unlock(&uevent_sock_mutex);
 
 #ifdef CONFIG_UEVENT_HELPER
 	/* call uevent_helper, usually only enabled during early boot */
@@ -743,9 +742,7 @@ static int uevent_net_rcv_skb(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return -EPERM;
 	}
 
-	mutex_lock(&uevent_sock_mutex);
 	ret = uevent_net_broadcast(net->uevent_sock->sk, skb, extack);
-	mutex_unlock(&uevent_sock_mutex);
 
 	return ret;
 }
