@@ -20,7 +20,7 @@ static int amd_sfh_wait_response(struct amd_mp2_dev *mp2, u8 sid, u32 cmd_id)
 	struct sfh_cmd_response cmd_resp;
 
 	/* Get response with status within a max of 10000 ms timeout */
-	if (!readl_poll_timeout(mp2->mmio + AMD_P2C_MSG(0), cmd_resp.resp,
+	if (!readl_poll_timeout(mp2->mmio + amd_get_p2c_val(mp2, 0), cmd_resp.resp,
 				(cmd_resp.response.response == 0 &&
 				cmd_resp.response.cmd_id == cmd_id && (sid == 0xff ||
 				cmd_resp.response.sensor_id == sid)), 500, 10000000))
@@ -39,7 +39,7 @@ static void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor
 	cmd_base.cmd.sub_cmd_value = 1;
 	cmd_base.cmd.sensor_id = info.sensor_idx;
 
-	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG(0));
+	writel(cmd_base.ul, privdata->mmio + amd_get_c2p_val(privdata, 0));
 }
 
 static void amd_stop_sensor(struct amd_mp2_dev *privdata, u16 sensor_idx)
@@ -52,8 +52,8 @@ static void amd_stop_sensor(struct amd_mp2_dev *privdata, u16 sensor_idx)
 	cmd_base.cmd.sub_cmd_value = 1;
 	cmd_base.cmd.sensor_id = sensor_idx;
 
-	writeq(0x0, privdata->mmio + AMD_C2P_MSG(1));
-	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG(0));
+	writeq(0x0, privdata->mmio + amd_get_c2p_val(privdata, 1));
+	writel(cmd_base.ul, privdata->mmio + amd_get_c2p_val(privdata, 0));
 }
 
 static void amd_stop_all_sensor(struct amd_mp2_dev *privdata)
@@ -66,7 +66,7 @@ static void amd_stop_all_sensor(struct amd_mp2_dev *privdata)
 	/* 0xf indicates all sensors */
 	cmd_base.cmd.sensor_id = 0xf;
 
-	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG(0));
+	writel(cmd_base.ul, privdata->mmio + amd_get_c2p_val(privdata, 0));
 }
 
 static struct amd_mp2_ops amd_sfh_ops = {
