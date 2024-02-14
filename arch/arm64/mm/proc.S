@@ -466,6 +466,7 @@ alternative_else_nop_endif
 	 */
 
 #define PTE_MAYBE_NG		0
+#define PTE_MAYBE_SHARED	0
 
 	mov_q	x0, PIE_E0
 	msr	REG_PIRE0_EL1, x0
@@ -473,6 +474,7 @@ alternative_else_nop_endif
 	msr	REG_PIR_EL1, x0
 
 #undef PTE_MAYBE_NG
+#undef PTE_MAYBE_SHARED
 
 	mov	x0, TCR2_EL1x_PIE
 	msr	REG_TCR2_EL1, x0

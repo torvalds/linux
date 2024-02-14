@@ -284,6 +284,7 @@
 #define TCR_E0PD1		(UL(1) << 56)
 #define TCR_TCMA0		(UL(1) << 57)
 #define TCR_TCMA1		(UL(1) << 58)
+#define TCR_DS			(UL(1) << 59)
 
 /*
  * TTBR.

@@ -1377,6 +1377,10 @@ config ARM64_PA_BITS
 	default 48 if ARM64_PA_BITS_48
 	default 52 if ARM64_PA_BITS_52
 
+config ARM64_LPA2
+	def_bool y
+	depends on ARM64_PA_BITS_52 && !ARM64_64K_PAGES
+
 choice
 	prompt "Endianness"
 	default CPU_LITTLE_ENDIAN
