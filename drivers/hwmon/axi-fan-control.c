@@ -13,8 +13,9 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 /* register map */
 #define ADI_REG_RSTN		0x0080
@@ -368,12 +369,12 @@ static irqreturn_t axi_fan_control_irq_handler(int irq, void *data)
 }
 
 static int axi_fan_control_init(struct axi_fan_control_data *ctl,
-				const struct device_node *np)
+				const struct device *dev)
 {
 	int ret;
 
 	/* get fan pulses per revolution */
-	ret = of_property_read_u32(np, "pulses-per-revolution", &ctl->ppr);
+	ret = device_property_read_u32(dev, "pulses-per-revolution", &ctl->ppr);
 	if (ret)
 		return ret;
 
@@ -443,25 +444,16 @@ static struct attribute *axi_fan_control_attrs[] = {
 };
 ATTRIBUTE_GROUPS(axi_fan_control);
 
-static const u32 version_1_0_0 = ADI_AXI_PCORE_VER(1, 0, 'a');
-
-static const struct of_device_id axi_fan_control_of_match[] = {
-	{ .compatible = "adi,axi-fan-control-1.00.a",
-		.data = (void *)&version_1_0_0},
-	{},
-};
-MODULE_DEVICE_TABLE(of, axi_fan_control_of_match);
-
 static int axi_fan_control_probe(struct platform_device *pdev)
 {
 	struct axi_fan_control_data *ctl;
 	struct clk *clk;
-	const struct of_device_id *id;
+	const unsigned int *id;
 	const char *name = "axi_fan_control";
 	u32 version;
 	int ret;
 
-	id = of_match_node(axi_fan_control_of_match, pdev->dev.of_node);
+	id = device_get_match_data(&pdev->dev);
 	if (!id)
 		return -EINVAL;
 
@@ -485,18 +477,18 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 
 	version = axi_ioread(ADI_AXI_REG_VERSION, ctl);
 	if (ADI_AXI_PCORE_VER_MAJOR(version) !=
-	    ADI_AXI_PCORE_VER_MAJOR((*(u32 *)id->data))) {
+	    ADI_AXI_PCORE_VER_MAJOR((*id))) {
 		dev_err(&pdev->dev, "Major version mismatch. Expected %d.%.2d.%c, Reported %d.%.2d.%c\n",
-			ADI_AXI_PCORE_VER_MAJOR((*(u32 *)id->data)),
-			ADI_AXI_PCORE_VER_MINOR((*(u32 *)id->data)),
-			ADI_AXI_PCORE_VER_PATCH((*(u32 *)id->data)),
+			ADI_AXI_PCORE_VER_MAJOR(*id),
+			ADI_AXI_PCORE_VER_MINOR(*id),
+			ADI_AXI_PCORE_VER_PATCH(*id),
 			ADI_AXI_PCORE_VER_MAJOR(version),
 			ADI_AXI_PCORE_VER_MINOR(version),
 			ADI_AXI_PCORE_VER_PATCH(version));
 		return -ENODEV;
 	}
 
-	ret = axi_fan_control_init(ctl, pdev->dev.of_node);
+	ret = axi_fan_control_init(ctl, &pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to initialize device\n");
 		return ret;
@@ -526,6 +518,15 @@ static int axi_fan_control_probe(struct platform_device *pdev)
 
 	return 0;
 }
+
+static const u32 version_1_0_0 = ADI_AXI_PCORE_VER(1, 0, 'a');
+
+static const struct of_device_id axi_fan_control_of_match[] = {
+	{ .compatible = "adi,axi-fan-control-1.00.a",
+		.data = (void *)&version_1_0_0},
+	{},
+};
+MODULE_DEVICE_TABLE(of, axi_fan_control_of_match);
 
 static struct platform_driver axi_fan_control_driver = {
 	.driver = {
