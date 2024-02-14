@@ -334,7 +334,8 @@ find_linfo(const struct bpf_verifier_env *env, u32 insn_off)
 {
 	const struct bpf_line_info *linfo;
 	const struct bpf_prog *prog;
-	u32 i, nr_linfo;
+	u32 nr_linfo;
+	int l, r, m;
 
 	prog = env->prog;
 	nr_linfo = prog->aux->nr_linfo;
@@ -343,11 +344,30 @@ find_linfo(const struct bpf_verifier_env *env, u32 insn_off)
 		return NULL;
 
 	linfo = prog->aux->linfo;
-	for (i = 1; i < nr_linfo; i++)
-		if (insn_off < linfo[i].insn_off)
-			break;
+	/* Loop invariant: linfo[l].insn_off <= insns_off.
+	 * linfo[0].insn_off == 0 which always satisfies above condition.
+	 * Binary search is searching for rightmost linfo entry that satisfies
+	 * the above invariant, giving us the desired record that covers given
+	 * instruction offset.
+	 */
+	l = 0;
+	r = nr_linfo - 1;
+	while (l < r) {
+		/* (r - l + 1) / 2 means we break a tie to the right, so if:
+		 * l=1, r=2, linfo[l].insn_off <= insn_off, linfo[r].insn_off > insn_off,
+		 * then m=2, we see that linfo[m].insn_off > insn_off, and so
+		 * r becomes 1 and we exit the loop with correct l==1.
+		 * If the tie was broken to the left, m=1 would end us up in
+		 * an endless loop where l and m stay at 1 and r stays at 2.
+		 */
+		m = l + (r - l + 1) / 2;
+		if (linfo[m].insn_off <= insn_off)
+			l = m;
+		else
+			r = m - 1;
+	}
 
-	return &linfo[i - 1];
+	return &linfo[l];
 }
 
 static const char *ltrim(const char *s)
