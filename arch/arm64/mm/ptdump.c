@@ -313,7 +313,6 @@ static void __init ptdump_initialize(void)
 
 static struct ptdump_info kernel_ptdump_info __ro_after_init = {
 	.mm		= &init_mm,
-	.base_addr	= PAGE_OFFSET,
 };
 
 void ptdump_check_wx(void)
@@ -329,7 +328,7 @@ void ptdump_check_wx(void)
 		.ptdump = {
 			.note_page = note_page,
 			.range = (struct ptdump_range[]) {
-				{PAGE_OFFSET, ~0UL},
+				{_PAGE_OFFSET(vabits_actual), ~0UL},
 				{0, 0}
 			}
 		}
@@ -370,6 +369,7 @@ static int __init ptdump_init(void)
 	static struct addr_marker address_markers[ARRAY_SIZE(m)] __ro_after_init;
 
 	kernel_ptdump_info.markers = memcpy(address_markers, m, sizeof(m));
+	kernel_ptdump_info.base_addr = page_offset;
 
 	ptdump_initialize();
 	ptdump_debugfs_register(&kernel_ptdump_info, "kernel_page_tables");
