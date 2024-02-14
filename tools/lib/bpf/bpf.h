@@ -500,7 +500,10 @@ LIBBPF_API int bpf_obj_get_info_by_fd(int bpf_fd, void *info, __u32 *info_len);
  * program corresponding to *prog_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param prog_fd BPF program file descriptor
  * @param info pointer to **struct bpf_prog_info** that will be populated with
@@ -517,7 +520,10 @@ LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, 
  * map corresponding to *map_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param map_fd BPF map file descriptor
  * @param info pointer to **struct bpf_map_info** that will be populated with
@@ -530,11 +536,14 @@ LIBBPF_API int bpf_prog_get_info_by_fd(int prog_fd, struct bpf_prog_info *info, 
 LIBBPF_API int bpf_map_get_info_by_fd(int map_fd, struct bpf_map_info *info, __u32 *info_len);
 
 /**
- * @brief **bpf_btf_get_info_by_fd()** obtains information about the 
+ * @brief **bpf_btf_get_info_by_fd()** obtains information about the
  * BTF object corresponding to *btf_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param btf_fd BTF object file descriptor
  * @param info pointer to **struct bpf_btf_info** that will be populated with
@@ -551,7 +560,10 @@ LIBBPF_API int bpf_btf_get_info_by_fd(int btf_fd, struct bpf_btf_info *info, __u
  * link corresponding to *link_fd*.
  *
  * Populates up to *info_len* bytes of *info* and updates *info_len* with the
- * actual number of bytes written to *info*.
+ * actual number of bytes written to *info*. Note that *info* should be
+ * zero-initialized or initialized as expected by the requested *info*
+ * type. Failing to (zero-)initialize *info* under certain circumstances can
+ * result in this helper returning an error.
  *
  * @param link_fd BPF link file descriptor
  * @param info pointer to **struct bpf_link_info** that will be populated with
