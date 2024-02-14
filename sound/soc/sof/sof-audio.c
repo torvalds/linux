@@ -46,7 +46,6 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 {
 	const struct sof_ipc_tplg_ops *tplg_ops = sof_ipc_get_ops(sdev, tplg);
 	struct snd_sof_pipeline *spipe = swidget->spipe;
-	struct snd_sof_widget *pipe_widget;
 	int err = 0;
 	int ret;
 
@@ -58,8 +57,6 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 	/* only free when use_count is 0 */
 	if (--swidget->use_count)
 		return 0;
-
-	pipe_widget = swidget->spipe->pipe_widget;
 
 	/* reset route setup status for all routes that contain this widget */
 	sof_reset_route_setup_status(sdev, swidget);
@@ -109,8 +106,9 @@ static int sof_widget_free_unlocked(struct snd_sof_dev *sdev,
 	 * free the scheduler widget (same as pipe_widget) associated with the current swidget.
 	 * skip for static pipelines
 	 */
-	if (swidget->dynamic_pipeline_widget && swidget->id != snd_soc_dapm_scheduler) {
-		ret = sof_widget_free_unlocked(sdev, pipe_widget);
+	if (swidget->spipe && swidget->dynamic_pipeline_widget &&
+	    swidget->id != snd_soc_dapm_scheduler) {
+		ret = sof_widget_free_unlocked(sdev, swidget->spipe->pipe_widget);
 		if (ret < 0 && !err)
 			err = ret;
 	}
