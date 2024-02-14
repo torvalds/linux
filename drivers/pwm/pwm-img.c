@@ -59,7 +59,6 @@ struct img_pwm_soc_data {
 };
 
 struct img_pwm_chip {
-	struct device	*dev;
 	struct pwm_chip	chip;
 	struct clk	*pwm_clk;
 	struct clk	*sys_clk;
@@ -264,8 +263,6 @@ static int img_pwm_probe(struct platform_device *pdev)
 	imgchip = devm_kzalloc(&pdev->dev, sizeof(*imgchip), GFP_KERNEL);
 	if (!imgchip)
 		return -ENOMEM;
-
-	imgchip->dev = &pdev->dev;
 
 	imgchip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imgchip->base))
