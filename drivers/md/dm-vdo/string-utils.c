@@ -5,12 +5,6 @@
 
 #include "string-utils.h"
 
-#include "errors.h"
-#include "logger.h"
-#include "memory-alloc.h"
-#include "permassert.h"
-#include "uds.h"
-
 char *uds_append_to_buffer(char *buffer, char *buf_end, const char *fmt, ...)
 {
 	va_list args;
