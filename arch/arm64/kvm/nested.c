@@ -181,7 +181,7 @@ u64 kvm_vcpu_sanitise_vncr_reg(const struct kvm_vcpu *vcpu, enum vcpu_sysreg sr)
 	return v;
 }
 
-static void __maybe_unused set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, u64 res1)
+static void set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, u64 res1)
 {
 	int i = sr - __VNCR_START__;
 
@@ -191,6 +191,7 @@ static void __maybe_unused set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, u
 
 int kvm_init_nv_sysregs(struct kvm *kvm)
 {
+	u64 res0, res1;
 	int ret = 0;
 
 	mutex_lock(&kvm->arch.config_lock);
@@ -208,6 +209,61 @@ int kvm_init_nv_sysregs(struct kvm *kvm)
 	for (int i = 0; i < KVM_ARM_ID_REG_NUM; i++)
 		kvm->arch.id_regs[i] = limit_nv_id_reg(IDX_IDREG(i),
 						       kvm->arch.id_regs[i]);
+
+	/* VTTBR_EL2 */
+	res0 = res1 = 0;
+	if (!kvm_has_feat_enum(kvm, ID_AA64MMFR1_EL1, VMIDBits, 16))
+		res0 |= GENMASK(63, 56);
+	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, CnP, IMP))
+		res0 |= VTTBR_CNP_BIT;
+	set_sysreg_masks(kvm, VTTBR_EL2, res0, res1);
+
+	/* VTCR_EL2 */
+	res0 = GENMASK(63, 32) | GENMASK(30, 20);
+	res1 = BIT(31);
+	set_sysreg_masks(kvm, VTCR_EL2, res0, res1);
+
+	/* VMPIDR_EL2 */
+	res0 = GENMASK(63, 40) | GENMASK(30, 24);
+	res1 = BIT(31);
+	set_sysreg_masks(kvm, VMPIDR_EL2, res0, res1);
+
+	/* HCR_EL2 */
+	res0 = BIT(48);
+	res1 = HCR_RW;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, TWED, IMP))
+		res0 |= GENMASK(63, 59);
+	if (!kvm_has_feat(kvm, ID_AA64PFR1_EL1, MTE, MTE2))
+		res0 |= (HCR_TID5 | HCR_DCT | HCR_ATA);
+	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, EVT, TTLBxS))
+		res0 |= (HCR_TTLBIS | HCR_TTLBOS);
+	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, CSV2, CSV2_2) &&
+	    !kvm_has_feat(kvm, ID_AA64PFR1_EL1, CSV2_frac, CSV2_1p2))
+		res0 |= HCR_ENSCXT;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, EVT, IMP))
+		res0 |= (HCR_TOCU | HCR_TICAB | HCR_TID4);
+	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, AMU, V1P1))
+		res0 |= HCR_AMVOFFEN;
+	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, V1P1))
+		res0 |= HCR_FIEN;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, FWB, IMP))
+		res0 |= HCR_FWB;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, NV, NV2))
+		res0 |= HCR_NV2;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR2_EL1, NV, IMP))
+		res0 |= (HCR_AT | HCR_NV1 | HCR_NV);
+	if (!(__vcpu_has_feature(&kvm->arch, KVM_ARM_VCPU_PTRAUTH_ADDRESS) &&
+	      __vcpu_has_feature(&kvm->arch, KVM_ARM_VCPU_PTRAUTH_GENERIC)))
+		res0 |= (HCR_API | HCR_APK);
+	if (!kvm_has_feat(kvm, ID_AA64ISAR0_EL1, TME, IMP))
+		res0 |= BIT(39);
+	if (!kvm_has_feat(kvm, ID_AA64PFR0_EL1, RAS, IMP))
+		res0 |= (HCR_TEA | HCR_TERR);
+	if (!kvm_has_feat(kvm, ID_AA64MMFR1_EL1, LO, IMP))
+		res0 |= HCR_TLOR;
+	if (!kvm_has_feat(kvm, ID_AA64MMFR4_EL1, E2H0, IMP))
+		res1 |= HCR_E2H;
+	set_sysreg_masks(kvm, HCR_EL2, res0, res1);
 
 out:
 	mutex_unlock(&kvm->arch.config_lock);
