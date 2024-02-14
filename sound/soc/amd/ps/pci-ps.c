@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/iopoll.h>
 #include <linux/soundwire/sdw_amd.h>
+#include "../mach-config.h"
 
 #include "acp63.h"
 
@@ -281,6 +282,42 @@ static int amd_sdw_exit(struct acp63_dev_data *acp_data)
 
 	return 0;
 }
+
+static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
+{
+	struct snd_soc_acpi_mach *mach;
+	const struct snd_soc_acpi_link_adr *link;
+	struct acp63_dev_data *acp_data = dev_get_drvdata(dev);
+	int ret, i;
+
+	if (acp_data->info.count) {
+		ret = sdw_amd_get_slave_info(acp_data->sdw);
+		if (ret) {
+			dev_dbg(dev, "failed to read slave information\n");
+			return NULL;
+		}
+		for (mach = acp_data->machines; mach; mach++) {
+			if (!mach->links)
+				break;
+			link = mach->links;
+			for (i = 0; i < acp_data->info.count && link->num_adr; link++, i++) {
+				if (!snd_soc_acpi_sdw_link_slaves_found(dev, link,
+									acp_data->sdw->ids,
+									acp_data->sdw->num_slaves))
+					break;
+			}
+			if (i == acp_data->info.count || !link->num_adr)
+				break;
+		}
+		if (mach && mach->link_mask) {
+			mach->mach_params.links = mach->links;
+			mach->mach_params.link_mask = mach->link_mask;
+			return mach;
+		}
+	}
+	dev_dbg(dev, "No SoundWire machine driver found\n");
+	return NULL;
+}
 #else
 static int acp_scan_sdw_devices(struct device *dev, u64 addr)
 {
@@ -296,7 +333,43 @@ static int amd_sdw_exit(struct acp63_dev_data *acp_data)
 {
 	return 0;
 }
+
+static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
+{
+	return NULL;
+}
 #endif
+
+static int acp63_machine_register(struct device *dev)
+{
+	struct snd_soc_acpi_mach *mach;
+	struct acp63_dev_data *adata = dev_get_drvdata(dev);
+	int size;
+
+	if (adata->is_sdw_dev && adata->is_sdw_config) {
+		size = sizeof(*adata->machines);
+		mach = acp63_sdw_machine_select(dev);
+		if (mach) {
+			adata->mach_dev = platform_device_register_data(dev, mach->drv_name,
+									PLATFORM_DEVID_NONE, mach,
+									size);
+			if (IS_ERR(adata->mach_dev)) {
+				dev_err(dev,
+					"cannot register Machine device for SoundWire Interface\n");
+				return PTR_ERR(adata->mach_dev);
+			}
+		}
+
+	} else if (adata->is_pdm_dev && !adata->is_sdw_dev && adata->is_pdm_config) {
+		adata->mach_dev = platform_device_register_data(dev, "acp_ps_mach",
+								PLATFORM_DEVID_NONE, NULL, 0);
+		if (IS_ERR(adata->mach_dev)) {
+			dev_err(dev, "cannot register amd_ps_mach device\n");
+			return PTR_ERR(adata->mach_dev);
+		}
+	}
+	return 0;
+}
 
 static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *acp_data)
 {
@@ -526,7 +599,11 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP platform devices creation failed\n");
 		goto de_init;
 	}
-
+	ret = acp63_machine_register(&pci->dev);
+	if (ret) {
+		dev_err(&pci->dev, "ACP machine register failed\n");
+		goto de_init;
+	}
 skip_pdev_creation:
 	device_set_wakeup_enable(&pci->dev, true);
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
@@ -640,6 +717,8 @@ static void snd_acp63_remove(struct pci_dev *pci)
 		platform_device_unregister(adata->pdm_dev);
 		platform_device_unregister(adata->dmic_codec_dev);
 	}
+	if (adata->mach_dev)
+		platform_device_unregister(adata->mach_dev);
 	ret = acp63_deinit(adata->acp63_base, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
