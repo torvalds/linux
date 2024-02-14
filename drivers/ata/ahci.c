@@ -53,7 +53,6 @@ enum board_ids {
 	board_ahci_no_debounce_delay,
 	board_ahci_nomsi,
 	board_ahci_noncq,
-	board_ahci_nosntf,
 	/*
 	 * board_ahci_pcs_quirk is for legacy Intel platforms.
 	 * Modern Intel platforms should use board_ahci instead.
@@ -62,6 +61,7 @@ enum board_ids {
 	 * without testing that the platform actually works without the quirk.)
 	 */
 	board_ahci_pcs_quirk,
+	board_ahci_pcs_quirk_no_sntf,
 	board_ahci_yes_fbs,
 
 	/* board IDs for specific chipsets in alphabetical order */
@@ -165,16 +165,16 @@ static const struct ata_port_info ahci_port_info[] = {
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_nosntf] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_SNTF |
-				 AHCI_HFLAG_INTEL_PCS_QUIRK),
+	[board_ahci_pcs_quirk] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_INTEL_PCS_QUIRK),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
 		.port_ops	= &ahci_ops,
 	},
-	[board_ahci_pcs_quirk] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_INTEL_PCS_QUIRK),
+	[board_ahci_pcs_quirk_no_sntf] = {
+		AHCI_HFLAGS	(AHCI_HFLAG_INTEL_PCS_QUIRK |
+				 AHCI_HFLAG_NO_SNTF),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
@@ -271,7 +271,7 @@ static const struct pci_device_id ahci_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, 0x2683), board_ahci_pcs_quirk }, /* ESB2 */
 	{ PCI_VDEVICE(INTEL, 0x27c6), board_ahci_pcs_quirk }, /* ICH7-M DH */
 	{ PCI_VDEVICE(INTEL, 0x2821), board_ahci_pcs_quirk }, /* ICH8 */
-	{ PCI_VDEVICE(INTEL, 0x2822), board_ahci_nosntf }, /* ICH8/Lewisburg RAID*/
+	{ PCI_VDEVICE(INTEL, 0x2822), board_ahci_pcs_quirk_no_sntf }, /* ICH8/Lewisburg RAID*/
 	{ PCI_VDEVICE(INTEL, 0x2824), board_ahci_pcs_quirk }, /* ICH8 */
 	{ PCI_VDEVICE(INTEL, 0x2829), board_ahci_pcs_quirk }, /* ICH8M */
 	{ PCI_VDEVICE(INTEL, 0x282a), board_ahci_pcs_quirk }, /* ICH8M */
