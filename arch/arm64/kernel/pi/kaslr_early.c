@@ -16,6 +16,8 @@
 #include <asm/memory.h>
 #include <asm/pgtable.h>
 
+extern u16 memstart_offset_seed;
+
 static u64 __init get_kaslr_seed(void *fdt)
 {
 	static char const chosen_str[] __initconst = "chosen";
@@ -50,6 +52,8 @@ asmlinkage u64 __init kaslr_early_init(void *fdt)
 		    !__arm64_rndr((unsigned long *)&seed))
 			return 0;
 	}
+
+	memstart_offset_seed = seed & U16_MAX;
 
 	/*
 	 * OK, so we are proceeding with KASLR enabled. Calculate a suitable

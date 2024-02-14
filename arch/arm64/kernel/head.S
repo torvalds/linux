@@ -82,7 +82,6 @@
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x23        __primary_switch()                       physical misalignment/KASLR offset
-	 *  x24        __primary_switch()                       linear map KASLR seed
 	 *  x25        primary_entry() .. start_kernel()        supported VA size
 	 *  x28        create_idmap()                           callee preserved temp register
 	 */
@@ -483,11 +482,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	str	x25, [x8]			// ... observes the correct value
 	dc	civac, x8			// Make visible to booting secondaries
 #endif
-
-#ifdef CONFIG_RANDOMIZE_BASE
-	adrp	x5, memstart_offset_seed	// Save KASLR linear map seed
-	strh	w24, [x5, :lo12:memstart_offset_seed]
-#endif
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	bl	kasan_early_init
 #endif
@@ -779,7 +773,6 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 #ifdef CONFIG_RANDOMIZE_BASE
 	mov	x0, x22
 	bl	__pi_kaslr_early_init
-	and	x24, x0, #SZ_2M - 1		// capture memstart offset seed
 	bic	x0, x0, #SZ_2M - 1
 	orr	x23, x23, x0			// record kernel offset
 #endif

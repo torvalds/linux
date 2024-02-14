@@ -46,6 +46,7 @@ PROVIDE(__pi_id_aa64smfr0_override	= id_aa64smfr0_override);
 PROVIDE(__pi_id_aa64zfr0_override	= id_aa64zfr0_override);
 PROVIDE(__pi_arm64_sw_feature_override	= arm64_sw_feature_override);
 PROVIDE(__pi__ctype			= _ctype);
+PROVIDE(__pi_memstart_offset_seed	= memstart_offset_seed);
 
 #ifdef CONFIG_KVM
 
