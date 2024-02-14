@@ -1328,7 +1328,7 @@ sub dump_enum($$) {
 
     $x =~ s@/\*.*?\*/@@gos;	# strip comments.
     # strip #define macros inside enums
-    $x =~ s@#\s*((define|ifdef)\s+|endif)[^;]*;@@gos;
+    $x =~ s@#\s*((define|ifdef|if)\s+|endif)[^;]*;@@gos;
 
     if ($x =~ /typedef\s+enum\s*\{(.*)\}\s*(\w*)\s*;/) {
         $declaration_name = $2;
