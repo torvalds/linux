@@ -52,7 +52,6 @@ enum board_ids {
 	board_ahci_ign_iferr,
 	board_ahci_no_debounce_delay,
 	board_ahci_nomsi,
-	board_ahci_noncq,
 	/*
 	 * board_ahci_pcs_quirk is for legacy Intel platforms.
 	 * Modern Intel platforms should use board_ahci instead.
@@ -154,13 +153,6 @@ static const struct ata_port_info ahci_port_info[] = {
 	},
 	[board_ahci_nomsi] = {
 		AHCI_HFLAGS	(AHCI_HFLAG_NO_MSI),
-		.flags		= AHCI_FLAG_COMMON,
-		.pio_mask	= ATA_PIO4,
-		.udma_mask	= ATA_UDMA6,
-		.port_ops	= &ahci_ops,
-	},
-	[board_ahci_noncq] = {
-		AHCI_HFLAGS	(AHCI_HFLAG_NO_NCQ),
 		.flags		= AHCI_FLAG_COMMON,
 		.pio_mask	= ATA_PIO4,
 		.udma_mask	= ATA_UDMA6,
