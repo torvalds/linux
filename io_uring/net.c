@@ -1326,7 +1326,7 @@ retry:
 			 * has already been done
 			 */
 			if (issue_flags & IO_URING_F_MULTISHOT)
-				ret = IOU_ISSUE_SKIP_COMPLETE;
+				return IOU_ISSUE_SKIP_COMPLETE;
 			return ret;
 		}
 		if (ret == -ERESTARTSYS)
@@ -1350,7 +1350,8 @@ retry:
 	if (io_post_aux_cqe(ctx, req->cqe.user_data, ret, IORING_CQE_F_MORE, false))
 		goto retry;
 
-	return -ECANCELED;
+	io_req_set_res(req, ret, 0);
+	return IOU_STOP_MULTISHOT;
 }
 
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
