@@ -1370,8 +1370,13 @@ static void io_req_normal_work_add(struct io_kiocb *req)
 		atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 
 	/* SQPOLL doesn't need the task_work added, it'll run it itself */
-	if (ctx->flags & IORING_SETUP_SQPOLL)
+	if (ctx->flags & IORING_SETUP_SQPOLL) {
+		struct io_sq_data *sqd = ctx->sq_data;
+
+		if (wq_has_sleeper(&sqd->wait))
+			wake_up(&sqd->wait);
 		return;
+	}
 
 	if (likely(!task_work_add(req->task, &tctx->task_work, ctx->notify_method)))
 		return;
