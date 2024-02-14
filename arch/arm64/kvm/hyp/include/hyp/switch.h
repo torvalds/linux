@@ -157,8 +157,6 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpu_context *hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
 	struct kvm *kvm = kern_hyp_va(vcpu->kvm);
-	u64 r_clr = 0, w_clr = 0, r_set = 0, w_set = 0;
-	u64 r_val, w_val;
 
 	CHECK_FGT_MASKS(HFGRTR_EL2);
 	CHECK_FGT_MASKS(HFGWTR_EL2);
@@ -171,34 +169,10 @@ static inline void __activate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 	if (!cpus_have_final_cap(ARM64_HAS_FGT))
 		return;
 
-	ctxt_sys_reg(hctxt, HFGRTR_EL2) = read_sysreg_s(SYS_HFGRTR_EL2);
-	ctxt_sys_reg(hctxt, HFGWTR_EL2) = read_sysreg_s(SYS_HFGWTR_EL2);
-
-	/*
-	 * Trap guest writes to TCR_EL1 to prevent it from enabling HA or HD.
-	 */
-	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
-		w_set |= HFGxTR_EL2_TCR_EL1_MASK;
-
-	if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
-		compute_clr_set(vcpu, HFGRTR_EL2, r_clr, r_set);
-		compute_clr_set(vcpu, HFGWTR_EL2, w_clr, w_set);
-	}
-
-	compute_undef_clr_set(vcpu, kvm, HFGRTR_EL2, r_clr, r_set);
-	compute_undef_clr_set(vcpu, kvm, HFGWTR_EL2, w_clr, w_set);
-
-	r_val = __HFGRTR_EL2_nMASK;
-	r_val |= r_set;
-	r_val &= ~r_clr;
-
-	w_val = __HFGWTR_EL2_nMASK;
-	w_val |= w_set;
-	w_val &= ~w_clr;
-
-	write_sysreg_s(r_val, SYS_HFGRTR_EL2);
-	write_sysreg_s(w_val, SYS_HFGWTR_EL2);
-
+	update_fgt_traps(hctxt, vcpu, kvm, HFGRTR_EL2);
+	update_fgt_traps_cs(hctxt, vcpu, kvm, HFGWTR_EL2, 0,
+			    cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38) ?
+			    HFGxTR_EL2_TCR_EL1_MASK : 0);
 	update_fgt_traps(hctxt, vcpu, kvm, HFGITR_EL2);
 	update_fgt_traps(hctxt, vcpu, kvm, HDFGRTR_EL2);
 	update_fgt_traps(hctxt, vcpu, kvm, HDFGWTR_EL2);
@@ -223,9 +197,11 @@ static inline void __deactivate_traps_hfgxtr(struct kvm_vcpu *vcpu)
 	if (!cpus_have_final_cap(ARM64_HAS_FGT))
 		return;
 
-	write_sysreg_s(ctxt_sys_reg(hctxt, HFGRTR_EL2), SYS_HFGRTR_EL2);
-	write_sysreg_s(ctxt_sys_reg(hctxt, HFGWTR_EL2), SYS_HFGWTR_EL2);
-
+	__deactivate_fgt(hctxt, vcpu, kvm, HFGRTR_EL2);
+	if (cpus_have_final_cap(ARM64_WORKAROUND_AMPERE_AC03_CPU_38))
+		write_sysreg_s(ctxt_sys_reg(hctxt, HFGWTR_EL2), SYS_HFGWTR_EL2);
+	else
+		__deactivate_fgt(hctxt, vcpu, kvm, HFGWTR_EL2);
 	__deactivate_fgt(hctxt, vcpu, kvm, HFGITR_EL2);
 	__deactivate_fgt(hctxt, vcpu, kvm, HDFGRTR_EL2);
 	__deactivate_fgt(hctxt, vcpu, kvm, HDFGWTR_EL2);
