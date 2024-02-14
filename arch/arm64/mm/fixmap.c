@@ -104,7 +104,7 @@ void __init early_fixmap_init(void)
 	unsigned long end = FIXADDR_TOP;
 
 	pgd_t *pgdp = pgd_offset_k(addr);
-	p4d_t *p4dp = p4d_offset(pgdp, addr);
+	p4d_t *p4dp = p4d_offset_kimg(pgdp, addr);
 
 	early_fixmap_init_pud(p4dp, addr, end);
 }

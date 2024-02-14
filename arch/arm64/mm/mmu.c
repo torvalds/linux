@@ -313,15 +313,14 @@ static void alloc_init_cont_pmd(pud_t *pudp, unsigned long addr,
 	} while (addr = next, addr != end);
 }
 
-static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
+static void alloc_init_pud(p4d_t *p4dp, unsigned long addr, unsigned long end,
 			   phys_addr_t phys, pgprot_t prot,
 			   phys_addr_t (*pgtable_alloc)(int),
 			   int flags)
 {
 	unsigned long next;
-	pud_t *pudp;
-	p4d_t *p4dp = p4d_offset(pgdp, addr);
 	p4d_t p4d = READ_ONCE(*p4dp);
+	pud_t *pudp;
 
 	if (p4d_none(p4d)) {
 		p4dval_t p4dval = P4D_TYPE_TABLE | P4D_TABLE_UXN;
@@ -369,6 +368,46 @@ static void alloc_init_pud(pgd_t *pgdp, unsigned long addr, unsigned long end,
 	pud_clear_fixmap();
 }
 
+static void alloc_init_p4d(pgd_t *pgdp, unsigned long addr, unsigned long end,
+			   phys_addr_t phys, pgprot_t prot,
+			   phys_addr_t (*pgtable_alloc)(int),
+			   int flags)
+{
+	unsigned long next;
+	pgd_t pgd = READ_ONCE(*pgdp);
+	p4d_t *p4dp;
+
+	if (pgd_none(pgd)) {
+		pgdval_t pgdval = PGD_TYPE_TABLE | PGD_TABLE_UXN;
+		phys_addr_t p4d_phys;
+
+		if (flags & NO_EXEC_MAPPINGS)
+			pgdval |= PGD_TABLE_PXN;
+		BUG_ON(!pgtable_alloc);
+		p4d_phys = pgtable_alloc(P4D_SHIFT);
+		__pgd_populate(pgdp, p4d_phys, pgdval);
+		pgd = READ_ONCE(*pgdp);
+	}
+	BUG_ON(pgd_bad(pgd));
+
+	p4dp = p4d_set_fixmap_offset(pgdp, addr);
+	do {
+		p4d_t old_p4d = READ_ONCE(*p4dp);
+
+		next = p4d_addr_end(addr, end);
+
+		alloc_init_pud(p4dp, addr, next, phys, prot,
+			       pgtable_alloc, flags);
+
+		BUG_ON(p4d_val(old_p4d) != 0 &&
+		       p4d_val(old_p4d) != READ_ONCE(p4d_val(*p4dp)));
+
+		phys += next - addr;
+	} while (p4dp++, addr = next, addr != end);
+
+	p4d_clear_fixmap();
+}
+
 static void __create_pgd_mapping_locked(pgd_t *pgdir, phys_addr_t phys,
 					unsigned long virt, phys_addr_t size,
 					pgprot_t prot,
@@ -391,7 +430,7 @@ static void __create_pgd_mapping_locked(pgd_t *pgdir, phys_addr_t phys,
 
 	do {
 		next = pgd_addr_end(addr, end);
-		alloc_init_pud(pgdp, addr, next, phys, prot, pgtable_alloc,
+		alloc_init_p4d(pgdp, addr, next, phys, prot, pgtable_alloc,
 			       flags);
 		phys += next - addr;
 	} while (pgdp++, addr = next, addr != end);

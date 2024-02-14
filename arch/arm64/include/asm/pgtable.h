@@ -621,12 +621,12 @@ static inline bool pud_table(pud_t pud) { return true; }
 				 PUD_TYPE_TABLE)
 #endif
 
-extern pgd_t init_pg_dir[PTRS_PER_PGD];
+extern pgd_t init_pg_dir[];
 extern pgd_t init_pg_end[];
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-extern pgd_t idmap_pg_dir[PTRS_PER_PGD];
-extern pgd_t tramp_pg_dir[PTRS_PER_PGD];
-extern pgd_t reserved_pg_dir[PTRS_PER_PGD];
+extern pgd_t swapper_pg_dir[];
+extern pgd_t idmap_pg_dir[];
+extern pgd_t tramp_pg_dir[];
+extern pgd_t reserved_pg_dir[];
 
 extern void set_swapper_pgd(pgd_t *pgdp, pgd_t pgd);
 
@@ -891,11 +891,46 @@ static inline p4d_t *p4d_offset(pgd_t *pgdp, unsigned long addr)
 	return p4d_offset_lockless(pgdp, READ_ONCE(*pgdp), addr);
 }
 
+static inline p4d_t *p4d_set_fixmap(unsigned long addr)
+{
+	if (!pgtable_l5_enabled())
+		return NULL;
+	return (p4d_t *)set_fixmap_offset(FIX_P4D, addr);
+}
+
+static inline p4d_t *p4d_set_fixmap_offset(pgd_t *pgdp, unsigned long addr)
+{
+	if (!pgtable_l5_enabled())
+		return pgd_to_folded_p4d(pgdp, addr);
+	return p4d_set_fixmap(p4d_offset_phys(pgdp, addr));
+}
+
+static inline void p4d_clear_fixmap(void)
+{
+	if (pgtable_l5_enabled())
+		clear_fixmap(FIX_P4D);
+}
+
+/* use ONLY for statically allocated translation tables */
+static inline p4d_t *p4d_offset_kimg(pgd_t *pgdp, u64 addr)
+{
+	if (!pgtable_l5_enabled())
+		return pgd_to_folded_p4d(pgdp, addr);
+	return (p4d_t *)__phys_to_kimg(p4d_offset_phys(pgdp, addr));
+}
+
 #define pgd_page(pgd)		pfn_to_page(__phys_to_pfn(__pgd_to_phys(pgd)))
 
 #else
 
 static inline bool pgtable_l5_enabled(void) { return false; }
+
+/* Match p4d_offset folding in <asm/generic/pgtable-nop4d.h> */
+#define p4d_set_fixmap(addr)		NULL
+#define p4d_set_fixmap_offset(p4dp, addr)	((p4d_t *)p4dp)
+#define p4d_clear_fixmap()
+
+#define p4d_offset_kimg(dir,addr)	((p4d_t *)dir)
 
 #endif  /* CONFIG_PGTABLE_LEVELS > 4 */
 

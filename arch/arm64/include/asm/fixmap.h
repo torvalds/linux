@@ -87,6 +87,7 @@ enum fixed_addresses {
 	FIX_PTE,
 	FIX_PMD,
 	FIX_PUD,
+	FIX_P4D,
 	FIX_PGD,
 
 	__end_of_fixed_addresses
