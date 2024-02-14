@@ -564,10 +564,9 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 		if (ret)
 			return ret;
 	} else {
-		if (!pdev->dev.platform_data) {
-			dev_err(&pdev->dev, "no platform data specified\n");
-			return -EINVAL;
-		}
+		if (!pdev->dev.platform_data)
+			return dev_err_probe(&pdev->dev, -EINVAL,
+					     "no platform data specified\n");
 
 		memcpy(&our_chip->variant, pdev->dev.platform_data,
 							sizeof(our_chip->variant));
@@ -578,10 +577,9 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 		return PTR_ERR(our_chip->base);
 
 	our_chip->base_clk = devm_clk_get_enabled(&pdev->dev, "timers");
-	if (IS_ERR(our_chip->base_clk)) {
-		dev_err(dev, "failed to get timer base clk\n");
-		return PTR_ERR(our_chip->base_clk);
-	}
+	if (IS_ERR(our_chip->base_clk))
+		return dev_err_probe(dev, PTR_ERR(our_chip->base_clk),
+				     "failed to get timer base clk\n");
 
 	for (chan = 0; chan < SAMSUNG_PWM_NUM; ++chan)
 		if (our_chip->variant.output_mask & BIT(chan))
@@ -594,10 +592,8 @@ static int pwm_samsung_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, chip);
 
 	ret = devm_pwmchip_add(&pdev->dev, chip);
-	if (ret < 0) {
-		dev_err(dev, "failed to register PWM chip\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed to register PWM chip\n");
 
 	dev_dbg(dev, "base_clk at %lu, tclk0 at %lu, tclk1 at %lu\n",
 		clk_get_rate(our_chip->base_clk),
