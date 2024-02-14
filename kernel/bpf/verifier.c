@@ -11015,7 +11015,7 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 	 * type to our caller. When a set of conditions hold in the BTF type of
 	 * arguments, we resolve it to a known kfunc_ptr_arg_type.
 	 */
-	if (btf_get_prog_ctx_type(&env->log, meta->btf, t, resolve_prog_type(env->prog), argno))
+	if (btf_is_prog_ctx_type(&env->log, meta->btf, t, resolve_prog_type(env->prog), argno))
 		return KF_ARG_PTR_TO_CTX;
 
 	if (is_kfunc_arg_alloc_obj(meta->btf, &args[argno]))
