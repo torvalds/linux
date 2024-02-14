@@ -2260,16 +2260,15 @@ static bool intel_cdclk_can_squash(struct drm_i915_private *dev_priv,
 }
 
 /**
- * intel_cdclk_needs_modeset - Determine if changong between the CDCLK
- *                             configurations requires a modeset on all pipes
+ * intel_cdclk_clock_changed - Check whether the clock changed
  * @a: first CDCLK configuration
  * @b: second CDCLK configuration
  *
  * Returns:
- * True if changing between the two CDCLK configurations
- * requires all pipes to be off, false if not.
+ * True if CDCLK changed in a way that requires re-programming and
+ * False otherwise.
  */
-bool intel_cdclk_needs_modeset(const struct intel_cdclk_config *a,
+bool intel_cdclk_clock_changed(const struct intel_cdclk_config *a,
 			       const struct intel_cdclk_config *b)
 {
 	return a->cdclk != b->cdclk ||
@@ -2322,7 +2321,7 @@ static bool intel_cdclk_can_cd2x_update(struct drm_i915_private *dev_priv,
 static bool intel_cdclk_changed(const struct intel_cdclk_config *a,
 				const struct intel_cdclk_config *b)
 {
-	return intel_cdclk_needs_modeset(a, b) ||
+	return intel_cdclk_clock_changed(a, b) ||
 		a->voltage_level != b->voltage_level;
 }
 
@@ -3229,7 +3228,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		drm_dbg_kms(&dev_priv->drm,
 			    "Can change cdclk cd2x divider with pipe %c active\n",
 			    pipe_name(pipe));
-	} else if (intel_cdclk_needs_modeset(&old_cdclk_state->actual,
+	} else if (intel_cdclk_clock_changed(&old_cdclk_state->actual,
 					     &new_cdclk_state->actual)) {
 		/* All pipes must be switched off while we change the cdclk. */
 		ret = intel_modeset_all_pipes_late(state, "CDCLK change");
