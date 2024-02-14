@@ -504,12 +504,12 @@ static void __init setup_resources(void)
 	int j;
 	u64 i;
 
-	code_resource.start = (unsigned long) _text;
-	code_resource.end = (unsigned long) _etext - 1;
-	data_resource.start = (unsigned long) _etext;
-	data_resource.end = (unsigned long) _edata - 1;
-	bss_resource.start = (unsigned long) __bss_start;
-	bss_resource.end = (unsigned long) __bss_stop - 1;
+	code_resource.start = __pa_symbol(_text);
+	code_resource.end = __pa_symbol(_etext) - 1;
+	data_resource.start = __pa_symbol(_etext);
+	data_resource.end = __pa_symbol(_edata) - 1;
+	bss_resource.start = __pa_symbol(__bss_start);
+	bss_resource.end = __pa_symbol(__bss_stop) - 1;
 
 	for_each_mem_range(i, &start, &end) {
 		res = memblock_alloc(sizeof(*res), 8);
