@@ -16,8 +16,6 @@
 
 struct gb_pwm_chip {
 	struct gb_connection	*connection;
-	u8			pwm_max;	/* max pwm number */
-
 	struct pwm_chip		chip;
 };
 
@@ -26,17 +24,21 @@ static inline struct gb_pwm_chip *pwm_chip_to_gb_pwm_chip(struct pwm_chip *chip)
 	return container_of(chip, struct gb_pwm_chip, chip);
 }
 
-static int gb_pwm_count_operation(struct gb_pwm_chip *pwmc)
+static int gb_pwm_get_npwm(struct gb_connection *connection)
 {
 	struct gb_pwm_count_response response;
 	int ret;
 
-	ret = gb_operation_sync(pwmc->connection, GB_PWM_TYPE_PWM_COUNT,
+	ret = gb_operation_sync(connection, GB_PWM_TYPE_PWM_COUNT,
 				NULL, 0, &response, sizeof(response));
 	if (ret)
 		return ret;
-	pwmc->pwm_max = response.count;
-	return 0;
+
+	/*
+	 * The request returns the highest allowed PWM id parameter. So add one
+	 * to get the number of PWMs.
+	 */
+	return response.count + 1;
 }
 
 static int gb_pwm_activate_operation(struct pwm_chip *chip, u8 which)
@@ -245,7 +247,7 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 	struct gb_connection *connection;
 	struct gb_pwm_chip *pwmc;
 	struct pwm_chip *chip;
-	int ret;
+	int ret, npwm;
 
 	pwmc = kzalloc(sizeof(*pwmc), GFP_KERNEL);
 	if (!pwmc)
@@ -267,15 +269,16 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 		goto exit_connection_destroy;
 
 	/* Query number of pwms present */
-	ret = gb_pwm_count_operation(pwmc);
-	if (ret)
+	ret = gb_pwm_get_npwm(connection);
+	if (ret < 0)
 		goto exit_connection_disable;
+	npwm = ret;
 
 	chip = &pwmc->chip;
 
 	chip->dev = &gbphy_dev->dev;
 	chip->ops = &gb_pwm_ops;
-	chip->npwm = pwmc->pwm_max + 1;
+	chip->npwm = npwm;
 
 	ret = pwmchip_add(chip);
 	if (ret) {
