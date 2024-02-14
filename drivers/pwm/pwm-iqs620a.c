@@ -35,7 +35,6 @@
 struct iqs620_pwm_private {
 	struct iqs62x_core *iqs62x;
 	struct device *dev;
-	struct pwm_chip chip;
 	struct notifier_block notifier;
 	struct mutex lock;
 	unsigned int duty_scale;
@@ -43,7 +42,7 @@ struct iqs620_pwm_private {
 
 static inline struct iqs620_pwm_private *iqs620_pwm_from_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct iqs620_pwm_private, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static int iqs620_pwm_init(struct iqs620_pwm_private *iqs620_pwm,
@@ -189,14 +188,16 @@ static void iqs620_pwm_notifier_unregister(void *context)
 static int iqs620_pwm_probe(struct platform_device *pdev)
 {
 	struct iqs62x_core *iqs62x = dev_get_drvdata(pdev->dev.parent);
+	struct pwm_chip *chip;
 	struct iqs620_pwm_private *iqs620_pwm;
 	unsigned int val;
 	int ret;
 
-	iqs620_pwm = devm_kzalloc(&pdev->dev, sizeof(*iqs620_pwm), GFP_KERNEL);
-	if (!iqs620_pwm)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, 1, sizeof(*iqs620_pwm));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
 
+	iqs620_pwm = iqs620_pwm_from_chip(chip);
 	iqs620_pwm->dev = &pdev->dev;
 	iqs620_pwm->iqs62x = iqs62x;
 
@@ -212,9 +213,7 @@ static int iqs620_pwm_probe(struct platform_device *pdev)
 		iqs620_pwm->duty_scale = val + 1;
 	}
 
-	iqs620_pwm->chip.dev = &pdev->dev;
-	iqs620_pwm->chip.ops = &iqs620_pwm_ops;
-	iqs620_pwm->chip.npwm = 1;
+	chip->ops = &iqs620_pwm_ops;
 
 	mutex_init(&iqs620_pwm->lock);
 
@@ -232,7 +231,7 @@ static int iqs620_pwm_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = devm_pwmchip_add(&pdev->dev, &iqs620_pwm->chip);
+	ret = devm_pwmchip_add(&pdev->dev, chip);
 	if (ret)
 		dev_err(&pdev->dev, "Failed to add device: %d\n", ret);
 
