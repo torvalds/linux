@@ -5812,6 +5812,17 @@ static int check_ptr_alignment(struct bpf_verifier_env *env,
 					   strict);
 }
 
+static int round_up_stack_depth(struct bpf_verifier_env *env, int stack_depth)
+{
+	if (env->prog->jit_requested)
+		return round_up(stack_depth, 16);
+
+	/* round up to 32-bytes, since this is granularity
+	 * of interpreter stack size
+	 */
+	return round_up(max_t(u32, stack_depth, 1), 32);
+}
+
 /* starting from main bpf function walk all instructions of the function
  * and recursively walk all callees that given function can call.
  * Ignore jump and exit insns.
@@ -5855,10 +5866,7 @@ process_func:
 			depth);
 		return -EACCES;
 	}
-	/* round up to 32-bytes, since this is granularity
-	 * of interpreter stack size
-	 */
-	depth += round_up(max_t(u32, subprog[idx].stack_depth, 1), 32);
+	depth += round_up_stack_depth(env, subprog[idx].stack_depth);
 	if (depth > MAX_BPF_STACK) {
 		verbose(env, "combined stack size of %d calls is %d. Too large\n",
 			frame + 1, depth);
@@ -5952,7 +5960,7 @@ continue_func:
 	 */
 	if (frame == 0)
 		return 0;
-	depth -= round_up(max_t(u32, subprog[idx].stack_depth, 1), 32);
+	depth -= round_up_stack_depth(env, subprog[idx].stack_depth);
 	frame--;
 	i = ret_insn[frame];
 	idx = ret_prog[frame];
