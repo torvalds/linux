@@ -7,9 +7,6 @@
 
 #include <uapi/asm/setup.h>
 
-void *get_early_fdt_ptr(void);
-void early_fdt_map(u64 dt_phys);
-
 /*
  * These two variables are used in the head.S file.
  */
