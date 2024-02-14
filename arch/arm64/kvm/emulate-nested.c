@@ -1010,7 +1010,7 @@ enum fgt_group_id {
 	__NO_FGT_GROUP__,
 	HFGxTR_GROUP,
 	HDFGRTR_GROUP,
-	HDFGWTR_GROUP,
+	HDFGWTR_GROUP = HDFGRTR_GROUP,
 	HFGITR_GROUP,
 	HAFGRTR_GROUP,
 
@@ -1938,7 +1938,6 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 		break;
 
 	case HDFGRTR_GROUP:
-	case HDFGWTR_GROUP:
 		if (is_read)
 			val = __vcpu_sys_reg(vcpu, HDFGRTR_EL2);
 		else
