@@ -51,7 +51,7 @@ static int gb_pwm_activate_operation(struct pwm_chip *chip, u8 which)
 
 	request.which = which;
 
-	gbphy_dev = to_gbphy_dev(chip->dev);
+	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
 		return ret;
@@ -76,7 +76,7 @@ static int gb_pwm_deactivate_operation(struct pwm_chip *chip, u8 which)
 
 	request.which = which;
 
-	gbphy_dev = to_gbphy_dev(chip->dev);
+	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
 		return ret;
@@ -104,7 +104,7 @@ static int gb_pwm_config_operation(struct pwm_chip *chip,
 	request.duty = cpu_to_le32(duty);
 	request.period = cpu_to_le32(period);
 
-	gbphy_dev = to_gbphy_dev(chip->dev);
+	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
 		return ret;
@@ -131,7 +131,7 @@ static int gb_pwm_set_polarity_operation(struct pwm_chip *chip,
 	request.which = which;
 	request.polarity = polarity;
 
-	gbphy_dev = to_gbphy_dev(chip->dev);
+	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
 		return ret;
@@ -156,7 +156,7 @@ static int gb_pwm_enable_operation(struct pwm_chip *chip, u8 which)
 
 	request.which = which;
 
-	gbphy_dev = to_gbphy_dev(chip->dev);
+	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
 	ret = gbphy_runtime_get_sync(gbphy_dev);
 	if (ret)
 		return ret;
@@ -184,7 +184,7 @@ static int gb_pwm_disable_operation(struct pwm_chip *chip, u8 which)
 	ret = gb_operation_sync(pwmc->connection, GB_PWM_TYPE_DISABLE,
 				&request, sizeof(request), NULL, 0);
 
-	gbphy_dev = to_gbphy_dev(chip->dev);
+	gbphy_dev = to_gbphy_dev(pwmchip_parent(chip));
 	gbphy_runtime_put_autosuspend(gbphy_dev);
 
 	return ret;
@@ -198,7 +198,7 @@ static int gb_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 static void gb_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	if (pwm_is_enabled(pwm))
-		dev_warn(chip->dev, "freeing PWM device without disabling\n");
+		dev_warn(pwmchip_parent(chip), "freeing PWM device without disabling\n");
 
 	gb_pwm_deactivate_operation(chip, pwm->hwpwm);
 }
