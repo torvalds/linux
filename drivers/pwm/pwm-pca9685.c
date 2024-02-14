@@ -110,7 +110,7 @@ static bool pca9685_prescaler_can_change(struct pca9685 *pca, int channel)
 static int pca9685_read_reg(struct pwm_chip *chip, unsigned int reg, unsigned int *val)
 {
 	struct pca9685 *pca = to_pca(chip);
-	struct device *dev = chip->dev;
+	struct device *dev = pwmchip_parent(chip);
 	int err;
 
 	err = regmap_read(pca->regmap, reg, val);
@@ -123,7 +123,7 @@ static int pca9685_read_reg(struct pwm_chip *chip, unsigned int reg, unsigned in
 static int pca9685_write_reg(struct pwm_chip *chip, unsigned int reg, unsigned int val)
 {
 	struct pca9685 *pca = to_pca(chip);
-	struct device *dev = chip->dev;
+	struct device *dev = pwmchip_parent(chip);
 	int err;
 
 	err = regmap_write(pca->regmap, reg, val);
@@ -254,7 +254,7 @@ static int pca9685_pwm_gpio_request(struct gpio_chip *gpio, unsigned int offset)
 
 	if (pca9685_pwm_test_and_set_inuse(pca, offset))
 		return -EBUSY;
-	pm_runtime_get_sync(chip->dev);
+	pm_runtime_get_sync(pwmchip_parent(chip));
 	return 0;
 }
 
@@ -279,7 +279,7 @@ static void pca9685_pwm_gpio_free(struct gpio_chip *gpio, unsigned int offset)
 	struct pca9685 *pca = to_pca(chip);
 
 	pca9685_pwm_set_duty(chip, offset, 0);
-	pm_runtime_put(chip->dev);
+	pm_runtime_put(pwmchip_parent(chip));
 	pca9685_pwm_clear_inuse(pca, offset);
 }
 
@@ -313,7 +313,7 @@ static int pca9685_pwm_gpio_direction_output(struct gpio_chip *gpio,
 static int pca9685_pwm_gpio_probe(struct pwm_chip *chip)
 {
 	struct pca9685 *pca = to_pca(chip);
-	struct device *dev = chip->dev;
+	struct device *dev = pwmchip_parent(chip);
 
 	pca->gpio.label = dev_name(dev);
 	pca->gpio.parent = dev;
@@ -350,7 +350,7 @@ static inline int pca9685_pwm_gpio_probe(struct pwm_chip *chip)
 
 static void pca9685_set_sleep_mode(struct pwm_chip *chip, bool enable)
 {
-	struct device *dev = chip->dev;
+	struct device *dev = pwmchip_parent(chip);
 	struct pca9685 *pca = to_pca(chip);
 	int err = regmap_update_bits(pca->regmap, PCA9685_MODE1,
 				     MODE1_SLEEP, enable ? MODE1_SLEEP : 0);
@@ -379,7 +379,7 @@ static int __pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	prescale = DIV_ROUND_CLOSEST_ULL(PCA9685_OSC_CLOCK_MHZ * state->period,
 					 PCA9685_COUNTER_RANGE * 1000) - 1;
 	if (prescale < PCA9685_PRESCALE_MIN || prescale > PCA9685_PRESCALE_MAX) {
-		dev_err(chip->dev, "pwm not changed: period out of bounds!\n");
+		dev_err(pwmchip_parent(chip), "pwm not changed: period out of bounds!\n");
 		return -EINVAL;
 	}
 
@@ -391,7 +391,7 @@ static int __pca9685_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	pca9685_read_reg(chip, PCA9685_PRESCALE, &val);
 	if (prescale != val) {
 		if (!pca9685_prescaler_can_change(pca, pwm->hwpwm)) {
-			dev_err(chip->dev,
+			dev_err(pwmchip_parent(chip),
 				"pwm not changed: periods of enabled pwms must match!\n");
 			return -EBUSY;
 		}
@@ -487,7 +487,7 @@ static int pca9685_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 		mutex_unlock(&pca->lock);
 	}
 
-	pm_runtime_get_sync(chip->dev);
+	pm_runtime_get_sync(pwmchip_parent(chip));
 
 	return 0;
 }
@@ -501,7 +501,7 @@ static void pca9685_pwm_free(struct pwm_chip *chip, struct pwm_device *pwm)
 	clear_bit(pwm->hwpwm, pca->pwms_enabled);
 	mutex_unlock(&pca->lock);
 
-	pm_runtime_put(chip->dev);
+	pm_runtime_put(pwmchip_parent(chip));
 	pca9685_pwm_clear_inuse(pca, pwm->hwpwm);
 }
 
