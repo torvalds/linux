@@ -104,10 +104,8 @@ static irqreturn_t acp63_irq_thread(int irq, void *context)
 	struct sdw_dma_dev_data *sdw_dma_data;
 	struct acp63_dev_data *adata = context;
 	u32 stream_index;
-	u16 pdev_index;
 
-	pdev_index = adata->sdw_dma_dev_index;
-	sdw_dma_data = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+	sdw_dma_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
 
 	for (stream_index = 0; stream_index < ACP63_SDW0_DMA_MAX_STREAMS; stream_index++) {
 		if (adata->sdw0_dma_intr_stat[stream_index]) {
@@ -135,7 +133,6 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	u32 stream_id = 0;
 	u16 irq_flag = 0;
 	u16 sdw_dma_irq_flag = 0;
-	u16 pdev_index;
 	u16 index;
 
 	adata = dev_id;
@@ -149,8 +146,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	ext_intr_stat = readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 	if (ext_intr_stat & ACP_SDW0_STAT) {
 		writel(ACP_SDW0_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
-		pdev_index = adata->sdw0_dev_index;
-		amd_manager = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
 		if (amd_manager)
 			schedule_work(&amd_manager->amd_sdw_irq_thread);
 		irq_flag = 1;
@@ -159,8 +155,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	ext_intr_stat1 = readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
 	if (ext_intr_stat1 & ACP_SDW1_STAT) {
 		writel(ACP_SDW1_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		pdev_index = adata->sdw1_dev_index;
-		amd_manager = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
 		if (amd_manager)
 			schedule_work(&amd_manager->amd_sdw_irq_thread);
 		irq_flag = 1;
@@ -176,8 +171,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	}
 
 	if (ext_intr_stat & BIT(PDM_DMA_STAT)) {
-		pdev_index = adata->pdm_dev_index;
-		ps_pdm_data = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+		ps_pdm_data = dev_get_drvdata(&adata->pdm_dev->dev);
 		writel(BIT(PDM_DMA_STAT), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 		if (ps_pdm_data->capture_stream)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
@@ -255,8 +249,50 @@ static int acp_scan_sdw_devices(struct device *dev, u64 addr)
 	acp_data->info.count = AMD_SDW_MAX_MANAGERS;
 	return amd_sdw_scan_controller(&acp_data->info);
 }
+
+static int amd_sdw_probe(struct device *dev)
+{
+	struct acp63_dev_data *acp_data;
+	struct sdw_amd_res sdw_res;
+	int ret;
+
+	acp_data = dev_get_drvdata(dev);
+	memset(&sdw_res, 0, sizeof(sdw_res));
+	sdw_res.addr = acp_data->addr;
+	sdw_res.reg_range = acp_data->reg_range;
+	sdw_res.handle = acp_data->info.handle;
+	sdw_res.parent = dev;
+	sdw_res.dev = dev;
+	sdw_res.acp_lock = &acp_data->acp_lock;
+	sdw_res.count = acp_data->info.count;
+	sdw_res.mmio_base = acp_data->acp63_base;
+	sdw_res.link_mask = acp_data->info.link_mask;
+	ret = sdw_amd_probe(&sdw_res, &acp_data->sdw);
+	if (ret)
+		dev_err(dev, "error: SoundWire probe failed\n");
+	return ret;
+}
+
+static int amd_sdw_exit(struct acp63_dev_data *acp_data)
+{
+	if (acp_data->sdw)
+		sdw_amd_exit(acp_data->sdw);
+	acp_data->sdw = NULL;
+
+	return 0;
+}
 #else
 static int acp_scan_sdw_devices(struct device *dev, u64 addr)
+{
+	return 0;
+}
+
+static int amd_sdw_probe(struct device *dev)
+{
+	return 0;
+}
+
+static int amd_sdw_exit(struct acp63_dev_data *acp_data)
 {
 	return 0;
 }
@@ -343,17 +379,13 @@ static void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo,
 
 static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data *adata, u32 addr)
 {
-	struct acp_sdw_pdata *sdw_pdata;
-	struct platform_device_info pdevinfo[ACP63_DEVS];
+	struct platform_device_info pdevinfo;
 	struct device *parent;
-	int index;
 	int ret;
 
 	parent = &pci->dev;
-	dev_dbg(&pci->dev,
-		"%s pdev_config:0x%x pdev_count:0x%x\n", __func__, adata->pdev_config,
-		adata->pdev_count);
-	if (adata->pdev_config) {
+
+	if (adata->is_sdw_dev || adata->is_pdm_dev) {
 		adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
 		if (!adata->res) {
 			ret = -ENOMEM;
@@ -365,130 +397,57 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
 	}
 
-	switch (adata->pdev_config) {
-	case ACP63_PDM_DEV_CONFIG:
-		adata->pdm_dev_index  = 0;
-		acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
+	if (adata->is_pdm_dev && adata->is_pdm_config) {
+		acp63_fill_platform_dev_info(&pdevinfo, parent, NULL, "acp_ps_pdm_dma",
 					     0, adata->res, 1, NULL, 0);
-		acp63_fill_platform_dev_info(&pdevinfo[1], parent, NULL, "dmic-codec",
-					     0, NULL, 0, NULL, 0);
-		acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "acp_ps_mach",
-					     0, NULL, 0, NULL, 0);
-		break;
-	case ACP63_SDW_DEV_CONFIG:
-		if (adata->pdev_count == ACP63_SDW0_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata),
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
 
-			sdw_pdata->instance = 0;
-			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
-			adata->sdw0_dev_index = 0;
-			adata->sdw_dma_dev_index = 1;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     sdw_pdata, sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-		} else if (adata->pdev_count == ACP63_SDW0_SDW1_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata) * 2,
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-
-			sdw_pdata[0].instance = 0;
-			sdw_pdata[1].instance = 1;
-			sdw_pdata[0].acp_sdw_lock = &adata->acp_lock;
-			sdw_pdata[1].acp_sdw_lock = &adata->acp_lock;
-			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
-			adata->sdw0_dev_index = 0;
-			adata->sdw1_dev_index = 1;
-			adata->sdw_dma_dev_index = 2;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     &sdw_pdata[0], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 1, adata->res, 1,
-						     &sdw_pdata[1], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-		}
-		break;
-	case ACP63_SDW_PDM_DEV_CONFIG:
-		if (adata->pdev_count == ACP63_SDW0_PDM_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata),
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-
-			sdw_pdata->instance = 0;
-			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
-			adata->pdm_dev_index = 0;
-			adata->sdw0_dev_index = 1;
-			adata->sdw_dma_dev_index = 2;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     sdw_pdata, sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[3], parent, NULL, "dmic-codec",
-						     0, NULL, 0, NULL, 0);
-		} else if (adata->pdev_count == ACP63_SDW0_SDW1_PDM_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata) * 2,
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-			sdw_pdata[0].instance = 0;
-			sdw_pdata[1].instance = 1;
-			sdw_pdata[0].acp_sdw_lock = &adata->acp_lock;
-			sdw_pdata[1].acp_sdw_lock = &adata->acp_lock;
-			adata->pdm_dev_index = 0;
-			adata->sdw0_dev_index = 1;
-			adata->sdw1_dev_index = 2;
-			adata->sdw_dma_dev_index = 3;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     &sdw_pdata[0], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 1, adata->res, 1,
-						     &sdw_pdata[1], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[3], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[4], parent, NULL, "dmic-codec",
-						     0, NULL, 0, NULL, 0);
-		}
-		break;
-	default:
-		dev_dbg(&pci->dev, "No PDM or SoundWire manager devices found\n");
-		return 0;
-	}
-
-	for (index = 0; index < adata->pdev_count; index++) {
-		adata->pdev[index] = platform_device_register_full(&pdevinfo[index]);
-		if (IS_ERR(adata->pdev[index])) {
+		adata->pdm_dev = platform_device_register_full(&pdevinfo);
+		if (IS_ERR(adata->pdm_dev)) {
 			dev_err(&pci->dev,
-				"cannot register %s device\n", pdevinfo[index].name);
-			ret = PTR_ERR(adata->pdev[index]);
-			goto unregister_devs;
+				"cannot register %s device\n", pdevinfo.name);
+			ret = PTR_ERR(adata->pdm_dev);
+			goto de_init;
+		}
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+		acp63_fill_platform_dev_info(&pdevinfo, parent, NULL, "dmic-codec",
+					     0, NULL, 0, NULL, 0);
+		adata->dmic_codec_dev = platform_device_register_full(&pdevinfo);
+		if (IS_ERR(adata->dmic_codec_dev)) {
+			dev_err(&pci->dev,
+				"cannot register %s device\n", pdevinfo.name);
+			ret = PTR_ERR(adata->dmic_codec_dev);
+			goto unregister_pdm_dev;
 		}
 	}
+	if (adata->is_sdw_dev && adata->is_sdw_config) {
+		ret = amd_sdw_probe(&pci->dev);
+		if (ret) {
+			if (adata->is_pdm_dev)
+				goto unregister_dmic_codec_dev;
+			else
+				goto de_init;
+		}
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+		acp63_fill_platform_dev_info(&pdevinfo, parent, NULL, "amd_ps_sdw_dma",
+					     0, adata->res, 1, NULL, 0);
+
+		adata->sdw_dma_dev = platform_device_register_full(&pdevinfo);
+		if (IS_ERR(adata->sdw_dma_dev)) {
+			dev_err(&pci->dev,
+				"cannot register %s device\n", pdevinfo.name);
+			ret = PTR_ERR(adata->sdw_dma_dev);
+			if (adata->is_pdm_dev)
+				goto unregister_dmic_codec_dev;
+			else
+				goto de_init;
+		}
+	}
+
 	return 0;
-unregister_devs:
-	for (--index; index >= 0; index--)
-		platform_device_unregister(adata->pdev[index]);
+unregister_dmic_codec_dev:
+		platform_device_unregister(adata->dmic_codec_dev);
+unregister_pdm_dev:
+		platform_device_unregister(adata->pdm_dev);
 de_init:
 	if (acp63_deinit(adata->acp63_base, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
@@ -542,6 +501,8 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		ret = -ENOMEM;
 		goto release_regions;
 	}
+	adata->addr = addr;
+	adata->reg_range = ACP63_REG_END - ACP63_REG_START;
 	/*
 	 * By default acp_reset flag is set to true. i.e acp_deinit() and acp_init()
 	 * will be invoked for all ACP configurations during suspend/resume callbacks.
@@ -572,6 +533,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP platform devices creation failed\n");
 		goto de_init;
 	}
+
 skip_pdev_creation:
 	device_set_wakeup_enable(&pci->dev, true);
 	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
@@ -626,11 +588,17 @@ static const struct dev_pm_ops acp63_pm_ops = {
 static void snd_acp63_remove(struct pci_dev *pci)
 {
 	struct acp63_dev_data *adata;
-	int ret, index;
+	int ret;
 
 	adata = pci_get_drvdata(pci);
-	for (index = 0; index < adata->pdev_count; index++)
-		platform_device_unregister(adata->pdev[index]);
+	if (adata->sdw) {
+		amd_sdw_exit(adata);
+		platform_device_unregister(adata->sdw_dma_dev);
+	}
+	if (adata->is_pdm_dev) {
+		platform_device_unregister(adata->pdm_dev);
+		platform_device_unregister(adata->dmic_codec_dev);
+	}
 	ret = acp63_deinit(adata->acp63_base, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
@@ -663,5 +631,6 @@ module_pci_driver(ps_acp63_driver);
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_AUTHOR("Syed.SabaKareem@amd.com");
 MODULE_DESCRIPTION("AMD ACP Pink Sardine PCI driver");
+MODULE_IMPORT_NS(SOUNDWIRE_AMD_INIT);
 MODULE_IMPORT_NS(SND_AMD_SOUNDWIRE_ACPI);
 MODULE_LICENSE("GPL v2");
