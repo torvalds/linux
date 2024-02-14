@@ -164,15 +164,13 @@ struct pwm_chip *dwc_pwm_alloc(struct device *dev)
 	struct pwm_chip *chip;
 	struct dwc_pwm *dwc;
 
-	dwc = devm_kzalloc(dev, sizeof(*dwc), GFP_KERNEL);
-	if (!dwc)
-		return ERR_PTR(-ENOMEM);
-	chip = &dwc->chip;
+	chip = devm_pwmchip_alloc(dev, DWC_TIMERS_TOTAL, sizeof(*dwc));
+	if (IS_ERR(chip))
+		return chip;
+	dwc = to_dwc_pwm(chip);
 
 	dwc->clk_ns = 10;
-	chip->dev = dev;
 	chip->ops = &dwc_pwm_ops;
-	chip->npwm = DWC_TIMERS_TOTAL;
 
 	dev_set_drvdata(dev, chip);
 	return chip;
