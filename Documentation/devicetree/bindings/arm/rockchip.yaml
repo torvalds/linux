@@ -943,9 +943,9 @@ properties:
           - const: rockchip,rk3568-evb1-v10
           - const: rockchip,rk3568
 
-      - description: Rockchip RK3568 Banana Pi R2 Pro
+      - description: Sinovoip RK3568 Banana Pi R2 Pro
         items:
-          - const: rockchip,rk3568-bpi-r2pro
+          - const: sinovoip,rk3568-bpi-r2pro
           - const: rockchip,rk3568
 
       - description: Sonoff iHost Smart Home Hub
