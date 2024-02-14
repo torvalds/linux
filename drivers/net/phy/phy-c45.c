@@ -831,6 +831,30 @@ static int genphy_c45_read_eee_cap1(struct phy_device *phydev)
 }
 
 /**
+ * genphy_c45_read_eee_cap2 - read supported EEE link modes from register 3.21
+ * @phydev: target phy_device struct
+ */
+static int genphy_c45_read_eee_cap2(struct phy_device *phydev)
+{
+	int val;
+
+	/* IEEE 802.3-2022 45.2.3.11 EEE control and capability 2
+	 * (Register 3.21)
+	 */
+	val = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_EEE_ABLE2);
+	if (val < 0)
+		return val;
+
+	/* IEEE 802.3-2022 45.2.3.11 says 9 bits are reserved. */
+	if (val == 0xffff)
+		return 0;
+
+	mii_eee_cap2_mod_linkmode_sup_t(phydev->supported_eee, val);
+
+	return 0;
+}
+
+/**
  * genphy_c45_read_eee_abilities - read supported EEE link modes
  * @phydev: target phy_device struct
  */
@@ -844,6 +868,13 @@ int genphy_c45_read_eee_abilities(struct phy_device *phydev)
 	 */
 	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP1_FEATURES)) {
 		val = genphy_c45_read_eee_cap1(phydev);
+		if (val)
+			return val;
+	}
+
+	/* Same for cap2 (3.21) */
+	if (linkmode_intersects(phydev->supported, PHY_EEE_CAP2_FEATURES)) {
+		val = genphy_c45_read_eee_cap2(phydev);
 		if (val)
 			return val;
 	}
