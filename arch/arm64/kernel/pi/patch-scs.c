@@ -4,14 +4,11 @@
  * Author: Ard Biesheuvel <ardb@google.com>
  */
 
-#include <linux/bug.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
-#include <linux/printk.h>
 #include <linux/types.h>
 
-#include <asm/cacheflush.h>
 #include <asm/scs.h>
 
 //
@@ -81,7 +78,11 @@ static void __always_inline scs_patch_loc(u64 loc)
 		 */
 		return;
 	}
-	dcache_clean_pou(loc, loc + sizeof(u32));
+	if (IS_ENABLED(CONFIG_ARM64_WORKAROUND_CLEAN_CACHE))
+		asm("dc civac, %0" :: "r"(loc));
+	else
+		asm(ALTERNATIVE("dc cvau, %0", "nop", ARM64_HAS_CACHE_IDC)
+		    :: "r"(loc));
 }
 
 /*
@@ -128,10 +129,10 @@ struct eh_frame {
 	};
 };
 
-static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
-					bool fde_has_augmentation_data,
-					int code_alignment_factor,
-					bool dry_run)
+static int scs_handle_fde_frame(const struct eh_frame *frame,
+				bool fde_has_augmentation_data,
+				int code_alignment_factor,
+				bool dry_run)
 {
 	int size = frame->size - offsetof(struct eh_frame, opcodes) + 4;
 	u64 loc = (u64)offset_to_ptr(&frame->initial_loc);
@@ -198,14 +199,13 @@ static int noinstr scs_handle_fde_frame(const struct eh_frame *frame,
 			break;
 
 		default:
-			pr_err("unhandled opcode: %02x in FDE frame %lx\n", opcode[-1], (uintptr_t)frame);
 			return -ENOEXEC;
 		}
 	}
 	return 0;
 }
 
-int noinstr scs_patch(const u8 eh_frame[], int size)
+int scs_patch(const u8 eh_frame[], int size)
 {
 	const u8 *p = eh_frame;
 
@@ -251,12 +251,12 @@ int noinstr scs_patch(const u8 eh_frame[], int size)
 	return 0;
 }
 
-asmlinkage void __init scs_patch_vmlinux(void)
+asmlinkage void __init scs_patch_vmlinux(const u8 start[], const u8 end[])
 {
 	if (!should_patch_pac_into_scs())
 		return;
 
-	WARN_ON(scs_patch(__eh_frame_start, __eh_frame_end - __eh_frame_start));
-	icache_inval_all_pou();
+	scs_patch(start, end - start);
+	asm("ic ialluis");
 	isb();
 }

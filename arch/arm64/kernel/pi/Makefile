@@ -38,7 +38,9 @@ $(obj)/lib-%.pi.o: OBJCOPYFLAGS += --prefix-alloc-sections=.init
 $(obj)/lib-%.o: $(srctree)/lib/%.c FORCE
 	$(call if_changed_rule,cc_o_c)
 
-obj-y				:= idreg-override.pi.o lib-fdt.pi.o lib-fdt_ro.pi.o
-obj-$(CONFIG_RELOCATABLE)	+= relocate.pi.o
-obj-$(CONFIG_RANDOMIZE_BASE)	+= kaslr_early.pi.o
-extra-y				:= $(patsubst %.pi.o,%.o,$(obj-y))
+obj-y					:= idreg-override.pi.o \
+					   lib-fdt.pi.o lib-fdt_ro.pi.o
+obj-$(CONFIG_RELOCATABLE)		+= relocate.pi.o
+obj-$(CONFIG_RANDOMIZE_BASE)		+= kaslr_early.pi.o
+obj-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)	+= patch-scs.pi.o
+extra-y					:= $(patsubst %.pi.o,%.o,$(obj-y))

@@ -72,8 +72,8 @@ static inline void dynamic_scs_init(void)
 static inline void dynamic_scs_init(void) {}
 #endif
 
-int scs_patch(const u8 eh_frame[], int size);
-asmlinkage void scs_patch_vmlinux(void);
+int __pi_scs_patch(const u8 eh_frame[], int size);
+asmlinkage void __pi_scs_patch_vmlinux(void);
 
 #endif /* __ASSEMBLY __ */
 

@@ -491,9 +491,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	bl	kasan_early_init
 #endif
-#ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
-	bl	scs_patch_vmlinux
-#endif
 	mov	x0, x20
 	bl	finalise_el2			// Prefer VHE if possible
 	ldp	x29, x30, [sp], #16
@@ -794,6 +791,11 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 #ifdef CONFIG_RELOCATABLE
 	mov	x0, x23
 	bl	__pi_relocate_kernel
+#endif
+#ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
+	ldr	x0, =__eh_frame_start
+	ldr	x1, =__eh_frame_end
+	bl	__pi_scs_patch_vmlinux
 #endif
 	ldr	x8, =__primary_switched
 	adrp	x0, KERNEL_START		// __pa(KERNEL_START)
