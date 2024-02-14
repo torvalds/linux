@@ -53,6 +53,8 @@ struct amd_mp2_dev {
 	/* mp2 active control status */
 	u32 mp2_acs;
 	struct sfh_dev_status dev_en;
+	struct work_struct work;
+	u8 init_done;
 };
 
 struct amd_mp2_ops {
