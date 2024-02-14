@@ -388,6 +388,7 @@ static const struct of_device_id atmel_tcb_of_match[] = {
 
 static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	const struct of_device_id *match;
 	struct atmel_tcb_pwm_chip *tcbpwm;
 	const struct atmel_tcb_config *config;
@@ -436,9 +437,10 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 		}
 	}
 
-	tcbpwm->chip.dev = &pdev->dev;
-	tcbpwm->chip.ops = &atmel_tcb_pwm_ops;
-	tcbpwm->chip.npwm = NPWM;
+	chip = &tcbpwm->chip;
+	chip->dev = &pdev->dev;
+	chip->ops = &atmel_tcb_pwm_ops;
+	chip->npwm = NPWM;
 	tcbpwm->channel = channel;
 	tcbpwm->width = config->counter_width;
 
@@ -448,11 +450,11 @@ static int atmel_tcb_pwm_probe(struct platform_device *pdev)
 
 	spin_lock_init(&tcbpwm->lock);
 
-	err = pwmchip_add(&tcbpwm->chip);
+	err = pwmchip_add(chip);
 	if (err < 0)
 		goto err_disable_clk;
 
-	platform_set_drvdata(pdev, tcbpwm);
+	platform_set_drvdata(pdev, chip);
 
 	return 0;
 
@@ -473,9 +475,10 @@ err_slow_clk:
 
 static void atmel_tcb_pwm_remove(struct platform_device *pdev)
 {
-	struct atmel_tcb_pwm_chip *tcbpwm = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
+	struct atmel_tcb_pwm_chip *tcbpwm = to_tcb_chip(chip);
 
-	pwmchip_remove(&tcbpwm->chip);
+	pwmchip_remove(chip);
 
 	clk_disable_unprepare(tcbpwm->slow_clk);
 	clk_put(tcbpwm->gclk);
@@ -491,7 +494,8 @@ MODULE_DEVICE_TABLE(of, atmel_tcb_pwm_dt_ids);
 
 static int atmel_tcb_pwm_suspend(struct device *dev)
 {
-	struct atmel_tcb_pwm_chip *tcbpwm = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct atmel_tcb_pwm_chip *tcbpwm = to_tcb_chip(chip);
 	struct atmel_tcb_channel *chan = &tcbpwm->bkup;
 	unsigned int channel = tcbpwm->channel;
 
@@ -505,7 +509,8 @@ static int atmel_tcb_pwm_suspend(struct device *dev)
 
 static int atmel_tcb_pwm_resume(struct device *dev)
 {
-	struct atmel_tcb_pwm_chip *tcbpwm = dev_get_drvdata(dev);
+	struct pwm_chip *chip = dev_get_drvdata(dev);
+	struct atmel_tcb_pwm_chip *tcbpwm = to_tcb_chip(chip);
 	struct atmel_tcb_channel *chan = &tcbpwm->bkup;
 	unsigned int channel = tcbpwm->channel;
 
