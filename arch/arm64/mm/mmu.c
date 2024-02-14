@@ -1065,7 +1065,7 @@ static void free_empty_pud_table(p4d_t *p4dp, unsigned long addr,
 		free_empty_pmd_table(pudp, addr, next, floor, ceiling);
 	} while (addr = next, addr < end);
 
-	if (CONFIG_PGTABLE_LEVELS <= 3)
+	if (!pgtable_l4_enabled())
 		return;
 
 	if (!pgtable_range_aligned(start, end, floor, ceiling, P4D_MASK))

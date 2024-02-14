@@ -1767,6 +1767,8 @@ static int __init __kpti_install_ng_mappings(void *__unused)
 
 	if (levels == 5 && !pgtable_l5_enabled())
 		levels = 4;
+	else if (levels == 4 && !pgtable_l4_enabled())
+		levels = 3;
 
 	remap_fn = (void *)__pa_symbol(idmap_kpti_install_ng_mappings);
 

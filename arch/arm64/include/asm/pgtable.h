@@ -759,12 +759,27 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 
 #if CONFIG_PGTABLE_LEVELS > 3
 
+static __always_inline bool pgtable_l4_enabled(void)
+{
+	if (CONFIG_PGTABLE_LEVELS > 4 || !IS_ENABLED(CONFIG_ARM64_LPA2))
+		return true;
+	if (!alternative_has_cap_likely(ARM64_ALWAYS_BOOT))
+		return vabits_actual == VA_BITS;
+	return alternative_has_cap_unlikely(ARM64_HAS_VA52);
+}
+
+static inline bool mm_pud_folded(const struct mm_struct *mm)
+{
+	return !pgtable_l4_enabled();
+}
+#define mm_pud_folded  mm_pud_folded
+
 #define pud_ERROR(e)	\
 	pr_err("%s:%d: bad pud %016llx.\n", __FILE__, __LINE__, pud_val(e))
 
-#define p4d_none(p4d)		(!p4d_val(p4d))
-#define p4d_bad(p4d)		(!(p4d_val(p4d) & 2))
-#define p4d_present(p4d)	(p4d_val(p4d))
+#define p4d_none(p4d)		(pgtable_l4_enabled() && !p4d_val(p4d))
+#define p4d_bad(p4d)		(pgtable_l4_enabled() && !(p4d_val(p4d) & 2))
+#define p4d_present(p4d)	(!p4d_none(p4d))
 
 static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
 {
@@ -780,7 +795,8 @@ static inline void set_p4d(p4d_t *p4dp, p4d_t p4d)
 
 static inline void p4d_clear(p4d_t *p4dp)
 {
-	set_p4d(p4dp, __p4d(0));
+	if (pgtable_l4_enabled())
+		set_p4d(p4dp, __p4d(0));
 }
 
 static inline phys_addr_t p4d_page_paddr(p4d_t p4d)
@@ -788,24 +804,73 @@ static inline phys_addr_t p4d_page_paddr(p4d_t p4d)
 	return __p4d_to_phys(p4d);
 }
 
+#define pud_index(addr)		(((addr) >> PUD_SHIFT) & (PTRS_PER_PUD - 1))
+
+static inline pud_t *p4d_to_folded_pud(p4d_t *p4dp, unsigned long addr)
+{
+	return (pud_t *)PTR_ALIGN_DOWN(p4dp, PAGE_SIZE) + pud_index(addr);
+}
+
 static inline pud_t *p4d_pgtable(p4d_t p4d)
 {
 	return (pud_t *)__va(p4d_page_paddr(p4d));
 }
 
-/* Find an entry in the first-level page table. */
-#define pud_offset_phys(dir, addr)	(p4d_page_paddr(READ_ONCE(*(dir))) + pud_index(addr) * sizeof(pud_t))
+static inline phys_addr_t pud_offset_phys(p4d_t *p4dp, unsigned long addr)
+{
+	BUG_ON(!pgtable_l4_enabled());
 
-#define pud_set_fixmap(addr)		((pud_t *)set_fixmap_offset(FIX_PUD, addr))
-#define pud_set_fixmap_offset(p4d, addr)	pud_set_fixmap(pud_offset_phys(p4d, addr))
-#define pud_clear_fixmap()		clear_fixmap(FIX_PUD)
+	return p4d_page_paddr(READ_ONCE(*p4dp)) + pud_index(addr) * sizeof(pud_t);
+}
+
+static inline
+pud_t *pud_offset_lockless(p4d_t *p4dp, p4d_t p4d, unsigned long addr)
+{
+	if (!pgtable_l4_enabled())
+		return p4d_to_folded_pud(p4dp, addr);
+	return (pud_t *)__va(p4d_page_paddr(p4d)) + pud_index(addr);
+}
+#define pud_offset_lockless pud_offset_lockless
+
+static inline pud_t *pud_offset(p4d_t *p4dp, unsigned long addr)
+{
+	return pud_offset_lockless(p4dp, READ_ONCE(*p4dp), addr);
+}
+#define pud_offset	pud_offset
+
+static inline pud_t *pud_set_fixmap(unsigned long addr)
+{
+	if (!pgtable_l4_enabled())
+		return NULL;
+	return (pud_t *)set_fixmap_offset(FIX_PUD, addr);
+}
+
+static inline pud_t *pud_set_fixmap_offset(p4d_t *p4dp, unsigned long addr)
+{
+	if (!pgtable_l4_enabled())
+		return p4d_to_folded_pud(p4dp, addr);
+	return pud_set_fixmap(pud_offset_phys(p4dp, addr));
+}
+
+static inline void pud_clear_fixmap(void)
+{
+	if (pgtable_l4_enabled())
+		clear_fixmap(FIX_PUD);
+}
+
+/* use ONLY for statically allocated translation tables */
+static inline pud_t *pud_offset_kimg(p4d_t *p4dp, u64 addr)
+{
+	if (!pgtable_l4_enabled())
+		return p4d_to_folded_pud(p4dp, addr);
+	return (pud_t *)__phys_to_kimg(pud_offset_phys(p4dp, addr));
+}
 
 #define p4d_page(p4d)		pfn_to_page(__phys_to_pfn(__p4d_to_phys(p4d)))
 
-/* use ONLY for statically allocated translation tables */
-#define pud_offset_kimg(dir,addr)	((pud_t *)__phys_to_kimg(pud_offset_phys((dir), (addr))))
-
 #else
+
+static inline bool pgtable_l4_enabled(void) { return false; }
 
 #define p4d_page_paddr(p4d)	({ BUILD_BUG(); 0;})
 

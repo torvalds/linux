@@ -14,6 +14,7 @@
 #include <asm/tlbflush.h>
 
 #define __HAVE_ARCH_PGD_FREE
+#define __HAVE_ARCH_PUD_FREE
 #include <asm-generic/pgalloc.h>
 
 #define PGD_SIZE	(PTRS_PER_PGD * sizeof(pgd_t))
@@ -43,7 +44,8 @@ static inline void __pud_populate(pud_t *pudp, phys_addr_t pmdp, pudval_t prot)
 
 static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
 {
-	set_p4d(p4dp, __p4d(__phys_to_p4d_val(pudp) | prot));
+	if (pgtable_l4_enabled())
+		set_p4d(p4dp, __p4d(__phys_to_p4d_val(pudp) | prot));
 }
 
 static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
@@ -52,6 +54,14 @@ static inline void p4d_populate(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
 
 	p4dval |= (mm == &init_mm) ? P4D_TABLE_UXN : P4D_TABLE_PXN;
 	__p4d_populate(p4dp, __pa(pudp), p4dval);
+}
+
+static inline void pud_free(struct mm_struct *mm, pud_t *pud)
+{
+	if (!pgtable_l4_enabled())
+		return;
+	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
+	free_page((unsigned long)pud);
 }
 #else
 static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)

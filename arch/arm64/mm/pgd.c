@@ -21,6 +21,8 @@ static bool pgdir_is_page_size(void)
 {
 	if (PGD_SIZE == PAGE_SIZE)
 		return true;
+	if (CONFIG_PGTABLE_LEVELS == 4)
+		return !pgtable_l4_enabled();
 	if (CONFIG_PGTABLE_LEVELS == 5)
 		return !pgtable_l5_enabled();
 	return false;
