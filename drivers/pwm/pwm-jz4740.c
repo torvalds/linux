@@ -40,7 +40,7 @@ static bool jz4740_pwm_can_use_chn(struct pwm_chip *chip, unsigned int channel)
 	/* Enable all TCU channels for PWM use by default except channels 0/1 */
 	u32 pwm_channels_mask = GENMASK(chip->npwm - 1, 2);
 
-	device_property_read_u32(chip->dev->parent,
+	device_property_read_u32(pwmchip_parent(chip)->parent,
 				 "ingenic,pwm-channels-mask",
 				 &pwm_channels_mask);
 
@@ -59,9 +59,10 @@ static int jz4740_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	snprintf(name, sizeof(name), "timer%u", pwm->hwpwm);
 
-	clk = clk_get(chip->dev, name);
+	clk = clk_get(pwmchip_parent(chip), name);
 	if (IS_ERR(clk)) {
-		dev_err(chip->dev, "error %pe: Failed to get clock\n", clk);
+		dev_err(pwmchip_parent(chip),
+			"error %pe: Failed to get clock\n", clk);
 		return PTR_ERR(clk);
 	}
 
@@ -149,7 +150,7 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	rate = clk_round_rate(clk, tmp);
 	if (rate < 0) {
-		dev_err(chip->dev, "Unable to round rate: %ld\n", rate);
+		dev_err(pwmchip_parent(chip), "Unable to round rate: %ld\n", rate);
 		return rate;
 	}
 
@@ -170,7 +171,7 @@ static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	err = clk_set_rate(clk, rate);
 	if (err) {
-		dev_err(chip->dev, "Unable to set rate: %d\n", err);
+		dev_err(pwmchip_parent(chip), "Unable to set rate: %d\n", err);
 		return err;
 	}
 
