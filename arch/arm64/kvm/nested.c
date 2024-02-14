@@ -163,15 +163,54 @@ static u64 limit_nv_id_reg(u32 id, u64 val)
 
 	return val;
 }
+
+u64 kvm_vcpu_sanitise_vncr_reg(const struct kvm_vcpu *vcpu, enum vcpu_sysreg sr)
+{
+	u64 v = ctxt_sys_reg(&vcpu->arch.ctxt, sr);
+	struct kvm_sysreg_masks *masks;
+
+	masks = vcpu->kvm->arch.sysreg_masks;
+
+	if (masks) {
+		sr -= __VNCR_START__;
+
+		v &= ~masks->mask[sr].res0;
+		v |= masks->mask[sr].res1;
+	}
+
+	return v;
+}
+
+static void __maybe_unused set_sysreg_masks(struct kvm *kvm, int sr, u64 res0, u64 res1)
+{
+	int i = sr - __VNCR_START__;
+
+	kvm->arch.sysreg_masks->mask[i].res0 = res0;
+	kvm->arch.sysreg_masks->mask[i].res1 = res1;
+}
+
 int kvm_init_nv_sysregs(struct kvm *kvm)
 {
+	int ret = 0;
+
 	mutex_lock(&kvm->arch.config_lock);
+
+	if (kvm->arch.sysreg_masks)
+		goto out;
+
+	kvm->arch.sysreg_masks = kzalloc(sizeof(*(kvm->arch.sysreg_masks)),
+					 GFP_KERNEL);
+	if (!kvm->arch.sysreg_masks) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	for (int i = 0; i < KVM_ARM_ID_REG_NUM; i++)
 		kvm->arch.id_regs[i] = limit_nv_id_reg(IDX_IDREG(i),
 						       kvm->arch.id_regs[i]);
 
+out:
 	mutex_unlock(&kvm->arch.config_lock);
 
-	return 0;
+	return ret;
 }

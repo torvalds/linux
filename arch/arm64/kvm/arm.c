@@ -206,6 +206,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		pkvm_destroy_hyp_vm(kvm);
 
 	kfree(kvm->arch.mpidr_data);
+	kfree(kvm->arch.sysreg_masks);
 	kvm_destroy_vcpus(kvm);
 
 	kvm_unshare_hyp(kvm, kvm + 1);
