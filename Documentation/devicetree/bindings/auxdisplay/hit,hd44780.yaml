@@ -116,12 +116,12 @@ examples:
         compatible = "hit,hd44780";
         display-height-chars = <2>;
         display-width-chars = <16>;
-        data-gpios = <&pcf8574 4 0>,
-                     <&pcf8574 5 0>,
-                     <&pcf8574 6 0>,
-                     <&pcf8574 7 0>;
-        enable-gpios = <&pcf8574 2 0>;
-        rs-gpios = <&pcf8574 0 0>;
-        rw-gpios = <&pcf8574 1 0>;
-        backlight-gpios = <&pcf8574 3 0>;
+        data-gpios = <&pcf8574 4 GPIO_ACTIVE_HIGH>,
+                     <&pcf8574 5 GPIO_ACTIVE_HIGH>,
+                     <&pcf8574 6 GPIO_ACTIVE_HIGH>,
+                     <&pcf8574 7 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&pcf8574 2 GPIO_ACTIVE_HIGH>;
+        rs-gpios = <&pcf8574 0 GPIO_ACTIVE_HIGH>;
+        rw-gpios = <&pcf8574 1 GPIO_ACTIVE_HIGH>;
+        backlight-gpios = <&pcf8574 3 GPIO_ACTIVE_HIGH>;
     };
