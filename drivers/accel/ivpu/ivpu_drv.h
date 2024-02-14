@@ -36,6 +36,9 @@
 #define IVPU_USER_CONTEXT_MIN_SSID     2
 #define IVPU_USER_CONTEXT_MAX_SSID     (IVPU_USER_CONTEXT_MIN_SSID + 63)
 
+#define IVPU_MIN_DB 1
+#define IVPU_MAX_DB 255
+
 #define IVPU_NUM_ENGINES 2
 
 #define IVPU_PLATFORM_SILICON 0
@@ -118,6 +121,8 @@ struct ivpu_device {
 	struct mutex context_list_lock; /* Protects user context addition/removal */
 	struct xarray context_xa;
 	struct xa_limit context_xa_limit;
+
+	struct xarray db_xa;
 
 	struct mutex bo_list_lock; /* Protects bo_list */
 	struct list_head bo_list;
