@@ -25,13 +25,13 @@
 #include "uds.h"
 
 enum notifier_state {
-	/** Notifications are allowed but not in progress */
+	/* Notifications are allowed but not in progress */
 	MAY_NOTIFY,
-	/** A notification is in progress */
+	/* A notification is in progress */
 	NOTIFYING,
-	/** Notifications are not allowed */
+	/* Notifications are not allowed */
 	MAY_NOT_NOTIFY,
-	/** A notification has completed */
+	/* A notification has completed */
 	NOTIFIED,
 };
 

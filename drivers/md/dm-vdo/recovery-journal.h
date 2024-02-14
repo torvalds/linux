@@ -89,27 +89,27 @@ enum vdo_zone_type {
 };
 
 struct lock_counter {
-	/** The completion for notifying the owner of a lock release */
+	/* The completion for notifying the owner of a lock release */
 	struct vdo_completion completion;
-	/** The number of logical zones which may hold locks */
+	/* The number of logical zones which may hold locks */
 	zone_count_t logical_zones;
-	/** The number of physical zones which may hold locks */
+	/* The number of physical zones which may hold locks */
 	zone_count_t physical_zones;
-	/** The number of locks */
+	/* The number of locks */
 	block_count_t locks;
-	/** Whether the lock release notification is in flight */
+	/* Whether the lock release notification is in flight */
 	atomic_t state;
-	/** The number of logical zones which hold each lock */
+	/* The number of logical zones which hold each lock */
 	atomic_t *logical_zone_counts;
-	/** The number of physical zones which hold each lock */
+	/* The number of physical zones which hold each lock */
 	atomic_t *physical_zone_counts;
-	/** The per-lock counts for the journal zone */
+	/* The per-lock counts for the journal zone */
 	u16 *journal_counters;
-	/** The per-lock decrement counts for the journal zone */
+	/* The per-lock decrement counts for the journal zone */
 	atomic_t *journal_decrement_counts;
-	/** The per-zone, per-lock reference counts for logical zones */
+	/* The per-zone, per-lock reference counts for logical zones */
 	u16 *logical_counters;
-	/** The per-zone, per-lock reference counts for physical zones */
+	/* The per-zone, per-lock reference counts for physical zones */
 	u16 *physical_counters;
 };
 

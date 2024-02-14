@@ -22,33 +22,33 @@
 
 struct flusher {
 	struct vdo_completion completion;
-	/** The vdo to which this flusher belongs */
+	/* The vdo to which this flusher belongs */
 	struct vdo *vdo;
-	/** The administrative state of the flusher */
+	/* The administrative state of the flusher */
 	struct admin_state state;
-	/** The current flush generation of the vdo */
+	/* The current flush generation of the vdo */
 	sequence_number_t flush_generation;
-	/** The first unacknowledged flush generation */
+	/* The first unacknowledged flush generation */
 	sequence_number_t first_unacknowledged_generation;
-	/** The queue of flush requests waiting to notify other threads */
+	/* The queue of flush requests waiting to notify other threads */
 	struct vdo_wait_queue notifiers;
-	/** The queue of flush requests waiting for VIOs to complete */
+	/* The queue of flush requests waiting for VIOs to complete */
 	struct vdo_wait_queue pending_flushes;
-	/** The flush generation for which notifications are being sent */
+	/* The flush generation for which notifications are being sent */
 	sequence_number_t notify_generation;
-	/** The logical zone to notify next */
+	/* The logical zone to notify next */
 	struct logical_zone *logical_zone_to_notify;
-	/** The ID of the thread on which flush requests should be made */
+	/* The ID of the thread on which flush requests should be made */
 	thread_id_t thread_id;
-	/** The pool of flush requests */
+	/* The pool of flush requests */
 	mempool_t *flush_pool;
-	/** Bios waiting for a flush request to become available */
+	/* Bios waiting for a flush request to become available */
 	struct bio_list waiting_flush_bios;
-	/** The lock to protect the previous fields */
+	/* The lock to protect the previous fields */
 	spinlock_t lock;
-	/** The rotor for selecting the bio queue for submitting flush bios */
+	/* The rotor for selecting the bio queue for submitting flush bios */
 	zone_count_t bio_queue_rotor;
-	/** The number of flushes submitted to the current bio queue */
+	/* The number of flushes submitted to the current bio queue */
 	int flush_count;
 };
 

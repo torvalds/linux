@@ -216,17 +216,17 @@ enum block_map_page_type {
 typedef struct list_head dirty_era_t[2];
 
 struct dirty_lists {
-	/** The number of periods after which an element will be expired */
+	/* The number of periods after which an element will be expired */
 	block_count_t maximum_age;
-	/** The oldest period which has unexpired elements */
+	/* The oldest period which has unexpired elements */
 	sequence_number_t oldest_period;
-	/** One more than the current period */
+	/* One more than the current period */
 	sequence_number_t next_period;
-	/** The offset in the array of lists of the oldest period */
+	/* The offset in the array of lists of the oldest period */
 	block_count_t offset;
-	/** Expired pages */
+	/* Expired pages */
 	dirty_era_t expired;
-	/** The lists of dirty pages */
+	/* The lists of dirty pages */
 	dirty_era_t eras[];
 };
 

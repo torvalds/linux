@@ -20,21 +20,21 @@
 
 /* A vio_pool is a collection of preallocated vios. */
 struct vio_pool {
-	/** The number of objects managed by the pool */
+	/* The number of objects managed by the pool */
 	size_t size;
-	/** The list of objects which are available */
+	/* The list of objects which are available */
 	struct list_head available;
-	/** The queue of requestors waiting for objects from the pool */
+	/* The queue of requestors waiting for objects from the pool */
 	struct vdo_wait_queue waiting;
-	/** The number of objects currently in use */
+	/* The number of objects currently in use */
 	size_t busy_count;
-	/** The list of objects which are in use */
+	/* The list of objects which are in use */
 	struct list_head busy;
-	/** The ID of the thread on which this pool may be used */
+	/* The ID of the thread on which this pool may be used */
 	thread_id_t thread_id;
-	/** The buffer backing the pool's vios */
+	/* The buffer backing the pool's vios */
 	char *buffer;
-	/** The pool entries */
+	/* The pool entries */
 	struct pooled_vio vios[];
 };
 

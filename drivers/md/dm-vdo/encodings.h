@@ -155,7 +155,7 @@ struct block_map_page_header {
 	__le64 nonce;
 	__le64 pbn;
 
-	/** May be non-zero on disk */
+	/* May be non-zero on disk */
 	u8 unused_long_word[8];
 
 	/* Whether this page has been written twice to disk */
@@ -197,11 +197,11 @@ extern const struct header VDO_BLOCK_MAP_HEADER_2_0;
 
 /* The state of the recovery journal as encoded in the VDO super block. */
 struct recovery_journal_state_7_0 {
-	/** Sequence number to start the journal */
+	/* Sequence number to start the journal */
 	sequence_number_t journal_start;
-	/** Number of logical blocks used by VDO */
+	/* Number of logical blocks used by VDO */
 	block_count_t logical_blocks_used;
-	/** Number of block map pages allocated */
+	/* Number of block map pages allocated */
 	block_count_t block_map_data_blocks;
 } __packed;
 
