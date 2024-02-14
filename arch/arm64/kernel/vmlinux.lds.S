@@ -311,12 +311,15 @@ SECTIONS
 	__pecoff_data_rawsize = ABSOLUTE(. - __initdata_begin);
 	_edata = .;
 
+	/* start of zero-init region */
 	BSS_SECTION(SBSS_ALIGN, 0, 0)
 
 	. = ALIGN(PAGE_SIZE);
 	init_pg_dir = .;
 	. += INIT_DIR_SIZE;
 	init_pg_end = .;
+	/* end of zero-init region */
+
 #ifdef CONFIG_RELOCATABLE
 	. += SZ_4K;		/* stack for the early relocation code */
 	early_init_stack = .;

@@ -177,17 +177,6 @@ SYM_CODE_START_LOCAL(preserve_boot_args)
 	ret
 SYM_CODE_END(preserve_boot_args)
 
-SYM_FUNC_START_LOCAL(clear_page_tables)
-	/*
-	 * Clear the init page tables.
-	 */
-	adrp	x0, init_pg_dir
-	adrp	x1, init_pg_end
-	sub	x2, x1, x0
-	mov	x1, xzr
-	b	__pi_memset			// tail call
-SYM_FUNC_END(clear_page_tables)
-
 /*
  * Macro to populate page table entries, these entries can be pointers to the next level
  * or last level entries pointing to physical memory.
@@ -386,9 +375,9 @@ SYM_FUNC_START_LOCAL(create_idmap)
 
 	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
 
-	/* Remap the kernel page tables r/w in the ID map */
+	/* Remap BSS and the kernel page tables r/w in the ID map */
 	adrp	x1, _text
-	adrp	x2, init_pg_dir
+	adrp	x2, __bss_start
 	adrp	x3, _end
 	bic	x4, x2, #SWAPPER_BLOCK_SIZE - 1
 	mov_q	x5, SWAPPER_RW_MMUFLAGS
@@ -488,14 +477,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 
 	mov	x0, x20
 	bl	set_cpu_boot_mode_flag
-
-	// Clear BSS
-	adr_l	x0, __bss_start
-	mov	x1, xzr
-	adr_l	x2, __bss_stop
-	sub	x2, x2, x0
-	bl	__pi_memset
-	dsb	ishst				// Make zero page visible to PTW
 
 #if VA_BITS > 48
 	adr_l	x8, vabits_actual		// Set this early so KASAN early init
@@ -782,6 +763,15 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	adrp	x1, reserved_pg_dir
 	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
+
+	// Clear BSS
+	adrp	x0, __bss_start
+	mov	x1, xzr
+	adrp	x2, init_pg_end
+	sub	x2, x2, x0
+	bl	__pi_memset
+	dsb	ishst				// Make zero page visible to PTW
+
 #ifdef CONFIG_RELOCATABLE
 	adrp	x23, KERNEL_START
 	and	x23, x23, MIN_KIMG_ALIGN - 1
@@ -796,7 +786,6 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	orr	x23, x23, x0			// record kernel offset
 #endif
 #endif
-	bl	clear_page_tables
 	bl	create_kernel_mapping
 
 	adrp	x1, init_pg_dir
