@@ -57,10 +57,6 @@
 #define _PAGE_READONLY_EXEC	(_PAGE_DEFAULT | PTE_USER | PTE_RDONLY | PTE_NG | PTE_PXN)
 #define _PAGE_EXECONLY		(_PAGE_DEFAULT | PTE_RDONLY | PTE_NG | PTE_PXN)
 
-#ifdef __ASSEMBLY__
-#define PTE_MAYBE_NG	0
-#endif
-
 #ifndef __ASSEMBLY__
 
 #include <asm/cpufeature.h>
