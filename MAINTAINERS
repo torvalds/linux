@@ -14007,7 +14007,7 @@ F:	include/uapi/rdma/mlx5-abi.h
 
 MELLANOX MLX5 VDPA DRIVER
 M:	Dragos Tatulea <dtatulea@nvidia.com>
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Supported
 F:	drivers/vdpa/mlx5/
 
@@ -21515,7 +21515,7 @@ F:	tools/testing/selftests/drivers/net/team/
 TECHNICAL ADVISORY BOARD PROCESS DOCS
 M:	"Theodore Ts'o" <tytso@mit.edu>
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-L:	tech-board-discuss@lists.linux-foundation.org
+L:	tech-board-discuss@lists.linux.dev
 S:	Maintained
 F:	Documentation/process/contribution-maturity-model.rst
 F:	Documentation/process/researcher-guidelines.rst
@@ -23074,7 +23074,7 @@ F:	drivers/vfio/pci/mlx5/
 VFIO VIRTIO PCI DRIVER
 M:	Yishai Hadas <yishaih@nvidia.com>
 L:	kvm@vger.kernel.org
-L:	virtualization@lists.linux-foundation.org
+L:	virtualization@lists.linux.dev
 S:	Maintained
 F:	drivers/vfio/pci/virtio
 
