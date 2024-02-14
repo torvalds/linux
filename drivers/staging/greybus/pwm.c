@@ -260,7 +260,6 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 	}
 
 	pwmc->connection = connection;
-	gb_connection_set_data(connection, pwmc);
 	gb_gbphy_set_data(gbphy_dev, chip);
 
 	ret = gb_connection_enable(connection);
