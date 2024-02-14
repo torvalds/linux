@@ -35,7 +35,7 @@ struct kunit_device {
 
 #define to_kunit_device(d) container_of_const(d, struct kunit_device, dev)
 
-static struct bus_type kunit_bus_type = {
+static const struct bus_type kunit_bus_type = {
 	.name		= "kunit",
 };
 
