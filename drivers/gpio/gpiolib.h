@@ -202,7 +202,8 @@ DEFINE_CLASS(gpio_chip_guard,
 
 		_guard.gdev = desc->gdev;
 		_guard.idx = srcu_read_lock(&_guard.gdev->srcu);
-		_guard.gc = rcu_dereference(_guard.gdev->chip);
+		_guard.gc = srcu_dereference(_guard.gdev->chip,
+					     &_guard.gdev->srcu);
 
 		_guard;
 	     }),

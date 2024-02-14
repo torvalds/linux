@@ -109,7 +109,7 @@ const char *gpiod_get_label(struct gpio_desc *desc)
 		return "interrupt";
 
 	return test_bit(FLAG_REQUESTED, &flags) ?
-			rcu_dereference(desc->label) : NULL;
+			srcu_dereference(desc->label, &desc->srcu) : NULL;
 }
 
 static int desc_set_label(struct gpio_desc *desc, const char *label)
@@ -447,7 +447,7 @@ static struct gpio_desc *gpio_name_to_desc(const char * const name)
 				 srcu_read_lock_held(&gpio_devices_srcu)) {
 		guard(srcu)(&gdev->srcu);
 
-		gc = rcu_dereference(gdev->chip);
+		gc = srcu_dereference(gdev->chip, &gdev->srcu);
 		if (!gc)
 			continue;
 
@@ -1190,7 +1190,7 @@ struct gpio_device *gpio_device_find(void *data,
 				 srcu_read_lock_held(&gpio_devices_srcu)) {
 		guard(srcu)(&gdev->srcu);
 
-		gc = rcu_dereference(gdev->chip);
+		gc = srcu_dereference(gdev->chip, &gdev->srcu);
 
 		if (gc && match(gc, data))
 			return gpio_device_get(gdev);
@@ -2978,7 +2978,7 @@ static int gpiod_get_raw_value_commit(const struct gpio_desc *desc)
 
 	guard(srcu)(&gdev->srcu);
 
-	gc = rcu_dereference(gdev->chip);
+	gc = srcu_dereference(gdev->chip, &gdev->srcu);
 	if (!gc)
 		return -ENODEV;
 
@@ -3012,7 +3012,7 @@ static bool gpio_device_chip_cmp(struct gpio_device *gdev, struct gpio_chip *gc)
 {
 	guard(srcu)(&gdev->srcu);
 
-	return gc == rcu_dereference(gdev->chip);
+	return gc == srcu_dereference(gdev->chip, &gdev->srcu);
 }
 
 int gpiod_get_array_value_complex(bool raw, bool can_sleep,
@@ -3593,7 +3593,7 @@ int gpiod_to_irq(const struct gpio_desc *desc)
 	gdev = desc->gdev;
 	/* FIXME Cannot use gpio_chip_guard due to const desc. */
 	guard(srcu)(&gdev->srcu);
-	gc = rcu_dereference(gdev->chip);
+	gc = srcu_dereference(gdev->chip, &gdev->srcu);
 	if (!gc)
 		return -ENODEV;
 
@@ -4787,7 +4787,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_device *gdev)
 
 	guard(srcu)(&gdev->srcu);
 
-	gc = rcu_dereference(gdev->chip);
+	gc = srcu_dereference(gdev->chip, &gdev->srcu);
 	if (!gc) {
 		seq_puts(s, "Underlying GPIO chip is gone\n");
 		return;
@@ -4872,7 +4872,7 @@ static int gpiolib_seq_show(struct seq_file *s, void *v)
 
 	guard(srcu)(&gdev->srcu);
 
-	gc = rcu_dereference(gdev->chip);
+	gc = srcu_dereference(gdev->chip, &gdev->srcu);
 	if (!gc) {
 		seq_printf(s, "%s%s: (dangling chip)",
 			   priv->newline ? "\n" : "",
