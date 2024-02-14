@@ -66,7 +66,6 @@ struct tegra_pwm_soc {
 
 struct tegra_pwm_chip {
 	struct pwm_chip chip;
-	struct device *dev;
 
 	struct clk *clk;
 	struct reset_control*rst;
@@ -158,7 +157,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			 */
 			required_clk_rate *= 2;
 
-		err = dev_pm_opp_set_rate(pc->dev, required_clk_rate);
+		err = dev_pm_opp_set_rate(pwmchip_parent(chip), required_clk_rate);
 		if (err < 0)
 			return -EINVAL;
 
@@ -194,7 +193,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * before writing the register. Otherwise, keep it enabled.
 	 */
 	if (!pwm_is_enabled(pwm)) {
-		err = pm_runtime_resume_and_get(pc->dev);
+		err = pm_runtime_resume_and_get(pwmchip_parent(chip));
 		if (err)
 			return err;
 	} else
@@ -206,7 +205,7 @@ static int tegra_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * If the PWM is not enabled, turn the clock off again to save power.
 	 */
 	if (!pwm_is_enabled(pwm))
-		pm_runtime_put(pc->dev);
+		pm_runtime_put(pwmchip_parent(chip));
 
 	return 0;
 }
@@ -217,7 +216,7 @@ static int tegra_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	int rc = 0;
 	u32 val;
 
-	rc = pm_runtime_resume_and_get(pc->dev);
+	rc = pm_runtime_resume_and_get(pwmchip_parent(chip));
 	if (rc)
 		return rc;
 
@@ -237,7 +236,7 @@ static void tegra_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	val &= ~PWM_ENABLE;
 	pwm_writel(pc, pwm->hwpwm, val);
 
-	pm_runtime_put_sync(pc->dev);
+	pm_runtime_put_sync(pwmchip_parent(chip));
 }
 
 static int tegra_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -280,7 +279,6 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	pc->soc = of_device_get_match_data(&pdev->dev);
-	pc->dev = &pdev->dev;
 
 	pc->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pc->regs))
@@ -302,7 +300,7 @@ static int tegra_pwm_probe(struct platform_device *pdev)
 		return ret;
 
 	/* Set maximum frequency of the IP */
-	ret = dev_pm_opp_set_rate(pc->dev, pc->soc->max_frequency);
+	ret = dev_pm_opp_set_rate(&pdev->dev, pc->soc->max_frequency);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to set max frequency: %d\n", ret);
 		goto put_pm;
