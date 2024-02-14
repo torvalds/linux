@@ -76,7 +76,6 @@
 #define REG_OFF_L(C)	((C) >= PCA9685_MAXCHAN ? PCA9685_ALL_LED_OFF_L : LED_N_OFF_L((C)))
 
 struct pca9685 {
-	struct pwm_chip chip;
 	struct regmap *regmap;
 	struct mutex lock;
 	DECLARE_BITMAP(pwms_enabled, PCA9685_MAXCHAN + 1);
@@ -88,7 +87,7 @@ struct pca9685 {
 
 static inline struct pca9685 *to_pca(struct pwm_chip *chip)
 {
-	return container_of(chip, struct pca9685, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 /* This function is supposed to be called with the lock mutex held */
@@ -526,9 +525,11 @@ static int pca9685_pwm_probe(struct i2c_client *client)
 	unsigned int reg;
 	int ret;
 
-	pca = devm_kzalloc(&client->dev, sizeof(*pca), GFP_KERNEL);
-	if (!pca)
-		return -ENOMEM;
+	/* Add an extra channel for ALL_LED */
+	chip = devm_pwmchip_alloc(&client->dev, PCA9685_MAXCHAN + 1, sizeof(*pca));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	pca = to_pca(chip);
 
 	pca->regmap = devm_regmap_init_i2c(client, &pca9685_regmap_i2c_config);
 	if (IS_ERR(pca->regmap)) {
@@ -537,7 +538,6 @@ static int pca9685_pwm_probe(struct i2c_client *client)
 			ret);
 		return ret;
 	}
-	chip = &pca->chip;
 
 	i2c_set_clientdata(client, chip);
 
@@ -573,10 +573,6 @@ static int pca9685_pwm_probe(struct i2c_client *client)
 	pca9685_write_reg(chip, PCA9685_ALL_LED_ON_H, LED_FULL);
 
 	chip->ops = &pca9685_pwm_ops;
-	/* Add an extra channel for ALL_LED */
-	chip->npwm = PCA9685_MAXCHAN + 1;
-
-	chip->dev = &client->dev;
 
 	ret = pwmchip_add(chip);
 	if (ret < 0)
