@@ -4289,7 +4289,7 @@ static bool isolate_folio(struct lruvec *lruvec, struct folio *folio, struct sca
 {
 	bool success;
 
-	/* swapping inhibited */
+	/* swap constrained */
 	if (!(sc->gfp_mask & __GFP_IO) &&
 	    (folio_test_dirty(folio) ||
 	     (folio_test_anon(folio) && !folio_test_swapcache(folio))))
@@ -4458,9 +4458,12 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
 	DEFINE_MIN_SEQ(lruvec);
 
 	/*
-	 * Try to make the obvious choice first. When anon and file are both
-	 * available from the same generation, interpret swappiness 1 as file
-	 * first and 200 as anon first.
+	 * Try to make the obvious choice first, and if anon and file are both
+	 * available from the same generation,
+	 * 1. Interpret swappiness 1 as file first and MAX_SWAPPINESS as anon
+	 *    first.
+	 * 2. If !__GFP_IO, file first since clean pagecache is more likely to
+	 *    exist than clean swapcache.
 	 */
 	if (!swappiness)
 		type = LRU_GEN_FILE;
@@ -4470,6 +4473,8 @@ static int isolate_folios(struct lruvec *lruvec, struct scan_control *sc, int sw
 		type = LRU_GEN_FILE;
 	else if (swappiness == 200)
 		type = LRU_GEN_ANON;
+	else if (!(sc->gfp_mask & __GFP_IO))
+		type = LRU_GEN_FILE;
 	else
 		type = get_type_to_scan(lruvec, swappiness, &tier);
 
@@ -4713,10 +4718,6 @@ static bool try_to_shrink_lruvec(struct lruvec *lruvec, struct scan_control *sc)
 	unsigned long scanned = 0;
 	int swappiness = get_swappiness(lruvec, sc);
 
-	/* clean file folios are more likely to exist */
-	if (swappiness && !(sc->gfp_mask & __GFP_IO))
-		swappiness = 1;
-
 	while (true) {
 		int delta;
 
@@ -4879,7 +4880,6 @@ static void set_initial_priority(struct pglist_data *pgdat, struct scan_control 
 {
 	int priority;
 	unsigned long reclaimable;
-	struct lruvec *lruvec = mem_cgroup_lruvec(NULL, pgdat);
 
 	if (sc->priority != DEF_PRIORITY || sc->nr_to_reclaim < MIN_LRU_BATCH)
 		return;
@@ -4889,7 +4889,7 @@ static void set_initial_priority(struct pglist_data *pgdat, struct scan_control 
 	 * where reclaimed_to_scanned_ratio = inactive / total.
 	 */
 	reclaimable = node_page_state(pgdat, NR_INACTIVE_FILE);
-	if (get_swappiness(lruvec, sc))
+	if (can_reclaim_anon_pages(NULL, pgdat->node_id, sc))
 		reclaimable += node_page_state(pgdat, NR_INACTIVE_ANON);
 
 	/* round down reclaimable and round up sc->nr_to_reclaim */
