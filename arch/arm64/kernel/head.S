@@ -510,10 +510,9 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	bl	kasan_early_init
 #endif
-	mov	x0, x21				// pass FDT address in x0
-	bl	early_fdt_map			// Try mapping the FDT early
 	mov	x0, x20				// pass the full boot status
-	bl	init_feature_override		// Parse cpu feature overrides
+	mov	x1, x22				// pass the low FDT mapping
+	bl	__pi_init_feature_override	// Parse cpu feature overrides
 #ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
 	bl	scs_patch_vmlinux
 #endif

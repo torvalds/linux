@@ -37,6 +37,15 @@ PROVIDE(__pi___memmove			= __pi_memmove);
 PROVIDE(__pi___memset			= __pi_memset);
 
 PROVIDE(__pi_vabits_actual		= vabits_actual);
+PROVIDE(__pi_id_aa64isar1_override	= id_aa64isar1_override);
+PROVIDE(__pi_id_aa64isar2_override	= id_aa64isar2_override);
+PROVIDE(__pi_id_aa64mmfr1_override	= id_aa64mmfr1_override);
+PROVIDE(__pi_id_aa64pfr0_override	= id_aa64pfr0_override);
+PROVIDE(__pi_id_aa64pfr1_override	= id_aa64pfr1_override);
+PROVIDE(__pi_id_aa64smfr0_override	= id_aa64smfr0_override);
+PROVIDE(__pi_id_aa64zfr0_override	= id_aa64zfr0_override);
+PROVIDE(__pi_arm64_sw_feature_override	= arm64_sw_feature_override);
+PROVIDE(__pi__ctype			= _ctype);
 
 #ifdef CONFIG_KVM
 

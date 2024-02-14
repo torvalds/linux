@@ -14,21 +14,14 @@
 #include <asm/cpufeature.h>
 #include <asm/setup.h>
 
+#include "pi.h"
+
 #define FTR_DESC_NAME_LEN	20
 #define FTR_DESC_FIELD_LEN	10
 #define FTR_ALIAS_NAME_LEN	30
 #define FTR_ALIAS_OPTION_LEN	116
 
 static u64 __boot_status __initdata;
-
-// temporary __prel64 related definitions
-// to be removed when this code is moved under pi/
-
-#define __prel64_initconst	__initconst
-
-#define PREL64(type, name)	union { type *name; }
-
-#define prel64_pointer(__d)	(__d)
 
 typedef bool filter_t(u64 val);
 
@@ -313,15 +306,10 @@ static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 	} while (1);
 }
 
-static __init const u8 *get_bootargs_cmdline(void)
+static __init const u8 *get_bootargs_cmdline(const void *fdt)
 {
 	const u8 *prop;
-	void *fdt;
 	int node;
-
-	fdt = get_early_fdt_ptr();
-	if (!fdt)
-		return NULL;
 
 	node = fdt_path_offset(fdt, "/chosen");
 	if (node < 0)
@@ -334,9 +322,9 @@ static __init const u8 *get_bootargs_cmdline(void)
 	return strlen(prop) ? prop : NULL;
 }
 
-static __init void parse_cmdline(void)
+static __init void parse_cmdline(const void *fdt)
 {
-	const u8 *prop = get_bootargs_cmdline();
+	const u8 *prop = get_bootargs_cmdline(fdt);
 
 	if (IS_ENABLED(CONFIG_CMDLINE_FORCE) || !prop)
 		__parse_cmdline(CONFIG_CMDLINE, true);
@@ -346,9 +334,9 @@ static __init void parse_cmdline(void)
 }
 
 /* Keep checkers quiet */
-void init_feature_override(u64 boot_status);
+void init_feature_override(u64 boot_status, const void *fdt);
 
-asmlinkage void __init init_feature_override(u64 boot_status)
+asmlinkage void __init init_feature_override(u64 boot_status, const void *fdt)
 {
 	struct arm64_ftr_override *override;
 	const struct ftr_set_desc *reg;
@@ -364,7 +352,7 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 
 	__boot_status = boot_status;
 
-	parse_cmdline();
+	parse_cmdline(fdt);
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		reg = prel64_pointer(regs[i].reg);
@@ -372,4 +360,11 @@ asmlinkage void __init init_feature_override(u64 boot_status)
 		dcache_clean_inval_poc((unsigned long)override,
 				       (unsigned long)(override + 1));
 	}
+}
+
+char * __init skip_spaces(const char *str)
+{
+	while (isspace(*str))
+		++str;
+	return (char *)str;
 }
