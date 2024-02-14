@@ -27,6 +27,7 @@ struct ipv6_devconf {
 	__s32		use_tempaddr;
 	__s32		temp_valid_lft;
 	__s32		temp_prefered_lft;
+	__s32		regen_min_advance;
 	__s32		regen_max_retry;
 	__s32		max_desync_factor;
 	__s32		max_addresses;

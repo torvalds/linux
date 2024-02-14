@@ -2535,6 +2535,16 @@ max_desync_factor - INTEGER
 
 	Default: 600
 
+regen_min_advance - INTEGER
+	How far in advance (in seconds), at minimum, to create a new temporary
+	address before the current one is deprecated. This value is added to
+	the amount of time that may be required for duplicate address detection
+	to determine when to create a new address. Linux permits setting this
+	value to less than the default of 2 seconds, but a value less than 2
+	does not conform to RFC 8981.
+
+	Default: 2
+
 regen_max_retry - INTEGER
 	Number of attempts before give up attempting to generate
 	valid temporary addresses.

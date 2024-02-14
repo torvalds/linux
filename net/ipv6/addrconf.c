@@ -195,6 +195,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.use_tempaddr		= 0,
 	.temp_valid_lft		= TEMP_VALID_LIFETIME,
 	.temp_prefered_lft	= TEMP_PREFERRED_LIFETIME,
+	.regen_min_advance	= REGEN_MIN_ADVANCE,
 	.regen_max_retry	= REGEN_MAX_RETRY,
 	.max_desync_factor	= MAX_DESYNC_FACTOR,
 	.max_addresses		= IPV6_MAX_ADDRESSES,
@@ -257,6 +258,7 @@ static struct ipv6_devconf ipv6_devconf_dflt __read_mostly = {
 	.use_tempaddr		= 0,
 	.temp_valid_lft		= TEMP_VALID_LIFETIME,
 	.temp_prefered_lft	= TEMP_PREFERRED_LIFETIME,
+	.regen_min_advance	= REGEN_MIN_ADVANCE,
 	.regen_max_retry	= REGEN_MAX_RETRY,
 	.max_desync_factor	= MAX_DESYNC_FACTOR,
 	.max_addresses		= IPV6_MAX_ADDRESSES,
@@ -1341,7 +1343,7 @@ out:
 
 static unsigned long ipv6_get_regen_advance(struct inet6_dev *idev)
 {
-	return 2 + idev->cnf.regen_max_retry *
+	return idev->cnf.regen_min_advance + idev->cnf.regen_max_retry *
 			idev->cnf.dad_transmits *
 			max(NEIGH_VAR(idev->nd_parms, RETRANS_TIME), HZ/100) / HZ;
 }
@@ -6818,6 +6820,13 @@ static const struct ctl_table addrconf_sysctl[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname       = "regen_min_advance",
+		.data           = &ipv6_devconf.regen_min_advance,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = proc_dointvec,
 	},
 	{
 		.procname	= "regen_max_retry",
