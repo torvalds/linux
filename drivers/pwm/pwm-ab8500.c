@@ -185,6 +185,7 @@ static const struct pwm_ops ab8500_pwm_ops = {
 
 static int ab8500_pwm_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	struct ab8500_pwm_chip *ab8500;
 	int err;
 
@@ -199,12 +200,13 @@ static int ab8500_pwm_probe(struct platform_device *pdev)
 	if (ab8500 == NULL)
 		return -ENOMEM;
 
-	ab8500->chip.dev = &pdev->dev;
-	ab8500->chip.ops = &ab8500_pwm_ops;
-	ab8500->chip.npwm = 1;
+	chip = &ab8500->chip;
+	chip->dev = &pdev->dev;
+	chip->ops = &ab8500_pwm_ops;
+	chip->npwm = 1;
 	ab8500->hwid = pdev->id - 1;
 
-	err = devm_pwmchip_add(&pdev->dev, &ab8500->chip);
+	err = devm_pwmchip_add(&pdev->dev, chip);
 	if (err < 0)
 		return dev_err_probe(&pdev->dev, err, "Failed to add pwm chip\n");
 
