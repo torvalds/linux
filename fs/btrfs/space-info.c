@@ -1972,17 +1972,35 @@ int btrfs_calc_reclaim_threshold(struct btrfs_space_info *space_info)
 	return READ_ONCE(space_info->bg_reclaim_threshold);
 }
 
+/*
+ * Under "urgent" reclaim, we will reclaim even fresh block groups that have
+ * recently seen successful allocations, as we are desperate to reclaim
+ * whatever we can to avoid ENOSPC in a transaction leading to a readonly fs.
+ */
+static bool is_reclaim_urgent(struct btrfs_space_info *space_info)
+{
+	struct btrfs_fs_info *fs_info = space_info->fs_info;
+	u64 unalloc = atomic64_read(&fs_info->free_chunk_space);
+	u64 data_chunk_size = calc_effective_data_chunk_size(fs_info);
+
+	return unalloc < data_chunk_size;
+}
+
 static int do_reclaim_sweep(struct btrfs_fs_info *fs_info,
 			    struct btrfs_space_info *space_info, int raid)
 {
 	struct btrfs_block_group *bg;
 	int thresh_pct;
+	bool try_again = true;
+	bool urgent;
 
 	spin_lock(&space_info->lock);
+	urgent = is_reclaim_urgent(space_info);
 	thresh_pct = btrfs_calc_reclaim_threshold(space_info);
 	spin_unlock(&space_info->lock);
 
 	down_read(&space_info->groups_sem);
+again:
 	list_for_each_entry(bg, &space_info->block_groups[raid], list) {
 		u64 thresh;
 		bool reclaim = false;
@@ -1990,14 +2008,29 @@ static int do_reclaim_sweep(struct btrfs_fs_info *fs_info,
 		btrfs_get_block_group(bg);
 		spin_lock(&bg->lock);
 		thresh = mult_perc(bg->length, thresh_pct);
-		if (bg->used < thresh && bg->reclaim_mark)
+		if (bg->used < thresh && bg->reclaim_mark) {
+			try_again = false;
 			reclaim = true;
+		}
 		bg->reclaim_mark++;
 		spin_unlock(&bg->lock);
 		if (reclaim)
 			btrfs_mark_bg_to_reclaim(bg);
 		btrfs_put_block_group(bg);
 	}
+
+	/*
+	 * In situations where we are very motivated to reclaim (low unalloc)
+	 * use two passes to make the reclaim mark check best effort.
+	 *
+	 * If we have any staler groups, we don't touch the fresher ones, but if we
+	 * really need a block group, do take a fresh one.
+	 */
+	if (try_again && urgent) {
+		try_again = false;
+		goto again;
+	}
+
 	up_read(&space_info->groups_sem);
 	return 0;
 }
