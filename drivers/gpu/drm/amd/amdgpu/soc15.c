@@ -1278,7 +1278,8 @@ static int soc15_common_hw_fini(void *handle)
 	if (amdgpu_sriov_vf(adev))
 		xgpu_ai_mailbox_put_irq(adev);
 
-	if (adev->nbio.ras_if &&
+	if ((!amdgpu_sriov_vf(adev)) &&
+	    adev->nbio.ras_if &&
 	    amdgpu_ras_is_supported(adev, adev->nbio.ras_if->block)) {
 		if (adev->nbio.ras &&
 		    adev->nbio.ras->init_ras_controller_interrupt)
