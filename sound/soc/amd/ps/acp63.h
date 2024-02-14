@@ -5,6 +5,7 @@
  * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc. All rights reserved.
  */
 
+#include <linux/soundwire/sdw_amd.h>
 #include <sound/acp63_chip_offset_byte.h>
 
 #define ACP_DEVICE_ID 0x15E2
@@ -263,6 +264,11 @@ struct sdw_dma_ring_buf_reg {
  * @sdw0_dev_index: SoundWire Manager-0 platform device index
  * @sdw1_dev_index: SoundWire Manager-1 platform device index
  * @sdw_dma_dev_index: SoundWire DMA controller platform device index
+ * @info: SoundWire AMD information found in ACPI tables
+ * @is_sdw_dev: flag set to true when any SoundWire manager instances are available
+ * @is_pdm_dev: flag set to true when ACP PDM controller exists
+ * @is_pdm_config: flat set to true when PDM configuration is selected from BIOS
+ * @is_sdw_config: flag set to true when SDW configuration is selected from BIOS
  * @sdw0-dma_intr_stat: DMA interrupt status array for SoundWire manager-SW0 instance
  * @sdw_dma_intr_stat: DMA interrupt status array for SoundWire manager-SW1 instance
  * @acp_reset: flag set to true when bus reset is applied across all
@@ -282,6 +288,11 @@ struct acp63_dev_data {
 	u16 sdw0_dev_index;
 	u16 sdw1_dev_index;
 	u16 sdw_dma_dev_index;
+	struct sdw_amd_acpi_info info;
+	bool is_sdw_dev;
+	bool is_pdm_dev;
+	bool is_pdm_config;
+	bool is_sdw_config;
 	u16 sdw0_dma_intr_stat[ACP63_SDW0_DMA_MAX_STREAMS];
 	u16 sdw1_dma_intr_stat[ACP63_SDW1_DMA_MAX_STREAMS];
 	bool acp_reset;
