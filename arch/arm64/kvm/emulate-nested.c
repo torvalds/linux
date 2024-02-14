@@ -427,12 +427,14 @@ static const complex_condition_check ccc[] = {
  * [19:14]	bit number in the FGT register (6 bits)
  * [20]		trap polarity (1 bit)
  * [25:21]	FG filter (5 bits)
- * [62:26]	Unused (37 bits)
+ * [35:26]	Main SysReg table index (10 bits)
+ * [62:36]	Unused (27 bits)
  * [63]		RES0 - Must be zero, as lost on insertion in the xarray
  */
 #define TC_CGT_BITS	10
 #define TC_FGT_BITS	4
 #define TC_FGF_BITS	5
+#define TC_SRI_BITS	10
 
 union trap_config {
 	u64	val;
@@ -442,7 +444,8 @@ union trap_config {
 		unsigned long	bit:6;		 /* Bit number */
 		unsigned long	pol:1;		 /* Polarity */
 		unsigned long	fgf:TC_FGF_BITS; /* Fine Grained Filter */
-		unsigned long	unused:37;	 /* Unused, should be zero */
+		unsigned long	sri:TC_SRI_BITS; /* SysReg Index */
+		unsigned long	unused:27;	 /* Unused, should be zero */
 		unsigned long	mbz:1;		 /* Must Be Zero */
 	};
 };
@@ -1866,6 +1869,38 @@ check_mcb:
 		xa_destroy(&sr_forward_xa);
 
 	return ret;
+}
+
+int __init populate_sysreg_config(const struct sys_reg_desc *sr,
+				  unsigned int idx)
+{
+	union trap_config tc;
+	u32 encoding;
+	void *ret;
+
+	/*
+	 * 0 is a valid value for the index, but not for the storage.
+	 * We'll store (idx+1), so check against an offset'd limit.
+	 */
+	if (idx >= (BIT(TC_SRI_BITS) - 1)) {
+		kvm_err("sysreg %s (%d) out of range\n", sr->name, idx);
+		return -EINVAL;
+	}
+
+	encoding = sys_reg(sr->Op0, sr->Op1, sr->CRn, sr->CRm, sr->Op2);
+	tc = get_trap_config(encoding);
+
+	if (tc.sri) {
+		kvm_err("sysreg %s (%d) duplicate entry (%d)\n",
+			sr->name, idx - 1, tc.sri);
+		return -EINVAL;
+	}
+
+	tc.sri = idx + 1;
+	ret = xa_store(&sr_forward_xa, encoding,
+		       xa_mk_value(tc.val), GFP_KERNEL);
+
+	return xa_err(ret);
 }
 
 static enum trap_behaviour get_behaviour(struct kvm_vcpu *vcpu,

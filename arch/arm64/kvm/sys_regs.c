@@ -3972,6 +3972,7 @@ int __init kvm_sys_reg_table_init(void)
 	struct sys_reg_params params;
 	bool valid = true;
 	unsigned int i;
+	int ret = 0;
 
 	/* Make sure tables are unique and in order. */
 	valid &= check_sysreg_table(sys_reg_descs, ARRAY_SIZE(sys_reg_descs), false);
@@ -3995,5 +3996,13 @@ int __init kvm_sys_reg_table_init(void)
 	if (!first_idreg)
 		return -EINVAL;
 
-	return populate_nv_trap_config();
+	ret = populate_nv_trap_config();
+
+	for (i = 0; !ret && i < ARRAY_SIZE(sys_reg_descs); i++)
+		ret = populate_sysreg_config(sys_reg_descs + i, i);
+
+	for (i = 0; !ret && i < ARRAY_SIZE(sys_insn_descs); i++)
+		ret = populate_sysreg_config(sys_insn_descs + i, i);
+
+	return ret;
 }
