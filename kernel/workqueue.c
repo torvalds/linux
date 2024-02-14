@@ -54,6 +54,7 @@
 #include <linux/nmi.h>
 #include <linux/kvm_para.h>
 #include <linux/delay.h>
+#include <linux/irq_work.h>
 
 #include "workqueue_internal.h"
 
@@ -456,6 +457,10 @@ static bool wq_debug_force_rr_cpu = true;
 static bool wq_debug_force_rr_cpu = false;
 #endif
 module_param_named(debug_force_rr_cpu, wq_debug_force_rr_cpu, bool, 0644);
+
+/* to raise softirq for the BH worker pools on other CPUs */
+static DEFINE_PER_CPU_SHARED_ALIGNED(struct irq_work [NR_STD_WORKER_POOLS],
+				     bh_pool_irq_works);
 
 /* the BH worker pools */
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct worker_pool [NR_STD_WORKER_POOLS],
@@ -1197,6 +1202,13 @@ static bool assign_work(struct work_struct *work, struct worker *worker,
 	return true;
 }
 
+static struct irq_work *bh_pool_irq_work(struct worker_pool *pool)
+{
+	int high = pool->attrs->nice == HIGHPRI_NICE_LEVEL ? 1 : 0;
+
+	return &per_cpu(bh_pool_irq_works, pool->cpu)[high];
+}
+
 /**
  * kick_pool - wake up an idle worker if necessary
  * @pool: pool to kick
@@ -1215,10 +1227,15 @@ static bool kick_pool(struct worker_pool *pool)
 		return false;
 
 	if (pool->flags & POOL_BH) {
-		if (pool->attrs->nice == HIGHPRI_NICE_LEVEL)
-			raise_softirq_irqoff(HI_SOFTIRQ);
-		else
-			raise_softirq_irqoff(TASKLET_SOFTIRQ);
+		if (likely(pool->cpu == smp_processor_id())) {
+			if (pool->attrs->nice == HIGHPRI_NICE_LEVEL)
+				raise_softirq_irqoff(HI_SOFTIRQ);
+			else
+				raise_softirq_irqoff(TASKLET_SOFTIRQ);
+		} else {
+			irq_work_queue_on(bh_pool_irq_work(pool), pool->cpu);
+		}
+
 		return true;
 	}
 
@@ -7367,6 +7384,16 @@ static inline void wq_watchdog_init(void) { }
 
 #endif	/* CONFIG_WQ_WATCHDOG */
 
+static void bh_pool_kick_normal(struct irq_work *irq_work)
+{
+	raise_softirq_irqoff(TASKLET_SOFTIRQ);
+}
+
+static void bh_pool_kick_highpri(struct irq_work *irq_work)
+{
+	raise_softirq_irqoff(HI_SOFTIRQ);
+}
+
 static void __init restrict_unbound_cpumask(const char *name, const struct cpumask *mask)
 {
 	if (!cpumask_intersects(wq_unbound_cpumask, mask)) {
@@ -7408,6 +7435,8 @@ void __init workqueue_init_early(void)
 {
 	struct wq_pod_type *pt = &wq_pod_types[WQ_AFFN_SYSTEM];
 	int std_nice[NR_STD_WORKER_POOLS] = { 0, HIGHPRI_NICE_LEVEL };
+	void (*irq_work_fns[2])(struct irq_work *) = { bh_pool_kick_normal,
+						       bh_pool_kick_highpri };
 	int i, cpu;
 
 	BUILD_BUG_ON(__alignof__(struct pool_workqueue) < __alignof__(long long));
@@ -7455,8 +7484,10 @@ void __init workqueue_init_early(void)
 
 		i = 0;
 		for_each_bh_worker_pool(pool, cpu) {
-			init_cpu_worker_pool(pool, cpu, std_nice[i++]);
+			init_cpu_worker_pool(pool, cpu, std_nice[i]);
 			pool->flags |= POOL_BH;
+			init_irq_work(bh_pool_irq_work(pool), irq_work_fns[i]);
+			i++;
 		}
 
 		i = 0;
