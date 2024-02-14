@@ -53,13 +53,11 @@
 /**
  * struct pwm_omap_dmtimer_chip - Structure representing a pwm chip
  *				  corresponding to omap dmtimer.
- * @chip:		PWM chip structure representing PWM controller
  * @dm_timer:		Pointer to omap dm timer.
  * @pdata:		Pointer to omap dm timer ops.
  * @dm_timer_pdev:	Pointer to omap dm timer platform device
  */
 struct pwm_omap_dmtimer_chip {
-	struct pwm_chip chip;
 	/* Mutex to protect pwm apply state */
 	struct omap_dm_timer *dm_timer;
 	const struct omap_dm_timer_ops *pdata;
@@ -69,7 +67,7 @@ struct pwm_omap_dmtimer_chip {
 static inline struct pwm_omap_dmtimer_chip *
 to_pwm_omap_dmtimer_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct pwm_omap_dmtimer_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 /**
@@ -369,12 +367,12 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 		goto err_request_timer;
 	}
 
-	omap = devm_kzalloc(&pdev->dev, sizeof(*omap), GFP_KERNEL);
-	if (!omap) {
-		ret = -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, 1, sizeof(*omap));
+	if (IS_ERR(chip)) {
+		ret = PTR_ERR(chip);
 		goto err_alloc_omap;
 	}
-	chip = &omap->chip;
+	omap = to_pwm_omap_dmtimer_chip(chip);
 
 	omap->pdata = pdata;
 	omap->dm_timer = dm_timer;
@@ -394,9 +392,7 @@ static int pwm_omap_dmtimer_probe(struct platform_device *pdev)
 	if (!of_property_read_u32(pdev->dev.of_node, "ti,clock-source", &v))
 		omap->pdata->set_source(omap->dm_timer, v);
 
-	chip->dev = &pdev->dev;
 	chip->ops = &pwm_omap_dmtimer_ops;
-	chip->npwm = 1;
 
 	ret = pwmchip_add(chip);
 	if (ret < 0) {
