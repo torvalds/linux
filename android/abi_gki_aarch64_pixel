@@ -370,6 +370,7 @@
   devfreq_recommended_opp
   devfreq_register_opp_notifier
   devfreq_remove_device
+  devfreq_remove_governor
   devfreq_unregister_opp_notifier
   devfreq_update_interval
   dev_fwnode
