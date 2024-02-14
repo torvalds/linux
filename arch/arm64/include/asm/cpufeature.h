@@ -963,6 +963,38 @@ static inline bool kaslr_disabled_cmdline(void)
 u32 get_kvm_ipa_limit(void);
 void dump_cpu_features(void);
 
+static inline bool cpu_has_bti(void)
+{
+	if (!IS_ENABLED(CONFIG_ARM64_BTI))
+		return false;
+
+	return arm64_apply_feature_override(read_cpuid(ID_AA64PFR1_EL1),
+					    ID_AA64PFR1_EL1_BT_SHIFT, 4,
+					    &id_aa64pfr1_override);
+}
+
+static inline bool cpu_has_pac(void)
+{
+	u64 isar1, isar2;
+
+	if (!IS_ENABLED(CONFIG_ARM64_PTR_AUTH))
+		return false;
+
+	isar1 = read_cpuid(ID_AA64ISAR1_EL1);
+	isar2 = read_cpuid(ID_AA64ISAR2_EL1);
+
+	if (arm64_apply_feature_override(isar1, ID_AA64ISAR1_EL1_APA_SHIFT, 4,
+					 &id_aa64isar1_override))
+		return true;
+
+	if (arm64_apply_feature_override(isar1, ID_AA64ISAR1_EL1_API_SHIFT, 4,
+					 &id_aa64isar1_override))
+		return true;
+
+	return arm64_apply_feature_override(isar2, ID_AA64ISAR2_EL1_APA3_SHIFT, 4,
+					    &id_aa64isar2_override);
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif
