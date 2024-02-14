@@ -1897,14 +1897,6 @@ static bool check_fgt_bit(u64 val, const union trap_config tc)
 	return ((val >> tc.bit) & 1) == tc.pol;
 }
 
-#define sanitised_sys_reg(vcpu, reg)			\
-	({						\
-		u64 __val;				\
-		__val = __vcpu_sys_reg(vcpu, reg);	\
-		__val &= ~__ ## reg ## _RES0;		\
-		(__val);				\
-	})
-
 bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 {
 	union trap_config tc;
@@ -1940,25 +1932,25 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 
 	case HFGxTR_GROUP:
 		if (is_read)
-			val = sanitised_sys_reg(vcpu, HFGRTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HFGRTR_EL2);
 		else
-			val = sanitised_sys_reg(vcpu, HFGWTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HFGWTR_EL2);
 		break;
 
 	case HDFGRTR_GROUP:
 	case HDFGWTR_GROUP:
 		if (is_read)
-			val = sanitised_sys_reg(vcpu, HDFGRTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HDFGRTR_EL2);
 		else
-			val = sanitised_sys_reg(vcpu, HDFGWTR_EL2);
+			val = __vcpu_sys_reg(vcpu, HDFGWTR_EL2);
 		break;
 
 	case HAFGRTR_GROUP:
-		val = sanitised_sys_reg(vcpu, HAFGRTR_EL2);
+		val = __vcpu_sys_reg(vcpu, HAFGRTR_EL2);
 		break;
 
 	case HFGITR_GROUP:
-		val = sanitised_sys_reg(vcpu, HFGITR_EL2);
+		val = __vcpu_sys_reg(vcpu, HFGITR_EL2);
 		switch (tc.fgf) {
 			u64 tmp;
 
@@ -1966,7 +1958,7 @@ bool __check_nv_sr_forward(struct kvm_vcpu *vcpu)
 			break;
 
 		case HCRX_FGTnXS:
-			tmp = sanitised_sys_reg(vcpu, HCRX_EL2);
+			tmp = __vcpu_sys_reg(vcpu, HCRX_EL2);
 			if (tmp & HCRX_EL2_FGTnXS)
 				tc.fgt = __NO_FGT_GROUP__;
 		}
