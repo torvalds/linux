@@ -81,7 +81,7 @@
  *
  * A query to the UDS index is handled asynchronously by the index's threads. When the query is
  * complete, a callback supplied with the query will be called from one of the those threads. Under
- * heavy system load, the index may be slower to respond then is desirable for reasonable I/O
+ * heavy system load, the index may be slower to respond than is desirable for reasonable I/O
  * throughput. Since deduplication of writes is not necessary for correct operation of a VDO
  * device, it is acceptable to timeout out slow index queries and proceed to fulfill a write
  * request without deduplicating. However, because the uds_request struct itself is supplied by the
@@ -1311,7 +1311,7 @@ static bool acquire_provisional_reference(struct data_vio *agent, struct pbn_loc
  *              behalf of its hash lock.
  *
  * If the PBN is already locked for writing, the lock attempt is abandoned and is_duplicate will be
- * cleared before calling back. this continuation is launched from start_locking(), and calls back
+ * cleared before calling back. This continuation is launched from start_locking(), and calls back
  * to finish_locking() on the hash zone thread.
  */
 static void lock_duplicate_pbn(struct vdo_completion *completion)
@@ -2300,9 +2300,10 @@ static void finish_index_operation(struct uds_request *request)
 	 * data_vio has already moved on.
 	 */
 	if (!change_context_state(context, DEDUPE_CONTEXT_TIMED_OUT,
-				  DEDUPE_CONTEXT_TIMED_OUT_COMPLETE))
+				  DEDUPE_CONTEXT_TIMED_OUT_COMPLETE)) {
 		ASSERT_LOG_ONLY(false, "uds request was timed out (state %d)",
 				atomic_read(&context->state));
+	}
 
 	uds_funnel_queue_put(context->zone->timed_out_complete, &context->queue_entry);
 }
@@ -2616,6 +2617,7 @@ void vdo_drain_hash_zones(struct hash_zones *zones, struct vdo_completion *paren
 }
 
 static void launch_dedupe_state_change(struct hash_zones *zones)
+	__must_hold(&zones->lock)
 {
 	/* ASSERTION: We enter with the lock held. */
 	if (zones->changing || !vdo_is_state_normal(&zones->state))
@@ -3056,9 +3058,10 @@ int vdo_add_dedupe_index_sysfs(struct hash_zones *zones)
 	int result = kobject_add(&zones->dedupe_directory,
 				 &zones->completion.vdo->vdo_directory, "dedupe");
 
-	if (result == 0)
+	if (result == 0) {
 		vdo_set_admin_state_code(&zones->state,
 					 VDO_ADMIN_STATE_NORMAL_OPERATION);
+	}
 
 	return result;
 }
