@@ -375,9 +375,9 @@ SYM_FUNC_START_LOCAL(create_idmap)
 
 	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
 
-	/* Remap BSS and the kernel page tables r/w in the ID map */
+	/* Remap [.init].data, BSS and the kernel page tables r/w in the ID map */
 	adrp	x1, _text
-	adrp	x2, __bss_start
+	adrp	x2, __initdata_begin
 	adrp	x3, _end
 	bic	x4, x2, #SWAPPER_BLOCK_SIZE - 1
 	mov_q	x5, SWAPPER_RW_MMUFLAGS
@@ -491,9 +491,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	bl	kasan_early_init
 #endif
-	mov	x0, x20				// pass the full boot status
-	mov	x1, x22				// pass the low FDT mapping
-	bl	__pi_init_feature_override	// Parse cpu feature overrides
 #ifdef CONFIG_UNWIND_PATCH_PAC_INTO_SCS
 	bl	scs_patch_vmlinux
 #endif
@@ -772,12 +769,16 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	bl	__pi_memset
 	dsb	ishst				// Make zero page visible to PTW
 
-#ifdef CONFIG_RELOCATABLE
-	adrp	x23, KERNEL_START
-	and	x23, x23, MIN_KIMG_ALIGN - 1
 	adrp	x1, early_init_stack
 	mov	sp, x1
 	mov	x29, xzr
+	mov	x0, x20				// pass the full boot status
+	mov	x1, x22				// pass the low FDT mapping
+	bl	__pi_init_feature_override	// Parse cpu feature overrides
+
+#ifdef CONFIG_RELOCATABLE
+	adrp	x23, KERNEL_START
+	and	x23, x23, MIN_KIMG_ALIGN - 1
 #ifdef CONFIG_RANDOMIZE_BASE
 	mov	x0, x22
 	bl	__pi_kaslr_early_init

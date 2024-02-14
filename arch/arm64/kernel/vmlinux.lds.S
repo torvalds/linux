@@ -320,10 +320,8 @@ SECTIONS
 	init_pg_end = .;
 	/* end of zero-init region */
 
-#ifdef CONFIG_RELOCATABLE
-	. += SZ_4K;		/* stack for the early relocation code */
+	. += SZ_4K;		/* stack for the early C runtime */
 	early_init_stack = .;
-#endif
 
 	. = ALIGN(SEGMENT_ALIGN);
 	__pecoff_data_size = ABSOLUTE(. - __initdata_begin);
