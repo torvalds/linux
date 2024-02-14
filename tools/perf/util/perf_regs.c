@@ -21,8 +21,6 @@ uint64_t __weak arch__user_reg_mask(void)
 	return 0;
 }
 
-#ifdef HAVE_PERF_REGS_SUPPORT
-
 const char *perf_reg_name(int id, const char *arch)
 {
 	const char *reg_name = NULL;
@@ -125,5 +123,3 @@ uint64_t perf_arch_reg_sp(const char *arch)
 	pr_err("Fail to find SP register for arch %s, returns 0\n", arch);
 	return 0;
 }
-
-#endif
