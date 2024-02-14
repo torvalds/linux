@@ -50,6 +50,7 @@ struct scmi_clock_info {
 	bool state_ctrl_forbidden;
 	bool rate_ctrl_forbidden;
 	bool parent_ctrl_forbidden;
+	bool extended_config;
 	union {
 		struct {
 			int num_rates;
