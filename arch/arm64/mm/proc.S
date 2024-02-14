@@ -205,6 +205,14 @@ SYM_FUNC_ALIAS(__pi_idmap_cpu_replace_ttbr1, idmap_cpu_replace_ttbr1)
 
 	.pushsection ".idmap.text", "a"
 
+	.macro	pte_to_phys, phys, pte
+	and	\phys, \pte, #PTE_ADDR_LOW
+#ifdef CONFIG_ARM64_PA_BITS_52
+	and	\pte, \pte, #PTE_ADDR_HIGH
+	orr	\phys, \phys, \pte, lsl #PTE_ADDR_HIGH_SHIFT
+#endif
+	.endm
+
 	.macro	kpti_mk_tbl_ng, type, num_entries
 	add	end_\type\()p, cur_\type\()p, #\num_entries * 8
 .Ldo_\type:

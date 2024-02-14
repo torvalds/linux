@@ -612,22 +612,10 @@ alternative_endif
 
 	.macro	phys_to_pte, pte, phys
 #ifdef CONFIG_ARM64_PA_BITS_52
-	/*
-	 * We assume \phys is 64K aligned and this is guaranteed by only
-	 * supporting this configuration with 64K pages.
-	 */
-	orr	\pte, \phys, \phys, lsr #36
-	and	\pte, \pte, #PTE_ADDR_MASK
+	orr	\pte, \phys, \phys, lsr #PTE_ADDR_HIGH_SHIFT
+	and	\pte, \pte, #PHYS_TO_PTE_ADDR_MASK
 #else
 	mov	\pte, \phys
-#endif
-	.endm
-
-	.macro	pte_to_phys, phys, pte
-	and	\phys, \pte, #PTE_ADDR_MASK
-#ifdef CONFIG_ARM64_PA_BITS_52
-	orr	\phys, \phys, \phys, lsl #PTE_ADDR_HIGH_SHIFT
-	and	\phys, \phys, GENMASK_ULL(PHYS_MASK_SHIFT - 1, PAGE_SHIFT)
 #endif
 	.endm
 
