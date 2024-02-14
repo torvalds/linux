@@ -19,8 +19,7 @@ int uds_make_open_chapter_index(struct open_chapter_index **chapter_index,
 	size_t memory_size;
 	struct open_chapter_index *index;
 
-	result = uds_allocate(1, struct open_chapter_index, "open chapter index",
-			      &index);
+	result = uds_allocate(1, struct open_chapter_index, "open chapter index", &index);
 	if (result != UDS_SUCCESS)
 		return result;
 
@@ -197,9 +196,10 @@ int uds_pack_open_chapter_index_page(struct open_chapter_index *chapter_index,
 		} while (!entry.at_end);
 	}
 
-	if (removals > 0)
+	if (removals > 0) {
 		uds_log_warning("To avoid chapter index page overflow in chapter %llu, %u entries were removed from the chapter index",
 				(unsigned long long) chapter_number, removals);
+	}
 
 	return UDS_SUCCESS;
 }
@@ -249,13 +249,14 @@ int uds_validate_chapter_index_page(const struct delta_index_page *index_page,
 
 			/* Also make sure that the record page field contains a plausible value. */
 			if (uds_get_delta_entry_value(&entry) >=
-			    geometry->record_pages_per_chapter)
+			    geometry->record_pages_per_chapter) {
 				/*
 				 * Do not log this as an error. It happens in normal operation when
 				 * we are doing a rebuild but haven't written the entire volume
 				 * once.
 				 */
 				return UDS_CORRUPT_DATA;
+			}
 		}
 	}
 	return UDS_SUCCESS;
