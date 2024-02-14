@@ -115,20 +115,20 @@ static void emit_log_message_to_kernel(int priority, const char *fmt, ...)
 	case UDS_LOG_EMERG:
 	case UDS_LOG_ALERT:
 	case UDS_LOG_CRIT:
-		printk(KERN_CRIT "%pV", &vaf);
+		pr_crit("%pV", &vaf);
 		break;
 	case UDS_LOG_ERR:
-		printk(KERN_ERR "%pV", &vaf);
+		pr_err("%pV", &vaf);
 		break;
 	case UDS_LOG_WARNING:
-		printk(KERN_WARNING "%pV", &vaf);
+		pr_warn("%pV", &vaf);
 		break;
 	case UDS_LOG_NOTICE:
 	case UDS_LOG_INFO:
-		printk(KERN_INFO "%pV", &vaf);
+		pr_info("%pV", &vaf);
 		break;
 	case UDS_LOG_DEBUG:
-		printk(KERN_DEBUG "%pV", &vaf);
+		pr_debug("%pV", &vaf);
 		break;
 	default:
 		printk(KERN_DEFAULT "%pV", &vaf);

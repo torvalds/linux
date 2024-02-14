@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/ratelimit.h>
+#include <linux/device-mapper.h>
 
 /* Custom logging utilities for UDS */
 
@@ -20,11 +21,8 @@
 #define UDS_LOG_INFO 6
 #define UDS_LOG_DEBUG 7
 
-#if defined(MODULE)
-#define UDS_LOGGING_MODULE_NAME THIS_MODULE->name
-#else /* compiled into the kernel */
-#define UDS_LOGGING_MODULE_NAME "vdo"
-#endif
+#define DM_MSG_PREFIX "vdo"
+#define UDS_LOGGING_MODULE_NAME DM_NAME ": " DM_MSG_PREFIX
 
 /* Apply a rate limiter to a log method call. */
 #define uds_log_ratelimit(log_fn, ...)                                    \
