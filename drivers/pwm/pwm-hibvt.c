@@ -191,72 +191,72 @@ static int hibvt_pwm_probe(struct platform_device *pdev)
 {
 	const struct hibvt_pwm_soc *soc =
 				of_device_get_match_data(&pdev->dev);
-	struct hibvt_pwm_chip *pwm_chip;
+	struct hibvt_pwm_chip *hi_pwm_chip;
 	int ret, i;
 
-	pwm_chip = devm_kzalloc(&pdev->dev, sizeof(*pwm_chip), GFP_KERNEL);
-	if (pwm_chip == NULL)
+	hi_pwm_chip = devm_kzalloc(&pdev->dev, sizeof(*hi_pwm_chip), GFP_KERNEL);
+	if (hi_pwm_chip == NULL)
 		return -ENOMEM;
 
-	pwm_chip->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pwm_chip->clk)) {
+	hi_pwm_chip->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(hi_pwm_chip->clk)) {
 		dev_err(&pdev->dev, "getting clock failed with %ld\n",
-				PTR_ERR(pwm_chip->clk));
-		return PTR_ERR(pwm_chip->clk);
+				PTR_ERR(hi_pwm_chip->clk));
+		return PTR_ERR(hi_pwm_chip->clk);
 	}
 
-	pwm_chip->chip.ops = &hibvt_pwm_ops;
-	pwm_chip->chip.dev = &pdev->dev;
-	pwm_chip->chip.npwm = soc->num_pwms;
-	pwm_chip->soc = soc;
+	hi_pwm_chip->chip.ops = &hibvt_pwm_ops;
+	hi_pwm_chip->chip.dev = &pdev->dev;
+	hi_pwm_chip->chip.npwm = soc->num_pwms;
+	hi_pwm_chip->soc = soc;
 
-	pwm_chip->base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pwm_chip->base))
-		return PTR_ERR(pwm_chip->base);
+	hi_pwm_chip->base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(hi_pwm_chip->base))
+		return PTR_ERR(hi_pwm_chip->base);
 
-	ret = clk_prepare_enable(pwm_chip->clk);
+	ret = clk_prepare_enable(hi_pwm_chip->clk);
 	if (ret < 0)
 		return ret;
 
-	pwm_chip->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
-	if (IS_ERR(pwm_chip->rstc)) {
-		clk_disable_unprepare(pwm_chip->clk);
-		return PTR_ERR(pwm_chip->rstc);
+	hi_pwm_chip->rstc = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	if (IS_ERR(hi_pwm_chip->rstc)) {
+		clk_disable_unprepare(hi_pwm_chip->clk);
+		return PTR_ERR(hi_pwm_chip->rstc);
 	}
 
-	reset_control_assert(pwm_chip->rstc);
+	reset_control_assert(hi_pwm_chip->rstc);
 	msleep(30);
-	reset_control_deassert(pwm_chip->rstc);
+	reset_control_deassert(hi_pwm_chip->rstc);
 
-	ret = pwmchip_add(&pwm_chip->chip);
+	ret = pwmchip_add(&hi_pwm_chip->chip);
 	if (ret < 0) {
-		clk_disable_unprepare(pwm_chip->clk);
+		clk_disable_unprepare(hi_pwm_chip->clk);
 		return ret;
 	}
 
-	for (i = 0; i < pwm_chip->chip.npwm; i++) {
-		hibvt_pwm_set_bits(pwm_chip->base, PWM_CTRL_ADDR(i),
+	for (i = 0; i < hi_pwm_chip->chip.npwm; i++) {
+		hibvt_pwm_set_bits(hi_pwm_chip->base, PWM_CTRL_ADDR(i),
 				PWM_KEEP_MASK, (0x1 << PWM_KEEP_SHIFT));
 	}
 
-	platform_set_drvdata(pdev, pwm_chip);
+	platform_set_drvdata(pdev, hi_pwm_chip);
 
 	return 0;
 }
 
 static void hibvt_pwm_remove(struct platform_device *pdev)
 {
-	struct hibvt_pwm_chip *pwm_chip;
+	struct hibvt_pwm_chip *hi_pwm_chip;
 
-	pwm_chip = platform_get_drvdata(pdev);
+	hi_pwm_chip = platform_get_drvdata(pdev);
 
-	pwmchip_remove(&pwm_chip->chip);
+	pwmchip_remove(&hi_pwm_chip->chip);
 
-	reset_control_assert(pwm_chip->rstc);
+	reset_control_assert(hi_pwm_chip->rstc);
 	msleep(30);
-	reset_control_deassert(pwm_chip->rstc);
+	reset_control_deassert(hi_pwm_chip->rstc);
 
-	clk_disable_unprepare(pwm_chip->clk);
+	clk_disable_unprepare(hi_pwm_chip->clk);
 }
 
 static const struct of_device_id hibvt_pwm_of_match[] = {
