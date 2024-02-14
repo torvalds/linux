@@ -16,57 +16,6 @@
 #include <asm/memory.h>
 #include <asm/pgtable.h>
 
-/* taken from lib/string.c */
-static char *__init __strstr(const char *s1, const char *s2)
-{
-	size_t l1, l2;
-
-	l2 = strlen(s2);
-	if (!l2)
-		return (char *)s1;
-	l1 = strlen(s1);
-	while (l1 >= l2) {
-		l1--;
-		if (!memcmp(s1, s2, l2))
-			return (char *)s1;
-		s1++;
-	}
-	return NULL;
-}
-static bool __init cmdline_contains_nokaslr(const u8 *cmdline)
-{
-	const u8 *str;
-
-	str = __strstr(cmdline, "nokaslr");
-	return str == cmdline || (str > cmdline && *(str - 1) == ' ');
-}
-
-static bool __init is_kaslr_disabled_cmdline(void *fdt)
-{
-	if (!IS_ENABLED(CONFIG_CMDLINE_FORCE)) {
-		int node;
-		const u8 *prop;
-
-		node = fdt_path_offset(fdt, "/chosen");
-		if (node < 0)
-			goto out;
-
-		prop = fdt_getprop(fdt, node, "bootargs", NULL);
-		if (!prop)
-			goto out;
-
-		if (cmdline_contains_nokaslr(prop))
-			return true;
-
-		if (IS_ENABLED(CONFIG_CMDLINE_EXTEND))
-			goto out;
-
-		return false;
-	}
-out:
-	return cmdline_contains_nokaslr(CONFIG_CMDLINE);
-}
-
 static u64 __init get_kaslr_seed(void *fdt)
 {
 	static char const chosen_str[] __initconst = "chosen";
@@ -92,7 +41,7 @@ asmlinkage u64 __init kaslr_early_init(void *fdt)
 {
 	u64 seed, range;
 
-	if (is_kaslr_disabled_cmdline(fdt))
+	if (kaslr_disabled_cmdline())
 		return 0;
 
 	seed = get_kaslr_seed(fdt);

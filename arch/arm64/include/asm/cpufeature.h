@@ -954,6 +954,11 @@ static inline bool arm64_test_sw_feature_override(int feat)
 					    &arm64_sw_feature_override);
 }
 
+static inline bool kaslr_disabled_cmdline(void)
+{
+	return arm64_test_sw_feature_override(ARM64_SW_FEATURE_OVERRIDE_NOKASLR);
+}
+
 u32 get_kvm_ipa_limit(void);
 void dump_cpu_features(void);
 
