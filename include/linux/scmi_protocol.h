@@ -76,6 +76,13 @@ struct scmi_handle;
 struct scmi_device;
 struct scmi_protocol_handle;
 
+enum scmi_clock_oem_config {
+	SCMI_CLOCK_CFG_DUTY_CYCLE = 0x1,
+	SCMI_CLOCK_CFG_PHASE,
+	SCMI_CLOCK_CFG_OEM_START = 0x80,
+	SCMI_CLOCK_CFG_OEM_END = 0xFF,
+};
+
 /**
  * struct scmi_clk_proto_ops - represents the various operations provided
  *	by SCMI Clock Protocol
@@ -108,10 +115,11 @@ struct scmi_clk_proto_ops {
 	int (*state_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
 			 bool *enabled, bool atomic);
 	int (*config_oem_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
-			      u8 oem_type, u32 *oem_val, u32 *attributes,
-			      bool atomic);
+			      enum scmi_clock_oem_config oem_type,
+			      u32 *oem_val, u32 *attributes, bool atomic);
 	int (*config_oem_set)(const struct scmi_protocol_handle *ph, u32 clk_id,
-			      u8 oem_type, u32 oem_val, bool atomic);
+			      enum scmi_clock_oem_config oem_type,
+			      u32 oem_val, bool atomic);
 	int (*parent_get)(const struct scmi_protocol_handle *ph, u32 clk_id, u32 *parent_id);
 	int (*parent_set)(const struct scmi_protocol_handle *ph, u32 clk_id, u32 parent_id);
 };
