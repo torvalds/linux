@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/vishay,vcnl4000.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: VISHAY VCNL4000 ambient light and proximity sensor
+
+maintainers:
+  - Peter Meerwald <pmeerw@pmeerw.net>
+
+description: |
+  Ambient light sensing with proximity detection over an i2c
+  interface.
+
+allOf:
+  - $ref: ../common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - vishay,vcnl4000
+      - vishay,vcnl4010
+      - vishay,vcnl4020
+      - vishay,vcnl4040
+      - vishay,vcnl4200
+
+  interrupts:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  proximity-near-level: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@51 {
+            compatible = "vishay,vcnl4200";
+            reg = <0x51>;
+            proximity-near-level = <220>;
+        };
+    };
+...

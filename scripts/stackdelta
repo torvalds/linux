@@ -1,0 +1,60 @@
+#!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
+
+# Read two files produced by the stackusage script, and show the
+# delta between them.
+#
+# Currently, only shows changes for functions listed in both files. We
+# could add an option to show also functions which have vanished or
+# appeared (which would often be due to gcc making other inlining
+# decisions).
+#
+# Another possible option would be a minimum absolute value for the
+# delta.
+#
+# A third possibility is for sorting by delta, but that can be
+# achieved by piping to sort -k5,5g.
+
+sub read_stack_usage_file {
+    my %su;
+    my $f = shift;
+    open(my $fh, '<', $f)
+	or die "cannot open $f: $!";
+    while (<$fh>) {
+	chomp;
+	my ($file, $func, $size, $type) = split;
+	# Old versions of gcc (at least 4.7) have an annoying quirk in
+	# that a (static) function whose name has been changed into
+	# for example ext4_find_unwritten_pgoff.isra.11 will show up
+	# in the .su file with a name of just "11". Since such a
+	# numeric suffix is likely to change across different
+	# commits/compilers/.configs or whatever else we're trying to
+	# tweak, we can't really track those functions, so we just
+	# silently skip them.
+	#
+	# Newer gcc (at least 5.0) report the full name, so again,
+	# since the suffix is likely to change, we strip it.
+	next if $func =~ m/^[0-9]+$/;
+	$func =~ s/\..*$//;
+	# Line numbers are likely to change; strip those.
+	$file =~ s/:[0-9]+$//;
+	$su{"${file}\t${func}"} = {size => $size, type => $type};
+    }
+    close($fh);
+    return \%su;
+}
+
+@ARGV == 2
+    or die "usage: $0 <old> <new>";
+
+my $old = read_stack_usage_file($ARGV[0]);
+my $new = read_stack_usage_file($ARGV[1]);
+my @common = sort grep {exists $new->{$_}} keys %$old;
+for (@common) {
+    my $x = $old->{$_}{size};
+    my $y = $new->{$_}{size};
+    my $delta = $y - $x;
+    if ($delta) {
+	printf "%s\t%d\t%d\t%+d\n", $_, $x, $y, $delta;
+    }
+}

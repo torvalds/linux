@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/capella,cm3605.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title:
+  Capella Microsystems CM3605 Ambient Light and Short Distance Proximity Sensor
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+  - Kevin Tsai <ktsai@capellamicro.com>
+
+description: |
+  The CM3605 is an entirely analog part. However, it requires quite a bit of
+  software logic to interface a host operating system.
+
+  This ALS and proximity sensor was one of the very first deployed in mobile
+  handsets, notably it is used in the very first Nexus One Android phone from
+  2010.
+
+properties:
+  compatible:
+    const: capella,cm3605
+
+  aset-gpios:
+    maxItems: 1
+    description:
+      ASET line (drive low to activate the ALS, should be flagged
+      GPIO_ACTIVE_LOW)
+
+  interrupts:
+    maxItems: 1
+    description:
+      Connected to the POUT (proximity sensor out) line. The edge
+      detection must be set to IRQ_TYPE_EDGE_BOTH so as to detect
+      movements toward and away from the proximity sensor.
+
+  io-channels:
+    maxItems: 1
+    description:
+      ADC channel used for converting the voltage from AOUT to a digital
+      representation.
+
+  io-channel-names:
+    const: aout
+
+  vdd-supply: true
+
+  capella,aset-resistance-ohms:
+    enum: [50000, 100000, 300000, 600000]
+    description: >
+      Sensitivity calibration resistance. Note that calibration curves
+      are only provided for specific allowed values. Default: 100 kOhms.
+
+required:
+  - compatible
+  - aset-gpios
+  - interrupts
+  - io-channels
+  - io-channel-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    light-sensor {
+        compatible = "capella,cm3605";
+        vdd-supply = <&foo_reg>;
+        aset-gpios = <&foo_gpio 1 GPIO_ACTIVE_LOW>;
+        capella,aset-resistance-ohms = <100000>;
+        interrupts = <1 IRQ_TYPE_EDGE_BOTH>;
+        io-channels = <&adc 0x01>;
+        io-channel-names = "aout";
+    };
+...

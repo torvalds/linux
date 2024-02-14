@@ -1,0 +1,355 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# RCU-related configuration options
+#
+
+menu "RCU Subsystem"
+
+config TREE_RCU
+	bool
+	default y if SMP
+	# Dynticks-idle tracking
+	select CONTEXT_TRACKING_IDLE
+	help
+	  This option selects the RCU implementation that is
+	  designed for very large SMP system with hundreds or
+	  thousands of CPUs.  It also scales down nicely to
+	  smaller systems.
+
+config PREEMPT_RCU
+	bool
+	default y if PREEMPTION
+	select TREE_RCU
+	help
+	  This option selects the RCU implementation that is
+	  designed for very large SMP systems with hundreds or
+	  thousands of CPUs, but for which real-time response
+	  is also required.  It also scales down nicely to
+	  smaller systems.
+
+	  Select this option if you are unsure.
+
+config TINY_RCU
+	bool
+	default y if !PREEMPTION && !SMP
+	help
+	  This option selects the RCU implementation that is
+	  designed for UP systems from which real-time response
+	  is not required.  This option greatly reduces the
+	  memory footprint of RCU.
+
+config RCU_EXPERT
+	bool "Make expert-level adjustments to RCU configuration"
+	default n
+	help
+	  This option needs to be enabled if you wish to make
+	  expert-level adjustments to RCU configuration.  By default,
+	  no such adjustments can be made, which has the often-beneficial
+	  side-effect of preventing "make oldconfig" from asking you all
+	  sorts of detailed questions about how you would like numerous
+	  obscure RCU options to be set up.
+
+	  Say Y if you need to make expert-level adjustments to RCU.
+
+	  Say N if you are unsure.
+
+config SRCU
+	bool
+	help
+	  This option selects the sleepable version of RCU. This version
+	  permits arbitrary sleeping or blocking within RCU read-side critical
+	  sections.
+
+config TINY_SRCU
+	bool
+	default y if SRCU && TINY_RCU
+	help
+	  This option selects the single-CPU non-preemptible version of SRCU.
+
+config TREE_SRCU
+	bool
+	default y if SRCU && !TINY_RCU
+	help
+	  This option selects the full-fledged version of SRCU.
+
+config TASKS_RCU_GENERIC
+	def_bool TASKS_RCU || TASKS_RUDE_RCU || TASKS_TRACE_RCU
+	select SRCU
+	help
+	  This option enables generic infrastructure code supporting
+	  task-based RCU implementations.  Not for manual selection.
+
+config FORCE_TASKS_RCU
+	bool "Force selection of TASKS_RCU"
+	depends on RCU_EXPERT
+	select TASKS_RCU
+	default n
+	help
+	  This option force-enables a task-based RCU implementation
+	  that uses only voluntary context switch (not preemption!),
+	  idle, and user-mode execution as quiescent states.  Not for
+	  manual selection in most cases.
+
+config TASKS_RCU
+	bool
+	default n
+	select IRQ_WORK
+
+config FORCE_TASKS_RUDE_RCU
+	bool "Force selection of Tasks Rude RCU"
+	depends on RCU_EXPERT
+	select TASKS_RUDE_RCU
+	default n
+	help
+	  This option force-enables a task-based RCU implementation
+	  that uses only context switch (including preemption) and
+	  user-mode execution as quiescent states.  It forces IPIs and
+	  context switches on all online CPUs, including idle ones,
+	  so use with caution.	Not for manual selection in most cases.
+
+config TASKS_RUDE_RCU
+	bool
+	default n
+	select IRQ_WORK
+
+config FORCE_TASKS_TRACE_RCU
+	bool "Force selection of Tasks Trace RCU"
+	depends on RCU_EXPERT
+	select TASKS_TRACE_RCU
+	default n
+	help
+	  This option enables a task-based RCU implementation that uses
+	  explicit rcu_read_lock_trace() read-side markers, and allows
+	  these readers to appear in the idle loop as well as on the
+	  CPU hotplug code paths.  It can force IPIs on online CPUs,
+	  including idle ones, so use with caution.  Not for manual
+	  selection in most cases.
+
+config TASKS_TRACE_RCU
+	bool
+	default n
+	select IRQ_WORK
+
+config RCU_STALL_COMMON
+	def_bool TREE_RCU
+	help
+	  This option enables RCU CPU stall code that is common between
+	  the TINY and TREE variants of RCU.  The purpose is to allow
+	  the tiny variants to disable RCU CPU stall warnings, while
+	  making these warnings mandatory for the tree variants.
+
+config RCU_NEED_SEGCBLIST
+	def_bool ( TREE_RCU || TREE_SRCU || TASKS_RCU_GENERIC )
+
+config RCU_FANOUT
+	int "Tree-based hierarchical RCU fanout value"
+	range 2 64 if 64BIT
+	range 2 32 if !64BIT
+	depends on TREE_RCU && RCU_EXPERT
+	default 64 if 64BIT
+	default 32 if !64BIT
+	help
+	  This option controls the fanout of hierarchical implementations
+	  of RCU, allowing RCU to work efficiently on machines with
+	  large numbers of CPUs.  This value must be at least the fourth
+	  root of NR_CPUS, which allows NR_CPUS to be insanely large.
+	  The default value of RCU_FANOUT should be used for production
+	  systems, but if you are stress-testing the RCU implementation
+	  itself, small RCU_FANOUT values allow you to test large-system
+	  code paths on small(er) systems.
+
+	  Select a specific number if testing RCU itself.
+	  Take the default if unsure.
+
+config RCU_FANOUT_LEAF
+	int "Tree-based hierarchical RCU leaf-level fanout value"
+	range 2 64 if 64BIT && !RCU_STRICT_GRACE_PERIOD
+	range 2 32 if !64BIT && !RCU_STRICT_GRACE_PERIOD
+	range 2 3 if RCU_STRICT_GRACE_PERIOD
+	depends on TREE_RCU && RCU_EXPERT
+	default 16 if !RCU_STRICT_GRACE_PERIOD
+	default 2 if RCU_STRICT_GRACE_PERIOD
+	help
+	  This option controls the leaf-level fanout of hierarchical
+	  implementations of RCU, and allows trading off cache misses
+	  against lock contention.  Systems that synchronize their
+	  scheduling-clock interrupts for energy-efficiency reasons will
+	  want the default because the smaller leaf-level fanout keeps
+	  lock contention levels acceptably low.  Very large systems
+	  (hundreds or thousands of CPUs) will instead want to set this
+	  value to the maximum value possible in order to reduce the
+	  number of cache misses incurred during RCU's grace-period
+	  initialization.  These systems tend to run CPU-bound, and thus
+	  are not helped by synchronized interrupts, and thus tend to
+	  skew them, which reduces lock contention enough that large
+	  leaf-level fanouts work well.  That said, setting leaf-level
+	  fanout to a large number will likely cause problematic
+	  lock contention on the leaf-level rcu_node structures unless
+	  you boot with the skew_tick kernel parameter.
+
+	  Select a specific number if testing RCU itself.
+
+	  Select the maximum permissible value for large systems, but
+	  please understand that you may also need to set the skew_tick
+	  kernel boot parameter to avoid contention on the rcu_node
+	  structure's locks.
+
+	  Take the default if unsure.
+
+config RCU_BOOST
+	bool "Enable RCU priority boosting"
+	depends on (RT_MUTEXES && PREEMPT_RCU && RCU_EXPERT) || PREEMPT_RT
+	default y if PREEMPT_RT
+	help
+	  This option boosts the priority of preempted RCU readers that
+	  block the current preemptible RCU grace period for too long.
+	  This option also prevents heavy loads from blocking RCU
+	  callback invocation.
+
+	  Say Y here if you are working with real-time apps or heavy loads
+	  Say N here if you are unsure.
+
+config RCU_BOOST_DELAY
+	int "Milliseconds to delay boosting after RCU grace-period start"
+	range 0 3000
+	depends on RCU_BOOST
+	default 500
+	help
+	  This option specifies the time to wait after the beginning of
+	  a given grace period before priority-boosting preempted RCU
+	  readers blocking that grace period.  Note that any RCU reader
+	  blocking an expedited RCU grace period is boosted immediately.
+
+	  Accept the default if unsure.
+
+config RCU_EXP_KTHREAD
+	bool "Perform RCU expedited work in a real-time kthread"
+	depends on RCU_BOOST && RCU_EXPERT
+	default !PREEMPT_RT && NR_CPUS <= 32
+	help
+	  Use this option to further reduce the latencies of expedited
+	  grace periods at the expense of being more disruptive.
+
+	  This option is disabled by default on PREEMPT_RT=y kernels which
+	  disable expedited grace periods after boot by unconditionally
+	  setting rcupdate.rcu_normal_after_boot=1.
+
+	  Accept the default if unsure.
+
+config RCU_NOCB_CPU
+	bool "Offload RCU callback processing from boot-selected CPUs"
+	depends on TREE_RCU
+	depends on RCU_EXPERT || NO_HZ_FULL
+	default n
+	help
+	  Use this option to reduce OS jitter for aggressive HPC or
+	  real-time workloads.	It can also be used to offload RCU
+	  callback invocation to energy-efficient CPUs in battery-powered
+	  asymmetric multiprocessors.  The price of this reduced jitter
+	  is that the overhead of call_rcu() increases and that some
+	  workloads will incur significant increases in context-switch
+	  rates.
+
+	  This option offloads callback invocation from the set of CPUs
+	  specified at boot time by the rcu_nocbs parameter.  For each
+	  such CPU, a kthread ("rcuox/N") will be created to invoke
+	  callbacks, where the "N" is the CPU being offloaded, and where
+	  the "x" is "p" for RCU-preempt (PREEMPTION kernels) and "s" for
+	  RCU-sched (!PREEMPTION kernels).  Nothing prevents this kthread
+	  from running on the specified CPUs, but (1) the kthreads may be
+	  preempted between each callback, and (2) affinity or cgroups can
+	  be used to force the kthreads to run on whatever set of CPUs is
+	  desired.
+
+	  Say Y here if you need reduced OS jitter, despite added overhead.
+	  Say N here if you are unsure.
+
+config RCU_NOCB_CPU_DEFAULT_ALL
+	bool "Offload RCU callback processing from all CPUs by default"
+	depends on RCU_NOCB_CPU
+	default n
+	help
+	  Use this option to offload callback processing from all CPUs
+	  by default, in the absence of the rcu_nocbs or nohz_full boot
+	  parameter. This also avoids the need to use any boot parameters
+	  to achieve the effect of offloading all CPUs on boot.
+
+	  Say Y here if you want offload all CPUs by default on boot.
+	  Say N here if you are unsure.
+
+config RCU_NOCB_CPU_CB_BOOST
+	bool "Offload RCU callback from real-time kthread"
+	depends on RCU_NOCB_CPU && RCU_BOOST
+	default y if PREEMPT_RT
+	help
+	  Use this option to invoke offloaded callbacks as SCHED_FIFO
+	  to avoid starvation by heavy SCHED_OTHER background load.
+	  Of course, running as SCHED_FIFO during callback floods will
+	  cause the rcuo[ps] kthreads to monopolize the CPU for hundreds
+	  of milliseconds or more.  Therefore, when enabling this option,
+	  it is your responsibility to ensure that latency-sensitive
+	  tasks either run with higher priority or run on some other CPU.
+
+	  Say Y here if you want to set RT priority for offloading kthreads.
+	  Say N here if you are building a !PREEMPT_RT kernel and are unsure.
+
+config TASKS_TRACE_RCU_READ_MB
+	bool "Tasks Trace RCU readers use memory barriers in user and idle"
+	depends on RCU_EXPERT && TASKS_TRACE_RCU
+	default PREEMPT_RT || NR_CPUS < 8
+	help
+	  Use this option to further reduce the number of IPIs sent
+	  to CPUs executing in userspace or idle during tasks trace
+	  RCU grace periods.  Given that a reasonable setting of
+	  the rcupdate.rcu_task_ipi_delay kernel boot parameter
+	  eliminates such IPIs for many workloads, proper setting
+	  of this Kconfig option is important mostly for aggressive
+	  real-time installations and for battery-powered devices,
+	  hence the default chosen above.
+
+	  Say Y here if you hate IPIs.
+	  Say N here if you hate read-side memory barriers.
+	  Take the default if you are unsure.
+
+config RCU_LAZY
+	bool "RCU callback lazy invocation functionality"
+	depends on RCU_NOCB_CPU
+	default n
+	help
+	  To save power, batch RCU callbacks and flush after delay, memory
+	  pressure, or callback list growing too big.
+	  Requires rcu_nocbs=all to be set.
+
+	  Use rcutree.enable_rcu_lazy=0 to turn it off at boot time.
+
+config RCU_LAZY_DEFAULT_OFF
+	bool "Turn RCU lazy invocation off by default"
+	depends on RCU_LAZY
+	default n
+	help
+	  Allows building the kernel with CONFIG_RCU_LAZY=y yet keep it default
+	  off. Boot time param rcutree.enable_rcu_lazy=1 can be used to switch
+	  it back on.
+
+config RCU_BOOT_END_DELAY
+	int "Minimum time before RCU may consider in-kernel boot as completed"
+	range 0 120000
+	default 20000
+	help
+	  Default value of the minimum time in milliseconds from the start of boot
+	  that must elapse before the boot sequence can be marked complete from RCU's
+	  perspective, after which RCU's behavior becomes more relaxed.
+	  Userspace can also mark the boot as completed sooner than this default
+	  by writing the time in milliseconds, say once userspace considers
+	  the system as booted, to: /sys/module/rcupdate/parameters/rcu_boot_end_delay.
+	  Or even just writing a value of 0 to this sysfs node. The sysfs node can
+	  also be used to extend the delay to be larger than the default, assuming
+	  the marking of boot completion has not yet occurred.
+
+	  The actual delay for RCU's view of the system to be marked as booted can be
+	  higher than this value if the kernel takes a long time to initialize but it
+	  will never be smaller than this value.
+
+	  Accept the default if unsure.
+
+endmenu # "RCU Subsystem"

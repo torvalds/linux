@@ -1,0 +1,67 @@
+* Freescale Communications Processor Module
+
+NOTE: This is an interim binding, and will likely change slightly,
+as more devices are supported.  The QE bindings especially are
+incomplete.
+
+* Root CPM node
+
+Properties:
+- compatible : "fsl,cpm1", "fsl,cpm2", or "fsl,qe".
+- reg : A 48-byte region beginning with CPCR.
+
+Example:
+     cpm@119c0 {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	#interrupt-cells = <2>;
+	compatible = "fsl,mpc8272-cpm", "fsl,cpm2";
+	reg = <119c0 30>;
+     }
+
+* Properties common to multiple CPM/QE devices
+
+- fsl,cpm-command : This value is ORed with the opcode and command flag
+                    to specify the device on which a CPM command operates.
+
+- fsl,cpm-brg : Indicates which baud rate generator the device
+                is associated with.  If absent, an unused BRG
+                should be dynamically allocated.  If zero, the
+                device uses an external clock rather than a BRG.
+
+- reg : Unless otherwise specified, the first resource represents the
+        scc/fcc/ucc registers, and the second represents the device's
+        parameter RAM region (if it has one).
+
+* Multi-User RAM (MURAM)
+
+The multi-user/dual-ported RAM is expressed as a bus under the CPM node.
+
+Ranges must be set up subject to the following restrictions:
+
+- Children's reg nodes must be offsets from the start of all muram, even
+  if the user-data area does not begin at zero.
+- If multiple range entries are used, the difference between the parent
+  address and the child address must be the same in all, so that a single
+  mapping can cover them all while maintaining the ability to determine
+  CPM-side offsets with pointer subtraction.  It is recommended that
+  multiple range entries not be used.
+- A child address of zero must be translatable, even if no reg resources
+  contain it.
+
+A child "data" node must exist, compatible with "fsl,cpm-muram-data", to
+indicate the portion of muram that is usable by the OS for arbitrary
+purposes.  The data node may have an arbitrary number of reg resources,
+all of which contribute to the allocatable muram pool.
+
+Example, based on mpc8272:
+	muram@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 10000>;
+
+		data@0 {
+			compatible = "fsl,cpm-muram-data";
+			reg = <0 2000 9800 800>;
+		};
+	};

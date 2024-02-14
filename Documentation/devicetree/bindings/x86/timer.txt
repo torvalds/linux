@@ -1,0 +1,6 @@
+Timers
+------
+
+* High Precision Event Timer (HPET)
+  Required property:
+     compatible = "intel,ce4100-hpet";

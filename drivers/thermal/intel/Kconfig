@@ -1,0 +1,116 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config INTEL_POWERCLAMP
+	tristate "Intel PowerClamp idle injection driver"
+	depends on X86
+	depends on CPU_SUP_INTEL
+	help
+	  Enable this to enable Intel PowerClamp idle injection driver. This
+	  enforce idle time which results in more package C-state residency. The
+	  user interface is exposed via generic thermal framework.
+
+config X86_THERMAL_VECTOR
+	def_bool y
+	depends on X86 && CPU_SUP_INTEL && X86_LOCAL_APIC
+
+config X86_PKG_TEMP_THERMAL
+	tristate "X86 package temperature thermal driver"
+	depends on X86_THERMAL_VECTOR
+	select THERMAL_GOV_USER_SPACE
+	select THERMAL_WRITABLE_TRIPS
+	default m
+	help
+	  Enable this to register CPU digital sensor for package temperature as
+	  thermal zone. Each package will have its own thermal zone. There are
+	  two trip points which can be set by user to get notifications via thermal
+	  notification methods.
+
+config INTEL_SOC_DTS_IOSF_CORE
+	tristate
+	depends on X86 && PCI
+	select IOSF_MBI
+	help
+	  This is becoming a common feature for Intel SoCs to expose the additional
+	  digital temperature sensors (DTSs) using side band interface (IOSF). This
+	  implements the common set of helper functions to register, get temperature
+	  and get/set thresholds on DTSs.
+
+config INTEL_SOC_DTS_THERMAL
+	tristate "Intel SoCs DTS thermal driver"
+	depends on X86 && PCI && ACPI
+	select INTEL_SOC_DTS_IOSF_CORE
+	select THERMAL_WRITABLE_TRIPS
+	help
+	  Enable this to register Intel SoCs (e.g. Bay Trail) platform digital
+	  temperature sensor (DTS). These SoCs have two additional DTSs in
+	  addition to DTSs on CPU cores. Each DTS will be registered as a
+	  thermal zone. There are two trip points. One of the trip point can
+	  be set by user mode programs to get notifications via Linux thermal
+	  notification methods.The other trip is a critical trip point, which
+	  was set by the driver based on the TJ MAX temperature.
+
+config INTEL_QUARK_DTS_THERMAL
+	tristate "Intel Quark DTS thermal driver"
+	depends on X86_INTEL_QUARK
+	help
+	  Enable this to register Intel Quark SoC (e.g. X1000) platform digital
+	  temperature sensor (DTS). For X1000 SoC, it has one on-die DTS.
+	  The DTS will be registered as a thermal zone. There are two trip points:
+	  hot & critical. The critical trip point default value is set by
+	  underlying BIOS/Firmware.
+
+menu "ACPI INT340X thermal drivers"
+source "drivers/thermal/intel/int340x_thermal/Kconfig"
+endmenu
+
+config INTEL_BXT_PMIC_THERMAL
+	tristate "Intel Broxton PMIC thermal driver"
+	depends on X86 && INTEL_SOC_PMIC_BXTWC
+	select REGMAP
+	help
+	  Select this driver for Intel Broxton PMIC with ADC channels monitoring
+	  system temperature measurements and alerts.
+	  This driver is used for monitoring the ADC channels of PMIC and handles
+	  the alert trip point interrupts and notifies the thermal framework with
+	  the trip point and temperature details of the zone.
+
+config INTEL_PCH_THERMAL
+	tristate "Intel PCH Thermal Reporting Driver"
+	depends on X86 && PCI
+	help
+	  Enable this to support thermal reporting on certain intel PCHs.
+	  Thermal reporting device will provide temperature reading,
+	  programmable trip points and other information.
+
+config INTEL_TCC_COOLING
+	tristate "Intel TCC offset cooling Driver"
+	depends on X86
+	help
+	  Enable this to support system cooling by adjusting the effective TCC
+	  activation temperature via the TCC Offset register, which is widely
+	  supported on modern Intel platforms.
+	  Note that, on different platforms, the behavior might be different
+	  on how fast the setting takes effect, and how much the CPU frequency
+	  is reduced.
+
+config INTEL_MENLOW
+	tristate "Thermal Management driver for Intel menlow platform"
+	depends on ACPI_THERMAL
+	help
+	  ACPI thermal management enhancement driver on
+	  Intel Menlow platform.
+
+	  If unsure, say N.
+
+config INTEL_HFI_THERMAL
+	bool "Intel Hardware Feedback Interface"
+	depends on NET
+	depends on CPU_SUP_INTEL
+	depends on X86_THERMAL_VECTOR
+	select THERMAL_NETLINK
+	help
+	  Select this option to enable the Hardware Feedback Interface. If
+	  selected, hardware provides guidance to the operating system on
+	  the performance and energy efficiency capabilities of each CPU.
+	  These capabilities may change as a result of changes in the operating
+	  conditions of the system such power and thermal limits. If selected,
+	  the kernel relays updates in CPUs' capabilities to userspace.

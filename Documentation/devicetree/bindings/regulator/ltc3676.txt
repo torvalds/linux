@@ -1,0 +1,94 @@
+Linear Technology LTC3676 8-output regulators
+
+Required properties:
+- compatible: "lltc,ltc3676"
+- reg: I2C slave address
+
+Required child node:
+- regulators: Contains eight regulator child nodes sw1, sw2, sw3, sw4,
+  ldo1, ldo2, ldo3, and ldo4, specifying the initialization data as
+  documented in Documentation/devicetree/bindings/regulator/regulator.txt.
+
+Each regulator is defined using the standard binding for regulators. The
+nodes for sw1, sw2, sw3, sw4, ldo1, ldo2 and ldo4 additionally need to specify
+the resistor values of their external feedback voltage dividers:
+
+Required properties (not on ldo3):
+- lltc,fb-voltage-divider: An array of two integers containing the resistor
+  values R1 and R2 of the feedback voltage divider in ohms.
+
+Regulators sw1, sw2, sw3, sw4 can regulate the feedback reference from:
+412.5mV to 800mV in 12.5 mV steps. The output voltage thus ranges between
+0.4125 * (1 + R1/R2) V and 0.8 * (1 + R1/R2) V.
+
+Regulators ldo1, ldo2, and ldo4 have a fixed 0.725 V reference and thus output
+0.725 * (1 + R1/R2) V. The ldo3 regulator is fixed to 1.8 V.  The ldo1 standby
+regulator can not be disabled and thus should have the regulator-always-on
+property set.
+
+Example:
+
+	ltc3676: pmic@3c {
+		compatible = "lltc,ltc3676";
+		reg = <0x3c>;
+
+		regulators {
+			sw1_reg: sw1 {
+				regulator-min-microvolt = <674400>;
+				regulator-max-microvolt = <1308000>;
+				lltc,fb-voltage-divider = <127000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw2_reg: sw2 {
+				regulator-min-microvolt = <1033310>;
+				regulator-max-microvolt = <200400>;
+				lltc,fb-voltage-divider = <301000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw3_reg: sw3 {
+				regulator-min-microvolt = <674400>;
+				regulator-max-microvolt = <130800>;
+				lltc,fb-voltage-divider = <127000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			sw4_reg: sw4 {
+				regulator-min-microvolt = <868310>;
+				regulator-max-microvolt = <168400>;
+				lltc,fb-voltage-divider = <221000 200000>;
+				regulator-ramp-delay = <7000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo2_reg: ldo2 {
+				regulator-min-microvolt = <2490375>;
+				regulator-max-microvolt = <2490375>;
+				lltc,fb-voltage-divider = <487000 200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+
+			ldo3_reg: ldo3 {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-boot-on;
+			};
+
+			ldo4_reg: ldo4 {
+				regulator-min-microvolt = <3023250>;
+				regulator-max-microvolt = <3023250>;
+				lltc,fb-voltage-divider = <634000 200000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};

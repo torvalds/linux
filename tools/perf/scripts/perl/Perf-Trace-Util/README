@@ -1,0 +1,59 @@
+Perf-Trace-Util version 0.01
+============================
+
+This module contains utility functions for use with perf script.
+
+Core.pm and Util.pm are pure Perl modules; Core.pm contains routines
+that the core perf support for Perl calls on and should always be
+'used', while Util.pm contains useful but optional utility functions
+that scripts may want to use.  Context.pm contains the Perl->C
+interface that allows scripts to access data in the embedding perf
+executable; scripts wishing to do that should 'use Context.pm'.
+
+The Perl->C perf interface is completely driven by Context.xs.  If you
+want to add new Perl functions that end up accessing C data in the
+perf executable, you add desciptions of the new functions here.
+scripting_context is a pointer to the perf data in the perf executable
+that you want to access - it's passed as the second parameter,
+$context, to all handler functions.
+
+After you do that:
+
+  perl Makefile.PL   # to create a Makefile for the next step
+  make               # to create Context.c
+
+  edit Context.c to add const to the char* file = __FILE__ line in
+  XS(boot_Perf__Trace__Context) to silence a warning/error.
+
+  You can delete the Makefile, object files and anything else that was
+  generated e.g. blib and shared library, etc, except for of course
+  Context.c
+
+  You should then be able to run the normal perf make as usual.
+
+INSTALLATION
+
+Building perf with perf script Perl scripting should install this
+module in the right place.
+
+You should make sure libperl and ExtUtils/Embed.pm are installed first
+e.g. apt-get install libperl-dev or yum install perl-ExtUtils-Embed.
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  None
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2009 by Tom Zanussi <tzanussi@gmail.com>
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.10.0 or,
+at your option, any later version of Perl 5 you may have available.
+
+Alternatively, this software may be distributed under the terms of the
+GNU General Public License ("GPL") version 2 as published by the Free
+Software Foundation.
+

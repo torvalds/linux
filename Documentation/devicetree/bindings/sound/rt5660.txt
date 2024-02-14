@@ -1,0 +1,47 @@
+RT5660 audio CODEC
+
+This device supports I2C only.
+
+Required properties:
+
+- compatible : "realtek,rt5660".
+
+- reg : The I2C address of the device.
+
+Optional properties:
+
+- clocks: The phandle of the master clock to the CODEC
+- clock-names: Should be "mclk"
+
+- realtek,in1-differential
+- realtek,in3-differential
+  Boolean. Indicate MIC1/3 input are differential, rather than single-ended.
+
+- realtek,poweroff-in-suspend
+  Boolean. If the codec will be powered off in suspend, the resume should be
+  added delay time for waiting codec power ready.
+
+- realtek,dmic1-data-pin
+  0: dmic1 is not used
+  1: using GPIO2 pin as dmic1 data pin
+  2: using IN1P pin as dmic1 data pin
+
+Pins on the device (for linking into audio routes) for RT5660:
+
+  * DMIC L1
+  * DMIC R1
+  * IN1P
+  * IN1N
+  * IN2P
+  * IN3P
+  * IN3N
+  * SPO
+  * LOUTL
+  * LOUTR
+
+Example:
+
+rt5660 {
+	compatible = "realtek,rt5660";
+	reg = <0x1c>;
+};

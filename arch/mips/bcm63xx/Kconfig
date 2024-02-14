@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "CPU support"
+	depends on BCM63XX
+
+config BCM63XX_CPU_3368
+	bool "support 3368 CPU"
+	select SYS_HAS_CPU_BMIPS4350
+	select HAVE_PCI
+
+config BCM63XX_CPU_6328
+	bool "support 6328 CPU"
+	select SYS_HAS_CPU_BMIPS4350
+	select HAVE_PCI
+
+config BCM63XX_CPU_6338
+	bool "support 6338 CPU"
+	select SYS_HAS_CPU_BMIPS32_3300
+	select HAVE_PCI
+
+config BCM63XX_CPU_6345
+	bool "support 6345 CPU"
+	select SYS_HAS_CPU_BMIPS32_3300
+
+config BCM63XX_CPU_6348
+	bool "support 6348 CPU"
+	select SYS_HAS_CPU_BMIPS32_3300
+	select HAVE_PCI
+
+config BCM63XX_CPU_6358
+	bool "support 6358 CPU"
+	select SYS_HAS_CPU_BMIPS4350
+	select HAVE_PCI
+
+config BCM63XX_CPU_6362
+	bool "support 6362 CPU"
+	select SYS_HAS_CPU_BMIPS4350
+	select HAVE_PCI
+
+config BCM63XX_CPU_6368
+	bool "support 6368 CPU"
+	select SYS_HAS_CPU_BMIPS4350
+	select HAVE_PCI
+endmenu
+
+source "arch/mips/bcm63xx/boards/Kconfig"

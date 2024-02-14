@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/reset/brcm,brcmstb-reset.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Broadcom STB SW_INIT-style reset controller
+
+description:
+  Broadcom STB SoCs have a SW_INIT-style reset controller with separate
+  SET/CLEAR/STATUS registers and possibly multiple banks, each of 32 bit
+  reset lines.
+
+  Please also refer to reset.txt in this directory for common reset
+  controller binding usage.
+
+maintainers:
+  - Florian Fainelli <f.fainelli@gmail.com>
+
+properties:
+  compatible:
+    const: brcm,brcmstb-reset
+
+  reg:
+    maxItems: 1
+
+  "#reset-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - "#reset-cells"
+
+additionalProperties: false
+
+examples:
+  - |
+    reset: reset-controller@8404318 {
+      compatible = "brcm,brcmstb-reset";
+      reg = <0x8404318 0x30>;
+      #reset-cells = <1>;
+    };
+
+    ethernet_switch {
+      resets = <&reset 26>;
+      reset-names = "switch";
+    };

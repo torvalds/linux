@@ -1,0 +1,68 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree file for SolidRun Clearfog Base revision A1 rev 2.0 (88F6828)
+ *
+ *  Copyright (C) 2015 Russell King
+ */
+
+/dts-v1/;
+#include "armada-388-clearfog.dtsi"
+
+/ {
+	model = "SolidRun Clearfog Base A1";
+	compatible = "solidrun,clearfog-base-a1",
+		"solidrun,clearfog-a1", "marvell,armada388",
+		"marvell,armada385", "marvell,armada380";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&rear_button_pins>;
+		pinctrl-names = "default";
+
+		button-0 {
+			/* The rear SW3 button */
+			label = "Rear Button";
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_0>;
+		};
+	};
+};
+
+&eth1 {
+	phy = <&phy1>;
+};
+
+&gpio0 {
+	phy1_reset {
+		gpio-hog;
+		gpios = <19 GPIO_ACTIVE_LOW>;
+		output-low;
+		line-name = "phy1-reset";
+	};
+};
+
+&mdio {
+	pinctrl-0 = <&mdio_pins &microsom_phy_clk_pins &clearfog_phy_pins>;
+	phy1: ethernet-phy@1 {
+		/*
+		 * Annoyingly, the marvell phy driver configures the LED
+		 * register, rather than preserving reset-loaded setting.
+		 * We undo that rubbish here.
+		 */
+		marvell,reg-init = <3 16 0 0x101e>;
+		reg = <1>;
+	};
+};
+
+&pinctrl {
+	/* phy1 reset */
+	clearfog_phy_pins: clearfog-phy-pins {
+		marvell,pins = "mpp19";
+		marvell,function = "gpio";
+	};
+	rear_button_pins: rear-button-pins {
+		marvell,pins = "mpp44";
+		marvell,function = "gpio";
+	};
+};

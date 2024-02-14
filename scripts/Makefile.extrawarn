@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: GPL-2.0
+# ==========================================================================
+# make W=... settings
+#
+# There are four warning groups enabled by W=1, W=2, W=3, and W=e
+# They are independent, and can be combined like W=12 or W=123e.
+# ==========================================================================
+
+KBUILD_CFLAGS += $(call cc-disable-warning, packed-not-aligned)
+
+# backward compatibility
+KBUILD_EXTRA_WARN ?= $(KBUILD_ENABLE_EXTRA_GCC_CHECKS)
+
+ifeq ("$(origin W)", "command line")
+  KBUILD_EXTRA_WARN := $(W)
+endif
+
+export KBUILD_EXTRA_WARN
+
+#
+# W=1 - warnings which may be relevant and do not occur too often
+#
+ifneq ($(findstring 1, $(KBUILD_EXTRA_WARN)),)
+
+KBUILD_CFLAGS += -Wextra -Wunused -Wno-unused-parameter
+KBUILD_CFLAGS += -Wmissing-declarations
+KBUILD_CFLAGS += -Wmissing-format-attribute
+KBUILD_CFLAGS += -Wmissing-prototypes
+KBUILD_CFLAGS += -Wold-style-definition
+KBUILD_CFLAGS += -Wmissing-include-dirs
+KBUILD_CFLAGS += $(call cc-option, -Wunused-but-set-variable)
+KBUILD_CFLAGS += $(call cc-option, -Wunused-const-variable)
+KBUILD_CFLAGS += $(call cc-option, -Wpacked-not-aligned)
+KBUILD_CFLAGS += $(call cc-option, -Wstringop-truncation)
+# The following turn off the warnings enabled by -Wextra
+KBUILD_CFLAGS += -Wno-missing-field-initializers
+KBUILD_CFLAGS += -Wno-sign-compare
+KBUILD_CFLAGS += -Wno-type-limits
+KBUILD_CFLAGS += -Wno-shift-negative-value
+
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN1
+
+else
+
+# Some diagnostics enabled by default are noisy.
+# Suppress them by using -Wno... except for W=1.
+
+ifdef CONFIG_CC_IS_CLANG
+KBUILD_CFLAGS += -Wno-initializer-overrides
+# Clang before clang-16 would warn on default argument promotions.
+ifneq ($(call clang-min-version, 160000),y)
+# Disable -Wformat
+KBUILD_CFLAGS += -Wno-format
+# Then re-enable flags that were part of the -Wformat group that aren't
+# problematic.
+KBUILD_CFLAGS += -Wformat-extra-args -Wformat-invalid-specifier
+KBUILD_CFLAGS += -Wformat-zero-length -Wnonnull
+# Requires clang-12+.
+ifeq ($(call clang-min-version, 120000),y)
+KBUILD_CFLAGS += -Wformat-insufficient-args
+endif
+endif
+KBUILD_CFLAGS += -Wno-sign-compare
+KBUILD_CFLAGS += $(call cc-disable-warning, pointer-to-enum-cast)
+KBUILD_CFLAGS += -Wno-tautological-constant-out-of-range-compare
+KBUILD_CFLAGS += $(call cc-disable-warning, unaligned-access)
+KBUILD_CFLAGS += $(call cc-disable-warning, cast-function-type-strict)
+endif
+
+endif
+
+#
+# W=2 - warnings which occur quite often but may still be relevant
+#
+ifneq ($(findstring 2, $(KBUILD_EXTRA_WARN)),)
+
+KBUILD_CFLAGS += -Wdisabled-optimization
+KBUILD_CFLAGS += -Wshadow
+KBUILD_CFLAGS += $(call cc-option, -Wlogical-op)
+KBUILD_CFLAGS += -Wmissing-field-initializers
+KBUILD_CFLAGS += -Wtype-limits
+KBUILD_CFLAGS += $(call cc-option, -Wmaybe-uninitialized)
+KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
+
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN2
+
+endif
+
+#
+# W=3 - more obscure warnings, can most likely be ignored
+#
+ifneq ($(findstring 3, $(KBUILD_EXTRA_WARN)),)
+
+KBUILD_CFLAGS += -Wbad-function-cast
+KBUILD_CFLAGS += -Wcast-align
+KBUILD_CFLAGS += -Wcast-qual
+KBUILD_CFLAGS += -Wconversion
+KBUILD_CFLAGS += -Wpacked
+KBUILD_CFLAGS += -Wpadded
+KBUILD_CFLAGS += -Wpointer-arith
+KBUILD_CFLAGS += -Wredundant-decls
+KBUILD_CFLAGS += -Wsign-compare
+KBUILD_CFLAGS += -Wswitch-default
+KBUILD_CFLAGS += $(call cc-option, -Wpacked-bitfield-compat)
+
+KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN3
+
+endif
+
+#
+# W=e - error out on warnings
+#
+ifneq ($(findstring e, $(KBUILD_EXTRA_WARN)),)
+
+KBUILD_CFLAGS += -Werror
+
+endif

@@ -1,0 +1,161 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/nuvoton,wpcm450-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Nuvoton WPCM450 pin control and GPIO
+
+maintainers:
+  - Jonathan Neuschäfer <j.neuschaefer@gmx.net>
+
+properties:
+  compatible:
+    const: nuvoton,wpcm450-pinctrl
+
+  reg:
+    maxItems: 1
+
+  '#address-cells':
+    const: 1
+
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  # There are three kinds of subnodes:
+  # 1. a GPIO controller node for each GPIO bank
+  # 2. a pinmux node configures pin muxing for a group of pins (e.g. rmii2)
+  # 3. a pinconf node configures properties of a single pin
+
+  "^gpio@[0-7]$":
+    type: object
+    additionalProperties: false
+
+    description:
+      Eight GPIO banks (gpio@0 to gpio@7), that each contain between 14 and 18
+      GPIOs. Some GPIOs support interrupts.
+
+    properties:
+      reg:
+        minimum: 0
+        maximum: 7
+
+      gpio-controller: true
+
+      "#gpio-cells":
+        const: 2
+
+      interrupt-controller: true
+
+      "#interrupt-cells":
+        const: 2
+
+      interrupts:
+        maxItems: 3
+        description:
+          The interrupts associated with this GPIO bank
+
+    required:
+      - reg
+      - gpio-controller
+      - '#gpio-cells'
+
+  "^mux-":
+    $ref: pinmux-node.yaml#
+
+    properties:
+      groups:
+        description:
+          One or more groups of pins to mux to a certain function
+        items:
+          enum: [ smb3, smb4, smb5, scs1, scs2, scs3, smb0, smb1, smb2, bsp,
+                  hsp1, hsp2, r1err, r1md, rmii2, r2err, r2md, kbcc, dvo,
+                  clko, smi, uinc, gspi, mben, xcs2, xcs1, sdio, sspi, fi0,
+                  fi1, fi2, fi3, fi4, fi5, fi6, fi7, fi8, fi9, fi10, fi11,
+                  fi12, fi13, fi14, fi15, pwm0, pwm1, pwm2, pwm3, pwm4, pwm5,
+                  pwm6, pwm7, hg0, hg1, hg2, hg3, hg4, hg5, hg6, hg7 ]
+      function:
+        description:
+          The function that a group of pins is muxed to
+        enum: [ smb3, smb4, smb5, scs1, scs2, scs3, smb0, smb1, smb2, bsp,
+                hsp1, hsp2, r1err, r1md, rmii2, r2err, r2md, kbcc, dvo0,
+                dvo1, dvo2, dvo3, dvo4, dvo5, dvo6, dvo7, clko, smi, uinc,
+                gspi, mben, xcs2, xcs1, sdio, sspi, fi0, fi1, fi2, fi3, fi4,
+                fi5, fi6, fi7, fi8, fi9, fi10, fi11, fi12, fi13, fi14, fi15,
+                pwm0, pwm1, pwm2, pwm3, pwm4, pwm5, pwm6, pwm7, hg0, hg1,
+                hg2, hg3, hg4, hg5, hg6, hg7, gpio ]
+
+    dependencies:
+      groups: [ function ]
+      function: [ groups ]
+
+    additionalProperties: false
+
+  "^cfg-":
+    $ref: pincfg-node.yaml#
+
+    properties:
+      pins:
+        description:
+          A list of pins to configure in certain ways, such as enabling
+          debouncing
+        items:
+          pattern: "^gpio1?[0-9]{1,2}$"
+
+      input-debounce: true
+
+    additionalProperties: false
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    #include <dt-bindings/gpio/gpio.h>
+    pinctrl: pinctrl@b8003000 {
+      compatible = "nuvoton,wpcm450-pinctrl";
+      reg = <0xb8003000 0x1000>;
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      gpio0: gpio@0 {
+        reg = <0>;
+        gpio-controller;
+        #gpio-cells = <2>;
+        interrupts = <2 IRQ_TYPE_LEVEL_HIGH>,
+                     <3 IRQ_TYPE_LEVEL_HIGH>,
+                     <4 IRQ_TYPE_LEVEL_HIGH>;
+      };
+
+      mux-rmii2 {
+        groups = "rmii2";
+        function = "rmii2";
+      };
+
+      pinmux_uid: mux-uid {
+        groups = "gspi", "sspi";
+        function = "gpio";
+      };
+
+      pinctrl_uid: cfg-uid {
+        pins = "gpio14";
+        input-debounce = <1>;
+      };
+    };
+
+    gpio-keys {
+      compatible = "gpio-keys";
+      pinctrl-names = "default";
+      pinctrl-0 = <&pinctrl_uid>, <&pinmux_uid>;
+
+      button-uid {
+        label = "UID";
+        linux,code = <102>;
+        gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+      };
+    };

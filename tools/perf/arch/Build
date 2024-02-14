@@ -1,0 +1,2 @@
+perf-y += common.o
+perf-y += $(SRCARCH)/

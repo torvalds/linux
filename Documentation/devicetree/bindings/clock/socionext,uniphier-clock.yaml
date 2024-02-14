@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/socionext,uniphier-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UniPhier clock controller
+
+maintainers:
+  - Masahiro Yamada <yamada.masahiro@socionext.com>
+
+properties:
+  compatible:
+    oneOf:
+      - description: System clock
+        enum:
+          - socionext,uniphier-ld4-clock
+          - socionext,uniphier-pro4-clock
+          - socionext,uniphier-sld8-clock
+          - socionext,uniphier-pro5-clock
+          - socionext,uniphier-pxs2-clock
+          - socionext,uniphier-ld6b-clock
+          - socionext,uniphier-ld11-clock
+          - socionext,uniphier-ld20-clock
+          - socionext,uniphier-pxs3-clock
+          - socionext,uniphier-nx1-clock
+      - description: Media I/O (MIO) clock, SD clock
+        enum:
+          - socionext,uniphier-ld4-mio-clock
+          - socionext,uniphier-pro4-mio-clock
+          - socionext,uniphier-sld8-mio-clock
+          - socionext,uniphier-pro5-sd-clock
+          - socionext,uniphier-pxs2-sd-clock
+          - socionext,uniphier-ld11-mio-clock
+          - socionext,uniphier-ld20-sd-clock
+          - socionext,uniphier-pxs3-sd-clock
+          - socionext,uniphier-nx1-sd-clock
+      - description: Peripheral clock
+        enum:
+          - socionext,uniphier-ld4-peri-clock
+          - socionext,uniphier-pro4-peri-clock
+          - socionext,uniphier-sld8-peri-clock
+          - socionext,uniphier-pro5-peri-clock
+          - socionext,uniphier-pxs2-peri-clock
+          - socionext,uniphier-ld11-peri-clock
+          - socionext,uniphier-ld20-peri-clock
+          - socionext,uniphier-pxs3-peri-clock
+          - socionext,uniphier-nx1-peri-clock
+      - description: SoC-glue clock
+        enum:
+          - socionext,uniphier-pro4-sg-clock
+
+  "#clock-cells":
+    const: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - "#clock-cells"
+
+examples:
+  - |
+    sysctrl@61840000 {
+        compatible = "socionext,uniphier-sysctrl", "simple-mfd", "syscon";
+        reg = <0x61840000 0x4000>;
+
+        clock {
+            compatible = "socionext,uniphier-ld11-clock";
+            #clock-cells = <1>;
+        };
+
+        // other nodes ...
+    };
+
+  - |
+    mioctrl@59810000 {
+        compatible = "socionext,uniphier-mioctrl", "simple-mfd", "syscon";
+        reg = <0x59810000 0x800>;
+
+        clock {
+            compatible = "socionext,uniphier-ld11-mio-clock";
+            #clock-cells = <1>;
+        };
+
+        // other nodes ...
+    };
+
+  - |
+    perictrl@59820000 {
+        compatible = "socionext,uniphier-perictrl", "simple-mfd", "syscon";
+        reg = <0x59820000 0x200>;
+
+        clock {
+            compatible = "socionext,uniphier-ld11-peri-clock";
+            #clock-cells = <1>;
+        };
+
+        // other nodes ...
+    };

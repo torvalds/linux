@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2020, The Linux Foundation. All rights reserved.
+ */
+/dts-v1/;
+
+#include "ipq8074.dtsi"
+
+/ {
+	aliases {
+		serial0 = &blsp1_uart5;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000 0x0 0x20000000>;
+	};
+};
+
+&blsp1_spi1 {
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+	};
+};
+
+&blsp1_uart5 {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+	perst-gpios = <&tlmm 58 0x1>;
+};
+
+&pcie1 {
+	status = "okay";
+	perst-gpios = <&tlmm 61 0x1>;
+};
+
+&pcie_qmp0 {
+	status = "okay";
+};
+
+&pcie_qmp1 {
+	status = "okay";
+};
+
+&qpic_bam {
+	status = "okay";
+};
+
+&qpic_nand {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+		nand-bus-width = <8>;
+	};
+};

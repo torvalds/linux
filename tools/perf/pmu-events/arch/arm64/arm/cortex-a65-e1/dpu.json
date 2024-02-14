@@ -1,0 +1,32 @@
+[
+    {
+        "PublicDescription": "Instruction retired, indirect branch, mispredicted",
+        "EventCode": "0xE9",
+        "EventName": "DPU_BR_IND_MIS",
+        "BriefDescription": "Instruction retired, indirect branch, mispredicted"
+    },
+    {
+        "PublicDescription": "Instruction retired, conditional branch, mispredicted",
+        "EventCode": "0xEA",
+        "EventName": "DPU_BR_COND_MIS",
+        "BriefDescription": "Instruction retired, conditional branch, mispredicted"
+    },
+    {
+        "PublicDescription": "Memory error (any type) from IFU",
+        "EventCode": "0xEB",
+        "EventName": "DPU_MEM_ERR_IFU",
+        "BriefDescription": "Memory error (any type) from IFU"
+    },
+    {
+        "PublicDescription": "Memory error (any type) from DCU",
+        "EventCode": "0xEC",
+        "EventName": "DPU_MEM_ERR_DCU",
+        "BriefDescription": "Memory error (any type) from DCU"
+    },
+    {
+        "PublicDescription": "Memory error (any type) from TLB",
+        "EventCode": "0xED",
+        "EventName": "DPU_MEM_ERR_TLB",
+        "BriefDescription": "Memory error (any type) from TLB"
+    }
+]

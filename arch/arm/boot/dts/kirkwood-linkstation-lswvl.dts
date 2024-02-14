@@ -1,0 +1,75 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree file for Buffalo Linkstation LS-WVL
+ *
+ * Copyright (C) 2015, 2016
+ * Roger Shimizu <rogershimizu@gmail.com>
+ */
+
+/dts-v1/;
+#include "kirkwood-linkstation-6282.dtsi"
+
+/ {
+	model = "Buffalo Linkstation LS-WVL";
+	compatible = "buffalo,lswvl","marvell,kirkwood-88f6282", "marvell,kirkwood";
+
+	memory { /* 256 MB */
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>;
+	};
+
+	ocp@f1000000 {
+		pinctrl: pin-controller@10000 {
+			pmx_power_hdd1: pmx-power-hdd1 {
+				marvell,pins = "mpp9";
+				marvell,function = "gpio";
+			};
+			pmx_led_hdderr0: pmx-led-hdderr0 {
+				marvell,pins = "mpp34";
+				marvell,function = "gpio";
+			};
+			pmx_led_hdderr1: pmx-led-hdderr1 {
+				marvell,pins = "mpp35";
+				marvell,function = "gpio";
+			};
+		};
+
+		sata@80000 {
+			nr-ports = <2>;
+		};
+	};
+
+	gpio_leds {
+		pinctrl-0 = <&pmx_led_function_red &pmx_led_alarm
+			     &pmx_led_info &pmx_led_power
+			     &pmx_led_function_blue
+			     &pmx_led_hdderr0
+			     &pmx_led_hdderr1>;
+
+		red-hdderr0-led {
+			label = "linkstation:red:hdderr0";
+			gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+		};
+
+		red-hdderr1-led {
+			label = "linkstation:red:hdderr1";
+			gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	regulators {
+		pinctrl-0 = <&pmx_power_hdd0 &pmx_power_hdd1 &pmx_usb_vbus>;
+
+		hdd_power1: regulator@3 {
+			compatible = "regulator-fixed";
+			reg = <3>;
+			regulator-name = "HDD1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 9 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};

@@ -1,0 +1,75 @@
+Bindings for Analog Devices ADG792A/G Triple 4:1 Multiplexers
+
+Required properties:
+- compatible : "adi,adg792a" or "adi,adg792g"
+- #mux-control-cells : <0> if parallel (the three muxes are bound together
+  with a single mux controller controlling all three muxes), or <1> if
+  not (one mux controller for each mux).
+* Standard mux-controller bindings as described in mux-controller.yaml
+
+Optional properties for ADG792G:
+- gpio-controller : if present, #gpio-cells below is required.
+- #gpio-cells : should be <2>
+			  - First cell is the GPO line number, i.e. 0 or 1
+			  - Second cell is used to specify active high (0)
+			    or active low (1)
+
+Optional properties:
+- idle-state : if present, array of states that the mux controllers will have
+  when idle. The special state MUX_IDLE_AS_IS is the default and
+  MUX_IDLE_DISCONNECT is also supported.
+
+States 0 through 3 correspond to signals A through D in the datasheet.
+
+Example:
+
+	/*
+	 * Three independent mux controllers (of which one is used).
+	 * Mux 0 is disconnected when idle, mux 1 idles in the previously
+	 * selected state and mux 2 idles with signal B.
+	 */
+	&i2c0 {
+		mux: mux-controller@50 {
+			compatible = "adi,adg792a";
+			reg = <0x50>;
+			#mux-control-cells = <1>;
+
+			idle-state = <MUX_IDLE_DISCONNECT MUX_IDLE_AS_IS 1>;
+		};
+	};
+
+	adc-mux {
+		compatible = "io-channel-mux";
+		io-channels = <&adc 0>;
+		io-channel-names = "parent";
+
+		mux-controls = <&mux 2>;
+
+		channels = "sync-1", "", "out";
+	};
+
+
+	/*
+	 * Three parallel muxes with one mux controller, useful e.g. if
+	 * the adc is differential, thus needing two signals to be muxed
+	 * simultaneously for correct operation.
+	 */
+	&i2c0 {
+		pmux: mux-controller@50 {
+			compatible = "adi,adg792a";
+			reg = <0x50>;
+			#mux-control-cells = <0>;
+
+			idle-state = <1>;
+		};
+	};
+
+	diff-adc-mux {
+		compatible = "io-channel-mux";
+		io-channels = <&adc 0>;
+		io-channel-names = "parent";
+
+		mux-controls = <&pmux>;
+
+		channels = "sync-1", "", "out";
+	};

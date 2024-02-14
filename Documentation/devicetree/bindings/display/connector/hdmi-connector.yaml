@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/connector/hdmi-connector.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: HDMI Connector
+
+maintainers:
+  - Laurent Pinchart <Laurent.pinchart@ideasonboard.com>
+
+properties:
+  compatible:
+    const: hdmi-connector
+
+  type:
+    description: The HDMI connector type
+    enum:
+      - a   # Standard full size
+      - b   # Never deployed?
+      - c   # Mini
+      - d   # Micro
+      - e   # automotive
+
+  label: true
+
+  hpd-gpios:
+    description: A GPIO line connected to HPD
+    maxItems: 1
+
+  ddc-i2c-bus:
+    description: phandle link to the I2C controller used for DDC EDID probing
+    $ref: /schemas/types.yaml#/definitions/phandle
+
+  ddc-en-gpios:
+    description: GPIO signal to enable DDC bus
+    maxItems: 1
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description: Connection to controller providing HDMI signals
+
+required:
+  - compatible
+  - port
+  - type
+
+additionalProperties: false
+
+examples:
+  - |
+    connector {
+        compatible = "hdmi-connector";
+        label = "hdmi";
+
+        type = "a";
+
+        port {
+            hdmi_connector_in: endpoint {
+                remote-endpoint = <&tpd12s015_out>;
+            };
+        };
+    };
+
+...

@@ -1,0 +1,3 @@
+hv_kvp_daemon-y += hv_kvp_daemon.o
+hv_vss_daemon-y += hv_vss_daemon.o
+hv_fcopy_daemon-y += hv_fcopy_daemon.o

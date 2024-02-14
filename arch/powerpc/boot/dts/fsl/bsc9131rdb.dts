@@ -1,0 +1,30 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * BSC9131 RDB Device Tree Source
+ *
+ * Copyright 2011-2012 Freescale Semiconductor Inc.
+ */
+
+/include/ "bsc9131si-pre.dtsi"
+
+/ {
+	model = "fsl,bsc9131rdb";
+	compatible = "fsl,bsc9131rdb";
+
+	memory {
+		device_type = "memory";
+	};
+
+	board_ifc: ifc: ifc@ff71e000 {
+		/* NAND Flash on board */
+		ranges = <0x0 0x0 0x0 0xff800000 0x00004000>;
+		reg = <0x0 0xff71e000 0x0 0x2000>;
+	};
+
+	board_soc: soc: soc@ff700000 {
+		ranges = <0x0 0x0 0xff700000 0x100000>;
+	};
+};
+
+/include/ "bsc9131rdb.dtsi"
+/include/ "bsc9131si-post.dtsi"

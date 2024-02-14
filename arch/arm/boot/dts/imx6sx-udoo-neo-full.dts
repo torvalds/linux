@@ -1,0 +1,41 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2016 Andreas Färber
+ */
+
+/dts-v1/;
+
+#include "imx6sx-udoo-neo.dtsi"
+
+/ {
+	model = "UDOO Neo Full";
+	compatible = "udoo,neofull", "fsl,imx6sx";
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x40000000>;
+	};
+};
+
+&fec1 {
+	phy-handle = <&ethphy1>;
+	status = "okay";
+
+	mdio {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ethphy1: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c22";
+			reg = <0>;
+		};
+	};
+};
+
+&i2c4 { /* Onboard Motion sensors */
+	status = "okay";
+};
+
+&uart3 { /* Bluetooth */
+	status = "okay";
+};

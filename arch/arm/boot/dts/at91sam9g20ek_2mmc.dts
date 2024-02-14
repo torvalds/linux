@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * at91sam9g20ek_2mmc.dts - Device Tree file for Atmel at91sam9g20ek 2 MMC board
+ *
+ * Copyright (C) 2012 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+ */
+/dts-v1/;
+#include "at91sam9g20ek_common.dtsi"
+
+/ {
+	model = "Atmel at91sam9g20ek 2 mmc";
+	compatible = "atmel,at91sam9g20ek_2mmc", "atmel,at91sam9g20", "atmel,at91sam9";
+
+	ahb {
+		apb{
+			mmc0: mmc@fffa8000 {
+				/* clk already mux wuth slot0 */
+				pinctrl-0 = <
+					&pinctrl_board_mmc0_slot0
+					&pinctrl_mmc0_slot0_cmd_dat0
+					&pinctrl_mmc0_slot0_dat1_3>;
+				slot@0 {
+					reg = <0>;
+					bus-width = <4>;
+					cd-gpios = <&pioC 2 GPIO_ACTIVE_HIGH>;
+				};
+			};
+
+			pinctrl@fffff400 {
+				mmc0_slot0 {
+					pinctrl_board_mmc0_slot0: mmc0_slot0-board {
+						atmel,pins =
+							<AT91_PIOC 2 AT91_PERIPH_GPIO AT91_PINCTRL_PULL_UP_DEGLITCH>;	/* PC2 gpio CD pin pull up and deglitch */
+					};
+				};
+			};
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		ds1 {
+			label = "ds1";
+			gpios = <&pioB 9 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		ds5 {
+			label = "ds5";
+			gpios = <&pioB 8 GPIO_ACTIVE_LOW>;
+		};
+	};
+};

@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Used by drivers that need Videobuf2 modules
+config VIDEOBUF2_CORE
+	select DMA_SHARED_BUFFER
+	tristate
+
+config VIDEOBUF2_V4L2
+	tristate
+
+config VIDEOBUF2_MEMOPS
+	tristate
+
+config VIDEOBUF2_DMA_CONTIG
+	tristate
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	select DMA_SHARED_BUFFER
+
+config VIDEOBUF2_VMALLOC
+	tristate
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+	select DMA_SHARED_BUFFER
+
+config VIDEOBUF2_DMA_SG
+	tristate
+	select VIDEOBUF2_CORE
+	select VIDEOBUF2_MEMOPS
+
+config VIDEOBUF2_DVB
+	tristate
+	select VIDEOBUF2_CORE

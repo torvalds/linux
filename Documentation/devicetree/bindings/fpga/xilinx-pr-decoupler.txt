@@ -1,0 +1,54 @@
+Xilinx LogiCORE Partial Reconfig Decoupler Softcore
+
+The Xilinx LogiCORE Partial Reconfig Decoupler manages one or more
+decouplers / fpga bridges.
+The controller can decouple/disable the bridges which prevents signal
+changes from passing through the bridge.  The controller can also
+couple / enable the bridges which allows traffic to pass through the
+bridge normally.
+
+Xilinx LogiCORE Dynamic Function eXchange(DFX) AXI shutdown manager
+Softcore is compatible with the Xilinx LogiCORE pr-decoupler.
+
+The Dynamic Function eXchange AXI shutdown manager prevents AXI traffic
+from passing through the bridge. The controller safely handles AXI4MM
+and AXI4-Lite interfaces on a Reconfigurable Partition when it is
+undergoing dynamic reconfiguration, preventing the system deadlock
+that can occur if AXI transactions are interrupted by DFX
+
+The Driver supports only MMIO handling. A PR region can have multiple
+PR Decouplers which can be handled independently or chained via decouple/
+decouple_status signals.
+
+Required properties:
+- compatible		: Should contain "xlnx,pr-decoupler-1.00" followed by
+                          "xlnx,pr-decoupler" or
+                          "xlnx,dfx-axi-shutdown-manager-1.00" followed by
+                          "xlnx,dfx-axi-shutdown-manager"
+- regs			: base address and size for decoupler module
+- clocks		: input clock to IP
+- clock-names		: should contain "aclk"
+
+See Documentation/devicetree/bindings/fpga/fpga-region.txt and
+Documentation/devicetree/bindings/fpga/fpga-bridge.txt for generic bindings.
+
+Example:
+Partial Reconfig Decoupler:
+	fpga-bridge@100000450 {
+		compatible = "xlnx,pr-decoupler-1.00",
+			     "xlnx-pr-decoupler";
+		regs = <0x10000045 0x10>;
+		clocks = <&clkc 15>;
+		clock-names = "aclk";
+		bridge-enable = <0>;
+	};
+
+Dynamic Function eXchange AXI shutdown manager:
+	fpga-bridge@100000450 {
+		compatible = "xlnx,dfx-axi-shutdown-manager-1.00",
+			     "xlnx,dfx-axi-shutdown-manager";
+		regs = <0x10000045 0x10>;
+		clocks = <&clkc 15>;
+		clock-names = "aclk";
+		bridge-enable = <0>;
+	};

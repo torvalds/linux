@@ -1,0 +1,27 @@
+What:		/sys/devices/platform/at91_can/net/<iface>/mb0_id
+Date:		January 2011
+KernelVersion:	2.6.38
+Contact:	Marc Kleine-Budde <kernel@pengutronix.de>
+Description:
+		Value representing the can_id of mailbox 0.
+
+		Default: 0x7ff (standard frame)
+
+		Due to a chip bug (errata 50.2.6.3 & 50.3.5.3 in
+		"AT91SAM9263 Preliminary 6249H-ATARM-27-Jul-09") the
+		contents of mailbox 0 may be send under certain
+		conditions (even if disabled or in rx mode).
+
+		The workaround in the errata suggests not to use the
+		mailbox and load it with an unused identifier.
+
+		In order to use an extended can_id add the
+		CAN_EFF_FLAG (0x80000000U) to the can_id. Example:
+
+		- standard id 0x7ff::
+
+		    echo 0x7ff      > /sys/class/net/can0/mb0_id
+
+		- extended id 0x1fffffff::
+
+		    echo 0x9fffffff > /sys/class/net/can0/mb0_id

@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (C) 2021 Sebastian Reichel
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/power/supply/bq25890.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Binding for bq25890, bq25892, bq25895 and bq25896 Li-Ion Charger
+
+maintainers:
+  - Sebastian Reichel <sre@kernel.org>
+
+allOf:
+  - $ref: power-supply.yaml#
+
+properties:
+  compatible:
+    enum:
+      - ti,bq25890
+      - ti,bq25892
+      - ti,bq25895
+      - ti,bq25896
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  ti,battery-regulation-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charging voltage (in uV)
+
+  ti,charge-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charging current (in uA)
+
+  ti,termination-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      charge will be terminated when current in constant-voltage phase
+      drops below this value (in uA)
+
+  ti,precharge-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum charge current during precharge phase (in uA)
+
+  ti,minimum-sys-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      when battery is charging and it is below minimum system voltage,
+      the system will be regulated above minimum-sys-voltage setting (in uV)
+
+  ti,boost-voltage:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: VBUS voltage level in boost mode (in uV)
+
+  ti,boost-max-current:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: maximum allowed current draw in boost mode (in uA)
+
+  ti,boost-low-freq:
+    description: boost mode frequency will be 500kHz, otherwise 1.5MHz
+    type: boolean
+
+  ti,use-ilim-pin:
+    description: |
+      ILIM resistor will be used and the input current will be the lower
+      between the resistor setting and the IINLIM register setting
+    type: boolean
+
+  ti,thermal-regulation-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      temperature above which the charge current is lowered, to avoid overheating
+      (in degrees Celsius). If omitted, the default setting will be used (120 degrees)
+
+  ti,ibatcomp-micro-ohms:
+    description: value of a resistor in series with the battery (in Micro Ohms)
+
+  ti,ibatcomp-clamp-microvolt:
+    description: max. charging voltage adjustment due to expected voltage drop on in-series resistor
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - ti,battery-regulation-voltage
+  - ti,charge-current
+  - ti,termination-current
+  - ti,precharge-current
+  - ti,minimum-sys-voltage
+  - ti,boost-voltage
+  - ti,boost-max-current
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c0 {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      charger@6a {
+        compatible = "ti,bq25890";
+        reg = <0x6a>;
+
+        interrupt-parent = <&gpio1>;
+        interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+
+        ti,battery-regulation-voltage = <4200000>;
+        ti,charge-current = <1000000>;
+        ti,termination-current = <50000>;
+        ti,precharge-current = <128000>;
+        ti,minimum-sys-voltage = <3600000>;
+        ti,boost-voltage = <5000000>;
+        ti,boost-max-current = <1000000>;
+
+        ti,use-ilim-pin;
+        ti,thermal-regulation-threshold = <120>;
+      };
+    };

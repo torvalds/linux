@@ -1,0 +1,112 @@
+/*
+ *  BSD LICENSE
+ *
+ *  Copyright(c) 2016-2017 Broadcom.  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Broadcom nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include "stingray-board-base.dtsi"
+
+/ {
+	sdio0_vddo_ctrl_reg: sdio0_vddo_ctrl {
+		compatible = "regulator-gpio";
+		regulator-name = "sdio0_vddo_ctrl_reg";
+		regulator-type = "voltage";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pca9505 18 0>;
+		states = <3300000 0x0
+			  1800000 0x1>;
+	};
+
+	sdio1_vddo_ctrl_reg: sdio1_vddo_ctrl {
+		compatible = "regulator-gpio";
+		regulator-name = "sdio1_vddo_ctrl_reg";
+		regulator-type = "voltage";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+		gpios = <&pca9505 19 0>;
+		states = <3300000 0x0
+			  1800000 0x1>;
+	};
+};
+
+&pwm {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+
+	pca9505: pca9505@20 {
+		compatible = "nxp,pca9505";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x20>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	pcf8574: pcf8574@27 {
+		compatible = "nxp,pcf8574a";
+		gpio-controller;
+		#gpio-cells = <2>;
+		reg = <0x27>;
+	};
+};
+
+&enet {
+	status = "okay";
+};
+
+&nand {
+	status = "okay";
+	nandcs@0 {
+		compatible = "brcm,nandcs";
+		reg = <0>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <8>;
+		nand-ecc-step-size = <512>;
+		nand-bus-width = <16>;
+		brcm,nand-oob-sector-size = <16>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+	};
+};
+
+&sdio0 {
+	vqmmc-supply = <&sdio0_vddo_ctrl_reg>;
+	status = "okay";
+};
+
+&sdio1 {
+	vqmmc-supply = <&sdio1_vddo_ctrl_reg>;
+	status = "okay";
+};

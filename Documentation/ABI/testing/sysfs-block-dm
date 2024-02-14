@@ -1,0 +1,47 @@
+What:		/sys/block/dm-<num>/dm/name
+Date:		January 2009
+KernelVersion:	2.6.29
+Contact:	dm-devel@redhat.com
+Description:	Device-mapper device name.
+		Read-only string containing mapped device name.
+Users:		util-linux, device-mapper udev rules
+
+What:		/sys/block/dm-<num>/dm/uuid
+Date:		January 2009
+KernelVersion:	2.6.29
+Contact:	dm-devel@redhat.com
+Description:	Device-mapper device UUID.
+		Read-only string containing DM-UUID or empty string
+		if DM-UUID is not set.
+Users:		util-linux, device-mapper udev rules
+
+What:		/sys/block/dm-<num>/dm/suspended
+Date:		June 2009
+KernelVersion:	2.6.31
+Contact:	dm-devel@redhat.com
+Description:	Device-mapper device suspend state.
+		Contains the value 1 while the device is suspended.
+		Otherwise it contains 0. Read-only attribute.
+Users:		util-linux, device-mapper udev rules
+
+What:		/sys/block/dm-<num>/dm/rq_based_seq_io_merge_deadline
+Date:		March 2015
+KernelVersion:	4.1
+Contact:	dm-devel@redhat.com
+Description:	Allow control over how long a request that is a
+		reasonable merge candidate can be queued on the request
+		queue.  The resolution of this deadline is in
+		microseconds (ranging from 1 to 100000 usecs).
+		Setting this attribute to 0 (the default) will disable
+		request-based DM's merge heuristic and associated extra
+		accounting.  This attribute is not applicable to
+		bio-based DM devices so it will only ever report 0 for
+		them.
+
+What:		/sys/block/dm-<num>/dm/use_blk_mq
+Date:		March 2015
+KernelVersion:	4.1
+Contact:	dm-devel@redhat.com
+Description:	Request-based Device-mapper blk-mq I/O path mode.
+		Contains the value 1 if the device is using blk-mq.
+		Otherwise it contains 0. Read-only attribute.

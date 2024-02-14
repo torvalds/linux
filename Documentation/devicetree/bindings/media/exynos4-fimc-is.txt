@@ -1,0 +1,50 @@
+Exynos4x12 SoC series Imaging Subsystem (FIMC-IS)
+
+The FIMC-IS is a subsystem for processing image signal from an image sensor.
+The Exynos4x12 SoC series FIMC-IS V1.5 comprises of a dedicated ARM Cortex-A5
+processor, ISP, DRC and FD IP blocks and peripheral devices such as UART, I2C
+and SPI bus controllers, PWM and ADC.
+
+fimc-is node
+------------
+
+Required properties:
+- compatible	: should be "samsung,exynos4212-fimc-is" for Exynos4212 and
+		  Exynos4412 SoCs;
+- reg		: physical base address and length of the registers set;
+- interrupts	: must contain two FIMC-IS interrupts, in order: ISP0, ISP1;
+- clocks	: list of clock specifiers, corresponding to entries in
+		  clock-names property;
+- clock-names	: must contain "ppmuispx", "ppmuispx", "lite0", "lite1"
+		  "mpll", "sysreg", "isp", "drc", "fd", "mcuisp", "gicisp",
+		  "pwm_isp", "mcuctl_isp", "uart", "ispdiv0", "ispdiv1",
+		  "mcuispdiv0", "mcuispdiv1", "aclk200", "div_aclk200",
+		  "aclk400mcuisp", "div_aclk400mcuisp" entries,
+		  matching entries in the clocks property.
+pmu subnode
+-----------
+
+Required properties:
+ - reg : must contain PMU physical base address and size of the register set.
+
+The following are the FIMC-IS peripheral device nodes and can be specified
+either standalone or as the fimc-is node child nodes.
+
+i2c-isp (ISP I2C bus controller) nodes
+------------------------------------------
+
+Required properties:
+
+- compatible	: should be "samsung,exynos4212-i2c-isp" for Exynos4212 and
+		  Exynos4412 SoCs;
+- reg		: physical base address and length of the registers set;
+- clocks	: must contain gate clock specifier for this controller;
+- clock-names	: must contain "i2c_isp" entry.
+
+For the above nodes it is required to specify a pinctrl state named "default",
+according to the pinctrl bindings defined in ../pinctrl/pinctrl-bindings.txt.
+
+Device tree nodes of the image sensors' controlled directly by the FIMC-IS
+firmware must be child nodes of their corresponding ISP I2C bus controller node.
+The data link of these image sensors must be specified using the common video
+interfaces bindings, defined in video-interfaces.txt.

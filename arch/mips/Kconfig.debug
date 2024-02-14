@@ -1,0 +1,166 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config EARLY_PRINTK
+	bool "Early printk" if EXPERT
+	depends on SYS_HAS_EARLY_PRINTK
+	default y
+	help
+	  This option enables special console drivers which allow the kernel
+	  to print messages very early in the bootup process.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early before the console code is initialized. For normal operation,
+	  it is not recommended because it looks ugly on some machines and
+	  doesn't cooperate with an X server. You should normally say N here,
+	  unless you want to debug such a crash.
+
+config EARLY_PRINTK_8250
+	bool
+	depends on EARLY_PRINTK && USE_GENERIC_EARLY_PRINTK_8250
+	default y
+	help
+	  "8250/16550 and compatible serial early printk driver"
+	  If you say Y here, it will be possible to use a 8250/16550 serial
+	  port as the boot console.
+
+config USE_GENERIC_EARLY_PRINTK_8250
+	bool
+
+config CMDLINE_BOOL
+	bool "Built-in kernel command line"
+	help
+	  For most systems, it is firmware or second stage bootloader that
+	  by default specifies the kernel command line options.  However,
+	  it might be necessary or advantageous to either override the
+	  default kernel command line or add a few extra options to it.
+	  For such cases, this option allows you to hardcode your own
+	  command line options directly into the kernel.  For that, you
+	  should choose 'Y' here, and fill in the extra boot arguments
+	  in CONFIG_CMDLINE.
+
+	  The built-in options will be concatenated to the default command
+	  line if CMDLINE_OVERRIDE is set to 'N'. Otherwise, the default
+	  command line will be ignored and replaced by the built-in string.
+
+	  Most MIPS systems will normally expect 'N' here and rely upon
+	  the command line from the firmware or the second-stage bootloader.
+
+config CMDLINE
+	string "Default kernel command string"
+	depends on CMDLINE_BOOL
+	help
+	  On some platforms, there is currently no way for the boot loader to
+	  pass arguments to the kernel.  For these platforms, and for the cases
+	  when you want to add some extra options to the command line or ignore
+	  the default command line, you can supply some command-line options at
+	  build time by entering them here.  In other cases you can specify
+	  kernel args so that you don't have to set them up in board prom
+	  initialization routines.
+
+	  For more information, see the CMDLINE_BOOL and CMDLINE_OVERRIDE
+	  options.
+
+config CMDLINE_OVERRIDE
+	bool "Built-in command line overrides firmware arguments"
+	depends on CMDLINE_BOOL
+	help
+	  By setting this option to 'Y' you will have your kernel ignore
+	  command line arguments from firmware or second stage bootloader.
+	  Instead, the built-in command line will be used exclusively.
+
+	  Normally, you will choose 'N' here.
+
+config SB1XXX_CORELIS
+	bool "Corelis Debugger"
+	depends on SIBYTE_SB1xxx_SOC
+	select DEBUG_KERNEL if !COMPILE_TEST
+	select DEBUG_INFO if !COMPILE_TEST
+	help
+	  Select compile flags that produce code that can be processed by the
+	  Corelis mksym utility and UDB Emulator.
+
+config DEBUG_ZBOOT
+	bool "Enable compressed kernel support debugging"
+	depends on DEBUG_KERNEL && SYS_SUPPORTS_ZBOOT
+	default n
+	help
+	  If you want to add compressed kernel support to a new board, and the
+	  board supports uart16550 compatible serial port, please select
+	  SYS_SUPPORTS_ZBOOT_UART16550 for your board and enable this option to
+	  debug it.
+
+	  If your board doesn't support uart16550 compatible serial port, you
+	  can try to select SYS_SUPPORTS_ZBOOT and use the other methods to
+	  debug it. for example, add a new serial port support just as
+	  arch/mips/boot/compressed/uart-16550.c does.
+
+	  After the compressed kernel support works, please disable this option
+	  to reduce the kernel image size and speed up the booting procedure a
+	  little.
+
+config ZBOOT_INGENIC_UART
+	int "UART to use for compressed kernel debugging"
+	depends on DEBUG_ZBOOT && MACH_INGENIC_SOC
+	default 0
+	range 0 4
+	help
+	  Specify the UART that should be used for compressed kernel debugging.
+
+config SPINLOCK_TEST
+	bool "Enable spinlock timing tests in debugfs"
+	depends on DEBUG_FS
+	default n
+	help
+	  Add several files to the debugfs to test spinlock speed.
+
+config SCACHE_DEBUGFS
+	bool "L2 cache debugfs entries"
+	depends on DEBUG_FS
+	help
+	  Enable this to allow parts of the L2 cache configuration, such as
+	  whether or not prefetching is enabled, to be exposed to userland
+	  via debugfs.
+
+	  If unsure, say N.
+
+menuconfig MIPS_CPS_NS16550_BOOL
+	bool "CPS SMP NS16550 UART output"
+	depends on MIPS_CPS
+	help
+	  Output debug information via an ns16550 compatible UART if exceptions
+	  occur early in the boot process of a secondary core.
+
+if MIPS_CPS_NS16550_BOOL
+
+config MIPS_CPS_NS16550
+	def_bool MIPS_CPS_NS16550_BASE != 0
+
+config MIPS_CPS_NS16550_BASE
+	hex "UART Base Address"
+	default 0x1b0003f8 if MIPS_MALTA
+	default 0
+	help
+	  The base address of the ns16550 compatible UART on which to output
+	  debug information from the early stages of core startup.
+
+	  This is only used if non-zero.
+
+config MIPS_CPS_NS16550_SHIFT
+	int "UART Register Shift"
+	default 0
+	help
+	  The number of bits to shift ns16550 register indices by in order to
+	  form their addresses. That is, log base 2 of the span between
+	  adjacent ns16550 registers in the system.
+
+config MIPS_CPS_NS16550_WIDTH
+	int "UART Register Width"
+	default 1
+	help
+	  ns16550 registers width. UART registers IO access methods will be
+	  selected in accordance with this parameter. By setting it to 1, 2 or
+	  4 UART registers will be accessed by means of lb/sb, lh/sh or lw/sw
+	  instructions respectively. Any value not from that set activates
+	  lb/sb instructions.
+
+endif # MIPS_CPS_NS16550_BOOL

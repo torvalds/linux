@@ -1,0 +1,35 @@
+What:		vDSO
+Date:		July 2011
+KernelVersion:	3.0
+Contact:	Andy Lutomirski <luto@kernel.org>
+Description:
+
+On some architectures, when the kernel loads any userspace program it
+maps an ELF DSO into that program's address space.  This DSO is called
+the vDSO and it often contains useful and highly-optimized alternatives
+to real syscalls.
+
+These functions are called just like ordinary C function according to
+your platform's ABI.  Call them from a sensible context.  (For example,
+if you set CS on x86 to something strange, the vDSO functions are
+within their rights to crash.)  In addition, if you pass a bad
+pointer to a vDSO function, you might get SIGSEGV instead of -EFAULT.
+
+To find the DSO, parse the auxiliary vector passed to the program's
+entry point.  The AT_SYSINFO_EHDR entry will point to the vDSO.
+
+The vDSO uses symbol versioning; whenever you request a symbol from the
+vDSO, specify the version you are expecting.
+
+Programs that dynamically link to glibc will use the vDSO automatically.
+Otherwise, you can use the reference parser in
+tools/testing/selftests/vDSO/parse_vdso.c.
+
+Unless otherwise noted, the set of symbols with any given version and the
+ABI of those symbols is considered stable.  It may vary across architectures,
+though.
+
+Note:
+ As of this writing, this ABI documentation as been confirmed for x86_64.
+ The maintainers of the other vDSO-using architectures should confirm
+ that it is correct for their architecture.

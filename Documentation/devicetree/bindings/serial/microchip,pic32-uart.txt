@@ -1,0 +1,29 @@
+* Microchip Universal Asynchronous Receiver Transmitter (UART)
+
+Required properties:
+- compatible: Should be "microchip,pic32mzda-uart"
+- reg: Should contain registers location and length
+- interrupts: Should contain interrupt
+- clocks: Phandle to the clock.
+          See: Documentation/devicetree/bindings/clock/clock-bindings.txt
+- pinctrl-names: A pinctrl state names "default" must be defined.
+- pinctrl-0: Phandle referencing pin configuration of the UART peripheral.
+             See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
+
+Optional properties:
+- cts-gpios: CTS pin for UART
+
+Example:
+	uart1: serial@1f822000 {
+		compatible = "microchip,pic32mzda-uart";
+		reg = <0x1f822000 0x50>;
+		interrupts = <112 IRQ_TYPE_LEVEL_HIGH>,
+			<113 IRQ_TYPE_LEVEL_HIGH>,
+			<114 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rootclk PB2CLK>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_uart1
+				&pinctrl_uart1_cts
+				&pinctrl_uart1_rts>;
+		cts-gpios = <&gpio1 15 0>;
+	};

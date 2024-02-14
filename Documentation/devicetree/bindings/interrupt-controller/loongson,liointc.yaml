@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: "http://devicetree.org/schemas/interrupt-controller/loongson,liointc.yaml#"
+$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+
+title: Loongson Local I/O Interrupt Controller
+
+maintainers:
+  - Jiaxun Yang <jiaxun.yang@flygoat.com>
+
+description: |
+  This interrupt controller is found in the Loongson-3 family of chips and
+  Loongson-2K1000 chip, as the primary package interrupt controller which
+  can route local I/O interrupt to interrupt lines of cores.
+
+allOf:
+  - $ref: /schemas/interrupt-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - loongson,liointc-1.0
+      - loongson,liointc-1.0a
+      - loongson,liointc-2.0
+
+  reg:
+    minItems: 1
+    maxItems: 3
+
+  reg-names:
+    items:
+      - const: main
+      - const: isr0
+      - const: isr1
+
+  interrupt-controller: true
+
+  interrupts:
+    description:
+      Interrupt source of the CPU interrupts.
+    minItems: 1
+    maxItems: 4
+
+  interrupt-names:
+    description: List of names for the parent interrupts.
+    items:
+      - const: int0
+      - const: int1
+      - const: int2
+      - const: int3
+    minItems: 1
+
+  '#interrupt-cells':
+    const: 2
+
+  'loongson,parent_int_map':
+    description: |
+      This property points how the children interrupts will be mapped into CPU
+      interrupt lines. Each cell refers to a parent interrupt line from 0 to 3
+      and each bit in the cell refers to a child interrupt from 0 to 31.
+      If a CPU interrupt line didn't connect with liointc, then keep its
+      cell with zero.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 4
+    maxItems: 4
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-controller
+  - '#interrupt-cells'
+  - 'loongson,parent_int_map'
+
+
+unevaluatedProperties: false
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - loongson,liointc-2.0
+
+then:
+  properties:
+    reg:
+      minItems: 3
+
+  required:
+    - reg-names
+
+else:
+  properties:
+    reg:
+      maxItems: 1
+
+examples:
+  - |
+    iointc: interrupt-controller@3ff01400 {
+      compatible = "loongson,liointc-1.0";
+      reg = <0x3ff01400 0x64>;
+
+      interrupt-controller;
+      #interrupt-cells = <2>;
+
+      interrupt-parent = <&cpuintc>;
+      interrupts = <2>, <3>;
+      interrupt-names = "int0", "int1";
+
+      loongson,parent_int_map = <0xf0ffffff>, /* int0 */
+                                <0x0f000000>, /* int1 */
+                                <0x00000000>, /* int2 */
+                                <0x00000000>; /* int3 */
+
+    };
+
+...

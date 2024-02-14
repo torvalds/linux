@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig ARCH_MV78XX0
+	bool "Marvell MV78xx0"
+	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS && UNUSED_BOARD_FILES
+	select CPU_FEROCEON
+	select GPIOLIB
+	select MVEBU_MBUS
+	select FORCE_PCI
+	select PLAT_ORION_LEGACY
+	help
+	  Support for the following Marvell MV78xx0 series SoCs:
+	  MV781x0, MV782x0.
+
+if ARCH_MV78XX0
+
+config MACH_DB78X00_BP
+	bool "Marvell DB-78x00-BP Development Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DB-78x00-BP Development Board.
+
+config MACH_RD78X00_MASA
+	bool "Marvell RD-78x00-mASA Reference Design"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell RD-78x00-mASA Reference Design.
+
+config MACH_TERASTATION_WXL
+	bool "Buffalo WLX (Terastation Duo) NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Buffalo WXL Nas.
+
+endif

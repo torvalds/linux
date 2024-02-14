@@ -1,0 +1,66 @@
+Device-Tree bindings for tilcdc DRM generic panel output driver
+
+Required properties:
+ - compatible: value should be "ti,tilcdc,panel".
+ - panel-info: configuration info to configure LCDC correctly for the panel
+   - ac-bias: AC Bias Pin Frequency
+   - ac-bias-intrpt: AC Bias Pin Transitions per Interrupt
+   - dma-burst-sz: DMA burst size
+   - bpp: Bits per pixel
+   - fdd: FIFO DMA Request Delay
+   - sync-edge: Horizontal and Vertical Sync Edge: 0=rising 1=falling
+   - sync-ctrl: Horizontal and Vertical Sync: Control: 0=ignore
+   - raster-order: Raster Data Order Select: 1=Most-to-least 0=Least-to-most
+   - fifo-th: DMA FIFO threshold
+ - display-timings: typical videomode of lcd panel.  Multiple video modes
+   can be listed if the panel supports multiple timings, but the 'native-mode'
+   should be the preferred/default resolution.  Refer to
+   Documentation/devicetree/bindings/display/panel/display-timing.txt for display
+   timing binding details.
+
+Optional properties:
+- backlight: phandle of the backlight device attached to the panel
+- enable-gpios: GPIO pin to enable or disable the panel
+
+Recommended properties:
+ - pinctrl-names, pinctrl-0: the pincontrol settings to configure
+   muxing properly for pins that connect to TFP410 device
+
+Example:
+
+	/* Settings for CDTech_S035Q01 / LCD3 cape: */
+	lcd3 {
+		compatible = "ti,tilcdc,panel";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bone_lcd3_cape_lcd_pins>;
+		backlight = <&backlight>;
+		enable-gpios = <&gpio3 19 0>;
+
+		panel-info {
+			ac-bias           = <255>;
+			ac-bias-intrpt    = <0>;
+			dma-burst-sz      = <16>;
+			bpp               = <16>;
+			fdd               = <0x80>;
+			sync-edge         = <0>;
+			sync-ctrl         = <1>;
+			raster-order      = <0>;
+			fifo-th           = <0>;
+		};
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: 320x240 {
+				hactive         = <320>;
+				vactive         = <240>;
+				hback-porch     = <21>;
+				hfront-porch    = <58>;
+				hsync-len       = <47>;
+				vback-porch     = <11>;
+				vfront-porch    = <23>;
+				vsync-len       = <2>;
+				clock-frequency = <8000000>;
+				hsync-active    = <0>;
+				vsync-active    = <0>;
+			};
+		};
+	};

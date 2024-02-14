@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/lltc,ltc2496.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Linear Technology / Analog Devices LTC2496 ADC
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Michael Hennerich <Michael.Hennerich@analog.com>
+  - Stefan Popa <stefan.popa@analog.com>
+
+properties:
+  compatible:
+    enum:
+      - lltc,ltc2496
+
+  vref-supply:
+    description: Power supply for the reference voltage
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - vref-supply
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "lltc,ltc2496";
+            reg = <0>;
+            vref-supply = <&ltc2496_reg>;
+            spi-max-frequency = <2000000>;
+        };
+    };

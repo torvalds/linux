@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menuconfig RTW88
+	tristate "Realtek 802.11ac wireless chips support"
+	depends on MAC80211
+	help
+	  This module adds support for mac80211-based wireless drivers that
+	  enables Realtek IEEE 802.11ac wireless chipsets.
+
+	  If you choose to build a module, it'll be called rtw88.
+
+if RTW88
+
+config RTW88_CORE
+	tristate
+
+config RTW88_PCI
+	tristate
+
+config RTW88_8822B
+	tristate
+
+config RTW88_8822C
+	tristate
+
+config RTW88_8723D
+	tristate
+
+config RTW88_8821C
+	tristate
+
+config RTW88_8822BE
+	tristate "Realtek 8822BE PCI wireless network adapter"
+	depends on PCI
+	select RTW88_CORE
+	select RTW88_PCI
+	select RTW88_8822B
+	help
+	  Select this option will enable support for 8822BE chipset
+
+	  802.11ac PCIe wireless network adapter
+
+config RTW88_8822CE
+	tristate "Realtek 8822CE PCI wireless network adapter"
+	depends on PCI
+	select RTW88_CORE
+	select RTW88_PCI
+	select RTW88_8822C
+	help
+	  Select this option will enable support for 8822CE chipset
+
+	  802.11ac PCIe wireless network adapter
+
+config RTW88_8723DE
+	tristate "Realtek 8723DE PCI wireless network adapter"
+	depends on PCI
+	select RTW88_CORE
+	select RTW88_PCI
+	select RTW88_8723D
+	help
+	  Select this option will enable support for 8723DE chipset
+
+	  802.11n PCIe wireless network adapter
+
+config RTW88_8821CE
+	tristate "Realtek 8821CE PCI wireless network adapter"
+	depends on PCI
+	select RTW88_CORE
+	select RTW88_PCI
+	select RTW88_8821C
+	help
+	  Select this option will enable support for 8821CE chipset
+
+	  802.11ac PCIe wireless network adapter
+
+config RTW88_DEBUG
+	bool "Realtek rtw88 debug support"
+	depends on RTW88_CORE
+	help
+	  Enable debug support
+
+	  If unsure, say Y to simplify debug problems
+
+config RTW88_DEBUGFS
+	bool "Realtek rtw88 debugfs support"
+	depends on RTW88_CORE
+	help
+	  Enable debug support
+
+	  If unsure, say Y to simplify debug problems
+
+endif

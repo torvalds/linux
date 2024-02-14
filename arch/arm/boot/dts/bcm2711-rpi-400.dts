@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+#include "bcm2711-rpi-4-b.dts"
+
+/ {
+	compatible = "raspberrypi,400", "brcm,bcm2711";
+	model = "Raspberry Pi 400";
+
+	chosen {
+		/* 8250 auxiliary UART instead of pl011 */
+		stdout-path = "serial1:115200n8";
+	};
+
+	leds {
+		/delete-node/ led-act;
+
+		led-pwr {
+			gpios = <&gpio 42 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&expgpio 5 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&expgpio {
+	gpio-line-names = "BT_ON",
+			  "WL_ON",
+			  "PWR_LED_OFF",
+			  "GLOBAL_RESET",
+			  "VDD_SD_IO_SEL",
+			  "GLOBAL_SHUTDOWN",
+			  "SD_PWR_ON",
+			  "SHUTDOWN_REQUEST";
+};
+
+&genet_mdio {
+	clock-frequency = <1950000>;
+};
+
+&pm {
+	/delete-property/ system-power-controller;
+};

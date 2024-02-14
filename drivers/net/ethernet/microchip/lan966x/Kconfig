@@ -1,0 +1,11 @@
+config LAN966X_SWITCH
+	tristate "Lan966x switch driver"
+	depends on PTP_1588_CLOCK_OPTIONAL
+	depends on HAS_IOMEM
+	depends on OF
+	depends on NET_SWITCHDEV
+	depends on BRIDGE || BRIDGE=n
+	select PHYLINK
+	select PACKING
+	help
+	  This driver supports the Lan966x network switch device.

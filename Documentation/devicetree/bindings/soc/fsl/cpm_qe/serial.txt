@@ -1,0 +1,32 @@
+* Serial
+
+Currently defined compatibles:
+- fsl,cpm1-smc-uart
+- fsl,cpm2-smc-uart
+- fsl,cpm1-scc-uart
+- fsl,cpm2-scc-uart
+- fsl,qe-uart
+
+Modem control lines connected to GPIO controllers are listed in the gpios
+property as described in booting-without-of.txt, section IX.1 in the following
+order:
+
+CTS, RTS, DCD, DSR, DTR, and RI.
+
+The gpios property is optional and can be left out when control lines are
+not used.
+
+Example:
+
+	serial@11a00 {
+		device_type = "serial";
+		compatible = "fsl,mpc8272-scc-uart",
+			     "fsl,cpm2-scc-uart";
+		reg = <11a00 20 8000 100>;
+		interrupts = <28 8>;
+		interrupt-parent = <&PIC>;
+		fsl,cpm-brg = <1>;
+		fsl,cpm-command = <00800000>;
+		gpios = <&gpio_c 15 0
+			 &gpio_d 29 0>;
+	};

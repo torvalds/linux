@@ -1,0 +1,362 @@
+[
+    {
+        "BriefDescription": "pclk Cycles",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_P_CLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "The PCU runs off a fixed 800 MHz clock.  This event counts the number of pclk cycles measured while the counter was enabled.  The pclk, like the Memory Controller's dclk, counts at a constant rate making it a good measure of actual wall time.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_P_CORE0_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_P_CORE1_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_P_CORE2_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_P_CORE3_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_P_CORE4_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_P_CORE5_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_P_CORE6_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xa",
+        "EventName": "UNC_P_CORE7_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions.  There is one event per core.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1e",
+        "EventName": "UNC_P_DEMOTIONS_CORE0",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1f",
+        "EventName": "UNC_P_DEMOTIONS_CORE1",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x20",
+        "EventName": "UNC_P_DEMOTIONS_CORE2",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x21",
+        "EventName": "UNC_P_DEMOTIONS_CORE3",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x22",
+        "EventName": "UNC_P_DEMOTIONS_CORE4",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x23",
+        "EventName": "UNC_P_DEMOTIONS_CORE5",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "UNC_P_DEMOTIONS_CORE6",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Core C State Demotions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x25",
+        "EventName": "UNC_P_DEMOTIONS_CORE7",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of times when a configurable cores had a C-state demotion",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Frequency Residency",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xb",
+        "EventName": "UNC_P_FREQ_BAND0_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Frequency Residency",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc",
+        "EventName": "UNC_P_FREQ_BAND1_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Frequency Residency",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xd",
+        "EventName": "UNC_P_FREQ_BAND2_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Frequency Residency",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xe",
+        "EventName": "UNC_P_FREQ_BAND3_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the uncore was running at a frequency greater than or equal to the frequency that is configured in the filter.  One can use all four counters with this event, so it is possible to track up to 4 configurable bands.  One can use edge detect in conjunction with this event to track the number of times that we transitioned into a frequency greater than or equal to the configurable frequency. One can also use inversion to track cycles when we were less than the configured frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Current Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_P_FREQ_MAX_CURRENT_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when current is the upper limit on frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Thermal Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_P_FREQ_MAX_LIMIT_THERMAL_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when thermal conditions are the upper limit on frequency.  This is related to the THERMAL_THROTTLE CYCLES_ABOVE_TEMP event, which always counts cycles when we are above the thermal temperature.  This event (STRONGEST_UPPER_LIMIT) is sampled at the output of the algorithm that determines the actual frequency, while THERMAL_THROTTLE looks at the input.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "OS Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_P_FREQ_MAX_OS_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the OS is the upper limit on frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Power Strongest Upper Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_P_FREQ_MAX_POWER_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when power is the upper limit on frequency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "IO P Limit Strongest Lower Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_P_FREQ_MIN_IO_P_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when IO P Limit is preventing us from dropping the frequency lower.  This algorithm monitors the needs to the IO subsystem on both local and remote sockets and will maintain a frequency high enough to maintain good IO BW.  This is necessary for when all the IA cores on a socket are idle but a user still would like to maintain high IO Bandwidth.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Perf P Limit Strongest Lower Limit Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_P_FREQ_MIN_PERF_P_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when Perf P Limit is preventing us from dropping the frequency lower.  Perf P Limit is an algorithm that takes input from remote sockets when determining if a socket should drop it's frequency down.  This is largely to minimize increases in snoop and remote read latencies.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles spent changing Frequency",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_P_FREQ_TRANS_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is changing frequency.  This can not be filtered by thread ID.  One can also use it with the occupancy counter that monitors number of threads in C0 to estimate the performance impact that frequency transitions had on the system.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Memory Phase Shedding Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2f",
+        "EventName": "UNC_P_MEMORY_PHASE_SHEDDING_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that the PCU has triggered memory phase shedding.  This is a mode that can be run in the iMC physicals that saves power at the expense of additional latency.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Number of cores in C0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C0",
+        "PerPkg": "1",
+        "PublicDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Number of cores in C0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C3",
+        "PerPkg": "1",
+        "PublicDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Number of cores in C0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C6",
+        "PerPkg": "1",
+        "PublicDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with threshholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "External Prochot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xa",
+        "EventName": "UNC_P_PROCHOT_EXTERNAL_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that we are in external PROCHOT mode.  This mode is triggered when a sensor off the die determines that something off-die (like DRAM) is too hot and must throttle to avoid damaging the chip.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Internal Prochot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_P_PROCHOT_INTERNAL_CYCLES",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles that we are in Interal PROCHOT mode.  This mode is triggered when a sensor on the die determines that we are too hot and must throttle to avoid damaging the chip.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Total Core C State Transition Cycles",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xb",
+        "EventName": "UNC_P_TOTAL_TRANSITION_CYCLES",
+        "ExtSel": "1",
+        "PerPkg": "1",
+        "PublicDescription": "Number of cycles spent performing core C state transitions across all cores.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles Changing Voltage",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_P_VOLT_TRANS_CYCLES_CHANGE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is changing voltage.  There is no filtering supported with this event.  One can use it as a simple event, or use it conjunction with the occupancy events to monitor the number of cores or threads that were impacted by the transition.  This event is calculated by or'ing together the increasing and decreasing events.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles Decreasing Voltage",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_P_VOLT_TRANS_CYCLES_DECREASE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is decreasing voltage.  There is no filtering supported with this event.  One can use it as a simple event, or use it conjunction with the occupancy events to monitor the number of cores or threads that were impacted by the transition.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "Cycles Increasing Voltage",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_P_VOLT_TRANS_CYCLES_INCREASE",
+        "PerPkg": "1",
+        "PublicDescription": "Counts the number of cycles when the system is increasing voltage.  There is no filtering supported with this event.  One can use it as a simple event, or use it conjunction with the occupancy events to monitor the number of cores or threads that were impacted by the transition.",
+        "Unit": "PCU"
+    },
+    {
+        "BriefDescription": "VR Hot",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x32",
+        "EventName": "UNC_P_VR_HOT_CYCLES",
+        "PerPkg": "1",
+        "Unit": "PCU"
+    }
+]

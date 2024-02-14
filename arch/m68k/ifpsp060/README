@@ -1,0 +1,71 @@
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+MOTOROLA MICROPROCESSOR & MEMORY TECHNOLOGY GROUP
+M68000 Hi-Performance Microprocessor Division
+M68060 Software Package
+Production Release P1.00 -- October 10, 1994
+
+M68060 Software Package Copyright © 1993, 1994 Motorola Inc.  All rights reserved.
+
+THE SOFTWARE is provided on an "AS IS" basis and without warranty.
+To the maximum extent permitted by applicable law,
+MOTOROLA DISCLAIMS ALL WARRANTIES WHETHER EXPRESS OR IMPLIED,
+INCLUDING IMPLIED WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE
+and any warranty against infringement with regard to the SOFTWARE
+(INCLUDING ANY MODIFIED VERSIONS THEREOF) and any accompanying written materials.
+
+To the maximum extent permitted by applicable law,
+IN NO EVENT SHALL MOTOROLA BE LIABLE FOR ANY DAMAGES WHATSOEVER
+(INCLUDING WITHOUT LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS,
+BUSINESS INTERRUPTION, LOSS OF BUSINESS INFORMATION, OR OTHER PECUNIARY LOSS)
+ARISING OF THE USE OR INABILITY TO USE THE SOFTWARE.
+Motorola assumes no responsibility for the maintenance and support of the SOFTWARE.
+
+You are hereby granted a copyright license to use, modify, and distribute the SOFTWARE
+so long as this entire notice is retained without alteration in any modified and/or
+redistributed versions, and that such modified versions are clearly identified as such.
+No licenses are granted by implication, estoppel or otherwise under any patents
+or trademarks of Motorola, Inc.
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Files in this directory:
+-------------------------
+
+fpsp.sa		Full FP Kernel Module - hex image
+fpsp.s		Full FP Kernel Module - source code
+fpsp.doc	Full FP Kernel Module - on-line documentation
+
+pfpsp.sa	Partial FP Kernel Module - hex image
+pfpsp.s		Partial FP Kernel Module - source code
+
+fplsp.sa	FP Library Module - hex image
+fplsp.s		FP Library Module - source code
+fplsp.doc	FP Library Module - on-line documentation
+
+isp.sa		Integer Unimplemented Kernel Module - hex image
+isp.s		Integer Unimplemented Kernel Module - source code
+isp.doc		Integer Unimplemented Kernel Module - on-line doc
+
+ilsp.sa		Integer Unimplemented Library Module - hex image
+ilsp.s		Integer Unimplemented Library Module - source code
+ilsp.doc	Integer Unimplemented Library Module - on-line doc
+
+fskeleton.s	Sample Call-outs needed by fpsp.sa and pfpsp.sa
+
+iskeleton.s	Sample Call-outs needed by isp.sa
+
+os.s		Sample Call-outs needed by fpsp.sa, pfpsp.sa, and isp.sa
+
+ftest.sa	Simple test program to test that {p}fpsp.sa
+		was connected properly; hex image
+ftest.s		above test; source code
+
+itest.sa	Simple test program to test that isp.sa was
+		connected properly; hex image
+itest.s		above test; source code
+
+test.doc	on-line documentation for {i,f}test.sa
+
+README		This file
+
+ERRATA		Known errata for this release
+
+MISC		Release file version numbers

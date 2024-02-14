@@ -1,0 +1,185 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Device Tree Include file for Freescale Layerscape-1046A family SoC.
+ *
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2019-2020 NXP
+ *
+ * Mingkai Hu <mingkai.hu@nxp.com>
+ */
+
+/dts-v1/;
+
+#include "fsl-ls1046a.dtsi"
+
+/ {
+	model = "LS1046A RDB Board";
+	compatible = "fsl,ls1046a-rdb", "fsl,ls1046a";
+
+	aliases {
+		serial0 = &duart0;
+		serial1 = &duart1;
+		serial2 = &duart2;
+		serial3 = &duart3;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+};
+
+&duart0 {
+	status = "okay";
+};
+
+&duart1 {
+	status = "okay";
+};
+
+&esdhc {
+	mmc-hs200-1_8v;
+	sd-uhs-sdr104;
+	sd-uhs-sdr50;
+	sd-uhs-sdr25;
+	sd-uhs-sdr12;
+};
+
+&i2c0 {
+	status = "okay";
+
+	ina220@40 {
+		compatible = "ti,ina220";
+		reg = <0x40>;
+		shunt-resistor = <1000>;
+	};
+
+	temp-sensor@4c {
+		compatible = "adi,adt7461";
+		reg = <0x4c>;
+	};
+
+	eeprom@52 {
+		compatible = "onnn,cat24c05", "atmel,24c04";
+		reg = <0x52>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	rtc@51 {
+		compatible = "nxp,pcf2129";
+		reg = <0x51>;
+		/* IRQ_RTC_B -> IRQ05, active low */
+		interrupts-extended = <&extirq 5 IRQ_TYPE_LEVEL_LOW>;
+	};
+};
+
+&ifc {
+	#address-cells = <2>;
+	#size-cells = <1>;
+	/* NAND Flashe and CPLD on board */
+	ranges = <0x0 0x0 0x0 0x7e800000 0x00010000
+		  0x2 0x0 0x0 0x7fb00000 0x00000100>;
+	status = "okay";
+
+	nand@0,0 {
+		compatible = "fsl,ifc-nand";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x0 0x0 0x10000>;
+	};
+
+	cpld: board-control@2,0 {
+		compatible = "fsl,ls1046ardb-cpld";
+		reg = <0x2 0x0 0x0000100>;
+	};
+};
+
+&qspi {
+	status = "okay";
+
+	s25fs512s0: flash@0 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+		reg = <0>;
+	};
+
+	s25fs512s1: flash@1 {
+		compatible = "jedec,spi-nor";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		spi-max-frequency = <50000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+		reg = <1>;
+	};
+};
+
+&usb1 {
+	dr_mode = "otg";
+};
+
+#include "fsl-ls1046-post.dtsi"
+
+&fman0 {
+	ethernet@e4000 {
+		phy-handle = <&rgmii_phy1>;
+		phy-connection-type = "rgmii-id";
+	};
+
+	ethernet@e6000 {
+		phy-handle = <&rgmii_phy2>;
+		phy-connection-type = "rgmii-id";
+	};
+
+	ethernet@e8000 {
+		phy-handle = <&sgmii_phy1>;
+		phy-connection-type = "sgmii";
+	};
+
+	ethernet@ea000 {
+		phy-handle = <&sgmii_phy2>;
+		phy-connection-type = "sgmii";
+	};
+
+	ethernet@f0000 { /* 10GEC1 */
+		phy-handle = <&aqr106_phy>;
+		phy-connection-type = "xgmii";
+	};
+
+	ethernet@f2000 { /* 10GEC2 */
+		fixed-link = <0 1 1000 0 0>;
+		phy-connection-type = "xgmii";
+	};
+
+	mdio@fc000 {
+		rgmii_phy1: ethernet-phy@1 {
+			reg = <0x1>;
+		};
+
+		rgmii_phy2: ethernet-phy@2 {
+			reg = <0x2>;
+		};
+
+		sgmii_phy1: ethernet-phy@3 {
+			reg = <0x3>;
+		};
+
+		sgmii_phy2: ethernet-phy@4 {
+			reg = <0x4>;
+		};
+	};
+
+	mdio@fd000 {
+		aqr106_phy: ethernet-phy@0 {
+			compatible = "ethernet-phy-ieee802.3-c45";
+			interrupts = <0 131 4>;
+			reg = <0x0>;
+		};
+	};
+};

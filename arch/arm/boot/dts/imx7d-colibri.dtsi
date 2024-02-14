@@ -1,0 +1,35 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
+/*
+ * Copyright 2016-2022 Toradex
+ */
+
+#include "imx7d.dtsi"
+#include "imx7-colibri.dtsi"
+
+/ {
+	aliases {
+		/* Required to properly pass MAC addresses from bootloader. */
+		ethernet0 = &fec1;
+		ethernet1 = &fec2;
+	};
+
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0x20000000>;
+	};
+};
+
+&cpu1 {
+	cpu-supply = <&reg_DCDC2>;
+};
+
+/* NAND */
+&gpmi {
+	status = "okay";
+};
+
+/* Colibri USBH */
+&usbotg2 {
+	dr_mode = "host";
+	vbus-supply = <&reg_usbh_vbus>;
+};

@@ -1,0 +1,35 @@
+Alphascale asm9260 Watchdog timer
+
+Required properties:
+
+- compatible : should be "alphascale,asm9260-wdt".
+- reg : Specifies base physical address and size of the registers.
+- clocks : the clocks feeding the watchdog timer. See clock-bindings.txt
+- clock-names : should be set to
+	"mod" - source for tick counter.
+	"ahb" - ahb gate.
+- resets : phandle pointing to the system reset controller with
+	line index for the watchdog.
+- reset-names : should be set to "wdt_rst".
+
+Optional properties:
+- timeout-sec : shall contain the default watchdog timeout in seconds,
+	if unset, the default timeout is 30 seconds.
+- alphascale,mode : three modes are supported
+	"hw" - hw reset (default).
+	"sw" - sw reset.
+	"debug" - no action is taken.
+
+Example:
+
+watchdog0: watchdog@80048000 {
+	compatible = "alphascale,asm9260-wdt";
+	reg = <0x80048000 0x10>;
+	clocks = <&acc CLKID_SYS_WDT>, <&acc CLKID_AHB_WDT>;
+	clock-names = "mod", "ahb";
+	interrupts = <55>;
+	resets = <&rst WDT_RESET>;
+	reset-names = "wdt_rst";
+	timeout-sec = <30>;
+	alphascale,mode = "hw";
+};

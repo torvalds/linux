@@ -1,0 +1,53 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,tlc4541.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments TLC4541 and similar ADCs
+
+maintainers:
+  - Phil Reid <preid@electromag.com.au>
+
+description: |
+  14/16bit single channel ADC with SPI interface.
+
+properties:
+  compatible:
+    enum:
+      - ti,tlc3541
+      - ti,tlc4541
+
+  reg:
+    maxItems: 1
+
+  vref-supply: true
+
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - vref-supply
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@0 {
+            compatible = "ti,tlc4541";
+            reg = <0>;
+            vref-supply = <&vdd_supply>;
+            spi-max-frequency = <200000>;
+            #io-channel-cells = <1>;
+        };
+    };
+...

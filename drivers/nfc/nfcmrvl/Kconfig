@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config NFC_MRVL
+	tristate
+	help
+	  The core driver to support Marvell NFC devices.
+
+	  This driver is required if you want to support
+	  Marvell NFC device 8897.
+
+config NFC_MRVL_USB
+	tristate "Marvell NFC-over-USB driver"
+	depends on NFC_NCI && USB
+	select NFC_MRVL
+	help
+	  Marvell NFC-over-USB driver.
+
+	  This driver provides support for Marvell NFC-over-USB devices:
+	  8897.
+
+	  Say Y here to compile support for Marvell NFC-over-USB driver
+	  into the kernel or say M to compile it as module.
+
+config NFC_MRVL_UART
+	tristate "Marvell NFC-over-UART driver"
+	depends on NFC_NCI && NFC_NCI_UART
+	select NFC_MRVL
+	help
+	  Marvell NFC-over-UART driver.
+
+	  This driver provides support for Marvell NFC-over-UART devices
+
+	  Say Y here to compile support for Marvell NFC-over-UART driver
+	  into the kernel or say M to compile it as module.
+
+config NFC_MRVL_I2C
+	tristate "Marvell NFC-over-I2C driver"
+	depends on NFC_MRVL && I2C
+	help
+	  Marvell NFC-over-I2C driver.
+
+	  This driver provides support for Marvell NFC-over-I2C devices.
+
+	  Say Y here to compile support for Marvell NFC-over-I2C driver
+	  into the kernel or say M to compile it as module.
+
+config NFC_MRVL_SPI
+	tristate "Marvell NFC-over-SPI driver"
+	depends on NFC_MRVL && NFC_NCI_SPI
+	help
+	  Marvell NFC-over-SPI driver.
+
+	  This driver provides support for Marvell NFC-over-SPI devices.
+
+	  Say Y here to compile support for Marvell NFC-over-SPI driver
+	  into the kernel or say M to compile it as module.

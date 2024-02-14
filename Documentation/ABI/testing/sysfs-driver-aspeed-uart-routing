@@ -1,0 +1,27 @@
+What:		/sys/bus/platform/drivers/aspeed-uart-routing/\*/uart\*
+Date:		September 2021
+Contact:	Oskar Senft <osk@google.com>
+		Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+Description:	Selects the RX source of the UARTx device.
+
+		When read, each file shows the list of available options with currently
+		selected option marked by brackets "[]". The list of available options
+		depends on the selected file.
+
+		e.g.
+		cat /sys/bus/platform/drivers/aspeed-uart-routing/\*.uart_routing/uart1
+		[io1] io2 io3 io4 uart2 uart3 uart4 io6
+
+		In this case, UART1 gets its input from IO1 (physical serial port 1).
+
+Users:		OpenBMC.  Proposed changes should be mailed to
+		openbmc@lists.ozlabs.org
+
+What:		/sys/bus/platform/drivers/aspeed-uart-routing/\*/io\*
+Date:		September 2021
+Contact:	Oskar Senft <osk@google.com>
+		Chia-Wei Wang <chiawei_wang@aspeedtech.com>
+Description:	Selects the RX source of IOx serial port. The current selection
+		will be marked by brackets "[]".
+Users:		OpenBMC.  Proposed changes should be mailed to
+		openbmc@lists.ozlabs.org

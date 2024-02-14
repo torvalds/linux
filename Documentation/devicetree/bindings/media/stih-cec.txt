@@ -1,0 +1,27 @@
+STMicroelectronics STIH4xx HDMI CEC driver
+
+Required properties:
+ - compatible : value should be "st,stih-cec"
+ - reg : Physical base address of the IP registers and length of memory
+	 mapped region.
+ - clocks : from common clock binding: handle to HDMI CEC clock
+ - interrupts : HDMI CEC interrupt number to the CPU.
+ - pinctrl-names: Contains only one value - "default"
+ - pinctrl-0: Specifies the pin control groups used for CEC hardware.
+ - resets: Reference to a reset controller
+ - hdmi-phandle: Phandle to the HDMI controller, see also cec.txt.
+
+Example for STIH407:
+
+sti-cec@94a087c {
+	compatible = "st,stih-cec";
+	reg = <0x94a087c 0x64>;
+	clocks = <&clk_sysin>;
+	clock-names = "cec-clk";
+	interrupts = <GIC_SPI 140 IRQ_TYPE_NONE>;
+	interrupt-names = "cec-irq";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_cec0_default>;
+	resets = <&softreset STIH407_LPM_SOFTRESET>;
+	hdmi-phandle = <&hdmi>;
+};

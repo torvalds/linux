@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: GPL-2.0
+menuconfig PPC_82xx
+	bool "82xx-based boards (PQ II)"
+	depends on PPC_BOOK3S_32
+
+if PPC_82xx
+
+config MPC8272_ADS
+	bool "Freescale MPC8272 ADS"
+	select DEFAULT_UIMAGE
+	select PQ2ADS
+	select 8272
+	select 8260
+	select FSL_SOC
+	select PQ2_ADS_PCI_PIC if PCI
+	help
+	  This option enables support for the MPC8272 ADS board
+
+config PQ2FADS
+	bool "Freescale PQ2FADS"
+	select DEFAULT_UIMAGE
+	select PQ2ADS
+	select 8260
+	select FSL_SOC
+	select PQ2_ADS_PCI_PIC if PCI
+	help
+	  This option enables support for the PQ2FADS board
+
+config EP8248E
+	bool "Embedded Planet EP8248E (a.k.a. CWH-PPC-8248N-VE)"
+	select 8272
+	select 8260
+	select FSL_SOC
+	select PHYLIB if NETDEVICES
+	select MDIO_BITBANG if PHYLIB
+	help
+	  This enables support for the Embedded Planet EP8248E board.
+
+	  This board is also resold by Freescale as the QUICCStart
+	  MPC8248 Evaluation System and/or the CWH-PPC-8248N-VE.
+
+config MGCOGE
+	bool "Keymile MGCOGE"
+	select 8272
+	select 8260
+	select FSL_SOC
+	help
+	  This enables support for the Keymile MGCOGE board.
+
+endif
+
+config PQ2ADS
+	bool
+
+config 8260
+	bool
+	depends on PPC_BOOK3S_32
+	select CPM2
+	help
+	  The MPC8260 is a typical embedded CPU made by Freescale.  Selecting
+	  this option means that you wish to build a kernel for a machine with
+	  an 8260 class CPU.
+
+config 8272
+	bool
+	select 8260
+	help
+	  The MPC8272 CPM has a different internal dpram setup than other CPM2
+	  devices
+
+config PQ2_ADS_PCI_PIC
+	bool

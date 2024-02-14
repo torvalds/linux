@@ -1,0 +1,238 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree file for Marvell Armada 385 Access Point Development board
+ * (DB-88F6820-AP)
+ *
+ *  Copyright (C) 2014 Marvell
+ *
+ * Nadav Haklai <nadavh@marvell.com>
+ */
+
+/dts-v1/;
+#include "armada-385.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	model = "Marvell Armada 385 Access Point Development Board";
+	compatible = "marvell,a385-db-ap", "marvell,armada385", "marvell,armada380";
+
+	chosen {
+		stdout-path = "serial1:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x80000000>; /* 2GB */
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
+
+		internal-regs {
+			i2c0: i2c@11000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&i2c0_pins>;
+				status = "okay";
+
+				/*
+				 * This bus is wired to two EEPROM
+				 * sockets, one of which holding the
+				 * board ID used by the	bootloader.
+				 * Erasing this EEPROM's content will
+				 * brick the board.
+				 * Use this bus with caution.
+				 */
+			};
+
+			mdio@72004 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&mdio_pins>;
+
+				phy0: ethernet-phy@1 {
+					reg = <1>;
+				};
+
+				phy1: ethernet-phy@4 {
+					reg = <4>;
+				};
+
+				phy2: ethernet-phy@6 {
+					reg = <6>;
+				};
+			};
+
+			/* UART0 is exposed through the JP8 connector */
+			uart0: serial@12000 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart0_pins>;
+				status = "okay";
+			};
+
+			/*
+			 * UART1 is exposed through a FTDI chip
+			 * wired to the mini-USB connector
+			 */
+			uart1: serial@12100 {
+				pinctrl-names = "default";
+				pinctrl-0 = <&uart1_pins>;
+				status = "okay";
+			};
+
+			pinctrl@18000 {
+				xhci0_vbus_pins: xhci0-vbus-pins {
+					marvell,pins = "mpp44";
+					marvell,function = "gpio";
+				};
+			};
+
+			/* CON3 */
+			ethernet@30000 {
+				status = "okay";
+				phy = <&phy2>;
+				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <1>;
+				bm,pool-short = <3>;
+			};
+
+			/* CON2 */
+			ethernet@34000 {
+				status = "okay";
+				phy = <&phy1>;
+				phy-mode = "sgmii";
+				buffer-manager = <&bm>;
+				bm,pool-long = <2>;
+				bm,pool-short = <3>;
+			};
+
+			usb@58000 {
+				status = "okay";
+			};
+
+			/* CON4 */
+			ethernet@70000 {
+				pinctrl-names = "default";
+
+				/*
+				 * The Reference Clock 0 is used to
+				 * provide a clock to the PHY
+				 */
+				pinctrl-0 = <&ge0_rgmii_pins>, <&ref_clk0_pins>;
+				status = "okay";
+				phy = <&phy0>;
+				phy-mode = "rgmii-id";
+				buffer-manager = <&bm>;
+				bm,pool-long = <0>;
+				bm,pool-short = <3>;
+			};
+
+			bm@c8000 {
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				status = "okay";
+				usb-phy = <&usb3_phy>;
+			};
+		};
+
+		bm-bppi {
+			status = "okay";
+		};
+
+		pcie {
+			status = "okay";
+
+			/*
+			 * The three PCIe units are accessible through
+			 * standard mini-PCIe slots on the board.
+			 */
+			pcie@1,0 {
+				/* Port 0, Lane 0 */
+				status = "okay";
+			};
+
+			pcie@2,0 {
+				/* Port 1, Lane 0 */
+				status = "okay";
+			};
+
+			pcie@3,0 {
+				/* Port 2, Lane 0 */
+				status = "okay";
+			};
+		};
+	};
+
+	usb3_phy: usb3_phy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_xhci0_vbus>;
+		#phy-cells = <0>;
+	};
+
+	reg_xhci0_vbus: xhci0-vbus {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&xhci0_vbus_pins>;
+		regulator-name = "xhci0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi1_pins>;
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "st,m25p128", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <54000000>;
+	};
+};
+
+&nand_controller {
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "pxa3xx_nand-0";
+		nand-rb = <0>;
+		nand-on-flash-bbt;
+		nand-ecc-strength = <4>;
+		nand-ecc-step-size = <512>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0x00000000 0x00800000>;
+				read-only;
+			};
+
+			partition@800000 {
+				label = "uImage";
+				reg = <0x00800000 0x00400000>;
+				read-only;
+			};
+
+			partition@c00000 {
+				label = "Root";
+				reg = <0x00c00000 0x3f400000>;
+			};
+		};
+	};
+};

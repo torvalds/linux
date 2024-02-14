@@ -1,0 +1,524 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/samsung,exynos5433-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung Exynos5433 SoC clock controller
+
+maintainers:
+  - Chanwoo Choi <cw00.choi@samsung.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Tomasz Figa <tomasz.figa@gmail.com>
+
+description: |
+  Expected external clocks, defined in DTS as fixed-rate clocks with a matching
+  name::
+    - "oscclk" - PLL input clock from XXTI
+
+  All available clocks are defined as preprocessor macros in
+  include/dt-bindings/clock/exynos5433.h header.
+
+properties:
+  compatible:
+    enum:
+        # CMU_TOP which generates clocks for
+        # IMEM/FSYS/G3D/GSCL/HEVC/MSCL/G2D/MFC/PERIC/PERIS domains and bus
+        # clocks
+      - samsung,exynos5433-cmu-top
+        # CMU_CPIF which generates clocks for LLI (Low Latency Interface) IP
+      - samsung,exynos5433-cmu-cpif
+        # CMU_MIF which generates clocks for DRAM Memory Controller domain
+      - samsung,exynos5433-cmu-mif
+        # CMU_PERIC which generates clocks for
+        # UART/I2C/SPI/I2S/PCM/SPDIF/PWM/SLIMBUS IPs
+      - samsung,exynos5433-cmu-peric
+        # CMU_PERIS which generates clocks for PMU/TMU/MCT/WDT/RTC/SECKEY/TZPC IPs
+      - samsung,exynos5433-cmu-peris
+        # CMU_FSYS which generates clocks for USB/UFS/SDMMC/TSI/PDMA IPs
+      - samsung,exynos5433-cmu-fsys
+      - samsung,exynos5433-cmu-g2d
+        # CMU_DISP which generates clocks for Display (DECON/HDMI/DSIM/MIXER) IPs
+      - samsung,exynos5433-cmu-disp
+      - samsung,exynos5433-cmu-aud
+      - samsung,exynos5433-cmu-bus0
+      - samsung,exynos5433-cmu-bus1
+      - samsung,exynos5433-cmu-bus2
+      - samsung,exynos5433-cmu-g3d
+      - samsung,exynos5433-cmu-gscl
+      - samsung,exynos5433-cmu-apollo
+        # CMU_ATLAS which generates clocks for Cortex-A57 Quad-core processor,
+        # CoreSight and  L2 cache controller
+      - samsung,exynos5433-cmu-atlas
+        # CMU_MSCL which generates clocks for M2M (Memory to Memory) scaler and
+        # JPEG IPs
+      - samsung,exynos5433-cmu-mscl
+      - samsung,exynos5433-cmu-mfc
+      - samsung,exynos5433-cmu-hevc
+        # CMU_ISP which generates clocks for FIMC-ISP/DRC/SCLC/DIS/3DNR IPs
+      - samsung,exynos5433-cmu-isp
+        # CMU_CAM0 which generates clocks for
+        # MIPI_CSIS{0|1}/FIMC_LITE_{A|B|D}/FIMC_3AA{0|1} IPs
+      - samsung,exynos5433-cmu-cam0
+        # CMU_CAM1 which generates clocks for
+        # Cortex-A5/MIPI_CSIS2/FIMC-LITE_C/FIMC-FD IPs
+      - samsung,exynos5433-cmu-cam1
+        # CMU_IMEM which generates clocks for SSS (Security SubSystem) and
+        # SlimSSS IPs
+      - samsung,exynos5433-cmu-imem
+
+  clocks:
+    minItems: 1
+    maxItems: 10
+
+  clock-names:
+    minItems: 1
+    maxItems: 10
+
+  "#clock-cells":
+    const: 1
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - "#clock-cells"
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-top
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_mphy_pll
+            - const: sclk_mfc_pll
+            - const: sclk_bus_pll
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-cpif
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
+        clock-names:
+          items:
+            - const: oscclk
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-mif
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_mphy_pll
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-fsys
+    then:
+      properties:
+        clocks:
+          minItems: 10
+          maxItems: 10
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_ufs_mphy
+            - const: aclk_fsys_200
+            - const: sclk_pcie_100_fsys
+            - const: sclk_ufsunipro_fsys
+            - const: sclk_mmc2_fsys
+            - const: sclk_mmc1_fsys
+            - const: sclk_mmc0_fsys
+            - const: sclk_usbhost30_fsys
+            - const: sclk_usbdrd30_fsys
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-g2d
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_g2d_266
+            - const: aclk_g2d_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-disp
+    then:
+      properties:
+        clocks:
+          minItems: 9
+          maxItems: 9
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_dsim1_disp
+            - const: sclk_dsim0_disp
+            - const: sclk_dsd_disp
+            - const: sclk_decon_tv_eclk_disp
+            - const: sclk_decon_vclk_disp
+            - const: sclk_decon_eclk_disp
+            - const: sclk_decon_tv_vclk_disp
+            - const: aclk_disp_333
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-aud
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: fout_aud_pll
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-bus0
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
+        clock-names:
+          items:
+            - const: aclk_bus0_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-bus1
+    then:
+      properties:
+        clocks:
+          minItems: 1
+          maxItems: 1
+        clock-names:
+          items:
+            - const: aclk_bus1_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-bus2
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_bus2_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-g3d
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_g3d_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-gscl
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_gscl_111
+            - const: aclk_gscl_333
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-apollo
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_bus_pll_apollo
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-atlas
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_bus_pll_atlas
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-mscl
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_jpeg_mscl
+            - const: aclk_mscl_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-mfc
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_mfc_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-hevc
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_hevc_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-isp
+    then:
+      properties:
+        clocks:
+          minItems: 3
+          maxItems: 3
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_isp_dis_400
+            - const: aclk_isp_400
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-cam0
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_cam0_333
+            - const: aclk_cam0_400
+            - const: aclk_cam0_552
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-cam1
+    then:
+      properties:
+        clocks:
+          minItems: 7
+          maxItems: 7
+        clock-names:
+          items:
+            - const: oscclk
+            - const: sclk_isp_uart_cam1
+            - const: sclk_isp_spi1_cam1
+            - const: sclk_isp_spi0_cam1
+            - const: aclk_cam1_333
+            - const: aclk_cam1_400
+            - const: aclk_cam1_552
+      required:
+        - clock-names
+        - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-cmu-imem
+    then:
+      properties:
+        clocks:
+          minItems: 4
+          maxItems: 4
+        clock-names:
+          items:
+            - const: oscclk
+            - const: aclk_imem_sssx_266
+            - const: aclk_imem_266
+            - const: aclk_imem_200
+      required:
+        - clock-names
+        - clocks
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos5433.h>
+    xxti: clock {
+        compatible = "fixed-clock";
+        clock-output-names = "oscclk";
+        #clock-cells = <0>;
+        clock-frequency = <24000000>;
+    };
+
+    clock-controller@10030000 {
+        compatible = "samsung,exynos5433-cmu-top";
+        reg = <0x10030000 0x1000>;
+        #clock-cells = <1>;
+
+        clock-names = "oscclk",
+                      "sclk_mphy_pll",
+                      "sclk_mfc_pll",
+                      "sclk_bus_pll";
+        clocks = <&xxti>,
+                 <&cmu_cpif CLK_SCLK_MPHY_PLL>,
+                 <&cmu_mif CLK_SCLK_MFC_PLL>,
+                 <&cmu_mif CLK_SCLK_BUS_PLL>;
+    };

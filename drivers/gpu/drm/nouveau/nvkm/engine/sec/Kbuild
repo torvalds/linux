@@ -1,0 +1,2 @@
+# SPDX-License-Identifier: MIT
+nvkm-y += nvkm/engine/sec/g98.o

@@ -1,0 +1,27 @@
+What:		/sys/class/fc/fc_udev_device/appid_store
+Date:		Aug 2021
+Contact:	Muneendra Kumar <muneendra.kumar@broadconm.com>
+Description:
+		This interface allows an admin to set an FC application
+		identifier in the blkcg associated with a cgroup id. The
+		identifier is typically a UUID that is associated with
+		an application or logical entity such as a virtual
+		machine or container group. The application or logical
+		entity utilizes a block device via the cgroup id.
+		FC adapter drivers may query the identifier and tag FC
+		traffic based on the identifier. FC host and FC fabric
+		entities can utilize the application id and FC traffic
+		tag to identify traffic sources.
+
+		The interface expects a string "<cgroupid>:<appid>" where:
+		<cgroupid> is inode of the cgroup in hexadecimal
+		<appid> is user provided string upto 128 characters
+		in length.
+
+		If an appid_store is done for a cgroup id that already
+		has an appid set, the new value will override the
+		previous value.
+
+		If an admin wants to remove an FC application identifier
+		from a cgroup, an appid_store should be done with the
+		following string: "<cgroupid>:"

@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config TEGRA_HOST1X_CONTEXT_BUS
+	bool
+
+config TEGRA_HOST1X
+	tristate "NVIDIA Tegra host1x driver"
+	depends on ARCH_TEGRA || (ARM && COMPILE_TEST)
+	select DMA_SHARED_BUFFER
+	select TEGRA_HOST1X_CONTEXT_BUS
+	select IOMMU_IOVA
+	help
+	  Driver for the NVIDIA Tegra host1x hardware.
+
+	  The Tegra host1x module is the DMA engine for register access to
+	  Tegra's graphics- and multimedia-related modules. The modules served
+	  by host1x are referred to as clients. host1x includes some other
+	  functionality, such as synchronization.
+
+if TEGRA_HOST1X
+
+config TEGRA_HOST1X_FIREWALL
+	bool "Enable HOST1X security firewall"
+	default y
+	help
+	  Say yes if kernel should protect command streams from tampering.
+
+	  If unsure, choose Y.
+
+endif

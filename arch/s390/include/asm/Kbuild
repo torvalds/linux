@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+generated-y += dis-defs.h
+generated-y += facility-defs.h
+generated-y += syscall_table.h
+generated-y += unistd_nr.h
+
+generic-y += asm-offsets.h
+generic-y += export.h
+generic-y += kvm_types.h
+generic-y += mcs_spinlock.h

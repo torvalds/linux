@@ -1,0 +1,43 @@
+* Chipselect/Local Bus
+
+Properties:
+- name : Should be localbus
+- #address-cells : Should be either two or three.  The first cell is the
+                   chipselect number, and the remaining cells are the
+                   offset into the chipselect.
+- #size-cells : Either one or two, depending on how large each chipselect
+                can be.
+- ranges : Each range corresponds to a single chipselect, and cover
+           the entire access window as configured.
+
+Example:
+	localbus@f0010100 {
+		compatible = "fsl,mpc8272-localbus",
+			   "fsl,pq2-localbus";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		reg = <0xf0010100 0x40>;
+
+		ranges = <0x0 0x0 0xfe000000 0x02000000
+			  0x1 0x0 0xf4500000 0x00008000
+			  0x2 0x0 0xfd810000 0x00010000>;
+
+		flash@0,0 {
+			compatible = "jedec-flash";
+			reg = <0x0 0x0 0x2000000>;
+			bank-width = <4>;
+			device-width = <1>;
+		};
+
+		board-control@1,0 {
+			reg = <0x1 0x0 0x20>;
+			compatible = "fsl,mpc8272ads-bcsr";
+		};
+
+		simple-periph@2,0 {
+			compatible = "fsl,elbc-gpcm-uio";
+			reg = <0x2 0x0 0x10000>;
+			elbc-gpcm-br = <0xfd810800>;
+			elbc-gpcm-or = <0xffff09f7>;
+		};
+	};

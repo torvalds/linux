@@ -1,0 +1,539 @@
+# SPDX-License-Identifier: GPL-2.0
+comment "Processor Type"
+
+choice
+	prompt "CPU family support"
+	default M68KCLASSIC if MMU
+	default COLDFIRE if !MMU
+	help
+	  The Freescale (was Motorola) M68K family of processors implements
+	  the full 68000 processor instruction set.
+	  The Freescale ColdFire family of processors is a modern derivative
+	  of the 68000 processor family. They are mainly targeted at embedded
+	  applications, and are all System-On-Chip (SOC) devices, as opposed
+	  to stand alone CPUs. They implement a subset of the original 68000
+	  processor instruction set.
+	  If you anticipate running this kernel on a computer with a classic
+	  MC68xxx processor, select M68KCLASSIC.
+	  If you anticipate running this kernel on a computer with a ColdFire
+	  processor, select COLDFIRE.
+
+config M68KCLASSIC
+	bool "Classic M68K CPU family support"
+	select HAVE_ARCH_PFN_VALID
+
+config COLDFIRE
+	bool "Coldfire CPU family support"
+	select ARCH_HAVE_CUSTOM_GPIO_H
+	select CPU_HAS_NO_BITFIELDS
+	select CPU_HAS_NO_CAS
+	select CPU_HAS_NO_MULDIV64
+	select GENERIC_CSUM
+	select GPIOLIB
+	select HAVE_LEGACY_CLK
+
+endchoice
+
+if M68KCLASSIC
+
+config M68000
+	def_bool y
+	depends on !MMU
+	select CPU_HAS_NO_BITFIELDS
+	select CPU_HAS_NO_CAS
+	select CPU_HAS_NO_MULDIV64
+	select CPU_HAS_NO_UNALIGNED
+	select GENERIC_CSUM
+	select CPU_NO_EFFICIENT_FFS
+	select HAVE_ARCH_HASH
+	select LEGACY_TIMER_TICK
+	help
+	  The Freescale (was Motorola) 68000 CPU is the first generation of
+	  the well known M68K family of processors. The CPU core as well as
+	  being available as a stand alone CPU was also used in many
+	  System-On-Chip devices (eg 68328, 68302, etc). It does not contain
+	  a paging MMU.
+
+config M68020
+	bool "68020 support"
+	depends on MMU
+	select FPU
+	select CPU_HAS_ADDRESS_SPACES
+	help
+	  If you anticipate running this kernel on a computer with a MC68020
+	  processor, say Y. Otherwise, say N. Note that the 68020 requires a
+	  68851 MMU (Memory Management Unit) to run Linux/m68k, except on the
+	  Sun 3, which provides its own version.
+
+config M68030
+	bool "68030 support"
+	depends on MMU && !MMU_SUN3
+	select FPU
+	select CPU_HAS_ADDRESS_SPACES
+	help
+	  If you anticipate running this kernel on a computer with a MC68030
+	  processor, say Y. Otherwise, say N. Note that a MC68EC030 will not
+	  work, as it does not include an MMU (Memory Management Unit).
+
+config M68040
+	bool "68040 support"
+	depends on MMU && !MMU_SUN3
+	select FPU
+	select CPU_HAS_ADDRESS_SPACES
+	help
+	  If you anticipate running this kernel on a computer with a MC68LC040
+	  or MC68040 processor, say Y. Otherwise, say N. Note that an
+	  MC68EC040 will not work, as it does not include an MMU (Memory
+	  Management Unit).
+
+config M68060
+	bool "68060 support"
+	depends on MMU && !MMU_SUN3
+	select FPU
+	select CPU_HAS_ADDRESS_SPACES
+	help
+	  If you anticipate running this kernel on a computer with a MC68060
+	  processor, say Y. Otherwise, say N.
+
+config M68328
+	bool
+	depends on !MMU
+	select M68000
+	help
+	  Motorola 68328 processor support.
+
+config M68EZ328
+	bool
+	depends on !MMU
+	select M68000
+	help
+	  Motorola 68EX328 processor support.
+
+config M68VZ328
+	bool
+	depends on !MMU
+	select M68000
+	help
+	  Motorola 68VZ328 processor support.
+
+endif # M68KCLASSIC
+
+if COLDFIRE
+
+choice
+	prompt "ColdFire SoC type"
+	default M520x
+	help
+	  Select the type of ColdFire System-on-Chip (SoC) that you want
+	  to build for.
+
+config M5206
+	bool "MCF5206"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Motorola ColdFire 5206 processor support.
+
+config M5206e
+	bool "MCF5206e"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Motorola ColdFire 5206e processor support.
+
+config M520x
+	bool "MCF520x"
+	depends on !MMU
+	select COLDFIRE_PIT_TIMER
+	select HAVE_CACHE_SPLIT
+	help
+	  Freescale Coldfire 5207/5208 processor support.
+
+config M523x
+	bool "MCF523x"
+	depends on !MMU
+	select COLDFIRE_PIT_TIMER
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Freescale Coldfire 5230/1/2/4/5 processor support
+
+config M5249
+	bool "MCF5249"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Motorola ColdFire 5249 processor support.
+
+config M525x
+	bool "MCF525x"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Freescale (Motorola) Coldfire 5251/5253 processor support.
+
+config M5271
+	bool "MCF5271"
+	depends on !MMU
+	select COLDFIRE_PIT_TIMER
+	select M527x
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Freescale (Motorola) ColdFire 5270/5271 processor support.
+
+config M5272
+	bool "MCF5272"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Motorola ColdFire 5272 processor support.
+
+config M5275
+	bool "MCF5275"
+	depends on !MMU
+	select COLDFIRE_PIT_TIMER
+	select M527x
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Freescale (Motorola) ColdFire 5274/5275 processor support.
+
+config M528x
+	bool "MCF528x"
+	depends on !MMU
+	select COLDFIRE_PIT_TIMER
+	select HAVE_CACHE_SPLIT
+	select HAVE_IPSBAR
+	help
+	  Motorola ColdFire 5280/5282 processor support.
+
+config M5307
+	bool "MCF5307"
+	depends on !MMU
+	select COLDFIRE_TIMERS
+	select COLDFIRE_SW_A7
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Motorola ColdFire 5307 processor support.
+
+config M532x
+	bool "MCF532x"
+	depends on !MMU
+	select COLDFIRE_TIMERS
+	select M53xx
+	select HAVE_CACHE_CB
+	help
+	  Freescale (Motorola) ColdFire 532x processor support.
+
+config M537x
+	bool "MCF537x"
+	depends on !MMU
+	select COLDFIRE_TIMERS
+	select M53xx
+	select HAVE_CACHE_CB
+	help
+	  Freescale ColdFire 537x processor support.
+
+config M5407
+	bool "MCF5407"
+	depends on !MMU
+	select COLDFIRE_SW_A7
+	select COLDFIRE_TIMERS
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Motorola ColdFire 5407 processor support.
+
+config M547x
+	bool "MCF547x"
+	select M54xx
+	select COLDFIRE_SLTIMERS
+	select MMU_COLDFIRE if MMU
+	select FPU if MMU
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Freescale ColdFire 5470/5471/5472/5473/5474/5475 processor support.
+
+config M548x
+	bool "MCF548x"
+	select COLDFIRE_SLTIMERS
+	select MMU_COLDFIRE if MMU
+	select FPU if MMU
+	select M54xx
+	select HAVE_CACHE_CB
+	select HAVE_MBAR
+	select CPU_NO_EFFICIENT_FFS
+	help
+	  Freescale ColdFire 5480/5481/5482/5483/5484/5485 processor support.
+
+config M5441x
+	bool "MCF5441x"
+	select COLDFIRE_PIT_TIMER
+	select MMU_COLDFIRE if MMU
+	select HAVE_CACHE_CB
+	help
+	  Freescale Coldfire 54410/54415/54416/54417/54418 processor support.
+
+endchoice
+
+config M527x
+	bool
+
+config M53xx
+	bool
+
+config M54xx
+	select HAVE_PCI
+	bool
+
+config COLDFIRE_PIT_TIMER
+	bool
+
+config COLDFIRE_TIMERS
+	bool
+	select LEGACY_TIMER_TICK
+
+config COLDFIRE_SLTIMERS
+	bool
+	select LEGACY_TIMER_TICK
+
+endif # COLDFIRE
+
+comment "Processor Specific Options"
+
+config M68KFPU_EMU
+	bool "Math emulation support"
+	depends on M68KCLASSIC && FPU
+	help
+	  At some point in the future, this will cause floating-point math
+	  instructions to be emulated by the kernel on machines that lack a
+	  floating-point math coprocessor.  Thrill-seekers and chronically
+	  sleep-deprived psychotic hacker types can say Y now, everyone else
+	  should probably wait a while.
+
+config M68KFPU_EMU_EXTRAPREC
+	bool "Math emulation extra precision"
+	depends on M68KFPU_EMU
+	help
+	  The fpu uses normally a few bit more during calculations for
+	  correct rounding, the emulator can (often) do the same but this
+	  extra calculation can cost quite some time, so you can disable
+	  it here. The emulator will then "only" calculate with a 64 bit
+	  mantissa and round slightly incorrect, what is more than enough
+	  for normal usage.
+
+config M68KFPU_EMU_ONLY
+	bool "Math emulation only kernel"
+	depends on M68KFPU_EMU
+	help
+	  This option prevents any floating-point instructions from being
+	  compiled into the kernel, thereby the kernel doesn't save any
+	  floating point context anymore during task switches, so this
+	  kernel will only be usable on machines without a floating-point
+	  math coprocessor. This makes the kernel a bit faster as no tests
+	  needs to be executed whether a floating-point instruction in the
+	  kernel should be executed or not.
+
+config ADVANCED
+	bool "Advanced configuration options"
+	depends on MMU
+	help
+	  This gives you access to some advanced options for the CPU. The
+	  defaults should be fine for most users, but these options may make
+	  it possible for you to improve performance somewhat if you know what
+	  you are doing.
+
+	  Note that the answer to this question won't directly affect the
+	  kernel: saying N will just cause the configurator to skip all
+	  the questions about these options.
+
+	  Most users should say N to this question.
+
+config RMW_INSNS
+	bool "Use read-modify-write instructions"
+	depends on ADVANCED && !CPU_HAS_NO_CAS
+	help
+	  This allows to use certain instructions that work with indivisible
+	  read-modify-write bus cycles. While this is faster than the
+	  workaround of disabling interrupts, it can conflict with DMA
+	  ( = direct memory access) on many Amiga systems, and it is also said
+	  to destabilize other machines. It is very likely that this will
+	  cause serious problems on any Amiga or Atari Medusa if set. The only
+	  configuration where it should work are 68030-based Ataris, where it
+	  apparently improves performance. But you've been warned! Unless you
+	  really know what you are doing, say N. Try Y only if you're quite
+	  adventurous.
+
+config SINGLE_MEMORY_CHUNK
+	bool "Use one physical chunk of memory only" if ADVANCED && !SUN3
+	depends on MMU
+	default y if SUN3 || MMU_COLDFIRE
+	help
+	  Ignore all but the first contiguous chunk of physical memory for VM
+	  purposes.  This will save a few bytes kernel size and may speed up
+	  some operations.
+	  When this option os set to N, you may want to lower "Maximum zone
+	  order" to save memory that could be wasted for unused memory map.
+	  Say N if not sure.
+
+config ARCH_FORCE_MAX_ORDER
+	int "Maximum zone order" if ADVANCED
+	depends on !SINGLE_MEMORY_CHUNK
+	default "11"
+	help
+	  The kernel memory allocator divides physically contiguous memory
+	  blocks into "zones", where each zone is a power of two number of
+	  pages.  This option selects the largest power of two that the kernel
+	  keeps in the memory allocator.  If you need to allocate very large
+	  blocks of physically contiguous memory, then you may need to
+	  increase this value.
+
+	  For systems that have holes in their physical address space this
+	  value also defines the minimal size of the hole that allows
+	  freeing unused memory map.
+
+	  This config option is actually maximum order plus one. For example,
+	  a value of 11 means that the largest free memory block is 2^10 pages.
+
+config 060_WRITETHROUGH
+	bool "Use write-through caching for 68060 supervisor accesses"
+	depends on ADVANCED && M68060
+	help
+	  The 68060 generally uses copyback caching of recently accessed data.
+	  Copyback caching means that memory writes will be held in an on-chip
+	  cache and only written back to memory some time later.  Saying Y
+	  here will force supervisor (kernel) accesses to use writethrough
+	  caching.  Writethrough caching means that data is written to memory
+	  straight away, so that cache and memory data always agree.
+	  Writethrough caching is less efficient, but is needed for some
+	  drivers on 68060 based systems where the 68060 bus snooping signal
+	  is hardwired on.  The 53c710 SCSI driver is known to suffer from
+	  this problem.
+
+config M68K_L2_CACHE
+	bool
+	depends on MAC
+	default y
+
+config CPU_HAS_NO_BITFIELDS
+	bool
+
+config CPU_HAS_NO_CAS
+	bool
+
+config CPU_HAS_NO_MULDIV64
+	bool
+
+config CPU_HAS_NO_UNALIGNED
+	bool
+
+config CPU_HAS_ADDRESS_SPACES
+	bool
+	select ALTERNATE_USER_ADDRESS_SPACE
+
+config FPU
+	bool
+
+config COLDFIRE_SW_A7
+	bool
+
+config HAVE_CACHE_SPLIT
+	bool
+
+config HAVE_CACHE_CB
+	bool
+
+config HAVE_MBAR
+	bool
+
+config HAVE_IPSBAR
+	bool
+
+config CLOCK_FREQ
+	int "Set the core clock frequency"
+	default "25000000" if M5206
+	default "54000000" if M5206e
+	default "166666666" if M520x
+	default "140000000" if M5249
+	default "150000000" if M527x || M523x
+	default "90000000" if M5307
+	default "50000000" if M5407
+	default "266000000" if M54xx
+	default "66666666"
+	depends on COLDFIRE
+	help
+	  Define the CPU clock frequency in use. This is the core clock
+	  frequency, it may or may not be the same as the external clock
+	  crystal fitted to your board. Some processors have an internal
+	  PLL and can have their frequency programmed at run time, others
+	  use internal dividers. In general the kernel won't setup a PLL
+	  if it is fitted (there are some exceptions). This value will be
+	  specific to the exact CPU that you are using.
+
+config OLDMASK
+	bool "Old mask 5307 (1H55J) silicon"
+	depends on M5307
+	help
+	  Build support for the older revision ColdFire 5307 silicon.
+	  Specifically this is the 1H55J mask revision.
+
+if HAVE_CACHE_SPLIT
+choice
+	prompt "Split Cache Configuration"
+	default CACHE_I
+
+config CACHE_I
+	bool "Instruction"
+	help
+	  Use all of the ColdFire CPU cache memory as an instruction cache.
+
+config CACHE_D
+	bool "Data"
+	help
+	  Use all of the ColdFire CPU cache memory as a data cache.
+
+config CACHE_BOTH
+	bool "Both"
+	help
+	  Split the ColdFire CPU cache, and use half as an instruction cache
+	  and half as a data cache.
+endchoice
+endif # HAVE_CACHE_SPLIT
+
+if HAVE_CACHE_CB
+choice
+	prompt "Data cache mode"
+	default CACHE_WRITETHRU
+
+config CACHE_WRITETHRU
+	bool "Write-through"
+	help
+	  The ColdFire CPU cache is set into Write-through mode.
+
+config CACHE_COPYBACK
+	bool "Copy-back"
+	help
+	  The ColdFire CPU cache is set into Copy-back mode.
+endchoice
+endif # HAVE_CACHE_CB

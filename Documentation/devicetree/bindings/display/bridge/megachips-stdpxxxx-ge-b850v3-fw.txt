@@ -1,0 +1,91 @@
+Drivers for the second video output of the GE B850v3:
+   STDP4028-ge-b850v3-fw bridges (LVDS-DP)
+   STDP2690-ge-b850v3-fw bridges (DP-DP++)
+
+The video processing pipeline on the second output on the GE B850v3:
+
+   Host -> LVDS|--(STDP4028)--|DP -> DP|--(STDP2690)--|DP++ -> Video output
+
+Each bridge has a dedicated flash containing firmware for supporting the custom
+design. The result is that, in this design, neither the STDP4028 nor the
+STDP2690 behave as the stock bridges would. The compatible strings include the
+suffix "-ge-b850v3-fw" to make it clear that the driver is for the bridges with
+the firmware specific for the GE B850v3.
+
+The hardware do not provide control over the video processing pipeline, as the
+two bridges behaves as a single one. The only interfaces exposed by the
+hardware are EDID, HPD, and interrupts.
+
+stdp4028-ge-b850v3-fw required properties:
+  - compatible : "megachips,stdp4028-ge-b850v3-fw"
+  - reg : I2C bus address
+  - interrupts : one interrupt should be described here, as in
+    <0 IRQ_TYPE_LEVEL_HIGH>
+  - ports : One input port(reg = <0>) and one output port(reg = <1>)
+
+stdp2690-ge-b850v3-fw required properties:
+    compatible : "megachips,stdp2690-ge-b850v3-fw"
+  - reg : I2C bus address
+  - ports : One input port(reg = <0>) and one output port(reg = <1>)
+
+Example:
+
+&mux2_i2c2 {
+	clock-frequency = <100000>;
+
+	stdp4028@73 {
+		compatible = "megachips,stdp4028-ge-b850v3-fw";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg = <0x73>;
+
+		interrupt-parent = <&gpio2>;
+		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				stdp4028_in: endpoint {
+					remote-endpoint = <&lvds0_out>;
+				};
+			};
+			port@1 {
+				reg = <1>;
+				stdp4028_out: endpoint {
+					remote-endpoint = <&stdp2690_in>;
+				};
+			};
+		};
+	};
+
+	stdp2690@72 {
+		compatible = "megachips,stdp2690-ge-b850v3-fw";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		reg = <0x72>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				stdp2690_in: endpoint {
+					remote-endpoint = <&stdp4028_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				stdp2690_out: endpoint {
+					/* Connector for external display */
+				};
+			};
+		};
+	};
+};

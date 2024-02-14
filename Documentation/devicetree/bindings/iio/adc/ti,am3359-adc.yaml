@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/ti,am3359-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI AM3359 ADC
+
+maintainers:
+  - Miquel Raynal <miquel.raynal@bootlin.com>
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - ti,am3359-adc
+          - ti,am4372-adc
+      - items:
+          - enum:
+              - ti,am654-adc
+          - const: ti,am3359-adc
+
+  '#io-channel-cells':
+    const: 1
+
+  ti,adc-channels:
+    description: List of analog inputs available for ADC. AIN0 = 0, AIN1 = 1 and
+      so on until AIN7 = 7.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+
+  ti,chan-step-opendelay:
+    description: List of open delays for each channel of ADC in the order of
+      ti,adc-channels. The value corresponds to the number of ADC clock cycles
+      to wait after applying the step configuration registers and before sending
+      the start of ADC conversion. Maximum value is 0x3FFFF.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+
+  ti,chan-step-sampledelay:
+    description: List of sample delays for each channel of ADC in the order of
+      ti,adc-channels. The value corresponds to the number of ADC clock cycles
+      to sample (to hold start of conversion high). Maximum value is 0xFF.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+
+  ti,chan-step-avg:
+    description: Number of averages to be performed for each channel of ADC. If
+      average is 16 (this is also the maximum) then input is sampled 16 times
+      and averaged to get more accurate value. This increases the time taken by
+      ADC to generate a sample. Maximum value is 16.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 8
+
+required:
+  - compatible
+  - '#io-channel-cells'
+  - ti,adc-channels
+
+additionalProperties: false
+
+examples:
+  - |
+    adc {
+        compatible = "ti,am3359-adc";
+        #io-channel-cells = <1>;
+        ti,adc-channels = <4 5 6 7>;
+        ti,chan-step-opendelay = <0x098 0x3ffff 0x098 0x0>;
+        ti,chan-step-sampledelay = <0xff 0x0 0xf 0x0>;
+        ti,chan-step-avg = <16 2 4 8>;
+    };

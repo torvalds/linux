@@ -1,0 +1,215 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Dell X86 Platform Specific Drivers
+#
+
+menuconfig X86_PLATFORM_DRIVERS_DELL
+	bool "Dell X86 Platform Specific Device Drivers"
+	help
+	  Say Y here to get to see options for device drivers for various
+	  Dell x86 platforms, including vendor-specific laptop extension drivers.
+	  This option alone does not add any kernel code.
+
+	  If you say N, all options in this submenu will be skipped and disabled.
+
+if X86_PLATFORM_DRIVERS_DELL
+
+config ALIENWARE_WMI
+	tristate "Alienware Special feature control"
+	default m
+	depends on ACPI
+	depends on LEDS_CLASS
+	depends on NEW_LEDS
+	depends on ACPI_WMI
+	help
+	 This is a driver for controlling Alienware BIOS driven
+	 features.  It exposes an interface for controlling the AlienFX
+	 zones on Alienware machines that don't contain a dedicated AlienFX
+	 USB MCU such as the X51 and X51-R2.
+
+config DCDBAS
+	tristate "Dell Systems Management Base Driver"
+	default m
+	depends on X86
+	help
+	  The Dell Systems Management Base Driver provides a sysfs interface
+	  for systems management software to perform System Management
+	  Interrupts (SMIs) and Host Control Actions (system power cycle or
+	  power off after OS shutdown) on certain Dell systems.
+
+	  See <file:Documentation/driver-api/dcdbas.rst> for more details on the driver
+	  and the Dell systems on which Dell systems management software makes
+	  use of this driver.
+
+	  Say Y or M here to enable the driver for use by Dell systems
+	  management software such as Dell OpenManage.
+
+config DELL_LAPTOP
+	tristate "Dell Laptop Extras"
+	default m
+	depends on DMI
+	depends on BACKLIGHT_CLASS_DEVICE
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on RFKILL || RFKILL = n
+	depends on DELL_WMI || DELL_WMI = n
+	depends on SERIO_I8042
+	depends on DELL_SMBIOS
+	select POWER_SUPPLY
+	select LEDS_CLASS
+	select NEW_LEDS
+	select LEDS_TRIGGERS
+	select LEDS_TRIGGER_AUDIO
+	help
+	This driver adds support for rfkill and backlight control to Dell
+	laptops (except for some models covered by the Compal driver).
+
+config DELL_RBU
+	tristate "BIOS update support for DELL systems via sysfs"
+	default m
+	depends on X86
+	select FW_LOADER
+	select FW_LOADER_USER_HELPER
+	help
+	 Say m if you want to have the option of updating the BIOS for your
+	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
+	 supporting application to communicate with the BIOS regarding the new
+	 image for the image update to take effect.
+	 See <file:Documentation/admin-guide/dell_rbu.rst> for more details on the driver.
+
+config DELL_RBTN
+	tristate "Dell Airplane Mode Switch driver"
+	default m
+	depends on ACPI
+	depends on INPUT
+	depends on RFKILL
+	help
+	  Say Y here if you want to support Dell Airplane Mode Switch ACPI
+	  device on Dell laptops. Sometimes it has names: DELLABCE or DELRBTN.
+	  This driver register rfkill device or input hotkey device depending
+	  on hardware type (hw switch slider or keyboard toggle button). For
+	  rfkill devices it receive HW switch events and set correct hard
+	  rfkill state.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-rbtn.
+
+#
+# The DELL_SMBIOS driver depends on ACPI_WMI and/or DCDBAS if those
+# backends are selected. The "depends" line prevents a configuration
+# where DELL_SMBIOS=y while either of those dependencies =m.
+#
+config DELL_SMBIOS
+	tristate "Dell SMBIOS driver"
+	default m
+	depends on DCDBAS || DCDBAS=n
+	depends on ACPI_WMI || ACPI_WMI=n
+	help
+	This provides support for the Dell SMBIOS calling interface.
+	If you have a Dell computer you should enable this option.
+
+	Be sure to select at least one backend for it to work properly.
+
+config DELL_SMBIOS_WMI
+	bool "Dell SMBIOS driver WMI backend"
+	default y
+	depends on ACPI_WMI
+	select DELL_WMI_DESCRIPTOR
+	depends on DELL_SMBIOS
+	help
+	This provides an implementation for the Dell SMBIOS calling interface
+	communicated over ACPI-WMI.
+
+	If you have a Dell computer from >2007 you should say Y here.
+	If you aren't sure and this module doesn't work for your computer
+	it just won't load.
+
+config DELL_SMBIOS_SMM
+	bool "Dell SMBIOS driver SMM backend"
+	default y
+	depends on DCDBAS
+	depends on DELL_SMBIOS
+	help
+	This provides an implementation for the Dell SMBIOS calling interface
+	communicated over SMI/SMM.
+
+	If you have a Dell computer from <=2017 you should say Y here.
+	If you aren't sure and this module doesn't work for your computer
+	it just won't load.
+
+config DELL_SMO8800
+	tristate "Dell Latitude freefall driver (ACPI SMO88XX)"
+	default m
+	depends on ACPI || COMPILE_TEST
+	help
+	  Say Y here if you want to support SMO88XX freefall devices
+	  on Dell Latitude laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-smo8800.
+
+config DELL_WMI
+	tristate "Dell WMI notifications"
+	default m
+	depends on ACPI_WMI
+	depends on DMI
+	depends on INPUT
+	depends on ACPI_VIDEO || ACPI_VIDEO = n
+	depends on DELL_SMBIOS
+	select DELL_WMI_DESCRIPTOR
+	select INPUT_SPARSEKMAP
+	help
+	  Say Y here if you want to support WMI-based hotkeys on Dell laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-wmi.
+
+config DELL_WMI_PRIVACY
+	bool "Dell WMI Hardware Privacy Support"
+	depends on LEDS_TRIGGER_AUDIO = y || DELL_WMI = LEDS_TRIGGER_AUDIO
+	depends on DELL_WMI
+	help
+	  This option adds integration with the "Dell Hardware Privacy"
+	  feature of Dell laptops to the dell-wmi driver.
+
+config DELL_WMI_AIO
+	tristate "WMI Hotkeys for Dell All-In-One series"
+	default m
+	depends on ACPI_WMI
+	depends on INPUT
+	select INPUT_SPARSEKMAP
+	help
+	  Say Y here if you want to support WMI-based hotkeys on Dell
+	  All-In-One machines.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-wmi-aio.
+
+config DELL_WMI_DESCRIPTOR
+	tristate
+	default n
+	depends on ACPI_WMI
+
+config DELL_WMI_LED
+	tristate "External LED on Dell Business Netbooks"
+	default m
+	depends on LEDS_CLASS
+	depends on ACPI_WMI
+	help
+	  This adds support for the Latitude 2100 and similar
+	  notebooks that have an external LED.
+
+config DELL_WMI_SYSMAN
+	tristate "Dell WMI-based Systems management driver"
+	default m
+	depends on ACPI_WMI
+	depends on DMI
+	select NLS
+	select FW_ATTR_CLASS
+	help
+	  This driver allows changing BIOS settings on many Dell machines from
+	  2018 and newer without the use of any additional software.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called dell-wmi-sysman.
+
+endif # X86_PLATFORM_DRIVERS_DELL

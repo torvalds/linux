@@ -1,0 +1,228 @@
+/*
+ * Copyright 2016 Linaro Ltd
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+ * THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+/dts-v1/;
+#include "arm-realview-pbx.dtsi"
+
+/ {
+	/*
+	 * This is the RealView Platform Baseboard Explore for Cortex-A9
+	 * (HBI0182 + HBI0183) as described in ARM DUI 0440B
+	 */
+	model = "ARM RealView Platform Baseboard Explore for Cortex-A9";
+	arm,hbi = <0x182>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		enable-method = "arm,realview-smp";
+
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&CPU0>;
+				};
+				core1 {
+					cpu = <&CPU1>;
+				};
+			};
+		};
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x0>;
+			next-level-cache = <&L2>;
+		};
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0x1>;
+			next-level-cache = <&L2>;
+		};
+	};
+
+	L2: cache-controller {
+		compatible = "arm,pl310-cache";
+		reg = <0x1f002000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
+		/*
+		 * Override default cache size, sets and
+		 * associativity as these may be erroneously set
+		 * up by boot loader(s).
+		 */
+		cache-size = <131072>; // 128KB
+		cache-sets = <512>;
+		cache-line-size = <32>;
+		arm,parity-disable;
+		arm,tag-latency = <1 1 1>;
+		arm,data-latency = <1 1 1>;
+	};
+
+	scu: scu@1f000000 {
+		compatible = "arm,cortex-a9-scu";
+		reg = <0x1f000000 0x100>;
+	};
+
+	twd_timer: timer@1f000600 {
+		compatible = "arm,cortex-a9-twd-timer";
+		reg = <0x1f000600 0x20>;
+		interrupt-parent = <&intc>;
+		interrupts = <1 13 0xf04>;
+	};
+
+	twd_wdog: watchdog@1f000620 {
+		compatible = "arm,cortex-a9-twd-wdt";
+		reg = <0x1f000620 0x20>;
+		interrupt-parent = <&intc>;
+		interrupts = <1 14 0xf04>;
+	};
+
+	pmu: pmu@0 {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&intc>;
+		interrupts = <0 44 IRQ_TYPE_LEVEL_HIGH>,
+			     <0 45 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-affinity = <&CPU0>, <&CPU1>;
+	};
+
+	/* Primary GIC PL390 interrupt controller in the test chip */
+	intc: interrupt-controller@1f000000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <1>;
+		interrupt-controller;
+		reg = <0x1f001000 0x1000>,
+		      <0x1f000100 0x100>;
+	};
+};
+
+&ethernet {
+	interrupt-parent = <&intc>;
+	interrupts = <0 28 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&usb {
+	interrupt-parent = <&intc>;
+	interrupts = <0 29 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&serial0 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 12 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&serial1 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 13 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&serial2 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 14 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&serial3 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 15 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&ssp {
+	interrupt-parent = <&intc>;
+	interrupts = <0 11 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&wdog0 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 0 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&wdog1 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 40 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&timer01 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 4 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&timer23 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 5 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&gpio0 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 6 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&gpio1 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 7 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&gpio2 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 8 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&rtc {
+	interrupt-parent = <&intc>;
+	interrupts = <0 10 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&timer45 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 41 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&timer67 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 42 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&aaci {
+	interrupt-parent = <&intc>;
+	interrupts = <0 19 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&mmc {
+	interrupt-parent = <&intc>;
+	interrupts = <0 17 IRQ_TYPE_LEVEL_HIGH>,
+		     <0 18 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&kmi0 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 20 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&kmi1 {
+	interrupt-parent = <&intc>;
+	interrupts = <0 21 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&clcd {
+	interrupt-parent = <&intc>;
+	interrupts = <0 23 IRQ_TYPE_LEVEL_HIGH>;
+};

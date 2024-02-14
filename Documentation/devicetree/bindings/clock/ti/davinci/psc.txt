@@ -1,0 +1,71 @@
+Binding for TI DaVinci Power Sleep Controller (PSC)
+
+The PSC provides power management, clock gating and reset functionality. It is
+primarily used for clocking.
+
+Required properties:
+- compatible: shall be one of:
+	- "ti,da850-psc0" for PSC0 on DA850/OMAP-L138/AM18XX
+	- "ti,da850-psc1" for PSC1 on DA850/OMAP-L138/AM18XX
+- reg: physical base address and size of the controller's register area
+- #clock-cells: from common clock binding; shall be set to 1
+- #power-domain-cells: from generic power domain binding; shall be set to 1.
+- clocks: phandles to clocks corresponding to the clock-names property
+- clock-names: list of parent clock names - depends on compatible value
+	- for "ti,da850-psc0", shall be "pll0_sysclk1", "pll0_sysclk2",
+	  "pll0_sysclk4", "pll0_sysclk6", "async1"
+	- for "ti,da850-psc1", shall be "pll0_sysclk2", "pll0_sysclk4", "async3"
+
+Optional properties:
+- #reset-cells: from reset binding; shall be set to 1 - only applicable when
+  at least one local domain provides a local reset.
+
+Consumers:
+
+	Clock, power domain and reset consumers shall use the local power domain
+	module ID (LPSC) as the index corresponding to the clock cell. Refer to
+	the device-specific datasheet to find these numbers. NB: Most local
+	domains	only provide a clock/power domain and not a reset.
+
+Examples:
+
+	psc0: clock-controller@10000 {
+		compatible = "ti,da850-psc0";
+		reg = <0x10000 0x1000>;
+		#clock-cells = <1>;
+		#power-domain-cells = <1>;
+		#reset-cells = <1>;
+		clocks = <&pll0_sysclk 1>, <&pll0_sysclk 2>,
+			 <&pll0_sysclk 4>, <&pll0_sysclk 6>, <&async1_clk>;
+		clock_names = "pll0_sysclk1", "pll0_sysclk2",
+			      "pll0_sysclk4", "pll0_sysclk6", "async1";
+	};
+	psc1: clock-controller@227000 {
+		compatible = "ti,da850-psc1";
+		reg = <0x227000 0x1000>;
+		#clock-cells = <1>;
+		#power-domain-cells = <1>;
+		clocks = <&pll0_sysclk 2>, <&pll0_sysclk 4>, <&async3_clk>;
+		clock_names = "pll0_sysclk2", "pll0_sysclk4", "async3";
+	};
+
+	/* consumer */
+	dsp: dsp@11800000 {
+		compatible = "ti,da850-dsp";
+		reg = <0x11800000 0x40000>,
+		      <0x11e00000 0x8000>,
+		      <0x11f00000 0x8000>,
+		      <0x01c14044 0x4>,
+		      <0x01c14174 0x8>;
+		reg-names = "l2sram", "l1pram", "l1dram", "host1cfg", "chipsig";
+		interrupt-parent = <&intc>;
+		interrupts = <28>;
+		clocks = <&psc0 15>;
+		power-domains = <&psc0 15>;
+		resets = <&psc0 15>;
+	};
+
+Also see:
+- Documentation/devicetree/bindings/clock/clock-bindings.txt
+- Documentation/devicetree/bindings/power/power-domain.yaml
+- Documentation/devicetree/bindings/reset/reset.txt

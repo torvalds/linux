@@ -1,0 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menuconfig CONNECTOR
+	tristate "Connector - unified userspace <-> kernelspace linker"
+	depends on NET
+	help
+	  This is unified userspace <-> kernelspace connector working on top
+	  of the netlink socket protocol.
+
+	  Connector support can also be built as a module.  If so, the module
+	  will be called cn.
+
+if CONNECTOR
+
+config PROC_EVENTS
+	bool "Report process events to userspace"
+	depends on CONNECTOR=y
+	default y
+	help
+	  Provide a connector that reports process events to userspace. Send
+	  events such as fork, exec, id change (uid, gid, suid, etc), and exit.
+
+endif # CONNECTOR

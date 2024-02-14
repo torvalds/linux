@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+#
+# USB Monitor configuration
+#
+
+config USB_MON
+	tristate "USB Monitor"
+	help
+	  If you select this option, a component which captures the USB traffic
+	  between peripheral-specific drivers and HC drivers will be built.
+	  For more information, see <file:Documentation/usb/usbmon.rst>.
+
+	  If unsure, say Y, if allowed, otherwise M.

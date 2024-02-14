@@ -1,0 +1,38 @@
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage0-1_i_calibphase
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read/write unscaled value for the Local Oscillatior path quadrature I phase shift.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage0-1_q_calibphase
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read/write unscaled value for the Local Oscillatior path quadrature Q phase shift.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage0_i_calibbias
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read/write value for the Local Oscillatior Feedthrough Offset Calibration I Positive
+		side.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage0_q_calibbias
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read/write value for the Local Oscillatior Feedthrough Offset Calibration Q Positive side.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage1_i_calibbias
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read/write raw value for the Local Oscillatior Feedthrough Offset Calibration I Negative
+		side.
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_altvoltage1_q_calibbias
+KernelVersion:
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Read/write raw value for the Local Oscillatior Feedthrough Offset Calibration Q Negative
+		side.

@@ -1,0 +1,16 @@
+ARCH=arm64
+MAKE_GOALS="
+Image
+modules
+"
+
+FILES="
+arch/arm64/boot/Image
+vmlinux
+System.map
+vmlinux.symvers
+modules.builtin
+modules.builtin.modinfo
+"
+
+NDK_TRIPLE=${AARCH64_NDK_TRIPLE}

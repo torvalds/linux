@@ -1,0 +1,41 @@
+* Cavium Interrupt Bus widget
+
+Properties:
+- compatible: "cavium,octeon-7130-cib"
+
+  Compatibility with cn70XX SoCs.
+
+- interrupt-controller:  This is an interrupt controller.
+
+- reg: Two elements consisting of the addresses of the RAW and EN
+  registers of the CIB block
+
+- cavium,max-bits: The index (zero based) of the highest numbered bit
+  in the CIB block.
+
+- interrupts: The CIU line to which the CIB block is connected.
+
+- #interrupt-cells: Must be <2>.  The first cell is the bit within the
+   CIB.  The second cell specifies the triggering semantics of the
+   line.
+
+Example:
+
+	interrupt-controller@107000000e000 {
+		compatible = "cavium,octeon-7130-cib";
+		reg = <0x10700 0x0000e000 0x0 0x8>, /* RAW */
+		      <0x10700 0x0000e100 0x0 0x8>; /* EN */
+		cavium,max-bits = <23>;
+
+		interrupt-controller;
+		interrupt-parent = <&ciu>;
+		interrupts = <1 24>;
+		/* Interrupts are specified by two parts:
+		 * 1) Bit number in the CIB* registers
+		 * 2) Triggering (1 - edge rising
+		 *		  2 - edge falling
+		 *		  4 - level active high
+		 *		  8 - level active low)
+		 */
+		#interrupt-cells = <2>;
+	};
