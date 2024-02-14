@@ -233,7 +233,7 @@ static int fsl_pwm_apply_config(struct pwm_chip *chip,
 	bool do_write_period = false;
 
 	if (!fsl_pwm_calculate_period(fpc, newstate->period, &periodcfg)) {
-		dev_err(chip->dev, "failed to calculate new period\n");
+		dev_err(pwmchip_parent(chip), "failed to calculate new period\n");
 		return -EINVAL;
 	}
 
@@ -247,7 +247,7 @@ static int fsl_pwm_apply_config(struct pwm_chip *chip,
 	 */
 	else if (!fsl_pwm_periodcfg_are_equal(&fpc->period, &periodcfg)) {
 		if (fsl_pwm_is_other_pwm_enabled(fpc, pwm)) {
-			dev_err(chip->dev,
+			dev_err(pwmchip_parent(chip),
 				"Cannot change period for PWM %u, disable other PWMs first\n",
 				pwm->hwpwm);
 			return -EBUSY;
