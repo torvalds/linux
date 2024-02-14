@@ -198,7 +198,7 @@ void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 	int i;
 
 	TEST_ASSERT(num >= 1 && num <= 5, "Unsupported number of args,\n"
-		    "  num: %u\n",
+		    "  num: %u",
 		    num);
 
 	va_start(ap, num);
