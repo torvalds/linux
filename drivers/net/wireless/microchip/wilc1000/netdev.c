@@ -96,7 +96,7 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	struct wilc_vif *vif;
 	struct ieee80211_hdr *h = (struct ieee80211_hdr *)mac_header;
 
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+	wilc_for_each_vif(wilc, vif) {
 		if (vif->iftype == WILC_STATION_MODE)
 			if (ether_addr_equal_unaligned(h->addr2, vif->bssid)) {
 				ndev = vif->ndev;
@@ -132,7 +132,7 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 	struct wilc_vif *vif;
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+	wilc_for_each_vif(wilc, vif) {
 		if (!is_zero_ether_addr(vif->bssid))
 			ret_val++;
 	}
@@ -146,7 +146,7 @@ static void wilc_wake_tx_queues(struct wilc *wl)
 	struct wilc_vif *ifc;
 
 	srcu_idx = srcu_read_lock(&wl->srcu);
-	list_for_each_entry_rcu(ifc, &wl->vif_list, list) {
+	wilc_for_each_vif(wl, ifc) {
 		if (ifc->mac_opened && netif_queue_stopped(ifc->ndev))
 			netif_wake_queue(ifc->ndev);
 	}
@@ -668,7 +668,7 @@ static int wilc_set_mac_addr(struct net_device *dev, void *p)
 	/* Verify MAC Address is not already in use: */
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(tmp_vif, &wilc->vif_list, list) {
+	wilc_for_each_vif(wilc, tmp_vif) {
 		wilc_get_mac_address(tmp_vif, mac_addr);
 		if (ether_addr_equal(addr->sa_data, mac_addr)) {
 			if (vif != tmp_vif) {
@@ -771,7 +771,7 @@ netdev_tx_t wilc_mac_xmit(struct sk_buff *skb, struct net_device *ndev)
 		struct wilc_vif *vif;
 
 		srcu_idx = srcu_read_lock(&wilc->srcu);
-		list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+		wilc_for_each_vif(wilc, vif) {
 			if (vif->mac_opened)
 				netif_stop_queue(vif->ndev);
 		}
@@ -858,7 +858,7 @@ void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size, bool is_auth)
 	struct wilc_vif *vif;
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+	wilc_for_each_vif(wilc, vif) {
 		struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buff;
 		u16 type = le16_to_cpup((__le16 *)buff);
 		u32 type_bit = BIT(type >> 4);
@@ -930,7 +930,7 @@ static u8 wilc_get_available_idx(struct wilc *wl)
 	int srcu_idx;
 
 	srcu_idx = srcu_read_lock(&wl->srcu);
-	list_for_each_entry_rcu(vif, &wl->vif_list, list) {
+	wilc_for_each_vif(wl, vif) {
 		if (vif->idx == 0)
 			idx = 1;
 		else

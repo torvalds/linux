@@ -107,7 +107,7 @@ static struct wilc_vif *wilc_get_vif_from_idx(struct wilc *wilc, int idx)
 	if (index < 0 || index >= WILC_NUM_CONCURRENT_IFC)
 		return NULL;
 
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
+	wilc_for_each_vif(wilc, vif) {
 		if (vif->idx == index)
 			return vif;
 	}
