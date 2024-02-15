@@ -822,6 +822,31 @@ sub output_function_rst(%) {
     my $oldprefix = $lineprefix;
     my $is_macro = 0;
 
+    my $signature = "";
+    if ($args{'functiontype'} ne "") {
+        $signature = $args{'functiontype'} . " " . $args{'function'} . " (";
+    } else {
+        $signature = $args{'function'} . " (";
+    }
+
+    my $count = 0;
+    foreach my $parameter (@{$args{'parameterlist'}}) {
+        if ($count ne 0) {
+            $signature .= ", ";
+        }
+        $count++;
+        $type = $args{'parametertypes'}{$parameter};
+
+        if ($type =~ m/$function_pointer/) {
+            # pointer-to-function
+            $signature .= $1 . $parameter . ") (" . $2 . ")";
+        } else {
+            $signature .= $type;
+        }
+    }
+
+    $signature .= ")";
+
     if ($sphinx_major < 3) {
         if ($args{'typedef'}) {
             print ".. c:type:: ". $args{'function'} . "\n\n";
@@ -852,31 +877,13 @@ sub output_function_rst(%) {
             print "``" if ($is_macro);
         }
     }
-    if ($args{'functiontype'} ne "") {
-        print $args{'functiontype'} . " " . $args{'function'} . " (";
-    } else {
-        print $args{'function'} . " (";
-    }
 
-    my $count = 0;
-    foreach my $parameter (@{$args{'parameterlist'}}) {
-        if ($count ne 0) {
-            print ", ";
-        }
-        $count++;
-        $type = $args{'parametertypes'}{$parameter};
+    print $signature;
 
-        if ($type =~ m/$function_pointer/) {
-            # pointer-to-function
-            print $1 . $parameter . ") (" . $2 . ")";
-        } else {
-            print $type;
-        }
-    }
     if ($is_macro) {
-        print ")``\n\n";
+        print "``\n\n";
     } else {
-        print ")\n\n";
+        print "\n\n";
     }
     if (!$args{'typedef'}) {
         print_lineno($declaration_start_line);
