@@ -4,7 +4,10 @@
  *
  *    Copyright (C) 2006 Arnd Bergmann <arnd@arndb.de>, IBM Corp.
  */
+
+#include <linux/bits.h>
 #include <linux/console.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/serial_core.h>
@@ -24,6 +27,36 @@ struct of_serial_info {
 	int type;
 	int line;
 };
+
+/* Nuvoton NPCM timeout register */
+#define UART_NPCM_TOR          7
+#define UART_NPCM_TOIE         BIT(7)  /* Timeout Interrupt Enable */
+
+static int npcm_startup(struct uart_port *port)
+{
+	/*
+	 * Nuvoton calls the scratch register 'UART_TOR' (timeout
+	 * register). Enable it, and set TIOC (timeout interrupt
+	 * comparator) to be 0x20 for correct operation.
+	 */
+	serial_port_out(port, UART_NPCM_TOR, UART_NPCM_TOIE | 0x20);
+
+	return serial8250_do_startup(port);
+}
+
+/* Nuvoton NPCM UARTs have a custom divisor calculation */
+static unsigned int npcm_get_divisor(struct uart_port *port, unsigned int baud,
+				     unsigned int *frac)
+{
+	return DIV_ROUND_CLOSEST(port->uartclk, 16 * baud + 2) - 2;
+}
+
+static int npcm_setup(struct uart_port *port)
+{
+	port->get_divisor = npcm_get_divisor;
+	port->startup = npcm_startup;
+	return 0;
+}
 
 /*
  * Fill a struct uart_port for a given device node
@@ -164,10 +197,17 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	switch (type) {
 	case PORT_RT2880:
 		ret = rt288x_setup(port);
-		if (ret)
-			goto err_pmruntime;
+		break;
+	case PORT_NPCM:
+		ret = npcm_setup(port);
+		break;
+	default:
+		/* Nothing to do */
+		ret = 0;
 		break;
 	}
+	if (ret)
+		goto err_pmruntime;
 
 	if (IS_REACHABLE(CONFIG_SERIAL_8250_FSL) &&
 	    (of_device_is_compatible(np, "fsl,ns16550") ||
