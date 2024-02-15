@@ -1485,6 +1485,32 @@ TEST_F(tls, control_msg)
 	EXPECT_EQ(memcmp(buf, test_str, send_len), 0);
 }
 
+TEST_F(tls, control_msg_nomerge)
+{
+	char *rec1 = "1111";
+	char *rec2 = "2222";
+	int send_len = 5;
+	char buf[15];
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	EXPECT_EQ(tls_send_cmsg(self->fd, 100, rec1, send_len, 0), send_len);
+	EXPECT_EQ(tls_send_cmsg(self->fd, 100, rec2, send_len, 0), send_len);
+
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, 100, buf, sizeof(buf), MSG_PEEK), send_len);
+	EXPECT_EQ(memcmp(buf, rec1, send_len), 0);
+
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, 100, buf, sizeof(buf), MSG_PEEK), send_len);
+	EXPECT_EQ(memcmp(buf, rec1, send_len), 0);
+
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, 100, buf, sizeof(buf), 0), send_len);
+	EXPECT_EQ(memcmp(buf, rec1, send_len), 0);
+
+	EXPECT_EQ(tls_recv_cmsg(_metadata, self->cfd, 100, buf, sizeof(buf), 0), send_len);
+	EXPECT_EQ(memcmp(buf, rec2, send_len), 0);
+}
+
 TEST_F(tls, shutdown)
 {
 	char const *test_str = "test_read";
