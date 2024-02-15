@@ -233,8 +233,6 @@ static unsigned int __serial_get_clock_div(unsigned long uartclk,
 
 		hsu_rate++;
 	}
-	if (hsu_rate > 0xFF)
-		hsu_rate = 0xFF;
 
 	return goodrate;
 }
