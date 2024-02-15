@@ -1018,7 +1018,7 @@ bool napi_pp_put_page(struct page *page, bool napi_safe)
 		unsigned int cpuid = smp_processor_id();
 
 		allow_direct = napi && READ_ONCE(napi->list_owner) == cpuid;
-		allow_direct |= (pp->cpuid == cpuid);
+		allow_direct |= READ_ONCE(pp->cpuid) == cpuid;
 	}
 
 	/* Driver set this to memory recycling info. Reset it on recycle.

@@ -949,8 +949,13 @@ void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *),
 	pool->xdp_mem_id = mem->id;
 }
 
-void page_pool_unlink_napi(struct page_pool *pool)
+static void page_pool_disable_direct_recycling(struct page_pool *pool)
 {
+	/* Disable direct recycling based on pool->cpuid.
+	 * Paired with READ_ONCE() in napi_pp_put_page().
+	 */
+	WRITE_ONCE(pool->cpuid, -1);
+
 	if (!pool->p.napi)
 		return;
 
@@ -962,7 +967,6 @@ void page_pool_unlink_napi(struct page_pool *pool)
 
 	WRITE_ONCE(pool->p.napi, NULL);
 }
-EXPORT_SYMBOL(page_pool_unlink_napi);
 
 void page_pool_destroy(struct page_pool *pool)
 {
@@ -972,7 +976,7 @@ void page_pool_destroy(struct page_pool *pool)
 	if (!page_pool_put(pool))
 		return;
 
-	page_pool_unlink_napi(pool);
+	page_pool_disable_direct_recycling(pool);
 	page_pool_free_frag(pool);
 
 	if (!page_pool_release(pool))
