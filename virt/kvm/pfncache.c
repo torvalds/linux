@@ -25,9 +25,7 @@
 void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 				       unsigned long end, bool may_block)
 {
-	DECLARE_BITMAP(vcpu_bitmap, KVM_MAX_VCPUS);
 	struct gfn_to_pfn_cache *gpc;
-	bool evict_vcpus = false;
 
 	spin_lock(&kvm->gpc_lock);
 	list_for_each_entry(gpc, &kvm->gpc_list, list) {
@@ -37,43 +35,10 @@ void gfn_to_pfn_cache_invalidate_start(struct kvm *kvm, unsigned long start,
 		if (gpc->valid && !is_error_noslot_pfn(gpc->pfn) &&
 		    gpc->uhva >= start && gpc->uhva < end) {
 			gpc->valid = false;
-
-			/*
-			 * If a guest vCPU could be using the physical address,
-			 * it needs to be forced out of guest mode.
-			 */
-			if (gpc->usage & KVM_GUEST_USES_PFN) {
-				if (!evict_vcpus) {
-					evict_vcpus = true;
-					bitmap_zero(vcpu_bitmap, KVM_MAX_VCPUS);
-				}
-				__set_bit(gpc->vcpu->vcpu_idx, vcpu_bitmap);
-			}
 		}
 		write_unlock_irq(&gpc->lock);
 	}
 	spin_unlock(&kvm->gpc_lock);
-
-	if (evict_vcpus) {
-		/*
-		 * KVM needs to ensure the vCPU is fully out of guest context
-		 * before allowing the invalidation to continue.
-		 */
-		unsigned int req = KVM_REQ_OUTSIDE_GUEST_MODE;
-		bool called;
-
-		/*
-		 * If the OOM reaper is active, then all vCPUs should have
-		 * been stopped already, so perform the request without
-		 * KVM_REQUEST_WAIT and be sad if any needed to be IPI'd.
-		 */
-		if (!may_block)
-			req &= ~KVM_REQUEST_WAIT;
-
-		called = kvm_make_vcpus_request_mask(kvm, req, vcpu_bitmap);
-
-		WARN_ON_ONCE(called && !may_block);
-	}
 }
 
 bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len)
@@ -206,16 +171,14 @@ static kvm_pfn_t hva_to_pfn_retry(struct gfn_to_pfn_cache *gpc)
 		 * pfn.  Note, kmap() and memremap() can both sleep, so this
 		 * too must be done outside of gpc->lock!
 		 */
-		if (gpc->usage & KVM_HOST_USES_PFN) {
-			if (new_pfn == gpc->pfn)
-				new_khva = old_khva;
-			else
-				new_khva = gpc_map(new_pfn);
+		if (new_pfn == gpc->pfn)
+			new_khva = old_khva;
+		else
+			new_khva = gpc_map(new_pfn);
 
-			if (!new_khva) {
-				kvm_release_pfn_clean(new_pfn);
-				goto out_error;
-			}
+		if (!new_khva) {
+			kvm_release_pfn_clean(new_pfn);
+			goto out_error;
 		}
 
 		write_lock_irq(&gpc->lock);
@@ -346,18 +309,12 @@ int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, unsigned long len)
 	return __kvm_gpc_refresh(gpc, gpc->gpa, len);
 }
 
-void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm,
-		  struct kvm_vcpu *vcpu, enum pfn_cache_usage usage)
+void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm)
 {
-	WARN_ON_ONCE(!usage || (usage & KVM_GUEST_AND_HOST_USE_PFN) != usage);
-	WARN_ON_ONCE((usage & KVM_GUEST_USES_PFN) && !vcpu);
-
 	rwlock_init(&gpc->lock);
 	mutex_init(&gpc->refresh_lock);
 
 	gpc->kvm = kvm;
-	gpc->vcpu = vcpu;
-	gpc->usage = usage;
 	gpc->pfn = KVM_PFN_ERR_FAULT;
 	gpc->uhva = KVM_HVA_ERR_BAD;
 }
