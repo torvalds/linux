@@ -453,10 +453,11 @@ static void attempt_logical_block_lock(struct vdo_completion *completion)
 
 	/*
 	 * If the new request is a pure read request (not read-modify-write) and the lock_holder is
-	 * writing and has received an allocation (VDO-2683), service the read request immediately
-	 * by copying data from the lock_holder to avoid having to flush the write out of the
-	 * packer just to prevent the read from waiting indefinitely. If the lock_holder does not
-	 * yet have an allocation, prevent it from blocking in the packer and wait on it.
+	 * writing and has received an allocation, service the read request immediately by copying
+	 * data from the lock_holder to avoid having to flush the write out of the packer just to
+	 * prevent the read from waiting indefinitely. If the lock_holder does not yet have an
+	 * allocation, prevent it from blocking in the packer and wait on it. This is necessary in
+	 * order to prevent returning data that may not have actually been written.
 	 */
 	if (!data_vio->write && READ_ONCE(lock_holder->allocation_succeeded)) {
 		copy_to_bio(data_vio->user_bio, lock_holder->vio.data + data_vio->offset);

@@ -1504,8 +1504,8 @@ static int extract_new_mappings(struct repair_completion *repair)
 static noinline int compute_usages(struct repair_completion *repair)
 {
 	/*
-	 * VDO-5182: function is declared noinline to avoid what is likely a spurious valgrind
-	 * error about this structure being uninitialized.
+	 * This function is declared noinline to avoid a spurious valgrind error regarding the
+	 * following structure being uninitialized.
 	 */
 	struct recovery_point recovery_point = {
 		.sequence_number = repair->tail,

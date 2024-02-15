@@ -123,7 +123,6 @@ int create_multi_block_metadata_vio(struct vdo *vdo, enum vio_type vio_type,
 	struct vio *vio;
 	int result;
 
-	/* If struct vio grows past 256 bytes, we'll lose benefits of VDOSTORY-176. */
 	BUILD_BUG_ON(sizeof(struct vio) > 256);
 
 	/*

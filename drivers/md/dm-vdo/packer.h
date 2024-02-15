@@ -58,7 +58,7 @@ struct compressed_block {
  *
  * There is one special bin which is used to hold data_vios which have been canceled and removed
  * from their bin by the packer. These data_vios need to wait for the canceller to rendezvous with
- * them (VDO-2809) and so they sit in this special bin.
+ * them and so they sit in this special bin.
  */
 struct packer_bin {
 	/* List links for packer.packer_bins */

@@ -544,7 +544,7 @@ int vdo_make(unsigned int instance, struct device_config *config, char **reason,
 	int result;
 	struct vdo *vdo;
 
-	/* VDO-3769 - Set a generic reason so we don't ever return garbage. */
+	/* Initialize with a generic failure reason to prevent returning garbage. */
 	*reason = "Unspecified error";
 
 	result = uds_allocate(1, struct vdo, __func__, &vdo);

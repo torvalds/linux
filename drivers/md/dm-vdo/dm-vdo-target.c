@@ -945,13 +945,11 @@ static void vdo_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * Sets the maximum discard size that will be passed into VDO. This value comes from a
 	 * table line value passed in during dmsetup create.
 	 *
-	 * The value 1024 is the largest usable value on HD systems.  A 2048 sector discard on a
-	 * busy HD system takes 31 seconds.  We should use a value no higher than 1024, which takes
-	 * 15 to 16 seconds on a busy HD system.
-	 *
-	 * But using large values results in 120 second blocked task warnings in /var/log/kern.log.
-	 * In order to avoid these warnings, we choose to use the smallest reasonable value.  See
-	 * VDO-3062 and VDO-3087.
+	 * The value 1024 is the largest usable value on HD systems. A 2048 sector discard on a
+	 * busy HD system takes 31 seconds. We should use a value no higher than 1024, which takes
+	 * 15 to 16 seconds on a busy HD system. However, using large values results in 120 second
+	 * blocked task warnings in kernel logs. In order to avoid these warnings, we choose to
+	 * use the smallest reasonable value.
 	 *
 	 * The value is displayed in sysfs, and also used by dm-thin to determine whether to pass
 	 * down discards. The block layer splits large discards on this boundary when this is set.

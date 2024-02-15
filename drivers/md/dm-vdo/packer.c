@@ -595,15 +595,13 @@ void vdo_attempt_packing(struct data_vio *data_vio)
 	}
 
 	/*
-	 * The check of may_vio_block_in_packer() here will set the data_vio's compression state to
-	 * VIO_PACKING if the data_vio is allowed to be compressed (if it has already been
-	 * canceled, we'll fall out here). Once the data_vio is in the VIO_PACKING state, it must
-	 * be guaranteed to be put in a bin before any more requests can be processed by the packer
-	 * thread. Otherwise, a canceling data_vio could attempt to remove the canceled data_vio
-	 * from the packer and fail to rendezvous with it (VDO-2809). We must also make sure that
-	 * we will actually bin the data_vio and not give up on it as being larger than the space
-	 * used in the fullest bin. Hence we must call select_bin() before calling
-	 * may_vio_block_in_packer() (VDO-2826).
+	 * The advance_data_vio_compression_stage() check here verifies that the data_vio is
+	 * allowed to be compressed (if it has already been canceled, we'll fall out here). Once
+	 * the data_vio is in the DATA_VIO_PACKING state, it must be guaranteed to be put in a bin
+	 * before any more requests can be processed by the packer thread. Otherwise, a canceling
+	 * data_vio could attempt to remove the canceled data_vio from the packer and fail to
+	 * rendezvous with it. Thus, we must call select_bin() first to ensure that we will
+	 * actually add the data_vio to a bin before advancing to the DATA_VIO_PACKING stage.
 	 */
 	bin = select_bin(packer, data_vio);
 	if ((bin == NULL) ||
