@@ -125,6 +125,9 @@ TEST(correct_lsm_list_modules)
 		case LSM_ID_IMA:
 			name = "ima";
 			break;
+		case LSM_ID_EVM:
+			name = "evm";
+			break;
 		default:
 			name = "INVALID";
 			break;
