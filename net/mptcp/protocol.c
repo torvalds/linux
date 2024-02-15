@@ -119,7 +119,7 @@ static int __mptcp_socket_create(struct mptcp_sock *msk)
 	subflow->request_mptcp = 1;
 
 	/* This is the first subflow, always with id 0 */
-	subflow->local_id_valid = 1;
+	WRITE_ONCE(subflow->local_id, 0);
 	mptcp_sock_graft(msk->first, sk->sk_socket);
 
 	return 0;
