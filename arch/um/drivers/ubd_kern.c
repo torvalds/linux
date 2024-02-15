@@ -881,6 +881,10 @@ static const struct blk_mq_ops ubd_mq_ops = {
 static int ubd_add(int n, char **error_out)
 {
 	struct ubd *ubd_dev = &ubd_devs[n];
+	struct queue_limits lim = {
+		.max_segments		= MAX_SG,
+		.seg_boundary_mask	= PAGE_SIZE - 1,
+	};
 	struct gendisk *disk;
 	int err = 0;
 
@@ -906,7 +910,7 @@ static int ubd_add(int n, char **error_out)
 	if (err)
 		goto out;
 
-	disk = blk_mq_alloc_disk(&ubd_dev->tag_set, NULL, ubd_dev);
+	disk = blk_mq_alloc_disk(&ubd_dev->tag_set, &lim, ubd_dev);
 	if (IS_ERR(disk)) {
 		err = PTR_ERR(disk);
 		goto out_cleanup_tags;
@@ -914,8 +918,6 @@ static int ubd_add(int n, char **error_out)
 	ubd_dev->queue = disk->queue;
 
 	blk_queue_write_cache(ubd_dev->queue, true, false);
-	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
-	blk_queue_segment_boundary(ubd_dev->queue, PAGE_SIZE - 1);
 	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
 	if (err)
 		goto out_cleanup_disk;
