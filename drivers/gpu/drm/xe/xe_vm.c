@@ -903,6 +903,11 @@ static void xe_vma_destroy_late(struct xe_vma *vma)
 	struct xe_device *xe = vm->xe;
 	bool read_only = xe_vma_read_only(vma);
 
+	if (vma->ufence) {
+		xe_sync_ufence_put(vma->ufence);
+		vma->ufence = NULL;
+	}
+
 	if (xe_vma_is_userptr(vma)) {
 		struct xe_userptr *userptr = &to_userptr_vma(vma)->userptr;
 
@@ -1622,6 +1627,16 @@ xe_vm_unbind_vma(struct xe_vma *vma, struct xe_exec_queue *q,
 
 	trace_xe_vma_unbind(vma);
 
+	if (vma->ufence) {
+		struct xe_user_fence * const f = vma->ufence;
+
+		if (!xe_sync_ufence_get_status(f))
+			return ERR_PTR(-EBUSY);
+
+		vma->ufence = NULL;
+		xe_sync_ufence_put(f);
+	}
+
 	if (number_tiles > 1) {
 		fences = kmalloc_array(number_tiles, sizeof(*fences),
 				       GFP_KERNEL);
@@ -1755,6 +1770,21 @@ err_fences:
 	return ERR_PTR(err);
 }
 
+static struct xe_user_fence *
+find_ufence_get(struct xe_sync_entry *syncs, u32 num_syncs)
+{
+	unsigned int i;
+
+	for (i = 0; i < num_syncs; i++) {
+		struct xe_sync_entry *e = &syncs[i];
+
+		if (xe_sync_is_ufence(e))
+			return xe_sync_ufence_get(e);
+	}
+
+	return NULL;
+}
+
 static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 			struct xe_exec_queue *q, struct xe_sync_entry *syncs,
 			u32 num_syncs, bool immediate, bool first_op,
@@ -1762,8 +1792,15 @@ static int __xe_vm_bind(struct xe_vm *vm, struct xe_vma *vma,
 {
 	struct dma_fence *fence;
 	struct xe_exec_queue *wait_exec_queue = to_wait_exec_queue(vm, q);
+	struct xe_user_fence *ufence;
 
 	xe_vm_assert_held(vm);
+
+	ufence = find_ufence_get(syncs, num_syncs);
+	if (vma->ufence && ufence)
+		xe_sync_ufence_put(vma->ufence);
+
+	vma->ufence = ufence ?: vma->ufence;
 
 	if (immediate) {
 		fence = xe_vm_bind_vma(vma, q, syncs, num_syncs, first_op,
