@@ -1504,8 +1504,10 @@ static long gsi_ctrl_dev_ioctl(struct file *fp, unsigned int cmd,
 	gsi = inst_cur->opts->gsi;
 	c_port = &gsi->c_port;
 
-	if (!atomic_read(&gsi->connected)) {
-		log_event_err("USB cable not connected\n");
+	if (!atomic_read(&gsi->connected) && cmd != QTI_CTRL_GET_LINE_STATE
+			&& cmd != GSI_MBIM_GPS_USB_STATUS) {
+		log_event_err("%s:cmd %u failed, USB not connected\n",
+					__func__, cmd);
 		return -ECONNRESET;
 	}
 
@@ -1553,12 +1555,6 @@ static long gsi_ctrl_dev_ioctl(struct file *fp, unsigned int cmd,
 	case GSI_MBIM_EP_LOOKUP:
 		log_event_dbg("%s: EP_LOOKUP for prot id:%d", __func__,
 							gsi->prot_id);
-		if (!atomic_read(&gsi->connected)) {
-			log_event_dbg("EP_LOOKUP failed: not connected");
-			ret = -EAGAIN;
-			break;
-		}
-
 		if (gsi->prot_id == IPA_USB_DIAG &&
 				(gsi->d_port.in_channel_handle == -EINVAL)) {
 			ret = -EAGAIN;
