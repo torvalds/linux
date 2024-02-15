@@ -4797,6 +4797,29 @@ intel_compare_buffer(const u8 *a, const u8 *b, size_t len)
 	return memcmp(a, b, len) == 0;
 }
 
+static void __printf(4, 5)
+pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
+		     const char *name, const char *format, ...)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	if (fastset)
+		drm_dbg_kms(&i915->drm,
+			    "[CRTC:%d:%s] fastset requirement not met in %s %pV\n",
+			    crtc->base.base.id, crtc->base.name, name, &vaf);
+	else
+		drm_err(&i915->drm, "[CRTC:%d:%s] mismatch in %s %pV\n",
+			crtc->base.base.id, crtc->base.name, name, &vaf);
+
+	va_end(args);
+}
+
 static void
 pipe_config_infoframe_mismatch(bool fastset, const struct intel_crtc *crtc,
 			       const char *name,
@@ -4904,29 +4927,6 @@ pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
 		       16, 0, a, len, false);
 	print_hex_dump(loglevel, "found: ", DUMP_PREFIX_NONE,
 		       16, 0, b, len, false);
-}
-
-static void __printf(4, 5)
-pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
-		     const char *name, const char *format, ...)
-{
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct va_format vaf;
-	va_list args;
-
-	va_start(args, format);
-	vaf.fmt = format;
-	vaf.va = &args;
-
-	if (fastset)
-		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] fastset requirement not met in %s %pV\n",
-			    crtc->base.base.id, crtc->base.name, name, &vaf);
-	else
-		drm_err(&i915->drm, "[CRTC:%d:%s] mismatch in %s %pV\n",
-			crtc->base.base.id, crtc->base.name, name, &vaf);
-
-	va_end(args);
 }
 
 static void
