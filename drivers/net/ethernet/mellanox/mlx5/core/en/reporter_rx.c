@@ -294,8 +294,8 @@ static void mlx5e_rx_reporter_diagnose_generic_rq(struct mlx5e_rq *rq,
 
 	params = &priv->channels.params;
 	rq_sz = mlx5e_rqwq_get_size(rq);
-	real_time =  mlx5_is_real_time_rq(priv->mdev);
-	rq_stride = BIT(mlx5e_mpwqe_get_log_stride_size(priv->mdev, params, NULL));
+	real_time =  mlx5_is_real_time_rq(rq->mdev);
+	rq_stride = BIT(mlx5e_mpwqe_get_log_stride_size(rq->mdev, params, NULL));
 
 	mlx5e_health_fmsg_named_obj_nest_start(fmsg, "RQ");
 	devlink_fmsg_u8_pair_put(fmsg, "type", params->rq_wq_type);
