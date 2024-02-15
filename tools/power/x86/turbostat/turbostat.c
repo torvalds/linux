@@ -3669,17 +3669,24 @@ void free_fd_percpu(void)
 {
 	int i;
 
+	if (!fd_percpu)
+		return;
+
 	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
 		if (fd_percpu[i] != 0)
 			close(fd_percpu[i]);
 	}
 
 	free(fd_percpu);
+	fd_percpu = NULL;
 }
 
 void free_fd_amperf_percpu(void)
 {
 	int i;
+
+	if (!fd_amperf_percpu)
+		return;
 
 	for (i = 0; i < topo.max_cpu_num + 1; ++i) {
 		if (fd_amperf_percpu[i].mperf != 0)
@@ -3690,6 +3697,21 @@ void free_fd_amperf_percpu(void)
 	}
 
 	free(fd_amperf_percpu);
+	fd_amperf_percpu = NULL;
+}
+
+void free_fd_instr_count_percpu(void)
+{
+	if (!fd_instr_count_percpu)
+		return;
+
+	for (int i = 0; i < topo.max_cpu_num + 1; ++i) {
+		if (fd_instr_count_percpu[i] != 0)
+			close(fd_instr_count_percpu[i]);
+	}
+
+	free(fd_instr_count_percpu);
+	fd_instr_count_percpu = NULL;
 }
 
 void free_all_buffers(void)
@@ -3733,6 +3755,7 @@ void free_all_buffers(void)
 	outp = NULL;
 
 	free_fd_percpu();
+	free_fd_instr_count_percpu();
 	free_fd_amperf_percpu();
 
 	free(irq_column_2_cpu);
@@ -4067,10 +4090,13 @@ static void update_effective_set(bool startup)
 		err(1, "%s: cpu str malformat %s\n", PATH_EFFECTIVE_CPUS, cpu_effective_str);
 }
 
+void linux_perf_init(void);
+
 void re_initialize(void)
 {
 	free_all_buffers();
 	setup_all_buffers(false);
+	linux_perf_init();
 	fprintf(outf, "turbostat: re-initialized with num_cpus %d, allowed_cpus %d\n", topo.num_cpus,
 		topo.allowed_cpus);
 }
