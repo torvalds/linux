@@ -358,7 +358,7 @@ static int jpeg_v4_0_5_enable_static_power_gating(struct amdgpu_device *adev, in
  *
  * Start JPEG block with dpg mode
  */
-static int jpeg_v4_0_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
+static void jpeg_v4_0_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, bool indirect)
 {
 	struct amdgpu_ring *ring = adev->jpeg.inst[inst_idx].ring_dec;
 	uint32_t reg_data = 0;
@@ -411,8 +411,6 @@ static int jpeg_v4_0_5_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, 
 	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_CNTL, 0x00000002L);
 	WREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_SIZE, ring->ring_size / 4);
 	ring->wptr = RREG32_SOC15(JPEG, inst_idx, regUVD_JRBC_RB_WPTR);
-
-	return 0;
 }
 
 /**
@@ -458,7 +456,7 @@ static int jpeg_v4_0_5_start(struct amdgpu_device *adev)
 			VCN_JPEG_DB_CTRL__EN_MASK);
 
 		if (adev->pg_flags & AMD_PG_SUPPORT_JPEG_DPG) {
-			r = jpeg_v4_0_5_start_dpg_mode(adev, i, adev->jpeg.indirect_sram);
+			jpeg_v4_0_5_start_dpg_mode(adev, i, adev->jpeg.indirect_sram);
 			continue;
 		}
 
