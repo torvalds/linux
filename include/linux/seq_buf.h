@@ -13,7 +13,7 @@
  */
 
 /**
- * seq_buf - seq buffer structure
+ * struct seq_buf - seq buffer structure
  * @buffer:	pointer to the buffer
  * @size:	size of the buffer
  * @len:	the amount of data inside the buffer
@@ -80,10 +80,10 @@ static inline unsigned int seq_buf_used(struct seq_buf *s)
 }
 
 /**
- * seq_buf_str - get %NUL-terminated C string from seq_buf
+ * seq_buf_str - get NUL-terminated C string from seq_buf
  * @s: the seq_buf handle
  *
- * This makes sure that the buffer in @s is nul terminated and
+ * This makes sure that the buffer in @s is NUL-terminated and
  * safe to read as a string.
  *
  * Note, if this is called when the buffer has overflowed, then
@@ -93,7 +93,7 @@ static inline unsigned int seq_buf_used(struct seq_buf *s)
  * After this function is called, s->buffer is safe to use
  * in string operations.
  *
- * Returns @s->buf after making sure it is terminated.
+ * Returns: @s->buf after making sure it is terminated.
  */
 static inline const char *seq_buf_str(struct seq_buf *s)
 {
@@ -113,7 +113,7 @@ static inline const char *seq_buf_str(struct seq_buf *s)
  * @s: the seq_buf handle
  * @bufp: the beginning of the buffer is stored here
  *
- * Return the number of bytes available in the buffer, or zero if
+ * Returns: the number of bytes available in the buffer, or zero if
  * there's no space.
  */
 static inline size_t seq_buf_get_buf(struct seq_buf *s, char **bufp)
@@ -135,7 +135,7 @@ static inline size_t seq_buf_get_buf(struct seq_buf *s, char **bufp)
  * @num: the number of bytes to commit
  *
  * Commit @num bytes of data written to a buffer previously acquired
- * by seq_buf_get.  To signal an error condition, or that the data
+ * by seq_buf_get_buf(). To signal an error condition, or that the data
  * didn't fit in the available space, pass a negative @num value.
  */
 static inline void seq_buf_commit(struct seq_buf *s, int num)
