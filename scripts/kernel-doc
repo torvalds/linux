@@ -820,7 +820,6 @@ sub output_function_rst(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $oldprefix = $lineprefix;
-    my $start = "";
     my $is_macro = 0;
 
     if ($sphinx_major < 3) {
@@ -830,7 +829,7 @@ sub output_function_rst(%) {
             print "   **Typedef**: ";
             $lineprefix = "";
             output_highlight_rst($args{'purpose'});
-            $start = "\n\n**Syntax**\n\n  ``";
+            print "\n\n**Syntax**\n\n  ``";
             $is_macro = 1;
         } else {
             print ".. c:function:: ";
@@ -848,17 +847,16 @@ sub output_function_rst(%) {
             print "   **Typedef**: ";
             $lineprefix = "";
             output_highlight_rst($args{'purpose'});
-            $start = "\n\n**Syntax**\n\n  ``";
+            print "\n\n**Syntax**\n\n  ``";
         } else {
             print "``" if ($is_macro);
         }
     }
     if ($args{'functiontype'} ne "") {
-        $start .= $args{'functiontype'} . " " . $args{'function'} . " (";
+        print $args{'functiontype'} . " " . $args{'function'} . " (";
     } else {
-        $start .= $args{'function'} . " (";
+        print $args{'function'} . " (";
     }
-    print $start;
 
     my $count = 0;
     foreach my $parameter (@{$args{'parameterlist'}}) {
