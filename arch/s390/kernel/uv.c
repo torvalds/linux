@@ -21,6 +21,7 @@
 /* the bootdata_preserved fields come from ones in arch/s390/boot/uv.c */
 #ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
 int __bootdata_preserved(prot_virt_guest);
+EXPORT_SYMBOL(prot_virt_guest);
 #endif
 
 /*
