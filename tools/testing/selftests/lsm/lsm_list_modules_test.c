@@ -122,6 +122,9 @@ TEST(correct_lsm_list_modules)
 		case LSM_ID_LANDLOCK:
 			name = "landlock";
 			break;
+		case LSM_ID_IMA:
+			name = "ima";
+			break;
 		default:
 			name = "INVALID";
 			break;
