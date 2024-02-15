@@ -154,6 +154,7 @@
 	};
 };
 
+/* AST2700 i3c0 -> AST1060 i3c2 for MCTP over I3C. */
 &i3c0 {
 	/* I3C_PFR_BMC */
 	initial-role = "target";
@@ -427,6 +428,7 @@
 	assigned-clock-rates = <200000000>, <125000000>, <50000000>;
 };
 
+/* GPIOB[0:7] and GPIOC[0:7] are defined in Chapter 4.1.2 of the AST1700 Design Guide_v01.docx. */
 &gpio0 {
 	gpio-line-names =
 		/*A0-A7*/ "","","","","","","","",
@@ -449,7 +451,7 @@
 		/*R0-R7*/ "","","","","","","","",
 		/*S0-S7*/ "","","","","","","","",
 		/*T0-T7*/ "","","","","","","","",
-		/*U0-U7*/ "","","","","RST_BMC_RSTBTN_OUT_N","SCM_PHY_RST","","",
+		/*U0-U7*/ "","","","","","SCM_PHY_RST","","",
 		/*V0-V7*/ "","","","","","","","",
 		/*W0-W7*/ "","","","","","","","",
 		/*X0-X7*/ "","","","","","","","",
@@ -460,6 +462,70 @@
 		/*AC0-AC7*/ "","","","","","","","",
 		/*AD0-AD7*/ "","","","","","","","",
 		/*AE0-AE7*/ "","","","","","","","";
+};
+
+/* AST2700 support SGPIO slave to 272 pins. */
+/* SGPIO slave are defined in Chapter 4.1 of the AST1700 Design Guide_v01.docx. */
+/* line 0:SCM_GPI0, 1:SCM_GPO0, 2:SCM_GPI1, 3:SCM_GPO2, etc... */
+/* line 32:PFR_GPI0, 33:PFR_GPO0, 34:PFR_GPI1, 35:PFR_GPO2, etc... */
+/* line 80:BMC_GPI0, 81:BMC_GPO0, 82:BMC_GPI1, 83:BMC_GPO1, etc... */
+/* We added a POST_COMPLETE fake pin for x86-power-control use. */
+&sgpios {
+	status = "okay";
+	gpio-line-names =
+		/*00-07*/ "","","","","","","","",
+		/*08-15*/ "","","","","","","","",
+		/*16-23*/ "","","","","","","","",
+		/*24-31*/ "","","","","","","","",
+		/*32-39*/ "","","","","","","","",
+		/*40-47*/ "","","","","","","","",
+		/*48-55*/ "","","","","","","","",
+		/*56-63*/ "","","","","","","","",
+		/*64-71*/ "","","","","","","","",
+		/*72-79*/ "","","","","","","","",
+		/*80-87*/ "","","","","","","","",
+		/*88-95*/ "","","","","","","","",
+		/*96-103*/ "","FM_CPU_FBRK_DEBUG_N","","FM_BMC_TRUST_N","","FM_RST_BTN_OUT_CPU0_PLD_N_OE","","FM_PWR_BTN_OUT_CPU0_N",
+		/*104-111*/ "","FM_BMC_ONCTL_N","","","","","","",
+		/*112-119*/ "","BIOS_POST_CODE_LED_0","","BIOS_POST_CODE_LED_1","","BIOS_POST_CODE_LED_2","","BIOS_POST_CODE_LED_3",
+		/*120-127*/ "","BIOS_POST_CODE_LED_4","","BIOS_POST_CODE_LED_5","","BIOS_POST_CODE_LED_6","","BIOS_POST_CODE_LED_7",
+		/*128-135*/ "","","","","","","","",
+		/*136-143*/ "","","","","","","","",
+		/*144-151*/ "","","","","","","","",
+		/*152-159*/ "","","","","","","","",
+		/*160-167*/ "","","","","","","","",
+		/*168-175*/ "","","","","","","","",
+		/*176-183*/ "","","FP_ID_BTN_N","","FP_RST_BTN_N","","","",
+		/*184-191*/ "","","","","","","","",
+		/*192-199*/ "","","","","","","","",
+		/*200-207*/ "","","","","","","","",
+		/*208-215*/ "","","","","","","","",
+		/*216-223*/ "","","","","","","","",
+		/*224-231*/ "","","","","PWRGD_S0_PWROK_CPU0","","","",
+		/*232-239*/ "","","","","","","","",
+		/*240-247*/ "","","","","","","","",
+		/*248-255*/ "","","","","","","","",
+		/*256-263*/ "","","","","","","","",
+		/*264-271*/ "","","","","","","POST_COMPLETE","";
+
+	gpio_97 {
+		gpio-hog;
+		gpios = <97 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "FM_CPU_FBRK_DEBUG_N";
+	};
+	gpio_99 {
+		gpio-hog;
+		gpios = <99 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "FM_BMC_TRUST_N";
+	};
+	gpio_105 {
+		gpio-hog;
+		gpios = <105 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "FM_BMC_ONCTL_N";
+	};
 };
 
 &espi0 {
@@ -669,13 +735,14 @@
 	};
 };
 
-/* AST2700 i2c10 -> AST1060 i2c5 for PFR mailbox. */
+/* AST2700 A0 i2c10 -> AST1060 i2c5 for PFR mailbox. */
 &i2c10 {
 	/* SMB_PCIE_BMC */
 	status = "okay";
 	multi-master;
 };
 
+/* AST2700 A1 i2c11 -> AST1060 i2c0 for PFR mailbox. */
 &i2c11 {
 	/* SMB_HSBP_BMC */
 	status = "okay";
