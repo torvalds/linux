@@ -600,11 +600,10 @@ unlock_sta:
 void mesh_fast_tx_gc(struct ieee80211_sub_if_data *sdata)
 {
 	unsigned long timeout = msecs_to_jiffies(MESH_FAST_TX_CACHE_TIMEOUT);
-	struct mesh_tx_cache *cache;
+	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
 	struct ieee80211_mesh_fast_tx *entry;
 	struct hlist_node *n;
 
-	cache = &sdata->u.mesh.tx_cache;
 	if (atomic_read(&cache->rht.nelems) < MESH_FAST_TX_CACHE_THRESHOLD_SIZE)
 		return;
 
@@ -622,7 +621,6 @@ void mesh_fast_tx_flush_mpath(struct mesh_path *mpath)
 	struct ieee80211_mesh_fast_tx *entry;
 	struct hlist_node *n;
 
-	cache = &sdata->u.mesh.tx_cache;
 	spin_lock_bh(&cache->walk_lock);
 	hlist_for_each_entry_safe(entry, n, &cache->walk_head, walk_list)
 		if (entry->mpath == mpath)
@@ -637,7 +635,6 @@ void mesh_fast_tx_flush_sta(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mesh_fast_tx *entry;
 	struct hlist_node *n;
 
-	cache = &sdata->u.mesh.tx_cache;
 	spin_lock_bh(&cache->walk_lock);
 	hlist_for_each_entry_safe(entry, n, &cache->walk_head, walk_list)
 		if (rcu_access_pointer(entry->mpath->next_hop) == sta)
@@ -651,7 +648,6 @@ void mesh_fast_tx_flush_addr(struct ieee80211_sub_if_data *sdata,
 	struct mesh_tx_cache *cache = &sdata->u.mesh.tx_cache;
 	struct ieee80211_mesh_fast_tx *entry;
 
-	cache = &sdata->u.mesh.tx_cache;
 	spin_lock_bh(&cache->walk_lock);
 	entry = rhashtable_lookup_fast(&cache->rht, addr, fast_tx_rht_params);
 	if (entry)
