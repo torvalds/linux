@@ -820,7 +820,6 @@ sub output_function_rst(%) {
     my %args = %{$_[0]};
     my ($parameter, $section);
     my $oldprefix = $lineprefix;
-    my $is_macro = 0;
 
     my $signature = "";
     if ($args{'functiontype'} ne "") {
@@ -854,37 +853,30 @@ sub output_function_rst(%) {
             print "   **Typedef**: ";
             $lineprefix = "";
             output_highlight_rst($args{'purpose'});
-            print "\n\n**Syntax**\n\n  ``";
-            $is_macro = 1;
+            print "\n\n**Syntax**\n\n";
+            print "  ``$signature``\n\n";
         } else {
-            print ".. c:function:: ";
+            print ".. c:function:: $signature\n\n";
         }
     } else {
         if ($args{'typedef'} || $args{'functiontype'} eq "") {
-            $is_macro = 1;
             print ".. c:macro:: ". $args{'function'} . "\n\n";
-        } else {
-            print ".. c:function:: ";
-        }
 
-        if ($args{'typedef'}) {
-            print_lineno($declaration_start_line);
-            print "   **Typedef**: ";
-            $lineprefix = "";
-            output_highlight_rst($args{'purpose'});
-            print "\n\n**Syntax**\n\n  ``";
+            if ($args{'typedef'}) {
+                print_lineno($declaration_start_line);
+                print "   **Typedef**: ";
+                $lineprefix = "";
+                output_highlight_rst($args{'purpose'});
+                print "\n\n**Syntax**\n\n";
+                print "  ``$signature``\n\n";
+            } else {
+                print "``$signature``\n\n";
+            }
         } else {
-            print "``" if ($is_macro);
+            print ".. c:function:: $signature\n\n";
         }
     }
 
-    print $signature;
-
-    if ($is_macro) {
-        print "``\n\n";
-    } else {
-        print "\n\n";
-    }
     if (!$args{'typedef'}) {
         print_lineno($declaration_start_line);
         $lineprefix = "   ";
