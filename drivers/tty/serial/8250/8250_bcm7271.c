@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/units.h>
 
 #include "8250.h"
 
@@ -187,21 +188,19 @@
 #define TX_BUF_SIZE 4096
 #define RX_BUF_SIZE 4096
 #define RX_BUFS_COUNT 2
-#define KHZ    1000
-#define MHZ(x) ((x) * KHZ * KHZ)
 
 static const u32 brcmstb_rate_table[] = {
-	MHZ(81),
-	MHZ(108),
-	MHZ(64),		/* Actually 64285715 for some chips */
-	MHZ(48),
+	81 * HZ_PER_MHZ,
+	108 * HZ_PER_MHZ,
+	64 * HZ_PER_MHZ,		/* Actually 64285715 for some chips */
+	48 * HZ_PER_MHZ,
 };
 
 static const u32 brcmstb_rate_table_7278[] = {
-	MHZ(81),
-	MHZ(108),
+	81 * HZ_PER_MHZ,
+	108 * HZ_PER_MHZ,
 	0,
-	MHZ(48),
+	48 * HZ_PER_MHZ,
 };
 
 struct brcmuart_priv {
