@@ -211,43 +211,40 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 
-	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] enable: %s [%s]\n",
-		    crtc->base.base.id, crtc->base.name,
-		    str_yes_no(pipe_config->hw.enable), context);
+	drm_printf(&p, "[CRTC:%d:%s] enable: %s [%s]\n",
+		   crtc->base.base.id, crtc->base.name,
+		   str_yes_no(pipe_config->hw.enable), context);
 
 	if (!pipe_config->hw.enable)
 		goto dump_planes;
 
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
-	drm_dbg_kms(&i915->drm,
-		    "active: %s, output_types: %s (0x%x), output format: %s, sink format: %s\n",
-		    str_yes_no(pipe_config->hw.active),
-		    buf, pipe_config->output_types,
-		    intel_output_format_name(pipe_config->output_format),
-		    intel_output_format_name(pipe_config->sink_format));
+	drm_printf(&p, "active: %s, output_types: %s (0x%x), output format: %s, sink format: %s\n",
+		   str_yes_no(pipe_config->hw.active),
+		   buf, pipe_config->output_types,
+		   intel_output_format_name(pipe_config->output_format),
+		   intel_output_format_name(pipe_config->sink_format));
 
-	drm_dbg_kms(&i915->drm,
-		    "cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
-		    transcoder_name(pipe_config->cpu_transcoder),
-		    pipe_config->pipe_bpp, pipe_config->dither);
+	drm_printf(&p, "cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
+		   transcoder_name(pipe_config->cpu_transcoder),
+		   pipe_config->pipe_bpp, pipe_config->dither);
 
-	drm_dbg_kms(&i915->drm, "MST master transcoder: %s\n",
-		    transcoder_name(pipe_config->mst_master_transcoder));
+	drm_printf(&p, "MST master transcoder: %s\n",
+		   transcoder_name(pipe_config->mst_master_transcoder));
 
-	drm_dbg_kms(&i915->drm,
-		    "port sync: master transcoder: %s, slave transcoder bitmask = 0x%x\n",
-		    transcoder_name(pipe_config->master_transcoder),
-		    pipe_config->sync_mode_slaves_mask);
+	drm_printf(&p, "port sync: master transcoder: %s, slave transcoder bitmask = 0x%x\n",
+		   transcoder_name(pipe_config->master_transcoder),
+		   pipe_config->sync_mode_slaves_mask);
 
-	drm_dbg_kms(&i915->drm, "bigjoiner: %s, pipes: 0x%x\n",
-		    intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
-		    intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no",
-		    pipe_config->bigjoiner_pipes);
+	drm_printf(&p, "bigjoiner: %s, pipes: 0x%x\n",
+		   intel_crtc_is_bigjoiner_slave(pipe_config) ? "slave" :
+		   intel_crtc_is_bigjoiner_master(pipe_config) ? "master" : "no",
+		   pipe_config->bigjoiner_pipes);
 
-	drm_dbg_kms(&i915->drm, "splitter: %s, link count %d, overlap %d\n",
-		    str_enabled_disabled(pipe_config->splitter.enable),
-		    pipe_config->splitter.link_count,
-		    pipe_config->splitter.pixel_overlap);
+	drm_printf(&p, "splitter: %s, link count %d, overlap %d\n",
+		   str_enabled_disabled(pipe_config->splitter.enable),
+		   pipe_config->splitter.link_count,
+		   pipe_config->splitter.pixel_overlap);
 
 	if (pipe_config->has_pch_encoder)
 		intel_dump_m_n_config(pipe_config, "fdi",
@@ -261,32 +258,30 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		intel_dump_m_n_config(pipe_config, "dp m2_n2",
 				      pipe_config->lane_count,
 				      &pipe_config->dp_m2_n2);
-		drm_dbg_kms(&i915->drm, "fec: %s, enhanced framing: %s\n",
-			    str_enabled_disabled(pipe_config->fec_enable),
-			    str_enabled_disabled(pipe_config->enhanced_framing));
+		drm_printf(&p, "fec: %s, enhanced framing: %s\n",
+			   str_enabled_disabled(pipe_config->fec_enable),
+			   str_enabled_disabled(pipe_config->enhanced_framing));
 
-		drm_dbg_kms(&i915->drm, "sdp split: %s\n",
-			    str_enabled_disabled(pipe_config->sdp_split_enable));
+		drm_printf(&p, "sdp split: %s\n",
+			   str_enabled_disabled(pipe_config->sdp_split_enable));
 
-		drm_dbg_kms(&i915->drm, "psr: %s, psr2: %s, panel replay: %s, selective fetch: %s\n",
-			    str_enabled_disabled(pipe_config->has_psr),
-			    str_enabled_disabled(pipe_config->has_psr2),
-			    str_enabled_disabled(pipe_config->has_panel_replay),
-			    str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
+		drm_printf(&p, "psr: %s, psr2: %s, panel replay: %s, selective fetch: %s\n",
+			   str_enabled_disabled(pipe_config->has_psr),
+			   str_enabled_disabled(pipe_config->has_psr2),
+			   str_enabled_disabled(pipe_config->has_panel_replay),
+			   str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
 	}
 
-	drm_dbg_kms(&i915->drm, "framestart delay: %d, MSA timing delay: %d\n",
-		    pipe_config->framestart_delay, pipe_config->msa_timing_delay);
+	drm_printf(&p, "framestart delay: %d, MSA timing delay: %d\n",
+		   pipe_config->framestart_delay, pipe_config->msa_timing_delay);
 
-	drm_dbg_kms(&i915->drm,
-		    "audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
-		    pipe_config->has_audio, pipe_config->has_infoframe,
-		    pipe_config->infoframes.enable);
+	drm_printf(&p, "audio: %i, infoframes: %i, infoframes enabled: 0x%x\n",
+		   pipe_config->has_audio, pipe_config->has_infoframe,
+		   pipe_config->infoframes.enable);
 
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_PACKET_TYPE_GENERAL_CONTROL))
-		drm_dbg_kms(&i915->drm, "GCP: 0x%x\n",
-			    pipe_config->infoframes.gcp);
+		drm_printf(&p, "GCP: 0x%x\n", pipe_config->infoframes.gcp);
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(HDMI_INFOFRAME_TYPE_AVI))
 		intel_dump_infoframe(i915, &pipe_config->infoframes.avi);
@@ -310,75 +305,69 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		intel_dump_buffer(i915, "ELD: ", pipe_config->eld,
 				  drm_eld_size(pipe_config->eld));
 
-	drm_dbg_kms(&i915->drm, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
-		    str_yes_no(pipe_config->vrr.enable),
-		    pipe_config->vrr.vmin, pipe_config->vrr.vmax,
-		    pipe_config->vrr.pipeline_full, pipe_config->vrr.guardband,
-		    pipe_config->vrr.flipline,
-		    intel_vrr_vmin_vblank_start(pipe_config),
-		    intel_vrr_vmax_vblank_start(pipe_config));
+	drm_printf(&p, "vrr: %s, vmin: %d, vmax: %d, pipeline full: %d, guardband: %d flipline: %d, vmin vblank: %d, vmax vblank: %d\n",
+		   str_yes_no(pipe_config->vrr.enable),
+		   pipe_config->vrr.vmin, pipe_config->vrr.vmax,
+		   pipe_config->vrr.pipeline_full, pipe_config->vrr.guardband,
+		   pipe_config->vrr.flipline,
+		   intel_vrr_vmin_vblank_start(pipe_config),
+		   intel_vrr_vmax_vblank_start(pipe_config));
 
-	drm_dbg_kms(&i915->drm, "requested mode: " DRM_MODE_FMT "\n",
-		    DRM_MODE_ARG(&pipe_config->hw.mode));
-	drm_dbg_kms(&i915->drm, "adjusted mode: " DRM_MODE_FMT "\n",
-		    DRM_MODE_ARG(&pipe_config->hw.adjusted_mode));
+	drm_printf(&p, "requested mode: " DRM_MODE_FMT "\n",
+		   DRM_MODE_ARG(&pipe_config->hw.mode));
+	drm_printf(&p, "adjusted mode: " DRM_MODE_FMT "\n",
+		   DRM_MODE_ARG(&pipe_config->hw.adjusted_mode));
 	intel_dump_crtc_timings(i915, &pipe_config->hw.adjusted_mode);
-	drm_dbg_kms(&i915->drm, "pipe mode: " DRM_MODE_FMT "\n",
-		    DRM_MODE_ARG(&pipe_config->hw.pipe_mode));
+	drm_printf(&p, "pipe mode: " DRM_MODE_FMT "\n",
+		   DRM_MODE_ARG(&pipe_config->hw.pipe_mode));
 	intel_dump_crtc_timings(i915, &pipe_config->hw.pipe_mode);
-	drm_dbg_kms(&i915->drm,
-		    "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d\n",
-		    pipe_config->port_clock, DRM_RECT_ARG(&pipe_config->pipe_src),
-		    pipe_config->pixel_rate);
+	drm_printf(&p, "port clock: %d, pipe src: " DRM_RECT_FMT ", pixel rate %d\n",
+		   pipe_config->port_clock, DRM_RECT_ARG(&pipe_config->pipe_src),
+		   pipe_config->pixel_rate);
 
-	drm_dbg_kms(&i915->drm, "linetime: %d, ips linetime: %d\n",
-		    pipe_config->linetime, pipe_config->ips_linetime);
+	drm_printf(&p, "linetime: %d, ips linetime: %d\n",
+		   pipe_config->linetime, pipe_config->ips_linetime);
 
 	if (DISPLAY_VER(i915) >= 9)
-		drm_dbg_kms(&i915->drm,
-			    "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d\n",
-			    crtc->num_scalers,
-			    pipe_config->scaler_state.scaler_users,
-			    pipe_config->scaler_state.scaler_id,
-			    pipe_config->hw.scaling_filter);
+		drm_printf(&p, "num_scalers: %d, scaler_users: 0x%x, scaler_id: %d, scaling_filter: %d\n",
+			   crtc->num_scalers,
+			   pipe_config->scaler_state.scaler_users,
+			   pipe_config->scaler_state.scaler_id,
+			   pipe_config->hw.scaling_filter);
 
 	if (HAS_GMCH(i915))
-		drm_dbg_kms(&i915->drm,
-			    "gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
-			    pipe_config->gmch_pfit.control,
-			    pipe_config->gmch_pfit.pgm_ratios,
-			    pipe_config->gmch_pfit.lvds_border_bits);
+		drm_printf(&p, "gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
+			   pipe_config->gmch_pfit.control,
+			   pipe_config->gmch_pfit.pgm_ratios,
+			   pipe_config->gmch_pfit.lvds_border_bits);
 	else
-		drm_dbg_kms(&i915->drm,
-			    "pch pfit: " DRM_RECT_FMT ", %s, force thru: %s\n",
-			    DRM_RECT_ARG(&pipe_config->pch_pfit.dst),
-			    str_enabled_disabled(pipe_config->pch_pfit.enabled),
-			    str_yes_no(pipe_config->pch_pfit.force_thru));
+		drm_printf(&p, "pch pfit: " DRM_RECT_FMT ", %s, force thru: %s\n",
+			   DRM_RECT_ARG(&pipe_config->pch_pfit.dst),
+			   str_enabled_disabled(pipe_config->pch_pfit.enabled),
+			   str_yes_no(pipe_config->pch_pfit.force_thru));
 
-	drm_dbg_kms(&i915->drm, "ips: %i, double wide: %i, drrs: %i\n",
-		    pipe_config->ips_enabled, pipe_config->double_wide,
-		    pipe_config->has_drrs);
+	drm_printf(&p, "ips: %i, double wide: %i, drrs: %i\n",
+		   pipe_config->ips_enabled, pipe_config->double_wide,
+		   pipe_config->has_drrs);
 
 	intel_dpll_dump_hw_state(i915, &p, &pipe_config->dpll_hw_state);
 
 	if (IS_CHERRYVIEW(i915))
-		drm_dbg_kms(&i915->drm,
-			    "cgm_mode: 0x%x gamma_mode: 0x%x gamma_enable: %d csc_enable: %d\n",
-			    pipe_config->cgm_mode, pipe_config->gamma_mode,
-			    pipe_config->gamma_enable, pipe_config->csc_enable);
+		drm_printf(&p, "cgm_mode: 0x%x gamma_mode: 0x%x gamma_enable: %d csc_enable: %d\n",
+			   pipe_config->cgm_mode, pipe_config->gamma_mode,
+			   pipe_config->gamma_enable, pipe_config->csc_enable);
 	else
-		drm_dbg_kms(&i915->drm,
-			    "csc_mode: 0x%x gamma_mode: 0x%x gamma_enable: %d csc_enable: %d\n",
-			    pipe_config->csc_mode, pipe_config->gamma_mode,
-			    pipe_config->gamma_enable, pipe_config->csc_enable);
+		drm_printf(&p, "csc_mode: 0x%x gamma_mode: 0x%x gamma_enable: %d csc_enable: %d\n",
+			   pipe_config->csc_mode, pipe_config->gamma_mode,
+			   pipe_config->gamma_enable, pipe_config->csc_enable);
 
-	drm_dbg_kms(&i915->drm, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
-		    pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
-		    i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
-		    pipe_config->pre_csc_lut ?
-		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
-		    pipe_config->post_csc_lut ?
-		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
+	drm_printf(&p, "pre csc lut: %s%d entries, post csc lut: %d entries\n",
+		   pipe_config->pre_csc_lut && pipe_config->pre_csc_lut ==
+		   i915->display.color.glk_linear_degamma_lut ? "(linear) " : "",
+		   pipe_config->pre_csc_lut ?
+		   drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
+		   pipe_config->post_csc_lut ?
+		   drm_color_lut_size(pipe_config->post_csc_lut) : 0);
 
 	if (DISPLAY_VER(i915) >= 11)
 		ilk_dump_csc(i915, "output csc", &pipe_config->output_csc);
