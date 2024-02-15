@@ -973,6 +973,12 @@ config IDLE_PAGE_TRACKING
 	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
 	  more details.
 
+# Architectures which implement cpu_dcache_is_aliasing() to query
+# whether the data caches are aliased (VIVT or VIPT with dcache
+# aliasing) need to select this.
+config ARCH_HAS_CPU_CACHE_ALIASING
+	bool
+
 config ARCH_HAS_CACHE_LINE_SIZE
 	bool
 
