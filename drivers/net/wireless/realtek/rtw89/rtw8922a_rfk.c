@@ -353,3 +353,26 @@ void rtw8922a_rfk_hw_init(struct rtw89_dev *rtwdev)
 
 	rtw8922a_rfk_pll_init(rtwdev);
 }
+
+void rtw8922a_pre_set_channel_rf(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	bool mlo_1_1;
+
+	if (!rtwdev->dbcc_en)
+		return;
+
+	mlo_1_1 = rtw89_is_mlo_1_1(rtwdev);
+	if (mlo_1_1)
+		rtw8922a_set_syn01(rtwdev, RF_SYN_ALLON);
+	else if (phy_idx == RTW89_PHY_0)
+		rtw8922a_set_syn01(rtwdev, RF_SYN_ON_OFF);
+	else
+		rtw8922a_set_syn01(rtwdev, RF_SYN_OFF_ON);
+
+	fsleep(1000);
+}
+
+void rtw8922a_post_set_channel_rf(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
+{
+	rtw8922a_rfk_mlo_ctrl(rtwdev);
+}
