@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 # SPDX-License-Identifier: GPL-2.0
+# vim: softtabstop=4
 
 use warnings;
 use strict;
