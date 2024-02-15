@@ -49,6 +49,8 @@
 #include <linux/kfifo.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
+#include <linux/power_supply.h>
+#include <acpi/battery.h>
 #include <acpi/video.h>
 
 #define FUJITSU_DRIVER_VERSION		"0.6.0"
@@ -97,6 +99,10 @@
 #define BACKLIGHT_OFF			(BIT(0) | BIT(1))
 #define BACKLIGHT_ON			0
 
+/* FUNC interface - battery control interface */
+#define FUNC_S006_METHOD		0x1006
+#define CHARGE_CONTROL_RW		0x21
+
 /* Scancodes read from the GIRB register */
 #define KEY1_CODE			0x410
 #define KEY2_CODE			0x411
@@ -132,6 +138,7 @@ struct fujitsu_laptop {
 	spinlock_t fifo_lock;
 	int flags_supported;
 	int flags_state;
+	bool charge_control_supported;
 };
 
 static struct acpi_device *fext;
@@ -162,6 +169,110 @@ static int call_fext_func(struct acpi_device *device,
 			  "FUNC 0x%x (args 0x%x, 0x%x, 0x%x) returned 0x%x\n",
 			  func, op, feature, state, (int)value);
 	return value;
+}
+
+/* Battery charge control code */
+static ssize_t charge_control_end_threshold_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	int cc_end_value, s006_cc_return;
+	int value, ret;
+
+	ret = kstrtouint(buf, 10, &value);
+	if (ret)
+		return ret;
+
+	if (value < 50 || value > 100)
+		return -EINVAL;
+
+	cc_end_value = value * 0x100 + 0x20;
+	s006_cc_return = call_fext_func(fext, FUNC_S006_METHOD,
+					CHARGE_CONTROL_RW, cc_end_value, 0x0);
+	if (s006_cc_return < 0)
+		return s006_cc_return;
+	/*
+	 * The S006 0x21 method returns 0x00 in case the provided value
+	 * is invalid.
+	 */
+	if (s006_cc_return == 0x00)
+		return -EINVAL;
+
+	return count;
+}
+
+static ssize_t charge_control_end_threshold_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	int status;
+
+	status = call_fext_func(fext, FUNC_S006_METHOD,
+				CHARGE_CONTROL_RW, 0x21, 0x0);
+	if (status < 0)
+		return status;
+
+	return sysfs_emit(buf, "%d\n", status);
+}
+
+static DEVICE_ATTR_RW(charge_control_end_threshold);
+
+/* ACPI battery hook */
+static int fujitsu_battery_add_hook(struct power_supply *battery,
+			       struct acpi_battery_hook *hook)
+{
+	return device_create_file(&battery->dev,
+				  &dev_attr_charge_control_end_threshold);
+}
+
+static int fujitsu_battery_remove_hook(struct power_supply *battery,
+				  struct acpi_battery_hook *hook)
+{
+	device_remove_file(&battery->dev,
+			   &dev_attr_charge_control_end_threshold);
+
+	return 0;
+}
+
+static struct acpi_battery_hook battery_hook = {
+	.add_battery = fujitsu_battery_add_hook,
+	.remove_battery = fujitsu_battery_remove_hook,
+	.name = "Fujitsu Battery Extension",
+};
+
+/*
+ * These functions are intended to be called from acpi_fujitsu_laptop_add and
+ * acpi_fujitsu_laptop_remove.
+ */
+static int fujitsu_battery_charge_control_add(struct acpi_device *device)
+{
+	struct fujitsu_laptop *priv = acpi_driver_data(device);
+	int s006_cc_return;
+
+	priv->charge_control_supported = false;
+	/*
+	 * Check if the S006 0x21 method exists by trying to get the current
+	 * battery charge limit.
+	 */
+	s006_cc_return = call_fext_func(fext, FUNC_S006_METHOD,
+					CHARGE_CONTROL_RW, 0x21, 0x0);
+	if (s006_cc_return < 0)
+		return s006_cc_return;
+	if (s006_cc_return == UNSUPPORTED_CMD)
+		return -ENODEV;
+
+	priv->charge_control_supported = true;
+	battery_hook_register(&battery_hook);
+
+	return 0;
+}
+
+static void fujitsu_battery_charge_control_remove(struct acpi_device *device)
+{
+	struct fujitsu_laptop *priv = acpi_driver_data(device);
+
+	if (priv->charge_control_supported)
+		battery_hook_unregister(&battery_hook);
 }
 
 /* Hardware access for LCD brightness control */
@@ -839,6 +950,10 @@ static int acpi_fujitsu_laptop_add(struct acpi_device *device)
 	if (ret)
 		goto err_free_fifo;
 
+	ret = fujitsu_battery_charge_control_add(device);
+	if (ret < 0)
+		pr_warn("Unable to register battery charge control: %d\n", ret);
+
 	return 0;
 
 err_free_fifo:
@@ -850,6 +965,8 @@ err_free_fifo:
 static void acpi_fujitsu_laptop_remove(struct acpi_device *device)
 {
 	struct fujitsu_laptop *priv = acpi_driver_data(device);
+
+	fujitsu_battery_charge_control_remove(device);
 
 	fujitsu_laptop_platform_remove(device);
 
