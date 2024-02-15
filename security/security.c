@@ -2223,6 +2223,22 @@ int security_inode_setattr(struct mnt_idmap *idmap,
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
 /**
+ * security_inode_post_setattr() - Update the inode after a setattr operation
+ * @idmap: idmap of the mount
+ * @dentry: file
+ * @ia_valid: file attributes set
+ *
+ * Update inode security field after successful setting file attributes.
+ */
+void security_inode_post_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+				 int ia_valid)
+{
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+		return;
+	call_void_hook(inode_post_setattr, idmap, dentry, ia_valid);
+}
+
+/**
  * security_inode_getattr() - Check if getting file attributes is allowed
  * @path: file
  *
