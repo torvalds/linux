@@ -910,6 +910,8 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 		return;
 	}
 
+	DC_LOG_ERROR("%s: DMCUB error - collecting diagnostic data\n", __func__);
+
 	if (!dc_dmub_srv_get_diagnostic_data(dc_dmub_srv, &diag_data)) {
 		DC_LOG_ERROR("%s: dc_dmub_srv_get_diagnostic_data failed.", __func__);
 		return;
@@ -1201,6 +1203,7 @@ bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
 
 static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 {
+	volatile const struct dmub_shared_state_ips_fw *ips_fw;
 	struct dc_dmub_srv *dc_dmub_srv;
 	union dmub_rb_cmd cmd = {0};
 
@@ -1211,6 +1214,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		return;
 
 	dc_dmub_srv = dc->ctx->dmub_srv;
+	ips_fw = &dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_FW].data.ips_fw;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
@@ -1225,6 +1229,12 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		volatile struct dmub_shared_state_ips_driver *ips_driver =
 			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER].data.ips_driver;
 		union dmub_shared_state_ips_driver_signals new_signals;
+
+		DC_LOG_IPS(
+			"%s wait idle (ips1_commit=%d ips2_commit=%d)",
+			__func__,
+			ips_fw->signals.bits.ips1_commit,
+			ips_fw->signals.bits.ips2_commit);
 
 		dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
@@ -1249,6 +1259,13 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 
 		ips_driver->signals = new_signals;
 	}
+
+	DC_LOG_IPS(
+		"%s send allow_idle=%d (ips1_commit=%d ips2_commit=%d)",
+		__func__,
+		allow_idle,
+		ips_fw->signals.bits.ips1_commit,
+		ips_fw->signals.bits.ips2_commit);
 
 	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
 	/* We also do not perform a wait since DMCUB could enter idle after the notification. */
@@ -1276,23 +1293,66 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 		ips_driver->signals.all = 0;
 
+		DC_LOG_IPS(
+			"%s check (allow_ips1=%d allow_ips2=%d) (ips1_commit=%d ips2_commit=%d)",
+			__func__,
+			ips_driver->signals.bits.allow_ips1,
+			ips_driver->signals.bits.allow_ips2,
+			ips_fw->signals.bits.ips1_commit,
+			ips_fw->signals.bits.ips2_commit);
+
 		if (prev_driver_signals.bits.allow_ips2) {
+			DC_LOG_IPS(
+				"wait IPS2 eval (ips1_commit=%d ips2_commit=%d)",
+				ips_fw->signals.bits.ips1_commit,
+				ips_fw->signals.bits.ips2_commit);
+
 			udelay(dc->debug.ips2_eval_delay_us);
 
 			if (ips_fw->signals.bits.ips2_commit) {
+				DC_LOG_IPS(
+					"exit IPS2 #1 (ips1_commit=%d ips2_commit=%d)",
+					ips_fw->signals.bits.ips1_commit,
+					ips_fw->signals.bits.ips2_commit);
+
 				// Tell PMFW to exit low power state
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+				DC_LOG_IPS(
+					"wait IPS2 entry delay (ips1_commit=%d ips2_commit=%d)",
+					ips_fw->signals.bits.ips1_commit,
+					ips_fw->signals.bits.ips2_commit);
 
 				// Wait for IPS2 entry upper bound
 				udelay(dc->debug.ips2_entry_delay_us);
 
+				DC_LOG_IPS(
+					"exit IPS2 #2 (ips1_commit=%d ips2_commit=%d)",
+					ips_fw->signals.bits.ips1_commit,
+					ips_fw->signals.bits.ips2_commit);
+
 				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+				DC_LOG_IPS(
+					"wait IPS2 commit clear (ips1_commit=%d ips2_commit=%d)",
+					ips_fw->signals.bits.ips1_commit,
+					ips_fw->signals.bits.ips2_commit);
 
 				while (ips_fw->signals.bits.ips2_commit)
 					udelay(1);
 
+				DC_LOG_IPS(
+					"wait hw_pwr_up (ips1_commit=%d ips2_commit=%d)",
+					ips_fw->signals.bits.ips1_commit,
+					ips_fw->signals.bits.ips2_commit);
+
 				if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 					ASSERT(0);
+
+				DC_LOG_IPS(
+					"resync inbox1 (ips1_commit=%d ips2_commit=%d)",
+					ips_fw->signals.bits.ips1_commit,
+					ips_fw->signals.bits.ips2_commit);
 
 				dmub_srv_sync_inbox1(dc->ctx->dmub_srv->dmub);
 			}
@@ -1300,14 +1360,25 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 
 		dc_dmub_srv_notify_idle(dc, false);
 		if (prev_driver_signals.bits.allow_ips1) {
+			DC_LOG_IPS(
+				"wait for IPS1 commit clear (ips1_commit=%d ips2_commit=%d)",
+				ips_fw->signals.bits.ips1_commit,
+				ips_fw->signals.bits.ips2_commit);
+
 			while (ips_fw->signals.bits.ips1_commit)
 				udelay(1);
 
+			DC_LOG_IPS(
+				"wait for IPS1 commit clear done (ips1_commit=%d ips2_commit=%d)",
+				ips_fw->signals.bits.ips1_commit,
+				ips_fw->signals.bits.ips2_commit);
 		}
 	}
 
 	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 		ASSERT(0);
+
+	DC_LOG_IPS("%s exited", __func__);
 }
 
 void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState)
@@ -1334,6 +1405,8 @@ void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_
 
 	if (dc_dmub_srv->idle_allowed == allow_idle)
 		return;
+
+	DC_LOG_IPS("%s state change: old=%d new=%d", __func__, dc_dmub_srv->idle_allowed, allow_idle);
 
 	/*
 	 * Entering a low power state requires a driver notification.

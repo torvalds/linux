@@ -4874,10 +4874,14 @@ bool dc_set_replay_allow_active(struct dc *dc, bool active)
 	return true;
 }
 
-void dc_allow_idle_optimizations(struct dc *dc, bool allow)
+void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, char const *caller_name)
 {
 	if (dc->debug.disable_idle_power_optimizations)
 		return;
+
+	if (allow != dc->idle_optimizations_allowed)
+		DC_LOG_IPS("%s: allow_idle old=%d new=%d (caller=%s)\n", __func__,
+			   dc->idle_optimizations_allowed, allow, caller_name);
 
 	if (dc->caps.ips_support && (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return;
@@ -4893,10 +4897,10 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 		dc->idle_optimizations_allowed = allow;
 }
 
-void dc_exit_ips_for_hw_access(struct dc *dc)
+void dc_exit_ips_for_hw_access_internal(struct dc *dc, const char *caller_name)
 {
 	if (dc->caps.ips_support)
-		dc_allow_idle_optimizations(dc, false);
+		dc_allow_idle_optimizations_internal(dc, false, caller_name);
 }
 
 bool dc_dmub_is_ips_idle_state(struct dc *dc)

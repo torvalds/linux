@@ -2339,8 +2339,11 @@ void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_
 bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
 				struct dc_cursor_attributes *cursor_attr);
 
-void dc_allow_idle_optimizations(struct dc *dc, bool allow);
-void dc_exit_ips_for_hw_access(struct dc *dc);
+#define dc_allow_idle_optimizations(dc, allow) dc_allow_idle_optimizations_internal(dc, allow, __func__)
+#define dc_exit_ips_for_hw_access(dc) dc_exit_ips_for_hw_access_internal(dc, __func__)
+
+void dc_allow_idle_optimizations_internal(struct dc *dc, bool allow, const char *caller_name);
+void dc_exit_ips_for_hw_access_internal(struct dc *dc, const char *caller_name);
 bool dc_dmub_is_ips_idle_state(struct dc *dc);
 
 /* set min and max memory clock to lowest and highest DPM level, respectively */
