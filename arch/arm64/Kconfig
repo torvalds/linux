@@ -2229,6 +2229,15 @@ config UNWIND_PATCH_PAC_INTO_SCS
 	select UNWIND_TABLES
 	select DYNAMIC_SCS
 
+config ARM64_CONTPTE
+	bool "Contiguous PTE mappings for user memory" if EXPERT
+	depends on TRANSPARENT_HUGEPAGE
+	default y
+	help
+	  When enabled, user mappings are configured using the PTE contiguous
+	  bit, for any mappings that meet the size and alignment requirements.
+	  This reduces TLB pressure and improves performance.
+
 endmenu # "Kernel Features"
 
 menu "Boot options"
