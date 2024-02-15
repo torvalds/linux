@@ -40,6 +40,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
@@ -1327,7 +1328,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	 * the active portion. Hence following this formula seems
 	 * more trouble that it's worth.
 	 *
-	 * if (GRAPHICS_VER(dev_priv) == 4) {
+	 * if (DISPLAY_VER(dev_priv) == 4) {
 	 *	num = cdclk * (tv_mode->oversample >> !tv_mode->progressive);
 	 *	den = tv_mode->clock;
 	 * } else {
@@ -1723,6 +1724,9 @@ intel_tv_detect(struct drm_connector *connector,
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
 
+	if (!intel_display_driver_check_access(i915))
+		return connector->status;
+
 	if (force) {
 		struct drm_atomic_state *state;
 
@@ -1990,6 +1994,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	 * More recent chipsets favour HDMI rather than integrated S-Video.
 	 */
 	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	intel_connector->base.polled = intel_connector->polled;
 
 	drm_connector_init(&dev_priv->drm, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);

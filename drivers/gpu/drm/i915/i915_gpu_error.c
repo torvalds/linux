@@ -1157,7 +1157,7 @@ i915_vma_coredump_create(const struct intel_gt *gt,
 			dma_addr_t offset = dma - mem->region.start;
 			void __iomem *s;
 
-			if (offset + PAGE_SIZE > mem->io_size) {
+			if (offset + PAGE_SIZE > resource_size(&mem->io)) {
 				ret = -EINVAL;
 				break;
 			}

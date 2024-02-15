@@ -502,7 +502,7 @@ static int query_memregion_info(struct drm_i915_private *i915,
 		info.probed_size = mr->total;
 
 		if (mr->type == INTEL_MEMORY_LOCAL)
-			info.probed_cpu_visible_size = mr->io_size;
+			info.probed_cpu_visible_size = resource_size(&mr->io);
 		else
 			info.probed_cpu_visible_size = mr->total;
 
