@@ -34,6 +34,126 @@ void rtw8922a_tssi_cont_en_phyidx(struct rtw89_dev *rtwdev, bool en, u8 phy_idx)
 	}
 }
 
+static
+void rtw8922a_ctl_band_ch_bw(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
+			     u8 central_ch, enum rtw89_band band,
+			     enum rtw89_bandwidth bw)
+{
+	const u32 rf_addr[2] = {RR_CFGCH, RR_CFGCH_V1};
+	struct rtw89_hal *hal = &rtwdev->hal;
+	u32 rf_reg[RF_PATH_NUM_8922A][2];
+	u8 synpath;
+	u32 rf18;
+	u8 kpath;
+	u8 path;
+	u8 i;
+
+	rf_reg[RF_PATH_A][0] = rtw89_read_rf(rtwdev, RF_PATH_A, rf_addr[0], RFREG_MASK);
+	rf_reg[RF_PATH_A][1] = rtw89_read_rf(rtwdev, RF_PATH_A, rf_addr[1], RFREG_MASK);
+	rf_reg[RF_PATH_B][0] = rtw89_read_rf(rtwdev, RF_PATH_B, rf_addr[0], RFREG_MASK);
+	rf_reg[RF_PATH_B][1] = rtw89_read_rf(rtwdev, RF_PATH_B, rf_addr[1], RFREG_MASK);
+
+	kpath = rtw89_phy_get_kpath(rtwdev, phy);
+	synpath = rtw89_phy_get_syn_sel(rtwdev, phy);
+
+	rf18 = rtw89_read_rf(rtwdev, synpath, RR_CFGCH, RFREG_MASK);
+	if (rf18 == INV_RF_DATA) {
+		rtw89_warn(rtwdev, "[RFK] Invalid RF18 value\n");
+		return;
+	}
+
+	for (path = 0; path < RF_PATH_NUM_8922A; path++) {
+		if (!(kpath & BIT(path)))
+			continue;
+
+		for (i = 0; i < 2; i++) {
+			if (rf_reg[path][i] == INV_RF_DATA) {
+				rtw89_warn(rtwdev,
+					   "[RFK] Invalid RF_0x18 for Path-%d\n", path);
+				return;
+			}
+
+			rf_reg[path][i] &= ~(RR_CFGCH_BAND1 | RR_CFGCH_BW |
+					     RR_CFGCH_BAND0 | RR_CFGCH_CH);
+			rf_reg[path][i] |= u32_encode_bits(central_ch, RR_CFGCH_CH);
+
+			if (band == RTW89_BAND_2G)
+				rtw89_write_rf(rtwdev, path, RR_SMD, RR_VCO2, 0x0);
+			else
+				rtw89_write_rf(rtwdev, path, RR_SMD, RR_VCO2, 0x1);
+
+			switch (band) {
+			case RTW89_BAND_2G:
+			default:
+				break;
+			case RTW89_BAND_5G:
+				rf_reg[path][i] |=
+					u32_encode_bits(CFGCH_BAND1_5G, RR_CFGCH_BAND1) |
+					u32_encode_bits(CFGCH_BAND0_5G, RR_CFGCH_BAND0);
+				break;
+			case RTW89_BAND_6G:
+				rf_reg[path][i] |=
+					u32_encode_bits(CFGCH_BAND1_6G, RR_CFGCH_BAND1) |
+					u32_encode_bits(CFGCH_BAND0_6G, RR_CFGCH_BAND0);
+				break;
+			}
+
+			switch (bw) {
+			case RTW89_CHANNEL_WIDTH_5:
+			case RTW89_CHANNEL_WIDTH_10:
+			case RTW89_CHANNEL_WIDTH_20:
+			default:
+				break;
+			case RTW89_CHANNEL_WIDTH_40:
+				rf_reg[path][i] |=
+					u32_encode_bits(CFGCH_BW_V2_40M, RR_CFGCH_BW_V2);
+				break;
+			case RTW89_CHANNEL_WIDTH_80:
+				rf_reg[path][i] |=
+					u32_encode_bits(CFGCH_BW_V2_80M, RR_CFGCH_BW_V2);
+				break;
+			case RTW89_CHANNEL_WIDTH_160:
+				rf_reg[path][i] |=
+					u32_encode_bits(CFGCH_BW_V2_160M, RR_CFGCH_BW_V2);
+				break;
+			case RTW89_CHANNEL_WIDTH_320:
+				rf_reg[path][i] |=
+					u32_encode_bits(CFGCH_BW_V2_320M, RR_CFGCH_BW_V2);
+				break;
+			}
+
+			rtw89_write_rf(rtwdev, path, rf_addr[i],
+				       RFREG_MASK, rf_reg[path][i]);
+			fsleep(100);
+		}
+	}
+
+	if (hal->cv != CHIP_CAV)
+		return;
+
+	if (band == RTW89_BAND_2G) {
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWE, RFREG_MASK, 0x80000);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWA, RFREG_MASK, 0x00003);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWD1, RFREG_MASK, 0x0c990);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWD0, RFREG_MASK, 0xebe38);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWE, RFREG_MASK, 0x00000);
+	} else {
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWE, RFREG_MASK, 0x80000);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWA, RFREG_MASK, 0x00003);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWD1, RFREG_MASK, 0x0c190);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWD0, RFREG_MASK, 0xebe38);
+		rtw89_write_rf(rtwdev, RF_PATH_A, RR_LUTWE, RFREG_MASK, 0x00000);
+	}
+}
+
+void rtw8922a_set_channel_rf(struct rtw89_dev *rtwdev,
+			     const struct rtw89_chan *chan,
+			     enum rtw89_phy_idx phy_idx)
+{
+	rtw8922a_ctl_band_ch_bw(rtwdev, phy_idx, chan->channel, chan->band_type,
+				chan->band_width);
+}
+
 enum _rf_syn_pow {
 	RF_SYN_ON_OFF,
 	RF_SYN_OFF_ON,

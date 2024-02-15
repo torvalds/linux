@@ -7497,6 +7497,12 @@
 #define CFGCH_BAND0_2G 0
 #define CFGCH_BAND0_5G 1
 #define CFGCH_BAND0_6G 0
+#define RR_CFGCH_BW_V2 GENMASK(12, 10)
+#define CFGCH_BW_V2_20M 0
+#define CFGCH_BW_V2_40M 1
+#define CFGCH_BW_V2_80M 2
+#define CFGCH_BW_V2_160M 3
+#define CFGCH_BW_V2_320M 4
 #define RR_CFGCH_BW GENMASK(11, 10)
 #define RR_CFGCH_CH GENMASK(7, 0)
 #define CFGCH_BW_20M 3
@@ -7683,6 +7689,8 @@
 #define RR_MMD 0xd5
 #define RR_MMD_RST_EN BIT(8)
 #define RR_MMD_RST_SYN BIT(6)
+#define RR_SMD 0xd6
+#define RR_VCO2 BIT(19)
 #define RR_IQKPLL 0xdc
 #define RR_IQKPLL_MOD GENMASK(9, 8)
 #define RR_SYNLUT 0xdd

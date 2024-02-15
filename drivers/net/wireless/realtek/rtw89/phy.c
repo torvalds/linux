@@ -6378,6 +6378,78 @@ void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev)
 	rtw89_phy_edcca_log(rtwdev);
 }
 
+enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
+					   enum rtw89_phy_idx phy_idx)
+{
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "[RFK] kpath dbcc_en: 0x%x, mode=0x%x, PHY%d\n",
+		    rtwdev->dbcc_en, rtwdev->mlo_dbcc_mode, phy_idx);
+
+	switch (rtwdev->mlo_dbcc_mode) {
+	case MLO_1_PLUS_1_1RF:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_A;
+		else
+			return RF_B;
+	case MLO_1_PLUS_1_2RF:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_A;
+		else
+			return RF_D;
+	case MLO_0_PLUS_2_1RF:
+	case MLO_2_PLUS_0_1RF:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_AB;
+		else
+			return RF_AB;
+	case MLO_0_PLUS_2_2RF:
+	case MLO_2_PLUS_0_2RF:
+	case MLO_2_PLUS_2_2RF:
+	default:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_AB;
+		else
+			return RF_CD;
+	}
+}
+EXPORT_SYMBOL(rtw89_phy_get_kpath);
+
+enum rtw89_rf_path rtw89_phy_get_syn_sel(struct rtw89_dev *rtwdev,
+					 enum rtw89_phy_idx phy_idx)
+{
+	rtw89_debug(rtwdev, RTW89_DBG_RFK,
+		    "[RFK] kpath dbcc_en: 0x%x, mode=0x%x, PHY%d\n",
+		    rtwdev->dbcc_en, rtwdev->mlo_dbcc_mode, phy_idx);
+
+	switch (rtwdev->mlo_dbcc_mode) {
+	case MLO_1_PLUS_1_1RF:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_PATH_A;
+		else
+			return RF_PATH_B;
+	case MLO_1_PLUS_1_2RF:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_PATH_A;
+		else
+			return RF_PATH_D;
+	case MLO_0_PLUS_2_1RF:
+	case MLO_2_PLUS_0_1RF:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_PATH_A;
+		else
+			return RF_PATH_B;
+	case MLO_0_PLUS_2_2RF:
+	case MLO_2_PLUS_0_2RF:
+	case MLO_2_PLUS_2_2RF:
+	default:
+		if (phy_idx == RTW89_PHY_0)
+			return RF_PATH_A;
+		else
+			return RF_PATH_C;
+	}
+}
+EXPORT_SYMBOL(rtw89_phy_get_syn_sel);
+
 static const struct rtw89_ccx_regs rtw89_ccx_regs_ax = {
 	.setting_addr = R_CCX,
 	.edcca_opt_mask = B_CCX_EDCCA_OPT_MSK,

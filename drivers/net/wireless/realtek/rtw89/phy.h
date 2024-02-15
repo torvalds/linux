@@ -945,5 +945,9 @@ void rtw89_decode_chan_idx(struct rtw89_dev *rtwdev, u8 chan_idx,
 void rtw89_phy_config_edcca(struct rtw89_dev *rtwdev, bool scan);
 void rtw89_phy_edcca_track(struct rtw89_dev *rtwdev);
 void rtw89_phy_edcca_thre_calc(struct rtw89_dev *rtwdev);
+enum rtw89_rf_path_bit rtw89_phy_get_kpath(struct rtw89_dev *rtwdev,
+					   enum rtw89_phy_idx phy_idx);
+enum rtw89_rf_path rtw89_phy_get_syn_sel(struct rtw89_dev *rtwdev,
+					 enum rtw89_phy_idx phy_idx);
 
 #endif

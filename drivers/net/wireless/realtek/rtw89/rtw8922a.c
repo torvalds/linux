@@ -1781,6 +1781,7 @@ static void rtw8922a_set_channel(struct rtw89_dev *rtwdev,
 {
 	rtw8922a_set_channel_mac(rtwdev, chan, mac_idx);
 	rtw8922a_set_channel_bb(rtwdev, chan, phy_idx);
+	rtw8922a_set_channel_rf(rtwdev, chan, phy_idx);
 }
 
 static void rtw8922a_dfs_en_idx(struct rtw89_dev *rtwdev,
