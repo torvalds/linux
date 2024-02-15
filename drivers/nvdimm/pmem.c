@@ -497,9 +497,9 @@ static int pmem_attach_disk(struct device *dev,
 		return -EBUSY;
 	}
 
-	disk = blk_alloc_disk(nid);
-	if (!disk)
-		return -ENOMEM;
+	disk = blk_alloc_disk(NULL, nid);
+	if (IS_ERR(disk))
+		return PTR_ERR(disk);
 	q = disk->queue;
 
 	pmem->disk = disk;

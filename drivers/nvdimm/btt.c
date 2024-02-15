@@ -1496,11 +1496,11 @@ static int btt_blk_init(struct btt *btt)
 {
 	struct nd_btt *nd_btt = btt->nd_btt;
 	struct nd_namespace_common *ndns = nd_btt->ndns;
-	int rc = -ENOMEM;
+	int rc;
 
-	btt->btt_disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!btt->btt_disk)
-		return -ENOMEM;
+	btt->btt_disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(btt->btt_disk))
+		return PTR_ERR(btt->btt_disk);
 
 	nvdimm_namespace_disk_name(ndns, btt->btt_disk->disk_name);
 	btt->btt_disk->first_minor = 0;

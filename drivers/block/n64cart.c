@@ -131,9 +131,11 @@ static int __init n64cart_probe(struct platform_device *pdev)
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 
-	disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!disk)
+	disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(disk)) {
+		err = PTR_ERR(disk);
 		goto out;
+	}
 
 	disk->first_minor = 0;
 	disk->flags = GENHD_FL_NO_PART;

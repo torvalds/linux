@@ -2154,10 +2154,11 @@ static int null_add_dev(struct nullb_device *dev)
 		}
 		nullb->q = nullb->disk->queue;
 	} else if (dev->queue_mode == NULL_Q_BIO) {
-		rv = -ENOMEM;
-		nullb->disk = blk_alloc_disk(nullb->dev->home_node);
-		if (!nullb->disk)
+		nullb->disk = blk_alloc_disk(NULL, nullb->dev->home_node);
+		if (IS_ERR(nullb->disk)) {
+			rv = PTR_ERR(nullb->disk);
 			goto out_cleanup_queues;
+		}
 
 		nullb->q = nullb->disk->queue;
 		rv = init_driver_queues(nullb);

@@ -629,9 +629,9 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	dev_info->dev.release = dcssblk_release_segment;
 	dev_info->dev.groups = dcssblk_dev_attr_groups;
 	INIT_LIST_HEAD(&dev_info->lh);
-	dev_info->gd = blk_alloc_disk(NUMA_NO_NODE);
-	if (dev_info->gd == NULL) {
-		rc = -ENOMEM;
+	dev_info->gd = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(dev_info->gd)) {
+		rc = PTR_ERR(dev_info->gd);
 		goto seg_list_del;
 	}
 	dev_info->gd->major = dcssblk_major;

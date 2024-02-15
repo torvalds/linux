@@ -2673,10 +2673,11 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	pd->write_congestion_on  = write_congestion_on;
 	pd->write_congestion_off = write_congestion_off;
 
-	ret = -ENOMEM;
-	disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!disk)
+	disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(disk)) {
+		ret = PTR_ERR(disk);
 		goto out_mem;
+	}
 	pd->disk = disk;
 	disk->major = pktdev_major;
 	disk->first_minor = idx;

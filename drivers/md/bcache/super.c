@@ -935,8 +935,8 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 			BIOSET_NEED_BVECS|BIOSET_NEED_RESCUER))
 		goto out_ida_remove;
 
-	d->disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!d->disk)
+	d->disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(d->disk))
 		goto out_bioset_exit;
 
 	set_capacity(d->disk, sectors);

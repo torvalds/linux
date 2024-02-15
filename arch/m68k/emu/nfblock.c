@@ -117,9 +117,11 @@ static int __init nfhd_init_one(int id, u32 blocks, u32 bsize)
 	dev->bsize = bsize;
 	dev->bshift = ffs(bsize) - 10;
 
-	dev->disk = blk_alloc_disk(NUMA_NO_NODE);
-	if (!dev->disk)
+	dev->disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(dev->disk)) {
+		err = PTR_ERR(dev->disk);
 		goto free_dev;
+	}
 
 	dev->disk->major = major_num;
 	dev->disk->first_minor = dev_id * 16;
