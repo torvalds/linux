@@ -30,7 +30,7 @@ use core::{
     mem::{ManuallyDrop, MaybeUninit},
     ops::{Deref, DerefMut},
     pin::Pin,
-    ptr::{NonNull, Pointee},
+    ptr::NonNull,
 };
 use macros::pin_data;
 
@@ -239,22 +239,20 @@ impl<T: ?Sized> Arc<T> {
         // binary, so its layout is not so large that it can trigger arithmetic overflow.
         let val_offset = unsafe { refcount_layout.extend(val_layout).unwrap_unchecked().1 };
 
-        let metadata: <T as Pointee>::Metadata = core::ptr::metadata(ptr);
-        // SAFETY: The metadata of `T` and `ArcInner<T>` is the same because `ArcInner` is a struct
-        // with `T` as its last field.
+        // Pointer casts leave the metadata unchanged. This is okay because the metadata of `T` and
+        // `ArcInner<T>` is the same since `ArcInner` is a struct with `T` as its last field.
         //
         // This is documented at:
         // <https://doc.rust-lang.org/std/ptr/trait.Pointee.html>.
-        let metadata: <ArcInner<T> as Pointee>::Metadata =
-            unsafe { core::mem::transmute_copy(&metadata) };
+        let ptr = ptr as *const ArcInner<T>;
+
         // SAFETY: The pointer is in-bounds of an allocation both before and after offsetting the
         // pointer, since it originates from a previous call to `Arc::into_raw` and is still valid.
-        let ptr = unsafe { (ptr as *mut u8).sub(val_offset) as *mut () };
-        let ptr = core::ptr::from_raw_parts_mut(ptr, metadata);
+        let ptr = unsafe { ptr.byte_sub(val_offset) };
 
         // SAFETY: By the safety requirements we know that `ptr` came from `Arc::into_raw`, so the
         // reference count held then will be owned by the new `Arc` object.
-        unsafe { Self::from_inner(NonNull::new_unchecked(ptr)) }
+        unsafe { Self::from_inner(NonNull::new_unchecked(ptr.cast_mut())) }
     }
 
     /// Returns an [`ArcBorrow`] from the given [`Arc`].
