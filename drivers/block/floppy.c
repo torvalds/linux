@@ -4516,13 +4516,15 @@ static bool floppy_available(int drive)
 
 static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 {
+	struct queue_limits lim = {
+		.max_hw_sectors = 64,
+	};
 	struct gendisk *disk;
 
-	disk = blk_mq_alloc_disk(&tag_sets[drive], NULL, NULL);
+	disk = blk_mq_alloc_disk(&tag_sets[drive], &lim, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 
-	blk_queue_max_hw_sectors(disk->queue, 64);
 	disk->major = FLOPPY_MAJOR;
 	disk->first_minor = TOMINOR(drive) | (type << 2);
 	disk->minors = 1;
