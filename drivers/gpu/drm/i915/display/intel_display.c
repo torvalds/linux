@@ -4876,33 +4876,34 @@ pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
 			    const char *name,
 			    const u8 *a, const u8 *b, size_t len)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_printer p;
+	const char *loglevel;
 
 	if (fastset) {
 		if (!drm_debug_enabled(DRM_UT_KMS))
 			return;
 
-		/* only dump up to the last difference */
-		len = memcmp_diff_len(a, b, len);
+		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
+		loglevel = KERN_DEBUG;
 
-		drm_dbg_kms(&dev_priv->drm,
-			    "[CRTC:%d:%s] fastset requirement not met in %s buffer\n",
-			    crtc->base.base.id, crtc->base.name, name);
-		print_hex_dump(KERN_DEBUG, "expected: ", DUMP_PREFIX_NONE,
-			       16, 0, a, len, false);
-		print_hex_dump(KERN_DEBUG, "found: ", DUMP_PREFIX_NONE,
-			       16, 0, b, len, false);
+		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s buffer\n",
+			   crtc->base.base.id, crtc->base.name, name);
 	} else {
-		/* only dump up to the last difference */
-		len = memcmp_diff_len(a, b, len);
+		p = drm_err_printer(&i915->drm, NULL);
+		loglevel = KERN_ERR;
 
-		drm_err(&dev_priv->drm, "[CRTC:%d:%s] mismatch in %s buffer\n",
-			crtc->base.base.id, crtc->base.name, name);
-		print_hex_dump(KERN_ERR, "expected: ", DUMP_PREFIX_NONE,
-			       16, 0, a, len, false);
-		print_hex_dump(KERN_ERR, "found: ", DUMP_PREFIX_NONE,
-			       16, 0, b, len, false);
+		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s buffer\n",
+			   crtc->base.base.id, crtc->base.name, name);
 	}
+
+	/* only dump up to the last difference */
+	len = memcmp_diff_len(a, b, len);
+
+	print_hex_dump(loglevel, "expected: ", DUMP_PREFIX_NONE,
+		       16, 0, a, len, false);
+	print_hex_dump(loglevel, "found: ", DUMP_PREFIX_NONE,
+		       16, 0, b, len, false);
 }
 
 static void __printf(4, 5)
