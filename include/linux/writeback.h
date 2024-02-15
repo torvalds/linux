@@ -82,6 +82,7 @@ struct writeback_control {
 	/* internal fields used by the ->writepages implementation: */
 	struct folio_batch fbatch;
 	pgoff_t index;
+	int saved_err;
 
 #ifdef CONFIG_CGROUP_WRITEBACK
 	struct bdi_writeback *wb;	/* wb this writeback is issued under */
@@ -365,6 +366,9 @@ int balance_dirty_pages_ratelimited_flags(struct address_space *mapping,
 		unsigned int flags);
 
 bool wb_over_bg_thresh(struct bdi_writeback *wb);
+
+struct folio *writeback_iter(struct address_space *mapping,
+		struct writeback_control *wbc, struct folio *folio, int *error);
 
 typedef int (*writepage_t)(struct folio *folio, struct writeback_control *wbc,
 				void *data);
