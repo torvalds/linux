@@ -2535,7 +2535,9 @@ static int writepage_cb(struct folio *folio, struct writeback_control *wbc,
 {
 	struct address_space *mapping = data;
 	int ret = mapping->a_ops->writepage(&folio->page, wbc);
-	mapping_set_error(mapping, ret);
+
+	if (ret < 0)
+		mapping_set_error(mapping, ret);
 	return ret;
 }
 
