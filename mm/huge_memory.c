@@ -2158,7 +2158,7 @@ unlock:
 
 #ifdef CONFIG_USERFAULTFD
 /*
- * The PT lock for src_pmd and the mmap_lock for reading are held by
+ * The PT lock for src_pmd and dst_vma/src_vma (for reading) are locked by
  * the caller, but it must return after releasing the page_table_lock.
  * Just move the page from src_pmd to dst_pmd if possible.
  * Return zero if succeeded in moving the page, -EAGAIN if it needs to be
@@ -2181,7 +2181,8 @@ int move_pages_huge_pmd(struct mm_struct *mm, pmd_t *dst_pmd, pmd_t *src_pmd, pm
 	src_ptl = pmd_lockptr(mm, src_pmd);
 
 	lockdep_assert_held(src_ptl);
-	mmap_assert_locked(mm);
+	vma_assert_locked(src_vma);
+	vma_assert_locked(dst_vma);
 
 	/* Sanity checks before the operation */
 	if (WARN_ON_ONCE(!pmd_none(dst_pmdval)) || WARN_ON_ONCE(src_addr & ~HPAGE_PMD_MASK) ||
