@@ -378,9 +378,10 @@ static void ih_v7_0_irq_disable(struct amdgpu_device *adev)
 }
 
 /**
- * ih_v7_0_get_wptr - get the IH ring buffer wptr
+ * ih_v7_0_get_wptr() - get the IH ring buffer wptr
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring buffer to fetch wptr
  *
  * Get the IH ring buffer wptr from either the register
  * or the writeback memory buffer.  Also check for
@@ -425,6 +426,7 @@ out:
  * ih_v7_0_irq_rearm - rearm IRQ if lost
  *
  * @adev: amdgpu_device pointer
+ * @ih: IH ring to match
  *
  */
 static void ih_v7_0_irq_rearm(struct amdgpu_device *adev,
@@ -450,8 +452,7 @@ static void ih_v7_0_irq_rearm(struct amdgpu_device *adev,
  * ih_v7_0_set_rptr - set the IH ring buffer rptr
  *
  * @adev: amdgpu_device pointer
- *
- * Set the IH ring buffer rptr.
+ * @ih: IH ring buffer to set rptr
  */
 static void ih_v7_0_set_rptr(struct amdgpu_device *adev,
 			       struct amdgpu_ih_ring *ih)
