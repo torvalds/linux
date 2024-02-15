@@ -2,7 +2,10 @@
 #ifndef _LINUX_SEQ_BUF_H
 #define _LINUX_SEQ_BUF_H
 
-#include <linux/fs.h>
+#include <linux/bug.h>
+#include <linux/minmax.h>
+#include <linux/seq_file.h>
+#include <linux/types.h>
 
 /*
  * Trace sequences are used to allow a function to call several other functions

@@ -13,9 +13,19 @@
  * seq_buf_init() more than once to reset the seq_buf to start
  * from scratch.
  */
-#include <linux/uaccess.h>
-#include <linux/seq_file.h>
+
+#include <linux/bug.h>
+#include <linux/err.h>
+#include <linux/export.h>
+#include <linux/hex.h>
+#include <linux/minmax.h>
+#include <linux/printk.h>
 #include <linux/seq_buf.h>
+#include <linux/seq_file.h>
+#include <linux/sprintf.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 
 /**
  * seq_buf_can_fit - can the new data fit in the current buffer?
