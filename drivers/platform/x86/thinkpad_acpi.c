@@ -6149,6 +6149,78 @@ struct ibm_thermal_sensors_struct {
 static enum thermal_access_mode thermal_read_mode;
 static bool thermal_use_labels;
 
+/* Function to check thermal read mode */
+static enum thermal_access_mode __init thermal_read_mode_check(void)
+{
+	u8 t, ta1, ta2, ver = 0;
+	int i;
+	int acpi_tmp7;
+
+	acpi_tmp7 = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
+
+	if (thinkpad_id.ec_model) {
+		/*
+		 * Direct EC access mode: sensors at registers 0x78-0x7F,
+		 * 0xC0-0xC7. Registers return 0x00 for non-implemented,
+		 * thermal sensors return 0x80 when not available.
+		 *
+		 * In some special cases (when Power Supply ID is 0xC2)
+		 * above rule causes thermal control issues. Offset 0xEF
+		 * determines EC version. 0xC0-0xC7 are not thermal registers
+		 * in Ver 3.
+		 */
+		if (!acpi_ec_read(TP_EC_FUNCREV, &ver))
+			pr_warn("Thinkpad ACPI EC unable to access EC version\n");
+
+		ta1 = ta2 = 0;
+		for (i = 0; i < 8; i++) {
+			if (acpi_ec_read(TP_EC_THERMAL_TMP0 + i, &t)) {
+				ta1 |= t;
+			} else {
+				ta1 = 0;
+				break;
+			}
+			if (ver < 3) {
+				if (acpi_ec_read(TP_EC_THERMAL_TMP8 + i, &t)) {
+					ta2 |= t;
+				} else {
+					ta1 = 0;
+					break;
+				}
+			}
+		}
+
+		if (ta1 == 0) {
+			/* This is sheer paranoia, but we handle it anyway */
+			if (acpi_tmp7) {
+				pr_err("ThinkPad ACPI EC access misbehaving, falling back to ACPI TMPx access mode\n");
+				return TPACPI_THERMAL_ACPI_TMP07;
+			}
+			pr_err("ThinkPad ACPI EC access misbehaving, disabling thermal sensors access\n");
+			return TPACPI_THERMAL_NONE;
+		}
+
+		if (ver >= 3) {
+			thermal_use_labels = true;
+			return TPACPI_THERMAL_TPEC_8;
+		}
+
+		return (ta2 != 0) ? TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
+	}
+
+	if (acpi_tmp7) {
+		if (tpacpi_is_ibm() && acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
+			/* 600e/x, 770e, 770x */
+			return TPACPI_THERMAL_ACPI_UPDT;
+		}
+		/* IBM/LENOVO DSDT EC.TMPx access, max 8 sensors */
+		return TPACPI_THERMAL_ACPI_TMP07;
+	}
+
+	/* temperatures not supported on 570, G4x, R30, R31, R32 */
+	return TPACPI_THERMAL_NONE;
+}
+
 /* idx is zero-based */
 static int thermal_get_sensor(int idx, s32 *value)
 {
@@ -6375,78 +6447,9 @@ static const struct attribute_group temp_label_attr_group = {
 
 static int __init thermal_init(struct ibm_init_struct *iibm)
 {
-	u8 t, ta1, ta2, ver = 0;
-	int i;
-	int acpi_tmp7;
-
 	vdbg_printk(TPACPI_DBG_INIT, "initializing thermal subdriver\n");
 
-	acpi_tmp7 = acpi_evalf(ec_handle, NULL, "TMP7", "qv");
-
-	if (thinkpad_id.ec_model) {
-		/*
-		 * Direct EC access mode: sensors at registers
-		 * 0x78-0x7F, 0xC0-0xC7.  Registers return 0x00 for
-		 * non-implemented, thermal sensors return 0x80 when
-		 * not available
-		 * The above rule is unfortunately flawed. This has been seen with
-		 * 0xC2 (power supply ID) causing thermal control problems.
-		 * The EC version can be determined by offset 0xEF and at least for
-		 * version 3 the Lenovo firmware team confirmed that registers 0xC0-0xC7
-		 * are not thermal registers.
-		 */
-		if (!acpi_ec_read(TP_EC_FUNCREV, &ver))
-			pr_warn("Thinkpad ACPI EC unable to access EC version\n");
-
-		ta1 = ta2 = 0;
-		for (i = 0; i < 8; i++) {
-			if (acpi_ec_read(TP_EC_THERMAL_TMP0 + i, &t)) {
-				ta1 |= t;
-			} else {
-				ta1 = 0;
-				break;
-			}
-			if (ver < 3) {
-				if (acpi_ec_read(TP_EC_THERMAL_TMP8 + i, &t)) {
-					ta2 |= t;
-				} else {
-					ta1 = 0;
-					break;
-				}
-			}
-		}
-		if (ta1 == 0) {
-			/* This is sheer paranoia, but we handle it anyway */
-			if (acpi_tmp7) {
-				pr_err("ThinkPad ACPI EC access misbehaving, falling back to ACPI TMPx access mode\n");
-				thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
-			} else {
-				pr_err("ThinkPad ACPI EC access misbehaving, disabling thermal sensors access\n");
-				thermal_read_mode = TPACPI_THERMAL_NONE;
-			}
-		} else {
-			if (ver >= 3) {
-				thermal_read_mode = TPACPI_THERMAL_TPEC_8;
-				thermal_use_labels = true;
-			} else {
-				thermal_read_mode =
-					(ta2 != 0) ?
-					TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
-			}
-		}
-	} else if (acpi_tmp7) {
-		if (tpacpi_is_ibm() &&
-		    acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
-			/* 600e/x, 770e, 770x */
-			thermal_read_mode = TPACPI_THERMAL_ACPI_UPDT;
-		} else {
-			/* IBM/LENOVO DSDT EC.TMPx access, max 8 sensors */
-			thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
-		}
-	} else {
-		/* temperatures not supported on 570, G4x, R30, R31, R32 */
-		thermal_read_mode = TPACPI_THERMAL_NONE;
-	}
+	thermal_read_mode = thermal_read_mode_check();
 
 	vdbg_printk(TPACPI_DBG_INIT, "thermal is %s, mode %d\n",
 		str_supported(thermal_read_mode != TPACPI_THERMAL_NONE),
