@@ -43,6 +43,7 @@ struct stack {
 static struct stack dummy_stack;
 static struct stack failure_stack;
 static struct stack *stack_list;
+static DEFINE_SPINLOCK(stack_list_lock);
 
 static bool page_owner_enabled __initdata;
 DEFINE_STATIC_KEY_FALSE(page_owner_inited);
@@ -150,11 +151,68 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	return handle;
 }
 
+static void add_stack_record_to_list(struct stack_record *stack_record,
+				     gfp_t gfp_mask)
+{
+	unsigned long flags;
+	struct stack *stack;
+
+	/* Filter gfp_mask the same way stackdepot does, for consistency */
+	gfp_mask &= ~GFP_ZONEMASK;
+	gfp_mask &= (GFP_ATOMIC | GFP_KERNEL);
+	gfp_mask |= __GFP_NOWARN;
+
+	stack = kmalloc(sizeof(*stack), gfp_mask);
+	if (!stack)
+		return;
+
+	stack->stack_record = stack_record;
+	stack->next = NULL;
+
+	spin_lock_irqsave(&stack_list_lock, flags);
+	stack->next = stack_list;
+	stack_list = stack;
+	spin_unlock_irqrestore(&stack_list_lock, flags);
+}
+
+static void inc_stack_record_count(depot_stack_handle_t handle, gfp_t gfp_mask)
+{
+	struct stack_record *stack_record = __stack_depot_get_stack_record(handle);
+
+	if (!stack_record)
+		return;
+
+	/*
+	 * New stack_record's that do not use STACK_DEPOT_FLAG_GET start
+	 * with REFCOUNT_SATURATED to catch spurious increments of their
+	 * refcount.
+	 * Since we do not use STACK_DEPOT_FLAG_GET API, let us
+	 * set a refcount of 1 ourselves.
+	 */
+	if (refcount_read(&stack_record->count) == REFCOUNT_SATURATED) {
+		int old = REFCOUNT_SATURATED;
+
+		if (atomic_try_cmpxchg_relaxed(&stack_record->count.refs, &old, 1))
+			/* Add the new stack_record to our list */
+			add_stack_record_to_list(stack_record, gfp_mask);
+	}
+	refcount_inc(&stack_record->count);
+}
+
+static void dec_stack_record_count(depot_stack_handle_t handle)
+{
+	struct stack_record *stack_record = __stack_depot_get_stack_record(handle);
+
+	if (stack_record)
+		refcount_dec(&stack_record->count);
+}
+
 void __reset_page_owner(struct page *page, unsigned short order)
 {
 	int i;
 	struct page_ext *page_ext;
 	depot_stack_handle_t handle;
+	depot_stack_handle_t alloc_handle;
 	struct page_owner *page_owner;
 	u64 free_ts_nsec = local_clock();
 
@@ -162,17 +220,29 @@ void __reset_page_owner(struct page *page, unsigned short order)
 	if (unlikely(!page_ext))
 		return;
 
+	page_owner = get_page_owner(page_ext);
+	alloc_handle = page_owner->handle;
+
 	handle = save_stack(GFP_NOWAIT | __GFP_NOWARN);
 	for (i = 0; i < (1 << order); i++) {
 		__clear_bit(PAGE_EXT_OWNER_ALLOCATED, &page_ext->flags);
-		page_owner = get_page_owner(page_ext);
 		page_owner->free_handle = handle;
 		page_owner->free_ts_nsec = free_ts_nsec;
 		page_owner->free_pid = current->pid;
 		page_owner->free_tgid = current->tgid;
 		page_ext = page_ext_next(page_ext);
+		page_owner = get_page_owner(page_ext);
 	}
 	page_ext_put(page_ext);
+	if (alloc_handle != early_handle)
+		/*
+		 * early_handle is being set as a handle for all those
+		 * early allocated pages. See init_pages_in_zone().
+		 * Since their refcount is not being incremented because
+		 * the machinery is not ready yet, we cannot decrement
+		 * their refcount either.
+		 */
+		dec_stack_record_count(alloc_handle);
 }
 
 static inline void __set_page_owner_handle(struct page_ext *page_ext,
@@ -214,6 +284,7 @@ noinline void __set_page_owner(struct page *page, unsigned short order,
 		return;
 	__set_page_owner_handle(page_ext, handle, order, gfp_mask);
 	page_ext_put(page_ext);
+	inc_stack_record_count(handle, gfp_mask);
 }
 
 void __set_page_owner_migrate_reason(struct page *page, int reason)
