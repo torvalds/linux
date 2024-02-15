@@ -635,9 +635,6 @@ struct msi_domain_info *msi_get_domain_info(struct irq_domain *domain);
 struct irq_domain *platform_msi_create_irq_domain(struct fwnode_handle *fwnode,
 						  struct msi_domain_info *info,
 						  struct irq_domain *parent);
-int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
-				   irq_write_msi_msg_t write_msi_msg);
-void platform_msi_domain_free_irqs(struct device *dev);
 
 /* When an MSI domain is used as an intermediate domain */
 int msi_domain_prepare_irqs(struct irq_domain *domain, struct device *dev,

@@ -206,8 +206,8 @@ static void platform_msi_free_priv_data(struct device *dev)
  * Returns:
  * Zero for success, or an error code in case of failure
  */
-int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
-				   irq_write_msi_msg_t write_msi_msg)
+static int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
+					  irq_write_msi_msg_t write_msi_msg)
 {
 	int err;
 
@@ -221,18 +221,6 @@ int platform_msi_domain_alloc_irqs(struct device *dev, unsigned int nvec,
 
 	return err;
 }
-EXPORT_SYMBOL_GPL(platform_msi_domain_alloc_irqs);
-
-/**
- * platform_msi_domain_free_irqs - Free MSI interrupts for @dev
- * @dev:	The device for which to free interrupts
- */
-void platform_msi_domain_free_irqs(struct device *dev)
-{
-	msi_domain_free_irqs_all(dev, MSI_DEFAULT_DOMAIN);
-	platform_msi_free_priv_data(dev);
-}
-EXPORT_SYMBOL_GPL(platform_msi_domain_free_irqs);
 
 /**
  * platform_msi_get_host_data - Query the private data associated with
