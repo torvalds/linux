@@ -4803,27 +4803,31 @@ pipe_config_infoframe_mismatch(bool fastset, const struct intel_crtc *crtc,
 			       const union hdmi_infoframe *a,
 			       const union hdmi_infoframe *b)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_printer p;
+	const char *loglevel;
 
 	if (fastset) {
 		if (!drm_debug_enabled(DRM_UT_KMS))
 			return;
 
-		drm_dbg_kms(&dev_priv->drm,
-			    "[CRTC:%d:%s] fastset requirement not met in %s infoframe\n",
-			    crtc->base.base.id, crtc->base.name, name);
-		drm_dbg_kms(&dev_priv->drm, "expected:\n");
-		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, a);
-		drm_dbg_kms(&dev_priv->drm, "found:\n");
-		hdmi_infoframe_log(KERN_DEBUG, dev_priv->drm.dev, b);
+		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
+		loglevel = KERN_DEBUG;
+
+		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s infoframe\n",
+			   crtc->base.base.id, crtc->base.name, name);
 	} else {
-		drm_err(&dev_priv->drm, "[CRTC:%d:%s] mismatch in %s infoframe\n",
-			crtc->base.base.id, crtc->base.name, name);
-		drm_err(&dev_priv->drm, "expected:\n");
-		hdmi_infoframe_log(KERN_ERR, dev_priv->drm.dev, a);
-		drm_err(&dev_priv->drm, "found:\n");
-		hdmi_infoframe_log(KERN_ERR, dev_priv->drm.dev, b);
+		p = drm_err_printer(&i915->drm, NULL);
+		loglevel = KERN_ERR;
+
+		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s infoframe\n",
+			   crtc->base.base.id, crtc->base.name, name);
 	}
+
+	drm_printf(&p, "expected:\n");
+	hdmi_infoframe_log(loglevel, i915->drm.dev, a);
+	drm_printf(&p, "found:\n");
+	hdmi_infoframe_log(loglevel, i915->drm.dev, b);
 }
 
 static void
