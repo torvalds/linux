@@ -7,7 +7,9 @@ config HEXAGON
 	select ARCH_32BIT_OFF_T
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select ARCH_NO_PREEMPT
+	select ARCH_WANT_FRAME_POINTERS
 	select DMA_GLOBAL_POOL
+	select FRAME_POINTER
 	# Other pending projects/to-do items.
 	# select HAVE_REGS_AND_STACK_ACCESS_API
 	# select HAVE_HW_BREAKPOINT if PERF_EVENTS
@@ -42,9 +44,6 @@ config HEXAGON_PHYS_OFFSET
 	def_bool y
 	help
 	  Platforms that don't load the kernel at zero set this.
-
-config FRAME_POINTER
-	def_bool y
 
 config LOCKDEP_SUPPORT
 	def_bool y
