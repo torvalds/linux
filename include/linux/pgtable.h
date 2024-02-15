@@ -212,7 +212,6 @@ static inline int pmd_dirty(pmd_t pmd)
 #define arch_flush_lazy_mmu_mode()	do {} while (0)
 #endif
 
-#ifndef pte_next_pfn
 #ifndef pte_advance_pfn
 static inline pte_t pte_advance_pfn(pte_t pte, unsigned long nr)
 {
@@ -221,7 +220,6 @@ static inline pte_t pte_advance_pfn(pte_t pte, unsigned long nr)
 #endif
 
 #define pte_next_pfn(pte) pte_advance_pfn(pte, 1)
-#endif
 
 #ifndef set_ptes
 /**
