@@ -12,15 +12,12 @@
 #include <linux/integrity.h>
 #include <linux/xattr.h>
 
-struct integrity_iint_cache;
-
 #ifdef CONFIG_EVM
 extern int evm_set_key(void *key, size_t keylen);
 extern enum integrity_status evm_verifyxattr(struct dentry *dentry,
 					     const char *xattr_name,
 					     void *xattr_value,
-					     size_t xattr_value_len,
-					     struct integrity_iint_cache *iint);
+					     size_t xattr_value_len);
 int evm_inode_init_security(struct inode *inode, struct inode *dir,
 			    const struct qstr *qstr, struct xattr *xattrs,
 			    int *xattr_count);
@@ -48,8 +45,7 @@ static inline int evm_set_key(void *key, size_t keylen)
 static inline enum integrity_status evm_verifyxattr(struct dentry *dentry,
 						    const char *xattr_name,
 						    void *xattr_value,
-						    size_t xattr_value_len,
-					struct integrity_iint_cache *iint)
+						    size_t xattr_value_len)
 {
 	return INTEGRITY_UNKNOWN;
 }
