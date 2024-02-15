@@ -192,6 +192,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	char buf[64];
 	int i;
 
+	if (!drm_debug_enabled(DRM_UT_KMS))
+		return;
+
 	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 
 	drm_printf(&p, "[CRTC:%d:%s] enable: %s [%s]\n",
