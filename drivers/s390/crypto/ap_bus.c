@@ -38,6 +38,7 @@
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
 #include <linux/module.h>
+#include <asm/uv.h>
 
 #include "ap_bus.h"
 #include "ap_debug.h"
