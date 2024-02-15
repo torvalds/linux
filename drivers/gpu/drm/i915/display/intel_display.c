@@ -4827,21 +4827,24 @@ pipe_config_infoframe_mismatch(bool fastset, const struct intel_crtc *crtc,
 }
 
 static void
-pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *i915,
-				bool fastset, const char *name,
+pipe_config_dp_vsc_sdp_mismatch(bool fastset, const struct intel_crtc *crtc,
+				const char *name,
 				const struct drm_dp_vsc_sdp *a,
 				const struct drm_dp_vsc_sdp *b)
 {
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct drm_printer p;
 
 	if (fastset) {
 		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 
-		drm_printf(&p, "fastset requirement not met in %s dp sdp\n", name);
+		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s dp sdp\n",
+			   crtc->base.base.id, crtc->base.name, name);
 	} else {
 		p = drm_err_printer(&i915->drm, NULL);
 
-		drm_printf(&p, "mismatch in %s dp sdp\n", name);
+		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s dp sdp\n",
+			   crtc->base.base.id, crtc->base.name, name);
 	}
 
 	drm_printf(&p, "expected:\n");
@@ -5096,7 +5099,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_DP_VSC_SDP(name) do { \
 	if (!intel_compare_dp_vsc_sdp(&current_config->infoframes.name, \
 				      &pipe_config->infoframes.name)) { \
-		pipe_config_dp_vsc_sdp_mismatch(dev_priv, fastset, __stringify(name), \
+		pipe_config_dp_vsc_sdp_mismatch(fastset, crtc, __stringify(name), \
 						&current_config->infoframes.name, \
 						&pipe_config->infoframes.name); \
 		ret = false; \
