@@ -30,6 +30,16 @@ void *pci_traverse_device_nodes(struct device_node *start,
 				void *data);
 extern void pci_devs_phb_init_dynamic(struct pci_controller *phb);
 
+#if defined(CONFIG_IOMMU_API) && (defined(CONFIG_PPC_PSERIES) || \
+				  defined(CONFIG_PPC_POWERNV))
+extern void ppc_iommu_register_device(struct pci_controller *phb);
+extern void ppc_iommu_unregister_device(struct pci_controller *phb);
+#else
+static inline void ppc_iommu_register_device(struct pci_controller *phb) { }
+static inline void ppc_iommu_unregister_device(struct pci_controller *phb) { }
+#endif
+
+
 /* From rtas_pci.h */
 extern void init_pci_config_tokens (void);
 extern unsigned long get_phb_buid (struct device_node *);
