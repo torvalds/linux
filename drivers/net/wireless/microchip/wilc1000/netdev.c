@@ -814,12 +814,12 @@ static int wilc_mac_close(struct net_device *ndev)
 void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
 		       u32 pkt_offset)
 {
-	unsigned int frame_len = 0;
-	int stats;
 	unsigned char *buff_to_send = NULL;
-	struct sk_buff *skb;
 	struct net_device *wilc_netdev;
+	unsigned int frame_len = 0;
 	struct wilc_vif *vif;
+	struct sk_buff *skb;
+	int stats;
 
 	if (!wilc)
 		return;
