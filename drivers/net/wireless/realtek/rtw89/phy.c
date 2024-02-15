@@ -725,6 +725,53 @@ u8 rtw89_phy_get_txsc(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_phy_get_txsc);
 
+u8 rtw89_phy_get_txsb(struct rtw89_dev *rtwdev, const struct rtw89_chan *chan,
+		      enum rtw89_bandwidth dbw)
+{
+	enum rtw89_bandwidth cbw = chan->band_width;
+	u8 pri_ch = chan->primary_channel;
+	u8 central_ch = chan->channel;
+	u8 txsb_idx = 0;
+
+	if (cbw == dbw || cbw == RTW89_CHANNEL_WIDTH_20)
+		return txsb_idx;
+
+	switch (cbw) {
+	case RTW89_CHANNEL_WIDTH_40:
+		txsb_idx = pri_ch > central_ch ? 1 : 0;
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		if (dbw == RTW89_CHANNEL_WIDTH_20)
+			txsb_idx = (pri_ch - central_ch + 6) / 4;
+		else
+			txsb_idx = pri_ch > central_ch ? 1 : 0;
+		break;
+	case RTW89_CHANNEL_WIDTH_160:
+		if (dbw == RTW89_CHANNEL_WIDTH_20)
+			txsb_idx = (pri_ch - central_ch + 14) / 4;
+		else if (dbw == RTW89_CHANNEL_WIDTH_40)
+			txsb_idx = (pri_ch - central_ch + 12) / 8;
+		else
+			txsb_idx = pri_ch > central_ch ? 1 : 0;
+		break;
+	case RTW89_CHANNEL_WIDTH_320:
+		if (dbw == RTW89_CHANNEL_WIDTH_20)
+			txsb_idx = (pri_ch - central_ch + 30) / 4;
+		else if (dbw == RTW89_CHANNEL_WIDTH_40)
+			txsb_idx = (pri_ch - central_ch + 28) / 8;
+		else if (dbw == RTW89_CHANNEL_WIDTH_80)
+			txsb_idx = (pri_ch - central_ch + 24) / 16;
+		else
+			txsb_idx = pri_ch > central_ch ? 1 : 0;
+		break;
+	default:
+		break;
+	}
+
+	return txsb_idx;
+}
+EXPORT_SYMBOL(rtw89_phy_get_txsb);
+
 static bool rtw89_phy_check_swsi_busy(struct rtw89_dev *rtwdev)
 {
 	return !!rtw89_phy_read32_mask(rtwdev, R_SWSI_V1, B_SWSI_W_BUSY_V1) ||

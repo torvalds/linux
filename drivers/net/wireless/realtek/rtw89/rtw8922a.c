@@ -771,6 +771,97 @@ static void rtw8922a_power_trim(struct rtw89_dev *rtwdev)
 	rtw8922a_pad_bias_trim(rtwdev);
 }
 
+static void rtw8922a_set_channel_mac(struct rtw89_dev *rtwdev,
+				     const struct rtw89_chan *chan,
+				     u8 mac_idx)
+{
+	u32 sub_carr = rtw89_mac_reg_by_idx(rtwdev, R_BE_TX_SUB_BAND_VALUE, mac_idx);
+	u32 chk_rate = rtw89_mac_reg_by_idx(rtwdev, R_BE_TXRATE_CHK, mac_idx);
+	u32 rf_mod = rtw89_mac_reg_by_idx(rtwdev, R_BE_WMAC_RFMOD, mac_idx);
+	u8 txsb20 = 0, txsb40 = 0, txsb80 = 0;
+	u8 rf_mod_val, chk_rate_mask;
+	u32 txsb;
+	u32 reg;
+
+	switch (chan->band_width) {
+	case RTW89_CHANNEL_WIDTH_160:
+		txsb80 = rtw89_phy_get_txsb(rtwdev, chan, RTW89_CHANNEL_WIDTH_80);
+		fallthrough;
+	case RTW89_CHANNEL_WIDTH_80:
+		txsb40 = rtw89_phy_get_txsb(rtwdev, chan, RTW89_CHANNEL_WIDTH_40);
+		fallthrough;
+	case RTW89_CHANNEL_WIDTH_40:
+		txsb20 = rtw89_phy_get_txsb(rtwdev, chan, RTW89_CHANNEL_WIDTH_20);
+		break;
+	default:
+		break;
+	}
+
+	switch (chan->band_width) {
+	case RTW89_CHANNEL_WIDTH_160:
+		rf_mod_val = BE_WMAC_RFMOD_160M;
+		txsb = u32_encode_bits(txsb20, B_BE_TXSB_20M_MASK) |
+		       u32_encode_bits(txsb40, B_BE_TXSB_40M_MASK) |
+		       u32_encode_bits(txsb80, B_BE_TXSB_80M_MASK);
+		break;
+	case RTW89_CHANNEL_WIDTH_80:
+		rf_mod_val = BE_WMAC_RFMOD_80M;
+		txsb = u32_encode_bits(txsb20, B_BE_TXSB_20M_MASK) |
+		       u32_encode_bits(txsb40, B_BE_TXSB_40M_MASK);
+		break;
+	case RTW89_CHANNEL_WIDTH_40:
+		rf_mod_val = BE_WMAC_RFMOD_40M;
+		txsb = u32_encode_bits(txsb20, B_BE_TXSB_20M_MASK);
+		break;
+	case RTW89_CHANNEL_WIDTH_20:
+	default:
+		rf_mod_val = BE_WMAC_RFMOD_20M;
+		txsb = 0;
+		break;
+	}
+
+	if (txsb20 <= BE_PRI20_BITMAP_MAX)
+		txsb |= u32_encode_bits(BIT(txsb20), B_BE_PRI20_BITMAP_MASK);
+
+	rtw89_write8_mask(rtwdev, rf_mod, B_BE_WMAC_RFMOD_MASK, rf_mod_val);
+	rtw89_write32(rtwdev, sub_carr, txsb);
+
+	switch (chan->band_type) {
+	case RTW89_BAND_2G:
+		chk_rate_mask = B_BE_BAND_MODE;
+		break;
+	case RTW89_BAND_5G:
+	case RTW89_BAND_6G:
+		chk_rate_mask = B_BE_CHECK_CCK_EN | B_BE_RTS_LIMIT_IN_OFDM6;
+		break;
+	default:
+		rtw89_warn(rtwdev, "Invalid band_type:%d\n", chan->band_type);
+		return;
+	}
+
+	rtw89_write8_clr(rtwdev, chk_rate, B_BE_BAND_MODE | B_BE_CHECK_CCK_EN |
+					   B_BE_RTS_LIMIT_IN_OFDM6);
+	rtw89_write8_set(rtwdev, chk_rate, chk_rate_mask);
+
+	switch (chan->band_width) {
+	case RTW89_CHANNEL_WIDTH_320:
+	case RTW89_CHANNEL_WIDTH_160:
+	case RTW89_CHANNEL_WIDTH_80:
+	case RTW89_CHANNEL_WIDTH_40:
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PREBKF_CFG_1, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, B_BE_SIFS_MACTXEN_T1_MASK, 0x41);
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_MUEDCA_EN, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, B_BE_SIFS_MACTXEN_TB_T1_MASK, 0x41);
+		break;
+	default:
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PREBKF_CFG_1, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, B_BE_SIFS_MACTXEN_T1_MASK, 0x3f);
+		reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_MUEDCA_EN, mac_idx);
+		rtw89_write32_mask(rtwdev, reg, B_BE_SIFS_MACTXEN_TB_T1_MASK, 0x3e);
+		break;
+	}
+}
+
 struct rtw8922a_bb_gain {
 	u32 gain_g[BB_PATH_NUM_8922A];
 	u32 gain_a[BB_PATH_NUM_8922A];
@@ -1298,6 +1389,7 @@ static void rtw8922a_set_channel(struct rtw89_dev *rtwdev,
 				 enum rtw89_mac_idx mac_idx,
 				 enum rtw89_phy_idx phy_idx)
 {
+	rtw8922a_set_channel_mac(rtwdev, chan, mac_idx);
 	rtw8922a_set_channel_bb(rtwdev, chan, phy_idx);
 }
 
