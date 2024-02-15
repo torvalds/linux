@@ -439,16 +439,19 @@ static void print_idle_status_mask(struct hl_device *hdev, const char *message,
 					u64 idle_mask[HL_BUSY_ENGINES_MASK_EXT_SIZE])
 {
 	if (idle_mask[3])
-		dev_err(hdev->dev, "%s (mask %#llx_%016llx_%016llx_%016llx)\n",
-			message, idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx_%016llx_%016llx_%016llx)\n",
+			dev_name(&hdev->pdev->dev), message,
+			idle_mask[3], idle_mask[2], idle_mask[1], idle_mask[0]);
 	else if (idle_mask[2])
-		dev_err(hdev->dev, "%s (mask %#llx_%016llx_%016llx)\n",
-			message, idle_mask[2], idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx_%016llx_%016llx)\n",
+			dev_name(&hdev->pdev->dev), message,
+			idle_mask[2], idle_mask[1], idle_mask[0]);
 	else if (idle_mask[1])
-		dev_err(hdev->dev, "%s (mask %#llx_%016llx)\n",
-			message, idle_mask[1], idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx_%016llx)\n",
+			dev_name(&hdev->pdev->dev), message, idle_mask[1], idle_mask[0]);
 	else
-		dev_err(hdev->dev, "%s (mask %#llx)\n", message, idle_mask[0]);
+		dev_err(hdev->dev, "%s %s (mask %#llx)\n", dev_name(&hdev->pdev->dev), message,
+			idle_mask[0]);
 }
 
 static void hpriv_release(struct kref *ref)
