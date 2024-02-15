@@ -169,6 +169,13 @@
 			};
 		};
 	};
+
+	csi_mux: mux-controller {
+		compatible = "gpio-mux";
+		#mux-state-cells = <1>;
+		mux-gpios = <&exp3 1 GPIO_ACTIVE_HIGH>;
+		idle-state = <0>;
+	};
 };
 
 &main_pmx0 {
@@ -183,6 +190,13 @@
 		pinctrl-single,pins = <
 			J721S2_IOPAD(0x0e0, PIN_INPUT, 0) /* (AH25) I2C0_SCL */
 			J721S2_IOPAD(0x0e4, PIN_INPUT, 0) /* (AE24) I2C0_SDA */
+		>;
+	};
+
+	main_i2c1_pins_default: main-i2c1-default-pins {
+		pinctrl-single,pins = <
+			J721S2_IOPAD(0x0ac, PIN_INPUT, 13) /* (AC25) MCASP0_AXR15.I2C1_SCL */
+			J721S2_IOPAD(0x0b0, PIN_INPUT, 13) /* (AD26) MCASP1_AXR3.I2C1_SDA */
 		>;
 	};
 
@@ -428,6 +442,42 @@
 				  "BOARDID_EEPROM_WP", "CAN_STB", " ",
 				  "GPIO_uSD_PWR_EN", " ", "IO_EXP_PCIe1_M.2_RTSz",
 				  "IO_EXP_MCU_RGMII_RST#", " ", " ", " ", " ";
+	};
+};
+
+&main_i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_i2c1_pins_default>;
+	status = "okay";
+
+	exp3: gpio@20 {
+		compatible = "ti,tca6408";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		gpio-line-names = "CSI_VIO_SEL", "CSI_SEL_FPC_EXPn",
+				  "IO_EXP_CSI2_EXP_RSTz","CSI0_B_GPIO1",
+				  "CSI1_B_GPIO1";
+	};
+
+	i2c-mux@70 {
+		compatible = "nxp,pca9543";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <0x70>;
+
+		cam0_i2c: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		cam1_i2c: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+
 	};
 };
 
