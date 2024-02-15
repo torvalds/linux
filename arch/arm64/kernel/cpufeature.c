@@ -1812,7 +1812,7 @@ static bool has_nv1(const struct arm64_cpu_capabilities *entry, int scope)
 		{}
 	};
 
-	return (this_cpu_has_cap(ARM64_HAS_NESTED_VIRT) &&
+	return (__system_matches_cap(ARM64_HAS_NESTED_VIRT) &&
 		!(has_cpuid_feature(entry, scope) ||
 		  is_midr_in_range_list(read_cpuid_id(), nv1_ni_list)));
 }
