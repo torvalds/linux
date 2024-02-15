@@ -460,7 +460,7 @@ static void thermal_of_zone_unregister(struct thermal_zone_device *tz)
  * @ops: A set of thermal sensor ops
  *
  * Return: a valid thermal zone structure pointer on success.
- * 	- EINVAL: if the device tree thermal description is malformed
+ *	- EINVAL: if the device tree thermal description is malformed
  *	- ENOMEM: if one structure can not be allocated
  *	- Other negative errors are returned by the underlying called functions
  */
