@@ -2719,6 +2719,17 @@ int security_file_alloc(struct file *file)
 }
 
 /**
+ * security_file_release() - Perform actions before releasing the file ref
+ * @file: the file
+ *
+ * Perform actions before releasing the last reference to a file.
+ */
+void security_file_release(struct file *file)
+{
+	call_void_hook(file_release, file);
+}
+
+/**
  * security_file_free() - Free a file's LSM blob
  * @file: the file
  *
