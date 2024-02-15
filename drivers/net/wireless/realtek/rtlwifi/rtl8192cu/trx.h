@@ -10,8 +10,6 @@
 #define RTL92C_SIZE_MAX_RX_BUFFER		15360   /* 8192 */
 #define RX_DRV_INFO_SIZE_UNIT			8
 
-#define RTL_AGG_ON				1
-
 enum usb_rx_agg_mode {
 	USB_RX_AGG_DISABLE,
 	USB_RX_AGG_DMA,
