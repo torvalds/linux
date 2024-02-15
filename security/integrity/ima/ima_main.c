@@ -1182,6 +1182,7 @@ static const struct lsm_id ima_lsmid = {
 static int __init init_ima_lsm(void)
 {
 	security_add_hooks(ima_hooks, ARRAY_SIZE(ima_hooks), &ima_lsmid);
+	init_ima_appraise_lsm(&ima_lsmid);
 	return 0;
 }
 
