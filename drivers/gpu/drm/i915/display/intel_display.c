@@ -5576,14 +5576,16 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_state,
 				     struct intel_crtc_state *new_crtc_state)
 {
-	struct drm_i915_private *i915 = to_i915(old_crtc_state->uapi.crtc->dev);
+	struct intel_crtc *crtc = to_intel_crtc(new_crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 
 	/* only allow LRR when the timings stay within the VRR range */
 	if (old_crtc_state->vrr.in_range != new_crtc_state->vrr.in_range)
 		new_crtc_state->update_lrr = false;
 
 	if (!intel_pipe_config_compare(old_crtc_state, new_crtc_state, true))
-		drm_dbg_kms(&i915->drm, "fastset requirement not met, forcing full modeset\n");
+		drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] fastset requirement not met, forcing full modeset\n",
+			    crtc->base.base.id, crtc->base.name);
 	else
 		new_crtc_state->uapi.mode_changed = false;
 
