@@ -819,14 +819,16 @@ void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
 	unsigned int frame_len = 0;
 	struct wilc_vif *vif;
 	struct sk_buff *skb;
+	int srcu_idx;
 	int stats;
 
 	if (!wilc)
 		return;
 
+	srcu_idx = srcu_read_lock(&wilc->srcu);
 	wilc_netdev = get_if_handler(wilc, buff);
 	if (!wilc_netdev)
-		return;
+		goto out;
 
 	buff += pkt_offset;
 	vif = netdev_priv(wilc_netdev);
@@ -837,7 +839,7 @@ void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
 
 		skb = dev_alloc_skb(frame_len);
 		if (!skb)
-			return;
+			goto out;
 
 		skb->dev = wilc_netdev;
 
@@ -850,6 +852,8 @@ void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size,
 		stats = netif_rx(skb);
 		netdev_dbg(wilc_netdev, "netif_rx ret value is: %d\n", stats);
 	}
+out:
+	srcu_read_unlock(&wilc->srcu, srcu_idx);
 }
 
 void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size, bool is_auth)
