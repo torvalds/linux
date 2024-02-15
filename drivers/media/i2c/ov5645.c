@@ -118,7 +118,6 @@ static inline struct ov5645 *to_ov5645(struct v4l2_subdev *sd)
 
 static const struct reg_value ov5645_global_init_setting[] = {
 	{ 0x3103, 0x11 },
-	{ 0x3008, 0x82 },
 	{ 0x3008, 0x42 },
 	{ 0x3103, 0x03 },
 	{ 0x3503, 0x07 },
@@ -627,6 +626,10 @@ static int ov5645_set_register_array(struct ov5645 *ov5645,
 		ret = ov5645_write_reg(ov5645, settings->reg, settings->val);
 		if (ret < 0)
 			return ret;
+
+		if (settings->reg == OV5645_SYSTEM_CTRL0 &&
+		    settings->val == OV5645_SYSTEM_CTRL0_START)
+			usleep_range(1000, 2000);
 	}
 
 	return 0;
