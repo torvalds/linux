@@ -84,8 +84,7 @@ int ima_must_appraise(struct mnt_idmap *idmap, struct inode *inode,
 				NULL, NULL, NULL);
 }
 
-static int ima_fix_xattr(struct dentry *dentry,
-			 struct integrity_iint_cache *iint)
+static int ima_fix_xattr(struct dentry *dentry, struct ima_iint_cache *iint)
 {
 	int rc, offset;
 	u8 algo = iint->ima_hash->algo;
@@ -106,7 +105,7 @@ static int ima_fix_xattr(struct dentry *dentry,
 }
 
 /* Return specific func appraised cached result */
-enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
+enum integrity_status ima_get_cache_status(struct ima_iint_cache *iint,
 					   enum ima_hooks func)
 {
 	switch (func) {
@@ -126,7 +125,7 @@ enum integrity_status ima_get_cache_status(struct integrity_iint_cache *iint,
 	}
 }
 
-static void ima_set_cache_status(struct integrity_iint_cache *iint,
+static void ima_set_cache_status(struct ima_iint_cache *iint,
 				 enum ima_hooks func,
 				 enum integrity_status status)
 {
@@ -152,8 +151,7 @@ static void ima_set_cache_status(struct integrity_iint_cache *iint,
 	}
 }
 
-static void ima_cache_flags(struct integrity_iint_cache *iint,
-			     enum ima_hooks func)
+static void ima_cache_flags(struct ima_iint_cache *iint, enum ima_hooks func)
 {
 	switch (func) {
 	case MMAP_CHECK:
@@ -276,7 +274,7 @@ static int calc_file_id_hash(enum evm_ima_xattr_type type,
  *
  * Return 0 on success, error code otherwise.
  */
-static int xattr_verify(enum ima_hooks func, struct integrity_iint_cache *iint,
+static int xattr_verify(enum ima_hooks func, struct ima_iint_cache *iint,
 			struct evm_ima_xattr_data *xattr_value, int xattr_len,
 			enum integrity_status *status, const char **cause)
 {
@@ -443,7 +441,7 @@ static int modsig_verify(enum ima_hooks func, const struct modsig *modsig,
  *
  * Returns -EPERM if the hash is blacklisted.
  */
-int ima_check_blacklist(struct integrity_iint_cache *iint,
+int ima_check_blacklist(struct ima_iint_cache *iint,
 			const struct modsig *modsig, int pcr)
 {
 	enum hash_algo hash_algo;
@@ -477,8 +475,7 @@ int ima_check_blacklist(struct integrity_iint_cache *iint,
  *
  * Return 0 on success, error code otherwise
  */
-int ima_appraise_measurement(enum ima_hooks func,
-			     struct integrity_iint_cache *iint,
+int ima_appraise_measurement(enum ima_hooks func, struct ima_iint_cache *iint,
 			     struct file *file, const unsigned char *filename,
 			     struct evm_ima_xattr_data *xattr_value,
 			     int xattr_len, const struct modsig *modsig)
@@ -603,7 +600,7 @@ out:
 /*
  * ima_update_xattr - update 'security.ima' hash value
  */
-void ima_update_xattr(struct integrity_iint_cache *iint, struct file *file)
+void ima_update_xattr(struct ima_iint_cache *iint, struct file *file)
 {
 	struct dentry *dentry = file_dentry(file);
 	int rc = 0;
@@ -640,7 +637,7 @@ static void ima_inode_post_setattr(struct mnt_idmap *idmap,
 				   struct dentry *dentry, int ia_valid)
 {
 	struct inode *inode = d_backing_inode(dentry);
-	struct integrity_iint_cache *iint;
+	struct ima_iint_cache *iint;
 	int action;
 
 	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode)
@@ -648,7 +645,7 @@ static void ima_inode_post_setattr(struct mnt_idmap *idmap,
 		return;
 
 	action = ima_must_appraise(idmap, inode, MAY_ACCESS, POST_SETATTR);
-	iint = integrity_iint_find(inode);
+	iint = ima_iint_find(inode);
 	if (iint) {
 		set_bit(IMA_CHANGE_ATTR, &iint->atomic_flags);
 		if (!action)
@@ -674,12 +671,12 @@ static int ima_protect_xattr(struct dentry *dentry, const char *xattr_name,
 
 static void ima_reset_appraise_flags(struct inode *inode, int digsig)
 {
-	struct integrity_iint_cache *iint;
+	struct ima_iint_cache *iint;
 
 	if (!(ima_policy_flag & IMA_APPRAISE) || !S_ISREG(inode->i_mode))
 		return;
 
-	iint = integrity_iint_find(inode);
+	iint = ima_iint_find(inode);
 	if (!iint)
 		return;
 	iint->measured_pcrs = 0;

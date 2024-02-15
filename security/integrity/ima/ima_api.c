@@ -131,8 +131,8 @@ int ima_store_template(struct ima_template_entry *entry,
  * value is invalidated.
  */
 void ima_add_violation(struct file *file, const unsigned char *filename,
-		       struct integrity_iint_cache *iint,
-		       const char *op, const char *cause)
+		       struct ima_iint_cache *iint, const char *op,
+		       const char *cause)
 {
 	struct ima_template_entry *entry;
 	struct inode *inode = file_inode(file);
@@ -201,7 +201,8 @@ int ima_get_action(struct mnt_idmap *idmap, struct inode *inode,
 				allowed_algos);
 }
 
-static bool ima_get_verity_digest(struct integrity_iint_cache *iint,
+static bool ima_get_verity_digest(struct ima_iint_cache *iint,
+				  struct inode *inode,
 				  struct ima_max_digest_data *hash)
 {
 	enum hash_algo alg;
@@ -211,7 +212,7 @@ static bool ima_get_verity_digest(struct integrity_iint_cache *iint,
 	 * On failure, 'measure' policy rules will result in a file data
 	 * hash containing 0's.
 	 */
-	digest_len = fsverity_get_digest(iint->inode, hash->digest, NULL, &alg);
+	digest_len = fsverity_get_digest(inode, hash->digest, NULL, &alg);
 	if (digest_len == 0)
 		return false;
 
@@ -237,9 +238,9 @@ static bool ima_get_verity_digest(struct integrity_iint_cache *iint,
  *
  * Return 0 on success, error code otherwise
  */
-int ima_collect_measurement(struct integrity_iint_cache *iint,
-			    struct file *file, void *buf, loff_t size,
-			    enum hash_algo algo, struct modsig *modsig)
+int ima_collect_measurement(struct ima_iint_cache *iint, struct file *file,
+			    void *buf, loff_t size, enum hash_algo algo,
+			    struct modsig *modsig)
 {
 	const char *audit_cause = "failed";
 	struct inode *inode = file_inode(file);
@@ -280,7 +281,7 @@ int ima_collect_measurement(struct integrity_iint_cache *iint,
 	memset(&hash.digest, 0, sizeof(hash.digest));
 
 	if (iint->flags & IMA_VERITY_REQUIRED) {
-		if (!ima_get_verity_digest(iint, &hash)) {
+		if (!ima_get_verity_digest(iint, inode, &hash)) {
 			audit_cause = "no-verity-digest";
 			result = -ENODATA;
 		}
@@ -338,8 +339,8 @@ out:
  *
  * Must be called with iint->mutex held.
  */
-void ima_store_measurement(struct integrity_iint_cache *iint,
-			   struct file *file, const unsigned char *filename,
+void ima_store_measurement(struct ima_iint_cache *iint, struct file *file,
+			   const unsigned char *filename,
 			   struct evm_ima_xattr_data *xattr_value,
 			   int xattr_len, const struct modsig *modsig, int pcr,
 			   struct ima_template_desc *template_desc)
@@ -382,7 +383,7 @@ void ima_store_measurement(struct integrity_iint_cache *iint,
 		ima_free_template_entry(entry);
 }
 
-void ima_audit_measurement(struct integrity_iint_cache *iint,
+void ima_audit_measurement(struct ima_iint_cache *iint,
 			   const unsigned char *filename)
 {
 	struct audit_buffer *ab;
