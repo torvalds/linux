@@ -140,6 +140,19 @@ int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
 	return ret_val;
 }
 
+static void wilc_wake_tx_queues(struct wilc *wl)
+{
+	int srcu_idx;
+	struct wilc_vif *ifc;
+
+	srcu_idx = srcu_read_lock(&wl->srcu);
+	list_for_each_entry_rcu(ifc, &wl->vif_list, list) {
+		if (ifc->mac_opened && netif_queue_stopped(ifc->ndev))
+			netif_wake_queue(ifc->ndev);
+	}
+	srcu_read_unlock(&wl->srcu, srcu_idx);
+}
+
 static int wilc_txq_task(void *vp)
 {
 	int ret;
@@ -160,17 +173,7 @@ static int wilc_txq_task(void *vp)
 		do {
 			ret = wilc_wlan_handle_txq(wl, &txq_count);
 			if (txq_count < FLOW_CONTROL_LOWER_THRESHOLD) {
-				int srcu_idx;
-				struct wilc_vif *ifc;
-
-				srcu_idx = srcu_read_lock(&wl->srcu);
-				list_for_each_entry_rcu(ifc, &wl->vif_list,
-							list) {
-					if (ifc->mac_opened &&
-					    netif_queue_stopped(ifc->ndev))
-						netif_wake_queue(ifc->ndev);
-				}
-				srcu_read_unlock(&wl->srcu, srcu_idx);
+				wilc_wake_tx_queues(wl);
 			}
 			if (ret != WILC_VMM_ENTRY_FULL_RETRY)
 				break;
