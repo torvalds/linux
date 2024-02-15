@@ -8979,6 +8979,7 @@ F:	lib/string.c
 F:	lib/string_helpers.c
 F:	lib/test-string_helpers.c
 F:	lib/test_string.c
+F:	scripts/coccinelle/api/string_choices.cocci
 
 GENERIC UIO DRIVER FOR PCI DEVICES
 M:	"Michael S. Tsirkin" <mst@redhat.com>
