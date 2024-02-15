@@ -227,12 +227,12 @@ int io_register_napi(struct io_ring_ctx *ctx, void __user *arg)
 	if (napi.pad[0] || napi.pad[1] || napi.pad[2] || napi.resv)
 		return -EINVAL;
 
-	WRITE_ONCE(ctx->napi_busy_poll_to, napi.busy_poll_to);
-	WRITE_ONCE(ctx->napi_prefer_busy_poll, !!napi.prefer_busy_poll);
-
 	if (copy_to_user(arg, &curr, sizeof(curr)))
 		return -EFAULT;
 
+	WRITE_ONCE(ctx->napi_busy_poll_to, napi.busy_poll_to);
+	WRITE_ONCE(ctx->napi_prefer_busy_poll, !!napi.prefer_busy_poll);
+	WRITE_ONCE(ctx->napi_enabled, true);
 	return 0;
 }
 
@@ -256,6 +256,7 @@ int io_unregister_napi(struct io_ring_ctx *ctx, void __user *arg)
 
 	WRITE_ONCE(ctx->napi_busy_poll_to, 0);
 	WRITE_ONCE(ctx->napi_prefer_busy_poll, false);
+	WRITE_ONCE(ctx->napi_enabled, false);
 	return 0;
 }
 
@@ -300,7 +301,7 @@ void __io_napi_busy_loop(struct io_ring_ctx *ctx, struct io_wait_queue *iowq)
 {
 	iowq->napi_prefer_busy_poll = READ_ONCE(ctx->napi_prefer_busy_poll);
 
-	if (!(ctx->flags & IORING_SETUP_SQPOLL) && iowq->napi_busy_poll_to)
+	if (!(ctx->flags & IORING_SETUP_SQPOLL) && ctx->napi_enabled)
 		io_napi_blocking_busy_loop(ctx, iowq);
 }
 

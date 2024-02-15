@@ -420,6 +420,7 @@ struct io_ring_ctx {
 	/* napi busy poll default timeout */
 	unsigned int		napi_busy_poll_to;
 	bool			napi_prefer_busy_poll;
+	bool			napi_enabled;
 
 	DECLARE_HASHTABLE(napi_ht, 4);
 #endif
