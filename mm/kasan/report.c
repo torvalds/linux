@@ -267,7 +267,7 @@ static void print_track(struct kasan_track *track, const char *prefix)
 	u64 ts_nsec = track->timestamp;
 	unsigned long rem_usec;
 
-	ts_nsec <<= 3;
+	ts_nsec <<= 9;
 	rem_usec = do_div(ts_nsec, NSEC_PER_SEC) / 1000;
 
 	pr_err("%s by task %u on cpu %d at %lu.%06lus:\n",
