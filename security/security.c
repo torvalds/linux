@@ -1801,6 +1801,20 @@ int security_path_mknod(const struct path *dir, struct dentry *dentry,
 EXPORT_SYMBOL(security_path_mknod);
 
 /**
+ * security_path_post_mknod() - Update inode security field after file creation
+ * @idmap: idmap of the mount
+ * @dentry: new file
+ *
+ * Update inode security field after a file has been created.
+ */
+void security_path_post_mknod(struct mnt_idmap *idmap, struct dentry *dentry)
+{
+	if (unlikely(IS_PRIVATE(d_backing_inode(dentry))))
+		return;
+	call_void_hook(path_post_mknod, idmap, dentry);
+}
+
+/**
  * security_path_mkdir() - Check if creating a new directory is allowed
  * @dir: parent directory
  * @dentry: new directory
