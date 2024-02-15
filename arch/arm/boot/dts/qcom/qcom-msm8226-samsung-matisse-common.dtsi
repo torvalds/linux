@@ -230,7 +230,7 @@
 
 		pm8226_s4: s4 {
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <1800000>;
+			regulator-max-microvolt = <2200000>;
 		};
 
 		pm8226_s5: s5 {
@@ -250,7 +250,7 @@
 
 		pm8226_l3: l3 {
 			regulator-min-microvolt = <750000>;
-			regulator-max-microvolt = <1337500>;
+			regulator-max-microvolt = <1350000>;
 			regulator-always-on;
 		};
 
