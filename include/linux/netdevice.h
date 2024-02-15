@@ -2150,6 +2150,11 @@ struct net_device {
 
 	/* TXRX read-mostly hotpath */
 	__cacheline_group_begin(net_device_read_txrx);
+	union {
+		struct pcpu_lstats __percpu		*lstats;
+		struct pcpu_sw_netstats __percpu	*tstats;
+		struct pcpu_dstats __percpu		*dstats;
+	};
 	unsigned int		flags;
 	unsigned short		hard_header_len;
 	netdev_features_t	features;
@@ -2398,11 +2403,6 @@ struct net_device {
 	enum netdev_ml_priv_type	ml_priv_type;
 
 	enum netdev_stat_type		pcpu_stat_type:8;
-	union {
-		struct pcpu_lstats __percpu		*lstats;
-		struct pcpu_sw_netstats __percpu	*tstats;
-		struct pcpu_dstats __percpu		*dstats;
-	};
 
 #if IS_ENABLED(CONFIG_GARP)
 	struct garp_port __rcu	*garp_port;

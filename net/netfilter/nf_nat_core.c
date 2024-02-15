@@ -551,8 +551,11 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 find_free_id:
 	if (range->flags & NF_NAT_RANGE_PROTO_OFFSET)
 		off = (ntohs(*keyptr) - ntohs(range->base_proto.all));
-	else
+	else if ((range->flags & NF_NAT_RANGE_PROTO_RANDOM_ALL) ||
+		 maniptype != NF_NAT_MANIP_DST)
 		off = get_random_u16();
+	else
+		off = 0;
 
 	attempts = range_size;
 	if (attempts > NF_NAT_MAX_ATTEMPTS)

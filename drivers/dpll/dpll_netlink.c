@@ -1206,6 +1206,7 @@ int dpll_nl_pin_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned long i;
 	int ret = 0;
 
+	mutex_lock(&dpll_lock);
 	xa_for_each_marked_start(&dpll_pin_xa, i, pin, DPLL_REGISTERED,
 				 ctx->idx) {
 		if (!dpll_pin_available(pin))
@@ -1225,6 +1226,8 @@ int dpll_nl_pin_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 		genlmsg_end(skb, hdr);
 	}
+	mutex_unlock(&dpll_lock);
+
 	if (ret == -EMSGSIZE) {
 		ctx->idx = i;
 		return skb->len;
@@ -1380,6 +1383,7 @@ int dpll_nl_device_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned long i;
 	int ret = 0;
 
+	mutex_lock(&dpll_lock);
 	xa_for_each_marked_start(&dpll_device_xa, i, dpll, DPLL_REGISTERED,
 				 ctx->idx) {
 		hdr = genlmsg_put(skb, NETLINK_CB(cb->skb).portid,
@@ -1396,6 +1400,8 @@ int dpll_nl_device_get_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 		}
 		genlmsg_end(skb, hdr);
 	}
+	mutex_unlock(&dpll_lock);
+
 	if (ret == -EMSGSIZE) {
 		ctx->idx = i;
 		return skb->len;
@@ -1444,20 +1450,6 @@ dpll_unlock_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
 		 struct genl_info *info)
 {
 	mutex_unlock(&dpll_lock);
-}
-
-int dpll_lock_dumpit(struct netlink_callback *cb)
-{
-	mutex_lock(&dpll_lock);
-
-	return 0;
-}
-
-int dpll_unlock_dumpit(struct netlink_callback *cb)
-{
-	mutex_unlock(&dpll_lock);
-
-	return 0;
 }
 
 int dpll_pin_pre_doit(const struct genl_split_ops *ops, struct sk_buff *skb,
