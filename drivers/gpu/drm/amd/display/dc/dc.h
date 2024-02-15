@@ -435,6 +435,7 @@ struct dc_config {
 	unsigned int disable_ips;
 	unsigned int disable_ips_in_vpb;
 	bool usb4_bw_alloc_support;
+	bool allow_0_dtb_clk;
 };
 
 enum visual_confirm {

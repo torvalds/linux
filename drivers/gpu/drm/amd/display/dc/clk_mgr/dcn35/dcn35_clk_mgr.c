@@ -244,7 +244,8 @@ void dcn35_update_clocks(struct clk_mgr *clk_mgr_base,
 		}
 
 		if (clk_mgr_base->clks.dtbclk_en && !new_clocks->dtbclk_en) {
-			dcn35_smu_set_dtbclk(clk_mgr, false);
+			if (clk_mgr->base.ctx->dc->config.allow_0_dtb_clk)
+				dcn35_smu_set_dtbclk(clk_mgr, false);
 			clk_mgr_base->clks.dtbclk_en = new_clocks->dtbclk_en;
 		}
 		/* check that we're not already in lower */
