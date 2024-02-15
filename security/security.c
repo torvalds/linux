@@ -2014,6 +2014,21 @@ int security_inode_create(struct inode *dir, struct dentry *dentry,
 EXPORT_SYMBOL_GPL(security_inode_create);
 
 /**
+ * security_inode_post_create_tmpfile() - Update inode security of new tmpfile
+ * @idmap: idmap of the mount
+ * @inode: inode of the new tmpfile
+ *
+ * Update inode security data after a tmpfile has been created.
+ */
+void security_inode_post_create_tmpfile(struct mnt_idmap *idmap,
+					struct inode *inode)
+{
+	if (unlikely(IS_PRIVATE(inode)))
+		return;
+	call_void_hook(inode_post_create_tmpfile, idmap, inode);
+}
+
+/**
  * security_inode_link() - Check if creating a hard link is allowed
  * @old_dentry: existing file
  * @dir: new parent directory
