@@ -2719,8 +2719,6 @@ static int vm_bind_ioctl_ops_execute(struct xe_vm *vm,
 #define XE_64K_PAGE_MASK 0xffffull
 #define ALL_DRM_XE_SYNCS_FLAGS (DRM_XE_SYNCS_FLAG_WAIT_FOR_OP)
 
-#define MAX_BINDS	512	/* FIXME: Picking random upper limit */
-
 static int vm_bind_ioctl_check_args(struct xe_device *xe,
 				    struct drm_xe_vm_bind *args,
 				    struct drm_xe_vm_bind_op **bind_ops)
@@ -2732,8 +2730,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 	    XE_IOCTL_DBG(xe, args->reserved[0] || args->reserved[1]))
 		return -EINVAL;
 
-	if (XE_IOCTL_DBG(xe, args->extensions) ||
-	    XE_IOCTL_DBG(xe, args->num_binds > MAX_BINDS))
+	if (XE_IOCTL_DBG(xe, args->extensions))
 		return -EINVAL;
 
 	if (args->num_binds > 1) {
