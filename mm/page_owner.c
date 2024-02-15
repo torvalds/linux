@@ -171,7 +171,13 @@ static void add_stack_record_to_list(struct stack_record *stack_record,
 
 	spin_lock_irqsave(&stack_list_lock, flags);
 	stack->next = stack_list;
-	stack_list = stack;
+	/*
+	 * This pairs with smp_load_acquire() from function
+	 * stack_start(). This guarantees that stack_start()
+	 * will see an updated stack_list before starting to
+	 * traverse the list.
+	 */
+	smp_store_release(&stack_list, stack);
 	spin_unlock_irqrestore(&stack_list_lock, flags);
 }
 
@@ -805,8 +811,90 @@ static const struct file_operations proc_page_owner_operations = {
 	.llseek		= lseek_page_owner,
 };
 
+static void *stack_start(struct seq_file *m, loff_t *ppos)
+{
+	struct stack *stack;
+
+	if (*ppos == -1UL)
+		return NULL;
+
+	if (!*ppos) {
+		/*
+		 * This pairs with smp_store_release() from function
+		 * add_stack_record_to_list(), so we get a consistent
+		 * value of stack_list.
+		 */
+		stack = smp_load_acquire(&stack_list);
+	} else {
+		stack = m->private;
+		stack = stack->next;
+	}
+
+	m->private = stack;
+
+	return stack;
+}
+
+static void *stack_next(struct seq_file *m, void *v, loff_t *ppos)
+{
+	struct stack *stack = v;
+
+	stack = stack->next;
+	*ppos = stack ? *ppos + 1 : -1UL;
+	m->private = stack;
+
+	return stack;
+}
+
+static int stack_print(struct seq_file *m, void *v)
+{
+	int i, stack_count;
+	struct stack *stack = v;
+	unsigned long *entries;
+	unsigned long nr_entries;
+	struct stack_record *stack_record = stack->stack_record;
+
+	nr_entries = stack_record->size;
+	entries = stack_record->entries;
+	stack_count = refcount_read(&stack_record->count) - 1;
+
+	if (!nr_entries || nr_entries < 0 || stack_count < 1)
+		return 0;
+
+	for (i = 0; i < nr_entries; i++)
+		seq_printf(m, " %pS\n", (void *)entries[i]);
+	seq_printf(m, "stack_count: %d\n\n", stack_count);
+
+	return 0;
+}
+
+static void stack_stop(struct seq_file *m, void *v)
+{
+}
+
+static const struct seq_operations page_owner_stack_op = {
+	.start	= stack_start,
+	.next	= stack_next,
+	.stop	= stack_stop,
+	.show	= stack_print
+};
+
+static int page_owner_stack_open(struct inode *inode, struct file *file)
+{
+	return seq_open_private(file, &page_owner_stack_op, 0);
+}
+
+static const struct file_operations page_owner_stack_operations = {
+	.open		= page_owner_stack_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static int __init pageowner_init(void)
 {
+	struct dentry *dir;
+
 	if (!static_branch_unlikely(&page_owner_inited)) {
 		pr_info("page_owner is disabled\n");
 		return 0;
@@ -814,6 +902,9 @@ static int __init pageowner_init(void)
 
 	debugfs_create_file("page_owner", 0400, NULL, NULL,
 			    &proc_page_owner_operations);
+	dir = debugfs_create_dir("page_owner_stacks", NULL);
+	debugfs_create_file("show_stacks", 0400, dir, NULL,
+			    &page_owner_stack_operations);
 
 	return 0;
 }
