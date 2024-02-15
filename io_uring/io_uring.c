@@ -666,7 +666,6 @@ static void io_cq_unlock_post(struct io_ring_ctx *ctx)
 	io_commit_cqring_flush(ctx);
 }
 
-/* Returns true if there are no backlogged entries after the flush */
 static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 {
 	struct io_overflow_cqe *ocqe;
