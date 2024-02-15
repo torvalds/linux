@@ -588,10 +588,10 @@ class YnlFamily(SpecFamily):
         return decoded
 
     def _decode(self, attrs, space, outer_attrs = None):
+        rsp = dict()
         if space:
             attr_space = self.attr_sets[space]
-        rsp = dict()
-        search_attrs = SpaceAttrs(attr_space, rsp, outer_attrs)
+            search_attrs = SpaceAttrs(attr_space, rsp, outer_attrs)
 
         for attr in attrs:
             try:
