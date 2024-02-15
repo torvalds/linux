@@ -64,8 +64,10 @@ static inline int __srcu_read_lock(struct srcu_struct *ssp)
 {
 	int idx;
 
+	preempt_disable();  // Needed for PREEMPT_AUTO
 	idx = ((READ_ONCE(ssp->srcu_idx) + 1) & 0x2) >> 1;
 	WRITE_ONCE(ssp->srcu_lock_nesting[idx], READ_ONCE(ssp->srcu_lock_nesting[idx]) + 1);
+	preempt_enable();
 	return idx;
 }
 
