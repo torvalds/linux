@@ -26,7 +26,7 @@
 #include "dm_services.h"
 #include "core_types.h"
 #include "reg_helper.h"
-#include "dcn32_dpp.h"
+#include "dcn32/dcn32_dpp.h"
 #include "basics/conversion.h"
 #include "dcn30/dcn30_cm_common.h"
 

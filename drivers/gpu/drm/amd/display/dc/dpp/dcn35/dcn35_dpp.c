@@ -25,7 +25,7 @@
  */
 
 #include "core_types.h"
-#include "dcn35_dpp.h"
+#include "dcn35/dcn35_dpp.h"
 #include "reg_helper.h"
 
 #define REG(reg) dpp->tf_regs->reg

@@ -28,7 +28,7 @@
 #include "core_types.h"
 
 #include "reg_helper.h"
-#include "dcn20_dpp.h"
+#include "dcn20/dcn20_dpp.h"
 #include "basics/conversion.h"
 
 #include "dcn10/dcn10_cm_common.h"
