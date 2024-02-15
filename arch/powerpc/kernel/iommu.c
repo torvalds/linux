@@ -1344,7 +1344,7 @@ static struct iommu_device *spapr_tce_iommu_probe_device(struct device *dev)
 	struct pci_controller *hose;
 
 	if (!dev_is_pci(dev))
-		return ERR_PTR(-EPERM);
+		return ERR_PTR(-ENODEV);
 
 	pdev = to_pci_dev(dev);
 	hose = pdev->bus->sysdata;
@@ -1393,6 +1393,21 @@ static const struct attribute_group *spapr_tce_iommu_groups[] = {
 	NULL,
 };
 
+void ppc_iommu_register_device(struct pci_controller *phb)
+{
+	iommu_device_sysfs_add(&phb->iommu, phb->parent,
+				spapr_tce_iommu_groups, "iommu-phb%04x",
+				phb->global_number);
+	iommu_device_register(&phb->iommu, &spapr_tce_iommu_ops,
+				phb->parent);
+}
+
+void ppc_iommu_unregister_device(struct pci_controller *phb)
+{
+	iommu_device_unregister(&phb->iommu);
+	iommu_device_sysfs_remove(&phb->iommu);
+}
+
 /*
  * This registers IOMMU devices of PHBs. This needs to happen
  * after core_initcall(iommu_init) + postcore_initcall(pci_driver_init) and
@@ -1403,11 +1418,7 @@ static int __init spapr_tce_setup_phb_iommus_initcall(void)
 	struct pci_controller *hose;
 
 	list_for_each_entry(hose, &hose_list, list_node) {
-		iommu_device_sysfs_add(&hose->iommu, hose->parent,
-				       spapr_tce_iommu_groups, "iommu-phb%04x",
-				       hose->global_number);
-		iommu_device_register(&hose->iommu, &spapr_tce_iommu_ops,
-				      hose->parent);
+		ppc_iommu_register_device(hose);
 	}
 	return 0;
 }
