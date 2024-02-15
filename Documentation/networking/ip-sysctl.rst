@@ -2503,7 +2503,7 @@ use_tempaddr - INTEGER
 
 temp_valid_lft - INTEGER
 	valid lifetime (in seconds) for temporary addresses. If less than the
-	minimum required lifetime (typically 5 seconds), temporary addresses
+	minimum required lifetime (typically 5-7 seconds), temporary addresses
 	will not be created.
 
 	Default: 172800 (2 days)
@@ -2511,7 +2511,7 @@ temp_valid_lft - INTEGER
 temp_prefered_lft - INTEGER
 	Preferred lifetime (in seconds) for temporary addresses. If
 	temp_prefered_lft is less than the minimum required lifetime (typically
-	5 seconds), temporary addresses will not be created. If
+	5-7 seconds), the preferred lifetime is the minimum required. If
 	temp_prefered_lft is greater than temp_valid_lft, the preferred lifetime
 	is temp_valid_lft.
 
@@ -2534,6 +2534,16 @@ max_desync_factor - INTEGER
 	value is in seconds.
 
 	Default: 600
+
+regen_min_advance - INTEGER
+	How far in advance (in seconds), at minimum, to create a new temporary
+	address before the current one is deprecated. This value is added to
+	the amount of time that may be required for duplicate address detection
+	to determine when to create a new address. Linux permits setting this
+	value to less than the default of 2 seconds, but a value less than 2
+	does not conform to RFC 8981.
+
+	Default: 2
 
 regen_max_retry - INTEGER
 	Number of attempts before give up attempting to generate
