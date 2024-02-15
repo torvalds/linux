@@ -173,6 +173,7 @@ config ARM_QCOM_CPUFREQ_NVMEM
 config ARM_QCOM_CPUFREQ_HW
 	tristate "QCOM CPUFreq HW driver"
 	depends on ARCH_QCOM || COMPILE_TEST
+	depends on COMMON_CLK
 	help
 	  Support for the CPUFreq HW driver.
 	  Some QCOM chipsets have a HW engine to offload the steps
