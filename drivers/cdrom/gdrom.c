@@ -724,11 +724,6 @@ static void probe_gdrom_setupdisk(void)
 
 static int probe_gdrom_setupqueue(void)
 {
-	blk_queue_logical_block_size(gd.gdrom_rq, GDROM_HARD_SECTOR);
-	/* using DMA so memory will need to be contiguous */
-	blk_queue_max_segments(gd.gdrom_rq, 1);
-	/* set a large max size to get most from DMA */
-	blk_queue_max_segment_size(gd.gdrom_rq, 0x40000);
 	gd.disk->queue = gd.gdrom_rq;
 	return gdrom_init_dma_mode();
 }
@@ -743,6 +738,13 @@ static const struct blk_mq_ops gdrom_mq_ops = {
  */
 static int probe_gdrom(struct platform_device *devptr)
 {
+	struct queue_limits lim = {
+		.logical_block_size		= GDROM_HARD_SECTOR,
+		/* using DMA so memory will need to be contiguous */
+		.max_segments			= 1,
+		/* set a large max size to get most from DMA */
+		.max_segment_size		= 0x40000,
+	};
 	int err;
 
 	/*
@@ -778,7 +780,7 @@ static int probe_gdrom(struct platform_device *devptr)
 	if (err)
 		goto probe_fail_free_cd_info;
 
-	gd.disk = blk_mq_alloc_disk(&gd.tag_set, NULL, NULL);
+	gd.disk = blk_mq_alloc_disk(&gd.tag_set, &lim, NULL);
 	if (IS_ERR(gd.disk)) {
 		err = PTR_ERR(gd.disk);
 		goto probe_fail_free_tag_set;
