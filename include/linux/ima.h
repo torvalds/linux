@@ -256,4 +256,14 @@ static inline bool ima_appraise_signature(enum kernel_read_file_id func)
 	return false;
 }
 #endif /* CONFIG_IMA_APPRAISE && CONFIG_INTEGRITY_TRUSTED_KEYRING */
+
+#if defined(CONFIG_IMA) && defined(CONFIG_INTEGRITY_ASYMMETRIC_KEYS)
+extern int ima_kernel_module_request(char *kmod_name);
+#else
+static inline int ima_kernel_module_request(char *kmod_name)
+{
+	return 0;
+}
+
+#endif
 #endif /* _LINUX_IMA_H */

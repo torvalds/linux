@@ -1091,6 +1091,39 @@ int ima_measure_critical_data(const char *event_label,
 }
 EXPORT_SYMBOL_GPL(ima_measure_critical_data);
 
+#ifdef CONFIG_INTEGRITY_ASYMMETRIC_KEYS
+
+/**
+ * ima_kernel_module_request - Prevent crypto-pkcs1pad(rsa,*) requests
+ * @kmod_name: kernel module name
+ *
+ * Avoid a verification loop where verifying the signature of the modprobe
+ * binary requires executing modprobe itself. Since the modprobe iint->mutex
+ * is already held when the signature verification is performed, a deadlock
+ * occurs as soon as modprobe is executed within the critical region, since
+ * the same lock cannot be taken again.
+ *
+ * This happens when public_key_verify_signature(), in case of RSA algorithm,
+ * use alg_name to store internal information in order to construct an
+ * algorithm on the fly, but crypto_larval_lookup() will try to use alg_name
+ * in order to load a kernel module with same name.
+ *
+ * Since we don't have any real "crypto-pkcs1pad(rsa,*)" kernel modules,
+ * we are safe to fail such module request from crypto_larval_lookup(), and
+ * avoid the verification loop.
+ *
+ * Return: Zero if it is safe to load the kernel module, -EINVAL otherwise.
+ */
+int ima_kernel_module_request(char *kmod_name)
+{
+	if (strncmp(kmod_name, "crypto-pkcs1pad(rsa,", 20) == 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+#endif /* CONFIG_INTEGRITY_ASYMMETRIC_KEYS */
+
 static int __init init_ima(void)
 {
 	int error;

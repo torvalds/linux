@@ -3249,7 +3249,7 @@ int security_kernel_module_request(char *kmod_name)
 	ret = call_int_hook(kernel_module_request, 0, kmod_name);
 	if (ret)
 		return ret;
-	return integrity_kernel_module_request(kmod_name);
+	return ima_kernel_module_request(kmod_name);
 }
 
 /**
