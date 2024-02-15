@@ -638,20 +638,36 @@ int kvm_xen_hvm_set_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		}
 		break;
 
-	case KVM_XEN_ATTR_TYPE_SHARED_INFO: {
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO_HVA: {
 		int idx;
 
 		mutex_lock(&kvm->arch.xen.xen_lock);
 
 		idx = srcu_read_lock(&kvm->srcu);
 
-		if (data->u.shared_info.gfn == KVM_XEN_INVALID_GFN) {
-			kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
-			r = 0;
+		if (data->type == KVM_XEN_ATTR_TYPE_SHARED_INFO) {
+			gfn_t gfn = data->u.shared_info.gfn;
+
+			if (gfn == KVM_XEN_INVALID_GFN) {
+				kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
+				r = 0;
+			} else {
+				r = kvm_gpc_activate(&kvm->arch.xen.shinfo_cache,
+						     gfn_to_gpa(gfn), PAGE_SIZE);
+			}
 		} else {
-			r = kvm_gpc_activate(&kvm->arch.xen.shinfo_cache,
-					     gfn_to_gpa(data->u.shared_info.gfn),
-					     PAGE_SIZE);
+			void __user * hva = u64_to_user_ptr(data->u.shared_info.hva);
+
+			if (!PAGE_ALIGNED(hva) || !access_ok(hva, PAGE_SIZE)) {
+				r = -EINVAL;
+			} else if (!hva) {
+				kvm_gpc_deactivate(&kvm->arch.xen.shinfo_cache);
+				r = 0;
+			} else {
+				r = kvm_gpc_activate_hva(&kvm->arch.xen.shinfo_cache,
+							 (unsigned long)hva, PAGE_SIZE);
+			}
 		}
 
 		srcu_read_unlock(&kvm->srcu, idx);
@@ -715,10 +731,18 @@ int kvm_xen_hvm_get_attr(struct kvm *kvm, struct kvm_xen_hvm_attr *data)
 		break;
 
 	case KVM_XEN_ATTR_TYPE_SHARED_INFO:
-		if (kvm->arch.xen.shinfo_cache.active)
+		if (kvm_gpc_is_gpa_active(&kvm->arch.xen.shinfo_cache))
 			data->u.shared_info.gfn = gpa_to_gfn(kvm->arch.xen.shinfo_cache.gpa);
 		else
 			data->u.shared_info.gfn = KVM_XEN_INVALID_GFN;
+		r = 0;
+		break;
+
+	case KVM_XEN_ATTR_TYPE_SHARED_INFO_HVA:
+		if (kvm_gpc_is_hva_active(&kvm->arch.xen.shinfo_cache))
+			data->u.shared_info.hva = kvm->arch.xen.shinfo_cache.uhva;
+		else
+			data->u.shared_info.hva = 0;
 		r = 0;
 		break;
 
