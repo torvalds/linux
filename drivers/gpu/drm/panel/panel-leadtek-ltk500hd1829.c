@@ -11,6 +11,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/regulator/consumer.h>
 
 #include <video/mipi_display.h>
@@ -21,25 +22,32 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
+struct ltk500hd1829_cmd {
+	char cmd;
+	char data;
+};
+
+struct ltk500hd1829_desc {
+	const struct drm_display_mode *mode;
+	const struct ltk500hd1829_cmd *init;
+	unsigned int num_init;
+};
+
 struct ltk500hd1829 {
 	struct device *dev;
 	struct drm_panel panel;
 	struct gpio_desc *reset_gpio;
 	struct regulator *vcc;
 	struct regulator *iovcc;
+	const struct ltk500hd1829_desc *panel_desc;
 	bool prepared;
-};
-
-struct ltk500hd1829_cmd {
-	char cmd;
-	char data;
 };
 
 /*
  * There is no description in the Reference Manual about these commands.
  * We received them from the vendor, so just use them as is.
  */
-static const struct ltk500hd1829_cmd init_code[] = {
+static const struct ltk500hd1829_cmd ltk500hd1829_init[] = {
 	{ 0xE0, 0x00 },
 	{ 0xE1, 0x93 },
 	{ 0xE2, 0x65 },
@@ -260,6 +268,26 @@ static const struct ltk500hd1829_cmd init_code[] = {
 	{ 0x35, 0x00 },
 };
 
+static const struct drm_display_mode ltk500hd1829_mode = {
+	.hdisplay	= 720,
+	.hsync_start	= 720 + 50,
+	.hsync_end	= 720 + 50 + 50,
+	.htotal		= 720 + 50 + 50 + 50,
+	.vdisplay	= 1280,
+	.vsync_start	= 1280 + 30,
+	.vsync_end	= 1280 + 30 + 4,
+	.vtotal		= 1280 + 30 + 4 + 12,
+	.clock		= 69217,
+	.width_mm	= 62,
+	.height_mm	= 110,
+};
+
+static const struct ltk500hd1829_desc ltk500hd1829_data = {
+	.mode = &ltk500hd1829_mode,
+	.init = ltk500hd1829_init,
+	.num_init = ARRAY_SIZE(ltk500hd1829_init),
+};
+
 static inline
 struct ltk500hd1829 *panel_to_ltk500hd1829(struct drm_panel *panel)
 {
@@ -324,8 +352,8 @@ static int ltk500hd1829_prepare(struct drm_panel *panel)
 	/* tRT: >= 5ms */
 	usleep_range(5000, 6000);
 
-	for (i = 0; i < ARRAY_SIZE(init_code); i++) {
-		ret = mipi_dsi_generic_write(dsi, &init_code[i],
+	for (i = 0; i < ctx->panel_desc->num_init; i++) {
+		ret = mipi_dsi_generic_write(dsi, &ctx->panel_desc->init[i],
 					     sizeof(struct ltk500hd1829_cmd));
 		if (ret < 0) {
 			dev_err(panel->dev, "failed to write init cmds: %d\n", ret);
@@ -359,31 +387,17 @@ disable_vcc:
 	return ret;
 }
 
-static const struct drm_display_mode default_mode = {
-	.hdisplay	= 720,
-	.hsync_start	= 720 + 50,
-	.hsync_end	= 720 + 50 + 50,
-	.htotal		= 720 + 50 + 50 + 50,
-	.vdisplay	= 1280,
-	.vsync_start	= 1280 + 30,
-	.vsync_end	= 1280 + 30 + 4,
-	.vtotal		= 1280 + 30 + 4 + 12,
-	.clock		= 69217,
-	.width_mm	= 62,
-	.height_mm	= 110,
-};
-
 static int ltk500hd1829_get_modes(struct drm_panel *panel,
 				  struct drm_connector *connector)
 {
 	struct ltk500hd1829 *ctx = panel_to_ltk500hd1829(panel);
 	struct drm_display_mode *mode;
 
-	mode = drm_mode_duplicate(connector->dev, &default_mode);
+	mode = drm_mode_duplicate(connector->dev, ctx->panel_desc->mode);
 	if (!mode) {
 		dev_err(ctx->dev, "failed to add mode %ux%u@%u\n",
-			default_mode.hdisplay, default_mode.vdisplay,
-			drm_mode_vrefresh(&default_mode));
+			ctx->panel_desc->mode->hdisplay, ctx->panel_desc->mode->vdisplay,
+			drm_mode_vrefresh(ctx->panel_desc->mode));
 		return -ENOMEM;
 	}
 
@@ -412,6 +426,10 @@ static int ltk500hd1829_probe(struct mipi_dsi_device *dsi)
 	ctx = devm_kzalloc(&dsi->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
+
+	ctx->panel_desc = of_device_get_match_data(dev);
+	if (!ctx->panel_desc)
+		return -EINVAL;
 
 	ctx->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio)) {
@@ -492,7 +510,10 @@ static void ltk500hd1829_remove(struct mipi_dsi_device *dsi)
 }
 
 static const struct of_device_id ltk500hd1829_of_match[] = {
-	{ .compatible = "leadtek,ltk500hd1829", },
+	{
+		.compatible = "leadtek,ltk500hd1829",
+		.data = &ltk500hd1829_data,
+	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, ltk500hd1829_of_match);
