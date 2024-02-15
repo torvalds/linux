@@ -48,7 +48,14 @@ bool kvm_gpc_check(struct gfn_to_pfn_cache *gpc, unsigned long len)
 	if (!gpc->active)
 		return false;
 
-	if (gpc->generation != slots->generation || kvm_is_error_hva(gpc->uhva))
+	/*
+	 * If the page was cached from a memslot, make sure the memslots have
+	 * not been re-configured.
+	 */
+	if (!kvm_is_error_gpa(gpc->gpa) && gpc->generation != slots->generation)
+		return false;
+
+	if (kvm_is_error_hva(gpc->uhva))
 		return false;
 
 	if (offset_in_page(gpc->uhva) + len > PAGE_SIZE)
@@ -209,11 +216,10 @@ out_error:
 	return -EFAULT;
 }
 
-static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa,
+static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long uhva,
 			     unsigned long len)
 {
-	struct kvm_memslots *slots = kvm_memslots(gpc->kvm);
-	unsigned long page_offset = offset_in_page(gpa);
+	unsigned long page_offset;
 	bool unmap_old = false;
 	unsigned long old_uhva;
 	kvm_pfn_t old_pfn;
@@ -221,10 +227,16 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa,
 	void *old_khva;
 	int ret;
 
+	/* Either gpa or uhva must be valid, but not both */
+	if (WARN_ON_ONCE(kvm_is_error_gpa(gpa) == kvm_is_error_hva(uhva)))
+		return -EINVAL;
+
 	/*
-	 * If must fit within a single page. The 'len' argument is
-	 * only to enforce that.
+	 * The cached acces must fit within a single page. The 'len' argument
+	 * exists only to enforce that.
 	 */
+	page_offset = kvm_is_error_gpa(gpa) ? offset_in_page(uhva) :
+					      offset_in_page(gpa);
 	if (page_offset + len > PAGE_SIZE)
 		return -EINVAL;
 
@@ -246,29 +258,39 @@ static int __kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, gpa_t gpa,
 	old_khva = (void *)PAGE_ALIGN_DOWN((uintptr_t)gpc->khva);
 	old_uhva = PAGE_ALIGN_DOWN(gpc->uhva);
 
-	/* Refresh the userspace HVA if necessary */
-	if (gpc->gpa != gpa || gpc->generation != slots->generation ||
-	    kvm_is_error_hva(gpc->uhva)) {
-		gfn_t gfn = gpa_to_gfn(gpa);
+	if (kvm_is_error_gpa(gpa)) {
+		gpc->gpa = INVALID_GPA;
+		gpc->memslot = NULL;
+		gpc->uhva = PAGE_ALIGN_DOWN(uhva);
 
-		gpc->gpa = gpa;
-		gpc->generation = slots->generation;
-		gpc->memslot = __gfn_to_memslot(slots, gfn);
-		gpc->uhva = gfn_to_hva_memslot(gpc->memslot, gfn);
-
-		if (kvm_is_error_hva(gpc->uhva)) {
-			ret = -EFAULT;
-			goto out;
-		}
-
-		/*
-		 * Even if the GPA and/or the memslot generation changed, the
-		 * HVA may still be the same.
-		 */
 		if (gpc->uhva != old_uhva)
 			hva_change = true;
 	} else {
-		gpc->uhva = old_uhva;
+		struct kvm_memslots *slots = kvm_memslots(gpc->kvm);
+
+		if (gpc->gpa != gpa || gpc->generation != slots->generation ||
+		    kvm_is_error_hva(gpc->uhva)) {
+			gfn_t gfn = gpa_to_gfn(gpa);
+
+			gpc->gpa = gpa;
+			gpc->generation = slots->generation;
+			gpc->memslot = __gfn_to_memslot(slots, gfn);
+			gpc->uhva = gfn_to_hva_memslot(gpc->memslot, gfn);
+
+			if (kvm_is_error_hva(gpc->uhva)) {
+				ret = -EFAULT;
+				goto out;
+			}
+
+			/*
+			 * Even if the GPA and/or the memslot generation changed, the
+			 * HVA may still be the same.
+			 */
+			if (gpc->uhva != old_uhva)
+				hva_change = true;
+		} else {
+			gpc->uhva = old_uhva;
+		}
 	}
 
 	/* Note: the offset must be correct before calling hva_to_pfn_retry() */
@@ -319,7 +341,15 @@ out_unlock:
 
 int kvm_gpc_refresh(struct gfn_to_pfn_cache *gpc, unsigned long len)
 {
-	return __kvm_gpc_refresh(gpc, gpc->gpa, len);
+	/*
+	 * If the GPA is valid then ignore the HVA, as a cache can be GPA-based
+	 * or HVA-based, not both.  For GPA-based caches, the HVA will be
+	 * recomputed during refresh if necessary.
+	 */
+	unsigned long uhva = kvm_is_error_gpa(gpc->gpa) ? gpc->uhva :
+							  KVM_HVA_ERR_BAD;
+
+	return __kvm_gpc_refresh(gpc, gpc->gpa, uhva, len);
 }
 
 void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm)
@@ -329,10 +359,12 @@ void kvm_gpc_init(struct gfn_to_pfn_cache *gpc, struct kvm *kvm)
 
 	gpc->kvm = kvm;
 	gpc->pfn = KVM_PFN_ERR_FAULT;
+	gpc->gpa = INVALID_GPA;
 	gpc->uhva = KVM_HVA_ERR_BAD;
 }
 
-int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
+static int __kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long uhva,
+			      unsigned long len)
 {
 	struct kvm *kvm = gpc->kvm;
 
@@ -353,7 +385,17 @@ int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
 		gpc->active = true;
 		write_unlock_irq(&gpc->lock);
 	}
-	return __kvm_gpc_refresh(gpc, gpa, len);
+	return __kvm_gpc_refresh(gpc, gpa, uhva, len);
+}
+
+int kvm_gpc_activate(struct gfn_to_pfn_cache *gpc, gpa_t gpa, unsigned long len)
+{
+	return __kvm_gpc_activate(gpc, gpa, KVM_HVA_ERR_BAD, len);
+}
+
+int kvm_gpc_activate_hva(struct gfn_to_pfn_cache *gpc, unsigned long uhva, unsigned long len)
+{
+	return __kvm_gpc_activate(gpc, INVALID_GPA, uhva, len);
 }
 
 void kvm_gpc_deactivate(struct gfn_to_pfn_cache *gpc)
