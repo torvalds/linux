@@ -929,6 +929,8 @@ typedef struct {
 
 #define EFI_CC_BOOT_HASH_ALG_SHA384	0x00000004
 
+#define EFI_CC_EVENT_LOG_FORMAT_TCG_2	0x00000002
+
 typedef union efi_cc_protocol efi_cc_protocol_t;
 
 union efi_cc_protocol {
@@ -1140,7 +1142,7 @@ static inline void
 efi_enable_reset_attack_mitigation(void) { }
 #endif
 
-void efi_retrieve_tpm2_eventlog(void);
+void efi_retrieve_eventlog(void);
 
 struct screen_info *alloc_screen_info(void);
 struct screen_info *__alloc_screen_info(void);
