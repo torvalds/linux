@@ -413,4 +413,5 @@ const char *otx2_mbox_id2name(u16 id)
 EXPORT_SYMBOL(otx2_mbox_id2name);
 
 MODULE_AUTHOR("Marvell.");
+MODULE_DESCRIPTION("Marvell RVU NIC Mbox helpers");
 MODULE_LICENSE("GPL v2");

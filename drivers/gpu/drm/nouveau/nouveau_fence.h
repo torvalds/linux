@@ -3,7 +3,6 @@
 #define __NOUVEAU_FENCE_H__
 
 #include <linux/dma-fence.h>
-#include <linux/workqueue.h>
 #include <nvif/event.h>
 
 struct nouveau_drm;
@@ -46,9 +45,7 @@ struct nouveau_fence_chan {
 	char name[32];
 
 	struct nvif_event event;
-	struct work_struct allow_block_work;
-	atomic_t notify_ref;
-	int dead, killed;
+	int notify_ref, dead, killed;
 };
 
 struct nouveau_fence_priv {

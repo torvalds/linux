@@ -19,14 +19,13 @@ struct ivpu_bo {
 
 	struct mutex lock; /* Protects: ctx, mmu_mapped, vpu_addr */
 	u64 vpu_addr;
-	u32 handle;
 	u32 flags;
 	u32 job_status; /* Valid only for command buffer */
 	bool mmu_mapped;
 };
 
 int ivpu_bo_pin(struct ivpu_bo *bo);
-void ivpu_bo_remove_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
+void ivpu_bo_unbind_all_bos_from_context(struct ivpu_device *vdev, struct ivpu_mmu_context *ctx);
 
 struct drm_gem_object *ivpu_gem_create_object(struct drm_device *dev, size_t size);
 struct ivpu_bo *ivpu_bo_alloc_internal(struct ivpu_device *vdev, u64 vpu_addr, u64 size, u32 flags);

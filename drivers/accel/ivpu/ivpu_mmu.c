@@ -7,6 +7,7 @@
 #include <linux/highmem.h>
 
 #include "ivpu_drv.h"
+#include "ivpu_hw.h"
 #include "ivpu_hw_reg_io.h"
 #include "ivpu_mmu.h"
 #include "ivpu_mmu_context.h"
@@ -518,6 +519,7 @@ static int ivpu_mmu_cmdq_sync(struct ivpu_device *vdev)
 
 		ivpu_err(vdev, "Timed out waiting for MMU consumer: %d, error: %s\n", ret,
 			 ivpu_mmu_cmdq_err_to_str(err));
+		ivpu_hw_diagnose_failure(vdev);
 	}
 
 	return ret;
@@ -885,7 +887,6 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 
 void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 {
-	bool schedule_recovery = false;
 	u32 *event;
 	u32 ssid;
 
@@ -895,14 +896,21 @@ void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 		ivpu_mmu_dump_event(vdev, event);
 
 		ssid = FIELD_GET(IVPU_MMU_EVT_SSID_MASK, event[0]);
-		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID)
-			schedule_recovery = true;
-		else
-			ivpu_mmu_user_context_mark_invalid(vdev, ssid);
-	}
+		if (ssid == IVPU_GLOBAL_CONTEXT_MMU_SSID) {
+			ivpu_pm_trigger_recovery(vdev, "MMU event");
+			return;
+		}
 
-	if (schedule_recovery)
-		ivpu_pm_schedule_recovery(vdev);
+		ivpu_mmu_user_context_mark_invalid(vdev, ssid);
+	}
+}
+
+void ivpu_mmu_evtq_dump(struct ivpu_device *vdev)
+{
+	u32 *event;
+
+	while ((event = ivpu_mmu_get_event(vdev)) != NULL)
+		ivpu_mmu_dump_event(vdev, event);
 }
 
 void ivpu_mmu_irq_gerr_handler(struct ivpu_device *vdev)

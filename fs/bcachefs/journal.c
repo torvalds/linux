@@ -233,7 +233,7 @@ static void __journal_entry_close(struct journal *j, unsigned closed_val, bool t
 		prt_str(&pbuf, "entry size: ");
 		prt_human_readable_u64(&pbuf, vstruct_bytes(buf->data));
 		prt_newline(&pbuf);
-		bch2_prt_task_backtrace(&pbuf, current, 1);
+		bch2_prt_task_backtrace(&pbuf, current, 1, GFP_NOWAIT);
 		trace_journal_entry_close(c, pbuf.buf);
 		printbuf_exit(&pbuf);
 	}
