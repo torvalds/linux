@@ -211,7 +211,6 @@ static void davinci_fifo_data_trans(struct mmc_davinci_host *host,
 					unsigned int n)
 {
 	struct sg_mapping_iter *sgm = &host->sg_miter;
-	size_t sglen;
 	u8 *p;
 	unsigned int i;
 
@@ -224,7 +223,6 @@ static void davinci_fifo_data_trans(struct mmc_davinci_host *host,
 		return;
 	}
 	p = sgm->addr;
-	sglen = sgm->length;
 
 	/* NOTE:  we never transfer more than rw_threshold bytes
 	 * to/from the fifo here; there's no I/O overlap.
