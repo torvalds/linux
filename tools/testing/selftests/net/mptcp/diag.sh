@@ -206,10 +206,15 @@ wait_local_port_listen()
 # $1: cestab nr
 chk_msk_cestab()
 {
-	local cestab=$1
+	local expected=$1
+	local msg="....chk ${2:-${expected}} cestab"
+
+	if [ "${expected}" -eq 0 ]; then
+		msg+=" after flush"
+	fi
 
 	__chk_nr "mptcp_lib_get_counter ${ns} MPTcpExtMPCurrEstab" \
-		 "${cestab}" "....chk ${cestab} cestab" ""
+		 "${expected}" "${msg}" ""
 }
 
 wait_connected()
@@ -253,7 +258,7 @@ chk_msk_cestab 2
 flush_pids
 
 chk_msk_inuse 0 "2->0"
-chk_msk_cestab 0
+chk_msk_cestab 0 "2->0"
 
 echo "a" | \
 	timeout ${timeout_test} \
@@ -273,7 +278,7 @@ chk_msk_cestab 1
 flush_pids
 
 chk_msk_inuse 0 "1->0"
-chk_msk_cestab 0
+chk_msk_cestab 0 "1->0"
 
 NR_CLIENTS=100
 for I in `seq 1 $NR_CLIENTS`; do
@@ -295,11 +300,11 @@ done
 
 wait_msk_nr $((NR_CLIENTS*2)) "many msk socket present"
 chk_msk_inuse $((NR_CLIENTS*2)) "many"
-chk_msk_cestab $((NR_CLIENTS*2))
+chk_msk_cestab $((NR_CLIENTS*2)) "many"
 flush_pids
 
 chk_msk_inuse 0 "many->0"
-chk_msk_cestab 0
+chk_msk_cestab 0 "many->0"
 
 mptcp_lib_result_print_all_tap
 exit $ret
