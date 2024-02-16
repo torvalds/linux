@@ -531,6 +531,7 @@ static int rkisp1_probe(struct platform_device *pdev)
 	struct rkisp1_device *rkisp1;
 	struct v4l2_device *v4l2_dev;
 	unsigned int i;
+	u64 dma_mask;
 	int ret, irq;
 	u32 cif_id;
 
@@ -543,6 +544,13 @@ static int rkisp1_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, rkisp1);
 	rkisp1->dev = dev;
+
+	dma_mask = rkisp1_has_feature(rkisp1, DMA_34BIT) ? DMA_BIT_MASK(34) :
+							   DMA_BIT_MASK(32);
+
+	ret = dma_set_mask_and_coherent(dev, dma_mask);
+	if (ret)
+		return ret;
 
 	mutex_init(&rkisp1->stream_lock);
 
