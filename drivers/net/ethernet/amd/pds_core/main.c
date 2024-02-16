@@ -469,7 +469,7 @@ static void pdsc_restart_health_thread(struct pdsc *pdsc)
 	mod_timer(&pdsc->wdtimer, jiffies + 1);
 }
 
-void pdsc_reset_prepare(struct pci_dev *pdev)
+static void pdsc_reset_prepare(struct pci_dev *pdev)
 {
 	struct pdsc *pdsc = pci_get_drvdata(pdev);
 
@@ -486,10 +486,11 @@ void pdsc_reset_prepare(struct pci_dev *pdev)
 
 	pdsc_unmap_bars(pdsc);
 	pci_release_regions(pdev);
-	pci_disable_device(pdev);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
 }
 
-void pdsc_reset_done(struct pci_dev *pdev)
+static void pdsc_reset_done(struct pci_dev *pdev)
 {
 	struct pdsc *pdsc = pci_get_drvdata(pdev);
 	struct device *dev = pdsc->dev;

@@ -607,8 +607,7 @@ static void pdsc_check_pci_health(struct pdsc *pdsc)
 	if (fw_status != PDS_RC_BAD_PCI)
 		return;
 
-	pdsc_reset_prepare(pdsc->pdev);
-	pdsc_reset_done(pdsc->pdev);
+	pci_reset_function(pdsc->pdev);
 }
 
 void pdsc_health_thread(struct work_struct *work)
