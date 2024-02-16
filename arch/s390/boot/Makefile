@@ -94,7 +94,7 @@ OBJCOPYFLAGS_syms.o := -I binary -O elf64-s390 -B s390:64-bit --rename-section .
 $(obj)/syms.o: $(obj)/syms.bin FORCE
 	$(call if_changed,objcopy)
 
-OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info --set-section-flags .vmlinux.info=load
+OBJCOPYFLAGS_info.bin := -O binary --only-section=.vmlinux.info --set-section-flags .vmlinux.info=alloc,load
 $(obj)/info.bin: vmlinux FORCE
 	$(call if_changed,objcopy)
 
