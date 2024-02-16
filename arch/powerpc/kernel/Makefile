@@ -55,7 +55,6 @@ CFLAGS_btext.o += -DDISABLE_BRANCH_PROFILING
 endif
 
 KCSAN_SANITIZE_early_32.o := n
-KCSAN_SANITIZE_early_64.o := n
 KCSAN_SANITIZE_cputable.o := n
 KCSAN_SANITIZE_btext.o := n
 KCSAN_SANITIZE_paca.o := n
