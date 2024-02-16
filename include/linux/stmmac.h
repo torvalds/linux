@@ -294,5 +294,7 @@ struct plat_stmmacenet_data {
 	bool phy_intr_en_extn_stm;
 	int has_c22_mdio_probe_capability;
 	bool pcs_v3;
+	void (*phy_irq_enable)(void *priv);
+	void (*phy_irq_disable)(void *priv);
 };
 #endif
