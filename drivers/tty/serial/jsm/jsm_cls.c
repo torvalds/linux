@@ -395,7 +395,6 @@ static void cls_copy_data_from_uart_to_queue(struct jsm_channel *ch)
 		 * which in this case is the break signal.
 		 */
 		if (linestatus & error_mask)  {
-			linestatus = 0;
 			readb(&ch->ch_cls_uart->txrx);
 			continue;
 		}
