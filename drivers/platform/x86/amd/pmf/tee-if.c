@@ -260,7 +260,7 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	res = amd_pmf_invoke_cmd_init(dev);
 	if (res == TA_PMF_TYPE_SUCCESS) {
 		/* Now its safe to announce that smart pc is enabled */
-		dev->smart_pc_enabled = PMF_SMART_PC_ENABLED;
+		dev->smart_pc_enabled = true;
 		/*
 		 * Start collecting the data from TA FW after a small delay
 		 * or else, we might end up getting stale values.
@@ -268,7 +268,7 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 		schedule_delayed_work(&dev->pb_work, msecs_to_jiffies(pb_actions_ms * 3));
 	} else {
 		dev_err(dev->dev, "ta invoke cmd init failed err: %x\n", res);
-		dev->smart_pc_enabled = PMF_SMART_PC_DISABLED;
+		dev->smart_pc_enabled = false;
 		return res;
 	}
 
