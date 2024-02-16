@@ -250,6 +250,42 @@ static int get_bit_mask(const char *filename, unsigned long *mask)
 }
 
 /*
+ * resource_info_unsigned_get - Read an unsigned value from
+ * /sys/fs/resctrl/info/@resource/@filename
+ * @resource:	Resource name that matches directory name in
+ *		/sys/fs/resctrl/info
+ * @filename:	File in /sys/fs/resctrl/info/@resource
+ * @val:	Contains read value on success.
+ *
+ * Return: = 0 on success, < 0 on failure. On success the read
+ * value is saved into @val.
+ */
+int resource_info_unsigned_get(const char *resource, const char *filename,
+			       unsigned int *val)
+{
+	char file_path[PATH_MAX];
+	FILE *fp;
+
+	snprintf(file_path, sizeof(file_path), "%s/%s/%s", INFO_PATH, resource,
+		 filename);
+
+	fp = fopen(file_path, "r");
+	if (!fp) {
+		ksft_print_msg("Error opening %s: %m\n", file_path);
+		return -1;
+	}
+
+	if (fscanf(fp, "%u", val) <= 0) {
+		ksft_print_msg("Could not get contents of %s: %m\n", file_path);
+		fclose(fp);
+		return -1;
+	}
+
+	fclose(fp);
+	return 0;
+}
+
+/*
  * create_bit_mask- Create bit mask from start, len pair
  * @start:	LSB of the mask
  * @len		Number of bits in the mask
