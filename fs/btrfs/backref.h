@@ -283,14 +283,6 @@ struct btrfs_backref_iter {
 
 struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_info);
 
-static inline void btrfs_backref_iter_free(struct btrfs_backref_iter *iter)
-{
-	if (!iter)
-		return;
-	btrfs_free_path(iter->path);
-	kfree(iter);
-}
-
 static inline struct extent_buffer *btrfs_backref_get_eb(
 		struct btrfs_backref_iter *iter)
 {

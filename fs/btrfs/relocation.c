@@ -523,7 +523,8 @@ static noinline_for_stack struct btrfs_backref_node *build_backref_tree(
 	if (handle_useless_nodes(rc, node))
 		node = NULL;
 out:
-	btrfs_backref_iter_free(iter);
+	btrfs_free_path(iter->path);
+	kfree(iter);
 	btrfs_free_path(path);
 	if (err) {
 		btrfs_backref_error_cleanup(cache, node);
