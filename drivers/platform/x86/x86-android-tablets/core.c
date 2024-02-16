@@ -113,6 +113,9 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		if (irq_type != IRQ_TYPE_NONE && irq_type != irq_get_trigger_type(irq))
 			irq_set_irq_type(irq, irq_type);
 
+		if (data->free_gpio)
+			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
+
 		return irq;
 	case X86_ACPI_IRQ_TYPE_PMIC:
 		status = acpi_get_handle(NULL, data->chip, &handle);
