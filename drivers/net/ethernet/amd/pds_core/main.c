@@ -476,6 +476,14 @@ void pdsc_reset_prepare(struct pci_dev *pdev)
 	pdsc_stop_health_thread(pdsc);
 	pdsc_fw_down(pdsc);
 
+	if (pdev->is_virtfn) {
+		struct pdsc *pf;
+
+		pf = pdsc_get_pf_struct(pdsc->pdev);
+		if (!IS_ERR(pf))
+			pdsc_auxbus_dev_del(pdsc, pf);
+	}
+
 	pdsc_unmap_bars(pdsc);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
@@ -511,6 +519,14 @@ void pdsc_reset_done(struct pci_dev *pdev)
 
 	pdsc_fw_up(pdsc);
 	pdsc_restart_health_thread(pdsc);
+
+	if (pdev->is_virtfn) {
+		struct pdsc *pf;
+
+		pf = pdsc_get_pf_struct(pdsc->pdev);
+		if (!IS_ERR(pf))
+			pdsc_auxbus_dev_add(pdsc, pf);
+	}
 }
 
 static pci_ers_result_t pdsc_pci_error_detected(struct pci_dev *pdev,
