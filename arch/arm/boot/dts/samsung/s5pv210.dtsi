@@ -161,6 +161,7 @@
 			pinctrl-0 = <&spi0_bus>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			fifo-depth = <256>;
 			status = "disabled";
 		};
 
@@ -177,6 +178,7 @@
 			pinctrl-0 = <&spi1_bus>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			fifo-depth = <64>;
 			status = "disabled";
 		};
 
