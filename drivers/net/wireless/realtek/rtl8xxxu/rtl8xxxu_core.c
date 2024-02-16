@@ -5739,7 +5739,7 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 	}
 
 	if (vif->bss_conf.csa_active) {
-		if (ieee80211_beacon_cntdwn_is_complete(vif)) {
+		if (ieee80211_beacon_cntdwn_is_complete(vif, 0)) {
 			ieee80211_csa_finish(vif, 0);
 			return;
 		}
