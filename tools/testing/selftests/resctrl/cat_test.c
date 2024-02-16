@@ -294,10 +294,99 @@ out:
 	return ret;
 }
 
+static int noncont_cat_run_test(const struct resctrl_test *test,
+				const struct user_params *uparams)
+{
+	unsigned long full_cache_mask, cont_mask, noncont_mask;
+	unsigned int eax, ebx, ecx, edx, sparse_masks;
+	int bit_center, ret;
+	char schemata[64];
+
+	/* Check to compare sparse_masks content to CPUID output. */
+	ret = resource_info_unsigned_get(test->resource, "sparse_masks", &sparse_masks);
+	if (ret)
+		return ret;
+
+	if (!strcmp(test->resource, "L3"))
+		__cpuid_count(0x10, 1, eax, ebx, ecx, edx);
+	else if (!strcmp(test->resource, "L2"))
+		__cpuid_count(0x10, 2, eax, ebx, ecx, edx);
+	else
+		return -EINVAL;
+
+	if (sparse_masks != ((ecx >> 3) & 1)) {
+		ksft_print_msg("CPUID output doesn't match 'sparse_masks' file content!\n");
+		return 1;
+	}
+
+	/* Write checks initialization. */
+	ret = get_full_cbm(test->resource, &full_cache_mask);
+	if (ret < 0)
+		return ret;
+	bit_center = count_bits(full_cache_mask) / 2;
+
+	/*
+	 * The bit_center needs to be at least 3 to properly calculate the CBM
+	 * hole in the noncont_mask. If it's smaller return an error since the
+	 * cache mask is too short and that shouldn't happen.
+	 */
+	if (bit_center < 3)
+		return -EINVAL;
+	cont_mask = full_cache_mask >> bit_center;
+
+	/* Contiguous mask write check. */
+	snprintf(schemata, sizeof(schemata), "%lx", cont_mask);
+	ret = write_schemata("", schemata, uparams->cpu, test->resource);
+	if (ret) {
+		ksft_print_msg("Write of contiguous CBM failed\n");
+		return 1;
+	}
+
+	/*
+	 * Non-contiguous mask write check. CBM has a 0xf hole approximately in the middle.
+	 * Output is compared with support information to catch any edge case errors.
+	 */
+	noncont_mask = ~(0xfUL << (bit_center - 2)) & full_cache_mask;
+	snprintf(schemata, sizeof(schemata), "%lx", noncont_mask);
+	ret = write_schemata("", schemata, uparams->cpu, test->resource);
+	if (ret && sparse_masks)
+		ksft_print_msg("Non-contiguous CBMs supported but write of non-contiguous CBM failed\n");
+	else if (ret && !sparse_masks)
+		ksft_print_msg("Non-contiguous CBMs not supported and write of non-contiguous CBM failed as expected\n");
+	else if (!ret && !sparse_masks)
+		ksft_print_msg("Non-contiguous CBMs not supported but write of non-contiguous CBM succeeded\n");
+
+	return !ret == !sparse_masks;
+}
+
+static bool noncont_cat_feature_check(const struct resctrl_test *test)
+{
+	if (!resctrl_resource_exists(test->resource))
+		return false;
+
+	return resource_info_file_exists(test->resource, "sparse_masks");
+}
+
 struct resctrl_test l3_cat_test = {
 	.name = "L3_CAT",
 	.group = "CAT",
 	.resource = "L3",
 	.feature_check = test_resource_feature_check,
 	.run_test = cat_run_test,
+};
+
+struct resctrl_test l3_noncont_cat_test = {
+	.name = "L3_NONCONT_CAT",
+	.group = "CAT",
+	.resource = "L3",
+	.feature_check = noncont_cat_feature_check,
+	.run_test = noncont_cat_run_test,
+};
+
+struct resctrl_test l2_noncont_cat_test = {
+	.name = "L2_NONCONT_CAT",
+	.group = "CAT",
+	.resource = "L2",
+	.feature_check = noncont_cat_feature_check,
+	.run_test = noncont_cat_run_test,
 };
