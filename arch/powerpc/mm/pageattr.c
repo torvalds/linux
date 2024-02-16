@@ -38,6 +38,10 @@ static int change_page_attr(pte_t *ptep, unsigned long addr, void *data)
 		/* Don't clear DIRTY bit */
 		pte_update_delta(ptep, addr, _PAGE_KERNEL_RW & ~_PAGE_DIRTY, _PAGE_KERNEL_RO);
 		break;
+	case SET_MEMORY_ROX:
+		/* Don't clear DIRTY bit */
+		pte_update_delta(ptep, addr, _PAGE_KERNEL_RW & ~_PAGE_DIRTY, _PAGE_KERNEL_ROX);
+		break;
 	case SET_MEMORY_RW:
 		pte_update_delta(ptep, addr, _PAGE_KERNEL_RO, _PAGE_KERNEL_RW);
 		break;
