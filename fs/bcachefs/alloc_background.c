@@ -29,6 +29,8 @@
 #include <linux/sched/task.h>
 #include <linux/sort.h>
 
+static void bch2_discard_one_bucket_fast(struct bch_fs *c, struct bpos bucket);
+
 /* Persistent alloc info: */
 
 static const unsigned BCH_ALLOC_V1_FIELD_BYTES[] = {
@@ -866,14 +868,14 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 #define statechange(expr)		!eval_state(old_a, expr) && eval_state(new_a, expr)
 #define bucket_flushed(a)		(!a->journal_seq || a->journal_seq <= c->journal.flushed_seq_ondisk)
 
-		if (statechange(a->data_type == BCH_DATA_free &&
-				bucket_flushed(a)))
+		if (statechange(a->data_type == BCH_DATA_free) &&
+		    bucket_flushed(new_a))
 			closure_wake_up(&c->freelist_wait);
 
-		if (statechange(a->data_type == BCH_DATA_need_discard &&
-				bucket_flushed(a)) &&
-		    !bch2_bucket_is_open(c, new.k->p.inode, new.k->p.offset))
-			bch2_do_discards(c);
+		if (statechange(a->data_type == BCH_DATA_need_discard) &&
+		    !bch2_bucket_is_open(c, new.k->p.inode, new.k->p.offset) &&
+		    bucket_flushed(new_a))
+			bch2_discard_one_bucket_fast(c, new.k->p);
 
 		if (statechange(a->data_type == BCH_DATA_cached) &&
 		    !bch2_bucket_is_open(c, new.k->p.inode, new.k->p.offset) &&
@@ -1609,6 +1611,36 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 	return ret;
 }
 
+static int discard_in_flight_add(struct bch_fs *c, struct bpos bucket)
+{
+	int ret;
+
+	mutex_lock(&c->discard_buckets_in_flight_lock);
+	darray_for_each(c->discard_buckets_in_flight, i)
+		if (bkey_eq(*i, bucket)) {
+			ret = -EEXIST;
+			goto out;
+		}
+
+	ret = darray_push(&c->discard_buckets_in_flight, bucket);
+out:
+	mutex_unlock(&c->discard_buckets_in_flight_lock);
+	return ret;
+}
+
+static void discard_in_flight_remove(struct bch_fs *c, struct bpos bucket)
+{
+	mutex_lock(&c->discard_buckets_in_flight_lock);
+	darray_for_each(c->discard_buckets_in_flight, i)
+		if (bkey_eq(*i, bucket)) {
+			darray_remove_item(&c->discard_buckets_in_flight, i);
+			goto found;
+		}
+	BUG();
+found:
+	mutex_unlock(&c->discard_buckets_in_flight_lock);
+}
+
 struct discard_buckets_state {
 	u64		seen;
 	u64		open;
@@ -1647,6 +1679,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	struct bch_dev *ca;
 	struct bkey_i_alloc_v4 *a;
 	struct printbuf buf = PRINTBUF;
+	bool discard_locked = false;
 	int ret = 0;
 
 	ca = bch_dev_bkey_exists(c, pos.inode);
@@ -1714,6 +1747,11 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		goto out;
 	}
 
+	if (discard_in_flight_add(c, SPOS(iter.pos.inode, iter.pos.offset, true)))
+		goto out;
+
+	discard_locked = true;
+
 	if (!bkey_eq(*discard_pos_done, iter.pos) &&
 	    ca->mi.discard && !c->opts.nochanges) {
 		/*
@@ -1745,6 +1783,8 @@ write:
 	count_event(c, bucket_discard);
 	s->discarded++;
 out:
+	if (discard_locked)
+		discard_in_flight_remove(c, iter.pos);
 	s->seen++;
 	bch2_trans_iter_exit(trans, &iter);
 	percpu_ref_put(&ca->io_ref);
@@ -1782,6 +1822,93 @@ void bch2_do_discards(struct bch_fs *c)
 	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_discard) &&
 	    !queue_work(c->write_ref_wq, &c->discard_work))
 		bch2_write_ref_put(c, BCH_WRITE_REF_discard);
+}
+
+static int bch2_clear_bucket_needs_discard(struct btree_trans *trans, struct bpos bucket)
+{
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, bucket, BTREE_ITER_INTENT);
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(&iter);
+	int ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	struct bkey_i_alloc_v4 *a = bch2_alloc_to_v4_mut(trans, k);
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		goto err;
+
+	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
+	a->v.data_type = alloc_data_type(a->v, a->v.data_type);
+
+	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+err:
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+static void bch2_do_discards_fast_work(struct work_struct *work)
+{
+	struct bch_fs *c = container_of(work, struct bch_fs, discard_fast_work);
+
+	while (1) {
+		bool got_bucket = false;
+		struct bpos bucket;
+		struct bch_dev *ca;
+
+		mutex_lock(&c->discard_buckets_in_flight_lock);
+		darray_for_each(c->discard_buckets_in_flight, i) {
+			if (i->snapshot)
+				continue;
+
+			ca = bch_dev_bkey_exists(c, i->inode);
+
+			if (!percpu_ref_tryget(&ca->io_ref)) {
+				darray_remove_item(&c->discard_buckets_in_flight, i);
+				continue;
+			}
+
+			got_bucket = true;
+			bucket = *i;
+			i->snapshot = true;
+			break;
+		}
+		mutex_unlock(&c->discard_buckets_in_flight_lock);
+
+		if (!got_bucket)
+			break;
+
+		if (ca->mi.discard && !c->opts.nochanges)
+			blkdev_issue_discard(ca->disk_sb.bdev,
+					     bucket.offset * ca->mi.bucket_size,
+					     ca->mi.bucket_size,
+					     GFP_KERNEL);
+
+		int ret = bch2_trans_do(c, NULL, NULL,
+					BCH_WATERMARK_btree|
+					BCH_TRANS_COMMIT_no_enospc,
+					bch2_clear_bucket_needs_discard(trans, bucket));
+		bch_err_fn(c, ret);
+
+		percpu_ref_put(&ca->io_ref);
+		discard_in_flight_remove(c, bucket);
+
+		if (ret)
+			break;
+	}
+
+	bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
+}
+
+static void bch2_discard_one_bucket_fast(struct bch_fs *c, struct bpos bucket)
+{
+	struct bch_dev *ca = bch_dev_bkey_exists(c, bucket.inode);
+
+	if (!percpu_ref_is_dying(&ca->io_ref) &&
+	    !discard_in_flight_add(c, bucket) &&
+	    bch2_write_ref_tryget(c, BCH_WRITE_REF_discard_fast) &&
+	    !queue_work(c->write_ref_wq, &c->discard_fast_work))
+		bch2_write_ref_put(c, BCH_WRITE_REF_discard_fast);
 }
 
 static int invalidate_one_bucket(struct btree_trans *trans,
@@ -2215,9 +2342,16 @@ void bch2_dev_allocator_add(struct bch_fs *c, struct bch_dev *ca)
 			set_bit(ca->dev_idx, c->rw_devs[i].d);
 }
 
+void bch2_fs_allocator_background_exit(struct bch_fs *c)
+{
+	darray_exit(&c->discard_buckets_in_flight);
+}
+
 void bch2_fs_allocator_background_init(struct bch_fs *c)
 {
 	spin_lock_init(&c->freelist_lock);
+	mutex_init(&c->discard_buckets_in_flight_lock);
 	INIT_WORK(&c->discard_work, bch2_do_discards_work);
+	INIT_WORK(&c->discard_fast_work, bch2_do_discards_fast_work);
 	INIT_WORK(&c->invalidate_work, bch2_do_invalidates_work);
 }

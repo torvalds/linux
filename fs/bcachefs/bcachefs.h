@@ -707,6 +707,7 @@ struct btree_trans_buf {
 	x(reflink)							\
 	x(fallocate)							\
 	x(discard)							\
+	x(discard_fast)							\
 	x(invalidate)							\
 	x(delete_dead_snapshots)					\
 	x(snapshot_delete_pagecache)					\
@@ -944,8 +945,11 @@ struct bch_fs {
 	unsigned		write_points_nr;
 
 	struct buckets_waiting_for_journal buckets_waiting_for_journal;
-	struct work_struct	discard_work;
 	struct work_struct	invalidate_work;
+	struct work_struct	discard_work;
+	struct mutex		discard_buckets_in_flight_lock;
+	DARRAY(struct bpos)	discard_buckets_in_flight;
+	struct work_struct	discard_fast_work;
 
 	/* GARBAGE COLLECTION */
 	struct task_struct	*gc_thread;
