@@ -120,13 +120,6 @@ enum pci_barno pci_epc_get_next_free_bar(const struct pci_epc_features
 		/* If the BAR is not reserved, return it. */
 		if (epc_features->bar[i].type != BAR_RESERVED)
 			return i;
-
-		/*
-		 * If the BAR is reserved, and marked as 64-bit only, then the
-		 * succeeding BAR is also reserved.
-		 */
-		if (epc_features->bar[i].only_64bit)
-			i++;
 	}
 
 	return NO_BAR;
