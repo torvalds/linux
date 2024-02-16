@@ -271,7 +271,7 @@ an external clock, where another derives the SPI clock from current
 settings of some master clock.
 
 Declare target Devices
-^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^
 
 The second kind of information is a list of what SPI target devices exist
 on the target board, often with some board-specific data needed for the
