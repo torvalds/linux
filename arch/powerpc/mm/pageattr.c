@@ -14,6 +14,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 
+#include <mm/mmu_decl.h>
 
 static pte_basic_t pte_update_delta(pte_t *ptep, unsigned long addr,
 				    unsigned long old, unsigned long new)
@@ -101,3 +102,22 @@ int change_memory_attr(unsigned long addr, int numpages, long action)
 	return apply_to_existing_page_range(&init_mm, start, size,
 					    change_page_attr, (void *)action);
 }
+
+#if defined(CONFIG_DEBUG_PAGEALLOC) || defined(CONFIG_KFENCE)
+#ifdef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
+void __kernel_map_pages(struct page *page, int numpages, int enable)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+
+	if (PageHighMem(page))
+		return;
+
+	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !radix_enabled())
+		hash__kernel_map_pages(page, numpages, enable);
+	else if (enable)
+		set_memory_p(addr, numpages);
+	else
+		set_memory_np(addr, numpages);
+}
+#endif
+#endif
