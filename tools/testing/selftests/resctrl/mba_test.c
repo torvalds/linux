@@ -171,7 +171,7 @@ out:
 static bool mba_feature_check(const struct resctrl_test *test)
 {
 	return test_resource_feature_check(test) &&
-	       validate_resctrl_feature_request("L3_MON", "mbm_local_bytes");
+	       resctrl_mon_feature_exists("L3_MON", "mbm_local_bytes");
 }
 
 struct resctrl_test mba_test = {

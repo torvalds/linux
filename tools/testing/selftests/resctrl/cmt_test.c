@@ -170,7 +170,7 @@ out:
 static bool cmt_feature_check(const struct resctrl_test *test)
 {
 	return test_resource_feature_check(test) &&
-	       validate_resctrl_feature_request("L3_MON", "llc_occupancy");
+	       resctrl_mon_feature_exists("L3_MON", "llc_occupancy");
 }
 
 struct resctrl_test cmt_test = {
