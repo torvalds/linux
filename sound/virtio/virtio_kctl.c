@@ -253,8 +253,8 @@ static int virtsnd_kctl_tlv_op(struct snd_kcontrol *kcontrol, int op_flag,
 
 	tlv = kzalloc(size, GFP_KERNEL);
 	if (!tlv) {
-		virtsnd_ctl_msg_unref(msg);
-		return -ENOMEM;
+		rc = -ENOMEM;
+		goto on_msg_unref;
 	}
 
 	sg_init_one(&sg, tlv, size);
@@ -281,14 +281,25 @@ static int virtsnd_kctl_tlv_op(struct snd_kcontrol *kcontrol, int op_flag,
 			hdr->hdr.code =
 				cpu_to_le32(VIRTIO_SND_R_CTL_TLV_COMMAND);
 
-		if (copy_from_user(tlv, utlv, size))
+		if (copy_from_user(tlv, utlv, size)) {
 			rc = -EFAULT;
-		else
+			goto on_msg_unref;
+		} else {
 			rc = virtsnd_ctl_msg_send(snd, msg, &sg, NULL, false);
+		}
 
 		break;
+	default:
+		rc = -EINVAL;
+		/* We never get here - we listed all values for op_flag */
+		WARN_ON(1);
+		goto on_msg_unref;
 	}
+	kfree(tlv);
+	return rc;
 
+on_msg_unref:
+	virtsnd_ctl_msg_unref(msg);
 	kfree(tlv);
 
 	return rc;
