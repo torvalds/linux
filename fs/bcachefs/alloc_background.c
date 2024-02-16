@@ -860,23 +860,28 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			*bucket_gen(ca, new.k->p.offset) = new_a->gen;
 
 		bch2_dev_usage_update(c, ca, old_a, new_a, journal_seq, false);
+		percpu_up_read(&c->mark_lock);
 
-		if (new_a->data_type == BCH_DATA_free &&
-		    (!new_a->journal_seq || new_a->journal_seq < c->journal.flushed_seq_ondisk))
+#define eval_state(_a, expr)		({ const struct bch_alloc_v4 *a = _a; expr; })
+#define statechange(expr)		!eval_state(old_a, expr) && eval_state(new_a, expr)
+#define bucket_flushed(a)		(!a->journal_seq || a->journal_seq <= c->journal.flushed_seq_ondisk)
+
+		if (statechange(a->data_type == BCH_DATA_free &&
+				bucket_flushed(a)))
 			closure_wake_up(&c->freelist_wait);
 
-		if (new_a->data_type == BCH_DATA_need_discard &&
-		    (!bucket_journal_seq || bucket_journal_seq < c->journal.flushed_seq_ondisk))
+		if (statechange(a->data_type == BCH_DATA_need_discard &&
+				bucket_flushed(a)) &&
+		    !bch2_bucket_is_open(c, new.k->p.inode, new.k->p.offset))
 			bch2_do_discards(c);
 
-		if (old_a->data_type != BCH_DATA_cached &&
-		    new_a->data_type == BCH_DATA_cached &&
+		if (statechange(a->data_type == BCH_DATA_cached) &&
+		    !bch2_bucket_is_open(c, new.k->p.inode, new.k->p.offset) &&
 		    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
 			bch2_do_invalidates(c);
 
-		if (new_a->data_type == BCH_DATA_need_gc_gens)
+		if (statechange(a->data_type == BCH_DATA_need_gc_gens))
 			bch2_do_gc_gens(c);
-		percpu_up_read(&c->mark_lock);
 	}
 
 	if ((flags & BTREE_TRIGGER_GC) &&
