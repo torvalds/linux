@@ -176,14 +176,19 @@ struct zswap_pool {
 	struct kref kref;
 	struct list_head list;
 	struct work_struct release_work;
-	struct work_struct shrink_work;
 	struct hlist_node node;
 	char tfm_name[CRYPTO_MAX_ALG_NAME];
-	struct list_lru list_lru;
-	struct mem_cgroup *next_shrink;
-	struct shrinker *shrinker;
-	atomic_t nr_stored;
 };
+
+static struct {
+	struct list_lru list_lru;
+	atomic_t nr_stored;
+	struct shrinker *shrinker;
+	struct work_struct shrink_work;
+	struct mem_cgroup *next_shrink;
+	/* The lock protects next_shrink. */
+	spinlock_t shrink_lock;
+} zswap;
 
 /*
  * struct zswap_entry
@@ -301,9 +306,6 @@ static void zswap_update_total_size(void)
 * pool functions
 **********************************/
 
-static void zswap_alloc_shrinker(struct zswap_pool *pool);
-static void shrink_worker(struct work_struct *w);
-
 static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 {
 	int i;
@@ -353,30 +355,16 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	if (ret)
 		goto error;
 
-	zswap_alloc_shrinker(pool);
-	if (!pool->shrinker)
-		goto error;
-
-	pr_debug("using %s compressor\n", pool->tfm_name);
-
 	/* being the current pool takes 1 ref; this func expects the
 	 * caller to always add the new pool as the current pool
 	 */
 	kref_init(&pool->kref);
 	INIT_LIST_HEAD(&pool->list);
-	if (list_lru_init_memcg(&pool->list_lru, pool->shrinker))
-		goto lru_fail;
-	shrinker_register(pool->shrinker);
-	INIT_WORK(&pool->shrink_work, shrink_worker);
-	atomic_set(&pool->nr_stored, 0);
 
 	zswap_pool_debug("created", pool);
 
 	return pool;
 
-lru_fail:
-	list_lru_destroy(&pool->list_lru);
-	shrinker_free(pool->shrinker);
 error:
 	if (pool->acomp_ctx)
 		free_percpu(pool->acomp_ctx);
@@ -434,15 +422,8 @@ static void zswap_pool_destroy(struct zswap_pool *pool)
 
 	zswap_pool_debug("destroying", pool);
 
-	shrinker_free(pool->shrinker);
 	cpuhp_state_remove_instance(CPUHP_MM_ZSWP_POOL_PREPARE, &pool->node);
 	free_percpu(pool->acomp_ctx);
-	list_lru_destroy(&pool->list_lru);
-
-	spin_lock(&zswap_pools_lock);
-	mem_cgroup_iter_break(NULL, pool->next_shrink);
-	pool->next_shrink = NULL;
-	spin_unlock(&zswap_pools_lock);
 
 	for (i = 0; i < ZSWAP_NR_ZPOOLS; i++)
 		zpool_destroy_pool(pool->zpools[i]);
@@ -527,24 +508,6 @@ static struct zswap_pool *zswap_pool_current_get(void)
 	rcu_read_unlock();
 
 	return pool;
-}
-
-static struct zswap_pool *zswap_pool_last_get(void)
-{
-	struct zswap_pool *pool, *last = NULL;
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(pool, &zswap_pools, list)
-		last = pool;
-	WARN_ONCE(!last && zswap_has_pool,
-		  "%s: no page storage pool!\n", __func__);
-	if (!zswap_pool_get(last))
-		last = NULL;
-
-	rcu_read_unlock();
-
-	return last;
 }
 
 /* type and compressor must be null-terminated */
@@ -816,15 +779,11 @@ void zswap_folio_swapin(struct folio *folio)
 
 void zswap_memcg_offline_cleanup(struct mem_cgroup *memcg)
 {
-	struct zswap_pool *pool;
-
-	/* lock out zswap pools list modification */
-	spin_lock(&zswap_pools_lock);
-	list_for_each_entry(pool, &zswap_pools, list) {
-		if (pool->next_shrink == memcg)
-			pool->next_shrink = mem_cgroup_iter(NULL, pool->next_shrink, NULL);
-	}
-	spin_unlock(&zswap_pools_lock);
+	/* lock out zswap shrinker walking memcg tree */
+	spin_lock(&zswap.shrink_lock);
+	if (zswap.next_shrink == memcg)
+		zswap.next_shrink = mem_cgroup_iter(NULL, zswap.next_shrink, NULL);
+	spin_unlock(&zswap.shrink_lock);
 }
 
 /*********************************
@@ -923,9 +882,9 @@ static void zswap_entry_free(struct zswap_entry *entry)
 	if (!entry->length)
 		atomic_dec(&zswap_same_filled_pages);
 	else {
-		zswap_lru_del(&entry->pool->list_lru, entry);
+		zswap_lru_del(&zswap.list_lru, entry);
 		zpool_free(zswap_find_zpool(entry), entry->handle);
-		atomic_dec(&entry->pool->nr_stored);
+		atomic_dec(&zswap.nr_stored);
 		zswap_pool_put(entry->pool);
 	}
 	if (entry->objcg) {
@@ -1287,7 +1246,6 @@ static unsigned long zswap_shrinker_scan(struct shrinker *shrinker,
 {
 	struct lruvec *lruvec = mem_cgroup_lruvec(sc->memcg, NODE_DATA(sc->nid));
 	unsigned long shrink_ret, nr_protected, lru_size;
-	struct zswap_pool *pool = shrinker->private_data;
 	bool encountered_page_in_swapcache = false;
 
 	if (!zswap_shrinker_enabled ||
@@ -1298,7 +1256,7 @@ static unsigned long zswap_shrinker_scan(struct shrinker *shrinker,
 
 	nr_protected =
 		atomic_long_read(&lruvec->zswap_lruvec_state.nr_zswap_protected);
-	lru_size = list_lru_shrink_count(&pool->list_lru, sc);
+	lru_size = list_lru_shrink_count(&zswap.list_lru, sc);
 
 	/*
 	 * Abort if we are shrinking into the protected region.
@@ -1315,7 +1273,7 @@ static unsigned long zswap_shrinker_scan(struct shrinker *shrinker,
 		return SHRINK_STOP;
 	}
 
-	shrink_ret = list_lru_shrink_walk(&pool->list_lru, sc, &shrink_memcg_cb,
+	shrink_ret = list_lru_shrink_walk(&zswap.list_lru, sc, &shrink_memcg_cb,
 		&encountered_page_in_swapcache);
 
 	if (encountered_page_in_swapcache)
@@ -1327,7 +1285,6 @@ static unsigned long zswap_shrinker_scan(struct shrinker *shrinker,
 static unsigned long zswap_shrinker_count(struct shrinker *shrinker,
 		struct shrink_control *sc)
 {
-	struct zswap_pool *pool = shrinker->private_data;
 	struct mem_cgroup *memcg = sc->memcg;
 	struct lruvec *lruvec = mem_cgroup_lruvec(memcg, NODE_DATA(sc->nid));
 	unsigned long nr_backing, nr_stored, nr_freeable, nr_protected;
@@ -1341,8 +1298,8 @@ static unsigned long zswap_shrinker_count(struct shrinker *shrinker,
 	nr_stored = memcg_page_state(memcg, MEMCG_ZSWAPPED);
 #else
 	/* use pool stats instead of memcg stats */
-	nr_backing = get_zswap_pool_size(pool) >> PAGE_SHIFT;
-	nr_stored = atomic_read(&pool->nr_stored);
+	nr_backing = zswap_pool_total_size >> PAGE_SHIFT;
+	nr_stored = atomic_read(&zswap.nr_stored);
 #endif
 
 	if (!nr_stored)
@@ -1350,7 +1307,7 @@ static unsigned long zswap_shrinker_count(struct shrinker *shrinker,
 
 	nr_protected =
 		atomic_long_read(&lruvec->zswap_lruvec_state.nr_zswap_protected);
-	nr_freeable = list_lru_shrink_count(&pool->list_lru, sc);
+	nr_freeable = list_lru_shrink_count(&zswap.list_lru, sc);
 	/*
 	 * Subtract the lru size by an estimate of the number of pages
 	 * that should be protected.
@@ -1366,23 +1323,24 @@ static unsigned long zswap_shrinker_count(struct shrinker *shrinker,
 	return mult_frac(nr_freeable, nr_backing, nr_stored);
 }
 
-static void zswap_alloc_shrinker(struct zswap_pool *pool)
+static struct shrinker *zswap_alloc_shrinker(void)
 {
-	pool->shrinker =
-		shrinker_alloc(SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE, "mm-zswap");
-	if (!pool->shrinker)
-		return;
+	struct shrinker *shrinker;
 
-	pool->shrinker->private_data = pool;
-	pool->shrinker->scan_objects = zswap_shrinker_scan;
-	pool->shrinker->count_objects = zswap_shrinker_count;
-	pool->shrinker->batch = 0;
-	pool->shrinker->seeks = DEFAULT_SEEKS;
+	shrinker =
+		shrinker_alloc(SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE, "mm-zswap");
+	if (!shrinker)
+		return NULL;
+
+	shrinker->scan_objects = zswap_shrinker_scan;
+	shrinker->count_objects = zswap_shrinker_count;
+	shrinker->batch = 0;
+	shrinker->seeks = DEFAULT_SEEKS;
+	return shrinker;
 }
 
 static int shrink_memcg(struct mem_cgroup *memcg)
 {
-	struct zswap_pool *pool;
 	int nid, shrunk = 0;
 
 	if (!mem_cgroup_zswap_writeback_enabled(memcg))
@@ -1395,32 +1353,25 @@ static int shrink_memcg(struct mem_cgroup *memcg)
 	if (memcg && !mem_cgroup_online(memcg))
 		return -ENOENT;
 
-	pool = zswap_pool_current_get();
-	if (!pool)
-		return -EINVAL;
-
 	for_each_node_state(nid, N_NORMAL_MEMORY) {
 		unsigned long nr_to_walk = 1;
 
-		shrunk += list_lru_walk_one(&pool->list_lru, nid, memcg,
+		shrunk += list_lru_walk_one(&zswap.list_lru, nid, memcg,
 					    &shrink_memcg_cb, NULL, &nr_to_walk);
 	}
-	zswap_pool_put(pool);
 	return shrunk ? 0 : -EAGAIN;
 }
 
 static void shrink_worker(struct work_struct *w)
 {
-	struct zswap_pool *pool = container_of(w, typeof(*pool),
-						shrink_work);
 	struct mem_cgroup *memcg;
 	int ret, failures = 0;
 
 	/* global reclaim will select cgroup in a round-robin fashion. */
 	do {
-		spin_lock(&zswap_pools_lock);
-		pool->next_shrink = mem_cgroup_iter(NULL, pool->next_shrink, NULL);
-		memcg = pool->next_shrink;
+		spin_lock(&zswap.shrink_lock);
+		zswap.next_shrink = mem_cgroup_iter(NULL, zswap.next_shrink, NULL);
+		memcg = zswap.next_shrink;
 
 		/*
 		 * We need to retry if we have gone through a full round trip, or if we
@@ -1434,7 +1385,7 @@ static void shrink_worker(struct work_struct *w)
 		 * memcg is not killed when we are reclaiming.
 		 */
 		if (!memcg) {
-			spin_unlock(&zswap_pools_lock);
+			spin_unlock(&zswap.shrink_lock);
 			if (++failures == MAX_RECLAIM_RETRIES)
 				break;
 
@@ -1444,15 +1395,15 @@ static void shrink_worker(struct work_struct *w)
 		if (!mem_cgroup_tryget_online(memcg)) {
 			/* drop the reference from mem_cgroup_iter() */
 			mem_cgroup_iter_break(NULL, memcg);
-			pool->next_shrink = NULL;
-			spin_unlock(&zswap_pools_lock);
+			zswap.next_shrink = NULL;
+			spin_unlock(&zswap.shrink_lock);
 
 			if (++failures == MAX_RECLAIM_RETRIES)
 				break;
 
 			goto resched;
 		}
-		spin_unlock(&zswap_pools_lock);
+		spin_unlock(&zswap.shrink_lock);
 
 		ret = shrink_memcg(memcg);
 		/* drop the extra reference */
@@ -1466,7 +1417,6 @@ static void shrink_worker(struct work_struct *w)
 resched:
 		cond_resched();
 	} while (!zswap_can_accept());
-	zswap_pool_put(pool);
 }
 
 static int zswap_is_page_same_filled(void *ptr, unsigned long *value)
@@ -1507,7 +1457,6 @@ bool zswap_store(struct folio *folio)
 	struct zswap_entry *entry, *dupentry;
 	struct obj_cgroup *objcg = NULL;
 	struct mem_cgroup *memcg = NULL;
-	struct zswap_pool *shrink_pool;
 
 	VM_WARN_ON_ONCE(!folio_test_locked(folio));
 	VM_WARN_ON_ONCE(!folio_test_swapcache(folio));
@@ -1575,7 +1524,7 @@ bool zswap_store(struct folio *folio)
 
 	if (objcg) {
 		memcg = get_mem_cgroup_from_objcg(objcg);
-		if (memcg_list_lru_alloc(memcg, &entry->pool->list_lru, GFP_KERNEL)) {
+		if (memcg_list_lru_alloc(memcg, &zswap.list_lru, GFP_KERNEL)) {
 			mem_cgroup_put(memcg);
 			goto put_pool;
 		}
@@ -1606,8 +1555,8 @@ insert_entry:
 	}
 	if (entry->length) {
 		INIT_LIST_HEAD(&entry->lru);
-		zswap_lru_add(&entry->pool->list_lru, entry);
-		atomic_inc(&entry->pool->nr_stored);
+		zswap_lru_add(&zswap.list_lru, entry);
+		atomic_inc(&zswap.nr_stored);
 	}
 	spin_unlock(&tree->lock);
 
@@ -1639,9 +1588,7 @@ check_old:
 	return false;
 
 shrink:
-	shrink_pool = zswap_pool_last_get();
-	if (shrink_pool && !queue_work(shrink_wq, &shrink_pool->shrink_work))
-		zswap_pool_put(shrink_pool);
+	queue_work(shrink_wq, &zswap.shrink_work);
 	goto reject;
 }
 
@@ -1803,6 +1750,22 @@ static int zswap_setup(void)
 	if (ret)
 		goto hp_fail;
 
+	shrink_wq = alloc_workqueue("zswap-shrink",
+			WQ_UNBOUND|WQ_MEM_RECLAIM, 1);
+	if (!shrink_wq)
+		goto shrink_wq_fail;
+
+	zswap.shrinker = zswap_alloc_shrinker();
+	if (!zswap.shrinker)
+		goto shrinker_fail;
+	if (list_lru_init_memcg(&zswap.list_lru, zswap.shrinker))
+		goto lru_fail;
+	shrinker_register(zswap.shrinker);
+
+	INIT_WORK(&zswap.shrink_work, shrink_worker);
+	atomic_set(&zswap.nr_stored, 0);
+	spin_lock_init(&zswap.shrink_lock);
+
 	pool = __zswap_pool_create_fallback();
 	if (pool) {
 		pr_info("loaded using pool %s/%s\n", pool->tfm_name,
@@ -1814,19 +1777,17 @@ static int zswap_setup(void)
 		zswap_enabled = false;
 	}
 
-	shrink_wq = alloc_workqueue("zswap-shrink",
-			WQ_UNBOUND|WQ_MEM_RECLAIM, 1);
-	if (!shrink_wq)
-		goto fallback_fail;
-
 	if (zswap_debugfs_init())
 		pr_warn("debugfs initialization failed\n");
 	zswap_init_state = ZSWAP_INIT_SUCCEED;
 	return 0;
 
-fallback_fail:
-	if (pool)
-		zswap_pool_destroy(pool);
+lru_fail:
+	shrinker_free(zswap.shrinker);
+shrinker_fail:
+	destroy_workqueue(shrink_wq);
+shrink_wq_fail:
+	cpuhp_remove_multi_state(CPUHP_MM_ZSWP_POOL_PREPARE);
 hp_fail:
 	kmem_cache_destroy(zswap_entry_cache);
 cache_fail:
