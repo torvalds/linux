@@ -6,6 +6,12 @@ config LEDS_GPIO_REGISTER
 	  As this function is used by arch code it must not be compiled as a
 	  module.
 
+# This library does not depend on NEW_LEDS and must be independent so it can be
+# selected from other subsystems (specifically backlight).
+config LEDS_EXPRESSWIRE
+	bool
+	depends on GPIOLIB
+
 menuconfig NEW_LEDS
 	bool "LED Support"
 	help
