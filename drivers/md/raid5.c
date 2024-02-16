@@ -6967,10 +6967,8 @@ raid5_store_stripe_size(struct mddev  *mddev, const char *page, size_t len)
 	pr_debug("md/raid: change stripe_size from %lu to %lu\n",
 			conf->stripe_size, new);
 
-	if (mddev->sync_thread ||
-		test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
-		mddev->reshape_position != MaxSector ||
-		mddev->sysfs_active) {
+	if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) ||
+	    mddev->reshape_position != MaxSector || mddev->sysfs_active) {
 		err = -EBUSY;
 		goto out_unlock;
 	}
