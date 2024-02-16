@@ -1418,7 +1418,7 @@ static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 	struct btrfs_lru_cache_entry *raw_entry;
 	struct backref_cache_entry *entry;
 
-	if (btrfs_lru_cache_size(&sctx->backref_cache) == 0)
+	if (sctx->backref_cache.size == 0)
 		return false;
 
 	/*
@@ -1516,7 +1516,7 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 	 * transaction handle or holding fs_info->commit_root_sem, so no need
 	 * to take any lock here.
 	 */
-	if (btrfs_lru_cache_size(&sctx->backref_cache) == 1)
+	if (sctx->backref_cache.size == 1)
 		sctx->backref_cache_last_reloc_trans = fs_info->last_reloc_trans;
 }
 
@@ -2821,8 +2821,7 @@ static int cache_dir_utimes(struct send_ctx *sctx, u64 dir, u64 gen)
 
 static int trim_dir_utimes_cache(struct send_ctx *sctx)
 {
-	while (btrfs_lru_cache_size(&sctx->dir_utimes_cache) >
-	       SEND_MAX_DIR_UTIMES_CACHE_SIZE) {
+	while (sctx->dir_utimes_cache.size > SEND_MAX_DIR_UTIMES_CACHE_SIZE) {
 		struct btrfs_lru_cache_entry *lru;
 		int ret;
 

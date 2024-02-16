@@ -52,11 +52,6 @@ struct btrfs_lru_cache {
 #define btrfs_lru_cache_for_each_entry_safe(cache, entry, tmp)		\
 	list_for_each_entry_safe_reverse((entry), (tmp), &(cache)->lru_list, lru_list)
 
-static inline unsigned int btrfs_lru_cache_size(const struct btrfs_lru_cache *cache)
-{
-	return cache->size;
-}
-
 static inline struct btrfs_lru_cache_entry *btrfs_lru_cache_lru_entry(
 					      struct btrfs_lru_cache *cache)
 {
