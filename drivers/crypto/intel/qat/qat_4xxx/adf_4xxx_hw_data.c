@@ -320,61 +320,6 @@ static u32 get_ena_thd_mask_401xx(struct adf_accel_dev *accel_dev, u32 obj_num)
 	}
 }
 
-static u16 get_ring_to_svc_map(struct adf_accel_dev *accel_dev)
-{
-	enum adf_cfg_service_type rps[RP_GROUP_COUNT];
-	const struct adf_fw_config *fw_config;
-	u16 ring_to_svc_map;
-	int i, j;
-
-	fw_config = get_fw_config(accel_dev);
-	if (!fw_config)
-		return 0;
-
-	/* If dcc, all rings handle compression requests */
-	if (adf_get_service_enabled(accel_dev) == SVC_DCC) {
-		for (i = 0; i < RP_GROUP_COUNT; i++)
-			rps[i] = COMP;
-		goto set_mask;
-	}
-
-	for (i = 0; i < RP_GROUP_COUNT; i++) {
-		switch (fw_config[i].ae_mask) {
-		case ADF_AE_GROUP_0:
-			j = RP_GROUP_0;
-			break;
-		case ADF_AE_GROUP_1:
-			j = RP_GROUP_1;
-			break;
-		default:
-			return 0;
-		}
-
-		switch (fw_config[i].obj) {
-		case ADF_FW_SYM_OBJ:
-			rps[j] = SYM;
-			break;
-		case ADF_FW_ASYM_OBJ:
-			rps[j] = ASYM;
-			break;
-		case ADF_FW_DC_OBJ:
-			rps[j] = COMP;
-			break;
-		default:
-			rps[j] = 0;
-			break;
-		}
-	}
-
-set_mask:
-	ring_to_svc_map = rps[RP_GROUP_0] << ADF_CFG_SERV_RING_PAIR_0_SHIFT |
-			  rps[RP_GROUP_1] << ADF_CFG_SERV_RING_PAIR_1_SHIFT |
-			  rps[RP_GROUP_0] << ADF_CFG_SERV_RING_PAIR_2_SHIFT |
-			  rps[RP_GROUP_1] << ADF_CFG_SERV_RING_PAIR_3_SHIFT;
-
-	return ring_to_svc_map;
-}
-
 static const char *uof_get_name(struct adf_accel_dev *accel_dev, u32 obj_num,
 				const char * const fw_objs[], int num_objs)
 {
@@ -405,6 +350,20 @@ static const char *uof_get_name_402xx(struct adf_accel_dev *accel_dev, u32 obj_n
 	int num_fw_objs = ARRAY_SIZE(adf_402xx_fw_objs);
 
 	return uof_get_name(accel_dev, obj_num, adf_402xx_fw_objs, num_fw_objs);
+}
+
+static int uof_get_obj_type(struct adf_accel_dev *accel_dev, u32 obj_num)
+{
+	const struct adf_fw_config *fw_config;
+
+	if (obj_num >= uof_get_num_objs(accel_dev))
+		return -EINVAL;
+
+	fw_config = get_fw_config(accel_dev);
+	if (!fw_config)
+		return -EINVAL;
+
+	return fw_config[obj_num].obj;
 }
 
 static u32 uof_get_ae_mask(struct adf_accel_dev *accel_dev, u32 obj_num)
@@ -487,11 +446,12 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data, u32 dev_id)
 		break;
 	}
 	hw_data->uof_get_num_objs = uof_get_num_objs;
+	hw_data->uof_get_obj_type = uof_get_obj_type;
 	hw_data->uof_get_ae_mask = uof_get_ae_mask;
 	hw_data->get_rp_group = get_rp_group;
 	hw_data->set_msix_rttable = adf_gen4_set_msix_default_rttable;
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
-	hw_data->get_ring_to_svc_map = get_ring_to_svc_map;
+	hw_data->get_ring_to_svc_map = adf_gen4_get_ring_to_svc_map;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
 	hw_data->enable_pm = adf_gen4_enable_pm;

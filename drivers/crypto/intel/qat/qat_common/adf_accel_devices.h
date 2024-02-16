@@ -248,6 +248,7 @@ struct adf_hw_device_data {
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	const char *(*uof_get_name)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	u32 (*uof_get_num_objs)(struct adf_accel_dev *accel_dev);
+	int (*uof_get_obj_type)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	u32 (*uof_get_ae_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*get_rp_group)(struct adf_accel_dev *accel_dev, u32 ae_mask);
 	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
