@@ -2247,7 +2247,8 @@ static bool path_is_dup(pathbuf *p, u64 inum, u32 snapshot)
 }
 
 /*
- * Check that a given inode is reachable from the root:
+ * Check that a given inode is reachable from its subvolume root - we already
+ * verified subvolume connectivity:
  *
  * XXX: we should also be verifying that inodes are in the right subvolumes
  */
@@ -2264,8 +2265,7 @@ static int check_path(struct btree_trans *trans, pathbuf *p, struct bkey_s_c ino
 
 	BUG_ON(bch2_inode_unpack(inode_k, &inode));
 
-	while (!(inode.bi_inum == BCACHEFS_ROOT_INO &&
-		 inode.bi_subvol == BCACHEFS_ROOT_SUBVOL)) {
+	while (!inode.bi_subvol) {
 		struct btree_iter dirent_iter;
 		struct bkey_s_c_dirent d;
 		u32 parent_snapshot = snapshot;
