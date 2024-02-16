@@ -1506,7 +1506,7 @@ xfs_ioc_getbmap(
 
 	error = 0;
 out_free_buf:
-	kfree(buf);
+	kvfree(buf);
 	return error;
 }
 
