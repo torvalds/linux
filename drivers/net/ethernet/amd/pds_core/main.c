@@ -45,6 +45,7 @@ static void pdsc_unmap_bars(struct pdsc *pdsc)
 	for (i = 0; i < PDS_CORE_BARS_MAX; i++) {
 		if (bars[i].vaddr)
 			pci_iounmap(pdsc->pdev, bars[i].vaddr);
+		bars[i].vaddr = NULL;
 	}
 }
 
@@ -512,10 +513,33 @@ void pdsc_reset_done(struct pci_dev *pdev)
 	pdsc_restart_health_thread(pdsc);
 }
 
+static pci_ers_result_t pdsc_pci_error_detected(struct pci_dev *pdev,
+						pci_channel_state_t error)
+{
+	if (error == pci_channel_io_frozen) {
+		pdsc_reset_prepare(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	}
+
+	return PCI_ERS_RESULT_NONE;
+}
+
+static void pdsc_pci_error_resume(struct pci_dev *pdev)
+{
+	struct pdsc *pdsc = pci_get_drvdata(pdev);
+
+	if (test_bit(PDSC_S_FW_DEAD, &pdsc->state))
+		pci_reset_function_locked(pdev);
+}
+
 static const struct pci_error_handlers pdsc_err_handler = {
 	/* FLR handling */
 	.reset_prepare      = pdsc_reset_prepare,
 	.reset_done         = pdsc_reset_done,
+
+	/* AER handling */
+	.error_detected     = pdsc_pci_error_detected,
+	.resume             = pdsc_pci_error_resume,
 };
 
 static struct pci_driver pdsc_driver = {
