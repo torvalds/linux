@@ -327,7 +327,6 @@ struct intel_vbt_panel_data {
 		struct edp_power_seq pps;
 		u8 drrs_msa_timing_delay;
 		bool low_vswing;
-		bool initialized;
 		bool hobl;
 	} edp;
 
