@@ -83,6 +83,9 @@ static int measure_clock(struct adf_accel_dev *accel_dev, u32 *frequency)
 	}
 
 	delta_us = timespec_to_us(&ts3) - timespec_to_us(&ts1);
+	if (!delta_us)
+		return -EINVAL;
+
 	temp = (timestamp2 - timestamp1) * ME_CLK_DIVIDER * 10;
 	temp = DIV_ROUND_CLOSEST_ULL(temp, delta_us);
 	/*
