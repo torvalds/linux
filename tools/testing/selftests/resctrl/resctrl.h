@@ -138,6 +138,7 @@ int umount_resctrlfs(void);
 int validate_bw_report_request(char *bw_report);
 bool resctrl_resource_exists(const char *resource);
 bool resctrl_mon_feature_exists(const char *resource, const char *feature);
+bool resource_info_file_exists(const char *resource, const char *file);
 bool test_resource_feature_check(const struct resctrl_test *test);
 char *fgrep(FILE *inf, const char *str);
 int taskset_benchmark(pid_t bm_pid, int cpu_no, cpu_set_t *old_affinity);

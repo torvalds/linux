@@ -764,6 +764,31 @@ bool resctrl_mon_feature_exists(const char *resource, const char *feature)
 	return !!res;
 }
 
+/*
+ * resource_info_file_exists - Check if a file is present inside
+ * /sys/fs/resctrl/info/@resource.
+ * @resource:	Required resource (Eg: MB, L3, L2, etc.)
+ * @file:	Required file.
+ *
+ * Return: True if the /sys/fs/resctrl/info/@resource/@file exists, else false.
+ */
+bool resource_info_file_exists(const char *resource, const char *file)
+{
+	char res_path[PATH_MAX];
+	struct stat statbuf;
+
+	if (!file || !resource)
+		return false;
+
+	snprintf(res_path, sizeof(res_path), "%s/%s/%s", INFO_PATH, resource,
+		 file);
+
+	if (stat(res_path, &statbuf))
+		return false;
+
+	return true;
+}
+
 bool test_resource_feature_check(const struct resctrl_test *test)
 {
 	return resctrl_resource_exists(test->resource);
