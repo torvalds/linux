@@ -109,6 +109,9 @@ config MIPS_FIXUP_BIGPHYS_ADDR
 config MIPS_GENERIC
 	bool
 
+config MACH_GENERIC_CORE
+	bool
+
 config MACH_INGENIC
 	bool
 	select SYS_SUPPORTS_32BIT_KERNEL
@@ -145,6 +148,7 @@ config MIPS_GENERIC_KERNEL
 	select DMA_NONCOHERENT
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
+	select MACH_GENERIC_CORE
 	select MIPS_AUTO_PFN_OFFSET
 	select MIPS_CPU_SCACHE
 	select MIPS_GIC
@@ -413,6 +417,7 @@ config MACH_INGENIC_SOC
 	bool "Ingenic SoC based machines"
 	select MIPS_GENERIC
 	select MACH_INGENIC
+	select MACH_GENERIC_CORE
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select CPU_SUPPORTS_CPUFREQ
 	select MIPS_EXTERNAL_TIMER
@@ -599,6 +604,7 @@ config RALINK
 config MACH_REALTEK_RTL
 	bool "Realtek RTL838x/RTL839x based machines"
 	select MIPS_GENERIC
+	select MACH_GENERIC_CORE
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
 	select CSRC_R4K
