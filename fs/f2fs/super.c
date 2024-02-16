@@ -4674,11 +4674,14 @@ reset_checkpoint:
 	 * If the f2fs is not readonly and fsync data recovery succeeds,
 	 * check zoned block devices' write pointer consistency.
 	 */
-	if (!err && !f2fs_readonly(sb) && f2fs_sb_has_blkzoned(sbi)) {
-		err = f2fs_check_write_pointer(sbi);
-		if (err)
-			goto free_meta;
+	if (f2fs_sb_has_blkzoned(sbi) && !f2fs_readonly(sb)) {
+		int err2 = f2fs_check_write_pointer(sbi);
+
+		if (err2)
+			err = err2;
 	}
+	if (err)
+		goto free_meta;
 
 	f2fs_init_inmem_curseg(sbi);
 
