@@ -31,6 +31,8 @@
 #define BIAS_MAX	(LONG_MAX >> 1)
 
 #ifdef CONFIG_PAGE_POOL_STATS
+static DEFINE_PER_CPU(struct page_pool_recycle_stats, pp_system_recycle_stats);
+
 /* alloc_stat_inc is intended to be used in softirq context */
 #define alloc_stat_inc(pool, __stat)	(pool->alloc_stats.__stat++)
 /* recycle_stat_inc is safe to use when preemption is possible. */
@@ -220,14 +222,23 @@ static int page_pool_init(struct page_pool *pool,
 	pool->has_init_callback = !!pool->slow.init_callback;
 
 #ifdef CONFIG_PAGE_POOL_STATS
-	pool->recycle_stats = alloc_percpu(struct page_pool_recycle_stats);
-	if (!pool->recycle_stats)
-		return -ENOMEM;
+	if (!(pool->p.flags & PP_FLAG_SYSTEM_POOL)) {
+		pool->recycle_stats = alloc_percpu(struct page_pool_recycle_stats);
+		if (!pool->recycle_stats)
+			return -ENOMEM;
+	} else {
+		/* For system page pool instance we use a singular stats object
+		 * instead of allocating a separate percpu variable for each
+		 * (also percpu) page pool instance.
+		 */
+		pool->recycle_stats = &pp_system_recycle_stats;
+	}
 #endif
 
 	if (ptr_ring_init(&pool->ring, ring_qsize, GFP_KERNEL) < 0) {
 #ifdef CONFIG_PAGE_POOL_STATS
-		free_percpu(pool->recycle_stats);
+		if (!(pool->p.flags & PP_FLAG_SYSTEM_POOL))
+			free_percpu(pool->recycle_stats);
 #endif
 		return -ENOMEM;
 	}
@@ -251,7 +262,8 @@ static void page_pool_uninit(struct page_pool *pool)
 		put_device(pool->p.dev);
 
 #ifdef CONFIG_PAGE_POOL_STATS
-	free_percpu(pool->recycle_stats);
+	if (!(pool->p.flags & PP_FLAG_SYSTEM_POOL))
+		free_percpu(pool->recycle_stats);
 #endif
 }
 
