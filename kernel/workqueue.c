@@ -1209,6 +1209,20 @@ static struct irq_work *bh_pool_irq_work(struct worker_pool *pool)
 	return &per_cpu(bh_pool_irq_works, pool->cpu)[high];
 }
 
+static void kick_bh_pool(struct worker_pool *pool)
+{
+#ifdef CONFIG_SMP
+	if (unlikely(pool->cpu != smp_processor_id())) {
+		irq_work_queue_on(bh_pool_irq_work(pool), pool->cpu);
+		return;
+	}
+#endif
+	if (pool->attrs->nice == HIGHPRI_NICE_LEVEL)
+		raise_softirq_irqoff(HI_SOFTIRQ);
+	else
+		raise_softirq_irqoff(TASKLET_SOFTIRQ);
+}
+
 /**
  * kick_pool - wake up an idle worker if necessary
  * @pool: pool to kick
@@ -1227,15 +1241,7 @@ static bool kick_pool(struct worker_pool *pool)
 		return false;
 
 	if (pool->flags & POOL_BH) {
-		if (likely(pool->cpu == smp_processor_id())) {
-			if (pool->attrs->nice == HIGHPRI_NICE_LEVEL)
-				raise_softirq_irqoff(HI_SOFTIRQ);
-			else
-				raise_softirq_irqoff(TASKLET_SOFTIRQ);
-		} else {
-			irq_work_queue_on(bh_pool_irq_work(pool), pool->cpu);
-		}
-
+		kick_bh_pool(pool);
 		return true;
 	}
 
