@@ -177,7 +177,7 @@ void finalize_vcpu(struct kvm_vcpu *vcpu, struct vcpu_reg_list *c)
 
 		/* Double check whether the desired extension was enabled */
 		__TEST_REQUIRE(vcpu_has_ext(vcpu, feature),
-			       "%s not available, skipping tests\n", s->name);
+			       "%s not available, skipping tests", s->name);
 	}
 }
 

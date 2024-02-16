@@ -38,7 +38,7 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 	struct list_head *iter;
 	unsigned int nr_gic_pages, nr_vcpus_created = 0;
 
-	TEST_ASSERT(nr_vcpus, "Number of vCPUs cannot be empty\n");
+	TEST_ASSERT(nr_vcpus, "Number of vCPUs cannot be empty");
 
 	/*
 	 * Make sure that the caller is infact calling this
@@ -47,7 +47,7 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 	list_for_each(iter, &vm->vcpus)
 		nr_vcpus_created++;
 	TEST_ASSERT(nr_vcpus == nr_vcpus_created,
-			"Number of vCPUs requested (%u) doesn't match with the ones created for the VM (%u)\n",
+			"Number of vCPUs requested (%u) doesn't match with the ones created for the VM (%u)",
 			nr_vcpus, nr_vcpus_created);
 
 	/* Distributor setup */
