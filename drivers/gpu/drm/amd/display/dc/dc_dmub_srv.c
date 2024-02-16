@@ -1270,6 +1270,10 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
 	/* We also do not perform a wait since DMCUB could enter idle after the notification. */
 	dm_execute_dmub_cmd(dc->ctx, &cmd, allow_idle ? DM_DMUB_WAIT_TYPE_NO_WAIT : DM_DMUB_WAIT_TYPE_WAIT);
+
+	/* Register access should stop at this point. */
+	if (allow_idle)
+		dc_dmub_srv->needs_idle_wake = true;
 }
 
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
@@ -1300,6 +1304,11 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 			ips_driver->signals.bits.allow_ips2,
 			ips_fw->signals.bits.ips1_commit,
 			ips_fw->signals.bits.ips2_commit);
+
+		/* Note: register access has technically not resumed for DCN here, but we
+		 * need to be message PMFW through our standard register interface.
+		 */
+		dc_dmub_srv->needs_idle_wake = false;
 
 		if (prev_driver_signals.bits.allow_ips2) {
 			DC_LOG_IPS(
