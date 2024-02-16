@@ -89,7 +89,6 @@ struct intel_vgpu_gm {
 /* Fences owned by a vGPU */
 struct intel_vgpu_fence {
 	struct i915_fence_reg *regs[INTEL_GVT_MAX_NUM_FENCES];
-	u32 base;
 	u32 size;
 };
 
@@ -444,7 +443,6 @@ int intel_gvt_load_firmware(struct intel_gvt *gvt);
 #define vgpu_hidden_gmadr_end(vgpu) \
 	(vgpu_hidden_gmadr_base(vgpu) + vgpu_hidden_sz(vgpu) - 1)
 
-#define vgpu_fence_base(vgpu) (vgpu->fence.base)
 #define vgpu_fence_sz(vgpu) (vgpu->fence.size)
 
 /* ring context size i.e. the first 0x50 dwords*/
