@@ -43,6 +43,17 @@ void __cold btrfs_delayed_inode_exit(void)
 	kmem_cache_destroy(delayed_node_cache);
 }
 
+void btrfs_init_delayed_root(struct btrfs_delayed_root *delayed_root)
+{
+	atomic_set(&delayed_root->items, 0);
+	atomic_set(&delayed_root->items_seq, 0);
+	delayed_root->nodes = 0;
+	spin_lock_init(&delayed_root->lock);
+	init_waitqueue_head(&delayed_root->wait);
+	INIT_LIST_HEAD(&delayed_root->node_list);
+	INIT_LIST_HEAD(&delayed_root->prepare_list);
+}
+
 static inline void btrfs_init_delayed_node(
 				struct btrfs_delayed_node *delayed_node,
 				struct btrfs_root *root, u64 inode_id)
