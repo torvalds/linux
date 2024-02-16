@@ -380,8 +380,6 @@ EXPORT_SYMBOL_GPL(adf_isr_resource_alloc);
 /**
  * adf_init_misc_wq() - Init misc workqueue
  *
- * Function init workqueue 'qat_misc_wq' for general purpose.
- *
  * Return: 0 on success, error code otherwise.
  */
 int __init adf_init_misc_wq(void)
