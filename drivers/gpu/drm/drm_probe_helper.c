@@ -1259,8 +1259,9 @@ int drm_connector_helper_tv_get_modes(struct drm_connector *connector)
 	for (i = 0; i < tv_mode_property->num_values; i++)
 		supported_tv_modes |= BIT(tv_mode_property->values[i]);
 
-	if ((supported_tv_modes & ntsc_modes) &&
-	    (supported_tv_modes & pal_modes)) {
+	if (((supported_tv_modes & ntsc_modes) &&
+	     (supported_tv_modes & pal_modes)) ||
+	    (supported_tv_modes & BIT(DRM_MODE_TV_MODE_MONOCHROME))) {
 		uint64_t default_mode;
 
 		if (drm_object_property_get_default_value(&connector->base,

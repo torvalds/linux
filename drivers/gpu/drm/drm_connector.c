@@ -1087,6 +1087,7 @@ static const struct drm_prop_enum_list drm_tv_mode_enum_list[] = {
 	{ DRM_MODE_TV_MODE_PAL_M, "PAL-M" },
 	{ DRM_MODE_TV_MODE_PAL_N, "PAL-N" },
 	{ DRM_MODE_TV_MODE_SECAM, "SECAM" },
+	{ DRM_MODE_TV_MODE_MONOCHROME, "Mono" },
 };
 DRM_ENUM_NAME_FN(drm_get_tv_mode_name, drm_tv_mode_enum_list)
 
@@ -1857,6 +1858,12 @@ EXPORT_SYMBOL(drm_connector_attach_dp_subconnector_property);
  *
  *		TV Mode is CCIR System B (aka 625-lines) together with
  *		the SECAM Color Encoding.
+ *
+ *	Mono:
+ *
+ *		Use timings appropriate to the DRM mode, including
+ *		equalizing pulses for a 525-line or 625-line mode,
+ *		with no pedestal or color encoding.
  *
  *	Drivers can set up this property by calling
  *	drm_mode_create_tv_properties().
