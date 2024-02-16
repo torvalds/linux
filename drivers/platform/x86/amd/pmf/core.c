@@ -296,6 +296,9 @@ static int amd_pmf_suspend_handler(struct device *dev)
 {
 	struct amd_pmf_dev *pdev = dev_get_drvdata(dev);
 
+	if (pdev->smart_pc_enabled)
+		cancel_delayed_work_sync(&pdev->pb_work);
+
 	kfree(pdev->buf);
 
 	return 0;
@@ -311,6 +314,9 @@ static int amd_pmf_resume_handler(struct device *dev)
 		if (ret)
 			return ret;
 	}
+
+	if (pdev->smart_pc_enabled)
+		schedule_delayed_work(&pdev->pb_work, msecs_to_jiffies(2000));
 
 	return 0;
 }
