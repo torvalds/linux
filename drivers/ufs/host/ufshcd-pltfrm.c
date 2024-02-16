@@ -225,7 +225,8 @@ int ufshcd_get_pwr_dev_param(const struct ufs_dev_params *pltfrm_param,
 	bool is_dev_sup_hs = false;
 	bool is_pltfrm_max_hs = false;
 
-	if (dev_max->pwr_rx == FAST_MODE)
+	if (dev_max->pwr_rx == FAST_MODE ||
+	    dev_max->pwr_rx == FASTAUTO_MODE)
 		is_dev_sup_hs = true;
 
 	if (pltfrm_param->desired_working_mode == UFS_HS_MODE) {

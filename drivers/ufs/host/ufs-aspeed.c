@@ -84,21 +84,18 @@ static int aspeed_ufscnr_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	/* reduce signal swing */
-	writel(0xe8, cnr->regs + UFS_MPHY_VCONTROL);
-	writel(0xd0000, cnr->regs + UFS_MPHY_CALI_IN_1);
-	writel(0xff00, cnr->regs + UFS_MPHY_CALI_IN_0);
-	writel(0, cnr->regs + UFS_MPHY_VCONTROL);
+	/* given rext, rx_r100, tx calibration value */
+	writel(0x000d0707, cnr->regs + UFS_MPHY_CALI_IN_1);
+	writel(0x05ffff00, cnr->regs + UFS_MPHY_CALI_IN_0);
 
 	/* mphy reset deassert */
 	reg = readl(cnr->regs + UFS_MPHY_RST_REG);
 	reg &= ~(UFS_MPHY_RST_N | UFS_MPHY_RST_N_PCS);
 
-	writel(reg, cnr->regs + UFS_MPHY_RST_REG);
-	mdelay(1);
-	writel(reg | UFS_MPHY_RST_N, cnr->regs + UFS_MPHY_RST_REG);
+	writel(0, cnr->regs + UFS_MPHY_RST_REG);
 	mdelay(1);
 	writel(reg | UFS_MPHY_RST_N | UFS_MPHY_RST_N_PCS, cnr->regs + UFS_MPHY_RST_REG);
+	mdelay(1);
 
 	dev_set_drvdata(&pdev->dev, cnr);
 
@@ -157,7 +154,7 @@ static int aspeed_ufshc_init(struct ufs_hba *hba)
 
 	status = ufshcd_vops_phy_initialization(hba);
 
-	hba->quirks |= UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE;
+	hba->quirks |= UFSHCD_QUIRK_DME_PEER_ACCESS_AUTO_MODE | UFSHCD_QUIRK_HIBERN_FASTAUTO;
 
 	return status;
 }
@@ -217,8 +214,13 @@ static int aspeed_ufshc_hce_enable_notify(struct ufs_hba *hba,
 static int aspeed_ufshc_link_startup_notify(struct ufs_hba *hba,
 					    enum ufs_notify_change_status status)
 {
-	if (status != PRE_CHANGE)
+	struct aspeed_ufscnr *cnr;
+
+	if (status != PRE_CHANGE) {
+		cnr = dev_get_drvdata(hba->dev->parent);
+		writel(0x170707, cnr->regs + UFS_MPHY_CALI_IN_1);
 		return 0;
+	}
 
 	/*
 	 * Some UFS devices have issues if LCC is enabled.
@@ -245,8 +247,10 @@ static int aspeed_ufshc_pre_pwr_change(struct ufs_hba *hba,
 	int ret;
 
 	ufshcd_init_pwr_dev_param(&host_cap);
-	host_cap.hs_rx_gear = UFS_HS_G2;
-	host_cap.hs_tx_gear = UFS_HS_G2;
+	host_cap.hs_rx_gear = UFS_HS_G3;
+	host_cap.hs_tx_gear = UFS_HS_G3;
+	host_cap.rx_pwr_hs = FASTAUTO_MODE;
+	host_cap.tx_pwr_hs = FASTAUTO_MODE;
 
 	ret = ufshcd_get_pwr_dev_param(&host_cap,
 				       dev_max_params,
@@ -256,8 +260,7 @@ static int aspeed_ufshc_pre_pwr_change(struct ufs_hba *hba,
 			__func__);
 	}
 
-	ufshcd_dme_peer_set(hba, UIC_ARG_MIB(PA_MAXRXHSGEAR), host_cap.hs_rx_gear);
-
+	/* change 2 lane before high speed due to old unipro v1.6 */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXTERMINATION), false);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TXGEAR), UFS_PWM_G1);
 
