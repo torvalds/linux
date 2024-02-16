@@ -118,7 +118,6 @@ struct intel_vgpu_irq {
 };
 
 struct intel_vgpu_opregion {
-	bool mapped;
 	void *va;
 	u32 gfn[INTEL_GVT_OPREGION_PAGES];
 };
