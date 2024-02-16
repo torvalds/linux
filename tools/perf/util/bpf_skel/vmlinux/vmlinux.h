@@ -20,6 +20,13 @@ typedef __s64 s64;
 
 typedef int pid_t;
 
+typedef __s64 time64_t;
+
+struct timespec64 {
+        time64_t        tv_sec;
+        long int        tv_nsec;
+};
+
 enum cgroup_subsys_id {
 	perf_event_cgrp_id  = 8,
 };
