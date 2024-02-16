@@ -1171,7 +1171,7 @@ EXPORT_SYMBOL_GPL(gpiochip_remove);
  * If the function returns non-NULL, the returned reference must be freed by
  * the caller using gpio_device_put().
  */
-struct gpio_device *gpio_device_find(void *data,
+struct gpio_device *gpio_device_find(const void *data,
 				     int (*match)(struct gpio_chip *gc,
 						  const void *data))
 {
