@@ -1004,6 +1004,52 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	INIT_LIST_HEAD(&ref->add_list);
 }
 
+void btrfs_init_generic_ref(struct btrfs_ref *generic_ref, int action, u64 bytenr,
+			    u64 len, u64 parent, u64 owning_root)
+{
+	generic_ref->action = action;
+	generic_ref->bytenr = bytenr;
+	generic_ref->len = len;
+	generic_ref->parent = parent;
+	generic_ref->owning_root = owning_root;
+}
+
+void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 root,
+			 u64 mod_root, bool skip_qgroup)
+{
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	/* If @real_root not set, use @root as fallback */
+	generic_ref->real_root = mod_root ?: root;
+#endif
+	generic_ref->tree_ref.level = level;
+	generic_ref->tree_ref.ref_root = root;
+	generic_ref->type = BTRFS_REF_METADATA;
+	if (skip_qgroup || !(is_fstree(root) &&
+			     (!mod_root || is_fstree(mod_root))))
+		generic_ref->skip_qgroup = true;
+	else
+		generic_ref->skip_qgroup = false;
+
+}
+
+void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ref_root, u64 ino,
+			 u64 offset, u64 mod_root, bool skip_qgroup)
+{
+#ifdef CONFIG_BTRFS_FS_REF_VERIFY
+	/* If @real_root not set, use @root as fallback */
+	generic_ref->real_root = mod_root ?: ref_root;
+#endif
+	generic_ref->data_ref.ref_root = ref_root;
+	generic_ref->data_ref.ino = ino;
+	generic_ref->data_ref.offset = offset;
+	generic_ref->type = BTRFS_REF_DATA;
+	if (skip_qgroup || !(is_fstree(ref_root) &&
+			     (!mod_root || is_fstree(mod_root))))
+		generic_ref->skip_qgroup = true;
+	else
+		generic_ref->skip_qgroup = false;
+}
+
 /*
  * add a delayed tree ref.  This does all of the accounting required
  * to make sure the delayed ref is eventually processed before this
@@ -1218,6 +1264,25 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_update_delayed_refs_rsv(trans);
 	return 0;
+}
+
+void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
+{
+	if (refcount_dec_and_test(&ref->refs)) {
+		WARN_ON(!RB_EMPTY_NODE(&ref->ref_node));
+		switch (ref->type) {
+		case BTRFS_TREE_BLOCK_REF_KEY:
+		case BTRFS_SHARED_BLOCK_REF_KEY:
+			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+			break;
+		case BTRFS_EXTENT_DATA_REF_KEY:
+		case BTRFS_SHARED_DATA_REF_KEY:
+			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
+			break;
+		default:
+			BUG();
+		}
+	}
 }
 
 /*
