@@ -396,7 +396,7 @@ LEAF(mips_cps_boot_vpes)
 	/* Calculate a pointer to the VPEs struct vpe_boot_config */
 	li	t0, VPEBOOTCFG_SIZE
 	mul	t0, t0, ta1
-	addu	t0, t0, ta3
+	PTR_ADDU t0, t0, ta3
 
 	/* Set the TC restart PC */
 	lw	t1, VPEBOOTCFG_PC(t0)
@@ -571,10 +571,10 @@ dcache_done:
 	lw	$1, TI_CPU(gp)
 	sll	$1, $1, LONGLOG
 	PTR_LA	\dest, __per_cpu_offset
-	addu	$1, $1, \dest
+	PTR_ADDU $1, $1, \dest
 	lw	$1, 0($1)
 	PTR_LA	\dest, cps_cpu_state
-	addu	\dest, \dest, $1
+	PTR_ADDU \dest, \dest, $1
 	.set	pop
 	.endm
 
