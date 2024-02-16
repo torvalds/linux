@@ -224,6 +224,19 @@ static const struct acpi_device_id bmc150_accel_acpi_match[] = {
 	{"BMA250E"},
 	{"BMC150A"},
 	{"BMI055A"},
+	/*
+	 * The "BOSC0200" identifier used here is not unique to devices using
+	 * bmc150. The same "BOSC0200" identifier is found in the ACPI tables
+	 * of the ASUS ROG ALLY and Ayaneo AIR Plus which both use a Bosch
+	 * BMI323 chip. This creates a conflict with duplicate ACPI identifiers
+	 * which multiple drivers want to use. Fortunately, when the bmc150
+	 * driver starts to load on the ASUS ROG ALLY, the chip ID check
+	 * portion fails (correctly) because the chip IDs received (via i2c)
+	 * are unique between bmc150 and bmi323 and a dmesg output similar to
+	 * this: "bmc150_accel_i2c i2c-BOSC0200:00: Invalid chip 0" can be
+	 * seen. This allows the bmi323 driver to take over for ASUS ROG ALLY,
+	 * and other devices using the bmi323 chip.
+	 */
 	{"BOSC0200"},
 	{"BSBA0150"},
 	{"DUAL250E"},
