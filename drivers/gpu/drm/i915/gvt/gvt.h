@@ -221,7 +221,6 @@ struct intel_vgpu {
 
 	struct vfio_region *region;
 	int num_regions;
-	struct eventfd_ctx *intx_trigger;
 	struct eventfd_ctx *msi_trigger;
 
 	/*
