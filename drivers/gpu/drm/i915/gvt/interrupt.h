@@ -177,7 +177,6 @@ enum intel_gvt_irq_type {
 /* per-event information */
 struct intel_gvt_event_info {
 	int bit;				/* map to register bit */
-	int policy;				/* forwarding policy */
 	struct intel_gvt_irq_info *info;	/* register info */
 	gvt_event_virt_handler_t v_handler;	/* for v_event */
 };
