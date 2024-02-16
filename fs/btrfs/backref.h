@@ -283,14 +283,6 @@ struct btrfs_backref_iter {
 
 struct btrfs_backref_iter *btrfs_backref_iter_alloc(struct btrfs_fs_info *fs_info);
 
-static inline struct extent_buffer *btrfs_backref_get_eb(
-		struct btrfs_backref_iter *iter)
-{
-	if (!iter)
-		return NULL;
-	return iter->path->nodes[0];
-}
-
 /*
  * For metadata with EXTENT_ITEM key (non-skinny) case, the first inline data
  * is btrfs_tree_block_info, without a btrfs_extent_inline_ref header.

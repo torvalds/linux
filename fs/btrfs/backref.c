@@ -2960,7 +2960,7 @@ release:
  */
 int btrfs_backref_iter_next(struct btrfs_backref_iter *iter)
 {
-	struct extent_buffer *eb = btrfs_backref_get_eb(iter);
+	struct extent_buffer *eb = iter->path->nodes[0];
 	struct btrfs_root *extent_root;
 	struct btrfs_path *path = iter->path;
 	struct btrfs_extent_inline_ref *iref;
@@ -3438,7 +3438,7 @@ int btrfs_backref_add_tree_node(struct btrfs_trans_handle *trans,
 		int type;
 
 		cond_resched();
-		eb = btrfs_backref_get_eb(iter);
+		eb = iter->path->nodes[0];
 
 		key.objectid = iter->bytenr;
 		if (btrfs_backref_iter_is_inline_ref(iter)) {
