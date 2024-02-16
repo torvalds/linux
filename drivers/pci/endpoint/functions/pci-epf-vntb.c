@@ -422,7 +422,7 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb)
 								epf->func_no,
 								epf->vfunc_no);
 	barno = ntb->epf_ntb_bar[BAR_CONFIG];
-	size = epc_features->bar_fixed_size[barno];
+	size = epc_features->bar[barno].fixed_size;
 	align = epc_features->align;
 
 	if ((!IS_ALIGNED(size, align)))

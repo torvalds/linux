@@ -260,7 +260,7 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 			  const struct pci_epc_features *epc_features,
 			  enum pci_epc_interface_type type)
 {
-	u64 bar_fixed_size = epc_features->bar_fixed_size[bar];
+	u64 bar_fixed_size = epc_features->bar[bar].fixed_size;
 	size_t align = epc_features->align;
 	struct pci_epf_bar *epf_bar;
 	dma_addr_t phys_addr;
@@ -271,13 +271,14 @@ void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
 	if (size < 128)
 		size = 128;
 
-	if (bar_fixed_size && size > bar_fixed_size) {
-		dev_err(&epf->dev, "requested BAR size is larger than fixed size\n");
-		return NULL;
-	}
-
-	if (bar_fixed_size)
+	if (epc_features->bar[bar].type == BAR_FIXED && bar_fixed_size) {
+		if (size > bar_fixed_size) {
+			dev_err(&epf->dev,
+				"requested BAR size is larger than fixed size\n");
+			return NULL;
+		}
 		size = bar_fixed_size;
+	}
 
 	if (align)
 		size = ALIGN(size, align);

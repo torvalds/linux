@@ -312,8 +312,12 @@ static const struct pci_epc_features keembay_pcie_epc_features = {
 	.linkup_notifier	= false,
 	.msi_capable		= true,
 	.msix_capable		= true,
-	.reserved_bar		= BIT(BAR_1) | BIT(BAR_3) | BIT(BAR_5),
-	.bar_fixed_64bit	= BIT(BAR_0) | BIT(BAR_2) | BIT(BAR_4),
+	.bar[BAR_0]		= { .only_64bit = true, },
+	.bar[BAR_1]		= { .type = BAR_RESERVED, },
+	.bar[BAR_2]		= { .only_64bit = true, },
+	.bar[BAR_3]		= { .type = BAR_RESERVED, },
+	.bar[BAR_4]		= { .only_64bit = true, },
+	.bar[BAR_5]		= { .type = BAR_RESERVED, },
 	.align			= SZ_16K,
 };
 

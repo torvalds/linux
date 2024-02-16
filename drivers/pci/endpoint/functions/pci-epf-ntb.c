@@ -1012,13 +1012,13 @@ static int epf_ntb_config_spad_bar_alloc(struct epf_ntb *ntb,
 
 	epc_features = ntb_epc->epc_features;
 	barno = ntb_epc->epf_ntb_bar[BAR_CONFIG];
-	size = epc_features->bar_fixed_size[barno];
+	size = epc_features->bar[barno].fixed_size;
 	align = epc_features->align;
 
 	peer_ntb_epc = ntb->epc[!type];
 	peer_epc_features = peer_ntb_epc->epc_features;
 	peer_barno = ntb_epc->epf_ntb_bar[BAR_PEER_SPAD];
-	peer_size = peer_epc_features->bar_fixed_size[peer_barno];
+	peer_size = peer_epc_features->bar[peer_barno].fixed_size;
 
 	/* Check if epc_features is populated incorrectly */
 	if ((!IS_ALIGNED(size, align)))

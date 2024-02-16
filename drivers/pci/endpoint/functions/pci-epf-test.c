@@ -729,7 +729,7 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 		 */
 		add = (epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ? 2 : 1;
 
-		if (!!(epc_features->reserved_bar & (1 << bar)))
+		if (epc_features->bar[bar].type == BAR_RESERVED)
 			continue;
 
 		ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no,
@@ -856,7 +856,7 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 		if (bar == test_reg_bar)
 			continue;
 
-		if (!!(epc_features->reserved_bar & (1 << bar)))
+		if (epc_features->bar[bar].type == BAR_RESERVED)
 			continue;
 
 		base = pci_epf_alloc_space(epf, bar_size[bar], bar,
@@ -874,13 +874,11 @@ static void pci_epf_configure_bar(struct pci_epf *epf,
 				  const struct pci_epc_features *epc_features)
 {
 	struct pci_epf_bar *epf_bar;
-	bool bar_fixed_64bit;
 	int i;
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		epf_bar = &epf->bar[i];
-		bar_fixed_64bit = !!(epc_features->bar_fixed_64bit & (1 << i));
-		if (bar_fixed_64bit)
+		if (epc_features->bar[i].only_64bit)
 			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
 	}
 }
