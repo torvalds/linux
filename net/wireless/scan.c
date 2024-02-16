@@ -2833,17 +2833,16 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 	struct cfg80211_bss *bss;
 	u8 mld_id, reporter_link_id, bss_change_count;
 	u16 seen_links = 0;
-	const u8 *pos;
 	u8 i;
 
-	if (!ieee80211_mle_size_ok(elem->data + 1, elem->datalen - 1))
+	if (!ieee80211_mle_type_ok(elem->data + 1,
+				   IEEE80211_ML_CONTROL_TYPE_BASIC,
+				   elem->datalen - 1))
 		return;
 
-	ml_elem = (void *)elem->data + 1;
+	ml_elem = (void *)(elem->data + 1);
 	control = le16_to_cpu(ml_elem->control);
-	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) !=
-	    IEEE80211_ML_CONTROL_TYPE_BASIC)
-		return;
+	ml_common_len = ml_elem->variable[0];
 
 	/* Must be present when transmitted by an AP (in a probe response) */
 	if (!(control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT) ||
@@ -2851,24 +2850,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 	    !(control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP))
 		return;
 
-	ml_common_len = ml_elem->variable[0];
-
-	/* length + MLD MAC address */
-	pos = ml_elem->variable + 1 + 6;
-
-	reporter_link_id = pos[0];
-	pos += 1;
-
-	bss_change_count = pos[0];
-	pos += 1;
-
-	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY))
-		pos += 2;
-	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_EML_CAPA))
-		pos += 2;
-
-	/* MLD capabilities and operations */
-	pos += 2;
+	reporter_link_id = ieee80211_mle_get_link_id(elem->data + 1);
+	bss_change_count = ieee80211_mle_get_bss_param_ch_cnt(elem->data + 1);
 
 	/*
 	 * The MLD ID of the reporting AP is always zero. It is set if the AP
@@ -2876,15 +2859,7 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 	 * relating to a nontransmitted BSS (matching the Multi-BSSID Index,
 	 * Draft P802.11be_D3.2, 35.3.4.2)
 	 */
-	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_MLD_ID)) {
-		mld_id = *pos;
-		pos += 1;
-	} else {
-		mld_id = 0;
-	}
-
-	/* Extended MLD capabilities and operations */
-	pos += 2;
+	mld_id = ieee80211_mle_get_mld_id(elem->data + 1);
 
 	/* Fully defrag the ML element for sta information/profile iteration */
 	mle = cfg80211_defrag_mle(elem, tx_data->ie, tx_data->ielen, gfp);
