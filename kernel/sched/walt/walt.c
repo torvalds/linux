@@ -1383,8 +1383,7 @@ static void update_task_pred_demand(struct rq *rq, struct task_struct *p, int ev
 	new_pred_demand_scaled = get_pred_busy(p, busy_to_bucket(curr_window_scaled),
 			     curr_window_scaled, wts->bucket_bitmask);
 
-	if (task_on_rq_queued(p) && (!task_has_dl_policy(p) ||
-				!p->dl.dl_throttled))
+	if (task_on_rq_queued(p))
 		fixup_walt_sched_stats_common(rq, p,
 				wts->demand_scaled,
 				new_pred_demand_scaled);
@@ -2097,9 +2096,8 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	demand_scaled = scale_time_to_util(demand);
 
 	/*
-	 * A throttled deadline sched class task gets dequeued without
-	 * changing p->on_rq. Since the dequeue decrements walt stats
-	 * avoid decrementing it here again.
+	 * Avoid double accounting of task demand as demand will be updated
+	 * to CRA as part of enqueue/dequeue.
 	 *
 	 * When window is rolled over, the cumulative window demand
 	 * is reset to the cumulative runnable average (contribution from
@@ -2108,11 +2106,9 @@ static void update_history(struct rq *rq, struct task_struct *p,
 	 * average. So add the task demand separately to cumulative window
 	 * demand.
 	 */
-	if (!task_has_dl_policy(p) || !p->dl.dl_throttled) {
-		if (task_on_rq_queued(p))
-			fixup_walt_sched_stats_common(rq, p,
-					demand_scaled, pred_demand_scaled);
-	}
+	if (task_on_rq_queued(p))
+		fixup_walt_sched_stats_common(rq, p,
+					      demand_scaled, pred_demand_scaled);
 
 	wts->demand = demand;
 	wts->demand_scaled = demand_scaled;
