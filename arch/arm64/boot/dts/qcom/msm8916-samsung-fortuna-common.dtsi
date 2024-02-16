@@ -80,6 +80,20 @@
 	};
 };
 
+&blsp_i2c4 {
+	status = "okay";
+
+	fuel-gauge@35 {
+		compatible = "richtek,rt5033-battery";
+		reg = <0x35>;
+
+		interrupts-extended = <&tlmm 121 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-0 = <&fg_alert_default>;
+		pinctrl-names = "default";
+	};
+};
+
 &blsp_uart2 {
 	status = "okay";
 };
@@ -152,6 +166,13 @@
 };
 
 &tlmm {
+	fg_alert_default: fg-alert-default-state {
+		pins = "gpio121";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	gpio_keys_default: gpio-keys-default-state {
 		pins = "gpio107", "gpio109";
 		function = "gpio";
