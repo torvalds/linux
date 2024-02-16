@@ -1531,7 +1531,7 @@ static int tasdev_load_blk(struct tasdevice_priv *tas_priv,
 	unsigned int sleep_time;
 	unsigned int len;
 	unsigned int nr_cmds;
-	unsigned char *data = block->data;
+	unsigned char *data;
 	unsigned char crc_chksum = 0;
 	unsigned char offset;
 	unsigned char book;
