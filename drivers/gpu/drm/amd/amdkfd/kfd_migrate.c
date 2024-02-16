@@ -445,14 +445,13 @@ svm_migrate_vma_to_vram(struct kfd_node *node, struct svm_range *prange,
 	pr_debug("successful/cpages/npages 0x%lx/0x%lx/0x%lx\n",
 			 mpages, cpages, migrate.npages);
 
-	kfd_smi_event_migration_end(node, p->lead_thread->pid,
-				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-				    0, node->id, trigger);
-
 	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);
+	kfd_smi_event_migration_end(node, p->lead_thread->pid,
+				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
+				    0, node->id, trigger, r);
 out:
 	if (!r && mpages) {
 		pdd = svm_range_get_pdd_by_node(prange, node);
@@ -751,14 +750,13 @@ svm_migrate_vma_to_ram(struct kfd_node *node, struct svm_range *prange,
 	svm_migrate_copy_done(adev, mfence);
 	migrate_vma_finalize(&migrate);
 
-	kfd_smi_event_migration_end(node, p->lead_thread->pid,
-				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
-				    node->id, 0, trigger);
-
 	svm_range_dma_unmap_dev(adev->dev, scratch, 0, npages);
 
 out_free:
 	kvfree(buf);
+	kfd_smi_event_migration_end(node, p->lead_thread->pid,
+				    start >> PAGE_SHIFT, end >> PAGE_SHIFT,
+				    node->id, 0, trigger, r);
 out:
 	if (!r && cpages) {
 		mpages = cpages - upages;
