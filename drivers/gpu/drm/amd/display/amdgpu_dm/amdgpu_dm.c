@@ -6393,9 +6393,6 @@ int amdgpu_dm_connector_atomic_set_property(struct drm_connector *connector,
 	} else if (property == adev->mode_info.underscan_property) {
 		dm_new_state->underscan_enable = val;
 		ret = 0;
-	} else if (property == adev->mode_info.abm_level_property) {
-		dm_new_state->abm_level = val ?: ABM_LEVEL_IMMEDIATE_DISABLE;
-		ret = 0;
 	}
 
 	return ret;
@@ -6437,10 +6434,6 @@ int amdgpu_dm_connector_atomic_get_property(struct drm_connector *connector,
 		ret = 0;
 	} else if (property == adev->mode_info.underscan_property) {
 		*val = dm_state->underscan_enable;
-		ret = 0;
-	} else if (property == adev->mode_info.abm_level_property) {
-		*val = (dm_state->abm_level != ABM_LEVEL_IMMEDIATE_DISABLE) ?
-			dm_state->abm_level : 0;
 		ret = 0;
 	}
 
@@ -7667,13 +7660,6 @@ void amdgpu_dm_connector_init_helper(struct amdgpu_display_manager *dm,
 
 	aconnector->base.state->max_bpc = 16;
 	aconnector->base.state->max_requested_bpc = aconnector->base.state->max_bpc;
-
-	if (connector_type == DRM_MODE_CONNECTOR_eDP &&
-	    (dc_is_dmcu_initialized(adev->dm.dc) ||
-	     adev->dm.dc->ctx->dmub_srv) && amdgpu_dm_abm_level < 0) {
-		drm_object_attach_property(&aconnector->base.base,
-				adev->mode_info.abm_level_property, 0);
-	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_HDMIA) {
 		/* Content Type is currently only implemented for HDMI. */
