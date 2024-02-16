@@ -2213,6 +2213,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 
 	switch (data->ftype) {
 	case CFG80211_BSS_FTYPE_BEACON:
+	case CFG80211_BSS_FTYPE_S1G_BEACON:
 		ies->from_beacon = true;
 		fallthrough;
 	case CFG80211_BSS_FTYPE_UNKNOWN:
@@ -3057,6 +3058,10 @@ cfg80211_inform_bss_data(struct wiphy *wiphy,
 	if (!res)
 		return NULL;
 
+	/* don't do any further MBSSID/ML handling for S1G */
+	if (ftype == CFG80211_BSS_FTYPE_S1G_BEACON)
+		return res;
+
 	cfg80211_parse_mbssid_data(wiphy, &inform_data, res, gfp);
 
 	cfg80211_parse_ml_sta_data(wiphy, &inform_data, res, gfp);
@@ -3071,17 +3076,16 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 			       struct ieee80211_mgmt *mgmt, size_t len,
 			       gfp_t gfp)
 {
-	struct cfg80211_inform_single_bss_data inform_data = {
-		.drv_data = data,
-		.use_for = data->restrict_use ?
-				data->use_for :
-				NL80211_BSS_USE_FOR_ALL,
-		.cannot_use_reasons = data->cannot_use_reasons,
-	};
 	size_t min_hdr_len = offsetof(struct ieee80211_mgmt,
 				      u.probe_resp.variable);
 	struct ieee80211_ext *ext = NULL;
-	struct cfg80211_bss *res;
+	enum cfg80211_bss_frame_type ftype;
+	u16 beacon_interval;
+	const u8 *bssid;
+	u16 capability;
+	const u8 *ie;
+	size_t ielen;
+	u64 tsf;
 
 	if (WARN_ON(!mgmt))
 		return NULL;
@@ -3105,56 +3109,45 @@ cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
 	if (WARN_ON(len < min_hdr_len))
 		return NULL;
 
-	inform_data.ielen = len - min_hdr_len;
-	inform_data.ie = mgmt->u.probe_resp.variable;
+	ielen = len - min_hdr_len;
+	ie = mgmt->u.probe_resp.variable;
 	if (ext) {
 		const struct ieee80211_s1g_bcn_compat_ie *compat;
 		const struct element *elem;
 
 		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
-			inform_data.ie = ext->u.s1g_short_beacon.variable;
+			ie = ext->u.s1g_short_beacon.variable;
 		else
-			inform_data.ie = ext->u.s1g_beacon.variable;
+			ie = ext->u.s1g_beacon.variable;
 
-		elem = cfg80211_find_elem(WLAN_EID_S1G_BCN_COMPAT,
-					  inform_data.ie, inform_data.ielen);
+		elem = cfg80211_find_elem(WLAN_EID_S1G_BCN_COMPAT, ie, ielen);
 		if (!elem)
 			return NULL;
 		if (elem->datalen < sizeof(*compat))
 			return NULL;
 		compat = (void *)elem->data;
-		memcpy(inform_data.bssid, ext->u.s1g_beacon.sa, ETH_ALEN);
-		inform_data.capability = le16_to_cpu(compat->compat_info);
-		inform_data.beacon_interval = le16_to_cpu(compat->beacon_int);
+		bssid = ext->u.s1g_beacon.sa;
+		capability = le16_to_cpu(compat->compat_info);
+		beacon_interval = le16_to_cpu(compat->beacon_int);
 	} else {
-		memcpy(inform_data.bssid, mgmt->bssid, ETH_ALEN);
-		inform_data.beacon_interval =
-			le16_to_cpu(mgmt->u.probe_resp.beacon_int);
-		inform_data.capability =
-			le16_to_cpu(mgmt->u.probe_resp.capab_info);
+		bssid = mgmt->bssid;
+		beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
+		capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 	}
 
-	inform_data.tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
+	tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control))
-		inform_data.ftype = CFG80211_BSS_FTYPE_PRESP;
+		ftype = CFG80211_BSS_FTYPE_PRESP;
+	else if (ext)
+		ftype = CFG80211_BSS_FTYPE_S1G_BEACON;
 	else
-		inform_data.ftype = CFG80211_BSS_FTYPE_BEACON;
+		ftype = CFG80211_BSS_FTYPE_BEACON;
 
-	res = cfg80211_inform_single_bss_data(wiphy, &inform_data, gfp);
-	if (!res)
-		return NULL;
-
-	/* don't do any further MBSSID/ML handling for S1G */
-	if (ext)
-		return res;
-
-	/* process each non-transmitting bss */
-	cfg80211_parse_mbssid_data(wiphy, &inform_data, res, gfp);
-
-	cfg80211_parse_ml_sta_data(wiphy, &inform_data, res, gfp);
-
-	return res;
+	return cfg80211_inform_bss_data(wiphy, data, ftype,
+					bssid, tsf, capability,
+					beacon_interval, ie, ielen,
+					gfp);
 }
 EXPORT_SYMBOL(cfg80211_inform_bss_frame_data);
 
