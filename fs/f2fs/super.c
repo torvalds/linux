@@ -4675,8 +4675,10 @@ reset_checkpoint:
 	 * check zoned block devices' write pointer consistency.
 	 */
 	if (f2fs_sb_has_blkzoned(sbi) && !f2fs_readonly(sb)) {
-		int err2 = f2fs_check_write_pointer(sbi);
+		int err2;
 
+		f2fs_notice(sbi, "Checking entire write pointers");
+		err2 = f2fs_check_write_pointer(sbi);
 		if (err2)
 			err = err2;
 	}
