@@ -107,17 +107,21 @@ int change_memory_attr(unsigned long addr, int numpages, long action)
 #ifdef CONFIG_ARCH_SUPPORTS_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
+	int err;
 	unsigned long addr = (unsigned long)page_address(page);
 
 	if (PageHighMem(page))
 		return;
 
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64) && !radix_enabled())
-		hash__kernel_map_pages(page, numpages, enable);
+		err = hash__kernel_map_pages(page, numpages, enable);
 	else if (enable)
-		set_memory_p(addr, numpages);
+		err = set_memory_p(addr, numpages);
 	else
-		set_memory_np(addr, numpages);
+		err = set_memory_np(addr, numpages);
+
+	if (err)
+		panic("%s: changing memory protections failed\n", __func__);
 }
 #endif
 #endif

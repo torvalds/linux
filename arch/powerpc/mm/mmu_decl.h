@@ -187,4 +187,4 @@ int create_section_mapping(unsigned long start, unsigned long end,
 			   int nid, pgprot_t prot);
 #endif
 
-void hash__kernel_map_pages(struct page *page, int numpages, int enable);
+int hash__kernel_map_pages(struct page *page, int numpages, int enable);
