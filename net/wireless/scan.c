@@ -2567,9 +2567,9 @@ error:
 }
 
 static u8
-cfg80211_tbtt_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
-			      const struct ieee80211_neighbor_ap_info **ap_info,
-			      const u8 **tbtt_info)
+cfg80211_rnr_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
+			     const struct ieee80211_neighbor_ap_info **ap_info,
+			     u8 *param_ch_count)
 {
 	const struct ieee80211_neighbor_ap_info *info;
 	const struct element *rnr;
@@ -2626,7 +2626,9 @@ cfg80211_tbtt_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
 				if (mld_id == mld_params->mld_id &&
 				    link_id == lid) {
 					*ap_info = info;
-					*tbtt_info = pos;
+					*param_ch_count =
+						le16_get_bits(mld_params->params,
+							      IEEE80211_RNR_MLD_PARAMS_BSS_CHANGE_COUNT);
 
 					return use_for;
 				}
@@ -2836,8 +2838,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		enum nl80211_band band;
 		u32 freq;
 		const u8 *profile;
-		const u8 *tbtt_info;
 		ssize_t profile_len;
+		u8 param_ch_count;
 		u8 link_id, use_for;
 
 		if (!ieee80211_mle_basic_sta_prof_size_ok((u8 *)mle->sta_prof[i],
@@ -2880,10 +2882,11 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		profile_len -= 2;
 
 		/* Find in RNR to look up channel information */
-		use_for = cfg80211_tbtt_info_for_mld_ap(tx_data->ie,
-							tx_data->ielen,
-							mld_id, link_id,
-							&ap_info, &tbtt_info);
+		use_for = cfg80211_rnr_info_for_mld_ap(tx_data->ie,
+						       tx_data->ielen,
+						       mld_id, link_id,
+						       &ap_info,
+						       &param_ch_count);
 		if (!use_for)
 			continue;
 
@@ -2926,7 +2929,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 			continue;
 
 		/* Copy the Basic Multi-Link element including the common
-		 * information, and then fix up the link ID.
+		 * information, and then fix up the link ID and BSS param
+		 * change count.
 		 * Note that the ML element length has been verified and we
 		 * also checked that it contains the link ID.
 		 */
@@ -2937,6 +2941,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		       sizeof(*ml_elem) + ml_common_len);
 
 		new_ie[data.ielen + sizeof(*ml_elem) + 1 + ETH_ALEN] = link_id;
+		new_ie[data.ielen + sizeof(*ml_elem) + 1 + ETH_ALEN + 1] =
+			param_ch_count;
 
 		data.ielen += sizeof(*ml_elem) + ml_common_len;
 
