@@ -189,7 +189,11 @@ struct bversion {
 	__u32		hi;
 	__u64		lo;
 #endif
-} __packed __aligned(4);
+} __packed
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+__aligned(4)
+#endif
+;
 
 struct bkey {
 	/* Size of combined key and value, in u64s */
@@ -222,7 +226,36 @@ struct bkey {
 
 	__u8		pad[1];
 #endif
-} __packed __aligned(8);
+} __packed
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+/*
+ * The big-endian version of bkey can't be compiled by rustc with the "aligned"
+ * attr since it doesn't allow types to have both "packed" and "aligned" attrs.
+ * So for Rust compatibility, don't include this. It can be included in the LE
+ * version because the "packed" attr is redundant in that case.
+ *
+ * History: (quoting Kent)
+ *
+ * Specifically, when i was designing bkey, I wanted the header to be no
+ * bigger than necessary so that bkey_packed could use the rest. That means that
+ * decently offten extent keys will fit into only 8 bytes, instead of spilling over
+ * to 16.
+ *
+ * But packed_bkey treats the part after the header - the packed section -
+ * as a single multi word, variable length integer. And bkey, the unpacked
+ * version, is just a special case version of a bkey_packed; all the packed
+ * bkey code will work on keys in any packed format, the in-memory
+ * representation of an unpacked key also is just one type of packed key...
+ *
+ * So that constrains the key part of a bkig endian bkey to start right
+ * after the header.
+ *
+ * If we ever do a bkey_v2 and need to expand the hedaer by another byte for
+ * some reason - that will clean up this wart.
+ */
+__aligned(8)
+#endif
+;
 
 struct bkey_packed {
 	__u64		_data[0];
