@@ -149,6 +149,8 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
 
 	sg_init_one(&sg, vb->pfns, sizeof(vb->pfns[0]) * vb->num_pfns);
 
+	post_page_relinquish_tlb_inv();
+
 	/* We should always be able to add one buffer to an empty queue. */
 	virtqueue_add_outbuf(vq, &sg, 1, vb, GFP_KERNEL);
 	virtqueue_kick(vq);
@@ -176,6 +178,8 @@ static int virtballoon_free_page_report(struct page_reporting_dev_info *pr_dev_i
 	 */
 	if (WARN_ON_ONCE(err))
 		return err;
+
+	post_page_relinquish_tlb_inv();
 
 	virtqueue_kick(vq);
 
@@ -395,7 +399,11 @@ static inline s64 towards_target(struct virtio_balloon *vb)
 	virtio_cread_le(vb->vdev, struct virtio_balloon_config, num_pages,
 			&num_pages);
 
-	target = num_pages;
+	/*
+	 * Aligned up to guest page size to avoid inflating and deflating
+	 * balloon endlessly.
+	 */
+	target = ALIGN(num_pages, VIRTIO_BALLOON_PAGES_PER_PAGE);
 	return target - vb->num_pages;
 }
 

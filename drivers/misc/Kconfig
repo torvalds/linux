@@ -469,13 +469,6 @@ config UID_SYS_STATS
 	  Per UID based io statistics exported to /proc/uid_io
 	  Per UID based procstat control in /proc/uid_procstat
 
-config UID_SYS_STATS_DEBUG
-	bool "Per-TASK statistics"
-	depends on UID_SYS_STATS
-	default n
-	help
-	  Per TASK based io statistics exported to /proc/uid_io
-
 config HISI_HIKEY_USB
 	tristate "USB GPIO Hub on HiSilicon Hikey 960/970 Platform"
 	depends on (OF && GPIOLIB) || COMPILE_TEST

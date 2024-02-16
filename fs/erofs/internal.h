@@ -208,6 +208,7 @@ struct erofs_workgroup {
 
 	/* overall workgroup reference count */
 	atomic_t refcount;
+        spinlock_t lock;
 };
 
 static inline bool erofs_workgroup_try_to_freeze(struct erofs_workgroup *grp,
