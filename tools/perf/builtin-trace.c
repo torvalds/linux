@@ -4883,6 +4883,11 @@ int cmd_trace(int argc, const char **argv)
 	if (!trace.trace_syscalls)
 		goto skip_augmentation;
 
+	if ((argc >= 1) && (strcmp(argv[0], "record") == 0)) {
+		pr_debug("Syscall augmentation fails with record, disabling augmentation");
+		goto skip_augmentation;
+	}
+
 	trace.skel = augmented_raw_syscalls_bpf__open();
 	if (!trace.skel) {
 		pr_debug("Failed to open augmented syscalls BPF skeleton");
