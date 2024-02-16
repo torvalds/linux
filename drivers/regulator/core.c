@@ -3932,7 +3932,6 @@ static int regulator_get_optimal_voltage(struct regulator_dev *rdev,
 		if (ret < 0)
 			return ret;
 
-		possible_uV = desired_min_uV;
 		done = true;
 
 		goto finish;
