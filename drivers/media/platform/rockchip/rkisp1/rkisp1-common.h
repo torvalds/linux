@@ -111,6 +111,7 @@ enum rkisp1_isp_pad {
  *
  * @RKISP1_FEATURE_MIPI_CSI2: The ISP has an internal MIPI CSI-2 receiver
  * @RKISP1_FEATURE_MAIN_STRIDE: The ISP supports configurable stride on the main path
+ * @RKISP1_FEATURE_SELF_PATH: The ISP has a self path
  *
  * The ISP features are stored in a bitmask in &rkisp1_info.features and allow
  * the driver to implement support for features present in some ISP versions
@@ -119,6 +120,7 @@ enum rkisp1_isp_pad {
 enum rkisp1_feature {
 	RKISP1_FEATURE_MIPI_CSI2 = BIT(0),
 	RKISP1_FEATURE_MAIN_STRIDE = BIT(1),
+	RKISP1_FEATURE_SELF_PATH = BIT(2),
 };
 
 #define rkisp1_has_feature(rkisp1, feature) \
@@ -528,6 +530,19 @@ int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
  * @index: index of the mbus info to fetch
  */
 const struct rkisp1_mbus_info *rkisp1_mbus_info_get_by_index(unsigned int index);
+
+/*
+ * rkisp1_path_count - Return the number of paths supported by the device
+ *
+ * Some devices only have a main path, while other device have both a main path
+ * and a self path. This function returns the number of paths that this device
+ * has, based on the feature flags. It should be used insted of checking
+ * ARRAY_SIZE of capture_devs/resizer_devs.
+ */
+static inline unsigned int rkisp1_path_count(struct rkisp1_device *rkisp1)
+{
+	return rkisp1_has_feature(rkisp1, SELF_PATH) ? 2 : 1;
+}
 
 /*
  * rkisp1_sd_adjust_crop_rect - adjust a rectangle to fit into another rectangle.
