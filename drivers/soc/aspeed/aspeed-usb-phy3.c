@@ -101,6 +101,10 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 		val |= USB_PHY3_SRAM_EXT_LOAD;
 	writel(val, reg_base + AST_USB_PHY3S00);
 
+	/* Set PHY PCFGI[54]: protocol1_ext_rx_los_lfps_en for better compatibility */
+	val = readl(reg_base + AST_USB_PHY3P04) | BIT(22);
+	writel(val, reg_base + AST_USB_PHY3P04);
+
 	rc = of_property_read_u32_array(node, "ctrl", (u32 *)ctrl_data,
 					DWC_CRTL_NUM * 2);
 	if (rc < 0) {
