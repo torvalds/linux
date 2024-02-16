@@ -2795,8 +2795,8 @@ int gpiolib_cdev_register(struct gpio_device *gdev, dev_t devt)
 		return ret;
 
 	guard(srcu)(&gdev->srcu);
-
-	if (!rcu_access_pointer(gdev->chip))
+	gc = srcu_dereference(gdev->chip, &gdev->srcu);
+	if (!gc)
 		return -ENODEV;
 
 	chip_dbg(gc, "added GPIO chardev (%d:%d)\n", MAJOR(devt), gdev->id);
