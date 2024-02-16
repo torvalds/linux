@@ -455,9 +455,9 @@ snd_seq_oss_reset(struct seq_oss_devinfo *dp)
  * misc. functions for proc interface
  */
 char *
-enabled_str(int bool)
+enabled_str(bool b)
 {
-	return bool ? "enabled" : "disabled";
+	return b ? "enabled" : "disabled";
 }
 
 static const char *
