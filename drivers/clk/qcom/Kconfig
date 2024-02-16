@@ -635,16 +635,6 @@ config SC_LPASS_CORECC_7280
 	  Say Y if you want to use LPASS clocks and power domains of the LPASS
 	  core clock controller.
 
-config SC_MSS_7180
-	tristate "SC7180 Modem Clock Controller"
-	depends on ARM64 || COMPILE_TEST
-	select SC_GCC_7180
-	help
-	  Support for the Modem Subsystem clock controller on Qualcomm
-	  Technologies, Inc on SC7180 devices.
-	  Say Y if you want to use the Modem branch clocks of the Modem
-	  subsystem clock controller to reset the MSS subsystem.
-
 config SC_VIDEOCC_7180
 	tristate "SC7180 Video Clock Controller"
 	depends on ARM64 || COMPILE_TEST
