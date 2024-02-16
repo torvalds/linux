@@ -2080,7 +2080,7 @@ static int gfx_v9_0_sw_init(void *handle)
 		ring->doorbell_index = adev->doorbell_index.gfx_ring0 << 1;
 
 		/* disable scheduler on the real ring */
-		ring->no_scheduler = true;
+		ring->no_scheduler = adev->gfx.mcbp;
 		ring->vm_hub = AMDGPU_GFXHUB(0);
 		r = amdgpu_ring_init(adev, ring, 1024, &adev->gfx.eop_irq,
 				     AMDGPU_CP_IRQ_GFX_ME0_PIPE0_EOP,
@@ -2090,7 +2090,7 @@ static int gfx_v9_0_sw_init(void *handle)
 	}
 
 	/* set up the software rings */
-	if (adev->gfx.num_gfx_rings) {
+	if (adev->gfx.mcbp && adev->gfx.num_gfx_rings) {
 		for (i = 0; i < GFX9_NUM_SW_GFX_RINGS; i++) {
 			ring = &adev->gfx.sw_gfx_ring[i];
 			ring->ring_obj = NULL;
@@ -2180,7 +2180,7 @@ static int gfx_v9_0_sw_fini(void *handle)
 	int i;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (adev->gfx.num_gfx_rings) {
+	if (adev->gfx.mcbp && adev->gfx.num_gfx_rings) {
 		for (i = 0; i < GFX9_NUM_SW_GFX_RINGS; i++)
 			amdgpu_ring_fini(&adev->gfx.sw_gfx_ring[i]);
 		amdgpu_ring_mux_fini(&adev->gfx.muxer);
@@ -5899,11 +5899,14 @@ static int gfx_v9_0_eop_irq(struct amdgpu_device *adev,
 
 	switch (me_id) {
 	case 0:
-		if (adev->gfx.num_gfx_rings &&
-		    !amdgpu_mcbp_handle_trailing_fence_irq(&adev->gfx.muxer)) {
-			/* Fence signals are handled on the software rings*/
-			for (i = 0; i < GFX9_NUM_SW_GFX_RINGS; i++)
-				amdgpu_fence_process(&adev->gfx.sw_gfx_ring[i]);
+		if (adev->gfx.num_gfx_rings) {
+			if (!adev->gfx.mcbp) {
+				amdgpu_fence_process(&adev->gfx.gfx_ring[0]);
+			} else if (!amdgpu_mcbp_handle_trailing_fence_irq(&adev->gfx.muxer)) {
+				/* Fence signals are handled on the software rings*/
+				for (i = 0; i < GFX9_NUM_SW_GFX_RINGS; i++)
+					amdgpu_fence_process(&adev->gfx.sw_gfx_ring[i]);
+			}
 		}
 		break;
 	case 1:
@@ -7038,7 +7041,7 @@ static void gfx_v9_0_set_ring_funcs(struct amdgpu_device *adev)
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		adev->gfx.gfx_ring[i].funcs = &gfx_v9_0_ring_funcs_gfx;
 
-	if (adev->gfx.num_gfx_rings) {
+	if (adev->gfx.mcbp && adev->gfx.num_gfx_rings) {
 		for (i = 0; i < GFX9_NUM_SW_GFX_RINGS; i++)
 			adev->gfx.sw_gfx_ring[i].funcs = &gfx_v9_0_sw_ring_funcs_gfx;
 	}
