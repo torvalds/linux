@@ -699,14 +699,14 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
 #define pud_user(pud)		pte_user(pud_pte(pud))
 #define pud_user_exec(pud)	pte_user_exec(pud_pte(pud))
 
+static inline bool pgtable_l4_enabled(void);
+
 static inline void set_pud(pud_t *pudp, pud_t pud)
 {
-#ifdef __PAGETABLE_PUD_FOLDED
-	if (in_swapper_pgdir(pudp)) {
+	if (!pgtable_l4_enabled() && in_swapper_pgdir(pudp)) {
 		set_swapper_pgd((pgd_t *)pudp, __pgd(pud_val(pud)));
 		return;
 	}
-#endif /* __PAGETABLE_PUD_FOLDED */
 
 	WRITE_ONCE(*pudp, pud);
 
