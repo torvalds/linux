@@ -125,6 +125,10 @@
 #define IBI_REQ_REJECT_ALL		GENMASK(31, 0)
 
 #define RESET_CTRL			0x34
+#define RESET_CTRL_BUS			BIT(31)
+#define RESET_CTRL_BUS_RESET_TYPE	GENMASK(30, 29)
+#define   BUS_RESET_TYPE_EXIT		0b00
+#define   BUS_RESET_TYPE_SCL_LOW	0b11
 #define RESET_CTRL_IBI_QUEUE		BIT(5)
 #define RESET_CTRL_RX_FIFO		BIT(4)
 #define RESET_CTRL_TX_FIFO		BIT(3)
@@ -1026,6 +1030,27 @@ static void dw_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 
 	dw_i3c_master_disable(master);
+}
+
+static void dw_i3c_master_bus_reset(struct i3c_master_controller *m)
+{
+	struct dw_i3c_master *master = to_dw_i3c_master(m);
+
+	if (master->base.bus.context == I3C_BUS_CONTEXT_JESD403) {
+		u32 reset = RESET_CTRL_BUS |
+			    FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE,
+				       BUS_RESET_TYPE_SCL_LOW);
+		u32 timeout = readl(master->regs + SCL_LOW_MST_EXT_TIMEOUT);
+		u32 status;
+
+		timeout = timeout * master->timing.core_period + 1000000;
+		writel(reset, master->regs + RESET_CTRL);
+		readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
+					  !(status & RESET_CTRL_BUS), 10,
+					  timeout);
+	} else {
+		master->platform_ops->gen_target_reset_pattern(master);
+	}
 }
 
 static int dw_i3c_ccc_set(struct dw_i3c_master *master,
@@ -2013,6 +2038,7 @@ static const struct i3c_target_ops dw_mipi_i3c_target_ops = {
 static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 	.bus_init = dw_i3c_master_bus_init,
 	.bus_cleanup = dw_i3c_master_bus_cleanup,
+	.bus_reset = dw_i3c_master_bus_reset,
 	.attach_i3c_dev = dw_i3c_master_attach_i3c_dev,
 	.reattach_i3c_dev = dw_i3c_master_reattach_i3c_dev,
 	.detach_i3c_dev = dw_i3c_master_detach_i3c_dev,
@@ -2028,6 +2054,7 @@ static const struct i3c_master_controller_ops dw_mipi_i3c_ops = {
 static const struct i3c_master_controller_ops dw_mipi_i3c_ibi_ops = {
 	.bus_init = dw_i3c_master_bus_init,
 	.bus_cleanup = dw_i3c_master_bus_cleanup,
+	.bus_reset = dw_i3c_master_bus_reset,
 	.attach_i3c_dev = dw_i3c_master_attach_i3c_dev,
 	.reattach_i3c_dev = dw_i3c_master_reattach_i3c_dev,
 	.detach_i3c_dev = dw_i3c_master_detach_i3c_dev,
@@ -2075,6 +2102,10 @@ static void dw_i3c_gen_internal_stop_nop(struct dw_i3c_master *i3c)
 {
 }
 
+static void dw_i3c_gen_target_reset_pattern_nop(struct dw_i3c_master *i3c)
+{
+}
+
 static void dw_i3c_set_ibi_mdb_nop(struct dw_i3c_master *i3c, u8 mdb)
 {
 }
@@ -2086,6 +2117,7 @@ static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 	.exit_sw_mode = dw_i3c_platform_exit_sw_mode_nop,
 	.toggle_scl_in = dw_i3c_toggle_scl_in_nop,
 	.gen_internal_stop = dw_i3c_gen_internal_stop_nop,
+	.gen_target_reset_pattern = dw_i3c_gen_target_reset_pattern_nop,
 	.set_ibi_mdb = dw_i3c_set_ibi_mdb_nop,
 };
 

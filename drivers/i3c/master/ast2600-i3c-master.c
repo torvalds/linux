@@ -180,6 +180,48 @@ static void ast2600_i3c_gen_internal_stop(struct dw_i3c_master *dw)
 			  SDA_IN_SW_MODE_VAL, SDA_IN_SW_MODE_VAL);
 }
 
+static void ast2600_i3c_gen_target_reset_pattern(struct dw_i3c_master *dw)
+{
+	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
+	int i;
+
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL,
+			  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_SW_MODE_OE | SCL_SW_MODE_OE,
+			  SDA_SW_MODE_OE | SCL_SW_MODE_OE);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN,
+			  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_VAL | SCL_IN_SW_MODE_VAL,
+			  SDA_IN_SW_MODE_VAL | SCL_IN_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN,
+			  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_OUT_SW_MODE_VAL, 0);
+	for (i = 0; i < 7; i++) {
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SDA_OUT_SW_MODE_VAL, 0);
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SDA_OUT_SW_MODE_VAL, SDA_OUT_SW_MODE_VAL);
+	}
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_OUT_SW_MODE_VAL, 0);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_OUT_SW_MODE_VAL, SDA_OUT_SW_MODE_VAL);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_OUT_SW_MODE_EN | SCL_OUT_SW_MODE_EN, 0);
+	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
+			  SDA_IN_SW_MODE_EN | SCL_IN_SW_MODE_EN, 0);
+}
+
 static void ast2600_i3c_set_ibi_mdb(struct dw_i3c_master *dw, u8 mdb)
 {
 	u32 reg;
@@ -197,6 +239,7 @@ static const struct dw_i3c_platform_ops ast2600_i3c_ops = {
 	.exit_sw_mode = ast2600_i3c_exit_sw_mode,
 	.toggle_scl_in = ast2600_i3c_toggle_scl_in,
 	.gen_internal_stop = ast2600_i3c_gen_internal_stop,
+	.gen_target_reset_pattern = ast2600_i3c_gen_target_reset_pattern,
 	.set_ibi_mdb = ast2600_i3c_set_ibi_mdb,
 };
 
