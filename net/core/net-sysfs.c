@@ -1459,6 +1459,9 @@ static const struct attribute_group dql_group = {
 	.name  = "byte_queue_limits",
 	.attrs  = dql_attrs,
 };
+#else
+/* Fake declaration, all the code using it should be dead */
+extern const struct attribute_group dql_group;
 #endif /* CONFIG_BQL */
 
 #ifdef CONFIG_XPS
@@ -1696,6 +1699,15 @@ static const struct kobj_type netdev_queue_ktype = {
 	.get_ownership = netdev_queue_get_ownership,
 };
 
+static bool netdev_uses_bql(const struct net_device *dev)
+{
+	if (dev->features & NETIF_F_LLTX ||
+	    dev->priv_flags & IFF_NO_QUEUE)
+		return false;
+
+	return IS_ENABLED(CONFIG_BQL);
+}
+
 static int netdev_queue_add_kobject(struct net_device *dev, int index)
 {
 	struct netdev_queue *queue = dev->_tx + index;
@@ -1713,11 +1725,11 @@ static int netdev_queue_add_kobject(struct net_device *dev, int index)
 	if (error)
 		goto err;
 
-#ifdef CONFIG_BQL
-	error = sysfs_create_group(kobj, &dql_group);
-	if (error)
-		goto err;
-#endif
+	if (netdev_uses_bql(dev)) {
+		error = sysfs_create_group(kobj, &dql_group);
+		if (error)
+			goto err;
+	}
 
 	kobject_uevent(kobj, KOBJ_ADD);
 	return 0;
@@ -1738,9 +1750,9 @@ static int tx_queue_change_owner(struct net_device *ndev, int index,
 	if (error)
 		return error;
 
-#ifdef CONFIG_BQL
-	error = sysfs_group_change_owner(kobj, &dql_group, kuid, kgid);
-#endif
+	if (netdev_uses_bql(ndev))
+		error = sysfs_group_change_owner(kobj, &dql_group, kuid, kgid);
+
 	return error;
 }
 #endif /* CONFIG_SYSFS */
@@ -1772,9 +1784,10 @@ netdev_queue_update_kobjects(struct net_device *dev, int old_num, int new_num)
 
 		if (!refcount_read(&dev_net(dev)->ns.count))
 			queue->kobj.uevent_suppress = 1;
-#ifdef CONFIG_BQL
-		sysfs_remove_group(&queue->kobj, &dql_group);
-#endif
+
+		if (netdev_uses_bql(dev))
+			sysfs_remove_group(&queue->kobj, &dql_group);
+
 		kobject_put(&queue->kobj);
 	}
 
