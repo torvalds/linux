@@ -4813,28 +4813,27 @@ pipe_config_infoframe_mismatch(struct drm_i915_private *dev_priv,
 }
 
 static void
-pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *dev_priv,
+pipe_config_dp_vsc_sdp_mismatch(struct drm_i915_private *i915,
 				bool fastset, const char *name,
 				const struct drm_dp_vsc_sdp *a,
 				const struct drm_dp_vsc_sdp *b)
 {
-	if (fastset) {
-		if (!drm_debug_enabled(DRM_UT_KMS))
-			return;
+	struct drm_printer p;
 
-		drm_dbg_kms(&dev_priv->drm,
-			    "fastset requirement not met in %s dp sdp\n", name);
-		drm_dbg_kms(&dev_priv->drm, "expected:\n");
-		drm_dp_vsc_sdp_log(KERN_DEBUG, dev_priv->drm.dev, a);
-		drm_dbg_kms(&dev_priv->drm, "found:\n");
-		drm_dp_vsc_sdp_log(KERN_DEBUG, dev_priv->drm.dev, b);
+	if (fastset) {
+		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
+
+		drm_printf(&p, "fastset requirement not met in %s dp sdp\n", name);
 	} else {
-		drm_err(&dev_priv->drm, "mismatch in %s dp sdp\n", name);
-		drm_err(&dev_priv->drm, "expected:\n");
-		drm_dp_vsc_sdp_log(KERN_ERR, dev_priv->drm.dev, a);
-		drm_err(&dev_priv->drm, "found:\n");
-		drm_dp_vsc_sdp_log(KERN_ERR, dev_priv->drm.dev, b);
+		p = drm_err_printer(&i915->drm, NULL);
+
+		drm_printf(&p, "mismatch in %s dp sdp\n", name);
 	}
+
+	drm_printf(&p, "expected:\n");
+	drm_dp_vsc_sdp_log(&p, a);
+	drm_printf(&p, "found:\n");
+	drm_dp_vsc_sdp_log(&p, b);
 }
 
 /* Returns the length up to and including the last differing byte */

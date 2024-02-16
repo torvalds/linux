@@ -61,13 +61,13 @@
  * to one or more &drm_encoder, which are then each connected to one
  * &drm_connector.
  *
- * To create a CRTC, a KMS drivers allocates and zeroes an instances of
+ * To create a CRTC, a KMS driver allocates and zeroes an instance of
  * &struct drm_crtc (possibly as part of a larger structure) and registers it
  * with a call to drm_crtc_init_with_planes().
  *
- * The CRTC is also the entry point for legacy modeset operations, see
- * &drm_crtc_funcs.set_config, legacy plane operations, see
- * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2, and other legacy
+ * The CRTC is also the entry point for legacy modeset operations (see
+ * &drm_crtc_funcs.set_config), legacy plane operations (see
+ * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2), and other legacy
  * operations like &drm_crtc_funcs.gamma_set. For atomic drivers all these
  * features are controlled through &drm_property and
  * &drm_mode_config_funcs.atomic_check.

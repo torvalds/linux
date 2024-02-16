@@ -811,7 +811,8 @@ static void guc_exec_queue_print(struct xe_exec_queue *q, struct drm_printer *p)
 static void simple_error_capture(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
-	struct drm_printer p = drm_err_printer("");
+	struct xe_device *xe = guc_to_xe(guc);
+	struct drm_printer p = drm_err_printer(&xe->drm, NULL);
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
 	u32 adj_logical_mask = q->logical_mask;

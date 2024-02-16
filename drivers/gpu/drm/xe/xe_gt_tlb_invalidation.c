@@ -314,7 +314,7 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_guc *guc = &gt->uc.guc;
-	struct drm_printer p = drm_err_printer(__func__);
+	struct drm_printer p = drm_err_printer(&xe->drm, __func__);
 	int ret;
 
 	/*
