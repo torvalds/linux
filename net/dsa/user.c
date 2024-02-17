@@ -2429,7 +2429,7 @@ static const struct net_device_ops dsa_user_netdev_ops = {
 	.ndo_fill_forward_path	= dsa_user_fill_forward_path,
 };
 
-static struct device_type dsa_type = {
+static const struct device_type dsa_type = {
 	.name	= "dsa",
 };
 
