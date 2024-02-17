@@ -440,6 +440,42 @@ static inline void mii_eee_cap1_mod_linkmode_t(unsigned long *adv, u32 val)
 }
 
 /**
+ * mii_eee_cap2_mod_linkmode_sup_t()
+ * @adv: target the linkmode settings
+ * @val: register value
+ *
+ * A function that translates value of following registers to the linkmode:
+ * IEEE 802.3-2022 45.2.3.11 "EEE control and capability 2" register (3.21)
+ */
+static inline void mii_eee_cap2_mod_linkmode_sup_t(unsigned long *adv, u32 val)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 adv, val & MDIO_EEE_2_5GT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 adv, val & MDIO_EEE_5GT);
+}
+
+/**
+ * mii_eee_cap2_mod_linkmode_adv_t()
+ * @adv: target the linkmode advertisement settings
+ * @val: register value
+ *
+ * A function that translates value of following registers to the linkmode:
+ * IEEE 802.3-2022 45.2.7.16 "EEE advertisement 2" register (7.62)
+ * IEEE 802.3-2022 45.2.7.17 "EEE link partner ability 2" register (7.63)
+ * Note: Currently this function is the same as mii_eee_cap2_mod_linkmode_sup_t.
+ *       For certain, not yet supported, modes however the bits differ.
+ *       Therefore create separate functions already.
+ */
+static inline void mii_eee_cap2_mod_linkmode_adv_t(unsigned long *adv, u32 val)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
+			 adv, val & MDIO_EEE_2_5GT);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
+			 adv, val & MDIO_EEE_5GT);
+}
+
+/**
  * linkmode_to_mii_eee_cap1_t()
  * @adv: the linkmode advertisement settings
  *
@@ -462,6 +498,25 @@ static inline u32 linkmode_to_mii_eee_cap1_t(unsigned long *adv)
 		result |= MDIO_EEE_10GKX4;
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_10000baseKR_Full_BIT, adv))
 		result |= MDIO_EEE_10GKR;
+
+	return result;
+}
+
+/**
+ * linkmode_to_mii_eee_cap2_t()
+ * @adv: the linkmode advertisement settings
+ *
+ * A function that translates linkmode to value for IEEE 802.3-2022 45.2.7.16
+ * "EEE advertisement 2" register (7.62)
+ */
+static inline u32 linkmode_to_mii_eee_cap2_t(unsigned long *adv)
+{
+	u32 result = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, adv))
+		result |= MDIO_EEE_2_5GT;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_5000baseT_Full_BIT, adv))
+		result |= MDIO_EEE_5GT;
 
 	return result;
 }
