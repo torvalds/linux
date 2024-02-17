@@ -917,7 +917,7 @@ static const struct phy_ops mvebu_comphy_ops = {
 };
 
 static struct phy *mvebu_comphy_xlate(struct device *dev,
-				      struct of_phandle_args *args)
+				      const struct of_phandle_args *args)
 {
 	struct mvebu_comphy_lane *lane;
 	struct phy *phy;

@@ -160,7 +160,7 @@ static const struct phy_ops a38x_comphy_ops = {
 };
 
 static struct phy *a38x_comphy_xlate(struct device *dev,
-				     struct of_phandle_args *args)
+				     const struct of_phandle_args *args)
 {
 	struct a38x_comphy_lane *lane;
 	struct phy *phy;

@@ -165,7 +165,7 @@ static int mtk_mipi_phy_power_off(struct phy *phy)
 }
 
 static struct phy *mtk_mipi_cdphy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct mtk_mipi_cdphy_port *priv = dev_get_drvdata(dev);
 

@@ -183,7 +183,7 @@ static const struct phy_ops spear1310_miphy_ops = {
 };
 
 static struct phy *spear1310_miphy_xlate(struct device *dev,
-					 struct of_phandle_args *args)
+					 const struct of_phandle_args *args)
 {
 	struct spear1310_miphy_priv *priv = dev_get_drvdata(dev);
 

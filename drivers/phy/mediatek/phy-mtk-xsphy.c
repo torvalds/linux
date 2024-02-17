@@ -378,7 +378,7 @@ static int mtk_phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 }
 
 static struct phy *mtk_phy_xlate(struct device *dev,
-				 struct of_phandle_args *args)
+				 const struct of_phandle_args *args)
 {
 	struct mtk_xsphy *xsphy = dev_get_drvdata(dev);
 	struct xsphy_instance *inst = NULL;

@@ -1213,7 +1213,7 @@ static const struct phy_ops mvebu_a3700_comphy_ops = {
 };
 
 static struct phy *mvebu_a3700_comphy_xlate(struct device *dev,
-					    struct of_phandle_args *args)
+					    const struct of_phandle_args *args)
 {
 	struct mvebu_a3700_comphy_lane *lane;
 	unsigned int port;

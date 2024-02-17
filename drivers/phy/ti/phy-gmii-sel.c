@@ -297,7 +297,7 @@ static const struct phy_ops phy_gmii_sel_ops = {
 };
 
 static struct phy *phy_gmii_sel_of_xlate(struct device *dev,
-					 struct of_phandle_args *args)
+					 const struct of_phandle_args *args)
 {
 	struct phy_gmii_sel_priv *priv = dev_get_drvdata(dev);
 	int phy_id = args->args[0];

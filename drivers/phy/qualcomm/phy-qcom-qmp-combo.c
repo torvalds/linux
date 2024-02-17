@@ -3454,7 +3454,7 @@ static int qmp_combo_parse_dt(struct qmp_combo *qmp)
 	return 0;
 }
 
-static struct phy *qmp_combo_phy_xlate(struct device *dev, struct of_phandle_args *args)
+static struct phy *qmp_combo_phy_xlate(struct device *dev, const struct of_phandle_args *args)
 {
 	struct qmp_combo *qmp = dev_get_drvdata(dev);
 
