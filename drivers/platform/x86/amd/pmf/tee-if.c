@@ -456,8 +456,6 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 	memcpy(dev->policy_buf, dev->policy_base, dev->policy_sz);
 
 	amd_pmf_hex_dump_pb(dev);
-	if (pb_side_load)
-		amd_pmf_open_pb(dev, dev->dbgfs_dir);
 
 	dev->prev_data = kzalloc(sizeof(*dev->prev_data), GFP_KERNEL);
 	if (!dev->prev_data)
@@ -466,6 +464,9 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 	ret = amd_pmf_start_policy_engine(dev);
 	if (ret)
 		goto error;
+
+	if (pb_side_load)
+		amd_pmf_open_pb(dev, dev->dbgfs_dir);
 
 	return 0;
 
