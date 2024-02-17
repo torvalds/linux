@@ -1007,6 +1007,13 @@ void dcn30_mpc_construct(struct dcn30_mpc *mpc30,
 	int num_mpcc,
 	int num_rmu);
 
+void mpc3_mpc_init(
+	struct mpc *mpc);
+
+void mpc3_mpc_init_single_inst(
+	struct mpc *mpc,
+	unsigned int mpcc_id);
+
 bool mpc3_program_shaper(
 		struct mpc *mpc,
 		const struct pwl_params *params,
@@ -1077,13 +1084,6 @@ void mpc3_disable_dwb_mux(
 bool mpc3_is_dwb_idle(
 	struct mpc *mpc,
 	int dwb_id);
-
-void mpc3_set_out_rate_control(
-	struct mpc *mpc,
-	int opp_id,
-	bool enable,
-	bool rate_2x_mode,
-	struct mpc_dwb_flow_control *flow_control);
 
 void mpc3_power_on_ogam_lut(
 	struct mpc *mpc, int mpcc_id,
