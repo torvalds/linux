@@ -1831,7 +1831,10 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 
 	if (wb.wb)
 		bch2_journal_keys_to_write_buffer_end(c, &wb);
+
+	spin_lock(&c->journal.lock);
 	w->need_flush_to_write_buffer = false;
+	spin_unlock(&c->journal.lock);
 
 	start = end = vstruct_last(jset);
 
@@ -1949,12 +1952,20 @@ CLOSURE_CALLBACK(bch2_journal_write)
 	unsigned nr_rw_members = 0;
 	int ret;
 
+	for_each_rw_member(c, ca)
+		nr_rw_members++;
+
 	BUG_ON(BCH_SB_CLEAN(c->disk_sb.sb));
+	BUG_ON(!w->write_started);
 	BUG_ON(w->write_allocated);
+	BUG_ON(w->write_done);
 
 	j->write_start_time = local_clock();
 
 	spin_lock(&j->lock);
+	if (nr_rw_members > 1)
+		w->separate_flush = true;
+
 	ret = bch2_journal_write_pick_flush(j, w);
 	spin_unlock(&j->lock);
 	if (ret)
@@ -2008,12 +2019,6 @@ CLOSURE_CALLBACK(bch2_journal_write)
 
 	if (c->opts.nochanges)
 		goto no_io;
-
-	for_each_rw_member(c, ca)
-		nr_rw_members++;
-
-	if (nr_rw_members > 1)
-		w->separate_flush = true;
 
 	/*
 	 * Mark journal replicas before we submit the write to guarantee
