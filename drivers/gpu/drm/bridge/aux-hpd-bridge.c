@@ -25,6 +25,7 @@ static void drm_aux_hpd_bridge_release(struct device *dev)
 	ida_free(&drm_aux_hpd_bridge_ida, adev->id);
 
 	of_node_put(adev->dev.platform_data);
+	of_node_put(adev->dev.of_node);
 
 	kfree(adev);
 }
@@ -74,6 +75,8 @@ struct device *drm_dp_hpd_bridge_register(struct device *parent,
 
 	ret = auxiliary_device_init(adev);
 	if (ret) {
+		of_node_put(adev->dev.platform_data);
+		of_node_put(adev->dev.of_node);
 		ida_free(&drm_aux_hpd_bridge_ida, adev->id);
 		kfree(adev);
 		return ERR_PTR(ret);
