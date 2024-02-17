@@ -467,7 +467,7 @@ static const struct net_device_ops hsr_device_ops = {
 	.ndo_set_rx_mode = hsr_set_rx_mode,
 };
 
-static struct device_type hsr_type = {
+static const struct device_type hsr_type = {
 	.name = "hsr",
 };
 
