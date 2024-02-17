@@ -1910,8 +1910,6 @@ struct ib_flow_eth_filter {
 	u8	src_mac[6];
 	__be16	ether_type;
 	__be16	vlan_tag;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_eth {
@@ -1924,8 +1922,6 @@ struct ib_flow_spec_eth {
 struct ib_flow_ib_filter {
 	__be16 dlid;
 	__u8   sl;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_ib {
@@ -1949,8 +1945,6 @@ struct ib_flow_ipv4_filter {
 	u8	tos;
 	u8	ttl;
 	u8	flags;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_ipv4 {
@@ -1967,9 +1961,7 @@ struct ib_flow_ipv6_filter {
 	u8	next_hdr;
 	u8	traffic_class;
 	u8	hop_limit;
-	/* Must be last */
-	u8	real_sz[];
-};
+} __packed;
 
 struct ib_flow_spec_ipv6 {
 	u32			   type;
@@ -1981,8 +1973,6 @@ struct ib_flow_spec_ipv6 {
 struct ib_flow_tcp_udp_filter {
 	__be16	dst_port;
 	__be16	src_port;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_tcp_udp {
@@ -1994,7 +1984,6 @@ struct ib_flow_spec_tcp_udp {
 
 struct ib_flow_tunnel_filter {
 	__be32	tunnel_id;
-	u8	real_sz[];
 };
 
 /* ib_flow_spec_tunnel describes the Vxlan tunnel
@@ -2010,8 +1999,6 @@ struct ib_flow_spec_tunnel {
 struct ib_flow_esp_filter {
 	__be32	spi;
 	__be32  seq;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_esp {
@@ -2025,8 +2012,6 @@ struct ib_flow_gre_filter {
 	__be16 c_ks_res0_ver;
 	__be16 protocol;
 	__be32 key;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_gre {
@@ -2038,8 +2023,6 @@ struct ib_flow_spec_gre {
 
 struct ib_flow_mpls_filter {
 	__be32 tag;
-	/* Must be last */
-	u8	real_sz[];
 };
 
 struct ib_flow_spec_mpls {
