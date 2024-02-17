@@ -17,6 +17,12 @@ endif
 DEBUG_CFLAGS	+= $(debug-flags-y)
 KBUILD_AFLAGS	+= $(debug-flags-y)
 
+ifdef CONFIG_DEBUG_INFO_DWARF4
+DEBUG_RUSTFLAGS	+= -Zdwarf-version=4
+else ifdef CONFIG_DEBUG_INFO_DWARF5
+DEBUG_RUSTFLAGS	+= -Zdwarf-version=5
+endif
+
 ifdef CONFIG_DEBUG_INFO_REDUCED
 DEBUG_CFLAGS	+= -fno-var-tracking
 DEBUG_RUSTFLAGS	+= -Cdebuginfo=1
