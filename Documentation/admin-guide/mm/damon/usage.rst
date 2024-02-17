@@ -180,19 +180,14 @@ In each context directory, two files (``avail_operations`` and ``operations``)
 and three directories (``monitoring_attrs``, ``targets``, and ``schemes``)
 exist.
 
-DAMON supports multiple types of monitoring operations, including those for
-virtual address space and the physical address space.  You can get the list of
-available monitoring operations set on the currently running kernel by reading
+DAMON supports multiple types of :ref:`monitoring operations
+<damon_design_configurable_operations_set>`, including those for virtual address
+space and the physical address space.  You can get the list of available
+monitoring operations set on the currently running kernel by reading
 ``avail_operations`` file.  Based on the kernel configuration, the file will
-list some or all of below keywords.
-
- - vaddr: Monitor virtual address spaces of specific processes
- - fvaddr: Monitor fixed virtual address ranges
- - paddr: Monitor the physical address space of the system
-
-Please refer to :ref:`regions sysfs directory <sysfs_regions>` for detailed
-differences between the operations sets in terms of the monitoring target
-regions.
+list different available operation sets.  Please refer to the :ref:`design
+<damon_operations_set>` for the list of all available operation sets and their
+brief explanations.
 
 You can set and get what type of monitoring operations DAMON will use for the
 context by writing one of the keywords listed in ``avail_operations`` file and

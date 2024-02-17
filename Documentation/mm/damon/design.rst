@@ -31,6 +31,8 @@ DAMON subsystem is configured with three layers including
   interfaces for the user space, on top of the core layer.
 
 
+.. _damon_design_configurable_operations_set:
+
 Configurable Operations Set
 ---------------------------
 
@@ -63,6 +65,8 @@ modules that built on top of the core layer using the API, which can be easily
 used by the user space end users.
 
 
+.. _damon_operations_set:
+
 Operations Set Layer
 ====================
 
@@ -71,8 +75,12 @@ The monitoring operations are defined in two parts:
 1. Identification of the monitoring target address range for the address space.
 2. Access check of specific address range in the target space.
 
-DAMON currently provides the implementations of the operations for the physical
-and virtual address spaces. Below two subsections describe how those work.
+DAMON currently provides below three operation sets.  Below two subsections
+describe how those work.
+
+ - vaddr: Monitor virtual address spaces of specific processes
+ - fvaddr: Monitor fixed virtual address ranges
+ - paddr: Monitor the physical address space of the system
 
 
 VMA-based Target Address Range Construction
