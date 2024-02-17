@@ -831,9 +831,7 @@ void bfa_fcs_fabric_sm_auth_failed(struct bfa_fcs_fabric_s *fabric,
  */
 
 struct bfad_port_s;
-struct bfad_vf_s;
 struct bfad_vport_s;
-struct bfad_rport_s;
 
 /*
  * lport callbacks
