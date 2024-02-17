@@ -1249,6 +1249,18 @@ static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)
 	return stdio;
 }
 
+static inline unsigned metadata_replicas_required(struct bch_fs *c)
+{
+	return min(c->opts.metadata_replicas,
+		   c->opts.metadata_replicas_required);
+}
+
+static inline unsigned data_replicas_required(struct bch_fs *c)
+{
+	return min(c->opts.data_replicas,
+		   c->opts.data_replicas_required);
+}
+
 #define BKEY_PADDED_ONSTACK(key, pad)				\
 	struct { struct bkey_i key; __u64 key ## _pad[pad]; }
 
