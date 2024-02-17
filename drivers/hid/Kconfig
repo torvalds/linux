@@ -1236,6 +1236,22 @@ config HID_WIIMOTE
 	To compile this driver as a module, choose M here: the
 	module will be called hid-wiimote.
 
+config HID_WINWING
+	tristate "WinWing Orion2 throttle support"
+	depends on USB_HID
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	help
+	  Support for WinWing Orion2 throttle base with the following grips:
+
+	    * TGRIP-16EX
+	    * TGRIP-18
+
+	  This driver enables all buttons and switches on the throttle base.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hid-winwing.
+
 config HID_XINMO
 	tristate "Xin-Mo non-fully compliant devices"
 	help
