@@ -329,7 +329,8 @@ respectively.  Then, DAMON tries to use only up to ``time quota`` milliseconds
 for applying the ``action`` to memory regions of the ``access_pattern``, and to
 apply the action to only up to ``bytes`` bytes of memory regions within the
 ``reset_interval_ms``.  Setting both ``ms`` and ``bytes`` zero disables the
-quota limits.
+quota limits unless at least one :ref:`goal <sysfs_schemes_quota_goals>` is
+set.
 
 Under ``weights`` directory, three files (``sz_permil``,
 ``nr_accesses_permil``, and ``age_permil``) exist.
