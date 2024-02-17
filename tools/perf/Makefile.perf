@@ -84,6 +84,9 @@ include ../scripts/utilities.mak
 # Define NO_LIBBABELTRACE if you do not want libbabeltrace support
 # for CTF data format.
 #
+# Define NO_CAPSTONE if you do not want libcapstone support
+# for disasm engine.
+#
 # Define NO_LZMA if you do not want to support compressed (xz) kernel modules
 #
 # Define NO_AUXTRACE if you do not want AUX area tracing support

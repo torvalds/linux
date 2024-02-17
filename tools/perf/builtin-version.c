@@ -73,6 +73,7 @@ static void library_status(void)
 	STATUS(HAVE_LIBCRYPTO_SUPPORT, libcrypto);
 	STATUS(HAVE_LIBUNWIND_SUPPORT, libunwind);
 	STATUS(HAVE_DWARF_SUPPORT, libdw-dwarf-unwind);
+	STATUS(HAVE_LIBCAPSTONE_SUPPORT, libcapstone);
 	STATUS(HAVE_ZLIB_SUPPORT, zlib);
 	STATUS(HAVE_LZMA_SUPPORT, lzma);
 	STATUS(HAVE_AUXTRACE_SUPPORT, get_cpuid);
