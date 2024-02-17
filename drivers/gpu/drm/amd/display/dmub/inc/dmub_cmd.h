@@ -724,7 +724,13 @@ union dmub_shared_state_ips_driver_signals {
  */
 struct dmub_shared_state_ips_fw {
 	union dmub_shared_state_ips_fw_signals signals; /**< 4 bytes, IPS signal bits */
-	uint32_t reserved[61]; /**< Reversed, to be updated when adding new fields. */
+	uint32_t rcg_entry_count; /**< Entry counter for RCG */
+	uint32_t rcg_exit_count; /**< Exit counter for RCG */
+	uint32_t ips1_entry_count; /**< Entry counter for IPS1 */
+	uint32_t ips1_exit_count; /**< Exit counter for IPS1 */
+	uint32_t ips2_entry_count; /**< Entry counter for IPS2 */
+	uint32_t ips2_exit_count; /**< Exit counter for IPS2 */
+	uint32_t reserved[55]; /**< Reversed, to be updated when adding new fields. */
 }; /* 248-bytes, fixed */
 
 /**
