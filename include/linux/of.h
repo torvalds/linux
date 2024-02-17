@@ -180,11 +180,6 @@ static inline bool is_of_node(const struct fwnode_handle *fwnode)
 			&__of_fwnode_handle_node->fwnode : NULL;	\
 	})
 
-static inline bool of_have_populated_dt(void)
-{
-	return of_root != NULL;
-}
-
 static inline bool of_node_is_root(const struct device_node *node)
 {
 	return node && (node->parent == NULL);
@@ -545,11 +540,6 @@ static inline struct device_node *of_find_node_with_property(
 }
 
 #define of_fwnode_handle(node) NULL
-
-static inline bool of_have_populated_dt(void)
-{
-	return false;
-}
 
 static inline struct device_node *of_get_compatible_child(const struct device_node *parent,
 					const char *compatible)
@@ -1632,6 +1622,21 @@ static inline int of_reconfig_get_state_change(unsigned long action,
 static inline bool of_device_is_system_power_controller(const struct device_node *np)
 {
 	return of_property_read_bool(np, "system-power-controller");
+}
+
+/**
+ * of_have_populated_dt() - Has DT been populated by bootloader
+ *
+ * Return: True if a DTB has been populated by the bootloader and it isn't the
+ * empty builtin one. False otherwise.
+ */
+static inline bool of_have_populated_dt(void)
+{
+#ifdef CONFIG_OF
+	return of_property_present(of_root, "compatible");
+#else
+	return false;
+#endif
 }
 
 /*

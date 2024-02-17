@@ -8,6 +8,7 @@
 
 #define pr_fmt(fmt)	"OF: fdt: " fmt
 
+#include <linux/acpi.h>
 #include <linux/crash_dump.h>
 #include <linux/crc32.h>
 #include <linux/kernel.h>
@@ -31,6 +32,13 @@
 #include <asm/page.h>
 
 #include "of_private.h"
+
+/*
+ * __dtb_empty_root_begin[] and __dtb_empty_root_end[] magically created by
+ * cmd_dt_S_dtb in scripts/Makefile.lib
+ */
+extern uint8_t __dtb_empty_root_begin[];
+extern uint8_t __dtb_empty_root_end[];
 
 /*
  * of_fdt_limit_memory - limit the number of regions in the /memory node
@@ -1343,7 +1351,29 @@ static void *__init copy_device_tree(void *fdt)
  */
 void __init unflatten_device_tree(void)
 {
-	__unflatten_device_tree(initial_boot_params, NULL, &of_root,
+	void *fdt = initial_boot_params;
+
+	/* Don't use the bootloader provided DTB if ACPI is enabled */
+	if (!acpi_disabled)
+		fdt = NULL;
+
+	/*
+	 * Populate an empty root node when ACPI is enabled or bootloader
+	 * doesn't provide one.
+	 */
+	if (!fdt) {
+		fdt = (void *) __dtb_empty_root_begin;
+		/* fdt_totalsize() will be used for copy size */
+		if (fdt_totalsize(fdt) >
+		    __dtb_empty_root_end - __dtb_empty_root_begin) {
+			pr_err("invalid size in dtb_empty_root\n");
+			return;
+		}
+		of_fdt_crc32 = crc32_be(~0, fdt, fdt_totalsize(fdt));
+		fdt = copy_device_tree(fdt);
+	}
+
+	__unflatten_device_tree(fdt, NULL, &of_root,
 				early_init_dt_alloc_memory_arch, false);
 
 	/* Get pointer to "/chosen" and "/aliases" nodes for use everywhere */
