@@ -2250,12 +2250,6 @@ static int gpiod_request_commit(struct gpio_desc *desc, const char *label)
 	if (test_and_set_bit(FLAG_REQUESTED, &desc->flags))
 		return -EBUSY;
 
-	if (label) {
-		label = kstrdup_const(label, GFP_KERNEL);
-		if (!label)
-			return -ENOMEM;
-	}
-
 	/* NOTE:  gpio_request() can be called in early boot,
 	 * before IRQs are enabled, for non-sleeping (SOC) GPIOs.
 	 */
