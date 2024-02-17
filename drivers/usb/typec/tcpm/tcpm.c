@@ -3730,9 +3730,6 @@ static void tcpm_detach(struct tcpm_port *port)
 	if (tcpm_port_is_disconnected(port))
 		port->hard_reset_count = 0;
 
-	port->try_src_count = 0;
-	port->try_snk_count = 0;
-
 	if (!port->attached)
 		return;
 
