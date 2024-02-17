@@ -968,7 +968,7 @@ int skb_pp_cow_data(struct page_pool *pool, struct sk_buff **pskb,
 		truesize = size;
 
 		page = page_pool_dev_alloc(pool, &page_off, &truesize);
-		if (!data) {
+		if (!page) {
 			consume_skb(nskb);
 			return -ENOMEM;
 		}
