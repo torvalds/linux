@@ -2955,7 +2955,7 @@ int security_file_send_sigiotask(struct task_struct *tsk,
 }
 
 /**
- * security_file_receive() - Check is receiving a file via IPC is allowed
+ * security_file_receive() - Check if receiving a file via IPC is allowed
  * @file: file being received
  *
  * This hook allows security modules to control the ability of a process to
@@ -3182,7 +3182,7 @@ int security_kernel_create_files_as(struct cred *new, struct inode *inode)
 }
 
 /**
- * security_kernel_module_request() - Check is loading a module is allowed
+ * security_kernel_module_request() - Check if loading a module is allowed
  * @kmod_name: module name
  *
  * Ability to trigger the kernel to automatically upcall to userspace for
@@ -4155,7 +4155,7 @@ int security_netlink_send(struct sock *sk, struct sk_buff *skb)
 }
 
 /**
- * security_ismaclabel() - Check is the named attribute is a MAC label
+ * security_ismaclabel() - Check if the named attribute is a MAC label
  * @name: full extended attribute name
  *
  * Check if the extended attribute specified by @name represents a MAC label.
@@ -4528,7 +4528,7 @@ int security_socket_accept(struct socket *sock, struct socket *newsock)
 }
 
 /**
- * security_socket_sendmsg() - Check is sending a message is allowed
+ * security_socket_sendmsg() - Check if sending a message is allowed
  * @sock: sending socket
  * @msg: message to send
  * @size: size of message
