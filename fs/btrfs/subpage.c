@@ -290,8 +290,8 @@ static void btrfs_subpage_clamp_range(struct folio *folio, u64 *start, u32 *len)
 			     orig_start + orig_len) - *start;
 }
 
-void btrfs_subpage_start_writer(const struct btrfs_fs_info *fs_info,
-				struct folio *folio, u64 start, u32 len)
+static void btrfs_subpage_start_writer(const struct btrfs_fs_info *fs_info,
+				       struct folio *folio, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 	const int nbits = (len >> fs_info->sectorsize_bits);
@@ -304,8 +304,8 @@ void btrfs_subpage_start_writer(const struct btrfs_fs_info *fs_info,
 	ASSERT(ret == nbits);
 }
 
-bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_info,
-				       struct folio *folio, u64 start, u32 len)
+static bool btrfs_subpage_end_and_test_writer(const struct btrfs_fs_info *fs_info,
+					      struct folio *folio, u64 start, u32 len)
 {
 	struct btrfs_subpage *subpage = folio_get_private(folio);
 	const int nbits = (len >> fs_info->sectorsize_bits);
