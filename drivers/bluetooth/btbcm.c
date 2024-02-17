@@ -544,7 +544,6 @@ static const char *btbcm_get_board_name(struct device *dev)
 	struct device_node *root;
 	char *board_type;
 	const char *tmp;
-	int len;
 
 	root = of_find_node_by_path("/");
 	if (!root)
@@ -554,9 +553,7 @@ static const char *btbcm_get_board_name(struct device *dev)
 		return NULL;
 
 	/* get rid of any '/' in the compatible string */
-	len = strlen(tmp) + 1;
-	board_type = devm_kzalloc(dev, len, GFP_KERNEL);
-	strscpy(board_type, tmp, len);
+	board_type = devm_kstrdup(dev, tmp, GFP_KERNEL);
 	strreplace(board_type, '/', '-');
 	of_node_put(root);
 
