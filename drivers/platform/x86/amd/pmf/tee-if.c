@@ -252,8 +252,10 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	cookie = readl(dev->policy_buf + POLICY_COOKIE_OFFSET);
 	length = readl(dev->policy_buf + POLICY_COOKIE_LEN);
 
-	if (cookie != POLICY_SIGN_COOKIE || !length)
+	if (cookie != POLICY_SIGN_COOKIE || !length) {
+		dev_dbg(dev->dev, "cookie doesn't match\n");
 		return -EINVAL;
+	}
 
 	/* Update the actual length */
 	dev->policy_sz = length + 512;
