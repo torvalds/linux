@@ -299,8 +299,6 @@ static int amd_pmf_suspend_handler(struct device *dev)
 	if (pdev->smart_pc_enabled)
 		cancel_delayed_work_sync(&pdev->pb_work);
 
-	kfree(pdev->buf);
-
 	return 0;
 }
 
