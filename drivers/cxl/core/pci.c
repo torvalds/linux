@@ -623,7 +623,7 @@ void read_cdat_data(struct cxl_port *port)
 	struct pci_dev *pdev = NULL;
 	struct cxl_memdev *cxlmd;
 	struct cdat_doe_rsp *buf;
-	size_t length;
+	size_t table_length, length;
 	int rc;
 
 	if (is_cxl_memdev(uport)) {
@@ -662,9 +662,15 @@ void read_cdat_data(struct cxl_port *port)
 	if (!buf)
 		goto err;
 
+	table_length = length;
+
 	rc = cxl_cdat_read_table(dev, doe_mb, buf, &length);
 	if (rc)
 		goto err;
+
+	if (table_length != length)
+		dev_warn(dev, "Malformed CDAT table length (%zu:%zu), discarding trailing data\n",
+			table_length, length);
 
 	if (cdat_checksum(buf->data, length))
 		goto err;
