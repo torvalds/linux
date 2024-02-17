@@ -474,7 +474,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_fill_forward_path	 = br_fill_forward_path,
 };
 
-static struct device_type br_type = {
+static const struct device_type br_type = {
 	.name	= "bridge",
 };
 
