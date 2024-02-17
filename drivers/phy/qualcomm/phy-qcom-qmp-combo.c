@@ -3566,10 +3566,6 @@ static int qmp_combo_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = drm_aux_bridge_register(dev);
-	if (ret)
-		return ret;
-
 	/* Check for legacy binding with child nodes. */
 	usb_np = of_get_child_by_name(dev->of_node, "usb3-phy");
 	if (usb_np) {
@@ -3586,6 +3582,10 @@ static int qmp_combo_probe(struct platform_device *pdev)
 
 		ret = qmp_combo_parse_dt(qmp);
 	}
+	if (ret)
+		goto err_node_put;
+
+	ret = drm_aux_bridge_register(dev);
 	if (ret)
 		goto err_node_put;
 
