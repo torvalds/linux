@@ -384,7 +384,7 @@ static struct framer_provider *framer_provider_of_lookup(const struct device_nod
 	return ERR_PTR(-EPROBE_DEFER);
 }
 
-static struct framer *framer_of_get_from_provider(struct of_phandle_args *args)
+static struct framer *framer_of_get_from_provider(const struct of_phandle_args *args)
 {
 	struct framer_provider *framer_provider;
 	struct framer *framer;
@@ -735,7 +735,8 @@ EXPORT_SYMBOL_GPL(devm_framer_create);
  * should provide a custom of_xlate function that reads the *args* and returns
  * the appropriate framer.
  */
-struct framer *framer_provider_simple_of_xlate(struct device *dev, struct of_phandle_args *args)
+struct framer *framer_provider_simple_of_xlate(struct device *dev,
+					       const struct of_phandle_args *args)
 {
 	struct class_dev_iter iter;
 	struct framer *framer;
@@ -768,7 +769,7 @@ EXPORT_SYMBOL_GPL(framer_provider_simple_of_xlate);
 struct framer_provider *
 __framer_provider_of_register(struct device *dev, struct module *owner,
 			      struct framer *(*of_xlate)(struct device *dev,
-							 struct of_phandle_args *args))
+							 const struct of_phandle_args *args))
 {
 	struct framer_provider *framer_provider;
 
@@ -830,7 +831,7 @@ static void devm_framer_provider_of_unregister(struct device *dev, void *res)
 struct framer_provider *
 __devm_framer_provider_of_register(struct device *dev, struct module *owner,
 				   struct framer *(*of_xlate)(struct device *dev,
-							      struct of_phandle_args *args))
+							      const struct of_phandle_args *args))
 {
 	struct framer_provider **ptr, *framer_provider;
 
