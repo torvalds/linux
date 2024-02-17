@@ -530,7 +530,8 @@ static void __bch2_write_index(struct bch_write_op *op)
 
 			bch_err_inum_offset_ratelimited(c,
 				insert->k.p.inode, insert->k.p.offset << 9,
-				"write error while doing btree update: %s",
+				"%s write error while doing btree update: %s",
+				op->flags & BCH_WRITE_MOVE ? "move" : "user",
 				bch2_err_str(ret));
 		}
 
@@ -1067,7 +1068,8 @@ do_write:
 	*_dst = dst;
 	return more;
 csum_err:
-	bch_err(c, "error verifying existing checksum while rewriting existing data (memory corruption?)");
+	bch_err(c, "%s writ error: error verifying existing checksum while rewriting existing data (memory corruption?)",
+		op->flags & BCH_WRITE_MOVE ? "move" : "user");
 	ret = -EIO;
 err:
 	if (to_wbio(dst)->bounce)
@@ -1169,7 +1171,8 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 
 			bch_err_inum_offset_ratelimited(c,
 				insert->k.p.inode, insert->k.p.offset << 9,
-				"write error while doing btree update: %s",
+				"%s write error while doing btree update: %s",
+				op->flags & BCH_WRITE_MOVE ? "move" : "user",
 				bch2_err_str(ret));
 		}
 
@@ -1449,7 +1452,9 @@ err:
 					bch_err_inum_offset_ratelimited(c,
 						op->pos.inode,
 						op->pos.offset << 9,
-						"%s(): error: %s", __func__, bch2_err_str(ret));
+						"%s(): %s error: %s", __func__,
+						op->flags & BCH_WRITE_MOVE ? "move" : "user",
+						bch2_err_str(ret));
 				op->error = ret;
 				break;
 			}
@@ -1573,7 +1578,8 @@ CLOSURE_CALLBACK(bch2_write)
 		bch_err_inum_offset_ratelimited(c,
 			op->pos.inode,
 			op->pos.offset << 9,
-			"misaligned write");
+			"%s write error: misaligned write",
+			op->flags & BCH_WRITE_MOVE ? "move" : "user");
 		op->error = -EIO;
 		goto err;
 	}
