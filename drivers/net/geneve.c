@@ -1142,7 +1142,7 @@ static const struct ethtool_ops geneve_ethtool_ops = {
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
-static struct device_type geneve_type = {
+static const struct device_type geneve_type = {
 	.name = "geneve",
 };
 
