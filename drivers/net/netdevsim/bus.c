@@ -129,7 +129,7 @@ static void nsim_bus_dev_release(struct device *dev)
 		complete(&nsim_bus_devs_released);
 }
 
-static struct device_type nsim_bus_dev_type = {
+static const struct device_type nsim_bus_dev_type = {
 	.groups = nsim_bus_dev_attr_groups,
 	.release = nsim_bus_dev_release,
 };
