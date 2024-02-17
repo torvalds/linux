@@ -33,7 +33,7 @@ struct btrfs_subpage_info {
 	unsigned int total_nr_bits;
 
 	/*
-	 * *_start indicates where the bitmap starts, the length is always
+	 * *_offset indicates where the bitmap starts, the length is always
 	 * @bitmap_size, which is calculated from PAGE_SIZE / sectorsize.
 	 */
 	unsigned int uptodate_offset;
@@ -41,6 +41,16 @@ struct btrfs_subpage_info {
 	unsigned int writeback_offset;
 	unsigned int ordered_offset;
 	unsigned int checked_offset;
+
+	/*
+	 * For locked bitmaps, normally it's subpage representation for folio
+	 * Locked flag, but metadata is different:
+	 *
+	 * - Metadata doesn't really lock the folio
+	 *   It's just to prevent page::private get cleared before the last
+	 *   end_page_read().
+	 */
+	unsigned int locked_offset;
 };
 
 /*
