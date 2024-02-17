@@ -26,6 +26,7 @@
 //! Creating a recursive data structure:
 //!
 //! ```
+//! ##[allow(dead_code)]
 //! #[derive(Debug)]
 //! enum List<T> {
 //!     Cons(T, Box<List<T>>),
@@ -194,8 +195,7 @@ mod thin;
 #[fundamental]
 #[stable(feature = "rust1", since = "1.0.0")]
 // The declaration of the `Box` struct must be kept in sync with the
-// `alloc::alloc::box_free` function or ICEs will happen. See the comment
-// on `box_free` for more details.
+// compiler or ICEs will happen.
 pub struct Box<
     T: ?Sized,
     #[unstable(feature = "allocator_api", issue = "32838")] A: Allocator = Global,

@@ -16,7 +16,6 @@
 #![feature(coerce_unsized)]
 #![feature(dispatch_from_dyn)]
 #![feature(new_uninit)]
-#![feature(offset_of)]
 #![feature(receiver_trait)]
 #![feature(unsize)]
 
