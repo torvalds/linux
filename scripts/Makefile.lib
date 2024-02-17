@@ -368,7 +368,7 @@ DTC_FLAGS += -Wnode_name_chars_strict \
 	-Wunique_unit_address
 endif
 
-DTC_FLAGS += $(DTC_FLAGS_$(basetarget))
+DTC_FLAGS += $(DTC_FLAGS_$(target-stem))
 
 # Set -@ if the target is a base DTB that overlay is applied onto
 DTC_FLAGS += $(if $(filter $(patsubst $(obj)/%,%,$@), $(base-dtb-y)), -@)
