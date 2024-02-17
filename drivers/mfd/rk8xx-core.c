@@ -43,8 +43,8 @@ static struct resource rk806_pwrkey_resources[] = {
 };
 
 static const struct resource rk817_pwrkey_resources[] = {
-	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 	DEFINE_RES_IRQ(RK817_IRQ_PWRON_FALL),
+	DEFINE_RES_IRQ(RK817_IRQ_PWRON_RISE),
 };
 
 static const struct resource rk817_charger_resources[] = {
