@@ -168,6 +168,7 @@ static int ufs_qcom_config_shared_ice(struct ufs_qcom_host *host);
 static int ufs_qcom_ber_threshold_set(const char *val, const struct kernel_param *kp);
 static int ufs_qcom_ber_duration_set(const char *val, const struct kernel_param *kp);
 static void ufs_qcom_ber_mon_init(struct ufs_hba *hba);
+static void ufs_qcom_populate_available_cpus(struct ufs_hba *hba);
 
 static s64 idle_time[UFS_QCOM_BER_MODE_MAX];
 static ktime_t idle_start;
@@ -1535,6 +1536,51 @@ static int ufs_qcom_init_cpu_minfreq_req(struct ufs_qcom_host *host)
 	}
 
 	return ret;
+}
+
+/**
+ * ufs_qcom_populate_available_cpus - Populate all the available cpu masks -
+ * Silver, gold and gold prime.
+ * @hba: per adapter instance
+ */
+static void ufs_qcom_populate_available_cpus(struct ufs_hba *hba)
+{
+	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
+	int cid_cpu[MAX_NUM_CLUSTERS] = {-1, -1, -1, -1};
+	int cid = -1;
+	int prev_cid = -1;
+	int cpu = 0;
+	/*
+	 * Due to Logical contiguous CPU numbering, one to one mapping
+	 * between physical and logical cpu is no more applicable.
+	 * Hence we are not passing cpu mask from the device tree.
+	 * Hence populate the cpu mask dynamically as below.
+	 */
+	for_each_cpu(cpu, cpu_possible_mask) {
+		cid = topology_cluster_id(cpu);
+		if (cid != prev_cid) {
+			cid_cpu[cid] = cpu;
+			prev_cid = cid;
+		}
+	}
+
+	if (cid_cpu[CLUSTER_0] != -1) {
+		host->cluster_mask[CLUSTER_0].bits[0] =
+			topology_cluster_cpumask(cid_cpu[CLUSTER_0])->bits[0];
+	}
+	if (cid_cpu[CLUSTER_1] != -1) {
+		host->cluster_mask[CLUSTER_1].bits[0] =
+			topology_cluster_cpumask(cid_cpu[CLUSTER_1])->bits[0];
+	}
+	if (cid_cpu[CLUSTER_2] != -1) {
+		host->cluster_mask[CLUSTER_2].bits[0] =
+			topology_cluster_cpumask(cid_cpu[CLUSTER_2])->bits[0];
+	}
+
+	if (cid_cpu[CLUSTER_3] != -1) {
+		host->cluster_mask[CLUSTER_3].bits[0] =
+			topology_cluster_cpumask(cid_cpu[CLUSTER_3])->bits[0];
+	}
 }
 
 static void ufs_qcom_set_affinity_hint(struct ufs_hba *hba, bool prime)
@@ -3848,6 +3894,7 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 
 	ufs_qcom_save_host_ptr(hba);
 
+	ufs_qcom_populate_available_cpus(hba);
 	ufs_qcom_qos_init(hba);
 	ufs_qcom_parse_irq_affinity(hba);
 	ufs_qcom_ber_mon_init(hba);

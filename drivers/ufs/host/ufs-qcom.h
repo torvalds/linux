@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef UFS_QCOM_H_
@@ -44,6 +44,15 @@ enum ufs_qcom_ber_mode {
 	UFS_QCOM_BER_MODE_G1_G4,
 	UFS_QCOM_BER_MODE_G5,
 	UFS_QCOM_BER_MODE_MAX,
+};
+
+/* CPU Clusters Info */
+enum cpu_cluster_info {
+	CLUSTER_0,
+	CLUSTER_1,
+	CLUSTER_2,
+	CLUSTER_3,
+	MAX_NUM_CLUSTERS,
 };
 
 #define UFS_QCOM_LIMIT_NUM_LANES_RX	2
@@ -613,6 +622,7 @@ struct ufs_qcom_host {
 	cpumask_t perf_mask;
 	cpumask_t def_mask;
 	cpumask_t esi_affinity_mask;
+	cpumask_t cluster_mask[MAX_NUM_CLUSTERS];
 	bool disable_wb_support;
 	struct ufs_qcom_ber_hist ber_hist[UFS_QCOM_BER_MODE_MAX];
 	struct list_head regs_list_head;
