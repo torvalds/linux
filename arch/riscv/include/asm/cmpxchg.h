@@ -8,7 +8,6 @@
 
 #include <linux/bug.h>
 
-#include <asm/barrier.h>
 #include <asm/fence.h>
 
 #define __xchg_relaxed(ptr, new, size)					\
