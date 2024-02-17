@@ -13,7 +13,6 @@
 #include <strlist.h>
 #include <intlist.h>
 #include "rwsem.h"
-#include "event.h"
 #include "callchain.h"
 #include <internal/rc_check.h>
 
