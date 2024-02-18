@@ -61,6 +61,10 @@ enum vdpa_attr {
 	VDPA_ATTR_DEV_BLK_CFG_BLK_SIZE,		/* u32 */
 	VDPA_ATTR_DEV_BLK_CFG_SEG_MAX,		/* u32 */
 	VDPA_ATTR_DEV_BLK_CFG_NUM_QUEUES,	/* u16 */
+	VDPA_ATTR_DEV_BLK_CFG_PHY_BLK_EXP,	/* u8 */
+	VDPA_ATTR_DEV_BLK_CFG_ALIGN_OFFSET,	/* u8 */
+	VDPA_ATTR_DEV_BLK_CFG_MIN_IO_SIZE,	/* u16 */
+	VDPA_ATTR_DEV_BLK_CFG_OPT_IO_SIZE,	/* u32 */
 
 	/* new attributes must be added above here */
 	VDPA_ATTR_MAX,

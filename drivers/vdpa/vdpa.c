@@ -1012,6 +1012,35 @@ static int vdpa_dev_blk_mq_config_fill(struct sk_buff *msg, u64 features,
 	return nla_put_u16(msg, VDPA_ATTR_DEV_BLK_CFG_NUM_QUEUES, val_u16);
 }
 
+static int vdpa_dev_blk_topology_config_fill(struct sk_buff *msg, u64 features,
+				       const struct virtio_blk_config *config)
+{
+	u16 min_io_size;
+	u32 opt_io_size;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_TOPOLOGY)) == 0)
+		return 0;
+
+	min_io_size = __virtio16_to_cpu(true, config->min_io_size);
+	opt_io_size = __virtio32_to_cpu(true, config->opt_io_size);
+
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_PHY_BLK_EXP,
+	    config->physical_block_exp))
+		return -EMSGSIZE;
+
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_ALIGN_OFFSET,
+	    config->alignment_offset))
+		return -EMSGSIZE;
+
+	if (nla_put_u16(msg, VDPA_ATTR_DEV_BLK_CFG_MIN_IO_SIZE, min_io_size))
+		return -EMSGSIZE;
+
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_OPT_IO_SIZE, opt_io_size))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 				    struct sk_buff *msg)
 {
@@ -1039,6 +1068,9 @@ static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 		return -EMSGSIZE;
 
 	if (vdpa_dev_blk_mq_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_topology_config_fill(msg, features_device, &config))
 		return -EMSGSIZE;
 
 	return 0;
