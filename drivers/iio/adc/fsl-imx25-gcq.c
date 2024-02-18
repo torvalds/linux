@@ -282,6 +282,17 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 	return 0;
 }
 
+static void mx25_gcq_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
+/* Custom handling needed as this driver doesn't own the clock */
+static void mx25_gcq_clk_disable(void *clk)
+{
+	clk_disable_unprepare(clk);
+}
+
 static int mx25_gcq_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
@@ -303,10 +314,9 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 		return PTR_ERR(mem);
 
 	priv->regs = devm_regmap_init_mmio(dev, mem, &mx25_gcq_regconfig);
-	if (IS_ERR(priv->regs)) {
-		dev_err(dev, "Failed to initialize regmap\n");
-		return PTR_ERR(priv->regs);
-	}
+	if (IS_ERR(priv->regs))
+		return dev_err_probe(dev, PTR_ERR(priv->regs),
+				     "Failed to initialize regmap\n");
 
 	mutex_init(&priv->lock);
 
@@ -322,69 +332,44 @@ static int mx25_gcq_probe(struct platform_device *pdev)
 
 		ret = regulator_enable(priv->vref[i]);
 		if (ret)
-			goto err_regulator_disable;
+			return ret;
+
+		ret = devm_add_action_or_reset(dev, mx25_gcq_reg_disable,
+					       priv->vref[i]);
+		if (ret)
+			return ret;
 	}
 
 	priv->clk = tsadc->clk;
 	ret = clk_prepare_enable(priv->clk);
-	if (ret) {
-		dev_err(dev, "Failed to enable clock\n");
-		goto err_vref_disable;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable clock\n");
+
+	ret = devm_add_action_or_reset(dev, mx25_gcq_clk_disable,
+				       priv->clk);
+	if (ret)
+		return ret;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
-		goto err_clk_unprepare;
+		return ret;
 
 	priv->irq = ret;
-	ret = request_irq(priv->irq, mx25_gcq_irq, 0, pdev->name, priv);
-	if (ret) {
-		dev_err(dev, "Failed requesting IRQ\n");
-		goto err_clk_unprepare;
-	}
+	ret = devm_request_irq(dev, priv->irq, mx25_gcq_irq, 0, pdev->name,
+			       priv);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed requesting IRQ\n");
 
 	indio_dev->channels = mx25_gcq_channels;
 	indio_dev->num_channels = ARRAY_SIZE(mx25_gcq_channels);
 	indio_dev->info = &mx25_gcq_iio_info;
 	indio_dev->name = driver_name;
 
-	ret = iio_device_register(indio_dev);
-	if (ret) {
-		dev_err(dev, "Failed to register iio device\n");
-		goto err_irq_free;
-	}
-
-	platform_set_drvdata(pdev, indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register iio device\n");
 
 	return 0;
-
-err_irq_free:
-	free_irq(priv->irq, priv);
-err_clk_unprepare:
-	clk_disable_unprepare(priv->clk);
-err_vref_disable:
-	i = 4;
-err_regulator_disable:
-	for (; i-- > 0;) {
-		if (priv->vref[i])
-			regulator_disable(priv->vref[i]);
-	}
-	return ret;
-}
-
-static void mx25_gcq_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct mx25_gcq_priv *priv = iio_priv(indio_dev);
-	int i;
-
-	iio_device_unregister(indio_dev);
-	free_irq(priv->irq, priv);
-	clk_disable_unprepare(priv->clk);
-	for (i = 4; i-- > 0;) {
-		if (priv->vref[i])
-			regulator_disable(priv->vref[i]);
-	}
 }
 
 static const struct of_device_id mx25_gcq_ids[] = {
@@ -399,7 +384,6 @@ static struct platform_driver mx25_gcq_driver = {
 		.of_match_table = mx25_gcq_ids,
 	},
 	.probe		= mx25_gcq_probe,
-	.remove_new	= mx25_gcq_remove,
 };
 module_platform_driver(mx25_gcq_driver);
 
