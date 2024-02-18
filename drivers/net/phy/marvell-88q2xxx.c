@@ -14,7 +14,7 @@
 #define MDIO_MMD_AN_MV_STAT_MS_CONF_FAULT	0x8000
 
 #define MDIO_MMD_PCS_MV_100BT1_STAT1			33032
-#define MDIO_MMD_PCS_MV_100BT1_STAT1_IDLE_ERROR	0x00FF
+#define MDIO_MMD_PCS_MV_100BT1_STAT1_IDLE_ERROR		0x00ff
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_JABBER		0x0100
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_LINK		0x0200
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_LOCAL_RX		0x1000
@@ -26,6 +26,8 @@
 #define MDIO_MMD_PCS_MV_100BT1_STAT2_POL	0x0002
 #define MDIO_MMD_PCS_MV_100BT1_STAT2_LINK	0x0004
 #define MDIO_MMD_PCS_MV_100BT1_STAT2_ANGE	0x0008
+
+#define MDIO_MMD_PCS_MV_RX_STAT			33328
 
 static int mv88q2xxx_soft_reset(struct phy_device *phydev)
 {
@@ -63,7 +65,8 @@ static int mv88q2xxx_read_link_gbit(struct phy_device *phydev)
 		 * the link was already down.
 		 */
 		if (!phy_polling_mode(phydev) || !phydev->link) {
-			ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_1000BT1_STAT);
+			ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+					   MDIO_PCS_1000BT1_STAT);
 			if (ret < 0)
 				return ret;
 			else if (ret & MDIO_PCS_1000BT1_STAT_LINK)
@@ -71,7 +74,8 @@ static int mv88q2xxx_read_link_gbit(struct phy_device *phydev)
 		}
 
 		if (!link) {
-			ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_PCS_1000BT1_STAT);
+			ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+					   MDIO_PCS_1000BT1_STAT);
 			if (ret < 0)
 				return ret;
 			else if (ret & MDIO_PCS_1000BT1_STAT_LINK)
@@ -95,7 +99,8 @@ static int mv88q2xxx_read_link_100m(struct phy_device *phydev)
 	 * we always read the realtime status.
 	 */
 	if (!phy_polling_mode(phydev) || !phydev->link) {
-		ret = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_100BT1_STAT1);
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				   MDIO_MMD_PCS_MV_100BT1_STAT1);
 		if (ret < 0)
 			return ret;
 		else if (ret & MDIO_MMD_PCS_MV_100BT1_STAT1_LINK)
@@ -200,7 +205,7 @@ static int mv88q2xxx_config_init(struct phy_device *phydev)
 	return mv88q2xxx_config_aneg(phydev);
 }
 
-static int mv88q2xxxx_get_sqi(struct phy_device *phydev)
+static int mv88q2xxx_get_sqi(struct phy_device *phydev)
 {
 	int ret;
 
@@ -208,7 +213,8 @@ static int mv88q2xxxx_get_sqi(struct phy_device *phydev)
 		/* Read the SQI from the vendor specific receiver status
 		 * register
 		 */
-		ret = phy_read_mmd(phydev, MDIO_MMD_PCS, 0x8230);
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				   MDIO_MMD_PCS_MV_RX_STAT);
 		if (ret < 0)
 			return ret;
 
@@ -218,7 +224,7 @@ static int mv88q2xxxx_get_sqi(struct phy_device *phydev)
 		 * but can be found in the Software Initialization Guide. Only
 		 * revisions >= A0 are supported.
 		 */
-		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS, 0xFC5D, 0x00FF, 0x00AC);
+		ret = phy_modify_mmd(phydev, MDIO_MMD_PCS, 0xfc5d, 0xff, 0xac);
 		if (ret < 0)
 			return ret;
 
@@ -227,10 +233,10 @@ static int mv88q2xxxx_get_sqi(struct phy_device *phydev)
 			return ret;
 	}
 
-	return ret & 0x0F;
+	return ret & 0x0f;
 }
 
-static int mv88q2xxxx_get_sqi_max(struct phy_device *phydev)
+static int mv88q2xxx_get_sqi_max(struct phy_device *phydev)
 {
 	return 15;
 }
@@ -246,8 +252,8 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.read_status		= mv88q2xxx_read_status,
 		.soft_reset		= mv88q2xxx_soft_reset,
 		.set_loopback		= genphy_c45_loopback,
-		.get_sqi		= mv88q2xxxx_get_sqi,
-		.get_sqi_max		= mv88q2xxxx_get_sqi_max,
+		.get_sqi		= mv88q2xxx_get_sqi,
+		.get_sqi_max		= mv88q2xxx_get_sqi_max,
 	},
 };
 
