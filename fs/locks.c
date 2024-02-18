@@ -812,7 +812,7 @@ new_blocker:
 	list_add_tail(&waiter->flc_blocked_member,
 		      &blocker->flc_blocked_requests);
 
-	if ((blocker->flc_flags & (FL_POSIX|FL_OFDLCK)) == (FL_POSIX|FL_OFDLCK))
+	if ((blocker->flc_flags & (FL_POSIX|FL_OFDLCK)) == FL_POSIX)
 		locks_insert_global_blocked(waiter);
 
 	/* The requests in waiter->flc_blocked are known to conflict with
