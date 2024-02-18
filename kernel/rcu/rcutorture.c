@@ -2832,7 +2832,8 @@ static void rcu_torture_fwd_prog_cr(struct rcu_fwd *rfp)
 
 	if (!torture_must_stop() && !READ_ONCE(rcu_fwd_emergency_stop) &&
 	    !shutdown_time_arrived()) {
-		WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED);
+		if (WARN_ON(n_max_gps < MIN_FWD_CBS_LAUNDERED) && cur_ops->gp_kthread_dbg)
+			cur_ops->gp_kthread_dbg();
 		pr_alert("%s Duration %lu barrier: %lu pending %ld n_launders: %ld n_launders_sa: %ld n_max_gps: %ld n_max_cbs: %ld cver %ld gps %ld #online %u\n",
 			 __func__,
 			 stoppedat - rfp->rcu_fwd_startat, jiffies - stoppedat,
