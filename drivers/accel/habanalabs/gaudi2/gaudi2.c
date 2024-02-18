@@ -3312,10 +3312,8 @@ static int gaudi2_late_init(struct hl_device *hdev)
 
 	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_ENABLE_PCI_ACCESS,
 					gaudi2->virt_msix_db_dma_addr);
-	if (rc) {
-		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
+	if (rc)
 		return rc;
-	}
 
 	rc = gaudi2_fetch_psoc_frequency(hdev);
 	if (rc) {
@@ -6467,13 +6465,7 @@ skip_reset:
 
 static int gaudi2_suspend(struct hl_device *hdev)
 {
-	int rc;
-
-	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0);
-	if (rc)
-		dev_err(hdev->dev, "Failed to disable PCI access from CPU\n");
-
-	return rc;
+	return hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0);
 }
 
 static int gaudi2_resume(struct hl_device *hdev)

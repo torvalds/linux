@@ -1498,10 +1498,8 @@ static void send_disable_pci_access(struct hl_device *hdev, u32 flags)
 		 * of heartbeat, the device CPU is marked as disable
 		 * so this message won't be sent
 		 */
-		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0)) {
-			dev_warn(hdev->dev, "Failed to disable FW's PCI access\n");
+		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0))
 			return;
-		}
 
 		/* verify that last EQs are handled before disabled is set */
 		if (hdev->cpu_queues_enable)
