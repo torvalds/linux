@@ -177,6 +177,8 @@ static int init_stream(struct snd_oxfw *oxfw, struct amdtp_stream *stream)
 			flags |= CIP_JUMBO_PAYLOAD;
 		if (oxfw->quirks & SND_OXFW_QUIRK_WRONG_DBS)
 			flags |= CIP_WRONG_DBS;
+		if (oxfw->quirks & SND_OXFW_QUIRK_DBC_IS_TOTAL_PAYLOAD_QUADLETS)
+			flags |= CIP_DBC_IS_END_EVENT | CIP_DBC_IS_PAYLOAD_QUADLETS;
 	} else {
 		conn = &oxfw->in_conn;
 		c_dir = CMP_INPUT;

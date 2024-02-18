@@ -54,6 +54,9 @@ enum snd_oxfw_quirk {
 	SND_OXFW_QUIRK_VOLUNTARY_RECOVERY = 0x20,
 	// Miglia Harmony Audio does not support AV/C Stream Format Information command.
 	SND_OXFW_QUIRK_STREAM_FORMAT_INFO_UNSUPPORTED = 0x40,
+	// Miglia Harmony Audio transmits CIP in which the value of dbc field expresses the number
+	// of accumulated payload quadlets including the packet.
+	SND_OXFW_QUIRK_DBC_IS_TOTAL_PAYLOAD_QUADLETS = 0x80,
 };
 
 /* This is an arbitrary number for convinience. */
