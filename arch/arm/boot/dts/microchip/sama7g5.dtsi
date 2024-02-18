@@ -714,7 +714,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(6)>,
-					<&dma1 AT91_XDMAC_DT_PERID(5)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(5)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -740,7 +740,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 39>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(8)>,
-					<&dma0 AT91_XDMAC_DT_PERID(7)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(7)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
@@ -763,7 +763,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 41>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(12)>,
-					<&dma1 AT91_XDMAC_DT_PERID(11)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(11)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -807,7 +807,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 42>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(14)>,
-					<&dma1 AT91_XDMAC_DT_PERID(13)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(13)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -833,7 +833,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 45>;
 				clock-names = "usart";
 				dmas = <&dma1 AT91_XDMAC_DT_PERID(20)>,
-					<&dma1 AT91_XDMAC_DT_PERID(19)>;
+				       <&dma1 AT91_XDMAC_DT_PERID(19)>;
 				dma-names = "tx", "rx";
 				atmel,use-dma-rx;
 				atmel,use-dma-tx;
@@ -928,7 +928,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 46>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(22)>,
-					<&dma0 AT91_XDMAC_DT_PERID(21)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(21)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
@@ -952,7 +952,7 @@
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 47>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(24)>,
-					<&dma0 AT91_XDMAC_DT_PERID(23)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(23)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
@@ -1001,7 +1001,7 @@
 				#size-cells = <0>;
 				atmel,fifo-size = <32>;
 				dmas = <&dma0 AT91_XDMAC_DT_PERID(28)>,
-					    <&dma0 AT91_XDMAC_DT_PERID(27)>;
+				       <&dma0 AT91_XDMAC_DT_PERID(27)>;
 				dma-names = "tx", "rx";
 				status = "disabled";
 			};
