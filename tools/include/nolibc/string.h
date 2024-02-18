@@ -123,7 +123,7 @@ char *strcpy(char *dst, const char *src)
  * thus itself, hence the asm() statement below that's meant to disable this
  * confusing practice.
  */
-static __attribute__((unused))
+__attribute__((weak,unused,section(".text.nolibc_strlen")))
 size_t strlen(const char *str)
 {
 	size_t len;
