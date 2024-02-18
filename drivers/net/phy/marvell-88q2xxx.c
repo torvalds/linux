@@ -365,7 +365,7 @@ static int mv88q2xxx_config_aneg(struct phy_device *phydev)
 	if (ret)
 		return ret;
 
-	return mv88q2xxx_soft_reset(phydev);
+	return phydev->drv->soft_reset(phydev);
 }
 
 static int mv88q2xxx_config_init(struct phy_device *phydev)
