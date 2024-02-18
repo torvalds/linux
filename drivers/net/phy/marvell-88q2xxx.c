@@ -24,6 +24,19 @@
 #define MDIO_MMD_AN_MV_STAT2_100BT1		0x2000
 #define MDIO_MMD_AN_MV_STAT2_1000BT1		0x4000
 
+#define MDIO_MMD_PCS_MV_INT_EN			32784
+#define MDIO_MMD_PCS_MV_INT_EN_LINK_UP		0x0040
+#define MDIO_MMD_PCS_MV_INT_EN_LINK_DOWN	0x0080
+#define MDIO_MMD_PCS_MV_INT_EN_100BT1		0x1000
+
+#define MDIO_MMD_PCS_MV_GPIO_INT_STAT			32785
+#define MDIO_MMD_PCS_MV_GPIO_INT_STAT_LINK_UP		0x0040
+#define MDIO_MMD_PCS_MV_GPIO_INT_STAT_LINK_DOWN		0x0080
+#define MDIO_MMD_PCS_MV_GPIO_INT_STAT_100BT1_GEN	0x1000
+
+#define MDIO_MMD_PCS_MV_GPIO_INT_CTRL			32787
+#define MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS		0x0800
+
 #define MDIO_MMD_PCS_MV_100BT1_STAT1			33032
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_IDLE_ERROR		0x00ff
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_JABBER		0x0100
@@ -37,6 +50,12 @@
 #define MDIO_MMD_PCS_MV_100BT1_STAT2_POL	0x0002
 #define MDIO_MMD_PCS_MV_100BT1_STAT2_LINK	0x0004
 #define MDIO_MMD_PCS_MV_100BT1_STAT2_ANGE	0x0008
+
+#define MDIO_MMD_PCS_MV_100BT1_INT_EN			33042
+#define MDIO_MMD_PCS_MV_100BT1_INT_EN_LINKEVENT		0x0400
+
+#define MDIO_MMD_PCS_MV_COPPER_INT_STAT			33043
+#define MDIO_MMD_PCS_MV_COPPER_INT_STAT_LINKEVENT	0x0400
 
 #define MDIO_MMD_PCS_MV_RX_STAT			33328
 
@@ -99,13 +118,15 @@ static int mv88q2xxx_read_link_gbit(struct phy_device *phydev)
 
 	/* Read vendor specific Auto-Negotiation status register to get local
 	 * and remote receiver status according to software initialization
-	 * guide.
+	 * guide. However, when not in polling mode the local and remote
+	 * receiver status are not evaluated due to the Marvell 88Q2xxx APIs.
 	 */
 	ret = phy_read_mmd(phydev, MDIO_MMD_AN, MDIO_MMD_AN_MV_STAT);
 	if (ret < 0) {
 		return ret;
-	} else if ((ret & MDIO_MMD_AN_MV_STAT_LOCAL_RX) &&
-		   (ret & MDIO_MMD_AN_MV_STAT_REMOTE_RX)) {
+	} else if (((ret & MDIO_MMD_AN_MV_STAT_LOCAL_RX) &&
+		   (ret & MDIO_MMD_AN_MV_STAT_REMOTE_RX)) ||
+		   !phy_polling_mode(phydev)) {
 		/* The link state is latched low so that momentary link
 		 * drops can be detected. Do not double-read the status
 		 * in polling mode to detect such short link drops except
@@ -145,7 +166,18 @@ static int mv88q2xxx_read_link_100m(struct phy_device *phydev)
 	 * the link was already down. In case we are not polling,
 	 * we always read the realtime status.
 	 */
-	if (!phy_polling_mode(phydev) || !phydev->link) {
+	if (!phy_polling_mode(phydev)) {
+		phydev->link = false;
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				   MDIO_MMD_PCS_MV_100BT1_STAT2);
+		if (ret < 0)
+			return ret;
+
+		if (ret & MDIO_MMD_PCS_MV_100BT1_STAT2_LINK)
+			phydev->link = true;
+
+		return 0;
+	} else if (!phydev->link) {
 		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
 				   MDIO_MMD_PCS_MV_100BT1_STAT1);
 		if (ret < 0)
@@ -356,6 +388,79 @@ static int mv88q2xxx_get_sqi_max(struct phy_device *phydev)
 	return 15;
 }
 
+static int mv88q2xxx_config_intr(struct phy_device *phydev)
+{
+	int ret;
+
+	if (phydev->interrupts == PHY_INTERRUPT_ENABLED) {
+		/* Enable interrupts for 1000BASE-T1 link up and down events
+		 * and enable general interrupts for 100BASE-T1.
+		 */
+		ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
+				    MDIO_MMD_PCS_MV_INT_EN,
+				    MDIO_MMD_PCS_MV_INT_EN_LINK_UP |
+				    MDIO_MMD_PCS_MV_INT_EN_LINK_DOWN |
+				    MDIO_MMD_PCS_MV_INT_EN_100BT1);
+		if (ret < 0)
+			return ret;
+
+		/* Enable interrupts for 100BASE-T1 link events */
+		return phy_write_mmd(phydev, MDIO_MMD_PCS,
+				     MDIO_MMD_PCS_MV_100BT1_INT_EN,
+				     MDIO_MMD_PCS_MV_100BT1_INT_EN_LINKEVENT);
+	} else {
+		ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
+				    MDIO_MMD_PCS_MV_INT_EN, 0);
+		if (ret < 0)
+			return ret;
+
+		return phy_write_mmd(phydev, MDIO_MMD_PCS,
+				     MDIO_MMD_PCS_MV_100BT1_INT_EN, 0);
+	}
+}
+
+static irqreturn_t mv88q2xxx_handle_interrupt(struct phy_device *phydev)
+{
+	bool trigger_machine = false;
+	int irq;
+
+	/* Before we can acknowledge the 100BT1 general interrupt, that is in
+	 * the 1000BT1 interrupt status register, we have to acknowledge any
+	 * interrupts that are related to it. Therefore we read first the 100BT1
+	 * interrupt status register, followed by reading the 1000BT1 interrupt
+	 * status register.
+	 */
+
+	irq = phy_read_mmd(phydev, MDIO_MMD_PCS,
+			   MDIO_MMD_PCS_MV_COPPER_INT_STAT);
+	if (irq < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	/* Check link status for 100BT1 */
+	if (irq & MDIO_MMD_PCS_MV_COPPER_INT_STAT_LINKEVENT)
+		trigger_machine = true;
+
+	irq = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_GPIO_INT_STAT);
+	if (irq < 0) {
+		phy_error(phydev);
+		return IRQ_NONE;
+	}
+
+	/* Check link status for 1000BT1 */
+	if ((irq & MDIO_MMD_PCS_MV_GPIO_INT_STAT_LINK_UP) ||
+	    (irq & MDIO_MMD_PCS_MV_GPIO_INT_STAT_LINK_DOWN))
+		trigger_machine = true;
+
+	if (!trigger_machine)
+		return IRQ_NONE;
+
+	phy_trigger_machine(phydev);
+
+	return IRQ_HANDLED;
+}
+
 static int mv88q222x_soft_reset(struct phy_device *phydev)
 {
 	int ret;
@@ -422,6 +527,14 @@ static int mv88q222x_revb0_config_init(struct phy_device *phydev)
 	 */
 	phydev->pma_extable = MDIO_PMA_EXTABLE_BT1;
 
+	/* Configure interrupt with default settings, output is driven low for
+	 * active interrupt and high for inactive.
+	 */
+	if (phy_interrupt_is_valid(phydev))
+		return phy_set_bits_mmd(phydev, MDIO_MMD_PCS,
+					MDIO_MMD_PCS_MV_GPIO_INT_CTRL,
+					MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS);
+
 	return 0;
 }
 
@@ -448,6 +561,8 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.config_init		= mv88q222x_revb0_config_init,
 		.read_status		= mv88q2xxx_read_status,
 		.soft_reset		= mv88q222x_soft_reset,
+		.config_intr		= mv88q2xxx_config_intr,
+		.handle_interrupt	= mv88q2xxx_handle_interrupt,
 		.set_loopback		= genphy_c45_loopback,
 		.get_sqi		= mv88q2xxx_get_sqi,
 		.get_sqi_max		= mv88q2xxx_get_sqi_max,
