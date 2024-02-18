@@ -843,7 +843,6 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 static int gfx_v9_4_3_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id, xcc_id, num_xcc;
-	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.mec.num_mec = 2;
@@ -912,8 +911,7 @@ static int gfx_v9_4_3_sw_init(void *handle)
 			return r;
 		}
 
-		kiq = &adev->gfx.kiq[xcc_id];
-		r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq, xcc_id);
+		r = amdgpu_gfx_kiq_init_ring(adev, xcc_id);
 		if (r)
 			return r;
 

@@ -1997,8 +1997,8 @@ static int gfx_v9_0_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 static int gfx_v9_0_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id;
+	int xcc_id = 0;
 	struct amdgpu_ring *ring;
-	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	unsigned int hw_prio;
 
@@ -2151,8 +2151,7 @@ static int gfx_v9_0_sw_init(void *handle)
 		return r;
 	}
 
-	kiq = &adev->gfx.kiq[0];
-	r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq, 0);
+	r = amdgpu_gfx_kiq_init_ring(adev, xcc_id);
 	if (r)
 		return r;
 
