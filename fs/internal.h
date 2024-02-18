@@ -310,3 +310,6 @@ ssize_t __kernel_write_iter(struct file *file, struct iov_iter *from, loff_t *po
 struct mnt_idmap *alloc_mnt_idmap(struct user_namespace *mnt_userns);
 struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
 void mnt_idmap_put(struct mnt_idmap *idmap);
+int path_from_stashed(struct dentry **stashed, unsigned long ino,
+		      struct vfsmount *mnt, const struct file_operations *fops,
+		      void *data, struct path *path);

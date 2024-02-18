@@ -1973,3 +1973,97 @@ struct timespec64 simple_inode_init_ts(struct inode *inode)
 	return ts;
 }
 EXPORT_SYMBOL(simple_inode_init_ts);
+
+static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
+{
+	struct dentry *dentry;
+
+	guard(rcu)();
+	dentry = READ_ONCE(stashed);
+	if (!dentry)
+		return NULL;
+	if (!lockref_get_not_dead(&dentry->d_lockref))
+		return NULL;
+	return dentry;
+}
+
+static struct dentry *stash_dentry(struct dentry **stashed, unsigned long ino,
+				   struct super_block *sb,
+				   const struct file_operations *fops,
+				   void *data)
+{
+	struct dentry *dentry;
+	struct inode *inode;
+
+	dentry = d_alloc_anon(sb);
+	if (!dentry)
+		return ERR_PTR(-ENOMEM);
+
+	inode = new_inode_pseudo(sb);
+	if (!inode) {
+		dput(dentry);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	inode->i_ino = ino;
+	inode->i_flags |= S_IMMUTABLE;
+	inode->i_mode = S_IFREG | S_IRUGO;
+	inode->i_fop = fops;
+	inode->i_private = data;
+	simple_inode_init_ts(inode);
+
+	/* @data is now owned by the fs */
+	d_instantiate(dentry, inode);
+
+	if (cmpxchg(stashed, NULL, dentry)) {
+		d_delete(dentry); /* make sure ->d_prune() does nothing */
+		dput(dentry);
+		cpu_relax();
+		return ERR_PTR(-EAGAIN);
+	}
+
+	return dentry;
+}
+
+/**
+ * path_from_stashed - create path from stashed or new dentry
+ * @stashed:    where to retrieve or stash dentry
+ * @ino:        inode number to use
+ * @mnt:        mnt of the filesystems to use
+ * @fops:       file operations to use
+ * @data:       data to store in inode->i_private
+ * @path:       path to create
+ *
+ * The function tries to retrieve a stashed dentry from @stashed. If the dentry
+ * is still valid then it will be reused. If the dentry isn't able the function
+ * will allocate a new dentry and inode. It will then try to update @stashed
+ * with the newly added dentry. If it fails -EAGAIN is returned and the caller
+ * my retry.
+ *
+ * Special-purpose helper for nsfs and pidfs.
+ *
+ * Return: If 0 or an error is returned the caller can be sure that @data must
+ *         be cleaned up. If 1 or -EAGAIN is returned @data is owned by the
+ *         filesystem.
+ */
+int path_from_stashed(struct dentry **stashed, unsigned long ino,
+		      struct vfsmount *mnt, const struct file_operations *fops,
+		      void *data, struct path *path)
+{
+	struct dentry *dentry;
+	int ret = 0;
+
+	dentry = get_stashed_dentry(*stashed);
+	if (dentry)
+		goto out_path;
+
+	dentry = stash_dentry(stashed, ino, mnt->mnt_sb, fops, data);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	ret = 1;
+
+out_path:
+	path->dentry = dentry;
+	path->mnt = mntget(mnt);
+	return ret;
+}
