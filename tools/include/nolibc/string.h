@@ -219,16 +219,18 @@ static __attribute__((unused))
 size_t strlcpy(char *dst, const char *src, size_t size)
 {
 	size_t len;
-	char c;
 
-	for (len = 0;;) {
-		c = src[len];
-		if (len < size)
-			dst[len] = c;
-		if (!c)
-			break;
-		len++;
+	for (len = 0; len < size; len++) {
+		dst[len] = src[len];
+		if (!dst[len])
+			return len;
 	}
+	if (size)
+		dst[size-1] = '\0';
+
+	while (src[len])
+		len++;
+
 	return len;
 }
 
