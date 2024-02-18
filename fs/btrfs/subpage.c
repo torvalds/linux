@@ -864,6 +864,7 @@ out:
  */
 void btrfs_folio_end_all_writers(const struct btrfs_fs_info *fs_info, struct folio *folio)
 {
+	struct btrfs_subpage *subpage = folio_get_private(folio);
 	u64 folio_start = folio_pos(folio);
 	u64 cur = folio_start;
 
@@ -873,6 +874,11 @@ void btrfs_folio_end_all_writers(const struct btrfs_fs_info *fs_info, struct fol
 		return;
 	}
 
+	/* The page has no new delalloc range locked on it. Just plain unlock. */
+	if (atomic_read(&subpage->writers) == 0) {
+		folio_unlock(folio);
+		return;
+	}
 	while (cur < folio_start + PAGE_SIZE) {
 		u64 found_start;
 		u32 found_len;
