@@ -57,6 +57,7 @@ enum vdpa_attr {
 	VDPA_ATTR_DEV_FEATURES,                 /* u64 */
 
 	VDPA_ATTR_DEV_BLK_CFG_CAPACITY,		/* u64 */
+	VDPA_ATTR_DEV_BLK_CFG_SEG_SIZE,		/* u32 */
 
 	/* new attributes must be added above here */
 	VDPA_ATTR_MAX,

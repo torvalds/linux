@@ -956,6 +956,20 @@ vdpa_dev_blk_capacity_config_fill(struct sk_buff *msg,
 				 val_u64, VDPA_ATTR_PAD);
 }
 
+static int
+vdpa_dev_blk_seg_size_config_fill(struct sk_buff *msg, u64 features,
+				  const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_SIZE_MAX)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->size_max);
+
+	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_SEG_SIZE, val_u32);
+}
+
 static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 				    struct sk_buff *msg)
 {
@@ -971,6 +985,9 @@ static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 		return -EMSGSIZE;
 
 	if (vdpa_dev_blk_capacity_config_fill(msg, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_seg_size_config_fill(msg, features_device, &config))
 		return -EMSGSIZE;
 
 	return 0;
