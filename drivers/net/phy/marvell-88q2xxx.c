@@ -461,6 +461,38 @@ static irqreturn_t mv88q2xxx_handle_interrupt(struct phy_device *phydev)
 	return IRQ_HANDLED;
 }
 
+static int mv88q2xxx_suspend(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Disable PHY interrupts */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->interrupts = PHY_INTERRUPT_DISABLED;
+		ret = mv88q2xxx_config_intr(phydev);
+		if (ret)
+			return ret;
+	}
+
+	return phy_set_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				MDIO_CTRL1_LPOWER);
+}
+
+static int mv88q2xxx_resume(struct phy_device *phydev)
+{
+	int ret;
+
+	/* Enable PHY interrupts */
+	if (phy_interrupt_is_valid(phydev)) {
+		phydev->interrupts = PHY_INTERRUPT_ENABLED;
+		ret = mv88q2xxx_config_intr(phydev);
+		if (ret)
+			return ret;
+	}
+
+	return phy_clear_bits_mmd(phydev, MDIO_MMD_PMAPMD, MDIO_CTRL1,
+				  MDIO_CTRL1_LPOWER);
+}
+
 static int mv88q222x_soft_reset(struct phy_device *phydev)
 {
 	int ret;
@@ -566,6 +598,8 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.set_loopback		= genphy_c45_loopback,
 		.get_sqi		= mv88q2xxx_get_sqi,
 		.get_sqi_max		= mv88q2xxx_get_sqi_max,
+		.suspend		= mv88q2xxx_suspend,
+		.resume			= mv88q2xxx_resume,
 	},
 };
 
