@@ -1324,7 +1324,7 @@
 		};
 
 		apcs_hfpll: clock-controller@b016000 {
-			compatible = "qcom,hfpll";
+			compatible = "qcom,qcs404-hfpll";
 			reg = <0x0b016000 0x30>;
 			#clock-cells = <0>;
 			clock-output-names = "apcs_hfpll";
