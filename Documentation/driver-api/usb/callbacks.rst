@@ -99,8 +99,10 @@ The disconnect() callback
 This callback is a signal to break any connection with an interface.
 You are not allowed any IO to a device after returning from this
 callback. You also may not do any other operation that may interfere
-with another driver bound the interface, eg. a power management
-operation.
+with another driver bound to the interface, eg. a power management
+operation. Outstanding operations on the device must be completed or
+aborted before this callback may return.
+
 If you are called due to a physical disconnection, all your URBs will be
 killed by usbcore. Note that in this case disconnect will be called some
 time after the physical disconnection. Thus your driver must be prepared
