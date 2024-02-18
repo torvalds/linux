@@ -361,6 +361,7 @@ void bch2_fs_read_only(struct bch_fs *c)
 		BUG_ON(atomic_long_read(&c->btree_key_cache.nr_dirty));
 		BUG_ON(c->btree_write_buffer.inc.keys.nr);
 		BUG_ON(c->btree_write_buffer.flushing.keys.nr);
+		bch2_verify_accounting_clean(c);
 
 		bch_verbose(c, "marking filesystem clean");
 		bch2_fs_mark_clean(c);

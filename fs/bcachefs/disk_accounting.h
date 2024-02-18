@@ -171,7 +171,7 @@ static inline void bch2_accounting_mem_read_counters(struct bch_fs *c, unsigned 
 {
 	memset(v, 0, sizeof(*v) * nr);
 
-	struct bch_accounting_mem *acc = &c->accounting[0];
+	struct bch_accounting_mem *acc = &c->accounting[gc];
 	if (unlikely(idx >= acc->k.nr))
 		return;
 
@@ -200,6 +200,8 @@ int bch2_accounting_read(struct bch_fs *);
 
 int bch2_dev_usage_remove(struct bch_fs *, unsigned);
 int bch2_dev_usage_init(struct bch_dev *, bool);
+
+void bch2_verify_accounting_clean(struct bch_fs *c);
 
 void bch2_accounting_free(struct bch_accounting_mem *);
 void bch2_fs_accounting_exit(struct bch_fs *);

@@ -588,6 +588,93 @@ int bch2_dev_usage_init(struct bch_dev *ca, bool gc)
 	return ret;
 }
 
+void bch2_verify_accounting_clean(struct bch_fs *c)
+{
+	bool mismatch = false;
+	struct bch_fs_usage_base base = {}, base_inmem = {};
+
+	bch2_trans_run(c,
+		for_each_btree_key(trans, iter,
+				   BTREE_ID_accounting, POS_MIN,
+				   BTREE_ITER_all_snapshots, k, ({
+			u64 v[BCH_ACCOUNTING_MAX_COUNTERS];
+			struct bkey_s_c_accounting a = bkey_s_c_to_accounting(k);
+			unsigned nr = bch2_accounting_counters(k.k);
+
+			bch2_accounting_mem_read(c, k.k->p, v, nr);
+
+			if (memcmp(a.v->d, v, nr * sizeof(u64))) {
+				struct printbuf buf = PRINTBUF;
+
+				bch2_bkey_val_to_text(&buf, c, k);
+				prt_str(&buf, " !=");
+				for (unsigned j = 0; j < nr; j++)
+					prt_printf(&buf, " %llu", v[j]);
+
+				pr_err("%s", buf.buf);
+				printbuf_exit(&buf);
+				mismatch = true;
+			}
+
+			struct disk_accounting_pos acc_k;
+			bpos_to_disk_accounting_pos(&acc_k, a.k->p);
+
+			switch (acc_k.type) {
+			case BCH_DISK_ACCOUNTING_persistent_reserved:
+				base.reserved += acc_k.persistent_reserved.nr_replicas * a.v->d[0];
+				break;
+			case BCH_DISK_ACCOUNTING_replicas:
+				fs_usage_data_type_to_base(&base, acc_k.replicas.data_type, a.v->d[0]);
+				break;
+			case BCH_DISK_ACCOUNTING_dev_data_type: {
+				rcu_read_lock();
+				struct bch_dev *ca = bch2_dev_rcu(c, acc_k.dev_data_type.dev);
+				if (!ca) {
+					rcu_read_unlock();
+					continue;
+				}
+
+				v[0] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].buckets);
+				v[1] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].sectors);
+				v[2] = percpu_u64_get(&ca->usage->d[acc_k.dev_data_type.data_type].fragmented);
+				rcu_read_unlock();
+
+				if (memcmp(a.v->d, v, 3 * sizeof(u64))) {
+					struct printbuf buf = PRINTBUF;
+
+					bch2_bkey_val_to_text(&buf, c, k);
+					prt_str(&buf, " in mem");
+					for (unsigned j = 0; j < nr; j++)
+						prt_printf(&buf, " %llu", v[j]);
+
+					pr_err("dev accounting mismatch: %s", buf.buf);
+					printbuf_exit(&buf);
+					mismatch = true;
+				}
+			}
+			}
+
+			0;
+		})));
+
+	acc_u64s_percpu(&base_inmem.hidden, &c->usage->hidden, sizeof(base_inmem) / sizeof(u64));
+
+#define check(x)										\
+	if (base.x != base_inmem.x) {								\
+		pr_err("fs_usage_base.%s mismatch: %llu != %llu", #x, base.x, base_inmem.x);	\
+		mismatch = true;								\
+	}
+
+	//check(hidden);
+	check(btree);
+	check(data);
+	check(cached);
+	check(reserved);
+	check(nr_inodes);
+
+	WARN_ON(mismatch);
+}
+
 void bch2_accounting_free(struct bch_accounting_mem *acc)
 {
 	darray_exit(&acc->k);
