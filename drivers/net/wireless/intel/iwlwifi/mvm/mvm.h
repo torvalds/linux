@@ -106,6 +106,7 @@ struct iwl_mvm_phy_ctxt {
 	/* track for RLC config command */
 	u32 center_freq1;
 	bool rlc_disabled;
+	u32 channel_load_by_us;
 };
 
 struct iwl_mvm_time_event_data {
