@@ -36,10 +36,12 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 
 static void ns_prune_dentry(struct dentry *dentry)
 {
-	struct inode *inode = d_inode(dentry);
+	struct inode *inode;
+
+	inode = d_inode(dentry);
 	if (inode) {
 		struct ns_common *ns = inode->i_private;
-		WRITE_ONCE(ns->stashed, NULL);
+		cmpxchg(&ns->stashed, dentry, NULL);
 	}
 }
 
@@ -61,20 +63,17 @@ int ns_get_path_cb(struct path *path, ns_get_path_helper_t *ns_get_cb,
 		     void *private_data)
 {
 	int ret;
+	struct ns_common *ns;
 
-	do {
-		struct ns_common *ns = ns_get_cb(private_data);
-		if (!ns)
-			return -ENOENT;
-		ret = path_from_stashed(&ns->stashed, ns->inum, nsfs_mnt,
-					&ns_file_operations, NULL, ns, path);
-		if (ret <= 0 && ret != -EAGAIN)
-			ns->ops->put(ns);
-	} while (ret == -EAGAIN);
-
+	ns = ns_get_cb(private_data);
+	if (!ns)
+		return -ENOENT;
+	ret = path_from_stashed(&ns->stashed, ns->inum, nsfs_mnt,
+				&ns_file_operations, NULL, ns, path);
+	if (ret <= 0)
+		ns->ops->put(ns);
 	if (ret < 0)
 		return ret;
-
 	return 0;
 }
 
@@ -105,6 +104,7 @@ int open_related_ns(struct ns_common *ns,
 		   struct ns_common *(*get_ns)(struct ns_common *ns))
 {
 	struct path path = {};
+	struct ns_common *relative;
 	struct file *f;
 	int err;
 	int fd;
@@ -113,22 +113,16 @@ int open_related_ns(struct ns_common *ns,
 	if (fd < 0)
 		return fd;
 
-	do {
-		struct ns_common *relative;
+	relative = get_ns(ns);
+	if (IS_ERR(relative)) {
+		put_unused_fd(fd);
+		return PTR_ERR(relative);
+	}
 
-		relative = get_ns(ns);
-		if (IS_ERR(relative)) {
-			put_unused_fd(fd);
-			return PTR_ERR(relative);
-		}
-
-		err = path_from_stashed(&relative->stashed, relative->inum,
-					nsfs_mnt, &ns_file_operations, NULL,
-					relative, &path);
-		if (err <= 0 && err != -EAGAIN)
-			relative->ops->put(relative);
-	} while (err == -EAGAIN);
-
+	err = path_from_stashed(&relative->stashed, relative->inum, nsfs_mnt,
+				&ns_file_operations, NULL, relative, &path);
+	if (err <= 0)
+		relative->ops->put(relative);
 	if (err < 0) {
 		put_unused_fd(fd);
 		return err;

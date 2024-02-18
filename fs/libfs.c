@@ -1988,11 +1988,11 @@ static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
 	return dentry;
 }
 
-static struct dentry *stash_dentry(struct dentry **stashed, unsigned long ino,
-				   struct super_block *sb,
-				   const struct file_operations *fops,
-				   const struct inode_operations *iops,
-				   void *data)
+static struct dentry *prepare_anon_dentry(unsigned long ino,
+					  struct super_block *sb,
+					  const struct file_operations *fops,
+					  const struct inode_operations *iops,
+					  void *data)
 {
 	struct dentry *dentry;
 	struct inode *inode;
@@ -2021,15 +2021,29 @@ static struct dentry *stash_dentry(struct dentry **stashed, unsigned long ino,
 
 	/* @data is now owned by the fs */
 	d_instantiate(dentry, inode);
-
-	if (cmpxchg(stashed, NULL, dentry)) {
-		d_delete(dentry); /* make sure ->d_prune() does nothing */
-		dput(dentry);
-		cpu_relax();
-		return ERR_PTR(-EAGAIN);
-	}
-
 	return dentry;
+}
+
+static struct dentry *stash_dentry(struct dentry **stashed,
+				   struct dentry *dentry)
+{
+	guard(rcu)();
+	for (;;) {
+		struct dentry *old;
+
+		/* Assume any old dentry was cleared out. */
+		old = cmpxchg(stashed, NULL, dentry);
+		if (likely(!old))
+			return dentry;
+
+		/* Check if somebody else installed a reusable dentry. */
+		if (lockref_get_not_dead(&old->d_lockref))
+			return old;
+
+		/* There's an old dead dentry there, try to take it over. */
+		if (likely(try_cmpxchg(stashed, &old, dentry)))
+			return dentry;
+	}
 }
 
 /**
@@ -2044,15 +2058,14 @@ static struct dentry *stash_dentry(struct dentry **stashed, unsigned long ino,
  *
  * The function tries to retrieve a stashed dentry from @stashed. If the dentry
  * is still valid then it will be reused. If the dentry isn't able the function
- * will allocate a new dentry and inode. It will then try to update @stashed
- * with the newly added dentry. If it fails -EAGAIN is returned and the caller
- * my retry.
+ * will allocate a new dentry and inode. It will then check again whether it
+ * can reuse an existing dentry in case one has been added in the meantime or
+ * update @stashed with the newly added dentry.
  *
  * Special-purpose helper for nsfs and pidfs.
  *
  * Return: If 0 or an error is returned the caller can be sure that @data must
- *         be cleaned up. If 1 or -EAGAIN is returned @data is owned by the
- *         filesystem.
+ *         be cleaned up. If 1 is returned @data is owned by the filesystem.
  */
 int path_from_stashed(struct dentry **stashed, unsigned long ino,
 		      struct vfsmount *mnt, const struct file_operations *fops,
@@ -2062,17 +2075,23 @@ int path_from_stashed(struct dentry **stashed, unsigned long ino,
 	struct dentry *dentry;
 	int ret = 0;
 
-	dentry = get_stashed_dentry(*stashed);
-	if (dentry)
+	/* See if dentry can be reused. */
+	path->dentry = get_stashed_dentry(*stashed);
+	if (path->dentry)
 		goto out_path;
 
-	dentry = stash_dentry(stashed, ino, mnt->mnt_sb, fops, iops, data);
+	/* Allocate a new dentry. */
+	dentry = prepare_anon_dentry(ino, mnt->mnt_sb, fops, iops, data);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
+
+	/* Added a new dentry. @data is now owned by the filesystem. */
+	path->dentry = stash_dentry(stashed, dentry);
+	if (path->dentry != dentry)
+		dput(dentry);
 	ret = 1;
 
 out_path:
-	path->dentry = dentry;
 	path->mnt = mntget(mnt);
 	return ret;
 }
