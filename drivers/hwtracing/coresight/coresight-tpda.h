@@ -36,7 +36,7 @@ struct tpda_drvdata {
 	struct coresight_device	*csdev;
 	spinlock_t		spinlock;
 	u8			atid;
-	u8			dsb_esize;
+	u32			dsb_esize;
 	u32			cmb_esize;
 };
 

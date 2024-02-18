@@ -69,8 +69,8 @@ static int tpdm_read_element_size(struct tpda_drvdata *drvdata,
 	struct tpdm_drvdata *tpdm_data = dev_get_drvdata(csdev->dev.parent);
 
 	if (tpdm_has_dsb_dataset(tpdm_data)) {
-		rc = fwnode_property_read_u8(dev_fwnode(csdev->dev.parent),
-				"qcom,dsb-element-size", &drvdata->dsb_esize);
+		rc = fwnode_property_read_u32(dev_fwnode(csdev->dev.parent),
+				"qcom,dsb-element-bits", &drvdata->dsb_esize);
 	}
 	if (tpdm_has_cmb_dataset(tpdm_data)) {
 		rc = fwnode_property_read_u32(dev_fwnode(csdev->dev.parent),
