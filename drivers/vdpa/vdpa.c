@@ -999,6 +999,19 @@ vdpa_dev_blk_seg_max_config_fill(struct sk_buff *msg, u64 features,
 	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_SEG_MAX, val_u32);
 }
 
+static int vdpa_dev_blk_mq_config_fill(struct sk_buff *msg, u64 features,
+				       const struct virtio_blk_config *config)
+{
+	u16 val_u16;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_MQ)) == 0)
+		return 0;
+
+	val_u16 = __virtio16_to_cpu(true, config->num_queues);
+
+	return nla_put_u16(msg, VDPA_ATTR_DEV_BLK_CFG_NUM_QUEUES, val_u16);
+}
+
 static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 				    struct sk_buff *msg)
 {
@@ -1023,6 +1036,9 @@ static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 		return -EMSGSIZE;
 
 	if (vdpa_dev_blk_seg_max_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_mq_config_fill(msg, features_device, &config))
 		return -EMSGSIZE;
 
 	return 0;
