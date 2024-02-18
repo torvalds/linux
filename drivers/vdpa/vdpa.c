@@ -945,6 +945,38 @@ static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *ms
 }
 
 static int
+vdpa_dev_blk_capacity_config_fill(struct sk_buff *msg,
+				  const struct virtio_blk_config *config)
+{
+	u64 val_u64;
+
+	val_u64 = __virtio64_to_cpu(true, config->capacity);
+
+	return nla_put_u64_64bit(msg, VDPA_ATTR_DEV_BLK_CFG_CAPACITY,
+				 val_u64, VDPA_ATTR_PAD);
+}
+
+static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
+				    struct sk_buff *msg)
+{
+	struct virtio_blk_config config = {};
+	u64 features_device;
+
+	vdev->config->get_config(vdev, 0, &config, sizeof(config));
+
+	features_device = vdev->config->get_device_features(vdev);
+
+	if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_FEATURES, features_device,
+			      VDPA_ATTR_PAD))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_capacity_config_fill(msg, &config))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int
 vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, u32 seq,
 		     int flags, struct netlink_ext_ack *extack)
 {
@@ -987,6 +1019,9 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 	switch (device_id) {
 	case VIRTIO_ID_NET:
 		err = vdpa_dev_net_config_fill(vdev, msg);
+		break;
+	case VIRTIO_ID_BLOCK:
+		err = vdpa_dev_blk_config_fill(vdev, msg);
 		break;
 	default:
 		err = -EOPNOTSUPP;

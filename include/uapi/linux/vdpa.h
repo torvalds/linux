@@ -56,6 +56,8 @@ enum vdpa_attr {
 	/* virtio features that are provisioned to the vDPA device */
 	VDPA_ATTR_DEV_FEATURES,                 /* u64 */
 
+	VDPA_ATTR_DEV_BLK_CFG_CAPACITY,		/* u64 */
+
 	/* new attributes must be added above here */
 	VDPA_ATTR_MAX,
 };

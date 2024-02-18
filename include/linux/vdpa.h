@@ -7,6 +7,7 @@
 #include <linux/interrupt.h>
 #include <linux/vhost_iotlb.h>
 #include <linux/virtio_net.h>
+#include <linux/virtio_blk.h>
 #include <linux/if_ether.h>
 
 /**
