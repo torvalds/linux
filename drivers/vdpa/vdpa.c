@@ -1084,6 +1084,17 @@ vdpa_dev_blk_write_zeroes_config_fill(struct sk_buff *msg, u64 features,
 	return 0;
 }
 
+static int vdpa_dev_blk_ro_config_fill(struct sk_buff *msg, u64 features)
+{
+	u8 ro;
+
+	ro = ((features & BIT_ULL(VIRTIO_BLK_F_RO)) == 0) ? 0 : 1;
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_READ_ONLY, ro))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 				    struct sk_buff *msg)
 {
@@ -1120,6 +1131,9 @@ static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 		return -EMSGSIZE;
 
 	if (vdpa_dev_blk_write_zeroes_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_ro_config_fill(msg, features_device))
 		return -EMSGSIZE;
 
 	return 0;

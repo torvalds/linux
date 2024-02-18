@@ -70,6 +70,7 @@ enum vdpa_attr {
 	VDPA_ATTR_DEV_BLK_CFG_DISCARD_SEC_ALIGN,/* u32 */
 	VDPA_ATTR_DEV_BLK_CFG_MAX_WRITE_ZEROES_SEC,	/* u32 */
 	VDPA_ATTR_DEV_BLK_CFG_MAX_WRITE_ZEROES_SEG,	/* u32 */
+	VDPA_ATTR_DEV_BLK_CFG_READ_ONLY,		/* u8 */
 
 	/* new attributes must be added above here */
 	VDPA_ATTR_MAX,
