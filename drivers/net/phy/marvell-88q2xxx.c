@@ -686,17 +686,6 @@ static int mv88q222x_soft_reset(struct phy_device *phydev)
 	return 0;
 }
 
-static int mv88q222x_config_aneg(struct phy_device *phydev)
-{
-	int ret;
-
-	ret = genphy_c45_config_aneg(phydev);
-	if (ret)
-		return ret;
-
-	return mv88q222x_soft_reset(phydev);
-}
-
 static int mv88q222x_revb0_config_init(struct phy_device *phydev)
 {
 	int ret, i;
@@ -839,7 +828,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.flags			= PHY_POLL_CABLE_TEST,
 		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
-		.config_aneg		= mv88q222x_config_aneg,
+		.config_aneg		= mv88q2xxx_config_aneg,
 		.aneg_done		= genphy_c45_aneg_done,
 		.config_init		= mv88q222x_revb0_config_init,
 		.read_status		= mv88q2xxx_read_status,
