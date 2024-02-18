@@ -9,6 +9,7 @@
 #include <linux/ethtool_netlink.h>
 #include <linux/marvell_phy.h>
 #include <linux/phy.h>
+#include <linux/hwmon.h>
 
 #define PHY_ID_88Q2220_REVB0	(MARVELL_PHY_ID_88Q2220 | 0x1)
 
@@ -36,6 +37,18 @@
 
 #define MDIO_MMD_PCS_MV_GPIO_INT_CTRL			32787
 #define MDIO_MMD_PCS_MV_GPIO_INT_CTRL_TRI_DIS		0x0800
+
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR1			32833
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR1_RAW_INT		0x0001
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR1_INT		0x0040
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR1_INT_EN		0x0080
+
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR2			32834
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK		0xc000
+
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR3			32835
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR3_INT_THRESH_MASK	0xff00
+#define MDIO_MMD_PCS_MV_TEMP_SENSOR3_MASK		0x00ff
 
 #define MDIO_MMD_PCS_MV_100BT1_STAT1			33032
 #define MDIO_MMD_PCS_MV_100BT1_STAT1_IDLE_ERROR		0x00ff
@@ -493,6 +506,138 @@ static int mv88q2xxx_resume(struct phy_device *phydev)
 				  MDIO_CTRL1_LPOWER);
 }
 
+#if IS_ENABLED(CONFIG_HWMON)
+static const struct hwmon_channel_info * const mv88q2xxx_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_ALARM),
+	NULL
+};
+
+static umode_t mv88q2xxx_hwmon_is_visible(const void *data,
+					  enum hwmon_sensor_types type,
+					  u32 attr, int channel)
+{
+	switch (attr) {
+	case hwmon_temp_input:
+		return 0444;
+	case hwmon_temp_max:
+		return 0644;
+	case hwmon_temp_alarm:
+		return 0444;
+	default:
+		return 0;
+	}
+}
+
+static int mv88q2xxx_hwmon_read(struct device *dev,
+				enum hwmon_sensor_types type,
+				u32 attr, int channel, long *val)
+{
+	struct phy_device *phydev = dev_get_drvdata(dev);
+	int ret;
+
+	switch (attr) {
+	case hwmon_temp_input:
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				   MDIO_MMD_PCS_MV_TEMP_SENSOR3);
+		if (ret < 0)
+			return ret;
+
+		ret = FIELD_GET(MDIO_MMD_PCS_MV_TEMP_SENSOR3_MASK, ret);
+		*val = (ret - 75) * 1000;
+		return 0;
+	case hwmon_temp_max:
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				   MDIO_MMD_PCS_MV_TEMP_SENSOR3);
+		if (ret < 0)
+			return ret;
+
+		ret = FIELD_GET(MDIO_MMD_PCS_MV_TEMP_SENSOR3_INT_THRESH_MASK,
+				ret);
+		*val = (ret - 75) * 1000;
+		return 0;
+	case hwmon_temp_alarm:
+		ret = phy_read_mmd(phydev, MDIO_MMD_PCS,
+				   MDIO_MMD_PCS_MV_TEMP_SENSOR1);
+		if (ret < 0)
+			return ret;
+
+		*val = !!(ret & MDIO_MMD_PCS_MV_TEMP_SENSOR1_RAW_INT);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int mv88q2xxx_hwmon_write(struct device *dev,
+				 enum hwmon_sensor_types type, u32 attr,
+				 int channel, long val)
+{
+	struct phy_device *phydev = dev_get_drvdata(dev);
+
+	switch (attr) {
+	case hwmon_temp_max:
+		clamp_val(val, -75000, 180000);
+		val = (val / 1000) + 75;
+		val = FIELD_PREP(MDIO_MMD_PCS_MV_TEMP_SENSOR3_INT_THRESH_MASK,
+				 val);
+		return phy_modify_mmd(phydev, MDIO_MMD_PCS,
+				      MDIO_MMD_PCS_MV_TEMP_SENSOR3,
+				      MDIO_MMD_PCS_MV_TEMP_SENSOR3_INT_THRESH_MASK,
+				      val);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static const struct hwmon_ops mv88q2xxx_hwmon_hwmon_ops = {
+	.is_visible = mv88q2xxx_hwmon_is_visible,
+	.read = mv88q2xxx_hwmon_read,
+	.write = mv88q2xxx_hwmon_write,
+};
+
+static const struct hwmon_chip_info mv88q2xxx_hwmon_chip_info = {
+	.ops = &mv88q2xxx_hwmon_hwmon_ops,
+	.info = mv88q2xxx_hwmon_info,
+};
+
+static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct device *hwmon;
+	char *hwmon_name;
+	int ret;
+
+	/* Enable temperature sense */
+	ret = phy_modify_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TEMP_SENSOR2,
+			     MDIO_MMD_PCS_MV_TEMP_SENSOR2_DIS_MASK, 0);
+	if (ret < 0)
+		return ret;
+
+	hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
+	if (IS_ERR(hwmon_name))
+		return PTR_ERR(hwmon_name);
+
+	hwmon = devm_hwmon_device_register_with_info(dev,
+						     hwmon_name,
+						     phydev,
+						     &mv88q2xxx_hwmon_chip_info,
+						     NULL);
+
+	return PTR_ERR_OR_ZERO(hwmon);
+}
+
+#else
+static int mv88q2xxx_hwmon_probe(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif
+
+static int mv88q2xxx_probe(struct phy_device *phydev)
+{
+	return mv88q2xxx_hwmon_probe(phydev);
+}
+
 static int mv88q222x_soft_reset(struct phy_device *phydev)
 {
 	int ret;
@@ -587,6 +732,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_88Q2220_REVB0),
 		.name			= "mv88q2220",
+		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q222x_config_aneg,
 		.aneg_done		= genphy_c45_aneg_done,
