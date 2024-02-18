@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
  */
@@ -223,6 +223,9 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 			cmd.sbb_bandwidth = iwl_mvm_get_channel_width(ap);
 			cmd.sbb_ctrl_channel_loc = iwl_mvm_get_ctrl_pos(ap);
 		}
+
+		if (ver == 6)
+			cmd.puncture_mask = cpu_to_le16(chandef->punctured);
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
 					   0, sizeof(cmd), &cmd);
