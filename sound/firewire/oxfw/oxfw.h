@@ -52,6 +52,8 @@ enum snd_oxfw_quirk {
 	// performs media clock recovery voluntarily. In the recovery, the packets with NO_INFO
 	// are ignored, thus driver should transfer packets with timestamp.
 	SND_OXFW_QUIRK_VOLUNTARY_RECOVERY = 0x20,
+	// Miglia Harmony Audio does not support AV/C Stream Format Information command.
+	SND_OXFW_QUIRK_STREAM_FORMAT_INFO_UNSUPPORTED = 0x40,
 };
 
 /* This is an arbitrary number for convinience. */
