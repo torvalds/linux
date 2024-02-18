@@ -370,20 +370,13 @@ static int mv88q2xxx_config_aneg(struct phy_device *phydev)
 
 static int mv88q2xxx_config_init(struct phy_device *phydev)
 {
-	int ret;
-
 	/* The 88Q2XXX PHYs do have the extended ability register available, but
 	 * register MDIO_PMA_EXTABLE where they should signalize it does not
 	 * work according to specification. Therefore, we force it here.
 	 */
 	phydev->pma_extable = MDIO_PMA_EXTABLE_BT1;
 
-	/* Read the current PHY configuration */
-	ret = genphy_c45_read_pma(phydev);
-	if (ret)
-		return ret;
-
-	return mv88q2xxx_config_aneg(phydev);
+	return 0;
 }
 
 static int mv88q2xxx_get_sqi(struct phy_device *phydev)
