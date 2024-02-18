@@ -208,7 +208,7 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 	if (ver < 5 || !ap || !ap->chan)
 		ap = NULL;
 
-	if (ver >= 3 && ver <= 5) {
+	if (ver >= 3 && ver <= 6) {
 		struct iwl_phy_context_cmd cmd = {};
 
 		/* Set the command header fields */
@@ -220,8 +220,8 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 					  chains_dynamic);
 
 		if (ap) {
-			cmd.v5.sbb_bandwidth = iwl_mvm_get_channel_width(ap);
-			cmd.v5.sbb_ctrl_channel_loc = iwl_mvm_get_ctrl_pos(ap);
+			cmd.sbb_bandwidth = iwl_mvm_get_channel_width(ap);
+			cmd.sbb_ctrl_channel_loc = iwl_mvm_get_ctrl_pos(ap);
 		}
 
 		ret = iwl_mvm_send_cmd_pdu(mvm, PHY_CONTEXT_CMD,
