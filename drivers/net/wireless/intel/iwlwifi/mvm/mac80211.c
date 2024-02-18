@@ -1644,6 +1644,9 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 				     IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 	}
 
+	if (vif->p2p || iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1) < 5)
+		vif->driver_flags |= IEEE80211_VIF_IGNORE_OFDMA_WIDER_BW;
+
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 		mvm->p2p_device_vif = vif;
 
@@ -4651,7 +4654,7 @@ static int iwl_mvm_p2p_find_phy_ctxt(struct iwl_mvm *mvm,
 	cfg80211_chandef_create(&chandef, channel, NL80211_CHAN_NO_HT);
 
 	return iwl_mvm_phy_ctxt_add(mvm, mvmvif->deflink.phy_ctxt,
-				    &chandef, 1, 1);
+				    &chandef, NULL, 1, 1);
 }
 
 /* Execute the common part for MLD and non-MLD modes */
@@ -4772,7 +4775,7 @@ static int __iwl_mvm_add_chanctx(struct iwl_mvm *mvm,
 		goto out;
 	}
 
-	ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, def,
+	ret = iwl_mvm_phy_ctxt_add(mvm, phy_ctxt, def, &ctx->ap,
 				   ctx->rx_chains_static,
 				   ctx->rx_chains_dynamic);
 	if (ret) {
@@ -4850,7 +4853,7 @@ void iwl_mvm_change_chanctx(struct ieee80211_hw *hw,
 	}
 
 	iwl_mvm_bt_coex_vif_change(mvm);
-	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, def,
+	iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, def, &ctx->ap,
 				 ctx->rx_chains_static,
 				 ctx->rx_chains_dynamic);
 
