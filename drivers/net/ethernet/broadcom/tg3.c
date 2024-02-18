@@ -14200,7 +14200,9 @@ static int tg3_set_eee(struct net_device *dev, struct ethtool_keee *edata)
 		return -EINVAL;
 	}
 
-	tp->eee = *edata;
+	tp->eee.eee_enabled = edata->eee_enabled;
+	tp->eee.tx_lpi_enabled = edata->tx_lpi_enabled;
+	tp->eee.tx_lpi_timer = edata->tx_lpi_timer;
 
 	tp->phy_flags |= TG3_PHYFLG_USER_CONFIGURED;
 	tg3_warn_mgmt_link_flap(tp);
