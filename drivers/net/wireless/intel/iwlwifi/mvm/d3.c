@@ -1290,8 +1290,10 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
 	mvm_link = mvmvif->link[primary_link];
-	if (WARN_ON_ONCE(!mvm_link))
-		return -EINVAL;
+	if (WARN_ON_ONCE(!mvm_link)) {
+		ret = -EINVAL;
+		goto out_noreset;
+	}
 
 	if (mvm_link->ap_sta_id == IWL_MVM_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
