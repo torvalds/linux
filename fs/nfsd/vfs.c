@@ -591,6 +591,13 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp,
 						dentry, ACL_TYPE_DEFAULT,
 						attr->na_dpacl);
 out_fill_attrs:
+	/*
+	 * RFC 1813 Section 3.3.2 does not mandate that an NFS server
+	 * returns wcc_data for SETATTR. Some client implementations
+	 * depend on receiving wcc_data, however, to sort out partial
+	 * updates (eg., the client requested that size and mode be
+	 * modified, but the server changed only the file mode).
+	 */
 	fh_fill_post_attrs(fhp);
 out_unlock:
 	inode_unlock(inode);
