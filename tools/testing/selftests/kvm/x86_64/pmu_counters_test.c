@@ -119,6 +119,9 @@ static void guest_assert_event_count(uint8_t idx,
 	case INTEL_ARCH_REFERENCE_CYCLES_INDEX:
 		GUEST_ASSERT_NE(count, 0);
 		break;
+	case INTEL_ARCH_TOPDOWN_SLOTS_INDEX:
+		GUEST_ASSERT(count >= NUM_INSNS_RETIRED);
+		break;
 	default:
 		break;
 	}
