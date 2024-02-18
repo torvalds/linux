@@ -72,6 +72,27 @@
 
 #define MDIO_MMD_PCS_MV_RX_STAT			33328
 
+#define MDIO_MMD_PCS_MV_TDR_RESET			65226
+#define MDIO_MMD_PCS_MV_TDR_RESET_TDR_RST		0x1000
+
+#define MDIO_MMD_PCS_MV_TDR_OFF_SHORT_CABLE		65241
+
+#define MDIO_MMD_PCS_MV_TDR_OFF_LONG_CABLE		65242
+
+#define MDIO_MMD_PCS_MV_TDR_STATUS			65245
+#define MDIO_MMD_PCS_MV_TDR_STATUS_MASK			0x0003
+#define MDIO_MMD_PCS_MV_TDR_STATUS_OFF			0x0001
+#define MDIO_MMD_PCS_MV_TDR_STATUS_ON			0x0002
+#define MDIO_MMD_PCS_MV_TDR_STATUS_DIST_MASK		0xff00
+#define MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_MASK	0x00f0
+#define MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_SHORT	0x0030
+#define MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_OPEN	0x00e0
+#define MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_OK		0x0070
+#define MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_IN_PROGR	0x0080
+#define MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_NOISE	0x0050
+
+#define MDIO_MMD_PCS_MV_TDR_OFF_CUTOFF			65246
+
 struct mmd_val {
 	int devad;
 	u32 regnum;
@@ -715,6 +736,89 @@ static int mv88q222x_revb0_config_init(struct phy_device *phydev)
 	return 0;
 }
 
+static int mv88q222x_cable_test_start(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
+			    MDIO_MMD_PCS_MV_TDR_OFF_CUTOFF, 0x0058);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
+			    MDIO_MMD_PCS_MV_TDR_OFF_LONG_CABLE, 0x00eb);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS,
+			    MDIO_MMD_PCS_MV_TDR_OFF_SHORT_CABLE, 0x010e);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TDR_RESET,
+			    0x0d90);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TDR_STATUS,
+			    MDIO_MMD_PCS_MV_TDR_STATUS_ON);
+	if (ret < 0)
+		return ret;
+
+	/* According to the Marvell API the test is finished within 500 ms */
+	msleep(500);
+
+	return 0;
+}
+
+static int mv88q222x_cable_test_get_status(struct phy_device *phydev,
+					   bool *finished)
+{
+	int ret, status;
+	u32 dist;
+
+	status = phy_read_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TDR_STATUS);
+	if (status < 0)
+		return status;
+
+	ret = phy_write_mmd(phydev, MDIO_MMD_PCS, MDIO_MMD_PCS_MV_TDR_RESET,
+			    MDIO_MMD_PCS_MV_TDR_RESET_TDR_RST | 0xd90);
+	if (ret < 0)
+		return ret;
+
+	/* Test could not be finished */
+	if (FIELD_GET(MDIO_MMD_PCS_MV_TDR_STATUS_MASK, status) !=
+	    MDIO_MMD_PCS_MV_TDR_STATUS_OFF)
+		return -ETIMEDOUT;
+
+	*finished = true;
+	/* Fault length reported in meters, convert to centimeters */
+	dist = FIELD_GET(MDIO_MMD_PCS_MV_TDR_STATUS_DIST_MASK, status) * 100;
+	switch (status & MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_MASK) {
+	case MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_OPEN:
+		ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					ETHTOOL_A_CABLE_RESULT_CODE_OPEN);
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					      dist);
+		break;
+	case MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_SHORT:
+		ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT);
+		ethnl_cable_test_fault_length(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					      dist);
+		break;
+	case MDIO_MMD_PCS_MV_TDR_STATUS_VCT_STAT_OK:
+		ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					ETHTOOL_A_CABLE_RESULT_CODE_OK);
+		break;
+	default:
+		ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC);
+	}
+
+	return 0;
+}
+
 static struct phy_driver mv88q2xxx_driver[] = {
 	{
 		.phy_id			= MARVELL_PHY_ID_88Q2110,
@@ -732,6 +836,7 @@ static struct phy_driver mv88q2xxx_driver[] = {
 	{
 		PHY_ID_MATCH_EXACT(PHY_ID_88Q2220_REVB0),
 		.name			= "mv88q2220",
+		.flags			= PHY_POLL_CABLE_TEST,
 		.probe			= mv88q2xxx_probe,
 		.get_features		= mv88q2xxx_get_features,
 		.config_aneg		= mv88q222x_config_aneg,
@@ -742,6 +847,8 @@ static struct phy_driver mv88q2xxx_driver[] = {
 		.config_intr		= mv88q2xxx_config_intr,
 		.handle_interrupt	= mv88q2xxx_handle_interrupt,
 		.set_loopback		= genphy_c45_loopback,
+		.cable_test_start	= mv88q222x_cable_test_start,
+		.cable_test_get_status	= mv88q222x_cable_test_get_status,
 		.get_sqi		= mv88q2xxx_get_sqi,
 		.get_sqi_max		= mv88q2xxx_get_sqi_max,
 		.suspend		= mv88q2xxx_suspend,
