@@ -1064,6 +1064,26 @@ static int vdpa_dev_blk_discard_config_fill(struct sk_buff *msg, u64 features,
 	return 0;
 }
 
+static int
+vdpa_dev_blk_write_zeroes_config_fill(struct sk_buff *msg, u64 features,
+				     const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_WRITE_ZEROES)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->max_write_zeroes_sectors);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_MAX_WRITE_ZEROES_SEC, val_u32))
+		return -EMSGSIZE;
+
+	val_u32 = __virtio32_to_cpu(true, config->max_write_zeroes_seg);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_MAX_WRITE_ZEROES_SEG, val_u32))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
 static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 				    struct sk_buff *msg)
 {
@@ -1097,6 +1117,9 @@ static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
 		return -EMSGSIZE;
 
 	if (vdpa_dev_blk_discard_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_write_zeroes_config_fill(msg, features_device, &config))
 		return -EMSGSIZE;
 
 	return 0;
