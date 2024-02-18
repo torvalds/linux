@@ -136,7 +136,7 @@ struct snd_oxfw_stream_formation {
 	unsigned int pcm;
 	unsigned int midi;
 };
-int snd_oxfw_stream_parse_format(u8 *format,
+int snd_oxfw_stream_parse_format(const u8 *format,
 				 struct snd_oxfw_stream_formation *formation);
 int snd_oxfw_stream_get_current_formation(struct snd_oxfw *oxfw,
 				enum avc_general_plug_dir dir,

@@ -515,7 +515,7 @@ end:
  * in AV/C Stream Format Information Specification 1.1 (Apr 2005, 1394TA)
  * Also 'Clause 12 AM824 sequence adaption layers' in IEC 61883-6:2005
  */
-int snd_oxfw_stream_parse_format(u8 *format,
+int snd_oxfw_stream_parse_format(const u8 *format,
 				 struct snd_oxfw_stream_formation *formation)
 {
 	unsigned int i, e, channels, type;
