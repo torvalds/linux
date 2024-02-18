@@ -1048,21 +1048,21 @@ static bool is_pci_link_healthy(struct hl_device *hdev)
 	return (device_id == hdev->pdev->device);
 }
 
-static int hl_device_eq_heartbeat_check(struct hl_device *hdev)
+static bool hl_device_eq_heartbeat_received(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
 	if (!prop->cpucp_info.eq_health_check_supported)
-		return 0;
+		return true;
 
-	if (hdev->eq_heartbeat_received) {
-		hdev->eq_heartbeat_received = false;
-	} else {
+	if (!hdev->eq_heartbeat_received) {
 		dev_err(hdev->dev, "EQ heartbeat event was not received!\n");
-		return -EIO;
+		return false;
 	}
 
-	return 0;
+	hdev->eq_heartbeat_received = false;
+
+	return true;
 }
 
 static void hl_device_heartbeat(struct work_struct *work)
@@ -1081,7 +1081,7 @@ static void hl_device_heartbeat(struct work_struct *work)
 	 * in order to validate the eq is working.
 	 * Only if both the EQ is healthy and we managed to send the next heartbeat reschedule.
 	 */
-	if ((!hl_device_eq_heartbeat_check(hdev)) && (!hdev->asic_funcs->send_heartbeat(hdev)))
+	if (hl_device_eq_heartbeat_received(hdev) && (!hdev->asic_funcs->send_heartbeat(hdev)))
 		goto reschedule;
 
 	if (hl_device_operational(hdev, NULL))
