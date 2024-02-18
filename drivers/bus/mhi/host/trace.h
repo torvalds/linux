@@ -84,6 +84,8 @@ DEV_ST_TRANSITION_LIST
 #define dev_st_trans(a, b)		{ DEV_ST_TRANSITION_##a, b },
 #define dev_st_trans_end(a, b)		{ DEV_ST_TRANSITION_##a, b }
 
+#define TPS(x)	tracepoint_string(x)
+
 TRACE_EVENT(mhi_gen_tre,
 
 	TP_PROTO(struct mhi_controller *mhi_cntrl, struct mhi_chan *mhi_chan,
