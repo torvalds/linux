@@ -89,6 +89,7 @@ obj-$(CONFIG_QCOM_RAMDUMP) += qcom_ramdump.o
 obj-$(CONFIG_QCOM_ICC_BWMON)	+= icc-bwmon.o
 obj-$(CONFIG_QCOM_DCVS) += dcvs/
 obj-$(CONFIG_QCOM_CPUCP) += qcom_cpucp.o
+obj-$(CONFIG_MSM_RPM_SMD_DEBUG)   +=  rpm-smd-debug.o
 obj-$(CONFIG_QTI_CPUCP_LOG)     += cpucp_log.o
 obj-$(CONFIG_QTI_SYS_PM_VX)	+= sys_pm_vx.o
 obj-$(CONFIG_MSM_PERFORMANCE) += msm_performance.o
