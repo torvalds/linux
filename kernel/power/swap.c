@@ -1134,8 +1134,8 @@ static int load_image(struct swap_map_handle *handle,
 		ret = err2;
 	if (!ret) {
 		pr_info("Image loading done\n");
-		snapshot_write_finalize(snapshot);
-		if (!snapshot_image_loaded(snapshot))
+		ret = snapshot_write_finalize(snapshot);
+		if (!ret && !snapshot_image_loaded(snapshot))
 			ret = -ENODATA;
 	}
 	swsusp_show_speed(start, stop, nr_to_read, "Read");
@@ -1486,8 +1486,8 @@ out_finish:
 	stop = ktime_get();
 	if (!ret) {
 		pr_info("Image loading done\n");
-		snapshot_write_finalize(snapshot);
-		if (!snapshot_image_loaded(snapshot))
+		ret = snapshot_write_finalize(snapshot);
+		if (!ret && !snapshot_image_loaded(snapshot))
 			ret = -ENODATA;
 		if (!ret) {
 			if (swsusp_header->flags & SF_CRC32_MODE) {
