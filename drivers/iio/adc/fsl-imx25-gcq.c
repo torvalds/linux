@@ -12,8 +12,9 @@
 #include <linux/interrupt.h>
 #include <linux/mfd/imx25-tsadc.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -198,8 +199,6 @@ static int mx25_gcq_ext_regulator_setup(struct device *dev,
 static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			       struct mx25_gcq_priv *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *child;
 	struct device *dev = &pdev->dev;
 	int ret, i;
 
@@ -216,37 +215,30 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			     MX25_ADCQ_CFG_IN(i) |
 			     MX25_ADCQ_CFG_REFN_NGND2);
 
-	for_each_child_of_node(np, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		u32 reg;
 		u32 refp = MX25_ADCQ_CFG_REFP_INT;
 		u32 refn = MX25_ADCQ_CFG_REFN_NGND2;
 
-		ret = of_property_read_u32(child, "reg", &reg);
-		if (ret) {
-			dev_err(dev, "Failed to get reg property\n");
-			of_node_put(child);
-			return ret;
-		}
+		ret = fwnode_property_read_u32(child, "reg", &reg);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to get reg property\n");
 
-		if (reg >= MX25_NUM_CFGS) {
-			dev_err(dev,
+		if (reg >= MX25_NUM_CFGS)
+			return dev_err_probe(dev, -EINVAL,
 				"reg value is greater than the number of available configuration registers\n");
-			of_node_put(child);
-			return -EINVAL;
-		}
 
-		of_property_read_u32(child, "fsl,adc-refp", &refp);
-		of_property_read_u32(child, "fsl,adc-refn", &refn);
+		fwnode_property_read_u32(child, "fsl,adc-refp", &refp);
+		fwnode_property_read_u32(child, "fsl,adc-refn", &refn);
 
 		switch (refp) {
 		case MX25_ADC_REFP_EXT:
 		case MX25_ADC_REFP_XP:
 		case MX25_ADC_REFP_YP:
 			ret = mx25_gcq_ext_regulator_setup(&pdev->dev, priv, refp);
-			if (ret) {
-				of_node_put(child);
+			if (ret)
 				return ret;
-			}
 			priv->channel_vref_mv[reg] =
 				regulator_get_voltage(priv->vref[refp]);
 			/* Conversion from uV to mV */
@@ -256,9 +248,8 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 			priv->channel_vref_mv[reg] = 2500;
 			break;
 		default:
-			dev_err(dev, "Invalid positive reference %d\n", refp);
-			of_node_put(child);
-			return -EINVAL;
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid positive reference %d\n", refp);
 		}
 
 		/*
@@ -268,16 +259,13 @@ static int mx25_gcq_setup_cfgs(struct platform_device *pdev,
 		refp = MX25_ADCQ_CFG_REFP(refp);
 		refn = MX25_ADCQ_CFG_REFN(refn);
 
-		if ((refp & MX25_ADCQ_CFG_REFP_MASK) != refp) {
-			dev_err(dev, "Invalid fsl,adc-refp property value\n");
-			of_node_put(child);
-			return -EINVAL;
-		}
-		if ((refn & MX25_ADCQ_CFG_REFN_MASK) != refn) {
-			dev_err(dev, "Invalid fsl,adc-refn property value\n");
-			of_node_put(child);
-			return -EINVAL;
-		}
+		if ((refp & MX25_ADCQ_CFG_REFP_MASK) != refp)
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid fsl,adc-refp property value\n");
+
+		if ((refn & MX25_ADCQ_CFG_REFN_MASK) != refn)
+			return dev_err_probe(dev, -EINVAL,
+					     "Invalid fsl,adc-refn property value\n");
 
 		regmap_update_bits(priv->regs, MX25_ADCQ_CFG(reg),
 				   MX25_ADCQ_CFG_REFP_MASK |
