@@ -53,7 +53,7 @@ struct thread_with_stdio;
 
 struct thread_with_stdio_ops {
 	void (*exit)(struct thread_with_stdio *);
-	void (*fn)(struct thread_with_stdio *);
+	int (*fn)(struct thread_with_stdio *);
 	long (*unlocked_ioctl)(struct thread_with_stdio *, unsigned int, unsigned long);
 };
 

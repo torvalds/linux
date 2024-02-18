@@ -155,14 +155,28 @@ static void bch2_fsck_thread_exit(struct thread_with_stdio *_thr)
 	kfree(thr);
 }
 
-static void bch2_fsck_offline_thread_fn(struct thread_with_stdio *stdio)
+static int bch2_fsck_offline_thread_fn(struct thread_with_stdio *stdio)
 {
 	struct fsck_thread *thr = container_of(stdio, struct fsck_thread, thr);
 	struct bch_fs *c = bch2_fs_open(thr->devs, thr->nr_devs, thr->opts);
 
-	thr->thr.thr.ret = PTR_ERR_OR_ZERO(c);
-	if (!thr->thr.thr.ret)
-		bch2_fs_stop(c);
+	if (IS_ERR(c))
+		return PTR_ERR(c);
+
+	int ret = 0;
+	if (test_bit(BCH_FS_errors_fixed, &c->flags))
+		ret |= 1;
+	if (test_bit(BCH_FS_error, &c->flags))
+		ret |= 4;
+
+	bch2_fs_stop(c);
+
+	if (ret & 1)
+		bch2_stdio_redirect_printf(&stdio->stdio, false, "%s: errors fixed\n", c->name);
+	if (ret & 4)
+		bch2_stdio_redirect_printf(&stdio->stdio, false, "%s: still has errors\n", c->name);
+
+	return ret;
 }
 
 static const struct thread_with_stdio_ops bch2_offline_fsck_ops = {
@@ -763,7 +777,7 @@ static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
 	return ret;
 }
 
-static void bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
+static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 {
 	struct fsck_thread *thr = container_of(stdio, struct fsck_thread, thr);
 	struct bch_fs *c = thr->c;
@@ -795,6 +809,7 @@ static void bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 
 	up(&c->online_fsck_mutex);
 	bch2_ro_ref_put(c);
+	return ret;
 }
 
 static const struct thread_with_stdio_ops bch2_online_fsck_ops = {
