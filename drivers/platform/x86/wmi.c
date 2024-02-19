@@ -57,6 +57,7 @@ static_assert(__alignof__(struct guid_block) == 1);
 
 enum {	/* wmi_block flags */
 	WMI_READ_TAKES_NO_ARGS,
+	WMI_NO_EVENT_DATA,
 };
 
 struct wmi_block {
@@ -869,6 +870,11 @@ static int wmi_dev_probe(struct device *dev)
 	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
 	int ret = 0;
 
+	if (wdriver->notify) {
+		if (test_bit(WMI_NO_EVENT_DATA, &wblock->flags) && !wdriver->no_notify_data)
+			return -ENODEV;
+	}
+
 	if (ACPI_FAILURE(wmi_method_enable(wblock, true)))
 		dev_warn(dev, "failed to enable device -- probing anyway\n");
 
@@ -1094,6 +1100,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 	struct acpi_device *device = ACPI_COMPANION(&pdev->dev);
 	struct acpi_buffer out = {ACPI_ALLOCATE_BUFFER, NULL};
 	const struct guid_block *gblock;
+	bool event_data_available;
 	struct wmi_block *wblock;
 	union acpi_object *obj;
 	acpi_status status;
@@ -1113,6 +1120,7 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 		return -ENXIO;
 	}
 
+	event_data_available = acpi_has_method(device->handle, "_WED");
 	gblock = (const struct guid_block *)obj->buffer.pointer;
 	total = obj->buffer.length / sizeof(struct guid_block);
 
@@ -1131,6 +1139,8 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 
 		wblock->acpi_device = device;
 		wblock->gblock = gblock[i];
+		if (gblock[i].flags & ACPI_WMI_EVENT && !event_data_available)
+			set_bit(WMI_NO_EVENT_DATA, &wblock->flags);
 
 		retval = wmi_create_device(wmi_bus_dev, wblock, device);
 		if (retval) {
