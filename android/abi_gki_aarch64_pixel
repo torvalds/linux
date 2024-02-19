@@ -238,6 +238,7 @@
   cpufreq_driver_resolve_freq
   __cpufreq_driver_target
   cpufreq_driver_target
+  cpufreq_driver_test_flags
   cpufreq_enable_fast_switch
   cpufreq_freq_transition_begin
   cpufreq_freq_transition_end
@@ -369,6 +370,7 @@
   devfreq_recommended_opp
   devfreq_register_opp_notifier
   devfreq_remove_device
+  devfreq_remove_governor
   devfreq_unregister_opp_notifier
   devfreq_update_interval
   dev_fwnode
@@ -400,6 +402,7 @@
   device_property_present
   device_property_read_string
   device_property_read_u32_array
+  device_property_read_u8_array
   device_register
   device_remove_file
   device_remove_groups
@@ -614,6 +617,7 @@
   down_read_trylock
   down_trylock
   down_write
+  d_path
   dput
   drain_workqueue
   driver_register
@@ -825,6 +829,7 @@
   drm_self_refresh_helper_alter_state
   drm_send_event
   drm_send_event_locked
+  drm_sysfs_connector_status_event
   drm_universal_plane_init
   drm_vblank_init
   drm_writeback_connector_init
@@ -883,6 +888,7 @@
   find_pid_ns
   find_task_by_vpid
   find_vma_intersection
+  find_vpid
   finish_wait
   firmware_request_nowarn
   flush_dcache_page
@@ -972,6 +978,7 @@
   get_sg_io_hdr
   __get_task_comm
   get_task_cred
+  get_task_mm
   get_thermal_instance
   get_unused_fd_flags
   get_user_pages
@@ -1283,6 +1290,7 @@
   kthread_park
   kthread_parkme
   kthread_queue_work
+  kthread_set_per_cpu
   kthread_should_park
   kthread_should_stop
   kthread_stop
@@ -1323,6 +1331,7 @@
   loops_per_jiffy
   mac_pton
   mas_empty_area_rev
+  mas_find
   max_load_balance_interval
   mbox_chan_received_data
   mbox_controller_register
@@ -1377,6 +1386,7 @@
   __mmap_lock_do_trace_released
   __mmap_lock_do_trace_start_locking
   __mmdrop
+  mmput
   mod_delayed_work_on
   mod_node_page_state
   mod_timer
@@ -1859,6 +1869,7 @@
   remove_proc_entry
   remove_wait_queue
   request_firmware
+  request_firmware_direct
   request_firmware_nowait
   __request_percpu_irq
   __request_region
@@ -2303,6 +2314,7 @@
   __traceiter_android_rvh_remove_entity_load_avg
   __traceiter_android_rvh_rtmutex_prepare_setprio
   __traceiter_android_rvh_sched_newidle_balance
+  __traceiter_android_rvh_sched_setaffinity
   __traceiter_android_rvh_select_task_rq_fair
   __traceiter_android_rvh_select_task_rq_rt
   __traceiter_android_rvh_set_cpus_allowed_by_task
@@ -2313,6 +2325,7 @@
   __traceiter_android_rvh_set_user_nice_locked
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_ufs_reprogram_all_keys
   __traceiter_android_rvh_update_blocked_fair
   __traceiter_android_rvh_update_load_avg
   __traceiter_android_rvh_update_load_sum
@@ -2364,6 +2377,7 @@
   __traceiter_cpu_frequency
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
+  __traceiter_dwc3_readl
   __traceiter_gpu_mem_total
   __traceiter_hrtimer_expire_entry
   __traceiter_hrtimer_expire_exit
@@ -2415,6 +2429,7 @@
   __tracepoint_android_rvh_remove_entity_load_avg
   __tracepoint_android_rvh_rtmutex_prepare_setprio
   __tracepoint_android_rvh_sched_newidle_balance
+  __tracepoint_android_rvh_sched_setaffinity
   __tracepoint_android_rvh_select_task_rq_fair
   __tracepoint_android_rvh_select_task_rq_rt
   __tracepoint_android_rvh_set_cpus_allowed_by_task
@@ -2425,6 +2440,7 @@
   __tracepoint_android_rvh_set_user_nice_locked
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_ufs_reprogram_all_keys
   __tracepoint_android_rvh_update_blocked_fair
   __tracepoint_android_rvh_update_load_avg
   __tracepoint_android_rvh_update_load_sum
@@ -2476,6 +2492,7 @@
   __tracepoint_cpu_frequency
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
+  __tracepoint_dwc3_readl
   __tracepoint_gpu_mem_total
   __tracepoint_hrtimer_expire_entry
   __tracepoint_hrtimer_expire_exit
