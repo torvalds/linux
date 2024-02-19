@@ -1206,37 +1206,46 @@ acpi_wmi_ec_space_handler(u32 function, acpi_physical_address address,
 	}
 }
 
-static void wmi_notify_driver(struct wmi_block *wblock)
+static int wmi_get_notify_data(struct wmi_block *wblock, union acpi_object **obj)
 {
-	struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
 	struct acpi_buffer data = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj = NULL;
 	acpi_status status;
 
-	if (!driver->no_notify_data) {
-		status = get_event_data(wblock, &data);
-		if (ACPI_FAILURE(status)) {
-			dev_warn(&wblock->dev.dev, "Failed to get event data\n");
-			return;
-		}
+	if (test_bit(WMI_NO_EVENT_DATA, &wblock->flags)) {
+		*obj = NULL;
+		return 0;
+	}
 
-		obj = data.pointer;
-		if (!obj) {
-			dev_warn(&wblock->dev.dev, "Event contains no event data\n");
-			return;
-		}
+	status = get_event_data(wblock, &data);
+	if (ACPI_FAILURE(status)) {
+		dev_warn(&wblock->dev.dev, "Failed to get event data\n");
+		return -EIO;
+	}
+
+	*obj = data.pointer;
+
+	return 0;
+}
+
+static void wmi_notify_driver(struct wmi_block *wblock, union acpi_object *obj)
+{
+	struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
+
+	if (!obj && !driver->no_notify_data) {
+		dev_warn(&wblock->dev.dev, "Event contains no event data\n");
+		return;
 	}
 
 	if (driver->notify)
 		driver->notify(&wblock->dev, obj);
-
-	kfree(obj);
 }
 
 static int wmi_notify_device(struct device *dev, void *data)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
+	union acpi_object *obj;
 	u32 *event = data;
+	int ret;
 
 	if (!(wblock->gblock.flags & ACPI_WMI_EVENT && wblock->gblock.notify_id == *event))
 		return 0;
@@ -1246,10 +1255,32 @@ static int wmi_notify_device(struct device *dev, void *data)
 	 * Because of this the WMI driver notify handler takes precedence.
 	 */
 	if (wblock->dev.dev.driver && wblock->driver_ready) {
-		wmi_notify_driver(wblock);
+		ret = wmi_get_notify_data(wblock, &obj);
+		if (ret >= 0) {
+			wmi_notify_driver(wblock, obj);
+			kfree(obj);
+		}
 	} else {
-		if (wblock->handler)
+		if (wblock->handler) {
 			wblock->handler(*event, wblock->handler_data);
+		} else {
+			/* The ACPI WMI specification says that _WED should be
+			 * evaluated every time an notification is received, even
+			 * if no consumers are present.
+			 *
+			 * Some firmware implementations actually depend on this
+			 * by using a queue for events which will fill up if the
+			 * WMI driver core stops evaluating _WED due to missing
+			 * WMI event consumers.
+			 *
+			 * Because of this we need this seemingly useless call to
+			 * wmi_get_notify_data() which in turn evaluates _WED.
+			 */
+			ret = wmi_get_notify_data(wblock, &obj);
+			if (ret >= 0)
+				kfree(obj);
+		}
+
 	}
 	up_read(&wblock->notify_lock);
 
