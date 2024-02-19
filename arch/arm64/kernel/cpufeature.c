@@ -2706,24 +2706,15 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.capability = ARM64_HAS_VA52,
 		.type = ARM64_CPUCAP_BOOT_CPU_FEATURE,
 		.matches = has_cpuid_feature,
-		.field_width = 4,
 #ifdef CONFIG_ARM64_64K_PAGES
 		.desc = "52-bit Virtual Addressing (LVA)",
-		.sign = FTR_SIGNED,
-		.sys_reg = SYS_ID_AA64MMFR2_EL1,
-		.field_pos = ID_AA64MMFR2_EL1_VARange_SHIFT,
-		.min_field_value = ID_AA64MMFR2_EL1_VARange_52,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR2_EL1, VARange, 52)
 #else
 		.desc = "52-bit Virtual Addressing (LPA2)",
-		.sys_reg = SYS_ID_AA64MMFR0_EL1,
 #ifdef CONFIG_ARM64_4K_PAGES
-		.sign = FTR_SIGNED,
-		.field_pos = ID_AA64MMFR0_EL1_TGRAN4_SHIFT,
-		.min_field_value = ID_AA64MMFR0_EL1_TGRAN4_52_BIT,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR0_EL1, TGRAN4, 52_BIT)
 #else
-		.sign = FTR_UNSIGNED,
-		.field_pos = ID_AA64MMFR0_EL1_TGRAN16_SHIFT,
-		.min_field_value = ID_AA64MMFR0_EL1_TGRAN16_52_BIT,
+		ARM64_CPUID_FIELDS(ID_AA64MMFR0_EL1, TGRAN16, 52_BIT)
 #endif
 #endif
 	},
