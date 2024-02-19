@@ -572,7 +572,7 @@ static void netdev_setup(struct net_device *dev)
 	dev->needs_free_netdev	= true;
 }
 
-static struct device_type bt_type = {
+static const struct device_type bt_type = {
 	.name	= "bluetooth",
 };
 
