@@ -61,3 +61,7 @@ int damon_sysfs_schemes_clear_regions(
 
 void damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx);
+
+void damos_sysfs_update_effective_quotas(
+		struct damon_sysfs_schemes *sysfs_schemes,
+		struct damon_ctx *ctx);
