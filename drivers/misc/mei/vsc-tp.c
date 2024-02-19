@@ -445,11 +445,16 @@ static int vsc_tp_match_any(struct acpi_device *adev, void *data)
 
 static int vsc_tp_probe(struct spi_device *spi)
 {
-	struct platform_device_info pinfo = { 0 };
+	struct vsc_tp *tp;
+	struct platform_device_info pinfo = {
+		.name = "intel_vsc",
+		.data = &tp,
+		.size_data = sizeof(tp),
+		.id = PLATFORM_DEVID_NONE,
+	};
 	struct device *dev = &spi->dev;
 	struct platform_device *pdev;
 	struct acpi_device *adev;
-	struct vsc_tp *tp;
 	int ret;
 
 	tp = devm_kzalloc(dev, sizeof(*tp), GFP_KERNEL);
@@ -501,13 +506,8 @@ static int vsc_tp_probe(struct spi_device *spi)
 		ret = -ENODEV;
 		goto err_destroy_lock;
 	}
+
 	pinfo.fwnode = acpi_fwnode_handle(adev);
-
-	pinfo.name = "intel_vsc";
-	pinfo.data = &tp;
-	pinfo.size_data = sizeof(tp);
-	pinfo.id = PLATFORM_DEVID_NONE;
-
 	pdev = platform_device_register_full(&pinfo);
 	if (IS_ERR(pdev)) {
 		ret = PTR_ERR(pdev);
