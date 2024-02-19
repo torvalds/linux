@@ -324,12 +324,15 @@ static void paicrypt_read(struct perf_event *event)
 
 static void paicrypt_start(struct perf_event *event, int flags)
 {
+	struct paicrypt_mapptr *mp = this_cpu_ptr(paicrypt_root.mapptr);
+	struct paicrypt_map *cpump = mp->mapptr;
 	u64 sum;
 
 	if (!event->attr.sample_period) {	/* Counting */
 		sum = paicrypt_getall(event);	/* Get current value */
 		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
+		cpump->event = event;
 		perf_sched_cb_inc(event->pmu);
 	}
 }
@@ -345,7 +348,6 @@ static int paicrypt_add(struct perf_event *event, int flags)
 		WRITE_ONCE(S390_lowcore.ccd, ccd);
 		local_ctl_set_bit(0, CR0_CRYPTOGRAPHY_COUNTER_BIT);
 	}
-	cpump->event = event;
 	if (flags & PERF_EF_START)
 		paicrypt_start(event, PERF_EF_RELOAD);
 	event->hw.state = 0;

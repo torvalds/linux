@@ -203,7 +203,6 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 	}
 
 	rc = 0;
-	cpump->event = event;
 
 undo:
 	if (rc) {
@@ -328,12 +327,15 @@ static void paiext_read(struct perf_event *event)
 
 static void paiext_start(struct perf_event *event, int flags)
 {
+	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
+	struct paiext_map *cpump = mp->mapptr;
 	u64 sum;
 
 	if (!event->attr.sample_period) {	/* Counting */
 		sum = paiext_getall(event);	/* Get current value */
 		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
+		cpump->event = event;
 		perf_sched_cb_inc(event->pmu);
 	}
 }
@@ -352,7 +354,6 @@ static int paiext_add(struct perf_event *event, int flags)
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",
 				    __func__, S390_lowcore.aicd, pcb->acc);
 	}
-	cpump->event = event;
 	if (flags & PERF_EF_START)
 		paiext_start(event, PERF_EF_RELOAD);
 	event->hw.state = 0;
