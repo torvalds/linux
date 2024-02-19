@@ -2147,6 +2147,10 @@ unlock:
  * Looks up the page cache entry at @inode & @index.  If a folio is
  * present, it is returned locked with an increased refcount.
  *
+ * If the caller modifies data in the folio, it must call folio_mark_dirty()
+ * before unlocking the folio to ensure that the folio is not reclaimed.
+ * There is no need to reserve space before calling folio_mark_dirty().
+ *
  * When no folio is found, the behavior depends on @sgp:
  *  - for SGP_READ, *foliop is %NULL and 0 is returned
  *  - for SGP_NOALLOC, *foliop is %NULL and -ENOENT is returned
