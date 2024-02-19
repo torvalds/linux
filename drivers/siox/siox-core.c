@@ -707,6 +707,31 @@ struct siox_master *siox_master_alloc(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(siox_master_alloc);
 
+static void devm_siox_master_put(void *data)
+{
+	struct siox_master *smaster = data;
+
+	siox_master_put(smaster);
+}
+
+struct siox_master *devm_siox_master_alloc(struct device *dev,
+					   size_t size)
+{
+	struct siox_master *smaster;
+	int ret;
+
+	smaster = siox_master_alloc(dev, size);
+	if (!smaster)
+		return NULL;
+
+	ret = devm_add_action_or_reset(dev, devm_siox_master_put, smaster);
+	if (ret)
+		return NULL;
+
+	return smaster;
+}
+EXPORT_SYMBOL_GPL(devm_siox_master_alloc);
+
 int siox_master_register(struct siox_master *smaster)
 {
 	int ret;
