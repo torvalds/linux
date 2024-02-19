@@ -49,3 +49,5 @@ struct siox_master *devm_siox_master_alloc(struct device *dev, size_t size);
 
 int siox_master_register(struct siox_master *smaster);
 void siox_master_unregister(struct siox_master *smaster);
+
+int devm_siox_master_register(struct device *dev, struct siox_master *smaster);
