@@ -2104,5 +2104,6 @@ static void __exit nvmet_rdma_exit(void)
 module_init(nvmet_rdma_init);
 module_exit(nvmet_rdma_exit);
 
+MODULE_DESCRIPTION("NVMe target RDMA transport driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("nvmet-transport-1"); /* 1 == NVMF_TRTYPE_RDMA */

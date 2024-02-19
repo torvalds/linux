@@ -7,7 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Ceva AHCI SATA Controller
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@amd.com>
+  - Mubin Sayyed <mubin.sayyed@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 description: |
   The Ceva SATA controller mostly conforms to the AHCI interface with some

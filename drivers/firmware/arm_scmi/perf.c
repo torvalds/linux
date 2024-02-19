@@ -350,8 +350,8 @@ process_response_opp(struct scmi_opp *opp, unsigned int loop_idx,
 }
 
 static inline void
-process_response_opp_v4(struct perf_dom_info *dom, struct scmi_opp *opp,
-			unsigned int loop_idx,
+process_response_opp_v4(struct device *dev, struct perf_dom_info *dom,
+			struct scmi_opp *opp, unsigned int loop_idx,
 			const struct scmi_msg_resp_perf_describe_levels_v4 *r)
 {
 	opp->perf = le32_to_cpu(r->opp[loop_idx].perf_val);
@@ -362,10 +362,23 @@ process_response_opp_v4(struct perf_dom_info *dom, struct scmi_opp *opp,
 	/* Note that PERF v4 reports always five 32-bit words */
 	opp->indicative_freq = le32_to_cpu(r->opp[loop_idx].indicative_freq);
 	if (dom->level_indexing_mode) {
+		int ret;
+
 		opp->level_index = le32_to_cpu(r->opp[loop_idx].level_index);
 
-		xa_store(&dom->opps_by_idx, opp->level_index, opp, GFP_KERNEL);
-		xa_store(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
+		ret = xa_insert(&dom->opps_by_idx, opp->level_index, opp,
+				GFP_KERNEL);
+		if (ret)
+			dev_warn(dev,
+				 "Failed to add opps_by_idx at %d - ret:%d\n",
+				 opp->level_index, ret);
+
+		ret = xa_insert(&dom->opps_by_lvl, opp->perf, opp, GFP_KERNEL);
+		if (ret)
+			dev_warn(dev,
+				 "Failed to add opps_by_lvl at %d - ret:%d\n",
+				 opp->perf, ret);
+
 		hash_add(dom->opps_by_freq, &opp->hash, opp->indicative_freq);
 	}
 }
@@ -382,7 +395,7 @@ iter_perf_levels_process_response(const struct scmi_protocol_handle *ph,
 	if (PROTOCOL_REV_MAJOR(p->version) <= 0x3)
 		process_response_opp(opp, st->loop_idx, response);
 	else
-		process_response_opp_v4(p->perf_dom, opp, st->loop_idx,
+		process_response_opp_v4(ph->dev, p->perf_dom, opp, st->loop_idx,
 					response);
 	p->perf_dom->opp_count++;
 

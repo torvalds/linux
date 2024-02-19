@@ -145,12 +145,13 @@ struct serial_rs485 {
 #define SER_RS485_ENABLED		_BITUL(0)
 #define SER_RS485_RTS_ON_SEND		_BITUL(1)
 #define SER_RS485_RTS_AFTER_SEND	_BITUL(2)
-#define SER_RS485_RX_DURING_TX		_BITUL(3)
-#define SER_RS485_TERMINATE_BUS		_BITUL(4)
-#define SER_RS485_ADDRB			_BITUL(5)
-#define SER_RS485_ADDR_RECV		_BITUL(6)
-#define SER_RS485_ADDR_DEST		_BITUL(7)
-#define SER_RS485_MODE_RS422		_BITUL(8)
+/* Placeholder for bit 3: SER_RS485_RTS_BEFORE_SEND, which isn't used anymore */
+#define SER_RS485_RX_DURING_TX		_BITUL(4)
+#define SER_RS485_TERMINATE_BUS		_BITUL(5)
+#define SER_RS485_ADDRB			_BITUL(6)
+#define SER_RS485_ADDR_RECV		_BITUL(7)
+#define SER_RS485_ADDR_DEST		_BITUL(8)
+#define SER_RS485_MODE_RS422		_BITUL(9)
 
 	__u32	delay_rts_before_send;
 	__u32	delay_rts_after_send;

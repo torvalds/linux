@@ -1402,7 +1402,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi5_pins>;
 
-	cr50@0 {
+	tpm@0 {
 		compatible = "google,cr50";
 		reg = <0>;
 		interrupts-extended = <&pio 171 IRQ_TYPE_EDGE_RISING>;

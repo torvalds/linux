@@ -1450,4 +1450,5 @@ const struct ieee80211_ops mt7925_ops = {
 EXPORT_SYMBOL_GPL(mt7925_ops);
 
 MODULE_AUTHOR("Deren Wu <deren.wu@mediatek.com>");
+MODULE_DESCRIPTION("MediaTek MT7925 core driver");
 MODULE_LICENSE("Dual BSD/GPL");

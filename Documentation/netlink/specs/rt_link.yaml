@@ -942,6 +942,10 @@ attribute-sets:
       -
         name: gro-ipv4-max-size
         type: u32
+      -
+        name: dpll-pin
+        type: nest
+        nested-attributes: link-dpll-pin-attrs
   -
     name: af-spec-attrs
     attributes:
@@ -1627,6 +1631,12 @@ attribute-sets:
       -
         name: used
         type: u8
+  -
+    name: link-dpll-pin-attrs
+    attributes:
+      -
+        name: id
+        type: u32
 
 sub-messages:
   -

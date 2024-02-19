@@ -241,9 +241,11 @@ struct mnt_opt {
 	const char *const data;
 };
 
-const struct mnt_opt mnt_tmp = {
+#define MNT_TMP_DATA "size=4m,mode=700"
+
+static const struct mnt_opt mnt_tmp = {
 	.type = "tmpfs",
-	.data = "size=4m,mode=700",
+	.data = MNT_TMP_DATA,
 };
 
 static int mount_opt(const struct mnt_opt *const mnt, const char *const target)
@@ -4632,7 +4634,10 @@ FIXTURE_VARIANT(layout3_fs)
 /* clang-format off */
 FIXTURE_VARIANT_ADD(layout3_fs, tmpfs) {
 	/* clang-format on */
-	.mnt = mnt_tmp,
+	.mnt = {
+		.type = "tmpfs",
+		.data = MNT_TMP_DATA,
+	},
 	.file_path = file1_s1d1,
 };
 

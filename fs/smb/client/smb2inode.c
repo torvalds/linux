@@ -120,14 +120,20 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int size[2];
 	void *data[2];
 	int len;
+	int retries = 0, cur_sleep = 1;
+
+replay_again:
+	/* reinitialize for possible replay */
+	flags = 0;
+	oplock = SMB2_OPLOCK_LEVEL_NONE;
+	num_rqst = 0;
+	server = cifs_pick_channel(ses);
 
 	vars = kzalloc(sizeof(*vars), GFP_ATOMIC);
 	if (vars == NULL)
 		return -ENOMEM;
 	rqst = &vars->rqst[0];
 	rsp_iov = &vars->rsp_iov[0];
-
-	server = cifs_pick_channel(ses);
 
 	if (smb3_encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
@@ -463,15 +469,24 @@ static int smb2_compound_op(const unsigned int xid, struct cifs_tcon *tcon,
 	num_rqst++;
 
 	if (cfile) {
+		if (retries)
+			for (i = 1; i < num_rqst - 2; i++)
+				smb2_set_replay(server, &rqst[i]);
+
 		rc = compound_send_recv(xid, ses, server,
 					flags, num_rqst - 2,
 					&rqst[1], &resp_buftype[1],
 					&rsp_iov[1]);
-	} else
+	} else {
+		if (retries)
+			for (i = 0; i < num_rqst; i++)
+				smb2_set_replay(server, &rqst[i]);
+
 		rc = compound_send_recv(xid, ses, server,
 					flags, num_rqst,
 					rqst, resp_buftype,
 					rsp_iov);
+	}
 
 finished:
 	num_rqst = 0;
@@ -620,9 +635,6 @@ finished:
 	}
 	SMB2_close_free(&rqst[num_rqst]);
 
-	if (cfile)
-		cifsFileInfo_put(cfile);
-
 	num_cmds += 2;
 	if (out_iov && out_buftype) {
 		memcpy(out_iov, rsp_iov, num_cmds * sizeof(*out_iov));
@@ -632,7 +644,16 @@ finished:
 		for (i = 0; i < num_cmds; i++)
 			free_rsp_buf(resp_buftype[i], rsp_iov[i].iov_base);
 	}
+	num_cmds -= 2; /* correct num_cmds as there could be a retry */
 	kfree(vars);
+
+	if (is_replayable_error(rc) &&
+	    smb2_should_replay(tcon, &retries, &cur_sleep))
+		goto replay_again;
+
+	if (cfile)
+		cifsFileInfo_put(cfile);
+
 	return rc;
 }
 

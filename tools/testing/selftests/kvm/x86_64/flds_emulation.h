@@ -41,7 +41,7 @@ static inline void handle_flds_emulation_failure_exit(struct kvm_vcpu *vcpu)
 
 	insn_bytes = run->emulation_failure.insn_bytes;
 	TEST_ASSERT(insn_bytes[0] == 0xd9 && insn_bytes[1] == 0,
-		    "Expected 'flds [eax]', opcode '0xd9 0x00', got opcode 0x%02x 0x%02x\n",
+		    "Expected 'flds [eax]', opcode '0xd9 0x00', got opcode 0x%02x 0x%02x",
 		    insn_bytes[0], insn_bytes[1]);
 
 	vcpu_regs_get(vcpu, &regs);
