@@ -971,6 +971,80 @@ static void mctp_test_fragment_flow(struct kunit *test)
 }
 #endif
 
+/* Test that outgoing skbs cause a suitable tag to be created */
+static void mctp_test_route_output_key_create(struct kunit *test)
+{
+	const unsigned int netid = 50;
+	const u8 dst = 26, src = 15;
+	struct mctp_test_route *rt;
+	struct mctp_test_dev *dev;
+	struct mctp_sk_key *key;
+	struct netns_mctp *mns;
+	unsigned long flags;
+	struct socket *sock;
+	struct sk_buff *skb;
+	bool empty, single;
+	const int len = 2;
+	int rc;
+
+	dev = mctp_test_create_dev();
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	WRITE_ONCE(dev->mdev->net, netid);
+
+	rt = mctp_test_create_route(&init_net, dev->mdev, dst, 68);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
+
+	rc = sock_create_kern(&init_net, AF_MCTP, SOCK_DGRAM, 0, &sock);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	dev->mdev->addrs = kmalloc(sizeof(u8), GFP_KERNEL);
+	dev->mdev->num_addrs = 1;
+	dev->mdev->addrs[0] = src;
+
+	skb = alloc_skb(sizeof(struct mctp_hdr) + 1 + len, GFP_KERNEL);
+	KUNIT_ASSERT_TRUE(test, skb);
+	__mctp_cb(skb);
+	skb_reserve(skb, sizeof(struct mctp_hdr) + 1 + len);
+	memset(skb_put(skb, len), 0, len);
+
+	refcount_inc(&rt->rt.refs);
+
+	mns = &sock_net(sock->sk)->mctp;
+
+	/* We assume we're starting from an empty keys list, which requires
+	 * preceding tests to clean up correctly!
+	 */
+	spin_lock_irqsave(&mns->keys_lock, flags);
+	empty = hlist_empty(&mns->keys);
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+	KUNIT_ASSERT_TRUE(test, empty);
+
+	rc = mctp_local_output(sock->sk, &rt->rt, skb, dst, MCTP_TAG_OWNER);
+	KUNIT_ASSERT_EQ(test, rc, 0);
+
+	key = NULL;
+	single = false;
+	spin_lock_irqsave(&mns->keys_lock, flags);
+	if (!hlist_empty(&mns->keys)) {
+		key = hlist_entry(mns->keys.first, struct mctp_sk_key, hlist);
+		single = hlist_is_singular_node(&key->hlist, &mns->keys);
+	}
+	spin_unlock_irqrestore(&mns->keys_lock, flags);
+
+	KUNIT_ASSERT_NOT_NULL(test, key);
+	KUNIT_ASSERT_TRUE(test, single);
+
+	KUNIT_EXPECT_EQ(test, key->net, netid);
+	KUNIT_EXPECT_EQ(test, key->local_addr, src);
+	KUNIT_EXPECT_EQ(test, key->peer_addr, dst);
+	/* key has incoming tag, so inverse of what we sent */
+	KUNIT_EXPECT_FALSE(test, key->tag & MCTP_TAG_OWNER);
+
+	sock_release(sock);
+	mctp_test_route_destroy(test, rt);
+	mctp_test_destroy_dev(dev);
+}
+
 static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE_PARAM(mctp_test_fragment, mctp_frag_gen_params),
 	KUNIT_CASE_PARAM(mctp_test_rx_input, mctp_rx_input_gen_params),
@@ -983,6 +1057,7 @@ static struct kunit_case mctp_test_cases[] = {
 	KUNIT_CASE(mctp_test_route_input_multiple_nets_key),
 	KUNIT_CASE(mctp_test_packet_flow),
 	KUNIT_CASE(mctp_test_fragment_flow),
+	KUNIT_CASE(mctp_test_route_output_key_create),
 	{}
 };
 
