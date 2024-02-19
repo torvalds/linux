@@ -42,6 +42,12 @@ enum eq_event_id {
 	EQ_EVENT_PWR_BRK_ENTRY,
 	EQ_EVENT_PWR_BRK_EXIT,
 	EQ_EVENT_HEARTBEAT,
+	EQ_EVENT_CPLD_RESET_REASON,
+	EQ_EVENT_CPLD_SHUTDOWN,
+	EQ_EVENT_POWER_EVT_START,
+	EQ_EVENT_POWER_EVT_END,
+	EQ_EVENT_THERMAL_EVT_START,
+	EQ_EVENT_THERMAL_EVT_END,
 };
 
 /*
@@ -1165,7 +1171,7 @@ struct cpucp_security_info {
 struct cpucp_info {
 	struct cpucp_sensor sensors[CPUCP_MAX_SENSORS];
 	__u8 kernel_version[VERSION_MAX_LEN];
-	__le32 reserved;
+	__le32 reserved1;
 	__le32 card_type;
 	__le32 card_location;
 	__le32 cpld_version;
@@ -1187,7 +1193,7 @@ struct cpucp_info {
 	__u8 substrate_version;
 	__u8 eq_health_check_supported;
 	struct cpucp_security_info sec_info;
-	__le32 fw_hbm_region_size;
+	__le32 reserved2;
 	__u8 pll_map[PLL_MAP_LEN];
 	__le64 mme_binning_mask;
 	__u8 fw_os_version[VERSION_MAX_LEN];
