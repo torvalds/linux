@@ -2327,7 +2327,7 @@ static const struct dev_pm_ops tb_switch_pm_ops = {
 			   NULL)
 };
 
-struct device_type tb_switch_type = {
+const struct device_type tb_switch_type = {
 	.name = "thunderbolt_device",
 	.release = tb_switch_release,
 	.uevent = tb_switch_uevent,

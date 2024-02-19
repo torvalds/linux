@@ -326,7 +326,7 @@ static void tb_domain_release(struct device *dev)
 	kfree(tb);
 }
 
-struct device_type tb_domain_type = {
+const struct device_type tb_domain_type = {
 	.name = "thunderbolt_domain",
 	.release = tb_domain_release,
 };

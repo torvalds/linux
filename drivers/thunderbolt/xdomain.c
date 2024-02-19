@@ -1002,7 +1002,7 @@ static void tb_service_release(struct device *dev)
 	kfree(svc);
 }
 
-struct device_type tb_service_type = {
+const struct device_type tb_service_type = {
 	.name = "thunderbolt_service",
 	.groups = tb_service_attr_groups,
 	.uevent = tb_service_uevent,
@@ -1893,7 +1893,7 @@ static const struct dev_pm_ops tb_xdomain_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tb_xdomain_suspend, tb_xdomain_resume)
 };
 
-struct device_type tb_xdomain_type = {
+const struct device_type tb_xdomain_type = {
 	.name = "thunderbolt_xdomain",
 	.release = tb_xdomain_release,
 	.pm = &tb_xdomain_pm_ops,

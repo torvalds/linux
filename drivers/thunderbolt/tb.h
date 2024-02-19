@@ -749,10 +749,10 @@ static inline int tb_port_write(struct tb_port *port, const void *buffer,
 struct tb *icm_probe(struct tb_nhi *nhi);
 struct tb *tb_probe(struct tb_nhi *nhi);
 
-extern struct device_type tb_domain_type;
-extern struct device_type tb_retimer_type;
-extern struct device_type tb_switch_type;
-extern struct device_type usb4_port_device_type;
+extern const struct device_type tb_domain_type;
+extern const struct device_type tb_retimer_type;
+extern const struct device_type tb_switch_type;
+extern const struct device_type usb4_port_device_type;
 
 int tb_domain_init(void);
 void tb_domain_exit(void);
