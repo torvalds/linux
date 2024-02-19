@@ -182,7 +182,7 @@
 	status = "okay";
 	clock-frequency = <355000>;
 
-	led-controller@38 {
+	backlight: led-controller@38 {
 		compatible = "ti,lm3630a";
 		status = "okay";
 		reg = <0x38>;
@@ -271,6 +271,8 @@
 	panel: panel@0 {
 		reg = <0>;
 		compatible = "lg,acx467akm-7";
+
+		backlight = <&backlight>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&panel_pin>;
