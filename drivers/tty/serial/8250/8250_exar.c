@@ -6,12 +6,12 @@
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
  */
-#include <linux/acpi.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -375,7 +375,7 @@ static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
 		return NULL;
 
 	pdev->dev.parent = &pcidev->dev;
-	ACPI_COMPANION_SET(&pdev->dev, ACPI_COMPANION(&pcidev->dev));
+	device_set_node(&pdev->dev, dev_fwnode(&pcidev->dev));
 
 	if (device_add_software_node(&pdev->dev, node) < 0 ||
 	    platform_device_add(pdev) < 0) {
