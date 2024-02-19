@@ -112,6 +112,25 @@ out:
 	return ret;
 }
 
+int xe_huc_init_post_hwconfig(struct xe_huc *huc)
+{
+	struct xe_tile *tile = gt_to_tile(huc_to_gt(huc));
+	struct xe_device *xe = huc_to_xe(huc);
+	int ret;
+
+	if (!IS_DGFX(huc_to_xe(huc)))
+		return 0;
+
+	if (!xe_uc_fw_is_loadable(&huc->fw))
+		return 0;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &huc->fw.bo);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int xe_huc_upload(struct xe_huc *huc)
 {
 	if (!xe_uc_fw_is_loadable(&huc->fw))

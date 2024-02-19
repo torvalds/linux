@@ -94,6 +94,10 @@ int xe_uc_init_post_hwconfig(struct xe_uc *uc)
 	if (err)
 		return err;
 
+	err = xe_huc_init_post_hwconfig(&uc->huc);
+	if (err)
+		return err;
+
 	return xe_gsc_init_post_hwconfig(&uc->gsc);
 }
 
