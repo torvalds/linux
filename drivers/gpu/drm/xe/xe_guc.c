@@ -272,6 +272,34 @@ void xe_guc_comm_init_early(struct xe_guc *guc)
 		guc->notify_reg = GUC_HOST_INTERRUPT;
 }
 
+static int xe_guc_realloc_post_hwconfig(struct xe_guc *guc)
+{
+	struct xe_tile *tile = gt_to_tile(guc_to_gt(guc));
+	struct xe_device *xe = guc_to_xe(guc);
+	int ret;
+
+	if (!IS_DGFX(guc_to_xe(guc)))
+		return 0;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->fw.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->log.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ads.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ct.bo);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 int xe_guc_init(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
@@ -331,6 +359,12 @@ out:
  */
 int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 {
+	int ret;
+
+	ret = xe_guc_realloc_post_hwconfig(guc);
+	if (ret)
+		return ret;
+
 	guc_init_params_post_hwconfig(guc);
 
 	return xe_guc_ads_init_post_hwconfig(&guc->ads);

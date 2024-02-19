@@ -1612,6 +1612,38 @@ struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_til
 	return bo;
 }
 
+/**
+ * xe_managed_bo_reinit_in_vram
+ * @xe: xe device
+ * @tile: Tile where the new buffer will be created
+ * @src: Managed buffer object allocated in system memory
+ *
+ * Replace a managed src buffer object allocated in system memory with a new
+ * one allocated in vram, copying the data between them.
+ * Buffer object in VRAM is not going to have the same GGTT address, the caller
+ * is responsible for making sure that any old references to it are updated.
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int xe_managed_bo_reinit_in_vram(struct xe_device *xe, struct xe_tile *tile, struct xe_bo **src)
+{
+	struct xe_bo *bo;
+
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, !(*src)->vmap.is_iomem);
+
+	bo = xe_managed_bo_create_from_data(xe, tile, (*src)->vmap.vaddr, (*src)->size,
+					    XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					    XE_BO_CREATE_GGTT_BIT);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
+
+	drmm_release_action(&xe->drm, __xe_bo_unpin_map_no_vm, *src);
+	*src = bo;
+
+	return 0;
+}
+
 /*
  * XXX: This is in the VM bind data path, likely should calculate this once and
  * store, with a recalculation if the BO is moved.
