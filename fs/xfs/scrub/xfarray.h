@@ -105,8 +105,14 @@ struct xfarray_sortinfo {
 	/* XFARRAY_SORT_* flags; see below. */
 	unsigned int		flags;
 
-	/* Cache a page here for faster access. */
-	struct xfile_page	xfpage;
+	/* Cache a folio here for faster scanning for pivots */
+	struct folio		*folio;
+
+	/* First array index in folio that is completely readable */
+	xfarray_idx_t		first_folio_idx;
+
+	/* Last array index in folio that is completely readable */
+	xfarray_idx_t		last_folio_idx;
 
 #ifdef DEBUG
 	/* Performance statistics. */
