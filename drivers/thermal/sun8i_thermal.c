@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
@@ -66,6 +67,7 @@ struct tsensor {
 struct ths_thermal_chip {
 	bool            has_mod_clk;
 	bool            has_bus_clk_reset;
+	bool		needs_sram;
 	int		sensor_num;
 	int		offset;
 	int		scale;
@@ -83,11 +85,15 @@ struct ths_device {
 	const struct ths_thermal_chip		*chip;
 	struct device				*dev;
 	struct regmap				*regmap;
+	struct regmap_field			*sram_regmap_field;
 	struct reset_control			*reset;
 	struct clk				*bus_clk;
 	struct clk                              *mod_clk;
 	struct tsensor				sensor[MAX_SENSOR_NUM];
 };
+
+/* The H616 needs to have a bit 16 in the SRAM control register cleared. */
+static const struct reg_field sun8i_ths_sram_reg_field = REG_FIELD(0x0, 16, 16);
 
 /* Temp Unit: millidegree Celsius */
 static int sun8i_ths_calc_temp(struct ths_device *tmdev,
@@ -337,6 +343,34 @@ static void sun8i_ths_reset_control_assert(void *data)
 	reset_control_assert(data);
 }
 
+static struct regmap *sun8i_ths_get_sram_regmap(struct device_node *node)
+{
+	struct device_node *sram_node;
+	struct platform_device *sram_pdev;
+	struct regmap *regmap = NULL;
+
+	sram_node = of_parse_phandle(node, "allwinner,sram", 0);
+	if (!sram_node)
+		return ERR_PTR(-ENODEV);
+
+	sram_pdev = of_find_device_by_node(sram_node);
+	if (!sram_pdev) {
+		/* platform device might not be probed yet */
+		regmap = ERR_PTR(-EPROBE_DEFER);
+		goto out_put_node;
+	}
+
+	/* If no regmap is found then the other device driver is at fault */
+	regmap = dev_get_regmap(&sram_pdev->dev, NULL);
+	if (!regmap)
+		regmap = ERR_PTR(-EINVAL);
+
+	platform_device_put(sram_pdev);
+out_put_node:
+	of_node_put(sram_node);
+	return regmap;
+}
+
 static int sun8i_ths_resource_init(struct ths_device *tmdev)
 {
 	struct device *dev = tmdev->dev;
@@ -380,6 +414,19 @@ static int sun8i_ths_resource_init(struct ths_device *tmdev)
 	ret = clk_set_rate(tmdev->mod_clk, 24000000);
 	if (ret)
 		return ret;
+
+	if (tmdev->chip->needs_sram) {
+		struct regmap *regmap;
+
+		regmap = sun8i_ths_get_sram_regmap(dev->of_node);
+		if (IS_ERR(regmap))
+			return PTR_ERR(regmap);
+		tmdev->sram_regmap_field = devm_regmap_field_alloc(dev,
+						      regmap,
+						      sun8i_ths_sram_reg_field);
+		if (IS_ERR(tmdev->sram_regmap_field))
+			return PTR_ERR(tmdev->sram_regmap_field);
+	}
 
 	ret = sun8i_ths_calibrate(tmdev);
 	if (ret)
@@ -426,6 +473,10 @@ static int sun8i_h3_thermal_init(struct ths_device *tmdev)
 static int sun50i_h6_thermal_init(struct ths_device *tmdev)
 {
 	int val;
+
+	/* The H616 needs to have a bit in the SRAM control register cleared. */
+	if (tmdev->sram_regmap_field)
+		regmap_field_write(tmdev->sram_regmap_field, 0);
 
 	/*
 	 * The manual recommends an overall sample frequency of 50 KHz (20us,
