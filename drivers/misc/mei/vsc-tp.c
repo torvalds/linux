@@ -25,7 +25,8 @@
 #define VSC_TP_ROM_BOOTUP_DELAY_MS		10
 #define VSC_TP_ROM_XFER_POLL_TIMEOUT_US		(500 * USEC_PER_MSEC)
 #define VSC_TP_ROM_XFER_POLL_DELAY_US		(20 * USEC_PER_MSEC)
-#define VSC_TP_WAIT_FW_ASSERTED_TIMEOUT		(2 * HZ)
+#define VSC_TP_WAIT_FW_POLL_TIMEOUT		(2 * HZ)
+#define VSC_TP_WAIT_FW_POLL_DELAY_US		(20 * USEC_PER_MSEC)
 #define VSC_TP_MAX_XFER_COUNT			5
 
 #define VSC_TP_PACKET_SYNC			0x31
@@ -101,13 +102,15 @@ static int vsc_tp_wakeup_request(struct vsc_tp *tp)
 	gpiod_set_value_cansleep(tp->wakeupfw, 0);
 
 	ret = wait_event_timeout(tp->xfer_wait,
-				 atomic_read(&tp->assert_cnt) &&
-				 gpiod_get_value_cansleep(tp->wakeuphost),
-				 VSC_TP_WAIT_FW_ASSERTED_TIMEOUT);
+				 atomic_read(&tp->assert_cnt),
+				 VSC_TP_WAIT_FW_POLL_TIMEOUT);
 	if (!ret)
 		return -ETIMEDOUT;
 
-	return 0;
+	return read_poll_timeout(gpiod_get_value_cansleep, ret, ret,
+				 VSC_TP_WAIT_FW_POLL_DELAY_US,
+				 VSC_TP_WAIT_FW_POLL_TIMEOUT, false,
+				 tp->wakeuphost);
 }
 
 static void vsc_tp_wakeup_release(struct vsc_tp *tp)
