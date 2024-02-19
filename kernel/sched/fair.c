@@ -1831,6 +1831,12 @@ bool should_numa_migrate_memory(struct task_struct *p, struct folio *folio,
 	int last_cpupid, this_cpupid;
 
 	/*
+	 * Cannot migrate to memoryless nodes.
+	 */
+	if (!node_state(dst_nid, N_MEMORY))
+		return false;
+
+	/*
 	 * The pages in slow memory node should be migrated according
 	 * to hot/cold instead of private/shared.
 	 */
