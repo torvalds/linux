@@ -498,7 +498,7 @@ static void siox_device_release(struct device *dev)
 	kfree(sdevice);
 }
 
-static struct device_type siox_device_type = {
+static const struct device_type siox_device_type = {
 	.groups = siox_device_groups,
 	.release = siox_device_release,
 };
@@ -676,7 +676,7 @@ static void siox_master_release(struct device *dev)
 	kfree(smaster);
 }
 
-static struct device_type siox_master_type = {
+static const struct device_type siox_master_type = {
 	.groups = siox_master_groups,
 	.release = siox_master_release,
 };
