@@ -25,17 +25,32 @@
 
 #include "pwm-dwc.h"
 
-static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
+/* Elkhart Lake */
+static const struct dwc_pwm_info ehl_pwm_info = {
+	.nr = 2,
+	.size = 0x1000,
+};
+
+static int dwc_pwm_init_one(struct device *dev, void __iomem *base, unsigned int offset)
 {
-	struct device *dev = &pci->dev;
 	struct pwm_chip *chip;
 	struct dwc_pwm *dwc;
-	int ret;
 
 	chip = dwc_pwm_alloc(dev);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
+
 	dwc = to_dwc_pwm(chip);
+	dwc->base = base + offset;
+
+	return devm_pwmchip_add(dev, chip);
+}
+
+static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
+{
+	const struct dwc_pwm_info *info;
+	struct device *dev = &pci->dev;
+	int i, ret;
 
 	ret = pcim_enable_device(pci);
 	if (ret) {
@@ -51,12 +66,17 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return ret;
 	}
 
-	/* No need to check for failure, pcim_iomap_regions() does it for us. */
-	dwc->base = pcim_iomap_table(pci)[0];
+	info = (const struct dwc_pwm_info *)id->driver_data;
 
-	ret = devm_pwmchip_add(dev, chip);
-	if (ret)
-		return ret;
+	for (i = 0; i < info->nr; i++) {
+		/*
+		 * No need to check for pcim_iomap_table() failure,
+		 * pcim_iomap_regions() already does it for us.
+		 */
+		ret = dwc_pwm_init_one(dev, pcim_iomap_table(pci)[0], i * info->size);
+		if (ret)
+			return ret;
+	}
 
 	pm_runtime_put(dev);
 	pm_runtime_allow(dev);
@@ -108,7 +128,7 @@ static int dwc_pwm_resume(struct device *dev)
 static DEFINE_SIMPLE_DEV_PM_OPS(dwc_pwm_pm_ops, dwc_pwm_suspend, dwc_pwm_resume);
 
 static const struct pci_device_id dwc_pwm_id_table[] = {
-	{ PCI_VDEVICE(INTEL, 0x4bb7) }, /* Elkhart Lake */
+	{ PCI_VDEVICE(INTEL, 0x4bb7), (kernel_ulong_t)&ehl_pwm_info },
 	{  }	/* Terminating Entry */
 };
 MODULE_DEVICE_TABLE(pci, dwc_pwm_id_table);

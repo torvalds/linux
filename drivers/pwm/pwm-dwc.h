@@ -33,6 +33,11 @@ MODULE_IMPORT_NS(dwc_pwm);
 #define DWC_TIM_CTRL_INT_MASK	BIT(2)
 #define DWC_TIM_CTRL_PWM	BIT(3)
 
+struct dwc_pwm_info {
+	unsigned int nr;
+	unsigned int size;
+};
+
 struct dwc_pwm_ctx {
 	u32 cnt;
 	u32 cnt2;
