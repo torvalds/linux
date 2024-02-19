@@ -1377,8 +1377,7 @@ static int damon_sysfs_commit_schemes_quota_goals(
 
 	ctx = sysfs_kdamond->damon_ctx;
 	sysfs_ctx = sysfs_kdamond->contexts->contexts_arr[0];
-	damos_sysfs_set_quota_scores(sysfs_ctx->schemes, ctx);
-	return 0;
+	return damos_sysfs_set_quota_scores(sysfs_ctx->schemes, ctx);
 }
 
 /*

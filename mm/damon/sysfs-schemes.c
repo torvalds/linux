@@ -1887,30 +1887,34 @@ static unsigned long damos_sysfs_get_quota_score(void *arg)
 	return (unsigned long)arg;
 }
 
-static void damos_sysfs_set_quota_score(
+static int damos_sysfs_set_quota_score(
 		struct damos_sysfs_quota_goals *sysfs_goals,
 		struct damos_quota *quota)
 {
-	struct damos_sysfs_quota_goal *sysfs_goal;
+	struct damos_quota_goal *goal, *next;
 	int i;
 
-	quota->goal.get_score = NULL;
-	quota->goal.get_score_arg = (void *)0;
+	damos_for_each_quota_goal_safe(goal, next, quota)
+		damos_destroy_quota_goal(goal);
+
 	for (i = 0; i < sysfs_goals->nr; i++) {
-		sysfs_goal = sysfs_goals->goals_arr[i];
+		struct damos_sysfs_quota_goal *sysfs_goal =
+			sysfs_goals->goals_arr[i];
+
 		if (!sysfs_goal->target_value)
 			continue;
 
-		/* Higher score makes scheme less aggressive */
-		quota->goal.get_score_arg = (void *)max(
-				(unsigned long)quota->goal.get_score_arg,
-				sysfs_goal->current_value * 10000 /
-				sysfs_goal->target_value);
-		quota->goal.get_score = damos_sysfs_get_quota_score;
+		goal = damos_new_quota_goal(damos_sysfs_get_quota_score,
+				(void *)(sysfs_goal->current_value * 10000 /
+				sysfs_goal->target_value));
+		if (!goal)
+			return -ENOMEM;
+		damos_add_quota_goal(quota, goal);
 	}
+	return 0;
 }
 
-void damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
+int damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 		struct damon_ctx *ctx)
 {
 	struct damos *scheme;
@@ -1918,16 +1922,21 @@ void damos_sysfs_set_quota_scores(struct damon_sysfs_schemes *sysfs_schemes,
 
 	damon_for_each_scheme(scheme, ctx) {
 		struct damon_sysfs_scheme *sysfs_scheme;
+		int err;
 
 		/* user could have removed the scheme sysfs dir */
 		if (i >= sysfs_schemes->nr)
 			break;
 
 		sysfs_scheme = sysfs_schemes->schemes_arr[i];
-		damos_sysfs_set_quota_score(sysfs_scheme->quotas->goals,
+		err = damos_sysfs_set_quota_score(sysfs_scheme->quotas->goals,
 				&scheme->quota);
+		if (err)
+			/* kdamond will clean up schemes and terminated */
+			return err;
 		i++;
 	}
+	return 0;
 }
 
 void damos_sysfs_update_effective_quotas(
@@ -1987,12 +1996,16 @@ static struct damos *damon_sysfs_mk_scheme(
 		.low = sysfs_wmarks->low,
 	};
 
-	damos_sysfs_set_quota_score(sysfs_quotas->goals, &quota);
-
 	scheme = damon_new_scheme(&pattern, sysfs_scheme->action,
 			sysfs_scheme->apply_interval_us, &quota, &wmarks);
 	if (!scheme)
 		return NULL;
+
+	err = damos_sysfs_set_quota_score(sysfs_quotas->goals, &scheme->quota);
+	if (err) {
+		damon_destroy_scheme(scheme);
+		return NULL;
+	}
 
 	err = damon_sysfs_set_scheme_filters(scheme, sysfs_filters);
 	if (err) {
@@ -2029,7 +2042,11 @@ static void damon_sysfs_update_scheme(struct damos *scheme,
 	scheme->quota.weight_nr_accesses = sysfs_weights->nr_accesses;
 	scheme->quota.weight_age = sysfs_weights->age;
 
-	damos_sysfs_set_quota_score(sysfs_quotas->goals, &scheme->quota);
+	err = damos_sysfs_set_quota_score(sysfs_quotas->goals, &scheme->quota);
+	if (err) {
+		damon_destroy_scheme(scheme);
+		return;
+	}
 
 	scheme->wmarks.metric = sysfs_wmarks->metric;
 	scheme->wmarks.interval = sysfs_wmarks->interval_us;
