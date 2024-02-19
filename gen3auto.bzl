@@ -204,6 +204,7 @@ def define_gen3auto():
     _gen3auto_consolidate_in_tree_modules = _gen3auto_in_tree_modules + [
         # keep sorted
         "drivers/misc/lkdtm/lkdtm.ko",
+        "drivers/usb/misc/lvstest.ko",
         "kernel/locking/locktorture.ko",
         "kernel/rcu/rcutorture.ko",
         "kernel/torture.ko",
