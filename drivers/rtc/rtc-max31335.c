@@ -204,7 +204,7 @@ static bool max31335_volatile_reg(struct device *dev, unsigned int reg)
 		return true;
 
 	/* interrupt status register */
-	if (reg == MAX31335_INT_EN1_A1IE)
+	if (reg == MAX31335_STATUS1)
 		return true;
 
 	/* temperature registers */
