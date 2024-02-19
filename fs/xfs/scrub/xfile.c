@@ -149,18 +149,14 @@ xfile_load(
 			goto advance;
 		}
 
-		if (PageUptodate(page)) {
-			/*
-			 * xfile pages must never be mapped into userspace, so
-			 * we skip the dcache flush.
-			 */
-			kaddr = kmap_local_page(page);
-			p = kaddr + offset_in_page(pos);
-			memcpy(buf, p, len);
-			kunmap_local(kaddr);
-		} else {
-			memset(buf, 0, len);
-		}
+		/*
+		 * xfile pages must never be mapped into userspace, so
+		 * we skip the dcache flush.
+		 */
+		kaddr = kmap_local_page(page);
+		p = kaddr + offset_in_page(pos);
+		memcpy(buf, p, len);
+		kunmap_local(kaddr);
 		put_page(page);
 
 advance:
