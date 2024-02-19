@@ -32,13 +32,15 @@ uc_to_xe(struct xe_uc *uc)
 /* Should be called once at driver load only */
 int xe_uc_init(struct xe_uc *uc)
 {
+	struct xe_device *xe = uc_to_xe(uc);
 	int ret;
+
+	xe_device_mem_access_get(xe);
 
 	/*
 	 * We call the GuC/HuC/GSC init functions even if GuC submission is off
 	 * to correctly move our tracking of the FW state to "disabled".
 	 */
-
 	ret = xe_guc_init(&uc->guc);
 	if (ret)
 		goto err;
@@ -52,7 +54,7 @@ int xe_uc_init(struct xe_uc *uc)
 		goto err;
 
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
-		return 0;
+		goto err;
 
 	ret = xe_wopcm_init(&uc->wopcm);
 	if (ret)
@@ -66,9 +68,13 @@ int xe_uc_init(struct xe_uc *uc)
 	if (ret)
 		goto err;
 
+	xe_device_mem_access_put(xe);
+
 	return 0;
 
 err:
+	xe_device_mem_access_put(xe);
+
 	return ret;
 }
 
