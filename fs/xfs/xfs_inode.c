@@ -328,52 +328,26 @@ xfs_ilock_demote(
 	trace_xfs_ilock_demote(ip, lock_flags, _RET_IP_);
 }
 
-#if defined(DEBUG) || defined(XFS_WARN)
-static inline bool
-__xfs_rwsem_islocked(
-	struct rw_semaphore	*rwsem,
-	bool			shared)
-{
-	if (!debug_locks)
-		return rwsem_is_locked(rwsem);
-
-	if (!shared)
-		return lockdep_is_held_type(rwsem, 0);
-
-	/*
-	 * We are checking that the lock is held at least in shared
-	 * mode but don't care that it might be held exclusively
-	 * (i.e. shared | excl). Hence we check if the lock is held
-	 * in any mode rather than an explicit shared mode.
-	 */
-	return lockdep_is_held_type(rwsem, -1);
-}
-
-bool
-xfs_isilocked(
+void
+xfs_assert_ilocked(
 	struct xfs_inode	*ip,
 	uint			lock_flags)
 {
-	if (lock_flags & (XFS_ILOCK_EXCL|XFS_ILOCK_SHARED)) {
-		if (!(lock_flags & XFS_ILOCK_SHARED))
-			return !!ip->i_lock.mr_writer;
-		return rwsem_is_locked(&ip->i_lock.mr_lock);
-	}
+	if (lock_flags & XFS_ILOCK_SHARED)
+		rwsem_assert_held(&ip->i_lock.mr_lock);
+	else if (lock_flags & XFS_ILOCK_EXCL)
+		ASSERT(ip->i_lock.mr_writer);
 
-	if (lock_flags & (XFS_MMAPLOCK_EXCL|XFS_MMAPLOCK_SHARED)) {
-		return __xfs_rwsem_islocked(&VFS_I(ip)->i_mapping->invalidate_lock,
-				(lock_flags & XFS_MMAPLOCK_SHARED));
-	}
+	if (lock_flags & XFS_MMAPLOCK_SHARED)
+		rwsem_assert_held(&VFS_I(ip)->i_mapping->invalidate_lock);
+	else if (lock_flags & XFS_MMAPLOCK_EXCL)
+		rwsem_assert_held_write(&VFS_I(ip)->i_mapping->invalidate_lock);
 
-	if (lock_flags & (XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED)) {
-		return __xfs_rwsem_islocked(&VFS_I(ip)->i_rwsem,
-				(lock_flags & XFS_IOLOCK_SHARED));
-	}
-
-	ASSERT(0);
-	return false;
+	if (lock_flags & XFS_IOLOCK_SHARED)
+		rwsem_assert_held(&VFS_I(ip)->i_rwsem);
+	else if (lock_flags & XFS_IOLOCK_EXCL)
+		rwsem_assert_held_write(&VFS_I(ip)->i_rwsem);
 }
-#endif
 
 /*
  * xfs_lockdep_subclass_ok() is only used in an ASSERT, so is only called when
@@ -1342,9 +1316,9 @@ xfs_itruncate_extents_flags(
 	xfs_fileoff_t		first_unmap_block;
 	int			error = 0;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-	ASSERT(!atomic_read(&VFS_I(ip)->i_count) ||
-	       xfs_isilocked(ip, XFS_IOLOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
+	if (atomic_read(&VFS_I(ip)->i_count))
+		xfs_assert_ilocked(ip, XFS_IOLOCK_EXCL);
 	ASSERT(new_size <= XFS_ISIZE(ip));
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(ip->i_itemp != NULL);
@@ -1596,7 +1570,7 @@ xfs_inactive_ifree(
 	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
 
 	error = xfs_ifree(tp, ip);
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	if (error) {
 		/*
 		 * If we fail to free the inode, shut down.  The cancel
@@ -2350,7 +2324,7 @@ xfs_ifree(
 	struct xfs_inode_log_item *iip = ip->i_itemp;
 	int			error;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	ASSERT(VFS_I(ip)->i_nlink == 0);
 	ASSERT(ip->i_df.if_nextents == 0);
 	ASSERT(ip->i_disk_size == 0 || !S_ISREG(VFS_I(ip)->i_mode));
@@ -2419,7 +2393,7 @@ static void
 xfs_iunpin(
 	struct xfs_inode	*ip)
 {
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED);
 
 	trace_xfs_inode_unpin_nowait(ip, _RET_IP_);
 
@@ -3182,7 +3156,7 @@ xfs_iflush(
 	struct xfs_mount	*mp = ip->i_mount;
 	int			error;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED);
 	ASSERT(xfs_iflags_test(ip, XFS_IFLUSHING));
 	ASSERT(ip->i_df.if_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_df.if_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));

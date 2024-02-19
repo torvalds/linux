@@ -796,7 +796,7 @@ xfs_trans_reserve_quota_nblks(
 		return 0;
 
 	ASSERT(!xfs_is_quota_inode(&mp->m_sb, ip->i_ino));
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	if (force)
 		qflags |= XFS_QMOPT_FORCE_RES;

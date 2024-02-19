@@ -522,7 +522,7 @@ xfs_readdir(
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(xfs_isilocked(dp, XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL);
 	XFS_STATS_INC(dp->i_mount, xs_dir_getdents);
 
 	args.dp = dp;

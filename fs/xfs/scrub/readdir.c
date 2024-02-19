@@ -281,7 +281,7 @@ xchk_dir_walk(
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
 		return xchk_dir_walk_sf(sc, dp, dirent_fn, priv);
@@ -332,7 +332,7 @@ xchk_dir_lookup(
 		return -EIO;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
-	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
 		error = xfs_dir2_sf_lookup(&args);

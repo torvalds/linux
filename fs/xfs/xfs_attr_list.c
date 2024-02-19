@@ -504,7 +504,7 @@ xfs_attr_list_ilocked(
 {
 	struct xfs_inode		*dp = context->dp;
 
-	ASSERT(xfs_isilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	/*
 	 * Decide on what work routines to call based on the inode size.

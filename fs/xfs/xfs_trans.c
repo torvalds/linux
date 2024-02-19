@@ -1273,7 +1273,7 @@ xfs_trans_reserve_more_inode(
 	unsigned int		rtx = xfs_extlen_to_rtxlen(mp, rblocks);
 	int			error;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	error = xfs_trans_reserve(tp, &resv, dblocks, rtx);
 	if (error)
