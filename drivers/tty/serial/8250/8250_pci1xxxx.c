@@ -94,7 +94,6 @@
 #define UART_BIT_SAMPLE_CNT_16			16
 #define BAUD_CLOCK_DIV_INT_MSK			GENMASK(31, 8)
 #define ADCL_CFG_RTS_DELAY_MASK			GENMASK(11, 8)
-#define UART_CLOCK_DEFAULT			(62500 * HZ_PER_KHZ)
 
 #define UART_WAKE_REG				0x8C
 #define UART_WAKE_MASK_REG			0x90
@@ -227,13 +226,10 @@ static unsigned int pci1xxxx_get_divisor(struct uart_port *port,
 	unsigned int uart_sample_cnt;
 	unsigned int quot;
 
-	if (baud >= UART_BAUD_4MBPS) {
+	if (baud >= UART_BAUD_4MBPS)
 		uart_sample_cnt = UART_BIT_SAMPLE_CNT_8;
-		writel(UART_BIT_DIVISOR_8, (port->membase + FRAC_DIV_CFG_REG));
-	} else {
+	else
 		uart_sample_cnt = UART_BIT_SAMPLE_CNT_16;
-		writel(UART_BIT_DIVISOR_16, (port->membase + FRAC_DIV_CFG_REG));
-	}
 
 	/*
 	 * Calculate baud rate sampling period in nanoseconds.
@@ -249,6 +245,11 @@ static unsigned int pci1xxxx_get_divisor(struct uart_port *port,
 static void pci1xxxx_set_divisor(struct uart_port *port, unsigned int baud,
 				 unsigned int quot, unsigned int frac)
 {
+	if (baud >= UART_BAUD_4MBPS)
+		writel(UART_BIT_DIVISOR_8, port->membase + FRAC_DIV_CFG_REG);
+	else
+		writel(UART_BIT_DIVISOR_16, port->membase + FRAC_DIV_CFG_REG);
+
 	writel(FIELD_PREP(BAUD_CLOCK_DIV_INT_MSK, quot) | frac,
 	       port->membase + UART_BAUD_CLK_DIVISOR_REG);
 }
@@ -619,6 +620,17 @@ static int pci1xxxx_setup(struct pci_dev *pdev,
 
 	port->port.flags |= UPF_FIXED_TYPE | UPF_SKIP_TEST;
 	port->port.type = PORT_MCHP16550A;
+	/*
+	 * 8250 core considers prescaller value to be always 16.
+	 * The MCHP ports support downscaled mode and hence the
+	 * functional UART clock can be lower, i.e. 62.5MHz, than
+	 * software expects in order to support higher baud rates.
+	 * Assign here 64MHz to support 4Mbps.
+	 *
+	 * The value itself is not really used anywhere except baud
+	 * rate calculations, so we can mangle it as we wish.
+	 */
+	port->port.uartclk = 64 * HZ_PER_MHZ;
 	port->port.set_termios = serial8250_do_set_termios;
 	port->port.get_divisor = pci1xxxx_get_divisor;
 	port->port.set_divisor = pci1xxxx_set_divisor;
@@ -732,7 +744,6 @@ static int pci1xxxx_serial_probe(struct pci_dev *pdev,
 
 	memset(&uart, 0, sizeof(uart));
 	uart.port.flags = UPF_SHARE_IRQ | UPF_FIXED_PORT;
-	uart.port.uartclk = UART_CLOCK_DEFAULT;
 	uart.port.dev = dev;
 
 	if (num_vectors == max_vec_reqd)
