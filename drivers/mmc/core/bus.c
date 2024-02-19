@@ -272,7 +272,7 @@ static void mmc_release_card(struct device *dev)
 /*
  * Allocate and initialise a new MMC card structure.
  */
-struct mmc_card *mmc_alloc_card(struct mmc_host *host, struct device_type *type)
+struct mmc_card *mmc_alloc_card(struct mmc_host *host, const struct device_type *type)
 {
 	struct mmc_card *card;
 
