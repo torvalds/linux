@@ -6,6 +6,7 @@
 
 config SND_SOC_SOF_AMD_TOPLEVEL
 	tristate "SOF support for AMD audio DSPs"
+	depends on SOUNDWIRE_AMD || !SOUNDWIRE_AMD
 	depends on X86 || COMPILE_TEST
 	help
 	  This adds support for Sound Open Firmware for AMD platforms.
@@ -62,15 +63,14 @@ config SND_SOC_SOF_ACP_PROBES
 
 config SND_SOC_SOF_AMD_SOUNDWIRE_LINK_BASELINE
 	tristate
-	select SOUNDWIRE_AMD if SND_SOC_SOF_AMD_SOUNDWIRE != n
 	select SND_AMD_SOUNDWIRE_ACPI if ACPI
 
 config SND_SOC_SOF_AMD_SOUNDWIRE
 	tristate "SOF support for SoundWire based AMD platforms"
 	default SND_SOC_SOF_AMD_SOUNDWIRE_LINK_BASELINE
 	depends on SND_SOC_SOF_AMD_SOUNDWIRE_LINK_BASELINE
-	depends on ACPI && SOUNDWIRE
-	depends on !(SOUNDWIRE=m && SND_SOC_SOF_AMD_SOUNDWIRE_LINK_BASELINE=y)
+	depends on ACPI
+	depends on SOUNDWIRE_AMD
 	help
 	  This adds support for SoundWire with Sound Open Firmware
 	  for AMD platforms.
