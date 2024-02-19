@@ -63,13 +63,6 @@ xfile_obj_store(struct xfile *xf, const void *buf, size_t count, loff_t pos)
 
 loff_t xfile_seek_data(struct xfile *xf, loff_t pos);
 
-struct xfile_stat {
-	loff_t			size;
-	unsigned long long	bytes;
-};
-
-int xfile_stat(struct xfile *xf, struct xfile_stat *statbuf);
-
 int xfile_get_page(struct xfile *xf, loff_t offset, unsigned int len,
 		struct xfile_page *xbuf);
 int xfile_put_page(struct xfile *xf, struct xfile_page *xbuf);

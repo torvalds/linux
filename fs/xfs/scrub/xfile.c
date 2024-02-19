@@ -274,25 +274,6 @@ xfile_seek_data(
 	return ret;
 }
 
-/* Query stat information for an xfile. */
-int
-xfile_stat(
-	struct xfile		*xf,
-	struct xfile_stat	*statbuf)
-{
-	struct kstat		ks;
-	int			error;
-
-	error = vfs_getattr_nosec(&xf->file->f_path, &ks,
-			STATX_SIZE | STATX_BLOCKS, AT_STATX_DONT_SYNC);
-	if (error)
-		return error;
-
-	statbuf->size = ks.size;
-	statbuf->bytes = ks.blocks << SECTOR_SHIFT;
-	return 0;
-}
-
 /*
  * Grab the (locked) page for a memory object.  The object cannot span a page
  * boundary.  Returns 0 (and a locked page) if successful, -ENOTBLK if we
