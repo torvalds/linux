@@ -62,6 +62,21 @@ static struct damos_quota damon_reclaim_quota = {
 };
 DEFINE_DAMON_MODULES_DAMOS_QUOTAS(damon_reclaim_quota);
 
+/*
+ * User-specifiable feedback for auto-tuning of the effective quota.
+ *
+ * While keeping the caps that set by other quotas, DAMON_RECLAIM automatically
+ * increases and decreases the effective level of the quota aiming receiving this
+ * feedback of value ``10,000`` from the user.  DAMON_RECLAIM assumes the feedback
+ * value and the quota are positively proportional.  Value zero means disabling
+ * this auto-tuning feature.
+ *
+ * Disabled by default.
+ *
+ */
+static unsigned long quota_autotune_feedback __read_mostly;
+module_param(quota_autotune_feedback, ulong, 0600);
+
 static struct damos_watermarks damon_reclaim_wmarks = {
 	.metric = DAMOS_WMARK_FREE_MEM_RATE,
 	.interval = 5000000,	/* 5 seconds */
@@ -159,11 +174,13 @@ static void damon_reclaim_copy_quota_status(struct damos_quota *dst,
 	dst->charged_from = src->charged_from;
 	dst->charge_target_from = src->charge_target_from;
 	dst->charge_addr_from = src->charge_addr_from;
+	dst->esz_bp = src->esz_bp;
 }
 
 static int damon_reclaim_apply_parameters(void)
 {
 	struct damos *scheme, *old_scheme;
+	struct damos_quota_goal *goal;
 	struct damos_filter *filter;
 	int err = 0;
 
@@ -180,6 +197,17 @@ static int damon_reclaim_apply_parameters(void)
 			damon_reclaim_copy_quota_status(&scheme->quota,
 					&old_scheme->quota);
 	}
+
+	if (quota_autotune_feedback) {
+		goal = damos_new_quota_goal(DAMOS_QUOTA_USER_INPUT, 10000);
+		if (!goal) {
+			damon_destroy_scheme(scheme);
+			return -ENOMEM;
+		}
+		goal->current_value = quota_autotune_feedback;
+		damos_add_quota_goal(&scheme->quota, goal);
+	}
+
 	if (skip_anon) {
 		filter = damos_new_filter(DAMOS_FILTER_TYPE_ANON, true);
 		if (!filter) {
