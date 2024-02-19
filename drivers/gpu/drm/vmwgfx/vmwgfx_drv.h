@@ -969,6 +969,11 @@ static inline void vmw_bo_prio_del(struct vmw_buffer_object *vbo, int prio)
 /**
  * GEM related functionality - vmwgfx_gem.c
  */
+extern int vmw_gem_object_create(struct vmw_private *dev_priv,
+				  size_t size, struct ttm_placement *placement,
+				  bool interruptible, bool pin,
+				  void (*bo_free)(struct ttm_buffer_object *bo),
+				  struct vmw_buffer_object **p_bo);
 extern int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 					     struct drm_file *filp,
 					     uint32_t size,
@@ -1598,6 +1603,21 @@ vmw_bo_reference(struct vmw_buffer_object *buf)
 {
 	ttm_bo_get(&buf->base);
 	return buf;
+}
+
+static inline struct vmw_buffer_object *vmw_user_bo_ref(struct vmw_buffer_object *vbo)
+{
+	drm_gem_object_get(&vbo->base.base);
+	return vbo;
+}
+
+static inline void vmw_user_bo_unref(struct vmw_buffer_object **buf)
+{
+	struct vmw_buffer_object *tmp_buf = *buf;
+
+	*buf = NULL;
+	if (tmp_buf)
+		drm_gem_object_put(&tmp_buf->base.base);
 }
 
 static inline void vmw_fifo_resource_inc(struct vmw_private *dev_priv)
