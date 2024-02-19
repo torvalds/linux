@@ -1451,6 +1451,28 @@ static void __mapping_notify_one(struct intel_iommu *iommu, struct dmar_domain *
 		iommu_flush_write_buffer(iommu);
 }
 
+/*
+ * Flush the relevant caches in nested translation if the domain
+ * also serves as a parent
+ */
+static void parent_domain_flush(struct dmar_domain *domain,
+				unsigned long pfn,
+				unsigned long pages, int ih)
+{
+	struct dmar_domain *s1_domain;
+
+	spin_lock(&domain->s1_lock);
+	list_for_each_entry(s1_domain, &domain->s1_domains, s2_link) {
+		struct iommu_domain_info *info;
+		unsigned long i;
+
+		xa_for_each(&s1_domain->iommu_array, i, info)
+			__iommu_flush_iotlb_psi(info->iommu, info->did,
+						pfn, pages, ih);
+	}
+	spin_unlock(&domain->s1_lock);
+}
+
 static void intel_flush_iotlb_all(struct iommu_domain *domain)
 {
 	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
@@ -1470,6 +1492,9 @@ static void intel_flush_iotlb_all(struct iommu_domain *domain)
 		if (!cap_caching_mode(iommu->cap))
 			iommu_flush_dev_iotlb(dmar_domain, 0, MAX_AGAW_PFN_WIDTH);
 	}
+
+	if (dmar_domain->nested_parent)
+		parent_domain_flush(dmar_domain, 0, -1, 0);
 }
 
 static void iommu_disable_protect_mem_regions(struct intel_iommu *iommu)
@@ -1993,6 +2018,9 @@ static void switch_to_super_page(struct dmar_domain *domain,
 				iommu_flush_iotlb_psi(info->iommu, domain,
 						      start_pfn, lvl_pages,
 						      0, 0);
+			if (domain->nested_parent)
+				parent_domain_flush(domain, start_pfn,
+						    lvl_pages, 0);
 		}
 
 		pte++;
@@ -4125,6 +4153,9 @@ static void intel_iommu_tlb_sync(struct iommu_domain *domain,
 				      start_pfn, nrpages,
 				      list_empty(&gather->freelist), 0);
 
+	if (dmar_domain->nested_parent)
+		parent_domain_flush(dmar_domain, start_pfn, nrpages,
+				    list_empty(&gather->freelist));
 	put_pages_list(&gather->freelist);
 }
 
