@@ -62,15 +62,13 @@ xfile_create(
 {
 	struct inode		*inode;
 	struct xfile		*xf;
-	int			error = -ENOMEM;
+	int			error;
 
 	xf = kmalloc(sizeof(struct xfile), XCHK_GFP_FLAGS);
 	if (!xf)
 		return -ENOMEM;
 
 	xf->file = shmem_file_setup(description, isize, VM_NORESERVE);
-	if (!xf->file)
-		goto out_xfile;
 	if (IS_ERR(xf->file)) {
 		error = PTR_ERR(xf->file);
 		goto out_xfile;
