@@ -127,12 +127,27 @@ enum damos_action {
 };
 
 /**
+ * struct damos_quota_goal - DAMOS scheme quota auto-tuning goal.
+ * @get_score:		Function for getting current score of the goal.
+ * @get_score_arg:	Parameter for @get_score
+ *
+ * Data structure for getting the current score of the quota tuning goal.
+ * Calling @get_score with @get_score_arg as the parameter should return the
+ * current score.  Then the score is entered to DAMON's internal feedback loop
+ * mechanism to get the auto-tuned quota.  The goal of the tuning is getting
+ * the feedback score value of 10,000.
+ */
+struct damos_quota_goal {
+	unsigned long (*get_score)(void *arg);
+	void *get_score_arg;
+};
+
+/**
  * struct damos_quota - Controls the aggressiveness of the given scheme.
  * @reset_interval:	Charge reset interval in milliseconds.
  * @ms:			Maximum milliseconds that the scheme can use.
  * @sz:			Maximum bytes of memory that the action can be applied.
- * @get_score:		Feedback function for self-tuning quota.
- * @get_score_arg:	Parameter for @get_score
+ * @goal:		Quota auto-tuning goal.
  * @esz:		Effective size quota in bytes.
  *
  * @weight_sz:		Weight of the region's size for prioritization.
@@ -151,16 +166,10 @@ enum damos_action {
  * throughput of the scheme's action.  DAMON then compares it against &sz and
  * uses smaller one as the effective quota.
  *
- * If @get_score function pointer is set, DAMON calls it back with
- * @get_score_arg and get the return value of it for every @reset_interval.
- * Then, DAMON adjusts the effective quota using the return value as a feedback
- * score to the current quota, using its internal feedback loop algorithm.
- *
- * The feedback loop algorithem assumes the quota input and the feedback score
- * output are in a positive proportional relationship, and the goal of the
- * tuning is getting the feedback screo value of 10,000.  If @ms and/or @sz are
- * set together, those work as a hard limit quota.  If neither @ms nor @sz are
- * set, the mechanism starts from the quota of one byte.
+ * If ->get_score field of @goal is set, DAMON calculates yet another size
+ * quota based on the goal using its internal feedback loop algorithm, for
+ * every @reset_interval.  Then, if the new size quota is smaller than the
+ * effective quota, it uses the new size quota as the effective quota.
  *
  * The resulting effective size quota in bytes is set to @esz.
  *
@@ -174,8 +183,7 @@ struct damos_quota {
 	unsigned long reset_interval;
 	unsigned long ms;
 	unsigned long sz;
-	unsigned long (*get_score)(void *arg);
-	void *get_score_arg;
+	struct damos_quota_goal goal;
 	unsigned long esz;
 
 	unsigned int weight_sz;

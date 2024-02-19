@@ -1894,19 +1894,19 @@ static void damos_sysfs_set_quota_score(
 	struct damos_sysfs_quota_goal *sysfs_goal;
 	int i;
 
-	quota->get_score = NULL;
-	quota->get_score_arg = (void *)0;
+	quota->goal.get_score = NULL;
+	quota->goal.get_score_arg = (void *)0;
 	for (i = 0; i < sysfs_goals->nr; i++) {
 		sysfs_goal = sysfs_goals->goals_arr[i];
 		if (!sysfs_goal->target_value)
 			continue;
 
 		/* Higher score makes scheme less aggressive */
-		quota->get_score_arg = (void *)max(
-				(unsigned long)quota->get_score_arg,
+		quota->goal.get_score_arg = (void *)max(
+				(unsigned long)quota->goal.get_score_arg,
 				sysfs_goal->current_value * 10000 /
 				sysfs_goal->target_value);
-		quota->get_score = damos_sysfs_get_quota_score;
+		quota->goal.get_score = damos_sysfs_get_quota_score;
 	}
 }
 
