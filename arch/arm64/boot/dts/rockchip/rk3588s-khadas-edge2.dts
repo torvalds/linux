@@ -4,6 +4,7 @@
 
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/rockchip.h>
+#include <dt-bindings/leds/common.h>
 #include "rk3588s.dtsi"
 
 / {
@@ -17,6 +18,47 @@
 
 	chosen {
 		stdout-path = "serial2:1500000n8";
+	};
+
+	ir-receiver {
+		compatible = "gpio-ir-receiver";
+		gpios = <&gpio1 RK_PA7 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ir_receiver_pin>;
+	};
+
+	leds {
+		compatible = "pwm-leds";
+
+		red_led: led-0 {
+			label = "red_led";
+			color = <LED_COLOR_ID_RED>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			linux,default-trigger = "none";
+			max-brightness = <255>;
+			pwms = <&pwm11 0 25000 0>;
+		};
+
+		green_led: led-1 {
+			label = "green_led";
+			color = <LED_COLOR_ID_GREEN>;
+			default-state = "on";
+			function = LED_FUNCTION_POWER;
+			linux,default-trigger = "default-on";
+			max-brightness = <255>;
+			pwms = <&pwm14 0 25000 0>;
+		};
+
+		blue_led: led-2 {
+			label = "blue_led";
+			color = <LED_COLOR_ID_BLUE>;
+			default-state = "off";
+			function = LED_FUNCTION_INDICATOR;
+			linux,default-trigger = "none";
+			max-brightness = <255>;
+			pwms = <&pwm15 0 25000 0>;
+		};
 	};
 
 	vcc3v3_pcie_wl: vcc3v3-pcie-wl-regulator {
@@ -181,6 +223,12 @@
 			rockchip,pins = <1 RK_PB1 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+
+	ir-receiver {
+		ir_receiver_pin: ir-receiver-pin {
+			rockchip,pins = <1  RK_PA7  RK_FUNC_GPIO  &pcfg_pull_none>;
+		};
+	};
 };
 
 &pcie2x1l2 {
@@ -188,6 +236,24 @@
 	pinctrl-0 = <&pcie2_2_rst>;
 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
 	vpcie3v3-supply = <&vcc3v3_pcie_wl>;
+	status = "okay";
+};
+
+&pwm11 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm11m1_pins>;
+	status = "okay";
+};
+
+&pwm14 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm14m1_pins>;
+	status = "okay";
+};
+
+&pwm15 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm15m1_pins>;
 	status = "okay";
 };
 
