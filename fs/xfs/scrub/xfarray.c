@@ -136,7 +136,7 @@ xfarray_load(
 	if (idx >= array->nr)
 		return -ENODATA;
 
-	return xfile_obj_load(array->xfile, ptr, array->obj_size,
+	return xfile_load(array->xfile, ptr, array->obj_size,
 			xfarray_pos(array, idx));
 }
 
@@ -152,7 +152,7 @@ xfarray_is_unset(
 	if (array->unset_slots == 0)
 		return false;
 
-	error = xfile_obj_load(array->xfile, temp, array->obj_size, pos);
+	error = xfile_load(array->xfile, temp, array->obj_size, pos);
 	if (!error && xfarray_element_is_null(array, temp))
 		return true;
 
@@ -184,7 +184,7 @@ xfarray_unset(
 		return 0;
 
 	memset(temp, 0, array->obj_size);
-	error = xfile_obj_store(array->xfile, temp, array->obj_size, pos);
+	error = xfile_store(array->xfile, temp, array->obj_size, pos);
 	if (error)
 		return error;
 
@@ -209,7 +209,7 @@ xfarray_store(
 
 	ASSERT(!xfarray_element_is_null(array, ptr));
 
-	ret = xfile_obj_store(array->xfile, ptr, array->obj_size,
+	ret = xfile_store(array->xfile, ptr, array->obj_size,
 			xfarray_pos(array, idx));
 	if (ret)
 		return ret;
@@ -245,12 +245,12 @@ xfarray_store_anywhere(
 	for (pos = 0;
 	     pos < endpos && array->unset_slots > 0;
 	     pos += array->obj_size) {
-		error = xfile_obj_load(array->xfile, temp, array->obj_size,
+		error = xfile_load(array->xfile, temp, array->obj_size,
 				pos);
 		if (error || !xfarray_element_is_null(array, temp))
 			continue;
 
-		error = xfile_obj_store(array->xfile, ptr, array->obj_size,
+		error = xfile_store(array->xfile, ptr, array->obj_size,
 				pos);
 		if (error)
 			return error;
@@ -552,7 +552,7 @@ xfarray_isort(
 	trace_xfarray_isort(si, lo, hi);
 
 	xfarray_sort_bump_loads(si);
-	error = xfile_obj_load(si->array->xfile, scratch, len, lo_pos);
+	error = xfile_load(si->array->xfile, scratch, len, lo_pos);
 	if (error)
 		return error;
 
@@ -560,7 +560,7 @@ xfarray_isort(
 	sort(scratch, hi - lo + 1, si->array->obj_size, si->cmp_fn, NULL);
 
 	xfarray_sort_bump_stores(si);
-	return xfile_obj_store(si->array->xfile, scratch, len, lo_pos);
+	return xfile_store(si->array->xfile, scratch, len, lo_pos);
 }
 
 /* Grab a page for sorting records. */
@@ -858,7 +858,7 @@ xfarray_sort_load_cached(
 		if (xfarray_sort_terminated(si, &error))
 			return error;
 
-		return xfile_obj_load(si->array->xfile, ptr,
+		return xfile_load(si->array->xfile, ptr,
 				si->array->obj_size, idx_pos);
 	}
 

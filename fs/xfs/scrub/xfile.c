@@ -101,13 +101,11 @@ xfile_destroy(
 }
 
 /*
- * Read a memory object directly from the xfile's page cache.  Unlike regular
- * pread, we return -E2BIG and -EFBIG for reads that are too large or at too
- * high an offset, instead of truncating the read.  Otherwise, we return
- * bytes read or an error code, like regular pread.
+ * Load an object.  Since we're treating this file as "memory", any error or
+ * short IO is treated as a failure to allocate memory.
  */
-ssize_t
-xfile_pread(
+int
+xfile_load(
 	struct xfile		*xf,
 	void			*buf,
 	size_t			count,
@@ -116,16 +114,15 @@ xfile_pread(
 	struct inode		*inode = file_inode(xf->file);
 	struct address_space	*mapping = inode->i_mapping;
 	struct page		*page = NULL;
-	ssize_t			read = 0;
 	unsigned int		pflags;
 	int			error = 0;
 
 	if (count > MAX_RW_COUNT)
-		return -E2BIG;
+		return -ENOMEM;
 	if (inode->i_sb->s_maxbytes - pos < count)
-		return -EFBIG;
+		return -ENOMEM;
 
-	trace_xfile_pread(xf, pos, count);
+	trace_xfile_load(xf, pos, count);
 
 	pflags = memalloc_nofs_save();
 	while (count > 0) {
@@ -143,8 +140,10 @@ xfile_pread(
 				__GFP_NOWARN);
 		if (IS_ERR(page)) {
 			error = PTR_ERR(page);
-			if (error != -ENOMEM)
+			if (error != -ENOMEM) {
+				error = -ENOMEM;
 				break;
+			}
 
 			memset(buf, 0, len);
 			goto advance;
@@ -168,23 +167,18 @@ advance:
 		count -= len;
 		pos += len;
 		buf += len;
-		read += len;
 	}
 	memalloc_nofs_restore(pflags);
 
-	if (read > 0)
-		return read;
 	return error;
 }
 
 /*
- * Write a memory object directly to the xfile's page cache.  Unlike regular
- * pwrite, we return -E2BIG and -EFBIG for writes that are too large or at too
- * high an offset, instead of truncating the write.  Otherwise, we return
- * bytes written or an error code, like regular pwrite.
+ * Store an object.  Since we're treating this file as "memory", any error or
+ * short IO is treated as a failure to allocate memory.
  */
-ssize_t
-xfile_pwrite(
+int
+xfile_store(
 	struct xfile		*xf,
 	const void		*buf,
 	size_t			count,
@@ -194,16 +188,15 @@ xfile_pwrite(
 	struct address_space	*mapping = inode->i_mapping;
 	const struct address_space_operations *aops = mapping->a_ops;
 	struct page		*page = NULL;
-	ssize_t			written = 0;
 	unsigned int		pflags;
 	int			error = 0;
 
 	if (count > MAX_RW_COUNT)
-		return -E2BIG;
+		return -ENOMEM;
 	if (inode->i_sb->s_maxbytes - pos < count)
-		return -EFBIG;
+		return -ENOMEM;
 
-	trace_xfile_pwrite(xf, pos, count);
+	trace_xfile_store(xf, pos, count);
 
 	pflags = memalloc_nofs_save();
 	while (count > 0) {
@@ -222,8 +215,10 @@ xfile_pwrite(
 		 */
 		error = aops->write_begin(NULL, mapping, pos, len, &page,
 				&fsdata);
-		if (error)
+		if (error) {
+			error = -ENOMEM;
 			break;
+		}
 
 		/*
 		 * xfile pages must never be mapped into userspace, so we skip
@@ -242,13 +237,14 @@ xfile_pwrite(
 		ret = aops->write_end(NULL, mapping, pos, len, len, page,
 				fsdata);
 		if (ret < 0) {
-			error = ret;
+			error = -ENOMEM;
 			break;
 		}
 
-		written += ret;
-		if (ret != len)
+		if (ret != len) {
+			error = -ENOMEM;
 			break;
+		}
 
 		count -= ret;
 		pos += ret;
@@ -256,8 +252,6 @@ xfile_pwrite(
 	}
 	memalloc_nofs_restore(pflags);
 
-	if (written > 0)
-		return written;
 	return error;
 }
 

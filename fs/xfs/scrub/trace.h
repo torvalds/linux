@@ -903,8 +903,8 @@ DECLARE_EVENT_CLASS(xfile_class,
 DEFINE_EVENT(xfile_class, name, \
 	TP_PROTO(struct xfile *xf, loff_t pos, unsigned long long bytecount), \
 	TP_ARGS(xf, pos, bytecount))
-DEFINE_XFILE_EVENT(xfile_pread);
-DEFINE_XFILE_EVENT(xfile_pwrite);
+DEFINE_XFILE_EVENT(xfile_load);
+DEFINE_XFILE_EVENT(xfile_store);
 DEFINE_XFILE_EVENT(xfile_seek_data);
 DEFINE_XFILE_EVENT(xfile_get_page);
 DEFINE_XFILE_EVENT(xfile_put_page);
