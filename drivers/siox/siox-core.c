@@ -717,6 +717,8 @@ int siox_master_register(struct siox_master *smaster)
 	if (!smaster->pushpull)
 		return -EINVAL;
 
+	get_device(&smaster->dev);
+
 	dev_set_name(&smaster->dev, "siox-%d", smaster->busno);
 
 	mutex_init(&smaster->lock);

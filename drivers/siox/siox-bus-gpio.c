@@ -149,6 +149,8 @@ static int siox_gpio_remove(struct platform_device *pdev)
 
 	siox_master_unregister(master);
 
+	siox_master_put(master);
+
 	return 0;
 }
 
