@@ -293,7 +293,8 @@ KUNIT_ARRAY_PARAM(mctp_rx_input, mctp_rx_input_tests,
 static void __mctp_route_test_init(struct kunit *test,
 				   struct mctp_test_dev **devp,
 				   struct mctp_test_route **rtp,
-				   struct socket **sockp)
+				   struct socket **sockp,
+				   unsigned int netid)
 {
 	struct sockaddr_mctp addr = {0};
 	struct mctp_test_route *rt;
@@ -303,6 +304,8 @@ static void __mctp_route_test_init(struct kunit *test,
 
 	dev = mctp_test_create_dev();
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	if (netid != MCTP_NET_ANY)
+		WRITE_ONCE(dev->mdev->net, netid);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
@@ -311,7 +314,7 @@ static void __mctp_route_test_init(struct kunit *test,
 	KUNIT_ASSERT_EQ(test, rc, 0);
 
 	addr.smctp_family = AF_MCTP;
-	addr.smctp_network = MCTP_NET_ANY;
+	addr.smctp_network = netid;
 	addr.smctp_addr.s_addr = 8;
 	addr.smctp_type = 0;
 	rc = kernel_bind(sock, (struct sockaddr *)&addr, sizeof(addr));
@@ -349,7 +352,7 @@ static void mctp_test_route_input_sk(struct kunit *test)
 
 	params = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &rt, &sock);
+	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
 
 	skb = mctp_test_create_skb_data(&params->hdr, &params->type);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
@@ -419,7 +422,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 
 	params = test->param_value;
 
-	__mctp_route_test_init(test, &dev, &rt, &sock);
+	__mctp_route_test_init(test, &dev, &rt, &sock, MCTP_NET_ANY);
 
 	for (i = 0; i < params->n_hdrs; i++) {
 		c = i;
