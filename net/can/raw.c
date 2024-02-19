@@ -835,7 +835,9 @@ static int raw_getsockopt(struct socket *sock, int level, int optname,
 			if (copy_to_user(optval, &ro->raw_vcid_opts, len))
 				err = -EFAULT;
 		}
-		break;
+		if (!err)
+			err = put_user(len, optlen);
+		return err;
 
 	case CAN_RAW_JOIN_FILTERS:
 		if (len > sizeof(int))
