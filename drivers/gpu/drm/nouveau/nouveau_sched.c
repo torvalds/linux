@@ -398,7 +398,7 @@ static const struct drm_sched_backend_ops nouveau_sched_ops = {
 	.free_job = nouveau_sched_free_job,
 };
 
-int
+static int
 nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
 		   struct workqueue_struct *wq, u32 credit_limit)
 {
@@ -453,7 +453,30 @@ fail_wq:
 	return ret;
 }
 
-void
+int
+nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
+		     struct workqueue_struct *wq, u32 credit_limit)
+{
+	struct nouveau_sched *sched;
+	int ret;
+
+	sched = kzalloc(sizeof(*sched), GFP_KERNEL);
+	if (!sched)
+		return -ENOMEM;
+
+	ret = nouveau_sched_init(sched, drm, wq, credit_limit);
+	if (ret) {
+		kfree(sched);
+		return ret;
+	}
+
+	*psched = sched;
+
+	return 0;
+}
+
+
+static void
 nouveau_sched_fini(struct nouveau_sched *sched)
 {
 	struct drm_gpu_scheduler *drm_sched = &sched->base;
@@ -470,4 +493,15 @@ nouveau_sched_fini(struct nouveau_sched *sched)
 	 */
 	if (sched->wq)
 		destroy_workqueue(sched->wq);
+}
+
+void
+nouveau_sched_destroy(struct nouveau_sched **psched)
+{
+	struct nouveau_sched *sched = *psched;
+
+	nouveau_sched_fini(sched);
+	kfree(sched);
+
+	*psched = NULL;
 }

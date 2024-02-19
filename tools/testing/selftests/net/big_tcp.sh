@@ -122,7 +122,9 @@ do_netperf() {
 	local netns=$1
 
 	[ "$NF" = "6" ] && serip=$SERVER_IP6
-	ip net exec $netns netperf -$NF -t TCP_STREAM -H $serip 2>&1 >/dev/null
+
+	# use large write to be sure to generate big tcp packets
+	ip net exec $netns netperf -$NF -t TCP_STREAM -l 1 -H $serip -- -m 262144 2>&1 >/dev/null
 }
 
 do_test() {

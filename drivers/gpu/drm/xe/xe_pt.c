@@ -20,8 +20,8 @@
 
 struct xe_pt_dir {
 	struct xe_pt pt;
-	/** @dir: Directory structure for the xe_pt_walk functionality */
-	struct xe_ptw_dir dir;
+	/** @children: Array of page-table child nodes */
+	struct xe_ptw *children[XE_PDES];
 };
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG_VM)
@@ -44,7 +44,7 @@ static struct xe_pt_dir *as_xe_pt_dir(struct xe_pt *pt)
 
 static struct xe_pt *xe_pt_entry(struct xe_pt_dir *pt_dir, unsigned int index)
 {
-	return container_of(pt_dir->dir.entries[index], struct xe_pt, base);
+	return container_of(pt_dir->children[index], struct xe_pt, base);
 }
 
 static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
@@ -63,6 +63,14 @@ static u64 __xe_pt_empty_pte(struct xe_tile *tile, struct xe_vm *vm,
 
 	return vm->pt_ops->pte_encode_addr(xe, 0, pat_index, level, IS_DGFX(xe), 0) |
 		XE_PTE_NULL;
+}
+
+static void xe_pt_free(struct xe_pt *pt)
+{
+	if (pt->level)
+		kfree(as_xe_pt_dir(pt));
+	else
+		kfree(pt);
 }
 
 /**
@@ -85,15 +93,19 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 {
 	struct xe_pt *pt;
 	struct xe_bo *bo;
-	size_t size;
 	int err;
 
-	size = !level ?  sizeof(struct xe_pt) : sizeof(struct xe_pt_dir) +
-		XE_PDES * sizeof(struct xe_ptw *);
-	pt = kzalloc(size, GFP_KERNEL);
+	if (level) {
+		struct xe_pt_dir *dir = kzalloc(sizeof(*dir), GFP_KERNEL);
+
+		pt = (dir) ? &dir->pt : NULL;
+	} else {
+		pt = kzalloc(sizeof(*pt), GFP_KERNEL);
+	}
 	if (!pt)
 		return ERR_PTR(-ENOMEM);
 
+	pt->level = level;
 	bo = xe_bo_create_pin_map(vm->xe, tile, vm, SZ_4K,
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_VRAM_IF_DGFX(tile) |
@@ -106,8 +118,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 		goto err_kfree;
 	}
 	pt->bo = bo;
-	pt->level = level;
-	pt->base.dir = level ? &as_xe_pt_dir(pt)->dir : NULL;
+	pt->base.children = level ? as_xe_pt_dir(pt)->children : NULL;
 
 	if (vm->xef)
 		xe_drm_client_add_bo(vm->xef->client, pt->bo);
@@ -116,7 +127,7 @@ struct xe_pt *xe_pt_create(struct xe_vm *vm, struct xe_tile *tile,
 	return pt;
 
 err_kfree:
-	kfree(pt);
+	xe_pt_free(pt);
 	return ERR_PTR(err);
 }
 
@@ -193,7 +204,7 @@ void xe_pt_destroy(struct xe_pt *pt, u32 flags, struct llist_head *deferred)
 					      deferred);
 		}
 	}
-	kfree(pt);
+	xe_pt_free(pt);
 }
 
 /**
@@ -358,7 +369,7 @@ xe_pt_insert_entry(struct xe_pt_stage_bind_walk *xe_walk, struct xe_pt *parent,
 		struct iosys_map *map = &parent->bo->vmap;
 
 		if (unlikely(xe_child))
-			parent->base.dir->entries[offset] = &xe_child->base;
+			parent->base.children[offset] = &xe_child->base;
 
 		xe_pt_write(xe_walk->vm->xe, map, offset, pte);
 		parent->num_live++;
@@ -618,8 +629,8 @@ xe_pt_stage_bind(struct xe_tile *tile, struct xe_vma *vma,
 
 	if (!xe_vma_is_null(vma)) {
 		if (xe_vma_is_userptr(vma))
-			xe_res_first_sg(vma->userptr.sg, 0, xe_vma_size(vma),
-					&curs);
+			xe_res_first_sg(to_userptr_vma(vma)->userptr.sg, 0,
+					xe_vma_size(vma), &curs);
 		else if (xe_bo_is_vram(bo) || xe_bo_is_stolen(bo))
 			xe_res_first(bo->ttm.resource, xe_vma_bo_offset(vma),
 				     xe_vma_size(vma), &curs);
@@ -853,7 +864,7 @@ static void xe_pt_commit_bind(struct xe_vma *vma,
 				xe_pt_destroy(xe_pt_entry(pt_dir, j_),
 					      xe_vma_vm(vma)->flags, deferred);
 
-			pt_dir->dir.entries[j_] = &newpte->base;
+			pt_dir->children[j_] = &newpte->base;
 		}
 		kfree(entries[i].pt_entries);
 	}
@@ -906,17 +917,17 @@ static void xe_vm_dbg_print_entries(struct xe_device *xe,
 
 #ifdef CONFIG_DRM_XE_USERPTR_INVAL_INJECT
 
-static int xe_pt_userptr_inject_eagain(struct xe_vma *vma)
+static int xe_pt_userptr_inject_eagain(struct xe_userptr_vma *uvma)
 {
-	u32 divisor = vma->userptr.divisor ? vma->userptr.divisor : 2;
+	u32 divisor = uvma->userptr.divisor ? uvma->userptr.divisor : 2;
 	static u32 count;
 
 	if (count++ % divisor == divisor - 1) {
-		struct xe_vm *vm = xe_vma_vm(vma);
+		struct xe_vm *vm = xe_vma_vm(&uvma->vma);
 
-		vma->userptr.divisor = divisor << 1;
+		uvma->userptr.divisor = divisor << 1;
 		spin_lock(&vm->userptr.invalidated_lock);
-		list_move_tail(&vma->userptr.invalidate_link,
+		list_move_tail(&uvma->userptr.invalidate_link,
 			       &vm->userptr.invalidated);
 		spin_unlock(&vm->userptr.invalidated_lock);
 		return true;
@@ -927,7 +938,7 @@ static int xe_pt_userptr_inject_eagain(struct xe_vma *vma)
 
 #else
 
-static bool xe_pt_userptr_inject_eagain(struct xe_vma *vma)
+static bool xe_pt_userptr_inject_eagain(struct xe_userptr_vma *uvma)
 {
 	return false;
 }
@@ -1000,9 +1011,9 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 {
 	struct xe_pt_migrate_pt_update *userptr_update =
 		container_of(pt_update, typeof(*userptr_update), base);
-	struct xe_vma *vma = pt_update->vma;
-	unsigned long notifier_seq = vma->userptr.notifier_seq;
-	struct xe_vm *vm = xe_vma_vm(vma);
+	struct xe_userptr_vma *uvma = to_userptr_vma(pt_update->vma);
+	unsigned long notifier_seq = uvma->userptr.notifier_seq;
+	struct xe_vm *vm = xe_vma_vm(&uvma->vma);
 	int err = xe_pt_vm_dependencies(pt_update->job,
 					&vm->rftree[pt_update->tile_id],
 					pt_update->start,
@@ -1023,7 +1034,7 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 	 */
 	do {
 		down_read(&vm->userptr.notifier_lock);
-		if (!mmu_interval_read_retry(&vma->userptr.notifier,
+		if (!mmu_interval_read_retry(&uvma->userptr.notifier,
 					     notifier_seq))
 			break;
 
@@ -1032,11 +1043,11 @@ static int xe_pt_userptr_pre_commit(struct xe_migrate_pt_update *pt_update)
 		if (userptr_update->bind)
 			return -EAGAIN;
 
-		notifier_seq = mmu_interval_read_begin(&vma->userptr.notifier);
+		notifier_seq = mmu_interval_read_begin(&uvma->userptr.notifier);
 	} while (true);
 
 	/* Inject errors to test_whether they are handled correctly */
-	if (userptr_update->bind && xe_pt_userptr_inject_eagain(vma)) {
+	if (userptr_update->bind && xe_pt_userptr_inject_eagain(uvma)) {
 		up_read(&vm->userptr.notifier_lock);
 		return -EAGAIN;
 	}
@@ -1297,7 +1308,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 		vma->tile_present |= BIT(tile->id);
 
 		if (bind_pt_update.locked) {
-			vma->userptr.initial_bind = true;
+			to_userptr_vma(vma)->userptr.initial_bind = true;
 			up_read(&vm->userptr.notifier_lock);
 			xe_bo_put_commit(&deferred);
 		}
@@ -1507,7 +1518,7 @@ xe_pt_commit_unbind(struct xe_vma *vma,
 					xe_pt_destroy(xe_pt_entry(pt_dir, i),
 						      xe_vma_vm(vma)->flags, deferred);
 
-				pt_dir->dir.entries[i] = NULL;
+				pt_dir->children[i] = NULL;
 			}
 		}
 	}
@@ -1642,7 +1653,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 
 		if (!vma->tile_present) {
 			spin_lock(&vm->userptr.invalidated_lock);
-			list_del_init(&vma->userptr.invalidate_link);
+			list_del_init(&to_userptr_vma(vma)->userptr.invalidate_link);
 			spin_unlock(&vm->userptr.invalidated_lock);
 		}
 		up_read(&vm->userptr.notifier_lock);

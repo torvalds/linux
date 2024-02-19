@@ -211,6 +211,10 @@ static const char * const snd_pcm_format_names[] = {
 	FORMAT(DSD_U32_LE),
 	FORMAT(DSD_U16_BE),
 	FORMAT(DSD_U32_BE),
+	FORMAT(S20_LE),
+	FORMAT(S20_BE),
+	FORMAT(U20_LE),
+	FORMAT(U20_BE),
 };
 
 /**

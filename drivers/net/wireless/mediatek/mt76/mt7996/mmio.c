@@ -650,4 +650,5 @@ static void __exit mt7996_exit(void)
 
 module_init(mt7996_init);
 module_exit(mt7996_exit);
+MODULE_DESCRIPTION("MediaTek MT7996 MMIO helpers");
 MODULE_LICENSE("Dual BSD/GPL");

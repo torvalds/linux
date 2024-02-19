@@ -645,6 +645,7 @@ static void com90xx_copy_from_card(struct net_device *dev, int bufnum,
 	TIME(dev, "memcpy_fromio", count, memcpy_fromio(buf, memaddr, count));
 }
 
+MODULE_DESCRIPTION("ARCnet COM90xx normal chipset driver");
 MODULE_LICENSE("GPL");
 
 static int __init com90xx_init(void)

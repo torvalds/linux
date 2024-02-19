@@ -111,8 +111,8 @@ struct nouveau_sched {
 	} job;
 };
 
-int nouveau_sched_init(struct nouveau_sched *sched, struct nouveau_drm *drm,
-		       struct workqueue_struct *wq, u32 credit_limit);
-void nouveau_sched_fini(struct nouveau_sched *sched);
+int nouveau_sched_create(struct nouveau_sched **psched, struct nouveau_drm *drm,
+			 struct workqueue_struct *wq, u32 credit_limit);
+void nouveau_sched_destroy(struct nouveau_sched **psched);
 
 #endif
