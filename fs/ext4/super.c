@@ -4422,22 +4422,6 @@ static int ext4_handle_clustersize(struct super_block *sb)
 		}
 		sbi->s_cluster_bits = le32_to_cpu(es->s_log_cluster_size) -
 			le32_to_cpu(es->s_log_block_size);
-		sbi->s_clusters_per_group =
-			le32_to_cpu(es->s_clusters_per_group);
-		if (sbi->s_clusters_per_group > sb->s_blocksize * 8) {
-			ext4_msg(sb, KERN_ERR,
-				 "#clusters per group too big: %lu",
-				 sbi->s_clusters_per_group);
-			return -EINVAL;
-		}
-		if (sbi->s_blocks_per_group !=
-		    (sbi->s_clusters_per_group * (clustersize / sb->s_blocksize))) {
-			ext4_msg(sb, KERN_ERR, "blocks per group (%lu) and "
-				 "clusters per group (%lu) inconsistent",
-				 sbi->s_blocks_per_group,
-				 sbi->s_clusters_per_group);
-			return -EINVAL;
-		}
 	} else {
 		if (clustersize != sb->s_blocksize) {
 			ext4_msg(sb, KERN_ERR,
@@ -4451,8 +4435,20 @@ static int ext4_handle_clustersize(struct super_block *sb)
 				 sbi->s_blocks_per_group);
 			return -EINVAL;
 		}
-		sbi->s_clusters_per_group = sbi->s_blocks_per_group;
 		sbi->s_cluster_bits = 0;
+	}
+	sbi->s_clusters_per_group = le32_to_cpu(es->s_clusters_per_group);
+	if (sbi->s_clusters_per_group > sb->s_blocksize * 8) {
+		ext4_msg(sb, KERN_ERR, "#clusters per group too big: %lu",
+			 sbi->s_clusters_per_group);
+		return -EINVAL;
+	}
+	if (sbi->s_blocks_per_group !=
+	    (sbi->s_clusters_per_group * (clustersize / sb->s_blocksize))) {
+		ext4_msg(sb, KERN_ERR,
+			 "blocks per group (%lu) and clusters per group (%lu) inconsistent",
+			 sbi->s_blocks_per_group, sbi->s_clusters_per_group);
+		return -EINVAL;
 	}
 	sbi->s_cluster_ratio = clustersize / sb->s_blocksize;
 
