@@ -340,3 +340,77 @@ xfile_put_page(
 		return -EIO;
 	return 0;
 }
+
+/*
+ * Grab the (locked) folio for a memory object.  The object cannot span a folio
+ * boundary.  Returns the locked folio if successful, NULL if there was no
+ * folio or it didn't cover the range requested, or an ERR_PTR on failure.
+ */
+struct folio *
+xfile_get_folio(
+	struct xfile		*xf,
+	loff_t			pos,
+	size_t			len,
+	unsigned int		flags)
+{
+	struct inode		*inode = file_inode(xf->file);
+	struct folio		*folio = NULL;
+	unsigned int		pflags;
+	int			error;
+
+	if (inode->i_sb->s_maxbytes - pos < len)
+		return ERR_PTR(-ENOMEM);
+
+	trace_xfile_get_folio(xf, pos, len);
+
+	/*
+	 * Increase the file size first so that shmem_get_folio(..., SGP_CACHE),
+	 * actually allocates a folio instead of erroring out.
+	 */
+	if ((flags & XFILE_ALLOC) && pos + len > i_size_read(inode))
+		i_size_write(inode, pos + len);
+
+	pflags = memalloc_nofs_save();
+	error = shmem_get_folio(inode, pos >> PAGE_SHIFT, &folio,
+			(flags & XFILE_ALLOC) ? SGP_CACHE : SGP_READ);
+	memalloc_nofs_restore(pflags);
+	if (error)
+		return ERR_PTR(error);
+
+	if (!folio)
+		return NULL;
+
+	if (len > folio_size(folio) - offset_in_folio(folio, pos)) {
+		folio_unlock(folio);
+		folio_put(folio);
+		return NULL;
+	}
+
+	if (filemap_check_wb_err(inode->i_mapping, 0)) {
+		folio_unlock(folio);
+		folio_put(folio);
+		return ERR_PTR(-EIO);
+	}
+
+	/*
+	 * Mark the folio dirty so that it won't be reclaimed once we drop the
+	 * (potentially last) reference in xfile_put_folio.
+	 */
+	if (flags & XFILE_ALLOC)
+		folio_set_dirty(folio);
+	return folio;
+}
+
+/*
+ * Release the (locked) folio for a memory object.
+ */
+void
+xfile_put_folio(
+	struct xfile		*xf,
+	struct folio		*folio)
+{
+	trace_xfile_put_folio(xf, folio_pos(folio), folio_size(folio));
+
+	folio_unlock(folio);
+	folio_put(folio);
+}
