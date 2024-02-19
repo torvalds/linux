@@ -56,6 +56,7 @@ struct pid
 	unsigned int level;
 	spinlock_t lock;
 #ifdef CONFIG_FS_PID
+	struct dentry *stashed;
 	unsigned long ino;
 #endif
 	/* lists of tasks that use this pid */

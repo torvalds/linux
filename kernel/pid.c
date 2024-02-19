@@ -281,6 +281,7 @@ struct pid *alloc_pid(struct pid_namespace *ns, pid_t *set_tid,
 	if (!(ns->pid_allocated & PIDNS_ADDING))
 		goto out_unlock;
 #ifdef CONFIG_FS_PID
+	pid->stashed = NULL;
 	pid->ino = ++pidfs_ino;
 #endif
 	for ( ; upid >= pid->numbers; --upid) {
