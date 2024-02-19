@@ -51,11 +51,8 @@ static int dwc_pwm_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		return ret;
 	}
 
+	/* No need to check for failure, pcim_iomap_regions() does it for us. */
 	dwc->base = pcim_iomap_table(pci)[0];
-	if (!dwc->base) {
-		dev_err(dev, "Base address missing\n");
-		return -ENOMEM;
-	}
 
 	ret = devm_pwmchip_add(dev, chip);
 	if (ret)
