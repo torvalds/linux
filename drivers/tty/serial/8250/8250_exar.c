@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
@@ -758,7 +759,7 @@ static void exar_pci_remove(struct pci_dev *pcidev)
 		priv->board->exit(pcidev);
 }
 
-static int __maybe_unused exar_suspend(struct device *dev)
+static int exar_suspend(struct device *dev)
 {
 	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
@@ -770,7 +771,7 @@ static int __maybe_unused exar_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exar_resume(struct device *dev)
+static int exar_resume(struct device *dev)
 {
 	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
@@ -784,7 +785,7 @@ static int __maybe_unused exar_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
 
 static const struct exar8250_board pbn_fastcom335_2 = {
 	.num_ports	= 2,
@@ -934,7 +935,7 @@ static struct pci_driver exar_pci_driver = {
 	.probe		= exar_pci_probe,
 	.remove		= exar_pci_remove,
 	.driver         = {
-		.pm     = &exar_pci_pm,
+		.pm     = pm_sleep_ptr(&exar_pci_pm),
 	},
 	.id_table	= exar_pci_tbl,
 };
