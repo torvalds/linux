@@ -183,11 +183,7 @@ xfile_store(
 	loff_t			pos)
 {
 	struct inode		*inode = file_inode(xf->file);
-	struct address_space	*mapping = inode->i_mapping;
-	const struct address_space_operations *aops = mapping->a_ops;
-	struct page		*page = NULL;
 	unsigned int		pflags;
-	int			error = 0;
 
 	if (count > MAX_RW_COUNT)
 		return -ENOMEM;
@@ -196,60 +192,45 @@ xfile_store(
 
 	trace_xfile_store(xf, pos, count);
 
+	/*
+	 * Increase the file size first so that shmem_get_folio(..., SGP_CACHE),
+	 * actually allocates a folio instead of erroring out.
+	 */
+	if (pos + count > i_size_read(inode))
+		i_size_write(inode, pos + count);
+
 	pflags = memalloc_nofs_save();
 	while (count > 0) {
-		void		*fsdata = NULL;
-		void		*p, *kaddr;
+		struct folio	*folio;
 		unsigned int	len;
-		int		ret;
+		unsigned int	offset;
 
-		len = min_t(ssize_t, count, PAGE_SIZE - offset_in_page(pos));
-
-		/*
-		 * We call write_begin directly here to avoid all the freezer
-		 * protection lock-taking that happens in the normal path.
-		 * shmem doesn't support fs freeze, but lockdep doesn't know
-		 * that and will trip over that.
-		 */
-		error = aops->write_begin(NULL, mapping, pos, len, &page,
-				&fsdata);
-		if (error) {
-			error = -ENOMEM;
+		if (shmem_get_folio(inode, pos >> PAGE_SHIFT, &folio,
+				SGP_CACHE) < 0)
+			break;
+		if (filemap_check_wb_err(inode->i_mapping, 0)) {
+			folio_unlock(folio);
+			folio_put(folio);
 			break;
 		}
 
-		/*
-		 * xfile pages must never be mapped into userspace, so we skip
-		 * the dcache flush.  If the page is not uptodate, zero it
-		 * before writing data.
-		 */
-		kaddr = page_address(page);
-		if (!PageUptodate(page)) {
-			memset(kaddr, 0, PAGE_SIZE);
-			SetPageUptodate(page);
-		}
-		p = kaddr + offset_in_page(pos);
-		memcpy(p, buf, len);
+		offset = offset_in_folio(folio, pos);
+		len = min_t(ssize_t, count, folio_size(folio) - offset);
+		memcpy(folio_address(folio) + offset, buf, len);
 
-		ret = aops->write_end(NULL, mapping, pos, len, len, page,
-				fsdata);
-		if (ret < 0) {
-			error = -ENOMEM;
-			break;
-		}
+		folio_mark_dirty(folio);
+		folio_unlock(folio);
+		folio_put(folio);
 
-		if (ret != len) {
-			error = -ENOMEM;
-			break;
-		}
-
-		count -= ret;
-		pos += ret;
-		buf += ret;
+		count -= len;
+		pos += len;
+		buf += len;
 	}
 	memalloc_nofs_restore(pflags);
 
-	return error;
+	if (count)
+		return -ENOMEM;
+	return 0;
 }
 
 /* Find the next written area in the xfile data for a given offset. */
