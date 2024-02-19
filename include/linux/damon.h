@@ -138,6 +138,7 @@ enum damos_action {
  *
  * @get_score:		Feedback function for self-tuning quota.
  * @get_score_arg:	Parameter for @get_score
+ * @esz:		Effective size quota in bytes.
  *
  * To avoid consuming too much CPU time or IO resources for applying the
  * &struct damos->action to large memory, DAMON allows users to set time and/or
@@ -167,6 +168,8 @@ enum damos_action {
  * tuning is getting the feedback screo value of 10,000.  If @ms and/or @sz are
  * set together, those work as a hard limit quota.  If neither @ms nor @sz are
  * set, the mechanism starts from the quota of one byte.
+ *
+ * The resulting effective size quota in bytes is set to @esz.
  */
 struct damos_quota {
 	unsigned long ms;
@@ -179,13 +182,12 @@ struct damos_quota {
 
 	unsigned long (*get_score)(void *arg);
 	void *get_score_arg;
+	unsigned long esz;
 
 /* private: */
 	/* For throughput estimation */
 	unsigned long total_charged_sz;
 	unsigned long total_charged_ns;
-
-	unsigned long esz;	/* Effective size quota in bytes */
 
 	/* For charging the quota */
 	unsigned long charged_sz;
