@@ -24,7 +24,6 @@
 #include <asm/crw.h>
 #include <asm/isc.h>
 #include <asm/ebcdic.h>
-#include <asm/ap.h>
 
 #include "css.h"
 #include "cio.h"
@@ -39,6 +38,20 @@ static DEFINE_SPINLOCK(chsc_page_lock);
 
 #define SEI_VF_FLA	0xc0 /* VF flag for Full Link Address */
 #define SEI_RS_CHPID	0x4  /* 4 in RS field indicates CHPID */
+
+static BLOCKING_NOTIFIER_HEAD(chsc_notifiers);
+
+int chsc_notifier_register(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&chsc_notifiers, nb);
+}
+EXPORT_SYMBOL(chsc_notifier_register);
+
+int chsc_notifier_unregister(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&chsc_notifiers, nb);
+}
+EXPORT_SYMBOL(chsc_notifier_unregister);
 
 /**
  * chsc_error_from_response() - convert a chsc response to an error
@@ -581,7 +594,8 @@ static void chsc_process_sei_ap_cfg_chg(struct chsc_sei_nt0_area *sei_area)
 	if (sei_area->rs != 5)
 		return;
 
-	ap_bus_cfg_chg();
+	blocking_notifier_call_chain(&chsc_notifiers,
+				     CHSC_NOTIFY_AP_CFG, NULL);
 }
 
 static void chsc_process_sei_fces_event(struct chsc_sei_nt0_area *sei_area)

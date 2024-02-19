@@ -39,6 +39,7 @@
 #include <linux/ctype.h>
 #include <linux/module.h>
 #include <asm/uv.h>
+#include <asm/chsc.h>
 
 #include "ap_bus.h"
 #include "ap_debug.h"
@@ -1024,12 +1025,22 @@ EXPORT_SYMBOL(ap_bus_force_rescan);
 /*
  * A config change has happened, force an ap bus rescan.
  */
-void ap_bus_cfg_chg(void)
+static int ap_bus_cfg_chg(struct notifier_block *nb,
+			  unsigned long action, void *data)
 {
+	if (action != CHSC_NOTIFY_AP_CFG)
+		return NOTIFY_DONE;
+
 	pr_debug("%s config change, forcing bus rescan\n", __func__);
 
 	ap_bus_force_rescan();
+
+	return NOTIFY_OK;
 }
+
+static struct notifier_block ap_bus_nb = {
+	.notifier_call = ap_bus_cfg_chg,
+};
 
 /*
  * hex2bitmap() - parse hex mask string and set bitmap.
@@ -2291,16 +2302,22 @@ static inline int __init ap_async_init(void)
 
 	queue_work(system_long_wq, &ap_scan_bus_work);
 
+	rc = chsc_notifier_register(&ap_bus_nb);
+	if (rc)
+		goto out;
+
 	/* Start the low priority AP bus poll thread. */
 	if (!ap_thread_flag)
 		return 0;
 
 	rc = ap_poll_thread_start();
 	if (rc)
-		goto out;
+		goto out_notifier;
 
 	return 0;
 
+out_notifier:
+	chsc_notifier_unregister(&ap_bus_nb);
 out:
 	cancel_work(&ap_scan_bus_work);
 	hrtimer_cancel(&ap_poll_timer);
