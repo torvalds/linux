@@ -77,6 +77,12 @@ xfile_create(
 	inode = file_inode(xf->file);
 	lockdep_set_class(&inode->i_rwsem, &xfile_i_mutex_key);
 
+	/*
+	 * We don't want to bother with kmapping data during repair, so don't
+	 * allow highmem pages to back this mapping.
+	 */
+	mapping_set_gfp_mask(inode->i_mapping, GFP_KERNEL);
+
 	trace_xfile_create(xf);
 
 	*xfilep = xf;
@@ -126,7 +132,6 @@ xfile_load(
 
 	pflags = memalloc_nofs_save();
 	while (count > 0) {
-		void		*p, *kaddr;
 		unsigned int	len;
 
 		len = min_t(ssize_t, count, PAGE_SIZE - offset_in_page(pos));
@@ -153,10 +158,7 @@ xfile_load(
 		 * xfile pages must never be mapped into userspace, so
 		 * we skip the dcache flush.
 		 */
-		kaddr = kmap_local_page(page);
-		p = kaddr + offset_in_page(pos);
-		memcpy(buf, p, len);
-		kunmap_local(kaddr);
+		memcpy(buf, page_address(page) + offset_in_page(pos), len);
 		put_page(page);
 
 advance:
@@ -221,14 +223,13 @@ xfile_store(
 		 * the dcache flush.  If the page is not uptodate, zero it
 		 * before writing data.
 		 */
-		kaddr = kmap_local_page(page);
+		kaddr = page_address(page);
 		if (!PageUptodate(page)) {
 			memset(kaddr, 0, PAGE_SIZE);
 			SetPageUptodate(page);
 		}
 		p = kaddr + offset_in_page(pos);
 		memcpy(p, buf, len);
-		kunmap_local(kaddr);
 
 		ret = aops->write_end(NULL, mapping, pos, len, len, page,
 				fsdata);
@@ -314,11 +315,7 @@ xfile_get_page(
 	 * to the caller and make sure the backing store will hold on to them.
 	 */
 	if (!PageUptodate(page)) {
-		void	*kaddr;
-
-		kaddr = kmap_local_page(page);
-		memset(kaddr, 0, PAGE_SIZE);
-		kunmap_local(kaddr);
+		memset(page_address(page), 0, PAGE_SIZE);
 		SetPageUptodate(page);
 	}
 

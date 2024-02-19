@@ -580,7 +580,7 @@ xfarray_sort_get_page(
 	 * xfile pages must never be mapped into userspace, so we skip the
 	 * dcache flush when mapping the page.
 	 */
-	si->page_kaddr = kmap_local_page(si->xfpage.page);
+	si->page_kaddr = page_address(si->xfpage.page);
 	return 0;
 }
 
@@ -592,7 +592,6 @@ xfarray_sort_put_page(
 	if (!si->page_kaddr)
 		return 0;
 
-	kunmap_local(si->page_kaddr);
 	si->page_kaddr = NULL;
 
 	return xfile_put_page(si->array->xfile, &si->xfpage);
