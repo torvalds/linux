@@ -206,6 +206,7 @@ TRACE_EVENT(iomap_iter,
 		__field(u64, ino)
 		__field(loff_t, pos)
 		__field(u64, length)
+		__field(s64, processed)
 		__field(unsigned int, flags)
 		__field(const void *, ops)
 		__field(unsigned long, caller)
@@ -215,15 +216,17 @@ TRACE_EVENT(iomap_iter,
 		__entry->ino = iter->inode->i_ino;
 		__entry->pos = iter->pos;
 		__entry->length = iomap_length(iter);
+		__entry->processed = iter->processed;
 		__entry->flags = iter->flags;
 		__entry->ops = ops;
 		__entry->caller = caller;
 	),
-	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx length 0x%llx flags %s (0x%x) ops %ps caller %pS",
+	TP_printk("dev %d:%d ino 0x%llx pos 0x%llx length 0x%llx processed %lld flags %s (0x%x) ops %ps caller %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		   __entry->ino,
 		   __entry->pos,
 		   __entry->length,
+		   __entry->processed,
 		   __print_flags(__entry->flags, "|", IOMAP_FLAGS_STRINGS),
 		   __entry->flags,
 		   __entry->ops,
