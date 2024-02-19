@@ -169,6 +169,23 @@
 		>;
 	};
 
+	ospi0_pins_default: ospi0-default-pins {
+		pinctrl-single,pins = <
+			J722S_IOPAD(0x0000, PIN_OUTPUT, 0) /* (L24) OSPI0_CLK */
+			J722S_IOPAD(0x002c, PIN_OUTPUT, 0) /* (K26) OSPI0_CSn0 */
+			J722S_IOPAD(0x000c, PIN_INPUT, 0) /* (K27) OSPI0_D0 */
+			J722S_IOPAD(0x0010, PIN_INPUT, 0) /* (L27) OSPI0_D1 */
+			J722S_IOPAD(0x0014, PIN_INPUT, 0) /* (L26) OSPI0_D2 */
+			J722S_IOPAD(0x0018, PIN_INPUT, 0) /* (L25) OSPI0_D3 */
+			J722S_IOPAD(0x001c, PIN_INPUT, 0) /* (L21) OSPI0_D4 */
+			J722S_IOPAD(0x0020, PIN_INPUT, 0) /* (M26) OSPI0_D5 */
+			J722S_IOPAD(0x0024, PIN_INPUT, 0) /* (N27) OSPI0_D6 */
+			J722S_IOPAD(0x0028, PIN_INPUT, 0) /* (M27) OSPI0_D7 */
+			J722S_IOPAD(0x0008, PIN_INPUT, 0) /* (L22) OSPI0_DQS */
+		>;
+		bootph-all;
+	};
+
 	rgmii1_pins_default: rgmii1-default-pins {
 		pinctrl-single,pins = <
 			J722S_IOPAD(0x014c, PIN_INPUT, 0) /* (AC25) RGMII1_RD0 */
@@ -288,6 +305,68 @@
 				  "ENET1_EXP_SPARE2", "ENET1_EXP_PWRDN",
 				  "PD_I2ENET1_I2CMUX_SELC_IRQ", "ENET1_EXP_RESETZ";
 	};
+};
+
+&ospi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ospi0_pins_default>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0x0>;
+		spi-tx-bus-width = <8>;
+		spi-rx-bus-width = <8>;
+		spi-max-frequency = <25000000>;
+		cdns,tshsl-ns = <60>;
+		cdns,tsd2d-ns = <60>;
+		cdns,tchsh-ns = <60>;
+		cdns,tslch-ns = <60>;
+		cdns,read-delay = <4>;
+		bootph-all;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "ospi.tiboot3";
+				reg = <0x00 0x80000>;
+			};
+
+			partition@80000 {
+				label = "ospi.tispl";
+				reg = <0x80000 0x200000>;
+			};
+
+			partition@280000 {
+				label = "ospi.u-boot";
+				reg = <0x280000 0x400000>;
+			};
+
+			partition@680000 {
+				label = "ospi.env";
+				reg = <0x680000 0x40000>;
+			};
+
+			partition@6c0000 {
+				label = "ospi.env.backup";
+				reg = <0x6c0000 0x40000>;
+			};
+
+			partition@800000 {
+				label = "ospi.rootfs";
+				reg = <0x800000 0x37c0000>;
+			};
+
+			partition@3fc0000 {
+				label = "ospi.phypattern";
+				reg = <0x3fc0000 0x40000>;
+			};
+		};
+	};
+
 };
 
 &sdhci1 {
