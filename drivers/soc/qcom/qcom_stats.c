@@ -149,6 +149,7 @@ struct stats_drvdata {
 };
 
 static struct stats_drvdata *drv;
+static u64 deep_sleep_last_exited_time;
 
 struct sleep_stats {
 	u32 stat_type;
@@ -274,6 +275,40 @@ static bool ddr_stats_is_freq_overtime(struct sleep_stats *data)
 
 	return false;
 }
+
+uint64_t get_aosd_sleep_exit_time(void)
+{
+	int i;
+	u64 last_exited_at;
+	u32 count;
+	static u32 saved_deep_sleep_count;
+	u32 s_type = 0;
+	char stat_type[5] = {0};
+
+	for (i = 0; i < drv->config->num_records; i++) {
+		s_type = readl_relaxed(drv->d[i].base);
+		memcpy(stat_type, &s_type, sizeof(u32));
+		strim(stat_type);
+
+		if (!memcmp((const void *)stat_type, (const void *)"aosd", 4)) {
+			count = readl_relaxed(drv->d[i].base + COUNT_OFFSET);
+
+			if (saved_deep_sleep_count == count)
+				deep_sleep_last_exited_time = 0;
+			else {
+				saved_deep_sleep_count = count;
+				last_exited_at = readq_relaxed(drv->d[i].base +
+				LAST_EXITED_AT_OFFSET);
+				deep_sleep_last_exited_time = last_exited_at;
+			}
+			break;
+
+		}
+	}
+
+	return deep_sleep_last_exited_time;
+}
+EXPORT_SYMBOL_GPL(get_aosd_sleep_exit_time);
 
 static u64 qcom_stats_fill_ddr_stats(void __iomem *reg, struct sleep_stats *data, u32 *entry_count)
 {

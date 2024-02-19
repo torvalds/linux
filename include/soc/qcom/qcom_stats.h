@@ -37,6 +37,7 @@ void subsystem_sleep_debug_enable(bool enable);
 
 int cx_stats_get_ss_vote_info(int ss_count,
 			       struct qcom_stats_cx_vote_info *vote_info);
+uint64_t get_aosd_sleep_exit_time(void);
 
 #else
 
@@ -61,6 +62,8 @@ void subsystem_sleep_debug_enable(bool enable)
 
 static inline int cx_stats_get_ss_vote_info(int ss_count,
 			       struct qcom_stats_cx_vote_info *vote_info)
+{ return -ENODEV; }
+uint64_t get_aosd_sleep_exit_time(void)
 { return -ENODEV; }
 
 #endif
