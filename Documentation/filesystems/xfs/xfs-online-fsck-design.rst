@@ -1940,7 +1940,7 @@ mapping it into kernel address space, and dropping the folio lock.
 These long term users *must* be responsive to memory reclaim by hooking into
 the shrinker infrastructure to know when to release folios.
 
-The ``xfile_get_page`` and ``xfile_put_page`` functions are provided to
+The ``xfile_get_folio`` and ``xfile_put_folio`` functions are provided to
 retrieve the (locked) folio that backs part of an xfile and to release it.
 The only code to use these folio lease functions are the xfarray
 :ref:`sorting<xfarray_sort>` algorithms and the :ref:`in-memory

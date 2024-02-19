@@ -6,22 +6,6 @@
 #ifndef __XFS_SCRUB_XFILE_H__
 #define __XFS_SCRUB_XFILE_H__
 
-struct xfile_page {
-	struct page		*page;
-	void			*fsdata;
-	loff_t			pos;
-};
-
-static inline bool xfile_page_cached(const struct xfile_page *xfpage)
-{
-	return xfpage->page != NULL;
-}
-
-static inline pgoff_t xfile_page_index(const struct xfile_page *xfpage)
-{
-	return xfpage->page->index;
-}
-
 struct xfile {
 	struct file		*file;
 };
@@ -34,10 +18,6 @@ int xfile_store(struct xfile *xf, const void *buf, size_t count,
 		loff_t pos);
 
 loff_t xfile_seek_data(struct xfile *xf, loff_t pos);
-
-int xfile_get_page(struct xfile *xf, loff_t offset, unsigned int len,
-		struct xfile_page *xbuf);
-int xfile_put_page(struct xfile *xf, struct xfile_page *xbuf);
 
 #define XFILE_MAX_FOLIO_SIZE	(PAGE_SIZE << MAX_PAGECACHE_ORDER)
 
