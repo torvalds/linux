@@ -1488,9 +1488,6 @@ static int _anx7625_hpd_polling(struct anx7625_data *ctx,
 
 	anx7625_start_dp_work(ctx);
 
-	if (!ctx->pdata.panel_bridge && ctx->bridge_attached)
-		drm_helper_hpd_irq_event(ctx->bridge.dev);
-
 	return 0;
 }
 
@@ -1605,9 +1602,6 @@ static void anx7625_work_func(struct work_struct *work)
 	event = anx7625_hpd_change_detect(ctx);
 	if (event < 0)
 		goto unlock;
-
-	if (ctx->bridge_attached)
-		drm_helper_hpd_irq_event(ctx->bridge.dev);
 
 unlock:
 	mutex_unlock(&ctx->lock);
