@@ -79,6 +79,16 @@ static void mctp_test_route_destroy(struct kunit *test,
 	kfree_rcu(&rt->rt, rcu);
 }
 
+static void mctp_test_skb_set_dev(struct sk_buff *skb,
+				  struct mctp_test_dev *dev)
+{
+	struct mctp_skb_cb *cb;
+
+	cb = mctp_cb(skb);
+	cb->net = READ_ONCE(dev->mdev->net);
+	skb->dev = dev->ndev;
+}
+
 static struct sk_buff *mctp_test_create_skb(const struct mctp_hdr *hdr,
 					    unsigned int data_len)
 {
@@ -91,6 +101,7 @@ static struct sk_buff *mctp_test_create_skb(const struct mctp_hdr *hdr,
 	if (!skb)
 		return NULL;
 
+	__mctp_cb(skb);
 	memcpy(skb_put(skb, hdr_len), hdr, hdr_len);
 
 	buf = skb_put(skb, data_len);
@@ -111,6 +122,7 @@ static struct sk_buff *__mctp_test_create_skb_data(const struct mctp_hdr *hdr,
 	if (!skb)
 		return NULL;
 
+	__mctp_cb(skb);
 	memcpy(skb_put(skb, hdr_len), hdr, hdr_len);
 	memcpy(skb_put(skb, data_len), data, data_len);
 
@@ -249,8 +261,6 @@ static void mctp_test_rx_input(struct kunit *test)
 	skb = mctp_test_create_skb(&params->hdr, 1);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	__mctp_cb(skb);
-
 	mctp_pkttype_receive(skb, dev->ndev, &mctp_packet_type, NULL);
 
 	KUNIT_EXPECT_EQ(test, !!rt->pkts.qlen, params->input);
@@ -344,8 +354,7 @@ static void mctp_test_route_input_sk(struct kunit *test)
 	skb = mctp_test_create_skb_data(&params->hdr, &params->type);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	skb->dev = dev->ndev;
-	__mctp_cb(skb);
+	mctp_test_skb_set_dev(skb, dev);
 
 	rc = mctp_route_input(&rt->rt, skb);
 
@@ -417,8 +426,7 @@ static void mctp_test_route_input_sk_reasm(struct kunit *test)
 		skb = mctp_test_create_skb_data(&params->hdrs[i], &c);
 		KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-		skb->dev = dev->ndev;
-		__mctp_cb(skb);
+		mctp_test_skb_set_dev(skb, dev);
 
 		rc = mctp_route_input(&rt->rt, skb);
 	}
@@ -576,8 +584,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	skb = mctp_test_create_skb_data(&params->hdr, &c);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, skb);
 
-	skb->dev = dev->ndev;
-	__mctp_cb(skb);
+	mctp_test_skb_set_dev(skb, dev);
 
 	rc = mctp_route_input(&rt->rt, skb);
 
