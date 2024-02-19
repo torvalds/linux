@@ -1882,11 +1882,6 @@ static int damon_sysfs_set_scheme_filters(struct damos *scheme,
 	return 0;
 }
 
-static unsigned long damos_sysfs_get_quota_score(void *arg)
-{
-	return (unsigned long)arg;
-}
-
 static int damos_sysfs_set_quota_score(
 		struct damos_sysfs_quota_goals *sysfs_goals,
 		struct damos_quota *quota)
@@ -1904,9 +1899,8 @@ static int damos_sysfs_set_quota_score(
 		if (!sysfs_goal->target_value)
 			continue;
 
-		goal = damos_new_quota_goal(damos_sysfs_get_quota_score,
-				(void *)(sysfs_goal->current_value * 10000 /
-				sysfs_goal->target_value));
+		goal = damos_new_quota_goal(sysfs_goal->target_value,
+				sysfs_goal->current_value);
 		if (!goal)
 			return -ENOMEM;
 		damos_add_quota_goal(quota, goal);

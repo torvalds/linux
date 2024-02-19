@@ -300,15 +300,15 @@ void damos_destroy_filter(struct damos_filter *f)
 }
 
 struct damos_quota_goal *damos_new_quota_goal(
-		unsigned long (*get_score)(void *), void *get_score_arg)
+		unsigned long target_value, unsigned long current_value)
 {
 	struct damos_quota_goal *goal;
 
 	goal = kmalloc(sizeof(*goal), GFP_KERNEL);
 	if (!goal)
 		return NULL;
-	goal->get_score = get_score;
-	goal->get_score_arg = get_score_arg;
+	goal->target_value = target_value;
+	goal->current_value = current_value;
 	INIT_LIST_HEAD(&goal->list);
 	return goal;
 }
@@ -1132,7 +1132,8 @@ static unsigned long damos_quota_score(struct damos_quota *quota)
 
 	damos_for_each_quota_goal(goal, quota)
 		highest_score = max(highest_score,
-				goal->get_score(goal->get_score_arg));
+				goal->current_value * 10000 /
+				goal->target_value);
 
 	return highest_score;
 }

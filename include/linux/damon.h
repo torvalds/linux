@@ -128,19 +128,18 @@ enum damos_action {
 
 /**
  * struct damos_quota_goal - DAMOS scheme quota auto-tuning goal.
- * @get_score:		Function for getting current score of the goal.
- * @get_score_arg:	Parameter for @get_score
+ * @target_value:	Target value to achieve with the tuning.
+ * @current_value:	Current value that achieving with the tuning.
  * @list:		List head for siblings.
  *
- * Data structure for getting the current score of the quota tuning goal.
- * Calling @get_score with @get_score_arg as the parameter should return the
- * current score.  Then the score is entered to DAMON's internal feedback loop
- * mechanism to get the auto-tuned quota.  The goal of the tuning is getting
- * the feedback score value of 10,000.
+ * Data structure for getting the current score of the quota tuning goal.  The
+ * score is calculated by how close @current_value and @target_value are.  Then
+ * the score is entered to DAMON's internal feedback loop mechanism to get the
+ * auto-tuned quota.
  */
 struct damos_quota_goal {
-	unsigned long (*get_score)(void *arg);
-	void *get_score_arg;
+	unsigned long target_value;
+	unsigned long current_value;
 	struct list_head list;
 };
 
@@ -690,7 +689,7 @@ void damos_add_filter(struct damos *s, struct damos_filter *f);
 void damos_destroy_filter(struct damos_filter *f);
 
 struct damos_quota_goal *damos_new_quota_goal(
-		unsigned long (*get_score)(void *), void *get_score_arg);
+		unsigned long target_value, unsigned long current_value);
 void damos_add_quota_goal(struct damos_quota *q, struct damos_quota_goal *g);
 void damos_destroy_quota_goal(struct damos_quota_goal *goal);
 
