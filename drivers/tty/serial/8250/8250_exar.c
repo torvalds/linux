@@ -760,8 +760,7 @@ static void exar_pci_remove(struct pci_dev *pcidev)
 
 static int __maybe_unused exar_suspend(struct device *dev)
 {
-	struct pci_dev *pcidev = to_pci_dev(dev);
-	struct exar8250 *priv = pci_get_drvdata(pcidev);
+	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
