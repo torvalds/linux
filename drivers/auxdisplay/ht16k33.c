@@ -15,6 +15,7 @@
 #include <linux/property.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
+#include <linux/container_of.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>
 #include <linux/leds.h>
@@ -107,6 +108,15 @@ struct ht16k33_priv {
 	uint8_t blink;
 };
 
+#define ht16k33_work_to_priv(p)				\
+	container_of(p, struct ht16k33_priv, work.work)
+
+#define ht16k33_led_to_priv(p)				\
+	container_of(p, struct ht16k33_priv, led)
+
+#define ht16k33_linedisp_to_priv(p)			\
+	container_of(p, struct ht16k33_priv, seg.linedisp)
+
 static const struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.id		= DRIVER_NAME,
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -194,8 +204,7 @@ static int ht16k33_brightness_set(struct ht16k33_priv *priv,
 static int ht16k33_brightness_set_blocking(struct led_classdev *led_cdev,
 					   enum led_brightness brightness)
 {
-	struct ht16k33_priv *priv = container_of(led_cdev, struct ht16k33_priv,
-						 led);
+	struct ht16k33_priv *priv = ht16k33_led_to_priv(led_cdev);
 
 	return ht16k33_brightness_set(priv, brightness);
 }
@@ -203,8 +212,7 @@ static int ht16k33_brightness_set_blocking(struct led_classdev *led_cdev,
 static int ht16k33_blink_set(struct led_classdev *led_cdev,
 			     unsigned long *delay_on, unsigned long *delay_off)
 {
-	struct ht16k33_priv *priv = container_of(led_cdev, struct ht16k33_priv,
-						 led);
+	struct ht16k33_priv *priv = ht16k33_led_to_priv(led_cdev);
 	unsigned int delay;
 	uint8_t blink;
 	int err;
@@ -246,8 +254,7 @@ static void ht16k33_fb_queue(struct ht16k33_priv *priv)
  */
 static void ht16k33_fb_update(struct work_struct *work)
 {
-	struct ht16k33_priv *priv = container_of(work, struct ht16k33_priv,
-						 work.work);
+	struct ht16k33_priv *priv = ht16k33_work_to_priv(work);
 	struct ht16k33_fbdev *fbdev = &priv->fbdev;
 
 	uint8_t *p1, *p2;
@@ -441,8 +448,7 @@ static void ht16k33_keypad_stop(struct input_dev *dev)
 
 static void ht16k33_seg7_update(struct work_struct *work)
 {
-	struct ht16k33_priv *priv = container_of(work, struct ht16k33_priv,
-						 work.work);
+	struct ht16k33_priv *priv = ht16k33_work_to_priv(work);
 	struct ht16k33_seg *seg = &priv->seg;
 	char *s = seg->linedisp.buf;
 	uint8_t buf[9];
@@ -462,8 +468,7 @@ static void ht16k33_seg7_update(struct work_struct *work)
 
 static void ht16k33_seg14_update(struct work_struct *work)
 {
-	struct ht16k33_priv *priv = container_of(work, struct ht16k33_priv,
-						 work.work);
+	struct ht16k33_priv *priv = ht16k33_work_to_priv(work);
 	struct ht16k33_seg *seg = &priv->seg;
 	char *s = seg->linedisp.buf;
 	uint8_t buf[8];
@@ -478,8 +483,7 @@ static void ht16k33_seg14_update(struct work_struct *work)
 
 static void ht16k33_linedisp_update(struct linedisp *linedisp)
 {
-	struct ht16k33_priv *priv = container_of(linedisp, struct ht16k33_priv,
-						 seg.linedisp);
+	struct ht16k33_priv *priv = ht16k33_linedisp_to_priv(linedisp);
 
 	schedule_delayed_work(&priv->work, 0);
 }
