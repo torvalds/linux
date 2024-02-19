@@ -63,6 +63,21 @@ static struct damos_quota damon_reclaim_quota = {
 DEFINE_DAMON_MODULES_DAMOS_QUOTAS(damon_reclaim_quota);
 
 /*
+ * Desired level of memory pressure-stall time in microseconds.
+ *
+ * While keeping the caps that set by other quotas, DAMON_RECLAIM automatically
+ * increases and decreases the effective level of the quota aiming this level of
+ * memory pressure is incurred.  System-wide ``some`` memory PSI in microseconds
+ * per quota reset interval (``quota_reset_interval_ms``) is collected and
+ * compared to this value to see if the aim is satisfied.  Value zero means
+ * disabling this auto-tuning feature.
+ *
+ * Disabled by default.
+ */
+static unsigned long quota_mem_pressure_us __read_mostly;
+module_param(quota_mem_pressure_us, ulong, 0600);
+
+/*
  * User-specifiable feedback for auto-tuning of the effective quota.
  *
  * While keeping the caps that set by other quotas, DAMON_RECLAIM automatically
@@ -196,6 +211,16 @@ static int damon_reclaim_apply_parameters(void)
 		damon_for_each_scheme(old_scheme, ctx)
 			damon_reclaim_copy_quota_status(&scheme->quota,
 					&old_scheme->quota);
+	}
+
+	if (quota_mem_pressure_us) {
+		goal = damos_new_quota_goal(DAMOS_QUOTA_SOME_MEM_PSI_US,
+				quota_mem_pressure_us);
+		if (!goal) {
+			damon_destroy_scheme(scheme);
+			return -ENOMEM;
+		}
+		damos_add_quota_goal(&scheme->quota, goal);
 	}
 
 	if (quota_autotune_feedback) {
