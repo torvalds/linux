@@ -19,6 +19,8 @@
 #include <vdso/time32.h>
 #include <vdso/time64.h>
 
+#include <asm/page.h>
+
 #ifdef CONFIG_ARCH_HAS_VDSO_DATA
 #include <asm/vdso/data.h>
 #else
@@ -120,6 +122,14 @@ struct vdso_data {
  */
 extern struct vdso_data _vdso_data[CS_BASES] __attribute__((visibility("hidden")));
 extern struct vdso_data _timens_data[CS_BASES] __attribute__((visibility("hidden")));
+
+/**
+ * union vdso_data_store - Generic vDSO data page
+ */
+union vdso_data_store {
+	struct vdso_data	data[CS_BASES];
+	u8			page[PAGE_SIZE];
+};
 
 /*
  * The generic vDSO implementation requires that gettimeofday.h
