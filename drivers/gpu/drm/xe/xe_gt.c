@@ -437,7 +437,10 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		 * USM has its only SA pool to non-block behind user operations
 		 */
 		if (gt_to_xe(gt)->info.has_usm) {
-			gt->usm.bb_pool = xe_sa_bo_manager_init(gt_to_tile(gt), SZ_1M, 16);
+			struct xe_device *xe = gt_to_xe(gt);
+
+			gt->usm.bb_pool = xe_sa_bo_manager_init(gt_to_tile(gt),
+								IS_DGFX(xe) ? SZ_1M : SZ_512K, 16);
 			if (IS_ERR(gt->usm.bb_pool)) {
 				err = PTR_ERR(gt->usm.bb_pool);
 				goto err_force_wake;
