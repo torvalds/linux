@@ -12,6 +12,7 @@
 
 	aliases {
 		mmc0 = &sdhci;
+		mmc1 = &sdmmc;
 	};
 
 	chosen {
@@ -35,6 +36,19 @@
 		regulator-min-microvolt = <1100000>;
 		regulator-max-microvolt = <1100000>;
 		vin-supply = <&vcc5v0_sys>;
+	};
+
+	vdd_3v3_sd: vdd-3v3-sd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vdd_3v3_sd";
+		gpios = <&gpio1 RK_PB6 GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		enable-active-high;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc_3v3_s3>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vdd_sd_en>;
 	};
 };
 
@@ -110,6 +124,14 @@
 	};
 };
 
+&pinctrl {
+	vdd_sd {
+		vdd_sd_en: vdd-sd-en {
+			rockchip,pins = <1 RK_PB6 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
 &sdhci {
 	bus-width = <8>;
 	no-sdio;
@@ -117,6 +139,18 @@
 	non-removable;
 	mmc-hs400-1_8v;
 	mmc-hs400-enhanced-strobe;
+	status = "okay";
+};
+
+&sdmmc {
+	bus-width = <4>;
+	cap-sd-highspeed;
+	disable-wp;
+	no-mmc;
+	no-sdio;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vdd_3v3_sd>;
+	vqmmc-supply = <&vccio_sd_s0>;
 	status = "okay";
 };
 
