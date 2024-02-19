@@ -90,3 +90,6 @@ bcachefs-y		:=	\
 	xattr.o
 
 obj-$(CONFIG_MEAN_AND_VARIANCE_UNIT_TEST)   += mean_and_variance_test.o
+
+# Silence "note: xyz changed in GCC X.X" messages
+subdir-ccflags-y += $(call cc-disable-warning, psabi)
