@@ -24,8 +24,8 @@
 #include <uapi/linux/i2c.h>
 
 extern const struct bus_type i2c_bus_type;
-extern struct device_type i2c_adapter_type;
-extern struct device_type i2c_client_type;
+extern const struct device_type i2c_adapter_type;
+extern const struct device_type i2c_client_type;
 
 /* --- General options ------------------------------------------------	*/
 
