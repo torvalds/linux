@@ -93,6 +93,7 @@ BEGINFILE {
     delete entries
     curtable = ""
     curentry = ""
+    delete vars
     if (debug) print "Processing file " FILENAME
 }
 
@@ -105,6 +106,7 @@ BEGINFILE {
 /^};$/ {
     curtable = ""
     curentry = ""
+    delete vars
 }
 
 curtable && /\.procname[\t ]*=[\t ]*".+"/ {
@@ -120,6 +122,24 @@ curtable && /\.procname[\t ]*=[\t ]*".+"/ {
     if (debug) print "Registering table " tables[3] " at " tables[2]
     if (tables[2] == table) {
         for (entry in entries[tables[3]]) {
+            printentry(entry)
+        }
+    }
+}
+
+/kmemdup.*/ {
+    match($0, /([^ \t]+) *= *kmemdup\(([^,]+) *,/, names)
+    if (debug) print "Found variable " names[1] " for table " names[2]
+    if (names[2] in entries) {
+        vars[names[1]] = names[2]
+    }
+}
+
+/__register_sysctl_table.*/ {
+    match($0, /__register_sysctl_table\([^,]+, *"([^"]+)" *, *([^,]+)/, tables)
+    if (debug) print "Registering variable table " tables[2] " at " tables[1]
+    if (tables[1] == table && tables[2] in vars) {
+        for (entry in entries[vars[tables[2]]]) {
             printentry(entry)
         }
     }
