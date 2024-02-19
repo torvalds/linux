@@ -149,7 +149,6 @@ struct damos_quota_goal {
  * @reset_interval:	Charge reset interval in milliseconds.
  * @ms:			Maximum milliseconds that the scheme can use.
  * @sz:			Maximum bytes of memory that the action can be applied.
- * @goal:		Quota auto-tuning goal.
  * @goals:		Head of quota tuning goals (&damos_quota_goal) list.
  * @esz:		Effective size quota in bytes.
  *
@@ -169,12 +168,10 @@ struct damos_quota_goal {
  * throughput of the scheme's action.  DAMON then compares it against &sz and
  * uses smaller one as the effective quota.
  *
- * If ->get_score field of @goal is set, DAMON calculates yet another size
- * quota based on the goal using its internal feedback loop algorithm, for
- * every @reset_interval.  Then, if the new size quota is smaller than the
- * effective quota, it uses the new size quota as the effective quota.
- *
- * If @goals is not empty, same action is taken for each goal of the list.
+ * If @goals is not empt, DAMON calculates yet another size quota based on the
+ * goals using its internal feedback loop algorithm, for every @reset_interval.
+ * Then, if the new size quota is smaller than the effective quota, it uses the
+ * new size quota as the effective quota.
  *
  * The resulting effective size quota in bytes is set to @esz.
  *
@@ -188,7 +185,6 @@ struct damos_quota {
 	unsigned long reset_interval;
 	unsigned long ms;
 	unsigned long sz;
-	struct damos_quota_goal goal;
 	struct list_head goals;
 	unsigned long esz;
 
