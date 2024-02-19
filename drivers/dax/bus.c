@@ -818,7 +818,7 @@ static const struct attribute_group *dax_mapping_attribute_groups[] = {
 	NULL,
 };
 
-static struct device_type dax_mapping_type = {
+static const struct device_type dax_mapping_type = {
 	.release = dax_mapping_release,
 	.groups = dax_mapping_attribute_groups,
 };
