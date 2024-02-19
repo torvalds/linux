@@ -93,6 +93,11 @@ properties:
   '#size-cells':
     const: 0
 
+  '#gpio-cells':
+    const: 2
+
+  gpio-controller: true
+
   typec:
     $ref: /schemas/chrome/google,cros-ec-typec.yaml#
 
@@ -275,6 +280,8 @@ examples:
             interrupts = <99 0>;
             interrupt-parent = <&gpio7>;
             spi-max-frequency = <5000000>;
+            #gpio-cells = <2>;
+            gpio-controller;
 
             proximity {
                 compatible = "google,cros-ec-mkbp-proximity";
