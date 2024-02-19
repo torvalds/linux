@@ -413,10 +413,20 @@ static void event_interrupt_wq_v9(struct kfd_node *dev,
 		   client_id == SOC15_IH_CLIENTID_UTCL2) {
 		struct kfd_vm_fault_info info = {0};
 		uint16_t ring_id = SOC15_RING_ID_FROM_IH_ENTRY(ih_ring_entry);
+		uint32_t node_id = SOC15_NODEID_FROM_IH_ENTRY(ih_ring_entry);
+		uint32_t vmid_type = SOC15_VMID_TYPE_FROM_IH_ENTRY(ih_ring_entry);
+		int xcc_id = 0;
 		struct kfd_hsa_memory_exception_data exception_data;
 
-		if (client_id == SOC15_IH_CLIENTID_UTCL2 &&
-		    amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
+		if (!vmid_type && dev->adev->gfx.funcs->ih_node_to_logical_xcc) {
+			xcc_id = dev->adev->gfx.funcs->ih_node_to_logical_xcc(dev->adev,
+				node_id);
+			if (xcc_id < 0)
+				xcc_id = 0;
+		}
+
+		if (client_id == SOC15_IH_CLIENTID_UTCL2 && !vmid_type &&
+		    amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev, xcc_id)) {
 			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
 			return;
 		}
