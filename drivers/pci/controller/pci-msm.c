@@ -4555,29 +4555,93 @@ static int pcie_phy_init(struct msm_pcie_dev_t *dev)
 	return 0;
 }
 
+static u16 msm_pci_find_ext_capability(struct msm_pcie_dev_t *pci, u8 cap)
+{
+	int pos = PCI_CFG_SPACE_SIZE;
+	u32 header;
+	int ttl;
+
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	header = readl_relaxed(pci->dm_core + pos);
+	/*
+	 * If we have no capabilities, this is indicated by cap ID,
+	 * cap version and next pointer all being 0.
+	 */
+	if (header == 0)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap && pos != 0)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < PCI_CFG_SPACE_SIZE)
+			break;
+
+		header = readl_relaxed(pci->dm_core + pos);
+	}
+
+	return 0;
+}
+
 static void msm_pcie_config_core_preset(struct msm_pcie_dev_t *pcie_dev)
 {
-	u32 supported_link_speed =
-		readl_relaxed(pcie_dev->dm_core + PCIE20_CAP + PCI_EXP_LNKCAP) &
-		PCI_EXP_LNKCAP_SLS;
+	u32 supported_link_speed, supported_link_width;
+	u16 cap_id_offset, offset;
+	u32 val;
+	int i;
+
+	val = readl_relaxed(pcie_dev->dm_core + PCIE20_CAP + PCI_EXP_LNKCAP);
+
+	supported_link_speed = val & PCI_EXP_LNKCAP_SLS;
+	supported_link_width =  (val & PCI_EXP_LNKCAP_MLW) >> PCI_EXP_LNKSTA_NLW_SHIFT;
 
 	/* enable write access to RO register */
-	msm_pcie_write_mask(pcie_dev->dm_core + PCIE_GEN3_MISC_CONTROL, 0,
-				BIT(0));
+	msm_pcie_write_mask(pcie_dev->dm_core + PCIE_GEN3_MISC_CONTROL, 0, BIT(0));
 
 	/* Gen3 */
-	if (supported_link_speed >= PCI_EXP_LNKCAP_SLS_8_0GB)
-		msm_pcie_write_reg(pcie_dev->dm_core, PCIE_GEN3_SPCIE_CAP,
-				pcie_dev->core_preset);
+	if (supported_link_speed >= PCI_EXP_LNKCAP_SLS_8_0GB) {
+		cap_id_offset = msm_pci_find_ext_capability(pcie_dev, PCI_EXT_CAP_ID_SECPCI);
+		if (cap_id_offset == 0)
+			return;
+		/* GEN3 preset is at 0xC offset from Secondary PCI Express Extended Capability ID */
+		offset = cap_id_offset + 0xC;
+		msm_pcie_write_reg(pcie_dev->dm_core, offset, pcie_dev->core_preset);
+		/*
+		 * Each register provides preset hint for 2 lanes.
+		 * If there are more than 2 lanes then programing remaining lanes.
+		 */
+		for (i = 2; i < supported_link_width; i = i+2) {
+			offset += 0x4;
+			msm_pcie_write_reg(pcie_dev->dm_core, offset, pcie_dev->core_preset);
+		}
+	}
 
 	/* Gen4 */
-	if (supported_link_speed >= PCI_EXP_LNKCAP_SLS_16_0GB)
-		msm_pcie_write_reg(pcie_dev->dm_core, PCIE_PL_16GT_CAP +
-				PCI_PL_16GT_LE_CTRL, pcie_dev->core_preset);
+	if (supported_link_speed >= PCI_EXP_LNKCAP_SLS_16_0GB) {
+		cap_id_offset = msm_pci_find_ext_capability(pcie_dev, PCI_EXT_CAP_ID_PL_16GT);
+		if (cap_id_offset == 0)
+			return;
+		/*
+		 * GEN4 preset is at 0x20 offset from Physical Layer
+		 * 16.0 GT/s Extended Capability ID
+		 */
+		offset = cap_id_offset + 0x20;
+		msm_pcie_write_reg(pcie_dev->dm_core, offset, pcie_dev->core_preset);
+		/*
+		 * Each register provides preset hint for 4 lanes.
+		 * If there are more than 4 lanes then programing remaining lanes.
+		 */
+		for (i = 4; i < supported_link_width; i = i+4) {
+			offset += 0x4;
+			msm_pcie_write_reg(pcie_dev->dm_core, offset, pcie_dev->core_preset);
+		}
+	}
 
 	/* disable write access to RO register */
-	msm_pcie_write_mask(pcie_dev->dm_core + PCIE_GEN3_MISC_CONTROL, BIT(0),
-				0);
+	msm_pcie_write_mask(pcie_dev->dm_core + PCIE_GEN3_MISC_CONTROL, BIT(0), 0);
 }
 
 /* Controller settings related to PCIe PHY */
