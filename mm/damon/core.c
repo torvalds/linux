@@ -300,15 +300,16 @@ void damos_destroy_filter(struct damos_filter *f)
 }
 
 struct damos_quota_goal *damos_new_quota_goal(
-		unsigned long target_value, unsigned long current_value)
+		enum damos_quota_goal_metric metric,
+		unsigned long target_value)
 {
 	struct damos_quota_goal *goal;
 
 	goal = kmalloc(sizeof(*goal), GFP_KERNEL);
 	if (!goal)
 		return NULL;
+	goal->metric = metric;
 	goal->target_value = target_value;
-	goal->current_value = current_value;
 	INIT_LIST_HEAD(&goal->list);
 	return goal;
 }
@@ -1124,16 +1125,31 @@ static unsigned long damon_feed_loop_next_input(unsigned long last_input,
 	return min_input;
 }
 
+static void damos_set_quota_goal_current_value(struct damos_quota_goal *goal)
+{
+	u64 now_psi_total;
+
+	switch (goal->metric) {
+	case DAMOS_QUOTA_USER_INPUT:
+		/* User should already set goal->current_value */
+		break;
+	default:
+		break;
+	}
+}
+
 /* Return the highest score since it makes schemes least aggressive */
 static unsigned long damos_quota_score(struct damos_quota *quota)
 {
 	struct damos_quota_goal *goal;
 	unsigned long highest_score = 0;
 
-	damos_for_each_quota_goal(goal, quota)
+	damos_for_each_quota_goal(goal, quota) {
+		damos_set_quota_goal_current_value(goal);
 		highest_score = max(highest_score,
 				goal->current_value * 10000 /
 				goal->target_value);
+	}
 
 	return highest_score;
 }

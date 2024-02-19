@@ -127,17 +127,36 @@ enum damos_action {
 };
 
 /**
+ * enum damos_quota_goal_metric - Represents the metric to be used as the goal
+ *
+ * @DAMOS_QUOTA_USER_INPUT:	User-input value.
+ * @NR_DAMOS_QUOTA_GOAL_METRICS:	Number of DAMOS quota goal metrics.
+ *
+ * Metrics equal to larger than @NR_DAMOS_QUOTA_GOAL_METRICS are unsupported.
+ */
+enum damos_quota_goal_metric {
+	DAMOS_QUOTA_USER_INPUT,
+	NR_DAMOS_QUOTA_GOAL_METRICS,
+};
+
+/**
  * struct damos_quota_goal - DAMOS scheme quota auto-tuning goal.
- * @target_value:	Target value to achieve with the tuning.
- * @current_value:	Current value that achieving with the tuning.
+ * @metric:		Metric to be used for representing the goal.
+ * @target_value:	Target value of @metric to achieve with the tuning.
+ * @current_value:	Current value of @metric.
  * @list:		List head for siblings.
  *
  * Data structure for getting the current score of the quota tuning goal.  The
  * score is calculated by how close @current_value and @target_value are.  Then
  * the score is entered to DAMON's internal feedback loop mechanism to get the
  * auto-tuned quota.
+ *
+ * If @metric is DAMOS_QUOTA_USER_INPUT, @current_value should be manually
+ * entered by the user, probably inside the kdamond callbacks.  Otherwise,
+ * DAMON sets @current_value with self-measured value of @metric.
  */
 struct damos_quota_goal {
+	enum damos_quota_goal_metric metric;
 	unsigned long target_value;
 	unsigned long current_value;
 	struct list_head list;
@@ -689,7 +708,8 @@ void damos_add_filter(struct damos *s, struct damos_filter *f);
 void damos_destroy_filter(struct damos_filter *f);
 
 struct damos_quota_goal *damos_new_quota_goal(
-		unsigned long target_value, unsigned long current_value);
+		enum damos_quota_goal_metric metric,
+		unsigned long target_value);
 void damos_add_quota_goal(struct damos_quota *q, struct damos_quota_goal *g);
 void damos_destroy_quota_goal(struct damos_quota_goal *goal);
 
