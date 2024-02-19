@@ -383,6 +383,12 @@ latex_elements = {
         verbatimhintsturnover=false,
     ''',
 
+    #
+    # Some of our authors are fond of deep nesting; tell latex to
+    # cope.
+    #
+    'maxlistdepth': '10',
+
     # For CJK One-half spacing, need to be in front of hyperref
     'extrapackages': r'\usepackage{setspace}',
 
