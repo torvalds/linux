@@ -3458,16 +3458,17 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 			   u64 parent, int last_ref)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_ref generic_ref = { 0 };
 	struct btrfs_block_group *bg;
 	int ret;
 
-	btrfs_init_generic_ref(&generic_ref, BTRFS_DROP_DELAYED_REF,
-			       buf->start, buf->len, parent, btrfs_header_owner(buf));
-	btrfs_init_tree_ref(&generic_ref, btrfs_header_level(buf),
-			    root_id, 0, false);
-
 	if (root_id != BTRFS_TREE_LOG_OBJECTID) {
+		struct btrfs_ref generic_ref = { 0 };
+
+		btrfs_init_generic_ref(&generic_ref, BTRFS_DROP_DELAYED_REF,
+				       buf->start, buf->len, parent,
+				       btrfs_header_owner(buf));
+		btrfs_init_tree_ref(&generic_ref, btrfs_header_level(buf),
+				    root_id, 0, false);
 		btrfs_ref_tree_mod(fs_info, &generic_ref);
 		ret = btrfs_add_delayed_tree_ref(trans, &generic_ref, NULL);
 		BUG_ON(ret); /* -ENOMEM */
