@@ -113,7 +113,7 @@ static bool mctp_key_match(struct mctp_sk_key *key, mctp_eid_t local,
 	if (!mctp_address_matches(key->local_addr, local))
 		return false;
 
-	if (key->peer_addr != peer)
+	if (!mctp_address_matches(key->peer_addr, peer))
 		return false;
 
 	if (key->tag != tag)
@@ -672,8 +672,16 @@ struct mctp_sk_key *mctp_alloc_local_tag(struct mctp_sock *msk,
 		if (tmp->tag & MCTP_HDR_FLAG_TO)
 			continue;
 
-		if (!(mctp_address_matches(tmp->peer_addr, peer) &&
-		      mctp_address_matches(tmp->local_addr, local)))
+		/* Since we're avoiding conflicting entries, match peer and
+		 * local addresses, including with a wildcard on ANY. See
+		 * 'A note on key allocations' for background.
+		 */
+		if (peer != MCTP_ADDR_ANY &&
+		    !mctp_address_matches(tmp->peer_addr, peer))
+			continue;
+
+		if (local != MCTP_ADDR_ANY &&
+		    !mctp_address_matches(tmp->local_addr, local))
 			continue;
 
 		spin_lock(&tmp->lock);
