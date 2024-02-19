@@ -552,6 +552,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	struct mctp_sock *msk;
 	struct socket *sock;
 	unsigned long flags;
+	unsigned int net;
 	int rc;
 	u8 c;
 
@@ -559,6 +560,7 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 
 	dev = mctp_test_create_dev();
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
+	net = READ_ONCE(dev->mdev->net);
 
 	rt = mctp_test_create_route(&init_net, dev->mdev, 8, 68);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, rt);
@@ -570,8 +572,9 @@ static void mctp_test_route_input_sk_keys(struct kunit *test)
 	mns = &sock_net(sock->sk)->mctp;
 
 	/* set the incoming tag according to test params */
-	key = mctp_key_alloc(msk, params->key_local_addr, params->key_peer_addr,
-			     params->key_tag, GFP_KERNEL);
+	key = mctp_key_alloc(msk, net, params->key_local_addr,
+			     params->key_peer_addr, params->key_tag,
+			     GFP_KERNEL);
 
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, key);
 
