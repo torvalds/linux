@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 				    MEM_REGION_SIZE / PAGE_SIZE, 0);
 	gpa = vm_phy_pages_alloc(vm, MEM_REGION_SIZE / PAGE_SIZE,
 				 MEM_REGION_GPA, MEM_REGION_SLOT);
-	TEST_ASSERT(gpa == MEM_REGION_GPA, "Failed vm_phy_pages_alloc\n");
+	TEST_ASSERT(gpa == MEM_REGION_GPA, "Failed vm_phy_pages_alloc");
 	virt_map(vm, MEM_REGION_GVA, MEM_REGION_GPA, 1);
 	hva = addr_gpa2hva(vm, MEM_REGION_GPA);
 	memset(hva, 0, PAGE_SIZE);
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
 	case UCALL_DONE:
 		break;
 	default:
-		TEST_FAIL("Unrecognized ucall: %lu\n", uc.cmd);
+		TEST_FAIL("Unrecognized ucall: %lu", uc.cmd);
 	}
 
 	kvm_vm_free(vm);

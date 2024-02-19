@@ -579,6 +579,9 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 	work_done = ionic_cq_service(cq, budget,
 				     ionic_tx_service, NULL, NULL);
 
+	if (unlikely(!budget))
+		return budget;
+
 	if (work_done < budget && napi_complete_done(napi, work_done)) {
 		ionic_dim_update(qcq, IONIC_LIF_F_TX_DIM_INTR);
 		flags |= IONIC_INTR_CRED_UNMASK;
@@ -606,6 +609,9 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 	struct ionic_lif *lif;
 	u32 work_done = 0;
 	u32 flags = 0;
+
+	if (unlikely(!budget))
+		return budget;
 
 	lif = cq->bound_q->lif;
 	idev = &lif->ionic->idev;
@@ -655,6 +661,9 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 
 	tx_work_done = ionic_cq_service(txcq, IONIC_TX_BUDGET_DEFAULT,
 					ionic_tx_service, NULL, NULL);
+
+	if (unlikely(!budget))
+		return budget;
 
 	rx_work_done = ionic_cq_service(rxcq, budget,
 					ionic_rx_service, NULL, NULL);

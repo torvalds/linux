@@ -1322,6 +1322,56 @@ static bool hv_check_msr_access(struct kvm_vcpu_hv *hv_vcpu, u32 msr)
 	return false;
 }
 
+#define KVM_HV_WIN2016_GUEST_ID 0x1040a00003839
+#define KVM_HV_WIN2016_GUEST_ID_MASK (~GENMASK_ULL(23, 16)) /* mask out the service version */
+
+/*
+ * Hyper-V enabled Windows Server 2016 SMP VMs fail to boot in !XSAVES && XSAVEC
+ * configuration.
+ * Such configuration can result from, for example, AMD Erratum 1386 workaround.
+ *
+ * Print a notice so users aren't left wondering what's suddenly gone wrong.
+ */
+static void __kvm_hv_xsaves_xsavec_maybe_warn(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_hv *hv = to_kvm_hv(kvm);
+
+	/* Check again under the hv_lock.  */
+	if (hv->xsaves_xsavec_checked)
+		return;
+
+	if ((hv->hv_guest_os_id & KVM_HV_WIN2016_GUEST_ID_MASK) !=
+	    KVM_HV_WIN2016_GUEST_ID)
+		return;
+
+	hv->xsaves_xsavec_checked = true;
+
+	/* UP configurations aren't affected */
+	if (atomic_read(&kvm->online_vcpus) < 2)
+		return;
+
+	if (guest_cpuid_has(vcpu, X86_FEATURE_XSAVES) ||
+	    !guest_cpuid_has(vcpu, X86_FEATURE_XSAVEC))
+		return;
+
+	pr_notice_ratelimited("Booting SMP Windows KVM VM with !XSAVES && XSAVEC. "
+			      "If it fails to boot try disabling XSAVEC in the VM config.\n");
+}
+
+void kvm_hv_xsaves_xsavec_maybe_warn(struct kvm_vcpu *vcpu)
+{
+	struct kvm_hv *hv = to_kvm_hv(vcpu->kvm);
+
+	if (!vcpu->arch.hyperv_enabled ||
+	    hv->xsaves_xsavec_checked)
+		return;
+
+	mutex_lock(&hv->hv_lock);
+	__kvm_hv_xsaves_xsavec_maybe_warn(vcpu);
+	mutex_unlock(&hv->hv_lock);
+}
+
 static int kvm_hv_set_msr_pw(struct kvm_vcpu *vcpu, u32 msr, u64 data,
 			     bool host)
 {

@@ -10,7 +10,7 @@
 
 #include "xe_bo.h"
 
-#define i915_gem_object_is_shmem(obj) ((obj)->flags & XE_BO_CREATE_SYSTEM_BIT)
+#define i915_gem_object_is_shmem(obj) (0) /* We don't use shmem */
 
 static inline dma_addr_t i915_gem_object_get_dma_address(const struct xe_bo *bo, pgoff_t n)
 {

@@ -10,13 +10,14 @@ enum cc_vendor {
 	CC_VENDOR_INTEL,
 };
 
-extern enum cc_vendor cc_vendor;
-
 #ifdef CONFIG_ARCH_HAS_CC_PLATFORM
+extern enum cc_vendor cc_vendor;
 void cc_set_mask(u64 mask);
 u64 cc_mkenc(u64 val);
 u64 cc_mkdec(u64 val);
 #else
+#define cc_vendor (CC_VENDOR_NONE)
+
 static inline u64 cc_mkenc(u64 val)
 {
 	return val;
