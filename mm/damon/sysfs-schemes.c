@@ -1139,6 +1139,7 @@ struct damon_sysfs_quotas {
 	unsigned long ms;
 	unsigned long sz;
 	unsigned long reset_interval_ms;
+	unsigned long effective_sz;	/* Effective size quota in bytes */
 };
 
 static struct damon_sysfs_quotas *damon_sysfs_quotas_alloc(void)
@@ -1252,6 +1253,15 @@ static ssize_t reset_interval_ms_store(struct kobject *kobj,
 	return count;
 }
 
+static ssize_t effective_bytes_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct damon_sysfs_quotas *quotas = container_of(kobj,
+			struct damon_sysfs_quotas, kobj);
+
+	return sysfs_emit(buf, "%lu\n", quotas->effective_sz);
+}
+
 static void damon_sysfs_quotas_release(struct kobject *kobj)
 {
 	kfree(container_of(kobj, struct damon_sysfs_quotas, kobj));
@@ -1266,10 +1276,14 @@ static struct kobj_attribute damon_sysfs_quotas_sz_attr =
 static struct kobj_attribute damon_sysfs_quotas_reset_interval_ms_attr =
 		__ATTR_RW_MODE(reset_interval_ms, 0600);
 
+static struct kobj_attribute damon_sysfs_quotas_effective_bytes_attr =
+		__ATTR_RO_MODE(effective_bytes, 0400);
+
 static struct attribute *damon_sysfs_quotas_attrs[] = {
 	&damon_sysfs_quotas_ms_attr.attr,
 	&damon_sysfs_quotas_sz_attr.attr,
 	&damon_sysfs_quotas_reset_interval_ms_attr.attr,
+	&damon_sysfs_quotas_effective_bytes_attr.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(damon_sysfs_quotas);
