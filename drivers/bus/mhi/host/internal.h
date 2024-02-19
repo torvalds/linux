@@ -15,12 +15,6 @@ extern struct bus_type mhi_bus_type;
 #define MHI_SOC_RESET_REQ_OFFSET			0xb0
 #define MHI_SOC_RESET_REQ				BIT(0)
 
-#define SOC_HW_VERSION_OFFS				0x224
-#define SOC_HW_VERSION_FAM_NUM_BMSK			GENMASK(31, 28)
-#define SOC_HW_VERSION_DEV_NUM_BMSK			GENMASK(27, 16)
-#define SOC_HW_VERSION_MAJOR_VER_BMSK			GENMASK(15, 8)
-#define SOC_HW_VERSION_MINOR_VER_BMSK			GENMASK(7, 0)
-
 struct mhi_ctxt {
 	struct mhi_event_ctxt *er_ctxt;
 	struct mhi_chan_ctxt *chan_ctxt;
