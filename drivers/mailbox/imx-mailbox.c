@@ -16,6 +16,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/suspend.h>
@@ -919,6 +920,8 @@ static int imx_mu_probe(struct platform_device *pdev)
 	ret = devm_mbox_controller_register(dev, &priv->mbox);
 	if (ret)
 		goto disable_clk;
+
+	of_platform_populate(dev->of_node, NULL, NULL, dev);
 
 	pm_runtime_enable(dev);
 
