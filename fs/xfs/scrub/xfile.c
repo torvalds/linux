@@ -68,7 +68,7 @@ xfile_create(
 	if (!xf)
 		return -ENOMEM;
 
-	xf->file = shmem_file_setup(description, isize, 0);
+	xf->file = shmem_file_setup(description, isize, VM_NORESERVE);
 	if (!xf->file)
 		goto out_xfile;
 	if (IS_ERR(xf->file)) {
