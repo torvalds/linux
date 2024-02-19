@@ -8,7 +8,8 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 
-#define SILENCE_BUFFER_SIZE 2048
+#define SILENCE_BUFFER_MAX_FRAMES 260
+#define SILENCE_BUFFER_SIZE (sizeof(u64) * SILENCE_BUFFER_MAX_FRAMES)
 #define SILENCE(...) { __VA_ARGS__ }
 #define DEFINE_FORMAT(fmt, pbits, wd, endianness, signd, silence_arr) {		\
 	.format = SNDRV_PCM_FORMAT_##fmt, .physical_bits = pbits,		\
@@ -165,7 +166,7 @@ static void _test_fill_silence(struct kunit *test, struct snd_format_test_data *
 
 static void test_format_fill_silence(struct kunit *test)
 {
-	u32 buf_samples[] = { 10, 20, 32, 64, 129, 260 };
+	u32 buf_samples[] = { 10, 20, 32, 64, 129, SILENCE_BUFFER_MAX_FRAMES };
 	u8 *buffer;
 	u32 i, j;
 
