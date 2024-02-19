@@ -44,9 +44,10 @@
 #include "ap_bus.h"
 #include "ap_debug.h"
 
-/*
- * Module parameters; note though this file itself isn't modular.
- */
+MODULE_AUTHOR("IBM Corporation");
+MODULE_DESCRIPTION("Adjunct Processor Bus driver");
+MODULE_LICENSE("GPL");
+
 int ap_domain_index = -1;	/* Adjunct Processor Domain Index */
 static DEFINE_SPINLOCK(ap_domain_lock);
 module_param_named(domain, ap_domain_index, int, 0440);
@@ -2284,6 +2285,16 @@ static void ap_scan_bus_wq_callback(struct work_struct *unused)
 	}
 }
 
+static inline void __exit ap_async_exit(void)
+{
+	if (ap_thread_flag)
+		ap_poll_thread_stop();
+	chsc_notifier_unregister(&ap_bus_nb);
+	cancel_work(&ap_scan_bus_work);
+	hrtimer_cancel(&ap_poll_timer);
+	timer_delete(&ap_scan_bus_timer);
+}
+
 static inline int __init ap_async_init(void)
 {
 	int rc;
@@ -2451,4 +2462,15 @@ out:
 	ap_debug_exit();
 	return rc;
 }
-device_initcall(ap_module_init);
+
+static void __exit ap_module_exit(void)
+{
+	ap_async_exit();
+	ap_irq_exit();
+	root_device_unregister(ap_root_device);
+	bus_unregister(&ap_bus_type);
+	ap_debug_exit();
+}
+
+module_init(ap_module_init);
+module_exit(ap_module_exit);

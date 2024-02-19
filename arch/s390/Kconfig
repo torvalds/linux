@@ -724,6 +724,19 @@ config EADM_SCH
 	  To compile this driver as a module, choose M here: the
 	  module will be called eadm_sch.
 
+config AP
+	def_tristate y
+	prompt "Support for Adjunct Processors (ap)"
+	help
+	  This driver allows usage to Adjunct Processor (AP) devices via
+	  the ap bus, cards and queues. Supported Adjunct Processors are
+	  the CryptoExpress Cards (CEX).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ap.
+
+	  If unsure, say Y (default).
+
 config VFIO_CCW
 	def_tristate n
 	prompt "Support for VFIO-CCW subchannels"
@@ -740,7 +753,7 @@ config VFIO_AP
 	prompt "VFIO support for AP devices"
 	depends on KVM
 	depends on VFIO
-	depends on ZCRYPT
+	depends on AP
 	select VFIO_MDEV
 	help
 	  This driver grants access to Adjunct Processor (AP) devices

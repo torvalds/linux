@@ -67,6 +67,7 @@ config CRYPTO_DEV_GEODE
 config ZCRYPT
 	tristate "Support for s390 cryptographic adapters"
 	depends on S390
+	depends on AP
 	select HW_RANDOM
 	help
 	  Select this option if you want to enable support for

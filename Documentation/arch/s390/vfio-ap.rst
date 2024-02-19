@@ -550,7 +550,7 @@ These are the steps:
    following Kconfig elements selected:
    * IOMMU_SUPPORT
    * S390
-   * ZCRYPT
+   * AP
    * VFIO
    * KVM
 
