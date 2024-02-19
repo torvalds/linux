@@ -59,6 +59,10 @@ static int komeda_platform_probe(struct platform_device *pdev)
 	struct komeda_drv *mdrv;
 	int err;
 
+	err = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
+	if (err)
+		return dev_err_probe(dev, err, "DMA mask error\n");
+
 	mdrv = devm_kzalloc(dev, sizeof(*mdrv), GFP_KERNEL);
 	if (!mdrv)
 		return -ENOMEM;
