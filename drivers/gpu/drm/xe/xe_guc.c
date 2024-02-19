@@ -251,7 +251,6 @@ static void guc_fini(struct drm_device *drm, void *arg)
 	struct xe_guc *guc = arg;
 
 	xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
-	xe_guc_pc_fini(&guc->pc);
 	xe_uc_fini_hw(&guc_to_gt(guc)->uc);
 	xe_force_wake_put(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
 }
@@ -330,10 +329,6 @@ int xe_guc_init(struct xe_guc *guc)
 	if (ret)
 		goto out;
 
-	ret = xe_guc_pc_init(&guc->pc);
-	if (ret)
-		goto out;
-
 	ret = drmm_add_action_or_reset(&gt_to_xe(gt)->drm, guc_fini, guc);
 	if (ret)
 		goto out;
@@ -366,6 +361,10 @@ int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 		return ret;
 
 	guc_init_params_post_hwconfig(guc);
+
+	ret = xe_guc_pc_init(&guc->pc);
+	if (ret)
+		return ret;
 
 	return xe_guc_ads_init_post_hwconfig(&guc->ads);
 }
@@ -573,6 +572,9 @@ int xe_guc_min_load_for_hwconfig(struct xe_guc *guc)
 	int ret;
 
 	xe_guc_ads_populate_minimal(&guc->ads);
+
+	/* Raise GT freq to speed up HuC/GuC load */
+	xe_guc_pc_init_early(&guc->pc);
 
 	ret = __xe_guc_upload(guc);
 	if (ret)
