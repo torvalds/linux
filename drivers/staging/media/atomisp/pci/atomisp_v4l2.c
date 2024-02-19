@@ -1363,7 +1363,7 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	}
 
 	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
-		dev_err(&pdev->dev, "revision %d is not unsupported\n", pdev->revision);
+		dev_err(&pdev->dev, "revision %d is not supported\n", pdev->revision);
 		return -ENODEV;
 	}
 
