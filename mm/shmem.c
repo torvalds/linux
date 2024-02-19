@@ -2137,12 +2137,32 @@ unlock:
 	return error;
 }
 
+/**
+ * shmem_get_folio - find, and lock a shmem folio.
+ * @inode:	inode to search
+ * @index:	the page index.
+ * @foliop:	pointer to the folio if found
+ * @sgp:	SGP_* flags to control behavior
+ *
+ * Looks up the page cache entry at @inode & @index.  If a folio is
+ * present, it is returned locked with an increased refcount.
+ *
+ * When no folio is found, the behavior depends on @sgp:
+ *  - for SGP_READ, *foliop is %NULL and 0 is returned
+ *  - for SGP_NOALLOC, *foliop is %NULL and -ENOENT is returned
+ *  - for all other flags a new folio is allocated, inserted into the
+ *    page cache and returned locked in @foliop.
+ *
+ * Context: May sleep.
+ * Return: 0 if successful, else a negative error code.
+ */
 int shmem_get_folio(struct inode *inode, pgoff_t index, struct folio **foliop,
 		enum sgp_type sgp)
 {
 	return shmem_get_folio_gfp(inode, index, foliop, sgp,
 			mapping_gfp_mask(inode->i_mapping), NULL, NULL);
 }
+EXPORT_SYMBOL_GPL(shmem_get_folio);
 
 /*
  * This is like autoremove_wake_function, but it removes the wait queue
