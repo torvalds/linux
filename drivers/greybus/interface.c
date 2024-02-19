@@ -765,7 +765,7 @@ static const struct dev_pm_ops gb_interface_pm_ops = {
 			   gb_interface_runtime_idle)
 };
 
-struct device_type greybus_interface_type = {
+const struct device_type greybus_interface_type = {
 	.name =		"greybus_interface",
 	.release =	gb_interface_release,
 	.pm =		&gb_interface_pm_ops,

@@ -116,7 +116,7 @@ static void gb_hd_release(struct device *dev)
 	kfree(hd);
 }
 
-struct device_type greybus_hd_type = {
+const struct device_type greybus_hd_type = {
 	.name		= "greybus_host_device",
 	.release	= gb_hd_release,
 };
