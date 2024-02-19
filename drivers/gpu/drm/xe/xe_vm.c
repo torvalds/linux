@@ -2198,7 +2198,7 @@ static u64 xe_vma_max_pte_size(struct xe_vma *vma)
 	return SZ_1G;	/* Uninitialized, used max size */
 }
 
-static u64 xe_vma_set_pte_size(struct xe_vma *vma, u64 size)
+static void xe_vma_set_pte_size(struct xe_vma *vma, u64 size)
 {
 	switch (size) {
 	case SZ_1G:
@@ -2207,9 +2207,10 @@ static u64 xe_vma_set_pte_size(struct xe_vma *vma, u64 size)
 	case SZ_2M:
 		vma->gpuva.flags |= XE_VMA_PTE_2M;
 		break;
+	case SZ_4K:
+		vma->gpuva.flags |= XE_VMA_PTE_4K;
+		break;
 	}
-
-	return SZ_4K;
 }
 
 static int xe_vma_op_commit(struct xe_vm *vm, struct xe_vma_op *op)
