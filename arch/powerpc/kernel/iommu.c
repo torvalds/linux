@@ -1289,8 +1289,10 @@ spapr_tce_platform_iommu_attach_dev(struct iommu_domain *platform_domain,
 	struct iommu_table_group *table_group;
 
 	/* At first attach the ownership is already set */
-	if (!domain)
+	if (!domain) {
+		iommu_group_put(grp);
 		return 0;
+	}
 
 	table_group = iommu_group_get_iommudata(grp);
 	/*

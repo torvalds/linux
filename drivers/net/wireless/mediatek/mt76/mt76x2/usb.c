@@ -147,4 +147,5 @@ static struct usb_driver mt76x2u_driver = {
 module_usb_driver(mt76x2u_driver);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>");
+MODULE_DESCRIPTION("MediaTek MT76x2U (USB) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
