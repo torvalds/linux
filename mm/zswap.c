@@ -1021,12 +1021,12 @@ static bool zswap_compress(struct folio *folio, struct zswap_entry *entry)
 {
 	struct crypto_acomp_ctx *acomp_ctx;
 	struct scatterlist input, output;
+	int comp_ret = 0, alloc_ret = 0;
 	unsigned int dlen = PAGE_SIZE;
 	unsigned long handle;
 	struct zpool *zpool;
 	char *buf;
 	gfp_t gfp;
-	int ret;
 	u8 *dst;
 
 	acomp_ctx = raw_cpu_ptr(entry->pool->acomp_ctx);
@@ -1057,26 +1057,18 @@ static bool zswap_compress(struct folio *folio, struct zswap_entry *entry)
 	 * but in different threads running on different cpu, we have different
 	 * acomp instance, so multiple threads can do (de)compression in parallel.
 	 */
-	ret = crypto_wait_req(crypto_acomp_compress(acomp_ctx->req), &acomp_ctx->wait);
+	comp_ret = crypto_wait_req(crypto_acomp_compress(acomp_ctx->req), &acomp_ctx->wait);
 	dlen = acomp_ctx->req->dlen;
-	if (ret) {
-		zswap_reject_compress_fail++;
+	if (comp_ret)
 		goto unlock;
-	}
 
 	zpool = zswap_find_zpool(entry);
 	gfp = __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM;
 	if (zpool_malloc_support_movable(zpool))
 		gfp |= __GFP_HIGHMEM | __GFP_MOVABLE;
-	ret = zpool_malloc(zpool, dlen, gfp, &handle);
-	if (ret == -ENOSPC) {
-		zswap_reject_compress_poor++;
+	alloc_ret = zpool_malloc(zpool, dlen, gfp, &handle);
+	if (alloc_ret)
 		goto unlock;
-	}
-	if (ret) {
-		zswap_reject_alloc_fail++;
-		goto unlock;
-	}
 
 	buf = zpool_map_handle(zpool, handle, ZPOOL_MM_WO);
 	memcpy(buf, dst, dlen);
@@ -1086,8 +1078,15 @@ static bool zswap_compress(struct folio *folio, struct zswap_entry *entry)
 	entry->length = dlen;
 
 unlock:
+	if (comp_ret == -ENOSPC || alloc_ret == -ENOSPC)
+		zswap_reject_compress_poor++;
+	else if (comp_ret)
+		zswap_reject_compress_fail++;
+	else if (alloc_ret)
+		zswap_reject_alloc_fail++;
+
 	mutex_unlock(&acomp_ctx->mutex);
-	return ret == 0;
+	return comp_ret == 0 && alloc_ret == 0;
 }
 
 static void zswap_decompress(struct zswap_entry *entry, struct page *page)
