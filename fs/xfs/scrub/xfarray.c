@@ -570,18 +570,7 @@ xfarray_sort_get_page(
 	loff_t			pos,
 	uint64_t		len)
 {
-	int			error;
-
-	error = xfile_get_page(si->array->xfile, pos, len, &si->xfpage);
-	if (error)
-		return error;
-
-	/*
-	 * xfile pages must never be mapped into userspace, so we skip the
-	 * dcache flush when mapping the page.
-	 */
-	si->page_kaddr = page_address(si->xfpage.page);
-	return 0;
+	return xfile_get_page(si->array->xfile, pos, len, &si->xfpage);
 }
 
 /* Release a page we grabbed for sorting records. */
@@ -589,11 +578,8 @@ static inline int
 xfarray_sort_put_page(
 	struct xfarray_sortinfo	*si)
 {
-	if (!si->page_kaddr)
+	if (!xfile_page_cached(&si->xfpage))
 		return 0;
-
-	si->page_kaddr = NULL;
-
 	return xfile_put_page(si->array->xfile, &si->xfpage);
 }
 
@@ -636,7 +622,7 @@ xfarray_pagesort(
 		return error;
 
 	xfarray_sort_bump_heapsorts(si);
-	startp = si->page_kaddr + offset_in_page(lo_pos);
+	startp = page_address(si->xfpage.page) + offset_in_page(lo_pos);
 	sort(startp, hi - lo + 1, si->array->obj_size, si->cmp_fn, NULL);
 
 	xfarray_sort_bump_stores(si);
@@ -883,7 +869,7 @@ xfarray_sort_load_cached(
 			return error;
 	}
 
-	memcpy(ptr, si->page_kaddr + offset_in_page(idx_pos),
+	memcpy(ptr, page_address(si->xfpage.page) + offset_in_page(idx_pos),
 			si->array->obj_size);
 	return 0;
 }

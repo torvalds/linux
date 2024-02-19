@@ -107,7 +107,6 @@ struct xfarray_sortinfo {
 
 	/* Cache a page here for faster access. */
 	struct xfile_page	xfpage;
-	void			*page_kaddr;
 
 #ifdef DEBUG
 	/* Performance statistics. */
