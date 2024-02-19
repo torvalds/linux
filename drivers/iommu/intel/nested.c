@@ -103,7 +103,7 @@ static void nested_flush_dev_iotlb(struct dmar_domain *domain, u64 addr,
 }
 
 static void intel_nested_flush_cache(struct dmar_domain *domain, u64 addr,
-				     unsigned long npages, bool ih)
+				     u64 npages, bool ih)
 {
 	struct iommu_domain_info *info;
 	unsigned int mask;
