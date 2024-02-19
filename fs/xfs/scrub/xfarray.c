@@ -16,7 +16,7 @@
  * Large Arrays of Fixed-Size Records
  * ==================================
  *
- * This memory array uses an xfile (which itself is a memfd "file") to store
+ * This memory array uses an xfile (which itself is a shmem file) to store
  * large numbers of fixed-size records in memory that can be paged out.  This
  * puts less stress on the memory reclaim algorithms during an online repair
  * because we don't have to pin so much memory.  However, array access is less
