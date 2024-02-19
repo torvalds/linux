@@ -83,7 +83,6 @@ struct framer_ops {
 /**
  * struct framer_provider - represents the framer provider
  * @dev: framer provider device
- * @children: can be used to override the default (dev->of_node) child node
  * @owner: the module owner having of_xlate
  * @list: to maintain a linked list of framer providers
  * @of_xlate: function pointer to obtain framer instance from framer pointer
