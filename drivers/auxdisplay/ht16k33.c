@@ -92,7 +92,6 @@ struct ht16k33_seg {
 		struct seg14_conversion_map seg14;
 	} map;
 	unsigned int map_size;
-	char curr[4];
 };
 
 struct ht16k33_priv {
@@ -457,7 +456,7 @@ static void ht16k33_seg7_update(struct work_struct *work)
 	struct ht16k33_priv *priv = container_of(work, struct ht16k33_priv,
 						 work.work);
 	struct ht16k33_seg *seg = &priv->seg;
-	char *s = seg->curr;
+	char *s = seg->linedisp.buf;
 	uint8_t buf[9];
 
 	buf[0] = map_to_seg7(&seg->map.seg7, *s++);
@@ -478,7 +477,7 @@ static void ht16k33_seg14_update(struct work_struct *work)
 	struct ht16k33_priv *priv = container_of(work, struct ht16k33_priv,
 						 work.work);
 	struct ht16k33_seg *seg = &priv->seg;
-	char *s = seg->curr;
+	char *s = seg->linedisp.buf;
 	uint8_t buf[8];
 
 	put_unaligned_le16(map_to_seg14(&seg->map.seg14, *s++), buf);
@@ -700,8 +699,7 @@ static int ht16k33_seg_probe(struct device *dev, struct ht16k33_priv *priv,
 	if (err)
 		return err;
 
-	err = linedisp_register(&seg->linedisp, dev, 4, seg->curr,
-				&ht16k33_linedisp_ops);
+	err = linedisp_register(&seg->linedisp, dev, 4, &ht16k33_linedisp_ops);
 	if (err)
 		goto err_remove_map_file;
 

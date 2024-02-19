@@ -37,7 +37,6 @@ struct img_ascii_lcd_config {
  * @regmap: the regmap through which LCD registers are accessed
  * @offset: the offset within regmap to the start of the LCD registers
  * @cfg: pointer to the LCD model configuration
- * @curr: the string currently displayed on the LCD
  */
 struct img_ascii_lcd_ctx {
 	struct linedisp linedisp;
@@ -47,7 +46,6 @@ struct img_ascii_lcd_ctx {
 	};
 	u32 offset;
 	const struct img_ascii_lcd_config *cfg;
-	char curr[] __aligned(8);
 };
 
 /*
@@ -61,12 +59,12 @@ static void boston_update(struct linedisp *linedisp)
 	ulong val;
 
 #if BITS_PER_LONG == 64
-	val = *((u64 *)&ctx->curr[0]);
+	val = *((u64 *)&linedisp->buf[0]);
 	__raw_writeq(val, ctx->base);
 #elif BITS_PER_LONG == 32
-	val = *((u32 *)&ctx->curr[0]);
+	val = *((u32 *)&linedisp->buf[0]);
 	__raw_writel(val, ctx->base);
-	val = *((u32 *)&ctx->curr[4]);
+	val = *((u32 *)&linedisp->buf[4]);
 	__raw_writel(val, ctx->base + 4);
 #else
 # error Not 32 or 64 bit
@@ -93,7 +91,7 @@ static void malta_update(struct linedisp *linedisp)
 
 	for (i = 0; i < linedisp->num_chars; i++) {
 		err = regmap_write(ctx->regmap,
-				   ctx->offset + (i * 8), ctx->curr[i]);
+				   ctx->offset + (i * 8), linedisp->buf[i]);
 		if (err)
 			break;
 	}
@@ -195,7 +193,7 @@ static void sead3_update(struct linedisp *linedisp)
 
 		err = regmap_write(ctx->regmap,
 				   ctx->offset + SEAD3_REG_LCD_DATA,
-				   ctx->curr[i]);
+				   linedisp->buf[i]);
 		if (err)
 			break;
 	}
@@ -236,7 +234,7 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 	struct img_ascii_lcd_ctx *ctx;
 	int err;
 
-	ctx = devm_kzalloc(dev, sizeof(*ctx) + cfg->num_chars, GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -253,8 +251,7 @@ static int img_ascii_lcd_probe(struct platform_device *pdev)
 			return PTR_ERR(ctx->base);
 	}
 
-	err = linedisp_register(&ctx->linedisp, dev, cfg->num_chars, ctx->curr,
-				&cfg->ops);
+	err = linedisp_register(&ctx->linedisp, dev, cfg->num_chars, &cfg->ops);
 	if (err)
 		return err;
 

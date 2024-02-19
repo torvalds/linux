@@ -265,6 +265,7 @@ static void linedisp_release(struct device *dev)
 
 	kfree(linedisp->map);
 	kfree(linedisp->message);
+	kfree(linedisp->buf);
 	ida_free(&linedisp_id, linedisp->id);
 }
 
@@ -316,14 +317,12 @@ static int linedisp_init_map(struct linedisp *linedisp)
  * @linedisp: pointer to character line display structure
  * @parent: parent device
  * @num_chars: the number of characters that can be displayed
- * @buf: pointer to a buffer that can hold @num_chars characters
  * @ops: character line display operations
  *
  * Return: zero on success, else a negative error code.
  */
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
-		      unsigned int num_chars, char *buf,
-		      const struct linedisp_ops *ops)
+		      unsigned int num_chars, const struct linedisp_ops *ops)
 {
 	int err;
 
@@ -331,7 +330,6 @@ int linedisp_register(struct linedisp *linedisp, struct device *parent,
 	linedisp->dev.parent = parent;
 	linedisp->dev.type = &linedisp_type;
 	linedisp->ops = ops;
-	linedisp->buf = buf;
 	linedisp->num_chars = num_chars;
 	linedisp->scroll_rate = DEFAULT_SCROLL_RATE;
 
@@ -342,6 +340,11 @@ int linedisp_register(struct linedisp *linedisp, struct device *parent,
 
 	device_initialize(&linedisp->dev);
 	dev_set_name(&linedisp->dev, "linedisp.%u", linedisp->id);
+
+	err = -ENOMEM;
+	linedisp->buf = kzalloc(linedisp->num_chars, GFP_KERNEL);
+	if (!linedisp->buf)
+		goto out_put_device;
 
 	/* initialise a character mapping, if required */
 	err = linedisp_init_map(linedisp);

@@ -82,8 +82,7 @@ struct linedisp {
 };
 
 int linedisp_register(struct linedisp *linedisp, struct device *parent,
-		      unsigned int num_chars, char *buf,
-		      const struct linedisp_ops *ops);
+		      unsigned int num_chars, const struct linedisp_ops *ops);
 void linedisp_unregister(struct linedisp *linedisp);
 
 #endif /* LINEDISP_H */
