@@ -439,18 +439,6 @@ static void ht16k33_keypad_stop(struct input_dev *dev)
 	disable_irq(keypad->client->irq);
 }
 
-static void ht16k33_linedisp_update(struct linedisp *linedisp)
-{
-	struct ht16k33_priv *priv = container_of(linedisp, struct ht16k33_priv,
-						 seg.linedisp);
-
-	schedule_delayed_work(&priv->work, 0);
-}
-
-static const struct linedisp_ops ht16k33_linedisp_ops = {
-	.update = ht16k33_linedisp_update,
-};
-
 static void ht16k33_seg7_update(struct work_struct *work)
 {
 	struct ht16k33_priv *priv = container_of(work, struct ht16k33_priv,
@@ -487,6 +475,18 @@ static void ht16k33_seg14_update(struct work_struct *work)
 
 	i2c_smbus_write_i2c_block_data(priv->client, 0, ARRAY_SIZE(buf), buf);
 }
+
+static void ht16k33_linedisp_update(struct linedisp *linedisp)
+{
+	struct ht16k33_priv *priv = container_of(linedisp, struct ht16k33_priv,
+						 seg.linedisp);
+
+	schedule_delayed_work(&priv->work, 0);
+}
+
+static const struct linedisp_ops ht16k33_linedisp_ops = {
+	.update = ht16k33_linedisp_update,
+};
 
 static int ht16k33_led_probe(struct device *dev, struct led_classdev *led,
 			     unsigned int brightness)
