@@ -1210,6 +1210,7 @@ static void wmi_notify_driver(struct wmi_block *wblock)
 {
 	struct wmi_driver *driver = drv_to_wdrv(wblock->dev.dev.driver);
 	struct acpi_buffer data = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj = NULL;
 	acpi_status status;
 
 	if (!driver->no_notify_data) {
@@ -1218,12 +1219,18 @@ static void wmi_notify_driver(struct wmi_block *wblock)
 			dev_warn(&wblock->dev.dev, "Failed to get event data\n");
 			return;
 		}
+
+		obj = data.pointer;
+		if (!obj) {
+			dev_warn(&wblock->dev.dev, "Event contains no event data\n");
+			return;
+		}
 	}
 
 	if (driver->notify)
-		driver->notify(&wblock->dev, data.pointer);
+		driver->notify(&wblock->dev, obj);
 
-	kfree(data.pointer);
+	kfree(obj);
 }
 
 static int wmi_notify_device(struct device *dev, void *data)
