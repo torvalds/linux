@@ -547,13 +547,16 @@ xe_pt_stage_bind_entry(struct xe_ptw *parent, pgoff_t offset,
 		*child = &xe_child->base;
 
 		/*
-		 * Prefer the compact pagetable layout for L0 if possible.
+		 * Prefer the compact pagetable layout for L0 if possible. Only
+		 * possible if VMA covers entire 2MB region as compact 64k and
+		 * 4k pages cannot be mixed within a 2MB region.
 		 * TODO: Suballocate the pt bo to avoid wasting a lot of
 		 * memory.
 		 */
 		if (GRAPHICS_VERx100(tile_to_xe(xe_walk->tile)) >= 1250 && level == 1 &&
 		    covers && xe_pt_scan_64K(addr, next, xe_walk)) {
 			walk->shifts = xe_compact_pt_shifts;
+			xe_walk->vma->gpuva.flags |= XE_VMA_PTE_COMPACT;
 			flags |= XE_PDE_64K;
 			xe_child->is_compact = true;
 		}
