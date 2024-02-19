@@ -58,7 +58,11 @@
 	gic: interrupt-controller@f1001000 {
 		compatible = "arm,gic-400";
 		reg = <0x0 0xf1001000 0x0 0x1000>,  /* GICD */
-		      <0x0 0xf1002000 0x0 0x2000>;  /* GICC */
+		      <0x0 0xf1002000 0x0 0x2000>,  /* GICC */
+		      <0x0 0xf1004000 0x0 0x2000>,  /* GICH */
+		      <0x0 0xf1006000 0x0 0x2000>;  /* GICV */
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
+			      IRQ_TYPE_LEVEL_HIGH)>;
 		#address-cells = <0>;
 		#interrupt-cells = <3>;
 		interrupt-controller;
