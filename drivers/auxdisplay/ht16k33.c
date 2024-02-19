@@ -677,11 +677,6 @@ static int ht16k33_seg_probe(struct device *dev, struct ht16k33_priv *priv,
 		return err;
 
 	switch (priv->type) {
-	case DISP_MATRIX:
-		/* not handled here */
-		err = -EINVAL;
-		break;
-
 	case DISP_QUAD_7SEG:
 		INIT_DELAYED_WORK(&priv->work, ht16k33_seg7_update);
 		seg->map.seg7 = initial_map_seg7;
@@ -695,6 +690,9 @@ static int ht16k33_seg_probe(struct device *dev, struct ht16k33_priv *priv,
 		seg->map_size = sizeof(seg->map.seg14);
 		err = device_create_file(dev, &dev_attr_map_seg14);
 		break;
+
+	default:
+		return -EINVAL;
 	}
 	if (err)
 		return err;
@@ -772,6 +770,9 @@ static int ht16k33_probe(struct i2c_client *client)
 		/* Segment Display */
 		err = ht16k33_seg_probe(dev, priv, dft_brightness);
 		break;
+
+	default:
+		return -EINVAL;
 	}
 	return err;
 }
@@ -795,6 +796,9 @@ static void ht16k33_remove(struct i2c_client *client)
 		linedisp_unregister(&priv->seg.linedisp);
 		device_remove_file(&client->dev, &dev_attr_map_seg7);
 		device_remove_file(&client->dev, &dev_attr_map_seg14);
+		break;
+
+	default:
 		break;
 	}
 }
