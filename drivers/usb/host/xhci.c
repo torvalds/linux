@@ -2796,48 +2796,6 @@ static int xhci_reserve_bandwidth(struct xhci_hcd *xhci,
 	return -ENOMEM;
 }
 
-/*
- * Synchronous XHCI stop endpoint helper.  Issues the stop endpoint command and
- * waits for the command completion before returning.
- */
-int xhci_stop_endpoint_sync(struct xhci_hcd *xhci, struct xhci_virt_ep *ep, int suspend,
-			    gfp_t gfp_flags)
-{
-	struct xhci_command *command;
-	unsigned long flags;
-	int ret;
-
-	command = xhci_alloc_command(xhci, true, gfp_flags);
-	if (!command)
-		return -ENOMEM;
-
-	spin_lock_irqsave(&xhci->lock, flags);
-	ret = xhci_queue_stop_endpoint(xhci, command, ep->vdev->slot_id,
-				       ep->ep_index, suspend);
-	if (ret < 0) {
-		spin_unlock_irqrestore(&xhci->lock, flags);
-		goto out;
-	}
-
-	xhci_ring_cmd_db(xhci);
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	ret = wait_for_completion_timeout(command->completion, msecs_to_jiffies(3000));
-	if (!ret)
-		xhci_warn(xhci, "%s: Unable to stop endpoint.\n",
-				__func__);
-
-	if (command->status == COMP_COMMAND_ABORTED ||
-	    command->status == COMP_COMMAND_RING_STOPPED) {
-		xhci_warn(xhci, "Timeout while waiting for stop endpoint command\n");
-		ret = -ETIME;
-	}
-out:
-	xhci_free_command(xhci, command);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(xhci_stop_endpoint_sync);
 
 /* Issue a configure endpoint command or evaluate context command
  * and wait for it to finish.
@@ -3161,7 +3119,7 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 	struct xhci_virt_device *vdev;
 	struct xhci_virt_ep *ep;
 	struct xhci_input_control_ctx *ctrl_ctx;
-	struct xhci_command *cfg_cmd;
+	struct xhci_command *stop_cmd, *cfg_cmd;
 	unsigned int ep_index;
 	unsigned long flags;
 	u32 ep_flag;
@@ -3219,6 +3177,10 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 	if (ep_flag == SLOT_FLAG || ep_flag == EP0_FLAG)
 		return;
 
+	stop_cmd = xhci_alloc_command(xhci, true, GFP_NOWAIT);
+	if (!stop_cmd)
+		return;
+
 	cfg_cmd = xhci_alloc_command_with_ctx(xhci, true, GFP_NOWAIT);
 	if (!cfg_cmd)
 		goto cleanup;
@@ -3241,16 +3203,23 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 		goto cleanup;
 	}
 
-	spin_unlock_irqrestore(&xhci->lock, flags);
-
-	err = xhci_stop_endpoint_sync(xhci, ep, 0, GFP_NOWAIT);
+	err = xhci_queue_stop_endpoint(xhci, stop_cmd, udev->slot_id,
+					ep_index, 0);
 	if (err < 0) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		xhci_free_command(xhci, cfg_cmd);
 		xhci_dbg(xhci, "%s: Failed to queue stop ep command, %d ",
 				__func__, err);
 		goto cleanup;
 	}
 
+	xhci_ring_cmd_db(xhci);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	wait_for_completion(stop_cmd->completion);
+
 	spin_lock_irqsave(&xhci->lock, flags);
+
 	/* config ep command clears toggle if add and drop ep flags are set */
 	ctrl_ctx = xhci_get_input_control_ctx(cfg_cmd->in_ctx);
 	if (!ctrl_ctx) {
@@ -3282,6 +3251,7 @@ static void xhci_endpoint_reset(struct usb_hcd *hcd,
 
 	xhci_free_command(xhci, cfg_cmd);
 cleanup:
+	xhci_free_command(xhci, stop_cmd);
 	spin_lock_irqsave(&xhci->lock, flags);
 	if (ep->ep_state & EP_SOFT_CLEAR_TOGGLE)
 		ep->ep_state &= ~EP_SOFT_CLEAR_TOGGLE;
