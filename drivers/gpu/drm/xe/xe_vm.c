@@ -2192,6 +2192,8 @@ static u64 xe_vma_max_pte_size(struct xe_vma *vma)
 		return SZ_1G;
 	else if (vma->gpuva.flags & XE_VMA_PTE_2M)
 		return SZ_2M;
+	else if (vma->gpuva.flags & XE_VMA_PTE_64K)
+		return SZ_64K;
 	else if (vma->gpuva.flags & XE_VMA_PTE_4K)
 		return SZ_4K;
 
@@ -2206,6 +2208,9 @@ static void xe_vma_set_pte_size(struct xe_vma *vma, u64 size)
 		break;
 	case SZ_2M:
 		vma->gpuva.flags |= XE_VMA_PTE_2M;
+		break;
+	case SZ_64K:
+		vma->gpuva.flags |= XE_VMA_PTE_64K;
 		break;
 	case SZ_4K:
 		vma->gpuva.flags |= XE_VMA_PTE_4K;
