@@ -665,6 +665,8 @@ static int komeda_crtc_add(struct komeda_kms_dev *kms,
 
 	drm_crtc_enable_color_mgmt(crtc, 0, true, KOMEDA_COLOR_LUT_SIZE);
 
+	komeda_pipeline_dump(pipe);
+
 	return 0;
 }
 
