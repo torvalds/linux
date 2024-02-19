@@ -130,6 +130,7 @@ enum damos_action {
  * struct damos_quota_goal - DAMOS scheme quota auto-tuning goal.
  * @get_score:		Function for getting current score of the goal.
  * @get_score_arg:	Parameter for @get_score
+ * @list:		List head for siblings.
  *
  * Data structure for getting the current score of the quota tuning goal.
  * Calling @get_score with @get_score_arg as the parameter should return the
@@ -140,6 +141,7 @@ enum damos_action {
 struct damos_quota_goal {
 	unsigned long (*get_score)(void *arg);
 	void *get_score_arg;
+	struct list_head list;
 };
 
 /**
@@ -148,6 +150,7 @@ struct damos_quota_goal {
  * @ms:			Maximum milliseconds that the scheme can use.
  * @sz:			Maximum bytes of memory that the action can be applied.
  * @goal:		Quota auto-tuning goal.
+ * @goals:		Head of quota tuning goals (&damos_quota_goal) list.
  * @esz:		Effective size quota in bytes.
  *
  * @weight_sz:		Weight of the region's size for prioritization.
@@ -171,6 +174,8 @@ struct damos_quota_goal {
  * every @reset_interval.  Then, if the new size quota is smaller than the
  * effective quota, it uses the new size quota as the effective quota.
  *
+ * If @goals is not empty, same action is taken for each goal of the list.
+ *
  * The resulting effective size quota in bytes is set to @esz.
  *
  * For selecting regions within the quota, DAMON prioritizes current scheme's
@@ -184,6 +189,7 @@ struct damos_quota {
 	unsigned long ms;
 	unsigned long sz;
 	struct damos_quota_goal goal;
+	struct list_head goals;
 	unsigned long esz;
 
 	unsigned int weight_sz;
@@ -648,6 +654,12 @@ static inline unsigned long damon_sz_region(struct damon_region *r)
 #define damon_for_each_scheme_safe(s, next, ctx) \
 	list_for_each_entry_safe(s, next, &(ctx)->schemes, list)
 
+#define damos_for_each_quota_goal(goal, quota) \
+	list_for_each_entry(goal, &quota->goals, list)
+
+#define damos_for_each_quota_goal_safe(goal, next, quota) \
+	list_for_each_entry_safe(goal, next, &(quota)->goals, list)
+
 #define damos_for_each_filter(f, scheme) \
 	list_for_each_entry(f, &(scheme)->filters, list)
 
@@ -680,6 +692,11 @@ struct damos_filter *damos_new_filter(enum damos_filter_type type,
 		bool matching);
 void damos_add_filter(struct damos *s, struct damos_filter *f);
 void damos_destroy_filter(struct damos_filter *f);
+
+struct damos_quota_goal *damos_new_quota_goal(
+		unsigned long (*get_score)(void *), void *get_score_arg);
+void damos_add_quota_goal(struct damos_quota *q, struct damos_quota_goal *g);
+void damos_destroy_quota_goal(struct damos_quota_goal *goal);
 
 struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 			enum damos_action action,

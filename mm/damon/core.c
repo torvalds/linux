@@ -299,6 +299,41 @@ void damos_destroy_filter(struct damos_filter *f)
 	damos_free_filter(f);
 }
 
+struct damos_quota_goal *damos_new_quota_goal(
+		unsigned long (*get_score)(void *), void *get_score_arg)
+{
+	struct damos_quota_goal *goal;
+
+	goal = kmalloc(sizeof(*goal), GFP_KERNEL);
+	if (!goal)
+		return NULL;
+	goal->get_score = get_score;
+	goal->get_score_arg = get_score_arg;
+	INIT_LIST_HEAD(&goal->list);
+	return goal;
+}
+
+void damos_add_quota_goal(struct damos_quota *q, struct damos_quota_goal *g)
+{
+	list_add_tail(&g->list, &q->goals);
+}
+
+static void damos_del_quota_goal(struct damos_quota_goal *g)
+{
+	list_del(&g->list);
+}
+
+static void damos_free_quota_goal(struct damos_quota_goal *g)
+{
+	kfree(g);
+}
+
+void damos_destroy_quota_goal(struct damos_quota_goal *g)
+{
+	damos_del_quota_goal(g);
+	damos_free_quota_goal(g);
+}
+
 /* initialize fields of @quota that normally API users wouldn't set */
 static struct damos_quota *damos_quota_init(struct damos_quota *quota)
 {
@@ -337,6 +372,8 @@ struct damos *damon_new_scheme(struct damos_access_pattern *pattern,
 	INIT_LIST_HEAD(&scheme->list);
 
 	scheme->quota = *(damos_quota_init(quota));
+	/* quota.goals should be separately set by caller */
+	INIT_LIST_HEAD(&scheme->quota.goals);
 
 	scheme->wmarks = *wmarks;
 	scheme->wmarks.activated = true;
@@ -373,7 +410,11 @@ static void damon_free_scheme(struct damos *s)
 
 void damon_destroy_scheme(struct damos *s)
 {
+	struct damos_quota_goal *g, *g_next;
 	struct damos_filter *f, *next;
+
+	damos_for_each_quota_goal_safe(g, g_next, &s->quota)
+		damos_destroy_quota_goal(g);
 
 	damos_for_each_filter_safe(f, next, s)
 		damos_destroy_filter(f);
@@ -1083,22 +1124,44 @@ static unsigned long damon_feed_loop_next_input(unsigned long last_input,
 	return min_input;
 }
 
-/* Called only if quota->ms, quota->sz, or quota->goal.get_score are set */
+/* Return the highest score since it makes schemes least aggressive */
+static unsigned long damos_quota_score(struct damos_quota *quota)
+{
+	struct damos_quota_goal *goal;
+	unsigned long highest_score = 0;
+
+	if (quota->goal.get_score)
+		highest_score = quota->goal.get_score(
+				quota->goal.get_score_arg);
+
+	damos_for_each_quota_goal(goal, quota)
+		highest_score = max(highest_score,
+				goal->get_score(goal->get_score_arg));
+
+	return highest_score;
+}
+
+/*
+ * Called only if quota->ms, quota->sz, or quota->goal.get_score are set, or
+ * quota->goals is not empty
+ */
 static void damos_set_effective_quota(struct damos_quota *quota)
 {
 	unsigned long throughput;
 	unsigned long esz;
 
-	if (!quota->ms && !quota->goal.get_score) {
+	if (!quota->ms && !quota->goal.get_score &&
+			list_empty(&quota->goals)) {
 		quota->esz = quota->sz;
 		return;
 	}
 
-	if (quota->goal.get_score) {
+	if (quota->goal.get_score || !list_empty(&quota->goals)) {
+		unsigned long score = damos_quota_score(quota);
+
 		quota->esz_bp = damon_feed_loop_next_input(
 				max(quota->esz_bp, 10000UL),
-				quota->goal.get_score(
-					quota->goal.get_score_arg));
+				score);
 		esz = quota->esz_bp / 10000;
 	}
 
@@ -1108,7 +1171,7 @@ static void damos_set_effective_quota(struct damos_quota *quota)
 				quota->total_charged_ns;
 		else
 			throughput = PAGE_SIZE * 1024;
-		if (quota->goal.get_score)
+		if (quota->goal.get_score || !list_empty(&quota->goals))
 			esz = min(throughput * quota->ms, esz);
 		else
 			esz = throughput * quota->ms;
@@ -1128,7 +1191,8 @@ static void damos_adjust_quota(struct damon_ctx *c, struct damos *s)
 	unsigned long cumulated_sz;
 	unsigned int score, max_score = 0;
 
-	if (!quota->ms && !quota->sz && !quota->goal.get_score)
+	if (!quota->ms && !quota->sz && !quota->goal.get_score &&
+			list_empty(&quota->goals))
 		return;
 
 	/* New charge window starts */
