@@ -1870,8 +1870,10 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
 
 	ret = bch2_parse_mount_opts(NULL, &opts, data);
-	if (ret)
+	if (ret) {
+		ret = bch2_err_class(ret);
 		return ERR_PTR(ret);
+	}
 
 	if (!dev_name || strlen(dev_name) == 0)
 		return ERR_PTR(-EINVAL);

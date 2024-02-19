@@ -456,7 +456,7 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 
 	copied_opts = kstrdup(options, GFP_KERNEL);
 	if (!copied_opts)
-		return -1;
+		return -ENOMEM;
 	copied_opts_start = copied_opts;
 
 	while ((opt = strsep(&copied_opts, ",")) != NULL) {
@@ -501,11 +501,11 @@ int bch2_parse_mount_opts(struct bch_fs *c, struct bch_opts *opts,
 
 bad_opt:
 	pr_err("Bad mount option %s", name);
-	ret = -1;
+	ret = -BCH_ERR_option_name;
 	goto out;
 bad_val:
 	pr_err("Invalid mount option %s", err.buf);
-	ret = -1;
+	ret = -BCH_ERR_option_value;
 	goto out;
 out:
 	kfree(copied_opts_start);
