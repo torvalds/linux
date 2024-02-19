@@ -34,13 +34,6 @@
  * xfiles assume that the caller will handle all required concurrency
  * management; standard vfs locks (freezer and inode) are not taken.  Reads
  * and writes are satisfied directly from the page cache.
- *
- * NOTE: The current shmemfs implementation has a quirk that in-kernel reads
- * of a hole cause a page to be mapped into the file.  If you are going to
- * create a sparse xfile, please be careful about reading from uninitialized
- * parts of the file.  These pages are !Uptodate and will eventually be
- * reclaimed if not written, but in the short term this boosts memory
- * consumption.
  */
 
 /*
@@ -118,10 +111,7 @@ xfile_load(
 	loff_t			pos)
 {
 	struct inode		*inode = file_inode(xf->file);
-	struct address_space	*mapping = inode->i_mapping;
-	struct page		*page = NULL;
 	unsigned int		pflags;
-	int			error = 0;
 
 	if (count > MAX_RW_COUNT)
 		return -ENOMEM;
@@ -132,43 +122,44 @@ xfile_load(
 
 	pflags = memalloc_nofs_save();
 	while (count > 0) {
+		struct folio	*folio;
 		unsigned int	len;
+		unsigned int	offset;
 
-		len = min_t(ssize_t, count, PAGE_SIZE - offset_in_page(pos));
-
-		/*
-		 * In-kernel reads of a shmem file cause it to allocate a page
-		 * if the mapping shows a hole.  Therefore, if we hit ENOMEM
-		 * we can continue by zeroing the caller's buffer.
-		 */
-		page = shmem_read_mapping_page_gfp(mapping, pos >> PAGE_SHIFT,
-				__GFP_NOWARN);
-		if (IS_ERR(page)) {
-			error = PTR_ERR(page);
-			if (error != -ENOMEM) {
-				error = -ENOMEM;
+		if (shmem_get_folio(inode, pos >> PAGE_SHIFT, &folio,
+				SGP_READ) < 0)
+			break;
+		if (!folio) {
+			/*
+			 * No data stored at this offset, just zero the output
+			 * buffer until the next page boundary.
+			 */
+			len = min_t(ssize_t, count,
+				PAGE_SIZE - offset_in_page(pos));
+			memset(buf, 0, len);
+		} else {
+			if (filemap_check_wb_err(inode->i_mapping, 0)) {
+				folio_unlock(folio);
+				folio_put(folio);
 				break;
 			}
 
-			memset(buf, 0, len);
-			goto advance;
+			offset = offset_in_folio(folio, pos);
+			len = min_t(ssize_t, count, folio_size(folio) - offset);
+			memcpy(buf, folio_address(folio) + offset, len);
+
+			folio_unlock(folio);
+			folio_put(folio);
 		}
-
-		/*
-		 * xfile pages must never be mapped into userspace, so
-		 * we skip the dcache flush.
-		 */
-		memcpy(buf, page_address(page) + offset_in_page(pos), len);
-		put_page(page);
-
-advance:
 		count -= len;
 		pos += len;
 		buf += len;
 	}
 	memalloc_nofs_restore(pflags);
 
-	return error;
+	if (count)
+		return -ENOMEM;
+	return 0;
 }
 
 /*
