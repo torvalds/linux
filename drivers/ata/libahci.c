@@ -2620,8 +2620,8 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		speed_s = "?";
 
 	dev_info(host->dev,
-		"AHCI %02x%02x.%02x%02x "
-		"%u slots %u ports %s Gbps 0x%x impl %s mode\n"
+		"AHCI vers %02x%02x.%02x%02x, "
+		"%u command slots, %s Gbps, %s mode\n"
 		,
 
 		(vers >> 24) & 0xff,
@@ -2630,10 +2630,16 @@ void ahci_print_info(struct ata_host *host, const char *scc_s)
 		vers & 0xff,
 
 		((cap >> 8) & 0x1f) + 1,
-		(cap & 0x1f) + 1,
 		speed_s,
-		impl,
 		scc_s);
+
+	dev_info(host->dev,
+		"%u/%u ports implemented (port mask 0x%x)\n"
+		,
+
+		hweight32(impl),
+		(cap & 0x1f) + 1,
+		impl);
 
 	dev_info(host->dev,
 		"flags: "
