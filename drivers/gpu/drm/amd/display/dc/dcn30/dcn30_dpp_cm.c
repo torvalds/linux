@@ -56,15 +56,12 @@ static void dpp3_enable_cm_block(
 
 static enum dc_lut_mode dpp30_get_gamcor_current(struct dpp *dpp_base)
 {
-	enum dc_lut_mode mode;
+	enum dc_lut_mode mode = LUT_BYPASS;
 	uint32_t state_mode;
 	uint32_t lut_mode;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
 	REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_MODE_CURRENT, &state_mode);
-
-	if (state_mode == 0)
-		mode = LUT_BYPASS;
 
 	if (state_mode == 2) {//Programmable RAM LUT
 		REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_SELECT_CURRENT, &lut_mode);

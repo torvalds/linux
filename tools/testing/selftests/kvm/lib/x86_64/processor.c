@@ -170,10 +170,10 @@ static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
 		 * this level.
 		 */
 		TEST_ASSERT(current_level != target_level,
-			    "Cannot create hugepage at level: %u, vaddr: 0x%lx\n",
+			    "Cannot create hugepage at level: %u, vaddr: 0x%lx",
 			    current_level, vaddr);
 		TEST_ASSERT(!(*pte & PTE_LARGE_MASK),
-			    "Cannot create page table at level: %u, vaddr: 0x%lx\n",
+			    "Cannot create page table at level: %u, vaddr: 0x%lx",
 			    current_level, vaddr);
 	}
 	return pte;
@@ -220,7 +220,7 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 	/* Fill in page table entry. */
 	pte = virt_get_pte(vm, pde, vaddr, PG_LEVEL_4K);
 	TEST_ASSERT(!(*pte & PTE_PRESENT_MASK),
-		    "PTE already present for 4k page at vaddr: 0x%lx\n", vaddr);
+		    "PTE already present for 4k page at vaddr: 0x%lx", vaddr);
 	*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK | (paddr & PHYSICAL_PAGE_MASK);
 }
 
@@ -253,7 +253,7 @@ static bool vm_is_target_pte(uint64_t *pte, int *level, int current_level)
 	if (*pte & PTE_LARGE_MASK) {
 		TEST_ASSERT(*level == PG_LEVEL_NONE ||
 			    *level == current_level,
-			    "Unexpected hugepage at level %d\n", current_level);
+			    "Unexpected hugepage at level %d", current_level);
 		*level = current_level;
 	}
 
@@ -825,7 +825,7 @@ void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 	struct kvm_regs regs;
 
 	TEST_ASSERT(num >= 1 && num <= 6, "Unsupported number of args,\n"
-		    "  num: %u\n",
+		    "  num: %u",
 		    num);
 
 	va_start(ap, num);
@@ -1298,4 +1298,15 @@ void kvm_selftest_arch_init(void)
 {
 	host_cpu_is_intel = this_cpu_is_intel();
 	host_cpu_is_amd = this_cpu_is_amd();
+}
+
+bool sys_clocksource_is_based_on_tsc(void)
+{
+	char *clk_name = sys_get_cur_clocksource();
+	bool ret = !strcmp(clk_name, "tsc\n") ||
+		   !strcmp(clk_name, "hyperv_clocksource_tsc_page\n");
+
+	free(clk_name);
+
+	return ret;
 }

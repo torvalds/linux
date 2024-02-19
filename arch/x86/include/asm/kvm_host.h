@@ -1145,6 +1145,8 @@ struct kvm_hv {
 	unsigned int synic_auto_eoi_used;
 
 	struct kvm_hv_syndbg hv_syndbg;
+
+	bool xsaves_xsavec_checked;
 };
 #endif
 
