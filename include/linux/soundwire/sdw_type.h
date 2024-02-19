@@ -5,8 +5,8 @@
 #define __SOUNDWIRE_TYPES_H
 
 extern const struct bus_type sdw_bus_type;
-extern struct device_type sdw_slave_type;
-extern struct device_type sdw_master_type;
+extern const struct device_type sdw_slave_type;
+extern const struct device_type sdw_master_type;
 
 static inline int is_sdw_slave(const struct device *dev)
 {
