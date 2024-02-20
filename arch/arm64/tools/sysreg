@@ -200,6 +200,7 @@ UnsignedEnum	27:24	PerfMon
 	0b0110	PMUv3p5
 	0b0111	PMUv3p7
 	0b1000	PMUv3p8
+	0b1001	PMUv3p9
 	0b1111	IMPDEF
 EndEnum
 Enum	23:20	MProfDbg
@@ -231,6 +232,7 @@ Enum	3:0	CopDbg
 	0b1000	Debugv8p2
 	0b1001	Debugv8p4
 	0b1010	Debugv8p8
+	0b1011	Debugv8p9
 EndEnum
 EndSysreg
 
