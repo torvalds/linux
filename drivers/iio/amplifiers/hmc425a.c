@@ -34,6 +34,9 @@ struct hmc425a_chip_info {
 	int				gain_min;
 	int				gain_max;
 	int				default_gain;
+
+	int				(*gain_dB_to_code)(int gain, int *code);
+	int				(*code_to_gain_dB)(int code, int *val, int *val2);
 };
 
 struct hmc425a_state {
@@ -43,6 +46,74 @@ struct hmc425a_state {
 	enum	hmc425a_type type;
 	u32	gain;
 };
+
+static int gain_dB_to_code(struct hmc425a_state *st, int val, int val2, int *code)
+{
+	struct hmc425a_chip_info *inf = st->chip_info;
+	int gain;
+
+	if (val < 0)
+		gain = (val * 1000) - (val2 / 1000);
+	else
+		gain = (val * 1000) + (val2 / 1000);
+
+	if (gain > inf->gain_max || gain < inf->gain_min)
+		return -EINVAL;
+
+	return st->chip_info->gain_dB_to_code(gain, code);
+}
+
+static int hmc425a_gain_dB_to_code(int gain, int *code)
+{
+	*code = ~((abs(gain) / 500) & 0x3F);
+	return 0;
+}
+
+static int hmc540s_gain_dB_to_code(int gain, int *code)
+{
+	*code = ~((abs(gain) / 1000) & 0xF);
+	return 0;
+}
+
+static int adrf5740_gain_dB_to_code(int gain, int *code)
+{
+	int temp = (abs(gain) / 2000) & 0xF;
+
+	/* Bit [0-3]: 2dB 4dB 8dB 8dB */
+	*code = temp & BIT(3) ? temp | BIT(2) : temp;
+	return 0;
+}
+
+static int code_to_gain_dB(struct hmc425a_state *st, int *val, int *val2)
+{
+	return st->chip_info->code_to_gain_dB(st->gain, val, val2);
+}
+
+static int hmc425a_code_to_gain_dB(int code, int *val, int *val2)
+{
+	*val = (~code * -500) / 1000;
+	*val2 = ((~code * -500) % 1000) * 1000;
+	return 0;
+}
+
+static int hmc540s_code_to_gain_dB(int code, int *val, int *val2)
+{
+	*val = (~code * -1000) / 1000;
+	*val2 = ((~code * -1000) % 1000) * 1000;
+	return 0;
+}
+
+static int adrf5740_code_to_gain_dB(int code, int *val, int *val2)
+{
+	/*
+	 * Bit [0-3]: 2dB 4dB 8dB 8dB
+	 * When BIT(3) is set, unset BIT(2) and use 3 as double the place value
+	 */
+	code = code & BIT(3) ? code & ~BIT(2) : code;
+	*val = (code * -2000) / 1000;
+	*val2 = ((code * -2000) % 1000) * 1000;
+	return 0;
+}
 
 static int hmc425a_write(struct iio_dev *indio_dev, u32 value)
 {
@@ -61,30 +132,14 @@ static int hmc425a_read_raw(struct iio_dev *indio_dev,
 			    int *val2, long m)
 {
 	struct hmc425a_state *st = iio_priv(indio_dev);
-	int code, gain = 0;
 	int ret;
 
 	mutex_lock(&st->lock);
 	switch (m) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
-		code = st->gain;
-
-		switch (st->type) {
-		case ID_HMC425A:
-			gain = ~code * -500;
+		ret = code_to_gain_dB(st, val, val2);
+		if (ret)
 			break;
-		case ID_HMC540S:
-			gain = ~code * -1000;
-			break;
-		case ID_ADRF5740:
-			code = code & BIT(3) ? code & ~BIT(2) : code;
-			gain = code * -2000;
-			break;
-		}
-
-		*val = gain / 1000;
-		*val2 = (gain % 1000) * 1000;
-
 		ret = IIO_VAL_INT_PLUS_MICRO_DB;
 		break;
 	default:
@@ -100,34 +155,14 @@ static int hmc425a_write_raw(struct iio_dev *indio_dev,
 			     int val2, long mask)
 {
 	struct hmc425a_state *st = iio_priv(indio_dev);
-	struct hmc425a_chip_info *inf = st->chip_info;
-	int code = 0, gain;
-	int ret;
-
-	if (val < 0)
-		gain = (val * 1000) - (val2 / 1000);
-	else
-		gain = (val * 1000) + (val2 / 1000);
-
-	if (gain > inf->gain_max || gain < inf->gain_min)
-		return -EINVAL;
-
-	switch (st->type) {
-	case ID_HMC425A:
-		code = ~((abs(gain) / 500) & 0x3F);
-		break;
-	case ID_HMC540S:
-		code = ~((abs(gain) / 1000) & 0xF);
-		break;
-	case ID_ADRF5740:
-		code = (abs(gain) / 2000) & 0xF;
-		code = code & BIT(3) ? code | BIT(2) : code;
-		break;
-	}
+	int code = 0, ret;
 
 	mutex_lock(&st->lock);
 	switch (mask) {
 	case IIO_CHAN_INFO_HARDWAREGAIN:
+		ret = gain_dB_to_code(st, val, val2, &code);
+		if (ret)
+			break;
 		st->gain = code;
 
 		ret = hmc425a_write(indio_dev, st->gain);
@@ -189,6 +224,8 @@ static struct hmc425a_chip_info hmc425a_chip_info_tbl[] = {
 		.gain_min = -31500,
 		.gain_max = 0,
 		.default_gain = -0x40, /* set default gain -31.5db*/
+		.gain_dB_to_code = hmc425a_gain_dB_to_code,
+		.code_to_gain_dB = hmc425a_code_to_gain_dB,
 	},
 	[ID_HMC540S] = {
 		.name = "hmc540s",
@@ -198,6 +235,8 @@ static struct hmc425a_chip_info hmc425a_chip_info_tbl[] = {
 		.gain_min = -15000,
 		.gain_max = 0,
 		.default_gain = -0x10, /* set default gain -15.0db*/
+		.gain_dB_to_code = hmc540s_gain_dB_to_code,
+		.code_to_gain_dB = hmc540s_code_to_gain_dB,
 	},
 	[ID_ADRF5740] = {
 		.name = "adrf5740",
@@ -207,6 +246,8 @@ static struct hmc425a_chip_info hmc425a_chip_info_tbl[] = {
 		.gain_min = -22000,
 		.gain_max = 0,
 		.default_gain = 0xF, /* set default gain -22.0db*/
+		.gain_dB_to_code = adrf5740_gain_dB_to_code,
+		.code_to_gain_dB = adrf5740_code_to_gain_dB,
 	},
 };
 
