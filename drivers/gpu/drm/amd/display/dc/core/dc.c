@@ -4158,28 +4158,14 @@ struct pipe_split_policy_backup {
 	bool dynamic_odm_policy;
 	bool subvp_policy;
 	enum pipe_split_policy mpc_policy;
+	char force_odm[MAX_PIPES];
 };
 
-static void release_minimal_transition_state(struct dc *dc,
-		struct dc_state *context, struct pipe_split_policy_backup *policy)
+static void backup_and_set_minimal_pipe_split_policy(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_split_policy_backup *policy)
 {
-	dc_state_release(context);
-	/* restore previous pipe split and odm policy */
-	if (!dc->config.is_vmin_only_asic)
-		dc->debug.pipe_split_policy = policy->mpc_policy;
-	dc->debug.enable_single_display_2to1_odm_policy = policy->dynamic_odm_policy;
-	dc->debug.force_disable_subvp = policy->subvp_policy;
-}
-
-static struct dc_state *create_minimal_transition_state(struct dc *dc,
-		struct dc_state *base_context, struct pipe_split_policy_backup *policy)
-{
-	struct dc_state *minimal_transition_context = NULL;
-	unsigned int i, j;
-
-	minimal_transition_context = dc_state_create_copy(base_context);
-	if (!minimal_transition_context)
-		return NULL;
+	int i;
 
 	if (!dc->config.is_vmin_only_asic) {
 		policy->mpc_policy = dc->debug.pipe_split_policy;
@@ -4189,24 +4175,71 @@ static struct dc_state *create_minimal_transition_state(struct dc *dc,
 	dc->debug.enable_single_display_2to1_odm_policy = false;
 	policy->subvp_policy = dc->debug.force_disable_subvp;
 	dc->debug.force_disable_subvp = true;
+	for (i = 0; i < context->stream_count; i++) {
+		policy->force_odm[i] = context->streams[i]->debug.force_odm_combine_segments;
+		context->streams[i]->debug.force_odm_combine_segments = 0;
+	}
+}
 
+static void restore_minimal_pipe_split_policy(struct dc *dc,
+		struct dc_state *context,
+		struct pipe_split_policy_backup *policy)
+{
+	uint8_t i;
+
+	if (!dc->config.is_vmin_only_asic)
+		dc->debug.pipe_split_policy = policy->mpc_policy;
+	dc->debug.enable_single_display_2to1_odm_policy =
+			policy->dynamic_odm_policy;
+	dc->debug.force_disable_subvp = policy->subvp_policy;
+	for (i = 0; i < context->stream_count; i++)
+		context->streams[i]->debug.force_odm_combine_segments = policy->force_odm[i];
+}
+
+static void release_minimal_transition_state(struct dc *dc,
+		struct dc_state *minimal_transition_context,
+		struct dc_state *base_context,
+		struct pipe_split_policy_backup *policy)
+{
+	restore_minimal_pipe_split_policy(dc, base_context, policy);
+	dc_state_release(minimal_transition_context);
+	/* restore previous pipe split and odm policy */
+}
+
+static void force_vsync_flip_in_minimal_transition_context(struct dc_state *context)
+{
+	uint8_t i;
+	int j;
+	struct dc_stream_status *stream_status;
+
+	for (i = 0; i < context->stream_count; i++) {
+		stream_status = &context->stream_status[i];
+
+		for (j = 0; j < stream_status->plane_count; j++)
+			stream_status->plane_states[j]->flip_immediate = false;
+	}
+}
+
+static struct dc_state *create_minimal_transition_state(struct dc *dc,
+		struct dc_state *base_context, struct pipe_split_policy_backup *policy)
+{
+	struct dc_state *minimal_transition_context = NULL;
+
+	minimal_transition_context = dc_state_create_copy(base_context);
+	if (!minimal_transition_context)
+		return NULL;
+
+	backup_and_set_minimal_pipe_split_policy(dc, base_context, policy);
 	/* commit minimal state */
 	if (dc->res_pool->funcs->validate_bandwidth(dc, minimal_transition_context, false)) {
-		for (i = 0; i < minimal_transition_context->stream_count; i++) {
-			struct dc_stream_status *stream_status = &minimal_transition_context->stream_status[i];
-
-			for (j = 0; j < stream_status->plane_count; j++) {
-				struct dc_plane_state *plane_state = stream_status->plane_states[j];
-
-				/* force vsync flip when reconfiguring pipes to prevent underflow
-				 * and corruption
-				 */
-				plane_state->flip_immediate = false;
-			}
-		}
+		/* prevent underflow and corruption when reconfiguring pipes */
+		force_vsync_flip_in_minimal_transition_context(minimal_transition_context);
 	} else {
-		/* this should never happen */
-		release_minimal_transition_state(dc, minimal_transition_context, policy);
+		/*
+		 * This should never happen, minimal transition state should
+		 * always be validated first before adding pipe split features.
+		 */
+		release_minimal_transition_state(dc, minimal_transition_context, base_context, policy);
 		BREAK_TO_DEBUGGER();
 		minimal_transition_context = NULL;
 	}
@@ -4293,7 +4326,7 @@ static bool commit_minimal_transition_based_on_new_context(struct dc *dc,
 			success = true;
 		}
 		release_minimal_transition_state(
-				dc, intermediate_context, &policy);
+				dc, intermediate_context, new_context, &policy);
 	}
 	return success;
 }
@@ -4339,7 +4372,7 @@ static bool commit_minimal_transition_based_on_current_context(struct dc *dc,
 			success = true;
 		}
 		release_minimal_transition_state(dc, intermediate_context,
-				&policy);
+				dc->current_state, &policy);
 	}
 	/*
 	 * Restore stream and plane states back to the values associated with
@@ -4466,7 +4499,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
 			transition_base_context, &policy);
 	if (transition_context) {
 		ret = dc_commit_state_no_check(dc, transition_context);
-		release_minimal_transition_state(dc, transition_context, &policy);
+		release_minimal_transition_state(dc, transition_context, transition_base_context, &policy);
 	}
 
 	if (ret != DC_OK) {
