@@ -498,10 +498,6 @@
 	status = "okay";
 };
 
-&rng {
-	status = "okay";
-};
-
 &ssp {
 	memory-region = <&ssp_memory>;
 };

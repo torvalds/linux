@@ -462,11 +462,16 @@
 				};
 			};
 
-			rng: hwrng@1e6e2524 {
+			rng0: hwrng@1e6e2524 {
 				compatible = "timeriomem_rng";
 				reg = <0x1e6e2524 0x4>;
 				period = <1>;
 				quality = <100>;
+			};
+
+			rng1: hwrng@1e6e2530 {
+				compatible = "aspeed,ast2600-trng";
+				reg = <0x1e6e2530 0x10>;
 			};
 
 			pcie_phy0: pcie_phy@1e6ed000 {

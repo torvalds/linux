@@ -649,10 +649,6 @@
 	status = "okay";
 };
 
-&rng {
-	status = "okay";
-};
-
 &pwm_tach {
 	status = "disabled";
 };
