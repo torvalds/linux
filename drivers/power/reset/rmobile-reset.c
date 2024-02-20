@@ -33,7 +33,7 @@ static int rmobile_reset_probe(struct platform_device *pdev)
 {
 	int error;
 
-	sysc_base2 = devm_platform_ioremap_resource(pdev, 0);
+	sysc_base2 = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(sysc_base2))
 		return PTR_ERR(sysc_base2);
 
