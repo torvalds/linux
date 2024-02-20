@@ -1636,7 +1636,7 @@ xfs_ioc_getfsmap(
 	}
 
 out_free:
-	kfree(recs);
+	kvfree(recs);
 	return error;
 }
 
