@@ -13339,6 +13339,8 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (BNXT_NEW_RM(bp)) {
 		hwr.cp += bnxt_get_ulp_msix_num(bp);
 		hwr.stat += bnxt_get_ulp_stat_ctxs(bp);
+		hwr.grp = rx;
+		hwr.rss_ctx = bnxt_get_total_rss_ctxs(bp, &hwr);
 	}
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		hwr.cp_p5 = hwr.tx + rx;
