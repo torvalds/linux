@@ -52,25 +52,23 @@ struct dw_i3c_master {
 	 * So, devs_lock protects against concurrent updates to devs->ibi_dev
 	 * between request_ibi/free_ibi and the IBI irq event.
 	 */
-	union {
-		struct {
-			struct dw_i3c_dat_entry devs[DW_I3C_MAX_DEVS];
-			spinlock_t devs_lock;
-		} master;
-		struct {
-			struct completion comp;
-			struct completion rdata_comp;
-		} target;
-	} ibi;
+	struct dw_i3c_dat_entry devs[DW_I3C_MAX_DEVS];
+	spinlock_t devs_lock;
 
 	/* platform-specific data */
 	const struct dw_i3c_platform_ops *platform_ops;
 
-	/* Used for handling private write */
+	/* target mode data */
 	struct {
-		void *buf;
-		u16 max_len;
-	} target_rx;
+		struct completion comp;
+		struct completion rdata_comp;
+
+		/* Used for handling private write */
+		struct {
+			void *buf;
+			u16 max_len;
+		} rx;
+	} target;
 
 	struct {
 		unsigned long core_rate;
