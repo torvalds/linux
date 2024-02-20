@@ -175,14 +175,10 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_ptn5150>;
 
-				connector {
-					compatible = "usb-c-connector";
-					label = "USB-C";
+				port {
 
-					port {
-						ptn5150_out_ep: endpoint {
-							remote-endpoint = <&dwc3_0_ep>;
-						};
+					ptn5150_out_ep: endpoint {
+						remote-endpoint = <&dwc3_0_ep>;
 					};
 				};
 			};
