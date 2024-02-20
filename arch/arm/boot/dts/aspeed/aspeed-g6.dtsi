@@ -471,7 +471,7 @@
 
 			rng1: hwrng@1e6e2530 {
 				compatible = "aspeed,ast2600-trng";
-				reg = <0x1e6e2530 0x10>;
+				reg = <0x1e6e2530 0x8>;
 			};
 
 			pcie_phy0: pcie_phy@1e6ed000 {
