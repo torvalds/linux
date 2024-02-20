@@ -1292,7 +1292,7 @@ static const struct rpc_filelist gssd_dummy_info_file[] = {
  * Create a dummy set of directories and a pipe that gssd can hold open to
  * indicate that it is up and running.
  */
-static struct dentry *
+static int
 rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 {
 	int ret = 0;
@@ -1303,58 +1303,37 @@ rpc_gssd_dummy_populate(struct dentry *root, struct rpc_pipe *pipe_data)
 	/* We should never get this far if "gssd" doesn't exist */
 	gssd_dentry = try_lookup_noperm(&QSTR(files[RPCAUTH_gssd].name), root);
 	if (!gssd_dentry)
-		return ERR_PTR(-ENOENT);
+		return -ENOENT;
 
 	ret = rpc_populate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1, NULL);
 	if (ret) {
-		pipe_dentry = ERR_PTR(ret);
-		goto out;
+		dput(gssd_dentry);
+		return ret;
 	}
 
 	clnt_dentry = try_lookup_noperm(&QSTR(gssd_dummy_clnt_dir[0].name),
 					  gssd_dentry);
-	if (!clnt_dentry) {
-		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
-		pipe_dentry = ERR_PTR(-ENOENT);
-		goto out;
-	}
+	dput(gssd_dentry);
+	if (!clnt_dentry)
+		return -ENOENT;
 
 	ret = rpc_populate(clnt_dentry, gssd_dummy_info_file, 0, 1, NULL);
 	if (ret) {
-		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
-		pipe_dentry = ERR_PTR(ret);
-		goto out;
+		dput(clnt_dentry);
+		return ret;
 	}
-
 	pipe_dentry = rpc_mkpipe_dentry(clnt_dentry, "gssd", NULL, pipe_data);
-	if (IS_ERR(pipe_dentry)) {
-		__rpc_depopulate(clnt_dentry, gssd_dummy_info_file, 0, 1);
-		__rpc_depopulate(gssd_dentry, gssd_dummy_clnt_dir, 0, 1);
-	}
-out:
 	dput(clnt_dentry);
-	dput(gssd_dentry);
-	return pipe_dentry;
-}
-
-static void
-rpc_gssd_dummy_depopulate(struct dentry *pipe_dentry)
-{
-	struct dentry *clnt_dir = pipe_dentry->d_parent;
-	struct dentry *gssd_dir = clnt_dir->d_parent;
-
-	dget(pipe_dentry);
-	__rpc_rmpipe(d_inode(clnt_dir), pipe_dentry);
-	__rpc_depopulate(clnt_dir, gssd_dummy_info_file, 0, 1);
-	__rpc_depopulate(gssd_dir, gssd_dummy_clnt_dir, 0, 1);
-	dput(pipe_dentry);
+	if (IS_ERR(pipe_dentry))
+		ret = PTR_ERR(pipe_dentry);
+	return ret;
 }
 
 static int
 rpc_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct inode *inode;
-	struct dentry *root, *gssd_dentry;
+	struct dentry *root;
 	struct net *net = sb->s_fs_info;
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	int err;
@@ -1373,11 +1352,9 @@ rpc_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (rpc_populate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF, NULL))
 		return -ENOMEM;
 
-	gssd_dentry = rpc_gssd_dummy_populate(root, sn->gssd_dummy);
-	if (IS_ERR(gssd_dentry)) {
-		__rpc_depopulate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF);
-		return PTR_ERR(gssd_dentry);
-	}
+	err = rpc_gssd_dummy_populate(root, sn->gssd_dummy);
+	if (err)
+		return err;
 
 	dprintk("RPC:       sending pipefs MOUNT notification for net %x%s\n",
 		net->ns.inum, NET_NAME(net));
@@ -1386,18 +1363,6 @@ rpc_fill_super(struct super_block *sb, struct fs_context *fc)
 	err = blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_MOUNT,
 					   sb);
-	if (err)
-		goto err_depopulate;
-	mutex_unlock(&sn->pipefs_sb_lock);
-	return 0;
-
-err_depopulate:
-	rpc_gssd_dummy_depopulate(gssd_dentry);
-	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
-					   RPC_PIPEFS_UMOUNT,
-					   sb);
-	sn->pipefs_sb = NULL;
-	__rpc_depopulate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF);
 	mutex_unlock(&sn->pipefs_sb_lock);
 	return err;
 }
