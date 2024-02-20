@@ -1776,7 +1776,7 @@ static int iomap_writepage_map_blocks(struct iomap_writepage_ctx *wpc,
 		error = wpc->ops->map_blocks(wpc, inode, pos, dirty_len);
 		if (error)
 			break;
-		trace_iomap_writepage_map(inode, &wpc->iomap);
+		trace_iomap_writepage_map(inode, pos, dirty_len, &wpc->iomap);
 
 		map_len = min_t(u64, dirty_len,
 			wpc->iomap.offset + wpc->iomap.length - pos);
