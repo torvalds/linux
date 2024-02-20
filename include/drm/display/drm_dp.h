@@ -1081,6 +1081,7 @@
 # define STREAM_STATUS_CHANGED               (1 << 2)
 # define HDMI_LINK_STATUS_CHANGED            (1 << 3)
 # define CONNECTED_OFF_ENTRY_REQUESTED       (1 << 4)
+# define DP_TUNNELING_IRQ                    (1 << 5)
 
 #define DP_PSR_ERROR_STATUS                 0x2006  /* XXX 1.2? */
 # define DP_PSR_LINK_CRC_ERROR              (1 << 0)

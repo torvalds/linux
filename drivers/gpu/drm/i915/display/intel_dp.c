@@ -4904,13 +4904,15 @@ static bool intel_dp_mst_link_status(struct intel_dp *intel_dp)
  * - %true if pending interrupts were serviced (or no interrupts were
  *   pending) w/o detecting an error condition.
  * - %false if an error condition - like AUX failure or a loss of link - is
- *   detected, which needs servicing from the hotplug work.
+ *   detected, or another condition - like a DP tunnel BW state change - needs
+ *   servicing from the hotplug work.
  */
 static bool
 intel_dp_check_mst_status(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 	bool link_ok = true;
+	bool reprobe_needed = false;
 
 	drm_WARN_ON_ONCE(&i915->drm, intel_dp->active_mst_links < 0);
 
@@ -4937,6 +4939,13 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 
 		intel_dp_mst_hpd_irq(intel_dp, esi, ack);
 
+		if (esi[3] & DP_TUNNELING_IRQ) {
+			if (drm_dp_tunnel_handle_irq(i915->display.dp_tunnel_mgr,
+						     &intel_dp->aux))
+				reprobe_needed = true;
+			ack[3] |= DP_TUNNELING_IRQ;
+		}
+
 		if (!memchr_inv(ack, 0, sizeof(ack)))
 			break;
 
@@ -4947,7 +4956,7 @@ intel_dp_check_mst_status(struct intel_dp *intel_dp)
 			drm_dp_mst_hpd_irq_send_new_request(&intel_dp->mst_mgr);
 	}
 
-	return link_ok;
+	return link_ok && !reprobe_needed;
 }
 
 static void
@@ -5307,23 +5316,32 @@ static void intel_dp_check_device_service_irq(struct intel_dp *intel_dp)
 		drm_dbg_kms(&i915->drm, "Sink specific irq unhandled\n");
 }
 
-static void intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
+static bool intel_dp_check_link_service_irq(struct intel_dp *intel_dp)
 {
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+	bool reprobe_needed = false;
 	u8 val;
 
 	if (intel_dp->dpcd[DP_DPCD_REV] < 0x11)
-		return;
+		return false;
 
 	if (drm_dp_dpcd_readb(&intel_dp->aux,
 			      DP_LINK_SERVICE_IRQ_VECTOR_ESI0, &val) != 1 || !val)
-		return;
+		return false;
+
+	if ((val & DP_TUNNELING_IRQ) &&
+	    drm_dp_tunnel_handle_irq(i915->display.dp_tunnel_mgr,
+				     &intel_dp->aux))
+		reprobe_needed = true;
 
 	if (drm_dp_dpcd_writeb(&intel_dp->aux,
 			       DP_LINK_SERVICE_IRQ_VECTOR_ESI0, val) != 1)
-		return;
+		return reprobe_needed;
 
 	if (val & HDMI_LINK_STATUS_CHANGED)
 		intel_dp_handle_hdmi_link_status_change(intel_dp);
+
+	return reprobe_needed;
 }
 
 /*
@@ -5344,6 +5362,7 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 {
 	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
 	u8 old_sink_count = intel_dp->sink_count;
+	bool reprobe_needed = false;
 	bool ret;
 
 	/*
@@ -5366,7 +5385,7 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 	}
 
 	intel_dp_check_device_service_irq(intel_dp);
-	intel_dp_check_link_service_irq(intel_dp);
+	reprobe_needed = intel_dp_check_link_service_irq(intel_dp);
 
 	/* Handle CEC interrupts, if any */
 	drm_dp_cec_irq(&intel_dp->aux);
@@ -5393,10 +5412,10 @@ intel_dp_short_pulse(struct intel_dp *intel_dp)
 		 * FIXME get rid of the ad-hoc phy test modeset code
 		 * and properly incorporate it into the normal modeset.
 		 */
-		return false;
+		reprobe_needed = true;
 	}
 
-	return true;
+	return !reprobe_needed;
 }
 
 /* XXX this is probably wrong for multiple downstream ports */
