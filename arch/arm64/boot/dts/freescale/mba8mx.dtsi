@@ -219,7 +219,7 @@
 			line-name = "BOOT_CFG_OE#";
 		};
 
-		rst-usb-hub-hog {
+		rst_usb_hub_hog: rst-usb-hub-hog {
 			gpio-hog;
 			gpios = <13 0>;
 			output-high;
