@@ -249,7 +249,7 @@ static const struct imx335_reg mode_2592x1940_regs[] = {
 	{0x3794, 0x7a},
 	{0x3796, 0xa1},
 	{0x37b0, 0x36},
-	{0x3a00, 0x01},
+	{0x3a00, 0x00},
 };
 
 static const struct imx335_reg raw10_framefmt_regs[] = {
