@@ -69,9 +69,14 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable)
 
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable)
 {
-	u32 value = enable ? AZX_VS_EM2_L1SEN : 0;
-
-	snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN, value);
+	if (enable) {
+		if (atomic_inc_and_test(&adev->l1sen_counter))
+			snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN,
+					      AZX_VS_EM2_L1SEN);
+	} else {
+		if (atomic_dec_return(&adev->l1sen_counter) == -1)
+			snd_hdac_chip_updatel(&adev->base.core, VS_EM2, AZX_VS_EM2_L1SEN, 0);
+	}
 }
 
 static int avs_hdac_bus_init_streams(struct hdac_bus *bus)

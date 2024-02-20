@@ -127,6 +127,7 @@ struct avs_dev {
 	int *core_refs;		/* reference count per core */
 	char **lib_names;
 	int num_lp_paths;
+	atomic_t l1sen_counter;	/* controls whether L1SEN should be disabled */
 
 	struct completion fw_ready;
 	struct work_struct probe_work;
