@@ -1752,7 +1752,7 @@ static int generic_ci_d_hash(const struct dentry *dentry, struct qstr *str)
 	const struct inode *dir = READ_ONCE(dentry->d_inode);
 	struct super_block *sb = dentry->d_sb;
 	const struct unicode_map *um = sb->s_encoding;
-	int ret = 0;
+	int ret;
 
 	if (!dir || !IS_CASEFOLDED(dir))
 		return 0;
