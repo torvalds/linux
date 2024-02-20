@@ -895,13 +895,8 @@ static int gss_pipe_dentry_create(struct dentry *dir,
 		struct rpc_pipe_dir_object *pdo)
 {
 	struct gss_pipe *p = pdo->pdo_data;
-	struct dentry *dentry;
 
-	dentry = rpc_mkpipe_dentry(dir, p->name, p->clnt, p->pipe);
-	if (IS_ERR(dentry))
-		return PTR_ERR(dentry);
-	p->pipe->dentry = dentry;
-	return 0;
+	return rpc_mkpipe_dentry(dir, p->name, p->clnt, p->pipe);
 }
 
 static const struct rpc_pipe_dir_object_ops gss_pipe_dir_object_ops = {
