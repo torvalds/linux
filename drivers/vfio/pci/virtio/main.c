@@ -132,33 +132,6 @@ end:
 	return ret ? ret : count;
 }
 
-static bool range_intersect_range(loff_t range1_start, size_t count1,
-				  loff_t range2_start, size_t count2,
-				  loff_t *start_offset,
-				  size_t *intersect_count,
-				  size_t *register_offset)
-{
-	if (range1_start <= range2_start &&
-	    range1_start + count1 > range2_start) {
-		*start_offset = range2_start - range1_start;
-		*intersect_count = min_t(size_t, count2,
-					 range1_start + count1 - range2_start);
-		*register_offset = 0;
-		return true;
-	}
-
-	if (range1_start > range2_start &&
-	    range1_start < range2_start + count2) {
-		*start_offset = 0;
-		*intersect_count = min_t(size_t, count1,
-					 range2_start + count2 - range1_start);
-		*register_offset = range1_start - range2_start;
-		return true;
-	}
-
-	return false;
-}
-
 static ssize_t virtiovf_pci_read_config(struct vfio_device *core_vdev,
 					char __user *buf, size_t count,
 					loff_t *ppos)
@@ -178,16 +151,18 @@ static ssize_t virtiovf_pci_read_config(struct vfio_device *core_vdev,
 	if (ret < 0)
 		return ret;
 
-	if (range_intersect_range(pos, count, PCI_DEVICE_ID, sizeof(val16),
-				  &copy_offset, &copy_count, &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_DEVICE_ID,
+						sizeof(val16), &copy_offset,
+						&copy_count, &register_offset)) {
 		val16 = cpu_to_le16(VIRTIO_TRANS_ID_NET);
 		if (copy_to_user(buf + copy_offset, (void *)&val16 + register_offset, copy_count))
 			return -EFAULT;
 	}
 
 	if ((le16_to_cpu(virtvdev->pci_cmd) & PCI_COMMAND_IO) &&
-	    range_intersect_range(pos, count, PCI_COMMAND, sizeof(val16),
-				  &copy_offset, &copy_count, &register_offset)) {
+	    vfio_pci_core_range_intersect_range(pos, count, PCI_COMMAND,
+						sizeof(val16), &copy_offset,
+						&copy_count, &register_offset)) {
 		if (copy_from_user((void *)&val16 + register_offset, buf + copy_offset,
 				   copy_count))
 			return -EFAULT;
@@ -197,16 +172,18 @@ static ssize_t virtiovf_pci_read_config(struct vfio_device *core_vdev,
 			return -EFAULT;
 	}
 
-	if (range_intersect_range(pos, count, PCI_REVISION_ID, sizeof(val8),
-				  &copy_offset, &copy_count, &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_REVISION_ID,
+						sizeof(val8), &copy_offset,
+						&copy_count, &register_offset)) {
 		/* Transional needs to have revision 0 */
 		val8 = 0;
 		if (copy_to_user(buf + copy_offset, &val8, copy_count))
 			return -EFAULT;
 	}
 
-	if (range_intersect_range(pos, count, PCI_BASE_ADDRESS_0, sizeof(val32),
-				  &copy_offset, &copy_count, &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_BASE_ADDRESS_0,
+						sizeof(val32), &copy_offset,
+						&copy_count, &register_offset)) {
 		u32 bar_mask = ~(virtvdev->bar0_virtual_buf_size - 1);
 		u32 pci_base_addr_0 = le32_to_cpu(virtvdev->pci_base_addr_0);
 
@@ -215,8 +192,9 @@ static ssize_t virtiovf_pci_read_config(struct vfio_device *core_vdev,
 			return -EFAULT;
 	}
 
-	if (range_intersect_range(pos, count, PCI_SUBSYSTEM_ID, sizeof(val16),
-				  &copy_offset, &copy_count, &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_SUBSYSTEM_ID,
+						sizeof(val16), &copy_offset,
+						&copy_count, &register_offset)) {
 		/*
 		 * Transitional devices use the PCI subsystem device id as
 		 * virtio device id, same as legacy driver always did.
@@ -227,8 +205,9 @@ static ssize_t virtiovf_pci_read_config(struct vfio_device *core_vdev,
 			return -EFAULT;
 	}
 
-	if (range_intersect_range(pos, count, PCI_SUBSYSTEM_VENDOR_ID, sizeof(val16),
-				  &copy_offset, &copy_count, &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_SUBSYSTEM_VENDOR_ID,
+						sizeof(val16), &copy_offset,
+						&copy_count, &register_offset)) {
 		val16 = cpu_to_le16(PCI_VENDOR_ID_REDHAT_QUMRANET);
 		if (copy_to_user(buf + copy_offset, (void *)&val16 + register_offset,
 				 copy_count))
@@ -270,19 +249,20 @@ static ssize_t virtiovf_pci_write_config(struct vfio_device *core_vdev,
 	loff_t copy_offset;
 	size_t copy_count;
 
-	if (range_intersect_range(pos, count, PCI_COMMAND, sizeof(virtvdev->pci_cmd),
-				  &copy_offset, &copy_count,
-				  &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_COMMAND,
+						sizeof(virtvdev->pci_cmd),
+						&copy_offset, &copy_count,
+						&register_offset)) {
 		if (copy_from_user((void *)&virtvdev->pci_cmd + register_offset,
 				   buf + copy_offset,
 				   copy_count))
 			return -EFAULT;
 	}
 
-	if (range_intersect_range(pos, count, PCI_BASE_ADDRESS_0,
-				  sizeof(virtvdev->pci_base_addr_0),
-				  &copy_offset, &copy_count,
-				  &register_offset)) {
+	if (vfio_pci_core_range_intersect_range(pos, count, PCI_BASE_ADDRESS_0,
+						sizeof(virtvdev->pci_base_addr_0),
+						&copy_offset, &copy_count,
+						&register_offset)) {
 		if (copy_from_user((void *)&virtvdev->pci_base_addr_0 + register_offset,
 				   buf + copy_offset,
 				   copy_count))
