@@ -2918,19 +2918,15 @@ EXPORT_SYMBOL(drm_dp_vsc_sdp_log);
  * @vsc: vsc sdp initialized according to its purpose as defined in
  *       table 2-118 - table 2-120 in DP 1.4a specification
  * @sdp: valid handle to the generic dp_sdp which will be packed
- * @size: valid size of the passed sdp handle
  *
  * Returns length of sdp on success and error code on failure
  */
 ssize_t drm_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
-			    struct dp_sdp *sdp, size_t size)
+			    struct dp_sdp *sdp)
 {
 	size_t length = sizeof(struct dp_sdp);
 
-	if (size < length)
-		return -ENOSPC;
-
-	memset(sdp, 0, size);
+	memset(sdp, 0, sizeof(struct dp_sdp));
 
 	/*
 	 * Prepare VSC Header for SU as per DP 1.4a spec, Table 2-119
