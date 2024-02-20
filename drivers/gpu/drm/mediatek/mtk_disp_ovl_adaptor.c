@@ -89,6 +89,7 @@ static const struct mtk_ddp_comp_funcs ethdr = {
 static const struct mtk_ddp_comp_funcs merge = {
 	.clk_enable = mtk_merge_clk_enable,
 	.clk_disable = mtk_merge_clk_disable,
+	.mode_valid = mtk_merge_mode_valid,
 };
 
 static const struct mtk_ddp_comp_funcs padding = {
@@ -340,6 +341,22 @@ void mtk_ovl_adaptor_clk_disable(struct device *dev)
 		if (i < OVL_ADAPTOR_MERGE0)
 			pm_runtime_put(comp);
 	}
+}
+
+enum drm_mode_status mtk_ovl_adaptor_mode_valid(struct device *dev,
+						const struct drm_display_mode *mode)
+
+{
+	int i;
+	struct mtk_disp_ovl_adaptor *ovl_adaptor = dev_get_drvdata(dev);
+
+	for (i = 0; i < OVL_ADAPTOR_ID_MAX; i++) {
+		dev = ovl_adaptor->ovl_adaptor_comp[i];
+		if (!dev || !comp_matches[i].funcs->mode_valid)
+			continue;
+		return comp_matches[i].funcs->mode_valid(dev, mode);
+	}
+	return MODE_OK;
 }
 
 unsigned int mtk_ovl_adaptor_layer_nr(struct device *dev)
