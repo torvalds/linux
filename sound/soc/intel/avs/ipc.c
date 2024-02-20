@@ -301,9 +301,8 @@ void avs_dsp_process_response(struct avs_dev *adev, u64 header)
 	complete(&ipc->busy_completion);
 }
 
-irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
+irqreturn_t avs_irq_handler(struct avs_dev *adev)
 {
-	struct avs_dev *adev = dev_id;
 	struct avs_ipc *ipc = adev->ipc;
 	const struct avs_spec *const spec = adev->spec;
 	u32 adspis, hipc_rsp, hipc_ack;
@@ -348,33 +347,6 @@ irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
 	}
 
 	return ret;
-}
-
-irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
-{
-	struct avs_dev *adev = dev_id;
-	union avs_reply_msg msg;
-	u32 hipct, hipcte;
-
-	hipct = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCT);
-	hipcte = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCTE);
-
-	/* ensure DSP sent new response to process */
-	if (!(hipct & SKL_ADSP_HIPCT_BUSY))
-		return IRQ_NONE;
-
-	msg.primary = hipct;
-	msg.ext.val = hipcte;
-	avs_dsp_process_response(adev, msg.val);
-
-	/* tell DSP we accepted its message */
-	snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCT,
-			      SKL_ADSP_HIPCT_BUSY, SKL_ADSP_HIPCT_BUSY);
-	/* unmask busy interrupt */
-	snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCCTL,
-			      AVS_ADSP_HIPCCTL_BUSY, AVS_ADSP_HIPCCTL_BUSY);
-
-	return IRQ_HANDLED;
 }
 
 static bool avs_ipc_is_busy(struct avs_ipc *ipc)

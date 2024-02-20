@@ -321,6 +321,20 @@ static irqreturn_t hdac_bus_irq_thread(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
+{
+	struct avs_dev *adev = dev_id;
+
+	return avs_dsp_op(adev, irq_handler);
+}
+
+static irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
+{
+	struct avs_dev *adev = dev_id;
+
+	return avs_dsp_op(adev, irq_thread);
+}
+
 static int avs_hdac_acquire_irq(struct avs_dev *adev)
 {
 	struct hdac_bus *bus = &adev->base.core;

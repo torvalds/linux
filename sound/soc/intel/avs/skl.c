@@ -12,6 +12,31 @@
 #include "avs.h"
 #include "messages.h"
 
+irqreturn_t avs_skl_irq_thread(struct avs_dev *adev)
+{
+	union avs_reply_msg msg;
+	u32 hipct, hipcte;
+
+	hipct = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCT);
+	hipcte = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCTE);
+
+	/* Ensure DSP sent new response to process. */
+	if (!(hipct & SKL_ADSP_HIPCT_BUSY))
+		return IRQ_NONE;
+
+	msg.primary = hipct;
+	msg.ext.val = hipcte;
+	avs_dsp_process_response(adev, msg.val);
+
+	/* Tell DSP we accepted its message. */
+	snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCT, SKL_ADSP_HIPCT_BUSY, SKL_ADSP_HIPCT_BUSY);
+	/* Unmask busy interrupt. */
+	snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCCTL, AVS_ADSP_HIPCCTL_BUSY,
+			      AVS_ADSP_HIPCCTL_BUSY);
+
+	return IRQ_HANDLED;
+}
+
 static int __maybe_unused
 avs_skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
 		    u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
@@ -103,8 +128,8 @@ const struct avs_dsp_ops avs_skl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
 	.stall = avs_dsp_core_stall,
-	.irq_handler = avs_dsp_irq_handler,
-	.irq_thread = avs_dsp_irq_thread,
+	.irq_handler = avs_irq_handler,
+	.irq_thread = avs_skl_irq_thread,
 	.int_control = avs_dsp_interrupt_control,
 	.load_basefw = avs_cldma_load_basefw,
 	.load_lib = avs_cldma_load_library,
