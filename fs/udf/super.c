@@ -209,7 +209,6 @@ static const struct super_operations udf_sb_ops = {
 };
 
 struct udf_options {
-	unsigned char novrs;
 	unsigned int blocksize;
 	unsigned int session;
 	unsigned int lastblock;
@@ -461,7 +460,6 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 	int option;
 	unsigned int uv;
 
-	uopt->novrs = 0;
 	uopt->session = 0xFFFFFFFF;
 	uopt->lastblock = 0;
 	uopt->anchor = 0;
@@ -479,7 +477,7 @@ static int udf_parse_options(char *options, struct udf_options *uopt,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_novrs:
-			uopt->novrs = 1;
+			uopt->flags |= (1 << UDF_FLAG_NOVRS);
 			break;
 		case Opt_bs:
 			if (match_int(&args[0], &option))
@@ -1954,7 +1952,7 @@ static int udf_load_vrs(struct super_block *sb, struct udf_options *uopt,
 		return -EINVAL;
 	}
 	sbi->s_last_block = uopt->lastblock;
-	if (!uopt->novrs) {
+	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_NOVRS)) {
 		/* Check that it is NSR02 compliant */
 		nsr = udf_check_vsd(sb);
 		if (!nsr) {
