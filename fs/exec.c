@@ -1747,7 +1747,6 @@ int remove_arg_zero(struct linux_binprm *bprm)
 
 	bprm->p++;
 	bprm->argc--;
-	ret = 0;
 
 out:
 	return ret;
