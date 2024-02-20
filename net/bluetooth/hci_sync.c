@@ -6693,6 +6693,9 @@ static void create_le_conn_complete(struct hci_dev *hdev, void *data, int err)
 
 	hci_dev_lock(hdev);
 
+	if (!hci_conn_valid(hdev, conn))
+		goto done;
+
 	if (!err) {
 		hci_connect_le_scan_cleanup(conn, 0x00);
 		goto done;
