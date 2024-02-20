@@ -1223,6 +1223,7 @@ UnsignedEnum	35:32	PMSVer
 	0b0010	V1P1
 	0b0011	V1P2
 	0b0100	V1P3
+	0b0101	V1P4
 EndEnum
 Field	31:28	CTX_CMPs
 Res0	27:24
@@ -1249,6 +1250,7 @@ UnsignedEnum	3:0	DebugVer
 	0b1000	V8P2
 	0b1001	V8P4
 	0b1010	V8P8
+	0b1011	V8P9
 EndEnum
 EndSysreg
 
