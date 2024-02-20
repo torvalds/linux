@@ -1373,10 +1373,7 @@ int __init ip6_mr_init(void)
 {
 	int err;
 
-	mrt_cachep = kmem_cache_create("ip6_mrt_cache",
-				       sizeof(struct mfc6_cache),
-				       0, SLAB_HWCACHE_ALIGN,
-				       NULL);
+	mrt_cachep = KMEM_CACHE(mfc6_cache, SLAB_HWCACHE_ALIGN);
 	if (!mrt_cachep)
 		return -ENOMEM;
 
