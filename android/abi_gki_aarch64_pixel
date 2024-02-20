@@ -785,6 +785,7 @@
   drm_modeset_lock_all_ctx
   drm_modeset_lock_single_interruptible
   drm_modeset_unlock
+  drm_mode_sort
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
@@ -1493,6 +1494,7 @@
   of_genpd_add_provider_simple
   of_get_child_by_name
   of_get_cpu_node
+  of_get_drm_panel_display_mode
   of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
