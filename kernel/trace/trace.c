@@ -5453,10 +5453,31 @@ int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set)
 	return 0;
 }
 
-int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
+static int trace_alloc_tgid_map(void)
 {
 	int *map;
 
+	if (tgid_map)
+		return 0;
+
+	tgid_map_max = pid_max;
+	map = kvcalloc(tgid_map_max + 1, sizeof(*tgid_map),
+		       GFP_KERNEL);
+	if (!map)
+		return -ENOMEM;
+
+	/*
+	 * Pairs with smp_load_acquire() in
+	 * trace_find_tgid_ptr() to ensure that if it observes
+	 * the tgid_map we just allocated then it also observes
+	 * the corresponding tgid_map_max value.
+	 */
+	smp_store_release(&tgid_map, map);
+	return 0;
+}
+
+int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
+{
 	if ((mask == TRACE_ITER_RECORD_TGID) ||
 	    (mask == TRACE_ITER_RECORD_CMD))
 		lockdep_assert_held(&event_mutex);
@@ -5479,20 +5500,7 @@ int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled)
 		trace_event_enable_cmd_record(enabled);
 
 	if (mask == TRACE_ITER_RECORD_TGID) {
-		if (!tgid_map) {
-			tgid_map_max = pid_max;
-			map = kvcalloc(tgid_map_max + 1, sizeof(*tgid_map),
-				       GFP_KERNEL);
-
-			/*
-			 * Pairs with smp_load_acquire() in
-			 * trace_find_tgid_ptr() to ensure that if it observes
-			 * the tgid_map we just allocated then it also observes
-			 * the corresponding tgid_map_max value.
-			 */
-			smp_store_release(&tgid_map, map);
-		}
-		if (!tgid_map) {
+		if (trace_alloc_tgid_map() < 0) {
 			tr->trace_flags &= ~TRACE_ITER_RECORD_TGID;
 			return -ENOMEM;
 		}
