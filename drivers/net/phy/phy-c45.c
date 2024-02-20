@@ -1561,10 +1561,8 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 
 		if (!linkmode_empty(adv)) {
 			__ETHTOOL_DECLARE_LINK_MODE_MASK(tmp);
-			bool unsupp;
 
-			unsupp = linkmode_andnot(tmp, adv, phydev->supported_eee);
-			if (unsupp) {
+			if (linkmode_andnot(tmp, adv, phydev->supported_eee)) {
 				phydev_warn(phydev, "At least some EEE link modes are not supported.\n");
 				return -EINVAL;
 			}
@@ -1573,18 +1571,15 @@ int genphy_c45_ethtool_set_eee(struct phy_device *phydev,
 		}
 
 		linkmode_copy(phydev->advertising_eee, adv);
-		phydev->eee_enabled = true;
-	} else {
-		phydev->eee_enabled = false;
 	}
 
+	phydev->eee_enabled = data->eee_enabled;
+
 	ret = genphy_c45_an_config_eee_aneg(phydev);
-	if (ret < 0)
-		return ret;
 	if (ret > 0)
 		return phy_restart_aneg(phydev);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(genphy_c45_ethtool_set_eee);
 
