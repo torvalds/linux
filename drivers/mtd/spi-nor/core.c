@@ -1573,52 +1573,6 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	return NULL;
 }
 
-static u64 spi_nor_region_is_last(const struct spi_nor_erase_region *region)
-{
-	return region->flags & SNOR_LAST_REGION;
-}
-
-/**
- * spi_nor_region_next() - get the next spi nor region
- * @region:	pointer to a structure that describes a SPI NOR erase region
- *
- * Return: the next spi nor region or NULL if last region.
- */
-struct spi_nor_erase_region *
-spi_nor_region_next(struct spi_nor_erase_region *region)
-{
-	if (spi_nor_region_is_last(region))
-		return NULL;
-	region++;
-	return region;
-}
-
-/**
- * spi_nor_find_erase_region() - find the region of the serial flash memory in
- *				 which the offset fits
- * @map:	the erase map of the SPI NOR
- * @addr:	offset in the serial flash memory
- *
- * Return: a pointer to the spi_nor_erase_region struct, ERR_PTR(-errno)
- *	   otherwise.
- */
-static struct spi_nor_erase_region *
-spi_nor_find_erase_region(const struct spi_nor_erase_map *map, u64 addr)
-{
-	struct spi_nor_erase_region *region = map->regions;
-	u64 region_end = region->offset + region->size;
-
-	while (addr < region->offset || addr >= region_end) {
-		region = spi_nor_region_next(region);
-		if (!region)
-			return ERR_PTR(-EINVAL);
-
-		region_end = region->offset + region->size;
-	}
-
-	return region;
-}
-
 /**
  * spi_nor_init_erase_cmd() - initialize an erase command
  * @region:	pointer to a structure that describes a SPI NOR erase region
@@ -1685,44 +1639,36 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 	struct spi_nor_erase_region *region;
 	struct spi_nor_erase_command *cmd = NULL;
 	u64 region_end;
+	unsigned int i;
 	int ret = -EINVAL;
 
-	region = spi_nor_find_erase_region(map, addr);
-	if (IS_ERR(region))
-		return PTR_ERR(region);
+	for (i = 0; i < map->n_regions && len; i++) {
+		region = &map->regions[i];
+		region_end = region->offset + region->size;
 
-	region_end = region->offset + region->size;
-
-	while (len) {
-		erase = spi_nor_find_best_erase_type(map, region, addr, len);
-		if (!erase)
-			goto destroy_erase_cmd_list;
-
-		if (prev_erase != erase ||
-		    erase->size != cmd->size ||
-		    region->flags & SNOR_OVERLAID_REGION) {
-			cmd = spi_nor_init_erase_cmd(region, erase);
-			if (IS_ERR(cmd)) {
-				ret = PTR_ERR(cmd);
+		while (len && addr >= region->offset && addr < region_end) {
+			erase = spi_nor_find_best_erase_type(map, region, addr,
+							     len);
+			if (!erase)
 				goto destroy_erase_cmd_list;
+
+			if (prev_erase != erase || erase->size != cmd->size ||
+			    region->flags & SNOR_OVERLAID_REGION) {
+				cmd = spi_nor_init_erase_cmd(region, erase);
+				if (IS_ERR(cmd)) {
+					ret = PTR_ERR(cmd);
+					goto destroy_erase_cmd_list;
+				}
+
+				list_add_tail(&cmd->list, erase_list);
+			} else {
+				cmd->count++;
 			}
 
-			list_add_tail(&cmd->list, erase_list);
-		} else {
-			cmd->count++;
+			len -= cmd->size;
+			addr += cmd->size;
+			prev_erase = erase;
 		}
-
-		addr += cmd->size;
-		len -= cmd->size;
-
-		if (len && addr >= region_end) {
-			region = spi_nor_region_next(region);
-			if (!region)
-				goto destroy_erase_cmd_list;
-			region_end = region->offset + region->size;
-		}
-
-		prev_erase = erase;
 	}
 
 	return 0;
@@ -2463,8 +2409,8 @@ void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 	map->uniform_region.offset = 0;
 	map->uniform_region.size = flash_size;
 	map->uniform_region.erase_mask = erase_mask;
-	map->uniform_region.flags = SNOR_LAST_REGION;
 	map->regions = &map->uniform_region;
+	map->n_regions = 1;
 }
 
 int spi_nor_post_bfpt_fixups(struct spi_nor *nor,

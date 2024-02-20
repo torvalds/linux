@@ -78,10 +78,10 @@ static int spi_nor_params_show(struct seq_file *s, void *data)
 	struct spi_nor *nor = s->private;
 	struct spi_nor_flash_parameter *params = nor->params;
 	struct spi_nor_erase_map *erase_map = &params->erase_map;
-	struct spi_nor_erase_region *region;
+	struct spi_nor_erase_region *region = erase_map->regions;
 	const struct flash_info *info = nor->info;
 	char buf[16], *str;
-	int i;
+	unsigned int i;
 
 	seq_printf(s, "name\t\t%s\n", info->name);
 	seq_printf(s, "id\t\t%*ph\n", SPI_NOR_MAX_ID_LEN, nor->id);
@@ -144,13 +144,11 @@ static int spi_nor_params_show(struct seq_file *s, void *data)
 	seq_puts(s, "\nsector map\n");
 	seq_puts(s, " region (in hex)   | erase mask | flags\n");
 	seq_puts(s, " ------------------+------------+----------\n");
-	for (region = erase_map->regions;
-	     region;
-	     region = spi_nor_region_next(region)) {
-		u64 start = region->offset;
-		u64 end = start + region->size - 1;
-		u8 erase_mask = region->erase_mask;
-		u8 flags = region->flags;
+	for (i = 0; i < erase_map->n_regions; i++) {
+		u64 start = region[i].offset;
+		u64 end = start + region[i].size - 1;
+		u8 erase_mask = region[i].erase_mask;
+		u8 flags = region[i].flags;
 
 		seq_printf(s, " %08llx-%08llx |     [%c%c%c%c] | %s\n",
 			   start, end,

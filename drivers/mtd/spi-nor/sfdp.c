@@ -390,15 +390,14 @@ static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
 {
 	struct spi_nor_erase_region *region = map->regions;
 	u8 sorted_erase_mask;
+	unsigned int i;
 
-	while (region) {
-		sorted_erase_mask = spi_nor_sort_erase_mask(map,
-							    region->erase_mask);
+	for (i = 0; i < map->n_regions; i++) {
+		sorted_erase_mask =
+			spi_nor_sort_erase_mask(map, region[i].erase_mask);
 
 		/* Overwrite erase mask. */
-		region->erase_mask = sorted_erase_mask;
-
-		region = spi_nor_region_next(region);
+		region[i].erase_mask = sorted_erase_mask;
 	}
 }
 
@@ -801,11 +800,6 @@ out:
 	return ret;
 }
 
-static void spi_nor_region_mark_end(struct spi_nor_erase_region *region)
-{
-	region->flags |= SNOR_LAST_REGION;
-}
-
 static void spi_nor_region_mark_overlay(struct spi_nor_erase_region *region)
 {
 	region->flags |= SNOR_OVERLAID_REGION;
@@ -863,6 +857,7 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	if (!region)
 		return -ENOMEM;
 	map->regions = region;
+	map->n_regions = region_count;
 
 	uniform_erase_type = 0xff;
 	regions_erase_type = 0;
@@ -891,7 +886,6 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 
 		offset = region[i].offset + region[i].size;
 	}
-	spi_nor_region_mark_end(&region[i - 1]);
 
 	save_uniform_erase_type = map->uniform_region.erase_mask;
 	map->uniform_region.erase_mask =

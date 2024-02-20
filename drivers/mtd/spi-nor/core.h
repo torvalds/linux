@@ -245,8 +245,7 @@ struct spi_nor_erase_command {
  *			inside this region. The erase types are sorted in
  *			ascending order with the smallest Erase Type size being
  *			at BIT(0).
- * @flags:		flags to determine if this region is overlaid, if this
- *			region is the last in the SPI NOR flash memory
+ * @flags:		flags to determine if this region is overlaid.
  */
 struct spi_nor_erase_region {
 	u64		offset;
@@ -257,8 +256,7 @@ struct spi_nor_erase_region {
 
 #define SNOR_ERASE_TYPE_MAX	4
 
-#define SNOR_LAST_REGION	BIT(0)
-#define SNOR_OVERLAID_REGION	BIT(1)
+#define SNOR_OVERLAID_REGION	BIT(0)
 
 /**
  * struct spi_nor_erase_map - Structure to describe the SPI NOR erase map
@@ -271,11 +269,13 @@ struct spi_nor_erase_region {
  *			The erase types are sorted in ascending order, with the
  *			smallest Erase Type size being the first member in the
  *			erase_type array.
+ * @n_regions:		number of erase regions.
  */
 struct spi_nor_erase_map {
 	struct spi_nor_erase_region	*regions;
 	struct spi_nor_erase_region	uniform_region;
 	struct spi_nor_erase_type	erase_type[SNOR_ERASE_TYPE_MAX];
+	unsigned int			n_regions;
 };
 
 /**
@@ -667,8 +667,6 @@ void spi_nor_set_pp_settings(struct spi_nor_pp_command *pp, u8 opcode,
 void spi_nor_set_erase_type(struct spi_nor_erase_type *erase, u32 size,
 			    u8 opcode);
 void spi_nor_mask_erase_type(struct spi_nor_erase_type *erase);
-struct spi_nor_erase_region *
-spi_nor_region_next(struct spi_nor_erase_region *region);
 void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 				    u8 erase_mask, u64 flash_size);
 
