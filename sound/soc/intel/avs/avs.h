@@ -64,8 +64,8 @@ struct avs_dsp_ops {
 #define avs_dsp_op(adev, op, ...) \
 	((adev)->spec->dsp_ops->op(adev, ## __VA_ARGS__))
 
-extern const struct avs_dsp_ops skl_dsp_ops;
-extern const struct avs_dsp_ops apl_dsp_ops;
+extern const struct avs_dsp_ops avs_skl_dsp_ops;
+extern const struct avs_dsp_ops avs_apl_dsp_ops;
 
 #define AVS_PLATATTR_CLDMA		BIT_ULL(0)
 #define AVS_PLATATTR_IMR		BIT_ULL(1)
@@ -249,7 +249,7 @@ void avs_ipc_block(struct avs_ipc *ipc);
 int avs_dsp_disable_d0ix(struct avs_dev *adev);
 int avs_dsp_enable_d0ix(struct avs_dev *adev);
 
-int skl_log_buffer_offset(struct avs_dev *adev, u32 core);
+int avs_skl_log_buffer_offset(struct avs_dev *adev, u32 core);
 
 /* Firmware resources management */
 
@@ -343,21 +343,21 @@ static inline int avs_log_buffer_status_locked(struct avs_dev *adev, union avs_n
 	return ret;
 }
 
-struct apl_log_buffer_layout {
+struct avs_apl_log_buffer_layout {
 	u32 read_ptr;
 	u32 write_ptr;
 	u8 buffer[];
 } __packed;
 
-#define apl_log_payload_size(adev) \
-	(avs_log_buffer_size(adev) - sizeof(struct apl_log_buffer_layout))
+#define avs_apl_log_payload_size(adev) \
+	(avs_log_buffer_size(adev) - sizeof(struct avs_apl_log_buffer_layout))
 
-#define apl_log_payload_addr(addr) \
-	(addr + sizeof(struct apl_log_buffer_layout))
+#define avs_apl_log_payload_addr(addr) \
+	(addr + sizeof(struct avs_apl_log_buffer_layout))
 
 #ifdef CONFIG_DEBUG_FS
 #define AVS_SET_ENABLE_LOGS_OP(name) \
-	.enable_logs = name##_enable_logs
+	.enable_logs = avs_##name##_enable_logs
 
 bool avs_logging_fw(struct avs_dev *adev);
 void avs_dump_fw_log(struct avs_dev *adev, const void __iomem *src, unsigned int len);

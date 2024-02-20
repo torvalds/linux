@@ -13,10 +13,10 @@
 #include "messages.h"
 
 static int __maybe_unused
-skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
-		u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
+avs_skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
+		    u32 fifo_full_period, unsigned long resource_mask, u32 *priorities)
 {
-	struct skl_log_state_info *info;
+	struct avs_skl_log_state_info *info;
 	u32 size, num_cores = adev->hw_cfg.dsp_cores;
 	int ret, i;
 
@@ -45,7 +45,7 @@ skl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_peri
 	return 0;
 }
 
-int skl_log_buffer_offset(struct avs_dev *adev, u32 core)
+int avs_skl_log_buffer_offset(struct avs_dev *adev, u32 core)
 {
 	return core * avs_log_buffer_size(adev);
 }
@@ -53,8 +53,7 @@ int skl_log_buffer_offset(struct avs_dev *adev, u32 core)
 /* fw DbgLogWp registers */
 #define FW_REGS_DBG_LOG_WP(core) (0x30 + 0x4 * core)
 
-static int
-skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
+static int avs_skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 {
 	void __iomem *buf;
 	u16 size, write, offset;
@@ -74,7 +73,7 @@ skl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg)
 	return 0;
 }
 
-static int skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
+static int avs_skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 {
 	u8 *dump;
 
@@ -88,20 +87,19 @@ static int skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	return 0;
 }
 
-static bool
-skl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool wake)
+static bool avs_skl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool wake)
 {
 	/* unsupported on cAVS 1.5 hw */
 	return false;
 }
 
-static int skl_set_d0ix(struct avs_dev *adev, bool enable)
+static int avs_skl_set_d0ix(struct avs_dev *adev, bool enable)
 {
 	/* unsupported on cAVS 1.5 hw */
 	return 0;
 }
 
-const struct avs_dsp_ops skl_dsp_ops = {
+const struct avs_dsp_ops avs_skl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
 	.stall = avs_dsp_core_stall,
@@ -111,10 +109,10 @@ const struct avs_dsp_ops skl_dsp_ops = {
 	.load_basefw = avs_cldma_load_basefw,
 	.load_lib = avs_cldma_load_library,
 	.transfer_mods = avs_cldma_transfer_modules,
-	.log_buffer_offset = skl_log_buffer_offset,
-	.log_buffer_status = skl_log_buffer_status,
-	.coredump = skl_coredump,
-	.d0ix_toggle = skl_d0ix_toggle,
-	.set_d0ix = skl_set_d0ix,
+	.log_buffer_offset = avs_skl_log_buffer_offset,
+	.log_buffer_status = avs_skl_log_buffer_status,
+	.coredump = avs_skl_coredump,
+	.d0ix_toggle = avs_skl_d0ix_toggle,
+	.set_d0ix = avs_skl_set_d0ix,
 	AVS_SET_ENABLE_LOGS_OP(skl)
 };
