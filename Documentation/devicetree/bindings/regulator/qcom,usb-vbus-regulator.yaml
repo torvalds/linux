@@ -24,6 +24,7 @@ properties:
           - qcom,pm8150b-vbus-reg
       - items:
           - enum:
+              - qcom,pm4125-vbus-reg
               - qcom,pm6150-vbus-reg
           - const: qcom,pm8150b-vbus-reg
 
