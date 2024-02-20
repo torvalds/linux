@@ -245,18 +245,16 @@ struct spi_nor_erase_command {
  *			inside this region. The erase types are sorted in
  *			ascending order with the smallest Erase Type size being
  *			at BIT(0).
- * @flags:		flags to determine if this region is overlaid.
+ * @overlaid:		determine if this region is overlaid.
  */
 struct spi_nor_erase_region {
 	u64		offset;
 	u64		size;
 	u8		erase_mask;
-	u8		flags;
+	bool		overlaid;
 };
 
 #define SNOR_ERASE_TYPE_MAX	4
-
-#define SNOR_OVERLAID_REGION	BIT(0)
 
 /**
  * struct spi_nor_erase_map - Structure to describe the SPI NOR erase map

@@ -800,11 +800,6 @@ out:
 	return ret;
 }
 
-static void spi_nor_region_mark_overlay(struct spi_nor_erase_region *region)
-{
-	region->flags |= SNOR_OVERLAID_REGION;
-}
-
 /**
  * spi_nor_region_check_overlay() - set overlay bit when the region is overlaid
  * @region:	pointer to a structure that describes a SPI NOR erase region
@@ -822,7 +817,7 @@ spi_nor_region_check_overlay(struct spi_nor_erase_region *region,
 		if (!(erase[i].size && erase_type & BIT(erase[i].idx)))
 			continue;
 		if (region->size & erase[i].size_mask) {
-			spi_nor_region_mark_overlay(region);
+			region->overlaid = true;
 			return;
 		}
 	}

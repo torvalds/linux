@@ -142,13 +142,12 @@ static int spi_nor_params_show(struct seq_file *s, void *data)
 	}
 
 	seq_puts(s, "\nsector map\n");
-	seq_puts(s, " region (in hex)   | erase mask | flags\n");
+	seq_puts(s, " region (in hex)   | erase mask | overlaid\n");
 	seq_puts(s, " ------------------+------------+----------\n");
 	for (i = 0; i < erase_map->n_regions; i++) {
 		u64 start = region[i].offset;
 		u64 end = start + region[i].size - 1;
 		u8 erase_mask = region[i].erase_mask;
-		u8 flags = region[i].flags;
 
 		seq_printf(s, " %08llx-%08llx |     [%c%c%c%c] | %s\n",
 			   start, end,
@@ -156,7 +155,7 @@ static int spi_nor_params_show(struct seq_file *s, void *data)
 			   erase_mask & BIT(1) ? '1' : ' ',
 			   erase_mask & BIT(2) ? '2' : ' ',
 			   erase_mask & BIT(3) ? '3' : ' ',
-			   flags & SNOR_OVERLAID_REGION ? "overlaid" : "");
+			   region[i].overlaid ? "yes" : "no");
 	}
 
 	return 0;
