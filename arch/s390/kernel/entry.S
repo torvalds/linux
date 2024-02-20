@@ -146,6 +146,7 @@ _LPP_OFFSET	= __LC_LPP
 	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
+	ni	__LC_CPU_FLAGS+7,255-_CIF_SIE
 	larl	%r9,sie_exit			# skip forward to sie_exit
 	.endm
 #endif
@@ -214,6 +215,7 @@ SYM_FUNC_START(__sie64a)
 	lg	%r14,__LC_GMAP			# get gmap pointer
 	ltgr	%r14,%r14
 	jz	.Lsie_gmap
+	oi	__LC_CPU_FLAGS+7,_CIF_SIE
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 .Lsie_gmap:
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
@@ -235,6 +237,7 @@ SYM_FUNC_START(__sie64a)
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
 .Lsie_done:
+	ni	__LC_CPU_FLAGS+7,255-_CIF_SIE
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
 # are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
@@ -346,7 +349,8 @@ SYM_CODE_START(pgm_check_handler)
 .Lpgm_skip_asce:
 #if IS_ENABLED(CONFIG_KVM)
 	# cleanup critical section for program checks in __sie64a
-	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,1f
+	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
+	jz	1f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT
 	lghi	%r10,_PIF_GUEST_FAULT
@@ -416,7 +420,8 @@ SYM_CODE_START(\name)
 	tmhh	%r8,0x0001			# interrupting from user ?
 	jnz	1f
 #if IS_ENABLED(CONFIG_KVM)
-	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,0f
+	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
+	jz	0f
 	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT
 #endif
@@ -513,7 +518,13 @@ SYM_CODE_START(mcck_int_handler)
 	TSTMSK	__LC_MCCK_CODE,MCCK_CODE_PSW_IA_VALID
 	jno	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
-	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,.Lmcck_user
+	TSTMSK	__LC_CPU_FLAGS,_CIF_SIE
+	jz	.Lmcck_user
+	# Need to compare the address instead of a CIF_SIE* flag.
+	# Otherwise there would be a race between setting the flag
+	# and entering SIE (or leaving and clearing the flag). This
+	# would cause machine checks targeted at the guest to be
+	# handled by the host.
 	OUTSIDE	%r9,.Lsie_entry,.Lsie_leave,4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 4:	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
