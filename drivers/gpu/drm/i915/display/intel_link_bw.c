@@ -9,6 +9,7 @@
 #include "intel_crtc.h"
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
+#include "intel_dp_tunnel.h"
 #include "intel_fdi.h"
 #include "intel_link_bw.h"
 
@@ -160,6 +161,10 @@ static int check_all_link_config(struct intel_atomic_state *state,
 	int ret;
 
 	ret = intel_dp_mst_atomic_check_link(state, limits);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_tunnel_atomic_check_link(state, limits);
 	if (ret)
 		return ret;
 

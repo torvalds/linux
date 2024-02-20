@@ -260,6 +260,10 @@ intel_crtc_duplicate_state(struct drm_crtc *crtc)
 	if (crtc_state->post_csc_lut)
 		drm_property_blob_get(crtc_state->post_csc_lut);
 
+	if (crtc_state->dp_tunnel_ref.tunnel)
+		drm_dp_tunnel_ref_get(crtc_state->dp_tunnel_ref.tunnel,
+				      &crtc_state->dp_tunnel_ref);
+
 	crtc_state->update_pipe = false;
 	crtc_state->update_m_n = false;
 	crtc_state->update_lrr = false;
@@ -311,6 +315,8 @@ intel_crtc_destroy_state(struct drm_crtc *crtc,
 
 	__drm_atomic_helper_crtc_destroy_state(&crtc_state->uapi);
 	intel_crtc_free_hw_state(crtc_state);
+	if (crtc_state->dp_tunnel_ref.tunnel)
+		drm_dp_tunnel_ref_put(&crtc_state->dp_tunnel_ref);
 	kfree(crtc_state);
 }
 
