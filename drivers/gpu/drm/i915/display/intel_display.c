@@ -7124,6 +7124,8 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 
 	intel_commit_modeset_disables(state);
 
+	intel_dp_tunnel_atomic_alloc_bw(state);
+
 	/* FIXME: Eventually get rid of our crtc->config pointer */
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i)
 		crtc->config = new_crtc_state;
