@@ -131,14 +131,6 @@ static void bo_meminfo(struct xe_bo *bo,
 
 static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 {
-	static const char *const mem_type_to_name[TTM_NUM_MEM_TYPES]  = {
-		[XE_PL_SYSTEM] = "system",
-		[XE_PL_TT] = "gtt",
-		[XE_PL_VRAM0] = "vram0",
-		[XE_PL_VRAM1] = "vram1",
-		[4 ... 6] = NULL,
-		[XE_PL_STOLEN] = "stolen"
-	};
 	struct drm_memory_stats stats[TTM_NUM_MEM_TYPES] = {};
 	struct xe_file *xef = file->driver_priv;
 	struct ttm_device *bdev = &xef->xe->ttm;
@@ -171,7 +163,7 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 	spin_unlock(&client->bos_lock);
 
 	for (mem_type = XE_PL_SYSTEM; mem_type < TTM_NUM_MEM_TYPES; ++mem_type) {
-		if (!mem_type_to_name[mem_type])
+		if (!xe_mem_type_to_name[mem_type])
 			continue;
 
 		man = ttm_manager_type(bdev, mem_type);
@@ -182,7 +174,7 @@ static void show_meminfo(struct drm_printer *p, struct drm_file *file)
 					       DRM_GEM_OBJECT_RESIDENT |
 					       (mem_type != XE_PL_SYSTEM ? 0 :
 					       DRM_GEM_OBJECT_PURGEABLE),
-					       mem_type_to_name[mem_type]);
+					       xe_mem_type_to_name[mem_type]);
 		}
 	}
 }
