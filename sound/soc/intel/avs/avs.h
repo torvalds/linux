@@ -66,6 +66,7 @@ struct avs_dsp_ops {
 
 extern const struct avs_dsp_ops avs_skl_dsp_ops;
 extern const struct avs_dsp_ops avs_apl_dsp_ops;
+extern const struct avs_dsp_ops avs_cnl_dsp_ops;
 
 #define AVS_PLATATTR_CLDMA		BIT_ULL(0)
 #define AVS_PLATATTR_IMR		BIT_ULL(1)
@@ -265,7 +266,14 @@ int avs_dsp_disable_d0ix(struct avs_dev *adev);
 int avs_dsp_enable_d0ix(struct avs_dev *adev);
 
 irqreturn_t avs_skl_irq_thread(struct avs_dev *adev);
+irqreturn_t avs_cnl_irq_thread(struct avs_dev *adev);
+int avs_apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
+			u32 fifo_full_period, unsigned long resource_mask, u32 *priorities);
 int avs_skl_log_buffer_offset(struct avs_dev *adev, u32 core);
+int avs_apl_log_buffer_status(struct avs_dev *adev, union avs_notify_msg *msg);
+int avs_apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg);
+bool avs_apl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool wake);
+int avs_apl_set_d0ix(struct avs_dev *adev, bool enable);
 
 /* Firmware resources management */
 

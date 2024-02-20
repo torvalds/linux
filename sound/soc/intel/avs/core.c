@@ -767,6 +767,17 @@ static const struct avs_hipc_spec skl_hipc_spec = {
 	.ctl_offset = SKL_ADSP_REG_HIPCCTL,
 };
 
+static const struct avs_hipc_spec cnl_hipc_spec = {
+	.req_offset = CNL_ADSP_REG_HIPCIDR,
+	.req_ext_offset = CNL_ADSP_REG_HIPCIDD,
+	.req_busy_mask = CNL_ADSP_HIPCIDR_BUSY,
+	.ack_offset = CNL_ADSP_REG_HIPCIDA,
+	.ack_done_mask = CNL_ADSP_HIPCIDA_DONE,
+	.rsp_offset = CNL_ADSP_REG_HIPCTDR,
+	.rsp_busy_mask = CNL_ADSP_HIPCTDR_BUSY,
+	.ctl_offset = CNL_ADSP_REG_HIPCCTL,
+};
+
 static const struct avs_spec skl_desc = {
 	.name = "skl",
 	.min_fw_version = { 9, 21, 0, 4732 },
@@ -787,6 +798,16 @@ static const struct avs_spec apl_desc = {
 	.hipc = &skl_hipc_spec,
 };
 
+static const struct avs_spec cnl_desc = {
+	.name = "cnl",
+	.min_fw_version = { 10, 23, 0, 5314 },
+	.dsp_ops = &avs_cnl_dsp_ops,
+	.core_init_mask = 1,
+	.attributes = AVS_PLATATTR_IMR,
+	.sram = &apl_sram_spec,
+	.hipc = &cnl_hipc_spec,
+};
+
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL, &skl_desc) },
@@ -796,6 +817,11 @@ static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_CML_S, &skl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_APL, &apl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_GML, &apl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CNL_LP,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CNL_H,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_LP,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_H,	&cnl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RKL_S,	&cnl_desc) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, avs_ids);
