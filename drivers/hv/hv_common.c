@@ -227,19 +227,19 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 	 * contain the size of the panic data in that page. Rest of the
 	 * registers are no-op when the NOTIFY_MSG flag is set.
 	 */
-	hv_set_register(HV_REGISTER_CRASH_P0, 0);
-	hv_set_register(HV_REGISTER_CRASH_P1, 0);
-	hv_set_register(HV_REGISTER_CRASH_P2, 0);
-	hv_set_register(HV_REGISTER_CRASH_P3, virt_to_phys(hv_panic_page));
-	hv_set_register(HV_REGISTER_CRASH_P4, bytes_written);
+	hv_set_msr(HV_MSR_CRASH_P0, 0);
+	hv_set_msr(HV_MSR_CRASH_P1, 0);
+	hv_set_msr(HV_MSR_CRASH_P2, 0);
+	hv_set_msr(HV_MSR_CRASH_P3, virt_to_phys(hv_panic_page));
+	hv_set_msr(HV_MSR_CRASH_P4, bytes_written);
 
 	/*
 	 * Let Hyper-V know there is crash data available along with
 	 * the panic message.
 	 */
-	hv_set_register(HV_REGISTER_CRASH_CTL,
-			(HV_CRASH_CTL_CRASH_NOTIFY |
-			 HV_CRASH_CTL_CRASH_NOTIFY_MSG));
+	hv_set_msr(HV_MSR_CRASH_CTL,
+		   (HV_CRASH_CTL_CRASH_NOTIFY |
+		    HV_CRASH_CTL_CRASH_NOTIFY_MSG));
 }
 
 static struct kmsg_dumper hv_kmsg_dumper = {
@@ -310,7 +310,7 @@ int __init hv_common_init(void)
 		 * Register for panic kmsg callback only if the right
 		 * capability is supported by the hypervisor.
 		 */
-		hyperv_crash_ctl = hv_get_register(HV_REGISTER_CRASH_CTL);
+		hyperv_crash_ctl = hv_get_msr(HV_MSR_CRASH_CTL);
 		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG)
 			hv_kmsg_dump_register();
 
@@ -409,7 +409,7 @@ int hv_common_cpu_init(unsigned int cpu)
 		*inputarg = mem;
 	}
 
-	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
+	msr_vp_index = hv_get_msr(HV_MSR_VP_INDEX);
 
 	hv_vp_index[cpu] = msr_vp_index;
 
@@ -506,7 +506,7 @@ EXPORT_SYMBOL_GPL(hv_is_hibernation_supported);
  */
 static u64 __hv_read_ref_counter(void)
 {
-	return hv_get_register(HV_REGISTER_TIME_REF_COUNT);
+	return hv_get_msr(HV_MSR_TIME_REF_COUNT);
 }
 
 u64 (*hv_read_reference_counter)(void) = __hv_read_ref_counter;

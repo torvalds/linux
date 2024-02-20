@@ -45,70 +45,70 @@ bool hyperv_paravisor_present __ro_after_init;
 EXPORT_SYMBOL_GPL(hyperv_paravisor_present);
 
 #if IS_ENABLED(CONFIG_HYPERV)
-static inline unsigned int hv_get_nested_reg(unsigned int reg)
+static inline unsigned int hv_get_nested_msr(unsigned int reg)
 {
-	if (hv_is_sint_reg(reg))
-		return reg - HV_REGISTER_SINT0 + HV_REGISTER_NESTED_SINT0;
+	if (hv_is_sint_msr(reg))
+		return reg - HV_X64_MSR_SINT0 + HV_X64_MSR_NESTED_SINT0;
 
 	switch (reg) {
-	case HV_REGISTER_SIMP:
-		return HV_REGISTER_NESTED_SIMP;
-	case HV_REGISTER_SIEFP:
-		return HV_REGISTER_NESTED_SIEFP;
-	case HV_REGISTER_SVERSION:
-		return HV_REGISTER_NESTED_SVERSION;
-	case HV_REGISTER_SCONTROL:
-		return HV_REGISTER_NESTED_SCONTROL;
-	case HV_REGISTER_EOM:
-		return HV_REGISTER_NESTED_EOM;
+	case HV_X64_MSR_SIMP:
+		return HV_X64_MSR_NESTED_SIMP;
+	case HV_X64_MSR_SIEFP:
+		return HV_X64_MSR_NESTED_SIEFP;
+	case HV_X64_MSR_SVERSION:
+		return HV_X64_MSR_NESTED_SVERSION;
+	case HV_X64_MSR_SCONTROL:
+		return HV_X64_MSR_NESTED_SCONTROL;
+	case HV_X64_MSR_EOM:
+		return HV_X64_MSR_NESTED_EOM;
 	default:
 		return reg;
 	}
 }
 
-u64 hv_get_non_nested_register(unsigned int reg)
+u64 hv_get_non_nested_msr(unsigned int reg)
 {
 	u64 value;
 
-	if (hv_is_synic_reg(reg) && ms_hyperv.paravisor_present)
+	if (hv_is_synic_msr(reg) && ms_hyperv.paravisor_present)
 		hv_ivm_msr_read(reg, &value);
 	else
 		rdmsrl(reg, value);
 	return value;
 }
-EXPORT_SYMBOL_GPL(hv_get_non_nested_register);
+EXPORT_SYMBOL_GPL(hv_get_non_nested_msr);
 
-void hv_set_non_nested_register(unsigned int reg, u64 value)
+void hv_set_non_nested_msr(unsigned int reg, u64 value)
 {
-	if (hv_is_synic_reg(reg) && ms_hyperv.paravisor_present) {
+	if (hv_is_synic_msr(reg) && ms_hyperv.paravisor_present) {
 		hv_ivm_msr_write(reg, value);
 
 		/* Write proxy bit via wrmsl instruction */
-		if (hv_is_sint_reg(reg))
+		if (hv_is_sint_msr(reg))
 			wrmsrl(reg, value | 1 << 20);
 	} else {
 		wrmsrl(reg, value);
 	}
 }
-EXPORT_SYMBOL_GPL(hv_set_non_nested_register);
+EXPORT_SYMBOL_GPL(hv_set_non_nested_msr);
 
-u64 hv_get_register(unsigned int reg)
+u64 hv_get_msr(unsigned int reg)
 {
 	if (hv_nested)
-		reg = hv_get_nested_reg(reg);
+		reg = hv_get_nested_msr(reg);
 
-	return hv_get_non_nested_register(reg);
+	return hv_get_non_nested_msr(reg);
 }
-EXPORT_SYMBOL_GPL(hv_get_register);
+EXPORT_SYMBOL_GPL(hv_get_msr);
 
-void hv_set_register(unsigned int reg, u64 value)
+void hv_set_msr(unsigned int reg, u64 value)
 {
 	if (hv_nested)
-		reg = hv_get_nested_reg(reg);
+		reg = hv_get_nested_msr(reg);
 
-	hv_set_non_nested_register(reg, value);
+	hv_set_non_nested_msr(reg, value);
 }
-EXPORT_SYMBOL_GPL(hv_set_register);
+EXPORT_SYMBOL_GPL(hv_set_msr);
 
 static void (*vmbus_handler)(void);
 static void (*hv_stimer0_handler)(void);
