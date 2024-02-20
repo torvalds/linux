@@ -352,6 +352,8 @@ void intel_atomic_state_clear(struct drm_atomic_state *s)
 	/* state->internal not reset on purpose */
 
 	state->dpll_set = state->modeset = false;
+
+	intel_dp_tunnel_atomic_cleanup_inherited_state(state);
 }
 
 struct intel_crtc_state *
