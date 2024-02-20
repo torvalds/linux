@@ -180,12 +180,14 @@ int arch_make_page_accessible(struct page *page);
 
 struct vm_layout {
 	unsigned long kaslr_offset;
+	unsigned long kaslr_offset_phys;
 	unsigned long identity_size;
 };
 
 extern struct vm_layout vm_layout;
 
 #define __kaslr_offset		vm_layout.kaslr_offset
+#define __kaslr_offset_phys	vm_layout.kaslr_offset_phys
 #define ident_map_size		vm_layout.identity_size
 
 static inline unsigned long kaslr_offset(void)

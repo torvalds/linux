@@ -142,7 +142,8 @@ static void copy_bootdata(void)
 }
 
 #ifdef CONFIG_PIE_BUILD
-static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, unsigned long offset)
+static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
+				unsigned long offset, unsigned long phys_offset)
 {
 	Elf64_Rela *rela_start, *rela_end, *rela;
 	int r_type, r_sym, rc;
@@ -153,7 +154,7 @@ static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, 
 	rela_end = (Elf64_Rela *) vmlinux.rela_dyn_end;
 	dynsym = (Elf64_Sym *) vmlinux.dynsym_start;
 	for (rela = rela_start; rela < rela_end; rela++) {
-		loc = rela->r_offset + offset;
+		loc = rela->r_offset + phys_offset;
 		val = rela->r_addend;
 		r_sym = ELF64_R_SYM(rela->r_info);
 		if (r_sym) {
@@ -194,7 +195,8 @@ static void free_relocs(void)
 	physmem_free(RR_RELOC);
 }
 
-static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, unsigned long offset)
+static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
+				unsigned long offset, unsigned long phys_offset)
 {
 	int *reloc;
 	long loc;
@@ -428,8 +430,9 @@ void startup_kernel(void)
 						     THREAD_SIZE, vmlinux.default_lma,
 						     ident_map_size);
 		if (vmlinux_lma) {
-			__kaslr_offset = vmlinux_lma - vmlinux.default_lma;
-			kaslr_adjust_vmlinux_info(__kaslr_offset);
+			__kaslr_offset_phys = vmlinux_lma - vmlinux.default_lma;
+			kaslr_adjust_vmlinux_info(__kaslr_offset_phys);
+			__kaslr_offset = __kaslr_offset_phys;
 		}
 	}
 	vmlinux_lma = vmlinux_lma ?: vmlinux.default_lma;
@@ -438,7 +441,7 @@ void startup_kernel(void)
 	if (!IS_ENABLED(CONFIG_KERNEL_UNCOMPRESSED)) {
 		img = decompress_kernel();
 		memmove((void *)vmlinux_lma, img, vmlinux.image_size);
-	} else if (__kaslr_offset) {
+	} else if (__kaslr_offset_phys) {
 		img = (void *)vmlinux.default_lma;
 		memmove((void *)vmlinux_lma, img, vmlinux.image_size);
 		memset(img, 0, vmlinux.image_size);
@@ -465,7 +468,8 @@ void startup_kernel(void)
 	 *   to bootdata made by setup_vmem()
 	 */
 	clear_bss_section(vmlinux_lma);
-	kaslr_adjust_relocs(vmlinux_lma, vmlinux_lma + vmlinux.image_size, __kaslr_offset);
+	kaslr_adjust_relocs(vmlinux_lma, vmlinux_lma + vmlinux.image_size,
+			    __kaslr_offset, __kaslr_offset_phys);
 	kaslr_adjust_got(__kaslr_offset);
 	free_relocs();
 	setup_vmem(asce_limit);
@@ -475,7 +479,7 @@ void startup_kernel(void)
 	 * Save KASLR offset for early dumps, before vmcore_info is set.
 	 * Mark as uneven to distinguish from real vmcore_info pointer.
 	 */
-	S390_lowcore.vmcore_info = __kaslr_offset ? __kaslr_offset | 0x1UL : 0;
+	S390_lowcore.vmcore_info = __kaslr_offset_phys ? __kaslr_offset_phys | 0x1UL : 0;
 
 	/*
 	 * Jump to the decompressed kernel entry point and switch DAT mode on.
