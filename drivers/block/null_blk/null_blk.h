@@ -131,7 +131,7 @@ blk_status_t null_process_cmd(struct nullb_cmd *cmd, enum req_op op,
 			      sector_t sector, unsigned int nr_sectors);
 
 #ifdef CONFIG_BLK_DEV_ZONED
-int null_init_zoned_dev(struct nullb_device *dev, struct request_queue *q);
+int null_init_zoned_dev(struct nullb_device *dev, struct queue_limits *lim);
 int null_register_zoned_dev(struct nullb *nullb);
 void null_free_zoned_dev(struct nullb_device *dev);
 int null_report_zones(struct gendisk *disk, sector_t sector,
@@ -144,7 +144,7 @@ ssize_t zone_cond_store(struct nullb_device *dev, const char *page,
 			size_t count, enum blk_zone_cond cond);
 #else
 static inline int null_init_zoned_dev(struct nullb_device *dev,
-				      struct request_queue *q)
+		struct queue_limits *lim)
 {
 	pr_err("CONFIG_BLK_DEV_ZONED not enabled\n");
 	return -EINVAL;
