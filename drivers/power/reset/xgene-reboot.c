@@ -51,9 +51,9 @@ static int xgene_reboot_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->csr = devm_platform_ioremap_resource(pdev, 0);
-	if (!ctx->csr) {
+	if (IS_ERR(ctx->csr)) {
 		dev_err(dev, "can not map resource\n");
-		return -ENODEV;
+		return PTR_ERR(ctx->csr);
 	}
 
 	if (of_property_read_u32(dev->of_node, "mask", &ctx->mask))
