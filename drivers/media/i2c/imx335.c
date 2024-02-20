@@ -527,26 +527,31 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 	u32 exposure;
 	int ret;
 
-	switch (ctrl->id) {
-	case V4L2_CID_VBLANK:
+	/* Propagate change of current control to all related controls */
+	if (ctrl->id == V4L2_CID_VBLANK) {
 		imx335->vblank = imx335->vblank_ctrl->val;
 
 		dev_dbg(imx335->dev, "Received vblank %u, new lpfr %u\n",
 			imx335->vblank,
 			imx335->vblank + imx335->cur_mode->height);
 
-		ret = __v4l2_ctrl_modify_range(imx335->exp_ctrl,
-					       IMX335_EXPOSURE_MIN,
-					       imx335->vblank +
-					       imx335->cur_mode->height -
-					       IMX335_EXPOSURE_OFFSET,
-					       1, IMX335_EXPOSURE_DEFAULT);
-		break;
-	case V4L2_CID_EXPOSURE:
-		/* Set controls only if sensor is in power on state */
-		if (!pm_runtime_get_if_in_use(imx335->dev))
-			return 0;
+		return __v4l2_ctrl_modify_range(imx335->exp_ctrl,
+						IMX335_EXPOSURE_MIN,
+						imx335->vblank +
+						imx335->cur_mode->height -
+						IMX335_EXPOSURE_OFFSET,
+						1, IMX335_EXPOSURE_DEFAULT);
+	}
 
+	/*
+	 * Applying V4L2 control value only happens
+	 * when power is up for streaming.
+	 */
+	if (pm_runtime_get_if_in_use(imx335->dev) == 0)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_EXPOSURE:
 		exposure = ctrl->val;
 		analog_gain = imx335->again_ctrl->val;
 
@@ -555,13 +560,13 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 
 		ret = imx335_update_exp_gain(imx335, exposure, analog_gain);
 
-		pm_runtime_put(imx335->dev);
-
 		break;
 	default:
 		dev_err(imx335->dev, "Invalid control %d\n", ctrl->id);
 		ret = -EINVAL;
 	}
+
+	pm_runtime_put(imx335->dev);
 
 	return ret;
 }
