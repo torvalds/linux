@@ -435,7 +435,7 @@ int cdns_drd_init(struct cdns *cdns)
 			writel(1, &cdns->otg_v1_regs->simulate);
 			cdns->version  = CDNS3_CONTROLLER_V1;
 		} else {
-			dev_err(cdns->dev, "not supporte DID=0x%08x\n", state);
+			dev_err(cdns->dev, "not supported DID=0x%08x\n", state);
 			return -EINVAL;
 		}
 
