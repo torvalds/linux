@@ -119,29 +119,6 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 #if IS_ENABLED(CONFIG_KVM)
-	/*
-	 * The OUTSIDE macro jumps to the provided label in case the value
-	 * in the provided register is outside of the provided range. The
-	 * macro is useful for checking whether a PSW stored in a register
-	 * pair points inside or outside of a block of instructions.
-	 * @reg: register to check
-	 * @start: start of the range
-	 * @end: end of the range
-	 * @outside_label: jump here if @reg is outside of [@start..@end)
-	 */
-	.macro OUTSIDE reg,start,end,outside_label
-	lgr	%r14,\reg
-	larl	%r13,\start
-	slgr	%r14,%r13
-	clgfrl	%r14,.Lrange_size\@
-	jhe	\outside_label
-	.section .rodata, "a"
-	.balign 4
-.Lrange_size\@:
-	.long	\end - \start
-	.previous
-	.endm
-
 	.macro SIEEXIT
 	lg	%r9,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
@@ -236,7 +213,6 @@ SYM_FUNC_START(__sie64a)
 	lg	%r14,__SF_SIE_CONTROL(%r15)	# get control block pointer
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_KERNEL_ASCE	# load primary asce
-.Lsie_done:
 	ni	__LC_CPU_FLAGS+7,255-_CIF_SIE
 # some program checks are suppressing. C code (e.g. do_protection_exception)
 # will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
@@ -525,7 +501,10 @@ SYM_CODE_START(mcck_int_handler)
 	# and entering SIE (or leaving and clearing the flag). This
 	# would cause machine checks targeted at the guest to be
 	# handled by the host.
-	OUTSIDE	%r9,.Lsie_entry,.Lsie_leave,4f
+	larl	%r14,.Lsie_entry
+	clgrjl	%r9,%r14, 4f
+	larl	%r14,.Lsie_leave
+	clgrjhe	%r9,%r14, 4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 4:	BPENTER	__SF_SIE_FLAGS(%r15),_TIF_ISOLATE_BP_GUEST
 	SIEEXIT
