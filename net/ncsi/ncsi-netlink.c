@@ -73,7 +73,8 @@ static int ncsi_write_channel_info(struct sk_buff *skb,
 
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MAJOR, nc->version.version);
 	nla_put_u32(skb, NCSI_CHANNEL_ATTR_VERSION_MINOR, nc->version.alpha2);
-	nla_put_string(skb, NCSI_CHANNEL_ATTR_VERSION_STR, nc->version.fw_name);
+	nla_put(skb, NCSI_CHANNEL_ATTR_VERSION_STR,
+		strnlen(nc->version.fw_name, 12), nc->version.fw_name);
 
 	vid_nest = nla_nest_start_noflag(skb, NCSI_CHANNEL_ATTR_VLAN_LIST);
 	if (!vid_nest)
