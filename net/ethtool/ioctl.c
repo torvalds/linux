@@ -26,12 +26,12 @@
 #include <linux/sched/signal.h>
 #include <linux/net.h>
 #include <linux/pm_runtime.h>
+#include <linux/utsname.h>
 #include <net/devlink.h>
 #include <net/ipv6.h>
 #include <net/xdp_sock_drv.h>
 #include <net/flow_offload.h>
 #include <linux/ethtool_netlink.h>
-#include <generated/utsrelease.h>
 #include "common.h"
 
 /* State held across locks and calls for commands which have devlink fallback */
@@ -713,7 +713,8 @@ ethtool_get_drvinfo(struct net_device *dev, struct ethtool_devlink_compat *rsp)
 	struct device *parent = dev->dev.parent;
 
 	rsp->info.cmd = ETHTOOL_GDRVINFO;
-	strscpy(rsp->info.version, UTS_RELEASE, sizeof(rsp->info.version));
+	strscpy(rsp->info.version, init_uts_ns.name.release,
+		sizeof(rsp->info.version));
 	if (ops->get_drvinfo) {
 		ops->get_drvinfo(dev, &rsp->info);
 		if (!rsp->info.bus_info[0] && parent)
