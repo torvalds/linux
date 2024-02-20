@@ -41,15 +41,14 @@ struct hmc425a_chip_info {
 
 struct hmc425a_state {
 	struct	mutex lock; /* protect sensor state */
-	struct	hmc425a_chip_info *chip_info;
+	const struct	hmc425a_chip_info *chip_info;
 	struct	gpio_descs *gpios;
-	enum	hmc425a_type type;
 	u32	gain;
 };
 
 static int gain_dB_to_code(struct hmc425a_state *st, int val, int val2, int *code)
 {
-	struct hmc425a_chip_info *inf = st->chip_info;
+	const struct hmc425a_chip_info *inf = st->chip_info;
 	int gain;
 
 	if (val < 0)
@@ -206,16 +205,7 @@ static const struct iio_chan_spec hmc425a_channels[] = {
 	HMC425A_CHAN(0),
 };
 
-/* Match table for of_platform binding */
-static const struct of_device_id hmc425a_of_match[] = {
-	{ .compatible = "adi,hmc425a", .data = (void *)ID_HMC425A },
-	{ .compatible = "adi,hmc540s", .data = (void *)ID_HMC540S },
-	{ .compatible = "adi,adrf5740", .data = (void *)ID_ADRF5740 },
-	{},
-};
-MODULE_DEVICE_TABLE(of, hmc425a_of_match);
-
-static struct hmc425a_chip_info hmc425a_chip_info_tbl[] = {
+static const struct hmc425a_chip_info hmc425a_chip_info_tbl[] = {
 	[ID_HMC425A] = {
 		.name = "hmc425a",
 		.channels = hmc425a_channels,
@@ -262,9 +252,8 @@ static int hmc425a_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	st->type = (uintptr_t)device_get_match_data(&pdev->dev);
 
-	st->chip_info = &hmc425a_chip_info_tbl[st->type];
+	st->chip_info = device_get_match_data(&pdev->dev);
 	indio_dev->num_channels = st->chip_info->num_channels;
 	indio_dev->channels = st->chip_info->channels;
 	indio_dev->name = st->chip_info->name;
@@ -295,6 +284,18 @@ static int hmc425a_probe(struct platform_device *pdev)
 
 	return devm_iio_device_register(&pdev->dev, indio_dev);
 }
+
+/* Match table for of_platform binding */
+static const struct of_device_id hmc425a_of_match[] = {
+	{ .compatible = "adi,hmc425a",
+	  .data = &hmc425a_chip_info_tbl[ID_HMC425A]},
+	{ .compatible = "adi,hmc540s",
+	  .data = &hmc425a_chip_info_tbl[ID_HMC540S]},
+	{ .compatible = "adi,adrf5740",
+	  .data = &hmc425a_chip_info_tbl[ID_ADRF5740]},
+	{}
+};
+MODULE_DEVICE_TABLE(of, hmc425a_of_match);
 
 static struct platform_driver hmc425a_driver = {
 	.driver = {
