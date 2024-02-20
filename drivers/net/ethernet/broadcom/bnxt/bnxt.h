@@ -1213,6 +1213,8 @@ struct bnxt_ring_grp_info {
 	u16	cp_fw_ring_id;
 };
 
+#define BNXT_VNIC_DEFAULT	0
+
 struct bnxt_vnic_info {
 	u16		fw_vnic_id; /* returned by Chimp during alloc */
 #define BNXT_MAX_CTX_PER_VNIC	8

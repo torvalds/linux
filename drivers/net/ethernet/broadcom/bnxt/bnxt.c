@@ -4229,6 +4229,7 @@ static int bnxt_alloc_vnics(struct bnxt *bp)
 
 static void bnxt_init_vnics(struct bnxt *bp)
 {
+	struct bnxt_vnic_info *vnic0 = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	int i;
 
 	for (i = 0; i < bp->nr_vnics; i++) {
@@ -4242,7 +4243,7 @@ static void bnxt_init_vnics(struct bnxt *bp)
 		vnic->fw_l2_ctx_id = INVALID_HW_RING_ID;
 
 		if (bp->vnic_info[i].rss_hash_key) {
-			if (!i) {
+			if (i == BNXT_VNIC_DEFAULT) {
 				u8 *key = (void *)vnic->rss_hash_key;
 				int k;
 
@@ -4268,8 +4269,7 @@ static void bnxt_init_vnics(struct bnxt *bp)
 					bp->toeplitz_prefix |= key[k];
 				}
 			} else {
-				memcpy(vnic->rss_hash_key,
-				       bp->vnic_info[0].rss_hash_key,
+				memcpy(vnic->rss_hash_key, vnic0->rss_hash_key,
 				       HW_HASH_KEY_SIZE);
 			}
 		}
@@ -5000,6 +5000,7 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 
 static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 {
+	struct bnxt_vnic_info *vnic0 = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	int i, j, rc, size, arr_size;
 	void *bnapi;
 
@@ -5128,8 +5129,8 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 	if (rc)
 		goto alloc_mem_err;
 
-	bp->vnic_info[0].flags |= BNXT_VNIC_RSS_FLAG | BNXT_VNIC_MCAST_FLAG |
-				  BNXT_VNIC_UCAST_FLAG;
+	vnic0->flags |= BNXT_VNIC_RSS_FLAG | BNXT_VNIC_MCAST_FLAG |
+			BNXT_VNIC_UCAST_FLAG;
 	rc = bnxt_alloc_vnic_attributes(bp);
 	if (rc)
 		goto alloc_mem_err;
@@ -6178,7 +6179,7 @@ exit:
 
 static void bnxt_hwrm_update_rss_hash_cfg(struct bnxt *bp)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	struct hwrm_vnic_rss_qcfg_output *resp;
 	struct hwrm_vnic_rss_qcfg_input *req;
 
@@ -6282,6 +6283,7 @@ static u32 bnxt_get_roce_vnic_mode(struct bnxt *bp)
 
 int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 {
+	struct bnxt_vnic_info *vnic0 = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_cfg_input *req;
 	unsigned int ring = 0, grp_idx;
@@ -6311,8 +6313,7 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 		req->enables |= cpu_to_le32(VNIC_CFG_REQ_ENABLES_RSS_RULE |
 					   VNIC_CFG_REQ_ENABLES_MRU);
 	} else if (vnic->flags & BNXT_VNIC_RFS_NEW_RSS_FLAG) {
-		req->rss_rule =
-			cpu_to_le16(bp->vnic_info[0].fw_rss_cos_lb_ctx[0]);
+		req->rss_rule = cpu_to_le16(vnic0->fw_rss_cos_lb_ctx[0]);
 		req->enables |= cpu_to_le32(VNIC_CFG_REQ_ENABLES_RSS_RULE |
 					   VNIC_CFG_REQ_ENABLES_MRU);
 		req->flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_RSS_DFLT_CR_MODE);
@@ -6409,7 +6410,7 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 vnic_no_ring_grps:
 	for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++)
 		vnic->fw_rss_cos_lb_ctx[i] = INVALID_HW_RING_ID;
-	if (vnic_id == 0)
+	if (vnic_id == BNXT_VNIC_DEFAULT)
 		req->flags = cpu_to_le32(VNIC_ALLOC_REQ_FLAGS_DEFAULT);
 
 	resp = hwrm_req_hold(bp, req);
@@ -9896,7 +9897,7 @@ static bool bnxt_mc_list_updated(struct bnxt *, u32 *);
 
 static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	int rc = 0;
 	unsigned int rx_nr_rings = bp->rx_nr_rings;
 
@@ -9925,7 +9926,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 		rx_nr_rings--;
 
 	/* default vnic 0 */
-	rc = bnxt_hwrm_vnic_alloc(bp, 0, 0, rx_nr_rings);
+	rc = bnxt_hwrm_vnic_alloc(bp, BNXT_VNIC_DEFAULT, 0, rx_nr_rings);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic alloc failure rc: %x\n", rc);
 		goto err_out;
@@ -9934,7 +9935,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	if (BNXT_VF(bp))
 		bnxt_hwrm_func_qcfg(bp);
 
-	rc = bnxt_setup_vnic(bp, 0);
+	rc = bnxt_setup_vnic(bp, BNXT_VNIC_DEFAULT);
 	if (rc)
 		goto err_out;
 	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
@@ -11594,7 +11595,7 @@ static void bnxt_cfg_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr
 
 	if (fltr->type == BNXT_FLTR_TYPE_NTUPLE) {
 		ntp_fltr = container_of(fltr, struct bnxt_ntuple_filter, base);
-		l2_fltr = bp->vnic_info[0].l2_filters[0];
+		l2_fltr = bp->vnic_info[BNXT_VNIC_DEFAULT].l2_filters[0];
 		atomic_inc(&l2_fltr->refcnt);
 		ntp_fltr->l2_fltr = l2_fltr;
 		if (bnxt_hwrm_cfa_ntuple_filter_alloc(bp, ntp_fltr)) {
@@ -12148,8 +12149,8 @@ void bnxt_get_ring_err_stats(struct bnxt *bp,
 
 static bool bnxt_mc_list_updated(struct bnxt *bp, u32 *rx_mask)
 {
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	struct net_device *dev = bp->dev;
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
 	struct netdev_hw_addr *ha;
 	u8 *haddr;
 	int mc_count = 0;
@@ -12183,7 +12184,7 @@ static bool bnxt_mc_list_updated(struct bnxt *bp, u32 *rx_mask)
 static bool bnxt_uc_list_updated(struct bnxt *bp)
 {
 	struct net_device *dev = bp->dev;
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	struct netdev_hw_addr *ha;
 	int off = 0;
 
@@ -12210,7 +12211,7 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 	if (!test_bit(BNXT_STATE_OPEN, &bp->state))
 		return;
 
-	vnic = &bp->vnic_info[0];
+	vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	mask = vnic->rx_mask;
 	mask &= ~(CFA_L2_SET_RX_MASK_REQ_MASK_PROMISCUOUS |
 		  CFA_L2_SET_RX_MASK_REQ_MASK_MCAST |
@@ -12241,7 +12242,7 @@ static void bnxt_set_rx_mode(struct net_device *dev)
 static int bnxt_cfg_rx_mode(struct bnxt *bp)
 {
 	struct net_device *dev = bp->dev;
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[0];
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	struct netdev_hw_addr *ha;
 	int i, off = 0, rc;
 	bool uc_update;
@@ -14081,7 +14082,7 @@ u32 bnxt_get_ntp_filter_idx(struct bnxt *bp, struct flow_keys *fkeys,
 	if (skb)
 		return skb_get_hash_raw(skb) & BNXT_NTP_FLTR_HASH_MASK;
 
-	vnic = &bp->vnic_info[0];
+	vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	return bnxt_toeplitz(bp, fkeys, (void *)vnic->rss_hash_key);
 }
 
@@ -14176,7 +14177,7 @@ static int bnxt_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	u32 flags;
 
 	if (ether_addr_equal(dev->dev_addr, eth->h_dest)) {
-		l2_fltr = bp->vnic_info[0].l2_filters[0];
+		l2_fltr = bp->vnic_info[BNXT_VNIC_DEFAULT].l2_filters[0];
 		atomic_inc(&l2_fltr->refcnt);
 	} else {
 		struct bnxt_l2_key key;
