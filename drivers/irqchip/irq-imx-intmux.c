@@ -166,6 +166,10 @@ static int imx_intmux_irq_select(struct irq_domain *d, struct irq_fwspec *fwspec
 	if (fwspec->fwnode != d->fwnode)
 		return false;
 
+	/* Handle pure domain searches */
+	if (!fwspec->param_count)
+		return d->bus_token == bus_token;
+
 	return irqchip_data->chanidx == fwspec->param[1];
 }
 
