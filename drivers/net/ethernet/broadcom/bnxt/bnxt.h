@@ -1262,11 +1262,13 @@ struct bnxt_hw_rings {
 	int cp_p5;
 	int stat;
 	int vnic;
+	int rss_ctx;
 };
 
 struct bnxt_hw_resc {
 	u16	min_rsscos_ctxs;
 	u16	max_rsscos_ctxs;
+	u16	resv_rsscos_ctxs;
 	u16	min_cp_rings;
 	u16	max_cp_rings;
 	u16	resv_cp_rings;

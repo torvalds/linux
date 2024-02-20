@@ -7043,6 +7043,7 @@ static int bnxt_hwrm_get_rings(struct bnxt *bp)
 		hw_resc->resv_hw_ring_grps =
 			le32_to_cpu(resp->alloc_hw_ring_grps);
 		hw_resc->resv_vnics = le16_to_cpu(resp->alloc_vnics);
+		hw_resc->resv_rsscos_ctxs = le16_to_cpu(resp->alloc_rsscos_ctx);
 		cp = le16_to_cpu(resp->alloc_cmpl_rings);
 		stats = le16_to_cpu(resp->alloc_stat_ctx);
 		hw_resc->resv_irqs = cp;
@@ -7116,32 +7117,23 @@ __bnxt_hwrm_reserve_pf_rings(struct bnxt *bp, struct bnxt_hw_rings *hwr)
 			enables |= hwr->cp ? FUNC_CFG_REQ_ENABLES_NUM_MSIX : 0;
 			enables |= hwr->cp_p5 ?
 				   FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS : 0;
-			enables |= hwr->rx ?
-				   FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
 		} else {
 			enables |= hwr->cp ?
 				   FUNC_CFG_REQ_ENABLES_NUM_CMPL_RINGS : 0;
 			enables |= hwr->grp ?
-				   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS |
-				   FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
+				   FUNC_CFG_REQ_ENABLES_NUM_HW_RING_GRPS : 0;
 		}
 		enables |= hwr->vnic ? FUNC_CFG_REQ_ENABLES_NUM_VNICS : 0;
-
+		enables |= hwr->rss_ctx ? FUNC_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS :
+					  0;
 		req->num_rx_rings = cpu_to_le16(hwr->rx);
+		req->num_rsscos_ctxs = cpu_to_le16(hwr->rss_ctx);
 		if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-			u16 rss_ctx = bnxt_get_nr_rss_ctxs(bp, hwr->grp);
-
 			req->num_cmpl_rings = cpu_to_le16(hwr->cp_p5);
 			req->num_msix = cpu_to_le16(hwr->cp);
-			req->num_rsscos_ctxs = cpu_to_le16(rss_ctx);
 		} else {
 			req->num_cmpl_rings = cpu_to_le16(hwr->cp);
 			req->num_hw_ring_grps = cpu_to_le16(hwr->grp);
-			req->num_rsscos_ctxs = cpu_to_le16(1);
-			if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) &&
-			    bnxt_rfs_supported(bp))
-				req->num_rsscos_ctxs =
-					cpu_to_le16(hwr->grp + 1);
 		}
 		req->num_stat_ctxs = cpu_to_le16(hwr->stat);
 		req->num_vnics = cpu_to_le16(hwr->vnic);
@@ -7163,6 +7155,7 @@ __bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, struct bnxt_hw_rings *hwr)
 	enables |= hwr->rx ? FUNC_VF_CFG_REQ_ENABLES_NUM_RX_RINGS |
 			     FUNC_VF_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
 	enables |= hwr->stat ? FUNC_VF_CFG_REQ_ENABLES_NUM_STAT_CTXS : 0;
+	enables |= hwr->rss_ctx ? FUNC_VF_CFG_REQ_ENABLES_NUM_RSSCOS_CTXS : 0;
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
 		enables |= hwr->cp_p5 ?
 			   FUNC_VF_CFG_REQ_ENABLES_NUM_CMPL_RINGS : 0;
@@ -7177,15 +7170,12 @@ __bnxt_hwrm_reserve_vf_rings(struct bnxt *bp, struct bnxt_hw_rings *hwr)
 	req->num_l2_ctxs = cpu_to_le16(BNXT_VF_MAX_L2_CTX);
 	req->num_tx_rings = cpu_to_le16(hwr->tx);
 	req->num_rx_rings = cpu_to_le16(hwr->rx);
+	req->num_rsscos_ctxs = cpu_to_le16(hwr->rss_ctx);
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
-		u16 rss_ctx = bnxt_get_nr_rss_ctxs(bp, hwr->grp);
-
 		req->num_cmpl_rings = cpu_to_le16(hwr->cp_p5);
-		req->num_rsscos_ctxs = cpu_to_le16(rss_ctx);
 	} else {
 		req->num_cmpl_rings = cpu_to_le16(hwr->cp);
 		req->num_hw_ring_grps = cpu_to_le16(hwr->grp);
-		req->num_rsscos_ctxs = cpu_to_le16(BNXT_VF_MAX_RSS_CTX);
 	}
 	req->num_stat_ctxs = cpu_to_le16(hwr->stat);
 	req->num_vnics = cpu_to_le16(hwr->vnic);
@@ -7289,6 +7279,20 @@ static int bnxt_get_func_stat_ctxs(struct bnxt *bp)
 	return cp + ulp_stat;
 }
 
+static int bnxt_get_total_rss_ctxs(struct bnxt *bp, struct bnxt_hw_rings *hwr)
+{
+	if (!hwr->grp)
+		return 0;
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+		return bnxt_get_nr_rss_ctxs(bp, hwr->grp);
+
+	if (BNXT_VF(bp))
+		return BNXT_VF_MAX_RSS_CTX;
+	if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) && bnxt_rfs_supported(bp))
+		return hwr->grp + 1;
+	return 1;
+}
+
 /* Check if a default RSS map needs to be setup.  This function is only
  * used on older firmware that does not require reserving RX rings.
  */
@@ -7355,6 +7359,7 @@ static void bnxt_copy_reserved_rings(struct bnxt *bp, struct bnxt_hw_rings *hwr)
 		hwr->grp = hw_resc->resv_hw_ring_grps;
 		hwr->vnic = hw_resc->resv_vnics;
 		hwr->stat = hw_resc->resv_stat_ctxs;
+		hwr->rss_ctx = hw_resc->resv_rsscos_ctxs;
 	}
 }
 
@@ -7387,6 +7392,7 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		hwr.rx <<= 1;
 	hwr.grp = bp->rx_nr_rings;
+	hwr.rss_ctx = bnxt_get_total_rss_ctxs(bp, &hwr);
 	hwr.stat = bnxt_get_func_stat_ctxs(bp);
 
 	rc = bnxt_hwrm_reserve_rings(bp, &hwr);
@@ -11210,6 +11216,7 @@ static void bnxt_clear_reservations(struct bnxt *bp, bool fw_reset)
 	hw_resc->resv_rx_rings = 0;
 	hw_resc->resv_hw_ring_grps = 0;
 	hw_resc->resv_vnics = 0;
+	hw_resc->resv_rsscos_ctxs = 0;
 	if (!fw_reset) {
 		bp->tx_nr_rings = 0;
 		bp->rx_nr_rings = 0;
@@ -12340,6 +12347,7 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	struct bnxt_hw_rings hwr = {0};
 	int max_vnics, max_rss_ctxs;
 
+	hwr.rss_ctx = 1;
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		return bnxt_rfs_supported(bp);
 	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp) || !bp->rx_nr_rings)
@@ -12349,10 +12357,10 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	max_vnics = bnxt_get_max_func_vnics(bp);
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
 
-	/* RSS contexts not a limiting factor */
-	if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
-		max_rss_ctxs = max_vnics;
-	if (hwr.vnic > max_vnics || hwr.vnic > max_rss_ctxs) {
+	if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP))
+		hwr.rss_ctx = hwr.vnic;
+
+	if (hwr.vnic > max_vnics || hwr.rss_ctx > max_rss_ctxs) {
 		if (bp->rx_nr_rings > 1)
 			netdev_warn(bp->dev,
 				    "Not enough resources to support NTUPLE filters, enough resources for up to %d rx rings\n",
@@ -12363,15 +12371,18 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	if (!BNXT_NEW_RM(bp))
 		return true;
 
-	if (hwr.vnic == bp->hw_resc.resv_vnics)
+	if (hwr.vnic == bp->hw_resc.resv_vnics &&
+	    hwr.rss_ctx <= bp->hw_resc.resv_rsscos_ctxs)
 		return true;
 
 	bnxt_hwrm_reserve_rings(bp, &hwr);
-	if (hwr.vnic <= bp->hw_resc.resv_vnics)
+	if (hwr.vnic <= bp->hw_resc.resv_vnics &&
+	    hwr.rss_ctx <= bp->hw_resc.resv_rsscos_ctxs)
 		return true;
 
 	netdev_warn(bp->dev, "Unable to reserve resources to support NTUPLE filters.\n");
 	hwr.vnic = 1;
+	hwr.rss_ctx = 0;
 	bnxt_hwrm_reserve_rings(bp, &hwr);
 	return false;
 }
