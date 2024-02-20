@@ -573,6 +573,19 @@ config HW_RANDOM_JH7110
 	  To compile this driver as a module, choose M here.
 	  The module will be called jh7110-trng.
 
+config HW_RANDOM_ASPEED
+        tristate "Aspeed Random Number Generator support"
+        depends on ARCH_ASPEED
+        default HW_RANDOM
+        help
+          This driver provides kernel-side support for the Random Number
+          Generator hardware found on Aspeed ast2600/ast2700 devices.
+
+          To compile this driver as a module, choose M here: the
+          module will be called aspeed-rng.
+
+          If unsure, say Y.
+
 source "drivers/char/hw_random/dwc/Kconfig"
 
 endif # HW_RANDOM
