@@ -168,8 +168,9 @@ rpc_inode_setowner(struct inode *inode, void *private)
 }
 
 static void
-rpc_close_pipes(struct inode *inode)
+rpc_close_pipes(struct dentry *dentry)
 {
+	struct inode *inode = dentry->d_inode;
 	struct rpc_pipe *pipe = RPC_I(inode)->pipe;
 	int need_release;
 	LIST_HEAD(free_list);
@@ -619,14 +620,6 @@ static int __rpc_unlink(struct inode *dir, struct dentry *dentry)
 	return ret;
 }
 
-static int __rpc_rmpipe(struct inode *dir, struct dentry *dentry)
-{
-	struct inode *inode = d_inode(dentry);
-
-	rpc_close_pipes(inode);
-	return __rpc_unlink(dir, dentry);
-}
-
 static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 					  const char *name)
 {
@@ -814,17 +807,8 @@ EXPORT_SYMBOL_GPL(rpc_mkpipe_dentry);
 int
 rpc_unlink(struct dentry *dentry)
 {
-	struct dentry *parent;
-	struct inode *dir;
-	int error = 0;
-
-	parent = dget_parent(dentry);
-	dir = d_inode(parent);
-	inode_lock_nested(dir, I_MUTEX_PARENT);
-	error = __rpc_rmpipe(dir, dentry);
-	inode_unlock(dir);
-	dput(parent);
-	return error;
+	simple_recursive_removal(dentry, rpc_close_pipes);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(rpc_unlink);
 
