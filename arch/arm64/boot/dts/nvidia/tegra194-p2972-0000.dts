@@ -2094,6 +2094,14 @@
 			};
 		};
 
+		usb@3550000 {
+			status = "okay";
+
+			phys = <&{/bus@0/padctl@3520000/pads/usb2/lanes/usb2-0}>,
+			       <&{/bus@0/padctl@3520000/pads/usb3/lanes/usb3-2}>;
+			phy-names = "usb2-0", "usb3-0";
+		};
+
 		usb@3610000 {
 			status = "okay";
 
