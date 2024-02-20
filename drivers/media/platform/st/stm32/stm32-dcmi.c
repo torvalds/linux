@@ -1855,7 +1855,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 	struct device_node *ep;
 	int ret;
 
-	ep = of_graph_get_next_endpoint(dcmi->dev->of_node, NULL);
+	ep = of_graph_get_endpoint_by_regs(dcmi->dev->of_node, 0, -1);
 	if (!ep) {
 		dev_err(dcmi->dev, "Failed to get next endpoint\n");
 		return -EINVAL;
@@ -1907,7 +1907,7 @@ static int dcmi_probe(struct platform_device *pdev)
 				     "Could not get reset control\n");
 
 	/* Get bus characteristics from devicetree */
-	np = of_graph_get_next_endpoint(np, NULL);
+	np = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!np) {
 		dev_err(&pdev->dev, "Could not find the endpoint\n");
 		return -ENODEV;

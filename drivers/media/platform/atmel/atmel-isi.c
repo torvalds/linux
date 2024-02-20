@@ -834,7 +834,7 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 	isi->pdata.full_mode = 1;
 	isi->pdata.frate = ISI_CFG1_FRATE_CAPTURE_ALL;
 
-	np = of_graph_get_next_endpoint(np, NULL);
+	np = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!np) {
 		dev_err(&pdev->dev, "Could not find the endpoint\n");
 		return -EINVAL;
@@ -1158,7 +1158,7 @@ static int isi_graph_init(struct atmel_isi *isi)
 	struct device_node *ep;
 	int ret;
 
-	ep = of_graph_get_next_endpoint(isi->dev->of_node, NULL);
+	ep = of_graph_get_endpoint_by_regs(isi->dev->of_node, 0, -1);
 	if (!ep)
 		return -EINVAL;
 
