@@ -1759,53 +1759,63 @@ static int null_gendisk_register(struct nullb *nullb)
 	return add_disk(disk);
 }
 
-static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
+static int null_init_tag_set(struct blk_mq_tag_set *set, int poll_queues)
 {
-	unsigned int flags = BLK_MQ_F_SHOULD_MERGE;
-	int hw_queues, numa_node;
-	unsigned int queue_depth;
-	int poll_queues;
-
-	if (nullb) {
-		hw_queues = nullb->dev->submit_queues;
-		poll_queues = nullb->dev->poll_queues;
-		queue_depth = nullb->dev->hw_queue_depth;
-		numa_node = nullb->dev->home_node;
-		if (nullb->dev->no_sched)
-			flags |= BLK_MQ_F_NO_SCHED;
-		if (nullb->dev->shared_tag_bitmap)
-			flags |= BLK_MQ_F_TAG_HCTX_SHARED;
-		if (nullb->dev->blocking)
-			flags |= BLK_MQ_F_BLOCKING;
-	} else {
-		hw_queues = g_submit_queues;
-		poll_queues = g_poll_queues;
-		queue_depth = g_hw_queue_depth;
-		numa_node = g_home_node;
-		if (g_no_sched)
-			flags |= BLK_MQ_F_NO_SCHED;
-		if (g_shared_tag_bitmap)
-			flags |= BLK_MQ_F_TAG_HCTX_SHARED;
-		if (g_blocking)
-			flags |= BLK_MQ_F_BLOCKING;
-	}
-
 	set->ops = &null_mq_ops;
-	set->cmd_size	= sizeof(struct nullb_cmd);
-	set->flags = flags;
-	set->driver_data = nullb;
-	set->nr_hw_queues = hw_queues;
-	set->queue_depth = queue_depth;
-	set->numa_node = numa_node;
+	set->cmd_size = sizeof(struct nullb_cmd);
 	set->timeout = 5 * HZ;
+	set->nr_maps = 1;
 	if (poll_queues) {
 		set->nr_hw_queues += poll_queues;
-		set->nr_maps = 3;
-	} else {
-		set->nr_maps = 1;
+		set->nr_maps += 2;
+	}
+	return blk_mq_alloc_tag_set(set);
+}
+
+static int null_init_global_tag_set(void)
+{
+	int error;
+
+	if (tag_set.ops)
+		return 0;
+
+	tag_set.nr_hw_queues = g_submit_queues;
+	tag_set.queue_depth = g_hw_queue_depth;
+	tag_set.numa_node = g_home_node;
+	tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
+	if (g_no_sched)
+		tag_set.flags |= BLK_MQ_F_NO_SCHED;
+	if (g_shared_tag_bitmap)
+		tag_set.flags |= BLK_MQ_F_TAG_HCTX_SHARED;
+	if (g_blocking)
+		tag_set.flags |= BLK_MQ_F_BLOCKING;
+
+	error = null_init_tag_set(&tag_set, g_poll_queues);
+	if (error)
+		tag_set.ops = NULL;
+	return error;
+}
+
+static int null_setup_tagset(struct nullb *nullb)
+{
+	if (nullb->dev->shared_tags) {
+		nullb->tag_set = &tag_set;
+		return null_init_global_tag_set();
 	}
 
-	return blk_mq_alloc_tag_set(set);
+	nullb->tag_set = &nullb->__tag_set;
+	nullb->tag_set->driver_data = nullb;
+	nullb->tag_set->nr_hw_queues = nullb->dev->submit_queues;
+	nullb->tag_set->queue_depth = nullb->dev->hw_queue_depth;
+	nullb->tag_set->numa_node = nullb->dev->home_node;
+	nullb->tag_set->flags = BLK_MQ_F_SHOULD_MERGE;
+	if (nullb->dev->no_sched)
+		nullb->tag_set->flags |= BLK_MQ_F_NO_SCHED;
+	if (nullb->dev->shared_tag_bitmap)
+		nullb->tag_set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
+	if (nullb->dev->blocking)
+		nullb->tag_set->flags |= BLK_MQ_F_BLOCKING;
+	return null_init_tag_set(nullb->tag_set, nullb->dev->poll_queues);
 }
 
 static int null_validate_conf(struct nullb_device *dev)
@@ -1904,21 +1914,7 @@ static int null_add_dev(struct nullb_device *dev)
 	if (rv)
 		goto out_free_nullb;
 
-	if (dev->shared_tags) {
-		if (!tag_set.ops) {
-			rv = null_init_tag_set(NULL, &tag_set);
-			if (rv) {
-				tag_set.ops = NULL;
-				goto out_cleanup_queues;
-			}
-		}
-		nullb->tag_set = &tag_set;
-		rv = 0;
-	} else {
-		nullb->tag_set = &nullb->__tag_set;
-		rv = null_init_tag_set(nullb, nullb->tag_set);
-	}
-
+	rv = null_setup_tagset(nullb);
 	if (rv)
 		goto out_cleanup_queues;
 
