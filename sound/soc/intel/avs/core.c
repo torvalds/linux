@@ -828,6 +828,23 @@ static const struct avs_spec jsl_desc = {
 	.hipc = &cnl_hipc_spec,
 };
 
+#define AVS_TGL_BASED_SPEC(sname)		\
+static const struct avs_spec sname##_desc = {	\
+	.name = #sname,				\
+	.min_fw_version = { 10,	29, 0, 5646 },	\
+	.dsp_ops = &avs_tgl_dsp_ops,		\
+	.core_init_mask = 1,			\
+	.attributes = AVS_PLATATTR_IMR,		\
+	.sram = &apl_sram_spec,			\
+	.hipc = &cnl_hipc_spec,			\
+}
+
+AVS_TGL_BASED_SPEC(lkf);
+AVS_TGL_BASED_SPEC(tgl);
+AVS_TGL_BASED_SPEC(ehl);
+AVS_TGL_BASED_SPEC(adl);
+AVS_TGL_BASED_SPEC(adl_n);
+
 static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL_LP, &skl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_SKL, &skl_desc) },
@@ -846,6 +863,23 @@ static const struct pci_device_id avs_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_ICL_N,	&icl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_ICL_H,	&icl_desc) },
 	{ PCI_DEVICE_DATA(INTEL, HDA_JSL_N,	&jsl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_LKF,	&lkf_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_TGL_LP,	&tgl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_TGL_H,	&tgl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_CML_R,	&tgl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_EHL_0,	&ehl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_EHL_3,	&ehl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_S,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_P,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_PS,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_M,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_PX,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ADL_N,	&adl_n_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_S,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_P_0,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_P_1,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_M,	&adl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_RPL_PX,	&adl_desc) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, avs_ids);
