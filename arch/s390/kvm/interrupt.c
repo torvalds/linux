@@ -584,11 +584,7 @@ static int __write_machine_check(struct kvm_vcpu *vcpu,
 
 	mci.val = mchk->mcic;
 	/* take care of lazy register loading */
-	fpu_stfpc(&vcpu->run->s.regs.fpc);
-	if (cpu_has_vx())
-		save_vx_regs((__vector128 *)&vcpu->run->s.regs.vrs);
-	else
-		save_fp_regs((freg_t *)&vcpu->run->s.regs.fprs);
+	kvm_s390_fpu_store(vcpu->run);
 	save_access_regs(vcpu->run->s.regs.acrs);
 	if (MACHINE_HAS_GS && vcpu->arch.gs_enabled)
 		save_gs_cb(current->thread.gs_cb);
