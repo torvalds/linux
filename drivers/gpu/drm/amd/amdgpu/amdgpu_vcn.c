@@ -1189,7 +1189,7 @@ int amdgpu_vcn_process_poison_irq(struct amdgpu_device *adev,
 		amdgpu_ras_interrupt_dispatch(adev, &ih_data);
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
-			adev->virt.ops->ras_poison_handler(adev);
+			adev->virt.ops->ras_poison_handler(adev, ras_if->block);
 		else
 			dev_warn(adev->dev,
 				"No ras_poison_handler interface in SRIOV for VCN!\n");

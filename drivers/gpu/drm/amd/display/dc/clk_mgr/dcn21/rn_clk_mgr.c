@@ -707,9 +707,7 @@ void rn_clk_mgr_construct(
 	int is_green_sardine = 0;
 	struct clk_log_info log_info = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_FP)
 	is_green_sardine = ASICREV_IS_GREEN_SARDINE(ctx->asic_id.hw_internal_rev);
-#endif
 
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->base.funcs = &dcn21_funcs;

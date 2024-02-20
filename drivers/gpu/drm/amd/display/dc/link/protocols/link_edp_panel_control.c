@@ -287,7 +287,7 @@ bool set_default_brightness_aux(struct dc_link *link)
 	if (link && link->dpcd_sink_ext_caps.bits.oled == 1) {
 		if (!read_default_bl_aux(link, &default_backlight))
 			default_backlight = 150000;
-		// if < 1 nits or > 5000, it might be wrong readback
+		// if > 5000, it might be wrong readback. 0 nits is a valid default value for OLED panel.
 		if (default_backlight < 1000 || default_backlight > 5000000)
 			default_backlight = 150000;
 

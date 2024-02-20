@@ -671,8 +671,20 @@ int vb2_querybuf(struct vb2_queue *q, struct v4l2_buffer *b)
 }
 EXPORT_SYMBOL(vb2_querybuf);
 
-static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
+static void vb2_set_flags_and_caps(struct vb2_queue *q, u32 memory,
+				   u32 *flags, u32 *caps, u32 *max_num_bufs)
 {
+	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP) {
+		/*
+		 * This needs to clear V4L2_MEMORY_FLAG_NON_COHERENT only,
+		 * but in order to avoid bugs we zero out all bits.
+		 */
+		*flags = 0;
+	} else {
+		/* Clear all unknown flags. */
+		*flags &= V4L2_MEMORY_FLAG_NON_COHERENT;
+	}
+
 	*caps = V4L2_BUF_CAP_SUPPORTS_ORPHANED_BUFS;
 	if (q->io_modes & VB2_MMAP)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP;
@@ -686,21 +698,9 @@ static void fill_buf_caps(struct vb2_queue *q, u32 *caps)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_MMAP_CACHE_HINTS;
 	if (q->supports_requests)
 		*caps |= V4L2_BUF_CAP_SUPPORTS_REQUESTS;
-}
-
-static void validate_memory_flags(struct vb2_queue *q,
-				  int memory,
-				  u32 *flags)
-{
-	if (!q->allow_cache_hints || memory != V4L2_MEMORY_MMAP) {
-		/*
-		 * This needs to clear V4L2_MEMORY_FLAG_NON_COHERENT only,
-		 * but in order to avoid bugs we zero out all bits.
-		 */
-		*flags = 0;
-	} else {
-		/* Clear all unknown flags. */
-		*flags &= V4L2_MEMORY_FLAG_NON_COHERENT;
+	if (max_num_bufs) {
+		*max_num_bufs = q->max_num_buffers;
+		*caps |= V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS;
 	}
 }
 
@@ -709,8 +709,8 @@ int vb2_reqbufs(struct vb2_queue *q, struct v4l2_requestbuffers *req)
 	int ret = vb2_verify_memory_type(q, req->memory, req->type);
 	u32 flags = req->flags;
 
-	fill_buf_caps(q, &req->capabilities);
-	validate_memory_flags(q, req->memory, &flags);
+	vb2_set_flags_and_caps(q, req->memory, &flags,
+			       &req->capabilities, NULL);
 	req->flags = flags;
 	return ret ? ret : vb2_core_reqbufs(q, req->memory,
 					    req->flags, &req->count);
@@ -751,11 +751,9 @@ int vb2_create_bufs(struct vb2_queue *q, struct v4l2_create_buffers *create)
 	int ret = vb2_verify_memory_type(q, create->memory, f->type);
 	unsigned i;
 
-	fill_buf_caps(q, &create->capabilities);
-	validate_memory_flags(q, create->memory, &create->flags);
 	create->index = vb2_get_num_buffers(q);
-	create->max_num_buffers = q->max_num_buffers;
-	create->capabilities |= V4L2_BUF_CAP_SUPPORTS_MAX_NUM_BUFFERS;
+	vb2_set_flags_and_caps(q, create->memory, &create->flags,
+			       &create->capabilities, &create->max_num_buffers);
 	if (create->count == 0)
 		return ret != -EBUSY ? ret : 0;
 
@@ -1006,8 +1004,8 @@ int vb2_ioctl_reqbufs(struct file *file, void *priv,
 	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->type);
 	u32 flags = p->flags;
 
-	fill_buf_caps(vdev->queue, &p->capabilities);
-	validate_memory_flags(vdev->queue, p->memory, &flags);
+	vb2_set_flags_and_caps(vdev->queue, p->memory, &flags,
+			       &p->capabilities, NULL);
 	p->flags = flags;
 	if (res)
 		return res;
@@ -1026,12 +1024,11 @@ int vb2_ioctl_create_bufs(struct file *file, void *priv,
 			  struct v4l2_create_buffers *p)
 {
 	struct video_device *vdev = video_devdata(file);
-	int res = vb2_verify_memory_type(vdev->queue, p->memory,
-			p->format.type);
+	int res = vb2_verify_memory_type(vdev->queue, p->memory, p->format.type);
 
-	p->index = vdev->queue->num_buffers;
-	fill_buf_caps(vdev->queue, &p->capabilities);
-	validate_memory_flags(vdev->queue, p->memory, &p->flags);
+	p->index = vb2_get_num_buffers(vdev->queue);
+	vb2_set_flags_and_caps(vdev->queue, p->memory, &p->flags,
+			       &p->capabilities, &p->max_num_buffers);
 	/*
 	 * If count == 0, then just check if memory and type are valid.
 	 * Any -EBUSY result from vb2_verify_memory_type can be mapped to 0.

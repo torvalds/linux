@@ -122,6 +122,15 @@ bool intel_tc_port_in_legacy_mode(struct intel_digital_port *dig_port)
 	return intel_tc_port_in_mode(dig_port, TC_PORT_LEGACY);
 }
 
+bool intel_tc_port_handles_hpd_glitches(struct intel_digital_port *dig_port)
+{
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
+	struct intel_tc_port *tc = to_tc_port(dig_port);
+
+	return intel_phy_is_tc(i915, phy) && !tc->legacy_port;
+}
+
 /*
  * The display power domains used for TC ports depending on the
  * platform and TC mode (legacy, DP-alt, TBT):
@@ -986,10 +995,11 @@ xelpdp_tc_phy_tcss_power_is_enabled(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 
 	assert_tc_cold_blocked(tc);
 
-	return intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port)) & XELPDP_TCSS_POWER_STATE;
+	return intel_de_read(i915, reg) & XELPDP_TCSS_POWER_STATE;
 }
 
 static bool
@@ -1012,16 +1022,17 @@ static void __xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool ena
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
 
-	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port));
+	val = intel_de_read(i915, reg);
 	if (enable)
 		val |= XELPDP_TCSS_POWER_REQUEST;
 	else
 		val &= ~XELPDP_TCSS_POWER_REQUEST;
-	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(port), val);
+	intel_de_write(i915, reg, val);
 }
 
 static bool xelpdp_tc_phy_enable_tcss_power(struct intel_tc_port *tc, bool enable)
@@ -1055,26 +1066,28 @@ static void xelpdp_tc_phy_take_ownership(struct intel_tc_port *tc, bool take)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 	u32 val;
 
 	assert_tc_cold_blocked(tc);
 
-	val = intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port));
+	val = intel_de_read(i915, reg);
 	if (take)
 		val |= XELPDP_TC_PHY_OWNERSHIP;
 	else
 		val &= ~XELPDP_TC_PHY_OWNERSHIP;
-	intel_de_write(i915, XELPDP_PORT_BUF_CTL1(port), val);
+	intel_de_write(i915, reg, val);
 }
 
 static bool xelpdp_tc_phy_is_owned(struct intel_tc_port *tc)
 {
 	struct drm_i915_private *i915 = tc_to_i915(tc);
 	enum port port = tc->dig_port->base.port;
+	i915_reg_t reg = XELPDP_PORT_BUF_CTL1(i915, port);
 
 	assert_tc_cold_blocked(tc);
 
-	return intel_de_read(i915, XELPDP_PORT_BUF_CTL1(port)) & XELPDP_TC_PHY_OWNERSHIP;
+	return intel_de_read(i915, reg) & XELPDP_TC_PHY_OWNERSHIP;
 }
 
 static void xelpdp_tc_phy_get_hw_state(struct intel_tc_port *tc)
@@ -1590,7 +1603,7 @@ void intel_tc_port_sanitize_mode(struct intel_digital_port *dig_port,
  * connected ports are usable, and avoids exposing to the users objects they
  * can't really use.
  */
-bool intel_tc_port_connected_locked(struct intel_encoder *encoder)
+bool intel_tc_port_connected(struct intel_encoder *encoder)
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
@@ -1603,19 +1616,6 @@ bool intel_tc_port_connected_locked(struct intel_encoder *encoder)
 		mask = BIT(tc->mode);
 
 	return tc_phy_hpd_live_status(tc) & mask;
-}
-
-bool intel_tc_port_connected(struct intel_encoder *encoder)
-{
-	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct intel_tc_port *tc = to_tc_port(dig_port);
-	bool is_connected;
-
-	mutex_lock(&tc->lock);
-	is_connected = intel_tc_port_connected_locked(encoder);
-	mutex_unlock(&tc->lock);
-
-	return is_connected;
 }
 
 static bool __intel_tc_port_link_needs_reset(struct intel_tc_port *tc)

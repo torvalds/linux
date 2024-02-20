@@ -87,8 +87,7 @@ struct ci_mc_reg_table {
 	SMU7_Discrete_MCRegisterAddress mc_reg_address[SMU7_DISCRETE_MC_REGISTER_ARRAY_SIZE];
 };
 
-struct ci_ulv_parm
-{
+struct ci_ulv_parm {
 	bool supported;
 	u32 cg_ulv_parameter;
 	u32 volt_change_delay;
@@ -113,8 +112,7 @@ struct ci_dpm_level_enable_mask {
 	u32 pcie_dpm_enable_mask;
 };
 
-struct ci_vbios_boot_state
-{
+struct ci_vbios_boot_state {
 	u16 mvdd_bootup_value;
 	u16 vddc_bootup_value;
 	u16 vddci_bootup_value;

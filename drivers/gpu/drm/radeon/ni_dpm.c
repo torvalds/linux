@@ -3103,9 +3103,6 @@ static int ni_init_simplified_leakage_table(struct radeon_device *rdev,
 	u32 smc_leakage, max_leakage = 0;
 	u32 scaling_factor;
 
-	if (!leakage_table)
-		return -EINVAL;
-
 	table_size = leakage_table->count;
 
 	if (eg_pi->vddc_voltage_table.count != table_size)

@@ -164,8 +164,8 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_5_soc = {
 		},
 	},
 	.num_states = 5,
-	.sr_exit_time_us = 14.0,
-	.sr_enter_plus_exit_time_us = 16.0,
+	.sr_exit_time_us = 28.0,
+	.sr_enter_plus_exit_time_us = 30.0,
 	.sr_exit_z8_time_us = 210.0,
 	.sr_enter_plus_exit_z8_time_us = 320.0,
 	.fclk_change_latency_us = 24.0,
@@ -583,9 +583,9 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 			plane_count++;
 	}
 
-	if (plane_count == 0) {
+	if (context->stream_count == 0 || plane_count == 0) {
 		support = DCN_ZSTATE_SUPPORT_ALLOW;
-	} else if (plane_count == 1 && context->stream_count == 1 && context->streams[0]->signal == SIGNAL_TYPE_EDP) {
+	} else if (context->stream_count == 1 && context->streams[0]->signal == SIGNAL_TYPE_EDP) {
 		struct dc_link *link = context->streams[0]->sink->link;
 		bool is_pwrseq0 = link && link->link_index == 0;
 		bool is_psr1 = link && link->psr_settings.psr_version == DC_PSR_VERSION_1 && !link->panel_config.psr.disable_psr;

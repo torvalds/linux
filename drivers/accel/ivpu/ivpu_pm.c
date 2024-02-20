@@ -13,6 +13,7 @@
 #include "ivpu_drv.h"
 #include "ivpu_hw.h"
 #include "ivpu_fw.h"
+#include "ivpu_fw_log.h"
 #include "ivpu_ipc.h"
 #include "ivpu_job.h"
 #include "ivpu_jsm_msg.h"
@@ -111,6 +112,14 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	char *evt[2] = {"IVPU_PM_EVENT=IVPU_RECOVER", NULL};
 	int ret;
 
+	ivpu_err(vdev, "Recovering the VPU (reset #%d)\n", atomic_read(&vdev->pm->reset_counter));
+
+	ret = pm_runtime_resume_and_get(vdev->drm.dev);
+	if (ret)
+		ivpu_err(vdev, "Failed to resume VPU: %d\n", ret);
+
+	ivpu_fw_log_dump(vdev);
+
 retry:
 	ret = pci_try_reset_function(to_pci_dev(vdev->drm.dev));
 	if (ret == -EAGAIN && !drm_dev_is_unplugged(&vdev->drm)) {
@@ -122,11 +131,13 @@ retry:
 		ivpu_err(vdev, "Failed to reset VPU: %d\n", ret);
 
 	kobject_uevent_env(&vdev->drm.dev->kobj, KOBJ_CHANGE, evt);
+	pm_runtime_mark_last_busy(vdev->drm.dev);
+	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
 
-void ivpu_pm_schedule_recovery(struct ivpu_device *vdev)
+void ivpu_pm_trigger_recovery(struct ivpu_device *vdev, const char *reason)
 {
-	struct ivpu_pm_info *pm = vdev->pm;
+	ivpu_err(vdev, "Recovery triggered by %s\n", reason);
 
 	if (ivpu_disable_recovery) {
 		ivpu_err(vdev, "Recovery not available when disable_recovery param is set\n");
@@ -138,10 +149,11 @@ void ivpu_pm_schedule_recovery(struct ivpu_device *vdev)
 		return;
 	}
 
-	/* Schedule recovery if it's not in progress */
-	if (atomic_cmpxchg(&pm->in_reset, 0, 1) == 0) {
-		ivpu_hw_irq_disable(vdev);
-		queue_work(system_long_wq, &pm->recovery_work);
+	/* Trigger recovery if it's not in progress */
+	if (atomic_cmpxchg(&vdev->pm->reset_pending, 0, 1) == 0) {
+		ivpu_hw_diagnose_failure(vdev);
+		ivpu_hw_irq_disable(vdev); /* Disable IRQ early to protect from IRQ storm */
+		queue_work(system_long_wq, &vdev->pm->recovery_work);
 	}
 }
 
@@ -149,12 +161,8 @@ static void ivpu_job_timeout_work(struct work_struct *work)
 {
 	struct ivpu_pm_info *pm = container_of(work, struct ivpu_pm_info, job_timeout_work.work);
 	struct ivpu_device *vdev = pm->vdev;
-	unsigned long timeout_ms = ivpu_tdr_timeout_ms ? ivpu_tdr_timeout_ms : vdev->timeout.tdr;
 
-	ivpu_err(vdev, "TDR detected, timeout %lu ms", timeout_ms);
-	ivpu_hw_diagnose_failure(vdev);
-
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "TDR");
 }
 
 void ivpu_start_job_timeout_detection(struct ivpu_device *vdev)
@@ -227,6 +235,9 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 	bool hw_is_idle = true;
 	int ret;
 
+	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
+	drm_WARN_ON(&vdev->drm, work_pending(&vdev->pm->recovery_work));
+
 	ivpu_dbg(vdev, PM, "Runtime suspend..\n");
 
 	if (!ivpu_hw_is_idle(vdev) && vdev->pm->suspend_reschedule_counter) {
@@ -247,7 +258,8 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 		ivpu_err(vdev, "Failed to set suspend VPU: %d\n", ret);
 
 	if (!hw_is_idle) {
-		ivpu_warn(vdev, "VPU failed to enter idle, force suspended.\n");
+		ivpu_err(vdev, "VPU failed to enter idle, force suspended.\n");
+		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
 		ivpu_pm_prepare_warm_boot(vdev);
@@ -308,11 +320,12 @@ void ivpu_pm_reset_prepare_cb(struct pci_dev *pdev)
 {
 	struct ivpu_device *vdev = pci_get_drvdata(pdev);
 
-	pm_runtime_get_sync(vdev->drm.dev);
-
 	ivpu_dbg(vdev, PM, "Pre-reset..\n");
 	atomic_inc(&vdev->pm->reset_counter);
-	atomic_set(&vdev->pm->in_reset, 1);
+	atomic_set(&vdev->pm->reset_pending, 1);
+
+	pm_runtime_get_sync(vdev->drm.dev);
+	down_write(&vdev->pm->reset_lock);
 	ivpu_prepare_for_reset(vdev);
 	ivpu_hw_reset(vdev);
 	ivpu_pm_prepare_cold_boot(vdev);
@@ -329,9 +342,11 @@ void ivpu_pm_reset_done_cb(struct pci_dev *pdev)
 	ret = ivpu_resume(vdev);
 	if (ret)
 		ivpu_err(vdev, "Failed to set RESUME state: %d\n", ret);
-	atomic_set(&vdev->pm->in_reset, 0);
+	up_write(&vdev->pm->reset_lock);
+	atomic_set(&vdev->pm->reset_pending, 0);
 	ivpu_dbg(vdev, PM, "Post-reset done.\n");
 
+	pm_runtime_mark_last_busy(vdev->drm.dev);
 	pm_runtime_put_autosuspend(vdev->drm.dev);
 }
 
@@ -344,7 +359,10 @@ void ivpu_pm_init(struct ivpu_device *vdev)
 	pm->vdev = vdev;
 	pm->suspend_reschedule_counter = PM_RESCHEDULE_LIMIT;
 
-	atomic_set(&pm->in_reset, 0);
+	init_rwsem(&pm->reset_lock);
+	atomic_set(&pm->reset_pending, 0);
+	atomic_set(&pm->reset_counter, 0);
+
 	INIT_WORK(&pm->recovery_work, ivpu_pm_recovery_work);
 	INIT_DELAYED_WORK(&pm->job_timeout_work, ivpu_job_timeout_work);
 
