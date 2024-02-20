@@ -45,6 +45,21 @@
 /* Group hold register */
 #define IMX335_REG_HOLD		0x3001
 
+/* Test pattern generator */
+#define IMX335_REG_TPG		0x329e
+#define IMX335_TPG_ALL_000	0
+#define IMX335_TPG_ALL_FFF	1
+#define IMX335_TPG_ALL_555	2
+#define IMX335_TPG_ALL_AAA	3
+#define IMX335_TPG_TOG_555_AAA	4
+#define IMX335_TPG_TOG_AAA_555	5
+#define IMX335_TPG_TOG_000_555	6
+#define IMX335_TPG_TOG_555_000	7
+#define IMX335_TPG_TOG_000_FFF	8
+#define IMX335_TPG_TOG_FFF_000	9
+#define IMX335_TPG_H_COLOR_BARS 10
+#define IMX335_TPG_V_COLOR_BARS 11
+
 /* Input clock rate */
 #define IMX335_INCLK_RATE	24000000
 
@@ -160,6 +175,38 @@ struct imx335 {
 	struct mutex mutex;
 	unsigned long link_freq_bitmap;
 	u32 cur_mbus_code;
+};
+
+static const char * const imx335_tpg_menu[] = {
+	"Disabled",
+	"All 000h",
+	"All FFFh",
+	"All 555h",
+	"All AAAh",
+	"Toggle 555/AAAh",
+	"Toggle AAA/555h",
+	"Toggle 000/555h",
+	"Toggle 555/000h",
+	"Toggle 000/FFFh",
+	"Toggle FFF/000h",
+	"Horizontal color bars",
+	"Vertical color bars",
+};
+
+static const int imx335_tpg_val[] = {
+	IMX335_TPG_ALL_000,
+	IMX335_TPG_ALL_000,
+	IMX335_TPG_ALL_FFF,
+	IMX335_TPG_ALL_555,
+	IMX335_TPG_ALL_AAA,
+	IMX335_TPG_TOG_555_AAA,
+	IMX335_TPG_TOG_AAA_555,
+	IMX335_TPG_TOG_000_555,
+	IMX335_TPG_TOG_555_000,
+	IMX335_TPG_TOG_000_FFF,
+	IMX335_TPG_TOG_FFF_000,
+	IMX335_TPG_H_COLOR_BARS,
+	IMX335_TPG_V_COLOR_BARS,
 };
 
 /* Sensor mode registers */
@@ -507,6 +554,49 @@ error_release_group_hold:
 	return ret;
 }
 
+static int imx335_update_test_pattern(struct imx335 *imx335, u32 pattern_index)
+{
+	int ret;
+
+	if (pattern_index >= ARRAY_SIZE(imx335_tpg_val))
+		return -EINVAL;
+
+	if (pattern_index) {
+		const struct imx335_reg tpg_enable_regs[] = {
+			{ 0x3148, 0x10 },
+			{ 0x3280, 0x00 },
+			{ 0x329c, 0x01 },
+			{ 0x32a0, 0x11 },
+			{ 0x3302, 0x00 },
+			{ 0x3303, 0x00 },
+			{ 0x336c, 0x00 },
+		};
+
+		ret = imx335_write_reg(imx335, IMX335_REG_TPG, 1,
+				       imx335_tpg_val[pattern_index]);
+		if (ret)
+			return ret;
+
+		ret = imx335_write_regs(imx335, tpg_enable_regs,
+					ARRAY_SIZE(tpg_enable_regs));
+	} else {
+		const struct imx335_reg tpg_disable_regs[] = {
+			{ 0x3148, 0x00 },
+			{ 0x3280, 0x01 },
+			{ 0x329c, 0x00 },
+			{ 0x32a0, 0x10 },
+			{ 0x3302, 0x32 },
+			{ 0x3303, 0x00 },
+			{ 0x336c, 0x01 },
+		};
+
+		ret = imx335_write_regs(imx335, tpg_disable_regs,
+					ARRAY_SIZE(tpg_disable_regs));
+	}
+
+	return ret;
+}
+
 /**
  * imx335_set_ctrl() - Set subdevice control
  * @ctrl: pointer to v4l2_ctrl structure
@@ -559,6 +649,10 @@ static int imx335_set_ctrl(struct v4l2_ctrl *ctrl)
 			exposure, analog_gain);
 
 		ret = imx335_update_exp_gain(imx335, exposure, analog_gain);
+
+		break;
+	case V4L2_CID_TEST_PATTERN:
+		ret = imx335_update_test_pattern(imx335, ctrl->val);
 
 		break;
 	default:
@@ -1117,7 +1211,7 @@ static int imx335_init_controls(struct imx335 *imx335)
 	u32 lpfr;
 	int ret;
 
-	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 6);
+	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 7);
 	if (ret)
 		return ret;
 
@@ -1150,6 +1244,12 @@ static int imx335_init_controls(struct imx335 *imx335)
 						mode->vblank_min,
 						mode->vblank_max,
 						1, mode->vblank);
+
+	v4l2_ctrl_new_std_menu_items(ctrl_hdlr,
+				     &imx335_ctrl_ops,
+				     V4L2_CID_TEST_PATTERN,
+				     ARRAY_SIZE(imx335_tpg_menu) - 1,
+				     0, 0, imx335_tpg_menu);
 
 	/* Read only controls */
 	imx335->pclk_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
