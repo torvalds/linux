@@ -142,6 +142,7 @@
   __traceiter_android_vh_binder_thread_read
   __traceiter_android_vh_binder_thread_release
   __traceiter_android_vh_binder_wait_for_work
+  __traceiter_android_vh_binder_detect_low_async_space_locked
   __traceiter_android_vh_cgroup_set_task
   __traceiter_android_vh_check_folio_look_around_ref
   __traceiter_android_vh_dup_task_struct
@@ -233,6 +234,7 @@
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_binder_wait_for_work
+  __tracepoint_android_vh_binder_detect_low_async_space_locked
   __tracepoint_android_vh_cgroup_set_task
   __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex

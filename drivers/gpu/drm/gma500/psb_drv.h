@@ -426,6 +426,7 @@ struct drm_psb_private {
 	uint32_t pipestat[PSB_NUM_PIPE];
 
 	spinlock_t irqmask_lock;
+	bool irq_enabled;
 
 	/* Power */
 	bool pm_initialized;

@@ -773,6 +773,7 @@
   sysfs_emit
   sysfs_remove_link
   system_power_efficient_wq
+  system_unbound_wq
   system_wq
   tasklet_init
   tasklet_kill

@@ -601,6 +601,7 @@ void kthread_set_per_cpu(struct task_struct *k, int cpu)
 	kthread->cpu = cpu;
 	set_bit(KTHREAD_IS_PER_CPU, &kthread->flags);
 }
+EXPORT_SYMBOL_GPL(kthread_set_per_cpu);
 
 bool kthread_is_per_cpu(struct task_struct *p)
 {

@@ -797,6 +797,9 @@ struct fuse_conn {
 	/** Is bmap not implemented by fs? */
 	unsigned no_bmap:1;
 
+	/** Is dentry_canonical_path not implemented by fs? */
+	unsigned no_dentry_canonical_path:1;
+
 	/** Is poll not implemented by fs? */
 	unsigned no_poll:1;
 

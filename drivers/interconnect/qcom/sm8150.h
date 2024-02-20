@@ -35,7 +35,7 @@
 #define SM8150_MASTER_GPU_TCU			24
 #define SM8150_MASTER_GRAPHICS_3D		25
 #define SM8150_MASTER_IPA			26
-#define SM8150_MASTER_IPA_CORE			27
+/* 27 was used by SLAVE_IPA_CORE, now represented as RPMh clock */
 #define SM8150_MASTER_LLCC			28
 #define SM8150_MASTER_MDP_PORT0			29
 #define SM8150_MASTER_MDP_PORT1			30
@@ -94,7 +94,7 @@
 #define SM8150_SLAVE_GRAPHICS_3D_CFG		83
 #define SM8150_SLAVE_IMEM_CFG			84
 #define SM8150_SLAVE_IPA_CFG			85
-#define SM8150_SLAVE_IPA_CORE			86
+/* 86 was used by SLAVE_IPA_CORE, now represented as RPMh clock */
 #define SM8150_SLAVE_LLCC			87
 #define SM8150_SLAVE_LLCC_CFG			88
 #define SM8150_SLAVE_MNOC_HF_MEM_NOC		89
