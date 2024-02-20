@@ -3369,7 +3369,54 @@ static const struct flash_info *spi_nor_get_flash_info(struct spi_nor *nor,
 	return info;
 }
 
-static void spi_nor_set_mtd_info(struct spi_nor *nor)
+static u32
+spi_nor_get_region_erasesize(const struct spi_nor_erase_region *region,
+			     const struct spi_nor_erase_type *erase_type)
+{
+	u8 i;
+
+	if (region->overlaid)
+		return region->size;
+
+	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
+		if (region->erase_mask & BIT(i))
+			return erase_type[i].size;
+	}
+
+	return 0;
+}
+
+static int spi_nor_set_mtd_eraseregions(struct spi_nor *nor)
+{
+	const struct spi_nor_erase_map *map = &nor->params->erase_map;
+	const struct spi_nor_erase_region *region = map->regions;
+	struct mtd_erase_region_info *mtd_region;
+	struct mtd_info *mtd = &nor->mtd;
+	u32 erasesize, i;
+
+	mtd_region = devm_kcalloc(nor->dev, map->n_regions, sizeof(*mtd_region),
+				  GFP_KERNEL);
+	if (!mtd_region)
+		return -ENOMEM;
+
+	for (i = 0; i < map->n_regions; i++) {
+		erasesize = spi_nor_get_region_erasesize(&region[i],
+							 map->erase_type);
+		if (!erasesize)
+			return -EINVAL;
+
+		mtd_region[i].erasesize = erasesize;
+		mtd_region[i].numblocks = div64_ul(region[i].size, erasesize);
+		mtd_region[i].offset = region[i].offset;
+	}
+
+	mtd->numeraseregions = map->n_regions;
+	mtd->eraseregions = mtd_region;
+
+	return 0;
+}
+
+static int spi_nor_set_mtd_info(struct spi_nor *nor)
 {
 	struct mtd_info *mtd = &nor->mtd;
 	struct device *dev = nor->dev;
@@ -3400,6 +3447,11 @@ static void spi_nor_set_mtd_info(struct spi_nor *nor)
 	mtd->_resume = spi_nor_resume;
 	mtd->_get_device = spi_nor_get_device;
 	mtd->_put_device = spi_nor_put_device;
+
+	if (!spi_nor_has_uniform_erase(nor))
+		return spi_nor_set_mtd_eraseregions(nor);
+
+	return 0;
 }
 
 static int spi_nor_hw_reset(struct spi_nor *nor)
@@ -3490,7 +3542,9 @@ int spi_nor_scan(struct spi_nor *nor, const char *name,
 		return ret;
 
 	/* No mtd_info fields should be used up to this point. */
-	spi_nor_set_mtd_info(nor);
+	ret = spi_nor_set_mtd_info(nor);
+	if (ret)
+		return ret;
 
 	dev_dbg(dev, "Manufacturer and device ID: %*phN\n",
 		SPI_NOR_MAX_ID_LEN, nor->id);
