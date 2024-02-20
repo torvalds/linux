@@ -240,27 +240,25 @@ struct spi_nor_erase_command {
 /**
  * struct spi_nor_erase_region - Structure to describe a SPI NOR erase region
  * @offset:		the offset in the data array of erase region start.
- *			LSB bits are used as a bitmask encoding flags to
- *			determine if this region is overlaid, if this region is
- *			the last in the SPI NOR flash memory and to indicate
- *			all the supported erase commands inside this region.
- *			The erase types are sorted in ascending order with the
- *			smallest Erase Type size being at BIT(0).
  * @size:		the size of the region in bytes.
+ * @erase_mask:		bitmask to indicate all the supported erase commands
+ *			inside this region. The erase types are sorted in
+ *			ascending order with the smallest Erase Type size being
+ *			at BIT(0).
+ * @flags:		flags to determine if this region is overlaid, if this
+ *			region is the last in the SPI NOR flash memory
  */
 struct spi_nor_erase_region {
 	u64		offset;
 	u64		size;
+	u8		erase_mask;
+	u8		flags;
 };
 
 #define SNOR_ERASE_TYPE_MAX	4
-#define SNOR_ERASE_TYPE_MASK	GENMASK_ULL(SNOR_ERASE_TYPE_MAX - 1, 0)
 
-#define SNOR_LAST_REGION	BIT(4)
-#define SNOR_OVERLAID_REGION	BIT(5)
-
-#define SNOR_ERASE_FLAGS_MAX	6
-#define SNOR_ERASE_FLAGS_MASK	GENMASK_ULL(SNOR_ERASE_FLAGS_MAX - 1, 0)
+#define SNOR_LAST_REGION	BIT(0)
+#define SNOR_OVERLAID_REGION	BIT(1)
 
 /**
  * struct spi_nor_erase_map - Structure to describe the SPI NOR erase map
@@ -273,17 +271,11 @@ struct spi_nor_erase_region {
  *			The erase types are sorted in ascending order, with the
  *			smallest Erase Type size being the first member in the
  *			erase_type array.
- * @uniform_erase_type:	bitmask encoding erase types that can erase the
- *			entire memory. This member is completed at init by
- *			uniform and non-uniform SPI NOR flash memories if they
- *			support at least one erase type that can erase the
- *			entire memory.
  */
 struct spi_nor_erase_map {
 	struct spi_nor_erase_region	*regions;
 	struct spi_nor_erase_region	uniform_region;
 	struct spi_nor_erase_type	erase_type[SNOR_ERASE_TYPE_MAX];
-	u8				uniform_erase_type;
 };
 
 /**

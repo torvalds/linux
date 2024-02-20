@@ -389,17 +389,14 @@ static u8 spi_nor_sort_erase_mask(struct spi_nor_erase_map *map, u8 erase_mask)
 static void spi_nor_regions_sort_erase_types(struct spi_nor_erase_map *map)
 {
 	struct spi_nor_erase_region *region = map->regions;
-	u8 region_erase_mask, sorted_erase_mask;
+	u8 sorted_erase_mask;
 
 	while (region) {
-		region_erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
-
 		sorted_erase_mask = spi_nor_sort_erase_mask(map,
-							    region_erase_mask);
+							    region->erase_mask);
 
 		/* Overwrite erase mask. */
-		region->offset = (region->offset & ~SNOR_ERASE_TYPE_MASK) |
-				 sorted_erase_mask;
+		region->erase_mask = sorted_erase_mask;
 
 		region = spi_nor_region_next(region);
 	}
@@ -554,8 +551,6 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	 * selecting the uniform erase.
 	 */
 	spi_nor_regions_sort_erase_types(map);
-	map->uniform_erase_type = map->uniform_region.offset &
-				  SNOR_ERASE_TYPE_MASK;
 
 	/* Stop here if not JESD216 rev A or later. */
 	if (bfpt_header->length == BFPT_DWORD_MAX_JESD216)
@@ -808,12 +803,12 @@ out:
 
 static void spi_nor_region_mark_end(struct spi_nor_erase_region *region)
 {
-	region->offset |= SNOR_LAST_REGION;
+	region->flags |= SNOR_LAST_REGION;
 }
 
 static void spi_nor_region_mark_overlay(struct spi_nor_erase_region *region)
 {
-	region->offset |= SNOR_OVERLAID_REGION;
+	region->flags |= SNOR_OVERLAID_REGION;
 }
 
 /**
@@ -875,9 +870,10 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 	/* Populate regions. */
 	for (i = 0; i < region_count; i++) {
 		j = i + 1; /* index for the region dword */
+		region[i].offset = offset;
 		region[i].size = SMPT_MAP_REGION_SIZE(smpt[j]);
 		erase_type = SMPT_MAP_REGION_ERASE_TYPE(smpt[j]);
-		region[i].offset = offset | erase_type;
+		region[i].erase_mask = erase_type;
 
 		spi_nor_region_check_overlay(&region[i], erase, erase_type);
 
@@ -893,21 +889,21 @@ static int spi_nor_init_non_uniform_erase_map(struct spi_nor *nor,
 		 */
 		regions_erase_type |= erase_type;
 
-		offset = (region[i].offset & ~SNOR_ERASE_FLAGS_MASK) +
-			 region[i].size;
+		offset = region[i].offset + region[i].size;
 	}
 	spi_nor_region_mark_end(&region[i - 1]);
 
-	save_uniform_erase_type = map->uniform_erase_type;
-	map->uniform_erase_type = spi_nor_sort_erase_mask(map,
-							  uniform_erase_type);
+	save_uniform_erase_type = map->uniform_region.erase_mask;
+	map->uniform_region.erase_mask =
+				spi_nor_sort_erase_mask(map,
+							uniform_erase_type);
 
 	if (!regions_erase_type) {
 		/*
 		 * Roll back to the previous uniform_erase_type mask, SMPT is
 		 * broken.
 		 */
-		map->uniform_erase_type = save_uniform_erase_type;
+		map->uniform_region.erase_mask = save_uniform_erase_type;
 		return -EINVAL;
 	}
 

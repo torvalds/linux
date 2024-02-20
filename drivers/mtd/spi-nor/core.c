@@ -1158,7 +1158,7 @@ static u8 spi_nor_convert_3to4_erase(u8 opcode)
 
 static bool spi_nor_has_uniform_erase(const struct spi_nor *nor)
 {
-	return !!nor->params->erase_map.uniform_erase_type;
+	return !!nor->params->erase_map.uniform_region.erase_mask;
 }
 
 static void spi_nor_set_4byte_opcodes(struct spi_nor *nor)
@@ -1542,7 +1542,6 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	const struct spi_nor_erase_type *erase;
 	u32 rem;
 	int i;
-	u8 erase_mask = region->offset & SNOR_ERASE_TYPE_MASK;
 
 	/*
 	 * Erase types are ordered by size, with the smallest erase type at
@@ -1550,7 +1549,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 	 */
 	for (i = SNOR_ERASE_TYPE_MAX - 1; i >= 0; i--) {
 		/* Does the erase region support the tested erase type? */
-		if (!(erase_mask & BIT(i)))
+		if (!(region->erase_mask & BIT(i)))
 			continue;
 
 		erase = &map->erase_type[i];
@@ -1558,7 +1557,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 			continue;
 
 		/* Alignment is not mandatory for overlaid regions */
-		if (region->offset & SNOR_OVERLAID_REGION &&
+		if (region->flags & SNOR_OVERLAID_REGION &&
 		    region->size <= len)
 			return erase;
 
@@ -1576,12 +1575,7 @@ spi_nor_find_best_erase_type(const struct spi_nor_erase_map *map,
 
 static u64 spi_nor_region_is_last(const struct spi_nor_erase_region *region)
 {
-	return region->offset & SNOR_LAST_REGION;
-}
-
-static u64 spi_nor_region_end(const struct spi_nor_erase_region *region)
-{
-	return (region->offset & ~SNOR_ERASE_FLAGS_MASK) + region->size;
+	return region->flags & SNOR_LAST_REGION;
 }
 
 /**
@@ -1612,16 +1606,14 @@ static struct spi_nor_erase_region *
 spi_nor_find_erase_region(const struct spi_nor_erase_map *map, u64 addr)
 {
 	struct spi_nor_erase_region *region = map->regions;
-	u64 region_start = region->offset & ~SNOR_ERASE_FLAGS_MASK;
-	u64 region_end = region_start + region->size;
+	u64 region_end = region->offset + region->size;
 
-	while (addr < region_start || addr >= region_end) {
+	while (addr < region->offset || addr >= region_end) {
 		region = spi_nor_region_next(region);
 		if (!region)
 			return ERR_PTR(-EINVAL);
 
-		region_start = region->offset & ~SNOR_ERASE_FLAGS_MASK;
-		region_end = region_start + region->size;
+		region_end = region->offset + region->size;
 	}
 
 	return region;
@@ -1649,7 +1641,7 @@ spi_nor_init_erase_cmd(const struct spi_nor_erase_region *region,
 	cmd->opcode = erase->opcode;
 	cmd->count = 1;
 
-	if (region->offset & SNOR_OVERLAID_REGION)
+	if (region->flags & SNOR_OVERLAID_REGION)
 		cmd->size = region->size;
 	else
 		cmd->size = erase->size;
@@ -1699,7 +1691,7 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 	if (IS_ERR(region))
 		return PTR_ERR(region);
 
-	region_end = spi_nor_region_end(region);
+	region_end = region->offset + region->size;
 
 	while (len) {
 		erase = spi_nor_find_best_erase_type(map, region, addr, len);
@@ -1708,7 +1700,7 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 
 		if (prev_erase != erase ||
 		    erase->size != cmd->size ||
-		    region->offset & SNOR_OVERLAID_REGION) {
+		    region->flags & SNOR_OVERLAID_REGION) {
 			cmd = spi_nor_init_erase_cmd(region, erase);
 			if (IS_ERR(cmd)) {
 				ret = PTR_ERR(cmd);
@@ -1727,7 +1719,7 @@ static int spi_nor_init_erase_cmd_list(struct spi_nor *nor,
 			region = spi_nor_region_next(region);
 			if (!region)
 				goto destroy_erase_cmd_list;
-			region_end = spi_nor_region_end(region);
+			region_end = region->offset + region->size;
 		}
 
 		prev_erase = erase;
@@ -2468,12 +2460,11 @@ void spi_nor_mask_erase_type(struct spi_nor_erase_type *erase)
 void spi_nor_init_uniform_erase_map(struct spi_nor_erase_map *map,
 				    u8 erase_mask, u64 flash_size)
 {
-	/* Offset 0 with erase_mask and SNOR_LAST_REGION bit set */
-	map->uniform_region.offset = (erase_mask & SNOR_ERASE_TYPE_MASK) |
-				     SNOR_LAST_REGION;
+	map->uniform_region.offset = 0;
 	map->uniform_region.size = flash_size;
+	map->uniform_region.erase_mask = erase_mask;
+	map->uniform_region.flags = SNOR_LAST_REGION;
 	map->regions = &map->uniform_region;
-	map->uniform_erase_type = erase_mask;
 }
 
 int spi_nor_post_bfpt_fixups(struct spi_nor *nor,
@@ -2560,7 +2551,7 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map)
 {
 	const struct spi_nor_erase_type *tested_erase, *erase = NULL;
 	int i;
-	u8 uniform_erase_type = map->uniform_erase_type;
+	u8 uniform_erase_type = map->uniform_region.erase_mask;
 
 	/*
 	 * Search for the biggest erase size, except for when compiled
@@ -2599,8 +2590,7 @@ spi_nor_select_uniform_erase(struct spi_nor_erase_map *map)
 		return NULL;
 
 	/* Disable all other Sector Erase commands. */
-	map->uniform_erase_type &= ~SNOR_ERASE_TYPE_MASK;
-	map->uniform_erase_type |= BIT(erase - map->erase_type);
+	map->uniform_region.erase_mask = BIT(erase - map->erase_type);
 	return erase;
 }
 

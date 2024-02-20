@@ -147,16 +147,17 @@ static int spi_nor_params_show(struct seq_file *s, void *data)
 	for (region = erase_map->regions;
 	     region;
 	     region = spi_nor_region_next(region)) {
-		u64 start = region->offset & ~SNOR_ERASE_FLAGS_MASK;
-		u64 flags = region->offset & SNOR_ERASE_FLAGS_MASK;
+		u64 start = region->offset;
 		u64 end = start + region->size - 1;
+		u8 erase_mask = region->erase_mask;
+		u8 flags = region->flags;
 
 		seq_printf(s, " %08llx-%08llx |     [%c%c%c%c] | %s\n",
 			   start, end,
-			   flags & BIT(0) ? '0' : ' ',
-			   flags & BIT(1) ? '1' : ' ',
-			   flags & BIT(2) ? '2' : ' ',
-			   flags & BIT(3) ? '3' : ' ',
+			   erase_mask & BIT(0) ? '0' : ' ',
+			   erase_mask & BIT(1) ? '1' : ' ',
+			   erase_mask & BIT(2) ? '2' : ' ',
+			   erase_mask & BIT(3) ? '3' : ' ',
 			   flags & SNOR_OVERLAID_REGION ? "overlaid" : "");
 	}
 
