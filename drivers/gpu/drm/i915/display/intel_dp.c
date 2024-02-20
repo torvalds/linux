@@ -383,6 +383,22 @@ int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
 				1000000 * 16 * 8);
 }
 
+/**
+ * intel_dp_max_link_data_rate: Calculate the maximum rate for the given link params
+ * @intel_dp: Intel DP object
+ * @max_dprx_rate: Maximum data rate of the DPRX
+ * @max_dprx_lanes: Maximum lane count of the DPRX
+ *
+ * Calculate the maximum data rate for the provided link parameters.
+ *
+ * Returns the maximum data rate in kBps units.
+ */
+int intel_dp_max_link_data_rate(struct intel_dp *intel_dp,
+				int max_dprx_rate, int max_dprx_lanes)
+{
+	return drm_dp_max_dprx_data_rate(max_dprx_rate, max_dprx_lanes);
+}
+
 bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -612,7 +628,7 @@ static bool intel_dp_can_link_train_fallback_for_edp(struct intel_dp *intel_dp,
 	int mode_rate, max_rate;
 
 	mode_rate = intel_dp_link_required(fixed_mode->clock, 18);
-	max_rate = drm_dp_max_dprx_data_rate(link_rate, lane_count);
+	max_rate = intel_dp_max_link_data_rate(intel_dp, link_rate, lane_count);
 	if (mode_rate > max_rate)
 		return false;
 
@@ -1216,7 +1232,8 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
 
-	max_rate = drm_dp_max_dprx_data_rate(max_link_clock, max_lanes);
+	max_rate = intel_dp_max_link_data_rate(intel_dp, max_link_clock, max_lanes);
+
 	mode_rate = intel_dp_link_required(target_clock,
 					   intel_dp_mode_min_output_bpp(connector, mode));
 
@@ -1566,8 +1583,10 @@ intel_dp_compute_link_config_wide(struct intel_dp *intel_dp,
 			for (lane_count = limits->min_lane_count;
 			     lane_count <= limits->max_lane_count;
 			     lane_count <<= 1) {
-				link_avail = drm_dp_max_dprx_data_rate(link_rate,
-								       lane_count);
+				link_avail = intel_dp_max_link_data_rate(intel_dp,
+									 link_rate,
+									 lane_count);
+
 
 				if (mode_rate <= link_avail) {
 					pipe_config->lane_count = lane_count;
@@ -2427,8 +2446,9 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 		    pipe_config->pipe_bpp,
 		    BPP_X16_ARGS(pipe_config->dsc.compressed_bpp_x16),
 		    intel_dp_config_required_rate(pipe_config),
-		    drm_dp_max_dprx_data_rate(pipe_config->port_clock,
-					      pipe_config->lane_count));
+		    intel_dp_max_link_data_rate(intel_dp,
+						pipe_config->port_clock,
+						pipe_config->lane_count));
 
 	return 0;
 }
