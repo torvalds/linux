@@ -17,7 +17,6 @@
 #include "admin-state.h"
 #include "encodings.h"
 #include "funnel-workqueue.h"
-#include "indexer.h"
 #include "packer.h"
 #include "physical-zone.h"
 #include "statistics.h"

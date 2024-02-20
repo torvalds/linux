@@ -11,7 +11,6 @@
 #include <linux/limits.h>
 #include <linux/uuid.h>
 
-#include "indexer.h"
 #include "numeric.h"
 
 #include "constants.h"
