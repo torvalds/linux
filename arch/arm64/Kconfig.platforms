@@ -367,6 +367,14 @@ config QTI_QUIN_GVM
 	  kernel that runs this configuration or if you are unsure,
 	  say 'N' here.
 
+config ARCH_ANORAK
+	bool "Enable Support for Qualcomm Technologies, Inc. ANORAK"
+	depends on ARCH_QCOM
+	help
+	  This enables support for the Qualcomm Technologies, Inc.'s
+	  ANORAK chipset. If you do not wish to build a kernel that
+	  runs on this chipset or if you are unsure, say 'N' here.
+
 config ARCH_REALTEK
 	bool "Realtek Platforms"
 	select RESET_CONTROLLER
