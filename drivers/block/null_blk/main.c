@@ -1797,6 +1797,7 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 	set->nr_hw_queues = hw_queues;
 	set->queue_depth = queue_depth;
 	set->numa_node = numa_node;
+	set->timeout = 5 * HZ;
 	if (poll_queues) {
 		set->nr_hw_queues += poll_queues;
 		set->nr_maps = 3;
@@ -1921,7 +1922,6 @@ static int null_add_dev(struct nullb_device *dev)
 	if (rv)
 		goto out_cleanup_queues;
 
-	nullb->tag_set->timeout = 5 * HZ;
 	nullb->disk = blk_mq_alloc_disk(nullb->tag_set, NULL, nullb);
 	if (IS_ERR(nullb->disk)) {
 		rv = PTR_ERR(nullb->disk);
