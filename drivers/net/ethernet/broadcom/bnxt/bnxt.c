@@ -7308,13 +7308,22 @@ static void bnxt_check_rss_tbl_no_rmgr(struct bnxt *bp)
 	}
 }
 
+static int bnxt_get_total_vnics(struct bnxt *bp, int rx_rings)
+{
+	if (bp->flags & BNXT_FLAG_RFS) {
+		if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
+			return rx_rings + 1;
+	}
+	return 1;
+}
+
 static bool bnxt_need_reserve_rings(struct bnxt *bp)
 {
 	struct bnxt_hw_resc *hw_resc = &bp->hw_resc;
 	int cp = bnxt_cp_rings_in_use(bp);
 	int nq = bnxt_nq_rings_in_use(bp);
 	int rx = bp->rx_nr_rings, stat;
-	int vnic = 1, grp = rx;
+	int vnic, grp = rx;
 
 	if (hw_resc->resv_tx_rings != bp->tx_nr_rings &&
 	    bp->hwrm_spec_code >= 0x10601)
@@ -7329,9 +7338,9 @@ static bool bnxt_need_reserve_rings(struct bnxt *bp)
 		bnxt_check_rss_tbl_no_rmgr(bp);
 		return false;
 	}
-	if ((bp->flags & BNXT_FLAG_RFS) &&
-	    !(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
-		vnic = rx + 1;
+
+	vnic = bnxt_get_total_vnics(bp, rx);
+
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		rx <<= 1;
 	stat = bnxt_get_func_stat_ctxs(bp);
@@ -7382,13 +7391,13 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	hwr.cp = bnxt_nq_rings_in_use(bp);
 	hwr.tx = bp->tx_nr_rings;
 	hwr.rx = bp->rx_nr_rings;
-	hwr.vnic = 1;
 	if (bp->flags & BNXT_FLAG_SHARED_RINGS)
 		sh = true;
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		hwr.cp_p5 = hwr.rx + hwr.tx;
-	else if (bp->flags & BNXT_FLAG_RFS)
-		hwr.vnic = hwr.rx + 1;
+
+	hwr.vnic = bnxt_get_total_vnics(bp, hwr.rx);
+
 	if (bp->flags & BNXT_FLAG_AGG_RINGS)
 		hwr.rx <<= 1;
 	hwr.grp = bp->rx_nr_rings;
@@ -13326,10 +13335,7 @@ int bnxt_check_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 	if (max_tx < hwr.tx)
 		return -ENOMEM;
 
-	hwr.vnic = 1;
-	if ((bp->flags & (BNXT_FLAG_RFS | BNXT_FLAG_CHIP_P5_PLUS)) ==
-	    BNXT_FLAG_RFS)
-		hwr.vnic += rx;
+	hwr.vnic = bnxt_get_total_vnics(bp, rx);
 
 	tx_cp = __bnxt_num_tx_to_cp(bp, hwr.tx, tx_sets, tx_xdp);
 	hwr.cp = sh ? max_t(int, tx_cp, rx) : tx_cp + rx;
