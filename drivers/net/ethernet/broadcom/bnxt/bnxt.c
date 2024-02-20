@@ -12431,6 +12431,16 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 	return features;
 }
 
+static int bnxt_reinit_features(struct bnxt *bp, bool irq_re_init,
+				bool link_re_init, u32 flags, bool update_tpa)
+{
+	bnxt_close_nic(bp, irq_re_init, link_re_init);
+	bp->flags = flags;
+	if (update_tpa)
+		bnxt_set_ring_params(bp);
+	return bnxt_open_nic(bp, irq_re_init, link_re_init);
+}
+
 static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -12479,14 +12489,9 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 			return rc;
 		}
 
-		if (re_init) {
-			bnxt_close_nic(bp, false, false);
-			bp->flags = flags;
-			if (update_tpa)
-				bnxt_set_ring_params(bp);
+		if (re_init)
+			return bnxt_reinit_features(bp, false, false, flags, update_tpa);
 
-			return bnxt_open_nic(bp, false, false);
-		}
 		if (update_tpa) {
 			bp->flags = flags;
 			rc = bnxt_set_tpa(bp,
