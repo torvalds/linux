@@ -1214,6 +1214,7 @@ struct bnxt_ring_grp_info {
 };
 
 #define BNXT_VNIC_DEFAULT	0
+#define BNXT_VNIC_NTUPLE	1
 
 struct bnxt_vnic_info {
 	u16		fw_vnic_id; /* returned by Chimp during alloc */
@@ -1254,6 +1255,7 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_MCAST_FLAG	4
 #define BNXT_VNIC_UCAST_FLAG	8
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
+#define BNXT_VNIC_NTUPLE_FLAG		0x20
 };
 
 struct bnxt_hw_rings {

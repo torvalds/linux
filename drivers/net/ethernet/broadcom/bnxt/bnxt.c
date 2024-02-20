@@ -5135,6 +5135,10 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 
 	vnic0->flags |= BNXT_VNIC_RSS_FLAG | BNXT_VNIC_MCAST_FLAG |
 			BNXT_VNIC_UCAST_FLAG;
+	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp) && (bp->flags & BNXT_FLAG_RFS))
+		bp->vnic_info[BNXT_VNIC_NTUPLE].flags |=
+			BNXT_VNIC_RSS_FLAG | BNXT_VNIC_NTUPLE_FLAG;
+
 	rc = bnxt_alloc_vnic_attributes(bp);
 	if (rc)
 		goto alloc_mem_err;
@@ -6090,7 +6094,10 @@ static void bnxt_fill_hw_rss_tbl_p5(struct bnxt *bp,
 	for (i = 0; i < tbl_size; i++) {
 		u16 ring_id, j;
 
-		j = bp->rss_indir_tbl[i];
+		if (vnic->flags & BNXT_VNIC_NTUPLE_FLAG)
+			j = ethtool_rxfh_indir_default(i, bp->rx_nr_rings);
+		else
+			j = bp->rss_indir_tbl[i];
 		rxr = &bp->rx_ring[j];
 
 		ring_id = rxr->rx_ring_struct.fw_ring_id;
@@ -9844,9 +9851,27 @@ static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 		return __bnxt_setup_vnic(bp, vnic_id);
 }
 
+static int bnxt_alloc_and_setup_vnic(struct bnxt *bp, u16 vnic_id,
+				     u16 start_rx_ring_idx, int rx_rings)
+{
+	int rc;
+
+	rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, start_rx_ring_idx, rx_rings);
+	if (rc) {
+		netdev_err(bp->dev, "hwrm vnic %d alloc failure rc: %x\n",
+			   vnic_id, rc);
+		return rc;
+	}
+	return bnxt_setup_vnic(bp, vnic_id);
+}
+
 static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 {
 	int i, rc = 0;
+
+	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
+		return bnxt_alloc_and_setup_vnic(bp, BNXT_VNIC_NTUPLE, 0,
+						 bp->rx_nr_rings);
 
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		return 0;
@@ -9863,14 +9888,7 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 		vnic->flags |= BNXT_VNIC_RFS_FLAG;
 		if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 			vnic->flags |= BNXT_VNIC_RFS_NEW_RSS_FLAG;
-		rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, ring_id, 1);
-		if (rc) {
-			netdev_err(bp->dev, "hwrm vnic %d alloc failure rc: %x\n",
-				   vnic_id, rc);
-			break;
-		}
-		rc = bnxt_setup_vnic(bp, vnic_id);
-		if (rc)
+		if (bnxt_alloc_and_setup_vnic(bp, vnic_id, ring_id, 1))
 			break;
 	}
 	return rc;
@@ -12467,12 +12485,12 @@ static int bnxt_reinit_features(struct bnxt *bp, bool irq_re_init,
 
 static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 {
+	bool update_tpa = false, update_ntuple = false;
 	struct bnxt *bp = netdev_priv(dev);
 	u32 flags = bp->flags;
 	u32 changes;
 	int rc = 0;
 	bool re_init = false;
-	bool update_tpa = false;
 
 	flags &= ~BNXT_FLAG_ALL_CONFIG_FEATS;
 	if (features & NETIF_F_GRO_HW)
@@ -12503,6 +12521,9 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 	if (changes & ~BNXT_FLAG_TPA)
 		re_init = true;
 
+	if (changes & BNXT_FLAG_RFS)
+		update_ntuple = true;
+
 	if (flags != bp->flags) {
 		u32 old_flags = bp->flags;
 
@@ -12512,6 +12533,9 @@ static int bnxt_set_features(struct net_device *dev, netdev_features_t features)
 				bnxt_set_ring_params(bp);
 			return rc;
 		}
+
+		if (update_ntuple)
+			return bnxt_reinit_features(bp, true, false, flags, update_tpa);
 
 		if (re_init)
 			return bnxt_reinit_features(bp, false, false, flags, update_tpa);
