@@ -63,6 +63,7 @@
 #include "intel_dp_hdcp.h"
 #include "intel_dp_link_training.h"
 #include "intel_dp_mst.h"
+#include "intel_dp_tunnel.h"
 #include "intel_dpio_phy.h"
 #include "intel_dpll.h"
 #include "intel_fifo_underrun.h"
@@ -152,6 +153,22 @@ int intel_dp_link_symbol_clock(int rate)
 	return DIV_ROUND_CLOSEST(rate * 10, intel_dp_link_symbol_size(rate));
 }
 
+static int max_dprx_rate(struct intel_dp *intel_dp)
+{
+	if (intel_dp_tunnel_bw_alloc_is_enabled(intel_dp))
+		return drm_dp_tunnel_max_dprx_rate(intel_dp->tunnel);
+
+	return drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
+}
+
+static int max_dprx_lane_count(struct intel_dp *intel_dp)
+{
+	if (intel_dp_tunnel_bw_alloc_is_enabled(intel_dp))
+		return drm_dp_tunnel_max_dprx_lane_count(intel_dp->tunnel);
+
+	return drm_dp_max_lane_count(intel_dp->dpcd);
+}
+
 static void intel_dp_set_default_sink_rates(struct intel_dp *intel_dp)
 {
 	intel_dp->sink_rates[0] = 162000;
@@ -180,7 +197,7 @@ static void intel_dp_set_dpcd_sink_rates(struct intel_dp *intel_dp)
 	/*
 	 * Sink rates for 8b/10b.
 	 */
-	max_rate = drm_dp_bw_code_to_link_rate(intel_dp->dpcd[DP_MAX_LINK_RATE]);
+	max_rate = max_dprx_rate(intel_dp);
 	max_lttpr_rate = drm_dp_lttpr_max_link_rate(intel_dp->lttpr_common_caps);
 	if (max_lttpr_rate)
 		max_rate = min(max_rate, max_lttpr_rate);
@@ -259,7 +276,7 @@ static void intel_dp_set_max_sink_lane_count(struct intel_dp *intel_dp)
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct intel_encoder *encoder = &intel_dig_port->base;
 
-	intel_dp->max_sink_lane_count = drm_dp_max_lane_count(intel_dp->dpcd);
+	intel_dp->max_sink_lane_count = max_dprx_lane_count(intel_dp);
 
 	switch (intel_dp->max_sink_lane_count) {
 	case 1:
@@ -389,14 +406,21 @@ int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
  * @max_dprx_rate: Maximum data rate of the DPRX
  * @max_dprx_lanes: Maximum lane count of the DPRX
  *
- * Calculate the maximum data rate for the provided link parameters.
+ * Calculate the maximum data rate for the provided link parameters taking into
+ * account any BW limitations by a DP tunnel attached to @intel_dp.
  *
  * Returns the maximum data rate in kBps units.
  */
 int intel_dp_max_link_data_rate(struct intel_dp *intel_dp,
 				int max_dprx_rate, int max_dprx_lanes)
 {
-	return drm_dp_max_dprx_data_rate(max_dprx_rate, max_dprx_lanes);
+	int max_rate = drm_dp_max_dprx_data_rate(max_dprx_rate, max_dprx_lanes);
+
+	if (intel_dp_tunnel_bw_alloc_is_enabled(intel_dp))
+		max_rate = min(max_rate,
+			       drm_dp_tunnel_available_bw(intel_dp->tunnel));
+
+	return max_rate;
 }
 
 bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp)
