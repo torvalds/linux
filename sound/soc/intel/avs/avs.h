@@ -73,6 +73,23 @@ extern const struct avs_dsp_ops avs_apl_dsp_ops;
 #define avs_platattr_test(adev, attr) \
 	((adev)->spec->attributes & AVS_PLATATTR_##attr)
 
+struct avs_sram_spec {
+	const u32 base_offset;
+	const u32 window_size;
+	const u32 rom_status_offset;
+};
+
+struct avs_hipc_spec {
+	const u32 req_offset;
+	const u32 req_ext_offset;
+	const u32 req_busy_mask;
+	const u32 ack_offset;
+	const u32 ack_done_mask;
+	const u32 rsp_offset;
+	const u32 rsp_busy_mask;
+	const u32 ctl_offset;
+};
+
 /* Platform specific descriptor */
 struct avs_spec {
 	const char *name;
@@ -82,9 +99,8 @@ struct avs_spec {
 
 	const u32 core_init_mask;	/* used during DSP boot */
 	const u64 attributes;		/* bitmask of AVS_PLATATTR_* */
-	const u32 sram_base_offset;
-	const u32 sram_window_size;
-	const u32 rom_status;
+	const struct avs_sram_spec *sram;
+	const struct avs_hipc_spec *hipc;
 };
 
 struct avs_fw_entry {

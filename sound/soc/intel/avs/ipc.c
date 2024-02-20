@@ -305,6 +305,7 @@ irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
 {
 	struct avs_dev *adev = dev_id;
 	struct avs_ipc *ipc = adev->ipc;
+	const struct avs_spec *const spec = adev->spec;
 	u32 adspis, hipc_rsp, hipc_ack;
 	irqreturn_t ret = IRQ_NONE;
 
@@ -312,35 +313,35 @@ irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
 	if (adspis == UINT_MAX || !(adspis & AVS_ADSP_ADSPIS_IPC))
 		return ret;
 
-	hipc_ack = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCIE);
-	hipc_rsp = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCT);
+	hipc_ack = snd_hdac_adsp_readl(adev, spec->hipc->ack_offset);
+	hipc_rsp = snd_hdac_adsp_readl(adev, spec->hipc->rsp_offset);
 
 	/* DSP acked host's request */
-	if (hipc_ack & SKL_ADSP_HIPCIE_DONE) {
+	if (hipc_ack & spec->hipc->ack_done_mask) {
 		/*
 		 * As an extra precaution, mask done interrupt. Code executed
 		 * due to complete() found below does not assume any masking.
 		 */
-		snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCCTL,
+		snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
 				      AVS_ADSP_HIPCCTL_DONE, 0);
 
 		complete(&ipc->done_completion);
 
 		/* tell DSP it has our attention */
-		snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCIE,
-				      SKL_ADSP_HIPCIE_DONE,
-				      SKL_ADSP_HIPCIE_DONE);
+		snd_hdac_adsp_updatel(adev, spec->hipc->ack_offset,
+				      spec->hipc->ack_done_mask,
+				      spec->hipc->ack_done_mask);
 		/* unmask done interrupt */
-		snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCCTL,
+		snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
 				      AVS_ADSP_HIPCCTL_DONE,
 				      AVS_ADSP_HIPCCTL_DONE);
 		ret = IRQ_HANDLED;
 	}
 
 	/* DSP sent new response to process */
-	if (hipc_rsp & SKL_ADSP_HIPCT_BUSY) {
+	if (hipc_rsp & spec->hipc->rsp_busy_mask) {
 		/* mask busy interrupt */
-		snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCCTL,
+		snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset,
 				      AVS_ADSP_HIPCCTL_BUSY, 0);
 
 		ret = IRQ_WAKE_THREAD;
@@ -379,10 +380,11 @@ irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
 static bool avs_ipc_is_busy(struct avs_ipc *ipc)
 {
 	struct avs_dev *adev = to_avs_dev(ipc->dev);
+	const struct avs_spec *const spec = adev->spec;
 	u32 hipc_rsp;
 
-	hipc_rsp = snd_hdac_adsp_readl(adev, SKL_ADSP_REG_HIPCT);
-	return hipc_rsp & SKL_ADSP_HIPCT_BUSY;
+	hipc_rsp = snd_hdac_adsp_readl(adev, spec->hipc->rsp_offset);
+	return hipc_rsp & spec->hipc->rsp_busy_mask;
 }
 
 static int avs_ipc_wait_busy_completion(struct avs_ipc *ipc, int timeout)
@@ -440,9 +442,10 @@ static void avs_ipc_msg_init(struct avs_ipc *ipc, struct avs_ipc_msg *reply)
 
 static void avs_dsp_send_tx(struct avs_dev *adev, struct avs_ipc_msg *tx, bool read_fwregs)
 {
+	const struct avs_spec *const spec = adev->spec;
 	u64 reg = ULONG_MAX;
 
-	tx->header |= SKL_ADSP_HIPCI_BUSY;
+	tx->header |= spec->hipc->req_busy_mask;
 	if (read_fwregs)
 		reg = readq(avs_sram_addr(adev, AVS_FW_REGS_WINDOW));
 
@@ -450,8 +453,8 @@ static void avs_dsp_send_tx(struct avs_dev *adev, struct avs_ipc_msg *tx, bool r
 
 	if (tx->size)
 		memcpy_toio(avs_downlink_addr(adev), tx->data, tx->size);
-	snd_hdac_adsp_writel(adev, SKL_ADSP_REG_HIPCIE, tx->header >> 32);
-	snd_hdac_adsp_writel(adev, SKL_ADSP_REG_HIPCI, tx->header & UINT_MAX);
+	snd_hdac_adsp_writel(adev, spec->hipc->req_ext_offset, tx->header >> 32);
+	snd_hdac_adsp_writel(adev, spec->hipc->req_offset, tx->header & UINT_MAX);
 }
 
 static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
@@ -606,6 +609,7 @@ int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request, cons
 
 void avs_dsp_interrupt_control(struct avs_dev *adev, bool enable)
 {
+	const struct avs_spec *const spec = adev->spec;
 	u32 value, mask;
 
 	/*
@@ -617,7 +621,7 @@ void avs_dsp_interrupt_control(struct avs_dev *adev, bool enable)
 
 	mask = AVS_ADSP_HIPCCTL_DONE | AVS_ADSP_HIPCCTL_BUSY;
 	value = enable ? mask : 0;
-	snd_hdac_adsp_updatel(adev, SKL_ADSP_REG_HIPCCTL, mask, value);
+	snd_hdac_adsp_updatel(adev, spec->hipc->ctl_offset, mask, value);
 }
 
 int avs_ipc_init(struct avs_ipc *ipc, struct device *dev)

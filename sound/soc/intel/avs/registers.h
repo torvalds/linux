@@ -57,7 +57,7 @@
 #define APL_ADSP_SRAM_WINDOW_SIZE	0x20000
 
 /* Constants used when accessing SRAM, space shared with firmware */
-#define AVS_FW_REG_BASE(adev)		((adev)->spec->sram_base_offset)
+#define AVS_FW_REG_BASE(adev)		((adev)->spec->sram->base_offset)
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
 #define AVS_FW_REG_ERROR_CODE(adev)	(AVS_FW_REG_BASE(adev) + 0x4)
 
@@ -72,8 +72,8 @@
 
 /* registry I/O helpers */
 #define avs_sram_offset(adev, window_idx) \
-	((adev)->spec->sram_base_offset + \
-	 (adev)->spec->sram_window_size * (window_idx))
+	((adev)->spec->sram->base_offset + \
+	 (adev)->spec->sram->window_size * (window_idx))
 
 #define avs_sram_addr(adev, window_idx) \
 	((adev)->dsp_ba + avs_sram_offset(adev, window_idx))

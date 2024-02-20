@@ -730,36 +730,47 @@ static const struct dev_pm_ops avs_dev_pm = {
 	SET_RUNTIME_PM_OPS(avs_runtime_suspend, avs_runtime_resume, NULL)
 };
 
+static const struct avs_sram_spec skl_sram_spec = {
+	.base_offset = SKL_ADSP_SRAM_BASE_OFFSET,
+	.window_size = SKL_ADSP_SRAM_WINDOW_SIZE,
+	.rom_status_offset = SKL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_sram_spec apl_sram_spec = {
+	.base_offset = APL_ADSP_SRAM_BASE_OFFSET,
+	.window_size = APL_ADSP_SRAM_WINDOW_SIZE,
+	.rom_status_offset = APL_ADSP_SRAM_BASE_OFFSET,
+};
+
+static const struct avs_hipc_spec skl_hipc_spec = {
+	.req_offset = SKL_ADSP_REG_HIPCI,
+	.req_ext_offset = SKL_ADSP_REG_HIPCIE,
+	.req_busy_mask = SKL_ADSP_HIPCI_BUSY,
+	.ack_offset = SKL_ADSP_REG_HIPCIE,
+	.ack_done_mask = SKL_ADSP_HIPCIE_DONE,
+	.rsp_offset = SKL_ADSP_REG_HIPCT,
+	.rsp_busy_mask = SKL_ADSP_HIPCT_BUSY,
+	.ctl_offset = SKL_ADSP_REG_HIPCCTL,
+};
+
 static const struct avs_spec skl_desc = {
 	.name = "skl",
-	.min_fw_version = {
-		.major = 9,
-		.minor = 21,
-		.hotfix = 0,
-		.build = 4732,
-	},
+	.min_fw_version = { 9, 21, 0, 4732 },
 	.dsp_ops = &avs_skl_dsp_ops,
 	.core_init_mask = 1,
 	.attributes = AVS_PLATATTR_CLDMA,
-	.sram_base_offset = SKL_ADSP_SRAM_BASE_OFFSET,
-	.sram_window_size = SKL_ADSP_SRAM_WINDOW_SIZE,
-	.rom_status = SKL_ADSP_SRAM_BASE_OFFSET,
+	.sram = &skl_sram_spec,
+	.hipc = &skl_hipc_spec,
 };
 
 static const struct avs_spec apl_desc = {
 	.name = "apl",
-	.min_fw_version = {
-		.major = 9,
-		.minor = 22,
-		.hotfix = 1,
-		.build = 4323,
-	},
+	.min_fw_version = { 9, 22, 1, 4323 },
 	.dsp_ops = &avs_apl_dsp_ops,
 	.core_init_mask = 3,
 	.attributes = AVS_PLATATTR_IMR,
-	.sram_base_offset = APL_ADSP_SRAM_BASE_OFFSET,
-	.sram_window_size = APL_ADSP_SRAM_WINDOW_SIZE,
-	.rom_status = APL_ADSP_SRAM_BASE_OFFSET,
+	.sram = &apl_sram_spec,
+	.hipc = &skl_hipc_spec,
 };
 
 static const struct pci_device_id avs_ids[] = {
