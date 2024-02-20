@@ -1735,30 +1735,6 @@ static int setup_queues(struct nullb *nullb)
 	return 0;
 }
 
-static int null_gendisk_register(struct nullb *nullb)
-{
-	sector_t size = ((sector_t)nullb->dev->size * SZ_1M) >> SECTOR_SHIFT;
-	struct gendisk *disk = nullb->disk;
-
-	set_capacity(disk, size);
-
-	disk->major		= null_major;
-	disk->first_minor	= nullb->index;
-	disk->minors		= 1;
-	disk->fops		= &null_ops;
-	disk->private_data	= nullb;
-	strscpy_pad(disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
-
-	if (nullb->dev->zoned) {
-		int ret = null_register_zoned_dev(nullb);
-
-		if (ret)
-			return ret;
-	}
-
-	return add_disk(disk);
-}
-
 static int null_init_tag_set(struct blk_mq_tag_set *set, int poll_queues)
 {
 	set->ops = &null_mq_ops;
@@ -1972,7 +1948,22 @@ static int null_add_dev(struct nullb_device *dev)
 		sprintf(nullb->disk_name, "nullb%d", nullb->index);
 	}
 
-	rv = null_gendisk_register(nullb);
+	set_capacity(nullb->disk,
+		((sector_t)nullb->dev->size * SZ_1M) >> SECTOR_SHIFT);
+	nullb->disk->major = null_major;
+	nullb->disk->first_minor = nullb->index;
+	nullb->disk->minors = 1;
+	nullb->disk->fops = &null_ops;
+	nullb->disk->private_data = nullb;
+	strscpy_pad(nullb->disk->disk_name, nullb->disk_name, DISK_NAME_LEN);
+
+	if (nullb->dev->zoned) {
+		rv = null_register_zoned_dev(nullb);
+		if (rv)
+			goto out_ida_free;
+	}
+
+	rv = add_disk(nullb->disk);
 	if (rv)
 		goto out_ida_free;
 
