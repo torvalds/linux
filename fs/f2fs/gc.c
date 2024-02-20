@@ -280,11 +280,10 @@ static void select_policy(struct f2fs_sb_info *sbi, int gc_type,
 			p->max_search > sbi->max_victim_search)
 		p->max_search = sbi->max_victim_search;
 
-	/* let's select beginning hot/small space first in no_heap mode*/
+	/* let's select beginning hot/small space first. */
 	if (f2fs_need_rand_seg(sbi))
 		p->offset = prandom_u32_max(MAIN_SECS(sbi) * sbi->segs_per_sec);
-	else if (test_opt(sbi, NOHEAP) &&
-		(type == CURSEG_HOT_DATA || IS_NODESEG(type)))
+	else if (type == CURSEG_HOT_DATA || IS_NODESEG(type))
 		p->offset = 0;
 	else
 		p->offset = SIT_I(sbi)->last_victim[p->gc_mode];
