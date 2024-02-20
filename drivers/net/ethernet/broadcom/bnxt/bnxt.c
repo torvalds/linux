@@ -4211,8 +4211,12 @@ static int bnxt_alloc_vnics(struct bnxt *bp)
 	int num_vnics = 1;
 
 #ifdef CONFIG_RFS_ACCEL
-	if ((bp->flags & (BNXT_FLAG_RFS | BNXT_FLAG_CHIP_P5_PLUS)) == BNXT_FLAG_RFS)
-		num_vnics += bp->rx_nr_rings;
+	if (bp->flags & BNXT_FLAG_RFS) {
+		if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
+			num_vnics++;
+		else if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
+			num_vnics += bp->rx_nr_rings;
+	}
 #endif
 
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp))
@@ -7284,9 +7288,13 @@ static int bnxt_get_total_rss_ctxs(struct bnxt *bp, struct bnxt_hw_rings *hwr)
 {
 	if (!hwr->grp)
 		return 0;
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
-		return bnxt_get_nr_rss_ctxs(bp, hwr->grp);
+	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS) {
+		int rss_ctx = bnxt_get_nr_rss_ctxs(bp, hwr->grp);
 
+		if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
+			rss_ctx *= hwr->vnic;
+		return rss_ctx;
+	}
 	if (BNXT_VF(bp))
 		return BNXT_VF_MAX_RSS_CTX;
 	if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP) && bnxt_rfs_supported(bp))
@@ -7312,6 +7320,8 @@ static void bnxt_check_rss_tbl_no_rmgr(struct bnxt *bp)
 static int bnxt_get_total_vnics(struct bnxt *bp, int rx_rings)
 {
 	if (bp->flags & BNXT_FLAG_RFS) {
+		if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
+			return 2;
 		if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
 			return rx_rings + 1;
 	}
@@ -8961,6 +8971,10 @@ static int bnxt_hwrm_cfa_adv_flow_mgnt_qcaps(struct bnxt *bp)
 	if (flags &
 	    CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_V2_SUPPORTED)
 		bp->fw_cap |= BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2;
+
+	if (flags &
+	    CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_RFS_RING_TBL_IDX_V3_SUPPORTED)
+		bp->fw_cap |= BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3;
 
 	if (flags &
 	    CFA_ADV_FLOW_MGNT_QCAPS_RESP_FLAGS_NTUPLE_FLOW_RX_EXT_IP_PROTO_SUPPORTED)
@@ -12358,16 +12372,25 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	int max_vnics, max_rss_ctxs;
 
 	hwr.rss_ctx = 1;
+	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp)) {
+		/* 2 VNICS: default + Ntuple */
+		hwr.vnic = 2;
+		hwr.rss_ctx = bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) *
+			      hwr.vnic;
+		goto check_reserve_vnic;
+	}
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		return bnxt_rfs_supported(bp);
 	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp) || !bp->rx_nr_rings)
 		return false;
 
 	hwr.vnic = 1 + bp->rx_nr_rings;
+check_reserve_vnic:
 	max_vnics = bnxt_get_max_func_vnics(bp);
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
 
-	if (!(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP))
+	if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
+	    !(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP))
 		hwr.rss_ctx = hwr.vnic;
 
 	if (hwr.vnic > max_vnics || hwr.rss_ctx > max_rss_ctxs) {
