@@ -77,9 +77,20 @@ struct qcom_edp_swing_pre_emph_cfg {
 	const u8 (*pre_emphasis_hbr3_hbr2)[4][4];
 };
 
+struct qcom_edp;
+
+struct phy_ver_ops {
+	int (*com_power_on)(const struct qcom_edp *edp);
+	int (*com_resetsm_cntrl)(const struct qcom_edp *edp);
+	int (*com_bias_en_clkbuflr)(const struct qcom_edp *edp);
+	int (*com_configure_pll)(const struct qcom_edp *edp);
+	int (*com_configure_ssc)(const struct qcom_edp *edp);
+};
+
 struct qcom_edp_phy_cfg {
 	bool is_edp;
 	const struct qcom_edp_swing_pre_emph_cfg *swing_pre_emph_cfg;
+	const struct phy_ver_ops *ver_ops;
 };
 
 struct qcom_edp {
@@ -174,18 +185,6 @@ static const struct qcom_edp_swing_pre_emph_cfg edp_phy_swing_pre_emph_cfg = {
 	.pre_emphasis_hbr3_hbr2 = &edp_pre_emp_hbr2_hbr3,
 };
 
-static const struct qcom_edp_phy_cfg sc7280_dp_phy_cfg = {
-};
-
-static const struct qcom_edp_phy_cfg sc8280xp_dp_phy_cfg = {
-	.swing_pre_emph_cfg = &dp_phy_swing_pre_emph_cfg,
-};
-
-static const struct qcom_edp_phy_cfg sc8280xp_edp_phy_cfg = {
-	.is_edp = true,
-	.swing_pre_emph_cfg = &edp_phy_swing_pre_emph_cfg,
-};
-
 static int qcom_edp_phy_init(struct phy *phy)
 {
 	struct qcom_edp *edp = phy_get_drvdata(phy);
@@ -204,8 +203,9 @@ static int qcom_edp_phy_init(struct phy *phy)
 	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
 	       edp->edp + DP_PHY_PD_CTL);
 
-	/* Turn on BIAS current for PHY/PLL */
-	writel(0x17, edp->pll + QSERDES_V4_COM_BIAS_EN_CLKBUFLR_EN);
+	ret = edp->cfg->ver_ops->com_bias_en_clkbuflr(edp);
+	if (ret)
+		return ret;
 
 	writel(DP_PHY_PD_CTL_PSR_PWRDN, edp->edp + DP_PHY_PD_CTL);
 	msleep(20);
@@ -313,6 +313,84 @@ static int qcom_edp_phy_configure(struct phy *phy, union phy_configure_opts *opt
 
 static int qcom_edp_configure_ssc(const struct qcom_edp *edp)
 {
+	return edp->cfg->ver_ops->com_configure_ssc(edp);
+}
+
+static int qcom_edp_configure_pll(const struct qcom_edp *edp)
+{
+	return edp->cfg->ver_ops->com_configure_pll(edp);
+}
+
+static int qcom_edp_set_vco_div(const struct qcom_edp *edp, unsigned long *pixel_freq)
+{
+	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
+	u32 vco_div;
+
+	switch (dp_opts->link_rate) {
+	case 1620:
+		vco_div = 0x1;
+		*pixel_freq = 1620000000UL / 2;
+		break;
+
+	case 2700:
+		vco_div = 0x1;
+		*pixel_freq = 2700000000UL / 2;
+		break;
+
+	case 5400:
+		vco_div = 0x2;
+		*pixel_freq = 5400000000UL / 4;
+		break;
+
+	case 8100:
+		vco_div = 0x0;
+		*pixel_freq = 8100000000UL / 6;
+		break;
+
+	default:
+		/* Other link rates aren't supported */
+		return -EINVAL;
+	}
+
+	writel(vco_div, edp->edp + DP_PHY_VCO_DIV);
+
+	return 0;
+}
+
+static int qcom_edp_phy_power_on_v4(const struct qcom_edp *edp)
+{
+	u32 val;
+
+	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
+	       DP_PHY_PD_CTL_LANE_0_1_PWRDN | DP_PHY_PD_CTL_LANE_2_3_PWRDN |
+	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
+	       edp->edp + DP_PHY_PD_CTL);
+	writel(0xfc, edp->edp + DP_PHY_MODE);
+
+	return readl_poll_timeout(edp->pll + QSERDES_V4_COM_CMN_STATUS,
+				     val, val & BIT(7), 5, 200);
+}
+
+static int qcom_edp_phy_com_resetsm_cntrl_v4(const struct qcom_edp *edp)
+{
+	u32 val;
+
+	writel(0x20, edp->pll + QSERDES_V4_COM_RESETSM_CNTRL);
+
+	return readl_poll_timeout(edp->pll + QSERDES_V4_COM_C_READY_STATUS,
+				     val, val & BIT(0), 500, 10000);
+}
+
+static int qcom_edp_com_bias_en_clkbuflr_v4(const struct qcom_edp *edp)
+{
+	/* Turn on BIAS current for PHY/PLL */
+	writel(0x17, edp->pll + QSERDES_V4_COM_BIAS_EN_CLKBUFLR_EN);
+
+	return 0;
+}
+
+static int qcom_edp_com_configure_ssc_v4(const struct qcom_edp *edp)
+{
 	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
 	u32 step1;
 	u32 step2;
@@ -345,7 +423,7 @@ static int qcom_edp_configure_ssc(const struct qcom_edp *edp)
 	return 0;
 }
 
-static int qcom_edp_configure_pll(const struct qcom_edp *edp)
+static int qcom_edp_com_configure_pll_v4(const struct qcom_edp *edp)
 {
 	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
 	u32 div_frac_start2_mode0;
@@ -431,41 +509,28 @@ static int qcom_edp_configure_pll(const struct qcom_edp *edp)
 	return 0;
 }
 
-static int qcom_edp_set_vco_div(const struct qcom_edp *edp, unsigned long *pixel_freq)
-{
-	const struct phy_configure_opts_dp *dp_opts = &edp->dp_opts;
-	u32 vco_div;
+static const struct phy_ver_ops qcom_edp_phy_ops_v4 = {
+	.com_power_on		= qcom_edp_phy_power_on_v4,
+	.com_resetsm_cntrl	= qcom_edp_phy_com_resetsm_cntrl_v4,
+	.com_bias_en_clkbuflr	= qcom_edp_com_bias_en_clkbuflr_v4,
+	.com_configure_pll	= qcom_edp_com_configure_pll_v4,
+	.com_configure_ssc	= qcom_edp_com_configure_ssc_v4,
+};
 
-	switch (dp_opts->link_rate) {
-	case 1620:
-		vco_div = 0x1;
-		*pixel_freq = 1620000000UL / 2;
-		break;
+static const struct qcom_edp_phy_cfg sc7280_dp_phy_cfg = {
+	.ver_ops = &qcom_edp_phy_ops_v4,
+};
 
-	case 2700:
-		vco_div = 0x1;
-		*pixel_freq = 2700000000UL / 2;
-		break;
+static const struct qcom_edp_phy_cfg sc8280xp_dp_phy_cfg = {
+	.swing_pre_emph_cfg = &dp_phy_swing_pre_emph_cfg,
+	.ver_ops = &qcom_edp_phy_ops_v4,
+};
 
-	case 5400:
-		vco_div = 0x2;
-		*pixel_freq = 5400000000UL / 4;
-		break;
-
-	case 8100:
-		vco_div = 0x0;
-		*pixel_freq = 8100000000UL / 6;
-		break;
-
-	default:
-		/* Other link rates aren't supported */
-		return -EINVAL;
-	}
-
-	writel(vco_div, edp->edp + DP_PHY_VCO_DIV);
-
-	return 0;
-}
+static const struct qcom_edp_phy_cfg sc8280xp_edp_phy_cfg = {
+	.is_edp = true,
+	.swing_pre_emph_cfg = &edp_phy_swing_pre_emph_cfg,
+	.ver_ops = &qcom_edp_phy_ops_v4,
+};
 
 static int qcom_edp_phy_power_on(struct phy *phy)
 {
@@ -473,22 +538,13 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	u32 bias0_en, drvr0_en, bias1_en, drvr1_en;
 	unsigned long pixel_freq;
 	u8 ldo_config = 0x0;
-	int timeout;
 	int ret;
 	u32 val;
 	u8 cfg1;
 
-	writel(DP_PHY_PD_CTL_PWRDN | DP_PHY_PD_CTL_AUX_PWRDN |
-	       DP_PHY_PD_CTL_LANE_0_1_PWRDN | DP_PHY_PD_CTL_LANE_2_3_PWRDN |
-	       DP_PHY_PD_CTL_PLL_PWRDN | DP_PHY_PD_CTL_DP_CLAMP_EN,
-	       edp->edp + DP_PHY_PD_CTL);
-	writel(0xfc, edp->edp + DP_PHY_MODE);
-
-	timeout = readl_poll_timeout(edp->pll + QSERDES_V4_COM_CMN_STATUS,
-				     val, val & BIT(7), 5, 200);
-	if (timeout)
-		return timeout;
-
+	ret = edp->cfg->ver_ops->com_power_on(edp);
+	if (ret)
+		return ret;
 
 	if (edp->cfg->swing_pre_emph_cfg && !edp->is_edp)
 		ldo_config = 0x1;
@@ -535,12 +591,9 @@ static int qcom_edp_phy_power_on(struct phy *phy)
 	writel(0x01, edp->edp + DP_PHY_CFG);
 	writel(0x09, edp->edp + DP_PHY_CFG);
 
-	writel(0x20, edp->pll + QSERDES_V4_COM_RESETSM_CNTRL);
-
-	timeout = readl_poll_timeout(edp->pll + QSERDES_V4_COM_C_READY_STATUS,
-				     val, val & BIT(0), 500, 10000);
-	if (timeout)
-		return timeout;
+	ret = edp->cfg->ver_ops->com_resetsm_cntrl(edp);
+	if (ret)
+		return ret;
 
 	writel(0x19, edp->edp + DP_PHY_CFG);
 	writel(0x1f, edp->tx0 + TXn_HIGHZ_DRVR_EN);
