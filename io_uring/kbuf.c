@@ -139,6 +139,8 @@ static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
 		list_del(&kbuf->list);
 		if (*len == 0 || *len > kbuf->len)
 			*len = kbuf->len;
+		if (list_empty(&bl->buf_list))
+			req->flags |= REQ_F_BL_EMPTY;
 		req->flags |= REQ_F_BUFFER_SELECTED;
 		req->kbuf = kbuf;
 		req->buf_index = kbuf->bid;
@@ -152,11 +154,15 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 					  unsigned int issue_flags)
 {
 	struct io_uring_buf_ring *br = bl->buf_ring;
+	__u16 tail, head = bl->head;
 	struct io_uring_buf *buf;
-	__u16 head = bl->head;
 
-	if (unlikely(smp_load_acquire(&br->tail) == head))
+	tail = smp_load_acquire(&br->tail);
+	if (unlikely(tail == head))
 		return NULL;
+
+	if (head + 1 == tail)
+		req->flags |= REQ_F_BL_EMPTY;
 
 	head &= bl->mask;
 	/* mmaped buffers are always contig */
