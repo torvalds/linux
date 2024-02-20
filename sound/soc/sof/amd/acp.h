@@ -209,6 +209,7 @@ struct sof_amd_acp_desc {
 
 struct acp_quirk_entry {
 	bool signed_fw_image;
+	bool skip_iram_dram_size_mod;
 };
 
 /* Common device data struct for ACP devices */

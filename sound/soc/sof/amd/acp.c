@@ -26,6 +26,7 @@ MODULE_PARM_DESC(enable_fw_debug, "Enable Firmware debug");
 
 static struct acp_quirk_entry quirk_valve_galileo = {
 	.signed_fw_image = true,
+	.skip_iram_dram_size_mod = true,
 };
 
 const struct dmi_system_id acp_sof_quirk_table[] = {
@@ -280,7 +281,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	}
 
 	/* psp_send_cmd only required for vangogh platform (rev - 5) */
-	if (desc->rev == 5) {
+	if (desc->rev == 5 && !(adata->quirks && adata->quirks->skip_iram_dram_size_mod)) {
 		/* Modify IRAM and DRAM size */
 		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | IRAM_DRAM_FENCE_2);
 		if (ret)
