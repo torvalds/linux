@@ -4154,9 +4154,7 @@ out:
 
 int __init btrfs_free_space_init(void)
 {
-	btrfs_free_space_cachep = kmem_cache_create("btrfs_free_space",
-			sizeof(struct btrfs_free_space), 0,
-			SLAB_MEM_SPREAD, NULL);
+	btrfs_free_space_cachep = KMEM_CACHE(btrfs_free_space, SLAB_MEM_SPREAD);
 	if (!btrfs_free_space_cachep)
 		return -ENOMEM;
 
