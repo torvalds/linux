@@ -1010,15 +1010,6 @@ static int adsp_stop(struct rproc *rproc)
 
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_stop", "enter");
 
-	if (adsp->check_status) {
-		dev_info(adsp->dev, "wakeup: waking subsystem from shutdown path\n");
-		ret = rproc_set_state(rproc, true);
-		if (ret) {
-			dev_err(adsp->dev, "wakeup: state did not changed during shutdown\n");
-			return ret;
-		}
-	}
-
 	ret = qcom_q6v5_request_stop(&adsp->q6v5, adsp->sysmon);
 	if (ret == -ETIMEDOUT)
 		dev_err(adsp->dev, "timed out on wait\n");
@@ -1054,13 +1045,6 @@ static int adsp_stop(struct rproc *rproc)
 		ret = mpss_dsm_hyp_assign_control(adsp, false);
 		if (ret)
 			dev_err(adsp->dev, "failed to reclaim mpss dsm mem\n");
-	}
-
-	if (adsp->check_status) {
-		dev_info(adsp->dev, "sleep: subsystem sleep from shutdown path\n");
-		ret = rproc_set_state(rproc, false);
-		if (ret)
-			dev_err(adsp->dev, "sleep: state did not changed during shutdown\n");
 	}
 
 	trace_rproc_qcom_event(dev_name(adsp->dev), "adsp_stop", "exit");
