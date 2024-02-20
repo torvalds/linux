@@ -421,7 +421,7 @@ static int gpio_sim_add_bank(struct fwnode_handle *swnode, struct device *dev)
 
 	ret = fwnode_property_read_string(swnode, "gpio-sim,label", &label);
 	if (ret) {
-		label = devm_kasprintf(dev, GFP_KERNEL, "%s-%pfwP",
+		label = devm_kasprintf(dev, GFP_KERNEL, "%s:%pfwP",
 				       dev_name(dev), swnode);
 		if (!label)
 			return -ENOMEM;
@@ -836,7 +836,7 @@ static int gpio_sim_add_hogs(struct gpio_sim_device *dev)
 							  GFP_KERNEL);
 			else
 				hog->chip_label = kasprintf(GFP_KERNEL,
-							"gpio-sim.%u-%pfwP",
+							"gpio-sim.%u:%pfwP",
 							dev->id,
 							bank->swnode);
 			if (!hog->chip_label) {
