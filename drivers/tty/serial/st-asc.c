@@ -465,6 +465,7 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 			    const struct ktermios *old)
 {
 	struct asc_port *ascport = to_asc_port(port);
+	bool manual_rts, toggle_rts = false;
 	struct gpio_desc *gpiod;
 	unsigned int baud;
 	u32 ctrl_val;
@@ -518,25 +519,13 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 
 		/* If flow-control selected, stop handling RTS manually */
 		if (ascport->rts) {
-			devm_gpiod_put(port->dev, ascport->rts);
-			ascport->rts = NULL;
-
-			pinctrl_select_state(ascport->pinctrl,
-					     ascport->states[DEFAULT]);
+			toggle_rts = true;
+			manual_rts = false;
 		}
 	} else {
 		/* If flow-control disabled, it's safe to handle RTS manually */
-		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL]) {
-			pinctrl_select_state(ascport->pinctrl,
-					     ascport->states[NO_HW_FLOWCTRL]);
-
-			gpiod = devm_gpiod_get(port->dev, "rts", GPIOD_OUT_LOW);
-			if (!IS_ERR(gpiod)) {
-				gpiod_set_consumer_name(gpiod,
-						port->dev->of_node->name);
-				ascport->rts = gpiod;
-			}
-		}
+		if (!ascport->rts && ascport->states[NO_HW_FLOWCTRL])
+			manual_rts = toggle_rts = true;
 	}
 
 	if ((baud < 19200) && !ascport->force_m1) {
@@ -595,6 +584,25 @@ static void asc_set_termios(struct uart_port *port, struct ktermios *termios,
 	asc_out(port, ASC_CTL, (ctrl_val | ASC_CTL_RUN));
 
 	uart_port_unlock_irqrestore(port, flags);
+
+	if (toggle_rts) {
+		if (manual_rts) {
+			pinctrl_select_state(ascport->pinctrl,
+					     ascport->states[NO_HW_FLOWCTRL]);
+
+			gpiod = devm_gpiod_get(port->dev, "rts", GPIOD_OUT_LOW);
+			if (!IS_ERR(gpiod)) {
+				gpiod_set_consumer_name(gpiod,
+							port->dev->of_node->name);
+				ascport->rts = gpiod;
+			}
+		} else {
+				devm_gpiod_put(port->dev, ascport->rts);
+				ascport->rts = NULL;
+				pinctrl_select_state(ascport->pinctrl,
+						     ascport->states[DEFAULT]);
+		}
+	}
 }
 
 static const char *asc_type(struct uart_port *port)
