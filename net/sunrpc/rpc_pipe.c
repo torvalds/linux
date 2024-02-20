@@ -737,17 +737,19 @@ EXPORT_SYMBOL_GPL(rpc_mkpipe_dentry);
 
 /**
  * rpc_unlink - remove a pipe
- * @dentry: dentry for the pipe, as returned from rpc_mkpipe
+ * @pipe: the pipe to be removed
  *
  * After this call, lookups will no longer find the pipe, and any
  * attempts to read or write using preexisting opens of the pipe will
  * return -EPIPE.
  */
-int
-rpc_unlink(struct dentry *dentry)
+void
+rpc_unlink(struct rpc_pipe *pipe)
 {
-	simple_recursive_removal(dentry, rpc_close_pipes);
-	return 0;
+	if (pipe->dentry) {
+		simple_recursive_removal(pipe->dentry, rpc_close_pipes);
+		pipe->dentry = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(rpc_unlink);
 
