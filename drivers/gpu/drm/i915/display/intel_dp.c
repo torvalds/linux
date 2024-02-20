@@ -36,6 +36,7 @@
 #include <asm/byteorder.h>
 
 #include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dp_tunnel.h>
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
 #include <drm/drm_atomic_helper.h>
@@ -3313,18 +3314,21 @@ void intel_dp_sync_state(struct intel_encoder *encoder,
 			 const struct intel_crtc_state *crtc_state)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-
-	if (!crtc_state)
-		return;
+	bool dpcd_updated = false;
 
 	/*
 	 * Don't clobber DPCD if it's been already read out during output
 	 * setup (eDP) or detect.
 	 */
-	if (intel_dp->dpcd[DP_DPCD_REV] == 0)
+	if (crtc_state && intel_dp->dpcd[DP_DPCD_REV] == 0) {
 		intel_dp_get_dpcd(intel_dp);
+		dpcd_updated = true;
+	}
 
-	intel_dp_reset_max_link_params(intel_dp);
+	intel_dp_tunnel_resume(intel_dp, crtc_state, dpcd_updated);
+
+	if (crtc_state)
+		intel_dp_reset_max_link_params(intel_dp);
 }
 
 bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
@@ -5950,6 +5954,8 @@ void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 	struct intel_dp *intel_dp = enc_to_intel_dp(intel_encoder);
 
 	intel_pps_vdd_off_sync(intel_dp);
+
+	intel_dp_tunnel_suspend(intel_dp);
 }
 
 void intel_dp_encoder_shutdown(struct intel_encoder *intel_encoder)
