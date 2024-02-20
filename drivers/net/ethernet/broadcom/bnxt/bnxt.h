@@ -1259,6 +1259,7 @@ struct bnxt_hw_rings {
 	int rx;
 	int grp;
 	int cp;
+	int cp_p5;
 	int stat;
 	int vnic;
 };
