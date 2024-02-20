@@ -60,9 +60,9 @@ clean-files += vmlinux.map
 
 quiet_cmd_section_cmp = SECTCMP $*
 define cmd_section_cmp
-	s1=`$(OBJDUMP) -t -j "$*" "$<" | sort | \
+	s1=`$(OBJDUMP) -t "$<" | grep "\s$*\s\+" | sort | \
 		sed -n "/0000000000000000/! s/.*\s$*\s\+//p" | sha256sum`; \
-	s2=`$(OBJDUMP) -t -j "$*" "$(word 2,$^)" | sort | \
+	s2=`$(OBJDUMP) -t "$(word 2,$^)" | grep "\s$*\s\+" | sort | \
 		sed -n "/0000000000000000/! s/.*\s$*\s\+//p" | sha256sum`; \
 	if [ "$$s1" != "$$s2" ]; then \
 		echo "error: section $* differs between $< and $(word 2,$^)" >&2; \
