@@ -325,6 +325,8 @@ int avs_hda_load_library(struct avs_dev *adev, struct firmware *lib, u32 id);
 int avs_hda_transfer_modules(struct avs_dev *adev, bool load,
 			     struct avs_module_entry *mods, u32 num_mods);
 
+int avs_icl_load_basefw(struct avs_dev *adev, struct firmware *fw);
+
 /* Soc component members */
 
 struct avs_soc_component {

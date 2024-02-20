@@ -7,8 +7,12 @@
 //
 
 #include <linux/slab.h>
+#include <sound/hdaudio.h>
+#include <sound/hdaudio_ext.h>
 #include "avs.h"
 #include "messages.h"
+
+#define ICL_VS_LTRP_GB_ICCMAX	95
 
 #ifdef CONFIG_DEBUG_FS
 int avs_icl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
@@ -118,6 +122,62 @@ int avs_icl_set_d0ix(struct avs_dev *adev, bool enable)
 	return AVS_IPC_RET(ret);
 }
 
+int avs_icl_load_basefw(struct avs_dev *adev, struct firmware *fw)
+{
+	struct hdac_bus *bus = &adev->base.core;
+	struct hdac_ext_stream *host_stream;
+	struct snd_pcm_substream substream;
+	struct snd_dma_buffer dmab;
+	unsigned int sd_fmt;
+	u8 ltrp_gb;
+	int ret;
+
+	/*
+	 * ICCMAX:
+	 *
+	 * For ICL+ platforms, as per HW recommendation LTRP_GB is set to 95us
+	 * during FW load. Its original value shall be restored once load completes.
+	 *
+	 * To avoid DMI/OPIO L1 entry during the load procedure, additional CAPTURE
+	 * stream is allocated and set to run.
+	 */
+
+	memset(&substream, 0, sizeof(substream));
+	substream.stream = SNDRV_PCM_STREAM_CAPTURE;
+
+	host_stream = snd_hdac_ext_stream_assign(bus, &substream, HDAC_EXT_STREAM_TYPE_HOST);
+	if (!host_stream)
+		return -EBUSY;
+
+	ltrp_gb = snd_hdac_chip_readb(bus, VS_LTRP) & AZX_REG_VS_LTRP_GB_MASK;
+	/* Carries no real data, use default format. */
+	sd_fmt = snd_hdac_stream_format(1, 32, 48000);
+
+	ret = snd_hdac_dsp_prepare(hdac_stream(host_stream), sd_fmt, fw->size, &dmab);
+	if (ret < 0)
+		goto release_stream;
+
+	snd_hdac_chip_updateb(bus, VS_LTRP, AZX_REG_VS_LTRP_GB_MASK, ICL_VS_LTRP_GB_ICCMAX);
+
+	spin_lock(&bus->reg_lock);
+	snd_hdac_stream_start(hdac_stream(host_stream));
+	spin_unlock(&bus->reg_lock);
+
+	ret = avs_hda_load_basefw(adev, fw);
+
+	spin_lock(&bus->reg_lock);
+	snd_hdac_stream_stop(hdac_stream(host_stream));
+	spin_unlock(&bus->reg_lock);
+
+	snd_hdac_dsp_cleanup(hdac_stream(host_stream), &dmab);
+
+release_stream:
+	snd_hdac_ext_stream_release(host_stream, HDAC_EXT_STREAM_TYPE_HOST);
+	snd_hdac_chip_updateb(bus, VS_LTRP, AZX_REG_VS_LTRP_GB_MASK, ltrp_gb);
+
+	return ret;
+}
+
 const struct avs_dsp_ops avs_icl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
@@ -125,7 +185,7 @@ const struct avs_dsp_ops avs_icl_dsp_ops = {
 	.irq_handler = avs_irq_handler,
 	.irq_thread = avs_cnl_irq_thread,
 	.int_control = avs_dsp_interrupt_control,
-	.load_basefw = avs_hda_load_basefw,
+	.load_basefw = avs_icl_load_basefw,
 	.load_lib = avs_hda_load_library,
 	.transfer_mods = avs_hda_transfer_modules,
 	.log_buffer_offset = avs_icl_log_buffer_offset,
