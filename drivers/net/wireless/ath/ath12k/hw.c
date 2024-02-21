@@ -914,6 +914,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_on_level = 0,
 
 		.rddm_size = 0,
+
+		.def_num_link = 0,
+		.max_mlo_peer = 256,
 	},
 	{
 		.name = "wcn7850 hw2.0",
@@ -978,6 +981,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_on_level = 1,
 
 		.rddm_size = 0x780000,
+
+		.def_num_link = 2,
+		.max_mlo_peer = 32,
 	},
 	{
 		.name = "qcn9274 hw2.0",
@@ -1040,6 +1046,9 @@ static const struct ath12k_hw_params ath12k_hw_params[] = {
 		.rfkill_on_level = 0,
 
 		.rddm_size = 0,
+
+		.def_num_link = 0,
+		.max_mlo_peer = 256,
 	},
 };
 

@@ -12,11 +12,6 @@
 
 #define WAKE_UP_TRIAL_RETRY		10000
 
-static inline bool is_wilc1000(u32 id)
-{
-	return (id & (~WILC_CHIP_REV_FIELD)) == WILC_1000_BASE_ID;
-}
-
 static inline void acquire_bus(struct wilc *wilc, enum bus_acquire acquire)
 {
 	mutex_lock(&wilc->hif_cs);
@@ -730,7 +725,7 @@ int wilc_wlan_handle_txq(struct wilc *wilc, u32 *txq_count)
 	mutex_lock(&wilc->txq_add_to_head_cs);
 
 	srcu_idx = srcu_read_lock(&wilc->srcu);
-	list_for_each_entry_rcu(vif, &wilc->vif_list, list)
+	wilc_for_each_vif(wilc, vif)
 		wilc_wlan_txq_filter_dup_tcp_ack(vif->ndev);
 	srcu_read_unlock(&wilc->srcu, srcu_idx);
 

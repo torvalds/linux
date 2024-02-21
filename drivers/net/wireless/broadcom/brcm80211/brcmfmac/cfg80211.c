@@ -5274,7 +5274,7 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 					      settings->hidden_ssid);
 		if (err) {
 			bphy_err(drvr, "%s closednet error (%d)\n",
-				 settings->hidden_ssid ?
+				 (settings->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE) ?
 				 "enabled" : "disabled",
 				 err);
 			goto exit;

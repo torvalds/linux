@@ -9,7 +9,7 @@
 #include "mvm.h"
 
 /* Maps the driver specific channel width definition to the fw values */
-u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_channel_width(const struct cfg80211_chan_def *chandef)
 {
 	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
@@ -33,7 +33,7 @@ u8 iwl_mvm_get_channel_width(struct cfg80211_chan_def *chandef)
  * Maps the driver specific control channel position (relative to the center
  * freq) definitions to the the fw values
  */
-u8 iwl_mvm_get_ctrl_pos(struct cfg80211_chan_def *chandef)
+u8 iwl_mvm_get_ctrl_pos(const struct cfg80211_chan_def *chandef)
 {
 	int offs = chandef->chan->center_freq - chandef->center_freq1;
 	int abs_offs = abs(offs);
@@ -116,7 +116,7 @@ static void iwl_mvm_phy_ctxt_set_rxchain(struct iwl_mvm *mvm,
 static void iwl_mvm_phy_ctxt_cmd_data_v1(struct iwl_mvm *mvm,
 					 struct iwl_mvm_phy_ctxt *ctxt,
 					 struct iwl_phy_context_cmd_v1 *cmd,
-					 struct cfg80211_chan_def *chandef,
+					 const struct cfg80211_chan_def *chandef,
 					 u8 chains_static, u8 chains_dynamic)
 {
 	struct iwl_phy_context_cmd_tail *tail =
@@ -137,7 +137,7 @@ static void iwl_mvm_phy_ctxt_cmd_data_v1(struct iwl_mvm *mvm,
 static void iwl_mvm_phy_ctxt_cmd_data(struct iwl_mvm *mvm,
 				      struct iwl_mvm_phy_ctxt *ctxt,
 				      struct iwl_phy_context_cmd *cmd,
-				      struct cfg80211_chan_def *chandef,
+				      const struct cfg80211_chan_def *chandef,
 				      u8 chains_static, u8 chains_dynamic)
 {
 	cmd->lmac_id = cpu_to_le32(iwl_mvm_get_lmac_id(mvm,
@@ -197,14 +197,14 @@ int iwl_mvm_phy_send_rlc(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
  */
 static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
 				  struct iwl_mvm_phy_ctxt *ctxt,
-				  struct cfg80211_chan_def *chandef,
+				  const struct cfg80211_chan_def *chandef,
 				  u8 chains_static, u8 chains_dynamic,
 				  u32 action)
 {
 	int ret;
 	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1);
 
-	if (ver == 3 || ver == 4) {
+	if (ver >= 3 && ver <= 5) {
 		struct iwl_phy_context_cmd cmd = {};
 
 		/* Set the command header fields */
@@ -254,7 +254,7 @@ static int iwl_mvm_phy_ctxt_apply(struct iwl_mvm *mvm,
  * Send a command to add a PHY context based on the current HW configuration.
  */
 int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
-			 struct cfg80211_chan_def *chandef,
+			 const struct cfg80211_chan_def *chandef,
 			 u8 chains_static, u8 chains_dynamic)
 {
 	int ret;
@@ -300,7 +300,7 @@ void iwl_mvm_phy_ctxt_ref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
  * changed.
  */
 int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
-			     struct cfg80211_chan_def *chandef,
+			     const struct cfg80211_chan_def *chandef,
 			     u8 chains_static, u8 chains_dynamic)
 {
 	enum iwl_ctxt_action action = FW_CTXT_ACTION_MODIFY;

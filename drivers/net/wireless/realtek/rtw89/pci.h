@@ -997,7 +997,7 @@
 #define RTW89_PCI_TXWD_NUM_MAX		512
 #define RTW89_PCI_TXWD_PAGE_SIZE	128
 #define RTW89_PCI_ADDRINFO_MAX		4
-#define RTW89_PCI_RX_BUF_SIZE		11460
+#define RTW89_PCI_RX_BUF_SIZE		(11454 + 40) /* +40 for rtw89_rxdesc_long_v2 */
 
 #define RTW89_PCI_POLL_BDRAM_RST_CNT	100
 #define RTW89_PCI_MULTITAG		8
@@ -1235,6 +1235,7 @@ struct rtw89_pci_info {
 	enum mac_ax_pcie_func_ctrl io_rcy_en;
 	enum mac_ax_io_rcy_tmr io_rcy_tmr;
 	bool rx_ring_eq_is_full;
+	bool check_rx_tag;
 
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
@@ -1277,7 +1278,7 @@ struct rtw89_pci_tx_data {
 
 struct rtw89_pci_rx_info {
 	dma_addr_t dma;
-	u32 fs:1, ls:1, tag:11, len:14;
+	u32 fs:1, ls:1, tag:13, len:14;
 };
 
 #define RTW89_PCI_TXBD_OPTION_LS	BIT(14)
@@ -1406,6 +1407,7 @@ struct rtw89_pci_rx_ring {
 	u32 buf_sz;
 	struct sk_buff *diliver_skb;
 	struct rtw89_rx_desc_info diliver_desc;
+	u32 target_rx_tag:13;
 };
 
 struct rtw89_pci_isrs {

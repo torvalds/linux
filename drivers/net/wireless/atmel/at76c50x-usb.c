@@ -2178,6 +2178,10 @@ static int at76_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 
 static const struct ieee80211_ops at76_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = at76_mac80211_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.add_interface = at76_add_interface,

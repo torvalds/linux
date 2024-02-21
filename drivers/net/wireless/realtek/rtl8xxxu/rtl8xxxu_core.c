@@ -3593,7 +3593,7 @@ static int rtl8xxxu_set_mac(struct rtl8xxxu_priv *priv, int port_num)
 		reg = REG_MACID1;
 		break;
 	default:
-		WARN_ONCE("%s: invalid port_num\n", __func__);
+		WARN_ONCE(1, "%s: invalid port_num\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3618,7 +3618,7 @@ static int rtl8xxxu_set_bssid(struct rtl8xxxu_priv *priv, const u8 *bssid, int p
 		reg = REG_BSSID1;
 		break;
 	default:
-		WARN_ONCE("%s: invalid port_num\n", __func__);
+		WARN_ONCE(1, "%s: invalid port_num\n", __func__);
 		return -EINVAL;
 	}
 
@@ -4991,10 +4991,11 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 	struct device *dev = &priv->udev->dev;
+	struct rtl8xxxu_sta_info *sta_info;
 	struct ieee80211_sta *sta;
 	struct rtl8xxxu_ra_report *rarpt;
+	u8 val8, macid;
 	u32 val32;
-	u8 val8;
 
 	rarpt = &priv->ra_report;
 
@@ -5017,6 +5018,7 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				rcu_read_unlock();
 				goto error;
 			}
+			macid = rtl8xxxu_get_macid(priv, sta);
 
 			if (sta->deflink.ht_cap.ht_supported)
 				dev_info(dev, "%s: HT supported\n", __func__);
@@ -5037,14 +5039,15 @@ rtl8xxxu_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 				bw = RATE_INFO_BW_40;
 			else
 				bw = RATE_INFO_BW_20;
+
+			sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+			sta_info->rssi_level = RTL8XXXU_RATR_STA_INIT;
 			rcu_read_unlock();
 
 			rtl8xxxu_update_ra_report(rarpt, highest_rate, sgi, bw);
 
-			priv->rssi_level = RTL8XXXU_RATR_STA_INIT;
-
 			priv->fops->update_rate_mask(priv, ramask, 0, sgi,
-						     bw == RATE_INFO_BW_40, 0);
+						     bw == RATE_INFO_BW_40, macid);
 
 			rtl8xxxu_write8(priv, REG_BCN_MAX_ERR, 0xff);
 
@@ -5737,7 +5740,7 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 
 	if (vif->bss_conf.csa_active) {
 		if (ieee80211_beacon_cntdwn_is_complete(vif)) {
-			ieee80211_csa_finish(vif);
+			ieee80211_csa_finish(vif, 0);
 			return;
 		}
 		schedule_delayed_work(&priv->update_beacon_work,
@@ -6317,6 +6320,76 @@ static void rtl8188e_c2hcmd_callback(struct work_struct *work)
 	}
 }
 
+#define rtl8xxxu_iterate_vifs_atomic(priv, iterator, data)			\
+	ieee80211_iterate_active_interfaces_atomic((priv)->hw,			\
+			IEEE80211_IFACE_ITER_NORMAL, iterator, data)
+
+struct rtl8xxxu_rx_update_rssi_data {
+	struct rtl8xxxu_priv *priv;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_rx_status *rx_status;
+	u8 *bssid;
+};
+
+static void rtl8xxxu_rx_update_rssi_iter(void *data, u8 *mac,
+					 struct ieee80211_vif *vif)
+{
+	struct rtl8xxxu_rx_update_rssi_data *iter_data = data;
+	struct ieee80211_sta *sta;
+	struct ieee80211_hdr *hdr = iter_data->hdr;
+	struct rtl8xxxu_priv *priv = iter_data->priv;
+	struct rtl8xxxu_sta_info *sta_info;
+	struct ieee80211_rx_status *rx_status = iter_data->rx_status;
+	u8 *bssid = iter_data->bssid;
+
+	if (!ether_addr_equal(vif->bss_conf.bssid, bssid))
+		return;
+
+	if (!(ether_addr_equal(vif->addr, hdr->addr1) ||
+	      ieee80211_is_beacon(hdr->frame_control)))
+		return;
+
+	sta = ieee80211_find_sta_by_ifaddr(priv->hw, hdr->addr2,
+					   vif->addr);
+	if (!sta)
+		return;
+
+	sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+	ewma_rssi_add(&sta_info->avg_rssi, -rx_status->signal);
+}
+
+static inline u8 *get_hdr_bssid(struct ieee80211_hdr *hdr)
+{
+	__le16 fc = hdr->frame_control;
+	u8 *bssid;
+
+	if (ieee80211_has_tods(fc))
+		bssid = hdr->addr1;
+	else if (ieee80211_has_fromds(fc))
+		bssid = hdr->addr2;
+	else
+		bssid = hdr->addr3;
+
+	return bssid;
+}
+
+static void rtl8xxxu_rx_update_rssi(struct rtl8xxxu_priv *priv,
+				    struct ieee80211_rx_status *rx_status,
+				    struct ieee80211_hdr *hdr)
+{
+	struct rtl8xxxu_rx_update_rssi_data data = {};
+
+	if (ieee80211_is_ctl(hdr->frame_control))
+		return;
+
+	data.priv = priv;
+	data.hdr = hdr;
+	data.rx_status = rx_status;
+	data.bssid = get_hdr_bssid(hdr);
+
+	rtl8xxxu_iterate_vifs_atomic(priv, rtl8xxxu_rx_update_rssi_iter, &data);
+}
+
 int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 {
 	struct ieee80211_hw *hw = priv->hw;
@@ -6376,18 +6449,26 @@ int rtl8xxxu_parse_rxdesc16(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 			skb_queue_tail(&priv->c2hcmd_queue, skb);
 			schedule_work(&priv->c2hcmd_work);
 		} else {
+			struct ieee80211_hdr *hdr;
+
 			phy_stats = (struct rtl8723au_phy_stats *)skb->data;
 
 			skb_pull(skb, drvinfo_sz + desc_shift);
 
 			skb_trim(skb, pkt_len);
 
-			if (rx_desc->phy_stats)
+			hdr = (struct ieee80211_hdr *)skb->data;
+			if (rx_desc->phy_stats) {
 				priv->fops->parse_phystats(
 					priv, rx_status, phy_stats,
 					rx_desc->rxmcs,
-					(struct ieee80211_hdr *)skb->data,
+					hdr,
 					rx_desc->crc32 || rx_desc->icverr);
+				if (!rx_desc->crc32 && !rx_desc->icverr)
+					rtl8xxxu_rx_update_rssi(priv,
+								rx_status,
+								hdr);
+			}
 
 			rx_status->mactime = rx_desc->tsfl;
 			rx_status->flag |= RX_FLAG_MACTIME_START;
@@ -6484,10 +6565,15 @@ int rtl8xxxu_parse_rxdesc24(struct rtl8xxxu_priv *priv, struct sk_buff *skb)
 		} else {
 			struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 
-			if (rx_desc->phy_stats)
+			if (rx_desc->phy_stats) {
 				priv->fops->parse_phystats(priv, rx_status, phy_stats,
 							   rx_desc->rxmcs, hdr,
 							   rx_desc->crc32 || rx_desc->icverr);
+				if (!rx_desc->crc32 && !rx_desc->icverr)
+					rtl8xxxu_rx_update_rssi(priv,
+								rx_status,
+								hdr);
+			}
 
 			rx_status->mactime = rx_desc->tsfl;
 			rx_status->flag |= RX_FLAG_MACTIME_START;
@@ -7111,6 +7197,7 @@ static void rtl8xxxu_refresh_rate_mask(struct rtl8xxxu_priv *priv,
 				       int signal, struct ieee80211_sta *sta,
 				       bool force)
 {
+	struct rtl8xxxu_sta_info *sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
 	struct ieee80211_hw *hw = priv->hw;
 	u16 wireless_mode;
 	u8 rssi_level, ratr_idx;
@@ -7119,7 +7206,7 @@ static void rtl8xxxu_refresh_rate_mask(struct rtl8xxxu_priv *priv,
 	u8 go_up_gap = 5;
 	u8 macid = rtl8xxxu_get_macid(priv, sta);
 
-	rssi_level = priv->rssi_level;
+	rssi_level = sta_info->rssi_level;
 	snr = rtl8xxxu_signal_to_snr(signal);
 	snr_thresh_high = RTL8XXXU_SNR_THRESH_HIGH;
 	snr_thresh_low = RTL8XXXU_SNR_THRESH_LOW;
@@ -7144,18 +7231,16 @@ static void rtl8xxxu_refresh_rate_mask(struct rtl8xxxu_priv *priv,
 	else
 		rssi_level = RTL8XXXU_RATR_STA_LOW;
 
-	if (rssi_level != priv->rssi_level || force) {
+	if (rssi_level != sta_info->rssi_level || force) {
 		int sgi = 0;
 		u32 rate_bitmap = 0;
 
-		rcu_read_lock();
 		rate_bitmap = (sta->deflink.supp_rates[0] & 0xfff) |
 				(sta->deflink.ht_cap.mcs.rx_mask[0] << 12) |
 				(sta->deflink.ht_cap.mcs.rx_mask[1] << 20);
 		if (sta->deflink.ht_cap.cap &
 		    (IEEE80211_HT_CAP_SGI_40 | IEEE80211_HT_CAP_SGI_20))
 			sgi = 1;
-		rcu_read_unlock();
 
 		wireless_mode = rtl8xxxu_wireless_mode(hw, sta);
 		switch (wireless_mode) {
@@ -7236,7 +7321,7 @@ static void rtl8xxxu_refresh_rate_mask(struct rtl8xxxu_priv *priv,
 			break;
 		}
 
-		priv->rssi_level = rssi_level;
+		sta_info->rssi_level = rssi_level;
 		priv->fops->update_rate_mask(priv, rate_bitmap, ratr_idx, sgi, txbw_40mhz, macid);
 	}
 }
@@ -7329,40 +7414,60 @@ static void rtl8xxxu_track_cfo(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_set_atc_status(priv, abs(cfo_average) >= CFO_TH_ATC);
 }
 
+static void rtl8xxxu_ra_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtl8xxxu_sta_info *sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
+	struct rtl8xxxu_priv *priv = data;
+	int signal = -ewma_rssi_read(&sta_info->avg_rssi);
+
+	priv->fops->report_rssi(priv, rtl8xxxu_get_macid(priv, sta),
+				rtl8xxxu_signal_to_snr(signal));
+	rtl8xxxu_refresh_rate_mask(priv, signal, sta, false);
+}
+
+struct rtl8xxxu_stas_entry {
+	struct list_head list;
+	struct ieee80211_sta *sta;
+};
+
+struct rtl8xxxu_iter_stas_data {
+	struct rtl8xxxu_priv *priv;
+	struct list_head list;
+};
+
+static void rtl8xxxu_collect_sta_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtl8xxxu_iter_stas_data *iter_stas = data;
+	struct rtl8xxxu_stas_entry *stas_entry;
+
+	stas_entry = kmalloc(sizeof(*stas_entry), GFP_ATOMIC);
+	if (!stas_entry)
+		return;
+
+	stas_entry->sta = sta;
+	list_add_tail(&stas_entry->list, &iter_stas->list);
+}
+
 static void rtl8xxxu_watchdog_callback(struct work_struct *work)
 {
-	struct ieee80211_vif *vif;
+
+	struct rtl8xxxu_iter_stas_data iter_data;
+	struct rtl8xxxu_stas_entry *sta_entry, *tmp;
 	struct rtl8xxxu_priv *priv;
-	int i;
 
 	priv = container_of(work, struct rtl8xxxu_priv, ra_watchdog.work);
-	for (i = 0; i < ARRAY_SIZE(priv->vifs); i++) {
-		vif = priv->vifs[i];
+	iter_data.priv = priv;
+	INIT_LIST_HEAD(&iter_data.list);
 
-		if (!vif || vif->type != NL80211_IFTYPE_STATION)
-			continue;
-
-		int signal;
-		struct ieee80211_sta *sta;
-
-		rcu_read_lock();
-		sta = ieee80211_find_sta(vif, vif->bss_conf.bssid);
-		if (!sta) {
-			struct device *dev = &priv->udev->dev;
-
-			dev_dbg(dev, "%s: no sta found\n", __func__);
-			rcu_read_unlock();
-			continue;
-		}
-		rcu_read_unlock();
-
-		signal = ieee80211_ave_rssi(vif);
-
-		priv->fops->report_rssi(priv, rtl8xxxu_get_macid(priv, sta),
-					rtl8xxxu_signal_to_snr(signal));
-
-		rtl8xxxu_refresh_rate_mask(priv, signal, sta, false);
+	mutex_lock(&priv->sta_mutex);
+	ieee80211_iterate_stations_atomic(priv->hw, rtl8xxxu_collect_sta_iter,
+					  &iter_data);
+	list_for_each_entry_safe(sta_entry, tmp, &iter_data.list, list) {
+		list_del_init(&sta_entry->list);
+		rtl8xxxu_ra_iter(priv, sta_entry->sta);
+		kfree(sta_entry);
 	}
+	mutex_unlock(&priv->sta_mutex);
 
 	if (priv->fops->set_crystal_cap)
 		rtl8xxxu_track_cfo(priv);
@@ -7504,10 +7609,15 @@ static int rtl8xxxu_sta_add(struct ieee80211_hw *hw,
 	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 
+	mutex_lock(&priv->sta_mutex);
+	ewma_rssi_init(&sta_info->avg_rssi);
 	if (vif->type == NL80211_IFTYPE_AP) {
+		sta_info->rssi_level = RTL8XXXU_RATR_STA_INIT;
 		sta_info->macid = rtl8xxxu_acquire_macid(priv);
-		if (sta_info->macid >= RTL8XXXU_MAX_MAC_ID_NUM)
+		if (sta_info->macid >= RTL8XXXU_MAX_MAC_ID_NUM) {
+			mutex_unlock(&priv->sta_mutex);
 			return -ENOSPC;
+		}
 
 		rtl8xxxu_refresh_rate_mask(priv, 0, sta, true);
 		priv->fops->report_connect(priv, sta_info->macid, H2C_MACID_ROLE_STA, true);
@@ -7523,6 +7633,7 @@ static int rtl8xxxu_sta_add(struct ieee80211_hw *hw,
 			break;
 		}
 	}
+	mutex_unlock(&priv->sta_mutex);
 
 	return 0;
 }
@@ -7534,13 +7645,19 @@ static int rtl8xxxu_sta_remove(struct ieee80211_hw *hw,
 	struct rtl8xxxu_sta_info *sta_info = (struct rtl8xxxu_sta_info *)sta->drv_priv;
 	struct rtl8xxxu_priv *priv = hw->priv;
 
+	mutex_lock(&priv->sta_mutex);
 	if (vif->type == NL80211_IFTYPE_AP)
 		rtl8xxxu_release_macid(priv, sta_info->macid);
+	mutex_unlock(&priv->sta_mutex);
 
 	return 0;
 }
 
 static const struct ieee80211_ops rtl8xxxu_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = rtl8xxxu_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.add_interface = rtl8xxxu_add_interface,
@@ -7734,7 +7851,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 			untested = 0;
 		break;
 	case 0x2357:
-		if (id->idProduct == 0x0109)
+		if (id->idProduct == 0x0109 || id->idProduct == 0x0135)
 			untested = 0;
 		break;
 	case 0x0b05:
@@ -7767,6 +7884,7 @@ static int rtl8xxxu_probe(struct usb_interface *interface,
 	mutex_init(&priv->usb_buf_mutex);
 	mutex_init(&priv->syson_indirect_access_mutex);
 	mutex_init(&priv->h2c_mutex);
+	mutex_init(&priv->sta_mutex);
 	INIT_LIST_HEAD(&priv->tx_urb_free_list);
 	spin_lock_init(&priv->tx_urb_lock);
 	INIT_LIST_HEAD(&priv->rx_urb_pending_list);
@@ -8026,6 +8144,9 @@ static const struct usb_device_id dev_table[] = {
 {USB_DEVICE_AND_INTERFACE_INFO(0x7392, 0xb722, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192fu_fops},
 {USB_DEVICE_AND_INTERFACE_INFO(USB_VENDOR_ID_REALTEK, 0x318b, 0xff, 0xff, 0xff),
+	.driver_info = (unsigned long)&rtl8192fu_fops},
+/* TP-Link TL-WN823N V2 */
+{USB_DEVICE_AND_INTERFACE_INFO(0x2357, 0x0135, 0xff, 0xff, 0xff),
 	.driver_info = (unsigned long)&rtl8192fu_fops},
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 /* Still supported by rtlwifi */

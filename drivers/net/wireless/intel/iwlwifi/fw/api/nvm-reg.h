@@ -7,6 +7,7 @@
 #ifndef __iwl_fw_api_nvm_reg_h__
 #define __iwl_fw_api_nvm_reg_h__
 
+#include "fw/regulatory.h"
 /**
  * enum iwl_regulatory_and_nvm_subcmd_ids - regulatory/NVM commands
  */
@@ -438,36 +439,30 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
-#define IWL_TAS_BLOCK_LIST_MAX 16
 /**
- * struct iwl_tas_config_cmd_v2 - configures the TAS
+ * struct iwl_tas_config_cmd_common - configures the TAS.
+ * This is also the v2 structure.
  * @block_list_size: size of relevant field in block_list_array
  * @block_list_array: list of countries where TAS must be disabled
  */
-struct iwl_tas_config_cmd_v2 {
+struct iwl_tas_config_cmd_common {
 	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
+	__le32 block_list_array[IWL_WTAS_BLACK_LIST_MAX];
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_2 */
 
 /**
  * struct iwl_tas_config_cmd_v3 - configures the TAS
- * @block_list_size: size of relevant field in block_list_array
- * @block_list_array: list of countries where TAS must be disabled
  * @override_tas_iec: indicates whether to override default value of IEC regulatory
  * @enable_tas_iec: in case override_tas_iec is set -
  *	indicates whether IEC regulatory is enabled or disabled
  */
 struct iwl_tas_config_cmd_v3 {
-	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
 	__le16 override_tas_iec;
 	__le16 enable_tas_iec;
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
  * struct iwl_tas_config_cmd_v3 - configures the TAS
- * @block_list_size: size of relevant field in block_list_array
- * @block_list_array: list of countries where TAS must be disabled
  * @override_tas_iec: indicates whether to override default value of IEC regulatory
  * @enable_tas_iec: in case override_tas_iec is set -
  *	indicates whether IEC regulatory is enabled or disabled
@@ -475,19 +470,20 @@ struct iwl_tas_config_cmd_v3 {
  * @reserved: reserved
 */
 struct iwl_tas_config_cmd_v4 {
-	__le32 block_list_size;
-	__le32 block_list_array[IWL_TAS_BLOCK_LIST_MAX];
 	u8 override_tas_iec;
 	u8 enable_tas_iec;
 	u8 usa_tas_uhb_allowed;
 	u8 reserved;
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_4 */
 
-union iwl_tas_config_cmd {
-	struct iwl_tas_config_cmd_v2 v2;
-	struct iwl_tas_config_cmd_v3 v3;
-	struct iwl_tas_config_cmd_v4 v4;
+struct iwl_tas_config_cmd {
+	struct iwl_tas_config_cmd_common common;
+	union {
+		struct iwl_tas_config_cmd_v3 v3;
+		struct iwl_tas_config_cmd_v4 v4;
+	};
 };
+
 /**
  * enum iwl_lari_config_masks - bit masks for the various LARI config operations
  * @LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK: disable 11ac in ukraine

@@ -851,8 +851,6 @@
 #define AR_PHY_TXGAIN_FORCED_TXBB1DBGAIN  0x0000000e
 #define AR_PHY_TXGAIN_FORCED_TXBB1DBGAIN_S 1
 
-#define AR_PHY_POWER_TX_RATE1   0x9934
-#define AR_PHY_POWER_TX_RATE2   0x9938
 #define AR_PHY_POWER_TX_RATE_MAX    0x993c
 #define AR_PHY_POWER_TX_RATE_MAX_TPC_ENABLE 0x00000040
 #define PHY_AGC_CLR             0x10000000
@@ -1040,13 +1038,6 @@
 #define AR_PHY_TX_IQCAL_CORR_COEFF_B2(_i)    (AR_SM2_BASE + 0x450 + ((_i) << 2))
 
 #define AR_PHY_TX_IQCAL_STATUS_B2_FAILED    0x00000001
-
-/*
- * AGC 3 Register Map
- */
-#define AR_AGC3_BASE	0xce00
-
-#define AR_PHY_RSSI_3            (AR_AGC3_BASE + 0x180)
 
 /* GLB Registers */
 #define AR_GLB_BASE	0x20000

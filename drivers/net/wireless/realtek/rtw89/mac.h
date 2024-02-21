@@ -406,13 +406,21 @@ enum rtw89_mac_c2h_mcc_func {
 	NUM_OF_RTW89_MAC_C2H_FUNC_MCC,
 };
 
+enum rtw89_mac_c2h_mrc_func {
+	RTW89_MAC_C2H_FUNC_MRC_TSF_RPT = 0,
+	RTW89_MAC_C2H_FUNC_MRC_STATUS_RPT = 1,
+
+	NUM_OF_RTW89_MAC_C2H_FUNC_MRC,
+};
+
 enum rtw89_mac_c2h_class {
-	RTW89_MAC_C2H_CLASS_INFO,
-	RTW89_MAC_C2H_CLASS_OFLD,
-	RTW89_MAC_C2H_CLASS_TWT,
-	RTW89_MAC_C2H_CLASS_WOW,
-	RTW89_MAC_C2H_CLASS_MCC,
-	RTW89_MAC_C2H_CLASS_FWDBG,
+	RTW89_MAC_C2H_CLASS_INFO = 0x0,
+	RTW89_MAC_C2H_CLASS_OFLD = 0x1,
+	RTW89_MAC_C2H_CLASS_TWT = 0x2,
+	RTW89_MAC_C2H_CLASS_WOW = 0x3,
+	RTW89_MAC_C2H_CLASS_MCC = 0x4,
+	RTW89_MAC_C2H_CLASS_FWDBG = 0x5,
+	RTW89_MAC_C2H_CLASS_MRC = 0xe,
 	RTW89_MAC_C2H_CLASS_MAX,
 };
 
@@ -439,6 +447,12 @@ enum rtw89_mac_mcc_status {
 	RTW89_MAC_MCC_SWITCH_CH_FAIL = 25,
 	RTW89_MAC_MCC_TXNULL0_FAIL = 26,
 	RTW89_MAC_MCC_TXNULL1_FAIL = 27,
+};
+
+enum rtw89_mac_mrc_status {
+	RTW89_MAC_MRC_START_SCH_OK = 0,
+	RTW89_MAC_MRC_STOP_SCH_OK = 1,
+	RTW89_MAC_MRC_DEL_SCH_OK = 2,
 };
 
 struct rtw89_mac_ax_coex {
@@ -894,9 +908,11 @@ struct rtw89_mac_gen_def {
 	u32 rx_fltr;
 	const struct rtw89_port_reg *port_base;
 	u32 agg_len_ht;
+	u32 ps_status;
 
 	struct rtw89_reg_def muedca_ctrl;
 	struct rtw89_reg_def bfee_ctrl;
+	struct rtw89_reg_def narrow_bw_ru_dis;
 
 	int (*check_mac_en)(struct rtw89_dev *rtwdev, u8 band,
 			    enum rtw89_mac_hwmod_sel sel);
@@ -913,6 +929,7 @@ struct rtw89_mac_gen_def {
 			    enum rtw89_machdr_frame_type type,
 			    enum rtw89_mac_fwd_target fwd_target,
 			    u8 mac_idx);
+	int (*cfg_ppdu_status)(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable);
 
 	int (*dle_mix_cfg)(struct rtw89_dev *rtwdev, const struct rtw89_dle_mem *cfg);
 	int (*chk_dle_rdy)(struct rtw89_dev *rtwdev, bool wde_or_ple);
@@ -930,6 +947,7 @@ struct rtw89_mac_gen_def {
 			      const struct rtw89_ple_quota *max_cfg);
 	int (*set_cpuio)(struct rtw89_dev *rtwdev,
 			 struct rtw89_cpuio_ctrl *ctrl_para, bool wd);
+	int (*dle_quota_change)(struct rtw89_dev *rtwdev, bool band1_en);
 
 	void (*disable_cpu)(struct rtw89_dev *rtwdev);
 	int (*fwdl_enable_wcpu)(struct rtw89_dev *rtwdev, u8 boot_reason,
@@ -952,6 +970,12 @@ struct rtw89_mac_gen_def {
 				enum mac_ax_err_info err);
 
 	bool (*is_txq_empty)(struct rtw89_dev *rtwdev);
+
+	int (*add_chan_list)(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif, bool connected);
+	int (*scan_offload)(struct rtw89_dev *rtwdev,
+			    struct rtw89_scan_option *option,
+			    struct rtw89_vif *rtwvif);
 };
 
 extern const struct rtw89_mac_gen_def rtw89_mac_gen_ax;
@@ -1138,9 +1162,20 @@ int rtw89_mac_stop_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx,
 			  u32 *tx_en, enum rtw89_sch_tx_sel sel);
 int rtw89_mac_stop_sch_tx_v1(struct rtw89_dev *rtwdev, u8 mac_idx,
 			     u32 *tx_en, enum rtw89_sch_tx_sel sel);
+int rtw89_mac_stop_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx,
+			     u32 *tx_en, enum rtw89_sch_tx_sel sel);
 int rtw89_mac_resume_sch_tx(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
 int rtw89_mac_resume_sch_tx_v1(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
-int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_ids, bool enable);
+int rtw89_mac_resume_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en);
+
+static inline
+int rtw89_mac_cfg_ppdu_status(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
+{
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+
+	return mac->cfg_ppdu_status(rtwdev, mac_idx, enable);
+}
+
 void rtw89_mac_update_rts_threshold(struct rtw89_dev *rtwdev, u8 mac_idx);
 void rtw89_mac_flush_txq(struct rtw89_dev *rtwdev, u32 queues, bool drop);
 int rtw89_mac_coex_init(struct rtw89_dev *rtwdev, const struct rtw89_mac_ax_coex *coex);
@@ -1309,6 +1344,7 @@ enum rtw89_mac_xtal_si_offset {
 #define XTAL_SI_BIG_PWR_CUT	BIT(1)
 	XTAL_SI_XTAL_DRV = 0x15,
 #define XTAL_SI_DRV_LATCH	BIT(4)
+	XTAL_SI_XTAL_PLL = 0x16,
 	XTAL_SI_XTAL_XMD_2 = 0x24,
 #define XTAL_SI_LDO_LPS		GENMASK(6, 4)
 	XTAL_SI_XTAL_XMD_4 = 0x26,
@@ -1342,6 +1378,7 @@ enum rtw89_mac_xtal_si_offset {
 	XTAL_SI_SRAM_CTRL = 0xA1,
 #define XTAL_SI_SRAM_DIS	BIT(1)
 #define FULL_BIT_MASK		GENMASK(7, 0)
+	XTAL_SI_APBT = 0xD1,
 	XTAL_SI_PLL = 0xE0,
 	XTAL_SI_PLL_1 = 0xE1,
 };
@@ -1367,7 +1404,8 @@ int rtw89_mac_resize_ple_rx_quota(struct rtw89_dev *rtwdev, bool wow);
 int rtw89_mac_ptk_drop_by_band_and_wait(struct rtw89_dev *rtwdev,
 					enum rtw89_mac_idx band);
 void rtw89_mac_hw_mgnt_sec(struct rtw89_dev *rtwdev, bool wow);
-int rtw89_mac_dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode);
+int rtw89_mac_dle_quota_change(struct rtw89_dev *rtwdev, enum rtw89_qta_mode mode,
+			       bool band1_en);
 int rtw89_mac_get_dle_rsvd_qt_cfg(struct rtw89_dev *rtwdev,
 				  enum rtw89_mac_dle_rsvd_qt_type type,
 				  struct rtw89_mac_dle_rsvd_qt_cfg *cfg);

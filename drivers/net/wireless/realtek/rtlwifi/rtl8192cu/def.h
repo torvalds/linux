@@ -11,7 +11,7 @@
 #define CHIP_VENDOR_UMC_B_CUT		BIT(6)
 
 #define IS_92C_1T2R(version)		\
-	(((version) & CHIP_92C) && ((version) & CHIP_92C_1T2R))
+	(((version) & CHIP_92C_1T2R) == CHIP_92C_1T2R)
 
 #define IS_VENDOR_UMC(version)		\
 	(((version) & CHIP_VENDOR_UMC) ? true : false)

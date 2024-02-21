@@ -3,7 +3,7 @@
  * Wireless configuration interface internals.
  *
  * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #ifndef __NET_WIRELESS_CORE_H
 #define __NET_WIRELESS_CORE_H
@@ -362,7 +362,8 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct cfg80211_auth_request *req);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
-			struct cfg80211_assoc_request *req);
+			struct cfg80211_assoc_request *req,
+			struct netlink_ext_ack *extack);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
 			 const u8 *ie, int ie_len, u16 reason,
@@ -491,6 +492,9 @@ bool cfg80211_is_sub_chan(struct cfg80211_chan_def *chandef,
 bool cfg80211_wdev_on_sub_chan(struct wireless_dev *wdev,
 			       struct ieee80211_channel *chan,
 			       bool primary_only);
+bool _cfg80211_chandef_usable(struct wiphy *wiphy,
+			      const struct cfg80211_chan_def *chandef,
+			      u32 prohibited_flags, bool monitor);
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {
@@ -549,9 +553,53 @@ int cfg80211_remove_virtual_intf(struct cfg80211_registered_device *rdev,
 				 struct wireless_dev *wdev);
 void cfg80211_wdev_release_link_bsses(struct wireless_dev *wdev, u16 link_mask);
 
+/**
+ * struct cfg80211_colocated_ap - colocated AP information
+ *
+ * @list: linked list to all colocated APs
+ * @bssid: BSSID of the reported AP
+ * @ssid: SSID of the reported AP
+ * @ssid_len: length of the ssid
+ * @center_freq: frequency the reported AP is on
+ * @unsolicited_probe: the reported AP is part of an ESS, where all the APs
+ *	that operate in the same channel as the reported AP and that might be
+ *	detected by a STA receiving this frame, are transmitting unsolicited
+ *	Probe Response frames every 20 TUs
+ * @oct_recommended: OCT is recommended to exchange MMPDUs with the reported AP
+ * @same_ssid: the reported AP has the same SSID as the reporting AP
+ * @multi_bss: the reported AP is part of a multiple BSSID set
+ * @transmitted_bssid: the reported AP is the transmitting BSSID
+ * @colocated_ess: all the APs that share the same ESS as the reported AP are
+ *	colocated and can be discovered via legacy bands.
+ * @short_ssid_valid: short_ssid is valid and can be used
+ * @short_ssid: the short SSID for this SSID
+ * @psd_20: The 20MHz PSD EIRP of the primary 20MHz channel for the reported AP
+ */
+struct cfg80211_colocated_ap {
+	struct list_head list;
+	u8 bssid[ETH_ALEN];
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	size_t ssid_len;
+	u32 short_ssid;
+	u32 center_freq;
+	u8 unsolicited_probe:1,
+	   oct_recommended:1,
+	   same_ssid:1,
+	   multi_bss:1,
+	   transmitted_bssid:1,
+	   colocated_ess:1,
+	   short_ssid_valid:1;
+	s8 psd_20;
+};
+
 #if IS_ENABLED(CONFIG_CFG80211_KUNIT_TEST)
 #define EXPORT_SYMBOL_IF_CFG80211_KUNIT(sym) EXPORT_SYMBOL_IF_KUNIT(sym)
 #define VISIBLE_IF_CFG80211_KUNIT
+void cfg80211_free_coloc_ap_list(struct list_head *coloc_ap_list);
+
+int cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
+				struct list_head *list);
+
 size_t cfg80211_gen_new_ie(const u8 *ie, size_t ielen,
 			   const u8 *subie, size_t subie_len,
 			   u8 *new_ie, size_t new_ie_len);

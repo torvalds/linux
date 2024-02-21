@@ -4,7 +4,6 @@
 #ifndef __RTL92CU_TRX_H__
 #define __RTL92CU_TRX_H__
 
-#define RTL92C_USB_BULK_IN_NUM			1
 #define RTL92C_NUM_RX_URBS			8
 #define RTL92C_NUM_TX_URBS			32
 

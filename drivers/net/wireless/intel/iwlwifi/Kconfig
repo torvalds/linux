@@ -46,6 +46,15 @@ config IWLWIFI
 
 if IWLWIFI
 
+config IWLWIFI_KUNIT_TESTS
+	tristate
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option for iwlwifi kunit tests.
+
+	  If unsure, say N.
+
 config IWLWIFI_LEDS
 	bool
 	depends on LEDS_CLASS=y || LEDS_CLASS=MAC80211

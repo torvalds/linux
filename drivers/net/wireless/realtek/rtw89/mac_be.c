@@ -52,6 +52,9 @@ static const struct rtw89_port_reg rtw89_port_base_be = {
 	.mbssid = R_BE_MBSSID_CTRL,
 	.mbssid_drop = R_BE_MBSSID_DROP_0,
 	.tsf_sync = R_BE_PORT_0_TSF_SYNC,
+	.ptcl_dbg = R_BE_PTCL_DBG,
+	.ptcl_dbg_info = R_BE_PTCL_DBG_INFO,
+	.bcn_drop_all = R_BE_BCN_DROP_ALL0,
 	.hiq_win = {R_BE_P0MB_HGQ_WINDOW_CFG_0, R_BE_PORT_HGQ_WINDOW_CFG,
 		    R_BE_PORT_HGQ_WINDOW_CFG + 1, R_BE_PORT_HGQ_WINDOW_CFG + 2,
 		    R_BE_PORT_HGQ_WINDOW_CFG + 3},
@@ -988,6 +991,9 @@ static int spatial_reuse_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_RX_SR_CTRL, mac_idx);
 	rtw89_write8_clr(rtwdev, reg, B_BE_SR_EN | B_BE_SR_CTRL_PLCP_EN);
 
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_BSSID_SRC_CTRL, mac_idx);
+	rtw89_write8_set(rtwdev, reg, B_BE_PLCP_SRC_EN);
+
 	return 0;
 }
 
@@ -995,7 +1001,8 @@ static int tmac_init_be(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	u32 reg;
 
-	rtw89_write32_clr(rtwdev, R_BE_TB_PPDU_CTRL, B_BE_QOSNULL_UPD_MUEDCA_EN);
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_TB_PPDU_CTRL, mac_idx);
+	rtw89_write32_clr(rtwdev, reg, B_BE_QOSNULL_UPD_MUEDCA_EN);
 
 	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_WMTX_TCR_BE_4, mac_idx);
 	rtw89_write32_mask(rtwdev, reg, B_BE_EHT_HE_PPDU_4XLTF_ZLD_USTIMER_MASK, 0x12);
@@ -1449,6 +1456,71 @@ static int set_cpuio_be(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static int dle_upd_qta_aval_page_be(struct rtw89_dev *rtwdev,
+				    enum rtw89_mac_dle_ctrl_type type,
+				    enum rtw89_mac_dle_ple_quota_id quota_id)
+{
+	u32 val;
+
+	if (type == DLE_CTRL_TYPE_WDE) {
+		rtw89_write32_mask(rtwdev, R_BE_WDE_BUFMGN_CTL,
+				   B_BE_WDE_AVAL_UPD_QTAID_MASK, quota_id);
+		rtw89_write32_set(rtwdev, R_BE_WDE_BUFMGN_CTL, B_BE_WDE_AVAL_UPD_REQ);
+
+		return read_poll_timeout(rtw89_read32, val,
+					 !(val & B_BE_WDE_AVAL_UPD_REQ),
+					 1, 2000, false, rtwdev, R_BE_WDE_BUFMGN_CTL);
+	} else if (type == DLE_CTRL_TYPE_PLE) {
+		rtw89_write32_mask(rtwdev, R_BE_PLE_BUFMGN_CTL,
+				   B_BE_PLE_AVAL_UPD_QTAID_MASK, quota_id);
+		rtw89_write32_set(rtwdev, R_BE_PLE_BUFMGN_CTL, B_BE_PLE_AVAL_UPD_REQ);
+
+		return read_poll_timeout(rtw89_read32, val,
+					 !(val & B_BE_PLE_AVAL_UPD_REQ),
+					 1, 2000, false, rtwdev, R_BE_PLE_BUFMGN_CTL);
+	}
+
+	rtw89_warn(rtwdev, "%s wrong type %d\n", __func__, type);
+	return -EINVAL;
+}
+
+static int dle_quota_change_be(struct rtw89_dev *rtwdev, bool band1_en)
+{
+	int ret;
+
+	if (band1_en) {
+		ret = dle_upd_qta_aval_page_be(rtwdev, DLE_CTRL_TYPE_PLE,
+					       PLE_QTAID_B0_TXPL);
+		if (ret) {
+			rtw89_err(rtwdev, "update PLE B0 TX avail page fail %d\n", ret);
+			return ret;
+		}
+
+		ret = dle_upd_qta_aval_page_be(rtwdev, DLE_CTRL_TYPE_PLE,
+					       PLE_QTAID_CMAC0_RX);
+		if (ret) {
+			rtw89_err(rtwdev, "update PLE CMAC0 RX avail page fail %d\n", ret);
+			return ret;
+		}
+	} else {
+		ret = dle_upd_qta_aval_page_be(rtwdev, DLE_CTRL_TYPE_PLE,
+					       PLE_QTAID_B1_TXPL);
+		if (ret) {
+			rtw89_err(rtwdev, "update PLE B1 TX avail page fail %d\n", ret);
+			return ret;
+		}
+
+		ret = dle_upd_qta_aval_page_be(rtwdev, DLE_CTRL_TYPE_PLE,
+					       PLE_QTAID_CMAC1_RX);
+		if (ret) {
+			rtw89_err(rtwdev, "update PLE CMAC1 RX avail page fail %d\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int preload_init_be(struct rtw89_dev *rtwdev, u8 mac_idx,
 			   enum rtw89_qta_mode mode)
 {
@@ -1480,6 +1552,13 @@ static int preload_init_be(struct rtw89_dev *rtwdev, u8 mac_idx,
 
 static int dbcc_bb_ctrl_be(struct rtw89_dev *rtwdev, bool bb1_en)
 {
+	u32 set = B_BE_FEN_BB1PLAT_RSTB | B_BE_FEN_BB1_IP_RSTN;
+
+	if (bb1_en)
+		rtw89_write32_set(rtwdev, R_BE_FEN_RST_ENABLE, set);
+	else
+		rtw89_write32_clr(rtwdev, R_BE_FEN_RST_ENABLE, set);
+
 	return 0;
 }
 
@@ -1538,7 +1617,7 @@ static int band1_enable_be(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
-	ret = rtw89_mac_dle_quota_change(rtwdev, rtwdev->mac.qta_mode);
+	ret = rtw89_mac_dle_quota_change(rtwdev, rtwdev->mac.qta_mode, true);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]DLE quota change %d\n", ret);
 		return ret;
@@ -1593,7 +1672,7 @@ static int band1_disable_be(struct rtw89_dev *rtwdev)
 		return ret;
 	}
 
-	ret = rtw89_mac_dle_quota_change(rtwdev, rtwdev->mac.qta_mode);
+	ret = rtw89_mac_dle_quota_change(rtwdev, rtwdev->mac.qta_mode, false);
 	if (ret) {
 		rtw89_err(rtwdev, "[ERR]DLE quota change %d\n", ret);
 		return ret;
@@ -1718,12 +1797,106 @@ static int trx_init_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static int rtw89_set_hw_sch_tx_en_v2(struct rtw89_dev *rtwdev, u8 mac_idx,
+				     u32 tx_en, u32 tx_en_mask)
+{
+	u32 reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_CTN_DRV_TXEN, mac_idx);
+	u32 val;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	val = rtw89_read32(rtwdev, reg);
+	val = (val & ~tx_en_mask) | (tx_en & tx_en_mask);
+	rtw89_write32(rtwdev, reg, val);
+
+	return 0;
+}
+
+int rtw89_mac_stop_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx,
+			     u32 *tx_en, enum rtw89_sch_tx_sel sel)
+{
+	int ret;
+
+	*tx_en = rtw89_read32(rtwdev,
+			      rtw89_mac_reg_by_idx(rtwdev, R_BE_CTN_DRV_TXEN, mac_idx));
+
+	switch (sel) {
+	case RTW89_SCH_TX_SEL_ALL:
+		ret = rtw89_set_hw_sch_tx_en_v2(rtwdev, mac_idx, 0,
+						B_BE_CTN_TXEN_ALL_MASK);
+		if (ret)
+			return ret;
+		break;
+	case RTW89_SCH_TX_SEL_HIQ:
+		ret = rtw89_set_hw_sch_tx_en_v2(rtwdev, mac_idx,
+						0, B_BE_CTN_TXEN_HGQ);
+		if (ret)
+			return ret;
+		break;
+	case RTW89_SCH_TX_SEL_MG0:
+		ret = rtw89_set_hw_sch_tx_en_v2(rtwdev, mac_idx,
+						0, B_BE_CTN_TXEN_MGQ);
+		if (ret)
+			return ret;
+		break;
+	case RTW89_SCH_TX_SEL_MACID:
+		ret = rtw89_set_hw_sch_tx_en_v2(rtwdev, mac_idx, 0,
+						B_BE_CTN_TXEN_ALL_MASK);
+		if (ret)
+			return ret;
+		break;
+	default:
+		return 0;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_mac_stop_sch_tx_v2);
+
+int rtw89_mac_resume_sch_tx_v2(struct rtw89_dev *rtwdev, u8 mac_idx, u32 tx_en)
+{
+	int ret;
+
+	ret = rtw89_set_hw_sch_tx_en_v2(rtwdev, mac_idx, tx_en,
+					B_BE_CTN_TXEN_ALL_MASK);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_mac_resume_sch_tx_v2);
+
+static
+int rtw89_mac_cfg_ppdu_status_be(struct rtw89_dev *rtwdev, u8 mac_idx, bool enable)
+{
+	u32 reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_PPDU_STAT, mac_idx);
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	if (!enable) {
+		rtw89_write32_clr(rtwdev, reg, B_BE_PPDU_STAT_RPT_EN);
+		return 0;
+	}
+
+	rtw89_write32_mask(rtwdev, R_BE_HW_PPDU_STATUS, B_BE_FWD_PPDU_STAT_MASK, 3);
+	rtw89_write32(rtwdev, reg, B_BE_PPDU_STAT_RPT_EN | B_BE_PPDU_MAC_INFO |
+				   B_BE_APP_RX_CNT_RPT | B_BE_APP_PLCP_HDR_RPT |
+				   B_BE_PPDU_STAT_RPT_CRC32 | B_BE_PPDU_STAT_RPT_DMA);
+
+	return 0;
+}
+
 static bool rtw89_mac_get_txpwr_cr_be(struct rtw89_dev *rtwdev,
 				      enum rtw89_phy_idx phy_idx,
 				      u32 reg_base, u32 *cr)
 {
-	const struct rtw89_dle_mem *dle_mem = rtwdev->chip->dle_mem;
-	enum rtw89_qta_mode mode = dle_mem->mode;
+	enum rtw89_qta_mode mode = rtwdev->mac.qta_mode;
 	int ret;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, (enum rtw89_mac_idx)phy_idx,
@@ -2218,6 +2391,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.rx_fltr = R_BE_RX_FLTR_OPT,
 	.port_base = &rtw89_port_base_be,
 	.agg_len_ht = R_BE_AGG_LEN_HT_0,
+	.ps_status = R_BE_WMTX_POWER_BE_BIT_CTL,
 
 	.muedca_ctrl = {
 		.addr = R_BE_MUEDCA_EN,
@@ -2227,6 +2401,10 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 		.addr = R_BE_BFMEE_RESP_OPTION,
 		.mask = B_BE_BFMEE_HT_NDPA_EN | B_BE_BFMEE_VHT_NDPA_EN |
 			B_BE_BFMEE_HE_NDPA_EN | B_BE_BFMEE_EHT_NDPA_EN,
+	},
+	.narrow_bw_ru_dis = {
+		.addr = R_BE_RXTRIG_TEST_USER_2,
+		.mask = B_BE_RXTRIG_RU26_DIS,
 	},
 
 	.check_mac_en = rtw89_mac_check_mac_en_be,
@@ -2239,6 +2417,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.bf_assoc = rtw89_mac_bf_assoc_be,
 
 	.typ_fltr_opt = rtw89_mac_typ_fltr_opt_be,
+	.cfg_ppdu_status = rtw89_mac_cfg_ppdu_status_be,
 
 	.dle_mix_cfg = dle_mix_cfg_be,
 	.chk_dle_rdy = chk_dle_rdy_be,
@@ -2250,6 +2429,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.wde_quota_cfg = wde_quota_cfg_be,
 	.ple_quota_cfg = ple_quota_cfg_be,
 	.set_cpuio = set_cpuio_be,
+	.dle_quota_change = dle_quota_change_be,
 
 	.disable_cpu = rtw89_mac_disable_cpu_be,
 	.fwdl_enable_wcpu = rtw89_mac_fwdl_enable_wcpu_be,
@@ -2268,5 +2448,8 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.dump_err_status = rtw89_mac_dump_err_status_be,
 
 	.is_txq_empty = mac_is_txq_empty_be,
+
+	.add_chan_list = rtw89_hw_scan_add_chan_list_be,
+	.scan_offload = rtw89_fw_h2c_scan_offload_be,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_be);

@@ -78,6 +78,24 @@ static const struct rtw89_cfo_regs rtw89_cfo_regs_be = {
 	.valid_0_mask = B_DCFO_OPT_EN_V1,
 };
 
+static u32 rtw89_phy0_phy1_offset_be(struct rtw89_dev *rtwdev, u32 addr)
+{
+	u32 phy_page = addr >> 8;
+	u32 ofst = 0;
+
+	if ((phy_page >= 0x4 && phy_page <= 0xF) ||
+	    (phy_page >= 0x20 && phy_page <= 0x2B) ||
+	    (phy_page >= 0x40 && phy_page <= 0x4f) ||
+	    (phy_page >= 0x60 && phy_page <= 0x6f) ||
+	    (phy_page >= 0xE4 && phy_page <= 0xE5) ||
+	    (phy_page >= 0xE8 && phy_page <= 0xED))
+		ofst = 0x1000;
+	else
+		ofst = 0x0;
+
+	return ofst;
+}
+
 union rtw89_phy_bb_gain_arg_be {
 	u32 addr;
 	struct {
@@ -952,6 +970,7 @@ const struct rtw89_phy_gen_def rtw89_phy_gen_be = {
 	.ccx = &rtw89_ccx_regs_be,
 	.physts = &rtw89_physts_regs_be,
 	.cfo = &rtw89_cfo_regs_be,
+	.phy0_phy1_offset = rtw89_phy0_phy1_offset_be,
 	.config_bb_gain = rtw89_phy_config_bb_gain_be,
 	.preinit_rf_nctl = rtw89_phy_preinit_rf_nctl_be,
 	.bb_wrap_init = rtw89_phy_bb_wrap_init_be,

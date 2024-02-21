@@ -400,6 +400,8 @@ static bool ieee80211_prep_hw_scan(struct ieee80211_sub_if_data *sdata)
 					 req->ie, req->ie_len,
 					 bands_used, req->rates, &chandef,
 					 flags);
+	if (ielen < 0)
+		return false;
 	local->hw_scan_req->req.ie_len = ielen;
 	local->hw_scan_req->req.no_cck = req->no_cck;
 	ether_addr_copy(local->hw_scan_req->req.mac_addr, req->mac_addr);
@@ -476,7 +478,7 @@ static void __ieee80211_scan_completed(struct ieee80211_hw *hw, bool aborted)
 	}
 
 	/* Set power back to normal operating levels. */
-	ieee80211_hw_config(local, 0);
+	ieee80211_hw_conf_chan(local);
 
 	if (!hw_scan && was_scanning) {
 		ieee80211_configure_filter(local);
@@ -523,7 +525,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local,
 				   struct ieee80211_sub_if_data *sdata)
 {
 	/* Software scan is not supported in multi-channel cases */
-	if (local->use_chanctx)
+	if (!local->emulate_chanctx)
 		return -EOPNOTSUPP;
 
 	/*
@@ -553,7 +555,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local,
 	ieee80211_configure_filter(local);
 
 	/* We need to set power level at maximum rate for scanning. */
-	ieee80211_hw_config(local, 0);
+	ieee80211_hw_conf_chan(local);
 
 	wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work, 0);
 
@@ -677,7 +679,10 @@ static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
 	 * After sending probe requests, wait for probe responses
 	 * on the channel.
 	 */
-	*next_delay = IEEE80211_CHANNEL_TIME;
+	*next_delay = msecs_to_jiffies(scan_req->duration) >
+		      IEEE80211_PROBE_DELAY + IEEE80211_CHANNEL_TIME ?
+		      msecs_to_jiffies(scan_req->duration) - IEEE80211_PROBE_DELAY :
+		      IEEE80211_CHANNEL_TIME;
 	local->next_scan_state = SCAN_DECISION;
 }
 
@@ -787,7 +792,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
 	} else if ((req->n_channels == 1) &&
-		   (req->channels[0] == local->_oper_chandef.chan)) {
+		   (req->channels[0] == local->hw.conf.chandef.chan)) {
 		/*
 		 * If we are scanning only on the operating channel
 		 * then we do not need to stop normal activities
@@ -805,7 +810,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		ieee80211_configure_filter(local); /* accept probe-responses */
 
 		/* We need to ensure power level is at max for scanning. */
-		ieee80211_hw_config(local, 0);
+		ieee80211_hw_conf_chan(local);
 
 		if ((req->channels[0]->flags & (IEEE80211_CHAN_NO_IR |
 						IEEE80211_CHAN_RADAR)) ||
@@ -970,13 +975,13 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	/* If scanning on oper channel, use whatever channel-type
 	 * is currently in use.
 	 */
-	if (chan == local->_oper_chandef.chan)
-		local->scan_chandef = local->_oper_chandef;
+	if (chan == local->hw.conf.chandef.chan)
+		local->scan_chandef = local->hw.conf.chandef;
 	else
 		local->scan_chandef.width = NL80211_CHAN_WIDTH_20_NOHT;
 
 set_channel:
-	if (ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL))
+	if (ieee80211_hw_conf_chan(local))
 		skip = 1;
 
 	/* advance state machine to next channel/band */
@@ -1000,7 +1005,10 @@ set_channel:
 	 */
 	if ((chan->flags & (IEEE80211_CHAN_NO_IR | IEEE80211_CHAN_RADAR)) ||
 	    !scan_req->n_ssids) {
-		*next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
+		*next_delay = msecs_to_jiffies(scan_req->duration) >
+			      IEEE80211_PASSIVE_CHANNEL_TIME ?
+			      msecs_to_jiffies(scan_req->duration) :
+			      IEEE80211_PASSIVE_CHANNEL_TIME;
 		local->next_scan_state = SCAN_DECISION;
 		if (scan_req->n_ssids)
 			set_bit(SCAN_BEACON_WAIT, &local->scanning);
@@ -1017,7 +1025,7 @@ static void ieee80211_scan_state_suspend(struct ieee80211_local *local,
 {
 	/* switch back to the operating channel */
 	local->scan_chandef.chan = NULL;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	ieee80211_hw_conf_chan(local);
 
 	/* disable PS */
 	ieee80211_offchannel_return(local);
@@ -1316,10 +1324,12 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_prepare_scan_chandef(&chandef);
 
-	ieee80211_build_preq_ies(sdata, ie, num_bands * iebufsz,
-				 &sched_scan_ies, req->ie,
-				 req->ie_len, bands_used, rate_masks, &chandef,
-				 flags);
+	ret = ieee80211_build_preq_ies(sdata, ie, num_bands * iebufsz,
+				       &sched_scan_ies, req->ie,
+				       req->ie_len, bands_used, rate_masks,
+				       &chandef, flags);
+	if (ret < 0)
+		goto error;
 
 	ret = drv_sched_scan_start(local, sdata, req, &sched_scan_ies);
 	if (ret == 0) {
@@ -1327,8 +1337,8 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 		rcu_assign_pointer(local->sched_scan_req, req);
 	}
 
+error:
 	kfree(ie);
-
 out:
 	if (ret) {
 		/* Clean in case of failure after HW restart or upon resume. */

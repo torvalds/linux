@@ -11,7 +11,7 @@
  */
 
 #include <linux/module.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
@@ -38,6 +38,8 @@ struct hwbus_priv {
 	const struct cw1200_platform_data_spi *pdata;
 	spinlock_t		lock; /* Serialize all bus operations */
 	wait_queue_head_t       wq;
+	struct gpio_desc	*reset;
+	struct gpio_desc	*powerup;
 	int claimed;
 };
 
@@ -78,9 +80,6 @@ static int cw1200_spi_memcpy_fromio(struct hwbus_priv *self,
 #ifdef SPI_DEBUG
 	pr_info("READ : %04d from 0x%02x (%04x)\n", count, addr, regaddr);
 #endif
-
-	/* Header is LE16 */
-	regaddr = cpu_to_le16(regaddr);
 
 	/* We have to byteswap if the SPI bus is limited to 8b operation
 	   or we are running on a Big Endian system
@@ -143,9 +142,6 @@ static int cw1200_spi_memcpy_toio(struct hwbus_priv *self,
 #ifdef SPI_DEBUG
 	pr_info("WRITE: %04d  to  0x%02x (%04x)\n", count, addr, regaddr);
 #endif
-
-	/* Header is LE16 */
-	regaddr = cpu_to_le16(regaddr);
 
 	/* We have to byteswap if the SPI bus is limited to 8b operation
 	   or we are running on a Big Endian system
@@ -275,12 +271,12 @@ static void cw1200_spi_irq_unsubscribe(struct hwbus_priv *self)
 	free_irq(self->func->irq, self);
 }
 
-static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
+static int cw1200_spi_off(struct hwbus_priv *self, const struct cw1200_platform_data_spi *pdata)
 {
-	if (pdata->reset) {
-		gpio_set_value(pdata->reset, 0);
+	if (self->reset) {
+		/* Assert RESET, note active low */
+		gpiod_set_value(self->reset, 1);
 		msleep(30); /* Min is 2 * CLK32K cycles */
-		gpio_free(pdata->reset);
 	}
 
 	if (pdata->power_ctrl)
@@ -291,18 +287,12 @@ static int cw1200_spi_off(const struct cw1200_platform_data_spi *pdata)
 	return 0;
 }
 
-static int cw1200_spi_on(const struct cw1200_platform_data_spi *pdata)
+static int cw1200_spi_on(struct hwbus_priv *self, const struct cw1200_platform_data_spi *pdata)
 {
 	/* Ensure I/Os are pulled low */
-	if (pdata->reset) {
-		gpio_request(pdata->reset, "cw1200_wlan_reset");
-		gpio_direction_output(pdata->reset, 0);
-	}
-	if (pdata->powerup) {
-		gpio_request(pdata->powerup, "cw1200_wlan_powerup");
-		gpio_direction_output(pdata->powerup, 0);
-	}
-	if (pdata->reset || pdata->powerup)
+	gpiod_direction_output(self->reset, 1); /* Active low */
+	gpiod_direction_output(self->powerup, 0);
+	if (self->reset || self->powerup)
 		msleep(10); /* Settle time? */
 
 	/* Enable 3v3 and 1v8 to hardware */
@@ -323,13 +313,13 @@ static int cw1200_spi_on(const struct cw1200_platform_data_spi *pdata)
 	}
 
 	/* Enable POWERUP signal */
-	if (pdata->powerup) {
-		gpio_set_value(pdata->powerup, 1);
+	if (self->powerup) {
+		gpiod_set_value(self->powerup, 1);
 		msleep(250); /* or more..? */
 	}
-	/* Enable RSTn signal */
-	if (pdata->reset) {
-		gpio_set_value(pdata->reset, 1);
+	/* Assert RSTn signal, note active low */
+	if (self->reset) {
+		gpiod_set_value(self->reset, 0);
 		msleep(50); /* Or more..? */
 	}
 	return 0;
@@ -381,20 +371,33 @@ static int cw1200_spi_probe(struct spi_device *func)
 		spi_get_chipselect(func, 0), func->mode, func->bits_per_word,
 		func->max_speed_hz);
 
-	if (cw1200_spi_on(plat_data)) {
-		pr_err("spi_on() failed!\n");
-		return -1;
-	}
-
-	if (spi_setup(func)) {
-		pr_err("spi_setup() failed!\n");
-		return -1;
-	}
-
 	self = devm_kzalloc(&func->dev, sizeof(*self), GFP_KERNEL);
 	if (!self) {
 		pr_err("Can't allocate SPI hwbus_priv.");
 		return -ENOMEM;
+	}
+
+	/* Request reset asserted */
+	self->reset = devm_gpiod_get_optional(&func->dev, "reset", GPIOD_OUT_HIGH);
+	if (IS_ERR(self->reset))
+		return dev_err_probe(&func->dev, PTR_ERR(self->reset),
+				     "could not get reset GPIO\n");
+	gpiod_set_consumer_name(self->reset, "cw1200_wlan_reset");
+
+	self->powerup = devm_gpiod_get_optional(&func->dev, "powerup", GPIOD_OUT_LOW);
+	if (IS_ERR(self->powerup))
+		return dev_err_probe(&func->dev, PTR_ERR(self->powerup),
+				     "could not get powerup GPIO\n");
+	gpiod_set_consumer_name(self->reset, "cw1200_wlan_powerup");
+
+	if (cw1200_spi_on(self, plat_data)) {
+		pr_err("spi_on() failed!\n");
+		return -ENODEV;
+	}
+
+	if (spi_setup(func)) {
+		pr_err("spi_setup() failed!\n");
+		return -ENODEV;
 	}
 
 	self->pdata = plat_data;
@@ -416,7 +419,7 @@ static int cw1200_spi_probe(struct spi_device *func)
 
 	if (status) {
 		cw1200_spi_irq_unsubscribe(self);
-		cw1200_spi_off(plat_data);
+		cw1200_spi_off(self, plat_data);
 	}
 
 	return status;
@@ -434,7 +437,7 @@ static void cw1200_spi_disconnect(struct spi_device *func)
 			self->core = NULL;
 		}
 	}
-	cw1200_spi_off(dev_get_platdata(&func->dev));
+	cw1200_spi_off(self, dev_get_platdata(&func->dev));
 }
 
 static int __maybe_unused cw1200_spi_suspend(struct device *dev)

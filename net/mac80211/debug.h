@@ -152,16 +152,17 @@ do {									\
 		else							\
 			_sdata_err((link)->sdata, fmt, ##__VA_ARGS__);	\
 	} while (0)
-#define link_dbg(link, fmt, ...)					\
+#define _link_id_dbg(print, sdata, link_id, fmt, ...)			\
 	do {								\
-		if (ieee80211_vif_is_mld(&(link)->sdata->vif))          \
-			_sdata_dbg(1, (link)->sdata, "[link %d] " fmt,	\
-				   (link)->link_id,			\
-				   ##__VA_ARGS__);			\
+		if (ieee80211_vif_is_mld(&(sdata)->vif))		\
+			_sdata_dbg(print, sdata, "[link %d] " fmt,	\
+				   link_id, ##__VA_ARGS__);		\
 		else							\
-			_sdata_dbg(1, (link)->sdata, fmt,		\
-				   ##__VA_ARGS__);			\
+			_sdata_dbg(1, sdata, fmt, ##__VA_ARGS__);	\
 	} while (0)
+#define link_dbg(link, fmt, ...)					\
+	_link_id_dbg(1, (link)->sdata, (link)->link_id,			\
+		     fmt, ##__VA_ARGS__)
 
 #define ht_dbg(sdata, fmt, ...)						\
 	_sdata_dbg(MAC80211_HT_DEBUG,					\
@@ -226,6 +227,9 @@ do {									\
 #define mlme_dbg(sdata, fmt, ...)					\
 	_sdata_dbg(MAC80211_MLME_DEBUG,					\
 		   sdata, fmt, ##__VA_ARGS__)
+#define mlme_link_id_dbg(sdata, link_id, fmt, ...)			\
+	_link_id_dbg(MAC80211_MLME_DEBUG, sdata, link_id,		\
+		     fmt, ##__VA_ARGS__)
 
 #define mlme_dbg_ratelimited(sdata, fmt, ...)				\
 	_sdata_dbg(MAC80211_MLME_DEBUG && net_ratelimit(),		\

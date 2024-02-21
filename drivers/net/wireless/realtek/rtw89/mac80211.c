@@ -449,6 +449,7 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
 		rtw89_cam_bssid_changed(rtwdev, rtwvif);
 		rtw89_fw_h2c_cam(rtwdev, rtwvif, NULL, NULL);
+		WRITE_ONCE(rtwvif->sync_bcn_tsf, 0);
 	}
 
 	if (changed & BSS_CHANGED_BEACON)

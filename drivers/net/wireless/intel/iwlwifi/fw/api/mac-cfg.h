@@ -242,9 +242,9 @@ struct iwl_mac_low_latency_cmd {
  * @esr_transition_timeout: the timeout required by the AP for the
  *	eSR transition.
  *	Available only from version 2 of the command.
- *	This values comes from the EMLSR transition delay in the EML
+ *	This value comes from the EMLSR transition delay in the EML
  *	Capabilities subfield.
- * @medium_sync_delay: the value as it appeasr in P802.11be_D2.2 Figure 9-1002j.
+ * @medium_sync_delay: the value as it appears in P802.11be_D2.2 Figure 9-1002j.
  * @assoc_id: unique ID assigned by the AP during association
  * @reserved1: alignment
  * @data_policy: see &enum iwl_mac_data_policy
@@ -317,7 +317,6 @@ enum iwl_mac_config_filter_flags {
  *	If the NIC is not ACK_ENABLED it may use the EOF-bit in first non-0
  *	len delim to determine if AGG or single.
  * @client: client mac data
- * @go_ibss: mac data for go or ibss
  * @p2p_dev: mac data for p2p device
  */
 struct iwl_mac_config_cmd {
@@ -447,6 +446,7 @@ enum iwl_link_ctx_flags {
  * @listen_lmac: indicates whether the link should be allocated on the Listen
  *	Lmac or on the Main Lmac. Cannot be changed on an active Link.
  *	Relevant only for eSR.
+ * @reserved1: in version 2, listen_lmac became reserved
  * @cck_rates: basic rates available for CCK
  * @ofdm_rates: basic rates available for OFDM
  * @cck_short_preamble: 1 for enabling short preamble, 0 otherwise
@@ -472,10 +472,10 @@ enum iwl_link_ctx_flags {
  * @bssid_index: index of the associated VAP
  * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
  * @spec_link_id: link_id as the AP knows it
- * @reserved: alignment
+ * @reserved2: alignment
  * @ibss_bssid_addr: bssid for ibss
  * @reserved_for_ibss_bssid_addr: reserved
- * @reserved1: reserved for future use
+ * @reserved3: reserved for future use
  */
 struct iwl_link_config_cmd {
 	__le32 action;
@@ -486,7 +486,10 @@ struct iwl_link_config_cmd {
 	__le16 reserved_for_local_link_addr;
 	__le32 modify_mask;
 	__le32 active;
-	__le32 listen_lmac;
+	union {
+		__le32 listen_lmac;
+		__le32 reserved1;
+	};
 	__le32 cck_rates;
 	__le32 ofdm_rates;
 	__le32 cck_short_preamble;
@@ -512,11 +515,13 @@ struct iwl_link_config_cmd {
 	u8 bssid_index;
 	u8 bss_color;
 	u8 spec_link_id;
-	u8 reserved;
+	u8 reserved2;
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
-	__le32 reserved1[8];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 */
+	__le32 reserved3[8];
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 and
+	     * LINK_CONTEXT_CONFIG_CMD_API_S_VER_2
+	     */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.

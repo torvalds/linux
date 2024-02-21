@@ -119,7 +119,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	prph_sc_ctrl->version.version = 0;
 	prph_sc_ctrl->version.mac_id =
-		cpu_to_le16((u16)iwl_read32(trans, CSR_HW_REV));
+		cpu_to_le16((u16)trans->hw_rev);
 	prph_sc_ctrl->version.size = cpu_to_le16(sizeof(*prph_scratch) / 4);
 
 	control_flags |= IWL_PRPH_SCRATCH_MTR_MODE;

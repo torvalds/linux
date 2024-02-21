@@ -2,7 +2,7 @@
 /*
  * Portions of this file
  * Copyright(c) 2016-2017 Intel Deutschland GmbH
- * Copyright (C) 2018 - 2023 Intel Corporation
+ * Copyright (C) 2018 - 2024 Intel Corporation
  */
 
 #if !defined(__MAC80211_DRIVER_TRACE) || defined(TRACE_HEADER_MULTI_READ)
@@ -50,7 +50,7 @@
 			__entry->center_freq1 = (c) ? (c)->center_freq1 : 0;		\
 			__entry->freq1_offset = (c) ? (c)->freq1_offset : 0;		\
 			__entry->center_freq2 = (c) ? (c)->center_freq2 : 0;
-#define CHANDEF_PR_FMT	" control:%d.%03d MHz width:%d center: %d.%03d/%d MHz"
+#define CHANDEF_PR_FMT	" chandef(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz)"
 #define CHANDEF_PR_ARG	__entry->control_freq, __entry->freq_offset, __entry->chan_width, \
 			__entry->center_freq1, __entry->freq1_offset, __entry->center_freq2
 
@@ -69,22 +69,45 @@
 			__entry->min_center_freq1 = (c)->center_freq1;			\
 			__entry->min_freq1_offset = (c)->freq1_offset;			\
 			__entry->min_center_freq2 = (c)->center_freq2;
-#define MIN_CHANDEF_PR_FMT	" min_control:%d.%03d MHz min_width:%d min_center: %d.%03d/%d MHz"
+#define MIN_CHANDEF_PR_FMT	" mindef(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz)"
 #define MIN_CHANDEF_PR_ARG	__entry->min_control_freq, __entry->min_freq_offset,	\
 			__entry->min_chan_width,					\
 			__entry->min_center_freq1, __entry->min_freq1_offset,		\
 			__entry->min_center_freq2
 
+#define AP_CHANDEF_ENTRY								\
+			__field(u32, ap_control_freq)					\
+			__field(u32, ap_freq_offset)					\
+			__field(u32, ap_chan_width)					\
+			__field(u32, ap_center_freq1)					\
+			__field(u32, ap_freq1_offset)					\
+			__field(u32, ap_center_freq2)
+
+#define AP_CHANDEF_ASSIGN(c)								\
+			__entry->ap_control_freq = (c)->chan ? (c)->chan->center_freq : 0;\
+			__entry->ap_freq_offset = (c)->chan ? (c)->chan->freq_offset : 0;\
+			__entry->ap_chan_width = (c)->chan ? (c)->width : 0;		\
+			__entry->ap_center_freq1 = (c)->chan ? (c)->center_freq1 : 0;	\
+			__entry->ap_freq1_offset = (c)->chan ? (c)->freq1_offset : 0;	\
+			__entry->ap_center_freq2 = (c)->chan ? (c)->center_freq2 : 0;
+#define AP_CHANDEF_PR_FMT	" ap(%d.%03d MHz,width:%d,center: %d.%03d/%d MHz)"
+#define AP_CHANDEF_PR_ARG	__entry->ap_control_freq, __entry->ap_freq_offset,	\
+			__entry->ap_chan_width,						\
+			__entry->ap_center_freq1, __entry->ap_freq1_offset,		\
+			__entry->ap_center_freq2
+
 #define CHANCTX_ENTRY	CHANDEF_ENTRY							\
 			MIN_CHANDEF_ENTRY						\
+			AP_CHANDEF_ENTRY						\
 			__field(u8, rx_chains_static)					\
 			__field(u8, rx_chains_dynamic)
 #define CHANCTX_ASSIGN	CHANDEF_ASSIGN(&ctx->conf.def)					\
 			MIN_CHANDEF_ASSIGN(&ctx->conf.min_def)				\
+			AP_CHANDEF_ASSIGN(&ctx->conf.ap)				\
 			__entry->rx_chains_static = ctx->conf.rx_chains_static;		\
 			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
-#define CHANCTX_PR_FMT	CHANDEF_PR_FMT MIN_CHANDEF_PR_FMT " chains:%d/%d"
-#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,	MIN_CHANDEF_PR_ARG,				\
+#define CHANCTX_PR_FMT	CHANDEF_PR_FMT MIN_CHANDEF_PR_FMT AP_CHANDEF_PR_FMT " chains:%d/%d"
+#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,	MIN_CHANDEF_PR_ARG, AP_CHANDEF_PR_ARG,		\
 			__entry->rx_chains_static, __entry->rx_chains_dynamic
 
 #define KEY_ENTRY	__field(u32, cipher)						\
@@ -503,9 +526,9 @@ TRACE_EVENT(drv_link_info_changed,
 		__entry->ht_operation_mode = link_conf->ht_operation_mode;
 		__entry->cqm_rssi_thold = link_conf->cqm_rssi_thold;
 		__entry->cqm_rssi_hyst = link_conf->cqm_rssi_hyst;
-		__entry->channel_width = link_conf->chandef.width;
-		__entry->channel_cfreq1 = link_conf->chandef.center_freq1;
-		__entry->channel_cfreq1_offset = link_conf->chandef.freq1_offset;
+		__entry->channel_width = link_conf->chanreq.oper.width;
+		__entry->channel_cfreq1 = link_conf->chanreq.oper.center_freq1;
+		__entry->channel_cfreq1_offset = link_conf->chanreq.oper.freq1_offset;
 		__entry->qos = link_conf->qos;
 		__entry->hidden_ssid = link_conf->hidden_ssid;
 		__entry->txpower = link_conf->txpower;
@@ -3035,6 +3058,34 @@ TRACE_EVENT(api_radar_detected,
 	)
 );
 
+TRACE_EVENT(api_request_smps,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_link_data *link,
+		 enum ieee80211_smps_mode smps_mode),
+
+	TP_ARGS(local, sdata, link, smps_mode),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(int, link_id)
+		__field(u32, smps_mode)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->link_id = link->link_id,
+		__entry->smps_mode = smps_mode;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " " VIF_PR_FMT " link:%d, smps_mode:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id, __entry->smps_mode
+	)
+);
+
 /*
  * Tracing for internal functions
  * (which may also be called in response to driver calls)
@@ -3088,6 +3139,58 @@ TRACE_EVENT(stop_queue,
 	)
 );
 
+TRACE_EVENT(drv_can_neg_ttlm,
+	    TP_PROTO(struct ieee80211_local *local,
+		     struct ieee80211_sub_if_data *sdata,
+		     struct ieee80211_neg_ttlm *neg_ttlm),
+
+	TP_ARGS(local, sdata, neg_ttlm),
+
+	TP_STRUCT__entry(LOCAL_ENTRY
+			 VIF_ENTRY
+			 __array(u16, downlink, sizeof(u16) * 8)
+			 __array(u16, uplink, sizeof(u16) * 8)
+	),
+
+	TP_fast_assign(LOCAL_ASSIGN;
+		       VIF_ASSIGN;
+		       memcpy(__entry->downlink, neg_ttlm->downlink,
+			      sizeof(neg_ttlm->downlink));
+		       memcpy(__entry->uplink, neg_ttlm->uplink,
+			      sizeof(neg_ttlm->uplink));
+	),
+
+	TP_printk(LOCAL_PR_FMT ", " VIF_PR_FMT, LOCAL_PR_ARG, VIF_PR_ARG)
+);
+
+TRACE_EVENT(drv_neg_ttlm_res,
+	    TP_PROTO(struct ieee80211_local *local,
+		     struct ieee80211_sub_if_data *sdata,
+		     enum ieee80211_neg_ttlm_res res,
+		     struct ieee80211_neg_ttlm *neg_ttlm),
+
+	TP_ARGS(local, sdata, res, neg_ttlm),
+
+	TP_STRUCT__entry(LOCAL_ENTRY
+			 VIF_ENTRY
+			 __field(u32, res)
+			 __array(u16, downlink, sizeof(u16) * 8)
+			 __array(u16, uplink, sizeof(u16) * 8)
+	),
+
+	TP_fast_assign(LOCAL_ASSIGN;
+		       VIF_ASSIGN;
+		       __entry->res = res;
+		       memcpy(__entry->downlink, neg_ttlm->downlink,
+			      sizeof(neg_ttlm->downlink));
+		       memcpy(__entry->uplink, neg_ttlm->uplink,
+			      sizeof(neg_ttlm->uplink));
+	),
+
+	TP_printk(LOCAL_PR_FMT  VIF_PR_FMT " response: %d\n ",
+		  LOCAL_PR_ARG, VIF_PR_ARG, __entry->res
+	)
+);
 #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */
 
 #undef TRACE_INCLUDE_PATH

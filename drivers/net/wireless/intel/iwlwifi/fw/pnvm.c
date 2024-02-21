@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright(c) 2020-2023 Intel Corporation
+ * Copyright(c) 2020-2024 Intel Corporation
  */
 
 #include "iwl-drv.h"
@@ -11,6 +11,8 @@
 #include "fw/api/nvm-reg.h"
 #include "fw/api/alive.h"
 #include "fw/uefi.h"
+
+#define IWL_PNVM_REDUCED_CAP_BIT BIT(25)
 
 struct iwl_pnvm_section {
 	__le32 offset;
@@ -173,6 +175,7 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 
 	while (len >= sizeof(*tlv)) {
 		u32 tlv_len, tlv_type;
+		u32 rf_type;
 
 		len -= sizeof(*tlv);
 		tlv = (const void *)data;
@@ -200,6 +203,16 @@ static int iwl_pnvm_parse(struct iwl_trans *trans, const u8 *data,
 
 			data += sizeof(*tlv) + ALIGN(tlv_len, 4);
 			len -= ALIGN(tlv_len, 4);
+
+			trans->reduced_cap_sku = false;
+			rf_type = CSR_HW_RFID_TYPE(trans->hw_rf_id);
+			if ((trans->sku_id[0] & IWL_PNVM_REDUCED_CAP_BIT) &&
+			    rf_type == IWL_CFG_RF_TYPE_FM)
+				trans->reduced_cap_sku = true;
+
+			IWL_DEBUG_FW(trans,
+				     "Reduced SKU device %d\n",
+				     trans->reduced_cap_sku);
 
 			if (trans->sku_id[0] == le32_to_cpu(sku_id->data[0]) &&
 			    trans->sku_id[1] == le32_to_cpu(sku_id->data[1]) &&
@@ -239,7 +252,7 @@ static int iwl_pnvm_get_from_fs(struct iwl_trans *trans, u8 **data, size_t *len)
 	}
 
 	new_len = pnvm->size;
-	*data = kmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
+	*data = kvmemdup(pnvm->data, pnvm->size, GFP_KERNEL);
 	release_firmware(pnvm);
 
 	if (!*data)
@@ -255,21 +268,27 @@ static u8 *iwl_get_pnvm_image(struct iwl_trans *trans_p, size_t *len)
 	struct pnvm_sku_package *package;
 	u8 *image = NULL;
 
-	/* First attempt to get the PNVM from BIOS */
-	package = iwl_uefi_get_pnvm(trans_p, len);
-	if (!IS_ERR_OR_NULL(package)) {
-		if (*len >= sizeof(*package)) {
-			/* we need only the data */
-			*len -= sizeof(*package);
-			image = kmemdup(package->data, *len, GFP_KERNEL);
+	/* Get PNVM from BIOS for non-Intel SKU */
+	if (trans_p->sku_id[2]) {
+		package = iwl_uefi_get_pnvm(trans_p, len);
+		if (!IS_ERR_OR_NULL(package)) {
+			if (*len >= sizeof(*package)) {
+				/* we need only the data */
+				*len -= sizeof(*package);
+				image = kvmemdup(package->data,
+						 *len, GFP_KERNEL);
+			}
+			/*
+			 * free package regardless of whether kmemdup
+			 * succeeded
+			 */
+			kfree(package);
+			if (image)
+				return image;
 		}
-		/* free package regardless of whether kmemdup succeeded */
-		kfree(package);
-		if (image)
-			return image;
 	}
 
-	/* If it's not available, try from the filesystem */
+	/* If it's not available, or for Intel SKU, try from the filesystem */
 	if (iwl_pnvm_get_from_fs(trans_p, &image, len))
 		return NULL;
 	return image;
@@ -314,7 +333,7 @@ static void iwl_pnvm_load_pnvm_to_trans(struct iwl_trans *trans,
 set:
 	iwl_trans_set_pnvm(trans, capa);
 free:
-	kfree(data);
+	kvfree(data);
 	kfree(pnvm_data);
 }
 

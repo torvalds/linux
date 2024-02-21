@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  */
 #include <net/tso.h>
 #include <linux/tcp.h>
@@ -271,9 +271,10 @@ static int iwl_txq_gen2_set_tb_with_wa(struct iwl_trans *trans,
 		meta = NULL;
 		goto unmap;
 	}
-	IWL_WARN(trans,
-		 "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
-		 len, (unsigned long long)oldphys, (unsigned long long)phys);
+	IWL_DEBUG_TX(trans,
+		     "TB bug workaround: copied %d bytes from 0x%llx to 0x%llx\n",
+		     len, (unsigned long long)oldphys,
+		     (unsigned long long)phys);
 
 	ret = 0;
 unmap:
@@ -1601,8 +1602,8 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	if (read_ptr == tfd_num)
 		goto out;
 
-	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
-			   txq_id, txq->read_ptr, tfd_num, ssn);
+	IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d (%d) -> %d (%d)\n",
+			   txq_id, read_ptr, txq->read_ptr, tfd_num, ssn);
 
 	/*Since we free until index _not_ inclusive, the one before index is
 	 * the last we will free. This one must be used */
@@ -1630,7 +1631,8 @@ void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 	     read_ptr = iwl_txq_get_cmd_index(txq, txq->read_ptr)) {
 		struct sk_buff *skb = txq->entries[read_ptr].skb;
 
-		if (WARN_ON_ONCE(!skb))
+		if (WARN_ONCE(!skb, "no SKB at %d (%d) on queue %d\n",
+			      read_ptr, txq->read_ptr, txq_id))
 			continue;
 
 		iwl_txq_free_tso_page(trans, skb);
