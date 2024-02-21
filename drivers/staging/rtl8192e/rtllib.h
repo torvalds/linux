@@ -474,8 +474,6 @@ struct rtllib_rx_stats {
 	u8  control;
 	u8  mask;
 	u16 len;
-	u64 tsf;
-	u32 beacon_time;
 	u8  nic_type;
 	u16 Length;
 	u8  SignalQuality;
@@ -486,7 +484,6 @@ struct rtllib_rx_stats {
 	u16 bCRC:1;
 	u16 bICV:1;
 	u16 bShortPreamble:1;
-	u16 Antenna:1;
 	u16 Decrypted:1;
 	u16 Wakeup:1;
 	u16 Reserved0:1;
