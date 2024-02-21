@@ -951,8 +951,8 @@ static void blkif_set_queue_limits(struct blkfront_info *info)
 
 	if (info->feature_discard) {
 		blk_queue_max_discard_sectors(rq, UINT_MAX);
-		rq->limits.discard_granularity = info->discard_granularity ?:
-						 info->physical_sector_size;
+		if (info->discard_granularity)
+			rq->limits.discard_granularity = info->discard_granularity;
 		rq->limits.discard_alignment = info->discard_alignment;
 		if (info->feature_secdiscard)
 			blk_queue_max_secure_erase_sectors(rq, UINT_MAX);
