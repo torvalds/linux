@@ -280,6 +280,7 @@ static int em_compute_costs(struct device *dev, struct em_perf_state *table,
  * em_dev_compute_costs() - Calculate cost values for new runtime EM table
  * @dev		: Device for which the EM table is to be updated
  * @table	: The new EM table that is going to get the costs calculated
+ * @nr_states	: Number of performance states
  *
  * Calculate the em_perf_state::cost values for new runtime EM table. The
  * values are used for EAS during task placement. It also calculates and sets
@@ -728,7 +729,6 @@ static void em_check_capacity_update(void)
 		struct cpufreq_policy *policy;
 		unsigned long em_max_perf;
 		struct device *dev;
-		int nr_states;
 
 		if (cpumask_test_cpu(cpu, cpu_done_mask))
 			continue;
@@ -749,7 +749,6 @@ static void em_check_capacity_update(void)
 		cpumask_or(cpu_done_mask, cpu_done_mask,
 			   em_span_cpus(pd));
 
-		nr_states = pd->nr_perf_states;
 		cpu_capacity = arch_scale_cpu_capacity(cpu);
 
 		rcu_read_lock();
