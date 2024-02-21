@@ -3254,7 +3254,7 @@ static const struct net_device_ops vxlan_netdev_raw_ops = {
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
-static struct device_type vxlan_type = {
+static const struct device_type vxlan_type = {
 	.name = "vxlan",
 };
 

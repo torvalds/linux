@@ -1607,7 +1607,7 @@ static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_fill_forward_path = ppp_fill_forward_path,
 };
 
-static struct device_type ppp_type = {
+static const struct device_type ppp_type = {
 	.name = "ppp",
 };
 
