@@ -266,6 +266,11 @@ struct timer_base {
 
 static DEFINE_PER_CPU(struct timer_base, timer_bases[NR_BASES]);
 
+struct timer_events {
+	u64	local;
+	u64	global;
+};
+
 #ifdef CONFIG_NO_HZ_COMMON
 
 static DEFINE_STATIC_KEY_FALSE(timers_nohz_active);
@@ -2031,10 +2036,11 @@ static unsigned long next_timer_interrupt(struct timer_base *base,
 static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 					     bool *idle)
 {
+	struct timer_events tevt = { .local = KTIME_MAX, .global = KTIME_MAX };
 	unsigned long nextevt, nextevt_local, nextevt_global;
 	struct timer_base *base_local, *base_global;
-	u64 expires = KTIME_MAX;
 	bool local_first;
+	u64 expires;
 
 	/*
 	 * Pretend that there is no timer pending if the cpu is offline.
@@ -2043,7 +2049,7 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 	if (cpu_is_offline(smp_processor_id())) {
 		if (idle)
 			*idle = true;
-		return expires;
+		return tevt.local;
 	}
 
 	base_local = this_cpu_ptr(&timer_bases[BASE_LOCAL]);
@@ -2059,13 +2065,32 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 
 	nextevt = local_first ? nextevt_local : nextevt_global;
 
-	if (base_local->timers_pending || base_global->timers_pending) {
+	/*
+	 * If the @nextevt is at max. one tick away, use @nextevt and store
+	 * it in the local expiry value. The next global event is irrelevant in
+	 * this case and can be left as KTIME_MAX.
+	 */
+	if (time_before_eq(nextevt, basej + 1)) {
 		/* If we missed a tick already, force 0 delta */
 		if (time_before(nextevt, basej))
 			nextevt = basej;
-		expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
+		tevt.local = basem + (u64)(nextevt - basej) * TICK_NSEC;
+		goto forward;
 	}
 
+	/*
+	 * Update tevt.* values:
+	 *
+	 * If the local queue expires first, then the global event can be
+	 * ignored. If the global queue is empty, nothing to do either.
+	 */
+	if (!local_first && base_global->timers_pending)
+		tevt.global = basem + (u64)(nextevt_global - basej) * TICK_NSEC;
+
+	if (base_local->timers_pending)
+		tevt.local = basem + (u64)(nextevt_local - basej) * TICK_NSEC;
+
+forward:
 	/*
 	 * We have a fresh next event. Check whether we can forward the
 	 * base.
@@ -2095,6 +2120,8 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 
 	raw_spin_unlock(&base_global->lock);
 	raw_spin_unlock(&base_local->lock);
+
+	expires = min_t(u64, tevt.local, tevt.global);
 
 	return cmp_next_hrtimer_event(basem, expires);
 }
