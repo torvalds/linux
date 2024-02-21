@@ -2033,13 +2033,55 @@ static unsigned long next_timer_interrupt(struct timer_base *base,
 	return base->next_expiry;
 }
 
+static unsigned long fetch_next_timer_interrupt(unsigned long basej, u64 basem,
+						struct timer_base *base_local,
+						struct timer_base *base_global,
+						struct timer_events *tevt)
+{
+	unsigned long nextevt, nextevt_local, nextevt_global;
+	bool local_first;
+
+	nextevt_local = next_timer_interrupt(base_local, basej);
+	nextevt_global = next_timer_interrupt(base_global, basej);
+
+	local_first = time_before_eq(nextevt_local, nextevt_global);
+
+	nextevt = local_first ? nextevt_local : nextevt_global;
+
+	/*
+	 * If the @nextevt is at max. one tick away, use @nextevt and store
+	 * it in the local expiry value. The next global event is irrelevant in
+	 * this case and can be left as KTIME_MAX.
+	 */
+	if (time_before_eq(nextevt, basej + 1)) {
+		/* If we missed a tick already, force 0 delta */
+		if (time_before(nextevt, basej))
+			nextevt = basej;
+		tevt->local = basem + (u64)(nextevt - basej) * TICK_NSEC;
+		return nextevt;
+	}
+
+	/*
+	 * Update tevt.* values:
+	 *
+	 * If the local queue expires first, then the global event can be
+	 * ignored. If the global queue is empty, nothing to do either.
+	 */
+	if (!local_first && base_global->timers_pending)
+		tevt->global = basem + (u64)(nextevt_global - basej) * TICK_NSEC;
+
+	if (base_local->timers_pending)
+		tevt->local = basem + (u64)(nextevt_local - basej) * TICK_NSEC;
+
+	return nextevt;
+}
+
 static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 					     bool *idle)
 {
 	struct timer_events tevt = { .local = KTIME_MAX, .global = KTIME_MAX };
-	unsigned long nextevt, nextevt_local, nextevt_global;
 	struct timer_base *base_local, *base_global;
-	bool local_first;
+	unsigned long nextevt;
 	u64 expires;
 
 	/*
@@ -2058,39 +2100,9 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 	raw_spin_lock(&base_local->lock);
 	raw_spin_lock_nested(&base_global->lock, SINGLE_DEPTH_NESTING);
 
-	nextevt_local = next_timer_interrupt(base_local, basej);
-	nextevt_global = next_timer_interrupt(base_global, basej);
+	nextevt = fetch_next_timer_interrupt(basej, basem, base_local,
+					     base_global, &tevt);
 
-	local_first = time_before_eq(nextevt_local, nextevt_global);
-
-	nextevt = local_first ? nextevt_local : nextevt_global;
-
-	/*
-	 * If the @nextevt is at max. one tick away, use @nextevt and store
-	 * it in the local expiry value. The next global event is irrelevant in
-	 * this case and can be left as KTIME_MAX.
-	 */
-	if (time_before_eq(nextevt, basej + 1)) {
-		/* If we missed a tick already, force 0 delta */
-		if (time_before(nextevt, basej))
-			nextevt = basej;
-		tevt.local = basem + (u64)(nextevt - basej) * TICK_NSEC;
-		goto forward;
-	}
-
-	/*
-	 * Update tevt.* values:
-	 *
-	 * If the local queue expires first, then the global event can be
-	 * ignored. If the global queue is empty, nothing to do either.
-	 */
-	if (!local_first && base_global->timers_pending)
-		tevt.global = basem + (u64)(nextevt_global - basej) * TICK_NSEC;
-
-	if (base_local->timers_pending)
-		tevt.local = basem + (u64)(nextevt_local - basej) * TICK_NSEC;
-
-forward:
 	/*
 	 * We have a fresh next event. Check whether we can forward the
 	 * base.
