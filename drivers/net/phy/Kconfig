@@ -232,6 +232,7 @@ config MARVELL_10G_PHY
 
 config MARVELL_88Q2XXX_PHY
 	tristate "Marvell 88Q2XXX PHY"
+	depends on HWMON || HWMON=n
 	help
 	  Support for the Marvell 88Q2XXX 100/1000BASE-T1 Automotive Ethernet
 	  PHYs.
