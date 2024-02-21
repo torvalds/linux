@@ -434,6 +434,8 @@ static int aca_log_aca_error_data(struct aca_bank_error *bank_error, enum aca_er
 		amdgpu_ras_error_statistic_ce_count(err_data, &mcm_info, NULL, count);
 		break;
 	case ACA_ERROR_TYPE_DEFERRED:
+		amdgpu_ras_error_statistic_de_count(err_data, &mcm_info, NULL, count);
+		break;
 	default:
 		break;
 	}
@@ -474,6 +476,7 @@ static int __aca_get_error_data(struct amdgpu_device *adev, struct aca_handle *h
 		smu_type = ACA_SMU_TYPE_UE;
 		break;
 	case ACA_ERROR_TYPE_CE:
+	case ACA_ERROR_TYPE_DEFERRED:
 		smu_type = ACA_SMU_TYPE_CE;
 		break;
 	default:

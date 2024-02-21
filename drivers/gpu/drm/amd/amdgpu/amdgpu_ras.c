@@ -1291,8 +1291,8 @@ ssize_t amdgpu_ras_aca_sysfs_read(struct device *dev, struct device_attribute *a
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
-	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
-			  "ce", info.ce_count);
+	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n%s: %lu\n", "ue", info.ue_count,
+			  "ce", info.ce_count, "de", info.ue_count);
 }
 
 static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
@@ -1339,6 +1339,10 @@ static int amdgpu_ras_query_error_status_helper(struct amdgpu_device *adev,
 				return ret;
 
 			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_CE, err_data);
+			if (ret)
+				return ret;
+
+			ret = amdgpu_aca_log_ras_error_data(adev, blk, ACA_ERROR_TYPE_DEFERRED, err_data);
 			if (ret)
 				return ret;
 		} else {
