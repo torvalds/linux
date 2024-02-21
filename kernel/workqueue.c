@@ -4075,7 +4075,7 @@ static int cwt_wakefn(wait_queue_entry_t *wait, unsigned mode, int sync, void *k
 	return autoremove_wake_function(wait, mode, sync, key);
 }
 
-static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
+static bool __cancel_work_sync(struct work_struct *work, bool is_dwork)
 {
 	static DECLARE_WAIT_QUEUE_HEAD(cancel_waitq);
 	unsigned long flags;
@@ -4159,7 +4159,7 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
  */
 bool cancel_work_sync(struct work_struct *work)
 {
-	return __cancel_work_timer(work, false);
+	return __cancel_work_sync(work, false);
 }
 EXPORT_SYMBOL_GPL(cancel_work_sync);
 
@@ -4264,7 +4264,7 @@ EXPORT_SYMBOL(cancel_delayed_work);
  */
 bool cancel_delayed_work_sync(struct delayed_work *dwork)
 {
-	return __cancel_work_timer(&dwork->work, true);
+	return __cancel_work_sync(&dwork->work, true);
 }
 EXPORT_SYMBOL(cancel_delayed_work_sync);
 
