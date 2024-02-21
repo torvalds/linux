@@ -221,11 +221,8 @@ static void kaslr_adjust_got(unsigned long offset)
 	 * Even without -fPIE, Clang still uses a global offset table for some
 	 * reason.  Adjust the GOT entries.
 	 */
-	for (entry = (u64 *)vmlinux.got_off;
-	     entry < (u64 *)(vmlinux.got_off + vmlinux.got_size);
-	     entry++) {
+	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++)
 		*entry += offset;
-	}
 }
 #endif
 
@@ -366,7 +363,8 @@ static void kaslr_adjust_vmlinux_info(unsigned long offset)
 	vmlinux.rela_dyn_end += offset;
 	vmlinux.dynsym_start += offset;
 #else
-	vmlinux.got_off += offset;
+	vmlinux.got_start += offset;
+	vmlinux.got_end += offset;
 #endif
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;

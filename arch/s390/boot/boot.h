@@ -30,8 +30,8 @@ struct vmlinux_info {
 	unsigned long rela_dyn_start;
 	unsigned long rela_dyn_end;
 #else
-	unsigned long got_off;
-	unsigned long got_size;
+	unsigned long got_start;
+	unsigned long got_end;
 #endif
 	unsigned long amode31_size;
 	unsigned long init_mm_off;

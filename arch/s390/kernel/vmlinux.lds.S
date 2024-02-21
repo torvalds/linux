@@ -244,8 +244,8 @@ SECTIONS
 		QUAD(__rela_dyn_start)				/* rela_dyn_start */
 		QUAD(__rela_dyn_end)				/* rela_dyn_end */
 #else
-		QUAD(__got_start)				/* got_off */
-		QUAD(__got_end - __got_start)			/* got_size */
+		QUAD(__got_start)				/* got_start */
+		QUAD(__got_end)					/* got_end */
 #endif
 		QUAD(_eamode31 - _samode31)			/* amode31_size */
 		QUAD(init_mm)
