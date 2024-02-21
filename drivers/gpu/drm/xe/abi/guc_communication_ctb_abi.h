@@ -82,11 +82,11 @@ static_assert(sizeof(struct guc_ct_buffer_desc) == 64);
 #define GUC_CTB_HDR_LEN				1u
 #define GUC_CTB_MSG_MIN_LEN			GUC_CTB_HDR_LEN
 #define GUC_CTB_MSG_MAX_LEN			256u
-#define GUC_CTB_MSG_0_FENCE			(0xffff << 16)
-#define GUC_CTB_MSG_0_FORMAT			(0xf << 12)
+#define GUC_CTB_MSG_0_FENCE			(0xffffu << 16)
+#define GUC_CTB_MSG_0_FORMAT			(0xfu << 12)
 #define   GUC_CTB_FORMAT_HXG			0u
-#define GUC_CTB_MSG_0_RESERVED			(0xf << 8)
-#define GUC_CTB_MSG_0_NUM_DWORDS		(0xff << 0)
+#define GUC_CTB_MSG_0_RESERVED			(0xfu << 8)
+#define GUC_CTB_MSG_0_NUM_DWORDS		(0xffu << 0)
 
 /**
  * DOC: CTB HXG Message

@@ -21,9 +21,6 @@ struct xe_bo;
 struct xe_sync_entry;
 struct xe_vm;
 
-#define TEST_VM_ASYNC_OPS_ERROR
-#define FORCE_ASYNC_OP_ERROR	BIT(31)
-
 #define XE_VMA_READ_ONLY	DRM_GPUVA_USERBITS
 #define XE_VMA_DESTROYED	(DRM_GPUVA_USERBITS << 1)
 #define XE_VMA_ATOMIC_PTE_BIT	(DRM_GPUVA_USERBITS << 2)
@@ -37,6 +34,8 @@ struct xe_vm;
 struct xe_userptr {
 	/** @invalidate_link: Link for the vm::userptr.invalidated list */
 	struct list_head invalidate_link;
+	/** @userptr: link into VM repin list if userptr. */
+	struct list_head repin_link;
 	/**
 	 * @notifier: MMU notifier for user pointer (invalidation call back)
 	 */
@@ -68,8 +67,6 @@ struct xe_vma {
 	 * resv.
 	 */
 	union {
-		/** @userptr: link into VM repin list if userptr. */
-		struct list_head userptr;
 		/** @rebind: link into VM if this VMA needs rebinding. */
 		struct list_head rebind;
 		/** @destroy: link to contested list when VM is being closed. */
@@ -105,11 +102,15 @@ struct xe_vma {
 	 * @pat_index: The pat index to use when encoding the PTEs for this vma.
 	 */
 	u16 pat_index;
+};
 
-	/**
-	 * @userptr: user pointer state, only allocated for VMAs that are
-	 * user pointers
-	 */
+/**
+ * struct xe_userptr_vma - A userptr vma subclass
+ * @vma: The vma.
+ * @userptr: Additional userptr information.
+ */
+struct xe_userptr_vma {
+	struct xe_vma vma;
 	struct xe_userptr userptr;
 };
 
@@ -355,11 +356,6 @@ struct xe_vma_op {
 	struct list_head link;
 	/** @flags: operation flags */
 	enum xe_vma_op_flags flags;
-
-#ifdef TEST_VM_ASYNC_OPS_ERROR
-	/** @inject_error: inject error to test async op error handling */
-	bool inject_error;
-#endif
 
 	union {
 		/** @map: VMA map operation specific data */

@@ -717,7 +717,7 @@ retry:
 
 	if (IS_ERR(sb->bdev_handle)) {
 		ret = PTR_ERR(sb->bdev_handle);
-		goto out;
+		goto err;
 	}
 	sb->bdev = sb->bdev_handle->bdev;
 

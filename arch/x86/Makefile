@@ -112,13 +112,13 @@ ifeq ($(CONFIG_X86_32),y)
         # temporary until string.h is fixed
         KBUILD_CFLAGS += -ffreestanding
 
-	ifeq ($(CONFIG_STACKPROTECTOR),y)
-		ifeq ($(CONFIG_SMP),y)
+    ifeq ($(CONFIG_STACKPROTECTOR),y)
+        ifeq ($(CONFIG_SMP),y)
 			KBUILD_CFLAGS += -mstack-protector-guard-reg=fs -mstack-protector-guard-symbol=__stack_chk_guard
-		else
+        else
 			KBUILD_CFLAGS += -mstack-protector-guard=global
-		endif
-	endif
+        endif
+    endif
 else
         BITS := 64
         UTS_MACHINE := x86_64

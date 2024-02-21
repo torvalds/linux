@@ -128,12 +128,14 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
 	/* Cancel all jobs from the entity's queue. */
-	drm_sched_entity_fini(&chan->sched.entity);
+	if (chan->sched)
+		drm_sched_entity_fini(&chan->sched->entity);
 
 	if (chan->chan)
 		nouveau_channel_idle(chan->chan);
 
-	nouveau_sched_fini(&chan->sched);
+	if (chan->sched)
+		nouveau_sched_destroy(&chan->sched);
 
 	/* cleanup notifier state */
 	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
@@ -337,10 +339,16 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 	if (ret)
 		goto done;
 
-	ret = nouveau_sched_init(&chan->sched, drm, drm->sched_wq,
-				 chan->chan->dma.ib_max);
-	if (ret)
-		goto done;
+	/* If we're not using the VM_BIND uAPI, we don't need a scheduler.
+	 *
+	 * The client lock is already acquired by nouveau_abi16_get().
+	 */
+	if (nouveau_cli_uvmm(cli)) {
+		ret = nouveau_sched_create(&chan->sched, drm, drm->sched_wq,
+					   chan->chan->dma.ib_max);
+		if (ret)
+			goto done;
+	}
 
 	init->channel = chan->chan->chid;
 

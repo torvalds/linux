@@ -181,7 +181,6 @@ static int jpeg_v4_0_5_hw_fini(void *handle)
 			RREG32_SOC15(JPEG, 0, regUVD_JRBC_STATUS))
 			jpeg_v4_0_5_set_powergating_state(adev, AMD_PG_STATE_GATE);
 	}
-	amdgpu_irq_put(adev, &adev->jpeg.inst->irq, 0);
 
 	return 0;
 }
@@ -516,14 +515,6 @@ static int jpeg_v4_0_5_set_powergating_state(void *handle,
 	return ret;
 }
 
-static int jpeg_v4_0_5_set_interrupt_state(struct amdgpu_device *adev,
-					struct amdgpu_irq_src *source,
-					unsigned type,
-					enum amdgpu_interrupt_state state)
-{
-	return 0;
-}
-
 static int jpeg_v4_0_5_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
@@ -603,7 +594,6 @@ static void jpeg_v4_0_5_set_dec_ring_funcs(struct amdgpu_device *adev)
 }
 
 static const struct amdgpu_irq_src_funcs jpeg_v4_0_5_irq_funcs = {
-	.set = jpeg_v4_0_5_set_interrupt_state,
 	.process = jpeg_v4_0_5_process_interrupt,
 };
 
