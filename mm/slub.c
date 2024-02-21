@@ -1765,7 +1765,6 @@ __setup_param("slub_debug", slub_debug, setup_slub_debug, 0);
 
 /*
  * kmem_cache_flags - apply debugging options to the cache
- * @object_size:	the size of an object without meta data
  * @flags:		flags to set
  * @name:		name of the cache
  *
@@ -1774,8 +1773,7 @@ __setup_param("slub_debug", slub_debug, setup_slub_debug, 0);
  * slab_debug=<Debug-Options>,<slab name1>,<slab name2> ...
  * then only the select slabs will receive the debug option(s).
  */
-slab_flags_t kmem_cache_flags(unsigned int object_size,
-	slab_flags_t flags, const char *name)
+slab_flags_t kmem_cache_flags(slab_flags_t flags, const char *name)
 {
 	char *iter;
 	size_t len;
@@ -1851,8 +1849,7 @@ static inline void add_full(struct kmem_cache *s, struct kmem_cache_node *n,
 					struct slab *slab) {}
 static inline void remove_full(struct kmem_cache *s, struct kmem_cache_node *n,
 					struct slab *slab) {}
-slab_flags_t kmem_cache_flags(unsigned int object_size,
-	slab_flags_t flags, const char *name)
+slab_flags_t kmem_cache_flags(slab_flags_t flags, const char *name)
 {
 	return flags;
 }
@@ -5105,7 +5102,7 @@ static int calculate_sizes(struct kmem_cache *s)
 
 static int kmem_cache_open(struct kmem_cache *s, slab_flags_t flags)
 {
-	s->flags = kmem_cache_flags(s->size, flags, s->name);
+	s->flags = kmem_cache_flags(flags, s->name);
 #ifdef CONFIG_SLAB_FREELIST_HARDENED
 	s->random = get_random_long();
 #endif

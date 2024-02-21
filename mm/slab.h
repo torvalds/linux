@@ -433,8 +433,7 @@ struct kmem_cache *
 __kmem_cache_alias(const char *name, unsigned int size, unsigned int align,
 		   slab_flags_t flags, void (*ctor)(void *));
 
-slab_flags_t kmem_cache_flags(unsigned int object_size,
-	slab_flags_t flags, const char *name);
+slab_flags_t kmem_cache_flags(slab_flags_t flags, const char *name);
 
 static inline bool is_kmalloc_cache(struct kmem_cache *s)
 {
