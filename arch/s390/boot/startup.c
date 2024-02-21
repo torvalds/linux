@@ -177,18 +177,16 @@ static void kaslr_adjust_got(unsigned long offset) {}
 static void rescue_relocs(void) {}
 static void free_relocs(void) {}
 #else
-int *vmlinux_relocs_64_start;
-int *vmlinux_relocs_64_end;
+static int *vmlinux_relocs_64_start;
+static int *vmlinux_relocs_64_end;
 
 static void rescue_relocs(void)
 {
-	unsigned long size, nrelocs;
+	unsigned long size = __vmlinux_relocs_64_end - __vmlinux_relocs_64_start;
 
-	nrelocs = __vmlinux_relocs_64_end - __vmlinux_relocs_64_start;
-	size = nrelocs * sizeof(uint32_t);
 	vmlinux_relocs_64_start = (void *)physmem_alloc_top_down(RR_RELOC, size, 0);
-	memmove(vmlinux_relocs_64_start, (void *)__vmlinux_relocs_64_start, size);
-	vmlinux_relocs_64_end = vmlinux_relocs_64_start + nrelocs;
+	vmlinux_relocs_64_end = (void *)vmlinux_relocs_64_start + size;
+	memmove(vmlinux_relocs_64_start, __vmlinux_relocs_64_start, size);
 }
 
 static void free_relocs(void)
