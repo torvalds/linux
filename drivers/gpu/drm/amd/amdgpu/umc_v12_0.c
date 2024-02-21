@@ -509,36 +509,25 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 {
 	struct amdgpu_device *adev = handle->adev;
 	struct aca_bank_info info;
+	enum aca_error_type err_type;
 	u64 status;
 	int ret;
+
+	status = bank->regs[ACA_REG_IDX_STATUS];
+	if (umc_v12_0_is_deferred_error(adev, status))
+		err_type = ACA_ERROR_TYPE_DEFERRED;
+	else if (umc_v12_0_is_uncorrectable_error(adev, status))
+		err_type = ACA_ERROR_TYPE_UE;
+	else if (umc_v12_0_is_correctable_error(adev, status))
+		err_type = ACA_ERROR_TYPE_CE;
+	else
+		return 0;
 
 	ret = aca_bank_info_decode(bank, &info);
 	if (ret)
 		return ret;
 
-	status = bank->regs[ACA_REG_IDX_STATUS];
-	switch (type) {
-	case ACA_SMU_TYPE_UE:
-		if (umc_v12_0_is_uncorrectable_error(adev, status)) {
-			ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
-							     1ULL);
-			if (ret)
-				return ret;
-		}
-		break;
-	case ACA_SMU_TYPE_CE:
-		if (umc_v12_0_is_correctable_error(adev, status)) {
-			ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
-							     1ULL);
-			if (ret)
-				return ret;
-		}
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return 0;
+	return aca_error_cache_log_bank_error(handle, &info, err_type, 1ULL);
 }
 
 static const struct aca_bank_ops umc_v12_0_aca_bank_ops = {
@@ -547,7 +536,7 @@ static const struct aca_bank_ops umc_v12_0_aca_bank_ops = {
 
 const struct aca_info umc_v12_0_aca_info = {
 	.hwip = ACA_HWIP_TYPE_UMC,
-	.mask = ACA_ERROR_UE_MASK | ACA_ERROR_CE_MASK,
+	.mask = ACA_ERROR_UE_MASK | ACA_ERROR_CE_MASK | ACA_ERROR_DEFERRED_MASK,
 	.bank_ops = &umc_v12_0_aca_bank_ops,
 };
 
