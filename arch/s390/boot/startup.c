@@ -200,9 +200,7 @@ static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, 
 	long loc;
 
 	/* Adjust R_390_64 relocations */
-	for (reloc = vmlinux_relocs_64_start;
-		reloc < vmlinux_relocs_64_end && *reloc;
-		reloc++) {
+	for (reloc = vmlinux_relocs_64_start; reloc < vmlinux_relocs_64_end; reloc++) {
 		loc = (long)*reloc + offset;
 		if (loc < min_addr || loc > max_addr)
 			error("64-bit relocation outside of kernel!\n");
