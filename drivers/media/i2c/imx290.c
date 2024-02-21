@@ -150,10 +150,10 @@
 
 #define IMX290_PIXEL_ARRAY_WIDTH			1945
 #define IMX290_PIXEL_ARRAY_HEIGHT			1097
-#define IMX920_PIXEL_ARRAY_MARGIN_LEFT			12
-#define IMX920_PIXEL_ARRAY_MARGIN_RIGHT			13
-#define IMX920_PIXEL_ARRAY_MARGIN_TOP			8
-#define IMX920_PIXEL_ARRAY_MARGIN_BOTTOM		9
+#define IMX290_PIXEL_ARRAY_MARGIN_LEFT			12
+#define IMX290_PIXEL_ARRAY_MARGIN_RIGHT			13
+#define IMX290_PIXEL_ARRAY_MARGIN_TOP			8
+#define IMX290_PIXEL_ARRAY_MARGIN_BOTTOM		9
 #define IMX290_PIXEL_ARRAY_RECORDING_WIDTH		1920
 #define IMX290_PIXEL_ARRAY_RECORDING_HEIGHT		1080
 
@@ -1161,10 +1161,10 @@ static int imx290_get_selection(struct v4l2_subdev *sd,
 		 * The sensor moves the readout by 1 pixel based on flips to
 		 * keep the Bayer order the same.
 		 */
-		sel->r.top = IMX920_PIXEL_ARRAY_MARGIN_TOP
+		sel->r.top = IMX290_PIXEL_ARRAY_MARGIN_TOP
 			   + (IMX290_PIXEL_ARRAY_RECORDING_HEIGHT - format->height) / 2
 			   + imx290->vflip->val;
-		sel->r.left = IMX920_PIXEL_ARRAY_MARGIN_LEFT
+		sel->r.left = IMX290_PIXEL_ARRAY_MARGIN_LEFT
 			    + (IMX290_PIXEL_ARRAY_RECORDING_WIDTH - format->width) / 2
 			    + imx290->hflip->val;
 		sel->r.width = format->width;
@@ -1183,8 +1183,8 @@ static int imx290_get_selection(struct v4l2_subdev *sd,
 		return 0;
 
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		sel->r.top = IMX920_PIXEL_ARRAY_MARGIN_TOP;
-		sel->r.left = IMX920_PIXEL_ARRAY_MARGIN_LEFT;
+		sel->r.top = IMX290_PIXEL_ARRAY_MARGIN_TOP;
+		sel->r.left = IMX290_PIXEL_ARRAY_MARGIN_LEFT;
 		sel->r.width = IMX290_PIXEL_ARRAY_RECORDING_WIDTH;
 		sel->r.height = IMX290_PIXEL_ARRAY_RECORDING_HEIGHT;
 
