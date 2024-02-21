@@ -315,6 +315,13 @@ GB of RAM per 1 TB of window. For sparse indexes, the index requires 1 GB
 of RAM per 10 TB of window. The index configuration is set when the target
 is formatted and may not be modified.
 
+Module Parameters
+=================
+
+The vdo driver has a numeric parameter 'log_level' which controls the
+verbosity of logging from the driver. The default setting is 6
+(LOGLEVEL_INFO and more severe messages).
+
 Run-time Usage
 ==============
 
