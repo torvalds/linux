@@ -390,15 +390,11 @@ config ALPHA_PRIMO
 	  Say Y if you have an AS 1000 5/xxx or an AS 1000A 5/xxx.
 
 config ALPHA_GAMMA
-	bool "EV5 CPU(s) (model 5/xxx)?"
-	depends on ALPHA_SABLE
+	bool "EV5 CPU(s) (model 5/xxx)?" if ALPHA_SABLE
+	depends on ALPHA_SABLE || ALPHA_LYNX
+	default ALPHA_LYNX
 	help
 	  Say Y if you have an AS 2000 5/xxx or an AS 2100 5/xxx.
-
-config ALPHA_GAMMA
-	bool
-	depends on ALPHA_LYNX
-	default y
 
 config ALPHA_T2
 	bool
