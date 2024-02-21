@@ -2839,7 +2839,7 @@ static const char *index_state_to_string(struct hash_zones *zones,
 }
 
 /**
- * vdo_dump_hash_zone() - Dump information about a hash zone to the log for debugging.
+ * dump_hash_zone() - Dump information about a hash zone to the log for debugging.
  * @zone: The zone to dump.
  */
 static void dump_hash_zone(const struct hash_zone *zone)

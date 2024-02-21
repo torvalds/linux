@@ -295,8 +295,8 @@ static void notify_flusher(struct vdo_completion *completion)
 }
 
 /**
- * void attempt_generation_complete_notification() - Notify the flusher if some generation no
- *                                                   longer has active VIOs.
+ * attempt_generation_complete_notification() - Notify the flusher if some generation no
+ *                                              longer has active VIOs.
  * @completion: The zone completion.
  */
 static void attempt_generation_complete_notification(struct vdo_completion *completion)

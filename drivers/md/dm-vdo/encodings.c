@@ -1172,7 +1172,7 @@ static struct vdo_component unpack_vdo_component_41_0(struct packed_vdo_componen
 }
 
 /**
- * vdo_decode_component() - Decode the component data for the vdo itself out of the super block.
+ * decode_vdo_component() - Decode the component data for the vdo itself out of the super block.
  *
  * Return: VDO_SUCCESS or an error.
  */

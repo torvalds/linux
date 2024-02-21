@@ -300,7 +300,7 @@ static bool check_code(bool valid, const struct admin_state_code *code, const ch
 }
 
 /**
- * vdo_drain_operation() - Check that an operation is a drain.
+ * assert_vdo_drain_operation() - Check that an operation is a drain.
  * @waiter The completion to finish with an error if the operation is not a drain.
  *
  * Return: true if the specified operation is a drain.

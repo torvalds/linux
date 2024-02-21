@@ -88,7 +88,7 @@ static inline struct vdo_flush *completion_as_vdo_flush(struct vdo_completion *c
 }
 
 /**
- * waiter_as_flush() - Convert a vdo_flush's generic wait queue entry back to the vdo_flush.
+ * vdo_waiter_as_flush() - Convert a vdo_flush's generic wait queue entry back to the vdo_flush.
  * @waiter: The wait queue entry to convert.
  *
  * Return: The wait queue entry as a vdo_flush.

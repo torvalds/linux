@@ -2035,8 +2035,8 @@ static inline slab_block_number find_zero_byte_in_word(const u8 *word_ptr,
 }
 
 /**
- * vdo_find_free_block() - Find the first block with a reference count of zero in the specified
- *                         range of reference counter indexes.
+ * find_free_block() - Find the first block with a reference count of zero in the specified
+ *                     range of reference counter indexes.
  * @slab: The slab counters to scan.
  * @index_ptr: A pointer to hold the array index of the free block.
  *
@@ -5032,7 +5032,7 @@ get_ref_counts_statistics(const struct slab_depot *depot)
 }
 
 /**
- * get_depot_slab_journal_statistics() - Get the aggregated slab journal statistics for the depot.
+ * get_slab_journal_statistics() - Get the aggregated slab journal statistics for the depot.
  * @depot: The slab depot.
  *
  * Return: The aggregated statistics for all slab journals in the depot.
