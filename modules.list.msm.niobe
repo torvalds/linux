@@ -30,6 +30,10 @@ qcom_cpucp.ko
 qcom_llcc_pmu.ko
 qcom_scmi_client.ko
 qcom_scmi_vendor.ko
+debug-regulator.ko
+proxy-consumer.ko
+qti-fixed-regulator.ko
+rpmh-regulator.ko
 gdsc-regulator.ko
 stub-regulator.ko
 pinctrl-msm.ko
@@ -40,6 +44,13 @@ socinfo.ko
 qcom-ipcc.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
+spmi-pmic-arb.ko
+regmap-spmi.ko
+qti-regmap-debugfs.ko
+qcom-spmi-pmic.ko
+nvmem_qcom-spmi-sdam.ko
+rtc-pm8xxx.ko
+pmic-pon-log.ko
 ufs_qcom.ko
 llcc-qcom.ko
 gcc-niobe.ko
