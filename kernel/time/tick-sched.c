@@ -896,7 +896,7 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 	unsigned long basejiff = ts->last_jiffies;
 	u64 basemono = ts->timer_expires_base;
-	bool timer_idle;
+	bool timer_idle = ts->tick_stopped;
 	u64 expires;
 
 	/* Make sure we won't be trying to stop it twice in a row. */

@@ -2044,13 +2044,18 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
  * timer_base_try_to_set_idle() - Try to set the idle state of the timer bases
  * @basej:	base time jiffies
  * @basem:	base time clock monotonic
- * @idle:	pointer to store the value of timer_base->is_idle
+ * @idle:	pointer to store the value of timer_base->is_idle on return;
+ *		*idle contains the information whether tick was already stopped
  *
- * Returns the tick aligned clock monotonic time of the next pending
- * timer or KTIME_MAX if no timer is pending.
+ * Returns the tick aligned clock monotonic time of the next pending timer or
+ * KTIME_MAX if no timer is pending. When tick was already stopped KTIME_MAX is
+ * returned as well.
  */
 u64 timer_base_try_to_set_idle(unsigned long basej, u64 basem, bool *idle)
 {
+	if (*idle)
+		return KTIME_MAX;
+
 	return __get_next_timer_interrupt(basej, basem, idle);
 }
 
