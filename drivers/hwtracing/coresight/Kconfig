@@ -226,6 +226,15 @@ config CORESIGHT_TGU
 	  provide a trigger point for centering data around a specific event
 	  within the trace data buffer.
 
+config CORESIGHT_DBGUI
+        bool "CoreSight DebugUI driver"
+        help
+          This driver provides support for DebugUI that helps to capture
+          the value at a specified address. It allows configuring DebugUI
+          to select specified address and trigger mode based on user
+          input.
+
+
 config CORESIGHT_HWEVENT
 	tristate "CoreSight Hardware Event driver"
 	depends on CORESIGHT_STM
