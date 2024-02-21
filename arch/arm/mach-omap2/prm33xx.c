@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/reboot.h>
 
 #include "powerdomain.h"
 #include "prm33xx.h"
@@ -318,10 +319,19 @@ static int am33xx_check_vcvp(void)
  *
  * Immediately reboots the device through warm reset.
  */
-static void am33xx_prm_global_warm_sw_reset(void)
+static void am33xx_prm_global_sw_reset(void)
 {
-	am33xx_prm_rmw_reg_bits(AM33XX_RST_GLOBAL_WARM_SW_MASK,
-				AM33XX_RST_GLOBAL_WARM_SW_MASK,
+	/*
+	 * Historically AM33xx performed warm reset for all requested reboot_mode.
+	 * Keep this behaviour unchanged for all except newly added REBOOT_COLD.
+	 */
+	u32 mask = AM33XX_RST_GLOBAL_WARM_SW_MASK;
+
+	if (prm_reboot_mode == REBOOT_COLD)
+		mask = AM33XX_RST_GLOBAL_COLD_SW_MASK;
+
+	am33xx_prm_rmw_reg_bits(mask,
+				mask,
 				AM33XX_PRM_DEVICE_MOD,
 				AM33XX_PRM_RSTCTRL_OFFSET);
 
@@ -382,7 +392,7 @@ static struct prm_ll_data am33xx_prm_ll_data = {
 	.assert_hardreset		= am33xx_prm_assert_hardreset,
 	.deassert_hardreset		= am33xx_prm_deassert_hardreset,
 	.is_hardreset_asserted		= am33xx_prm_is_hardreset_asserted,
-	.reset_system			= am33xx_prm_global_warm_sw_reset,
+	.reset_system			= am33xx_prm_global_sw_reset,
 };
 
 int __init am33xx_prm_init(const struct omap_prcm_init_data *data)

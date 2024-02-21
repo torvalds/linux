@@ -18,7 +18,8 @@
  */
 void am33xx_restart(enum reboot_mode mode, const char *cmd)
 {
-	/* TODO: Handle mode and cmd if necessary */
+	/* TODO: Handle cmd if necessary */
+	prm_reboot_mode = mode;
 
 	omap_prm_reset_system();
 }
