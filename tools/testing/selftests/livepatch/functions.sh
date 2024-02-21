@@ -34,6 +34,18 @@ function is_root() {
 	fi
 }
 
+# Check if we can compile the modules before loading them
+function has_kdir() {
+	if [ -z "$KDIR" ]; then
+		KDIR="/lib/modules/$(uname -r)/build"
+	fi
+
+	if [ ! -d "$KDIR" ]; then
+		echo "skip all tests: KDIR ($KDIR) not available to compile modules."
+		exit $ksft_skip
+	fi
+}
+
 # die(msg) - game over, man
 #	msg - dying words
 function die() {
@@ -108,6 +120,7 @@ function cleanup() {
 #		 the ftrace_enabled sysctl.
 function setup_config() {
 	is_root
+	has_kdir
 	push_config
 	set_dynamic_debug
 	set_ftrace_enabled 1
