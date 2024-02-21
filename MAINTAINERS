@@ -9440,7 +9440,7 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/usb/hdpvr/
 
 HEWLETT PACKARD ENTERPRISE ILO CHIF DRIVER
-M:	Matt Hsiao <matt.hsiao@hpe.com>
+M:	Keng-Yu Lin <keng-yu.lin@hpe.com>
 S:	Supported
 F:	drivers/misc/hpilo.[ch]
 
