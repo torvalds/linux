@@ -637,7 +637,7 @@ static struct key *nvmf_parse_key(int key_id)
 	}
 
 	key = key_lookup(key_id);
-	if (!IS_ERR(key))
+	if (IS_ERR(key))
 		pr_err("key id %08x not found\n", key_id);
 	else
 		pr_debug("Using key id %08x\n", key_id);
