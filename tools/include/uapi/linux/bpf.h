@@ -617,7 +617,11 @@ union bpf_iter_link_info {
  *		to NULL to begin the batched operation. After each subsequent
  *		**BPF_MAP_LOOKUP_BATCH**, the caller should pass the resultant
  *		*out_batch* as the *in_batch* for the next operation to
- *		continue iteration from the current point.
+ *		continue iteration from the current point. Both *in_batch* and
+ *		*out_batch* must point to memory large enough to hold a key,
+ *		except for maps of type **BPF_MAP_TYPE_{HASH, PERCPU_HASH,
+ *		LRU_HASH, LRU_PERCPU_HASH}**, for which batch parameters
+ *		must be at least 4 bytes wide regardless of key size.
  *
  *		The *keys* and *values* are output parameters which must point
  *		to memory large enough to hold *count* items based on the key

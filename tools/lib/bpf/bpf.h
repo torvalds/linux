@@ -190,10 +190,14 @@ LIBBPF_API int bpf_map_delete_batch(int fd, const void *keys,
 /**
  * @brief **bpf_map_lookup_batch()** allows for batch lookup of BPF map elements.
  *
- * The parameter *in_batch* is the address of the first element in the batch to read.
- * *out_batch* is an output parameter that should be passed as *in_batch* to subsequent
- * calls to **bpf_map_lookup_batch()**. NULL can be passed for *in_batch* to indicate
- * that the batched lookup starts from the beginning of the map.
+ * The parameter *in_batch* is the address of the first element in the batch to
+ * read. *out_batch* is an output parameter that should be passed as *in_batch*
+ * to subsequent calls to **bpf_map_lookup_batch()**. NULL can be passed for
+ * *in_batch* to indicate that the batched lookup starts from the beginning of
+ * the map. Both *in_batch* and *out_batch* must point to memory large enough to
+ * hold a single key, except for maps of type **BPF_MAP_TYPE_{HASH, PERCPU_HASH,
+ * LRU_HASH, LRU_PERCPU_HASH}**, for which the memory size must be at
+ * least 4 bytes wide regardless of key size.
  *
  * The *keys* and *values* are output parameters which must point to memory large enough to
  * hold *count* items based on the key and value size of the map *map_fd*. The *keys*
@@ -226,7 +230,10 @@ LIBBPF_API int bpf_map_lookup_batch(int fd, void *in_batch, void *out_batch,
  *
  * @param fd BPF map file descriptor
  * @param in_batch address of the first element in batch to read, can pass NULL to
- * get address of the first element in *out_batch*
+ * get address of the first element in *out_batch*. If not NULL, must be large
+ * enough to hold a key. For **BPF_MAP_TYPE_{HASH, PERCPU_HASH, LRU_HASH,
+ * LRU_PERCPU_HASH}**, the memory size must be at least 4 bytes wide regardless
+ * of key size.
  * @param out_batch output parameter that should be passed to next call as *in_batch*
  * @param keys pointer to an array of *count* keys
  * @param values pointer to an array large enough for *count* values
