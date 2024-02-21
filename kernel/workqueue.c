@@ -763,10 +763,9 @@ static int work_next_color(int color)
  * contain the pointer to the queued pwq.  Once execution starts, the flag
  * is cleared and the high bits contain OFFQ flags and pool ID.
  *
- * set_work_pwq(), set_work_pool_and_clear_pending(), mark_work_canceling()
- * and clear_work_data() can be used to set the pwq, pool or clear
- * work->data.  These functions should only be called while the work is
- * owned - ie. while the PENDING bit is set.
+ * set_work_pwq(), set_work_pool_and_clear_pending() and mark_work_canceling()
+ * can be used to set the pwq, pool or clear work->data. These functions should
+ * only be called while the work is owned - ie. while the PENDING bit is set.
  *
  * get_work_pool() and get_work_pwq() can be used to obtain the pool or pwq
  * corresponding to a work.  Pool is available once the work has been
@@ -839,12 +838,6 @@ static void set_work_pool_and_clear_pending(struct work_struct *work,
 	 * before actual STORE.
 	 */
 	smp_mb();
-}
-
-static void clear_work_data(struct work_struct *work)
-{
-	smp_wmb();	/* see set_work_pool_and_clear_pending() */
-	set_work_data(work, WORK_STRUCT_NO_POOL, 0);
 }
 
 static inline struct pool_workqueue *work_struct_pwq(unsigned long data)
@@ -4217,14 +4210,13 @@ static bool __cancel_work_sync(struct work_struct *work, u32 cflags)
 	if (wq_online)
 		__flush_work(work, true);
 
-	clear_work_data(work);
-
 	/*
-	 * Paired with prepare_to_wait() above so that either
-	 * waitqueue_active() is visible here or !work_is_canceling() is
-	 * visible there.
+	 * smp_mb() at the end of set_work_pool_and_clear_pending() is paired
+	 * with prepare_to_wait() above so that either waitqueue_active() is
+	 * visible here or !work_is_canceling() is visible there.
 	 */
-	smp_mb();
+	set_work_pool_and_clear_pending(work, WORK_OFFQ_POOL_NONE);
+
 	if (waitqueue_active(&wq_cancel_waitq))
 		__wake_up(&wq_cancel_waitq, TASK_NORMAL, 1, work);
 
