@@ -9,6 +9,11 @@ Industrial I/O
 
    iio_configfs
 
-   ep93xx_adc
+Industrial I/O Kernel Drivers
+=============================
+
+.. toctree::
+   :maxdepth: 1
 
    bno055
+   ep93xx_adc
