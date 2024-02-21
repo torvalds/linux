@@ -678,12 +678,6 @@ static void ep_done_scan(struct eventpoll *ep,
 	write_unlock_irq(&ep->lock);
 }
 
-static void epi_rcu_free(struct rcu_head *head)
-{
-	struct epitem *epi = container_of(head, struct epitem, rcu);
-	kmem_cache_free(epi_cache, epi);
-}
-
 static void ep_get(struct eventpoll *ep)
 {
 	refcount_inc(&ep->refcount);
@@ -767,7 +761,7 @@ static bool __ep_remove(struct eventpoll *ep, struct epitem *epi, bool force)
 	 * ep->mtx. The rcu read side, reverse_path_check_proc(), does not make
 	 * use of the rbn field.
 	 */
-	call_rcu(&epi->rcu, epi_rcu_free);
+	kfree_rcu(epi, rcu);
 
 	percpu_counter_dec(&ep->user->epoll_watches);
 	return ep_refcount_dec_and_test(ep);
