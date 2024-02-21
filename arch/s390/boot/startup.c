@@ -142,7 +142,7 @@ static void copy_bootdata(void)
 }
 
 #ifdef CONFIG_PIE_BUILD
-static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long offset)
+static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, unsigned long offset)
 {
 	Elf64_Rela *rela_start, *rela_end, *rela;
 	int r_type, r_sym, rc;
@@ -196,10 +196,9 @@ static void free_relocs(void)
 	physmem_free(RR_RELOC);
 }
 
-static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long offset)
+static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr, unsigned long offset)
 {
 	int *reloc;
-	unsigned long max_addr = min_addr + vmlinux.image_size;
 	long loc;
 
 	/* Adjust R_390_64 relocations */
@@ -464,7 +463,7 @@ void startup_kernel(void)
 	 *   to bootdata made by setup_vmem()
 	 */
 	clear_bss_section(vmlinux_lma);
-	kaslr_adjust_relocs(vmlinux_lma, __kaslr_offset);
+	kaslr_adjust_relocs(vmlinux_lma, vmlinux_lma + vmlinux.image_size, __kaslr_offset);
 	kaslr_adjust_got(__kaslr_offset);
 	free_relocs();
 	setup_vmem(asce_limit);
