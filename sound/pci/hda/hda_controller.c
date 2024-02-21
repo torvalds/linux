@@ -24,6 +24,7 @@
 
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <sound/pcm_params.h>
 #include "hda_controller.h"
 #include "hda_local.h"
 
@@ -108,6 +109,7 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	struct azx *chip = apcm->chip;
 	struct azx_dev *azx_dev = get_azx_dev(substream);
+	struct hdac_stream *hdas = azx_stream(azx_dev);
 	int ret = 0;
 
 	trace_azx_pcm_hw_params(chip, azx_dev);
@@ -117,9 +119,15 @@ static int azx_pcm_hw_params(struct snd_pcm_substream *substream,
 		goto unlock;
 	}
 
-	azx_dev->core.bufsize = 0;
-	azx_dev->core.period_bytes = 0;
-	azx_dev->core.format_val = 0;
+	/* Set up BDLEs here, return -ENOMEM if too many BDLEs are required */
+	hdas->bufsize = params_buffer_bytes(hw_params);
+	hdas->period_bytes = params_period_bytes(hw_params);
+	hdas->format_val = 0;
+	hdas->no_period_wakeup =
+		(hw_params->info & SNDRV_PCM_INFO_NO_PERIOD_WAKEUP) &&
+		(hw_params->flags & SNDRV_PCM_HW_PARAMS_NO_PERIOD_WAKEUP);
+	if (snd_hdac_stream_setup_periods(hdas) < 0)
+		ret = -ENOMEM;
 
 unlock:
 	dsp_unlock(azx_dev);
