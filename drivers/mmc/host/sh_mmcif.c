@@ -653,6 +653,7 @@ static bool sh_mmcif_read_block(struct sh_mmcif_host *host)
 static void sh_mmcif_multi_read(struct sh_mmcif_host *host,
 				struct mmc_request *mrq)
 {
+	struct sg_mapping_iter *sgm = &host->sg_miter;
 	struct mmc_data *data = mrq->data;
 
 	if (!data->sg_len || !data->sg->length)
@@ -661,8 +662,14 @@ static void sh_mmcif_multi_read(struct sh_mmcif_host *host,
 	host->blocksize = sh_mmcif_readl(host->addr, MMCIF_CE_BLOCK_SET) &
 		BLOCK_SIZE_MASK;
 
-	sg_miter_start(&host->sg_miter, data->sg, data->sg_len,
+	sg_miter_start(sgm, data->sg, data->sg_len,
 		       SG_MITER_TO_SG);
+
+	/* Advance to the first sglist entry */
+	if (!sg_miter_next(sgm)) {
+		sg_miter_stop(sgm);
+		return;
+	}
 
 	host->wait_for = MMCIF_WAIT_FOR_MREAD;
 
@@ -684,11 +691,6 @@ static bool sh_mmcif_mread_block(struct sh_mmcif_host *host)
 		return false;
 	}
 
-	if (!sg_miter_next(sgm)) {
-		sg_miter_stop(sgm);
-		return false;
-	}
-
 	p = sgm->addr;
 
 	for (i = 0; i < host->blocksize / 4; i++)
@@ -697,6 +699,11 @@ static bool sh_mmcif_mread_block(struct sh_mmcif_host *host)
 	sgm->consumed = host->blocksize;
 
 	sh_mmcif_bitset(host, MMCIF_CE_INT_MASK, MASK_MBUFREN);
+
+	if (!sg_miter_next(sgm)) {
+		sg_miter_stop(sgm);
+		return false;
+	}
 
 	return true;
 }
@@ -756,6 +763,7 @@ static bool sh_mmcif_write_block(struct sh_mmcif_host *host)
 static void sh_mmcif_multi_write(struct sh_mmcif_host *host,
 				struct mmc_request *mrq)
 {
+	struct sg_mapping_iter *sgm = &host->sg_miter;
 	struct mmc_data *data = mrq->data;
 
 	if (!data->sg_len || !data->sg->length)
@@ -764,8 +772,14 @@ static void sh_mmcif_multi_write(struct sh_mmcif_host *host,
 	host->blocksize = sh_mmcif_readl(host->addr, MMCIF_CE_BLOCK_SET) &
 		BLOCK_SIZE_MASK;
 
-	sg_miter_start(&host->sg_miter, data->sg, data->sg_len,
+	sg_miter_start(sgm, data->sg, data->sg_len,
 		       SG_MITER_FROM_SG);
+
+	/* Advance to the first sglist entry */
+	if (!sg_miter_next(sgm)) {
+		sg_miter_stop(sgm);
+		return;
+	}
 
 	host->wait_for = MMCIF_WAIT_FOR_MWRITE;
 
@@ -787,17 +801,17 @@ static bool sh_mmcif_mwrite_block(struct sh_mmcif_host *host)
 		return false;
 	}
 
-	if (!sg_miter_next(sgm)) {
-		sg_miter_stop(sgm);
-		return false;
-	}
-
 	p = sgm->addr;
 
 	for (i = 0; i < host->blocksize / 4; i++)
 		sh_mmcif_writel(host->addr, MMCIF_CE_DATA, *p++);
 
 	sgm->consumed = host->blocksize;
+
+	if (!sg_miter_next(sgm)) {
+		sg_miter_stop(sgm);
+		return false;
+	}
 
 	sh_mmcif_bitset(host, MMCIF_CE_INT_MASK, MASK_MBUFWEN);
 
