@@ -944,20 +944,18 @@ static const struct blk_mq_ops blkfront_mq_ops = {
 static void blkif_set_queue_limits(struct blkfront_info *info)
 {
 	struct request_queue *rq = info->rq;
-	struct gendisk *gd = info->gd;
 	unsigned int segments = info->max_indirect_segments ? :
 				BLKIF_MAX_SEGMENTS_PER_REQUEST;
 
 	blk_queue_flag_set(QUEUE_FLAG_VIRT, rq);
 
 	if (info->feature_discard) {
-		blk_queue_max_discard_sectors(rq, get_capacity(gd));
+		blk_queue_max_discard_sectors(rq, UINT_MAX);
 		rq->limits.discard_granularity = info->discard_granularity ?:
 						 info->physical_sector_size;
 		rq->limits.discard_alignment = info->discard_alignment;
 		if (info->feature_secdiscard)
-			blk_queue_max_secure_erase_sectors(rq,
-							   get_capacity(gd));
+			blk_queue_max_secure_erase_sectors(rq, UINT_MAX);
 	}
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
