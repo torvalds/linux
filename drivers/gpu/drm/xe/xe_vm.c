@@ -792,6 +792,7 @@ static void xe_vma_free(struct xe_vma *vma)
 
 #define VMA_CREATE_FLAG_READ_ONLY	BIT(0)
 #define VMA_CREATE_FLAG_IS_NULL		BIT(1)
+#define VMA_CREATE_FLAG_DUMPABLE	BIT(2)
 
 static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 				    struct xe_bo *bo,
@@ -804,6 +805,7 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	u8 id;
 	bool read_only = (flags & VMA_CREATE_FLAG_READ_ONLY);
 	bool is_null = (flags & VMA_CREATE_FLAG_IS_NULL);
+	bool dumpable = (flags & VMA_CREATE_FLAG_DUMPABLE);
 
 	xe_assert(vm->xe, start < end);
 	xe_assert(vm->xe, end < vm->size);
@@ -838,6 +840,8 @@ static struct xe_vma *xe_vma_create(struct xe_vm *vm,
 	vma->gpuva.va.range = end - start + 1;
 	if (read_only)
 		vma->gpuva.flags |= XE_VMA_READ_ONLY;
+	if (dumpable)
+		vma->gpuva.flags |= XE_VMA_DUMPABLE;
 
 	for_each_tile(tile, vm->xe, id)
 		vma->tile_mask |= 0x1 << id;
@@ -2122,6 +2126,7 @@ vm_bind_ioctl_ops_create(struct xe_vm *vm, struct xe_bo *bo,
 			op->map.read_only =
 				flags & DRM_XE_VM_BIND_FLAG_READONLY;
 			op->map.is_null = flags & DRM_XE_VM_BIND_FLAG_NULL;
+			op->map.dumpable = flags & DRM_XE_VM_BIND_FLAG_DUMPABLE;
 			op->map.pat_index = pat_index;
 		} else if (__op->op == DRM_GPUVA_OP_PREFETCH) {
 			op->prefetch.region = prefetch_region;
@@ -2317,6 +2322,8 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 				VMA_CREATE_FLAG_READ_ONLY : 0;
 			flags |= op->map.is_null ?
 				VMA_CREATE_FLAG_IS_NULL : 0;
+			flags |= op->map.dumpable ?
+				VMA_CREATE_FLAG_DUMPABLE : 0;
 
 			vma = new_vma(vm, &op->base.map, op->map.pat_index,
 				      flags);
@@ -2341,6 +2348,9 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 				flags |= op->base.remap.unmap->va->flags &
 					DRM_GPUVA_SPARSE ?
 					VMA_CREATE_FLAG_IS_NULL : 0;
+				flags |= op->base.remap.unmap->va->flags &
+					XE_VMA_DUMPABLE ?
+					VMA_CREATE_FLAG_DUMPABLE : 0;
 
 				vma = new_vma(vm, op->base.remap.prev,
 					      old->pat_index, flags);
@@ -2372,6 +2382,9 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 				flags |= op->base.remap.unmap->va->flags &
 					DRM_GPUVA_SPARSE ?
 					VMA_CREATE_FLAG_IS_NULL : 0;
+				flags |= op->base.remap.unmap->va->flags &
+					XE_VMA_DUMPABLE ?
+					VMA_CREATE_FLAG_DUMPABLE : 0;
 
 				vma = new_vma(vm, op->base.remap.next,
 					      old->pat_index, flags);
