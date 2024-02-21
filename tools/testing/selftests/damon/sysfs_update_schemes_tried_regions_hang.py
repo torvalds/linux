@@ -20,7 +20,7 @@ def main():
 
     err = kdamonds.start()
     if err != None:
-        print('kdmaond start failed: %s' % err)
+        print('kdamond start failed: %s' % err)
         exit(1)
 
     while proc.poll() == None:
