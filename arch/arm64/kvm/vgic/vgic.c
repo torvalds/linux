@@ -30,7 +30,8 @@ struct vgic_global kvm_vgic_global_state __ro_after_init = {
  *         its->its_lock (mutex)
  *           vgic_cpu->ap_list_lock		must be taken with IRQs disabled
  *             kvm->lpi_list_lock		must be taken with IRQs disabled
- *               vgic_irq->irq_lock		must be taken with IRQs disabled
+ *               vgic_dist->lpi_xa.xa_lock	must be taken with IRQs disabled
+ *                 vgic_irq->irq_lock		must be taken with IRQs disabled
  *
  * As the ap_list_lock might be taken from the timer interrupt handler,
  * we have to disable IRQs before taking this lock and everything lower
@@ -131,6 +132,7 @@ void __vgic_put_lpi_locked(struct kvm *kvm, struct vgic_irq *irq)
 		return;
 
 	list_del(&irq->lpi_list);
+	xa_erase(&dist->lpi_xa, irq->intid);
 	dist->lpi_list_count--;
 
 	kfree(irq);
