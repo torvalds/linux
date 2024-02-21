@@ -487,7 +487,6 @@ struct rtllib_rx_stats {
 	u16 Decrypted:1;
 	u32 TimeStampLow;
 	u32 TimeStampHigh;
-	bool bShift;
 	bool bIsQosData;
 
 	u8    RxDrvInfoSize;

@@ -1649,7 +1649,6 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 		stats->bHwError |= 1;
 
 	if (stats->bHwError) {
-		stats->bShift = false;
 		return false;
 	}
 
@@ -1671,9 +1670,6 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 
 	stats->TimeStampLow = pDrvInfo->TSFL;
 	stats->TimeStampHigh = rtl92e_readl(dev, TSFR + 4);
-
-	if ((stats->RxBufShift + stats->RxDrvInfoSize) > 0)
-		stats->bShift = 1;
 
 	stats->RxIs40MHzPacket = pDrvInfo->BW;
 
