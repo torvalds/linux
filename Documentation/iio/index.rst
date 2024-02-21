@@ -8,6 +8,7 @@ Industrial I/O
    :maxdepth: 1
 
    iio_configfs
+   iio_devbuf
 
 Industrial I/O Kernel Drivers
 =============================
