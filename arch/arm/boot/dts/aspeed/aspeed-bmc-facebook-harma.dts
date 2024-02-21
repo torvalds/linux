@@ -260,6 +260,11 @@
 		compatible = "pmbus";
 		reg = <0x69>;
 	};
+
+	tmp75@49 {
+		compatible = "ti,tmp75";
+		reg = <0x49>;
+	};
 };
 
 &i2c5 {
