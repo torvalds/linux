@@ -1409,6 +1409,23 @@ config SXR_DEBUGCC_NIOBE
 	  Say Y if you want to support the debug clocks such as clock
 	  measurement functionality.
 
+config SM_CAMCC_VOLCANO
+	tristate "Volcano Camera Clock Controller"
+	select SM_GCC_VOLCANO
+	help
+	  Support for the camera clock controller on Qualcomm Technologies, Inc
+	  Volcano devices.
+	  Say Y if you want to support camera devices and functionality such as
+	  capturing pictures.
+
+config SM_DISPCC_VOLCANO
+	tristate "Volcano Display Clock Controller"
+	select SM_GCC_VOLCANO
+	help
+	  Support for the display clock controller on Qualcomm Technologies, Inc
+	  Volcano devices.
+	  Say Y if you want to support display devices and functionality such as
+	  splash screen.
 endif
 
 config VIRTIO_CLK

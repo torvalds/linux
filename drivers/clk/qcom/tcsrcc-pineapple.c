@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -128,9 +128,30 @@ static const struct qcom_cc_desc tcsr_cc_pineapple_desc = {
 
 static const struct of_device_id tcsr_cc_pineapple_match_table[] = {
 	{ .compatible = "qcom,pineapple-tcsrcc" },
+	{ .compatible = "qcom,volcano-tcsrcc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tcsr_cc_pineapple_match_table);
+
+static int tcsr_cc_volcano_fixup(struct platform_device *pdev)
+{
+	const char *compat = NULL;
+	int compatlen = 0;
+
+	compat = of_get_property(pdev->dev.of_node, "compatible", &compatlen);
+	if (!compat || compatlen <= 0)
+		return -EINVAL;
+
+	if (strcmp(compat, "qcom,volcano-tcsrcc"))
+		return 0;
+
+	tcsr_ufs_clkref_en.halt_reg = 0xb1118;
+	tcsr_ufs_clkref_en.clkr.enable_reg = 0xb1118;
+	tcsr_cc_pineapple_clocks[TCSR_USB2_CLKREF_EN] = NULL;
+	tcsr_cc_pineapple_clocks[TCSR_USB3_CLKREF_EN] = NULL;
+
+	return 0;
+}
 
 static int tcsr_cc_pineapple_probe(struct platform_device *pdev)
 {
@@ -141,6 +162,9 @@ static int tcsr_cc_pineapple_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
+	ret = tcsr_cc_volcano_fixup(pdev);
+	if (ret)
+		return ret;
 
 	ret = qcom_cc_really_probe(pdev, &tcsr_cc_pineapple_desc, regmap);
 	if (ret) {
