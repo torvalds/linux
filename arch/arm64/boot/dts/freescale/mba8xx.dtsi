@@ -240,6 +240,7 @@
 		interrupt-parent = <&lsio_gpio4>;
 		interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-controller;
+		#interrupt-cells = <2>;
 		vcc-supply = <&reg_1v8>;
 
 		gpio-line-names = "", "LED_A",
