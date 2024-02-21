@@ -3796,6 +3796,8 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	if (rc)
 		goto special_blocks_free;
 
+	hdev->heartbeat_debug_info.cpu_queue_id = GAUDI2_QUEUE_ID_CPU_PQ;
+
 	return 0;
 
 special_blocks_free:
@@ -9777,6 +9779,7 @@ static u16 event_id_to_engine_id(struct hl_device *hdev, u16 event_type)
 
 static void hl_eq_heartbeat_event_handle(struct hl_device *hdev)
 {
+	hdev->heartbeat_debug_info.heartbeat_event_counter++;
 	hdev->eq_heartbeat_received = true;
 }
 

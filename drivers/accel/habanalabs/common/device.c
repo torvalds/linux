@@ -1052,12 +1052,22 @@ static bool is_pci_link_healthy(struct hl_device *hdev)
 static bool hl_device_eq_heartbeat_received(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 cpu_q_id;
 
 	if (!prop->cpucp_info.eq_health_check_supported)
 		return true;
 
 	if (!hdev->eq_heartbeat_received) {
+		cpu_q_id = hdev->heartbeat_debug_info.cpu_queue_id;
+
 		dev_err(hdev->dev, "EQ heartbeat event was not received!\n");
+
+		dev_err(hdev->dev, "Heartbeat events counter: %u, Q_PI: %u, Q_CI: %u, EQ CI: %u, EQ prev: %u\n",
+				hdev->heartbeat_debug_info.heartbeat_event_counter,
+				hdev->kernel_queues[cpu_q_id].pi,
+				atomic_read(&hdev->kernel_queues[cpu_q_id].ci),
+				hdev->event_queue.ci,
+				hdev->event_queue.prev_eqe_index);
 		return false;
 	}
 
@@ -1138,6 +1148,8 @@ static int device_late_init(struct hl_device *hdev)
 	hdev->high_pll = hdev->asic_prop.high_pll;
 
 	if (hdev->heartbeat) {
+		hdev->heartbeat_debug_info.heartbeat_event_counter = 0;
+
 		/*
 		 * Before scheduling the heartbeat driver will check if eq event has received.
 		 * for the first schedule we need to set the indication as true then for the next

@@ -71,7 +71,7 @@ struct hl_fpriv;
 
 #define HL_DEVICE_TIMEOUT_USEC		1000000 /* 1 s */
 
-#define HL_HEARTBEAT_PER_USEC		5000000 /* 5 s */
+#define HL_HEARTBEAT_PER_USEC		10000000 /* 10 s */
 
 #define HL_PLL_LOW_JOB_FREQ_USEC	5000000 /* 5 s */
 
@@ -3175,6 +3175,16 @@ struct hl_reset_info {
 };
 
 /**
+ * struct eq_heartbeat_debug_info - stores debug info to be used upon heartbeat failure.
+ * @heartbeat_event_counter: number of heartbeat events received.
+ * @cpu_queue_id: used to read the queue pi/ci
+ */
+struct eq_heartbeat_debug_info {
+	u32 heartbeat_event_counter;
+	u32 cpu_queue_id;
+};
+
+/**
  * struct hl_device - habanalabs device structure.
  * @pdev: pointer to PCI device, can be NULL in case of simulator device.
  * @pcie_bar_phys: array of available PCIe bars physical addresses.
@@ -3262,6 +3272,7 @@ struct hl_reset_info {
  * @clk_throttling: holds information about current/previous clock throttling events
  * @captured_err_info: holds information about errors.
  * @reset_info: holds current device reset information.
+ * @heartbeat_debug_info: counters used to debug heartbeat failures.
  * @irq_affinity_mask: mask of available CPU cores for user and decoder interrupt handling.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_inner_major_ver: the major of current loaded preboot inner version.
@@ -3451,6 +3462,8 @@ struct hl_device {
 	struct hl_error_info		captured_err_info;
 
 	struct hl_reset_info		reset_info;
+
+	struct eq_heartbeat_debug_info	heartbeat_debug_info;
 
 	cpumask_t			irq_affinity_mask;
 
