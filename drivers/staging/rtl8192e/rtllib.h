@@ -499,8 +499,6 @@ struct rtllib_rx_stats {
 	bool  bPacketMatchBSSID;
 	bool  bIsCCK;
 	bool  bPacketToSelf;
-	u16    packetlength;
-	u16    fraglength;
 	u16    fragoffset;
 	u16    ntotalfrag;
 	bool   bPacketBeacon;
