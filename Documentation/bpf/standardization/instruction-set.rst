@@ -658,6 +658,7 @@ Legacy BPF Packet access instructions
 BPF previously introduced special instructions for access to packet data that were
 carried over from classic BPF. These instructions used an instruction
 class of BPF_LD, a size modifier of BPF_W, BPF_H, or BPF_B, and a
-mode modifier of BPF_ABS or BPF_IND.  However, these instructions are
-deprecated and should no longer be used.  All legacy packet access
-instructions belong to the "legacy" conformance group.
+mode modifier of BPF_ABS or BPF_IND.  The 'dst_reg' and 'offset' fields were
+set to zero, and 'src_reg' was set to zero for BPF_ABS.  However, these
+instructions are deprecated and should no longer be used.  All legacy packet
+access instructions belong to the "legacy" conformance group.
