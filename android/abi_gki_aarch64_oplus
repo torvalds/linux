@@ -331,4 +331,6 @@
   wakeup_source_remove
   wake_up_state
   wq_worker_comm
+  xt_register_match
+  xt_unregister_match
   zero_pfn
