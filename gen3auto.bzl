@@ -87,6 +87,7 @@ def define_gen3auto():
         "drivers/misc/qseecom_proxy.ko",
         "drivers/mmc/host/cqhci.ko",
         "drivers/mmc/host/sdhci-msm.ko",
+        "drivers/mmc/host/sdhci-msm-scaling.ko",
         "drivers/net/ethernet/stmicro/stmmac/dwmac-qcom-eth.ko",
         "drivers/net/ethernet/stmicro/stmmac/stmmac.ko",
         "drivers/net/ethernet/stmicro/stmmac/stmmac-platform.ko",
