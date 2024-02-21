@@ -126,6 +126,10 @@ DECLARE_HOOK(android_vh_binder_free_buf,
 	TP_PROTO(struct binder_proc *proc, struct binder_thread *thread,
 		struct binder_buffer *buffer),
 	TP_ARGS(proc, thread, buffer));
+DECLARE_HOOK(android_vh_binder_buffer_release,
+	TP_PROTO(struct binder_proc *proc, struct binder_thread *thread,
+		struct binder_buffer *buffer, bool has_transaction),
+	TP_ARGS(proc, thread, buffer, has_transaction));
 
 DECLARE_HOOK(android_vh_binder_ioctl_end,
 	TP_PROTO(struct task_struct *caller_task,

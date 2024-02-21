@@ -3989,12 +3989,14 @@ binder_free_buf(struct binder_proc *proc,
 		struct binder_buffer *buffer, bool is_failure)
 {
 	bool enqueue_task = true;
+	bool has_transaction = false;
 
 	trace_android_vh_binder_free_buf(proc, thread, buffer);
 	binder_inner_proc_lock(proc);
 	if (buffer->transaction) {
 		buffer->transaction->buffer = NULL;
 		buffer->transaction = NULL;
+		has_transaction = true;
 	}
 	binder_inner_proc_unlock(proc);
 	if (buffer->async_transaction && buffer->target_node) {
@@ -4018,6 +4020,8 @@ binder_free_buf(struct binder_proc *proc,
 		}
 		binder_node_inner_unlock(buf_node);
 	}
+	trace_android_vh_binder_buffer_release(proc, thread, buffer,
+			has_transaction);
 	trace_binder_transaction_buffer_release(buffer);
 	binder_release_entire_buffer(proc, thread, buffer, is_failure);
 	binder_alloc_free_buf(&proc->alloc, buffer);
