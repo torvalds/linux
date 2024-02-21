@@ -208,7 +208,7 @@ static bool aspeed_sgpio_is_input(unsigned int offset)
 static int aspeed_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 {
 	struct aspeed_sgpio *gpio = gpiochip_get_data(gc);
-	const struct aspeed_sgpio_bank *bank = to_bank(offset);
+	const struct aspeed_sgpio_bank *bank;
 	void __iomem *addr = gpio->base + SGPIO_G7_CTRL_REG_OFFSET(offset >> 1);
 	unsigned long flags;
 	enum aspeed_sgpio_reg reg;
@@ -221,6 +221,7 @@ static int aspeed_sgpio_get(struct gpio_chip *gc, unsigned int offset)
 					      SGPIO_G7_OUT_DATA;
 		rc = !!(field_get(reg, ioread32(addr)));
 	} else {
+		bank = to_bank(offset);
 		reg = aspeed_sgpio_is_input(offset) ? reg_val : reg_rdata;
 		rc = !!(ioread32(bank_reg(gpio, bank, reg)) & GPIO_BIT(offset));
 	}
