@@ -319,7 +319,7 @@ bool dc_stream_set_cursor_attributes(
 	program_cursor_attributes(dc, stream, attributes);
 
 	/* re-enable idle optimizations if necessary */
-	if (reset_idle_optimizations)
+	if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
 		dc_allow_idle_optimizations(dc, true);
 
 	return true;
@@ -394,7 +394,7 @@ bool dc_stream_set_cursor_position(
 
 	program_cursor_position(dc, stream, position);
 	/* re-enable idle optimizations if necessary */
-	if (reset_idle_optimizations)
+	if (reset_idle_optimizations && !dc->debug.disable_dmub_reallow_idle)
 		dc_allow_idle_optimizations(dc, true);
 
 	return true;
