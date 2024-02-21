@@ -6085,39 +6085,21 @@ int hugetlb_add_to_page_cache(struct folio *folio, struct address_space *mapping
 	return 0;
 }
 
-static inline vm_fault_t hugetlb_handle_userfault(struct vm_area_struct *vma,
+static inline vm_fault_t hugetlb_handle_userfault(struct vm_fault *vmf,
 						  struct address_space *mapping,
-						  pgoff_t idx,
-						  unsigned int flags,
-						  unsigned long haddr,
-						  unsigned long addr,
 						  unsigned long reason)
 {
 	u32 hash;
-	struct vm_fault vmf = {
-		.vma = vma,
-		.address = haddr,
-		.real_address = addr,
-		.flags = flags,
-
-		/*
-		 * Hard to debug if it ends up being
-		 * used by a callee that assumes
-		 * something about the other
-		 * uninitialized fields... same as in
-		 * memory.c
-		 */
-	};
 
 	/*
 	 * vma_lock and hugetlb_fault_mutex must be dropped before handling
 	 * userfault. Also mmap_lock could be dropped due to handling
 	 * userfault, any vma operation should be careful from here.
 	 */
-	hugetlb_vma_unlock_read(vma);
-	hash = hugetlb_fault_mutex_hash(mapping, idx);
+	hugetlb_vma_unlock_read(vmf->vma);
+	hash = hugetlb_fault_mutex_hash(mapping, vmf->pgoff);
 	mutex_unlock(&hugetlb_fault_mutex_table[hash]);
-	return handle_userfault(&vmf, reason);
+	return handle_userfault(vmf, reason);
 }
 
 /*
@@ -6141,7 +6123,8 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 			struct vm_area_struct *vma,
 			struct address_space *mapping, pgoff_t idx,
 			unsigned long address, pte_t *ptep,
-			pte_t old_pte, unsigned int flags)
+			pte_t old_pte, unsigned int flags,
+			struct vm_fault *vmf)
 {
 	struct hstate *h = hstate_vma(vma);
 	vm_fault_t ret = VM_FAULT_SIGBUS;
@@ -6200,8 +6183,7 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 				goto out;
 			}
 
-			return hugetlb_handle_userfault(vma, mapping, idx, flags,
-							haddr, address,
+			return hugetlb_handle_userfault(vmf, mapping,
 							VM_UFFD_MISSING);
 		}
 
@@ -6273,8 +6255,7 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 				ret = 0;
 				goto out;
 			}
-			return hugetlb_handle_userfault(vma, mapping, idx, flags,
-							haddr, address,
+			return hugetlb_handle_userfault(vmf, mapping,
 							VM_UFFD_MINOR);
 		}
 	}
@@ -6444,9 +6425,8 @@ vm_fault_t hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		 * hugetlb_no_page will drop vma lock and hugetlb fault
 		 * mutex internally, which make us return immediately.
 		 */
-
 		return hugetlb_no_page(mm, vma, mapping, vmf.pgoff, address,
-					ptep, entry, flags);
+					ptep, entry, flags, &vmf);
 	}
 
 	ret = 0;
