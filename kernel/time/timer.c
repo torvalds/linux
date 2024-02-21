@@ -1982,12 +1982,6 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 	if (base->next_expiry_recalc)
 		next_expiry_recalc(base);
 
-	/*
-	 * We have a fresh next event. Check whether we can forward the
-	 * base.
-	 */
-	__forward_timer_base(base, basej);
-
 	if (base->timers_pending) {
 		nextevt = base->next_expiry;
 
@@ -2004,6 +1998,12 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 		 */
 		base->next_expiry = nextevt;
 	}
+
+	/*
+	 * We have a fresh next event. Check whether we can forward the
+	 * base.
+	 */
+	__forward_timer_base(base, basej);
 
 	/*
 	 * Base is idle if the next event is more than a tick away.
