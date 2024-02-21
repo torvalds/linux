@@ -214,7 +214,7 @@ static void kaslr_adjust_got(unsigned long offset)
 
 	/*
 	 * Even without -fPIE, Clang still uses a global offset table for some
-	 * reason.  Adjust the GOT entries.
+	 * reason. Adjust the GOT entries.
 	 */
 	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++)
 		*entry += offset;
@@ -448,8 +448,8 @@ void startup_kernel(void)
 	/*
 	 * The order of the following operations is important:
 	 *
-	 * - kaslr_adjust_relocs() must follow clear_bss_section() to establish static
-	 *   memory references to data in .bss to be used by setup_vmem()
+	 * - kaslr_adjust_relocs() must follow clear_bss_section() to establish
+	 *   static memory references to data in .bss to be used by setup_vmem()
 	 *   (i.e init_mm.pgd)
 	 *
 	 * - setup_vmem() must follow kaslr_adjust_relocs() to be able using
