@@ -487,14 +487,12 @@ struct rtllib_rx_stats {
 	u16 Decrypted:1;
 	u32 TimeStampLow;
 	u32 TimeStampHigh;
-	bool bIsQosData;
 
 	u8    RxDrvInfoSize;
 	u8    RxBufShift;
 	bool  bIsAMPDU;
 	bool  bFirstMPDU;
 	bool  bContainHTC;
-	bool  RxIs40MHzPacket;
 	u32   RxPWDBAll;
 	u8    RxMIMOSignalStrength[4];
 	s8    RxMIMOSignalQuality[2];
