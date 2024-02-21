@@ -1106,7 +1106,6 @@ EXPORT_SYMBOL_GPL(gpiochip_add_data_with_key);
 void gpiochip_remove(struct gpio_chip *gc)
 {
 	struct gpio_device *gdev = gc->gpiodev;
-	unsigned int i;
 
 	/* FIXME: should the legacy sysfs handling be moved to gpio_device? */
 	gpiochip_sysfs_unregister(gdev);
@@ -1129,15 +1128,6 @@ void gpiochip_remove(struct gpio_chip *gc)
 	 * NULL the driver data pointer.
 	 */
 	gpiochip_set_data(gc, NULL);
-
-	for (i = 0; i < gdev->ngpio; i++) {
-		if (test_bit(FLAG_REQUESTED, &gdev->descs[i].flags))
-			break;
-	}
-
-	if (i != gdev->ngpio)
-		dev_crit(&gdev->dev,
-			 "REMOVING GPIOCHIP WITH GPIOS STILL REQUESTED\n");
 
 	/*
 	 * The gpiochip side puts its use of the device to rest here:
@@ -2329,10 +2319,9 @@ int gpiod_request(struct gpio_desc *desc, const char *label)
 	return ret;
 }
 
-static bool gpiod_free_commit(struct gpio_desc *desc)
+static void gpiod_free_commit(struct gpio_desc *desc)
 {
 	unsigned long flags;
-	bool ret = false;
 
 	might_sleep();
 
@@ -2357,23 +2346,18 @@ static bool gpiod_free_commit(struct gpio_desc *desc)
 #ifdef CONFIG_OF_DYNAMIC
 		WRITE_ONCE(desc->hog, NULL);
 #endif
-		ret = true;
 		desc_set_label(desc, NULL);
 		WRITE_ONCE(desc->flags, flags);
 
 		gpiod_line_state_notify(desc, GPIOLINE_CHANGED_RELEASED);
 	}
-
-	return ret;
 }
 
 void gpiod_free(struct gpio_desc *desc)
 {
 	VALIDATE_DESC_VOID(desc);
 
-	if (!gpiod_free_commit(desc))
-		WARN_ON(1);
-
+	gpiod_free_commit(desc);
 	module_put(desc->gdev->owner);
 	gpio_device_put(desc->gdev);
 }
