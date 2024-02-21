@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DRIVERS_MMC_SDHCI_MSM_SCALING_H
@@ -15,6 +15,7 @@
 #include "../core/core.h"
 
 struct sdhci_msm_host;
+enum sdhci_msm_mmc_load;
 
 #define MMC_READ_SINGLE_BLOCK    17   /* adtc [31:0] data addr   R1  */
 #define MMC_READ_MULTIPLE_BLOCK  18   /* adtc [31:0] data addr   R1  */
@@ -64,4 +65,7 @@ void sdhci_msm_mmc_suspend_clk_scaling(struct mmc_host *host);
 void sdhci_msm_mmc_resume_clk_scaling(struct mmc_host *host);
 void sdhci_msm_mmc_init_clk_scaling(struct mmc_host *host);
 void sdhci_msm_cqe_scaling_resume(struct mmc_host *host);
+bool sdhci_msm_mmc_can_scale_clk(struct sdhci_msm_host *msm_host);
+int sdhci_msm_mmc_clk_update_freq(struct sdhci_msm_host *host,
+		unsigned long freq, enum sdhci_msm_mmc_load state);
 #endif
