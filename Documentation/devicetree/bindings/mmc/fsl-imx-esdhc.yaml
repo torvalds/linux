@@ -177,6 +177,11 @@ properties:
           - const: state_100mhz
           - const: state_200mhz
           - const: sleep
+      - minItems: 2
+        items:
+          - const: default
+          - const: state_100mhz
+          - const: sleep
       - minItems: 1
         items:
           - const: default
