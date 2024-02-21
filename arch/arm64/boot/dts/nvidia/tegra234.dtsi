@@ -1461,6 +1461,14 @@
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE>;
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEA>;
 			status = "disabled";
+
+			snps,axi-config = <&mgbe0_axi_setup>;
+
+			mgbe0_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
 		};
 
 		ethernet@6900000 {
@@ -1495,6 +1503,14 @@
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF1>;
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEB>;
 			status = "disabled";
+
+			snps,axi-config = <&mgbe1_axi_setup>;
+
+			mgbe1_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
 		};
 
 		ethernet@6a00000 {
@@ -1529,6 +1545,14 @@
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF2>;
 			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEC>;
 			status = "disabled";
+
+			snps,axi-config = <&mgbe2_axi_setup>;
+
+			mgbe2_axi_setup: stmmac-axi-config {
+				snps,blen = <256 128 64 32>;
+				snps,rd_osr_lmt = <63>;
+				snps,wr_osr_lmt = <63>;
+			};
 		};
 
 		ethernet@6b00000 {
