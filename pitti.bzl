@@ -59,6 +59,7 @@ def define_pitti():
         "drivers/iommu/msm_dma_iommu_mapping.ko",
         "drivers/iommu/qcom_iommu_debug.ko",
         "drivers/iommu/qcom_iommu_util.ko",
+        "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-mpm.ko",
         "drivers/leds/leds-aw2016.ko",
         "drivers/leds/leds-qpnp-vibrator-ldo.ko",
