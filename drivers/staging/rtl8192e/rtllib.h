@@ -481,7 +481,6 @@ struct rtllib_rx_stats {
 	u16 bHwError:1;
 	u16 bCRC:1;
 	u16 bICV:1;
-	u16 bShortPreamble:1;
 	u16 Decrypted:1;
 	u32 TimeStampLow;
 	u32 TimeStampHigh;
@@ -497,7 +496,6 @@ struct rtllib_rx_stats {
 	bool  bPacketMatchBSSID;
 	bool  bIsCCK;
 	bool  bPacketToSelf;
-	u16    fragoffset;
 	u16    ntotalfrag;
 	bool   bPacketBeacon;
 	bool   bToSelfBA;
