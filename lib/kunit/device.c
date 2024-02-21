@@ -10,6 +10,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 
 #include <kunit/test.h>
 #include <kunit/device.h>
@@ -132,6 +133,9 @@ static struct kunit_device *kunit_device_register_internal(struct kunit *test,
 		put_device(&kunit_dev->dev);
 		return ERR_PTR(err);
 	}
+
+	kunit_dev->dev.dma_mask = &kunit_dev->dev.coherent_dma_mask;
+	kunit_dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	kunit_add_action(test, device_unregister_wrapper, &kunit_dev->dev);
 
