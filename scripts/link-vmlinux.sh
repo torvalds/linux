@@ -156,10 +156,6 @@ kallsyms()
 		kallsymopt="${kallsymopt} --absolute-percpu"
 	fi
 
-	if is_enabled CONFIG_KALLSYMS_BASE_RELATIVE; then
-		kallsymopt="${kallsymopt} --base-relative"
-	fi
-
 	if is_enabled CONFIG_LTO_CLANG; then
 		kallsymopt="${kallsymopt} --lto-clang"
 	fi
