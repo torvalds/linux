@@ -376,8 +376,6 @@ struct workqueue_struct {
 	struct wq_node_nr_active *node_nr_active[]; /* I: per-node nr_active */
 };
 
-static struct kmem_cache *pwq_cache;
-
 /*
  * Each pod type describes how CPUs should be grouped for unbound workqueues.
  * See the comment above workqueue_attrs->affn_scope.
@@ -389,19 +387,14 @@ struct wq_pod_type {
 	int			*cpu_pod;	/* cpu -> pod */
 };
 
-static struct wq_pod_type wq_pod_types[WQ_AFFN_NR_TYPES];
-static enum wq_affn_scope wq_affn_dfl = WQ_AFFN_CACHE;
-
 static const char *wq_affn_names[WQ_AFFN_NR_TYPES] = {
-	[WQ_AFFN_DFL]			= "default",
-	[WQ_AFFN_CPU]			= "cpu",
-	[WQ_AFFN_SMT]			= "smt",
-	[WQ_AFFN_CACHE]			= "cache",
-	[WQ_AFFN_NUMA]			= "numa",
-	[WQ_AFFN_SYSTEM]		= "system",
+	[WQ_AFFN_DFL]		= "default",
+	[WQ_AFFN_CPU]		= "cpu",
+	[WQ_AFFN_SMT]		= "smt",
+	[WQ_AFFN_CACHE]		= "cache",
+	[WQ_AFFN_NUMA]		= "numa",
+	[WQ_AFFN_SYSTEM]	= "system",
 };
-
-static bool wq_topo_initialized __read_mostly = false;
 
 /*
  * Per-cpu work items which run for longer than the following threshold are
@@ -418,6 +411,12 @@ static bool wq_power_efficient = IS_ENABLED(CONFIG_WQ_POWER_EFFICIENT_DEFAULT);
 module_param_named(power_efficient, wq_power_efficient, bool, 0444);
 
 static bool wq_online;			/* can kworkers be created yet? */
+static bool wq_topo_initialized __read_mostly = false;
+
+static struct kmem_cache *pwq_cache;
+
+static struct wq_pod_type wq_pod_types[WQ_AFFN_NR_TYPES];
+static enum wq_affn_scope wq_affn_dfl = WQ_AFFN_CACHE;
 
 /* buf for wq_update_unbound_pod_attrs(), protected by CPU hotplug exclusion */
 static struct workqueue_attrs *wq_update_pod_attrs_buf;
@@ -2230,7 +2229,6 @@ static void __queue_work(int cpu, struct workqueue_struct *wq,
 	 * happen with IRQ disabled.
 	 */
 	lockdep_assert_irqs_disabled();
-
 
 	/*
 	 * For a draining wq, only works from the same workqueue are
@@ -4121,8 +4119,8 @@ static bool __cancel_work_timer(struct work_struct *work, bool is_dwork)
 	local_irq_restore(flags);
 
 	/*
-	 * This allows canceling during early boot.  We know that @work
-	 * isn't executing.
+	 * Skip __flush_work() during early boot when we know that @work isn't
+	 * executing. This allows canceling during early boot.
 	 */
 	if (wq_online)
 		__flush_work(work, true);
