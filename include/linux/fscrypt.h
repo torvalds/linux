@@ -261,6 +261,16 @@ static inline bool fscrypt_is_nokey_name(const struct dentry *dentry)
 	return dentry->d_flags & DCACHE_NOKEY_NAME;
 }
 
+static inline void fscrypt_prepare_dentry(struct dentry *dentry,
+					  bool is_nokey_name)
+{
+	if (is_nokey_name) {
+		spin_lock(&dentry->d_lock);
+		dentry->d_flags |= DCACHE_NOKEY_NAME;
+		spin_unlock(&dentry->d_lock);
+	}
+}
+
 /* crypto.c */
 void fscrypt_enqueue_decrypt_work(struct work_struct *);
 
@@ -423,6 +433,11 @@ static inline void fscrypt_handle_d_move(struct dentry *dentry)
 static inline bool fscrypt_is_nokey_name(const struct dentry *dentry)
 {
 	return false;
+}
+
+static inline void fscrypt_prepare_dentry(struct dentry *dentry,
+					  bool is_nokey_name)
+{
 }
 
 /* crypto.c */
