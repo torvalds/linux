@@ -102,14 +102,16 @@ DEFINE_EVENT(xe_bo, xe_bo_cpu_fault,
 );
 
 TRACE_EVENT(xe_bo_move,
-	    TP_PROTO(struct xe_bo *bo, uint32_t new_placement, uint32_t old_placement),
-	    TP_ARGS(bo, new_placement, old_placement),
+	    TP_PROTO(struct xe_bo *bo, uint32_t new_placement, uint32_t old_placement,
+		     bool move_lacks_source),
+	    TP_ARGS(bo, new_placement, old_placement, move_lacks_source),
 	    TP_STRUCT__entry(
 		     __field(struct xe_bo *, bo)
 		     __field(size_t, size)
 		     __field(u32, new_placement)
 		     __field(u32, old_placement)
 		     __array(char, device_id, 12)
+		     __field(bool, move_lacks_source)
 			),
 
 	    TP_fast_assign(
@@ -118,9 +120,11 @@ TRACE_EVENT(xe_bo_move,
 		   __entry->new_placement = new_placement;
 		   __entry->old_placement = old_placement;
 		   strscpy(__entry->device_id, dev_name(xe_bo_device(__entry->bo)->drm.dev), 12);
+		   __entry->move_lacks_source = move_lacks_source;
 		   ),
-	    TP_printk("migrate object %p [size %zu] from %s to %s device_id:%s",
-		      __entry->bo, __entry->size, xe_mem_type_to_name[__entry->old_placement],
+	    TP_printk("move_lacks_source:%s, migrate object %p [size %zu] from %s to %s device_id:%s",
+		      __entry->move_lacks_source ? "yes" : "no", __entry->bo, __entry->size,
+		      xe_mem_type_to_name[__entry->old_placement],
 		      xe_mem_type_to_name[__entry->new_placement], __entry->device_id)
 );
 
