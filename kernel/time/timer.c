@@ -1329,7 +1329,10 @@ EXPORT_SYMBOL(add_timer_global);
  * @timer:	The timer to be started
  * @cpu:	The CPU to start it on
  *
- * Same as add_timer() except that it starts the timer on the given CPU.
+ * Same as add_timer() except that it starts the timer on the given CPU and
+ * the TIMER_PINNED flag is set. When timer shouldn't be a pinned timer in
+ * the next round, add_timer_global() should be used instead as it unsets
+ * the TIMER_PINNED flag.
  *
  * See add_timer() for further details.
  */
@@ -1342,6 +1345,9 @@ void add_timer_on(struct timer_list *timer, int cpu)
 
 	if (WARN_ON_ONCE(timer_pending(timer)))
 		return;
+
+	/* Make sure timer flags have TIMER_PINNED flag set */
+	timer->flags |= TIMER_PINNED;
 
 	new_base = get_timer_cpu_base(timer->flags, cpu);
 
