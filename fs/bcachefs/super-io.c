@@ -804,7 +804,6 @@ got_super:
 		goto err;
 	}
 
-	ret = 0;
 	sb->have_layout = true;
 
 	ret = bch2_sb_validate(sb, &err, READ);
