@@ -74,6 +74,12 @@ static inline bool gpio_is_valid(int number)
  * Until they are all fixed, leave 0-512 space for them.
  */
 #define GPIO_DYNAMIC_BASE	512
+/*
+ * Define the maximum of the possible GPIO in the global numberspace.
+ * While the GPIO base and numbers are positive, we limit it with signed
+ * maximum as a lot of code is using negative values for special cases.
+ */
+#define GPIO_DYNAMIC_MAX	INT_MAX
 
 /* Always use the library code for GPIO management calls,
  * or when sleeping may be involved.

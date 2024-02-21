@@ -61,7 +61,7 @@ struct gpio_device {
 	struct module		*owner;
 	struct gpio_chip __rcu	*chip;
 	struct gpio_desc	*descs;
-	int			base;
+	unsigned int		base;
 	u16			ngpio;
 	bool			can_sleep;
 	const char		*label;
