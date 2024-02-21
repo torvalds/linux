@@ -384,7 +384,7 @@ err_cancel:
 	return ret;
 }
 
-static int mei_vsc_remove(struct platform_device *pdev)
+static void mei_vsc_remove(struct platform_device *pdev)
 {
 	struct mei_device *mei_dev = platform_get_drvdata(pdev);
 
@@ -395,8 +395,6 @@ static int mei_vsc_remove(struct platform_device *pdev)
 	mei_disable_interrupts(mei_dev);
 
 	mei_deregister(mei_dev);
-
-	return 0;
 }
 
 static int mei_vsc_suspend(struct device *dev)
@@ -433,7 +431,7 @@ MODULE_DEVICE_TABLE(platform, mei_vsc_id_table);
 
 static struct platform_driver mei_vsc_drv = {
 	.probe = mei_vsc_probe,
-	.remove = mei_vsc_remove,
+	.remove_new = mei_vsc_remove,
 	.id_table = mei_vsc_id_table,
 	.driver = {
 		.name = MEI_VSC_DRV_NAME,
