@@ -226,6 +226,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - mediatek,mt7981-wmac
               - mediatek,mt7986-wmac
     then:
       properties:
