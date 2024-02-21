@@ -314,3 +314,4 @@ int path_from_stashed(struct dentry **stashed, unsigned long ino,
 		      struct vfsmount *mnt, const struct file_operations *fops,
 		      const struct inode_operations *iops, void *data,
 		      struct path *path);
+void stashed_dentry_prune(struct dentry *dentry);

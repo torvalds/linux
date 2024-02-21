@@ -34,22 +34,10 @@ static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 		ns_ops->name, inode->i_ino);
 }
 
-static void ns_prune_dentry(struct dentry *dentry)
-{
-	struct inode *inode;
-
-	inode = d_inode(dentry);
-	if (inode) {
-		struct ns_common *ns = inode->i_private;
-		cmpxchg(&ns->stashed, dentry, NULL);
-	}
-}
-
-const struct dentry_operations ns_dentry_operations =
-{
-	.d_prune	= ns_prune_dentry,
+const struct dentry_operations ns_dentry_operations = {
 	.d_delete	= always_delete_dentry,
 	.d_dname	= ns_dname,
+	.d_prune	= stashed_dentry_prune,
 };
 
 static void nsfs_evict(struct inode *inode)

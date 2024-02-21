@@ -187,21 +187,10 @@ static char *pidfs_dname(struct dentry *dentry, char *buffer, int buflen)
 			     d_inode(dentry)->i_ino);
 }
 
-static void pidfs_prune_dentry(struct dentry *dentry)
-{
-	struct inode *inode;
-
-	inode = d_inode(dentry);
-	if (inode) {
-		struct pid *pid = inode->i_private;
-		cmpxchg(&pid->stashed, dentry, NULL);
-	}
-}
-
 static const struct dentry_operations pidfs_dentry_operations = {
 	.d_delete	= always_delete_dentry,
 	.d_dname	= pidfs_dname,
-	.d_prune	= pidfs_prune_dentry,
+	.d_prune	= stashed_dentry_prune,
 };
 
 static int pidfs_init_fs_context(struct fs_context *fc)

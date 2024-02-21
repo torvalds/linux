@@ -1988,7 +1988,8 @@ static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
 	return dentry;
 }
 
-static struct dentry *prepare_anon_dentry(unsigned long ino,
+static struct dentry *prepare_anon_dentry(struct dentry **stashed,
+					  unsigned long ino,
 					  struct super_block *sb,
 					  const struct file_operations *fops,
 					  const struct inode_operations *iops,
@@ -2018,6 +2019,9 @@ static struct dentry *prepare_anon_dentry(unsigned long ino,
 		inode->i_fop = fops;
 	inode->i_private = data;
 	simple_inode_init_ts(inode);
+
+	/* Store address of location where dentry's supposed to be stashed. */
+	dentry->d_fsdata = stashed;
 
 	/* @data is now owned by the fs */
 	d_instantiate(dentry, inode);
@@ -2081,7 +2085,7 @@ int path_from_stashed(struct dentry **stashed, unsigned long ino,
 		goto out_path;
 
 	/* Allocate a new dentry. */
-	dentry = prepare_anon_dentry(ino, mnt->mnt_sb, fops, iops, data);
+	dentry = prepare_anon_dentry(stashed, ino, mnt->mnt_sb, fops, iops, data);
 	if (IS_ERR(dentry))
 		return PTR_ERR(dentry);
 
@@ -2092,6 +2096,27 @@ int path_from_stashed(struct dentry **stashed, unsigned long ino,
 	ret = 1;
 
 out_path:
+	WARN_ON_ONCE(path->dentry->d_fsdata != stashed);
+	WARN_ON_ONCE(d_inode(path->dentry)->i_private != data);
 	path->mnt = mntget(mnt);
 	return ret;
+}
+
+void stashed_dentry_prune(struct dentry *dentry)
+{
+	struct dentry **stashed = dentry->d_fsdata;
+	struct inode *inode = d_inode(dentry);
+
+	if (WARN_ON_ONCE(!stashed))
+		return;
+
+	if (!inode)
+		return;
+
+	/*
+	 * Only replace our own @dentry as someone else might've
+	 * already cleared out @dentry and stashed their own
+	 * dentry in there.
+	 */
+	cmpxchg(stashed, dentry, NULL);
 }
