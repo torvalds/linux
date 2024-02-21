@@ -485,9 +485,6 @@ struct rtllib_rx_stats {
 	u16 bICV:1;
 	u16 bShortPreamble:1;
 	u16 Decrypted:1;
-	u16 Wakeup:1;
-	u16 Reserved0:1;
-	u8  AGC;
 	u32 TimeStampLow;
 	u32 TimeStampHigh;
 	bool bShift;
