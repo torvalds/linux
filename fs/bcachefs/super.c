@@ -468,6 +468,7 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 	 * at least one non-flush write in the journal or recovery will fail:
 	 */
 	set_bit(JOURNAL_NEED_FLUSH_WRITE, &c->journal.flags);
+	set_bit(JOURNAL_RUNNING, &c->journal.flags);
 
 	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);

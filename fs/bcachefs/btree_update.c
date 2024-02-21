@@ -852,7 +852,7 @@ __bch2_fs_log_msg(struct bch_fs *c, unsigned commit_flags, const char *fmt,
 	if (ret)
 		goto err;
 
-	if (!test_bit(JOURNAL_STARTED, &c->journal.flags)) {
+	if (!test_bit(JOURNAL_RUNNING, &c->journal.flags)) {
 		ret = darray_make_room(&c->journal.early_journal_entries, jset_u64s(u64s));
 		if (ret)
 			goto err;

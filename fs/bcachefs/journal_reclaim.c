@@ -833,7 +833,7 @@ bool bch2_journal_flush_pins(struct journal *j, u64 seq_to_flush)
 	/* time_stats this */
 	bool did_work = false;
 
-	if (!test_bit(JOURNAL_STARTED, &j->flags))
+	if (!test_bit(JOURNAL_RUNNING, &j->flags))
 		return false;
 
 	closure_wait_event(&j->async_wait,
