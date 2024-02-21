@@ -411,7 +411,6 @@ static int spm_get_cpu(struct device *dev)
 	return -EOPNOTSUPP;
 }
 
-#ifdef CONFIG_REGULATOR
 static int spm_register_regulator(struct device *dev, struct spm_driver_data *drv)
 {
 	struct regulator_config config = {
@@ -474,12 +473,6 @@ static int spm_register_regulator(struct device *dev, struct spm_driver_data *dr
 
 	return 0;
 }
-#else
-static int spm_register_regulator(struct device *dev, struct spm_driver_data *drv)
-{
-	return 0;
-}
-#endif
 
 static const struct of_device_id spm_match_table[] = {
 	{ .compatible = "qcom,sdm660-gold-saw2-v4.1-l2",
@@ -559,7 +552,10 @@ static int spm_dev_probe(struct platform_device *pdev)
 	if (drv->reg_data->reg_offset[SPM_REG_SPM_CTL])
 		spm_set_low_power_mode(drv, PM_SLEEP_MODE_STBY);
 
-	return spm_register_regulator(&pdev->dev, drv);
+	if (IS_ENABLED(CONFIG_REGULATOR))
+		return spm_register_regulator(&pdev->dev, drv);
+
+	return 0;
 }
 
 static struct platform_driver spm_driver = {
