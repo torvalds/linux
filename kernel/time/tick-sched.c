@@ -799,6 +799,24 @@ static inline bool local_timer_softirq_pending(void)
 	return local_softirq_pending() & BIT(TIMER_SOFTIRQ);
 }
 
+/*
+ * Read jiffies and the time when jiffies were updated last
+ */
+u64 get_jiffies_update(unsigned long *basej)
+{
+	unsigned long basejiff;
+	unsigned int seq;
+	u64 basemono;
+
+	do {
+		seq = read_seqcount_begin(&jiffies_seq);
+		basemono = last_jiffies_update;
+		basejiff = jiffies;
+	} while (read_seqcount_retry(&jiffies_seq, seq));
+	*basej = basejiff;
+	return basemono;
+}
+
 /**
  * tick_nohz_next_event() - return the clock monotonic based next event
  * @ts:		pointer to tick_sched struct
@@ -813,14 +831,8 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 {
 	u64 basemono, next_tick, delta, expires;
 	unsigned long basejiff;
-	unsigned int seq;
 
-	/* Read jiffies and the time when jiffies were updated last */
-	do {
-		seq = read_seqcount_begin(&jiffies_seq);
-		basemono = last_jiffies_update;
-		basejiff = jiffies;
-	} while (read_seqcount_retry(&jiffies_seq, seq));
+	basemono = get_jiffies_update(&basejiff);
 	ts->last_jiffies = basejiff;
 	ts->timer_expires_base = basemono;
 
