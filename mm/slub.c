@@ -391,7 +391,7 @@ struct kmem_cache_cpu {
 	};
 	struct slab *slab;	/* The slab from which we are allocating */
 #ifdef CONFIG_SLUB_CPU_PARTIAL
-	struct slab *partial;	/* Partially allocated frozen slabs */
+	struct slab *partial;	/* Partially allocated slabs */
 #endif
 	local_lock_t lock;	/* Protects the fields above */
 #ifdef CONFIG_SLUB_STATS
