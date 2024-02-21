@@ -247,7 +247,7 @@ enum pool_workqueue_stats {
 };
 
 /*
- * The per-pool workqueue.  While queued, the lower WORK_STRUCT_FLAG_BITS
+ * The per-pool workqueue.  While queued, bits below WORK_PWQ_SHIFT
  * of work_struct->data are used for flags and the remaining high bits
  * point to the pwq; thus, pwqs need to be aligned at two's power of the
  * number of flag bits.
@@ -294,7 +294,7 @@ struct pool_workqueue {
 	 */
 	struct kthread_work	release_work;
 	struct rcu_head		rcu;
-} __aligned(1 << WORK_STRUCT_FLAG_BITS);
+} __aligned(1 << WORK_STRUCT_PWQ_SHIFT);
 
 /*
  * Structure used to wait for workqueue flush.
@@ -843,7 +843,7 @@ static void clear_work_data(struct work_struct *work)
 
 static inline struct pool_workqueue *work_struct_pwq(unsigned long data)
 {
-	return (struct pool_workqueue *)(data & WORK_STRUCT_WQ_DATA_MASK);
+	return (struct pool_workqueue *)(data & WORK_STRUCT_PWQ_MASK);
 }
 
 static struct pool_workqueue *get_work_pwq(struct work_struct *work)
@@ -4851,7 +4851,7 @@ static void pwq_release_workfn(struct kthread_work *work)
 static void init_pwq(struct pool_workqueue *pwq, struct workqueue_struct *wq,
 		     struct worker_pool *pool)
 {
-	BUG_ON((unsigned long)pwq & WORK_STRUCT_FLAG_MASK);
+	BUG_ON((unsigned long)pwq & ~WORK_STRUCT_PWQ_MASK);
 
 	memset(pwq, 0, sizeof(*pwq));
 
