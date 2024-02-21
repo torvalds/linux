@@ -602,6 +602,14 @@ static const struct dmi_system_id axp288_quirks[] = {
 		.driver_data = NULL,
 	},
 	{
+		/* Radxa ROCK Pi X Single Board Computer */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "ROCK Pi X"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "Radxa"),
+		},
+		.driver_data = (void *)AXP288_QUIRK_NO_BATTERY,
+	},
+	{
 		/*
 		 * Various Ace PC/Meegopad/MinisForum/Wintel Mini-PCs/HDMI-sticks
 		 * This entry must be last because it is generic, this allows
