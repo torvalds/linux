@@ -19,6 +19,8 @@
 #include <linux/mm.h>
 #include <linux/swap.h>
 
+#include <generated/xe_wa_oob.h>
+
 #include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"
@@ -35,7 +37,6 @@
 #include "xe_res_cursor.h"
 #include "xe_sync.h"
 #include "xe_trace.h"
-#include "generated/xe_wa_oob.h"
 #include "xe_wa.h"
 
 static struct drm_gem_object *xe_vm_obj(struct xe_vm *vm)

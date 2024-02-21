@@ -5,7 +5,8 @@
 
 #include "xe_ring_ops.h"
 
-#include "generated/xe_wa_oob.h"
+#include <generated/xe_wa_oob.h>
+
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gpu_commands.h"

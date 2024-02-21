@@ -12,7 +12,8 @@
 #include <drm/ttm/ttm_tt.h>
 #include <drm/xe_drm.h>
 
-#include "generated/xe_wa_oob.h"
+#include <generated/xe_wa_oob.h>
+
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_gpu_commands.h"
 #include "tests/xe_test.h"

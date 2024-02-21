@@ -9,7 +9,8 @@
 #include <kunit/visibility.h>
 #include <linux/compiler_types.h>
 
-#include "generated/xe_wa_oob.h"
+#include <generated/xe_wa_oob.h>
+
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
