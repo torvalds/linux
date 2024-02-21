@@ -474,11 +474,9 @@ struct rtllib_rx_stats {
 	u8  control;
 	u8  mask;
 	u16 len;
-	u8  nic_type;
 	u16 Length;
 	u8  SignalQuality;
 	s32 RecvSignalPower;
-	s8  RxPower;
 	u8  SignalStrength;
 	u16 bHwError:1;
 	u16 bCRC:1;

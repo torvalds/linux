@@ -1500,8 +1500,6 @@ static void _rtl92e_rx_normal(struct net_device *dev)
 	};
 	unsigned int count = priv->rxringcount;
 
-	stats.nic_type = NIC_8192E;
-
 	while (count--) {
 		struct rx_desc *pdesc = &priv->rx_ring
 					[priv->rx_idx];
