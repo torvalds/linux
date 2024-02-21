@@ -33,9 +33,7 @@ static struct kmem_cache *sched_fence_slab;
 
 static int __init drm_sched_fence_slab_init(void)
 {
-	sched_fence_slab = kmem_cache_create(
-		"drm_sched_fence", sizeof(struct drm_sched_fence), 0,
-		SLAB_HWCACHE_ALIGN, NULL);
+	sched_fence_slab = KMEM_CACHE(drm_sched_fence, SLAB_HWCACHE_ALIGN);
 	if (!sched_fence_slab)
 		return -ENOMEM;
 
