@@ -61,28 +61,6 @@ int rvu_npc_get_tx_nibble_cfg(struct rvu *rvu, u64 nibble_ena)
 	return 0;
 }
 
-static int npc_mcam_verify_pf_func(struct rvu *rvu,
-				   struct mcam_entry *entry_data, u8 intf,
-				   u16 pcifunc)
-{
-	u16 pf_func, pf_func_mask;
-
-	if (is_npc_intf_rx(intf))
-		return 0;
-
-	pf_func_mask = (entry_data->kw_mask[0] >> 32) &
-		NPC_KEX_PF_FUNC_MASK;
-	pf_func = (entry_data->kw[0] >> 32) & NPC_KEX_PF_FUNC_MASK;
-
-	pf_func = be16_to_cpu((__force __be16)pf_func);
-	if (pf_func_mask != NPC_KEX_PF_FUNC_MASK ||
-	    ((pf_func & ~RVU_PFVF_FUNC_MASK) !=
-	     (pcifunc & ~RVU_PFVF_FUNC_MASK)))
-		return -EINVAL;
-
-	return 0;
-}
-
 void rvu_npc_set_pkind(struct rvu *rvu, int pkind, struct rvu_pfvf *pfvf)
 {
 	int blkaddr;
@@ -1850,8 +1828,8 @@ void npc_mcam_rsrcs_deinit(struct rvu *rvu)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 
-	kfree(mcam->bmap);
-	kfree(mcam->bmap_reverse);
+	bitmap_free(mcam->bmap);
+	bitmap_free(mcam->bmap_reverse);
 	kfree(mcam->entry2pfvf_map);
 	kfree(mcam->cntr2pfvf_map);
 	kfree(mcam->entry2cntr_map);
@@ -1904,21 +1882,20 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	mcam->pf_offset = mcam->nixlf_offset + nixlf_count;
 
 	/* Allocate bitmaps for managing MCAM entries */
-	mcam->bmap = kmalloc_array(BITS_TO_LONGS(mcam->bmap_entries),
-				   sizeof(long), GFP_KERNEL);
+	mcam->bmap = bitmap_zalloc(mcam->bmap_entries, GFP_KERNEL);
 	if (!mcam->bmap)
 		return -ENOMEM;
 
-	mcam->bmap_reverse = kmalloc_array(BITS_TO_LONGS(mcam->bmap_entries),
-					   sizeof(long), GFP_KERNEL);
+	mcam->bmap_reverse = bitmap_zalloc(mcam->bmap_entries, GFP_KERNEL);
 	if (!mcam->bmap_reverse)
 		goto free_bmap;
 
 	mcam->bmap_fcnt = mcam->bmap_entries;
 
 	/* Alloc memory for saving entry to RVU PFFUNC allocation mapping */
-	mcam->entry2pfvf_map = kmalloc_array(mcam->bmap_entries,
-					     sizeof(u16), GFP_KERNEL);
+	mcam->entry2pfvf_map = kcalloc(mcam->bmap_entries, sizeof(u16),
+				       GFP_KERNEL);
+
 	if (!mcam->entry2pfvf_map)
 		goto free_bmap_reverse;
 
@@ -1941,21 +1918,21 @@ int npc_mcam_rsrcs_init(struct rvu *rvu, int blkaddr)
 	if (err)
 		goto free_entry_map;
 
-	mcam->cntr2pfvf_map = kmalloc_array(mcam->counters.max,
-					    sizeof(u16), GFP_KERNEL);
+	mcam->cntr2pfvf_map = kcalloc(mcam->counters.max, sizeof(u16),
+				      GFP_KERNEL);
 	if (!mcam->cntr2pfvf_map)
 		goto free_cntr_bmap;
 
 	/* Alloc memory for MCAM entry to counter mapping and for tracking
 	 * counter's reference count.
 	 */
-	mcam->entry2cntr_map = kmalloc_array(mcam->bmap_entries,
-					     sizeof(u16), GFP_KERNEL);
+	mcam->entry2cntr_map = kcalloc(mcam->bmap_entries, sizeof(u16),
+				       GFP_KERNEL);
 	if (!mcam->entry2cntr_map)
 		goto free_cntr_map;
 
-	mcam->cntr_refcnt = kmalloc_array(mcam->counters.max,
-					  sizeof(u16), GFP_KERNEL);
+	mcam->cntr_refcnt = kcalloc(mcam->counters.max, sizeof(u16),
+				    GFP_KERNEL);
 	if (!mcam->cntr_refcnt)
 		goto free_entry_cntr_map;
 
@@ -1988,9 +1965,9 @@ free_cntr_bmap:
 free_entry_map:
 	kfree(mcam->entry2pfvf_map);
 free_bmap_reverse:
-	kfree(mcam->bmap_reverse);
+	bitmap_free(mcam->bmap_reverse);
 free_bmap:
-	kfree(mcam->bmap);
+	bitmap_free(mcam->bmap);
 
 	return -ENOMEM;
 }
@@ -2852,12 +2829,6 @@ int rvu_mbox_handler_npc_mcam_write_entry(struct rvu *rvu,
 	else
 		nix_intf = pfvf->nix_rx_intf;
 
-	if (!is_pffunc_af(pcifunc) &&
-	    npc_mcam_verify_pf_func(rvu, &req->entry_data, req->intf, pcifunc)) {
-		rc = NPC_MCAM_INVALID_REQ;
-		goto exit;
-	}
-
 	/* For AF installed rules, the nix_intf should be set to target NIX */
 	if (is_pffunc_af(req->hdr.pcifunc))
 		nix_intf = req->intf;
@@ -3207,10 +3178,6 @@ int rvu_mbox_handler_npc_mcam_alloc_and_write_entry(struct rvu *rvu,
 		return NPC_MCAM_INVALID_REQ;
 
 	if (!is_npc_interface_valid(rvu, req->intf))
-		return NPC_MCAM_INVALID_REQ;
-
-	if (npc_mcam_verify_pf_func(rvu, &req->entry_data, req->intf,
-				    req->hdr.pcifunc))
 		return NPC_MCAM_INVALID_REQ;
 
 	/* Try to allocate a MCAM entry */

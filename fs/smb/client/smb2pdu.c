@@ -178,6 +178,7 @@ cifs_chan_skip_or_disable(struct cifs_ses *ses,
 		}
 
 		ses->chans[chan_index].server = NULL;
+		server->terminate = true;
 		spin_unlock(&ses->chan_lock);
 
 		/*
@@ -188,7 +189,6 @@ cifs_chan_skip_or_disable(struct cifs_ses *ses,
 		 */
 		cifs_put_tcp_session(server, from_reconnect);
 
-		server->terminate = true;
 		cifs_signal_cifsd_for_reconnect(server, false);
 
 		/* mark primary server as needing reconnect */
@@ -399,6 +399,15 @@ skip_sess_setup:
 		goto out;
 	}
 
+	spin_lock(&ses->ses_lock);
+	if (ses->flags & CIFS_SES_FLAG_SCALE_CHANNELS) {
+		spin_unlock(&ses->ses_lock);
+		mutex_unlock(&ses->session_mutex);
+		goto skip_add_channels;
+	}
+	ses->flags |= CIFS_SES_FLAG_SCALE_CHANNELS;
+	spin_unlock(&ses->ses_lock);
+
 	if (!rc &&
 	    (server->capabilities & SMB2_GLOBAL_CAP_MULTI_CHANNEL)) {
 		mutex_unlock(&ses->session_mutex);
@@ -410,7 +419,7 @@ skip_sess_setup:
 		rc = SMB3_request_interfaces(xid, tcon, false);
 		free_xid(xid);
 
-		if (rc == -EOPNOTSUPP) {
+		if (rc == -EOPNOTSUPP && ses->chan_count > 1) {
 			/*
 			 * some servers like Azure SMB server do not advertise
 			 * that multichannel has been disabled with server
@@ -428,17 +437,22 @@ skip_sess_setup:
 		if (ses->chan_max > ses->chan_count &&
 		    ses->iface_count &&
 		    !SERVER_IS_CHAN(server)) {
-			if (ses->chan_count == 1)
+			if (ses->chan_count == 1) {
 				cifs_server_dbg(VFS, "supports multichannel now\n");
+				queue_delayed_work(cifsiod_wq, &tcon->query_interfaces,
+						 (SMB_INTERFACE_POLL_INTERVAL * HZ));
+			}
 
 			cifs_try_adding_channels(ses);
-			queue_delayed_work(cifsiod_wq, &tcon->query_interfaces,
-					   (SMB_INTERFACE_POLL_INTERVAL * HZ));
 		}
 	} else {
 		mutex_unlock(&ses->session_mutex);
 	}
+
 skip_add_channels:
+	spin_lock(&ses->ses_lock);
+	ses->flags &= ~CIFS_SES_FLAG_SCALE_CHANNELS;
+	spin_unlock(&ses->ses_lock);
 
 	if (smb2_command != SMB2_INTERNAL_CMD)
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
@@ -2390,8 +2404,13 @@ create_durable_v2_buf(struct cifs_open_parms *oparms)
 	 */
 	buf->dcontext.Timeout = cpu_to_le32(oparms->tcon->handle_timeout);
 	buf->dcontext.Flags = cpu_to_le32(SMB2_DHANDLE_FLAG_PERSISTENT);
-	generate_random_uuid(buf->dcontext.CreateGuid);
-	memcpy(pfid->create_guid, buf->dcontext.CreateGuid, 16);
+
+	/* for replay, we should not overwrite the existing create guid */
+	if (!oparms->replay) {
+		generate_random_uuid(buf->dcontext.CreateGuid);
+		memcpy(pfid->create_guid, buf->dcontext.CreateGuid, 16);
+	} else
+		memcpy(buf->dcontext.CreateGuid, pfid->create_guid, 16);
 
 	/* SMB2_CREATE_DURABLE_HANDLE_REQUEST is "DH2Q" */
 	buf->Name[0] = 'D';
@@ -3128,6 +3147,7 @@ replay_again:
 	/* reinitialize for possible replay */
 	flags = 0;
 	server = cifs_pick_channel(ses);
+	oparms->replay = !!(retries);
 
 	cifs_dbg(FYI, "create/open\n");
 	if (!ses || !server)
@@ -5192,6 +5212,9 @@ int SMB2_query_directory_init(const unsigned int xid,
 	case SMB_FIND_FILE_POSIX_INFO:
 		req->FileInformationClass = SMB_FIND_FILE_POSIX_INFO;
 		break;
+	case SMB_FIND_FILE_FULL_DIRECTORY_INFO:
+		req->FileInformationClass = FILE_FULL_DIRECTORY_INFORMATION;
+		break;
 	default:
 		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",
 			info_level);
@@ -5260,6 +5283,9 @@ smb2_parse_query_directory(struct cifs_tcon *tcon,
 	case SMB_FIND_FILE_POSIX_INFO:
 		/* note that posix payload are variable size */
 		info_buf_size = sizeof(struct smb2_posix_info);
+		break;
+	case SMB_FIND_FILE_FULL_DIRECTORY_INFO:
+		info_buf_size = sizeof(FILE_FULL_DIRECTORY_INFO);
 		break;
 	default:
 		cifs_tcon_dbg(VFS, "info level %u isn't supported\n",

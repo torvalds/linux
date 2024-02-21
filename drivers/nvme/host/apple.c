@@ -797,6 +797,7 @@ static int apple_nvme_init_request(struct blk_mq_tag_set *set,
 
 static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 {
+	enum nvme_ctrl_state state = nvme_ctrl_state(&anv->ctrl);
 	u32 csts = readl(anv->mmio_nvme + NVME_REG_CSTS);
 	bool dead = false, freeze = false;
 	unsigned long flags;
@@ -808,8 +809,8 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	if (csts & NVME_CSTS_CFS)
 		dead = true;
 
-	if (anv->ctrl.state == NVME_CTRL_LIVE ||
-	    anv->ctrl.state == NVME_CTRL_RESETTING) {
+	if (state == NVME_CTRL_LIVE ||
+	    state == NVME_CTRL_RESETTING) {
 		freeze = true;
 		nvme_start_freeze(&anv->ctrl);
 	}
@@ -881,7 +882,7 @@ static enum blk_eh_timer_return apple_nvme_timeout(struct request *req)
 	unsigned long flags;
 	u32 csts = readl(anv->mmio_nvme + NVME_REG_CSTS);
 
-	if (anv->ctrl.state != NVME_CTRL_LIVE) {
+	if (nvme_ctrl_state(&anv->ctrl) != NVME_CTRL_LIVE) {
 		/*
 		 * From rdma.c:
 		 * If we are resetting, connecting or deleting we should
@@ -985,10 +986,10 @@ static void apple_nvme_reset_work(struct work_struct *work)
 	u32 boot_status, aqa;
 	struct apple_nvme *anv =
 		container_of(work, struct apple_nvme, ctrl.reset_work);
+	enum nvme_ctrl_state state = nvme_ctrl_state(&anv->ctrl);
 
-	if (anv->ctrl.state != NVME_CTRL_RESETTING) {
-		dev_warn(anv->dev, "ctrl state %d is not RESETTING\n",
-			 anv->ctrl.state);
+	if (state != NVME_CTRL_RESETTING) {
+		dev_warn(anv->dev, "ctrl state %d is not RESETTING\n", state);
 		ret = -ENODEV;
 		goto out;
 	}

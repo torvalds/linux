@@ -185,9 +185,11 @@ static inline bool
 nvmf_ctlr_matches_baseopts(struct nvme_ctrl *ctrl,
 			struct nvmf_ctrl_options *opts)
 {
-	if (ctrl->state == NVME_CTRL_DELETING ||
-	    ctrl->state == NVME_CTRL_DELETING_NOIO ||
-	    ctrl->state == NVME_CTRL_DEAD ||
+	enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+	if (state == NVME_CTRL_DELETING ||
+	    state == NVME_CTRL_DELETING_NOIO ||
+	    state == NVME_CTRL_DEAD ||
 	    strcmp(opts->subsysnqn, ctrl->opts->subsysnqn) ||
 	    strcmp(opts->host->nqn, ctrl->opts->host->nqn) ||
 	    !uuid_equal(&opts->host->id, &ctrl->opts->host->id))

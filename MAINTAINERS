@@ -4169,14 +4169,14 @@ F:	drivers/firmware/broadcom/tee_bnxt_fw.c
 F:	drivers/net/ethernet/broadcom/bnxt/
 F:	include/linux/firmware/broadcom/tee_bnxt_fw.h
 
-BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
-M:	Arend van Spriel <aspriel@gmail.com>
-M:	Franky Lin <franky.lin@broadcom.com>
-M:	Hante Meuleman <hante.meuleman@broadcom.com>
+BROADCOM BRCM80211 IEEE802.11 WIRELESS DRIVERS
+M:	Arend van Spriel <arend.vanspriel@broadcom.com>
 L:	linux-wireless@vger.kernel.org
+L:	brcm80211@lists.linux.dev
 L:	brcm80211-dev-list.pdl@broadcom.com
 S:	Supported
 F:	drivers/net/wireless/broadcom/brcm80211/
+F:	include/linux/platform_data/brcmfmac.h
 
 BROADCOM BRCMSTB GPIO DRIVER
 M:	Doug Berger <opendmb@gmail.com>
@@ -5609,6 +5609,11 @@ L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/can/ctu,ctucanfd.yaml
 F:	drivers/net/can/ctucanfd/
+
+CVE ASSIGNMENT CONTACT
+M:	CVE Assignment Team <cve@kernel.org>
+S:	Maintained
+F:	Documentation/process/cve.rst
 
 CW1200 WLAN driver
 S:	Orphan
@@ -10091,7 +10096,7 @@ L:	linux-i2c@vger.kernel.org
 S:	Maintained
 W:	https://i2c.wiki.kernel.org/
 Q:	https://patchwork.ozlabs.org/project/linux-i2c/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/wsa/linux.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/andi.shyti/linux.git
 F:	Documentation/devicetree/bindings/i2c/
 F:	drivers/i2c/algos/
 F:	drivers/i2c/busses/
@@ -10283,7 +10288,7 @@ F:	drivers/scsi/ibmvscsi/ibmvscsi*
 F:	include/scsi/viosrp.h
 
 IBM Power Virtual SCSI Device Target Driver
-M:	Michael Cyr <mikecyr@linux.ibm.com>
+M:	Tyrel Datwyler <tyreld@linux.ibm.com>
 L:	linux-scsi@vger.kernel.org
 L:	target-devel@vger.kernel.org
 S:	Supported
@@ -10801,11 +10806,11 @@ F:	drivers/gpio/gpio-tangier.h
 
 INTEL GVT-g DRIVERS (Intel GPU Virtualization)
 M:	Zhenyu Wang <zhenyuw@linux.intel.com>
-M:	Zhi Wang <zhi.a.wang@intel.com>
+M:	Zhi Wang <zhi.wang.linux@gmail.com>
 L:	intel-gvt-dev@lists.freedesktop.org
 L:	intel-gfx@lists.freedesktop.org
 S:	Supported
-W:	https://01.org/igvt-g
+W:	https://github.com/intel/gvt-linux/wiki
 T:	git https://github.com/intel/gvt-linux.git
 F:	drivers/gpu/drm/i915/gvt/
 
@@ -11127,7 +11132,6 @@ S:	Supported
 F:	drivers/net/wireless/intel/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
-M:	Gregory Greenman <gregory.greenman@intel.com>
 M:	Miri Korenblit <miriam.rachel.korenblit@intel.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
@@ -11725,6 +11729,7 @@ F:	fs/smb/server/
 KERNEL UNIT TESTING FRAMEWORK (KUnit)
 M:	Brendan Higgins <brendanhiggins@google.com>
 M:	David Gow <davidgow@google.com>
+R:	Rae Moar <rmoar@google.com>
 L:	linux-kselftest@vger.kernel.org
 L:	kunit-dev@googlegroups.com
 S:	Maintained
@@ -12903,6 +12908,8 @@ M:	Alejandro Colomar <alx@kernel.org>
 L:	linux-man@vger.kernel.org
 S:	Maintained
 W:	http://www.kernel.org/doc/man-pages
+T:	git git://git.kernel.org/pub/scm/docs/man-pages/man-pages.git
+T:	git git://www.alejandro-colomar.es/src/alx/linux/man-pages/man-pages.git
 
 MANAGEMENT COMPONENT TRANSPORT PROTOCOL (MCTP)
 M:	Jeremy Kerr <jk@codeconstruct.com.au>
@@ -15178,6 +15185,7 @@ F:	Documentation/networking/net_cachelines/net_device.rst
 F:	drivers/connector/
 F:	drivers/net/
 F:	include/dt-bindings/net/
+F:	include/linux/cn_proc.h
 F:	include/linux/etherdevice.h
 F:	include/linux/fcdevice.h
 F:	include/linux/fddidevice.h
@@ -15185,6 +15193,7 @@ F:	include/linux/hippidevice.h
 F:	include/linux/if_*
 F:	include/linux/inetdevice.h
 F:	include/linux/netdevice.h
+F:	include/uapi/linux/cn_proc.h
 F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdevice.h
 X:	drivers/net/wireless/
@@ -15320,7 +15329,7 @@ K:	\bmdo_
 NETWORKING [MPTCP]
 M:	Matthieu Baerts <matttbe@kernel.org>
 M:	Mat Martineau <martineau@kernel.org>
-R:	Geliang Tang <geliang.tang@linux.dev>
+R:	Geliang Tang <geliang@kernel.org>
 L:	netdev@vger.kernel.org
 L:	mptcp@lists.linux.dev
 S:	Maintained
@@ -16833,6 +16842,7 @@ F:	drivers/pci/controller/dwc/*designware*
 
 PCI DRIVER FOR TI DRA7XX/J721E
 M:	Vignesh Raghavendra <vigneshr@ti.com>
+R:	Siddharth Vadapalli <s-vadapalli@ti.com>
 L:	linux-omap@vger.kernel.org
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -16857,9 +16867,8 @@ F:	Documentation/devicetree/bindings/pci/xilinx-versal-cpm.yaml
 F:	drivers/pci/controller/pcie-xilinx-cpm.c
 
 PCI ENDPOINT SUBSYSTEM
-M:	Lorenzo Pieralisi <lpieralisi@kernel.org>
+M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 M:	Krzysztof Wilczyński <kw@linux.com>
-R:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
 R:	Kishon Vijay Abraham I <kishon@kernel.org>
 L:	linux-pci@vger.kernel.org
 S:	Supported
@@ -17179,7 +17188,7 @@ R:	John Garry <john.g.garry@oracle.com>
 R:	Will Deacon <will@kernel.org>
 R:	James Clark <james.clark@arm.com>
 R:	Mike Leach <mike.leach@linaro.org>
-R:	Leo Yan <leo.yan@linaro.org>
+R:	Leo Yan <leo.yan@linux.dev>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	tools/build/feature/test-libopencsd.c
@@ -18082,7 +18091,6 @@ F:	drivers/net/ethernet/qualcomm/emac/
 
 QUALCOMM ETHQOS ETHERNET DRIVER
 M:	Vinod Koul <vkoul@kernel.org>
-R:	Bhupesh Sharma <bhupesh.sharma@linaro.org>
 L:	netdev@vger.kernel.org
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -18429,7 +18437,7 @@ S:	Supported
 F:	drivers/infiniband/sw/rdmavt
 
 RDS - RELIABLE DATAGRAM SOCKETS
-M:	Santosh Shilimkar <santosh.shilimkar@oracle.com>
+M:	Allison Henderson <allison.henderson@oracle.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
@@ -22007,6 +22015,14 @@ F:	Documentation/devicetree/bindings/media/i2c/ti,ds90*
 F:	drivers/media/i2c/ds90*
 F:	include/media/i2c/ds90*
 
+TI HDC302X HUMIDITY DRIVER
+M:	Javier Carrasco <javier.carrasco.cruz@gmail.com>
+M:	Li peiyu <579lpy@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/humidity/ti,hdc3020.yaml
+F:	drivers/iio/humidity/hdc3020.c
+
 TI ICSSG ETHERNET DRIVER (ICSSG)
 R:	MD Danish Anwar <danishanwar@ti.com>
 R:	Roger Quadros <rogerq@kernel.org>
@@ -24341,13 +24357,6 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dlemoal/zonefs.git
 F:	Documentation/filesystems/zonefs.rst
 F:	fs/zonefs/
 
-ZPOOL COMPRESSED PAGE STORAGE API
-M:	Dan Streetman <ddstreet@ieee.org>
-L:	linux-mm@kvack.org
-S:	Maintained
-F:	include/linux/zpool.h
-F:	mm/zpool.c
-
 ZR36067 VIDEO FOR LINUX DRIVER
 M:	Corentin Labbe <clabbe@baylibre.com>
 L:	mjpeg-users@lists.sourceforge.net
@@ -24399,7 +24408,9 @@ M:	Nhat Pham <nphamcs@gmail.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	Documentation/admin-guide/mm/zswap.rst
+F:	include/linux/zpool.h
 F:	include/linux/zswap.h
+F:	mm/zpool.c
 F:	mm/zswap.c
 
 THE REST

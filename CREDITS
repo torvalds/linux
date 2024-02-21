@@ -2161,6 +2161,19 @@ N: Mike Kravetz
 E: mike.kravetz@oracle.com
 D: Maintenance and development of the hugetlb subsystem
 
+N: Seth Jennings
+E: sjenning@redhat.com
+D: Creation and maintenance of zswap
+
+N: Dan Streetman
+E: ddstreet@ieee.org
+D: Maintenance and development of zswap
+D: Creation and maintenance of the zpool API
+
+N: Vitaly Wool
+E: vitaly.wool@konsulko.com
+D: Maintenance and development of zswap
+
 N: Andreas S. Krebs
 E: akrebs@altavista.net
 D: CYPRESS CY82C693 chipset IDE, Digital's PC-Alpha 164SX boards

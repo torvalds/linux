@@ -47,6 +47,10 @@ Print PMU events and metrics limited to the specific PMU name.
 --json::
 Output in JSON format.
 
+-o::
+--output=::
+	Output file name. By default output is written to stdout.
+
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
 ---------------

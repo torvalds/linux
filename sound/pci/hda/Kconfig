@@ -156,7 +156,7 @@ config SND_HDA_SCODEC_CS35L56_I2C
 	depends on I2C
 	depends on ACPI || COMPILE_TEST
 	depends on SND_SOC
-	select CS_DSP
+	select FW_CS_DSP
 	select SND_HDA_GENERIC
 	select SND_SOC_CS35L56_SHARED
 	select SND_HDA_SCODEC_CS35L56
@@ -171,7 +171,7 @@ config SND_HDA_SCODEC_CS35L56_SPI
 	depends on SPI_MASTER
 	depends on ACPI || COMPILE_TEST
 	depends on SND_SOC
-	select CS_DSP
+	select FW_CS_DSP
 	select SND_HDA_GENERIC
 	select SND_SOC_CS35L56_SHARED
 	select SND_HDA_SCODEC_CS35L56
