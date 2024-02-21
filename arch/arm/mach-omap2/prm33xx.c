@@ -15,10 +15,6 @@
 #include "prm33xx.h"
 #include "prm-regbits-33xx.h"
 
-#define AM33XX_PRM_RSTCTRL_OFFSET		0x0000
-
-#define AM33XX_RST_GLOBAL_WARM_SW_MASK		(1 << 0)
-
 /* Read a register in a PRM instance */
 static u32 am33xx_prm_read_reg(s16 inst, u16 idx)
 {
