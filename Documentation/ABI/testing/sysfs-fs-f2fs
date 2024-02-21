@@ -579,6 +579,12 @@ Description:	When ATGC is on, it controls age threshold to bypass GCing young
 		candidates whose age is not beyond the threshold, by default it was
 		initialized as 604800 seconds (equals to 7 days).
 
+What:		/sys/fs/f2fs/<disk>/atgc_enabled
+Date:		Feb 2024
+Contact:	"Jinbao Liu" <liujinbao1@xiaomi.com>
+Description:	It represents whether ATGC is on or off. The value is 1 which
+               indicates that ATGC is on, and 0 indicates that it is off.
+
 What:		/sys/fs/f2fs/<disk>/gc_reclaimed_segments
 Date:		July 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
