@@ -4061,6 +4061,65 @@ bool flush_work(struct work_struct *work)
 }
 EXPORT_SYMBOL_GPL(flush_work);
 
+/**
+ * flush_delayed_work - wait for a dwork to finish executing the last queueing
+ * @dwork: the delayed work to flush
+ *
+ * Delayed timer is cancelled and the pending work is queued for
+ * immediate execution.  Like flush_work(), this function only
+ * considers the last queueing instance of @dwork.
+ *
+ * Return:
+ * %true if flush_work() waited for the work to finish execution,
+ * %false if it was already idle.
+ */
+bool flush_delayed_work(struct delayed_work *dwork)
+{
+	local_irq_disable();
+	if (del_timer_sync(&dwork->timer))
+		__queue_work(dwork->cpu, dwork->wq, &dwork->work);
+	local_irq_enable();
+	return flush_work(&dwork->work);
+}
+EXPORT_SYMBOL(flush_delayed_work);
+
+/**
+ * flush_rcu_work - wait for a rwork to finish executing the last queueing
+ * @rwork: the rcu work to flush
+ *
+ * Return:
+ * %true if flush_rcu_work() waited for the work to finish execution,
+ * %false if it was already idle.
+ */
+bool flush_rcu_work(struct rcu_work *rwork)
+{
+	if (test_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&rwork->work))) {
+		rcu_barrier();
+		flush_work(&rwork->work);
+		return true;
+	} else {
+		return flush_work(&rwork->work);
+	}
+}
+EXPORT_SYMBOL(flush_rcu_work);
+
+static bool __cancel_work(struct work_struct *work, bool is_dwork)
+{
+	unsigned long flags;
+	int ret;
+
+	do {
+		ret = try_to_grab_pending(work, is_dwork, &flags);
+	} while (unlikely(ret == -EAGAIN));
+
+	if (unlikely(ret < 0))
+		return false;
+
+	set_work_pool_and_clear_pending(work, get_work_pool_id(work));
+	local_irq_restore(flags);
+	return ret;
+}
+
 struct cwt_wait {
 	wait_queue_entry_t		wait;
 	struct work_struct	*work;
@@ -4139,6 +4198,15 @@ static bool __cancel_work_sync(struct work_struct *work, bool is_dwork)
 	return ret;
 }
 
+/*
+ * See cancel_delayed_work()
+ */
+bool cancel_work(struct work_struct *work)
+{
+	return __cancel_work(work, false);
+}
+EXPORT_SYMBOL(cancel_work);
+
 /**
  * cancel_work_sync - cancel a work and wait for it to finish
  * @work: the work to cancel
@@ -4162,74 +4230,6 @@ bool cancel_work_sync(struct work_struct *work)
 	return __cancel_work_sync(work, false);
 }
 EXPORT_SYMBOL_GPL(cancel_work_sync);
-
-/**
- * flush_delayed_work - wait for a dwork to finish executing the last queueing
- * @dwork: the delayed work to flush
- *
- * Delayed timer is cancelled and the pending work is queued for
- * immediate execution.  Like flush_work(), this function only
- * considers the last queueing instance of @dwork.
- *
- * Return:
- * %true if flush_work() waited for the work to finish execution,
- * %false if it was already idle.
- */
-bool flush_delayed_work(struct delayed_work *dwork)
-{
-	local_irq_disable();
-	if (del_timer_sync(&dwork->timer))
-		__queue_work(dwork->cpu, dwork->wq, &dwork->work);
-	local_irq_enable();
-	return flush_work(&dwork->work);
-}
-EXPORT_SYMBOL(flush_delayed_work);
-
-/**
- * flush_rcu_work - wait for a rwork to finish executing the last queueing
- * @rwork: the rcu work to flush
- *
- * Return:
- * %true if flush_rcu_work() waited for the work to finish execution,
- * %false if it was already idle.
- */
-bool flush_rcu_work(struct rcu_work *rwork)
-{
-	if (test_bit(WORK_STRUCT_PENDING_BIT, work_data_bits(&rwork->work))) {
-		rcu_barrier();
-		flush_work(&rwork->work);
-		return true;
-	} else {
-		return flush_work(&rwork->work);
-	}
-}
-EXPORT_SYMBOL(flush_rcu_work);
-
-static bool __cancel_work(struct work_struct *work, bool is_dwork)
-{
-	unsigned long flags;
-	int ret;
-
-	do {
-		ret = try_to_grab_pending(work, is_dwork, &flags);
-	} while (unlikely(ret == -EAGAIN));
-
-	if (unlikely(ret < 0))
-		return false;
-
-	set_work_pool_and_clear_pending(work, get_work_pool_id(work));
-	local_irq_restore(flags);
-	return ret;
-}
-
-/*
- * See cancel_delayed_work()
- */
-bool cancel_work(struct work_struct *work)
-{
-	return __cancel_work(work, false);
-}
-EXPORT_SYMBOL(cancel_work);
 
 /**
  * cancel_delayed_work - cancel a delayed work
