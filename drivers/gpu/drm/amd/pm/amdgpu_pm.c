@@ -2278,6 +2278,131 @@ static ssize_t amdgpu_set_xgmi_plpd_policy(struct device *dev,
 	return count;
 }
 
+/* pm policy attributes */
+struct amdgpu_pm_policy_attr {
+	struct device_attribute dev_attr;
+	enum pp_pm_policy id;
+};
+
+static ssize_t amdgpu_get_pm_policy_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 char *buf)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_pm_policy_attr *policy_attr;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	return amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, buf);
+}
+
+static ssize_t amdgpu_set_pm_policy_attr(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t count)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_pm_policy_attr *policy_attr;
+	int ret, num_params = 0;
+	char delimiter[] = " \n\t";
+	char tmp_buf[128];
+	char *tmp, *param;
+	long val;
+
+	if (amdgpu_in_reset(adev))
+		return -EPERM;
+	if (adev->in_suspend && !adev->in_runpm)
+		return -EPERM;
+
+	count = min(count, sizeof(tmp_buf));
+	memcpy(tmp_buf, buf, count);
+	tmp_buf[count - 1] = '\0';
+	tmp = tmp_buf;
+
+	tmp = skip_spaces(tmp);
+	while ((param = strsep(&tmp, delimiter))) {
+		if (!strlen(param)) {
+			tmp = skip_spaces(tmp);
+			continue;
+		}
+		ret = kstrtol(param, 0, &val);
+		if (ret)
+			return -EINVAL;
+		num_params++;
+		if (num_params > 1)
+			return -EINVAL;
+	}
+
+	if (num_params != 1)
+		return -EINVAL;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr);
+
+	ret = pm_runtime_get_sync(ddev->dev);
+	if (ret < 0) {
+		pm_runtime_put_autosuspend(ddev->dev);
+		return ret;
+	}
+
+	ret = amdgpu_dpm_set_pm_policy(adev, policy_attr->id, val);
+
+	pm_runtime_mark_last_busy(ddev->dev);
+	pm_runtime_put_autosuspend(ddev->dev);
+
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+#define AMDGPU_PM_POLICY_ATTR(_name, _id)                                  \
+	static struct amdgpu_pm_policy_attr pm_policy_attr_##_name = {     \
+		.dev_attr = __ATTR(_name, 0644, amdgpu_get_pm_policy_attr, \
+				   amdgpu_set_pm_policy_attr),             \
+		.id = PP_PM_POLICY_##_id,                                  \
+	};
+
+#define AMDGPU_PM_POLICY_ATTR_VAR(_name) pm_policy_attr_##_name.dev_attr.attr
+
+AMDGPU_PM_POLICY_ATTR(soc_pstate, SOC_PSTATE)
+
+static struct attribute *pm_policy_attrs[] = {
+	&AMDGPU_PM_POLICY_ATTR_VAR(soc_pstate),
+	NULL
+};
+
+static umode_t amdgpu_pm_policy_attr_visible(struct kobject *kobj,
+					     struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	struct amdgpu_pm_policy_attr *policy_attr;
+
+	policy_attr =
+		container_of(attr, struct amdgpu_pm_policy_attr, dev_attr.attr);
+
+	if (amdgpu_dpm_get_pm_policy_info(adev, policy_attr->id, NULL) ==
+	    -ENOENT)
+		return 0;
+
+	return attr->mode;
+}
+
+const struct attribute_group amdgpu_pm_policy_attr_group = {
+	.name = "pm_policy",
+	.attrs = pm_policy_attrs,
+	.is_visible = amdgpu_pm_policy_attr_visible,
+};
+
 static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_state,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(power_dpm_force_performance_level,	ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
@@ -4417,6 +4542,14 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			goto err_out1;
 	} else if (adev->pm.pp_feature & PP_OVERDRIVE_MASK) {
 		dev_info(adev->dev, "overdrive feature is not supported\n");
+	}
+
+	if (amdgpu_dpm_get_pm_policy_info(adev, PP_PM_POLICY_NONE, NULL) !=
+	    -EOPNOTSUPP) {
+		ret = devm_device_add_group(adev->dev,
+					    &amdgpu_pm_policy_attr_group);
+		if (ret)
+			goto err_out0;
 	}
 
 	adev->pm.sysfs_initialized = true;
