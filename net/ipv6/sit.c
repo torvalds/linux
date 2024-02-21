@@ -1408,7 +1408,6 @@ static void ipip6_dev_free(struct net_device *dev)
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 
 	dst_cache_destroy(&tunnel->dst_cache);
-	free_percpu(dev->tstats);
 }
 
 #define SIT_FEATURES (NETIF_F_SG	   | \
@@ -1437,6 +1436,8 @@ static void ipip6_tunnel_setup(struct net_device *dev)
 	dev->features		|= NETIF_F_LLTX;
 	dev->features		|= SIT_FEATURES;
 	dev->hw_features	|= SIT_FEATURES;
+	dev->pcpu_stat_type	= NETDEV_PCPU_STAT_TSTATS;
+
 }
 
 static int ipip6_tunnel_init(struct net_device *dev)
@@ -1449,16 +1450,11 @@ static int ipip6_tunnel_init(struct net_device *dev)
 	strcpy(tunnel->parms.name, dev->name);
 
 	ipip6_tunnel_bind_dev(dev);
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
 
 	err = dst_cache_init(&tunnel->dst_cache, GFP_KERNEL);
-	if (err) {
-		free_percpu(dev->tstats);
-		dev->tstats = NULL;
+	if (err)
 		return err;
-	}
+
 	netdev_hold(dev, &tunnel->dev_tracker, GFP_KERNEL);
 	netdev_lockdep_set_classes(dev);
 	return 0;
