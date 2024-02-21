@@ -65,6 +65,7 @@
  *
  * Several methods exist to change the CDCLK frequency, which ones are
  * supported depends on the platform:
+ *
  * - Full PLL disable + re-enable with new VCO frequency. Pipes must be inactive.
  * - CD2X divider update. Single pipe can be active as the divider update
  *   can be synchronized with the pipe's start of vblank.
