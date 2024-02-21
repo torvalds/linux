@@ -881,6 +881,11 @@ properties:
           - const: rockchip,rv1108-evb
           - const: rockchip,rv1108
 
+      - description: Rockchip Toybrick TB-RK3588X board
+        items:
+          - const: rockchip,rk3588-toybrick-x0
+          - const: rockchip,rk3588
+
       - description: Theobroma Systems PX30-uQ7 with Haikou baseboard
         items:
           - const: tsd,px30-ringneck-haikou
