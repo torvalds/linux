@@ -124,6 +124,8 @@ static void xe_devcoredump_free(void *data)
 		if (coredump->snapshot.hwe[i])
 			xe_hw_engine_snapshot_free(coredump->snapshot.hwe[i]);
 
+	/* To prevent stale data on next snapshot, clear everything */
+	memset(&coredump->snapshot, 0, sizeof(coredump->snapshot));
 	coredump->captured = false;
 	drm_info(&coredump_to_xe(coredump)->drm,
 		 "Xe device coredump has been deleted.\n");
