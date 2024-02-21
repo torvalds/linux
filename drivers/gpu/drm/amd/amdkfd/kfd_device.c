@@ -85,6 +85,7 @@ static void kfd_device_info_set_sdma_info(struct kfd_dev *kfd)
 	case IP_VERSION(4, 4, 0):/* ALDEBARAN */
 	case IP_VERSION(4, 4, 2):
 	case IP_VERSION(4, 4, 5):
+	case IP_VERSION(4, 4, 4):
 	case IP_VERSION(5, 0, 0):/* NAVI10 */
 	case IP_VERSION(5, 0, 1):/* CYAN_SKILLFISH */
 	case IP_VERSION(5, 0, 2):/* NAVI14 */
@@ -152,6 +153,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 		break;
 	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
 	case IP_VERSION(9, 4, 4): /* GC 9.4.4 */
+	case IP_VERSION(9, 5, 0): /* GC 9.5.0 */
 		kfd->device_info.event_interrupt_class =
 						&event_interrupt_class_v9_4_3;
 		break;
@@ -356,6 +358,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 			gfx_target_version = 90402;
 			f2g = &gc_9_4_3_kfd2kgd;
 			break;
+		case IP_VERSION(9, 5, 0):
+			gfx_target_version = 90500;
+			f2g = &gc_9_4_3_kfd2kgd;
+			break;
 		/* Navi10 */
 		case IP_VERSION(10, 1, 10):
 			gfx_target_version = 100100;
@@ -515,6 +521,10 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_4_3_hex);
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 5, 0)) {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_4_3_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx9_4_3_hex);
 		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(10, 1, 1)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_hex)
 					     > KFD_CWSR_TMA_OFFSET);
@@ -567,6 +577,7 @@ static int kfd_gws_init(struct kfd_node *node)
 			&& kfd->mec2_fw_version >= 0x28) ||
 		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3) ||
 		 KFD_GC_VERSION(node) == IP_VERSION(9, 4, 4)) ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 5, 0)) ||
 		(KFD_GC_VERSION(node) >= IP_VERSION(10, 3, 0)
 			&& KFD_GC_VERSION(node) < IP_VERSION(11, 0, 0)
 			&& kfd->mec2_fw_version >= 0x6b) ||
@@ -733,14 +744,14 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	last_vmid_kfd = fls(gpu_resources->compute_vmid_bitmap)-1;
 	vmid_num_kfd = last_vmid_kfd - first_vmid_kfd + 1;
 
-	/* For GFX9.4.3, we need special handling for VMIDs depending on
-	 * partition mode.
+	/* For multi-partition capable GPUs, we need special handling for VMIDs
+	 * depending on partition mode.
 	 * In CPX mode, the VMID range needs to be shared between XCDs.
 	 * Additionally, there are 13 VMIDs (3-15) available for KFD. To
 	 * divide them equally, we change starting VMID to 4 and not use
 	 * VMID 3.
-	 * If the VMID range changes for GFX9.4.3, then this code MUST be
-	 * revisited.
+	 * If the VMID range changes for multi-partition capable GPUs, then
+	 * this code MUST be revisited.
 	 */
 	if (kfd->adev->xcp_mgr) {
 		partition_mode = amdgpu_xcp_query_partition_mode(kfd->adev->xcp_mgr,
@@ -805,14 +816,12 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		kfd->hive_id = kfd->adev->gmc.xgmi.hive_id;
 
 	/*
-	 * For GFX9.4.3, the KFD abstracts all partitions within a socket as
-	 * xGMI connected in the topology so assign a unique hive id per
-	 * device based on the pci device location if device is in PCIe mode.
+	 * For multi-partition capable GPUs, the KFD abstracts all partitions
+	 * within a socket as xGMI connected in the topology so assign a unique
+	 * hive id per device based on the pci device location if device is in
+	 * PCIe mode.
 	 */
-	if (!kfd->hive_id &&
-	    (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
-	     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
-	    kfd->num_nodes > 1)
+	if (!kfd->hive_id && kfd->num_nodes > 1)
 		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
 
 	kfd->noretry = kfd->adev->gmc.noretry;
@@ -850,12 +859,11 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
 		}
 
-		if ((KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
-		     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
-		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
+		if (partition_mode == AMDGPU_CPX_PARTITION_MODE &&
 		    kfd->num_nodes != 1) {
-			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
-			 * 4-9 and second XCD gets VMID range 10-15.
+			/* For multi-partition capable GPUs and CPX mode, first
+			 * XCD gets VMID range 4-9 and second XCD gets VMID
+			 * range 10-15.
 			 */
 
 			node->vm_info.first_vmid_kfd = (i%2 == 0) ?
@@ -879,8 +887,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
 					&node->local_mem_info, node->xcp);
 
-		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
-		    KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4))
+		if (kfd->adev->xcp_mgr)
 			kfd_setup_interrupt_bitmap(node, i);
 
 		/* Initialize the KFD node */

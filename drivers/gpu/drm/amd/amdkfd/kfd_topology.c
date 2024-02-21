@@ -1714,7 +1714,8 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 		pcache->cacheline_size = pcache_info[cache_type].cache_line_size;
 
 		if (KFD_GC_VERSION(knode) == IP_VERSION(9, 4, 3) ||
-		    KFD_GC_VERSION(knode) == IP_VERSION(9, 4, 4))
+		    KFD_GC_VERSION(knode) == IP_VERSION(9, 4, 4) ||
+		    KFD_GC_VERSION(knode) == IP_VERSION(9, 5, 0))
 			mode = adev->gmc.gmc_funcs->query_mem_partition_mode(adev);
 		else
 			mode = UNKNOWN_MEMORY_PARTITION_MODE;

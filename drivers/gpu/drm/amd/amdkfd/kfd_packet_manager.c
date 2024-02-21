@@ -260,7 +260,8 @@ int pm_init(struct packet_manager *pm, struct device_queue_manager *dqm)
 	default:
 		if (KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 2) ||
 		    KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 3) ||
-		    KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 4))
+		    KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 4, 4) ||
+		    KFD_GC_VERSION(dqm->dev) == IP_VERSION(9, 5, 0))
 			pm->pmf = &kfd_aldebaran_pm_funcs;
 		else if (KFD_GC_VERSION(dqm->dev) >= IP_VERSION(9, 0, 1))
 			pm->pmf = &kfd_v9_pm_funcs;

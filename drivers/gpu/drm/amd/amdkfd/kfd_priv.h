@@ -207,7 +207,8 @@ enum cache_policy {
 #define KFD_SUPPORT_XNACK_PER_PROCESS(dev)\
 	((KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2)) ||	\
 	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3)) ||	\
-	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)))
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4)) ||	\
+	 (KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0)))
 
 struct kfd_node;
 
@@ -1150,7 +1151,8 @@ static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
 	uint32_t i;
 
 	if (KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 3) &&
-	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4))
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 4, 4) &&
+	    KFD_GC_VERSION(dev) != IP_VERSION(9, 5, 0))
 		return dev->nodes[0];
 
 	for (i = 0; i < dev->num_nodes; i++)

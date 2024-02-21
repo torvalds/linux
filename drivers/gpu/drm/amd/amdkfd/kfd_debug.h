@@ -79,6 +79,7 @@ static inline bool kfd_dbg_is_per_vmid_supported(struct kfd_node *dev)
 	return (KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 2) ||
 		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 3) ||
 		KFD_GC_VERSION(dev) == IP_VERSION(9, 4, 4) ||
+		KFD_GC_VERSION(dev) == IP_VERSION(9, 5, 0) ||
 		KFD_GC_VERSION(dev) >= IP_VERSION(11, 0, 0));
 }
 
