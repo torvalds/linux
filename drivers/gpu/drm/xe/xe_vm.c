@@ -2301,6 +2301,7 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 				   struct xe_sync_entry *syncs, u32 num_syncs,
 				   struct list_head *ops_list, bool last)
 {
+	struct xe_device *xe = vm->xe;
 	struct xe_vma_op *last_op = NULL;
 	struct drm_gpuva_op *__op;
 	int err = 0;
@@ -2381,6 +2382,9 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 						xe_vma_end(vma) -
 						xe_vma_start(old);
 					op->remap.start = xe_vma_end(vma);
+					vm_dbg(&xe->drm, "REMAP:SKIP_PREV: addr=0x%016llx, range=0x%016llx",
+					       (ULL)op->remap.start,
+					       (ULL)op->remap.range);
 				}
 			}
 
@@ -2414,6 +2418,9 @@ static int vm_bind_ioctl_ops_parse(struct xe_vm *vm, struct xe_exec_queue *q,
 					op->remap.range -=
 						xe_vma_end(old) -
 						xe_vma_start(vma);
+					vm_dbg(&xe->drm, "REMAP:SKIP_NEXT: addr=0x%016llx, range=0x%016llx",
+					       (ULL)op->remap.start,
+					       (ULL)op->remap.range);
 				}
 			}
 			break;
