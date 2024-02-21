@@ -1346,14 +1346,7 @@ static void _rtl92e_process_phyinfo(struct r8192_priv *priv, u8 *buffer,
 	static u32 slide_beacon_adc_pwdb_index;
 	static u32 slide_beacon_adc_pwdb_statistics;
 	static u32 last_beacon_adc_pwdb;
-	struct ieee80211_hdr_3addr *hdr;
-	u16 sc;
-	unsigned int seq;
 
-	hdr = (struct ieee80211_hdr_3addr *)buffer;
-	sc = le16_to_cpu(hdr->seq_ctrl);
-	seq = WLAN_GET_SEQ_SEQ(sc);
-	curr_st->Seq_Num = seq;
 	if (!prev_st->bIsAMPDU)
 		bcheck = true;
 
@@ -1672,7 +1665,6 @@ bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
 	_rtl92e_translate_rx_signal_stats(dev, skb, stats, pdesc, pDrvInfo);
 	skb_trim(skb, skb->len - S_CRC_LEN);
 
-	stats->ntotalfrag = 1;
 	return true;
 }
 
