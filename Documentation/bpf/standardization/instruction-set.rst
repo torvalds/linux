@@ -178,8 +178,8 @@ Unused fields shall be cleared to zero.
 As discussed below in `64-bit immediate instructions`_, a 64-bit immediate
 instruction uses two 32-bit immediate values that are constructed as follows.
 The 64 bits following the basic instruction contain a pseudo instruction
-using the same format but with opcode, dst_reg, src_reg, and offset all set to zero,
-and imm containing the high 32 bits of the immediate value.
+using the same format but with 'opcode', 'dst_reg', 'src_reg', and 'offset' all
+set to zero, and imm containing the high 32 bits of the immediate value.
 
 This is depicted in the following figure::
 
@@ -392,27 +392,27 @@ otherwise identical operations, and indicates the base64 conformance
 group unless otherwise specified.
 The 'code' field encodes the operation as below:
 
-========  =====  ===  ===============================  =============================================
-code      value  src  description                      notes
-========  =====  ===  ===============================  =============================================
-BPF_JA    0x0    0x0  PC += offset                     BPF_JMP | BPF_K only
-BPF_JA    0x0    0x0  PC += imm                        BPF_JMP32 | BPF_K only
-BPF_JEQ   0x1    any  PC += offset if dst == src
-BPF_JGT   0x2    any  PC += offset if dst > src        unsigned
-BPF_JGE   0x3    any  PC += offset if dst >= src       unsigned
-BPF_JSET  0x4    any  PC += offset if dst & src
-BPF_JNE   0x5    any  PC += offset if dst != src
-BPF_JSGT  0x6    any  PC += offset if dst > src        signed
-BPF_JSGE  0x7    any  PC += offset if dst >= src       signed
-BPF_CALL  0x8    0x0  call helper function by address  BPF_JMP | BPF_K only, see `Helper functions`_
-BPF_CALL  0x8    0x1  call PC += imm                   BPF_JMP | BPF_K only, see `Program-local functions`_
-BPF_CALL  0x8    0x2  call helper function by BTF ID   BPF_JMP | BPF_K only, see `Helper functions`_
-BPF_EXIT  0x9    0x0  return                           BPF_JMP | BPF_K only
-BPF_JLT   0xa    any  PC += offset if dst < src        unsigned
-BPF_JLE   0xb    any  PC += offset if dst <= src       unsigned
-BPF_JSLT  0xc    any  PC += offset if dst < src        signed
-BPF_JSLE  0xd    any  PC += offset if dst <= src       signed
-========  =====  ===  ===============================  =============================================
+========  =====  =======  ===============================  =============================================
+code      value  src_reg  description                      notes
+========  =====  =======  ===============================  =============================================
+BPF_JA    0x0    0x0      PC += offset                     BPF_JMP | BPF_K only
+BPF_JA    0x0    0x0      PC += imm                        BPF_JMP32 | BPF_K only
+BPF_JEQ   0x1    any      PC += offset if dst == src
+BPF_JGT   0x2    any      PC += offset if dst > src        unsigned
+BPF_JGE   0x3    any      PC += offset if dst >= src       unsigned
+BPF_JSET  0x4    any      PC += offset if dst & src
+BPF_JNE   0x5    any      PC += offset if dst != src
+BPF_JSGT  0x6    any      PC += offset if dst > src        signed
+BPF_JSGE  0x7    any      PC += offset if dst >= src       signed
+BPF_CALL  0x8    0x0      call helper function by address  BPF_JMP | BPF_K only, see `Helper functions`_
+BPF_CALL  0x8    0x1      call PC += imm                   BPF_JMP | BPF_K only, see `Program-local functions`_
+BPF_CALL  0x8    0x2      call helper function by BTF ID   BPF_JMP | BPF_K only, see `Helper functions`_
+BPF_EXIT  0x9    0x0      return                           BPF_JMP | BPF_K only
+BPF_JLT   0xa    any      PC += offset if dst < src        unsigned
+BPF_JLE   0xb    any      PC += offset if dst <= src       unsigned
+BPF_JSLT  0xc    any      PC += offset if dst < src        signed
+BPF_JSLE  0xd    any      PC += offset if dst <= src       signed
+========  =====  =======  ===============================  =============================================
 
 The BPF program needs to store the return value into register R0 before doing a
 ``BPF_EXIT``.
@@ -568,7 +568,7 @@ BPF_XOR   0xa0   atomic xor
 
   *(u32 *)(dst + offset) += src
 
-``BPF_ATOMIC | BPF_DW | BPF_STX`` with 'imm' = BPF ADD means::
+``BPF_ATOMIC | BPF_DW | BPF_STX`` with 'imm' = BPF_ADD means::
 
   *(u64 *)(dst + offset) += src
 
@@ -601,24 +601,24 @@ and loaded back to ``R0``.
 -----------------------------
 
 Instructions with the ``BPF_IMM`` 'mode' modifier use the wide instruction
-encoding defined in `Instruction encoding`_, and use the 'src' field of the
+encoding defined in `Instruction encoding`_, and use the 'src_reg' field of the
 basic instruction to hold an opcode subtype.
 
 The following table defines a set of ``BPF_IMM | BPF_DW | BPF_LD`` instructions
-with opcode subtypes in the 'src' field, using new terms such as "map"
+with opcode subtypes in the 'src_reg' field, using new terms such as "map"
 defined further below:
 
-=========================  ======  ===  =========================================  ===========  ==============
-opcode construction        opcode  src  pseudocode                                 imm type     dst type
-=========================  ======  ===  =========================================  ===========  ==============
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x0  dst = (next_imm << 32) | imm               integer      integer
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x1  dst = map_by_fd(imm)                       map fd       map
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x2  dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x3  dst = var_addr(imm)                        variable id  data pointer
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x4  dst = code_addr(imm)                       integer      code pointer
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x5  dst = map_by_idx(imm)                      map index    map
-BPF_IMM | BPF_DW | BPF_LD  0x18    0x6  dst = map_val(map_by_idx(imm)) + next_imm  map index    data pointer
-=========================  ======  ===  =========================================  ===========  ==============
+=========================  ======  =======  =========================================  ===========  ==============
+opcode construction        opcode  src_reg  pseudocode                                 imm type     dst type
+=========================  ======  =======  =========================================  ===========  ==============
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x0      dst = (next_imm << 32) | imm               integer      integer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x1      dst = map_by_fd(imm)                       map fd       map
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x3      dst = var_addr(imm)                        variable id  data pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x4      dst = code_addr(imm)                       integer      code pointer
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x5      dst = map_by_idx(imm)                      map index    map
+BPF_IMM | BPF_DW | BPF_LD  0x18    0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data pointer
+=========================  ======  =======  =========================================  ===========  ==============
 
 where
 
