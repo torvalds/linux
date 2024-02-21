@@ -1794,18 +1794,14 @@ struct xe_guc_submit_exec_queue_snapshot *
 xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job)
 {
 	struct xe_exec_queue *q = job->q;
-	struct xe_guc *guc = exec_queue_to_guc(q);
-	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gpu_scheduler *sched = &q->guc->sched;
 	struct xe_guc_submit_exec_queue_snapshot *snapshot;
 	int i;
 
 	snapshot = kzalloc(sizeof(*snapshot), GFP_ATOMIC);
 
-	if (!snapshot) {
-		drm_err(&xe->drm, "Skipping GuC Engine snapshot entirely.\n");
+	if (!snapshot)
 		return NULL;
-	}
 
 	snapshot->guc.id = q->guc->id;
 	memcpy(&snapshot->name, &q->name, sizeof(snapshot->name));
@@ -1821,9 +1817,7 @@ xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job)
 	snapshot->lrc = kmalloc_array(q->width, sizeof(struct lrc_snapshot),
 				      GFP_ATOMIC);
 
-	if (!snapshot->lrc) {
-		drm_err(&xe->drm, "Skipping GuC Engine LRC snapshot.\n");
-	} else {
+	if (snapshot->lrc) {
 		for (i = 0; i < q->width; ++i) {
 			struct xe_lrc *lrc = q->lrc + i;
 
@@ -1851,9 +1845,7 @@ xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job)
 					       sizeof(struct pending_list_snapshot),
 					       GFP_ATOMIC);
 
-	if (!snapshot->pending_list) {
-		drm_err(&xe->drm, "Skipping GuC Engine pending_list snapshot.\n");
-	} else {
+	if (snapshot->pending_list) {
 		struct xe_sched_job *job_iter;
 
 		i = 0;
