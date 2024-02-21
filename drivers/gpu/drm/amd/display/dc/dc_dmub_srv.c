@@ -1279,6 +1279,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 {
 	struct dc_dmub_srv *dc_dmub_srv;
+	uint32_t rcg_exit_count, ips1_exit_count, ips2_exit_count;
 
 	if (dc->debug.dmcub_emulation)
 		return;
@@ -1295,15 +1296,22 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 			&dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_DRIVER].data.ips_driver;
 		union dmub_shared_state_ips_driver_signals prev_driver_signals = ips_driver->signals;
 
+		rcg_exit_count = ips_fw->rcg_exit_count;
+		ips1_exit_count = ips_fw->ips1_exit_count;
+		ips2_exit_count = ips_fw->ips2_exit_count;
+
 		ips_driver->signals.all = 0;
 
 		DC_LOG_IPS(
-			"%s check (allow_ips1=%d allow_ips2=%d) (ips1_commit=%d ips2_commit=%d)",
+			"%s (allow ips1=%d ips2=%d) (commit ips1=%d ips2=%d) (count rcg=%d ips1=%d ips2=%d)",
 			__func__,
 			ips_driver->signals.bits.allow_ips1,
 			ips_driver->signals.bits.allow_ips2,
 			ips_fw->signals.bits.ips1_commit,
-			ips_fw->signals.bits.ips2_commit);
+			ips_fw->signals.bits.ips2_commit,
+			ips_fw->rcg_entry_count,
+			ips_fw->ips1_entry_count,
+			ips_fw->ips2_entry_count);
 
 		/* Note: register access has technically not resumed for DCN here, but we
 		 * need to be message PMFW through our standard register interface.
@@ -1387,7 +1395,11 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
 		ASSERT(0);
 
-	DC_LOG_IPS("%s exited", __func__);
+	DC_LOG_IPS("%s exit (count rcg=%d ips1=%d ips2=%d)",
+		__func__,
+		rcg_exit_count,
+		ips1_exit_count,
+		ips2_exit_count);
 }
 
 void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState)
