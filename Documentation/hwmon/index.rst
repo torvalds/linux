@@ -44,6 +44,7 @@ Hardware Monitoring Kernel Drivers
    aquacomputer_d5next
    asb100
    asc7621
+   aspeed-g6-pwm-tach
    aspeed-pwm-tacho
    asus_ec_sensors
    asus_rog_ryujin
