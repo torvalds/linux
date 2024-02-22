@@ -3422,6 +3422,8 @@ flush_out:
 
 	/* generate the checksum. */
 	xfs_dinode_calc_crc(mp, dip);
+	if (error)
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 	return error;
 }
 
