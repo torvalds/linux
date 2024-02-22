@@ -455,12 +455,15 @@ const struct xfs_btree_ops xfs_finobt_ops = {
 };
 
 /*
- * Initialize a new inode btree cursor.
+ * Create an inode btree cursor.
+ *
+ * For staging cursors tp and agbp are NULL.
  */
-static struct xfs_btree_cur *
-xfs_inobt_init_common(
+struct xfs_btree_cur *
+xfs_inobt_init_cursor(
 	struct xfs_perag	*pag,
-	struct xfs_trans	*tp,		/* transaction pointer */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp,
 	xfs_btnum_t		btnum)		/* ialloc or free ino btree */
 {
 	struct xfs_mount	*mp = pag->pag_mount;
@@ -475,26 +478,14 @@ xfs_inobt_init_common(
 	cur = xfs_btree_alloc_cursor(mp, tp, btnum, ops,
 			M_IGEO(mp)->inobt_maxlevels, xfs_inobt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
-	return cur;
-}
-
-/* Create an inode btree cursor. */
-struct xfs_btree_cur *
-xfs_inobt_init_cursor(
-	struct xfs_perag	*pag,
-	struct xfs_trans	*tp,
-	struct xfs_buf		*agbp,
-	xfs_btnum_t		btnum)
-{
-	struct xfs_btree_cur	*cur;
-	struct xfs_agi		*agi = agbp->b_addr;
-
-	cur = xfs_inobt_init_common(pag, tp, btnum);
-	if (btnum == XFS_BTNUM_INO)
-		cur->bc_nlevels = be32_to_cpu(agi->agi_level);
-	else
-		cur->bc_nlevels = be32_to_cpu(agi->agi_free_level);
 	cur->bc_ag.agbp = agbp;
+	if (agbp) {
+		struct xfs_agi		*agi = agbp->b_addr;
+
+		cur->bc_nlevels = (btnum == XFS_BTNUM_INO) ?
+			be32_to_cpu(agi->agi_level) :
+			be32_to_cpu(agi->agi_free_level);
+	}
 	return cur;
 }
 
@@ -507,7 +498,7 @@ xfs_inobt_stage_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_inobt_init_common(pag, NULL, btnum);
+	cur = xfs_inobt_init_cursor(pag, NULL, NULL, btnum);
 	xfs_btree_stage_afakeroot(cur, afake);
 	return cur;
 }
