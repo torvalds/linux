@@ -2129,14 +2129,16 @@ again:
 		int statret;
 		struct page *page = NULL;
 		loff_t i_size;
+		int mask = CEPH_STAT_CAP_SIZE;
 		if (retry_op == READ_INLINE) {
 			page = __page_cache_alloc(GFP_KERNEL);
 			if (!page)
 				return -ENOMEM;
+
+			mask = CEPH_STAT_CAP_INLINE_DATA;
 		}
 
-		statret = __ceph_do_getattr(inode, page,
-					    CEPH_STAT_CAP_INLINE_DATA, !!page);
+		statret = __ceph_do_getattr(inode, page, mask, !!page);
 		if (statret < 0) {
 			if (page)
 				__free_page(page);
@@ -2177,7 +2179,7 @@ again:
 		/* hit EOF or hole? */
 		if (retry_op == CHECK_EOF && iocb->ki_pos < i_size &&
 		    ret < len) {
-			doutc(cl, "hit hole, ppos %lld < size %lld, reading more\n",
+			doutc(cl, "may hit hole, ppos %lld < size %lld, reading more\n",
 			      iocb->ki_pos, i_size);
 
 			read += ret;
