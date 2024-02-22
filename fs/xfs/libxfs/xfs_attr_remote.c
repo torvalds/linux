@@ -553,8 +553,10 @@ xfs_attr_rmtval_stale(
 	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 
 	if (XFS_IS_CORRUPT(mp, map->br_startblock == DELAYSTARTBLOCK) ||
-	    XFS_IS_CORRUPT(mp, map->br_startblock == HOLESTARTBLOCK))
+	    XFS_IS_CORRUPT(mp, map->br_startblock == HOLESTARTBLOCK)) {
+		xfs_bmap_mark_sick(ip, XFS_ATTR_FORK);
 		return -EFSCORRUPTED;
+	}
 
 	error = xfs_buf_incore(mp->m_ddev_targp,
 			XFS_FSB_TO_DADDR(mp, map->br_startblock),
@@ -664,8 +666,10 @@ xfs_attr_rmtval_invalidate(
 				       blkcnt, &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error)
 			return error;
-		if (XFS_IS_CORRUPT(args->dp->i_mount, nmap != 1))
+		if (XFS_IS_CORRUPT(args->dp->i_mount, nmap != 1)) {
+			xfs_bmap_mark_sick(args->dp, XFS_ATTR_FORK);
 			return -EFSCORRUPTED;
+		}
 		error = xfs_attr_rmtval_stale(args->dp, &map, XBF_TRYLOCK);
 		if (error)
 			return error;

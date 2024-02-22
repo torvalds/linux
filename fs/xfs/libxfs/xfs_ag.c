@@ -951,8 +951,10 @@ xfs_ag_shrink_space(
 	agf = agfbp->b_addr;
 	aglen = be32_to_cpu(agi->agi_length);
 	/* some extra paranoid checks before we shrink the ag */
-	if (XFS_IS_CORRUPT(mp, agf->agf_length != agi->agi_length))
+	if (XFS_IS_CORRUPT(mp, agf->agf_length != agi->agi_length)) {
+		xfs_ag_mark_sick(pag, XFS_SICK_AG_AGF);
 		return -EFSCORRUPTED;
+	}
 	if (delta >= aglen)
 		return -EINVAL;
 

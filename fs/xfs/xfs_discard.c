@@ -19,6 +19,7 @@
 #include "xfs_trace.h"
 #include "xfs_log.h"
 #include "xfs_ag.h"
+#include "xfs_health.h"
 
 /*
  * Notes on an efficient, low latency fstrim algorithm
@@ -210,6 +211,7 @@ xfs_trim_gather_extents(
 		if (error)
 			break;
 		if (XFS_IS_CORRUPT(mp, i != 1)) {
+			xfs_btree_mark_sick(cur);
 			error = -EFSCORRUPTED;
 			break;
 		}

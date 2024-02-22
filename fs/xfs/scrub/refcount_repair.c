@@ -25,6 +25,7 @@
 #include "xfs_refcount_btree.h"
 #include "xfs_error.h"
 #include "xfs_ag.h"
+#include "xfs_health.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
@@ -253,8 +254,10 @@ xrep_refc_walk_rmaps(
 		error = xfs_rmap_get_rec(cur, &rmap, &have_gt);
 		if (error)
 			return error;
-		if (XFS_IS_CORRUPT(mp, !have_gt))
+		if (XFS_IS_CORRUPT(mp, !have_gt)) {
+			xfs_btree_mark_sick(cur);
 			return -EFSCORRUPTED;
+		}
 
 		if (rmap.rm_owner == XFS_RMAP_OWN_COW) {
 			error = xrep_refc_stash_cow(rr, rmap.rm_startblock,
@@ -425,8 +428,10 @@ xrep_refc_push_rmaps_at(
 	error = xfs_btree_decrement(sc->sa.rmap_cur, 0, &have_gt);
 	if (error)
 		return error;
-	if (XFS_IS_CORRUPT(sc->mp, !have_gt))
+	if (XFS_IS_CORRUPT(sc->mp, !have_gt)) {
+		xfs_btree_mark_sick(sc->sa.rmap_cur);
 		return -EFSCORRUPTED;
+	}
 
 	return 0;
 }
