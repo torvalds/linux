@@ -2510,7 +2510,7 @@ TRACE_EVENT(xfs_btree_alloc_block,
 	),
 	TP_fast_assign(
 		__entry->dev = cur->bc_mp->m_super->s_dev;
-		if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) {
+		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
 			__entry->agno = 0;
 			__entry->ino = cur->bc_ino.ip->i_ino;
 		} else {
@@ -2557,7 +2557,7 @@ TRACE_EVENT(xfs_btree_free_block,
 		__entry->dev = cur->bc_mp->m_super->s_dev;
 		__entry->agno = xfs_daddr_to_agno(cur->bc_mp,
 							xfs_buf_daddr(bp));
-		if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE)
+		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
 			__entry->ino = cur->bc_ino.ip->i_ino;
 		else
 			__entry->ino = 0;

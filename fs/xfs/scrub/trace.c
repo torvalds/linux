@@ -37,7 +37,7 @@ xchk_btree_cur_fsbno(
 				xfs_buf_daddr(cur->bc_levels[level].bp));
 
 	if (level == cur->bc_nlevels - 1 &&
-	    (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE))
+	    cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
 		return XFS_INO_TO_FSB(cur->bc_mp, cur->bc_ino.ip->i_ino);
 
 	return NULLFSBLOCK;

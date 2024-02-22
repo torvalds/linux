@@ -117,7 +117,15 @@ static inline enum xbtree_key_contig xbtree_key_contig(uint64_t x, uint64_t y)
 #define XFS_BTREE_LONG_PTR_LEN		(sizeof(__be64))
 #define XFS_BTREE_SHORT_PTR_LEN		(sizeof(__be32))
 
+enum xfs_btree_type {
+	XFS_BTREE_TYPE_AG,
+	XFS_BTREE_TYPE_INODE,
+};
+
 struct xfs_btree_ops {
+	/* Type of btree - AG-rooted or inode-rooted */
+	enum xfs_btree_type	type;
+
 	/* XFS_BTGEO_* flags that determine the geometry of the btree */
 	unsigned int		geom_flags;
 
@@ -216,9 +224,8 @@ struct xfs_btree_ops {
 };
 
 /* btree geometry flags */
-#define XFS_BTGEO_ROOT_IN_INODE		(1U << 0) /* root may be variable size */
-#define XFS_BTGEO_LASTREC_UPDATE	(1U << 1) /* track last rec externally */
-#define XFS_BTGEO_OVERLAPPING		(1U << 2) /* overlapping intervals */
+#define XFS_BTGEO_LASTREC_UPDATE	(1U << 0) /* track last rec externally */
+#define XFS_BTGEO_OVERLAPPING		(1U << 1) /* overlapping intervals */
 
 /*
  * Reasons for the update_lastrec method to be called.
@@ -292,7 +299,7 @@ struct xfs_btree_cur
 	/*
 	 * Short btree pointers need an agno to be able to turn the pointers
 	 * into physical addresses for IO, so the btree cursor switches between
-	 * bc_ino and bc_ag based on whether XFS_BTGEO_ROOT_IN_INODE is set for
+	 * bc_ino and bc_ag based on bc_ops->type.
 	 * the cursor.
 	 */
 	union {

@@ -447,10 +447,19 @@ xfs_btree_del_cursor(
 	 */
 	ASSERT(cur->bc_btnum != XFS_BTNUM_BMAP || cur->bc_ino.allocated == 0 ||
 	       xfs_is_shutdown(cur->bc_mp) || error != 0);
+
+	switch (cur->bc_ops->type) {
+	case XFS_BTREE_TYPE_AG:
+		if (cur->bc_ag.pag)
+			xfs_perag_put(cur->bc_ag.pag);
+		break;
+	case XFS_BTREE_TYPE_INODE:
+		/* nothing to do */
+		break;
+	}
+
 	if (unlikely(cur->bc_flags & XFS_BTREE_STAGING))
 		kfree(cur->bc_ops);
-	if (!(cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN) && cur->bc_ag.pag)
-		xfs_perag_put(cur->bc_ag.pag);
 	kmem_cache_free(cur->bc_cache, cur);
 }
 
@@ -708,7 +717,7 @@ struct xfs_ifork *
 xfs_btree_ifork_ptr(
 	struct xfs_btree_cur	*cur)
 {
-	ASSERT(cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE);
+	ASSERT(cur->bc_ops->type == XFS_BTREE_TYPE_INODE);
 
 	if (cur->bc_flags & XFS_BTREE_STAGING)
 		return cur->bc_ino.ifake->if_fork;
@@ -740,8 +749,8 @@ xfs_btree_get_block(
 	int			level,	/* level in btree */
 	struct xfs_buf		**bpp)	/* buffer containing the block */
 {
-	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
-	    (level == cur->bc_nlevels - 1)) {
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
+	    level == cur->bc_nlevels - 1) {
 		*bpp = NULL;
 		return xfs_btree_get_iroot(cur);
 	}
@@ -983,8 +992,8 @@ xfs_btree_readahead(
 	 * No readahead needed if we are at the root level and the
 	 * btree root is stored in the inode.
 	 */
-	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
-	    (lev == cur->bc_nlevels - 1))
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
+	    lev == cur->bc_nlevels - 1)
 		return 0;
 
 	if ((cur->bc_levels[lev].ra | lr) == cur->bc_levels[lev].ra)
@@ -1172,14 +1181,12 @@ __xfs_btree_init_block(
 			buf->bb_u.l.bb_lsn = 0;
 		}
 	} else {
-		/* owner is a 32 bit value on short blocks */
-		__u32 __owner = (__u32)owner;
-
 		buf->bb_u.s.bb_leftsib = cpu_to_be32(NULLAGBLOCK);
 		buf->bb_u.s.bb_rightsib = cpu_to_be32(NULLAGBLOCK);
 		if (crc) {
 			buf->bb_u.s.bb_blkno = cpu_to_be64(blkno);
-			buf->bb_u.s.bb_owner = cpu_to_be32(__owner);
+			/* owner is a 32 bit value on short blocks */
+			buf->bb_u.s.bb_owner = cpu_to_be32((__u32)owner);
 			uuid_copy(&buf->bb_u.s.bb_uuid, &mp->m_sb.sb_meta_uuid);
 			buf->bb_u.s.bb_lsn = 0;
 		}
@@ -1217,7 +1224,7 @@ static inline __u64
 xfs_btree_owner(
 	struct xfs_btree_cur    *cur)
 {
-	if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE)
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
 		return cur->bc_ino.ip->i_ino;
 	return cur->bc_ag.pag->pag_agno;
 }
@@ -1638,7 +1645,7 @@ xfs_btree_increment(
 	 * confused or have the tree root in an inode.
 	 */
 	if (lev == cur->bc_nlevels) {
-		if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE)
+		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
 			goto out0;
 		ASSERT(0);
 		xfs_btree_mark_sick(cur);
@@ -1732,7 +1739,7 @@ xfs_btree_decrement(
 	 * or the root of the tree is in an inode.
 	 */
 	if (lev == cur->bc_nlevels) {
-		if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE)
+		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
 			goto out0;
 		ASSERT(0);
 		xfs_btree_mark_sick(cur);
@@ -1807,8 +1814,8 @@ xfs_btree_lookup_get_block(
 	int			error = 0;
 
 	/* special case the root block if in an inode */
-	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
-	    (level == cur->bc_nlevels - 1)) {
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
+	    level == cur->bc_nlevels - 1) {
 		*blkp = xfs_btree_get_iroot(cur);
 		return 0;
 	}
@@ -2343,7 +2350,7 @@ xfs_btree_lshift(
 	int			error;		/* error return value */
 	int			i;
 
-	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
+	if ((cur->bc_ops->type == XFS_BTREE_TYPE_INODE) &&
 	    level == cur->bc_nlevels - 1)
 		goto out0;
 
@@ -2539,8 +2546,8 @@ xfs_btree_rshift(
 	int			error;		/* error return value */
 	int			i;		/* loop counter */
 
-	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
-	    (level == cur->bc_nlevels - 1))
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
+	    level == cur->bc_nlevels - 1)
 		goto out0;
 
 	/* Set up variables for this block as "left". */
@@ -2990,7 +2997,6 @@ xfs_btree_split(
 #define xfs_btree_split	__xfs_btree_split
 #endif /* __KERNEL__ */
 
-
 /*
  * Copy the old inode root contents into a real block and make the
  * broot point to it.
@@ -3015,7 +3021,7 @@ xfs_btree_new_iroot(
 
 	XFS_BTREE_STATS_INC(cur, newroot);
 
-	ASSERT(cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE);
+	ASSERT(cur->bc_ops->type == XFS_BTREE_TYPE_INODE);
 
 	level = cur->bc_nlevels - 1;
 
@@ -3240,7 +3246,7 @@ xfs_btree_make_block_unfull(
 {
 	int			error = 0;
 
-	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
 	    level == cur->bc_nlevels - 1) {
 		struct xfs_inode *ip = cur->bc_ino.ip;
 
@@ -3326,8 +3332,8 @@ xfs_btree_insrec(
 	 * If we have an external root pointer, and we've made it to the
 	 * root level, allocate a new root block and we're done.
 	 */
-	if (!(cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
-	    (level >= cur->bc_nlevels)) {
+	if (cur->bc_ops->type != XFS_BTREE_TYPE_INODE &&
+	    level >= cur->bc_nlevels) {
 		error = xfs_btree_new_root(cur, stat);
 		xfs_btree_set_ptr_null(cur, ptrp);
 
@@ -3614,7 +3620,7 @@ xfs_btree_kill_iroot(
 #endif
 	int			i;
 
-	ASSERT(cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE);
+	ASSERT(cur->bc_ops->type == XFS_BTREE_TYPE_INODE);
 	ASSERT(cur->bc_nlevels > 1);
 
 	/*
@@ -3851,7 +3857,7 @@ xfs_btree_delrec(
 	 * nothing left to do.
 	 */
 	if (level == cur->bc_nlevels - 1) {
-		if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) {
+		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
 			xfs_iroot_realloc(cur->bc_ino.ip, -1,
 					  cur->bc_ino.whichfork);
 
@@ -3919,7 +3925,7 @@ xfs_btree_delrec(
 	xfs_btree_get_sibling(cur, block, &rptr, XFS_BB_RIGHTSIB);
 	xfs_btree_get_sibling(cur, block, &lptr, XFS_BB_LEFTSIB);
 
-	if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) {
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
 		/*
 		 * One child of root, need to get a chance to copy its contents
 		 * into the root and delete it. Can't go up to next level,
@@ -4236,8 +4242,8 @@ xfs_btree_delrec(
 	 * If we joined with the right neighbor and there's a level above
 	 * us, increment the cursor at that level.
 	 */
-	else if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) ||
-		   (level + 1 < cur->bc_nlevels)) {
+	else if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE ||
+		 level + 1 < cur->bc_nlevels) {
 		error = xfs_btree_increment(cur, level + 1, &i);
 		if (error)
 			goto error0;
@@ -4528,7 +4534,7 @@ xfs_btree_block_change_owner(
 	 * though, so everything is consistent in memory.
 	 */
 	if (!bp) {
-		ASSERT(cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE);
+		ASSERT(cur->bc_ops->type == XFS_BTREE_TYPE_INODE);
 		ASSERT(level == cur->bc_nlevels - 1);
 		return 0;
 	}
