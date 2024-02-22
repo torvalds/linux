@@ -36,7 +36,7 @@ static struct mock_bus_type iommufd_mock_bus_type = {
 	},
 };
 
-static atomic_t mock_dev_num;
+static DEFINE_IDA(mock_dev_ida);
 
 enum {
 	MOCK_DIRTY_TRACK = 1,
@@ -123,6 +123,7 @@ enum selftest_obj_type {
 struct mock_dev {
 	struct device dev;
 	unsigned long flags;
+	int id;
 };
 
 struct selftest_obj {
@@ -631,7 +632,7 @@ static void mock_dev_release(struct device *dev)
 {
 	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
 
-	atomic_dec(&mock_dev_num);
+	ida_free(&mock_dev_ida, mdev->id);
 	kfree(mdev);
 }
 
@@ -653,8 +654,12 @@ static struct mock_dev *mock_dev_create(unsigned long dev_flags)
 	mdev->dev.release = mock_dev_release;
 	mdev->dev.bus = &iommufd_mock_bus_type.bus;
 
-	rc = dev_set_name(&mdev->dev, "iommufd_mock%u",
-			  atomic_inc_return(&mock_dev_num));
+	rc = ida_alloc(&mock_dev_ida, GFP_KERNEL);
+	if (rc < 0)
+		goto err_put;
+	mdev->id = rc;
+
+	rc = dev_set_name(&mdev->dev, "iommufd_mock%u", mdev->id);
 	if (rc)
 		goto err_put;
 
