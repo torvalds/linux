@@ -322,6 +322,7 @@ const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.key_len		= sizeof(struct xfs_refcount_key),
 
 	.lru_refs		= XFS_REFC_BTREE_REF,
+	.statoff		= XFS_STATS_CALC_INDEX(xs_refcbt_2),
 
 	.dup_cursor		= xfs_refcountbt_dup_cursor,
 	.set_root		= xfs_refcountbt_set_root,
@@ -357,8 +358,6 @@ xfs_refcountbt_init_common(
 	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_REFC,
 			&xfs_refcountbt_ops, mp->m_refc_maxlevels,
 			xfs_refcountbt_cur_cache);
-	cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_refcbt_2);
-
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.refc.nr_ops = 0;
 	cur->bc_ag.refc.shape_changes = 0;

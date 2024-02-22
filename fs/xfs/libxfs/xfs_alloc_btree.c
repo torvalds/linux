@@ -459,6 +459,7 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 	.key_len		= sizeof(xfs_alloc_key_t),
 
 	.lru_refs		= XFS_ALLOC_BTREE_REF,
+	.statoff		= XFS_STATS_CALC_INDEX(xs_abtb_2),
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
@@ -486,6 +487,7 @@ const struct xfs_btree_ops xfs_cntbt_ops = {
 	.key_len		= sizeof(xfs_alloc_key_t),
 
 	.lru_refs		= XFS_ALLOC_BTREE_REF,
+	.statoff		= XFS_STATS_CALC_INDEX(xs_abtc_2),
 
 	.dup_cursor		= xfs_allocbt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
@@ -514,22 +516,17 @@ xfs_allocbt_init_common(
 	struct xfs_perag	*pag,
 	xfs_btnum_t		btnum)
 {
+	const struct xfs_btree_ops *ops = &xfs_bnobt_ops;
 	struct xfs_btree_cur	*cur;
 
 	ASSERT(btnum == XFS_BTNUM_BNO || btnum == XFS_BTNUM_CNT);
 
-	if (btnum == XFS_BTNUM_CNT) {
-		cur = xfs_btree_alloc_cursor(mp, tp, btnum, &xfs_cntbt_ops,
-				mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
-		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtc_2);
-	} else {
-		cur = xfs_btree_alloc_cursor(mp, tp, btnum, &xfs_bnobt_ops,
-				mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
-		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtb_2);
-	}
+	if (btnum == XFS_BTNUM_CNT)
+		ops = &xfs_cntbt_ops;
 
+	cur = xfs_btree_alloc_cursor(mp, tp, btnum, ops, mp->m_alloc_maxlevels,
+			xfs_allocbt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
-
 	return cur;
 }
 
