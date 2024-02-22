@@ -379,19 +379,6 @@ xfs_btree_offsets(
 	int			*last);	/* output: last byte offset */
 
 /*
- * Get a buffer for the block, return it read in.
- * Long-form addressing.
- */
-int					/* error */
-xfs_btree_read_bufl(
-	struct xfs_mount	*mp,	/* file system mount point */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	struct xfs_buf		**bpp,	/* buffer for fsbno */
-	int			refval,	/* ref count value for buffer */
-	const struct xfs_buf_ops *ops);
-
-/*
  * Initialise a new btree block header
  */
 void xfs_btree_init_buf(struct xfs_mount *mp, struct xfs_buf *bp,
