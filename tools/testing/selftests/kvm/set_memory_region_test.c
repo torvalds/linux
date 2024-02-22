@@ -375,6 +375,12 @@ static void test_invalid_memory_region_flags(void)
 		TEST_ASSERT(r && errno == EINVAL,
 			    "KVM_SET_USER_MEMORY_REGION2 should have failed, dirty logging private memory is unsupported");
 
+		r = __vm_set_user_memory_region2(vm, 0,
+						 KVM_MEM_READONLY | KVM_MEM_GUEST_MEMFD,
+						 0, MEM_REGION_SIZE, NULL, guest_memfd, 0);
+		TEST_ASSERT(r && errno == EINVAL,
+			    "KVM_SET_USER_MEMORY_REGION2 should have failed, read-only GUEST_MEMFD memslots are unsupported");
+
 		close(guest_memfd);
 	}
 }
