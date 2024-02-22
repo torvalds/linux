@@ -903,6 +903,7 @@ static int ubd_add(int n, char **error_out)
 	set_capacity(disk, ubd_dev->size / 512);
 	sprintf(disk->disk_name, "ubd%c", 'a' + n);
 	disk->private_data = ubd_dev;
+	set_disk_ro(disk, !ubd_dev->openflags.w);
 
 	ubd_dev->pdev.id = n;
 	ubd_dev->pdev.name = DRIVER_NAME;
@@ -1159,7 +1160,6 @@ static int ubd_open(struct gendisk *disk, blk_mode_t mode)
 		}
 	}
 	ubd_dev->count++;
-	set_disk_ro(disk, !ubd_dev->openflags.w);
 out:
 	mutex_unlock(&ubd_mutex);
 	return err;
