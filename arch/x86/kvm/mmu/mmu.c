@@ -4405,6 +4405,31 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	fault->mmu_seq = vcpu->kvm->mmu_invalidate_seq;
 	smp_rmb();
 
+	/*
+	 * Check for a relevant mmu_notifier invalidation event before getting
+	 * the pfn from the primary MMU, and before acquiring mmu_lock.
+	 *
+	 * For mmu_lock, if there is an in-progress invalidation and the kernel
+	 * allows preemption, the invalidation task may drop mmu_lock and yield
+	 * in response to mmu_lock being contended, which is *very* counter-
+	 * productive as this vCPU can't actually make forward progress until
+	 * the invalidation completes.
+	 *
+	 * Retrying now can also avoid unnessary lock contention in the primary
+	 * MMU, as the primary MMU doesn't necessarily hold a single lock for
+	 * the duration of the invalidation, i.e. faulting in a conflicting pfn
+	 * can cause the invalidation to take longer by holding locks that are
+	 * needed to complete the invalidation.
+	 *
+	 * Do the pre-check even for non-preemtible kernels, i.e. even if KVM
+	 * will never yield mmu_lock in response to contention, as this vCPU is
+	 * *guaranteed* to need to retry, i.e. waiting until mmu_lock is held
+	 * to detect retry guarantees the worst case latency for the vCPU.
+	 */
+	if (fault->slot &&
+	    mmu_invalidate_retry_gfn_unsafe(vcpu->kvm, fault->mmu_seq, fault->gfn))
+		return RET_PF_RETRY;
+
 	ret = __kvm_faultin_pfn(vcpu, fault);
 	if (ret != RET_PF_CONTINUE)
 		return ret;
@@ -4414,6 +4439,18 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 
 	if (unlikely(!fault->slot))
 		return kvm_handle_noslot_fault(vcpu, fault, access);
+
+	/*
+	 * Check again for a relevant mmu_notifier invalidation event purely to
+	 * avoid contending mmu_lock.  Most invalidations will be detected by
+	 * the previous check, but checking is extremely cheap relative to the
+	 * overall cost of failing to detect the invalidation until after
+	 * mmu_lock is acquired.
+	 */
+	if (mmu_invalidate_retry_gfn_unsafe(vcpu->kvm, fault->mmu_seq, fault->gfn)) {
+		kvm_release_pfn_clean(fault->pfn);
+		return RET_PF_RETRY;
+	}
 
 	return RET_PF_CONTINUE;
 }
@@ -4442,6 +4479,11 @@ static bool is_page_fault_stale(struct kvm_vcpu *vcpu,
 	if (!sp && kvm_test_request(KVM_REQ_MMU_FREE_OBSOLETE_ROOTS, vcpu))
 		return true;
 
+	/*
+	 * Check for a relevant mmu_notifier invalidation event one last time
+	 * now that mmu_lock is held, as the "unsafe" checks performed without
+	 * holding mmu_lock can get false negatives.
+	 */
 	return fault->slot &&
 	       mmu_invalidate_retry_gfn(vcpu->kvm, fault->mmu_seq, fault->gfn);
 }
