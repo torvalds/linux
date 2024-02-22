@@ -3,7 +3,7 @@
 # Building vDSO images for x86.
 #
 
-# Include the generic Makefile to check the built vdso.
+# Include the generic Makefile to check the built vDSO:
 include $(srctree)/lib/vdso/Makefile
 
 # Sanitizer runtimes are unavailable and cannot be linked here.
@@ -18,29 +18,29 @@ OBJECT_FILES_NON_STANDARD	:= y
 # Prevents link failures: __sanitizer_cov_trace_pc() is not linked in.
 KCOV_INSTRUMENT		:= n
 
-# files to link into the vdso
+# Files to link into the vDSO:
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o
 vobjs32-y := vdso32/note.o vdso32/system_call.o vdso32/sigreturn.o
 vobjs32-y += vdso32/vclock_gettime.o vdso32/vgetcpu.o
 vobjs-$(CONFIG_X86_SGX)	+= vsgx.o
 
-# files to link into kernel
-obj-y					+= vma.o extable.o
-KASAN_SANITIZE_vma.o			:= y
-UBSAN_SANITIZE_vma.o			:= y
-KCSAN_SANITIZE_vma.o			:= y
+# Files to link into the kernel:
+obj-y						+= vma.o extable.o
+KASAN_SANITIZE_vma.o				:= y
+UBSAN_SANITIZE_vma.o				:= y
+KCSAN_SANITIZE_vma.o				:= y
 
-OBJECT_FILES_NON_STANDARD_extable.o		:= n
-OBJECT_FILES_NON_STANDARD_vdso-image-32.o 	:= n
-OBJECT_FILES_NON_STANDARD_vdso-image-64.o 	:= n
 OBJECT_FILES_NON_STANDARD_vma.o			:= n
+OBJECT_FILES_NON_STANDARD_extable.o		:= n
 
-# vDSO images to build
-obj-$(CONFIG_X86_64)		+= vdso-image-64.o
-obj-$(CONFIG_X86_X32_ABI)	+= vdso-image-x32.o
-obj-$(CONFIG_COMPAT_32)		+= vdso-image-32.o vdso32-setup.o
+# vDSO images to build:
+obj-$(CONFIG_X86_64)				+= vdso-image-64.o
+obj-$(CONFIG_X86_X32_ABI)			+= vdso-image-x32.o
+obj-$(CONFIG_COMPAT_32)				+= vdso-image-32.o vdso32-setup.o
 
-OBJECT_FILES_NON_STANDARD_vdso32-setup.o := n
+OBJECT_FILES_NON_STANDARD_vdso-image-32.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso-image-64.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso32-setup.o	:= n
 
 vobjs := $(addprefix $(obj)/, $(vobjs-y))
 vobjs32 := $(addprefix $(obj)/, $(vobjs32-y))
