@@ -459,6 +459,9 @@ class YnlFamily(SpecFamily):
                 attr_payload += self._add_attr(attr['nested-attributes'],
                                                subname, subvalue, sub_attrs)
         elif attr["type"] == 'flag':
+            if not value:
+                # If value is absent or false then skip attribute creation.
+                return b''
             attr_payload = b''
         elif attr["type"] == 'string':
             attr_payload = str(value).encode('ascii') + b'\x00'
