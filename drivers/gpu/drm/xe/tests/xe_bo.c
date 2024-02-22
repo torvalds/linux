@@ -163,7 +163,7 @@ static int ccs_test_run_device(struct xe_device *xe)
 		return 0;
 	}
 
-	xe_device_mem_access_get(xe);
+	xe_pm_runtime_get(xe);
 
 	for_each_tile(tile, xe, id) {
 		/* For igfx run only for primary tile */
@@ -172,7 +172,7 @@ static int ccs_test_run_device(struct xe_device *xe)
 		ccs_test_run_tile(xe, tile, test);
 	}
 
-	xe_device_mem_access_put(xe);
+	xe_pm_runtime_put(xe);
 
 	return 0;
 }
@@ -335,12 +335,12 @@ static int evict_test_run_device(struct xe_device *xe)
 		return 0;
 	}
 
-	xe_device_mem_access_get(xe);
+	xe_pm_runtime_get(xe);
 
 	for_each_tile(tile, xe, id)
 		evict_test_run_tile(xe, tile, test);
 
-	xe_device_mem_access_put(xe);
+	xe_pm_runtime_put(xe);
 
 	return 0;
 }

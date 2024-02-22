@@ -10,6 +10,7 @@
 #include "tests/xe_pci_test.h"
 
 #include "xe_pci.h"
+#include "xe_pm.h"
 
 static bool sanity_fence_failed(struct xe_device *xe, struct dma_fence *fence,
 				const char *str, struct kunit *test)
@@ -423,16 +424,18 @@ static int migrate_test_run_device(struct xe_device *xe)
 	struct xe_tile *tile;
 	int id;
 
+	xe_pm_runtime_get(xe);
+
 	for_each_tile(tile, xe, id) {
 		struct xe_migrate *m = tile->migrate;
 
 		kunit_info(test, "Testing tile id %d.\n", id);
 		xe_vm_lock(m->q->vm, true);
-		xe_device_mem_access_get(xe);
 		xe_migrate_sanity_test(m, test);
-		xe_device_mem_access_put(xe);
 		xe_vm_unlock(m->q->vm);
 	}
+
+	xe_pm_runtime_put(xe);
 
 	return 0;
 }
