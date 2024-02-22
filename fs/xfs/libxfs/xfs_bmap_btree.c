@@ -35,10 +35,10 @@ xfs_bmbt_init_block(
 	__u16				numrecs)
 {
 	if (bp)
-		xfs_btree_init_block(ip->i_mount, bp, &xfs_bmbt_ops, level,
+		xfs_btree_init_buf(ip->i_mount, bp, &xfs_bmbt_ops, level,
 				numrecs, ip->i_ino);
 	else
-		xfs_btree_init_block_int(ip->i_mount, buf, &xfs_bmbt_ops,
+		xfs_btree_init_block(ip->i_mount, buf, &xfs_bmbt_ops,
 				XFS_BUF_DADDR_NULL, level, numrecs, ip->i_ino);
 }
 
