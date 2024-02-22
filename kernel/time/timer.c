@@ -53,6 +53,7 @@
 #include <asm/io.h>
 
 #include "tick-internal.h"
+#include "timer_migration.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/timer.h>
@@ -2169,6 +2170,64 @@ bool timer_base_is_idle(void)
 {
 	return __this_cpu_read(timer_bases[BASE_LOCAL].is_idle);
 }
+
+static void __run_timer_base(struct timer_base *base);
+
+/**
+ * timer_expire_remote() - expire global timers of cpu
+ * @cpu:	Remote CPU
+ *
+ * Expire timers of global base of remote CPU.
+ */
+void timer_expire_remote(unsigned int cpu)
+{
+	struct timer_base *base = per_cpu_ptr(&timer_bases[BASE_GLOBAL], cpu);
+
+	__run_timer_base(base);
+}
+
+static void timer_use_tmigr(unsigned long basej, u64 basem,
+			    unsigned long *nextevt, bool *tick_stop_path,
+			    bool timer_base_idle, struct timer_events *tevt)
+{
+	u64 next_tmigr;
+
+	if (timer_base_idle)
+		next_tmigr = tmigr_cpu_new_timer(tevt->global);
+	else if (tick_stop_path)
+		next_tmigr = tmigr_cpu_deactivate(tevt->global);
+	else
+		next_tmigr = tmigr_quick_check(tevt->global);
+
+	/*
+	 * If the CPU is the last going idle in timer migration hierarchy, make
+	 * sure the CPU will wake up in time to handle remote timers.
+	 * next_tmigr == KTIME_MAX if other CPUs are still active.
+	 */
+	if (next_tmigr < tevt->local) {
+		u64 tmp;
+
+		/* If we missed a tick already, force 0 delta */
+		if (next_tmigr < basem)
+			next_tmigr = basem;
+
+		tmp = div_u64(next_tmigr - basem, TICK_NSEC);
+
+		*nextevt = basej + (unsigned long)tmp;
+		tevt->local = next_tmigr;
+	}
+}
+# else
+static void timer_use_tmigr(unsigned long basej, u64 basem,
+			    unsigned long *nextevt, bool *tick_stop_path,
+			    bool timer_base_idle, struct timer_events *tevt)
+{
+	/*
+	 * Make sure first event is written into tevt->local to not miss a
+	 * timer on !SMP systems.
+	 */
+	tevt->local = min_t(u64, tevt->local, tevt->global);
+}
 # endif /* CONFIG_SMP */
 
 static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
@@ -2177,7 +2236,7 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 	struct timer_events tevt = { .local = KTIME_MAX, .global = KTIME_MAX };
 	struct timer_base *base_local, *base_global;
 	unsigned long nextevt;
-	u64 expires;
+	bool idle_is_possible;
 
 	/*
 	 * Pretend that there is no timer pending if the cpu is offline.
@@ -2199,6 +2258,22 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 					     base_global, &tevt);
 
 	/*
+	 * If the next event is only one jiffie ahead there is no need to call
+	 * timer migration hierarchy related functions. The value for the next
+	 * global timer in @tevt struct equals then KTIME_MAX. This is also
+	 * true, when the timer base is idle.
+	 *
+	 * The proper timer migration hierarchy function depends on the callsite
+	 * and whether timer base is idle or not. @nextevt will be updated when
+	 * this CPU needs to handle the first timer migration hierarchy
+	 * event. See timer_use_tmigr() for detailed information.
+	 */
+	idle_is_possible = time_after(nextevt, basej + 1);
+	if (idle_is_possible)
+		timer_use_tmigr(basej, basem, &nextevt, idle,
+				base_local->is_idle, &tevt);
+
+	/*
 	 * We have a fresh next event. Check whether we can forward the
 	 * base.
 	 */
@@ -2210,7 +2285,10 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 	 */
 	if (idle) {
 		/*
-		 * Bases are idle if the next event is more than a tick away.
+		 * Bases are idle if the next event is more than a tick
+		 * away. Caution: @nextevt could have changed by enqueueing a
+		 * global timer into timer migration hierarchy. Therefore a new
+		 * check is required here.
 		 *
 		 * If the base is marked idle then any timer add operation must
 		 * forward the base clk itself to keep granularity small. This
@@ -2223,14 +2301,23 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 			trace_timer_base_idle(true, base_local->cpu);
 		}
 		*idle = base_local->is_idle;
+
+		/*
+		 * When timer base is not set idle, undo the effect of
+		 * tmigr_cpu_deactivate() to prevent inconsitent states - active
+		 * timer base but inactive timer migration hierarchy.
+		 *
+		 * When timer base was already marked idle, nothing will be
+		 * changed here.
+		 */
+		if (!base_local->is_idle && idle_is_possible)
+			tmigr_cpu_activate();
 	}
 
 	raw_spin_unlock(&base_global->lock);
 	raw_spin_unlock(&base_local->lock);
 
-	expires = min_t(u64, tevt.local, tevt.global);
-
-	return cmp_next_hrtimer_event(basem, expires);
+	return cmp_next_hrtimer_event(basem, tevt.local);
 }
 
 /**
@@ -2238,8 +2325,11 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
  * @basej:	base time jiffies
  * @basem:	base time clock monotonic
  *
- * Returns the tick aligned clock monotonic time of the next pending
- * timer or KTIME_MAX if no timer is pending.
+ * Returns the tick aligned clock monotonic time of the next pending timer or
+ * KTIME_MAX if no timer is pending. If timer of global base was queued into
+ * timer migration hierarchy, first global timer is not taken into account. If
+ * it was the last CPU of timer migration hierarchy going idle, first global
+ * event is taken into account.
  */
 u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 {
@@ -2281,6 +2371,9 @@ void timer_clear_idle(void)
 	__this_cpu_write(timer_bases[BASE_LOCAL].is_idle, false);
 	__this_cpu_write(timer_bases[BASE_GLOBAL].is_idle, false);
 	trace_timer_base_idle(false, smp_processor_id());
+
+	/* Activate without holding the timer_base->lock */
+	tmigr_cpu_activate();
 }
 #endif
 
@@ -2350,6 +2443,9 @@ static __latent_entropy void run_timer_softirq(struct softirq_action *h)
 	if (IS_ENABLED(CONFIG_NO_HZ_COMMON)) {
 		run_timer_base(BASE_GLOBAL);
 		run_timer_base(BASE_DEF);
+
+		if (is_timers_nohz_active())
+			tmigr_handle_remote();
 	}
 }
 
@@ -2364,7 +2460,8 @@ static void run_local_timers(void)
 
 	for (int i = 0; i < NR_BASES; i++, base++) {
 		/* Raise the softirq only if required. */
-		if (time_after_eq(jiffies, base->next_expiry)) {
+		if (time_after_eq(jiffies, base->next_expiry) ||
+		    (i == BASE_DEF && tmigr_requires_handle_remote())) {
 			raise_softirq(TIMER_SOFTIRQ);
 			return;
 		}
