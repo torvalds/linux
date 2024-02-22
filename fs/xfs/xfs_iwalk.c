@@ -266,9 +266,10 @@ xfs_iwalk_ag_start(
 
 	/* Set up a fresh cursor and empty the inobt cache. */
 	iwag->nr_recs = 0;
-	error = xfs_inobt_cur(pag, tp, XFS_BTNUM_INO, curpp, agi_bpp);
+	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
 	if (error)
 		return error;
+	*curpp = xfs_inobt_init_cursor(pag, tp, *agi_bpp, XFS_BTNUM_INO);
 
 	/* Starting at the beginning of the AG?  That's easy! */
 	if (agino == 0)
@@ -383,11 +384,11 @@ xfs_iwalk_run_callbacks(
 	}
 
 	/* ...and recreate the cursor just past where we left off. */
-	error = xfs_inobt_cur(iwag->pag, iwag->tp, XFS_BTNUM_INO, curpp,
-			agi_bpp);
+	error = xfs_ialloc_read_agi(iwag->pag, iwag->tp, agi_bpp);
 	if (error)
 		return error;
-
+	*curpp = xfs_inobt_init_cursor(iwag->pag, iwag->tp, *agi_bpp,
+			XFS_BTNUM_INO);
 	return xfs_inobt_lookup(*curpp, next_agino, XFS_LOOKUP_GE, has_more);
 }
 

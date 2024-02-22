@@ -710,30 +710,6 @@ xfs_inobt_max_size(
 					XFS_INODES_PER_CHUNK);
 }
 
-/* Read AGI and create inobt cursor. */
-int
-xfs_inobt_cur(
-	struct xfs_perag	*pag,
-	struct xfs_trans	*tp,
-	xfs_btnum_t		which,
-	struct xfs_btree_cur	**curpp,
-	struct xfs_buf		**agi_bpp)
-{
-	struct xfs_btree_cur	*cur;
-	int			error;
-
-	ASSERT(*agi_bpp == NULL);
-	ASSERT(*curpp == NULL);
-
-	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
-	if (error)
-		return error;
-
-	cur = xfs_inobt_init_cursor(pag, tp, *agi_bpp, which);
-	*curpp = cur;
-	return 0;
-}
-
 static int
 xfs_inobt_count_blocks(
 	struct xfs_perag	*pag,
@@ -742,13 +718,14 @@ xfs_inobt_count_blocks(
 	xfs_extlen_t		*tree_blocks)
 {
 	struct xfs_buf		*agbp = NULL;
-	struct xfs_btree_cur	*cur = NULL;
+	struct xfs_btree_cur	*cur;
 	int			error;
 
-	error = xfs_inobt_cur(pag, tp, btnum, &cur, &agbp);
+	error = xfs_ialloc_read_agi(pag, tp, &agbp);
 	if (error)
 		return error;
 
+	cur = xfs_inobt_init_cursor(pag, tp, agbp, btnum);
 	error = xfs_btree_count_blocks(cur, tree_blocks);
 	xfs_btree_del_cursor(cur, error);
 	xfs_trans_brelse(tp, agbp);
