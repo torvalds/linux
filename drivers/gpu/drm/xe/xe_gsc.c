@@ -21,6 +21,7 @@
 #include "xe_huc.h"
 #include "xe_map.h"
 #include "xe_mmio.h"
+#include "xe_pm.h"
 #include "xe_sched_job.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
@@ -285,7 +286,7 @@ static void gsc_work(struct work_struct *work)
 	gsc->work_actions = 0;
 	spin_unlock_irq(&gsc->lock);
 
-	xe_device_mem_access_get(xe);
+	xe_pm_runtime_get(xe);
 	xe_force_wake_get(gt_to_fw(gt), XE_FW_GSC);
 
 	if (actions & GSC_ACTION_FW_LOAD) {
@@ -300,7 +301,7 @@ static void gsc_work(struct work_struct *work)
 		xe_gsc_proxy_request_handler(gsc);
 
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
-	xe_device_mem_access_put(xe);
+	xe_pm_runtime_put(xe);
 }
 
 int xe_gsc_init(struct xe_gsc *gsc)
