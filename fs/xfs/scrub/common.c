@@ -30,6 +30,7 @@
 #include "xfs_reflink.h"
 #include "xfs_ag.h"
 #include "xfs_error.h"
+#include "xfs_quota.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -1297,6 +1298,9 @@ xchk_fsgates_enable(
 
 	if (scrub_fsgates & XCHK_FSGATES_DRAIN)
 		xfs_drain_wait_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_QUOTA)
+		xfs_dqtrx_hook_enable();
 
 	sc->flags |= scrub_fsgates;
 }

@@ -43,6 +43,12 @@ struct xqcheck {
 	struct mutex		lock;
 
 	struct xchk_iscan	iscan;
+
+	/* Hooks into the quota code. */
+	struct xfs_dqtrx_hook	qhook;
+
+	/* Shadow quota delta tracking structure. */
+	struct rhashtable	shadow_dquot_acct;
 };
 
 /* Return the incore counter array for a given quota type. */
