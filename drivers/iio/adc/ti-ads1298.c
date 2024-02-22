@@ -258,6 +258,8 @@ static int ads1298_set_samp_freq(struct ads1298_private *priv, int val)
 		rate = ADS1298_CLK_RATE_HZ;
 	if (!rate)
 		return -EINVAL;
+	if (val <= 0)
+		return -EINVAL;
 
 	factor = (rate >> ADS1298_SHIFT_DR_HR) / val;
 	if (factor >= BIT(ADS1298_SHIFT_DR_LP))
