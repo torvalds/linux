@@ -47,7 +47,7 @@
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item,			\
-		    strlen((src) ? (const char *)(src) : "(null)") + 1)	\
+		    strlen((const char *)(src) ? : "(null)") + 1)	\
 	__data_offsets->item##_ptr_ = src;
 
 #undef __string_len
@@ -70,7 +70,7 @@
 
 #undef __rel_string
 #define __rel_string(item, src) __rel_dynamic_array(char, item,		\
-		    strlen((src) ? (const char *)(src) : "(null)") + 1)	\
+		    strlen((const char *)(src) ? : "(null)") + 1)	\
 	__data_offsets->item##_ptr_ = src;
 
 #undef __rel_string_len
