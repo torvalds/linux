@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2009-2017, 2021 The Linux Foundation. All rights reserved.
  * Copyright (c) 2017-2019, Linaro Ltd.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/debugfs.h>
@@ -560,6 +560,8 @@ static const struct soc_id soc_id[] = {
 	{ 623, "PITTI" },
 	{ 632, "CLIFFS7" },
 	{ 636, "VOLCANO" },
+	{ 640, "VOLCANO6" },
+	{ 641, "VOLCANO6P" },
 	{ 642, "CLIFFSP" },
 	{ 643, "CLIFFS7P" },
 };
