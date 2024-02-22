@@ -545,7 +545,7 @@ static int denorm_addr_df4_np2(struct addr_ctx *ctx)
 	unsigned int mod_value, shift_value;
 	u16 mask = df_cfg.component_id_mask;
 	u64 temp_addr_a, temp_addr_b;
-	u8 hash_pa8, hashed_bit;
+	bool hash_pa8, hashed_bit;
 
 	switch (ctx->map.intlv_mode) {
 	case DF4_NPS4_3CHAN_HASH:
@@ -577,8 +577,7 @@ static int denorm_addr_df4_np2(struct addr_ctx *ctx)
 		hash_pa8	= BIT_ULL(shift_value) & ctx->ret_addr;
 		temp_addr_a	= remove_bits(shift_value, shift_value, ctx->ret_addr);
 	} else {
-		hash_pa8	= (ctx->coh_st_fabric_id & df_cfg.socket_id_mask);
-		hash_pa8	>>= df_cfg.socket_id_shift;
+		hash_pa8	= ctx->coh_st_fabric_id & df_cfg.socket_id_mask;
 		temp_addr_a	= ctx->ret_addr;
 	}
 
