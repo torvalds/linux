@@ -22,6 +22,9 @@ struct xchk_iscan {
 	/* This is the inode that will be examined next. */
 	xfs_ino_t		cursor_ino;
 
+	/* If nonzero and non-NULL, skip this inode when scanning. */
+	xfs_ino_t		skip_ino;
+
 	/*
 	 * This is the last inode that we've successfully scanned, either
 	 * because the caller scanned it, or we moved the cursor past an empty

@@ -16,6 +16,7 @@
 #include "xfs_rtbitmap.h"
 #include "xfs_quota.h"
 #include "xfs_quota_defs.h"
+#include "xfs_da_format.h"
 #include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"

@@ -1817,6 +1817,55 @@ TRACE_EVENT(xrep_dinode_count_rmaps,
 		  __entry->attr_extents)
 );
 
+TRACE_EVENT(xrep_dinode_findmode_dirent,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *dp,
+		 unsigned int ftype),
+	TP_ARGS(sc, dp, ftype),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, ftype)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->ftype = ftype;
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx ftype '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __print_symbolic(__entry->ftype, XFS_DIR3_FTYPE_STR))
+);
+
+TRACE_EVENT(xrep_dinode_findmode_dirent_inval,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *dp,
+		 unsigned int ftype, unsigned int found_ftype),
+	TP_ARGS(sc, dp, ftype, found_ftype),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, ftype)
+		__field(unsigned int, found_ftype)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->ftype = ftype;
+		__entry->found_ftype = found_ftype;
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx ftype '%s' found_ftype '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __print_symbolic(__entry->ftype, XFS_DIR3_FTYPE_STR),
+		  __print_symbolic(__entry->found_ftype, XFS_DIR3_FTYPE_STR))
+);
+
 TRACE_EVENT(xrep_cow_mark_file_range,
 	TP_PROTO(struct xfs_inode *ip, xfs_fsblock_t startblock,
 		 xfs_fileoff_t startoff, xfs_filblks_t blockcount),

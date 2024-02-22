@@ -52,6 +52,32 @@
  */
 
 /*
+ * If the inobt record @rec covers @iscan->skip_ino, mark the inode free so
+ * that the scan ignores that inode.
+ */
+STATIC void
+xchk_iscan_mask_skipino(
+	struct xchk_iscan	*iscan,
+	struct xfs_perag	*pag,
+	struct xfs_inobt_rec_incore	*rec,
+	xfs_agino_t		lastrecino)
+{
+	struct xfs_scrub	*sc = iscan->sc;
+	struct xfs_mount	*mp = sc->mp;
+	xfs_agnumber_t		skip_agno = XFS_INO_TO_AGNO(mp, iscan->skip_ino);
+	xfs_agnumber_t		skip_agino = XFS_INO_TO_AGINO(mp, iscan->skip_ino);
+
+	if (pag->pag_agno != skip_agno)
+		return;
+	if (skip_agino < rec->ir_startino)
+		return;
+	if (skip_agino > lastrecino)
+		return;
+
+	rec->ir_free |= xfs_inobt_maskn(skip_agino - rec->ir_startino, 1);
+}
+
+/*
  * Set *cursor to the next allocated inode after whatever it's set to now.
  * If there are no more inodes in this AG, cursor is set to NULLAGINO.
  */
@@ -126,6 +152,9 @@ xchk_iscan_find_next(
 		 */
 		if (rec.ir_startino + XFS_INODES_PER_CHUNK <= agino)
 			continue;
+
+		if (iscan->skip_ino)
+			xchk_iscan_mask_skipino(iscan, pag, &rec, lastino);
 
 		/*
 		 * If the incoming lookup put us in the middle of an inobt
