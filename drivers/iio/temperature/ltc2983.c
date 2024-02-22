@@ -1614,9 +1614,7 @@ static int ltc2983_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 
-	st->info = device_get_match_data(&spi->dev);
-	if (!st->info)
-		st->info = (void *)spi_get_device_id(spi)->driver_data;
+	st->info = spi_get_device_match_data(spi);
 	if (!st->info)
 		return -ENODEV;
 
