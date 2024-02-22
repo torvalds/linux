@@ -507,7 +507,7 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 			of_ops.critical = thermal_zone_device_critical_reboot;
 
 	tz = thermal_zone_device_register_with_trips(np->name, trips, ntrips,
-						     0, data, &of_ops, &tzp,
+						     data, &of_ops, &tzp,
 						     pdelay, delay);
 	if (IS_ERR(tz)) {
 		ret = PTR_ERR(tz);

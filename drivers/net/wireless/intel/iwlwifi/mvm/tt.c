@@ -694,7 +694,6 @@ static void iwl_mvm_thermal_zone_register(struct iwl_mvm *mvm)
 	mvm->tz_device.tzone = thermal_zone_device_register_with_trips(name,
 							mvm->tz_device.trips,
 							IWL_MAX_DTS_TRIPS,
-							0,
 							mvm, &tzone_ops,
 							NULL, 0, 0);
 	if (IS_ERR(mvm->tz_device.tzone)) {

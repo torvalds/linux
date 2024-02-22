@@ -237,7 +237,7 @@ read_trips:
 
 	ptd->tzd = thermal_zone_device_register_with_trips(board_names[board_id],
 							   ptd_trips, nr_trips,
-							   0, ptd, &tzd_ops,
+							   ptd, &tzd_ops,
 							   NULL, 0, 0);
 	if (IS_ERR(ptd->tzd)) {
 		dev_err(&pdev->dev, "Failed to register thermal zone %s\n",

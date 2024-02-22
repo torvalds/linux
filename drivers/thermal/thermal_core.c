@@ -1248,7 +1248,6 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
  * @type:	the thermal zone device type
  * @trips:	a pointer to an array of thermal trips
  * @num_trips:	the number of trip points the thermal zone support
- * @mask:	a bit string indicating the writeablility of trip points
  * @devdata:	private device data
  * @ops:	standard thermal zone device callbacks
  * @tzp:	thermal zone platform parameters
@@ -1271,14 +1270,12 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
 struct thermal_zone_device *
 thermal_zone_device_register_with_trips(const char *type,
 					const struct thermal_trip *trips,
-					int num_trips, int mask,
-					void *devdata,
+					int num_trips, void *devdata,
 					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp,
 					int passive_delay, int polling_delay)
 {
 	struct thermal_zone_device *tz;
-	struct thermal_trip *trip;
 	int id;
 	int result;
 	struct thermal_governor *governor;
@@ -1294,20 +1291,7 @@ thermal_zone_device_register_with_trips(const char *type,
 		return ERR_PTR(-EINVAL);
 	}
 
-	/*
-	 * Max trip count can't exceed 31 as the "mask >> num_trips" condition.
-	 * For example, shifting by 32 will result in compiler warning:
-	 * warning: right shift count >= width of type [-Wshift-count- overflow]
-	 *
-	 * Also "mask >> num_trips" will always be true with 32 bit shift.
-	 * E.g. mask = 0x80000000 for trip id 31 to be RW. Then
-	 * mask >> 32 = 0x80000000
-	 * This will result in failure for the below condition.
-	 *
-	 * Check will be true when the bit 31 of the mask is set.
-	 * 32 bit shift will cause overflow of 4 byte integer.
-	 */
-	if (num_trips > (BITS_PER_TYPE(int) - 1) || num_trips < 0 || mask >> num_trips) {
+	if (num_trips < 0) {
 		pr_err("Incorrect number of thermal trips\n");
 		return ERR_PTR(-EINVAL);
 	}
@@ -1357,12 +1341,6 @@ thermal_zone_device_register_with_trips(const char *type,
 	tz->devdata = devdata;
 	tz->num_trips = num_trips;
 	memcpy(tz->trips, trips, num_trips * sizeof(*trips));
-	for_each_trip(tz, trip) {
-		if (mask & 1)
-			trip->flags |= THERMAL_TRIP_FLAG_RW_TEMP;
-
-		mask >>= 1;
-	}
 
 	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);
 	thermal_set_delay_jiffies(&tz->polling_delay_jiffies, polling_delay);
@@ -1447,7 +1425,7 @@ struct thermal_zone_device *thermal_tripless_zone_device_register(
 					const struct thermal_zone_device_ops *ops,
 					const struct thermal_zone_params *tzp)
 {
-	return thermal_zone_device_register_with_trips(type, NULL, 0, 0, devdata,
+	return thermal_zone_device_register_with_trips(type, NULL, 0, devdata,
 						       ops, tzp, 0, 0);
 }
 EXPORT_SYMBOL_GPL(thermal_tripless_zone_device_register);

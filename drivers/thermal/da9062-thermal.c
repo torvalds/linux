@@ -197,7 +197,7 @@ static int da9062_thermal_probe(struct platform_device *pdev)
 	mutex_init(&thermal->lock);
 
 	thermal->zone = thermal_zone_device_register_with_trips(thermal->config->name,
-								trips, ARRAY_SIZE(trips), 0, thermal,
+								trips, ARRAY_SIZE(trips), thermal,
 								&da9062_thermal_ops, NULL, pp_tmp,
 								0);
 	if (IS_ERR(thermal->zone)) {

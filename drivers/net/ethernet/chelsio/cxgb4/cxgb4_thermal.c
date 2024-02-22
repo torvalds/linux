@@ -60,7 +60,7 @@ int cxgb4_thermal_init(struct adapter *adap)
 
 	snprintf(ch_tz_name, sizeof(ch_tz_name), "cxgb4_%s", adap->name);
 	ch_thermal->tzdev = thermal_zone_device_register_with_trips(ch_tz_name, &trip, num_trip,
-								    0, adap,
+								    adap,
 								    &cxgb4_thermal_ops,
 								    NULL, 0, 0);
 	if (IS_ERR(ch_thermal->tzdev)) {

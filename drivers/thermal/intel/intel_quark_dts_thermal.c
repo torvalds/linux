@@ -363,7 +363,7 @@ static struct soc_sensor_entry *alloc_soc_dts(void)
 	aux_entry->tzone = thermal_zone_device_register_with_trips("quark_dts",
 								   trips,
 								   QRK_MAX_DTS_TRIPS,
-								   0, aux_entry,
+								   aux_entry,
 								   &tzone_ops,
 								   NULL, 0, polling_delay);
 	if (IS_ERR(aux_entry->tzone)) {

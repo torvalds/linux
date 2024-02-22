@@ -171,7 +171,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	int34x_zone->zone = thermal_zone_device_register_with_trips(
 							acpi_device_bid(adev),
 							zone_trips, trip_cnt,
-							0, int34x_zone,
+							int34x_zone,
 							&zone_ops,
 							&int340x_thermal_params,
 							0, 0);
