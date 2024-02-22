@@ -105,8 +105,42 @@ struct attribute_group {
 #define SYSFS_GROUP_INVISIBLE	020000
 
 /*
- * The first call to is_visible() in the create / update path may
- * indicate visibility for the entire group
+ * DEFINE_SYSFS_GROUP_VISIBLE(name):
+ *	A helper macro to pair with the assignment of ".is_visible =
+ *	SYSFS_GROUP_VISIBLE(name)", that arranges for the directory
+ *	associated with a named attribute_group to optionally be hidden.
+ *	This allows for static declaration of attribute_groups, and the
+ *	simplification of attribute visibility lifetime that implies,
+ *	without polluting sysfs with empty attribute directories.
+ * Ex.
+ *
+ * static umode_t example_attr_visible(struct kobject *kobj,
+ *                                   struct attribute *attr, int n)
+ * {
+ *       if (example_attr_condition)
+ *               return 0;
+ *       else if (ro_attr_condition)
+ *               return 0444;
+ *       return a->mode;
+ * }
+ *
+ * static bool example_group_visible(struct kobject *kobj)
+ * {
+ *       if (example_group_condition)
+ *               return false;
+ *       return true;
+ * }
+ *
+ * DEFINE_SYSFS_GROUP_VISIBLE(example);
+ *
+ * static struct attribute_group example_group = {
+ *       .name = "example",
+ *       .is_visible = SYSFS_GROUP_VISIBLE(example),
+ *       .attrs = &example_attrs,
+ * };
+ *
+ * Note that it expects <name>_attr_visible and <name>_group_visible to
+ * be defined.
  */
 #define DEFINE_SYSFS_GROUP_VISIBLE(name)                             \
 	static inline umode_t sysfs_group_visible_##name(            \
@@ -119,7 +153,9 @@ struct attribute_group {
 
 /*
  * Same as DEFINE_SYSFS_GROUP_VISIBLE, but for groups with only binary
- * attributes
+ * attributes. If an attribute_group defines both text and binary
+ * attributes, the group visibility is determined by the function
+ * specified to is_visible() not is_bin_visible()
  */
 #define DEFINE_SYSFS_BIN_GROUP_VISIBLE(name)                             \
 	static inline umode_t sysfs_group_visible_##name(                \
