@@ -493,10 +493,10 @@ static inline void cr4_update_pce_mm(struct mm_struct *mm) { }
 #endif
 
 /*
- * The "prev" argument passed by the caller does not always match CR3. For
- * example, the scheduler passes in active_mm when switching from lazy TLB mode
- * to normal mode, but switch_mm_irqs_off() can be called from x86 code without
- * updating active_mm. Use cpu_tlbstate.loaded_mm instead.
+ * This optimizes when not actually switching mm's.  Some architectures use the
+ * 'unused' argument for this optimization, but x86 must use
+ * 'cpu_tlbstate.loaded_mm' instead because it does not always keep
+ * 'current->active_mm' up to date.
  */
 void switch_mm_irqs_off(struct mm_struct *unused, struct mm_struct *next,
 			struct task_struct *tsk)
