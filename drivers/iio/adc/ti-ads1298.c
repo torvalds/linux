@@ -657,7 +657,7 @@ static int ads1298_probe(struct spi_device *spi)
 	priv->reg_vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(priv->reg_vref)) {
 		if (PTR_ERR(priv->reg_vref) != -ENODEV)
-			return dev_err_probe(dev, PTR_ERR(priv->reg_avdd),
+			return dev_err_probe(dev, PTR_ERR(priv->reg_vref),
 					     "Failed to get vref regulator\n");
 
 		priv->reg_vref = NULL;
