@@ -11,7 +11,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/rbtree.h>
 #include <linux/blkdev.h>
 #include <linux/blk-mq.h>
 #include <linux/mm.h>
