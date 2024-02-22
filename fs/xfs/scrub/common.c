@@ -1309,6 +1309,9 @@ xchk_fsgates_enable(
 	if (scrub_fsgates & XCHK_FSGATES_DIRENTS)
 		xfs_dir_hook_enable();
 
+	if (scrub_fsgates & XCHK_FSGATES_RMAP)
+		xfs_rmap_hook_enable();
+
 	sc->flags |= scrub_fsgates;
 }
 

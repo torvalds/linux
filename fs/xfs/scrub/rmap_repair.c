@@ -128,6 +128,9 @@ struct xrep_rmap {
 	/* new rmapbt information */
 	struct xrep_newbt	new_btree;
 
+	/* lock for the xfbtree and xfile */
+	struct mutex		lock;
+
 	/* rmap records generated from primary metadata */
 	struct xfbtree		rmap_btree;
 
@@ -135,6 +138,9 @@ struct xrep_rmap {
 
 	/* in-memory btree cursor for the xfs_btree_bload iteration */
 	struct xfs_btree_cur	*mcur;
+
+	/* Hooks into rmap update code. */
+	struct xfs_rmap_hook	rhook;
 
 	/* inode scan cursor */
 	struct xchk_iscan	iscan;
@@ -157,6 +163,8 @@ xrep_setup_ag_rmapbt(
 	struct xrep_rmap	*rr;
 	char			*descr;
 	int			error;
+
+	xchk_fsgates_enable(sc, XCHK_FSGATES_RMAP);
 
 	descr = xchk_xfile_ag_descr(sc, "reverse mapping records");
 	error = xrep_setup_xfbtree(sc, descr);
@@ -220,18 +228,30 @@ xrep_rmap_stash(
 	if (xchk_should_terminate(sc, &error))
 		return error;
 
+	if (xchk_iscan_aborted(&rr->iscan))
+		return -EFSCORRUPTED;
+
 	trace_xrep_rmap_found(sc->mp, sc->sa.pag->pag_agno, &rmap);
 
+	mutex_lock(&rr->lock);
 	mcur = xfs_rmapbt_mem_cursor(sc->sa.pag, sc->tp, &rr->rmap_btree);
 	error = xfs_rmap_map_raw(mcur, &rmap);
 	xfs_btree_del_cursor(mcur, error);
 	if (error)
 		goto out_cancel;
 
-	return xfbtree_trans_commit(&rr->rmap_btree, sc->tp);
+	error = xfbtree_trans_commit(&rr->rmap_btree, sc->tp);
+	if (error)
+		goto out_abort;
+
+	mutex_unlock(&rr->lock);
+	return 0;
 
 out_cancel:
 	xfbtree_trans_cancel(&rr->rmap_btree, sc->tp);
+out_abort:
+	xchk_iscan_abort(&rr->iscan);
+	mutex_unlock(&rr->lock);
 	return error;
 }
 
@@ -915,6 +935,13 @@ end_agscan:
 		return error;
 
 	/*
+	 * If a hook failed to update the in-memory btree, we lack the data to
+	 * continue the repair.
+	 */
+	if (xchk_iscan_aborted(&rr->iscan))
+		return -EFSCORRUPTED;
+
+	/*
 	 * Now that we have everything locked again, we need to count the
 	 * number of rmap records stashed in the btree.  This should reflect
 	 * all actively-owned space in the filesystem.  At the same time, check
@@ -1495,6 +1522,91 @@ out_bitmap:
 	return error;
 }
 
+static inline bool
+xrep_rmapbt_want_live_update(
+	struct xchk_iscan		*iscan,
+	const struct xfs_owner_info	*oi)
+{
+	if (xchk_iscan_aborted(iscan))
+		return false;
+
+	/*
+	 * Before unlocking the AG header to perform the inode scan, we
+	 * recorded reverse mappings for all AG metadata except for the OWN_AG
+	 * metadata.  IOWs, the in-memory btree knows about the AG headers, the
+	 * two inode btrees, the CoW staging extents, and the refcount btrees.
+	 * For these types of metadata, we need to record the live updates in
+	 * the in-memory rmap btree.
+	 *
+	 * However, we do not scan the free space btrees or the AGFL until we
+	 * have re-locked the AGF and are ready to reserve space for the new
+	 * rmap btree, so we do not want live updates for OWN_AG metadata.
+	 */
+	if (XFS_RMAP_NON_INODE_OWNER(oi->oi_owner))
+		return oi->oi_owner != XFS_RMAP_OWN_AG;
+
+	/* Ignore updates to files that the scanner hasn't visited yet. */
+	return xchk_iscan_want_live_update(iscan, oi->oi_owner);
+}
+
+/*
+ * Apply a rmapbt update from the regular filesystem into our shadow btree.
+ * We're running from the thread that owns the AGF buffer and is generating
+ * the update, so we must be careful about which parts of the struct xrep_rmap
+ * that we change.
+ */
+static int
+xrep_rmapbt_live_update(
+	struct notifier_block		*nb,
+	unsigned long			action,
+	void				*data)
+{
+	struct xfs_rmap_update_params	*p = data;
+	struct xrep_rmap		*rr;
+	struct xfs_mount		*mp;
+	struct xfs_btree_cur		*mcur;
+	struct xfs_trans		*tp;
+	void				*txcookie;
+	int				error;
+
+	rr = container_of(nb, struct xrep_rmap, rhook.rmap_hook.nb);
+	mp = rr->sc->mp;
+
+	if (!xrep_rmapbt_want_live_update(&rr->iscan, &p->oinfo))
+		goto out_unlock;
+
+	trace_xrep_rmap_live_update(mp, rr->sc->sa.pag->pag_agno, action, p);
+
+	error = xrep_trans_alloc_hook_dummy(mp, &txcookie, &tp);
+	if (error)
+		goto out_abort;
+
+	mutex_lock(&rr->lock);
+	mcur = xfs_rmapbt_mem_cursor(rr->sc->sa.pag, tp, &rr->rmap_btree);
+	error = __xfs_rmap_finish_intent(mcur, action, p->startblock,
+			p->blockcount, &p->oinfo, p->unwritten);
+	xfs_btree_del_cursor(mcur, error);
+	if (error)
+		goto out_cancel;
+
+	error = xfbtree_trans_commit(&rr->rmap_btree, tp);
+	if (error)
+		goto out_cancel;
+
+	xrep_trans_cancel_hook_dummy(&txcookie, tp);
+	mutex_unlock(&rr->lock);
+	return NOTIFY_DONE;
+
+out_cancel:
+	xfbtree_trans_cancel(&rr->rmap_btree, tp);
+	xrep_trans_cancel_hook_dummy(&txcookie, tp);
+out_abort:
+	mutex_unlock(&rr->lock);
+	xchk_iscan_abort(&rr->iscan);
+out_unlock:
+	return NOTIFY_DONE;
+}
+
 /* Set up the filesystem scan components. */
 STATIC int
 xrep_rmap_setup_scan(
@@ -1503,15 +1615,36 @@ xrep_rmap_setup_scan(
 	struct xfs_scrub	*sc = rr->sc;
 	int			error;
 
+	mutex_init(&rr->lock);
+
 	/* Set up in-memory rmap btree */
 	error = xfs_rmapbt_mem_init(sc->mp, &rr->rmap_btree, sc->xmbtp,
 			sc->sa.pag->pag_agno);
 	if (error)
-		return error;
+		goto out_mutex;
 
 	/* Retry iget every tenth of a second for up to 30 seconds. */
 	xchk_iscan_start(sc, 30000, 100, &rr->iscan);
+
+	/*
+	 * Hook into live rmap operations so that we can update our in-memory
+	 * btree to reflect live changes on the filesystem.  Since we drop the
+	 * AGF buffer to scan all the inodes, we need this piece to avoid
+	 * installing a stale btree.
+	 */
+	ASSERT(sc->flags & XCHK_FSGATES_RMAP);
+	xfs_rmap_hook_setup(&rr->rhook, xrep_rmapbt_live_update);
+	error = xfs_rmap_hook_add(sc->sa.pag, &rr->rhook);
+	if (error)
+		goto out_iscan;
 	return 0;
+
+out_iscan:
+	xchk_iscan_teardown(&rr->iscan);
+	xfbtree_destroy(&rr->rmap_btree);
+out_mutex:
+	mutex_destroy(&rr->lock);
+	return error;
 }
 
 /* Tear down scan components. */
@@ -1519,8 +1652,13 @@ STATIC void
 xrep_rmap_teardown(
 	struct xrep_rmap	*rr)
 {
+	struct xfs_scrub	*sc = rr->sc;
+
+	xchk_iscan_abort(&rr->iscan);
+	xfs_rmap_hook_del(sc->sa.pag, &rr->rhook);
 	xchk_iscan_teardown(&rr->iscan);
 	xfbtree_destroy(&rr->rmap_btree);
+	mutex_destroy(&rr->lock);
 }
 
 /* Repair the rmap btree for some AG. */
@@ -1530,9 +1668,6 @@ xrep_rmapbt(
 {
 	struct xrep_rmap	*rr = sc->buf;
 	int			error;
-
-	/* Functionality is not yet complete. */
-	return xrep_notsupported(sc);
 
 	error = xrep_rmap_setup_scan(rr);
 	if (error)
