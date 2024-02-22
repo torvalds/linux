@@ -2690,12 +2690,8 @@ static unsigned int serial8250_get_baud_rate(struct uart_port *port,
  */
 void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 {
-	struct uart_8250_port *up = up_to_u8250p(port);
 	struct tty_port *tport = &port->state->port;
-	unsigned int baud, quot, frac = 0;
-	struct ktermios *termios;
 	struct tty_struct *tty;
-	unsigned long flags;
 
 	tty = tty_port_tty_get(tport);
 	if (!tty) {
@@ -2716,21 +2712,7 @@ void serial8250_update_uartclk(struct uart_port *port, unsigned int uartclk)
 	if (!tty_port_initialized(tport))
 		goto out_unlock;
 
-	termios = &tty->termios;
-
-	baud = serial8250_get_baud_rate(port, termios, NULL);
-	quot = serial8250_get_divisor(port, baud, &frac);
-
-	serial8250_rpm_get(up);
-	uart_port_lock_irqsave(port, &flags);
-
-	uart_update_timeout(port, termios->c_cflag, baud);
-
-	serial8250_set_divisor(port, baud, quot, frac);
-	serial_port_out(port, UART_LCR, up->lcr);
-
-	uart_port_unlock_irqrestore(port, flags);
-	serial8250_rpm_put(up);
+	serial8250_do_set_termios(port, &tty->termios, NULL);
 
 out_unlock:
 	mutex_unlock(&tport->mutex);
