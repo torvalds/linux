@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -86,6 +86,10 @@
 /* Digital version >= 5.3 supports hw_settle_2 */
 #define ADC5_HW_SETTLE_DIFF_MINOR		3
 #define ADC5_HW_SETTLE_DIFF_MAJOR		5
+
+/* ADC_PBS for ADC device shared between multiple subsystems */
+#define ADC5_PBS_EN_CTL				0x46
+#define ADC5_ENABLE				BIT(7)
 
 /* For PMIC7 */
 #define ADC_APP_SID				0x40
@@ -172,6 +176,11 @@ struct adc5_chip {
 	unsigned int		nchannels;
 	struct adc5_channel_prop	*chan_props;
 	struct iio_chan_spec	*iio_chans;
+	/* Below three properties are for shared_adc_peripheral */
+	int			adc5_retry_acquire_adc_count;
+	int			adc5_retry_after_read_count;
+	u8			adc_config[5];
+
 	bool			poll_eoc;
 	struct completion	complete;
 	struct mutex		lock;
@@ -295,6 +304,39 @@ static void adc5_update_dig_param(struct adc5_chip *adc,
 	*data |= (prop->decimation << ADC5_USR_DIG_PARAM_DEC_RATIO_SEL_SHIFT);
 }
 
+#define ADC5_WAIT_FOR_PERIPHERAL_MIN_US		3000
+#define ADC5_WAIT_FOR_PERIPHERAL_MAX_US		4000
+
+static int adc5_shared_try_enable(struct adc5_chip *adc)
+{
+	int ret = 0;
+	u8 rslt;
+
+	ret = adc5_read(adc, ADC5_PBS_EN_CTL, &rslt, 1);
+	if (ret) {
+		pr_err("Failed to read ADC5_PBS_EN_CTL register = %d\n", ret);
+		return ret;
+	}
+
+	if (rslt & ADC5_ENABLE) {
+		/*
+		 * If ADC peripheral is used by other subsystems,
+		 * wait for 3-4ms before retrying.
+		 */
+		usleep_range(ADC5_WAIT_FOR_PERIPHERAL_MIN_US,
+				ADC5_WAIT_FOR_PERIPHERAL_MAX_US);
+		pr_debug("ADC peripheral is being used by other subsystem\n");
+		return -EBUSY;
+	}
+
+	rslt = ADC5_ENABLE;
+	ret = adc5_write(adc, ADC5_PBS_EN_CTL, &rslt, sizeof(rslt));
+	if (ret)
+		pr_err("Failed to write to ADC5_PBS_EN_CTL register = %d\n", ret);
+
+	return ret;
+}
+
 static int adc5_configure(struct adc5_chip *adc,
 			struct adc5_channel_prop *prop)
 {
@@ -328,6 +370,9 @@ static int adc5_configure(struct adc5_chip *adc,
 
 	if (!adc->poll_eoc)
 		reinit_completion(&adc->complete);
+
+	if (!strcmp(adc->data->name, "pm-adc5-shared"))
+		memcpy(adc->adc_config, buf, sizeof(adc->adc_config));
 
 	return adc5_write(adc, ADC5_USR_DIG_PARAM, buf, sizeof(buf));
 }
@@ -417,6 +462,99 @@ static int adc7_sw_calib_configure(struct adc5_chip *adc,
 	/* Select CONV request */
 	val = ADC5_USR_CONV_REQ_REQ;
 	return adc5_write(adc, ADC5_USR_CONV_REQ, &val, 1);
+}
+
+#define MAX_RETRY_COUNT		3
+#define MAX_COUNTER		5
+
+static int adc5_shared_do_conversion(struct adc5_chip *adc,
+			struct adc5_channel_prop *prop,
+			struct iio_chan_spec const *chan,
+			u16 *data_volt, u16 *data_cur)
+{
+	int ret, i;
+	u8 buf[MAX_COUNTER], rslt;
+
+	mutex_lock(&adc->lock);
+
+	while (adc->adc5_retry_after_read_count < MAX_RETRY_COUNT) {
+		while (adc->adc5_retry_acquire_adc_count < MAX_RETRY_COUNT) {
+			dev_dbg(adc->dev, "Attempts to acquire ADC: %d\n",
+					adc->adc5_retry_acquire_adc_count);
+			ret = adc5_shared_try_enable(adc);
+			if (ret) {
+				if (ret != -EBUSY)
+					goto unlock;
+				else
+					adc->adc5_retry_acquire_adc_count++;
+			} else {
+				adc->adc5_retry_acquire_adc_count = 0;
+				break;
+			}
+		}
+
+		if (adc->adc5_retry_acquire_adc_count == MAX_RETRY_COUNT ||
+				adc->adc5_retry_after_read_count == MAX_RETRY_COUNT) {
+			ret = -EBUSY;
+			goto unlock;
+		}
+
+		ret = adc5_configure(adc, prop);
+		if (ret) {
+			dev_err(adc->dev, "ADC configure failed with %d\n", ret);
+			goto unlock;
+		}
+
+		ret = wait_for_completion_timeout(&adc->complete,
+						ADC5_CONV_TIMEOUT);
+		if (!ret) {
+			dev_dbg(adc->dev, "Did not get completion timeout\n");
+			ret = adc5_poll_wait_eoc(adc, false);
+			if (ret) {
+				dev_err(adc->dev, "EOC bit not set\n");
+				goto unlock;
+			}
+		}
+
+		ret = adc5_read(adc, ADC5_USR_DIG_PARAM, buf, sizeof(buf));
+		if (ret)
+			goto unlock;
+
+		if (!(buf[4] & ADC5_ENABLE)) {
+			dev_err(adc->dev, "Concurrency with other subsystems, try again\n");
+			adc->adc5_retry_after_read_count++;
+			continue;
+		}
+
+		for (i = 0; i < MAX_COUNTER; i++) {
+			if (!(adc->adc_config[i] == buf[i])) {
+				dev_err(adc->dev, "adc-config registers mismatch, try again\n");
+				adc->adc5_retry_after_read_count++;
+				break;
+			}
+		}
+
+		if (i < MAX_COUNTER)
+			continue;
+
+		ret = adc5_read_voltage_data(adc, data_volt);
+		if (*data_volt != ADC5_USR_DATA_CHECK)
+			break;
+
+		adc->adc5_retry_after_read_count++;
+	}
+
+unlock:
+	adc->adc5_retry_after_read_count = 0;
+	adc->adc5_retry_acquire_adc_count = 0;
+	rslt = 0;
+	ret = adc5_write(adc, ADC5_PBS_EN_CTL, &rslt, sizeof(rslt));
+	if (ret < 0)
+		dev_err(adc->dev, "Failed to disable shared adc peripheral\n");
+
+	mutex_unlock(&adc->lock);
+
+	return ret;
 }
 
 static int adc5_do_conversion(struct adc5_chip *adc,
@@ -687,6 +825,14 @@ static int adc7_read_raw(struct iio_dev *indio_dev,
 				mask, adc7_do_conversion);
 }
 
+static int adc5_shared_read_raw(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan, int *val, int *val2,
+			 long mask)
+{
+	return adc_read_raw_common(indio_dev, chan, val, val2,
+				mask, adc5_shared_do_conversion);
+}
+
 static int adc7_calib(struct adc5_chip *adc)
 {
 	int ret = 0;
@@ -801,6 +947,11 @@ static int adc7_sw_calib_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info adc5_info = {
 	.read_raw = adc5_read_raw,
+	.fwnode_xlate = adc5_fwnode_xlate,
+};
+
+static const struct iio_info adc5_shared_info = {
+	.read_raw = adc5_shared_read_raw,
 	.fwnode_xlate = adc5_fwnode_xlate,
 };
 
@@ -983,6 +1134,58 @@ static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 };
 
+/* Below channels are similar to ADC5_GEN3 */
+static const struct adc5_channels adc5_shared_chans_pmic[ADC5_MAX_CHANNEL] = {
+	[ADC5_GEN3_OFFSET_REF]		= ADC5_CHAN_VOLT("ref_gnd", 0,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 0,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_VBAT_SNS_QBG]	= ADC5_CHAN_VOLT("vbat_sns", 1,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_AMUX3_THM]		= ADC5_CHAN_TEMP("smb_temp", 9,
+						SCALE_HW_CALIB_PM7_SMB_TEMP)
+	[ADC5_GEN3_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
+						SCALE_HW_CALIB_PM7_CHG_TEMP)
+	[ADC5_GEN3_USB_SNS_V_16]	= ADC5_CHAN_TEMP("usb_sns_v_div_16", 8,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_VIN_DIV16_MUX]	= ADC5_CHAN_TEMP("vin_div_16", 8,
+						SCALE_HW_CALIB_DEFAULT)
+	[ADC5_GEN3_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 10,
+						SCALE_HW_CALIB_CUR)
+	[ADC5_GEN3_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 13,
+						SCALE_HW_CALIB_CUR)
+	[ADC5_GEN3_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 12,
+						SCALE_HW_CALIB_CUR)
+	[ADC5_GEN3_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 16,
+						SCALE_HW_CALIB_CUR_RAW)
+	[ADC5_GEN3_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
+						SCALE_HW_CALIB_PMIC_THERM_PM7)
+	[ADC5_GEN3_TEMP_ALARM_LITE]	= ADC5_CHAN_TEMP("die_temp_lite", 0,
+						SCALE_HW_CALIB_PMIC_THERM_PM7)
+	[ADC5_GEN3_AMUX1_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm1_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX2_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm2_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX3_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm3_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX4_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm4_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX5_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm5_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX6_THM_100K_PU]	= ADC5_CHAN_TEMP("amux_thm6_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX1_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux1_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX2_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux2_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX3_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux3_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+	[ADC5_GEN3_AMUX4_GPIO_100K_PU]	= ADC5_CHAN_TEMP("amux4_gpio_pu2", 0,
+						SCALE_HW_CALIB_THERM_100K_PU_PM7)
+};
+
 static int adc5_get_fw_channel_data(struct adc5_chip *adc,
 				    struct adc5_channel_prop *prop,
 				    struct fwnode_handle *fwnode,
@@ -1144,6 +1347,20 @@ static const struct adc5_data adc5_data_pmic = {
 				1, 2, 4, 8, 16, 32, 64, 128},
 };
 
+static const struct adc5_data adc5_data_pmic5_shared = {
+	.name = "pm-adc5-shared",
+	.full_scale_code_volt = 0x70e4,
+	.full_scale_code_cur = 0x2ee0,
+	.adc_chans = adc5_shared_chans_pmic,
+	.info = &adc5_shared_info,
+	.decimation = (unsigned int [ADC5_DECIMATION_SAMPLES_MAX])
+				{85, 340, 1360},
+	.hw_settle_1 = (unsigned int [VADC_HW_SETTLE_SAMPLES_MAX])
+				{15, 100, 200, 300, 400, 500, 600, 700,
+				1000, 2000, 4000, 8000, 16000, 32000,
+				64000, 128000},
+};
+
 static const struct adc5_data adc7_data_pmic = {
 	.name = "pm-adc7",
 	.full_scale_code_volt = 0x70e4,
@@ -1217,6 +1434,10 @@ static const struct of_device_id adc5_match_table[] = {
 	{
 		.compatible = "qcom,spmi-adc5-lite",
 		.data = &adc5_data_pmic5_lite,
+	},
+	{
+		.compatible = "qcom,spmi-adc5-shared",
+		.data = &adc5_data_pmic5_shared,
 	},
 	{ }
 };
@@ -1319,7 +1540,6 @@ static int adc5_probe(struct platform_device *pdev)
 		pr_debug("invalid cmn resource\n");
 	else
 		adc->cmn_base = be32_to_cpu(*prop_addr);
-
 
 	if (of_device_is_compatible(dev->of_node, "qcom,spmi-adc7-sw-calib")) {
 		if (!adc->cmn_base) {
