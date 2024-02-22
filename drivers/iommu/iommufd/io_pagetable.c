@@ -1158,20 +1158,23 @@ out_unlock:
 
 int iopt_add_access(struct io_pagetable *iopt, struct iommufd_access *access)
 {
+	u32 new_id;
 	int rc;
 
 	down_write(&iopt->domains_rwsem);
 	down_write(&iopt->iova_rwsem);
-	rc = xa_alloc(&iopt->access_list, &access->iopt_access_list_id, access,
-		      xa_limit_16b, GFP_KERNEL_ACCOUNT);
+	rc = xa_alloc(&iopt->access_list, &new_id, access, xa_limit_16b,
+		      GFP_KERNEL_ACCOUNT);
+
 	if (rc)
 		goto out_unlock;
 
 	rc = iopt_calculate_iova_alignment(iopt);
 	if (rc) {
-		xa_erase(&iopt->access_list, access->iopt_access_list_id);
+		xa_erase(&iopt->access_list, new_id);
 		goto out_unlock;
 	}
+	access->iopt_access_list_id = new_id;
 
 out_unlock:
 	up_write(&iopt->iova_rwsem);
