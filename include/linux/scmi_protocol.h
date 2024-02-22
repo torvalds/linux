@@ -139,6 +139,8 @@ struct scmi_perf_domain_info {
  *	at a given frequency
  * @fast_switch_possible: indicates if fast DVFS switching is possible or not
  *	for a given device
+ * @fast_switch_rate_limit: gets the minimum time (us) required between
+ *	successive fast_switching requests
  * @power_scale_mw_get: indicates if the power values provided are in milliWatts
  *	or in some other (abstract) scale
  */
@@ -168,6 +170,8 @@ struct scmi_perf_proto_ops {
 			     unsigned long *rate, unsigned long *power);
 	bool (*fast_switch_possible)(const struct scmi_protocol_handle *ph,
 				     u32 domain);
+	int (*fast_switch_rate_limit)(const struct scmi_protocol_handle *ph,
+				      u32 domain, u32 *rate_limit);
 	enum scmi_power_scale (*power_scale_get)(const struct scmi_protocol_handle *ph);
 };
 
