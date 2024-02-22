@@ -459,7 +459,7 @@ TRACE_EVENT(xchk_btree_op_error,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(unsigned int, type)
-		__field(xfs_btnum_t, btnum)
+		__string(name, cur->bc_ops->name)
 		__field(int, level)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
@@ -472,7 +472,7 @@ TRACE_EVENT(xchk_btree_op_error,
 
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__entry->btnum = cur->bc_btnum;
+		__assign_str(name, cur->bc_ops->name);
 		__entry->level = level;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
@@ -480,10 +480,10 @@ TRACE_EVENT(xchk_btree_op_error,
 		__entry->error = error;
 		__entry->ret_ip = ret_ip;
 	),
-	TP_printk("dev %d:%d type %s btree %s level %d ptr %d agno 0x%x agbno 0x%x error %d ret_ip %pS",
+	TP_printk("dev %d:%d type %s %sbt level %d ptr %d agno 0x%x agbno 0x%x error %d ret_ip %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
-		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
+		  __get_str(name),
 		  __entry->level,
 		  __entry->ptr,
 		  __entry->agno,
@@ -501,7 +501,7 @@ TRACE_EVENT(xchk_ifork_btree_op_error,
 		__field(xfs_ino_t, ino)
 		__field(int, whichfork)
 		__field(unsigned int, type)
-		__field(xfs_btnum_t, btnum)
+		__string(name, cur->bc_ops->name)
 		__field(int, level)
 		__field(int, ptr)
 		__field(xfs_agnumber_t, agno)
@@ -515,7 +515,7 @@ TRACE_EVENT(xchk_ifork_btree_op_error,
 		__entry->ino = sc->ip->i_ino;
 		__entry->whichfork = cur->bc_ino.whichfork;
 		__entry->type = sc->sm->sm_type;
-		__entry->btnum = cur->bc_btnum;
+		__assign_str(name, cur->bc_ops->name);
 		__entry->level = level;
 		__entry->ptr = cur->bc_levels[level].ptr;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
@@ -523,12 +523,12 @@ TRACE_EVENT(xchk_ifork_btree_op_error,
 		__entry->error = error;
 		__entry->ret_ip = ret_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx fork %s type %s btree %s level %d ptr %d agno 0x%x agbno 0x%x error %d ret_ip %pS",
+	TP_printk("dev %d:%d ino 0x%llx fork %s type %s %sbt level %d ptr %d agno 0x%x agbno 0x%x error %d ret_ip %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
-		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
+		  __get_str(name),
 		  __entry->level,
 		  __entry->ptr,
 		  __entry->agno,
@@ -544,7 +544,7 @@ TRACE_EVENT(xchk_btree_error,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(unsigned int, type)
-		__field(xfs_btnum_t, btnum)
+		__string(name, cur->bc_ops->name)
 		__field(int, level)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
@@ -555,17 +555,17 @@ TRACE_EVENT(xchk_btree_error,
 		xfs_fsblock_t fsbno = xchk_btree_cur_fsbno(cur, level);
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__entry->btnum = cur->bc_btnum;
+		__assign_str(name, cur->bc_ops->name);
 		__entry->level = level;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
 		__entry->ptr = cur->bc_levels[level].ptr;
 		__entry->ret_ip = ret_ip;
 	),
-	TP_printk("dev %d:%d type %s btree %s level %d ptr %d agno 0x%x agbno 0x%x ret_ip %pS",
+	TP_printk("dev %d:%d type %s %sbt level %d ptr %d agno 0x%x agbno 0x%x ret_ip %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
-		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
+		  __get_str(name),
 		  __entry->level,
 		  __entry->ptr,
 		  __entry->agno,
@@ -582,7 +582,7 @@ TRACE_EVENT(xchk_ifork_btree_error,
 		__field(xfs_ino_t, ino)
 		__field(int, whichfork)
 		__field(unsigned int, type)
-		__field(xfs_btnum_t, btnum)
+		__string(name, cur->bc_ops->name)
 		__field(int, level)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
@@ -595,19 +595,19 @@ TRACE_EVENT(xchk_ifork_btree_error,
 		__entry->ino = sc->ip->i_ino;
 		__entry->whichfork = cur->bc_ino.whichfork;
 		__entry->type = sc->sm->sm_type;
-		__entry->btnum = cur->bc_btnum;
+		__assign_str(name, cur->bc_ops->name);
 		__entry->level = level;
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
 		__entry->ptr = cur->bc_levels[level].ptr;
 		__entry->ret_ip = ret_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx fork %s type %s btree %s level %d ptr %d agno 0x%x agbno 0x%x ret_ip %pS",
+	TP_printk("dev %d:%d ino 0x%llx fork %s type %s %sbt level %d ptr %d agno 0x%x agbno 0x%x ret_ip %pS",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
-		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
+		  __get_str(name),
 		  __entry->level,
 		  __entry->ptr,
 		  __entry->agno,
@@ -622,7 +622,7 @@ DECLARE_EVENT_CLASS(xchk_sbtree_class,
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(int, type)
-		__field(xfs_btnum_t, btnum)
+		__string(name, cur->bc_ops->name)
 		__field(xfs_agnumber_t, agno)
 		__field(xfs_agblock_t, bno)
 		__field(int, level)
@@ -634,17 +634,17 @@ DECLARE_EVENT_CLASS(xchk_sbtree_class,
 
 		__entry->dev = sc->mp->m_super->s_dev;
 		__entry->type = sc->sm->sm_type;
-		__entry->btnum = cur->bc_btnum;
+		__assign_str(name, cur->bc_ops->name);
 		__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsbno);
 		__entry->bno = XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno);
 		__entry->level = level;
 		__entry->nlevels = cur->bc_nlevels;
 		__entry->ptr = cur->bc_levels[level].ptr;
 	),
-	TP_printk("dev %d:%d type %s btree %s agno 0x%x agbno 0x%x level %d nlevels %d ptr %d",
+	TP_printk("dev %d:%d type %s %sbt agno 0x%x agbno 0x%x level %d nlevels %d ptr %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __print_symbolic(__entry->type, XFS_SCRUB_TYPE_STRINGS),
-		  __print_symbolic(__entry->btnum, XFS_BTNUM_STRINGS),
+		  __get_str(name),
 		  __entry->agno,
 		  __entry->bno,
 		  __entry->level,

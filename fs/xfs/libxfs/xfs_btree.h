@@ -123,6 +123,8 @@ enum xfs_btree_type {
 };
 
 struct xfs_btree_ops {
+	const char		*name;
+
 	/* Type of btree - AG-rooted or inode-rooted */
 	enum xfs_btree_type	type;
 
