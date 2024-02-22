@@ -15,6 +15,7 @@
 #include "xfs_quota.h"
 #include "xfs_qm.h"
 #include "xfs_scrub.h"
+#include "xfs_buf_mem.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -189,6 +190,10 @@ xchk_teardown(
 	if (sc->flags & XCHK_HAVE_FREEZE_PROT) {
 		sc->flags &= ~XCHK_HAVE_FREEZE_PROT;
 		mnt_drop_write_file(sc->file);
+	}
+	if (sc->xmbtp) {
+		xmbuf_free(sc->xmbtp);
+		sc->xmbtp = NULL;
 	}
 	if (sc->xfile) {
 		xfile_destroy(sc->xfile);

@@ -131,6 +131,9 @@ config XFS_LIVE_HOOKS
 config XFS_MEMORY_BUFS
 	bool
 
+config XFS_BTREE_IN_MEM
+	bool
+
 config XFS_ONLINE_SCRUB
 	bool "XFS online metadata check support"
 	default n
@@ -173,6 +176,7 @@ config XFS_ONLINE_REPAIR
 	bool "XFS online metadata repair support"
 	default n
 	depends on XFS_FS && XFS_ONLINE_SCRUB
+	select XFS_BTREE_IN_MEM
 	help
 	  If you say Y here you will be able to repair metadata on a
 	  mounted XFS filesystem.  This feature is intended to reduce
