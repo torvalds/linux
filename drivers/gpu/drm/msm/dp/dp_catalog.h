@@ -8,6 +8,7 @@
 
 #include <drm/drm_modes.h>
 
+#include "dp_utils.h"
 #include "disp/msm_disp_snapshot.h"
 
 /* interrupts */
@@ -28,6 +29,9 @@
 #define DP_INTR_CRC_UPDATED		BIT(9)
 
 #define DP_AUX_CFG_MAX_VALUE_CNT 3
+
+#define DP_HW_VERSION_1_0	0x10000000
+#define DP_HW_VERSION_1_2	0x10020000
 
 /* PHY AUX config registers */
 enum dp_phy_aux_config_type {
@@ -120,6 +124,8 @@ u32 dp_catalog_ctrl_read_phy_pattern(struct dp_catalog *dp_catalog);
 
 /* DP Panel APIs */
 int dp_catalog_panel_timing_cfg(struct dp_catalog *dp_catalog);
+void dp_catalog_panel_enable_vsc_sdp(struct dp_catalog *dp_catalog, struct dp_sdp *vsc_sdp);
+void dp_catalog_panel_disable_vsc_sdp(struct dp_catalog *dp_catalog);
 void dp_catalog_dump_regs(struct dp_catalog *dp_catalog);
 void dp_catalog_panel_tpg_enable(struct dp_catalog *dp_catalog,
 				struct drm_display_mode *drm_mode);

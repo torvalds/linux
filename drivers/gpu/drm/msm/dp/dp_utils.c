@@ -7,6 +7,8 @@
 
 #include "dp_utils.h"
 
+#define DP_SDP_HEADER_SIZE		8
+
 u8 dp_utils_get_g0_value(u8 data)
 {
 	u8 c[4];
@@ -70,4 +72,25 @@ u8 dp_utils_calculate_parity(u32 data)
 	parity_byte = x1 | (x0 << 4);
 
 	return parity_byte;
+}
+
+ssize_t dp_utils_pack_sdp_header(struct dp_sdp_header *sdp_header, u32 *header_buff)
+{
+	size_t length;
+
+	length = sizeof(header_buff);
+	if (length < DP_SDP_HEADER_SIZE)
+		return -ENOSPC;
+
+	header_buff[0] = FIELD_PREP(HEADER_0_MASK, sdp_header->HB0) |
+		FIELD_PREP(PARITY_0_MASK, dp_utils_calculate_parity(sdp_header->HB0)) |
+		FIELD_PREP(HEADER_1_MASK, sdp_header->HB1) |
+		FIELD_PREP(PARITY_1_MASK, dp_utils_calculate_parity(sdp_header->HB1));
+
+	header_buff[1] = FIELD_PREP(HEADER_2_MASK, sdp_header->HB2) |
+		FIELD_PREP(PARITY_2_MASK, dp_utils_calculate_parity(sdp_header->HB2)) |
+		FIELD_PREP(HEADER_3_MASK, sdp_header->HB3) |
+		FIELD_PREP(PARITY_3_MASK, dp_utils_calculate_parity(sdp_header->HB3));
+
+	return length;
 }
