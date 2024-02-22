@@ -1980,7 +1980,7 @@ xfs_free_buftarg(
 
 int
 xfs_setsize_buftarg(
-	xfs_buftarg_t		*btp,
+	struct xfs_buftarg	*btp,
 	unsigned int		sectorsize)
 {
 	/* Set up metadata sector size info */
@@ -2008,7 +2008,7 @@ xfs_setsize_buftarg(
  */
 STATIC int
 xfs_setsize_buftarg_early(
-	xfs_buftarg_t		*btp)
+	struct xfs_buftarg	*btp)
 {
 	return xfs_setsize_buftarg(btp, bdev_logical_block_size(btp->bt_bdev));
 }
@@ -2018,7 +2018,7 @@ xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
 	struct bdev_handle	*bdev_handle)
 {
-	xfs_buftarg_t		*btp;
+	struct xfs_buftarg	*btp;
 	const struct dax_holder_operations *ops = NULL;
 
 #if defined(CONFIG_FS_DAX) && defined(CONFIG_MEMORY_FAILURE)
