@@ -1043,6 +1043,11 @@ static const struct mlxbf_pmc_events *mlxbf_pmc_event_list(const char *blk, size
 	return events;
 }
 
+static bool mlxbf_pmc_event_supported(const char *blk)
+{
+	return !!mlxbf_pmc_event_list(blk, NULL);
+}
+
 /* Get the event number given the name */
 static int mlxbf_pmc_get_event_num(const char *blk, const char *evt)
 {
@@ -1761,6 +1766,9 @@ static int mlxbf_pmc_init_perftype_counter(struct device *dev, unsigned int blk_
 	struct mlxbf_pmc_attribute *attr;
 	unsigned int i = 0, j = 0;
 
+	if (!mlxbf_pmc_event_supported(pmc->block_name[blk_num]))
+		return -ENOENT;
+
 	/* "event_list" sysfs to list events supported by the block */
 	attr = &pmc->block[blk_num].attr_event_list;
 	attr->dev_attr.attr.mode = 0444;
@@ -1840,7 +1848,7 @@ static int mlxbf_pmc_init_perftype_reg(struct device *dev, unsigned int blk_num)
 
 	events = mlxbf_pmc_event_list(pmc->block_name[blk_num], &count);
 	if (!events)
-		return -EINVAL;
+		return -ENOENT;
 
 	pmc->block[blk_num].attr_event = devm_kcalloc(
 		dev, count, sizeof(struct mlxbf_pmc_attribute), GFP_KERNEL);
@@ -1878,7 +1886,7 @@ static int mlxbf_pmc_create_groups(struct device *dev, unsigned int blk_num)
 	else if (pmc->block[blk_num].type == MLXBF_PMC_TYPE_REGISTER)
 		err = mlxbf_pmc_init_perftype_reg(dev, blk_num);
 	else
-		err = -EINVAL;
+		err = -ENOENT;
 
 	if (err)
 		return err;
@@ -1983,6 +1991,10 @@ static int mlxbf_pmc_map_counters(struct device *dev)
 			return -ENOMEM;
 
 		ret = mlxbf_pmc_create_groups(dev, i);
+		if (ret == -ENOENT) {
+			dev_warn(dev, "ignoring unsupported block: '%s'\n", pmc->block_name[i]);
+			continue;
+		}
 		if (ret)
 			return ret;
 	}
