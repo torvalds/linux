@@ -23,6 +23,7 @@ use strict;
 use POSIX;
 use File::Basename;
 use File::Spec;
+use File::Temp qw/tempfile/;
 use Cwd 'abs_path';
 use Term::ANSIColor qw(:constants);
 use Getopt::Long qw(:config no_auto_abbrev);
@@ -221,6 +222,7 @@ sub get_kernel_config_option
 {
 	my ($option) = @_;
 	my $value = "";
+	my $tmp_fh;
 	my $tmp_file = "";
 	my @config_files;
 
@@ -228,7 +230,8 @@ sub get_kernel_config_option
 	if ($kernel_config_file ne "") {
 		@config_files = ($kernel_config_file);
 	} elsif (-R "/proc/config.gz") {
-		my $tmp_file = "/tmp/tmpkconf";
+		($tmp_fh, $tmp_file) = tempfile("config.gz-XXXXXX",
+						UNLINK => 1);
 
 		if (system("gunzip < /proc/config.gz > $tmp_file")) {
 			dprint("system(gunzip < /proc/config.gz) failed\n");
@@ -248,10 +251,6 @@ sub get_kernel_config_option
 		if ($value ne "") {
 			last;
 		}
-	}
-
-	if ($tmp_file ne "") {
-		system("rm -f $tmp_file");
 	}
 
 	return $value;
