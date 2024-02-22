@@ -620,9 +620,20 @@ bool xe_device_mem_access_ongoing(struct xe_device *xe)
 	return atomic_read(&xe->mem_access.ref);
 }
 
+/**
+ * xe_device_assert_mem_access - Inspect the current runtime_pm state.
+ * @xe: xe device instance
+ *
+ * To be used before any kind of memory access. It will splat a debug warning
+ * if the device is currently sleeping. But it doesn't guarantee in any way
+ * that the device is going to remain awake. Xe PM runtime get and put
+ * functions might be added to the outer bound of the memory access, while
+ * this check is intended for inner usage to splat some warning if the worst
+ * case has just happened.
+ */
 void xe_device_assert_mem_access(struct xe_device *xe)
 {
-	XE_WARN_ON(!xe_device_mem_access_ongoing(xe));
+	XE_WARN_ON(xe_pm_runtime_suspended(xe));
 }
 
 bool xe_device_mem_access_get_if_ongoing(struct xe_device *xe)

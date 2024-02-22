@@ -262,6 +262,22 @@ struct task_struct *xe_pm_read_callback_task(struct xe_device *xe)
 }
 
 /**
+ * xe_pm_runtime_suspended - Check if runtime_pm state is suspended
+ * @xe: xe device instance
+ *
+ * This does not provide any guarantee that the device is going to remain
+ * suspended as it might be racing with the runtime state transitions.
+ * It can be used only as a non-reliable assertion, to ensure that we are not in
+ * the sleep state while trying to access some memory for instance.
+ *
+ * Returns true if PCI device is suspended, false otherwise.
+ */
+bool xe_pm_runtime_suspended(struct xe_device *xe)
+{
+	return pm_runtime_suspended(xe->drm.dev);
+}
+
+/**
  * xe_pm_runtime_suspend - Prepare our device for D3hot/D3Cold
  * @xe: xe device instance
  *
