@@ -376,20 +376,6 @@ xfs_refcountbt_init_cursor(
 	return cur;
 }
 
-/* Create a btree cursor with a fake root for staging. */
-struct xfs_btree_cur *
-xfs_refcountbt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
-	struct xfs_perag	*pag)
-{
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_refcountbt_init_cursor(mp, NULL, NULL, pag);
-	xfs_btree_stage_afakeroot(cur, afake);
-	return cur;
-}
-
 /*
  * Swap in the new btree root.  Once we pass this point the newly rebuilt btree
  * is in place and we have to kill off all the old btree blocks.
