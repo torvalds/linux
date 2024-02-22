@@ -1725,7 +1725,6 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 				_rtl92e_dm_start_hw_fsync(dev);
 				priv->rtllib->fsync_state = HW_Fsync;
 				break;
-			case HW_Fsync:
 			default:
 				break;
 			}
@@ -1740,7 +1739,6 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 				_rtl92e_dm_start_sw_fsync(dev);
 				priv->rtllib->fsync_state = SW_Fsync;
 				break;
-			case SW_Fsync:
 			default:
 				break;
 			}
@@ -1760,7 +1758,6 @@ static void _rtl92e_dm_check_fsync(struct net_device *dev)
 			_rtl92e_dm_end_sw_fsync(dev);
 			priv->rtllib->fsync_state = Default_Fsync;
 			break;
-		case Default_Fsync:
 		default:
 			break;
 		}
