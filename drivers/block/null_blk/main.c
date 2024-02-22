@@ -1620,14 +1620,6 @@ static void null_queue_rqs(struct request **rqlist)
 	*rqlist = requeue_list;
 }
 
-static void null_exit_hctx(struct blk_mq_hw_ctx *hctx, unsigned int hctx_idx)
-{
-	struct nullb_queue *nq = hctx->driver_data;
-	struct nullb *nullb = nq->dev->nullb;
-
-	nullb->nr_queues--;
-}
-
 static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
 {
 	nq->dev = nullb->dev;
@@ -1647,7 +1639,6 @@ static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 	nq = &nullb->queues[hctx_idx];
 	hctx->driver_data = nq;
 	null_init_queue(nullb, nq);
-	nullb->nr_queues++;
 
 	return 0;
 }
@@ -1660,7 +1651,6 @@ static const struct blk_mq_ops null_mq_ops = {
 	.poll		= null_poll,
 	.map_queues	= null_map_queues,
 	.init_hctx	= null_init_hctx,
-	.exit_hctx	= null_exit_hctx,
 };
 
 static void null_del_dev(struct nullb *nullb)
@@ -1731,7 +1721,6 @@ static int setup_queues(struct nullb *nullb)
 	if (!nullb->queues)
 		return -ENOMEM;
 
-	nullb->queue_depth = nullb->dev->hw_queue_depth;
 	return 0;
 }
 

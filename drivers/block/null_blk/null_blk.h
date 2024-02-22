@@ -114,14 +114,12 @@ struct nullb {
 	struct gendisk *disk;
 	struct blk_mq_tag_set *tag_set;
 	struct blk_mq_tag_set __tag_set;
-	unsigned int queue_depth;
 	atomic_long_t cur_bytes;
 	struct hrtimer bw_timer;
 	unsigned long cache_flush_pos;
 	spinlock_t lock;
 
 	struct nullb_queue *queues;
-	unsigned int nr_queues;
 	char disk_name[DISK_NAME_LEN];
 };
 
