@@ -2625,20 +2625,20 @@ static int cifs_partialpagewrite(struct page *page, unsigned from, unsigned to)
  * dirty pages if possible, but don't sleep while doing so.
  */
 static void cifs_extend_writeback(struct address_space *mapping,
+				  struct xa_state *xas,
 				  long *_count,
 				  loff_t start,
 				  int max_pages,
-				  size_t max_len,
-				  unsigned int *_len)
+				  loff_t max_len,
+				  size_t *_len)
 {
 	struct folio_batch batch;
 	struct folio *folio;
-	unsigned int psize, nr_pages;
-	size_t len = *_len;
-	pgoff_t index = (start + len) / PAGE_SIZE;
+	unsigned int nr_pages;
+	pgoff_t index = (start + *_len) / PAGE_SIZE;
+	size_t len;
 	bool stop = true;
 	unsigned int i;
-	XA_STATE(xas, &mapping->i_pages, index);
 
 	folio_batch_init(&batch);
 
@@ -2649,54 +2649,64 @@ static void cifs_extend_writeback(struct address_space *mapping,
 		 */
 		rcu_read_lock();
 
-		xas_for_each(&xas, folio, ULONG_MAX) {
+		xas_for_each(xas, folio, ULONG_MAX) {
 			stop = true;
-			if (xas_retry(&xas, folio))
+			if (xas_retry(xas, folio))
 				continue;
 			if (xa_is_value(folio))
 				break;
-			if (folio->index != index)
+			if (folio->index != index) {
+				xas_reset(xas);
 				break;
+			}
+
 			if (!folio_try_get_rcu(folio)) {
-				xas_reset(&xas);
+				xas_reset(xas);
 				continue;
 			}
 			nr_pages = folio_nr_pages(folio);
-			if (nr_pages > max_pages)
+			if (nr_pages > max_pages) {
+				xas_reset(xas);
 				break;
+			}
 
 			/* Has the page moved or been split? */
-			if (unlikely(folio != xas_reload(&xas))) {
+			if (unlikely(folio != xas_reload(xas))) {
 				folio_put(folio);
+				xas_reset(xas);
 				break;
 			}
 
 			if (!folio_trylock(folio)) {
 				folio_put(folio);
+				xas_reset(xas);
 				break;
 			}
-			if (!folio_test_dirty(folio) || folio_test_writeback(folio)) {
+			if (!folio_test_dirty(folio) ||
+			    folio_test_writeback(folio)) {
 				folio_unlock(folio);
 				folio_put(folio);
+				xas_reset(xas);
 				break;
 			}
 
 			max_pages -= nr_pages;
-			psize = folio_size(folio);
-			len += psize;
+			len = folio_size(folio);
 			stop = false;
-			if (max_pages <= 0 || len >= max_len || *_count <= 0)
-				stop = true;
 
 			index += nr_pages;
+			*_count -= nr_pages;
+			*_len += len;
+			if (max_pages <= 0 || *_len >= max_len || *_count <= 0)
+				stop = true;
+
 			if (!folio_batch_add(&batch, folio))
 				break;
 			if (stop)
 				break;
 		}
 
-		if (!stop)
-			xas_pause(&xas);
+		xas_pause(xas);
 		rcu_read_unlock();
 
 		/* Now, if we obtained any pages, we can shift them to being
@@ -2713,16 +2723,12 @@ static void cifs_extend_writeback(struct address_space *mapping,
 			if (!folio_clear_dirty_for_io(folio))
 				WARN_ON(1);
 			folio_start_writeback(folio);
-
-			*_count -= folio_nr_pages(folio);
 			folio_unlock(folio);
 		}
 
 		folio_batch_release(&batch);
 		cond_resched();
 	} while (!stop);
-
-	*_len = len;
 }
 
 /*
@@ -2730,8 +2736,10 @@ static void cifs_extend_writeback(struct address_space *mapping,
  */
 static ssize_t cifs_write_back_from_locked_folio(struct address_space *mapping,
 						 struct writeback_control *wbc,
+						 struct xa_state *xas,
 						 struct folio *folio,
-						 loff_t start, loff_t end)
+						 unsigned long long start,
+						 unsigned long long end)
 {
 	struct inode *inode = mapping->host;
 	struct TCP_Server_Info *server;
@@ -2740,17 +2748,18 @@ static ssize_t cifs_write_back_from_locked_folio(struct address_space *mapping,
 	struct cifs_credits credits_on_stack;
 	struct cifs_credits *credits = &credits_on_stack;
 	struct cifsFileInfo *cfile = NULL;
-	unsigned int xid, wsize, len;
-	loff_t i_size = i_size_read(inode);
-	size_t max_len;
+	unsigned long long i_size = i_size_read(inode), max_len;
+	unsigned int xid, wsize;
+	size_t len = folio_size(folio);
 	long count = wbc->nr_to_write;
 	int rc;
 
 	/* The folio should be locked, dirty and not undergoing writeback. */
+	if (!folio_clear_dirty_for_io(folio))
+		WARN_ON_ONCE(1);
 	folio_start_writeback(folio);
 
 	count -= folio_nr_pages(folio);
-	len = folio_size(folio);
 
 	xid = get_xid();
 	server = cifs_pick_channel(cifs_sb_master_tcon(cifs_sb)->ses);
@@ -2780,9 +2789,10 @@ static ssize_t cifs_write_back_from_locked_folio(struct address_space *mapping,
 	wdata->server = server;
 	cfile = NULL;
 
-	/* Find all consecutive lockable dirty pages, stopping when we find a
-	 * page that is not immediately lockable, is not dirty or is missing,
-	 * or we reach the end of the range.
+	/* Find all consecutive lockable dirty pages that have contiguous
+	 * written regions, stopping when we find a page that is not
+	 * immediately lockable, is not dirty or is missing, or we reach the
+	 * end of the range.
 	 */
 	if (start < i_size) {
 		/* Trim the write to the EOF; the extra data is ignored.  Also
@@ -2802,19 +2812,18 @@ static ssize_t cifs_write_back_from_locked_folio(struct address_space *mapping,
 			max_pages -= folio_nr_pages(folio);
 
 			if (max_pages > 0)
-				cifs_extend_writeback(mapping, &count, start,
+				cifs_extend_writeback(mapping, xas, &count, start,
 						      max_pages, max_len, &len);
 		}
-		len = min_t(loff_t, len, max_len);
 	}
-
-	wdata->bytes = len;
+	len = min_t(unsigned long long, len, i_size - start);
 
 	/* We now have a contiguous set of dirty pages, each with writeback
 	 * set; the first page is still locked at this point, but all the rest
 	 * have been unlocked.
 	 */
 	folio_unlock(folio);
+	wdata->bytes = len;
 
 	if (start < i_size) {
 		iov_iter_xarray(&wdata->iter, ITER_SOURCE, &mapping->i_pages,
@@ -2865,102 +2874,118 @@ err_xid:
 /*
  * write a region of pages back to the server
  */
-static int cifs_writepages_region(struct address_space *mapping,
-				  struct writeback_control *wbc,
-				  loff_t start, loff_t end, loff_t *_next)
+static ssize_t cifs_writepages_begin(struct address_space *mapping,
+				     struct writeback_control *wbc,
+				     struct xa_state *xas,
+				     unsigned long long *_start,
+				     unsigned long long end)
 {
-	struct folio_batch fbatch;
+	struct folio *folio;
+	unsigned long long start = *_start;
+	ssize_t ret;
 	int skips = 0;
 
-	folio_batch_init(&fbatch);
-	do {
-		int nr;
-		pgoff_t index = start / PAGE_SIZE;
+search_again:
+	/* Find the first dirty page. */
+	rcu_read_lock();
 
-		nr = filemap_get_folios_tag(mapping, &index, end / PAGE_SIZE,
-					    PAGECACHE_TAG_DIRTY, &fbatch);
-		if (!nr)
+	for (;;) {
+		folio = xas_find_marked(xas, end / PAGE_SIZE, PAGECACHE_TAG_DIRTY);
+		if (xas_retry(xas, folio) || xa_is_value(folio))
+			continue;
+		if (!folio)
 			break;
 
-		for (int i = 0; i < nr; i++) {
-			ssize_t ret;
-			struct folio *folio = fbatch.folios[i];
-
-redo_folio:
-			start = folio_pos(folio); /* May regress with THPs */
-
-			/* At this point we hold neither the i_pages lock nor the
-			 * page lock: the page may be truncated or invalidated
-			 * (changing page->mapping to NULL), or even swizzled
-			 * back from swapper_space to tmpfs file mapping
-			 */
-			if (wbc->sync_mode != WB_SYNC_NONE) {
-				ret = folio_lock_killable(folio);
-				if (ret < 0)
-					goto write_error;
-			} else {
-				if (!folio_trylock(folio))
-					goto skip_write;
-			}
-
-			if (folio->mapping != mapping ||
-			    !folio_test_dirty(folio)) {
-				start += folio_size(folio);
-				folio_unlock(folio);
-				continue;
-			}
-
-			if (folio_test_writeback(folio) ||
-			    folio_test_fscache(folio)) {
-				folio_unlock(folio);
-				if (wbc->sync_mode == WB_SYNC_NONE)
-					goto skip_write;
-
-				folio_wait_writeback(folio);
-#ifdef CONFIG_CIFS_FSCACHE
-				folio_wait_fscache(folio);
-#endif
-				goto redo_folio;
-			}
-
-			if (!folio_clear_dirty_for_io(folio))
-				/* We hold the page lock - it should've been dirty. */
-				WARN_ON(1);
-
-			ret = cifs_write_back_from_locked_folio(mapping, wbc, folio, start, end);
-			if (ret < 0)
-				goto write_error;
-
-			start += ret;
-			continue;
-
-write_error:
-			folio_batch_release(&fbatch);
-			*_next = start;
-			return ret;
-
-skip_write:
-			/*
-			 * Too many skipped writes, or need to reschedule?
-			 * Treat it as a write error without an error code.
-			 */
-			if (skips >= 5 || need_resched()) {
-				ret = 0;
-				goto write_error;
-			}
-
-			/* Otherwise, just skip that folio and go on to the next */
-			skips++;
-			start += folio_size(folio);
+		if (!folio_try_get_rcu(folio)) {
+			xas_reset(xas);
 			continue;
 		}
 
-		folio_batch_release(&fbatch);		
-		cond_resched();
-	} while (wbc->nr_to_write > 0);
+		if (unlikely(folio != xas_reload(xas))) {
+			folio_put(folio);
+			xas_reset(xas);
+			continue;
+		}
 
-	*_next = start;
-	return 0;
+		xas_pause(xas);
+		break;
+	}
+	rcu_read_unlock();
+	if (!folio)
+		return 0;
+
+	start = folio_pos(folio); /* May regress with THPs */
+
+	/* At this point we hold neither the i_pages lock nor the page lock:
+	 * the page may be truncated or invalidated (changing page->mapping to
+	 * NULL), or even swizzled back from swapper_space to tmpfs file
+	 * mapping
+	 */
+lock_again:
+	if (wbc->sync_mode != WB_SYNC_NONE) {
+		ret = folio_lock_killable(folio);
+		if (ret < 0)
+			return ret;
+	} else {
+		if (!folio_trylock(folio))
+			goto search_again;
+	}
+
+	if (folio->mapping != mapping ||
+	    !folio_test_dirty(folio)) {
+		start += folio_size(folio);
+		folio_unlock(folio);
+		goto search_again;
+	}
+
+	if (folio_test_writeback(folio) ||
+	    folio_test_fscache(folio)) {
+		folio_unlock(folio);
+		if (wbc->sync_mode != WB_SYNC_NONE) {
+			folio_wait_writeback(folio);
+#ifdef CONFIG_CIFS_FSCACHE
+			folio_wait_fscache(folio);
+#endif
+			goto lock_again;
+		}
+
+		start += folio_size(folio);
+		if (wbc->sync_mode == WB_SYNC_NONE) {
+			if (skips >= 5 || need_resched()) {
+				ret = 0;
+				goto out;
+			}
+			skips++;
+		}
+		goto search_again;
+	}
+
+	ret = cifs_write_back_from_locked_folio(mapping, wbc, xas, folio, start, end);
+out:
+	if (ret > 0)
+		*_start = start + ret;
+	return ret;
+}
+
+/*
+ * Write a region of pages back to the server
+ */
+static int cifs_writepages_region(struct address_space *mapping,
+				  struct writeback_control *wbc,
+				  unsigned long long *_start,
+				  unsigned long long end)
+{
+	ssize_t ret;
+
+	XA_STATE(xas, &mapping->i_pages, *_start / PAGE_SIZE);
+
+	do {
+		ret = cifs_writepages_begin(mapping, wbc, &xas, _start, end);
+		if (ret > 0 && wbc->nr_to_write > 0)
+			cond_resched();
+	} while (ret > 0 && wbc->nr_to_write > 0);
+
+	return ret > 0 ? 0 : ret;
 }
 
 /*
@@ -2969,7 +2994,7 @@ skip_write:
 static int cifs_writepages(struct address_space *mapping,
 			   struct writeback_control *wbc)
 {
-	loff_t start, next;
+	loff_t start, end;
 	int ret;
 
 	/* We have to be careful as we can end up racing with setattr()
@@ -2977,28 +3002,34 @@ static int cifs_writepages(struct address_space *mapping,
 	 * to prevent it.
 	 */
 
-	if (wbc->range_cyclic) {
+	if (wbc->range_cyclic && mapping->writeback_index) {
 		start = mapping->writeback_index * PAGE_SIZE;
-		ret = cifs_writepages_region(mapping, wbc, start, LLONG_MAX, &next);
-		if (ret == 0) {
-			mapping->writeback_index = next / PAGE_SIZE;
-			if (start > 0 && wbc->nr_to_write > 0) {
-				ret = cifs_writepages_region(mapping, wbc, 0,
-							     start, &next);
-				if (ret == 0)
-					mapping->writeback_index =
-						next / PAGE_SIZE;
-			}
+		ret = cifs_writepages_region(mapping, wbc, &start, LLONG_MAX);
+		if (ret < 0)
+			goto out;
+
+		if (wbc->nr_to_write <= 0) {
+			mapping->writeback_index = start / PAGE_SIZE;
+			goto out;
 		}
+
+		start = 0;
+		end = mapping->writeback_index * PAGE_SIZE;
+		mapping->writeback_index = 0;
+		ret = cifs_writepages_region(mapping, wbc, &start, end);
+		if (ret == 0)
+			mapping->writeback_index = start / PAGE_SIZE;
 	} else if (wbc->range_start == 0 && wbc->range_end == LLONG_MAX) {
-		ret = cifs_writepages_region(mapping, wbc, 0, LLONG_MAX, &next);
+		start = 0;
+		ret = cifs_writepages_region(mapping, wbc, &start, LLONG_MAX);
 		if (wbc->nr_to_write > 0 && ret == 0)
-			mapping->writeback_index = next / PAGE_SIZE;
+			mapping->writeback_index = start / PAGE_SIZE;
 	} else {
-		ret = cifs_writepages_region(mapping, wbc,
-					     wbc->range_start, wbc->range_end, &next);
+		start = wbc->range_start;
+		ret = cifs_writepages_region(mapping, wbc, &start, wbc->range_end);
 	}
 
+out:
 	return ret;
 }
 
