@@ -201,6 +201,8 @@ static bool con_enabled = IS_ENABLED(CONFIG_SERIAL_MSM_GENI_CONSOLE_DEFAULT_ENAB
 #define UART_CONSOLE_RX_WM	(2)
 #define NUM_RX_BUF		4
 
+#define SUSPEND_RETRY_COUNT	(50)
+
 #define CREATE_TRACE_POINTS
 #include "serial_trace.h"
 
@@ -3820,7 +3822,7 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 	struct msm_geni_serial_port *msm_port = GET_DEV_PORT(uport);
 	struct device *rx_dev = msm_port->wrapper_dev;
 	struct device *tx_dev = msm_port->wrapper_dev;
-	int ret = 0, i, timeout;
+	int ret = 0, j = 0, i, timeout;
 	unsigned long long start_time;
 
 	UART_LOG_DBG(msm_port->ipc_log_misc, uport->dev, "%s: %d\n", __func__, true);
@@ -3908,10 +3910,35 @@ static void msm_geni_serial_shutdown(struct uart_port *uport)
 
 		if (pm_runtime_enabled(uport->dev)) {
 			ret = pm_runtime_put_sync_suspend(uport->dev);
-			if (ret)
+			if (ret < 0)
 				UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
-					     "%s: Failed to suspend:%d\n",
+					     "%s: Failed to suspend ret=%d\n",
 					     __func__, ret);
+			if (ret == -EBUSY) {
+				do {
+					UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
+						     "%s: Failed to suspend ret:%d retry:%d\n",
+						     __func__, ret, j);
+					/* Sleep for 50msecs and check if port is suspended */
+					usleep_range(45000, 50000);
+					if (device_pending_suspend(uport)) {
+						UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
+							     "%s Uport Suspended\n", __func__);
+						break;
+					}
+					j++;
+				} while (j <= SUSPEND_RETRY_COUNT);
+			}
+		}
+
+		if (j == SUSPEND_RETRY_COUNT + 1) {
+			if (device_pending_suspend(uport))
+				UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
+					     "%s Uport Suspended\n", __func__);
+			else
+				UART_LOG_DBG(msm_port->ipc_log_pwr, uport->dev,
+					     "%s Error! Unable to put uport to Suspend\n",
+					     __func__);
 		}
 
 		if (!IS_ERR_OR_NULL(msm_port->serial_rsc.geni_gpio_shutdown)) {
