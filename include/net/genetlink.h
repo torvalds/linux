@@ -153,7 +153,7 @@ static inline void *genl_info_userhdr(const struct genl_info *info)
 
 /* Report that a root attribute is missing */
 #define GENL_REQ_ATTR_CHECK(info, attr) ({				\
-	struct genl_info *__info = (info);				\
+	const struct genl_info *__info = (info);			\
 									\
 	NL_REQ_ATTR_CHECK(__info->extack, NULL, __info->attrs, (attr)); \
 })
