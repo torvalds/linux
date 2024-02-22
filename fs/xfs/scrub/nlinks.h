@@ -22,6 +22,12 @@ struct xchk_nlink_ctrs {
 	 */
 	struct xchk_iscan	collect_iscan;
 	struct xchk_iscan	compare_iscan;
+
+	/*
+	 * Hook into directory updates so that we can receive live updates
+	 * from other writer threads.
+	 */
+	struct xfs_dir_hook	dhook;
 };
 
 /*

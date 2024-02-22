@@ -160,6 +160,9 @@ xchk_fsgates_disable(
 	if (sc->flags & XCHK_FSGATES_QUOTA)
 		xfs_dqtrx_hook_disable();
 
+	if (sc->flags & XCHK_FSGATES_DIRENTS)
+		xfs_dir_hook_disable();
+
 	sc->flags &= ~XCHK_FSGATES_ALL;
 }
 

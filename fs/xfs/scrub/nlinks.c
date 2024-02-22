@@ -43,8 +43,7 @@ int
 xchk_setup_nlinks(
 	struct xfs_scrub	*sc)
 {
-	/* Not ready for general consumption yet. */
-	return -EOPNOTSUPP;
+	xchk_fsgates_enable(sc, XCHK_FSGATES_DIRENTS);
 
 	sc->buf = kzalloc(sizeof(struct xchk_nlink_ctrs), XCHK_GFP_FLAGS);
 	if (!sc->buf)
@@ -63,6 +62,21 @@ xchk_setup_nlinks(
  * must be taken with certain errno values (i.e. EFSBADCRC, EFSCORRUPTED,
  * ECANCELED) that are absorbed into a scrub state flag update by
  * xchk_*_process_error.
+ *
+ * Because we are scanning a live filesystem, it's possible that another thread
+ * will try to update the link counts for an inode that we've already scanned.
+ * This will cause our counts to be incorrect.  Therefore, we hook all
+ * directory entry updates because that is when link count updates occur.  By
+ * shadowing transaction updates in this manner, live nlink check can ensure by
+ * locking the inode and the shadow structure that its own copies are not out
+ * of date.  Because the hook code runs in a different process context from the
+ * scrub code and the scrub state flags are not accessed atomically, failures
+ * in the hook code must abort the iscan and the scrubber must notice the
+ * aborted scan and set the incomplete flag.
+ *
+ * Note that we use jump labels and srcu notifier hooks to minimize the
+ * overhead when live nlinks is /not/ running.  Locking order for nlink
+ * observations is inode ILOCK -> iscan_lock/xchk_nlink_ctrs lock.
  */
 
 /*
@@ -118,6 +132,63 @@ xchk_nlinks_update_incore(
 		error = -ECANCELED;
 	}
 	return error;
+}
+
+/*
+ * Apply a link count change from the regular filesystem into our shadow link
+ * count structure based on a directory update in progress.
+ */
+STATIC int
+xchk_nlinks_live_update(
+	struct notifier_block		*nb,
+	unsigned long			action,
+	void				*data)
+{
+	struct xfs_dir_update_params	*p = data;
+	struct xchk_nlink_ctrs		*xnc;
+	int				error;
+
+	xnc = container_of(nb, struct xchk_nlink_ctrs, dhook.dirent_hook.nb);
+
+	trace_xchk_nlinks_live_update(xnc->sc->mp, p->dp, action, p->ip->i_ino,
+			p->delta, p->name->name, p->name->len);
+
+	/*
+	 * If we've already scanned @dp, update the number of parents that link
+	 * to @ip.  If @ip is a subdirectory, update the number of child links
+	 * going out of @dp.
+	 */
+	if (xchk_iscan_want_live_update(&xnc->collect_iscan, p->dp->i_ino)) {
+		mutex_lock(&xnc->lock);
+		error = xchk_nlinks_update_incore(xnc, p->ip->i_ino, p->delta,
+				0, 0);
+		if (!error && S_ISDIR(VFS_IC(p->ip)->i_mode))
+			error = xchk_nlinks_update_incore(xnc, p->dp->i_ino, 0,
+					0, p->delta);
+		mutex_unlock(&xnc->lock);
+		if (error)
+			goto out_abort;
+	}
+
+	/*
+	 * If @ip is a subdirectory and we've already scanned it, update the
+	 * number of backrefs pointing to @dp.
+	 */
+	if (S_ISDIR(VFS_IC(p->ip)->i_mode) &&
+	    xchk_iscan_want_live_update(&xnc->collect_iscan, p->ip->i_ino)) {
+		mutex_lock(&xnc->lock);
+		error = xchk_nlinks_update_incore(xnc, p->dp->i_ino, 0,
+				p->delta, 0);
+		mutex_unlock(&xnc->lock);
+		if (error)
+			goto out_abort;
+	}
+
+	return NOTIFY_DONE;
+
+out_abort:
+	xchk_iscan_abort(&xnc->collect_iscan);
+	return NOTIFY_DONE;
 }
 
 /* Bump the observed link count for the inode referenced by this entry. */
@@ -747,6 +818,11 @@ xchk_nlinks_teardown_scan(
 {
 	struct xchk_nlink_ctrs	*xnc = priv;
 
+	/* Discourage any hook functions that might be running. */
+	xchk_iscan_abort(&xnc->collect_iscan);
+
+	xfs_dir_hook_del(xnc->sc->mp, &xnc->dhook);
+
 	xfarray_destroy(xnc->nlinks);
 	xnc->nlinks = NULL;
 
@@ -790,6 +866,19 @@ xchk_nlinks_setup_scan(
 	error = xfarray_create(descr, min(XFS_MAXINUMBER + 1, max_inos),
 			sizeof(struct xchk_nlink), &xnc->nlinks);
 	kfree(descr);
+	if (error)
+		goto out_teardown;
+
+	/*
+	 * Hook into the directory entry code so that we can capture updates to
+	 * file link counts.  The hook only triggers for inodes that were
+	 * already scanned, and the scanner thread takes each inode's ILOCK,
+	 * which means that any in-progress inode updates will finish before we
+	 * can scan the inode.
+	 */
+	ASSERT(sc->flags & XCHK_FSGATES_DIRENTS);
+	xfs_dir_hook_setup(&xnc->dhook, xchk_nlinks_live_update);
+	error = xfs_dir_hook_add(mp, &xnc->dhook);
 	if (error)
 		goto out_teardown;
 
