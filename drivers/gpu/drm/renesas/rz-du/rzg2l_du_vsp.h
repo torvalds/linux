@@ -54,7 +54,7 @@ to_rzg2l_vsp_plane_state(struct drm_plane_state *state)
 	return container_of(state, struct rzg2l_du_vsp_plane_state, state);
 }
 
-#ifdef CONFIG_DRM_RCAR_VSP
+#if IS_ENABLED(CONFIG_VIDEO_RENESAS_VSP1)
 int rzg2l_du_vsp_init(struct rzg2l_du_vsp *vsp, struct device_node *np,
 		      unsigned int crtcs);
 void rzg2l_du_vsp_enable(struct rzg2l_du_crtc *crtc);
