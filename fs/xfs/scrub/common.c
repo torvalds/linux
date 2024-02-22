@@ -460,7 +460,7 @@ xchk_perag_read_headers(
  * Grab the AG headers for the attached perag structure and wait for pending
  * intents to drain.
  */
-static int
+int
 xchk_perag_drain_and_lock(
 	struct xfs_scrub	*sc)
 {

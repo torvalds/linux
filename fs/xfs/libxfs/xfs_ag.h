@@ -90,6 +90,7 @@ struct xfs_perag {
 	uint8_t		pagf_repair_bno_level;
 	uint8_t		pagf_repair_cnt_level;
 	uint8_t		pagf_repair_refcount_level;
+	uint8_t		pagf_repair_rmap_level;
 #endif
 
 	spinlock_t	pag_state_lock;
