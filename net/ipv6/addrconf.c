@@ -3492,7 +3492,8 @@ static void addrconf_dev_config(struct net_device *dev)
 	/* this device type has no EUI support */
 	if (dev->type == ARPHRD_NONE &&
 	    idev->cnf.addr_gen_mode == IN6_ADDR_GEN_MODE_EUI64)
-		idev->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_RANDOM;
+		WRITE_ONCE(idev->cnf.addr_gen_mode,
+			   IN6_ADDR_GEN_MODE_RANDOM);
 
 	addrconf_addr_gen(idev, false);
 }
@@ -3764,7 +3765,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				rt6_mtu_change(dev, dev->mtu);
 				idev->cnf.mtu6 = dev->mtu;
 			}
-			idev->tstamp = jiffies;
+			WRITE_ONCE(idev->tstamp, jiffies);
 			inet6_ifinfo_notify(RTM_NEWLINK, idev);
 
 			/*
@@ -4006,7 +4007,7 @@ restart:
 		ipv6_mc_down(idev);
 	}
 
-	idev->tstamp = jiffies;
+	WRITE_ONCE(idev->tstamp, jiffies);
 	idev->ra_mtu = 0;
 
 	/* Last: Shot the device (if unregistered) */
@@ -5634,87 +5635,97 @@ errout:
 		rtnl_set_sk_err(net, RTNLGRP_IPV6_IFADDR, err);
 }
 
-static inline void ipv6_store_devconf(struct ipv6_devconf *cnf,
-				__s32 *array, int bytes)
+static void ipv6_store_devconf(const struct ipv6_devconf *cnf,
+			       __s32 *array, int bytes)
 {
 	BUG_ON(bytes < (DEVCONF_MAX * 4));
 
 	memset(array, 0, bytes);
-	array[DEVCONF_FORWARDING] = cnf->forwarding;
-	array[DEVCONF_HOPLIMIT] = cnf->hop_limit;
-	array[DEVCONF_MTU6] = cnf->mtu6;
-	array[DEVCONF_ACCEPT_RA] = cnf->accept_ra;
-	array[DEVCONF_ACCEPT_REDIRECTS] = cnf->accept_redirects;
-	array[DEVCONF_AUTOCONF] = cnf->autoconf;
-	array[DEVCONF_DAD_TRANSMITS] = cnf->dad_transmits;
-	array[DEVCONF_RTR_SOLICITS] = cnf->rtr_solicits;
+	array[DEVCONF_FORWARDING] = READ_ONCE(cnf->forwarding);
+	array[DEVCONF_HOPLIMIT] = READ_ONCE(cnf->hop_limit);
+	array[DEVCONF_MTU6] = READ_ONCE(cnf->mtu6);
+	array[DEVCONF_ACCEPT_RA] = READ_ONCE(cnf->accept_ra);
+	array[DEVCONF_ACCEPT_REDIRECTS] = READ_ONCE(cnf->accept_redirects);
+	array[DEVCONF_AUTOCONF] = READ_ONCE(cnf->autoconf);
+	array[DEVCONF_DAD_TRANSMITS] = READ_ONCE(cnf->dad_transmits);
+	array[DEVCONF_RTR_SOLICITS] = READ_ONCE(cnf->rtr_solicits);
 	array[DEVCONF_RTR_SOLICIT_INTERVAL] =
-		jiffies_to_msecs(cnf->rtr_solicit_interval);
+		jiffies_to_msecs(READ_ONCE(cnf->rtr_solicit_interval));
 	array[DEVCONF_RTR_SOLICIT_MAX_INTERVAL] =
-		jiffies_to_msecs(cnf->rtr_solicit_max_interval);
+		jiffies_to_msecs(READ_ONCE(cnf->rtr_solicit_max_interval));
 	array[DEVCONF_RTR_SOLICIT_DELAY] =
-		jiffies_to_msecs(cnf->rtr_solicit_delay);
-	array[DEVCONF_FORCE_MLD_VERSION] = cnf->force_mld_version;
+		jiffies_to_msecs(READ_ONCE(cnf->rtr_solicit_delay));
+	array[DEVCONF_FORCE_MLD_VERSION] = READ_ONCE(cnf->force_mld_version);
 	array[DEVCONF_MLDV1_UNSOLICITED_REPORT_INTERVAL] =
-		jiffies_to_msecs(cnf->mldv1_unsolicited_report_interval);
+		jiffies_to_msecs(READ_ONCE(cnf->mldv1_unsolicited_report_interval));
 	array[DEVCONF_MLDV2_UNSOLICITED_REPORT_INTERVAL] =
-		jiffies_to_msecs(cnf->mldv2_unsolicited_report_interval);
-	array[DEVCONF_USE_TEMPADDR] = cnf->use_tempaddr;
-	array[DEVCONF_TEMP_VALID_LFT] = cnf->temp_valid_lft;
-	array[DEVCONF_TEMP_PREFERED_LFT] = cnf->temp_prefered_lft;
-	array[DEVCONF_REGEN_MAX_RETRY] = cnf->regen_max_retry;
-	array[DEVCONF_MAX_DESYNC_FACTOR] = cnf->max_desync_factor;
-	array[DEVCONF_MAX_ADDRESSES] = cnf->max_addresses;
-	array[DEVCONF_ACCEPT_RA_DEFRTR] = cnf->accept_ra_defrtr;
-	array[DEVCONF_RA_DEFRTR_METRIC] = cnf->ra_defrtr_metric;
-	array[DEVCONF_ACCEPT_RA_MIN_HOP_LIMIT] = cnf->accept_ra_min_hop_limit;
-	array[DEVCONF_ACCEPT_RA_PINFO] = cnf->accept_ra_pinfo;
+		jiffies_to_msecs(READ_ONCE(cnf->mldv2_unsolicited_report_interval));
+	array[DEVCONF_USE_TEMPADDR] = READ_ONCE(cnf->use_tempaddr);
+	array[DEVCONF_TEMP_VALID_LFT] = READ_ONCE(cnf->temp_valid_lft);
+	array[DEVCONF_TEMP_PREFERED_LFT] = READ_ONCE(cnf->temp_prefered_lft);
+	array[DEVCONF_REGEN_MAX_RETRY] = READ_ONCE(cnf->regen_max_retry);
+	array[DEVCONF_MAX_DESYNC_FACTOR] = READ_ONCE(cnf->max_desync_factor);
+	array[DEVCONF_MAX_ADDRESSES] = READ_ONCE(cnf->max_addresses);
+	array[DEVCONF_ACCEPT_RA_DEFRTR] = READ_ONCE(cnf->accept_ra_defrtr);
+	array[DEVCONF_RA_DEFRTR_METRIC] = READ_ONCE(cnf->ra_defrtr_metric);
+	array[DEVCONF_ACCEPT_RA_MIN_HOP_LIMIT] =
+		READ_ONCE(cnf->accept_ra_min_hop_limit);
+	array[DEVCONF_ACCEPT_RA_PINFO] = READ_ONCE(cnf->accept_ra_pinfo);
 #ifdef CONFIG_IPV6_ROUTER_PREF
-	array[DEVCONF_ACCEPT_RA_RTR_PREF] = cnf->accept_ra_rtr_pref;
+	array[DEVCONF_ACCEPT_RA_RTR_PREF] = READ_ONCE(cnf->accept_ra_rtr_pref);
 	array[DEVCONF_RTR_PROBE_INTERVAL] =
-		jiffies_to_msecs(cnf->rtr_probe_interval);
+		jiffies_to_msecs(READ_ONCE(cnf->rtr_probe_interval));
 #ifdef CONFIG_IPV6_ROUTE_INFO
-	array[DEVCONF_ACCEPT_RA_RT_INFO_MIN_PLEN] = cnf->accept_ra_rt_info_min_plen;
-	array[DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN] = cnf->accept_ra_rt_info_max_plen;
+	array[DEVCONF_ACCEPT_RA_RT_INFO_MIN_PLEN] =
+		READ_ONCE(cnf->accept_ra_rt_info_min_plen);
+	array[DEVCONF_ACCEPT_RA_RT_INFO_MAX_PLEN] =
+		READ_ONCE(cnf->accept_ra_rt_info_max_plen);
 #endif
 #endif
-	array[DEVCONF_PROXY_NDP] = cnf->proxy_ndp;
-	array[DEVCONF_ACCEPT_SOURCE_ROUTE] = cnf->accept_source_route;
+	array[DEVCONF_PROXY_NDP] = READ_ONCE(cnf->proxy_ndp);
+	array[DEVCONF_ACCEPT_SOURCE_ROUTE] =
+		READ_ONCE(cnf->accept_source_route);
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
-	array[DEVCONF_OPTIMISTIC_DAD] = cnf->optimistic_dad;
-	array[DEVCONF_USE_OPTIMISTIC] = cnf->use_optimistic;
+	array[DEVCONF_OPTIMISTIC_DAD] = READ_ONCE(cnf->optimistic_dad);
+	array[DEVCONF_USE_OPTIMISTIC] = READ_ONCE(cnf->use_optimistic);
 #endif
 #ifdef CONFIG_IPV6_MROUTE
 	array[DEVCONF_MC_FORWARDING] = atomic_read(&cnf->mc_forwarding);
 #endif
-	array[DEVCONF_DISABLE_IPV6] = cnf->disable_ipv6;
-	array[DEVCONF_ACCEPT_DAD] = cnf->accept_dad;
-	array[DEVCONF_FORCE_TLLAO] = cnf->force_tllao;
-	array[DEVCONF_NDISC_NOTIFY] = cnf->ndisc_notify;
-	array[DEVCONF_SUPPRESS_FRAG_NDISC] = cnf->suppress_frag_ndisc;
-	array[DEVCONF_ACCEPT_RA_FROM_LOCAL] = cnf->accept_ra_from_local;
-	array[DEVCONF_ACCEPT_RA_MTU] = cnf->accept_ra_mtu;
-	array[DEVCONF_IGNORE_ROUTES_WITH_LINKDOWN] = cnf->ignore_routes_with_linkdown;
+	array[DEVCONF_DISABLE_IPV6] = READ_ONCE(cnf->disable_ipv6);
+	array[DEVCONF_ACCEPT_DAD] = READ_ONCE(cnf->accept_dad);
+	array[DEVCONF_FORCE_TLLAO] = READ_ONCE(cnf->force_tllao);
+	array[DEVCONF_NDISC_NOTIFY] = READ_ONCE(cnf->ndisc_notify);
+	array[DEVCONF_SUPPRESS_FRAG_NDISC] =
+		READ_ONCE(cnf->suppress_frag_ndisc);
+	array[DEVCONF_ACCEPT_RA_FROM_LOCAL] =
+		READ_ONCE(cnf->accept_ra_from_local);
+	array[DEVCONF_ACCEPT_RA_MTU] = READ_ONCE(cnf->accept_ra_mtu);
+	array[DEVCONF_IGNORE_ROUTES_WITH_LINKDOWN] =
+		READ_ONCE(cnf->ignore_routes_with_linkdown);
 	/* we omit DEVCONF_STABLE_SECRET for now */
-	array[DEVCONF_USE_OIF_ADDRS_ONLY] = cnf->use_oif_addrs_only;
-	array[DEVCONF_DROP_UNICAST_IN_L2_MULTICAST] = cnf->drop_unicast_in_l2_multicast;
-	array[DEVCONF_DROP_UNSOLICITED_NA] = cnf->drop_unsolicited_na;
-	array[DEVCONF_KEEP_ADDR_ON_DOWN] = cnf->keep_addr_on_down;
-	array[DEVCONF_SEG6_ENABLED] = cnf->seg6_enabled;
+	array[DEVCONF_USE_OIF_ADDRS_ONLY] = READ_ONCE(cnf->use_oif_addrs_only);
+	array[DEVCONF_DROP_UNICAST_IN_L2_MULTICAST] =
+		READ_ONCE(cnf->drop_unicast_in_l2_multicast);
+	array[DEVCONF_DROP_UNSOLICITED_NA] = READ_ONCE(cnf->drop_unsolicited_na);
+	array[DEVCONF_KEEP_ADDR_ON_DOWN] = READ_ONCE(cnf->keep_addr_on_down);
+	array[DEVCONF_SEG6_ENABLED] = READ_ONCE(cnf->seg6_enabled);
 #ifdef CONFIG_IPV6_SEG6_HMAC
-	array[DEVCONF_SEG6_REQUIRE_HMAC] = cnf->seg6_require_hmac;
+	array[DEVCONF_SEG6_REQUIRE_HMAC] = READ_ONCE(cnf->seg6_require_hmac);
 #endif
-	array[DEVCONF_ENHANCED_DAD] = cnf->enhanced_dad;
-	array[DEVCONF_ADDR_GEN_MODE] = cnf->addr_gen_mode;
-	array[DEVCONF_DISABLE_POLICY] = cnf->disable_policy;
-	array[DEVCONF_NDISC_TCLASS] = cnf->ndisc_tclass;
-	array[DEVCONF_RPL_SEG_ENABLED] = cnf->rpl_seg_enabled;
-	array[DEVCONF_IOAM6_ENABLED] = cnf->ioam6_enabled;
-	array[DEVCONF_IOAM6_ID] = cnf->ioam6_id;
-	array[DEVCONF_IOAM6_ID_WIDE] = cnf->ioam6_id_wide;
-	array[DEVCONF_NDISC_EVICT_NOCARRIER] = cnf->ndisc_evict_nocarrier;
-	array[DEVCONF_ACCEPT_UNTRACKED_NA] = cnf->accept_untracked_na;
-	array[DEVCONF_ACCEPT_RA_MIN_LFT] = cnf->accept_ra_min_lft;
+	array[DEVCONF_ENHANCED_DAD] = READ_ONCE(cnf->enhanced_dad);
+	array[DEVCONF_ADDR_GEN_MODE] = READ_ONCE(cnf->addr_gen_mode);
+	array[DEVCONF_DISABLE_POLICY] = READ_ONCE(cnf->disable_policy);
+	array[DEVCONF_NDISC_TCLASS] = READ_ONCE(cnf->ndisc_tclass);
+	array[DEVCONF_RPL_SEG_ENABLED] = READ_ONCE(cnf->rpl_seg_enabled);
+	array[DEVCONF_IOAM6_ENABLED] = READ_ONCE(cnf->ioam6_enabled);
+	array[DEVCONF_IOAM6_ID] = READ_ONCE(cnf->ioam6_id);
+	array[DEVCONF_IOAM6_ID_WIDE] = READ_ONCE(cnf->ioam6_id_wide);
+	array[DEVCONF_NDISC_EVICT_NOCARRIER] =
+		READ_ONCE(cnf->ndisc_evict_nocarrier);
+	array[DEVCONF_ACCEPT_UNTRACKED_NA] =
+		READ_ONCE(cnf->accept_untracked_na);
+	array[DEVCONF_ACCEPT_RA_MIN_LFT] = READ_ONCE(cnf->accept_ra_min_lft);
 }
 
 static inline size_t inet6_ifla6_size(void)
@@ -5794,13 +5805,14 @@ static void snmp6_fill_stats(u64 *stats, struct inet6_dev *idev, int attrtype,
 static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev,
 				  u32 ext_filter_mask)
 {
-	struct nlattr *nla;
 	struct ifla_cacheinfo ci;
+	struct nlattr *nla;
+	u32 ra_mtu;
 
-	if (nla_put_u32(skb, IFLA_INET6_FLAGS, idev->if_flags))
+	if (nla_put_u32(skb, IFLA_INET6_FLAGS, READ_ONCE(idev->if_flags)))
 		goto nla_put_failure;
 	ci.max_reasm_len = IPV6_MAXPLEN;
-	ci.tstamp = cstamp_delta(idev->tstamp);
+	ci.tstamp = cstamp_delta(READ_ONCE(idev->tstamp));
 	ci.reachable_time = jiffies_to_msecs(idev->nd_parms->reachable_time);
 	ci.retrans_time = jiffies_to_msecs(NEIGH_VAR(idev->nd_parms, RETRANS_TIME));
 	if (nla_put(skb, IFLA_INET6_CACHEINFO, sizeof(ci), &ci))
@@ -5832,11 +5844,12 @@ static int inet6_fill_ifla6_attrs(struct sk_buff *skb, struct inet6_dev *idev,
 	memcpy(nla_data(nla), idev->token.s6_addr, nla_len(nla));
 	read_unlock_bh(&idev->lock);
 
-	if (nla_put_u8(skb, IFLA_INET6_ADDR_GEN_MODE, idev->cnf.addr_gen_mode))
+	if (nla_put_u8(skb, IFLA_INET6_ADDR_GEN_MODE,
+		       READ_ONCE(idev->cnf.addr_gen_mode)))
 		goto nla_put_failure;
 
-	if (idev->ra_mtu &&
-	    nla_put_u32(skb, IFLA_INET6_RA_MTU, idev->ra_mtu))
+	ra_mtu = READ_ONCE(idev->ra_mtu);
+	if (ra_mtu && nla_put_u32(skb, IFLA_INET6_RA_MTU, ra_mtu))
 		goto nla_put_failure;
 
 	return 0;
@@ -6037,7 +6050,7 @@ static int inet6_set_link_af(struct net_device *dev, const struct nlattr *nla,
 	if (tb[IFLA_INET6_ADDR_GEN_MODE]) {
 		u8 mode = nla_get_u8(tb[IFLA_INET6_ADDR_GEN_MODE]);
 
-		idev->cnf.addr_gen_mode = mode;
+		WRITE_ONCE(idev->cnf.addr_gen_mode, mode);
 	}
 
 	return 0;
@@ -6516,7 +6529,7 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 			}
 
 			if (idev->cnf.addr_gen_mode != new_val) {
-				idev->cnf.addr_gen_mode = new_val;
+				WRITE_ONCE(idev->cnf.addr_gen_mode, new_val);
 				addrconf_init_auto_addrs(idev->dev);
 			}
 		} else if (&net->ipv6.devconf_all->addr_gen_mode == ctl->data) {
@@ -6527,7 +6540,8 @@ static int addrconf_sysctl_addr_gen_mode(struct ctl_table *ctl, int write,
 				idev = __in6_dev_get(dev);
 				if (idev &&
 				    idev->cnf.addr_gen_mode != new_val) {
-					idev->cnf.addr_gen_mode = new_val;
+					WRITE_ONCE(idev->cnf.addr_gen_mode,
+						  new_val);
 					addrconf_init_auto_addrs(idev->dev);
 				}
 			}
@@ -6592,14 +6606,15 @@ static int addrconf_sysctl_stable_secret(struct ctl_table *ctl, int write,
 			struct inet6_dev *idev = __in6_dev_get(dev);
 
 			if (idev) {
-				idev->cnf.addr_gen_mode =
-					IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
+				WRITE_ONCE(idev->cnf.addr_gen_mode,
+					   IN6_ADDR_GEN_MODE_STABLE_PRIVACY);
 			}
 		}
 	} else {
 		struct inet6_dev *idev = ctl->extra1;
 
-		idev->cnf.addr_gen_mode = IN6_ADDR_GEN_MODE_STABLE_PRIVACY;
+		WRITE_ONCE(idev->cnf.addr_gen_mode,
+			   IN6_ADDR_GEN_MODE_STABLE_PRIVACY);
 	}
 
 out:
