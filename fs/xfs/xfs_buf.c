@@ -60,6 +60,11 @@ xfs_buf_submit(
 	return __xfs_buf_submit(bp, !(bp->b_flags & XBF_ASYNC));
 }
 
+static inline bool xfs_buf_is_uncached(struct xfs_buf *bp)
+{
+	return bp->b_rhash_key == XFS_BUF_DADDR_NULL;
+}
+
 static inline int
 xfs_buf_is_vmapped(
 	struct xfs_buf	*bp)
@@ -996,12 +1001,19 @@ xfs_buf_hold(
 	atomic_inc(&bp->b_hold);
 }
 
-/*
- * Release a hold on the specified buffer. If the hold count is 1, the buffer is
- * placed on LRU or freed (depending on b_lru_ref).
- */
-void
-xfs_buf_rele(
+static void
+xfs_buf_rele_uncached(
+	struct xfs_buf		*bp)
+{
+	ASSERT(list_empty(&bp->b_lru));
+	if (atomic_dec_and_test(&bp->b_hold)) {
+		xfs_buf_ioacct_dec(bp);
+		xfs_buf_free(bp);
+	}
+}
+
+static void
+xfs_buf_rele_cached(
 	struct xfs_buf		*bp)
 {
 	struct xfs_perag	*pag = bp->b_pag;
@@ -1009,15 +1021,6 @@ xfs_buf_rele(
 	bool			freebuf = false;
 
 	trace_xfs_buf_rele(bp, _RET_IP_);
-
-	if (!pag) {
-		ASSERT(list_empty(&bp->b_lru));
-		if (atomic_dec_and_test(&bp->b_hold)) {
-			xfs_buf_ioacct_dec(bp);
-			xfs_buf_free(bp);
-		}
-		return;
-	}
 
 	ASSERT(atomic_read(&bp->b_hold) > 0);
 
@@ -1086,6 +1089,19 @@ out_unlock:
 		xfs_buf_free(bp);
 }
 
+/*
+ * Release a hold on the specified buffer.
+ */
+void
+xfs_buf_rele(
+	struct xfs_buf		*bp)
+{
+	trace_xfs_buf_rele(bp, _RET_IP_);
+	if (xfs_buf_is_uncached(bp))
+		xfs_buf_rele_uncached(bp);
+	else
+		xfs_buf_rele_cached(bp);
+}
 
 /*
  *	Lock a buffer object, if it is not already locked.
