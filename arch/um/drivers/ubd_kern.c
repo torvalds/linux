@@ -125,9 +125,6 @@ static const struct block_device_operations ubd_blops = {
 	.getgeo		= ubd_getgeo,
 };
 
-/* Protected by ubd_lock */
-static struct gendisk *ubd_gendisk[MAX_DEV];
-
 #ifdef CONFIG_BLK_DEV_UBD_SYNC
 #define OPEN_FLAGS ((struct openflags) { .r = 1, .w = 1, .s = 1, .c = 0, \
 					 .cl = 1 })
@@ -165,6 +162,7 @@ struct ubd {
 	unsigned no_trim:1;
 	struct cow cow;
 	struct platform_device pdev;
+	struct gendisk *disk;
 	struct request_queue *queue;
 	struct blk_mq_tag_set tag_set;
 	spinlock_t lock;
@@ -922,7 +920,6 @@ static int ubd_add(int n, char **error_out)
 	if (err)
 		goto out_cleanup_disk;
 
-	ubd_gendisk[n] = disk;
 	return 0;
 
 out_cleanup_disk:
@@ -1014,7 +1011,6 @@ static int ubd_id(char **str, int *start_out, int *end_out)
 
 static int ubd_remove(int n, char **error_out)
 {
-	struct gendisk *disk = ubd_gendisk[n];
 	struct ubd *ubd_dev;
 	int err = -ENODEV;
 
@@ -1030,10 +1026,9 @@ static int ubd_remove(int n, char **error_out)
 	if(ubd_dev->count > 0)
 		goto out;
 
-	ubd_gendisk[n] = NULL;
-	if(disk != NULL){
-		del_gendisk(disk);
-		put_disk(disk);
+	if (ubd_dev->disk) {
+		del_gendisk(ubd_dev->disk);
+		put_disk(ubd_dev->disk);
 	}
 
 	err = 0;
