@@ -7,6 +7,7 @@
 
 #include "instructions/xe_mi_commands.h"
 #include "instructions/xe_gfxpipe_commands.h"
+#include "instructions/xe_gfx_state_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gpu_commands.h"
 #include "regs/xe_lrc_layout.h"
@@ -1037,6 +1038,8 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH(GPGPU_CSR_BASE_ADDRESS);
 	MATCH(STATE_COMPUTE_MODE);
 	MATCH3D(3DSTATE_BTD);
+	MATCH(STATE_SYSTEM_MEM_FENCE_ADDRESS);
+	MATCH(STATE_CONTEXT_DATA_BASE_ADDRESS);
 
 	MATCH3D(3DSTATE_VF_STATISTICS);
 
@@ -1061,6 +1064,7 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	MATCH3D(3DSTATE_WM);
 	MATCH3D(3DSTATE_CONSTANT_VS);
 	MATCH3D(3DSTATE_CONSTANT_GS);
+	MATCH3D(3DSTATE_CONSTANT_PS);
 	MATCH3D(3DSTATE_SAMPLE_MASK);
 	MATCH3D(3DSTATE_CONSTANT_HS);
 	MATCH3D(3DSTATE_CONSTANT_DS);
@@ -1153,6 +1157,31 @@ static int dump_gfxpipe_command(struct drm_printer *p,
 	}
 }
 
+static int dump_gfx_state_command(struct drm_printer *p,
+				  struct xe_gt *gt,
+				  u32 *dw,
+				  int remaining_dw)
+{
+	u32 numdw = instr_dw(*dw);
+	u32 opcode = REG_FIELD_GET(GFX_STATE_OPCODE, *dw);
+
+	/*
+	 * Make sure we haven't mis-parsed a number of dwords that exceeds the
+	 * remaining size of the LRC.
+	 */
+	if (xe_gt_WARN_ON(gt, numdw > remaining_dw))
+		numdw = remaining_dw;
+
+	switch (*dw & (XE_INSTR_GFX_STATE | GFX_STATE_OPCODE)) {
+	MATCH(STATE_WRITE_INLINE);
+
+	default:
+		drm_printf(p, "[%#010x] unknown GFX_STATE command (opcode=%#x), likely %d dwords\n",
+			   *dw, opcode, numdw);
+		return numdw;
+	}
+}
+
 void xe_lrc_dump_default(struct drm_printer *p,
 			 struct xe_gt *gt,
 			 enum xe_engine_class hwe_class)
@@ -1177,6 +1206,8 @@ void xe_lrc_dump_default(struct drm_printer *p,
 			num_dw = dump_mi_command(p, gt, dw, remaining_dw);
 		} else if ((*dw & XE_INSTR_CMD_TYPE) == XE_INSTR_GFXPIPE) {
 			num_dw = dump_gfxpipe_command(p, gt, dw, remaining_dw);
+		} else if ((*dw & XE_INSTR_CMD_TYPE) == XE_INSTR_GFX_STATE) {
+			num_dw = dump_gfx_state_command(p, gt, dw, remaining_dw);
 		} else {
 			num_dw = min(instr_dw(*dw), remaining_dw);
 			drm_printf(p, "[%#10x] Unknown instruction of type %#x, likely %d dwords\n",
