@@ -609,7 +609,6 @@ xfs_bmbt_stage_cursor(
 	struct xbtree_ifakeroot	*ifake)
 {
 	struct xfs_btree_cur	*cur;
-	struct xfs_btree_ops	*ops;
 
 	/* data fork always has larger maxheight */
 	cur = xfs_bmbt_init_common(mp, NULL, ip, XFS_DATA_FORK);
@@ -618,8 +617,7 @@ xfs_bmbt_stage_cursor(
 
 	/* Don't let anyone think we're attached to the real fork yet. */
 	cur->bc_ino.whichfork = -1;
-	xfs_btree_stage_ifakeroot(cur, ifake, &ops);
-	ops->update_cursor = NULL;
+	xfs_btree_stage_ifakeroot(cur, ifake);
 	return cur;
 }
 
@@ -663,7 +661,7 @@ xfs_bmbt_commit_staged_btree(
 		break;
 	}
 	xfs_trans_log_inode(tp, cur->bc_ino.ip, flags);
-	xfs_btree_commit_ifakeroot(cur, tp, whichfork, &xfs_bmbt_ops);
+	xfs_btree_commit_ifakeroot(cur, tp, whichfork);
 }
 
 /*
