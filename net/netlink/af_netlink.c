@@ -2261,6 +2261,8 @@ static int netlink_dump(struct sock *sk, bool lock_taken)
 
 		cb->extack = &extack;
 
+		if (cb->flags & RTNL_FLAG_DUMP_UNLOCKED)
+			extra_mutex = NULL;
 		if (extra_mutex)
 			mutex_lock(extra_mutex);
 		nlk->dump_done_errno = cb->dump(skb, cb);
@@ -2355,6 +2357,7 @@ int __netlink_dump_start(struct sock *ssk, struct sk_buff *skb,
 	cb->data = control->data;
 	cb->module = control->module;
 	cb->min_dump_alloc = control->min_dump_alloc;
+	cb->flags = control->flags;
 	cb->skb = skb;
 
 	cb->strict_check = nlk_test_bit(STRICT_CHK, NETLINK_CB(skb).sk);
