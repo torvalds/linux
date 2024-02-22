@@ -1111,6 +1111,17 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 	case Opt_wsize:
 		ctx->wsize = result.uint_32;
 		ctx->got_wsize = true;
+		if (ctx->wsize % PAGE_SIZE != 0) {
+			ctx->wsize = round_down(ctx->wsize, PAGE_SIZE);
+			if (ctx->wsize == 0) {
+				ctx->wsize = PAGE_SIZE;
+				cifs_dbg(VFS, "wsize too small, reset to minimum %ld\n", PAGE_SIZE);
+			} else {
+				cifs_dbg(VFS,
+					 "wsize rounded down to %d to multiple of PAGE_SIZE %ld\n",
+					 ctx->wsize, PAGE_SIZE);
+			}
+		}
 		break;
 	case Opt_acregmax:
 		ctx->acregmax = HZ * result.uint_32;

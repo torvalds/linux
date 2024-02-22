@@ -1589,12 +1589,8 @@ int udp_init_sock(struct sock *sk)
 
 void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len)
 {
-	if (unlikely(READ_ONCE(udp_sk(sk)->peeking_with_offset))) {
-		bool slow = lock_sock_fast(sk);
-
+	if (unlikely(READ_ONCE(udp_sk(sk)->peeking_with_offset)))
 		sk_peek_offset_bwd(sk, len);
-		unlock_sock_fast(sk, slow);
-	}
 
 	if (!skb_unref(skb))
 		return;

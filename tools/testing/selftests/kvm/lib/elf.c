@@ -184,7 +184,7 @@ void kvm_vm_elf_load(struct kvm_vm *vm, const char *filename)
 				"Seek to program segment offset failed,\n"
 				"  program header idx: %u errno: %i\n"
 				"  offset_rv: 0x%jx\n"
-				"  expected: 0x%jx\n",
+				"  expected: 0x%jx",
 				n1, errno, (intmax_t) offset_rv,
 				(intmax_t) phdr.p_offset);
 			test_read(fd, addr_gva2hva(vm, phdr.p_vaddr),

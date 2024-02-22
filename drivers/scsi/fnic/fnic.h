@@ -305,6 +305,7 @@ struct fnic {
 	unsigned int copy_wq_base;
 	struct work_struct link_work;
 	struct work_struct frame_work;
+	struct work_struct flush_work;
 	struct sk_buff_head frame_queue;
 	struct sk_buff_head tx_queue;
 
@@ -363,7 +364,7 @@ void fnic_handle_event(struct work_struct *work);
 int fnic_rq_cmpl_handler(struct fnic *fnic, int);
 int fnic_alloc_rq_frame(struct vnic_rq *rq);
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf);
-void fnic_flush_tx(struct fnic *);
+void fnic_flush_tx(struct work_struct *work);
 void fnic_eth_send(struct fcoe_ctlr *, struct sk_buff *skb);
 void fnic_set_port_id(struct fc_lport *, u32, struct fc_frame *);
 void fnic_update_mac(struct fc_lport *, u8 *new);

@@ -10,7 +10,7 @@
 char _license[] SEC("license") = "GPL";
 
 pid_t target_pid;
-int procs_cnt, threads_cnt, proc_threads_cnt;
+int procs_cnt, threads_cnt, proc_threads_cnt, invalid_cnt;
 
 void bpf_rcu_read_lock(void) __ksym;
 void bpf_rcu_read_unlock(void) __ksym;
@@ -26,6 +26,16 @@ int iter_task_for_each_sleep(void *ctx)
 	procs_cnt = threads_cnt = proc_threads_cnt = 0;
 
 	bpf_rcu_read_lock();
+	bpf_for_each(task, pos, NULL, ~0U) {
+		/* Below instructions shouldn't be executed for invalid flags */
+		invalid_cnt++;
+	}
+
+	bpf_for_each(task, pos, NULL, BPF_TASK_ITER_PROC_THREADS) {
+		/* Below instructions shouldn't be executed for invalid task__nullable */
+		invalid_cnt++;
+	}
+
 	bpf_for_each(task, pos, NULL, BPF_TASK_ITER_ALL_PROCS)
 		if (pos->pid == target_pid)
 			procs_cnt++;
