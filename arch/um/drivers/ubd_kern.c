@@ -799,7 +799,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 	}
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, ubd_dev->queue);
 	return 0;
  error:
 	os_close_file(ubd_dev->fd);
@@ -894,6 +893,7 @@ static int ubd_add(int n, char **error_out)
 	}
 	ubd_dev->queue = disk->queue;
 
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
 	blk_queue_write_cache(ubd_dev->queue, true, false);
 	disk->major = UBD_MAJOR;
 	disk->first_minor = n << UBD_SHIFT;
