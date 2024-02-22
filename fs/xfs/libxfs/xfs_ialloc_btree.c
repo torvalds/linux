@@ -90,9 +90,9 @@ xfs_inobt_mod_blockcount(
 	if (!xfs_has_inobtcounts(cur->bc_mp))
 		return;
 
-	if (cur->bc_btnum == XFS_BTNUM_FINO)
+	if (xfs_btree_is_fino(cur->bc_ops))
 		be32_add_cpu(&agi->agi_fblocks, howmuch);
-	else if (cur->bc_btnum == XFS_BTNUM_INO)
+	else
 		be32_add_cpu(&agi->agi_iblocks, howmuch);
 	xfs_ialloc_log_agi(cur->bc_tp, agbp, XFS_AGI_IBLOCKS);
 }
@@ -481,7 +481,7 @@ xfs_inobt_init_cursor(
 	struct xfs_mount	*mp = pag->pag_mount;
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_INO, &xfs_inobt_ops,
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_inobt_ops,
 			M_IGEO(mp)->inobt_maxlevels, xfs_inobt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.agbp = agbp;
@@ -507,7 +507,7 @@ xfs_finobt_init_cursor(
 	struct xfs_mount	*mp = pag->pag_mount;
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_FINO, &xfs_finobt_ops,
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_finobt_ops,
 			M_IGEO(mp)->inobt_maxlevels, xfs_inobt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.agbp = agbp;
@@ -535,7 +535,7 @@ xfs_inobt_commit_staged_btree(
 
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 
-	if (cur->bc_btnum == XFS_BTNUM_INO) {
+	if (xfs_btree_is_ino(cur->bc_ops)) {
 		fields = XFS_AGI_ROOT | XFS_AGI_LEVEL;
 		agi->agi_root = cpu_to_be32(afake->af_root);
 		agi->agi_level = cpu_to_be32(afake->af_levels);

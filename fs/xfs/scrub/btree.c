@@ -374,14 +374,12 @@ xchk_btree_check_block_owner(
 {
 	xfs_agnumber_t		agno;
 	xfs_agblock_t		agbno;
-	xfs_btnum_t		btnum;
 	bool			init_sa;
 	int			error = 0;
 
 	if (!bs->cur)
 		return 0;
 
-	btnum = bs->cur->bc_btnum;
 	agno = xfs_daddr_to_agno(bs->cur->bc_mp, daddr);
 	agbno = xfs_daddr_to_agbno(bs->cur->bc_mp, daddr);
 
@@ -404,11 +402,11 @@ xchk_btree_check_block_owner(
 	 * have to nullify it (to shut down further block owner checks) if
 	 * self-xref encounters problems.
 	 */
-	if (!bs->sc->sa.bno_cur && btnum == XFS_BTNUM_BNO)
+	if (!bs->sc->sa.bno_cur && xfs_btree_is_bno(bs->cur->bc_ops))
 		bs->cur = NULL;
 
 	xchk_xref_is_only_owned_by(bs->sc, agbno, 1, bs->oinfo);
-	if (!bs->sc->sa.rmap_cur && btnum == XFS_BTNUM_RMAP)
+	if (!bs->sc->sa.rmap_cur && xfs_btree_is_rmap(bs->cur->bc_ops))
 		bs->cur = NULL;
 
 out_free:
@@ -447,7 +445,7 @@ xchk_btree_check_owner(
 	 * duplicate cursors.  Therefore, save the buffer daddr for
 	 * later scanning.
 	 */
-	if (cur->bc_btnum == XFS_BTNUM_BNO || cur->bc_btnum == XFS_BTNUM_RMAP) {
+	if (xfs_btree_is_bno(cur->bc_ops) || xfs_btree_is_rmap(cur->bc_ops)) {
 		struct check_owner	*co;
 
 		co = kmalloc(sizeof(struct check_owner), XCHK_GFP_FLAGS);
@@ -480,7 +478,7 @@ xchk_btree_check_iroot_minrecs(
 	 * existing filesystems, so instead we disable the check for data fork
 	 * bmap btrees when there's an attr fork.
 	 */
-	if (bs->cur->bc_btnum == XFS_BTNUM_BMAP &&
+	if (xfs_btree_is_bmap(bs->cur->bc_ops) &&
 	    bs->cur->bc_ino.whichfork == XFS_DATA_FORK &&
 	    xfs_inode_has_attr_fork(bs->sc->ip))
 		return false;

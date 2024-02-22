@@ -76,7 +76,7 @@ xchk_inobt_xref_finobt(
 	int			has_record;
 	int			error;
 
-	ASSERT(cur->bc_btnum == XFS_BTNUM_FINO);
+	ASSERT(xfs_btree_is_fino(cur->bc_ops));
 
 	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &has_record);
 	if (error)
@@ -179,7 +179,7 @@ xchk_finobt_xref_inobt(
 	int			has_record;
 	int			error;
 
-	ASSERT(cur->bc_btnum == XFS_BTNUM_INO);
+	ASSERT(xfs_btree_is_ino(cur->bc_ops));
 
 	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &has_record);
 	if (error)
@@ -514,7 +514,7 @@ xchk_iallocbt_rec_alignment(
 	 * Otherwise, we expect that the finobt record is aligned to the
 	 * cluster alignment as told by the superblock.
 	 */
-	if (bs->cur->bc_btnum == XFS_BTNUM_FINO) {
+	if (xfs_btree_is_fino(bs->cur->bc_ops)) {
 		unsigned int	imask;
 
 		imask = min_t(unsigned int, XFS_INODES_PER_CHUNK,

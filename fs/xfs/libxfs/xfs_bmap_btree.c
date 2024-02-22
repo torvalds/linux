@@ -574,8 +574,8 @@ xfs_bmbt_init_cursor(
 		maxlevels = mp->m_bm_maxlevels[whichfork];
 		break;
 	}
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_BMAP, &xfs_bmbt_ops,
-			maxlevels, xfs_bmbt_cur_cache);
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_bmbt_ops, maxlevels,
+			xfs_bmbt_cur_cache);
 	cur->bc_ino.ip = ip;
 	cur->bc_ino.whichfork = whichfork;
 	cur->bc_bmap.allocated = 0;

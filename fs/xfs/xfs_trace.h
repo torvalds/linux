@@ -2450,15 +2450,6 @@ DEFINE_DISCARD_EVENT(xfs_discard_toosmall);
 DEFINE_DISCARD_EVENT(xfs_discard_exclude);
 DEFINE_DISCARD_EVENT(xfs_discard_busy);
 
-/* btree cursor events */
-TRACE_DEFINE_ENUM(XFS_BTNUM_BNOi);
-TRACE_DEFINE_ENUM(XFS_BTNUM_CNTi);
-TRACE_DEFINE_ENUM(XFS_BTNUM_BMAPi);
-TRACE_DEFINE_ENUM(XFS_BTNUM_INOi);
-TRACE_DEFINE_ENUM(XFS_BTNUM_FINOi);
-TRACE_DEFINE_ENUM(XFS_BTNUM_RMAPi);
-TRACE_DEFINE_ENUM(XFS_BTNUM_REFCi);
-
 DECLARE_EVENT_CLASS(xfs_btree_cur_class,
 	TP_PROTO(struct xfs_btree_cur *cur, int level, struct xfs_buf *bp),
 	TP_ARGS(cur, level, bp),

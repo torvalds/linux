@@ -364,9 +364,8 @@ xfs_refcountbt_init_cursor(
 
 	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
 
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_REFC,
-			&xfs_refcountbt_ops, mp->m_refc_maxlevels,
-			xfs_refcountbt_cur_cache);
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_refcountbt_ops,
+			mp->m_refc_maxlevels, xfs_refcountbt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_refc.nr_ops = 0;
 	cur->bc_refc.shape_changes = 0;

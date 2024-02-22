@@ -51,7 +51,7 @@ xfs_allocbt_set_root(
 
 	ASSERT(ptr->s != 0);
 
-	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+	if (xfs_btree_is_bno(cur->bc_ops)) {
 		agf->agf_bno_root = ptr->s;
 		be32_add_cpu(&agf->agf_bno_level, inc);
 		cur->bc_ag.pag->pagf_bno_level += inc;
@@ -131,7 +131,7 @@ xfs_allocbt_update_lastrec(
 	__be32			len;
 	int			numrecs;
 
-	ASSERT(cur->bc_btnum == XFS_BTNUM_CNT);
+	ASSERT(!xfs_btree_is_bno(cur->bc_ops));
 
 	switch (reason) {
 	case LASTREC_UPDATE:
@@ -241,7 +241,7 @@ xfs_allocbt_init_ptr_from_cur(
 
 	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
 
-	if (cur->bc_btnum == XFS_BTNUM_BNO)
+	if (xfs_btree_is_bno(cur->bc_ops))
 		ptr->s = agf->agf_bno_root;
 	else
 		ptr->s = agf->agf_cnt_root;
@@ -554,7 +554,7 @@ xfs_bnobt_init_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_BNO, &xfs_bnobt_ops,
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_bnobt_ops,
 			mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.agbp = agbp;
@@ -580,7 +580,7 @@ xfs_cntbt_init_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_CNT, &xfs_cntbt_ops,
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_cntbt_ops,
 			mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 	cur->bc_ag.agbp = agbp;
@@ -607,7 +607,7 @@ xfs_allocbt_commit_staged_btree(
 
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 
-	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+	if (xfs_btree_is_bno(cur->bc_ops)) {
 		agf->agf_bno_root = cpu_to_be32(afake->af_root);
 		agf->agf_bno_level = cpu_to_be32(afake->af_levels);
 	} else {

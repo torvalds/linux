@@ -532,7 +532,7 @@ xfs_btree_mark_sick(
 		xfs_ag_mark_sick(cur->bc_ag.pag, cur->bc_ops->sick_mask);
 		return;
 	case XFS_BTREE_TYPE_INODE:
-		if (cur->bc_btnum == XFS_BTNUM_BMAP) {
+		if (xfs_btree_is_bmap(cur->bc_ops)) {
 			xfs_bmap_mark_sick(cur->bc_ino.ip,
 					   cur->bc_ino.whichfork);
 			return;
