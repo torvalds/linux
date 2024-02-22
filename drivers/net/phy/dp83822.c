@@ -100,6 +100,7 @@
 #define DP83822_WOL_CLR_INDICATION BIT(11)
 
 /* RCSR bits */
+#define DP83822_RMII_MODE_EN	BIT(5)
 #define DP83822_RGMII_MODE_EN	BIT(9)
 #define DP83822_RX_CLK_SHIFT	BIT(12)
 #define DP83822_TX_CLK_SHIFT	BIT(11)
@@ -499,6 +500,16 @@ static int dp83826_config_init(struct phy_device *phydev)
 	struct dp83822_private *dp83822 = phydev->priv;
 	u16 val, mask;
 	int ret;
+
+	if (phydev->interface == PHY_INTERFACE_MODE_RMII)
+		ret = phy_set_bits_mmd(phydev, DP83822_DEVADDR, MII_DP83822_RCSR,
+				       DP83822_RMII_MODE_EN);
+	else
+		ret = phy_clear_bits_mmd(phydev, DP83822_DEVADDR, MII_DP83822_RCSR,
+					 DP83822_RMII_MODE_EN);
+
+	if (ret)
+		return ret;
 
 	if (dp83822->cfg_dac_minus != DP83826_CFG_DAC_MINUS_DEFAULT) {
 		val = FIELD_PREP(DP83826_VOD_CFG1_MINUS_MDI_MASK, dp83822->cfg_dac_minus) |
