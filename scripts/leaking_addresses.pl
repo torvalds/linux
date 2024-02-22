@@ -284,9 +284,10 @@ sub is_false_positive
 		return is_false_positive_32bit($match);
 	}
 
-	# 64 bit false positives.
-
-	if ($match =~ '\b(0x)?(f|F){16}\b' or
+	# Ignore 64 bit false positives:
+	# 0xfffffffffffffff[0-f]
+	# 0x0000000000000000
+	if ($match =~ '\b(0x)?(f|F){15}[0-9a-f]\b' or
 	    $match =~ '\b(0x)?0{16}\b') {
 		return 1;
 	}
@@ -303,7 +304,7 @@ sub is_false_positive_32bit
        my ($match) = @_;
        state $page_offset = get_page_offset();
 
-       if ($match =~ '\b(0x)?(f|F){8}\b') {
+       if ($match =~ '\b(0x)?(f|F){7}[0-9a-f]\b') {
                return 1;
        }
 
@@ -346,18 +347,23 @@ sub is_in_vsyscall_memory_region
 # True if argument potentially contains a kernel address.
 sub may_leak_address
 {
-	my ($line) = @_;
+	my ($path, $line) = @_;
 	my $address_re;
 
-	# Signal masks.
+	# Ignore Signal masks.
 	if ($line =~ '^SigBlk:' or
 	    $line =~ '^SigIgn:' or
 	    $line =~ '^SigCgt:') {
 		return 0;
 	}
 
-	if ($line =~ '\bKEY=[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
-	    $line =~ '\b[[:xdigit:]]{14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b') {
+	# Ignore input device reporting.
+	# /proc/bus/input/devices: B: KEY=402000000 3803078f800d001 feffffdfffefffff fffffffffffffffe
+	# /sys/devices/platform/i8042/serio0/input/input1/uevent: KEY=402000000 3803078f800d001 feffffdfffefffff fffffffffffffffe
+	# /sys/devices/platform/i8042/serio0/input/input1/capabilities/key: 402000000 3803078f800d001 feffffdfffefffff fffffffffffffffe
+	if ($line =~ '\bKEY=[[:xdigit:]]{9,14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b' or
+            ($path =~ '\bkey$' and
+             $line =~ '\b[[:xdigit:]]{9,14} [[:xdigit:]]{16} [[:xdigit:]]{16}\b')) {
 		return 0;
 	}
 
@@ -400,7 +406,7 @@ sub parse_dmesg
 {
 	open my $cmd, '-|', 'dmesg';
 	while (<$cmd>) {
-		if (may_leak_address($_)) {
+		if (may_leak_address("dmesg", $_)) {
 			print 'dmesg: ' . $_;
 		}
 	}
@@ -456,7 +462,7 @@ sub parse_file
 	open my $fh, "<", $file or return;
 	while ( <$fh> ) {
 		chomp;
-		if (may_leak_address($_)) {
+		if (may_leak_address($file, $_)) {
 			printf("$file: $_\n");
 		}
 	}
@@ -468,7 +474,7 @@ sub check_path_for_leaks
 {
 	my ($path) = @_;
 
-	if (may_leak_address($path)) {
+	if (may_leak_address($path, $path)) {
 		printf("Path name may contain address: $path\n");
 	}
 }
