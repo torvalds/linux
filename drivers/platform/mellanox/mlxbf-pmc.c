@@ -966,32 +966,33 @@ static bool mlxbf_pmc_valid_range(unsigned int blk_num, u32 offset)
 }
 
 /* Get the event list corresponding to a certain block */
-static const struct mlxbf_pmc_events *mlxbf_pmc_event_list(const char *blk, size_t *size)
+static const struct mlxbf_pmc_events *mlxbf_pmc_event_list(const char *blk, size_t *psize)
 {
 	const struct mlxbf_pmc_events *events;
+	size_t size;
 
 	if (strstr(blk, "tilenet")) {
 		events = mlxbf_pmc_hnfnet_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_hnfnet_events);
+		size = ARRAY_SIZE(mlxbf_pmc_hnfnet_events);
 	} else if (strstr(blk, "tile")) {
 		events = mlxbf_pmc_hnf_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_hnf_events);
+		size = ARRAY_SIZE(mlxbf_pmc_hnf_events);
 	} else if (strstr(blk, "triogen")) {
 		events = mlxbf_pmc_smgen_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_smgen_events);
+		size = ARRAY_SIZE(mlxbf_pmc_smgen_events);
 	} else if (strstr(blk, "trio")) {
 		switch (pmc->event_set) {
 		case MLXBF_PMC_EVENT_SET_BF1:
 			events = mlxbf_pmc_trio_events_1;
-			*size = ARRAY_SIZE(mlxbf_pmc_trio_events_1);
+			size = ARRAY_SIZE(mlxbf_pmc_trio_events_1);
 			break;
 		case MLXBF_PMC_EVENT_SET_BF2:
 			events = mlxbf_pmc_trio_events_2;
-			*size = ARRAY_SIZE(mlxbf_pmc_trio_events_2);
+			size = ARRAY_SIZE(mlxbf_pmc_trio_events_2);
 			break;
 		default:
 			events = NULL;
-			*size = 0;
+			size = 0;
 			break;
 		}
 	} else if (strstr(blk, "mss")) {
@@ -999,42 +1000,45 @@ static const struct mlxbf_pmc_events *mlxbf_pmc_event_list(const char *blk, size
 		case MLXBF_PMC_EVENT_SET_BF1:
 		case MLXBF_PMC_EVENT_SET_BF2:
 			events = mlxbf_pmc_mss_events_1;
-			*size = ARRAY_SIZE(mlxbf_pmc_mss_events_1);
+			size = ARRAY_SIZE(mlxbf_pmc_mss_events_1);
 			break;
 		case MLXBF_PMC_EVENT_SET_BF3:
 			events = mlxbf_pmc_mss_events_3;
-			*size = ARRAY_SIZE(mlxbf_pmc_mss_events_3);
+			size = ARRAY_SIZE(mlxbf_pmc_mss_events_3);
 			break;
 		default:
 			events = NULL;
-			*size = 0;
+			size = 0;
 			break;
 		}
 	} else if (strstr(blk, "ecc")) {
 		events = mlxbf_pmc_ecc_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_ecc_events);
+		size = ARRAY_SIZE(mlxbf_pmc_ecc_events);
 	} else if (strstr(blk, "pcie")) {
 		events = mlxbf_pmc_pcie_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_pcie_events);
+		size = ARRAY_SIZE(mlxbf_pmc_pcie_events);
 	} else if (strstr(blk, "l3cache")) {
 		events = mlxbf_pmc_l3c_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_l3c_events);
+		size = ARRAY_SIZE(mlxbf_pmc_l3c_events);
 	} else if (strstr(blk, "gic")) {
 		events = mlxbf_pmc_smgen_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_smgen_events);
+		size = ARRAY_SIZE(mlxbf_pmc_smgen_events);
 	} else if (strstr(blk, "smmu")) {
 		events = mlxbf_pmc_smgen_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_smgen_events);
+		size = ARRAY_SIZE(mlxbf_pmc_smgen_events);
 	} else if (strstr(blk, "llt_miss")) {
 		events = mlxbf_pmc_llt_miss_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_llt_miss_events);
+		size = ARRAY_SIZE(mlxbf_pmc_llt_miss_events);
 	} else if (strstr(blk, "llt")) {
 		events = mlxbf_pmc_llt_events;
-		*size = ARRAY_SIZE(mlxbf_pmc_llt_events);
+		size = ARRAY_SIZE(mlxbf_pmc_llt_events);
 	} else {
 		events = NULL;
-		*size = 0;
+		size = 0;
 	}
+
+	if (psize)
+		*psize = size;
 
 	return events;
 }
