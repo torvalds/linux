@@ -85,9 +85,13 @@ config FORCE_TASKS_RCU
 	  idle, and user-mode execution as quiescent states.  Not for
 	  manual selection in most cases.
 
-config TASKS_RCU
+config NEED_TASKS_RCU
 	bool
 	default n
+
+config TASKS_RCU
+	bool
+	default NEED_TASKS_RCU && (PREEMPTION || PREEMPT_AUTO)
 	select IRQ_WORK
 
 config FORCE_TASKS_RUDE_RCU
