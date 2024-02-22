@@ -584,7 +584,6 @@ xchk_btree_get_block(
 	struct xfs_btree_block	**pblock,
 	struct xfs_buf		**pbp)
 {
-	xfs_failaddr_t		failed_at;
 	int			error;
 
 	*pblock = NULL;
@@ -596,13 +595,7 @@ xchk_btree_get_block(
 		return error;
 
 	xfs_btree_get_block(bs->cur, level, pbp);
-	if (bs->cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		failed_at = __xfs_btree_check_lblock(bs->cur, *pblock,
-				level, *pbp);
-	else
-		failed_at = __xfs_btree_check_sblock(bs->cur, *pblock,
-				 level, *pbp);
-	if (failed_at) {
+	if (__xfs_btree_check_block(bs->cur, *pblock, level, *pbp)) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
 	}

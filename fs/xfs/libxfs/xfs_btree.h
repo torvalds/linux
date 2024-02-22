@@ -334,15 +334,8 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
  */
 #define	XFS_BUF_TO_BLOCK(bp)	((struct xfs_btree_block *)((bp)->b_addr))
 
-/*
- * Internal long and short btree block checks.  They return NULL if the
- * block is ok or the address of the failed check otherwise.
- */
-xfs_failaddr_t __xfs_btree_check_lblock(struct xfs_btree_cur *cur,
+xfs_failaddr_t __xfs_btree_check_block(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, int level, struct xfs_buf *bp);
-xfs_failaddr_t __xfs_btree_check_sblock(struct xfs_btree_cur *cur,
-		struct xfs_btree_block *block, int level, struct xfs_buf *bp);
-
 int __xfs_btree_check_ptr(struct xfs_btree_cur *cur,
 		const union xfs_btree_ptr *ptr, int index, int level);
 
