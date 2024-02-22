@@ -31,6 +31,7 @@ static void idpf_remove(struct pci_dev *pdev)
 		idpf_sriov_configure(pdev, 0);
 
 	idpf_vc_core_deinit(adapter);
+
 	/* Be a good citizen and leave the device clean on exit */
 	adapter->dev_ops.reg_ops.trigger_reset(adapter, IDPF_HR_FUNC_RESET);
 	idpf_deinit_dflt_mbx(adapter);
@@ -67,6 +68,8 @@ destroy_wqs:
 	adapter->vport_config = NULL;
 	kfree(adapter->netdevs);
 	adapter->netdevs = NULL;
+	kfree(adapter->vcxn_mngr);
+	adapter->vcxn_mngr = NULL;
 
 	mutex_destroy(&adapter->vport_ctrl_lock);
 	mutex_destroy(&adapter->vector_lock);
