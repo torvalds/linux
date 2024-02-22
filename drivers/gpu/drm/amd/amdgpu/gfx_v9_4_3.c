@@ -680,9 +680,9 @@ static const struct amdgpu_gfx_funcs gfx_v9_4_3_gfx_funcs = {
 	.ih_node_to_logical_xcc = &gfx_v9_4_3_ih_to_xcc_inst,
 };
 
-static int gfx_v9_4_3_aca_bank_generate_report(struct aca_handle *handle,
-					       struct aca_bank *bank, enum aca_smu_type type,
-					       struct aca_bank_report *report, void *data)
+static int gfx_v9_4_3_aca_bank_parser(struct aca_handle *handle,
+				      struct aca_bank *bank, enum aca_smu_type type,
+				      void *data)
 {
 	struct aca_bank_info info;
 	u64 misc0;
@@ -736,7 +736,7 @@ static bool gfx_v9_4_3_aca_bank_is_valid(struct aca_handle *handle, struct aca_b
 }
 
 static const struct aca_bank_ops gfx_v9_4_3_aca_bank_ops = {
-	.aca_bank_generate_report = gfx_v9_4_3_aca_bank_generate_report,
+	.aca_bank_parser = gfx_v9_4_3_aca_bank_parser,
 	.aca_bank_is_valid = gfx_v9_4_3_aca_bank_is_valid,
 };
 

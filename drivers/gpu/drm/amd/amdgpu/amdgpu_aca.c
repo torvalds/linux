@@ -297,29 +297,26 @@ int aca_error_cache_log_bank_error(struct aca_handle *handle, struct aca_bank_in
 	return 0;
 }
 
-static int aca_generate_bank_report(struct aca_handle *handle, struct aca_bank *bank,
-				    enum aca_smu_type type, struct aca_bank_report *report)
+static int aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type)
 {
 	const struct aca_bank_ops *bank_ops = handle->bank_ops;
 
-	if (!bank || !report)
+	if (!bank)
 		return -EINVAL;
 
-	if (!bank_ops->aca_bank_generate_report)
+	if (!bank_ops->aca_bank_parser)
 		return -EOPNOTSUPP;
 
-	memset(report, 0, sizeof(*report));
-	return bank_ops->aca_bank_generate_report(handle, bank, type,
-						  report, handle->data);
+	return bank_ops->aca_bank_parser(handle, bank, type,
+					 handle->data);
 }
 
 static int handler_aca_log_bank_error(struct aca_handle *handle, struct aca_bank *bank,
-				      enum aca_smu_type smu_type, void *data)
+				      enum aca_smu_type type, void *data)
 {
-	struct aca_bank_report report;
 	int ret;
 
-	ret = aca_generate_bank_report(handle, bank, smu_type, &report);
+	ret = aca_bank_parser(handle, bank, type);
 	if (ret)
 		return ret;
 

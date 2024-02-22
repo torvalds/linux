@@ -122,11 +122,6 @@ struct aca_bank_info {
 	int mcatype;
 };
 
-struct aca_bank_report {
-	struct aca_bank_info info;
-	u64 count[ACA_ERROR_TYPE_COUNT];
-};
-
 struct aca_bank_error {
 	struct list_head node;
 	struct aca_bank_info info;
@@ -164,8 +159,7 @@ struct aca_handle {
 };
 
 struct aca_bank_ops {
-	int (*aca_bank_generate_report)(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type,
-					struct aca_bank_report *report, void *data);
+	int (*aca_bank_parser)(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type, void *data);
 	bool (*aca_bank_is_valid)(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type,
 				  void *data);
 };

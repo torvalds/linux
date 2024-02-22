@@ -2189,9 +2189,8 @@ static const struct amdgpu_ras_block_hw_ops sdma_v4_4_2_ras_hw_ops = {
 	.reset_ras_error_count = sdma_v4_4_2_reset_ras_error_count,
 };
 
-static int sdma_v4_4_2_aca_bank_generate_report(struct aca_handle *handle,
-						struct aca_bank *bank, enum aca_smu_type type,
-						struct aca_bank_report *report, void *data)
+static int sdma_v4_4_2_aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank,
+				       enum aca_smu_type type, void *data)
 {
 	struct aca_bank_info info;
 	u64 misc0;
@@ -2241,7 +2240,7 @@ static bool sdma_v4_4_2_aca_bank_is_valid(struct aca_handle *handle, struct aca_
 }
 
 static const struct aca_bank_ops sdma_v4_4_2_aca_bank_ops = {
-	.aca_bank_generate_report = sdma_v4_4_2_aca_bank_generate_report,
+	.aca_bank_parser = sdma_v4_4_2_aca_bank_parser,
 	.aca_bank_is_valid = sdma_v4_4_2_aca_bank_is_valid,
 };
 

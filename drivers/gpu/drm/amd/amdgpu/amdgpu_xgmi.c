@@ -1035,8 +1035,8 @@ int amdgpu_xgmi_remove_device(struct amdgpu_device *adev)
 	return 0;
 }
 
-static int xgmi_v6_4_0_aca_bank_generate_report(struct aca_handle *handle, struct aca_bank *bank, enum aca_smu_type type,
-						struct aca_bank_report *report, void *data)
+static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank *bank,
+				       enum aca_smu_type type, void *data)
 {
 	struct amdgpu_device *adev = handle->adev;
 	struct aca_bank_info info;
@@ -1075,7 +1075,7 @@ static int xgmi_v6_4_0_aca_bank_generate_report(struct aca_handle *handle, struc
 }
 
 static const struct aca_bank_ops xgmi_v6_4_0_aca_bank_ops = {
-	.aca_bank_generate_report = xgmi_v6_4_0_aca_bank_generate_report,
+	.aca_bank_parser = xgmi_v6_4_0_aca_bank_parser,
 };
 
 static const struct aca_info xgmi_v6_4_0_aca_info = {
