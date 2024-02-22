@@ -81,8 +81,11 @@ struct xchk_nlink {
  */
 #define XCHK_NLINK_WRITTEN		(1U << 0)
 
-/* This data item was seen by the check-time compare function. */
+/* Already checked this link count record. */
 #define XCHK_NLINK_COMPARE_SCANNED	(1U << 1)
+
+/* Already made a repair with this link count record. */
+#define XREP_NLINK_DIRTY		(1U << 2)
 
 /* Compute total link count, using large enough variables to detect overflow. */
 static inline uint64_t
