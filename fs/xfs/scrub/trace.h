@@ -16,10 +16,12 @@
 #include <linux/tracepoint.h>
 #include "xfs_bit.h"
 
+struct xfs_scrub;
 struct xfile;
 struct xfarray;
 struct xfarray_sortinfo;
 struct xchk_dqiter;
+struct xchk_iscan;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -1145,6 +1147,110 @@ TRACE_EVENT(xchk_rtsum_record_free,
 		  __entry->value)
 );
 #endif /* CONFIG_XFS_RT */
+
+DECLARE_EVENT_CLASS(xchk_iscan_class,
+	TP_PROTO(struct xchk_iscan *iscan),
+	TP_ARGS(iscan),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited)
+)
+#define DEFINE_ISCAN_EVENT(name) \
+DEFINE_EVENT(xchk_iscan_class, name, \
+	TP_PROTO(struct xchk_iscan *iscan), \
+	TP_ARGS(iscan))
+DEFINE_ISCAN_EVENT(xchk_iscan_move_cursor);
+DEFINE_ISCAN_EVENT(xchk_iscan_visit);
+DEFINE_ISCAN_EVENT(xchk_iscan_advance_ag);
+DEFINE_ISCAN_EVENT(xchk_iscan_start);
+
+DECLARE_EVENT_CLASS(xchk_iscan_ino_class,
+	TP_PROTO(struct xchk_iscan *iscan, xfs_ino_t ino),
+	TP_ARGS(iscan, ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(xfs_ino_t, ino)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->ino = ino;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->ino)
+)
+#define DEFINE_ISCAN_INO_EVENT(name) \
+DEFINE_EVENT(xchk_iscan_ino_class, name, \
+	TP_PROTO(struct xchk_iscan *iscan, xfs_ino_t ino), \
+	TP_ARGS(iscan, ino))
+DEFINE_ISCAN_INO_EVENT(xchk_iscan_want_live_update);
+
+TRACE_EVENT(xchk_iscan_iget,
+	TP_PROTO(struct xchk_iscan *iscan, int error),
+	TP_ARGS(iscan, error),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(int, error)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->error = error;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->error)
+);
+
+TRACE_EVENT(xchk_iscan_iget_retry_wait,
+	TP_PROTO(struct xchk_iscan *iscan),
+	TP_ARGS(iscan),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(unsigned int, retry_delay)
+		__field(unsigned long, remaining)
+		__field(unsigned int, iget_timeout)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->retry_delay = iscan->iget_retry_delay;
+		__entry->remaining = jiffies_to_msecs(iscan->__iget_deadline - jiffies);
+		__entry->iget_timeout = iscan->iget_timeout;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx remaining %lu timeout %u delay %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->remaining,
+		  __entry->iget_timeout,
+		  __entry->retry_delay)
+);
 
 /* repair tracepoints */
 #if IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR)
