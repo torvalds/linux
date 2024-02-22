@@ -2001,18 +2001,6 @@ xfs_setsize_buftarg(
 	return 0;
 }
 
-/*
- * When allocating the initial buffer target we have not yet
- * read in the superblock, so don't know what sized sectors
- * are being used at this early stage.  Play safe.
- */
-STATIC int
-xfs_setsize_buftarg_early(
-	struct xfs_buftarg	*btp)
-{
-	return xfs_setsize_buftarg(btp, bdev_logical_block_size(btp->bt_bdev));
-}
-
 struct xfs_buftarg *
 xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
@@ -2034,14 +2022,18 @@ xfs_alloc_buftarg(
 					    mp, ops);
 
 	/*
+	 * When allocating the buftargs we have not yet read the super block and
+	 * thus don't know the file system sector size yet.
+	 */
+	if (xfs_setsize_buftarg(btp, bdev_logical_block_size(btp->bt_bdev)))
+		goto error_free;
+
+	/*
 	 * Buffer IO error rate limiting. Limit it to no more than 10 messages
 	 * per 30 seconds so as to not spam logs too much on repeated errors.
 	 */
 	ratelimit_state_init(&btp->bt_ioerror_rl, 30 * HZ,
 			     DEFAULT_RATELIMIT_BURST);
-
-	if (xfs_setsize_buftarg_early(btp))
-		goto error_free;
 
 	if (list_lru_init(&btp->bt_lru))
 		goto error_free;
