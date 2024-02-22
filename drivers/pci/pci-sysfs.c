@@ -1387,79 +1387,89 @@ static const struct attribute_group pci_dev_reset_attr_group = {
 	.is_visible = pci_dev_reset_attr_is_visible,
 };
 
+static ssize_t __resource_resize_show(struct device *dev, int n, char *buf)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	ssize_t ret;
+
+	pci_config_pm_runtime_get(pdev);
+
+	ret = sysfs_emit(buf, "%016llx\n",
+			 (u64)pci_rebar_get_possible_sizes(pdev, n));
+
+	pci_config_pm_runtime_put(pdev);
+
+	return ret;
+}
+
+static ssize_t __resource_resize_store(struct device *dev, int n,
+				       const char *buf, size_t count)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	unsigned long size, flags;
+	int ret, i;
+	u16 cmd;
+
+	if (kstrtoul(buf, 0, &size) < 0)
+		return -EINVAL;
+
+	device_lock(dev);
+	if (dev->driver) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	pci_config_pm_runtime_get(pdev);
+
+	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {
+		ret = aperture_remove_conflicting_pci_devices(pdev,
+						"resourceN_resize");
+		if (ret)
+			goto pm_put;
+	}
+
+	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+	pci_write_config_word(pdev, PCI_COMMAND,
+			      cmd & ~PCI_COMMAND_MEMORY);
+
+	flags = pci_resource_flags(pdev, n);
+
+	pci_remove_resource_files(pdev);
+
+	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
+		if (pci_resource_len(pdev, i) &&
+		    pci_resource_flags(pdev, i) == flags)
+			pci_release_resource(pdev, i);
+	}
+
+	ret = pci_resize_resource(pdev, n, size);
+
+	pci_assign_unassigned_bus_resources(pdev->bus);
+
+	if (pci_create_resource_files(pdev))
+		pci_warn(pdev, "Failed to recreate resource files after BAR resizing\n");
+
+	pci_write_config_word(pdev, PCI_COMMAND, cmd);
+pm_put:
+	pci_config_pm_runtime_put(pdev);
+unlock:
+	device_unlock(dev);
+
+	return ret ? ret : count;
+}
+
 #define pci_dev_resource_resize_attr(n)					\
 static ssize_t resource##n##_resize_show(struct device *dev,		\
 					 struct device_attribute *attr,	\
-					 char * buf)			\
+					 char *buf)			\
 {									\
-	struct pci_dev *pdev = to_pci_dev(dev);				\
-	ssize_t ret;							\
-									\
-	pci_config_pm_runtime_get(pdev);				\
-									\
-	ret = sysfs_emit(buf, "%016llx\n",				\
-			 (u64)pci_rebar_get_possible_sizes(pdev, n));	\
-									\
-	pci_config_pm_runtime_put(pdev);				\
-									\
-	return ret;							\
+	return __resource_resize_show(dev, n, buf);			\
 }									\
-									\
 static ssize_t resource##n##_resize_store(struct device *dev,		\
 					  struct device_attribute *attr,\
 					  const char *buf, size_t count)\
 {									\
-	struct pci_dev *pdev = to_pci_dev(dev);				\
-	unsigned long size, flags;					\
-	int ret, i;							\
-	u16 cmd;							\
-									\
-	if (kstrtoul(buf, 0, &size) < 0)				\
-		return -EINVAL;						\
-									\
-	device_lock(dev);						\
-	if (dev->driver) {						\
-		ret = -EBUSY;						\
-		goto unlock;						\
-	}								\
-									\
-	pci_config_pm_runtime_get(pdev);				\
-									\
-	if ((pdev->class >> 8) == PCI_CLASS_DISPLAY_VGA) {		\
-		ret = aperture_remove_conflicting_pci_devices(pdev,	\
-						"resourceN_resize");	\
-		if (ret)						\
-			goto pm_put;					\
-	}								\
-									\
-	pci_read_config_word(pdev, PCI_COMMAND, &cmd);			\
-	pci_write_config_word(pdev, PCI_COMMAND,			\
-			      cmd & ~PCI_COMMAND_MEMORY);		\
-									\
-	flags = pci_resource_flags(pdev, n);				\
-									\
-	pci_remove_resource_files(pdev);				\
-									\
-	for (i = 0; i < PCI_STD_NUM_BARS; i++) {			\
-		if (pci_resource_len(pdev, i) &&			\
-		    pci_resource_flags(pdev, i) == flags)		\
-			pci_release_resource(pdev, i);			\
-	}								\
-									\
-	ret = pci_resize_resource(pdev, n, size);			\
-									\
-	pci_assign_unassigned_bus_resources(pdev->bus);			\
-									\
-	if (pci_create_resource_files(pdev))				\
-		pci_warn(pdev, "Failed to recreate resource files after BAR resizing\n");\
-									\
-	pci_write_config_word(pdev, PCI_COMMAND, cmd);			\
-pm_put:									\
-	pci_config_pm_runtime_put(pdev);				\
-unlock:									\
-	device_unlock(dev);						\
-									\
-	return ret ? ret : count;					\
+	return __resource_resize_store(dev, n, buf, count);		\
 }									\
 static DEVICE_ATTR_RW(resource##n##_resize)
 
