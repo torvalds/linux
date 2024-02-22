@@ -108,8 +108,6 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 static DEFINE_MUTEX(ubd_lock);
 static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
 
-static int ubd_open(struct gendisk *disk, blk_mode_t mode);
-static void ubd_release(struct gendisk *disk);
 static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -118,8 +116,6 @@ static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
 static const struct block_device_operations ubd_blops = {
         .owner		= THIS_MODULE,
-        .open		= ubd_open,
-        .release	= ubd_release,
         .ioctl		= ubd_ioctl,
         .compat_ioctl	= blkdev_compat_ptr_ioctl,
 	.getgeo		= ubd_getgeo,
@@ -152,7 +148,6 @@ struct ubd {
 	 * backing or the cow file. */
 	char *file;
 	char *serial;
-	int count;
 	int fd;
 	__u64 size;
 	struct openflags boot_openflags;
@@ -178,7 +173,6 @@ struct ubd {
 #define DEFAULT_UBD { \
 	.file = 		NULL, \
 	.serial =		NULL, \
-	.count =		0, \
 	.fd =			-1, \
 	.size =			-1, \
 	.boot_openflags =	OPEN_FLAGS, \
@@ -873,6 +867,13 @@ static int ubd_add(int n, char **error_out)
 		goto out;
 	}
 
+	err = ubd_open_dev(ubd_dev);
+	if (err) {
+		pr_err("ubd%c: Can't open \"%s\": errno = %d\n",
+			'a' + n, ubd_dev->file, -err);
+		goto out;
+	}
+
 	ubd_dev->size = ROUND_BLOCK(ubd_dev->size);
 
 	ubd_dev->tag_set.ops = &ubd_mq_ops;
@@ -884,7 +885,7 @@ static int ubd_add(int n, char **error_out)
 
 	err = blk_mq_alloc_tag_set(&ubd_dev->tag_set);
 	if (err)
-		goto out;
+		goto out_close;
 
 	disk = blk_mq_alloc_disk(&ubd_dev->tag_set, &lim, ubd_dev);
 	if (IS_ERR(disk)) {
@@ -919,6 +920,8 @@ out_cleanup_disk:
 	put_disk(disk);
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
+out_close:
+	ubd_close_dev(ubd_dev);
 out:
 	return err;
 }
@@ -1014,13 +1017,14 @@ static int ubd_remove(int n, char **error_out)
 	if(ubd_dev->file == NULL)
 		goto out;
 
-	/* you cannot remove a open disk */
-	err = -EBUSY;
-	if(ubd_dev->count > 0)
-		goto out;
-
 	if (ubd_dev->disk) {
+		/* you cannot remove a open disk */
+		err = -EBUSY;
+		if (disk_openers(ubd_dev->disk))
+			goto out;
+
 		del_gendisk(ubd_dev->disk);
+		ubd_close_dev(ubd_dev);
 		put_disk(ubd_dev->disk);
 	}
 
@@ -1142,36 +1146,6 @@ static int __init ubd_driver_init(void){
 }
 
 device_initcall(ubd_driver_init);
-
-static int ubd_open(struct gendisk *disk, blk_mode_t mode)
-{
-	struct ubd *ubd_dev = disk->private_data;
-	int err = 0;
-
-	mutex_lock(&ubd_mutex);
-	if(ubd_dev->count == 0){
-		err = ubd_open_dev(ubd_dev);
-		if(err){
-			printk(KERN_ERR "%s: Can't open \"%s\": errno = %d\n",
-			       disk->disk_name, ubd_dev->file, -err);
-			goto out;
-		}
-	}
-	ubd_dev->count++;
-out:
-	mutex_unlock(&ubd_mutex);
-	return err;
-}
-
-static void ubd_release(struct gendisk *disk)
-{
-	struct ubd *ubd_dev = disk->private_data;
-
-	mutex_lock(&ubd_mutex);
-	if(--ubd_dev->count == 0)
-		ubd_close_dev(ubd_dev);
-	mutex_unlock(&ubd_mutex);
-}
 
 static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,
 			  __u64 *cow_offset, unsigned long *bitmap,
