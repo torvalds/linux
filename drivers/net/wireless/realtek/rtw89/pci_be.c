@@ -19,6 +19,54 @@ enum pcie_rxbd_mode {
 #define PL0_TMR_MAC_1MS 0x27100
 #define PL0_TMR_AUX_1MS 0x1E848
 
+static void rtw89_pci_aspm_set_be(struct rtw89_dev *rtwdev, bool enable)
+{
+	struct rtw89_pci *rtwpci = (struct rtw89_pci *)rtwdev->priv;
+	struct pci_dev *pdev = rtwpci->pdev;
+	u8 value = 0;
+	int ret;
+
+	ret = pci_read_config_byte(pdev, RTW89_PCIE_ASPM_CTRL, &value);
+	if (ret)
+		rtw89_warn(rtwdev, "failed to read ASPM Delay\n");
+
+	u8p_replace_bits(&value, PCIE_L1DLY_16US, RTW89_L1DLY_MASK);
+
+	ret = pci_write_config_byte(pdev, RTW89_PCIE_ASPM_CTRL, value);
+	if (ret)
+		rtw89_warn(rtwdev, "failed to write ASPM Delay\n");
+
+	if (enable)
+		rtw89_write32_set(rtwdev, R_AX_PCIE_MIX_CFG_V1,
+				  B_BE_ASPM_CTRL_L1);
+	else
+		rtw89_write32_clr(rtwdev, R_AX_PCIE_MIX_CFG_V1,
+				  B_BE_ASPM_CTRL_L1);
+}
+
+static void rtw89_pci_l1ss_set_be(struct rtw89_dev *rtwdev, bool enable)
+{
+	if (enable)
+		rtw89_write32_set(rtwdev, R_BE_PCIE_MIX_CFG,
+				  B_BE_L1SUB_ENABLE);
+	else
+		rtw89_write32_clr(rtwdev, R_BE_PCIE_MIX_CFG,
+				  B_BE_L1SUB_ENABLE);
+}
+
+static void rtw89_pci_clkreq_set_be(struct rtw89_dev *rtwdev, bool enable)
+{
+	rtw89_write32_mask(rtwdev, R_BE_PCIE_LAT_CTRL, B_BE_CLK_REQ_LAT_MASK,
+			   PCIE_CLKDLY_HW_V1_0);
+
+	if (enable)
+		rtw89_write32_set(rtwdev, R_BE_L1_CLK_CTRL,
+				  B_BE_CLK_PM_EN);
+	else
+		rtw89_write32_clr(rtwdev, R_AX_L1_CLK_CTRL,
+				  B_BE_CLK_PM_EN);
+}
+
 static void _patch_pcie_power_wake_be(struct rtw89_dev *rtwdev, bool power_up)
 {
 	if (power_up)
@@ -510,5 +558,9 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 
 	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_be,
 	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_be,
+
+	.aspm_set = rtw89_pci_aspm_set_be,
+	.clkreq_set = rtw89_pci_clkreq_set_be,
+	.l1ss_set = rtw89_pci_l1ss_set_be,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_be);

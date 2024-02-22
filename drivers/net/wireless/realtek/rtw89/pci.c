@@ -3652,11 +3652,19 @@ static int rtw89_pci_filter_out(struct rtw89_dev *rtwdev)
 
 static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
-	int ret;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	if (rtw89_pci_disable_clkreq)
 		return;
+
+	gen_def->clkreq_set(rtwdev, enable);
+}
+
+static void rtw89_pci_clkreq_set_ax(struct rtw89_dev *rtwdev, bool enable)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	int ret;
 
 	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_CLK_CTRL,
 					  PCIE_CLKDLY_HW_30US);
@@ -3689,24 +3697,31 @@ static void rtw89_pci_clkreq_set(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_pci_aspm_set(struct rtw89_dev *rtwdev, bool enable)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
-	u8 value = 0;
-	int ret;
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
 
 	if (rtw89_pci_disable_aspm_l1)
 		return;
 
+	gen_def->aspm_set(rtwdev, enable);
+}
+
+static void rtw89_pci_aspm_set_ax(struct rtw89_dev *rtwdev, bool enable)
+{
+	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u8 value = 0;
+	int ret;
+
 	ret = rtw89_pci_read_config_byte(rtwdev, RTW89_PCIE_ASPM_CTRL, &value);
 	if (ret)
-		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
+		rtw89_warn(rtwdev, "failed to read ASPM Delay\n");
 
-	value &= ~(RTW89_L1DLY_MASK | RTW89_L0DLY_MASK);
-	value |= FIELD_PREP(RTW89_L1DLY_MASK, PCIE_L1DLY_16US) |
-		 FIELD_PREP(RTW89_L0DLY_MASK, PCIE_L0SDLY_4US);
+	u8p_replace_bits(&value, PCIE_L1DLY_16US, RTW89_L1DLY_MASK);
+	u8p_replace_bits(&value, PCIE_L0SDLY_4US, RTW89_L0DLY_MASK);
 
 	ret = rtw89_pci_write_config_byte(rtwdev, RTW89_PCIE_ASPM_CTRL, value);
 	if (ret)
-		rtw89_err(rtwdev, "failed to read ASPM Delay\n");
+		rtw89_warn(rtwdev, "failed to read ASPM Delay\n");
 
 	if (chip_id == RTL8852A || chip_id == RTL8852B || chip_id == RTL8851B) {
 		if (enable)
@@ -3792,6 +3807,17 @@ static void rtw89_pci_link_cfg(struct rtw89_dev *rtwdev)
 }
 
 static void rtw89_pci_l1ss_set(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	if (rtw89_pci_disable_l1ss)
+		return;
+
+	gen_def->l1ss_set(rtwdev, enable);
+}
+
+static void rtw89_pci_l1ss_set_ax(struct rtw89_dev *rtwdev, bool enable)
 {
 	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
 	int ret;
@@ -4066,6 +4092,10 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 
 	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_ax,
 	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_ax,
+
+	.aspm_set = rtw89_pci_aspm_set_ax,
+	.clkreq_set = rtw89_pci_clkreq_set_ax,
+	.l1ss_set = rtw89_pci_l1ss_set_ax,
 };
 EXPORT_SYMBOL(rtw89_pci_gen_ax);
 
