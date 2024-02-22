@@ -39,7 +39,7 @@
 
 			cpu0_intc: interrupt-controller {
 				#interrupt-cells = <1>;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				interrupt-controller;
 			};
 		};
