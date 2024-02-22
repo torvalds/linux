@@ -5321,6 +5321,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
 		if (need_full_reset) {
 			/* post card */
+			amdgpu_ras_set_fed(tmp_adev, false);
 			r = amdgpu_device_asic_init(tmp_adev);
 			if (r) {
 				dev_warn(tmp_adev->dev, "asic atom init failed!");
