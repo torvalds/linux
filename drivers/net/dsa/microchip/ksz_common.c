@@ -1897,6 +1897,29 @@ static void ksz_get_strings(struct dsa_switch *ds, int port,
 	}
 }
 
+/**
+ * ksz_update_port_member - Adjust port forwarding rules based on STP state and
+ *			    isolation settings.
+ * @dev: A pointer to the struct ksz_device representing the device.
+ * @port: The port number to adjust.
+ *
+ * This function dynamically adjusts the port membership configuration for a
+ * specified port and other device ports, based on Spanning Tree Protocol (STP)
+ * states and port isolation settings. Each port, including the CPU port, has a
+ * membership register, represented as a bitfield, where each bit corresponds
+ * to a port number. A set bit indicates permission to forward frames to that
+ * port. This function iterates over all ports, updating the membership register
+ * to reflect current forwarding permissions:
+ *
+ * 1. Forwards frames only to ports that are part of the same bridge group and
+ *    in the BR_STATE_FORWARDING state.
+ * 2. Takes into account the isolation status of ports; ports in the
+ *    BR_STATE_FORWARDING state with BR_ISOLATED configuration will not forward
+ *    frames to each other, even if they are in the same bridge group.
+ * 3. Ensures that the CPU port is included in the membership based on its
+ *    upstream port configuration, allowing for management and control traffic
+ *    to flow as required.
+ */
 static void ksz_update_port_member(struct ksz_device *dev, int port)
 {
 	struct ksz_port *p = &dev->ports[port];
@@ -1925,7 +1948,14 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 		if (other_p->stp_state != BR_STATE_FORWARDING)
 			continue;
 
-		if (p->stp_state == BR_STATE_FORWARDING) {
+		/* At this point we know that "port" and "other" port [i] are in
+		 * the same bridge group and that "other" port [i] is in
+		 * forwarding stp state. If "port" is also in forwarding stp
+		 * state, we can allow forwarding from port [port] to port [i].
+		 * Except if both ports are isolated.
+		 */
+		if (p->stp_state == BR_STATE_FORWARDING &&
+		    !(p->isolated && other_p->isolated)) {
 			val |= BIT(port);
 			port_member |= BIT(i);
 		}
@@ -1944,8 +1974,19 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 			third_p = &dev->ports[j];
 			if (third_p->stp_state != BR_STATE_FORWARDING)
 				continue;
+
 			third_dp = dsa_to_port(ds, j);
-			if (dsa_port_bridge_same(other_dp, third_dp))
+
+			/* Now we updating relation of the "other" port [i] to
+			 * the "third" port [j]. We already know that "other"
+			 * port [i] is in forwarding stp state and that "third"
+			 * port [j] is in forwarding stp state too.
+			 * We need to check if "other" port [i] and "third" port
+			 * [j] are in the same bridge group and not isolated
+			 * before allowing forwarding from port [i] to port [j].
+			 */
+			if (dsa_port_bridge_same(other_dp, third_dp) &&
+			    !(other_p->isolated && third_p->isolated))
 				val |= BIT(j);
 		}
 
@@ -2698,7 +2739,7 @@ static int ksz_port_pre_bridge_flags(struct dsa_switch *ds, int port,
 				     struct switchdev_brport_flags flags,
 				     struct netlink_ext_ack *extack)
 {
-	if (flags.mask & ~BR_LEARNING)
+	if (flags.mask & ~(BR_LEARNING | BR_ISOLATED))
 		return -EINVAL;
 
 	return 0;
@@ -2711,8 +2752,12 @@ static int ksz_port_bridge_flags(struct dsa_switch *ds, int port,
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p = &dev->ports[port];
 
-	if (flags.mask & BR_LEARNING) {
-		p->learning = !!(flags.val & BR_LEARNING);
+	if (flags.mask & (BR_LEARNING | BR_ISOLATED)) {
+		if (flags.mask & BR_LEARNING)
+			p->learning = !!(flags.val & BR_LEARNING);
+
+		if (flags.mask & BR_ISOLATED)
+			p->isolated = !!(flags.val & BR_ISOLATED);
 
 		/* Make the change take effect immediately */
 		ksz_port_stp_state_set(ds, port, p->stp_state);

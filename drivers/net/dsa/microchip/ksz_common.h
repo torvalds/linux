@@ -110,6 +110,7 @@ struct ksz_switch_macaddr {
 struct ksz_port {
 	bool remove_tag;		/* Remove Tag flag set, for ksz8795 only */
 	bool learning;
+	bool isolated;
 	int stp_state;
 	struct phy_device phydev;
 
