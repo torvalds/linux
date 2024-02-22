@@ -24,6 +24,7 @@
 #include "scrub/quota.h"
 #include "scrub/iscan.h"
 #include "scrub/nlinks.h"
+#include "scrub/fscounters.h"
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t
