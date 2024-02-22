@@ -327,7 +327,7 @@ void switch_mm(struct mm_struct *prev, struct mm_struct *next,
 	unsigned long flags;
 
 	local_irq_save(flags);
-	switch_mm_irqs_off(prev, next, tsk);
+	switch_mm_irqs_off(NULL, next, tsk);
 	local_irq_restore(flags);
 }
 
