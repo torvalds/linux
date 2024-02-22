@@ -1476,11 +1476,6 @@ static void heuristic_collect_sample(struct inode *inode, u64 start, u64 end,
 /*
  * Compression heuristic.
  *
- * For now is's a naive and optimistic 'return true', we'll extend the logic to
- * quickly (compared to direct compression) detect data characteristics
- * (compressible/incompressible) to avoid wasting CPU time on incompressible
- * data.
- *
  * The following types of analysis can be performed:
  * - detect mostly zero data
  * - detect data with low "byte set" size (text, etc)
