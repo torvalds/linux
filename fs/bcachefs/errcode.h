@@ -78,6 +78,7 @@
 	x(ENOMEM,			ENOMEM_fs_name_alloc)			\
 	x(ENOMEM,			ENOMEM_fs_other_alloc)			\
 	x(ENOMEM,			ENOMEM_dev_alloc)			\
+	x(ENOMEM,			ENOMEM_disk_accounting)			\
 	x(ENOSPC,			ENOSPC_disk_reservation)		\
 	x(ENOSPC,			ENOSPC_bucket_alloc)			\
 	x(ENOSPC,			ENOSPC_disk_label_add)			\
