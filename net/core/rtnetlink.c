@@ -1611,10 +1611,10 @@ static int put_master_ifindex(struct sk_buff *skb, struct net_device *dev)
 static int nla_put_iflink(struct sk_buff *skb, const struct net_device *dev,
 			  bool force)
 {
-	int ifindex = dev_get_iflink(dev);
+	int iflink = dev_get_iflink(dev);
 
-	if (force || dev->ifindex != ifindex)
-		return nla_put_u32(skb, IFLA_LINK, ifindex);
+	if (force || READ_ONCE(dev->ifindex) != iflink)
+		return nla_put_u32(skb, IFLA_LINK, iflink);
 
 	return 0;
 }

@@ -762,9 +762,9 @@ static void vlan_dev_netpoll_cleanup(struct net_device *dev)
 
 static int vlan_dev_get_iflink(const struct net_device *dev)
 {
-	struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
+	const struct net_device *real_dev = vlan_dev_priv(dev)->real_dev;
 
-	return real_dev->ifindex;
+	return READ_ONCE(real_dev->ifindex);
 }
 
 static int vlan_dev_fill_forward_path(struct net_device_path_ctx *ctx,

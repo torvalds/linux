@@ -352,7 +352,7 @@ void dsa_user_mii_bus_init(struct dsa_switch *ds)
 /* user device handling ****************************************************/
 static int dsa_user_get_iflink(const struct net_device *dev)
 {
-	return dsa_user_to_conduit(dev)->ifindex;
+	return READ_ONCE(dsa_user_to_conduit(dev)->ifindex);
 }
 
 static int dsa_user_open(struct net_device *dev)

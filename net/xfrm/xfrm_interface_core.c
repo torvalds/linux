@@ -727,7 +727,7 @@ static int xfrmi_get_iflink(const struct net_device *dev)
 {
 	struct xfrm_if *xi = netdev_priv(dev);
 
-	return xi->p.link;
+	return READ_ONCE(xi->p.link);
 }
 
 static const struct net_device_ops xfrmi_netdev_ops = {
