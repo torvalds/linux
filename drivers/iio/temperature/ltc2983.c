@@ -1346,7 +1346,7 @@ static irqreturn_t ltc2983_irq_handler(int irq, void *data)
 	__chan; \
 })
 
-static int ltc2983_parse_dt(struct ltc2983_data *st)
+static int ltc2983_parse_fw(struct ltc2983_data *st)
 {
 	struct device *dev = &st->spi->dev;
 	struct fwnode_handle *child;
@@ -1630,7 +1630,7 @@ static int ltc2983_probe(struct spi_device *spi)
 	st->eeprom_key = cpu_to_be32(LTC2983_EEPROM_KEY);
 	spi_set_drvdata(spi, st);
 
-	ret = ltc2983_parse_dt(st);
+	ret = ltc2983_parse_fw(st);
 	if (ret)
 		return ret;
 
