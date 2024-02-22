@@ -393,17 +393,6 @@ xfs_btree_read_bufl(
 
 /*
  * Read-ahead the block, don't wait for it, don't return a buffer.
- * Long-form addressing.
- */
-void					/* error */
-xfs_btree_reada_bufl(
-	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	xfs_extlen_t		count,	/* count of filesystem blocks */
-	const struct xfs_buf_ops *ops);
-
-/*
- * Read-ahead the block, don't wait for it, don't return a buffer.
  * Short-form addressing.
  */
 void					/* error */
