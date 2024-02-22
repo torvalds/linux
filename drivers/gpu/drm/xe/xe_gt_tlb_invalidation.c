@@ -287,6 +287,14 @@ int xe_gt_tlb_invalidation_vma(struct xe_gt *gt,
 
 	xe_gt_assert(gt, vma);
 
+	/* Execlists not supported */
+	if (gt_to_xe(gt)->info.force_execlist) {
+		if (fence)
+			__invalidation_fence_signal(fence);
+
+		return 0;
+	}
+
 	action[len++] = XE_GUC_ACTION_TLB_INVALIDATION;
 	action[len++] = 0; /* seqno, replaced in send_tlb_invalidation */
 	if (!xe->info.has_range_tlb_invalidation) {
@@ -354,6 +362,10 @@ int xe_gt_tlb_invalidation_wait(struct xe_gt *gt, int seqno)
 {
 	struct xe_guc *guc = &gt->uc.guc;
 	int ret;
+
+	/* Execlists not supported */
+	if (gt_to_xe(gt)->info.force_execlist)
+		return 0;
 
 	/*
 	 * XXX: See above, this algorithm only works if seqno are always in
