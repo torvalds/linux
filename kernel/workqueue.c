@@ -409,6 +409,10 @@ static const char *wq_affn_names[WQ_AFFN_NR_TYPES] = {
  */
 static unsigned long wq_cpu_intensive_thresh_us = ULONG_MAX;
 module_param_named(cpu_intensive_thresh_us, wq_cpu_intensive_thresh_us, ulong, 0644);
+#ifdef CONFIG_WQ_CPU_INTENSIVE_REPORT
+static unsigned int wq_cpu_intensive_warning_thresh = 4;
+module_param_named(cpu_intensive_warning_thresh, wq_cpu_intensive_warning_thresh, uint, 0644);
+#endif
 
 /* see the comment above the definition of WQ_POWER_EFFICIENT */
 static bool wq_power_efficient = IS_ENABLED(CONFIG_WQ_POWER_EFFICIENT_DEFAULT);
@@ -1327,11 +1331,13 @@ restart:
 		u64 cnt;
 
 		/*
-		 * Start reporting from the fourth time and back off
+		 * Start reporting from the warning_thresh and back off
 		 * exponentially.
 		 */
 		cnt = atomic64_inc_return_relaxed(&ent->cnt);
-		if (cnt >= 4 && is_power_of_2(cnt))
+		if (wq_cpu_intensive_warning_thresh &&
+		    cnt >= wq_cpu_intensive_warning_thresh &&
+		    is_power_of_2(cnt + 1 - wq_cpu_intensive_warning_thresh))
 			printk_deferred(KERN_WARNING "workqueue: %ps hogged CPU for >%luus %llu times, consider switching to WQ_UNBOUND\n",
 					ent->func, wq_cpu_intensive_thresh_us,
 					atomic64_read(&ent->cnt));
@@ -1360,10 +1366,12 @@ restart:
 
 	ent = &wci_ents[wci_nr_ents++];
 	ent->func = func;
-	atomic64_set(&ent->cnt, 1);
+	atomic64_set(&ent->cnt, 0);
 	hash_add_rcu(wci_hash, &ent->hash_node, (unsigned long)func);
 
 	raw_spin_unlock(&wci_lock);
+
+	goto restart;
 }
 
 #else	/* CONFIG_WQ_CPU_INTENSIVE_REPORT */
