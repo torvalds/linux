@@ -724,6 +724,7 @@ Description:	Support configuring fault injection type, should be
 		FAULT_LOCK_OP                    0x000020000
 		FAULT_BLKADDR_VALIDITY           0x000040000
 		FAULT_BLKADDR_CONSISTENCE        0x000080000
+		FAULT_NO_SEGMENT                 0x000100000
 		===========================      ===========
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
