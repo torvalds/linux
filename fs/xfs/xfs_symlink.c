@@ -58,6 +58,8 @@ xfs_readlink_bmap_ilocked(
 
 		error = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt), 0,
 				&bp, &xfs_symlink_buf_ops);
+		if (xfs_metadata_is_sick(error))
+			xfs_inode_mark_sick(ip, XFS_SICK_INO_SYMLINK);
 		if (error)
 			return error;
 		byte_cnt = XFS_SYMLINK_BUF_SPACE(mp, byte_cnt);
@@ -68,6 +70,7 @@ xfs_readlink_bmap_ilocked(
 		if (xfs_has_crc(mp)) {
 			if (!xfs_symlink_hdr_ok(ip->i_ino, offset,
 							byte_cnt, bp)) {
+				xfs_inode_mark_sick(ip, XFS_SICK_INO_SYMLINK);
 				error = -EFSCORRUPTED;
 				xfs_alert(mp,
 "symlink header does not match required off/len/owner (0x%x/Ox%x,0x%llx)",
@@ -103,7 +106,7 @@ xfs_readlink(
 {
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fsize_t		pathlen;
-	int			error = -EFSCORRUPTED;
+	int			error;
 
 	trace_xfs_readlink(ip);
 
@@ -116,14 +119,14 @@ xfs_readlink(
 
 	pathlen = ip->i_disk_size;
 	if (!pathlen)
-		goto out;
+		goto out_corrupt;
 
 	if (pathlen < 0 || pathlen > XFS_SYMLINK_MAXLEN) {
 		xfs_alert(mp, "%s: inode (%llu) bad symlink length (%lld)",
 			 __func__, (unsigned long long) ip->i_ino,
 			 (long long) pathlen);
 		ASSERT(0);
-		goto out;
+		goto out_corrupt;
 	}
 
 	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
@@ -132,7 +135,7 @@ xfs_readlink(
 		 * if if_data is junk.
 		 */
 		if (XFS_IS_CORRUPT(ip->i_mount, !ip->i_df.if_data))
-			goto out;
+			goto out_corrupt;
 
 		memcpy(link, ip->i_df.if_data, pathlen + 1);
 		error = 0;
@@ -140,9 +143,12 @@ xfs_readlink(
 		error = xfs_readlink_bmap_ilocked(ip, link);
 	}
 
- out:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return error;
+ out_corrupt:
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	xfs_inode_mark_sick(ip, XFS_SICK_INO_SYMLINK);
+	return -EFSCORRUPTED;
 }
 
 int
@@ -497,6 +503,7 @@ xfs_inactive_symlink(
 			 __func__, (unsigned long long)ip->i_ino, pathlen);
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		ASSERT(0);
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_SYMLINK);
 		return -EFSCORRUPTED;
 	}
 
