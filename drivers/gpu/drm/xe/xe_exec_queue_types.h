@@ -105,16 +105,6 @@ struct xe_exec_queue {
 		struct xe_guc_exec_queue *guc;
 	};
 
-	/**
-	 * @persistent: persistent exec queue state
-	 */
-	struct {
-		/** @xef: file which this exec queue belongs to */
-		struct xe_file *xef;
-		/** @link: link in list of persistent exec queues */
-		struct list_head link;
-	} persistent;
-
 	union {
 		/**
 		 * @parallel: parallel submission state
