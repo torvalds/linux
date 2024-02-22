@@ -78,6 +78,7 @@
 #define DMUB_CW6_BASE (0x66000000)
 
 #define DMUB_REGION5_BASE (0xA0000000)
+#define DMUB_REGION6_BASE (0xC0000000)
 
 static struct dmub_srv_dcn32_regs dmub_srv_dcn32_regs;
 static struct dmub_srv_dcn35_regs dmub_srv_dcn35_regs;
@@ -480,6 +481,7 @@ enum dmub_status
 	window_sizes[DMUB_WINDOW_5_TRACEBUFF] = trace_buffer_size;
 	window_sizes[DMUB_WINDOW_6_FW_STATE] = fw_state_size;
 	window_sizes[DMUB_WINDOW_7_SCRATCH_MEM] = DMUB_SCRATCH_MEM_SIZE;
+	window_sizes[DMUB_WINDOW_SHARED_STATE] = DMUB_FW_HEADER_SHARED_STATE_SIZE;
 
 	out->fb_size =
 		dmub_srv_calc_regions_for_memory_type(params, out, window_sizes, DMUB_WINDOW_MEMORY_TYPE_FB);
@@ -565,9 +567,10 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 	struct dmub_fb *tracebuff_fb = params->fb[DMUB_WINDOW_5_TRACEBUFF];
 	struct dmub_fb *fw_state_fb = params->fb[DMUB_WINDOW_6_FW_STATE];
 	struct dmub_fb *scratch_mem_fb = params->fb[DMUB_WINDOW_7_SCRATCH_MEM];
+	struct dmub_fb *shared_state_fb = params->fb[DMUB_WINDOW_SHARED_STATE];
 
 	struct dmub_rb_init_params rb_params, outbox0_rb_params;
-	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6;
+	struct dmub_window cw0, cw1, cw2, cw3, cw4, cw5, cw6, region6;
 	struct dmub_region inbox1, outbox1, outbox0;
 
 	if (!dmub->sw_init)
@@ -652,10 +655,16 @@ enum dmub_status dmub_srv_hw_init(struct dmub_srv *dmub,
 
 	dmub->fw_state = fw_state_fb->cpu_addr;
 
+	region6.offset.quad_part = shared_state_fb->gpu_addr;
+	region6.region.base = DMUB_CW6_BASE;
+	region6.region.top = region6.region.base + shared_state_fb->size;
+
+	dmub->shared_state = shared_state_fb->cpu_addr;
+
 	dmub->scratch_mem_fb = *scratch_mem_fb;
 
 	if (dmub->hw_funcs.setup_windows)
-		dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4, &cw5, &cw6);
+		dmub->hw_funcs.setup_windows(dmub, &cw2, &cw3, &cw4, &cw5, &cw6, &region6);
 
 	if (dmub->hw_funcs.setup_outbox0)
 		dmub->hw_funcs.setup_outbox0(dmub, &outbox0);

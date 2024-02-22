@@ -38,6 +38,7 @@
 #include "psp_v12_0.h"
 #include "psp_v13_0.h"
 #include "psp_v13_0_4.h"
+#include "psp_v14_0.h"
 
 #include "amdgpu_ras.h"
 #include "amdgpu_securedisplay.h"
@@ -162,20 +163,26 @@ static int psp_early_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct psp_context *psp = &adev->psp;
 
+	psp->autoload_supported = true;
+	psp->boot_time_tmr = true;
+
 	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 	case IP_VERSION(9, 0, 0):
 		psp_v3_1_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(10, 0, 0):
 	case IP_VERSION(10, 0, 1):
 		psp_v10_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 2):
 	case IP_VERSION(11, 0, 4):
 		psp_v11_0_set_psp_funcs(psp);
 		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 0):
 	case IP_VERSION(11, 0, 7):
@@ -188,15 +195,20 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(11, 0, 12):
 	case IP_VERSION(11, 0, 13):
 		psp_v11_0_set_psp_funcs(psp);
-		psp->autoload_supported = true;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 3):
 	case IP_VERSION(12, 0, 1):
 		psp_v12_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(13, 0, 2):
+		psp->boot_time_tmr = false;
+		fallthrough;
 	case IP_VERSION(13, 0, 6):
 		psp_v13_0_set_psp_funcs(psp);
+		psp->autoload_supported = false;
 		break;
 	case IP_VERSION(13, 0, 1):
 	case IP_VERSION(13, 0, 3):
@@ -204,31 +216,39 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(13, 0, 11):
 	case IP_VERSION(14, 0, 0):
+	case IP_VERSION(14, 0, 1):
 		psp_v13_0_set_psp_funcs(psp);
-		psp->autoload_supported = true;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(11, 0, 8):
 		if (adev->apu_flags & AMD_APU_IS_CYAN_SKILLFISH2) {
 			psp_v11_0_8_set_psp_funcs(psp);
-			psp->autoload_supported = false;
 		}
+		psp->autoload_supported = false;
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 	case IP_VERSION(13, 0, 10):
 		psp_v13_0_set_psp_funcs(psp);
-		psp->autoload_supported = true;
 		adev->psp.sup_ifwi_up = !amdgpu_sriov_vf(adev);
+		psp->boot_time_tmr = false;
 		break;
 	case IP_VERSION(13, 0, 4):
 		psp_v13_0_4_set_psp_funcs(psp);
-		psp->autoload_supported = true;
+		psp->boot_time_tmr = false;
+		break;
+	case IP_VERSION(14, 0, 2):
+	case IP_VERSION(14, 0, 3):
+		psp_v14_0_set_psp_funcs(psp);
 		break;
 	default:
 		return -EINVAL;
 	}
 
 	psp->adev = adev;
+
+	adev->psp_timeout = 20000;
 
 	psp_check_pmfw_centralized_cstate_management(psp);
 
@@ -627,7 +647,7 @@ psp_cmd_submit_buf(struct psp_context *psp,
 {
 	int ret;
 	int index;
-	int timeout = 20000;
+	int timeout = psp->adev->psp_timeout;
 	bool ras_intr = false;
 	bool skip_unsupport = false;
 
@@ -774,16 +794,6 @@ static int psp_load_toc(struct psp_context *psp,
 	return ret;
 }
 
-static bool psp_boottime_tmr(struct psp_context *psp)
-{
-	switch (amdgpu_ip_version(psp->adev, MP0_HWIP, 0)) {
-	case IP_VERSION(13, 0, 6):
-		return true;
-	default:
-		return false;
-	}
-}
-
 /* Set up Trusted Memory Region */
 static int psp_tmr_init(struct psp_context *psp)
 {
@@ -815,7 +825,7 @@ static int psp_tmr_init(struct psp_context *psp)
 		}
 	}
 
-	if (!psp->tmr_bo) {
+	if (!psp->tmr_bo && !psp->boot_time_tmr) {
 		pptr = amdgpu_sriov_vf(psp->adev) ? &tmr_buf : NULL;
 		ret = amdgpu_bo_create_kernel(psp->adev, tmr_size,
 					      PSP_TMR_ALIGNMENT,
@@ -2251,7 +2261,7 @@ static int psp_hw_start(struct psp_context *psp)
 	if (amdgpu_sriov_vf(adev) && amdgpu_in_reset(adev))
 		goto skip_pin_bo;
 
-	if (!psp_boottime_tmr(psp)) {
+	if (!psp->boot_time_tmr || psp->autoload_supported) {
 		ret = psp_tmr_init(psp);
 		if (ret) {
 			dev_err(adev->dev, "PSP tmr init failed!\n");
@@ -2271,10 +2281,12 @@ skip_pin_bo:
 			return ret;
 	}
 
-	ret = psp_tmr_load(psp);
-	if (ret) {
-		dev_err(adev->dev, "PSP load tmr failed!\n");
-		return ret;
+	if (!psp->boot_time_tmr || !psp->autoload_supported) {
+		ret = psp_tmr_load(psp);
+		if (ret) {
+			dev_err(adev->dev, "PSP load tmr failed!\n");
+			return ret;
+		}
 	}
 
 	return 0;
@@ -2484,6 +2496,9 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 		break;
 	case AMDGPU_UCODE_ID_P2S_TABLE:
 		*type = GFX_FW_TYPE_P2S_TABLE;
+		break;
+	case AMDGPU_UCODE_ID_JPEG_RAM:
+		*type = GFX_FW_TYPE_JPEG_RAM;
 		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
@@ -3954,5 +3969,13 @@ const struct amdgpu_ip_block_version psp_v13_0_4_ip_block = {
 	.major = 13,
 	.minor = 0,
 	.rev = 4,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v14_0_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 14,
+	.minor = 0,
+	.rev = 0,
 	.funcs = &psp_ip_funcs,
 };

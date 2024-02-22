@@ -211,7 +211,7 @@ void dcn21_set_pipe(struct pipe_ctx *pipe_ctx)
 	struct dmcu *dmcu = pipe_ctx->stream->ctx->dc->res_pool->dmcu;
 	uint32_t otg_inst;
 
-	if (!abm && !tg && !panel_cntl)
+	if (!abm || !tg || !panel_cntl)
 		return;
 
 	otg_inst = tg->inst;
@@ -245,7 +245,7 @@ bool dcn21_set_backlight_level(struct pipe_ctx *pipe_ctx,
 	struct panel_cntl *panel_cntl = pipe_ctx->stream->link->panel_cntl;
 	uint32_t otg_inst;
 
-	if (!abm && !tg && !panel_cntl)
+	if (!abm || !tg || !panel_cntl)
 		return false;
 
 	otg_inst = tg->inst;

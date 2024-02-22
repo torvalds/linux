@@ -128,6 +128,31 @@ struct mqd_manager {
 	uint32_t mqd_size;
 };
 
+struct mqd_user_context_save_area_header {
+	/* Byte offset from start of user context
+	 * save area to the last saved top (lowest
+	 * address) of control stack data. Must be
+	 * 4 byte aligned.
+	 */
+	uint32_t control_stack_offset;
+
+	/* Byte size of the last saved control stack
+	 * data. Must be 4 byte aligned.
+	 */
+	uint32_t control_stack_size;
+
+	/* Byte offset from start of user context save
+	 * area to the last saved base (lowest address)
+	 * of wave state data. Must be 4 byte aligned.
+	 */
+	uint32_t wave_state_offset;
+
+	/* Byte size of the last saved wave state data.
+	 * Must be 4 byte aligned.
+	 */
+	uint32_t wave_state_size;
+};
+
 struct kfd_mem_obj *allocate_hiq_mqd(struct kfd_node *dev,
 				struct queue_properties *q);
 

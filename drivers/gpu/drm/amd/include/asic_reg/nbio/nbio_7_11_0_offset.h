@@ -8900,6 +8900,8 @@
 #define regGDC0_BIF_IH_DOORBELL_RANGE_BASE_IDX                                                          3
 #define regGDC0_BIF_VCN0_DOORBELL_RANGE                                                                 0x4f0af3
 #define regGDC0_BIF_VCN0_DOORBELL_RANGE_BASE_IDX                                                        3
+#define regGDC0_BIF_VPE1_DOORBELL_RANGE                                                                 0x4f0af4
+#define regGDC0_BIF_VPE1_DOORBELL_RANGE_BASE_IDX                                                        3
 #define regGDC0_BIF_RLC_DOORBELL_RANGE                                                                  0x4f0af5
 #define regGDC0_BIF_RLC_DOORBELL_RANGE_BASE_IDX                                                         3
 #define regGDC0_BIF_SDMA2_DOORBELL_RANGE                                                                0x4f0af6

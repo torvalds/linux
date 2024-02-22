@@ -36,9 +36,34 @@ static void amdgpu_jpeg_idle_work_handler(struct work_struct *work);
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev)
 {
+	int i, r;
+
 	INIT_DELAYED_WORK(&adev->jpeg.idle_work, amdgpu_jpeg_idle_work_handler);
 	mutex_init(&adev->jpeg.jpeg_pg_lock);
 	atomic_set(&adev->jpeg.total_submission_cnt, 0);
+
+	if ((adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) &&
+	    (adev->pg_flags & AMD_PG_SUPPORT_JPEG_DPG))
+		adev->jpeg.indirect_sram = true;
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+		if (adev->jpeg.harvest_config & (1 << i))
+			continue;
+
+		if (adev->jpeg.indirect_sram) {
+			r = amdgpu_bo_create_kernel(adev, 64 * 2 * 4, PAGE_SIZE,
+					AMDGPU_GEM_DOMAIN_VRAM |
+					AMDGPU_GEM_DOMAIN_GTT,
+					&adev->jpeg.inst[i].dpg_sram_bo,
+					&adev->jpeg.inst[i].dpg_sram_gpu_addr,
+					&adev->jpeg.inst[i].dpg_sram_cpu_addr);
+			if (r) {
+				dev_err(adev->dev,
+				"JPEG %d (%d) failed to allocate DPG bo\n", i, r);
+				return r;
+			}
+		}
+	}
 
 	return 0;
 }
@@ -50,6 +75,11 @@ int amdgpu_jpeg_sw_fini(struct amdgpu_device *adev)
 	for (i = 0; i < adev->jpeg.num_jpeg_inst; ++i) {
 		if (adev->jpeg.harvest_config & (1 << i))
 			continue;
+
+		amdgpu_bo_free_kernel(
+			&adev->jpeg.inst[i].dpg_sram_bo,
+			&adev->jpeg.inst[i].dpg_sram_gpu_addr,
+			(void **)&adev->jpeg.inst[i].dpg_sram_cpu_addr);
 
 		for (j = 0; j < adev->jpeg.num_jpeg_rings; ++j)
 			amdgpu_ring_fini(&adev->jpeg.inst[i].ring_dec[j]);
@@ -210,12 +240,15 @@ int amdgpu_jpeg_dec_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 	} else {
 		r = 0;
 	}
+
 	if (!amdgpu_sriov_vf(adev)) {
 		for (i = 0; i < adev->usec_timeout; i++) {
 			tmp = RREG32(adev->jpeg.inst[ring->me].external.jpeg_pitch[ring->pipe]);
 			if (tmp == 0xDEADBEEF)
 				break;
 			udelay(1);
+			if (amdgpu_emu_mode == 1)
+				udelay(10);
 		}
 
 		if (i >= adev->usec_timeout)
@@ -295,4 +328,17 @@ int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev)
 		ras->ras_block.ras_late_init = amdgpu_jpeg_ras_late_init;
 
 	return 0;
+}
+
+int amdgpu_jpeg_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
+			       enum AMDGPU_UCODE_ID ucode_id)
+{
+	struct amdgpu_firmware_info ucode = {
+		.ucode_id = AMDGPU_UCODE_ID_JPEG_RAM,
+		.mc_addr = adev->jpeg.inst[inst_idx].dpg_sram_gpu_addr,
+		.ucode_size = ((uintptr_t)adev->jpeg.inst[inst_idx].dpg_sram_curr_addr -
+			      (uintptr_t)adev->jpeg.inst[inst_idx].dpg_sram_cpu_addr),
+	};
+
+	return psp_execute_ip_fw_load(&adev->psp, &ucode);
 }
