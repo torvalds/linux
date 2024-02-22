@@ -240,7 +240,7 @@ static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 		rc = sysfs_create_link(&gdev->cdev[i]->dev.kobj,
 				       &gdev->dev.kobj, "group_device");
 		if (rc) {
-			for (--i; i >= 0; i--)
+			while (i--)
 				sysfs_remove_link(&gdev->cdev[i]->dev.kobj,
 						  "group_device");
 			return rc;
@@ -251,7 +251,7 @@ static int __ccwgroup_create_symlinks(struct ccwgroup_device *gdev)
 		rc = sysfs_create_link(&gdev->dev.kobj,
 				       &gdev->cdev[i]->dev.kobj, str);
 		if (rc) {
-			for (--i; i >= 0; i--) {
+			while (i--) {
 				sprintf(str, "cdev%d", i);
 				sysfs_remove_link(&gdev->dev.kobj, str);
 			}

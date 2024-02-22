@@ -844,7 +844,7 @@ chsc_add_cmg_attr(struct channel_subsystem *css)
 	}
 	return ret;
 cleanup:
-	for (--i; i >= 0; i--) {
+	while (i--) {
 		if (!css->chps[i])
 			continue;
 		chp_remove_cmg_attr(css->chps[i]);
