@@ -688,21 +688,26 @@ xrep_find_ag_btree_roots(
 
 #ifdef CONFIG_XFS_QUOTA
 /* Update some quota flags in the superblock. */
-static void
+void
 xrep_update_qflags(
 	struct xfs_scrub	*sc,
-	unsigned int		clear_flags)
+	unsigned int		clear_flags,
+	unsigned int		set_flags)
 {
 	struct xfs_mount	*mp = sc->mp;
 	struct xfs_buf		*bp;
 
 	mutex_lock(&mp->m_quotainfo->qi_quotaofflock);
-	if ((mp->m_qflags & clear_flags) == 0)
+	if ((mp->m_qflags & clear_flags) == 0 &&
+	    (mp->m_qflags & set_flags) == set_flags)
 		goto no_update;
 
 	mp->m_qflags &= ~clear_flags;
+	mp->m_qflags |= set_flags;
+
 	spin_lock(&mp->m_sb_lock);
 	mp->m_sb.sb_qflags &= ~clear_flags;
+	mp->m_sb.sb_qflags |= set_flags;
 	spin_unlock(&mp->m_sb_lock);
 
 	/*
@@ -732,7 +737,7 @@ xrep_force_quotacheck(
 	if (!(flag & sc->mp->m_qflags))
 		return;
 
-	xrep_update_qflags(sc, flag);
+	xrep_update_qflags(sc, flag, 0);
 }
 
 /*

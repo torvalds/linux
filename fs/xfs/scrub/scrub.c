@@ -367,7 +367,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.type	= ST_FS,
 		.setup	= xchk_setup_quotacheck,
 		.scrub	= xchk_quotacheck,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_quotacheck,
 	},
 };
 
