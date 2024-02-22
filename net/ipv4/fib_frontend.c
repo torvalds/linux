@@ -990,7 +990,7 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	struct fib_dump_filter filter = {
 		.dump_routes = true,
 		.dump_exceptions = true,
-		.rtnl_held = true,
+		.rtnl_held = false,
 	};
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
@@ -998,12 +998,13 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int e = 0, s_e;
 	struct fib_table *tb;
 	struct hlist_head *head;
-	int dumped = 0, err;
+	int dumped = 0, err = 0;
 
+	rcu_read_lock();
 	if (cb->strict_check) {
 		err = ip_valid_fib_dump_req(net, nlh, &filter, cb);
 		if (err < 0)
-			return err;
+			goto unlock;
 	} else if (nlmsg_len(nlh) >= sizeof(struct rtmsg)) {
 		struct rtmsg *rtm = nlmsg_data(nlh);
 
@@ -1012,29 +1013,28 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 
 	/* ipv4 does not use prefix flag */
 	if (filter.flags & RTM_F_PREFIX)
-		return skb->len;
+		goto unlock;
 
 	if (filter.table_id) {
 		tb = fib_get_table(net, filter.table_id);
 		if (!tb) {
 			if (rtnl_msg_family(cb->nlh) != PF_INET)
-				return skb->len;
+				goto unlock;
 
 			NL_SET_ERR_MSG(cb->extack, "ipv4: FIB table does not exist");
-			return -ENOENT;
+			err = -ENOENT;
+			goto unlock;
 		}
-
-		rcu_read_lock();
 		err = fib_table_dump(tb, skb, cb, &filter);
-		rcu_read_unlock();
-		return skb->len ? : err;
+		if (err < 0 && skb->len)
+			err = skb->len;
+		goto unlock;
 	}
 
 	s_h = cb->args[0];
 	s_e = cb->args[1];
 
-	rcu_read_lock();
-
+	err = 0;
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {
 		e = 0;
 		head = &net->ipv4.fib_table_hash[h];
@@ -1047,9 +1047,8 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			err = fib_table_dump(tb, skb, cb, &filter);
 			if (err < 0) {
 				if (likely(skb->len))
-					goto out;
-
-				goto out_err;
+					err = skb->len;
+				goto out;
 			}
 			dumped = 1;
 next:
@@ -1057,13 +1056,12 @@ next:
 		}
 	}
 out:
-	err = skb->len;
-out_err:
-	rcu_read_unlock();
 
 	cb->args[1] = e;
 	cb->args[0] = h;
 
+unlock:
+	rcu_read_unlock();
 	return err;
 }
 
@@ -1666,5 +1664,6 @@ void __init ip_fib_init(void)
 
 	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, 0);
 	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, 0);
-	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, 0);
+	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib,
+		      RTNL_FLAG_DUMP_UNLOCKED);
 }
