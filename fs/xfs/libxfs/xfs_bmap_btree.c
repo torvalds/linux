@@ -614,7 +614,7 @@ xfs_bmbt_stage_cursor(
 	cur = xfs_bmbt_init_common(mp, NULL, ip, XFS_DATA_FORK);
 
 	/* Don't let anyone think we're attached to the real fork yet. */
-	cur->bc_ino.whichfork = -1;
+	cur->bc_ino.whichfork = XFS_STAGING_FORK;
 	xfs_btree_stage_ifakeroot(cur, ifake);
 	return cur;
 }
