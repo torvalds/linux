@@ -732,7 +732,7 @@ static const struct dmi_system_id dmi_ignore_port_nodes[] = {
 			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "XPS 9315"),
 		},
 	},
-	{ 0 }
+	{ }
 };
 
 static const char *strnext(const char *s1, const char *s2)
@@ -749,7 +749,7 @@ static const char *strnext(const char *s1, const char *s2)
  * acpi_graph_ignore_port - Tell whether a port node should be ignored
  * @handle: The ACPI handle of the node (which may be a port node)
  *
- * Returns true if a port node should be ignored and the data to that should
+ * Return: true if a port node should be ignored and the data to that should
  * come from other sources instead (Windows ACPI definitions and
  * ipu-bridge). This is currently used to ignore bad port nodes related to IPU6
  * ("IPU?") and camera sensor devices ("LNK?") in certain Dell systems with
@@ -778,12 +778,12 @@ bool acpi_graph_ignore_port(acpi_handle handle)
 	if (!path)
 		goto out_free;
 
-	if (!(path[0] >= '0' && path[0] <= '9' && path[1] == '.'))
+	if (!(isdigit(path[0]) && path[1] == '.'))
 		goto out_free;
 
 	/* Check if the node has a "PRT" prefix. */
 	path = strnext(path, "PRT");
-	if (path && path[0] >= '0' && path[0] <= '9' && !path[1]) {
+	if (path && isdigit(path[0]) && !path[1]) {
 		acpi_handle_debug(handle, "ignoring data node\n");
 
 		kfree(orig_path);
