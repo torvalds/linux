@@ -599,25 +599,6 @@ xfs_bmbt_block_maxrecs(
 }
 
 /*
- * Allocate a new bmap btree cursor for reloading an inode block mapping data
- * structure.  Note that callers can use the staged cursor to reload extents
- * format inode forks if they rebuild the iext tree and commit the staged
- * cursor immediately.
- */
-struct xfs_btree_cur *
-xfs_bmbt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xfs_inode	*ip,
-	struct xbtree_ifakeroot	*ifake)
-{
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_bmbt_init_cursor(mp, NULL, ip, XFS_STAGING_FORK);
-	xfs_btree_stage_ifakeroot(cur, ifake);
-	return cur;
-}
-
-/*
  * Swap in the new inode fork root.  Once we pass this point the newly rebuilt
  * mappings are in place and we have to kill off any old btree blocks.
  */
