@@ -17,6 +17,7 @@
 #include "xfs_qm.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 
 STATIC void	xfs_trans_alloc_dqinfo(xfs_trans_t *);
 
@@ -706,6 +707,7 @@ error_return:
 error_corrupt:
 	xfs_dqunlock(dqp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+	xfs_fs_mark_sick(mp, XFS_SICK_FS_QUOTACHECK);
 	return -EFSCORRUPTED;
 }
 
