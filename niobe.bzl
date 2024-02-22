@@ -12,6 +12,7 @@ def define_niobe():
         "drivers/bus/mhi/devices/mhi_dev_satellite.ko",
         "drivers/bus/mhi/devices/mhi_dev_uci.ko",
         "drivers/bus/mhi/host/mhi.ko",
+        "drivers/char/rdbg.ko",
         "drivers/clk/qcom/camcc-niobe.ko",
         "drivers/clk/qcom/clk-dummy.ko",
         "drivers/clk/qcom/clk-qcom.ko",
