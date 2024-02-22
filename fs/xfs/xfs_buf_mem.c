@@ -9,6 +9,10 @@
 #include "xfs_buf_mem.h"
 #include "xfs_trace.h"
 #include <linux/shmem_fs.h>
+#include "xfs_log_format.h"
+#include "xfs_trans.h"
+#include "xfs_buf_item.h"
+#include "xfs_error.h"
 
 /*
  * Buffer Cache for In-Memory Files
@@ -199,4 +203,68 @@ xmbuf_verify_daddr(
 	ASSERT(xfs_buftarg_is_mem(btp));
 
 	return daddr < (inode->i_sb->s_maxbytes >> BBSHIFT);
+}
+
+/* Discard the page backing this buffer. */
+static void
+xmbuf_stale(
+	struct xfs_buf		*bp)
+{
+	struct inode		*inode = file_inode(bp->b_target->bt_file);
+	loff_t			pos;
+
+	ASSERT(xfs_buftarg_is_mem(bp->b_target));
+
+	pos = BBTOB(xfs_buf_daddr(bp));
+	shmem_truncate_range(inode, pos, pos + BBTOB(bp->b_length) - 1);
+}
+
+/*
+ * Finalize a buffer -- discard the backing page if it's stale, or run the
+ * write verifier to detect problems.
+ */
+int
+xmbuf_finalize(
+	struct xfs_buf		*bp)
+{
+	xfs_failaddr_t		fa;
+	int			error = 0;
+
+	if (bp->b_flags & XBF_STALE) {
+		xmbuf_stale(bp);
+		return 0;
+	}
+
+	/*
+	 * Although this btree is ephemeral, validate the buffer structure so
+	 * that we can detect memory corruption errors and software bugs.
+	 */
+	fa = bp->b_ops->verify_struct(bp);
+	if (fa) {
+		error = -EFSCORRUPTED;
+		xfs_verifier_error(bp, error, fa);
+	}
+
+	return error;
+}
+
+/*
+ * Detach this xmbuf buffer from the transaction by any means necessary.
+ * All buffers are direct-mapped, so they do not need bwrite.
+ */
+void
+xmbuf_trans_bdetach(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
+{
+	struct xfs_buf_log_item	*bli = bp->b_log_item;
+
+	ASSERT(bli != NULL);
+
+	bli->bli_flags &= ~(XFS_BLI_DIRTY | XFS_BLI_ORDERED |
+			    XFS_BLI_LOGGED | XFS_BLI_STALE);
+	clear_bit(XFS_LI_DIRTY, &bli->bli_item.li_flags);
+
+	while (bp->b_log_item != NULL)
+		xfs_trans_bdetach(tp, bp);
 }

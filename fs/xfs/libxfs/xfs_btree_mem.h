@@ -65,6 +65,9 @@ int xfbtree_free_block(struct xfs_btree_cur *cur, struct xfs_buf *bp);
 int xfbtree_init(struct xfs_mount *mp, struct xfbtree *xfbt,
 		struct xfs_buftarg *btp, const struct xfs_btree_ops *ops);
 void xfbtree_destroy(struct xfbtree *xfbt);
+
+int xfbtree_trans_commit(struct xfbtree *xfbt, struct xfs_trans *tp);
+void xfbtree_trans_cancel(struct xfbtree *xfbt, struct xfs_trans *tp);
 #else
 # define xfbtree_verify_bno(...)	(false)
 #endif /* CONFIG_XFS_BTREE_IN_MEM */

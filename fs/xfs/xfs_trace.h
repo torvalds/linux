@@ -642,6 +642,7 @@ DEFINE_BUF_ITEM_EVENT(xfs_trans_read_buf);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_read_buf_recur);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_log_buf);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_brelse);
+DEFINE_BUF_ITEM_EVENT(xfs_trans_bdetach);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_bjoin);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_bhold);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_bhold_release);
