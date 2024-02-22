@@ -1278,6 +1278,7 @@ thermal_zone_device_register_with_trips(const char *type,
 					int passive_delay, int polling_delay)
 {
 	struct thermal_zone_device *tz;
+	struct thermal_trip *trip;
 	int id;
 	int result;
 	struct thermal_governor *governor;
@@ -1356,13 +1357,19 @@ thermal_zone_device_register_with_trips(const char *type,
 	tz->devdata = devdata;
 	tz->num_trips = num_trips;
 	memcpy(tz->trips, trips, num_trips * sizeof(*trips));
+	for_each_trip(tz, trip) {
+		if (mask & 1)
+			trip->flags |= THERMAL_TRIP_FLAG_RW_TEMP;
+
+		mask >>= 1;
+	}
 
 	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);
 	thermal_set_delay_jiffies(&tz->polling_delay_jiffies, polling_delay);
 
 	/* sys I/F */
 	/* Add nodes that are always present via .groups */
-	result = thermal_zone_create_device_groups(tz, mask);
+	result = thermal_zone_create_device_groups(tz);
 	if (result)
 		goto remove_id;
 

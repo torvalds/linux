@@ -64,14 +64,22 @@ enum thermal_notify_event {
  * @threshold: trip crossing notification threshold miliCelsius
  * @type: trip point type
  * @priv: pointer to driver data associated with this trip
+ * @flags: flags representing binary properties of the trip
  */
 struct thermal_trip {
 	int temperature;
 	int hysteresis;
 	int threshold;
 	enum thermal_trip_type type;
+	u8 flags;
 	void *priv;
 };
+
+#define THERMAL_TRIP_FLAG_RW_TEMP	BIT(0)
+#define THERMAL_TRIP_FLAG_RW_HYST	BIT(1)
+
+#define THERMAL_TRIP_FLAG_RW	(THERMAL_TRIP_FLAG_RW_TEMP | \
+				 THERMAL_TRIP_FLAG_RW_HYST)
 
 struct thermal_zone_device_ops {
 	int (*bind) (struct thermal_zone_device *,
