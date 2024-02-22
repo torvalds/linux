@@ -711,10 +711,9 @@ xfs_inobt_max_size(
 }
 
 static int
-xfs_inobt_count_blocks(
+xfs_finobt_count_blocks(
 	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
-	xfs_btnum_t		btnum,
 	xfs_extlen_t		*tree_blocks)
 {
 	struct xfs_buf		*agbp = NULL;
@@ -725,7 +724,7 @@ xfs_inobt_count_blocks(
 	if (error)
 		return error;
 
-	cur = xfs_inobt_init_cursor(pag, tp, agbp, btnum);
+	cur = xfs_inobt_init_cursor(pag, tp, agbp, XFS_BTNUM_FINO);
 	error = xfs_btree_count_blocks(cur, tree_blocks);
 	xfs_btree_del_cursor(cur, error);
 	xfs_trans_brelse(tp, agbp);
@@ -773,8 +772,7 @@ xfs_finobt_calc_reserves(
 	if (xfs_has_inobtcounts(pag->pag_mount))
 		error = xfs_finobt_read_blocks(pag, tp, &tree_len);
 	else
-		error = xfs_inobt_count_blocks(pag, tp, XFS_BTNUM_FINO,
-				&tree_len);
+		error = xfs_finobt_count_blocks(pag, tp, &tree_len);
 	if (error)
 		return error;
 
