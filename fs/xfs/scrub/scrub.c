@@ -369,6 +369,12 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.scrub	= xchk_quotacheck,
 		.repair	= xrep_quotacheck,
 	},
+	[XFS_SCRUB_TYPE_NLINKS] = {	/* inode link counts */
+		.type	= ST_FS,
+		.setup	= xchk_setup_nlinks,
+		.scrub	= xchk_nlinks,
+		.repair	= xrep_notsupported,
+	},
 };
 
 static int

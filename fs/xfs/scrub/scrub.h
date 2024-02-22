@@ -183,6 +183,7 @@ xchk_quotacheck(struct xfs_scrub *sc)
 }
 #endif
 int xchk_fscounters(struct xfs_scrub *sc);
+int xchk_nlinks(struct xfs_scrub *sc);
 
 /* cross-referencing helpers */
 void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,

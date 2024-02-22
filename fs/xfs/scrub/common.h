@@ -129,6 +129,7 @@ xchk_setup_quotacheck(struct xfs_scrub *sc)
 }
 #endif
 int xchk_setup_fscounters(struct xfs_scrub *sc);
+int xchk_setup_nlinks(struct xfs_scrub *sc);
 
 void xchk_ag_free(struct xfs_scrub *sc, struct xchk_ag *sa);
 int xchk_ag_init(struct xfs_scrub *sc, xfs_agnumber_t agno,
