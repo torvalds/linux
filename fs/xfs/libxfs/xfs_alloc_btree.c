@@ -548,21 +548,6 @@ xfs_allocbt_init_cursor(
 	return cur;
 }
 
-/* Create a free space btree cursor with a fake root for staging. */
-struct xfs_btree_cur *
-xfs_allocbt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
-	struct xfs_perag	*pag,
-	xfs_btnum_t		btnum)
-{
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_allocbt_init_cursor(mp, NULL, NULL, pag, btnum);
-	xfs_btree_stage_afakeroot(cur, afake);
-	return cur;
-}
-
 /*
  * Install a new free space btree root.  Caller is responsible for invalidating
  * and freeing the old btree blocks.

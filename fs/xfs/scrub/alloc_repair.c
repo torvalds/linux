@@ -735,10 +735,13 @@ xrep_abt_build_new_trees(
 	ra->new_cntbt.bload.claim_block = xrep_abt_claim_block;
 
 	/* Allocate cursors for the staged btrees. */
-	bno_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_bnobt.afake,
-			pag, XFS_BTNUM_BNO);
-	cnt_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_cntbt.afake,
-			pag, XFS_BTNUM_CNT);
+	bno_cur = xfs_allocbt_init_cursor(sc->mp, NULL, NULL, pag,
+			XFS_BTNUM_BNO);
+	xfs_btree_stage_afakeroot(bno_cur, &ra->new_bnobt.afake);
+
+	cnt_cur = xfs_allocbt_init_cursor(sc->mp, NULL, NULL, pag,
+			XFS_BTNUM_CNT);
+	xfs_btree_stage_afakeroot(cnt_cur, &ra->new_cntbt.afake);
 
 	/* Last chance to abort before we start committing fixes. */
 	if (xchk_should_terminate(sc, &error))
