@@ -255,8 +255,7 @@ xrep_agf_calc_from_btrees(
 	int			error;
 
 	/* Update the AGF counters from the bnobt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
-			sc->sa.pag, XFS_BTNUM_BNO);
+	cur = xfs_bnobt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
 	error = xfs_alloc_query_all(cur, xrep_agf_walk_allocbt, &raa);
 	if (error)
 		goto err;
@@ -269,8 +268,7 @@ xrep_agf_calc_from_btrees(
 	agf->agf_longest = cpu_to_be32(raa.longest);
 
 	/* Update the AGF counters from the cntbt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
-			sc->sa.pag, XFS_BTNUM_CNT);
+	cur = xfs_cntbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
 	error = xfs_btree_count_blocks(cur, &blocks);
 	if (error)
 		goto err;
@@ -549,16 +547,14 @@ xrep_agfl_collect_blocks(
 		goto out_bmp;
 
 	/* Find all blocks currently being used by the bnobt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
-			sc->sa.pag, XFS_BTNUM_BNO);
+	cur = xfs_bnobt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
 	error = xagb_bitmap_set_btblocks(&ra.agmetablocks, cur);
 	xfs_btree_del_cursor(cur, error);
 	if (error)
 		goto out_bmp;
 
 	/* Find all blocks currently being used by the cntbt. */
-	cur = xfs_allocbt_init_cursor(mp, sc->tp, agf_bp,
-			sc->sa.pag, XFS_BTNUM_CNT);
+	cur = xfs_cntbt_init_cursor(mp, sc->tp, agf_bp, sc->sa.pag);
 	error = xagb_bitmap_set_btblocks(&ra.agmetablocks, cur);
 	xfs_btree_del_cursor(cur, error);
 	if (error)

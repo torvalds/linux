@@ -590,14 +590,14 @@ xchk_ag_btcur_init(
 
 	if (sa->agf_bp) {
 		/* Set up a bnobt cursor for cross-referencing. */
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_BNO);
+		sa->bno_cur = xfs_bnobt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sa->pag);
 		xchk_ag_btree_del_cursor_if_sick(sc, &sa->bno_cur,
 				XFS_SCRUB_TYPE_BNOBT);
 
 		/* Set up a cntbt cursor for cross-referencing. */
-		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag, XFS_BTNUM_CNT);
+		sa->cnt_cur = xfs_cntbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sa->pag);
 		xchk_ag_btree_del_cursor_if_sick(sc, &sa->cnt_cur,
 				XFS_SCRUB_TYPE_CNTBT);
 

@@ -412,8 +412,8 @@ xchk_rmapbt_walk_ag_metadata(
 	/* OWN_AG: bnobt, cntbt, rmapbt, and AGFL */
 	cur = sc->sa.bno_cur;
 	if (!cur)
-		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
-				sc->sa.pag, XFS_BTNUM_BNO);
+		cur = xfs_bnobt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
+				sc->sa.pag);
 	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
 	if (cur != sc->sa.bno_cur)
 		xfs_btree_del_cursor(cur, error);
@@ -422,8 +422,8 @@ xchk_rmapbt_walk_ag_metadata(
 
 	cur = sc->sa.cnt_cur;
 	if (!cur)
-		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
-				sc->sa.pag, XFS_BTNUM_CNT);
+		cur = xfs_cntbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
+				sc->sa.pag);
 	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
 	if (cur != sc->sa.cnt_cur)
 		xfs_btree_del_cursor(cur, error);
