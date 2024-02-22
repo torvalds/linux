@@ -733,7 +733,7 @@ xchk_btree(
 	 * error codes for us.
 	 */
 	level = cur->bc_nlevels - 1;
-	cur->bc_ops->init_ptr_from_cur(cur, &ptr);
+	xfs_btree_init_ptr_from_cur(cur, &ptr);
 	if (!xchk_btree_ptr_ok(bs, cur->bc_nlevels, &ptr))
 		goto out;
 	error = xchk_btree_get_block(bs, level, &ptr, &block, &bp);

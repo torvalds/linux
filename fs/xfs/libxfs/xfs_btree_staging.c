@@ -225,7 +225,6 @@ xfs_btree_stage_ifakeroot(
 	memcpy(nops, cur->bc_ops, sizeof(struct xfs_btree_ops));
 	nops->alloc_block = xfs_btree_fakeroot_alloc_block;
 	nops->free_block = xfs_btree_fakeroot_free_block;
-	nops->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
 	nops->dup_cursor = xfs_btree_fakeroot_dup_cursor;
 
 	cur->bc_ino.ifake = ifake;
