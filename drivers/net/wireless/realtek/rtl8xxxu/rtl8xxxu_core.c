@@ -5550,7 +5550,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 	struct rtl8xxxu_tx_urb *tx_urb;
 	struct ieee80211_sta *sta = NULL;
 	struct ieee80211_vif *vif = tx_info->control.vif;
-	struct rtl8xxxu_vif *rtlvif = (struct rtl8xxxu_vif *)vif->drv_priv;
+	struct rtl8xxxu_vif *rtlvif = vif ? (struct rtl8xxxu_vif *)vif->drv_priv : NULL;
 	struct device *dev = &priv->udev->dev;
 	u32 queue, rts_rate;
 	u16 pktlen = skb->len;
@@ -5621,7 +5621,7 @@ static void rtl8xxxu_tx(struct ieee80211_hw *hw,
 		default:
 			break;
 		}
-		if (bmc && rtlvif->hw_key_idx != 0xff) {
+		if (bmc && rtlvif && rtlvif->hw_key_idx != 0xff) {
 			tx_desc->txdw1 |= cpu_to_le32(TXDESC_EN_DESC_ID);
 			macid = rtlvif->hw_key_idx;
 		}
@@ -5739,7 +5739,7 @@ static void rtl8xxxu_update_beacon_work_callback(struct work_struct *work)
 	}
 
 	if (vif->bss_conf.csa_active) {
-		if (ieee80211_beacon_cntdwn_is_complete(vif)) {
+		if (ieee80211_beacon_cntdwn_is_complete(vif, 0)) {
 			ieee80211_csa_finish(vif, 0);
 			return;
 		}

@@ -156,17 +156,18 @@ struct iwl_phy_context_cmd {
 	__le32 lmac_id;
 	union {
 		__le32 rxchain_info; /* reserved in _VER_4 */
-		struct {             /* used for _VER_5 */
+		struct {             /* used for _VER_5/_VER_6 */
 			u8 sbb_bandwidth;
 			u8 sbb_ctrl_channel_loc;
-			__le16 reserved;
-		} v5;
+			__le16 puncture_mask; /* added in VER_6 */
+		};
 	};
 	__le32 dsp_cfg_flags;
 	__le32 reserved;
 } __packed; /* PHY_CONTEXT_CMD_API_VER_3,
 	     * PHY_CONTEXT_CMD_API_VER_4,
-	     * PHY_CONTEXT_CMD_API_VER_5
+	     * PHY_CONTEXT_CMD_API_VER_5,
+	     * PHY_CONTEXT_CMD_API_VER_6
 	     */
 
 #endif /* __iwl_fw_api_phy_ctxt_h__ */

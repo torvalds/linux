@@ -482,8 +482,9 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	u8 *qc = ieee80211_get_qos_ctl(hdr);
-	u8 tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
+	struct rtl_sta_info *sta_entry;
+	u8 agg_state = RTL_AGG_STOP;
+	u8 ampdu_density = 0;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
 	u8 rate_flag = info->control.rates[0].flags;
@@ -492,6 +493,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 						skb_get_queue_mapping(skb));
 	u8 *txdesc8;
 	__le32 *txdesc;
+	u8 tid;
 
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
 	rtl_get_tcb_desc(hw, info, sta, skb, tcb_desc);
@@ -505,10 +507,21 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	set_tx_desc_tx_rate(txdesc, tcb_desc->hw_rate);
 	if (tcb_desc->use_shortgi || tcb_desc->use_shortpreamble)
 		set_tx_desc_data_shortgi(txdesc, 1);
-	if (mac->tids[tid].agg.agg_state == RTL_AGG_ON &&
-		    info->flags & IEEE80211_TX_CTL_AMPDU) {
+
+	if (sta) {
+		sta_entry = (struct rtl_sta_info *)sta->drv_priv;
+		tid = ieee80211_get_tid(hdr);
+		agg_state = sta_entry->tids[tid].agg.agg_state;
+		ampdu_density = sta->deflink.ht_cap.ampdu_density;
+	}
+
+	if (agg_state == RTL_AGG_OPERATIONAL &&
+	    info->flags & IEEE80211_TX_CTL_AMPDU) {
 		set_tx_desc_agg_enable(txdesc, 1);
 		set_tx_desc_max_agg_num(txdesc, 0x14);
+		set_tx_desc_ampdu_density(txdesc, ampdu_density);
+		tcb_desc->rts_enable = 1;
+		tcb_desc->rts_rate = DESC_RATE24M;
 	} else {
 		set_tx_desc_agg_break(txdesc, 1);
 	}
@@ -543,14 +556,6 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_data_bw(txdesc, 0);
 		set_tx_desc_data_sc(txdesc, 0);
 	}
-	rcu_read_lock();
-	sta = ieee80211_find_sta(mac->vif, mac->bssid);
-	if (sta) {
-		u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
-
-		set_tx_desc_ampdu_density(txdesc, ampdu_density);
-	}
-	rcu_read_unlock();
 	if (info->control.hw_key) {
 		struct ieee80211_key_conf *keyconf = info->control.hw_key;
 

@@ -373,7 +373,7 @@ struct iwl_mac_config_cmd {
  *	iwl_link_ctx_cfg_cmd::bss_color_disable
  * @LINK_CONTEXT_MODIFY_EHT_PARAMS: covers iwl_link_ctx_cfg_cmd::puncture_mask.
  *	This flag can be set only if the MAC that this link relates to has
- *	eht_support set to true.
+ *	eht_support set to true. No longer used since _VER_3 of this command.
  * @LINK_CONTEXT_MODIFY_ALL: set all above flags
  */
 enum iwl_link_ctx_modify_flags {
@@ -462,7 +462,7 @@ enum iwl_link_ctx_flags {
  * @bi: beacon interval in TU, applicable only when associated
  * @dtim_interval: DTIM interval in TU.
  *	Relevant only for GO, otherwise this is offloaded.
- * @puncture_mask: puncture mask for EHT
+ * @puncture_mask: puncture mask for EHT (removed in VER_3)
  * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
  * @flags: a combination from &enum iwl_link_ctx_flags
  * @flags_mask: what of %flags have changed. Also &enum iwl_link_ctx_flags
@@ -505,7 +505,7 @@ struct iwl_link_config_cmd {
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
 	__le32 bi;
 	__le32 dtim_interval;
-	__le16 puncture_mask;
+	__le16 puncture_mask; /* removed in _VER_3 */
 	__le16 frame_time_rts_th;
 	__le32 flags;
 	__le32 flags_mask;
@@ -519,9 +519,7 @@ struct iwl_link_config_cmd {
 	u8 ibss_bssid_addr[6];
 	__le16 reserved_for_ibss_bssid_addr;
 	__le32 reserved3[8];
-} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1 and
-	     * LINK_CONTEXT_CONFIG_CMD_API_S_VER_2
-	     */
+} __packed; /* LINK_CONTEXT_CONFIG_CMD_API_S_VER_1, _VER_2, _VER_3 */
 
 /* Currently FW supports link ids in the range 0-3 and can have
  * at most two active links for each vif.

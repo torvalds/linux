@@ -592,7 +592,7 @@ static ssize_t iwl_dbgfs_rx_phyinfo_write(struct ieee80211_vif *vif, char *buf,
 
 	for_each_vif_active_link(vif, link_conf, link_id) {
 		struct ieee80211_chanctx_conf *chanctx_conf;
-		struct cfg80211_chan_def min_def;
+		struct cfg80211_chan_def min_def, ap_def;
 		struct iwl_mvm_phy_ctxt *phy_ctxt;
 		u8 chains_static, chains_dynamic;
 
@@ -606,6 +606,7 @@ static ssize_t iwl_dbgfs_rx_phyinfo_write(struct ieee80211_vif *vif, char *buf,
 		 * everything here and use it after unlocking
 		 */
 		min_def = chanctx_conf->min_def;
+		ap_def = chanctx_conf->ap;
 		chains_static = chanctx_conf->rx_chains_static;
 		chains_dynamic = chanctx_conf->rx_chains_dynamic;
 		rcu_read_unlock();
@@ -614,7 +615,7 @@ static ssize_t iwl_dbgfs_rx_phyinfo_write(struct ieee80211_vif *vif, char *buf,
 		if (!phy_ctxt)
 			continue;
 
-		ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &min_def,
+		ret = iwl_mvm_phy_ctxt_changed(mvm, phy_ctxt, &min_def, &ap_def,
 					       chains_static, chains_dynamic);
 	}
 

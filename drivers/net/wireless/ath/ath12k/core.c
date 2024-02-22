@@ -14,6 +14,7 @@
 #include "dp_rx.h"
 #include "debug.h"
 #include "hif.h"
+#include "fw.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -509,6 +510,33 @@ exit:
 	return ret;
 }
 
+u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab)
+{
+	if (ab->num_radios == 2)
+		return TARGET_NUM_STATIONS_DBS;
+	else if (ab->num_radios == 3)
+		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
+	return TARGET_NUM_STATIONS_SINGLE;
+}
+
+u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab)
+{
+	if (ab->num_radios == 2)
+		return TARGET_NUM_PEERS_PDEV_DBS;
+	else if (ab->num_radios == 3)
+		return TARGET_NUM_PEERS_PDEV_DBS_SBS;
+	return TARGET_NUM_PEERS_PDEV_SINGLE;
+}
+
+u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab)
+{
+	if (ab->num_radios == 2)
+		return TARGET_NUM_TIDS(DBS);
+	else if (ab->num_radios == 3)
+		return TARGET_NUM_TIDS(DBS_SBS);
+	return TARGET_NUM_TIDS(SINGLE);
+}
+
 static void ath12k_core_stop(struct ath12k_base *ab)
 {
 	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
@@ -720,6 +748,8 @@ static int ath12k_core_start(struct ath12k_base *ab,
 		goto err_mac_destroy;
 	}
 
+	ath12k_dp_hal_rx_desc_init(ab);
+
 	ret = ath12k_wmi_cmd_init(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to send wmi init cmd: %d\n", ret);
@@ -879,21 +909,29 @@ static void ath12k_rfkill_work(struct work_struct *work)
 {
 	struct ath12k_base *ab = container_of(work, struct ath12k_base, rfkill_work);
 	struct ath12k *ar;
+	struct ath12k_hw *ah;
 	struct ieee80211_hw *hw;
 	bool rfkill_radio_on;
-	int i;
+	int i, j;
 
 	spin_lock_bh(&ab->base_lock);
 	rfkill_radio_on = ab->rfkill_radio_on;
 	spin_unlock_bh(&ab->base_lock);
 
-	for (i = 0; i < ab->num_radios; i++) {
-		ar = ab->pdevs[i].ar;
-		if (!ar)
+	for (i = 0; i < ab->num_hw; i++) {
+		ah = ab->ah[i];
+		if (!ah)
 			continue;
 
-		hw = ath12k_ar_to_hw(ar);
-		ath12k_mac_rfkill_enable_radio(ar, rfkill_radio_on);
+		for (j = 0; j < ah->num_radio; j++) {
+			ar = &ah->radio[j];
+			if (!ar)
+				continue;
+
+			ath12k_mac_rfkill_enable_radio(ar, rfkill_radio_on);
+		}
+
+		hw = ah->hw;
 		wiphy_rfkill_set_hw_state(hw->wiphy, !rfkill_radio_on);
 	}
 }
@@ -950,6 +988,7 @@ static void ath12k_core_pre_reconfigure_recovery(struct ath12k_base *ab)
 		ath12k_mac_drain_tx(ar);
 		complete(&ar->scan.started);
 		complete(&ar->scan.completed);
+		complete(&ar->scan.on_channel);
 		complete(&ar->peer_assoc_done);
 		complete(&ar->peer_delete_done);
 		complete(&ar->install_key_done);
@@ -1109,6 +1148,8 @@ int ath12k_core_pre_init(struct ath12k_base *ab)
 		return ret;
 	}
 
+	ath12k_fw_map(ab);
+
 	return 0;
 }
 
@@ -1137,6 +1178,7 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 	ath12k_hif_power_down(ab);
 	ath12k_mac_destroy(ab);
 	ath12k_core_soc_destroy(ab);
+	ath12k_fw_unmap(ab);
 }
 
 void ath12k_core_free(struct ath12k_base *ab)
@@ -1185,6 +1227,7 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 	ab->dev = dev;
 	ab->hif.bus = bus;
 	ab->qmi.num_radios = U8_MAX;
+	ab->slo_capable = true;
 
 	return ab;
 

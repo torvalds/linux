@@ -1397,8 +1397,6 @@ struct rtl_phy {
 #define RTL_AGG_PROGRESS			1
 #define RTL_AGG_START				2
 #define RTL_AGG_OPERATIONAL			3
-#define RTL_AGG_OFF				0
-#define RTL_AGG_ON				1
 #define RTL_RX_AGG_START			1
 #define RTL_RX_AGG_STOP				0
 #define RTL_AGG_EMPTYING_HW_QUEUE_ADDBA		2
@@ -1473,7 +1471,6 @@ struct rtl_mac {
 	enum nl80211_iftype opmode;
 
 	/*Probe Beacon management */
-	struct rtl_tid_data tids[MAX_TID_COUNT];
 	enum rtl_link_state link_state;
 
 	int n_channels;

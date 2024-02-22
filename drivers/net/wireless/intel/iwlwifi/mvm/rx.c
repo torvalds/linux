@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -752,6 +752,19 @@ iwl_mvm_update_tcm_from_stats(struct iwl_mvm *mvm, __le32 *air_time_le,
 	spin_unlock(&mvm->tcm.lock);
 }
 
+static void iwl_mvm_handle_per_phy_stats(struct iwl_mvm *mvm,
+					 struct iwl_stats_ntfy_per_phy *per_phy)
+{
+	int i;
+
+	for (i = 0; i < NUM_PHY_CTX; i++) {
+		if (!mvm->phy_ctxts[i].ref)
+			continue;
+		mvm->phy_ctxts[i].channel_load_by_us =
+			le32_to_cpu(per_phy[i].channel_load_by_us);
+	}
+}
+
 static void
 iwl_mvm_stats_ver_15(struct iwl_mvm *mvm,
 		     struct iwl_statistics_operational_ntfy *stats)
@@ -766,6 +779,7 @@ iwl_mvm_stats_ver_15(struct iwl_mvm *mvm,
 					    IEEE80211_IFACE_ITER_NORMAL,
 					    iwl_mvm_stat_iterator_all_macs,
 					    &data);
+	iwl_mvm_handle_per_phy_stats(mvm, stats->per_phy);
 }
 
 static void
@@ -942,6 +956,7 @@ void iwl_mvm_handle_rx_system_oper_stats(struct iwl_mvm *mvm,
 
 	ieee80211_iterate_stations_atomic(mvm->hw, iwl_mvm_stats_energy_iter,
 					  average_energy);
+	iwl_mvm_handle_per_phy_stats(mvm, stats->per_phy);
 }
 
 void iwl_mvm_handle_rx_system_oper_part1_stats(struct iwl_mvm *mvm,

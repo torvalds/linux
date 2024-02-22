@@ -2015,7 +2015,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct cfg80211_bss *cbss = link->u.mgd.bss;
+	struct cfg80211_bss *cbss = link->conf->bss;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *chanctx;
 	enum nl80211_band current_band;
@@ -2928,7 +2928,7 @@ static u64 ieee80211_link_set_associated(struct ieee80211_link_data *link,
 
 	ieee80211_check_rate_mask(link);
 
-	link->u.mgd.bss = cbss;
+	link->conf->bss = cbss;
 	memcpy(link->u.mgd.bssid, cbss->bssid, ETH_ALEN);
 
 	if (sdata->vif.p2p ||
@@ -3076,7 +3076,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ifmgd->associated = false;
 
 	/* other links will be destroyed */
-	sdata->deflink.u.mgd.bss = NULL;
+	sdata->deflink.conf->bss = NULL;
 	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
 
 	netif_carrier_off(sdata->dev);
@@ -3406,7 +3406,7 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		ieee80211_mlme_send_probe_req(sdata, sdata->vif.addr, dst,
 					      sdata->vif.cfg.ssid,
 					      sdata->vif.cfg.ssid_len,
-					      sdata->deflink.u.mgd.bss->channel);
+					      sdata->deflink.conf->bss->channel);
 	}
 
 	ifmgd->probe_timeout = jiffies + msecs_to_jiffies(probe_wait_ms);
@@ -3489,7 +3489,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 		return NULL;
 
 	if (ifmgd->associated)
-		cbss = sdata->deflink.u.mgd.bss;
+		cbss = sdata->deflink.conf->bss;
 	else if (ifmgd->auth_data)
 		cbss = ifmgd->auth_data->bss;
 	else if (ifmgd->assoc_data && ifmgd->assoc_data->link[0].bss)
@@ -3568,8 +3568,8 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 			link = sdata_dereference(sdata->link[link_id], sdata);
 			if (!link)
 				continue;
-			cfg80211_unlink_bss(local->hw.wiphy, link->u.mgd.bss);
-			link->u.mgd.bss = NULL;
+			cfg80211_unlink_bss(local->hw.wiphy, link->conf->bss);
+			link->conf->bss = NULL;
 		}
 	}
 
@@ -4202,13 +4202,14 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 		 */
 		assoc_data->link[link_id].status = WLAN_STATUS_SUCCESS;
 		if (elems->ml_basic) {
-			if (!(elems->ml_basic->control &
-					cpu_to_le16(IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT))) {
+			int bss_param_ch_cnt =
+				ieee80211_mle_get_bss_param_ch_cnt((const void *)elems->ml_basic);
+
+			if (bss_param_ch_cnt < 0) {
 				ret = false;
 				goto out;
 			}
-			link->u.mgd.bss_param_ch_cnt =
-				ieee80211_mle_get_bss_param_ch_cnt(elems->ml_basic);
+			link->u.mgd.bss_param_ch_cnt = bss_param_ch_cnt;
 		}
 	} else if (elems->parse_error & IEEE80211_PARSE_ERR_DUP_NEST_ML_BASIC ||
 		   !elems->prof ||
@@ -6208,7 +6209,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	}
 
 	if (!ifmgd->associated ||
-	    !ieee80211_rx_our_beacon(bssid, link->u.mgd.bss))
+	    !ieee80211_rx_our_beacon(bssid, link->conf->bss))
 		return;
 	bssid = link->u.mgd.bssid;
 
@@ -6235,7 +6236,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	 */
 	if (!ieee80211_is_s1g_beacon(hdr->frame_control))
 		ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
-	parse_params.bss = link->u.mgd.bss;
+	parse_params.bss = link->conf->bss;
 	parse_params.filter = care_about_ies;
 	parse_params.crc = ncrc;
 	elems = ieee802_11_parse_elems_full(&parse_params);

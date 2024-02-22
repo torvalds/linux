@@ -557,6 +557,10 @@ struct ieee80211_fils_discovery {
  * to that BSS) that can change during the lifetime of the BSS.
  *
  * @vif: reference to owning VIF
+ * @bss: the cfg80211 bss descriptor. Valid only for a station, and only
+ *	when associated. Note: This contains information which is not
+ *	necessarily authenticated. For example, information coming from probe
+ *	responses.
  * @addr: (link) address used locally
  * @link_id: link ID, or 0 for non-MLO
  * @htc_trig_based_pkt_ext: default PE in 4us units, if BSS supports HE
@@ -700,6 +704,7 @@ struct ieee80211_fils_discovery {
  */
 struct ieee80211_bss_conf {
 	struct ieee80211_vif *vif;
+	struct cfg80211_bss *bss;
 
 	const u8 *bssid;
 	unsigned int link_id;
@@ -5566,10 +5571,12 @@ void ieee80211_csa_finish(struct ieee80211_vif *vif, unsigned int link_id);
 /**
  * ieee80211_beacon_cntdwn_is_complete - find out if countdown reached 1
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: valid link_id during MLO or 0 for non-MLO
  *
  * This function returns whether the countdown reached zero.
  */
-bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif);
+bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif,
+					 unsigned int link_id);
 
 /**
  * ieee80211_color_change_finish - notify mac80211 about color change

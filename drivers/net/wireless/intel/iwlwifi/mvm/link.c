@@ -204,7 +204,8 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			def = iwl_mvm_chanctx_def(mvm, ctx);
 
 		if (iwlwifi_mod_params.disable_11be ||
-		    !link_conf->eht_support || !def)
+		    !link_conf->eht_support || !def ||
+		    iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1) >= 6)
 			changes &= ~LINK_CONTEXT_MODIFY_EHT_PARAMS;
 		else
 			cmd.puncture_mask = cpu_to_le16(def->punctured);

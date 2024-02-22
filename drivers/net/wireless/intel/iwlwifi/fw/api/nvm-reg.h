@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -462,7 +462,7 @@ struct iwl_tas_config_cmd_v3 {
 } __packed; /* TAS_CONFIG_CMD_API_S_VER_3 */
 
 /**
- * struct iwl_tas_config_cmd_v3 - configures the TAS
+ * struct iwl_tas_config_cmd_v4 - configures the TAS
  * @override_tas_iec: indicates whether to override default value of IEC regulatory
  * @enable_tas_iec: in case override_tas_iec is set -
  *	indicates whether IEC regulatory is enabled or disabled

@@ -1577,7 +1577,7 @@ void ath11k_mac_bcn_tx_event(struct ath11k_vif *arvif)
 		return;
 
 	if (vif->bss_conf.color_change_active &&
-	    ieee80211_beacon_cntdwn_is_complete(vif)) {
+	    ieee80211_beacon_cntdwn_is_complete(vif, 0)) {
 		arvif->bcca_zero_sent = true;
 		ieee80211_color_change_finish(vif);
 		return;
@@ -2294,6 +2294,8 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 	mcs_160_map = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_160);
 	mcs_80_map = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_80);
 
+	/* Initialize rx_mcs_160 to 9 which is an invalid value */
+	rx_mcs_160 = 9;
 	if (support_160) {
 		for (i = 7; i >= 0; i--) {
 			u8 mcs_160 = (mcs_160_map >> (2 * i)) & 3;
@@ -2305,6 +2307,8 @@ static void ath11k_peer_assoc_h_he(struct ath11k *ar,
 		}
 	}
 
+	/* Initialize rx_mcs_80 to 9 which is an invalid value */
+	rx_mcs_80 = 9;
 	for (i = 7; i >= 0; i--) {
 		u8 mcs_80 = (mcs_80_map >> (2 * i)) & 3;
 
@@ -3023,7 +3027,14 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 
 	rcu_read_unlock();
 
+	if (!ath11k_mac_vif_recalc_sta_he_txbf(ar, vif, &he_cap)) {
+		ath11k_warn(ar->ab, "failed to recalc he txbf for vdev %i on bss %pM\n",
+			    arvif->vdev_id, bss_conf->bssid);
+		return;
+	}
+
 	peer_arg.is_assoc = true;
+
 	ret = ath11k_wmi_send_peer_assoc_cmd(ar, &peer_arg);
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to run peer assoc for %pM vdev %i: %d\n",
@@ -3043,12 +3054,6 @@ static void ath11k_bss_assoc(struct ieee80211_hw *hw,
 	if (ret) {
 		ath11k_warn(ar->ab, "failed to setup peer SMPS for vdev %d: %d\n",
 			    arvif->vdev_id, ret);
-		return;
-	}
-
-	if (!ath11k_mac_vif_recalc_sta_he_txbf(ar, vif, &he_cap)) {
-		ath11k_warn(ar->ab, "failed to recalc he txbf for vdev %i on bss %pM\n",
-			    arvif->vdev_id, bss_conf->bssid);
 		return;
 	}
 
@@ -4008,7 +4013,7 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 			       req->ssids[i].ssid_len);
 		}
 	} else {
-		arg->scan_flags |= WMI_SCAN_FLAG_PASSIVE;
+		arg->scan_f_passive = 1;
 	}
 
 	if (req->n_channels) {
@@ -7585,14 +7590,15 @@ void ath11k_mac_fill_reg_tpc_info(struct ath11k *ar,
 				  struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_vif *arvif = (void *)vif->drv_priv;
+	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ath11k_reg_tpc_power_info *reg_tpc_info = &arvif->reg_tpc_info;
 	struct ieee80211_channel *chan, *temp_chan;
 	u8 pwr_lvl_idx, num_pwr_levels, pwr_reduction;
 	bool is_psd_power = false, is_tpe_present = false;
 	s8 max_tx_power[IEEE80211_MAX_NUM_PWR_LEVEL],
-		psd_power, tx_power, eirp_power;
+		psd_power, tx_power;
+	s8 eirp_power = 0;
 	u16 start_freq, center_freq;
 
 	chan = ctx->def.chan;
@@ -7758,7 +7764,7 @@ static void ath11k_mac_parse_tx_pwr_env(struct ath11k *ar,
 					struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath11k_base *ab = ar->ab;
-	struct ath11k_vif *arvif = (void *)vif->drv_priv;
+	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);
 	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
 	struct ieee80211_tx_pwr_env *single_tpe;
 	enum wmi_reg_6ghz_client_type client_type;
@@ -9246,8 +9252,8 @@ static int ath11k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	arg->dwell_time_active = scan_time_msec;
 	arg->dwell_time_passive = scan_time_msec;
 	arg->max_scan_time = scan_time_msec;
-	arg->scan_flags |= WMI_SCAN_FLAG_PASSIVE;
-	arg->scan_flags |= WMI_SCAN_FILTER_PROBE_REQ;
+	arg->scan_f_passive = 1;
+	arg->scan_f_filter_prb_req = 1;
 	arg->burst_duration = duration;
 
 	ret = ath11k_start_scan(ar, arg);
@@ -9818,6 +9824,33 @@ static int ath11k_mac_setup_channels_rates(struct ath11k *ar,
 	return 0;
 }
 
+static void ath11k_mac_setup_mac_address_list(struct ath11k *ar)
+{
+	struct mac_address *addresses;
+	u16 n_addresses;
+	int i;
+
+	if (!ar->ab->hw_params.support_dual_stations)
+		return;
+
+	n_addresses = ar->ab->hw_params.num_vdevs;
+	addresses = kcalloc(n_addresses, sizeof(*addresses), GFP_KERNEL);
+	if (!addresses)
+		return;
+
+	memcpy(addresses[0].addr, ar->mac_addr, ETH_ALEN);
+	for (i = 1; i < n_addresses; i++) {
+		memcpy(addresses[i].addr, ar->mac_addr, ETH_ALEN);
+		/* set Local Administered Address bit */
+		addresses[i].addr[0] |= 0x2;
+
+		addresses[i].addr[0] += (i - 1) << 4;
+	}
+
+	ar->hw->wiphy->addresses = addresses;
+	ar->hw->wiphy->n_addresses = n_addresses;
+}
+
 static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 {
 	struct ath11k_base *ab = ar->ab;
@@ -9837,28 +9870,46 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 		return -ENOMEM;
 	}
 
-	limits[0].max = 1;
-	limits[0].types |= BIT(NL80211_IFTYPE_STATION);
+	if (ab->hw_params.support_dual_stations) {
+		limits[0].max = 2;
+		limits[0].types |= BIT(NL80211_IFTYPE_STATION);
 
-	limits[1].max = 16;
-	limits[1].types |= BIT(NL80211_IFTYPE_AP);
+		limits[1].max = 1;
+		limits[1].types |= BIT(NL80211_IFTYPE_AP);
+		if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
+		    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
+			limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
 
-	if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
-	    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
-		limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
+		combinations[0].limits = limits;
+		combinations[0].n_limits = 2;
+		combinations[0].max_interfaces = ab->hw_params.num_vdevs;
+		combinations[0].num_different_channels = 2;
+		combinations[0].beacon_int_infra_match = true;
+		combinations[0].beacon_int_min_gcd = 100;
+	} else {
+		limits[0].max = 1;
+		limits[0].types |= BIT(NL80211_IFTYPE_STATION);
 
-	combinations[0].limits = limits;
-	combinations[0].n_limits = n_limits;
-	combinations[0].max_interfaces = 16;
-	combinations[0].num_different_channels = 1;
-	combinations[0].beacon_int_infra_match = true;
-	combinations[0].beacon_int_min_gcd = 100;
-	combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
-						BIT(NL80211_CHAN_WIDTH_20) |
-						BIT(NL80211_CHAN_WIDTH_40) |
-						BIT(NL80211_CHAN_WIDTH_80) |
-						BIT(NL80211_CHAN_WIDTH_80P80) |
-						BIT(NL80211_CHAN_WIDTH_160);
+		limits[1].max = 16;
+		limits[1].types |= BIT(NL80211_IFTYPE_AP);
+
+		if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
+		    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
+			limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
+
+		combinations[0].limits = limits;
+		combinations[0].n_limits = 2;
+		combinations[0].max_interfaces = 16;
+		combinations[0].num_different_channels = 1;
+		combinations[0].beacon_int_infra_match = true;
+		combinations[0].beacon_int_min_gcd = 100;
+		combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
+							BIT(NL80211_CHAN_WIDTH_20) |
+							BIT(NL80211_CHAN_WIDTH_40) |
+							BIT(NL80211_CHAN_WIDTH_80) |
+							BIT(NL80211_CHAN_WIDTH_80P80) |
+							BIT(NL80211_CHAN_WIDTH_160);
+	}
 
 	ar->hw->wiphy->iface_combinations = combinations;
 	ar->hw->wiphy->n_iface_combinations = 1;
@@ -9923,6 +9974,8 @@ static void __ath11k_mac_unregister(struct ath11k *ar)
 	kfree(ar->hw->wiphy->iface_combinations[0].limits);
 	kfree(ar->hw->wiphy->iface_combinations);
 
+	kfree(ar->hw->wiphy->addresses);
+
 	SET_IEEE80211_DEV(ar->hw, NULL);
 }
 
@@ -9965,6 +10018,7 @@ static int __ath11k_mac_register(struct ath11k *ar)
 	ath11k_pdev_caps_update(ar);
 
 	SET_IEEE80211_PERM_ADDR(ar->hw, ar->mac_addr);
+	ath11k_mac_setup_mac_address_list(ar);
 
 	SET_IEEE80211_DEV(ar->hw, ab->dev);
 

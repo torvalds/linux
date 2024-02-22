@@ -10048,6 +10048,42 @@ static int nl80211_notify_radar_detection(struct sk_buff *skb,
 	return 0;
 }
 
+static int nl80211_parse_counter_offsets(struct cfg80211_registered_device *rdev,
+					 const u8 *data, size_t datalen,
+					 int first_count, struct nlattr *attr,
+					 const u16 **offsets, unsigned int *n_offsets)
+{
+	int i;
+
+	*n_offsets = 0;
+
+	if (!attr)
+		return 0;
+
+	if (!nla_len(attr) || (nla_len(attr) % sizeof(u16)))
+		return -EINVAL;
+
+	*n_offsets = nla_len(attr) / sizeof(u16);
+	if (rdev->wiphy.max_num_csa_counters &&
+	    (*n_offsets > rdev->wiphy.max_num_csa_counters))
+		return -EINVAL;
+
+	*offsets = nla_data(attr);
+
+	/* sanity checks - counters should fit and be the same */
+	for (i = 0; i < *n_offsets; i++) {
+		u16 offset = (*offsets)[i];
+
+		if (offset >= datalen)
+			return -EINVAL;
+
+		if (first_count != -1 && data[offset] != first_count)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
@@ -10059,7 +10095,6 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 	int err;
 	bool need_new_beacon = false;
 	bool need_handle_dfs_flag = true;
-	int len, i;
 	u32 cs_count;
 
 	if (!rdev->ops->channel_switch ||
@@ -10144,72 +10179,23 @@ static int nl80211_channel_switch(struct sk_buff *skb, struct genl_info *info)
 		goto free;
 	}
 
-	len = nla_len(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_BEACON]);
-	if (!len || (len % sizeof(u16))) {
-		err = -EINVAL;
+	err = nl80211_parse_counter_offsets(rdev, params.beacon_csa.tail,
+					    params.beacon_csa.tail_len,
+					    params.count,
+					    csa_attrs[NL80211_ATTR_CNTDWN_OFFS_BEACON],
+					    &params.counter_offsets_beacon,
+					    &params.n_counter_offsets_beacon);
+	if (err)
 		goto free;
-	}
 
-	params.n_counter_offsets_beacon = len / sizeof(u16);
-	if (rdev->wiphy.max_num_csa_counters &&
-	    (params.n_counter_offsets_beacon >
-	     rdev->wiphy.max_num_csa_counters)) {
-		err = -EINVAL;
+	err = nl80211_parse_counter_offsets(rdev, params.beacon_csa.probe_resp,
+					    params.beacon_csa.probe_resp_len,
+					    params.count,
+					    csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP],
+					    &params.counter_offsets_presp,
+					    &params.n_counter_offsets_presp);
+	if (err)
 		goto free;
-	}
-
-	params.counter_offsets_beacon =
-		nla_data(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_BEACON]);
-
-	/* sanity checks - counters should fit and be the same */
-	for (i = 0; i < params.n_counter_offsets_beacon; i++) {
-		u16 offset = params.counter_offsets_beacon[i];
-
-		if (offset >= params.beacon_csa.tail_len) {
-			err = -EINVAL;
-			goto free;
-		}
-
-		if (params.beacon_csa.tail[offset] != params.count) {
-			err = -EINVAL;
-			goto free;
-		}
-	}
-
-	if (csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP]) {
-		len = nla_len(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP]);
-		if (!len || (len % sizeof(u16))) {
-			err = -EINVAL;
-			goto free;
-		}
-
-		params.n_counter_offsets_presp = len / sizeof(u16);
-		if (rdev->wiphy.max_num_csa_counters &&
-		    (params.n_counter_offsets_presp >
-		     rdev->wiphy.max_num_csa_counters)) {
-			err = -EINVAL;
-			goto free;
-		}
-
-		params.counter_offsets_presp =
-			nla_data(csa_attrs[NL80211_ATTR_CNTDWN_OFFS_PRESP]);
-
-		/* sanity checks - counters should fit and be the same */
-		for (i = 0; i < params.n_counter_offsets_presp; i++) {
-			u16 offset = params.counter_offsets_presp[i];
-
-			if (offset >= params.beacon_csa.probe_resp_len) {
-				err = -EINVAL;
-				goto free;
-			}
-
-			if (params.beacon_csa.probe_resp[offset] !=
-			    params.count) {
-				err = -EINVAL;
-				goto free;
-			}
-		}
-	}
 
 skip_beacons:
 	err = nl80211_parse_chandef(rdev, info, &params.chandef);
@@ -12638,23 +12624,12 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 	params.buf = nla_data(info->attrs[NL80211_ATTR_FRAME]);
 	params.len = nla_len(info->attrs[NL80211_ATTR_FRAME]);
 
-	if (info->attrs[NL80211_ATTR_CSA_C_OFFSETS_TX]) {
-		int len = nla_len(info->attrs[NL80211_ATTR_CSA_C_OFFSETS_TX]);
-		int i;
-
-		if (len % sizeof(u16))
-			return -EINVAL;
-
-		params.n_csa_offsets = len / sizeof(u16);
-		params.csa_offsets =
-			nla_data(info->attrs[NL80211_ATTR_CSA_C_OFFSETS_TX]);
-
-		/* check that all the offsets fit the frame */
-		for (i = 0; i < params.n_csa_offsets; i++) {
-			if (params.csa_offsets[i] >= params.len)
-				return -EINVAL;
-		}
-	}
+	err = nl80211_parse_counter_offsets(rdev, NULL, params.len, -1,
+					    info->attrs[NL80211_ATTR_CSA_C_OFFSETS_TX],
+					    &params.csa_offsets,
+					    &params.n_csa_offsets);
+	if (err)
+		return err;
 
 	if (!params.dont_wait_for_ack) {
 		msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
@@ -20132,9 +20107,26 @@ int cfg80211_external_auth_request(struct net_device *dev,
 	if (!hdr)
 		goto nla_put_failure;
 
+	/* Some historical mistakes in drivers <-> userspace interface (notably
+	 * between drivers and wpa_supplicant) led to a big-endian conversion
+	 * being needed on NL80211_ATTR_AKM_SUITES _only_ when its value is
+	 * WLAN_AKM_SUITE_SAE. This is now fixed on userspace side, but for the
+	 * benefit of older wpa_supplicant versions, send this particular value
+	 * in big-endian. Note that newer wpa_supplicant will also detect this
+	 * particular value in big endian still, so it all continues to work.
+	 */
+	if (params->key_mgmt_suite == WLAN_AKM_SUITE_SAE) {
+		if (nla_put_be32(msg, NL80211_ATTR_AKM_SUITES,
+				 cpu_to_be32(WLAN_AKM_SUITE_SAE)))
+			goto nla_put_failure;
+	} else {
+		if (nla_put_u32(msg, NL80211_ATTR_AKM_SUITES,
+				params->key_mgmt_suite))
+			goto nla_put_failure;
+	}
+
 	if (nla_put_u32(msg, NL80211_ATTR_WIPHY, rdev->wiphy_idx) ||
 	    nla_put_u32(msg, NL80211_ATTR_IFINDEX, dev->ifindex) ||
-	    nla_put_u32(msg, NL80211_ATTR_AKM_SUITES, params->key_mgmt_suite) ||
 	    nla_put_u32(msg, NL80211_ATTR_EXTERNAL_AUTH_ACTION,
 			params->action) ||
 	    nla_put(msg, NL80211_ATTR_BSSID, ETH_ALEN, params->bssid) ||

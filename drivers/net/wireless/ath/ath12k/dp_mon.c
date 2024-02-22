@@ -864,7 +864,7 @@ static void ath12k_dp_mon_rx_msdus_set_payload(struct ath12k *ar, struct sk_buff
 {
 	u32 rx_pkt_offset, l2_hdr_offset;
 
-	rx_pkt_offset = ar->ab->hw_params->hal_desc_sz;
+	rx_pkt_offset = ar->ab->hal.hal_desc_sz;
 	l2_hdr_offset = ath12k_dp_rx_h_l3pad(ar->ab,
 					     (struct hal_rx_desc *)msdu->data);
 	skb_pull(msdu, rx_pkt_offset + l2_hdr_offset);
@@ -917,7 +917,8 @@ ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
 		u8 qos_pkt = 0;
 
 		rx_desc = (struct hal_rx_desc *)head_msdu->data;
-		hdr_desc = ab->hw_params->hal_ops->rx_desc_get_msdu_payload(rx_desc);
+		hdr_desc =
+			ab->hal_rx_ops->rx_desc_get_msdu_payload(rx_desc);
 
 		/* Base size */
 		wh = (struct ieee80211_hdr_3addr *)hdr_desc;

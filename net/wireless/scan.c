@@ -611,104 +611,144 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 	return 0;
 }
 
-VISIBLE_IF_CFG80211_KUNIT int
-cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
-			    struct list_head *list)
+enum cfg80211_rnr_iter_ret {
+	RNR_ITER_CONTINUE,
+	RNR_ITER_BREAK,
+	RNR_ITER_ERROR,
+};
+
+static bool
+cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
+		  enum cfg80211_rnr_iter_ret
+		  (*iter)(void *data, u8 type,
+			  const struct ieee80211_neighbor_ap_info *info,
+			  const u8 *tbtt_info, u8 tbtt_info_len),
+		  void *iter_data)
 {
-	struct ieee80211_neighbor_ap_info *ap_info;
-	const struct element *elem, *ssid_elem;
+	const struct element *rnr;
 	const u8 *pos, *end;
-	u32 s_ssid_tmp;
-	int n_coloc = 0, ret;
-	LIST_HEAD(ap_list);
 
-	ret = cfg80211_calc_short_ssid(ies, &ssid_elem, &s_ssid_tmp);
-	if (ret)
-		return 0;
+	for_each_element_id(rnr, WLAN_EID_REDUCED_NEIGHBOR_REPORT,
+			    elems, elems_len) {
+		const struct ieee80211_neighbor_ap_info *info;
 
-	for_each_element_id(elem, WLAN_EID_REDUCED_NEIGHBOR_REPORT,
-			    ies->data, ies->len) {
-		pos = elem->data;
-		end = elem->data + elem->datalen;
+		pos = rnr->data;
+		end = rnr->data + rnr->datalen;
 
 		/* RNR IE may contain more than one NEIGHBOR_AP_INFO */
-		while (pos + sizeof(*ap_info) <= end) {
-			enum nl80211_band band;
-			int freq;
+		while (sizeof(*info) <= end - pos) {
 			u8 length, i, count;
+			u8 type;
 
-			ap_info = (void *)pos;
-			count = u8_get_bits(ap_info->tbtt_info_hdr,
-					    IEEE80211_AP_INFO_TBTT_HDR_COUNT) + 1;
-			length = ap_info->tbtt_info_len;
+			info = (void *)pos;
+			count = u8_get_bits(info->tbtt_info_hdr,
+					    IEEE80211_AP_INFO_TBTT_HDR_COUNT) +
+				1;
+			length = info->tbtt_info_len;
 
-			pos += sizeof(*ap_info);
+			pos += sizeof(*info);
 
-			if (!ieee80211_operating_class_to_band(ap_info->op_class,
-							       &band))
-				break;
+			if (count * length > end - pos)
+				return false;
 
-			freq = ieee80211_channel_to_frequency(ap_info->channel,
-							      band);
-
-			if (end - pos < count * length)
-				break;
-
-			if (u8_get_bits(ap_info->tbtt_info_hdr,
-					IEEE80211_AP_INFO_TBTT_HDR_TYPE) !=
-			    IEEE80211_TBTT_INFO_TYPE_TBTT) {
-				pos += count * length;
-				continue;
-			}
-
-			/* TBTT info must include bss param + BSSID +
-			 * (short SSID or same_ssid bit to be set).
-			 * ignore other options, and move to the
-			 * next AP info
-			 */
-			if (band != NL80211_BAND_6GHZ ||
-			    !(length == offsetofend(struct ieee80211_tbtt_info_7_8_9,
-						    bss_params) ||
-			      length == sizeof(struct ieee80211_tbtt_info_7_8_9) ||
-			      length >= offsetofend(struct ieee80211_tbtt_info_ge_11,
-						    bss_params))) {
-				pos += count * length;
-				continue;
-			}
+			type = u8_get_bits(info->tbtt_info_hdr,
+					   IEEE80211_AP_INFO_TBTT_HDR_TYPE);
 
 			for (i = 0; i < count; i++) {
-				struct cfg80211_colocated_ap *entry;
-
-				entry = kzalloc(sizeof(*entry) + IEEE80211_MAX_SSID_LEN,
-						GFP_ATOMIC);
-
-				if (!entry)
-					goto error;
-
-				entry->center_freq = freq;
-
-				if (!cfg80211_parse_ap_info(entry, pos, length,
-							    ssid_elem,
-							    s_ssid_tmp)) {
-					n_coloc++;
-					list_add_tail(&entry->list, &ap_list);
-				} else {
-					kfree(entry);
+				switch (iter(iter_data, type, info,
+					     pos, length)) {
+				case RNR_ITER_CONTINUE:
+					break;
+				case RNR_ITER_BREAK:
+					return true;
+				case RNR_ITER_ERROR:
+					return false;
 				}
 
 				pos += length;
 			}
 		}
 
-error:
-		if (pos != end) {
-			cfg80211_free_coloc_ap_list(&ap_list);
-			return 0;
-		}
+		if (pos != end)
+			return false;
 	}
 
-	list_splice_tail(&ap_list, list);
-	return n_coloc;
+	return true;
+}
+
+struct colocated_ap_data {
+	const struct element *ssid_elem;
+	struct list_head ap_list;
+	u32 s_ssid_tmp;
+	int n_coloc;
+};
+
+static enum cfg80211_rnr_iter_ret
+cfg80211_parse_colocated_ap_iter(void *_data, u8 type,
+				 const struct ieee80211_neighbor_ap_info *info,
+				 const u8 *tbtt_info, u8 tbtt_info_len)
+{
+	struct colocated_ap_data *data = _data;
+	struct cfg80211_colocated_ap *entry;
+	enum nl80211_band band;
+
+	if (type != IEEE80211_TBTT_INFO_TYPE_TBTT)
+		return RNR_ITER_CONTINUE;
+
+	if (!ieee80211_operating_class_to_band(info->op_class, &band))
+		return RNR_ITER_CONTINUE;
+
+	/* TBTT info must include bss param + BSSID + (short SSID or
+	 * same_ssid bit to be set). Ignore other options, and move to
+	 * the next AP info
+	 */
+	if (band != NL80211_BAND_6GHZ ||
+	    !(tbtt_info_len == offsetofend(struct ieee80211_tbtt_info_7_8_9,
+					   bss_params) ||
+	      tbtt_info_len == sizeof(struct ieee80211_tbtt_info_7_8_9) ||
+	      tbtt_info_len >= offsetofend(struct ieee80211_tbtt_info_ge_11,
+					   bss_params)))
+		return RNR_ITER_CONTINUE;
+
+	entry = kzalloc(sizeof(*entry) + IEEE80211_MAX_SSID_LEN, GFP_ATOMIC);
+	if (!entry)
+		return RNR_ITER_ERROR;
+
+	entry->center_freq =
+		ieee80211_channel_to_frequency(info->channel, band);
+
+	if (!cfg80211_parse_ap_info(entry, tbtt_info, tbtt_info_len,
+				    data->ssid_elem, data->s_ssid_tmp)) {
+		data->n_coloc++;
+		list_add_tail(&entry->list, &data->ap_list);
+	} else {
+		kfree(entry);
+	}
+
+	return RNR_ITER_CONTINUE;
+}
+
+VISIBLE_IF_CFG80211_KUNIT int
+cfg80211_parse_colocated_ap(const struct cfg80211_bss_ies *ies,
+			    struct list_head *list)
+{
+	struct colocated_ap_data data = {};
+	int ret;
+
+	INIT_LIST_HEAD(&data.ap_list);
+
+	ret = cfg80211_calc_short_ssid(ies, &data.ssid_elem, &data.s_ssid_tmp);
+	if (ret)
+		return 0;
+
+	if (!cfg80211_iter_rnr(ies->data, ies->len,
+			       cfg80211_parse_colocated_ap_iter, &data)) {
+		cfg80211_free_coloc_ap_list(&data.ap_list);
+		return 0;
+	}
+
+	list_splice_tail(&data.ap_list, list);
+	return data.n_coloc;
 }
 EXPORT_SYMBOL_IF_CFG80211_KUNIT(cfg80211_parse_colocated_ap);
 
@@ -2087,6 +2127,35 @@ struct cfg80211_inform_single_bss_data {
 	u64 cannot_use_reasons;
 };
 
+static bool cfg80211_6ghz_power_type_valid(const u8 *ie, size_t ielen,
+					   const u32 flags)
+{
+	const struct element *tmp;
+	struct ieee80211_he_operation *he_oper;
+
+	tmp = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie, ielen);
+	if (tmp && tmp->datalen >= sizeof(*he_oper) + 1) {
+		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
+
+		he_oper = (void *)&tmp->data[1];
+		he_6ghz_oper = ieee80211_he_6ghz_oper(he_oper);
+
+		if (!he_6ghz_oper)
+			return false;
+
+		switch (u8_get_bits(he_6ghz_oper->control,
+				    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
+		case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+			return true;
+		case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+			return !(flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT);
+		case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
+			return !(flags & IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT);
+		}
+	}
+	return false;
+}
+
 /* Returned bss is reference counted and must be cleaned up appropriately. */
 static struct cfg80211_bss *
 cfg80211_inform_single_bss_data(struct wiphy *wiphy,
@@ -2119,6 +2188,14 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	if (!channel)
 		return NULL;
 
+	if (channel->band == NL80211_BAND_6GHZ &&
+	    !cfg80211_6ghz_power_type_valid(data->ie, data->ielen,
+					    channel->flags)) {
+		data->use_for = 0;
+		data->cannot_use_reasons =
+			NL80211_BSS_CANNOT_USE_6GHZ_PWR_MISMATCH;
+	}
+
 	memcpy(tmp.pub.bssid, data->bssid, ETH_ALEN);
 	tmp.pub.channel = channel;
 	if (data->bss_source != BSS_SOURCE_STA_PROFILE)
@@ -2130,6 +2207,9 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 	tmp.ts_boottime = drv_data->boottime_ns;
 	tmp.parent_tsf = drv_data->parent_tsf;
 	ether_addr_copy(tmp.parent_bssid, drv_data->parent_bssid);
+	tmp.pub.chains = drv_data->chains;
+	memcpy(tmp.pub.chain_signal, drv_data->chain_signal,
+	       IEEE80211_MAX_CHAINS);
 	tmp.pub.use_for = data->use_for;
 	tmp.pub.cannot_use_reasons = data->cannot_use_reasons;
 
@@ -2173,6 +2253,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 
 	switch (data->ftype) {
 	case CFG80211_BSS_FTYPE_BEACON:
+	case CFG80211_BSS_FTYPE_S1G_BEACON:
 		ies->from_beacon = true;
 		fallthrough;
 	case CFG80211_BSS_FTYPE_UNKNOWN:
@@ -2566,77 +2647,71 @@ error:
 	return NULL;
 }
 
-static u8
-cfg80211_tbtt_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
-			      const struct ieee80211_neighbor_ap_info **ap_info,
-			      const u8 **tbtt_info)
+struct tbtt_info_iter_data {
+	const struct ieee80211_neighbor_ap_info *ap_info;
+	u8 param_ch_count;
+	u32 use_for;
+	u8 mld_id, link_id;
+};
+
+static enum cfg80211_rnr_iter_ret
+cfg802121_mld_ap_rnr_iter(void *_data, u8 type,
+			  const struct ieee80211_neighbor_ap_info *info,
+			  const u8 *tbtt_info, u8 tbtt_info_len)
 {
-	const struct ieee80211_neighbor_ap_info *info;
-	const struct element *rnr;
-	const u8 *pos, *end;
+	const struct ieee80211_rnr_mld_params *mld_params;
+	struct tbtt_info_iter_data *data = _data;
+	u8 link_id;
 
-	for_each_element_id(rnr, WLAN_EID_REDUCED_NEIGHBOR_REPORT, ie, ielen) {
-		pos = rnr->data;
-		end = rnr->data + rnr->datalen;
+	if (type == IEEE80211_TBTT_INFO_TYPE_TBTT &&
+	    tbtt_info_len >= offsetofend(struct ieee80211_tbtt_info_ge_11,
+					 mld_params))
+		mld_params = (void *)(tbtt_info +
+				      offsetof(struct ieee80211_tbtt_info_ge_11,
+					       mld_params));
+	else if (type == IEEE80211_TBTT_INFO_TYPE_MLD &&
+		 tbtt_info_len >= sizeof(struct ieee80211_rnr_mld_params))
+		mld_params = (void *)tbtt_info;
+	else
+		return RNR_ITER_CONTINUE;
 
-		/* RNR IE may contain more than one NEIGHBOR_AP_INFO */
-		while (sizeof(*info) <= end - pos) {
-			const struct ieee80211_rnr_mld_params *mld_params;
-			u16 params;
-			u8 length, i, count, mld_params_offset;
-			u8 type, lid;
-			u32 use_for;
+	link_id = le16_get_bits(mld_params->params,
+				IEEE80211_RNR_MLD_PARAMS_LINK_ID);
 
-			info = (void *)pos;
-			count = u8_get_bits(info->tbtt_info_hdr,
-					    IEEE80211_AP_INFO_TBTT_HDR_COUNT) + 1;
-			length = info->tbtt_info_len;
+	if (data->mld_id != mld_params->mld_id)
+		return RNR_ITER_CONTINUE;
 
-			pos += sizeof(*info);
+	if (data->link_id != link_id)
+		return RNR_ITER_CONTINUE;
 
-			if (count * length > end - pos)
-				return 0;
+	data->ap_info = info;
+	data->param_ch_count =
+		le16_get_bits(mld_params->params,
+			      IEEE80211_RNR_MLD_PARAMS_BSS_CHANGE_COUNT);
 
-			type = u8_get_bits(info->tbtt_info_hdr,
-					   IEEE80211_AP_INFO_TBTT_HDR_TYPE);
+	if (type == IEEE80211_TBTT_INFO_TYPE_TBTT)
+		data->use_for = NL80211_BSS_USE_FOR_ALL;
+	else
+		data->use_for = NL80211_BSS_USE_FOR_MLD_LINK;
+	return RNR_ITER_BREAK;
+}
 
-			if (type == IEEE80211_TBTT_INFO_TYPE_TBTT &&
-			    length >=
-			    offsetofend(struct ieee80211_tbtt_info_ge_11,
-					mld_params)) {
-				mld_params_offset =
-					offsetof(struct ieee80211_tbtt_info_ge_11, mld_params);
-				use_for = NL80211_BSS_USE_FOR_ALL;
-			} else if (type == IEEE80211_TBTT_INFO_TYPE_MLD &&
-				   length >= sizeof(struct ieee80211_rnr_mld_params)) {
-				mld_params_offset = 0;
-				use_for = NL80211_BSS_USE_FOR_MLD_LINK;
-			} else {
-				pos += count * length;
-				continue;
-			}
+static u8
+cfg80211_rnr_info_for_mld_ap(const u8 *ie, size_t ielen, u8 mld_id, u8 link_id,
+			     const struct ieee80211_neighbor_ap_info **ap_info,
+			     u8 *param_ch_count)
+{
+	struct tbtt_info_iter_data data = {
+		.mld_id = mld_id,
+		.link_id = link_id,
+	};
 
-			for (i = 0; i < count; i++) {
-				mld_params = (void *)pos + mld_params_offset;
-				params = le16_to_cpu(mld_params->params);
+	cfg80211_iter_rnr(ie, ielen, cfg802121_mld_ap_rnr_iter, &data);
 
-				lid = u16_get_bits(params,
-						   IEEE80211_RNR_MLD_PARAMS_LINK_ID);
+	*ap_info = data.ap_info;
+	*param_ch_count = data.param_ch_count;
 
-				if (mld_id == mld_params->mld_id &&
-				    link_id == lid) {
-					*ap_info = info;
-					*tbtt_info = pos;
-
-					return use_for;
-				}
-
-				pos += length;
-			}
-		}
-	}
-
-	return 0;
+	return data.use_for;
 }
 
 static struct element *
@@ -2758,17 +2833,16 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 	struct cfg80211_bss *bss;
 	u8 mld_id, reporter_link_id, bss_change_count;
 	u16 seen_links = 0;
-	const u8 *pos;
 	u8 i;
 
-	if (!ieee80211_mle_size_ok(elem->data + 1, elem->datalen - 1))
+	if (!ieee80211_mle_type_ok(elem->data + 1,
+				   IEEE80211_ML_CONTROL_TYPE_BASIC,
+				   elem->datalen - 1))
 		return;
 
-	ml_elem = (void *)elem->data + 1;
+	ml_elem = (void *)(elem->data + 1);
 	control = le16_to_cpu(ml_elem->control);
-	if (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE) !=
-	    IEEE80211_ML_CONTROL_TYPE_BASIC)
-		return;
+	ml_common_len = ml_elem->variable[0];
 
 	/* Must be present when transmitted by an AP (in a probe response) */
 	if (!(control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT) ||
@@ -2776,24 +2850,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 	    !(control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP))
 		return;
 
-	ml_common_len = ml_elem->variable[0];
-
-	/* length + MLD MAC address */
-	pos = ml_elem->variable + 1 + 6;
-
-	reporter_link_id = pos[0];
-	pos += 1;
-
-	bss_change_count = pos[0];
-	pos += 1;
-
-	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY))
-		pos += 2;
-	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_EML_CAPA))
-		pos += 2;
-
-	/* MLD capabilities and operations */
-	pos += 2;
+	reporter_link_id = ieee80211_mle_get_link_id(elem->data + 1);
+	bss_change_count = ieee80211_mle_get_bss_param_ch_cnt(elem->data + 1);
 
 	/*
 	 * The MLD ID of the reporting AP is always zero. It is set if the AP
@@ -2801,15 +2859,7 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 	 * relating to a nontransmitted BSS (matching the Multi-BSSID Index,
 	 * Draft P802.11be_D3.2, 35.3.4.2)
 	 */
-	if (u16_get_bits(control, IEEE80211_MLC_BASIC_PRES_MLD_ID)) {
-		mld_id = *pos;
-		pos += 1;
-	} else {
-		mld_id = 0;
-	}
-
-	/* Extended MLD capabilities and operations */
-	pos += 2;
+	mld_id = ieee80211_mle_get_mld_id(elem->data + 1);
 
 	/* Fully defrag the ML element for sta information/profile iteration */
 	mle = cfg80211_defrag_mle(elem, tx_data->ie, tx_data->ielen, gfp);
@@ -2836,8 +2886,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		enum nl80211_band band;
 		u32 freq;
 		const u8 *profile;
-		const u8 *tbtt_info;
 		ssize_t profile_len;
+		u8 param_ch_count;
 		u8 link_id, use_for;
 
 		if (!ieee80211_mle_basic_sta_prof_size_ok((u8 *)mle->sta_prof[i],
@@ -2880,10 +2930,11 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		profile_len -= 2;
 
 		/* Find in RNR to look up channel information */
-		use_for = cfg80211_tbtt_info_for_mld_ap(tx_data->ie,
-							tx_data->ielen,
-							mld_id, link_id,
-							&ap_info, &tbtt_info);
+		use_for = cfg80211_rnr_info_for_mld_ap(tx_data->ie,
+						       tx_data->ielen,
+						       mld_id, link_id,
+						       &ap_info,
+						       &param_ch_count);
 		if (!use_for)
 			continue;
 
@@ -2926,7 +2977,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 			continue;
 
 		/* Copy the Basic Multi-Link element including the common
-		 * information, and then fix up the link ID.
+		 * information, and then fix up the link ID and BSS param
+		 * change count.
 		 * Note that the ML element length has been verified and we
 		 * also checked that it contains the link ID.
 		 */
@@ -2937,6 +2989,8 @@ cfg80211_parse_ml_elem_sta_data(struct wiphy *wiphy,
 		       sizeof(*ml_elem) + ml_common_len);
 
 		new_ie[data.ielen + sizeof(*ml_elem) + 1 + ETH_ALEN] = link_id;
+		new_ie[data.ielen + sizeof(*ml_elem) + 1 + ETH_ALEN + 1] =
+			param_ch_count;
 
 		data.ielen += sizeof(*ml_elem) + ml_common_len;
 
@@ -3011,6 +3065,10 @@ cfg80211_inform_bss_data(struct wiphy *wiphy,
 	if (!res)
 		return NULL;
 
+	/* don't do any further MBSSID/ML handling for S1G */
+	if (ftype == CFG80211_BSS_FTYPE_S1G_BEACON)
+		return res;
+
 	cfg80211_parse_mbssid_data(wiphy, &inform_data, res, gfp);
 
 	cfg80211_parse_ml_sta_data(wiphy, &inform_data, res, gfp);
@@ -3019,59 +3077,22 @@ cfg80211_inform_bss_data(struct wiphy *wiphy,
 }
 EXPORT_SYMBOL(cfg80211_inform_bss_data);
 
-static bool cfg80211_uhb_power_type_valid(const u8 *ie,
-					  size_t ielen,
-					  const u32 flags)
+struct cfg80211_bss *
+cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
+			       struct cfg80211_inform_bss *data,
+			       struct ieee80211_mgmt *mgmt, size_t len,
+			       gfp_t gfp)
 {
-	const struct element *tmp;
-	struct ieee80211_he_operation *he_oper;
-
-	tmp = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION, ie, ielen);
-	if (tmp && tmp->datalen >= sizeof(*he_oper) + 1) {
-		const struct ieee80211_he_6ghz_oper *he_6ghz_oper;
-
-		he_oper = (void *)&tmp->data[1];
-		he_6ghz_oper = ieee80211_he_6ghz_oper(he_oper);
-
-		if (!he_6ghz_oper)
-			return false;
-
-		switch (u8_get_bits(he_6ghz_oper->control,
-				    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
-		case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
-			return true;
-		case IEEE80211_6GHZ_CTRL_REG_SP_AP:
-			return !(flags & IEEE80211_CHAN_NO_6GHZ_AFC_CLIENT);
-		case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
-			return !(flags & IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT);
-		}
-	}
-	return false;
-}
-
-/* cfg80211_inform_bss_width_frame helper */
-static struct cfg80211_bss *
-cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
-				      struct cfg80211_inform_bss *data,
-				      struct ieee80211_mgmt *mgmt, size_t len,
-				      gfp_t gfp)
-{
-	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	struct cfg80211_internal_bss tmp = {}, *res;
-	struct cfg80211_bss_ies *ies;
-	struct ieee80211_channel *channel;
-	bool signal_valid;
+	size_t min_hdr_len = offsetof(struct ieee80211_mgmt,
+				      u.probe_resp.variable);
 	struct ieee80211_ext *ext = NULL;
-	u8 *bssid, *variable;
-	u16 capability, beacon_int;
-	size_t ielen, min_hdr_len = offsetof(struct ieee80211_mgmt,
-					     u.probe_resp.variable);
-	int bss_type;
-
-	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
-			offsetof(struct ieee80211_mgmt, u.beacon.variable));
-
-	trace_cfg80211_inform_bss_frame(wiphy, data, mgmt, len);
+	enum cfg80211_bss_frame_type ftype;
+	u16 beacon_interval;
+	const u8 *bssid;
+	u16 capability;
+	const u8 *ie;
+	size_t ielen;
+	u64 tsf;
 
 	if (WARN_ON(!mgmt))
 		return NULL;
@@ -3079,9 +3100,10 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 	if (WARN_ON(!wiphy))
 		return NULL;
 
-	if (WARN_ON(wiphy->signal_type == CFG80211_SIGNAL_TYPE_UNSPEC &&
-		    (data->signal < 0 || data->signal > 100)))
-		return NULL;
+	BUILD_BUG_ON(offsetof(struct ieee80211_mgmt, u.probe_resp.variable) !=
+		     offsetof(struct ieee80211_mgmt, u.beacon.variable));
+
+	trace_cfg80211_inform_bss_frame(wiphy, data, mgmt, len);
 
 	if (ieee80211_is_s1g_beacon(mgmt->frame_control)) {
 		ext = (void *) mgmt;
@@ -3095,32 +3117,17 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		return NULL;
 
 	ielen = len - min_hdr_len;
-	variable = mgmt->u.probe_resp.variable;
-	if (ext) {
-		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
-			variable = ext->u.s1g_short_beacon.variable;
-		else
-			variable = ext->u.s1g_beacon.variable;
-	}
-
-	channel = cfg80211_get_bss_channel(wiphy, variable, ielen, data->chan);
-	if (!channel)
-		return NULL;
-
-	if (channel->band == NL80211_BAND_6GHZ &&
-	    !cfg80211_uhb_power_type_valid(variable, ielen, channel->flags)) {
-		data->restrict_use = 1;
-		data->use_for = 0;
-		data->cannot_use_reasons =
-			NL80211_BSS_CANNOT_USE_6GHZ_PWR_MISMATCH;
-	}
-
+	ie = mgmt->u.probe_resp.variable;
 	if (ext) {
 		const struct ieee80211_s1g_bcn_compat_ie *compat;
 		const struct element *elem;
 
-		elem = cfg80211_find_elem(WLAN_EID_S1G_BCN_COMPAT,
-					  variable, ielen);
+		if (ieee80211_is_s1g_short_beacon(mgmt->frame_control))
+			ie = ext->u.s1g_short_beacon.variable;
+		else
+			ie = ext->u.s1g_beacon.variable;
+
+		elem = cfg80211_find_elem(WLAN_EID_S1G_BCN_COMPAT, ie, ielen);
 		if (!elem)
 			return NULL;
 		if (elem->datalen < sizeof(*compat))
@@ -3128,112 +3135,26 @@ cfg80211_inform_single_bss_frame_data(struct wiphy *wiphy,
 		compat = (void *)elem->data;
 		bssid = ext->u.s1g_beacon.sa;
 		capability = le16_to_cpu(compat->compat_info);
-		beacon_int = le16_to_cpu(compat->beacon_int);
+		beacon_interval = le16_to_cpu(compat->beacon_int);
 	} else {
 		bssid = mgmt->bssid;
-		beacon_int = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
+		beacon_interval = le16_to_cpu(mgmt->u.probe_resp.beacon_int);
 		capability = le16_to_cpu(mgmt->u.probe_resp.capab_info);
 	}
 
-	if (channel->band == NL80211_BAND_60GHZ) {
-		bss_type = capability & WLAN_CAPABILITY_DMG_TYPE_MASK;
-		if (bss_type == WLAN_CAPABILITY_DMG_TYPE_AP ||
-		    bss_type == WLAN_CAPABILITY_DMG_TYPE_PBSS)
-			regulatory_hint_found_beacon(wiphy, channel, gfp);
-	} else {
-		if (capability & WLAN_CAPABILITY_ESS)
-			regulatory_hint_found_beacon(wiphy, channel, gfp);
-	}
-
-	ies = kzalloc(sizeof(*ies) + ielen, gfp);
-	if (!ies)
-		return NULL;
-	ies->len = ielen;
-	ies->tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
-	ies->from_beacon = ieee80211_is_beacon(mgmt->frame_control) ||
-			   ieee80211_is_s1g_beacon(mgmt->frame_control);
-	memcpy(ies->data, variable, ielen);
+	tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control))
-		rcu_assign_pointer(tmp.pub.proberesp_ies, ies);
+		ftype = CFG80211_BSS_FTYPE_PRESP;
+	else if (ext)
+		ftype = CFG80211_BSS_FTYPE_S1G_BEACON;
 	else
-		rcu_assign_pointer(tmp.pub.beacon_ies, ies);
-	rcu_assign_pointer(tmp.pub.ies, ies);
+		ftype = CFG80211_BSS_FTYPE_BEACON;
 
-	memcpy(tmp.pub.bssid, bssid, ETH_ALEN);
-	tmp.pub.beacon_interval = beacon_int;
-	tmp.pub.capability = capability;
-	tmp.pub.channel = channel;
-	tmp.pub.signal = data->signal;
-	tmp.ts_boottime = data->boottime_ns;
-	tmp.parent_tsf = data->parent_tsf;
-	tmp.pub.chains = data->chains;
-	memcpy(tmp.pub.chain_signal, data->chain_signal, IEEE80211_MAX_CHAINS);
-	ether_addr_copy(tmp.parent_bssid, data->parent_bssid);
-	tmp.pub.use_for = data->restrict_use ?
-				data->use_for :
-				NL80211_BSS_USE_FOR_ALL;
-	tmp.pub.cannot_use_reasons = data->cannot_use_reasons;
-
-	signal_valid = data->chan == channel;
-	spin_lock_bh(&rdev->bss_lock);
-	res = __cfg80211_bss_update(rdev, &tmp, signal_valid, jiffies);
-	if (!res)
-		goto drop;
-
-	rdev_inform_bss(rdev, &res->pub, ies, data->drv_data);
-
-	spin_unlock_bh(&rdev->bss_lock);
-
-	trace_cfg80211_return_bss(&res->pub);
-	/* __cfg80211_bss_update gives us a referenced result */
-	return &res->pub;
-
-drop:
-	spin_unlock_bh(&rdev->bss_lock);
-	return NULL;
-}
-
-struct cfg80211_bss *
-cfg80211_inform_bss_frame_data(struct wiphy *wiphy,
-			       struct cfg80211_inform_bss *data,
-			       struct ieee80211_mgmt *mgmt, size_t len,
-			       gfp_t gfp)
-{
-	struct cfg80211_inform_single_bss_data inform_data = {
-		.drv_data = data,
-		.ie = mgmt->u.probe_resp.variable,
-		.ielen = len - offsetof(struct ieee80211_mgmt,
-					u.probe_resp.variable),
-		.use_for = data->restrict_use ?
-				data->use_for :
-				NL80211_BSS_USE_FOR_ALL,
-		.cannot_use_reasons = data->cannot_use_reasons,
-	};
-	struct cfg80211_bss *res;
-
-	res = cfg80211_inform_single_bss_frame_data(wiphy, data, mgmt,
-						    len, gfp);
-	if (!res)
-		return NULL;
-
-	/* don't do any further MBSSID/ML handling for S1G */
-	if (ieee80211_is_s1g_beacon(mgmt->frame_control))
-		return res;
-
-	inform_data.ftype = ieee80211_is_beacon(mgmt->frame_control) ?
-		CFG80211_BSS_FTYPE_BEACON : CFG80211_BSS_FTYPE_PRESP;
-	memcpy(inform_data.bssid, mgmt->bssid, ETH_ALEN);
-	inform_data.tsf = le64_to_cpu(mgmt->u.probe_resp.timestamp);
-	inform_data.beacon_interval =
-		le16_to_cpu(mgmt->u.probe_resp.beacon_int);
-
-	/* process each non-transmitting bss */
-	cfg80211_parse_mbssid_data(wiphy, &inform_data, res, gfp);
-
-	cfg80211_parse_ml_sta_data(wiphy, &inform_data, res, gfp);
-
-	return res;
+	return cfg80211_inform_bss_data(wiphy, data, ftype,
+					bssid, tsf, capability,
+					beacon_interval, ie, ielen,
+					gfp);
 }
 EXPORT_SYMBOL(cfg80211_inform_bss_frame_data);
 

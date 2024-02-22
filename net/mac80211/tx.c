@@ -5095,9 +5095,11 @@ unlock:
 }
 EXPORT_SYMBOL(ieee80211_beacon_set_cntdwn);
 
-bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif)
+bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif,
+					 unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_link_data *link;
 	struct beacon_data *beacon = NULL;
 	u8 *beacon_data;
 	size_t beacon_data_len;
@@ -5106,9 +5108,17 @@ bool ieee80211_beacon_cntdwn_is_complete(struct ieee80211_vif *vif)
 	if (!ieee80211_sdata_running(sdata))
 		return false;
 
+	if (WARN_ON(link_id >= IEEE80211_MLD_MAX_NUM_LINKS))
+		return 0;
+
 	rcu_read_lock();
+
+	link = rcu_dereference(sdata->link[link_id]);
+	if (!link)
+		goto out;
+
 	if (vif->type == NL80211_IFTYPE_AP) {
-		beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
+		beacon = rcu_dereference(link->u.ap.beacon);
 		if (WARN_ON(!beacon || !beacon->tail))
 			goto out;
 		beacon_data = beacon->tail;
