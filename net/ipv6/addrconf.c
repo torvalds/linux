@@ -7462,7 +7462,7 @@ int __init addrconf_init(void)
 	rtnl_af_register(&inet6_ops);
 
 	err = rtnl_register_module(THIS_MODULE, PF_INET6, RTM_GETLINK,
-				   NULL, inet6_dump_ifinfo, 0);
+				   NULL, inet6_dump_ifinfo, RTNL_FLAG_DUMP_UNLOCKED);
 	if (err < 0)
 		goto errout;
 
