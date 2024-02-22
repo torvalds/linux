@@ -14808,7 +14808,6 @@ F:	Documentation/devicetree/bindings/mips/mobileye.yaml
 F:	arch/mips/boot/dts/mobileye/
 F:	arch/mips/configs/eyeq5_defconfig
 F:	arch/mips/mobileye/board-epm5.its.S
-F:	include/dt-bindings/soc/mobileye,eyeq5.h
 
 MODULE SUPPORT
 M:	Luis Chamberlain <mcgrof@kernel.org>
