@@ -344,16 +344,19 @@ static int _test_cmd_mock_domain_set_dirty(int fd, __u32 hwpt_id, size_t length,
 						  page_size, bitmap, nr))
 
 static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
-				    __u64 iova, size_t page_size, __u64 *bitmap,
+				    __u64 iova, size_t page_size,
+				    size_t pte_page_size, __u64 *bitmap,
 				    __u64 bitmap_size, __u32 flags,
 				    struct __test_metadata *_metadata)
 {
-	unsigned long i, nbits = bitmap_size * BITS_PER_BYTE;
-	unsigned long nr = nbits / 2;
+	unsigned long npte = pte_page_size / page_size, pteset = 2 * npte;
+	unsigned long nbits = bitmap_size * BITS_PER_BYTE;
+	unsigned long j, i, nr = nbits / pteset ?: 1;
 	__u64 out_dirty = 0;
 
 	/* Mark all even bits as dirty in the mock domain */
-	for (i = 0; i < nbits; i += 2)
+	memset(bitmap, 0, bitmap_size);
+	for (i = 0; i < nbits; i += pteset)
 		set_bit(i, (unsigned long *)bitmap);
 
 	test_cmd_mock_domain_set_dirty(fd, hwpt_id, length, iova, page_size,
@@ -365,8 +368,12 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
 				  flags);
 	/* Beware ASSERT_EQ() is two statements -- braces are not redundant! */
-	for (i = 0; i < nbits; i++) {
-		ASSERT_EQ(!(i % 2), test_bit(i, (unsigned long *)bitmap));
+	for (i = 0; i < nbits; i += pteset) {
+		for (j = 0; j < pteset; j++) {
+			ASSERT_EQ(j < npte,
+				  test_bit(i + j, (unsigned long *)bitmap));
+		}
+		ASSERT_EQ(!(i % pteset), test_bit(i, (unsigned long *)bitmap));
 	}
 
 	memset(bitmap, 0, bitmap_size);
@@ -374,19 +381,23 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 				  flags);
 
 	/* It as read already -- expect all zeroes */
-	for (i = 0; i < nbits; i++) {
-		ASSERT_EQ(!(i % 2) && (flags &
-				       IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
-			  test_bit(i, (unsigned long *)bitmap));
+	for (i = 0; i < nbits; i += pteset) {
+		for (j = 0; j < pteset; j++) {
+			ASSERT_EQ(
+				(j < npte) &&
+					(flags &
+					 IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
+				test_bit(i + j, (unsigned long *)bitmap));
+		}
 	}
 
 	return 0;
 }
-#define test_mock_dirty_bitmaps(hwpt_id, length, iova, page_size, bitmap,      \
-				bitmap_size, flags, _metadata)                 \
+#define test_mock_dirty_bitmaps(hwpt_id, length, iova, page_size, pte_size,\
+				bitmap, bitmap_size, flags, _metadata)     \
 	ASSERT_EQ(0, _test_mock_dirty_bitmaps(self->fd, hwpt_id, length, iova, \
-					      page_size, bitmap, bitmap_size,  \
-					      flags, _metadata))
+					      page_size, pte_size, bitmap,     \
+					      bitmap_size, flags, _metadata))
 
 static int _test_cmd_create_access(int fd, unsigned int ioas_id,
 				   __u32 *access_id, unsigned int flags)

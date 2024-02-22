@@ -41,6 +41,7 @@ static atomic_t mock_dev_num;
 enum {
 	MOCK_DIRTY_TRACK = 1,
 	MOCK_IO_PAGE_SIZE = PAGE_SIZE / 2,
+	MOCK_HUGE_PAGE_SIZE = 512 * MOCK_IO_PAGE_SIZE,
 
 	/*
 	 * Like a real page table alignment requires the low bits of the address
@@ -53,6 +54,7 @@ enum {
 	MOCK_PFN_START_IOVA = _MOCK_PFN_START,
 	MOCK_PFN_LAST_IOVA = _MOCK_PFN_START,
 	MOCK_PFN_DIRTY_IOVA = _MOCK_PFN_START << 1,
+	MOCK_PFN_HUGE_IOVA = _MOCK_PFN_START << 2,
 };
 
 /*
@@ -191,6 +193,34 @@ static int mock_domain_set_dirty_tracking(struct iommu_domain *domain,
 	return 0;
 }
 
+static bool mock_test_and_clear_dirty(struct mock_iommu_domain *mock,
+				      unsigned long iova, size_t page_size,
+				      unsigned long flags)
+{
+	unsigned long cur, end = iova + page_size - 1;
+	bool dirty = false;
+	void *ent, *old;
+
+	for (cur = iova; cur < end; cur += MOCK_IO_PAGE_SIZE) {
+		ent = xa_load(&mock->pfns, cur / MOCK_IO_PAGE_SIZE);
+		if (!ent || !(xa_to_value(ent) & MOCK_PFN_DIRTY_IOVA))
+			continue;
+
+		dirty = true;
+		/* Clear dirty */
+		if (!(flags & IOMMU_DIRTY_NO_CLEAR)) {
+			unsigned long val;
+
+			val = xa_to_value(ent) & ~MOCK_PFN_DIRTY_IOVA;
+			old = xa_store(&mock->pfns, cur / MOCK_IO_PAGE_SIZE,
+				       xa_mk_value(val), GFP_KERNEL);
+			WARN_ON_ONCE(ent != old);
+		}
+	}
+
+	return dirty;
+}
+
 static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 					    unsigned long iova, size_t size,
 					    unsigned long flags,
@@ -198,31 +228,31 @@ static int mock_domain_read_and_clear_dirty(struct iommu_domain *domain,
 {
 	struct mock_iommu_domain *mock =
 		container_of(domain, struct mock_iommu_domain, domain);
-	unsigned long i, max = size / MOCK_IO_PAGE_SIZE;
-	void *ent, *old;
+	unsigned long end = iova + size;
+	void *ent;
 
 	if (!(mock->flags & MOCK_DIRTY_TRACK) && dirty->bitmap)
 		return -EINVAL;
 
-	for (i = 0; i < max; i++) {
-		unsigned long cur = iova + i * MOCK_IO_PAGE_SIZE;
+	do {
+		unsigned long pgsize = MOCK_IO_PAGE_SIZE;
+		unsigned long head;
 
-		ent = xa_load(&mock->pfns, cur / MOCK_IO_PAGE_SIZE);
-		if (ent && (xa_to_value(ent) & MOCK_PFN_DIRTY_IOVA)) {
-			/* Clear dirty */
-			if (!(flags & IOMMU_DIRTY_NO_CLEAR)) {
-				unsigned long val;
-
-				val = xa_to_value(ent) & ~MOCK_PFN_DIRTY_IOVA;
-				old = xa_store(&mock->pfns,
-					       cur / MOCK_IO_PAGE_SIZE,
-					       xa_mk_value(val), GFP_KERNEL);
-				WARN_ON_ONCE(ent != old);
-			}
-			iommu_dirty_bitmap_record(dirty, cur,
-						  MOCK_IO_PAGE_SIZE);
+		ent = xa_load(&mock->pfns, iova / MOCK_IO_PAGE_SIZE);
+		if (!ent) {
+			iova += pgsize;
+			continue;
 		}
-	}
+
+		if (xa_to_value(ent) & MOCK_PFN_HUGE_IOVA)
+			pgsize = MOCK_HUGE_PAGE_SIZE;
+		head = iova & ~(pgsize - 1);
+
+		/* Clear dirty */
+		if (mock_test_and_clear_dirty(mock, head, pgsize, flags))
+			iommu_dirty_bitmap_record(dirty, head, pgsize);
+		iova = head + pgsize;
+	} while (iova < end);
 
 	return 0;
 }
@@ -234,6 +264,7 @@ const struct iommu_dirty_ops dirty_ops = {
 
 static struct iommu_domain *mock_domain_alloc_paging(struct device *dev)
 {
+	struct mock_dev *mdev = container_of(dev, struct mock_dev, dev);
 	struct mock_iommu_domain *mock;
 
 	mock = kzalloc(sizeof(*mock), GFP_KERNEL);
@@ -242,6 +273,8 @@ static struct iommu_domain *mock_domain_alloc_paging(struct device *dev)
 	mock->domain.geometry.aperture_start = MOCK_APERTURE_START;
 	mock->domain.geometry.aperture_end = MOCK_APERTURE_LAST;
 	mock->domain.pgsize_bitmap = MOCK_IO_PAGE_SIZE;
+	if (dev && mdev->flags & MOCK_FLAGS_DEVICE_HUGE_IOVA)
+		mock->domain.pgsize_bitmap |= MOCK_HUGE_PAGE_SIZE;
 	mock->domain.ops = mock_ops.default_domain_ops;
 	mock->domain.type = IOMMU_DOMAIN_UNMANAGED;
 	xa_init(&mock->pfns);
@@ -287,7 +320,7 @@ mock_domain_alloc_user(struct device *dev, u32 flags,
 			return ERR_PTR(-EOPNOTSUPP);
 		if (user_data || (has_dirty_flag && no_dirty_ops))
 			return ERR_PTR(-EOPNOTSUPP);
-		domain = mock_domain_alloc_paging(NULL);
+		domain = mock_domain_alloc_paging(dev);
 		if (!domain)
 			return ERR_PTR(-ENOMEM);
 		if (has_dirty_flag)
@@ -350,6 +383,9 @@ static int mock_domain_map_pages(struct iommu_domain *domain,
 
 			if (pgcount == 1 && cur + MOCK_IO_PAGE_SIZE == pgsize)
 				flags = MOCK_PFN_LAST_IOVA;
+			if (pgsize != MOCK_IO_PAGE_SIZE) {
+				flags |= MOCK_PFN_HUGE_IOVA;
+			}
 			old = xa_store(&mock->pfns, iova / MOCK_IO_PAGE_SIZE,
 				       xa_mk_value((paddr / MOCK_IO_PAGE_SIZE) |
 						   flags),
@@ -604,7 +640,8 @@ static struct mock_dev *mock_dev_create(unsigned long dev_flags)
 	struct mock_dev *mdev;
 	int rc;
 
-	if (dev_flags & ~(MOCK_FLAGS_DEVICE_NO_DIRTY))
+	if (dev_flags &
+	    ~(MOCK_FLAGS_DEVICE_NO_DIRTY | MOCK_FLAGS_DEVICE_HUGE_IOVA))
 		return ERR_PTR(-EINVAL);
 
 	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
