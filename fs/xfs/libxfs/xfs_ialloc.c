@@ -206,14 +206,14 @@ xfs_inobt_insert(
 	struct xfs_buf		*agbp,
 	xfs_agino_t		newino,
 	xfs_agino_t		newlen,
-	xfs_btnum_t		btnum)
+	bool			is_finobt)
 {
 	struct xfs_btree_cur	*cur;
 	xfs_agino_t		thisino;
 	int			i;
 	int			error;
 
-	if (btnum == XFS_BTNUM_FINO)
+	if (is_finobt)
 		cur = xfs_finobt_init_cursor(pag, tp, agbp);
 	else
 		cur = xfs_inobt_init_cursor(pag, tp, agbp);
@@ -941,14 +941,13 @@ sparse_alloc:
 		}
 	} else {
 		/* full chunk - insert new records to both btrees */
-		error = xfs_inobt_insert(pag, tp, agbp, newino, newlen,
-					 XFS_BTNUM_INO);
+		error = xfs_inobt_insert(pag, tp, agbp, newino, newlen, false);
 		if (error)
 			return error;
 
 		if (xfs_has_finobt(args.mp)) {
 			error = xfs_inobt_insert(pag, tp, agbp, newino,
-						 newlen, XFS_BTNUM_FINO);
+						 newlen, true);
 			if (error)
 				return error;
 		}
