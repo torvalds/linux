@@ -101,6 +101,7 @@
 
 /* RCSR bits */
 #define DP83822_RMII_MODE_EN	BIT(5)
+#define DP83822_RMII_MODE_SEL	BIT(7)
 #define DP83822_RGMII_MODE_EN	BIT(9)
 #define DP83822_RX_CLK_SHIFT	BIT(12)
 #define DP83822_TX_CLK_SHIFT	BIT(11)
@@ -495,21 +496,53 @@ static int dp83822_config_init(struct phy_device *phydev)
 	return dp8382x_disable_wol(phydev);
 }
 
+static int dp83826_config_rmii_mode(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	const char *of_val;
+	int ret;
+
+	if (!device_property_read_string(dev, "ti,rmii-mode", &of_val)) {
+		if (strcmp(of_val, "master") == 0) {
+			ret = phy_clear_bits_mmd(phydev, DP83822_DEVADDR, MII_DP83822_RCSR,
+						 DP83822_RMII_MODE_SEL);
+		} else if (strcmp(of_val, "slave") == 0) {
+			ret = phy_set_bits_mmd(phydev, DP83822_DEVADDR, MII_DP83822_RCSR,
+					       DP83822_RMII_MODE_SEL);
+		} else {
+			phydev_err(phydev, "Invalid value for ti,rmii-mode property (%s)\n",
+				   of_val);
+			ret = -EINVAL;
+		}
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int dp83826_config_init(struct phy_device *phydev)
 {
 	struct dp83822_private *dp83822 = phydev->priv;
 	u16 val, mask;
 	int ret;
 
-	if (phydev->interface == PHY_INTERFACE_MODE_RMII)
+	if (phydev->interface == PHY_INTERFACE_MODE_RMII) {
 		ret = phy_set_bits_mmd(phydev, DP83822_DEVADDR, MII_DP83822_RCSR,
 				       DP83822_RMII_MODE_EN);
-	else
+		if (ret)
+			return ret;
+
+		ret = dp83826_config_rmii_mode(phydev);
+		if (ret)
+			return ret;
+	} else {
 		ret = phy_clear_bits_mmd(phydev, DP83822_DEVADDR, MII_DP83822_RCSR,
 					 DP83822_RMII_MODE_EN);
-
-	if (ret)
-		return ret;
+		if (ret)
+			return ret;
+	}
 
 	if (dp83822->cfg_dac_minus != DP83826_CFG_DAC_MINUS_DEFAULT) {
 		val = FIELD_PREP(DP83826_VOD_CFG1_MINUS_MDI_MASK, dp83822->cfg_dac_minus) |
