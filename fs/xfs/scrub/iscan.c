@@ -61,7 +61,8 @@ xchk_iscan_find_next(
 	struct xfs_buf		*agi_bp,
 	struct xfs_perag	*pag,
 	xfs_inofree_t		*allocmaskp,
-	xfs_agino_t		*cursor)
+	xfs_agino_t		*cursor,
+	uint8_t			*nr_inodesp)
 {
 	struct xfs_scrub	*sc = iscan->sc;
 	struct xfs_inobt_rec_incore	rec;
@@ -147,6 +148,7 @@ xchk_iscan_find_next(
 			ASSERT(next >= 0);
 			*cursor = rec.ir_startino + next;
 			*allocmaskp = allocmask >> next;
+			*nr_inodesp = XFS_INODES_PER_CHUNK - next;
 			break;
 		}
 	}
@@ -228,7 +230,8 @@ xchk_iscan_advance(
 	struct xchk_iscan	*iscan,
 	struct xfs_perag	**pagp,
 	struct xfs_buf		**agi_bpp,
-	xfs_inofree_t		*allocmaskp)
+	xfs_inofree_t		*allocmaskp,
+	uint8_t			*nr_inodesp)
 {
 	struct xfs_scrub	*sc = iscan->sc;
 	struct xfs_mount	*mp = sc->mp;
@@ -255,7 +258,7 @@ xchk_iscan_advance(
 
 		agino = XFS_INO_TO_AGINO(mp, iscan->cursor_ino);
 		ret = xchk_iscan_find_next(iscan, agi_bp, pag, allocmaskp,
-				&agino);
+				&agino, nr_inodesp);
 		if (ret)
 			goto out_buf;
 
@@ -344,12 +347,14 @@ xchk_iscan_iget(
 	struct xchk_iscan	*iscan,
 	struct xfs_perag	*pag,
 	struct xfs_buf		*agi_bp,
-	xfs_inofree_t		allocmask)
+	xfs_inofree_t		allocmask,
+	uint8_t			nr_inodes)
 {
 	struct xfs_scrub	*sc = iscan->sc;
 	struct xfs_mount	*mp = sc->mp;
 	xfs_ino_t		ino = iscan->cursor_ino;
 	unsigned int		idx = 0;
+	unsigned int		i;
 	int			error;
 
 	ASSERT(iscan->__inodes[0] == NULL);
@@ -399,10 +404,28 @@ xchk_iscan_iget(
 	/*
 	 * Now that we've filled the first slot in __inodes, try to fill the
 	 * rest of the batch with consecutively ordered inodes.  to reduce the
-	 * number of _iter calls.  If we can't get an inode, we stop and return
-	 * what we have.
+	 * number of _iter calls.  Make a bitmap of unallocated inodes from the
+	 * zeroes in the inuse bitmap; these inodes will not be scanned, but
+	 * the _want_live_update predicate will pass through all live updates.
+	 *
+	 * If we can't iget an allocated inode, stop and return what we have.
 	 */
-	for (; allocmask & 1; allocmask >>= 1, ino++, idx++) {
+	mutex_lock(&iscan->lock);
+	iscan->__batch_ino = ino - 1;
+	iscan->__skipped_inomask = 0;
+	mutex_unlock(&iscan->lock);
+
+	for (i = 1; i < nr_inodes; i++, ino++, allocmask >>= 1) {
+		if (!(allocmask & 1)) {
+			ASSERT(!(iscan->__skipped_inomask & (1ULL << i)));
+
+			mutex_lock(&iscan->lock);
+			iscan->cursor_ino = ino;
+			iscan->__skipped_inomask |= (1ULL << i);
+			mutex_unlock(&iscan->lock);
+			continue;
+		}
+
 		ASSERT(iscan->__inodes[idx] == NULL);
 
 		error = xfs_iget(sc->mp, sc->tp, ino, XFS_IGET_NORETRY, 0,
@@ -413,12 +436,40 @@ xchk_iscan_iget(
 		mutex_lock(&iscan->lock);
 		iscan->cursor_ino = ino;
 		mutex_unlock(&iscan->lock);
+		idx++;
 	}
 
-	trace_xchk_iscan_iget_batch(sc->mp, iscan, idx);
+	trace_xchk_iscan_iget_batch(sc->mp, iscan, nr_inodes, idx);
 	xfs_trans_brelse(sc->tp, agi_bp);
 	xfs_perag_put(pag);
 	return idx;
+}
+
+/*
+ * Advance the visit cursor to reflect skipped inodes beyond whatever we
+ * scanned.
+ */
+STATIC void
+xchk_iscan_finish_batch(
+	struct xchk_iscan	*iscan)
+{
+	xfs_ino_t		highest_skipped;
+
+	mutex_lock(&iscan->lock);
+
+	if (iscan->__batch_ino != NULLFSINO) {
+		highest_skipped = iscan->__batch_ino +
+					xfs_highbit64(iscan->__skipped_inomask);
+		iscan->__visited_ino = max(iscan->__visited_ino,
+					   highest_skipped);
+
+		trace_xchk_iscan_skip(iscan);
+	}
+
+	iscan->__batch_ino = NULLFSINO;
+	iscan->__skipped_inomask = 0;
+
+	mutex_unlock(&iscan->lock);
 }
 
 /*
@@ -432,6 +483,8 @@ xchk_iscan_iter_batch(
 	struct xfs_scrub	*sc = iscan->sc;
 	int			ret;
 
+	xchk_iscan_finish_batch(iscan);
+
 	if (iscan->iget_timeout)
 		iscan->__iget_deadline = jiffies +
 					 msecs_to_jiffies(iscan->iget_timeout);
@@ -440,8 +493,10 @@ xchk_iscan_iter_batch(
 		struct xfs_buf	*agi_bp = NULL;
 		struct xfs_perag *pag = NULL;
 		xfs_inofree_t	allocmask = 0;
+		uint8_t		nr_inodes = 0;
 
-		ret = xchk_iscan_advance(iscan, &pag, &agi_bp, &allocmask);
+		ret = xchk_iscan_advance(iscan, &pag, &agi_bp, &allocmask,
+				&nr_inodes);
 		if (ret != 1)
 			return ret;
 
@@ -452,7 +507,7 @@ xchk_iscan_iter_batch(
 			break;
 		}
 
-		ret = xchk_iscan_iget(iscan, pag, agi_bp, allocmask);
+		ret = xchk_iscan_iget(iscan, pag, agi_bp, allocmask, nr_inodes);
 	} while (ret == -EAGAIN);
 
 	return ret;
@@ -559,6 +614,9 @@ xchk_iscan_start(
 
 	start_ino = xchk_iscan_rotor(sc->mp);
 
+	iscan->__batch_ino = NULLFSINO;
+	iscan->__skipped_inomask = 0;
+
 	iscan->sc = sc;
 	clear_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
 	iscan->iget_timeout = iget_timeout;
@@ -585,6 +643,26 @@ xchk_iscan_mark_visited(
 	iscan->__visited_ino = ip->i_ino;
 	trace_xchk_iscan_visit(iscan);
 	mutex_unlock(&iscan->lock);
+}
+
+/*
+ * Did we skip this inode because it wasn't allocated when we loaded the batch?
+ * If so, it is newly allocated and will not be scanned.  All live updates to
+ * this inode must be passed to the caller to maintain scan correctness.
+ */
+static inline bool
+xchk_iscan_skipped(
+	const struct xchk_iscan	*iscan,
+	xfs_ino_t		ino)
+{
+	if (iscan->__batch_ino == NULLFSINO)
+		return false;
+	if (ino < iscan->__batch_ino)
+		return false;
+	if (ino >= iscan->__batch_ino + XFS_INODES_PER_CHUNK)
+		return false;
+
+	return iscan->__skipped_inomask & (1ULL << (ino - iscan->__batch_ino));
 }
 
 /*
@@ -619,6 +697,15 @@ xchk_iscan_want_live_update(
 	 */
 	if (iscan->scan_start_ino == iscan->__visited_ino) {
 		ret = false;
+		goto unlock;
+	}
+
+	/*
+	 * This inode was not allocated at the time of the iscan batch.
+	 * The caller should receive all updates.
+	 */
+	if (xchk_iscan_skipped(iscan, ino)) {
+		ret = true;
 		goto unlock;
 	}
 

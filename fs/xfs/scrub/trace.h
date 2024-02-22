@@ -1172,6 +1172,7 @@ DEFINE_EVENT(xchk_iscan_class, name, \
 	TP_ARGS(iscan))
 DEFINE_ISCAN_EVENT(xchk_iscan_move_cursor);
 DEFINE_ISCAN_EVENT(xchk_iscan_visit);
+DEFINE_ISCAN_EVENT(xchk_iscan_skip);
 DEFINE_ISCAN_EVENT(xchk_iscan_advance_ag);
 
 DECLARE_EVENT_CLASS(xchk_iscan_ino_class,
@@ -1229,25 +1230,37 @@ TRACE_EVENT(xchk_iscan_iget,
 
 TRACE_EVENT(xchk_iscan_iget_batch,
 	TP_PROTO(struct xfs_mount *mp, struct xchk_iscan *iscan,
-		 unsigned int nr),
-	TP_ARGS(mp, iscan, nr),
+		 unsigned int nr, unsigned int avail),
+	TP_ARGS(mp, iscan, nr, avail),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_ino_t, cursor)
 		__field(xfs_ino_t, visited)
 		__field(unsigned int, nr)
+		__field(unsigned int, avail)
+		__field(unsigned int, unavail)
+		__field(xfs_ino_t, batch_ino)
+		__field(unsigned long long, skipmask)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
 		__entry->cursor = iscan->cursor_ino;
 		__entry->visited = iscan->__visited_ino;
 		__entry->nr = nr;
+		__entry->avail = avail;
+		__entry->unavail = hweight64(iscan->__skipped_inomask);
+		__entry->batch_ino = iscan->__batch_ino;
+		__entry->skipmask = iscan->__skipped_inomask;
 	),
-	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx nr %d",
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx batchino 0x%llx skipmask 0x%llx nr %u avail %u unavail %u",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->cursor,
 		  __entry->visited,
-		  __entry->nr)
+		  __entry->batch_ino,
+		  __entry->skipmask,
+		  __entry->nr,
+		  __entry->avail,
+		  __entry->unavail)
 );
 
 TRACE_EVENT(xchk_iscan_iget_retry_wait,

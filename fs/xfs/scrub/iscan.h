@@ -44,8 +44,12 @@ struct xchk_iscan {
 
 	/*
 	 * The scan grabs batches of inodes and stashes them here before
-	 * handing them out with _iter.
+	 * handing them out with _iter.  Unallocated inodes are set in the
+	 * mask so that all updates to that inode are selected for live
+	 * update propagation.
 	 */
+	xfs_ino_t		__batch_ino;
+	xfs_inofree_t		__skipped_inomask;
 	struct xfs_inode	*__inodes[XFS_INODES_PER_CHUNK];
 };
 
