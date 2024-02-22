@@ -24,6 +24,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_error.h"
 #include "xfs_health.h"
+#include "xfs_symlink_remote.h"
 
 /* ----- Kernel only functions below ----- */
 int

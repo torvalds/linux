@@ -13,6 +13,7 @@
 #include "xfs_inode.h"
 #include "xfs_symlink.h"
 #include "xfs_health.h"
+#include "xfs_symlink_remote.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/health.h"
