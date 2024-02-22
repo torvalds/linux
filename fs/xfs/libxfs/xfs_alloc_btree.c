@@ -526,9 +526,6 @@ xfs_allocbt_init_common(
 
 	cur->bc_ag.pag = xfs_perag_hold(pag);
 
-	if (xfs_has_crc(mp))
-		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
-
 	return cur;
 }
 
