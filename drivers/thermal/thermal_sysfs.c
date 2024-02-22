@@ -123,8 +123,8 @@ trip_point_temp_store(struct device *dev, struct device_attribute *attr,
 	trip = &tz->trips[trip_id];
 
 	if (temp != trip->temperature) {
-		if (tz->ops->set_trip_temp) {
-			ret = tz->ops->set_trip_temp(tz, trip_id, temp);
+		if (tz->ops.set_trip_temp) {
+			ret = tz->ops.set_trip_temp(tz, trip_id, temp);
 			if (ret)
 				goto unlock;
 		}
@@ -174,8 +174,8 @@ trip_point_hyst_store(struct device *dev, struct device_attribute *attr,
 	trip = &tz->trips[trip_id];
 
 	if (hyst != trip->hysteresis) {
-		if (tz->ops->set_trip_hyst) {
-			ret = tz->ops->set_trip_hyst(tz, trip_id, hyst);
+		if (tz->ops.set_trip_hyst) {
+			ret = tz->ops.set_trip_hyst(tz, trip_id, hyst);
 			if (ret)
 				goto unlock;
 		}
@@ -250,10 +250,10 @@ emul_temp_store(struct device *dev, struct device_attribute *attr,
 
 	mutex_lock(&tz->lock);
 
-	if (!tz->ops->set_emul_temp)
+	if (!tz->ops.set_emul_temp)
 		tz->emul_temperature = temperature;
 	else
-		ret = tz->ops->set_emul_temp(tz, temperature);
+		ret = tz->ops.set_emul_temp(tz, temperature);
 
 	if (!ret)
 		__thermal_zone_device_update(tz, THERMAL_EVENT_UNSPECIFIED);
@@ -474,7 +474,7 @@ static int create_trip_attrs(struct thermal_zone_device *tz, int mask)
 					tz->trip_hyst_attrs[indx].name;
 		tz->trip_hyst_attrs[indx].attr.attr.mode = S_IRUGO;
 		tz->trip_hyst_attrs[indx].attr.show = trip_point_hyst_show;
-		if (tz->ops->set_trip_hyst) {
+		if (tz->ops.set_trip_hyst) {
 			tz->trip_hyst_attrs[indx].attr.attr.mode |= S_IWUSR;
 			tz->trip_hyst_attrs[indx].attr.store =
 					trip_point_hyst_store;

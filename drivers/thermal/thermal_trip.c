@@ -70,7 +70,7 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 
 	lockdep_assert_held(&tz->lock);
 
-	if (!tz->ops->set_trips)
+	if (!tz->ops.set_trips)
 		return;
 
 	for_each_trip(tz, trip) {
@@ -114,7 +114,7 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 	 * Set a temperature window. When this window is left the driver
 	 * must inform the thermal core via thermal_zone_device_update.
 	 */
-	ret = tz->ops->set_trips(tz, low, high);
+	ret = tz->ops.set_trips(tz, low, high);
 	if (ret)
 		dev_err(&tz->device, "Failed to set trips: %d\n", ret);
 }

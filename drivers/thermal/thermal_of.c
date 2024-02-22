@@ -438,11 +438,8 @@ static int thermal_of_unbind(struct thermal_zone_device *tz,
  */
 static void thermal_of_zone_unregister(struct thermal_zone_device *tz)
 {
-	struct thermal_zone_device_ops *ops = tz->ops;
-
 	thermal_zone_device_disable(tz);
 	thermal_zone_device_unregister(tz);
-	kfree(ops);
 }
 
 /**
@@ -468,33 +465,27 @@ static void thermal_of_zone_unregister(struct thermal_zone_device *tz)
 static struct thermal_zone_device *thermal_of_zone_register(struct device_node *sensor, int id, void *data,
 							    const struct thermal_zone_device_ops *ops)
 {
+	struct thermal_zone_device_ops of_ops = *ops;
 	struct thermal_zone_device *tz;
 	struct thermal_trip *trips;
 	struct thermal_zone_params tzp = {};
-	struct thermal_zone_device_ops *of_ops;
 	struct device_node *np;
 	const char *action;
 	int delay, pdelay;
 	int ntrips, mask;
 	int ret;
 
-	of_ops = kmemdup(ops, sizeof(*ops), GFP_KERNEL);
-	if (!of_ops)
-		return ERR_PTR(-ENOMEM);
-
 	np = of_thermal_zone_find(sensor, id);
 	if (IS_ERR(np)) {
 		if (PTR_ERR(np) != -ENODEV)
 			pr_err("Failed to find thermal zone for %pOFn id=%d\n", sensor, id);
-		ret = PTR_ERR(np);
-		goto out_kfree_of_ops;
+		return ERR_CAST(np);
 	}
 
 	trips = thermal_of_trips_init(np, &ntrips);
 	if (IS_ERR(trips)) {
 		pr_err("Failed to find trip points for %pOFn id=%d\n", sensor, id);
-		ret = PTR_ERR(trips);
-		goto out_kfree_of_ops;
+		return ERR_CAST(trips);
 	}
 
 	ret = thermal_of_monitor_init(np, &delay, &pdelay);
@@ -505,18 +496,18 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 
 	thermal_of_parameters_init(np, &tzp);
 
-	of_ops->bind = thermal_of_bind;
-	of_ops->unbind = thermal_of_unbind;
+	of_ops.bind = thermal_of_bind;
+	of_ops.unbind = thermal_of_unbind;
 
 	mask = GENMASK_ULL((ntrips) - 1, 0);
 
 	ret = of_property_read_string(np, "critical-action", &action);
 	if (!ret)
-		if (!of_ops->critical && !strcasecmp(action, "reboot"))
-			of_ops->critical = thermal_zone_device_critical_reboot;
+		if (!of_ops.critical && !strcasecmp(action, "reboot"))
+			of_ops.critical = thermal_zone_device_critical_reboot;
 
 	tz = thermal_zone_device_register_with_trips(np->name, trips, ntrips,
-						     mask, data, of_ops, &tzp,
+						     mask, data, &of_ops, &tzp,
 						     pdelay, delay);
 	if (IS_ERR(tz)) {
 		ret = PTR_ERR(tz);
@@ -538,8 +529,6 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 
 out_kfree_trips:
 	kfree(trips);
-out_kfree_of_ops:
-	kfree(of_ops);
 
 	return ERR_PTR(ret);
 }
