@@ -120,4 +120,7 @@ unsigned int xfs_bmbt_maxlevels_ondisk(void);
 int __init xfs_bmbt_init_cur_cache(void);
 void xfs_bmbt_destroy_cur_cache(void);
 
+void xfs_bmbt_init_block(struct xfs_inode *ip, struct xfs_btree_block *buf,
+		struct xfs_buf *bp, __u16 level, __u16 numrecs);
+
 #endif	/* __XFS_BMAP_BTREE_H__ */
