@@ -597,7 +597,8 @@ static int dw8250_probe(struct platform_device *pdev)
 	if (data->clk == NULL)
 		data->clk = devm_clk_get_optional_enabled(dev, NULL);
 	if (IS_ERR(data->clk))
-		return PTR_ERR(data->clk);
+		return dev_err_probe(dev, PTR_ERR(data->clk),
+				     "failed to get baudclk\n");
 
 	INIT_WORK(&data->clk_work, dw8250_clk_work_cb);
 	data->clk_notifier.notifier_call = dw8250_clk_notifier_cb;
