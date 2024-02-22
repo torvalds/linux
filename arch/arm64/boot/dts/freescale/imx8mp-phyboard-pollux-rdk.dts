@@ -201,6 +201,15 @@
 	pinctrl-0 = <&pinctrl_pwm3>;
 };
 
+&rv3028 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_rtc>;
+	interrupt-parent = <&gpio4>;
+	interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
+	wakeup-source;
+	trickle-resistor-ohms = <3000>;
+};
+
 /* debug console */
 &uart1 {
 	pinctrl-names = "default";
@@ -366,6 +375,12 @@
 	pinctrl_reg_usdhc2_vmmc: regusdhc2vmmcgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_SD2_RESET_B__GPIO2_IO19	0x40
+		>;
+	};
+
+	pinctrl_rtc: rtcgrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI1_TXD7__GPIO4_IO19	0x1C0
 		>;
 	};
 
