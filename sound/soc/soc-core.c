@@ -287,7 +287,7 @@ static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
 		return 1;
 
 	if (dai->driver->name &&
-	    strcmp(dai->driver->name, dlc->dai_name) == 0)
+	    strcmp(dlc->dai_name, dai->driver->name) == 0)
 		return 1;
 
 	if (dai->component->name &&
