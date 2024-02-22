@@ -98,6 +98,20 @@ xfs_fs_mark_sick(
 
 	spin_lock(&mp->m_sb_lock);
 	mp->m_fs_sick |= mask;
+	spin_unlock(&mp->m_sb_lock);
+}
+
+/* Mark per-fs metadata as having been checked and found unhealthy by fsck. */
+void
+xfs_fs_mark_corrupt(
+	struct xfs_mount	*mp,
+	unsigned int		mask)
+{
+	ASSERT(!(mask & ~XFS_SICK_FS_PRIMARY));
+	trace_xfs_fs_mark_corrupt(mp, mask);
+
+	spin_lock(&mp->m_sb_lock);
+	mp->m_fs_sick |= mask;
 	mp->m_fs_checked |= mask;
 	spin_unlock(&mp->m_sb_lock);
 }
@@ -138,6 +152,20 @@ xfs_rt_mark_sick(
 {
 	ASSERT(!(mask & ~XFS_SICK_RT_PRIMARY));
 	trace_xfs_rt_mark_sick(mp, mask);
+
+	spin_lock(&mp->m_sb_lock);
+	mp->m_rt_sick |= mask;
+	spin_unlock(&mp->m_sb_lock);
+}
+
+/* Mark realtime metadata as having been checked and found unhealthy by fsck. */
+void
+xfs_rt_mark_corrupt(
+	struct xfs_mount	*mp,
+	unsigned int		mask)
+{
+	ASSERT(!(mask & ~XFS_SICK_RT_PRIMARY));
+	trace_xfs_rt_mark_corrupt(mp, mask);
 
 	spin_lock(&mp->m_sb_lock);
 	mp->m_rt_sick |= mask;
@@ -184,6 +212,20 @@ xfs_ag_mark_sick(
 
 	spin_lock(&pag->pag_state_lock);
 	pag->pag_sick |= mask;
+	spin_unlock(&pag->pag_state_lock);
+}
+
+/* Mark per-ag metadata as having been checked and found unhealthy by fsck. */
+void
+xfs_ag_mark_corrupt(
+	struct xfs_perag	*pag,
+	unsigned int		mask)
+{
+	ASSERT(!(mask & ~XFS_SICK_AG_PRIMARY));
+	trace_xfs_ag_mark_corrupt(pag->pag_mount, pag->pag_agno, mask);
+
+	spin_lock(&pag->pag_state_lock);
+	pag->pag_sick |= mask;
 	pag->pag_checked |= mask;
 	spin_unlock(&pag->pag_state_lock);
 }
@@ -224,6 +266,29 @@ xfs_inode_mark_sick(
 {
 	ASSERT(!(mask & ~(XFS_SICK_INO_PRIMARY | XFS_SICK_INO_ZAPPED)));
 	trace_xfs_inode_mark_sick(ip, mask);
+
+	spin_lock(&ip->i_flags_lock);
+	ip->i_sick |= mask;
+	spin_unlock(&ip->i_flags_lock);
+
+	/*
+	 * Keep this inode around so we don't lose the sickness report.  Scrub
+	 * grabs inodes with DONTCACHE assuming that most inode are ok, which
+	 * is not the case here.
+	 */
+	spin_lock(&VFS_I(ip)->i_lock);
+	VFS_I(ip)->i_state &= ~I_DONTCACHE;
+	spin_unlock(&VFS_I(ip)->i_lock);
+}
+
+/* Mark inode metadata as having been checked and found unhealthy by fsck. */
+void
+xfs_inode_mark_corrupt(
+	struct xfs_inode	*ip,
+	unsigned int		mask)
+{
+	ASSERT(!(mask & ~(XFS_SICK_INO_PRIMARY | XFS_SICK_INO_ZAPPED)));
+	trace_xfs_inode_mark_corrupt(ip, mask);
 
 	spin_lock(&ip->i_flags_lock);
 	ip->i_sick |= mask;
