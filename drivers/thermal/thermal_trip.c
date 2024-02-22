@@ -122,7 +122,7 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 int __thermal_zone_get_trip(struct thermal_zone_device *tz, int trip_id,
 			    struct thermal_trip *trip)
 {
-	if (!tz || !tz->trips || trip_id < 0 || trip_id >= tz->num_trips || !trip)
+	if (!tz || trip_id < 0 || trip_id >= tz->num_trips || !trip)
 		return -EINVAL;
 
 	*trip = tz->trips[trip_id];

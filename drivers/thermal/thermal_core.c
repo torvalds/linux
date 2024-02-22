@@ -1227,9 +1227,6 @@ int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp)
 	if (tz->ops->get_crit_temp)
 		return tz->ops->get_crit_temp(tz, temp);
 
-	if (!tz->trips)
-		return -EINVAL;
-
 	mutex_lock(&tz->lock);
 
 	for (i = 0; i < tz->num_trips; i++) {
@@ -1272,10 +1269,13 @@ EXPORT_SYMBOL_GPL(thermal_zone_get_crit_temp);
  * IS_ERR*() helpers.
  */
 struct thermal_zone_device *
-thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *trips, int num_trips, int mask,
-					void *devdata, struct thermal_zone_device_ops *ops,
-					const struct thermal_zone_params *tzp, int passive_delay,
-					int polling_delay)
+thermal_zone_device_register_with_trips(const char *type,
+					const struct thermal_trip *trips,
+					int num_trips, int mask,
+					void *devdata,
+					struct thermal_zone_device_ops *ops,
+					const struct thermal_zone_params *tzp,
+					int passive_delay, int polling_delay)
 {
 	struct thermal_zone_device *tz;
 	int id;
@@ -1322,7 +1322,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	if (!thermal_class)
 		return ERR_PTR(-ENODEV);
 
-	tz = kzalloc(sizeof(*tz), GFP_KERNEL);
+	tz = kzalloc(struct_size(tz, trips, num_trips), GFP_KERNEL);
 	if (!tz)
 		return ERR_PTR(-ENOMEM);
 
@@ -1354,7 +1354,7 @@ thermal_zone_device_register_with_trips(const char *type, struct thermal_trip *t
 	tz->ops = ops;
 	tz->device.class = thermal_class;
 	tz->devdata = devdata;
-	tz->trips = trips;
+	memcpy(tz->trips, trips, num_trips * sizeof(*trips));
 	tz->num_trips = num_trips;
 
 	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);

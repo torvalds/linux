@@ -438,12 +438,10 @@ static int thermal_of_unbind(struct thermal_zone_device *tz,
  */
 static void thermal_of_zone_unregister(struct thermal_zone_device *tz)
 {
-	struct thermal_trip *trips = tz->trips;
 	struct thermal_zone_device_ops *ops = tz->ops;
 
 	thermal_zone_device_disable(tz);
 	thermal_zone_device_unregister(tz);
-	kfree(trips);
 	kfree(ops);
 }
 
@@ -525,6 +523,8 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 		pr_err("Failed to register thermal zone %pOFn: %d\n", np, ret);
 		goto out_kfree_trips;
 	}
+
+	kfree(trips);
 
 	ret = thermal_zone_device_enable(tz);
 	if (ret) {

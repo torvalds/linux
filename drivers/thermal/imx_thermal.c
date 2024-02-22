@@ -354,6 +354,7 @@ static int imx_set_trip_temp(struct thermal_zone_device *tz, int trip_id,
 		return -EINVAL;
 
 	imx_set_alarm_temp(data, temp);
+	trips[IMX_TRIP_PASSIVE].temperature = temp;
 
 	pm_runtime_put(data->dev);
 
