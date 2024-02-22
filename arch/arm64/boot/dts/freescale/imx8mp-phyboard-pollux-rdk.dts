@@ -408,7 +408,7 @@
 
 	pinctrl_usdhc2_pins: usdhc2-gpiogrp {
 		fsl,pins = <
-			MX8MP_IOMUXC_SD2_CD_B__GPIO2_IO12	0x1c4
+			MX8MP_IOMUXC_SD2_CD_B__GPIO2_IO12	0x40
 		>;
 	};
 
