@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -111,34 +111,6 @@ static struct clk_alpha_pll_postdiv gpll0_out_even = {
 		},
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_postdiv_lucid_evo_ops,
-	},
-};
-
-static struct clk_alpha_pll gpll1 = {
-	.offset = 0x1000,
-	.regs = clk_alpha_pll_regs[CLK_ALPHA_PLL_TYPE_LUCID_EVO],
-	.clkr = {
-		.enable_reg = 0x79000,
-		.enable_mask = BIT(1),
-		.hw.init = &(const struct clk_init_data) {
-			.name = "gpll1",
-			.parent_data = &(const struct clk_parent_data) {
-				.fw_name = "bi_tcxo",
-			},
-			.num_parents = 1,
-			.ops = &clk_alpha_pll_fixed_lucid_evo_ops,
-		},
-		.vdd_data = {
-			.vdd_class = &vdd_cx,
-			.num_rate_max = VDD_NUM,
-			.rate_max = (unsigned long[VDD_NUM]) {
-				[VDD_LOWER_D1] = 500000000,
-				[VDD_LOWER] = 615000000,
-				[VDD_LOW] = 1066000000,
-				[VDD_LOW_L1] = 1500000000,
-				[VDD_NOMINAL] = 1800000000,
-				[VDD_HIGH] = 2020000000},
-		},
 	},
 };
 
@@ -4137,7 +4109,6 @@ static struct clk_regmap *gcc_pitti_clocks[] = {
 	[GCC_VIDEO_VENUS_CTL_CLK] = &gcc_video_venus_ctl_clk.clkr,
 	[GPLL0] = &gpll0.clkr,
 	[GPLL0_OUT_EVEN] = &gpll0_out_even.clkr,
-	[GPLL1] = &gpll1.clkr,
 	[GPLL10] = &gpll10.clkr,
 	[GPLL11] = &gpll11.clkr,
 	[GPLL12] = &gpll12.clkr,
