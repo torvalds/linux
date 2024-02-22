@@ -71,7 +71,7 @@ void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64)
 	insn->kaddr = kaddr;
 	insn->end_kaddr = kaddr + buf_len;
 	insn->next_byte = kaddr;
-	insn->x86_64 = x86_64 ? 1 : 0;
+	insn->x86_64 = x86_64;
 	insn->opnd_bytes = 4;
 	if (x86_64)
 		insn->addr_bytes = 8;
