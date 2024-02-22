@@ -34,7 +34,8 @@
 
 /* Limit how long of an event name plus args within the subsystem. */
 #define MAX_EVENT_DESC 512
-#define EVENT_NAME(user_event) ((user_event)->tracepoint.name)
+#define EVENT_NAME(user_event) ((user_event)->reg_name)
+#define EVENT_TP_NAME(user_event) ((user_event)->tracepoint.name)
 #define MAX_FIELD_ARRAY_SIZE 1024
 
 /*
@@ -54,10 +55,13 @@
  * allows isolation for events by various means.
  */
 struct user_event_group {
-	char		*system_name;
-	struct		hlist_node node;
-	struct		mutex reg_mutex;
+	char			*system_name;
+	char			*system_multi_name;
+	struct hlist_node	node;
+	struct mutex		reg_mutex;
 	DECLARE_HASHTABLE(register_table, 8);
+	/* ID that moves forward within the group for multi-event names */
+	u64			multi_id;
 };
 
 /* Group for init_user_ns mapping, top-most group */
@@ -78,6 +82,7 @@ static unsigned int current_user_events;
  */
 struct user_event {
 	struct user_event_group		*group;
+	char				*reg_name;
 	struct tracepoint		tracepoint;
 	struct trace_event_call		call;
 	struct trace_event_class	class;
@@ -126,6 +131,8 @@ struct user_event_enabler {
 #define ENABLE_BITOPS(e) (&(e)->values)
 
 #define ENABLE_BIT(e) ((int)((e)->values & ENABLE_VAL_BIT_MASK))
+
+#define EVENT_MULTI_FORMAT(f) ((f) & USER_EVENT_REG_MULTI_FORMAT)
 
 /* Used for asynchronous faulting in of pages */
 struct user_event_enabler_fault {
@@ -330,6 +337,7 @@ out:
 static void user_event_group_destroy(struct user_event_group *group)
 {
 	kfree(group->system_name);
+	kfree(group->system_multi_name);
 	kfree(group);
 }
 
@@ -346,6 +354,11 @@ static char *user_event_group_system_name(void)
 	snprintf(system_name, len, "%s", USER_EVENTS_SYSTEM);
 
 	return system_name;
+}
+
+static char *user_event_group_system_multi_name(void)
+{
+	return kstrdup(USER_EVENTS_MULTI_SYSTEM, GFP_KERNEL);
 }
 
 static struct user_event_group *current_user_event_group(void)
@@ -365,6 +378,11 @@ static struct user_event_group *user_event_group_create(void)
 	group->system_name = user_event_group_system_name();
 
 	if (!group->system_name)
+		goto error;
+
+	group->system_multi_name = user_event_group_system_multi_name();
+
+	if (!group->system_multi_name)
 		goto error;
 
 	mutex_init(&group->reg_mutex);
@@ -1482,6 +1500,11 @@ static int destroy_user_event(struct user_event *user)
 	hash_del(&user->node);
 
 	user_event_destroy_validators(user);
+
+	/* If we have different names, both must be freed */
+	if (EVENT_NAME(user) != EVENT_TP_NAME(user))
+		kfree(EVENT_TP_NAME(user));
+
 	kfree(user->call.print_fmt);
 	kfree(EVENT_NAME(user));
 	kfree(user);
@@ -1504,11 +1527,23 @@ static struct user_event *find_user_event(struct user_event_group *group,
 	*outkey = key;
 
 	hash_for_each_possible(group->register_table, user, node, key) {
+		/*
+		 * Single-format events shouldn't return multi-format
+		 * events. Callers expect the underlying tracepoint to match
+		 * the name exactly in these cases. Only check like-formats.
+		 */
+		if (EVENT_MULTI_FORMAT(flags) != EVENT_MULTI_FORMAT(user->reg_flags))
+			continue;
+
 		if (strcmp(EVENT_NAME(user), name))
 			continue;
 
 		if (user_fields_match(user, argc, argv))
 			return user_event_get(user);
+
+		/* Scan others if this is a multi-format event */
+		if (EVENT_MULTI_FORMAT(flags))
+			continue;
 
 		return ERR_PTR(-EADDRINUSE);
 	}
@@ -1889,8 +1924,12 @@ static bool user_event_match(const char *system, const char *event,
 	struct user_event *user = container_of(ev, struct user_event, devent);
 	bool match;
 
-	match = strcmp(EVENT_NAME(user), event) == 0 &&
-		(!system || strcmp(system, USER_EVENTS_SYSTEM) == 0);
+	match = strcmp(EVENT_NAME(user), event) == 0;
+
+	if (match && system) {
+		match = strcmp(system, user->group->system_name) == 0 ||
+			strcmp(system, user->group->system_multi_name) == 0;
+	}
 
 	if (match)
 		match = user_fields_match(user, argc, argv);
@@ -1921,6 +1960,33 @@ static int user_event_trace_register(struct user_event *user)
 		unregister_trace_event(&user->call.event);
 
 	return ret;
+}
+
+static int user_event_set_tp_name(struct user_event *user)
+{
+	lockdep_assert_held(&user->group->reg_mutex);
+
+	if (EVENT_MULTI_FORMAT(user->reg_flags)) {
+		char *multi_name;
+
+		multi_name = kasprintf(GFP_KERNEL_ACCOUNT, "%s.%llx",
+				       user->reg_name, user->group->multi_id);
+
+		if (!multi_name)
+			return -ENOMEM;
+
+		user->call.name = multi_name;
+		user->tracepoint.name = multi_name;
+
+		/* Inc to ensure unique multi-event name next time */
+		user->group->multi_id++;
+	} else {
+		/* Non Multi-format uses register name */
+		user->call.name = user->reg_name;
+		user->tracepoint.name = user->reg_name;
+	}
+
+	return 0;
 }
 
 /*
@@ -1985,7 +2051,13 @@ static int user_event_parse(struct user_event_group *group, char *name,
 	INIT_LIST_HEAD(&user->validators);
 
 	user->group = group;
-	user->tracepoint.name = name;
+	user->reg_name = name;
+	user->reg_flags = reg_flags;
+
+	ret = user_event_set_tp_name(user);
+
+	if (ret)
+		goto put_user;
 
 	ret = user_event_parse_fields(user, args);
 
@@ -1999,11 +2071,14 @@ static int user_event_parse(struct user_event_group *group, char *name,
 
 	user->call.data = user;
 	user->call.class = &user->class;
-	user->call.name = name;
 	user->call.flags = TRACE_EVENT_FL_TRACEPOINT;
 	user->call.tp = &user->tracepoint;
 	user->call.event.funcs = &user_event_funcs;
-	user->class.system = group->system_name;
+
+	if (EVENT_MULTI_FORMAT(user->reg_flags))
+		user->class.system = group->system_multi_name;
+	else
+		user->class.system = group->system_name;
 
 	user->class.fields_array = user_event_fields_array;
 	user->class.get_fields = user_event_get_fields;
@@ -2024,8 +2099,6 @@ static int user_event_parse(struct user_event_group *group, char *name,
 
 	if (ret)
 		goto put_user_lock;
-
-	user->reg_flags = reg_flags;
 
 	if (user->reg_flags & USER_EVENT_REG_PERSIST) {
 		/* Ensure we track self ref and caller ref (2) */
@@ -2050,6 +2123,11 @@ put_user:
 	user_event_destroy_fields(user);
 	user_event_destroy_validators(user);
 	kfree(user->call.print_fmt);
+
+	/* Caller frees reg_name on error, but not multi-name */
+	if (EVENT_NAME(user) != EVENT_TP_NAME(user))
+		kfree(EVENT_TP_NAME(user));
+
 	kfree(user);
 	return ret;
 }
@@ -2639,7 +2717,7 @@ static int user_seq_show(struct seq_file *m, void *p)
 	hash_for_each(group->register_table, i, user, node) {
 		status = user->status;
 
-		seq_printf(m, "%s", EVENT_NAME(user));
+		seq_printf(m, "%s", EVENT_TP_NAME(user));
 
 		if (status != 0)
 			seq_puts(m, " #");
