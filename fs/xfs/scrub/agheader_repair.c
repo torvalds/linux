@@ -174,8 +174,7 @@ xrep_agf_find_btrees(
 	 * We relied on the rmapbt to reconstruct the AGF.  If we get a
 	 * different root then something's seriously wrong.
 	 */
-	if (fab[XREP_AGF_RMAPBT].root !=
-	    be32_to_cpu(old_agf->agf_roots[XFS_BTNUM_RMAPi]))
+	if (fab[XREP_AGF_RMAPBT].root != be32_to_cpu(old_agf->agf_rmap_root))
 		return -EFSCORRUPTED;
 
 	/* We must find the refcountbt root if that feature is enabled. */
@@ -224,20 +223,14 @@ xrep_agf_set_roots(
 	struct xfs_agf			*agf,
 	struct xrep_find_ag_btree	*fab)
 {
-	agf->agf_roots[XFS_BTNUM_BNOi] =
-			cpu_to_be32(fab[XREP_AGF_BNOBT].root);
-	agf->agf_levels[XFS_BTNUM_BNOi] =
-			cpu_to_be32(fab[XREP_AGF_BNOBT].height);
+	agf->agf_bno_root = cpu_to_be32(fab[XREP_AGF_BNOBT].root);
+	agf->agf_bno_level = cpu_to_be32(fab[XREP_AGF_BNOBT].height);
 
-	agf->agf_roots[XFS_BTNUM_CNTi] =
-			cpu_to_be32(fab[XREP_AGF_CNTBT].root);
-	agf->agf_levels[XFS_BTNUM_CNTi] =
-			cpu_to_be32(fab[XREP_AGF_CNTBT].height);
+	agf->agf_cnt_root = cpu_to_be32(fab[XREP_AGF_CNTBT].root);
+	agf->agf_cnt_level = cpu_to_be32(fab[XREP_AGF_CNTBT].height);
 
-	agf->agf_roots[XFS_BTNUM_RMAPi] =
-			cpu_to_be32(fab[XREP_AGF_RMAPBT].root);
-	agf->agf_levels[XFS_BTNUM_RMAPi] =
-			cpu_to_be32(fab[XREP_AGF_RMAPBT].height);
+	agf->agf_rmap_root = cpu_to_be32(fab[XREP_AGF_RMAPBT].root);
+	agf->agf_rmap_level = cpu_to_be32(fab[XREP_AGF_RMAPBT].height);
 
 	if (xfs_has_reflink(sc->mp)) {
 		agf->agf_refcount_root =
@@ -333,12 +326,9 @@ xrep_agf_commit_new(
 	pag->pagf_btreeblks = be32_to_cpu(agf->agf_btreeblks);
 	pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
 	pag->pagf_longest = be32_to_cpu(agf->agf_longest);
-	pag->pagf_levels[XFS_BTNUM_BNOi] =
-			be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNOi]);
-	pag->pagf_levels[XFS_BTNUM_CNTi] =
-			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]);
-	pag->pagf_levels[XFS_BTNUM_RMAPi] =
-			be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAPi]);
+	pag->pagf_bno_level = be32_to_cpu(agf->agf_bno_level);
+	pag->pagf_cnt_level = be32_to_cpu(agf->agf_cnt_level);
+	pag->pagf_rmap_level = be32_to_cpu(agf->agf_rmap_level);
 	pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
 	set_bit(XFS_AGSTATE_AGF_INIT, &pag->pag_opstate);
 

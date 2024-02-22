@@ -38,13 +38,18 @@ xfs_allocbt_set_root(
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	int			btnum = cur->bc_btnum;
 
 	ASSERT(ptr->s != 0);
 
-	agf->agf_roots[btnum] = ptr->s;
-	be32_add_cpu(&agf->agf_levels[btnum], inc);
-	cur->bc_ag.pag->pagf_levels[btnum] += inc;
+	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+		agf->agf_bno_root = ptr->s;
+		be32_add_cpu(&agf->agf_bno_level, inc);
+		cur->bc_ag.pag->pagf_bno_level += inc;
+	} else {
+		agf->agf_cnt_root = ptr->s;
+		be32_add_cpu(&agf->agf_cnt_level, inc);
+		cur->bc_ag.pag->pagf_cnt_level += inc;
+	}
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 }
@@ -226,7 +231,10 @@ xfs_allocbt_init_ptr_from_cur(
 
 	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
 
-	ptr->s = agf->agf_roots[cur->bc_btnum];
+	if (cur->bc_btnum == XFS_BTNUM_BNO)
+		ptr->s = agf->agf_bno_root;
+	else
+		ptr->s = agf->agf_cnt_root;
 }
 
 STATIC int64_t
@@ -299,7 +307,6 @@ xfs_allocbt_verify(
 	struct xfs_perag	*pag = bp->b_pag;
 	xfs_failaddr_t		fa;
 	unsigned int		level;
-	xfs_btnum_t		btnum = XFS_BTNUM_BNOi;
 
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
@@ -320,21 +327,27 @@ xfs_allocbt_verify(
 	 * against.
 	 */
 	level = be16_to_cpu(block->bb_level);
-	if (bp->b_ops->magic[0] == cpu_to_be32(XFS_ABTC_MAGIC))
-		btnum = XFS_BTNUM_CNTi;
 	if (pag && xfs_perag_initialised_agf(pag)) {
-		unsigned int	maxlevel = pag->pagf_levels[btnum];
+		unsigned int	maxlevel, repair_maxlevel = 0;
 
-#ifdef CONFIG_XFS_ONLINE_REPAIR
 		/*
 		 * Online repair could be rewriting the free space btrees, so
 		 * we'll validate against the larger of either tree while this
 		 * is going on.
 		 */
-		maxlevel = max_t(unsigned int, maxlevel,
-				 pag->pagf_repair_levels[btnum]);
+		if (bp->b_ops->magic[0] == cpu_to_be32(XFS_ABTC_MAGIC)) {
+			maxlevel = pag->pagf_cnt_level;
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+			repair_maxlevel = pag->pagf_repair_cnt_level;
 #endif
-		if (level >= maxlevel)
+		} else {
+			maxlevel = pag->pagf_bno_level;
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+			repair_maxlevel = pag->pagf_repair_bno_level;
+#endif
+		}
+
+		if (level >= max(maxlevel, repair_maxlevel))
 			return __this_address;
 	} else if (level >= mp->m_alloc_maxlevels)
 		return __this_address;
@@ -542,8 +555,8 @@ xfs_allocbt_init_cursor(
 		struct xfs_agf		*agf = agbp->b_addr;
 
 		cur->bc_nlevels = (btnum == XFS_BTNUM_BNO) ?
-			be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]) :
-			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
+			be32_to_cpu(agf->agf_bno_level) :
+			be32_to_cpu(agf->agf_cnt_level);
 	}
 	return cur;
 }
@@ -563,8 +576,13 @@ xfs_allocbt_commit_staged_btree(
 
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 
-	agf->agf_roots[cur->bc_btnum] = cpu_to_be32(afake->af_root);
-	agf->agf_levels[cur->bc_btnum] = cpu_to_be32(afake->af_levels);
+	if (cur->bc_btnum == XFS_BTNUM_BNO) {
+		agf->agf_bno_root = cpu_to_be32(afake->af_root);
+		agf->agf_bno_level = cpu_to_be32(afake->af_levels);
+	} else {
+		agf->agf_cnt_root = cpu_to_be32(afake->af_root);
+		agf->agf_cnt_level = cpu_to_be32(afake->af_levels);
+	}
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 
 	xfs_btree_commit_afakeroot(cur, tp, agbp);

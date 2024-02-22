@@ -1710,12 +1710,10 @@ DECLARE_EVENT_CLASS(xfs_agf_class,
 		__entry->agno = be32_to_cpu(agf->agf_seqno),
 		__entry->flags = flags;
 		__entry->length = be32_to_cpu(agf->agf_length),
-		__entry->bno_root = be32_to_cpu(agf->agf_roots[XFS_BTNUM_BNO]),
-		__entry->cnt_root = be32_to_cpu(agf->agf_roots[XFS_BTNUM_CNT]),
-		__entry->bno_level =
-				be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]),
-		__entry->cnt_level =
-				be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]),
+		__entry->bno_root = be32_to_cpu(agf->agf_bno_root),
+		__entry->cnt_root = be32_to_cpu(agf->agf_cnt_root),
+		__entry->bno_level = be32_to_cpu(agf->agf_bno_level),
+		__entry->cnt_level = be32_to_cpu(agf->agf_cnt_level),
 		__entry->flfirst = be32_to_cpu(agf->agf_flfirst),
 		__entry->fllast = be32_to_cpu(agf->agf_fllast),
 		__entry->flcount = be32_to_cpu(agf->agf_flcount),
