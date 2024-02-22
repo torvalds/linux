@@ -528,20 +528,6 @@ xfs_rmapbt_init_cursor(
 	return cur;
 }
 
-/* Create a new reverse mapping btree cursor with a fake root for staging. */
-struct xfs_btree_cur *
-xfs_rmapbt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
-	struct xfs_perag	*pag)
-{
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_rmapbt_init_cursor(mp, NULL, NULL, pag);
-	xfs_btree_stage_afakeroot(cur, afake);
-	return cur;
-}
-
 /*
  * Install a new reverse mapping btree root.  Caller is responsible for
  * invalidating and freeing the old btree blocks.
