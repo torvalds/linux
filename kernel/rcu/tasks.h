@@ -242,7 +242,6 @@ static const char *tasks_gp_state_getname(struct rcu_tasks *rtp)
 static void cblist_init_generic(struct rcu_tasks *rtp)
 {
 	int cpu;
-	unsigned long flags;
 	int lim;
 	int shift;
 
@@ -268,10 +267,8 @@ static void cblist_init_generic(struct rcu_tasks *rtp)
 		WARN_ON_ONCE(!rtpcp);
 		if (cpu)
 			raw_spin_lock_init(&ACCESS_PRIVATE(rtpcp, lock));
-		local_irq_save(flags);  // serialize initialization
 		if (rcu_segcblist_empty(&rtpcp->cblist))
 			rcu_segcblist_init(&rtpcp->cblist);
-		local_irq_restore(flags);
 		INIT_WORK(&rtpcp->rtp_work, rcu_tasks_invoke_cbs_wq);
 		rtpcp->cpu = cpu;
 		rtpcp->rtpp = rtp;
@@ -1120,7 +1117,6 @@ module_param(rcu_tasks_lazy_ms, int, 0444);
 
 static int __init rcu_spawn_tasks_kthread(void)
 {
-	cblist_init_generic(&rcu_tasks);
 	rcu_tasks.gp_sleep = HZ / 10;
 	rcu_tasks.init_fract = HZ / 10;
 	if (rcu_tasks_lazy_ms >= 0)
@@ -1284,7 +1280,6 @@ module_param(rcu_tasks_rude_lazy_ms, int, 0444);
 
 static int __init rcu_spawn_tasks_rude_kthread(void)
 {
-	cblist_init_generic(&rcu_tasks_rude);
 	rcu_tasks_rude.gp_sleep = HZ / 10;
 	if (rcu_tasks_rude_lazy_ms >= 0)
 		rcu_tasks_rude.lazy_jiffies = msecs_to_jiffies(rcu_tasks_rude_lazy_ms);
@@ -1916,7 +1911,6 @@ module_param(rcu_tasks_trace_lazy_ms, int, 0444);
 
 static int __init rcu_spawn_tasks_trace_kthread(void)
 {
-	cblist_init_generic(&rcu_tasks_trace);
 	if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB)) {
 		rcu_tasks_trace.gp_sleep = HZ / 10;
 		rcu_tasks_trace.init_fract = HZ / 10;
@@ -2087,6 +2081,24 @@ late_initcall(rcu_tasks_verify_schedule_work);
 #else /* #ifdef CONFIG_PROVE_RCU */
 static void rcu_tasks_initiate_self_tests(void) { }
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
+
+void __init tasks_cblist_init_generic(void)
+{
+	lockdep_assert_irqs_disabled();
+	WARN_ON(num_online_cpus() > 1);
+
+#ifdef CONFIG_TASKS_RCU
+	cblist_init_generic(&rcu_tasks);
+#endif
+
+#ifdef CONFIG_TASKS_RUDE_RCU
+	cblist_init_generic(&rcu_tasks_rude);
+#endif
+
+#ifdef CONFIG_TASKS_TRACE_RCU
+	cblist_init_generic(&rcu_tasks_trace);
+#endif
+}
 
 void __init rcu_init_tasks_generic(void)
 {

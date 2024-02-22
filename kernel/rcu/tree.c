@@ -5165,6 +5165,8 @@ void __init rcu_init(void)
 	(void)start_poll_synchronize_rcu_expedited();
 
 	rcu_test_sync_prims();
+
+	tasks_cblist_init_generic();
 }
 
 #include "tree_stall.h"
