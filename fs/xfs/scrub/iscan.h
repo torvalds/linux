@@ -12,6 +12,13 @@ struct xchk_iscan {
 	/* Lock to protect the scan cursor. */
 	struct mutex		lock;
 
+	/*
+	 * This is the first inode in the inumber address space that we
+	 * examined.  When the scan wraps around back to here, the scan is
+	 * finished.
+	 */
+	xfs_ino_t		scan_start_ino;
+
 	/* This is the inode that will be examined next. */
 	xfs_ino_t		cursor_ino;
 

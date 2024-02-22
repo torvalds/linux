@@ -170,10 +170,24 @@ xchk_iscan_move_cursor(
 {
 	struct xfs_scrub	*sc = iscan->sc;
 	struct xfs_mount	*mp = sc->mp;
+	xfs_ino_t		cursor, visited;
+
+	BUILD_BUG_ON(XFS_MAXINUMBER == NULLFSINO);
+
+	/*
+	 * Special-case ino == 0 here so that we never set visited_ino to
+	 * NULLFSINO when wrapping around EOFS, for that will let through all
+	 * live updates.
+	 */
+	cursor = XFS_AGINO_TO_INO(mp, agno, agino);
+	if (cursor == 0)
+		visited = XFS_MAXINUMBER;
+	else
+		visited = cursor - 1;
 
 	mutex_lock(&iscan->lock);
-	iscan->cursor_ino = XFS_AGINO_TO_INO(mp, agno, agino);
-	iscan->__visited_ino = iscan->cursor_ino - 1;
+	iscan->cursor_ino = cursor;
+	iscan->__visited_ino = visited;
 	trace_xchk_iscan_move_cursor(iscan);
 	mutex_unlock(&iscan->lock);
 }
@@ -257,12 +271,13 @@ xchk_iscan_advance(
 		 * Did not find any more inodes in this AG, move on to the next
 		 * AG.
 		 */
-		xchk_iscan_move_cursor(iscan, ++agno, 0);
+		agno = (agno + 1) % mp->m_sb.sb_agcount;
+		xchk_iscan_move_cursor(iscan, agno, 0);
 		xfs_trans_brelse(sc->tp, agi_bp);
 		xfs_perag_put(pag);
 
 		trace_xchk_iscan_advance_ag(iscan);
-	} while (agno < mp->m_sb.sb_agcount);
+	} while (iscan->cursor_ino != iscan->scan_start_ino);
 
 	xchk_iscan_finish(iscan);
 	return 0;
@@ -420,6 +435,23 @@ xchk_iscan_teardown(
 	mutex_destroy(&iscan->lock);
 }
 
+/* Pick an AG from which to start a scan. */
+static inline xfs_ino_t
+xchk_iscan_rotor(
+	struct xfs_mount	*mp)
+{
+	static atomic_t		agi_rotor;
+	unsigned int		r = atomic_inc_return(&agi_rotor) - 1;
+
+	/*
+	 * Rotoring *backwards* through the AGs, so we add one here before
+	 * subtracting from the agcount to arrive at an AG number.
+	 */
+	r = (r % mp->m_sb.sb_agcount) + 1;
+
+	return XFS_AGINO_TO_INO(mp, mp->m_sb.sb_agcount - r, 0);
+}
+
 /*
  * Set ourselves up to start an inode scan.  If the @iget_timeout and
  * @iget_retry_delay parameters are set, the scan will try to iget each inode
@@ -434,15 +466,20 @@ xchk_iscan_start(
 	unsigned int		iget_retry_delay,
 	struct xchk_iscan	*iscan)
 {
+	xfs_ino_t		start_ino;
+
+	start_ino = xchk_iscan_rotor(sc->mp);
+
 	iscan->sc = sc;
 	clear_bit(XCHK_ISCAN_OPSTATE_ABORTED, &iscan->__opstate);
 	iscan->iget_timeout = iget_timeout;
 	iscan->iget_retry_delay = iget_retry_delay;
-	iscan->__visited_ino = 0;
-	iscan->cursor_ino = 0;
+	iscan->__visited_ino = start_ino;
+	iscan->cursor_ino = start_ino;
+	iscan->scan_start_ino = start_ino;
 	mutex_init(&iscan->lock);
 
-	trace_xchk_iscan_start(iscan);
+	trace_xchk_iscan_start(iscan, start_ino);
 }
 
 /*
@@ -471,15 +508,45 @@ xchk_iscan_want_live_update(
 	struct xchk_iscan	*iscan,
 	xfs_ino_t		ino)
 {
-	bool			ret;
+	bool			ret = false;
 
 	if (xchk_iscan_aborted(iscan))
 		return false;
 
 	mutex_lock(&iscan->lock);
-	trace_xchk_iscan_want_live_update(iscan, ino);
-	ret = iscan->__visited_ino >= ino;
-	mutex_unlock(&iscan->lock);
 
+	trace_xchk_iscan_want_live_update(iscan, ino);
+
+	/* Scan is finished, caller should receive all updates. */
+	if (iscan->__visited_ino == NULLFSINO) {
+		ret = true;
+		goto unlock;
+	}
+
+	/*
+	 * The visited cursor hasn't yet wrapped around the end of the FS.  If
+	 * @ino is inside the starred range, the caller should receive updates:
+	 *
+	 * 0 ------------ S ************ V ------------ EOFS
+	 */
+	if (iscan->scan_start_ino <= iscan->__visited_ino) {
+		if (ino >= iscan->scan_start_ino &&
+		    ino <= iscan->__visited_ino)
+			ret = true;
+
+		goto unlock;
+	}
+
+	/*
+	 * The visited cursor wrapped around the end of the FS.  If @ino is
+	 * inside the starred range, the caller should receive updates:
+	 *
+	 * 0 ************ V ------------ S ************ EOFS
+	 */
+	if (ino >= iscan->scan_start_ino || ino <= iscan->__visited_ino)
+		ret = true;
+
+unlock:
+	mutex_unlock(&iscan->lock);
 	return ret;
 }

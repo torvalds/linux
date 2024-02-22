@@ -1173,25 +1173,27 @@ DEFINE_EVENT(xchk_iscan_class, name, \
 DEFINE_ISCAN_EVENT(xchk_iscan_move_cursor);
 DEFINE_ISCAN_EVENT(xchk_iscan_visit);
 DEFINE_ISCAN_EVENT(xchk_iscan_advance_ag);
-DEFINE_ISCAN_EVENT(xchk_iscan_start);
 
 DECLARE_EVENT_CLASS(xchk_iscan_ino_class,
 	TP_PROTO(struct xchk_iscan *iscan, xfs_ino_t ino),
 	TP_ARGS(iscan, ino),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(xfs_ino_t, startino)
 		__field(xfs_ino_t, cursor)
 		__field(xfs_ino_t, visited)
 		__field(xfs_ino_t, ino)
 	),
 	TP_fast_assign(
 		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->startino = iscan->scan_start_ino;
 		__entry->cursor = iscan->cursor_ino;
 		__entry->visited = iscan->__visited_ino;
 		__entry->ino = ino;
 	),
-	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx ino 0x%llx",
+	TP_printk("dev %d:%d iscan start 0x%llx cursor 0x%llx visited 0x%llx ino 0x%llx",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->startino,
 		  __entry->cursor,
 		  __entry->visited,
 		  __entry->ino)
@@ -1201,6 +1203,7 @@ DEFINE_EVENT(xchk_iscan_ino_class, name, \
 	TP_PROTO(struct xchk_iscan *iscan, xfs_ino_t ino), \
 	TP_ARGS(iscan, ino))
 DEFINE_ISCAN_INO_EVENT(xchk_iscan_want_live_update);
+DEFINE_ISCAN_INO_EVENT(xchk_iscan_start);
 
 TRACE_EVENT(xchk_iscan_iget,
 	TP_PROTO(struct xchk_iscan *iscan, int error),
