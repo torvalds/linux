@@ -441,10 +441,10 @@ int xfs_btree_change_owner(struct xfs_btree_cur *cur, uint64_t new_owner,
 /*
  * btree block CRC helpers
  */
-void xfs_btree_lblock_calc_crc(struct xfs_buf *);
-bool xfs_btree_lblock_verify_crc(struct xfs_buf *);
-void xfs_btree_sblock_calc_crc(struct xfs_buf *);
-bool xfs_btree_sblock_verify_crc(struct xfs_buf *);
+void xfs_btree_fsblock_calc_crc(struct xfs_buf *);
+bool xfs_btree_fsblock_verify_crc(struct xfs_buf *);
+void xfs_btree_agblock_calc_crc(struct xfs_buf *);
+bool xfs_btree_agblock_verify_crc(struct xfs_buf *);
 
 /*
  * Internal btree helpers also used by xfs_bmap.c.
@@ -484,12 +484,12 @@ static inline int xfs_btree_get_level(const struct xfs_btree_block *block)
 #define	XFS_FILBLKS_MIN(a,b)	min_t(xfs_filblks_t, (a), (b))
 #define	XFS_FILBLKS_MAX(a,b)	max_t(xfs_filblks_t, (a), (b))
 
-xfs_failaddr_t xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
-xfs_failaddr_t xfs_btree_sblock_verify(struct xfs_buf *bp,
+xfs_failaddr_t xfs_btree_agblock_v5hdr_verify(struct xfs_buf *bp);
+xfs_failaddr_t xfs_btree_agblock_verify(struct xfs_buf *bp,
 		unsigned int max_recs);
-xfs_failaddr_t xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp,
+xfs_failaddr_t xfs_btree_fsblock_v5hdr_verify(struct xfs_buf *bp,
 		uint64_t owner);
-xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
+xfs_failaddr_t xfs_btree_fsblock_verify(struct xfs_buf *bp,
 		unsigned int max_recs);
 
 unsigned int xfs_btree_compute_maxlevels(const unsigned int *limits,
