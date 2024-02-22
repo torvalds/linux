@@ -1527,7 +1527,7 @@ static void _rtl92e_update_received_rate_histogram_stats(
 {
 	struct r8192_priv *priv = (struct r8192_priv *)rtllib_priv(dev);
 	u32 rcvType = 1;
-	u32 rateIndex;
+	u32 rate_index;
 
 	if (pstats->bCRC)
 		rcvType = 2;
@@ -1536,95 +1536,95 @@ static void _rtl92e_update_received_rate_histogram_stats(
 
 	switch (pstats->rate) {
 	case MGN_1M:
-		rateIndex = 0;
+		rate_index = 0;
 		break;
 	case MGN_2M:
-		rateIndex = 1;
+		rate_index = 1;
 		break;
 	case MGN_5_5M:
-		rateIndex = 2;
+		rate_index = 2;
 		break;
 	case MGN_11M:
-		rateIndex = 3;
+		rate_index = 3;
 		break;
 	case MGN_6M:
-		rateIndex = 4;
+		rate_index = 4;
 		break;
 	case MGN_9M:
-		rateIndex = 5;
+		rate_index = 5;
 		break;
 	case MGN_12M:
-		rateIndex = 6;
+		rate_index = 6;
 		break;
 	case MGN_18M:
-		rateIndex = 7;
+		rate_index = 7;
 		break;
 	case MGN_24M:
-		rateIndex = 8;
+		rate_index = 8;
 		break;
 	case MGN_36M:
-		rateIndex = 9;
+		rate_index = 9;
 		break;
 	case MGN_48M:
-		rateIndex = 10;
+		rate_index = 10;
 		break;
 	case MGN_54M:
-		rateIndex = 11;
+		rate_index = 11;
 		break;
 	case MGN_MCS0:
-		rateIndex = 12;
+		rate_index = 12;
 		break;
 	case MGN_MCS1:
-		rateIndex = 13;
+		rate_index = 13;
 		break;
 	case MGN_MCS2:
-		rateIndex = 14;
+		rate_index = 14;
 		break;
 	case MGN_MCS3:
-		rateIndex = 15;
+		rate_index = 15;
 		break;
 	case MGN_MCS4:
-		rateIndex = 16;
+		rate_index = 16;
 		break;
 	case MGN_MCS5:
-		rateIndex = 17;
+		rate_index = 17;
 		break;
 	case MGN_MCS6:
-		rateIndex = 18;
+		rate_index = 18;
 		break;
 	case MGN_MCS7:
-		rateIndex = 19;
+		rate_index = 19;
 		break;
 	case MGN_MCS8:
-		rateIndex = 20;
+		rate_index = 20;
 		break;
 	case MGN_MCS9:
-		rateIndex = 21;
+		rate_index = 21;
 		break;
 	case MGN_MCS10:
-		rateIndex = 22;
+		rate_index = 22;
 		break;
 	case MGN_MCS11:
-		rateIndex = 23;
+		rate_index = 23;
 		break;
 	case MGN_MCS12:
-		rateIndex = 24;
+		rate_index = 24;
 		break;
 	case MGN_MCS13:
-		rateIndex = 25;
+		rate_index = 25;
 		break;
 	case MGN_MCS14:
-		rateIndex = 26;
+		rate_index = 26;
 		break;
 	case MGN_MCS15:
-		rateIndex = 27;
+		rate_index = 27;
 		break;
 	default:
-		rateIndex = 28;
+		rate_index = 28;
 		break;
 	}
-	priv->stats.received_rate_histogram[0][rateIndex]++;
-	priv->stats.received_rate_histogram[rcvType][rateIndex]++;
+	priv->stats.received_rate_histogram[0][rate_index]++;
+	priv->stats.received_rate_histogram[rcvType][rate_index]++;
 }
 
 bool rtl92e_get_rx_stats(struct net_device *dev, struct rtllib_rx_stats *stats,
