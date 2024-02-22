@@ -172,6 +172,7 @@ xfs_btree_commit_afakeroot(
 	trace_xfs_btree_commit_afakeroot(cur);
 
 	kfree((void *)cur->bc_ops);
+	cur->bc_ag.afake = NULL;
 	cur->bc_ag.agbp = agbp;
 	cur->bc_ops = ops;
 	cur->bc_flags &= ~XFS_BTREE_STAGING;

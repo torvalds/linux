@@ -198,10 +198,10 @@ xfs_bmbt_update_cursor(
 	ASSERT((dst->bc_tp->t_highest_agno != NULLAGNUMBER) ||
 	       (dst->bc_ino.ip->i_diflags & XFS_DIFLAG_REALTIME));
 
-	dst->bc_ino.allocated += src->bc_ino.allocated;
+	dst->bc_bmap.allocated += src->bc_bmap.allocated;
 	dst->bc_tp->t_highest_agno = src->bc_tp->t_highest_agno;
 
-	src->bc_ino.allocated = 0;
+	src->bc_bmap.allocated = 0;
 }
 
 STATIC int
@@ -256,7 +256,7 @@ xfs_bmbt_alloc_block(
 	}
 
 	ASSERT(args.len == 1);
-	cur->bc_ino.allocated++;
+	cur->bc_bmap.allocated++;
 	cur->bc_ino.ip->i_nblocks++;
 	xfs_trans_log_inode(args.tp, cur->bc_ino.ip, XFS_ILOG_CORE);
 	xfs_trans_mod_dquot_byino(args.tp, cur->bc_ino.ip,
@@ -568,8 +568,7 @@ xfs_bmbt_init_common(
 			mp->m_bm_maxlevels[whichfork], xfs_bmbt_cur_cache);
 
 	cur->bc_ino.ip = ip;
-	cur->bc_ino.allocated = 0;
-
+	cur->bc_bmap.allocated = 0;
 	return cur;
 }
 

@@ -676,7 +676,7 @@ xfs_bmap_extents_to_btree(
 		goto out_root_realloc;
 	}
 
-	cur->bc_ino.allocated++;
+	cur->bc_bmap.allocated++;
 	ip->i_nblocks++;
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT, 1L);
 	error = xfs_trans_get_buf(tp, mp->m_ddev_targp,
@@ -894,7 +894,7 @@ xfs_bmap_add_attrfork_btree(
 			xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 			return -ENOSPC;
 		}
-		cur->bc_ino.allocated = 0;
+		cur->bc_bmap.allocated = 0;
 		xfs_btree_del_cursor(cur, XFS_BTREE_NOERROR);
 	}
 	return 0;
@@ -922,7 +922,7 @@ xfs_bmap_add_attrfork_extents(
 	error = xfs_bmap_extents_to_btree(tp, ip, &cur, 0, flags,
 					  XFS_DATA_FORK);
 	if (cur) {
-		cur->bc_ino.allocated = 0;
+		cur->bc_bmap.allocated = 0;
 		xfs_btree_del_cursor(cur, error);
 	}
 	return error;
@@ -1746,7 +1746,7 @@ xfs_bmap_add_extent_delay_real(
 		temp = PREV.br_blockcount - new->br_blockcount;
 		da_new = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(bma->ip, temp),
 			startblockval(PREV.br_startblock) -
-			(bma->cur ? bma->cur->bc_ino.allocated : 0));
+			(bma->cur ? bma->cur->bc_bmap.allocated : 0));
 
 		PREV.br_startoff = new_endoff;
 		PREV.br_blockcount = temp;
@@ -1836,7 +1836,7 @@ xfs_bmap_add_extent_delay_real(
 		temp = PREV.br_blockcount - new->br_blockcount;
 		da_new = XFS_FILBLKS_MIN(xfs_bmap_worst_indlen(bma->ip, temp),
 			startblockval(PREV.br_startblock) -
-			(bma->cur ? bma->cur->bc_ino.allocated : 0));
+			(bma->cur ? bma->cur->bc_bmap.allocated : 0));
 
 		PREV.br_startblock = nullstartblock(da_new);
 		PREV.br_blockcount = temp;
@@ -1959,8 +1959,8 @@ xfs_bmap_add_extent_delay_real(
 		xfs_mod_delalloc(mp, (int64_t)da_new - da_old);
 
 	if (bma->cur) {
-		da_new += bma->cur->bc_ino.allocated;
-		bma->cur->bc_ino.allocated = 0;
+		da_new += bma->cur->bc_bmap.allocated;
+		bma->cur->bc_bmap.allocated = 0;
 	}
 
 	/* adjust for changes in reserved delayed indirect blocks */
@@ -2525,7 +2525,7 @@ xfs_bmap_add_extent_unwritten_real(
 
 	/* clear out the allocated field, done with it now in any case. */
 	if (cur) {
-		cur->bc_ino.allocated = 0;
+		cur->bc_bmap.allocated = 0;
 		*curp = cur;
 	}
 
@@ -2913,7 +2913,7 @@ xfs_bmap_add_extent_hole_real(
 
 	/* clear out the allocated field, done with it now in any case. */
 	if (cur)
-		cur->bc_ino.allocated = 0;
+		cur->bc_bmap.allocated = 0;
 
 	xfs_bmap_check_leaf_extents(cur, ip, whichfork);
 done:
@@ -5629,7 +5629,7 @@ error0:
 		xfs_trans_log_inode(tp, ip, logflags);
 	if (cur) {
 		if (!error)
-			cur->bc_ino.allocated = 0;
+			cur->bc_bmap.allocated = 0;
 		xfs_btree_del_cursor(cur, error);
 	}
 	return error;
@@ -6145,7 +6145,7 @@ xfs_bmap_split_extent(
 
 del_cursor:
 	if (cur) {
-		cur->bc_ino.allocated = 0;
+		cur->bc_bmap.allocated = 0;
 		xfs_btree_del_cursor(cur, error);
 	}
 

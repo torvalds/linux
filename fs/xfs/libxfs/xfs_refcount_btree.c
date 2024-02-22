@@ -362,8 +362,8 @@ xfs_refcountbt_init_common(
 			&xfs_refcountbt_ops, mp->m_refc_maxlevels,
 			xfs_refcountbt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
-	cur->bc_ag.refc.nr_ops = 0;
-	cur->bc_ag.refc.shape_changes = 0;
+	cur->bc_refc.nr_ops = 0;
+	cur->bc_refc.shape_changes = 0;
 	return cur;
 }
 

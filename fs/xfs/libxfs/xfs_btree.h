@@ -243,30 +243,6 @@ union xfs_btree_irec {
 	struct xfs_refcount_irec	rc;
 };
 
-/* Per-AG btree information. */
-struct xfs_btree_cur_ag {
-	struct xfs_perag		*pag;
-	union {
-		struct xfs_buf		*agbp;
-		struct xbtree_afakeroot	*afake;	/* for staging cursor */
-	};
-	union {
-		struct {
-			unsigned int	nr_ops;	/* # record updates */
-			unsigned int	shape_changes;	/* # of extent splits */
-		} refc;
-	};
-};
-
-/* Btree-in-inode cursor information */
-struct xfs_btree_cur_ino {
-	struct xfs_inode		*ip;
-	struct xbtree_ifakeroot		*ifake;	/* for staging cursor */
-	int				allocated;
-	short				forksize;
-	char				whichfork;
-};
-
 struct xfs_btree_level {
 	/* buffer pointer */
 	struct xfs_buf		*bp;
@@ -296,15 +272,30 @@ struct xfs_btree_cur
 	uint8_t			bc_nlevels; /* number of levels in the tree */
 	uint8_t			bc_maxlevels; /* maximum levels for this btree type */
 
-	/*
-	 * Short btree pointers need an agno to be able to turn the pointers
-	 * into physical addresses for IO, so the btree cursor switches between
-	 * bc_ino and bc_ag based on bc_ops->type.
-	 * the cursor.
-	 */
+	/* per-type information */
 	union {
-		struct xfs_btree_cur_ag	bc_ag;
-		struct xfs_btree_cur_ino bc_ino;
+		struct {
+			struct xfs_inode	*ip;
+			short			forksize;
+			char			whichfork;
+			struct xbtree_ifakeroot	*ifake;	/* for staging cursor */
+		} bc_ino;
+		struct {
+			struct xfs_perag	*pag;
+			struct xfs_buf		*agbp;
+			struct xbtree_afakeroot	*afake;	/* for staging cursor */
+		} bc_ag;
+	};
+
+	/* per-format private data */
+	union {
+		struct {
+			int		allocated;
+		} bc_bmap;	/* bmapbt */
+		struct {
+			unsigned int	nr_ops;		/* # record updates */
+			unsigned int	shape_changes;	/* # of extent splits */
+		} bc_refc;	/* refcountbt */
 	};
 
 	/* Must be at the end of the struct! */
