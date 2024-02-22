@@ -167,9 +167,15 @@ xchk_rtsummary(struct xfs_scrub *sc)
 #endif
 #ifdef CONFIG_XFS_QUOTA
 int xchk_quota(struct xfs_scrub *sc);
+int xchk_quotacheck(struct xfs_scrub *sc);
 #else
 static inline int
 xchk_quota(struct xfs_scrub *sc)
+{
+	return -ENOENT;
+}
+static inline int
+xchk_quotacheck(struct xfs_scrub *sc)
 {
 	return -ENOENT;
 }

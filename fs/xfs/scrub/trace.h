@@ -15,6 +15,7 @@
 
 #include <linux/tracepoint.h>
 #include "xfs_bit.h"
+#include "xfs_quota_defs.h"
 
 struct xfs_scrub;
 struct xfile;
@@ -65,6 +66,7 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_UQUOTA);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_GQUOTA);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_PQUOTA);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_QUOTACHECK);
 
 #define XFS_SCRUB_TYPE_STRINGS \
 	{ XFS_SCRUB_TYPE_PROBE,		"probe" }, \
@@ -91,7 +93,8 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 	{ XFS_SCRUB_TYPE_UQUOTA,	"usrquota" }, \
 	{ XFS_SCRUB_TYPE_GQUOTA,	"grpquota" }, \
 	{ XFS_SCRUB_TYPE_PQUOTA,	"prjquota" }, \
-	{ XFS_SCRUB_TYPE_FSCOUNTERS,	"fscounters" }
+	{ XFS_SCRUB_TYPE_FSCOUNTERS,	"fscounters" }, \
+	{ XFS_SCRUB_TYPE_QUOTACHECK,	"quotacheck" }
 
 #define XFS_SCRUB_FLAG_STRINGS \
 	{ XFS_SCRUB_IFLAG_REPAIR,		"repair" }, \
@@ -397,6 +400,29 @@ DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_revalidate_bmap);
 DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_advance_bmap);
 DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter_advance_incore);
 DEFINE_SCRUB_DQITER_EVENT(xchk_dquot_iter);
+
+TRACE_EVENT(xchk_qcheck_error,
+	TP_PROTO(struct xfs_scrub *sc, xfs_dqtype_t dqtype, xfs_dqid_t id,
+		 void *ret_ip),
+	TP_ARGS(sc, dqtype, id, ret_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_dqtype_t, dqtype)
+		__field(xfs_dqid_t, id)
+		__field(void *, ret_ip)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->dqtype = dqtype;
+		__entry->id = id;
+		__entry->ret_ip = ret_ip;
+	),
+	TP_printk("dev %d:%d dquot type %s id 0x%x ret_ip %pS",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __print_symbolic(__entry->dqtype, XFS_DQTYPE_STRINGS),
+		  __entry->id,
+		  __entry->ret_ip)
+);
 #endif /* CONFIG_XFS_QUOTA */
 
 TRACE_EVENT(xchk_incomplete,
