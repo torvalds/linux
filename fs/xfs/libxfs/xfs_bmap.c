@@ -37,6 +37,7 @@
 #include "xfs_icache.h"
 #include "xfs_iomap.h"
 #include "xfs_health.h"
+#include "xfs_bmap_item.h"
 
 struct kmem_cache		*xfs_bmap_intent_cache;
 
@@ -6198,10 +6199,7 @@ __xfs_bmap_add(
 	bi->bi_whichfork = whichfork;
 	bi->bi_bmap = *bmap;
 
-	trace_xfs_bmap_defer(bi);
-
-	xfs_bmap_update_get_group(tp->t_mountp, bi);
-	xfs_defer_add(tp, &bi->bi_list, &xfs_bmap_update_defer_type);
+	xfs_bmap_defer_add(tp, bi);
 	return 0;
 }
 

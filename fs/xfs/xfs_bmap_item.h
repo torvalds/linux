@@ -68,4 +68,8 @@ struct xfs_bud_log_item {
 extern struct kmem_cache	*xfs_bui_cache;
 extern struct kmem_cache	*xfs_bud_cache;
 
+struct xfs_bmap_intent;
+
+void xfs_bmap_defer_add(struct xfs_trans *tp, struct xfs_bmap_intent *bi);
+
 #endif	/* __XFS_BMAP_ITEM_H__ */
