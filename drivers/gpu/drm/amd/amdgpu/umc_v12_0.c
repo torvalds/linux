@@ -508,10 +508,11 @@ static int umc_v12_0_aca_bank_generate_report(struct aca_handle *handle, struct 
 					      struct aca_bank_report *report, void *data)
 {
 	struct amdgpu_device *adev = handle->adev;
+	struct aca_bank_info info;
 	u64 status;
 	int ret;
 
-	ret = aca_bank_info_decode(bank, &report->info);
+	ret = aca_bank_info_decode(bank, &info);
 	if (ret)
 		return ret;
 
@@ -519,12 +520,18 @@ static int umc_v12_0_aca_bank_generate_report(struct aca_handle *handle, struct 
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
 		if (umc_v12_0_is_uncorrectable_error(adev, status)) {
-			report->count[ACA_ERROR_TYPE_UE] = 1;
+			ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
+							     1ULL);
+			if (ret)
+				return ret;
 		}
 		break;
 	case ACA_SMU_TYPE_CE:
 		if (umc_v12_0_is_correctable_error(adev, status)) {
-			report->count[ACA_ERROR_TYPE_CE] = 1;
+			ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
+							     1ULL);
+			if (ret)
+				return ret;
 		}
 		break;
 	default:
