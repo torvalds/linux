@@ -849,27 +849,6 @@ static const struct attribute_group *ubd_attr_groups[] = {
 	NULL,
 };
 
-static int ubd_disk_register(int major, u64 size, int unit,
-			     struct gendisk *disk)
-{
-	disk->major = major;
-	disk->first_minor = unit << UBD_SHIFT;
-	disk->minors = 1 << UBD_SHIFT;
-	disk->fops = &ubd_blops;
-	set_capacity(disk, size / 512);
-	sprintf(disk->disk_name, "ubd%c", 'a' + unit);
-
-	ubd_devs[unit].pdev.id   = unit;
-	ubd_devs[unit].pdev.name = DRIVER_NAME;
-	ubd_devs[unit].pdev.dev.release = ubd_device_release;
-	dev_set_drvdata(&ubd_devs[unit].pdev.dev, &ubd_devs[unit]);
-	platform_device_register(&ubd_devs[unit].pdev);
-
-	disk->private_data = &ubd_devs[unit];
-	disk->queue = ubd_devs[unit].queue;
-	return device_add_disk(&ubd_devs[unit].pdev.dev, disk, ubd_attr_groups);
-}
-
 #define ROUND_BLOCK(n) ((n + (SECTOR_SIZE - 1)) & (-SECTOR_SIZE))
 
 static const struct blk_mq_ops ubd_mq_ops = {
@@ -916,7 +895,21 @@ static int ubd_add(int n, char **error_out)
 	ubd_dev->queue = disk->queue;
 
 	blk_queue_write_cache(ubd_dev->queue, true, false);
-	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, disk);
+	disk->major = UBD_MAJOR;
+	disk->first_minor = n << UBD_SHIFT;
+	disk->minors = 1 << UBD_SHIFT;
+	disk->fops = &ubd_blops;
+	set_capacity(disk, ubd_dev->size / 512);
+	sprintf(disk->disk_name, "ubd%c", 'a' + n);
+	disk->private_data = ubd_dev;
+
+	ubd_dev->pdev.id = n;
+	ubd_dev->pdev.name = DRIVER_NAME;
+	ubd_dev->pdev.dev.release = ubd_device_release;
+	dev_set_drvdata(&ubd_dev->pdev.dev, ubd_dev);
+	platform_device_register(&ubd_dev->pdev);
+
+	err = device_add_disk(&ubd_dev->pdev.dev, disk, ubd_attr_groups);
 	if (err)
 		goto out_cleanup_disk;
 
