@@ -163,7 +163,6 @@ struct ubd {
 	struct cow cow;
 	struct platform_device pdev;
 	struct gendisk *disk;
-	struct request_queue *queue;
 	struct blk_mq_tag_set tag_set;
 	spinlock_t lock;
 };
@@ -892,10 +891,9 @@ static int ubd_add(int n, char **error_out)
 		err = PTR_ERR(disk);
 		goto out_cleanup_tags;
 	}
-	ubd_dev->queue = disk->queue;
 
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, disk->queue);
-	blk_queue_write_cache(ubd_dev->queue, true, false);
+	blk_queue_write_cache(disk->queue, true, false);
 	disk->major = UBD_MAJOR;
 	disk->first_minor = n << UBD_SHIFT;
 	disk->minors = 1 << UBD_SHIFT;
