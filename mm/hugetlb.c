@@ -35,6 +35,7 @@
 #include <linux/delayacct.h>
 #include <linux/memory.h>
 #include <linux/mm_inline.h>
+#include <linux/padata.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -3510,6 +3511,30 @@ static void __init hugetlb_hstate_alloc_pages_errcheck(unsigned long allocated, 
 	}
 }
 
+static void __init hugetlb_pages_alloc_boot_node(unsigned long start, unsigned long end, void *arg)
+{
+	struct hstate *h = (struct hstate *)arg;
+	int i, num = end - start;
+	nodemask_t node_alloc_noretry;
+	LIST_HEAD(folio_list);
+	int next_node = first_online_node;
+
+	/* Bit mask controlling how hard we retry per-node allocations.*/
+	nodes_clear(node_alloc_noretry);
+
+	for (i = 0; i < num; ++i) {
+		struct folio *folio = alloc_pool_huge_folio(h, &node_states[N_MEMORY],
+						&node_alloc_noretry, &next_node);
+		if (!folio)
+			break;
+
+		list_move(&folio->lru, &folio_list);
+		cond_resched();
+	}
+
+	prep_and_add_allocated_folios(h, &folio_list);
+}
+
 static unsigned long __init hugetlb_gigantic_pages_alloc_boot(struct hstate *h)
 {
 	unsigned long i;
@@ -3525,26 +3550,40 @@ static unsigned long __init hugetlb_gigantic_pages_alloc_boot(struct hstate *h)
 
 static unsigned long __init hugetlb_pages_alloc_boot(struct hstate *h)
 {
-	unsigned long i;
-	struct folio *folio;
-	LIST_HEAD(folio_list);
-	nodemask_t node_alloc_noretry;
+	struct padata_mt_job job = {
+		.fn_arg		= h,
+		.align		= 1,
+		.numa_aware	= true
+	};
 
-	/* Bit mask controlling how hard we retry per-node allocations.*/
-	nodes_clear(node_alloc_noretry);
+	job.thread_fn	= hugetlb_pages_alloc_boot_node;
+	job.start	= 0;
+	job.size	= h->max_huge_pages;
 
-	for (i = 0; i < h->max_huge_pages; ++i) {
-		folio = alloc_pool_huge_folio(h, &node_states[N_MEMORY],
-						&node_alloc_noretry);
-		if (!folio)
-			break;
-		list_add(&folio->lru, &folio_list);
-		cond_resched();
-	}
+	/*
+	 * job.max_threads is twice the num_node_state(N_MEMORY),
+	 *
+	 * Tests below indicate that a multiplier of 2 significantly improves
+	 * performance, and although larger values also provide improvements,
+	 * the gains are marginal.
+	 *
+	 * Therefore, choosing 2 as the multiplier strikes a good balance between
+	 * enhancing parallel processing capabilities and maintaining efficient
+	 * resource management.
+	 *
+	 * +------------+-------+-------+-------+-------+-------+
+	 * | multiplier |   1   |   2   |   3   |   4   |   5   |
+	 * +------------+-------+-------+-------+-------+-------+
+	 * | 256G 2node | 358ms | 215ms | 157ms | 134ms | 126ms |
+	 * | 2T   4node | 979ms | 679ms | 543ms | 489ms | 481ms |
+	 * | 50G  2node | 71ms  | 44ms  | 37ms  | 30ms  | 31ms  |
+	 * +------------+-------+-------+-------+-------+-------+
+	 */
+	job.max_threads	= num_node_state(N_MEMORY) * 2;
+	job.min_chunk	= h->max_huge_pages / num_node_state(N_MEMORY) / 2;
+	padata_do_multithreaded(&job);
 
-	prep_and_add_allocated_folios(h, &folio_list);
-
-	return i;
+	return h->nr_huge_pages;
 }
 
 /*
