@@ -110,6 +110,13 @@
 #define MED_VF_SW_FLAG(n)			XE_REG(0x190310 + (n) * 4)
 #define MED_VF_SW_FLAG_COUNT			4
 
+#define GUC_TLB_INV_CR				XE_REG(0xcee8)
+#define   GUC_TLB_INV_CR_INVALIDATE		REG_BIT(0)
+#define PVC_GUC_TLB_INV_DESC0			XE_REG(0xcf7c)
+#define   PVC_GUC_TLB_INV_DESC0_VALID		REG_BIT(0)
+#define PVC_GUC_TLB_INV_DESC1			XE_REG(0xcf80)
+#define   PVC_GUC_TLB_INV_DESC1_INVALIDATE	REG_BIT(6)
+
 /* GuC Interrupt Vector */
 #define GUC_INTR_GUC2HOST			REG_BIT(15)
 #define GUC_INTR_EXEC_ERROR			REG_BIT(14)

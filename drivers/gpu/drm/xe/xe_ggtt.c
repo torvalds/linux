@@ -19,7 +19,6 @@
 #include "xe_gt_printk.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_map.h"
-#include "xe_mmio.h"
 #include "xe_sriov.h"
 #include "xe_wopcm.h"
 
@@ -249,15 +248,11 @@ err:
 	return err;
 }
 
-#define GUC_TLB_INV_CR				XE_REG(0xcee8)
-#define   GUC_TLB_INV_CR_INVALIDATE		REG_BIT(0)
-#define PVC_GUC_TLB_INV_DESC0			XE_REG(0xcf7c)
-#define   PVC_GUC_TLB_INV_DESC0_VALID		REG_BIT(0)
-#define PVC_GUC_TLB_INV_DESC1			XE_REG(0xcf80)
-#define   PVC_GUC_TLB_INV_DESC1_INVALIDATE	REG_BIT(6)
-
 static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 {
+	struct xe_device *xe = gt_to_xe(gt);
+	int err;
+
 	if (!gt)
 		return;
 
@@ -267,29 +262,9 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 	 * and GuC are accessible.
 	 */
 	xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
-
-	/* TODO: vfunc for GuC vs. non-GuC */
-
-	if (gt->uc.guc.submission_state.enabled) {
-		int seqno;
-
-		seqno = xe_gt_tlb_invalidation_guc(gt);
-		xe_gt_assert(gt, seqno > 0);
-		if (seqno > 0)
-			xe_gt_tlb_invalidation_wait(gt, seqno);
-	} else if (xe_device_uc_enabled(gt_to_xe(gt))) {
-		struct xe_device *xe = gt_to_xe(gt);
-
-		if (xe->info.platform == XE_PVC || GRAPHICS_VER(xe) >= 20) {
-			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC1,
-					PVC_GUC_TLB_INV_DESC1_INVALIDATE);
-			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC0,
-					PVC_GUC_TLB_INV_DESC0_VALID);
-		} else
-			xe_mmio_write32(gt, GUC_TLB_INV_CR,
-					GUC_TLB_INV_CR_INVALIDATE);
-	}
-
+	err = xe_gt_tlb_invalidation_ggtt(gt);
+	if (err)
+		drm_warn(&xe->drm, "xe_gt_tlb_invalidation_ggtt error=%d", err);
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }
 
