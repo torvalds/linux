@@ -1213,6 +1213,9 @@ struct bnxt_ring_grp_info {
 	u16	cp_fw_ring_id;
 };
 
+#define BNXT_VNIC_DEFAULT	0
+#define BNXT_VNIC_NTUPLE	1
+
 struct bnxt_vnic_info {
 	u16		fw_vnic_id; /* returned by Chimp during alloc */
 #define BNXT_MAX_CTX_PER_VNIC	8
@@ -1252,11 +1255,24 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_MCAST_FLAG	4
 #define BNXT_VNIC_UCAST_FLAG	8
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
+#define BNXT_VNIC_NTUPLE_FLAG		0x20
+};
+
+struct bnxt_hw_rings {
+	int tx;
+	int rx;
+	int grp;
+	int cp;
+	int cp_p5;
+	int stat;
+	int vnic;
+	int rss_ctx;
 };
 
 struct bnxt_hw_resc {
 	u16	min_rsscos_ctxs;
 	u16	max_rsscos_ctxs;
+	u16	resv_rsscos_ctxs;
 	u16	min_cp_rings;
 	u16	max_cp_rings;
 	u16	resv_cp_rings;
@@ -2314,12 +2330,16 @@ struct bnxt {
 	#define BNXT_FW_CAP_BACKING_STORE_V2		BIT_ULL(36)
 	#define BNXT_FW_CAP_VNIC_TUNNEL_TPA		BIT_ULL(37)
 	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(38)
+	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3	BIT_ULL(39)
 
 	u32			fw_dbg_cap;
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 #define BNXT_PTP_USE_RTC(bp)	(!BNXT_MH(bp) && \
 				 ((bp)->fw_cap & BNXT_FW_CAP_PTP_RTC))
+#define BNXT_SUPPORTS_NTUPLE_VNIC(bp)	\
+	(BNXT_PF(bp) && ((bp)->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3))
+
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u16                     hwrm_cmd_kong_seq;

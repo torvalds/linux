@@ -1314,7 +1314,7 @@ static int bnxt_add_ntuple_cls_rule(struct bnxt *bp,
 	if (!new_fltr)
 		return -ENOMEM;
 
-	l2_fltr = bp->vnic_info[0].l2_filters[0];
+	l2_fltr = bp->vnic_info[BNXT_VNIC_DEFAULT].l2_filters[0];
 	atomic_inc(&l2_fltr->refcnt);
 	new_fltr->l2_fltr = l2_fltr;
 	fmasks = &new_fltr->fmasks;
@@ -1763,7 +1763,7 @@ static int bnxt_get_rxfh(struct net_device *dev,
 	if (!bp->vnic_info)
 		return 0;
 
-	vnic = &bp->vnic_info[0];
+	vnic = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	if (rxfh->indir && bp->rss_indir_tbl) {
 		tbl_size = bnxt_get_rxfh_indir_size(dev);
 		for (i = 0; i < tbl_size; i++)
