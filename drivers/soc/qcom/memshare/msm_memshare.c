@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/err.h>
@@ -276,8 +276,9 @@ static void shared_hyp_mapping(int index)
 	}
 	ret = qcom_scm_assign_mem(mb->phy_addr, mb->size, source_vmlist,
 			      newvm, dest->num_vmids);
+	kfree(newvm);
 	if (ret != 0) {
-		dev_err(memsh_drv->dev, "memshare: qcom_scm_assign_mem failed size=%u err=%d\n",
+		dev_err(memsh_drv->dev, "memshare: qcom_scm_assign_mem failed size: %u, err: %d\n",
 				mb->size, ret);
 		return;
 	}
