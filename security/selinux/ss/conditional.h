@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Authors: Karl MacMillan <kmacmillan@tresys.com>
  *          Frank Mayer <mayerf@tresys.com>
- *
- * Copyright (C) 2003 - 2004 Tresys Technology, LLC
+ *          Copyright (C) 2003 - 2004 Tresys Technology, LLC
  */
 
 #ifndef _CONDITIONAL_H_
@@ -20,14 +19,14 @@
  * in reverse polish notation.
  */
 struct cond_expr_node {
-#define COND_BOOL	1 /* plain bool */
-#define COND_NOT	2 /* !bool */
-#define COND_OR		3 /* bool || bool */
-#define COND_AND	4 /* bool && bool */
-#define COND_XOR	5 /* bool ^ bool */
-#define COND_EQ		6 /* bool == bool */
-#define COND_NEQ	7 /* bool != bool */
-#define COND_LAST	COND_NEQ
+#define COND_BOOL 1 /* plain bool */
+#define COND_NOT  2 /* !bool */
+#define COND_OR	  3 /* bool || bool */
+#define COND_AND  4 /* bool && bool */
+#define COND_XOR  5 /* bool ^ bool */
+#define COND_EQ	  6 /* bool == bool */
+#define COND_NEQ  7 /* bool != bool */
+#define COND_LAST COND_NEQ
 	u32 expr_type;
 	u32 boolean;
 };
@@ -75,9 +74,9 @@ int cond_write_bool(void *key, void *datum, void *ptr);
 int cond_write_list(struct policydb *p, void *fp);
 
 void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
-		struct av_decision *avd, struct extended_perms *xperms);
+		     struct av_decision *avd, struct extended_perms *xperms);
 void cond_compute_xperms(struct avtab *ctab, struct avtab_key *key,
-		struct extended_perms_decision *xpermd);
+			 struct extended_perms_decision *xpermd);
 void evaluate_cond_nodes(struct policydb *p);
 void cond_policydb_destroy_dup(struct policydb *p);
 int cond_policydb_dup(struct policydb *new, struct policydb *orig);
