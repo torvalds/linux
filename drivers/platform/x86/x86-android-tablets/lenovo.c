@@ -116,6 +116,7 @@ static const struct x86_i2c_client_info lenovo_yb1_x90_i2c_clients[] __initconst
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
 			.con_id = "goodix_ts_irq",
+			.free_gpio = true,
 		},
 	}, {
 		/* Wacom Digitizer in keyboard half */
