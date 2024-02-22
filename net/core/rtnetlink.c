@@ -1699,7 +1699,7 @@ static int rtnl_fill_alt_ifnames(struct sk_buff *skb,
 	struct netdev_name_node *name_node;
 	int count = 0;
 
-	list_for_each_entry(name_node, &dev->name_node->list, list) {
+	list_for_each_entry_rcu(name_node, &dev->name_node->list, list) {
 		if (nla_put_string(skb, IFLA_ALT_IFNAME, name_node->name))
 			return -EMSGSIZE;
 		count++;
@@ -1707,6 +1707,7 @@ static int rtnl_fill_alt_ifnames(struct sk_buff *skb,
 	return count;
 }
 
+/* RCU protected. */
 static int rtnl_fill_prop_list(struct sk_buff *skb,
 			       const struct net_device *dev)
 {
@@ -1927,11 +1928,9 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 		goto nla_put_failure_rcu;
 	if (rtnl_fill_link_ifmap(skb, dev))
 		goto nla_put_failure_rcu;
-
-	rcu_read_unlock();
-
 	if (rtnl_fill_prop_list(skb, dev))
-		goto nla_put_failure;
+		goto nla_put_failure_rcu;
+	rcu_read_unlock();
 
 	if (dev->dev.parent &&
 	    nla_put_string(skb, IFLA_PARENT_DEV_NAME,
