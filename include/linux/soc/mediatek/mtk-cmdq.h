@@ -282,6 +282,20 @@ static inline int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_
 int cmdq_pkt_jump_rel(struct cmdq_pkt *pkt, s32 offset, u8 shift_pa);
 
 /**
+ * cmdq_pkt_eoc() - Append EOC and ask GCE to generate an IRQ at end of execution
+ * @pkt:	The CMDQ packet
+ *
+ * Appends an End Of Code (EOC) command to the CMDQ packet and asks the GCE
+ * to generate an interrupt at the end of the execution of all commands in
+ * the pipeline.
+ * The EOC command is usually appended to the end of the pipeline to notify
+ * that all commands are done.
+ *
+ * Return: 0 for success or negative error number
+ */
+int cmdq_pkt_eoc(struct cmdq_pkt *pkt);
+
+/**
  * cmdq_pkt_finalize() - Append EOC and jump command to pkt.
  * @pkt:	the CMDQ packet
  *
@@ -408,6 +422,11 @@ static inline int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_
 }
 
 static inline int cmdq_pkt_jump_rel(struct cmdq_pkt *pkt, s32 offset, u8 shift_pa)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_eoc(struct cmdq_pkt *pkt)
 {
 	return -EINVAL;
 }
