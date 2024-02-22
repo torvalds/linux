@@ -7936,11 +7936,7 @@ static int raid5_run(struct mddev *mddev)
 		clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 		clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 		set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
-		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-		rcu_assign_pointer(mddev->sync_thread,
-			md_register_thread(md_do_sync, mddev, "reshape"));
-		if (!mddev->sync_thread)
-			goto abort;
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	}
 
 	/* Ok, everything is just fine now */
@@ -8506,29 +8502,8 @@ static int raid5_start_reshape(struct mddev *mddev)
 	clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
 	clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 	set_bit(MD_RECOVERY_RESHAPE, &mddev->recovery);
-	set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-	rcu_assign_pointer(mddev->sync_thread,
-			   md_register_thread(md_do_sync, mddev, "reshape"));
-	if (!mddev->sync_thread) {
-		mddev->recovery = 0;
-		spin_lock_irq(&conf->device_lock);
-		write_seqcount_begin(&conf->gen_lock);
-		mddev->raid_disks = conf->raid_disks = conf->previous_raid_disks;
-		mddev->new_chunk_sectors =
-			conf->chunk_sectors = conf->prev_chunk_sectors;
-		mddev->new_layout = conf->algorithm = conf->prev_algo;
-		rdev_for_each(rdev, mddev)
-			rdev->new_data_offset = rdev->data_offset;
-		smp_wmb();
-		conf->generation --;
-		conf->reshape_progress = MaxSector;
-		mddev->reshape_position = MaxSector;
-		write_seqcount_end(&conf->gen_lock);
-		spin_unlock_irq(&conf->device_lock);
-		return -EAGAIN;
-	}
+	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	conf->reshape_checkpoint = jiffies;
-	md_wakeup_thread(mddev->sync_thread);
 	md_new_event();
 	return 0;
 }
