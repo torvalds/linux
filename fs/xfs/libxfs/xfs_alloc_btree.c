@@ -478,6 +478,8 @@ static const struct xfs_btree_ops xfs_bnobt_ops = {
 };
 
 static const struct xfs_btree_ops xfs_cntbt_ops = {
+	.geom_flags		= XFS_BTGEO_LASTREC_UPDATE,
+
 	.rec_len		= sizeof(xfs_alloc_rec_t),
 	.key_len		= sizeof(xfs_alloc_key_t),
 
@@ -516,7 +518,6 @@ xfs_allocbt_init_common(
 		cur = xfs_btree_alloc_cursor(mp, tp, btnum, &xfs_cntbt_ops,
 				mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
 		cur->bc_statoff = XFS_STATS_CALC_INDEX(xs_abtc_2);
-		cur->bc_flags = XFS_BTREE_LASTREC_UPDATE;
 	} else {
 		cur = xfs_btree_alloc_cursor(mp, tp, btnum, &xfs_bnobt_ops,
 				mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
@@ -591,7 +592,6 @@ xfs_allocbt_commit_staged_btree(
 	if (cur->bc_btnum == XFS_BTNUM_BNO) {
 		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_bnobt_ops);
 	} else {
-		cur->bc_flags |= XFS_BTREE_LASTREC_UPDATE;
 		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_cntbt_ops);
 	}
 }

@@ -535,7 +535,7 @@ xrep_newbt_claim_block(
 	trace_xrep_newbt_claim_block(mp, resv->pag->pag_agno, agbno, 1,
 			xnr->oinfo.oi_owner);
 
-	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+	if (cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS)
 		ptr->l = cpu_to_be64(XFS_AGB_TO_FSB(mp, resv->pag->pag_agno,
 								agbno));
 	else

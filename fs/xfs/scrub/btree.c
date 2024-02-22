@@ -47,7 +47,7 @@ __xchk_btree_process_error(
 		*error = 0;
 		fallthrough;
 	default:
-		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+		if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE)
 			trace_xchk_ifork_btree_op_error(sc, cur, level,
 					*error, ret_ip);
 		else
@@ -91,7 +91,7 @@ __xchk_btree_set_corrupt(
 {
 	sc->sm->sm_flags |= errflag;
 
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+	if (cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE)
 		trace_xchk_ifork_btree_error(sc, cur, level,
 				ret_ip);
 	else
@@ -168,7 +168,7 @@ xchk_btree_rec(
 	if (xfs_btree_keycmp_lt(cur, &key, keyp))
 		xchk_btree_set_corrupt(bs->sc, cur, 1);
 
-	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+	if (!(cur->bc_ops->geom_flags & XFS_BTGEO_OVERLAPPING))
 		return;
 
 	/* Is high_key(rec) no larger than the parent high key? */
@@ -215,7 +215,7 @@ xchk_btree_key(
 	if (xfs_btree_keycmp_lt(cur, key, keyp))
 		xchk_btree_set_corrupt(bs->sc, cur, level);
 
-	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+	if (!(cur->bc_ops->geom_flags & XFS_BTGEO_OVERLAPPING))
 		return;
 
 	/* Is this block's high key no larger than the parent high key? */
@@ -239,12 +239,12 @@ xchk_btree_ptr_ok(
 	bool			res;
 
 	/* A btree rooted in an inode has no block pointer to the root. */
-	if ((bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	if ((bs->cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
 	    level == bs->cur->bc_nlevels)
 		return true;
 
 	/* Otherwise, check the pointers. */
-	if (bs->cur->bc_flags & XFS_BTREE_LONG_PTRS)
+	if (bs->cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS)
 		res = xfs_btree_check_lptr(bs->cur, be64_to_cpu(ptr->l), level);
 	else
 		res = xfs_btree_check_sptr(bs->cur, be32_to_cpu(ptr->s), level);
@@ -390,7 +390,7 @@ xchk_btree_check_block_owner(
 	 * sc->sa so that we can check for the presence of an ownership record
 	 * in the rmap btree for the AG containing the block.
 	 */
-	init_sa = bs->cur->bc_flags & XFS_BTREE_ROOT_IN_INODE;
+	init_sa = bs->cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE;
 	if (init_sa) {
 		error = xchk_ag_init_existing(bs->sc, agno, &bs->sc->sa);
 		if (!xchk_btree_xref_process_error(bs->sc, bs->cur,
@@ -434,7 +434,7 @@ xchk_btree_check_owner(
 	 * up.
 	 */
 	if (bp == NULL) {
-		if (!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE))
+		if (!(cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE))
 			xchk_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
 	}
@@ -513,7 +513,7 @@ xchk_btree_check_minrecs(
 	 * child block might be less than the standard minrecs, but that's ok
 	 * provided that there's only one direct child of the root.
 	 */
-	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
+	if ((cur->bc_ops->geom_flags & XFS_BTGEO_ROOT_IN_INODE) &&
 	    level == cur->bc_nlevels - 2) {
 		struct xfs_btree_block	*root_block;
 		struct xfs_buf		*root_bp;
@@ -567,7 +567,7 @@ xchk_btree_block_check_keys(
 		return;
 	}
 
-	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+	if (!(cur->bc_ops->geom_flags & XFS_BTGEO_OVERLAPPING))
 		return;
 
 	/* Make sure the high key of this block matches the parent. */
@@ -602,7 +602,7 @@ xchk_btree_get_block(
 		return error;
 
 	xfs_btree_get_block(bs->cur, level, pbp);
-	if (bs->cur->bc_flags & XFS_BTREE_LONG_PTRS)
+	if (bs->cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS)
 		failed_at = __xfs_btree_check_lblock(bs->cur, *pblock,
 				level, *pbp);
 	else
@@ -669,7 +669,7 @@ xchk_btree_block_keys(
 	if (xfs_btree_keycmp_ne(cur, &block_keys, parent_keys))
 		xchk_btree_set_corrupt(bs->sc, cur, 1);
 
-	if (!(cur->bc_flags & XFS_BTREE_OVERLAPPING))
+	if (!(cur->bc_ops->geom_flags & XFS_BTGEO_OVERLAPPING))
 		return;
 
 	/* Get high keys */

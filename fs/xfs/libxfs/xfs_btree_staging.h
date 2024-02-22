@@ -76,7 +76,7 @@ struct xfs_btree_bload {
 
 	/*
 	 * This function should return the size of the in-core btree root
-	 * block.  It is only necessary for XFS_BTREE_ROOT_IN_INODE btree
+	 * block.  It is only necessary for XFS_BTGEO_ROOT_IN_INODE btree
 	 * types.
 	 */
 	xfs_btree_bload_iroot_size_fn	iroot_size;

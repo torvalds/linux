@@ -112,6 +112,9 @@ static inline enum xbtree_key_contig xbtree_key_contig(uint64_t x, uint64_t y)
 }
 
 struct xfs_btree_ops {
+	/* XFS_BTGEO_* flags that determine the geometry of the btree */
+	unsigned int		geom_flags;
+
 	/* size of the key and record structures */
 	size_t	key_len;
 	size_t	rec_len;
@@ -199,6 +202,12 @@ struct xfs_btree_ops {
 			       const union xfs_btree_key *mask);
 };
 
+/* btree geometry flags */
+#define XFS_BTGEO_LONG_PTRS		(1U << 0) /* pointers are 64bits long */
+#define XFS_BTGEO_ROOT_IN_INODE		(1U << 1) /* root may be variable size */
+#define XFS_BTGEO_LASTREC_UPDATE	(1U << 2) /* track last rec externally */
+#define XFS_BTGEO_OVERLAPPING		(1U << 3) /* overlapping intervals */
+
 /*
  * Reasons for the update_lastrec method to be called.
  */
@@ -281,7 +290,7 @@ struct xfs_btree_cur
 	/*
 	 * Short btree pointers need an agno to be able to turn the pointers
 	 * into physical addresses for IO, so the btree cursor switches between
-	 * bc_ino and bc_ag based on whether XFS_BTREE_LONG_PTRS is set for the
+	 * bc_ino and bc_ag based on whether XFS_BTGEO_LONG_PTRS is set for the
 	 * cursor.
 	 */
 	union {
@@ -304,17 +313,13 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
 	return struct_size_t(struct xfs_btree_cur, bc_levels, nlevels);
 }
 
-/* cursor flags */
-#define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
-#define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
-#define XFS_BTREE_LASTREC_UPDATE	(1<<2)	/* track last rec externally */
-#define XFS_BTREE_OVERLAPPING		(1<<4)	/* overlapping intervals */
+/* cursor state flags */
 /*
  * The root of this btree is a fakeroot structure so that we can stage a btree
  * rebuild without leaving it accessible via primary metadata.  The ops struct
  * is dynamically allocated and must be freed when the cursor is deleted.
  */
-#define XFS_BTREE_STAGING		(1<<5)
+#define XFS_BTREE_STAGING		(1U << 0)
 
 #define	XFS_BTREE_NOERROR	0
 #define	XFS_BTREE_ERROR		1
@@ -447,7 +452,7 @@ xfs_btree_init_block_int(
 	__u16			level,
 	__u16			numrecs,
 	__u64			owner,
-	unsigned int		flags);
+	unsigned int		geom_flags);
 
 /*
  * Common btree core entry points.
@@ -689,7 +694,7 @@ xfs_btree_islastblock(
 
 	block = xfs_btree_get_block(cur, level, &bp);
 
-	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+	if (cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS)
 		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);
 	return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
 }
