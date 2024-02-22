@@ -1324,7 +1324,7 @@ static int flush_reservations(struct btrfs_fs_info *fs_info)
 	trans = btrfs_join_transaction(fs_info->tree_root);
 	if (IS_ERR(trans))
 		return PTR_ERR(trans);
-	btrfs_commit_transaction(trans);
+	ret = btrfs_commit_transaction(trans);
 
 	return ret;
 }
