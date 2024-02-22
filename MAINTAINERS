@@ -15242,6 +15242,8 @@ F:	Documentation/networking/
 F:	Documentation/networking/net_cachelines/
 F:	Documentation/process/maintainer-netdev.rst
 F:	Documentation/userspace-api/netlink/
+F:	include/linux/framer/framer-provider.h
+F:	include/linux/framer/framer.h
 F:	include/linux/in.h
 F:	include/linux/indirect_call_wrapper.h
 F:	include/linux/net.h
