@@ -772,8 +772,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	ubd_dev->fd = fd;
 
 	if(ubd_dev->cow.file != NULL){
-		blk_queue_max_hw_sectors(ubd_dev->queue, 8 * sizeof(long));
-
 		err = -ENOMEM;
 		ubd_dev->cow.bitmap = vmalloc(ubd_dev->cow.bitmap_len);
 		if(ubd_dev->cow.bitmap == NULL){
@@ -794,10 +792,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 				    NULL, NULL, NULL, NULL);
 		if(err < 0) goto error;
 		ubd_dev->cow.fd = err;
-	}
-	if (ubd_dev->no_trim == 0) {
-		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
-		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 	}
 	return 0;
  error:
@@ -866,6 +860,13 @@ static int ubd_add(int n, char **error_out)
 
 	if(ubd_dev->file == NULL)
 		goto out;
+
+	if (ubd_dev->cow.file)
+		lim.max_hw_sectors = 8 * sizeof(long);
+	if (!ubd_dev->no_trim) {
+		lim.max_hw_discard_sectors = UBD_MAX_REQUEST;
+		lim.max_write_zeroes_sectors = UBD_MAX_REQUEST;
+	}
 
 	err = ubd_file_size(ubd_dev, &ubd_dev->size);
 	if(err < 0){
