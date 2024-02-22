@@ -620,15 +620,15 @@ xchk_ag_btcur_init(
 
 	if (sa->agi_bp) {
 		/* Set up a inobt cursor for cross-referencing. */
-		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_INO);
+		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp,
+				sa->agi_bp);
 		xchk_ag_btree_del_cursor_if_sick(sc, &sa->ino_cur,
 				XFS_SCRUB_TYPE_INOBT);
 
 		/* Set up a finobt cursor for cross-referencing. */
 		if (xfs_has_finobt(mp)) {
-			sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp,
-					sa->agi_bp, XFS_BTNUM_FINO);
+			sa->fino_cur = xfs_finobt_init_cursor(sa->pag, sc->tp,
+					sa->agi_bp);
 			xchk_ag_btree_del_cursor_if_sick(sc, &sa->fino_cur,
 					XFS_SCRUB_TYPE_FINOBT);
 		}

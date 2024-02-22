@@ -447,8 +447,7 @@ xchk_rmapbt_walk_ag_metadata(
 	/* OWN_INOBT: inobt, finobt */
 	cur = sc->sa.ino_cur;
 	if (!cur)
-		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp,
-				XFS_BTNUM_INO);
+		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp);
 	error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
 	if (cur != sc->sa.ino_cur)
 		xfs_btree_del_cursor(cur, error);
@@ -458,8 +457,8 @@ xchk_rmapbt_walk_ag_metadata(
 	if (xfs_has_finobt(sc->mp)) {
 		cur = sc->sa.fino_cur;
 		if (!cur)
-			cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-					sc->sa.agi_bp, XFS_BTNUM_FINO);
+			cur = xfs_finobt_init_cursor(sc->sa.pag, sc->tp,
+					sc->sa.agi_bp);
 		error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
 		if (cur != sc->sa.fino_cur)
 			xfs_btree_del_cursor(cur, error);

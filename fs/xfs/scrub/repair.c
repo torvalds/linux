@@ -842,10 +842,10 @@ xrep_ag_btcur_init(
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_INOBT &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_FINOBT) {
 		sa->ino_cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-				sa->agi_bp, XFS_BTNUM_INO);
+				sa->agi_bp);
 		if (xfs_has_finobt(mp))
-			sa->fino_cur = xfs_inobt_init_cursor(sc->sa.pag,
-					sc->tp, sa->agi_bp, XFS_BTNUM_FINO);
+			sa->fino_cur = xfs_finobt_init_cursor(sc->sa.pag,
+					sc->tp, sa->agi_bp);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */

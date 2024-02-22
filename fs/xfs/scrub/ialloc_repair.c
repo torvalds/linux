@@ -663,7 +663,7 @@ xrep_ibt_build_new_trees(
 	ri->new_inobt.bload.claim_block = xrep_ibt_claim_block;
 	ri->new_inobt.bload.get_records = xrep_ibt_get_records;
 
-	ino_cur = xfs_inobt_init_cursor(sc->sa.pag, NULL, NULL, XFS_BTNUM_INO);
+	ino_cur = xfs_inobt_init_cursor(sc->sa.pag, NULL, NULL);
 	xfs_btree_stage_afakeroot(ino_cur, &ri->new_inobt.afake);
 	error = xfs_btree_bload_compute_geometry(ino_cur, &ri->new_inobt.bload,
 			xfarray_length(ri->inode_records));
@@ -684,8 +684,7 @@ xrep_ibt_build_new_trees(
 		ri->new_finobt.bload.claim_block = xrep_fibt_claim_block;
 		ri->new_finobt.bload.get_records = xrep_fibt_get_records;
 
-		fino_cur = xfs_inobt_init_cursor(sc->sa.pag, NULL, NULL,
-				XFS_BTNUM_FINO);
+		fino_cur = xfs_finobt_init_cursor(sc->sa.pag, NULL, NULL);
 		xfs_btree_stage_afakeroot(fino_cur, &ri->new_finobt.afake);
 		error = xfs_btree_bload_compute_geometry(fino_cur,
 				&ri->new_finobt.bload, ri->finobt_recs);
