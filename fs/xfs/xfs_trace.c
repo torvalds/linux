@@ -36,6 +36,7 @@
 #include "xfs_error.h"
 #include <linux/iomap.h>
 #include "xfs_iomap.h"
+#include "xfs_buf_mem.h"
 
 /*
  * We include this last to have the helpers above available for the trace

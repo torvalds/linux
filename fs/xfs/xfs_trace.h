@@ -4514,6 +4514,55 @@ DEFINE_PERAG_INTENTS_EVENT(xfs_perag_wait_intents);
 
 #endif /* CONFIG_XFS_DRAIN_INTENTS */
 
+#ifdef CONFIG_XFS_MEMORY_BUFS
+TRACE_EVENT(xmbuf_create,
+	TP_PROTO(struct xfs_buftarg *btp),
+	TP_ARGS(btp),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned long, ino)
+		__array(char, pathname, 256)
+	),
+	TP_fast_assign(
+		char		pathname[257];
+		char		*path;
+		struct file	*file = btp->bt_file;
+
+		__entry->ino = file_inode(file)->i_ino;
+		memset(pathname, 0, sizeof(pathname));
+		path = file_path(file, pathname, sizeof(pathname) - 1);
+		if (IS_ERR(path))
+			path = "(unknown)";
+		strncpy(__entry->pathname, path, sizeof(__entry->pathname));
+	),
+	TP_printk("xmino 0x%lx path '%s'",
+		  __entry->ino,
+		  __entry->pathname)
+);
+
+TRACE_EVENT(xmbuf_free,
+	TP_PROTO(struct xfs_buftarg *btp),
+	TP_ARGS(btp),
+	TP_STRUCT__entry(
+		__field(unsigned long, ino)
+		__field(unsigned long long, bytes)
+		__field(loff_t, size)
+	),
+	TP_fast_assign(
+		struct file	*file = btp->bt_file;
+		struct inode	*inode = file_inode(file);
+
+		__entry->size = i_size_read(inode);
+		__entry->bytes = (inode->i_blocks << SECTOR_SHIFT) + inode->i_bytes;
+		__entry->ino = inode->i_ino;
+	),
+	TP_printk("xmino 0x%lx mem_bytes 0x%llx isize 0x%llx",
+		  __entry->ino,
+		  __entry->bytes,
+		  __entry->size)
+);
+#endif /* CONFIG_XFS_MEMORY_BUFS */
+
 #endif /* _TRACE_XFS_H */
 
 #undef TRACE_INCLUDE_PATH

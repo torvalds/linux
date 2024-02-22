@@ -109,6 +109,7 @@ struct xfs_buftarg {
 	struct bdev_handle	*bt_bdev_handle;
 	struct block_device	*bt_bdev;
 	struct dax_device	*bt_daxdev;
+	struct file		*bt_file;
 	u64			bt_dax_part_off;
 	struct xfs_mount	*bt_mount;
 	unsigned int		bt_meta_sectorsize;
@@ -122,6 +123,9 @@ struct xfs_buftarg {
 
 	struct percpu_counter	bt_io_count;
 	struct ratelimit_state	bt_ioerror_rl;
+
+	/* built-in cache, if we're not using the perag one */
+	struct xfs_buf_cache	bt_cache[];
 };
 
 #define XB_PAGES	2
@@ -386,5 +390,10 @@ extern int xfs_setsize_buftarg(struct xfs_buftarg *, unsigned int);
 int xfs_buf_reverify(struct xfs_buf *bp, const struct xfs_buf_ops *ops);
 bool xfs_verify_magic(struct xfs_buf *bp, __be32 dmagic);
 bool xfs_verify_magic16(struct xfs_buf *bp, __be16 dmagic);
+
+/* for xfs_buf_mem.c only: */
+int xfs_init_buftarg(struct xfs_buftarg *btp, size_t logical_sectorsize,
+		const char *descr);
+void xfs_destroy_buftarg(struct xfs_buftarg *btp);
 
 #endif	/* __XFS_BUF_H__ */
