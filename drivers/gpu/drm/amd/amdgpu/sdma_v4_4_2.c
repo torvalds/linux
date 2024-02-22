@@ -2193,27 +2193,29 @@ static int sdma_v4_4_2_aca_bank_generate_report(struct aca_handle *handle,
 						struct aca_bank *bank, enum aca_smu_type type,
 						struct aca_bank_report *report, void *data)
 {
+	struct aca_bank_info info;
 	u64 misc0;
 	int ret;
 
-	ret = aca_bank_info_decode(bank, &report->info);
+	ret = aca_bank_info_decode(bank, &info);
 	if (ret)
 		return ret;
 
 	misc0 = bank->regs[ACA_REG_IDX_MISC0];
-
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
-		report->count[ACA_ERROR_TYPE_UE] = 1ULL;
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE,
+						     1ULL);
 		break;
 	case ACA_SMU_TYPE_CE:
-		report->count[ACA_ERROR_TYPE_CE] = ACA_REG__MISC0__ERRCNT(misc0);
+		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_CE,
+						     ACA_REG__MISC0__ERRCNT(misc0));
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	return 0;
+	return ret;
 }
 
 /* CODE_SDMA0 - CODE_SDMA4, reference to smu driver if header file */
