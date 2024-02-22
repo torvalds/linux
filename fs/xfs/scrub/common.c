@@ -588,46 +588,50 @@ xchk_ag_btcur_init(
 {
 	struct xfs_mount	*mp = sc->mp;
 
-	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_BNO)) {
+	if (sa->agf_bp) {
 		/* Set up a bnobt cursor for cross-referencing. */
 		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sa->pag, XFS_BTNUM_BNO);
-	}
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->bno_cur,
+				XFS_SCRUB_TYPE_BNOBT);
 
-	if (sa->agf_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_CNT)) {
 		/* Set up a cntbt cursor for cross-referencing. */
 		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
 				sa->pag, XFS_BTNUM_CNT);
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->cnt_cur,
+				XFS_SCRUB_TYPE_CNTBT);
+
+		/* Set up a rmapbt cursor for cross-referencing. */
+		if (xfs_has_rmapbt(mp)) {
+			sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp,
+					sa->agf_bp, sa->pag);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->rmap_cur,
+					XFS_SCRUB_TYPE_RMAPBT);
+		}
+
+		/* Set up a refcountbt cursor for cross-referencing. */
+		if (xfs_has_reflink(mp)) {
+			sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
+					sa->agf_bp, sa->pag);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->refc_cur,
+					XFS_SCRUB_TYPE_REFCNTBT);
+		}
 	}
 
-	/* Set up a inobt cursor for cross-referencing. */
-	if (sa->agi_bp &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_INO)) {
+	if (sa->agi_bp) {
+		/* Set up a inobt cursor for cross-referencing. */
 		sa->ino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
 				XFS_BTNUM_INO);
-	}
+		xchk_ag_btree_del_cursor_if_sick(sc, &sa->ino_cur,
+				XFS_SCRUB_TYPE_INOBT);
 
-	/* Set up a finobt cursor for cross-referencing. */
-	if (sa->agi_bp && xfs_has_finobt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_FINO)) {
-		sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp, sa->agi_bp,
-				XFS_BTNUM_FINO);
-	}
-
-	/* Set up a rmapbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_has_rmapbt(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_RMAP)) {
-		sa->rmap_cur = xfs_rmapbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sa->pag);
-	}
-
-	/* Set up a refcountbt cursor for cross-referencing. */
-	if (sa->agf_bp && xfs_has_reflink(mp) &&
-	    xchk_ag_btree_healthy_enough(sc, sa->pag, XFS_BTNUM_REFC)) {
-		sa->refc_cur = xfs_refcountbt_init_cursor(mp, sc->tp,
-				sa->agf_bp, sa->pag);
+		/* Set up a finobt cursor for cross-referencing. */
+		if (xfs_has_finobt(mp)) {
+			sa->fino_cur = xfs_inobt_init_cursor(sa->pag, sc->tp,
+					sa->agi_bp, XFS_BTNUM_FINO);
+			xchk_ag_btree_del_cursor_if_sick(sc, &sa->fino_cur,
+					XFS_SCRUB_TYPE_FINOBT);
+		}
 	}
 }
 
