@@ -3094,8 +3094,15 @@ static int cifs_write_end(struct file *file, struct address_space *mapping,
 	if (rc > 0) {
 		spin_lock(&inode->i_lock);
 		if (pos > inode->i_size) {
+			loff_t additional_blocks = (512 - 1 + copied) >> 9;
+
 			i_size_write(inode, pos);
-			inode->i_blocks = (512 - 1 + pos) >> 9;
+			/*
+			 * Estimate new allocation size based on the amount written.
+			 * This will be updated from server on close (and on queryinfo)
+			 */
+			inode->i_blocks = min_t(blkcnt_t, (512 - 1 + pos) >> 9,
+						inode->i_blocks + additional_blocks);
 		}
 		spin_unlock(&inode->i_lock);
 	}
