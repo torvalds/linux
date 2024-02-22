@@ -41,6 +41,12 @@ struct xchk_iscan {
 
 	/* Wait this many ms to retry an iget. */
 	unsigned int		iget_retry_delay;
+
+	/*
+	 * The scan grabs batches of inodes and stashes them here before
+	 * handing them out with _iter.
+	 */
+	struct xfs_inode	*__inodes[XFS_INODES_PER_CHUNK];
 };
 
 /* Set if the scan has been aborted due to some event in the fs. */
@@ -63,6 +69,7 @@ void xchk_iscan_start(struct xfs_scrub *sc, unsigned int iget_timeout,
 void xchk_iscan_teardown(struct xchk_iscan *iscan);
 
 int xchk_iscan_iter(struct xchk_iscan *iscan, struct xfs_inode **ipp);
+void xchk_iscan_iter_finish(struct xchk_iscan *iscan);
 
 void xchk_iscan_mark_visited(struct xchk_iscan *iscan, struct xfs_inode *ip);
 bool xchk_iscan_want_live_update(struct xchk_iscan *iscan, xfs_ino_t ino);

@@ -1227,6 +1227,29 @@ TRACE_EVENT(xchk_iscan_iget,
 		  __entry->error)
 );
 
+TRACE_EVENT(xchk_iscan_iget_batch,
+	TP_PROTO(struct xfs_mount *mp, struct xchk_iscan *iscan,
+		 unsigned int nr),
+	TP_ARGS(mp, iscan, nr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(unsigned int, nr)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->nr = nr;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx nr %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->nr)
+);
+
 TRACE_EVENT(xchk_iscan_iget_retry_wait,
 	TP_PROTO(struct xchk_iscan *iscan),
 	TP_ARGS(iscan),

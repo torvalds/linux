@@ -60,6 +60,7 @@ xchk_iscan_find_next(
 	struct xchk_iscan	*iscan,
 	struct xfs_buf		*agi_bp,
 	struct xfs_perag	*pag,
+	xfs_inofree_t		*allocmaskp,
 	xfs_agino_t		*cursor)
 {
 	struct xfs_scrub	*sc = iscan->sc;
@@ -145,6 +146,7 @@ xchk_iscan_find_next(
 
 			ASSERT(next >= 0);
 			*cursor = rec.ir_startino + next;
+			*allocmaskp = allocmask >> next;
 			break;
 		}
 	}
@@ -225,7 +227,8 @@ STATIC int
 xchk_iscan_advance(
 	struct xchk_iscan	*iscan,
 	struct xfs_perag	**pagp,
-	struct xfs_buf		**agi_bpp)
+	struct xfs_buf		**agi_bpp,
+	xfs_inofree_t		*allocmaskp)
 {
 	struct xfs_scrub	*sc = iscan->sc;
 	struct xfs_mount	*mp = sc->mp;
@@ -251,7 +254,8 @@ xchk_iscan_advance(
 			goto out_pag;
 
 		agino = XFS_INO_TO_AGINO(mp, iscan->cursor_ino);
-		ret = xchk_iscan_find_next(iscan, agi_bp, pag, &agino);
+		ret = xchk_iscan_find_next(iscan, agi_bp, pag, allocmaskp,
+				&agino);
 		if (ret)
 			goto out_buf;
 
@@ -331,29 +335,35 @@ xchk_iscan_iget_retry(
  * caller must ensure that no other threads can modify the inode until a call
  * to xchk_iscan_visit succeeds.
  *
- * Returns 0 and an incore inode; -EAGAIN if the caller should call again
- * xchk_iscan_advance; -EBUSY if we couldn't grab an inode; -ECANCELED if
- * there's a fatal signal pending; or some other negative errno.
+ * Returns the number of incore inodes grabbed; -EAGAIN if the caller should
+ * call again xchk_iscan_advance; -EBUSY if we couldn't grab an inode;
+ * -ECANCELED if there's a fatal signal pending; or some other negative errno.
  */
 STATIC int
 xchk_iscan_iget(
 	struct xchk_iscan	*iscan,
 	struct xfs_perag	*pag,
 	struct xfs_buf		*agi_bp,
-	struct xfs_inode	**ipp)
+	xfs_inofree_t		allocmask)
 {
 	struct xfs_scrub	*sc = iscan->sc;
 	struct xfs_mount	*mp = sc->mp;
+	xfs_ino_t		ino = iscan->cursor_ino;
+	unsigned int		idx = 0;
 	int			error;
 
-	error = xfs_iget(sc->mp, sc->tp, iscan->cursor_ino, XFS_IGET_NORETRY,
-			0, ipp);
-	xfs_trans_brelse(sc->tp, agi_bp);
-	xfs_perag_put(pag);
+	ASSERT(iscan->__inodes[0] == NULL);
+
+	/* Fill the first slot in the inode array. */
+	error = xfs_iget(sc->mp, sc->tp, ino, XFS_IGET_NORETRY, 0,
+			&iscan->__inodes[idx]);
 
 	trace_xchk_iscan_iget(iscan, error);
 
 	if (error == -ENOENT || error == -EAGAIN) {
+		xfs_trans_brelse(sc->tp, agi_bp);
+		xfs_perag_put(pag);
+
 		/*
 		 * It's possible that this inode has lost all of its links but
 		 * hasn't yet been inactivated.  If we don't have a transaction
@@ -364,6 +374,9 @@ xchk_iscan_iget(
 	}
 
 	if (error == -EINVAL) {
+		xfs_trans_brelse(sc->tp, agi_bp);
+		xfs_perag_put(pag);
+
 		/*
 		 * We thought the inode was allocated, but the inode btree
 		 * lookup failed, which means that it was freed since the last
@@ -374,7 +387,75 @@ xchk_iscan_iget(
 		return xchk_iscan_iget_retry(iscan, false);
 	}
 
-	return error;
+	if (error) {
+		xfs_trans_brelse(sc->tp, agi_bp);
+		xfs_perag_put(pag);
+		return error;
+	}
+	idx++;
+	ino++;
+	allocmask >>= 1;
+
+	/*
+	 * Now that we've filled the first slot in __inodes, try to fill the
+	 * rest of the batch with consecutively ordered inodes.  to reduce the
+	 * number of _iter calls.  If we can't get an inode, we stop and return
+	 * what we have.
+	 */
+	for (; allocmask & 1; allocmask >>= 1, ino++, idx++) {
+		ASSERT(iscan->__inodes[idx] == NULL);
+
+		error = xfs_iget(sc->mp, sc->tp, ino, XFS_IGET_NORETRY, 0,
+				&iscan->__inodes[idx]);
+		if (error)
+			break;
+
+		mutex_lock(&iscan->lock);
+		iscan->cursor_ino = ino;
+		mutex_unlock(&iscan->lock);
+	}
+
+	trace_xchk_iscan_iget_batch(sc->mp, iscan, idx);
+	xfs_trans_brelse(sc->tp, agi_bp);
+	xfs_perag_put(pag);
+	return idx;
+}
+
+/*
+ * Advance the inode scan cursor to the next allocated inode and return up to
+ * 64 consecutive allocated inodes starting with the cursor position.
+ */
+STATIC int
+xchk_iscan_iter_batch(
+	struct xchk_iscan	*iscan)
+{
+	struct xfs_scrub	*sc = iscan->sc;
+	int			ret;
+
+	if (iscan->iget_timeout)
+		iscan->__iget_deadline = jiffies +
+					 msecs_to_jiffies(iscan->iget_timeout);
+
+	do {
+		struct xfs_buf	*agi_bp = NULL;
+		struct xfs_perag *pag = NULL;
+		xfs_inofree_t	allocmask = 0;
+
+		ret = xchk_iscan_advance(iscan, &pag, &agi_bp, &allocmask);
+		if (ret != 1)
+			return ret;
+
+		if (xchk_iscan_aborted(iscan)) {
+			xfs_trans_brelse(sc->tp, agi_bp);
+			xfs_perag_put(pag);
+			ret = -ECANCELED;
+			break;
+		}
+
+		ret = xchk_iscan_iget(iscan, pag, agi_bp, allocmask);
+	} while (ret == -EAGAIN);
+
+	return ret;
 }
 
 /*
@@ -394,43 +475,51 @@ xchk_iscan_iter(
 	struct xchk_iscan	*iscan,
 	struct xfs_inode	**ipp)
 {
-	struct xfs_scrub	*sc = iscan->sc;
-	int			ret;
+	unsigned int		i;
+	int			error;
 
-	if (iscan->iget_timeout)
-		iscan->__iget_deadline = jiffies +
-					 msecs_to_jiffies(iscan->iget_timeout);
+	/* Find a cached inode, or go get another batch. */
+	for (i = 0; i < XFS_INODES_PER_CHUNK; i++) {
+		if (iscan->__inodes[i])
+			goto foundit;
+	}
 
-	do {
-		struct xfs_buf	*agi_bp = NULL;
-		struct xfs_perag *pag = NULL;
+	error = xchk_iscan_iter_batch(iscan);
+	if (error <= 0)
+		return error;
 
-		ret = xchk_iscan_advance(iscan, &pag, &agi_bp);
-		if (ret != 1)
-			return ret;
+	ASSERT(iscan->__inodes[0] != NULL);
+	i = 0;
 
-		if (xchk_iscan_aborted(iscan)) {
-			xfs_trans_brelse(sc->tp, agi_bp);
-			xfs_perag_put(pag);
-			ret = -ECANCELED;
-			break;
-		}
-
-		ret = xchk_iscan_iget(iscan, pag, agi_bp, ipp);
-	} while (ret == -EAGAIN);
-
-	if (!ret)
-		return 1;
-
-	return ret;
+foundit:
+	/* Give the caller our reference. */
+	*ipp = iscan->__inodes[i];
+	iscan->__inodes[i] = NULL;
+	return 1;
 }
 
+/* Clean up an xfs_iscan_iter call by dropping any inodes that we still hold. */
+void
+xchk_iscan_iter_finish(
+	struct xchk_iscan	*iscan)
+{
+	struct xfs_scrub	*sc = iscan->sc;
+	unsigned int		i;
+
+	for (i = 0; i < XFS_INODES_PER_CHUNK; i++) {
+		if (iscan->__inodes[i]) {
+			xchk_irele(sc, iscan->__inodes[i]);
+			iscan->__inodes[i] = NULL;
+		}
+	}
+}
 
 /* Mark this inode scan finished and release resources. */
 void
 xchk_iscan_teardown(
 	struct xchk_iscan	*iscan)
 {
+	xchk_iscan_iter_finish(iscan);
 	xchk_iscan_finish(iscan);
 	mutex_destroy(&iscan->lock);
 }
@@ -478,6 +567,7 @@ xchk_iscan_start(
 	iscan->cursor_ino = start_ino;
 	iscan->scan_start_ino = start_ino;
 	mutex_init(&iscan->lock);
+	memset(iscan->__inodes, 0, sizeof(iscan->__inodes));
 
 	trace_xchk_iscan_start(iscan, start_ino);
 }
@@ -520,6 +610,15 @@ xchk_iscan_want_live_update(
 	/* Scan is finished, caller should receive all updates. */
 	if (iscan->__visited_ino == NULLFSINO) {
 		ret = true;
+		goto unlock;
+	}
+
+	/*
+	 * No inodes have been visited yet, so the visited cursor points at the
+	 * start of the scan range.  The caller should not receive any updates.
+	 */
+	if (iscan->scan_start_ino == iscan->__visited_ino) {
+		ret = false;
 		goto unlock;
 	}
 
