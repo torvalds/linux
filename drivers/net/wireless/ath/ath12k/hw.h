@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_HW_H
@@ -17,19 +17,30 @@
 /* Num VDEVS per radio */
 #define TARGET_NUM_VDEVS	(16 + 1)
 
-#define TARGET_NUM_PEERS_PDEV	(512 + TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV_SINGLE	(TARGET_NUM_STATIONS_SINGLE + \
+					 TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV_DBS	(TARGET_NUM_STATIONS_DBS + \
+					 TARGET_NUM_VDEVS)
+#define TARGET_NUM_PEERS_PDEV_DBS_SBS	(TARGET_NUM_STATIONS_DBS_SBS + \
+					 TARGET_NUM_VDEVS)
 
 /* Num of peers for Single Radio mode */
-#define TARGET_NUM_PEERS_SINGLE		(TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_SINGLE		(TARGET_NUM_PEERS_PDEV_SINGLE)
 
 /* Num of peers for DBS */
-#define TARGET_NUM_PEERS_DBS		(2 * TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_DBS		(2 * TARGET_NUM_PEERS_PDEV_DBS)
 
 /* Num of peers for DBS_SBS */
-#define TARGET_NUM_PEERS_DBS_SBS	(3 * TARGET_NUM_PEERS_PDEV)
+#define TARGET_NUM_PEERS_DBS_SBS	(3 * TARGET_NUM_PEERS_PDEV_DBS_SBS)
 
-/* Max num of stations (per radio) */
-#define TARGET_NUM_STATIONS	512
+/* Max num of stations for Single Radio mode */
+#define TARGET_NUM_STATIONS_SINGLE	512
+
+/* Max num of stations for DBS */
+#define TARGET_NUM_STATIONS_DBS		128
+
+/* Max num of stations for DBS_SBS */
+#define TARGET_NUM_STATIONS_DBS_SBS	128
 
 #define TARGET_NUM_PEERS(x)	TARGET_NUM_PEERS_##x
 #define TARGET_NUM_PEER_KEYS	2
@@ -66,6 +77,8 @@
 #define TARGET_NUM_WDS_ENTRIES		32
 #define TARGET_DMA_BURST_SIZE		1
 #define TARGET_RX_BATCHMODE		1
+#define TARGET_RX_PEER_METADATA_VER_V1A	2
+#define TARGET_RX_PEER_METADATA_VER_V1B	3
 
 #define ATH12K_HW_MAX_QUEUES		4
 #define ATH12K_QUEUE_LEN		4096
@@ -174,7 +187,6 @@ struct ath12k_hw_params {
 	bool reoq_lut_support:1;
 	bool supports_shadow_regs:1;
 
-	u32 hal_desc_sz;
 	u32 num_tcl_banks;
 	u32 max_tx_ring;
 
@@ -195,6 +207,10 @@ struct ath12k_hw_params {
 
 	u8 def_num_link;
 	u16 max_mlo_peer;
+
+	u32 otp_board_id_register;
+
+	bool supports_sta_ps;
 };
 
 struct ath12k_hw_ops {

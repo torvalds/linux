@@ -13,6 +13,7 @@
 #include <linux/bitfield.h>
 #include <linux/dmi.h>
 #include <linux/ctype.h>
+#include <linux/firmware.h>
 #include "qmi.h"
 #include "htc.h"
 #include "wmi.h"
@@ -24,6 +25,7 @@
 #include "hal_rx.h"
 #include "reg.h"
 #include "dbring.h"
+#include "fw.h"
 
 #define SM(_v, _f) (((_v) << _f##_LSB) & _f##_MASK)
 
@@ -264,6 +266,7 @@ struct ath12k_vif {
 	u8 tx_encap_type;
 	u8 vdev_stats_id;
 	u32 punct_bitmap;
+	bool ps;
 };
 
 struct ath12k_vif_iter {
@@ -824,6 +827,27 @@ struct ath12k_base {
 		u32 subsystem_device;
 	} id;
 
+	struct {
+		u32 api_version;
+
+		const struct firmware *fw;
+		const u8 *amss_data;
+		size_t amss_len;
+		const u8 *amss_dualmac_data;
+		size_t amss_dualmac_len;
+		const u8 *m3_data;
+		size_t m3_len;
+
+		DECLARE_BITMAP(fw_features, ATH12K_FW_FEATURE_COUNT);
+	} fw;
+
+	const struct hal_rx_ops *hal_rx_ops;
+
+	/* slo_capable denotes if the single/multi link operation
+	 * is supported within the same chip (SoC).
+	 */
+	bool slo_capable;
+
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
@@ -855,6 +879,9 @@ int ath12k_core_suspend(struct ath12k_base *ab);
 
 const struct firmware *ath12k_core_firmware_request(struct ath12k_base *ab,
 						    const char *filename);
+u32 ath12k_core_get_max_station_per_radio(struct ath12k_base *ab);
+u32 ath12k_core_get_max_peers_per_radio(struct ath12k_base *ab);
+u32 ath12k_core_get_max_num_tids(struct ath12k_base *ab);
 
 static inline const char *ath12k_scan_state_str(enum ath12k_scan_state state)
 {

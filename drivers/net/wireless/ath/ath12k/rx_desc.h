@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef ATH12K_RX_DESC_H
 #define ATH12K_RX_DESC_H
@@ -145,6 +145,61 @@ struct rx_mpdu_start_qcn9274 {
 	__le32 info8;
 	__le32 res0;
 	__le32 res1;
+} __packed;
+
+#define QCN9274_MPDU_START_SELECT_MPDU_START_TAG			BIT(0)
+#define QCN9274_MPDU_START_SELECT_INFO0_REO_QUEUE_DESC_LO		BIT(1)
+#define QCN9274_MPDU_START_SELECT_INFO1_PN_31_0				BIT(2)
+#define QCN9274_MPDU_START_SELECT_PN_95_32				BIT(3)
+#define QCN9274_MPDU_START_SELECT_PN_127_96_INFO2			BIT(4)
+#define QCN9274_MPDU_START_SELECT_PEER_MDATA_INFO3_PHY_PPDU_ID		BIT(5)
+#define QCN9274_MPDU_START_SELECT_AST_IDX_SW_PEER_ID_INFO4		BIT(6)
+#define QCN9274_MPDU_START_SELECT_INFO5_INFO6				BIT(7)
+#define QCN9274_MPDU_START_SELECT_FRAME_CTRL_DURATION_ADDR1_31_0	BIT(8)
+#define QCN9274_MPDU_START_SELECT_ADDR2_47_0_ADDR1_47_32		BIT(9)
+#define QCN9274_MPDU_START_SELECT_ADDR3_47_0_SEQ_CTRL			BIT(10)
+#define QCN9274_MPDU_START_SELECT_ADDR4_47_0_QOS_CTRL			BIT(11)
+#define QCN9274_MPDU_START_SELECT_HT_CTRL_INFO7				BIT(12)
+#define QCN9274_MPDU_START_SELECT_ML_ADDR1_47_0_ML_ADDR2_15_0		BIT(13)
+#define QCN9274_MPDU_START_SELECT_ML_ADDR2_47_16_INFO8			BIT(14)
+#define QCN9274_MPDU_START_SELECT_RES_0_RES_1				BIT(15)
+
+#define QCN9274_MPDU_START_WMASK (QCN9274_MPDU_START_SELECT_INFO1_PN_31_0 |	\
+		QCN9274_MPDU_START_SELECT_PN_95_32 |				\
+		QCN9274_MPDU_START_SELECT_PN_127_96_INFO2 |			\
+		QCN9274_MPDU_START_SELECT_PEER_MDATA_INFO3_PHY_PPDU_ID |	\
+		QCN9274_MPDU_START_SELECT_AST_IDX_SW_PEER_ID_INFO4 |		\
+		QCN9274_MPDU_START_SELECT_INFO5_INFO6 |				\
+		QCN9274_MPDU_START_SELECT_FRAME_CTRL_DURATION_ADDR1_31_0 |	\
+		QCN9274_MPDU_START_SELECT_ADDR2_47_0_ADDR1_47_32 |		\
+		QCN9274_MPDU_START_SELECT_ADDR3_47_0_SEQ_CTRL |			\
+		QCN9274_MPDU_START_SELECT_ADDR4_47_0_QOS_CTRL)
+
+/* The below rx_mpdu_start_qcn9274_compact structure is tied with the mask
+ * value QCN9274_MPDU_START_WMASK. If the mask value changes the structure
+ * will also change.
+ */
+
+struct rx_mpdu_start_qcn9274_compact {
+	__le32 info1;
+	__le32 pn[4];
+	__le32 info2;
+	__le32 peer_meta_data;
+	__le16 info3;
+	__le16 phy_ppdu_id;
+	__le16 ast_index;
+	__le16 sw_peer_id;
+	__le32 info4;
+	__le32 info5;
+	__le32 info6;
+	__le16 frame_ctrl;
+	__le16 duration;
+	u8 addr1[ETH_ALEN];
+	u8 addr2[ETH_ALEN];
+	u8 addr3[ETH_ALEN];
+	__le16 seq_ctrl;
+	u8 addr4[ETH_ALEN];
+	__le16 qos_ctrl;
 } __packed;
 
 /* rx_mpdu_start
@@ -608,6 +663,8 @@ enum rx_msdu_start_reception_type {
 	RX_MSDU_START_RECEPTION_TYPE_UL_MU_OFDMA_MIMO,
 };
 
+#define RX_MSDU_END_64_TLV_SRC_LINK_ID		GENMASK(24, 22)
+
 #define RX_MSDU_END_INFO0_RXPCU_MPDU_FITLER	GENMASK(1, 0)
 #define RX_MSDU_END_INFO0_SW_FRAME_GRP_ID	GENMASK(8, 2)
 
@@ -782,6 +839,52 @@ struct rx_msdu_end_qcn9274 {
 	__le16 res0;
 	__le16 sa_15_0;
 	__le32 sa_47_16;
+	__le32 info13;
+	__le32 info14;
+} __packed;
+
+#define QCN9274_MSDU_END_SELECT_MSDU_END_TAG				BIT(0)
+#define QCN9274_MSDU_END_SELECT_INFO0_PHY_PPDUID_IP_HDR_CSUM_INFO1	BIT(1)
+#define QCN9274_MSDU_END_SELECT_INFO2_CUMULATIVE_CSUM_RULE_IND_0	BIT(2)
+#define QCN9274_MSDU_END_SELECT_IPV6_OP_CRC_INFO3_TYPE13		BIT(3)
+#define QCN9274_MSDU_END_SELECT_RULE_IND_1_TCP_SEQ_NUM			BIT(4)
+#define QCN9274_MSDU_END_SELECT_TCP_ACK_NUM_INFO4_WINDOW_SIZE		BIT(5)
+#define QCN9274_MSDU_END_SELECT_SA_SW_PER_ID_INFO5_SA_DA_ID		BIT(6)
+#define QCN9274_MSDU_END_SELECT_INFO6_FSE_METADATA			BIT(7)
+#define QCN9274_MSDU_END_SELECT_CCE_MDATA_TCP_UDP_CSUM_INFO7_IP_LEN	BIT(8)
+#define QCN9274_MSDU_END_SELECT_INFO8_INFO9				BIT(9)
+#define QCN9274_MSDU_END_SELECT_INFO10_INFO11				BIT(10)
+#define QCN9274_MSDU_END_SELECT_VLAN_CTAG_STAG_CI_PEER_MDATA		BIT(11)
+#define QCN9274_MSDU_END_SELECT_INFO12_AND_FLOW_ID_TOEPLITZ		BIT(12)
+#define QCN9274_MSDU_END_SELECT_PPDU_START_TS_63_32_PHY_MDATA		BIT(13)
+#define QCN9274_MSDU_END_SELECT_PPDU_START_TS_31_0_TOEPLITZ_HASH_2_4	BIT(14)
+#define QCN9274_MSDU_END_SELECT_RES0_SA_47_0				BIT(15)
+#define QCN9274_MSDU_END_SELECT_INFO13_INFO14				BIT(16)
+
+#define QCN9274_MSDU_END_WMASK (QCN9274_MSDU_END_SELECT_MSDU_END_TAG |	\
+		QCN9274_MSDU_END_SELECT_SA_SW_PER_ID_INFO5_SA_DA_ID |	\
+		QCN9274_MSDU_END_SELECT_INFO10_INFO11 |			\
+		QCN9274_MSDU_END_SELECT_INFO12_AND_FLOW_ID_TOEPLITZ |	\
+		QCN9274_MSDU_END_SELECT_PPDU_START_TS_63_32_PHY_MDATA |	\
+		QCN9274_MSDU_END_SELECT_INFO13_INFO14)
+
+/* The below rx_msdu_end_qcn9274_compact structure is tied with the mask value
+ * QCN9274_MSDU_END_WMASK. If the mask value changes the structure will also
+ * change.
+ */
+
+struct rx_msdu_end_qcn9274_compact {
+	__le64 msdu_end_tag;
+	__le16 sa_sw_peer_id;
+	__le16 info5;
+	__le16 sa_idx;
+	__le16 da_idx_or_sw_peer_id;
+	__le32 info10;
+	__le32 info11;
+	__le32 info12;
+	__le32 flow_id_toeplitz;
+	__le32 ppdu_start_timestamp_63_32;
+	__le32 phy_meta_data;
 	__le32 info13;
 	__le32 info14;
 } __packed;
@@ -1450,13 +1553,15 @@ struct rx_msdu_end_wcn7850 {
  *
  */
 
-/* TODO: Move to compact TLV approach
- * By default these tlv's are not aligned to 128b boundary
- * Need to remove unused qwords and make them compact/aligned
- */
 struct hal_rx_desc_qcn9274 {
 	struct rx_msdu_end_qcn9274 msdu_end;
 	struct rx_mpdu_start_qcn9274 mpdu_start;
+	u8 msdu_payload[];
+} __packed;
+
+struct hal_rx_desc_qcn9274_compact {
+	struct rx_msdu_end_qcn9274_compact msdu_end;
+	struct rx_mpdu_start_qcn9274_compact mpdu_start;
 	u8 msdu_payload[];
 } __packed;
 
@@ -1484,6 +1589,7 @@ struct hal_rx_desc_wcn7850 {
 struct hal_rx_desc {
 	union {
 		struct hal_rx_desc_qcn9274 qcn9274;
+		struct hal_rx_desc_qcn9274_compact qcn9274_compact;
 		struct hal_rx_desc_wcn7850 wcn7850;
 	} u;
 } __packed;
