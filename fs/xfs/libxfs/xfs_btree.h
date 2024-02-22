@@ -236,9 +236,6 @@ struct xfs_btree_cur_ag {
 			unsigned int	nr_ops;	/* # record updates */
 			unsigned int	shape_changes;	/* # of extent splits */
 		} refc;
-		struct {
-			bool		active;	/* allocation cursor state */
-		} abt;
 	};
 };
 
@@ -320,6 +317,9 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
 
 /* For extent swap, ignore owner check in verifier (only for bmbt btrees) */
 #define	XFS_BTREE_BMBT_INVALID_OWNER	(1U << 2)
+
+/* Cursor is active (only for allocbt btrees) */
+#define	XFS_BTREE_ALLOCBT_ACTIVE	(1U << 3)
 
 #define	XFS_BTREE_NOERROR	0
 #define	XFS_BTREE_ERROR		1
