@@ -140,8 +140,15 @@ static void mt7915_mac_sta_poll(struct mt7915_dev *dev)
 			msta->airtime_ac[i] = mt76_rr(dev, addr);
 			msta->airtime_ac[i + 4] = mt76_rr(dev, addr + 4);
 
-			tx_time[i] = msta->airtime_ac[i] - tx_last;
-			rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
+			if (msta->airtime_ac[i] <= tx_last)
+				tx_time[i] = 0;
+			else
+				tx_time[i] = msta->airtime_ac[i] - tx_last;
+
+			if (msta->airtime_ac[i + 4] <= rx_last)
+				rx_time[i] = 0;
+			else
+				rx_time[i] = msta->airtime_ac[i + 4] - rx_last;
 
 			if ((tx_last | rx_last) & BIT(30))
 				clear = true;
