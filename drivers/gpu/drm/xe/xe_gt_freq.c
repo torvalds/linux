@@ -15,6 +15,7 @@
 #include "xe_gt_sysfs.h"
 #include "xe_gt_throttle_sysfs.h"
 #include "xe_guc_pc.h"
+#include "xe_pm.h"
 
 /**
  * DOC: Xe GT Frequency Management
@@ -49,12 +50,23 @@ dev_to_pc(struct device *dev)
 	return &kobj_to_gt(dev->kobj.parent)->uc.guc.pc;
 }
 
+static struct xe_device *
+dev_to_xe(struct device *dev)
+{
+	return gt_to_xe(kobj_to_gt(dev->kobj.parent));
+}
+
 static ssize_t act_freq_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct xe_guc_pc *pc = dev_to_pc(dev);
+	u32 freq;
 
-	return sysfs_emit(buf, "%d\n", xe_guc_pc_get_act_freq(pc));
+	xe_pm_runtime_get(dev_to_xe(dev));
+	freq = xe_guc_pc_get_act_freq(pc);
+	xe_pm_runtime_put(dev_to_xe(dev));
+
+	return sysfs_emit(buf, "%d\n", freq);
 }
 static DEVICE_ATTR_RO(act_freq);
 
@@ -65,7 +77,9 @@ static ssize_t cur_freq_show(struct device *dev,
 	u32 freq;
 	ssize_t ret;
 
+	xe_pm_runtime_get(dev_to_xe(dev));
 	ret = xe_guc_pc_get_cur_freq(pc, &freq);
+	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -77,8 +91,13 @@ static ssize_t rp0_freq_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct xe_guc_pc *pc = dev_to_pc(dev);
+	u32 freq;
 
-	return sysfs_emit(buf, "%d\n", xe_guc_pc_get_rp0_freq(pc));
+	xe_pm_runtime_get(dev_to_xe(dev));
+	freq = xe_guc_pc_get_rp0_freq(pc);
+	xe_pm_runtime_put(dev_to_xe(dev));
+
+	return sysfs_emit(buf, "%d\n", freq);
 }
 static DEVICE_ATTR_RO(rp0_freq);
 
@@ -86,8 +105,13 @@ static ssize_t rpe_freq_show(struct device *dev,
 			     struct device_attribute *attr, char *buf)
 {
 	struct xe_guc_pc *pc = dev_to_pc(dev);
+	u32 freq;
 
-	return sysfs_emit(buf, "%d\n", xe_guc_pc_get_rpe_freq(pc));
+	xe_pm_runtime_get(dev_to_xe(dev));
+	freq = xe_guc_pc_get_rpe_freq(pc);
+	xe_pm_runtime_put(dev_to_xe(dev));
+
+	return sysfs_emit(buf, "%d\n", freq);
 }
 static DEVICE_ATTR_RO(rpe_freq);
 
@@ -107,7 +131,9 @@ static ssize_t min_freq_show(struct device *dev,
 	u32 freq;
 	ssize_t ret;
 
+	xe_pm_runtime_get(dev_to_xe(dev));
 	ret = xe_guc_pc_get_min_freq(pc, &freq);
+	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -125,7 +151,9 @@ static ssize_t min_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
+	xe_pm_runtime_get(dev_to_xe(dev));
 	ret = xe_guc_pc_set_min_freq(pc, freq);
+	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -140,7 +168,9 @@ static ssize_t max_freq_show(struct device *dev,
 	u32 freq;
 	ssize_t ret;
 
+	xe_pm_runtime_get(dev_to_xe(dev));
 	ret = xe_guc_pc_get_max_freq(pc, &freq);
+	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 
@@ -158,7 +188,9 @@ static ssize_t max_freq_store(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
+	xe_pm_runtime_get(dev_to_xe(dev));
 	ret = xe_guc_pc_set_max_freq(pc, freq);
+	xe_pm_runtime_put(dev_to_xe(dev));
 	if (ret)
 		return ret;
 

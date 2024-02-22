@@ -11,6 +11,7 @@
 #include "xe_gt_sysfs.h"
 #include "xe_gt_throttle_sysfs.h"
 #include "xe_mmio.h"
+#include "xe_pm.h"
 
 /**
  * DOC: Xe GT Throttle
@@ -38,10 +39,12 @@ static u32 read_perf_limit_reasons(struct xe_gt *gt)
 {
 	u32 reg;
 
+	xe_pm_runtime_get(gt_to_xe(gt));
 	if (xe_gt_is_media_type(gt))
 		reg = xe_mmio_read32(gt, MTL_MEDIA_PERF_LIMIT_REASONS);
 	else
 		reg = xe_mmio_read32(gt, GT0_PERF_LIMIT_REASONS);
+	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return reg;
 }
