@@ -431,6 +431,21 @@ int xe_pm_runtime_put(struct xe_device *xe)
 }
 
 /**
+ * xe_pm_runtime_get_ioctl - Get a runtime_pm reference before ioctl
+ * @xe: xe device instance
+ *
+ * Returns: Any number greater than or equal to 0 for success, negative error
+ * code otherwise.
+ */
+int xe_pm_runtime_get_ioctl(struct xe_device *xe)
+{
+	if (WARN_ON(xe_pm_read_callback_task(xe) == current))
+		return -ELOOP;
+
+	return pm_runtime_get_sync(xe->drm.dev);
+}
+
+/**
  * xe_pm_runtime_get_if_active - Get a runtime_pm reference if device active
  * @xe: xe device instance
  *
