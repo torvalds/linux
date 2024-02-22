@@ -489,20 +489,6 @@ xfs_inobt_init_cursor(
 	return cur;
 }
 
-/* Create an inode btree cursor with a fake root for staging. */
-struct xfs_btree_cur *
-xfs_inobt_stage_cursor(
-	struct xfs_perag	*pag,
-	struct xbtree_afakeroot	*afake,
-	xfs_btnum_t		btnum)
-{
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_inobt_init_cursor(pag, NULL, NULL, btnum);
-	xfs_btree_stage_afakeroot(cur, afake);
-	return cur;
-}
-
 /*
  * Install a new inobt btree root.  Caller is responsible for invalidating
  * and freeing the old btree blocks.
