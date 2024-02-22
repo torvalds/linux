@@ -2030,11 +2030,10 @@ static void btrfs_scratch_superblock(struct btrfs_fs_info *fs_info,
 			copy_num, ret);
 }
 
-void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
-			       struct block_device *bdev,
-			       const char *device_path)
+void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info, struct btrfs_device *device)
 {
 	int copy_num;
+	struct block_device *bdev = device->bdev;
 
 	if (!bdev)
 		return;
@@ -2050,7 +2049,7 @@ void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
 	btrfs_kobject_uevent(bdev, KOBJ_CHANGE);
 
 	/* Update ctime/mtime for device path for libblkid */
-	update_dev_time(device_path);
+	update_dev_time(device->name->str);
 }
 
 int btrfs_rm_device(struct btrfs_fs_info *fs_info,
@@ -2185,8 +2184,7 @@ int btrfs_rm_device(struct btrfs_fs_info *fs_info,
 	 * device and let the caller do the final bdev_release.
 	 */
 	if (test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state)) {
-		btrfs_scratch_superblocks(fs_info, device->bdev,
-					  device->name->str);
+		btrfs_scratch_superblocks(fs_info, device);
 		if (device->bdev) {
 			sync_blockdev(device->bdev);
 			invalidate_bdev(device->bdev);
@@ -2299,8 +2297,7 @@ void btrfs_destroy_dev_replace_tgtdev(struct btrfs_device *tgtdev)
 
 	mutex_unlock(&fs_devices->device_list_mutex);
 
-	btrfs_scratch_superblocks(tgtdev->fs_info, tgtdev->bdev,
-				  tgtdev->name->str);
+	btrfs_scratch_superblocks(tgtdev->fs_info, tgtdev);
 
 	btrfs_close_bdev(tgtdev);
 	synchronize_rcu();
