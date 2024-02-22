@@ -438,6 +438,26 @@ class YnlFamily(SpecFamily):
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_ADD_MEMBERSHIP,
                              mcast_id)
 
+    def _encode_enum(self, attr_spec, value):
+        enum = self.consts[attr_spec['enum']]
+        if enum.type == 'flags' or attr_spec.get('enum-as-flags', False):
+            scalar = 0
+            if isinstance(value, str):
+                value = [value]
+            for single_value in value:
+                scalar += enum.entries[single_value].user_value(as_flags = True)
+            return scalar
+        else:
+            return enum.entries[value].user_value()
+
+    def _get_scalar(self, attr_spec, value):
+        try:
+            return int(value)
+        except (ValueError, TypeError) as e:
+            if 'enum' not in attr_spec:
+                raise e
+        return self._encode_enum(attr_spec, value);
+
     def _add_attr(self, space, name, value, search_attrs):
         try:
             attr = self.attr_sets[space][name]
@@ -475,7 +495,7 @@ class YnlFamily(SpecFamily):
             else:
                 raise Exception(f'Unknown type for binary attribute, value: {value}')
         elif attr['type'] in NlAttr.type_formats or attr.is_auto_scalar:
-            scalar = int(value)
+            scalar = self._get_scalar(attr, value)
             if attr.is_auto_scalar:
                 attr_type = attr["type"][0] + ('32' if scalar.bit_length() <= 32 else '64')
             else:
@@ -483,7 +503,9 @@ class YnlFamily(SpecFamily):
             format = NlAttr.get_format(attr_type, attr.byte_order)
             attr_payload = format.pack(scalar)
         elif attr['type'] in "bitfield32":
-            attr_payload = struct.pack("II", int(value["value"]), int(value["selector"]))
+            scalar_value = self._get_scalar(attr, value["value"])
+            scalar_selector = self._get_scalar(attr, value["selector"])
+            attr_payload = struct.pack("II", scalar_value, scalar_selector)
         elif attr['type'] == 'sub-message':
             msg_format = self._resolve_selector(attr, search_attrs)
             attr_payload = b''
