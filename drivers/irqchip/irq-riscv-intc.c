@@ -19,6 +19,8 @@
 #include <linux/smp.h>
 #include <linux/soc/andes/irq.h>
 
+#include <asm/hwcap.h>
+
 static struct irq_domain *intc_domain;
 static unsigned int riscv_intc_nr_irqs __ro_after_init = BITS_PER_LONG;
 static unsigned int riscv_intc_custom_base __ro_after_init = BITS_PER_LONG;
@@ -32,6 +34,14 @@ static asmlinkage void riscv_intc_irq(struct pt_regs *regs)
 		pr_warn_ratelimited("Failed to handle interrupt (cause: %ld)\n", cause);
 }
 
+static asmlinkage void riscv_intc_aia_irq(struct pt_regs *regs)
+{
+	unsigned long topi;
+
+	while ((topi = csr_read(CSR_TOPI)))
+		generic_handle_domain_irq(intc_domain, topi >> TOPI_IID_SHIFT);
+}
+
 /*
  * On RISC-V systems local interrupts are masked or unmasked by writing
  * the SIE (Supervisor Interrupt Enable) CSR.  As CSRs can only be written
@@ -41,12 +51,18 @@ static asmlinkage void riscv_intc_irq(struct pt_regs *regs)
 
 static void riscv_intc_irq_mask(struct irq_data *d)
 {
-	csr_clear(CSR_IE, BIT(d->hwirq));
+	if (IS_ENABLED(CONFIG_32BIT) && d->hwirq >= BITS_PER_LONG)
+		csr_clear(CSR_IEH, BIT(d->hwirq - BITS_PER_LONG));
+	else
+		csr_clear(CSR_IE, BIT(d->hwirq));
 }
 
 static void riscv_intc_irq_unmask(struct irq_data *d)
 {
-	csr_set(CSR_IE, BIT(d->hwirq));
+	if (IS_ENABLED(CONFIG_32BIT) && d->hwirq >= BITS_PER_LONG)
+		csr_set(CSR_IEH, BIT(d->hwirq - BITS_PER_LONG));
+	else
+		csr_set(CSR_IE, BIT(d->hwirq));
 }
 
 static void andes_intc_irq_mask(struct irq_data *d)
@@ -157,8 +173,7 @@ static struct fwnode_handle *riscv_intc_hwnode(void)
 	return intc_domain->fwnode;
 }
 
-static int __init riscv_intc_init_common(struct fwnode_handle *fn,
-					 struct irq_chip *chip)
+static int __init riscv_intc_init_common(struct fwnode_handle *fn, struct irq_chip *chip)
 {
 	int rc;
 
@@ -176,11 +191,10 @@ static int __init riscv_intc_init_common(struct fwnode_handle *fn,
 
 	riscv_set_intc_hwnode_fn(riscv_intc_hwnode);
 
-	pr_info("%d local interrupts mapped\n", riscv_intc_nr_irqs);
-	if (riscv_intc_custom_nr_irqs) {
-		pr_info("%d custom local interrupts mapped\n",
-			riscv_intc_custom_nr_irqs);
-	}
+	pr_info("%d local interrupts mapped\n",
+		riscv_isa_extension_available(NULL, SxAIA) ? 64 : riscv_intc_nr_irqs);
+	if (riscv_intc_custom_nr_irqs)
+		pr_info("%d custom local interrupts mapped\n", riscv_intc_custom_nr_irqs);
 
 	return 0;
 }
