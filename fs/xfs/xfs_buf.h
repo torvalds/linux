@@ -83,6 +83,14 @@ typedef unsigned int xfs_buf_flags_t;
 #define XFS_BSTATE_DISPOSE	 (1 << 0)	/* buffer being discarded */
 #define XFS_BSTATE_IN_FLIGHT	 (1 << 1)	/* I/O in flight */
 
+struct xfs_buf_cache {
+	spinlock_t		bc_lock;
+	struct rhashtable	bc_hash;
+};
+
+int xfs_buf_cache_init(struct xfs_buf_cache *bch);
+void xfs_buf_cache_destroy(struct xfs_buf_cache *bch);
+
 /*
  * The xfs_buftarg contains 2 notions of "sector size" -
  *
