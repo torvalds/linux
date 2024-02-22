@@ -23,23 +23,10 @@ properties:
   connector:
     type: object
     $ref: ../connector/usb-connector.yaml
-    unevaluatedProperties: false
-
-    description:
-      Properties for usb c connector.
 
     properties:
       compatible:
         const: usb-c-connector
-
-      power-role: true
-
-      data-role: true
-
-      try-power-role: true
-
-    required:
-      - compatible
 
 required:
   - compatible
