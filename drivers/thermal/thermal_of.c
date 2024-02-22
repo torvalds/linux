@@ -117,6 +117,8 @@ static int thermal_of_populate_trip(struct device_node *np,
 		return ret;
 	}
 
+	trip->flags = THERMAL_TRIP_FLAG_RW_TEMP;
+
 	return 0;
 }
 
@@ -472,7 +474,7 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 	struct device_node *np;
 	const char *action;
 	int delay, pdelay;
-	int ntrips, mask;
+	int ntrips;
 	int ret;
 
 	np = of_thermal_zone_find(sensor, id);
@@ -499,15 +501,13 @@ static struct thermal_zone_device *thermal_of_zone_register(struct device_node *
 	of_ops.bind = thermal_of_bind;
 	of_ops.unbind = thermal_of_unbind;
 
-	mask = GENMASK_ULL((ntrips) - 1, 0);
-
 	ret = of_property_read_string(np, "critical-action", &action);
 	if (!ret)
 		if (!of_ops.critical && !strcasecmp(action, "reboot"))
 			of_ops.critical = thermal_zone_device_critical_reboot;
 
 	tz = thermal_zone_device_register_with_trips(np->name, trips, ntrips,
-						     mask, data, &of_ops, &tzp,
+						     0, data, &of_ops, &tzp,
 						     pdelay, delay);
 	if (IS_ERR(tz)) {
 		ret = PTR_ERR(tz);
