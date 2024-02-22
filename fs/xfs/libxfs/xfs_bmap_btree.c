@@ -530,6 +530,8 @@ const struct xfs_btree_ops xfs_bmbt_ops = {
 	.rec_len		= sizeof(xfs_bmbt_rec_t),
 	.key_len		= sizeof(xfs_bmbt_key_t),
 
+	.lru_refs		= XFS_BMAP_BTREE_REF,
+
 	.dup_cursor		= xfs_bmbt_dup_cursor,
 	.update_cursor		= xfs_bmbt_update_cursor,
 	.alloc_block		= xfs_bmbt_alloc_block,

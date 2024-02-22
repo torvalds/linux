@@ -321,6 +321,8 @@ const struct xfs_btree_ops xfs_refcountbt_ops = {
 	.rec_len		= sizeof(struct xfs_refcount_rec),
 	.key_len		= sizeof(struct xfs_refcount_key),
 
+	.lru_refs		= XFS_REFC_BTREE_REF,
+
 	.dup_cursor		= xfs_refcountbt_dup_cursor,
 	.set_root		= xfs_refcountbt_set_root,
 	.alloc_block		= xfs_refcountbt_alloc_block,
