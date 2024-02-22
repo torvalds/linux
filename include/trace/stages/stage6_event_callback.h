@@ -32,12 +32,14 @@
 
 #undef __assign_str
 #define __assign_str(dst, src)						\
-	strcpy(__get_str(dst), (src) ? (const char *)(src) : "(null)");
+	strcpy(__get_str(dst), __data_offsets.dst##_ptr_ ?		\
+	       __data_offsets.dst##_ptr_ : "(null)")
 
 #undef __assign_str_len
 #define __assign_str_len(dst, src, len)					\
 	do {								\
-		memcpy(__get_str(dst), (src), (len));			\
+		memcpy(__get_str(dst), __data_offsets.dst##_ptr_ ?	\
+		       __data_offsets.dst##_ptr_ : "(null)", len);	\
 		__get_str(dst)[len] = '\0';				\
 	} while(0)
 
@@ -92,12 +94,14 @@
 
 #undef __assign_rel_str
 #define __assign_rel_str(dst, src)					\
-	strcpy(__get_rel_str(dst), (src) ? (const char *)(src) : "(null)");
+	strcpy(__get_rel_str(dst), __data_offsets.dst##_ptr_ ?		\
+	       __data_offsets.dst##_ptr_ : "(null)")
 
 #undef __assign_rel_str_len
 #define __assign_rel_str_len(dst, src, len)				\
 	do {								\
-		memcpy(__get_rel_str(dst), (src), (len));		\
+		memcpy(__get_rel_str(dst), __data_offsets.dst##_ptr_ ?	\
+		       __data_offsets.dst##_ptr_ : "(null)", len);	\
 		__get_rel_str(dst)[len] = '\0';				\
 	} while (0)
 

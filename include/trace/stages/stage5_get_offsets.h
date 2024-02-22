@@ -47,10 +47,12 @@
 
 #undef __string
 #define __string(item, src) __dynamic_array(char, item,			\
-		    strlen((src) ? (const char *)(src) : "(null)") + 1)
+		    strlen((src) ? (const char *)(src) : "(null)") + 1)	\
+	__data_offsets->item##_ptr_ = src;
 
 #undef __string_len
-#define __string_len(item, src, len) __dynamic_array(char, item, (len) + 1)
+#define __string_len(item, src, len) __dynamic_array(char, item, (len) + 1)\
+	__data_offsets->item##_ptr_ = src;
 
 #undef __vstring
 #define __vstring(item, fmt, ap) __dynamic_array(char, item,		\
@@ -67,11 +69,14 @@
 	__data_size += __item_length;
 
 #undef __rel_string
-#define __rel_string(item, src) __rel_dynamic_array(char, item,			\
-		    strlen((src) ? (const char *)(src) : "(null)") + 1)
+#define __rel_string(item, src) __rel_dynamic_array(char, item,		\
+		    strlen((src) ? (const char *)(src) : "(null)") + 1)	\
+	__data_offsets->item##_ptr_ = src;
 
 #undef __rel_string_len
-#define __rel_string_len(item, src, len) __rel_dynamic_array(char, item, (len) + 1)
+#define __rel_string_len(item, src, len) __rel_dynamic_array(char, item, (len) + 1)\
+	__data_offsets->item##_ptr_ = src;
+
 /*
  * __bitmask_size_in_bytes_raw is the number of bytes needed to hold
  * num_possible_cpus().
