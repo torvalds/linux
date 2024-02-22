@@ -217,24 +217,18 @@ static int mrfld_extcon_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = devm_extcon_dev_register(dev, data->edev);
-	if (ret < 0) {
-		dev_err(dev, "can't register extcon device: %d\n", ret);
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "can't register extcon device\n");
 
 	ret = devm_request_threaded_irq(dev, irq, NULL, mrfld_extcon_interrupt,
 					IRQF_ONESHOT | IRQF_SHARED, pdev->name,
 					data);
-	if (ret) {
-		dev_err(dev, "can't register IRQ handler: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "can't register IRQ handler\n");
 
 	ret = regmap_read(regmap, BCOVE_ID, &id);
-	if (ret) {
-		dev_err(dev, "can't read PMIC ID: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "can't read PMIC ID\n");
 
 	data->id = id;
 
