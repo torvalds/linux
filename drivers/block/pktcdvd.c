@@ -2484,14 +2484,6 @@ end_io:
 	bio_io_error(bio);
 }
 
-static void pkt_init_queue(struct pktcdvd_device *pd)
-{
-	struct request_queue *q = pd->disk->queue;
-
-	blk_queue_logical_block_size(q, CD_FRAMESIZE);
-	blk_queue_max_hw_sectors(q, PACKET_MAX_SECTORS);
-}
-
 static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 {
 	struct device *ddev = disk_to_dev(pd->disk);
@@ -2534,8 +2526,6 @@ static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
 
 	pd->bdev_handle = bdev_handle;
 	set_blocksize(bdev_handle->bdev, CD_FRAMESIZE);
-
-	pkt_init_queue(pd);
 
 	atomic_set(&pd->cdrw.pending_bios, 0);
 	pd->cdrw.thread = kthread_run(kcdrwd, pd, "%s", pd->disk->disk_name);
@@ -2633,6 +2623,10 @@ static const struct block_device_operations pktcdvd_ops = {
  */
 static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 {
+	struct queue_limits lim = {
+		.max_hw_sectors		= PACKET_MAX_SECTORS,
+		.logical_block_size	= CD_FRAMESIZE,
+	};
 	int idx;
 	int ret = -ENOMEM;
 	struct pktcdvd_device *pd;
@@ -2672,7 +2666,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	pd->write_congestion_on  = write_congestion_on;
 	pd->write_congestion_off = write_congestion_off;
 
-	disk = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	disk = blk_alloc_disk(&lim, NUMA_NO_NODE);
 	if (IS_ERR(disk)) {
 		ret = PTR_ERR(disk);
 		goto out_mem;
