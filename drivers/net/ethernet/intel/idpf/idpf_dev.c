@@ -3,6 +3,7 @@
 
 #include "idpf.h"
 #include "idpf_lan_pf_regs.h"
+#include "idpf_virtchnl.h"
 
 #define IDPF_PF_ITR_IDX_SPACING		0x4
 
