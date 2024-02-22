@@ -62,17 +62,19 @@ void cmdq_mbox_destroy(struct cmdq_client *client);
 /**
  * cmdq_pkt_create() - create a CMDQ packet
  * @client:	the CMDQ mailbox client
+ * @pkt:	the CMDQ packet
  * @size:	required CMDQ buffer size
  *
- * Return: CMDQ packet pointer
+ * Return: 0 for success; else the error code is returned
  */
-struct cmdq_pkt *cmdq_pkt_create(struct cmdq_client *client, size_t size);
+int cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *pkt, size_t size);
 
 /**
  * cmdq_pkt_destroy() - destroy the CMDQ packet
+ * @client:	the CMDQ mailbox client
  * @pkt:	the CMDQ packet
  */
-void cmdq_pkt_destroy(struct cmdq_pkt *pkt);
+void cmdq_pkt_destroy(struct cmdq_client *client, struct cmdq_pkt *pkt);
 
 /**
  * cmdq_pkt_write() - append write command to the CMDQ packet
@@ -318,12 +320,12 @@ static inline struct cmdq_client *cmdq_mbox_create(struct device *dev, int index
 
 static inline void cmdq_mbox_destroy(struct cmdq_client *client) { }
 
-static inline  struct cmdq_pkt *cmdq_pkt_create(struct cmdq_client *client, size_t size)
+static inline int cmdq_pkt_create(struct cmdq_client *client, struct cmdq_pkt *pkt, size_t size)
 {
-	return ERR_PTR(-EINVAL);
+	return -EINVAL;
 }
 
-static inline void cmdq_pkt_destroy(struct cmdq_pkt *pkt) { }
+static inline void cmdq_pkt_destroy(struct cmdq_client *client, struct cmdq_pkt *pkt) { }
 
 static inline int cmdq_pkt_write(struct cmdq_pkt *pkt, u8 subsys, u16 offset, u32 value)
 {
