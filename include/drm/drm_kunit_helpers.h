@@ -9,6 +9,8 @@
 
 #include <kunit/test.h>
 
+struct drm_crtc_funcs;
+struct drm_crtc_helper_funcs;
 struct drm_device;
 struct drm_plane_funcs;
 struct drm_plane_helper_funcs;
@@ -109,5 +111,13 @@ drm_kunit_helper_create_primary_plane(struct kunit *test,
 				      const uint32_t *formats,
 				      unsigned int num_formats,
 				      const uint64_t *modifiers);
+
+struct drm_crtc *
+drm_kunit_helper_create_crtc(struct kunit *test,
+			     struct drm_device *drm,
+			     struct drm_plane *primary,
+			     struct drm_plane *cursor,
+			     const struct drm_crtc_funcs *funcs,
+			     const struct drm_crtc_helper_funcs *helper_funcs);
 
 #endif // DRM_KUNIT_HELPERS_H_
