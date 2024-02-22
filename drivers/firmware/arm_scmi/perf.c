@@ -153,6 +153,7 @@ struct perf_dom_info {
 	bool perf_fastchannels;
 	bool level_indexing_mode;
 	u32 opp_count;
+	u32 rate_limit_us;
 	u32 sustained_freq_khz;
 	u32 sustained_perf_level;
 	unsigned long mult_factor;
@@ -266,6 +267,8 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		if (PROTOCOL_REV_MAJOR(version) >= 0x4)
 			dom_info->level_indexing_mode =
 				SUPPORTS_LEVEL_INDEXING(flags);
+		dom_info->rate_limit_us = le32_to_cpu(attr->rate_limit_us) &
+						GENMASK(19, 0);
 		dom_info->sustained_freq_khz =
 					le32_to_cpu(attr->sustained_freq_khz);
 		dom_info->sustained_perf_level =
@@ -842,6 +845,23 @@ scmi_dvfs_transition_latency_get(const struct scmi_protocol_handle *ph,
 	return dom->opp[dom->opp_count - 1].trans_latency_us * 1000;
 }
 
+static int
+scmi_dvfs_rate_limit_get(const struct scmi_protocol_handle *ph,
+			 u32 domain, u32 *rate_limit)
+{
+	struct perf_dom_info *dom;
+
+	if (!rate_limit)
+		return -EINVAL;
+
+	dom = scmi_perf_domain_lookup(ph, domain);
+	if (IS_ERR(dom))
+		return PTR_ERR(dom);
+
+	*rate_limit = dom->rate_limit_us;
+	return 0;
+}
+
 static int scmi_dvfs_freq_set(const struct scmi_protocol_handle *ph, u32 domain,
 			      unsigned long freq, bool poll)
 {
@@ -957,6 +977,7 @@ static const struct scmi_perf_proto_ops perf_proto_ops = {
 	.level_set = scmi_perf_level_set,
 	.level_get = scmi_perf_level_get,
 	.transition_latency_get = scmi_dvfs_transition_latency_get,
+	.rate_limit_get = scmi_dvfs_rate_limit_get,
 	.device_opps_add = scmi_dvfs_device_opps_add,
 	.freq_set = scmi_dvfs_freq_set,
 	.freq_get = scmi_dvfs_freq_get,
