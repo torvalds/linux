@@ -392,18 +392,6 @@ xfs_btree_read_bufl(
 	const struct xfs_buf_ops *ops);
 
 /*
- * Read-ahead the block, don't wait for it, don't return a buffer.
- * Short-form addressing.
- */
-void					/* error */
-xfs_btree_reada_bufs(
-	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno,	/* allocation group block number */
-	xfs_extlen_t		count,	/* count of filesystem blocks */
-	const struct xfs_buf_ops *ops);
-
-/*
  * Initialise a new btree block header
  */
 void xfs_btree_init_buf(struct xfs_mount *mp, struct xfs_buf *bp,
