@@ -2338,9 +2338,9 @@ static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 	pkt_queue_bio(pd, cloned_bio);
 }
 
-static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
+static void pkt_make_request_write(struct bio *bio)
 {
-	struct pktcdvd_device *pd = q->queuedata;
+	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->private_data;
 	sector_t zone;
 	struct packet_data *pkt;
 	int was_empty, blocked_bio;
@@ -2432,7 +2432,7 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 
 static void pkt_submit_bio(struct bio *bio)
 {
-	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->queue->queuedata;
+	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->private_data;
 	struct device *ddev = disk_to_dev(pd->disk);
 	struct bio *split;
 
@@ -2476,7 +2476,7 @@ static void pkt_submit_bio(struct bio *bio)
 			split = bio;
 		}
 
-		pkt_make_request_write(bio->bi_bdev->bd_disk->queue, split);
+		pkt_make_request_write(split);
 	} while (split != bio);
 
 	return;
@@ -2490,7 +2490,6 @@ static void pkt_init_queue(struct pktcdvd_device *pd)
 
 	blk_queue_logical_block_size(q, CD_FRAMESIZE);
 	blk_queue_max_hw_sectors(q, PACKET_MAX_SECTORS);
-	q->queuedata = pd;
 }
 
 static int pkt_new_dev(struct pktcdvd_device *pd, dev_t dev)
