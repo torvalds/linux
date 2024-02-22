@@ -114,13 +114,17 @@ static inline enum xbtree_key_contig xbtree_key_contig(uint64_t x, uint64_t y)
 	return XBTREE_KEY_OVERLAP;
 }
 
+#define XFS_BTREE_LONG_PTR_LEN		(sizeof(__be64))
+#define XFS_BTREE_SHORT_PTR_LEN		(sizeof(__be32))
+
 struct xfs_btree_ops {
 	/* XFS_BTGEO_* flags that determine the geometry of the btree */
 	unsigned int		geom_flags;
 
-	/* size of the key and record structures */
-	size_t	key_len;
-	size_t	rec_len;
+	/* size of the key, pointer, and record structures */
+	size_t			key_len;
+	size_t			ptr_len;
+	size_t			rec_len;
 
 	/* LRU refcount to set on each btree buffer created */
 	unsigned int		lru_refs;
@@ -212,10 +216,9 @@ struct xfs_btree_ops {
 };
 
 /* btree geometry flags */
-#define XFS_BTGEO_LONG_PTRS		(1U << 0) /* pointers are 64bits long */
-#define XFS_BTGEO_ROOT_IN_INODE		(1U << 1) /* root may be variable size */
-#define XFS_BTGEO_LASTREC_UPDATE	(1U << 2) /* track last rec externally */
-#define XFS_BTGEO_OVERLAPPING		(1U << 3) /* overlapping intervals */
+#define XFS_BTGEO_ROOT_IN_INODE		(1U << 0) /* root may be variable size */
+#define XFS_BTGEO_LASTREC_UPDATE	(1U << 1) /* track last rec externally */
+#define XFS_BTGEO_OVERLAPPING		(1U << 2) /* overlapping intervals */
 
 /*
  * Reasons for the update_lastrec method to be called.
@@ -289,8 +292,8 @@ struct xfs_btree_cur
 	/*
 	 * Short btree pointers need an agno to be able to turn the pointers
 	 * into physical addresses for IO, so the btree cursor switches between
-	 * bc_ino and bc_ag based on whether XFS_BTGEO_LONG_PTRS is set for the
-	 * cursor.
+	 * bc_ino and bc_ag based on whether XFS_BTGEO_ROOT_IN_INODE is set for
+	 * the cursor.
 	 */
 	union {
 		struct xfs_btree_cur_ag	bc_ag;
@@ -689,7 +692,7 @@ xfs_btree_islastblock(
 
 	block = xfs_btree_get_block(cur, level, &bp);
 
-	if (cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS)
+	if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
 		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);
 	return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
 }
@@ -724,6 +727,9 @@ xfs_btree_alloc_cursor(
 	struct kmem_cache	*cache)
 {
 	struct xfs_btree_cur	*cur;
+
+	ASSERT(ops->ptr_len == XFS_BTREE_LONG_PTR_LEN ||
+	       ops->ptr_len == XFS_BTREE_SHORT_PTR_LEN);
 
 	/* BMBT allocations can come through from non-transactional context. */
 	cur = kmem_cache_zalloc(cache,

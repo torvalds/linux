@@ -2520,7 +2520,7 @@ TRACE_EVENT(xfs_btree_alloc_block,
 		__entry->btnum = cur->bc_btnum;
 		__entry->error = error;
 		if (!error && stat) {
-			if (cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS) {
+			if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN) {
 				xfs_fsblock_t	fsb = be64_to_cpu(ptr->l);
 
 				__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp,
@@ -4262,7 +4262,7 @@ TRACE_EVENT(xfs_btree_bload_block,
 		__entry->level = level;
 		__entry->block_idx = block_idx;
 		__entry->nr_blocks = nr_blocks;
-		if (cur->bc_ops->geom_flags & XFS_BTGEO_LONG_PTRS) {
+		if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN) {
 			xfs_fsblock_t	fsb = be64_to_cpu(ptr->l);
 
 			__entry->agno = XFS_FSB_TO_AGNO(cur->bc_mp, fsb);
