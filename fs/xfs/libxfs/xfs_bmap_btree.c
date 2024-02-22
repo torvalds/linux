@@ -544,27 +544,10 @@ const struct xfs_btree_ops xfs_bmbt_ops = {
 	.keys_contiguous	= xfs_bmbt_keys_contiguous,
 };
 
-static struct xfs_btree_cur *
-xfs_bmbt_init_common(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	int			whichfork)
-{
-	struct xfs_btree_cur	*cur;
-
-	ASSERT(whichfork != XFS_COW_FORK);
-
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_BMAP, &xfs_bmbt_ops,
-			mp->m_bm_maxlevels[whichfork], xfs_bmbt_cur_cache);
-
-	cur->bc_ino.ip = ip;
-	cur->bc_bmap.allocated = 0;
-	return cur;
-}
-
 /*
- * Allocate a new bmap btree cursor.
+ * Create a new bmap btree cursor.
+ *
+ * For staging cursors -1 in passed in whichfork.
  */
 struct xfs_btree_cur *
 xfs_bmbt_init_cursor(
@@ -573,15 +556,34 @@ xfs_bmbt_init_cursor(
 	struct xfs_inode	*ip,
 	int			whichfork)
 {
-	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	struct xfs_btree_cur	*cur;
+	unsigned int		maxlevels;
 
-	cur = xfs_bmbt_init_common(mp, tp, ip, whichfork);
+	ASSERT(whichfork != XFS_COW_FORK);
 
-	cur->bc_nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
-	cur->bc_ino.forksize = xfs_inode_fork_size(ip, whichfork);
+	/*
+	 * The Data fork always has larger maxlevel, so use that for staging
+	 * cursors.
+	 */
+	switch (whichfork) {
+	case XFS_STAGING_FORK:
+		maxlevels = mp->m_bm_maxlevels[XFS_DATA_FORK];
+		break;
+	default:
+		maxlevels = mp->m_bm_maxlevels[whichfork];
+		break;
+	}
+	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_BMAP, &xfs_bmbt_ops,
+			maxlevels, xfs_bmbt_cur_cache);
+	cur->bc_ino.ip = ip;
 	cur->bc_ino.whichfork = whichfork;
+	cur->bc_bmap.allocated = 0;
+	if (whichfork != XFS_STAGING_FORK) {
+		struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 
+		cur->bc_nlevels = be16_to_cpu(ifp->if_broot->bb_level) + 1;
+		cur->bc_ino.forksize = xfs_inode_fork_size(ip, whichfork);
+	}
 	return cur;
 }
 
@@ -610,11 +612,7 @@ xfs_bmbt_stage_cursor(
 {
 	struct xfs_btree_cur	*cur;
 
-	/* data fork always has larger maxheight */
-	cur = xfs_bmbt_init_common(mp, NULL, ip, XFS_DATA_FORK);
-
-	/* Don't let anyone think we're attached to the real fork yet. */
-	cur->bc_ino.whichfork = XFS_STAGING_FORK;
+	cur = xfs_bmbt_init_cursor(mp, NULL, ip, XFS_STAGING_FORK);
 	xfs_btree_stage_ifakeroot(cur, ifake);
 	return cur;
 }
