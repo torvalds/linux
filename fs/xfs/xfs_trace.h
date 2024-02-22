@@ -81,6 +81,7 @@ struct xfs_icwalk;
 struct xfs_perag;
 struct xfbtree;
 struct xfs_btree_ops;
+struct xfs_bmap_intent;
 
 #define XFS_ATTR_FILTER_FLAGS \
 	{ XFS_ATTR_ROOT,	"ROOT" }, \
@@ -2946,16 +2947,12 @@ DEFINE_RMAPBT_EVENT(xfs_rmap_find_right_neighbor_result);
 DEFINE_RMAPBT_EVENT(xfs_rmap_find_left_neighbor_result);
 
 /* deferred bmbt updates */
+TRACE_DEFINE_ENUM(XFS_BMAP_MAP);
+TRACE_DEFINE_ENUM(XFS_BMAP_UNMAP);
+
 DECLARE_EVENT_CLASS(xfs_bmap_deferred_class,
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
-		 int op,
-		 xfs_agblock_t agbno,
-		 xfs_ino_t ino,
-		 int whichfork,
-		 xfs_fileoff_t offset,
-		 xfs_filblks_t len,
-		 xfs_exntst_t state),
-	TP_ARGS(mp, agno, op, agbno, ino, whichfork, offset, len, state),
+	TP_PROTO(struct xfs_bmap_intent *bi),
+	TP_ARGS(bi),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
 		__field(xfs_agnumber_t, agno)
@@ -2968,22 +2965,26 @@ DECLARE_EVENT_CLASS(xfs_bmap_deferred_class,
 		__field(int, op)
 	),
 	TP_fast_assign(
-		__entry->dev = mp->m_super->s_dev;
-		__entry->agno = agno;
-		__entry->ino = ino;
-		__entry->agbno = agbno;
-		__entry->whichfork = whichfork;
-		__entry->l_loff = offset;
-		__entry->l_len = len;
-		__entry->l_state = state;
-		__entry->op = op;
+		struct xfs_inode	*ip = bi->bi_owner;
+
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_FSB_TO_AGNO(ip->i_mount,
+					bi->bi_bmap.br_startblock);
+		__entry->ino = ip->i_ino;
+		__entry->agbno = XFS_FSB_TO_AGBNO(ip->i_mount,
+					bi->bi_bmap.br_startblock);
+		__entry->whichfork = bi->bi_whichfork;
+		__entry->l_loff = bi->bi_bmap.br_startoff;
+		__entry->l_len = bi->bi_bmap.br_blockcount;
+		__entry->l_state = bi->bi_bmap.br_state;
+		__entry->op = bi->bi_type;
 	),
-	TP_printk("dev %d:%d op %d agno 0x%x agbno 0x%x owner 0x%llx %s fileoff 0x%llx fsbcount 0x%llx state %d",
+	TP_printk("dev %d:%d op %s ino 0x%llx agno 0x%x agbno 0x%x %s fileoff 0x%llx fsbcount 0x%llx state %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
-		  __entry->op,
+		  __print_symbolic(__entry->op, XFS_BMAP_INTENT_STRINGS),
+		  __entry->ino,
 		  __entry->agno,
 		  __entry->agbno,
-		  __entry->ino,
 		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
 		  __entry->l_loff,
 		  __entry->l_len,
@@ -2991,15 +2992,8 @@ DECLARE_EVENT_CLASS(xfs_bmap_deferred_class,
 );
 #define DEFINE_BMAP_DEFERRED_EVENT(name) \
 DEFINE_EVENT(xfs_bmap_deferred_class, name, \
-	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
-		 int op, \
-		 xfs_agblock_t agbno, \
-		 xfs_ino_t ino, \
-		 int whichfork, \
-		 xfs_fileoff_t offset, \
-		 xfs_filblks_t len, \
-		 xfs_exntst_t state), \
-	TP_ARGS(mp, agno, op, agbno, ino, whichfork, offset, len, state))
+	TP_PROTO(struct xfs_bmap_intent *bi), \
+	TP_ARGS(bi))
 DEFINE_BMAP_DEFERRED_EVENT(xfs_bmap_defer);
 DEFINE_BMAP_DEFERRED_EVENT(xfs_bmap_deferred);
 

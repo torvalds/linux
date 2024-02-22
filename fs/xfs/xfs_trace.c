@@ -38,6 +38,7 @@
 #include "xfs_iomap.h"
 #include "xfs_buf_mem.h"
 #include "xfs_btree_mem.h"
+#include "xfs_bmap.h"
 
 /*
  * We include this last to have the helpers above available for the trace
