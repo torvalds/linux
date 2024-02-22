@@ -393,7 +393,7 @@ int cmdq_pkt_assign(struct cmdq_pkt *pkt, u16 reg_idx, u32 value)
 }
 EXPORT_SYMBOL(cmdq_pkt_assign);
 
-int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_pa)
+int cmdq_pkt_jump_abs(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_pa)
 {
 	struct cmdq_instruction inst = {};
 
@@ -402,7 +402,7 @@ int cmdq_pkt_jump(struct cmdq_pkt *pkt, dma_addr_t addr, u8 shift_pa)
 	inst.value = addr >> shift_pa;
 	return cmdq_pkt_append_command(pkt, inst);
 }
-EXPORT_SYMBOL(cmdq_pkt_jump);
+EXPORT_SYMBOL(cmdq_pkt_jump_abs);
 
 int cmdq_pkt_finalize(struct cmdq_pkt *pkt)
 {
