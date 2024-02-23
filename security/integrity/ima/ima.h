@@ -175,12 +175,10 @@ struct ima_kexec_hdr {
 /* IMA integrity metadata associated with an inode */
 struct ima_iint_cache {
 	struct mutex mutex;	/* protects: version, flags, digest */
-	u64 version;		/* track inode changes */
+	struct integrity_inode_attributes real_inode;
 	unsigned long flags;
 	unsigned long measured_pcrs;
 	unsigned long atomic_flags;
-	unsigned long real_ino;
-	dev_t real_dev;
 	enum integrity_status ima_file_status:4;
 	enum integrity_status ima_mmap_status:4;
 	enum integrity_status ima_bprm_status:4;

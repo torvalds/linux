@@ -173,7 +173,7 @@ static void ima_check_last_writer(struct ima_iint_cache *iint,
 				      STATX_CHANGE_COOKIE,
 				      AT_STATX_SYNC_AS_STAT) ||
 		    !(stat.result_mask & STATX_CHANGE_COOKIE) ||
-		    stat.change_cookie != iint->version) {
+		    stat.change_cookie != iint->real_inode.version) {
 			iint->flags &= ~(IMA_DONE_MASK | IMA_NEW_FILE);
 			iint->measured_pcrs = 0;
 			if (update)
@@ -292,9 +292,8 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	if (real_inode != inode &&
 	    (action & IMA_DO_MASK) && (iint->flags & IMA_DONE_MASK)) {
 		if (!IS_I_VERSION(real_inode) ||
-		    real_inode->i_sb->s_dev != iint->real_dev ||
-		    real_inode->i_ino != iint->real_ino ||
-		    !inode_eq_iversion(real_inode, iint->version)) {
+		    integrity_inode_attrs_changed(&iint->real_inode,
+						  real_inode)) {
 			iint->flags &= ~IMA_DONE_MASK;
 			iint->measured_pcrs = 0;
 		}
