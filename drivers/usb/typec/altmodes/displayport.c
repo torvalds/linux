@@ -164,7 +164,8 @@ static int dp_altmode_status_update(struct dp_altmode *dp)
 	} else if (!(con & DP_CONF_CURRENTLY(dp->data.conf))) {
 		ret = dp_altmode_configure(dp, con);
 		if (!ret) {
-			dp->state = DP_STATE_CONFIGURE;
+			dp->state = dp->plug_prime ? DP_STATE_CONFIGURE_PRIME :
+						     DP_STATE_CONFIGURE;
 			if (dp->hpd != hpd) {
 				dp->hpd = hpd;
 				dp->pending_hpd = true;
