@@ -109,7 +109,7 @@ static int kempld_register_cells_generic(struct kempld_device_data *pld)
 	if (pld->feature_mask & KEMPLD_FEATURE_MASK_UART)
 		devs[i++].name = kempld_dev_names[KEMPLD_UART];
 
-	return mfd_add_devices(pld->dev, -1, devs, i, NULL, 0, NULL);
+	return mfd_add_devices(pld->dev, PLATFORM_DEVID_NONE, devs, i, NULL, 0, NULL);
 }
 
 static struct resource kempld_ioresource = {
