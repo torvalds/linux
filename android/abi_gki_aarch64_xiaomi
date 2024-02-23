@@ -356,3 +356,6 @@
   sdio_writew
   sdio_readw
 
+#required by speed_ui.ko
+  __tracepoint_android_rvh_update_cpus_allowed
+  __traceiter_android_rvh_update_cpus_allowed
