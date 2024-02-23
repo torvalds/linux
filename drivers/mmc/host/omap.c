@@ -1384,13 +1384,6 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	if (IS_ERR(host->virt_base))
 		return PTR_ERR(host->virt_base);
 
-	host->slot_switch = gpiod_get_optional(host->dev, "switch",
-					       GPIOD_OUT_LOW);
-	if (IS_ERR(host->slot_switch))
-		return dev_err_probe(host->dev, PTR_ERR(host->slot_switch),
-				     "error looking up slot switch GPIO\n");
-
-
 	INIT_WORK(&host->slot_release_work, mmc_omap_slot_release_work);
 	INIT_WORK(&host->send_stop_work, mmc_omap_send_stop_work);
 
@@ -1408,6 +1401,12 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	host->features = host->pdata->slots[0].features;
 	host->dev = &pdev->dev;
 	platform_set_drvdata(pdev, host);
+
+	host->slot_switch = gpiod_get_optional(host->dev, "switch",
+					       GPIOD_OUT_LOW);
+	if (IS_ERR(host->slot_switch))
+		return dev_err_probe(host->dev, PTR_ERR(host->slot_switch),
+				     "error looking up slot switch GPIO\n");
 
 	host->id = pdev->id;
 	host->irq = irq;
