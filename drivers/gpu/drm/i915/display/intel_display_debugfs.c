@@ -197,8 +197,8 @@ static void intel_hdcp_info(struct seq_file *m,
 		goto out;
 	}
 
-	hdcp_cap = intel_hdcp_capable(intel_connector);
-	hdcp2_cap = intel_hdcp2_capable(intel_connector);
+	hdcp_cap = intel_hdcp_get_capability(intel_connector);
+	hdcp2_cap = intel_hdcp2_get_capability(intel_connector);
 
 	if (hdcp_cap)
 		seq_puts(m, "HDCP1.4 ");
