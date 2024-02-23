@@ -67,7 +67,7 @@
 		"", X86_FEATURE_V_SPEC_CTRL
 901:
 .endm
-.macro RESTORE_HOST_SPEC_CTRL_BODY
+.macro RESTORE_HOST_SPEC_CTRL_BODY spec_ctrl_intercepted:req
 900:
 	/* Same for after vmexit.  */
 	mov $MSR_IA32_SPEC_CTRL, %ecx
@@ -76,7 +76,7 @@
 	 * Load the value that the guest had written into MSR_IA32_SPEC_CTRL,
 	 * if it was not intercepted during guest execution.
 	 */
-	cmpb $0, (%_ASM_SP)
+	cmpb $0, \spec_ctrl_intercepted
 	jnz 998f
 	rdmsr
 	movl %eax, SVM_spec_ctrl(%_ASM_DI)
@@ -269,7 +269,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	RET
 
 	RESTORE_GUEST_SPEC_CTRL_BODY
-	RESTORE_HOST_SPEC_CTRL_BODY
+	RESTORE_HOST_SPEC_CTRL_BODY (%_ASM_SP)
 
 10:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 2b
@@ -298,6 +298,8 @@ SYM_FUNC_END(__svm_vcpu_run)
 #define SEV_ES_GPRS_BASE 0x300
 #define SEV_ES_RBX	(SEV_ES_GPRS_BASE + __VCPU_REGS_RBX * WORD_SIZE)
 #define SEV_ES_RBP	(SEV_ES_GPRS_BASE + __VCPU_REGS_RBP * WORD_SIZE)
+#define SEV_ES_RSI	(SEV_ES_GPRS_BASE + __VCPU_REGS_RSI * WORD_SIZE)
+#define SEV_ES_RDI	(SEV_ES_GPRS_BASE + __VCPU_REGS_RDI * WORD_SIZE)
 #define SEV_ES_R12	(SEV_ES_GPRS_BASE + __VCPU_REGS_R12 * WORD_SIZE)
 #define SEV_ES_R13	(SEV_ES_GPRS_BASE + __VCPU_REGS_R13 * WORD_SIZE)
 #define SEV_ES_R14	(SEV_ES_GPRS_BASE + __VCPU_REGS_R14 * WORD_SIZE)
@@ -322,11 +324,12 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	mov %r12, SEV_ES_R12 (%rdx)
 	mov %rbx, SEV_ES_RBX (%rdx)
 
-	/* Accessed directly from the stack in RESTORE_HOST_SPEC_CTRL.  */
-	push %rsi
-
-	/* Save @svm. */
-	push %rdi
+	/*
+	 * Save volatile registers that hold arguments that are needed after
+	 * #VMEXIT (RDI=@svm and RSI=@spec_ctrl_intercepted).
+	 */
+	mov %rdi, SEV_ES_RDI (%rdx)
+	mov %rsi, SEV_ES_RSI (%rdx)
 
 	/* Clobbers RAX, RCX, RDX (@hostsa). */
 	RESTORE_GUEST_SPEC_CTRL
@@ -342,15 +345,12 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 
 2:	cli
 
-	/* Pop @svm to RDI, guest registers have been saved already. */
-	pop %rdi
-
 #ifdef CONFIG_MITIGATION_RETPOLINE
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %rax, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
 
-	/* Clobbers RAX, RCX, RDX, consumes RDI (@svm). */
+	/* Clobbers RAX, RCX, RDX, consumes RDI (@svm) and RSI (@spec_ctrl_intercepted). */
 	RESTORE_HOST_SPEC_CTRL
 
 	/*
@@ -362,13 +362,10 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	 */
 	UNTRAIN_RET_VM
 
-	/* "Pop" and discard @spec_ctrl_intercepted. */
-	pop %rax
-
 	RET
 
 	RESTORE_GUEST_SPEC_CTRL_BODY
-	RESTORE_HOST_SPEC_CTRL_BODY
+	RESTORE_HOST_SPEC_CTRL_BODY %sil
 
 3:	cmpb $0, kvm_rebooting(%rip)
 	jne 2b
