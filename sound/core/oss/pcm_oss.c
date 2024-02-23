@@ -377,7 +377,7 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 				 snd_pcm_hw_param_t var, unsigned int best,
 				 int *dir)
 {
-	struct snd_pcm_hw_params *save = NULL;
+	struct snd_pcm_hw_params *save __free(kfree) = NULL;
 	int v;
 	unsigned int saved_min;
 	int last = 0;
@@ -404,38 +404,30 @@ static int snd_pcm_hw_param_near(struct snd_pcm_substream *pcm,
 	saved_min = min;
 	min = snd_pcm_hw_param_min(pcm, params, var, min, &mindir);
 	if (min >= 0) {
-		struct snd_pcm_hw_params *params1;
+		struct snd_pcm_hw_params *params1 __free(kfree) = NULL;
 		if (max < 0)
 			goto _end;
 		if ((unsigned int)min == saved_min && mindir == valdir)
 			goto _end;
 		params1 = kmalloc(sizeof(*params1), GFP_KERNEL);
-		if (params1 == NULL) {
-			kfree(save);
+		if (params1 == NULL)
 			return -ENOMEM;
-		}
 		*params1 = *save;
 		max = snd_pcm_hw_param_max(pcm, params1, var, max, &maxdir);
-		if (max < 0) {
-			kfree(params1);
+		if (max < 0)
 			goto _end;
-		}
 		if (boundary_nearer(max, maxdir, best, valdir, min, mindir)) {
 			*params = *params1;
 			last = 1;
 		}
-		kfree(params1);
 	} else {
 		*params = *save;
 		max = snd_pcm_hw_param_max(pcm, params, var, max, &maxdir);
-		if (max < 0) {
-			kfree(save);
+		if (max < 0)
 			return max;
-		}
 		last = 1;
 	}
  _end:
- 	kfree(save);
 	if (last)
 		v = snd_pcm_hw_param_last(pcm, params, var, dir);
 	else
@@ -789,7 +781,7 @@ static int choose_rate(struct snd_pcm_substream *substream,
 		       struct snd_pcm_hw_params *params, unsigned int best_rate)
 {
 	const struct snd_interval *it;
-	struct snd_pcm_hw_params *save;
+	struct snd_pcm_hw_params *save __free(kfree) = NULL;
 	unsigned int rate, prev;
 
 	save = kmalloc(sizeof(*save), GFP_KERNEL);
@@ -808,10 +800,8 @@ static int choose_rate(struct snd_pcm_substream *substream,
 			ret = snd_pcm_hw_param_set(substream, params,
 						   SNDRV_PCM_HW_PARAM_RATE,
 						   rate, 0);
-			if (ret == (int)rate) {
-				kfree(save);
+			if (ret == (int)rate)
 				return rate;
-			}
 			*params = *save;
 		}
 		prev = rate;
@@ -821,7 +811,6 @@ static int choose_rate(struct snd_pcm_substream *substream,
 	}
 
 	/* not found, use the nearest rate */
-	kfree(save);
 	return snd_pcm_hw_param_near(substream, params, SNDRV_PCM_HW_PARAM_RATE, best_rate, NULL);
 }
 
@@ -1847,7 +1836,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 	struct snd_pcm_substream *substream;
 	int err;
 	int direct;
-	struct snd_pcm_hw_params *params;
+	struct snd_pcm_hw_params *params __free(kfree) = NULL;
 	unsigned int formats = 0;
 	const struct snd_mask *format_mask;
 	int fmt;
@@ -1873,7 +1862,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 	_snd_pcm_hw_params_any(params);
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
-		goto error;
+		return err;
 	format_mask = hw_param_mask_c(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	for (fmt = 0; fmt < 32; ++fmt) {
 		if (snd_mask_test(format_mask, fmt)) {
@@ -1883,9 +1872,7 @@ static int snd_pcm_oss_get_formats(struct snd_pcm_oss_file *pcm_oss_file)
 		}
 	}
 
- error:
-	kfree(params);
-	return err < 0 ? err : formats;
+	return formats;
 }
 
 static int snd_pcm_oss_set_format(struct snd_pcm_oss_file *pcm_oss_file, int format)
