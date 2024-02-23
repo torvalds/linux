@@ -192,7 +192,11 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 		     iint->evm_status == INTEGRITY_PASS_IMMUTABLE))
 		return iint->evm_status;
 
-	if (is_unsupported_fs(dentry))
+	/*
+	 * On unsupported filesystems without EVM_INIT_X509 enabled, skip
+	 * signature verification.
+	 */
+	if (!(evm_initialized & EVM_INIT_X509) && is_unsupported_fs(dentry))
 		return INTEGRITY_UNKNOWN;
 
 	/* if status is not PASS, try to check again - against -ENOMEM */
@@ -261,7 +265,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 				evm_status = INTEGRITY_PASS_IMMUTABLE;
 			} else if (!IS_RDONLY(inode) &&
 				   !(inode->i_sb->s_readonly_remount) &&
-				   !IS_IMMUTABLE(inode)) {
+				   !IS_IMMUTABLE(inode) &&
+				   !is_unsupported_fs(dentry)) {
 				evm_update_evmxattr(dentry, xattr_name,
 						    xattr_value,
 						    xattr_value_len);
@@ -417,9 +422,6 @@ enum integrity_status evm_verifyxattr(struct dentry *dentry,
 				      void *xattr_value, size_t xattr_value_len)
 {
 	if (!evm_key_loaded() || !evm_protected_xattr(xattr_name))
-		return INTEGRITY_UNKNOWN;
-
-	if (is_unsupported_fs(dentry))
 		return INTEGRITY_UNKNOWN;
 
 	return evm_verify_hmac(dentry, xattr_name, xattr_value,
