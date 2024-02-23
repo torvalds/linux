@@ -322,7 +322,7 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 		return -EPERM;
 
 	blk_start_plug(&plug);
-	for (;;) {
+	while (nr_sects) {
 		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
 
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
@@ -331,12 +331,11 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 
 		sector += len;
 		nr_sects -= len;
-		if (!nr_sects) {
-			ret = submit_bio_wait(bio);
-			bio_put(bio);
-			break;
-		}
 		cond_resched();
+	}
+	if (bio) {
+		ret = submit_bio_wait(bio);
+		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
 
