@@ -5314,8 +5314,8 @@ next:
 	case ANYCAST_ADDR:
 		fillargs->event = RTM_GETANYCAST;
 		/* anycast address */
-		for (ifaca = idev->ac_list; ifaca;
-		     ifaca = ifaca->aca_next, ip_idx++) {
+		for (ifaca = rcu_dereference(idev->ac_list); ifaca;
+		     ifaca = rcu_dereference(ifaca->aca_next), ip_idx++) {
 			if (ip_idx < s_ip_idx)
 				continue;
 			err = inet6_fill_ifacaddr(skb, ifaca, fillargs);
