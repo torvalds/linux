@@ -32,16 +32,13 @@
 
 #undef __assign_str
 #define __assign_str(dst, src)						\
-	memcpy(__get_str(dst), __data_offsets.dst##_ptr_ ? : EVENT_NULL_STR, \
-	       __get_dynamic_array_len(dst))
-
-#undef __assign_str_len
-#define __assign_str_len(dst, src, len)					\
 	do {								\
-		memcpy(__get_str(dst),					\
-		       __data_offsets.dst##_ptr_ ? : EVENT_NULL_STR, len); \
-		__get_str(dst)[len] = '\0';				\
-	} while(0)
+		char *__str__ = __get_str(dst);				\
+		int __len__ = __get_dynamic_array_len(dst) - 1;		\
+		memcpy(__str__, __data_offsets.dst##_ptr_ ? :		\
+		       EVENT_NULL_STR, __len__);			\
+		__str__[__len__] = '\0';				\
+	} while (0)
 
 #undef __assign_vstr
 #define __assign_vstr(dst, fmt, va)					\
@@ -94,15 +91,12 @@
 
 #undef __assign_rel_str
 #define __assign_rel_str(dst, src)					\
-	memcpy(__get_rel_str(dst), __data_offsets.dst##_ptr_ ? : EVENT_NULL_STR, \
-	       __get_rel_dynamic_array_len(dst))
-
-#undef __assign_rel_str_len
-#define __assign_rel_str_len(dst, src, len)				\
 	do {								\
-		memcpy(__get_rel_str(dst),				\
-		       __data_offsets.dst##_ptr_ ? : EVENT_NULL_STR, len); \
-		__get_rel_str(dst)[len] = '\0';				\
+		char *__str__ = __get_rel_str(dst);			\
+		int __len__ = __get_rel_dynamic_array_len(dst) - 1;	\
+		memcpy(__str__, __data_offsets.dst##_ptr_ ? :		\
+		       EVENT_NULL_STR, __len__);			\
+		__str__[__len__] = '\0';				\
 	} while (0)
 
 #undef __rel_bitmask
