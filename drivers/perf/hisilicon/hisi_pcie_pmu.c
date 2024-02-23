@@ -216,7 +216,7 @@ static void hisi_pcie_pmu_writeq(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 	writeq_relaxed(val, pcie_pmu->base + offset);
 }
 
-static void hisi_pcie_pmu_config_filter(struct perf_event *event)
+static void hisi_pcie_pmu_config_event_ctrl(struct perf_event *event)
 {
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -259,7 +259,7 @@ static void hisi_pcie_pmu_config_filter(struct perf_event *event)
 	hisi_pcie_pmu_writeq(pcie_pmu, HISI_PCIE_EVENT_CTRL, hwc->idx, reg);
 }
 
-static void hisi_pcie_pmu_clear_filter(struct perf_event *event)
+static void hisi_pcie_pmu_clear_event_ctrl(struct perf_event *event)
 {
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -505,7 +505,7 @@ static void hisi_pcie_pmu_start(struct perf_event *event, int flags)
 	WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
 	hwc->state = 0;
 
-	hisi_pcie_pmu_config_filter(event);
+	hisi_pcie_pmu_config_event_ctrl(event);
 	hisi_pcie_pmu_enable_counter(pcie_pmu, hwc);
 	hisi_pcie_pmu_enable_int(pcie_pmu, hwc);
 	hisi_pcie_pmu_set_period(event);
@@ -526,7 +526,7 @@ static void hisi_pcie_pmu_stop(struct perf_event *event, int flags)
 	hisi_pcie_pmu_event_update(event);
 	hisi_pcie_pmu_disable_int(pcie_pmu, hwc);
 	hisi_pcie_pmu_disable_counter(pcie_pmu, hwc);
-	hisi_pcie_pmu_clear_filter(event);
+	hisi_pcie_pmu_clear_event_ctrl(event);
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
 
