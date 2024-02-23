@@ -113,6 +113,13 @@ properties:
       earlier versions of this core that include WP
     type: boolean
 
+  brcm,wp-not-connected:
+    description:
+      Use this property when WP pin is not physically wired to the NAND chip.
+      Write protection feature cannot be used. By default, controller assumes
+      the pin is connected and feature is used.
+    $ref: /schemas/types.yaml#/definitions/flag
+
 patternProperties:
   "^nand@[a-f0-9]$":
     type: object
