@@ -2339,7 +2339,7 @@ static int brcmnand_write_oob_raw(struct nand_chip *chip, int page)
 }
 
 static int brcmnand_exec_instr(struct brcmnand_host *host, int i,
-				const struct nand_operation *op)
+		const struct nand_operation *op)
 {
 	const struct nand_op_instr *instr = &op->instrs[i];
 	struct brcmnand_controller *ctrl = host->ctrl;
@@ -2353,7 +2353,7 @@ static int brcmnand_exec_instr(struct brcmnand_host *host, int i,
 	 * (WAITRDY excepted).
 	 */
 	last_op = ((i == (op->ninstrs - 1)) && (instr->type != NAND_OP_WAITRDY_INSTR)) ||
-		  ((i == (op->ninstrs - 2)) && (op->instrs[i+1].type == NAND_OP_WAITRDY_INSTR));
+		  ((i == (op->ninstrs - 2)) && (op->instrs[i + 1].type == NAND_OP_WAITRDY_INSTR));
 
 	switch (instr->type) {
 	case NAND_OP_CMD_INSTR:
@@ -2398,10 +2398,10 @@ static int brcmnand_exec_instr(struct brcmnand_host *host, int i,
 
 static int brcmnand_op_is_status(const struct nand_operation *op)
 {
-	if ((op->ninstrs == 2) &&
-	    (op->instrs[0].type == NAND_OP_CMD_INSTR) &&
-	    (op->instrs[0].ctx.cmd.opcode == NAND_CMD_STATUS) &&
-	    (op->instrs[1].type == NAND_OP_DATA_IN_INSTR))
+	if (op->ninstrs == 2 &&
+	    op->instrs[0].type == NAND_OP_CMD_INSTR &&
+	    op->instrs[0].ctx.cmd.opcode == NAND_CMD_STATUS &&
+	    op->instrs[1].type == NAND_OP_DATA_IN_INSTR)
 		return 1;
 
 	return 0;
@@ -2409,10 +2409,10 @@ static int brcmnand_op_is_status(const struct nand_operation *op)
 
 static int brcmnand_op_is_reset(const struct nand_operation *op)
 {
-	if ((op->ninstrs == 2) &&
-	    (op->instrs[0].type == NAND_OP_CMD_INSTR) &&
-	    (op->instrs[0].ctx.cmd.opcode == NAND_CMD_RESET) &&
-	    (op->instrs[1].type == NAND_OP_WAITRDY_INSTR))
+	if (op->ninstrs == 2 &&
+	    op->instrs[0].type == NAND_OP_CMD_INSTR &&
+	    op->instrs[0].ctx.cmd.opcode == NAND_CMD_RESET &&
+	    op->instrs[1].type == NAND_OP_WAITRDY_INSTR)
 		return 1;
 
 	return 0;
@@ -2440,8 +2440,7 @@ static int brcmnand_exec_op(struct nand_chip *chip,
 		*status = ret & 0xFF;
 
 		return 0;
-	}
-	else if (brcmnand_op_is_reset(op)) {
+	} else if (brcmnand_op_is_reset(op)) {
 		ret = brcmnand_reset(host);
 		if (ret < 0)
 			return ret;
