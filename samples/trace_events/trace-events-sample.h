@@ -574,7 +574,7 @@ TRACE_EVENT(foo_rel_loc,
 	),
 
 	TP_fast_assign(
-		__assign_rel_str(foo, foo);
+		__assign_rel_str(foo);
 		__entry->bar = bar;
 		__assign_rel_bitmask(bitmask, mask,
 			BITS_PER_BYTE * sizeof(unsigned long));

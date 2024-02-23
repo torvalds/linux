@@ -91,7 +91,7 @@
 #define __rel_string_len(item, src, len) __rel_dynamic_array(char, item, -1)
 
 #undef __assign_rel_str
-#define __assign_rel_str(dst, src)					\
+#define __assign_rel_str(dst)						\
 	do {								\
 		char *__str__ = __get_rel_str(dst);			\
 		int __len__ = __get_rel_dynamic_array_len(dst) - 1;	\
