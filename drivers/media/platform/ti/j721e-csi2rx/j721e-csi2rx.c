@@ -1142,7 +1142,7 @@ err_mutex:
 	return ret;
 }
 
-static int ti_csi2rx_remove(struct platform_device *pdev)
+static void ti_csi2rx_remove(struct platform_device *pdev)
 {
 	struct ti_csi2rx_dev *csi = platform_get_drvdata(pdev);
 
@@ -1154,8 +1154,6 @@ static int ti_csi2rx_remove(struct platform_device *pdev)
 	ti_csi2rx_cleanup_dma(csi);
 
 	mutex_destroy(&csi->mutex);
-
-	return 0;
 }
 
 static const struct of_device_id ti_csi2rx_of_match[] = {
@@ -1166,7 +1164,7 @@ MODULE_DEVICE_TABLE(of, ti_csi2rx_of_match);
 
 static struct platform_driver ti_csi2rx_pdrv = {
 	.probe = ti_csi2rx_probe,
-	.remove = ti_csi2rx_remove,
+	.remove_new = ti_csi2rx_remove,
 	.driver = {
 		.name = TI_CSI2RX_MODULE_NAME,
 		.of_match_table = ti_csi2rx_of_match,
