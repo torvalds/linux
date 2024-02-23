@@ -1491,7 +1491,10 @@ register_snapshot_trigger(char *glob,
 	if (ret < 0)
 		return ret;
 
-	return register_trigger(glob, data, file);
+	ret = register_trigger(glob, data, file);
+	if (ret < 0)
+		tracing_disarm_snapshot(file->tr);
+	return ret;
 }
 
 static void unregister_snapshot_trigger(char *glob,
