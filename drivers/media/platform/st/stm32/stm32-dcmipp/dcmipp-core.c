@@ -517,7 +517,7 @@ static int dcmipp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dcmipp_remove(struct platform_device *pdev)
+static void dcmipp_remove(struct platform_device *pdev)
 {
 	struct dcmipp_device *dcmipp = platform_get_drvdata(pdev);
 	unsigned int i;
@@ -534,8 +534,6 @@ static int dcmipp_remove(struct platform_device *pdev)
 	media_device_cleanup(&dcmipp->mdev);
 
 	v4l2_device_unregister(&dcmipp->v4l2_dev);
-
-	return 0;
 }
 
 static int dcmipp_runtime_suspend(struct device *dev)
@@ -588,7 +586,7 @@ static const struct dev_pm_ops dcmipp_pm_ops = {
 
 static struct platform_driver dcmipp_pdrv = {
 	.probe		= dcmipp_probe,
-	.remove		= dcmipp_remove,
+	.remove_new	= dcmipp_remove,
 	.driver		= {
 		.name	= DCMIPP_PDEV_NAME,
 		.of_match_table = dcmipp_of_match,
