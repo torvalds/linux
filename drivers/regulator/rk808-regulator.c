@@ -1023,8 +1023,8 @@ static const struct linear_range rk806_buck_voltage_ranges[] = {
 };
 
 static const struct linear_range rk806_ldo_voltage_ranges[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0, 232, 12500), /* 500mV ~ 3400mV */
-	REGULATOR_LINEAR_RANGE(3400000, 233, 255, 0), /* 500mV ~ 3400mV */
+	REGULATOR_LINEAR_RANGE(500000, 0, 231, 12500), /* 500mV ~ 3400mV */
+	REGULATOR_LINEAR_RANGE(3400000, 232, 255, 0),
 };
 
 static const struct regulator_desc rk806_reg[] = {
