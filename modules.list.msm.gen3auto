@@ -76,3 +76,4 @@ stmmac.ko
 stmmac-platform.ko
 dwmac-qcom-eth.ko
 crypto-qti-common.ko
+sdhci-msm-scaling.ko
