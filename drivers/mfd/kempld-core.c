@@ -9,11 +9,12 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/kempld.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/acpi.h>
 
 #define MAX_ID_LEN 4
 static char force_device_id[MAX_ID_LEN + 1] = "";
@@ -425,26 +426,6 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 	return ret;
 }
 
-#ifdef CONFIG_ACPI
-static int kempld_get_acpi_data(struct platform_device *pdev)
-{
-	struct device *dev = &pdev->dev;
-	const struct kempld_platform_data *pdata;
-	int ret;
-
-	pdata = acpi_device_get_match_data(dev);
-	ret = platform_device_add_data(pdev, pdata,
-				       sizeof(struct kempld_platform_data));
-
-	return ret;
-}
-#else
-static int kempld_get_acpi_data(struct platform_device *pdev)
-{
-	return -ENODEV;
-}
-#endif /* CONFIG_ACPI */
-
 static int kempld_probe(struct platform_device *pdev)
 {
 	const struct kempld_platform_data *pdata;
@@ -458,10 +439,16 @@ static int kempld_probe(struct platform_device *pdev)
 		 * No kempld_pdev device has been registered in kempld_init,
 		 * so we seem to be probing an ACPI platform device.
 		 */
-		ret = kempld_get_acpi_data(pdev);
+		pdata = device_get_match_data(dev);
+		if (!pdata)
+			return -ENODEV;
+
+		ret = platform_device_add_data(pdev, pdata, sizeof(*pdata));
 		if (ret)
 			return ret;
-	} else if (kempld_pdev != pdev) {
+	} else if (kempld_pdev == pdev) {
+		pdata = dev_get_platdata(dev);
+	} else {
 		/*
 		 * The platform device we are probing is not the one we
 		 * registered in kempld_init using the DMI table, so this one
@@ -472,7 +459,6 @@ static int kempld_probe(struct platform_device *pdev)
 		dev_notice(dev, "platform device exists - not using ACPI\n");
 		return -ENODEV;
 	}
-	pdata = dev_get_platdata(dev);
 
 	pld = devm_kzalloc(dev, sizeof(*pld), GFP_KERNEL);
 	if (!pld)
@@ -509,19 +495,17 @@ static void kempld_remove(struct platform_device *pdev)
 	pdata->release_hardware_mutex(pld);
 }
 
-#ifdef CONFIG_ACPI
 static const struct acpi_device_id kempld_acpi_table[] = {
 	{ "KEM0000", (kernel_ulong_t)&kempld_platform_data_generic },
 	{ "KEM0001", (kernel_ulong_t)&kempld_platform_data_generic },
 	{}
 };
 MODULE_DEVICE_TABLE(acpi, kempld_acpi_table);
-#endif
 
 static struct platform_driver kempld_driver = {
 	.driver		= {
 		.name	= "kempld",
-		.acpi_match_table = ACPI_PTR(kempld_acpi_table),
+		.acpi_match_table = kempld_acpi_table,
 	},
 	.probe		= kempld_probe,
 	.remove_new	= kempld_remove,
