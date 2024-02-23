@@ -208,7 +208,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 			       u32 secid, char *buf, loff_t size, int mask,
 			       enum ima_hooks func)
 {
-	struct inode *backing_inode, *inode = file_inode(file);
+	struct inode *real_inode, *inode = file_inode(file);
 	struct ima_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc = NULL;
 	char *pathbuf = NULL;
@@ -285,14 +285,16 @@ static int process_measurement(struct file *file, const struct cred *cred,
 		iint->measured_pcrs = 0;
 	}
 
-	/* Detect and re-evaluate changes made to the backing file. */
-	backing_inode = d_real_inode(file_dentry(file));
-	if (backing_inode != inode &&
+	/*
+	 * On stacked filesystems, detect and re-evaluate file data changes.
+	 */
+	real_inode = d_real_inode(file_dentry(file));
+	if (real_inode != inode &&
 	    (action & IMA_DO_MASK) && (iint->flags & IMA_DONE_MASK)) {
-		if (!IS_I_VERSION(backing_inode) ||
-		    backing_inode->i_sb->s_dev != iint->real_dev ||
-		    backing_inode->i_ino != iint->real_ino ||
-		    !inode_eq_iversion(backing_inode, iint->version)) {
+		if (!IS_I_VERSION(real_inode) ||
+		    real_inode->i_sb->s_dev != iint->real_dev ||
+		    real_inode->i_ino != iint->real_ino ||
+		    !inode_eq_iversion(real_inode, iint->version)) {
 			iint->flags &= ~IMA_DONE_MASK;
 			iint->measured_pcrs = 0;
 		}
