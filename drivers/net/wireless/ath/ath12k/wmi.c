@@ -6736,18 +6736,21 @@ static int ath12k_wmi_p2p_noa_event(struct ath12k_base *ab,
 		   "wmi tlv p2p noa vdev_id %i descriptors %u\n",
 		   vdev_id, le32_get_bits(noa->noa_attr, WMI_P2P_NOA_INFO_DESC_NUM));
 
+	rcu_read_lock();
 	ar = ath12k_mac_get_ar_by_vdev_id(ab, vdev_id);
 	if (!ar) {
 		ath12k_warn(ab, "invalid vdev id %d in P2P NoA event\n",
 			    vdev_id);
 		ret = -EINVAL;
-		goto out;
+		goto unlock;
 	}
 
 	ath12k_p2p_noa_update_by_vdev_id(ar, vdev_id, noa);
 
 	ret = 0;
 
+unlock:
+	rcu_read_unlock();
 out:
 	kfree(tb);
 	return ret;
