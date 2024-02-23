@@ -783,7 +783,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.psp_disabled_wa = true,
 	.ips2_eval_delay_us = 2000,
 	.ips2_entry_delay_us = 800,
-	.disable_dmub_reallow_idle = true,
+	.disable_dmub_reallow_idle = false,
 	.static_screen_wait_frames = 2,
 };
 
