@@ -39,7 +39,6 @@
 	pinctrl-0 = <&pinctrl_eqos>;
 	phy-mode = "rgmii";
 	phy-handle = <&ethphy0>;
-	phy-supply = <&reg_eqos_phy>;
 	status = "okay";
 
 	mdio {
