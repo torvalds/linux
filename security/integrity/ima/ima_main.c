@@ -26,6 +26,7 @@
 #include <linux/ima.h>
 #include <linux/fs.h>
 #include <linux/iversion.h>
+#include <linux/evm.h>
 
 #include "ima.h"
 
@@ -211,6 +212,7 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	struct inode *real_inode, *inode = file_inode(file);
 	struct ima_iint_cache *iint = NULL;
 	struct ima_template_desc *template_desc = NULL;
+	struct inode *metadata_inode;
 	char *pathbuf = NULL;
 	char filename[NAME_MAX];
 	const char *pathname = NULL;
@@ -286,7 +288,8 @@ static int process_measurement(struct file *file, const struct cred *cred,
 	}
 
 	/*
-	 * On stacked filesystems, detect and re-evaluate file data changes.
+	 * On stacked filesystems, detect and re-evaluate file data and
+	 * metadata changes.
 	 */
 	real_inode = d_real_inode(file_dentry(file));
 	if (real_inode != inode &&
@@ -297,6 +300,15 @@ static int process_measurement(struct file *file, const struct cred *cred,
 			iint->flags &= ~IMA_DONE_MASK;
 			iint->measured_pcrs = 0;
 		}
+
+		/*
+		 * Reset the EVM status when metadata changed.
+		 */
+		metadata_inode = d_inode(d_real(file_dentry(file),
+					 D_REAL_METADATA));
+		if (evm_metadata_changed(inode, metadata_inode))
+			iint->flags &= ~(IMA_APPRAISED |
+					 IMA_APPRAISED_SUBMASK);
 	}
 
 	/* Determine if already appraised/measured based on bitmask
