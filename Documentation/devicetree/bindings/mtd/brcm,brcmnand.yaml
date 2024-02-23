@@ -146,6 +146,15 @@ patternProperties:
           layout.
         $ref: /schemas/types.yaml#/definitions/uint32
 
+      brcm,nand-ecc-use-strap:
+        description:
+          This property requires the host system to get the ECC related
+          settings from the SoC NAND boot strap configuration instead of
+          the generic NAND ECC settings. This is a common hardware design
+          on BCMBCA based boards. This strap ECC option and generic NAND
+          ECC option can not be specified at the same time.
+        $ref: /schemas/types.yaml#/definitions/flag
+
     unevaluatedProperties: false
 
 allOf:
@@ -194,6 +203,21 @@ allOf:
     then:
       required:
         - interrupt-names
+
+  - if:
+      patternProperties:
+        "^nand@[a-f0-9]$":
+          required:
+            - brcm,nand-ecc-use-strap
+    then:
+      patternProperties:
+        "^nand@[a-f0-9]$":
+          properties:
+            nand-ecc-strength: false
+            nand-ecc-step-size: false
+            nand-ecc-maximize: false
+            nand-ecc-algo: false
+            brcm,nand-oob-sector-size: false
 
 unevaluatedProperties: false
 
