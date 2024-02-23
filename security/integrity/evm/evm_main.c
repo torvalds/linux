@@ -948,9 +948,34 @@ static void evm_inode_post_setattr(struct mnt_idmap *idmap,
 
 static int evm_inode_copy_up_xattr(struct dentry *src, const char *name)
 {
-	if (strcmp(name, XATTR_NAME_EVM) == 0)
-		return 1; /* Discard */
-	return -EOPNOTSUPP;
+	struct evm_ima_xattr_data *xattr_data = NULL;
+	int rc;
+
+	if (strcmp(name, XATTR_NAME_EVM) != 0)
+		return -EOPNOTSUPP;
+
+	/* first need to know the sig type */
+	rc = vfs_getxattr_alloc(&nop_mnt_idmap, src, XATTR_NAME_EVM,
+				(char **)&xattr_data, 0, GFP_NOFS);
+	if (rc <= 0)
+		return -EPERM;
+
+	if (rc < offsetof(struct evm_ima_xattr_data, type) +
+		 sizeof(xattr_data->type))
+		return -EPERM;
+
+	switch (xattr_data->type) {
+	case EVM_XATTR_PORTABLE_DIGSIG:
+		rc = 0; /* allow copy-up */
+		break;
+	case EVM_XATTR_HMAC:
+	case EVM_IMA_XATTR_DIGSIG:
+	default:
+		rc = 1; /* discard */
+	}
+
+	kfree(xattr_data);
+	return rc;
 }
 
 /*
