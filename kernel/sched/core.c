@@ -3955,6 +3955,17 @@ void wake_up_if_idle(int cpu)
 	}
 }
 
+bool cpus_equal_capacity(int this_cpu, int that_cpu)
+{
+	if (!sched_asym_cpucap_active())
+		return true;
+
+	if (this_cpu == that_cpu)
+		return true;
+
+	return arch_scale_cpu_capacity(this_cpu) == arch_scale_cpu_capacity(that_cpu);
+}
+
 bool cpus_share_cache(int this_cpu, int that_cpu)
 {
 	if (this_cpu == that_cpu)
