@@ -100,6 +100,7 @@
 #define LED_FUNCTION_TX "tx"
 #define LED_FUNCTION_USB "usb"
 #define LED_FUNCTION_WAN "wan"
+#define LED_FUNCTION_WAN_ONLINE "wan-online"
 #define LED_FUNCTION_WLAN "wlan"
 #define LED_FUNCTION_WLAN_2GHZ "wlan-2ghz"
 #define LED_FUNCTION_WLAN_5GHZ "wlan-5ghz"
