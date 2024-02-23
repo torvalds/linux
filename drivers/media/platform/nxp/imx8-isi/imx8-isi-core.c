@@ -506,7 +506,7 @@ err_pm:
 	return ret;
 }
 
-static int mxc_isi_remove(struct platform_device *pdev)
+static void mxc_isi_remove(struct platform_device *pdev)
 {
 	struct mxc_isi_dev *isi = platform_get_drvdata(pdev);
 	unsigned int i;
@@ -523,8 +523,6 @@ static int mxc_isi_remove(struct platform_device *pdev)
 	mxc_isi_v4l2_cleanup(isi);
 
 	pm_runtime_disable(isi->dev);
-
-	return 0;
 }
 
 static const struct of_device_id mxc_isi_of_match[] = {
@@ -537,7 +535,7 @@ MODULE_DEVICE_TABLE(of, mxc_isi_of_match);
 
 static struct platform_driver mxc_isi_driver = {
 	.probe		= mxc_isi_probe,
-	.remove		= mxc_isi_remove,
+	.remove_new	= mxc_isi_remove,
 	.driver = {
 		.of_match_table = mxc_isi_of_match,
 		.name		= MXC_ISI_DRIVER_NAME,
