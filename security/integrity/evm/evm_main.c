@@ -946,7 +946,7 @@ static void evm_inode_post_setattr(struct mnt_idmap *idmap,
 		evm_update_evmxattr(dentry, NULL, NULL, 0);
 }
 
-static int evm_inode_copy_up_xattr(const char *name)
+static int evm_inode_copy_up_xattr(struct dentry *src, const char *name)
 {
 	if (strcmp(name, XATTR_NAME_EVM) == 0)
 		return 1; /* Discard */

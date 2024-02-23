@@ -2628,6 +2628,7 @@ EXPORT_SYMBOL(security_inode_copy_up);
 
 /**
  * security_inode_copy_up_xattr() - Filter xattrs in an overlayfs copy-up op
+ * @src: union dentry of copy-up file
  * @name: xattr name
  *
  * Filter the xattrs being copied up when a unioned file is copied up from a
@@ -2638,7 +2639,7 @@ EXPORT_SYMBOL(security_inode_copy_up);
  *         if the security module does not know about attribute, or a negative
  *         error code to abort the copy up.
  */
-int security_inode_copy_up_xattr(const char *name)
+int security_inode_copy_up_xattr(struct dentry *src, const char *name)
 {
 	int rc;
 
@@ -2647,7 +2648,7 @@ int security_inode_copy_up_xattr(const char *name)
 	 * xattr), -EOPNOTSUPP if it does not know anything about the xattr or
 	 * any other error code in case of an error.
 	 */
-	rc = call_int_hook(inode_copy_up_xattr, name);
+	rc = call_int_hook(inode_copy_up_xattr, src, name);
 	if (rc != LSM_RET_DEFAULT(inode_copy_up_xattr))
 		return rc;
 
