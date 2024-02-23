@@ -204,6 +204,7 @@ read_attribute(disk_groups);
 read_attribute(has_data);
 read_attribute(alloc_debug);
 read_attribute(accounting);
+read_attribute(usage_base);
 
 #define x(t, n, ...) read_attribute(t);
 BCH_PERSISTENT_COUNTERS()
@@ -303,6 +304,20 @@ static void bch2_gc_gens_pos_to_text(struct printbuf *out, struct bch_fs *c)
 	prt_printf(out, "\n");
 }
 
+static void bch2_fs_usage_base_to_text(struct printbuf *out, struct bch_fs *c)
+{
+	struct bch_fs_usage_base b = {};
+
+	acc_u64s_percpu(&b.hidden, &c->usage->hidden, sizeof(b) / sizeof(u64));
+
+	prt_printf(out, "hidden:\t\t%llu\n",	b.hidden);
+	prt_printf(out, "btree:\t\t%llu\n",	b.btree);
+	prt_printf(out, "data:\t\t%llu\n",	b.data);
+	prt_printf(out, "cached:\t%llu\n",	b.cached);
+	prt_printf(out, "reserved:\t\t%llu\n",	b.reserved);
+	prt_printf(out, "nr_inodes:\t%llu\n",	b.nr_inodes);
+}
+
 SHOW(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
@@ -391,6 +406,9 @@ SHOW(bch2_fs)
 
 	if (attr == &sysfs_accounting)
 		bch2_fs_accounting_to_text(out, c);
+
+	if (attr == &sysfs_usage_base)
+		bch2_fs_usage_base_to_text(out, c);
 
 	return 0;
 }
@@ -606,6 +624,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_disk_groups,
 	&sysfs_alloc_debug,
 	&sysfs_accounting,
+	&sysfs_usage_base,
 	NULL
 };
 
