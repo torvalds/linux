@@ -6559,7 +6559,7 @@ static int selinux_getselfattr(unsigned int attr, struct lsm_ctx __user *ctx,
 			       size_t *size, u32 flags)
 {
 	int rc;
-	char *val;
+	char *val = NULL;
 	int val_len;
 
 	val_len = selinux_lsm_getattr(attr, current, &val);
