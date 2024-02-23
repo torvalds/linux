@@ -217,27 +217,22 @@ static struct intel_digital_port *
 aux_ch_to_digital_port(struct drm_i915_private *dev_priv,
 		       enum aux_ch aux_ch)
 {
-	struct intel_digital_port *dig_port = NULL;
 	struct intel_encoder *encoder;
 
 	for_each_intel_encoder(&dev_priv->drm, encoder) {
+		struct intel_digital_port *dig_port;
+
 		/* We'll check the MST primary port */
 		if (encoder->type == INTEL_OUTPUT_DP_MST)
 			continue;
 
 		dig_port = enc_to_dig_port(encoder);
-		if (!dig_port)
-			continue;
 
-		if (dig_port->aux_ch != aux_ch) {
-			dig_port = NULL;
-			continue;
-		}
-
-		break;
+		if (dig_port && dig_port->aux_ch == aux_ch)
+			return dig_port;
 	}
 
-	return dig_port;
+	return NULL;
 }
 
 static enum phy icl_aux_pw_to_phy(struct drm_i915_private *i915,
