@@ -51,6 +51,7 @@
 	{ RING_ESR(0),              0,      0, "ESR" }, \
 	{ RING_DMA_FADD(0),         0,      0, "RING_DMA_FADD_LDW" }, \
 	{ RING_DMA_FADD_UDW(0),     0,      0, "RING_DMA_FADD_UDW" }, \
+	{ RING_EIR(0),              0,      0, "EIR" }, \
 	{ RING_IPEIR(0),            0,      0, "IPEIR" }, \
 	{ RING_IPEHR(0),            0,      0, "IPEHR" }, \
 	{ RING_INSTPS(0),           0,      0, "INSTPS" }, \
@@ -80,9 +81,6 @@
 	{ GEN8_RING_PDP_LDW(0, 3),  0,      0, "PDP3_LDW" }, \
 	{ GEN8_RING_PDP_UDW(0, 3),  0,      0, "PDP3_UDW" }
 
-#define COMMON_BASE_HAS_EU \
-	{ EIR,                      0,      0, "EIR" }
-
 #define COMMON_BASE_RENDER \
 	{ GEN7_SC_INSTDONE,         0,      0, "GEN7_SC_INSTDONE" }
 
@@ -105,7 +103,6 @@ static const struct __guc_mmio_reg_descr xe_lp_global_regs[] = {
 
 /* XE_LP Render / Compute Per-Class */
 static const struct __guc_mmio_reg_descr xe_lp_rc_class_regs[] = {
-	COMMON_BASE_HAS_EU,
 	COMMON_BASE_RENDER,
 	COMMON_GEN12BASE_RENDER,
 };
@@ -148,7 +145,6 @@ static const struct __guc_mmio_reg_descr gen8_global_regs[] = {
 };
 
 static const struct __guc_mmio_reg_descr gen8_rc_class_regs[] = {
-	COMMON_BASE_HAS_EU,
 	COMMON_BASE_RENDER,
 };
 
