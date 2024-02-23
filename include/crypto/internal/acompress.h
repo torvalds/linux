@@ -31,9 +31,7 @@
  *		@init.
  *
  * @reqsize:	Context size for (de)compression requests
- * @stat:	Statistics for compress algorithm
  * @base:	Common crypto API algorithm data structure
- * @calg:	Cmonn algorithm data structure shared with scomp
  */
 struct acomp_alg {
 	int (*compress)(struct acomp_req *req);
@@ -44,10 +42,7 @@ struct acomp_alg {
 
 	unsigned int reqsize;
 
-	union {
-		struct COMP_ALG_COMMON;
-		struct comp_alg_common calg;
-	};
+	struct crypto_alg base;
 };
 
 /*

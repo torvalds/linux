@@ -66,29 +66,6 @@ static void crypto_kpp_free_instance(struct crypto_instance *inst)
 	kpp->free(kpp);
 }
 
-static int __maybe_unused crypto_kpp_report_stat(
-	struct sk_buff *skb, struct crypto_alg *alg)
-{
-	struct kpp_alg *kpp = __crypto_kpp_alg(alg);
-	struct crypto_istat_kpp *istat;
-	struct crypto_stat_kpp rkpp;
-
-	istat = kpp_get_stat(kpp);
-
-	memset(&rkpp, 0, sizeof(rkpp));
-
-	strscpy(rkpp.type, "kpp", sizeof(rkpp.type));
-
-	rkpp.stat_setsecret_cnt = atomic64_read(&istat->setsecret_cnt);
-	rkpp.stat_generate_public_key_cnt =
-		atomic64_read(&istat->generate_public_key_cnt);
-	rkpp.stat_compute_shared_secret_cnt =
-		atomic64_read(&istat->compute_shared_secret_cnt);
-	rkpp.stat_err_cnt = atomic64_read(&istat->err_cnt);
-
-	return nla_put(skb, CRYPTOCFGA_STAT_KPP, sizeof(rkpp), &rkpp);
-}
-
 static const struct crypto_type crypto_kpp_type = {
 	.extsize = crypto_alg_extsize,
 	.init_tfm = crypto_kpp_init_tfm,
@@ -98,9 +75,6 @@ static const struct crypto_type crypto_kpp_type = {
 #endif
 #if IS_ENABLED(CONFIG_CRYPTO_USER)
 	.report = crypto_kpp_report,
-#endif
-#ifdef CONFIG_CRYPTO_STATS
-	.report_stat = crypto_kpp_report_stat,
 #endif
 	.maskclear = ~CRYPTO_ALG_TYPE_MASK,
 	.maskset = CRYPTO_ALG_TYPE_MASK,
@@ -131,15 +105,11 @@ EXPORT_SYMBOL_GPL(crypto_has_kpp);
 
 static void kpp_prepare_alg(struct kpp_alg *alg)
 {
-	struct crypto_istat_kpp *istat = kpp_get_stat(alg);
 	struct crypto_alg *base = &alg->base;
 
 	base->cra_type = &crypto_kpp_type;
 	base->cra_flags &= ~CRYPTO_ALG_TYPE_MASK;
 	base->cra_flags |= CRYPTO_ALG_TYPE_KPP;
-
-	if (IS_ENABLED(CONFIG_CRYPTO_STATS))
-		memset(istat, 0, sizeof(*istat));
 }
 
 int crypto_register_kpp(struct kpp_alg *alg)
