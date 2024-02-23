@@ -2675,6 +2675,15 @@ static const struct platform_device_id fsl_udc_devtype[] = {
 	}
 };
 MODULE_DEVICE_TABLE(platform, fsl_udc_devtype);
+
+static const struct of_device_id fsl_udc_dt_ids[] = {
+	{ .compatible = "fsl-usb2-dr" },
+	{ .compatible = "fsl-usb2-mph" },
+	{ .compatible = "fsl,mpc5121-usb2-dr" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, fsl_udc_dt_ids);
+
 static struct platform_driver udc_driver = {
 	.probe		= fsl_udc_probe,
 	.remove_new	= fsl_udc_remove,
@@ -2684,6 +2693,7 @@ static struct platform_driver udc_driver = {
 	.resume		= fsl_udc_resume,
 	.driver		= {
 			.name = driver_name,
+			.of_match_table = fsl_udc_dt_ids,
 			/* udc suspend/resume called from OTG driver */
 			.suspend = fsl_udc_otg_suspend,
 			.resume  = fsl_udc_otg_resume,
