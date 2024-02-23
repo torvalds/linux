@@ -292,23 +292,35 @@ SYM_FUNC_START(__svm_vcpu_run)
 SYM_FUNC_END(__svm_vcpu_run)
 
 #ifdef CONFIG_KVM_AMD_SEV
+
+
+#ifdef CONFIG_X86_64
+#define SEV_ES_GPRS_BASE 0x300
+#define SEV_ES_RBX	(SEV_ES_GPRS_BASE + __VCPU_REGS_RBX * WORD_SIZE)
+#define SEV_ES_RBP	(SEV_ES_GPRS_BASE + __VCPU_REGS_RBP * WORD_SIZE)
+#define SEV_ES_R12	(SEV_ES_GPRS_BASE + __VCPU_REGS_R12 * WORD_SIZE)
+#define SEV_ES_R13	(SEV_ES_GPRS_BASE + __VCPU_REGS_R13 * WORD_SIZE)
+#define SEV_ES_R14	(SEV_ES_GPRS_BASE + __VCPU_REGS_R14 * WORD_SIZE)
+#define SEV_ES_R15	(SEV_ES_GPRS_BASE + __VCPU_REGS_R15 * WORD_SIZE)
+#endif
+
 /**
  * __svm_sev_es_vcpu_run - Run a SEV-ES vCPU via a transition to SVM guest mode
  * @svm:	struct vcpu_svm *
  * @spec_ctrl_intercepted: bool
  */
 SYM_FUNC_START(__svm_sev_es_vcpu_run)
-	push %rbp
-	push %r15
-	push %r14
-	push %r13
-	push %r12
-	push %rbx
-
 	/*
-	 * Save variables needed after vmexit on the stack, in inverse
-	 * order compared to when they are needed.
+	 * Save non-volatile (callee-saved) registers to the host save area.
+	 * Except for RAX and RSP, all GPRs are restored on #VMEXIT, but not
+	 * saved on VMRUN.
 	 */
+	mov %rbp, SEV_ES_RBP (%rdx)
+	mov %r15, SEV_ES_R15 (%rdx)
+	mov %r14, SEV_ES_R14 (%rdx)
+	mov %r13, SEV_ES_R13 (%rdx)
+	mov %r12, SEV_ES_R12 (%rdx)
+	mov %rbx, SEV_ES_RBX (%rdx)
 
 	/* Accessed directly from the stack in RESTORE_HOST_SPEC_CTRL.  */
 	push %rsi
@@ -316,7 +328,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	/* Save @svm. */
 	push %rdi
 
-	/* Clobbers RAX, RCX, RDX.  */
+	/* Clobbers RAX, RCX, RDX (@hostsa). */
 	RESTORE_GUEST_SPEC_CTRL
 
 	/* Get svm->current_vmcb->pa into RAX. */
@@ -338,7 +350,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	FILL_RETURN_BUFFER %rax, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
 
-	/* Clobbers RAX, RCX, RDX.  */
+	/* Clobbers RAX, RCX, RDX, consumes RDI (@svm). */
 	RESTORE_HOST_SPEC_CTRL
 
 	/*
@@ -353,13 +365,6 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	/* "Pop" and discard @spec_ctrl_intercepted. */
 	pop %rax
 
-	pop %rbx
-
-	pop %r12
-	pop %r13
-	pop %r14
-	pop %r15
-	pop %rbp
 	RET
 
 	RESTORE_GUEST_SPEC_CTRL_BODY
