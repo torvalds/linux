@@ -4,6 +4,7 @@
 
 #include <linux/blk-crypto.h>
 #include <linux/memblock.h>	/* for max_pfn/max_low_pfn */
+#include <linux/sched/sysctl.h>
 #include <linux/timekeeping.h>
 #include <xen/xen.h>
 #include "blk-crypto-internal.h"
@@ -69,6 +70,18 @@ static inline int bio_queue_enter(struct bio *bio)
 	if (blk_try_enter_queue(q, false))
 		return 0;
 	return __bio_queue_enter(q, bio);
+}
+
+static inline void blk_wait_io(struct completion *done)
+{
+	/* Prevent hang_check timer from firing at us during very long I/O */
+	unsigned long timeout = sysctl_hung_task_timeout_secs * HZ / 2;
+
+	if (timeout)
+		while (!wait_for_completion_io_timeout(done, timeout))
+			;
+	else
+		wait_for_completion_io(done);
 }
 
 #define BIO_INLINE_VECS 4
