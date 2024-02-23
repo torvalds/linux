@@ -350,8 +350,8 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	 */
 	UNTRAIN_RET_VM
 
-	/* "Pop" @spec_ctrl_intercepted.  */
-	pop %rbx
+	/* "Pop" and discard @spec_ctrl_intercepted. */
+	pop %rax
 
 	pop %rbx
 
