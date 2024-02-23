@@ -133,7 +133,7 @@ static int axg_tdm_iface_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 
 	case SND_SOC_DAIFMT_BP_FC:
 	case SND_SOC_DAIFMT_BC_FP:
-		dev_err(dai->dev, "only CBS_CFS and CBM_CFM are supported\n");
+		dev_err(dai->dev, "only BP_FP and BC_FC are supported\n");
 		fallthrough;
 	default:
 		return -EINVAL;
