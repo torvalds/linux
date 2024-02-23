@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Krait Processor Sub-system (KPSS) Watchdog timer
 
 maintainers:
-  - Sai Prakash Ranjan <saiprakash.ranjan@codeaurora.org>
+  - Rajendra Nayak <quic_rjendra@quicinc.com>
 
 properties:
   $nodename:
