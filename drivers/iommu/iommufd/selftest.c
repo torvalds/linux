@@ -446,20 +446,27 @@ static size_t mock_domain_unmap_pages(struct iommu_domain *domain,
 
 			/*
 			 * iommufd generates unmaps that must be a strict
-			 * superset of the map's performend So every starting
-			 * IOVA should have been an iova passed to map, and the
+			 * superset of the map's performend So every
+			 * starting/ending IOVA should have been an iova passed
+			 * to map.
 			 *
-			 * First IOVA must be present and have been a first IOVA
-			 * passed to map_pages
+			 * This simple logic doesn't work when the HUGE_PAGE is
+			 * turned on since the core code will automatically
+			 * switch between the two page sizes creating a break in
+			 * the unmap calls. The break can land in the middle of
+			 * contiguous IOVA.
 			 */
-			if (first) {
-				WARN_ON(ent && !(xa_to_value(ent) &
-						 MOCK_PFN_START_IOVA));
-				first = false;
+			if (!(domain->pgsize_bitmap & MOCK_HUGE_PAGE_SIZE)) {
+				if (first) {
+					WARN_ON(ent && !(xa_to_value(ent) &
+							 MOCK_PFN_START_IOVA));
+					first = false;
+				}
+				if (pgcount == 1 &&
+				    cur + MOCK_IO_PAGE_SIZE == pgsize)
+					WARN_ON(ent && !(xa_to_value(ent) &
+							 MOCK_PFN_LAST_IOVA));
 			}
-			if (pgcount == 1 && cur + MOCK_IO_PAGE_SIZE == pgsize)
-				WARN_ON(ent && !(xa_to_value(ent) &
-						 MOCK_PFN_LAST_IOVA));
 
 			iova += MOCK_IO_PAGE_SIZE;
 			ret += MOCK_IO_PAGE_SIZE;
