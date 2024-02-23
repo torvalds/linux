@@ -895,9 +895,7 @@ static int __init kempld_init(void)
 
 static void __exit kempld_exit(void)
 {
-	if (kempld_pdev)
-		platform_device_unregister(kempld_pdev);
-
+	platform_device_unregister(kempld_pdev);
 	platform_driver_unregister(&kempld_driver);
 }
 
