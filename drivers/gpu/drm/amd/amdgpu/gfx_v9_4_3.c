@@ -43,8 +43,10 @@
 
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_4_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_9_5_0_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_4_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_9_5_0_rlc.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_sjt_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_4_sjt_mec.bin");
 
