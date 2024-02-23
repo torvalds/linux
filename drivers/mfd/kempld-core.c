@@ -294,11 +294,8 @@ static int kempld_get_info(struct kempld_device_data *pld)
 	else
 		minor = (pld->info.minor - 10) + 'A';
 
-	ret = scnprintf(pld->info.version, sizeof(pld->info.version),
-			"P%X%c%c.%04X", pld->info.number, major, minor,
-			pld->info.buildnr);
-	if (ret < 0)
-		return ret;
+	scnprintf(pld->info.version, sizeof(pld->info.version), "P%X%c%c.%04X",
+		  pld->info.number, major, minor, pld->info.buildnr);
 
 	return 0;
 }
