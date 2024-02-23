@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -662,9 +662,20 @@ alpha_pll_calc_rate(u64 prate, u32 l, u32 a, u32 alpha_width)
 	return roundup(rate, 1000);
 }
 
+static void zonda_pll_adjust_l_val(unsigned long rate, unsigned long prate, u32 *l)
+{
+	u64 remainder, quotient;
+
+	quotient = rate;
+	remainder = do_div(quotient, prate);
+	*l = quotient;
+
+	if ((remainder * 2) / prate)
+		*l = *l + 1;
+}
+
 static unsigned long
-alpha_pll_round_rate(unsigned long rate, unsigned long prate, u32 *l, u64 *a,
-		     u32 alpha_width)
+alpha_pll_round_rate(unsigned long rate, unsigned long prate, u32 *l, u64 *a, u32 alpha_width)
 {
 	u64 remainder;
 	u64 quotient;
@@ -2871,8 +2882,14 @@ static int clk_zonda_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret < 0)
 		return ret;
 
+	if (a && (a & BIT(15)))
+		zonda_pll_adjust_l_val(rate, prate, &l);
+
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_VAL(pll), a);
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
+
+	if (!clk_hw_is_enabled(hw))
+		return 0;
 
 	/* Wait before polling for the frequency latch */
 	udelay(5);
@@ -2891,6 +2908,33 @@ static int clk_zonda_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Wait for PLL output to stabilize */
 	udelay(100);
 	return 0;
+}
+
+static unsigned long alpha_pll_adjust_calc_rate(u64 prate, u32 l, u32 frac, u32 alpha_width)
+{
+	uint64_t tmp;
+
+	frac = 100 - DIV_ROUND_UP_ULL((frac * 100), BIT(alpha_width));
+
+	tmp = frac * prate;
+	do_div(tmp, 100);
+
+	return (l * prate) - tmp;
+}
+
+static unsigned long
+clk_zonda_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	u32 l, frac;
+
+	regmap_read(pll->clkr.regmap, PLL_L_VAL(pll), &l);
+	regmap_read(pll->clkr.regmap, PLL_ALPHA_VAL(pll), &frac);
+
+	if (frac & BIT(15))
+		return alpha_pll_adjust_calc_rate(parent_rate, l, frac,	pll_alpha_width(pll));
+	else
+		return alpha_pll_calc_rate(parent_rate, l, frac, pll_alpha_width(pll));
 }
 
 static void clk_alpha_pll_zonda_list_registers(struct seq_file *f,
@@ -3296,6 +3340,9 @@ static int clk_regera_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 		pr_err("Call set rate on the PLL with rounded rates!\n");
 		return -EINVAL;
 	}
+
+	if (a && (a & BIT(15)))
+		zonda_pll_adjust_l_val(rate, prate, &l);
 
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_VAL(pll), a);
 	regmap_write(pll->clkr.regmap, PLL_L_VAL(pll), l);
@@ -4075,18 +4122,6 @@ static void clk_zonda_evo_pll_disable(struct clk_hw *hw)
 			0x0);
 }
 
-static unsigned long
-clk_zonda_evo_pll_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
-{
-	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
-	u32 l, frac;
-
-	regmap_read(pll->clkr.regmap, PLL_L_VAL(pll), &l);
-	regmap_read(pll->clkr.regmap, PLL_ALPHA_VAL(pll), &frac);
-
-	return alpha_pll_calc_rate(parent_rate, l, frac, ALPHA_BITWIDTH);
-}
-
 static void clk_alpha_pll_zonda_evo_list_registers(struct seq_file *f,
 							struct clk_hw *hw)
 {
@@ -4220,7 +4255,7 @@ const struct clk_ops clk_alpha_pll_zonda_evo_ops = {
 	.disable = clk_zonda_evo_pll_disable,
 	.set_rate = clk_zonda_pll_set_rate,
 	.is_enabled = clk_zonda_pll_is_enabled,
-	.recalc_rate = clk_zonda_evo_pll_recalc_rate,
+	.recalc_rate = clk_zonda_pll_recalc_rate,
 	.round_rate = clk_alpha_pll_round_rate,
 	.debug_init = clk_common_debug_init,
 	.init = clk_alpha_pll_zonda_evo_init,
@@ -4238,7 +4273,7 @@ const struct clk_ops clk_alpha_pll_fixed_zonda_evo_ops = {
 	.enable = clk_zonda_evo_pll_enable,
 	.disable = clk_zonda_evo_pll_disable,
 	.is_enabled = clk_zonda_pll_is_enabled,
-	.recalc_rate = clk_zonda_evo_pll_recalc_rate,
+	.recalc_rate = clk_zonda_pll_recalc_rate,
 	.round_rate = clk_alpha_pll_round_rate,
 	.debug_init = clk_common_debug_init,
 	.init = clk_alpha_pll_zonda_evo_init,

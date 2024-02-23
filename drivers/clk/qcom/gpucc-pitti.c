@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -63,7 +63,8 @@ static const struct alpha_pll_config gpu_cc_pll0_config = {
 	.alpha = 0x6aaa,
 	.config_ctl_val = 0x08200800,
 	.config_ctl_hi_val = 0x05028001,
-	.config_ctl_hi1_val = 0x00001000,
+	.config_ctl_hi1_val = 0x00000000,
+	.user_ctl_hi_val = 0x02001000,
 };
 
 static struct clk_alpha_pll gpu_cc_pll0 = {
@@ -101,6 +102,7 @@ static struct clk_fixed_factor gpu_cc_pll0_out_even = {
 			&gpu_cc_pll0.clkr.hw,
 		},
 		.num_parents = 1,
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_fixed_factor_ops,
 	},
 };
@@ -250,9 +252,9 @@ static struct clk_rcg2 gpu_cc_gx_gfx3d_clk_src = {
 			[VDD_LOWER] = 340000000,
 			[VDD_LOW] = 500000000,
 			[VDD_LOW_L1] = 605000000,
-			[VDD_NOMINAL] = 765000000,
+			[VDD_NOMINAL] = 765024000,
 			[VDD_NOMINAL_L1] = 875000000,
-			[VDD_HIGH] = 975000000,
+			[VDD_HIGH] = 975072000,
 			[VDD_HIGH_L1] = 1115000000},
 	},
 };
