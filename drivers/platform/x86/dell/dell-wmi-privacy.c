@@ -297,10 +297,6 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 	struct key_entry *keymap;
 	int ret, i, j;
 
-	ret = wmi_has_guid(DELL_PRIVACY_GUID);
-	if (!ret)
-		pr_debug("Unable to detect available Dell privacy devices!\n");
-
 	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
