@@ -49,6 +49,8 @@
 	_IOR('u', UBLK_CMD_GET_DEV_INFO2, struct ublksrv_ctrl_cmd)
 #define UBLK_U_CMD_GET_FEATURES	\
 	_IOR('u', 0x13, struct ublksrv_ctrl_cmd)
+#define UBLK_U_CMD_DEL_DEV_ASYNC	\
+	_IOR('u', 0x14, struct ublksrv_ctrl_cmd)
 
 /*
  * 64bits are enough now, and it should be easy to extend in case of

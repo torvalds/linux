@@ -2468,7 +2468,7 @@ static inline bool ublk_idr_freed(int id)
 	return ptr == NULL;
 }
 
-static int ublk_ctrl_del_dev(struct ublk_device **p_ub)
+static int ublk_ctrl_del_dev(struct ublk_device **p_ub, bool wait)
 {
 	struct ublk_device *ub = *p_ub;
 	int idx = ub->ub_number;
@@ -2502,7 +2502,7 @@ static int ublk_ctrl_del_dev(struct ublk_device **p_ub)
 	 * - the device number is freed already, we will not find this
 	 *   device via ublk_get_device_from_id()
 	 */
-	if (wait_event_interruptible(ublk_idr_wq, ublk_idr_freed(idx)))
+	if (wait && wait_event_interruptible(ublk_idr_wq, ublk_idr_freed(idx)))
 		return -EINTR;
 	return 0;
 }
@@ -2901,7 +2901,10 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_ctrl_add_dev(cmd);
 		break;
 	case UBLK_CMD_DEL_DEV:
-		ret = ublk_ctrl_del_dev(&ub);
+		ret = ublk_ctrl_del_dev(&ub, true);
+		break;
+	case UBLK_U_CMD_DEL_DEV_ASYNC:
+		ret = ublk_ctrl_del_dev(&ub, false);
 		break;
 	case UBLK_CMD_GET_QUEUE_AFFINITY:
 		ret = ublk_ctrl_get_queue_affinity(ub, cmd);
