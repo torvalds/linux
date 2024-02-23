@@ -162,7 +162,6 @@
 /* Use this macro to set us delay for JTAG Master Controller to be programmed */
 #define AST26XX_JTAG_CTRL_UDELAY	2
 
-#define USE_INTERRUPTS
 #define DEBUG_JTAG
 
 static const char * const regnames[] = {
@@ -502,73 +501,80 @@ static inline void aspeed_jtag_xfer_hw_fifo_delay_26xx(void)
 static int aspeed_jtag_isr_wait(struct aspeed_jtag *aspeed_jtag, u32 bit)
 {
 	int res = 0;
-#ifdef USE_INTERRUPTS
-	res = wait_event_interruptible(aspeed_jtag->jtag_wq,
-				       aspeed_jtag->flag & bit);
-	aspeed_jtag->flag &= ~bit;
-#else
 	u32 status = 0;
 	u32 iterations = 0;
 
-	while ((status & bit) == 0) {
-		status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_ISR);
+	if (!aspeed_jtag->irq) {
+		res = wait_event_interruptible(aspeed_jtag->jtag_wq,
+					       aspeed_jtag->flag & bit);
+		aspeed_jtag->flag &= ~bit;
+	} else {
+		while ((status & bit) == 0) {
+			status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_ISR);
 #ifdef DEBUG_JTAG
-		dev_dbg(aspeed_jtag->dev, "%s  = 0x%08x\n", __func__, status);
+			dev_dbg(aspeed_jtag->dev, "%s  = 0x%08x\n", __func__,
+				status);
 #endif
-		iterations++;
-		if (iterations > WAIT_ITERATIONS) {
-			dev_err(aspeed_jtag->dev, "%s %d in ASPEED_JTAG_ISR\n",
-				"aspeed_jtag driver timed out waiting for bit",
-				bit);
-			res = -EFAULT;
-			break;
+			iterations++;
+			if (iterations > WAIT_ITERATIONS) {
+				dev_err(aspeed_jtag->dev,
+					"%s %d in ASPEED_JTAG_ISR\n",
+					"aspeed_jtag driver timed out waiting for bit",
+					bit);
+				res = -EFAULT;
+				break;
+			}
+			if ((status & ASPEED_JTAG_ISR_DATA_COMPLETE) == 0) {
+				if (iterations % 25 == 0)
+					usleep_range(1, 5);
+				else
+					udelay(1);
+			}
 		}
-		if ((status & ASPEED_JTAG_ISR_DATA_COMPLETE) == 0) {
-			if (iterations % 25 == 0)
-				usleep_range(1, 5);
-			else
-				udelay(1);
-		}
+		aspeed_jtag_write(aspeed_jtag, bit | (status & 0xf),
+				  ASPEED_JTAG_ISR);
 	}
-	aspeed_jtag_write(aspeed_jtag, bit | (status & 0xf), ASPEED_JTAG_ISR);
-#endif
 	return res;
 }
 
 static int aspeed_jtag_wait_shift_complete(struct aspeed_jtag *aspeed_jtag)
 {
 	int res = 0;
-#ifdef USE_INTERRUPTS
-	res = wait_event_interruptible(aspeed_jtag->jtag_wq,
-				       aspeed_jtag->flag &
-				       ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT);
-	aspeed_jtag->flag &= ~ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT;
-#else
 	u32 status = 0;
 	u32 iterations = 0;
+	u32 condition;
 
-	while ((status & ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT) == 0) {
-		status = aspeed_jtag_read(aspeed_jtag, ASPEED_JTAG_INTCTRL);
+	if (!aspeed_jtag->irq) {
+		condition = aspeed_jtag->flag &
+			    ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT;
+		res = wait_event_interruptible(aspeed_jtag->jtag_wq, condition);
+		aspeed_jtag->flag &= ~ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT;
+	} else {
+		while ((status & ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT) == 0) {
+			status = aspeed_jtag_read(aspeed_jtag,
+						  ASPEED_JTAG_INTCTRL);
 #ifdef DEBUG_JTAG
-		dev_dbg(aspeed_jtag->dev, "%s  = 0x%08x\n", __func__, status);
+			dev_dbg(aspeed_jtag->dev, "%s  = 0x%08x\n", __func__,
+				status);
 #endif
-		iterations++;
-		if (iterations > WAIT_ITERATIONS) {
-			dev_err(aspeed_jtag->dev,
-				"aspeed_jtag driver timed out waiting for shift completed\n");
-			res = -EFAULT;
-			break;
+			iterations++;
+			if (iterations > WAIT_ITERATIONS) {
+				dev_err(aspeed_jtag->dev,
+					"aspeed_jtag driver timed out waiting for shift completed\n");
+				res = -EFAULT;
+				break;
+			}
+			if (iterations % 25 == 0)
+				usleep_range(1, 5);
+			else
+				udelay(1);
 		}
-		if (iterations % 25 == 0)
-			usleep_range(1, 5);
-		else
-			udelay(1);
+		aspeed_jtag_write(aspeed_jtag,
+				  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT |
+					  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_EN,
+				  ASPEED_JTAG_INTCTRL);
 	}
-	aspeed_jtag_write(aspeed_jtag,
-			  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT |
-				  ASPEED_JTAG_INTCTRL_SHCPL_IRQ_EN,
-			  ASPEED_JTAG_INTCTRL);
-#endif
+
 	return res;
 }
 
@@ -1395,9 +1401,7 @@ static int aspeed_jtag_init(struct platform_device *pdev,
 			    struct aspeed_jtag *aspeed_jtag)
 {
 	struct resource *res;
-#ifdef USE_INTERRUPTS
-	int err;
-#endif
+
 	memset(aspeed_jtag->pad_data_one, ~0,
 	       sizeof(aspeed_jtag->pad_data_one));
 	memset(aspeed_jtag->pad_data_zero, 0,
@@ -1414,13 +1418,10 @@ static int aspeed_jtag_init(struct platform_device *pdev,
 		return PTR_ERR(aspeed_jtag->pclk);
 	}
 
-#ifdef USE_INTERRUPTS
 	aspeed_jtag->irq = platform_get_irq(pdev, 0);
-	if (aspeed_jtag->irq < 0) {
-		dev_err(aspeed_jtag->dev, "no irq specified\n");
-		return -ENOENT;
-	}
-#endif
+	if (aspeed_jtag->irq < 0)
+		dev_warn(aspeed_jtag->dev,
+			 "no irq specified, using polling mode");
 
 	if (clk_prepare_enable(aspeed_jtag->pclk)) {
 		dev_err(aspeed_jtag->dev, "no irq specified\n");
@@ -1435,16 +1436,16 @@ static int aspeed_jtag_init(struct platform_device *pdev,
 	}
 	reset_control_deassert(aspeed_jtag->rst);
 
-#ifdef USE_INTERRUPTS
-	err = devm_request_irq(aspeed_jtag->dev, aspeed_jtag->irq,
-			       aspeed_jtag->llops->jtag_interrupt, 0,
-			       "aspeed-jtag", aspeed_jtag);
-	if (err) {
-		dev_err(aspeed_jtag->dev, "unable to get IRQ");
-		clk_disable_unprepare(aspeed_jtag->pclk);
-		return err;
+	if (aspeed_jtag->irq >= 0) {
+		aspeed_jtag->irq =
+			devm_request_irq(aspeed_jtag->dev, aspeed_jtag->irq,
+					 aspeed_jtag->llops->jtag_interrupt, 0,
+					 "aspeed-jtag", aspeed_jtag);
+		if (aspeed_jtag->irq) {
+			dev_warn(aspeed_jtag->dev,
+				 "unable to request IRQ, using polling mode");
+		}
 	}
-#endif
 
 	aspeed_jtag->llops->output_disable(aspeed_jtag);
 
