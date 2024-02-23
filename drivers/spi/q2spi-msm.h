@@ -438,6 +438,7 @@ struct q2spi_dma_transfer {
  * @queue_lock: lock to protect HC operations
  * @send_msgs_lock: lock to protect q2spi_send_messages
  * @cr_queue_lock: lock to protect CR operations
+ * @geni_resource_lock: lock to protect geni resource on/off
  * @max_speed_hz: stores maxspeed of the SCLK frequency
  * @cur_speed_hz: stores maxspeed of the SCLK frequency
  * @oversampling: stores sampling value based on major and minor version
@@ -520,6 +521,8 @@ struct q2spi_geni {
 	struct mutex send_msgs_lock;
 	/* lock to protect CR of operations one at a time*/
 	spinlock_t cr_queue_lock;
+	/* lock to protect geni resource on/off */
+	struct mutex geni_resource_lock;
 	u32 max_speed_hz;
 	u32 cur_speed_hz;
 	int oversampling;
