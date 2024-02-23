@@ -157,7 +157,7 @@
 &i3c0 {
 	/* I3C_PFR_BMC */
 	initial-role = "target";
-	pid = <0x000007ec 0x05031000>;
+	pid = <0x000007ec 0x06000000>;
 	dcr = /bits/ 8 <0xcc>;
 	status = "okay";
 };
