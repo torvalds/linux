@@ -291,6 +291,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 
 SYM_FUNC_END(__svm_vcpu_run)
 
+#ifdef CONFIG_KVM_AMD_SEV
 /**
  * __svm_sev_es_vcpu_run - Run a SEV-ES vCPU via a transition to SVM guest mode
  * @svm:	struct vcpu_svm *
@@ -389,3 +390,4 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	_ASM_EXTABLE(1b, 3b)
 
 SYM_FUNC_END(__svm_sev_es_vcpu_run)
+#endif /* CONFIG_KVM_AMD_SEV */
