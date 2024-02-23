@@ -342,7 +342,7 @@ static const char *snd_pcm_oss_format_name(int format)
 static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 				   struct snd_info_buffer *buffer)
 {
-	struct snd_pcm_info *info;
+	struct snd_pcm_info *info __free(kfree) = NULL;
 	int err;
 
 	if (! substream)
@@ -355,7 +355,6 @@ static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 	err = snd_pcm_info(substream, info);
 	if (err < 0) {
 		snd_iprintf(buffer, "error %d\n", err);
-		kfree(info);
 		return;
 	}
 	snd_iprintf(buffer, "card: %d\n", info->card);
@@ -369,7 +368,6 @@ static void snd_pcm_proc_info_read(struct snd_pcm_substream *substream,
 	snd_iprintf(buffer, "subclass: %d\n", info->dev_subclass);
 	snd_iprintf(buffer, "subdevices_count: %d\n", info->subdevices_count);
 	snd_iprintf(buffer, "subdevices_avail: %d\n", info->subdevices_avail);
-	kfree(info);
 }
 
 static void snd_pcm_stream_proc_info_read(struct snd_info_entry *entry,

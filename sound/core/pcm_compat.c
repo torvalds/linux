@@ -235,7 +235,7 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 					  int refine, 
 					  struct snd_pcm_hw_params32 __user *data32)
 {
-	struct snd_pcm_hw_params *data;
+	struct snd_pcm_hw_params *data __free(kfree) = NULL;
 	struct snd_pcm_runtime *runtime;
 	int err;
 
@@ -248,34 +248,28 @@ static int snd_pcm_ioctl_hw_params_compat(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 
 	/* only fifo_size (RO from userspace) is different, so just copy all */
-	if (copy_from_user(data, data32, sizeof(*data32))) {
-		err = -EFAULT;
-		goto error;
-	}
+	if (copy_from_user(data, data32, sizeof(*data32)))
+		return -EFAULT;
 
 	if (refine) {
 		err = snd_pcm_hw_refine(substream, data);
 		if (err < 0)
-			goto error;
+			return err;
 		err = fixup_unreferenced_params(substream, data);
 	} else {
 		err = snd_pcm_hw_params(substream, data);
 	}
 	if (err < 0)
-		goto error;
+		return err;
 	if (copy_to_user(data32, data, sizeof(*data32)) ||
-	    put_user(data->fifo_size, &data32->fifo_size)) {
-		err = -EFAULT;
-		goto error;
-	}
+	    put_user(data->fifo_size, &data32->fifo_size))
+		return -EFAULT;
 
 	if (! refine) {
 		unsigned int new_boundary = recalculate_boundary(runtime);
 		if (new_boundary)
 			runtime->boundary = new_boundary;
 	}
- error:
-	kfree(data);
 	return err;
 }
 
@@ -338,7 +332,7 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 	compat_caddr_t buf;
 	compat_caddr_t __user *bufptr;
 	u32 frames;
-	void __user **bufs;
+	void __user **bufs __free(kfree) = NULL;
 	int err, ch, i;
 
 	if (! substream->runtime)
@@ -360,10 +354,8 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 	for (i = 0; i < ch; i++) {
 		u32 ptr;
-		if (get_user(ptr, bufptr)) {
-			kfree(bufs);
+		if (get_user(ptr, bufptr))
 			return -EFAULT;
-		}
 		bufs[i] = compat_ptr(ptr);
 		bufptr++;
 	}
@@ -373,9 +365,8 @@ static int snd_pcm_ioctl_xfern_compat(struct snd_pcm_substream *substream,
 		err = snd_pcm_lib_readv(substream, bufs, frames);
 	if (err >= 0) {
 		if (put_user(err, &data32->result))
-			err = -EFAULT;
+			return -EFAULT;
 	}
-	kfree(bufs);
 	return err;
 }
 

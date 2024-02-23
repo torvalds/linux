@@ -236,7 +236,7 @@ int snd_pcm_info(struct snd_pcm_substream *substream, struct snd_pcm_info *info)
 int snd_pcm_info_user(struct snd_pcm_substream *substream,
 		      struct snd_pcm_info __user * _info)
 {
-	struct snd_pcm_info *info;
+	struct snd_pcm_info *info __free(kfree) = NULL;
 	int err;
 
 	info = kmalloc(sizeof(*info), GFP_KERNEL);
@@ -247,7 +247,6 @@ int snd_pcm_info_user(struct snd_pcm_substream *substream,
 		if (copy_to_user(_info, info, sizeof(*info)))
 			err = -EFAULT;
 	}
-	kfree(info);
 	return err;
 }
 
@@ -359,7 +358,7 @@ static int constrain_params_by_rules(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_constraints *constrs =
 					&substream->runtime->hw_constraints;
 	unsigned int k;
-	unsigned int *rstamps;
+	unsigned int *rstamps __free(kfree) = NULL;
 	unsigned int vstamps[SNDRV_PCM_HW_PARAM_LAST_INTERVAL + 1];
 	unsigned int stamp;
 	struct snd_pcm_hw_rule *r;
@@ -435,10 +434,8 @@ retry:
 		}
 
 		changed = r->func(params, r);
-		if (changed < 0) {
-			err = changed;
-			goto out;
-		}
+		if (changed < 0)
+			return changed;
 
 		/*
 		 * When the parameter is changed, notify it to the caller
@@ -469,8 +466,6 @@ retry:
 	if (again)
 		goto retry;
 
- out:
-	kfree(rstamps);
 	return err;
 }
 
@@ -576,26 +571,24 @@ EXPORT_SYMBOL(snd_pcm_hw_refine);
 static int snd_pcm_hw_refine_user(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params __user * _params)
 {
-	struct snd_pcm_hw_params *params;
+	struct snd_pcm_hw_params *params __free(kfree) = NULL;
 	int err;
 
 	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
-		return PTR_ERR(params);
+		return PTR_ERR(no_free_ptr(params));
 
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = fixup_unreferenced_params(substream, params);
 	if (err < 0)
-		goto end;
+		return err;
 
 	if (copy_to_user(_params, params, sizeof(*params)))
-		err = -EFAULT;
-end:
-	kfree(params);
-	return err;
+		return -EFAULT;
+	return 0;
 }
 
 static int period_to_usecs(struct snd_pcm_runtime *runtime)
@@ -869,21 +862,19 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 static int snd_pcm_hw_params_user(struct snd_pcm_substream *substream,
 				  struct snd_pcm_hw_params __user * _params)
 {
-	struct snd_pcm_hw_params *params;
+	struct snd_pcm_hw_params *params __free(kfree) = NULL;
 	int err;
 
 	params = memdup_user(_params, sizeof(*params));
 	if (IS_ERR(params))
-		return PTR_ERR(params);
+		return PTR_ERR(no_free_ptr(params));
 
 	err = snd_pcm_hw_params(substream, params);
 	if (err < 0)
-		goto end;
+		return err;
 
 	if (copy_to_user(_params, params, sizeof(*params)))
-		err = -EFAULT;
-end:
-	kfree(params);
+		return -EFAULT;
 	return err;
 }
 
@@ -2276,29 +2267,26 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	int res = 0;
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream1;
-	struct snd_pcm_group *group, *target_group;
+	struct snd_pcm_group *group __free(kfree) = NULL;
+	struct snd_pcm_group *target_group;
 	bool nonatomic = substream->pcm->nonatomic;
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 
 	if (!f.file)
 		return -EBADFD;
-	if (!is_pcm_file(f.file)) {
-		res = -EBADFD;
-		goto _badf;
-	}
+	if (!is_pcm_file(f.file))
+		return -EBADFD;
+
 	pcm_file = f.file->private_data;
 	substream1 = pcm_file->substream;
 
-	if (substream == substream1) {
-		res = -EINVAL;
-		goto _badf;
-	}
+	if (substream == substream1)
+		return -EINVAL;
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
-	if (!group) {
-		res = -ENOMEM;
-		goto _nolock;
-	}
+	if (!group)
+		return -ENOMEM;
+
 	snd_pcm_group_init(group);
 
 	down_write(&snd_pcm_link_rwsem);
@@ -2329,10 +2317,6 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	snd_pcm_group_unlock_irq(target_group, nonatomic);
  _end:
 	up_write(&snd_pcm_link_rwsem);
- _nolock:
-	kfree(group);
- _badf:
-	fdput(f);
 	return res;
 }
 
@@ -3284,7 +3268,7 @@ static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
 {
 	struct snd_xfern xfern;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	void *bufs;
+	void *bufs __free(kfree) = NULL;
 	snd_pcm_sframes_t result;
 
 	if (runtime->state == SNDRV_PCM_STATE_OPEN)
@@ -3298,12 +3282,11 @@ static int snd_pcm_xfern_frames_ioctl(struct snd_pcm_substream *substream,
 
 	bufs = memdup_user(xfern.bufs, sizeof(void *) * runtime->channels);
 	if (IS_ERR(bufs))
-		return PTR_ERR(bufs);
+		return PTR_ERR(no_free_ptr(bufs));
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		result = snd_pcm_lib_writev(substream, bufs, xfern.frames);
 	else
 		result = snd_pcm_lib_readv(substream, bufs, xfern.frames);
-	kfree(bufs);
 	if (put_user(result, &_xfern->result))
 		return -EFAULT;
 	return result < 0 ? result : 0;
@@ -3571,7 +3554,7 @@ static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
 	struct snd_pcm_runtime *runtime;
 	snd_pcm_sframes_t result;
 	unsigned long i;
-	void __user **bufs;
+	void __user **bufs __free(kfree) = NULL;
 	snd_pcm_uframes_t frames;
 	const struct iovec *iov = iter_iov(to);
 
@@ -3600,7 +3583,6 @@ static ssize_t snd_pcm_readv(struct kiocb *iocb, struct iov_iter *to)
 	result = snd_pcm_lib_readv(substream, bufs, frames);
 	if (result > 0)
 		result = frames_to_bytes(runtime, result);
-	kfree(bufs);
 	return result;
 }
 
@@ -3611,7 +3593,7 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	struct snd_pcm_runtime *runtime;
 	snd_pcm_sframes_t result;
 	unsigned long i;
-	void __user **bufs;
+	void __user **bufs __free(kfree) = NULL;
 	snd_pcm_uframes_t frames;
 	const struct iovec *iov = iter_iov(from);
 
@@ -3639,7 +3621,6 @@ static ssize_t snd_pcm_writev(struct kiocb *iocb, struct iov_iter *from)
 	result = snd_pcm_lib_writev(substream, bufs, frames);
 	if (result > 0)
 		result = frames_to_bytes(runtime, result);
-	kfree(bufs);
 	return result;
 }
 
@@ -4081,8 +4062,8 @@ static void snd_pcm_hw_convert_to_old_params(struct snd_pcm_hw_params_old *opara
 static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams)
 {
-	struct snd_pcm_hw_params *params;
-	struct snd_pcm_hw_params_old *oparams = NULL;
+	struct snd_pcm_hw_params *params __free(kfree) = NULL;
+	struct snd_pcm_hw_params_old *oparams __free(kfree) = NULL;
 	int err;
 
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
@@ -4090,34 +4071,28 @@ static int snd_pcm_hw_refine_old_user(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 
 	oparams = memdup_user(_oparams, sizeof(*oparams));
-	if (IS_ERR(oparams)) {
-		err = PTR_ERR(oparams);
-		goto out;
-	}
+	if (IS_ERR(oparams))
+		return PTR_ERR(no_free_ptr(oparams));
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_refine(substream, params);
 	if (err < 0)
-		goto out_old;
+		return err;
 
 	err = fixup_unreferenced_params(substream, params);
 	if (err < 0)
-		goto out_old;
+		return err;
 
 	snd_pcm_hw_convert_to_old_params(oparams, params);
 	if (copy_to_user(_oparams, oparams, sizeof(*oparams)))
-		err = -EFAULT;
-out_old:
-	kfree(oparams);
-out:
-	kfree(params);
-	return err;
+		return -EFAULT;
+	return 0;
 }
 
 static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params_old __user * _oparams)
 {
-	struct snd_pcm_hw_params *params;
-	struct snd_pcm_hw_params_old *oparams = NULL;
+	struct snd_pcm_hw_params *params __free(kfree) = NULL;
+	struct snd_pcm_hw_params_old *oparams __free(kfree) = NULL;
 	int err;
 
 	params = kmalloc(sizeof(*params), GFP_KERNEL);
@@ -4125,24 +4100,18 @@ static int snd_pcm_hw_params_old_user(struct snd_pcm_substream *substream,
 		return -ENOMEM;
 
 	oparams = memdup_user(_oparams, sizeof(*oparams));
-	if (IS_ERR(oparams)) {
-		err = PTR_ERR(oparams);
-		goto out;
-	}
+	if (IS_ERR(oparams))
+		return PTR_ERR(no_free_ptr(oparams));
 
 	snd_pcm_hw_convert_from_old_params(params, oparams);
 	err = snd_pcm_hw_params(substream, params);
 	if (err < 0)
-		goto out_old;
+		return err;
 
 	snd_pcm_hw_convert_to_old_params(oparams, params);
 	if (copy_to_user(_oparams, oparams, sizeof(*oparams)))
-		err = -EFAULT;
-out_old:
-	kfree(oparams);
-out:
-	kfree(params);
-	return err;
+		return -EFAULT;
+	return 0;
 }
 #endif /* CONFIG_SND_SUPPORT_OLD_API */
 

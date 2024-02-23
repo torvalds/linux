@@ -1645,7 +1645,7 @@ static int snd_timer_user_next_device(struct snd_timer_id __user *_tid)
 static int snd_timer_user_ginfo(struct file *file,
 				struct snd_timer_ginfo __user *_ginfo)
 {
-	struct snd_timer_ginfo *ginfo;
+	struct snd_timer_ginfo *ginfo __free(kfree) = NULL;
 	struct snd_timer_id tid;
 	struct snd_timer *t;
 	struct list_head *p;
@@ -1653,7 +1653,7 @@ static int snd_timer_user_ginfo(struct file *file,
 
 	ginfo = memdup_user(_ginfo, sizeof(*ginfo));
 	if (IS_ERR(ginfo))
-		return PTR_ERR(ginfo);
+		return PTR_ERR(no_free_ptr(ginfo));
 
 	tid = ginfo->tid;
 	memset(ginfo, 0, sizeof(*ginfo));
@@ -1682,7 +1682,6 @@ static int snd_timer_user_ginfo(struct file *file,
 	mutex_unlock(&register_mutex);
 	if (err >= 0 && copy_to_user(_ginfo, ginfo, sizeof(*ginfo)))
 		err = -EFAULT;
-	kfree(ginfo);
 	return err;
 }
 
@@ -1804,9 +1803,8 @@ static int snd_timer_user_info(struct file *file,
 			       struct snd_timer_info __user *_info)
 {
 	struct snd_timer_user *tu;
-	struct snd_timer_info *info;
+	struct snd_timer_info *info __free(kfree) = NULL;
 	struct snd_timer *t;
-	int err = 0;
 
 	tu = file->private_data;
 	if (!tu->timeri)
@@ -1827,9 +1825,8 @@ static int snd_timer_user_info(struct file *file,
 	info->resolution = snd_timer_hw_resolution(t);
 	spin_unlock_irq(&t->lock);
 	if (copy_to_user(_info, info, sizeof(*_info)))
-		err = -EFAULT;
-	kfree(info);
-	return err;
+		return -EFAULT;
+	return 0;
 }
 
 static int snd_timer_user_params(struct file *file,

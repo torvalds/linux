@@ -932,7 +932,7 @@ EXPORT_SYMBOL(snd_ctl_find_id);
 static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 			     unsigned int cmd, void __user *arg)
 {
-	struct snd_ctl_card_info *info;
+	struct snd_ctl_card_info *info __free(kfree) = NULL;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (! info)
@@ -946,11 +946,8 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 	strscpy(info->mixername, card->mixername, sizeof(info->mixername));
 	strscpy(info->components, card->components, sizeof(info->components));
 	up_read(&snd_ioctl_rwsem);
-	if (copy_to_user(arg, info, sizeof(struct snd_ctl_card_info))) {
-		kfree(info);
+	if (copy_to_user(arg, info, sizeof(struct snd_ctl_card_info)))
 		return -EFAULT;
-	}
-	kfree(info);
 	return 0;
 }
 
@@ -1339,12 +1336,10 @@ static int snd_ctl_elem_read_user(struct snd_card *card,
 
 	result = snd_ctl_elem_read(card, control);
 	if (result < 0)
-		goto error;
+		return result;
 
 	if (copy_to_user(_control, control, sizeof(*control)))
-		result = -EFAULT;
- error:
-	kfree(control);
+		return -EFAULT;
 	return result;
 }
 
@@ -1406,23 +1401,21 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 static int snd_ctl_elem_write_user(struct snd_ctl_file *file,
 				   struct snd_ctl_elem_value __user *_control)
 {
-	struct snd_ctl_elem_value *control;
+	struct snd_ctl_elem_value *control __free(kfree) = NULL;
 	struct snd_card *card;
 	int result;
 
 	control = memdup_user(_control, sizeof(*control));
 	if (IS_ERR(control))
-		return PTR_ERR(control);
+		return PTR_ERR(no_free_ptr(control));
 
 	card = file->card;
 	result = snd_ctl_elem_write(card, file, control);
 	if (result < 0)
-		goto error;
+		return result;
 
 	if (copy_to_user(_control, control, sizeof(*control)))
-		result = -EFAULT;
- error:
-	kfree(control);
+		return -EFAULT;
 	return result;
 }
 
