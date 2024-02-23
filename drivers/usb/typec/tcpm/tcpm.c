@@ -1878,11 +1878,6 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 	tcpm_log(port, "Rx VDM cmd 0x%x type %d cmd %d len %d",
 		 p[0], cmd_type, cmd, cnt);
 
-	modep = &port->mode_data;
-
-	pdev = typec_match_altmode(port->partner_altmode, ALTMODE_DISCOVERY_MAX,
-				   PD_VDO_VID(p[0]), PD_VDO_OPOS(p[0]));
-
 	switch (rx_sop_type) {
 	case TCPC_TX_SOP_PRIME:
 		modep_prime = &port->mode_data_prime;
@@ -1890,11 +1885,13 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 						 ALTMODE_DISCOVERY_MAX,
 						 PD_VDO_VID(p[0]),
 						 PD_VDO_OPOS(p[0]));
-		if (!IS_ERR_OR_NULL(port->cable)) {
-			svdm_version = typec_get_cable_svdm_version(typec);
-			if (PD_VDO_SVDM_VER(p[0]) < svdm_version)
-				typec_cable_set_svdm_version(port->cable, svdm_version);
-		}
+		svdm_version = typec_get_cable_svdm_version(typec);
+		/*
+		 * Update SVDM version if cable was discovered before port partner.
+		 */
+		if (!IS_ERR_OR_NULL(port->cable) &&
+		    PD_VDO_SVDM_VER(p[0]) < svdm_version)
+			typec_cable_set_svdm_version(port->cable, svdm_version);
 		break;
 	case TCPC_TX_SOP:
 		modep = &port->mode_data;
@@ -1920,6 +1917,15 @@ static int tcpm_pd_svdm(struct tcpm_port *port, struct typec_altmode *adev,
 
 	switch (cmd_type) {
 	case CMDT_INIT:
+		/*
+		 * Only the port or port partner is allowed to initialize SVDM
+		 * commands over SOP'. In case the port partner initializes a
+		 * sequence when it is not allowed to send SOP' messages, drop
+		 * the message should the TCPM port try to process it.
+		 */
+		if (rx_sop_type == TCPC_TX_SOP_PRIME)
+			return 0;
+
 		switch (cmd) {
 		case CMD_DISCOVER_IDENT:
 			if (PD_VDO_VID(p[0]) != USB_SID_PD)
