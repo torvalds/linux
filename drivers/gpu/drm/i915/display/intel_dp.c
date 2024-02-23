@@ -4229,7 +4229,7 @@ void intel_write_dp_vsc_sdp(struct intel_encoder *encoder,
 	struct dp_sdp sdp = {};
 	ssize_t len;
 
-	len = intel_dp_vsc_sdp_pack(vsc, &sdp, sizeof(sdp));
+	len = drm_dp_vsc_sdp_pack(vsc, &sdp);
 
 	if (drm_WARN_ON(&dev_priv->drm, len < 0))
 		return;
