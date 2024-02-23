@@ -6,6 +6,7 @@
  * Author: Michael Brunner <michael.brunner@kontron.com>
  */
 
+#include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/kempld.h>
@@ -131,28 +132,20 @@ static struct platform_device *kempld_pdev;
 static int kempld_create_platform_device(const struct dmi_system_id *id)
 {
 	const struct kempld_platform_data *pdata = id->driver_data;
-	int ret;
+	const struct platform_device_info pdevinfo = {
+		.name = "kempld",
+		.id = PLATFORM_DEVID_NONE,
+		.res = pdata->ioresource,
+		.num_res = 1,
+		.data = pdata,
+		.size_data = sizeof(*pdata),
+	};
 
-	kempld_pdev = platform_device_alloc("kempld", -1);
-	if (!kempld_pdev)
-		return -ENOMEM;
-
-	ret = platform_device_add_data(kempld_pdev, pdata, sizeof(*pdata));
-	if (ret)
-		goto err;
-
-	ret = platform_device_add_resources(kempld_pdev, pdata->ioresource, 1);
-	if (ret)
-		goto err;
-
-	ret = platform_device_add(kempld_pdev);
-	if (ret)
-		goto err;
+	kempld_pdev = platform_device_register_full(&pdevinfo);
+	if (IS_ERR(kempld_pdev))
+		return PTR_ERR(kempld_pdev);
 
 	return 0;
-err:
-	platform_device_put(kempld_pdev);
-	return ret;
 }
 
 /**
@@ -424,7 +417,7 @@ static int kempld_probe(struct platform_device *pdev)
 	struct resource *ioport;
 	int ret;
 
-	if (kempld_pdev == NULL) {
+	if (IS_ERR_OR_NULL(kempld_pdev)) {
 		/*
 		 * No kempld_pdev device has been registered in kempld_init,
 		 * so we seem to be probing an ACPI platform device.
