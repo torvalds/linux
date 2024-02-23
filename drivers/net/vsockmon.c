@@ -13,19 +13,6 @@
 #define DEFAULT_MTU (VIRTIO_VSOCK_MAX_PKT_BUF_SIZE + \
 		     sizeof(struct af_vsockmon_hdr))
 
-static int vsockmon_dev_init(struct net_device *dev)
-{
-	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
-	if (!dev->lstats)
-		return -ENOMEM;
-	return 0;
-}
-
-static void vsockmon_dev_uninit(struct net_device *dev)
-{
-	free_percpu(dev->lstats);
-}
-
 struct vsockmon {
 	struct vsock_tap vt;
 };
@@ -79,8 +66,6 @@ static int vsockmon_change_mtu(struct net_device *dev, int new_mtu)
 }
 
 static const struct net_device_ops vsockmon_ops = {
-	.ndo_init = vsockmon_dev_init,
-	.ndo_uninit = vsockmon_dev_uninit,
 	.ndo_open = vsockmon_open,
 	.ndo_stop = vsockmon_close,
 	.ndo_start_xmit = vsockmon_xmit,
@@ -112,6 +97,7 @@ static void vsockmon_setup(struct net_device *dev)
 	dev->flags = IFF_NOARP;
 
 	dev->mtu = DEFAULT_MTU;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_LSTATS;
 }
 
 static struct rtnl_link_ops vsockmon_link_ops __read_mostly = {
