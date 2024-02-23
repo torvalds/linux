@@ -6162,7 +6162,7 @@ int tracing_set_tracer(struct trace_array *tr, const char *buf)
 		tracing_disarm_snapshot(tr);
 	}
 
-	if (t->use_max_tr) {
+	if (!had_max_tr && t->use_max_tr) {
 		ret = tracing_arm_snapshot_locked(tr);
 		if (ret)
 			goto out;
