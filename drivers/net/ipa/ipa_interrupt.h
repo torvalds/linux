@@ -35,14 +35,6 @@ void ipa_interrupt_suspend_disable(struct ipa_interrupt *interrupt,
 				   u32 endpoint_id);
 
 /**
- * ipa_interrupt_suspend_clear_all - clear all suspend interrupts
- * @interrupt:	IPA interrupt structure
- *
- * Clear the TX_SUSPEND interrupt for all endpoints that signaled it.
- */
-void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt);
-
-/**
  * ipa_interrupt_simulate_suspend() - Simulate TX_SUSPEND IPA interrupt
  * @interrupt:	IPA interrupt structure
  *

@@ -44,7 +44,7 @@ struct ipa_interrupt {
 };
 
 /* Clear the suspend interrupt for all endpoints that signaled it */
-void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
+static void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
 {
 	struct ipa *ipa = interrupt->ipa;
 	u32 unit_count;
@@ -94,7 +94,7 @@ static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 		 * caused the interrupt, so defer clearing until after
 		 * the handler has been called.
 		 */
-		ipa_power_suspend_handler(ipa, irq_id);
+		ipa_interrupt_suspend_clear_all(interrupt);
 		fallthrough;
 
 	default:	/* Silently ignore (and clear) any other condition */
