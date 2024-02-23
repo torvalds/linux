@@ -605,14 +605,16 @@ static inline bool ublk_need_get_data(const struct ublk_queue *ubq)
 	return ubq->flags & UBLK_F_NEED_GET_DATA;
 }
 
-static struct ublk_device *ublk_get_device(struct ublk_device *ub)
+/* Called in slow path only, keep it noinline for trace purpose */
+static noinline struct ublk_device *ublk_get_device(struct ublk_device *ub)
 {
 	if (kobject_get_unless_zero(&ub->cdev_dev.kobj))
 		return ub;
 	return NULL;
 }
 
-static void ublk_put_device(struct ublk_device *ub)
+/* Called in slow path only, keep it noinline for trace purpose */
+static noinline void ublk_put_device(struct ublk_device *ub)
 {
 	put_device(&ub->cdev_dev);
 }
@@ -671,7 +673,7 @@ static void ublk_free_disk(struct gendisk *disk)
 	struct ublk_device *ub = disk->private_data;
 
 	clear_bit(UB_STATE_USED, &ub->state);
-	put_device(&ub->cdev_dev);
+	ublk_put_device(ub);
 }
 
 static void ublk_store_owner_uid_gid(unsigned int *owner_uid,
@@ -2142,7 +2144,7 @@ static void ublk_remove(struct ublk_device *ub)
 	cancel_work_sync(&ub->stop_work);
 	cancel_work_sync(&ub->quiesce_work);
 	cdev_device_del(&ub->cdev, &ub->cdev_dev);
-	put_device(&ub->cdev_dev);
+	ublk_put_device(ub);
 	ublks_added--;
 }
 
@@ -2235,7 +2237,7 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 	if (ub->nr_privileged_daemon != ub->nr_queues_ready)
 		set_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 
-	get_device(&ub->cdev_dev);
+	ublk_get_device(ub);
 	ub->dev_info.state = UBLK_S_DEV_LIVE;
 
 	if (ublk_dev_is_zoned(ub)) {
