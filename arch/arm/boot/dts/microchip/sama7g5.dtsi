@@ -698,7 +698,7 @@
 		};
 
 		flx0: flexcom@e1818000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe1818000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 38>;
 			#address-cells = <1>;
@@ -723,7 +723,7 @@
 		};
 
 		flx1: flexcom@e181c000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe181c000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 39>;
 			#address-cells = <1>;
@@ -747,7 +747,7 @@
 		};
 
 		flx3: flexcom@e1824000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe1824000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 41>;
 			#address-cells = <1>;
@@ -791,7 +791,7 @@
 		};
 
 		flx4: flexcom@e2018000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2018000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 42>;
 			#address-cells = <1>;
@@ -817,7 +817,7 @@
 		};
 
 		flx7: flexcom@e2024000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2024000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 45>;
 			#address-cells = <1>;
@@ -911,7 +911,7 @@
 		};
 
 		flx8: flexcom@e2818000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2818000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 46>;
 			#address-cells = <1>;
@@ -935,7 +935,7 @@
 		};
 
 		flx9: flexcom@e281c000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe281c000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 47>;
 			#address-cells = <1>;
@@ -959,7 +959,7 @@
 		};
 
 		flx10: flexcom@e2820000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2820000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 48>;
 			#address-cells = <1>;
@@ -983,7 +983,7 @@
 		};
 
 		flx11: flexcom@e2824000 {
-			compatible = "atmel,sama5d2-flexcom";
+			compatible = "microchip,sama7g5-flexcom", "atmel,sama5d2-flexcom";
 			reg = <0xe2824000 0x200>;
 			clocks = <&pmc PMC_TYPE_PERIPHERAL 49>;
 			#address-cells = <1>;
