@@ -1004,76 +1004,6 @@ struct dc_current_properties {
 	unsigned int cursor_size_limit;
 };
 
-struct dc {
-	struct dc_debug_options debug;
-	struct dc_versions versions;
-	struct dc_caps caps;
-	struct dc_cap_funcs cap_funcs;
-	struct dc_config config;
-	struct dc_bounding_box_overrides bb_overrides;
-	struct dc_bug_wa work_arounds;
-	struct dc_context *ctx;
-	struct dc_phy_addr_space_config vm_pa_config;
-
-	uint8_t link_count;
-	struct dc_link *links[MAX_PIPES * 2];
-	struct link_service *link_srv;
-
-	struct dc_state *current_state;
-	struct resource_pool *res_pool;
-
-	struct clk_mgr *clk_mgr;
-
-	/* Display Engine Clock levels */
-	struct dm_pp_clock_levels sclk_lvls;
-
-	/* Inputs into BW and WM calculations. */
-	struct bw_calcs_dceip *bw_dceip;
-	struct bw_calcs_vbios *bw_vbios;
-	struct dcn_soc_bounding_box *dcn_soc;
-	struct dcn_ip_params *dcn_ip;
-	struct display_mode_lib dml;
-
-	/* HW functions */
-	struct hw_sequencer_funcs hwss;
-	struct dce_hwseq *hwseq;
-
-	/* Require to optimize clocks and bandwidth for added/removed planes */
-	bool optimized_required;
-	bool wm_optimized_required;
-	bool idle_optimizations_allowed;
-	bool enable_c20_dtm_b0;
-
-	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
-
-	/* FBC compressor */
-	struct compressor *fbc_compressor;
-
-	struct dc_debug_data debug_data;
-	struct dpcd_vendor_signature vendor_signature;
-
-	const char *build_id;
-	struct vm_helper *vm_helper;
-
-	uint32_t *dcn_reg_offsets;
-	uint32_t *nbio_reg_offsets;
-	uint32_t *clk_reg_offsets;
-
-	/* Scratch memory */
-	struct {
-		struct {
-			/*
-			 * For matching clock_limits table in driver with table
-			 * from PMFW.
-			 */
-			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
-		} update_bw_bounding_box;
-	} scratch;
-
-	struct dml2_configuration_options dml2_options;
-	enum dc_acpi_cm_power_state power_state;
-};
-
 enum frame_buffer_mode {
 	FRAME_BUFFER_MODE_LOCAL_ONLY = 0,
 	FRAME_BUFFER_MODE_ZFB_ONLY,
@@ -1361,6 +1291,100 @@ struct dc_plane_info {
 	int  global_alpha_value;
 	bool input_csc_enabled;
 	int layer_index;
+};
+
+#include "dc_stream.h"
+
+struct dc_scratch_space {
+	/* used to temporarily backup plane states of a stream during
+	 * dc update. The reason is that plane states are overwritten
+	 * with surface updates in dc update. Once they are overwritten
+	 * current state is no longer valid. We want to temporarily
+	 * store current value in plane states so we can still recover
+	 * a valid current state during dc update.
+	 */
+	struct dc_plane_state plane_states[MAX_SURFACE_NUM];
+	struct dc_gamma gamma_correction[MAX_SURFACE_NUM];
+	struct dc_transfer_func in_transfer_func[MAX_SURFACE_NUM];
+	struct dc_3dlut lut3d_func[MAX_SURFACE_NUM];
+	struct dc_transfer_func in_shaper_func[MAX_SURFACE_NUM];
+	struct dc_transfer_func blend_tf[MAX_SURFACE_NUM];
+
+	struct dc_stream_state stream_state;
+	struct dc_transfer_func out_transfer_func;
+};
+
+struct dc {
+	struct dc_debug_options debug;
+	struct dc_versions versions;
+	struct dc_caps caps;
+	struct dc_cap_funcs cap_funcs;
+	struct dc_config config;
+	struct dc_bounding_box_overrides bb_overrides;
+	struct dc_bug_wa work_arounds;
+	struct dc_context *ctx;
+	struct dc_phy_addr_space_config vm_pa_config;
+
+	uint8_t link_count;
+	struct dc_link *links[MAX_PIPES * 2];
+	struct link_service *link_srv;
+
+	struct dc_state *current_state;
+	struct resource_pool *res_pool;
+
+	struct clk_mgr *clk_mgr;
+
+	/* Display Engine Clock levels */
+	struct dm_pp_clock_levels sclk_lvls;
+
+	/* Inputs into BW and WM calculations. */
+	struct bw_calcs_dceip *bw_dceip;
+	struct bw_calcs_vbios *bw_vbios;
+	struct dcn_soc_bounding_box *dcn_soc;
+	struct dcn_ip_params *dcn_ip;
+	struct display_mode_lib dml;
+
+	/* HW functions */
+	struct hw_sequencer_funcs hwss;
+	struct dce_hwseq *hwseq;
+
+	/* Require to optimize clocks and bandwidth for added/removed planes */
+	bool optimized_required;
+	bool wm_optimized_required;
+	bool idle_optimizations_allowed;
+	bool enable_c20_dtm_b0;
+
+	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
+
+	/* FBC compressor */
+	struct compressor *fbc_compressor;
+
+	struct dc_debug_data debug_data;
+	struct dpcd_vendor_signature vendor_signature;
+
+	const char *build_id;
+	struct vm_helper *vm_helper;
+
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
+	uint32_t *clk_reg_offsets;
+
+	/* Scratch memory */
+	struct {
+		struct {
+			/*
+			 * For matching clock_limits table in driver with table
+			 * from PMFW.
+			 */
+			struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+		} update_bw_bounding_box;
+		struct dc_scratch_space current_state;
+		struct dc_scratch_space new_state;
+	} scratch;
+
+	struct dml2_configuration_options dml2_options;
+	enum dc_acpi_cm_power_state power_state;
+
 };
 
 struct dc_scaling_info {

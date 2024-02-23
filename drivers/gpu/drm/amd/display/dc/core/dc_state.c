@@ -310,7 +310,6 @@ void dc_state_destruct(struct dc_state *state)
 	memset(state->dc_dmub_cmd, 0, sizeof(state->dc_dmub_cmd));
 	state->dmub_cmd_count = 0;
 	memset(&state->perf_params, 0, sizeof(state->perf_params));
-	memset(&state->scratch, 0, sizeof(state->scratch));
 }
 
 void dc_state_retain(struct dc_state *state)

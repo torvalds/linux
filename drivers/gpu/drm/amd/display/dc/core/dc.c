@@ -3162,9 +3162,10 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	}
 
 	context = dc->current_state;
-	backup_planes_and_stream_state(&dc->current_state->scratch, stream);
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
+	if (update_type == UPDATE_TYPE_FULL)
+		backup_planes_and_stream_state(&dc->scratch.current_state, stream);
 
 	/* update current stream with the new updates */
 	copy_stream_update_to_stream(dc, context, stream, stream_update);
@@ -3263,7 +3264,8 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 	*new_context = context;
 	*new_update_type = update_type;
-	backup_planes_and_stream_state(&context->scratch, stream);
+	if (update_type == UPDATE_TYPE_FULL)
+		backup_planes_and_stream_state(&dc->scratch.new_state, stream);
 
 	return true;
 
@@ -4316,7 +4318,7 @@ static bool commit_minimal_transition_based_on_current_context(struct dc *dc,
 	 * This restores back the original stream and plane states associated
 	 * with the current state.
 	 */
-	restore_planes_and_stream_state(&dc->current_state->scratch, stream);
+	restore_planes_and_stream_state(&dc->scratch.current_state, stream);
 	intermediate_context = create_minimal_transition_state(dc,
 			dc->current_state, &policy);
 	if (intermediate_context) {
@@ -4343,7 +4345,7 @@ static bool commit_minimal_transition_based_on_current_context(struct dc *dc,
 	 * Restore stream and plane states back to the values associated with
 	 * new context.
 	 */
-	restore_planes_and_stream_state(&new_context->scratch, stream);
+	restore_planes_and_stream_state(&dc->scratch.new_state, stream);
 	return success;
 }
 
