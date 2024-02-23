@@ -20,6 +20,7 @@
 #include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <dt-bindings/i3c/i3c.h>
 
 #include "hci.h"
 #include "ext_caps.h"
@@ -465,6 +466,37 @@ static void i3c_hci_bus_cleanup(struct i3c_master_controller *m)
 		mipi_i3c_hci_dat_v1.cleanup(hci);
 }
 
+static int i3c_hci_bus_reset(struct i3c_master_controller *m)
+{
+	struct i3c_hci *hci = to_i3c_hci(m);
+	struct hci_xfer *xfer;
+	DECLARE_COMPLETION_ONSTACK(done);
+	int ret;
+
+	xfer = hci_alloc_xfer(1);
+	if (!xfer)
+		return -ENOMEM;
+	if (hci->master.bus.context == I3C_BUS_CONTEXT_JESD403)
+		hci->cmd->prep_internal(hci, xfer, M_SUB_CMD_REC_RST_PROC,
+					REC_PROC_TIMED_RST);
+	else
+		hci->cmd->prep_internal(hci, xfer, M_SUB_CMD_TARGET_RST_PATTERN,
+					RST_OP_TARGET_RST);
+	xfer[0].completion = &done;
+
+	ret = hci->io->queue_xfer(hci, xfer, 1);
+	if (ret)
+		goto out;
+	if (!wait_for_completion_timeout(&done, HZ) &&
+	    hci->io->dequeue_xfer(hci, xfer, 1)) {
+		ret = -ETIME;
+		goto out;
+	}
+out:
+	hci_free_xfer(xfer, 1);
+	return ret;
+}
+
 void mipi_i3c_hci_hj_ctrl(struct i3c_hci *hci, bool ack_nack)
 {
 	DBG("%s Hot-join requeset\n", ack_nack ? "ACK" : "NACK");
@@ -860,6 +892,7 @@ static void i3c_hci_recycle_ibi_slot(struct i3c_dev_desc *dev,
 static const struct i3c_master_controller_ops i3c_hci_ops = {
 	.bus_init		= i3c_hci_bus_init,
 	.bus_cleanup		= i3c_hci_bus_cleanup,
+	.bus_reset		= i3c_hci_bus_reset,
 	.do_daa			= i3c_hci_daa,
 	.send_ccc_cmd		= i3c_hci_send_ccc_cmd,
 	.priv_xfers		= i3c_hci_priv_xfers,
