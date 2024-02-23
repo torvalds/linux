@@ -4127,6 +4127,9 @@ static void vmx_msr_filter_changed(struct kvm_vcpu *vcpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 i;
 
+	if (!cpu_has_vmx_msr_bitmap())
+		return;
+
 	/*
 	 * Redo intercept permissions for MSRs that KVM is passing through to
 	 * the guest.  Disabling interception will check the new MSR filter and
