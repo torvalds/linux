@@ -306,10 +306,10 @@ static bool hisi_pcie_pmu_valid_filter(struct perf_event *event,
 	if (hisi_pcie_get_trig_len(event) > HISI_PCIE_TRIG_MAX_VAL)
 		return false;
 
-	if (requester_id) {
-		if (!hisi_pcie_pmu_valid_requester_id(pcie_pmu, requester_id))
-			return false;
-	}
+	/* Need to explicitly set filter of "port" or "bdf" */
+	if (!hisi_pcie_get_port(event) &&
+	    !hisi_pcie_pmu_valid_requester_id(pcie_pmu, requester_id))
+		return false;
 
 	return true;
 }
