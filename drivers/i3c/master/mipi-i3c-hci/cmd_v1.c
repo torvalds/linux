@@ -109,8 +109,8 @@
 #define CMD_0_ATTR_M			FIELD_PREP(CMD_0_ATTR, 0x7)
 
 #define CMD_M1_VENDOR_SPECIFIC			   W1_MASK(63, 32)
-#define CMD_M0_MIPI_RESERVED			   W0_MASK(31, 12)
-#define CMD_M0_MIPI_CMD				   W0_MASK(11,  8)
+#define CMD_M0_MIPI_RESERVED(v)		FIELD_PREP(W0_MASK(31, 12), v)
+#define CMD_M0_MIPI_CMD(v)		FIELD_PREP(W0_MASK(11,  8), v)
 #define CMD_M0_VENDOR_INFO_PRESENT		   W0_BIT_( 7)
 #define CMD_M0_TID(v)			FIELD_PREP(W0_MASK( 6,  3), v)
 
@@ -410,6 +410,16 @@ static void hci_cmd_v1_prep_i2c_xfer(struct i3c_hci *hci,
 	}
 }
 
+static void hci_cmd_v1_prep_internal(struct i3c_hci *hci, struct hci_xfer *xfer,
+				     u8 sub_cmd, u32 param)
+{
+	xfer->cmd_tid = hci_get_tid(hci);
+	xfer->cmd_desc[0] = CMD_0_ATTR_M | CMD_M0_TID(xfer->cmd_tid) |
+			    CMD_M0_MIPI_CMD(sub_cmd) |
+			    CMD_M0_MIPI_RESERVED(param);
+	xfer->cmd_desc[1] = 0;
+}
+
 static void i3c_aspeed_set_daa_index(struct i3c_hci *hci, u8 addr)
 {
 	if (addr < 32)
@@ -530,5 +540,6 @@ const struct hci_cmd_ops mipi_i3c_hci_cmd_v1 = {
 	.prep_ccc		= hci_cmd_v1_prep_ccc,
 	.prep_i3c_xfer		= hci_cmd_v1_prep_i3c_xfer,
 	.prep_i2c_xfer		= hci_cmd_v1_prep_i2c_xfer,
+	.prep_internal		= hci_cmd_v1_prep_internal,
 	.perform_daa		= hci_cmd_v1_daa,
 };

@@ -629,7 +629,8 @@ static void hci_pio_queue_resp(struct i3c_hci *hci, struct hci_pio_data *pio)
 	struct hci_xfer *xfer = pio->curr_xfer;
 	struct hci_xfer *prev_queue_tail;
 
-	if (!(xfer->cmd_desc[0] & CMD_0_ROC))
+	if (!(xfer->cmd_desc[0] & CMD_0_ROC) &&
+	    ((xfer->cmd_desc[0] & CMD_0_ATTR) != CMD_0_ATTR_M))
 		return;
 
 	prev_queue_tail = pio->resp_queue;
