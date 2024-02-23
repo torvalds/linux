@@ -96,8 +96,6 @@
  */
 /* Defer freeing slabs to RCU */
 #define SLAB_TYPESAFE_BY_RCU	((slab_flags_t __force)0x00080000U)
-/* Spread some memory over cpuset */
-#define SLAB_MEM_SPREAD		((slab_flags_t __force)0x00100000U)
 /* Trace allocations and frees */
 #define SLAB_TRACE		((slab_flags_t __force)0x00200000U)
 
@@ -163,6 +161,9 @@
 #define SLAB_RECLAIM_ACCOUNT	((slab_flags_t __force)0)
 #endif
 #define SLAB_TEMPORARY		SLAB_RECLAIM_ACCOUNT	/* Objects are short-lived */
+
+/* Obsolete unused flag, to be removed */
+#define SLAB_MEM_SPREAD		((slab_flags_t __force)0U)
 
 /*
  * ZERO_SIZE_PTR will be returned for zero sized kmalloc requests.
