@@ -585,7 +585,7 @@ bool dc_state_add_all_planes_for_stream(
  */
 struct dc_stream_status *dc_state_get_stream_status(
 		struct dc_state *state,
-		struct dc_stream_state *stream)
+		const struct dc_stream_state *stream)
 {
 	uint8_t i;
 
@@ -867,4 +867,19 @@ void dc_state_release_phantom_streams_and_planes(
 
 	for (i = 0; i < state->phantom_plane_count; i++)
 		dc_state_release_phantom_plane(dc, state, state->phantom_planes[i]);
+}
+
+struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state, unsigned int id)
+{
+	struct dc_stream_state *stream = NULL;
+	int i;
+
+	for (i = 0; i < state->stream_count; i++) {
+		if (state->streams[i] && state->streams[i]->stream_id == id) {
+			stream = state->streams[i];
+			break;
+		}
+	}
+
+	return stream;
 }

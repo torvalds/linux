@@ -90,6 +90,9 @@ struct resource_funcs {
 	void (*update_soc_for_wm_a)(
 				struct dc *dc, struct dc_state *context);
 
+	unsigned int (*calculate_mall_ways_from_bytes)(
+				const struct dc *dc,
+				unsigned int total_size_in_mall_bytes);
 	/**
 	 * @populate_dml_pipes - Populate pipe data struct
 	 *

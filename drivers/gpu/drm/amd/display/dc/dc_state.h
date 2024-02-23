@@ -74,5 +74,5 @@ bool dc_state_add_all_planes_for_stream(
 
 struct dc_stream_status *dc_state_get_stream_status(
 	struct dc_state *state,
-	struct dc_stream_state *stream);
+	const struct dc_stream_state *stream);
 #endif /* _DC_STATE_H_ */

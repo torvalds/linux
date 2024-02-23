@@ -239,8 +239,10 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 	// Convert number of cache lines required to number of ways
 	if (dc->debug.force_mall_ss_num_ways > 0) {
 		num_ways = dc->debug.force_mall_ss_num_ways;
+	} else if (dc->res_pool->funcs->calculate_mall_ways_from_bytes) {
+		num_ways = dc->res_pool->funcs->calculate_mall_ways_from_bytes(dc, mall_ss_size_bytes);
 	} else {
-		num_ways = dcn32_helper_mall_bytes_to_ways(dc, mall_ss_size_bytes);
+		num_ways = 0;
 	}
 
 	return num_ways;

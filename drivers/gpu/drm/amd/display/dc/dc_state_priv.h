@@ -29,6 +29,8 @@
 #include "dc_state.h"
 #include "dc_stream.h"
 
+struct dc_stream_state *dc_state_get_stream_from_id(const struct dc_state *state, unsigned int id);
+
 /* Get the type of the provided resource (none, phantom, main) based on the provided
  * context. If the context is unavailable, determine only if phantom or not.
  */

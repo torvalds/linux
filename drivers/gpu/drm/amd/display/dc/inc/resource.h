@@ -615,4 +615,10 @@ enum dc_status update_dp_encoder_resources_for_test_harness(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx);
 
 bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_state *stream);
+
+/* Setup dc callbacks for dml2
+ * @dc: the display core structure
+ * @dml2_options: struct to hold callbacks
+ */
+void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuration_options *dml2_options);
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

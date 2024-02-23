@@ -4993,3 +4993,36 @@ bool check_subvp_sw_cursor_fallback_req(const struct dc *dc, struct dc_stream_st
 
 	return false;
 }
+
+void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuration_options *dml2_options)
+{
+	dml2_options->callbacks.dc = dc;
+	dml2_options->callbacks.build_scaling_params = &resource_build_scaling_params;
+	dml2_options->callbacks.acquire_secondary_pipe_for_mpc_odm = &dc_resource_acquire_secondary_pipe_for_mpc_odm_legacy;
+	dml2_options->callbacks.update_pipes_for_stream_with_slice_count = &resource_update_pipes_for_stream_with_slice_count;
+	dml2_options->callbacks.update_pipes_for_plane_with_slice_count = &resource_update_pipes_for_plane_with_slice_count;
+	dml2_options->callbacks.get_mpc_slice_index = &resource_get_mpc_slice_index;
+	dml2_options->callbacks.get_odm_slice_index = &resource_get_odm_slice_index;
+	dml2_options->callbacks.get_opp_head = &resource_get_opp_head;
+	dml2_options->callbacks.get_otg_master_for_stream = &resource_get_otg_master_for_stream;
+	dml2_options->callbacks.get_opp_heads_for_otg_master = &resource_get_opp_heads_for_otg_master;
+	dml2_options->callbacks.get_dpp_pipes_for_plane = &resource_get_dpp_pipes_for_plane;
+	dml2_options->callbacks.get_stream_status = &dc_state_get_stream_status;
+	dml2_options->callbacks.get_stream_from_id = &dc_state_get_stream_from_id;
+
+	dml2_options->svp_pstate.callbacks.dc = dc;
+	dml2_options->svp_pstate.callbacks.add_phantom_plane = &dc_state_add_phantom_plane;
+	dml2_options->svp_pstate.callbacks.add_phantom_stream = &dc_state_add_phantom_stream;
+	dml2_options->svp_pstate.callbacks.build_scaling_params = &resource_build_scaling_params;
+	dml2_options->svp_pstate.callbacks.create_phantom_plane = &dc_state_create_phantom_plane;
+	dml2_options->svp_pstate.callbacks.remove_phantom_plane = &dc_state_remove_phantom_plane;
+	dml2_options->svp_pstate.callbacks.remove_phantom_stream = &dc_state_remove_phantom_stream;
+	dml2_options->svp_pstate.callbacks.create_phantom_stream = &dc_state_create_phantom_stream;
+	dml2_options->svp_pstate.callbacks.release_phantom_plane = &dc_state_release_phantom_plane;
+	dml2_options->svp_pstate.callbacks.release_phantom_stream = &dc_state_release_phantom_stream;
+	dml2_options->svp_pstate.callbacks.get_pipe_subvp_type = &dc_state_get_pipe_subvp_type;
+	dml2_options->svp_pstate.callbacks.get_stream_subvp_type = &dc_state_get_stream_subvp_type;
+	dml2_options->svp_pstate.callbacks.get_paired_subvp_stream = &dc_state_get_paired_subvp_stream;
+	dml2_options->svp_pstate.callbacks.remove_phantom_streams_and_planes = &dc_state_remove_phantom_streams_and_planes;
+	dml2_options->svp_pstate.callbacks.release_phantom_streams_and_planes = &dc_state_release_phantom_streams_and_planes;
+}
