@@ -3559,7 +3559,10 @@ int ionic_lif_init(struct ionic_lif *lif)
 			goto err_out_notifyq_deinit;
 	}
 
-	err = ionic_init_nic_features(lif);
+	if (test_bit(IONIC_LIF_F_FW_RESET, lif->state))
+		err = ionic_set_nic_features(lif, lif->netdev->features);
+	else
+		err = ionic_init_nic_features(lif);
 	if (err)
 		goto err_out_notifyq_deinit;
 
