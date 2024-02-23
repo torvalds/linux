@@ -963,7 +963,7 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 
 	switch (opt) {
 	case Opt_compress:
-		ctx->compression = UNKNOWN_TYPE;
+		ctx->compress = true;
 		cifs_dbg(VFS,
 			"SMB3 compression support is experimental\n");
 		break;

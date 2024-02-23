@@ -731,7 +731,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	pneg_ctxt += sizeof(struct smb2_posix_neg_context);
 	neg_context_count++;
 
-	if (server->compress_algorithm) {
+	if (server->compression.requested) {
 		build_compression_ctxt((struct smb2_compression_capabilities_context *)
 				pneg_ctxt);
 		ctxt_len = ALIGN(sizeof(struct smb2_compression_capabilities_context), 8);
@@ -779,6 +779,9 @@ static void decode_compress_ctx(struct TCP_Server_Info *server,
 			 struct smb2_compression_capabilities_context *ctxt)
 {
 	unsigned int len = le16_to_cpu(ctxt->DataLength);
+	__le16 alg;
+
+	server->compression.enabled = false;
 
 	/*
 	 * Caller checked that DataLength remains within SMB boundary. We still
@@ -789,15 +792,22 @@ static void decode_compress_ctx(struct TCP_Server_Info *server,
 		pr_warn_once("server sent bad compression cntxt\n");
 		return;
 	}
+
 	if (le16_to_cpu(ctxt->CompressionAlgorithmCount) != 1) {
-		pr_warn_once("Invalid SMB3 compress algorithm count\n");
+		pr_warn_once("invalid SMB3 compress algorithm count\n");
 		return;
 	}
-	if (le16_to_cpu(ctxt->CompressionAlgorithms[0]) > 3) {
-		pr_warn_once("unknown compression algorithm\n");
+
+	alg = ctxt->CompressionAlgorithms[0];
+
+	/* 'NONE' (0) compressor type is never negotiated */
+	if (alg == 0 || le16_to_cpu(alg) > 3) {
+		pr_warn_once("invalid compression algorithm '%u'\n", alg);
 		return;
 	}
-	server->compress_algorithm = ctxt->CompressionAlgorithms[0];
+
+	server->compression.alg = alg;
+	server->compression.enabled = true;
 }
 
 static int decode_encrypt_ctx(struct TCP_Server_Info *server,

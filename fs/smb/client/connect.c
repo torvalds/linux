@@ -1736,7 +1736,7 @@ cifs_get_tcp_session(struct smb3_fs_context *ctx,
 	tcp_ses->channel_sequence_num = 0; /* only tracked for primary channel */
 	tcp_ses->reconnect_instance = 1;
 	tcp_ses->lstrp = jiffies;
-	tcp_ses->compress_algorithm = cpu_to_le16(ctx->compression);
+	tcp_ses->compression.requested = ctx->compress;
 	spin_lock_init(&tcp_ses->req_lock);
 	spin_lock_init(&tcp_ses->srv_lock);
 	spin_lock_init(&tcp_ses->mid_lock);

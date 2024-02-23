@@ -769,7 +769,11 @@ struct TCP_Server_Info {
 	unsigned int	max_write;
 	unsigned int	min_offload;
 	unsigned int	retrans;
-	__le16	compress_algorithm;
+	struct {
+		bool requested; /* "compress" mount option set*/
+		bool enabled; /* actually negotiated with server */
+		__le16 alg; /* preferred alg negotiated with server */
+	} compression;
 	__u16	signing_algorithm;
 	__le16	cipher_type;
 	 /* save initital negprot hash */
