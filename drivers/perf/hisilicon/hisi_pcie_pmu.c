@@ -409,14 +409,10 @@ static int hisi_pcie_pmu_find_related_event(struct hisi_pcie_pmu *pcie_pmu,
 		if (!sibling)
 			continue;
 
-		if (!hisi_pcie_pmu_cmp_event(sibling, event))
-			continue;
-
 		/* Related events must be used in group */
-		if (sibling->group_leader == event->group_leader)
+		if (hisi_pcie_pmu_cmp_event(sibling, event) &&
+		    sibling->group_leader == event->group_leader)
 			return idx;
-		else
-			return -EINVAL;
 	}
 
 	return idx;
