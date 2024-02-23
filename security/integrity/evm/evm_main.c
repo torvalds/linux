@@ -155,7 +155,7 @@ static int is_unsupported_fs(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 
-	if (inode->i_sb->s_iflags & SB_I_EVM_UNSUPPORTED) {
+	if (inode->i_sb->s_iflags & SB_I_EVM_HMAC_UNSUPPORTED) {
 		pr_info_once("%s not supported\n", inode->i_sb->s_type->name);
 		return 1;
 	}
