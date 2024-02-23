@@ -341,14 +341,6 @@ struct xe_device {
 		struct mutex lock;
 	} usm;
 
-	/** @persistent_engines: engines that are closed but still running */
-	struct {
-		/** @lock: protects persistent engines */
-		struct mutex lock;
-		/** @list: list of persistent engines */
-		struct list_head list;
-	} persistent_engines;
-
 	/** @pinned: pinned BO state */
 	struct {
 		/** @lock: protected pinned BO list state */

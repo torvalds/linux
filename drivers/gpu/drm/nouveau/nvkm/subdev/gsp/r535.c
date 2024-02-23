@@ -2312,8 +2312,12 @@ r535_gsp_load(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 {
 	struct nvkm_subdev *subdev = &gsp->subdev;
 	int ret;
+	bool enable_gsp = fwif->enable;
 
-	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", fwif->enable))
+#if IS_ENABLED(CONFIG_DRM_NOUVEAU_GSP_DEFAULT)
+	enable_gsp = true;
+#endif
+	if (!nvkm_boolopt(subdev->device->cfgopt, "NvGspRm", enable_gsp))
 		return -EINVAL;
 
 	if ((ret = r535_gsp_load_fw(gsp, "gsp", fwif->ver, &gsp->fws.rm)) ||
