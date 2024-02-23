@@ -31,7 +31,7 @@ enum xe_exec_queue_sched_prop {
 };
 
 static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue *q,
-				      u64 extensions, int ext_number, bool create);
+				      u64 extensions, int ext_number);
 
 static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 						   struct xe_vm *vm,
@@ -79,7 +79,7 @@ static struct xe_exec_queue *__xe_exec_queue_alloc(struct xe_device *xe,
 		 * may set q->usm, must come before xe_lrc_init(),
 		 * may overwrite q->sched_props, must come before q->ops->init()
 		 */
-		err = exec_queue_user_extensions(xe, q, extensions, 0, true);
+		err = exec_queue_user_extensions(xe, q, extensions, 0);
 		if (err) {
 			kfree(q);
 			return ERR_PTR(err);
@@ -268,16 +268,13 @@ xe_exec_queue_device_get_max_priority(struct xe_device *xe)
 }
 
 static int exec_queue_set_priority(struct xe_device *xe, struct xe_exec_queue *q,
-				   u64 value, bool create)
+				   u64 value)
 {
 	if (XE_IOCTL_DBG(xe, value > XE_EXEC_QUEUE_PRIORITY_HIGH))
 		return -EINVAL;
 
 	if (XE_IOCTL_DBG(xe, value > xe_exec_queue_device_get_max_priority(xe)))
 		return -EPERM;
-
-	if (!create)
-		return q->ops->set_priority(q, value);
 
 	q->sched_props.priority = value;
 	return 0;
@@ -336,7 +333,7 @@ xe_exec_queue_get_prop_minmax(struct xe_hw_engine_class_intf *eclass,
 }
 
 static int exec_queue_set_timeslice(struct xe_device *xe, struct xe_exec_queue *q,
-				    u64 value, bool create)
+				    u64 value)
 {
 	u32 min = 0, max = 0;
 
@@ -347,16 +344,13 @@ static int exec_queue_set_timeslice(struct xe_device *xe, struct xe_exec_queue *
 	    !xe_hw_engine_timeout_in_range(value, min, max))
 		return -EINVAL;
 
-	if (!create)
-		return q->ops->set_timeslice(q, value);
-
 	q->sched_props.timeslice_us = value;
 	return 0;
 }
 
 typedef int (*xe_exec_queue_set_property_fn)(struct xe_device *xe,
 					     struct xe_exec_queue *q,
-					     u64 value, bool create);
+					     u64 value);
 
 static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY] = exec_queue_set_priority,
@@ -365,8 +359,7 @@ static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
 
 static int exec_queue_user_ext_set_property(struct xe_device *xe,
 					    struct xe_exec_queue *q,
-					    u64 extension,
-					    bool create)
+					    u64 extension)
 {
 	u64 __user *address = u64_to_user_ptr(extension);
 	struct drm_xe_ext_set_property ext;
@@ -388,13 +381,12 @@ static int exec_queue_user_ext_set_property(struct xe_device *xe,
 	if (!exec_queue_set_property_funcs[idx])
 		return -EINVAL;
 
-	return exec_queue_set_property_funcs[idx](xe, q, ext.value,  create);
+	return exec_queue_set_property_funcs[idx](xe, q, ext.value);
 }
 
 typedef int (*xe_exec_queue_user_extension_fn)(struct xe_device *xe,
 					       struct xe_exec_queue *q,
-					       u64 extension,
-					       bool create);
+					       u64 extension);
 
 static const xe_exec_queue_set_property_fn exec_queue_user_extension_funcs[] = {
 	[DRM_XE_EXEC_QUEUE_EXTENSION_SET_PROPERTY] = exec_queue_user_ext_set_property,
@@ -402,7 +394,7 @@ static const xe_exec_queue_set_property_fn exec_queue_user_extension_funcs[] = {
 
 #define MAX_USER_EXTENSIONS	16
 static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue *q,
-				      u64 extensions, int ext_number, bool create)
+				      u64 extensions, int ext_number)
 {
 	u64 __user *address = u64_to_user_ptr(extensions);
 	struct drm_xe_user_extension ext;
@@ -423,13 +415,13 @@ static int exec_queue_user_extensions(struct xe_device *xe, struct xe_exec_queue
 
 	idx = array_index_nospec(ext.name,
 				 ARRAY_SIZE(exec_queue_user_extension_funcs));
-	err = exec_queue_user_extension_funcs[idx](xe, q, extensions, create);
+	err = exec_queue_user_extension_funcs[idx](xe, q, extensions);
 	if (XE_IOCTL_DBG(xe, err))
 		return err;
 
 	if (ext.next_extension)
 		return exec_queue_user_extensions(xe, q, ext.next_extension,
-					      ++ext_number, create);
+						  ++ext_number);
 
 	return 0;
 }
