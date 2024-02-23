@@ -229,7 +229,7 @@ struct amd_pmf_dev {
 	struct delayed_work pb_work;
 	struct pmf_action_table *prev_data;
 	u64 policy_addr;
-	void *policy_base;
+	void __iomem *policy_base;
 	bool smart_pc_enabled;
 };
 

@@ -346,7 +346,7 @@ static int amd_pmf_get_bios_buffer(struct amd_pmf_dev *dev)
 	if (!dev->policy_base)
 		return -ENOMEM;
 
-	memcpy(dev->policy_buf, dev->policy_base, dev->policy_sz);
+	memcpy_fromio(dev->policy_buf, dev->policy_base, dev->policy_sz);
 
 	amd_pmf_hex_dump_pb(dev);
 	if (pb_side_load)
