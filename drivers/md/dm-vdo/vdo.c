@@ -67,10 +67,7 @@ struct sync_completion {
 	struct completion completion;
 };
 
-/*
- * We don't expect this set to ever get really large, so a linked list is adequate. We can use a
- * pointer_map if we need to later.
- */
+/* A linked list is adequate for the small number of entries we expect. */
 struct device_registry {
 	struct list_head links;
 	/* TODO: Convert to rcu per kernel recommendation. */
