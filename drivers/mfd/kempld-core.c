@@ -15,6 +15,7 @@
 #include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/sysfs.h>
 
 #define MAX_ID_LEN 4
 static char force_device_id[MAX_ID_LEN + 1] = "";
@@ -373,16 +374,13 @@ static DEVICE_ATTR_RO(pld_version);
 static DEVICE_ATTR_RO(pld_specification);
 static DEVICE_ATTR_RO(pld_type);
 
-static struct attribute *pld_attributes[] = {
+static struct attribute *pld_attrs[] = {
 	&dev_attr_pld_version.attr,
 	&dev_attr_pld_specification.attr,
 	&dev_attr_pld_type.attr,
 	NULL
 };
-
-static const struct attribute_group pld_attr_group = {
-	.attrs = pld_attributes,
-};
+ATTRIBUTE_GROUPS(pld);
 
 static int kempld_detect_device(struct kempld_device_data *pld)
 {
@@ -415,15 +413,7 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 		 pld->info.version, kempld_get_type_string(pld),
 		 pld->info.spec_major, pld->info.spec_minor);
 
-	ret = sysfs_create_group(&pld->dev->kobj, &pld_attr_group);
-	if (ret)
-		return ret;
-
-	ret = kempld_register_cells(pld);
-	if (ret)
-		sysfs_remove_group(&pld->dev->kobj, &pld_attr_group);
-
-	return ret;
+	return kempld_register_cells(pld);
 }
 
 static int kempld_probe(struct platform_device *pdev)
@@ -489,8 +479,6 @@ static void kempld_remove(struct platform_device *pdev)
 	struct kempld_device_data *pld = platform_get_drvdata(pdev);
 	const struct kempld_platform_data *pdata = dev_get_platdata(pld->dev);
 
-	sysfs_remove_group(&pld->dev->kobj, &pld_attr_group);
-
 	mfd_remove_devices(&pdev->dev);
 	pdata->release_hardware_mutex(pld);
 }
@@ -506,6 +494,7 @@ static struct platform_driver kempld_driver = {
 	.driver		= {
 		.name	= "kempld",
 		.acpi_match_table = kempld_acpi_table,
+		.dev_groups	  = pld_groups,
 	},
 	.probe		= kempld_probe,
 	.remove_new	= kempld_remove,
