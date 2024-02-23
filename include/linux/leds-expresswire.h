@@ -8,7 +8,9 @@
 #ifndef _LEDS_EXPRESSWIRE_H
 #define _LEDS_EXPRESSWIRE_H
 
-#include <linux/gpio/consumer.h>
+#include <linux/types.h>
+
+struct gpio_desc;
 
 struct expresswire_timing {
 	unsigned long poweroff_us;

@@ -5,8 +5,12 @@
  * ktd2692 and ktd2801 are known to use this protocol.
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
+#include <linux/export.h>
 #include <linux/gpio/consumer.h>
+#include <linux/types.h>
+
 #include <linux/leds-expresswire.h>
 
 void expresswire_power_off(struct expresswire_common_props *props)
