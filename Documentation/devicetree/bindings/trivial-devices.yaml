@@ -143,14 +143,6 @@ properties:
           - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
-            # Infineon IR38060 Voltage Regulator
-          - infineon,ir38060
-            # Infineon IR38064 Voltage Regulator
-          - infineon,ir38064
-            # Infineon IR38164 Voltage Regulator
-          - infineon,ir38164
-            # Infineon IR38263 Voltage Regulator
-          - infineon,ir38263
             # Infineon IRPS5401 Voltage Regulator (PMIC)
           - infineon,irps5401
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
