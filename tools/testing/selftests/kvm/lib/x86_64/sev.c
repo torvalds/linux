@@ -53,6 +53,9 @@ void sev_vm_launch(struct kvm_vm *vm, uint32_t policy)
 	hash_for_each(vm->regions.slot_hash, ctr, region, slot_node)
 		encrypt_region(vm, region);
 
+	if (policy & SEV_POLICY_ES)
+		vm_sev_ioctl(vm, KVM_SEV_LAUNCH_UPDATE_VMSA, NULL);
+
 	vm->arch.is_pt_protected = true;
 }
 
@@ -90,7 +93,8 @@ struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t policy, void *guest_code,
 	struct vm_shape shape = {
 		.type = VM_TYPE_DEFAULT,
 		.mode = VM_MODE_DEFAULT,
-		.subtype = VM_SUBTYPE_SEV,
+		.subtype = policy & SEV_POLICY_ES ? VM_SUBTYPE_SEV_ES :
+						    VM_SUBTYPE_SEV,
 	};
 	struct kvm_vm *vm;
 	struct kvm_vcpu *cpus[1];
