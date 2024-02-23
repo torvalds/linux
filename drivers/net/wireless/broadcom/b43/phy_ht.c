@@ -322,8 +322,8 @@ static void b43_phy_ht_bphy_reset(struct b43_wldev *dev, bool reset)
 			    B43_PHY_B_BBCFG_RSTCCA | B43_PHY_B_BBCFG_RSTRX);
 	else
 		b43_phy_mask(dev, B43_PHY_B_BBCFG,
-			     (u16)~(B43_PHY_B_BBCFG_RSTCCA |
-				    B43_PHY_B_BBCFG_RSTRX));
+			     0xffff & ~(B43_PHY_B_BBCFG_RSTCCA |
+					B43_PHY_B_BBCFG_RSTRX));
 
 	b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp);
 }
@@ -551,7 +551,7 @@ static void b43_phy_ht_tx_power_ctl(struct b43_wldev *dev, bool enable)
 				phy_ht->tx_pwr_idx[i] =
 					b43_phy_read(dev, status_regs[i]);
 		}
-		b43_phy_mask(dev, B43_PHY_HT_TXPCTL_CMD_C1, ~en_bits);
+		b43_phy_mask(dev, B43_PHY_HT_TXPCTL_CMD_C1, 0xffff & ~en_bits);
 	} else {
 		b43_phy_set(dev, B43_PHY_HT_TXPCTL_CMD_C1, en_bits);
 
