@@ -3,6 +3,7 @@
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
+#include <asm/frame.h>
 #include <asm/kvm_vcpu_regs.h>
 #include <asm/nospec-branch.h>
 #include "kvm-asm-offsets.h"
@@ -312,6 +313,8 @@ SYM_FUNC_END(__svm_vcpu_run)
  * @spec_ctrl_intercepted: bool
  */
 SYM_FUNC_START(__svm_sev_es_vcpu_run)
+	FRAME_BEGIN
+
 	/*
 	 * Save non-volatile (callee-saved) registers to the host save area.
 	 * Except for RAX and RSP, all GPRs are restored on #VMEXIT, but not
@@ -362,6 +365,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	 */
 	UNTRAIN_RET_VM
 
+	FRAME_END
 	RET
 
 	RESTORE_GUEST_SPEC_CTRL_BODY
