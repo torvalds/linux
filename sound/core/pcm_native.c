@@ -2265,28 +2265,22 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	struct snd_pcm_group *group __free(kfree) = NULL;
 	struct snd_pcm_group *target_group;
 	bool nonatomic = substream->pcm->nonatomic;
-	struct fd f = fdget(fd);
+	CLASS(fd, f)(fd);
 
 	if (!f.file)
 		return -EBADFD;
-	if (!is_pcm_file(f.file)) {
-		res = -EBADFD;
-		goto _badf;
-	}
+	if (!is_pcm_file(f.file))
+		return -EBADFD;
 
 	pcm_file = f.file->private_data;
 	substream1 = pcm_file->substream;
 
-	if (substream == substream1) {
-		res = -EINVAL;
-		goto _badf;
-	}
+	if (substream == substream1)
+		return -EINVAL;
 
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
-	if (!group) {
-		res = -ENOMEM;
-		goto _badf;
-	}
+	if (!group)
+		return -ENOMEM;
 
 	snd_pcm_group_init(group);
 
@@ -2318,8 +2312,6 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	snd_pcm_group_unlock_irq(target_group, nonatomic);
  _end:
 	up_write(&snd_pcm_link_rwsem);
- _badf:
-	fdput(f);
 	return res;
 }
 
