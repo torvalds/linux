@@ -43,6 +43,14 @@
 			status = "disabled";
 		};
 
+		ltpi1_jtag: jtag@50c09000 {
+			compatible = "aspeed,ast2700-jtag";
+			reg= <0x0 0x50c09000 0x0 0x40>;
+			clocks = <&ltpi1_syscon AST1700_CLK_AHB>;
+			resets = <&ltpi1_syscon AST1700_RESET_JTAG1>;
+			status = "disabled";
+		};
+
 		ltpi1_i2c: bus@50c0f000 {
 			compatible = "simple-bus";
 			#address-cells = <1>;
