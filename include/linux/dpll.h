@@ -10,6 +10,8 @@
 #include <uapi/linux/dpll.h>
 #include <linux/device.h>
 #include <linux/netlink.h>
+#include <linux/netdevice.h>
+#include <linux/rtnetlink.h>
 
 struct dpll_device;
 struct dpll_pin;
@@ -166,5 +168,14 @@ void dpll_pin_on_pin_unregister(struct dpll_pin *parent, struct dpll_pin *pin,
 int dpll_device_change_ntf(struct dpll_device *dpll);
 
 int dpll_pin_change_ntf(struct dpll_pin *pin);
+
+static inline struct dpll_pin *netdev_dpll_pin(const struct net_device *dev)
+{
+#if IS_ENABLED(CONFIG_DPLL)
+	return rcu_dereference_rtnl(dev->dpll_pin);
+#else
+	return NULL;
+#endif
+}
 
 #endif
