@@ -1259,18 +1259,18 @@ static int mmc_omap_new_slot(struct mmc_omap_host *host, int id)
 	slot->pdata = &host->pdata->slots[id];
 
 	/* Check for some optional GPIO controls */
-	slot->vsd = gpiod_get_index_optional(host->dev, "vsd",
-					     id, GPIOD_OUT_LOW);
+	slot->vsd = devm_gpiod_get_index_optional(host->dev, "vsd",
+						  id, GPIOD_OUT_LOW);
 	if (IS_ERR(slot->vsd))
 		return dev_err_probe(host->dev, PTR_ERR(slot->vsd),
 				     "error looking up VSD GPIO\n");
-	slot->vio = gpiod_get_index_optional(host->dev, "vio",
-					     id, GPIOD_OUT_LOW);
+	slot->vio = devm_gpiod_get_index_optional(host->dev, "vio",
+						  id, GPIOD_OUT_LOW);
 	if (IS_ERR(slot->vio))
 		return dev_err_probe(host->dev, PTR_ERR(slot->vio),
 				     "error looking up VIO GPIO\n");
-	slot->cover = gpiod_get_index_optional(host->dev, "cover",
-						id, GPIOD_IN);
+	slot->cover = devm_gpiod_get_index_optional(host->dev, "cover",
+						    id, GPIOD_IN);
 	if (IS_ERR(slot->cover))
 		return dev_err_probe(host->dev, PTR_ERR(slot->cover),
 				     "error looking up cover switch GPIO\n");
@@ -1402,8 +1402,8 @@ static int mmc_omap_probe(struct platform_device *pdev)
 	host->dev = &pdev->dev;
 	platform_set_drvdata(pdev, host);
 
-	host->slot_switch = gpiod_get_optional(host->dev, "switch",
-					       GPIOD_OUT_LOW);
+	host->slot_switch = devm_gpiod_get_optional(host->dev, "switch",
+						    GPIOD_OUT_LOW);
 	if (IS_ERR(host->slot_switch))
 		return dev_err_probe(host->dev, PTR_ERR(host->slot_switch),
 				     "error looking up slot switch GPIO\n");
