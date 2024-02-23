@@ -216,10 +216,8 @@ static void hisi_pcie_pmu_writeq(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 	writeq_relaxed(val, pcie_pmu->base + offset);
 }
 
-static void hisi_pcie_pmu_config_event_ctrl(struct perf_event *event)
+static u64 hisi_pcie_pmu_get_event_ctrl_val(struct perf_event *event)
 {
-	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
-	struct hw_perf_event *hwc = &event->hw;
 	u64 port, trig_len, thr_len, len_mode;
 	u64 reg = HISI_PCIE_INIT_SET;
 
@@ -255,6 +253,15 @@ static void hisi_pcie_pmu_config_event_ctrl(struct perf_event *event)
 		reg |= FIELD_PREP(HISI_PCIE_LEN_M, len_mode);
 	else
 		reg |= FIELD_PREP(HISI_PCIE_LEN_M, HISI_PCIE_LEN_M_DEFAULT);
+
+	return reg;
+}
+
+static void hisi_pcie_pmu_config_event_ctrl(struct perf_event *event)
+{
+	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
+	u64 reg = hisi_pcie_pmu_get_event_ctrl_val(event);
 
 	hisi_pcie_pmu_writeq(pcie_pmu, HISI_PCIE_EVENT_CTRL, hwc->idx, reg);
 }
