@@ -398,16 +398,24 @@ static u64 hisi_pcie_pmu_read_counter(struct perf_event *event)
 	return hisi_pcie_pmu_readq(pcie_pmu, event->hw.event_base, idx);
 }
 
-static int hisi_pcie_pmu_find_related_event(struct hisi_pcie_pmu *pcie_pmu,
-					    struct perf_event *event)
+/*
+ * Check all work events, if a relevant event is found then we return it
+ * first, otherwise return the first idle counter (need to reset).
+ */
+static int hisi_pcie_pmu_get_event_idx(struct hisi_pcie_pmu *pcie_pmu,
+					struct perf_event *event)
 {
+	int first_idle = -EAGAIN;
 	struct perf_event *sibling;
 	int idx;
 
 	for (idx = 0; idx < HISI_PCIE_MAX_COUNTERS; idx++) {
 		sibling = pcie_pmu->hw_events[idx];
-		if (!sibling)
+		if (!sibling) {
+			if (first_idle == -EAGAIN)
+				first_idle = idx;
 			continue;
+		}
 
 		/* Related events must be used in group */
 		if (hisi_pcie_pmu_cmp_event(sibling, event) &&
@@ -415,19 +423,7 @@ static int hisi_pcie_pmu_find_related_event(struct hisi_pcie_pmu *pcie_pmu,
 			return idx;
 	}
 
-	return idx;
-}
-
-static int hisi_pcie_pmu_get_event_idx(struct hisi_pcie_pmu *pcie_pmu)
-{
-	int idx;
-
-	for (idx = 0; idx < HISI_PCIE_MAX_COUNTERS; idx++) {
-		if (!pcie_pmu->hw_events[idx])
-			return idx;
-	}
-
-	return -EINVAL;
+	return first_idle;
 }
 
 static void hisi_pcie_pmu_event_update(struct perf_event *event)
@@ -553,27 +549,18 @@ static int hisi_pcie_pmu_add(struct perf_event *event, int flags)
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 
-	/* Check all working events to find a related event. */
-	idx = hisi_pcie_pmu_find_related_event(pcie_pmu, event);
-	if (idx < 0)
-		return idx;
-
-	/* Current event shares an enabled counter with the related event */
-	if (idx < HISI_PCIE_MAX_COUNTERS) {
-		hwc->idx = idx;
-		goto start_count;
-	}
-
-	idx = hisi_pcie_pmu_get_event_idx(pcie_pmu);
+	idx = hisi_pcie_pmu_get_event_idx(pcie_pmu, event);
 	if (idx < 0)
 		return idx;
 
 	hwc->idx = idx;
-	pcie_pmu->hw_events[idx] = event;
-	/* Reset Counter to avoid previous statistic interference. */
-	hisi_pcie_pmu_reset_counter(pcie_pmu, idx);
 
-start_count:
+	/* No enabled counter found with related event, reset it */
+	if (!pcie_pmu->hw_events[idx]) {
+		hisi_pcie_pmu_reset_counter(pcie_pmu, idx);
+		pcie_pmu->hw_events[idx] = event;
+	}
+
 	if (flags & PERF_EF_START)
 		hisi_pcie_pmu_start(event, PERF_EF_RELOAD);
 
