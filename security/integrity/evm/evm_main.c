@@ -151,7 +151,7 @@ static int evm_find_protected_xattrs(struct dentry *dentry)
 	return count;
 }
 
-static int is_unsupported_fs(struct dentry *dentry)
+static int is_unsupported_hmac_fs(struct dentry *dentry)
 {
 	struct inode *inode = d_backing_inode(dentry);
 
@@ -196,7 +196,8 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	 * On unsupported filesystems without EVM_INIT_X509 enabled, skip
 	 * signature verification.
 	 */
-	if (!(evm_initialized & EVM_INIT_X509) && is_unsupported_fs(dentry))
+	if (!(evm_initialized & EVM_INIT_X509) &&
+	    is_unsupported_hmac_fs(dentry))
 		return INTEGRITY_UNKNOWN;
 
 	/* if status is not PASS, try to check again - against -ENOMEM */
@@ -266,7 +267,7 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 			} else if (!IS_RDONLY(inode) &&
 				   !(inode->i_sb->s_readonly_remount) &&
 				   !IS_IMMUTABLE(inode) &&
-				   !is_unsupported_fs(dentry)) {
+				   !is_unsupported_hmac_fs(dentry)) {
 				evm_update_evmxattr(dentry, xattr_name,
 						    xattr_value,
 						    xattr_value_len);
@@ -502,12 +503,12 @@ static int evm_protect_xattr(struct mnt_idmap *idmap,
 	if (strcmp(xattr_name, XATTR_NAME_EVM) == 0) {
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
-		if (is_unsupported_fs(dentry))
+		if (is_unsupported_hmac_fs(dentry))
 			return -EPERM;
 	} else if (!evm_protected_xattr(xattr_name)) {
 		if (!posix_xattr_acl(xattr_name))
 			return 0;
-		if (is_unsupported_fs(dentry))
+		if (is_unsupported_hmac_fs(dentry))
 			return 0;
 
 		evm_status = evm_verify_current_integrity(dentry);
@@ -515,7 +516,7 @@ static int evm_protect_xattr(struct mnt_idmap *idmap,
 		    (evm_status == INTEGRITY_NOXATTRS))
 			return 0;
 		goto out;
-	} else if (is_unsupported_fs(dentry))
+	} else if (is_unsupported_hmac_fs(dentry))
 		return 0;
 
 	evm_status = evm_verify_current_integrity(dentry);
@@ -817,7 +818,7 @@ static void evm_inode_post_setxattr(struct dentry *dentry,
 	if (!(evm_initialized & EVM_INIT_HMAC))
 		return;
 
-	if (is_unsupported_fs(dentry))
+	if (is_unsupported_hmac_fs(dentry))
 		return;
 
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
@@ -916,7 +917,7 @@ static int evm_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 	if (evm_initialized & EVM_ALLOW_METADATA_WRITES)
 		return 0;
 
-	if (is_unsupported_fs(dentry))
+	if (is_unsupported_hmac_fs(dentry))
 		return 0;
 
 	if (!(ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID)))
@@ -967,7 +968,7 @@ static void evm_inode_post_setattr(struct mnt_idmap *idmap,
 	if (!(evm_initialized & EVM_INIT_HMAC))
 		return;
 
-	if (is_unsupported_fs(dentry))
+	if (is_unsupported_hmac_fs(dentry))
 		return;
 
 	if (ia_valid & (ATTR_MODE | ATTR_UID | ATTR_GID))
