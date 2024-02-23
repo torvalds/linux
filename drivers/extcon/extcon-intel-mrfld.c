@@ -214,7 +214,7 @@ static int mrfld_extcon_probe(struct platform_device *pdev)
 
 	data->edev = devm_extcon_dev_allocate(dev, mrfld_extcon_cable);
 	if (IS_ERR(data->edev))
-		return -ENOMEM;
+		return PTR_ERR(data->edev);
 
 	ret = devm_extcon_dev_register(dev, data->edev);
 	if (ret < 0)
