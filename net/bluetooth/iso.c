@@ -1982,16 +1982,58 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 
 	ev3 = hci_recv_event_data(hdev, HCI_EV_LE_PER_ADV_REPORT);
 	if (ev3) {
-		size_t base_len = ev3->length;
+		size_t base_len = 0;
 		u8 *base;
+		struct hci_conn *hcon;
 
 		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
 					 iso_match_sync_handle_pa_report, ev3);
-		base = eir_get_service_data(ev3->data, ev3->length,
-					    EIR_BAA_SERVICE_UUID, &base_len);
-		if (base && sk && base_len <= sizeof(iso_pi(sk)->base)) {
+		if (!sk)
+			goto done;
+
+		hcon = iso_pi(sk)->conn->hcon;
+		if (!hcon)
+			goto done;
+
+		if (ev3->data_status == LE_PA_DATA_TRUNCATED) {
+			/* The controller was unable to retrieve PA data. */
+			memset(hcon->le_per_adv_data, 0,
+			       HCI_MAX_PER_AD_TOT_LEN);
+			hcon->le_per_adv_data_len = 0;
+			hcon->le_per_adv_data_offset = 0;
+			goto done;
+		}
+
+		if (hcon->le_per_adv_data_offset + ev3->length >
+		    HCI_MAX_PER_AD_TOT_LEN)
+			goto done;
+
+		memcpy(hcon->le_per_adv_data + hcon->le_per_adv_data_offset,
+		       ev3->data, ev3->length);
+		hcon->le_per_adv_data_offset += ev3->length;
+
+		if (ev3->data_status == LE_PA_DATA_COMPLETE) {
+			/* All PA data has been received. */
+			hcon->le_per_adv_data_len =
+				hcon->le_per_adv_data_offset;
+			hcon->le_per_adv_data_offset = 0;
+
+			/* Extract BASE */
+			base = eir_get_service_data(hcon->le_per_adv_data,
+						    hcon->le_per_adv_data_len,
+						    EIR_BAA_SERVICE_UUID,
+						    &base_len);
+
+			if (!base || base_len > BASE_MAX_LENGTH)
+				goto done;
+
 			memcpy(iso_pi(sk)->base, base, base_len);
 			iso_pi(sk)->base_len = base_len;
+		} else {
+			/* This is a PA data fragment. Keep pa_data_len set to 0
+			 * until all data has been reassembled.
+			 */
+			hcon->le_per_adv_data_len = 0;
 		}
 	} else {
 		sk = iso_get_sock_listen(&hdev->bdaddr, BDADDR_ANY, NULL, NULL);
