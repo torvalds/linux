@@ -929,20 +929,26 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	int err = -ETIME;
 	int i = 0;
 
-	if (!test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &job->fence->flags)) {
-		drm_notice(&xe->drm, "Timedout job: seqno=%u, guc_id=%d, flags=0x%lx",
-			   xe_sched_job_seqno(job), q->guc->id, q->flags);
-		xe_gt_WARN(q->gt, q->flags & EXEC_QUEUE_FLAG_KERNEL,
-			   "Kernel-submitted job timed out\n");
-		xe_gt_WARN(q->gt, q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q),
-			   "VM job timed out on non-killed execqueue\n");
+	/*
+	 * TDR has fired before free job worker. Common if exec queue
+	 * immediately closed after last fence signaled.
+	 */
+	if (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &job->fence->flags)) {
+		guc_exec_queue_free_job(drm_job);
 
-		simple_error_capture(q);
-		xe_devcoredump(job);
-	} else {
-		drm_dbg(&xe->drm, "Timedout signaled job: seqno=%u, guc_id=%d, flags=0x%lx",
-			 xe_sched_job_seqno(job), q->guc->id, q->flags);
+		return DRM_GPU_SCHED_STAT_NOMINAL;
 	}
+
+	drm_notice(&xe->drm, "Timedout job: seqno=%u, guc_id=%d, flags=0x%lx",
+		   xe_sched_job_seqno(job), q->guc->id, q->flags);
+	xe_gt_WARN(q->gt, q->flags & EXEC_QUEUE_FLAG_KERNEL,
+		   "Kernel-submitted job timed out\n");
+	xe_gt_WARN(q->gt, q->flags & EXEC_QUEUE_FLAG_VM && !exec_queue_killed(q),
+		   "VM job timed out on non-killed execqueue\n");
+
+	simple_error_capture(q);
+	xe_devcoredump(job);
+
 	trace_xe_sched_job_timedout(job);
 
 	/* Kill the run_job entry point */
