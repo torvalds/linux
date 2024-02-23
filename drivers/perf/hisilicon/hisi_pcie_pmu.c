@@ -314,10 +314,16 @@ static bool hisi_pcie_pmu_valid_filter(struct perf_event *event,
 	return true;
 }
 
+/*
+ * Check Whether two events share the same config. The same config means not
+ * only the event code, but also the filter settings of the two events are
+ * the same.
+ */
 static bool hisi_pcie_pmu_cmp_event(struct perf_event *target,
 					struct perf_event *event)
 {
-	return hisi_pcie_get_real_event(target) == hisi_pcie_get_real_event(event);
+	return hisi_pcie_pmu_get_event_ctrl_val(target) ==
+	       hisi_pcie_pmu_get_event_ctrl_val(event);
 }
 
 static bool hisi_pcie_pmu_validate_event_group(struct perf_event *event)
