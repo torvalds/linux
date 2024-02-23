@@ -1032,7 +1032,7 @@ static void dw_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 	dw_i3c_master_disable(master);
 }
 
-static void dw_i3c_master_bus_reset(struct i3c_master_controller *m)
+static int dw_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 
@@ -1051,6 +1051,7 @@ static void dw_i3c_master_bus_reset(struct i3c_master_controller *m)
 	} else {
 		master->platform_ops->gen_target_reset_pattern(master);
 	}
+	return 0;
 }
 
 static int dw_i3c_ccc_set(struct dw_i3c_master *master,

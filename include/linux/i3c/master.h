@@ -453,7 +453,7 @@ struct i3c_bus {
 struct i3c_master_controller_ops {
 	int (*bus_init)(struct i3c_master_controller *master);
 	void (*bus_cleanup)(struct i3c_master_controller *master);
-	void (*bus_reset)(struct i3c_master_controller *master);
+	int (*bus_reset)(struct i3c_master_controller *master);
 	int (*attach_i3c_dev)(struct i3c_dev_desc *dev);
 	int (*reattach_i3c_dev)(struct i3c_dev_desc *dev, u8 old_dyn_addr);
 	void (*detach_i3c_dev)(struct i3c_dev_desc *dev);
