@@ -34,6 +34,18 @@ properties:
       Shunt (sense) resistor value in micro-Ohms
     default: 1000
 
+  regulators:
+    type: object
+
+    properties:
+      vout:
+        $ref: /schemas/regulator/regulator.yaml#
+        type: object
+
+        unevaluatedProperties: false
+
+    additionalProperties: false
+
 required:
   - compatible
   - reg
