@@ -483,8 +483,8 @@ static int verity_recheck_copy(struct dm_verity *v, struct dm_verity_io *io,
 	return 0;
 }
 
-static int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
-			  struct bvec_iter start, sector_t cur_block)
+static noinline int verity_recheck(struct dm_verity *v, struct dm_verity_io *io,
+				   struct bvec_iter start, sector_t cur_block)
 {
 	struct page *page;
 	void *buffer;
