@@ -16,10 +16,12 @@
 #include <linux/tracepoint.h>
 #include "xfs_bit.h"
 
+struct xfs_scrub;
 struct xfile;
 struct xfarray;
 struct xfarray_sortinfo;
 struct xchk_dqiter;
+struct xchk_iscan;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -1146,6 +1148,149 @@ TRACE_EVENT(xchk_rtsum_record_free,
 );
 #endif /* CONFIG_XFS_RT */
 
+DECLARE_EVENT_CLASS(xchk_iscan_class,
+	TP_PROTO(struct xchk_iscan *iscan),
+	TP_ARGS(iscan),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited)
+)
+#define DEFINE_ISCAN_EVENT(name) \
+DEFINE_EVENT(xchk_iscan_class, name, \
+	TP_PROTO(struct xchk_iscan *iscan), \
+	TP_ARGS(iscan))
+DEFINE_ISCAN_EVENT(xchk_iscan_move_cursor);
+DEFINE_ISCAN_EVENT(xchk_iscan_visit);
+DEFINE_ISCAN_EVENT(xchk_iscan_skip);
+DEFINE_ISCAN_EVENT(xchk_iscan_advance_ag);
+
+DECLARE_EVENT_CLASS(xchk_iscan_ino_class,
+	TP_PROTO(struct xchk_iscan *iscan, xfs_ino_t ino),
+	TP_ARGS(iscan, ino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, startino)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(xfs_ino_t, ino)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->startino = iscan->scan_start_ino;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->ino = ino;
+	),
+	TP_printk("dev %d:%d iscan start 0x%llx cursor 0x%llx visited 0x%llx ino 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->startino,
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->ino)
+)
+#define DEFINE_ISCAN_INO_EVENT(name) \
+DEFINE_EVENT(xchk_iscan_ino_class, name, \
+	TP_PROTO(struct xchk_iscan *iscan, xfs_ino_t ino), \
+	TP_ARGS(iscan, ino))
+DEFINE_ISCAN_INO_EVENT(xchk_iscan_want_live_update);
+DEFINE_ISCAN_INO_EVENT(xchk_iscan_start);
+
+TRACE_EVENT(xchk_iscan_iget,
+	TP_PROTO(struct xchk_iscan *iscan, int error),
+	TP_ARGS(iscan, error),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(int, error)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->error = error;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx error %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->error)
+);
+
+TRACE_EVENT(xchk_iscan_iget_batch,
+	TP_PROTO(struct xfs_mount *mp, struct xchk_iscan *iscan,
+		 unsigned int nr, unsigned int avail),
+	TP_ARGS(mp, iscan, nr, avail),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(unsigned int, nr)
+		__field(unsigned int, avail)
+		__field(unsigned int, unavail)
+		__field(xfs_ino_t, batch_ino)
+		__field(unsigned long long, skipmask)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->nr = nr;
+		__entry->avail = avail;
+		__entry->unavail = hweight64(iscan->__skipped_inomask);
+		__entry->batch_ino = iscan->__batch_ino;
+		__entry->skipmask = iscan->__skipped_inomask;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx batchino 0x%llx skipmask 0x%llx nr %u avail %u unavail %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->batch_ino,
+		  __entry->skipmask,
+		  __entry->nr,
+		  __entry->avail,
+		  __entry->unavail)
+);
+
+TRACE_EVENT(xchk_iscan_iget_retry_wait,
+	TP_PROTO(struct xchk_iscan *iscan),
+	TP_ARGS(iscan),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, cursor)
+		__field(xfs_ino_t, visited)
+		__field(unsigned int, retry_delay)
+		__field(unsigned long, remaining)
+		__field(unsigned int, iget_timeout)
+	),
+	TP_fast_assign(
+		__entry->dev = iscan->sc->mp->m_super->s_dev;
+		__entry->cursor = iscan->cursor_ino;
+		__entry->visited = iscan->__visited_ino;
+		__entry->retry_delay = iscan->iget_retry_delay;
+		__entry->remaining = jiffies_to_msecs(iscan->__iget_deadline - jiffies);
+		__entry->iget_timeout = iscan->iget_timeout;
+	),
+	TP_printk("dev %d:%d iscan cursor 0x%llx visited 0x%llx remaining %lu timeout %u delay %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->cursor,
+		  __entry->visited,
+		  __entry->remaining,
+		  __entry->iget_timeout,
+		  __entry->retry_delay)
+);
+
 /* repair tracepoints */
 #if IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR)
 
@@ -1670,6 +1815,55 @@ TRACE_EVENT(xrep_dinode_count_rmaps,
 		  __entry->data_extents,
 		  __entry->rt_extents,
 		  __entry->attr_extents)
+);
+
+TRACE_EVENT(xrep_dinode_findmode_dirent,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *dp,
+		 unsigned int ftype),
+	TP_ARGS(sc, dp, ftype),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, ftype)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->ftype = ftype;
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx ftype '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __print_symbolic(__entry->ftype, XFS_DIR3_FTYPE_STR))
+);
+
+TRACE_EVENT(xrep_dinode_findmode_dirent_inval,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *dp,
+		 unsigned int ftype, unsigned int found_ftype),
+	TP_ARGS(sc, dp, ftype, found_ftype),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, ftype)
+		__field(unsigned int, found_ftype)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = sc->sm->sm_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->ftype = ftype;
+		__entry->found_ftype = found_ftype;
+	),
+	TP_printk("dev %d:%d ino 0x%llx parent_ino 0x%llx ftype '%s' found_ftype '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->parent_ino,
+		  __print_symbolic(__entry->ftype, XFS_DIR3_FTYPE_STR),
+		  __print_symbolic(__entry->found_ftype, XFS_DIR3_FTYPE_STR))
 );
 
 TRACE_EVENT(xrep_cow_mark_file_range,

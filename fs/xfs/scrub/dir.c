@@ -93,11 +93,11 @@ xchk_dir_actor(
 		return -ECANCELED;
 	}
 
-	if (!strncmp(".", name->name, name->len)) {
+	if (xfs_dir2_samename(name, &xfs_name_dot)) {
 		/* If this is "." then check that the inum matches the dir. */
 		if (ino != dp->i_ino)
 			xchk_fblock_set_corrupt(sc, XFS_DATA_FORK, offset);
-	} else if (!strncmp("..", name->name, name->len)) {
+	} else if (xfs_dir2_samename(name, &xfs_name_dotdot)) {
 		/*
 		 * If this is ".." in the root inode, check that the inum
 		 * matches this dir.
