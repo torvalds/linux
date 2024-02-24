@@ -460,7 +460,7 @@ xchk_perag_read_headers(
  * Grab the AG headers for the attached perag structure and wait for pending
  * intents to drain.
  */
-static int
+int
 xchk_perag_drain_and_lock(
 	struct xfs_scrub	*sc)
 {
@@ -1308,6 +1308,9 @@ xchk_fsgates_enable(
 
 	if (scrub_fsgates & XCHK_FSGATES_DIRENTS)
 		xfs_dir_hook_enable();
+
+	if (scrub_fsgates & XCHK_FSGATES_RMAP)
+		xfs_rmap_hook_enable();
 
 	sc->flags |= scrub_fsgates;
 }

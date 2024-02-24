@@ -16,6 +16,7 @@
 #include "xfs_qm.h"
 #include "xfs_scrub.h"
 #include "xfs_buf_mem.h"
+#include "xfs_rmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
@@ -164,6 +165,9 @@ xchk_fsgates_disable(
 	if (sc->flags & XCHK_FSGATES_DIRENTS)
 		xfs_dir_hook_disable();
 
+	if (sc->flags & XCHK_FSGATES_RMAP)
+		xfs_rmap_hook_disable();
+
 	sc->flags &= ~XCHK_FSGATES_ALL;
 }
 
@@ -278,7 +282,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.setup	= xchk_setup_ag_rmapbt,
 		.scrub	= xchk_rmapbt,
 		.has	= xfs_has_rmapbt,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_rmapbt,
 	},
 	[XFS_SCRUB_TYPE_REFCNTBT] = {	/* refcountbt */
 		.type	= ST_PERAG,

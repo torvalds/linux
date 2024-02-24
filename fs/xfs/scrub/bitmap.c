@@ -566,3 +566,17 @@ xbitmap32_test(
 	*len = bn->bn_start - start;
 	return false;
 }
+
+/* Count the number of set regions in this bitmap. */
+uint32_t
+xbitmap32_count_set_regions(
+	struct xbitmap32	*bitmap)
+{
+	struct xbitmap32_node	*bn;
+	uint32_t		nr = 0;
+
+	for_each_xbitmap32_extent(bn, bitmap)
+		nr++;
+
+	return nr;
+}

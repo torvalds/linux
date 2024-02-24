@@ -6,6 +6,8 @@
 #ifndef __XFS_SCRUB_NEWBT_H__
 #define __XFS_SCRUB_NEWBT_H__
 
+struct xfs_alloc_arg;
+
 struct xrep_newbt_resv {
 	/* Link to list of extents that we've reserved. */
 	struct list_head	list;
@@ -27,6 +29,11 @@ struct xrep_newbt_resv {
 
 struct xrep_newbt {
 	struct xfs_scrub	*sc;
+
+	/* Custom allocation function, or NULL for xfs_alloc_vextent */
+	int			(*alloc_vextent)(struct xfs_scrub *sc,
+						 struct xfs_alloc_arg *args,
+						 xfs_fsblock_t alloc_hint);
 
 	/* List of extents that we've reserved. */
 	struct list_head	resv_list;

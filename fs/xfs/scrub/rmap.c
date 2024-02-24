@@ -25,6 +25,7 @@
 #include "scrub/btree.h"
 #include "scrub/bitmap.h"
 #include "scrub/agb_bitmap.h"
+#include "scrub/repair.h"
 
 /*
  * Set us up to scrub reverse mapping btrees.
@@ -35,6 +36,14 @@ xchk_setup_ag_rmapbt(
 {
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
+	if (xchk_could_repair(sc)) {
+		int		error;
+
+		error = xrep_setup_ag_rmapbt(sc);
+		if (error)
+			return error;
+	}
 
 	return xchk_setup_ag_btree(sc, false);
 }
@@ -349,7 +358,7 @@ xchk_rmapbt_rec(
 	struct xfs_rmap_irec	irec;
 
 	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL ||
-	    xfs_rmap_check_irec(bs->cur, &irec) != NULL) {
+	    xfs_rmap_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}

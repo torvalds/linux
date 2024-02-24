@@ -90,6 +90,7 @@ struct xfs_perag {
 	uint8_t		pagf_repair_bno_level;
 	uint8_t		pagf_repair_cnt_level;
 	uint8_t		pagf_repair_refcount_level;
+	uint8_t		pagf_repair_rmap_level;
 #endif
 
 	spinlock_t	pag_state_lock;
@@ -119,6 +120,9 @@ struct xfs_perag {
 	 * inconsistencies.
 	 */
 	struct xfs_defer_drain	pag_intents_drain;
+
+	/* Hook to feed rmapbt updates to an active online repair. */
+	struct xfs_hooks	pag_rmap_update_hooks;
 #endif /* __KERNEL__ */
 };
 

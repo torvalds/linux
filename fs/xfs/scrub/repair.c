@@ -31,12 +31,14 @@
 #include "xfs_error.h"
 #include "xfs_reflink.h"
 #include "xfs_health.h"
+#include "xfs_buf_mem.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
 #include "scrub/repair.h"
 #include "scrub/bitmap.h"
 #include "scrub/stats.h"
+#include "scrub/xfile.h"
 
 /*
  * Attempt to repair some metadata, if the metadata is corrupt and userspace
@@ -401,7 +403,7 @@ xrep_calc_ag_resblks(
 int
 xrep_fix_freelist(
 	struct xfs_scrub	*sc,
-	bool			can_shrink)
+	int			alloc_flags)
 {
 	struct xfs_alloc_arg	args = {0};
 
@@ -411,8 +413,7 @@ xrep_fix_freelist(
 	args.alignment = 1;
 	args.pag = sc->sa.pag;
 
-	return xfs_alloc_fix_freelist(&args,
-			can_shrink ? 0 : XFS_ALLOC_FLAG_NOSHRINK);
+	return xfs_alloc_fix_freelist(&args, alloc_flags);
 }
 
 /*
@@ -1147,4 +1148,56 @@ xrep_metadata_inode_forks(
 	}
 
 	return 0;
+}
+
+/*
+ * Set up an in-memory buffer cache so that we can use the xfbtree.  Allocating
+ * a shmem file might take loks, so we cannot be in transaction context.  Park
+ * our resources in the scrub context and let the teardown function take care
+ * of them at the right time.
+ */
+int
+xrep_setup_xfbtree(
+	struct xfs_scrub	*sc,
+	const char		*descr)
+{
+	ASSERT(sc->tp == NULL);
+
+	return xmbuf_alloc(sc->mp, descr, &sc->xmbtp);
+}
+
+/*
+ * Create a dummy transaction for use in a live update hook function.  This
+ * function MUST NOT be called from regular repair code because the current
+ * process' transaction is saved via the cookie.
+ */
+int
+xrep_trans_alloc_hook_dummy(
+	struct xfs_mount	*mp,
+	void			**cookiep,
+	struct xfs_trans	**tpp)
+{
+	int			error;
+
+	*cookiep = current->journal_info;
+	current->journal_info = NULL;
+
+	error = xfs_trans_alloc_empty(mp, tpp);
+	if (!error)
+		return 0;
+
+	current->journal_info = *cookiep;
+	*cookiep = NULL;
+	return error;
+}
+
+/* Cancel a dummy transaction used by a live update hook function. */
+void
+xrep_trans_cancel_hook_dummy(
+	void			**cookiep,
+	struct xfs_trans	*tp)
+{
+	xfs_trans_cancel(tp);
+	current->journal_info = *cookiep;
+	*cookiep = NULL;
 }
