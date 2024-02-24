@@ -9,17 +9,6 @@ title: Amlogic SoC based Platforms
 maintainers:
   - Kevin Hilman <khilman@baylibre.com>
 
-description: |+
-  Work in progress statement:
-
-  Device tree files and bindings applying to Amlogic SoCs and boards are
-  considered "unstable". Any Amlogic device tree binding may change at
-  any time. Be sure to use a device tree binary and a kernel image
-  generated from the same source tree.
-
-  Please refer to Documentation/devicetree/bindings/ABI.rst for a definition of a
-  stable binding/ABI.
-
 properties:
   $nodename:
     const: '/'
