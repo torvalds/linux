@@ -186,9 +186,15 @@ struct sun8i_mixer {
 	struct clk			*mod_clk;
 };
 
+enum {
+	SUN8I_LAYER_TYPE_UI,
+	SUN8I_LAYER_TYPE_VI,
+};
+
 struct sun8i_layer {
 	struct drm_plane	plane;
 	struct sun8i_mixer	*mixer;
+	int			type;
 	int			channel;
 	int			overlay;
 };
