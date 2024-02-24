@@ -159,6 +159,18 @@ enum cifs_reparse_type {
 	CIFS_REPARSE_TYPE_DEFAULT = CIFS_REPARSE_TYPE_NFS,
 };
 
+static inline const char *cifs_reparse_type_str(enum cifs_reparse_type type)
+{
+	switch (type) {
+	case CIFS_REPARSE_TYPE_NFS:
+		return "nfs";
+	case CIFS_REPARSE_TYPE_WSL:
+		return "wsl";
+	default:
+		return "unknown";
+	}
+}
+
 struct session_key {
 	unsigned int len;
 	char *response;
