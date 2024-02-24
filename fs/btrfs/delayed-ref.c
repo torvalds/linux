@@ -1307,23 +1307,19 @@ void __cold btrfs_delayed_ref_exit(void)
 
 int __init btrfs_delayed_ref_init(void)
 {
-	btrfs_delayed_ref_head_cachep = KMEM_CACHE(btrfs_delayed_ref_head,
-						   SLAB_MEM_SPREAD);
+	btrfs_delayed_ref_head_cachep = KMEM_CACHE(btrfs_delayed_ref_head, 0);
 	if (!btrfs_delayed_ref_head_cachep)
 		goto fail;
 
-	btrfs_delayed_tree_ref_cachep = KMEM_CACHE(btrfs_delayed_tree_ref,
-						   SLAB_MEM_SPREAD);
+	btrfs_delayed_tree_ref_cachep = KMEM_CACHE(btrfs_delayed_tree_ref, 0);
 	if (!btrfs_delayed_tree_ref_cachep)
 		goto fail;
 
-	btrfs_delayed_data_ref_cachep = KMEM_CACHE(btrfs_delayed_data_ref,
-						   SLAB_MEM_SPREAD);
+	btrfs_delayed_data_ref_cachep = KMEM_CACHE(btrfs_delayed_data_ref, 0);
 	if (!btrfs_delayed_data_ref_cachep)
 		goto fail;
 
-	btrfs_delayed_extent_op_cachep = KMEM_CACHE(btrfs_delayed_extent_op,
-						    SLAB_MEM_SPREAD);
+	btrfs_delayed_extent_op_cachep = KMEM_CACHE(btrfs_delayed_extent_op, 0);
 	if (!btrfs_delayed_extent_op_cachep)
 		goto fail;
 

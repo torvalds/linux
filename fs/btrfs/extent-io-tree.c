@@ -1883,8 +1883,8 @@ void __cold extent_state_free_cachep(void)
 int __init extent_state_init_cachep(void)
 {
 	extent_state_cache = kmem_cache_create("btrfs_extent_state",
-			sizeof(struct extent_state), 0,
-			SLAB_MEM_SPREAD, NULL);
+					       sizeof(struct extent_state), 0, 0,
+					       NULL);
 	if (!extent_state_cache)
 		return -ENOMEM;
 

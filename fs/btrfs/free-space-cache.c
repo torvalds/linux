@@ -4154,13 +4154,13 @@ out:
 
 int __init btrfs_free_space_init(void)
 {
-	btrfs_free_space_cachep = KMEM_CACHE(btrfs_free_space, SLAB_MEM_SPREAD);
+	btrfs_free_space_cachep = KMEM_CACHE(btrfs_free_space, 0);
 	if (!btrfs_free_space_cachep)
 		return -ENOMEM;
 
 	btrfs_free_space_bitmap_cachep = kmem_cache_create("btrfs_free_space_bitmap",
 							PAGE_SIZE, PAGE_SIZE,
-							SLAB_MEM_SPREAD, NULL);
+							0, NULL);
 	if (!btrfs_free_space_bitmap_cachep) {
 		kmem_cache_destroy(btrfs_free_space_cachep);
 		return -ENOMEM;

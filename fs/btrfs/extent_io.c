@@ -146,8 +146,8 @@ static void submit_write_bio(struct btrfs_bio_ctrl *bio_ctrl, int ret)
 int __init extent_buffer_init_cachep(void)
 {
 	extent_buffer_cache = kmem_cache_create("btrfs_extent_buffer",
-			sizeof(struct extent_buffer), 0,
-			SLAB_MEM_SPREAD, NULL);
+						sizeof(struct extent_buffer), 0, 0,
+						NULL);
 	if (!extent_buffer_cache)
 		return -ENOMEM;
 

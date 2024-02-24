@@ -198,10 +198,7 @@ static struct kmem_cache *btrfs_prelim_ref_cache;
 int __init btrfs_prelim_ref_init(void)
 {
 	btrfs_prelim_ref_cache = kmem_cache_create("btrfs_prelim_ref",
-					sizeof(struct prelim_ref),
-					0,
-					SLAB_MEM_SPREAD,
-					NULL);
+					sizeof(struct prelim_ref), 0, 0, NULL);
 	if (!btrfs_prelim_ref_cache)
 		return -ENOMEM;
 	return 0;

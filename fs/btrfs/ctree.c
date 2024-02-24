@@ -5086,7 +5086,7 @@ int btrfs_previous_extent_item(struct btrfs_root *root,
 
 int __init btrfs_ctree_init(void)
 {
-	btrfs_path_cachep = KMEM_CACHE(btrfs_path, SLAB_MEM_SPREAD);
+	btrfs_path_cachep = KMEM_CACHE(btrfs_path, 0);
 	if (!btrfs_path_cachep)
 		return -ENOMEM;
 	return 0;

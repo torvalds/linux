@@ -1510,9 +1510,7 @@ void __cold btrfs_auto_defrag_exit(void)
 int __init btrfs_auto_defrag_init(void)
 {
 	btrfs_inode_defrag_cachep = kmem_cache_create("btrfs_inode_defrag",
-					sizeof(struct inode_defrag), 0,
-					SLAB_MEM_SPREAD,
-					NULL);
+					sizeof(struct inode_defrag), 0, 0, NULL);
 	if (!btrfs_inode_defrag_cachep)
 		return -ENOMEM;
 

@@ -28,7 +28,7 @@ static struct kmem_cache *delayed_node_cache;
 
 int __init btrfs_delayed_inode_init(void)
 {
-	delayed_node_cache = KMEM_CACHE(btrfs_delayed_node, SLAB_MEM_SPREAD);
+	delayed_node_cache = KMEM_CACHE(btrfs_delayed_node, 0);
 	if (!delayed_node_cache)
 		return -ENOMEM;
 	return 0;
