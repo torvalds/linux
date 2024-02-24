@@ -198,6 +198,8 @@ xfs-y				+= $(addprefix scrub/, \
 				   inode_repair.o \
 				   newbt.o \
 				   nlinks_repair.o \
+				   rcbag_btree.o \
+				   rcbag.o \
 				   reap.o \
 				   refcount_repair.o \
 				   repair.o \
