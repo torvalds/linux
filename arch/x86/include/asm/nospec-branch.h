@@ -205,11 +205,7 @@
 typedef u8 retpoline_thunk_t[RETPOLINE_THUNK_SIZE];
 extern retpoline_thunk_t __x86_indirect_thunk_array[];
 
-#ifdef CONFIG_RETHUNK
 extern void __x86_return_thunk(void);
-#else
-static inline void __x86_return_thunk(void) {}
-#endif
 
 extern void retbleed_return_thunk(void);
 extern void srso_return_thunk(void);
