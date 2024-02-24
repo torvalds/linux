@@ -1202,23 +1202,21 @@ struct sock *netlink_getsockbyfilp(struct file *filp)
 
 struct sk_buff *netlink_alloc_large_skb(unsigned int size, int broadcast)
 {
+	size_t head_size = SKB_HEAD_ALIGN(size);
 	struct sk_buff *skb;
 	void *data;
 
-	if (size <= NLMSG_GOODSIZE || broadcast)
+	if (head_size <= PAGE_SIZE || broadcast)
 		return alloc_skb(size, GFP_KERNEL);
 
-	size = SKB_DATA_ALIGN(size) +
-	       SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
-
-	data = vmalloc(size);
-	if (data == NULL)
+	data = kvmalloc(head_size, GFP_KERNEL);
+	if (!data)
 		return NULL;
 
-	skb = __build_skb(data, size);
-	if (skb == NULL)
-		vfree(data);
-	else
+	skb = __build_skb(data, head_size);
+	if (!skb)
+		kvfree(data);
+	else if (is_vmalloc_addr(data))
 		skb->destructor = netlink_skb_destructor;
 
 	return skb;
