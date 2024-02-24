@@ -2270,13 +2270,12 @@ follows:
    pointing to the xfile.
 
 3. Pass the buffer cache target, buffer ops, and other information to
-   ``xfbtree_create`` to write an initial tree header and root block to the
-   xfile.
+   ``xfbtree_init`` to initialize the passed in ``struct xfbtree`` and write an
+   initial root block to the xfile.
    Each btree type should define a wrapper that passes necessary arguments to
    the creation function.
    For example, rmap btrees define ``xfs_rmapbt_mem_create`` to take care of
    all the necessary details for callers.
-   A ``struct xfbtree`` object will be returned.
 
 4. Pass the xfbtree object to the btree cursor creation function for the
    btree type.

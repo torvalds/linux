@@ -527,6 +527,9 @@ xfs_btree_mark_sick(
 	struct xfs_btree_cur		*cur)
 {
 	switch (cur->bc_ops->type) {
+	case XFS_BTREE_TYPE_MEM:
+		/* no health state tracking for ephemeral btrees */
+		return;
 	case XFS_BTREE_TYPE_AG:
 		ASSERT(cur->bc_ops->sick_mask);
 		xfs_ag_mark_sick(cur->bc_ag.pag, cur->bc_ops->sick_mask);

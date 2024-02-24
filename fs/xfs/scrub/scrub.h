@@ -99,6 +99,9 @@ struct xfs_scrub {
 	/* xfile used by the scrubbers; freed at teardown. */
 	struct xfile			*xfile;
 
+	/* buffer target for in-memory btrees; also freed at teardown. */
+	struct xfs_buftarg		*xmbtp;
+
 	/* Lock flags for @ip. */
 	uint				ilock_flags;
 
