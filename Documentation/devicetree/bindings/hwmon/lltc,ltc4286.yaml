@@ -25,15 +25,14 @@ properties:
       The default is 102.4 volts.
     type: boolean
 
-  shunt-resistor-micro-ohms:
-    description:
-      Resistor value micro-ohms.
-
 required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: hwmon-common.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
