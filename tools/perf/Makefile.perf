@@ -1150,7 +1150,7 @@ ifeq ($(VMLINUX_H),)
   endif
 endif
 
-$(SKEL_OUT)/vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL)
+$(SKEL_OUT)/vmlinux.h: $(VMLINUX_BTF) $(BPFTOOL) $(VMLINUX_H)
 ifeq ($(VMLINUX_H),)
 	$(QUIET_GEN)$(BPFTOOL) btf dump file $< format c > $@
 else
