@@ -77,6 +77,7 @@ static const char *name_map[XFS_SCRUB_TYPE_NR] = {
 	[XFS_SCRUB_TYPE_GQUOTA]		= "grpquota",
 	[XFS_SCRUB_TYPE_PQUOTA]		= "prjquota",
 	[XFS_SCRUB_TYPE_FSCOUNTERS]	= "fscounters",
+	[XFS_SCRUB_TYPE_QUOTACHECK]	= "quotacheck",
 };
 
 /* Format the scrub stats into a text buffer, similar to pcp style. */

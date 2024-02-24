@@ -74,6 +74,22 @@ struct xfs_dqtrx {
 	int64_t		qt_icount_delta;  /* dquot inode count changes */
 };
 
+enum xfs_apply_dqtrx_type {
+	XFS_APPLY_DQTRX_COMMIT = 0,
+	XFS_APPLY_DQTRX_UNRESERVE,
+};
+
+/*
+ * Parameters for applying dqtrx changes to a dquot.  The hook function arg
+ * parameter is enum xfs_apply_dqtrx_type.
+ */
+struct xfs_apply_dqtrx_params {
+	uintptr_t		tx_id;
+	xfs_ino_t		ino;
+	xfs_dqtype_t		q_type;
+	xfs_dqid_t		q_id;
+};
+
 #ifdef CONFIG_XFS_QUOTA
 extern void xfs_trans_dup_dqinfo(struct xfs_trans *, struct xfs_trans *);
 extern void xfs_trans_free_dqinfo(struct xfs_trans *);
@@ -114,6 +130,30 @@ xfs_quota_reserve_blkres(struct xfs_inode *ip, int64_t blocks)
 	return xfs_trans_reserve_quota_nblks(NULL, ip, blocks, 0, false);
 }
 bool xfs_inode_near_dquot_enforcement(struct xfs_inode *ip, xfs_dqtype_t type);
+
+# ifdef CONFIG_XFS_LIVE_HOOKS
+void xfs_trans_mod_ino_dquot(struct xfs_trans *tp, struct xfs_inode *ip,
+		struct xfs_dquot *dqp, unsigned int field, int64_t delta);
+
+struct xfs_quotainfo;
+
+struct xfs_dqtrx_hook {
+	struct xfs_hook		mod_hook;
+	struct xfs_hook		apply_hook;
+};
+
+void xfs_dqtrx_hook_disable(void);
+void xfs_dqtrx_hook_enable(void);
+
+int xfs_dqtrx_hook_add(struct xfs_quotainfo *qi, struct xfs_dqtrx_hook *hook);
+void xfs_dqtrx_hook_del(struct xfs_quotainfo *qi, struct xfs_dqtrx_hook *hook);
+void xfs_dqtrx_hook_setup(struct xfs_dqtrx_hook *hook, notifier_fn_t mod_fn,
+		notifier_fn_t apply_fn);
+# else
+#  define xfs_trans_mod_ino_dquot(tp, ip, dqp, field, delta) \
+		xfs_trans_mod_dquot((tp), (dqp), (field), (delta))
+# endif /* CONFIG_XFS_LIVE_HOOKS */
+
 #else
 static inline int
 xfs_qm_vop_dqalloc(struct xfs_inode *ip, kuid_t kuid, kgid_t kgid,
@@ -173,6 +213,12 @@ xfs_trans_reserve_quota_icreate(struct xfs_trans *tp, struct xfs_dquot *udqp,
 #define xfs_qm_unmount(mp)
 #define xfs_qm_unmount_quotas(mp)
 #define xfs_inode_near_dquot_enforcement(ip, type)			(false)
+
+# ifdef CONFIG_XFS_LIVE_HOOKS
+#  define xfs_dqtrx_hook_enable()		((void)0)
+#  define xfs_dqtrx_hook_disable()		((void)0)
+# endif /* CONFIG_XFS_LIVE_HOOKS */
+
 #endif /* CONFIG_XFS_QUOTA */
 
 static inline int

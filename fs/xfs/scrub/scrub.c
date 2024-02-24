@@ -157,6 +157,9 @@ xchk_fsgates_disable(
 	if (sc->flags & XCHK_FSGATES_DRAIN)
 		xfs_drain_wait_disable();
 
+	if (sc->flags & XCHK_FSGATES_QUOTA)
+		xfs_dqtrx_hook_disable();
+
 	sc->flags &= ~XCHK_FSGATES_ALL;
 }
 
@@ -359,6 +362,12 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.setup	= xchk_setup_fscounters,
 		.scrub	= xchk_fscounters,
 		.repair	= xrep_notsupported,
+	},
+	[XFS_SCRUB_TYPE_QUOTACHECK] = {	/* quota counters */
+		.type	= ST_FS,
+		.setup	= xchk_setup_quotacheck,
+		.scrub	= xchk_quotacheck,
+		.repair	= xrep_quotacheck,
 	},
 };
 

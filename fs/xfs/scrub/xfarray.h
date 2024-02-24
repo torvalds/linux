@@ -45,6 +45,25 @@ int xfarray_store(struct xfarray *array, xfarray_idx_t idx, const void *ptr);
 int xfarray_store_anywhere(struct xfarray *array, const void *ptr);
 bool xfarray_element_is_null(struct xfarray *array, const void *ptr);
 
+/*
+ * Load an array element, but zero the buffer if there's no data because we
+ * haven't stored to that array element yet.
+ */
+static inline int
+xfarray_load_sparse(
+	struct xfarray	*array,
+	uint64_t	idx,
+	void		*rec)
+{
+	int		error = xfarray_load(array, idx, rec);
+
+	if (error == -ENODATA) {
+		memset(rec, 0, array->obj_size);
+		return 0;
+	}
+	return error;
+}
+
 /* Append an element to the array. */
 static inline int xfarray_append(struct xfarray *array, const void *ptr)
 {

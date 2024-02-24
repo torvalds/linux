@@ -180,6 +180,7 @@ xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
 xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \
 				   dqiterate.o \
 				   quota.o \
+				   quotacheck.o \
 				   )
 
 # online repair
@@ -203,6 +204,7 @@ xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \
 
 xfs-$(CONFIG_XFS_QUOTA)		+= $(addprefix scrub/, \
 				   quota_repair.o \
+				   quotacheck_repair.o \
 				   )
 endif
 endif
