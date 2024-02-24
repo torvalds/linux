@@ -161,12 +161,32 @@ static const struct regmap_bus cs35l56_regmap_bus_sdw = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
+static int cs35l56_sdw_set_cal_index(struct cs35l56_private *cs35l56)
+{
+	int ret;
+
+	/* SoundWire UniqueId is used to index the calibration array */
+	ret = sdw_read_no_pm(cs35l56->sdw_peripheral, SDW_SCP_DEVID_0);
+	if (ret < 0)
+		return ret;
+
+	cs35l56->base.cal_index = ret & 0xf;
+
+	return 0;
+}
+
 static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(&peripheral->dev);
 	int ret;
 
 	pm_runtime_get_noresume(cs35l56->base.dev);
+
+	if (cs35l56->base.cal_index < 0) {
+		ret = cs35l56_sdw_set_cal_index(cs35l56);
+		if (ret < 0)
+			goto out;
+	}
 
 	regcache_cache_only(cs35l56->base.regmap, false);
 
