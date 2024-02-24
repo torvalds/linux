@@ -1203,8 +1203,7 @@ void exit_tasks_rcu_start(void)
 	rtpcp = this_cpu_ptr(rcu_tasks.rtpcpu);
 	t->rcu_tasks_exit_cpu = smp_processor_id();
 	raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
-	if (!rtpcp->rtp_exit_list.next)
-		INIT_LIST_HEAD(&rtpcp->rtp_exit_list);
+	WARN_ON_ONCE(!rtpcp->rtp_exit_list.next);
 	list_add(&t->rcu_tasks_exit_list, &rtpcp->rtp_exit_list);
 	raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	preempt_enable();
