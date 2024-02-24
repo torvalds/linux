@@ -700,7 +700,7 @@ static void kmalloc_uaf3(struct kunit *test)
 
 static void kasan_atomics_helper(struct kunit *test, void *unsafe, void *safe)
 {
-	int *i_unsafe = (int *)unsafe;
+	int *i_unsafe = unsafe;
 
 	KUNIT_EXPECT_KASAN_FAIL(test, READ_ONCE(*i_unsafe));
 	KUNIT_EXPECT_KASAN_FAIL(test, WRITE_ONCE(*i_unsafe, 42));
@@ -766,8 +766,8 @@ static void kasan_atomics(struct kunit *test)
 	 */
 	a1 = kzalloc(48, GFP_KERNEL);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a1);
-	a2 = kzalloc(sizeof(int), GFP_KERNEL);
-	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a1);
+	a2 = kzalloc(sizeof(atomic_long_t), GFP_KERNEL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, a2);
 
 	/* Use atomics to access the redzone. */
 	kasan_atomics_helper(test, a1 + 48, a2);
