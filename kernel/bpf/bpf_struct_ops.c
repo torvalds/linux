@@ -672,13 +672,14 @@ static long bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		*(unsigned long *)(udata + moff) = prog->aux->id;
 	}
 
+	if (st_ops->validate) {
+		err = st_ops->validate(kdata);
+		if (err)
+			goto reset_unlock;
+	}
+
 	if (st_map->map.map_flags & BPF_F_LINK) {
 		err = 0;
-		if (st_ops->validate) {
-			err = st_ops->validate(kdata);
-			if (err)
-				goto reset_unlock;
-		}
 		arch_protect_bpf_trampoline(st_map->image, PAGE_SIZE);
 		/* Let bpf_link handle registration & unregistration.
 		 *
