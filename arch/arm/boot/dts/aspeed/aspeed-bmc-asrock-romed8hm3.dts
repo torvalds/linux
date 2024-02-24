@@ -101,14 +101,14 @@
 
 	/* IPB PMIC */
 	lm25066@40 {
-		compatible = "lm25066";
+		compatible = "ti,lm25066";
 		reg = <0x40>;
 		shunt-resistor-micro-ohms = <1000>;
 	};
 
 	/* 12VSB PMIC */
 	lm25066@41 {
-		compatible = "lm25066";
+		compatible = "ti,lm25066";
 		reg = <0x41>;
 		shunt-resistor-micro-ohms = <10000>;
 	};
