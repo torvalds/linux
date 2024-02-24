@@ -252,6 +252,9 @@ typedef struct xfs_mount {
 
 	/* cpus that have inodes queued for inactivation */
 	struct cpumask		m_inodegc_cpumask;
+
+	/* Hook to feed dirent updates to an active online repair. */
+	struct xfs_hooks	m_dir_update_hooks;
 } xfs_mount_t;
 
 #define M_IGEO(mp)		(&(mp)->m_ino_geo)

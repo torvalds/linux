@@ -17,11 +17,13 @@
 #include "xfs_quota.h"
 #include "xfs_quota_defs.h"
 #include "xfs_da_format.h"
+#include "xfs_dir2.h"
 #include "scrub/scrub.h"
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
 #include "scrub/quota.h"
 #include "scrub/iscan.h"
+#include "scrub/nlinks.h"
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t

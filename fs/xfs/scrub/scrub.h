@@ -122,6 +122,7 @@ struct xfs_scrub {
 #define XCHK_FSGATES_DRAIN	(1U << 2)  /* defer ops draining enabled */
 #define XCHK_NEED_DRAIN		(1U << 3)  /* scrub needs to drain defer ops */
 #define XCHK_FSGATES_QUOTA	(1U << 4)  /* quota live update enabled */
+#define XCHK_FSGATES_DIRENTS	(1U << 5)  /* directory live update enabled */
 #define XREP_RESET_PERAG_RESV	(1U << 30) /* must reset AG space reservation */
 #define XREP_ALREADY_FIXED	(1U << 31) /* checking our repair work */
 
@@ -132,7 +133,8 @@ struct xfs_scrub {
  * must be enabled during scrub setup and can only be torn down afterwards.
  */
 #define XCHK_FSGATES_ALL	(XCHK_FSGATES_DRAIN | \
-				 XCHK_FSGATES_QUOTA)
+				 XCHK_FSGATES_QUOTA | \
+				 XCHK_FSGATES_DIRENTS)
 
 /* Metadata scrubbers */
 int xchk_tester(struct xfs_scrub *sc);
@@ -183,6 +185,7 @@ xchk_quotacheck(struct xfs_scrub *sc)
 }
 #endif
 int xchk_fscounters(struct xfs_scrub *sc);
+int xchk_nlinks(struct xfs_scrub *sc);
 
 /* cross-referencing helpers */
 void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,

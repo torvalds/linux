@@ -160,6 +160,9 @@ xchk_fsgates_disable(
 	if (sc->flags & XCHK_FSGATES_QUOTA)
 		xfs_dqtrx_hook_disable();
 
+	if (sc->flags & XCHK_FSGATES_DIRENTS)
+		xfs_dir_hook_disable();
+
 	sc->flags &= ~XCHK_FSGATES_ALL;
 }
 
@@ -368,6 +371,12 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.setup	= xchk_setup_quotacheck,
 		.scrub	= xchk_quotacheck,
 		.repair	= xrep_quotacheck,
+	},
+	[XFS_SCRUB_TYPE_NLINKS] = {	/* inode link counts */
+		.type	= ST_FS,
+		.setup	= xchk_setup_nlinks,
+		.scrub	= xchk_nlinks,
+		.repair	= xrep_nlinks,
 	},
 };
 

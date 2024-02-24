@@ -322,6 +322,7 @@ xfs_symlink(
 		goto out_trans_cancel;
 	xfs_trans_ichgtime(tp, dp, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
+	xfs_dir_update_hook(dp, ip, 1, link_name);
 
 	/*
 	 * If this is a synchronous mount, make sure that the
