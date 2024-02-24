@@ -467,7 +467,6 @@ static int journal_sort_key_cmp(const void *_l, const void *_r)
 void bch2_journal_keys_put(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
-	struct journal_key *i;
 
 	BUG_ON(atomic_read(&keys->ref) <= 0);
 
@@ -477,7 +476,7 @@ void bch2_journal_keys_put(struct bch_fs *c)
 	move_gap(keys->data, keys->nr, keys->size, keys->gap, keys->nr);
 	keys->gap = keys->nr;
 
-	for (i = keys->data; i < keys->data + keys->nr; i++)
+	darray_for_each(*keys, i)
 		if (i->allocated)
 			kfree(i->k);
 
@@ -490,17 +489,16 @@ void bch2_journal_keys_put(struct bch_fs *c)
 
 static void __journal_keys_sort(struct journal_keys *keys)
 {
-	struct journal_key *src, *dst;
-
 	sort(keys->data, keys->nr, sizeof(keys->data[0]), journal_sort_key_cmp, NULL);
 
-	src = dst = keys->data;
-	while (src < keys->data + keys->nr) {
-		while (src + 1 < keys->data + keys->nr &&
-		       !journal_key_cmp(src, src + 1))
-			src++;
+	struct journal_key *dst = keys->data;
 
-		*dst++ = *src++;
+	darray_for_each(*keys, src) {
+		if (src + 1 < &darray_top(*keys) &&
+		    !journal_key_cmp(src, src + 1))
+			continue;
+
+		*dst++ = *src;
 	}
 
 	keys->nr = dst - keys->data;
@@ -511,39 +509,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	struct genradix_iter iter;
 	struct journal_replay *i, **_i;
 	struct journal_keys *keys = &c->journal_keys;
-	size_t nr_keys = 0, nr_read = 0;
-
-	genradix_for_each(&c->journal_entries, iter, _i) {
-		i = *_i;
-
-		if (!i || i->ignore)
-			continue;
-
-		for_each_jset_key(k, entry, &i->j)
-			nr_keys++;
-	}
-
-	if (!nr_keys)
-		return 0;
-
-	keys->size = roundup_pow_of_two(nr_keys);
-
-	keys->data = kvmalloc_array(keys->size, sizeof(keys->data[0]), GFP_KERNEL);
-	if (!keys->data) {
-		bch_err(c, "Failed to allocate buffer for sorted journal keys (%zu keys); trying slowpath",
-			nr_keys);
-
-		do {
-			keys->size >>= 1;
-			keys->data = kvmalloc_array(keys->size, sizeof(keys->data[0]), GFP_KERNEL);
-		} while (!keys->data && keys->size > nr_keys / 8);
-
-		if (!keys->data) {
-			bch_err(c, "Failed to allocate %zu size buffer for sorted journal keys; exiting",
-				keys->size);
-			return -BCH_ERR_ENOMEM_journal_keys_sort;
-		}
-	}
+	size_t nr_read = 0;
 
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
@@ -554,23 +520,25 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 		cond_resched();
 
 		for_each_jset_key(k, entry, &i->j) {
-			if (keys->nr == keys->size) {
-				__journal_keys_sort(keys);
-
-				if (keys->nr > keys->size * 7 / 8) {
-					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu/%zu",
-						keys->nr, keys->size, nr_read, nr_keys);
-					return -BCH_ERR_ENOMEM_journal_keys_sort;
-				}
-			}
-
-			keys->data[keys->nr++] = (struct journal_key) {
+			struct journal_key n = (struct journal_key) {
 				.btree_id	= entry->btree_id,
 				.level		= entry->level,
 				.k		= k,
 				.journal_seq	= le64_to_cpu(i->j.seq),
 				.journal_offset	= k->_data - i->j._data,
 			};
+
+			if (darray_push(keys, n)) {
+				__journal_keys_sort(keys);
+
+				if (keys->nr * 8 > keys->size * 7) {
+					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu keys at seq %llu",
+						keys->nr, keys->size, nr_read, le64_to_cpu(i->j.seq));
+					return -BCH_ERR_ENOMEM_journal_keys_sort;
+				}
+
+				BUG_ON(darray_push(keys, n));
+			}
 
 			nr_read++;
 		}
@@ -579,6 +547,6 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	__journal_keys_sort(keys);
 	keys->gap = keys->nr;
 
-	bch_verbose(c, "Journal keys: %zu read, %zu after sorting and compacting", nr_keys, keys->nr);
+	bch_verbose(c, "Journal keys: %zu read, %zu after sorting and compacting", nr_read, keys->nr);
 	return 0;
 }

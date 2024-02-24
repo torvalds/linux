@@ -70,9 +70,7 @@ static void drop_alloc_keys(struct journal_keys *keys)
  */
 static void zero_out_btree_mem_ptr(struct journal_keys *keys)
 {
-	struct journal_key *i;
-
-	for (i = keys->data; i < keys->data + keys->nr; i++)
+	darray_for_each(*keys, i)
 		if (i->k->k.type == KEY_TYPE_btree_ptr_v2)
 			bkey_i_to_btree_ptr_v2(i->k)->v.mem_ptr = 0;
 }
@@ -177,10 +175,8 @@ static int bch2_journal_replay(struct bch_fs *c)
 	 * efficient - better locality of btree access -  but some might fail if
 	 * that would cause a journal deadlock.
 	 */
-	for (size_t i = 0; i < keys->nr; i++) {
+	darray_for_each(*keys, k) {
 		cond_resched();
-
-		struct journal_key *k = keys->data + i;
 
 		/* Skip fastpath if we're low on space in the journal */
 		ret = c->journal.watermark ? -1 :
