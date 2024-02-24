@@ -36,8 +36,9 @@ struct xfs_perag {
 	atomic_t	pag_active_ref;	/* active reference count */
 	wait_queue_head_t pag_active_wq;/* woken active_ref falls to zero */
 	unsigned long	pag_opstate;
-	uint8_t		pagf_levels[XFS_BTNUM_AGF];
-					/* # of levels in bno & cnt btree */
+	uint8_t		pagf_bno_level;	/* # of levels in bno btree */
+	uint8_t		pagf_cnt_level;	/* # of levels in cnt btree */
+	uint8_t		pagf_rmap_level;/* # of levels in rmap btree */
 	uint32_t	pagf_flcount;	/* count of blocks in freelist */
 	xfs_extlen_t	pagf_freeblks;	/* total free blocks */
 	xfs_extlen_t	pagf_longest;	/* longest free space */
@@ -86,7 +87,8 @@ struct xfs_perag {
 	 * Alternate btree heights so that online repair won't trip the write
 	 * verifiers while rebuilding the AG btrees.
 	 */
-	uint8_t		pagf_repair_levels[XFS_BTNUM_AGF];
+	uint8_t		pagf_repair_bno_level;
+	uint8_t		pagf_repair_cnt_level;
 	uint8_t		pagf_repair_refcount_level;
 #endif
 

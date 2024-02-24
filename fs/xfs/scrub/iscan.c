@@ -113,7 +113,7 @@ xchk_iscan_find_next(
 	 * Look up the inode chunk for the current cursor position.  If there
 	 * is no chunk here, we want the next one.
 	 */
-	cur = xfs_inobt_init_cursor(pag, tp, agi_bp, XFS_BTNUM_INO);
+	cur = xfs_inobt_init_cursor(pag, tp, agi_bp);
 	error = xfs_inobt_lookup(cur, agino, XFS_LOOKUP_LE, &has_rec);
 	if (!error && !has_rec)
 		error = xfs_btree_increment(cur, 0, &has_rec);

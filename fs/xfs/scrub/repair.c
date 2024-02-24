@@ -832,20 +832,20 @@ xrep_ag_btcur_init(
 	/* Set up a bnobt cursor for cross-referencing. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_BNOBT &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_CNTBT) {
-		sa->bno_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sc->sa.pag, XFS_BTNUM_BNO);
-		sa->cnt_cur = xfs_allocbt_init_cursor(mp, sc->tp, sa->agf_bp,
-				sc->sa.pag, XFS_BTNUM_CNT);
+		sa->bno_cur = xfs_bnobt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag);
+		sa->cnt_cur = xfs_cntbt_init_cursor(mp, sc->tp, sa->agf_bp,
+				sc->sa.pag);
 	}
 
 	/* Set up a inobt cursor for cross-referencing. */
 	if (sc->sm->sm_type != XFS_SCRUB_TYPE_INOBT &&
 	    sc->sm->sm_type != XFS_SCRUB_TYPE_FINOBT) {
 		sa->ino_cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-				sa->agi_bp, XFS_BTNUM_INO);
+				sa->agi_bp);
 		if (xfs_has_finobt(mp))
-			sa->fino_cur = xfs_inobt_init_cursor(sc->sa.pag,
-					sc->tp, sa->agi_bp, XFS_BTNUM_FINO);
+			sa->fino_cur = xfs_finobt_init_cursor(sc->sa.pag,
+					sc->tp, sa->agi_bp);
 	}
 
 	/* Set up a rmapbt cursor for cross-referencing. */

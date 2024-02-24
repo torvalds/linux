@@ -16,6 +16,7 @@
 #include "xfs_refcount.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 #include "xfs_trace.h"
 #include "xfs_trans.h"
 #include "xfs_bit.h"
@@ -318,6 +319,7 @@ xfs_refcountbt_keys_contiguous(
 }
 
 const struct xfs_btree_ops xfs_refcountbt_ops = {
+	.name			= "refcount",
 	.type			= XFS_BTREE_TYPE_AG,
 
 	.rec_len		= sizeof(struct xfs_refcount_rec),
@@ -326,6 +328,7 @@ const struct xfs_btree_ops xfs_refcountbt_ops = {
 
 	.lru_refs		= XFS_REFC_BTREE_REF,
 	.statoff		= XFS_STATS_CALC_INDEX(xs_refcbt_2),
+	.sick_mask		= XFS_SICK_AG_REFCNTBT,
 
 	.dup_cursor		= xfs_refcountbt_dup_cursor,
 	.set_root		= xfs_refcountbt_set_root,
@@ -346,28 +349,10 @@ const struct xfs_btree_ops xfs_refcountbt_ops = {
 };
 
 /*
- * Initialize a new refcount btree cursor.
+ * Create a new refcount btree cursor.
+ *
+ * For staging cursors tp and agbp are NULL.
  */
-static struct xfs_btree_cur *
-xfs_refcountbt_init_common(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
-	struct xfs_perag	*pag)
-{
-	struct xfs_btree_cur	*cur;
-
-	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
-
-	cur = xfs_btree_alloc_cursor(mp, tp, XFS_BTNUM_REFC,
-			&xfs_refcountbt_ops, mp->m_refc_maxlevels,
-			xfs_refcountbt_cur_cache);
-	cur->bc_ag.pag = xfs_perag_hold(pag);
-	cur->bc_refc.nr_ops = 0;
-	cur->bc_refc.shape_changes = 0;
-	return cur;
-}
-
-/* Create a btree cursor. */
 struct xfs_btree_cur *
 xfs_refcountbt_init_cursor(
 	struct xfs_mount	*mp,
@@ -375,26 +360,21 @@ xfs_refcountbt_init_cursor(
 	struct xfs_buf		*agbp,
 	struct xfs_perag	*pag)
 {
-	struct xfs_agf		*agf = agbp->b_addr;
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_refcountbt_init_common(mp, tp, pag);
-	cur->bc_nlevels = be32_to_cpu(agf->agf_refcount_level);
+	ASSERT(pag->pag_agno < mp->m_sb.sb_agcount);
+
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_refcountbt_ops,
+			mp->m_refc_maxlevels, xfs_refcountbt_cur_cache);
+	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_refc.nr_ops = 0;
+	cur->bc_refc.shape_changes = 0;
 	cur->bc_ag.agbp = agbp;
-	return cur;
-}
+	if (agbp) {
+		struct xfs_agf		*agf = agbp->b_addr;
 
-/* Create a btree cursor with a fake root for staging. */
-struct xfs_btree_cur *
-xfs_refcountbt_stage_cursor(
-	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
-	struct xfs_perag	*pag)
-{
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_refcountbt_init_common(mp, NULL, pag);
-	xfs_btree_stage_afakeroot(cur, afake);
+		cur->bc_nlevels = be32_to_cpu(agf->agf_refcount_level);
+	}
 	return cur;
 }
 
@@ -419,7 +399,7 @@ xfs_refcountbt_commit_staged_btree(
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_REFCOUNT_BLOCKS |
 				    XFS_AGF_REFCOUNT_ROOT |
 				    XFS_AGF_REFCOUNT_LEVEL);
-	xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_refcountbt_ops);
+	xfs_btree_commit_afakeroot(cur, tp, agbp);
 }
 
 /* Calculate number of records in a refcount btree block. */

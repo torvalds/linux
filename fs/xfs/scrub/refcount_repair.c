@@ -658,8 +658,8 @@ xrep_refc_build_new_tree(
 	rr->new_btree.bload.claim_block = xrep_refc_claim_block;
 
 	/* Compute how many blocks we'll need. */
-	refc_cur = xfs_refcountbt_stage_cursor(sc->mp, &rr->new_btree.afake,
-			pag);
+	refc_cur = xfs_refcountbt_init_cursor(sc->mp, NULL, NULL, pag);
+	xfs_btree_stage_afakeroot(refc_cur, &rr->new_btree.afake);
 	error = xfs_btree_bload_compute_geometry(refc_cur,
 			&rr->new_btree.bload,
 			xfarray_length(rr->refcount_records));

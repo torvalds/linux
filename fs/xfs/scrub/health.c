@@ -248,13 +248,13 @@ xchk_update_health(
 }
 
 /* Is the given per-AG btree healthy enough for scanning? */
-bool
-xchk_ag_btree_healthy_enough(
+void
+xchk_ag_btree_del_cursor_if_sick(
 	struct xfs_scrub	*sc,
-	struct xfs_perag	*pag,
-	xfs_btnum_t		btnum)
+	struct xfs_btree_cur	**curp,
+	unsigned int		sm_type)
 {
-	unsigned int		mask = 0;
+	unsigned int		mask = (*curp)->bc_ops->sick_mask;
 
 	/*
 	 * We always want the cursor if it's the same type as whatever we're
@@ -263,41 +263,8 @@ xchk_ag_btree_healthy_enough(
 	 * Otherwise, we're only interested in the btree for cross-referencing.
 	 * If we know the btree is bad then don't bother, just set XFAIL.
 	 */
-	switch (btnum) {
-	case XFS_BTNUM_BNO:
-		if (sc->sm->sm_type == XFS_SCRUB_TYPE_BNOBT)
-			return true;
-		mask = XFS_SICK_AG_BNOBT;
-		break;
-	case XFS_BTNUM_CNT:
-		if (sc->sm->sm_type == XFS_SCRUB_TYPE_CNTBT)
-			return true;
-		mask = XFS_SICK_AG_CNTBT;
-		break;
-	case XFS_BTNUM_INO:
-		if (sc->sm->sm_type == XFS_SCRUB_TYPE_INOBT)
-			return true;
-		mask = XFS_SICK_AG_INOBT;
-		break;
-	case XFS_BTNUM_FINO:
-		if (sc->sm->sm_type == XFS_SCRUB_TYPE_FINOBT)
-			return true;
-		mask = XFS_SICK_AG_FINOBT;
-		break;
-	case XFS_BTNUM_RMAP:
-		if (sc->sm->sm_type == XFS_SCRUB_TYPE_RMAPBT)
-			return true;
-		mask = XFS_SICK_AG_RMAPBT;
-		break;
-	case XFS_BTNUM_REFC:
-		if (sc->sm->sm_type == XFS_SCRUB_TYPE_REFCNTBT)
-			return true;
-		mask = XFS_SICK_AG_REFCNTBT;
-		break;
-	default:
-		ASSERT(0);
-		return true;
-	}
+	if (sc->sm->sm_type == sm_type)
+		return;
 
 	/*
 	 * If we just repaired some AG metadata, sc->sick_mask will reflect all
@@ -309,12 +276,11 @@ xchk_ag_btree_healthy_enough(
 	    type_to_health_flag[sc->sm->sm_type].group == XHG_AG)
 		mask &= ~sc->sick_mask;
 
-	if (xfs_ag_has_sickness(pag, mask)) {
+	if (xfs_ag_has_sickness((*curp)->bc_ag.pag, mask)) {
 		sc->sm->sm_flags |= XFS_SCRUB_OFLAG_XFAIL;
-		return false;
+		xfs_btree_del_cursor(*curp, XFS_BTREE_NOERROR);
+		*curp = NULL;
 	}
-
-	return true;
 }
 
 /*

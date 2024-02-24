@@ -16,6 +16,7 @@
 #include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
 #include "xfs_error.h"
+#include "xfs_health.h"
 #include "xfs_trace.h"
 #include "xfs_trans.h"
 #include "xfs_ag.h"
@@ -23,12 +24,21 @@
 static struct kmem_cache	*xfs_allocbt_cur_cache;
 
 STATIC struct xfs_btree_cur *
-xfs_allocbt_dup_cursor(
+xfs_bnobt_dup_cursor(
 	struct xfs_btree_cur	*cur)
 {
-	return xfs_allocbt_init_cursor(cur->bc_mp, cur->bc_tp,
-			cur->bc_ag.agbp, cur->bc_ag.pag, cur->bc_btnum);
+	return xfs_bnobt_init_cursor(cur->bc_mp, cur->bc_tp, cur->bc_ag.agbp,
+			cur->bc_ag.pag);
 }
+
+STATIC struct xfs_btree_cur *
+xfs_cntbt_dup_cursor(
+	struct xfs_btree_cur	*cur)
+{
+	return xfs_cntbt_init_cursor(cur->bc_mp, cur->bc_tp, cur->bc_ag.agbp,
+			cur->bc_ag.pag);
+}
+
 
 STATIC void
 xfs_allocbt_set_root(
@@ -38,13 +48,18 @@ xfs_allocbt_set_root(
 {
 	struct xfs_buf		*agbp = cur->bc_ag.agbp;
 	struct xfs_agf		*agf = agbp->b_addr;
-	int			btnum = cur->bc_btnum;
 
 	ASSERT(ptr->s != 0);
 
-	agf->agf_roots[btnum] = ptr->s;
-	be32_add_cpu(&agf->agf_levels[btnum], inc);
-	cur->bc_ag.pag->pagf_levels[btnum] += inc;
+	if (xfs_btree_is_bno(cur->bc_ops)) {
+		agf->agf_bno_root = ptr->s;
+		be32_add_cpu(&agf->agf_bno_level, inc);
+		cur->bc_ag.pag->pagf_bno_level += inc;
+	} else {
+		agf->agf_cnt_root = ptr->s;
+		be32_add_cpu(&agf->agf_cnt_level, inc);
+		cur->bc_ag.pag->pagf_cnt_level += inc;
+	}
 
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 }
@@ -116,7 +131,7 @@ xfs_allocbt_update_lastrec(
 	__be32			len;
 	int			numrecs;
 
-	ASSERT(cur->bc_btnum == XFS_BTNUM_CNT);
+	ASSERT(!xfs_btree_is_bno(cur->bc_ops));
 
 	switch (reason) {
 	case LASTREC_UPDATE:
@@ -226,7 +241,10 @@ xfs_allocbt_init_ptr_from_cur(
 
 	ASSERT(cur->bc_ag.pag->pag_agno == be32_to_cpu(agf->agf_seqno));
 
-	ptr->s = agf->agf_roots[cur->bc_btnum];
+	if (xfs_btree_is_bno(cur->bc_ops))
+		ptr->s = agf->agf_bno_root;
+	else
+		ptr->s = agf->agf_cnt_root;
 }
 
 STATIC int64_t
@@ -299,7 +317,6 @@ xfs_allocbt_verify(
 	struct xfs_perag	*pag = bp->b_pag;
 	xfs_failaddr_t		fa;
 	unsigned int		level;
-	xfs_btnum_t		btnum = XFS_BTNUM_BNOi;
 
 	if (!xfs_verify_magic(bp, block->bb_magic))
 		return __this_address;
@@ -320,21 +337,27 @@ xfs_allocbt_verify(
 	 * against.
 	 */
 	level = be16_to_cpu(block->bb_level);
-	if (bp->b_ops->magic[0] == cpu_to_be32(XFS_ABTC_MAGIC))
-		btnum = XFS_BTNUM_CNTi;
 	if (pag && xfs_perag_initialised_agf(pag)) {
-		unsigned int	maxlevel = pag->pagf_levels[btnum];
+		unsigned int	maxlevel, repair_maxlevel = 0;
 
-#ifdef CONFIG_XFS_ONLINE_REPAIR
 		/*
 		 * Online repair could be rewriting the free space btrees, so
 		 * we'll validate against the larger of either tree while this
 		 * is going on.
 		 */
-		maxlevel = max_t(unsigned int, maxlevel,
-				 pag->pagf_repair_levels[btnum]);
+		if (bp->b_ops->magic[0] == cpu_to_be32(XFS_ABTC_MAGIC)) {
+			maxlevel = pag->pagf_cnt_level;
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+			repair_maxlevel = pag->pagf_repair_cnt_level;
 #endif
-		if (level >= maxlevel)
+		} else {
+			maxlevel = pag->pagf_bno_level;
+#ifdef CONFIG_XFS_ONLINE_REPAIR
+			repair_maxlevel = pag->pagf_repair_bno_level;
+#endif
+		}
+
+		if (level >= max(maxlevel, repair_maxlevel))
 			return __this_address;
 	} else if (level >= mp->m_alloc_maxlevels)
 		return __this_address;
@@ -455,6 +478,7 @@ xfs_allocbt_keys_contiguous(
 }
 
 const struct xfs_btree_ops xfs_bnobt_ops = {
+	.name			= "bno",
 	.type			= XFS_BTREE_TYPE_AG,
 
 	.rec_len		= sizeof(xfs_alloc_rec_t),
@@ -463,8 +487,9 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 
 	.lru_refs		= XFS_ALLOC_BTREE_REF,
 	.statoff		= XFS_STATS_CALC_INDEX(xs_abtb_2),
+	.sick_mask		= XFS_SICK_AG_BNOBT,
 
-	.dup_cursor		= xfs_allocbt_dup_cursor,
+	.dup_cursor		= xfs_bnobt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
@@ -484,6 +509,7 @@ const struct xfs_btree_ops xfs_bnobt_ops = {
 };
 
 const struct xfs_btree_ops xfs_cntbt_ops = {
+	.name			= "cnt",
 	.type			= XFS_BTREE_TYPE_AG,
 	.geom_flags		= XFS_BTGEO_LASTREC_UPDATE,
 
@@ -493,8 +519,9 @@ const struct xfs_btree_ops xfs_cntbt_ops = {
 
 	.lru_refs		= XFS_ALLOC_BTREE_REF,
 	.statoff		= XFS_STATS_CALC_INDEX(xs_abtc_2),
+	.sick_mask		= XFS_SICK_AG_CNTBT,
 
-	.dup_cursor		= xfs_allocbt_dup_cursor,
+	.dup_cursor		= xfs_cntbt_dup_cursor,
 	.set_root		= xfs_allocbt_set_root,
 	.alloc_block		= xfs_allocbt_alloc_block,
 	.free_block		= xfs_allocbt_free_block,
@@ -513,65 +540,55 @@ const struct xfs_btree_ops xfs_cntbt_ops = {
 	.keys_contiguous	= NULL, /* not needed right now */
 };
 
-/* Allocate most of a new allocation btree cursor. */
-STATIC struct xfs_btree_cur *
-xfs_allocbt_init_common(
+/*
+ * Allocate a new bnobt cursor.
+ *
+ * For staging cursors tp and agbp are NULL.
+ */
+struct xfs_btree_cur *
+xfs_bnobt_init_cursor(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	struct xfs_perag	*pag,
-	xfs_btnum_t		btnum)
+	struct xfs_buf		*agbp,
+	struct xfs_perag	*pag)
 {
-	const struct xfs_btree_ops *ops = &xfs_bnobt_ops;
 	struct xfs_btree_cur	*cur;
 
-	ASSERT(btnum == XFS_BTNUM_BNO || btnum == XFS_BTNUM_CNT);
-
-	if (btnum == XFS_BTNUM_CNT)
-		ops = &xfs_cntbt_ops;
-
-	cur = xfs_btree_alloc_cursor(mp, tp, btnum, ops, mp->m_alloc_maxlevels,
-			xfs_allocbt_cur_cache);
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_bnobt_ops,
+			mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
 	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_ag.agbp = agbp;
+	if (agbp) {
+		struct xfs_agf		*agf = agbp->b_addr;
+
+		cur->bc_nlevels = be32_to_cpu(agf->agf_bno_level);
+	}
 	return cur;
 }
 
 /*
- * Allocate a new allocation btree cursor.
+ * Allocate a new cntbt cursor.
+ *
+ * For staging cursors tp and agbp are NULL.
  */
-struct xfs_btree_cur *			/* new alloc btree cursor */
-xfs_allocbt_init_cursor(
-	struct xfs_mount	*mp,		/* file system mount point */
-	struct xfs_trans	*tp,		/* transaction pointer */
-	struct xfs_buf		*agbp,		/* buffer for agf structure */
-	struct xfs_perag	*pag,
-	xfs_btnum_t		btnum)		/* btree identifier */
-{
-	struct xfs_agf		*agf = agbp->b_addr;
-	struct xfs_btree_cur	*cur;
-
-	cur = xfs_allocbt_init_common(mp, tp, pag, btnum);
-	if (btnum == XFS_BTNUM_CNT)
-		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNT]);
-	else
-		cur->bc_nlevels = be32_to_cpu(agf->agf_levels[XFS_BTNUM_BNO]);
-
-	cur->bc_ag.agbp = agbp;
-
-	return cur;
-}
-
-/* Create a free space btree cursor with a fake root for staging. */
 struct xfs_btree_cur *
-xfs_allocbt_stage_cursor(
+xfs_cntbt_init_cursor(
 	struct xfs_mount	*mp,
-	struct xbtree_afakeroot	*afake,
-	struct xfs_perag	*pag,
-	xfs_btnum_t		btnum)
+	struct xfs_trans	*tp,
+	struct xfs_buf		*agbp,
+	struct xfs_perag	*pag)
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = xfs_allocbt_init_common(mp, NULL, pag, btnum);
-	xfs_btree_stage_afakeroot(cur, afake);
+	cur = xfs_btree_alloc_cursor(mp, tp, &xfs_cntbt_ops,
+			mp->m_alloc_maxlevels, xfs_allocbt_cur_cache);
+	cur->bc_ag.pag = xfs_perag_hold(pag);
+	cur->bc_ag.agbp = agbp;
+	if (agbp) {
+		struct xfs_agf		*agf = agbp->b_addr;
+
+		cur->bc_nlevels = be32_to_cpu(agf->agf_cnt_level);
+	}
 	return cur;
 }
 
@@ -590,15 +607,16 @@ xfs_allocbt_commit_staged_btree(
 
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 
-	agf->agf_roots[cur->bc_btnum] = cpu_to_be32(afake->af_root);
-	agf->agf_levels[cur->bc_btnum] = cpu_to_be32(afake->af_levels);
+	if (xfs_btree_is_bno(cur->bc_ops)) {
+		agf->agf_bno_root = cpu_to_be32(afake->af_root);
+		agf->agf_bno_level = cpu_to_be32(afake->af_levels);
+	} else {
+		agf->agf_cnt_root = cpu_to_be32(afake->af_root);
+		agf->agf_cnt_level = cpu_to_be32(afake->af_levels);
+	}
 	xfs_alloc_log_agf(tp, agbp, XFS_AGF_ROOTS | XFS_AGF_LEVELS);
 
-	if (cur->bc_btnum == XFS_BTNUM_BNO) {
-		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_bnobt_ops);
-	} else {
-		xfs_btree_commit_afakeroot(cur, tp, agbp, &xfs_cntbt_ops);
-	}
+	xfs_btree_commit_afakeroot(cur, tp, agbp);
 }
 
 /* Calculate number of records in an alloc btree block. */

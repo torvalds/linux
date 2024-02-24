@@ -669,14 +669,13 @@ xfs_agfblock_init(
 	agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
 	agf->agf_seqno = cpu_to_be32(id->agno);
 	agf->agf_length = cpu_to_be32(id->agsize);
-	agf->agf_roots[XFS_BTNUM_BNOi] = cpu_to_be32(XFS_BNO_BLOCK(mp));
-	agf->agf_roots[XFS_BTNUM_CNTi] = cpu_to_be32(XFS_CNT_BLOCK(mp));
-	agf->agf_levels[XFS_BTNUM_BNOi] = cpu_to_be32(1);
-	agf->agf_levels[XFS_BTNUM_CNTi] = cpu_to_be32(1);
+	agf->agf_bno_root = cpu_to_be32(XFS_BNO_BLOCK(mp));
+	agf->agf_cnt_root = cpu_to_be32(XFS_CNT_BLOCK(mp));
+	agf->agf_bno_level = cpu_to_be32(1);
+	agf->agf_cnt_level = cpu_to_be32(1);
 	if (xfs_has_rmapbt(mp)) {
-		agf->agf_roots[XFS_BTNUM_RMAPi] =
-					cpu_to_be32(XFS_RMAP_BLOCK(mp));
-		agf->agf_levels[XFS_BTNUM_RMAPi] = cpu_to_be32(1);
+		agf->agf_rmap_root = cpu_to_be32(XFS_RMAP_BLOCK(mp));
+		agf->agf_rmap_level = cpu_to_be32(1);
 		agf->agf_rmap_blocks = cpu_to_be32(1);
 	}
 
