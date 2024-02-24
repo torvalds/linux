@@ -236,22 +236,18 @@ xchk_btree_ptr_ok(
 	int			level,
 	union xfs_btree_ptr	*ptr)
 {
-	bool			res;
-
 	/* A btree rooted in an inode has no block pointer to the root. */
 	if (bs->cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
 	    level == bs->cur->bc_nlevels)
 		return true;
 
 	/* Otherwise, check the pointers. */
-	if (bs->cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		res = xfs_btree_check_lptr(bs->cur, be64_to_cpu(ptr->l), level);
-	else
-		res = xfs_btree_check_sptr(bs->cur, be32_to_cpu(ptr->s), level);
-	if (!res)
+	if (__xfs_btree_check_ptr(bs->cur, ptr, 0, level)) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, level);
+		return false;
+	}
 
-	return res;
+	return true;
 }
 
 /* Check that a btree block's sibling matches what we expect it. */
@@ -588,7 +584,6 @@ xchk_btree_get_block(
 	struct xfs_btree_block	**pblock,
 	struct xfs_buf		**pbp)
 {
-	xfs_failaddr_t		failed_at;
 	int			error;
 
 	*pblock = NULL;
@@ -600,13 +595,7 @@ xchk_btree_get_block(
 		return error;
 
 	xfs_btree_get_block(bs->cur, level, pbp);
-	if (bs->cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
-		failed_at = __xfs_btree_check_lblock(bs->cur, *pblock,
-				level, *pbp);
-	else
-		failed_at = __xfs_btree_check_sblock(bs->cur, *pblock,
-				 level, *pbp);
-	if (failed_at) {
+	if (__xfs_btree_check_block(bs->cur, *pblock, level, *pbp)) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, level);
 		return 0;
 	}
