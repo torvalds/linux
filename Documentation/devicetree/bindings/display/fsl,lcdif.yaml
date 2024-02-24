@@ -123,10 +123,16 @@ allOf:
   - if:
       properties:
         compatible:
+          const: fsl,imx6sx-lcdif
+    then:
+      required:
+        - power-domains
+  - if:
+      properties:
+        compatible:
           contains:
             enum:
               - fsl,imx6sl-lcdif
-              - fsl,imx6sx-lcdif
               - fsl,imx8mm-lcdif
               - fsl,imx8mn-lcdif
               - fsl,imx8mp-lcdif
