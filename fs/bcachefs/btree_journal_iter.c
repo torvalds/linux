@@ -42,7 +42,7 @@ static inline size_t idx_to_pos(struct journal_keys *keys, size_t idx)
 
 static inline struct journal_key *idx_to_key(struct journal_keys *keys, size_t idx)
 {
-	return keys->d + idx_to_pos(keys, idx);
+	return keys->data + idx_to_pos(keys, idx);
 }
 
 static size_t __bch2_journal_key_search(struct journal_keys *keys,
@@ -182,10 +182,10 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 	BUG_ON(test_bit(BCH_FS_rw, &c->flags));
 
 	if (idx < keys->size &&
-	    journal_key_cmp(&n, &keys->d[idx]) == 0) {
-		if (keys->d[idx].allocated)
-			kfree(keys->d[idx].k);
-		keys->d[idx] = n;
+	    journal_key_cmp(&n, &keys->data[idx]) == 0) {
+		if (keys->data[idx].allocated)
+			kfree(keys->data[idx].k);
+		keys->data[idx] = n;
 		return 0;
 	}
 
@@ -198,17 +198,17 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 			.size			= max_t(size_t, keys->size, 8) * 2,
 		};
 
-		new_keys.d = kvmalloc_array(new_keys.size, sizeof(new_keys.d[0]), GFP_KERNEL);
-		if (!new_keys.d) {
+		new_keys.data = kvmalloc_array(new_keys.size, sizeof(new_keys.data[0]), GFP_KERNEL);
+		if (!new_keys.data) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
 			return -BCH_ERR_ENOMEM_journal_key_insert;
 		}
 
 		/* Since @keys was full, there was no gap: */
-		memcpy(new_keys.d, keys->d, sizeof(keys->d[0]) * keys->nr);
-		kvfree(keys->d);
-		keys->d		= new_keys.d;
+		memcpy(new_keys.data, keys->data, sizeof(keys->data[0]) * keys->nr);
+		kvfree(keys->data);
+		keys->data	= new_keys.data;
 		keys->nr	= new_keys.nr;
 		keys->size	= new_keys.size;
 
@@ -218,11 +218,11 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 
 	journal_iters_move_gap(c, keys->gap, idx);
 
-	move_gap(keys->d, keys->nr, keys->size, keys->gap, idx);
+	move_gap(keys->data, keys->nr, keys->size, keys->gap, idx);
 	keys->gap = idx;
 
 	keys->nr++;
-	keys->d[keys->gap++] = n;
+	keys->data[keys->gap++] = n;
 
 	journal_iters_fix(c);
 
@@ -269,10 +269,10 @@ void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 	size_t idx = bch2_journal_key_search(keys, btree, level, pos);
 
 	if (idx < keys->size &&
-	    keys->d[idx].btree_id	== btree &&
-	    keys->d[idx].level		== level &&
-	    bpos_eq(keys->d[idx].k->k.p, pos))
-		keys->d[idx].overwritten = true;
+	    keys->data[idx].btree_id	== btree &&
+	    keys->data[idx].level	== level &&
+	    bpos_eq(keys->data[idx].k->k.p, pos))
+		keys->data[idx].overwritten = true;
 }
 
 static void bch2_journal_iter_advance(struct journal_iter *iter)
@@ -286,16 +286,16 @@ static void bch2_journal_iter_advance(struct journal_iter *iter)
 
 static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
-	struct journal_key *k = iter->keys->d + iter->idx;
+	struct journal_key *k = iter->keys->data + iter->idx;
 
-	while (k < iter->keys->d + iter->keys->size &&
+	while (k < iter->keys->data + iter->keys->size &&
 	       k->btree_id	== iter->btree_id &&
 	       k->level		== iter->level) {
 		if (!k->overwritten)
 			return bkey_i_to_s_c(k->k);
 
 		bch2_journal_iter_advance(iter);
-		k = iter->keys->d + iter->idx;
+		k = iter->keys->data + iter->idx;
 	}
 
 	return bkey_s_c_null;
@@ -474,15 +474,15 @@ void bch2_journal_keys_put(struct bch_fs *c)
 	if (!atomic_dec_and_test(&keys->ref))
 		return;
 
-	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
+	move_gap(keys->data, keys->nr, keys->size, keys->gap, keys->nr);
 	keys->gap = keys->nr;
 
-	for (i = keys->d; i < keys->d + keys->nr; i++)
+	for (i = keys->data; i < keys->data + keys->nr; i++)
 		if (i->allocated)
 			kfree(i->k);
 
-	kvfree(keys->d);
-	keys->d = NULL;
+	kvfree(keys->data);
+	keys->data = NULL;
 	keys->nr = keys->gap = keys->size = 0;
 
 	bch2_journal_entries_free(c);
@@ -492,18 +492,18 @@ static void __journal_keys_sort(struct journal_keys *keys)
 {
 	struct journal_key *src, *dst;
 
-	sort(keys->d, keys->nr, sizeof(keys->d[0]), journal_sort_key_cmp, NULL);
+	sort(keys->data, keys->nr, sizeof(keys->data[0]), journal_sort_key_cmp, NULL);
 
-	src = dst = keys->d;
-	while (src < keys->d + keys->nr) {
-		while (src + 1 < keys->d + keys->nr &&
+	src = dst = keys->data;
+	while (src < keys->data + keys->nr) {
+		while (src + 1 < keys->data + keys->nr &&
 		       !journal_key_cmp(src, src + 1))
 			src++;
 
 		*dst++ = *src++;
 	}
 
-	keys->nr = dst - keys->d;
+	keys->nr = dst - keys->data;
 }
 
 int bch2_journal_keys_sort(struct bch_fs *c)
@@ -528,17 +528,17 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 
 	keys->size = roundup_pow_of_two(nr_keys);
 
-	keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
-	if (!keys->d) {
+	keys->data = kvmalloc_array(keys->size, sizeof(keys->data[0]), GFP_KERNEL);
+	if (!keys->data) {
 		bch_err(c, "Failed to allocate buffer for sorted journal keys (%zu keys); trying slowpath",
 			nr_keys);
 
 		do {
 			keys->size >>= 1;
-			keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
-		} while (!keys->d && keys->size > nr_keys / 8);
+			keys->data = kvmalloc_array(keys->size, sizeof(keys->data[0]), GFP_KERNEL);
+		} while (!keys->data && keys->size > nr_keys / 8);
 
-		if (!keys->d) {
+		if (!keys->data) {
 			bch_err(c, "Failed to allocate %zu size buffer for sorted journal keys; exiting",
 				keys->size);
 			return -BCH_ERR_ENOMEM_journal_keys_sort;
@@ -564,7 +564,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 				}
 			}
 
-			keys->d[keys->nr++] = (struct journal_key) {
+			keys->data[keys->nr++] = (struct journal_key) {
 				.btree_id	= entry->btree_id,
 				.level		= entry->level,
 				.k		= k,

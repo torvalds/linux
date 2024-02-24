@@ -667,6 +667,8 @@ struct journal_seq_blacklist_table {
 };
 
 struct journal_keys {
+	/* must match layout in darray_types.h */
+	size_t			nr, size;
 	struct journal_key {
 		u64		journal_seq;
 		u32		journal_offset;
@@ -675,15 +677,13 @@ struct journal_keys {
 		bool		allocated;
 		bool		overwritten;
 		struct bkey_i	*k;
-	}			*d;
+	}			*data;
 	/*
 	 * Gap buffer: instead of all the empty space in the array being at the
 	 * end of the buffer - from @nr to @size - the empty space is at @gap.
 	 * This means that sequential insertions are O(n) instead of O(n^2).
 	 */
 	size_t			gap;
-	size_t			nr;
-	size_t			size;
 	atomic_t		ref;
 	bool			initial_ref_held;
 };
