@@ -24,6 +24,7 @@ struct xfarray_sortinfo;
 struct xchk_dqiter;
 struct xchk_iscan;
 struct xchk_nlink;
+struct xchk_fscounters;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -1804,16 +1805,28 @@ TRACE_EVENT(xrep_calc_ag_resblks_btsize,
 		  __entry->refcbt_sz)
 )
 TRACE_EVENT(xrep_reset_counters,
-	TP_PROTO(struct xfs_mount *mp),
-	TP_ARGS(mp),
+	TP_PROTO(struct xfs_mount *mp, struct xchk_fscounters *fsc),
+	TP_ARGS(mp, fsc),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
+		__field(uint64_t, icount)
+		__field(uint64_t, ifree)
+		__field(uint64_t, fdblocks)
+		__field(uint64_t, frextents)
 	),
 	TP_fast_assign(
 		__entry->dev = mp->m_super->s_dev;
+		__entry->icount = fsc->icount;
+		__entry->ifree = fsc->ifree;
+		__entry->fdblocks = fsc->fdblocks;
+		__entry->frextents = fsc->frextents;
 	),
-	TP_printk("dev %d:%d",
-		  MAJOR(__entry->dev), MINOR(__entry->dev))
+	TP_printk("dev %d:%d icount %llu ifree %llu fdblocks %llu frextents %llu",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->icount,
+		  __entry->ifree,
+		  __entry->fdblocks,
+		  __entry->frextents)
 )
 
 DECLARE_EVENT_CLASS(xrep_newbt_extent_class,
