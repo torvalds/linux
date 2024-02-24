@@ -426,8 +426,7 @@ EXPORT_SYMBOL(mb_cache_destroy);
 
 static int __init mbcache_init(void)
 {
-	mb_entry_cache = KMEM_CACHE(mb_cache_entry,
-					 SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD);
+	mb_entry_cache = KMEM_CACHE(mb_cache_entry, SLAB_RECLAIM_ACCOUNT);
 	if (!mb_entry_cache)
 		return -ENOMEM;
 	return 0;
