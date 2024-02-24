@@ -65,12 +65,20 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 	list_add(&info->link, &dmar_domain->devices);
 	spin_unlock_irqrestore(&dmar_domain->lock, flags);
 
+	domain_update_iotlb(dmar_domain);
+
 	return 0;
 }
 
 static void intel_nested_domain_free(struct iommu_domain *domain)
 {
-	kfree(to_dmar_domain(domain));
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+	struct dmar_domain *s2_domain = dmar_domain->s2_domain;
+
+	spin_lock(&s2_domain->s1_lock);
+	list_del(&dmar_domain->s2_link);
+	spin_unlock(&s2_domain->s1_lock);
+	kfree(dmar_domain);
 }
 
 static void nested_flush_dev_iotlb(struct dmar_domain *domain, u64 addr,
@@ -95,7 +103,7 @@ static void nested_flush_dev_iotlb(struct dmar_domain *domain, u64 addr,
 }
 
 static void intel_nested_flush_cache(struct dmar_domain *domain, u64 addr,
-				     unsigned long npages, bool ih)
+				     u64 npages, bool ih)
 {
 	struct iommu_domain_info *info;
 	unsigned int mask;
@@ -200,6 +208,10 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 	INIT_LIST_HEAD(&domain->dev_pasids);
 	spin_lock_init(&domain->lock);
 	xa_init(&domain->iommu_array);
+
+	spin_lock(&s2_domain->s1_lock);
+	list_add(&domain->s2_link, &s2_domain->s1_domains);
+	spin_unlock(&s2_domain->s1_lock);
 
 	return &domain->domain;
 }
