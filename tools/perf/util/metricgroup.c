@@ -44,7 +44,7 @@ struct metric_event *metricgroup__lookup(struct rblist *metric_events,
 	if (!metric_events)
 		return NULL;
 
-	if (evsel->metric_leader)
+	if (evsel && evsel->metric_leader)
 		me.evsel = evsel->metric_leader;
 	nd = rblist__find(metric_events, &me);
 	if (nd)
