@@ -807,6 +807,11 @@ static int nvmem_add_cells_from_dt(struct nvmem_device *nvmem, struct device_nod
 		if (addr && len == (2 * sizeof(u32))) {
 			info.bit_offset = be32_to_cpup(addr++);
 			info.nbits = be32_to_cpup(addr);
+			if (info.bit_offset >= BITS_PER_BYTE || info.nbits < 1) {
+				dev_err(dev, "nvmem: invalid bits on %pOF\n", child);
+				of_node_put(child);
+				return -EINVAL;
+			}
 		}
 
 		info.np = of_node_get(child);
