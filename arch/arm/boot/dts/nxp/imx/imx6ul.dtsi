@@ -370,7 +370,7 @@
 				};
 			};
 
-			tsc: tsc@2040000 {
+			tsc: touchscreen@2040000 {
 				compatible = "fsl,imx6ul-tsc";
 				reg = <0x02040000 0x4000>, <0x0219c000 0x4000>;
 				interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
