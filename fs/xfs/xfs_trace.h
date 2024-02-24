@@ -3926,9 +3926,11 @@ DEFINE_EVENT(xfs_fs_corrupt_class, name,	\
 	TP_PROTO(struct xfs_mount *mp, unsigned int flags), \
 	TP_ARGS(mp, flags))
 DEFINE_FS_CORRUPT_EVENT(xfs_fs_mark_sick);
+DEFINE_FS_CORRUPT_EVENT(xfs_fs_mark_corrupt);
 DEFINE_FS_CORRUPT_EVENT(xfs_fs_mark_healthy);
 DEFINE_FS_CORRUPT_EVENT(xfs_fs_unfixed_corruption);
 DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_sick);
+DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_corrupt);
 DEFINE_FS_CORRUPT_EVENT(xfs_rt_mark_healthy);
 DEFINE_FS_CORRUPT_EVENT(xfs_rt_unfixed_corruption);
 
@@ -3955,6 +3957,7 @@ DEFINE_EVENT(xfs_ag_corrupt_class, name,	\
 		 unsigned int flags), \
 	TP_ARGS(mp, agno, flags))
 DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_sick);
+DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_corrupt);
 DEFINE_AG_CORRUPT_EVENT(xfs_ag_mark_healthy);
 DEFINE_AG_CORRUPT_EVENT(xfs_ag_unfixed_corruption);
 
@@ -3980,6 +3983,7 @@ DEFINE_EVENT(xfs_inode_corrupt_class, name,	\
 	TP_PROTO(struct xfs_inode *ip, unsigned int flags), \
 	TP_ARGS(ip, flags))
 DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_sick);
+DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_corrupt);
 DEFINE_INODE_CORRUPT_EVENT(xfs_inode_mark_healthy);
 
 TRACE_EVENT(xfs_iwalk_ag,

@@ -29,6 +29,7 @@
 #include "xfs_iomap.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
+#include "xfs_health.h"
 
 /*
  * Copy on Write of Shared Blocks
@@ -1227,8 +1228,10 @@ xfs_reflink_remap_extent(
 	 * extent if they're both holes or both the same physical extent.
 	 */
 	if (dmap->br_startblock == smap.br_startblock) {
-		if (dmap->br_state != smap.br_state)
+		if (dmap->br_state != smap.br_state) {
+			xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
 			error = -EFSCORRUPTED;
+		}
 		goto out_cancel;
 	}
 
@@ -1391,6 +1394,7 @@ xfs_reflink_remap_blocks(
 		ASSERT(nimaps == 1 && imap.br_startoff == srcoff);
 		if (imap.br_startblock == DELAYSTARTBLOCK) {
 			ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
+			xfs_bmap_mark_sick(src, XFS_DATA_FORK);
 			error = -EFSCORRUPTED;
 			break;
 		}
