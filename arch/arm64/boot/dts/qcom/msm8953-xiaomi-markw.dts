@@ -240,7 +240,7 @@
 };
 
 &ft5406_ts {
-	status = "okay";
+	status = "disabled";
 
 	compatible = "edt,edt-ft5336", "edt,edt-ft5306";
 	touchscreen-size-x = <1080>;
@@ -267,6 +267,7 @@
 		vdd-supply = <&pm8953_l10>;
 
 		atmel,wakeup-method = <ATMEL_MXT_WAKEUP_I2C_SCL>;
+		status = "disabled";
 	};
 };
 
