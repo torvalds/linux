@@ -574,8 +574,6 @@ void bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys
 static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_buf *buf)
 {
 	struct journal_keys_to_wb dst;
-	struct jset_entry *entry;
-	struct bkey_i *k;
 	int ret = 0;
 
 	bch2_journal_keys_to_write_buffer_start(c, &dst, le64_to_cpu(buf->data->seq));

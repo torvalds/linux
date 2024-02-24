@@ -39,12 +39,12 @@ static inline struct jset_entry *__jset_entry_type_next(struct jset *jset,
 }
 
 #define for_each_jset_entry_type(entry, jset, type)			\
-	for (entry = (jset)->start;					\
+	for (struct jset_entry *entry = (jset)->start;			\
 	     (entry = __jset_entry_type_next(jset, entry, type));	\
 	     entry = vstruct_next(entry))
 
 #define jset_entry_for_each_key(_e, _k)					\
-	for (_k = (_e)->start;						\
+	for (struct bkey_i *_k = (_e)->start;				\
 	     _k < vstruct_last(_e);					\
 	     _k = bkey_next(_k))
 

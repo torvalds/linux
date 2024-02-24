@@ -510,8 +510,6 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 {
 	struct genradix_iter iter;
 	struct journal_replay *i, **_i;
-	struct jset_entry *entry;
-	struct bkey_i *k;
 	struct journal_keys *keys = &c->journal_keys;
 	size_t nr_keys = 0, nr_read = 0;
 

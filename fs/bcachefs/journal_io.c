@@ -40,7 +40,6 @@ static void bch2_journal_replay_to_text(struct printbuf *out, struct bch_fs *c,
 
 	bch2_journal_ptrs_to_text(out, c, j);
 
-	struct jset_entry *entry;
 	for_each_jset_entry_type(entry, &j->j, BCH_JSET_ENTRY_datetime) {
 		struct jset_entry_datetime *datetime =
 			container_of(entry, struct jset_entry_datetime, entry);
@@ -394,7 +393,6 @@ static int journal_entry_btree_keys_validate(struct bch_fs *c,
 static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs *c,
 					     struct jset_entry *entry)
 {
-	struct bkey_i *k;
 	bool first = true;
 
 	jset_entry_for_each_key(entry, k) {
@@ -1815,7 +1813,6 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 			if (!wb.wb)
 				bch2_journal_keys_to_write_buffer_start(c, &wb, seq);
 
-			struct bkey_i *k;
 			jset_entry_for_each_key(i, k) {
 				ret = bch2_journal_key_to_wb(c, &wb, i->btree_id, k);
 				if (ret) {
