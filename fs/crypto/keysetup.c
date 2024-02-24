@@ -23,7 +23,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_256_XTS,
 	},
 	[FSCRYPT_MODE_AES_256_CTS] = {
-		.friendly_name = "AES-256-CTS-CBC",
+		.friendly_name = "AES-256-CBC-CTS",
 		.cipher_str = "cts(cbc(aes))",
 		.keysize = 32,
 		.security_strength = 32,
@@ -38,7 +38,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_128_CBC_ESSIV,
 	},
 	[FSCRYPT_MODE_AES_128_CTS] = {
-		.friendly_name = "AES-128-CTS-CBC",
+		.friendly_name = "AES-128-CBC-CTS",
 		.cipher_str = "cts(cbc(aes))",
 		.keysize = 16,
 		.security_strength = 16,
@@ -53,7 +53,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_SM4_XTS,
 	},
 	[FSCRYPT_MODE_SM4_CTS] = {
-		.friendly_name = "SM4-CTS-CBC",
+		.friendly_name = "SM4-CBC-CTS",
 		.cipher_str = "cts(cbc(sm4))",
 		.keysize = 16,
 		.security_strength = 16,
