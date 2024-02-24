@@ -288,8 +288,7 @@ out:
 }
 
 static void rawv6_err(struct sock *sk, struct sk_buff *skb,
-	       struct inet6_skb_parm *opt,
-	       u8 type, u8 code, int offset, __be32 info)
+		      u8 type, u8 code, int offset, __be32 info)
 {
 	bool recverr = inet6_test_bit(RECVERR6, sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -344,7 +343,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 		if (!raw_v6_match(net, sk, nexthdr, &ip6h->saddr, &ip6h->daddr,
 				  inet6_iif(skb), inet6_iif(skb)))
 			continue;
-		rawv6_err(sk, skb, NULL, type, code, inner_offset, info);
+		rawv6_err(sk, skb, type, code, inner_offset, info);
 	}
 	rcu_read_unlock();
 }
