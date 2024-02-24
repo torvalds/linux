@@ -389,21 +389,14 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-static const struct attribute_group power_supply_attr_group = {
+const struct attribute_group power_supply_attr_group = {
 	.attrs = __power_supply_attrs,
 	.is_visible = power_supply_attr_is_visible,
 };
 
-static const struct attribute_group *power_supply_attr_groups[] = {
-	&power_supply_attr_group,
-	NULL,
-};
-
-void power_supply_init_attrs(struct device_type *dev_type)
+void power_supply_init_attrs(void)
 {
 	int i;
-
-	dev_type->groups = power_supply_attr_groups;
 
 	for (i = 0; i < ARRAY_SIZE(power_supply_attrs); i++) {
 		struct device_attribute *attr;

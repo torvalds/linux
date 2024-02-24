@@ -13,9 +13,11 @@ struct device;
 struct device_type;
 struct power_supply;
 
+extern const struct attribute_group power_supply_attr_group;
+
 #ifdef CONFIG_SYSFS
 
-extern void power_supply_init_attrs(struct device_type *dev_type);
+extern void power_supply_init_attrs(void);
 extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
 
 #else
