@@ -531,8 +531,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 	 * setting journal_key->overwritten: it will be accessed by multiple
 	 * threads
 	 */
-	move_gap(keys->data, keys->nr, keys->size, keys->gap, keys->nr);
-	keys->gap = keys->nr;
+	move_gap(keys, keys->nr);
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 

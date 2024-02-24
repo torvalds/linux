@@ -756,8 +756,12 @@ static inline void __move_gap(void *array, size_t element_size,
 }
 
 /* Move the gap in a gap buffer: */
-#define move_gap(_array, _nr, _size, _old_gap, _new_gap)	\
-	__move_gap(_array, sizeof(_array[0]), _nr, _size, _old_gap, _new_gap)
+#define move_gap(_d, _new_gap)						\
+do {									\
+	__move_gap((_d)->data, sizeof((_d)->data[0]),			\
+		   (_d)->nr, (_d)->size, (_d)->gap, _new_gap);		\
+	(_d)->gap = _new_gap;						\
+} while (0)
 
 #define bubble_sort(_base, _nr, _cmp)					\
 do {									\

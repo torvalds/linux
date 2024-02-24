@@ -218,8 +218,7 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 
 	journal_iters_move_gap(c, keys->gap, idx);
 
-	move_gap(keys->data, keys->nr, keys->size, keys->gap, idx);
-	keys->gap = idx;
+	move_gap(keys, idx);
 
 	keys->nr++;
 	keys->data[keys->gap++] = n;
@@ -473,8 +472,7 @@ void bch2_journal_keys_put(struct bch_fs *c)
 	if (!atomic_dec_and_test(&keys->ref))
 		return;
 
-	move_gap(keys->data, keys->nr, keys->size, keys->gap, keys->nr);
-	keys->gap = keys->nr;
+	move_gap(keys, keys->nr);
 
 	darray_for_each(*keys, i)
 		if (i->allocated)
