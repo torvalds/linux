@@ -3,7 +3,7 @@
  * drivers/mmc/host/sdhci-msm.c - Qualcomm SDHCI Platform driver
  *
  * Copyright (c) 2013-2014,2020. The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -402,6 +402,15 @@ enum constraint {
 	QOS_PERF,
 	QOS_POWER,
 	QOS_MAX,
+};
+
+struct mmc_gpio {
+	struct gpio_desc *ro_gpio;
+	struct gpio_desc *cd_gpio;
+	irqreturn_t (*cd_gpio_isr)(int irq, void *dev_id);
+	char *ro_label;
+	char *cd_label;
+	u32 cd_debounce_delay_ms;
 };
 
 static struct sdhci_msm_host *sdhci_slot[2];
@@ -4969,6 +4978,134 @@ static void sdhci_msm_set_caps(struct sdhci_msm_host *msm_host)
 	msm_host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 	msm_host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY | MMC_CAP_NEED_RSP_BUSY;
 }
+
+static int sdhci_msm_prepare_hibernation(struct sdhci_msm_host *msm_host)
+{
+	struct mmc_host *mhost = msm_host->mmc;
+	int ret = 0;
+
+	if (!mhost->card)
+		return ret;
+
+	mmc_get_card(mhost->card, NULL);
+
+	/*
+	 * Increase usage_count of card and host device till
+	 * hibernation is over. This will ensure they will not runtime suspend.
+	 */
+	pm_runtime_get_noresume(mmc_dev(mhost));
+	pm_runtime_get_noresume(&mhost->card->dev);
+
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+	if (!sdhci_msm_mmc_can_scale_clk(msm_host))
+		goto out;
+
+	/*
+	 * Suspend clock scaling and mask host capability so that
+	 * we will run in max frequency during:
+	 *	1. Hibernation preparation and image creation
+	 *	2. After finding hibernation image during reboot
+	 *	3. Once hibernation image is loaded and till hibernation
+	 *	restore is complete.
+	 */
+	if (msm_host->clk_scaling.enable)
+		sdhci_msm_mmc_suspend_clk_scaling(mhost);
+
+	mhost->caps2 &= ~MMC_CAP2_CLK_SCALE;
+	msm_host->scale_caps = mhost->caps2;
+	msm_host->clk_scaling.state = MMC_LOAD_HIGH;
+
+	/* Set to max. frequency when disabling */
+	ret = sdhci_msm_mmc_clk_update_freq(msm_host, msm_host->clk_scaling_highest,
+				msm_host->clk_scaling.state);
+	if (ret && ret != -EAGAIN)
+		pr_err("%s: clock scale to %lu failed with error %d\n",
+			mmc_hostname(mhost), msm_host->clk_scaling_highest, ret);
+
+out:
+#endif /* End of CONFIG_MMC_SDHCI_MSM_SCALING*/
+
+	mmc_put_card(mhost->card, NULL);
+	/* Free cd-gpio IRQ before going into Hibernation */
+	devm_free_irq(mhost->parent, mhost->slot.cd_irq, mhost);
+
+	return ret;
+}
+
+static int sdhci_msm_post_hibernation(struct sdhci_msm_host *msm_host)
+{
+	struct mmc_host *mhost = msm_host->mmc;
+	struct mmc_gpio *ctx = (struct mmc_gpio *) mhost->slot.handler_priv;
+	int irq, ret = 0;
+
+	if (!mhost->card)
+		return ret;
+
+	mmc_get_card(mhost->card, NULL);
+
+#if IS_ENABLED(CONFIG_MMC_SDHCI_MSM_SCALING)
+	if (!(mhost->caps2 & MMC_CAP2_CLK_SCALE))
+		goto enable_pm;
+
+	/* Enable the clock scaling and set the host capability */
+	mhost->caps2 |= MMC_CAP2_CLK_SCALE;
+	msm_host->scale_caps = mhost->caps2;
+
+	if (!msm_host->clk_scaling.enable) {
+		sdhci_msm_mmc_resume_clk_scaling(mhost);
+		msm_host->clk_scaling.enable = true;
+	}
+enable_pm:
+#endif /* End of CONFIG_MMC_SDHCI_MSM_SCALING */
+	/*
+	 * Reduce usage count of card and host device so that they may
+	 * runtime suspend.
+	 */
+	pm_runtime_put_noidle(&mhost->card->dev);
+	pm_runtime_put_noidle(mmc_dev(mhost));
+
+	mmc_put_card(mhost->card, NULL);
+
+	/* Register cd-gpio IRQ Post Hibernation*/
+	irq = mhost->slot.cd_irq;
+	if (irq >= 0) {
+		ret = devm_request_threaded_irq(mhost->parent, irq,
+			NULL, ctx->cd_gpio_isr,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+			IRQF_ONESHOT,
+			ctx->cd_label, mhost);
+	}
+
+	return ret;
+}
+
+static int sdhci_msm_hibernation_notifier(struct notifier_block *notify_block,
+			unsigned long mode, void *unused)
+{
+	struct sdhci_msm_host *msm_host;
+
+	if (!notify_block)
+		return -EINVAL;
+
+	msm_host = container_of(
+		notify_block, struct sdhci_msm_host, sdhci_msm_pm_notifier);
+
+	switch (mode) {
+	case PM_HIBERNATION_PREPARE:
+		sdhci_msm_prepare_hibernation(msm_host);
+		break;
+
+	case PM_POST_HIBERNATION:
+		sdhci_msm_post_hibernation(msm_host);
+		break;
+
+	default:
+		pr_debug("Unhandled mode!!\n");
+	}
+
+	return 0;
+}
+
 /* RUMI W/A for SD card */
 static void sdhci_msm_set_rumi_bus_mode(struct sdhci_host *host)
 {
@@ -5456,6 +5593,15 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 		register_trace_android_rvh_mmc_suspend(sdhci_msm_mmc_suspend, NULL);
 		register_trace_android_rvh_mmc_resume(sdhci_msm_mmc_resume, NULL);
 	}
+	msm_host->sdhci_msm_pm_notifier.notifier_call
+		= sdhci_msm_hibernation_notifier;
+	ret = register_pm_notifier(&msm_host->sdhci_msm_pm_notifier);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: register pm notifier failed: %d\n",
+				__func__, ret);
+		goto pm_runtime_disable;
+	}
+
 	return 0;
 
 pm_runtime_disable:
@@ -5505,6 +5651,8 @@ static int sdhci_msm_remove(struct platform_device *pdev)
 
 	dead = (readl_relaxed(host->ioaddr + SDHCI_INT_STATUS) ==
 		    0xffffffff);
+
+	unregister_pm_notifier(&msm_host->sdhci_msm_pm_notifier);
 
 	sdhci_remove_host(host, dead);
 
