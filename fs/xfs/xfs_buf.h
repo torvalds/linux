@@ -96,7 +96,7 @@ typedef unsigned int xfs_buf_flags_t;
  * The latter is derived from the underlying device, and controls direct IO
  * alignment constraints.
  */
-typedef struct xfs_buftarg {
+struct xfs_buftarg {
 	dev_t			bt_dev;
 	struct bdev_handle	*bt_bdev_handle;
 	struct block_device	*bt_bdev;
@@ -114,7 +114,7 @@ typedef struct xfs_buftarg {
 
 	struct percpu_counter	bt_io_count;
 	struct ratelimit_state	bt_ioerror_rl;
-} xfs_buftarg_t;
+};
 
 #define XB_PAGES	2
 

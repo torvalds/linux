@@ -633,14 +633,14 @@ xlog_state_release_iclog(
  */
 int
 xfs_log_mount(
-	xfs_mount_t	*mp,
-	xfs_buftarg_t	*log_target,
-	xfs_daddr_t	blk_offset,
-	int		num_bblks)
+	xfs_mount_t		*mp,
+	struct xfs_buftarg	*log_target,
+	xfs_daddr_t		blk_offset,
+	int			num_bblks)
 {
-	struct xlog	*log;
-	int		error = 0;
-	int		min_logfsbs;
+	struct xlog		*log;
+	int			error = 0;
+	int			min_logfsbs;
 
 	if (!xfs_has_norecovery(mp)) {
 		xfs_notice(mp, "Mounting V%d Filesystem %pU",

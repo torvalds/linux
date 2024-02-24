@@ -1980,7 +1980,7 @@ xfs_free_buftarg(
 
 int
 xfs_setsize_buftarg(
-	xfs_buftarg_t		*btp,
+	struct xfs_buftarg	*btp,
 	unsigned int		sectorsize)
 {
 	/* Set up metadata sector size info */
@@ -1994,23 +1994,7 @@ xfs_setsize_buftarg(
 		return -EINVAL;
 	}
 
-	/* Set up device logical sector size mask */
-	btp->bt_logical_sectorsize = bdev_logical_block_size(btp->bt_bdev);
-	btp->bt_logical_sectormask = bdev_logical_block_size(btp->bt_bdev) - 1;
-
 	return 0;
-}
-
-/*
- * When allocating the initial buffer target we have not yet
- * read in the superblock, so don't know what sized sectors
- * are being used at this early stage.  Play safe.
- */
-STATIC int
-xfs_setsize_buftarg_early(
-	xfs_buftarg_t		*btp)
-{
-	return xfs_setsize_buftarg(btp, bdev_logical_block_size(btp->bt_bdev));
 }
 
 struct xfs_buftarg *
@@ -2018,7 +2002,7 @@ xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
 	struct bdev_handle	*bdev_handle)
 {
-	xfs_buftarg_t		*btp;
+	struct xfs_buftarg	*btp;
 	const struct dax_holder_operations *ops = NULL;
 
 #if defined(CONFIG_FS_DAX) && defined(CONFIG_MEMORY_FAILURE)
@@ -2034,14 +2018,22 @@ xfs_alloc_buftarg(
 					    mp, ops);
 
 	/*
+	 * When allocating the buftargs we have not yet read the super block and
+	 * thus don't know the file system sector size yet.
+	 */
+	if (xfs_setsize_buftarg(btp, bdev_logical_block_size(btp->bt_bdev)))
+		goto error_free;
+
+	/* Set up device logical sector size mask */
+	btp->bt_logical_sectorsize = bdev_logical_block_size(btp->bt_bdev);
+	btp->bt_logical_sectormask = bdev_logical_block_size(btp->bt_bdev) - 1;
+
+	/*
 	 * Buffer IO error rate limiting. Limit it to no more than 10 messages
 	 * per 30 seconds so as to not spam logs too much on repeated errors.
 	 */
 	ratelimit_state_init(&btp->bt_ioerror_rl, 30 * HZ,
 			     DEFAULT_RATELIMIT_BURST);
-
-	if (xfs_setsize_buftarg_early(btp))
-		goto error_free;
 
 	if (list_lru_init(&btp->bt_lru))
 		goto error_free;
