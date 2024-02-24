@@ -273,7 +273,7 @@
 	pinctrl-names = "default";
 	pre-charge-time = <0xfff>;
 	touchscreen-average-samples = <32>;
-	xnur-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
+	xnur-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 };
 
 /* DHCOM UART1 */
