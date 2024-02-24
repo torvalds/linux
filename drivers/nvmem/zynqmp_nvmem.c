@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2019 Xilinx, Inc.
+ * Copyright (C) 2022 - 2023, Advanced Micro Devices, Inc.
  */
 
 #include <linux/module.h>
@@ -11,35 +12,24 @@
 
 #define SILICON_REVISION_MASK 0xF
 
-struct zynqmp_nvmem_data {
-	struct device *dev;
-	struct nvmem_device *nvmem;
-};
 
 static int zynqmp_nvmem_read(void *context, unsigned int offset,
 			     void *val, size_t bytes)
 {
+	struct device *dev = context;
 	int ret;
-	int idcode, version;
-	struct zynqmp_nvmem_data *priv = context;
+	int idcode;
+	int version;
 
 	ret = zynqmp_pm_get_chipid(&idcode, &version);
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(priv->dev, "Read chipid val %x %x\n", idcode, version);
+	dev_dbg(dev, "Read chipid val %x %x\n", idcode, version);
 	*(int *)val = version & SILICON_REVISION_MASK;
 
 	return 0;
 }
-
-static struct nvmem_config econfig = {
-	.name = "zynqmp-nvmem",
-	.owner = THIS_MODULE,
-	.word_size = 1,
-	.size = 1,
-	.read_only = true,
-};
 
 static const struct of_device_id zynqmp_nvmem_match[] = {
 	{ .compatible = "xlnx,zynqmp-nvmem-fw", },
@@ -50,21 +40,18 @@ MODULE_DEVICE_TABLE(of, zynqmp_nvmem_match);
 static int zynqmp_nvmem_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct zynqmp_nvmem_data *priv;
+	struct nvmem_config econfig = {};
 
-	priv = devm_kzalloc(dev, sizeof(struct zynqmp_nvmem_data), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-
-	priv->dev = dev;
+	econfig.name = "zynqmp-nvmem";
+	econfig.owner = THIS_MODULE;
+	econfig.word_size = 1;
+	econfig.size = 1;
 	econfig.dev = dev;
 	econfig.add_legacy_fixed_of_cells = true;
+	econfig.read_only = true;
 	econfig.reg_read = zynqmp_nvmem_read;
-	econfig.priv = priv;
 
-	priv->nvmem = devm_nvmem_register(dev, &econfig);
-
-	return PTR_ERR_OR_ZERO(priv->nvmem);
+	return PTR_ERR_OR_ZERO(devm_nvmem_register(dev, &econfig));
 }
 
 static struct platform_driver zynqmp_nvmem_driver = {
