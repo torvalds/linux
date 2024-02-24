@@ -9,6 +9,7 @@
 #include <linux/clk.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <drm/drm_plane.h>
 
 #include "sunxi_engine.h"
 
@@ -184,6 +185,19 @@ struct sun8i_mixer {
 	struct clk			*bus_clk;
 	struct clk			*mod_clk;
 };
+
+struct sun8i_layer {
+	struct drm_plane	plane;
+	struct sun8i_mixer	*mixer;
+	int			channel;
+	int			overlay;
+};
+
+static inline struct sun8i_layer *
+plane_to_sun8i_layer(struct drm_plane *plane)
+{
+	return container_of(plane, struct sun8i_layer, plane);
+}
 
 static inline struct sun8i_mixer *
 engine_to_sun8i_mixer(struct sunxi_engine *engine)
