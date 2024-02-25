@@ -194,6 +194,11 @@ union abm_flags {
 		 * of user backlight level.
 		 */
 		unsigned int abm_gradual_bl_change : 1;
+
+		/**
+		 * @abm_new_frame: Indicates if a new frame update needed for ABM to ramp up into steady
+		 */
+		unsigned int abm_new_frame : 1;
 	} bitfields;
 
 	unsigned int u32All;
@@ -2937,18 +2942,47 @@ struct dmub_rb_cmd_psr_set_power_opt {
 	struct dmub_cmd_psr_set_power_opt_data psr_set_power_opt_data;
 };
 
+/**
+ * Definition of Replay Residency GPINT command.
+ * Bit[0] - Residency mode for Revision 0
+ * Bit[1] - Enable/Disable state
+ * Bit[2-3] - Revision number
+ * Bit[4-7] - Residency mode for Revision 1
+ * Bit[8] - Panel instance
+ * Bit[9-15] - Reserved
+ */
+
+enum pr_residency_mode {
+	PR_RESIDENCY_MODE_PHY = 0x0,
+	PR_RESIDENCY_MODE_ALPM,
+	PR_RESIDENCY_MODE_IPS2,
+	PR_RESIDENCY_MODE_FRAME_CNT,
+};
+
 #define REPLAY_RESIDENCY_MODE_SHIFT            (0)
 #define REPLAY_RESIDENCY_ENABLE_SHIFT          (1)
+#define REPLAY_RESIDENCY_REVISION_SHIFT        (2)
+#define REPLAY_RESIDENCY_MODE2_SHIFT           (4)
 
 #define REPLAY_RESIDENCY_MODE_MASK             (0x1 << REPLAY_RESIDENCY_MODE_SHIFT)
-# define REPLAY_RESIDENCY_MODE_PHY             (0x0 << REPLAY_RESIDENCY_MODE_SHIFT)
-# define REPLAY_RESIDENCY_MODE_ALPM            (0x1 << REPLAY_RESIDENCY_MODE_SHIFT)
-# define REPLAY_RESIDENCY_MODE_IPS             0x10
+# define REPLAY_RESIDENCY_FIELD_MODE_PHY       (0x0 << REPLAY_RESIDENCY_MODE_SHIFT)
+# define REPLAY_RESIDENCY_FIELD_MODE_ALPM      (0x1 << REPLAY_RESIDENCY_MODE_SHIFT)
+
+#define REPLAY_RESIDENCY_MODE2_MASK            (0xF << REPLAY_RESIDENCY_MODE2_SHIFT)
+# define REPLAY_RESIDENCY_FIELD_MODE2_IPS      (0x1 << REPLAY_RESIDENCY_MODE2_SHIFT)
+# define REPLAY_RESIDENCY_FIELD_MODE2_FRAME_CNT    (0x2 << REPLAY_RESIDENCY_MODE2_SHIFT)
 
 #define REPLAY_RESIDENCY_ENABLE_MASK           (0x1 << REPLAY_RESIDENCY_ENABLE_SHIFT)
 # define REPLAY_RESIDENCY_DISABLE              (0x0 << REPLAY_RESIDENCY_ENABLE_SHIFT)
 # define REPLAY_RESIDENCY_ENABLE               (0x1 << REPLAY_RESIDENCY_ENABLE_SHIFT)
 
+#define REPLAY_RESIDENCY_REVISION_MASK         (0x3 << REPLAY_RESIDENCY_REVISION_SHIFT)
+# define REPLAY_RESIDENCY_REVISION_0           (0x0 << REPLAY_RESIDENCY_REVISION_SHIFT)
+# define REPLAY_RESIDENCY_REVISION_1           (0x1 << REPLAY_RESIDENCY_REVISION_SHIFT)
+
+/**
+ * Definition of a replay_state.
+ */
 enum replay_state {
 	REPLAY_STATE_0			= 0x0,
 	REPLAY_STATE_1			= 0x10,
