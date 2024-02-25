@@ -734,6 +734,7 @@ out the following operations:
     for it, respectively.
 
 7. Generic subsystem callbacks
+==============================
 
 Subsystems may wish to conserve code space by using the set of generic power
 management callbacks provided by the PM core, defined in
