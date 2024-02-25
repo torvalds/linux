@@ -5,6 +5,7 @@
 
 #include "xe_ggtt.h"
 
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/sizes.h>
 
 #include <drm/drm_managed.h>
