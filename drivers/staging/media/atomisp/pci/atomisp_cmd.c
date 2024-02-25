@@ -65,7 +65,8 @@
  * At 15fps this means 133ms. We set the timeout a bit longer.
  * Each flash driver is supposed to set its own timeout, but
  * just in case someone else changed the timeout, we set it
- * here to make sure we don't damage the flash hardware. */
+ * here to make sure we don't damage the flash hardware.
+ */
 #define FLASH_TIMEOUT 800 /* ms */
 
 union host {
@@ -1261,11 +1262,11 @@ int atomisp_gdc_cac(struct atomisp_sub_device *asd, int flag,
 	}
 
 	asd->params.gdc_cac_en = !!*value;
-	if (asd->params.gdc_cac_en) {
+	if (asd->params.gdc_cac_en)
 		asd->params.config.morph_table = asd->params.css_param.morph_table;
-	} else {
+	else
 		asd->params.config.morph_table = NULL;
-	}
+
 	asd->params.css_update_params_needed = true;
 	atomisp_update_capture_mode(asd);
 	return 0;
@@ -3035,8 +3036,8 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 }
 
 /*
-* Function to configure ISP parameters
-*/
+ * Function to configure ISP parameters
+ */
 int atomisp_set_parameters(struct video_device *vdev,
 			   struct atomisp_parameters *arg)
 {
@@ -3367,7 +3368,7 @@ int atomisp_fixed_pattern(struct atomisp_sub_device *asd, int flag,
 		return 0;
 	}
 
-	/* Add function to get black from from sensor with shutter off */
+	/* Add function to get black from sensor with shutter off */
 	return 0;
 }
 
