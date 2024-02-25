@@ -35,6 +35,7 @@
 
 #define MP8859_GO_BIT			0x01
 
+#define MP8859_ENABLE_MASK		0x80
 
 static int mp8859_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
@@ -124,6 +125,9 @@ static const struct regulator_ops mp8859_ops = {
 	.set_voltage_sel = mp8859_set_voltage_sel,
 	.get_voltage_sel = mp8859_get_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear_range,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 };
 
 static const struct regulator_desc mp8859_regulators[] = {
@@ -136,6 +140,9 @@ static const struct regulator_desc mp8859_regulators[] = {
 		.n_voltages = VOL_MAX_IDX + 1,
 		.linear_ranges = mp8859_dcdc_ranges,
 		.n_linear_ranges = 1,
+		.enable_reg = MP8859_CTL1_REG,
+		.enable_mask = MP8859_ENABLE_MASK,
+		.enable_val = MP8859_ENABLE_MASK,
 		.ops = &mp8859_ops,
 		.owner = THIS_MODULE,
 	},
