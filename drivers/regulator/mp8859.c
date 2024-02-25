@@ -147,12 +147,46 @@ static int mp8859_i2c_probe(struct i2c_client *i2c)
 	struct regulator_config config = {.dev = &i2c->dev};
 	struct regmap *regmap = devm_regmap_init_i2c(i2c, &mp8859_regmap);
 	struct regulator_dev *rdev;
+	unsigned int val, rev;
 
 	if (IS_ERR(regmap)) {
 		ret = PTR_ERR(regmap);
 		dev_err(&i2c->dev, "regmap init failed: %d\n", ret);
 		return ret;
 	}
+
+	ret = regmap_read(regmap, MP8859_MFR_ID_REG, &val);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read manufacturer ID: %d\n", ret);
+		return ret;
+	}
+	if (val != 0x9) {
+		dev_err(&i2c->dev, "Manufacturer ID %x != 9\n", val);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(regmap, MP8859_DEV_ID_REG, &val);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read device ID: %d\n", ret);
+		return ret;
+	}
+	if (val != 0x58) {
+		dev_err(&i2c->dev, "Manufacturer ID %x != 0x58\n", val);
+		return -EINVAL;
+	}
+
+	ret = regmap_read(regmap, MP8859_IC_REV_REG, &rev);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read device revision: %d\n", ret);
+		return ret;
+	}
+	ret = regmap_read(regmap, MP8859_ID1_REG, &val);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to read device ID1: %d\n", ret);
+		return ret;
+	}
+	dev_info(&i2c->dev, "MP8859-%04d revision %d\n", val, rev);
+
 	rdev = devm_regulator_register(&i2c->dev, &mp8859_regulators[0],
 					&config);
 
