@@ -29,8 +29,10 @@ static inline void tick_cleanup_dead_cpu(int cpu) { }
 
 #if defined(CONFIG_GENERIC_CLOCKEVENTS) && defined(CONFIG_HOTPLUG_CPU)
 extern int tick_cpu_dying(unsigned int cpu);
+extern void tick_assert_timekeeping_handover(void);
 #else
 #define tick_cpu_dying	NULL
+static inline void tick_assert_timekeeping_handover(void) { }
 #endif
 
 #if defined(CONFIG_GENERIC_CLOCKEVENTS) && defined(CONFIG_SUSPEND)
