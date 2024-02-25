@@ -71,6 +71,8 @@ struct qmp_cooling_device {
  * @tx_lock: provides synchronization between multiple callers of qmp_send()
  * @qdss_clk: QDSS clock hw struct
  * @cooling_devs: thermal cooling devices
+ * @debugfs_root: directory for the developer/tester interface
+ * @debugfs_files: array of individual debugfs entries under debugfs_root
  */
 struct qmp {
 	void __iomem *msgram;
