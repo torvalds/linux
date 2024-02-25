@@ -22880,9 +22880,8 @@ S:	Maintained
 F:	drivers/usb/typec/mux/pi3usb30532.c
 
 USB TYPEC PORT CONTROLLER DRIVERS
-M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-usb@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/usb/typec/tcpm/
 
 USB UHCI DRIVER
