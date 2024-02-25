@@ -410,6 +410,8 @@ int tick_cpu_dying(unsigned int dying_cpu)
 	if (tick_do_timer_cpu == dying_cpu)
 		tick_do_timer_cpu = cpumask_first(cpu_online_mask);
 
+	tick_cancel_sched_timer(dying_cpu);
+
 	return 0;
 }
 
