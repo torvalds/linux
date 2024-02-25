@@ -22,6 +22,7 @@
 #include "buckets.h"
 #include "clock.h"
 #include "compress.h"
+#include "disk_accounting.h"
 #include "disk_groups.h"
 #include "ec.h"
 #include "inode.h"
@@ -255,88 +256,39 @@ static size_t bch2_btree_cache_size(struct bch_fs *c)
 
 static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c)
 {
-	struct btree_trans *trans;
-	enum btree_id id;
-	struct compression_type_stats {
-		u64		nr_extents;
-		u64		sectors_compressed;
-		u64		sectors_uncompressed;
-	} s[BCH_COMPRESSION_TYPE_NR];
-	u64 compressed_incompressible = 0;
-	int ret = 0;
-
-	memset(s, 0, sizeof(s));
-
-	if (!test_bit(BCH_FS_started, &c->flags))
-		return -EPERM;
-
-	trans = bch2_trans_get(c);
-
-	for (id = 0; id < BTREE_ID_NR; id++) {
-		if (!btree_type_has_ptrs(id))
-			continue;
-
-		ret = for_each_btree_key(trans, iter, id, POS_MIN,
-					 BTREE_ITER_all_snapshots, k, ({
-			struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-			struct bch_extent_crc_unpacked crc;
-			const union bch_extent_entry *entry;
-			bool compressed = false, incompressible = false;
-
-			bkey_for_each_crc(k.k, ptrs, crc, entry) {
-				incompressible	|= crc.compression_type == BCH_COMPRESSION_TYPE_incompressible;
-				compressed	|= crc_is_compressed(crc);
-
-				if (crc_is_compressed(crc)) {
-					s[crc.compression_type].nr_extents++;
-					s[crc.compression_type].sectors_compressed += crc.compressed_size;
-					s[crc.compression_type].sectors_uncompressed += crc.uncompressed_size;
-				}
-			}
-
-			compressed_incompressible += compressed && incompressible;
-
-			if (!compressed) {
-				unsigned t = incompressible ? BCH_COMPRESSION_TYPE_incompressible : 0;
-
-				s[t].nr_extents++;
-				s[t].sectors_compressed += k.k->size;
-				s[t].sectors_uncompressed += k.k->size;
-			}
-			0;
-		}));
-	}
-
-	bch2_trans_put(trans);
-
-	if (ret)
-		return ret;
-
+	prt_str(out, "type");
 	printbuf_tabstop_push(out, 12);
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 16);
 	printbuf_tabstop_push(out, 24);
 	prt_printf(out, "type\tcompressed\runcompressed\raverage extent size\r\n");
 
-	for (unsigned i = 0; i < ARRAY_SIZE(s); i++) {
+	for (unsigned i = 1; i < BCH_COMPRESSION_TYPE_NR; i++) {
+		struct disk_accounting_pos a = {
+			.type			= BCH_DISK_ACCOUNTING_compression,
+			.compression.type	= i,
+		};
+		struct bpos p = disk_accounting_pos_to_bpos(&a);
+		u64 v[3];
+		bch2_accounting_mem_read(c, p, v, ARRAY_SIZE(v));
+
+		u64 nr_extents			= v[0];
+		u64 sectors_uncompressed	= v[1];
+		u64 sectors_compressed		= v[2];
+
 		bch2_prt_compression_type(out, i);
 		prt_tab(out);
 
-		prt_human_readable_u64(out, s[i].sectors_compressed << 9);
+		prt_human_readable_u64(out, sectors_compressed << 9);
 		prt_tab_rjust(out);
 
-		prt_human_readable_u64(out, s[i].sectors_uncompressed << 9);
+		prt_human_readable_u64(out, sectors_uncompressed << 9);
 		prt_tab_rjust(out);
 
-		prt_human_readable_u64(out, s[i].nr_extents
-				       ? div_u64(s[i].sectors_uncompressed << 9, s[i].nr_extents)
+		prt_human_readable_u64(out, nr_extents
+				       ? div_u64(sectors_uncompressed << 9, nr_extents)
 				       : 0);
 		prt_tab_rjust(out);
-		prt_newline(out);
-	}
-
-	if (compressed_incompressible) {
-		prt_printf(out, "%llu compressed & incompressible extents", compressed_incompressible);
 		prt_newline(out);
 	}
 
