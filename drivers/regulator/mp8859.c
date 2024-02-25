@@ -36,6 +36,7 @@
 #define MP8859_GO_BIT			0x01
 
 #define MP8859_ENABLE_MASK		0x80
+#define MP8859_DISCHG_EN_MASK		0x10
 #define MP8859_MODE_MASK		0x08
 
 static int mp8859_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
@@ -167,6 +168,7 @@ static const struct regulator_ops mp8859_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.set_mode = mp8859_set_mode,
 	.get_mode = mp8859_get_mode,
+	.set_active_discharge = regulator_set_active_discharge_regmap,
 };
 
 static const struct regulator_desc mp8859_regulators[] = {
@@ -182,6 +184,9 @@ static const struct regulator_desc mp8859_regulators[] = {
 		.enable_reg = MP8859_CTL1_REG,
 		.enable_mask = MP8859_ENABLE_MASK,
 		.enable_val = MP8859_ENABLE_MASK,
+		.active_discharge_reg = MP8859_CTL1_REG,
+		.active_discharge_on = MP8859_DISCHG_EN_MASK,
+		.active_discharge_mask = MP8859_DISCHG_EN_MASK,
 		.ops = &mp8859_ops,
 		.owner = THIS_MODULE,
 	},
