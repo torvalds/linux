@@ -257,13 +257,11 @@ static int mrfld_extcon_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mrfld_extcon_remove(struct platform_device *pdev)
+static void mrfld_extcon_remove(struct platform_device *pdev)
 {
 	struct mrfld_extcon_data *data = platform_get_drvdata(pdev);
 
 	mrfld_extcon_sw_control(data, false);
-
-	return 0;
 }
 
 static const struct platform_device_id mrfld_extcon_id_table[] = {
@@ -277,7 +275,7 @@ static struct platform_driver mrfld_extcon_driver = {
 		.name	= "mrfld_bcove_pwrsrc",
 	},
 	.probe		= mrfld_extcon_probe,
-	.remove		= mrfld_extcon_remove,
+	.remove_new	= mrfld_extcon_remove,
 	.id_table	= mrfld_extcon_id_table,
 };
 module_platform_driver(mrfld_extcon_driver);
