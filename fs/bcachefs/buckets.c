@@ -32,45 +32,6 @@ void bch2_dev_usage_read_fast(struct bch_dev *ca, struct bch_dev_usage *usage)
 	acc_u64s_percpu((u64 *) usage, (u64 __percpu *) ca->usage, dev_usage_u64s());
 }
 
-void bch2_fs_usage_to_text(struct printbuf *out,
-			   struct bch_fs *c,
-			   struct bch_fs_usage_online *fs_usage)
-{
-	unsigned i;
-
-	prt_printf(out, "capacity:\t\t\t%llu\n", c->capacity);
-
-	prt_printf(out, "hidden:\t\t\t\t%llu\n",
-	       fs_usage->u.b.hidden);
-	prt_printf(out, "data:\t\t\t\t%llu\n",
-	       fs_usage->u.b.data);
-	prt_printf(out, "cached:\t\t\t\t%llu\n",
-	       fs_usage->u.b.cached);
-	prt_printf(out, "reserved:\t\t\t%llu\n",
-	       fs_usage->u.b.reserved);
-	prt_printf(out, "nr_inodes:\t\t\t%llu\n",
-	       fs_usage->u.b.nr_inodes);
-	prt_printf(out, "online reserved:\t\t%llu\n",
-	       fs_usage->online_reserved);
-
-	for (i = 0;
-	     i < ARRAY_SIZE(fs_usage->u.persistent_reserved);
-	     i++) {
-		prt_printf(out, "%u replicas:\n", i + 1);
-		prt_printf(out, "\treserved:\t\t%llu\n",
-		       fs_usage->u.persistent_reserved[i]);
-	}
-
-	for (i = 0; i < c->replicas.nr; i++) {
-		struct bch_replicas_entry_v1 *e =
-			cpu_replicas_entry(&c->replicas, i);
-
-		prt_printf(out, "\t");
-		bch2_replicas_entry_to_text(out, e);
-		prt_printf(out, ":\t%llu\n", fs_usage->u.replicas[i]);
-	}
-}
-
 static u64 reserve_factor(u64 r)
 {
 	return r + (round_up(r, (1 << RESERVE_FACTOR)) >> RESERVE_FACTOR);

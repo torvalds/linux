@@ -298,9 +298,6 @@ static inline unsigned dev_usage_u64s(void)
 	return sizeof(struct bch_dev_usage) / sizeof(u64);
 }
 
-void bch2_fs_usage_to_text(struct printbuf *,
-			   struct bch_fs *, struct bch_fs_usage_online *);
-
 u64 bch2_fs_sectors_used(struct bch_fs *, struct bch_fs_usage_online *);
 
 struct bch_fs_usage_short
