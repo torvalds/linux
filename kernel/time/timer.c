@@ -2233,10 +2233,10 @@ static inline u64 __get_next_timer_interrupt(unsigned long basej, u64 basem,
 	bool idle_is_possible;
 
 	/*
-	 * Pretend that there is no timer pending if the cpu is offline.
-	 * Possible pending timers will be migrated later to an active cpu.
+	 * When the CPU is offline, the tick is cancelled and nothing is supposed
+	 * to try to stop it.
 	 */
-	if (cpu_is_offline(smp_processor_id())) {
+	if (WARN_ON_ONCE(cpu_is_offline(smp_processor_id()))) {
 		if (idle)
 			*idle = true;
 		return tevt.local;
