@@ -1222,7 +1222,7 @@ static int iaa_compress(struct crypto_tfm *tfm,	struct acomp_req *req,
 
 	*compression_crc = idxd_desc->iax_completion->crc;
 
-	if (!ctx->async_mode)
+	if (!ctx->async_mode || disable_async)
 		idxd_free_desc(wq, idxd_desc);
 out:
 	return ret;
@@ -1468,7 +1468,7 @@ static int iaa_decompress(struct crypto_tfm *tfm, struct acomp_req *req,
 
 	*dlen = req->dlen;
 
-	if (!ctx->async_mode)
+	if (!ctx->async_mode || disable_async)
 		idxd_free_desc(wq, idxd_desc);
 
 	/* Update stats */
