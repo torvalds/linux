@@ -35,6 +35,8 @@
 
 #define MP8859_GO_BIT			0x01
 
+#define MP8859_IOUT_LIM_MASK		0x7f
+
 #define MP8859_ENABLE_MASK		0x80
 #define MP8859_DISCHG_EN_MASK		0x10
 #define MP8859_MODE_MASK		0x08
@@ -129,6 +131,58 @@ static int mp8859_set_mode(struct regulator_dev *rdev, unsigned int mode)
 
 	return regmap_update_bits(rdev->regmap, MP8859_CTL1_REG,
 				  MP8859_MODE_MASK, val);
+}
+
+static int mp8859_set_current_limit(struct regulator_dev *rdev,
+				    int min_uA, int max_uA)
+{
+	unsigned int cur_val, new_val;
+	int ret, i;
+
+	/* Steps of 50mA */
+	new_val = max_uA / 50000;
+	if (new_val > MP8859_IOUT_LIM_MASK)
+		return -EINVAL;
+	if (new_val == 0)
+		return -EINVAL;
+
+	/*
+	 * If the regulator is limiting then ramp gradually as per
+	 * datasheet, otherwise just set the value directly.
+	 */
+	ret = regmap_read(rdev->regmap, MP8859_STATUS_REG, &cur_val);
+	if (ret != 0)
+		return ret;
+	if (!(cur_val & MP8859_CC_CV_MASK)) {
+		return regmap_update_bits(rdev->regmap, MP8859_IOUT_LIM_REG,
+					  MP8859_IOUT_LIM_MASK, new_val);
+	}
+
+	ret = regmap_read(rdev->regmap, MP8859_IOUT_LIM_REG, &cur_val);
+	if (ret != 0)
+		return ret;
+
+	if (cur_val >= new_val) {
+		for (i = cur_val; i >= new_val; i--) {
+			ret = regmap_update_bits(rdev->regmap,
+						 MP8859_IOUT_LIM_REG,
+						 MP8859_IOUT_LIM_MASK,
+						 cur_val - i);
+			if (ret != 0)
+				return ret;
+		}
+	} else {
+		for (i = cur_val; i <= new_val; i++) {
+			ret = regmap_update_bits(rdev->regmap,
+						 MP8859_IOUT_LIM_REG,
+						 MP8859_IOUT_LIM_MASK,
+						 cur_val + i);
+			if (ret != 0)
+				return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int mp8859_get_status(struct regulator_dev *rdev)
@@ -241,6 +295,7 @@ static const struct regulator_ops mp8859_ops = {
 	.set_mode = mp8859_set_mode,
 	.get_mode = mp8859_get_mode,
 	.set_active_discharge = regulator_set_active_discharge_regmap,
+	.set_current_limit = mp8859_set_current_limit,
 	.get_status = mp8859_get_status,
 	.get_error_flags = mp8859_get_error_flags,
 };
