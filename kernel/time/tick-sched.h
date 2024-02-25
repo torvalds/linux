@@ -14,12 +14,6 @@ struct tick_device {
 	enum tick_device_mode mode;
 };
 
-enum tick_nohz_mode {
-	NOHZ_MODE_INACTIVE,
-	NOHZ_MODE_LOWRES,
-	NOHZ_MODE_HIGHRES,
-};
-
 /* The CPU is in the tick idle mode */
 #define TS_FLAG_INIDLE		BIT(0)
 /* The idle tick has been stopped */
@@ -31,6 +25,10 @@ enum tick_nohz_mode {
 #define TS_FLAG_IDLE_ACTIVE	BIT(2)
 /* CPU was the last one doing do_timer before going idle */
 #define TS_FLAG_DO_TIMER_LAST	BIT(3)
+/* NO_HZ is enabled */
+#define TS_FLAG_NOHZ		BIT(4)
+/* High resolution tick mode */
+#define TS_FLAG_HIGHRES		BIT(5)
 
 /**
  * struct tick_sched - sched tick emulation and no idle tick control/stats
@@ -84,7 +82,6 @@ struct tick_sched {
 	ktime_t				idle_entrytime;
 
 	/* Tick stop */
-	enum tick_nohz_mode		nohz_mode;
 	unsigned long			last_jiffies;
 	u64				timer_expires_base;
 	u64				timer_expires;
@@ -107,7 +104,7 @@ struct tick_sched {
 
 extern struct tick_sched *tick_get_tick_sched(int cpu);
 
-extern void tick_setup_sched_timer(int mode);
+extern void tick_setup_sched_timer(bool hrtimer);
 #if defined CONFIG_NO_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
 extern void tick_cancel_sched_timer(int cpu);
 #else

@@ -831,7 +831,7 @@ static void tick_nohz_restart(struct tick_sched *ts, ktime_t now)
 	/* Forward the time to expire in the future */
 	hrtimer_forward(&ts->sched_timer, now, TICK_NSEC);
 
-	if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
+	if (tick_sched_flag_test(ts, TS_FLAG_HIGHRES)) {
 		hrtimer_start_expires(&ts->sched_timer,
 				      HRTIMER_MODE_ABS_PINNED_HARD);
 	} else {
@@ -1040,14 +1040,14 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	 * the tick timer.
 	 */
 	if (unlikely(expires == KTIME_MAX)) {
-		if (ts->nohz_mode == NOHZ_MODE_HIGHRES)
+		if (tick_sched_flag_test(ts, TS_FLAG_HIGHRES))
 			hrtimer_cancel(&ts->sched_timer);
 		else
 			tick_program_event(KTIME_MAX, 1);
 		return;
 	}
 
-	if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
+	if (tick_sched_flag_test(ts, TS_FLAG_HIGHRES)) {
 		hrtimer_start(&ts->sched_timer, expires,
 			      HRTIMER_MODE_ABS_PINNED_HARD);
 	} else {
@@ -1108,7 +1108,7 @@ static void tick_nohz_full_update_tick(struct tick_sched *ts)
 	if (!tick_nohz_full_cpu(smp_processor_id()))
 		return;
 
-	if (ts->nohz_mode == NOHZ_MODE_INACTIVE)
+	if (!tick_sched_flag_test(ts, TS_FLAG_NOHZ))
 		return;
 
 	__tick_nohz_full_update_tick(ts, ktime_get());
@@ -1168,7 +1168,7 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 		return false;
 	}
 
-	if (unlikely(ts->nohz_mode == NOHZ_MODE_INACTIVE))
+	if (unlikely(!tick_sched_flag_test(ts, TS_FLAG_NOHZ)))
 		return false;
 
 	if (need_resched())
@@ -1487,11 +1487,11 @@ static void tick_nohz_lowres_handler(struct clock_event_device *dev)
 		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
 }
 
-static inline void tick_nohz_activate(struct tick_sched *ts, int mode)
+static inline void tick_nohz_activate(struct tick_sched *ts)
 {
 	if (!tick_nohz_enabled)
 		return;
-	ts->nohz_mode = mode;
+	tick_sched_flag_set(ts, TS_FLAG_NOHZ);
 	/* One update is enough */
 	if (!test_and_set_bit(0, &tick_nohz_active))
 		timers_update_nohz();
@@ -1512,7 +1512,7 @@ static void tick_nohz_switch_to_nohz(void)
 	 * Recycle the hrtimer in 'ts', so we can share the
 	 * highres code.
 	 */
-	tick_setup_sched_timer(NOHZ_MODE_LOWRES);
+	tick_setup_sched_timer(false);
 }
 
 static inline void tick_nohz_irq_enter(void)
@@ -1540,7 +1540,7 @@ static inline void tick_nohz_irq_enter(void)
 
 static inline void tick_nohz_switch_to_nohz(void) { }
 static inline void tick_nohz_irq_enter(void) { }
-static inline void tick_nohz_activate(struct tick_sched *ts, int mode) { }
+static inline void tick_nohz_activate(struct tick_sched *ts) { }
 
 #endif /* CONFIG_NO_HZ_COMMON */
 
@@ -1567,15 +1567,17 @@ early_param("skew_tick", skew_tick);
  * tick_setup_sched_timer - setup the tick emulation timer
  * @mode: tick_nohz_mode to setup for
  */
-void tick_setup_sched_timer(int mode)
+void tick_setup_sched_timer(bool hrtimer)
 {
 	struct tick_sched *ts = this_cpu_ptr(&tick_cpu_sched);
 
 	/* Emulate tick processing via per-CPU hrtimers: */
 	hrtimer_init(&ts->sched_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS_HARD);
 
-	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) && mode == NOHZ_MODE_HIGHRES)
+	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) && hrtimer) {
+		tick_sched_flag_set(ts, TS_FLAG_HIGHRES);
 		ts->sched_timer.function = tick_nohz_handler;
+	}
 
 	/* Get the next period (per-CPU) */
 	hrtimer_set_expires(&ts->sched_timer, tick_init_jiffy_update());
@@ -1589,11 +1591,11 @@ void tick_setup_sched_timer(int mode)
 	}
 
 	hrtimer_forward_now(&ts->sched_timer, TICK_NSEC);
-	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) && mode == NOHZ_MODE_HIGHRES)
+	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) && hrtimer)
 		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS_PINNED_HARD);
 	else
 		tick_program_event(hrtimer_get_expires(&ts->sched_timer), 1);
-	tick_nohz_activate(ts, mode);
+	tick_nohz_activate(ts);
 }
 
 void tick_cancel_sched_timer(int cpu)
@@ -1602,7 +1604,7 @@ void tick_cancel_sched_timer(int cpu)
 	ktime_t idle_sleeptime, iowait_sleeptime;
 	unsigned long idle_calls, idle_sleeps;
 
-	if (IS_ENABLED(CONFIG_HIGH_RES_TIMERS) && ts->sched_timer.base)
+	if (tick_sched_flag_test(ts, TS_FLAG_HIGHRES))
 		hrtimer_cancel(&ts->sched_timer);
 
 	idle_sleeptime = ts->idle_sleeptime;
@@ -1652,7 +1654,7 @@ int tick_check_oneshot_change(int allow_nohz)
 	if (!test_and_clear_bit(0, &ts->check_clocks))
 		return 0;
 
-	if (ts->nohz_mode != NOHZ_MODE_INACTIVE)
+	if (tick_sched_flag_test(ts, TS_FLAG_NOHZ))
 		return 0;
 
 	if (!timekeeping_valid_for_hres() || !tick_is_oneshot_available())
