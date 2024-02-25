@@ -81,6 +81,20 @@ static int mp8859_get_voltage_sel(struct regulator_dev *rdev)
 	return val;
 }
 
+static int mp8859_set_voltage_time_sel(struct regulator_dev *rdev,
+				       unsigned int from, unsigned int to)
+{
+	int change;
+
+	/* The voltage ramps at 1mV/uS, selectors are 10mV */
+	if (from > to)
+		change = from - to;
+	else
+		change = to - from;
+
+	return change * 10 * 1000;
+}
+
 static unsigned int mp8859_get_mode(struct regulator_dev *rdev)
 {
 	unsigned int val;
@@ -220,6 +234,7 @@ static const struct regulator_ops mp8859_ops = {
 	.set_voltage_sel = mp8859_set_voltage_sel,
 	.get_voltage_sel = mp8859_get_voltage_sel,
 	.list_voltage = regulator_list_voltage_linear_range,
+	.set_voltage_time_sel = mp8859_set_voltage_time_sel,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
