@@ -412,6 +412,9 @@ int tick_cpu_dying(unsigned int dying_cpu)
 
 	tick_cancel_sched_timer(dying_cpu);
 
+	/* Remove CPU from timer broadcasting */
+	tick_offline_cpu(dying_cpu);
+
 	return 0;
 }
 
