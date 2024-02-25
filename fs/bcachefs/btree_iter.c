@@ -2156,7 +2156,9 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 		 * isn't monotonically increasing before FILTER_SNAPSHOTS, and
 		 * that's what we check against in extents mode:
 		 */
-		if (k.k->p.inode > end.inode)
+		if (unlikely(!(iter->flags & BTREE_ITER_IS_EXTENTS)
+			     ? bkey_gt(k.k->p, end)
+			     : k.k->p.inode > end.inode))
 			goto end;
 
 		if (iter->update_path &&
