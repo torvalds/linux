@@ -767,8 +767,9 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 		if (same_fsid_diff_dev) {
 			generate_random_uuid(fs_devices->fsid);
 			fs_devices->temp_fsid = true;
-			pr_info("BTRFS: device %s using temp-fsid %pU\n",
-				path, fs_devices->fsid);
+		pr_info("BTRFS: device %s (%d:%d) using temp-fsid %pU\n",
+				path, MAJOR(path_devt), MINOR(path_devt),
+				fs_devices->fsid);
 		}
 
 		mutex_lock(&fs_devices->device_list_mutex);
@@ -797,8 +798,9 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 		if (fs_devices->opened) {
 			btrfs_err(NULL,
-"device %s belongs to fsid %pU, and the fs is already mounted, scanned by %s (%d)",
-				  path, fs_devices->fsid, current->comm,
+"device %s (%d:%d) belongs to fsid %pU, and the fs is already mounted, scanned by %s (%d)",
+				  path, MAJOR(path_devt), MINOR(path_devt),
+				  fs_devices->fsid, current->comm,
 				  task_pid_nr(current));
 			mutex_unlock(&fs_devices->device_list_mutex);
 			return ERR_PTR(-EBUSY);
@@ -824,13 +826,15 @@ static noinline struct btrfs_device *device_list_add(const char *path,
 
 		if (disk_super->label[0])
 			pr_info(
-	"BTRFS: device label %s devid %llu transid %llu %s scanned by %s (%d)\n",
+"BTRFS: device label %s devid %llu transid %llu %s (%d:%d) scanned by %s (%d)\n",
 				disk_super->label, devid, found_transid, path,
+				MAJOR(path_devt), MINOR(path_devt),
 				current->comm, task_pid_nr(current));
 		else
 			pr_info(
-	"BTRFS: device fsid %pU devid %llu transid %llu %s scanned by %s (%d)\n",
+"BTRFS: device fsid %pU devid %llu transid %llu %s (%d:%d) scanned by %s (%d)\n",
 				disk_super->fsid, devid, found_transid, path,
+				MAJOR(path_devt), MINOR(path_devt),
 				current->comm, task_pid_nr(current));
 
 	} else if (!device->name || strcmp(device->name->str, path)) {
@@ -1366,7 +1370,8 @@ struct btrfs_device *btrfs_scan_one_device(const char *path, blk_mode_t flags,
 		else
 			btrfs_free_stale_devices(devt, NULL);
 
-		pr_debug("BTRFS: skip registering single non-seed device %s\n", path);
+	pr_debug("BTRFS: skip registering single non-seed device %s (%d:%d)\n",
+			path, MAJOR(devt), MINOR(devt));
 		device = NULL;
 		goto free_disk_super;
 	}
