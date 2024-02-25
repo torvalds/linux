@@ -52,7 +52,8 @@
  */
 static void __iomem *gt_base;
 static struct notifier_block gt_clk_rate_change_nb;
-static u32 gt_psv_new, gt_psv_bck, gt_target_rate;
+static u32 gt_psv_new, gt_psv_bck;
+static unsigned long gt_target_rate;
 static int gt_ppi;
 static struct clock_event_device __percpu *gt_evt;
 
