@@ -39,6 +39,11 @@
 #define MP8859_DISCHG_EN_MASK		0x10
 #define MP8859_MODE_MASK		0x08
 
+#define MP8859_PG_MASK			0x80
+#define MP8859_OTP_MASK			0x40
+#define MP8859_OTW_MASK			0x20
+#define MP8859_CC_CV_MASK		0x10
+
 static int mp8859_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
 	int ret;
@@ -112,6 +117,58 @@ static int mp8859_set_mode(struct regulator_dev *rdev, unsigned int mode)
 				  MP8859_MODE_MASK, val);
 }
 
+static int mp8859_get_status(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	int ret;
+
+	/* Output status is only meaingful when enabled */
+	ret = regmap_read(rdev->regmap, MP8859_CTL1_REG, &val);
+	if (ret != 0)
+		return ret;
+	if (!(val & MP8859_ENABLE_MASK))
+		return REGULATOR_STATUS_UNDEFINED;
+
+	ret = regmap_read(rdev->regmap, MP8859_STATUS_REG, &val);
+	if (ret != 0)
+		return ret;
+
+	if (val & MP8859_PG_MASK)
+		return REGULATOR_STATUS_ON;
+	else
+		return REGULATOR_STATUS_ERROR;
+}
+
+static int mp8859_get_error_flags(struct regulator_dev *rdev,
+				  unsigned int *flags)
+{
+	unsigned int status, enabled;
+	int ret;
+
+	*flags = 0;
+
+	/* Output status is only meaingful when enabled */
+	ret = regmap_read(rdev->regmap, MP8859_CTL1_REG, &enabled);
+	if (ret != 0)
+		return ret;
+	enabled &= MP8859_ENABLE_MASK;
+
+	ret = regmap_read(rdev->regmap, MP8859_STATUS_REG, &status);
+	if (ret != 0)
+		return ret;
+
+	if (enabled && !(status & MP8859_PG_MASK))
+		status |= REGULATOR_ERROR_FAIL;
+	if (status & MP8859_OTP_MASK)
+		status |= REGULATOR_ERROR_OVER_TEMP;
+	if (status & MP8859_OTW_MASK)
+		status |= REGULATOR_ERROR_OVER_TEMP_WARN;
+	if (status & MP8859_CC_CV_MASK)
+		status |= REGULATOR_ERROR_OVER_CURRENT;
+
+	return 0;
+}
+
 static const struct linear_range mp8859_dcdc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, VOL_MIN_IDX, VOL_MAX_IDX, 10000),
 };
@@ -169,6 +226,8 @@ static const struct regulator_ops mp8859_ops = {
 	.set_mode = mp8859_set_mode,
 	.get_mode = mp8859_get_mode,
 	.set_active_discharge = regulator_set_active_discharge_regmap,
+	.get_status = mp8859_get_status,
+	.get_error_flags = mp8859_get_error_flags,
 };
 
 static const struct regulator_desc mp8859_regulators[] = {
