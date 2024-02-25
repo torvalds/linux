@@ -130,8 +130,8 @@ static void *hl_dma_alloc_common(struct hl_device *hdev, size_t size, dma_addr_t
 	}
 
 	if (trace_habanalabs_dma_alloc_enabled() && !ZERO_OR_NULL_PTR(ptr))
-		trace_habanalabs_dma_alloc(hdev->dev, (u64) (uintptr_t) ptr, *dma_handle, size,
-						caller);
+		trace_habanalabs_dma_alloc(&(hdev)->pdev->dev, (u64) (uintptr_t) ptr, *dma_handle,
+						size, caller);
 
 	return ptr;
 }
@@ -152,7 +152,7 @@ static void hl_asic_dma_free_common(struct hl_device *hdev, size_t size, void *c
 		break;
 	}
 
-	trace_habanalabs_dma_free(hdev->dev, store_cpu_addr, dma_handle, size, caller);
+	trace_habanalabs_dma_free(&(hdev)->pdev->dev, store_cpu_addr, dma_handle, size, caller);
 }
 
 void *hl_asic_dma_alloc_coherent_caller(struct hl_device *hdev, size_t size, dma_addr_t *dma_handle,
@@ -204,15 +204,15 @@ int hl_dma_map_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
 		return 0;
 
 	for_each_sgtable_dma_sg(sgt, sg, i)
-		trace_habanalabs_dma_map_page(hdev->dev,
-				page_to_phys(sg_page(sg)),
-				sg->dma_address - prop->device_dma_offset_for_host_access,
+		trace_habanalabs_dma_map_page(&(hdev)->pdev->dev,
+					page_to_phys(sg_page(sg)),
+					sg->dma_address - prop->device_dma_offset_for_host_access,
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
-				sg->dma_length,
+					sg->dma_length,
 #else
-				sg->length,
+					sg->length,
 #endif
-				dir, caller);
+					dir, caller);
 
 	return 0;
 }
@@ -247,7 +247,8 @@ void hl_dma_unmap_sgtable_caller(struct hl_device *hdev, struct sg_table *sgt,
 
 	if (trace_habanalabs_dma_unmap_page_enabled()) {
 		for_each_sgtable_dma_sg(sgt, sg, i)
-			trace_habanalabs_dma_unmap_page(hdev->dev, page_to_phys(sg_page(sg)),
+			trace_habanalabs_dma_unmap_page(&(hdev)->pdev->dev,
+					page_to_phys(sg_page(sg)),
 					sg->dma_address - prop->device_dma_offset_for_host_access,
 #ifdef CONFIG_NEED_SG_DMA_LENGTH
 					sg->dma_length,
@@ -2593,7 +2594,7 @@ inline u32 hl_rreg(struct hl_device *hdev, u32 reg)
 	u32 val = readl(hdev->rmmio + reg);
 
 	if (unlikely(trace_habanalabs_rreg32_enabled()))
-		trace_habanalabs_rreg32(hdev->dev, reg, val);
+		trace_habanalabs_rreg32(&(hdev)->pdev->dev, reg, val);
 
 	return val;
 }
@@ -2611,7 +2612,7 @@ inline u32 hl_rreg(struct hl_device *hdev, u32 reg)
 inline void hl_wreg(struct hl_device *hdev, u32 reg, u32 val)
 {
 	if (unlikely(trace_habanalabs_wreg32_enabled()))
-		trace_habanalabs_wreg32(hdev->dev, reg, val);
+		trace_habanalabs_wreg32(&(hdev)->pdev->dev, reg, val);
 
 	writel(val, hdev->rmmio + reg);
 }

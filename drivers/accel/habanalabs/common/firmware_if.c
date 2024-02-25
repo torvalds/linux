@@ -8,6 +8,7 @@
 #include "habanalabs.h"
 #include <linux/habanalabs/hl_boot_if.h>
 
+#include <linux/pci.h>
 #include <linux/firmware.h>
 #include <linux/crc32.h>
 #include <linux/slab.h>
@@ -1803,7 +1804,7 @@ static void hl_fw_dynamic_send_cmd(struct hl_device *hdev,
 	val = FIELD_PREP(COMMS_COMMAND_CMD_MASK, cmd);
 	val |= FIELD_PREP(COMMS_COMMAND_SIZE_MASK, size);
 
-	trace_habanalabs_comms_send_cmd(hdev->dev, comms_cmd_str_arr[cmd]);
+	trace_habanalabs_comms_send_cmd(&hdev->pdev->dev, comms_cmd_str_arr[cmd]);
 	WREG32(le32_to_cpu(dyn_regs->kmd_msg_to_cpu), val);
 }
 
@@ -1861,7 +1862,7 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
 
-	trace_habanalabs_comms_wait_status(hdev->dev, comms_sts_str_arr[expected_status]);
+	trace_habanalabs_comms_wait_status(&hdev->pdev->dev, comms_sts_str_arr[expected_status]);
 
 	/* Wait for expected status */
 	rc = hl_poll_timeout(
@@ -1878,7 +1879,8 @@ static int hl_fw_dynamic_wait_for_status(struct hl_device *hdev,
 		return -EIO;
 	}
 
-	trace_habanalabs_comms_wait_status_done(hdev->dev, comms_sts_str_arr[expected_status]);
+	trace_habanalabs_comms_wait_status_done(&hdev->pdev->dev,
+						comms_sts_str_arr[expected_status]);
 
 	/*
 	 * skip storing FW response for NOOP to preserve the actual desired
@@ -1952,7 +1954,7 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 {
 	int rc;
 
-	trace_habanalabs_comms_protocol_cmd(hdev->dev, comms_cmd_str_arr[cmd]);
+	trace_habanalabs_comms_protocol_cmd(&hdev->pdev->dev, comms_cmd_str_arr[cmd]);
 
 	/* first send clear command to clean former commands */
 	rc = hl_fw_dynamic_send_clear_cmd(hdev, fw_loader);
