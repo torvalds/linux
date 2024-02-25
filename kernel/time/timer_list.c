@@ -147,11 +147,14 @@ static void print_cpu(struct seq_file *m, int cpu, u64 now)
 # define P_ns(x) \
 	SEQ_printf(m, "  .%-15s: %Lu nsecs\n", #x, \
 		   (unsigned long long)(ktime_to_ns(ts->x)))
+# define P_flag(x, f)			    \
+	SEQ_printf(m, "  .%-15s: %d\n", #x, !!(ts->flags & (f)))
+
 	{
 		struct tick_sched *ts = tick_get_tick_sched(cpu);
 		P(nohz_mode);
 		P_ns(last_tick);
-		P(tick_stopped);
+		P_flag(tick_stopped, TS_FLAG_STOPPED);
 		P(idle_jiffies);
 		P(idle_calls);
 		P(idle_sleeps);

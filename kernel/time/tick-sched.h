@@ -20,14 +20,22 @@ enum tick_nohz_mode {
 	NOHZ_MODE_HIGHRES,
 };
 
+/* The CPU is in the tick idle mode */
+#define TS_FLAG_INIDLE		BIT(0)
+/* The idle tick has been stopped */
+#define TS_FLAG_STOPPED		BIT(1)
+/*
+ * Indicator that the CPU is actively in the tick idle mode;
+ * it is reset during irq handling phases.
+ */
+#define TS_FLAG_IDLE_ACTIVE	BIT(2)
+/* CPU was the last one doing do_timer before going idle */
+#define TS_FLAG_DO_TIMER_LAST	BIT(3)
+
 /**
  * struct tick_sched - sched tick emulation and no idle tick control/stats
  *
- * @inidle:		Indicator that the CPU is in the tick idle mode
- * @tick_stopped:	Indicator that the idle tick has been stopped
- * @idle_active:	Indicator that the CPU is actively in the tick idle mode;
- *			it is reset during irq handling phases.
- * @do_timer_last:	CPU was the last one doing do_timer before going idle
+ * @flags:		State flags gathering the TS_FLAG_* features
  * @got_idle_tick:	Tick timer function has run with @inidle set
  * @stalled_jiffies:	Number of stalled jiffies detected across ticks
  * @last_tick_jiffies:	Value of jiffies seen on last tick
@@ -57,10 +65,7 @@ enum tick_nohz_mode {
  */
 struct tick_sched {
 	/* Common flags */
-	unsigned int			inidle		: 1;
-	unsigned int			tick_stopped	: 1;
-	unsigned int			idle_active	: 1;
-	unsigned int			do_timer_last	: 1;
+	unsigned long			flags;
 
 	/* Tick handling: jiffies stall check */
 	unsigned int			stalled_jiffies;
