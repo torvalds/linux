@@ -362,11 +362,12 @@ int atomisp_subdev_set_selection(struct v4l2_subdev *sd,
 
 		if (isp_sd->params.video_dis_en &&
 		    isp_sd->run_mode->val == ATOMISP_RUN_MODE_VIDEO) {
-			/* This resolution contains 20 % of DVS slack
+			/*
+			 * This resolution contains 20 % of DVS slack
 			 * (of the desired captured image before
 			 * scaling, or 1 / 6 of what we get from the
-			 * sensor) in both width and height. Remove
-			 * it. */
+			 * sensor) in both width and height. Remove it.
+			 */
 			crop[pad]->width = roundup(crop[pad]->width * 5 / 6,
 						   ATOM_ISP_STEP_WIDTH);
 			crop[pad]->height = roundup(crop[pad]->height * 5 / 6,
