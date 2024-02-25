@@ -193,6 +193,7 @@ static inline void bch2_accounting_mem_read(struct bch_fs *c, struct bpos p,
 }
 
 int bch2_fs_replicas_usage_read(struct bch_fs *, darray_char *);
+void bch2_fs_accounting_to_text(struct printbuf *, struct bch_fs *);
 
 int bch2_accounting_gc_done(struct bch_fs *);
 
