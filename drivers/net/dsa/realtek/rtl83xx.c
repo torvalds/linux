@@ -184,6 +184,13 @@ rtl83xx_probe(struct device *dev,
 						    "realtek,disable-leds");
 
 	/* TODO: if power is software controlled, set up any regulators here */
+	priv->reset_ctl = devm_reset_control_get_optional(dev, NULL);
+	if (IS_ERR(priv->reset_ctl)) {
+		ret = PTR_ERR(priv->reset_ctl);
+		dev_err_probe(dev, ret, "failed to get reset control\n");
+		return ERR_CAST(priv->reset_ctl);
+	}
+
 	priv->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(priv->reset)) {
 		dev_err(dev, "failed to get RESET GPIO\n");
@@ -192,11 +199,11 @@ rtl83xx_probe(struct device *dev,
 
 	dev_set_drvdata(dev, priv);
 
-	if (priv->reset) {
-		gpiod_set_value(priv->reset, 1);
+	if (priv->reset_ctl || priv->reset) {
+		rtl83xx_reset_assert(priv);
 		dev_dbg(dev, "asserted RESET\n");
 		msleep(REALTEK_HW_STOP_DELAY);
-		gpiod_set_value(priv->reset, 0);
+		rtl83xx_reset_deassert(priv);
 		msleep(REALTEK_HW_START_DELAY);
 		dev_dbg(dev, "deasserted RESET\n");
 	}
@@ -292,10 +299,35 @@ EXPORT_SYMBOL_NS_GPL(rtl83xx_shutdown, REALTEK_DSA);
 void rtl83xx_remove(struct realtek_priv *priv)
 {
 	/* leave the device reset asserted */
-	if (priv->reset)
-		gpiod_set_value(priv->reset, 1);
+	rtl83xx_reset_assert(priv);
 }
 EXPORT_SYMBOL_NS_GPL(rtl83xx_remove, REALTEK_DSA);
+
+void rtl83xx_reset_assert(struct realtek_priv *priv)
+{
+	int ret;
+
+	ret = reset_control_assert(priv->reset_ctl);
+	if (ret)
+		dev_warn(priv->dev,
+			 "Failed to assert the switch reset control: %pe\n",
+			 ERR_PTR(ret));
+
+	gpiod_set_value(priv->reset, true);
+}
+
+void rtl83xx_reset_deassert(struct realtek_priv *priv)
+{
+	int ret;
+
+	ret = reset_control_deassert(priv->reset_ctl);
+	if (ret)
+		dev_warn(priv->dev,
+			 "Failed to deassert the switch reset control: %pe\n",
+			 ERR_PTR(ret));
+
+	gpiod_set_value(priv->reset, false);
+}
 
 MODULE_AUTHOR("Luiz Angelo Daros de Luca <luizluca@gmail.com>");
 MODULE_AUTHOR("Linus Walleij <linus.walleij@linaro.org>");
