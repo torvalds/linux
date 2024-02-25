@@ -645,7 +645,8 @@ int hl_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags)
 	rc = hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
 	if (rc)
 		dev_err_ratelimited(hdev->dev,
-				"%s cache invalidation failed, rc=%d\n",
+				"%s: %s cache invalidation failed, rc=%d\n",
+				dev_name(&hdev->pdev->dev),
 				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", rc);
 
 	return rc;
@@ -660,8 +661,9 @@ int hl_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_hard,
 								asid, va, size);
 	if (rc)
 		dev_err_ratelimited(hdev->dev,
-				"%s cache range invalidation failed: va=%#llx, size=%llu, rc=%d",
-				flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU", va, size, rc);
+			"%s: %s cache range invalidation failed: va=%#llx, size=%llu, rc=%d",
+			dev_name(&hdev->pdev->dev), flags == VM_TYPE_USERPTR ? "PMMU" : "HMMU",
+			va, size, rc);
 
 	return rc;
 }
