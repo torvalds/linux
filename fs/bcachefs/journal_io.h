@@ -20,10 +20,16 @@ struct journal_replay {
 	DARRAY_PREALLOCATED(struct journal_ptr, 8) ptrs;
 
 	bool			csum_good;
-	bool			ignore;
+	bool			ignore_blacklisted;
+	bool			ignore_not_dirty;
 	/* must be last: */
 	struct jset		j;
 };
+
+static inline bool journal_replay_ignore(struct journal_replay *i)
+{
+	return !i || i->ignore_blacklisted || i->ignore_not_dirty;
+}
 
 static inline struct jset_entry *__jset_entry_type_next(struct jset *jset,
 					struct jset_entry *entry, unsigned type)

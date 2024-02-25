@@ -366,7 +366,7 @@ static int journal_replay_early(struct bch_fs *c,
 		genradix_for_each(&c->journal_entries, iter, _i) {
 			i = *_i;
 
-			if (!i || i->ignore)
+			if (journal_replay_ignore(i))
 				continue;
 
 			vstruct_for_each(&i->j, entry) {
@@ -868,7 +868,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 			goto out;
 
 		genradix_for_each_reverse(&c->journal_entries, iter, i)
-			if (*i && !(*i)->ignore) {
+			if (!journal_replay_ignore(*i)) {
 				last_journal_entry = &(*i)->j;
 				break;
 			}
@@ -893,7 +893,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 			genradix_for_each_reverse(&c->journal_entries, iter, i)
 				if (*i) {
 					last_journal_entry = &(*i)->j;
-					(*i)->ignore = false;
+					(*i)->ignore_blacklisted = false;
+					(*i)->ignore_not_dirty= false;
 					/*
 					 * This was probably a NO_FLUSH entry,
 					 * so last_seq was garbage - but we know

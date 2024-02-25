@@ -512,7 +512,7 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
 
-		if (!i || i->ignore)
+		if (journal_replay_ignore(i))
 			continue;
 
 		cond_resched();
