@@ -77,11 +77,47 @@ static const struct linear_range mp8859_dcdc_ranges[] = {
 	REGULATOR_LINEAR_RANGE(0, VOL_MIN_IDX, VOL_MAX_IDX, 10000),
 };
 
+static bool mp8859_readable(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case MP8859_VOUT_L_REG:
+	case MP8859_VOUT_H_REG:
+	case MP8859_VOUT_GO_REG:
+	case MP8859_IOUT_LIM_REG:
+	case MP8859_CTL1_REG:
+	case MP8859_CTL2_REG:
+	case MP8859_STATUS_REG:
+	case MP8859_INTERRUPT_REG:
+	case MP8859_MASK_REG:
+	case MP8859_ID1_REG:
+	case MP8859_MFR_ID_REG:
+	case MP8859_DEV_ID_REG:
+	case MP8859_IC_REV_REG:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool mp8859_volatile(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case MP8859_VOUT_GO_REG:
+	case MP8859_STATUS_REG:
+	case MP8859_INTERRUPT_REG:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static const struct regmap_config mp8859_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = MP8859_MAX_REG,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
+	.readable_reg = mp8859_readable,
+	.volatile_reg = mp8859_volatile,
 };
 
 static const struct regulator_ops mp8859_ops = {
