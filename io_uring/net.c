@@ -855,6 +855,10 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	if (!io_check_multishot(req, issue_flags))
 		return io_setup_async_msg(req, kmsg, issue_flags);
 
+	flags = sr->msg_flags;
+	if (force_nonblock)
+		flags |= MSG_DONTWAIT;
+
 retry_multishot:
 	if (io_do_buffer_select(req)) {
 		void __user *buf;
@@ -874,10 +878,6 @@ retry_multishot:
 
 		iov_iter_ubuf(&kmsg->msg.msg_iter, ITER_DEST, buf, len);
 	}
-
-	flags = sr->msg_flags;
-	if (force_nonblock)
-		flags |= MSG_DONTWAIT;
 
 	kmsg->msg.msg_get_inq = 1;
 	kmsg->msg.msg_inq = -1;
@@ -964,6 +964,10 @@ int io_recv(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_iocb = NULL;
 	msg.msg_ubuf = NULL;
 
+	flags = sr->msg_flags;
+	if (force_nonblock)
+		flags |= MSG_DONTWAIT;
+
 retry_multishot:
 	if (io_do_buffer_select(req)) {
 		void __user *buf;
@@ -982,9 +986,6 @@ retry_multishot:
 	msg.msg_inq = -1;
 	msg.msg_flags = 0;
 
-	flags = sr->msg_flags;
-	if (force_nonblock)
-		flags |= MSG_DONTWAIT;
 	if (flags & MSG_WAITALL)
 		min_ret = iov_iter_count(&msg.msg_iter);
 
