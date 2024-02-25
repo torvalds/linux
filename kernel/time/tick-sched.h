@@ -106,9 +106,9 @@ extern struct tick_sched *tick_get_tick_sched(int cpu);
 
 extern void tick_setup_sched_timer(bool hrtimer);
 #if defined CONFIG_NO_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
-extern void tick_cancel_sched_timer(int cpu);
+extern void tick_sched_timer_dying(int cpu);
 #else
-static inline void tick_cancel_sched_timer(int cpu) { }
+static inline void tick_sched_timer_dying(int cpu) { }
 #endif
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST

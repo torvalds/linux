@@ -410,7 +410,8 @@ int tick_cpu_dying(unsigned int dying_cpu)
 	if (tick_do_timer_cpu == dying_cpu)
 		tick_do_timer_cpu = cpumask_first(cpu_online_mask);
 
-	tick_cancel_sched_timer(dying_cpu);
+	/* Make sure the CPU won't try to retake the timekeeping duty */
+	tick_sched_timer_dying(dying_cpu);
 
 	/* Remove CPU from timer broadcasting */
 	tick_offline_cpu(dying_cpu);
