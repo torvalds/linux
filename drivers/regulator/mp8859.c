@@ -36,6 +36,7 @@
 #define MP8859_GO_BIT			0x01
 
 #define MP8859_ENABLE_MASK		0x80
+#define MP8859_MODE_MASK		0x08
 
 static int mp8859_set_voltage_sel(struct regulator_dev *rdev, unsigned int sel)
 {
@@ -72,6 +73,42 @@ static int mp8859_get_voltage_sel(struct regulator_dev *rdev)
 		return ret;
 	val |= val_tmp & 0x07;
 	return val;
+}
+
+static unsigned int mp8859_get_mode(struct regulator_dev *rdev)
+{
+	unsigned int val;
+	int ret;
+
+	ret = regmap_read(rdev->regmap, MP8859_CTL1_REG, &val);
+	if (ret != 0) {
+		dev_err(&rdev->dev, "Failed to read mode: %d\n", ret);
+		return 0;
+	}
+
+	if (val & MP8859_MODE_MASK)
+		return REGULATOR_MODE_FAST;
+	else
+		return REGULATOR_MODE_NORMAL;
+}
+
+static int mp8859_set_mode(struct regulator_dev *rdev, unsigned int mode)
+{
+	unsigned int val;
+
+	switch (mode) {
+	case REGULATOR_MODE_FAST:
+		val = MP8859_MODE_MASK;
+		break;
+	case REGULATOR_MODE_NORMAL:
+		val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return regmap_update_bits(rdev->regmap, MP8859_CTL1_REG,
+				  MP8859_MODE_MASK, val);
 }
 
 static const struct linear_range mp8859_dcdc_ranges[] = {
@@ -128,6 +165,8 @@ static const struct regulator_ops mp8859_ops = {
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
+	.set_mode = mp8859_set_mode,
+	.get_mode = mp8859_get_mode,
 };
 
 static const struct regulator_desc mp8859_regulators[] = {
