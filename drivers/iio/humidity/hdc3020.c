@@ -5,41 +5,66 @@
  *
  * Copyright (C) 2023
  *
+ * Copyright (C) 2024 Liebherr-Electronics and Drives GmbH
+ *
  * Datasheet: https://www.ti.com/lit/ds/symlink/hdc3020.pdf
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/units.h>
 
 #include <asm/unaligned.h>
 
+#include <linux/iio/events.h>
 #include <linux/iio/iio.h>
 
-#define HDC3020_HEATER_CMD_MSB		0x30 /* shared by all heater commands */
-#define HDC3020_HEATER_ENABLE		0x6D
-#define HDC3020_HEATER_DISABLE		0x66
-#define HDC3020_HEATER_CONFIG		0x6E
+#define HDC3020_S_AUTO_10HZ_MOD0	0x2737
+#define HDC3020_S_STATUS		0x3041
+#define HDC3020_HEATER_DISABLE		0x3066
+#define HDC3020_HEATER_ENABLE		0x306D
+#define HDC3020_HEATER_CONFIG		0x306E
+#define HDC3020_EXIT_AUTO		0x3093
+#define HDC3020_S_T_RH_THRESH_LOW	0x6100
+#define HDC3020_S_T_RH_THRESH_LOW_CLR	0x610B
+#define HDC3020_S_T_RH_THRESH_HIGH_CLR	0x6116
+#define HDC3020_S_T_RH_THRESH_HIGH	0x611D
+#define HDC3020_R_T_RH_AUTO		0xE000
+#define HDC3020_R_T_LOW_AUTO		0xE002
+#define HDC3020_R_T_HIGH_AUTO		0xE003
+#define HDC3020_R_RH_LOW_AUTO		0xE004
+#define HDC3020_R_RH_HIGH_AUTO		0xE005
+#define HDC3020_R_T_RH_THRESH_LOW	0xE102
+#define HDC3020_R_T_RH_THRESH_LOW_CLR	0xE109
+#define HDC3020_R_T_RH_THRESH_HIGH_CLR	0xE114
+#define HDC3020_R_T_RH_THRESH_HIGH	0xE11F
+#define HDC3020_R_STATUS		0xF32D
+
+#define HDC3020_THRESH_TEMP_MASK	GENMASK(8, 0)
+#define HDC3020_THRESH_TEMP_TRUNC_SHIFT	7
+#define HDC3020_THRESH_HUM_MASK		GENMASK(15, 9)
+#define HDC3020_THRESH_HUM_TRUNC_SHIFT	9
+
+#define HDC3020_STATUS_T_LOW_ALERT	BIT(6)
+#define HDC3020_STATUS_T_HIGH_ALERT	BIT(7)
+#define HDC3020_STATUS_RH_LOW_ALERT	BIT(8)
+#define HDC3020_STATUS_RH_HIGH_ALERT	BIT(9)
 
 #define HDC3020_READ_RETRY_TIMES	10
 #define HDC3020_BUSY_DELAY_MS		10
 
 #define HDC3020_CRC8_POLYNOMIAL		0x31
 
-static const u8 HDC3020_S_AUTO_10HZ_MOD0[2] = { 0x27, 0x37 };
-
-static const u8 HDC3020_EXIT_AUTO[2] = { 0x30, 0x93 };
-
-static const u8 HDC3020_R_T_RH_AUTO[2] = { 0xE0, 0x00 };
-static const u8 HDC3020_R_T_LOW_AUTO[2] = { 0xE0, 0x02 };
-static const u8 HDC3020_R_T_HIGH_AUTO[2] = { 0xE0, 0x03 };
-static const u8 HDC3020_R_RH_LOW_AUTO[2] = { 0xE0, 0x04 };
-static const u8 HDC3020_R_RH_HIGH_AUTO[2] = { 0xE0, 0x05 };
+#define HDC3020_MIN_TEMP		-40
+#define HDC3020_MAX_TEMP		125
 
 struct hdc3020_data {
 	struct i2c_client *client;
@@ -54,18 +79,37 @@ struct hdc3020_data {
 
 static const int hdc3020_heater_vals[] = {0, 1, 0x3FFF};
 
+static const struct iio_event_spec hdc3020_t_rh_event[] = {
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_RISING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
+		BIT(IIO_EV_INFO_HYSTERESIS),
+	},
+	{
+		.type = IIO_EV_TYPE_THRESH,
+		.dir = IIO_EV_DIR_FALLING,
+		.mask_separate = BIT(IIO_EV_INFO_VALUE) |
+		BIT(IIO_EV_INFO_HYSTERESIS),
+	},
+};
+
 static const struct iio_chan_spec hdc3020_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_PEAK) |
 		BIT(IIO_CHAN_INFO_TROUGH) | BIT(IIO_CHAN_INFO_OFFSET),
+		.event_spec = hdc3020_t_rh_event,
+		.num_event_specs = ARRAY_SIZE(hdc3020_t_rh_event),
 	},
 	{
 		.type = IIO_HUMIDITYRELATIVE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_PEAK) |
 		BIT(IIO_CHAN_INFO_TROUGH),
+		.event_spec = hdc3020_t_rh_event,
+		.num_event_specs = ARRAY_SIZE(hdc3020_t_rh_event),
 	},
 	{
 		/*
@@ -82,7 +126,7 @@ static const struct iio_chan_spec hdc3020_channels[] = {
 
 DECLARE_CRC8_TABLE(hdc3020_crc8_table);
 
-static int hdc3020_write_bytes(struct hdc3020_data *data, const u8 *buf, u8 len)
+static int hdc3020_write_bytes(struct hdc3020_data *data, u8 *buf, u8 len)
 {
 	struct i2c_client *client = data->client;
 	struct i2c_msg msg;
@@ -90,7 +134,7 @@ static int hdc3020_write_bytes(struct hdc3020_data *data, const u8 *buf, u8 len)
 
 	msg.addr = client->addr;
 	msg.flags = 0;
-	msg.buf = (char *)buf;
+	msg.buf = buf;
 	msg.len = len;
 
 	/*
@@ -109,26 +153,28 @@ static int hdc3020_write_bytes(struct hdc3020_data *data, const u8 *buf, u8 len)
 	return -ETIMEDOUT;
 }
 
-static int hdc3020_read_bytes(struct hdc3020_data *data, const u8 *buf,
-			      void *val, int len)
+static
+int hdc3020_read_bytes(struct hdc3020_data *data, u16 reg, u8 *buf, int len)
 {
+	u8 reg_buf[2];
 	int ret, cnt;
 	struct i2c_client *client = data->client;
 	struct i2c_msg msg[2] = {
 		[0] = {
 			.addr = client->addr,
 			.flags = 0,
-			.buf = (char *)buf,
+			.buf = reg_buf,
 			.len = 2,
 		},
 		[1] = {
 			.addr = client->addr,
 			.flags = I2C_M_RD,
-			.buf = val,
+			.buf = buf,
 			.len = len,
 		},
 	};
 
+	put_unaligned_be16(reg, reg_buf);
 	/*
 	 * During the measurement process, HDC3020 will not return data.
 	 * So wait for a while and try again
@@ -143,6 +189,30 @@ static int hdc3020_read_bytes(struct hdc3020_data *data, const u8 *buf,
 	dev_err(&client->dev, "Could not read sensor data\n");
 
 	return -ETIMEDOUT;
+}
+
+static int hdc3020_read_be16(struct hdc3020_data *data, u16 reg)
+{
+	u8 crc, buf[3];
+	int ret;
+
+	ret = hdc3020_read_bytes(data, reg, buf, 3);
+	if (ret < 0)
+		return ret;
+
+	crc = crc8(hdc3020_crc8_table, buf, 2, CRC8_INIT_VALUE);
+	if (crc != buf[2])
+		return -EINVAL;
+
+	return get_unaligned_be16(buf);
+}
+
+static int hdc3020_exec_cmd(struct hdc3020_data *data, u16 reg)
+{
+	u8 reg_buf[2];
+
+	put_unaligned_be16(reg, reg_buf);
+	return hdc3020_write_bytes(data, reg_buf, 2);
 }
 
 static int hdc3020_read_measurement(struct hdc3020_data *data,
@@ -175,96 +245,6 @@ static int hdc3020_read_measurement(struct hdc3020_data *data,
 	return 0;
 }
 
-/*
- * After exiting the automatic measurement mode or resetting, the peak
- * value will be reset to the default value
- * This method is used to get the highest temp measured during automatic
- * measurement
- */
-static int hdc3020_read_high_peak_t(struct hdc3020_data *data, int *val)
-{
-	u8 crc, buf[3];
-	int ret;
-
-	ret = hdc3020_read_bytes(data, HDC3020_R_T_HIGH_AUTO, buf, 3);
-	if (ret < 0)
-		return ret;
-
-	crc = crc8(hdc3020_crc8_table, buf, 2, CRC8_INIT_VALUE);
-	if (crc != buf[2])
-		return -EINVAL;
-
-	*val = get_unaligned_be16(buf);
-
-	return 0;
-}
-
-/*
- * This method is used to get the lowest temp measured during automatic
- * measurement
- */
-static int hdc3020_read_low_peak_t(struct hdc3020_data *data, int *val)
-{
-	u8 crc, buf[3];
-	int ret;
-
-	ret = hdc3020_read_bytes(data, HDC3020_R_T_LOW_AUTO, buf, 3);
-	if (ret < 0)
-		return ret;
-
-	crc = crc8(hdc3020_crc8_table, buf, 2, CRC8_INIT_VALUE);
-	if (crc != buf[2])
-		return -EINVAL;
-
-	*val = get_unaligned_be16(buf);
-
-	return 0;
-}
-
-/*
- * This method is used to get the highest humidity measured during automatic
- * measurement
- */
-static int hdc3020_read_high_peak_rh(struct hdc3020_data *data, int *val)
-{
-	u8 crc, buf[3];
-	int ret;
-
-	ret = hdc3020_read_bytes(data, HDC3020_R_RH_HIGH_AUTO, buf, 3);
-	if (ret < 0)
-		return ret;
-
-	crc = crc8(hdc3020_crc8_table, buf, 2, CRC8_INIT_VALUE);
-	if (crc != buf[2])
-		return -EINVAL;
-
-	*val = get_unaligned_be16(buf);
-
-	return 0;
-}
-
-/*
- * This method is used to get the lowest humidity measured during automatic
- * measurement
- */
-static int hdc3020_read_low_peak_rh(struct hdc3020_data *data, int *val)
-{
-	u8 crc, buf[3];
-	int ret;
-
-	ret = hdc3020_read_bytes(data, HDC3020_R_RH_LOW_AUTO, buf, 3);
-	if (ret < 0)
-		return ret;
-
-	crc = crc8(hdc3020_crc8_table, buf, 2, CRC8_INIT_VALUE);
-	if (crc != buf[2])
-		return -EINVAL;
-
-	*val = get_unaligned_be16(buf);
-
-	return 0;
-}
-
 static int hdc3020_read_raw(struct iio_dev *indio_dev,
 			    struct iio_chan_spec const *chan, int *val,
 			    int *val2, long mask)
@@ -286,28 +266,28 @@ static int hdc3020_read_raw(struct iio_dev *indio_dev,
 	}
 	case IIO_CHAN_INFO_PEAK: {
 		guard(mutex)(&data->lock);
-		if (chan->type == IIO_TEMP) {
-			ret = hdc3020_read_high_peak_t(data, val);
-			if (ret < 0)
-				return ret;
-		} else {
-			ret = hdc3020_read_high_peak_rh(data, val);
-			if (ret < 0)
-				return ret;
-		}
+		if (chan->type == IIO_TEMP)
+			ret = hdc3020_read_be16(data, HDC3020_R_T_HIGH_AUTO);
+		else
+			ret = hdc3020_read_be16(data, HDC3020_R_RH_HIGH_AUTO);
+
+		if (ret < 0)
+			return ret;
+
+		*val = ret;
 		return IIO_VAL_INT;
 	}
 	case IIO_CHAN_INFO_TROUGH: {
 		guard(mutex)(&data->lock);
-		if (chan->type == IIO_TEMP) {
-			ret = hdc3020_read_low_peak_t(data, val);
-			if (ret < 0)
-				return ret;
-		} else {
-			ret = hdc3020_read_low_peak_rh(data, val);
-			if (ret < 0)
-				return ret;
-		}
+		if (chan->type == IIO_TEMP)
+			ret = hdc3020_read_be16(data, HDC3020_R_T_LOW_AUTO);
+		else
+			ret = hdc3020_read_be16(data, HDC3020_R_RH_LOW_AUTO);
+
+		if (ret < 0)
+			return ret;
+
+		*val = ret;
 		return IIO_VAL_INT;
 	}
 	case IIO_CHAN_INFO_SCALE:
@@ -352,23 +332,17 @@ static int hdc3020_update_heater(struct hdc3020_data *data, int val)
 	if (val < hdc3020_heater_vals[0] || val > hdc3020_heater_vals[2])
 		return -EINVAL;
 
-	buf[0] = HDC3020_HEATER_CMD_MSB;
+	if (!val)
+		hdc3020_exec_cmd(data, HDC3020_HEATER_DISABLE);
 
-	if (!val) {
-		buf[1] = HDC3020_HEATER_DISABLE;
-		return hdc3020_write_bytes(data, buf, 2);
-	}
-
-	buf[1] = HDC3020_HEATER_CONFIG;
+	put_unaligned_be16(HDC3020_HEATER_CONFIG, buf);
 	put_unaligned_be16(val & GENMASK(13, 0), &buf[2]);
 	buf[4] = crc8(hdc3020_crc8_table, buf + 2, 2, CRC8_INIT_VALUE);
 	ret = hdc3020_write_bytes(data, buf, 5);
 	if (ret < 0)
 		return ret;
 
-	buf[1] = HDC3020_HEATER_ENABLE;
-
-	return hdc3020_write_bytes(data, buf, 2);
+	return hdc3020_exec_cmd(data, HDC3020_HEATER_ENABLE);
 }
 
 static int hdc3020_write_raw(struct iio_dev *indio_dev,
@@ -389,15 +363,197 @@ static int hdc3020_write_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int hdc3020_write_thresh(struct iio_dev *indio_dev,
+				const struct iio_chan_spec *chan,
+				enum iio_event_type type,
+				enum iio_event_direction dir,
+				enum iio_event_info info,
+				int val, int val2)
+{
+	struct hdc3020_data *data = iio_priv(indio_dev);
+	u8 buf[5];
+	u64 tmp;
+	u16 reg;
+	int ret;
+
+	/* Supported temperature range is from –40 to 125 degree celsius */
+	if (val < HDC3020_MIN_TEMP || val > HDC3020_MAX_TEMP)
+		return -EINVAL;
+
+	/* Select threshold register */
+	if (info == IIO_EV_INFO_VALUE) {
+		if (dir == IIO_EV_DIR_RISING)
+			reg = HDC3020_S_T_RH_THRESH_HIGH;
+		else
+			reg = HDC3020_S_T_RH_THRESH_LOW;
+	} else {
+		if (dir == IIO_EV_DIR_RISING)
+			reg = HDC3020_S_T_RH_THRESH_HIGH_CLR;
+		else
+			reg = HDC3020_S_T_RH_THRESH_LOW_CLR;
+	}
+
+	guard(mutex)(&data->lock);
+	ret = hdc3020_read_be16(data, reg);
+	if (ret < 0)
+		return ret;
+
+	switch (chan->type) {
+	case IIO_TEMP:
+		/*
+		 * Calculate temperature threshold, shift it down to get the
+		 * truncated threshold representation in the 9LSBs while keeping
+		 * the current humidity threshold in the 7 MSBs.
+		 */
+		tmp = ((u64)(((val + 45) * MICRO) + val2)) * 65535ULL;
+		tmp = div_u64(tmp, MICRO * 175);
+		val = tmp >> HDC3020_THRESH_TEMP_TRUNC_SHIFT;
+		val = FIELD_PREP(HDC3020_THRESH_TEMP_MASK, val);
+		val |= (FIELD_GET(HDC3020_THRESH_HUM_MASK, ret) <<
+			HDC3020_THRESH_HUM_TRUNC_SHIFT);
+		break;
+	case IIO_HUMIDITYRELATIVE:
+		/*
+		 * Calculate humidity threshold, shift it down and up to get the
+		 * truncated threshold representation in the 7MSBs while keeping
+		 * the current temperature threshold in the 9 LSBs.
+		 */
+		tmp = ((u64)((val * MICRO) + val2)) * 65535ULL;
+		tmp = div_u64(tmp, MICRO * 100);
+		val = tmp >> HDC3020_THRESH_HUM_TRUNC_SHIFT;
+		val = FIELD_PREP(HDC3020_THRESH_HUM_MASK, val);
+		val |= FIELD_GET(HDC3020_THRESH_TEMP_MASK, ret);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	put_unaligned_be16(reg, buf);
+	put_unaligned_be16(val, buf + 2);
+	buf[4] = crc8(hdc3020_crc8_table, buf + 2, 2, CRC8_INIT_VALUE);
+	return hdc3020_write_bytes(data, buf, 5);
+}
+
+static int hdc3020_read_thresh(struct iio_dev *indio_dev,
+			       const struct iio_chan_spec *chan,
+			       enum iio_event_type type,
+			       enum iio_event_direction dir,
+			       enum iio_event_info info,
+			       int *val, int *val2)
+{
+	struct hdc3020_data *data = iio_priv(indio_dev);
+	u16 reg;
+	int ret;
+
+	/* Select threshold register */
+	if (info == IIO_EV_INFO_VALUE) {
+		if (dir == IIO_EV_DIR_RISING)
+			reg = HDC3020_R_T_RH_THRESH_HIGH;
+		else
+			reg = HDC3020_R_T_RH_THRESH_LOW;
+	} else {
+		if (dir == IIO_EV_DIR_RISING)
+			reg = HDC3020_R_T_RH_THRESH_HIGH_CLR;
+		else
+			reg = HDC3020_R_T_RH_THRESH_LOW_CLR;
+	}
+
+	guard(mutex)(&data->lock);
+	ret = hdc3020_read_be16(data, reg);
+	if (ret < 0)
+		return ret;
+
+	switch (chan->type) {
+	case IIO_TEMP:
+		/*
+		 * Get the temperature threshold from 9 LSBs, shift them to get
+		 * the truncated temperature threshold representation and
+		 * calculate the threshold according to the formula in the
+		 * datasheet.
+		 */
+		*val = FIELD_GET(HDC3020_THRESH_TEMP_MASK, ret);
+		*val = *val << HDC3020_THRESH_TEMP_TRUNC_SHIFT;
+		*val = -2949075 + (175 * (*val));
+		*val2 = 65535;
+		return IIO_VAL_FRACTIONAL;
+	case IIO_HUMIDITYRELATIVE:
+		/*
+		 * Get the humidity threshold from 7 MSBs, shift them to get the
+		 * truncated humidity threshold representation and calculate the
+		 * threshold according to the formula in the datasheet.
+		 */
+		*val = FIELD_GET(HDC3020_THRESH_HUM_MASK, ret);
+		*val = (*val << HDC3020_THRESH_HUM_TRUNC_SHIFT) * 100;
+		*val2 = 65535;
+		return IIO_VAL_FRACTIONAL;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static irqreturn_t hdc3020_interrupt_handler(int irq, void *private)
+{
+	struct iio_dev *indio_dev = private;
+	struct hdc3020_data *data;
+	s64 time;
+	int ret;
+
+	data = iio_priv(indio_dev);
+	ret = hdc3020_read_be16(data, HDC3020_R_STATUS);
+	if (ret < 0)
+		return IRQ_HANDLED;
+
+	if (!(ret & (HDC3020_STATUS_T_HIGH_ALERT | HDC3020_STATUS_T_LOW_ALERT |
+		HDC3020_STATUS_RH_HIGH_ALERT | HDC3020_STATUS_RH_LOW_ALERT)))
+		return IRQ_NONE;
+
+	time = iio_get_time_ns(indio_dev);
+	if (ret & HDC3020_STATUS_T_HIGH_ALERT)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_TEMP, 0,
+						  IIO_NO_MOD,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+						  time);
+
+	if (ret & HDC3020_STATUS_T_LOW_ALERT)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_TEMP, 0,
+						  IIO_NO_MOD,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+						  time);
+
+	if (ret & HDC3020_STATUS_RH_HIGH_ALERT)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_HUMIDITYRELATIVE, 0,
+						  IIO_NO_MOD,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_RISING),
+						  time);
+
+	if (ret & HDC3020_STATUS_RH_LOW_ALERT)
+		iio_push_event(indio_dev,
+			       IIO_MOD_EVENT_CODE(IIO_HUMIDITYRELATIVE, 0,
+						  IIO_NO_MOD,
+						  IIO_EV_TYPE_THRESH,
+						  IIO_EV_DIR_FALLING),
+						  time);
+
+	return IRQ_HANDLED;
+}
+
 static const struct iio_info hdc3020_info = {
 	.read_raw = hdc3020_read_raw,
 	.write_raw = hdc3020_write_raw,
 	.read_avail = hdc3020_read_available,
+	.read_event_value = hdc3020_read_thresh,
+	.write_event_value = hdc3020_write_thresh,
 };
 
 static void hdc3020_stop(void *data)
 {
-	hdc3020_write_bytes((struct hdc3020_data *)data, HDC3020_EXIT_AUTO, 2);
+	hdc3020_exec_cmd((struct hdc3020_data *)data, HDC3020_EXIT_AUTO);
 }
 
 static int hdc3020_probe(struct i2c_client *client)
@@ -424,8 +580,25 @@ static int hdc3020_probe(struct i2c_client *client)
 	indio_dev->info = &hdc3020_info;
 	indio_dev->channels = hdc3020_channels;
 	indio_dev->num_channels = ARRAY_SIZE(hdc3020_channels);
+	if (client->irq) {
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL, hdc3020_interrupt_handler,
+						IRQF_ONESHOT, "hdc3020",
+						indio_dev);
+		if (ret)
+			return dev_err_probe(&client->dev, ret,
+					     "Failed to request IRQ\n");
 
-	ret = hdc3020_write_bytes(data, HDC3020_S_AUTO_10HZ_MOD0, 2);
+		/*
+		 * The alert output is activated by default upon power up,
+		 * hardware reset, and soft reset. Clear the status register.
+		 */
+		ret = hdc3020_exec_cmd(data, HDC3020_S_STATUS);
+		if (ret)
+			return ret;
+	}
+
+	ret = hdc3020_exec_cmd(data, HDC3020_S_AUTO_10HZ_MOD0);
 	if (ret)
 		return dev_err_probe(&client->dev, ret,
 				     "Unable to set up measurement\n");

@@ -2,7 +2,7 @@
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
- * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM/ISM330DLC/LSM6DS3TR-C:
+ * Pattern FIFO:
  * The FIFO buffer can be configured to store data from gyroscope and
  * accelerometer. Samples are queued without any tag according to a
  * specific pattern based on 'FIFO data sets' (6 bytes each):
@@ -14,11 +14,33 @@
  * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated depending on the
  * value of the decimation factor and ODR set for each FIFO data set.
  *
- * LSM6DSO/LSM6DSOX/ASM330LHH/ASM330LHHX/LSM6DSR/LSM6DSRX/ISM330DHCX/
- * LSM6DST/LSM6DSOP/LSM6DSTX/LSM6DSV/ASM330LHB:
+ * Supported devices:
+ * - ISM330DLC
+ * - LSM6DS3
+ * - LSM6DS3H
+ * - LSM6DS3TR-C
+ * - LSM6DSL
+ * - LSM6DSM
+ *
+ * Tagged FIFO:
  * The FIFO buffer can be configured to store data from gyroscope and
  * accelerometer. Each sample is queued with a tag (1B) indicating data
  * source (gyroscope, accelerometer, hw timer).
+ *
+ * Supported devices:
+ * - ASM330LHB
+ * - ASM330LHH
+ * - ASM330LHHX
+ * - ASM330LHHXG1
+ * - ISM330DHCX
+ * - LSM6DSO
+ * - LSM6DSOP
+ * - LSM6DSOX
+ * - LSM6DSR
+ * - LSM6DSRX
+ * - LSM6DST
+ * - LSM6DSTX
+ * - LSM6DSV
  *
  * FIFO supported modes:
  *  - BYPASS: FIFO disabled

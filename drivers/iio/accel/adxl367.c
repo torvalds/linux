@@ -339,22 +339,17 @@ static int adxl367_set_act_threshold(struct adxl367_state *st,
 {
 	int ret;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = _adxl367_set_act_threshold(st, act, threshold);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = adxl367_set_measure_en(st, true);
-
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return adxl367_set_measure_en(st, true);
 }
 
 static int adxl367_set_act_proc_mode(struct adxl367_state *st,
@@ -482,51 +477,45 @@ static int adxl367_set_fifo_watermark(struct adxl367_state *st,
 static int adxl367_set_range(struct iio_dev *indio_dev,
 			     enum adxl367_range range)
 {
-	struct adxl367_state *st = iio_priv(indio_dev);
-	int ret;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		struct adxl367_state *st = iio_priv(indio_dev);
+		int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+		guard(mutex)(&st->lock);
 
-	mutex_lock(&st->lock);
+		ret = adxl367_set_measure_en(st, false);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_measure_en(st, false);
-	if (ret)
-		goto out;
+		ret = regmap_update_bits(st->regmap, ADXL367_REG_FILTER_CTL,
+					 ADXL367_FILTER_CTL_RANGE_MASK,
+					 FIELD_PREP(ADXL367_FILTER_CTL_RANGE_MASK,
+						    range));
+		if (ret)
+			return ret;
 
-	ret = regmap_update_bits(st->regmap, ADXL367_REG_FILTER_CTL,
-				 ADXL367_FILTER_CTL_RANGE_MASK,
-				 FIELD_PREP(ADXL367_FILTER_CTL_RANGE_MASK,
-					    range));
-	if (ret)
-		goto out;
+		adxl367_scale_act_thresholds(st, st->range, range);
 
-	adxl367_scale_act_thresholds(st, st->range, range);
+		/* Activity thresholds depend on range */
+		ret = _adxl367_set_act_threshold(st, ADXL367_ACTIVITY,
+						 st->act_threshold);
+		if (ret)
+			return ret;
 
-	/* Activity thresholds depend on range */
-	ret = _adxl367_set_act_threshold(st, ADXL367_ACTIVITY,
-					 st->act_threshold);
-	if (ret)
-		goto out;
+		ret = _adxl367_set_act_threshold(st, ADXL367_INACTIVITY,
+						 st->inact_threshold);
+		if (ret)
+			return ret;
 
-	ret = _adxl367_set_act_threshold(st, ADXL367_INACTIVITY,
-					 st->inact_threshold);
-	if (ret)
-		goto out;
+		ret = adxl367_set_measure_en(st, true);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_measure_en(st, true);
-	if (ret)
-		goto out;
+		st->range = range;
 
-	st->range = range;
-
-out:
-	mutex_unlock(&st->lock);
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
+		return 0;
+	}
+	unreachable();
 }
 
 static int adxl367_time_ms_to_samples(struct adxl367_state *st, unsigned int ms)
@@ -587,11 +576,11 @@ static int adxl367_set_act_time_ms(struct adxl367_state *st,
 {
 	int ret;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	if (act == ADXL367_ACTIVITY)
 		ret = _adxl367_set_act_time_ms(st, ms);
@@ -599,14 +588,9 @@ static int adxl367_set_act_time_ms(struct adxl367_state *st,
 		ret = _adxl367_set_inact_time_ms(st, ms);
 
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = adxl367_set_measure_en(st, true);
-
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return adxl367_set_measure_en(st, true);
 }
 
 static int _adxl367_set_odr(struct adxl367_state *st, enum adxl367_odr odr)
@@ -636,31 +620,23 @@ static int _adxl367_set_odr(struct adxl367_state *st, enum adxl367_odr odr)
 
 static int adxl367_set_odr(struct iio_dev *indio_dev, enum adxl367_odr odr)
 {
-	struct adxl367_state *st = iio_priv(indio_dev);
-	int ret;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		struct adxl367_state *st = iio_priv(indio_dev);;
+		int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+		guard(mutex)(&st->lock);
 
-	mutex_lock(&st->lock);
+		ret = adxl367_set_measure_en(st, false);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_measure_en(st, false);
-	if (ret)
-		goto out;
+		ret = _adxl367_set_odr(st, odr);
+		if (ret)
+			return ret;
 
-	ret = _adxl367_set_odr(st, odr);
-	if (ret)
-		goto out;
-
-	ret = adxl367_set_measure_en(st, true);
-
-out:
-	mutex_unlock(&st->lock);
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
+		return adxl367_set_measure_en(st, true);
+	}
+	unreachable();
 }
 
 static int adxl367_set_temp_adc_en(struct adxl367_state *st, unsigned int reg,
@@ -749,36 +725,32 @@ static int adxl367_read_sample(struct iio_dev *indio_dev,
 			       struct iio_chan_spec const *chan,
 			       int *val)
 {
-	struct adxl367_state *st = iio_priv(indio_dev);
-	u16 sample;
-	int ret;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		struct adxl367_state *st = iio_priv(indio_dev);
+		u16 sample;
+		int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+		guard(mutex)(&st->lock);
 
-	mutex_lock(&st->lock);
+		ret = adxl367_set_temp_adc_reg_en(st, chan->address, true);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_temp_adc_reg_en(st, chan->address, true);
-	if (ret)
-		goto out;
+		ret = regmap_bulk_read(st->regmap, chan->address, &st->sample_buf,
+				       sizeof(st->sample_buf));
+		if (ret)
+			return ret;
 
-	ret = regmap_bulk_read(st->regmap, chan->address, &st->sample_buf,
-			       sizeof(st->sample_buf));
-	if (ret)
-		goto out;
+		sample = FIELD_GET(ADXL367_DATA_MASK, be16_to_cpu(st->sample_buf));
+		*val = sign_extend32(sample, chan->scan_type.realbits - 1);
 
-	sample = FIELD_GET(ADXL367_DATA_MASK, be16_to_cpu(st->sample_buf));
-	*val = sign_extend32(sample, chan->scan_type.realbits - 1);
+		ret = adxl367_set_temp_adc_reg_en(st, chan->address, false);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_temp_adc_reg_en(st, chan->address, false);
-
-out:
-	mutex_unlock(&st->lock);
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret ?: IIO_VAL_INT;
+		return IIO_VAL_INT;
+	}
+	unreachable();
 }
 
 static int adxl367_get_status(struct adxl367_state *st, u8 *status,
@@ -886,12 +858,12 @@ static int adxl367_read_raw(struct iio_dev *indio_dev,
 		return adxl367_read_sample(indio_dev, chan, val);
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
-		case IIO_ACCEL:
-			mutex_lock(&st->lock);
+		case IIO_ACCEL: {
+			guard(mutex)(&st->lock);
 			*val = adxl367_range_scale_tbl[st->range][0];
 			*val2 = adxl367_range_scale_tbl[st->range][1];
-			mutex_unlock(&st->lock);
 			return IIO_VAL_INT_PLUS_NANO;
+		}
 		case IIO_TEMP:
 			*val = 1000;
 			*val2 = ADXL367_TEMP_PER_C;
@@ -914,12 +886,12 @@ static int adxl367_read_raw(struct iio_dev *indio_dev,
 		default:
 			return -EINVAL;
 		}
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		mutex_lock(&st->lock);
+	case IIO_CHAN_INFO_SAMP_FREQ: {
+		guard(mutex)(&st->lock);
 		*val = adxl367_samp_freq_tbl[st->odr][0];
 		*val2 = adxl367_samp_freq_tbl[st->odr][1];
-		mutex_unlock(&st->lock);
 		return IIO_VAL_INT_PLUS_MICRO;
+	}
 	default:
 		return -EINVAL;
 	}
@@ -1004,18 +976,15 @@ static int adxl367_read_event_value(struct iio_dev *indio_dev,
 {
 	struct adxl367_state *st = iio_priv(indio_dev);
 
+	guard(mutex)(&st->lock);
 	switch (info) {
 	case IIO_EV_INFO_VALUE: {
 		switch (dir) {
 		case IIO_EV_DIR_RISING:
-			mutex_lock(&st->lock);
 			*val = st->act_threshold;
-			mutex_unlock(&st->lock);
 			return IIO_VAL_INT;
 		case IIO_EV_DIR_FALLING:
-			mutex_lock(&st->lock);
 			*val = st->inact_threshold;
-			mutex_unlock(&st->lock);
 			return IIO_VAL_INT;
 		default:
 			return -EINVAL;
@@ -1024,15 +993,11 @@ static int adxl367_read_event_value(struct iio_dev *indio_dev,
 	case IIO_EV_INFO_PERIOD:
 		switch (dir) {
 		case IIO_EV_DIR_RISING:
-			mutex_lock(&st->lock);
 			*val = st->act_time_ms;
-			mutex_unlock(&st->lock);
 			*val2 = 1000;
 			return IIO_VAL_FRACTIONAL;
 		case IIO_EV_DIR_FALLING:
-			mutex_lock(&st->lock);
 			*val = st->inact_time_ms;
-			mutex_unlock(&st->lock);
 			*val2 = 1000;
 			return IIO_VAL_FRACTIONAL;
 		default:
@@ -1110,9 +1075,7 @@ static int adxl367_write_event_config(struct iio_dev *indio_dev,
 				      enum iio_event_direction dir,
 				      int state)
 {
-	struct adxl367_state *st = iio_priv(indio_dev);
 	enum adxl367_activity_type act;
-	int ret;
 
 	switch (dir) {
 	case IIO_EV_DIR_RISING:
@@ -1125,33 +1088,28 @@ static int adxl367_write_event_config(struct iio_dev *indio_dev,
 		return -EINVAL;
 	}
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		struct adxl367_state *st = iio_priv(indio_dev);
+		int ret;
 
-	mutex_lock(&st->lock);
+		guard(mutex)(&st->lock);
 
-	ret = adxl367_set_measure_en(st, false);
-	if (ret)
-		goto out;
+		ret = adxl367_set_measure_en(st, false);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_act_interrupt_en(st, act, state);
-	if (ret)
-		goto out;
+		ret = adxl367_set_act_interrupt_en(st, act, state);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_act_en(st, act, state ? ADCL367_ACT_REF_ENABLED
-						: ADXL367_ACT_DISABLED);
-	if (ret)
-		goto out;
+		ret = adxl367_set_act_en(st, act, state ? ADCL367_ACT_REF_ENABLED
+					 : ADXL367_ACT_DISABLED);
+		if (ret)
+			return ret;
 
-	ret = adxl367_set_measure_en(st, true);
-
-out:
-	mutex_unlock(&st->lock);
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
+		return adxl367_set_measure_en(st, true);
+	}
+	unreachable();
 }
 
 static ssize_t adxl367_get_fifo_enabled(struct device *dev,
@@ -1176,9 +1134,8 @@ static ssize_t adxl367_get_fifo_watermark(struct device *dev,
 	struct adxl367_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned int fifo_watermark;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 	fifo_watermark = st->fifo_watermark;
-	mutex_unlock(&st->lock);
 
 	return sysfs_emit(buf, "%d\n", fifo_watermark);
 }
@@ -1207,22 +1164,17 @@ static int adxl367_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	if (val > ADXL367_FIFO_MAX_WATERMARK)
 		return -EINVAL;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_fifo_watermark(st, val);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = adxl367_set_measure_en(st, true);
-
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return adxl367_set_measure_en(st, true);
 }
 
 static bool adxl367_find_mask_fifo_format(const unsigned long *scan_mask,
@@ -1253,27 +1205,24 @@ static int adxl367_update_scan_mode(struct iio_dev *indio_dev,
 	if (!adxl367_find_mask_fifo_format(active_scan_mask, &fifo_format))
 		return -EINVAL;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_fifo_format(st, fifo_format);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_measure_en(st, true);
 	if (ret)
-		goto out;
+		return ret;
 
 	st->fifo_set_size = bitmap_weight(active_scan_mask,
 					  indio_dev->masklength);
 
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return 0;
 }
 
 static int adxl367_buffer_postenable(struct iio_dev *indio_dev)
@@ -1281,31 +1230,26 @@ static int adxl367_buffer_postenable(struct iio_dev *indio_dev)
 	struct adxl367_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
 					   true);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_fifo_watermark_interrupt_en(st, true);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_fifo_mode(st, ADXL367_FIFO_MODE_STREAM);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = adxl367_set_measure_en(st, true);
-
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return adxl367_set_measure_en(st, true);
 }
 
 static int adxl367_buffer_predisable(struct iio_dev *indio_dev)
@@ -1313,31 +1257,26 @@ static int adxl367_buffer_predisable(struct iio_dev *indio_dev)
 	struct adxl367_state *st = iio_priv(indio_dev);
 	int ret;
 
-	mutex_lock(&st->lock);
+	guard(mutex)(&st->lock);
 
 	ret = adxl367_set_measure_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_fifo_mode(st, ADXL367_FIFO_MODE_DISABLED);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_fifo_watermark_interrupt_en(st, false);
 	if (ret)
-		goto out;
+		return ret;
 
 	ret = adxl367_set_measure_en(st, true);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
-					   false);
-
-out:
-	mutex_unlock(&st->lock);
-
-	return ret;
+	return adxl367_set_temp_adc_mask_en(st, indio_dev->active_scan_mask,
+					    false);
 }
 
 static const struct iio_buffer_setup_ops adxl367_buffer_ops = {
