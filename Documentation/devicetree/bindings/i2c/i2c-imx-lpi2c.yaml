@@ -24,6 +24,7 @@ properties:
               - fsl,imx8qm-lpi2c
               - fsl,imx8ulp-lpi2c
               - fsl,imx93-lpi2c
+              - fsl,imx95-lpi2c
           - const: fsl,imx7ulp-lpi2c
 
   reg:
