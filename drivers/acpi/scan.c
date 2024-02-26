@@ -336,9 +336,25 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
+static int acpi_scan_rescan_bus(struct acpi_device *adev)
+{
+	struct acpi_scan_handler *handler = adev->handler;
+	int ret;
+
+	if (handler && handler->hotplug.scan_dependent)
+		ret = handler->hotplug.scan_dependent(adev);
+	else
+		ret = acpi_bus_scan(adev->handle);
+
+	if (ret)
+		dev_info(&adev->dev, "Namespace scan failure\n");
+
+	return ret;
+}
+
 static int acpi_scan_device_check(struct acpi_device *adev)
 {
-	int error;
+	struct acpi_device *parent;
 
 	acpi_scan_check_subtree(adev);
 
@@ -356,36 +372,26 @@ static int acpi_scan_device_check(struct acpi_device *adev)
 		dev_dbg(&adev->dev, "Already enumerated\n");
 		return 0;
 	}
-	error = acpi_bus_scan(adev->handle);
-	if (error)
-		dev_warn(&adev->dev, "Namespace scan failure\n");
 
-	return error;
+	parent = acpi_dev_parent(adev);
+	if (!parent)
+		parent = adev;
+
+	return acpi_scan_rescan_bus(parent);
 }
 
-static int acpi_scan_bus_check(struct acpi_device *adev, void *not_used)
+static int acpi_scan_bus_check(struct acpi_device *adev)
 {
-	struct acpi_scan_handler *handler = adev->handler;
-	int error;
-
 	acpi_scan_check_subtree(adev);
 
-	if (handler && handler->hotplug.scan_dependent)
-		return handler->hotplug.scan_dependent(adev);
-
-	error = acpi_bus_scan(adev->handle);
-	if (error) {
-		dev_warn(&adev->dev, "Namespace scan failure\n");
-		return error;
-	}
-	return acpi_dev_for_each_child(adev, acpi_scan_bus_check, NULL);
+	return acpi_scan_rescan_bus(adev);
 }
 
 static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
 {
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		return acpi_scan_bus_check(adev, NULL);
+		return acpi_scan_bus_check(adev);
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		return acpi_scan_device_check(adev);
 	case ACPI_NOTIFY_EJECT_REQUEST:
