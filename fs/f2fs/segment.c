@@ -2253,6 +2253,12 @@ int f2fs_start_discard_thread(struct f2fs_sb_info *sbi)
 	struct discard_cmd_control *dcc = SM_I(sbi)->dcc_info;
 	int err = 0;
 
+	if (f2fs_sb_has_readonly(sbi)) {
+		f2fs_info(sbi,
+			"Skip to start discard thread for readonly image");
+		return 0;
+	}
+
 	if (!f2fs_realtime_discard_enable(sbi))
 		return 0;
 
