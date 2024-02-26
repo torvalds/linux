@@ -23,6 +23,7 @@ properties:
       - enum:
           - starfive,jh7100-pwm
           - starfive,jh7110-pwm
+          - starfive,jh8100-pwm
       - const: opencores,pwm-v1
 
   reg:
