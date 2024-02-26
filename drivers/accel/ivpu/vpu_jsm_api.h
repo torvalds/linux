@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (c) 2020-2023, Intel Corporation.
  */
 
 /**
@@ -27,7 +27,7 @@
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
  */
-#define VPU_JSM_API_VER_PATCH 0
+#define VPU_JSM_API_VER_PATCH 6
 
 /*
  * Index in the API version table
@@ -43,8 +43,11 @@
 /* Max number of impacted contexts that can be dealt with the engine reset command */
 #define VPU_MAX_ENGINE_RESET_IMPACTED_CONTEXTS 3
 
-/** Pack the API structures for now, once alignment issues are fixed this can be removed */
-#pragma pack(push, 1)
+/*
+ * Pack the API structures to enforce binary compatibility
+ * Align to 8 bytes for optimal performance
+ */
+#pragma pack(push, 8)
 
 /*
  * Engine indexes.
@@ -123,6 +126,19 @@
  * They are numbered 0 to a MAX.
  */
 #define VPU_HWS_MAX_REALTIME_PRIORITY_LEVEL 31U
+
+/*
+ * vpu_jsm_engine_reset_context flag definitions
+ */
+#define VPU_ENGINE_RESET_CONTEXT_FLAG_COLLATERAL_DAMAGE_MASK BIT(0)
+#define VPU_ENGINE_RESET_CONTEXT_HANG_PRIMARY_CAUSE	     0
+#define VPU_ENGINE_RESET_CONTEXT_COLLATERAL_DAMAGE	     1
+
+/*
+ * Invalid command queue handle identifier. Applies to cmdq_id and cmdq_group
+ * in this API.
+ */
+#define VPU_HWS_INVALID_CMDQ_HANDLE 0ULL
 
 /*
  * Job format.
@@ -613,7 +629,7 @@ struct vpu_jsm_engine_reset_context {
 	u32 reserved_0;
 	/* Command queue id */
 	u64 cmdq_id;
-	/* Flags: 0: cause of hang; 1: collateral damage of reset */
+	/* See VPU_ENGINE_RESET_CONTEXT_* defines */
 	u64 flags;
 };
 
@@ -730,11 +746,7 @@ struct vpu_ipc_msg_payload_hws_create_cmdq {
 	u32 host_ssid;
 	/* Engine for which queue is being created */
 	u32 engine_idx;
-	/*
-	 * Cmdq group may be set to 0 or equal to
-	 * cmdq_id while each priority band contains
-	 * only single engine instances.
-	 */
+	/* Cmdq group: only used for HWS logging of state changes */
 	u64 cmdq_group;
 	/* Command queue id */
 	u64 cmdq_id;

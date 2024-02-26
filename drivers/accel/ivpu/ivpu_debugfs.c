@@ -287,22 +287,6 @@ static const struct file_operations fw_trace_level_fops = {
 };
 
 static ssize_t
-ivpu_reset_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
-{
-	struct ivpu_device *vdev = file->private_data;
-
-	if (!size)
-		return -EINVAL;
-
-	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
-		return -ENODEV;
-	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COPY))
-		return -ENODEV;
-
-	return size;
-}
-
-static ssize_t
 ivpu_force_recovery_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
 {
 	struct ivpu_device *vdev = file->private_data;
@@ -326,6 +310,22 @@ static const struct file_operations ivpu_force_recovery_fops = {
 	.open = simple_open,
 	.write = ivpu_force_recovery_fn,
 };
+
+static ssize_t
+ivpu_reset_engine_fn(struct file *file, const char __user *user_buf, size_t size, loff_t *pos)
+{
+	struct ivpu_device *vdev = file->private_data;
+
+	if (!size)
+		return -EINVAL;
+
+	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COMPUTE))
+		return -ENODEV;
+	if (ivpu_jsm_reset_engine(vdev, DRM_IVPU_ENGINE_COPY))
+		return -ENODEV;
+
+	return size;
+}
 
 static const struct file_operations ivpu_reset_engine_fops = {
 	.owner = THIS_MODULE,

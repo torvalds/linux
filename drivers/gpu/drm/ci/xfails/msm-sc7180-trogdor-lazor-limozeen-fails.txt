@@ -15,3 +15,4 @@ kms_plane_alpha_blend@alpha-7efc,Fail
 kms_plane_alpha_blend@coverage-7efc,Fail
 kms_plane_alpha_blend@coverage-vs-premult-vs-constant,Fail
 kms_rmfb@close-fd,Fail
+kms_universal_plane@universal-plane-sanity,Fail

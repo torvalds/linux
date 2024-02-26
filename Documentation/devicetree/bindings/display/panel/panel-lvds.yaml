@@ -39,6 +39,8 @@ properties:
   compatible:
     items:
       - enum:
+          # Admatec 9904379 10.1" 1024x600 LVDS panel
+          - admatec,9904379
           - auo,b101ew05
           # Chunghwa Picture Tubes Ltd. 7" WXGA (800x1280) TFT LCD LVDS panel
           - chunghwa,claa070wp03xg
