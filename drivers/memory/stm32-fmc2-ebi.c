@@ -20,6 +20,7 @@
 #define FMC2_BCR(x)			((x) * 0x8 + FMC2_BCR1)
 #define FMC2_BTR(x)			((x) * 0x8 + FMC2_BTR1)
 #define FMC2_PCSCNTR			0x20
+#define FMC2_CFGR			0x20
 #define FMC2_BWTR1			0x104
 #define FMC2_BWTR(x)			((x) * 0x8 + FMC2_BWTR1)
 
@@ -42,6 +43,7 @@
 #define FMC2_BCR_ASYNCWAIT		BIT(15)
 #define FMC2_BCR_CPSIZE			GENMASK(18, 16)
 #define FMC2_BCR_CBURSTRW		BIT(19)
+#define FMC2_BCR_CSCOUNT		GENMASK(21, 20)
 #define FMC2_BCR_NBLSET			GENMASK(23, 22)
 
 /* Register: FMC2_BTRx/FMC2_BWTRx */
@@ -57,6 +59,11 @@
 /* Register: FMC2_PCSCNTR */
 #define FMC2_PCSCNTR_CSCOUNT		GENMASK(15, 0)
 #define FMC2_PCSCNTR_CNTBEN(x)		BIT((x) + 16)
+
+/* Register: FMC2_CFGR */
+#define FMC2_CFGR_CLKDIV		GENMASK(19, 16)
+#define FMC2_CFGR_CCLKEN		BIT(20)
+#define FMC2_CFGR_FMC2EN		BIT(31)
 
 #define FMC2_MAX_EBI_CE			4
 #define FMC2_MAX_BANKS			5
@@ -74,6 +81,11 @@
 #define FMC2_BCR_MTYP_PSRAM		0x1
 #define FMC2_BCR_MTYP_NOR		0x2
 
+#define FMC2_BCR_CSCOUNT_0		0x0
+#define FMC2_BCR_CSCOUNT_1		0x1
+#define FMC2_BCR_CSCOUNT_64		0x2
+#define FMC2_BCR_CSCOUNT_256		0x3
+
 #define FMC2_BXTR_EXTMOD_A		0x0
 #define FMC2_BXTR_EXTMOD_B		0x1
 #define FMC2_BXTR_EXTMOD_C		0x2
@@ -88,6 +100,7 @@
 #define FMC2_BTR_CLKDIV_MAX		0xf
 #define FMC2_BTR_DATLAT_MAX		0xf
 #define FMC2_PCSCNTR_CSCOUNT_MAX	0xff
+#define FMC2_CFGR_CLKDIV_MAX		0xf
 
 enum stm32_fmc2_ebi_bank {
 	FMC2_EBI1 = 0,
@@ -101,7 +114,8 @@ enum stm32_fmc2_ebi_register_type {
 	FMC2_REG_BCR = 1,
 	FMC2_REG_BTR,
 	FMC2_REG_BWTR,
-	FMC2_REG_PCSCNTR
+	FMC2_REG_PCSCNTR,
+	FMC2_REG_CFGR
 };
 
 enum stm32_fmc2_ebi_transaction_type {
@@ -132,16 +146,37 @@ enum stm32_fmc2_ebi_cpsize {
 	FMC2_CPSIZE_1024 = 1024
 };
 
+enum stm32_fmc2_ebi_cscount {
+	FMC2_CSCOUNT_0 = 0,
+	FMC2_CSCOUNT_1 = 1,
+	FMC2_CSCOUNT_64 = 64,
+	FMC2_CSCOUNT_256 = 256
+};
+
+struct stm32_fmc2_ebi;
+
+struct stm32_fmc2_ebi_data {
+	const struct stm32_fmc2_prop *child_props;
+	unsigned int nb_child_props;
+	u32 fmc2_enable_reg;
+	u32 fmc2_enable_bit;
+	int (*nwait_used_by_ctrls)(struct stm32_fmc2_ebi *ebi);
+	void (*set_setup)(struct stm32_fmc2_ebi *ebi);
+	int (*save_setup)(struct stm32_fmc2_ebi *ebi);
+};
+
 struct stm32_fmc2_ebi {
 	struct device *dev;
 	struct clk *clk;
 	struct regmap *regmap;
+	const struct stm32_fmc2_ebi_data *data;
 	u8 bank_assigned;
 
 	u32 bcr[FMC2_MAX_EBI_CE];
 	u32 btr[FMC2_MAX_EBI_CE];
 	u32 bwtr[FMC2_MAX_EBI_CE];
 	u32 pcscntr;
+	u32 cfgr;
 };
 
 /*
@@ -353,6 +388,30 @@ static u32 stm32_fmc2_ebi_ns_to_clk_period(struct stm32_fmc2_ebi *ebi,
 	return DIV_ROUND_UP(nb_clk_cycles, clk_period);
 }
 
+static u32 stm32_fmc2_ebi_mp25_ns_to_clk_period(struct stm32_fmc2_ebi *ebi,
+						int cs, u32 setup)
+{
+	u32 nb_clk_cycles = stm32_fmc2_ebi_ns_to_clock_cycles(ebi, cs, setup);
+	u32 cfgr, btr, clk_period;
+	int ret;
+
+	ret = regmap_read(ebi->regmap, FMC2_CFGR, &cfgr);
+	if (ret)
+		return ret;
+
+	if (cfgr & FMC2_CFGR_CCLKEN) {
+		clk_period = FIELD_GET(FMC2_CFGR_CLKDIV, cfgr) + 1;
+	} else {
+		ret = regmap_read(ebi->regmap, FMC2_BTR(cs), &btr);
+		if (ret)
+			return ret;
+
+		clk_period = FIELD_GET(FMC2_BTR_CLKDIV, btr) + 1;
+	}
+
+	return DIV_ROUND_UP(nb_clk_cycles, clk_period);
+}
+
 static int stm32_fmc2_ebi_get_reg(int reg_type, int cs, u32 *reg)
 {
 	switch (reg_type) {
@@ -367,6 +426,9 @@ static int stm32_fmc2_ebi_get_reg(int reg_type, int cs, u32 *reg)
 		break;
 	case FMC2_REG_PCSCNTR:
 		*reg = FMC2_PCSCNTR;
+		break;
+	case FMC2_REG_CFGR:
+		*reg = FMC2_CFGR;
 		break;
 	default:
 		return -EINVAL;
@@ -714,6 +776,30 @@ static int stm32_fmc2_ebi_set_clk_period(struct stm32_fmc2_ebi *ebi,
 	return 0;
 }
 
+static int stm32_fmc2_ebi_mp25_set_clk_period(struct stm32_fmc2_ebi *ebi,
+					      const struct stm32_fmc2_prop *prop,
+					      int cs, u32 setup)
+{
+	u32 val, cfgr;
+	int ret;
+
+	ret = regmap_read(ebi->regmap, FMC2_CFGR, &cfgr);
+	if (ret)
+		return ret;
+
+	if (cfgr & FMC2_CFGR_CCLKEN) {
+		val = setup ? clamp_val(setup - 1, 1, FMC2_CFGR_CLKDIV_MAX) : 1;
+		val = FIELD_PREP(FMC2_CFGR_CLKDIV, val);
+		regmap_update_bits(ebi->regmap, FMC2_CFGR, FMC2_CFGR_CLKDIV, val);
+	} else {
+		val = setup ? clamp_val(setup - 1, 1, FMC2_BTR_CLKDIV_MAX) : 1;
+		val = FIELD_PREP(FMC2_BTR_CLKDIV, val);
+		regmap_update_bits(ebi->regmap, FMC2_BTR(cs), FMC2_BTR_CLKDIV, val);
+	}
+
+	return 0;
+}
+
 static int stm32_fmc2_ebi_set_data_latency(struct stm32_fmc2_ebi *ebi,
 					   const struct stm32_fmc2_prop *prop,
 					   int cs, u32 setup)
@@ -755,6 +841,27 @@ static int stm32_fmc2_ebi_set_max_low_pulse(struct stm32_fmc2_ebi *ebi,
 	new_val = FIELD_PREP(FMC2_PCSCNTR_CSCOUNT, new_val);
 	regmap_update_bits(ebi->regmap, FMC2_PCSCNTR,
 			   FMC2_PCSCNTR_CSCOUNT, new_val);
+
+	return 0;
+}
+
+static int stm32_fmc2_ebi_mp25_set_max_low_pulse(struct stm32_fmc2_ebi *ebi,
+						 const struct stm32_fmc2_prop *prop,
+						 int cs, u32 setup)
+{
+	u32 val;
+
+	if (setup == FMC2_CSCOUNT_0)
+		val = FIELD_PREP(FMC2_BCR_CSCOUNT, FMC2_BCR_CSCOUNT_0);
+	else if (setup == FMC2_CSCOUNT_1)
+		val = FIELD_PREP(FMC2_BCR_CSCOUNT, FMC2_BCR_CSCOUNT_1);
+	else if (setup <= FMC2_CSCOUNT_64)
+		val = FIELD_PREP(FMC2_BCR_CSCOUNT, FMC2_BCR_CSCOUNT_64);
+	else
+		val = FIELD_PREP(FMC2_BCR_CSCOUNT, FMC2_BCR_CSCOUNT_256);
+
+	regmap_update_bits(ebi->regmap, FMC2_BCR(cs),
+			   FMC2_BCR_CSCOUNT, val);
 
 	return 0;
 }
@@ -924,6 +1031,171 @@ static const struct stm32_fmc2_prop stm32_fmc2_child_props[] = {
 	},
 };
 
+static const struct stm32_fmc2_prop stm32_fmc2_mp25_child_props[] = {
+	/* st,fmc2-ebi-cs-trans-type must be the first property */
+	{
+		.name = "st,fmc2-ebi-cs-transaction-type",
+		.mprop = true,
+		.set = stm32_fmc2_ebi_set_trans_type,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-cclk-enable",
+		.bprop = true,
+		.reg_type = FMC2_REG_CFGR,
+		.reg_mask = FMC2_CFGR_CCLKEN,
+		.check = stm32_fmc2_ebi_check_sync_trans,
+		.set = stm32_fmc2_ebi_set_bit_field,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-mux-enable",
+		.bprop = true,
+		.reg_type = FMC2_REG_BCR,
+		.reg_mask = FMC2_BCR_MUXEN,
+		.check = stm32_fmc2_ebi_check_mux,
+		.set = stm32_fmc2_ebi_set_bit_field,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-buswidth",
+		.reset_val = FMC2_BUSWIDTH_16,
+		.set = stm32_fmc2_ebi_set_buswidth,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-waitpol-high",
+		.bprop = true,
+		.reg_type = FMC2_REG_BCR,
+		.reg_mask = FMC2_BCR_WAITPOL,
+		.set = stm32_fmc2_ebi_set_bit_field,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-waitcfg-enable",
+		.bprop = true,
+		.reg_type = FMC2_REG_BCR,
+		.reg_mask = FMC2_BCR_WAITCFG,
+		.check = stm32_fmc2_ebi_check_waitcfg,
+		.set = stm32_fmc2_ebi_set_bit_field,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-wait-enable",
+		.bprop = true,
+		.reg_type = FMC2_REG_BCR,
+		.reg_mask = FMC2_BCR_WAITEN,
+		.check = stm32_fmc2_ebi_check_sync_trans,
+		.set = stm32_fmc2_ebi_set_bit_field,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-asyncwait-enable",
+		.bprop = true,
+		.reg_type = FMC2_REG_BCR,
+		.reg_mask = FMC2_BCR_ASYNCWAIT,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.set = stm32_fmc2_ebi_set_bit_field,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-cpsize",
+		.check = stm32_fmc2_ebi_check_cpsize,
+		.set = stm32_fmc2_ebi_set_cpsize,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-byte-lane-setup-ns",
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_bl_setup,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-address-setup-ns",
+		.reg_type = FMC2_REG_BTR,
+		.reset_val = FMC2_BXTR_ADDSET_MAX,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_address_setup,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-address-hold-ns",
+		.reg_type = FMC2_REG_BTR,
+		.reset_val = FMC2_BXTR_ADDHLD_MAX,
+		.check = stm32_fmc2_ebi_check_address_hold,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_address_hold,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-data-setup-ns",
+		.reg_type = FMC2_REG_BTR,
+		.reset_val = FMC2_BXTR_DATAST_MAX,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_data_setup,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-bus-turnaround-ns",
+		.reg_type = FMC2_REG_BTR,
+		.reset_val = FMC2_BXTR_BUSTURN_MAX + 1,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_bus_turnaround,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-data-hold-ns",
+		.reg_type = FMC2_REG_BTR,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_data_hold,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-clk-period-ns",
+		.reset_val = FMC2_CFGR_CLKDIV_MAX + 1,
+		.check = stm32_fmc2_ebi_check_sync_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_mp25_set_clk_period,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-data-latency-ns",
+		.check = stm32_fmc2_ebi_check_sync_trans,
+		.calculate = stm32_fmc2_ebi_mp25_ns_to_clk_period,
+		.set = stm32_fmc2_ebi_set_data_latency,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-write-address-setup-ns",
+		.reg_type = FMC2_REG_BWTR,
+		.reset_val = FMC2_BXTR_ADDSET_MAX,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_address_setup,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-write-address-hold-ns",
+		.reg_type = FMC2_REG_BWTR,
+		.reset_val = FMC2_BXTR_ADDHLD_MAX,
+		.check = stm32_fmc2_ebi_check_address_hold,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_address_hold,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-write-data-setup-ns",
+		.reg_type = FMC2_REG_BWTR,
+		.reset_val = FMC2_BXTR_DATAST_MAX,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_data_setup,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-write-bus-turnaround-ns",
+		.reg_type = FMC2_REG_BWTR,
+		.reset_val = FMC2_BXTR_BUSTURN_MAX + 1,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_bus_turnaround,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-write-data-hold-ns",
+		.reg_type = FMC2_REG_BWTR,
+		.check = stm32_fmc2_ebi_check_async_trans,
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_set_data_hold,
+	},
+	{
+		.name = "st,fmc2-ebi-cs-max-low-pulse-ns",
+		.calculate = stm32_fmc2_ebi_ns_to_clock_cycles,
+		.set = stm32_fmc2_ebi_mp25_set_max_low_pulse,
+	},
+};
+
 static int stm32_fmc2_ebi_parse_prop(struct stm32_fmc2_ebi *ebi,
 				     struct device_node *dev_node,
 				     const struct stm32_fmc2_prop *prop,
@@ -999,7 +1271,29 @@ static int stm32_fmc2_ebi_save_setup(struct stm32_fmc2_ebi *ebi)
 			return ret;
 	}
 
+	return 0;
+}
+
+static int stm32_fmc2_ebi_mp1_save_setup(struct stm32_fmc2_ebi *ebi)
+{
+	int ret;
+
+	ret = stm32_fmc2_ebi_save_setup(ebi);
+	if (ret)
+		return ret;
+
 	return regmap_read(ebi->regmap, FMC2_PCSCNTR, &ebi->pcscntr);
+}
+
+static int stm32_fmc2_ebi_mp25_save_setup(struct stm32_fmc2_ebi *ebi)
+{
+	int ret;
+
+	ret = stm32_fmc2_ebi_save_setup(ebi);
+	if (ret)
+		return ret;
+
+	return regmap_read(ebi->regmap, FMC2_CFGR, &ebi->cfgr);
 }
 
 static void stm32_fmc2_ebi_set_setup(struct stm32_fmc2_ebi *ebi)
@@ -1011,8 +1305,18 @@ static void stm32_fmc2_ebi_set_setup(struct stm32_fmc2_ebi *ebi)
 		regmap_write(ebi->regmap, FMC2_BTR(cs), ebi->btr[cs]);
 		regmap_write(ebi->regmap, FMC2_BWTR(cs), ebi->bwtr[cs]);
 	}
+}
 
+static void stm32_fmc2_ebi_mp1_set_setup(struct stm32_fmc2_ebi *ebi)
+{
+	stm32_fmc2_ebi_set_setup(ebi);
 	regmap_write(ebi->regmap, FMC2_PCSCNTR, ebi->pcscntr);
+}
+
+static void stm32_fmc2_ebi_mp25_set_setup(struct stm32_fmc2_ebi *ebi)
+{
+	stm32_fmc2_ebi_set_setup(ebi);
+	regmap_write(ebi->regmap, FMC2_CFGR, ebi->cfgr);
 }
 
 static void stm32_fmc2_ebi_disable_banks(struct stm32_fmc2_ebi *ebi)
@@ -1055,13 +1359,15 @@ static int stm32_fmc2_ebi_nwait_used_by_ctrls(struct stm32_fmc2_ebi *ebi)
 
 static void stm32_fmc2_ebi_enable(struct stm32_fmc2_ebi *ebi)
 {
-	regmap_update_bits(ebi->regmap, FMC2_BCR1,
-			   FMC2_BCR1_FMC2EN, FMC2_BCR1_FMC2EN);
+	regmap_update_bits(ebi->regmap, ebi->data->fmc2_enable_reg,
+			   ebi->data->fmc2_enable_bit,
+			   ebi->data->fmc2_enable_bit);
 }
 
 static void stm32_fmc2_ebi_disable(struct stm32_fmc2_ebi *ebi)
 {
-	regmap_update_bits(ebi->regmap, FMC2_BCR1, FMC2_BCR1_FMC2EN, 0);
+	regmap_update_bits(ebi->regmap, ebi->data->fmc2_enable_reg,
+			   ebi->data->fmc2_enable_bit, 0);
 }
 
 static int stm32_fmc2_ebi_setup_cs(struct stm32_fmc2_ebi *ebi,
@@ -1073,8 +1379,8 @@ static int stm32_fmc2_ebi_setup_cs(struct stm32_fmc2_ebi *ebi,
 
 	stm32_fmc2_ebi_disable_bank(ebi, cs);
 
-	for (i = 0; i < ARRAY_SIZE(stm32_fmc2_child_props); i++) {
-		const struct stm32_fmc2_prop *p = &stm32_fmc2_child_props[i];
+	for (i = 0; i < ebi->data->nb_child_props; i++) {
+		const struct stm32_fmc2_prop *p = &ebi->data->child_props[i];
 
 		ret = stm32_fmc2_ebi_parse_prop(ebi, dev_node, p, cs);
 		if (ret) {
@@ -1137,9 +1443,11 @@ static int stm32_fmc2_ebi_parse_dt(struct stm32_fmc2_ebi *ebi)
 		return -ENODEV;
 	}
 
-	ret = stm32_fmc2_ebi_nwait_used_by_ctrls(ebi);
-	if (ret)
-		return ret;
+	if (ebi->data->nwait_used_by_ctrls) {
+		ret = ebi->data->nwait_used_by_ctrls(ebi);
+		if (ret)
+			return ret;
+	}
 
 	stm32_fmc2_ebi_enable(ebi);
 
@@ -1158,6 +1466,10 @@ static int stm32_fmc2_ebi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ebi->dev = dev;
+
+	ebi->data = of_device_get_match_data(dev);
+	if (!ebi->data)
+		return -EINVAL;
 
 	ebi->regmap = device_node_to_regmap(dev->of_node);
 	if (IS_ERR(ebi->regmap))
@@ -1184,7 +1496,7 @@ static int stm32_fmc2_ebi_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_release;
 
-	ret = stm32_fmc2_ebi_save_setup(ebi);
+	ret = ebi->data->save_setup(ebi);
 	if (ret)
 		goto err_release;
 
@@ -1232,7 +1544,7 @@ static int __maybe_unused stm32_fmc2_ebi_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	stm32_fmc2_ebi_set_setup(ebi);
+	ebi->data->set_setup(ebi);
 	stm32_fmc2_ebi_enable(ebi);
 
 	return 0;
@@ -1241,8 +1553,34 @@ static int __maybe_unused stm32_fmc2_ebi_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(stm32_fmc2_ebi_pm_ops, stm32_fmc2_ebi_suspend,
 			 stm32_fmc2_ebi_resume);
 
+static const struct stm32_fmc2_ebi_data stm32_fmc2_ebi_mp1_data = {
+	.child_props = stm32_fmc2_child_props,
+	.nb_child_props = ARRAY_SIZE(stm32_fmc2_child_props),
+	.fmc2_enable_reg = FMC2_BCR1,
+	.fmc2_enable_bit = FMC2_BCR1_FMC2EN,
+	.nwait_used_by_ctrls = stm32_fmc2_ebi_nwait_used_by_ctrls,
+	.set_setup = stm32_fmc2_ebi_mp1_set_setup,
+	.save_setup = stm32_fmc2_ebi_mp1_save_setup,
+};
+
+static const struct stm32_fmc2_ebi_data stm32_fmc2_ebi_mp25_data = {
+	.child_props = stm32_fmc2_mp25_child_props,
+	.nb_child_props = ARRAY_SIZE(stm32_fmc2_mp25_child_props),
+	.fmc2_enable_reg = FMC2_CFGR,
+	.fmc2_enable_bit = FMC2_CFGR_FMC2EN,
+	.set_setup = stm32_fmc2_ebi_mp25_set_setup,
+	.save_setup = stm32_fmc2_ebi_mp25_save_setup,
+};
+
 static const struct of_device_id stm32_fmc2_ebi_match[] = {
-	{.compatible = "st,stm32mp1-fmc2-ebi"},
+	{
+		.compatible = "st,stm32mp1-fmc2-ebi",
+		.data = &stm32_fmc2_ebi_mp1_data,
+	},
+	{
+		.compatible = "st,stm32mp25-fmc2-ebi",
+		.data = &stm32_fmc2_ebi_mp25_data,
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, stm32_fmc2_ebi_match);
