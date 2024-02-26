@@ -19,10 +19,10 @@
 /* Reset Control Register 2 */
 #define RESCNT2_PRES	0x80000000	/* Soft power-on reset */
 
-static void __iomem *sysc_base2;
-
 static int rmobile_reset_handler(struct sys_off_data *data)
 {
+	void __iomem *sysc_base2 = (void __iomem *)data->cb_data;
+
 	/* Let's assume we have acquired the HPB semaphore */
 	writel(RESCNT2_PRES, sysc_base2 + RESCNT2);
 
@@ -31,6 +31,7 @@ static int rmobile_reset_handler(struct sys_off_data *data)
 
 static int rmobile_reset_probe(struct platform_device *pdev)
 {
+	void __iomem *sysc_base2;
 	int error;
 
 	sysc_base2 = devm_platform_ioremap_resource(pdev, 1);
@@ -41,7 +42,7 @@ static int rmobile_reset_probe(struct platform_device *pdev)
 					      SYS_OFF_MODE_RESTART,
 					      SYS_OFF_PRIO_HIGH,
 					      rmobile_reset_handler,
-					      NULL);
+					      (__force void *)sysc_base2);
 	if (error) {
 		dev_err(&pdev->dev,
 			"cannot register restart handler (err=%d)\n", error);
