@@ -150,7 +150,7 @@ static struct rcu_tasks rt_name =							\
 
 #ifdef CONFIG_TASKS_RCU
 
-/* Report delay in synchronize_srcu() completion in rcu_tasks_postscan(). */
+/* Report delay of scan exiting tasklist in rcu_tasks_postscan(). */
 static void tasks_rcu_exit_srcu_stall(struct timer_list *unused);
 static DEFINE_TIMER(tasks_rcu_exit_srcu_stall_timer, tasks_rcu_exit_srcu_stall);
 #endif
