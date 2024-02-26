@@ -420,7 +420,7 @@ sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 		   lines below. In order to satisfy KW an additional if
 		   has been added. This one will always yield true.
 		 */
-		if ((queue_id < SH_CSS_MAX_NUM_QUEUES))
+		if (queue_id < SH_CSS_MAX_NUM_QUEUES)
 			dest_buf->buf_src.queue_id = queue_id;
 	} else {
 		assert(xmem_addr != mmgr_EXCEPTION);
