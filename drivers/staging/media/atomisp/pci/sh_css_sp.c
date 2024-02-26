@@ -642,8 +642,6 @@ void sh_css_sp_set_if_configs(
 		    *config_b;
 		sh_css_sp_group.config.input_formatter.b_changed = true;
 	}
-
-	return;
 }
 
 void
