@@ -313,6 +313,18 @@ struct dload_struct {
 	u32	serial_magic;
 };
 
+struct usb_udc {
+	struct usb_gadget_driver	*driver;
+	struct usb_gadget		*gadget;
+	struct device			dev;
+	struct list_head		list;
+	bool				vbus;
+	bool				started;
+	bool				allow_connect;
+	struct work_struct		vbus_work;
+	struct mutex			connect_lock;
+};
+
 struct dwc3_hw_ep {
 	struct dwc3_ep		*dep;
 	enum usb_hw_ep_mode	mode;
@@ -646,6 +658,7 @@ struct dwc3_msm {
 	u32			qos_rec_irq[PM_QOS_REC_MAX_RECORD];
 
 	int			repeater_rev;
+	bool			force_disconnect;
 };
 
 #define USB_HSPHY_3P3_VOL_MIN		3050000 /* uV */
@@ -6434,6 +6447,7 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		dwc3_ext_event_notify(mdwc);
 	}
 
+	mdwc->force_disconnect = false;
 	return 0;
 
 put_dwc3:
@@ -7002,6 +7016,7 @@ static void dwc3_override_vbus_status(struct dwc3_msm *mdwc, bool vbus_present)
 static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 {
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
+	unsigned long flags;
 	int timeout = 100;
 	int ret;
 
@@ -7066,6 +7081,20 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 
 		usb_role_switch_set_role(mdwc->dwc3_drd_sw, USB_ROLE_DEVICE);
 		clk_set_rate(mdwc->core_clk, mdwc->core_clk_rate);
+
+		/*
+		 * Check udc->driver to find out if we are bound to udc or not.
+		 */
+		spin_lock_irqsave(&dwc->lock, flags);
+		if ((mdwc->force_disconnect) && (!dwc->softconnect) &&
+			(dwc->gadget) && (dwc->gadget->udc->driver)) {
+			spin_unlock_irqrestore(&dwc->lock, flags);
+			dbg_event(0xFF, "Force Pullup", 0);
+			usb_gadget_connect(dwc->gadget);
+			spin_lock_irqsave(&dwc->lock, flags);
+		}
+		spin_unlock_irqrestore(&dwc->lock, flags);
+		mdwc->force_disconnect = false;
 	} else {
 		dev_dbg(mdwc->dev, "%s: turn off gadget\n", __func__);
 
@@ -7094,6 +7123,19 @@ static int dwc3_otg_start_peripheral(struct dwc3_msm *mdwc, int on)
 				msleep(20);
 			dbg_event(0xFF, "StopGdgt connected", dwc->connected);
 			pm_runtime_suspend(&mdwc->dwc3->dev);
+		}
+
+		if ((timeout == 0) && (dwc->connected)) {
+			dbg_event(0xFF, "Force Pulldown", 0);
+
+			/*
+			 * Since we are not taking the udc_lock, there is a
+			 * chance that this might race with gadget_remove driver
+			 * in case this is called in parallel to UDC getting
+			 * cleared in userspace
+			 */
+			usb_gadget_disconnect(dwc->gadget);
+			mdwc->force_disconnect = true;
 		}
 
 		/* wait for LPM, to ensure h/w is reset after stop_peripheral */
