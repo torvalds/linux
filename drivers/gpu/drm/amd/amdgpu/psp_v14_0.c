@@ -177,6 +177,10 @@ static int psp_v14_0_bootloader_load_ras_drv(struct psp_context *psp)
 	return psp_v14_0_bootloader_load_component(psp, &psp->ras_drv, PSP_BL__LOAD_RASDRV);
 }
 
+static int psp_v14_0_bootloader_load_ipkeymgr_drv(struct psp_context *psp)
+{
+	return psp_v14_0_bootloader_load_component(psp, &psp->ipkeymgr_drv, PSP_BL__LOAD_IPKEYMGRDRV);
+}
 
 static int psp_v14_0_bootloader_load_sos(struct psp_context *psp)
 {
@@ -653,6 +657,7 @@ static const struct psp_funcs psp_v14_0_funcs = {
 	.bootloader_load_intf_drv = psp_v14_0_bootloader_load_intf_drv,
 	.bootloader_load_dbg_drv = psp_v14_0_bootloader_load_dbg_drv,
 	.bootloader_load_ras_drv = psp_v14_0_bootloader_load_ras_drv,
+	.bootloader_load_ipkeymgr_drv = psp_v14_0_bootloader_load_ipkeymgr_drv,
 	.bootloader_load_sos = psp_v14_0_bootloader_load_sos,
 	.ring_create = psp_v14_0_ring_create,
 	.ring_stop = psp_v14_0_ring_stop,
