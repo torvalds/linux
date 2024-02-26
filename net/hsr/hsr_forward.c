@@ -435,7 +435,7 @@ static void hsr_forward_do(struct hsr_frame_info *frame)
 			continue;
 
 		/* Don't send frame over port where it has been sent before.
-		 * Also fro SAN, this shouldn't be done.
+		 * Also for SAN, this shouldn't be done.
 		 */
 		if (!frame->is_from_san &&
 		    hsr_register_frame_out(port, frame->node_src,
