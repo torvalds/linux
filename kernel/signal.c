@@ -2727,12 +2727,15 @@ relock:
 		/* Has this task already been marked for death? */
 		if ((signal->flags & SIGNAL_GROUP_EXIT) ||
 		     signal->group_exec_task) {
-			clear_siginfo(&ksig->info);
-			ksig->info.si_signo = signr = SIGKILL;
+			signr = SIGKILL;
 			sigdelset(&current->pending.signal, SIGKILL);
 			trace_signal_deliver(SIGKILL, SEND_SIG_NOINFO,
-				&sighand->action[SIGKILL - 1]);
+					     &sighand->action[SIGKILL-1]);
 			recalc_sigpending();
+			/*
+			 * implies do_group_exit() or return to PF_USER_WORKER,
+			 * no need to initialize ksig->info/etc.
+			 */
 			goto fatal;
 		}
 
