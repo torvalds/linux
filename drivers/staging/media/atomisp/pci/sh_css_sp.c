@@ -187,7 +187,7 @@ sh_css_sp_get_debug_state(struct sh_css_sp_debug_state *state)
 
 	(void)HIVE_ADDR_sp_output; /* To get rid of warning in CRUN */
 	for (i = 0; i < sizeof(*state) / sizeof(int); i++)
-		((unsigned *)state)[i] = load_sp_array_uint(sp_output, i + offset);
+		((unsigned int *)state)[i] = load_sp_array_uint(sp_output, i + offset);
 }
 
 #endif
