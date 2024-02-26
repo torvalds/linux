@@ -244,11 +244,27 @@ static int acpi_scan_try_to_offline(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
+static int acpi_scan_check_and_detach(struct acpi_device *adev, void *check)
 {
 	struct acpi_scan_handler *handler = adev->handler;
 
-	acpi_dev_for_each_child_reverse(adev, acpi_bus_trim_one, NULL);
+	acpi_dev_for_each_child_reverse(adev, acpi_scan_check_and_detach, check);
+
+	if (check) {
+		acpi_bus_get_status(adev);
+		/*
+		 * Skip devices that are still there and take the enabled
+		 * flag into account.
+		 */
+		if (acpi_device_is_enabled(adev))
+			return 0;
+
+		/* Skip device that have not been enumerated. */
+		if (!acpi_device_enumerated(adev)) {
+			dev_dbg(&adev->dev, "Still not enumerated\n");
+			return 0;
+		}
+	}
 
 	adev->flags.match_driver = false;
 	if (handler) {
@@ -268,6 +284,11 @@ static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
 	acpi_device_clear_enumerated(adev);
 
 	return 0;
+}
+
+static void acpi_scan_check_subtree(struct acpi_device *adev)
+{
+	acpi_scan_check_and_detach(adev, (void *)true);
 }
 
 static int acpi_scan_hot_remove(struct acpi_device *device)
@@ -315,42 +336,30 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_scan_device_not_enumerated(struct acpi_device *adev)
-{
-	if (!acpi_device_enumerated(adev)) {
-		dev_warn(&adev->dev, "Still not enumerated\n");
-		return -EALREADY;
-	}
-	acpi_bus_trim(adev);
-	return 0;
-}
-
 static int acpi_scan_device_check(struct acpi_device *adev)
 {
 	int error;
 
-	acpi_bus_get_status(adev);
-	if (acpi_device_is_present(adev)) {
-		/*
-		 * This function is only called for device objects for which
-		 * matching scan handlers exist.  The only situation in which
-		 * the scan handler is not attached to this device object yet
-		 * is when the device has just appeared (either it wasn't
-		 * present at all before or it was removed and then added
-		 * again).
-		 */
-		if (adev->handler) {
-			dev_dbg(&adev->dev, "Already enumerated\n");
-			return 0;
-		}
-		error = acpi_bus_scan(adev->handle);
-		if (error) {
-			dev_warn(&adev->dev, "Namespace scan failure\n");
-			return error;
-		}
-	} else {
-		error = acpi_scan_device_not_enumerated(adev);
+	acpi_scan_check_subtree(adev);
+
+	if (!acpi_device_is_present(adev))
+		return 0;
+
+	/*
+	 * This function is only called for device objects for which matching
+	 * scan handlers exist.  The only situation in which the scan handler
+	 * is not attached to this device object yet is when the device has
+	 * just appeared (either it wasn't present at all before or it was
+	 * removed and then added again).
+	 */
+	if (adev->handler) {
+		dev_dbg(&adev->dev, "Already enumerated\n");
+		return 0;
 	}
+	error = acpi_bus_scan(adev->handle);
+	if (error)
+		dev_warn(&adev->dev, "Namespace scan failure\n");
+
 	return error;
 }
 
@@ -359,11 +368,8 @@ static int acpi_scan_bus_check(struct acpi_device *adev, void *not_used)
 	struct acpi_scan_handler *handler = adev->handler;
 	int error;
 
-	acpi_bus_get_status(adev);
-	if (!acpi_device_is_present(adev)) {
-		acpi_scan_device_not_enumerated(adev);
-		return 0;
-	}
+	acpi_scan_check_subtree(adev);
+
 	if (handler && handler->hotplug.scan_dependent)
 		return handler->hotplug.scan_dependent(adev);
 
@@ -2586,7 +2592,7 @@ EXPORT_SYMBOL(acpi_bus_scan);
  */
 void acpi_bus_trim(struct acpi_device *adev)
 {
-	acpi_bus_trim_one(adev, NULL);
+	acpi_scan_check_and_detach(adev, NULL);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 
