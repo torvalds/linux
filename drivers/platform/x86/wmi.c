@@ -57,6 +57,7 @@ static_assert(__alignof__(struct guid_block) == 1);
 
 enum {	/* wmi_block flags */
 	WMI_READ_TAKES_NO_ARGS,
+	WMI_GUID_DUPLICATED,
 	WMI_NO_EVENT_DATA,
 };
 
@@ -196,6 +197,12 @@ static int wmidev_match_guid(struct device *dev, const void *data)
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	const guid_t *guid = data;
 
+	/* Legacy GUID-based functions are restricted to only see
+	 * a single WMI device for each GUID.
+	 */
+	if (test_bit(WMI_GUID_DUPLICATED, &wblock->flags))
+		return 0;
+
 	if (guid_equal(guid, &wblock->gblock.guid))
 		return 1;
 
@@ -206,6 +213,12 @@ static int wmidev_match_notify_id(struct device *dev, const void *data)
 {
 	struct wmi_block *wblock = dev_to_wblock(dev);
 	const u32 *notify_id = data;
+
+	/* Legacy GUID-based functions are restricted to only see
+	 * a single WMI device for each GUID.
+	 */
+	if (test_bit(WMI_GUID_DUPLICATED, &wblock->flags))
+		return 0;
 
 	if (wblock->gblock.flags & ACPI_WMI_EVENT && wblock->gblock.notify_id == *notify_id)
 		return 1;
@@ -1036,10 +1049,12 @@ static int wmi_create_device(struct device *wmi_bus_dev,
 	wblock->dev.dev.parent = wmi_bus_dev;
 
 	count = guid_count(&wblock->gblock.guid);
-	if (count)
+	if (count) {
 		dev_set_name(&wblock->dev.dev, "%pUL-%d", &wblock->gblock.guid, count);
-	else
+		set_bit(WMI_GUID_DUPLICATED, &wblock->flags);
+	} else {
 		dev_set_name(&wblock->dev.dev, "%pUL", &wblock->gblock.guid);
+	}
 
 	device_initialize(&wblock->dev.dev);
 
