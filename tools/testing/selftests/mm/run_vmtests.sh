@@ -399,7 +399,27 @@ CATEGORY="thp" run_test ./khugepaged -s 2
 
 CATEGORY="thp" run_test ./transhuge-stress -d 20
 
-CATEGORY="thp" run_test ./split_huge_page_test
+# Try to create XFS if not provided
+if [ -z "${SPLIT_HUGE_PAGE_TEST_XFS_PATH}" ]; then
+    if test_selected "thp"; then
+        if grep xfs /proc/filesystems &>/dev/null; then
+            XFS_IMG=$(mktemp /tmp/xfs_img_XXXXXX)
+            SPLIT_HUGE_PAGE_TEST_XFS_PATH=$(mktemp -d /tmp/xfs_dir_XXXXXX)
+            truncate -s 314572800 ${XFS_IMG}
+            mkfs.xfs -q ${XFS_IMG}
+            mount -o loop ${XFS_IMG} ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+            MOUNTED_XFS=1
+        fi
+    fi
+fi
+
+CATEGORY="thp" run_test ./split_huge_page_test ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+
+if [ -n "${MOUNTED_XFS}" ]; then
+    umount ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+    rmdir ${SPLIT_HUGE_PAGE_TEST_XFS_PATH}
+    rm -f ${XFS_IMG}
+fi
 
 CATEGORY="migration" run_test ./migration
 
