@@ -20,6 +20,7 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
+#include "emac_mdio_fe.h"
 #include "dwxgmac2.h"
 #include "stmmac.h"
 
@@ -445,9 +446,12 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct fwnode_handle *fwnode = of_fwnode_handle(priv->plat->phylink_node);
 	struct stmmac_mdio_bus_data *mdio_bus_data = priv->plat->mdio_bus_data;
 	struct device_node *mdio_node = priv->plat->mdio_node;
+	struct device_node *np = priv->device->of_node;
 	struct device *dev = ndev->dev.parent;
+	struct phy_device *phydev;
 	struct fwnode_handle *fixed_node;
-	int addr, found, max_addr;
+	int addr, found, max_addr, skip_phy_detect = 0;
+	unsigned int phyaddr;
 
 	if (!mdio_bus_data)
 		return 0;
@@ -468,7 +472,12 @@ int stmmac_mdio_register(struct net_device *ndev)
 			new_bus->probe_capabilities = MDIOBUS_C22_C45;
 	}
 
-	if (priv->plat->has_xgmac) {
+	err = of_property_read_bool(np, "virtio-mdio");
+	if (err) {
+		new_bus->read = &virtio_mdio_read;
+		new_bus->write = &virtio_mdio_write;
+		max_addr = PHY_MAX_ADDR;
+	} else if (priv->plat->has_xgmac) {
 		new_bus->read = &stmmac_xgmac2_mdio_read;
 		new_bus->write = &stmmac_xgmac2_mdio_write;
 
@@ -491,7 +500,21 @@ int stmmac_mdio_register(struct net_device *ndev)
 	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s-%x",
 		 new_bus->name, priv->plat->bus_id);
 	new_bus->priv = ndev;
-	new_bus->phy_mask = mdio_bus_data->phy_mask;
+	err = of_property_read_u32(np, "emac-phy-addr", &phyaddr);
+	if (err) {
+		new_bus->phy_mask = mdio_bus_data->phy_mask;
+	} else {
+		err = new_bus->read(new_bus, phyaddr, MII_BMSR);
+		if (err == -EBUSY || !err || err == 0xffff) {
+			dev_warn(dev, "Invalid PHY address read from dtsi: %d\n",
+				 phyaddr);
+			new_bus->phy_mask = mdio_bus_data->phy_mask;
+		} else {
+			new_bus->phy_mask = ~(1 << phyaddr);
+			skip_phy_detect = 1;
+		}
+	}
+
 	new_bus->parent = priv->device;
 
 	err = of_mdiobus_register(new_bus, mdio_node);
@@ -515,13 +538,25 @@ int stmmac_mdio_register(struct net_device *ndev)
 			goto bus_register_done;
 		}
 	}
+	if (skip_phy_detect) {
+		phydev = mdiobus_get_phy(new_bus, phyaddr);
+		if (!phydev || phydev->phy_id == 0xffff) {
+			dev_err(dev, "Cannot attach phy addr %d from dtsi\n",
+				phyaddr);
+		} else {
+			priv->plat->phy_addr = phyaddr;
+			priv->phydev = phydev;
+			phy_attached_info(phydev);
+			goto bus_register_done;
+		}
+	}
 
 	if (priv->plat->phy_node || mdio_node)
 		goto bus_register_done;
 
 	found = 0;
 	for (addr = 0; addr < max_addr; addr++) {
-		struct phy_device *phydev = mdiobus_get_phy(new_bus, addr);
+		phydev = mdiobus_get_phy(new_bus, addr);
 
 		if (!phydev)
 			continue;
