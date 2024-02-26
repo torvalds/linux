@@ -1717,6 +1717,11 @@ static void add_files_to_device(struct hl_device *hdev, struct hl_dbg_device_ent
 				root,
 				&hdev->device_release_watchdog_timeout_sec);
 
+	debugfs_create_u16("server_type",
+				0444,
+				root,
+				&hdev->asic_prop.server_type);
+
 	for (i = 0, entry = dev_entry->entry_arr ; i < count ; i++, entry++) {
 		debugfs_create_file(hl_debugfs_list[i].name,
 					0644,

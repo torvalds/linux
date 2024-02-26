@@ -253,6 +253,12 @@ Description:    Triggers dump of monitor data. The value to trigger the operatio
                 When the write is finished, the user can read the "monitor_dump"
                 blob
 
+What:           /sys/kernel/debug/accel/<parent_device>/server_type
+Date:           Feb 2024
+KernelVersion:  6.11
+Contact:        trisin@habana.ai
+Description:    Exposes the device's server type, maps to enum hl_server_type.
+
 What:           /sys/kernel/debug/accel/<parent_device>/set_power_state
 Date:           Jan 2019
 KernelVersion:  5.1
