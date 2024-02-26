@@ -28,6 +28,14 @@
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
 
+const char *const xe_mem_type_to_name[TTM_NUM_MEM_TYPES]  = {
+	[XE_PL_SYSTEM] = "system",
+	[XE_PL_TT] = "gtt",
+	[XE_PL_VRAM0] = "vram0",
+	[XE_PL_VRAM1] = "vram1",
+	[XE_PL_STOLEN] = "stolen"
+};
+
 static const struct ttm_place sys_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -587,6 +595,8 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 {
 	struct ttm_buffer_object *ttm_bo = &bo->ttm;
 	struct xe_device *xe = ttm_to_xe_device(ttm_bo->bdev);
+	struct ttm_resource *old_mem = ttm_bo->resource;
+	u32 old_mem_type = old_mem ? old_mem->mem_type : XE_PL_SYSTEM;
 	int ret;
 
 	/*
@@ -605,6 +615,18 @@ static int xe_bo_move_notify(struct xe_bo *bo,
 	/* Don't call move_notify() for imported dma-bufs. */
 	if (ttm_bo->base.dma_buf && !ttm_bo->base.import_attach)
 		dma_buf_move_notify(ttm_bo->base.dma_buf);
+
+	/*
+	 * TTM has already nuked the mmap for us (see ttm_bo_unmap_virtual),
+	 * so if we moved from VRAM make sure to unlink this from the userfault
+	 * tracking.
+	 */
+	if (mem_type_is_vram(old_mem_type)) {
+		mutex_lock(&xe->mem_access.vram_userfault.lock);
+		if (!list_empty(&bo->vram_userfault_link))
+			list_del_init(&bo->vram_userfault_link);
+		mutex_unlock(&xe->mem_access.vram_userfault.lock);
+	}
 
 	return 0;
 }
@@ -714,8 +736,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		migrate = xe->tiles[0].migrate;
 
 	xe_assert(xe, migrate);
-
-	trace_xe_bo_move(bo);
+	trace_xe_bo_move(bo, new_mem->mem_type, old_mem_type);
 	xe_device_mem_access_get(xe);
 
 	if (xe_bo_is_pinned(bo) && !xe_bo_is_user(bo)) {
@@ -1028,7 +1049,7 @@ static void xe_ttm_bo_delete_mem_notify(struct ttm_buffer_object *ttm_bo)
 	}
 }
 
-struct ttm_device_funcs xe_ttm_funcs = {
+const struct ttm_device_funcs xe_ttm_funcs = {
 	.ttm_tt_create = xe_ttm_tt_create,
 	.ttm_tt_populate = xe_ttm_tt_populate,
 	.ttm_tt_unpopulate = xe_ttm_tt_unpopulate,
@@ -1063,6 +1084,11 @@ static void xe_ttm_bo_destroy(struct ttm_buffer_object *ttm_bo)
 
 	if (bo->vm && xe_bo_is_user(bo))
 		xe_vm_put(bo->vm);
+
+	mutex_lock(&xe->mem_access.vram_userfault.lock);
+	if (!list_empty(&bo->vram_userfault_link))
+		list_del(&bo->vram_userfault_link);
+	mutex_unlock(&xe->mem_access.vram_userfault.lock);
 
 	kfree(bo);
 }
@@ -1111,16 +1137,20 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 {
 	struct ttm_buffer_object *tbo = vmf->vma->vm_private_data;
 	struct drm_device *ddev = tbo->base.dev;
+	struct xe_device *xe = to_xe_device(ddev);
+	struct xe_bo *bo = ttm_to_xe_bo(tbo);
+	bool needs_rpm = bo->flags & XE_BO_CREATE_VRAM_MASK;
 	vm_fault_t ret;
 	int idx, r = 0;
 
+	if (needs_rpm)
+		xe_device_mem_access_get(xe);
+
 	ret = ttm_bo_vm_reserve(tbo, vmf);
 	if (ret)
-		return ret;
+		goto out;
 
 	if (drm_dev_enter(ddev, &idx)) {
-		struct xe_bo *bo = ttm_to_xe_bo(tbo);
-
 		trace_xe_bo_cpu_fault(bo);
 
 		if (should_migrate_to_system(bo)) {
@@ -1138,10 +1168,24 @@ static vm_fault_t xe_gem_fault(struct vm_fault *vmf)
 	} else {
 		ret = ttm_bo_vm_dummy_page(vmf, vmf->vma->vm_page_prot);
 	}
+
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
-		return ret;
+		goto out;
+	/*
+	 * ttm_bo_vm_reserve() already has dma_resv_lock.
+	 */
+	if (ret == VM_FAULT_NOPAGE && mem_type_is_vram(tbo->resource->mem_type)) {
+		mutex_lock(&xe->mem_access.vram_userfault.lock);
+		if (list_empty(&bo->vram_userfault_link))
+			list_add(&bo->vram_userfault_link, &xe->mem_access.vram_userfault.list);
+		mutex_unlock(&xe->mem_access.vram_userfault.lock);
+	}
 
 	dma_resv_unlock(tbo->base.resv);
+out:
+	if (needs_rpm)
+		xe_device_mem_access_put(xe);
+
 	return ret;
 }
 
@@ -1255,6 +1299,7 @@ struct xe_bo *___xe_bo_create_locked(struct xe_device *xe, struct xe_bo *bo,
 #ifdef CONFIG_PROC_FS
 	INIT_LIST_HEAD(&bo->client_link);
 #endif
+	INIT_LIST_HEAD(&bo->vram_userfault_link);
 
 	drm_gem_private_object_init(&xe->drm, &bo->ttm.base, size);
 
@@ -1565,6 +1610,38 @@ struct xe_bo *xe_managed_bo_create_from_data(struct xe_device *xe, struct xe_til
 	xe_map_memcpy_to(xe, &bo->vmap, 0, data, size);
 
 	return bo;
+}
+
+/**
+ * xe_managed_bo_reinit_in_vram
+ * @xe: xe device
+ * @tile: Tile where the new buffer will be created
+ * @src: Managed buffer object allocated in system memory
+ *
+ * Replace a managed src buffer object allocated in system memory with a new
+ * one allocated in vram, copying the data between them.
+ * Buffer object in VRAM is not going to have the same GGTT address, the caller
+ * is responsible for making sure that any old references to it are updated.
+ *
+ * Returns 0 for success, negative error code otherwise.
+ */
+int xe_managed_bo_reinit_in_vram(struct xe_device *xe, struct xe_tile *tile, struct xe_bo **src)
+{
+	struct xe_bo *bo;
+
+	xe_assert(xe, IS_DGFX(xe));
+	xe_assert(xe, !(*src)->vmap.is_iomem);
+
+	bo = xe_managed_bo_create_from_data(xe, tile, (*src)->vmap.vaddr, (*src)->size,
+					    XE_BO_CREATE_VRAM_IF_DGFX(tile) |
+					    XE_BO_CREATE_GGTT_BIT);
+	if (IS_ERR(bo))
+		return PTR_ERR(bo);
+
+	drmm_release_action(&xe->drm, __xe_bo_unpin_map_no_vm, *src);
+	*src = bo;
+
+	return 0;
 }
 
 /*
@@ -2259,6 +2336,16 @@ int xe_bo_dumb_create(struct drm_file *file_priv,
 	if (!err)
 		args->handle = handle;
 	return err;
+}
+
+void xe_bo_runtime_pm_release_mmap_offset(struct xe_bo *bo)
+{
+	struct ttm_buffer_object *tbo = &bo->ttm;
+	struct ttm_device *bdev = tbo->bdev;
+
+	drm_vma_node_unmap(&tbo->base.vma_node, bdev->dev_mapping);
+
+	list_del_init(&bo->vram_userfault_link);
 }
 
 #if IS_ENABLED(CONFIG_DRM_XE_KUNIT_TEST)
