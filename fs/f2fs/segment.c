@@ -2722,12 +2722,19 @@ find_other_zone:
 got_it:
 	/* set it as dirty segment in free segmap */
 	f2fs_bug_on(sbi, test_bit(segno, free_i->free_segmap));
+
+	/* no free section in conventional zone */
+	if (new_sec && pinning &&
+		!f2fs_valid_pinned_area(sbi, START_BLOCK(sbi, segno))) {
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
 	__set_inuse(sbi, segno);
 	*newseg = segno;
 out_unlock:
 	spin_unlock(&free_i->segmap_lock);
 
-	if (ret) {
+	if (ret == -ENOSPC) {
 		f2fs_stop_checkpoint(sbi, false, STOP_CP_REASON_NO_SEGMENT);
 		f2fs_bug_on(sbi, 1);
 	}
@@ -2803,19 +2810,17 @@ static int new_curseg(struct f2fs_sb_info *sbi, int type, bool new_sec)
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int segno = curseg->segno;
 	bool pinning = type == CURSEG_COLD_DATA_PINNED;
+	int ret;
 
 	if (curseg->inited)
 		write_sum_page(sbi, curseg->sum_blk, GET_SUM_BLOCK(sbi, segno));
 
 	segno = __get_next_segno(sbi, type);
-	if (get_new_segment(sbi, &segno, new_sec, pinning)) {
-		curseg->segno = NULL_SEGNO;
-		return -ENOSPC;
-	}
-	if (new_sec && pinning &&
-	    !f2fs_valid_pinned_area(sbi, START_BLOCK(sbi, segno))) {
-		__set_free(sbi, segno);
-		return -EAGAIN;
+	ret = get_new_segment(sbi, &segno, new_sec, pinning);
+	if (ret) {
+		if (ret == -ENOSPC)
+			curseg->segno = NULL_SEGNO;
+		return ret;
 	}
 
 	curseg->next_segno = segno;
