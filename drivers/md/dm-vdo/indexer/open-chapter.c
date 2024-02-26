@@ -46,11 +46,9 @@
 static const u8 OPEN_CHAPTER_MAGIC[] = "ALBOC";
 static const u8 OPEN_CHAPTER_VERSION[] = "02.00";
 
-enum {
-	OPEN_CHAPTER_MAGIC_LENGTH = sizeof(OPEN_CHAPTER_MAGIC) - 1,
-	OPEN_CHAPTER_VERSION_LENGTH = sizeof(OPEN_CHAPTER_VERSION) - 1,
-	LOAD_RATIO = 2,
-};
+#define OPEN_CHAPTER_MAGIC_LENGTH (sizeof(OPEN_CHAPTER_MAGIC) - 1)
+#define OPEN_CHAPTER_VERSION_LENGTH (sizeof(OPEN_CHAPTER_VERSION) - 1)
+#define LOAD_RATIO 2
 
 static inline size_t records_size(const struct open_chapter_zone *open_chapter)
 {

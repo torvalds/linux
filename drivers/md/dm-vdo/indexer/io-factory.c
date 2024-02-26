@@ -37,7 +37,7 @@ struct buffered_reader {
 	u8 *end;
 };
 
-enum { MAX_READ_AHEAD_BLOCKS = 4 };
+#define MAX_READ_AHEAD_BLOCKS 4
 
 /*
  * The buffered writer allows efficient I/O by buffering writes and committing page-sized segments

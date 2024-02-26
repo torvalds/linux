@@ -94,7 +94,8 @@ struct chapter_range {
 	u32 chapter_count;
 };
 
-enum { MAGIC_SIZE = 8 };
+#define MAGIC_SIZE 8
+
 static const char MAGIC_START_5[] = "MI5-0005";
 
 struct sub_index_data {
@@ -193,10 +194,11 @@ unsigned int uds_get_volume_index_zone(const struct volume_index *volume_index,
 	return get_volume_sub_index_zone(get_volume_sub_index(volume_index, name), name);
 }
 
+#define DELTA_LIST_SIZE 256
+
 static int compute_volume_sub_index_parameters(const struct uds_configuration *config,
 					       struct sub_index_parameters *params)
 {
-	enum { DELTA_LIST_SIZE = 256 };
 	u64 entries_in_volume_index, address_span;
 	u32 chapters_in_volume_index, invalid_chapters;
 	u32 rounded_chapters;

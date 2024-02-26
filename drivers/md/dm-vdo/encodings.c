@@ -55,9 +55,7 @@ static const struct header GEOMETRY_BLOCK_HEADER_4_0 = {
 
 const u8 VDO_GEOMETRY_MAGIC_NUMBER[VDO_GEOMETRY_MAGIC_NUMBER_SIZE + 1] = "dmvdo001";
 
-enum {
-	PAGE_HEADER_4_1_SIZE = 8 + 8 + 8 + 1 + 1 + 1 + 1,
-};
+#define PAGE_HEADER_4_1_SIZE (8 + 8 + 8 + 1 + 1 + 1 + 1)
 
 static const struct version_number BLOCK_MAP_4_1 = {
 	.major_version = 4,

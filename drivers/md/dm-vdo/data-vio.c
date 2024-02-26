@@ -114,9 +114,7 @@ static blk_opf_t PASSTHROUGH_FLAGS = (REQ_PRIO | REQ_META | REQ_SYNC | REQ_RAHEA
  * them are awakened.
  */
 
-enum {
-	DATA_VIO_RELEASE_BATCH_SIZE = 128,
-};
+#define DATA_VIO_RELEASE_BATCH_SIZE 128
 
 static const unsigned int VDO_SECTORS_PER_BLOCK_MASK = VDO_SECTORS_PER_BLOCK - 1;
 static const u32 COMPRESSION_STATUS_MASK = 0xff;
@@ -1044,8 +1042,8 @@ void dump_data_vio_pool(struct data_vio_pool *pool, bool dump_vios)
 	 * In order that syslog can empty its buffer, sleep after 35 elements for 4ms (till the
 	 * second clock tick).  These numbers were picked based on experiments with lab machines.
 	 */
-	enum { ELEMENTS_PER_BATCH = 35 };
-	enum { SLEEP_FOR_SYSLOG = 4000 };
+	static const int ELEMENTS_PER_BATCH = 35;
+	static const int SLEEP_FOR_SYSLOG = 4000;
 
 	if (pool == NULL)
 		return;

@@ -54,11 +54,9 @@
  * Each save also has a unique nonce.
  */
 
-enum {
-	MAGIC_SIZE = 32,
-	NONCE_INFO_SIZE = 32,
-	MAX_SAVES = 2,
-};
+#define MAGIC_SIZE 32
+#define NONCE_INFO_SIZE 32
+#define MAX_SAVES 2
 
 enum region_kind {
 	RL_KIND_EMPTY = 0,
@@ -82,9 +80,7 @@ enum region_type {
 	RH_TYPE_UNSAVED = 4,
 };
 
-enum {
-	RL_SOLE_INSTANCE = 65535,
-};
+#define RL_SOLE_INSTANCE 65535
 
 /*
  * Super block version 2 is the first released version.
@@ -98,11 +94,9 @@ enum {
  * order to make room to prepend LVM metadata to a volume originally created without lvm. This
  * allows the index to retain most its deduplication records.
  */
-enum {
-	SUPER_VERSION_MINIMUM = 3,
-	SUPER_VERSION_CURRENT = 3,
-	SUPER_VERSION_MAXIMUM = 7,
-};
+#define SUPER_VERSION_MINIMUM 3
+#define SUPER_VERSION_CURRENT 3
+#define SUPER_VERSION_MAXIMUM 7
 
 static const u8 LAYOUT_MAGIC[MAGIC_SIZE] = "*ALBIREO*SINGLE*FILE*LAYOUT*001*";
 static const u64 REGION_MAGIC = 0x416c6252676e3031; /* 'AlbRgn01' */

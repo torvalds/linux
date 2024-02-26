@@ -26,15 +26,13 @@
 
 static const u64 RECOVERY_COUNT_MASK = 0xff;
 
-enum {
-	/*
-	 * The number of reserved blocks must be large enough to prevent a new recovery journal
-	 * block write from overwriting a block which appears to still be a valid head block of the
-	 * journal. Currently, that means reserving enough space for all 2048 data_vios.
-	 */
-	RECOVERY_JOURNAL_RESERVED_BLOCKS =
-		(MAXIMUM_VDO_USER_VIOS / RECOVERY_JOURNAL_ENTRIES_PER_BLOCK) + 2,
-};
+/*
+ * The number of reserved blocks must be large enough to prevent a new recovery journal
+ * block write from overwriting a block which appears to still be a valid head block of the
+ * journal. Currently, that means reserving enough space for all 2048 data_vios.
+ */
+#define RECOVERY_JOURNAL_RESERVED_BLOCKS				\
+	((MAXIMUM_VDO_USER_VIOS / RECOVERY_JOURNAL_ENTRIES_PER_BLOCK) + 2)
 
 /**
  * DOC: Lock Counters.

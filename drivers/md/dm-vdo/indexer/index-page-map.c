@@ -25,9 +25,7 @@
 
 static const u8 PAGE_MAP_MAGIC[] = "ALBIPM02";
 
-enum {
-	PAGE_MAP_MAGIC_LENGTH = sizeof(PAGE_MAP_MAGIC) - 1,
-};
+#define PAGE_MAP_MAGIC_LENGTH (sizeof(PAGE_MAP_MAGIC) - 1)
 
 static inline u32 get_entry_count(const struct index_geometry *geometry)
 {

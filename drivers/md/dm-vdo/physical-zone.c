@@ -23,10 +23,8 @@
 #include "status-codes.h"
 #include "vdo.h"
 
-enum {
-	/* Each user data_vio needs a PBN read lock and write lock. */
-	LOCK_POOL_CAPACITY = 2 * MAXIMUM_VDO_USER_VIOS,
-};
+/* Each user data_vio needs a PBN read lock and write lock. */
+#define LOCK_POOL_CAPACITY (2 * MAXIMUM_VDO_USER_VIOS)
 
 struct pbn_lock_implementation {
 	enum pbn_lock_type type;

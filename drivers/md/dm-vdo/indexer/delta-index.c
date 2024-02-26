@@ -70,17 +70,13 @@
  * This is the largest field size supported by get_field() and set_field(). Any field that is
  * larger is not guaranteed to fit in a single byte-aligned u32.
  */
-enum {
-	MAX_FIELD_BITS = (sizeof(u32) - 1) * BITS_PER_BYTE + 1,
-};
+#define MAX_FIELD_BITS ((sizeof(u32) - 1) * BITS_PER_BYTE + 1)
 
 /*
  * This is the largest field size supported by get_big_field() and set_big_field(). Any field that
  * is larger is not guaranteed to fit in a single byte-aligned u64.
  */
-enum {
-	MAX_BIG_FIELD_BITS = (sizeof(u64) - 1) * BITS_PER_BYTE + 1,
-};
+#define MAX_BIG_FIELD_BITS ((sizeof(u64) - 1) * BITS_PER_BYTE + 1)
 
 /*
  * This is the number of guard bytes needed at the end of the memory byte array when using the bit
@@ -88,45 +84,33 @@ enum {
  * bytes beyond the end of the desired field. The definition is written to make it clear how this
  * value is derived.
  */
-enum {
-	POST_FIELD_GUARD_BYTES = sizeof(u64) - 1,
-};
+#define POST_FIELD_GUARD_BYTES (sizeof(u64) - 1)
 
 /* The number of guard bits that are needed in the tail guard list */
-enum {
-	GUARD_BITS = POST_FIELD_GUARD_BYTES * BITS_PER_BYTE
-};
+#define GUARD_BITS (POST_FIELD_GUARD_BYTES * BITS_PER_BYTE)
 
 /*
  * The maximum size of a single delta list in bytes. We count guard bytes in this value because a
  * buffer of this size can be used with move_bits().
  */
-enum {
-	DELTA_LIST_MAX_BYTE_COUNT =
-		((U16_MAX + BITS_PER_BYTE) / BITS_PER_BYTE + POST_FIELD_GUARD_BYTES)
-};
+#define DELTA_LIST_MAX_BYTE_COUNT					\
+	((U16_MAX + BITS_PER_BYTE) / BITS_PER_BYTE + POST_FIELD_GUARD_BYTES)
 
 /* The number of extra bytes and bits needed to store a collision entry */
-enum {
-	COLLISION_BYTES = UDS_RECORD_NAME_SIZE,
-	COLLISION_BITS = COLLISION_BYTES * BITS_PER_BYTE
-};
+#define COLLISION_BYTES UDS_RECORD_NAME_SIZE
+#define COLLISION_BITS (COLLISION_BYTES * BITS_PER_BYTE)
 
 /*
  * Immutable delta lists are packed into pages containing a header that encodes the delta list
  * information into 19 bits per list (64KB bit offset).
  */
-
-enum { IMMUTABLE_HEADER_SIZE = 19 };
+#define IMMUTABLE_HEADER_SIZE 19
 
 /*
  * Constants and structures for the saved delta index. "DI" is for delta_index, and -##### is a
  * number to increment when the format of the data changes.
  */
-
-enum {
-	MAGIC_SIZE = 8,
-};
+#define MAGIC_SIZE 8
 
 static const char DELTA_INDEX_MAGIC[] = "DI-00002";
 
@@ -216,9 +200,7 @@ static void rebalance_delta_zone(const struct delta_zone *delta_zone, u32 first,
 static inline size_t get_zone_memory_size(unsigned int zone_count, size_t memory_size)
 {
 	/* Round up so that each zone is a multiple of 64K in size. */
-	enum {
-		ALLOC_BOUNDARY = 64 * 1024,
-	};
+	size_t ALLOC_BOUNDARY = 64 * 1024;
 
 	return (memory_size / zone_count + ALLOC_BOUNDARY - 1) & -ALLOC_BOUNDARY;
 }

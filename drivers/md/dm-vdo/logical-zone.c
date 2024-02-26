@@ -21,9 +21,7 @@
 #include "physical-zone.h"
 #include "vdo.h"
 
-enum {
-	ALLOCATIONS_PER_ZONE = 128,
-};
+#define ALLOCATIONS_PER_ZONE 128
 
 /**
  * as_logical_zone() - Convert a generic vdo_completion to a logical_zone.

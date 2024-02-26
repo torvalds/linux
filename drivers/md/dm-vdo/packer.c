@@ -30,9 +30,7 @@ static const struct version_number COMPRESSED_BLOCK_1_0 = {
 	.minor_version = 0,
 };
 
-enum {
-	COMPRESSED_BLOCK_1_0_SIZE = 4 + 4 + (2 * VDO_MAX_COMPRESSION_SLOTS),
-};
+#define COMPRESSED_BLOCK_1_0_SIZE (4 + 4 + (2 * VDO_MAX_COMPRESSION_SLOTS))
 
 /**
  * vdo_get_compressed_block_fragment() - Get a reference to a compressed fragment from a compressed

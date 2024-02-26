@@ -14,9 +14,7 @@
 #include "status-codes.h"
 
 /* We use a single 64-bit search vector, so the maximum priority is 63 */
-enum {
-	MAX_PRIORITY = 63
-};
+#define MAX_PRIORITY 63
 
 /*
  * All the entries with the same priority are queued in a circular list in a bucket for that

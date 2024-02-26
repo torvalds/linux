@@ -56,13 +56,11 @@
 #include "numeric.h"
 #include "permassert.h"
 
-enum {
-	DEFAULT_CAPACITY = 16, /* the number of neighborhoods in a new table */
-	NEIGHBORHOOD = 255,    /* the number of buckets in each neighborhood */
-	MAX_PROBES = 1024,     /* limit on the number of probes for a free bucket */
-	NULL_HOP_OFFSET = 0,   /* the hop offset value terminating the hop list */
-	DEFAULT_LOAD = 75      /* a compromise between memory use and performance */
-};
+#define DEFAULT_CAPACITY 16 /* the number of neighborhoods in a new table */
+#define NEIGHBORHOOD 255    /* the number of buckets in each neighborhood */
+#define MAX_PROBES 1024     /* limit on the number of probes for a free bucket */
+#define NULL_HOP_OFFSET 0   /* the hop offset value terminating the hop list */
+#define DEFAULT_LOAD 75     /* a compromise between memory use and performance */
 
 /**
  * struct bucket - hash bucket

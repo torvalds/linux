@@ -154,11 +154,9 @@ struct uds_attribute {
 	const char *(*show_string)(struct hash_zones *hash_zones);
 };
 
-enum timer_state {
-	DEDUPE_QUERY_TIMER_IDLE,
-	DEDUPE_QUERY_TIMER_RUNNING,
-	DEDUPE_QUERY_TIMER_FIRED,
-};
+#define DEDUPE_QUERY_TIMER_IDLE 0
+#define DEDUPE_QUERY_TIMER_RUNNING 1
+#define DEDUPE_QUERY_TIMER_FIRED 2
 
 enum dedupe_context_state {
 	DEDUPE_CONTEXT_IDLE,
@@ -185,11 +183,9 @@ static const char *SUSPENDED = "suspended";
 static const char *UNKNOWN = "unknown";
 
 /* Version 2 uses the kernel space UDS index and is limited to 16 bytes */
-enum {
-	UDS_ADVICE_VERSION = 2,
-	/* version byte + state byte + 64-bit little-endian PBN */
-	UDS_ADVICE_SIZE = 1 + 1 + sizeof(u64),
-};
+#define UDS_ADVICE_VERSION 2
+/* version byte + state byte + 64-bit little-endian PBN */
+#define UDS_ADVICE_SIZE (1 + 1 + sizeof(u64))
 
 enum hash_lock_state {
 	/* State for locks that are not in use or are being initialized. */
@@ -279,9 +275,7 @@ struct hash_lock {
 	struct vdo_wait_queue waiters;
 };
 
-enum {
-	LOCK_POOL_CAPACITY = MAXIMUM_VDO_USER_VIOS,
-};
+#define LOCK_POOL_CAPACITY MAXIMUM_VDO_USER_VIOS
 
 struct hash_zones {
 	struct action_manager *manager;

@@ -60,7 +60,7 @@
 #include "status-codes.h"
 #include "vio.h"
 
-enum { PARANOID_THREAD_CONSISTENCY_CHECKS = 0 };
+#define PARANOID_THREAD_CONSISTENCY_CHECKS 0
 
 struct sync_completion {
 	struct vdo_completion vdo_completion;

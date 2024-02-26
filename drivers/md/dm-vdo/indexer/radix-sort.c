@@ -17,10 +17,8 @@
  * keys to be sorted.
  */
 
-enum {
-	/* Piles smaller than this are handled with a simple insertion sort. */
-	INSERTION_SORT_THRESHOLD = 12,
-};
+/* Piles smaller than this are handled with a simple insertion sort. */
+#define INSERTION_SORT_THRESHOLD 12
 
 /* Sort keys are pointers to immutable fixed-length arrays of bytes. */
 typedef const u8 *sort_key_t;

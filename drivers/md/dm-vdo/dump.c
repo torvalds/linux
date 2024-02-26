@@ -41,10 +41,10 @@ enum dump_option_flags {
 	FLAG_SKIP_DEFAULT = (1 << SKIP_DEFAULT)
 };
 
-enum {
-	FLAGS_ALL_POOLS = (FLAG_SHOW_VIO_POOL),
-	DEFAULT_DUMP_FLAGS = (FLAG_SHOW_QUEUES | FLAG_SHOW_VDO_STATUS)
-};
+#define FLAGS_ALL_POOLS (FLAG_SHOW_VIO_POOL)
+#define DEFAULT_DUMP_FLAGS (FLAG_SHOW_QUEUES | FLAG_SHOW_VDO_STATUS)
+/* Another static buffer... log10(256) = 2.408+, round up: */
+#define DIGITS_PER_U64 (1 + sizeof(u64) * 2409 / 1000)
 
 static inline bool is_arg_string(const char *arg, const char *this_option)
 {
@@ -222,9 +222,6 @@ void dump_data_vio(void *data)
 	 * one does run, the log output will be garbled anyway.
 	 */
 	static char vio_completion_dump_buffer[100 + MAX_VDO_WORK_QUEUE_NAME_LEN];
-	/* Another static buffer... log10(256) = 2.408+, round up: */
-	enum { DIGITS_PER_U64 = 1 + sizeof(u64) * 2409 / 1000 };
-
 	static char vio_block_number_dump_buffer[sizeof("P L D") + 3 * DIGITS_PER_U64];
 	static char vio_flush_generation_buffer[sizeof(" FG") + DIGITS_PER_U64];
 	static char flags_dump_buffer[8];

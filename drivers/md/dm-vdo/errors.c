@@ -79,9 +79,7 @@ struct error_block {
 	const struct error_info *infos;
 };
 
-enum {
-	MAX_ERROR_BLOCKS = 6,
-};
+#define MAX_ERROR_BLOCKS 6
 
 static struct {
 	int allocated;

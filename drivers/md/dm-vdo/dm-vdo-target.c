@@ -42,7 +42,7 @@
 
 #define	CURRENT_VERSION "8.3.0.65"
 
-enum {
+enum admin_phases {
 	GROW_LOGICAL_PHASE_START,
 	GROW_LOGICAL_PHASE_GROW_BLOCK_MAP,
 	GROW_LOGICAL_PHASE_END,
@@ -142,10 +142,8 @@ static const char * const ADMIN_PHASE_NAMES[] = {
 	"SUSPEND_PHASE_END",
 };
 
-enum {
-	/* If we bump this, update the arrays below */
-	TABLE_VERSION = 4,
-};
+/* If we bump this, update the arrays below */
+#define TABLE_VERSION 4
 
 /* arrays for handling different table versions */
 static const u8 REQUIRED_ARGC[] = { 10, 12, 9, 7, 6 };
@@ -159,17 +157,15 @@ static const u8 POOL_NAME_ARG_INDEX[] = { 8, 10, 8 };
  * need to scan 16 words, so it's not likely to be a big deal compared to other resource usage.
  */
 
-enum {
-	/*
-	 * This minimum size for the bit array creates a numbering space of 0-999, which allows
-	 * successive starts of the same volume to have different instance numbers in any
-	 * reasonably-sized test. Changing instances on restart allows vdoMonReport to detect that
-	 * the ephemeral stats have reset to zero.
-	 */
-	BIT_COUNT_MINIMUM = 1000,
-	/** Grow the bit array by this many bits when needed */
-	BIT_COUNT_INCREMENT = 100,
-};
+/*
+ * This minimum size for the bit array creates a numbering space of 0-999, which allows
+ * successive starts of the same volume to have different instance numbers in any
+ * reasonably-sized test. Changing instances on restart allows vdoMonReport to detect that
+ * the ephemeral stats have reset to zero.
+ */
+#define BIT_COUNT_MINIMUM 1000
+/* Grow the bit array by this many bits when needed */
+#define BIT_COUNT_INCREMENT 100
 
 struct instance_tracker {
 	unsigned int bit_count;

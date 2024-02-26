@@ -114,10 +114,8 @@ const struct block_map_entry UNMAPPED_BLOCK_MAP_ENTRY = {
 	.pbn_low_word = __cpu_to_le32(VDO_ZERO_BLOCK & UINT_MAX),
 };
 
-enum {
-	LOG_INTERVAL = 4000,
-	DISPLAY_INTERVAL = 100000,
-};
+#define LOG_INTERVAL 4000
+#define DISPLAY_INTERVAL 100000
 
 /*
  * For adjusting VDO page cache statistic fields which are only mutated on the logical zone thread.
