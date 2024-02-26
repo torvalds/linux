@@ -481,10 +481,10 @@ static const struct joycon_ctlr_button_mapping n64con_button_mappings[] = {
 	{ BTN_TR,		JC_BTN_R,	},
 	{ BTN_TR2,		JC_BTN_LSTICK,	}, /* ZR */
 	{ BTN_START,		JC_BTN_PLUS,	},
-	{ BTN_FORWARD,		JC_BTN_Y,	}, /* C UP */
-	{ BTN_BACK,		JC_BTN_ZR,	}, /* C DOWN */
-	{ BTN_LEFT,		JC_BTN_X,	}, /* C LEFT */
-	{ BTN_RIGHT,		JC_BTN_MINUS,	}, /* C RIGHT */
+	{ BTN_SELECT,		JC_BTN_Y,	}, /* C UP */
+	{ BTN_X,		JC_BTN_ZR,	}, /* C DOWN */
+	{ BTN_Y,		JC_BTN_X,	}, /* C LEFT */
+	{ BTN_C,		JC_BTN_MINUS,	}, /* C RIGHT */
 	{ BTN_MODE,		JC_BTN_HOME,	},
 	{ BTN_Z,		JC_BTN_CAP,	},
 	{ /* sentinel */ },
