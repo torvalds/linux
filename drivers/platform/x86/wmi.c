@@ -883,6 +883,18 @@ static int wmi_dev_probe(struct device *dev)
 	struct wmi_driver *wdriver = drv_to_wdrv(dev->driver);
 	int ret = 0;
 
+	/* Some older WMI drivers will break if instantiated multiple times,
+	 * so they are blocked from probing WMI devices with a duplicated GUID.
+	 *
+	 * New WMI drivers should support being instantiated multiple times.
+	 */
+	if (test_bit(WMI_GUID_DUPLICATED, &wblock->flags) && !wdriver->no_singleton) {
+		dev_warn(dev, "Legacy driver %s cannot be instantiated multiple times\n",
+			 dev->driver->name);
+
+		return -ENODEV;
+	}
+
 	if (wdriver->notify) {
 		if (test_bit(WMI_NO_EVENT_DATA, &wblock->flags) && !wdriver->no_notify_data)
 			return -ENODEV;
