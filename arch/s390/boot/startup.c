@@ -185,26 +185,7 @@ static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
 }
 
 static void kaslr_adjust_got(unsigned long offset) {}
-static void rescue_relocs(void) {}
-static void free_relocs(void) {}
 #else
-static int *vmlinux_relocs_64_start;
-static int *vmlinux_relocs_64_end;
-
-static void rescue_relocs(void)
-{
-	unsigned long size = __vmlinux_relocs_64_end - __vmlinux_relocs_64_start;
-
-	vmlinux_relocs_64_start = (void *)physmem_alloc_top_down(RR_RELOC, size, 0);
-	vmlinux_relocs_64_end = (void *)vmlinux_relocs_64_start + size;
-	memmove(vmlinux_relocs_64_start, __vmlinux_relocs_64_start, size);
-}
-
-static void free_relocs(void)
-{
-	physmem_free(RR_RELOC);
-}
-
 static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
 				unsigned long offset, unsigned long phys_offset)
 {
@@ -212,7 +193,7 @@ static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
 	long loc;
 
 	/* Adjust R_390_64 relocations */
-	for (reloc = vmlinux_relocs_64_start; reloc < vmlinux_relocs_64_end; reloc++) {
+	for (reloc = (int *)__vmlinux_relocs_64_start; reloc < (int *)__vmlinux_relocs_64_end; reloc++) {
 		loc = (long)*reloc + phys_offset;
 		if (loc < min_addr || loc > max_addr)
 			error("64-bit relocation outside of kernel!\n");
@@ -486,7 +467,6 @@ void startup_kernel(void)
 	detect_physmem_online_ranges(max_physmem_end);
 	save_ipl_cert_comp_list();
 	rescue_initrd(safe_addr, ident_map_size);
-	rescue_relocs();
 
 	if (kaslr_enabled())
 		__kaslr_offset_phys = randomize_within_range(kernel_size, THREAD_SIZE, 0, ident_map_size);
@@ -498,6 +478,18 @@ void startup_kernel(void)
 
 	/* vmlinux decompression is done, shrink reserved low memory */
 	physmem_reserve(RR_DECOMPRESSOR, 0, (unsigned long)_decompressor_end);
+
+	/*
+	 * In case KASLR is enabled the randomized location of .amode31
+	 * section might overlap with .vmlinux.relocs section. To avoid that
+	 * the below randomize_within_range() could have been called with
+	 * __vmlinux_relocs_64_end as the lower range address. However,
+	 * .amode31 section is written to by the decompressed kernel - at
+	 * that time the contents of .vmlinux.relocs is not needed anymore.
+	 * Conversly, .vmlinux.relocs is read only by the decompressor, even
+	 * before the kernel started. Therefore, in case the two sections
+	 * overlap there is no risk of corrupting any data.
+	 */
 	if (kaslr_enabled())
 		amode31_lma = randomize_within_range(vmlinux.amode31_size, PAGE_SIZE, 0, SZ_2G);
 	if (!amode31_lma)
@@ -521,7 +513,6 @@ void startup_kernel(void)
 	kaslr_adjust_relocs(__kaslr_offset_phys, __kaslr_offset_phys + vmlinux.image_size,
 			    __kaslr_offset, __kaslr_offset_phys);
 	kaslr_adjust_got(__kaslr_offset);
-	free_relocs();
 	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
 	copy_bootdata();
 
