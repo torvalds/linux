@@ -538,12 +538,12 @@ static int __alloc_range(struct drm_buddy *mm,
 		list_add(&block->left->tmp_link, dfs);
 	} while (1);
 
-	list_splice_tail(&allocated, blocks);
-
 	if (total_allocated < size) {
 		err = -ENOSPC;
 		goto err_free;
 	}
+
+	list_splice_tail(&allocated, blocks);
 
 	return 0;
 
