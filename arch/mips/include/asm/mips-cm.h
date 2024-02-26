@@ -33,6 +33,19 @@ extern void __iomem *mips_cm_l2sync_base;
  */
 extern phys_addr_t __mips_cm_phys_base(void);
 
+/**
+ * mips_cm_l2sync_phys_base - retrieve the physical base address of the CM
+ *                            L2-sync region
+ *
+ * This function returns the physical base address of the Coherence Manager
+ * L2-cache only region. It provides a default implementation which reads the
+ * CMGCRL2OnlySyncBase register where available or returns a 4K region just
+ * behind the CM GCR base address. It may be overridden by platforms which
+ * determine this address in a different way by defining a function with the
+ * same prototype.
+ */
+extern phys_addr_t mips_cm_l2sync_phys_base(void);
+
 /*
  * mips_cm_is64 - determine CM register width
  *

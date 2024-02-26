@@ -201,7 +201,7 @@ phys_addr_t __mips_cm_phys_base(void)
 phys_addr_t mips_cm_phys_base(void)
 	__attribute__((weak, alias("__mips_cm_phys_base")));
 
-static phys_addr_t __mips_cm_l2sync_phys_base(void)
+phys_addr_t __weak mips_cm_l2sync_phys_base(void)
 {
 	u32 base_reg;
 
@@ -216,9 +216,6 @@ static phys_addr_t __mips_cm_l2sync_phys_base(void)
 	/* Default to following the CM */
 	return mips_cm_phys_base() + MIPS_CM_GCR_SIZE;
 }
-
-phys_addr_t mips_cm_l2sync_phys_base(void)
-	__attribute__((weak, alias("__mips_cm_l2sync_phys_base")));
 
 static void mips_cm_probe_l2sync(void)
 {
