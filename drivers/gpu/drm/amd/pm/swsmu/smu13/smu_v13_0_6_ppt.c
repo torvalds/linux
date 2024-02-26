@@ -2307,8 +2307,8 @@ static int smu_v13_0_6_mode2_reset(struct smu_context *smu)
 	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index,
 					       SMU_RESET_MODE_2);
 
-	/* This is similar to FLR, wait till max FLR timeout */
-	msleep(100);
+	/* Reset takes a bit longer, wait for 200ms. */
+	msleep(200);
 
 	dev_dbg(smu->adev->dev, "restore config space...\n");
 	/* Restore the config space saved during init */
