@@ -572,7 +572,7 @@ static int dp83826_config_init(struct phy_device *phydev)
 			return ret;
 	}
 
-	return 0;
+	return dp8382x_disable_wol(phydev);
 }
 
 static int dp8382x_config_init(struct phy_device *phydev)
