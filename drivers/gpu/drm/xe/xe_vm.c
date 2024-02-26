@@ -2740,8 +2740,9 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 		u64 __user *bind_user =
 			u64_to_user_ptr(args->vector_of_binds);
 
-		*bind_ops = kmalloc(sizeof(struct drm_xe_vm_bind_op) *
-				    args->num_binds, GFP_KERNEL);
+		*bind_ops = kvmalloc_array(args->num_binds,
+					   sizeof(struct drm_xe_vm_bind_op),
+					   GFP_KERNEL | __GFP_ACCOUNT);
 		if (!*bind_ops)
 			return -ENOMEM;
 
@@ -2831,7 +2832,7 @@ static int vm_bind_ioctl_check_args(struct xe_device *xe,
 
 free_bind_ops:
 	if (args->num_binds > 1)
-		kfree(*bind_ops);
+		kvfree(*bind_ops);
 	return err;
 }
 
@@ -2919,13 +2920,15 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	}
 
 	if (args->num_binds) {
-		bos = kcalloc(args->num_binds, sizeof(*bos), GFP_KERNEL);
+		bos = kvcalloc(args->num_binds, sizeof(*bos),
+			       GFP_KERNEL | __GFP_ACCOUNT);
 		if (!bos) {
 			err = -ENOMEM;
 			goto release_vm_lock;
 		}
 
-		ops = kcalloc(args->num_binds, sizeof(*ops), GFP_KERNEL);
+		ops = kvcalloc(args->num_binds, sizeof(*ops),
+			       GFP_KERNEL | __GFP_ACCOUNT);
 		if (!ops) {
 			err = -ENOMEM;
 			goto release_vm_lock;
@@ -3066,10 +3069,10 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 	for (i = 0; bos && i < args->num_binds; ++i)
 		xe_bo_put(bos[i]);
 
-	kfree(bos);
-	kfree(ops);
+	kvfree(bos);
+	kvfree(ops);
 	if (args->num_binds > 1)
-		kfree(bind_ops);
+		kvfree(bind_ops);
 
 	return err;
 
@@ -3093,10 +3096,10 @@ put_exec_queue:
 	if (q)
 		xe_exec_queue_put(q);
 free_objs:
-	kfree(bos);
-	kfree(ops);
+	kvfree(bos);
+	kvfree(ops);
 	if (args->num_binds > 1)
-		kfree(bind_ops);
+		kvfree(bind_ops);
 	return err;
 }
 
