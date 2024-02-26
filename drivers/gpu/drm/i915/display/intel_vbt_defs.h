@@ -485,6 +485,7 @@ struct child_device_config {
 	u8 hdmi_iboost_level:4;					/* 196+ */
 	u8 dp_max_link_rate:3;					/* 216+ */
 	u8 dp_max_link_rate_reserved:5;				/* 216+ */
+	u8 efp_index;						/* 256+ */
 } __packed;
 
 struct bdb_general_definitions {

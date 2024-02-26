@@ -2740,11 +2740,13 @@ parse_general_definitions(struct drm_i915_private *i915)
 		expected_size = 37;
 	} else if (i915->display.vbt.version <= 215) {
 		expected_size = 38;
-	} else if (i915->display.vbt.version <= 250) {
+	} else if (i915->display.vbt.version <= 255) {
 		expected_size = 39;
+	} else if (i915->display.vbt.version <= 256) {
+		expected_size = 40;
 	} else {
 		expected_size = sizeof(*child);
-		BUILD_BUG_ON(sizeof(*child) < 39);
+		BUILD_BUG_ON(sizeof(*child) < 40);
 		drm_dbg(&i915->drm,
 			"Expected child device config size for VBT version %u not known; assuming %u\n",
 			i915->display.vbt.version, expected_size);
