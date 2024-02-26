@@ -19,7 +19,11 @@
 #include <vdso/time32.h>
 #include <vdso/time64.h>
 
+#ifdef CONFIG_ARM64
+#include <asm/page-def.h>
+#else
 #include <asm/page.h>
+#endif
 
 #ifdef CONFIG_ARCH_HAS_VDSO_DATA
 #include <asm/vdso/data.h>
