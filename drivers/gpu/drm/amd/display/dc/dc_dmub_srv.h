@@ -51,6 +51,7 @@ struct dc_dmub_srv {
 	struct dc_context *ctx;
 	void *dm;
 
+	int32_t idle_exit_counter;
 	bool idle_allowed;
 	bool needs_idle_wake;
 };
