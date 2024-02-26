@@ -5004,7 +5004,6 @@ static void bnxt_free_mem(struct bnxt *bp, bool irq_re_init)
 
 static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 {
-	struct bnxt_vnic_info *vnic0 = &bp->vnic_info[BNXT_VNIC_DEFAULT];
 	int i, j, rc, size, arr_size;
 	void *bnapi;
 
@@ -5133,8 +5132,9 @@ static int bnxt_alloc_mem(struct bnxt *bp, bool irq_re_init)
 	if (rc)
 		goto alloc_mem_err;
 
-	vnic0->flags |= BNXT_VNIC_RSS_FLAG | BNXT_VNIC_MCAST_FLAG |
-			BNXT_VNIC_UCAST_FLAG;
+	bp->vnic_info[BNXT_VNIC_DEFAULT].flags |= BNXT_VNIC_RSS_FLAG |
+						  BNXT_VNIC_MCAST_FLAG |
+						  BNXT_VNIC_UCAST_FLAG;
 	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp) && (bp->flags & BNXT_FLAG_RFS))
 		bp->vnic_info[BNXT_VNIC_NTUPLE].flags |=
 			BNXT_VNIC_RSS_FLAG | BNXT_VNIC_NTUPLE_FLAG;
