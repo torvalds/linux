@@ -169,7 +169,8 @@ static int psp_v14_0_bootloader_load_intf_drv(struct psp_context *psp)
 
 static int psp_v14_0_bootloader_load_dbg_drv(struct psp_context *psp)
 {
-	return psp_v14_0_bootloader_load_component(psp, &psp->dbg_drv, PSP_BL__LOAD_DBGDRV);
+	/* dbg_drv was renamed to had_drv in psp v14 */
+	return psp_v14_0_bootloader_load_component(psp, &psp->dbg_drv, PSP_BL__LOAD_HADDRV);
 }
 
 static int psp_v14_0_bootloader_load_ras_drv(struct psp_context *psp)
