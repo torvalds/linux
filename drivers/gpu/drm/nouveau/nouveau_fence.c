@@ -62,7 +62,7 @@ nouveau_fence_signal(struct nouveau_fence *fence)
 	if (test_bit(DMA_FENCE_FLAG_USER_BITS, &fence->base.flags)) {
 		struct nouveau_fence_chan *fctx = nouveau_fctx(fence);
 
-		if (atomic_dec_and_test(&fctx->notify_ref))
+		if (!--fctx->notify_ref)
 			drop = 1;
 	}
 
@@ -103,7 +103,7 @@ nouveau_fence_context_kill(struct nouveau_fence_chan *fctx, int error)
 void
 nouveau_fence_context_del(struct nouveau_fence_chan *fctx)
 {
-	cancel_work_sync(&fctx->allow_block_work);
+	cancel_work_sync(&fctx->uevent_work);
 	nouveau_fence_context_kill(fctx, 0);
 	nvif_event_dtor(&fctx->event);
 	fctx->dead = 1;
@@ -146,12 +146,13 @@ nouveau_fence_update(struct nouveau_channel *chan, struct nouveau_fence_chan *fc
 	return drop;
 }
 
-static int
-nouveau_fence_wait_uevent_handler(struct nvif_event *event, void *repv, u32 repc)
+static void
+nouveau_fence_uevent_work(struct work_struct *work)
 {
-	struct nouveau_fence_chan *fctx = container_of(event, typeof(*fctx), event);
+	struct nouveau_fence_chan *fctx = container_of(work, struct nouveau_fence_chan,
+						       uevent_work);
 	unsigned long flags;
-	int ret = NVIF_EVENT_KEEP;
+	int drop = 0;
 
 	spin_lock_irqsave(&fctx->lock, flags);
 	if (!list_empty(&fctx->pending)) {
@@ -161,23 +162,20 @@ nouveau_fence_wait_uevent_handler(struct nvif_event *event, void *repv, u32 repc
 		fence = list_entry(fctx->pending.next, typeof(*fence), head);
 		chan = rcu_dereference_protected(fence->channel, lockdep_is_held(&fctx->lock));
 		if (nouveau_fence_update(chan, fctx))
-			ret = NVIF_EVENT_DROP;
+			drop = 1;
 	}
-	spin_unlock_irqrestore(&fctx->lock, flags);
+	if (drop)
+		nvif_event_block(&fctx->event);
 
-	return ret;
+	spin_unlock_irqrestore(&fctx->lock, flags);
 }
 
-static void
-nouveau_fence_work_allow_block(struct work_struct *work)
+static int
+nouveau_fence_wait_uevent_handler(struct nvif_event *event, void *repv, u32 repc)
 {
-	struct nouveau_fence_chan *fctx = container_of(work, struct nouveau_fence_chan,
-						       allow_block_work);
-
-	if (atomic_read(&fctx->notify_ref) == 0)
-		nvif_event_block(&fctx->event);
-	else
-		nvif_event_allow(&fctx->event);
+	struct nouveau_fence_chan *fctx = container_of(event, typeof(*fctx), event);
+	schedule_work(&fctx->uevent_work);
+	return NVIF_EVENT_KEEP;
 }
 
 void
@@ -191,7 +189,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	} args;
 	int ret;
 
-	INIT_WORK(&fctx->allow_block_work, nouveau_fence_work_allow_block);
+	INIT_WORK(&fctx->uevent_work, nouveau_fence_uevent_work);
 	INIT_LIST_HEAD(&fctx->flip);
 	INIT_LIST_HEAD(&fctx->pending);
 	spin_lock_init(&fctx->lock);
@@ -535,19 +533,15 @@ static bool nouveau_fence_enable_signaling(struct dma_fence *f)
 	struct nouveau_fence *fence = from_fence(f);
 	struct nouveau_fence_chan *fctx = nouveau_fctx(fence);
 	bool ret;
-	bool do_work;
 
-	if (atomic_inc_return(&fctx->notify_ref) == 0)
-		do_work = true;
+	if (!fctx->notify_ref++)
+		nvif_event_allow(&fctx->event);
 
 	ret = nouveau_fence_no_signaling(f);
 	if (ret)
 		set_bit(DMA_FENCE_FLAG_USER_BITS, &fence->base.flags);
-	else if (atomic_dec_and_test(&fctx->notify_ref))
-		do_work = true;
-
-	if (do_work)
-		schedule_work(&fctx->allow_block_work);
+	else if (!--fctx->notify_ref)
+		nvif_event_block(&fctx->event);
 
 	return ret;
 }

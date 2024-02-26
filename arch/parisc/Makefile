@@ -50,12 +50,12 @@ export CROSS32CC
 
 # Set default cross compiler for kernel build
 ifdef cross_compiling
-	ifeq ($(CROSS_COMPILE),)
+    ifeq ($(CROSS_COMPILE),)
 		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu suse-linux
 		CROSS_COMPILE := $(call cc-cross-prefix, \
 			$(foreach a,$(CC_ARCHES), \
 			$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
-	endif
+    endif
 endif
 
 ifdef CONFIG_DYNAMIC_FTRACE

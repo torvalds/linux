@@ -302,6 +302,7 @@ static const struct pci_device_id mt76x0e_device_table[] = {
 MODULE_DEVICE_TABLE(pci, mt76x0e_device_table);
 MODULE_FIRMWARE(MT7610E_FIRMWARE);
 MODULE_FIRMWARE(MT7650E_FIRMWARE);
+MODULE_DESCRIPTION("MediaTek MT76x0E (PCIe) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static struct pci_driver mt76x0e_driver = {

@@ -314,7 +314,6 @@ static int otx2_set_channels(struct net_device *dev,
 	pfvf->hw.tx_queues = channel->tx_count;
 	if (pfvf->xdp_prog)
 		pfvf->hw.xdp_queues = channel->rx_count;
-	pfvf->hw.non_qos_queues =  pfvf->hw.tx_queues + pfvf->hw.xdp_queues;
 
 	if (if_up)
 		err = dev->netdev_ops->ndo_open(dev);

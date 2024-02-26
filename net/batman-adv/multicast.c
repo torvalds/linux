@@ -2175,6 +2175,7 @@ void batadv_mcast_free(struct batadv_priv *bat_priv)
 	cancel_delayed_work_sync(&bat_priv->mcast.work);
 
 	batadv_tvlv_container_unregister(bat_priv, BATADV_TVLV_MCAST, 2);
+	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_MCAST_TRACKER, 1);
 	batadv_tvlv_handler_unregister(bat_priv, BATADV_TVLV_MCAST, 2);
 
 	/* safely calling outside of worker, as worker was canceled above */
@@ -2198,6 +2199,8 @@ void batadv_mcast_purge_orig(struct batadv_orig_node *orig)
 				      BATADV_MCAST_WANT_NO_RTR4);
 	batadv_mcast_want_rtr6_update(bat_priv, orig,
 				      BATADV_MCAST_WANT_NO_RTR6);
+	batadv_mcast_have_mc_ptype_update(bat_priv, orig,
+					  BATADV_MCAST_HAVE_MC_PTYPE_CAPA);
 
 	spin_unlock_bh(&orig->mcast_handler_lock);
 }

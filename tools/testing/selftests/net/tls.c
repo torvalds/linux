@@ -1002,12 +1002,12 @@ TEST_F(tls, recv_partial)
 
 	memset(recv_mem, 0, sizeof(recv_mem));
 	EXPECT_EQ(send(self->fd, test_str, send_len, 0), send_len);
-	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_first),
-		       MSG_WAITALL), -1);
+	EXPECT_EQ(recv(self->cfd, recv_mem, strlen(test_str_first),
+		       MSG_WAITALL), strlen(test_str_first));
 	EXPECT_EQ(memcmp(test_str_first, recv_mem, strlen(test_str_first)), 0);
 	memset(recv_mem, 0, sizeof(recv_mem));
-	EXPECT_NE(recv(self->cfd, recv_mem, strlen(test_str_second),
-		       MSG_WAITALL), -1);
+	EXPECT_EQ(recv(self->cfd, recv_mem, strlen(test_str_second),
+		       MSG_WAITALL), strlen(test_str_second));
 	EXPECT_EQ(memcmp(test_str_second, recv_mem, strlen(test_str_second)),
 		  0);
 }
@@ -1874,13 +1874,13 @@ TEST_F(tls_err, poll_partial_rec_async)
 		/* Child should sleep in poll(), never get a wake */
 		pfd.fd = self->cfd2;
 		pfd.events = POLLIN;
-		EXPECT_EQ(poll(&pfd, 1, 5), 0);
+		EXPECT_EQ(poll(&pfd, 1, 20), 0);
 
 		EXPECT_EQ(write(p[1], &token, 1), 1); /* Barrier #1 */
 
 		pfd.fd = self->cfd2;
 		pfd.events = POLLIN;
-		EXPECT_EQ(poll(&pfd, 1, 5), 1);
+		EXPECT_EQ(poll(&pfd, 1, 20), 1);
 
 		exit(!_metadata->passed);
 	}

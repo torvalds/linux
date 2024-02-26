@@ -1715,7 +1715,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 		 * This works without any other locks because this is the only
 		 * thread that removes items from the need_discard tree
 		 */
-		bch2_trans_unlock(trans);
+		bch2_trans_unlock_long(trans);
 		blkdev_issue_discard(ca->disk_sb.bdev,
 				     k.k->p.offset * ca->mi.bucket_size,
 				     ca->mi.bucket_size,

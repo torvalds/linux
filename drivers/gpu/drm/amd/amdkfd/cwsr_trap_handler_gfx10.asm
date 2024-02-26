@@ -1104,7 +1104,7 @@ L_RETURN_WITHOUT_PRIV:
 	s_rfe_b64	s_restore_pc_lo						//Return to the main shader program and resume execution
 
 L_END_PGM:
-	s_endpgm
+	s_endpgm_saved
 end
 
 function write_hwreg_to_mem(s, s_rsrc, s_mem_offset)

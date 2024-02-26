@@ -45,13 +45,27 @@ int kunit_bus_init(void)
 	int error;
 
 	kunit_bus_device = root_device_register("kunit");
-	if (!kunit_bus_device)
-		return -ENOMEM;
+	if (IS_ERR(kunit_bus_device))
+		return PTR_ERR(kunit_bus_device);
 
 	error = bus_register(&kunit_bus_type);
 	if (error)
 		bus_unregister(&kunit_bus_type);
 	return error;
+}
+
+/* Unregister the 'kunit_bus' in case the KUnit module is unloaded. */
+void kunit_bus_shutdown(void)
+{
+	/* Make sure the bus exists before we unregister it. */
+	if (IS_ERR_OR_NULL(kunit_bus_device))
+		return;
+
+	bus_unregister(&kunit_bus_type);
+
+	root_device_unregister(kunit_bus_device);
+
+	kunit_bus_device = NULL;
 }
 
 /* Release a 'fake' KUnit device. */

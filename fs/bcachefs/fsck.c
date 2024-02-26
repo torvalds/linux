@@ -119,22 +119,19 @@ static int lookup_inode(struct btree_trans *trans, u64 inode_nr,
 	if (!ret)
 		*snapshot = iter.pos.snapshot;
 err:
-	bch_err_msg(trans->c, ret, "fetching inode %llu:%u", inode_nr, *snapshot);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }
 
-static int __lookup_dirent(struct btree_trans *trans,
+static int lookup_dirent_in_snapshot(struct btree_trans *trans,
 			   struct bch_hash_info hash_info,
 			   subvol_inum dir, struct qstr *name,
-			   u64 *target, unsigned *type)
+			   u64 *target, unsigned *type, u32 snapshot)
 {
 	struct btree_iter iter;
 	struct bkey_s_c_dirent d;
-	int ret;
-
-	ret = bch2_hash_lookup(trans, &iter, bch2_dirent_hash_desc,
-			       &hash_info, dir, name, 0);
+	int ret = bch2_hash_lookup_in_snapshot(trans, &iter, bch2_dirent_hash_desc,
+			       &hash_info, dir, name, 0, snapshot);
 	if (ret)
 		return ret;
 
@@ -225,15 +222,16 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 
 	struct bch_inode_unpacked root_inode;
 	struct bch_hash_info root_hash_info;
-	ret = lookup_inode(trans, root_inum.inum, &root_inode, &snapshot);
+	u32 root_inode_snapshot = snapshot;
+	ret = lookup_inode(trans, root_inum.inum, &root_inode, &root_inode_snapshot);
 	bch_err_msg(c, ret, "looking up root inode");
 	if (ret)
 		return ret;
 
 	root_hash_info = bch2_hash_info_init(c, &root_inode);
 
-	ret = __lookup_dirent(trans, root_hash_info, root_inum,
-			      &lostfound_str, &inum, &d_type);
+	ret = lookup_dirent_in_snapshot(trans, root_hash_info, root_inum,
+			      &lostfound_str, &inum, &d_type, snapshot);
 	if (bch2_err_matches(ret, ENOENT))
 		goto create_lostfound;
 
@@ -250,7 +248,10 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 	 * The bch2_check_dirents pass has already run, dangling dirents
 	 * shouldn't exist here:
 	 */
-	return lookup_inode(trans, inum, lostfound, &snapshot);
+	ret = lookup_inode(trans, inum, lostfound, &snapshot);
+	bch_err_msg(c, ret, "looking up lost+found %llu:%u in (root inode %llu, snapshot root %u)",
+		    inum, snapshot, root_inum.inum, bch2_snapshot_root(c, snapshot));
+	return ret;
 
 create_lostfound:
 	/*

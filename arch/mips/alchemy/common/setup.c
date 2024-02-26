@@ -30,12 +30,10 @@
 #include <linux/mm.h>
 #include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
+#include <asm/bootinfo.h>
 #include <asm/mipsregs.h>
 
 #include <au1000.h>
-
-extern void __init board_setup(void);
-extern void __init alchemy_set_lpj(void);
 
 static bool alchemy_dma_coherent(void)
 {

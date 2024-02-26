@@ -46,7 +46,7 @@ struct devlink_rel {
 		u32 obj_index;
 		devlink_rel_notify_cb_t *notify_cb;
 		devlink_rel_cleanup_cb_t *cleanup_cb;
-		struct work_struct notify_work;
+		struct delayed_work notify_work;
 	} nested_in;
 };
 
@@ -70,7 +70,7 @@ static void __devlink_rel_put(struct devlink_rel *rel)
 static void devlink_rel_nested_in_notify_work(struct work_struct *work)
 {
 	struct devlink_rel *rel = container_of(work, struct devlink_rel,
-					       nested_in.notify_work);
+					       nested_in.notify_work.work);
 	struct devlink *devlink;
 
 	devlink = devlinks_xa_get(rel->nested_in.devlink_index);
@@ -96,13 +96,13 @@ rel_put:
 	return;
 
 reschedule_work:
-	schedule_work(&rel->nested_in.notify_work);
+	schedule_delayed_work(&rel->nested_in.notify_work, 1);
 }
 
 static void devlink_rel_nested_in_notify_work_schedule(struct devlink_rel *rel)
 {
 	__devlink_rel_get(rel);
-	schedule_work(&rel->nested_in.notify_work);
+	schedule_delayed_work(&rel->nested_in.notify_work, 0);
 }
 
 static struct devlink_rel *devlink_rel_alloc(void)
@@ -123,8 +123,8 @@ static struct devlink_rel *devlink_rel_alloc(void)
 	}
 
 	refcount_set(&rel->refcount, 1);
-	INIT_WORK(&rel->nested_in.notify_work,
-		  &devlink_rel_nested_in_notify_work);
+	INIT_DELAYED_WORK(&rel->nested_in.notify_work,
+			  &devlink_rel_nested_in_notify_work);
 	return rel;
 }
 

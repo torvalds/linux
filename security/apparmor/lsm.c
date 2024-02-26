@@ -469,8 +469,10 @@ static int apparmor_file_open(struct file *file)
 	 * Cache permissions granted by the previous exec check, with
 	 * implicit read and executable mmap which are required to
 	 * actually execute the image.
+	 *
+	 * Illogically, FMODE_EXEC is in f_flags, not f_mode.
 	 */
-	if (current->in_execve) {
+	if (file->f_flags & __FMODE_EXEC) {
 		fctx->allow = MAY_EXEC | MAY_READ | AA_EXEC_MMAP;
 		return 0;
 	}

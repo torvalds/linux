@@ -681,6 +681,7 @@ struct mlx5e_resources {
 		struct mlx5_sq_bfreg       bfreg;
 #define MLX5_MAX_NUM_TC 8
 		u32                        tisn[MLX5_MAX_PORTS][MLX5_MAX_NUM_TC];
+		bool			   tisn_valid;
 	} hw_objs;
 	struct net_device *uplink_netdev;
 	struct mutex uplink_netdev_lock;

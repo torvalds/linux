@@ -103,7 +103,14 @@ struct evlist *evlist__new_default(void)
 	err = parse_event(evlist, can_profile_kernel ? "cycles:P" : "cycles:Pu");
 	if (err) {
 		evlist__delete(evlist);
-		evlist = NULL;
+		return NULL;
+	}
+
+	if (evlist->core.nr_entries > 1) {
+		struct evsel *evsel;
+
+		evlist__for_each_entry(evlist, evsel)
+			evsel__set_sample_id(evsel, /*can_sample_identifier=*/false);
 	}
 
 	return evlist;

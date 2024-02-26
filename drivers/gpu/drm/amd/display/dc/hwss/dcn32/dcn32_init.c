@@ -109,6 +109,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
 	.commit_subvp_config = dcn32_commit_subvp_config,
 	.enable_phantom_streams = dcn32_enable_phantom_streams,
+	.disable_phantom_streams = dcn32_disable_phantom_streams,
 	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 	.subvp_pipe_control_lock_fast = dcn32_subvp_pipe_control_lock_fast,
@@ -159,6 +160,8 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,
 	.resync_fifo_dccg_dio = dcn32_resync_fifo_dccg_dio,
 	.is_dp_dig_pixel_rate_div_policy = dcn32_is_dp_dig_pixel_rate_div_policy,
+	.apply_single_controller_ctx_to_hw = dce110_apply_single_controller_ctx_to_hw,
+	.reset_back_end_for_pipe = dcn20_reset_back_end_for_pipe,
 };
 
 void dcn32_hw_sequencer_init_functions(struct dc *dc)

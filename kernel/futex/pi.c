@@ -1135,6 +1135,7 @@ retry:
 
 	hb = futex_hash(&key);
 	spin_lock(&hb->lock);
+retry_hb:
 
 	/*
 	 * Check waiters first. We do not trust user space values at
@@ -1177,12 +1178,17 @@ retry:
 		/*
 		 * Futex vs rt_mutex waiter state -- if there are no rt_mutex
 		 * waiters even though futex thinks there are, then the waiter
-		 * is leaving and the uncontended path is safe to take.
+		 * is leaving. The entry needs to be removed from the list so a
+		 * new futex_lock_pi() is not using this stale PI-state while
+		 * the futex is available in user space again.
+		 * There can be more than one task on its way out so it needs
+		 * to retry.
 		 */
 		rt_waiter = rt_mutex_top_waiter(&pi_state->pi_mutex);
 		if (!rt_waiter) {
+			__futex_unqueue(top_waiter);
 			raw_spin_unlock_irq(&pi_state->pi_mutex.wait_lock);
-			goto do_uncontended;
+			goto retry_hb;
 		}
 
 		get_pi_state(pi_state);
@@ -1217,7 +1223,6 @@ retry:
 		return ret;
 	}
 
-do_uncontended:
 	/*
 	 * We have no kernel internal state, i.e. no waiters in the
 	 * kernel. Waiters which are about to queue themselves are stuck

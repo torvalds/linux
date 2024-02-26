@@ -280,7 +280,8 @@ retry:
 				      writepoint_ptr(&c->btree_write_point),
 				      &devs_have,
 				      res->nr_replicas,
-				      c->opts.metadata_replicas_required,
+				      min(res->nr_replicas,
+					  c->opts.metadata_replicas_required),
 				      watermark, 0, cl, &wp);
 	if (unlikely(ret))
 		return ERR_PTR(ret);

@@ -459,21 +459,21 @@ static size_t calc_topo_query_size(struct xe_device *xe)
 		 sizeof_field(struct xe_gt, fuse_topo.eu_mask_per_dss));
 }
 
-static void __user *copy_mask(void __user *ptr,
-			      struct drm_xe_query_topology_mask *topo,
-			      void *mask, size_t mask_size)
+static int copy_mask(void __user **ptr,
+		     struct drm_xe_query_topology_mask *topo,
+		     void *mask, size_t mask_size)
 {
 	topo->num_bytes = mask_size;
 
-	if (copy_to_user(ptr, topo, sizeof(*topo)))
-		return ERR_PTR(-EFAULT);
-	ptr += sizeof(topo);
+	if (copy_to_user(*ptr, topo, sizeof(*topo)))
+		return -EFAULT;
+	*ptr += sizeof(topo);
 
-	if (copy_to_user(ptr, mask, mask_size))
-		return ERR_PTR(-EFAULT);
-	ptr += mask_size;
+	if (copy_to_user(*ptr, mask, mask_size))
+		return -EFAULT;
+	*ptr += mask_size;
 
-	return ptr;
+	return 0;
 }
 
 static int query_gt_topology(struct xe_device *xe,
@@ -493,28 +493,28 @@ static int query_gt_topology(struct xe_device *xe,
 	}
 
 	for_each_gt(gt, xe, id) {
+		int err;
+
 		topo.gt_id = id;
 
 		topo.type = DRM_XE_TOPO_DSS_GEOMETRY;
-		query_ptr = copy_mask(query_ptr, &topo,
-				      gt->fuse_topo.g_dss_mask,
-				      sizeof(gt->fuse_topo.g_dss_mask));
-		if (IS_ERR(query_ptr))
-			return PTR_ERR(query_ptr);
+		err = copy_mask(&query_ptr, &topo, gt->fuse_topo.g_dss_mask,
+				sizeof(gt->fuse_topo.g_dss_mask));
+		if (err)
+			return err;
 
 		topo.type = DRM_XE_TOPO_DSS_COMPUTE;
-		query_ptr = copy_mask(query_ptr, &topo,
-				      gt->fuse_topo.c_dss_mask,
-				      sizeof(gt->fuse_topo.c_dss_mask));
-		if (IS_ERR(query_ptr))
-			return PTR_ERR(query_ptr);
+		err = copy_mask(&query_ptr, &topo, gt->fuse_topo.c_dss_mask,
+				sizeof(gt->fuse_topo.c_dss_mask));
+		if (err)
+			return err;
 
 		topo.type = DRM_XE_TOPO_EU_PER_DSS;
-		query_ptr = copy_mask(query_ptr, &topo,
-				      gt->fuse_topo.eu_mask_per_dss,
-				      sizeof(gt->fuse_topo.eu_mask_per_dss));
-		if (IS_ERR(query_ptr))
-			return PTR_ERR(query_ptr);
+		err = copy_mask(&query_ptr, &topo,
+				gt->fuse_topo.eu_mask_per_dss,
+				sizeof(gt->fuse_topo.eu_mask_per_dss));
+		if (err)
+			return err;
 	}
 
 	return 0;

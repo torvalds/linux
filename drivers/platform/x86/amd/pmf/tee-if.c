@@ -298,8 +298,10 @@ static ssize_t amd_pmf_get_pb_data(struct file *filp, const char __user *buf,
 	if (!new_policy_buf)
 		return -ENOMEM;
 
-	if (copy_from_user(new_policy_buf, buf, length))
+	if (copy_from_user(new_policy_buf, buf, length)) {
+		kfree(new_policy_buf);
 		return -EFAULT;
+	}
 
 	kfree(dev->policy_buf);
 	dev->policy_buf = new_policy_buf;

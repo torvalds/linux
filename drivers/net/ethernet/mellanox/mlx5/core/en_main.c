@@ -5992,7 +5992,7 @@ static int mlx5e_resume(struct auxiliary_device *adev)
 	if (netif_device_present(netdev))
 		return 0;
 
-	err = mlx5e_create_mdev_resources(mdev);
+	err = mlx5e_create_mdev_resources(mdev, true);
 	if (err)
 		return err;
 

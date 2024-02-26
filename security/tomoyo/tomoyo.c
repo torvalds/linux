@@ -328,7 +328,8 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 static int tomoyo_file_open(struct file *f)
 {
 	/* Don't check read permission here if called from execve(). */
-	if (current->in_execve)
+	/* Illogically, FMODE_EXEC is in f_flags, not f_mode. */
+	if (f->f_flags & __FMODE_EXEC)
 		return 0;
 	return tomoyo_check_open_permission(tomoyo_domain(), &f->f_path,
 					    f->f_flags);

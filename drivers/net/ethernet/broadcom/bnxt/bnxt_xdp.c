@@ -407,7 +407,7 @@ static int bnxt_xdp_set(struct bnxt *bp, struct bpf_prog *prog)
 	if (prog)
 		tx_xdp = bp->rx_nr_rings;
 
-	tc = netdev_get_num_tc(dev);
+	tc = bp->num_tc;
 	if (!tc)
 		tc = 1;
 	rc = bnxt_check_rings(bp, bp->tx_nr_rings_per_tc, bp->rx_nr_rings,

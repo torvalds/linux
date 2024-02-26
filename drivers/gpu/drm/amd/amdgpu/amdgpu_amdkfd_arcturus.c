@@ -290,7 +290,7 @@ static int suspend_resume_compute_scheduler(struct amdgpu_device *adev, bool sus
 	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
 		struct amdgpu_ring *ring = &adev->gfx.compute_ring[i];
 
-		if (!(ring && drm_sched_wqueue_ready(&ring->sched)))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		/* stop secheduler and drain ring. */

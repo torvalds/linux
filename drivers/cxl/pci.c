@@ -382,7 +382,7 @@ static int cxl_pci_mbox_send(struct cxl_memdev_state *mds,
 	return rc;
 }
 
-static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
+static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds, bool irq_avail)
 {
 	struct cxl_dev_state *cxlds = &mds->cxlds;
 	const int cap = readl(cxlds->regs.mbox + CXLDEV_MBOX_CAPS_OFFSET);
@@ -441,7 +441,7 @@ static int cxl_pci_setup_mailbox(struct cxl_memdev_state *mds)
 	INIT_DELAYED_WORK(&mds->security.poll_dwork, cxl_mbox_sanitize_work);
 
 	/* background command interrupts are optional */
-	if (!(cap & CXLDEV_MBOX_CAP_BG_CMD_IRQ))
+	if (!(cap & CXLDEV_MBOX_CAP_BG_CMD_IRQ) || !irq_avail)
 		return 0;
 
 	msgnum = FIELD_GET(CXLDEV_MBOX_CAP_IRQ_MSGNUM_MASK, cap);
@@ -588,7 +588,7 @@ static int cxl_mem_alloc_event_buf(struct cxl_memdev_state *mds)
 	return devm_add_action_or_reset(mds->cxlds.dev, free_event_buf, buf);
 }
 
-static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
+static bool cxl_alloc_irq_vectors(struct pci_dev *pdev)
 {
 	int nvecs;
 
@@ -605,9 +605,9 @@ static int cxl_alloc_irq_vectors(struct pci_dev *pdev)
 				      PCI_IRQ_MSIX | PCI_IRQ_MSI);
 	if (nvecs < 1) {
 		dev_dbg(&pdev->dev, "Failed to alloc irq vectors: %d\n", nvecs);
-		return -ENXIO;
+		return false;
 	}
-	return 0;
+	return true;
 }
 
 static irqreturn_t cxl_event_thread(int irq, void *id)
@@ -743,7 +743,7 @@ static bool cxl_event_int_is_fw(u8 setting)
 }
 
 static int cxl_event_config(struct pci_host_bridge *host_bridge,
-			    struct cxl_memdev_state *mds)
+			    struct cxl_memdev_state *mds, bool irq_avail)
 {
 	struct cxl_event_interrupt_policy policy;
 	int rc;
@@ -754,6 +754,11 @@ static int cxl_event_config(struct pci_host_bridge *host_bridge,
 	 */
 	if (!host_bridge->native_cxl_error)
 		return 0;
+
+	if (!irq_avail) {
+		dev_info(mds->cxlds.dev, "No interrupt support, disable event processing.\n");
+		return 0;
+	}
 
 	rc = cxl_mem_alloc_event_buf(mds);
 	if (rc)
@@ -789,6 +794,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct cxl_register_map map;
 	struct cxl_memdev *cxlmd;
 	int i, rc, pmu_count;
+	bool irq_avail;
 
 	/*
 	 * Double check the anonymous union trickery in struct cxl_regs
@@ -846,11 +852,9 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	else
 		dev_warn(&pdev->dev, "Media not active (%d)\n", rc);
 
-	rc = cxl_alloc_irq_vectors(pdev);
-	if (rc)
-		return rc;
+	irq_avail = cxl_alloc_irq_vectors(pdev);
 
-	rc = cxl_pci_setup_mailbox(mds);
+	rc = cxl_pci_setup_mailbox(mds, irq_avail);
 	if (rc)
 		return rc;
 
@@ -909,7 +913,7 @@ static int cxl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		}
 	}
 
-	rc = cxl_event_config(host_bridge, mds);
+	rc = cxl_event_config(host_bridge, mds, irq_avail);
 	if (rc)
 		return rc;
 

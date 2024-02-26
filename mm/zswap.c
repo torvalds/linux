@@ -536,10 +536,6 @@ static struct zpool *zswap_find_zpool(struct zswap_entry *entry)
  */
 static void zswap_free_entry(struct zswap_entry *entry)
 {
-	if (entry->objcg) {
-		obj_cgroup_uncharge_zswap(entry->objcg, entry->length);
-		obj_cgroup_put(entry->objcg);
-	}
 	if (!entry->length)
 		atomic_dec(&zswap_same_filled_pages);
 	else {
@@ -547,6 +543,10 @@ static void zswap_free_entry(struct zswap_entry *entry)
 		zpool_free(zswap_find_zpool(entry), entry->handle);
 		atomic_dec(&entry->pool->nr_stored);
 		zswap_pool_put(entry->pool);
+	}
+	if (entry->objcg) {
+		obj_cgroup_uncharge_zswap(entry->objcg, entry->length);
+		obj_cgroup_put(entry->objcg);
 	}
 	zswap_entry_cache_free(entry);
 	atomic_dec(&zswap_stored_pages);
@@ -895,10 +895,8 @@ static enum lru_status shrink_memcg_cb(struct list_head *item, struct list_lru_o
 		 * into the warmer region. We should terminate shrinking (if we're in the dynamic
 		 * shrinker context).
 		 */
-		if (writeback_result == -EEXIST && encountered_page_in_swapcache) {
-			ret = LRU_SKIP;
+		if (writeback_result == -EEXIST && encountered_page_in_swapcache)
 			*encountered_page_in_swapcache = true;
-		}
 
 		goto put_unlock;
 	}

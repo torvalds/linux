@@ -480,7 +480,7 @@ static bool xe_gt_mcr_get_nonterminated_steering(struct xe_gt *gt,
  * to synchronize with external clients (e.g., firmware), so a semaphore
  * register will also need to be taken.
  */
-static void mcr_lock(struct xe_gt *gt)
+static void mcr_lock(struct xe_gt *gt) __acquires(&gt->mcr_lock)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int ret = 0;
@@ -500,7 +500,7 @@ static void mcr_lock(struct xe_gt *gt)
 	drm_WARN_ON_ONCE(&xe->drm, ret == -ETIMEDOUT);
 }
 
-static void mcr_unlock(struct xe_gt *gt)
+static void mcr_unlock(struct xe_gt *gt) __releases(&gt->mcr_lock)
 {
 	/* Release hardware semaphore - this is done by writing 1 to the register */
 	if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1270)

@@ -115,7 +115,7 @@
 	status = "okay";
 
 	tpm@1 {
-		compatible = "tcg,tpm_tis-spi";
+		compatible = "atmel,attpm20p", "tcg,tpm_tis-spi";
 		reg = <0x1>;
 		spi-max-frequency = <36000000>;
 	};

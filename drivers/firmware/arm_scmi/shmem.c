@@ -10,7 +10,7 @@
 #include <linux/processor.h>
 #include <linux/types.h>
 
-#include <asm-generic/bug.h>
+#include <linux/bug.h>
 
 #include "common.h"
 
@@ -121,4 +121,10 @@ bool shmem_poll_done(struct scmi_shared_mem __iomem *shmem,
 	return ioread32(&shmem->channel_status) &
 		(SCMI_SHMEM_CHAN_STAT_CHANNEL_ERROR |
 		 SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE);
+}
+
+bool shmem_channel_free(struct scmi_shared_mem __iomem *shmem)
+{
+	return (ioread32(&shmem->channel_status) &
+			SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE);
 }

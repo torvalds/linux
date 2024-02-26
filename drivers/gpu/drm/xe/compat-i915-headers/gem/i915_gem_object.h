@@ -10,7 +10,7 @@
 
 #include "xe_bo.h"
 
-#define i915_gem_object_is_shmem(obj) ((obj)->flags & XE_BO_CREATE_SYSTEM_BIT)
+#define i915_gem_object_is_shmem(obj) (0) /* We don't use shmem */
 
 static inline dma_addr_t i915_gem_object_get_dma_address(const struct xe_bo *bo, pgoff_t n)
 {
@@ -35,11 +35,9 @@ static inline int i915_gem_object_read_from_page(struct xe_bo *bo,
 					  u32 ofs, u64 *ptr, u32 size)
 {
 	struct ttm_bo_kmap_obj map;
-	void *virtual;
+	void *src;
 	bool is_iomem;
 	int ret;
-
-	XE_WARN_ON(size != 8);
 
 	ret = xe_bo_lock(bo, true);
 	if (ret)
@@ -50,11 +48,12 @@ static inline int i915_gem_object_read_from_page(struct xe_bo *bo,
 		goto out_unlock;
 
 	ofs &= ~PAGE_MASK;
-	virtual = ttm_kmap_obj_virtual(&map, &is_iomem);
+	src = ttm_kmap_obj_virtual(&map, &is_iomem);
+	src += ofs;
 	if (is_iomem)
-		*ptr = readq((void __iomem *)(virtual + ofs));
+		memcpy_fromio(ptr, (void __iomem *)src, size);
 	else
-		*ptr = *(u64 *)(virtual + ofs);
+		memcpy(ptr, src, size);
 
 	ttm_bo_kunmap(&map);
 out_unlock:

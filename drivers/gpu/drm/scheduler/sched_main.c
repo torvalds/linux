@@ -1184,14 +1184,16 @@ static void drm_sched_run_job_work(struct work_struct *w)
 	if (READ_ONCE(sched->pause_submit))
 		return;
 
+	/* Find entity with a ready job */
 	entity = drm_sched_select_entity(sched);
 	if (!entity)
-		return;
+		return;	/* No more work */
 
 	sched_job = drm_sched_entity_pop_job(entity);
 	if (!sched_job) {
 		complete_all(&entity->entity_idle);
-		return;	/* No more work */
+		drm_sched_run_job_queue(sched);
+		return;
 	}
 
 	s_fence = sched_job->s_fence;

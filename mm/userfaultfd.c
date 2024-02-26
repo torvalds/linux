@@ -357,6 +357,7 @@ static __always_inline ssize_t mfill_atomic_hugetlb(
 					      unsigned long dst_start,
 					      unsigned long src_start,
 					      unsigned long len,
+					      atomic_t *mmap_changing,
 					      uffd_flags_t flags)
 {
 	struct mm_struct *dst_mm = dst_vma->vm_mm;
@@ -472,6 +473,15 @@ retry:
 				goto out;
 			}
 			mmap_read_lock(dst_mm);
+			/*
+			 * If memory mappings are changing because of non-cooperative
+			 * operation (e.g. mremap) running in parallel, bail out and
+			 * request the user to retry later
+			 */
+			if (mmap_changing && atomic_read(mmap_changing)) {
+				err = -EAGAIN;
+				break;
+			}
 
 			dst_vma = NULL;
 			goto retry;
@@ -506,6 +516,7 @@ extern ssize_t mfill_atomic_hugetlb(struct vm_area_struct *dst_vma,
 				    unsigned long dst_start,
 				    unsigned long src_start,
 				    unsigned long len,
+				    atomic_t *mmap_changing,
 				    uffd_flags_t flags);
 #endif /* CONFIG_HUGETLB_PAGE */
 
@@ -622,8 +633,8 @@ retry:
 	 * If this is a HUGETLB vma, pass off to appropriate routine
 	 */
 	if (is_vm_hugetlb_page(dst_vma))
-		return  mfill_atomic_hugetlb(dst_vma, dst_start,
-					     src_start, len, flags);
+		return  mfill_atomic_hugetlb(dst_vma, dst_start, src_start,
+					     len, mmap_changing, flags);
 
 	if (!vma_is_anonymous(dst_vma) && !vma_is_shmem(dst_vma))
 		goto out_unlock;
@@ -891,8 +902,8 @@ static int move_present_pte(struct mm_struct *mm,
 
 	double_pt_lock(dst_ptl, src_ptl);
 
-	if (!pte_same(*src_pte, orig_src_pte) ||
-	    !pte_same(*dst_pte, orig_dst_pte)) {
+	if (!pte_same(ptep_get(src_pte), orig_src_pte) ||
+	    !pte_same(ptep_get(dst_pte), orig_dst_pte)) {
 		err = -EAGAIN;
 		goto out;
 	}
@@ -935,8 +946,8 @@ static int move_swap_pte(struct mm_struct *mm,
 
 	double_pt_lock(dst_ptl, src_ptl);
 
-	if (!pte_same(*src_pte, orig_src_pte) ||
-	    !pte_same(*dst_pte, orig_dst_pte)) {
+	if (!pte_same(ptep_get(src_pte), orig_src_pte) ||
+	    !pte_same(ptep_get(dst_pte), orig_dst_pte)) {
 		double_pt_unlock(dst_ptl, src_ptl);
 		return -EAGAIN;
 	}
@@ -1005,7 +1016,7 @@ retry:
 	}
 
 	spin_lock(dst_ptl);
-	orig_dst_pte = *dst_pte;
+	orig_dst_pte = ptep_get(dst_pte);
 	spin_unlock(dst_ptl);
 	if (!pte_none(orig_dst_pte)) {
 		err = -EEXIST;
@@ -1013,7 +1024,7 @@ retry:
 	}
 
 	spin_lock(src_ptl);
-	orig_src_pte = *src_pte;
+	orig_src_pte = ptep_get(src_pte);
 	spin_unlock(src_ptl);
 	if (pte_none(orig_src_pte)) {
 		if (!(mode & UFFDIO_MOVE_MODE_ALLOW_SRC_HOLES))
@@ -1043,7 +1054,7 @@ retry:
 			 * page isn't freed under us
 			 */
 			spin_lock(src_ptl);
-			if (!pte_same(orig_src_pte, *src_pte)) {
+			if (!pte_same(orig_src_pte, ptep_get(src_pte))) {
 				spin_unlock(src_ptl);
 				err = -EAGAIN;
 				goto out;

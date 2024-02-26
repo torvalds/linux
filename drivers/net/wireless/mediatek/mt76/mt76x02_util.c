@@ -696,4 +696,5 @@ void mt76x02_config_mac_addr_list(struct mt76x02_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt76x02_config_mac_addr_list);
 
+MODULE_DESCRIPTION("MediaTek MT76x02 helpers");
 MODULE_LICENSE("Dual BSD/GPL");

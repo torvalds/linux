@@ -2176,6 +2176,9 @@ static void __init memmap_init_reserved_pages(void)
 			start = region->base;
 			end = start + region->size;
 
+			if (nid == NUMA_NO_NODE || nid >= MAX_NUMNODES)
+				nid = early_pfn_to_nid(PFN_DOWN(start));
+
 			reserve_bootmem_region(start, end, nid);
 		}
 	}

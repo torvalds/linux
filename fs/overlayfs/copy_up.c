@@ -265,19 +265,17 @@ static int ovl_copy_up_file(struct ovl_fs *ofs, struct dentry *dentry,
 	if (IS_ERR(old_file))
 		return PTR_ERR(old_file);
 
+	/* Try to use clone_file_range to clone up within the same fs */
+	cloned = vfs_clone_file_range(old_file, 0, new_file, 0, len, 0);
+	if (cloned == len)
+		goto out_fput;
+
+	/* Couldn't clone, so now we try to copy the data */
 	error = rw_verify_area(READ, old_file, &old_pos, len);
 	if (!error)
 		error = rw_verify_area(WRITE, new_file, &new_pos, len);
 	if (error)
 		goto out_fput;
-
-	/* Try to use clone_file_range to clone up within the same fs */
-	ovl_start_write(dentry);
-	cloned = do_clone_file_range(old_file, 0, new_file, 0, len, 0);
-	ovl_end_write(dentry);
-	if (cloned == len)
-		goto out_fput;
-	/* Couldn't clone, so now we try to copy the data */
 
 	/* Check if lower fs supports seek operation */
 	if (old_file->f_mode & FMODE_LSEEK)

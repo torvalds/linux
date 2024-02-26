@@ -360,23 +360,43 @@ s32 e1000e_get_base_timinca(struct e1000_adapter *adapter, u32 *timinca);
  * As a result, a shift of INCVALUE_SHIFT_n is used to fit a value of
  * INCVALUE_n into the TIMINCA register allowing 32+8+(24-INCVALUE_SHIFT_n)
  * bits to count nanoseconds leaving the rest for fractional nonseconds.
+ *
+ * Any given INCVALUE also has an associated maximum adjustment value. This
+ * maximum adjustment value is the largest increase (or decrease) which can be
+ * safely applied without overflowing the INCVALUE. Since INCVALUE has
+ * a maximum range of 24 bits, its largest value is 0xFFFFFF.
+ *
+ * To understand where the maximum value comes from, consider the following
+ * equation:
+ *
+ *   new_incval = base_incval + (base_incval * adjustment) / 1billion
+ *
+ * To avoid overflow that means:
+ *   max_incval = base_incval + (base_incval * max_adj) / billion
+ *
+ * Re-arranging:
+ *   max_adj = floor(((max_incval - base_incval) * 1billion) / 1billion)
  */
 #define INCVALUE_96MHZ		125
 #define INCVALUE_SHIFT_96MHZ	17
 #define INCPERIOD_SHIFT_96MHZ	2
 #define INCPERIOD_96MHZ		(12 >> INCPERIOD_SHIFT_96MHZ)
+#define MAX_PPB_96MHZ		23999900 /* 23,999,900 ppb */
 
 #define INCVALUE_25MHZ		40
 #define INCVALUE_SHIFT_25MHZ	18
 #define INCPERIOD_25MHZ		1
+#define MAX_PPB_25MHZ		599999900 /* 599,999,900 ppb */
 
 #define INCVALUE_24MHZ		125
 #define INCVALUE_SHIFT_24MHZ	14
 #define INCPERIOD_24MHZ		3
+#define MAX_PPB_24MHZ		999999999 /* 999,999,999 ppb */
 
 #define INCVALUE_38400KHZ	26
 #define INCVALUE_SHIFT_38400KHZ	19
 #define INCPERIOD_38400KHZ	1
+#define MAX_PPB_38400KHZ	230769100 /* 230,769,100 ppb */
 
 /* Another drawback of scaling the incvalue by a large factor is the
  * 64-bit SYSTIM register overflows more quickly.  This is dealt with

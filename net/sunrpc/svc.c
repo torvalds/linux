@@ -1598,10 +1598,10 @@ void svc_process_bc(struct rpc_rqst *req, struct svc_rqst *rqstp)
 	/* Finally, send the reply synchronously */
 	if (rqstp->bc_to_initval > 0) {
 		timeout.to_initval = rqstp->bc_to_initval;
-		timeout.to_retries = rqstp->bc_to_initval;
+		timeout.to_retries = rqstp->bc_to_retries;
 	} else {
 		timeout.to_initval = req->rq_xprt->timeout->to_initval;
-		timeout.to_initval = req->rq_xprt->timeout->to_retries;
+		timeout.to_retries = req->rq_xprt->timeout->to_retries;
 	}
 	memcpy(&req->rq_snd_buf, &rqstp->rq_res, sizeof(req->rq_snd_buf));
 	task = rpc_run_bc_task(req, &timeout);

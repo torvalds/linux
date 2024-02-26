@@ -277,6 +277,10 @@ int io_install_fixed_fd_prep(struct io_kiocb *req, const struct io_uring_sqe *sq
 	if (flags & ~IORING_FIXED_FD_NO_CLOEXEC)
 		return -EINVAL;
 
+	/* ensure the task's creds are used when installing/receiving fds */
+	if (req->flags & REQ_F_CREDS)
+		return -EPERM;
+
 	/* default to O_CLOEXEC, disable if IORING_FIXED_FD_NO_CLOEXEC is set */
 	ifi = io_kiocb_to_cmd(req, struct io_fixed_install);
 	ifi->o_flags = O_CLOEXEC;
