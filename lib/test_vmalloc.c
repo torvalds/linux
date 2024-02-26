@@ -600,12 +600,7 @@ static int vmalloc_test_init(void)
 	return -EAGAIN; /* Fail will directly unload the module */
 }
 
-static void vmalloc_test_exit(void)
-{
-}
-
 module_init(vmalloc_test_init)
-module_exit(vmalloc_test_exit)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Uladzislau Rezki");
