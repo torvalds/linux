@@ -29,29 +29,25 @@
 #define MEMFD_TAG_PINNED        PAGECACHE_TAG_TOWRITE
 #define LAST_SCAN               4       /* about 150ms max */
 
+static bool memfd_folio_has_extra_refs(struct folio *folio)
+{
+	return folio_ref_count(folio) - folio_mapcount(folio) !=
+	       folio_nr_pages(folio);
+}
+
 static void memfd_tag_pins(struct xa_state *xas)
 {
-	struct page *page;
+	struct folio *folio;
 	int latency = 0;
-	int cache_count;
 
 	lru_add_drain();
 
 	xas_lock_irq(xas);
-	xas_for_each(xas, page, ULONG_MAX) {
-		cache_count = 1;
-		if (!xa_is_value(page) &&
-		    PageTransHuge(page) && !PageHuge(page))
-			cache_count = HPAGE_PMD_NR;
-
-		if (!xa_is_value(page) &&
-		    page_count(page) - total_mapcount(page) != cache_count)
+	xas_for_each(xas, folio, ULONG_MAX) {
+		if (!xa_is_value(folio) && memfd_folio_has_extra_refs(folio))
 			xas_set_mark(xas, MEMFD_TAG_PINNED);
-		if (cache_count != 1)
-			xas_set(xas, page->index + cache_count);
 
-		latency += cache_count;
-		if (latency < XA_CHECK_SCHED)
+		if (++latency < XA_CHECK_SCHED)
 			continue;
 		latency = 0;
 
@@ -66,16 +62,16 @@ static void memfd_tag_pins(struct xa_state *xas)
 /*
  * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
  * via get_user_pages(), drivers might have some pending I/O without any active
- * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
+ * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all folios
  * and see whether it has an elevated ref-count. If so, we tag them and wait for
  * them to be dropped.
  * The caller must guarantee that no new user will acquire writable references
- * to those pages to avoid races.
+ * to those folios to avoid races.
  */
 static int memfd_wait_for_pins(struct address_space *mapping)
 {
 	XA_STATE(xas, &mapping->i_pages, 0);
-	struct page *page;
+	struct folio *folio;
 	int error, scan;
 
 	memfd_tag_pins(&xas);
@@ -83,7 +79,6 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 	error = 0;
 	for (scan = 0; scan <= LAST_SCAN; scan++) {
 		int latency = 0;
-		int cache_count;
 
 		if (!xas_marked(&xas, MEMFD_TAG_PINNED))
 			break;
@@ -95,20 +90,15 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 
 		xas_set(&xas, 0);
 		xas_lock_irq(&xas);
-		xas_for_each_marked(&xas, page, ULONG_MAX, MEMFD_TAG_PINNED) {
+		xas_for_each_marked(&xas, folio, ULONG_MAX, MEMFD_TAG_PINNED) {
 			bool clear = true;
 
-			cache_count = 1;
-			if (!xa_is_value(page) &&
-			    PageTransHuge(page) && !PageHuge(page))
-				cache_count = HPAGE_PMD_NR;
-
-			if (!xa_is_value(page) && cache_count !=
-			    page_count(page) - total_mapcount(page)) {
+			if (!xa_is_value(folio) &&
+			    memfd_folio_has_extra_refs(folio)) {
 				/*
 				 * On the last scan, we clean up all those tags
 				 * we inserted; but make a note that we still
-				 * found pages pinned.
+				 * found folios pinned.
 				 */
 				if (scan == LAST_SCAN)
 					error = -EBUSY;
@@ -118,8 +108,7 @@ static int memfd_wait_for_pins(struct address_space *mapping)
 			if (clear)
 				xas_clear_mark(&xas, MEMFD_TAG_PINNED);
 
-			latency += cache_count;
-			if (latency < XA_CHECK_SCHED)
+			if (++latency < XA_CHECK_SCHED)
 				continue;
 			latency = 0;
 
