@@ -566,6 +566,34 @@ q2spi_unmap_dma_buf_used(struct q2spi_geni *q2spi, dma_addr_t tx_dma, dma_addr_t
 }
 
 /**
+ * q2spi_unmap_var_bufs - function which checks for q2spi variant type and
+ * unmap the buffers
+ * @q2spi: pointer to q2spi_geni
+ * @q2spi_packet: pointer to q2spi_packet
+ *
+ * Return: None
+ */
+void q2spi_unmap_var_bufs(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
+{
+	if (q2spi_pkt->vtype == VARIANT_1_LRA || q2spi_pkt->vtype == VARIANT_1_HRF) {
+		Q2SPI_DEBUG(q2spi, "%s Unmapping Var1 buffers..\n", __func__);
+		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var1_tx_dma,
+					 q2spi_pkt->var1_rx_dma);
+	} else if (q2spi_pkt->vtype == VARIANT_5) {
+		Q2SPI_DEBUG(q2spi, "%s Unmapping Var5 buffers..\n", __func__);
+		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
+					 q2spi_pkt->var5_rx_dma);
+	} else if (q2spi_pkt->vtype == VARIANT_5_HRF) {
+		Q2SPI_DEBUG(q2spi, "%s Unmapping Var1 and Var5 buffers..\n",
+			    __func__);
+		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var1_tx_dma,
+					 (dma_addr_t)NULL);
+		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
+					 q2spi_pkt->var5_rx_dma);
+	}
+}
+
+/**
  * q2spi_get_doorbell_rx_buf - allocate RX DMA buffer to GSI
  * @q2spi: Pointer to main q2spi_geni structure
  *
@@ -1298,6 +1326,8 @@ int q2spi_sma_format(struct q2spi_geni *q2spi, struct q2spi_request q2spi_req,
 	if (q2spi_req.data_len > Q2SPI_MAX_DATA_LEN) {
 		Q2SPI_ERROR(q2spi, "%s Err (q2spi_req.data_len > Q2SPI_MAX_DATA_LEN) %d return\n",
 			    __func__, q2spi_req.data_len);
+		Q2SPI_DEBUG(q2spi, "%s Unmapping Var5 buffer\n", __func__);
+		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma, q2spi_pkt->var5_rx_dma);
 		return -ENOMEM;
 	}
 
@@ -1305,8 +1335,12 @@ int q2spi_sma_format(struct q2spi_geni *q2spi, struct q2spi_request q2spi_req,
 		q2spi_hc_var5->cmd = HC_SMA_READ;
 		q2spi_pkt->m_cmd_param = Q2SPI_TX_RX;
 		ret = q2spi_get_rx_buf(q2spi_pkt, q2spi_req.data_len);
-		if (ret)
+		if (ret) {
+			Q2SPI_DEBUG(q2spi, "%s Unmapping Var5 buffer\n", __func__);
+			q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
+						 q2spi_pkt->var5_rx_dma);
 			return ret;
+		}
 	} else if (q2spi_req.cmd == DATA_WRITE || q2spi_req.cmd == HRF_WRITE) {
 		q2spi_hc_var5->cmd = HC_SMA_WRITE;
 		q2spi_pkt->m_cmd_param = Q2SPI_TX_ONLY;
@@ -2273,6 +2307,7 @@ static int q2spi_release(struct inode *inode, struct file *filp)
 	q2spi->doorbell_setup = false;
 	q2spi_geni_resources_off(q2spi);
 	q2spi_tx_queue_status(q2spi);
+	atomic_set(&q2spi->doorbell_pending, 0);
 
 	pm_runtime_mark_last_busy(q2spi->dev);
 	Q2SPI_DEBUG(q2spi, "%s PM put_autosuspend count:%d line:%d\n", __func__,
@@ -2696,34 +2731,6 @@ q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *
 			    __func__, q2spi_pkt, q2spi_pkt->flow_id, q2spi_pkt->cr_var3.flow_id);
 	}
 	return ret;
-}
-
-/**
- * q2spi_unmap_var_bufs - function which checks for q2spi variant type and
- * unmap the buffers
- * @q2spi: pointer to q2spi_geni
- * @q2spi_packet: pointer to q2spi_packet
- *
- * Return: None
- */
-void q2spi_unmap_var_bufs(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
-{
-	if (q2spi_pkt->vtype == VARIANT_1_LRA || q2spi_pkt->vtype == VARIANT_1_HRF) {
-		Q2SPI_DEBUG(q2spi, "%s Unmapping Var1 buffers..\n", __func__);
-		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var1_tx_dma,
-					 q2spi_pkt->var1_rx_dma);
-	} else if (q2spi_pkt->vtype == VARIANT_5) {
-		Q2SPI_DEBUG(q2spi, "%s Unmapping Var5 buffers..\n", __func__);
-		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
-					 q2spi_pkt->var5_rx_dma);
-	} else if (q2spi_pkt->vtype == VARIANT_5_HRF) {
-		Q2SPI_DEBUG(q2spi, "%s Unmapping Var1 and Var5 buffers..\n",
-			    __func__);
-		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var1_tx_dma,
-					 (dma_addr_t)NULL);
-		q2spi_unmap_dma_buf_used(q2spi, q2spi_pkt->var5_tx_dma,
-					 q2spi_pkt->var5_rx_dma);
-	}
 }
 
 /**
@@ -3452,7 +3459,7 @@ int q2spi_send_system_mem_access(struct q2spi_geni *q2spi, struct q2spi_packet *
 				 struct q2spi_cr_packet *cr_pkt, int idx)
 {
 	struct q2spi_request q2spi_req;
-	int ret;
+	int ret = 0, retries = 10;
 	unsigned int dw_len;
 	u8 flow_id = cr_pkt->var3_pkt[idx].flow_id;
 
@@ -3468,14 +3475,23 @@ int q2spi_send_system_mem_access(struct q2spi_geni *q2spi, struct q2spi_packet *
 	q2spi_req.priority = 0;
 	q2spi_req.flow_id = flow_id;
 	q2spi_req.sync = 0;
-	mutex_lock(&q2spi->queue_lock);
-	ret = q2spi_add_req_to_tx_queue(q2spi, q2spi_req, q2spi_pkt);
+	while (retries--) {
+		mutex_lock(&q2spi->queue_lock);
+		ret = q2spi_add_req_to_tx_queue(q2spi, q2spi_req, q2spi_pkt);
+		mutex_unlock(&q2spi->queue_lock);
+		if (ret == -ENOMEM) {
+			Q2SPI_ERROR(q2spi, "%s Err ret:%d\n", __func__, ret);
+			/* sleep sometime to let application consume the pending rx buffers */
+			usleep_range(125000, 150000);
+		} else {
+			break;
+		}
+	}
 	if (ret < 0) {
 		Q2SPI_ERROR(q2spi, "%s Err ret:%d\n", __func__, ret);
-		mutex_unlock(&q2spi->queue_lock);
 		return ret;
 	}
-	mutex_unlock(&q2spi->queue_lock);
+
 	q2spi_copy_cr_data_to_pkt((struct q2spi_packet *)*q2spi_pkt, cr_pkt, idx);
 	((struct q2spi_packet *)*q2spi_pkt)->var3_data_len = q2spi_req.data_len;
 	__q2spi_send_messages(q2spi, (void *)*q2spi_pkt);
