@@ -420,9 +420,8 @@ sh_css_copy_buffer_attr_to_spbuffer(struct ia_css_buffer_sp *dest_buf,
 		   lines below. In order to satisfy KW an additional if
 		   has been added. This one will always yield true.
 		 */
-		if ((queue_id < SH_CSS_MAX_NUM_QUEUES)) {
+		if ((queue_id < SH_CSS_MAX_NUM_QUEUES))
 			dest_buf->buf_src.queue_id = queue_id;
-		}
 	} else {
 		assert(xmem_addr != mmgr_EXCEPTION);
 		dest_buf->buf_src.xmem_addr = xmem_addr;
@@ -860,9 +859,9 @@ initialize_isp_states(const struct ia_css_binary *binary)
 
 	if (!binary->info->mem_offsets.offsets.state)
 		return;
-	for (i = 0; i < IA_CSS_NUM_STATE_IDS; i++) {
+
+	for (i = 0; i < IA_CSS_NUM_STATE_IDS; i++)
 		ia_css_kernel_init_state[i](binary);
-	}
 }
 
 static void
@@ -878,9 +877,9 @@ initialize_stage_frames(struct ia_css_frames_sp *frames)
 	unsigned int i;
 
 	initialize_frame_buffer_attribute(&frames->in.buf_attr);
-	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++) {
+	for (i = 0; i < IA_CSS_BINARY_MAX_OUTPUT_PORTS; i++)
 		initialize_frame_buffer_attribute(&frames->out[i].buf_attr);
-	}
+
 	initialize_frame_buffer_attribute(&frames->out_vf.buf_attr);
 	initialize_frame_buffer_attribute(&frames->s3a_buf);
 	initialize_frame_buffer_attribute(&frames->dvs_buf);
@@ -1269,9 +1268,9 @@ sh_css_sp_init_pipeline(struct ia_css_pipeline *me,
 
 	pipe = find_pipe_by_num(pipe_num);
 	assert(pipe);
-	if (!pipe) {
+	if (!pipe)
 		return;
-	}
+
 	sh_css_sp_group.pipe[thread_id].scaler_pp_lut = sh_css_pipe_get_pp_gdc_lut(pipe);
 
 	if (md_info && md_info->size > 0) {
