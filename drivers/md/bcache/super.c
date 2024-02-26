@@ -913,6 +913,10 @@ static int bcache_device_init(struct bcache_device *d, unsigned int block_size,
 	uint64_t n;
 	int idx;
 
+	if (cached_bdev) {
+		d->stripe_size = bdev_io_opt(cached_bdev) >> SECTOR_SHIFT;
+		lim.io_opt = umax(block_size, bdev_io_opt(cached_bdev));
+	}
 	if (!d->stripe_size)
 		d->stripe_size = 1 << 31;
 	else if (d->stripe_size < BCH_MIN_STRIPE_SZ)
@@ -1418,9 +1422,7 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 		hlist_add_head(&io->hash, dc->io_hash + RECENT_IO);
 	}
 
-	dc->disk.stripe_size = q->limits.io_opt >> 9;
-
-	if (dc->disk.stripe_size)
+	if (bdev_io_opt(dc->bdev))
 		dc->partial_stripes_expensive =
 			q->limits.raid_partial_stripes_expensive;
 
@@ -1429,9 +1431,6 @@ static int cached_dev_init(struct cached_dev *dc, unsigned int block_size)
 			 dc->bdev, &bcache_cached_ops);
 	if (ret)
 		return ret;
-
-	blk_queue_io_opt(dc->disk.disk->queue,
-		max(queue_io_opt(dc->disk.disk->queue), queue_io_opt(q)));
 
 	atomic_set(&dc->io_errors, 0);
 	dc->io_disable = false;
