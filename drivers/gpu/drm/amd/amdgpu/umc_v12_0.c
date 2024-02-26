@@ -510,7 +510,8 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 	struct amdgpu_device *adev = handle->adev;
 	struct aca_bank_info info;
 	enum aca_error_type err_type;
-	u64 status;
+	u64 status, count;
+	u32 ext_error_code;
 	int ret;
 
 	status = bank->regs[ACA_REG_IDX_STATUS];
@@ -527,7 +528,11 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 	if (ret)
 		return ret;
 
-	return aca_error_cache_log_bank_error(handle, &info, err_type, 1ULL);
+	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
+	count = ext_error_code == 0 ?
+		ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
+
+	return aca_error_cache_log_bank_error(handle, &info, err_type, count);
 }
 
 static const struct aca_bank_ops umc_v12_0_aca_bank_ops = {
