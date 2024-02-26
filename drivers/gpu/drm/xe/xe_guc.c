@@ -7,9 +7,10 @@
 
 #include <drm/drm_managed.h>
 
+#include <generated/xe_wa_oob.h>
+
 #include "abi/guc_actions_abi.h"
 #include "abi/guc_errors_abi.h"
-#include "generated/xe_wa_oob.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
 #include "xe_bo.h"
@@ -21,9 +22,12 @@
 #include "xe_guc_hwconfig.h"
 #include "xe_guc_log.h"
 #include "xe_guc_pc.h"
+#include "xe_guc_relay.h"
 #include "xe_guc_submit.h"
+#include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_sriov.h"
 #include "xe_uc.h"
 #include "xe_uc_fw.h"
 #include "xe_wa.h"
@@ -129,22 +133,24 @@ static u32 guc_ctl_ads_flags(struct xe_guc *guc)
 	return flags;
 }
 
+#define GUC_VER(maj, min, pat)	(((maj) << 16) | ((min) << 8) | (pat))
+
 static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
+	struct xe_uc_fw *uc_fw = &guc->fw;
+	struct xe_uc_fw_version *version = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
+
 	u32 flags = 0;
 
 	if (XE_WA(gt, 22012773006))
 		flags |= GUC_WA_POLLCS;
 
-	if (XE_WA(gt, 16011759253))
-		flags |= GUC_WA_GAM_CREDITS;
-
 	if (XE_WA(gt, 14014475959))
 		flags |= GUC_WA_HOLD_CCS_SWITCHOUT;
 
-	if (XE_WA(gt, 22011391025) || XE_WA(gt, 14012197797))
+	if (XE_WA(gt, 22011391025))
 		flags |= GUC_WA_DUAL_QUEUE;
 
 	/*
@@ -155,9 +161,6 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (GRAPHICS_VERx100(xe) < 1270)
 		flags |= GUC_WA_PRE_PARSER;
 
-	if (XE_WA(gt, 16011777198))
-		flags |= GUC_WA_RCS_RESET_BEFORE_RC6;
-
 	if (XE_WA(gt, 22012727170) || XE_WA(gt, 22012727685))
 		flags |= GUC_WA_CONTEXT_ISOLATION;
 
@@ -167,6 +170,14 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 
 	if (XE_WA(gt, 1509372804))
 		flags |= GUC_WA_RENDER_RST_RC6_EXIT;
+
+	if (XE_WA(gt, 14018913170)) {
+		if (GUC_VER(version->major, version->minor, version->patch) >= GUC_VER(70, 7, 0))
+			flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
+		else
+			drm_dbg(&xe->drm, "Skip WA 14018913170: GUC version expected >= 70.7.0, found %u.%u.%u\n",
+				version->major, version->minor, version->patch);
+	}
 
 	return flags;
 }
@@ -241,9 +252,52 @@ static void guc_fini(struct drm_device *drm, void *arg)
 	struct xe_guc *guc = arg;
 
 	xe_force_wake_get(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
-	xe_guc_pc_fini(&guc->pc);
 	xe_uc_fini_hw(&guc_to_gt(guc)->uc);
 	xe_force_wake_put(gt_to_fw(guc_to_gt(guc)), XE_FORCEWAKE_ALL);
+}
+
+/**
+ * xe_guc_comm_init_early - early initialization of GuC communication
+ * @guc: the &xe_guc to initialize
+ *
+ * Must be called prior to first MMIO communication with GuC firmware.
+ */
+void xe_guc_comm_init_early(struct xe_guc *guc)
+{
+	struct xe_gt *gt = guc_to_gt(guc);
+
+	if (xe_gt_is_media_type(gt))
+		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
+	else
+		guc->notify_reg = GUC_HOST_INTERRUPT;
+}
+
+static int xe_guc_realloc_post_hwconfig(struct xe_guc *guc)
+{
+	struct xe_tile *tile = gt_to_tile(guc_to_gt(guc));
+	struct xe_device *xe = guc_to_xe(guc);
+	int ret;
+
+	if (!IS_DGFX(guc_to_xe(guc)))
+		return 0;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->fw.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->log.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ads.bo);
+	if (ret)
+		return ret;
+
+	ret = xe_managed_bo_reinit_in_vram(xe, tile, &guc->ct.bo);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 int xe_guc_init(struct xe_guc *guc)
@@ -272,7 +326,7 @@ int xe_guc_init(struct xe_guc *guc)
 	if (ret)
 		goto out;
 
-	ret = xe_guc_pc_init(&guc->pc);
+	ret = xe_guc_relay_init(&guc->relay);
 	if (ret)
 		goto out;
 
@@ -282,10 +336,7 @@ int xe_guc_init(struct xe_guc *guc)
 
 	guc_init_params(guc);
 
-	if (xe_gt_is_media_type(gt))
-		guc->notify_reg = MED_GUC_HOST_INTERRUPT;
-	else
-		guc->notify_reg = GUC_HOST_INTERRUPT;
+	xe_guc_comm_init_early(guc);
 
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_LOADABLE);
 
@@ -304,7 +355,17 @@ out:
  */
 int xe_guc_init_post_hwconfig(struct xe_guc *guc)
 {
+	int ret;
+
+	ret = xe_guc_realloc_post_hwconfig(guc);
+	if (ret)
+		return ret;
+
 	guc_init_params_post_hwconfig(guc);
+
+	ret = xe_guc_pc_init(&guc->pc);
+	if (ret)
+		return ret;
 
 	return xe_guc_ads_init_post_hwconfig(&guc->ads);
 }
@@ -429,7 +490,6 @@ static int guc_wait_ucode(struct xe_guc *guc)
 
 	if (ret) {
 		struct drm_device *drm = &xe->drm;
-		struct drm_printer p = drm_info_printer(drm->dev);
 
 		drm_info(drm, "GuC load failed: status = 0x%08X\n", status);
 		drm_info(drm, "GuC load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
@@ -451,8 +511,6 @@ static int guc_wait_ucode(struct xe_guc *guc)
 						SOFT_SCRATCH(13)));
 			ret = -ENXIO;
 		}
-
-		xe_guc_log_print(&guc->log, &p);
 	} else {
 		drm_dbg(&xe->drm, "GuC successfully loaded");
 	}
@@ -515,6 +573,9 @@ int xe_guc_min_load_for_hwconfig(struct xe_guc *guc)
 	int ret;
 
 	xe_guc_ads_populate_minimal(&guc->ads);
+
+	/* Raise GT freq to speed up HuC/GuC load */
+	xe_guc_pc_init_early(&guc->pc);
 
 	ret = __xe_guc_upload(guc);
 	if (ret)
@@ -579,9 +640,19 @@ static void guc_enable_irq(struct xe_guc *guc)
 
 int xe_guc_enable_communication(struct xe_guc *guc)
 {
+	struct xe_device *xe = guc_to_xe(guc);
 	int err;
 
 	guc_enable_irq(guc);
+
+	if (IS_SRIOV_VF(xe) && xe_device_has_memirq(xe)) {
+		struct xe_gt *gt = guc_to_gt(guc);
+		struct xe_tile *tile = gt_to_tile(gt);
+
+		err = xe_memirq_init_guc(&tile->sriov.vf.memirq, guc);
+		if (err)
+			return err;
+	}
 
 	xe_mmio_rmw32(guc_to_gt(guc), PMINTRMSK,
 		      ARAT_EXPIRED_INTRMSK, 0);
@@ -650,7 +721,7 @@ int xe_guc_mmio_send_recv(struct xe_guc *guc, const u32 *request,
 
 	BUILD_BUG_ON(VF_SW_FLAG_COUNT != MED_VF_SW_FLAG_COUNT);
 
-	xe_assert(xe, !guc->ct.enabled);
+	xe_assert(xe, !xe_guc_ct_enabled(&guc->ct));
 	xe_assert(xe, len);
 	xe_assert(xe, len <= VF_SW_FLAG_COUNT);
 	xe_assert(xe, len <= MED_VF_SW_FLAG_COUNT);
@@ -707,8 +778,12 @@ timeout:
 		if (unlikely(FIELD_GET(GUC_HXG_MSG_0_ORIGIN, header) !=
 			     GUC_HXG_ORIGIN_GUC))
 			goto proto;
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) !=
+			    GUC_HXG_TYPE_NO_RESPONSE_BUSY)
+				goto proto;
 			goto timeout;
+		}
 	}
 
 	if (FIELD_GET(GUC_HXG_MSG_0_TYPE, header) ==
@@ -832,7 +907,7 @@ int xe_guc_stop(struct xe_guc *guc)
 {
 	int ret;
 
-	xe_guc_ct_disable(&guc->ct);
+	xe_guc_ct_stop(&guc->ct);
 
 	ret = xe_guc_submit_stop(guc);
 	if (ret)

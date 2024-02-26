@@ -4802,6 +4802,10 @@
 #define regCM0_CM_DEALPHA_BASE_IDX                                                                      2
 #define regCM0_CM_COEF_FORMAT                                                                           0x0d8c
 #define regCM0_CM_COEF_FORMAT_BASE_IDX                                                                  2
+#define regCM0_CM_TEST_DEBUG_INDEX                                                                      0x0d8d
+#define regCM0_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
+#define regCM0_CM_TEST_DEBUG_DATA                                                                       0x0d8e
+#define regCM0_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp0_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
@@ -5210,6 +5214,10 @@
 #define regCM1_CM_DEALPHA_BASE_IDX                                                                      2
 #define regCM1_CM_COEF_FORMAT                                                                           0x0ef7
 #define regCM1_CM_COEF_FORMAT_BASE_IDX                                                                  2
+#define regCM1_CM_TEST_DEBUG_INDEX                                                                      0x0ef8
+#define regCM1_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
+#define regCM1_CM_TEST_DEBUG_DATA                                                                       0x0ef9
+#define regCM1_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp1_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
@@ -5618,6 +5626,10 @@
 #define regCM2_CM_DEALPHA_BASE_IDX                                                                      2
 #define regCM2_CM_COEF_FORMAT                                                                           0x1062
 #define regCM2_CM_COEF_FORMAT_BASE_IDX                                                                  2
+#define regCM2_CM_TEST_DEBUG_INDEX                                                                      0x1063
+#define regCM2_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
+#define regCM2_CM_TEST_DEBUG_DATA                                                                       0x1064
+#define regCM2_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp2_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
@@ -6026,6 +6038,10 @@
 #define regCM3_CM_DEALPHA_BASE_IDX                                                                      2
 #define regCM3_CM_COEF_FORMAT                                                                           0x11cd
 #define regCM3_CM_COEF_FORMAT_BASE_IDX                                                                  2
+#define regCM3_CM_TEST_DEBUG_INDEX                                                                      0x11ce
+#define regCM3_CM_TEST_DEBUG_INDEX_BASE_IDX                                                             2
+#define regCM3_CM_TEST_DEBUG_DATA                                                                       0x11cf
+#define regCM3_CM_TEST_DEBUG_DATA_BASE_IDX                                                              2
 
 
 // addressBlock: dce_dc_dpp3_dispdec_dpp_dcperfmon_dc_perfmon_dispdec
@@ -10568,6 +10584,8 @@
 #define regDSCC0_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
 #define regDSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL                                           0x3035
 #define regDSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
+#define regDSCC0_DSCC_TEST_DEBUG_BUS_ROTATE                                                             0x303a
+#define regDSCC0_DSCC_TEST_DEBUG_BUS_ROTATE_BASE_IDX                                                    2
 
 
 // addressBlock: dce_dc_dsc0_dispdec_dsc_dcperfmon_dc_perfmon_dispdec
@@ -10697,6 +10715,8 @@
 #define regDSCC1_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
 #define regDSCC1_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL                                           0x3091
 #define regDSCC1_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
+#define regDSCC1_DSCC_TEST_DEBUG_BUS_ROTATE                                                             0x3096
+#define regDSCC1_DSCC_TEST_DEBUG_BUS_ROTATE_BASE_IDX                                                    2
 
 
 // addressBlock: dce_dc_dsc1_dispdec_dsc_dcperfmon_dc_perfmon_dispdec
@@ -10827,6 +10847,8 @@
 #define regDSCC2_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
 #define regDSCC2_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL                                           0x30ed
 #define regDSCC2_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
+#define regDSCC2_DSCC_TEST_DEBUG_BUS_ROTATE                                                             0x30f2
+#define regDSCC2_DSCC_TEST_DEBUG_BUS_ROTATE_BASE_IDX                                                    2
 
 
 // addressBlock: dce_dc_dsc2_dispdec_dsc_dcperfmon_dc_perfmon_dispdec
@@ -10957,6 +10979,8 @@
 #define regDSCC3_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
 #define regDSCC3_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL                                           0x3149
 #define regDSCC3_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
+#define regDSCC3_DSCC_TEST_DEBUG_BUS_ROTATE                                                             0x314e
+#define regDSCC3_DSCC_TEST_DEBUG_BUS_ROTATE_BASE_IDX                                                    2
 
 
 // addressBlock: dce_dc_dsc3_dispdec_dsc_dcperfmon_dc_perfmon_dispdec

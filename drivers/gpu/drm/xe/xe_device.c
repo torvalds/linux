@@ -15,32 +15,35 @@
 #include <drm/drm_print.h>
 #include <drm/xe_drm.h>
 
+#include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
 #include "xe_debugfs.h"
-#include "xe_display.h"
 #include "xe_dma_buf.h"
 #include "xe_drm_client.h"
 #include "xe_drv.h"
-#include "xe_exec_queue.h"
 #include "xe_exec.h"
+#include "xe_exec_queue.h"
 #include "xe_ggtt.h"
+#include "xe_gsc_proxy.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_hwmon.h"
 #include "xe_irq.h"
+#include "xe_memirq.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
 #include "xe_pat.h"
 #include "xe_pcode.h"
 #include "xe_pm.h"
 #include "xe_query.h"
+#include "xe_sriov.h"
 #include "xe_tile.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_sys_mgr.h"
 #include "xe_vm.h"
 #include "xe_wait_user_fence.h"
-#include "xe_hwmon.h"
 
 #ifdef CONFIG_LOCKDEP
 struct lockdep_map xe_device_mem_access_lockdep_map = {
@@ -83,9 +86,6 @@ static int xe_file_open(struct drm_device *dev, struct drm_file *file)
 	return 0;
 }
 
-static void device_kill_persistent_exec_queues(struct xe_device *xe,
-					       struct xe_file *xef);
-
 static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct xe_device *xe = to_xe_device(dev);
@@ -102,8 +102,6 @@ static void xe_file_close(struct drm_device *dev, struct drm_file *file)
 	mutex_unlock(&xef->exec_queue.lock);
 	xa_destroy(&xef->exec_queue.xa);
 	mutex_destroy(&xef->exec_queue.lock);
-	device_kill_persistent_exec_queues(xe, xef);
-
 	mutex_lock(&xef->vm.lock);
 	xa_for_each(&xef->vm.xa, idx, vm)
 		xe_vm_close_and_put(vm);
@@ -254,9 +252,6 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 		if (err >= 0)
 			xa_erase(&xe->usm.asid_to_vm, asid);
 	}
-
-	drmm_mutex_init(&xe->drm, &xe->persistent_engines.lock);
-	INIT_LIST_HEAD(&xe->persistent_engines.list);
 
 	spin_lock_init(&xe->pinned.lock);
 	INIT_LIST_HEAD(&xe->pinned.kernel_bo_present);
@@ -432,9 +427,14 @@ int xe_device_probe(struct xe_device *xe)
 	struct xe_tile *tile;
 	struct xe_gt *gt;
 	int err;
+	u8 last_gt;
 	u8 id;
 
 	xe_pat_init_early(xe);
+
+	err = xe_sriov_init(xe);
+	if (err)
+		return err;
 
 	xe->info.mem_region_mask = 1;
 	err = xe_display_init_nommio(xe);
@@ -454,6 +454,17 @@ int xe_device_probe(struct xe_device *xe)
 
 	for_each_tile(tile, xe, id) {
 		err = xe_ggtt_init_early(tile->mem.ggtt);
+		if (err)
+			return err;
+		if (IS_SRIOV_VF(xe)) {
+			err = xe_memirq_init(&tile->sriov.vf.memirq);
+			if (err)
+				return err;
+		}
+	}
+
+	for_each_gt(gt, xe, id) {
+		err = xe_gt_init_hwconfig(gt);
 		if (err)
 			return err;
 	}
@@ -510,16 +521,18 @@ int xe_device_probe(struct xe_device *xe)
 		goto err_irq_shutdown;
 
 	for_each_gt(gt, xe, id) {
+		last_gt = id;
+
 		err = xe_gt_init(gt);
 		if (err)
-			goto err_irq_shutdown;
+			goto err_fini_gt;
 	}
 
 	xe_heci_gsc_init(xe);
 
 	err = xe_display_init(xe);
 	if (err)
-		goto err_irq_shutdown;
+		goto err_fini_gt;
 
 	err = drm_dev_register(&xe->drm, 0);
 	if (err)
@@ -540,6 +553,14 @@ int xe_device_probe(struct xe_device *xe)
 err_fini_display:
 	xe_display_driver_remove(xe);
 
+err_fini_gt:
+	for_each_gt(gt, xe, id) {
+		if (id < last_gt)
+			xe_gt_remove(gt);
+		else
+			break;
+	}
+
 err_irq_shutdown:
 	xe_irq_shutdown(xe);
 err:
@@ -557,48 +578,23 @@ static void xe_device_remove_display(struct xe_device *xe)
 
 void xe_device_remove(struct xe_device *xe)
 {
+	struct xe_gt *gt;
+	u8 id;
+
 	xe_device_remove_display(xe);
 
 	xe_display_fini(xe);
 
 	xe_heci_gsc_fini(xe);
 
+	for_each_gt(gt, xe, id)
+		xe_gt_remove(gt);
+
 	xe_irq_shutdown(xe);
 }
 
 void xe_device_shutdown(struct xe_device *xe)
 {
-}
-
-void xe_device_add_persistent_exec_queues(struct xe_device *xe, struct xe_exec_queue *q)
-{
-	mutex_lock(&xe->persistent_engines.lock);
-	list_add_tail(&q->persistent.link, &xe->persistent_engines.list);
-	mutex_unlock(&xe->persistent_engines.lock);
-}
-
-void xe_device_remove_persistent_exec_queues(struct xe_device *xe,
-					     struct xe_exec_queue *q)
-{
-	mutex_lock(&xe->persistent_engines.lock);
-	if (!list_empty(&q->persistent.link))
-		list_del(&q->persistent.link);
-	mutex_unlock(&xe->persistent_engines.lock);
-}
-
-static void device_kill_persistent_exec_queues(struct xe_device *xe,
-					       struct xe_file *xef)
-{
-	struct xe_exec_queue *q, *next;
-
-	mutex_lock(&xe->persistent_engines.lock);
-	list_for_each_entry_safe(q, next, &xe->persistent_engines.list,
-				 persistent.link)
-		if (q->persistent.xef == xef) {
-			xe_exec_queue_kill(q);
-			list_del_init(&q->persistent.link);
-		}
-	mutex_unlock(&xe->persistent_engines.lock);
 }
 
 void xe_device_wmb(struct xe_device *xe)
@@ -697,4 +693,34 @@ void xe_device_mem_access_put(struct xe_device *xe)
 	xe_pm_runtime_put(xe);
 
 	xe_assert(xe, ref >= 0);
+}
+
+void xe_device_snapshot_print(struct xe_device *xe, struct drm_printer *p)
+{
+	struct xe_gt *gt;
+	u8 id;
+
+	drm_printf(p, "PCI ID: 0x%04x\n", xe->info.devid);
+	drm_printf(p, "PCI revision: 0x%02x\n", xe->info.revid);
+
+	for_each_gt(gt, xe, id) {
+		drm_printf(p, "GT id: %u\n", id);
+		drm_printf(p, "\tType: %s\n",
+			   gt->info.type == XE_GT_TYPE_MAIN ? "main" : "media");
+		drm_printf(p, "\tIP ver: %u.%u.%u\n",
+			   REG_FIELD_GET(GMD_ID_ARCH_MASK, gt->info.gmdid),
+			   REG_FIELD_GET(GMD_ID_RELEASE_MASK, gt->info.gmdid),
+			   REG_FIELD_GET(GMD_ID_REVID, gt->info.gmdid));
+		drm_printf(p, "\tCS reference clock: %u\n", gt->info.reference_clock);
+	}
+}
+
+u64 xe_device_canonicalize_addr(struct xe_device *xe, u64 address)
+{
+	return sign_extend64(address, xe->info.va_bits - 1);
+}
+
+u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
+{
+	return address & GENMASK_ULL(xe->info.va_bits - 1, 0);
 }

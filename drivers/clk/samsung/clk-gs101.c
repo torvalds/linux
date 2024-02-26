@@ -2475,7 +2475,7 @@ static const struct samsung_cmu_info misc_cmu_info __initconst = {
 	.nr_clk_ids		= CLKS_NR_MISC,
 	.clk_regs		= misc_clk_regs,
 	.nr_clk_regs		= ARRAY_SIZE(misc_clk_regs),
-	.clk_name		= "dout_cmu_misc_bus",
+	.clk_name		= "bus",
 };
 
 /* ---- platform_driver ----------------------------------------------------- */

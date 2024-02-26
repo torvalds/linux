@@ -30,4 +30,8 @@ bool intel_hpd_disable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 void intel_hpd_enable(struct drm_i915_private *dev_priv, enum hpd_pin pin);
 void intel_hpd_debugfs_register(struct drm_i915_private *i915);
 
+void intel_hpd_enable_detection_work(struct drm_i915_private *i915);
+void intel_hpd_disable_detection_work(struct drm_i915_private *i915);
+bool intel_hpd_schedule_detection(struct drm_i915_private *i915);
+
 #endif /* __INTEL_HOTPLUG_H__ */

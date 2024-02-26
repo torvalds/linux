@@ -5,7 +5,8 @@
 
 #include "xe_ring_ops.h"
 
-#include "generated/xe_wa_oob.h"
+#include <generated/xe_wa_oob.h>
+
 #include "instructions/xe_mi_commands.h"
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gpu_commands.h"
@@ -113,6 +114,19 @@ static int emit_flush_invalidate(u32 flag, u32 *dw, int i)
 	return i;
 }
 
+static int
+emit_pipe_control(u32 *dw, int i, u32 bit_group_0, u32 bit_group_1, u32 offset, u32 value)
+{
+	dw[i++] = GFX_OP_PIPE_CONTROL(6) | bit_group_0;
+	dw[i++] = bit_group_1;
+	dw[i++] = offset;
+	dw[i++] = 0;
+	dw[i++] = value;
+	dw[i++] = 0;
+
+	return i;
+}
+
 static int emit_pipe_invalidate(u32 mask_flags, bool invalidate_tlb, u32 *dw,
 				int i)
 {
@@ -131,14 +145,7 @@ static int emit_pipe_invalidate(u32 mask_flags, bool invalidate_tlb, u32 *dw,
 
 	flags &= ~mask_flags;
 
-	dw[i++] = GFX_OP_PIPE_CONTROL(6);
-	dw[i++] = flags;
-	dw[i++] = LRC_PPHWSP_SCRATCH_ADDR;
-	dw[i++] = 0;
-	dw[i++] = 0;
-	dw[i++] = 0;
-
-	return i;
+	return emit_pipe_control(dw, i, 0, flags, LRC_PPHWSP_SCRATCH_ADDR, 0);
 }
 
 static int emit_store_imm_ppgtt_posted(u64 addr, u64 value,
@@ -174,14 +181,7 @@ static int emit_render_cache_flush(struct xe_sched_job *job, u32 *dw, int i)
 	else if (job->q->class == XE_ENGINE_CLASS_COMPUTE)
 		flags &= ~PIPE_CONTROL_3D_ENGINE_FLAGS;
 
-	dw[i++] = GFX_OP_PIPE_CONTROL(6) | PIPE_CONTROL0_HDC_PIPELINE_FLUSH;
-	dw[i++] = flags;
-	dw[i++] = 0;
-	dw[i++] = 0;
-	dw[i++] = 0;
-	dw[i++] = 0;
-
-	return i;
+	return emit_pipe_control(dw, i, PIPE_CONTROL0_HDC_PIPELINE_FLUSH, flags, 0, 0);
 }
 
 static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int i)
@@ -189,14 +189,9 @@ static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int 
 	if (hwe->class != XE_ENGINE_CLASS_RENDER)
 		return i;
 
-	if (XE_WA(hwe->gt, 16020292621)) {
-		dw[i++] = GFX_OP_PIPE_CONTROL(6);
-		dw[i++] = PIPE_CONTROL_LRI_POST_SYNC;
-		dw[i++] = RING_NOPID(hwe->mmio_base).addr;
-		dw[i++] = 0;
-		dw[i++] = 0;
-		dw[i++] = 0;
-	}
+	if (XE_WA(hwe->gt, 16020292621))
+		i = emit_pipe_control(dw, i, 0, PIPE_CONTROL_LRI_POST_SYNC,
+				      RING_NOPID(hwe->mmio_base).addr, 0);
 
 	return i;
 }
@@ -204,16 +199,13 @@ static int emit_pipe_control_to_ring_end(struct xe_hw_engine *hwe, u32 *dw, int 
 static int emit_pipe_imm_ggtt(u32 addr, u32 value, bool stall_only, u32 *dw,
 			      int i)
 {
-	dw[i++] = GFX_OP_PIPE_CONTROL(6);
-	dw[i++] = (stall_only ? PIPE_CONTROL_CS_STALL :
-		   PIPE_CONTROL_FLUSH_ENABLE | PIPE_CONTROL_CS_STALL) |
-		PIPE_CONTROL_GLOBAL_GTT_IVB | PIPE_CONTROL_QW_WRITE;
-	dw[i++] = addr;
-	dw[i++] = 0;
-	dw[i++] = value;
-	dw[i++] = 0; /* We're thrashing one extra dword. */
+	u32 flags = PIPE_CONTROL_CS_STALL | PIPE_CONTROL_GLOBAL_GTT_IVB |
+		    PIPE_CONTROL_QW_WRITE;
 
-	return i;
+	if (!stall_only)
+		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+
+	return emit_pipe_control(dw, i, 0, flags, addr, value);
 }
 
 static u32 get_ppgtt_flag(struct xe_sched_job *job)

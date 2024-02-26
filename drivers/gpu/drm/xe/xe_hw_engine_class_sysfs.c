@@ -73,7 +73,7 @@ static ssize_t job_timeout_max_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_max);
 }
 
-static struct kobj_attribute job_timeout_max_attr =
+static const struct kobj_attribute job_timeout_max_attr =
 __ATTR(job_timeout_max, 0644, job_timeout_max_show, job_timeout_max_store);
 
 static ssize_t job_timeout_min_store(struct kobject *kobj,
@@ -109,7 +109,7 @@ static ssize_t job_timeout_min_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_min);
 }
 
-static struct kobj_attribute job_timeout_min_attr =
+static const struct kobj_attribute job_timeout_min_attr =
 __ATTR(job_timeout_min, 0644, job_timeout_min_show, job_timeout_min_store);
 
 static ssize_t job_timeout_store(struct kobject *kobj,
@@ -142,7 +142,7 @@ static ssize_t job_timeout_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.job_timeout_ms);
 }
 
-static struct kobj_attribute job_timeout_attr =
+static const struct kobj_attribute job_timeout_attr =
 __ATTR(job_timeout_ms, 0644, job_timeout_show, job_timeout_store);
 
 static ssize_t job_timeout_default(struct kobject *kobj,
@@ -153,7 +153,7 @@ static ssize_t job_timeout_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_ms);
 }
 
-static struct kobj_attribute job_timeout_def =
+static const struct kobj_attribute job_timeout_def =
 __ATTR(job_timeout_ms, 0444, job_timeout_default, NULL);
 
 static ssize_t job_timeout_min_default(struct kobject *kobj,
@@ -164,7 +164,7 @@ static ssize_t job_timeout_min_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_min);
 }
 
-static struct kobj_attribute job_timeout_min_def =
+static const struct kobj_attribute job_timeout_min_def =
 __ATTR(job_timeout_min, 0444, job_timeout_min_default, NULL);
 
 static ssize_t job_timeout_max_default(struct kobject *kobj,
@@ -175,7 +175,7 @@ static ssize_t job_timeout_max_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.job_timeout_max);
 }
 
-static struct kobj_attribute job_timeout_max_def =
+static const struct kobj_attribute job_timeout_max_def =
 __ATTR(job_timeout_max, 0444, job_timeout_max_default, NULL);
 
 static ssize_t timeslice_duration_store(struct kobject *kobj,
@@ -234,7 +234,7 @@ static ssize_t timeslice_duration_max_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.timeslice_max);
 }
 
-static struct kobj_attribute timeslice_duration_max_attr =
+static const struct kobj_attribute timeslice_duration_max_attr =
 	__ATTR(timeslice_duration_max, 0644, timeslice_duration_max_show,
 	       timeslice_duration_max_store);
 
@@ -272,7 +272,7 @@ static ssize_t timeslice_duration_min_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.timeslice_min);
 }
 
-static struct kobj_attribute timeslice_duration_min_attr =
+static const struct kobj_attribute timeslice_duration_min_attr =
 	__ATTR(timeslice_duration_min, 0644, timeslice_duration_min_show,
 	       timeslice_duration_min_store);
 
@@ -284,7 +284,7 @@ static ssize_t timeslice_duration_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.timeslice_us);
 }
 
-static struct kobj_attribute timeslice_duration_attr =
+static const struct kobj_attribute timeslice_duration_attr =
 	__ATTR(timeslice_duration_us, 0644, timeslice_duration_show,
 	       timeslice_duration_store);
 
@@ -296,7 +296,7 @@ static ssize_t timeslice_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.timeslice_us);
 }
 
-static struct kobj_attribute timeslice_duration_def =
+static const struct kobj_attribute timeslice_duration_def =
 __ATTR(timeslice_duration_us, 0444, timeslice_default, NULL);
 
 static ssize_t timeslice_min_default(struct kobject *kobj,
@@ -307,7 +307,7 @@ static ssize_t timeslice_min_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.timeslice_min);
 }
 
-static struct kobj_attribute timeslice_duration_min_def =
+static const struct kobj_attribute timeslice_duration_min_def =
 __ATTR(timeslice_duration_min, 0444, timeslice_min_default, NULL);
 
 static ssize_t timeslice_max_default(struct kobject *kobj,
@@ -318,7 +318,7 @@ static ssize_t timeslice_max_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.timeslice_max);
 }
 
-static struct kobj_attribute timeslice_duration_max_def =
+static const struct kobj_attribute timeslice_duration_max_def =
 __ATTR(timeslice_duration_max, 0444, timeslice_max_default, NULL);
 
 static ssize_t preempt_timeout_store(struct kobject *kobj,
@@ -351,7 +351,7 @@ static ssize_t preempt_timeout_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.preempt_timeout_us);
 }
 
-static struct kobj_attribute preempt_timeout_attr =
+static const struct kobj_attribute preempt_timeout_attr =
 __ATTR(preempt_timeout_us, 0644, preempt_timeout_show, preempt_timeout_store);
 
 static ssize_t preempt_timeout_default(struct kobject *kobj,
@@ -363,7 +363,7 @@ static ssize_t preempt_timeout_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_us);
 }
 
-static struct kobj_attribute preempt_timeout_def =
+static const struct kobj_attribute preempt_timeout_def =
 __ATTR(preempt_timeout_us, 0444, preempt_timeout_default, NULL);
 
 static ssize_t preempt_timeout_min_default(struct kobject *kobj,
@@ -375,7 +375,7 @@ static ssize_t preempt_timeout_min_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_min);
 }
 
-static struct kobj_attribute preempt_timeout_min_def =
+static const struct kobj_attribute preempt_timeout_min_def =
 __ATTR(preempt_timeout_min, 0444, preempt_timeout_min_default, NULL);
 
 static ssize_t preempt_timeout_max_default(struct kobject *kobj,
@@ -387,7 +387,7 @@ static ssize_t preempt_timeout_max_default(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->defaults.preempt_timeout_max);
 }
 
-static struct kobj_attribute preempt_timeout_max_def =
+static const struct kobj_attribute preempt_timeout_max_def =
 __ATTR(preempt_timeout_max, 0444, preempt_timeout_max_default, NULL);
 
 static ssize_t preempt_timeout_max_store(struct kobject *kobj,
@@ -423,7 +423,7 @@ static ssize_t preempt_timeout_max_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.preempt_timeout_max);
 }
 
-static struct kobj_attribute preempt_timeout_max_attr =
+static const struct kobj_attribute preempt_timeout_max_attr =
 	__ATTR(preempt_timeout_max, 0644, preempt_timeout_max_show,
 	       preempt_timeout_max_store);
 
@@ -460,7 +460,7 @@ static ssize_t preempt_timeout_min_show(struct kobject *kobj,
 	return sprintf(buf, "%u\n", eclass->sched_props.preempt_timeout_min);
 }
 
-static struct kobj_attribute preempt_timeout_min_attr =
+static const struct kobj_attribute preempt_timeout_min_attr =
 	__ATTR(preempt_timeout_min, 0644, preempt_timeout_min_show,
 	       preempt_timeout_min_store);
 
@@ -477,7 +477,7 @@ static const struct attribute *defaults[] = {
 	NULL
 };
 
-static const struct attribute *files[] = {
+static const struct attribute * const files[] = {
 	&job_timeout_attr.attr,
 	&job_timeout_min_attr.attr,
 	&job_timeout_max_attr.attr,

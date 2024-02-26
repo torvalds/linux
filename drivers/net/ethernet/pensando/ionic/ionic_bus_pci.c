@@ -223,7 +223,7 @@ static void ionic_clear_pci(struct ionic *ionic)
 	ionic_unmap_bars(ionic);
 	pci_release_regions(ionic->pdev);
 
-	if (atomic_read(&ionic->pdev->enable_cnt) > 0)
+	if (pci_is_enabled(ionic->pdev))
 		pci_disable_device(ionic->pdev);
 }
 

@@ -556,6 +556,8 @@ amdgpu_ucode_get_load_type(struct amdgpu_device *adev, int load_type)
 	default:
 		if (!load_type)
 			return AMDGPU_FW_LOAD_DIRECT;
+		else if (load_type == 3)
+			return AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO;
 		else
 			return AMDGPU_FW_LOAD_PSP;
 	}
@@ -678,6 +680,8 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "UMSCH_MM_DATA";
 	case AMDGPU_UCODE_ID_UMSCH_MM_CMD_BUFFER:
 		return "UMSCH_MM_CMD_BUFFER";
+	case AMDGPU_UCODE_ID_JPEG_RAM:
+		return "JPEG";
 	default:
 		return "UNKNOWN UCODE";
 	}
@@ -1060,7 +1064,8 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 
 int amdgpu_ucode_create_bo(struct amdgpu_device *adev)
 {
-	if (adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT) {
+	if ((adev->firmware.load_type != AMDGPU_FW_LOAD_DIRECT) &&
+	    (adev->firmware.load_type != AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO)) {
 		amdgpu_bo_create_kernel(adev, adev->firmware.fw_size, PAGE_SIZE,
 			(amdgpu_sriov_vf(adev) || adev->debug_use_vram_fw_buf) ?
 			AMDGPU_GEM_DOMAIN_VRAM : AMDGPU_GEM_DOMAIN_GTT,

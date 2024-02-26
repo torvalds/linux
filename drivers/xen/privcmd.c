@@ -1223,16 +1223,11 @@ struct privcmd_kernel_ioreq *alloc_ioreq(struct privcmd_ioeventfd *ioeventfd)
 	kioreq->ioreq = (struct ioreq *)(page_to_virt(pages[0]));
 	mmap_write_unlock(mm);
 
-	size = sizeof(*ports) * kioreq->vcpus;
-	ports = kzalloc(size, GFP_KERNEL);
-	if (!ports) {
-		ret = -ENOMEM;
+	ports = memdup_array_user(u64_to_user_ptr(ioeventfd->ports),
+				  kioreq->vcpus, sizeof(*ports));
+	if (IS_ERR(ports)) {
+		ret = PTR_ERR(ports);
 		goto error_kfree;
-	}
-
-	if (copy_from_user(ports, u64_to_user_ptr(ioeventfd->ports), size)) {
-		ret = -EFAULT;
-		goto error_kfree_ports;
 	}
 
 	for (i = 0; i < kioreq->vcpus; i++) {
@@ -1256,7 +1251,7 @@ struct privcmd_kernel_ioreq *alloc_ioreq(struct privcmd_ioeventfd *ioeventfd)
 error_unbind:
 	while (--i >= 0)
 		unbind_from_irqhandler(irq_from_evtchn(ports[i]), &kioreq->ports[i]);
-error_kfree_ports:
+
 	kfree(ports);
 error_kfree:
 	kfree(kioreq);

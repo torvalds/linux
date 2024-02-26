@@ -61,19 +61,23 @@ struct atpx_mux {
 	u16 mux;
 } __packed;
 
-bool radeon_has_atpx(void) {
+bool radeon_has_atpx(void)
+{
 	return radeon_atpx_priv.atpx_detected;
 }
 
-bool radeon_has_atpx_dgpu_power_cntl(void) {
+bool radeon_has_atpx_dgpu_power_cntl(void)
+{
 	return radeon_atpx_priv.atpx.functions.power_cntl;
 }
 
-bool radeon_is_atpx_hybrid(void) {
+bool radeon_is_atpx_hybrid(void)
+{
 	return radeon_atpx_priv.atpx.is_hybrid;
 }
 
-bool radeon_atpx_dgpu_req_power_for_displays(void) {
+bool radeon_atpx_dgpu_req_power_for_displays(void)
+{
 	return radeon_atpx_priv.atpx.dgpu_req_power_for_displays;
 }
 

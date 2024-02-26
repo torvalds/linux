@@ -1800,7 +1800,10 @@ static const struct intel_forcewake_range __mtl_fw_ranges[] = {
 	GEN_FW_RANGE(0x24000, 0x2ffff, 0), /*
 		0x24000 - 0x2407f: always on
 		0x24080 - 0x2ffff: reserved */
-	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_GT)
+	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x40000, 0x1901ef, 0),
+	GEN_FW_RANGE(0x1901f0, 0x1901f3, FORCEWAKE_GT)
+		/* FIXME: WA to wake GT while triggering H2G */
 };
 
 /*

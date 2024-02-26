@@ -110,9 +110,9 @@ static void try_accept(const char *tst_name, unsigned int port,
 		test_tcp_ao_counters_cmp(tst_name, &ao_cnt1, &ao_cnt2, cnt_expected);
 
 out:
-	synchronize_threads(); /* close() */
+	synchronize_threads(); /* test_kill_sk() */
 	if (sk > 0)
-		close(sk);
+		test_kill_sk(sk);
 }
 
 static void server_add_routes(void)
@@ -302,10 +302,10 @@ static void try_connect(const char *tst_name, unsigned int port,
 		test_ok("%s: connected", tst_name);
 
 out:
-	synchronize_threads(); /* close() */
+	synchronize_threads(); /* test_kill_sk() */
 	/* _test_connect_socket() cleans up on failure */
 	if (ret > 0)
-		close(sk);
+		test_kill_sk(sk);
 }
 
 #define PREINSTALL_MD5_FIRST	BIT(0)
@@ -486,10 +486,10 @@ static void try_to_add(const char *tst_name, unsigned int port,
 	}
 
 out:
-	synchronize_threads(); /* close() */
+	synchronize_threads(); /* test_kill_sk() */
 	/* _test_connect_socket() cleans up on failure */
 	if (ret > 0)
-		close(sk);
+		test_kill_sk(sk);
 }
 
 static void client_add_ip(union tcp_addr *client, const char *ip)

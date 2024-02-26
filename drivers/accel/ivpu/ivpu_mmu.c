@@ -72,10 +72,10 @@
 
 #define IVPU_MMU_Q_COUNT_LOG2		4 /* 16 entries */
 #define IVPU_MMU_Q_COUNT		((u32)1 << IVPU_MMU_Q_COUNT_LOG2)
-#define IVPU_MMU_Q_WRAP_BIT		(IVPU_MMU_Q_COUNT << 1)
-#define IVPU_MMU_Q_WRAP_MASK		(IVPU_MMU_Q_WRAP_BIT - 1)
-#define IVPU_MMU_Q_IDX_MASK		(IVPU_MMU_Q_COUNT - 1)
+#define IVPU_MMU_Q_WRAP_MASK            GENMASK(IVPU_MMU_Q_COUNT_LOG2, 0)
+#define IVPU_MMU_Q_IDX_MASK             (IVPU_MMU_Q_COUNT - 1)
 #define IVPU_MMU_Q_IDX(val)		((val) & IVPU_MMU_Q_IDX_MASK)
+#define IVPU_MMU_Q_WRP(val)             ((val) & IVPU_MMU_Q_COUNT)
 
 #define IVPU_MMU_CMDQ_CMD_SIZE		16
 #define IVPU_MMU_CMDQ_SIZE		(IVPU_MMU_Q_COUNT * IVPU_MMU_CMDQ_CMD_SIZE)
@@ -475,20 +475,32 @@ static int ivpu_mmu_cmdq_wait_for_cons(struct ivpu_device *vdev)
 	return 0;
 }
 
+static bool ivpu_mmu_queue_is_full(struct ivpu_mmu_queue *q)
+{
+	return ((IVPU_MMU_Q_IDX(q->prod) == IVPU_MMU_Q_IDX(q->cons)) &&
+		(IVPU_MMU_Q_WRP(q->prod) != IVPU_MMU_Q_WRP(q->cons)));
+}
+
+static bool ivpu_mmu_queue_is_empty(struct ivpu_mmu_queue *q)
+{
+	return ((IVPU_MMU_Q_IDX(q->prod) == IVPU_MMU_Q_IDX(q->cons)) &&
+		(IVPU_MMU_Q_WRP(q->prod) == IVPU_MMU_Q_WRP(q->cons)));
+}
+
 static int ivpu_mmu_cmdq_cmd_write(struct ivpu_device *vdev, const char *name, u64 data0, u64 data1)
 {
-	struct ivpu_mmu_queue *q = &vdev->mmu->cmdq;
-	u64 *queue_buffer = q->base;
-	int idx = IVPU_MMU_Q_IDX(q->prod) * (IVPU_MMU_CMDQ_CMD_SIZE / sizeof(*queue_buffer));
+	struct ivpu_mmu_queue *cmdq = &vdev->mmu->cmdq;
+	u64 *queue_buffer = cmdq->base;
+	int idx = IVPU_MMU_Q_IDX(cmdq->prod) * (IVPU_MMU_CMDQ_CMD_SIZE / sizeof(*queue_buffer));
 
-	if (!CIRC_SPACE(IVPU_MMU_Q_IDX(q->prod), IVPU_MMU_Q_IDX(q->cons), IVPU_MMU_Q_COUNT)) {
+	if (ivpu_mmu_queue_is_full(cmdq)) {
 		ivpu_err(vdev, "Failed to write MMU CMD %s\n", name);
 		return -EBUSY;
 	}
 
 	queue_buffer[idx] = data0;
 	queue_buffer[idx + 1] = data1;
-	q->prod = (q->prod + 1) & IVPU_MMU_Q_WRAP_MASK;
+	cmdq->prod = (cmdq->prod + 1) & IVPU_MMU_Q_WRAP_MASK;
 
 	ivpu_dbg(vdev, MMU, "CMD write: %s data: 0x%llx 0x%llx\n", name, data0, data1);
 
@@ -560,7 +572,6 @@ static int ivpu_mmu_reset(struct ivpu_device *vdev)
 	mmu->cmdq.cons = 0;
 
 	memset(mmu->evtq.base, 0, IVPU_MMU_EVTQ_SIZE);
-	clflush_cache_range(mmu->evtq.base, IVPU_MMU_EVTQ_SIZE);
 	mmu->evtq.prod = 0;
 	mmu->evtq.cons = 0;
 
@@ -874,14 +885,10 @@ static u32 *ivpu_mmu_get_event(struct ivpu_device *vdev)
 	u32 *evt = evtq->base + (idx * IVPU_MMU_EVTQ_CMD_SIZE);
 
 	evtq->prod = REGV_RD32(IVPU_MMU_REG_EVTQ_PROD_SEC);
-	if (!CIRC_CNT(IVPU_MMU_Q_IDX(evtq->prod), IVPU_MMU_Q_IDX(evtq->cons), IVPU_MMU_Q_COUNT))
+	if (ivpu_mmu_queue_is_empty(evtq))
 		return NULL;
 
-	clflush_cache_range(evt, IVPU_MMU_EVTQ_CMD_SIZE);
-
 	evtq->cons = (evtq->cons + 1) & IVPU_MMU_Q_WRAP_MASK;
-	REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, evtq->cons);
-
 	return evt;
 }
 
@@ -902,6 +909,7 @@ void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev)
 		}
 
 		ivpu_mmu_user_context_mark_invalid(vdev, ssid);
+		REGV_WR32(IVPU_MMU_REG_EVTQ_CONS_SEC, vdev->mmu->evtq.cons);
 	}
 }
 

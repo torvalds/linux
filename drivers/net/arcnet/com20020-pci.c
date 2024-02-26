@@ -61,6 +61,7 @@ module_param(timeout, int, 0);
 module_param(backplane, int, 0);
 module_param(clockp, int, 0);
 module_param(clockm, int, 0);
+MODULE_DESCRIPTION("ARCnet COM20020 chipset PCI driver");
 MODULE_LICENSE("GPL");
 
 static void led_tx_set(struct led_classdev *led_cdev,

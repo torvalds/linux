@@ -16,6 +16,8 @@
 #include "xe_guc_ct.h"
 #include "xe_guc_submit.h"
 #include "xe_hw_engine.h"
+#include "xe_sched_job.h"
+#include "xe_vm.h"
 
 /**
  * DOC: Xe device coredump
@@ -58,11 +60,22 @@ static struct xe_guc *exec_queue_to_guc(struct xe_exec_queue *q)
 	return &q->gt->uc.guc;
 }
 
+static void xe_devcoredump_deferred_snap_work(struct work_struct *work)
+{
+	struct xe_devcoredump_snapshot *ss = container_of(work, typeof(*ss), work);
+
+	xe_force_wake_get(gt_to_fw(ss->gt), XE_FORCEWAKE_ALL);
+	if (ss->vm)
+		xe_vm_snapshot_capture_delayed(ss->vm);
+	xe_force_wake_put(gt_to_fw(ss->gt), XE_FORCEWAKE_ALL);
+}
+
 static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 				   size_t count, void *data, size_t datalen)
 {
 	struct xe_devcoredump *coredump = data;
-	struct xe_devcoredump_snapshot *ss;
+	struct xe_device *xe = coredump_to_xe(coredump);
+	struct xe_devcoredump_snapshot *ss = &coredump->snapshot;
 	struct drm_printer p;
 	struct drm_print_iterator iter;
 	struct timespec64 ts;
@@ -72,12 +85,14 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 	if (!data || !coredump_to_xe(coredump))
 		return -ENODEV;
 
+	/* Ensure delayed work is captured before continuing */
+	flush_work(&ss->work);
+
 	iter.data = buffer;
 	iter.offset = 0;
 	iter.start = offset;
 	iter.remain = count;
 
-	ss = &coredump->snapshot;
 	p = drm_coredump_printer(&iter);
 
 	drm_printf(&p, "**** Xe Device Coredump ****\n");
@@ -88,16 +103,24 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 	drm_printf(&p, "Snapshot time: %lld.%09ld\n", ts.tv_sec, ts.tv_nsec);
 	ts = ktime_to_timespec64(ss->boot_time);
 	drm_printf(&p, "Uptime: %lld.%09ld\n", ts.tv_sec, ts.tv_nsec);
+	xe_device_snapshot_print(xe, &p);
 
 	drm_printf(&p, "\n**** GuC CT ****\n");
 	xe_guc_ct_snapshot_print(coredump->snapshot.ct, &p);
 	xe_guc_exec_queue_snapshot_print(coredump->snapshot.ge, &p);
+
+	drm_printf(&p, "\n**** Job ****\n");
+	xe_sched_job_snapshot_print(coredump->snapshot.job, &p);
 
 	drm_printf(&p, "\n**** HW Engines ****\n");
 	for (i = 0; i < XE_NUM_HW_ENGINES; i++)
 		if (coredump->snapshot.hwe[i])
 			xe_hw_engine_snapshot_print(coredump->snapshot.hwe[i],
 						    &p);
+	if (coredump->snapshot.vm) {
+		drm_printf(&p, "\n**** VM state ****\n");
+		xe_vm_snapshot_print(coredump->snapshot.vm, &p);
+	}
 
 	return count - iter.remain;
 }
@@ -111,21 +134,28 @@ static void xe_devcoredump_free(void *data)
 	if (!data || !coredump_to_xe(coredump))
 		return;
 
+	cancel_work_sync(&coredump->snapshot.work);
+
 	xe_guc_ct_snapshot_free(coredump->snapshot.ct);
 	xe_guc_exec_queue_snapshot_free(coredump->snapshot.ge);
+	xe_sched_job_snapshot_free(coredump->snapshot.job);
 	for (i = 0; i < XE_NUM_HW_ENGINES; i++)
 		if (coredump->snapshot.hwe[i])
 			xe_hw_engine_snapshot_free(coredump->snapshot.hwe[i]);
+	xe_vm_snapshot_free(coredump->snapshot.vm);
 
+	/* To prevent stale data on next snapshot, clear everything */
+	memset(&coredump->snapshot, 0, sizeof(coredump->snapshot));
 	coredump->captured = false;
 	drm_info(&coredump_to_xe(coredump)->drm,
 		 "Xe device coredump has been deleted.\n");
 }
 
 static void devcoredump_snapshot(struct xe_devcoredump *coredump,
-				 struct xe_exec_queue *q)
+				 struct xe_sched_job *job)
 {
 	struct xe_devcoredump_snapshot *ss = &coredump->snapshot;
+	struct xe_exec_queue *q = job->q;
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_hw_engine *hwe;
 	enum xe_hw_engine_id id;
@@ -136,6 +166,9 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 
 	ss->snapshot_time = ktime_get_real();
 	ss->boot_time = ktime_get_boottime();
+
+	ss->gt = q->gt;
+	INIT_WORK(&ss->work, xe_devcoredump_deferred_snap_work);
 
 	cookie = dma_fence_begin_signalling();
 	for (i = 0; q->width > 1 && i < XE_HW_ENGINE_MAX_INSTANCE;) {
@@ -150,7 +183,9 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 	xe_force_wake_get(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
 
 	coredump->snapshot.ct = xe_guc_ct_snapshot_capture(&guc->ct, true);
-	coredump->snapshot.ge = xe_guc_exec_queue_snapshot_capture(q);
+	coredump->snapshot.ge = xe_guc_exec_queue_snapshot_capture(job);
+	coredump->snapshot.job = xe_sched_job_snapshot_capture(job);
+	coredump->snapshot.vm = xe_vm_snapshot_capture(q->vm);
 
 	for_each_hw_engine(hwe, q->gt, id) {
 		if (hwe->class != q->hwe->class ||
@@ -161,21 +196,24 @@ static void devcoredump_snapshot(struct xe_devcoredump *coredump,
 		coredump->snapshot.hwe[id] = xe_hw_engine_snapshot_capture(hwe);
 	}
 
+	if (ss->vm)
+		queue_work(system_unbound_wq, &ss->work);
+
 	xe_force_wake_put(gt_to_fw(q->gt), XE_FORCEWAKE_ALL);
 	dma_fence_end_signalling(cookie);
 }
 
 /**
  * xe_devcoredump - Take the required snapshots and initialize coredump device.
- * @q: The faulty xe_exec_queue, where the issue was detected.
+ * @job: The faulty xe_sched_job, where the issue was detected.
  *
  * This function should be called at the crash time within the serialized
  * gt_reset. It is skipped if we still have the core dump device available
  * with the information of the 'first' snapshot.
  */
-void xe_devcoredump(struct xe_exec_queue *q)
+void xe_devcoredump(struct xe_sched_job *job)
 {
-	struct xe_device *xe = gt_to_xe(q->gt);
+	struct xe_device *xe = gt_to_xe(job->q->gt);
 	struct xe_devcoredump *coredump = &xe->devcoredump;
 
 	if (coredump->captured) {
@@ -184,7 +222,7 @@ void xe_devcoredump(struct xe_exec_queue *q)
 	}
 
 	coredump->captured = true;
-	devcoredump_snapshot(coredump, q);
+	devcoredump_snapshot(coredump, job);
 
 	drm_info(&xe->drm, "Xe device coredump has been created\n");
 	drm_info(&xe->drm, "Check your /sys/class/drm/card%d/device/devcoredump/data\n",
@@ -194,3 +232,4 @@ void xe_devcoredump(struct xe_exec_queue *q)
 		      xe_devcoredump_read, xe_devcoredump_free);
 }
 #endif
+

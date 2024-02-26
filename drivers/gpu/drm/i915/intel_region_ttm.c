@@ -87,7 +87,7 @@ int intel_region_ttm_init(struct intel_memory_region *mem)
 
 	ret = i915_ttm_buddy_man_init(bdev, mem_type, false,
 				      resource_size(&mem->region),
-				      mem->io_size,
+				      resource_size(&mem->io),
 				      mem->min_page_size, PAGE_SIZE);
 	if (ret)
 		return ret;
@@ -219,16 +219,16 @@ intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
 			goto out;
 		}
 		place.lpfn = place.fpfn + (size >> PAGE_SHIFT);
-	} else if (mem->io_size && mem->io_size < mem->total) {
+	} else if (resource_size(&mem->io) && resource_size(&mem->io) < mem->total) {
 		if (flags & I915_BO_ALLOC_GPU_ONLY) {
 			place.flags |= TTM_PL_FLAG_TOPDOWN;
 		} else {
 			place.fpfn = 0;
-			if (WARN_ON(overflows_type(mem->io_size >> PAGE_SHIFT, place.lpfn))) {
+			if (WARN_ON(overflows_type(resource_size(&mem->io) >> PAGE_SHIFT, place.lpfn))) {
 				ret = -E2BIG;
 				goto out;
 			}
-			place.lpfn = mem->io_size >> PAGE_SHIFT;
+			place.lpfn = resource_size(&mem->io) >> PAGE_SHIFT;
 		}
 	}
 

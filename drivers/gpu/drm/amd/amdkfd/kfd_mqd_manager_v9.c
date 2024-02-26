@@ -303,6 +303,15 @@ static void update_mqd(struct mqd_manager *mm, void *mqd,
 		update_cu_mask(mm, mqd, minfo, 0);
 	set_priority(m, q);
 
+	if (minfo && KFD_GC_VERSION(mm->dev) >= IP_VERSION(9, 4, 2)) {
+		if (minfo->update_flag & UPDATE_FLAG_IS_GWS)
+			m->compute_resource_limits |=
+				COMPUTE_RESOURCE_LIMITS__FORCE_SIMD_DIST_MASK;
+		else
+			m->compute_resource_limits &=
+				~COMPUTE_RESOURCE_LIMITS__FORCE_SIMD_DIST_MASK;
+	}
+
 	q->is_active = QUEUE_IS_ACTIVE(*q);
 }
 

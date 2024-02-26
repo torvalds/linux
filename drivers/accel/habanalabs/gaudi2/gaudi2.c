@@ -158,11 +158,13 @@
 #define RAZWI_INITIATOR_ID_X_Y(xl, yl, xh) \
 	(RAZWI_INITIATOR_ID_X_Y_LOW(xl, yl) | RAZWI_INITIATOR_ID_X_HIGH(xh))
 
-#define PSOC_RAZWI_ENG_STR_SIZE 128
-#define PSOC_RAZWI_MAX_ENG_PER_RTR 5
+#define PSOC_RAZWI_ENG_STR_SIZE			128
+#define PSOC_RAZWI_MAX_ENG_PER_RTR		5
 
 /* HW scrambles only bits 0-25 */
-#define HW_UNSCRAMBLED_BITS_MASK GENMASK_ULL(63, 26)
+#define HW_UNSCRAMBLED_BITS_MASK		GENMASK_ULL(63, 26)
+
+#define GAUDI2_GLBL_ERR_MAX_CAUSE_NUM		17
 
 struct gaudi2_razwi_info {
 	u32 axuser_xy;
@@ -2308,11 +2310,26 @@ static int set_number_of_functional_hbms(struct hl_device *hdev)
 	return 0;
 }
 
+static bool gaudi2_is_edma_queue_id(u32 queue_id)
+{
+
+	switch (queue_id) {
+	case GAUDI2_QUEUE_ID_DCORE0_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE0_EDMA_1_3:
+	case GAUDI2_QUEUE_ID_DCORE1_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE1_EDMA_1_3:
+	case GAUDI2_QUEUE_ID_DCORE2_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE2_EDMA_1_3:
+	case GAUDI2_QUEUE_ID_DCORE3_EDMA_0_0...GAUDI2_QUEUE_ID_DCORE3_EDMA_1_3:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int gaudi2_set_dram_properties(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 basic_hbm_page_size;
-	int rc;
+	u64 hbm_drv_base_offset = 0, edma_pq_base_addr;
+	u32 basic_hbm_page_size, edma_idx = 0;
+	int rc, i;
 
 	rc = set_number_of_functional_hbms(hdev);
 	if (rc)
@@ -2356,9 +2373,35 @@ static int gaudi2_set_dram_properties(struct hl_device *hdev)
 	prop->dmmu.start_addr = prop->dram_base_address +
 			(prop->dram_page_size *
 				DIV_ROUND_UP_SECTOR_T(prop->dram_size, prop->dram_page_size));
-
 	prop->dmmu.end_addr = prop->dmmu.start_addr + prop->dram_page_size *
 			div_u64((VA_HBM_SPACE_END - prop->dmmu.start_addr), prop->dmmu.page_size);
+	/*
+	 * Driver can't share an (48MB) HBM page with the F/W in order to prevent FW to block
+	 * the driver part by range register, so it must start at the next (48MB) page
+	 */
+	hbm_drv_base_offset = roundup(CPU_FW_IMAGE_SIZE, prop->num_functional_hbms * SZ_8M);
+
+	/*
+	 * The NIC driver section size and the HMMU page tables section in the HBM needs
+	 * to be the remaining size in the first dram page after taking into
+	 * account the F/W image size
+	 */
+
+	/* Reserve region in HBM for HMMU page tables */
+	prop->mmu_pgt_addr = DRAM_PHYS_BASE + hbm_drv_base_offset +
+				((prop->dram_page_size - hbm_drv_base_offset) -
+				(HMMU_PAGE_TABLES_SIZE + EDMA_PQS_SIZE + EDMA_SCRATCHPAD_SIZE));
+
+	/* Set EDMA PQs HBM addresses */
+	edma_pq_base_addr = prop->mmu_pgt_addr + HMMU_PAGE_TABLES_SIZE;
+
+	for (i = 0 ; i < GAUDI2_QUEUE_ID_CPU_PQ ; i++) {
+		if (gaudi2_is_edma_queue_id(i)) {
+			prop->hw_queues_props[i].q_dram_bd_address = edma_pq_base_addr +
+							(edma_idx * HL_QUEUE_SIZE_IN_BYTES);
+			edma_idx++;
+		}
+	}
 
 	return 0;
 }
@@ -2368,7 +2411,7 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct hw_queue_properties *q_props;
 	u32 num_sync_stream_queues = 0;
-	int i;
+	int i, rc;
 
 	prop->max_queues = GAUDI2_QUEUE_ID_SIZE;
 	prop->hw_queues_props = kcalloc(prop->max_queues, sizeof(struct hw_queue_properties),
@@ -2391,6 +2434,9 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 		}
 
 		q_props[i].cb_alloc_flags = CB_ALLOC_USER;
+
+		if (gaudi2_is_edma_queue_id(i))
+			q_props[i].dram_bd = 1;
 	}
 
 	q_props[GAUDI2_QUEUE_ID_CPU_PQ].type = QUEUE_TYPE_CPU;
@@ -2419,46 +2465,43 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->rotator_enabled_mask = BIT(NUM_OF_ROT) - 1;
 
-	if (hdev->pldm)
-		prop->mmu_pgt_size = 0x800000; /* 8MB */
-	else
-		prop->mmu_pgt_size = MMU_PAGE_TABLES_INITIAL_SIZE;
+	prop->max_asid = 2;
 
+	prop->dmmu.pgt_size = HMMU_PAGE_TABLES_SIZE;
 	prop->mmu_pte_size = HL_PTE_SIZE;
-	prop->mmu_hop_table_size = HOP_TABLE_SIZE_512_PTE;
-	prop->mmu_hop0_tables_total_size = HOP0_512_PTE_TABLES_TOTAL_SIZE;
 
 	prop->dmmu.hop_shifts[MMU_HOP0] = DHOP0_SHIFT;
 	prop->dmmu.hop_shifts[MMU_HOP1] = DHOP1_SHIFT;
 	prop->dmmu.hop_shifts[MMU_HOP2] = DHOP2_SHIFT;
 	prop->dmmu.hop_shifts[MMU_HOP3] = DHOP3_SHIFT;
-	prop->dmmu.hop_shifts[MMU_HOP4] = DHOP4_SHIFT;
 	prop->dmmu.hop_masks[MMU_HOP0] = DHOP0_MASK;
 	prop->dmmu.hop_masks[MMU_HOP1] = DHOP1_MASK;
 	prop->dmmu.hop_masks[MMU_HOP2] = DHOP2_MASK;
 	prop->dmmu.hop_masks[MMU_HOP3] = DHOP3_MASK;
-	prop->dmmu.hop_masks[MMU_HOP4] = DHOP4_MASK;
 	prop->dmmu.page_size = PAGE_SIZE_1GB;
-	prop->dmmu.num_hops = MMU_ARCH_6_HOPS;
+	prop->dmmu.num_hops = MMU_ARCH_4_HOPS;
 	prop->dmmu.last_mask = LAST_MASK;
-	prop->dmmu.host_resident = 1;
-	prop->dmmu.hop_table_size = prop->mmu_hop_table_size;
-	prop->dmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
+	prop->dmmu.host_resident = 0;
+	prop->dmmu.hop_table_size = HOP_TABLE_SIZE_512_PTE;
+	prop->dmmu.hop0_tables_total_size = HOP_TABLE_SIZE_512_PTE * prop->max_asid;
 
-	/*
-	 * this is done in order to be able to validate FW descriptor (i.e. validating that
-	 * the addresses and allocated space for FW image does not cross memory bounds).
-	 * for this reason we set the DRAM size to the minimum possible and later it will
-	 * be modified according to what reported in the cpucp info packet
+	/* As we need to set the pgt address in dram for HMMU init so we cannot
+	 * wait to the fw cpucp info to set the dram props as mmu init comes before
+	 * hw init
 	 */
-	prop->dram_size = (GAUDI2_HBM_NUM - 1) * SZ_16G;
+	rc = hdev->asic_funcs->set_dram_properties(hdev);
+	if (rc)
+		goto free_qprops;
 
+	prop->mmu_pgt_size = PMMU_PAGE_TABLES_SIZE;
+
+	prop->pmmu.pgt_size = prop->mmu_pgt_size;
 	hdev->pmmu_huge_range = true;
 	prop->pmmu.host_resident = 1;
 	prop->pmmu.num_hops = MMU_ARCH_6_HOPS;
 	prop->pmmu.last_mask = LAST_MASK;
-	prop->pmmu.hop_table_size = prop->mmu_hop_table_size;
-	prop->pmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
+	prop->pmmu.hop_table_size = HOP_TABLE_SIZE_512_PTE;
+	prop->pmmu.hop0_tables_total_size = HOP_TABLE_SIZE_512_PTE * prop->max_asid;
 
 	prop->hints_host_reserved_va_range.start_addr = RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START;
 	prop->hints_host_reserved_va_range.end_addr = RESERVED_VA_RANGE_FOR_ARC_ON_HOST_END;
@@ -2516,7 +2559,6 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->max_num_of_engines = GAUDI2_ENGINE_ID_SIZE;
 	prop->num_engine_cores = CPU_ID_MAX;
 	prop->cfg_size = CFG_SIZE;
-	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GAUDI2_EVENT_SIZE;
 
 	prop->supports_engine_modes = true;
@@ -2560,6 +2602,10 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->hbw_flush_reg = mmPCIE_WRAP_SPECIAL_GLBL_SPARE_0;
 
 	return 0;
+
+free_qprops:
+	kfree(prop->hw_queues_props);
+	return rc;
 }
 
 static int gaudi2_pci_bars_map(struct hl_device *hdev)
@@ -3033,6 +3079,25 @@ static int gaudi2_fetch_psoc_frequency(struct hl_device *hdev)
 	return 0;
 }
 
+static int gaudi2_mmu_clear_pgt_range(struct hl_device *hdev)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int rc;
+
+	if (!(gaudi2->hw_cap_initialized & HW_CAP_MMU_MASK))
+		return 0;
+
+	if (prop->dmmu.host_resident)
+		return 0;
+
+	rc = gaudi2_memset_device_memory(hdev, prop->mmu_pgt_addr, prop->dmmu.pgt_size, 0);
+	if (rc)
+		dev_err(hdev->dev, "Failed to clear mmu pgt");
+
+	return rc;
+}
+
 static int gaudi2_early_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
@@ -3255,6 +3320,12 @@ static int gaudi2_late_init(struct hl_device *hdev)
 	rc = gaudi2_fetch_psoc_frequency(hdev);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to fetch psoc frequency\n");
+		goto disable_pci_access;
+	}
+
+	rc = gaudi2_mmu_clear_pgt_range(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to clear MMU page tables range\n");
 		goto disable_pci_access;
 	}
 
@@ -3518,7 +3589,7 @@ static int gaudi2_special_blocks_config(struct hl_device *hdev)
 	int i, rc;
 
 	/* Configure Special blocks */
-	prop->glbl_err_cause_num = GAUDI2_NUM_OF_GLBL_ERR_CAUSE;
+	prop->glbl_err_max_cause_num = GAUDI2_GLBL_ERR_MAX_CAUSE_NUM;
 	prop->num_of_special_blocks = ARRAY_SIZE(gaudi2_special_blocks);
 	prop->special_blocks = kmalloc_array(prop->num_of_special_blocks,
 			sizeof(*prop->special_blocks), GFP_KERNEL);
@@ -3697,13 +3768,7 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 
 	spin_lock_init(&gaudi2->hw_queues_lock);
 
-	gaudi2->scratchpad_kernel_address = hl_asic_dma_alloc_coherent(hdev, PAGE_SIZE,
-							&gaudi2->scratchpad_bus_address,
-							GFP_KERNEL | __GFP_ZERO);
-	if (!gaudi2->scratchpad_kernel_address) {
-		rc = -ENOMEM;
-		goto free_virt_msix_db_mem;
-	}
+	gaudi2->scratchpad_bus_address = prop->mmu_pgt_addr + HMMU_PAGE_TABLES_SIZE + EDMA_PQS_SIZE;
 
 	gaudi2_user_mapped_blocks_init(hdev);
 
@@ -3727,7 +3792,7 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 
 	rc = gaudi2_special_blocks_iterator_config(hdev);
 	if (rc)
-		goto free_scratchpad_mem;
+		goto free_virt_msix_db_mem;
 
 	rc = gaudi2_test_queues_msgs_alloc(hdev);
 	if (rc)
@@ -3737,9 +3802,6 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 
 special_blocks_free:
 	gaudi2_special_blocks_iterator_free(hdev);
-free_scratchpad_mem:
-	hl_asic_dma_free_coherent(hdev, PAGE_SIZE, gaudi2->scratchpad_kernel_address,
-				  gaudi2->scratchpad_bus_address);
 free_virt_msix_db_mem:
 	hl_cpu_accessible_dma_pool_free(hdev, prop->pmmu.page_size, gaudi2->virt_msix_db_cpu_addr);
 free_cpu_accessible_dma_pool:
@@ -3769,9 +3831,6 @@ static int gaudi2_sw_fini(struct hl_device *hdev)
 
 	hl_asic_dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE, hdev->cpu_accessible_dma_mem,
 						hdev->cpu_accessible_dma_address);
-
-	hl_asic_dma_free_coherent(hdev, PAGE_SIZE, gaudi2->scratchpad_kernel_address,
-					gaudi2->scratchpad_bus_address);
 
 	dma_pool_destroy(hdev->dma_pool);
 
@@ -4254,6 +4313,8 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 	if (gaudi2->hw_cap_initialized & HW_CAP_MSIX)
 		return 0;
 
+	hl_init_cpu_for_irq(hdev);
+
 	rc = pci_alloc_irq_vectors(hdev->pdev, GAUDI2_MSIX_ENTRIES, GAUDI2_MSIX_ENTRIES,
 					PCI_IRQ_MSIX);
 	if (rc < 0) {
@@ -4307,6 +4368,7 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 			i++, j++, user_irq_init_cnt++) {
 
 		irq = pci_irq_vector(hdev->pdev, i);
+		hl_set_irq_affinity(hdev, irq);
 		rc = request_irq(irq, hl_irq_user_interrupt_handler, 0, gaudi2_irq_name(i),
 				&hdev->user_interrupt[j]);
 		if (rc) {
@@ -4333,6 +4395,7 @@ free_user_irq:
 			i < GAUDI2_IRQ_NUM_USER_FIRST + user_irq_init_cnt ; i++, j++) {
 
 		irq = pci_irq_vector(hdev->pdev, i);
+		irq_set_affinity_and_hint(irq, NULL);
 		free_irq(irq, &hdev->user_interrupt[j]);
 	}
 	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_UNEXPECTED_ERROR);
@@ -4413,6 +4476,7 @@ static void gaudi2_disable_msix(struct hl_device *hdev)
 			k < hdev->asic_prop.user_interrupt_count ; i++, j++, k++) {
 
 		irq = pci_irq_vector(hdev->pdev, i);
+		irq_set_affinity_and_hint(irq, NULL);
 		free_irq(irq, &hdev->user_interrupt[j]);
 	}
 
@@ -4957,10 +5021,17 @@ static void gaudi2_init_qman_pq(struct hl_device *hdev, u32 reg_base,
 		q = &hdev->kernel_queues[queue_id_base + pq_id];
 		pq_offset = pq_id * 4;
 
-		WREG32(reg_base + QM_PQ_BASE_LO_0_OFFSET + pq_offset,
-				lower_32_bits(q->bus_address));
-		WREG32(reg_base + QM_PQ_BASE_HI_0_OFFSET + pq_offset,
-				upper_32_bits(q->bus_address));
+		if (q->dram_bd) {
+			WREG32(reg_base + QM_PQ_BASE_LO_0_OFFSET + pq_offset,
+					lower_32_bits(q->pq_dram_address));
+			WREG32(reg_base + QM_PQ_BASE_HI_0_OFFSET + pq_offset,
+					upper_32_bits(q->pq_dram_address));
+		} else {
+			WREG32(reg_base + QM_PQ_BASE_LO_0_OFFSET + pq_offset,
+					lower_32_bits(q->bus_address));
+			WREG32(reg_base + QM_PQ_BASE_HI_0_OFFSET + pq_offset,
+					upper_32_bits(q->bus_address));
+		}
 		WREG32(reg_base + QM_PQ_SIZE_0_OFFSET + pq_offset, ilog2(HL_QUEUE_LENGTH));
 		WREG32(reg_base + QM_PQ_PI_0_OFFSET + pq_offset, 0);
 		WREG32(reg_base + QM_PQ_CI_0_OFFSET + pq_offset, 0);
@@ -5847,7 +5918,8 @@ static int gaudi2_mmu_invalidate_cache_range(struct hl_device *hdev, bool is_har
 	return rc;
 }
 
-static int gaudi2_mmu_update_hop0_addr(struct hl_device *hdev, u32 stlb_base)
+static int gaudi2_mmu_update_hop0_addr(struct hl_device *hdev, u32 stlb_base,
+									bool host_resident_pgt)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 hop0_addr;
@@ -5859,7 +5931,11 @@ static int gaudi2_mmu_update_hop0_addr(struct hl_device *hdev, u32 stlb_base)
 		max_asid = min((u32) 8, max_asid);
 
 	for (asid = 0 ; asid < max_asid ; asid++) {
-		hop0_addr = hdev->mmu_priv.hr.mmu_asid_hop0[asid].phys_addr;
+		if (host_resident_pgt)
+			hop0_addr = hdev->mmu_priv.hr.mmu_asid_hop0[asid].phys_addr;
+		else
+			hop0_addr = prop->mmu_pgt_addr + (asid * prop->dmmu.hop_table_size);
+
 		rc = gaudi2_mmu_update_asid_hop0_addr(hdev, stlb_base, asid, hop0_addr);
 		if (rc) {
 			dev_err(hdev->dev, "failed to set hop0 addr for asid %d\n", asid);
@@ -5870,7 +5946,8 @@ static int gaudi2_mmu_update_hop0_addr(struct hl_device *hdev, u32 stlb_base)
 	return 0;
 }
 
-static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base, u32 stlb_base)
+static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base, u32 stlb_base,
+								bool host_resident_pgt)
 {
 	u32 status, timeout_usec;
 	int rc;
@@ -5893,7 +5970,7 @@ static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base, u32 stlb
 	if (rc)
 		dev_notice_ratelimited(hdev->dev, "Timeout when waiting for MMU SRAM init\n");
 
-	rc = gaudi2_mmu_update_hop0_addr(hdev, stlb_base);
+	rc = gaudi2_mmu_update_hop0_addr(hdev, stlb_base, host_resident_pgt);
 	if (rc)
 		return rc;
 
@@ -5917,6 +5994,7 @@ static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base, u32 stlb
 
 static int gaudi2_pci_mmu_init(struct hl_device *hdev)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	u32 mmu_base, stlb_base;
 	int rc;
@@ -5956,7 +6034,7 @@ static int gaudi2_pci_mmu_init(struct hl_device *hdev)
 
 	WREG32(mmu_base + MMU_SPI_SEI_MASK_OFFSET, GAUDI2_PMMU_SPI_SEI_ENABLE_MASK);
 
-	rc = gaudi2_mmu_init_common(hdev, mmu_base, stlb_base);
+	rc = gaudi2_mmu_init_common(hdev, mmu_base, stlb_base, prop->pmmu.host_resident);
 	if (rc)
 		return rc;
 
@@ -6008,7 +6086,7 @@ static int gaudi2_dcore_hmmu_init(struct hl_device *hdev, int dcore_id,
 
 	WREG32(mmu_base + MMU_SPI_SEI_MASK_OFFSET, GAUDI2_HMMU_SPI_SEI_ENABLE_MASK);
 
-	rc = gaudi2_mmu_init_common(hdev, mmu_base, stlb_base);
+	rc = gaudi2_mmu_init_common(hdev, mmu_base, stlb_base, prop->dmmu.host_resident);
 	if (rc)
 		return rc;
 
@@ -7046,7 +7124,7 @@ static int gaudi2_test_queues(struct hl_device *hdev)
 
 	/* send test message on all enabled Qs */
 	for (i = GAUDI2_QUEUE_ID_PDMA_0_0 ; i < GAUDI2_QUEUE_ID_CPU_PQ; i++) {
-		if (!gaudi2_is_queue_enabled(hdev, i))
+		if (!gaudi2_is_queue_enabled(hdev, i) || gaudi2_is_edma_queue_id(i))
 			continue;
 
 		msg_info = &gaudi2->queues_test_info[i - GAUDI2_QUEUE_ID_PDMA_0_0];
@@ -7063,7 +7141,7 @@ static int gaudi2_test_queues(struct hl_device *hdev)
 
 	/* verify that all messages were processed */
 	for (i = GAUDI2_QUEUE_ID_PDMA_0_0 ; i < GAUDI2_QUEUE_ID_CPU_PQ; i++) {
-		if (!gaudi2_is_queue_enabled(hdev, i))
+		if (!gaudi2_is_queue_enabled(hdev, i) || gaudi2_is_edma_queue_id(i))
 			continue;
 
 		rc = gaudi2_test_queue_wait_completion(hdev, i, sob_val);
@@ -8907,9 +8985,6 @@ static int gaudi2_print_pcie_addr_dec_info(struct hl_device *hdev, u16 event_typ
 	u32 error_count = 0;
 	int i;
 
-	gaudi2_print_event(hdev, event_type, true,
-		"intr_cause_data: %#llx", intr_cause_data);
-
 	for (i = 0 ; i < GAUDI2_NUM_OF_PCIE_ADDR_DEC_ERR_CAUSE ; i++) {
 		if (!(intr_cause_data & BIT_ULL(i)))
 			continue;
@@ -8918,14 +8993,15 @@ static int gaudi2_print_pcie_addr_dec_info(struct hl_device *hdev, u16 event_typ
 			"err cause: %s", gaudi2_pcie_addr_dec_error_cause[i]);
 		error_count++;
 
-		/*
-		 * Always check for LBW and HBW additional info as the indication itself is
-		 * sometimes missing
-		 */
+		switch (intr_cause_data & BIT_ULL(i)) {
+		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_AXI_LBW_ERR_INTR_MASK:
+			hl_check_for_glbl_errors(hdev);
+			break;
+		case PCIE_WRAP_PCIE_IC_SEI_INTR_IND_BAD_ACCESS_INTR_MASK:
+			gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(hdev, event_mask);
+			break;
+		}
 	}
-
-	hl_check_for_glbl_errors(hdev);
-	gaudi2_print_pcie_mstr_rr_mstr_if_razwi_info(hdev, event_mask);
 
 	return error_count;
 }
@@ -8983,7 +9059,6 @@ static void gaudi2_handle_page_error(struct hl_device *hdev, u64 mmu_base, bool 
 	if (is_pmmu) {
 		dev_err_ratelimited(hdev->dev, "PMMU page fault on va 0x%llx\n", addr);
 	} else {
-
 		addr = gaudi2_mmu_descramble_addr(hdev, addr);
 		addr &= HW_UNSCRAMBLED_BITS_MASK;
 		dev_err_ratelimited(hdev->dev, "HMMU page fault on va range 0x%llx - 0x%llx\n",
@@ -9514,25 +9589,17 @@ static int gaudi2_handle_pcie_p2p_msix(struct hl_device *hdev, u16 event_type)
 static int gaudi2_handle_pcie_drain(struct hl_device *hdev,
 			struct hl_eq_pcie_drain_ind_data *drain_data)
 {
-	u64 lbw_rd, lbw_wr, hbw_rd, hbw_wr, cause, error_count = 0;
+	u64 cause, error_count = 0;
 
 	cause = le64_to_cpu(drain_data->intr_cause.intr_cause_data);
-	lbw_rd = le64_to_cpu(drain_data->drain_rd_addr_lbw);
-	lbw_wr = le64_to_cpu(drain_data->drain_wr_addr_lbw);
-	hbw_rd = le64_to_cpu(drain_data->drain_rd_addr_hbw);
-	hbw_wr = le64_to_cpu(drain_data->drain_wr_addr_hbw);
 
 	if (cause & BIT_ULL(0)) {
-		dev_err_ratelimited(hdev->dev,
-			"PCIE AXI drain LBW completed, read_err %u, write_err %u\n",
-			!!lbw_rd, !!lbw_wr);
+		dev_err_ratelimited(hdev->dev, "PCIE AXI drain LBW completed\n");
 		error_count++;
 	}
 
 	if (cause & BIT_ULL(1)) {
-		dev_err_ratelimited(hdev->dev,
-			"PCIE AXI drain HBW completed, raddr %#llx, waddr %#llx\n",
-			hbw_rd, hbw_wr);
+		dev_err_ratelimited(hdev->dev, "PCIE AXI drain HBW completed\n");
 		error_count++;
 	}
 
@@ -10250,11 +10317,11 @@ reset_device:
 }
 
 static int gaudi2_memset_memory_chunk_using_edma_qm(struct hl_device *hdev,
-			struct packet_lin_dma *lin_dma_pkt, dma_addr_t pkt_dma_addr,
-			u32 hw_queue_id, u32 size, u64 addr, u32 val)
+			struct packet_lin_dma *lin_dma_pkt,
+			u64 phys_addr, u32 hw_queue_id, u32 size, u64 addr, u32 val)
 {
 	u32 ctl, pkt_size;
-	int rc = 0;
+	int rc = 0, i;
 
 	ctl = FIELD_PREP(GAUDI2_PKT_CTL_OPCODE_MASK, PACKET_LIN_DMA);
 	ctl |= FIELD_PREP(GAUDI2_PKT_LIN_DMA_CTL_MEMSET_MASK, 1);
@@ -10268,9 +10335,20 @@ static int gaudi2_memset_memory_chunk_using_edma_qm(struct hl_device *hdev,
 
 	pkt_size = sizeof(struct packet_lin_dma);
 
-	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, pkt_dma_addr);
+	for (i = 0; i < 3; i++) {
+		rc = hdev->asic_funcs->access_dev_mem(hdev, PCI_REGION_DRAM,
+				phys_addr + (i * sizeof(u64)),
+				((u64 *)(lin_dma_pkt)) + i, DEBUGFS_WRITE64);
+		if (rc) {
+			dev_err(hdev->dev, "Failed to copy lin_dma packet to HBM (%#llx)\n",
+				phys_addr);
+			return rc;
+		}
+	}
+
+	rc = hl_hw_queue_send_cb_no_cmpl(hdev, hw_queue_id, pkt_size, phys_addr);
 	if (rc)
-		dev_err(hdev->dev, "Failed to send lin dma packet to H/W queue %d\n",
+		dev_err(hdev->dev, "Failed to send lin_dma packet to H/W queue %d\n",
 				hw_queue_id);
 
 	return rc;
@@ -10283,12 +10361,11 @@ static int gaudi2_memset_device_memory(struct hl_device *hdev, u64 addr, u64 siz
 					GAUDI2_QUEUE_ID_DCORE2_EDMA_0_0,
 					GAUDI2_QUEUE_ID_DCORE3_EDMA_0_0};
 	u32 chunk_size, dcore, edma_idx, sob_offset, sob_addr, comp_val,
-		old_mmubp, mmubp, num_of_pkts, busy, pkt_size;
+		old_mmubp, mmubp, num_of_pkts, busy, pkt_size, cb_len;
 	u64 comp_addr, cur_addr = addr, end_addr = addr + size;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int rc = 0, dma_num = 0, i;
 	void *lin_dma_pkts_arr;
-	dma_addr_t pkt_dma_addr;
-	int rc = 0, dma_num = 0;
 
 	if (prop->edma_enabled_mask == 0) {
 		dev_info(hdev->dev, "non of the EDMA engines is enabled - skip dram scrubbing\n");
@@ -10306,9 +10383,19 @@ static int gaudi2_memset_device_memory(struct hl_device *hdev, u64 addr, u64 siz
 	/* Calculate how many lin dma pkts we'll need */
 	num_of_pkts = div64_u64(round_up(size, SZ_2G), SZ_2G);
 	pkt_size = sizeof(struct packet_lin_dma);
+	cb_len = pkt_size * num_of_pkts;
 
-	lin_dma_pkts_arr = hl_asic_dma_alloc_coherent(hdev, pkt_size * num_of_pkts,
-					&pkt_dma_addr, GFP_KERNEL);
+	/*
+	 * if we're not scrubing HMMU or NIC reserved sections in hbm,
+	 * then it the scrubing of the user section, as we use the start of the user section
+	 * to store the CB of the EDMA QM, so shift the start address of the scrubbing accordingly
+	 * and scrub the CB section before leaving this function.
+	 */
+	if ((addr >= prop->dram_user_base_address) &&
+				(addr < prop->dram_user_base_address + cb_len))
+		cur_addr += (prop->dram_user_base_address + cb_len) - addr;
+
+	lin_dma_pkts_arr = kvcalloc(num_of_pkts, pkt_size, GFP_KERNEL);
 	if (!lin_dma_pkts_arr)
 		return -ENOMEM;
 
@@ -10354,7 +10441,7 @@ static int gaudi2_memset_device_memory(struct hl_device *hdev, u64 addr, u64 siz
 
 				rc = gaudi2_memset_memory_chunk_using_edma_qm(hdev,
 					(struct packet_lin_dma *)lin_dma_pkts_arr + dma_num,
-					pkt_dma_addr + dma_num * pkt_size,
+					prop->dram_user_base_address + (dma_num * pkt_size),
 					edma_queues_id[dcore] + edma_idx * 4,
 					chunk_size, cur_addr, val);
 				if (rc)
@@ -10363,14 +10450,16 @@ static int gaudi2_memset_device_memory(struct hl_device *hdev, u64 addr, u64 siz
 				dma_num++;
 				cur_addr += chunk_size;
 				if (cur_addr == end_addr)
-					break;
+					goto edma_wait;
 			}
 		}
 	}
 
+edma_wait:
 	rc = hl_poll_timeout(hdev, sob_addr, busy, (busy == dma_num), 1000, 1000000);
 	if (rc) {
-		dev_err(hdev->dev, "DMA Timeout during HBM scrubbing\n");
+		dev_err(hdev->dev, "DMA Timeout during HBM scrubbing(sob: 0x%x, dma_num: 0x%x)\n",
+						busy, dma_num);
 		goto end;
 	}
 end:
@@ -10391,8 +10480,16 @@ end:
 		}
 	}
 
+	memset(lin_dma_pkts_arr, 0, sizeof(u64));
+
+	/* Zero the HBM area where we copied the CB */
+	for (i = 0; i < cb_len / sizeof(u64); i += sizeof(u64))
+		rc = hdev->asic_funcs->access_dev_mem(hdev, PCI_REGION_DRAM,
+			prop->dram_user_base_address + i,
+				(u64 *)(lin_dma_pkts_arr), DEBUGFS_WRITE64);
 	WREG32(sob_addr, 0);
-	hl_asic_dma_free_coherent(hdev, pkt_size * num_of_pkts, lin_dma_pkts_arr, pkt_dma_addr);
+
+	kfree(lin_dma_pkts_arr);
 
 	return rc;
 }
@@ -11450,7 +11547,7 @@ static int gaudi2_mmu_get_real_page_size(struct hl_device *hdev, struct hl_mmu_p
 	return 0;
 
 page_size_err:
-	dev_err(hdev->dev, "page size of %u is not %uKB aligned, can't map\n",
+	dev_err(hdev->dev, "page size of 0x%X is not 0x%X aligned, can't map\n",
 							page_size, mmu_prop->page_size >> 10);
 	return -EFAULT;
 }
@@ -11468,6 +11565,29 @@ int gaudi2_send_device_activity(struct hl_device *hdev, bool open)
 		return 0;
 
 	return hl_fw_send_device_activity(hdev, open);
+}
+
+static u64 gaudi2_read_pte(struct hl_device *hdev, u64 addr)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	u64 val;
+
+	if (hdev->reset_info.hard_reset_pending)
+		return U64_MAX;
+
+	val = readq(hdev->pcie_bar[DRAM_BAR_ID] + (addr - gaudi2->dram_bar_cur_addr));
+
+	return val;
+}
+
+static void gaudi2_write_pte(struct hl_device *hdev, u64 addr, u64 val)
+{
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+
+	if (hdev->reset_info.hard_reset_pending)
+		return;
+
+	writeq(val, hdev->pcie_bar[DRAM_BAR_ID] + (addr - gaudi2->dram_bar_cur_addr));
 }
 
 static const struct hl_asic_funcs gaudi2_funcs = {
@@ -11506,8 +11626,8 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.add_device_attr = gaudi2_add_device_attr,
 	.handle_eqe = gaudi2_handle_eqe,
 	.get_events_stat = gaudi2_get_events_stat,
-	.read_pte = NULL,
-	.write_pte = NULL,
+	.read_pte = gaudi2_read_pte,
+	.write_pte = gaudi2_write_pte,
 	.mmu_invalidate_cache = gaudi2_mmu_invalidate_cache,
 	.mmu_invalidate_cache_range = gaudi2_mmu_invalidate_cache_range,
 	.mmu_prefetch_cache_range = NULL,

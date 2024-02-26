@@ -68,6 +68,7 @@ static void __exit exit_em_nbyte(void)
 	tcf_em_unregister(&em_nbyte_ops);
 }
 
+MODULE_DESCRIPTION("ematch classifier for arbitrary skb multi-bytes");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_nbyte);

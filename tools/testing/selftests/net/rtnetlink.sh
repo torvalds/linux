@@ -440,7 +440,6 @@ kci_test_encap_vxlan()
 	local ret=0
 	vxlan="test-vxlan0"
 	vlan="test-vlan0"
-	testns="$1"
 	run_cmd ip -netns "$testns" link add "$vxlan" type vxlan id 42 group 239.1.1.1 \
 		dev "$devdummy" dstport 4789
 	if [ $? -ne 0 ]; then
@@ -485,7 +484,6 @@ kci_test_encap_fou()
 {
 	local ret=0
 	name="test-fou"
-	testns="$1"
 	run_cmd_grep 'Usage: ip fou' ip fou help
 	if [ $? -ne 0 ];then
 		end_test "SKIP: fou: iproute2 too old"
@@ -526,8 +524,8 @@ kci_test_encap()
 	run_cmd ip -netns "$testns" link set lo up
 	run_cmd ip -netns "$testns" link add name "$devdummy" type dummy
 	run_cmd ip -netns "$testns" link set "$devdummy" up
-	run_cmd kci_test_encap_vxlan "$testns"
-	run_cmd kci_test_encap_fou "$testns"
+	run_cmd kci_test_encap_vxlan
+	run_cmd kci_test_encap_fou
 
 	ip netns del "$testns"
 	return $ret

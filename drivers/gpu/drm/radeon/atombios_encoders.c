@@ -119,12 +119,12 @@ atombios_set_backlight_level(struct radeon_encoder *radeon_encoder, u8 level)
 			index = GetIndexIntoMasterTable(COMMAND, LCD1OutputControl);
 			if (dig->backlight_level == 0) {
 				args.ucAction = ATOM_LCD_BLOFF;
-				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 			} else {
 				args.ucAction = ATOM_LCD_BL_BRIGHTNESS_CONTROL;
-				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 				args.ucAction = ATOM_LCD_BLON;
-				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 			}
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
@@ -389,7 +389,7 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	}
 	args.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 }
 
@@ -445,7 +445,7 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 
 	args.sTVEncoder.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 }
 
@@ -546,7 +546,7 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 		break;
 	}
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 union lvds_encoder_control {
@@ -664,7 +664,7 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 		break;
 	}
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 int
@@ -979,7 +979,7 @@ atombios_dig_encoder_setup2(struct drm_encoder *encoder, int action, int panel_m
 		break;
 	}
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 }
 
@@ -1361,7 +1361,7 @@ atombios_dig_transmitter_setup2(struct drm_encoder *encoder, int action, uint8_t
 		break;
 	}
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 void
@@ -1397,7 +1397,7 @@ atombios_set_edp_panel_power(struct drm_connector *connector, int action)
 
 	args.v1.ucAction = action;
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 	/* wait for the panel to power up */
 	if (action == ATOM_TRANSMITTER_ACTION_POWER_ON) {
@@ -1519,7 +1519,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 		DRM_ERROR("Unknown table version: %d, %d\n", frev, crev);
 		return;
 	}
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 }
 
 static void
@@ -1554,7 +1554,7 @@ atombios_yuv_setup(struct drm_encoder *encoder, bool enable)
 		args.ucEnable = ATOM_ENABLE;
 	args.ucCRTC = radeon_crtc->crtc_id;
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 	WREG32(reg, temp);
 }
@@ -1618,10 +1618,10 @@ radeon_atom_encoder_dpms_avivo(struct drm_encoder *encoder, int mode)
 		if (radeon_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_DDI) {
 			u32 reg = RREG32(RADEON_BIOS_3_SCRATCH);
 			WREG32(RADEON_BIOS_3_SCRATCH, reg & ~ATOM_S3_DFP2I_ACTIVE);
-			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 			WREG32(RADEON_BIOS_3_SCRATCH, reg);
 		} else
-			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 			if (rdev->mode_info.bl_encoder) {
 				struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
@@ -1629,7 +1629,7 @@ radeon_atom_encoder_dpms_avivo(struct drm_encoder *encoder, int mode)
 				atombios_set_backlight_level(radeon_encoder, dig->backlight_level);
 			} else {
 				args.ucAction = ATOM_LCD_BLON;
-				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+				atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 			}
 		}
 		break;
@@ -1637,10 +1637,10 @@ radeon_atom_encoder_dpms_avivo(struct drm_encoder *encoder, int mode)
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
 		args.ucAction = ATOM_DISABLE;
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 		if (radeon_encoder->devices & (ATOM_DEVICE_LCD_SUPPORT)) {
 			args.ucAction = ATOM_LCD_BLOFF;
-			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+			atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 		}
 		break;
 	}
@@ -1983,7 +1983,7 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 		return;
 	}
 
-	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 	/* update scratch regs with new routing */
 	radeon_atombios_encoder_crtc_scratch_regs(encoder, radeon_crtc->crtc_id);
@@ -2311,7 +2311,7 @@ atombios_dac_load_detect(struct drm_encoder *encoder, struct drm_connector *conn
 				args.sDacload.ucMisc = DAC_LOAD_MISC_YPrPb;
 		}
 
-		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+		atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args, sizeof(args));
 
 		return true;
 	} else

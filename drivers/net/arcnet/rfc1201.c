@@ -35,6 +35,7 @@
 
 #include "arcdevice.h"
 
+MODULE_DESCRIPTION("ARCNet packet format (RFC 1201) module");
 MODULE_LICENSE("GPL");
 
 static __be16 type_trans(struct sk_buff *skb, struct net_device *dev);

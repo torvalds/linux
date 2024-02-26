@@ -128,3 +128,39 @@ void xe_live_mocs_kernel_kunit(struct kunit *test)
 	xe_call_for_each_device(mocs_kernel_test_run_device);
 }
 EXPORT_SYMBOL_IF_KUNIT(xe_live_mocs_kernel_kunit);
+
+static int mocs_reset_test_run_device(struct xe_device *xe)
+{
+	/* Check the mocs setup is retained over GT reset */
+
+	struct live_mocs mocs;
+	struct xe_gt *gt;
+	unsigned int flags;
+	int id;
+	struct kunit *test = xe_cur_kunit();
+
+	for_each_gt(gt, xe, id) {
+		flags = live_mocs_init(&mocs, gt);
+		kunit_info(test, "mocs_reset_test before reset\n");
+		if (flags & HAS_GLOBAL_MOCS)
+			read_mocs_table(gt, &mocs.table);
+		if (flags & HAS_LNCF_MOCS)
+			read_l3cc_table(gt, &mocs.table);
+
+		xe_gt_reset_async(gt);
+		flush_work(&gt->reset.worker);
+
+		kunit_info(test, "mocs_reset_test after reset\n");
+		if (flags & HAS_GLOBAL_MOCS)
+			read_mocs_table(gt, &mocs.table);
+		if (flags & HAS_LNCF_MOCS)
+			read_l3cc_table(gt, &mocs.table);
+	}
+	return 0;
+}
+
+void xe_live_mocs_reset_kunit(struct kunit *test)
+{
+	xe_call_for_each_device(mocs_reset_test_run_device);
+}
+EXPORT_SYMBOL_IF_KUNIT(xe_live_mocs_reset_kunit);

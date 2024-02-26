@@ -1670,6 +1670,7 @@ out:
 	}
 	bitmap_free(active);
 	kfree(zone_info);
+	btrfs_free_chunk_map(map);
 
 	return ret;
 }
