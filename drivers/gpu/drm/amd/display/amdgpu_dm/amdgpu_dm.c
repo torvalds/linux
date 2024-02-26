@@ -81,6 +81,7 @@
 #include <linux/firmware.h>
 #include <linux/component.h>
 #include <linux/dmi.h>
+#include <linux/sort.h>
 
 #include <drm/display/drm_dp_mst_helper.h>
 #include <drm/display/drm_hdmi_helper.h>
@@ -376,6 +377,20 @@ static inline void reverse_planes_order(struct dc_surface_update *array_of_surfa
 		swap(array_of_surface_update[i], array_of_surface_update[j]);
 }
 
+/*
+ * DC will program planes with their z-order determined by their ordering
+ * in the dc_surface_updates array. This comparator is used to sort them
+ * by descending zpos.
+ */
+static int dm_plane_layer_index_cmp(const void *a, const void *b)
+{
+	const struct dc_surface_update *sa = (struct dc_surface_update *)a;
+	const struct dc_surface_update *sb = (struct dc_surface_update *)b;
+
+	/* Sort by descending dc_plane layer_index (i.e. normalized_zpos) */
+	return sb->surface->layer_index - sa->surface->layer_index;
+}
+
 /**
  * update_planes_and_stream_adapter() - Send planes to be updated in DC
  *
@@ -400,7 +415,8 @@ static inline bool update_planes_and_stream_adapter(struct dc *dc,
 						    struct dc_stream_update *stream_update,
 						    struct dc_surface_update *array_of_surface_update)
 {
-	reverse_planes_order(array_of_surface_update, planes_count);
+	sort(array_of_surface_update, planes_count,
+	     sizeof(*array_of_surface_update), dm_plane_layer_index_cmp, NULL);
 
 	/*
 	 * Previous frame finished and HW is ready for optimization.
@@ -9775,6 +9791,8 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 		for (j = 0; j < status->plane_count; j++)
 			dummy_updates[j].surface = status->plane_states[0];
 
+		sort(dummy_updates, status->plane_count,
+		     sizeof(*dummy_updates), dm_plane_layer_index_cmp, NULL);
 
 		mutex_lock(&dm->dc_lock);
 		dc_exit_ips_for_hw_access(dm->dc);
@@ -10508,6 +10526,16 @@ static bool should_reset_plane(struct drm_atomic_state *state,
 
 	/* CRTC Degamma changes currently require us to recreate planes. */
 	if (new_crtc_state->color_mgmt_changed)
+		return true;
+
+	/*
+	 * On zpos change, planes need to be reordered by removing and re-adding
+	 * them one by one to the dc state, in order of descending zpos.
+	 *
+	 * TODO: We can likely skip bandwidth validation if the only thing that
+	 * changed about the plane was it'z z-ordering.
+	 */
+	if (new_crtc_state->zpos_changed)
 		return true;
 
 	if (drm_atomic_crtc_needs_modeset(new_crtc_state))
@@ -11352,7 +11380,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 	/* Remove exiting planes if they are modified */
-	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
+	for_each_oldnew_plane_in_descending_zpos(state, plane, old_plane_state, new_plane_state) {
 		if (old_plane_state->fb && new_plane_state->fb &&
 		    get_mem_type(old_plane_state->fb) !=
 		    get_mem_type(new_plane_state->fb))
@@ -11397,7 +11425,7 @@ static int amdgpu_dm_atomic_check(struct drm_device *dev,
 	}
 
 	/* Add new/modified planes */
-	for_each_oldnew_plane_in_state_reverse(state, plane, old_plane_state, new_plane_state, i) {
+	for_each_oldnew_plane_in_descending_zpos(state, plane, old_plane_state, new_plane_state) {
 		ret = dm_update_plane_state(dc, state, plane,
 					    old_plane_state,
 					    new_plane_state,
