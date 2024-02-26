@@ -135,7 +135,7 @@ void __contpte_try_fold(struct mm_struct *mm, unsigned long addr,
 	pte = pte_mkcont(pte);
 	contpte_convert(mm, addr, orig_ptep, pte);
 }
-EXPORT_SYMBOL(__contpte_try_fold);
+EXPORT_SYMBOL_GPL(__contpte_try_fold);
 
 void __contpte_try_unfold(struct mm_struct *mm, unsigned long addr,
 			pte_t *ptep, pte_t pte)
@@ -150,7 +150,7 @@ void __contpte_try_unfold(struct mm_struct *mm, unsigned long addr,
 	pte = pte_mknoncont(pte);
 	contpte_convert(mm, addr, ptep, pte);
 }
-EXPORT_SYMBOL(__contpte_try_unfold);
+EXPORT_SYMBOL_GPL(__contpte_try_unfold);
 
 pte_t contpte_ptep_get(pte_t *ptep, pte_t orig_pte)
 {
@@ -178,7 +178,7 @@ pte_t contpte_ptep_get(pte_t *ptep, pte_t orig_pte)
 
 	return orig_pte;
 }
-EXPORT_SYMBOL(contpte_ptep_get);
+EXPORT_SYMBOL_GPL(contpte_ptep_get);
 
 pte_t contpte_ptep_get_lockless(pte_t *orig_ptep)
 {
@@ -231,7 +231,7 @@ retry:
 
 	return orig_pte;
 }
-EXPORT_SYMBOL(contpte_ptep_get_lockless);
+EXPORT_SYMBOL_GPL(contpte_ptep_get_lockless);
 
 void contpte_set_ptes(struct mm_struct *mm, unsigned long addr,
 					pte_t *ptep, pte_t pte, unsigned int nr)
@@ -274,7 +274,7 @@ void contpte_set_ptes(struct mm_struct *mm, unsigned long addr,
 
 	} while (addr != end);
 }
-EXPORT_SYMBOL(contpte_set_ptes);
+EXPORT_SYMBOL_GPL(contpte_set_ptes);
 
 void contpte_clear_full_ptes(struct mm_struct *mm, unsigned long addr,
 				pte_t *ptep, unsigned int nr, int full)
@@ -282,7 +282,7 @@ void contpte_clear_full_ptes(struct mm_struct *mm, unsigned long addr,
 	contpte_try_unfold_partial(mm, addr, ptep, nr);
 	__clear_full_ptes(mm, addr, ptep, nr, full);
 }
-EXPORT_SYMBOL(contpte_clear_full_ptes);
+EXPORT_SYMBOL_GPL(contpte_clear_full_ptes);
 
 pte_t contpte_get_and_clear_full_ptes(struct mm_struct *mm,
 				unsigned long addr, pte_t *ptep,
@@ -291,7 +291,7 @@ pte_t contpte_get_and_clear_full_ptes(struct mm_struct *mm,
 	contpte_try_unfold_partial(mm, addr, ptep, nr);
 	return __get_and_clear_full_ptes(mm, addr, ptep, nr, full);
 }
-EXPORT_SYMBOL(contpte_get_and_clear_full_ptes);
+EXPORT_SYMBOL_GPL(contpte_get_and_clear_full_ptes);
 
 int contpte_ptep_test_and_clear_young(struct vm_area_struct *vma,
 					unsigned long addr, pte_t *ptep)
@@ -316,7 +316,7 @@ int contpte_ptep_test_and_clear_young(struct vm_area_struct *vma,
 
 	return young;
 }
-EXPORT_SYMBOL(contpte_ptep_test_and_clear_young);
+EXPORT_SYMBOL_GPL(contpte_ptep_test_and_clear_young);
 
 int contpte_ptep_clear_flush_young(struct vm_area_struct *vma,
 					unsigned long addr, pte_t *ptep)
@@ -337,7 +337,7 @@ int contpte_ptep_clear_flush_young(struct vm_area_struct *vma,
 
 	return young;
 }
-EXPORT_SYMBOL(contpte_ptep_clear_flush_young);
+EXPORT_SYMBOL_GPL(contpte_ptep_clear_flush_young);
 
 void contpte_wrprotect_ptes(struct mm_struct *mm, unsigned long addr,
 					pte_t *ptep, unsigned int nr)
@@ -355,7 +355,7 @@ void contpte_wrprotect_ptes(struct mm_struct *mm, unsigned long addr,
 	contpte_try_unfold_partial(mm, addr, ptep, nr);
 	__wrprotect_ptes(mm, addr, ptep, nr);
 }
-EXPORT_SYMBOL(contpte_wrprotect_ptes);
+EXPORT_SYMBOL_GPL(contpte_wrprotect_ptes);
 
 int contpte_ptep_set_access_flags(struct vm_area_struct *vma,
 					unsigned long addr, pte_t *ptep,
@@ -401,4 +401,4 @@ int contpte_ptep_set_access_flags(struct vm_area_struct *vma,
 
 	return 1;
 }
-EXPORT_SYMBOL(contpte_ptep_set_access_flags);
+EXPORT_SYMBOL_GPL(contpte_ptep_set_access_flags);
