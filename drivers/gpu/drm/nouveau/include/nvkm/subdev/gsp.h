@@ -9,7 +9,7 @@
 #define GSP_PAGE_SIZE  BIT(GSP_PAGE_SHIFT)
 
 struct nvkm_gsp_mem {
-	u32 size;
+	size_t size;
 	void *data;
 	dma_addr_t addr;
 };

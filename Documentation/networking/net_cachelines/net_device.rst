@@ -136,8 +136,8 @@ struct_netpoll_info*                npinfo                  -                   
 possible_net_t                      nd_net                  -                   read_mostly         (dev_net)napi_busy_loop,tcp_v(4/6)_rcv,ip(v6)_rcv,ip(6)_input,ip(6)_input_finish
 void*                               ml_priv                                                         
 enum_netdev_ml_priv_type            ml_priv_type                                                    
-struct_pcpu_lstats__percpu*         lstats                                                          
-struct_pcpu_sw_netstats__percpu*    tstats                                                          
+struct_pcpu_lstats__percpu*         lstats                  read_mostly                             dev_lstats_add()
+struct_pcpu_sw_netstats__percpu*    tstats                  read_mostly                             dev_sw_netstats_tx_add()
 struct_pcpu_dstats__percpu*         dstats                                                          
 struct_garp_port*                   garp_port                                                       
 struct_mrp_port*                    mrp_port                                                        

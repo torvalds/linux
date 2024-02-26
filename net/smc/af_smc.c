@@ -924,6 +924,7 @@ static int smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 		smc->clcsock->file->private_data = smc->clcsock;
 		smc->clcsock->wq.fasync_list =
 			smc->sk.sk_socket->wq.fasync_list;
+		smc->sk.sk_socket->wq.fasync_list = NULL;
 
 		/* There might be some wait entries remaining
 		 * in smc sk->sk_wq and they should be woken up

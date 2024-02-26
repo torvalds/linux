@@ -4169,14 +4169,14 @@ F:	drivers/firmware/broadcom/tee_bnxt_fw.c
 F:	drivers/net/ethernet/broadcom/bnxt/
 F:	include/linux/firmware/broadcom/tee_bnxt_fw.h
 
-BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
-M:	Arend van Spriel <aspriel@gmail.com>
-M:	Franky Lin <franky.lin@broadcom.com>
-M:	Hante Meuleman <hante.meuleman@broadcom.com>
+BROADCOM BRCM80211 IEEE802.11 WIRELESS DRIVERS
+M:	Arend van Spriel <arend.vanspriel@broadcom.com>
 L:	linux-wireless@vger.kernel.org
+L:	brcm80211@lists.linux.dev
 L:	brcm80211-dev-list.pdl@broadcom.com
 S:	Supported
 F:	drivers/net/wireless/broadcom/brcm80211/
+F:	include/linux/platform_data/brcmfmac.h
 
 BROADCOM BRCMSTB GPIO DRIVER
 M:	Doug Berger <opendmb@gmail.com>
@@ -5378,7 +5378,7 @@ CONTROL GROUP - MEMORY RESOURCE CONTROLLER (MEMCG)
 M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Michal Hocko <mhocko@kernel.org>
 M:	Roman Gushchin <roman.gushchin@linux.dev>
-M:	Shakeel Butt <shakeelb@google.com>
+M:	Shakeel Butt <shakeel.butt@linux.dev>
 R:	Muchun Song <muchun.song@linux.dev>
 L:	cgroups@vger.kernel.org
 L:	linux-mm@kvack.org
@@ -5609,6 +5609,11 @@ L:	linux-can@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/can/ctu,ctucanfd.yaml
 F:	drivers/net/can/ctucanfd/
+
+CVE ASSIGNMENT CONTACT
+M:	CVE Assignment Team <cve@kernel.org>
+S:	Maintained
+F:	Documentation/process/cve.rst
 
 CW1200 WLAN driver
 S:	Orphan
@@ -10811,11 +10816,11 @@ F:	drivers/gpio/gpio-tangier.h
 
 INTEL GVT-g DRIVERS (Intel GPU Virtualization)
 M:	Zhenyu Wang <zhenyuw@linux.intel.com>
-M:	Zhi Wang <zhi.a.wang@intel.com>
+M:	Zhi Wang <zhi.wang.linux@gmail.com>
 L:	intel-gvt-dev@lists.freedesktop.org
 L:	intel-gfx@lists.freedesktop.org
 S:	Supported
-W:	https://01.org/igvt-g
+W:	https://github.com/intel/gvt-linux/wiki
 T:	git https://github.com/intel/gvt-linux.git
 F:	drivers/gpu/drm/i915/gvt/
 
@@ -11137,7 +11142,6 @@ S:	Supported
 F:	drivers/net/wireless/intel/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
-M:	Gregory Greenman <gregory.greenman@intel.com>
 M:	Miri Korenblit <miriam.rachel.korenblit@intel.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
@@ -15248,6 +15252,8 @@ F:	Documentation/networking/
 F:	Documentation/networking/net_cachelines/
 F:	Documentation/process/maintainer-netdev.rst
 F:	Documentation/userspace-api/netlink/
+F:	include/linux/framer/framer-provider.h
+F:	include/linux/framer/framer.h
 F:	include/linux/in.h
 F:	include/linux/indirect_call_wrapper.h
 F:	include/linux/net.h
@@ -15335,7 +15341,7 @@ K:	\bmdo_
 NETWORKING [MPTCP]
 M:	Matthieu Baerts <matttbe@kernel.org>
 M:	Mat Martineau <martineau@kernel.org>
-R:	Geliang Tang <geliang.tang@linux.dev>
+R:	Geliang Tang <geliang@kernel.org>
 L:	netdev@vger.kernel.org
 L:	mptcp@lists.linux.dev
 S:	Maintained
@@ -16848,6 +16854,7 @@ F:	drivers/pci/controller/dwc/*designware*
 
 PCI DRIVER FOR TI DRA7XX/J721E
 M:	Vignesh Raghavendra <vigneshr@ti.com>
+R:	Siddharth Vadapalli <s-vadapalli@ti.com>
 L:	linux-omap@vger.kernel.org
 L:	linux-pci@vger.kernel.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -17193,7 +17200,7 @@ R:	John Garry <john.g.garry@oracle.com>
 R:	Will Deacon <will@kernel.org>
 R:	James Clark <james.clark@arm.com>
 R:	Mike Leach <mike.leach@linaro.org>
-R:	Leo Yan <leo.yan@linaro.org>
+R:	Leo Yan <leo.yan@linux.dev>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
 F:	tools/build/feature/test-libopencsd.c
@@ -18442,7 +18449,7 @@ S:	Supported
 F:	drivers/infiniband/sw/rdmavt
 
 RDS - RELIABLE DATAGRAM SOCKETS
-M:	Santosh Shilimkar <santosh.shilimkar@oracle.com>
+M:	Allison Henderson <allison.henderson@oracle.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
 L:	rds-devel@oss.oracle.com (moderated for non-subscribers)
@@ -22020,6 +22027,14 @@ F:	Documentation/devicetree/bindings/media/i2c/ti,ds90*
 F:	drivers/media/i2c/ds90*
 F:	include/media/i2c/ds90*
 
+TI HDC302X HUMIDITY DRIVER
+M:	Javier Carrasco <javier.carrasco.cruz@gmail.com>
+M:	Li peiyu <579lpy@gmail.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/humidity/ti,hdc3020.yaml
+F:	drivers/iio/humidity/hdc3020.c
+
 TI ICSSG ETHERNET DRIVER (ICSSG)
 R:	MD Danish Anwar <danishanwar@ti.com>
 R:	Roger Quadros <rogerq@kernel.org>
@@ -22875,9 +22890,8 @@ S:	Maintained
 F:	drivers/usb/typec/mux/pi3usb30532.c
 
 USB TYPEC PORT CONTROLLER DRIVERS
-M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-usb@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/usb/typec/tcpm/
 
 USB UHCI DRIVER

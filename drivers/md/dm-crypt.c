@@ -53,15 +53,17 @@
 struct convert_context {
 	struct completion restart;
 	struct bio *bio_in;
-	struct bio *bio_out;
 	struct bvec_iter iter_in;
+	struct bio *bio_out;
 	struct bvec_iter iter_out;
-	u64 cc_sector;
 	atomic_t cc_pending;
+	u64 cc_sector;
 	union {
 		struct skcipher_request *req;
 		struct aead_request *req_aead;
 	} r;
+	bool aead_recheck;
+	bool aead_failed;
 
 };
 
@@ -81,6 +83,8 @@ struct dm_crypt_io {
 	atomic_t io_pending;
 	blk_status_t error;
 	sector_t sector;
+
+	struct bvec_iter saved_bi_iter;
 
 	struct rb_node rb_node;
 } CRYPTO_MINALIGN_ATTR;
@@ -1370,10 +1374,13 @@ static int crypt_convert_block_aead(struct crypt_config *cc,
 	if (r == -EBADMSG) {
 		sector_t s = le64_to_cpu(*sector);
 
-		DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
-			    ctx->bio_in->bi_bdev, s);
-		dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
-				 ctx->bio_in, s, 0);
+		ctx->aead_failed = true;
+		if (ctx->aead_recheck) {
+			DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
+				    ctx->bio_in->bi_bdev, s);
+			dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
+					 ctx->bio_in, s, 0);
+		}
 	}
 
 	if (!r && cc->iv_gen_ops && cc->iv_gen_ops->post)
@@ -1757,6 +1764,8 @@ static void crypt_io_init(struct dm_crypt_io *io, struct crypt_config *cc,
 	io->base_bio = bio;
 	io->sector = sector;
 	io->error = 0;
+	io->ctx.aead_recheck = false;
+	io->ctx.aead_failed = false;
 	io->ctx.r.req = NULL;
 	io->integrity_metadata = NULL;
 	io->integrity_metadata_from_pool = false;
@@ -1767,6 +1776,8 @@ static void crypt_inc_pending(struct dm_crypt_io *io)
 {
 	atomic_inc(&io->io_pending);
 }
+
+static void kcryptd_queue_read(struct dm_crypt_io *io);
 
 /*
  * One of the bios was finished. Check for completion of
@@ -1780,6 +1791,15 @@ static void crypt_dec_pending(struct dm_crypt_io *io)
 
 	if (!atomic_dec_and_test(&io->io_pending))
 		return;
+
+	if (likely(!io->ctx.aead_recheck) && unlikely(io->ctx.aead_failed) &&
+	    cc->on_disk_tag_size && bio_data_dir(base_bio) == READ) {
+		io->ctx.aead_recheck = true;
+		io->ctx.aead_failed = false;
+		io->error = 0;
+		kcryptd_queue_read(io);
+		return;
+	}
 
 	if (io->ctx.r.req)
 		crypt_free_req(cc, io->ctx.r.req, base_bio);
@@ -1816,15 +1836,19 @@ static void crypt_endio(struct bio *clone)
 	struct dm_crypt_io *io = clone->bi_private;
 	struct crypt_config *cc = io->cc;
 	unsigned int rw = bio_data_dir(clone);
-	blk_status_t error;
+	blk_status_t error = clone->bi_status;
+
+	if (io->ctx.aead_recheck && !error) {
+		kcryptd_queue_crypt(io);
+		return;
+	}
 
 	/*
 	 * free the processed pages
 	 */
-	if (rw == WRITE)
+	if (rw == WRITE || io->ctx.aead_recheck)
 		crypt_free_buffer_pages(cc, clone);
 
-	error = clone->bi_status;
 	bio_put(clone);
 
 	if (rw == READ && !error) {
@@ -1844,6 +1868,22 @@ static int kcryptd_io_read(struct dm_crypt_io *io, gfp_t gfp)
 {
 	struct crypt_config *cc = io->cc;
 	struct bio *clone;
+
+	if (io->ctx.aead_recheck) {
+		if (!(gfp & __GFP_DIRECT_RECLAIM))
+			return 1;
+		crypt_inc_pending(io);
+		clone = crypt_alloc_buffer(io, io->base_bio->bi_iter.bi_size);
+		if (unlikely(!clone)) {
+			crypt_dec_pending(io);
+			return 1;
+		}
+		clone->bi_iter.bi_sector = cc->start + io->sector;
+		crypt_convert_init(cc, &io->ctx, clone, clone, io->sector);
+		io->saved_bi_iter = clone->bi_iter;
+		dm_submit_bio_remap(io->base_bio, clone);
+		return 0;
+	}
 
 	/*
 	 * We need the original biovec array in order to decrypt the whole bio
@@ -2071,6 +2111,12 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	io->ctx.bio_out = clone;
 	io->ctx.iter_out = clone->bi_iter;
 
+	if (crypt_integrity_aead(cc)) {
+		bio_copy_data(clone, io->base_bio);
+		io->ctx.bio_in = clone;
+		io->ctx.iter_in = clone->bi_iter;
+	}
+
 	sector += bio_sectors(clone);
 
 	crypt_inc_pending(io);
@@ -2107,6 +2153,14 @@ dec:
 
 static void kcryptd_crypt_read_done(struct dm_crypt_io *io)
 {
+	if (io->ctx.aead_recheck) {
+		if (!io->error) {
+			io->ctx.bio_in->bi_iter = io->saved_bi_iter;
+			bio_copy_data(io->base_bio, io->ctx.bio_in);
+		}
+		crypt_free_buffer_pages(io->cc, io->ctx.bio_in);
+		bio_put(io->ctx.bio_in);
+	}
 	crypt_dec_pending(io);
 }
 
@@ -2136,11 +2190,17 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 
 	crypt_inc_pending(io);
 
-	crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
-			   io->sector);
+	if (io->ctx.aead_recheck) {
+		io->ctx.cc_sector = io->sector + cc->iv_offset;
+		r = crypt_convert(cc, &io->ctx,
+				  test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags), true);
+	} else {
+		crypt_convert_init(cc, &io->ctx, io->base_bio, io->base_bio,
+				   io->sector);
 
-	r = crypt_convert(cc, &io->ctx,
-			  test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags), true);
+		r = crypt_convert(cc, &io->ctx,
+				  test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags), true);
+	}
 	/*
 	 * Crypto API backlogged the request, because its queue was full
 	 * and we're in softirq context, so continue from a workqueue
@@ -2182,10 +2242,13 @@ static void kcryptd_async_done(void *data, int error)
 	if (error == -EBADMSG) {
 		sector_t s = le64_to_cpu(*org_sector_of_dmreq(cc, dmreq));
 
-		DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
-			    ctx->bio_in->bi_bdev, s);
-		dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
-				 ctx->bio_in, s, 0);
+		ctx->aead_failed = true;
+		if (ctx->aead_recheck) {
+			DMERR_LIMIT("%pg: INTEGRITY AEAD ERROR, sector %llu",
+				    ctx->bio_in->bi_bdev, s);
+			dm_audit_log_bio(DM_MSG_PREFIX, "integrity-aead",
+					 ctx->bio_in, s, 0);
+		}
 		io->error = BLK_STS_PROTECTION;
 	} else if (error < 0)
 		io->error = BLK_STS_IOERR;
@@ -3110,7 +3173,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 			sval = strchr(opt_string + strlen("integrity:"), ':') + 1;
 			if (!strcasecmp(sval, "aead")) {
 				set_bit(CRYPT_MODE_INTEGRITY_AEAD, &cc->cipher_flags);
-			} else  if (strcasecmp(sval, "none")) {
+			} else if (strcasecmp(sval, "none")) {
 				ti->error = "Unknown integrity profile";
 				return -EINVAL;
 			}
@@ -3639,7 +3702,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 24, 0},
+	.version = {1, 25, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,

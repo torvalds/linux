@@ -263,10 +263,10 @@ static int papr_vpd_system_loc_code(void)
 	off_t size;
 	int fd;
 
-	SKIP_IF_MSG(get_system_loc_code(&lc),
-		    "Cannot determine system location code");
 	SKIP_IF_MSG(devfd < 0 && errno == ENOENT,
 		    DEVPATH " not present");
+	SKIP_IF_MSG(get_system_loc_code(&lc),
+		    "Cannot determine system location code");
 
 	FAIL_IF(devfd < 0);
 

@@ -713,7 +713,7 @@ void nvme_init_request(struct request *req, struct nvme_command *cmd)
 	if (req->q->queuedata) {
 		struct nvme_ns *ns = req->q->disk->private_data;
 
-		logging_enabled = ns->passthru_err_log_enabled;
+		logging_enabled = ns->head->passthru_err_log_enabled;
 		req->timeout = NVME_IO_TIMEOUT;
 	} else { /* no queuedata implies admin queue */
 		logging_enabled = nr->ctrl->passthru_err_log_enabled;
@@ -1153,6 +1153,10 @@ u32 nvme_command_effects(struct nvme_ctrl *ctrl, struct nvme_ns *ns, u8 opcode)
 		effects &= ~NVME_CMD_EFFECTS_CSE_MASK;
 	} else {
 		effects = le32_to_cpu(ctrl->effects->acs[opcode]);
+
+		/* Ignore execution restrictions if any relaxation bits are set */
+		if (effects & NVME_CMD_EFFECTS_CSER_MASK)
+			effects &= ~NVME_CMD_EFFECTS_CSE_MASK;
 	}
 
 	return effects;
@@ -3696,7 +3700,6 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 
 	ns->disk = disk;
 	ns->queue = disk->queue;
-	ns->passthru_err_log_enabled = false;
 
 	if (ctrl->opts && ctrl->opts->data_digest)
 		blk_queue_flag_set(QUEUE_FLAG_STABLE_WRITES, ns->queue);
@@ -3762,8 +3765,8 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, struct nvme_ns_info *info)
 
 	/*
 	 * Set ns->disk->device->driver_data to ns so we can access
-	 * ns->logging_enabled in nvme_passthru_err_log_enabled_store() and
-	 * nvme_passthru_err_log_enabled_show().
+	 * ns->head->passthru_err_log_enabled in
+	 * nvme_io_passthru_err_log_enabled_[store | show]().
 	 */
 	dev_set_drvdata(disk_to_dev(ns->disk), ns);
 
@@ -4191,6 +4194,7 @@ static bool nvme_ctrl_pp_status(struct nvme_ctrl *ctrl)
 static void nvme_get_fw_slot_info(struct nvme_ctrl *ctrl)
 {
 	struct nvme_fw_slot_info_log *log;
+	u8 next_fw_slot, cur_fw_slot;
 
 	log = kmalloc(sizeof(*log), GFP_KERNEL);
 	if (!log)
@@ -4202,13 +4206,15 @@ static void nvme_get_fw_slot_info(struct nvme_ctrl *ctrl)
 		goto out_free_log;
 	}
 
-	if (log->afi & 0x70 || !(log->afi & 0x7)) {
+	cur_fw_slot = log->afi & 0x7;
+	next_fw_slot = (log->afi & 0x70) >> 4;
+	if (!cur_fw_slot || (next_fw_slot && (cur_fw_slot != next_fw_slot))) {
 		dev_info(ctrl->device,
 			 "Firmware is activated after next Controller Level Reset\n");
 		goto out_free_log;
 	}
 
-	memcpy(ctrl->subsys->firmware_rev, &log->frs[(log->afi & 0x7) - 1],
+	memcpy(ctrl->subsys->firmware_rev, &log->frs[cur_fw_slot - 1],
 		sizeof(ctrl->subsys->firmware_rev));
 
 out_free_log:

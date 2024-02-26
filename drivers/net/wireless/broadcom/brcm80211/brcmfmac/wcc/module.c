@@ -20,6 +20,7 @@ static void __exit brcmf_wcc_exit(void)
 	brcmf_fwvid_unregister_vendor(BRCMF_FWVENDOR_WCC, THIS_MODULE);
 }
 
+MODULE_DESCRIPTION("Broadcom FullMAC WLAN driver plugin for Broadcom mobility chipsets");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_IMPORT_NS(BRCMFMAC);
 

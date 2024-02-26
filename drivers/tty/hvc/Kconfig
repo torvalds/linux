@@ -108,13 +108,15 @@ config HVC_DCC_SERIALIZE_SMP
 
 config HVC_RISCV_SBI
 	bool "RISC-V SBI console support"
-	depends on RISCV_SBI
+	depends on RISCV_SBI && NONPORTABLE
 	select HVC_DRIVER
 	help
 	  This enables support for console output via RISC-V SBI calls, which
-	  is normally used only during boot to output printk.
+	  is normally used only during boot to output printk.  This driver
+	  conflicts with real console drivers and should not be enabled on
+	  systems that directly access the console.
 
-	  If you don't know what do to here, say Y.
+	  If you don't know what do to here, say N.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"

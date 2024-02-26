@@ -1247,5 +1247,6 @@ static void __exit esp4_fini(void)
 
 module_init(esp4_init);
 module_exit(esp4_fini);
+MODULE_DESCRIPTION("IPv4 ESP transformation library");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_XFRM_TYPE(AF_INET, XFRM_PROTO_ESP);

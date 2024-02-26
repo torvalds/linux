@@ -195,7 +195,7 @@ static int ad7091r8_gpio_setup(struct ad7091r_state *st)
 	st->reset_gpio = devm_gpiod_get_optional(st->dev, "reset",
 						 GPIOD_OUT_HIGH);
 	if (IS_ERR(st->reset_gpio))
-		return dev_err_probe(st->dev, PTR_ERR(st->convst_gpio),
+		return dev_err_probe(st->dev, PTR_ERR(st->reset_gpio),
 				     "Error on requesting reset GPIO\n");
 
 	if (st->reset_gpio) {

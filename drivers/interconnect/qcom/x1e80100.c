@@ -1586,6 +1586,7 @@ static struct qcom_icc_node qns_pcie_south_gem_noc_pcie = {
 
 static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
+	.enable_mask = BIT(3),
 	.num_nodes = 1,
 	.nodes = { &ebi },
 };
