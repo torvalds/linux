@@ -183,16 +183,20 @@ EXPORT_SYMBOL_GPL(contpte_ptep_get);
 pte_t contpte_ptep_get_lockless(pte_t *orig_ptep)
 {
 	/*
-	 * Gather access/dirty bits, which may be populated in any of the ptes
-	 * of the contig range. We may not be holding the PTL, so any contiguous
-	 * range may be unfolded/modified/refolded under our feet. Therefore we
-	 * ensure we read a _consistent_ contpte range by checking that all ptes
-	 * in the range are valid and have CONT_PTE set, that all pfns are
-	 * contiguous and that all pgprots are the same (ignoring access/dirty).
-	 * If we find a pte that is not consistent, then we must be racing with
-	 * an update so start again. If the target pte does not have CONT_PTE
-	 * set then that is considered consistent on its own because it is not
-	 * part of a contpte range.
+	 * The ptep_get_lockless() API requires us to read and return *orig_ptep
+	 * so that it is self-consistent, without the PTL held, so we may be
+	 * racing with other threads modifying the pte. Usually a READ_ONCE()
+	 * would suffice, but for the contpte case, we also need to gather the
+	 * access and dirty bits from across all ptes in the contiguous block,
+	 * and we can't read all of those neighbouring ptes atomically, so any
+	 * contiguous range may be unfolded/modified/refolded under our feet.
+	 * Therefore we ensure we read a _consistent_ contpte range by checking
+	 * that all ptes in the range are valid and have CONT_PTE set, that all
+	 * pfns are contiguous and that all pgprots are the same (ignoring
+	 * access/dirty). If we find a pte that is not consistent, then we must
+	 * be racing with an update so start again. If the target pte does not
+	 * have CONT_PTE set then that is considered consistent on its own
+	 * because it is not part of a contpte range.
 	 */
 
 	pgprot_t orig_prot;
