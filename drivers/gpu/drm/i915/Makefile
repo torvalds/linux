@@ -369,6 +369,9 @@ i915-y += \
 	display/vlv_dsi.o \
 	display/vlv_dsi_pll.o
 
+i915-$(CONFIG_DRM_I915_DP_TUNNEL) += \
+	display/intel_dp_tunnel.o
+
 i915-y += \
 	i915_perf.o
 

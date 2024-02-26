@@ -29,6 +29,7 @@
  * See intel_atomic_plane.c for the plane-specific atomic functionality.
  */
 
+#include <drm/display/drm_dp_tunnel.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
@@ -38,6 +39,7 @@
 #include "intel_atomic.h"
 #include "intel_cdclk.h"
 #include "intel_display_types.h"
+#include "intel_dp_tunnel.h"
 #include "intel_global_state.h"
 #include "intel_hdcp.h"
 #include "intel_psr.h"

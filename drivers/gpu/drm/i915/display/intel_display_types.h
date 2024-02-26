@@ -33,6 +33,7 @@
 
 #include <drm/display/drm_dp_dual_mode_helper.h>
 #include <drm/display/drm_dp_mst_helper.h>
+#include <drm/display/drm_dp_tunnel.h>
 #include <drm/display/drm_dsc.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
@@ -681,6 +682,8 @@ struct intel_atomic_state {
 	bool dpll_set, modeset;
 
 	struct intel_shared_dpll_state shared_dpll[I915_NUM_PLLS];
+
+	struct intel_dp_tunnel_inherited_state *inherited_dp_tunnels;
 
 	/*
 	 * Current watermarks can't be trusted during hardware readout, so
@@ -1379,6 +1382,9 @@ struct intel_crtc_state {
 		struct drm_dsc_config config;
 	} dsc;
 
+	/* DP tunnel used for BW allocation. */
+	struct drm_dp_tunnel_ref dp_tunnel_ref;
+
 	/* HSW+ linetime watermarks */
 	u16 linetime;
 	u16 ips_linetime;
@@ -1788,6 +1794,9 @@ struct intel_dp {
 
 	/* connector directly attached - won't be use for modeset in mst world */
 	struct intel_connector *attached_connector;
+
+	struct drm_dp_tunnel *tunnel;
+	bool tunnel_suspended:1;
 
 	/* mst connector list */
 	struct intel_dp_mst_encoder *mst_encoders[I915_MAX_PIPES];
