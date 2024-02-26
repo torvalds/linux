@@ -90,16 +90,6 @@ static const struct acpi_device_id wmi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, wmi_device_ids);
 
-/* allow duplicate GUIDs as these device drivers use struct wmi_driver */
-static const char * const allow_duplicates[] = {
-	"05901221-D566-11D1-B2F0-00A0C9062910",	/* wmi-bmof */
-	"8A42EA14-4F2A-FD45-6422-0087F7A7E608",	/* dell-wmi-ddv */
-	"44FADEB1-B204-40F2-8581-394BBDC1B651",	/* intel-wmi-sbl-fw-update */
-	"86CCFD48-205E-4A77-9C48-2021CBEDE341",	/* intel-wmi-thunderbolt */
-	"F1DDEE52-063C-4784-A11E-8A06684B9B01",	/* dell-smm-hwmon */
-	NULL
-};
-
 #define dev_to_wblock(__dev)	container_of_const(__dev, struct wmi_block, dev.dev)
 #define dev_to_wdev(__dev)	container_of_const(__dev, struct wmi_device, dev)
 
@@ -1093,32 +1083,6 @@ static int wmi_add_device(struct platform_device *pdev, struct wmi_device *wdev)
 	return device_add(&wdev->dev);
 }
 
-static bool guid_already_parsed_for_legacy(struct acpi_device *device, const guid_t *guid)
-{
-	struct wmi_block *wblock;
-
-	list_for_each_entry(wblock, &wmi_block_list, list) {
-		/* skip warning and register if we know the driver will use struct wmi_driver */
-		for (int i = 0; allow_duplicates[i] != NULL; i++) {
-			if (guid_parse_and_compare(allow_duplicates[i], guid))
-				return false;
-		}
-		if (guid_equal(&wblock->gblock.guid, guid)) {
-			/*
-			 * Because we historically didn't track the relationship
-			 * between GUIDs and ACPI nodes, we don't know whether
-			 * we need to suppress GUIDs that are unique on a
-			 * given node but duplicated across nodes.
-			 */
-			dev_warn(&device->dev, "duplicate WMI GUID %pUL (first instance was on %s)\n",
-				 guid, dev_name(&wblock->acpi_device->dev));
-			return true;
-		}
-	}
-
-	return false;
-}
-
 /*
  * Parse the _WDG method for the GUID data blocks
  */
@@ -1156,9 +1120,6 @@ static int parse_wdg(struct device *wmi_bus_dev, struct platform_device *pdev)
 			dev_info(wmi_bus_dev, FW_INFO "%pUL has zero instances\n", &gblock[i].guid);
 			continue;
 		}
-
-		if (guid_already_parsed_for_legacy(device, &gblock[i].guid))
-			continue;
 
 		wblock = kzalloc(sizeof(*wblock), GFP_KERNEL);
 		if (!wblock)
