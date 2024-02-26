@@ -149,6 +149,33 @@
 #define RZG2L_TINT_IRQ_START_INDEX	9
 #define RZG2L_PACK_HWIRQ(t, i)		(((t) << 16) | (i))
 
+/* Read/write 8 bits register */
+#define RZG2L_PCTRL_REG_ACCESS8(_read, _addr, _val)	\
+	do {						\
+		if (_read)				\
+			_val = readb(_addr);		\
+		else					\
+			writeb(_val, _addr);		\
+	} while (0)
+
+/* Read/write 16 bits register */
+#define RZG2L_PCTRL_REG_ACCESS16(_read, _addr, _val)	\
+	do {						\
+		if (_read)				\
+			_val = readw(_addr);		\
+		else					\
+			writew(_val, _addr);		\
+	} while (0)
+
+/* Read/write 32 bits register */
+#define RZG2L_PCTRL_REG_ACCESS32(_read, _addr, _val)	\
+	do {						\
+		if (_read)				\
+			_val = readl(_addr);		\
+		else					\
+			writel(_val, _addr);		\
+	} while (0)
+
 /**
  * struct rzg2l_register_offsets - specific register offsets
  * @pwpr: PWPR register offset
@@ -241,6 +268,32 @@ struct rzg2l_pinctrl_pin_settings {
 	u16 drive_strength_ua;
 };
 
+/**
+ * struct rzg2l_pinctrl_reg_cache - register cache structure (to be used in suspend/resume)
+ * @p: P registers cache
+ * @pm: PM registers cache
+ * @pmc: PMC registers cache
+ * @pfc: PFC registers cache
+ * @iolh: IOLH registers cache
+ * @ien: IEN registers cache
+ * @sd_ch: SD_CH registers cache
+ * @eth_poc: ET_POC registers cache
+ * @eth_mode: ETH_MODE register cache
+ * @qspi: QSPI registers cache
+ */
+struct rzg2l_pinctrl_reg_cache {
+	u8	*p;
+	u16	*pm;
+	u8	*pmc;
+	u32	*pfc;
+	u32	*iolh[2];
+	u32	*ien[2];
+	u8	sd_ch[2];
+	u8	eth_poc[2];
+	u8	eth_mode;
+	u8	qspi;
+};
+
 struct rzg2l_pinctrl {
 	struct pinctrl_dev		*pctl;
 	struct pinctrl_desc		desc;
@@ -249,6 +302,8 @@ struct rzg2l_pinctrl {
 	const struct rzg2l_pinctrl_data	*data;
 	void __iomem			*base;
 	struct device			*dev;
+
+	struct clk			*clk;
 
 	struct gpio_chip		gpio_chip;
 	struct pinctrl_gpio_range	gpio_range;
@@ -260,6 +315,9 @@ struct rzg2l_pinctrl {
 	struct mutex			mutex; /* serialize adding groups and functions */
 
 	struct rzg2l_pinctrl_pin_settings *settings;
+	struct rzg2l_pinctrl_reg_cache	*cache;
+	struct rzg2l_pinctrl_reg_cache	*dedicated_cache;
+	atomic_t			wakeup_path;
 };
 
 static const u16 available_ps[] = { 1800, 2500, 3300 };
@@ -1809,19 +1867,15 @@ static int rzg2l_gpio_get_gpioint(unsigned int virq, struct rzg2l_pinctrl *pctrl
 	return gpioint;
 }
 
-static void rzg2l_gpio_irq_disable(struct irq_data *d)
+static void rzg2l_gpio_irq_endisable(struct rzg2l_pinctrl *pctrl,
+				     unsigned int hwirq, bool enable)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct rzg2l_pinctrl *pctrl = container_of(gc, struct rzg2l_pinctrl, gpio_chip);
-	unsigned int hwirq = irqd_to_hwirq(d);
 	const struct pinctrl_pin_desc *pin_desc = &pctrl->desc.pins[hwirq];
 	u64 *pin_data = pin_desc->drv_data;
 	u32 off = RZG2L_PIN_CFG_TO_PORT_OFFSET(*pin_data);
 	u8 bit = RZG2L_PIN_ID_TO_PIN(hwirq);
 	unsigned long flags;
 	void __iomem *addr;
-
-	irq_chip_disable_parent(d);
 
 	addr = pctrl->base + ISEL(off);
 	if (bit >= 4) {
@@ -1830,36 +1884,28 @@ static void rzg2l_gpio_irq_disable(struct irq_data *d)
 	}
 
 	spin_lock_irqsave(&pctrl->lock, flags);
-	writel(readl(addr) & ~BIT(bit * 8), addr);
+	if (enable)
+		writel(readl(addr) | BIT(bit * 8), addr);
+	else
+		writel(readl(addr) & ~BIT(bit * 8), addr);
 	spin_unlock_irqrestore(&pctrl->lock, flags);
+}
 
+static void rzg2l_gpio_irq_disable(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	unsigned int hwirq = irqd_to_hwirq(d);
+
+	irq_chip_disable_parent(d);
 	gpiochip_disable_irq(gc, hwirq);
 }
 
 static void rzg2l_gpio_irq_enable(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct rzg2l_pinctrl *pctrl = container_of(gc, struct rzg2l_pinctrl, gpio_chip);
 	unsigned int hwirq = irqd_to_hwirq(d);
-	const struct pinctrl_pin_desc *pin_desc = &pctrl->desc.pins[hwirq];
-	u64 *pin_data = pin_desc->drv_data;
-	u32 off = RZG2L_PIN_CFG_TO_PORT_OFFSET(*pin_data);
-	u8 bit = RZG2L_PIN_ID_TO_PIN(hwirq);
-	unsigned long flags;
-	void __iomem *addr;
 
 	gpiochip_enable_irq(gc, hwirq);
-
-	addr = pctrl->base + ISEL(off);
-	if (bit >= 4) {
-		bit -= 4;
-		addr += 4;
-	}
-
-	spin_lock_irqsave(&pctrl->lock, flags);
-	writel(readl(addr) | BIT(bit * 8), addr);
-	spin_unlock_irqrestore(&pctrl->lock, flags);
-
 	irq_chip_enable_parent(d);
 }
 
@@ -1880,6 +1926,28 @@ static void rzg2l_gpio_irq_print_chip(struct irq_data *data, struct seq_file *p)
 	seq_printf(p, dev_name(gc->parent));
 }
 
+static int rzg2l_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(data);
+	struct rzg2l_pinctrl *pctrl = container_of(gc, struct rzg2l_pinctrl, gpio_chip);
+	int ret;
+
+	/* It should not happen. */
+	if (!data->parent_data)
+		return -EOPNOTSUPP;
+
+	ret = irq_chip_set_wake_parent(data, on);
+	if (ret)
+		return ret;
+
+	if (on)
+		atomic_inc(&pctrl->wakeup_path);
+	else
+		atomic_dec(&pctrl->wakeup_path);
+
+	return 0;
+}
+
 static const struct irq_chip rzg2l_gpio_irqchip = {
 	.name = "rzg2l-gpio",
 	.irq_disable = rzg2l_gpio_irq_disable,
@@ -1890,9 +1958,30 @@ static const struct irq_chip rzg2l_gpio_irqchip = {
 	.irq_eoi = rzg2l_gpio_irqc_eoi,
 	.irq_print_chip = rzg2l_gpio_irq_print_chip,
 	.irq_set_affinity = irq_chip_set_affinity_parent,
+	.irq_set_wake = rzg2l_gpio_irq_set_wake,
 	.flags = IRQCHIP_IMMUTABLE,
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
+
+static int rzg2l_gpio_interrupt_input_mode(struct gpio_chip *chip, unsigned int offset)
+{
+	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(chip);
+	const struct pinctrl_pin_desc *pin_desc = &pctrl->desc.pins[offset];
+	u64 *pin_data = pin_desc->drv_data;
+	u32 off = RZG2L_PIN_CFG_TO_PORT_OFFSET(*pin_data);
+	u8 bit = RZG2L_PIN_ID_TO_PIN(offset);
+	u8 reg8;
+	int ret;
+
+	reg8 = readb(pctrl->base + PMC(off));
+	if (reg8 & BIT(bit)) {
+		ret = rzg2l_gpio_request(chip, offset);
+		if (ret)
+			return ret;
+	}
+
+	return rzg2l_gpio_direction_input(chip, offset);
+}
 
 static int rzg2l_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 					    unsigned int child,
@@ -1903,16 +1992,25 @@ static int rzg2l_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 	struct rzg2l_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned long flags;
 	int gpioint, irq;
+	int ret;
 
 	gpioint = rzg2l_gpio_get_gpioint(child, pctrl);
 	if (gpioint < 0)
 		return gpioint;
 
+	ret = rzg2l_gpio_interrupt_input_mode(gc, child);
+	if (ret)
+		return ret;
+
 	spin_lock_irqsave(&pctrl->bitmap_lock, flags);
 	irq = bitmap_find_free_region(pctrl->tint_slot, RZG2L_TINT_MAX_INTERRUPT, get_order(1));
 	spin_unlock_irqrestore(&pctrl->bitmap_lock, flags);
-	if (irq < 0)
-		return -ENOSPC;
+	if (irq < 0) {
+		ret = -ENOSPC;
+		goto err;
+	}
+
+	rzg2l_gpio_irq_endisable(pctrl, child, true);
 	pctrl->hwirq[irq] = child;
 	irq += RZG2L_TINT_IRQ_START_INDEX;
 
@@ -1920,6 +2018,10 @@ static int rzg2l_gpio_child_to_parent_hwirq(struct gpio_chip *gc,
 	*parent_type = IRQ_TYPE_LEVEL_HIGH;
 	*parent = RZG2L_PACK_HWIRQ(gpioint, irq);
 	return 0;
+
+err:
+	rzg2l_gpio_free(gc, child);
+	return ret;
 }
 
 static int rzg2l_gpio_populate_parent_fwspec(struct gpio_chip *chip,
@@ -1937,6 +2039,35 @@ static int rzg2l_gpio_populate_parent_fwspec(struct gpio_chip *chip,
 	return 0;
 }
 
+static void rzg2l_gpio_irq_restore(struct rzg2l_pinctrl *pctrl)
+{
+	struct irq_domain *domain = pctrl->gpio_chip.irq.domain;
+
+	for (unsigned int i = 0; i < RZG2L_TINT_MAX_INTERRUPT; i++) {
+		struct irq_data *data;
+		unsigned int virq;
+
+		if (!pctrl->hwirq[i])
+			continue;
+
+		virq = irq_find_mapping(domain, pctrl->hwirq[i]);
+		if (!virq) {
+			dev_crit(pctrl->dev, "Failed to find IRQ mapping for hwirq %u\n",
+				 pctrl->hwirq[i]);
+			continue;
+		}
+
+		data = irq_domain_get_irq_data(domain, virq);
+		if (!data) {
+			dev_crit(pctrl->dev, "Failed to get IRQ data for virq=%u\n", virq);
+			continue;
+		}
+
+		if (!irqd_irq_disabled(data))
+			rzg2l_gpio_irq_enable(data);
+	}
+}
+
 static void rzg2l_gpio_irq_domain_free(struct irq_domain *domain, unsigned int virq,
 				       unsigned int nr_irqs)
 {
@@ -1952,6 +2083,8 @@ static void rzg2l_gpio_irq_domain_free(struct irq_domain *domain, unsigned int v
 
 		for (i = 0; i < RZG2L_TINT_MAX_INTERRUPT; i++) {
 			if (pctrl->hwirq[i] == hwirq) {
+				rzg2l_gpio_irq_endisable(pctrl, hwirq, false);
+				rzg2l_gpio_free(gc, hwirq);
 				spin_lock_irqsave(&pctrl->bitmap_lock, flags);
 				bitmap_release_region(pctrl->tint_slot, i, get_order(1));
 				spin_unlock_irqrestore(&pctrl->bitmap_lock, flags);
@@ -1983,6 +2116,68 @@ static void rzg2l_init_irq_valid_mask(struct gpio_chip *gc,
 					      pctrl->data->port_pin_configs[port])))
 			clear_bit(offset, valid_mask);
 	}
+}
+
+static int rzg2l_pinctrl_reg_cache_alloc(struct rzg2l_pinctrl *pctrl)
+{
+	u32 nports = pctrl->data->n_port_pins / RZG2L_PINS_PER_PORT;
+	struct rzg2l_pinctrl_reg_cache *cache, *dedicated_cache;
+
+	cache = devm_kzalloc(pctrl->dev, sizeof(*cache), GFP_KERNEL);
+	if (!cache)
+		return -ENOMEM;
+
+	dedicated_cache = devm_kzalloc(pctrl->dev, sizeof(*dedicated_cache), GFP_KERNEL);
+	if (!dedicated_cache)
+		return -ENOMEM;
+
+	cache->p = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->p), GFP_KERNEL);
+	if (!cache->p)
+		return -ENOMEM;
+
+	cache->pm = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->pm), GFP_KERNEL);
+	if (!cache->pm)
+		return -ENOMEM;
+
+	cache->pmc = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->pmc), GFP_KERNEL);
+	if (!cache->pmc)
+		return -ENOMEM;
+
+	cache->pfc = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->pfc), GFP_KERNEL);
+	if (!cache->pfc)
+		return -ENOMEM;
+
+	for (u8 i = 0; i < 2; i++) {
+		u32 n_dedicated_pins = pctrl->data->n_dedicated_pins;
+
+		cache->iolh[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->iolh[i]),
+					      GFP_KERNEL);
+		if (!cache->iolh[i])
+			return -ENOMEM;
+
+		cache->ien[i] = devm_kcalloc(pctrl->dev, nports, sizeof(*cache->ien[i]),
+					     GFP_KERNEL);
+		if (!cache->ien[i])
+			return -ENOMEM;
+
+		/* Allocate dedicated cache. */
+		dedicated_cache->iolh[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
+							sizeof(*dedicated_cache->iolh[i]),
+							GFP_KERNEL);
+		if (!dedicated_cache->iolh[i])
+			return -ENOMEM;
+
+		dedicated_cache->ien[i] = devm_kcalloc(pctrl->dev, n_dedicated_pins,
+						       sizeof(*dedicated_cache->ien[i]),
+						       GFP_KERNEL);
+		if (!dedicated_cache->ien[i])
+			return -ENOMEM;
+	}
+
+	pctrl->cache = cache;
+	pctrl->dedicated_cache = dedicated_cache;
+
+	return 0;
 }
 
 static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
@@ -2125,6 +2320,10 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 		}
 	}
 
+	ret = rzg2l_pinctrl_reg_cache_alloc(pctrl);
+	if (ret)
+		return ret;
+
 	ret = devm_pinctrl_register_and_init(pctrl->dev, &pctrl->desc, pctrl,
 					     &pctrl->pctl);
 	if (ret) {
@@ -2150,7 +2349,6 @@ static int rzg2l_pinctrl_register(struct rzg2l_pinctrl *pctrl)
 static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 {
 	struct rzg2l_pinctrl *pctrl;
-	struct clk *clk;
 	int ret;
 
 	BUILD_BUG_ON(ARRAY_SIZE(r9a07g044_gpio_configs) * RZG2L_PINS_PER_PORT >
@@ -2176,14 +2374,16 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 	if (IS_ERR(pctrl->base))
 		return PTR_ERR(pctrl->base);
 
-	clk = devm_clk_get_enabled(pctrl->dev, NULL);
-	if (IS_ERR(clk))
-		return dev_err_probe(pctrl->dev, PTR_ERR(clk),
+	pctrl->clk = devm_clk_get_enabled(pctrl->dev, NULL);
+	if (IS_ERR(pctrl->clk)) {
+		return dev_err_probe(pctrl->dev, PTR_ERR(pctrl->clk),
 				     "failed to enable GPIO clk\n");
+	}
 
 	spin_lock_init(&pctrl->lock);
 	spin_lock_init(&pctrl->bitmap_lock);
 	mutex_init(&pctrl->mutex);
+	atomic_set(&pctrl->wakeup_path, 0);
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -2192,6 +2392,224 @@ static int rzg2l_pinctrl_probe(struct platform_device *pdev)
 		return ret;
 
 	dev_info(pctrl->dev, "%s support registered\n", DRV_NAME);
+	return 0;
+}
+
+static void rzg2l_pinctrl_pm_setup_regs(struct rzg2l_pinctrl *pctrl, bool suspend)
+{
+	u32 nports = pctrl->data->n_port_pins / RZG2L_PINS_PER_PORT;
+	struct rzg2l_pinctrl_reg_cache *cache = pctrl->cache;
+
+	for (u32 port = 0; port < nports; port++) {
+		bool has_iolh, has_ien;
+		u32 off, caps;
+		u8 pincnt;
+		u64 cfg;
+
+		cfg = pctrl->data->port_pin_configs[port];
+		off = RZG2L_PIN_CFG_TO_PORT_OFFSET(cfg);
+		pincnt = hweight8(FIELD_GET(PIN_CFG_PIN_MAP_MASK, cfg));
+
+		caps = FIELD_GET(PIN_CFG_MASK, cfg);
+		has_iolh = !!(caps & (PIN_CFG_IOLH_A | PIN_CFG_IOLH_B | PIN_CFG_IOLH_C));
+		has_ien = !!(caps & PIN_CFG_IEN);
+
+		if (suspend)
+			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + PFC(off), cache->pfc[port]);
+
+		/*
+		 * Now cache the registers or set them in the order suggested by
+		 * HW manual (section "Operation for GPIO Function").
+		 */
+		RZG2L_PCTRL_REG_ACCESS8(suspend, pctrl->base + PMC(off), cache->pmc[port]);
+		if (has_iolh) {
+			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + IOLH(off),
+						 cache->iolh[0][port]);
+			if (pincnt >= 4) {
+				RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + IOLH(off) + 4,
+							 cache->iolh[1][port]);
+			}
+		}
+
+		RZG2L_PCTRL_REG_ACCESS16(suspend, pctrl->base + PM(off), cache->pm[port]);
+		RZG2L_PCTRL_REG_ACCESS8(suspend, pctrl->base + P(off), cache->p[port]);
+
+		if (has_ien) {
+			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + IEN(off),
+						 cache->ien[0][port]);
+			if (pincnt >= 4) {
+				RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + IEN(off) + 4,
+							 cache->ien[1][port]);
+			}
+		}
+	}
+}
+
+static void rzg2l_pinctrl_pm_setup_dedicated_regs(struct rzg2l_pinctrl *pctrl, bool suspend)
+{
+	struct rzg2l_pinctrl_reg_cache *cache = pctrl->dedicated_cache;
+
+	/*
+	 * Make sure entries in pctrl->data->n_dedicated_pins[] having the same
+	 * port offset are close together.
+	 */
+	for (u32 i = 0, caps = 0; i < pctrl->data->n_dedicated_pins; i++) {
+		bool has_iolh, has_ien;
+		u32 off, next_off = 0;
+		u64 cfg, next_cfg;
+		u8 pincnt;
+
+		cfg = pctrl->data->dedicated_pins[i].config;
+		off = RZG2L_PIN_CFG_TO_PORT_OFFSET(cfg);
+		if (i + 1 < pctrl->data->n_dedicated_pins) {
+			next_cfg = pctrl->data->dedicated_pins[i + 1].config;
+			next_off = RZG2L_PIN_CFG_TO_PORT_OFFSET(next_cfg);
+		}
+
+		if (off == next_off) {
+			/* Gather caps of all port pins. */
+			caps |= FIELD_GET(PIN_CFG_MASK, cfg);
+			continue;
+		}
+
+		/* And apply them in a single shot. */
+		has_iolh = !!(caps & (PIN_CFG_IOLH_A | PIN_CFG_IOLH_B | PIN_CFG_IOLH_C));
+		has_ien = !!(caps & PIN_CFG_IEN);
+		pincnt = hweight8(FIELD_GET(RZG2L_SINGLE_PIN_BITS_MASK, cfg));
+
+		if (has_iolh) {
+			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + IOLH(off),
+						 cache->iolh[0][i]);
+		}
+		if (has_ien) {
+			RZG2L_PCTRL_REG_ACCESS32(suspend, pctrl->base + IEN(off),
+						 cache->ien[0][i]);
+		}
+
+		if (pincnt >= 4) {
+			if (has_iolh) {
+				RZG2L_PCTRL_REG_ACCESS32(suspend,
+							 pctrl->base + IOLH(off) + 4,
+							 cache->iolh[1][i]);
+			}
+			if (has_ien) {
+				RZG2L_PCTRL_REG_ACCESS32(suspend,
+							 pctrl->base + IEN(off) + 4,
+							 cache->ien[1][i]);
+			}
+		}
+		caps = 0;
+	}
+}
+
+static void rzg2l_pinctrl_pm_setup_pfc(struct  rzg2l_pinctrl *pctrl)
+{
+	u32 nports = pctrl->data->n_port_pins / RZG2L_PINS_PER_PORT;
+	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
+	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
+
+	/* Set the PWPR register to allow PFC register to write. */
+	writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
+	writel(PWPR_PFCWE, pctrl->base + regs->pwpr);	/* B0WI=0, PFCWE=1 */
+
+	/* Restore port registers. */
+	for (u32 port = 0; port < nports; port++) {
+		unsigned long pinmap;
+		u8 pmc = 0, max_pin;
+		u32 off, pfc = 0;
+		u64 cfg;
+		u16 pm;
+		u8 pin;
+
+		cfg = pctrl->data->port_pin_configs[port];
+		off = RZG2L_PIN_CFG_TO_PORT_OFFSET(cfg);
+		pinmap = FIELD_GET(PIN_CFG_PIN_MAP_MASK, cfg);
+		max_pin = fls(pinmap);
+
+		pm = readw(pctrl->base + PM(off));
+		for_each_set_bit(pin, &pinmap, max_pin) {
+			struct rzg2l_pinctrl_reg_cache *cache = pctrl->cache;
+
+			/* Nothing to do if PFC was not configured before. */
+			if (!(cache->pmc[port] & BIT(pin)))
+				continue;
+
+			/* Set pin to 'Non-use (Hi-Z input protection)' */
+			pm &= ~(PM_MASK << (pin * 2));
+			writew(pm, pctrl->base + PM(off));
+
+			/* Temporarily switch to GPIO mode with PMC register */
+			pmc &= ~BIT(pin);
+			writeb(pmc, pctrl->base + PMC(off));
+
+			/* Select Pin function mode. */
+			pfc &= ~(PFC_MASK << (pin * 4));
+			pfc |= (cache->pfc[port] & (PFC_MASK << (pin * 4)));
+			writel(pfc, pctrl->base + PFC(off));
+
+			/* Switch to Peripheral pin function. */
+			pmc |= BIT(pin);
+			writeb(pmc, pctrl->base + PMC(off));
+		}
+	}
+
+	/* Set the PWPR register to be write-protected. */
+	writel(0x0, pctrl->base + regs->pwpr);		/* B0WI=0, PFCWE=0 */
+	writel(PWPR_B0WI, pctrl->base + regs->pwpr);	/* B0WI=1, PFCWE=0 */
+}
+
+static int rzg2l_pinctrl_suspend_noirq(struct device *dev)
+{
+	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
+	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
+	struct rzg2l_pinctrl_reg_cache *cache = pctrl->cache;
+
+	rzg2l_pinctrl_pm_setup_regs(pctrl, true);
+	rzg2l_pinctrl_pm_setup_dedicated_regs(pctrl, true);
+
+	for (u8 i = 0; i < 2; i++) {
+		cache->sd_ch[i] = readb(pctrl->base + SD_CH(regs->sd_ch, i));
+		cache->eth_poc[i] = readb(pctrl->base + ETH_POC(regs->eth_poc, i));
+	}
+
+	cache->qspi = readb(pctrl->base + QSPI);
+	cache->eth_mode = readb(pctrl->base + ETH_MODE);
+
+	if (!atomic_read(&pctrl->wakeup_path))
+		clk_disable_unprepare(pctrl->clk);
+	else
+		device_set_wakeup_path(dev);
+
+	return 0;
+}
+
+static int rzg2l_pinctrl_resume_noirq(struct device *dev)
+{
+	struct rzg2l_pinctrl *pctrl = dev_get_drvdata(dev);
+	const struct rzg2l_hwcfg *hwcfg = pctrl->data->hwcfg;
+	const struct rzg2l_register_offsets *regs = &hwcfg->regs;
+	struct rzg2l_pinctrl_reg_cache *cache = pctrl->cache;
+	int ret;
+
+	if (!atomic_read(&pctrl->wakeup_path)) {
+		ret = clk_prepare_enable(pctrl->clk);
+		if (ret)
+			return ret;
+	}
+
+	writeb(cache->qspi, pctrl->base + QSPI);
+	writeb(cache->eth_mode, pctrl->base + ETH_MODE);
+	for (u8 i = 0; i < 2; i++) {
+		writeb(cache->sd_ch[i], pctrl->base + SD_CH(regs->sd_ch, i));
+		writeb(cache->eth_poc[i], pctrl->base + ETH_POC(regs->eth_poc, i));
+	}
+
+	rzg2l_pinctrl_pm_setup_pfc(pctrl);
+	rzg2l_pinctrl_pm_setup_regs(pctrl, false);
+	rzg2l_pinctrl_pm_setup_dedicated_regs(pctrl, false);
+	rzg2l_gpio_irq_restore(pctrl);
+
 	return 0;
 }
 
@@ -2291,10 +2709,15 @@ static const struct of_device_id rzg2l_pinctrl_of_table[] = {
 	{ /* sentinel */ }
 };
 
+static const struct dev_pm_ops rzg2l_pinctrl_pm_ops = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(rzg2l_pinctrl_suspend_noirq, rzg2l_pinctrl_resume_noirq)
+};
+
 static struct platform_driver rzg2l_pinctrl_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = of_match_ptr(rzg2l_pinctrl_of_table),
+		.pm = pm_sleep_ptr(&rzg2l_pinctrl_pm_ops),
 	},
 	.probe = rzg2l_pinctrl_probe,
 };
