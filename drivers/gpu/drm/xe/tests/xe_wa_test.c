@@ -9,6 +9,7 @@
 #include <kunit/test.h>
 
 #include "xe_device.h"
+#include "xe_kunit_helpers.h"
 #include "xe_pci_test.h"
 #include "xe_reg_sr.h"
 #include "xe_tuning.h"
@@ -65,14 +66,8 @@ static const struct platform_test_case cases[] = {
 	PLATFORM_CASE(ALDERLAKE_P, C0),
 	SUBPLATFORM_CASE(ALDERLAKE_S, RPLS, D0),
 	SUBPLATFORM_CASE(ALDERLAKE_P, RPLU, E0),
-	SUBPLATFORM_CASE(DG2, G10, A0),
-	SUBPLATFORM_CASE(DG2, G10, A1),
-	SUBPLATFORM_CASE(DG2, G10, B0),
 	SUBPLATFORM_CASE(DG2, G10, C0),
-	SUBPLATFORM_CASE(DG2, G11, A0),
-	SUBPLATFORM_CASE(DG2, G11, B0),
 	SUBPLATFORM_CASE(DG2, G11, B1),
-	SUBPLATFORM_CASE(DG2, G12, A0),
 	SUBPLATFORM_CASE(DG2, G12, A1),
 	GMDID_CASE(METEORLAKE, 1270, A0, 1300, A0),
 	GMDID_CASE(METEORLAKE, 1271, A0, 1300, A0),
@@ -105,9 +100,7 @@ static int xe_wa_test_init(struct kunit *test)
 	dev = drm_kunit_helper_alloc_device(test);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, dev);
 
-	xe = drm_kunit_helper_alloc_drm_device(test, dev,
-					       struct xe_device,
-					       drm, DRIVER_GEM);
+	xe = xe_kunit_helper_alloc_xe_device(test, dev);
 	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, xe);
 
 	test->priv = &data;
@@ -160,8 +153,3 @@ static struct kunit_suite xe_rtp_test_suite = {
 };
 
 kunit_test_suite(xe_rtp_test_suite);
-
-MODULE_AUTHOR("Intel Corporation");
-MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("xe_wa kunit test");
-MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);

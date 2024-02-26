@@ -6,6 +6,7 @@
 #include <linux/types.h>
 
 #include "gt/intel_gt.h"
+#include "gt/intel_rps.h"
 #include "intel_guc_reg.h"
 #include "intel_huc.h"
 #include "intel_huc_print.h"
@@ -447,17 +448,68 @@ static const char *auth_mode_string(struct intel_huc *huc,
 	return partial ? "clear media" : "all workloads";
 }
 
+/*
+ * Use a longer timeout for debug builds so that problems can be detected
+ * and analysed. But a shorter timeout for releases so that user's don't
+ * wait forever to find out there is a problem. Note that the only reason
+ * an end user should hit the timeout is in case of extreme thermal throttling.
+ * And a system that is that hot during boot is probably dead anyway!
+ */
+#if defined(CONFIG_DRM_I915_DEBUG_GEM)
+#define HUC_LOAD_RETRY_LIMIT   20
+#else
+#define HUC_LOAD_RETRY_LIMIT   3
+#endif
+
 int intel_huc_wait_for_auth_complete(struct intel_huc *huc,
 				     enum intel_huc_authentication_type type)
 {
 	struct intel_gt *gt = huc_to_gt(huc);
-	int ret;
+	struct intel_uncore *uncore = gt->uncore;
+	ktime_t before, after, delta;
+	int ret, count;
+	u64 delta_ms;
+	u32 before_freq;
 
-	ret = __intel_wait_for_register(gt->uncore,
-					huc->status[type].reg,
-					huc->status[type].mask,
-					huc->status[type].value,
-					2, 50, NULL);
+	/*
+	 * The KMD requests maximum frequency during driver load, however thermal
+	 * throttling can force the frequency down to minimum (although the board
+	 * really should never get that hot in real life!). IFWI  issues have been
+	 * seen to cause sporadic failures to grant the higher frequency. And at
+	 * minimum frequency, the authentication time can be in the seconds range.
+	 * Note that there is a limit on how long an individual wait_for() can wait.
+	 * So wrap it in a loop.
+	 */
+	before_freq = intel_rps_read_actual_frequency(&gt->rps);
+	before = ktime_get();
+	for (count = 0; count < HUC_LOAD_RETRY_LIMIT; count++) {
+		ret = __intel_wait_for_register(gt->uncore,
+						huc->status[type].reg,
+						huc->status[type].mask,
+						huc->status[type].value,
+						2, 1000, NULL);
+		if (!ret)
+			break;
+
+		huc_dbg(huc, "auth still in progress, count = %d, freq = %dMHz, status = 0x%08X\n",
+			count, intel_rps_read_actual_frequency(&gt->rps),
+			huc->status[type].reg.reg);
+	}
+	after = ktime_get();
+	delta = ktime_sub(after, before);
+	delta_ms = ktime_to_ms(delta);
+
+	if (delta_ms > 50) {
+		huc_warn(huc, "excessive auth time: %lldms! [status = 0x%08X, count = %d, ret = %d]\n",
+			 delta_ms, huc->status[type].reg.reg, count, ret);
+		huc_warn(huc, "excessive auth time: [freq = %dMHz, before = %dMHz, perf_limit_reasons = 0x%08X]\n",
+			 intel_rps_read_actual_frequency(&gt->rps), before_freq,
+			 intel_uncore_read(uncore, intel_gt_perf_limit_reasons_reg(gt)));
+	} else {
+		huc_dbg(huc, "auth took %lldms, freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d\n",
+			delta_ms, intel_rps_read_actual_frequency(&gt->rps),
+			before_freq, huc->status[type].reg.reg, count, ret);
+	}
 
 	/* mark the load process as complete even if the wait failed */
 	delayed_huc_load_complete(huc);

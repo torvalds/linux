@@ -1834,23 +1834,6 @@ int resource_find_any_free_pipe(struct resource_context *new_res_ctx,
 
 bool resource_is_pipe_type(const struct pipe_ctx *pipe_ctx, enum pipe_type type)
 {
-#ifdef DBG
-	if (pipe_ctx->stream == NULL) {
-		/* a free pipe with dangling states */
-		ASSERT(!pipe_ctx->plane_state);
-		ASSERT(!pipe_ctx->prev_odm_pipe);
-		ASSERT(!pipe_ctx->next_odm_pipe);
-		ASSERT(!pipe_ctx->top_pipe);
-		ASSERT(!pipe_ctx->bottom_pipe);
-	} else if (pipe_ctx->top_pipe) {
-		/* a secondary DPP pipe must be signed to a plane */
-		ASSERT(pipe_ctx->plane_state)
-	}
-	/* Add more checks here to prevent corrupted pipe ctx. It is very hard
-	 * to debug this issue afterwards because we can't pinpoint the code
-	 * location causing inconsistent pipe context states.
-	 */
-#endif
 	switch (type) {
 	case OTG_MASTER:
 		return !pipe_ctx->prev_odm_pipe &&

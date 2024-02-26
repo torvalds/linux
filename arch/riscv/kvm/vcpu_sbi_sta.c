@@ -26,8 +26,12 @@ void kvm_riscv_vcpu_record_steal_time(struct kvm_vcpu *vcpu)
 {
 	gpa_t shmem = vcpu->arch.sta.shmem;
 	u64 last_steal = vcpu->arch.sta.last_steal;
-	u32 *sequence_ptr, sequence;
-	u64 *steal_ptr, steal;
+	__le32 __user *sequence_ptr;
+	__le64 __user *steal_ptr;
+	__le32 sequence_le;
+	__le64 steal_le;
+	u32 sequence;
+	u64 steal;
 	unsigned long hva;
 	gfn_t gfn;
 
@@ -47,22 +51,22 @@ void kvm_riscv_vcpu_record_steal_time(struct kvm_vcpu *vcpu)
 		return;
 	}
 
-	sequence_ptr = (u32 *)(hva + offset_in_page(shmem) +
+	sequence_ptr = (__le32 __user *)(hva + offset_in_page(shmem) +
 			       offsetof(struct sbi_sta_struct, sequence));
-	steal_ptr = (u64 *)(hva + offset_in_page(shmem) +
+	steal_ptr = (__le64 __user *)(hva + offset_in_page(shmem) +
 			    offsetof(struct sbi_sta_struct, steal));
 
-	if (WARN_ON(get_user(sequence, sequence_ptr)))
+	if (WARN_ON(get_user(sequence_le, sequence_ptr)))
 		return;
 
-	sequence = le32_to_cpu(sequence);
+	sequence = le32_to_cpu(sequence_le);
 	sequence += 1;
 
 	if (WARN_ON(put_user(cpu_to_le32(sequence), sequence_ptr)))
 		return;
 
-	if (!WARN_ON(get_user(steal, steal_ptr))) {
-		steal = le64_to_cpu(steal);
+	if (!WARN_ON(get_user(steal_le, steal_ptr))) {
+		steal = le64_to_cpu(steal_le);
 		vcpu->arch.sta.last_steal = READ_ONCE(current->sched_info.run_delay);
 		steal += vcpu->arch.sta.last_steal - last_steal;
 		WARN_ON(put_user(cpu_to_le64(steal), steal_ptr));

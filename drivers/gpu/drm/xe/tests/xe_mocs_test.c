@@ -9,6 +9,7 @@
 
 static struct kunit_case xe_mocs_tests[] = {
 	KUNIT_CASE(xe_live_mocs_kernel_kunit),
+	KUNIT_CASE(xe_live_mocs_reset_kunit),
 	{}
 };
 
@@ -21,4 +22,5 @@ kunit_test_suite(xe_mocs_test_suite);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("xe_mocs kunit test");
 MODULE_IMPORT_NS(EXPORTED_FOR_KUNIT_TESTING);

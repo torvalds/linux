@@ -229,7 +229,8 @@ void dmub_dcn35_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6)
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6)
 {
 	union dmub_addr offset;
 
@@ -275,6 +276,15 @@ void dmub_dcn35_setup_windows(struct dmub_srv *dmub,
 	REG_SET_2(DMCUB_REGION3_CW6_TOP_ADDRESS, 0,
 		  DMCUB_REGION3_CW6_TOP_ADDRESS, cw6->region.top,
 		  DMCUB_REGION3_CW6_ENABLE, 1);
+
+	offset = region6->offset;
+
+	REG_WRITE(DMCUB_REGION6_OFFSET, offset.u.low_part);
+	REG_WRITE(DMCUB_REGION6_OFFSET_HIGH, offset.u.high_part);
+	REG_SET_2(DMCUB_REGION6_TOP_ADDRESS, 0,
+		  DMCUB_REGION6_TOP_ADDRESS,
+		  region6->region.top - region6->region.base - 1,
+		  DMCUB_REGION6_ENABLE, 1);
 }
 
 void dmub_dcn35_setup_mailbox(struct dmub_srv *dmub,

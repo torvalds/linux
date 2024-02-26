@@ -160,6 +160,48 @@
 		}                                                                     \
 	} while (0)
 
+#define SOC24_DPG_MODE_OFFSET(ip, inst_idx, reg)						\
+	({											\
+		uint32_t internal_reg_offset, addr;						\
+		bool video_range, aon_range;				\
+												\
+		addr = (adev->reg_offset[ip##_HWIP][inst_idx][reg##_BASE_IDX] + reg);		\
+		addr <<= 2;									\
+		video_range = ((((0xFFFFF & addr) >= (VCN_VID_SOC_ADDRESS)) &&			\
+				((0xFFFFF & addr) < ((VCN_VID_SOC_ADDRESS + 0x2600)))));	\
+		aon_range   = ((((0xFFFFF & addr) >= (VCN_AON_SOC_ADDRESS)) &&			\
+				((0xFFFFF & addr) < ((VCN_AON_SOC_ADDRESS + 0x600)))));		\
+		if (video_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN_VID_SOC_ADDRESS) +	\
+				(VCN_VID_IP_ADDRESS));						\
+		else if (aon_range)								\
+			internal_reg_offset = ((0xFFFFF & addr) - (VCN_AON_SOC_ADDRESS) +	\
+				(VCN_AON_IP_ADDRESS));						\
+		else										\
+			internal_reg_offset = (0xFFFFF & addr);					\
+												\
+		internal_reg_offset >>= 2;							\
+	})
+
+#define WREG32_SOC24_DPG_MODE(inst_idx, offset, value, mask_en, indirect)		\
+	do {										\
+		if (!indirect) {							\
+			WREG32_SOC15(VCN, GET_INST(VCN, inst_idx),			\
+				     regUVD_DPG_LMA_DATA, value);			\
+			WREG32_SOC15(							\
+				VCN, GET_INST(VCN, inst_idx),				\
+				regUVD_DPG_LMA_CTL,					\
+				(0x1 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |		\
+				 mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |		\
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));	\
+		} else {								\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =		\
+				offset;							\
+			*adev->vcn.inst[inst_idx].dpg_sram_curr_addr++ =		\
+				value;							\
+		}									\
+	} while (0)
+
 #define AMDGPU_FW_SHARED_FLAG_0_UNIFIED_QUEUE (1 << 2)
 #define AMDGPU_FW_SHARED_FLAG_0_DRM_KEY_INJECT (1 << 4)
 #define AMDGPU_VCN_FW_SHARED_FLAG_0_RB	(1 << 6)

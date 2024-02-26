@@ -173,6 +173,7 @@ struct dentry_operations {
 #define DCACHE_DONTCACHE		BIT(7) /* Purge from memory on final dput() */
 
 #define DCACHE_CANT_MOUNT		BIT(8)
+#define DCACHE_GENOCIDE			BIT(9)
 #define DCACHE_SHRINK_LIST		BIT(10)
 
 #define DCACHE_OP_WEAK_REVALIDATE	BIT(11)

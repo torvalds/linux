@@ -265,4 +265,5 @@ static void __exit capmode_module_exit(void)
 module_init(capmode_module_init);
 module_exit(capmode_module_exit);
 
+MODULE_DESCRIPTION("ARCnet CAP mode packet interface module");
 MODULE_LICENSE("GPL");

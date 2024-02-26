@@ -116,14 +116,15 @@ EXPORT_SYMBOL_GPL(xenbus_strstate);
  * @dev: xenbus device
  * @path: path to watch
  * @watch: watch to register
+ * @will_handle: events queuing determine callback
  * @callback: callback to register
  *
  * Register a @watch on the given path, using the given xenbus_watch structure
- * for storage, and the given @callback function as the callback.  On success,
- * the given @path will be saved as @watch->node, and remains the
- * caller's to free.  On error, @watch->node will
- * be NULL, the device will switch to %XenbusStateClosing, and the error will
- * be saved in the store.
+ * for storage, @will_handle function as the callback to determine if each
+ * event need to be queued, and the given @callback function as the callback.
+ * On success, the given @path will be saved as @watch->node, and remains the
+ * caller's to free.  On error, @watch->node will be NULL, the device will
+ * switch to %XenbusStateClosing, and the error will be saved in the store.
  *
  * Returns: %0 on success or -errno on error
  */
@@ -158,11 +159,13 @@ EXPORT_SYMBOL_GPL(xenbus_watch_path);
  * xenbus_watch_pathfmt - register a watch on a sprintf-formatted path
  * @dev: xenbus device
  * @watch: watch to register
+ * @will_handle: events queuing determine callback
  * @callback: callback to register
  * @pathfmt: format of path to watch
  *
  * Register a watch on the given @path, using the given xenbus_watch
- * structure for storage, and the given @callback function as the
+ * structure for storage, @will_handle function as the callback to determine if
+ * each event need to be queued, and the given @callback function as the
  * callback.  On success, the watched path (@path/@path2) will be saved
  * as @watch->node, and becomes the caller's to kfree().
  * On error, watch->node will be NULL, so the caller has nothing to

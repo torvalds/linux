@@ -155,7 +155,6 @@ struct hwseq_private_funcs {
 	void (*setup_hpo_hw_control)(const struct dce_hwseq *hws, bool enable);
 	void (*enable_plane)(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			       struct dc_state *context);
-#ifdef CONFIG_DRM_AMD_DC_FP
 	void (*program_mall_pipe_config)(struct dc *dc, struct dc_state *context);
 	void (*update_force_pstate)(struct dc *dc, struct dc_state *context);
 	void (*update_mall_sel)(struct dc *dc, struct dc_state *context);
@@ -165,8 +164,14 @@ struct hwseq_private_funcs {
 	void (*set_pixels_per_cycle)(struct pipe_ctx *pipe_ctx);
 	void (*resync_fifo_dccg_dio)(struct dce_hwseq *hws, struct dc *dc,
 			struct dc_state *context);
+	enum dc_status (*apply_single_controller_ctx_to_hw)(
+			struct pipe_ctx *pipe_ctx,
+			struct dc_state *context,
+			struct dc *dc);
 	bool (*is_dp_dig_pixel_rate_div_policy)(struct pipe_ctx *pipe_ctx);
-#endif
+	void (*reset_back_end_for_pipe)(struct dc *dc,
+			struct pipe_ctx *pipe_ctx,
+			struct dc_state *context);
 };
 
 struct dce_hwseq {

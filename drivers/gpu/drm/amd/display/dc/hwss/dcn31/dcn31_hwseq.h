@@ -56,4 +56,8 @@ bool dcn31_is_abm_supported(struct dc *dc,
 void dcn31_init_pipes(struct dc *dc, struct dc_state *context);
 void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable);
 
+void dcn31_set_static_screen_control(struct pipe_ctx **pipe_ctx,
+		int num_pipes, const struct dc_static_screen_params *params);
+
+
 #endif /* __DC_HWSS_DCN31_H__ */

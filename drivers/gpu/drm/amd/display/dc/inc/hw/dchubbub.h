@@ -26,6 +26,12 @@
 #ifndef __DAL_DCHUBBUB_H__
 #define __DAL_DCHUBBUB_H__
 
+/**
+ * DOC: overview
+ *
+ * There is only one common DCHUBBUB. It contains the common request and return
+ * blocks for the Data Fabric Interface that are not clock/power gated.
+ */
 
 enum dcc_control {
 	dcc_control__256_256_xxx,

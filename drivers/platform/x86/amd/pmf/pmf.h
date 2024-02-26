@@ -441,11 +441,6 @@ struct apmf_dyn_slider_output {
 	struct apmf_cnqf_power_set ps[APMF_CNQF_MAX];
 } __packed;
 
-enum smart_pc_status {
-	PMF_SMART_PC_ENABLED,
-	PMF_SMART_PC_DISABLED,
-};
-
 /* Smart PC - TA internals */
 enum system_state {
 	SYSTEM_STATE_S0i3,

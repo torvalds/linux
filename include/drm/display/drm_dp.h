@@ -718,6 +718,7 @@
 # define DP_PSR_SU_REGION_SCANLINE_CAPTURE	BIT(4) /* eDP 1.4a */
 # define DP_PSR_IRQ_HPD_WITH_CRC_ERRORS		BIT(5) /* eDP 1.4a */
 # define DP_PSR_ENABLE_PSR2			BIT(6) /* eDP 1.4a */
+# define DP_PSR_ENABLE_SU_REGION_ET             BIT(7) /* eDP 1.5 */
 
 #define DP_ADAPTER_CTRL			    0x1a0
 # define DP_ADAPTER_CTRL_FORCE_LOAD_SENSE   (1 << 0)

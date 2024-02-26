@@ -40,6 +40,7 @@
 #include "intel_crtc.h"
 #include "intel_de.h"
 #include "intel_display_irq.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dpll.h"
 #include "intel_hotplug.h"
@@ -949,7 +950,7 @@ intel_disable_tv(struct intel_atomic_state *state,
 
 static const struct tv_mode *intel_tv_mode_find(const struct drm_connector_state *conn_state)
 {
-	int format = conn_state->tv.mode;
+	int format = conn_state->tv.legacy_mode;
 
 	return &tv_modes[format];
 }
@@ -1327,7 +1328,7 @@ intel_tv_compute_config(struct intel_encoder *encoder,
 	 * the active portion. Hence following this formula seems
 	 * more trouble that it's worth.
 	 *
-	 * if (GRAPHICS_VER(dev_priv) == 4) {
+	 * if (DISPLAY_VER(dev_priv) == 4) {
 	 *	num = cdclk * (tv_mode->oversample >> !tv_mode->progressive);
 	 *	den = tv_mode->clock;
 	 * } else {
@@ -1704,7 +1705,7 @@ static void intel_tv_find_better_format(struct drm_connector *connector)
 			break;
 	}
 
-	connector->state->tv.mode = i;
+	connector->state->tv.legacy_mode = i;
 }
 
 static int
@@ -1722,6 +1723,9 @@ intel_tv_detect(struct drm_connector *connector,
 
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
+
+	if (!intel_display_driver_check_access(i915))
+		return connector->status;
 
 	if (force) {
 		struct drm_atomic_state *state;
@@ -1859,7 +1863,7 @@ static int intel_tv_atomic_check(struct drm_connector *connector,
 	old_state = drm_atomic_get_old_connector_state(state, connector);
 	new_crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
 
-	if (old_state->tv.mode != new_state->tv.mode ||
+	if (old_state->tv.legacy_mode != new_state->tv.legacy_mode ||
 	    old_state->tv.margins.left != new_state->tv.margins.left ||
 	    old_state->tv.margins.right != new_state->tv.margins.right ||
 	    old_state->tv.margins.top != new_state->tv.margins.top ||
@@ -1896,7 +1900,7 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 	conn_state->tv.margins.right = 46;
 	conn_state->tv.margins.bottom = 37;
 
-	conn_state->tv.mode = 0;
+	conn_state->tv.legacy_mode = 0;
 
 	/* Create TV properties then attach current values */
 	for (i = 0; i < ARRAY_SIZE(tv_modes); i++) {
@@ -1910,7 +1914,7 @@ static void intel_tv_add_properties(struct drm_connector *connector)
 
 	drm_object_attach_property(&connector->base,
 				   i915->drm.mode_config.legacy_tv_mode_property,
-				   conn_state->tv.mode);
+				   conn_state->tv.legacy_mode);
 	drm_object_attach_property(&connector->base,
 				   i915->drm.mode_config.tv_left_margin_property,
 				   conn_state->tv.margins.left);
@@ -1990,6 +1994,7 @@ intel_tv_init(struct drm_i915_private *dev_priv)
 	 * More recent chipsets favour HDMI rather than integrated S-Video.
 	 */
 	intel_connector->polled = DRM_CONNECTOR_POLL_CONNECT;
+	intel_connector->base.polled = intel_connector->polled;
 
 	drm_connector_init(&dev_priv->drm, connector, &intel_tv_connector_funcs,
 			   DRM_MODE_CONNECTOR_SVIDEO);

@@ -205,7 +205,7 @@ static inline void clwb(volatile void *__p)
 #ifdef CONFIG_X86_USER_SHADOW_STACK
 static inline int write_user_shstk_64(u64 __user *addr, u64 val)
 {
-	asm_volatile_goto("1: wrussq %[val], (%[addr])\n"
+	asm goto("1: wrussq %[val], (%[addr])\n"
 			  _ASM_EXTABLE(1b, %l[fail])
 			  :: [addr] "r" (addr), [val] "r" (val)
 			  :: fail);

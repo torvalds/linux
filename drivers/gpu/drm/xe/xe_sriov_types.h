@@ -9,6 +9,18 @@
 #include <linux/build_bug.h>
 
 /**
+ * VFID - Virtual Function Identifier
+ * @n: VF number
+ *
+ * Helper macro to represent Virtual Function (VF) Identifier.
+ * VFID(0) is used as alias to the PFID that represents Physical Function.
+ *
+ * Note: According to PCI spec, SR-IOV VF's numbers are 1-based (VF1, VF2, ...).
+ */
+#define VFID(n)		(n)
+#define PFID		VFID(0)
+
+/**
  * enum xe_sriov_mode - SR-IOV mode
  * @XE_SRIOV_MODE_NONE: bare-metal mode (non-virtualized)
  * @XE_SRIOV_MODE_PF: SR-IOV Physical Function (PF) mode

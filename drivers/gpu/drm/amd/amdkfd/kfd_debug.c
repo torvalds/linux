@@ -1018,11 +1018,13 @@ int kfd_dbg_trap_device_snapshot(struct kfd_process *target,
 		uint32_t *entry_size)
 {
 	struct kfd_dbg_device_info_entry device_info;
-	uint32_t tmp_entry_size = *entry_size, tmp_num_devices;
+	uint32_t tmp_entry_size, tmp_num_devices;
 	int i, r = 0;
 
 	if (!(target && user_info && number_of_device_infos && entry_size))
 		return -EINVAL;
+
+	tmp_entry_size = *entry_size;
 
 	tmp_num_devices = min_t(size_t, *number_of_device_infos, target->n_pdds);
 	*number_of_device_infos = target->n_pdds;

@@ -455,6 +455,7 @@ struct nvme_ns_head {
 	struct list_head	entry;
 	struct kref		ref;
 	bool			shared;
+	bool			passthru_err_log_enabled;
 	int			instance;
 	struct nvme_effects_log *effects;
 	u64			nuse;
@@ -523,7 +524,6 @@ struct nvme_ns {
 	struct device		cdev_device;
 
 	struct nvme_fault_inject fault_inject;
-	bool			passthru_err_log_enabled;
 };
 
 /* NVMe ns supports metadata actions by the controller (generate/strip) */

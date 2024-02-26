@@ -152,14 +152,14 @@ static void xgpu_nv_mailbox_trans_msg (struct amdgpu_device *adev,
 	xgpu_nv_mailbox_set_valid(adev, false);
 }
 
-static int xgpu_nv_send_access_requests(struct amdgpu_device *adev,
-					enum idh_request req)
+static int xgpu_nv_send_access_requests_with_param(struct amdgpu_device *adev,
+			enum idh_request req, u32 data1, u32 data2, u32 data3)
 {
 	int r, retry = 1;
 	enum idh_event event = -1;
 
 send_request:
-	xgpu_nv_mailbox_trans_msg(adev, req, 0, 0, 0);
+	xgpu_nv_mailbox_trans_msg(adev, req, data1, data2, data3);
 
 	switch (req) {
 	case IDH_REQ_GPU_INIT_ACCESS:
@@ -169,6 +169,10 @@ send_request:
 		break;
 	case IDH_REQ_GPU_INIT_DATA:
 		event = IDH_REQ_GPU_INIT_DATA_READY;
+		break;
+	case IDH_RAS_POISON:
+		if (data1 != 0)
+			event = IDH_RAS_POISON_READY;
 		break;
 	default:
 		break;
@@ -204,6 +208,13 @@ send_request:
 	}
 
 	return 0;
+}
+
+static int xgpu_nv_send_access_requests(struct amdgpu_device *adev,
+					enum idh_request req)
+{
+	return xgpu_nv_send_access_requests_with_param(adev,
+						req, 0, 0, 0);
 }
 
 static int xgpu_nv_request_reset(struct amdgpu_device *adev)
@@ -424,9 +435,17 @@ void xgpu_nv_mailbox_put_irq(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->virt.rcv_irq, 0);
 }
 
-static void xgpu_nv_ras_poison_handler(struct amdgpu_device *adev)
+static void xgpu_nv_ras_poison_handler(struct amdgpu_device *adev,
+		enum amdgpu_ras_block block)
 {
-	xgpu_nv_send_access_requests(adev, IDH_RAS_POISON);
+	if (amdgpu_ip_version(adev, UMC_HWIP, 0) < IP_VERSION(12, 0, 0)) {
+		xgpu_nv_send_access_requests(adev, IDH_RAS_POISON);
+	} else {
+		amdgpu_virt_fini_data_exchange(adev);
+		xgpu_nv_send_access_requests_with_param(adev,
+					IDH_RAS_POISON,	block, 0, 0);
+		amdgpu_virt_init_data_exchange(adev);
+	}
 }
 
 const struct amdgpu_virt_ops xgpu_nv_virt_ops = {

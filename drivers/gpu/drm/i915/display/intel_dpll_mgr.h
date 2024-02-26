@@ -276,15 +276,21 @@ struct dpll_info {
 	 */
 	enum intel_display_power_domain power_domain;
 
-#define INTEL_DPLL_ALWAYS_ON	(1 << 0)
 	/**
-	 * @flags:
+	 * @always_on:
 	 *
-	 * INTEL_DPLL_ALWAYS_ON
-	 *     Inform the state checker that the DPLL is kept enabled even if
-	 *     not in use by any CRTC.
+	 * Inform the state checker that the DPLL is kept enabled even if
+	 * not in use by any CRTC.
 	 */
-	u32 flags;
+	bool always_on;
+
+	/**
+	 * @is_alt_port_dpll:
+	 *
+	 * Inform the state checker that the DPLL can be used as a fallback
+	 * (for TC->TBT fallback).
+	 */
+	bool is_alt_port_dpll;
 };
 
 /**

@@ -81,6 +81,7 @@ of special classes of bugs: regressions and security problems.
 
    handling-regressions
    security-bugs
+   cve
    embargoed-hardware-issues
 
 Maintainer information
