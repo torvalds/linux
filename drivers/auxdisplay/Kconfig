@@ -177,6 +177,20 @@ config HT16K33
 	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
 	  LED controller driver with keyscan.
 
+config MAX6959
+	tristate "Maxim MAX6958/6959 7-segment LED controller"
+	depends on I2C
+	select REGMAP_I2C
+	select LINEDISP
+	help
+	  If you say yes here you get support for the following Maxim chips
+	  (I2C 7-segment LED display controller):
+	  - MAX6958
+	  - MAX6959 (input support)
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6959.
+
 config LCD2S
 	tristate "lcd2s 20x4 character display over I2C console"
 	depends on I2C
