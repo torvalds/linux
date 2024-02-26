@@ -4045,11 +4045,11 @@ static int f2fs_swap_activate(struct swap_info_struct *sis, struct file *file,
 	if (!f2fs_disable_compressed_file(inode))
 		return -EINVAL;
 
-	f2fs_precache_extents(inode);
-
 	ret = filemap_fdatawrite(inode->i_mapping);
 	if (ret < 0)
 		return ret;
+
+	f2fs_precache_extents(inode);
 
 	ret = check_swap_activate(sis, file, span);
 	if (ret < 0)
