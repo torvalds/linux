@@ -40,6 +40,7 @@
 #include <asm/intel_pt.h>
 #include <asm/crash.h>
 #include <asm/cmdline.h>
+#include <asm/sev.h>
 
 /* Used while preparing memory map entries for second kernel */
 struct crash_memmap_data {
@@ -58,6 +59,8 @@ static void kdump_nmi_callback(int cpu, struct pt_regs *regs)
 	 * Disable Intel PT to stop its logging
 	 */
 	cpu_emergency_stop_pt();
+
+	kdump_sev_callback();
 
 	disable_local_APIC();
 }

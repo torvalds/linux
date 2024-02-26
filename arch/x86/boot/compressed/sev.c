@@ -304,6 +304,10 @@ void do_boot_stage2_vc(struct pt_regs *regs, unsigned long exit_code)
 	if (result != ES_OK)
 		goto finish;
 
+	result = vc_check_opcode_bytes(&ctxt, exit_code);
+	if (result != ES_OK)
+		goto finish;
+
 	switch (exit_code) {
 	case SVM_EXIT_RDTSC:
 	case SVM_EXIT_RDTSCP:
