@@ -27,6 +27,9 @@ properties:
   vcc-supply:
     description: provide VCC power to the sensor.
 
+  label:
+    description: Unique name to identify which device this is.
+
 required:
   - compatible
   - reg
