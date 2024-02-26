@@ -180,6 +180,7 @@ def define_sdmsteppeauto():
     _sdmsteppeauto_consolidate_in_tree_modules = _sdmsteppeauto_in_tree_modules + [
         # keep sorted
         "drivers/misc/lkdtm/lkdtm.ko",
+        "drivers/usb/misc/lvstest.ko",
         "kernel/locking/locktorture.ko",
         "kernel/rcu/rcutorture.ko",
         "kernel/torture.ko",
