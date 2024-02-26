@@ -3841,13 +3841,14 @@ static int f2fs_migrate_blocks(struct inode *inode, block_t start_blk,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
 	unsigned int blkofs;
 	unsigned int blk_per_sec = BLKS_PER_SEC(sbi);
+	unsigned int end_blk = start_blk + blkcnt - 1;
 	unsigned int secidx = start_blk / blk_per_sec;
 	unsigned int end_sec;
 	int ret = 0;
 
 	if (!blkcnt)
 		return 0;
-	end_sec = secidx + (blkcnt - 1) / blk_per_sec;
+	end_sec = end_blk / blk_per_sec;
 
 	f2fs_down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 	filemap_invalidate_lock(inode->i_mapping);
@@ -3857,7 +3858,7 @@ static int f2fs_migrate_blocks(struct inode *inode, block_t start_blk,
 
 	for (; secidx <= end_sec; secidx++) {
 		unsigned int blkofs_end = secidx == end_sec ?
-			(blkcnt - 1) % blk_per_sec : blk_per_sec - 1;
+				end_blk % blk_per_sec : blk_per_sec - 1;
 
 		f2fs_down_write(&sbi->pin_sem);
 
