@@ -732,7 +732,8 @@ sh_css_sp_write_frame_pointers(const struct sh_css_binary_args *args)
 
 	/* we don't pass this error back to the upper layer, so we add a assert here
 	   because we actually hit the error here but it still works by accident... */
-	if (err) assert(false);
+	if (err)
+		assert(false);
 	return err;
 }
 
@@ -747,7 +748,8 @@ sh_css_sp_init_group(bool two_ppc,
 
 	sh_css_sp_group.config.no_isp_sync = (uint8_t)no_isp_sync;
 	/* decide whether the frame is processed online or offline */
-	if (if_config_index == SH_CSS_IF_CONFIG_NOT_NEEDED) return;
+	if (if_config_index == SH_CSS_IF_CONFIG_NOT_NEEDED)
+		return;
 
 	if (!IS_ISP2401) {
 		assert(if_config_index < SH_CSS_MAX_IF_CONFIGS);
