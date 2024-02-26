@@ -144,7 +144,7 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 	/* configure effectively creates new ASoC component */
 	ret = snd_hda_codec_configure(codec);
 	if (ret < 0) {
-		dev_err(bus->dev, "failed to config codec %d\n", ret);
+		dev_warn(bus->dev, "failed to config codec #%d: %d\n", addr, ret);
 		return ret;
 	}
 
@@ -153,15 +153,16 @@ static int probe_codec(struct hdac_bus *bus, int addr)
 
 static void avs_hdac_bus_probe_codecs(struct hdac_bus *bus)
 {
-	int c;
+	int ret, c;
 
 	/* First try to probe all given codec slots */
 	for (c = 0; c < HDA_MAX_CODECS; c++) {
 		if (!(bus->codec_mask & BIT(c)))
 			continue;
 
-		if (!probe_codec(bus, c))
-			/* success, continue probing */
+		ret = probe_codec(bus, c);
+		/* Ignore codecs with no supporting driver. */
+		if (!ret || ret == -ENODEV)
 			continue;
 
 		/*
