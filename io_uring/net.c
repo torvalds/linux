@@ -255,8 +255,17 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	int ret;
 
-	if (copy_from_user(msg, sr->umsg, sizeof(*sr->umsg)))
+	if (!user_access_begin(sr->umsg, sizeof(*sr->umsg)))
 		return -EFAULT;
+
+	ret = -EFAULT;
+	unsafe_get_user(msg->msg_name, &sr->umsg->msg_name, ua_end);
+	unsafe_get_user(msg->msg_namelen, &sr->umsg->msg_namelen, ua_end);
+	unsafe_get_user(msg->msg_iov, &sr->umsg->msg_iov, ua_end);
+	unsafe_get_user(msg->msg_iovlen, &sr->umsg->msg_iovlen, ua_end);
+	unsafe_get_user(msg->msg_control, &sr->umsg->msg_control, ua_end);
+	unsafe_get_user(msg->msg_controllen, &sr->umsg->msg_controllen, ua_end);
+	msg->msg_flags = 0;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		if (msg->msg_iovlen == 0) {
@@ -264,18 +273,24 @@ static int io_msg_copy_hdr(struct io_kiocb *req, struct io_async_msghdr *iomsg,
 			iomsg->fast_iov[0].iov_base = NULL;
 			iomsg->free_iov = NULL;
 		} else if (msg->msg_iovlen > 1) {
-			return -EINVAL;
+			ret = -EINVAL;
+			goto ua_end;
 		} else {
-			if (copy_from_user(iomsg->fast_iov, msg->msg_iov,
-					   sizeof(*msg->msg_iov)))
-				return -EFAULT;
+			/* we only need the length for provided buffers */
+			if (!access_ok(&msg->msg_iov[0].iov_len, sizeof(__kernel_size_t)))
+				goto ua_end;
+			unsafe_get_user(iomsg->fast_iov[0].iov_len,
+					&msg->msg_iov[0].iov_len, ua_end);
 			sr->len = iomsg->fast_iov[0].iov_len;
 			iomsg->free_iov = NULL;
 		}
-
-		return 0;
+		ret = 0;
+ua_end:
+		user_access_end();
+		return ret;
 	}
 
+	user_access_end();
 	iomsg->free_iov = iomsg->fast_iov;
 	ret = __import_iovec(ddir, msg->msg_iov, msg->msg_iovlen, UIO_FASTIOV,
 				&iomsg->free_iov, &iomsg->msg.msg_iter, false);
