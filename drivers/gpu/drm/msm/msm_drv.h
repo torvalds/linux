@@ -75,16 +75,6 @@ enum msm_dsi_controller {
 #define MAX_H_TILES_PER_DISPLAY 2
 
 /**
- * enum msm_event_wait - type of HW events to wait for
- * @MSM_ENC_COMMIT_DONE - wait for the driver to flush the registers to HW
- * @MSM_ENC_TX_COMPLETE - wait for the HW to transfer the frame to panel
- */
-enum msm_event_wait {
-	MSM_ENC_COMMIT_DONE = 0,
-	MSM_ENC_TX_COMPLETE,
-};
-
-/**
  * struct msm_display_topology - defines a display topology pipeline
  * @num_lm:       number of layer mixers used
  * @num_intf:     number of interfaces the panel is mounted on
