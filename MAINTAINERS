@@ -614,7 +614,7 @@ AGPGART DRIVER
 M:	David Airlie <airlied@redhat.com>
 L:	dri-devel@lists.freedesktop.org
 S:	Maintained
-T:	git git://anongit.freedesktop.org/drm/drm
+T:	git https://gitlab.freedesktop.org/drm/kernel.git
 F:	drivers/char/agp/
 F:	include/linux/agp*
 F:	include/uapi/linux/agp*
@@ -6996,7 +6996,7 @@ L:	dri-devel@lists.freedesktop.org
 S:	Maintained
 B:	https://gitlab.freedesktop.org/drm
 C:	irc://irc.oftc.net/dri-devel
-T:	git git://anongit.freedesktop.org/drm/drm
+T:	git https://gitlab.freedesktop.org/drm/kernel.git
 F:	Documentation/devicetree/bindings/display/
 F:	Documentation/devicetree/bindings/gpu/
 F:	Documentation/gpu/
