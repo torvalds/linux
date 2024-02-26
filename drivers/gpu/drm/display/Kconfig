@@ -17,6 +17,27 @@ config DRM_DISPLAY_DP_HELPER
 	help
 	  DRM display helpers for DisplayPort.
 
+config DRM_DISPLAY_DP_TUNNEL
+	bool
+	select DRM_DISPLAY_DP_HELPER
+	help
+	  Enable support for DisplayPort tunnels. This allows drivers to use
+	  DP tunnel features like the Bandwidth Allocation mode to maximize the
+	  BW utilization for display streams on Thunderbolt links.
+
+config DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+	bool "Enable debugging the DP tunnel state"
+	depends on REF_TRACKER
+	depends on DRM_DISPLAY_DP_TUNNEL
+	depends on DEBUG_KERNEL
+	depends on EXPERT
+	help
+	  Enables debugging the DP tunnel manager's state, including the
+	  consistency of all managed tunnels' reference counting and the state of
+	  streams contained in tunnels.
+
+	  If in doubt, say "N".
+
 config DRM_DISPLAY_HDCP_HELPER
 	bool
 	depends on DRM_DISPLAY_HELPER
