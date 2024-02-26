@@ -84,12 +84,15 @@ config MMU
 
 config MMU_MOTOROLA
 	bool
+	select HAVE_PAGE_SIZE_4KB
 
 config MMU_COLDFIRE
+	select HAVE_PAGE_SIZE_8KB
 	bool
 
 config MMU_SUN3
 	bool
+	select HAVE_PAGE_SIZE_8KB
 	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
 
 config ARCH_SUPPORTS_KEXEC
