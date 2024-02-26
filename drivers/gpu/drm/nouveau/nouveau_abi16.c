@@ -269,7 +269,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 		break;
 	case NOUVEAU_GETPARAM_VRAM_USED: {
 		struct ttm_resource_manager *vram_mgr = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
-		getparam->value = (u64)ttm_resource_manager_usage(vram_mgr) << PAGE_SHIFT;
+		getparam->value = (u64)ttm_resource_manager_usage(vram_mgr);
 		break;
 	}
 	default:
