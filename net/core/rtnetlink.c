@@ -1455,17 +1455,18 @@ static noinline_for_stack int rtnl_fill_vf(struct sk_buff *skb,
 	return 0;
 }
 
-static int rtnl_fill_link_ifmap(struct sk_buff *skb, struct net_device *dev)
+static int rtnl_fill_link_ifmap(struct sk_buff *skb,
+				const struct net_device *dev)
 {
 	struct rtnl_link_ifmap map;
 
 	memset(&map, 0, sizeof(map));
-	map.mem_start   = dev->mem_start;
-	map.mem_end     = dev->mem_end;
-	map.base_addr   = dev->base_addr;
-	map.irq         = dev->irq;
-	map.dma         = dev->dma;
-	map.port        = dev->if_port;
+	map.mem_start = READ_ONCE(dev->mem_start);
+	map.mem_end   = READ_ONCE(dev->mem_end);
+	map.base_addr = READ_ONCE(dev->base_addr);
+	map.irq       = READ_ONCE(dev->irq);
+	map.dma       = READ_ONCE(dev->dma);
+	map.port      = READ_ONCE(dev->if_port);
 
 	if (nla_put_64bit(skb, IFLA_MAP, sizeof(map), &map, IFLA_PAD))
 		return -EMSGSIZE;
@@ -1611,10 +1612,10 @@ static int put_master_ifindex(struct sk_buff *skb, struct net_device *dev)
 static int nla_put_iflink(struct sk_buff *skb, const struct net_device *dev,
 			  bool force)
 {
-	int ifindex = dev_get_iflink(dev);
+	int iflink = dev_get_iflink(dev);
 
-	if (force || dev->ifindex != ifindex)
-		return nla_put_u32(skb, IFLA_LINK, ifindex);
+	if (force || READ_ONCE(dev->ifindex) != iflink)
+		return nla_put_u32(skb, IFLA_LINK, iflink);
 
 	return 0;
 }
@@ -1698,7 +1699,7 @@ static int rtnl_fill_alt_ifnames(struct sk_buff *skb,
 	struct netdev_name_node *name_node;
 	int count = 0;
 
-	list_for_each_entry(name_node, &dev->name_node->list, list) {
+	list_for_each_entry_rcu(name_node, &dev->name_node->list, list) {
 		if (nla_put_string(skb, IFLA_ALT_IFNAME, name_node->name))
 			return -EMSGSIZE;
 		count++;
@@ -1706,6 +1707,7 @@ static int rtnl_fill_alt_ifnames(struct sk_buff *skb,
 	return count;
 }
 
+/* RCU protected. */
 static int rtnl_fill_prop_list(struct sk_buff *skb,
 			       const struct net_device *dev)
 {
@@ -1875,9 +1877,6 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 			goto nla_put_failure;
 	}
 
-	if (rtnl_fill_link_ifmap(skb, dev))
-		goto nla_put_failure;
-
 	if (dev->addr_len) {
 		if (nla_put(skb, IFLA_ADDRESS, dev->addr_len, dev->dev_addr) ||
 		    nla_put(skb, IFLA_BROADCAST, dev->addr_len, dev->broadcast))
@@ -1927,10 +1926,11 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb,
 	rcu_read_lock();
 	if (rtnl_fill_link_af(skb, dev, ext_filter_mask))
 		goto nla_put_failure_rcu;
-	rcu_read_unlock();
-
+	if (rtnl_fill_link_ifmap(skb, dev))
+		goto nla_put_failure_rcu;
 	if (rtnl_fill_prop_list(skb, dev))
-		goto nla_put_failure;
+		goto nla_put_failure_rcu;
+	rcu_read_unlock();
 
 	if (dev->dev.parent &&
 	    nla_put_string(skb, IFLA_PARENT_DEV_NAME,
@@ -6532,6 +6532,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		}
 		owner = link->owner;
 		dumpit = link->dumpit;
+		flags = link->flags;
 
 		if (type == RTM_GETLINK - RTM_BASE)
 			min_dump_alloc = rtnl_calcit(skb, nlh);
@@ -6549,6 +6550,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 				.dump		= dumpit,
 				.min_dump_alloc	= min_dump_alloc,
 				.module		= owner,
+				.flags		= flags,
 			};
 			err = netlink_dump_start(rtnl, skb, nlh, &c);
 			/* netlink_dump_start() will keep a reference on

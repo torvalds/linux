@@ -1461,7 +1461,7 @@ static int veth_get_iflink(const struct net_device *dev)
 
 	rcu_read_lock();
 	peer = rcu_dereference(priv->peer);
-	iflink = peer ? peer->ifindex : 0;
+	iflink = peer ? READ_ONCE(peer->ifindex) : 0;
 	rcu_read_unlock();
 
 	return iflink;

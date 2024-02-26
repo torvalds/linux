@@ -317,7 +317,7 @@ static inline
 int nexthop_mpath_fill_node(struct sk_buff *skb, struct nexthop *nh,
 			    u8 rt_family)
 {
-	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
+	struct nh_group *nhg = rcu_dereference_rtnl(nh->nh_grp);
 	int i;
 
 	for (i = 0; i < nhg->num_nh; i++) {

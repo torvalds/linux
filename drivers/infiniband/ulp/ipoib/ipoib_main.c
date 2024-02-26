@@ -1272,10 +1272,10 @@ static int ipoib_get_iflink(const struct net_device *dev)
 
 	/* parent interface */
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags))
-		return dev->ifindex;
+		return READ_ONCE(dev->ifindex);
 
 	/* child/vlan interface */
-	return priv->parent->ifindex;
+	return READ_ONCE(priv->parent->ifindex);
 }
 
 static u32 ipoib_addr_hash(struct ipoib_neigh_hash *htbl, u8 *daddr)
