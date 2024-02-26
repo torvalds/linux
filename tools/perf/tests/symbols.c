@@ -85,7 +85,7 @@ static int create_map(struct test_info *ti, char *filename, struct map **map_p)
 		*map_p = find_module_map(ti->machine, dso);
 		dso__put(dso);
 		if (!*map_p) {
-			pr_debug("Failed to find map for curent kernel module %s",
+			pr_debug("Failed to find map for current kernel module %s",
 				 filename);
 			return TEST_FAIL;
 		}
