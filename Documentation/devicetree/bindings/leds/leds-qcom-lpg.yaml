@@ -141,13 +141,13 @@ allOf:
           maxItems: 1
         nvmem-names:
           maxItems: 1
+
   - if:
       properties:
         compatible:
           contains:
             enum:
               - qcom,pm8350c-pwm
-              - qcom,pm8550-pwm
     then:
       properties:
         nvmem:
