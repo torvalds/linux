@@ -112,6 +112,7 @@ allOf:
       required:
         - interrupts
         - interrupt-controller
+        - '#interrupt-cells'
 
   - if:
       properties:
@@ -162,10 +163,10 @@ examples:
       pmic@58 {
         compatible = "dlg,da9063";
         reg = <0x58>;
-        #interrupt-cells = <2>;
         interrupt-parent = <&gpio6>;
         interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
         interrupt-controller;
+        #interrupt-cells = <2>;
 
         rtc {
           compatible = "dlg,da9063-rtc";
