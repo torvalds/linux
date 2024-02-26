@@ -1747,38 +1747,6 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
 
 	trace_spi_message_start(msg);
 
-	/*
-	 * If an SPI controller does not support toggling the CS line on each
-	 * transfer (indicated by the SPI_CS_WORD flag) or we are using a GPIO
-	 * for the CS line, we can emulate the CS-per-word hardware function by
-	 * splitting transfers into one-word transfers and ensuring that
-	 * cs_change is set for each transfer.
-	 */
-	if ((msg->spi->mode & SPI_CS_WORD) && (!(ctlr->mode_bits & SPI_CS_WORD) ||
-					       spi_is_csgpiod(msg->spi))) {
-		ret = spi_split_transfers_maxwords(ctlr, msg, 1);
-		if (ret) {
-			msg->status = ret;
-			spi_finalize_current_message(ctlr);
-			return ret;
-		}
-
-		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-			/* Don't change cs_change on the last entry in the list */
-			if (list_is_last(&xfer->transfer_list, &msg->transfers))
-				break;
-			xfer->cs_change = 1;
-		}
-	} else {
-		ret = spi_split_transfers_maxsize(ctlr, msg,
-						  spi_max_transfer_size(msg->spi));
-		if (ret) {
-			msg->status = ret;
-			spi_finalize_current_message(ctlr);
-			return ret;
-		}
-	}
-
 	if (ctlr->prepare_message) {
 		ret = ctlr->prepare_message(ctlr, msg);
 		if (ret) {
@@ -2106,6 +2074,43 @@ struct spi_message *spi_get_next_queued_message(struct spi_controller *ctlr)
 }
 EXPORT_SYMBOL_GPL(spi_get_next_queued_message);
 
+/*
+ * __spi_unoptimize_message - shared implementation of spi_unoptimize_message()
+ *                            and spi_maybe_unoptimize_message()
+ * @msg: the message to unoptimize
+ *
+ * Peripheral drivers should use spi_unoptimize_message() and callers inside
+ * core should use spi_maybe_unoptimize_message() rather than calling this
+ * function directly.
+ *
+ * It is not valid to call this on a message that is not currently optimized.
+ */
+static void __spi_unoptimize_message(struct spi_message *msg)
+{
+	struct spi_controller *ctlr = msg->spi->controller;
+
+	if (ctlr->unoptimize_message)
+		ctlr->unoptimize_message(msg);
+
+	spi_res_release(ctlr, msg);
+
+	msg->optimized = false;
+	msg->opt_state = NULL;
+}
+
+/*
+ * spi_maybe_unoptimize_message - unoptimize msg not managed by a peripheral
+ * @msg: the message to unoptimize
+ *
+ * This function is used to unoptimize a message if and only if it was
+ * optimized by the core (via spi_maybe_optimize_message()).
+ */
+static void spi_maybe_unoptimize_message(struct spi_message *msg)
+{
+	if (!msg->pre_optimized && msg->optimized)
+		__spi_unoptimize_message(msg);
+}
+
 /**
  * spi_finalize_current_message() - the current message is complete
  * @ctlr: the controller to return the message to
@@ -2134,15 +2139,6 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 
 	spi_unmap_msg(ctlr, mesg);
 
-	/*
-	 * In the prepare_messages callback the SPI bus has the opportunity
-	 * to split a transfer to smaller chunks.
-	 *
-	 * Release the split transfers here since spi_map_msg() is done on
-	 * the split transfers.
-	 */
-	spi_res_release(ctlr, mesg);
-
 	if (mesg->prepared && ctlr->unprepare_message) {
 		ret = ctlr->unprepare_message(ctlr, mesg);
 		if (ret) {
@@ -2152,6 +2148,8 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 	}
 
 	mesg->prepared = false;
+
+	spi_maybe_unoptimize_message(mesg);
 
 	WRITE_ONCE(ctlr->cur_msg_incomplete, false);
 	smp_mb(); /* See __spi_pump_transfer_message()... */
@@ -3782,6 +3780,10 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
  * @msg:   the @spi_message to transform
  * @maxsize:  the maximum when to apply this
  *
+ * This function allocates resources that are automatically freed during the
+ * spi message unoptimize phase so this function should only be called from
+ * optimize_message callbacks.
+ *
  * Return: status of transformation
  */
 int spi_split_transfers_maxsize(struct spi_controller *ctlr,
@@ -3819,6 +3821,10 @@ EXPORT_SYMBOL_GPL(spi_split_transfers_maxsize);
  * @ctlr:     the @spi_controller for this transfer
  * @msg:      the @spi_message to transform
  * @maxwords: the number of words to limit each transfer to
+ *
+ * This function allocates resources that are automatically freed during the
+ * spi message unoptimize phase so this function should only be called from
+ * optimize_message callbacks.
  *
  * Return: status of transformation
  */
@@ -4194,6 +4200,167 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 	return 0;
 }
 
+/*
+ * spi_split_transfers - generic handling of transfer splitting
+ * @msg: the message to split
+ *
+ * Under certain conditions, a SPI controller may not support arbitrary
+ * transfer sizes or other features required by a peripheral. This function
+ * will split the transfers in the message into smaller transfers that are
+ * supported by the controller.
+ *
+ * Controllers with special requirements not covered here can also split
+ * transfers in the optimize_message() callback.
+ *
+ * Context: can sleep
+ * Return: zero on success, else a negative error code
+ */
+static int spi_split_transfers(struct spi_message *msg)
+{
+	struct spi_controller *ctlr = msg->spi->controller;
+	struct spi_transfer *xfer;
+	int ret;
+
+	/*
+	 * If an SPI controller does not support toggling the CS line on each
+	 * transfer (indicated by the SPI_CS_WORD flag) or we are using a GPIO
+	 * for the CS line, we can emulate the CS-per-word hardware function by
+	 * splitting transfers into one-word transfers and ensuring that
+	 * cs_change is set for each transfer.
+	 */
+	if ((msg->spi->mode & SPI_CS_WORD) &&
+	    (!(ctlr->mode_bits & SPI_CS_WORD) || spi_is_csgpiod(msg->spi))) {
+		ret = spi_split_transfers_maxwords(ctlr, msg, 1);
+		if (ret)
+			return ret;
+
+		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+			/* Don't change cs_change on the last entry in the list */
+			if (list_is_last(&xfer->transfer_list, &msg->transfers))
+				break;
+
+			xfer->cs_change = 1;
+		}
+	} else {
+		ret = spi_split_transfers_maxsize(ctlr, msg,
+						  spi_max_transfer_size(msg->spi));
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * __spi_optimize_message - shared implementation for spi_optimize_message()
+ *                          and spi_maybe_optimize_message()
+ * @spi: the device that will be used for the message
+ * @msg: the message to optimize
+ *
+ * Peripheral drivers will call spi_optimize_message() and the spi core will
+ * call spi_maybe_optimize_message() instead of calling this directly.
+ *
+ * It is not valid to call this on a message that has already been optimized.
+ *
+ * Return: zero on success, else a negative error code
+ */
+static int __spi_optimize_message(struct spi_device *spi,
+				  struct spi_message *msg)
+{
+	struct spi_controller *ctlr = spi->controller;
+	int ret;
+
+	ret = __spi_validate(spi, msg);
+	if (ret)
+		return ret;
+
+	ret = spi_split_transfers(msg);
+	if (ret)
+		return ret;
+
+	if (ctlr->optimize_message) {
+		ret = ctlr->optimize_message(msg);
+		if (ret) {
+			spi_res_release(ctlr, msg);
+			return ret;
+		}
+	}
+
+	msg->optimized = true;
+
+	return 0;
+}
+
+/*
+ * spi_maybe_optimize_message - optimize message if it isn't already pre-optimized
+ * @spi: the device that will be used for the message
+ * @msg: the message to optimize
+ * Return: zero on success, else a negative error code
+ */
+static int spi_maybe_optimize_message(struct spi_device *spi,
+				      struct spi_message *msg)
+{
+	if (msg->pre_optimized)
+		return 0;
+
+	return __spi_optimize_message(spi, msg);
+}
+
+/**
+ * spi_optimize_message - do any one-time validation and setup for a SPI message
+ * @spi: the device that will be used for the message
+ * @msg: the message to optimize
+ *
+ * Peripheral drivers that reuse the same message repeatedly may call this to
+ * perform as much message prep as possible once, rather than repeating it each
+ * time a message transfer is performed to improve throughput and reduce CPU
+ * usage.
+ *
+ * Once a message has been optimized, it cannot be modified with the exception
+ * of updating the contents of any xfer->tx_buf (the pointer can't be changed,
+ * only the data in the memory it points to).
+ *
+ * Calls to this function must be balanced with calls to spi_unoptimize_message()
+ * to avoid leaking resources.
+ *
+ * Context: can sleep
+ * Return: zero on success, else a negative error code
+ */
+int spi_optimize_message(struct spi_device *spi, struct spi_message *msg)
+{
+	int ret;
+
+	ret = __spi_optimize_message(spi, msg);
+	if (ret)
+		return ret;
+
+	/*
+	 * This flag indicates that the peripheral driver called spi_optimize_message()
+	 * and therefore we shouldn't unoptimize message automatically when finalizing
+	 * the message but rather wait until spi_unoptimize_message() is called
+	 * by the peripheral driver.
+	 */
+	msg->pre_optimized = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(spi_optimize_message);
+
+/**
+ * spi_unoptimize_message - releases any resources allocated by spi_optimize_message()
+ * @msg: the message to unoptimize
+ *
+ * Calls to this function must be balanced with calls to spi_optimize_message().
+ *
+ * Context: can sleep
+ */
+void spi_unoptimize_message(struct spi_message *msg)
+{
+	__spi_unoptimize_message(msg);
+	msg->pre_optimized = false;
+}
+EXPORT_SYMBOL_GPL(spi_unoptimize_message);
+
 static int __spi_async(struct spi_device *spi, struct spi_message *message)
 {
 	struct spi_controller *ctlr = spi->controller;
@@ -4258,8 +4425,8 @@ int spi_async(struct spi_device *spi, struct spi_message *message)
 	int ret;
 	unsigned long flags;
 
-	ret = __spi_validate(spi, message);
-	if (ret != 0)
+	ret = spi_maybe_optimize_message(spi, message);
+	if (ret)
 		return ret;
 
 	spin_lock_irqsave(&ctlr->bus_lock_spinlock, flags);
@@ -4270,6 +4437,8 @@ int spi_async(struct spi_device *spi, struct spi_message *message)
 		ret = __spi_async(spi, message);
 
 	spin_unlock_irqrestore(&ctlr->bus_lock_spinlock, flags);
+
+	spi_maybe_unoptimize_message(message);
 
 	return ret;
 }
@@ -4331,8 +4500,8 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 		return -ESHUTDOWN;
 	}
 
-	status = __spi_validate(spi, message);
-	if (status != 0)
+	status = spi_maybe_optimize_message(spi, message);
+	if (status)
 		return status;
 
 	SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics, spi_sync);
