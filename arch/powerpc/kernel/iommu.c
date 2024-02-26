@@ -1287,20 +1287,22 @@ spapr_tce_platform_iommu_attach_dev(struct iommu_domain *platform_domain,
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
 	struct iommu_group *grp = iommu_group_get(dev);
 	struct iommu_table_group *table_group;
-	int ret = -EINVAL;
 
 	/* At first attach the ownership is already set */
-	if (!domain)
+	if (!domain) {
+		iommu_group_put(grp);
 		return 0;
-
-	if (!grp)
-		return -ENODEV;
+	}
 
 	table_group = iommu_group_get_iommudata(grp);
-	ret = table_group->ops->take_ownership(table_group);
+	/*
+	 * The domain being set to PLATFORM from earlier
+	 * BLOCKED. The table_group ownership has to be released.
+	 */
+	table_group->ops->release_ownership(table_group);
 	iommu_group_put(grp);
 
-	return ret;
+	return 0;
 }
 
 static const struct iommu_domain_ops spapr_tce_platform_domain_ops = {
@@ -1312,13 +1314,32 @@ static struct iommu_domain spapr_tce_platform_domain = {
 	.ops = &spapr_tce_platform_domain_ops,
 };
 
-static struct iommu_domain spapr_tce_blocked_domain = {
-	.type = IOMMU_DOMAIN_BLOCKED,
+static int
+spapr_tce_blocked_iommu_attach_dev(struct iommu_domain *platform_domain,
+				     struct device *dev)
+{
+	struct iommu_group *grp = iommu_group_get(dev);
+	struct iommu_table_group *table_group;
+	int ret = -EINVAL;
+
 	/*
 	 * FIXME: SPAPR mixes blocked and platform behaviors, the blocked domain
 	 * also sets the dma_api ops
 	 */
-	.ops = &spapr_tce_platform_domain_ops,
+	table_group = iommu_group_get_iommudata(grp);
+	ret = table_group->ops->take_ownership(table_group);
+	iommu_group_put(grp);
+
+	return ret;
+}
+
+static const struct iommu_domain_ops spapr_tce_blocked_domain_ops = {
+	.attach_dev = spapr_tce_blocked_iommu_attach_dev,
+};
+
+static struct iommu_domain spapr_tce_blocked_domain = {
+	.type = IOMMU_DOMAIN_BLOCKED,
+	.ops = &spapr_tce_blocked_domain_ops,
 };
 
 static bool spapr_tce_iommu_capable(struct device *dev, enum iommu_cap cap)
@@ -1339,7 +1360,7 @@ static struct iommu_device *spapr_tce_iommu_probe_device(struct device *dev)
 	struct pci_controller *hose;
 
 	if (!dev_is_pci(dev))
-		return ERR_PTR(-EPERM);
+		return ERR_PTR(-ENODEV);
 
 	pdev = to_pci_dev(dev);
 	hose = pdev->bus->sysdata;
@@ -1388,6 +1409,21 @@ static const struct attribute_group *spapr_tce_iommu_groups[] = {
 	NULL,
 };
 
+void ppc_iommu_register_device(struct pci_controller *phb)
+{
+	iommu_device_sysfs_add(&phb->iommu, phb->parent,
+				spapr_tce_iommu_groups, "iommu-phb%04x",
+				phb->global_number);
+	iommu_device_register(&phb->iommu, &spapr_tce_iommu_ops,
+				phb->parent);
+}
+
+void ppc_iommu_unregister_device(struct pci_controller *phb)
+{
+	iommu_device_unregister(&phb->iommu);
+	iommu_device_sysfs_remove(&phb->iommu);
+}
+
 /*
  * This registers IOMMU devices of PHBs. This needs to happen
  * after core_initcall(iommu_init) + postcore_initcall(pci_driver_init) and
@@ -1398,11 +1434,7 @@ static int __init spapr_tce_setup_phb_iommus_initcall(void)
 	struct pci_controller *hose;
 
 	list_for_each_entry(hose, &hose_list, list_node) {
-		iommu_device_sysfs_add(&hose->iommu, hose->parent,
-				       spapr_tce_iommu_groups, "iommu-phb%04x",
-				       hose->global_number);
-		iommu_device_register(&hose->iommu, &spapr_tce_iommu_ops,
-				      hose->parent);
+		ppc_iommu_register_device(hose);
 	}
 	return 0;
 }

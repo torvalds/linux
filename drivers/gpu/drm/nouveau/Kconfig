@@ -100,3 +100,11 @@ config DRM_NOUVEAU_SVM
 	help
 	  Say Y here if you want to enable experimental support for
 	  Shared Virtual Memory (SVM).
+
+config DRM_NOUVEAU_GSP_DEFAULT
+	bool "Use GSP firmware for Turing/Ampere (needs firmware installed)"
+	depends on DRM_NOUVEAU
+	default n
+	help
+	  Say Y here if you want to use the GSP codepaths by default on
+	  Turing and Ampere GPUs.

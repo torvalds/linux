@@ -222,7 +222,6 @@ ivpu_fw_init_wa(struct ivpu_device *vdev)
 	const struct vpu_firmware_header *fw_hdr = (const void *)vdev->fw->file->data;
 
 	if (IVPU_FW_CHECK_API_VER_LT(vdev, fw_hdr, BOOT, 3, 17) ||
-	    (ivpu_hw_gen(vdev) > IVPU_HW_37XX) ||
 	    (ivpu_test_mode & IVPU_TEST_MODE_D0I3_MSG_DISABLE))
 		vdev->wa.disable_d0i3_msg = true;
 

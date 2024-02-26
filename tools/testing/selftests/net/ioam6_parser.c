@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <limits.h>
 #include <linux/const.h>
-#include <linux/if_ether.h>
 #include <linux/ioam6.h>
 #include <linux/ipv6.h>
 #include <stdlib.h>
@@ -512,14 +511,6 @@ static int str2id(const char *tname)
 	return -1;
 }
 
-static int ipv6_addr_equal(const struct in6_addr *a1, const struct in6_addr *a2)
-{
-	return ((a1->s6_addr32[0] ^ a2->s6_addr32[0]) |
-		(a1->s6_addr32[1] ^ a2->s6_addr32[1]) |
-		(a1->s6_addr32[2] ^ a2->s6_addr32[2]) |
-		(a1->s6_addr32[3] ^ a2->s6_addr32[3])) == 0;
-}
-
 static int get_u32(__u32 *val, const char *arg, int base)
 {
 	unsigned long res;
@@ -603,70 +594,80 @@ static int (*func[__TEST_MAX])(int, struct ioam6_trace_hdr *, __u32, __u16) = {
 
 int main(int argc, char **argv)
 {
-	int fd, size, hoplen, tid, ret = 1;
-	struct in6_addr src, dst;
+	int fd, size, hoplen, tid, ret = 1, on = 1;
 	struct ioam6_hdr *opt;
-	struct ipv6hdr *ip6h;
-	__u8 buffer[400], *p;
-	__u16 ioam_ns;
+	struct cmsghdr *cmsg;
+	struct msghdr msg;
+	struct iovec iov;
+	__u8 buffer[512];
 	__u32 tr_type;
+	__u16 ioam_ns;
+	__u8 *ptr;
 
-	if (argc != 7)
+	if (argc != 5)
 		goto out;
 
-	tid = str2id(argv[2]);
+	tid = str2id(argv[1]);
 	if (tid < 0 || !func[tid])
 		goto out;
 
-	if (inet_pton(AF_INET6, argv[3], &src) != 1 ||
-	    inet_pton(AF_INET6, argv[4], &dst) != 1)
+	if (get_u32(&tr_type, argv[2], 16) ||
+	    get_u16(&ioam_ns, argv[3], 0))
 		goto out;
 
-	if (get_u32(&tr_type, argv[5], 16) ||
-	    get_u16(&ioam_ns, argv[6], 0))
+	fd = socket(PF_INET6, SOCK_RAW,
+		    !strcmp(argv[4], "encap") ? IPPROTO_IPV6 : IPPROTO_ICMPV6);
+	if (fd < 0)
 		goto out;
 
-	fd = socket(AF_PACKET, SOCK_DGRAM, __cpu_to_be16(ETH_P_IPV6));
-	if (!fd)
-		goto out;
+	setsockopt(fd, IPPROTO_IPV6, IPV6_RECVHOPOPTS,  &on, sizeof(on));
 
-	if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
-		       argv[1], strlen(argv[1])))
+	iov.iov_len = 1;
+	iov.iov_base = malloc(CMSG_SPACE(sizeof(buffer)));
+	if (!iov.iov_base)
 		goto close;
-
 recv:
-	size = recv(fd, buffer, sizeof(buffer), 0);
+	memset(&msg, 0, sizeof(msg));
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = buffer;
+	msg.msg_controllen = CMSG_SPACE(sizeof(buffer));
+
+	size = recvmsg(fd, &msg, 0);
 	if (size <= 0)
 		goto close;
 
-	ip6h = (struct ipv6hdr *)buffer;
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level != IPPROTO_IPV6 ||
+		    cmsg->cmsg_type != IPV6_HOPOPTS ||
+		    cmsg->cmsg_len < sizeof(struct ipv6_hopopt_hdr))
+			continue;
 
-	if (!ipv6_addr_equal(&ip6h->saddr, &src) ||
-	    !ipv6_addr_equal(&ip6h->daddr, &dst))
-		goto recv;
+		ptr = (__u8 *)CMSG_DATA(cmsg);
 
-	if (ip6h->nexthdr != IPPROTO_HOPOPTS)
-		goto close;
+		hoplen = (ptr[1] + 1) << 3;
+		ptr += sizeof(struct ipv6_hopopt_hdr);
 
-	p = buffer + sizeof(*ip6h);
-	hoplen = (p[1] + 1) << 3;
-	p += sizeof(struct ipv6_hopopt_hdr);
+		while (hoplen > 0) {
+			opt = (struct ioam6_hdr *)ptr;
 
-	while (hoplen > 0) {
-		opt = (struct ioam6_hdr *)p;
+			if (opt->opt_type == IPV6_TLV_IOAM &&
+			    opt->type == IOAM6_TYPE_PREALLOC) {
+				ptr += sizeof(*opt);
+				ret = func[tid](tid,
+						(struct ioam6_trace_hdr *)ptr,
+						tr_type, ioam_ns);
+				goto close;
+			}
 
-		if (opt->opt_type == IPV6_TLV_IOAM &&
-		    opt->type == IOAM6_TYPE_PREALLOC) {
-			p += sizeof(*opt);
-			ret = func[tid](tid, (struct ioam6_trace_hdr *)p,
-					   tr_type, ioam_ns);
-			break;
+			ptr += opt->opt_len + 2;
+			hoplen -= opt->opt_len + 2;
 		}
-
-		p += opt->opt_len + 2;
-		hoplen -= opt->opt_len + 2;
 	}
+
+	goto recv;
 close:
+	free(iov.iov_base);
 	close(fd);
 out:
 	return ret;

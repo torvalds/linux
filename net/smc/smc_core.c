@@ -1877,9 +1877,15 @@ static bool smcd_lgr_match(struct smc_link_group *lgr,
 			   struct smcd_dev *smcismdev,
 			   struct smcd_gid *peer_gid)
 {
-	return lgr->peer_gid.gid == peer_gid->gid && lgr->smcd == smcismdev &&
-		smc_ism_is_virtual(smcismdev) ?
-		(lgr->peer_gid.gid_ext == peer_gid->gid_ext) : 1;
+	if (lgr->peer_gid.gid != peer_gid->gid ||
+	    lgr->smcd != smcismdev)
+		return false;
+
+	if (smc_ism_is_virtual(smcismdev) &&
+	    lgr->peer_gid.gid_ext != peer_gid->gid_ext)
+		return false;
+
+	return true;
 }
 
 /* create a new SMC connection (and a new link group if necessary) */

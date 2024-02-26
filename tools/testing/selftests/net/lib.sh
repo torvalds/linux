@@ -4,6 +4,9 @@
 ##############################################################################
 # Defines
 
+WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
+BUSYWAIT_TIMEOUT=$((WAIT_TIMEOUT * 1000)) # ms
+
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 # namespace list created by setup_ns
@@ -48,7 +51,7 @@ cleanup_ns()
 
 	for ns in "$@"; do
 		ip netns delete "${ns}" &> /dev/null
-		if ! busywait 2 ip netns list \| grep -vq "^$ns$" &> /dev/null; then
+		if ! busywait $BUSYWAIT_TIMEOUT ip netns list \| grep -vq "^$ns$" &> /dev/null; then
 			echo "Warn: Failed to remove namespace $ns"
 			ret=1
 		fi

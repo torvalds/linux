@@ -963,7 +963,9 @@ void xe_guc_pc_fini(struct xe_guc_pc *pc)
 	struct xe_device *xe = pc_to_xe(pc);
 
 	if (xe->info.skip_guc_pc) {
+		xe_device_mem_access_get(xe);
 		xe_gt_idle_disable_c6(pc_to_gt(pc));
+		xe_device_mem_access_put(xe);
 		return;
 	}
 

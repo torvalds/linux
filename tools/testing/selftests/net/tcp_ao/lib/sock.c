@@ -62,7 +62,9 @@ int test_wait_fd(int sk, time_t sec, bool write)
 		return -ETIMEDOUT;
 	}
 
-	if (getsockopt(sk, SOL_SOCKET, SO_ERROR, &ret, &slen) || ret)
+	if (getsockopt(sk, SOL_SOCKET, SO_ERROR, &ret, &slen))
+		return -errno;
+	if (ret)
 		return -ret;
 	return 0;
 }
@@ -584,9 +586,11 @@ int test_client_verify(int sk, const size_t msg_len, const size_t nr,
 {
 	size_t buf_sz = msg_len * nr;
 	char *buf = alloca(buf_sz);
+	ssize_t ret;
 
 	randomize_buffer(buf, buf_sz);
-	if (test_client_loop(sk, buf, buf_sz, msg_len, timeout_sec) != buf_sz)
-		return -1;
-	return 0;
+	ret = test_client_loop(sk, buf, buf_sz, msg_len, timeout_sec);
+	if (ret < 0)
+		return (int)ret;
+	return ret != buf_sz ? -1 : 0;
 }

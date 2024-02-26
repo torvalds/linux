@@ -263,6 +263,7 @@ enum nvme_ctrl_flags {
 struct nvme_ctrl {
 	bool comp_seen;
 	bool identified;
+	bool passthru_err_log_enabled;
 	enum nvme_ctrl_state state;
 	spinlock_t lock;
 	struct mutex scan_lock;
@@ -454,6 +455,7 @@ struct nvme_ns_head {
 	struct list_head	entry;
 	struct kref		ref;
 	bool			shared;
+	bool			passthru_err_log_enabled;
 	int			instance;
 	struct nvme_effects_log *effects;
 	u64			nuse;
@@ -522,7 +524,6 @@ struct nvme_ns {
 	struct device		cdev_device;
 
 	struct nvme_fault_inject fault_inject;
-
 };
 
 /* NVMe ns supports metadata actions by the controller (generate/strip) */
@@ -805,17 +806,18 @@ blk_status_t nvme_setup_cmd(struct nvme_ns *ns, struct request *req);
 blk_status_t nvme_fail_nonready_command(struct nvme_ctrl *ctrl,
 		struct request *req);
 bool __nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
-		bool queue_live);
+		bool queue_live, enum nvme_ctrl_state state);
 
 static inline bool nvme_check_ready(struct nvme_ctrl *ctrl, struct request *rq,
 		bool queue_live)
 {
-	if (likely(ctrl->state == NVME_CTRL_LIVE))
+	enum nvme_ctrl_state state = nvme_ctrl_state(ctrl);
+
+	if (likely(state == NVME_CTRL_LIVE))
 		return true;
-	if (ctrl->ops->flags & NVME_F_FABRICS &&
-	    ctrl->state == NVME_CTRL_DELETING)
+	if (ctrl->ops->flags & NVME_F_FABRICS && state == NVME_CTRL_DELETING)
 		return queue_live;
-	return __nvme_check_ready(ctrl, rq, queue_live);
+	return __nvme_check_ready(ctrl, rq, queue_live, state);
 }
 
 /*
@@ -836,12 +838,27 @@ static inline bool nvme_is_unique_nsid(struct nvme_ctrl *ctrl,
 		(ctrl->ctratt & NVME_CTRL_CTRATT_NVM_SETS);
 }
 
+/*
+ * Flags for __nvme_submit_sync_cmd()
+ */
+typedef __u32 __bitwise nvme_submit_flags_t;
+
+enum {
+	/* Insert request at the head of the queue */
+	NVME_SUBMIT_AT_HEAD  = (__force nvme_submit_flags_t)(1 << 0),
+	/* Set BLK_MQ_REQ_NOWAIT when allocating request */
+	NVME_SUBMIT_NOWAIT = (__force nvme_submit_flags_t)(1 << 1),
+	/* Set BLK_MQ_REQ_RESERVED when allocating request */
+	NVME_SUBMIT_RESERVED = (__force nvme_submit_flags_t)(1 << 2),
+	/* Retry command when NVME_SC_DNR is not set in the result */
+	NVME_SUBMIT_RETRY = (__force nvme_submit_flags_t)(1 << 3),
+};
+
 int nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		void *buf, unsigned bufflen);
 int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		union nvme_result *result, void *buffer, unsigned bufflen,
-		int qid, int at_head,
-		blk_mq_req_flags_t flags);
+		int qid, nvme_submit_flags_t flags);
 int nvme_set_features(struct nvme_ctrl *dev, unsigned int fid,
 		      unsigned int dword11, void *buffer, size_t buflen,
 		      u32 *result);
@@ -1124,35 +1141,42 @@ static inline bool nvme_multi_css(struct nvme_ctrl *ctrl)
 }
 
 #ifdef CONFIG_NVME_VERBOSE_ERRORS
-const unsigned char *nvme_get_error_status_str(u16 status);
-const unsigned char *nvme_get_opcode_str(u8 opcode);
-const unsigned char *nvme_get_admin_opcode_str(u8 opcode);
-const unsigned char *nvme_get_fabrics_opcode_str(u8 opcode);
+const char *nvme_get_error_status_str(u16 status);
+const char *nvme_get_opcode_str(u8 opcode);
+const char *nvme_get_admin_opcode_str(u8 opcode);
+const char *nvme_get_fabrics_opcode_str(u8 opcode);
 #else /* CONFIG_NVME_VERBOSE_ERRORS */
-static inline const unsigned char *nvme_get_error_status_str(u16 status)
+static inline const char *nvme_get_error_status_str(u16 status)
 {
 	return "I/O Error";
 }
-static inline const unsigned char *nvme_get_opcode_str(u8 opcode)
+static inline const char *nvme_get_opcode_str(u8 opcode)
 {
 	return "I/O Cmd";
 }
-static inline const unsigned char *nvme_get_admin_opcode_str(u8 opcode)
+static inline const char *nvme_get_admin_opcode_str(u8 opcode)
 {
 	return "Admin Cmd";
 }
 
-static inline const unsigned char *nvme_get_fabrics_opcode_str(u8 opcode)
+static inline const char *nvme_get_fabrics_opcode_str(u8 opcode)
 {
 	return "Fabrics Cmd";
 }
 #endif /* CONFIG_NVME_VERBOSE_ERRORS */
 
-static inline const unsigned char *nvme_opcode_str(int qid, u8 opcode, u8 fctype)
+static inline const char *nvme_opcode_str(int qid, u8 opcode)
 {
-	if (opcode == nvme_fabrics_command)
-		return nvme_get_fabrics_opcode_str(fctype);
 	return qid ? nvme_get_opcode_str(opcode) :
 		nvme_get_admin_opcode_str(opcode);
+}
+
+static inline const char *nvme_fabrics_opcode_str(
+		int qid, const struct nvme_command *cmd)
+{
+	if (nvme_is_fabrics(cmd))
+		return nvme_get_fabrics_opcode_str(cmd->fabrics.fctype);
+
+	return nvme_opcode_str(qid, cmd->common.opcode);
 }
 #endif /* _NVME_H */

@@ -40,18 +40,18 @@
  */
 
 #define GUC_HXG_MSG_MIN_LEN			1u
-#define GUC_HXG_MSG_0_ORIGIN			(0x1 << 31)
+#define GUC_HXG_MSG_0_ORIGIN			(0x1u << 31)
 #define   GUC_HXG_ORIGIN_HOST			0u
 #define   GUC_HXG_ORIGIN_GUC			1u
-#define GUC_HXG_MSG_0_TYPE			(0x7 << 28)
+#define GUC_HXG_MSG_0_TYPE			(0x7u << 28)
 #define   GUC_HXG_TYPE_REQUEST			0u
 #define   GUC_HXG_TYPE_EVENT			1u
 #define   GUC_HXG_TYPE_NO_RESPONSE_BUSY		3u
 #define   GUC_HXG_TYPE_NO_RESPONSE_RETRY	5u
 #define   GUC_HXG_TYPE_RESPONSE_FAILURE		6u
 #define   GUC_HXG_TYPE_RESPONSE_SUCCESS		7u
-#define GUC_HXG_MSG_0_AUX			(0xfffffff << 0)
-#define GUC_HXG_MSG_n_PAYLOAD			(0xffffffff << 0)
+#define GUC_HXG_MSG_0_AUX			(0xfffffffu << 0)
+#define GUC_HXG_MSG_n_PAYLOAD			(0xffffffffu << 0)
 
 /**
  * DOC: HXG Request
@@ -85,8 +85,8 @@
  */
 
 #define GUC_HXG_REQUEST_MSG_MIN_LEN		GUC_HXG_MSG_MIN_LEN
-#define GUC_HXG_REQUEST_MSG_0_DATA0		(0xfff << 16)
-#define GUC_HXG_REQUEST_MSG_0_ACTION		(0xffff << 0)
+#define GUC_HXG_REQUEST_MSG_0_DATA0		(0xfffu << 16)
+#define GUC_HXG_REQUEST_MSG_0_ACTION		(0xffffu << 0)
 #define GUC_HXG_REQUEST_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
 
 /**
@@ -117,8 +117,8 @@
  */
 
 #define GUC_HXG_EVENT_MSG_MIN_LEN		GUC_HXG_MSG_MIN_LEN
-#define GUC_HXG_EVENT_MSG_0_DATA0		(0xfff << 16)
-#define GUC_HXG_EVENT_MSG_0_ACTION		(0xffff << 0)
+#define GUC_HXG_EVENT_MSG_0_DATA0		(0xfffu << 16)
+#define GUC_HXG_EVENT_MSG_0_ACTION		(0xffffu << 0)
 #define GUC_HXG_EVENT_MSG_n_DATAn		GUC_HXG_MSG_n_PAYLOAD
 
 /**
@@ -188,8 +188,8 @@
  */
 
 #define GUC_HXG_FAILURE_MSG_LEN			GUC_HXG_MSG_MIN_LEN
-#define GUC_HXG_FAILURE_MSG_0_HINT		(0xfff << 16)
-#define GUC_HXG_FAILURE_MSG_0_ERROR		(0xffff << 0)
+#define GUC_HXG_FAILURE_MSG_0_HINT		(0xfffu << 16)
+#define GUC_HXG_FAILURE_MSG_0_ERROR		(0xffffu << 0)
 
 /**
  * DOC: HXG Response

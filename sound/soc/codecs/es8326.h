@@ -72,6 +72,7 @@
 #define ES8326_DAC_VOL		0x50
 #define ES8326_DRC_RECOVERY	0x53
 #define ES8326_DRC_WINSIZE	0x54
+#define ES8326_DAC_CROSSTALK	0x55
 #define ES8326_HPJACK_TIMER	0x56
 #define ES8326_HPDET_TYPE	0x57
 #define ES8326_INT_SOURCE	0x58
@@ -100,7 +101,7 @@
 #define ES8326_MUTE (3 << 0)
 
 /* ES8326_CLK_CTL */
-#define ES8326_CLK_ON (0x7f << 0)
+#define ES8326_CLK_ON (0x7e << 0)
 #define ES8326_CLK_OFF (0 << 0)
 
 /* ES8326_CLK_INV */

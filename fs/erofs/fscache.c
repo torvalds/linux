@@ -381,11 +381,12 @@ static int erofs_fscache_init_domain(struct super_block *sb)
 		goto out;
 
 	if (!erofs_pseudo_mnt) {
-		erofs_pseudo_mnt = kern_mount(&erofs_fs_type);
-		if (IS_ERR(erofs_pseudo_mnt)) {
-			err = PTR_ERR(erofs_pseudo_mnt);
+		struct vfsmount *mnt = kern_mount(&erofs_fs_type);
+		if (IS_ERR(mnt)) {
+			err = PTR_ERR(mnt);
 			goto out;
 		}
+		erofs_pseudo_mnt = mnt;
 	}
 
 	domain->volume = sbi->volume;
@@ -459,7 +460,7 @@ static struct erofs_fscache *erofs_fscache_acquire_cookie(struct super_block *sb
 
 	inode->i_size = OFFSET_MAX;
 	inode->i_mapping->a_ops = &erofs_fscache_meta_aops;
-	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+	mapping_set_gfp_mask(inode->i_mapping, GFP_KERNEL);
 	inode->i_blkbits = EROFS_SB(sb)->blkszbits;
 	inode->i_private = ctx;
 

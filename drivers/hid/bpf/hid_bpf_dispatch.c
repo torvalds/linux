@@ -143,6 +143,9 @@ u8 *call_hid_bpf_rdesc_fixup(struct hid_device *hdev, u8 *rdesc, unsigned int *s
 }
 EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
 
+/* Disables missing prototype warnings */
+__bpf_kfunc_start_defs();
+
 /**
  * hid_bpf_get_data - Get the kernel memory pointer associated with the context @ctx
  *
@@ -152,7 +155,7 @@ EXPORT_SYMBOL_GPL(call_hid_bpf_rdesc_fixup);
  *
  * @returns %NULL on error, an %__u8 memory pointer on success
  */
-noinline __u8 *
+__bpf_kfunc __u8 *
 hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr_buf_size)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
@@ -167,6 +170,7 @@ hid_bpf_get_data(struct hid_bpf_ctx *ctx, unsigned int offset, const size_t rdwr
 
 	return ctx_kern->data + offset;
 }
+__bpf_kfunc_end_defs();
 
 /*
  * The following set contains all functions we agree BPF programs
@@ -241,42 +245,17 @@ int hid_bpf_reconnect(struct hid_device *hdev)
 	return 0;
 }
 
-/**
- * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
- *
- * @hid_id: the system unique identifier of the HID device
- * @prog_fd: an fd in the user process representing the program to attach
- * @flags: any logical OR combination of &enum hid_bpf_attach_flags
- *
- * @returns an fd of a bpf_link object on success (> %0), an error code otherwise.
- * Closing this fd will detach the program from the HID device (unless the bpf_link
- * is pinned to the BPF file system).
- */
-/* called from syscall */
-noinline int
-hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
+static int do_hid_bpf_attach_prog(struct hid_device *hdev, int prog_fd, struct bpf_prog *prog,
+				  __u32 flags)
 {
-	struct hid_device *hdev;
-	struct device *dev;
-	int fd, err, prog_type = hid_bpf_get_prog_attach_type(prog_fd);
+	int fd, err, prog_type;
 
-	if (!hid_bpf_ops)
-		return -EINVAL;
-
+	prog_type = hid_bpf_get_prog_attach_type(prog);
 	if (prog_type < 0)
 		return prog_type;
 
 	if (prog_type >= HID_BPF_PROG_TYPE_MAX)
 		return -EINVAL;
-
-	if ((flags & ~HID_BPF_FLAG_MASK))
-		return -EINVAL;
-
-	dev = bus_find_device(hid_bpf_ops->bus_type, NULL, &hid_id, device_match_id);
-	if (!dev)
-		return -EINVAL;
-
-	hdev = to_hid_device(dev);
 
 	if (prog_type == HID_BPF_PROG_TYPE_DEVICE_EVENT) {
 		err = hid_bpf_allocate_event_data(hdev);
@@ -284,7 +263,7 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 			return err;
 	}
 
-	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, flags);
+	fd = __hid_bpf_attach_prog(hdev, prog_type, prog_fd, prog, flags);
 	if (fd < 0)
 		return fd;
 
@@ -299,6 +278,66 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
 	return fd;
 }
 
+/* Disables missing prototype warnings */
+__bpf_kfunc_start_defs();
+
+/**
+ * hid_bpf_attach_prog - Attach the given @prog_fd to the given HID device
+ *
+ * @hid_id: the system unique identifier of the HID device
+ * @prog_fd: an fd in the user process representing the program to attach
+ * @flags: any logical OR combination of &enum hid_bpf_attach_flags
+ *
+ * @returns an fd of a bpf_link object on success (> %0), an error code otherwise.
+ * Closing this fd will detach the program from the HID device (unless the bpf_link
+ * is pinned to the BPF file system).
+ */
+/* called from syscall */
+__bpf_kfunc int
+hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
+{
+	struct hid_device *hdev;
+	struct bpf_prog *prog;
+	struct device *dev;
+	int err, fd;
+
+	if (!hid_bpf_ops)
+		return -EINVAL;
+
+	if ((flags & ~HID_BPF_FLAG_MASK))
+		return -EINVAL;
+
+	dev = bus_find_device(hid_bpf_ops->bus_type, NULL, &hid_id, device_match_id);
+	if (!dev)
+		return -EINVAL;
+
+	hdev = to_hid_device(dev);
+
+	/*
+	 * take a ref on the prog itself, it will be released
+	 * on errors or when it'll be detached
+	 */
+	prog = bpf_prog_get(prog_fd);
+	if (IS_ERR(prog)) {
+		err = PTR_ERR(prog);
+		goto out_dev_put;
+	}
+
+	fd = do_hid_bpf_attach_prog(hdev, prog_fd, prog, flags);
+	if (fd < 0) {
+		err = fd;
+		goto out_prog_put;
+	}
+
+	return fd;
+
+ out_prog_put:
+	bpf_prog_put(prog);
+ out_dev_put:
+	put_device(dev);
+	return err;
+}
+
 /**
  * hid_bpf_allocate_context - Allocate a context to the given HID device
  *
@@ -306,7 +345,7 @@ hid_bpf_attach_prog(unsigned int hid_id, int prog_fd, __u32 flags)
  *
  * @returns A pointer to &struct hid_bpf_ctx on success, %NULL on error.
  */
-noinline struct hid_bpf_ctx *
+__bpf_kfunc struct hid_bpf_ctx *
 hid_bpf_allocate_context(unsigned int hid_id)
 {
 	struct hid_device *hdev;
@@ -323,8 +362,10 @@ hid_bpf_allocate_context(unsigned int hid_id)
 	hdev = to_hid_device(dev);
 
 	ctx_kern = kzalloc(sizeof(*ctx_kern), GFP_KERNEL);
-	if (!ctx_kern)
+	if (!ctx_kern) {
+		put_device(dev);
 		return NULL;
+	}
 
 	ctx_kern->ctx.hid = hdev;
 
@@ -337,14 +378,19 @@ hid_bpf_allocate_context(unsigned int hid_id)
  * @ctx: the HID-BPF context to release
  *
  */
-noinline void
+__bpf_kfunc void
 hid_bpf_release_context(struct hid_bpf_ctx *ctx)
 {
 	struct hid_bpf_ctx_kern *ctx_kern;
+	struct hid_device *hid;
 
 	ctx_kern = container_of(ctx, struct hid_bpf_ctx_kern, ctx);
+	hid = (struct hid_device *)ctx_kern->ctx.hid; /* ignore const */
 
 	kfree(ctx_kern);
+
+	/* get_device() is called by bus_find_device() */
+	put_device(&hid->dev);
 }
 
 /**
@@ -358,7 +404,7 @@ hid_bpf_release_context(struct hid_bpf_ctx *ctx)
  *
  * @returns %0 on success, a negative error code otherwise.
  */
-noinline int
+__bpf_kfunc int
 hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 		   enum hid_report_type rtype, enum hid_class_request reqtype)
 {
@@ -426,6 +472,7 @@ hid_bpf_hw_request(struct hid_bpf_ctx *ctx, __u8 *buf, size_t buf__sz,
 	kfree(dma_data);
 	return ret;
 }
+__bpf_kfunc_end_defs();
 
 /* our HID-BPF entrypoints */
 BTF_SET8_START(hid_bpf_fmodret_ids)

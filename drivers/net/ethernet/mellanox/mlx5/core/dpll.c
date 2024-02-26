@@ -389,7 +389,7 @@ static void mlx5_dpll_remove(struct auxiliary_device *adev)
 	struct mlx5_dpll *mdpll = auxiliary_get_drvdata(adev);
 	struct mlx5_core_dev *mdev = mdpll->mdev;
 
-	cancel_delayed_work(&mdpll->work);
+	cancel_delayed_work_sync(&mdpll->work);
 	mlx5_dpll_mdev_netdev_untrack(mdpll, mdev);
 	destroy_workqueue(mdpll->wq);
 	dpll_pin_unregister(mdpll->dpll, mdpll->dpll_pin,

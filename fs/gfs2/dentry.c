@@ -32,25 +32,21 @@
 
 static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 {
-	struct dentry *parent = NULL;
+	struct dentry *parent;
 	struct gfs2_sbd *sdp;
 	struct gfs2_inode *dip;
-	struct inode *dinode, *inode;
+	struct inode *inode;
 	struct gfs2_holder d_gh;
 	struct gfs2_inode *ip = NULL;
 	int error, valid = 0;
 	int had_lock = 0;
 
-	if (flags & LOOKUP_RCU) {
-		dinode = d_inode_rcu(READ_ONCE(dentry->d_parent));
-		if (!dinode)
-			return -ECHILD;
-	} else {
-		parent = dget_parent(dentry);
-		dinode = d_inode(parent);
-	}
-	sdp = GFS2_SB(dinode);
-	dip = GFS2_I(dinode);
+	if (flags & LOOKUP_RCU)
+		return -ECHILD;
+
+	parent = dget_parent(dentry);
+	sdp = GFS2_SB(d_inode(parent));
+	dip = GFS2_I(d_inode(parent));
 	inode = d_inode(dentry);
 
 	if (inode) {
@@ -66,8 +62,7 @@ static int gfs2_drevalidate(struct dentry *dentry, unsigned int flags)
 
 	had_lock = (gfs2_glock_is_locked_by_me(dip->i_gl) != NULL);
 	if (!had_lock) {
-		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED,
-					   flags & LOOKUP_RCU ? GL_NOBLOCK : 0, &d_gh);
+		error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &d_gh);
 		if (error)
 			goto out;
 	}

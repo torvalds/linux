@@ -112,7 +112,7 @@ TEST_PROGS = bridge_fdb_learning_limit.sh \
 	vxlan_symmetric_ipv6.sh \
 	vxlan_symmetric.sh
 
-TEST_PROGS_EXTENDED := devlink_lib.sh \
+TEST_FILES := devlink_lib.sh \
 	ethtool_lib.sh \
 	fib_offload_lib.sh \
 	forwarding.config.sample \
