@@ -20,9 +20,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max8973-regulator.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
-#include <linux/of_gpio.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/regmap.h>
@@ -102,7 +100,7 @@ struct max8973_chip {
 	struct regulator_desc desc;
 	struct regmap *regmap;
 	bool enable_external_control;
-	int dvs_gpio;
+	struct gpio_desc *dvs_gpiod;
 	int lru_index[MAX8973_MAX_VOUT_REG];
 	int curr_vout_val[MAX8973_MAX_VOUT_REG];
 	int curr_vout_reg;
@@ -184,7 +182,7 @@ static int max8973_dcdc_set_voltage_sel(struct regulator_dev *rdev,
 	 * If gpios are available to select the VOUT register then least
 	 * recently used register for new configuration.
 	 */
-	if (gpio_is_valid(max->dvs_gpio))
+	if (max->dvs_gpiod)
 		found = find_voltage_set_register(max, vsel,
 					&vout_reg, &gpio_val);
 
@@ -201,8 +199,8 @@ static int max8973_dcdc_set_voltage_sel(struct regulator_dev *rdev,
 	}
 
 	/* Select proper VOUT register vio gpios */
-	if (gpio_is_valid(max->dvs_gpio)) {
-		gpio_set_value_cansleep(max->dvs_gpio, gpio_val & 0x1);
+	if (max->dvs_gpiod) {
+		gpiod_set_value_cansleep(max->dvs_gpiod, gpio_val & 0x1);
 		max->curr_gpio_val = gpio_val;
 	}
 	return 0;
@@ -531,7 +529,6 @@ static struct max8973_regulator_platform_data *max8973_parse_dt(
 
 	pdata->enable_ext_control = of_property_read_bool(np,
 						"maxim,externally-enable");
-	pdata->dvs_gpio = of_get_named_gpio(np, "maxim,dvs-gpio", 0);
 
 	ret = of_property_read_u32(np, "maxim,dvs-default-state", &pval);
 	if (!ret)
@@ -612,12 +609,16 @@ static int max8973_probe(struct i2c_client *client)
 		return -EIO;
 	}
 
-	if (pdata->dvs_gpio == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
-
 	max = devm_kzalloc(&client->dev, sizeof(*max), GFP_KERNEL);
 	if (!max)
 		return -ENOMEM;
+
+	max->dvs_gpiod = devm_gpiod_get_optional(&client->dev, "maxim,dvs",
+			 (pdata->dvs_def_state) ? GPIOD_OUT_HIGH : GPIOD_OUT_LOW);
+	if (IS_ERR(max->dvs_gpiod))
+		return dev_err_probe(&client->dev, PTR_ERR(max->dvs_gpiod),
+				     "failed to obtain dvs gpio\n");
+	gpiod_set_consumer_name(max->dvs_gpiod, "max8973-dvs");
 
 	max->regmap = devm_regmap_init_i2c(client, &max8973_regmap_config);
 	if (IS_ERR(max->regmap)) {
@@ -663,7 +664,6 @@ static int max8973_probe(struct i2c_client *client)
 	max->desc.ramp_delay_table = max8973_buck_ramp_table;
 	max->desc.n_ramp_values = ARRAY_SIZE(max8973_buck_ramp_table);
 
-	max->dvs_gpio = (pdata->dvs_gpio) ? pdata->dvs_gpio : -EINVAL;
 	max->enable_external_control = pdata->enable_ext_control;
 	max->curr_gpio_val = pdata->dvs_def_state;
 	max->curr_vout_reg = MAX8973_VOUT + pdata->dvs_def_state;
@@ -671,20 +671,8 @@ static int max8973_probe(struct i2c_client *client)
 
 	max->lru_index[0] = max->curr_vout_reg;
 
-	if (gpio_is_valid(max->dvs_gpio)) {
-		int gpio_flags;
+	if (max->dvs_gpiod) {
 		int i;
-
-		gpio_flags = (pdata->dvs_def_state) ?
-				GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&client->dev, max->dvs_gpio,
-				gpio_flags, "max8973-dvs");
-		if (ret) {
-			dev_err(&client->dev,
-				"gpio_request for gpio %d failed, err = %d\n",
-				max->dvs_gpio, ret);
-			return ret;
-		}
 
 		/*
 		 * Initialize the lru index with vout_reg id
