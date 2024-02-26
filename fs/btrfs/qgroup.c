@@ -3139,6 +3139,62 @@ static int qgroup_auto_inherit(struct btrfs_fs_info *fs_info,
 }
 
 /*
+ * Check if we can skip rescan when inheriting qgroups.  If @src has a single
+ * @parent, and that @parent is owning all its bytes exclusively, we can skip
+ * the full rescan, by just adding nodesize to the @parent's excl/rfer.
+ *
+ * Return <0 for fatal errors (like srcid/parentid has no qgroup).
+ * Return 0 if a quick inherit is done.
+ * Return >0 if a quick inherit is not possible, and a full rescan is needed.
+ */
+static int qgroup_snapshot_quick_inherit(struct btrfs_fs_info *fs_info,
+					 u64 srcid, u64 parentid)
+{
+	struct btrfs_qgroup *src;
+	struct btrfs_qgroup *parent;
+	struct btrfs_qgroup_list *list;
+	int nr_parents = 0;
+
+	src = find_qgroup_rb(fs_info, srcid);
+	if (!src)
+		return -ENOENT;
+	parent = find_qgroup_rb(fs_info, parentid);
+	if (!parent)
+		return -ENOENT;
+
+	/*
+	 * Source has no parent qgroup, but our new qgroup would have one.
+	 * Qgroup numbers would become inconsistent.
+	 */
+	if (list_empty(&src->groups))
+		return 1;
+
+	list_for_each_entry(list, &src->groups, next_group) {
+		/* The parent is not the same, quick update is not possible. */
+		if (list->group->qgroupid != parentid)
+			return 1;
+		nr_parents++;
+		/*
+		 * More than one parent qgroup, we can't be sure about accounting
+		 * consistency.
+		 */
+		if (nr_parents > 1)
+			return 1;
+	}
+
+	/*
+	 * The parent is not exclusively owning all its bytes.  We're not sure
+	 * if the source has any bytes not fully owned by the parent.
+	 */
+	if (parent->excl != parent->rfer)
+		return 1;
+
+	parent->excl += fs_info->nodesize;
+	parent->rfer += fs_info->nodesize;
+	return 0;
+}
+
+/*
  * Copy the accounting information between qgroups. This is necessary
  * when a snapshot or a subvolume is created. Throwing an error will
  * cause a transaction abort so we take extra care here to only error
@@ -3306,6 +3362,13 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 
 		qgroup_dirty(fs_info, dstgroup);
 		qgroup_dirty(fs_info, srcgroup);
+
+		/*
+		 * If the source qgroup has parent but the new one doesn't,
+		 * we need a full rescan.
+		 */
+		if (!inherit && !list_empty(&srcgroup->groups))
+			need_rescan = true;
 	}
 
 	if (!inherit)
@@ -3320,14 +3383,16 @@ int btrfs_qgroup_inherit(struct btrfs_trans_handle *trans, u64 srcid,
 			if (ret)
 				goto unlock;
 		}
+		if (srcid) {
+			/* Check if we can do a quick inherit. */
+			ret = qgroup_snapshot_quick_inherit(fs_info, srcid, *i_qgroups);
+			if (ret < 0)
+				goto unlock;
+			if (ret > 0)
+				need_rescan = true;
+			ret = 0;
+		}
 		++i_qgroups;
-
-		/*
-		 * If we're doing a snapshot, and adding the snapshot to a new
-		 * qgroup, the numbers are guaranteed to be incorrect.
-		 */
-		if (srcid)
-			need_rescan = true;
 	}
 
 	for (i = 0; i <  inherit->num_ref_copies; ++i, i_qgroups += 2) {
