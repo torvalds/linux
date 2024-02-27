@@ -321,9 +321,8 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 	mutex_lock(&crtc->drrs.mutex);
 
 	seq_printf(m, "DRRS capable: %s\n",
-		   str_yes_no(crtc_state->has_drrs ||
-			      HAS_DOUBLE_BUFFERED_M_N(i915) ||
-			      intel_cpu_transcoder_has_m2_n2(i915, crtc_state->cpu_transcoder)));
+		   str_yes_no(intel_cpu_transcoder_has_drrs(i915,
+							    crtc_state->cpu_transcoder)));
 
 	seq_printf(m, "DRRS enabled: %s\n",
 		   str_yes_no(crtc_state->has_drrs));
