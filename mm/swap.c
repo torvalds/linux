@@ -138,22 +138,25 @@ EXPORT_SYMBOL(__folio_put);
  */
 void put_pages_list(struct list_head *pages)
 {
-	struct folio *folio, *next;
+	struct folio_batch fbatch;
+	struct folio *folio;
 
-	list_for_each_entry_safe(folio, next, pages, lru) {
-		if (!folio_put_testzero(folio)) {
-			list_del(&folio->lru);
+	folio_batch_init(&fbatch);
+	list_for_each_entry(folio, pages, lru) {
+		if (!folio_put_testzero(folio))
 			continue;
-		}
 		if (folio_test_large(folio)) {
-			list_del(&folio->lru);
 			__folio_put_large(folio);
 			continue;
 		}
 		/* LRU flag must be clear because it's passed using the lru */
+		if (folio_batch_add(&fbatch, folio) > 0)
+			continue;
+		free_unref_folios(&fbatch);
 	}
 
-	free_unref_page_list(pages);
+	if (fbatch.nr)
+		free_unref_folios(&fbatch);
 	INIT_LIST_HEAD(pages);
 }
 EXPORT_SYMBOL(put_pages_list);
