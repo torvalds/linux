@@ -2085,7 +2085,7 @@ retry:
 		}
 	}
 
-	if ((!resize_inode && !meta_bg) || n_blocks_count == o_blocks_count) {
+	if ((!resize_inode && !meta_bg && n_desc_blocks > o_desc_blocks) || n_blocks_count == o_blocks_count) {
 		err = ext4_convert_meta_bg(sb, resize_inode);
 		if (err)
 			goto out;
