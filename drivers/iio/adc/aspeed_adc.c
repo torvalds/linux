@@ -82,6 +82,8 @@
  */
 #define ASPEED_ADC_DEF_SAMPLING_RATE	65000
 
+static DEFINE_IDA(aspeed_adc_ida);
+
 struct aspeed_adc_trim_locate {
 	const unsigned int offset;
 	const unsigned int field;
@@ -108,6 +110,7 @@ struct adc_gain {
 
 struct aspeed_adc_data {
 	struct device		*dev;
+	int			id;
 	const struct aspeed_adc_model_data *model_data;
 	struct regulator	*regulator;
 	void __iomem		*base;
@@ -524,6 +527,13 @@ static void aspeed_adc_unregister_fixed_divider(void *data)
 	clk_hw_unregister_fixed_factor(clk);
 }
 
+static void aspeed_adc_ida_remove(void *data)
+{
+	struct aspeed_adc_data *priv_data = data;
+
+	ida_simple_remove(&aspeed_adc_ida, priv_data->id);
+}
+
 static void aspeed_adc_reset_assert(void *data)
 {
 	struct reset_control *rst = data;
@@ -630,6 +640,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	u32 adc_engine_control_reg_val;
 	unsigned long scaler_flags = 0;
 	char clk_name[32], clk_parent_name[32];
+	const char *model_name;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*data));
 	if (!indio_dev)
@@ -668,12 +679,20 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 				      GFP_KERNEL);
 	if (!data->lower_en)
 		return -ENOMEM;
+	data->id = ida_simple_get(&aspeed_adc_ida, 0, 0, GFP_KERNEL);
+	if (data->id < 0)
+		return data->id;
+	ret = devm_add_action_or_reset(data->dev, aspeed_adc_ida_remove, data);
+	if (ret)
+		return ret;
+	model_name = kasprintf(GFP_KERNEL, "%s-%d",
+			       data->model_data->model_name, data->id);
 	/* Register ADC clock prescaler with source specified by device tree. */
 	spin_lock_init(&data->clk_lock);
 	snprintf(clk_parent_name, ARRAY_SIZE(clk_parent_name), "%s",
 		 of_clk_get_parent_name(pdev->dev.of_node, 0));
 	snprintf(clk_name, ARRAY_SIZE(clk_name), "%s-fixed-div",
-		 data->model_data->model_name);
+		 model_name);
 	data->fixed_div_clk = clk_hw_register_fixed_factor(
 		&pdev->dev, clk_name, clk_parent_name, 0, 1, 2);
 	if (IS_ERR(data->fixed_div_clk))
@@ -688,7 +707,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 
 	if (data->model_data->need_prescaler) {
 		snprintf(clk_name, ARRAY_SIZE(clk_name), "%s-prescaler",
-			 data->model_data->model_name);
+			 model_name);
 		data->clk_prescaler = devm_clk_hw_register_divider(
 			&pdev->dev, clk_name, clk_parent_name, 0,
 			data->base + ASPEED_REG_CLOCK_CONTROL, 17, 15, 0,
@@ -704,7 +723,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	 * setting to adjust the prescaler as well.
 	 */
 	snprintf(clk_name, ARRAY_SIZE(clk_name), "%s-scaler",
-		 data->model_data->model_name);
+		 model_name);
 	data->clk_scaler = devm_clk_hw_register_divider(
 		&pdev->dev, clk_name, clk_parent_name, scaler_flags,
 		data->base + ASPEED_REG_CLOCK_CONTROL, 0,
@@ -806,7 +825,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 	    (adc_engine_control_reg_val &
 	     BIT(data->model_data->num_channels - 1)))
 		data->required_eoc_num += 12;
-	indio_dev->name = data->model_data->model_name;
+	indio_dev->name = model_name;
 	indio_dev->info = &aspeed_adc_iio_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = data->battery_sensing ?
