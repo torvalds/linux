@@ -14,6 +14,78 @@
 	/delete-node/ fan5;
 	/delete-node/ fan6;
 	/delete-node/ fan7;
+
+	ltpi_fan0: ltpi-pwm-fan0 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 0 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan1: ltpi-pwm-fan1 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 1 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan2: ltpi-pwm-fan2 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 2 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan3: ltpi-pwm-fan3 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 3 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan4: ltpi-pwm-fan4 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 4 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan5: ltpi-pwm-fan5 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 5 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan6: ltpi-pwm-fan6 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 6 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
+
+	ltpi_fan7: ltpi-pwm-fan7 {
+		compatible = "pwm-fan";
+		pwms = <&ltpi0_pwm_tach 7 40000 0>;	/* Target freq:25 kHz */
+		cooling-min-state = <0>;
+		cooling-max-state = <3>;
+		#cooling-cells = <2>;
+		cooling-levels = <0 15 128 255>;
+	};
 };
 
 &ltpi0 {
@@ -54,6 +126,58 @@
 	/delete-node/fan-13;
 	/delete-node/fan-14;
 	/delete-node/fan-15;
+};
+
+&ltpi0_pwm_tach {
+	status = "okay";
+	ltpi0-fan-0 {
+		tach-ch = /bits/ 8 <0x0>;
+	};
+	ltpi0-fan-1 {
+		tach-ch = /bits/ 8 <0x1>;
+	};
+	ltpi0-fan-2 {
+		tach-ch = /bits/ 8 <0x2>;
+	};
+	ltpi0-fan-3 {
+		tach-ch = /bits/ 8 <0x3>;
+	};
+	ltpi0-fan-4 {
+		tach-ch = /bits/ 8 <0x4>;
+	};
+	ltpi0-fan-5 {
+		tach-ch = /bits/ 8 <0x5>;
+	};
+	ltpi0-fan-6 {
+		tach-ch = /bits/ 8 <0x6>;
+	};
+	ltpi0-fan-7 {
+		tach-ch = /bits/ 8 <0x7>;
+	};
+	ltpi0-fan-8 {
+		tach-ch = /bits/ 8 <0x8>;
+	};
+	ltpi0-fan-9 {
+		tach-ch = /bits/ 8 <0x9>;
+	};
+	ltpi0-fan-10 {
+		tach-ch = /bits/ 8 <0xA>;
+	};
+	ltpi0-fan-11 {
+		tach-ch = /bits/ 8 <0xB>;
+	};
+	ltpi0-fan-12 {
+		tach-ch = /bits/ 8 <0xC>;
+	};
+	ltpi0-fan-13 {
+		tach-ch = /bits/ 8 <0xD>;
+	};
+	ltpi0-fan-14 {
+		tach-ch = /bits/ 8 <0xE>;
+	};
+	ltpi0-fan-15 {
+		tach-ch = /bits/ 8 <0xF>;
+	};
 };
 
 &ltpi0_i2c0 {
