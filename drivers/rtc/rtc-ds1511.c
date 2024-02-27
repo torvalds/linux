@@ -196,14 +196,10 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		pdata->irqen |= RTC_AF;
 
 	spin_lock_irqsave(&pdata->lock, flags);
-	rtc_write(pdata->alrm_mday < 0 ? 0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
-	       DS1511_AM4_DATE);
-	rtc_write(pdata->alrm_hour < 0 ? 0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
-	       DS1511_AM3_HOUR);
-	rtc_write(pdata->alrm_min < 0 ? 0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
-	       DS1511_AM2_MIN);
-	rtc_write(pdata->alrm_sec < 0 ? 0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
-	       DS1511_AM1_SEC);
+	rtc_write(bin2bcd(pdata->alrm_mday) & 0x3f, DS1511_AM4_DATE);
+	rtc_write(bin2bcd(pdata->alrm_hour) & 0x3f, DS1511_AM3_HOUR);
+	rtc_write(bin2bcd(pdata->alrm_min) & 0x7f, DS1511_AM2_MIN);
+	rtc_write(bin2bcd(pdata->alrm_sec) & 0x7f, DS1511_AM1_SEC);
 	ds1511_rtc_alarm_enable(alrm->enabled);
 
 	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
