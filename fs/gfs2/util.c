@@ -488,16 +488,16 @@ void gfs2_consist_rgrpd_i(struct gfs2_rgrpd *rgd,
  */
 
 int gfs2_meta_check_ii(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *type, const char *function, char *file,
+		       const char *function, char *file,
 		       unsigned int line)
 {
 	int me;
 
 	gfs2_lm(sdp,
 		"fatal: invalid metadata block - "
-		"bh = %llu (%s), "
+		"bh = %llu (bad magic number), "
 		"function = %s, file = %s, line = %u\n",
-		(unsigned long long)bh->b_blocknr, type,
+		(unsigned long long)bh->b_blocknr,
 		function, file, line);
 	me = gfs2_withdraw(sdp);
 	return (me) ? -1 : -2;
