@@ -135,10 +135,11 @@ static int br_dev_init(struct net_device *dev)
 		br_vlan_flush(br);
 		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
+		return err;
 	}
 
 	netdev_lockdep_set_classes(dev);
-	return err;
+	return 0;
 }
 
 static void br_dev_uninit(struct net_device *dev)
