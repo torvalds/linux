@@ -372,6 +372,19 @@ unsigned long decompress_kernel(unsigned char *outbuf, unsigned long virt_addr,
 }
 
 /*
+ * Set the memory encryption xloadflag based on the mem_encrypt= command line
+ * parameter, if provided.
+ */
+static void parse_mem_encrypt(struct setup_header *hdr)
+{
+	int on = cmdline_find_option_bool("mem_encrypt=on");
+	int off = cmdline_find_option_bool("mem_encrypt=off");
+
+	if (on > off)
+		hdr->xloadflags |= XLF_MEM_ENCRYPTION;
+}
+
+/*
  * The compressed kernel image (ZO), has been moved so that its position
  * is against the end of the buffer used to hold the uncompressed kernel
  * image (VO) and the execution environment (.bss, .brk), which makes sure
@@ -400,6 +413,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 
 	/* Clear flags intended for solely in-kernel use. */
 	boot_params_ptr->hdr.loadflags &= ~KASLR_FLAG;
+
+	parse_mem_encrypt(&boot_params_ptr->hdr);
 
 	sanitize_boot_params(boot_params_ptr);
 
