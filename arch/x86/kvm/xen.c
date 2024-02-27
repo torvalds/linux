@@ -1862,8 +1862,6 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		mm_borrowed = true;
 	}
 
-	mutex_lock(&kvm->arch.xen.xen_lock);
-
 	/*
 	 * It is theoretically possible for the page to be unmapped
 	 * and the MMU notifier to invalidate the shared_info before
@@ -1890,8 +1888,6 @@ static int kvm_xen_set_evtchn(struct kvm_xen_evtchn *xe, struct kvm *kvm)
 		rc = kvm_gpc_refresh(gpc, PAGE_SIZE);
 		srcu_read_unlock(&kvm->srcu, idx);
 	} while(!rc);
-
-	mutex_unlock(&kvm->arch.xen.xen_lock);
 
 	if (mm_borrowed)
 		kthread_unuse_mm(kvm->mm);
