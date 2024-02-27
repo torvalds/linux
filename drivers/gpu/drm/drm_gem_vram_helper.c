@@ -283,6 +283,8 @@ static int drm_gem_vram_pin_locked(struct drm_gem_vram_object *gbo,
 	struct ttm_operation_ctx ctx = { false, false };
 	int ret;
 
+	dma_resv_assert_held(gbo->bo.base.resv);
+
 	if (gbo->bo.pin_count)
 		goto out;
 
@@ -338,6 +340,8 @@ EXPORT_SYMBOL(drm_gem_vram_pin);
 
 static void drm_gem_vram_unpin_locked(struct drm_gem_vram_object *gbo)
 {
+	dma_resv_assert_held(gbo->bo.base.resv);
+
 	ttm_bo_unpin(&gbo->bo);
 }
 
@@ -770,8 +774,14 @@ EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_cleanup_fb);
 static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+	int ret;
 
-	/* Fbdev console emulation is the use case of these PRIME
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
+	if (ret)
+		return ret;
+
+	/*
+	 * Fbdev console emulation is the use case of these PRIME
 	 * helpers. This may involve updating a hardware buffer from
 	 * a shadow FB. We pin the buffer to it's current location
 	 * (either video RAM or system memory) to prevent it from
@@ -779,7 +789,10 @@ static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 	 * the buffer to be pinned to VRAM, implement a callback that
 	 * sets the flags accordingly.
 	 */
-	return drm_gem_vram_pin(gbo, 0);
+	ret = drm_gem_vram_pin_locked(gbo, 0);
+	ttm_bo_unreserve(&gbo->bo);
+
+	return ret;
 }
 
 /**
@@ -790,8 +803,13 @@ static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 static void drm_gem_vram_object_unpin(struct drm_gem_object *gem)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
+	int ret;
 
-	drm_gem_vram_unpin(gbo);
+	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
+	if (ret)
+		return;
+	drm_gem_vram_unpin_locked(gbo);
+	ttm_bo_unreserve(&gbo->bo);
 }
 
 /**
