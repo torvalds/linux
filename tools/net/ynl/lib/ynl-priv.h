@@ -27,6 +27,9 @@ enum ynl_policy_type {
 	YNL_PT_BITFIELD32,
 };
 
+#define YNL_ARRAY_SIZE(array)	(sizeof(array) ?			\
+				 sizeof(array) / sizeof(array[0]) : 0)
+
 struct ynl_policy_attr {
 	enum ynl_policy_type type;
 	unsigned int len;

@@ -1535,7 +1535,7 @@ def _put_enum_to_str_helper(cw, render_name, map_name, arg_name, enum=None):
     cw.block_start()
     if enum and enum.type == 'flags':
         cw.p(f'{arg_name} = ffs({arg_name}) - 1;')
-    cw.p(f'if ({arg_name} < 0 || {arg_name} >= (int)MNL_ARRAY_SIZE({map_name}))')
+    cw.p(f'if ({arg_name} < 0 || {arg_name} >= (int)YNL_ARRAY_SIZE({map_name}))')
     cw.p('return NULL;')
     cw.p(f'return {map_name}[{arg_name}];')
     cw.block_end()
@@ -2569,7 +2569,7 @@ def render_user_family(family, cw, prototype):
         cw.p('.hdr_len\t= sizeof(struct genlmsghdr),')
     if family.ntfs:
         cw.p(f".ntf_info\t= {family['name']}_ntf_info,")
-        cw.p(f".ntf_info_size\t= MNL_ARRAY_SIZE({family['name']}_ntf_info),")
+        cw.p(f".ntf_info_size\t= YNL_ARRAY_SIZE({family['name']}_ntf_info),")
     cw.block_end(line=';')
 
 
