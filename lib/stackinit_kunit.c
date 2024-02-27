@@ -63,7 +63,16 @@ static bool stackinit_range_contains(char *haystack_start, size_t haystack_size,
 #define FETCH_ARG_STRING(var)		var
 #define FETCH_ARG_STRUCT(var)		&var
 
+/*
+ * On m68k, if the leaf function test variable is longer than 8 bytes,
+ * the start of the stack frame moves. 8 is sufficiently large to
+ * test m68k char arrays, but leave it at 16 for other architectures.
+ */
+#ifdef CONFIG_M68K
+#define FILL_SIZE_STRING		8
+#else
 #define FILL_SIZE_STRING		16
+#endif
 
 #define INIT_CLONE_SCALAR		/**/
 #define INIT_CLONE_STRING		[FILL_SIZE_STRING]
@@ -165,19 +174,23 @@ static noinline void test_ ## name (struct kunit *test)		\
 	/* Verify all bytes overwritten with 0xFF. */		\
 	for (sum = 0, i = 0; i < target_size; i++)		\
 		sum += (check_buf[i] != 0xFF);			\
-	KUNIT_ASSERT_EQ_MSG(test, sum, 0,			\
-			    "leaf fill was not 0xFF!?\n");	\
 	/* Clear entire check buffer for later bit tests. */	\
 	memset(check_buf, 0x00, sizeof(check_buf));		\
 	/* Extract stack-defined variable contents. */		\
 	ignored = leaf_ ##name((unsigned long)&ignored, 0,	\
 				FETCH_ARG_ ## which(zero));	\
+	/*							\
+	 * Delay the sum test to here to do as little as	\
+	 * possible between the two leaf function calls.	\
+	 */							\
+	KUNIT_ASSERT_EQ_MSG(test, sum, 0,			\
+			    "leaf fill was not 0xFF!?\n");	\
 								\
 	/* Validate that compiler lined up fill and target. */	\
 	KUNIT_ASSERT_TRUE_MSG(test,				\
 		stackinit_range_contains(fill_start, fill_size,	\
 			    target_start, target_size),		\
-		"stack fill missed target!? "			\
+		"stackframe was not the same between calls!? "	\
 		"(fill %zu wide, target offset by %d)\n",	\
 		fill_size,					\
 		(int)((ssize_t)(uintptr_t)fill_start -		\
