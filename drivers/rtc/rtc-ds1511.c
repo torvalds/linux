@@ -178,35 +178,15 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
 	return 0;
 }
 
-/*
- * write the alarm register settings
- *
- * we only have the use to interrupt every second, otherwise
- * known as the update interrupt, or the interrupt if the whole
- * date/hours/mins/secs matches.  the ds1511 has many more
- * permutations, but the kernel doesn't.
- */
-static void ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
+static void ds1511_rtc_alarm_enable(unsigned int enabled)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&pdata->lock, flags);
-	rtc_write(pdata->alrm_mday < 0 ? 0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
-	       DS1511_AM4_DATE);
-	rtc_write(pdata->alrm_hour < 0 ? 0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
-	       DS1511_AM3_HOUR);
-	rtc_write(pdata->alrm_min < 0 ? 0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
-	       DS1511_AM2_MIN);
-	rtc_write(pdata->alrm_sec < 0 ? 0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
-	       DS1511_AM1_SEC);
-	rtc_write(rtc_read(DS1511_CONTROL_B) | (pdata->irqen ? DS1511_TIE : 0), DS1511_CONTROL_B);
-	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
-	spin_unlock_irqrestore(&pdata->lock, flags);
+	rtc_write(rtc_read(DS1511_CONTROL_B) | (enabled ? DS1511_TIE : 0), DS1511_CONTROL_B);
 }
 
 static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
+	unsigned long flags;
 
 	if (pdata->irq <= 0)
 		return -EINVAL;
@@ -218,7 +198,20 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	if (alrm->enabled)
 		pdata->irqen |= RTC_AF;
 
-	ds1511_rtc_update_alarm(pdata);
+	spin_lock_irqsave(&pdata->lock, flags);
+	rtc_write(pdata->alrm_mday < 0 ? 0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
+	       DS1511_AM4_DATE);
+	rtc_write(pdata->alrm_hour < 0 ? 0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
+	       DS1511_AM3_HOUR);
+	rtc_write(pdata->alrm_min < 0 ? 0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
+	       DS1511_AM2_MIN);
+	rtc_write(pdata->alrm_sec < 0 ? 0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
+	       DS1511_AM1_SEC);
+	ds1511_rtc_alarm_enable(alrm->enabled);
+
+	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
+	spin_unlock_irqrestore(&pdata->lock, flags);
+
 	return 0;
 }
 
@@ -258,14 +251,15 @@ static irqreturn_t ds1511_interrupt(int irq, void *dev_id)
 static int ds1511_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
+	unsigned long flags;
 
 	if (pdata->irq <= 0)
 		return -EINVAL;
-	if (enabled)
-		pdata->irqen |= RTC_AF;
-	else
-		pdata->irqen &= ~RTC_AF;
-	ds1511_rtc_update_alarm(pdata);
+
+	spin_lock_irqsave(&pdata->lock, flags);
+	ds1511_rtc_alarm_enable(enabled);
+	spin_unlock_irqrestore(&pdata->lock, flags);
+
 	return 0;
 }
 
