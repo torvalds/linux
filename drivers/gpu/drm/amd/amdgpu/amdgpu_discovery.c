@@ -245,12 +245,16 @@ static int amdgpu_discovery_read_binary_from_sysmem(struct amdgpu_device *adev, 
 	return -ENOENT;
 }
 
+#define IP_DISCOVERY_V2		2
+#define IP_DISCOVERY_V4		4
+
 static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 						 uint8_t *binary)
 {
 	uint64_t vram_size;
 	u32 msg;
 	int i, ret = 0;
+	int ip_discovery_ver = 0;
 
 	/* It can take up to a second for IFWI init to complete on some dGPUs,
 	 * but generally it should be in the 60-100ms range.  Normally this starts
@@ -259,7 +263,11 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	 * wait for this to complete.  Once the C2PMSG is updated, we can
 	 * continue.
 	 */
-	if (dev_is_removable(&adev->pdev->dev)) {
+
+	ip_discovery_ver = RREG32(mmIP_DISCOVERY_VERSION);
+	if ((dev_is_removable(&adev->pdev->dev)) ||
+	    (ip_discovery_ver == IP_DISCOVERY_V2) ||
+	    (ip_discovery_ver == IP_DISCOVERY_V4)) {
 		for (i = 0; i < 1000; i++) {
 			msg = RREG32(mmMP0_SMN_C2PMSG_33);
 			if (msg & 0x80000000)
