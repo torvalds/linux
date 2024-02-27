@@ -355,7 +355,7 @@ void rtllib_enable_net_monitor_mode(struct net_device *dev,
 
 	netdev_info(dev, "========>Enter Monitor Mode\n");
 
-	ieee->AllowAllDestAddrHandler(dev, true, !init_state);
+	ieee->allow_all_dest_addr_handler(dev, true, !init_state);
 }
 
 /* Disables network monitor mode. Only packets destinated to
@@ -367,7 +367,7 @@ void rtllib_disable_net_monitor_mode(struct net_device *dev, bool init_state)
 
 	netdev_info(dev, "========>Exit Monitor Mode\n");
 
-	ieee->AllowAllDestAddrHandler(dev, false, !init_state);
+	ieee->allow_all_dest_addr_handler(dev, false, !init_state);
 }
 
 static void rtllib_send_probe(struct rtllib_device *ieee)
