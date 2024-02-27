@@ -818,15 +818,15 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (beacon->ckip_supported) {
-		static const u8 AironetIeOui[] = {0x00, 0x01, 0x66};
+		static const u8 aironet_ie_oui[] = {0x00, 0x01, 0x66};
 		u8	CcxAironetBuf[30];
 		struct octet_string osCcxAironetIE;
 
 		memset(CcxAironetBuf, 0, 30);
 		osCcxAironetIE.octet = CcxAironetBuf;
 		osCcxAironetIE.Length = sizeof(CcxAironetBuf);
-		memcpy(osCcxAironetIE.octet, AironetIeOui,
-		       sizeof(AironetIeOui));
+		memcpy(osCcxAironetIE.octet, aironet_ie_oui,
+		       sizeof(aironet_ie_oui));
 
 		osCcxAironetIE.octet[IE_CISCO_FLAG_POSITION] |=
 					 (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC);
