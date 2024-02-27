@@ -188,9 +188,6 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	unsigned long flags;
 
-	if (pdata->irq <= 0)
-		return -EINVAL;
-
 	pdata->alrm_mday = alrm->time.tm_mday;
 	pdata->alrm_hour = alrm->time.tm_hour;
 	pdata->alrm_min = alrm->time.tm_min;
@@ -218,9 +215,6 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static int ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
-
-	if (pdata->irq <= 0)
-		return -EINVAL;
 
 	alrm->time.tm_mday = pdata->alrm_mday < 0 ? 0 : pdata->alrm_mday;
 	alrm->time.tm_hour = pdata->alrm_hour < 0 ? 0 : pdata->alrm_hour;
@@ -252,9 +246,6 @@ static int ds1511_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	unsigned long flags;
-
-	if (pdata->irq <= 0)
-		return -EINVAL;
 
 	spin_lock_irqsave(&pdata->lock, flags);
 	ds1511_rtc_alarm_enable(enabled);
@@ -349,12 +340,6 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 
 	pdata->rtc->ops = &ds1511_rtc_ops;
 
-	ret = devm_rtc_register_device(pdata->rtc);
-	if (ret)
-		return ret;
-
-	devm_rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
-
 	/*
 	 * if the platform has an interrupt in mind for this device,
 	 * then by all means, set it
@@ -368,6 +353,15 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 			pdata->irq = 0;
 		}
 	}
+
+	if (pdata->irq == 0)
+		clear_bit(RTC_FEATURE_ALARM, pdata->rtc->features);
+
+	ret = devm_rtc_register_device(pdata->rtc);
+	if (ret)
+		return ret;
+
+	devm_rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
 
 	return 0;
 }
