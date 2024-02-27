@@ -322,6 +322,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(ds1511->rtc);
 
 	ds1511->rtc->ops = &ds1511_rtc_ops;
+	ds1511->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	/*
 	 * if the platform has an interrupt in mind for this device,
