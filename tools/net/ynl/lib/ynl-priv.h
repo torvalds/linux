@@ -29,6 +29,12 @@ enum ynl_policy_type {
 	YNL_PT_BITFIELD32,
 };
 
+enum ynl_parse_result {
+	YNL_PARSE_CB_ERROR = -1,
+	YNL_PARSE_CB_STOP = 0,
+	YNL_PARSE_CB_OK = 1,
+};
+
 #define YNL_ARRAY_SIZE(array)	(sizeof(array) ?			\
 				 sizeof(array) / sizeof(array[0]) : 0)
 

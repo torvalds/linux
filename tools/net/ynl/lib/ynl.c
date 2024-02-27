@@ -147,7 +147,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 
 	if (!(nlh->nlmsg_flags & NLM_F_ACK_TLVS)) {
 		yerr_msg(ys, "%s", strerror(ys->err.code));
-		return MNL_CB_OK;
+		return YNL_PARSE_CB_OK;
 	}
 
 	ynl_attr_for_each(attr, nlh, hlen) {
@@ -166,12 +166,12 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		case NLMSGERR_ATTR_MISS_TYPE:
 		case NLMSGERR_ATTR_MISS_NEST:
 			if (len != sizeof(__u32))
-				return MNL_CB_ERROR;
+				return YNL_PARSE_CB_ERROR;
 			break;
 		case NLMSGERR_ATTR_MSG:
 			str = ynl_attr_get_str(attr);
 			if (str[len - 1])
-				return MNL_CB_ERROR;
+				return YNL_PARSE_CB_ERROR;
 			break;
 		default:
 			break;
@@ -252,7 +252,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 	else
 		yerr_msg(ys, "%s", strerror(ys->err.code));
 
-	return MNL_CB_OK;
+	return YNL_PARSE_CB_OK;
 }
 
 static int
@@ -272,7 +272,7 @@ ynl_cb_error(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 
 	ynl_ext_ack_check(yarg->ys, nlh, hlen);
 
-	return code ? MNL_CB_ERROR : MNL_CB_STOP;
+	return code ? YNL_PARSE_CB_ERROR : YNL_PARSE_CB_STOP;
 }
 
 static int ynl_cb_done(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
@@ -286,9 +286,9 @@ static int ynl_cb_done(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 
 		ynl_ext_ack_check(yarg->ys, nlh, sizeof(int));
 
-		return MNL_CB_ERROR;
+		return YNL_PARSE_CB_ERROR;
 	}
-	return MNL_CB_STOP;
+	return YNL_PARSE_CB_STOP;
 }
 
 /* Attribute validation */
@@ -454,7 +454,7 @@ static int ynl_cb_null(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 	yerr(yarg->ys, YNL_ERROR_UNEXPECT_MSG,
 	     "Received a message when none were expected");
 
-	return MNL_CB_ERROR;
+	return YNL_PARSE_CB_ERROR;
 }
 
 static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
@@ -468,30 +468,30 @@ static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
 	if (len < 0)
 		return len;
 
-	ret = MNL_CB_STOP;
+	ret = YNL_PARSE_CB_STOP;
 	for (rem = len; rem > 0; NLMSG_NEXT(nlh, rem)) {
 		nlh = (struct nlmsghdr *)&ys->rx_buf[len - rem];
 		if (!NLMSG_OK(nlh, rem)) {
 			yerr(yarg->ys, YNL_ERROR_INV_RESP,
 			     "Invalid message or trailing data in the response.");
-			return MNL_CB_ERROR;
+			return YNL_PARSE_CB_ERROR;
 		}
 
 		if (nlh->nlmsg_flags & NLM_F_DUMP_INTR) {
 			/* TODO: handle this better */
 			yerr(yarg->ys, YNL_ERROR_DUMP_INTER,
 			     "Dump interrupted / inconsistent, please retry.");
-			return MNL_CB_ERROR;
+			return YNL_PARSE_CB_ERROR;
 		}
 
 		switch (nlh->nlmsg_type) {
 		case 0:
 			yerr(yarg->ys, YNL_ERROR_INV_RESP,
 			     "Invalid message type in the response.");
-			return MNL_CB_ERROR;
+			return YNL_PARSE_CB_ERROR;
 		case NLMSG_NOOP:
 		case NLMSG_OVERRUN ... NLMSG_MIN_TYPE - 1:
-			ret = MNL_CB_OK;
+			ret = YNL_PARSE_CB_OK;
 			break;
 		case NLMSG_ERROR:
 			ret = ynl_cb_error(nlh, yarg);
@@ -537,7 +537,7 @@ ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
 	ys->mcast_groups = calloc(ys->n_mcast_groups,
 				  sizeof(*ys->mcast_groups));
 	if (!ys->mcast_groups)
-		return MNL_CB_ERROR;
+		return YNL_PARSE_CB_ERROR;
 
 	i = 0;
 	ynl_attr_for_each_nested(entry, mcasts) {
@@ -566,14 +566,14 @@ ynl_get_family_info_cb(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 	ynl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
 		if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GROUPS)
 			if (ynl_get_family_info_mcast(ys, attr))
-				return MNL_CB_ERROR;
+				return YNL_PARSE_CB_ERROR;
 
 		if (ynl_attr_type(attr) != CTRL_ATTR_FAMILY_ID)
 			continue;
 
 		if (ynl_attr_data_len(attr) != sizeof(__u16)) {
 			yerr(ys, YNL_ERROR_ATTR_INVALID, "Invalid family ID");
-			return MNL_CB_ERROR;
+			return YNL_PARSE_CB_ERROR;
 		}
 
 		ys->family_id = ynl_attr_get_u16(attr);
@@ -582,9 +582,9 @@ ynl_get_family_info_cb(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 
 	if (!found_id) {
 		yerr(ys, YNL_ERROR_ATTR_MISSING, "Family ID missing");
-		return MNL_CB_ERROR;
+		return YNL_PARSE_CB_ERROR;
 	}
-	return MNL_CB_OK;
+	return YNL_PARSE_CB_OK;
 }
 
 static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
@@ -741,10 +741,10 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 
 	gehdr = ynl_nlmsg_data(nlh);
 	if (gehdr->cmd >= ys->family->ntf_info_size)
-		return MNL_CB_ERROR;
+		return YNL_PARSE_CB_ERROR;
 	info = &ys->family->ntf_info[gehdr->cmd];
 	if (!info->cb)
-		return MNL_CB_ERROR;
+		return YNL_PARSE_CB_ERROR;
 
 	rsp = calloc(1, info->alloc_sz);
 	rsp->free = info->free;
@@ -752,7 +752,7 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 	yarg.rsp_policy = info->policy;
 
 	ret = info->cb(nlh, &yarg);
-	if (ret <= MNL_CB_STOP)
+	if (ret <= YNL_PARSE_CB_STOP)
 		goto err_free;
 
 	rsp->family = nlh->nlmsg_type;
@@ -761,11 +761,11 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 	*ys->ntf_last_next = rsp;
 	ys->ntf_last_next = &rsp->next;
 
-	return MNL_CB_OK;
+	return YNL_PARSE_CB_OK;
 
 err_free:
 	info->free(rsp);
-	return MNL_CB_ERROR;
+	return YNL_PARSE_CB_ERROR;
 }
 
 static int
@@ -812,7 +812,7 @@ void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd)
 int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg)
 {
 	yerr(yarg->ys, YNL_ERROR_INV_RESP, "Error parsing response: %s", msg);
-	return MNL_CB_ERROR;
+	return YNL_PARSE_CB_ERROR;
 }
 
 static int
@@ -841,7 +841,7 @@ int ynl_req_trampoline(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 
 	ret = ynl_check_alien(yrs->yarg.ys, nlh, yrs->rsp_cmd);
 	if (ret)
-		return ret < 0 ? MNL_CB_ERROR : MNL_CB_OK;
+		return ret < 0 ? YNL_PARSE_CB_ERROR : YNL_PARSE_CB_OK;
 
 	return yrs->cb(nlh, &yrs->yarg);
 }
@@ -872,11 +872,11 @@ ynl_dump_trampoline(const struct nlmsghdr *nlh, struct ynl_parse_arg *data)
 
 	ret = ynl_check_alien(ds->yarg.ys, nlh, ds->rsp_cmd);
 	if (ret)
-		return ret < 0 ? MNL_CB_ERROR : MNL_CB_OK;
+		return ret < 0 ? YNL_PARSE_CB_ERROR : YNL_PARSE_CB_OK;
 
 	obj = calloc(1, ds->alloc_sz);
 	if (!obj)
-		return MNL_CB_ERROR;
+		return YNL_PARSE_CB_ERROR;
 
 	if (!ds->first)
 		ds->first = obj;

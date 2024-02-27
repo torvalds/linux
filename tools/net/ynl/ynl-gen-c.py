@@ -200,7 +200,7 @@ class Type(SpecAttr):
 
         if not self.is_multi_val():
             ri.cw.p("if (ynl_attr_validate(yarg, attr))")
-            ri.cw.p("return MNL_CB_ERROR;")
+            ri.cw.p("return YNL_PARSE_CB_ERROR;")
             if self.presence_type() == 'bit':
                 ri.cw.p(f"{var}->_present.{self.c_name} = 1;")
 
@@ -247,7 +247,7 @@ class TypeUnused(Type):
         return []
 
     def _attr_get(self, ri, var):
-        return ['return MNL_CB_ERROR;'], None, None
+        return ['return YNL_PARSE_CB_ERROR;'], None, None
 
     def _attr_typol(self):
         return '.type = YNL_PT_REJECT, '
@@ -543,7 +543,7 @@ class TypeNest(Type):
 
     def _attr_get(self, ri, var):
         get_lines = [f"if ({self.nested_render_name}_parse(&parg, attr))",
-                     "return MNL_CB_ERROR;"]
+                     "return YNL_PARSE_CB_ERROR;"]
         init_lines = [f"parg.rsp_policy = &{self.nested_render_name}_nest;",
                       f"parg.data = &{var}->{self.c_name};"]
         return get_lines, init_lines, None
@@ -1674,7 +1674,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.block_start(line=f"ynl_attr_for_each_nested(attr, attr_{aspec.c_name})")
         ri.cw.p(f"parg.data = &dst->{aspec.c_name}[i];")
         ri.cw.p(f"if ({aspec.nested_render_name}_parse(&parg, attr, ynl_attr_type(attr)))")
-        ri.cw.p('return MNL_CB_ERROR;')
+        ri.cw.p('return YNL_PARSE_CB_ERROR;')
         ri.cw.p('i++;')
         ri.cw.block_end()
         ri.cw.block_end()
@@ -1693,7 +1693,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         if 'nested-attributes' in aspec:
             ri.cw.p(f"parg.data = &dst->{aspec.c_name}[i];")
             ri.cw.p(f"if ({aspec.nested_render_name}_parse(&parg, attr))")
-            ri.cw.p('return MNL_CB_ERROR;')
+            ri.cw.p('return YNL_PARSE_CB_ERROR;')
         elif aspec.type in scalars:
             ri.cw.p(f"dst->{aspec.c_name}[i] = ynl_attr_get_{aspec.type}(attr);")
         else:
@@ -1707,7 +1707,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
     if struct.nested:
         ri.cw.p('return 0;')
     else:
-        ri.cw.p('return MNL_CB_OK;')
+        ri.cw.p('return YNL_PARSE_CB_OK;')
     ri.cw.block_end()
     ri.cw.nl()
 
@@ -1750,7 +1750,7 @@ def parse_rsp_msg(ri, deref=False):
     else:
         # Empty reply
         ri.cw.block_start()
-        ri.cw.p('return MNL_CB_OK;')
+        ri.cw.p('return YNL_PARSE_CB_OK;')
         ri.cw.block_end()
         ri.cw.nl()
 
