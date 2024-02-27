@@ -484,11 +484,18 @@ static int amd_pstate_verify(struct cpufreq_policy_data *policy)
 
 static int amd_pstate_update_min_max_limit(struct cpufreq_policy *policy)
 {
-	u32 max_limit_perf, min_limit_perf;
+	u32 max_limit_perf, min_limit_perf, lowest_perf;
 	struct amd_cpudata *cpudata = policy->driver_data;
 
 	max_limit_perf = div_u64(policy->max * cpudata->highest_perf, cpudata->max_freq);
 	min_limit_perf = div_u64(policy->min * cpudata->highest_perf, cpudata->max_freq);
+
+	lowest_perf = READ_ONCE(cpudata->lowest_perf);
+	if (min_limit_perf < lowest_perf)
+		min_limit_perf = lowest_perf;
+
+	if (max_limit_perf < min_limit_perf)
+		max_limit_perf = min_limit_perf;
 
 	WRITE_ONCE(cpudata->max_limit_perf, max_limit_perf);
 	WRITE_ONCE(cpudata->min_limit_perf, min_limit_perf);
@@ -1386,6 +1393,12 @@ static void amd_pstate_epp_update_limit(struct cpufreq_policy *policy)
 	min_perf = READ_ONCE(cpudata->lowest_perf);
 	max_limit_perf = div_u64(policy->max * cpudata->highest_perf, cpudata->max_freq);
 	min_limit_perf = div_u64(policy->min * cpudata->highest_perf, cpudata->max_freq);
+
+	if (min_limit_perf < min_perf)
+		min_limit_perf = min_perf;
+
+	if (max_limit_perf < min_limit_perf)
+		max_limit_perf = min_limit_perf;
 
 	WRITE_ONCE(cpudata->max_limit_perf, max_limit_perf);
 	WRITE_ONCE(cpudata->min_limit_perf, min_limit_perf);
