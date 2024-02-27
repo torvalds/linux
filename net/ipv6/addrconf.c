@@ -5300,9 +5300,9 @@ next:
 		fillargs->event = RTM_GETMULTICAST;
 
 		/* multicast address */
-		for (ifmca = rtnl_dereference(idev->mc_list);
+		for (ifmca = rcu_dereference(idev->mc_list);
 		     ifmca;
-		     ifmca = rtnl_dereference(ifmca->next), ip_idx++) {
+		     ifmca = rcu_dereference(ifmca->next), ip_idx++) {
 			if (ip_idx < s_ip_idx)
 				continue;
 			err = inet6_fill_ifmcaddr(skb, ifmca, fillargs);
@@ -5410,6 +5410,7 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 	s_idx = idx = cb->args[1];
 	s_ip_idx = cb->args[2];
 
+	rcu_read_lock();
 	if (cb->strict_check) {
 		err = inet6_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
 						  skb->sk, cb);
@@ -5434,7 +5435,6 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		}
 	}
 
-	rcu_read_lock();
 	cb->seq = inet6_base_seq(tgt_net);
 	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
 		idx = 0;
@@ -5456,10 +5456,10 @@ cont:
 		}
 	}
 done:
-	rcu_read_unlock();
 	cb->args[0] = h;
 	cb->args[1] = idx;
 put_tgt_net:
+	rcu_read_unlock();
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
