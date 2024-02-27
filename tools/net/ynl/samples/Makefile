@@ -9,7 +9,7 @@ ifeq ("$(DEBUG)","1")
   CFLAGS += -g -fsanitize=address -fsanitize=leak -static-libasan
 endif
 
-LDLIBS=-lmnl ../lib/ynl.a ../generated/protos.a
+LDLIBS=../lib/ynl.a ../generated/protos.a
 
 SRCS=$(wildcard *.c)
 BINS=$(patsubst %.c,%,${SRCS})

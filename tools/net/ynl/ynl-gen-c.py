@@ -2677,7 +2677,6 @@ def main():
 
     if args.mode == "user":
         if not args.header:
-            cw.p("#include <libmnl/libmnl.h>")
             cw.p("#include <linux/genetlink.h>")
             cw.nl()
             for one in args.user_header:

@@ -2,8 +2,8 @@
 #ifndef __YNL_C_PRIV_H
 #define __YNL_C_PRIV_H 1
 
+#include <stdbool.h>
 #include <stddef.h>
-#include <libmnl/libmnl.h>
 #include <linux/types.h>
 
 struct ynl_parse_arg;
@@ -11,8 +11,6 @@ struct ynl_parse_arg;
 /*
  * YNL internals / low level stuff
  */
-
-/* Generic mnl helper code */
 
 enum ynl_policy_type {
 	YNL_PT_REJECT = 1,

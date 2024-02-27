@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <linux/types.h>
-#include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
 #include <sys/socket.h>
 
