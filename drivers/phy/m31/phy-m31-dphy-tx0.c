@@ -526,8 +526,9 @@ static int sys_m31_dphy_tx_configure(struct phy *phy, union phy_configure_opts *
 	const struct m31_dphy_config *p;
 	const uint32_t AON_POWER_READY_N_active = 0;
 	dphy = phy_get_drvdata(phy);	
-	//bitrate = 680000000;//1228M 60fps
-	bitrate = 750000000;//1188M 60fps
+
+	bitrate = opts->mipi_dphy.hs_clk_rate;//1188M 60fps
+	dev_info(dphy->dev, "%s bitrate = %ld\n", __func__, bitrate);
 
 	sf_dphy_set_reg(dphy->topsys + 0x8, 0x10, 
 					RG_CDTX_L0N_HSTX_RES_SHIFT, RG_CDTX_L0N_HSTX_RES_MASK);
