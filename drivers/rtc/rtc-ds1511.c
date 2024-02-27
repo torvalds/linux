@@ -191,17 +191,13 @@ static void ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
 	unsigned long flags;
 
 	spin_lock_irqsave(&pdata->lock, flags);
-	rtc_write(pdata->alrm_mday < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
+	rtc_write(pdata->alrm_mday < 0 ? 0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
 	       DS1511_AM4_DATE);
-	rtc_write(pdata->alrm_hour < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
+	rtc_write(pdata->alrm_hour < 0 ? 0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
 	       DS1511_AM3_HOUR);
-	rtc_write(pdata->alrm_min < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
+	rtc_write(pdata->alrm_min < 0 ? 0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
 	       DS1511_AM2_MIN);
-	rtc_write(pdata->alrm_sec < 0 || (pdata->irqen & RTC_UF) ?
-	       0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
+	rtc_write(pdata->alrm_sec < 0 ? 0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
 	       DS1511_AM1_SEC);
 	rtc_write(rtc_read(DS1511_CONTROL_B) | (pdata->irqen ? DS1511_TIE : 0), DS1511_CONTROL_B);
 	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
@@ -252,11 +248,7 @@ static irqreturn_t ds1511_interrupt(int irq, void *dev_id)
 	 * read and clear interrupt
 	 */
 	if (rtc_read(DS1511_CONTROL_A) & DS1511_IRQF) {
-		events = RTC_IRQF;
-		if (rtc_read(DS1511_AM1_SEC) & 0x80)
-			events |= RTC_UF;
-		else
-			events |= RTC_AF;
+		events = RTC_IRQF | RTC_AF;
 		rtc_update_irq(pdata->rtc, 1, events);
 	}
 	spin_unlock(&pdata->lock);
