@@ -59,7 +59,7 @@ struct ynl_sock {
 
 /* private: */
 	const struct ynl_family *family;
-	struct mnl_socket *sock;
+	int socket;
 	__u32 seq;
 	__u32 portid;
 	__u16 family_id;

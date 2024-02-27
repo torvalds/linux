@@ -35,6 +35,8 @@ enum ynl_parse_result {
 	YNL_PARSE_CB_OK = 1,
 };
 
+#define YNL_SOCKET_BUFFER_SIZE		(1 << 17)
+
 #define YNL_ARRAY_SIZE(array)	(sizeof(array) ?			\
 				 sizeof(array) / sizeof(array[0]) : 0)
 

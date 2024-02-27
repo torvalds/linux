@@ -3,10 +3,12 @@
 #include <poll.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
 #include <linux/types.h>
-
 #include <libmnl/libmnl.h>
 #include <linux/genetlink.h>
+#include <sys/socket.h>
 
 #include "ynl.h"
 
@@ -464,7 +466,7 @@ static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
 	ssize_t len, rem;
 	int ret;
 
-	len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
+	len = recv(ys->socket, ys->rx_buf, YNL_SOCKET_BUFFER_SIZE, 0);
 	if (len < 0)
 		return len;
 
@@ -596,7 +598,7 @@ static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
 	nlh = ynl_gemsg_start_req(ys, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
 	ynl_attr_put_str(nlh, CTRL_ATTR_FAMILY_NAME, family_name);
 
-	err = mnl_socket_sendto(ys->sock, nlh, nlh->nlmsg_len);
+	err = send(ys->socket, nlh, nlh->nlmsg_len, 0);
 	if (err < 0) {
 		perr(ys, "failed to request socket family info");
 		return err;
@@ -621,38 +623,54 @@ static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
 struct ynl_sock *
 ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 {
+	struct sockaddr_nl addr;
 	struct ynl_sock *ys;
+	socklen_t addrlen;
 	int one = 1;
 
-	ys = malloc(sizeof(*ys) + 2 * MNL_SOCKET_BUFFER_SIZE);
+	ys = malloc(sizeof(*ys) + 2 * YNL_SOCKET_BUFFER_SIZE);
 	if (!ys)
 		return NULL;
 	memset(ys, 0, sizeof(*ys));
 
 	ys->family = yf;
 	ys->tx_buf = &ys->raw_buf[0];
-	ys->rx_buf = &ys->raw_buf[MNL_SOCKET_BUFFER_SIZE];
+	ys->rx_buf = &ys->raw_buf[YNL_SOCKET_BUFFER_SIZE];
 	ys->ntf_last_next = &ys->ntf_first;
 
-	ys->sock = mnl_socket_open(NETLINK_GENERIC);
-	if (!ys->sock) {
+	ys->socket = socket(AF_NETLINK, SOCK_RAW, NETLINK_GENERIC);
+	if (ys->socket < 0) {
 		__perr(yse, "failed to create a netlink socket");
 		goto err_free_sock;
 	}
 
-	if (mnl_socket_setsockopt(ys->sock, NETLINK_CAP_ACK,
-				  &one, sizeof(one))) {
+	if (setsockopt(ys->socket, SOL_NETLINK, NETLINK_CAP_ACK,
+		       &one, sizeof(one))) {
 		__perr(yse, "failed to enable netlink ACK");
 		goto err_close_sock;
 	}
-	if (mnl_socket_setsockopt(ys->sock, NETLINK_EXT_ACK,
-				  &one, sizeof(one))) {
+	if (setsockopt(ys->socket, SOL_NETLINK, NETLINK_EXT_ACK,
+		       &one, sizeof(one))) {
 		__perr(yse, "failed to enable netlink ext ACK");
 		goto err_close_sock;
 	}
 
+	memset(&addr, 0, sizeof(addr));
+	addr.nl_family = AF_NETLINK;
+	if (bind(ys->socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+		__perr(yse, "unable to bind to a socket address");
+		goto err_close_sock;;
+	}
+
+	memset(&addr, 0, sizeof(addr));
+	addrlen = sizeof(addr);
+	if (getsockname(ys->socket, (struct sockaddr *)&addr, &addrlen) < 0) {
+		__perr(yse, "unable to read socket address");
+		goto err_close_sock;;
+	}
+	ys->portid = addr.nl_pid;
 	ys->seq = random();
-	ys->portid = mnl_socket_get_portid(ys->sock);
+
 
 	if (ynl_sock_read_family(ys, yf->name)) {
 		if (yse)
@@ -663,7 +681,7 @@ ynl_sock_create(const struct ynl_family *yf, struct ynl_error *yse)
 	return ys;
 
 err_close_sock:
-	mnl_socket_close(ys->sock);
+	close(ys->socket);
 err_free_sock:
 	free(ys);
 	return NULL;
@@ -673,7 +691,7 @@ void ynl_sock_destroy(struct ynl_sock *ys)
 {
 	struct ynl_ntf_base_type *ntf;
 
-	mnl_socket_close(ys->sock);
+	close(ys->socket);
 	while ((ntf = ynl_ntf_dequeue(ys)))
 		ynl_ntf_free(ntf);
 	free(ys->mcast_groups);
@@ -700,9 +718,9 @@ int ynl_subscribe(struct ynl_sock *ys, const char *grp_name)
 		return -1;
 	}
 
-	err = mnl_socket_setsockopt(ys->sock, NETLINK_ADD_MEMBERSHIP,
-				    &ys->mcast_groups[i].id,
-				    sizeof(ys->mcast_groups[i].id));
+	err = setsockopt(ys->socket, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP,
+			 &ys->mcast_groups[i].id,
+			 sizeof(ys->mcast_groups[i].id));
 	if (err < 0) {
 		perr(ys, "Subscribing to multicast group failed");
 		return -1;
@@ -713,7 +731,7 @@ int ynl_subscribe(struct ynl_sock *ys, const char *grp_name)
 
 int ynl_socket_get_fd(struct ynl_sock *ys)
 {
-	return mnl_socket_get_fd(ys->sock);
+	return ys->socket;
 }
 
 struct ynl_ntf_base_type *ynl_ntf_dequeue(struct ynl_sock *ys)
@@ -785,7 +803,7 @@ int ynl_ntf_check(struct ynl_sock *ys)
 		 */
 		struct pollfd pfd = { };
 
-		pfd.fd = mnl_socket_get_fd(ys->sock);
+		pfd.fd = ys->socket;
 		pfd.events = POLLIN;
 		err = poll(&pfd, 1, 1);
 		if (err < 1)
@@ -851,7 +869,7 @@ int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 {
 	int err;
 
-	err = mnl_socket_sendto(ys->sock, req_nlh, req_nlh->nlmsg_len);
+	err = send(ys->socket, req_nlh, req_nlh->nlmsg_len, 0);
 	if (err < 0)
 		return err;
 
@@ -904,7 +922,7 @@ int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 {
 	int err;
 
-	err = mnl_socket_sendto(ys->sock, req_nlh, req_nlh->nlmsg_len);
+	err = send(ys->socket, req_nlh, req_nlh->nlmsg_len, 0);
 	if (err < 0)
 		return err;
 
