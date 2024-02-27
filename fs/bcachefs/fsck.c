@@ -799,12 +799,9 @@ static int check_inode_deleted_list(struct btree_trans *trans, struct bpos p)
 {
 	struct btree_iter iter;
 	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_deleted_inodes, p, 0);
-	int ret = bkey_err(k);
-	if (ret)
-		return ret;
-
+	int ret = bkey_err(k) ?: k.k->type == KEY_TYPE_set;
 	bch2_trans_iter_exit(trans, &iter);
-	return k.k->type == KEY_TYPE_set;
+	return ret;
 }
 
 static int check_inode(struct btree_trans *trans,
@@ -876,7 +873,7 @@ static int check_inode(struct btree_trans *trans,
 		if (ret < 0)
 			return ret;
 
-		fsck_err_on(ret, c, unlinked_inode_not_on_deleted_list,
+		fsck_err_on(!ret, c, unlinked_inode_not_on_deleted_list,
 			    "inode %llu:%u unlinked, but not on deleted list",
 			    u.bi_inum, k.k->p.snapshot);
 		ret = 0;
