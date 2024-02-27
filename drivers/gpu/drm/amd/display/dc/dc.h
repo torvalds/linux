@@ -991,6 +991,7 @@ struct dc_debug_options {
 	bool disable_dmub_reallow_idle;
 	bool disable_timeout;
 	bool disable_extblankadj;
+	bool enable_idle_reg_checks;
 	unsigned int static_screen_wait_frames;
 	bool force_chroma_subsampling_1tap;
 };
