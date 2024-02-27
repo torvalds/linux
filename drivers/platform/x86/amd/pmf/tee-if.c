@@ -252,15 +252,17 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	cookie = readl(dev->policy_buf + POLICY_COOKIE_OFFSET);
 	length = readl(dev->policy_buf + POLICY_COOKIE_LEN);
 
-	if (cookie != POLICY_SIGN_COOKIE || !length)
+	if (cookie != POLICY_SIGN_COOKIE || !length) {
+		dev_dbg(dev->dev, "cookie doesn't match\n");
 		return -EINVAL;
+	}
 
 	/* Update the actual length */
 	dev->policy_sz = length + 512;
 	res = amd_pmf_invoke_cmd_init(dev);
 	if (res == TA_PMF_TYPE_SUCCESS) {
 		/* Now its safe to announce that smart pc is enabled */
-		dev->smart_pc_enabled = PMF_SMART_PC_ENABLED;
+		dev->smart_pc_enabled = true;
 		/*
 		 * Start collecting the data from TA FW after a small delay
 		 * or else, we might end up getting stale values.
@@ -268,7 +270,7 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 		schedule_delayed_work(&dev->pb_work, msecs_to_jiffies(pb_actions_ms * 3));
 	} else {
 		dev_err(dev->dev, "ta invoke cmd init failed err: %x\n", res);
-		dev->smart_pc_enabled = PMF_SMART_PC_DISABLED;
+		dev->smart_pc_enabled = false;
 		return res;
 	}
 
@@ -335,25 +337,6 @@ static void amd_pmf_open_pb(struct amd_pmf_dev *dev, struct dentry *debugfs_root
 static void amd_pmf_remove_pb(struct amd_pmf_dev *dev) {}
 static void amd_pmf_hex_dump_pb(struct amd_pmf_dev *dev) {}
 #endif
-
-static int amd_pmf_get_bios_buffer(struct amd_pmf_dev *dev)
-{
-	dev->policy_buf = kzalloc(dev->policy_sz, GFP_KERNEL);
-	if (!dev->policy_buf)
-		return -ENOMEM;
-
-	dev->policy_base = devm_ioremap(dev->dev, dev->policy_addr, dev->policy_sz);
-	if (!dev->policy_base)
-		return -ENOMEM;
-
-	memcpy(dev->policy_buf, dev->policy_base, dev->policy_sz);
-
-	amd_pmf_hex_dump_pb(dev);
-	if (pb_side_load)
-		amd_pmf_open_pb(dev, dev->dbgfs_dir);
-
-	return amd_pmf_start_policy_engine(dev);
-}
 
 static int amd_pmf_amdtee_ta_match(struct tee_ioctl_version_data *ver, const void *data)
 {
@@ -453,22 +436,57 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 		return ret;
 
 	INIT_DELAYED_WORK(&dev->pb_work, amd_pmf_invoke_cmd);
-	amd_pmf_set_dram_addr(dev, true);
-	amd_pmf_get_bios_buffer(dev);
+
+	ret = amd_pmf_set_dram_addr(dev, true);
+	if (ret)
+		goto error;
+
+	dev->policy_base = devm_ioremap(dev->dev, dev->policy_addr, dev->policy_sz);
+	if (!dev->policy_base) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	dev->policy_buf = kzalloc(dev->policy_sz, GFP_KERNEL);
+	if (!dev->policy_buf) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	memcpy(dev->policy_buf, dev->policy_base, dev->policy_sz);
+
+	amd_pmf_hex_dump_pb(dev);
+
 	dev->prev_data = kzalloc(sizeof(*dev->prev_data), GFP_KERNEL);
 	if (!dev->prev_data)
-		return -ENOMEM;
+		goto error;
 
-	return dev->smart_pc_enabled;
+	ret = amd_pmf_start_policy_engine(dev);
+	if (ret)
+		goto error;
+
+	if (pb_side_load)
+		amd_pmf_open_pb(dev, dev->dbgfs_dir);
+
+	return 0;
+
+error:
+	amd_pmf_deinit_smart_pc(dev);
+
+	return ret;
 }
 
 void amd_pmf_deinit_smart_pc(struct amd_pmf_dev *dev)
 {
-	if (pb_side_load)
+	if (pb_side_load && dev->esbin)
 		amd_pmf_remove_pb(dev);
 
-	kfree(dev->prev_data);
-	kfree(dev->policy_buf);
 	cancel_delayed_work_sync(&dev->pb_work);
+	kfree(dev->prev_data);
+	dev->prev_data = NULL;
+	kfree(dev->policy_buf);
+	dev->policy_buf = NULL;
+	kfree(dev->buf);
+	dev->buf = NULL;
 	amd_pmf_tee_deinit(dev);
 }
