@@ -1354,8 +1354,8 @@ thermal_zone_device_register_with_trips(const char *type,
 
 	tz->device.class = thermal_class;
 	tz->devdata = devdata;
-	memcpy(tz->trips, trips, num_trips * sizeof(*trips));
 	tz->num_trips = num_trips;
+	memcpy(tz->trips, trips, num_trips * sizeof(*trips));
 
 	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);
 	thermal_set_delay_jiffies(&tz->polling_delay_jiffies, polling_delay);
