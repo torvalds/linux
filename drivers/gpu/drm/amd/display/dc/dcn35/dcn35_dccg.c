@@ -146,8 +146,8 @@ static void dccg35_set_dppclk_root_clock_gating(struct dccg *dccg,
 static void dccg35_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
-		uint32_t *k1,
-		uint32_t *k2)
+		enum pixel_rate_div *k1,
+		enum pixel_rate_div *k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	uint32_t val_k1 = PIXEL_RATE_DIV_NA, val_k2 = PIXEL_RATE_DIV_NA;
@@ -192,8 +192,7 @@ static void dccg35_set_pixel_rate_div(
 		enum pixel_rate_div k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-	uint32_t cur_k1 = PIXEL_RATE_DIV_NA;
-	uint32_t cur_k2 = PIXEL_RATE_DIV_NA;
+	enum pixel_rate_div cur_k1 = PIXEL_RATE_DIV_NA, cur_k2 = PIXEL_RATE_DIV_NA;
 
 	// Don't program 0xF into the register field. Not valid since
 	// K1 / K2 field is only 1 / 2 bits wide
@@ -1019,7 +1018,6 @@ static const struct dccg_funcs dccg35_funcs = {
 	.disable_dsc = dccg35_disable_dscclk,
 	.enable_dsc = dccg35_enable_dscclk,
 	.set_pixel_rate_div = dccg35_set_pixel_rate_div,
-	.get_pixel_rate_div = dccg35_get_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg35_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg35_set_valid_pixel_rate,
 	.enable_symclk_se = dccg35_enable_symclk_se,

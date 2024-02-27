@@ -332,29 +332,6 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 	return odm_combine_factor;
 }
 
-void dcn314_calculate_pix_rate_divider(
-		struct dc *dc,
-		struct dc_state *context,
-		const struct dc_stream_state *stream)
-{
-	struct dce_hwseq *hws = dc->hwseq;
-	struct pipe_ctx *pipe_ctx = NULL;
-	unsigned int k1_div = PIXEL_RATE_DIV_NA;
-	unsigned int k2_div = PIXEL_RATE_DIV_NA;
-
-	pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
-
-	if (pipe_ctx) {
-		pipe_ctx->pixel_per_cycle = 1;
-
-		if (hws->funcs.calculate_dccg_k1_k2_values)
-			hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
-
-		pipe_ctx->pixel_rate_divider.div_factor1 = k1_div;
-		pipe_ctx->pixel_rate_divider.div_factor2 = k2_div;
-	}
-}
-
 void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 {
 	uint32_t pix_per_cycle = 1;

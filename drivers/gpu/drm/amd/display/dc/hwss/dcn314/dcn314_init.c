@@ -152,7 +152,6 @@ static const struct hwseq_private_funcs dcn314_private_funcs = {
 	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
 	.setup_hpo_hw_control = dcn31_setup_hpo_hw_control,
 	.calculate_dccg_k1_k2_values = dcn314_calculate_dccg_k1_k2_values,
-	.calculate_pix_rate_divider = dcn314_calculate_pix_rate_divider,
 	.set_pixels_per_cycle = dcn314_set_pixels_per_cycle,
 	.resync_fifo_dccg_dio = dcn314_resync_fifo_dccg_dio,
 };

@@ -49,7 +49,6 @@
 #include "link/hwss/link_hwss_hpo_dp.h"
 #include "link/hwss/link_hwss_dio_fixed_vs_pe_retimer.h"
 #include "link/hwss/link_hwss_hpo_fixed_vs_pe_retimer_dp.h"
-#include "hw_sequencer_private.h"
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
 #include "dce60/dce60_resource.h"
@@ -3902,9 +3901,6 @@ enum dc_status dc_validate_with_context(struct dc *dc,
 		res = dc_state_add_stream(dc, context, add_streams[i]);
 		if (res != DC_OK)
 			goto fail;
-
-		if (dc->hwseq->funcs.calculate_pix_rate_divider)
-			dc->hwseq->funcs.calculate_pix_rate_divider(dc, context, add_streams[i]);
 
 		if (!add_all_planes_for_stream(dc, add_streams[i], set, set_count, context)) {
 			res = DC_FAIL_ATTACH_SURFACES;

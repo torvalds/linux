@@ -177,9 +177,6 @@ struct hwseq_private_funcs {
 			struct dc_state *context,
 			struct dc *dc);
 	bool (*is_dp_dig_pixel_rate_div_policy)(struct pipe_ctx *pipe_ctx);
-	void (*calculate_pix_rate_divider)(struct dc *dc,
-			struct dc_state *context,
-			const struct dc_stream_state *stream);
 	void (*reset_back_end_for_pipe)(struct dc *dc,
 			struct pipe_ctx *pipe_ctx,
 			struct dc_state *context);

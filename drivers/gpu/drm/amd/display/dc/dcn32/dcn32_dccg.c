@@ -58,8 +58,8 @@ static void dccg32_trigger_dio_fifo_resync(
 static void dccg32_get_pixel_rate_div(
 		struct dccg *dccg,
 		uint32_t otg_inst,
-		uint32_t *k1,
-		uint32_t *k2)
+		enum pixel_rate_div *k1,
+		enum pixel_rate_div *k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 	uint32_t val_k1 = PIXEL_RATE_DIV_NA, val_k2 = PIXEL_RATE_DIV_NA;
@@ -93,8 +93,8 @@ static void dccg32_get_pixel_rate_div(
 		return;
 	}
 
-	*k1 = val_k1;
-	*k2 = val_k2;
+	*k1 = (enum pixel_rate_div)val_k1;
+	*k2 = (enum pixel_rate_div)val_k2;
 }
 
 static void dccg32_set_pixel_rate_div(
@@ -104,8 +104,7 @@ static void dccg32_set_pixel_rate_div(
 		enum pixel_rate_div k2)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
-	uint32_t cur_k1 = PIXEL_RATE_DIV_NA;
-	uint32_t cur_k2 = PIXEL_RATE_DIV_NA;
+	enum pixel_rate_div cur_k1 = PIXEL_RATE_DIV_NA, cur_k2 = PIXEL_RATE_DIV_NA;
 
 	// Don't program 0xF into the register field. Not valid since
 	// K1 / K2 field is only 1 / 2 bits wide
@@ -344,7 +343,6 @@ static const struct dccg_funcs dccg32_funcs = {
 	.otg_add_pixel = dccg32_otg_add_pixel,
 	.otg_drop_pixel = dccg32_otg_drop_pixel,
 	.set_pixel_rate_div = dccg32_set_pixel_rate_div,
-	.get_pixel_rate_div = dccg32_get_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg32_trigger_dio_fifo_resync,
 	.set_dtbclk_p_src = dccg32_set_dtbclk_p_src,
 };
