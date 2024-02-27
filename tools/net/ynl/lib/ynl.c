@@ -864,7 +864,7 @@ static int ynl_dump_trampoline(const struct nlmsghdr *nlh, void *data)
 	struct ynl_parse_arg yarg = {};
 	int ret;
 
-	ret = ynl_check_alien(ds->ys, nlh, ds->rsp_cmd);
+	ret = ynl_check_alien(ds->yarg.ys, nlh, ds->rsp_cmd);
 	if (ret)
 		return ret < 0 ? MNL_CB_ERROR : MNL_CB_OK;
 
@@ -878,8 +878,7 @@ static int ynl_dump_trampoline(const struct nlmsghdr *nlh, void *data)
 		ds->last->next = obj;
 	ds->last = obj;
 
-	yarg.ys = ds->ys;
-	yarg.rsp_policy = ds->rsp_policy;
+	yarg = ds->yarg;
 	yarg.data = &obj->data;
 
 	return ds->cb(nlh, &yarg);

@@ -104,8 +104,7 @@ struct ynl_req_state {
 };
 
 struct ynl_dump_state {
-	struct ynl_sock *ys;
-	struct ynl_policy_nest *rsp_policy;
+	struct ynl_parse_arg yarg;
 	void *first;
 	struct ynl_dump_list_type *last;
 	size_t alloc_sz;
