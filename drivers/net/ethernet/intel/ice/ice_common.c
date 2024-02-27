@@ -4379,14 +4379,11 @@ static void ice_pack_ctx_byte(u8 *src_ctx, u8 *dest_ctx,
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-	mask = (u8)(BIT(ce_info->width) - 1);
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	src_byte = *from;
-	src_byte &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_byte <<= shift_width;
+	src_byte &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4419,17 +4416,14 @@ static void ice_pack_ctx_word(u8 *src_ctx, u8 *dest_ctx,
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-	mask = BIT(ce_info->width) - 1;
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_word = *(u16 *)from;
-	src_word &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_word <<= shift_width;
+	src_word &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4462,25 +4456,14 @@ static void ice_pack_ctx_dword(u8 *src_ctx, u8 *dest_ctx,
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-
-	/* if the field width is exactly 32 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 5 bits so the shift will do nothing
-	 */
-	if (ce_info->width < 32)
-		mask = BIT(ce_info->width) - 1;
-	else
-		mask = (u32)~0;
+	mask = GENMASK(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_dword = *(u32 *)from;
-	src_dword &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_dword <<= shift_width;
+	src_dword &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
@@ -4513,25 +4496,14 @@ static void ice_pack_ctx_qword(u8 *src_ctx, u8 *dest_ctx,
 
 	/* prepare the bits and mask */
 	shift_width = ce_info->lsb % 8;
-
-	/* if the field width is exactly 64 on an x86 machine, then the shift
-	 * operation will not work because the SHL instructions count is masked
-	 * to 6 bits so the shift will do nothing
-	 */
-	if (ce_info->width < 64)
-		mask = BIT_ULL(ce_info->width) - 1;
-	else
-		mask = (u64)~0;
+	mask = GENMASK_ULL(ce_info->width - 1 + shift_width, shift_width);
 
 	/* don't swizzle the bits until after the mask because the mask bits
 	 * will be in a different bit position on big endian machines
 	 */
 	src_qword = *(u64 *)from;
-	src_qword &= mask;
-
-	/* shift to correct alignment */
-	mask <<= shift_width;
 	src_qword <<= shift_width;
+	src_qword &= mask;
 
 	/* get the current bits from the target bit string */
 	dest = dest_ctx + (ce_info->lsb / 8);
