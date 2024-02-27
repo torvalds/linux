@@ -64,7 +64,7 @@ config RISCV
 	select ARCH_WANTS_THP_SWAP if HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select BINFMT_FLAT_NO_DATA_START_OFFSET if !MMU
 	select BUILDTIME_TABLE_SORT if MMU
-	select CLINT_TIMER if !MMU
+	select CLINT_TIMER if RISCV_M_MODE
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select CPU_PM if CPU_IDLE || HIBERNATION || SUSPEND
@@ -220,8 +220,12 @@ config ARCH_MMAP_RND_COMPAT_BITS_MAX
 
 # set if we run in machine mode, cleared if we run in supervisor mode
 config RISCV_M_MODE
-	bool
-	default !MMU
+	bool "Build a kernel that runs in machine mode"
+	depends on !MMU
+	default y
+	help
+	  Select this option if you want to run the kernel in M-mode,
+	  without the assistance of any other firmware.
 
 # set if we are running in S-mode and can use SBI calls
 config RISCV_SBI
@@ -238,8 +242,9 @@ config MMU
 
 config PAGE_OFFSET
 	hex
-	default 0xC0000000 if 32BIT && MMU
-	default 0x80000000 if !MMU
+	default 0x80000000 if !MMU && RISCV_M_MODE
+	default 0x80200000 if !MMU
+	default 0xc0000000 if 32BIT
 	default 0xff60000000000000 if 64BIT
 
 config KASAN_SHADOW_OFFSET
