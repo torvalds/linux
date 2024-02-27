@@ -90,12 +90,14 @@ static int __init aspeed_intc_ic_of_init(struct device_node *node,
 
 	intc_ic->base = of_iomap(node, 0);
 	if (!intc_ic->base) {
+		pr_err("Failed to iomap intc_ic base\n");
 		ret = -ENOMEM;
 		goto err_free_ic;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (!irq) {
+		pr_err("Failed to get irq number\n");
 		ret = -EINVAL;
 		goto err_iounmap;
 	}
@@ -122,4 +124,53 @@ err_free_ic:
 	return ret;
 }
 
+static int __init aspeed_intc_ic_of_init_v2(struct device_node *node,
+					    struct device_node *parent)
+{
+	struct aspeed_intc_ic *intc_ic;
+	int ret = 0;
+	int irq, i;
+
+	intc_ic = kzalloc(sizeof(*intc_ic), GFP_KERNEL);
+	if (!intc_ic)
+		return -ENOMEM;
+
+	intc_ic->base = of_iomap(node, 0);
+	if (!intc_ic->base) {
+		pr_err("Failed to iomap intc_ic base\n");
+		ret = -ENOMEM;
+		goto err_free_ic;
+	}
+
+	intc_ic->irq_domain = irq_domain_add_linear(node, 32,
+						    &aspeed_intc_ic_irq_domain_ops,
+						    intc_ic);
+	if (!intc_ic->irq_domain) {
+		ret = -ENOMEM;
+		goto err_iounmap;
+	}
+
+	intc_ic->irq_domain->name = "aspeed-intc-domain";
+
+	for (i = 0; i < of_irq_count(node); i++) {
+		irq = irq_of_parse_and_map(node, i);
+		if (!irq) {
+			pr_err("Failed to get irq number\n");
+			ret = -EINVAL;
+			goto err_iounmap;
+		} else {
+			irq_set_chained_handler_and_data(irq, aspeed_intc_ic_irq_handler, intc_ic);
+		}
+	}
+
+	return 0;
+
+err_iounmap:
+	iounmap(intc_ic->base);
+err_free_ic:
+	kfree(intc_ic);
+	return ret;
+}
+
 IRQCHIP_DECLARE(ast2700_intc_ic, "aspeed,ast2700-intc-ic", aspeed_intc_ic_of_init);
+IRQCHIP_DECLARE(ast2700_intc_icv2, "aspeed,ast2700-intc-icv2", aspeed_intc_ic_of_init_v2);
