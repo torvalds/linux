@@ -6653,7 +6653,7 @@ static void amdgpu_dm_connector_funcs_force(struct drm_connector *connector)
 	struct edid *edid;
 	struct i2c_adapter *ddc;
 
-	if (dc_link->aux_mode)
+	if (dc_link && dc_link->aux_mode)
 		ddc = &aconnector->dm_dp_aux.aux.ddc;
 	else
 		ddc = &aconnector->i2c->base;
