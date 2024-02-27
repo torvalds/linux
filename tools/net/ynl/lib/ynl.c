@@ -255,10 +255,10 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 	return MNL_CB_OK;
 }
 
-static int ynl_cb_error(const struct nlmsghdr *nlh, void *data)
+static int
+ynl_cb_error(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 {
 	const struct nlmsgerr *err = ynl_nlmsg_data(nlh);
-	struct ynl_parse_arg *yarg = data;
 	unsigned int hlen;
 	int code;
 
@@ -275,9 +275,8 @@ static int ynl_cb_error(const struct nlmsghdr *nlh, void *data)
 	return code ? MNL_CB_ERROR : MNL_CB_STOP;
 }
 
-static int ynl_cb_done(const struct nlmsghdr *nlh, void *data)
+static int ynl_cb_done(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 {
-	struct ynl_parse_arg *yarg = data;
 	int err;
 
 	err = *(int *)NLMSG_DATA(nlh);
@@ -291,18 +290,6 @@ static int ynl_cb_done(const struct nlmsghdr *nlh, void *data)
 	}
 	return MNL_CB_STOP;
 }
-
-static int ynl_cb_noop(const struct nlmsghdr *nlh, void *data)
-{
-	return MNL_CB_OK;
-}
-
-static mnl_cb_t ynl_cb_array[NLMSG_MIN_TYPE] = {
-	[NLMSG_NOOP]	= ynl_cb_noop,
-	[NLMSG_ERROR]	= ynl_cb_error,
-	[NLMSG_DONE]	= ynl_cb_done,
-	[NLMSG_OVERRUN]	= ynl_cb_noop,
-};
 
 /* Attribute validation */
 
@@ -475,14 +462,52 @@ static int ynl_cb_null(const struct nlmsghdr *nlh, void *data)
 static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, mnl_cb_t cb)
 {
 	struct ynl_sock *ys = yarg->ys;
-	ssize_t len;
+	const struct nlmsghdr *nlh;
+	ssize_t len, rem;
+	int ret;
 
 	len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
 	if (len < 0)
 		return len;
 
-	return mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,
-			   cb, yarg, ynl_cb_array, NLMSG_MIN_TYPE);
+	ret = MNL_CB_STOP;
+	for (rem = len; rem > 0; NLMSG_NEXT(nlh, rem)) {
+		nlh = (struct nlmsghdr *)&ys->rx_buf[len - rem];
+		if (!NLMSG_OK(nlh, rem)) {
+			yerr(yarg->ys, YNL_ERROR_INV_RESP,
+			     "Invalid message or trailing data in the response.");
+			return MNL_CB_ERROR;
+		}
+
+		if (nlh->nlmsg_flags & NLM_F_DUMP_INTR) {
+			/* TODO: handle this better */
+			yerr(yarg->ys, YNL_ERROR_DUMP_INTER,
+			     "Dump interrupted / inconsistent, please retry.");
+			return MNL_CB_ERROR;
+		}
+
+		switch (nlh->nlmsg_type) {
+		case 0:
+			yerr(yarg->ys, YNL_ERROR_INV_RESP,
+			     "Invalid message type in the response.");
+			return MNL_CB_ERROR;
+		case NLMSG_NOOP:
+		case NLMSG_OVERRUN ... NLMSG_MIN_TYPE - 1:
+			ret = MNL_CB_OK;
+			break;
+		case NLMSG_ERROR:
+			ret = ynl_cb_error(nlh, yarg);
+			break;
+		case NLMSG_DONE:
+			ret = ynl_cb_done(nlh, yarg);
+			break;
+		default:
+			ret = cb(nlh, yarg);
+			break;
+		}
+	}
+
+	return ret;
 }
 
 static int ynl_recv_ack(struct ynl_sock *ys, int ret)
