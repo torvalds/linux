@@ -3431,7 +3431,8 @@ static void *idregs_debug_start(struct seq_file *s, loff_t *pos)
 	mutex_lock(&kvm->arch.config_lock);
 
 	iter = &kvm->arch.idreg_debugfs_iter;
-	if (*iter == (u8)~0) {
+	if (test_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags) &&
+	    *iter == (u8)~0) {
 		*iter = *pos;
 		if (*iter >= KVM_ARM_ID_REG_NUM)
 			iter = NULL;
