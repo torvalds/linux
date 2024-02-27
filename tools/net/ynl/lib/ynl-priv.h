@@ -125,20 +125,47 @@ int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd);
 int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
-#ifndef MNL_HAS_AUTO_SCALARS
-static inline uint64_t mnl_attr_get_uint(const struct nlattr *attr)
+/* Attribute helpers */
+
+static inline __u64 mnl_attr_get_uint(const struct nlattr *attr)
 {
-	if (mnl_attr_get_payload_len(attr) == 4)
+	switch (mnl_attr_get_payload_len(attr)) {
+	case 4:
 		return mnl_attr_get_u32(attr);
-	return mnl_attr_get_u64(attr);
+	case 8:
+		return mnl_attr_get_u64(attr);
+	default:
+		return 0;
+	}
+}
+
+static inline __s64 mnl_attr_get_sint(const struct nlattr *attr)
+{
+	switch (mnl_attr_get_payload_len(attr)) {
+	case 4:
+		return mnl_attr_get_u32(attr);
+	case 8:
+		return mnl_attr_get_u64(attr);
+	default:
+		return 0;
+	}
 }
 
 static inline void
-mnl_attr_put_uint(struct nlmsghdr *nlh, uint16_t type, uint64_t data)
+mnl_attr_put_uint(struct nlmsghdr *nlh, __u16 type, __u64 data)
 {
-	if ((uint32_t)data == (uint64_t)data)
-		return mnl_attr_put_u32(nlh, type, data);
-	return mnl_attr_put_u64(nlh, type, data);
+	if ((__u32)data == (__u64)data)
+		mnl_attr_put_u32(nlh, type, data);
+	else
+		mnl_attr_put_u64(nlh, type, data);
 }
-#endif
+
+static inline void
+mnl_attr_put_sint(struct nlmsghdr *nlh, __u16 type, __s64 data)
+{
+	if ((__s32)data == (__s64)data)
+		mnl_attr_put_u32(nlh, type, data);
+	else
+		mnl_attr_put_u64(nlh, type, data);
+}
 #endif
