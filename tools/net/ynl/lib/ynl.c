@@ -449,17 +449,15 @@ ynl_gemsg_start_dump(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version)
 			       cmd, version);
 }
 
-static int ynl_cb_null(const struct nlmsghdr *nlh, void *data)
+static int ynl_cb_null(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 {
-	struct ynl_parse_arg *yarg = data;
-
 	yerr(yarg->ys, YNL_ERROR_UNEXPECT_MSG,
 	     "Received a message when none were expected");
 
 	return MNL_CB_ERROR;
 }
 
-static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, mnl_cb_t cb)
+static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
 {
 	struct ynl_sock *ys = yarg->ys;
 	const struct nlmsghdr *nlh;
@@ -558,9 +556,9 @@ ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
 	return 0;
 }
 
-static int ynl_get_family_info_cb(const struct nlmsghdr *nlh, void *data)
+static int
+ynl_get_family_info_cb(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 {
-	struct ynl_parse_arg *yarg = data;
 	struct ynl_sock *ys = yarg->ys;
 	const struct nlattr *attr;
 	bool found_id = true;
@@ -770,10 +768,9 @@ err_free:
 	return MNL_CB_ERROR;
 }
 
-static int ynl_ntf_trampoline(const struct nlmsghdr *nlh, void *data)
+static int
+ynl_ntf_trampoline(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 {
-	struct ynl_parse_arg *yarg = data;
-
 	return ynl_ntf_parse(yarg->ys, nlh);
 }
 
@@ -836,9 +833,10 @@ ynl_check_alien(struct ynl_sock *ys, const struct nlmsghdr *nlh, __u32 rsp_cmd)
 	return 0;
 }
 
-static int ynl_req_trampoline(const struct nlmsghdr *nlh, void *data)
+static
+int ynl_req_trampoline(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 {
-	struct ynl_req_state *yrs = data;
+	struct ynl_req_state *yrs = (void *)yarg;
 	int ret;
 
 	ret = ynl_check_alien(yrs->yarg.ys, nlh, yrs->rsp_cmd);
@@ -864,9 +862,10 @@ int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 	return err;
 }
 
-static int ynl_dump_trampoline(const struct nlmsghdr *nlh, void *data)
+static int
+ynl_dump_trampoline(const struct nlmsghdr *nlh, struct ynl_parse_arg *data)
 {
-	struct ynl_dump_state *ds = data;
+	struct ynl_dump_state *ds = (void *)data;
 	struct ynl_dump_list_type *obj;
 	struct ynl_parse_arg yarg = {};
 	int ret;

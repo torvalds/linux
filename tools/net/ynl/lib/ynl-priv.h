@@ -6,6 +6,8 @@
 #include <libmnl/libmnl.h>
 #include <linux/types.h>
 
+struct ynl_parse_arg;
+
 /*
  * YNL internals / low level stuff
  */
@@ -29,6 +31,9 @@ enum ynl_policy_type {
 
 #define YNL_ARRAY_SIZE(array)	(sizeof(array) ?			\
 				 sizeof(array) / sizeof(array[0]) : 0)
+
+typedef int (*ynl_parse_cb_t)(const struct nlmsghdr *nlh,
+			      struct ynl_parse_arg *yarg);
 
 struct ynl_policy_attr {
 	enum ynl_policy_type type;
@@ -94,7 +99,7 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr);
 
 struct ynl_req_state {
 	struct ynl_parse_arg yarg;
-	mnl_cb_t cb;
+	ynl_parse_cb_t cb;
 	__u32 rsp_cmd;
 };
 
@@ -103,13 +108,13 @@ struct ynl_dump_state {
 	void *first;
 	struct ynl_dump_list_type *last;
 	size_t alloc_sz;
-	mnl_cb_t cb;
+	ynl_parse_cb_t cb;
 	__u32 rsp_cmd;
 };
 
 struct ynl_ntf_info {
 	struct ynl_policy_nest *policy;
-	mnl_cb_t cb;
+	ynl_parse_cb_t cb;
 	size_t alloc_sz;
 	void (*free)(struct ynl_ntf_base_type *ntf);
 };
