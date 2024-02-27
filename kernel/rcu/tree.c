@@ -240,8 +240,36 @@ static long rcu_get_n_cbs_cpu(int cpu)
 	return 0;
 }
 
+/**
+ * rcu_softirq_qs - Provide a set of RCU quiescent states in softirq processing
+ *
+ * Mark a quiescent state for RCU, Tasks RCU, and Tasks Trace RCU.
+ * This is a special-purpose function to be used in the softirq
+ * infrastructure and perhaps the occasional long-running softirq
+ * handler.
+ *
+ * Note that from RCU's viewpoint, a call to rcu_softirq_qs() is
+ * equivalent to momentarily completely enabling preemption.  For
+ * example, given this code::
+ *
+ *	local_bh_disable();
+ *	do_something();
+ *	rcu_softirq_qs();  // A
+ *	do_something_else();
+ *	local_bh_enable();  // B
+ *
+ * A call to synchronize_rcu() that began concurrently with the
+ * call to do_something() would be guaranteed to wait only until
+ * execution reached statement A.  Without that rcu_softirq_qs(),
+ * that same synchronize_rcu() would instead be guaranteed to wait
+ * until execution reached statement B.
+ */
 void rcu_softirq_qs(void)
 {
+	RCU_LOCKDEP_WARN(lock_is_held(&rcu_bh_lock_map) ||
+			 lock_is_held(&rcu_lock_map) ||
+			 lock_is_held(&rcu_sched_lock_map),
+			 "Illegal rcu_softirq_qs() in RCU read-side critical section");
 	rcu_qs();
 	rcu_preempt_deferred_qs(current);
 	rcu_tasks_qs(current, false);
