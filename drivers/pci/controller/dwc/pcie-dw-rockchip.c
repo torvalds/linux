@@ -225,11 +225,15 @@ static int rockchip_pcie_clk_init(struct rockchip_pcie *rockchip)
 
 	ret = devm_clk_bulk_get_all(dev, &rockchip->clks);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(dev, ret, "failed to get clocks\n");
 
 	rockchip->clk_cnt = ret;
 
-	return clk_bulk_prepare_enable(rockchip->clk_cnt, rockchip->clks);
+	ret = clk_bulk_prepare_enable(rockchip->clk_cnt, rockchip->clks);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to enable clocks\n");
+
+	return 0;
 }
 
 static int rockchip_pcie_resource_get(struct platform_device *pdev,
@@ -237,12 +241,14 @@ static int rockchip_pcie_resource_get(struct platform_device *pdev,
 {
 	rockchip->apb_base = devm_platform_ioremap_resource_byname(pdev, "apb");
 	if (IS_ERR(rockchip->apb_base))
-		return PTR_ERR(rockchip->apb_base);
+		return dev_err_probe(&pdev->dev, PTR_ERR(rockchip->apb_base),
+				     "failed to map apb registers\n");
 
 	rockchip->rst_gpio = devm_gpiod_get_optional(&pdev->dev, "reset",
 						     GPIOD_OUT_HIGH);
 	if (IS_ERR(rockchip->rst_gpio))
-		return PTR_ERR(rockchip->rst_gpio);
+		return dev_err_probe(&pdev->dev, PTR_ERR(rockchip->rst_gpio),
+				     "failed to get reset gpio\n");
 
 	rockchip->rst = devm_reset_control_array_get_exclusive(&pdev->dev);
 	if (IS_ERR(rockchip->rst))
@@ -320,10 +326,9 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 		rockchip->vpcie3v3 = NULL;
 	} else {
 		ret = regulator_enable(rockchip->vpcie3v3);
-		if (ret) {
-			dev_err(dev, "failed to enable vpcie3v3 regulator\n");
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "failed to enable vpcie3v3 regulator\n");
 	}
 
 	ret = rockchip_pcie_phy_init(rockchip);
