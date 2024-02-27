@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2022, 2023 Jianhua Lu <lujianhua000@gmail.com>
+ * Copyright (c) 2022-2024 Jianhua Lu <lujianhua000@gmail.com>
  */
 
 #include <dt-bindings/arm/qcom,ids.h>
@@ -551,6 +551,7 @@
 		vddio-supply = <&vreg_l14a_1p88>;
 		reset-gpios = <&tlmm 75 GPIO_ACTIVE_LOW>;
 		backlight = <&backlight>;
+		rotation = <90>;
 
 		status = "disabled";
 
