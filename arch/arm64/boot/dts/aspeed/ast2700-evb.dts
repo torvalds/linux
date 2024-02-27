@@ -709,6 +709,7 @@
 &ufs {
 	status = "okay";
 	lanes-per-direction = <2>;
+	ref-clk-freq = <26000000>;
 };
 
 &chassis {
