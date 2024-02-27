@@ -3499,6 +3499,14 @@ static const struct seq_operations idregs_debug_sops = {
 
 DEFINE_SEQ_ATTRIBUTE(idregs_debug);
 
+void kvm_sys_regs_create_debugfs(struct kvm *kvm)
+{
+	kvm->arch.idreg_debugfs_iter = ~0;
+
+	debugfs_create_file("idregs", 0444, kvm->debugfs_dentry, kvm,
+			    &idregs_debug_fops);
+}
+
 static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
 {
 	const struct sys_reg_desc *idreg = first_idreg;
@@ -3517,11 +3525,6 @@ static void kvm_reset_id_regs(struct kvm_vcpu *vcpu)
 		idreg++;
 		id = reg_to_encoding(idreg);
 	}
-
-	kvm->arch.idreg_debugfs_iter = ~0;
-
-	debugfs_create_file("idregs", 0444, kvm->debugfs_dentry, kvm,
-			    &idregs_debug_fops);
 
 	set_bit(KVM_ARCH_FLAG_ID_REGS_INITIALIZED, &kvm->arch.flags);
 }
