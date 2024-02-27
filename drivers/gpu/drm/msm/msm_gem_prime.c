@@ -53,11 +53,9 @@ int msm_gem_prime_pin(struct drm_gem_object *obj)
 	if (obj->import_attach)
 		return 0;
 
-	msm_gem_lock(obj);
 	pages = msm_gem_pin_pages_locked(obj);
 	if (IS_ERR(pages))
 		ret = PTR_ERR(pages);
-	msm_gem_unlock(obj);
 
 	return ret;
 }
@@ -67,7 +65,5 @@ void msm_gem_prime_unpin(struct drm_gem_object *obj)
 	if (obj->import_attach)
 		return;
 
-	msm_gem_lock(obj);
 	msm_gem_unpin_pages_locked(obj);
-	msm_gem_unlock(obj);
 }

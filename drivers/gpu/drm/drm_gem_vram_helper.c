@@ -774,11 +774,6 @@ EXPORT_SYMBOL(drm_gem_vram_simple_display_pipe_cleanup_fb);
 static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
-	int ret;
-
-	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret)
-		return ret;
 
 	/*
 	 * Fbdev console emulation is the use case of these PRIME
@@ -789,10 +784,7 @@ static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 	 * the buffer to be pinned to VRAM, implement a callback that
 	 * sets the flags accordingly.
 	 */
-	ret = drm_gem_vram_pin_locked(gbo, 0);
-	ttm_bo_unreserve(&gbo->bo);
-
-	return ret;
+	return drm_gem_vram_pin_locked(gbo, 0);
 }
 
 /**
@@ -803,13 +795,8 @@ static int drm_gem_vram_object_pin(struct drm_gem_object *gem)
 static void drm_gem_vram_object_unpin(struct drm_gem_object *gem)
 {
 	struct drm_gem_vram_object *gbo = drm_gem_vram_of_gem(gem);
-	int ret;
 
-	ret = ttm_bo_reserve(&gbo->bo, true, false, NULL);
-	if (ret)
-		return;
 	drm_gem_vram_unpin_locked(gbo);
-	ttm_bo_unreserve(&gbo->bo);
 }
 
 /**

@@ -31,27 +31,15 @@
 int qxl_gem_prime_pin(struct drm_gem_object *obj)
 {
 	struct qxl_bo *bo = gem_to_qxl_bo(obj);
-	int r;
 
-	r = qxl_bo_reserve(bo);
-	if (r)
-		return r;
-	r = qxl_bo_pin_locked(bo);
-	qxl_bo_unreserve(bo);
-
-	return r;
+	return qxl_bo_pin_locked(bo);
 }
 
 void qxl_gem_prime_unpin(struct drm_gem_object *obj)
 {
 	struct qxl_bo *bo = gem_to_qxl_bo(obj);
-	int r;
 
-	r = qxl_bo_reserve(bo);
-	if (r)
-		return;
 	qxl_bo_unpin_locked(bo);
-	qxl_bo_unreserve(bo);
 }
 
 struct sg_table *qxl_gem_prime_get_sg_table(struct drm_gem_object *obj)
