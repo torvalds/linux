@@ -1623,9 +1623,8 @@ static int snd_pcm_oss_sync1(struct snd_pcm_substream *substream, size_t size)
 			break;
 		result = 0;
 		set_current_state(TASK_INTERRUPTIBLE);
-		snd_pcm_stream_lock_irq(substream);
-		state = runtime->state;
-		snd_pcm_stream_unlock_irq(substream);
+		scoped_guard(pcm_stream_lock_irq, substream)
+			state = runtime->state;
 		if (state != SNDRV_PCM_STATE_RUNNING) {
 			set_current_state(TASK_RUNNING);
 			break;
@@ -2840,23 +2839,23 @@ static __poll_t snd_pcm_oss_poll(struct file *file, poll_table * wait)
 	if (psubstream != NULL) {
 		struct snd_pcm_runtime *runtime = psubstream->runtime;
 		poll_wait(file, &runtime->sleep, wait);
-		snd_pcm_stream_lock_irq(psubstream);
-		if (runtime->state != SNDRV_PCM_STATE_DRAINING &&
-		    (runtime->state != SNDRV_PCM_STATE_RUNNING ||
-		     snd_pcm_oss_playback_ready(psubstream)))
-			mask |= EPOLLOUT | EPOLLWRNORM;
-		snd_pcm_stream_unlock_irq(psubstream);
+		scoped_guard(pcm_stream_lock_irq, psubstream) {
+			if (runtime->state != SNDRV_PCM_STATE_DRAINING &&
+			    (runtime->state != SNDRV_PCM_STATE_RUNNING ||
+			     snd_pcm_oss_playback_ready(psubstream)))
+				mask |= EPOLLOUT | EPOLLWRNORM;
+		}
 	}
 	if (csubstream != NULL) {
 		struct snd_pcm_runtime *runtime = csubstream->runtime;
 		snd_pcm_state_t ostate;
 		poll_wait(file, &runtime->sleep, wait);
-		snd_pcm_stream_lock_irq(csubstream);
-		ostate = runtime->state;
-		if (ostate != SNDRV_PCM_STATE_RUNNING ||
-		    snd_pcm_oss_capture_ready(csubstream))
-			mask |= EPOLLIN | EPOLLRDNORM;
-		snd_pcm_stream_unlock_irq(csubstream);
+		scoped_guard(pcm_stream_lock_irq, csubstream) {
+			ostate = runtime->state;
+			if (ostate != SNDRV_PCM_STATE_RUNNING ||
+			    snd_pcm_oss_capture_ready(csubstream))
+				mask |= EPOLLIN | EPOLLRDNORM;
+		}
 		if (ostate != SNDRV_PCM_STATE_RUNNING && runtime->oss.trigger) {
 			struct snd_pcm_oss_file ofile;
 			memset(&ofile, 0, sizeof(ofile));

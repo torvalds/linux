@@ -604,10 +604,9 @@ static int period_to_usecs(struct snd_pcm_runtime *runtime)
 static void snd_pcm_set_state(struct snd_pcm_substream *substream,
 			      snd_pcm_state_t state)
 {
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 	if (substream->runtime->state != SNDRV_PCM_STATE_DISCONNECTED)
 		__snd_pcm_set_state(substream->runtime, state);
-	snd_pcm_stream_unlock_irq(substream);
 }
 
 static inline void snd_pcm_timer_notify(struct snd_pcm_substream *substream,
@@ -733,20 +732,20 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	err = snd_pcm_buffer_access_lock(runtime);
 	if (err < 0)
 		return err;
-	snd_pcm_stream_lock_irq(substream);
-	switch (runtime->state) {
-	case SNDRV_PCM_STATE_OPEN:
-	case SNDRV_PCM_STATE_SETUP:
-	case SNDRV_PCM_STATE_PREPARED:
-		if (!is_oss_stream(substream) &&
-		    atomic_read(&substream->mmap_count))
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		switch (runtime->state) {
+		case SNDRV_PCM_STATE_OPEN:
+		case SNDRV_PCM_STATE_SETUP:
+		case SNDRV_PCM_STATE_PREPARED:
+			if (!is_oss_stream(substream) &&
+			    atomic_read(&substream->mmap_count))
+				err = -EBADFD;
+			break;
+		default:
 			err = -EBADFD;
-		break;
-	default:
-		err = -EBADFD;
-		break;
+			break;
+		}
 	}
-	snd_pcm_stream_unlock_irq(substream);
 	if (err)
 		goto unlock;
 
@@ -896,18 +895,18 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 	result = snd_pcm_buffer_access_lock(runtime);
 	if (result < 0)
 		return result;
-	snd_pcm_stream_lock_irq(substream);
-	switch (runtime->state) {
-	case SNDRV_PCM_STATE_SETUP:
-	case SNDRV_PCM_STATE_PREPARED:
-		if (atomic_read(&substream->mmap_count))
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		switch (runtime->state) {
+		case SNDRV_PCM_STATE_SETUP:
+		case SNDRV_PCM_STATE_PREPARED:
+			if (atomic_read(&substream->mmap_count))
+				result = -EBADFD;
+			break;
+		default:
 			result = -EBADFD;
-		break;
-	default:
-		result = -EBADFD;
-		break;
+			break;
+		}
 	}
-	snd_pcm_stream_unlock_irq(substream);
 	if (result)
 		goto unlock;
 	result = do_hw_free(substream);
@@ -927,12 +926,10 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
 	runtime = substream->runtime;
-	snd_pcm_stream_lock_irq(substream);
-	if (runtime->state == SNDRV_PCM_STATE_OPEN) {
-		snd_pcm_stream_unlock_irq(substream);
-		return -EBADFD;
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		if (runtime->state == SNDRV_PCM_STATE_OPEN)
+			return -EBADFD;
 	}
-	snd_pcm_stream_unlock_irq(substream);
 
 	if (params->tstamp_mode < 0 ||
 	    params->tstamp_mode > SNDRV_PCM_TSTAMP_LAST)
@@ -952,24 +949,24 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 	}
 	err = 0;
-	snd_pcm_stream_lock_irq(substream);
-	runtime->tstamp_mode = params->tstamp_mode;
-	if (params->proto >= SNDRV_PROTOCOL_VERSION(2, 0, 12))
-		runtime->tstamp_type = params->tstamp_type;
-	runtime->period_step = params->period_step;
-	runtime->control->avail_min = params->avail_min;
-	runtime->start_threshold = params->start_threshold;
-	runtime->stop_threshold = params->stop_threshold;
-	runtime->silence_threshold = params->silence_threshold;
-	runtime->silence_size = params->silence_size;
-        params->boundary = runtime->boundary;
-	if (snd_pcm_running(substream)) {
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
-		    runtime->silence_size > 0)
-			snd_pcm_playback_silence(substream, ULONG_MAX);
-		err = snd_pcm_update_state(substream, runtime);
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		runtime->tstamp_mode = params->tstamp_mode;
+		if (params->proto >= SNDRV_PROTOCOL_VERSION(2, 0, 12))
+			runtime->tstamp_type = params->tstamp_type;
+		runtime->period_step = params->period_step;
+		runtime->control->avail_min = params->avail_min;
+		runtime->start_threshold = params->start_threshold;
+		runtime->stop_threshold = params->stop_threshold;
+		runtime->silence_threshold = params->silence_threshold;
+		runtime->silence_size = params->silence_size;
+		params->boundary = runtime->boundary;
+		if (snd_pcm_running(substream)) {
+			if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+			    runtime->silence_size > 0)
+				snd_pcm_playback_silence(substream, ULONG_MAX);
+			err = snd_pcm_update_state(substream, runtime);
+		}
 	}
-	snd_pcm_stream_unlock_irq(substream);
 	return err;
 }
 
@@ -1003,7 +1000,7 @@ int snd_pcm_status64(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 
 	snd_pcm_unpack_audio_tstamp_config(status->audio_tstamp_data,
 					&runtime->audio_tstamp_config);
@@ -1024,7 +1021,7 @@ int snd_pcm_status64(struct snd_pcm_substream *substream,
 	status->state = runtime->state;
 	status->suspended_state = runtime->suspended_state;
 	if (status->state == SNDRV_PCM_STATE_OPEN)
-		goto _end;
+		return 0;
 	status->trigger_tstamp_sec = runtime->trigger_tstamp.tv_sec;
 	status->trigger_tstamp_nsec = runtime->trigger_tstamp.tv_nsec;
 	if (snd_pcm_running(substream)) {
@@ -1069,8 +1066,6 @@ int snd_pcm_status64(struct snd_pcm_substream *substream,
 	status->overrange = runtime->overrange;
 	runtime->avail_max = 0;
 	runtime->overrange = 0;
- _end:
- 	snd_pcm_stream_unlock_irq(substream);
 	return 0;
 }
 
@@ -1155,12 +1150,10 @@ static int snd_pcm_channel_info(struct snd_pcm_substream *substream,
 	
 	channel = info->channel;
 	runtime = substream->runtime;
-	snd_pcm_stream_lock_irq(substream);
-	if (runtime->state == SNDRV_PCM_STATE_OPEN) {
-		snd_pcm_stream_unlock_irq(substream);
-		return -EBADFD;
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		if (runtime->state == SNDRV_PCM_STATE_OPEN)
+			return -EBADFD;
 	}
-	snd_pcm_stream_unlock_irq(substream);
 	if (channel >= runtime->channels)
 		return -EINVAL;
 	memset(info, 0, sizeof(*info));
@@ -1381,12 +1374,8 @@ static int snd_pcm_action_lock_irq(const struct action_ops *ops,
 				   struct snd_pcm_substream *substream,
 				   snd_pcm_state_t state)
 {
-	int res;
-
-	snd_pcm_stream_lock_irq(substream);
-	res = snd_pcm_action(ops, substream, state);
-	snd_pcm_stream_unlock_irq(substream);
-	return res;
+	guard(pcm_stream_lock_irq)(substream);
+	return snd_pcm_action(ops, substream, state);
 }
 
 /*
@@ -1576,12 +1565,9 @@ int snd_pcm_drain_done(struct snd_pcm_substream *substream)
  */
 int snd_pcm_stop_xrun(struct snd_pcm_substream *substream)
 {
-	unsigned long flags;
-
-	snd_pcm_stream_lock_irqsave(substream, flags);
+	guard(pcm_stream_lock_irqsave)(substream);
 	if (substream->runtime && snd_pcm_running(substream))
 		__snd_pcm_xrun(substream);
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_pcm_stop_xrun);
@@ -1733,14 +1719,9 @@ static const struct action_ops snd_pcm_action_suspend = {
  */
 static int snd_pcm_suspend(struct snd_pcm_substream *substream)
 {
-	int err;
-	unsigned long flags;
-
-	snd_pcm_stream_lock_irqsave(substream, flags);
-	err = snd_pcm_action(&snd_pcm_action_suspend, substream,
-			     ACTION_ARG_IGNORE);
-	snd_pcm_stream_unlock_irqrestore(substream, flags);
-	return err;
+	guard(pcm_stream_lock_irqsave)(substream);
+	return snd_pcm_action(&snd_pcm_action_suspend, substream,
+			      ACTION_ARG_IGNORE);
 }
 
 /**
@@ -1856,22 +1837,17 @@ static int snd_pcm_resume(struct snd_pcm_substream *substream)
 static int snd_pcm_xrun(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	int result;
 
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 	switch (runtime->state) {
 	case SNDRV_PCM_STATE_XRUN:
-		result = 0;	/* already there */
-		break;
+		return 0;	/* already there */
 	case SNDRV_PCM_STATE_RUNNING:
 		__snd_pcm_xrun(substream);
-		result = 0;
-		break;
+		return 0;
 	default:
-		result = -EBADFD;
+		return -EBADFD;
 	}
-	snd_pcm_stream_unlock_irq(substream);
-	return result;
 }
 
 /*
@@ -1900,13 +1876,12 @@ static int snd_pcm_do_reset(struct snd_pcm_substream *substream,
 	int err = snd_pcm_ops_ioctl(substream, SNDRV_PCM_IOCTL1_RESET, NULL);
 	if (err < 0)
 		return err;
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 	runtime->hw_ptr_base = 0;
 	runtime->hw_ptr_interrupt = runtime->status->hw_ptr -
 		runtime->status->hw_ptr % runtime->period_size;
 	runtime->silence_start = runtime->status->hw_ptr;
 	runtime->silence_filled = 0;
-	snd_pcm_stream_unlock_irq(substream);
 	return 0;
 }
 
@@ -1914,12 +1889,11 @@ static void snd_pcm_post_reset(struct snd_pcm_substream *substream,
 			       snd_pcm_state_t state)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 	runtime->control->appl_ptr = runtime->status->hw_ptr;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 	    runtime->silence_size > 0)
 		snd_pcm_playback_silence(substream, ULONG_MAX);
-	snd_pcm_stream_unlock_irq(substream);
 }
 
 static const struct action_ops snd_pcm_action_reset = {
@@ -1995,16 +1969,16 @@ static int snd_pcm_prepare(struct snd_pcm_substream *substream,
 	else
 		f_flags = substream->f_flags;
 
-	snd_pcm_stream_lock_irq(substream);
-	switch (substream->runtime->state) {
-	case SNDRV_PCM_STATE_PAUSED:
-		snd_pcm_pause(substream, false);
-		fallthrough;
-	case SNDRV_PCM_STATE_SUSPENDED:
-		snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
-		break;
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		switch (substream->runtime->state) {
+		case SNDRV_PCM_STATE_PAUSED:
+			snd_pcm_pause(substream, false);
+			fallthrough;
+		case SNDRV_PCM_STATE_SUSPENDED:
+			snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
+			break;
+		}
 	}
-	snd_pcm_stream_unlock_irq(substream);
 
 	return snd_pcm_action_nonatomic(&snd_pcm_action_prepare,
 					substream,
@@ -2221,14 +2195,13 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream)
 	    runtime->state == SNDRV_PCM_STATE_DISCONNECTED)
 		return -EBADFD;
 
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 	/* resume pause */
 	if (runtime->state == SNDRV_PCM_STATE_PAUSED)
 		snd_pcm_pause(substream, false);
 
 	snd_pcm_stop(substream, SNDRV_PCM_STATE_SETUP);
 	/* runtime->control->appl_ptr = runtime->status->hw_ptr; */
-	snd_pcm_stream_unlock_irq(substream);
 
 	return result;
 }
@@ -2288,13 +2261,13 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	if (snd_pcm_stream_linked(substream1))
 		return -EALREADY;
 
-	snd_pcm_stream_lock_irq(substream);
-	if (!snd_pcm_stream_linked(substream)) {
-		snd_pcm_group_assign(substream, group);
-		group = NULL; /* assigned, don't free this one below */
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		if (!snd_pcm_stream_linked(substream)) {
+			snd_pcm_group_assign(substream, group);
+			group = NULL; /* assigned, don't free this one below */
+		}
+		target_group = substream->group;
 	}
-	target_group = substream->group;
-	snd_pcm_stream_unlock_irq(substream);
 
 	snd_pcm_group_lock_irq(target_group, nonatomic);
 	snd_pcm_stream_lock_nested(substream1);
@@ -3000,12 +2973,12 @@ static snd_pcm_sframes_t snd_pcm_rewind(struct snd_pcm_substream *substream,
 	if (frames == 0)
 		return 0;
 
-	snd_pcm_stream_lock_irq(substream);
-	ret = do_pcm_hwsync(substream);
-	if (!ret)
-		ret = rewind_appl_ptr(substream, frames,
-				      snd_pcm_hw_avail(substream));
-	snd_pcm_stream_unlock_irq(substream);
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		ret = do_pcm_hwsync(substream);
+		if (!ret)
+			ret = rewind_appl_ptr(substream, frames,
+					      snd_pcm_hw_avail(substream));
+	}
 	if (ret >= 0)
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
 	return ret;
@@ -3019,12 +2992,12 @@ static snd_pcm_sframes_t snd_pcm_forward(struct snd_pcm_substream *substream,
 	if (frames == 0)
 		return 0;
 
-	snd_pcm_stream_lock_irq(substream);
-	ret = do_pcm_hwsync(substream);
-	if (!ret)
-		ret = forward_appl_ptr(substream, frames,
-				       snd_pcm_avail(substream));
-	snd_pcm_stream_unlock_irq(substream);
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		ret = do_pcm_hwsync(substream);
+		if (!ret)
+			ret = forward_appl_ptr(substream, frames,
+					       snd_pcm_avail(substream));
+	}
 	if (ret >= 0)
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
 	return ret;
@@ -3035,11 +3008,11 @@ static int snd_pcm_delay(struct snd_pcm_substream *substream,
 {
 	int err;
 
-	snd_pcm_stream_lock_irq(substream);
-	err = do_pcm_hwsync(substream);
-	if (delay && !err)
-		*delay = snd_pcm_calc_delay(substream);
-	snd_pcm_stream_unlock_irq(substream);
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		err = do_pcm_hwsync(substream);
+		if (delay && !err)
+			*delay = snd_pcm_calc_delay(substream);
+	}
 	snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_CPU);
 
 	return err;
@@ -3071,27 +3044,25 @@ static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
 		if (err < 0)
 			return err;
 	}
-	snd_pcm_stream_lock_irq(substream);
-	if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_APPL)) {
-		err = pcm_lib_apply_appl_ptr(substream,
-					     sync_ptr.c.control.appl_ptr);
-		if (err < 0) {
-			snd_pcm_stream_unlock_irq(substream);
-			return err;
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_APPL)) {
+			err = pcm_lib_apply_appl_ptr(substream,
+						     sync_ptr.c.control.appl_ptr);
+			if (err < 0)
+				return err;
+		} else {
+			sync_ptr.c.control.appl_ptr = control->appl_ptr;
 		}
-	} else {
-		sync_ptr.c.control.appl_ptr = control->appl_ptr;
+		if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
+			control->avail_min = sync_ptr.c.control.avail_min;
+		else
+			sync_ptr.c.control.avail_min = control->avail_min;
+		sync_ptr.s.status.state = status->state;
+		sync_ptr.s.status.hw_ptr = status->hw_ptr;
+		sync_ptr.s.status.tstamp = status->tstamp;
+		sync_ptr.s.status.suspended_state = status->suspended_state;
+		sync_ptr.s.status.audio_tstamp = status->audio_tstamp;
 	}
-	if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
-		control->avail_min = sync_ptr.c.control.avail_min;
-	else
-		sync_ptr.c.control.avail_min = control->avail_min;
-	sync_ptr.s.status.state = status->state;
-	sync_ptr.s.status.hw_ptr = status->hw_ptr;
-	sync_ptr.s.status.tstamp = status->tstamp;
-	sync_ptr.s.status.suspended_state = status->suspended_state;
-	sync_ptr.s.status.audio_tstamp = status->audio_tstamp;
-	snd_pcm_stream_unlock_irq(substream);
 	if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_APPL))
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
 	if (copy_to_user(_sync_ptr, &sync_ptr, sizeof(sync_ptr)))
@@ -3169,27 +3140,25 @@ static int snd_pcm_ioctl_sync_ptr_compat(struct snd_pcm_substream *substream,
 	boundary = recalculate_boundary(runtime);
 	if (! boundary)
 		boundary = 0x7fffffff;
-	snd_pcm_stream_lock_irq(substream);
-	/* FIXME: we should consider the boundary for the sync from app */
-	if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL)) {
-		err = pcm_lib_apply_appl_ptr(substream,
-				scontrol.appl_ptr);
-		if (err < 0) {
-			snd_pcm_stream_unlock_irq(substream);
-			return err;
-		}
-	} else
-		scontrol.appl_ptr = control->appl_ptr % boundary;
-	if (!(sflags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
-		control->avail_min = scontrol.avail_min;
-	else
-		scontrol.avail_min = control->avail_min;
-	sstatus.state = status->state;
-	sstatus.hw_ptr = status->hw_ptr % boundary;
-	sstatus.tstamp = status->tstamp;
-	sstatus.suspended_state = status->suspended_state;
-	sstatus.audio_tstamp = status->audio_tstamp;
-	snd_pcm_stream_unlock_irq(substream);
+	scoped_guard(pcm_stream_lock_irq, substream) {
+		/* FIXME: we should consider the boundary for the sync from app */
+		if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL)) {
+			err = pcm_lib_apply_appl_ptr(substream,
+						     scontrol.appl_ptr);
+			if (err < 0)
+				return err;
+		} else
+			scontrol.appl_ptr = control->appl_ptr % boundary;
+		if (!(sflags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
+			control->avail_min = scontrol.avail_min;
+		else
+			scontrol.avail_min = control->avail_min;
+		sstatus.state = status->state;
+		sstatus.hw_ptr = status->hw_ptr % boundary;
+		sstatus.tstamp = status->tstamp;
+		sstatus.suspended_state = status->suspended_state;
+		sstatus.audio_tstamp = status->audio_tstamp;
+	}
 	if (!(sflags & SNDRV_PCM_SYNC_PTR_APPL))
 		snd_pcm_dma_buffer_sync(substream, SNDRV_DMA_SYNC_DEVICE);
 	if (put_user(sstatus.state, &src->s.status.state) ||
@@ -3628,7 +3597,7 @@ static __poll_t snd_pcm_poll(struct file *file, poll_table *wait)
 	poll_wait(file, &runtime->sleep, wait);
 
 	mask = 0;
-	snd_pcm_stream_lock_irq(substream);
+	guard(pcm_stream_lock_irq)(substream);
 	avail = snd_pcm_avail(substream);
 	switch (runtime->state) {
 	case SNDRV_PCM_STATE_RUNNING:
@@ -3648,7 +3617,6 @@ static __poll_t snd_pcm_poll(struct file *file, poll_table *wait)
 		mask = ok | EPOLLERR;
 		break;
 	}
-	snd_pcm_stream_unlock_irq(substream);
 	return mask;
 }
 
