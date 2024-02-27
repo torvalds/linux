@@ -59,7 +59,7 @@
 #define DS1511_WDS	0x01
 #define DS1511_RAM_MAX	0x100
 
-struct rtc_plat_data {
+struct ds1511_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;		/* virtual base address */
 	int irq;
@@ -180,10 +180,10 @@ static void ds1511_rtc_alarm_enable(unsigned int enabled)
 
 static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
+	struct ds1511_data *ds1511 = dev_get_drvdata(dev);
 	unsigned long flags;
 
-	spin_lock_irqsave(&pdata->lock, flags);
+	spin_lock_irqsave(&ds1511->lock, flags);
 	rtc_write(bin2bcd(alrm->time.tm_mday) & 0x3f, DS1511_AM4_DATE);
 	rtc_write(bin2bcd(alrm->time.tm_hour) & 0x3f, DS1511_AM3_HOUR);
 	rtc_write(bin2bcd(alrm->time.tm_min) & 0x7f, DS1511_AM2_MIN);
@@ -191,7 +191,7 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	ds1511_rtc_alarm_enable(alrm->enabled);
 
 	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
-	spin_unlock_irqrestore(&pdata->lock, flags);
+	spin_unlock_irqrestore(&ds1511->lock, flags);
 
 	return 0;
 }
@@ -210,29 +210,29 @@ static int ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 static irqreturn_t ds1511_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
-	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
+	struct ds1511_data *ds1511 = platform_get_drvdata(pdev);
 	unsigned long events = 0;
 
-	spin_lock(&pdata->lock);
+	spin_lock(&ds1511->lock);
 	/*
 	 * read and clear interrupt
 	 */
 	if (rtc_read(DS1511_CONTROL_A) & DS1511_IRQF) {
 		events = RTC_IRQF | RTC_AF;
-		rtc_update_irq(pdata->rtc, 1, events);
+		rtc_update_irq(ds1511->rtc, 1, events);
 	}
-	spin_unlock(&pdata->lock);
+	spin_unlock(&ds1511->lock);
 	return events ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int ds1511_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
+	struct ds1511_data *ds1511 = dev_get_drvdata(dev);
 	unsigned long flags;
 
-	spin_lock_irqsave(&pdata->lock, flags);
+	spin_lock_irqsave(&ds1511->lock, flags);
 	ds1511_rtc_alarm_enable(enabled);
-	spin_unlock_irqrestore(&pdata->lock, flags);
+	spin_unlock_irqrestore(&ds1511->lock, flags);
 
 	return 0;
 }
@@ -271,7 +271,7 @@ static int ds1511_nvram_write(void *priv, unsigned int pos, void *buf,
 
 static int ds1511_rtc_probe(struct platform_device *pdev)
 {
-	struct rtc_plat_data *pdata;
+	struct ds1511_data *ds1511;
 	int ret = 0;
 	struct nvmem_config ds1511_nvmem_cfg = {
 		.name = "ds1511_nvram",
@@ -283,15 +283,15 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 		.priv = &pdev->dev,
 	};
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
+	ds1511 = devm_kzalloc(&pdev->dev, sizeof(*ds1511), GFP_KERNEL);
+	if (!ds1511)
 		return -ENOMEM;
 
 	ds1511_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ds1511_base))
 		return PTR_ERR(ds1511_base);
-	pdata->ioaddr = ds1511_base;
-	pdata->irq = platform_get_irq(pdev, 0);
+	ds1511->ioaddr = ds1511_base;
+	ds1511->irq = platform_get_irq(pdev, 0);
 
 	/*
 	 * turn on the clock and the crystal, etc.
@@ -314,37 +314,37 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	if (rtc_read(DS1511_CONTROL_A) & DS1511_BLF1)
 		dev_warn(&pdev->dev, "voltage-low detected.\n");
 
-	spin_lock_init(&pdata->lock);
-	platform_set_drvdata(pdev, pdata);
+	spin_lock_init(&ds1511->lock);
+	platform_set_drvdata(pdev, ds1511);
 
-	pdata->rtc = devm_rtc_allocate_device(&pdev->dev);
-	if (IS_ERR(pdata->rtc))
-		return PTR_ERR(pdata->rtc);
+	ds1511->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(ds1511->rtc))
+		return PTR_ERR(ds1511->rtc);
 
-	pdata->rtc->ops = &ds1511_rtc_ops;
+	ds1511->rtc->ops = &ds1511_rtc_ops;
 
 	/*
 	 * if the platform has an interrupt in mind for this device,
 	 * then by all means, set it
 	 */
-	if (pdata->irq > 0) {
+	if (ds1511->irq > 0) {
 		rtc_read(DS1511_CONTROL_A);
-		if (devm_request_irq(&pdev->dev, pdata->irq, ds1511_interrupt,
+		if (devm_request_irq(&pdev->dev, ds1511->irq, ds1511_interrupt,
 			IRQF_SHARED, pdev->name, pdev) < 0) {
 
 			dev_warn(&pdev->dev, "interrupt not available.\n");
-			pdata->irq = 0;
+			ds1511->irq = 0;
 		}
 	}
 
-	if (pdata->irq == 0)
-		clear_bit(RTC_FEATURE_ALARM, pdata->rtc->features);
+	if (ds1511->irq == 0)
+		clear_bit(RTC_FEATURE_ALARM, ds1511->rtc->features);
 
-	ret = devm_rtc_register_device(pdata->rtc);
+	ret = devm_rtc_register_device(ds1511->rtc);
 	if (ret)
 		return ret;
 
-	devm_rtc_nvmem_register(pdata->rtc, &ds1511_nvmem_cfg);
+	devm_rtc_nvmem_register(ds1511->rtc, &ds1511_nvmem_cfg);
 
 	return 0;
 }
