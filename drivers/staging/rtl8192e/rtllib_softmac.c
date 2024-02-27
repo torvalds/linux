@@ -819,12 +819,12 @@ rtllib_association_req(struct rtllib_network *beacon,
 
 	if (beacon->ckip_supported) {
 		static const u8 aironet_ie_oui[] = {0x00, 0x01, 0x66};
-		u8	CcxAironetBuf[30];
+		u8	ccx_aironet_buf[30];
 		struct octet_string os_ccx_aironet_ie;
 
-		memset(CcxAironetBuf, 0, 30);
-		os_ccx_aironet_ie.octet = CcxAironetBuf;
-		os_ccx_aironet_ie.Length = sizeof(CcxAironetBuf);
+		memset(ccx_aironet_buf, 0, 30);
+		os_ccx_aironet_ie.octet = ccx_aironet_buf;
+		os_ccx_aironet_ie.Length = sizeof(ccx_aironet_buf);
 		memcpy(os_ccx_aironet_ie.octet, aironet_ie_oui,
 		       sizeof(aironet_ie_oui));
 
