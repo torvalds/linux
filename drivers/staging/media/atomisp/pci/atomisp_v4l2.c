@@ -74,13 +74,15 @@ static char firmware_name[256];
 module_param_string(firmware_name, firmware_name, sizeof(firmware_name), 0);
 MODULE_PARM_DESC(firmware_name, "Firmware file name. Allows overriding the default firmware name.");
 
-/*set to 16x16 since this is the amount of lines and pixels the sensor
-exports extra. If these are kept at the 10x8 that they were on, in yuv
-downscaling modes incorrect resolutions where requested to the sensor
-driver with strange outcomes as a result. The proper way tot do this
-would be to have a list of tables the specify the sensor res, mipi rec,
-output res, and isp output res. however since we do not have this yet,
-the chosen solution is the next best thing. */
+/*
+ * Set to 16x16 since this is the amount of lines and pixels the sensor
+ * exports extra. If these are kept at the 10x8 that they were on, in yuv
+ * downscaling modes incorrect resolutions where requested to the sensor
+ * driver with strange outcomes as a result. The proper way tot do this
+ * would be to have a list of tables the specify the sensor res, mipi rec,
+ * output res, and isp output res. however since we do not have this yet,
+ * the chosen solution is the next best thing.
+ */
 int pad_w = 16;
 module_param(pad_w, int, 0644);
 MODULE_PARM_DESC(pad_w, "extra data for ISP processing");
@@ -503,12 +505,12 @@ static int atomisp_mrfld_pre_power_down(struct atomisp_device *isp)
 	}
 done:
 	/*
-	* MRFLD WORKAROUND:
-	* before powering off IUNIT, clear the pending interrupts
-	* and disable the interrupt. driver should avoid writing 0
-	* to IIR. It could block subsequent interrupt messages.
-	* HW sighting:4568410.
-	*/
+	 * MRFLD WORKAROUND:
+	 * before powering off IUNIT, clear the pending interrupts
+	 * and disable the interrupt. driver should avoid writing 0
+	 * to IIR. It could block subsequent interrupt messages.
+	 * HW sighting:4568410.
+	 */
 	pci_read_config_dword(pdev, PCI_INTERRUPT_CTRL, &irq);
 	irq &= ~BIT(INTR_IER);
 	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, irq);
@@ -521,9 +523,9 @@ done:
 }
 
 /*
-* WA for DDR DVFS enable/disable
-* By default, ISP will force DDR DVFS 1600MHz before disable DVFS
-*/
+ * WA for DDR DVFS enable/disable
+ * By default, ISP will force DDR DVFS 1600MHz before disable DVFS
+ */
 static void punit_ddr_dvfs_enable(bool enable)
 {
 	int reg;
