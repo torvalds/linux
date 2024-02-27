@@ -2267,11 +2267,13 @@ static int inet_netconf_dump_devconf(struct sk_buff *skb,
 {
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	int h, s_h;
-	int idx, s_idx;
+	struct {
+		unsigned long ifindex;
+		unsigned int all_default;
+	} *ctx = (void *)cb->ctx;
+	const struct in_device *in_dev;
 	struct net_device *dev;
-	struct in_device *in_dev;
-	struct hlist_head *head;
+	int err = 0;
 
 	if (cb->strict_check) {
 		struct netlink_ext_ack *extack = cb->extack;
@@ -2288,64 +2290,47 @@ static int inet_netconf_dump_devconf(struct sk_buff *skb,
 		}
 	}
 
-	s_h = cb->args[0];
-	s_idx = idx = cb->args[1];
-
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &net->dev_index_head[h];
-		rcu_read_lock();
-		cb->seq = inet_base_seq(net);
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			in_dev = __in_dev_get_rcu(dev);
-			if (!in_dev)
-				goto cont;
-
-			if (inet_netconf_fill_devconf(skb, dev->ifindex,
-						      &in_dev->cnf,
-						      NETLINK_CB(cb->skb).portid,
-						      nlh->nlmsg_seq,
-						      RTM_NEWNETCONF,
-						      NLM_F_MULTI,
-						      NETCONFA_ALL) < 0) {
-				rcu_read_unlock();
-				goto done;
-			}
-			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
-cont:
-			idx++;
-		}
-		rcu_read_unlock();
-	}
-	if (h == NETDEV_HASHENTRIES) {
-		if (inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_ALL,
-					      net->ipv4.devconf_all,
-					      NETLINK_CB(cb->skb).portid,
-					      nlh->nlmsg_seq,
-					      RTM_NEWNETCONF, NLM_F_MULTI,
-					      NETCONFA_ALL) < 0)
+	rcu_read_lock();
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		in_dev = __in_dev_get_rcu(dev);
+		if (!in_dev)
+			continue;
+		err = inet_netconf_fill_devconf(skb, dev->ifindex,
+						&in_dev->cnf,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF, NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
 			goto done;
-		else
-			h++;
 	}
-	if (h == NETDEV_HASHENTRIES + 1) {
-		if (inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_DEFAULT,
-					      net->ipv4.devconf_dflt,
-					      NETLINK_CB(cb->skb).portid,
-					      nlh->nlmsg_seq,
-					      RTM_NEWNETCONF, NLM_F_MULTI,
-					      NETCONFA_ALL) < 0)
+	if (ctx->all_default == 0) {
+		err = inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_ALL,
+						net->ipv4.devconf_all,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF, NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
 			goto done;
-		else
-			h++;
+		ctx->all_default++;
+	}
+	if (ctx->all_default == 1) {
+		err = inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_DEFAULT,
+						net->ipv4.devconf_dflt,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF, NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
+			goto done;
+		ctx->all_default++;
 	}
 done:
-	cb->args[0] = h;
-	cb->args[1] = idx;
-
-	return skb->len;
+	if (err < 0 && likely(skb->len))
+		err = skb->len;
+	rcu_read_unlock();
+	return err;
 }
 
 #ifdef CONFIG_SYSCTL
@@ -2829,5 +2814,5 @@ void __init devinet_init(void)
 	rtnl_register(PF_INET, RTM_GETADDR, NULL, inet_dump_ifaddr, 0);
 	rtnl_register(PF_INET, RTM_GETNETCONF, inet_netconf_get_devconf,
 		      inet_netconf_dump_devconf,
-		      RTNL_FLAG_DOIT_UNLOCKED);
+		      RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED);
 }
