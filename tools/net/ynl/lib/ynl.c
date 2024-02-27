@@ -297,7 +297,7 @@ static int ynl_cb_noop(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_OK;
 }
 
-mnl_cb_t ynl_cb_array[NLMSG_MIN_TYPE] = {
+static mnl_cb_t ynl_cb_array[NLMSG_MIN_TYPE] = {
 	[NLMSG_NOOP]	= ynl_cb_noop,
 	[NLMSG_ERROR]	= ynl_cb_error,
 	[NLMSG_DONE]	= ynl_cb_done,

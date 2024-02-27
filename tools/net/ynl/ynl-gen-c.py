@@ -40,14 +40,6 @@ class BaseNlLib:
     def get_family_id(self):
         return 'ys->family_id'
 
-    def parse_cb_run(self, cb, data, is_dump=False, indent=1):
-        ind = '\n\t\t' + '\t' * indent + ' '
-        if is_dump:
-            return f"mnl_cb_run2(ys->rx_buf, len, 0, 0, {cb}, {data},{ind}ynl_cb_array, NLMSG_MIN_TYPE)"
-        else:
-            return f"mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,{ind}{cb}, {data},{ind}" + \
-                   "ynl_cb_array, NLMSG_MIN_TYPE)"
-
 
 class Type(SpecAttr):
     def __init__(self, family, attr_set, attr, value):
