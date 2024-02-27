@@ -2164,9 +2164,9 @@ static bool prep_compound_gigantic_folio_for_demote(struct folio *folio,
  * transparent huge pages.  See the PageTransHuge() documentation for more
  * details.
  */
-int PageHuge(struct page *page)
+int PageHuge(const struct page *page)
 {
-	struct folio *folio;
+	const struct folio *folio;
 
 	if (!PageCompound(page))
 		return 0;
