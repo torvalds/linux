@@ -1241,6 +1241,30 @@ ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
+static u8 ieee80211_num_beaconing_links(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_link_data *link;
+	u8 link_id, num = 0;
+
+	if (sdata->vif.type != NL80211_IFTYPE_AP &&
+	    sdata->vif.type != NL80211_IFTYPE_P2P_GO)
+		return num;
+
+	if (!sdata->vif.valid_links)
+		return num;
+
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (!link)
+			continue;
+
+		if (sdata_dereference(link->u.ap.beacon, sdata))
+			num++;
+	}
+
+	return num;
+}
+
 static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			      struct cfg80211_ap_settings *params)
 {
@@ -1470,7 +1494,9 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_SSID);
 	ieee80211_link_info_change_notify(sdata, link, changed);
 
-	netif_carrier_on(dev);
+	if (ieee80211_num_beaconing_links(sdata) <= 1)
+		netif_carrier_on(dev);
+
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
 		netif_carrier_on(vlan->dev);
 
@@ -1592,7 +1618,9 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	/* turn off carrier for this interface and dependent VLANs */
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
 		netif_carrier_off(vlan->dev);
-	netif_carrier_off(dev);
+
+	if (ieee80211_num_beaconing_links(sdata) <= 1)
+		netif_carrier_off(dev);
 
 	/* remove beacon and probe response */
 	sdata->u.ap.active = false;
