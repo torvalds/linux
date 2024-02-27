@@ -32,6 +32,7 @@
 #include <linux/sysctl.h>
 #include <linux/cpu.h>
 #include <linux/cpuset.h>
+#include <linux/pagevec.h>
 #include <linux/memory_hotplug.h>
 #include <linux/nodemask.h>
 #include <linux/vmstat.h>
@@ -2515,56 +2516,50 @@ void free_unref_page(struct page *page, unsigned int order)
 }
 
 /*
- * Free a list of 0-order pages
+ * Free a batch of 0-order pages
  */
-void free_unref_page_list(struct list_head *list)
+void free_unref_folios(struct folio_batch *folios)
 {
 	unsigned long __maybe_unused UP_flags;
-	struct folio *folio, *next;
 	struct per_cpu_pages *pcp = NULL;
 	struct zone *locked_zone = NULL;
-	int batch_count = 0;
-	int migratetype;
+	int i, j, migratetype;
 
-	/* Prepare pages for freeing */
-	list_for_each_entry_safe(folio, next, list, lru) {
+	/* Prepare folios for freeing */
+	for (i = 0, j = 0; i < folios->nr; i++) {
+		struct folio *folio = folios->folios[i];
 		unsigned long pfn = folio_pfn(folio);
-		if (!free_unref_page_prepare(&folio->page, pfn, 0)) {
-			list_del(&folio->lru);
+		if (!free_unref_page_prepare(&folio->page, pfn, 0))
 			continue;
-		}
 
 		/*
-		 * Free isolated pages directly to the allocator, see
+		 * Free isolated folios directly to the allocator, see
 		 * comment in free_unref_page.
 		 */
 		migratetype = get_pcppage_migratetype(&folio->page);
 		if (unlikely(is_migrate_isolate(migratetype))) {
-			list_del(&folio->lru);
 			free_one_page(folio_zone(folio), &folio->page, pfn,
 					0, migratetype, FPI_NONE);
 			continue;
 		}
+		if (j != i)
+			folios->folios[j] = folio;
+		j++;
 	}
+	folios->nr = j;
 
-	list_for_each_entry_safe(folio, next, list, lru) {
+	for (i = 0; i < folios->nr; i++) {
+		struct folio *folio = folios->folios[i];
 		struct zone *zone = folio_zone(folio);
 
-		list_del(&folio->lru);
 		migratetype = get_pcppage_migratetype(&folio->page);
 
-		/*
-		 * Either different zone requiring a different pcp lock or
-		 * excessive lock hold times when freeing a large list of
-		 * folios.
-		 */
-		if (zone != locked_zone || batch_count == SWAP_CLUSTER_MAX) {
+		/* Different zone requires a different pcp lock */
+		if (zone != locked_zone) {
 			if (pcp) {
 				pcp_spin_unlock(pcp);
 				pcp_trylock_finish(UP_flags);
 			}
-
-			batch_count = 0;
 
 			/*
 			 * trylock is necessary as folios may be getting freed
@@ -2592,13 +2587,31 @@ void free_unref_page_list(struct list_head *list)
 
 		trace_mm_page_free_batched(&folio->page);
 		free_unref_page_commit(zone, pcp, &folio->page, migratetype, 0);
-		batch_count++;
 	}
 
 	if (pcp) {
 		pcp_spin_unlock(pcp);
 		pcp_trylock_finish(UP_flags);
 	}
+	folio_batch_reinit(folios);
+}
+
+void free_unref_page_list(struct list_head *list)
+{
+	struct folio_batch fbatch;
+
+	folio_batch_init(&fbatch);
+	while (!list_empty(list)) {
+		struct folio *folio = list_first_entry(list, struct folio, lru);
+
+		list_del(&folio->lru);
+		if (folio_batch_add(&fbatch, folio) > 0)
+			continue;
+		free_unref_folios(&fbatch);
+	}
+
+	if (fbatch.nr)
+		free_unref_folios(&fbatch);
 }
 
 /*
