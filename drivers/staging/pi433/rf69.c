@@ -8,11 +8,12 @@
 
 #include <linux/types.h>
 #include <linux/spi/spi.h>
+#include <linux/units.h>
 
 #include "rf69.h"
 #include "rf69_registers.h"
 
-#define F_OSC	  32000000 /* in Hz */
+#define F_OSC (32 * HZ_PER_MHZ)
 
 /*-------------------------------------------------------------------------*/
 
