@@ -76,26 +76,22 @@ static DEFINE_SPINLOCK(ds1511_lock);
 static __iomem char *ds1511_base;
 static u32 reg_spacing = 1;
 
-static noinline void
-rtc_write(uint8_t val, uint32_t reg)
+static noinline void rtc_write(uint8_t val, uint32_t reg)
 {
 	writeb(val, ds1511_base + (reg * reg_spacing));
 }
 
-static noinline uint8_t
-rtc_read(uint32_t reg)
+static noinline uint8_t rtc_read(uint32_t reg)
 {
 	return readb(ds1511_base + (reg * reg_spacing));
 }
 
-static inline void
-rtc_disable_update(void)
+static inline void rtc_disable_update(void)
 {
 	rtc_write((rtc_read(DS1511_CONTROL_B) & ~DS1511_TE), DS1511_CONTROL_B);
 }
 
-static void
-rtc_enable_update(void)
+static void rtc_enable_update(void)
 {
 	rtc_write((rtc_read(DS1511_CONTROL_B) | DS1511_TE), DS1511_CONTROL_B);
 }
@@ -190,8 +186,7 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
  * date/hours/mins/secs matches.  the ds1511 has many more
  * permutations, but the kernel doesn't.
  */
-static void
-ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
+static void ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
 {
 	unsigned long flags;
 
@@ -213,8 +208,7 @@ ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
 	spin_unlock_irqrestore(&pdata->lock, flags);
 }
 
-static int
-ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
@@ -232,8 +226,7 @@ ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-static int
-ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
+static int ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 
@@ -248,8 +241,7 @@ ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	return 0;
 }
 
-static irqreturn_t
-ds1511_interrupt(int irq, void *dev_id)
+static irqreturn_t ds1511_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
