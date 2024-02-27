@@ -948,7 +948,7 @@ struct rtllib_network {
 
 	u8 wmm_info;
 	struct rtllib_wmm_ac_param wmm_param[4];
-	u8 Turbo_Enable;
+	u8 turbo_enable;
 	u16 CountryIeLen;
 	u8 CountryIeBuf[MAX_IE_LEN];
 	struct bss_ht bssht;

@@ -707,7 +707,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 				2 : 0);
 
 	unsigned int wmm_info_len = beacon->qos_data.supported ? 9 : 0;
-	unsigned int turbo_info_len = beacon->Turbo_Enable ? 9 : 0;
+	unsigned int turbo_info_len = beacon->turbo_enable ? 9 : 0;
 
 	int len = 0;
 

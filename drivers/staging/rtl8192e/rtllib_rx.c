@@ -1685,7 +1685,7 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	    info_element->data[2] == 0x4c &&
 	    info_element->data[3] == 0x01 &&
 	    info_element->data[4] == 0x02)
-		network->Turbo_Enable = 1;
+		network->turbo_enable = 1;
 
 	if (*tmp_htcap_len == 0) {
 		if (info_element->len >= 4 &&
@@ -2180,7 +2180,7 @@ static inline int rtllib_network_init(
 	network->realtek_cap_exit = false;
 	network->marvell_cap_exist = false;
 	network->airgo_cap_exist = false;
-	network->Turbo_Enable = 0;
+	network->turbo_enable = 0;
 	network->SignalStrength = stats->SignalStrength;
 	network->RSSI = stats->SignalStrength;
 	network->CountryIeLen = 0;
@@ -2340,7 +2340,7 @@ static inline void update_network(struct rtllib_device *ieee,
 
 	dst->SignalStrength = src->SignalStrength;
 	dst->RSSI = src->RSSI;
-	dst->Turbo_Enable = src->Turbo_Enable;
+	dst->turbo_enable = src->turbo_enable;
 
 	dst->CountryIeLen = src->CountryIeLen;
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);
