@@ -1588,7 +1588,7 @@ static int __init virtio_fs_sysfs_init(void)
 	return 0;
 }
 
-static void __exit virtio_fs_sysfs_exit(void)
+static void virtio_fs_sysfs_exit(void)
 {
 	kset_unregister(virtio_fs_kset);
 	virtio_fs_kset = NULL;
