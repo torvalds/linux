@@ -10,7 +10,7 @@
 #include "x86.h"
 #include "xen.h"
 #include "hyperv.h"
-#include "lapic.h"
+#include "irq.h"
 
 #include <linux/eventfd.h>
 #include <linux/kvm_host.h>
@@ -570,7 +570,6 @@ void kvm_xen_update_runstate(struct kvm_vcpu *v, int state)
 void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
 {
 	struct kvm_lapic_irq irq = { };
-	int r;
 
 	irq.dest_id = v->vcpu_id;
 	irq.vector = v->arch.xen.upcall_vector;
@@ -579,8 +578,7 @@ void kvm_xen_inject_vcpu_vector(struct kvm_vcpu *v)
 	irq.delivery_mode = APIC_DM_FIXED;
 	irq.level = 1;
 
-	/* The fast version will always work for physical unicast */
-	WARN_ON_ONCE(!kvm_irq_delivery_to_apic_fast(v->kvm, NULL, &irq, &r, NULL));
+	kvm_irq_delivery_to_apic(v->kvm, NULL, &irq, NULL);
 }
 
 /*
