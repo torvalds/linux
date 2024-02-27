@@ -52,6 +52,28 @@
 			status = "disabled";
 		};
 
+		ltpi0_adc0: adc@30c00000 {
+			compatible = "aspeed,ast2700-adc0";
+			reg = <0x0 0x30c00000 0 0x100>;
+			clocks = <&ltpi0_syscon AST1700_CLK_AHB>;
+			resets = <&ltpi0_syscon AST1700_RESET_ADC>;
+			interrupts-extended = <&intc6 16>;
+			#io-channel-cells = <1>;
+			aspeed,scu = <&ltpi0_syscon>;
+			status = "disabled";
+		};
+
+		ltpi0_adc1: adc@30c00100 {
+			compatible = "aspeed,ast2700-adc1";
+			reg = <0x0 0x30c00100 0x0 0x100>;
+			clocks = <&ltpi0_syscon AST1700_CLK_AHB>;
+			resets = <&ltpi0_syscon AST1700_RESET_ADC>;
+			interrupts-extended = <&intc6 16>;
+			#io-channel-cells = <1>;
+			aspeed,scu = <&ltpi0_syscon>;
+			status = "disabled";
+		};
+
 		ltpi0_jtag: jtag@30c09000 {
 			compatible = "aspeed,ast2700-jtag";
 			reg= <0x0 0x30c09000 0x0 0x40>;
