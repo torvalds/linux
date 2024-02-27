@@ -73,9 +73,6 @@ static const struct reset_control_ops sunxi_usb_reset_ops = {
 	.deassert	= sunxi_usb_reset_deassert,
 };
 
-/**
- * sunxi_usb_clk_setup() - Setup function for usb gate clocks
- */
 
 #define SUNXI_USB_MAX_SIZE 32
 
@@ -85,6 +82,12 @@ struct usb_clk_data {
 	bool reset_needs_clk;
 };
 
+/**
+ * sunxi_usb_clk_setup() - Setup function for usb gate clocks
+ * @node: &struct device_node for the clock
+ * @data: &struct usb_clk_data for the clock
+ * @lock: spinlock for the clock
+ */
 static void __init sunxi_usb_clk_setup(struct device_node *node,
 				       const struct usb_clk_data *data,
 				       spinlock_t *lock)
