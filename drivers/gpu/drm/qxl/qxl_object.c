@@ -164,10 +164,6 @@ int qxl_bo_vmap_locked(struct qxl_bo *bo, struct iosys_map *map)
 		goto out;
 	}
 
-	r = qxl_bo_pin_locked(bo);
-	if (r)
-		return r;
-
 	r = ttm_bo_vmap(&bo->tbo, &bo->map);
 	if (r) {
 		qxl_bo_unpin_locked(bo);
@@ -243,7 +239,6 @@ void qxl_bo_vunmap_locked(struct qxl_bo *bo)
 		return;
 	bo->kptr = NULL;
 	ttm_bo_vunmap(&bo->tbo, &bo->map);
-	qxl_bo_unpin_locked(bo);
 }
 
 int qxl_bo_vunmap(struct qxl_bo *bo)
