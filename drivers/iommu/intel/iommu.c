@@ -97,6 +97,81 @@ static phys_addr_t root_entry_uctp(struct root_entry *re)
 	return re->hi & VTD_PAGE_MASK;
 }
 
+static int device_rid_cmp_key(const void *key, const struct rb_node *node)
+{
+	struct device_domain_info *info =
+		rb_entry(node, struct device_domain_info, node);
+	const u16 *rid_lhs = key;
+
+	if (*rid_lhs < PCI_DEVID(info->bus, info->devfn))
+		return -1;
+
+	if (*rid_lhs > PCI_DEVID(info->bus, info->devfn))
+		return 1;
+
+	return 0;
+}
+
+static int device_rid_cmp(struct rb_node *lhs, const struct rb_node *rhs)
+{
+	struct device_domain_info *info =
+		rb_entry(lhs, struct device_domain_info, node);
+	u16 key = PCI_DEVID(info->bus, info->devfn);
+
+	return device_rid_cmp_key(&key, rhs);
+}
+
+/*
+ * Looks up an IOMMU-probed device using its source ID.
+ *
+ * Returns the pointer to the device if there is a match. Otherwise,
+ * returns NULL.
+ *
+ * Note that this helper doesn't guarantee that the device won't be
+ * released by the iommu subsystem after being returned. The caller
+ * should use its own synchronization mechanism to avoid the device
+ * being released during its use if its possibly the case.
+ */
+struct device *device_rbtree_find(struct intel_iommu *iommu, u16 rid)
+{
+	struct device_domain_info *info = NULL;
+	struct rb_node *node;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->device_rbtree_lock, flags);
+	node = rb_find(&rid, &iommu->device_rbtree, device_rid_cmp_key);
+	if (node)
+		info = rb_entry(node, struct device_domain_info, node);
+	spin_unlock_irqrestore(&iommu->device_rbtree_lock, flags);
+
+	return info ? info->dev : NULL;
+}
+
+static int device_rbtree_insert(struct intel_iommu *iommu,
+				struct device_domain_info *info)
+{
+	struct rb_node *curr;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->device_rbtree_lock, flags);
+	curr = rb_find_add(&info->node, &iommu->device_rbtree, device_rid_cmp);
+	spin_unlock_irqrestore(&iommu->device_rbtree_lock, flags);
+	if (WARN_ON(curr))
+		return -EEXIST;
+
+	return 0;
+}
+
+static void device_rbtree_remove(struct device_domain_info *info)
+{
+	struct intel_iommu *iommu = info->iommu;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->device_rbtree_lock, flags);
+	rb_erase(&info->node, &iommu->device_rbtree);
+	spin_unlock_irqrestore(&iommu->device_rbtree_lock, flags);
+}
+
 /*
  * This domain is a statically identity mapping domain.
  *	1. This domain creats a static 1:1 mapping to all usable memory.
@@ -4261,25 +4336,34 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 	}
 
 	dev_iommu_priv_set(dev, info);
+	ret = device_rbtree_insert(iommu, info);
+	if (ret)
+		goto free;
 
 	if (sm_supported(iommu) && !dev_is_real_dma_subdevice(dev)) {
 		ret = intel_pasid_alloc_table(dev);
 		if (ret) {
 			dev_err(dev, "PASID table allocation failed\n");
-			kfree(info);
-			return ERR_PTR(ret);
+			goto clear_rbtree;
 		}
 	}
 
 	intel_iommu_debugfs_create_dev(info);
 
 	return &iommu->iommu;
+clear_rbtree:
+	device_rbtree_remove(info);
+free:
+	kfree(info);
+
+	return ERR_PTR(ret);
 }
 
 static void intel_iommu_release_device(struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
 
+	device_rbtree_remove(info);
 	dmar_remove_one_dev_info(dev);
 	intel_pasid_free_table(dev);
 	intel_iommu_debugfs_remove_dev(info);
