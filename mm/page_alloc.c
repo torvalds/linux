@@ -2520,17 +2520,17 @@ void free_unref_page(struct page *page, unsigned int order)
 void free_unref_page_list(struct list_head *list)
 {
 	unsigned long __maybe_unused UP_flags;
-	struct page *page, *next;
+	struct folio *folio, *next;
 	struct per_cpu_pages *pcp = NULL;
 	struct zone *locked_zone = NULL;
 	int batch_count = 0;
 	int migratetype;
 
 	/* Prepare pages for freeing */
-	list_for_each_entry_safe(page, next, list, lru) {
-		unsigned long pfn = page_to_pfn(page);
-		if (!free_unref_page_prepare(page, pfn, 0)) {
-			list_del(&page->lru);
+	list_for_each_entry_safe(folio, next, list, lru) {
+		unsigned long pfn = folio_pfn(folio);
+		if (!free_unref_page_prepare(&folio->page, pfn, 0)) {
+			list_del(&folio->lru);
 			continue;
 		}
 
@@ -2538,24 +2538,25 @@ void free_unref_page_list(struct list_head *list)
 		 * Free isolated pages directly to the allocator, see
 		 * comment in free_unref_page.
 		 */
-		migratetype = get_pcppage_migratetype(page);
+		migratetype = get_pcppage_migratetype(&folio->page);
 		if (unlikely(is_migrate_isolate(migratetype))) {
-			list_del(&page->lru);
-			free_one_page(page_zone(page), page, pfn, 0, migratetype, FPI_NONE);
+			list_del(&folio->lru);
+			free_one_page(folio_zone(folio), &folio->page, pfn,
+					0, migratetype, FPI_NONE);
 			continue;
 		}
 	}
 
-	list_for_each_entry_safe(page, next, list, lru) {
-		struct zone *zone = page_zone(page);
+	list_for_each_entry_safe(folio, next, list, lru) {
+		struct zone *zone = folio_zone(folio);
 
-		list_del(&page->lru);
-		migratetype = get_pcppage_migratetype(page);
+		list_del(&folio->lru);
+		migratetype = get_pcppage_migratetype(&folio->page);
 
 		/*
 		 * Either different zone requiring a different pcp lock or
 		 * excessive lock hold times when freeing a large list of
-		 * pages.
+		 * folios.
 		 */
 		if (zone != locked_zone || batch_count == SWAP_CLUSTER_MAX) {
 			if (pcp) {
@@ -2566,15 +2567,16 @@ void free_unref_page_list(struct list_head *list)
 			batch_count = 0;
 
 			/*
-			 * trylock is necessary as pages may be getting freed
+			 * trylock is necessary as folios may be getting freed
 			 * from IRQ or SoftIRQ context after an IO completion.
 			 */
 			pcp_trylock_prepare(UP_flags);
 			pcp = pcp_spin_trylock(zone->per_cpu_pageset);
 			if (unlikely(!pcp)) {
 				pcp_trylock_finish(UP_flags);
-				free_one_page(zone, page, page_to_pfn(page),
-					      0, migratetype, FPI_NONE);
+				free_one_page(zone, &folio->page,
+						folio_pfn(folio), 0,
+						migratetype, FPI_NONE);
 				locked_zone = NULL;
 				continue;
 			}
@@ -2588,8 +2590,8 @@ void free_unref_page_list(struct list_head *list)
 		if (unlikely(migratetype >= MIGRATE_PCPTYPES))
 			migratetype = MIGRATE_MOVABLE;
 
-		trace_mm_page_free_batched(page);
-		free_unref_page_commit(zone, pcp, page, migratetype, 0);
+		trace_mm_page_free_batched(&folio->page);
+		free_unref_page_commit(zone, pcp, &folio->page, migratetype, 0);
 		batch_count++;
 	}
 
