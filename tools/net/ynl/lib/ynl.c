@@ -491,6 +491,19 @@ int ynl_cb_null(const struct nlmsghdr *nlh, void *data)
 	return MNL_CB_ERROR;
 }
 
+static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, mnl_cb_t cb)
+{
+	struct ynl_sock *ys = yarg->ys;
+	ssize_t len;
+
+	len = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
+	if (len < 0)
+		return len;
+
+	return mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,
+			   cb, yarg, ynl_cb_array, NLMSG_MIN_TYPE);
+}
+
 /* Init/fini and genetlink boiler plate */
 static int
 ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
@@ -572,14 +585,7 @@ static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
 		return err;
 	}
 
-	err = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
-	if (err <= 0) {
-		perr(ys, "failed to receive the socket family info");
-		return err;
-	}
-	err = mnl_cb_run2(ys->rx_buf, err, ys->seq, ys->portid,
-			  ynl_get_family_info_cb, &yarg,
-			  ynl_cb_array, ARRAY_SIZE(ynl_cb_array));
+	err = ynl_sock_read_msgs(&yarg, ynl_get_family_info_cb);
 	if (err < 0) {
 		free(ys->mcast_groups);
 		perr(ys, "failed to receive the socket family info - no such family?");
@@ -755,7 +761,6 @@ static int ynl_ntf_trampoline(const struct nlmsghdr *nlh, void *data)
 int ynl_ntf_check(struct ynl_sock *ys)
 {
 	struct ynl_parse_arg yarg = { .ys = ys, };
-	ssize_t len;
 	int err;
 
 	do {
@@ -770,14 +775,7 @@ int ynl_ntf_check(struct ynl_sock *ys)
 		if (err < 1)
 			return err;
 
-		len = mnl_socket_recvfrom(ys->sock, ys->rx_buf,
-					  MNL_SOCKET_BUFFER_SIZE);
-		if (len < 0)
-			return len;
-
-		err = mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,
-				  ynl_ntf_trampoline, &yarg,
-				  ynl_cb_array, NLMSG_MIN_TYPE);
+		err = ynl_sock_read_msgs(&yarg, ynl_ntf_trampoline);
 		if (err < 0)
 			return err;
 	} while (err > 0);
@@ -834,7 +832,6 @@ static int ynl_req_trampoline(const struct nlmsghdr *nlh, void *data)
 int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 	     struct ynl_req_state *yrs)
 {
-	ssize_t len;
 	int err;
 
 	err = mnl_socket_sendto(ys->sock, req_nlh, req_nlh->nlmsg_len);
@@ -842,19 +839,10 @@ int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 		return err;
 
 	do {
-		len = mnl_socket_recvfrom(ys->sock, ys->rx_buf,
-					  MNL_SOCKET_BUFFER_SIZE);
-		if (len < 0)
-			return len;
-
-		err = mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,
-				  ynl_req_trampoline, yrs,
-				  ynl_cb_array, NLMSG_MIN_TYPE);
-		if (err < 0)
-			return err;
+		err = ynl_sock_read_msgs(&yrs->yarg, ynl_req_trampoline);
 	} while (err > 0);
 
-	return 0;
+	return err;
 }
 
 static int ynl_dump_trampoline(const struct nlmsghdr *nlh, void *data)
@@ -896,7 +884,6 @@ static void *ynl_dump_end(struct ynl_dump_state *ds)
 int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 		  struct ynl_dump_state *yds)
 {
-	ssize_t len;
 	int err;
 
 	err = mnl_socket_sendto(ys->sock, req_nlh, req_nlh->nlmsg_len);
@@ -904,14 +891,7 @@ int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 		return err;
 
 	do {
-		len = mnl_socket_recvfrom(ys->sock, ys->rx_buf,
-					  MNL_SOCKET_BUFFER_SIZE);
-		if (len < 0)
-			goto err_close_list;
-
-		err = mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,
-				  ynl_dump_trampoline, yds,
-				  ynl_cb_array, NLMSG_MIN_TYPE);
+		err = ynl_sock_read_msgs(&yds->yarg, ynl_dump_trampoline);
 		if (err < 0)
 			goto err_close_list;
 	} while (err > 0);
