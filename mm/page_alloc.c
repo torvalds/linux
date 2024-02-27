@@ -2605,24 +2605,6 @@ void free_unref_folios(struct folio_batch *folios)
 	folio_batch_reinit(folios);
 }
 
-void free_unref_page_list(struct list_head *list)
-{
-	struct folio_batch fbatch;
-
-	folio_batch_init(&fbatch);
-	while (!list_empty(list)) {
-		struct folio *folio = list_first_entry(list, struct folio, lru);
-
-		list_del(&folio->lru);
-		if (folio_batch_add(&fbatch, folio) > 0)
-			continue;
-		free_unref_folios(&fbatch);
-	}
-
-	if (fbatch.nr)
-		free_unref_folios(&fbatch);
-}
-
 /*
  * split_page takes a non-compound higher-order page, and splits it into
  * n (1<<order) sub-pages: page[0..n]
