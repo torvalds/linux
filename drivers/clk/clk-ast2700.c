@@ -976,7 +976,7 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 	clks[AST2700_SOC0_CLK_CRT2] = ast2700_soc0_hw_pll("crt2clk", "soc0-clkin", val);
 
 	val = readl(clk_base + AST2700_SOC0_MPHYCLK_PARAM);
-	clks[AST2700_SOC0_CLK_MPHY] = ast2700_soc0_hw_pll("mphyclk", "soc0-clkin", val);
+	clks[AST2700_SOC0_CLK_MPHY] = clk_hw_register_fixed_factor(NULL, "mphyclk", "soc0-hpll", 0, 1, val + 1);
 
 	clks[AST2700_SOC0_CLK_PSP] =
 		clk_hw_register_mux(NULL, "pspclk", pspclk_sel, ARRAY_SIZE(pspclk_sel),
@@ -1154,4 +1154,3 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 
 CLK_OF_DECLARE_DRIVER(ast2700_soc0, "aspeed,ast2700-scu0", ast2700_soc0_clk_init);
 CLK_OF_DECLARE_DRIVER(ast2700_soc1, "aspeed,ast2700-scu1", ast2700_soc1_clk_init);
-
