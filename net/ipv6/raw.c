@@ -934,7 +934,7 @@ do_confirm:
 	goto done;
 }
 
-static int rawv6_seticmpfilter(struct sock *sk, int level, int optname,
+static int rawv6_seticmpfilter(struct sock *sk, int optname,
 			       sockptr_t optval, int optlen)
 {
 	switch (optname) {
@@ -951,7 +951,7 @@ static int rawv6_seticmpfilter(struct sock *sk, int level, int optname,
 	return 0;
 }
 
-static int rawv6_geticmpfilter(struct sock *sk, int level, int optname,
+static int rawv6_geticmpfilter(struct sock *sk, int optname,
 			       char __user *optval, int __user *optlen)
 {
 	int len;
@@ -1037,7 +1037,7 @@ static int rawv6_setsockopt(struct sock *sk, int level, int optname,
 	case SOL_ICMPV6:
 		if (inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
 			return -EOPNOTSUPP;
-		return rawv6_seticmpfilter(sk, level, optname, optval, optlen);
+		return rawv6_seticmpfilter(sk, optname, optval, optlen);
 	case SOL_IPV6:
 		if (optname == IPV6_CHECKSUM ||
 		    optname == IPV6_HDRINCL)
@@ -1098,7 +1098,7 @@ static int rawv6_getsockopt(struct sock *sk, int level, int optname,
 	case SOL_ICMPV6:
 		if (inet_sk(sk)->inet_num != IPPROTO_ICMPV6)
 			return -EOPNOTSUPP;
-		return rawv6_geticmpfilter(sk, level, optname, optval, optlen);
+		return rawv6_geticmpfilter(sk, optname, optval, optlen);
 	case SOL_IPV6:
 		if (optname == IPV6_CHECKSUM ||
 		    optname == IPV6_HDRINCL)
