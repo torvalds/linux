@@ -219,7 +219,7 @@ static void put_pages(struct drm_gem_object *obj)
 	}
 }
 
-static struct page **msm_gem_pin_pages_locked(struct drm_gem_object *obj,
+static struct page **msm_gem_get_pages_locked(struct drm_gem_object *obj,
 					      unsigned madv)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -262,7 +262,7 @@ struct page **msm_gem_pin_pages(struct drm_gem_object *obj)
 	struct page **p;
 
 	msm_gem_lock(obj);
-	p = msm_gem_pin_pages_locked(obj, MSM_MADV_WILLNEED);
+	p = msm_gem_get_pages_locked(obj, MSM_MADV_WILLNEED);
 	if (!IS_ERR(p))
 		pin_obj_locked(obj);
 	msm_gem_unlock(obj);
@@ -489,7 +489,7 @@ int msm_gem_pin_vma_locked(struct drm_gem_object *obj, struct msm_gem_vma *vma)
 
 	msm_gem_assert_locked(obj);
 
-	pages = msm_gem_pin_pages_locked(obj, MSM_MADV_WILLNEED);
+	pages = msm_gem_get_pages_locked(obj, MSM_MADV_WILLNEED);
 	if (IS_ERR(pages))
 		return PTR_ERR(pages);
 
@@ -703,7 +703,7 @@ static void *get_vaddr(struct drm_gem_object *obj, unsigned madv)
 	if (obj->import_attach)
 		return ERR_PTR(-ENODEV);
 
-	pages = msm_gem_pin_pages_locked(obj, madv);
+	pages = msm_gem_get_pages_locked(obj, madv);
 	if (IS_ERR(pages))
 		return ERR_CAST(pages);
 
