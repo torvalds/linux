@@ -458,16 +458,20 @@ static int ynl_cb_null(const struct nlmsghdr *nlh, struct ynl_parse_arg *yarg)
 	return YNL_PARSE_CB_ERROR;
 }
 
-static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
+static int
+__ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb, int flags)
 {
 	struct ynl_sock *ys = yarg->ys;
 	const struct nlmsghdr *nlh;
 	ssize_t len, rem;
 	int ret;
 
-	len = recv(ys->socket, ys->rx_buf, YNL_SOCKET_BUFFER_SIZE, 0);
-	if (len < 0)
+	len = recv(ys->socket, ys->rx_buf, YNL_SOCKET_BUFFER_SIZE, flags);
+	if (len < 0) {
+		if (flags & MSG_DONTWAIT && errno == EAGAIN)
+			return YNL_PARSE_CB_STOP;
 		return len;
+	}
 
 	ret = YNL_PARSE_CB_STOP;
 	for (rem = len; rem > 0; NLMSG_NEXT(nlh, rem)) {
@@ -507,6 +511,11 @@ static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
 	}
 
 	return ret;
+}
+
+static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, ynl_parse_cb_t cb)
+{
+	return __ynl_sock_read_msgs(yarg, cb, 0);
 }
 
 static int ynl_recv_ack(struct ynl_sock *ys, int ret)
@@ -797,18 +806,8 @@ int ynl_ntf_check(struct ynl_sock *ys)
 	int err;
 
 	do {
-		/* libmnl doesn't let us pass flags to the recv to make
-		 * it non-blocking so we need to poll() or peek() :|
-		 */
-		struct pollfd pfd = { };
-
-		pfd.fd = ys->socket;
-		pfd.events = POLLIN;
-		err = poll(&pfd, 1, 1);
-		if (err < 1)
-			return err;
-
-		err = ynl_sock_read_msgs(&yarg, ynl_ntf_trampoline);
+		err = __ynl_sock_read_msgs(&yarg, ynl_ntf_trampoline,
+					   MSG_DONTWAIT);
 		if (err < 0)
 			return err;
 	} while (err > 0);
