@@ -1280,7 +1280,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Filter WAPI DATA Frame */
 
 	/* Update statstics for AP roaming */
-	ieee->link_detect_info.NumRecvDataInPeriod++;
+	ieee->link_detect_info.num_recv_data_in_period++;
 	ieee->link_detect_info.num_rx_ok_in_period++;
 
 	/* Data frame - extract src/dst addresses */
