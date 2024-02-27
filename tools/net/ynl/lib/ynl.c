@@ -92,7 +92,7 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 
 	data_len = end - start;
 
-	mnl_attr_for_each_payload(start, data_len) {
+	ynl_attr_for_each_payload(start, data_len, attr) {
 		astart_off = (char *)attr - (char *)start;
 		aend_off = astart_off + ynl_attr_data_len(attr);
 		if (aend_off <= off)
@@ -150,7 +150,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		return MNL_CB_OK;
 	}
 
-	mnl_attr_for_each(attr, nlh, hlen) {
+	ynl_attr_for_each(attr, nlh, hlen) {
 		unsigned int len, type;
 
 		len = ynl_attr_data_len(attr);
@@ -500,7 +500,7 @@ ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
 	const struct nlattr *entry, *attr;
 	unsigned int i;
 
-	mnl_attr_for_each_nested(attr, mcasts)
+	ynl_attr_for_each_nested(attr, mcasts)
 		ys->n_mcast_groups++;
 
 	if (!ys->n_mcast_groups)
@@ -512,8 +512,8 @@ ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
 		return MNL_CB_ERROR;
 
 	i = 0;
-	mnl_attr_for_each_nested(entry, mcasts) {
-		mnl_attr_for_each_nested(attr, entry) {
+	ynl_attr_for_each_nested(entry, mcasts) {
+		ynl_attr_for_each_nested(attr, entry) {
 			if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GRP_ID)
 				ys->mcast_groups[i].id = ynl_attr_get_u32(attr);
 			if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GRP_NAME) {
@@ -535,7 +535,7 @@ static int ynl_get_family_info_cb(const struct nlmsghdr *nlh, void *data)
 	const struct nlattr *attr;
 	bool found_id = true;
 
-	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
+	ynl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
 		if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GROUPS)
 			if (ynl_get_family_info_mcast(ys, attr))
 				return MNL_CB_ERROR;

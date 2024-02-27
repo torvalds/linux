@@ -147,6 +147,53 @@ static inline void *ynl_attr_data(const struct nlattr *attr)
 	return (unsigned char *)attr + NLA_HDRLEN;
 }
 
+static inline void *ynl_attr_data_end(const struct nlattr *attr)
+{
+	return ynl_attr_data(attr) + ynl_attr_data_len(attr);
+}
+
+#define ynl_attr_for_each(attr, nlh, fixed_hdr_sz)			\
+	for ((attr) = ynl_attr_first(nlh, (nlh)->nlmsg_len,		\
+				     NLMSG_HDRLEN + fixed_hdr_sz); attr; \
+	     (attr) = ynl_attr_next(ynl_nlmsg_end_addr(nlh), attr))
+
+#define ynl_attr_for_each_nested(attr, outer)				\
+	for ((attr) = ynl_attr_first(outer, outer->nla_len,		\
+				     sizeof(struct nlattr)); attr;	\
+	     (attr) = ynl_attr_next(ynl_attr_data_end(outer), attr))
+
+#define ynl_attr_for_each_payload(start, len, attr)			\
+	for ((attr) = ynl_attr_first(start, len, 0); attr;		\
+	     (attr) = ynl_attr_next(start + len, attr))
+
+static inline struct nlattr *
+ynl_attr_if_good(const void *end, struct nlattr *attr)
+{
+	if (attr + 1 > (const struct nlattr *)end)
+		return NULL;
+	if (ynl_attr_data_end(attr) > end)
+		return NULL;
+	return attr;
+}
+
+static inline struct nlattr *
+ynl_attr_next(const void *end, const struct nlattr *prev)
+{
+	struct nlattr *attr;
+
+	attr = (void *)((char *)prev + NLA_ALIGN(prev->nla_len));
+	return ynl_attr_if_good(end, attr);
+}
+
+static inline struct nlattr *
+ynl_attr_first(const void *start, size_t len, size_t skip)
+{
+	struct nlattr *attr;
+
+	attr = (void *)((char *)start + NLMSG_ALIGN(skip));
+	return ynl_attr_if_good(start + len, attr);
+}
+
 static inline struct nlattr *
 ynl_attr_nest_start(struct nlmsghdr *nlh, unsigned int attr_type)
 {

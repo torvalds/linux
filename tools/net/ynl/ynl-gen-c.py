@@ -650,7 +650,7 @@ class TypeArrayNest(Type):
     def _attr_get(self, ri, var):
         local_vars = ['const struct nlattr *attr2;']
         get_lines = [f'attr_{self.c_name} = attr;',
-                     'mnl_attr_for_each_nested(attr2, attr)',
+                     'ynl_attr_for_each_nested(attr2, attr)',
                      f'\t{var}->n_{self.c_name}++;']
         return get_lines, None, local_vars
 
@@ -1612,11 +1612,11 @@ def put_req_nested(ri, struct):
 
 def _multi_parse(ri, struct, init_lines, local_vars):
     if struct.nested:
-        iter_line = "mnl_attr_for_each_nested(attr, nested)"
+        iter_line = "ynl_attr_for_each_nested(attr, nested)"
     else:
         if ri.fixed_hdr:
             local_vars += ['void *hdr;']
-        iter_line = "mnl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
+        iter_line = "ynl_attr_for_each(attr, nlh, yarg->ys->family->hdr_len)"
 
     array_nests = set()
     multi_attrs = set()
@@ -1679,7 +1679,7 @@ def _multi_parse(ri, struct, init_lines, local_vars):
         ri.cw.p(f"dst->n_{aspec.c_name} = n_{aspec.c_name};")
         ri.cw.p('i = 0;')
         ri.cw.p(f"parg.rsp_policy = &{aspec.nested_render_name}_nest;")
-        ri.cw.block_start(line=f"mnl_attr_for_each_nested(attr, attr_{aspec.c_name})")
+        ri.cw.block_start(line=f"ynl_attr_for_each_nested(attr, attr_{aspec.c_name})")
         ri.cw.p(f"parg.data = &dst->{aspec.c_name}[i];")
         ri.cw.p(f"if ({aspec.nested_render_name}_parse(&parg, attr, ynl_attr_type(attr)))")
         ri.cw.p('return MNL_CB_ERROR;')
