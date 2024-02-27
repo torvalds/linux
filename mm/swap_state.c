@@ -15,6 +15,7 @@
 #include <linux/swapops.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/pagevec.h>
 #include <linux/backing-dev.h>
 #include <linux/blkdev.h>
 #include <linux/migrate.h>
@@ -310,21 +311,25 @@ void free_page_and_swap_cache(struct page *page)
  */
 void free_pages_and_swap_cache(struct encoded_page **pages, int nr)
 {
-	lru_add_drain();
-	for (int i = 0; i < nr; i++) {
-		struct page *page = encoded_page_ptr(pages[i]);
+	struct folio_batch folios;
+	unsigned int refs[PAGEVEC_SIZE];
 
-		/*
-		 * Skip over the "nr_pages" entry. It's sufficient to call
-		 * free_swap_cache() only once per folio.
-		 */
+	lru_add_drain();
+	folio_batch_init(&folios);
+	for (int i = 0; i < nr; i++) {
+		struct folio *folio = page_folio(encoded_page_ptr(pages[i]));
+
+		free_swap_cache(&folio->page);
+		refs[folios.nr] = 1;
 		if (unlikely(encoded_page_flags(pages[i]) &
 			     ENCODED_PAGE_BIT_NR_PAGES_NEXT))
-			i++;
+			refs[folios.nr] = encoded_nr_pages(pages[++i]);
 
-		free_swap_cache(page);
+		if (folio_batch_add(&folios, folio) == 0)
+			folios_put_refs(&folios, refs);
 	}
-	release_pages(pages, nr);
+	if (folios.nr)
+		folios_put_refs(&folios, refs);
 }
 
 static inline bool swap_use_vma_readahead(void)
