@@ -912,7 +912,7 @@ struct rtllib_network {
 
 	bool	bWithAironetIE;
 	bool	ckip_supported;
-	bool	bCcxRmEnable;
+	bool	ccx_rm_enable;
 	u8	CcxRmState[2];
 	bool	bMBssidValid;
 	u8	MBssidMask;
