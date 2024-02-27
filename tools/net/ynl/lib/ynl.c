@@ -462,26 +462,7 @@ ynl_gemsg_start_dump(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version)
 			       cmd, version);
 }
 
-int ynl_recv_ack(struct ynl_sock *ys, int ret)
-{
-	struct ynl_parse_arg yarg = { .ys = ys, };
-
-	if (!ret) {
-		yerr(ys, YNL_ERROR_EXPECT_ACK,
-		     "Expecting an ACK but nothing received");
-		return -1;
-	}
-
-	ret = mnl_socket_recvfrom(ys->sock, ys->rx_buf, MNL_SOCKET_BUFFER_SIZE);
-	if (ret < 0) {
-		perr(ys, "Socket receive failed");
-		return ret;
-	}
-	return mnl_cb_run(ys->rx_buf, ret, ys->seq, ys->portid,
-			  ynl_cb_null, &yarg);
-}
-
-int ynl_cb_null(const struct nlmsghdr *nlh, void *data)
+static int ynl_cb_null(const struct nlmsghdr *nlh, void *data)
 {
 	struct ynl_parse_arg *yarg = data;
 
@@ -502,6 +483,19 @@ static int ynl_sock_read_msgs(struct ynl_parse_arg *yarg, mnl_cb_t cb)
 
 	return mnl_cb_run2(ys->rx_buf, len, ys->seq, ys->portid,
 			   cb, yarg, ynl_cb_array, NLMSG_MIN_TYPE);
+}
+
+static int ynl_recv_ack(struct ynl_sock *ys, int ret)
+{
+	struct ynl_parse_arg yarg = { .ys = ys, };
+
+	if (!ret) {
+		yerr(ys, YNL_ERROR_EXPECT_ACK,
+		     "Expecting an ACK but nothing received");
+		return -1;
+	}
+
+	return ynl_sock_read_msgs(&yarg, ynl_cb_null);
 }
 
 /* Init/fini and genetlink boiler plate */

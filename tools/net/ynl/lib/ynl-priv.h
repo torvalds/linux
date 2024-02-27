@@ -90,9 +90,6 @@ ynl_gemsg_start_dump(struct ynl_sock *ys, __u32 id, __u8 cmd, __u8 version);
 
 int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr);
 
-int ynl_recv_ack(struct ynl_sock *ys, int ret);
-int ynl_cb_null(const struct nlmsghdr *nlh, void *data);
-
 /* YNL specific helpers used by the auto-generated code */
 
 struct ynl_req_state {
