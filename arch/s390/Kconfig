@@ -737,6 +737,20 @@ config AP
 
 	  If unsure, say Y (default).
 
+config AP_DEBUG
+	def_bool n
+	prompt "Enable debug features for Adjunct Processor (ap) devices"
+	depends on AP
+	help
+	  Say 'Y' here to enable some additional debug features for Adjunct
+	  Processor (ap) devices.
+
+	  There will be some more sysfs attributes displayed for ap queues.
+
+	  Do not enable on production level kernel build.
+
+	  If unsure, say N.
+
 config VFIO_CCW
 	def_tristate n
 	prompt "Support for VFIO-CCW subchannels"
