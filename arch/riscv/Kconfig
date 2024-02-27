@@ -581,7 +581,6 @@ config TOOLCHAIN_HAS_ZBB
 config RISCV_ISA_ZBB
 	bool "Zbb extension support for bit manipulation instructions"
 	depends on TOOLCHAIN_HAS_ZBB
-	depends on MMU
 	depends on RISCV_ALTERNATIVE
 	default y
 	help
@@ -613,7 +612,6 @@ config RISCV_ISA_ZICBOM
 
 config RISCV_ISA_ZICBOZ
 	bool "Zicboz extension support for faster zeroing of memory"
-	depends on MMU
 	depends on RISCV_ALTERNATIVE
 	default y
 	help
