@@ -58,11 +58,14 @@ static int ivpu_suspend(struct ivpu_device *vdev)
 {
 	int ret;
 
+	/* Save PCI state before powering down as it sometimes gets corrupted if NPU hangs */
+	pci_save_state(to_pci_dev(vdev->drm.dev));
+
 	ret = ivpu_shutdown(vdev);
-	if (ret) {
+	if (ret)
 		ivpu_err(vdev, "Failed to shutdown VPU: %d\n", ret);
-		return ret;
-	}
+
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 
 	return ret;
 }
@@ -70,6 +73,9 @@ static int ivpu_suspend(struct ivpu_device *vdev)
 static int ivpu_resume(struct ivpu_device *vdev)
 {
 	int ret;
+
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
+	pci_restore_state(to_pci_dev(vdev->drm.dev));
 
 retry:
 	ret = ivpu_hw_power_up(vdev);
@@ -120,15 +126,20 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 
 	ivpu_fw_log_dump(vdev);
 
-retry:
-	ret = pci_try_reset_function(to_pci_dev(vdev->drm.dev));
-	if (ret == -EAGAIN && !drm_dev_is_unplugged(&vdev->drm)) {
-		cond_resched();
-		goto retry;
-	}
+	atomic_inc(&vdev->pm->reset_counter);
+	atomic_set(&vdev->pm->reset_pending, 1);
+	down_write(&vdev->pm->reset_lock);
 
-	if (ret && ret != -EAGAIN)
-		ivpu_err(vdev, "Failed to reset VPU: %d\n", ret);
+	ivpu_suspend(vdev);
+	ivpu_pm_prepare_cold_boot(vdev);
+	ivpu_jobs_abort_all(vdev);
+
+	ret = ivpu_resume(vdev);
+	if (ret)
+		ivpu_err(vdev, "Failed to resume NPU: %d\n", ret);
+
+	up_write(&vdev->pm->reset_lock);
+	atomic_set(&vdev->pm->reset_pending, 0);
 
 	kobject_uevent_env(&vdev->drm.dev->kobj, KOBJ_CHANGE, evt);
 	pm_runtime_mark_last_busy(vdev->drm.dev);
@@ -200,9 +211,6 @@ int ivpu_pm_suspend_cb(struct device *dev)
 	ivpu_suspend(vdev);
 	ivpu_pm_prepare_warm_boot(vdev);
 
-	pci_save_state(to_pci_dev(dev));
-	pci_set_power_state(to_pci_dev(dev), PCI_D3hot);
-
 	ivpu_dbg(vdev, PM, "Suspend done.\n");
 
 	return 0;
@@ -215,9 +223,6 @@ int ivpu_pm_resume_cb(struct device *dev)
 	int ret;
 
 	ivpu_dbg(vdev, PM, "Resume..\n");
-
-	pci_set_power_state(to_pci_dev(dev), PCI_D0);
-	pci_restore_state(to_pci_dev(dev));
 
 	ret = ivpu_resume(vdev);
 	if (ret)

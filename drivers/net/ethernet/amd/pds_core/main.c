@@ -451,6 +451,9 @@ static void pdsc_remove(struct pci_dev *pdev)
 
 static void pdsc_stop_health_thread(struct pdsc *pdsc)
 {
+	if (pdsc->pdev->is_virtfn)
+		return;
+
 	timer_shutdown_sync(&pdsc->wdtimer);
 	if (pdsc->health_work.func)
 		cancel_work_sync(&pdsc->health_work);
@@ -458,6 +461,9 @@ static void pdsc_stop_health_thread(struct pdsc *pdsc)
 
 static void pdsc_restart_health_thread(struct pdsc *pdsc)
 {
+	if (pdsc->pdev->is_virtfn)
+		return;
+
 	timer_setup(&pdsc->wdtimer, pdsc_wdtimer_cb, 0);
 	mod_timer(&pdsc->wdtimer, jiffies + 1);
 }

@@ -153,6 +153,7 @@ static const struct pci_device_id skfddi_pci_tbl[] = {
 	{ }			/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(pci, skfddi_pci_tbl);
+MODULE_DESCRIPTION("SysKonnect FDDI PCI driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mirko Lindner <mlindner@syskonnect.de>");
 

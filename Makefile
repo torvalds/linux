@@ -2,7 +2,7 @@
 VERSION = 6
 PATCHLEVEL = 8
 SUBLEVEL = 0
-EXTRAVERSION = -rc4
+EXTRAVERSION = -rc5
 NAME = Hurr durr I'ma ninja sloth
 
 # *DOCUMENTATION*
@@ -294,15 +294,15 @@ may-sync-config	:= 1
 single-build	:=
 
 ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
-        ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
+    ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
 		need-config :=
-        endif
+    endif
 endif
 
 ifneq ($(filter $(no-sync-config-targets), $(MAKECMDGOALS)),)
-        ifeq ($(filter-out $(no-sync-config-targets), $(MAKECMDGOALS)),)
+    ifeq ($(filter-out $(no-sync-config-targets), $(MAKECMDGOALS)),)
 		may-sync-config :=
-        endif
+    endif
 endif
 
 need-compiler := $(may-sync-config)
@@ -323,9 +323,9 @@ endif
 # We cannot build single targets and the others at the same time
 ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
 	single-build := 1
-        ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
+    ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
 		mixed-build := 1
-        endif
+    endif
 endif
 
 # For "make -j clean all", "make -j mrproper defconfig all", etc.

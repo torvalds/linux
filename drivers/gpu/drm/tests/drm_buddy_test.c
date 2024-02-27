@@ -8,6 +8,7 @@
 
 #include <linux/prime_numbers.h>
 #include <linux/sched/signal.h>
+#include <linux/sizes.h>
 
 #include <drm/drm_buddy.h>
 
@@ -16,6 +17,93 @@
 static inline u64 get_size(int order, u64 chunk_size)
 {
 	return (1 << order) * chunk_size;
+}
+
+static void drm_test_buddy_alloc_contiguous(struct kunit *test)
+{
+	u64 mm_size, ps = SZ_4K, i, n_pages, total;
+	struct drm_buddy_block *block;
+	struct drm_buddy mm;
+	LIST_HEAD(left);
+	LIST_HEAD(middle);
+	LIST_HEAD(right);
+	LIST_HEAD(allocated);
+
+	mm_size = 16 * 3 * SZ_4K;
+
+	KUNIT_EXPECT_FALSE(test, drm_buddy_init(&mm, mm_size, ps));
+
+	/*
+	 * Idea is to fragment the address space by alternating block
+	 * allocations between three different lists; one for left, middle and
+	 * right. We can then free a list to simulate fragmentation. In
+	 * particular we want to exercise the DRM_BUDDY_CONTIGUOUS_ALLOCATION,
+	 * including the try_harder path.
+	 */
+
+	i = 0;
+	n_pages = mm_size / ps;
+	do {
+		struct list_head *list;
+		int slot = i % 3;
+
+		if (slot == 0)
+			list = &left;
+		else if (slot == 1)
+			list = &middle;
+		else
+			list = &right;
+		KUNIT_ASSERT_FALSE_MSG(test,
+				       drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							      ps, ps, list, 0),
+				       "buddy_alloc hit an error size=%d\n",
+				       ps);
+	} while (++i < n_pages);
+
+	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							   3 * ps, ps, &allocated,
+							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc didn't error size=%d\n", 3 * ps);
+
+	drm_buddy_free_list(&mm, &middle);
+	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							   3 * ps, ps, &allocated,
+							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc didn't error size=%llu\n", 3 * ps);
+	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							   2 * ps, ps, &allocated,
+							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc didn't error size=%llu\n", 2 * ps);
+
+	drm_buddy_free_list(&mm, &right);
+	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							   3 * ps, ps, &allocated,
+							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc didn't error size=%llu\n", 3 * ps);
+	/*
+	 * At this point we should have enough contiguous space for 2 blocks,
+	 * however they are never buddies (since we freed middle and right) so
+	 * will require the try_harder logic to find them.
+	 */
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							    2 * ps, ps, &allocated,
+							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc hit an error size=%d\n", 2 * ps);
+
+	drm_buddy_free_list(&mm, &left);
+	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
+							    3 * ps, ps, &allocated,
+							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
+			       "buddy_alloc hit an error size=%d\n", 3 * ps);
+
+	total = 0;
+	list_for_each_entry(block, &allocated, link)
+		total += drm_buddy_block_size(&mm, block);
+
+	KUNIT_ASSERT_EQ(test, total, ps * 2 + ps * 3);
+
+	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_fini(&mm);
 }
 
 static void drm_test_buddy_alloc_pathological(struct kunit *test)
@@ -280,6 +368,7 @@ static struct kunit_case drm_buddy_tests[] = {
 	KUNIT_CASE(drm_test_buddy_alloc_optimistic),
 	KUNIT_CASE(drm_test_buddy_alloc_pessimistic),
 	KUNIT_CASE(drm_test_buddy_alloc_pathological),
+	KUNIT_CASE(drm_test_buddy_alloc_contiguous),
 	{}
 };
 

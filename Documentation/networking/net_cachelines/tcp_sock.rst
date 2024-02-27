@@ -38,13 +38,13 @@ u32                           max_window              read_mostly         -     
 u32                           mss_cache               read_mostly         read_mostly         tcp_rate_check_app_limited,tcp_current_mss,tcp_sync_mss,tcp_sndbuf_expand,tcp_tso_should_defer(tx);tcp_update_pacing_rate,tcp_clean_rtx_queue(rx)
 u32                           window_clamp            read_mostly         read_write          tcp_rcv_space_adjust,__tcp_select_window
 u32                           rcv_ssthresh            read_mostly         -                   __tcp_select_window
-u82                           scaling_ratio                                                   
+u8                            scaling_ratio           read_mostly         read_mostly         tcp_win_from_space
 struct                        tcp_rack                                                        
 u16                           advmss                  -                   read_mostly         tcp_rcv_space_adjust
 u8                            compressed_ack                                                  
 u8:2                          dup_ack_counter                                                 
 u8:1                          tlp_retrans                                                     
-u8:1                          tcp_usec_ts                                                     
+u8:1                          tcp_usec_ts             read_mostly         read_mostly
 u32                           chrono_start            read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u32[3]                        chrono_stat             read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)
 u8:2                          chrono_type             read_write          -                   tcp_chrono_start/stop(tcp_write_xmit,tcp_cwnd_validate,tcp_send_syn_data)

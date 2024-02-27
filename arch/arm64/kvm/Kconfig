@@ -3,7 +3,6 @@
 # KVM configuration
 #
 
-source "virt/lib/Kconfig"
 source "virt/kvm/Kconfig"
 
 menuconfig VIRTUALIZATION
