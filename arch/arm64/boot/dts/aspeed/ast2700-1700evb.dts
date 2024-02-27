@@ -86,6 +86,14 @@
 		#cooling-cells = <2>;
 		cooling-levels = <0 15 128 255>;
 	};
+
+	ltpi0-iio-hwmon {
+		compatible = "iio-hwmon";
+		io-channels = <&ltpi0_adc0 0>, <&ltpi0_adc0 1>, <&ltpi0_adc0 2>, <&ltpi0_adc0 3>,
+				<&ltpi0_adc0 4>, <&ltpi0_adc0 5>, <&ltpi0_adc0 6>, <&ltpi0_adc0 7>,
+				<&ltpi0_adc1 0>, <&ltpi0_adc1 1>, <&ltpi0_adc1 2>, <&ltpi0_adc1 3>,
+				<&ltpi0_adc1 4>, <&ltpi0_adc1 5>, <&ltpi0_adc1 6>, <&ltpi0_adc1 7>;
+	};
 };
 
 &ltpi0 {
@@ -178,6 +186,16 @@
 	ltpi0-fan-15 {
 		tach-ch = /bits/ 8 <0xF>;
 	};
+};
+
+&ltpi0_adc0 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
+};
+
+&ltpi0_adc1 {
+	aspeed,int-vref-microvolt = <2500000>;
+	status = "okay";
 };
 
 &ltpi0_i2c0 {
