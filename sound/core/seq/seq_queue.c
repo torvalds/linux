@@ -50,43 +50,35 @@ int snd_seq_queue_get_cur_queues(void)
 static int queue_list_add(struct snd_seq_queue *q)
 {
 	int i;
-	unsigned long flags;
 
-	spin_lock_irqsave(&queue_list_lock, flags);
+	guard(spinlock_irqsave)(&queue_list_lock);
 	for (i = 0; i < SNDRV_SEQ_MAX_QUEUES; i++) {
 		if (! queue_list[i]) {
 			queue_list[i] = q;
 			q->queue = i;
 			num_queues++;
-			spin_unlock_irqrestore(&queue_list_lock, flags);
 			return i;
 		}
 	}
-	spin_unlock_irqrestore(&queue_list_lock, flags);
 	return -1;
 }
 
 static struct snd_seq_queue *queue_list_remove(int id, int client)
 {
 	struct snd_seq_queue *q;
-	unsigned long flags;
 
-	spin_lock_irqsave(&queue_list_lock, flags);
+	guard(spinlock_irqsave)(&queue_list_lock);
 	q = queue_list[id];
 	if (q) {
-		spin_lock(&q->owner_lock);
+		guard(spinlock)(&q->owner_lock);
 		if (q->owner == client) {
 			/* found */
 			q->klocked = 1;
-			spin_unlock(&q->owner_lock);
 			queue_list[id] = NULL;
 			num_queues--;
-			spin_unlock_irqrestore(&queue_list_lock, flags);
 			return q;
 		}
-		spin_unlock(&q->owner_lock);
 	}
-	spin_unlock_irqrestore(&queue_list_lock, flags);
 	return NULL;
 }
 
@@ -203,15 +195,13 @@ int snd_seq_queue_delete(int client, int queueid)
 struct snd_seq_queue *queueptr(int queueid)
 {
 	struct snd_seq_queue *q;
-	unsigned long flags;
 
 	if (queueid < 0 || queueid >= SNDRV_SEQ_MAX_QUEUES)
 		return NULL;
-	spin_lock_irqsave(&queue_list_lock, flags);
+	guard(spinlock_irqsave)(&queue_list_lock);
 	q = queue_list[queueid];
 	if (q)
 		snd_use_lock_use(&q->use_lock);
-	spin_unlock_irqrestore(&queue_list_lock, flags);
 	return q;
 }
 
@@ -239,7 +229,6 @@ struct snd_seq_queue *snd_seq_queue_find_name(char *name)
 
 void snd_seq_check_queue(struct snd_seq_queue *q, int atomic, int hop)
 {
-	unsigned long flags;
 	struct snd_seq_event_cell *cell;
 	snd_seq_tick_time_t cur_tick;
 	snd_seq_real_time_t cur_time;
@@ -249,14 +238,13 @@ void snd_seq_check_queue(struct snd_seq_queue *q, int atomic, int hop)
 		return;
 
 	/* make this function non-reentrant */
-	spin_lock_irqsave(&q->check_lock, flags);
-	if (q->check_blocked) {
-		q->check_again = 1;
-		spin_unlock_irqrestore(&q->check_lock, flags);
-		return;		/* other thread is already checking queues */
+	scoped_guard(spinlock_irqsave, &q->check_lock) {
+		if (q->check_blocked) {
+			q->check_again = 1;
+			return;	/* other thread is already checking queues */
+		}
+		q->check_blocked = 1;
 	}
-	q->check_blocked = 1;
-	spin_unlock_irqrestore(&q->check_lock, flags);
 
       __again:
 	/* Process tick queue... */
@@ -283,16 +271,14 @@ void snd_seq_check_queue(struct snd_seq_queue *q, int atomic, int hop)
 
  out:
 	/* free lock */
-	spin_lock_irqsave(&q->check_lock, flags);
-	if (q->check_again) {
-		q->check_again = 0;
-		if (processed < MAX_CELL_PROCESSES_IN_QUEUE) {
-			spin_unlock_irqrestore(&q->check_lock, flags);
-			goto __again;
+	scoped_guard(spinlock_irqsave, &q->check_lock) {
+		if (q->check_again) {
+			q->check_again = 0;
+			if (processed < MAX_CELL_PROCESSES_IN_QUEUE)
+				goto __again;
 		}
+		q->check_blocked = 0;
 	}
-	q->check_blocked = 0;
-	spin_unlock_irqrestore(&q->check_lock, flags);
 }
 
 
@@ -361,25 +347,20 @@ static inline int check_access(struct snd_seq_queue *q, int client)
  */
 static int queue_access_lock(struct snd_seq_queue *q, int client)
 {
-	unsigned long flags;
 	int access_ok;
 	
-	spin_lock_irqsave(&q->owner_lock, flags);
+	guard(spinlock_irqsave)(&q->owner_lock);
 	access_ok = check_access(q, client);
 	if (access_ok)
 		q->klocked = 1;
-	spin_unlock_irqrestore(&q->owner_lock, flags);
 	return access_ok;
 }
 
 /* unlock the queue */
 static inline void queue_access_unlock(struct snd_seq_queue *q)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&q->owner_lock, flags);
+	guard(spinlock_irqsave)(&q->owner_lock);
 	q->klocked = 0;
-	spin_unlock_irqrestore(&q->owner_lock, flags);
 }
 
 /* exported - only checking permission */
@@ -387,13 +368,11 @@ int snd_seq_queue_check_access(int queueid, int client)
 {
 	struct snd_seq_queue *q = queueptr(queueid);
 	int access_ok;
-	unsigned long flags;
 
 	if (! q)
 		return 0;
-	spin_lock_irqsave(&q->owner_lock, flags);
-	access_ok = check_access(q, client);
-	spin_unlock_irqrestore(&q->owner_lock, flags);
+	scoped_guard(spinlock_irqsave, &q->owner_lock)
+		access_ok = check_access(q, client);
 	queuefree(q);
 	return access_ok;
 }
@@ -406,7 +385,6 @@ int snd_seq_queue_check_access(int queueid, int client)
 int snd_seq_queue_set_owner(int queueid, int client, int locked)
 {
 	struct snd_seq_queue *q = queueptr(queueid);
-	unsigned long flags;
 
 	if (q == NULL)
 		return -EINVAL;
@@ -416,10 +394,10 @@ int snd_seq_queue_set_owner(int queueid, int client, int locked)
 		return -EPERM;
 	}
 
-	spin_lock_irqsave(&q->owner_lock, flags);
-	q->locked = locked ? 1 : 0;
-	q->owner = client;
-	spin_unlock_irqrestore(&q->owner_lock, flags);
+	scoped_guard(spinlock_irqsave, &q->owner_lock) {
+		q->locked = locked ? 1 : 0;
+		q->owner = client;
+	}
 	queue_access_unlock(q);
 	queuefree(q);
 
@@ -750,10 +728,10 @@ void snd_seq_info_queues_read(struct snd_info_entry *entry,
 		else
 			bpm = 0;
 
-		spin_lock_irq(&q->owner_lock);
-		locked = q->locked;
-		owner = q->owner;
-		spin_unlock_irq(&q->owner_lock);
+		scoped_guard(spinlock_irq, &q->owner_lock) {
+			locked = q->locked;
+			owner = q->owner;
+		}
 
 		snd_iprintf(buffer, "queue %d: [%s]\n", q->queue, q->name);
 		snd_iprintf(buffer, "owned by client    : %d\n", owner);
