@@ -63,11 +63,6 @@ struct rtc_plat_data {
 	struct rtc_device *rtc;
 	void __iomem *ioaddr;		/* virtual base address */
 	int irq;
-	unsigned int irqen;
-	int alrm_sec;
-	int alrm_min;
-	int alrm_hour;
-	int alrm_mday;
 	spinlock_t lock;
 };
 
@@ -188,18 +183,11 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
 	unsigned long flags;
 
-	pdata->alrm_mday = alrm->time.tm_mday;
-	pdata->alrm_hour = alrm->time.tm_hour;
-	pdata->alrm_min = alrm->time.tm_min;
-	pdata->alrm_sec = alrm->time.tm_sec;
-	if (alrm->enabled)
-		pdata->irqen |= RTC_AF;
-
 	spin_lock_irqsave(&pdata->lock, flags);
-	rtc_write(bin2bcd(pdata->alrm_mday) & 0x3f, DS1511_AM4_DATE);
-	rtc_write(bin2bcd(pdata->alrm_hour) & 0x3f, DS1511_AM3_HOUR);
-	rtc_write(bin2bcd(pdata->alrm_min) & 0x7f, DS1511_AM2_MIN);
-	rtc_write(bin2bcd(pdata->alrm_sec) & 0x7f, DS1511_AM1_SEC);
+	rtc_write(bin2bcd(alrm->time.tm_mday) & 0x3f, DS1511_AM4_DATE);
+	rtc_write(bin2bcd(alrm->time.tm_hour) & 0x3f, DS1511_AM3_HOUR);
+	rtc_write(bin2bcd(alrm->time.tm_min) & 0x7f, DS1511_AM2_MIN);
+	rtc_write(bin2bcd(alrm->time.tm_sec) & 0x7f, DS1511_AM1_SEC);
 	ds1511_rtc_alarm_enable(alrm->enabled);
 
 	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
@@ -210,13 +198,12 @@ static int ds1511_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int ds1511_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct rtc_plat_data *pdata = dev_get_drvdata(dev);
+	alrm->time.tm_mday = bcd2bin(rtc_read(DS1511_AM4_DATE) & 0x3f);
+	alrm->time.tm_hour = bcd2bin(rtc_read(DS1511_AM3_HOUR) & 0x3f);
+	alrm->time.tm_min = bcd2bin(rtc_read(DS1511_AM2_MIN) & 0x7f);
+	alrm->time.tm_sec = bcd2bin(rtc_read(DS1511_AM1_SEC) & 0x7f);
+	alrm->enabled = !!(rtc_read(DS1511_CONTROL_B) & DS1511_TIE);
 
-	alrm->time.tm_mday = pdata->alrm_mday < 0 ? 0 : pdata->alrm_mday;
-	alrm->time.tm_hour = pdata->alrm_hour < 0 ? 0 : pdata->alrm_hour;
-	alrm->time.tm_min = pdata->alrm_min < 0 ? 0 : pdata->alrm_min;
-	alrm->time.tm_sec = pdata->alrm_sec < 0 ? 0 : pdata->alrm_sec;
-	alrm->enabled = (pdata->irqen & RTC_AF) ? 1 : 0;
 	return 0;
 }
 
