@@ -2229,14 +2229,16 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->gfxclk_lock_status = GET_METRIC_FIELD(GfxLockXCDMak) >> GET_INST(GC, 0);
 
 	if (!(adev->flags & AMD_IS_APU)) {
-		link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
-		if (link_width_level > MAX_LINK_WIDTH)
-			link_width_level = 0;
+		if (!amdgpu_sriov_vf(adev)) {
+			link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
+			if (link_width_level > MAX_LINK_WIDTH)
+				link_width_level = 0;
 
-		gpu_metrics->pcie_link_width =
-			DECODE_LANE_WIDTH(link_width_level);
-		gpu_metrics->pcie_link_speed =
-			smu_v13_0_6_get_current_pcie_link_speed(smu);
+			gpu_metrics->pcie_link_width =
+				DECODE_LANE_WIDTH(link_width_level);
+			gpu_metrics->pcie_link_speed =
+				smu_v13_0_6_get_current_pcie_link_speed(smu);
+		}
 		gpu_metrics->pcie_bandwidth_acc =
 				SMUQ10_ROUND(metrics_x->PcieBandwidthAcc[0]);
 		gpu_metrics->pcie_bandwidth_inst =

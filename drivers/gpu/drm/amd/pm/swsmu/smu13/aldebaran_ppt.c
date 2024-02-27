@@ -1747,10 +1747,12 @@ static ssize_t aldebaran_get_gpu_metrics(struct smu_context *smu,
 
 	gpu_metrics->current_fan_speed = 0;
 
-	gpu_metrics->pcie_link_width =
-		smu_v13_0_get_current_pcie_link_width(smu);
-	gpu_metrics->pcie_link_speed =
-		aldebaran_get_current_pcie_link_speed(smu);
+	if (!amdgpu_sriov_vf(smu->adev)) {
+		gpu_metrics->pcie_link_width =
+			smu_v13_0_get_current_pcie_link_width(smu);
+		gpu_metrics->pcie_link_speed =
+			aldebaran_get_current_pcie_link_speed(smu);
+	}
 
 	gpu_metrics->system_clock_counter = ktime_get_boottime_ns();
 
