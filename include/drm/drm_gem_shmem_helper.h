@@ -108,6 +108,9 @@ void drm_gem_shmem_vunmap(struct drm_gem_shmem_object *shmem,
 			  struct iosys_map *map);
 int drm_gem_shmem_mmap(struct drm_gem_shmem_object *shmem, struct vm_area_struct *vma);
 
+int drm_gem_shmem_pin_locked(struct drm_gem_shmem_object *shmem);
+void drm_gem_shmem_unpin_locked(struct drm_gem_shmem_object *shmem);
+
 int drm_gem_shmem_madvise(struct drm_gem_shmem_object *shmem, int madv);
 
 static inline bool drm_gem_shmem_is_purgeable(struct drm_gem_shmem_object *shmem)
@@ -172,8 +175,15 @@ static inline void drm_gem_shmem_object_print_info(struct drm_printer *p, unsign
 static inline int drm_gem_shmem_object_pin(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
+	int ret;
 
-	return drm_gem_shmem_pin(shmem);
+	ret = dma_resv_lock_interruptible(shmem->base.resv, NULL);
+	if (ret)
+		return ret;
+	ret = drm_gem_shmem_pin_locked(shmem);
+	dma_resv_unlock(shmem->base.resv);
+
+	return ret;
 }
 
 /**
@@ -187,7 +197,9 @@ static inline void drm_gem_shmem_object_unpin(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
-	drm_gem_shmem_unpin(shmem);
+	dma_resv_lock(shmem->base.resv, NULL);
+	drm_gem_shmem_unpin_locked(shmem);
+	dma_resv_unlock(shmem->base.resv);
 }
 
 /**
