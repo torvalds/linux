@@ -853,16 +853,16 @@ rtllib_association_req(struct rtllib_network *beacon,
 
 	if (beacon->bss_ccx_ver_number >= 2) {
 		u8 ccx_ver_num_buf[] = {0x00, 0x40, 0x96, 0x03, 0x00};
-		struct octet_string osCcxVerNum;
+		struct octet_string os_ccx_ver_num;
 
 		ccx_ver_num_buf[4] = beacon->bss_ccx_ver_number;
-		osCcxVerNum.octet = ccx_ver_num_buf;
-		osCcxVerNum.Length = sizeof(ccx_ver_num_buf);
+		os_ccx_ver_num.octet = ccx_ver_num_buf;
+		os_ccx_ver_num.Length = sizeof(ccx_ver_num_buf);
 		tag = skb_put(skb, cxvernum_ie_len);
 		*tag++ = MFIE_TYPE_GENERIC;
-		*tag++ = osCcxVerNum.Length;
-		memcpy(tag, osCcxVerNum.octet, osCcxVerNum.Length);
-		tag += osCcxVerNum.Length;
+		*tag++ = os_ccx_ver_num.Length;
+		memcpy(tag, os_ccx_ver_num.octet, os_ccx_ver_num.Length);
+		tag += os_ccx_ver_num.Length;
 	}
 	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht) {
 		if (ieee->ht_info->peer_ht_spec_ver != HT_SPEC_VER_EWC) {
