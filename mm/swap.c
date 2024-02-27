@@ -1083,8 +1083,7 @@ void __folio_batch_release(struct folio_batch *fbatch)
 		lru_add_drain();
 		fbatch->percpu_pvec_drained = true;
 	}
-	release_pages(fbatch->folios, folio_batch_count(fbatch));
-	folio_batch_reinit(fbatch);
+	folios_put(fbatch);
 }
 EXPORT_SYMBOL(__folio_batch_release);
 
