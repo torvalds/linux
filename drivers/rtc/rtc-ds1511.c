@@ -22,26 +22,24 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-enum ds1511reg {
-	DS1511_SEC = 0x0,
-	DS1511_MIN = 0x1,
-	DS1511_HOUR = 0x2,
-	DS1511_DOW = 0x3,
-	DS1511_DOM = 0x4,
-	DS1511_MONTH = 0x5,
-	DS1511_YEAR = 0x6,
-	DS1511_CENTURY = 0x7,
-	DS1511_AM1_SEC = 0x8,
-	DS1511_AM2_MIN = 0x9,
-	DS1511_AM3_HOUR = 0xa,
-	DS1511_AM4_DATE = 0xb,
-	DS1511_WD_MSEC = 0xc,
-	DS1511_WD_SEC = 0xd,
-	DS1511_CONTROL_A = 0xe,
-	DS1511_CONTROL_B = 0xf,
-	DS1511_RAMADDR_LSB = 0x10,
-	DS1511_RAMDATA = 0x13
-};
+#define DS1511_SEC		0x0
+#define DS1511_MIN		0x1
+#define DS1511_HOUR		0x2
+#define DS1511_DOW		0x3
+#define DS1511_DOM		0x4
+#define DS1511_MONTH		0x5
+#define DS1511_YEAR		0x6
+#define DS1511_CENTURY		0x7
+#define DS1511_AM1_SEC		0x8
+#define DS1511_AM2_MIN		0x9
+#define DS1511_AM3_HOUR		0xa
+#define DS1511_AM4_DATE		0xb
+#define DS1511_WD_MSEC		0xc
+#define DS1511_WD_SEC		0xd
+#define DS1511_CONTROL_A	0xe
+#define DS1511_CONTROL_B	0xf
+#define DS1511_RAMADDR_LSB	0x10
+#define DS1511_RAMDATA		0x13
 
 #define DS1511_BLF1	0x80
 #define DS1511_BLF2	0x40
@@ -60,26 +58,6 @@ enum ds1511reg {
 #define DS1511_WDE	0x02
 #define DS1511_WDS	0x01
 #define DS1511_RAM_MAX	0x100
-
-#define RTC_CMD		DS1511_CONTROL_B
-#define RTC_CMD1	DS1511_CONTROL_A
-
-#define RTC_ALARM_SEC	DS1511_AM1_SEC
-#define RTC_ALARM_MIN	DS1511_AM2_MIN
-#define RTC_ALARM_HOUR	DS1511_AM3_HOUR
-#define RTC_ALARM_DATE	DS1511_AM4_DATE
-
-#define RTC_SEC		DS1511_SEC
-#define RTC_MIN		DS1511_MIN
-#define RTC_HOUR	DS1511_HOUR
-#define RTC_DOW		DS1511_DOW
-#define RTC_DOM		DS1511_DOM
-#define RTC_MON		DS1511_MONTH
-#define RTC_YEAR	DS1511_YEAR
-#define RTC_CENTURY	DS1511_CENTURY
-
-#define RTC_TIE	DS1511_TIE
-#define RTC_TE	DS1511_TE
 
 struct rtc_plat_data {
 	struct rtc_device *rtc;
@@ -105,7 +83,7 @@ rtc_write(uint8_t val, uint32_t reg)
 }
 
 static noinline uint8_t
-rtc_read(enum ds1511reg reg)
+rtc_read(uint32_t reg)
 {
 	return readb(ds1511_base + (reg * reg_spacing));
 }
@@ -113,13 +91,13 @@ rtc_read(enum ds1511reg reg)
 static inline void
 rtc_disable_update(void)
 {
-	rtc_write((rtc_read(RTC_CMD) & ~RTC_TE), RTC_CMD);
+	rtc_write((rtc_read(DS1511_CONTROL_B) & ~DS1511_TE), DS1511_CONTROL_B);
 }
 
 static void
 rtc_enable_update(void)
 {
-	rtc_write((rtc_read(RTC_CMD) | RTC_TE), RTC_CMD);
+	rtc_write((rtc_read(DS1511_CONTROL_B) | DS1511_TE), DS1511_CONTROL_B);
 }
 
 static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
@@ -149,14 +127,14 @@ static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
 
 	spin_lock_irqsave(&ds1511_lock, flags);
 	rtc_disable_update();
-	rtc_write(cen, RTC_CENTURY);
-	rtc_write(yrs, RTC_YEAR);
-	rtc_write((rtc_read(RTC_MON) & 0xe0) | mon, RTC_MON);
-	rtc_write(day, RTC_DOM);
-	rtc_write(hrs, RTC_HOUR);
-	rtc_write(min, RTC_MIN);
-	rtc_write(sec, RTC_SEC);
-	rtc_write(dow, RTC_DOW);
+	rtc_write(cen, DS1511_CENTURY);
+	rtc_write(yrs, DS1511_YEAR);
+	rtc_write((rtc_read(DS1511_MONTH) & 0xe0) | mon, DS1511_MONTH);
+	rtc_write(day, DS1511_DOM);
+	rtc_write(hrs, DS1511_HOUR);
+	rtc_write(min, DS1511_MIN);
+	rtc_write(sec, DS1511_SEC);
+	rtc_write(dow, DS1511_DOW);
 	rtc_enable_update();
 	spin_unlock_irqrestore(&ds1511_lock, flags);
 
@@ -171,14 +149,14 @@ static int ds1511_rtc_read_time(struct device *dev, struct rtc_time *rtc_tm)
 	spin_lock_irqsave(&ds1511_lock, flags);
 	rtc_disable_update();
 
-	rtc_tm->tm_sec = rtc_read(RTC_SEC) & 0x7f;
-	rtc_tm->tm_min = rtc_read(RTC_MIN) & 0x7f;
-	rtc_tm->tm_hour = rtc_read(RTC_HOUR) & 0x3f;
-	rtc_tm->tm_mday = rtc_read(RTC_DOM) & 0x3f;
-	rtc_tm->tm_wday = rtc_read(RTC_DOW) & 0x7;
-	rtc_tm->tm_mon = rtc_read(RTC_MON) & 0x1f;
-	rtc_tm->tm_year = rtc_read(RTC_YEAR) & 0x7f;
-	century = rtc_read(RTC_CENTURY);
+	rtc_tm->tm_sec = rtc_read(DS1511_SEC) & 0x7f;
+	rtc_tm->tm_min = rtc_read(DS1511_MIN) & 0x7f;
+	rtc_tm->tm_hour = rtc_read(DS1511_HOUR) & 0x3f;
+	rtc_tm->tm_mday = rtc_read(DS1511_DOM) & 0x3f;
+	rtc_tm->tm_wday = rtc_read(DS1511_DOW) & 0x7;
+	rtc_tm->tm_mon = rtc_read(DS1511_MONTH) & 0x1f;
+	rtc_tm->tm_year = rtc_read(DS1511_YEAR) & 0x7f;
+	century = rtc_read(DS1511_CENTURY);
 
 	rtc_enable_update();
 	spin_unlock_irqrestore(&ds1511_lock, flags);
@@ -220,18 +198,18 @@ ds1511_rtc_update_alarm(struct rtc_plat_data *pdata)
 	spin_lock_irqsave(&pdata->lock, flags);
 	rtc_write(pdata->alrm_mday < 0 || (pdata->irqen & RTC_UF) ?
 	       0x80 : bin2bcd(pdata->alrm_mday) & 0x3f,
-	       RTC_ALARM_DATE);
+	       DS1511_AM4_DATE);
 	rtc_write(pdata->alrm_hour < 0 || (pdata->irqen & RTC_UF) ?
 	       0x80 : bin2bcd(pdata->alrm_hour) & 0x3f,
-	       RTC_ALARM_HOUR);
+	       DS1511_AM3_HOUR);
 	rtc_write(pdata->alrm_min < 0 || (pdata->irqen & RTC_UF) ?
 	       0x80 : bin2bcd(pdata->alrm_min) & 0x7f,
-	       RTC_ALARM_MIN);
+	       DS1511_AM2_MIN);
 	rtc_write(pdata->alrm_sec < 0 || (pdata->irqen & RTC_UF) ?
 	       0x80 : bin2bcd(pdata->alrm_sec) & 0x7f,
-	       RTC_ALARM_SEC);
-	rtc_write(rtc_read(RTC_CMD) | (pdata->irqen ? RTC_TIE : 0), RTC_CMD);
-	rtc_read(RTC_CMD1);	/* clear interrupts */
+	       DS1511_AM1_SEC);
+	rtc_write(rtc_read(DS1511_CONTROL_B) | (pdata->irqen ? DS1511_TIE : 0), DS1511_CONTROL_B);
+	rtc_read(DS1511_CONTROL_A);	/* clear interrupts */
 	spin_unlock_irqrestore(&pdata->lock, flags);
 }
 
@@ -281,9 +259,9 @@ ds1511_interrupt(int irq, void *dev_id)
 	/*
 	 * read and clear interrupt
 	 */
-	if (rtc_read(RTC_CMD1) & DS1511_IRQF) {
+	if (rtc_read(DS1511_CONTROL_A) & DS1511_IRQF) {
 		events = RTC_IRQF;
-		if (rtc_read(RTC_ALARM_SEC) & 0x80)
+		if (rtc_read(DS1511_AM1_SEC) & 0x80)
 			events |= RTC_UF;
 		else
 			events |= RTC_AF;
@@ -366,8 +344,8 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	/*
 	 * turn on the clock and the crystal, etc.
 	 */
-	rtc_write(DS1511_BME, RTC_CMD);
-	rtc_write(0, RTC_CMD1);
+	rtc_write(DS1511_BME, DS1511_CONTROL_B);
+	rtc_write(0, DS1511_CONTROL_A);
 	/*
 	 * clear the wdog counter
 	 */
@@ -381,7 +359,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	/*
 	 * check for a dying bat-tree
 	 */
-	if (rtc_read(RTC_CMD1) & DS1511_BLF1)
+	if (rtc_read(DS1511_CONTROL_A) & DS1511_BLF1)
 		dev_warn(&pdev->dev, "voltage-low detected.\n");
 
 	spin_lock_init(&pdata->lock);
@@ -404,7 +382,7 @@ static int ds1511_rtc_probe(struct platform_device *pdev)
 	 * then by all means, set it
 	 */
 	if (pdata->irq > 0) {
-		rtc_read(RTC_CMD1);
+		rtc_read(DS1511_CONTROL_A);
 		if (devm_request_irq(&pdev->dev, pdata->irq, ds1511_interrupt,
 			IRQF_SHARED, pdev->name, pdev) < 0) {
 
