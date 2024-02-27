@@ -828,17 +828,14 @@ enum dc_status dcn20_enable_stream_timing(
 	struct mpc_dwb_flow_control flow_control;
 	struct mpc *mpc = dc->res_pool->mpc;
 	bool rate_control_2x_pclk = (interlace || optc2_is_two_pixels_per_containter(&stream->timing));
-	unsigned int k1_div = PIXEL_RATE_DIV_NA;
-	unsigned int k2_div = PIXEL_RATE_DIV_NA;
 
-	if (hws->funcs.calculate_dccg_k1_k2_values && dc->res_pool->dccg->funcs->set_pixel_rate_div) {
-		hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
-
+	if (dc->res_pool->dccg->funcs->set_pixel_rate_div)
 		dc->res_pool->dccg->funcs->set_pixel_rate_div(
 			dc->res_pool->dccg,
 			pipe_ctx->stream_res.tg->inst,
-			k1_div, k2_div);
-	}
+			pipe_ctx->pixel_rate_divider.div_factor1,
+			pipe_ctx->pixel_rate_divider.div_factor2);
+
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
 	 * back end is set up by for pipe0. Other children pipe share back end
 	 * with pipe 0. No program is needed.
@@ -2893,9 +2890,6 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct dccg *dccg = dc->res_pool->dccg;
 	enum phyd32clk_clock_source phyd32clk;
 	int dp_hpo_inst;
-	struct dce_hwseq *hws = dc->hwseq;
-	unsigned int k1_div = PIXEL_RATE_DIV_NA;
-	unsigned int k2_div = PIXEL_RATE_DIV_NA;
 	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
 	struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
 
@@ -2916,14 +2910,13 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 			dccg->funcs->enable_symclk_se(dccg, stream_enc->stream_enc_inst,
 						      link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 	}
-	if (hws->funcs.calculate_dccg_k1_k2_values && dc->res_pool->dccg->funcs->set_pixel_rate_div) {
-		hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
 
+	if (dc->res_pool->dccg->funcs->set_pixel_rate_div)
 		dc->res_pool->dccg->funcs->set_pixel_rate_div(
 			dc->res_pool->dccg,
 			pipe_ctx->stream_res.tg->inst,
-			k1_div, k2_div);
-	}
+			pipe_ctx->pixel_rate_divider.div_factor1,
+			pipe_ctx->pixel_rate_divider.div_factor2);
 
 	link_hwss->setup_stream_encoder(pipe_ctx);
 

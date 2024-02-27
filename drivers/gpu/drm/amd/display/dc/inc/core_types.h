@@ -399,6 +399,11 @@ union pipe_update_flags {
 	uint32_t raw;
 };
 
+struct pixel_rate_divider {
+	uint32_t div_factor1;
+	uint32_t div_factor2;
+};
+
 enum p_state_switch_method {
 	P_STATE_UNKNOWN						= 0,
 	P_STATE_V_BLANK						= 1,
@@ -464,6 +469,8 @@ struct pipe_ctx {
 	bool has_vactive_margin;
 	/* subvp_index: only valid if the pipe is a SUBVP_MAIN*/
 	uint8_t subvp_index;
+	uint32_t pixel_per_cycle;
+	struct pixel_rate_divider pixel_rate_divider;
 };
 
 /* Data used for dynamic link encoder assignment.

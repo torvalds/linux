@@ -99,6 +99,7 @@ struct encoder_unblank_param {
 	struct dc_link_settings link_settings;
 	struct dc_crtc_timing timing;
 	int opp_cnt;
+	uint32_t pix_per_cycle;
 };
 
 struct encoder_set_dp_phy_pattern_param {

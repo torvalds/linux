@@ -1159,15 +1159,14 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 
 void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 {
-	uint32_t pix_per_cycle = 1;
+	uint32_t pix_per_cycle = pipe_ctx->pixel_per_cycle;
 	uint32_t odm_combine_factor = 1;
 
 	if (!pipe_ctx || !pipe_ctx->stream || !pipe_ctx->stream_res.stream_enc)
 		return;
 
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
-	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1
-		|| dcn32_is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1)
 		pix_per_cycle = 2;
 
 	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
@@ -1213,8 +1212,8 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 	struct dc_link *link = stream->link;
 	struct dce_hwseq *hws = link->dc->hwseq;
 	struct pipe_ctx *odm_pipe;
-	uint32_t pix_per_cycle = 1;
 
+	params.pix_per_cycle = pipe_ctx->pixel_per_cycle;
 	params.opp_cnt = 1;
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		params.opp_cnt++;
@@ -1230,13 +1229,14 @@ void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
 				pipe_ctx->stream_res.hpo_dp_stream_enc,
 				pipe_ctx->stream_res.tg->inst);
 	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1
-			|| dcn32_is_dp_dig_pixel_rate_div_policy(pipe_ctx)) {
+		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1)
+			params.pix_per_cycle = 2;
+
+		if (params.pix_per_cycle == 2)
 			params.timing.pix_clk_100hz /= 2;
-			pix_per_cycle = 2;
-		}
+
 		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
-				pipe_ctx->stream_res.stream_enc, pix_per_cycle > 1);
+				pipe_ctx->stream_res.stream_enc, params.pix_per_cycle > 1);
 		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
 	}
 
@@ -1255,6 +1255,32 @@ bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
 		dc->debug.enable_dp_dig_pixel_rate_div_policy)
 		return true;
 	return false;
+}
+
+void dcn32_calculate_pix_rate_divider(
+		struct dc *dc,
+		struct dc_state *context,
+		const struct dc_stream_state *stream)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct pipe_ctx *pipe_ctx = NULL;
+	unsigned int k1_div = PIXEL_RATE_DIV_NA;
+	unsigned int k2_div = PIXEL_RATE_DIV_NA;
+
+	pipe_ctx = resource_get_otg_master_for_stream(&context->res_ctx, stream);
+
+	if (pipe_ctx) {
+		pipe_ctx->pixel_per_cycle = 1;
+
+		if (dcn32_is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+			pipe_ctx->pixel_per_cycle = 2;
+
+		if (hws->funcs.calculate_dccg_k1_k2_values)
+			hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
+
+		pipe_ctx->pixel_rate_divider.div_factor1 = k1_div;
+		pipe_ctx->pixel_rate_divider.div_factor2 = k2_div;
+	}
 }
 
 static void apply_symclk_on_tx_off_wa(struct dc_link *link)
