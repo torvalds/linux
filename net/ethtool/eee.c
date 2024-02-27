@@ -4,9 +4,6 @@
 #include "common.h"
 #include "bitset.h"
 
-#define EEE_MODES_COUNT \
-	(sizeof_field(struct ethtool_keee, supported_u32) * BITS_PER_BYTE)
-
 struct eee_req_info {
 	struct ethnl_req_info		base;
 };
@@ -41,15 +38,6 @@ static int eee_prepare_data(const struct ethnl_req_info *req_base,
 	ret = dev->ethtool_ops->get_eee(dev, eee);
 	ethnl_ops_complete(dev);
 
-	if (!ret && !ethtool_eee_use_linkmodes(eee)) {
-		ethtool_convert_legacy_u32_to_link_mode(eee->supported,
-							eee->supported_u32);
-		ethtool_convert_legacy_u32_to_link_mode(eee->advertised,
-							eee->advertised_u32);
-		ethtool_convert_legacy_u32_to_link_mode(eee->lp_advertised,
-							eee->lp_advertised_u32);
-	}
-
 	return ret;
 }
 
@@ -61,11 +49,6 @@ static int eee_reply_size(const struct ethnl_req_info *req_base,
 	const struct ethtool_keee *eee = &data->eee;
 	int len = 0;
 	int ret;
-
-	BUILD_BUG_ON(sizeof(eee->advertised_u32) * BITS_PER_BYTE !=
-		     EEE_MODES_COUNT);
-	BUILD_BUG_ON(sizeof(eee->lp_advertised_u32) * BITS_PER_BYTE !=
-		     EEE_MODES_COUNT);
 
 	/* MODES_OURS */
 	ret = ethnl_bitset_size(eee->advertised, eee->supported,
@@ -154,16 +137,10 @@ ethnl_set_eee(struct ethnl_req_info *req_info, struct genl_info *info)
 	if (ret < 0)
 		return ret;
 
-	if (ethtool_eee_use_linkmodes(&eee)) {
-		ret = ethnl_update_bitset(eee.advertised,
-					  __ETHTOOL_LINK_MODE_MASK_NBITS,
-					  tb[ETHTOOL_A_EEE_MODES_OURS],
-					  link_mode_names, info->extack, &mod);
-	} else {
-		ret = ethnl_update_bitset32(&eee.advertised_u32, EEE_MODES_COUNT,
-					    tb[ETHTOOL_A_EEE_MODES_OURS],
-					    link_mode_names, info->extack, &mod);
-	}
+	ret = ethnl_update_bitset(eee.advertised,
+				  __ETHTOOL_LINK_MODE_MASK_NBITS,
+				  tb[ETHTOOL_A_EEE_MODES_OURS],
+				  link_mode_names, info->extack, &mod);
 	if (ret < 0)
 		return ret;
 	ethnl_update_bool(&eee.eee_enabled, tb[ETHTOOL_A_EEE_ENABLED], &mod);
