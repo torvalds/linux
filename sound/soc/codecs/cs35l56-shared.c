@@ -658,9 +658,10 @@ static int cs35l56_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
 		return ret;
 	}
 
-	unique_id = pte.lot[2] | (pte.lot[1] << 8) | (pte.lot[0] << 16);
+	unique_id = (u32)pte.lot[2] | ((u32)pte.lot[1] << 8) | ((u32)pte.lot[0] << 16);
 	unique_id <<= 32;
-	unique_id |= pte.x | (pte.y << 8) | (pte.wafer_id << 16) | (pte.dvs << 24);
+	unique_id |= (u32)pte.x | ((u32)pte.y << 8) | ((u32)pte.wafer_id << 16) |
+		     ((u32)pte.dvs << 24);
 
 	dev_dbg(cs35l56_base->dev, "UniqueID = %#llx\n", unique_id);
 
