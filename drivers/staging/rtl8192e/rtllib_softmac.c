@@ -744,7 +744,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 		ckip_ie_len = 30 + 2;
 	if (beacon->ccx_rm_enable)
 		ccxrm_ie_len = 6 + 2;
-	if (beacon->BssCcxVerNumber >= 2)
+	if (beacon->bss_ccx_ver_number >= 2)
 		cxvernum_ie_len = 5 + 2;
 
 	pmk_cache_idx = sec_is_in_pmkid_list(ieee, ieee->current_network.bssid);
@@ -851,11 +851,11 @@ rtllib_association_req(struct rtllib_network *beacon,
 		tag += os_ccx_rm_cap.Length;
 	}
 
-	if (beacon->BssCcxVerNumber >= 2) {
+	if (beacon->bss_ccx_ver_number >= 2) {
 		u8 CcxVerNumBuf[] = {0x00, 0x40, 0x96, 0x03, 0x00};
 		struct octet_string osCcxVerNum;
 
-		CcxVerNumBuf[4] = beacon->BssCcxVerNumber;
+		CcxVerNumBuf[4] = beacon->bss_ccx_ver_number;
 		osCcxVerNum.octet = CcxVerNumBuf;
 		osCcxVerNum.Length = sizeof(CcxVerNumBuf);
 		tag = skb_put(skb, cxvernum_ie_len);
