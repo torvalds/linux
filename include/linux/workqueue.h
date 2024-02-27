@@ -458,6 +458,7 @@ extern struct workqueue_struct *system_bh_wq;
 extern struct workqueue_struct *system_bh_highpri_wq;
 
 void workqueue_softirq_action(bool highpri);
+void workqueue_softirq_dead(unsigned int cpu);
 
 /**
  * alloc_workqueue - allocate a workqueue
