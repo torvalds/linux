@@ -838,12 +838,12 @@ rtllib_association_req(struct rtllib_network *beacon,
 	}
 
 	if (beacon->ccx_rm_enable) {
-		static const u8 CcxRmCapBuf[] = {0x00, 0x40, 0x96, 0x01, 0x01,
+		static const u8 ccx_rm_cap_buf[] = {0x00, 0x40, 0x96, 0x01, 0x01,
 			0x00};
 		struct octet_string os_ccx_rm_cap;
 
-		os_ccx_rm_cap.octet = (u8 *)CcxRmCapBuf;
-		os_ccx_rm_cap.Length = sizeof(CcxRmCapBuf);
+		os_ccx_rm_cap.octet = (u8 *)ccx_rm_cap_buf;
+		os_ccx_rm_cap.Length = sizeof(ccx_rm_cap_buf);
 		tag = skb_put(skb, ccxrm_ie_len);
 		*tag++ = MFIE_TYPE_GENERIC;
 		*tag++ = os_ccx_rm_cap.Length;
