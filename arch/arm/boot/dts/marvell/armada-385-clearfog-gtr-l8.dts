@@ -6,6 +6,16 @@
 	model = "SolidRun Clearfog GTR L8";
 	compatible = "solidrun,clearfog-gtr-l8", "marvell,armada385",
 		     "marvell,armada380";
+
+	/* CON25 */
+	sfp1: sfp-1 {
+		compatible = "sff,sfp";
+		pinctrl-0 = <&cf_gtr_sfp1_pins>;
+		pinctrl-names = "default";
+		i2c-bus = <&i2c0>;
+		mod-def0-gpio = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &mdio {
@@ -68,11 +78,19 @@
 				phy-handle = <&switch0phy7>;
 			};
 
+			ethernet-port@9 {
+				reg = <9>;
+				label = "lan-sfp";
+				phy-mode = "sgmii";
+				sfp = <&sfp1>;
+				managed = "in-band-status";
+			};
+
 			ethernet-port@10 {
 				reg = <10>;
 				phy-mode = "2500base-x";
-
 				ethernet = <&eth1>;
+
 				fixed-link {
 					speed = <2500>;
 					full-duplex;

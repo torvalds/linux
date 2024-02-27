@@ -201,6 +201,12 @@
 					marvell,function = "gpio";
 				};
 
+				cf_gtr_sfp1_pins: sfp1-pins {
+					/* sfp modabs, txdisable */
+					marvell,pins = "mpp24", "mpp54";
+					marvell,function = "gpio";
+				};
+
 				cf_gtr_spi1_cs_pins: spi1-cs-pins {
 					marvell,pins = "mpp59";
 					marvell,function = "spi1";
@@ -276,7 +282,7 @@
 	};
 
 	/* CON5 */
-	sfp0: sfp {
+	sfp0: sfp-0 {
 		compatible = "sff,sfp";
 		pinctrl-0 = <&cf_gtr_sfp0_pins>;
 		pinctrl-names = "default";
