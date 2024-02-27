@@ -820,21 +820,21 @@ rtllib_association_req(struct rtllib_network *beacon,
 	if (beacon->ckip_supported) {
 		static const u8 aironet_ie_oui[] = {0x00, 0x01, 0x66};
 		u8	CcxAironetBuf[30];
-		struct octet_string osCcxAironetIE;
+		struct octet_string os_ccx_aironet_ie;
 
 		memset(CcxAironetBuf, 0, 30);
-		osCcxAironetIE.octet = CcxAironetBuf;
-		osCcxAironetIE.Length = sizeof(CcxAironetBuf);
-		memcpy(osCcxAironetIE.octet, aironet_ie_oui,
+		os_ccx_aironet_ie.octet = CcxAironetBuf;
+		os_ccx_aironet_ie.Length = sizeof(CcxAironetBuf);
+		memcpy(os_ccx_aironet_ie.octet, aironet_ie_oui,
 		       sizeof(aironet_ie_oui));
 
-		osCcxAironetIE.octet[IE_CISCO_FLAG_POSITION] |=
+		os_ccx_aironet_ie.octet[IE_CISCO_FLAG_POSITION] |=
 					 (SUPPORT_CKIP_PK | SUPPORT_CKIP_MIC);
 		tag = skb_put(skb, ckip_ie_len);
 		*tag++ = MFIE_TYPE_AIRONET;
-		*tag++ = osCcxAironetIE.Length;
-		memcpy(tag, osCcxAironetIE.octet, osCcxAironetIE.Length);
-		tag += osCcxAironetIE.Length;
+		*tag++ = os_ccx_aironet_ie.Length;
+		memcpy(tag, os_ccx_aironet_ie.octet, os_ccx_aironet_ie.Length);
+		tag += os_ccx_aironet_ie.Length;
 	}
 
 	if (beacon->ccx_rm_enable) {
