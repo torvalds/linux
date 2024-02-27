@@ -721,10 +721,16 @@ static inline void mem_cgroup_uncharge_list(struct list_head *page_list)
 	__mem_cgroup_uncharge_list(page_list);
 }
 
+void __mem_cgroup_uncharge_folios(struct folio_batch *folios);
+static inline void mem_cgroup_uncharge_folios(struct folio_batch *folios)
+{
+	if (mem_cgroup_disabled())
+		return;
+	__mem_cgroup_uncharge_folios(folios);
+}
+
 void mem_cgroup_cancel_charge(struct mem_cgroup *memcg, unsigned int nr_pages);
-
 void mem_cgroup_replace_folio(struct folio *old, struct folio *new);
-
 void mem_cgroup_migrate(struct folio *old, struct folio *new);
 
 /**
@@ -1296,6 +1302,10 @@ static inline void mem_cgroup_uncharge(struct folio *folio)
 }
 
 static inline void mem_cgroup_uncharge_list(struct list_head *page_list)
+{
+}
+
+static inline void mem_cgroup_uncharge_folios(struct folio_batch *folios)
 {
 }
 
