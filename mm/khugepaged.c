@@ -689,9 +689,7 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 						spinlock_t *ptl,
 						struct list_head *compound_pagelist)
 {
-	struct folio *src_folio;
-	struct page *src_page;
-	struct page *tmp;
+	struct folio *src, *tmp;
 	pte_t *_pte;
 	pte_t pteval;
 
@@ -710,10 +708,11 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 				ksm_might_unmap_zero_page(vma->vm_mm, pteval);
 			}
 		} else {
-			src_page = pte_page(pteval);
-			src_folio = page_folio(src_page);
-			if (!folio_test_large(src_folio))
-				release_pte_folio(src_folio);
+			struct page *src_page = pte_page(pteval);
+
+			src = page_folio(src_page);
+			if (!folio_test_large(src))
+				release_pte_folio(src);
 			/*
 			 * ptl mostly unnecessary, but preempt has to
 			 * be disabled to update the per-cpu stats
@@ -721,20 +720,19 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 			 */
 			spin_lock(ptl);
 			ptep_clear(vma->vm_mm, address, _pte);
-			folio_remove_rmap_pte(src_folio, src_page, vma);
+			folio_remove_rmap_pte(src, src_page, vma);
 			spin_unlock(ptl);
 			free_page_and_swap_cache(src_page);
 		}
 	}
 
-	list_for_each_entry_safe(src_page, tmp, compound_pagelist, lru) {
-		list_del(&src_page->lru);
-		mod_node_page_state(page_pgdat(src_page),
-				    NR_ISOLATED_ANON + page_is_file_lru(src_page),
-				    -compound_nr(src_page));
-		unlock_page(src_page);
-		free_swap_cache(src_page);
-		putback_lru_page(src_page);
+	list_for_each_entry_safe(src, tmp, compound_pagelist, lru) {
+		list_del(&src->lru);
+		node_stat_sub_folio(src, NR_ISOLATED_ANON +
+				folio_is_file_lru(src));
+		folio_unlock(src);
+		free_swap_cache(&src->page);
+		folio_putback_lru(src);
 	}
 }
 
