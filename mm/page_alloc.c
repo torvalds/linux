@@ -2516,7 +2516,7 @@ void free_unref_page(struct page *page, unsigned int order)
 }
 
 /*
- * Free a batch of 0-order pages
+ * Free a batch of folios
  */
 void free_unref_folios(struct folio_batch *folios)
 {
@@ -2529,19 +2529,25 @@ void free_unref_folios(struct folio_batch *folios)
 	for (i = 0, j = 0; i < folios->nr; i++) {
 		struct folio *folio = folios->folios[i];
 		unsigned long pfn = folio_pfn(folio);
-		if (!free_unref_page_prepare(&folio->page, pfn, 0))
+		unsigned int order = folio_order(folio);
+
+		if (order > 0 && folio_test_large_rmappable(folio))
+			folio_undo_large_rmappable(folio);
+		if (!free_unref_page_prepare(&folio->page, pfn, order))
 			continue;
 
 		/*
-		 * Free isolated folios directly to the allocator, see
-		 * comment in free_unref_page.
+		 * Free isolated folios and orders not handled on the PCP
+		 * directly to the allocator, see comment in free_unref_page.
 		 */
 		migratetype = get_pcppage_migratetype(&folio->page);
-		if (unlikely(is_migrate_isolate(migratetype))) {
+		if (!pcp_allowed_order(order) ||
+		    is_migrate_isolate(migratetype)) {
 			free_one_page(folio_zone(folio), &folio->page, pfn,
-					0, migratetype, FPI_NONE);
+					order, migratetype, FPI_NONE);
 			continue;
 		}
+		folio->private = (void *)(unsigned long)order;
 		if (j != i)
 			folios->folios[j] = folio;
 		j++;
@@ -2551,7 +2557,9 @@ void free_unref_folios(struct folio_batch *folios)
 	for (i = 0; i < folios->nr; i++) {
 		struct folio *folio = folios->folios[i];
 		struct zone *zone = folio_zone(folio);
+		unsigned int order = (unsigned long)folio->private;
 
+		folio->private = NULL;
 		migratetype = get_pcppage_migratetype(&folio->page);
 
 		/* Different zone requires a different pcp lock */
@@ -2570,7 +2578,7 @@ void free_unref_folios(struct folio_batch *folios)
 			if (unlikely(!pcp)) {
 				pcp_trylock_finish(UP_flags);
 				free_one_page(zone, &folio->page,
-						folio_pfn(folio), 0,
+						folio_pfn(folio), order,
 						migratetype, FPI_NONE);
 				locked_zone = NULL;
 				continue;
@@ -2586,7 +2594,8 @@ void free_unref_folios(struct folio_batch *folios)
 			migratetype = MIGRATE_MOVABLE;
 
 		trace_mm_page_free_batched(&folio->page);
-		free_unref_page_commit(zone, pcp, &folio->page, migratetype, 0);
+		free_unref_page_commit(zone, pcp, &folio->page, migratetype,
+				order);
 	}
 
 	if (pcp) {
