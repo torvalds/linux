@@ -1,0 +1,266 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Theobroma Systems Design und Consulting GmbH
+ */
+
+/dts-v1/;
+#include <dt-bindings/input/input.h>
+#include "rk3588-tiger.dtsi"
+
+/ {
+	model = "Theobroma Systems RK3588-Q7 SoM on Haikou devkit";
+	compatible = "tsd,rk3588-tiger-haikou", "tsd,rk3588-tiger", "rockchip,rk3588";
+
+	aliases {
+		ethernet0 = &gmac0;
+		mmc1 = &sdmmc;
+	};
+
+	chosen {
+		stdout-path = "serial2:115200n8";
+	};
+
+	dc_12v: dc-12v-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "dc_12v";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&haikou_keys_pin>;
+
+		button-batlow-n {
+			label = "BATLOW#";
+			linux,code = <KEY_BATTERY>;
+			gpios = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
+		};
+
+		button-slp-btn-n {
+			label = "SLP_BTN#";
+			linux,code = <KEY_SLEEP>;
+			gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_LOW>;
+		};
+
+		button-wake-n {
+			label = "WAKE#";
+			linux,code = <KEY_WAKEUP>;
+			gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		switch-lid-btn-n {
+			label = "LID_BTN#";
+			linux,code = <SW_LID>;
+			linux,input-type = <EV_SW>;
+			gpios = <&gpio3 RK_PD5 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	i2s3-sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,name = "Haikou,I2S-codec";
+		simple-audio-card,mclk-fs = <512>;
+		simple-audio-card,frame-master = <&sgtl5000_codec>;
+		simple-audio-card,bitclock-master = <&sgtl5000_codec>;
+
+		sgtl5000_codec: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
+
+		simple-audio-card,cpu {
+			sound-dai = <&i2s3_2ch>;
+		};
+	};
+
+	sgtl5000_clk: sgtl5000-oscillator  {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <24576000>;
+	};
+
+	vcc3v3_baseboard: vcc3v3-baseboard-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_baseboard";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&dc_12v>;
+	};
+
+	vcc3v3_low_noise: vcc3v3-low-noise-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3_low_noise";
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vcc5v0_usb>;
+	};
+
+	vcc5v0_baseboard: vcc5v0-baseboard-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_baseboard";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&dc_12v>;
+	};
+
+	vcc5v0_usb: vcc5v0-usb-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_usb";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&dc_12v>;
+	};
+
+	vddd_audio_1v6: vddd-audio-1v6-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vddd_audio_1v6";
+		regulator-boot-on;
+		regulator-min-microvolt = <1600000>;
+		regulator-max-microvolt = <1600000>;
+		vin-supply = <&vcc5v0_usb>;
+	};
+};
+
+&combphy2_psu {
+	status = "okay";
+};
+
+&gmac0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+
+	eeprom@50 {
+		reg = <0x50>;
+		compatible = "atmel,24c01";
+		pagesize = <8>;
+		size = <128>;
+		vcc-supply = <&vcc3v3_baseboard>;
+	};
+};
+
+&i2c5 {
+	clock-frequency = <400000>;
+	status = "okay";
+
+	sgtl5000: codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&sgtl5000_clk>;
+		#sound-dai-cells = <0>;
+		VDDA-supply = <&vcc3v3_low_noise>;
+		VDDIO-supply = <&vcc3v3_baseboard>;
+		VDDD-supply = <&vddd_audio_1v6>;
+	};
+};
+
+&i2c8 {
+	status = "okay";
+};
+
+&i2s3_2ch {
+	status = "okay";
+};
+
+&pcie30phy {
+	status = "okay";
+};
+
+&pcie3x4 {
+	vpcie3v3-supply = <&vcc3v3_baseboard>;
+	status = "okay";
+};
+
+&pinctrl {
+	haikou {
+		haikou_keys_pin: haikou-keys-pin {
+			rockchip,pins =
+				/* BATLOW# */
+				<3 RK_PB5 RK_FUNC_GPIO &pcfg_pull_up>,
+				/* SLP_BTN# */
+				<4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>,
+				/* WAKE# */
+				<3 RK_PC6 RK_FUNC_GPIO &pcfg_pull_up>,
+				/* LID_BTN */
+				<3 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};
+
+&sdmmc {
+	/* while the same pin, sdmmc_det does not detect card changes */
+	cd-gpios = <&gpio0 RK_PA4 GPIO_ACTIVE_LOW>;
+	disable-wp;
+	pinctrl-0 = <&sdmmc_bus4 &sdmmc_cmd &sdmmc_clk>;
+	sd-uhs-sdr12;
+	sd-uhs-sdr25;
+	sd-uhs-sdr50;
+	sd-uhs-sdr104;
+	vmmc-supply = <&vcc3v3_baseboard>;
+	status = "okay";
+};
+
+&u2phy2 {
+	status = "okay";
+};
+
+&u2phy2_host {
+	status = "okay";
+};
+
+&u2phy3 {
+	status = "okay";
+};
+
+&u2phy3_host {
+	status = "okay";
+};
+
+&uart2 {
+	pinctrl-0 = <&uart2m2_xfer>;
+	status = "okay";
+};
+
+&uart5 {
+	rts-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_HIGH>;
+	status = "okay";
+};
+
+/* host0 on Q7_USB_P2, lower usb3 port */
+&usb_host0_ehci {
+	status = "okay";
+};
+
+/* host0 on Q7_USB_P2, lower usb3 port */
+&usb_host0_ohci {
+	status = "okay";
+};
+
+/* host1 on Q7_USB_P3, usb2 port */
+&usb_host1_ehci {
+	status = "okay";
+};
+
+/* host1 on Q7_USB_P3, usb2 port */
+&usb_host1_ohci {
+	status = "okay";
+};
+
+/* host2 on Q7_USB_P2, lower usb3 port */
+&usb_host2_xhci {
+	status = "okay";
+};
