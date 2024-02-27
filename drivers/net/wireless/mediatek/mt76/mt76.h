@@ -210,6 +210,8 @@ struct mt76_queue {
 	u16 first;
 	u16 head;
 	u16 tail;
+	u8 hw_idx;
+	u8 ep;
 	int ndesc;
 	int queued;
 	int buf_size;
@@ -217,7 +219,6 @@ struct mt76_queue {
 	bool blocked;
 
 	u8 buf_offset;
-	u8 hw_idx;
 	u16 flags;
 
 	struct mtk_wed_device *wed;
@@ -1081,12 +1082,6 @@ bool ____mt76_poll_msec(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 void mt76_mmio_init(struct mt76_dev *dev, void __iomem *regs);
 void mt76_pci_disable_aspm(struct pci_dev *pdev);
 
-#ifdef CONFIG_NET_MEDIATEK_SOC_WED
-int mt76_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		      struct net_device *netdev, enum tc_setup_type type,
-		      void *type_data);
-#endif /*CONFIG_NET_MEDIATEK_SOC_WED */
-
 static inline u16 mt76_chip(struct mt76_dev *dev)
 {
 	return dev->rev >> 16;
@@ -1097,13 +1092,34 @@ static inline u16 mt76_rev(struct mt76_dev *dev)
 	return dev->rev & 0xffff;
 }
 
+void mt76_wed_release_rx_buf(struct mtk_wed_device *wed);
+void mt76_wed_offload_disable(struct mtk_wed_device *wed);
+void mt76_wed_reset_complete(struct mtk_wed_device *wed);
+void mt76_wed_dma_reset(struct mt76_dev *dev);
+int mt76_wed_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct net_device *netdev, enum tc_setup_type type,
+			  void *type_data);
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
-u32 mt76_mmio_wed_init_rx_buf(struct mtk_wed_device *wed, int size);
-void mt76_mmio_wed_release_rx_buf(struct mtk_wed_device *wed);
-int mt76_mmio_wed_offload_enable(struct mtk_wed_device *wed);
-void mt76_mmio_wed_offload_disable(struct mtk_wed_device *wed);
-void mt76_mmio_wed_reset_complete(struct mtk_wed_device *wed);
-#endif /*CONFIG_NET_MEDIATEK_SOC_WED */
+u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size);
+int mt76_wed_offload_enable(struct mtk_wed_device *wed);
+int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q, bool reset);
+#else
+static inline u32 mt76_wed_init_rx_buf(struct mtk_wed_device *wed, int size)
+{
+	return 0;
+}
+
+static inline int mt76_wed_offload_enable(struct mtk_wed_device *wed)
+{
+	return 0;
+}
+
+static inline int mt76_wed_dma_setup(struct mt76_dev *dev, struct mt76_queue *q,
+				     bool reset)
+{
+	return 0;
+}
+#endif /* CONFIG_NET_MEDIATEK_SOC_WED */
 
 #define mt76xx_chip(dev) mt76_chip(&((dev)->mt76))
 #define mt76xx_rev(dev) mt76_rev(&((dev)->mt76))
@@ -1470,13 +1486,6 @@ static inline bool mt76u_urb_error(struct urb *urb)
 	       urb->status != -ENOENT;
 }
 
-/* Map hardware queues to usb endpoints */
-static inline u8 q2ep(u8 qid)
-{
-	/* TODO: take management packets to queue 5 */
-	return qid + 1;
-}
-
 static inline int
 mt76u_bulk_msg(struct mt76_dev *dev, void *data, int len, int *actual_len,
 	       int timeout, int ep)
@@ -1597,6 +1606,18 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 			      struct ieee80211_channel *chan,
 			      struct mt76_power_limits *dest,
 			      s8 target_power);
+
+static inline bool mt76_queue_is_rx(struct mt76_dev *dev, struct mt76_queue *q)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dev->q_rx); i++) {
+		if (q == &dev->q_rx[i])
+			return true;
+	}
+
+	return false;
+}
 
 static inline bool mt76_queue_is_wed_tx_free(struct mt76_queue *q)
 {
