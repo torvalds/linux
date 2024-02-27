@@ -1398,17 +1398,15 @@ static int snd_pcm_action_nonatomic(const struct action_ops *ops,
 	int res;
 
 	/* Guarantee the group members won't change during non-atomic action */
-	down_read(&snd_pcm_link_rwsem);
+	guard(rwsem_read)(&snd_pcm_link_rwsem);
 	res = snd_pcm_buffer_access_lock(substream->runtime);
 	if (res < 0)
-		goto unlock;
+		return res;
 	if (snd_pcm_stream_linked(substream))
 		res = snd_pcm_action_group(ops, substream, state, false);
 	else
 		res = snd_pcm_action_single(ops, substream, state);
 	snd_pcm_buffer_access_unlock(substream->runtime);
- unlock:
-	up_read(&snd_pcm_link_rwsem);
 	return res;
 }
 
@@ -2259,7 +2257,6 @@ static bool is_pcm_file(struct file *file)
  */
 static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 {
-	int res = 0;
 	struct snd_pcm_file *pcm_file;
 	struct snd_pcm_substream *substream1;
 	struct snd_pcm_group *group __free(kfree) = NULL;
@@ -2281,20 +2278,15 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	group = kzalloc(sizeof(*group), GFP_KERNEL);
 	if (!group)
 		return -ENOMEM;
-
 	snd_pcm_group_init(group);
 
-	down_write(&snd_pcm_link_rwsem);
+	guard(rwsem_write)(&snd_pcm_link_rwsem);
 	if (substream->runtime->state == SNDRV_PCM_STATE_OPEN ||
 	    substream->runtime->state != substream1->runtime->state ||
-	    substream->pcm->nonatomic != substream1->pcm->nonatomic) {
-		res = -EBADFD;
-		goto _end;
-	}
-	if (snd_pcm_stream_linked(substream1)) {
-		res = -EALREADY;
-		goto _end;
-	}
+	    substream->pcm->nonatomic != substream1->pcm->nonatomic)
+		return -EBADFD;
+	if (snd_pcm_stream_linked(substream1))
+		return -EALREADY;
 
 	snd_pcm_stream_lock_irq(substream);
 	if (!snd_pcm_stream_linked(substream)) {
@@ -2310,9 +2302,7 @@ static int snd_pcm_link(struct snd_pcm_substream *substream, int fd)
 	refcount_inc(&target_group->refs);
 	snd_pcm_stream_unlock(substream1);
 	snd_pcm_group_unlock_irq(target_group, nonatomic);
- _end:
-	up_write(&snd_pcm_link_rwsem);
-	return res;
+	return 0;
 }
 
 static void relink_to_local(struct snd_pcm_substream *substream)
@@ -2327,14 +2317,11 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 	struct snd_pcm_group *group;
 	bool nonatomic = substream->pcm->nonatomic;
 	bool do_free = false;
-	int res = 0;
 
-	down_write(&snd_pcm_link_rwsem);
+	guard(rwsem_write)(&snd_pcm_link_rwsem);
 
-	if (!snd_pcm_stream_linked(substream)) {
-		res = -EALREADY;
-		goto _end;
-	}
+	if (!snd_pcm_stream_linked(substream))
+		return -EALREADY;
 
 	group = substream->group;
 	snd_pcm_group_lock_irq(group, nonatomic);
@@ -2353,10 +2340,7 @@ static int snd_pcm_unlink(struct snd_pcm_substream *substream)
 	snd_pcm_group_unlock_irq(group, nonatomic);
 	if (do_free)
 		kfree(group);
-
-       _end:
-	up_write(&snd_pcm_link_rwsem);
-	return res;
+	return 0;
 }
 
 /*
@@ -2929,10 +2913,10 @@ static int snd_pcm_release(struct inode *inode, struct file *file)
 	/* block until the device gets woken up as it may touch the hardware */
 	snd_power_wait(pcm->card);
 
-	mutex_lock(&pcm->open_mutex);
-	snd_pcm_release_substream(substream);
-	kfree(pcm_file);
-	mutex_unlock(&pcm->open_mutex);
+	scoped_guard(mutex, &pcm->open_mutex) {
+		snd_pcm_release_substream(substream);
+		kfree(pcm_file);
+	}
 	wake_up(&pcm->open_wait);
 	module_put(pcm->card->module);
 	snd_card_file_remove(pcm->card, file);
