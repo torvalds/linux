@@ -731,7 +731,7 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 		node_stat_sub_folio(src, NR_ISOLATED_ANON +
 				folio_is_file_lru(src));
 		folio_unlock(src);
-		free_swap_cache(&src->page);
+		free_swap_cache(src);
 		folio_putback_lru(src);
 	}
 }

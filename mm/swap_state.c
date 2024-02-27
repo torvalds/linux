@@ -283,10 +283,8 @@ void clear_shadow_from_swap_cache(int type, unsigned long begin,
  * folio_free_swap() _with_ the lock.
  * 					- Marcelo
  */
-void free_swap_cache(struct page *page)
+void free_swap_cache(struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
-
 	if (folio_test_swapcache(folio) && !folio_mapped(folio) &&
 	    folio_trylock(folio)) {
 		folio_free_swap(folio);
@@ -300,9 +298,11 @@ void free_swap_cache(struct page *page)
  */
 void free_page_and_swap_cache(struct page *page)
 {
-	free_swap_cache(page);
+	struct folio *folio = page_folio(page);
+
+	free_swap_cache(folio);
 	if (!is_huge_zero_page(page))
-		put_page(page);
+		folio_put(folio);
 }
 
 /*
@@ -319,7 +319,7 @@ void free_pages_and_swap_cache(struct encoded_page **pages, int nr)
 	for (int i = 0; i < nr; i++) {
 		struct folio *folio = page_folio(encoded_page_ptr(pages[i]));
 
-		free_swap_cache(&folio->page);
+		free_swap_cache(folio);
 		refs[folios.nr] = 1;
 		if (unlikely(encoded_page_flags(pages[i]) &
 			     ENCODED_PAGE_BIT_NR_PAGES_NEXT))

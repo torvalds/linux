@@ -447,9 +447,9 @@ static inline unsigned long total_swapcache_pages(void)
 	return global_node_page_state(NR_SWAPCACHE);
 }
 
-extern void free_swap_cache(struct page *page);
-extern void free_page_and_swap_cache(struct page *);
-extern void free_pages_and_swap_cache(struct encoded_page **, int);
+void free_swap_cache(struct folio *folio);
+void free_page_and_swap_cache(struct page *);
+void free_pages_and_swap_cache(struct encoded_page **, int);
 /* linux/mm/swapfile.c */
 extern atomic_long_t nr_swap_pages;
 extern long total_swap_pages;
@@ -531,7 +531,7 @@ static inline void put_swap_device(struct swap_info_struct *si)
 /* used to sanity check ptes in zap_pte_range when CONFIG_SWAP=0 */
 #define free_swap_and_cache(e) is_pfn_swap_entry(e)
 
-static inline void free_swap_cache(struct page *page)
+static inline void free_swap_cache(struct folio *folio)
 {
 }
 

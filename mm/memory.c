@@ -3452,7 +3452,7 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 		folio_put(new_folio);
 	if (old_folio) {
 		if (page_copied)
-			free_swap_cache(&old_folio->page);
+			free_swap_cache(old_folio);
 		folio_put(old_folio);
 	}
 
