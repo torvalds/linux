@@ -1003,12 +1003,13 @@ void folios_put_refs(struct folio_batch *folios, unsigned int *refs)
 		if (!folio_ref_sub_and_test(folio, nr_refs))
 			continue;
 
-		if (folio_test_large(folio)) {
+		/* hugetlb has its own memcg */
+		if (folio_test_hugetlb(folio)) {
 			if (lruvec) {
 				unlock_page_lruvec_irqrestore(lruvec, flags);
 				lruvec = NULL;
 			}
-			__folio_put_large(folio);
+			free_huge_folio(folio);
 			continue;
 		}
 
