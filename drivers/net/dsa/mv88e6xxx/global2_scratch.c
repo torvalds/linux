@@ -240,7 +240,7 @@ const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops = {
 };
 
 /**
- * mv88e6xxx_g2_scratch_gpio_set_smi - set gpio muxing for external smi
+ * mv88e6390_g2_scratch_gpio_set_smi - set gpio muxing for external smi
  * @chip: chip private data
  * @external: set mux for external smi, or free for gpio usage
  *
@@ -248,7 +248,7 @@ const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops = {
  * an external SMI interface, or they may be made free for other
  * GPIO uses.
  */
-int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
+int mv88e6390_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 				      bool external)
 {
 	int misc_cfg = MV88E6352_G2_SCRATCH_MISC_CFG;
