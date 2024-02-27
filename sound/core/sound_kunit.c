@@ -17,7 +17,8 @@
 	.name = #fmt,								\
 }
 
-#define WRONG_FORMAT (SNDRV_PCM_FORMAT_LAST + 1)
+#define WRONG_FORMAT_1 (__force snd_pcm_format_t)((__force int)SNDRV_PCM_FORMAT_LAST + 1)
+#define WRONG_FORMAT_2 (__force snd_pcm_format_t)-1
 
 #define VALID_NAME "ValidName"
 #define NAME_W_SPEC_CHARS "In%v@1id name"
@@ -104,8 +105,8 @@ static void test_phys_format_size(struct kunit *test)
 				valid_fmt[i].physical_bits);
 	}
 
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_physical_width(WRONG_FORMAT), -EINVAL);
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_physical_width(-1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_physical_width(WRONG_FORMAT_1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_physical_width(WRONG_FORMAT_2), -EINVAL);
 }
 
 static void test_format_width(struct kunit *test)
@@ -117,8 +118,8 @@ static void test_format_width(struct kunit *test)
 				valid_fmt[i].width);
 	}
 
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(WRONG_FORMAT), -EINVAL);
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(-1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(WRONG_FORMAT_1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(WRONG_FORMAT_2), -EINVAL);
 }
 
 static void test_format_signed(struct kunit *test)
@@ -132,8 +133,8 @@ static void test_format_signed(struct kunit *test)
 				valid_fmt[i].sd < 0 ? -EINVAL : 1 - valid_fmt[i].sd);
 	}
 
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(WRONG_FORMAT), -EINVAL);
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(-1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(WRONG_FORMAT_1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_width(WRONG_FORMAT_2), -EINVAL);
 }
 
 static void test_format_endianness(struct kunit *test)
@@ -147,10 +148,10 @@ static void test_format_endianness(struct kunit *test)
 				valid_fmt[i].le < 0 ? -EINVAL : 1 - valid_fmt[i].le);
 	}
 
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_little_endian(WRONG_FORMAT), -EINVAL);
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_little_endian(-1), -EINVAL);
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_big_endian(WRONG_FORMAT), -EINVAL);
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_big_endian(-1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_little_endian(WRONG_FORMAT_1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_little_endian(WRONG_FORMAT_2), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_big_endian(WRONG_FORMAT_1), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_big_endian(WRONG_FORMAT_2), -EINVAL);
 }
 
 static void _test_fill_silence(struct kunit *test, struct snd_format_test_data *data,
@@ -177,7 +178,7 @@ static void test_format_fill_silence(struct kunit *test)
 			_test_fill_silence(test, &valid_fmt[j], buffer, buf_samples[i]);
 	}
 
-	KUNIT_EXPECT_EQ(test, snd_pcm_format_set_silence(WRONG_FORMAT, buffer, 20), -EINVAL);
+	KUNIT_EXPECT_EQ(test, snd_pcm_format_set_silence(WRONG_FORMAT_1, buffer, 20), -EINVAL);
 	KUNIT_EXPECT_EQ(test, snd_pcm_format_set_silence(SNDRV_PCM_FORMAT_LAST, buffer, 0), 0);
 }
 
@@ -272,8 +273,8 @@ static void test_pcm_format_name(struct kunit *test)
 		KUNIT_EXPECT_STREQ(test, name, valid_fmt[i].name);
 	}
 
-	KUNIT_ASSERT_STREQ(test, snd_pcm_format_name(WRONG_FORMAT), "Unknown");
-	KUNIT_ASSERT_STREQ(test, snd_pcm_format_name(-1), "Unknown");
+	KUNIT_ASSERT_STREQ(test, snd_pcm_format_name(WRONG_FORMAT_1), "Unknown");
+	KUNIT_ASSERT_STREQ(test, snd_pcm_format_name(WRONG_FORMAT_2), "Unknown");
 }
 
 static void test_card_add_component(struct kunit *test)
