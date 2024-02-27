@@ -197,14 +197,14 @@ static int drm_fbdev_generic_damage_blit(struct drm_fb_helper *fb_helper,
 	 */
 	mutex_lock(&fb_helper->lock);
 
-	ret = drm_client_buffer_vmap(buffer, &map);
+	ret = drm_client_buffer_vmap_local(buffer, &map);
 	if (ret)
 		goto out;
 
 	dst = map;
 	drm_fbdev_generic_damage_blit_real(fb_helper, clip, &dst);
 
-	drm_client_buffer_vunmap(buffer);
+	drm_client_buffer_vunmap_local(buffer);
 
 out:
 	mutex_unlock(&fb_helper->lock);
