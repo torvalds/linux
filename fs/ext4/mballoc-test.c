@@ -332,14 +332,19 @@ static void mbt_kunit_exit(struct kunit *test)
 static void test_new_blocks_simple(struct kunit *test)
 {
 	struct super_block *sb = (struct super_block *)test->priv;
-	struct inode inode = { .i_sb = sb, };
+	struct inode *inode;
 	struct ext4_allocation_request ar;
 	ext4_group_t i, goal_group = TEST_GOAL_GROUP;
 	int err = 0;
 	ext4_fsblk_t found;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	ar.inode = &inode;
+	inode = kunit_kzalloc(test, sizeof(*inode), GFP_KERNEL);
+	if (!inode)
+		return;
+
+	inode->i_sb = sb;
+	ar.inode = inode;
 
 	/* get block at goal */
 	ar.goal = ext4_group_first_block_no(sb, goal_group);
@@ -441,15 +446,20 @@ test_free_blocks_simple_range(struct kunit *test, ext4_group_t goal_group,
 {
 	struct super_block *sb = (struct super_block *)test->priv;
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
-	struct inode inode = { .i_sb = sb, };
+	struct inode *inode;
 	ext4_fsblk_t block;
+
+	inode = kunit_kzalloc(test, sizeof(*inode), GFP_KERNEL);
+	if (!inode)
+		return;
+	inode->i_sb = sb;
 
 	if (len == 0)
 		return;
 
 	block = ext4_group_first_block_no(sb, goal_group) +
 		EXT4_C2B(sbi, start);
-	ext4_free_blocks_simple(&inode, block, len);
+	ext4_free_blocks_simple(inode, block, len);
 	validate_free_blocks_simple(test, sb, goal_group, start, len);
 	mbt_ctx_mark_used(sb, goal_group, 0, EXT4_CLUSTERS_PER_GROUP(sb));
 }
@@ -506,16 +516,21 @@ test_mark_diskspace_used_range(struct kunit *test,
 static void test_mark_diskspace_used(struct kunit *test)
 {
 	struct super_block *sb = (struct super_block *)test->priv;
-	struct inode inode = { .i_sb = sb, };
+	struct inode *inode;
 	struct ext4_allocation_context ac;
 	struct test_range ranges[TEST_RANGE_COUNT];
 	int i;
 
 	mbt_generate_test_ranges(sb, ranges, TEST_RANGE_COUNT);
 
+	inode = kunit_kzalloc(test, sizeof(*inode), GFP_KERNEL);
+	if (!inode)
+		return;
+	inode->i_sb = sb;
+
 	ac.ac_status = AC_STATUS_FOUND;
 	ac.ac_sb = sb;
-	ac.ac_inode = &inode;
+	ac.ac_inode = inode;
 	for (i = 0; i < TEST_RANGE_COUNT; i++)
 		test_mark_diskspace_used_range(test, &ac, ranges[i].start,
 					       ranges[i].len);
