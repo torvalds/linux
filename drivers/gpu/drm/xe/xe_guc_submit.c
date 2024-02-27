@@ -1820,21 +1820,14 @@ xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job)
 	snapshot->sched_props.preempt_timeout_us =
 		q->sched_props.preempt_timeout_us;
 
-	snapshot->lrc = kmalloc_array(q->width, sizeof(struct lrc_snapshot),
+	snapshot->lrc = kmalloc_array(q->width, sizeof(struct xe_lrc_snapshot *),
 				      GFP_ATOMIC);
 
 	if (snapshot->lrc) {
 		for (i = 0; i < q->width; ++i) {
 			struct xe_lrc *lrc = q->lrc + i;
 
-			snapshot->lrc[i].context_desc =
-				lower_32_bits(xe_lrc_ggtt_addr(lrc));
-			snapshot->lrc[i].head = xe_lrc_ring_head(lrc);
-			snapshot->lrc[i].tail.internal = lrc->ring.tail;
-			snapshot->lrc[i].tail.memory =
-				xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL);
-			snapshot->lrc[i].start_seqno = xe_lrc_start_seqno(lrc);
-			snapshot->lrc[i].seqno = xe_lrc_seqno(lrc);
+			snapshot->lrc[i] = xe_lrc_snapshot_capture(lrc);
 		}
 	}
 
@@ -1900,18 +1893,9 @@ xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snaps
 	drm_printf(p, "\tPreempt timeout: %u (us)\n",
 		   snapshot->sched_props.preempt_timeout_us);
 
-	for (i = 0; snapshot->lrc && i < snapshot->width; ++i) {
-		drm_printf(p, "\tHW Context Desc: 0x%08x\n",
-			   snapshot->lrc[i].context_desc);
-		drm_printf(p, "\tLRC Head: (memory) %u\n",
-			   snapshot->lrc[i].head);
-		drm_printf(p, "\tLRC Tail: (internal) %u, (memory) %u\n",
-			   snapshot->lrc[i].tail.internal,
-			   snapshot->lrc[i].tail.memory);
-		drm_printf(p, "\tStart seqno: (memory) %d\n",
-			   snapshot->lrc[i].start_seqno);
-		drm_printf(p, "\tSeqno: (memory) %d\n", snapshot->lrc[i].seqno);
-	}
+	for (i = 0; snapshot->lrc && i < snapshot->width; ++i)
+		xe_lrc_snapshot_print(snapshot->lrc[i], p);
+
 	drm_printf(p, "\tSchedule State: 0x%x\n", snapshot->schedule_state);
 	drm_printf(p, "\tFlags: 0x%lx\n", snapshot->exec_queue_flags);
 
@@ -1936,10 +1920,15 @@ xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snaps
  */
 void xe_guc_exec_queue_snapshot_free(struct xe_guc_submit_exec_queue_snapshot *snapshot)
 {
+	int i;
 	if (!snapshot)
 		return;
 
-	kfree(snapshot->lrc);
+	if (snapshot->lrc) {
+		for (i = 0; i < snapshot->width; i++)
+			xe_lrc_snapshot_free(snapshot->lrc[i]);
+		kfree(snapshot->lrc);
+	}
 	kfree(snapshot->pending_list);
 	kfree(snapshot);
 }

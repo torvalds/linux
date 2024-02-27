@@ -55,4 +55,8 @@ void xe_lrc_dump_default(struct drm_printer *p,
 
 void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *bb);
 
+struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc);
+void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer *p);
+void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot);
+
 #endif

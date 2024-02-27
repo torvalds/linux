@@ -32,6 +32,17 @@
 #define ENGINE_CLASS_SHIFT			61
 #define ENGINE_INSTANCE_SHIFT			48
 
+struct xe_lrc_snapshot {
+	u32 context_desc;
+	u32 head;
+	struct {
+		u32 internal;
+		u32 memory;
+	} tail;
+	u32 start_seqno;
+	u32 seqno;
+};
+
 static struct xe_device *
 lrc_to_xe(struct xe_lrc *lrc)
 {
@@ -1330,4 +1341,38 @@ void xe_lrc_emit_hwe_state_instructions(struct xe_exec_queue *q, struct xe_bb *b
 
 		bb->len += num_dw;
 	}
+}
+
+struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
+{
+	struct xe_lrc_snapshot *snapshot = kmalloc(sizeof(*snapshot), GFP_NOWAIT);
+
+	if (!snapshot)
+		return NULL;
+
+	snapshot->context_desc = lower_32_bits(xe_lrc_ggtt_addr(lrc));
+	snapshot->head = xe_lrc_ring_head(lrc);
+	snapshot->tail.internal = lrc->ring.tail;
+	snapshot->tail.memory = xe_lrc_read_ctx_reg(lrc, CTX_RING_TAIL);
+	snapshot->start_seqno = xe_lrc_start_seqno(lrc);
+	snapshot->seqno = xe_lrc_seqno(lrc);
+	return snapshot;
+}
+
+void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer *p)
+{
+	if (!snapshot)
+		return;
+
+	drm_printf(p, "\tHW Context Desc: 0x%08x\n", snapshot->context_desc);
+	drm_printf(p, "\tLRC Head: (memory) %u\n", snapshot->head);
+	drm_printf(p, "\tLRC Tail: (internal) %u, (memory) %u\n",
+		   snapshot->tail.internal, snapshot->tail.memory);
+	drm_printf(p, "\tStart seqno: (memory) %d\n", snapshot->start_seqno);
+	drm_printf(p, "\tSeqno: (memory) %d\n", snapshot->seqno);
+}
+
+void xe_lrc_snapshot_free(struct xe_lrc_snapshot *snapshot)
+{
+	kfree(snapshot);
 }
