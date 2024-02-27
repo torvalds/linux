@@ -125,12 +125,49 @@ int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 void ynl_error_unknown_notification(struct ynl_sock *ys, __u8 cmd);
 int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
-/* Attribute helpers */
+/* Netlink message handling helpers */
+
+static inline struct nlmsghdr *ynl_nlmsg_put_header(void *buf)
+{
+	struct nlmsghdr *nlh = buf;
+
+	memset(nlh, 0, sizeof(*nlh));
+	nlh->nlmsg_len = NLMSG_HDRLEN;
+
+	return nlh;
+}
+
+static inline unsigned int ynl_nlmsg_data_len(const struct nlmsghdr *nlh)
+{
+	return nlh->nlmsg_len - NLMSG_HDRLEN;
+}
+
+static inline void *ynl_nlmsg_data(const struct nlmsghdr *nlh)
+{
+	return (unsigned char *)nlh + NLMSG_HDRLEN;
+}
+
+static inline void *
+ynl_nlmsg_data_offset(const struct nlmsghdr *nlh, unsigned int offset)
+{
+	return (unsigned char *)nlh + NLMSG_HDRLEN + offset;
+}
 
 static inline void *ynl_nlmsg_end_addr(const struct nlmsghdr *nlh)
 {
 	return (char *)nlh + nlh->nlmsg_len;
 }
+
+static inline void *
+ynl_nlmsg_put_extra_header(struct nlmsghdr *nlh, unsigned int size)
+{
+	void *tail = ynl_nlmsg_end_addr(nlh);
+
+	nlh->nlmsg_len += NLMSG_ALIGN(size);
+	return tail;
+}
+
+/* Netlink attribute helpers */
 
 static inline unsigned int ynl_attr_type(const struct nlattr *attr)
 {

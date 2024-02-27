@@ -190,9 +190,8 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		n = snprintf(bad_attr, sizeof(bad_attr), "%sbad attribute: ",
 			     str ? " (" : "");
 
-		start = mnl_nlmsg_get_payload_offset(ys->nlh,
-						     ys->family->hdr_len);
-		end = mnl_nlmsg_get_payload_tail(ys->nlh);
+		start = ynl_nlmsg_data_offset(ys->nlh, ys->family->hdr_len);
+		end = ynl_nlmsg_end_addr(ys->nlh);
 
 		off = ys->err.attr_offs;
 		off -= sizeof(struct nlmsghdr);
@@ -216,9 +215,8 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		n = snprintf(miss_attr, sizeof(miss_attr), "%smissing attribute: ",
 			     bad_attr[0] ? ", " : (str ? " (" : ""));
 
-		start = mnl_nlmsg_get_payload_offset(ys->nlh,
-						     ys->family->hdr_len);
-		end = mnl_nlmsg_get_payload_tail(ys->nlh);
+		start = ynl_nlmsg_data_offset(ys->nlh, ys->family->hdr_len);
+		end = ynl_nlmsg_end_addr(ys->nlh);
 
 		nest_pol = ys->req_policy;
 		if (tb[NLMSGERR_ATTR_MISS_NEST]) {
@@ -259,7 +257,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 
 static int ynl_cb_error(const struct nlmsghdr *nlh, void *data)
 {
-	const struct nlmsgerr *err = mnl_nlmsg_get_payload(nlh);
+	const struct nlmsgerr *err = ynl_nlmsg_data(nlh);
 	struct ynl_parse_arg *yarg = data;
 	unsigned int hlen;
 	int code;
@@ -270,7 +268,7 @@ static int ynl_cb_error(const struct nlmsghdr *nlh, void *data)
 
 	hlen = sizeof(*err);
 	if (!(nlh->nlmsg_flags & NLM_F_CAPPED))
-		hlen += mnl_nlmsg_get_payload_len(&err->msg);
+		hlen += ynl_nlmsg_data_len(&err->msg);
 
 	ynl_ext_ack_check(yarg->ys, nlh, hlen);
 
@@ -413,7 +411,7 @@ struct nlmsghdr *ynl_msg_start(struct ynl_sock *ys, __u32 id, __u16 flags)
 
 	ynl_err_reset(ys);
 
-	nlh = ys->nlh = mnl_nlmsg_put_header(ys->tx_buf);
+	nlh = ys->nlh = ynl_nlmsg_put_header(ys->tx_buf);
 	nlh->nlmsg_type	= id;
 	nlh->nlmsg_flags = flags;
 	nlh->nlmsg_seq = ++ys->seq;
@@ -435,7 +433,7 @@ ynl_gemsg_start(struct ynl_sock *ys, __u32 id, __u16 flags,
 	gehdr.cmd = cmd;
 	gehdr.version = version;
 
-	data = mnl_nlmsg_put_extra_header(nlh, sizeof(gehdr));
+	data = ynl_nlmsg_put_extra_header(nlh, sizeof(gehdr));
 	memcpy(data, &gehdr, sizeof(gehdr));
 
 	return nlh;
@@ -718,7 +716,7 @@ static int ynl_ntf_parse(struct ynl_sock *ys, const struct nlmsghdr *nlh)
 	struct genlmsghdr *gehdr;
 	int ret;
 
-	gehdr = mnl_nlmsg_get_payload(nlh);
+	gehdr = ynl_nlmsg_data(nlh);
 	if (gehdr->cmd >= ys->family->ntf_info_size)
 		return MNL_CB_ERROR;
 	info = &ys->family->ntf_info[gehdr->cmd];
@@ -808,13 +806,13 @@ ynl_check_alien(struct ynl_sock *ys, const struct nlmsghdr *nlh, __u32 rsp_cmd)
 {
 	struct genlmsghdr *gehdr;
 
-	if (mnl_nlmsg_get_payload_len(nlh) < sizeof(*gehdr)) {
+	if (ynl_nlmsg_data_len(nlh) < sizeof(*gehdr)) {
 		yerr(ys, YNL_ERROR_INV_RESP,
 		     "Kernel responded with truncated message");
 		return -1;
 	}
 
-	gehdr = mnl_nlmsg_get_payload(nlh);
+	gehdr = ynl_nlmsg_data(nlh);
 	if (gehdr->cmd != rsp_cmd)
 		return ynl_ntf_parse(ys, nlh);
 
