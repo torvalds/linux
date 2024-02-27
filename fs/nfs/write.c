@@ -667,10 +667,6 @@ static int nfs_writepage_locked(struct folio *folio,
 	struct inode *inode = folio_file_mapping(folio)->host;
 	int err;
 
-	if (wbc->sync_mode == WB_SYNC_NONE &&
-	    NFS_SERVER(inode)->write_congested)
-		return AOP_WRITEPAGE_ACTIVATE;
-
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGE);
 	nfs_pageio_init_write(&pgio, inode, 0, false,
 			      &nfs_async_write_completion_ops);
