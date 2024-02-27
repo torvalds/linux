@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk-provider.h>
@@ -857,6 +857,35 @@ static const struct clk_rpmh_desc clk_rpmh_niobe = {
 	.num_clks = ARRAY_SIZE(niobe_rpmh_clocks),
 };
 
+DEFINE_CLK_RPMH_VRM_OPT(volcano, ln_bb_clk2, ln_bb_clk2_ao, "clka7", 4);
+DEFINE_CLK_RPMH_VRM_OPT(volcano, ln_bb_clk3, ln_bb_clk3_ao, "clka8", 4);
+DEFINE_CLK_RPMH_VRM_OPT(volcano, ln_bb_clk4, ln_bb_clk4_ao, "clka9", 2);
+
+static struct clk_hw *volcano_rpmh_clocks[] = {
+	[RPMH_CXO_PAD_CLK]	= &pineapple_xo_pad.hw,
+	[RPMH_CXO_PAD_CLK_A]	= &pineapple_xo_pad_ao.hw,
+	[RPMH_CXO_CLK]		= &pineapple_bi_tcxo.hw,
+	[RPMH_CXO_CLK_A]	= &pineapple_bi_tcxo_ao.hw,
+	[RPMH_LN_BB_CLK2]	= &volcano_ln_bb_clk2.hw,
+	[RPMH_LN_BB_CLK2_A]	= &volcano_ln_bb_clk2_ao.hw,
+	[RPMH_LN_BB_CLK3]	= &volcano_ln_bb_clk3.hw,
+	[RPMH_LN_BB_CLK3_A]	= &volcano_ln_bb_clk3_ao.hw,
+	[RPMH_LN_BB_CLK4]	= &volcano_ln_bb_clk4.hw,
+	[RPMH_LN_BB_CLK4_A]	= &volcano_ln_bb_clk4_ao.hw,
+	[RPMH_RF_CLK1]		= &pineapple_rf_clk1.hw,
+	[RPMH_RF_CLK1_A]	= &pineapple_rf_clk1_ao.hw,
+	[RPMH_RF_CLK2]		= &pineapple_rf_clk2.hw,
+	[RPMH_RF_CLK2_A]	= &pineapple_rf_clk2_ao.hw,
+	[RPMH_RF_CLK3]		= &kalama_rf_clk3.hw,
+	[RPMH_RF_CLK3_A]	= &kalama_rf_clk3_ao.hw,
+	[RPMH_IPA_CLK]		= &sdm845_ipa.hw,
+};
+
+static const struct clk_rpmh_desc clk_rpmh_volcano = {
+	.clks = volcano_rpmh_clocks,
+	.num_clks = ARRAY_SIZE(volcano_rpmh_clocks),
+};
+
 static int clk_rpmh_probe(struct platform_device *pdev)
 {
 	struct clk_hw **hw_clks;
@@ -951,6 +980,7 @@ static const struct of_device_id clk_rpmh_match_table[] = {
 	{ .compatible = "qcom,lemans-rpmh-clk", .data = &clk_rpmh_lemans},
 	{ .compatible = "qcom,cliffs-rpmh-clk", .data = &clk_rpmh_cliffs},
 	{ .compatible = "qcom,niobe-rpmh-clk", .data = &clk_rpmh_niobe},
+	{ .compatible = "qcom,volcano-rpmh-clk", .data = &clk_rpmh_volcano},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_rpmh_match_table);
