@@ -576,8 +576,17 @@ unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
 
 	latency = policy->cpuinfo.transition_latency / NSEC_PER_USEC;
 	if (latency) {
+		unsigned int max_delay_us = 2 * MSEC_PER_SEC;
+
 		/*
-		 * For platforms that can change the frequency very fast (< 10
+		 * If the platform already has high transition_latency, use it
+		 * as-is.
+		 */
+		if (latency > max_delay_us)
+			return latency;
+
+		/*
+		 * For platforms that can change the frequency very fast (< 2
 		 * us), the above formula gives a decent transition delay. But
 		 * for platforms where transition_latency is in milliseconds, it
 		 * ends up giving unrealistic values.
@@ -586,7 +595,7 @@ unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
 		 * a reasonable amount of time after which we should reevaluate
 		 * the frequency.
 		 */
-		return min(latency * LATENCY_MULTIPLIER, (unsigned int)(2 * MSEC_PER_SEC));
+		return min(latency * LATENCY_MULTIPLIER, max_delay_us);
 	}
 
 	return LATENCY_MULTIPLIER;
