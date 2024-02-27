@@ -173,6 +173,9 @@ static const struct cpg_core_clk r8a779h0_core_clks[] = {
 };
 
 static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
+	DEF_MOD("avb0:rgmii0",	211,	R8A779H0_CLK_S0D8_HSC),
+	DEF_MOD("avb1:rgmii1",	212,	R8A779H0_CLK_S0D8_HSC),
+	DEF_MOD("avb2:rgmii2",	213,	R8A779H0_CLK_S0D8_HSC),
 	DEF_MOD("hscif0",	514,	R8A779H0_CLK_SASYNCPERD1),
 	DEF_MOD("hscif1",	515,	R8A779H0_CLK_SASYNCPERD1),
 	DEF_MOD("hscif2",	516,	R8A779H0_CLK_SASYNCPERD1),
@@ -181,6 +184,10 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
 	DEF_MOD("i2c1",		519,	R8A779H0_CLK_S0D6_PER),
 	DEF_MOD("i2c2",		520,	R8A779H0_CLK_S0D6_PER),
 	DEF_MOD("i2c3",		521,	R8A779H0_CLK_S0D6_PER),
+	DEF_MOD("rpc-if",	629,	R8A779H0_CLK_RPCD2),
+	DEF_MOD("sdhi0",	706,	R8A779H0_CLK_SD0),
+	DEF_MOD("sydm1",	709,	R8A779H0_CLK_S0D6_PER),
+	DEF_MOD("sydm2",	710,	R8A779H0_CLK_S0D6_PER),
 	DEF_MOD("wdt1:wdt0",	907,	R8A779H0_CLK_R),
 	DEF_MOD("pfc0",		915,	R8A779H0_CLK_CP),
 	DEF_MOD("pfc1",		916,	R8A779H0_CLK_CP),
