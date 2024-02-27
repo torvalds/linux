@@ -100,8 +100,10 @@ static int test_prepare(const struct resctrl_test *test)
 	return 0;
 }
 
-static void test_cleanup(void)
+static void test_cleanup(const struct resctrl_test *test)
 {
+	if (test->cleanup)
+		test->cleanup();
 	umount_resctrlfs();
 	signal_handler_unregister();
 }
@@ -143,7 +145,7 @@ static void run_single_test(const struct resctrl_test *test, const struct user_p
 	ksft_test_result(!ret, "%s: test\n", test->name);
 
 cleanup:
-	test_cleanup();
+	test_cleanup(test);
 }
 
 static void init_user_params(struct user_params *uparams)
