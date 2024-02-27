@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -320,47 +320,71 @@ static int i2c_glink_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int n
 	u16 reg;
 	u32 bus_id;
 	size_t len;
-	bool read = false;
-	int ret;
+	bool read;
+	int i, ret;
 
 	if (!i2c_gctrl)
 		return -ENODEV;
 
 	gd = i2c_gctrl->gd;
 	bus_id = i2c_gctrl->bus_id;
-	sid = (u8) msgs[0].addr;
-	/*
-	 * For I2C write operation, only one i2c_msg data block is present.
-	 * I2c_msg[0].buf contains 2 bytes register address following the
-	 * data buffer, i2c_msg[0].len is the sum of register length (2 bytes)
-	 * and data length.
-	 * For I2C read, there are 2 i2c_msg data blocks. I2c_msg[0].buf has
-	 * the register address and i2c_msg[0].len is the register length.
-	 * I2c_msg[1].flags will be armed with I2C_M_RD, and i2c_msg[1].buf
-	 * is the data buffer and msg[1].len is the data length.
-	 */
-	reg = get_unaligned_be16(msgs[0].buf);
-	len = (size_t) msgs[0].len - 2;
-	buf = msgs[0].buf + 2;
 
-	if (num > 0 && msgs[1].flags == I2C_M_RD) {
-		read = true;
-		len = (size_t) msgs[1].len;
-		buf = msgs[1].buf;
+	for (i = 0; i < num; i++) {
+		if (msgs[i].len < 2) {
+			dev_dbg(gd->dev, "%s: unexpected msg: addr=%#x, flags=%#x, len=%u\n",
+				__func__, msgs[i].addr, msgs[i].flags,
+				msgs[i].len);
+			return -EINVAL;
+		}
+		/*
+		 * For I2C write operation, only one i2c_msg data block is
+		 * present. i2c_msg[0].buf contains the 2 byte register address
+		 * followed by the data buffer. i2c_msg[0].len is the sum of the
+		 * register length (2 bytes) and the data length.
+		 *
+		 * For I2C read, there are two i2c_msg data blocks.
+		 * i2c_msg[0].buf has the register address and i2c_msg[0].len is
+		 * the register length (2). i2c_msg[1].flags will have the
+		 * I2C_M_RD flag set. i2c_msg[1].buf is the data buffer and
+		 * msg[1].len is the data length.
+		 */
+		sid = (u8) msgs[i].addr;
+		reg = get_unaligned_be16(msgs[i].buf);
+
+		if (i + 1 < num && (msgs[i + 1].flags & I2C_M_RD) &&
+		    msgs[i].addr == msgs[i + 1].addr && msgs[i + 1].len > 0) {
+			/* Read operation */
+			read = true;
+			len = (size_t) msgs[i + 1].len;
+			buf = msgs[i + 1].buf;
+			i++;
+		} else if (msgs[i].len > 2 && !(msgs[i].flags & I2C_M_RD)) {
+			/* Write operation */
+			read = false;
+			len = (size_t) msgs[i].len - 2;
+			buf = msgs[i].buf + 2;
+		} else {
+			/* Unknown operation */
+			dev_dbg(gd->dev, "%s: unexpected msg: addr=%#x, flags=%#x, len=%u\n",
+				__func__, msgs[i].addr, msgs[i].flags,
+				msgs[i].len);
+			return -EINVAL;
+		}
+
+		if (read)
+			ret = pmic_glink_debug_read_regs(gd, bus_id, sid, reg, buf, len);
+		else
+			ret = pmic_glink_debug_write_regs(gd, bus_id, sid, reg, buf, len);
+
+		if (ret) {
+			dev_err(gd->dev, "%s failed\n", __func__);
+			return ret;
+		}
+
+		dev_dbg(gd->dev, "%s: %s: bus id %#x, sid %#x, reg %#x, data %*ph\n",
+			__func__, read ? "read" : "write", bus_id, sid, reg, (int)len, buf);
 	}
 
-	if (read)
-		ret = pmic_glink_debug_read_regs(gd, bus_id, sid, reg, buf, len);
-	else
-		ret = pmic_glink_debug_write_regs(gd, bus_id, sid, reg, buf, len);
-
-	if (ret) {
-		dev_err(gd->dev, "%s failed\n", __func__);
-		return ret;
-	}
-
-	dev_dbg(gd->dev, "%s: %s:  bus id %#x, sid %#x, reg %#x, data %*ph, len =%d\n",
-			__func__, read ? "read" : "write", bus_id, sid, reg, len, buf, len);
 	return num;
 }
 
