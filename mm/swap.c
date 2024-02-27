@@ -74,22 +74,21 @@ static DEFINE_PER_CPU(struct cpu_fbatches, cpu_fbatches) = {
 	.lock = INIT_LOCAL_LOCK(lock),
 };
 
-/*
- * This path almost never happens for VM activity - pages are normally freed
- * in batches.  But it gets used by networking - and for compound pages.
- */
-static void __page_cache_release(struct folio *folio)
+static void __page_cache_release(struct folio *folio, struct lruvec **lruvecp,
+		unsigned long *flagsp)
 {
 	if (folio_test_lru(folio)) {
-		struct lruvec *lruvec;
-		unsigned long flags;
-
-		lruvec = folio_lruvec_lock_irqsave(folio, &flags);
-		lruvec_del_folio(lruvec, folio);
+		folio_lruvec_relock_irqsave(folio, lruvecp, flagsp);
+		lruvec_del_folio(*lruvecp, folio);
 		__folio_clear_lru_flags(folio);
-		unlock_page_lruvec_irqrestore(lruvec, flags);
 	}
-	/* See comment on folio_test_mlocked in folios_put() */
+
+	/*
+	 * In rare cases, when truncation or holepunching raced with
+	 * munlock after VM_LOCKED was cleared, Mlocked may still be
+	 * found set here.  This does not indicate a problem, unless
+	 * "unevictable_pgs_cleared" appears worryingly large.
+	 */
 	if (unlikely(folio_test_mlocked(folio))) {
 		long nr_pages = folio_nr_pages(folio);
 
@@ -99,9 +98,23 @@ static void __page_cache_release(struct folio *folio)
 	}
 }
 
+/*
+ * This path almost never happens for VM activity - pages are normally freed
+ * in batches.  But it gets used by networking - and for compound pages.
+ */
+static void page_cache_release(struct folio *folio)
+{
+	struct lruvec *lruvec = NULL;
+	unsigned long flags;
+
+	__page_cache_release(folio, &lruvec, &flags);
+	if (lruvec)
+		unlock_page_lruvec_irqrestore(lruvec, flags);
+}
+
 static void __folio_put_small(struct folio *folio)
 {
-	__page_cache_release(folio);
+	page_cache_release(folio);
 	mem_cgroup_uncharge(folio);
 	free_unref_page(&folio->page, 0);
 }
@@ -115,7 +128,7 @@ static void __folio_put_large(struct folio *folio)
 	 * be called for hugetlb (it has a separate hugetlb_cgroup.)
 	 */
 	if (!folio_test_hugetlb(folio))
-		__page_cache_release(folio);
+		page_cache_release(folio);
 	destroy_large_folio(folio);
 }
 
@@ -216,7 +229,7 @@ static void folio_batch_move_lru(struct folio_batch *fbatch, move_fn_t move_fn)
 		if (move_fn != lru_add_fn && !folio_test_clear_lru(folio))
 			continue;
 
-		lruvec = folio_lruvec_relock_irqsave(folio, lruvec, &flags);
+		folio_lruvec_relock_irqsave(folio, &lruvec, &flags);
 		move_fn(lruvec, folio);
 
 		folio_set_lru(folio);
@@ -999,24 +1012,7 @@ void folios_put_refs(struct folio_batch *folios, unsigned int *refs)
 			continue;
 		}
 
-		if (folio_test_lru(folio)) {
-			lruvec = folio_lruvec_relock_irqsave(folio, lruvec,
-									&flags);
-			lruvec_del_folio(lruvec, folio);
-			__folio_clear_lru_flags(folio);
-		}
-
-		/*
-		 * In rare cases, when truncation or holepunching raced with
-		 * munlock after VM_LOCKED was cleared, Mlocked may still be
-		 * found set here.  This does not indicate a problem, unless
-		 * "unevictable_pgs_cleared" appears worryingly large.
-		 */
-		if (unlikely(folio_test_mlocked(folio))) {
-			__folio_clear_mlocked(folio);
-			zone_stat_sub_folio(folio, NR_MLOCK);
-			count_vm_event(UNEVICTABLE_PGCLEARED);
-		}
+		__page_cache_release(folio, &lruvec, &flags);
 
 		if (j != i)
 			folios->folios[j] = folio;

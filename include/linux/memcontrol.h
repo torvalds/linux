@@ -1705,18 +1705,18 @@ static inline struct lruvec *folio_lruvec_relock_irq(struct folio *folio,
 	return folio_lruvec_lock_irq(folio);
 }
 
-/* Don't lock again iff page's lruvec locked */
-static inline struct lruvec *folio_lruvec_relock_irqsave(struct folio *folio,
-		struct lruvec *locked_lruvec, unsigned long *flags)
+/* Don't lock again iff folio's lruvec locked */
+static inline void folio_lruvec_relock_irqsave(struct folio *folio,
+		struct lruvec **lruvecp, unsigned long *flags)
 {
-	if (locked_lruvec) {
-		if (folio_matches_lruvec(folio, locked_lruvec))
-			return locked_lruvec;
+	if (*lruvecp) {
+		if (folio_matches_lruvec(folio, *lruvecp))
+			return;
 
-		unlock_page_lruvec_irqrestore(locked_lruvec, *flags);
+		unlock_page_lruvec_irqrestore(*lruvecp, *flags);
 	}
 
-	return folio_lruvec_lock_irqsave(folio, flags);
+	*lruvecp = folio_lruvec_lock_irqsave(folio, flags);
 }
 
 #ifdef CONFIG_CGROUP_WRITEBACK
