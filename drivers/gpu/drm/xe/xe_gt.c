@@ -314,8 +314,6 @@ int xe_gt_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	xe_gt_topology_init(gt);
-
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		return err;
@@ -502,6 +500,7 @@ int xe_gt_init_hwconfig(struct xe_gt *gt)
 	if (err)
 		goto out;
 
+	xe_gt_topology_init(gt);
 	xe_gt_mcr_init(gt);
 	xe_pat_init(gt);
 
