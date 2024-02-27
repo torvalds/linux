@@ -700,6 +700,11 @@ properties:
               - powkiddy,x55
           - const: rockchip,rk3566
 
+      - description: QNAP TS-433-4G 4-Bay NAS
+        items:
+          - const: qnap,ts433
+          - const: rockchip,rk3568
+
       - description: Radxa Compute Module 3(CM3)
         items:
           - enum:
