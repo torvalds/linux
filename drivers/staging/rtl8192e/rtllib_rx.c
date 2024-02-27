@@ -2096,12 +2096,12 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				     & SUPPORT_CKIP_MIC) ||
 				     (info_element->data[IE_CISCO_FLAG_POSITION]
 				     & SUPPORT_CKIP_PK))
-					network->bCkipSupported = true;
+					network->ckip_supported = true;
 				else
-					network->bCkipSupported = false;
+					network->ckip_supported = false;
 			} else {
 				network->bWithAironetIE = false;
-				network->bCkipSupported = false;
+				network->ckip_supported = false;
 			}
 			break;
 		case MFIE_TYPE_QOS_PARAMETER:
@@ -2346,7 +2346,7 @@ static inline void update_network(struct rtllib_device *ieee,
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);
 
 	dst->bWithAironetIE = src->bWithAironetIE;
-	dst->bCkipSupported = src->bCkipSupported;
+	dst->ckip_supported = src->ckip_supported;
 	memcpy(dst->CcxRmState, src->CcxRmState, 2);
 	dst->bCcxRmEnable = src->bCcxRmEnable;
 	dst->MBssidMask = src->MBssidMask;

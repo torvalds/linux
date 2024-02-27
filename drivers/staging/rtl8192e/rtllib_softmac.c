@@ -740,7 +740,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 		}
 	}
 
-	if (beacon->bCkipSupported)
+	if (beacon->ckip_supported)
 		ckip_ie_len = 30 + 2;
 	if (beacon->bCcxRmEnable)
 		ccxrm_ie_len = 6 + 2;
@@ -817,7 +817,7 @@ rtllib_association_req(struct rtllib_network *beacon,
 			*tag++ = beacon->rates_ex[i];
 	}
 
-	if (beacon->bCkipSupported) {
+	if (beacon->ckip_supported) {
 		static const u8 AironetIeOui[] = {0x00, 0x01, 0x66};
 		u8	CcxAironetBuf[30];
 		struct octet_string osCcxAironetIE;

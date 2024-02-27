@@ -911,7 +911,7 @@ struct rtllib_network {
 	struct rtllib_qos_data qos_data;
 
 	bool	bWithAironetIE;
-	bool	bCkipSupported;
+	bool	ckip_supported;
 	bool	bCcxRmEnable;
 	u8	CcxRmState[2];
 	bool	bMBssidValid;
