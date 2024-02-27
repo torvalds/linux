@@ -2205,21 +2205,20 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 				    struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(in_skb->sk);
-	struct nlattr *tb[NETCONFA_MAX+1];
+	struct nlattr *tb[NETCONFA_MAX + 1];
+	const struct ipv4_devconf *devconf;
+	struct in_device *in_dev = NULL;
+	struct net_device *dev = NULL;
 	struct sk_buff *skb;
-	struct ipv4_devconf *devconf;
-	struct in_device *in_dev;
-	struct net_device *dev;
 	int ifindex;
 	int err;
 
 	err = inet_netconf_valid_get_req(in_skb, nlh, tb, extack);
 	if (err)
-		goto errout;
+		return err;
 
-	err = -EINVAL;
 	if (!tb[NETCONFA_IFINDEX])
-		goto errout;
+		return -EINVAL;
 
 	ifindex = nla_get_s32(tb[NETCONFA_IFINDEX]);
 	switch (ifindex) {
@@ -2230,10 +2229,10 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 		devconf = net->ipv4.devconf_dflt;
 		break;
 	default:
-		dev = __dev_get_by_index(net, ifindex);
-		if (!dev)
-			goto errout;
-		in_dev = __in_dev_get_rtnl(dev);
+		err = -ENODEV;
+		dev = dev_get_by_index(net, ifindex);
+		if (dev)
+			in_dev = in_dev_get(dev);
 		if (!in_dev)
 			goto errout;
 		devconf = &in_dev->cnf;
@@ -2257,6 +2256,9 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	}
 	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 errout:
+	if (in_dev)
+		in_dev_put(in_dev);
+	dev_put(dev);
 	return err;
 }
 
@@ -2826,5 +2828,6 @@ void __init devinet_init(void)
 	rtnl_register(PF_INET, RTM_DELADDR, inet_rtm_deladdr, NULL, 0);
 	rtnl_register(PF_INET, RTM_GETADDR, NULL, inet_dump_ifaddr, 0);
 	rtnl_register(PF_INET, RTM_GETNETCONF, inet_netconf_get_devconf,
-		      inet_netconf_dump_devconf, 0);
+		      inet_netconf_dump_devconf,
+		      RTNL_FLAG_DOIT_UNLOCKED);
 }
