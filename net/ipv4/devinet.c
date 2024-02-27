@@ -1982,7 +1982,7 @@ static int inet_fill_link_af(struct sk_buff *skb, const struct net_device *dev,
 		return -EMSGSIZE;
 
 	for (i = 0; i < IPV4_DEVCONF_MAX; i++)
-		((u32 *) nla_data(nla))[i] = in_dev->cnf.data[i];
+		((u32 *) nla_data(nla))[i] = READ_ONCE(in_dev->cnf.data[i]);
 
 	return 0;
 }
@@ -2068,9 +2068,9 @@ static int inet_netconf_msgsize_devconf(int type)
 }
 
 static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
-				     struct ipv4_devconf *devconf, u32 portid,
-				     u32 seq, int event, unsigned int flags,
-				     int type)
+				     const struct ipv4_devconf *devconf,
+				     u32 portid, u32 seq, int event,
+				     unsigned int flags, int type)
 {
 	struct nlmsghdr  *nlh;
 	struct netconfmsg *ncm;
@@ -2095,27 +2095,28 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 
 	if ((all || type == NETCONFA_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_FORWARDING,
-			IPV4_DEVCONF(*devconf, FORWARDING)) < 0)
+			IPV4_DEVCONF_RO(*devconf, FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_RP_FILTER) &&
 	    nla_put_s32(skb, NETCONFA_RP_FILTER,
-			IPV4_DEVCONF(*devconf, RP_FILTER)) < 0)
+			IPV4_DEVCONF_RO(*devconf, RP_FILTER)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_MC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
-			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
+			IPV4_DEVCONF_RO(*devconf, MC_FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_BC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_BC_FORWARDING,
-			IPV4_DEVCONF(*devconf, BC_FORWARDING)) < 0)
+			IPV4_DEVCONF_RO(*devconf, BC_FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_PROXY_NEIGH) &&
 	    nla_put_s32(skb, NETCONFA_PROXY_NEIGH,
-			IPV4_DEVCONF(*devconf, PROXY_ARP)) < 0)
+			IPV4_DEVCONF_RO(*devconf, PROXY_ARP)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN) &&
 	    nla_put_s32(skb, NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
-			IPV4_DEVCONF(*devconf, IGNORE_ROUTES_WITH_LINKDOWN)) < 0)
+			IPV4_DEVCONF_RO(*devconf,
+					IGNORE_ROUTES_WITH_LINKDOWN)) < 0)
 		goto nla_put_failure;
 
 out:
