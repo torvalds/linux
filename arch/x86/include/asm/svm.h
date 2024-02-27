@@ -358,10 +358,10 @@ struct sev_es_save_area {
 	struct vmcb_seg ldtr;
 	struct vmcb_seg idtr;
 	struct vmcb_seg tr;
-	u64 vmpl0_ssp;
-	u64 vmpl1_ssp;
-	u64 vmpl2_ssp;
-	u64 vmpl3_ssp;
+	u64 pl0_ssp;
+	u64 pl1_ssp;
+	u64 pl2_ssp;
+	u64 pl3_ssp;
 	u64 u_cet;
 	u8 reserved_0xc8[2];
 	u8 vmpl;
