@@ -5798,6 +5798,20 @@ int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 err
 	if (WARN_ON_ONCE(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
 		return RET_PF_RETRY;
 
+	/*
+	 * Except for reserved faults (emulated MMIO is shared-only), set the
+	 * PFERR_PRIVATE_ACCESS flag for software-protected VMs based on the gfn's
+	 * current attributes, which are the source of truth for such VMs.  Note,
+	 * this wrong for nested MMUs as the GPA is an L2 GPA, but KVM doesn't
+	 * currently supported nested virtualization (among many other things)
+	 * for software-protected VMs.
+	 */
+	if (IS_ENABLED(CONFIG_KVM_SW_PROTECTED_VM) &&
+	    !(error_code & PFERR_RSVD_MASK) &&
+	    vcpu->kvm->arch.vm_type == KVM_X86_SW_PROTECTED_VM &&
+	    kvm_mem_is_private(vcpu->kvm, gpa_to_gfn(cr2_or_gpa)))
+		error_code |= PFERR_PRIVATE_ACCESS;
+
 	r = RET_PF_INVALID;
 	if (unlikely(error_code & PFERR_RSVD_MASK)) {
 		r = handle_mmio_page_fault(vcpu, cr2_or_gpa, direct);
