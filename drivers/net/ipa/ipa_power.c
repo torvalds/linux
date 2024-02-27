@@ -35,23 +35,10 @@
 #define IPA_AUTOSUSPEND_DELAY	500	/* milliseconds */
 
 /**
- * enum ipa_power_flag - IPA power flags
- * @IPA_POWER_FLAG_RESUMED:	Whether resume from suspend has been signaled
- * @IPA_POWER_FLAG_SYSTEM:	Hardware is system (not runtime) suspended
- * @IPA_POWER_FLAG_COUNT:	Number of defined power flags
- */
-enum ipa_power_flag {
-	IPA_POWER_FLAG_RESUMED,
-	IPA_POWER_FLAG_SYSTEM,
-	IPA_POWER_FLAG_COUNT,		/* Last; not a flag */
-};
-
-/**
  * struct ipa_power - IPA power management information
  * @dev:		IPA device pointer
  * @core:		IPA core clock
  * @qmp:		QMP handle for AOSS communication
- * @flags:		Boolean state flags
  * @interconnect_count:	Number of elements in interconnect[]
  * @interconnect:	Interconnect array
  */
@@ -59,7 +46,6 @@ struct ipa_power {
 	struct device *dev;
 	struct clk *core;
 	struct qmp *qmp;
-	DECLARE_BITMAP(flags, IPA_POWER_FLAG_COUNT);
 	u32 interconnect_count;
 	struct icc_bulk_data interconnect[] __counted_by(interconnect_count);
 };
@@ -141,7 +127,6 @@ static int ipa_runtime_suspend(struct device *dev)
 
 	/* Endpoints aren't usable until setup is complete */
 	if (ipa->setup_complete) {
-		__clear_bit(IPA_POWER_FLAG_RESUMED, ipa->power->flags);
 		ipa_endpoint_suspend(ipa);
 		gsi_suspend(&ipa->gsi);
 	}
@@ -173,8 +158,6 @@ static int ipa_suspend(struct device *dev)
 {
 	struct ipa *ipa = dev_get_drvdata(dev);
 
-	__set_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
-
 	/* Increment the disable depth to ensure that the IRQ won't
 	 * be re-enabled until the matching _enable call in
 	 * ipa_resume(). We do this to ensure that the interrupt
@@ -196,8 +179,6 @@ static int ipa_resume(struct device *dev)
 
 	ret = pm_runtime_force_resume(dev);
 
-	__clear_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags);
-
 	/* Now that PM runtime is enabled again it's safe
 	 * to turn the IRQ back on and process any data
 	 * that was received during suspend.
@@ -211,20 +192,6 @@ static int ipa_resume(struct device *dev)
 u32 ipa_core_clock_rate(struct ipa *ipa)
 {
 	return ipa->power ? (u32)clk_get_rate(ipa->power->core) : 0;
-}
-
-void ipa_power_suspend_handler(struct ipa *ipa, enum ipa_irq_id irq_id)
-{
-	/* To handle an IPA interrupt we will have resumed the hardware
-	 * just to handle the interrupt, so we're done.  If we are in a
-	 * system suspend, trigger a system resume.
-	 */
-	if (!__test_and_set_bit(IPA_POWER_FLAG_RESUMED, ipa->power->flags))
-		if (test_bit(IPA_POWER_FLAG_SYSTEM, ipa->power->flags))
-			pm_wakeup_dev_event(&ipa->pdev->dev, 0, true);
-
-	/* Acknowledge/clear the suspend interrupt on all endpoints */
-	ipa_interrupt_suspend_clear_all(ipa->interrupt);
 }
 
 static int ipa_power_retention_init(struct ipa_power *power)

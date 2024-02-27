@@ -43,6 +43,30 @@ struct ipa_interrupt {
 	u32 enabled;
 };
 
+/* Clear the suspend interrupt for all endpoints that signaled it */
+static void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
+{
+	struct ipa *ipa = interrupt->ipa;
+	u32 unit_count;
+	u32 unit;
+
+	unit_count = DIV_ROUND_UP(ipa->endpoint_count, 32);
+	for (unit = 0; unit < unit_count; unit++) {
+		const struct reg *reg;
+		u32 val;
+
+		reg = ipa_reg(ipa, IRQ_SUSPEND_INFO);
+		val = ioread32(ipa->reg_virt + reg_n_offset(reg, unit));
+
+		/* SUSPEND interrupt status isn't cleared on IPA version 3.0 */
+		if (!val || ipa->version == IPA_VERSION_3_0)
+			continue;
+
+		reg = ipa_reg(ipa, IRQ_SUSPEND_CLR);
+		iowrite32(val, ipa->reg_virt + reg_n_offset(reg, unit));
+	}
+}
+
 /* Process a particular interrupt type that has been received */
 static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 {
@@ -70,7 +94,7 @@ static void ipa_interrupt_process(struct ipa_interrupt *interrupt, u32 irq_id)
 		 * caused the interrupt, so defer clearing until after
 		 * the handler has been called.
 		 */
-		ipa_power_suspend_handler(ipa, irq_id);
+		ipa_interrupt_suspend_clear_all(interrupt);
 		fallthrough;
 
 	default:	/* Silently ignore (and clear) any other condition */
@@ -203,30 +227,6 @@ void
 ipa_interrupt_suspend_disable(struct ipa_interrupt *interrupt, u32 endpoint_id)
 {
 	ipa_interrupt_suspend_control(interrupt, endpoint_id, false);
-}
-
-/* Clear the suspend interrupt for all endpoints that signaled it */
-void ipa_interrupt_suspend_clear_all(struct ipa_interrupt *interrupt)
-{
-	struct ipa *ipa = interrupt->ipa;
-	u32 unit_count;
-	u32 unit;
-
-	unit_count = DIV_ROUND_UP(ipa->endpoint_count, 32);
-	for (unit = 0; unit < unit_count; unit++) {
-		const struct reg *reg;
-		u32 val;
-
-		reg = ipa_reg(ipa, IRQ_SUSPEND_INFO);
-		val = ioread32(ipa->reg_virt + reg_n_offset(reg, unit));
-
-		/* SUSPEND interrupt status isn't cleared on IPA version 3.0 */
-		if (ipa->version == IPA_VERSION_3_0)
-			continue;
-
-		reg = ipa_reg(ipa, IRQ_SUSPEND_CLR);
-		iowrite32(val, ipa->reg_virt + reg_n_offset(reg, unit));
-	}
 }
 
 /* Simulate arrival of an IPA TX_SUSPEND interrupt */
