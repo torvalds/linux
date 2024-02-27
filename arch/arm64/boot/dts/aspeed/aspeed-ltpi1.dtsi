@@ -48,7 +48,7 @@
 			reg = <0x0 0x50c00000 0 0x100>;
 			clocks = <&ltpi1_syscon AST1700_CLK_AHB>;
 			resets = <&ltpi1_syscon AST1700_RESET_ADC>;
-			interrupts-extended = <&intc7 16>;
+			interrupts-extended = <&soc0_intc7 16>;
 			#io-channel-cells = <1>;
 			aspeed,scu = <&ltpi1_syscon>;
 			status = "disabled";
@@ -59,7 +59,7 @@
 			reg = <0x0 0x50c00100 0x0 0x100>;
 			clocks = <&ltpi1_syscon AST1700_CLK_AHB>;
 			resets = <&ltpi1_syscon AST1700_RESET_ADC>;
-			interrupts-extended = <&intc7 16>;
+			interrupts-extended = <&soc0_intc7 16>;
 			#io-channel-cells = <1>;
 			aspeed,scu = <&ltpi1_syscon>;
 			status = "disabled";
@@ -85,7 +85,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c24000 0x0 0x1000>;
-			interrupts-extended = <&intc7 6>;
+			interrupts-extended = <&soc0_intc7 6>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C4CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C4>;
 			status = "disabled";
@@ -96,7 +96,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c25000 0x0 0x1000>;
-			interrupts-extended = <&intc7 7>;
+			interrupts-extended = <&soc0_intc7 7>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C5CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C5>;
 			status = "disabled";
@@ -107,7 +107,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c26000 0x0 0x1000>;
-			interrupts-extended = <&intc7 8>;
+			interrupts-extended = <&soc0_intc7 8>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C6CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C6>;
 			status = "disabled";
@@ -118,7 +118,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c27000 0x0 0x1000>;
-			interrupts-extended = <&intc7 9>;
+			interrupts-extended = <&soc0_intc7 9>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C7CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C7>;
 			status = "disabled";
@@ -129,7 +129,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c28000 0x0 0x1000>;
-			interrupts-extended = <&intc7 10>;
+			interrupts-extended = <&soc0_intc7 10>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C8CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C8>;
 			status = "disabled";
@@ -140,7 +140,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c29000 0x0 0x1000>;
-			interrupts-extended = <&intc7 11>;
+			interrupts-extended = <&soc0_intc7 11>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C9CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C9>;
 			status = "disabled";
@@ -151,7 +151,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c2a000 0x0 0x1000>;
-			interrupts-extended = <&intc7 12>;
+			interrupts-extended = <&soc0_intc7 12>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C10CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C10>;
 			status = "disabled";
@@ -162,7 +162,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x0 0x50c2b000 0x0 0x1000>;
-			interrupts-extended = <&intc7 13>;
+			interrupts-extended = <&soc0_intc7 13>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_I3C11CLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_I3C11>;
 			status = "disabled";
@@ -203,7 +203,7 @@
 		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
-		interrupts-extended = <&intc7 0>;
+		interrupts-extended = <&soc0_intc7 0>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ltpi1_i2c0_default>;
@@ -219,7 +219,7 @@
 		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
-		interrupts-extended = <&intc7 1>;
+		interrupts-extended = <&soc0_intc7 1>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ltpi1_i2c1_default>;
@@ -235,7 +235,7 @@
 		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
-		interrupts-extended = <&intc7 2>;
+		interrupts-extended = <&soc0_intc7 2>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ltpi1_i2c2_default>;
@@ -251,7 +251,7 @@
 		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
-		interrupts-extended = <&intc7 3>;
+		interrupts-extended = <&soc0_intc7 3>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ltpi1_i2c3_default>;
@@ -268,7 +268,7 @@
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
 		clock-frequency = <100000>;
-		interrupts-extended = <&intc7 4>;
+		interrupts-extended = <&soc0_intc7 4>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ltpi1_i2c4_default>;
 		status = "disabled";
@@ -283,7 +283,7 @@
 		aspeed,global-regs = <&ltpi1_i2c_global>;
 		clocks = <&ltpi1_syscon AST1700_CLK_APB>;
 		resets = <&ltpi1_syscon AST1700_RESET_I2C>;
-		interrupts-extended = <&intc7 5>;
+		interrupts-extended = <&soc0_intc7 5>;
 		clock-frequency = <100000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_ltpi1_i2c5_default>;
