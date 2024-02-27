@@ -713,6 +713,8 @@ struct intel_iommu {
 #endif
 	struct iopf_queue *iopf_queue;
 	unsigned char iopfq_name[16];
+	/* Synchronization between fault report and iommu device release. */
+	struct mutex iopf_lock;
 	struct q_inval  *qi;            /* Queued invalidation info */
 	u32 iommu_state[MAX_SR_DMAR_REGS]; /* Store iommu states between suspend and resume.*/
 

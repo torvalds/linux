@@ -4362,8 +4362,11 @@ free:
 static void intel_iommu_release_device(struct device *dev)
 {
 	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct intel_iommu *iommu = info->iommu;
 
+	mutex_lock(&iommu->iopf_lock);
 	device_rbtree_remove(info);
+	mutex_unlock(&iommu->iopf_lock);
 	dmar_remove_one_dev_info(dev);
 	intel_pasid_free_table(dev);
 	intel_iommu_debugfs_remove_dev(info);

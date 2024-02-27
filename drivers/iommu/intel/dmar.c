@@ -1097,6 +1097,7 @@ static int alloc_iommu(struct dmar_drhd_unit *drhd)
 	iommu->segment = drhd->segment;
 	iommu->device_rbtree = RB_ROOT;
 	spin_lock_init(&iommu->device_rbtree_lock);
+	mutex_init(&iommu->iopf_lock);
 	iommu->node = NUMA_NO_NODE;
 
 	ver = readl(iommu->reg + DMAR_VER_REG);
