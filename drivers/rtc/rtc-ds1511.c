@@ -122,50 +122,6 @@ rtc_enable_update(void)
 	rtc_write((rtc_read(RTC_CMD) | RTC_TE), RTC_CMD);
 }
 
-/*
- * #define DS1511_WDOG_RESET_SUPPORT
- *
- * Uncomment this if you want to use these routines in
- * some platform code.
- */
-#ifdef DS1511_WDOG_RESET_SUPPORT
-/*
- * just enough code to set the watchdog timer so that it
- * will reboot the system
- */
-void
-ds1511_wdog_set(unsigned long deciseconds)
-{
-	/*
-	 * the wdog timer can take 99.99 seconds
-	 */
-	deciseconds %= 10000;
-	/*
-	 * set the wdog values in the wdog registers
-	 */
-	rtc_write(bin2bcd(deciseconds % 100), DS1511_WD_MSEC);
-	rtc_write(bin2bcd(deciseconds / 100), DS1511_WD_SEC);
-	/*
-	 * set wdog enable and wdog 'steering' bit to issue a reset
-	 */
-	rtc_write(rtc_read(RTC_CMD) | DS1511_WDE | DS1511_WDS, RTC_CMD);
-}
-
-void
-ds1511_wdog_disable(void)
-{
-	/*
-	 * clear wdog enable and wdog 'steering' bits
-	 */
-	rtc_write(rtc_read(RTC_CMD) & ~(DS1511_WDE | DS1511_WDS), RTC_CMD);
-	/*
-	 * clear the wdog counter
-	 */
-	rtc_write(0, DS1511_WD_MSEC);
-	rtc_write(0, DS1511_WD_SEC);
-}
-#endif
-
 static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
 {
 	u8 mon, day, dow, hrs, min, sec, yrs, cen;
