@@ -1634,7 +1634,6 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 			mmd_eee_adv_to_ethtool_adv_t(adapter->eee_advert);
 
 	*edata = adapter->eee;
-	edata->supported_u32 = SUPPORTED_Autoneg;
 
 	eeer = rd32(IGC_EEER);
 
@@ -1646,9 +1645,6 @@ static int igc_ethtool_get_eee(struct net_device *netdev,
 		edata->tx_lpi_enabled = true;
 
 	edata->eee_enabled = hw->dev_spec._base.eee_enable;
-
-	edata->advertised_u32 = SUPPORTED_Autoneg;
-	edata->lp_advertised_u32 = SUPPORTED_Autoneg;
 
 	/* Report correct negotiated EEE status for devices that
 	 * wrongly report EEE at half-duplex
