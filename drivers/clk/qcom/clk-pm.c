@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -56,6 +56,9 @@ int register_qcom_clks_pm(struct platform_device *pdev, bool runtime,
 		return PTR_ERR(pdev);
 
 	if (runtime) {
+
+		pdev->dev.driver->pm = &clock_pm_rt_ops;
+
 		ret = qcom_cc_runtime_init(pdev, desc);
 		if (ret)
 			return ret;
@@ -63,11 +66,9 @@ int register_qcom_clks_pm(struct platform_device *pdev, bool runtime,
 		ret = pm_runtime_get_sync(&pdev->dev);
 		if (ret)
 			return ret;
-
-		pdev->dev.driver->pm = &clock_pm_rt_ops;
 	} else {
-		platform_set_drvdata(pdev, desc);
 		pdev->dev.driver->pm = &clock_pm_ops;
+		platform_set_drvdata(pdev, desc);
 	}
 
 	return 0;
