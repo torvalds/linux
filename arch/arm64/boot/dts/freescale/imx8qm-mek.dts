@@ -39,6 +39,20 @@
 		gpio = <&lsio_gpio4 19 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+
+	reg_vref_1v8: regulator-adc-vref {
+		compatible = "regulator-fixed";
+		regulator-name = "vref_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+};
+
+&adc0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc0>;
+	vref-supply = <&reg_vref_1v8>;
+	status = "okay";
 };
 
 &i2c1 {
@@ -127,6 +141,12 @@
 		fsl,pins = <
 			IMX8QM_GPT0_CLK_LSIO_GPIO0_IO14		0xc600004c
 			IMX8QM_GPT0_CAPTURE_LSIO_GPIO0_IO15	0xc600004c
+		>;
+	};
+
+	pinctrl_adc0: adc0grp {
+		fsl,pins = <
+			IMX8QM_ADC_IN0_DMA_ADC0_IN0				0xc0000060
 		>;
 	};
 
