@@ -366,7 +366,7 @@ static int madvise_cold_or_pageout_pte_range(pmd_t *pmd,
 		folio = pfn_folio(pmd_pfn(orig_pmd));
 
 		/* Do not interfere with other mappings of this folio */
-		if (folio_estimated_sharers(folio) != 1)
+		if (folio_likely_mapped_shared(folio))
 			goto huge_unlock;
 
 		if (pageout_anon_only_filter && !folio_test_anon(folio))
@@ -453,7 +453,7 @@ restart:
 		if (folio_test_large(folio)) {
 			int err;
 
-			if (folio_estimated_sharers(folio) > 1)
+			if (folio_likely_mapped_shared(folio))
 				break;
 			if (pageout_anon_only_filter && !folio_test_anon(folio))
 				break;
@@ -677,7 +677,7 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 		if (folio_test_large(folio)) {
 			int err;
 
-			if (folio_estimated_sharers(folio) != 1)
+			if (folio_likely_mapped_shared(folio))
 				break;
 			if (!folio_trylock(folio))
 				break;
