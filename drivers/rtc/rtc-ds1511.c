@@ -71,17 +71,17 @@ static DEFINE_SPINLOCK(ds1511_lock);
 static __iomem char *ds1511_base;
 static u32 reg_spacing = 1;
 
-static noinline void rtc_write(uint8_t val, uint32_t reg)
+static void rtc_write(uint8_t val, uint32_t reg)
 {
 	writeb(val, ds1511_base + (reg * reg_spacing));
 }
 
-static noinline uint8_t rtc_read(uint32_t reg)
+static uint8_t rtc_read(uint32_t reg)
 {
 	return readb(ds1511_base + (reg * reg_spacing));
 }
 
-static inline void rtc_disable_update(void)
+static void rtc_disable_update(void)
 {
 	rtc_write((rtc_read(DS1511_CONTROL_B) & ~DS1511_TE), DS1511_CONTROL_B);
 }
