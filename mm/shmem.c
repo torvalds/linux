@@ -2152,8 +2152,8 @@ unlock:
  * There is no need to reserve space before calling folio_mark_dirty().
  *
  * When no folio is found, the behavior depends on @sgp:
- *  - for SGP_READ, *foliop is %NULL and 0 is returned
- *  - for SGP_NOALLOC, *foliop is %NULL and -ENOENT is returned
+ *  - for SGP_READ, *@foliop is %NULL and 0 is returned
+ *  - for SGP_NOALLOC, *@foliop is %NULL and -ENOENT is returned
  *  - for all other flags a new folio is allocated, inserted into the
  *    page cache and returned locked in @foliop.
  *
