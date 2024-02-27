@@ -166,24 +166,13 @@ ds1511_wdog_disable(void)
 }
 #endif
 
-/*
- * set the rtc chip's idea of the time.
- * stupidly, some callers call with year unmolested;
- * and some call with  year = year - 1900.  thanks.
- */
 static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
 {
 	u8 mon, day, dow, hrs, min, sec, yrs, cen;
 	unsigned long flags;
 
-	/*
-	 * won't have to change this for a while
-	 */
-	if (rtc_tm->tm_year < 1900)
-		rtc_tm->tm_year += 1900;
-
 	yrs = rtc_tm->tm_year % 100;
-	cen = rtc_tm->tm_year / 100;
+	cen = 19 + rtc_tm->tm_year / 100;
 	mon = rtc_tm->tm_mon + 1;   /* tm_mon starts at zero */
 	day = rtc_tm->tm_mday;
 	dow = rtc_tm->tm_wday & 0x7; /* automatic BCD */
