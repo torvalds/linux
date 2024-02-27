@@ -182,9 +182,6 @@ static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
 	if (rtc_tm->tm_year < 1900)
 		rtc_tm->tm_year += 1900;
 
-	if (rtc_tm->tm_year < 1970)
-		return -EINVAL;
-
 	yrs = rtc_tm->tm_year % 100;
 	cen = rtc_tm->tm_year / 100;
 	mon = rtc_tm->tm_mon + 1;   /* tm_mon starts at zero */
@@ -193,15 +190,6 @@ static int ds1511_rtc_set_time(struct device *dev, struct rtc_time *rtc_tm)
 	hrs = rtc_tm->tm_hour;
 	min = rtc_tm->tm_min;
 	sec = rtc_tm->tm_sec;
-
-	if ((mon > 12) || (day == 0))
-		return -EINVAL;
-
-	if (day > rtc_month_days(rtc_tm->tm_mon, rtc_tm->tm_year))
-		return -EINVAL;
-
-	if ((hrs >= 24) || (min >= 60) || (sec >= 60))
-		return -EINVAL;
 
 	/*
 	 * each register is a different number of valid bits
