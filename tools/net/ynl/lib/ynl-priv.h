@@ -127,45 +127,213 @@ int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
 /* Attribute helpers */
 
-static inline __u64 mnl_attr_get_uint(const struct nlattr *attr)
+static inline void *ynl_nlmsg_end_addr(const struct nlmsghdr *nlh)
 {
-	switch (mnl_attr_get_payload_len(attr)) {
+	return (char *)nlh + nlh->nlmsg_len;
+}
+
+static inline unsigned int ynl_attr_type(const struct nlattr *attr)
+{
+	return attr->nla_type & NLA_TYPE_MASK;
+}
+
+static inline unsigned int ynl_attr_data_len(const struct nlattr *attr)
+{
+	return attr->nla_len - NLA_HDRLEN;
+}
+
+static inline void *ynl_attr_data(const struct nlattr *attr)
+{
+	return (unsigned char *)attr + NLA_HDRLEN;
+}
+
+static inline struct nlattr *
+ynl_attr_nest_start(struct nlmsghdr *nlh, unsigned int attr_type)
+{
+	struct nlattr *attr;
+
+	attr = ynl_nlmsg_end_addr(nlh);
+	attr->nla_type = attr_type | NLA_F_NESTED;
+	nlh->nlmsg_len += NLA_HDRLEN;
+
+	return attr;
+}
+
+static inline void
+ynl_attr_nest_end(struct nlmsghdr *nlh, struct nlattr *attr)
+{
+	attr->nla_len = (char *)ynl_nlmsg_end_addr(nlh) - (char *)attr;
+}
+
+static inline void
+ynl_attr_put(struct nlmsghdr *nlh, unsigned int attr_type,
+	     const void *value, size_t size)
+{
+	struct nlattr *attr;
+
+	attr = ynl_nlmsg_end_addr(nlh);
+	attr->nla_type = attr_type;
+	attr->nla_len = NLA_HDRLEN + size;
+
+	memcpy(ynl_attr_data(attr), value, size);
+
+	nlh->nlmsg_len += NLMSG_ALIGN(attr->nla_len);
+}
+
+static inline void
+ynl_attr_put_str(struct nlmsghdr *nlh, unsigned int attr_type, const char *str)
+{
+	struct nlattr *attr;
+	const char *end;
+
+	attr = ynl_nlmsg_end_addr(nlh);
+	attr->nla_type = attr_type;
+
+	end = stpcpy(ynl_attr_data(attr), str);
+	attr->nla_len =
+		NLA_HDRLEN + NLA_ALIGN(end - (char *)ynl_attr_data(attr));
+
+	nlh->nlmsg_len += NLMSG_ALIGN(attr->nla_len);
+}
+
+static inline const char *ynl_attr_get_str(const struct nlattr *attr)
+{
+	return (const char *)ynl_attr_data(attr);
+}
+
+static inline __s8 ynl_attr_get_s8(const struct nlattr *attr)
+{
+	return *(__s8 *)ynl_attr_data(attr);
+}
+
+static inline __s16 ynl_attr_get_s16(const struct nlattr *attr)
+{
+	return *(__s16 *)ynl_attr_data(attr);
+}
+
+static inline __s32 ynl_attr_get_s32(const struct nlattr *attr)
+{
+	return *(__s32 *)ynl_attr_data(attr);
+}
+
+static inline __s64 ynl_attr_get_s64(const struct nlattr *attr)
+{
+	__s64 tmp;
+
+	memcpy(&tmp, (unsigned char *)(attr + 1), sizeof(tmp));
+	return tmp;
+}
+
+static inline __u8 ynl_attr_get_u8(const struct nlattr *attr)
+{
+	return *(__u8 *)ynl_attr_data(attr);
+}
+
+static inline __u16 ynl_attr_get_u16(const struct nlattr *attr)
+{
+	return *(__u16 *)ynl_attr_data(attr);
+}
+
+static inline __u32 ynl_attr_get_u32(const struct nlattr *attr)
+{
+	return *(__u32 *)ynl_attr_data(attr);
+}
+
+static inline __u64 ynl_attr_get_u64(const struct nlattr *attr)
+{
+	__u64 tmp;
+
+	memcpy(&tmp, (unsigned char *)(attr + 1), sizeof(tmp));
+	return tmp;
+}
+
+static inline void
+ynl_attr_put_s8(struct nlmsghdr *nlh, unsigned int attr_type, __s8 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_s16(struct nlmsghdr *nlh, unsigned int attr_type, __s16 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_s32(struct nlmsghdr *nlh, unsigned int attr_type, __s32 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_s64(struct nlmsghdr *nlh, unsigned int attr_type, __s64 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_u8(struct nlmsghdr *nlh, unsigned int attr_type, __u8 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_u16(struct nlmsghdr *nlh, unsigned int attr_type, __u16 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_u32(struct nlmsghdr *nlh, unsigned int attr_type, __u32 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline void
+ynl_attr_put_u64(struct nlmsghdr *nlh, unsigned int attr_type, __u64 value)
+{
+	ynl_attr_put(nlh, attr_type, &value, sizeof(value));
+}
+
+static inline __u64 ynl_attr_get_uint(const struct nlattr *attr)
+{
+	switch (ynl_attr_data_len(attr)) {
 	case 4:
-		return mnl_attr_get_u32(attr);
+		return ynl_attr_get_u32(attr);
 	case 8:
-		return mnl_attr_get_u64(attr);
+		return ynl_attr_get_u64(attr);
 	default:
 		return 0;
 	}
 }
 
-static inline __s64 mnl_attr_get_sint(const struct nlattr *attr)
+static inline __s64 ynl_attr_get_sint(const struct nlattr *attr)
 {
-	switch (mnl_attr_get_payload_len(attr)) {
+	switch (ynl_attr_data_len(attr)) {
 	case 4:
-		return mnl_attr_get_u32(attr);
+		return ynl_attr_get_s32(attr);
 	case 8:
-		return mnl_attr_get_u64(attr);
+		return ynl_attr_get_s64(attr);
 	default:
 		return 0;
 	}
 }
 
 static inline void
-mnl_attr_put_uint(struct nlmsghdr *nlh, __u16 type, __u64 data)
+ynl_attr_put_uint(struct nlmsghdr *nlh, __u16 type, __u64 data)
 {
 	if ((__u32)data == (__u64)data)
-		mnl_attr_put_u32(nlh, type, data);
+		ynl_attr_put_u32(nlh, type, data);
 	else
-		mnl_attr_put_u64(nlh, type, data);
+		ynl_attr_put_u64(nlh, type, data);
 }
 
 static inline void
-mnl_attr_put_sint(struct nlmsghdr *nlh, __u16 type, __s64 data)
+ynl_attr_put_sint(struct nlmsghdr *nlh, __u16 type, __s64 data)
 {
 	if ((__s32)data == (__s64)data)
-		mnl_attr_put_u32(nlh, type, data);
+		ynl_attr_put_s32(nlh, type, data);
 	else
-		mnl_attr_put_u64(nlh, type, data);
+		ynl_attr_put_s64(nlh, type, data);
 }
 #endif

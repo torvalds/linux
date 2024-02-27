@@ -94,7 +94,7 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 
 	mnl_attr_for_each_payload(start, data_len) {
 		astart_off = (char *)attr - (char *)start;
-		aend_off = astart_off + mnl_attr_get_payload_len(attr);
+		aend_off = astart_off + ynl_attr_data_len(attr);
 		if (aend_off <= off)
 			continue;
 
@@ -106,7 +106,7 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 
 	off -= astart_off;
 
-	type = mnl_attr_get_type(attr);
+	type = ynl_attr_type(attr);
 
 	if (ynl_err_walk_report_one(policy, type, str, str_sz, &n))
 		return n;
@@ -124,8 +124,8 @@ ynl_err_walk(struct ynl_sock *ys, void *start, void *end, unsigned int off,
 	}
 
 	off -= sizeof(struct nlattr);
-	start =  mnl_attr_get_payload(attr);
-	end = start + mnl_attr_get_payload_len(attr);
+	start =  ynl_attr_data(attr);
+	end = start + ynl_attr_data_len(attr);
 
 	return n + ynl_err_walk(ys, start, end, off, policy->table[type].nest,
 				&str[n], str_sz - n, nest_pol);
@@ -153,8 +153,8 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 	mnl_attr_for_each(attr, nlh, hlen) {
 		unsigned int len, type;
 
-		len = mnl_attr_get_payload_len(attr);
-		type = mnl_attr_get_type(attr);
+		len = ynl_attr_data_len(attr);
+		type = ynl_attr_type(attr);
 
 		if (type > NLMSGERR_ATTR_MAX)
 			continue;
@@ -169,7 +169,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 				return MNL_CB_ERROR;
 			break;
 		case NLMSGERR_ATTR_MSG:
-			str = mnl_attr_get_payload(attr);
+			str = ynl_attr_get_str(attr);
 			if (str[len - 1])
 				return MNL_CB_ERROR;
 			break;
@@ -185,7 +185,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		unsigned int n, off;
 		void *start, *end;
 
-		ys->err.attr_offs = mnl_attr_get_u32(tb[NLMSGERR_ATTR_OFFS]);
+		ys->err.attr_offs = ynl_attr_get_u32(tb[NLMSGERR_ATTR_OFFS]);
 
 		n = snprintf(bad_attr, sizeof(bad_attr), "%sbad attribute: ",
 			     str ? " (" : "");
@@ -211,7 +211,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 		void *start, *end;
 		int n2;
 
-		type = mnl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_TYPE]);
+		type = ynl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_TYPE]);
 
 		n = snprintf(miss_attr, sizeof(miss_attr), "%smissing attribute: ",
 			     bad_attr[0] ? ", " : (str ? " (" : ""));
@@ -222,7 +222,7 @@ ynl_ext_ack_check(struct ynl_sock *ys, const struct nlmsghdr *nlh,
 
 		nest_pol = ys->req_policy;
 		if (tb[NLMSGERR_ATTR_MISS_NEST]) {
-			off = mnl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_NEST]);
+			off = ynl_attr_get_u32(tb[NLMSGERR_ATTR_MISS_NEST]);
 			off -= sizeof(struct nlmsghdr);
 			off -= ys->family->hdr_len;
 
@@ -314,9 +314,9 @@ int ynl_attr_validate(struct ynl_parse_arg *yarg, const struct nlattr *attr)
 	unsigned int type, len;
 	unsigned char *data;
 
-	data = mnl_attr_get_payload(attr);
-	len = mnl_attr_get_payload_len(attr);
-	type = mnl_attr_get_type(attr);
+	data = ynl_attr_data(attr);
+	len = ynl_attr_data_len(attr);
+	type = ynl_attr_type(attr);
 	if (type > yarg->rsp_policy->max_attr) {
 		yerr(yarg->ys, YNL_ERROR_INTERNAL,
 		     "Internal error, validating unknown attribute");
@@ -514,11 +514,11 @@ ynl_get_family_info_mcast(struct ynl_sock *ys, const struct nlattr *mcasts)
 	i = 0;
 	mnl_attr_for_each_nested(entry, mcasts) {
 		mnl_attr_for_each_nested(attr, entry) {
-			if (mnl_attr_get_type(attr) == CTRL_ATTR_MCAST_GRP_ID)
-				ys->mcast_groups[i].id = mnl_attr_get_u32(attr);
-			if (mnl_attr_get_type(attr) == CTRL_ATTR_MCAST_GRP_NAME) {
+			if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GRP_ID)
+				ys->mcast_groups[i].id = ynl_attr_get_u32(attr);
+			if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GRP_NAME) {
 				strncpy(ys->mcast_groups[i].name,
-					mnl_attr_get_str(attr),
+					ynl_attr_get_str(attr),
 					GENL_NAMSIZ - 1);
 				ys->mcast_groups[i].name[GENL_NAMSIZ - 1] = 0;
 			}
@@ -536,19 +536,19 @@ static int ynl_get_family_info_cb(const struct nlmsghdr *nlh, void *data)
 	bool found_id = true;
 
 	mnl_attr_for_each(attr, nlh, sizeof(struct genlmsghdr)) {
-		if (mnl_attr_get_type(attr) == CTRL_ATTR_MCAST_GROUPS)
+		if (ynl_attr_type(attr) == CTRL_ATTR_MCAST_GROUPS)
 			if (ynl_get_family_info_mcast(ys, attr))
 				return MNL_CB_ERROR;
 
-		if (mnl_attr_get_type(attr) != CTRL_ATTR_FAMILY_ID)
+		if (ynl_attr_type(attr) != CTRL_ATTR_FAMILY_ID)
 			continue;
 
-		if (mnl_attr_get_payload_len(attr) != sizeof(__u16)) {
+		if (ynl_attr_data_len(attr) != sizeof(__u16)) {
 			yerr(ys, YNL_ERROR_ATTR_INVALID, "Invalid family ID");
 			return MNL_CB_ERROR;
 		}
 
-		ys->family_id = mnl_attr_get_u16(attr);
+		ys->family_id = ynl_attr_get_u16(attr);
 		found_id = true;
 	}
 
@@ -566,7 +566,7 @@ static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
 	int err;
 
 	nlh = ynl_gemsg_start_req(ys, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
-	mnl_attr_put_strz(nlh, CTRL_ATTR_FAMILY_NAME, family_name);
+	ynl_attr_put_str(nlh, CTRL_ATTR_FAMILY_NAME, family_name);
 
 	err = mnl_socket_sendto(ys->sock, nlh, nlh->nlmsg_len);
 	if (err < 0) {
