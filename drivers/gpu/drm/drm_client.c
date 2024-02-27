@@ -388,16 +388,30 @@ int
 drm_client_buffer_vmap(struct drm_client_buffer *buffer,
 		       struct iosys_map *map_copy)
 {
+	struct drm_gem_object *gem = buffer->gem;
 	struct iosys_map *map = &buffer->map;
 	int ret;
 
-	ret = drm_gem_vmap_unlocked(buffer->gem, map);
+	drm_gem_lock(gem);
+
+	ret = drm_gem_pin_locked(gem);
 	if (ret)
-		return ret;
+		goto err_drm_gem_pin_locked;
+	ret = drm_gem_vmap(gem, map);
+	if (ret)
+		goto err_drm_gem_vmap;
+
+	drm_gem_unlock(gem);
 
 	*map_copy = *map;
 
 	return 0;
+
+err_drm_gem_vmap:
+	drm_gem_unpin_locked(buffer->gem);
+err_drm_gem_pin_locked:
+	drm_gem_unlock(gem);
+	return ret;
 }
 EXPORT_SYMBOL(drm_client_buffer_vmap);
 
@@ -411,9 +425,13 @@ EXPORT_SYMBOL(drm_client_buffer_vmap);
  */
 void drm_client_buffer_vunmap(struct drm_client_buffer *buffer)
 {
+	struct drm_gem_object *gem = buffer->gem;
 	struct iosys_map *map = &buffer->map;
 
-	drm_gem_vunmap_unlocked(buffer->gem, map);
+	drm_gem_lock(gem);
+	drm_gem_vunmap(gem, map);
+	drm_gem_unpin_locked(gem);
+	drm_gem_unlock(gem);
 }
 EXPORT_SYMBOL(drm_client_buffer_vunmap);
 
