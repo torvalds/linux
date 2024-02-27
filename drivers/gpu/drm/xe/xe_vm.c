@@ -3377,6 +3377,9 @@ out_unlock:
 
 void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap)
 {
+	if (!snap)
+		return;
+
 	for (int i = 0; i < snap->num_snaps; i++) {
 		struct xe_bo *bo = snap->snap[i].bo;
 		struct iosys_map src;

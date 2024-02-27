@@ -1866,6 +1866,24 @@ xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job)
 }
 
 /**
+ * xe_guc_exec_queue_snapshot_capture_delayed - Take delayed part of snapshot of the GuC Engine.
+ * @snapshot: Previously captured snapshot of job.
+ *
+ * This captures some data that requires taking some locks, so it cannot be done in signaling path.
+ */
+void
+xe_guc_exec_queue_snapshot_capture_delayed(struct xe_guc_submit_exec_queue_snapshot *snapshot)
+{
+	int i;
+
+	if (!snapshot || !snapshot->lrc)
+		return;
+
+	for (i = 0; i < snapshot->width; ++i)
+		xe_lrc_snapshot_capture_delayed(snapshot->lrc[i]);
+}
+
+/**
  * xe_guc_exec_queue_snapshot_print - Print out a given GuC Engine snapshot.
  * @snapshot: GuC Submit Engine snapshot object.
  * @p: drm_printer where it will be printed out.

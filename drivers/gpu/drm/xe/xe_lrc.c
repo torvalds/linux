@@ -1359,6 +1359,14 @@ struct xe_lrc_snapshot *xe_lrc_snapshot_capture(struct xe_lrc *lrc)
 	return snapshot;
 }
 
+void xe_lrc_snapshot_capture_delayed(struct xe_lrc_snapshot *snapshot)
+{
+	if (!snapshot)
+		return;
+
+	/* TODO: Copy status page */
+}
+
 void xe_lrc_snapshot_print(struct xe_lrc_snapshot *snapshot, struct drm_printer *p)
 {
 	if (!snapshot)
