@@ -163,7 +163,7 @@ u8 mgnt_query_tx_rate_exclude_cck_rates(struct rtllib_device *ieee)
 	return query_rate;
 }
 
-static u8 MgntQuery_MgntFrameTxRate(struct rtllib_device *ieee)
+static u8 mgnt_query_mgnt_frame_tx_rate(struct rtllib_device *ieee)
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 	u8 rate;
@@ -201,7 +201,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct rtllib_device *ieee)
 	if (ieee->disable_mgnt_queue)
 		tcb_desc->queue_index = HIGH_QUEUE;
 
-	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
+	tcb_desc->data_rate = mgnt_query_mgnt_frame_tx_rate(ieee);
 	tcb_desc->ratr_index = 7;
 	tcb_desc->tx_dis_rate_fallback = 1;
 	tcb_desc->tx_use_drv_assinged_rate = 1;
@@ -277,7 +277,7 @@ softmac_ps_mgmt_xmit(struct sk_buff *skb,
 	if (ieee->disable_mgnt_queue)
 		tcb_desc->queue_index = HIGH_QUEUE;
 
-	tcb_desc->data_rate = MgntQuery_MgntFrameTxRate(ieee);
+	tcb_desc->data_rate = mgnt_query_mgnt_frame_tx_rate(ieee);
 	tcb_desc->ratr_index = 7;
 	tcb_desc->tx_dis_rate_fallback = 1;
 	tcb_desc->tx_use_drv_assinged_rate = 1;
