@@ -274,6 +274,7 @@ static void dwc3_ti_remove(struct platform_device *pdev)
 	u32 reg;
 
 	pm_runtime_get_sync(dev);
+	device_init_wakeup(dev, false);
 	of_platform_depopulate(dev);
 
 	/* Clear mode valid bit */
