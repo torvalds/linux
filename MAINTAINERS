@@ -10735,7 +10735,7 @@ INTEL DRM I915 DRIVER (Meteor Lake, DG2 and older excluding Poulsbo, Moorestown 
 M:	Jani Nikula <jani.nikula@linux.intel.com>
 M:	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
 M:	Rodrigo Vivi <rodrigo.vivi@intel.com>
-M:	Tvrtko Ursulin <tvrtko.ursulin@linux.intel.com>
+M:	Tvrtko Ursulin <tursulin@ursulin.net>
 L:	intel-gfx@lists.freedesktop.org
 S:	Supported
 W:	https://drm.pages.freedesktop.org/intel-docs/
