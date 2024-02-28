@@ -4,6 +4,7 @@
 #define _LINUX_RPMSG_QCOM_SMD_H
 
 #include <linux/device.h>
+#include <linux/rpmsg.h>
 
 struct qcom_smd_edge;
 
@@ -29,4 +30,10 @@ static inline int qcom_smd_unregister_edge(struct qcom_smd_edge *edge)
 
 #endif
 
+/* These operations are temporarily exposing signal interfaces */
+int qcom_smd_get_sigs(struct rpmsg_endpoint *ept);
+int qcom_smd_set_sigs(struct rpmsg_endpoint *ept, u32 set, u32 clear);
+int qcom_smd_register_signals_cb(struct rpmsg_endpoint *ept,
+	int (*signals_cb)(struct rpmsg_device *dev, void *priv, u32 old, u32 new));
 #endif
+

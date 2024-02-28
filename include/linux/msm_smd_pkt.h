@@ -23,4 +23,6 @@
 #define SMD_PKT_IOCTL_BLOCKING_WRITE \
 	_IOR(SMD_PKT_IOCTL_MAGIC, 0, unsigned int)
 
+static int smd_pkt_rpdev_sigs(struct rpmsg_device *rpdev, void *priv, u32 old, u32 new);
+
 #endif /* __LINUX_MSM_SMD_PKT_H */
