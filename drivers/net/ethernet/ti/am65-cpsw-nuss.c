@@ -294,7 +294,7 @@ static void am65_cpsw_nuss_ndo_host_tx_timeout(struct net_device *ndev,
 		   txqueue,
 		   netif_tx_queue_stopped(netif_txq),
 		   jiffies_to_msecs(jiffies - trans_start),
-		   dql_avail(&netif_txq->dql),
+		   netdev_queue_dql_avail(netif_txq),
 		   k3_cppi_desc_pool_avail(tx_chn->desc_pool));
 
 	if (netif_tx_queue_stopped(netif_txq)) {
