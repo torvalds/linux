@@ -800,6 +800,7 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 
 	elems->ml_basic = (const void *)elems->scratch_pos;
 	elems->ml_basic_len = ml_len;
+	elems->scratch_pos += ml_len;
 
 	ieee80211_mle_get_sta_prof(elems, params->link_id);
 	prof = elems->prof;
