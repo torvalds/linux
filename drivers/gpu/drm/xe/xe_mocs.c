@@ -72,7 +72,7 @@ struct xe_mocs_info {
 /* Helper defines */
 #define XELP_NUM_MOCS_ENTRIES	64  /* 63-64 are reserved, but configured. */
 #define PVC_NUM_MOCS_ENTRIES	3
-#define MTL_NUM_MOCS_ENTRIES    16
+#define MTL_NUM_MOCS_ENTRIES	16
 #define XE2_NUM_MOCS_ENTRIES	16
 
 /* (e)LLC caching options */
@@ -401,7 +401,11 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->size = ARRAY_SIZE(dg2_mocs_desc);
 		info->table = dg2_mocs_desc;
 		info->uc_index = 1;
-		info->n_entries = XELP_NUM_MOCS_ENTRIES;
+		/*
+		 * Last entry is RO on hardware, don't bother with what was
+		 * written when checking later
+		 */
+		info->n_entries = XELP_NUM_MOCS_ENTRIES - 1;
 		info->unused_entries_index = 3;
 		break;
 	case XE_DG1:
