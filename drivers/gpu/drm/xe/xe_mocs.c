@@ -470,7 +470,7 @@ static void __init_mocs_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 mocs;
 
-	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
+	mocs_dbg(&gt_to_xe(gt)->drm, "mocs entries: %d\n", info->n_entries);
 	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
 		      "Unused entries index should have been defined\n");
 	for (i = 0; i < info->n_entries; i++) {
@@ -510,7 +510,8 @@ static void init_l3cc_table(struct xe_gt *gt,
 	unsigned int i;
 	u32 l3cc;
 
-	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
+	mocs_dbg(&gt_to_xe(gt)->drm, "l3cc entries: %d\n", info->n_entries);
+
 	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
 		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
 				    get_entry_l3cc(info, 2 * i + 1));
