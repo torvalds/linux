@@ -49,11 +49,11 @@ static void read_l3cc_table(struct xe_gt *gt,
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
 	mocs_dbg(&gt_to_xe(gt)->drm, "L3CC entries:%d\n", info->n_entries);
-	for (i = 0;
-	     i < (info->n_entries + 1) / 2 ?
-	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
-				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
-	     i++) {
+
+	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
+		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
+				    get_entry_l3cc(info, 2 * i + 1));
+
 		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
 		else
@@ -84,9 +84,10 @@ static void read_mocs_table(struct xe_gt *gt,
 	mocs_dbg(&gt_to_xe(gt)->drm, "Global MOCS entries:%d\n", info->n_entries);
 	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
 		      "Unused entries index should have been defined\n");
-	for (i = 0;
-	     i < info->n_entries ? (mocs = get_entry_control(info, i)), 1 : 0;
-	     i++) {
+
+	for (i = 0; i < info->n_entries; i++) {
+		mocs = get_entry_control(info, i);
+
 		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else

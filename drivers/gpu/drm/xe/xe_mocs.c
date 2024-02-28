@@ -473,9 +473,9 @@ static void __init_mocs_table(struct xe_gt *gt,
 	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
 	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
 		      "Unused entries index should have been defined\n");
-	for (i = 0;
-	     i < info->n_entries ? (mocs = get_entry_control(info, i)), 1 : 0;
-	     i++) {
+	for (i = 0; i < info->n_entries; i++) {
+		mocs = get_entry_control(info, i);
+
 		mocs_dbg(&gt_to_xe(gt)->drm, "GLOB_MOCS[%d] 0x%x 0x%x\n", i,
 			 XELP_GLOBAL_MOCS(i).addr, mocs);
 
@@ -511,13 +511,12 @@ static void init_l3cc_table(struct xe_gt *gt,
 	u32 l3cc;
 
 	mocs_dbg(&gt_to_xe(gt)->drm, "entries:%d\n", info->n_entries);
-	for (i = 0;
-	     i < (info->n_entries + 1) / 2 ?
-	     (l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
-				  get_entry_l3cc(info, 2 * i + 1))), 1 : 0;
-	     i++) {
-		mocs_dbg(&gt_to_xe(gt)->drm, "LNCFCMOCS[%d] 0x%x 0x%x\n", i, XELP_LNCFCMOCS(i).addr,
-			 l3cc);
+	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
+		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
+				    get_entry_l3cc(info, 2 * i + 1));
+
+		mocs_dbg(&gt_to_xe(gt)->drm, "LNCFCMOCS[%d] 0x%x 0x%x\n", i,
+			 XELP_LNCFCMOCS(i).addr, l3cc);
 
 		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
 			xe_gt_mcr_multicast_write(gt, XEHP_LNCFCMOCS(i), l3cc);
