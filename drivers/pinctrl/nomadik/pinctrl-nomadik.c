@@ -871,7 +871,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 	if (g->altsetting < 0)
 		return -EINVAL;
 
-	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->grp.name, g->grp.npins);
+	dev_dbg(npct->dev, "enable group %s, %zu pins\n", g->grp.name, g->grp.npins);
 
 	/*
 	 * If we're setting altfunc C by setting both AFSLA and AFSLB to 1,
