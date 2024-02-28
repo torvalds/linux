@@ -112,7 +112,7 @@ static void enqueue_barrier_messages(struct uds_index *index, u64 virtual_chapte
 	for (zone = 0; zone < index->zone_count; zone++) {
 		int result = launch_zone_message(message, zone, index);
 
-		ASSERT_LOG_ONLY((result == UDS_SUCCESS), "barrier message allocation");
+		VDO_ASSERT_LOG_ONLY((result == UDS_SUCCESS), "barrier message allocation");
 	}
 }
 
@@ -1380,7 +1380,7 @@ void uds_enqueue_request(struct uds_request *request, enum request_stage stage)
 		break;
 
 	default:
-		ASSERT_LOG_ONLY(false, "invalid index stage: %d", stage);
+		VDO_ASSERT_LOG_ONLY(false, "invalid index stage: %d", stage);
 		return;
 	}
 

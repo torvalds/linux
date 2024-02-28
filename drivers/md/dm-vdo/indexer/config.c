@@ -134,10 +134,10 @@ int uds_validate_config_contents(struct buffered_reader *reader,
 	decode_u32_le(buffer, &offset, &config.sparse_sample_rate);
 	decode_u64_le(buffer, &offset, &config.nonce);
 
-	result = ASSERT(offset == sizeof(struct uds_configuration_6_02),
-			"%zu bytes read but not decoded",
-			sizeof(struct uds_configuration_6_02) - offset);
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(offset == sizeof(struct uds_configuration_6_02),
+			    "%zu bytes read but not decoded",
+			    sizeof(struct uds_configuration_6_02) - offset);
+	if (result != VDO_SUCCESS)
 		return UDS_CORRUPT_DATA;
 
 	if (is_version(INDEX_CONFIG_VERSION_6_02, version_buffer)) {
@@ -210,10 +210,10 @@ int uds_write_config_contents(struct buffered_writer *writer,
 	encode_u32_le(buffer, &offset, config->sparse_sample_rate);
 	encode_u64_le(buffer, &offset, config->nonce);
 
-	result = ASSERT(offset == sizeof(struct uds_configuration_6_02),
-			"%zu bytes encoded, of %zu expected", offset,
-			sizeof(struct uds_configuration_6_02));
-	if (result != UDS_SUCCESS)
+	result = VDO_ASSERT(offset == sizeof(struct uds_configuration_6_02),
+			    "%zu bytes encoded, of %zu expected", offset,
+			    sizeof(struct uds_configuration_6_02));
+	if (result != VDO_SUCCESS)
 		return result;
 
 	if (version >= 4) {

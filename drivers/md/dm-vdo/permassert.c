@@ -8,7 +8,7 @@
 #include "errors.h"
 #include "logger.h"
 
-int uds_assertion_failed(const char *expression_string, const char *file_name,
+int vdo_assertion_failed(const char *expression_string, const char *file_name,
 			 int line_number, const char *format, ...)
 {
 	va_list args;

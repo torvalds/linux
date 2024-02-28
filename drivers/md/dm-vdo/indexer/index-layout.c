@@ -837,8 +837,9 @@ static u64 generate_index_save_nonce(u64 volume_nonce, struct index_save_layout 
 	encode_u32_le(buffer, &offset, isl->save_data.version);
 	encode_u32_le(buffer, &offset, 0U);
 	encode_u64_le(buffer, &offset, isl->index_save.start_block);
-	ASSERT_LOG_ONLY(offset == sizeof(nonce_data),
-			"%zu bytes encoded of %zu expected", offset, sizeof(nonce_data));
+	VDO_ASSERT_LOG_ONLY(offset == sizeof(nonce_data),
+			    "%zu bytes encoded of %zu expected",
+			    offset, sizeof(nonce_data));
 	return generate_secondary_nonce(volume_nonce, buffer, sizeof(buffer));
 }
 
