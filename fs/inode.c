@@ -2510,7 +2510,7 @@ struct timespec64 inode_set_ctime_current(struct inode *inode)
 {
 	struct timespec64 now = current_time(inode);
 
-	inode_set_ctime(inode, now.tv_sec, now.tv_nsec);
+	inode_set_ctime_to_ts(inode, now);
 	return now;
 }
 EXPORT_SYMBOL(inode_set_ctime_current);
