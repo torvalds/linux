@@ -639,7 +639,7 @@ struct gpio_led_platform_data {
 	gpio_blink_set_t	gpio_blink_set;
 };
 
-#ifdef CONFIG_NEW_LEDS
+#ifdef CONFIG_LEDS_GPIO_REGISTER
 struct platform_device *gpio_led_register_device(
 		int id, const struct gpio_led_platform_data *pdata);
 #else
