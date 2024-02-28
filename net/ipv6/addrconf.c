@@ -6693,19 +6693,18 @@ void addrconf_disable_policy_idev(struct inet6_dev *idev, int val)
 static
 int addrconf_disable_policy(struct ctl_table *ctl, int *valp, int val)
 {
+	struct net *net = (struct net *)ctl->extra2;
 	struct inet6_dev *idev;
-	struct net *net;
+
+	if (valp == &net->ipv6.devconf_dflt->disable_policy) {
+		WRITE_ONCE(*valp, val);
+		return 0;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
 	WRITE_ONCE(*valp, val);
-
-	net = (struct net *)ctl->extra2;
-	if (valp == &net->ipv6.devconf_dflt->disable_policy) {
-		rtnl_unlock();
-		return 0;
-	}
 
 	if (valp == &net->ipv6.devconf_all->disable_policy)  {
 		struct net_device *dev;
