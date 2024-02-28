@@ -2104,34 +2104,6 @@ err:
 	return error;
 }
 
-static int fuse_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct fuse_conn *fc = get_fuse_conn(page->mapping->host);
-	int err;
-
-	if (fuse_page_is_writeback(page->mapping->host, page->index)) {
-		/*
-		 * ->writepages() should be called for sync() and friends.  We
-		 * should only get here on direct reclaim and then we are
-		 * allowed to skip a page which is already in flight
-		 */
-		WARN_ON(wbc->sync_mode == WB_SYNC_ALL);
-
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
-	}
-
-	if (wbc->sync_mode == WB_SYNC_NONE &&
-	    fc->num_background >= fc->congestion_threshold)
-		return AOP_WRITEPAGE_ACTIVATE;
-
-	err = fuse_writepage_locked(page);
-	unlock_page(page);
-
-	return err;
-}
-
 struct fuse_fill_wb_data {
 	struct fuse_writepage_args *wpa;
 	struct fuse_file *ff;
@@ -3347,10 +3319,10 @@ static const struct file_operations fuse_file_operations = {
 static const struct address_space_operations fuse_file_aops  = {
 	.read_folio	= fuse_read_folio,
 	.readahead	= fuse_readahead,
-	.writepage	= fuse_writepage,
 	.writepages	= fuse_writepages,
 	.launder_folio	= fuse_launder_folio,
 	.dirty_folio	= filemap_dirty_folio,
+	.migrate_folio	= filemap_migrate_folio,
 	.bmap		= fuse_bmap,
 	.direct_IO	= fuse_direct_IO,
 	.write_begin	= fuse_write_begin,
