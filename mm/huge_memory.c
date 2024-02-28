@@ -2919,7 +2919,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 		if (head[i].index >= end) {
 			struct folio *tail = page_folio(head + i);
 
-			if (shmem_mapping(head->mapping))
+			if (shmem_mapping(folio->mapping))
 				nr_dropped++;
 			else if (folio_test_clear_dirty(tail))
 				folio_account_cleaned(tail,
@@ -2927,7 +2927,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 			__filemap_remove_folio(tail, NULL);
 			folio_put(tail);
 		} else if (!PageAnon(page)) {
-			__xa_store(&head->mapping->i_pages, head[i].index,
+			__xa_store(&folio->mapping->i_pages, head[i].index,
 					head + i, 0);
 		} else if (swap_cache) {
 			__xa_store(&swap_cache->i_pages, offset + i,
@@ -2948,23 +2948,23 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 	split_page_owner(head, order, new_order);
 
 	/* See comment in __split_huge_page_tail() */
-	if (PageAnon(head)) {
+	if (folio_test_anon(folio)) {
 		/* Additional pin to swap cache */
-		if (PageSwapCache(head)) {
-			page_ref_add(head, 1 + new_nr);
+		if (folio_test_swapcache(folio)) {
+			folio_ref_add(folio, 1 + new_nr);
 			xa_unlock(&swap_cache->i_pages);
 		} else {
-			page_ref_inc(head);
+			folio_ref_inc(folio);
 		}
 	} else {
 		/* Additional pin to page cache */
-		page_ref_add(head, 1 + new_nr);
-		xa_unlock(&head->mapping->i_pages);
+		folio_ref_add(folio, 1 + new_nr);
+		xa_unlock(&folio->mapping->i_pages);
 	}
 	local_irq_enable();
 
 	if (nr_dropped)
-		shmem_uncharge(head->mapping->host, nr_dropped);
+		shmem_uncharge(folio->mapping->host, nr_dropped);
 	remap_page(folio, nr);
 
 	if (folio_test_swapcache(folio))
@@ -2980,9 +2980,10 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 
 	for (i = 0; i < nr; i += new_nr) {
 		struct page *subpage = head + i;
+		struct folio *new_folio = page_folio(subpage);
 		if (subpage == page)
 			continue;
-		unlock_page(subpage);
+		folio_unlock(new_folio);
 
 		/*
 		 * Subpages may be freed if there wasn't any mapping
