@@ -3058,7 +3058,8 @@ err_not_found:
 	return NULL;
 }
 
-static struct vbt_header *oprom_get_vbt(struct drm_i915_private *i915)
+static struct vbt_header *oprom_get_vbt(struct drm_i915_private *i915,
+					size_t *sizep)
 {
 	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
 	void __iomem *p = NULL, *oprom;
@@ -3106,6 +3107,9 @@ static struct vbt_header *oprom_get_vbt(struct drm_i915_private *i915)
 		goto err_free_vbt;
 
 	pci_unmap_rom(pdev, oprom);
+
+	if (sizep)
+		*sizep = vbt_size;
 
 	drm_dbg_kms(&i915->drm, "Found valid VBT in PCI ROM\n");
 
@@ -3156,7 +3160,7 @@ void intel_bios_init(struct drm_i915_private *i915)
 	}
 
 	if (!vbt) {
-		oprom_vbt = oprom_get_vbt(i915);
+		oprom_vbt = oprom_get_vbt(i915, NULL);
 		vbt = oprom_vbt;
 	}
 
