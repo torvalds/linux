@@ -3157,8 +3157,7 @@ out:
 		 * synchronize_rcu_tasks() will wait for those tasks to
 		 * execute and either schedule voluntarily or enter user space.
 		 */
-		if (IS_ENABLED(CONFIG_PREEMPTION))
-			synchronize_rcu_tasks();
+		synchronize_rcu_tasks();
 
 		ftrace_trampoline_free(ops);
 	}
