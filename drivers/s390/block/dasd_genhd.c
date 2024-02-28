@@ -34,6 +34,16 @@ MODULE_PARM_DESC(nr_hw_queues, "Default number of hardware queues for new DASD d
  */
 int dasd_gendisk_alloc(struct dasd_block *block)
 {
+	struct queue_limits lim = {
+		/*
+		 * With page sized segments, each segment can be translated into
+		 * one idaw/tidaw.
+		 */
+		.max_segment_size = PAGE_SIZE,
+		.seg_boundary_mask = PAGE_SIZE - 1,
+		.dma_alignment = PAGE_SIZE - 1,
+		.max_segments = USHRT_MAX,
+	};
 	struct gendisk *gdp;
 	struct dasd_device *base;
 	int len, rc;
@@ -53,11 +63,12 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	if (rc)
 		return rc;
 
-	gdp = blk_mq_alloc_disk(&block->tag_set, NULL, block);
+	gdp = blk_mq_alloc_disk(&block->tag_set, &lim, block);
 	if (IS_ERR(gdp)) {
 		blk_mq_free_tag_set(&block->tag_set);
 		return PTR_ERR(gdp);
 	}
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, gdp->queue);
 
 	/* Initialize gendisk structure. */
 	gdp->major = DASD_MAJOR;
