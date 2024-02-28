@@ -93,7 +93,6 @@ config ARCH_BCM_MOBILE
 	select ARM_ERRATA_775420
 	select ARM_GIC
 	select GPIO_BCM_KONA
-	select TICK_ONESHOT
 	select HAVE_ARM_ARCH_TIMER
 	select PINCTRL
 	select ARCH_BCM_MOBILE_SMP if SMP
