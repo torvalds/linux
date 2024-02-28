@@ -38,6 +38,7 @@
 #include "dc/dc_dmub_srv.h"
 #include "dce/dmub_replay.h"
 #include "abm.h"
+#include "resource.h"
 #define DC_LOGGER \
 	link->ctx->logger
 #define DC_LOGGER_INIT(logger)
@@ -1144,4 +1145,67 @@ int edp_get_target_backlight_pwm(const struct dc_link *link)
 		return DC_ERROR_UNEXPECTED;
 
 	return (int) abm->funcs->get_target_backlight(abm);
+}
+
+static void edp_set_assr_enable(const struct dc *pDC, struct dc_link *link,
+		struct link_resource *link_res, bool enable)
+{
+	union dmub_rb_cmd cmd;
+	bool use_hpo_dp_link_enc = false;
+	uint8_t link_enc_index = 0;
+	uint8_t phy_type = 0;
+	uint8_t phy_id = 0;
+
+	if (!pDC->config.use_assr_psp_message)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	link_enc_index = link->link_enc->transmitter - TRANSMITTER_UNIPHY_A;
+
+	if (link_res->hpo_dp_link_enc) {
+		link_enc_index = link_res->hpo_dp_link_enc->inst;
+		use_hpo_dp_link_enc = true;
+	}
+
+	if (enable)
+		phy_type = ((dp_get_panel_mode(link) == DP_PANEL_MODE_EDP) ? 1 : 0);
+
+	phy_id = resource_transmitter_to_phy_idx(pDC, link->link_enc->transmitter);
+
+	cmd.assr_enable.header.type = DMUB_CMD__PSP;
+	cmd.assr_enable.header.sub_type = DMUB_CMD__PSP_ASSR_ENABLE;
+	cmd.assr_enable.assr_data.enable = enable;
+	cmd.assr_enable.assr_data.phy_port_type = phy_type;
+	cmd.assr_enable.assr_data.phy_port_id = phy_id;
+	cmd.assr_enable.assr_data.link_enc_index = link_enc_index;
+	cmd.assr_enable.assr_data.hpo_mode = use_hpo_dp_link_enc;
+
+	dc_wake_and_execute_dmub_cmd(pDC->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
+}
+
+void edp_set_panel_assr(struct dc_link *link, struct pipe_ctx *pipe_ctx,
+		enum dp_panel_mode *panel_mode, bool enable)
+{
+	struct link_resource *link_res = &pipe_ctx->link_res;
+	struct cp_psp *cp_psp = &pipe_ctx->stream->ctx->cp_psp;
+
+	if (*panel_mode != DP_PANEL_MODE_EDP)
+		return;
+
+	if (link->dc->config.use_assr_psp_message) {
+		edp_set_assr_enable(link->dc, link, link_res, enable);
+	} else if (cp_psp && cp_psp->funcs.enable_assr && enable) {
+		/* ASSR is bound to fail with unsigned PSP
+		 * verstage used during devlopment phase.
+		 * Report and continue with eDP panel mode to
+		 * perform eDP link training with right settings
+		 */
+		bool result;
+
+		result = cp_psp->funcs.enable_assr(cp_psp->handle, link);
+
+		if (!result && link->panel_mode != DP_PANEL_MODE_EDP)
+			*panel_mode = DP_PANEL_MODE_DEFAULT;
+	}
 }

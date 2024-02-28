@@ -1864,6 +1864,9 @@ static bool dcn351_resource_construct(
 	/* Use pipe context based otg sync logic */
 	dc->config.use_pipe_ctx_sync_logic = true;
 
+	/* Use psp mailbox to enable assr */
+	dc->config.use_assr_psp_message = true;
+
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {

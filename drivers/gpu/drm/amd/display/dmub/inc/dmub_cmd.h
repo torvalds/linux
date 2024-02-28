@@ -1198,6 +1198,11 @@ enum dmub_cmd_type {
 	 */
 	DMUB_CMD__DPIA_HPD_INT_ENABLE = 86,
 
+	/**
+	 * Command type used for all PSP commands.
+	 */
+	DMUB_CMD__PSP = 88,
+
 	DMUB_CMD__VBIOS = 128,
 };
 
@@ -4304,6 +4309,65 @@ struct dmub_rb_cmd_secure_display {
 };
 
 /**
+ * Command type of a DMUB_CMD__PSP command
+ */
+enum dmub_cmd_psp_type {
+	DMUB_CMD__PSP_ASSR_ENABLE = 0
+};
+
+/**
+ * Data passed from driver to FW in a DMUB_CMD__PSP_ASSR_ENABLE command.
+ */
+struct dmub_cmd_assr_enable_data {
+	/**
+	 * ASSR enable or disable.
+	 */
+	uint8_t enable;
+	/**
+	 * PHY port type.
+	 * Indicates eDP / non-eDP port type
+	 */
+	uint8_t phy_port_type;
+	/**
+	 * PHY port ID.
+	 */
+	uint8_t phy_port_id;
+	/**
+	 * Link encoder index.
+	 */
+	uint8_t link_enc_index;
+	/**
+	 * HPO mode.
+	 */
+	uint8_t hpo_mode;
+
+	/**
+	 * Reserved field.
+	 */
+	uint8_t reserved[7];
+};
+
+/**
+ * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
+ */
+struct dmub_rb_cmd_assr_enable {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+
+	/**
+	 * Assr data.
+	 */
+	struct dmub_cmd_assr_enable_data assr_data;
+
+	/**
+	 * Reserved field.
+	 */
+	uint32_t reserved[3];
+};
+
+/**
  * union dmub_rb_cmd - DMUB inbox command.
  */
 union dmub_rb_cmd {
@@ -4561,6 +4625,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL command.
 	 */
 	struct dmub_rb_cmd_replay_set_pseudo_vtotal replay_set_pseudo_vtotal;
+	/**
+	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
+	 */
+	struct dmub_rb_cmd_assr_enable assr_enable;
 };
 
 /**

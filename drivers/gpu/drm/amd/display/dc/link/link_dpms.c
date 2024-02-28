@@ -2285,6 +2285,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
+	enum dp_panel_mode panel_mode_dp = dp_get_panel_mode(link);
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
@@ -2310,6 +2311,8 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	}
 
 	dc->hwss.disable_audio_stream(pipe_ctx);
+
+	edp_set_panel_assr(link, pipe_ctx, &panel_mode_dp, false);
 
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);

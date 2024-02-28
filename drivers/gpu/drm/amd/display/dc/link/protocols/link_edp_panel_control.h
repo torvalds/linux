@@ -76,4 +76,6 @@ bool edp_receiver_ready_T9(struct dc_link *link);
 bool edp_receiver_ready_T7(struct dc_link *link);
 bool edp_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
 void edp_set_panel_power(struct dc_link *link, bool powerOn);
+void edp_set_panel_assr(struct dc_link *link, struct pipe_ctx *pipe_ctx,
+		enum dp_panel_mode *panel_mode, bool enable);
 #endif /* __DC_LINK_EDP_POWER_CONTROL_H__ */
