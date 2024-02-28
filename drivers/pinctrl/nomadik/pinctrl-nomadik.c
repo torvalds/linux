@@ -378,7 +378,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	 */
 	if (!alt_num) {
 		for (i = 0 ; i < PRCM_IDX_GPIOCR_ALTC_MAX ; i++) {
-			if (pin_desc->altcx[i].used == true) {
+			if (pin_desc->altcx[i].used) {
 				reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 				bit = pin_desc->altcx[i].control_bit;
 				if (readl(npct->prcm_base + reg) & BIT(bit)) {
@@ -393,7 +393,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	}
 
 	alt_index = alt_num - 1;
-	if (pin_desc->altcx[alt_index].used == false) {
+	if (!pin_desc->altcx[alt_index].used) {
 		dev_warn(npct->dev,
 			 "PRCM GPIOCR: pin %i: alternate-C%i does not exist\n",
 			 offset, alt_num);
@@ -407,7 +407,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	for (i = 0 ; i < PRCM_IDX_GPIOCR_ALTC_MAX ; i++) {
 		if (i == alt_index)
 			continue;
-		if (pin_desc->altcx[i].used == true) {
+		if (pin_desc->altcx[i].used) {
 			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 			bit = pin_desc->altcx[i].control_bit;
 			if (readl(npct->prcm_base + reg) & BIT(bit)) {
@@ -495,7 +495,7 @@ int __maybe_unused nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpi
 	pin_desc = npct->soc->altcx_pins + i;
 	gpiocr_regs = npct->soc->prcm_gpiocr_registers;
 	for (i = 0; i < PRCM_IDX_GPIOCR_ALTC_MAX; i++) {
-		if (pin_desc->altcx[i].used == true) {
+		if (pin_desc->altcx[i].used) {
 			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 			bit = pin_desc->altcx[i].control_bit;
 			if (readl(npct->prcm_base + reg) & BIT(bit))
@@ -677,9 +677,9 @@ static const struct nmk_cfg_param nmk_cfg_params[] = {
 
 static int nmk_dt_pin_config(int index, int val, unsigned long *config)
 {
-	if (nmk_cfg_params[index].choice == NULL)
+	if (!nmk_cfg_params[index].choice) {
 		*config = nmk_cfg_params[index].config;
-	else {
+	} else {
 		/* test if out of range */
 		if  (val < nmk_cfg_params[index].size) {
 			*config = nmk_cfg_params[index].config |
@@ -1105,9 +1105,9 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		if (gpiomode)
 			/* No glitch when going to GPIO mode */
 			__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
-		if (output)
+		if (output) {
 			__nmk_gpio_make_output(nmk_chip, bit, val);
-		else {
+		} else {
 			__nmk_gpio_make_input(nmk_chip, bit);
 			__nmk_gpio_set_pull(nmk_chip, bit, pull);
 		}
