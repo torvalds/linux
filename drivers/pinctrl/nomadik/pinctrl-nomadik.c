@@ -9,6 +9,7 @@
  *   Rewritten based on work by Prafulla WADASKAR <prafulla.wadaskar@st.com>
  * Copyright (C) 2011-2013 Linus Walleij <linus.walleij@linaro.org>
  */
+
 #include <linux/bitops.h>
 #include <linux/cleanup.h>
 #include <linux/clk.h>
@@ -164,7 +165,6 @@
 #define PIN_SLEEPMODE(x)	(((x) & PIN_SLEEPMODE_MASK) >> PIN_SLEEPMODE_SHIFT)
 #define PIN_SLEEPMODE_DISABLED	(0 << PIN_SLEEPMODE_SHIFT)
 #define PIN_SLEEPMODE_ENABLED	(1 << PIN_SLEEPMODE_SHIFT)
-
 
 /* Shortcuts.  Use these instead of separate DIR, PULL, and VAL.  */
 #define PIN_INPUT_PULLDOWN	(PIN_DIR_INPUT | PIN_PULL_DOWN)
@@ -341,7 +341,7 @@ static void nmk_write_masked(void __iomem *reg, u32 mask, u32 value)
 }
 
 static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
-	unsigned int offset, unsigned int alt_num)
+				    unsigned int offset, unsigned int alt_num)
 {
 	int i;
 	u16 reg;
@@ -385,7 +385,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 					nmk_write_masked(npct->prcm_base + reg, BIT(bit), 0);
 					dev_dbg(npct->dev,
 						"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
-						offset, i+1);
+						offset, i + 1);
 				}
 			}
 		}
@@ -395,8 +395,8 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	alt_index = alt_num - 1;
 	if (pin_desc->altcx[alt_index].used == false) {
 		dev_warn(npct->dev,
-			"PRCM GPIOCR: pin %i: alternate-C%i does not exist\n",
-			offset, alt_num);
+			 "PRCM GPIOCR: pin %i: alternate-C%i does not exist\n",
+			 offset, alt_num);
 		return;
 	}
 
@@ -414,7 +414,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 				nmk_write_masked(npct->prcm_base + reg, BIT(bit), 0);
 				dev_dbg(npct->dev,
 					"PRCM GPIOCR: pin %i: alternate-C%i has been disabled\n",
-					offset, i+1);
+					offset, i + 1);
 			}
 		}
 	}
@@ -422,7 +422,7 @@ static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
 	reg = gpiocr_regs[pin_desc->altcx[alt_index].reg_index];
 	bit = pin_desc->altcx[alt_index].control_bit;
 	dev_dbg(npct->dev, "PRCM GPIOCR: pin %i: alternate-C%i has been selected\n",
-		offset, alt_index+1);
+		offset, alt_index + 1);
 	nmk_write_masked(npct->prcm_base + reg, BIT(bit), BIT(bit));
 }
 
@@ -499,7 +499,7 @@ int __maybe_unused nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev, int gpi
 			reg = gpiocr_regs[pin_desc->altcx[i].reg_index];
 			bit = pin_desc->altcx[i].control_bit;
 			if (readl(npct->prcm_base + reg) & BIT(bit))
-				return NMK_GPIO_ALT_C+i+1;
+				return NMK_GPIO_ALT_C + i + 1;
 		}
 	}
 	return NMK_GPIO_ALT_C;
@@ -513,7 +513,7 @@ static int nmk_get_groups_cnt(struct pinctrl_dev *pctldev)
 }
 
 static const char *nmk_get_group_name(struct pinctrl_dev *pctldev,
-				       unsigned int selector)
+				      unsigned int selector)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
@@ -536,12 +536,12 @@ static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned int pin)
 	int i;
 	struct nmk_gpio_chip *nmk_gpio;
 
-	for(i = 0; i < NMK_MAX_BANKS; i++) {
+	for (i = 0; i < NMK_MAX_BANKS; i++) {
 		nmk_gpio = nmk_gpio_chips[i];
 		if (!nmk_gpio)
 			continue;
 		if (pin >= nmk_gpio->chip.base &&
-			pin < nmk_gpio->chip.base + nmk_gpio->chip.ngpio)
+		    pin < nmk_gpio->chip.base + nmk_gpio->chip.ngpio)
 			return nmk_gpio;
 	}
 	return NULL;
@@ -557,7 +557,7 @@ static struct gpio_chip *find_gc_from_pin(unsigned int pin)
 }
 
 static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
-		   unsigned int offset)
+			     unsigned int offset)
 {
 	struct gpio_chip *chip = find_gc_from_pin(offset);
 
@@ -569,8 +569,8 @@ static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 }
 
 static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned int *reserved_maps,
-		unsigned int *num_maps, const char *group,
-		const char *function)
+			      unsigned int *num_maps, const char *group,
+			      const char *function)
 {
 	if (*num_maps == *reserved_maps)
 		return -ENOSPC;
@@ -584,9 +584,9 @@ static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned int *reserved_m
 }
 
 static int nmk_dt_add_map_configs(struct pinctrl_map **map,
-		unsigned int *reserved_maps,
-		unsigned int *num_maps, const char *group,
-		unsigned long *configs, unsigned int num_configs)
+				  unsigned int *reserved_maps,
+				  unsigned int *num_maps, const char *group,
+				  unsigned long *configs, unsigned int num_configs)
 {
 	unsigned long *dup_configs;
 
@@ -702,15 +702,14 @@ static const char *nmk_find_pin_name(struct pinctrl_dev *pctldev, const char *pi
 }
 
 static bool nmk_pinctrl_dt_get_config(struct device_node *np,
-		unsigned long *configs)
+				      unsigned long *configs)
 {
 	bool has_config = 0;
 	unsigned long cfg = 0;
 	int i, val, ret;
 
 	for (i = 0; i < ARRAY_SIZE(nmk_cfg_params); i++) {
-		ret = of_property_read_u32(np,
-				nmk_cfg_params[i].property, &val);
+		ret = of_property_read_u32(np, nmk_cfg_params[i].property, &val);
 		if (ret != -EINVAL) {
 			if (nmk_dt_pin_config(i, val, &cfg) == 0) {
 				*configs |= cfg;
@@ -723,10 +722,10 @@ static bool nmk_pinctrl_dt_get_config(struct device_node *np,
 }
 
 static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
-		struct device_node *np,
-		struct pinctrl_map **map,
-		unsigned int *reserved_maps,
-		unsigned int *num_maps)
+					 struct device_node *np,
+					 struct pinctrl_map **map,
+					 unsigned int *reserved_maps,
+					 unsigned int *num_maps)
 {
 	int ret;
 	const char *function = NULL;
@@ -751,7 +750,7 @@ static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 
 		of_property_for_each_string(np, "groups", prop, group) {
 			ret = nmk_dt_add_map_mux(map, reserved_maps, num_maps,
-					  group, function);
+						 group, function);
 			if (ret < 0)
 				goto exit;
 		}
@@ -792,8 +791,9 @@ exit:
 }
 
 static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
-				 struct device_node *np_config,
-				 struct pinctrl_map **map, unsigned int *num_maps)
+				      struct device_node *np_config,
+				      struct pinctrl_map **map,
+				      unsigned int *num_maps)
 {
 	unsigned int reserved_maps;
 	struct device_node *np;
@@ -805,7 +805,7 @@ static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 	for_each_child_of_node(np_config, np) {
 		ret = nmk_pinctrl_dt_subnode_to_map(pctldev, np, map,
-				&reserved_maps, num_maps);
+						    &reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
 			of_node_put(np);
@@ -922,7 +922,8 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 				g->grp.pins[i], g->grp.name, i);
 			goto out_glitch;
 		}
-		dev_dbg(npct->dev, "setting pin %d to altsetting %d\n", g->grp.pins[i], g->altsetting);
+		dev_dbg(npct->dev, "setting pin %d to altsetting %d\n",
+			g->grp.pins[i], g->altsetting);
 
 		clk_enable(nmk_chip->clk);
 		bit = g->grp.pins[i] % NMK_GPIO_PER_CHIP;
@@ -936,7 +937,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 		nmk_gpio_disable_lazy_irq(nmk_chip, bit);
 
 		__nmk_gpio_set_mode_safe(nmk_chip, bit,
-			(g->altsetting & NMK_GPIO_ALT_C), glitch);
+					 (g->altsetting & NMK_GPIO_ALT_C), glitch);
 		clk_disable(nmk_chip->clk);
 
 		/*
@@ -949,7 +950,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 		 */
 		if ((g->altsetting & NMK_GPIO_ALT_C) == NMK_GPIO_ALT_C)
 			nmk_prcm_altcx_set_mode(npct, g->grp.pins[i],
-				g->altsetting >> NMK_GPIO_ALT_CX_SHIFT);
+						g->altsetting >> NMK_GPIO_ALT_CX_SHIFT);
 	}
 
 	/* When all pins are successfully reconfigured we get here */
@@ -1221,8 +1222,7 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	if (!npct->prcm_base) {
 		if (version == PINCTRL_NMK_STN8815) {
 			dev_info(&pdev->dev,
-				 "No PRCM base, "
-				 "assuming no ALT-Cx control is available\n");
+				 "No PRCM base, assuming no ALT-Cx control is available\n");
 		} else {
 			dev_err(&pdev->dev, "missing PRCM base address\n");
 			return -EINVAL;
