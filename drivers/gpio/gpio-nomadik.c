@@ -497,7 +497,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	}
 	gpio_pdev = to_platform_device(gpio_dev);
 
-	if (of_property_read_u32(np, "gpio-bank", &id)) {
+	if (device_property_read_u32(gpio_dev, "gpio-bank", &id)) {
 		dev_err(&pdev->dev, "populate: gpio-bank property not found\n");
 		platform_device_put(gpio_pdev);
 		return ERR_PTR(-EINVAL);
@@ -587,7 +587,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	}
 
 	supports_sleepmode =
-		of_property_read_bool(np, "st,supports-sleepmode");
+		device_property_read_bool(dev, "st,supports-sleepmode");
 
 	/* Correct platform device ID */
 	dev->id = nmk_chip->bank;
