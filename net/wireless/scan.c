@@ -611,19 +611,12 @@ static int cfg80211_parse_ap_info(struct cfg80211_colocated_ap *entry,
 	return 0;
 }
 
-enum cfg80211_rnr_iter_ret {
-	RNR_ITER_CONTINUE,
-	RNR_ITER_BREAK,
-	RNR_ITER_ERROR,
-};
-
-static bool
-cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
-		  enum cfg80211_rnr_iter_ret
-		  (*iter)(void *data, u8 type,
-			  const struct ieee80211_neighbor_ap_info *info,
-			  const u8 *tbtt_info, u8 tbtt_info_len),
-		  void *iter_data)
+bool cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
+		       enum cfg80211_rnr_iter_ret
+		       (*iter)(void *data, u8 type,
+			       const struct ieee80211_neighbor_ap_info *info,
+			       const u8 *tbtt_info, u8 tbtt_info_len),
+		       void *iter_data)
 {
 	const struct element *rnr;
 	const u8 *pos, *end;
@@ -675,6 +668,7 @@ cfg80211_iter_rnr(const u8 *elems, size_t elems_len,
 
 	return true;
 }
+EXPORT_SYMBOL_GPL(cfg80211_iter_rnr);
 
 struct colocated_ap_data {
 	const struct element *ssid_elem;
