@@ -1579,11 +1579,6 @@ static void dcn20_detect_pipe_changes(struct dc_state *old_state,
 	if (old_pipe->stream_res.tg != new_pipe->stream_res.tg)
 		new_pipe->update_flags.bits.tg_changed = 1;
 
-	if (resource_is_pipe_type(new_pipe, OPP_HEAD)) {
-		if (old_pipe->stream_res.left_edge_extra_pixel != new_pipe->stream_res.left_edge_extra_pixel)
-			new_pipe->update_flags.bits.opp_changed = 1;
-	}
-
 	/*
 	 * Detect mpcc blending changes, only dpp inst and opp matter here,
 	 * mpccs getting removed/inserted update connected ones during their own
@@ -1967,11 +1962,6 @@ static void dcn20_program_pipe(
 			pipe_ctx->stream_res.opp,
 			&pipe_ctx->stream->bit_depth_params,
 			&pipe_ctx->stream->clamping);
-
-		if (resource_is_pipe_type(pipe_ctx, OPP_HEAD))
-			pipe_ctx->stream_res.opp->funcs->opp_program_left_edge_extra_pixel(
-				pipe_ctx->stream_res.opp,
-				pipe_ctx->stream_res.left_edge_extra_pixel);
 	}
 
 	/* Set ABM pipe after other pipe configurations done */
