@@ -3007,7 +3007,8 @@ static u32 intel_spi_read(struct intel_uncore *uncore, u32 offset)
 	return intel_uncore_read(uncore, PRIMARY_SPI_TRIGGER);
 }
 
-static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
+static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915,
+					    size_t *size)
 {
 	u32 count, data, found, store = 0;
 	u32 static_region, oprom_offset;
@@ -3049,6 +3050,9 @@ static struct vbt_header *spi_oprom_get_vbt(struct drm_i915_private *i915)
 		goto err_free_vbt;
 
 	drm_dbg_kms(&i915->drm, "Found valid VBT in SPI flash\n");
+
+	if (size)
+		*size = vbt_size;
 
 	return (struct vbt_header *)vbt;
 
@@ -3155,7 +3159,7 @@ void intel_bios_init(struct drm_i915_private *i915)
 	 * PCI mapping
 	 */
 	if (!vbt && IS_DGFX(i915)) {
-		oprom_vbt = spi_oprom_get_vbt(i915);
+		oprom_vbt = spi_oprom_get_vbt(i915, NULL);
 		vbt = oprom_vbt;
 	}
 
