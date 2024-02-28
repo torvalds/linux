@@ -2040,26 +2040,26 @@ static void fuse_writepage_add_to_bucket(struct fuse_conn *fc,
 	rcu_read_unlock();
 }
 
-static int fuse_writepage_locked(struct page *page)
+static int fuse_writepage_locked(struct folio *folio)
 {
-	struct address_space *mapping = page->mapping;
+	struct address_space *mapping = folio->mapping;
 	struct inode *inode = mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_inode *fi = get_fuse_inode(inode);
 	struct fuse_writepage_args *wpa;
 	struct fuse_args_pages *ap;
-	struct page *tmp_page;
+	struct folio *tmp_folio;
 	int error = -ENOMEM;
 
-	set_page_writeback(page);
+	folio_start_writeback(folio);
 
 	wpa = fuse_writepage_args_alloc();
 	if (!wpa)
 		goto err;
 	ap = &wpa->ia.ap;
 
-	tmp_page = alloc_page(GFP_NOFS | __GFP_HIGHMEM);
-	if (!tmp_page)
+	tmp_folio = folio_alloc(GFP_NOFS | __GFP_HIGHMEM, 0);
+	if (!tmp_folio)
 		goto err_free;
 
 	error = -EIO;
@@ -2068,21 +2068,21 @@ static int fuse_writepage_locked(struct page *page)
 		goto err_nofile;
 
 	fuse_writepage_add_to_bucket(fc, wpa);
-	fuse_write_args_fill(&wpa->ia, wpa->ia.ff, page_offset(page), 0);
+	fuse_write_args_fill(&wpa->ia, wpa->ia.ff, folio_pos(folio), 0);
 
-	copy_highpage(tmp_page, page);
+	folio_copy(tmp_folio, folio);
 	wpa->ia.write.in.write_flags |= FUSE_WRITE_CACHE;
 	wpa->next = NULL;
 	ap->args.in_pages = true;
 	ap->num_pages = 1;
-	ap->pages[0] = tmp_page;
+	ap->pages[0] = &tmp_folio->page;
 	ap->descs[0].offset = 0;
 	ap->descs[0].length = PAGE_SIZE;
 	ap->args.end = fuse_writepage_end;
 	wpa->inode = inode;
 
 	inc_wb_stat(&inode_to_bdi(inode)->wb, WB_WRITEBACK);
-	inc_node_page_state(tmp_page, NR_WRITEBACK_TEMP);
+	node_stat_add_folio(tmp_folio, NR_WRITEBACK_TEMP);
 
 	spin_lock(&fi->lock);
 	tree_insert(&fi->writepages, wpa);
@@ -2090,17 +2090,17 @@ static int fuse_writepage_locked(struct page *page)
 	fuse_flush_writepages(inode);
 	spin_unlock(&fi->lock);
 
-	end_page_writeback(page);
+	folio_end_writeback(folio);
 
 	return 0;
 
 err_nofile:
-	__free_page(tmp_page);
+	folio_put(tmp_folio);
 err_free:
 	kfree(wpa);
 err:
-	mapping_set_error(page->mapping, error);
-	end_page_writeback(page);
+	mapping_set_error(folio->mapping, error);
+	folio_end_writeback(folio);
 	return error;
 }
 
@@ -2466,7 +2466,7 @@ static int fuse_launder_folio(struct folio *folio)
 
 		/* Serialize with pending writeback for the same page */
 		fuse_wait_on_page_writeback(inode, folio->index);
-		err = fuse_writepage_locked(&folio->page);
+		err = fuse_writepage_locked(folio);
 		if (!err)
 			fuse_wait_on_page_writeback(inode, folio->index);
 	}
