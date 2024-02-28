@@ -4297,8 +4297,18 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 	if (slot && (slot->flags & KVM_MEMSLOT_INVALID))
 		return RET_PF_RETRY;
 
-	if (!kvm_is_visible_memslot(slot)) {
-		/* Don't expose private memslots to L2. */
+	if (slot && slot->id == APIC_ACCESS_PAGE_PRIVATE_MEMSLOT) {
+		/*
+		 * Don't map L1's APIC access page into L2, KVM doesn't support
+		 * using APICv/AVIC to accelerate L2 accesses to L1's APIC,
+		 * i.e. the access needs to be emulated.  Emulating access to
+		 * L1's APIC is also correct if L1 is accelerating L2's own
+		 * virtual APIC, but for some reason L1 also maps _L1's_ APIC
+		 * into L2.  Note, vcpu_is_mmio_gpa() always treats access to
+		 * the APIC as MMIO.  Allow an MMIO SPTE to be created, as KVM
+		 * uses different roots for L1 vs. L2, i.e. there is no danger
+		 * of breaking APICv/AVIC for L1.
+		 */
 		if (is_guest_mode(vcpu)) {
 			fault->slot = NULL;
 			fault->pfn = KVM_PFN_NOSLOT;
@@ -4311,8 +4321,7 @@ static int __kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault
 		 * MMIO SPTE.  That way the cache doesn't need to be purged
 		 * when the AVIC is re-enabled.
 		 */
-		if (slot && slot->id == APIC_ACCESS_PAGE_PRIVATE_MEMSLOT &&
-		    !kvm_apicv_activated(vcpu->kvm))
+		if (!kvm_apicv_activated(vcpu->kvm))
 			return RET_PF_EMULATE;
 	}
 
