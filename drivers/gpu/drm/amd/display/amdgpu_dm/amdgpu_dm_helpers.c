@@ -66,6 +66,8 @@ static void apply_edid_quirks(struct edid *edid, struct dc_edid_caps *edid_caps)
 	/* Workaround for some monitors that do not clear DPCD 0x317 if FreeSync is unsupported */
 	case drm_edid_encode_panel_id('A', 'U', 'O', 0xA7AB):
 	case drm_edid_encode_panel_id('A', 'U', 'O', 0xE69B):
+	case drm_edid_encode_panel_id('B', 'O', 'E', 0x092A):
+	case drm_edid_encode_panel_id('L', 'G', 'D', 0x06D1):
 		DRM_DEBUG_DRIVER("Clearing DPCD 0x317 on monitor with panel id %X\n", panel_id);
 		edid_caps->panel_patch.remove_sink_ext_caps = true;
 		break;
@@ -119,6 +121,8 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 
 	edid_caps->edid_hdmi = connector->display_info.is_hdmi;
 
+	apply_edid_quirks(edid_buf, edid_caps);
+
 	sad_count = drm_edid_to_sad((struct edid *) edid->raw_edid, &sads);
 	if (sad_count <= 0)
 		return result;
@@ -144,8 +148,6 @@ enum dc_edid_status dm_helpers_parse_edid_caps(
 		edid_caps->speaker_flags = sadb[0];
 	else
 		edid_caps->speaker_flags = DEFAULT_SPEAKER_LOCATION;
-
-	apply_edid_quirks(edid_buf, edid_caps);
 
 	kfree(sads);
 	kfree(sadb);
