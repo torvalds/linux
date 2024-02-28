@@ -253,11 +253,23 @@ static bool io_sq_tw_pending(struct llist_node *retry_list)
 	return retry_list || !llist_empty(&tctx->task_list);
 }
 
+static void io_sq_update_worktime(struct io_sq_data *sqd, struct rusage *start)
+{
+	struct rusage end;
+
+	getrusage(current, RUSAGE_SELF, &end);
+	end.ru_stime.tv_sec -= start->ru_stime.tv_sec;
+	end.ru_stime.tv_usec -= start->ru_stime.tv_usec;
+
+	sqd->work_time += end.ru_stime.tv_usec + end.ru_stime.tv_sec * 1000000;
+}
+
 static int io_sq_thread(void *data)
 {
 	struct llist_node *retry_list = NULL;
 	struct io_sq_data *sqd = data;
 	struct io_ring_ctx *ctx;
+	struct rusage start;
 	unsigned long timeout = 0;
 	char buf[TASK_COMM_LEN];
 	DEFINE_WAIT(wait);
@@ -286,6 +298,7 @@ static int io_sq_thread(void *data)
 		}
 
 		cap_entries = !list_is_singular(&sqd->ctx_list);
+		getrusage(current, RUSAGE_SELF, &start);
 		list_for_each_entry(ctx, &sqd->ctx_list, sqd_list) {
 			int ret = __io_sq_thread(ctx, cap_entries);
 
@@ -296,8 +309,10 @@ static int io_sq_thread(void *data)
 			sqt_spin = true;
 
 		if (sqt_spin || !time_after(jiffies, timeout)) {
-			if (sqt_spin)
+			if (sqt_spin) {
+				io_sq_update_worktime(sqd, &start);
 				timeout = jiffies + sqd->sq_thread_idle;
+			}
 			if (unlikely(need_resched())) {
 				mutex_unlock(&sqd->lock);
 				cond_resched();
