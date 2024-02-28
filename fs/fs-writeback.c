@@ -1561,7 +1561,8 @@ static void inode_sleep_on_writeback(struct inode *inode)
  * thread's back can have unexpected consequences.
  */
 static void requeue_inode(struct inode *inode, struct bdi_writeback *wb,
-			  struct writeback_control *wbc)
+			  struct writeback_control *wbc,
+			  unsigned long dirtied_before)
 {
 	if (inode->i_state & I_FREEING)
 		return;
@@ -1594,7 +1595,8 @@ static void requeue_inode(struct inode *inode, struct bdi_writeback *wb,
 		 * We didn't write back all the pages.  nfs_writepages()
 		 * sometimes bales out without doing anything.
 		 */
-		if (wbc->nr_to_write <= 0) {
+		if (wbc->nr_to_write <= 0 &&
+		    !inode_dirtied_after(inode, dirtied_before)) {
 			/* Slice used up. Queue for next turn. */
 			requeue_io(inode, wb);
 		} else {
@@ -1862,6 +1864,11 @@ static long writeback_sb_inodes(struct super_block *sb,
 	unsigned long start_time = jiffies;
 	long write_chunk;
 	long total_wrote = 0;  /* count both pages and inodes */
+	unsigned long dirtied_before = jiffies;
+
+	if (work->for_kupdate)
+		dirtied_before = jiffies -
+			msecs_to_jiffies(dirty_expire_interval * 10);
 
 	while (!list_empty(&wb->b_io)) {
 		struct inode *inode = wb_inode(wb->b_io.prev);
@@ -1967,7 +1974,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		spin_lock(&inode->i_lock);
 		if (!(inode->i_state & I_DIRTY_ALL))
 			total_wrote++;
-		requeue_inode(inode, tmp_wb, &wbc);
+		requeue_inode(inode, tmp_wb, &wbc, dirtied_before);
 		inode_sync_complete(inode);
 		spin_unlock(&inode->i_lock);
 
