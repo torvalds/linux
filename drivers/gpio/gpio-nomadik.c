@@ -255,27 +255,28 @@ static void nmk_gpio_irq_shutdown(struct irq_data *d)
 	clk_disable(nmk_chip->clk);
 }
 
-static void nmk_gpio_irq_handler(struct irq_desc *desc)
+static irqreturn_t nmk_gpio_irq_handler(int irq, void *dev_id)
 {
-	struct irq_chip *host_chip = irq_desc_get_chip(desc);
-	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
-	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
-	u32 status;
-
-	chained_irq_enter(host_chip, desc);
+	struct nmk_gpio_chip *nmk_chip = dev_id;
+	struct gpio_chip *chip = &nmk_chip->chip;
+	unsigned long mask = GENMASK(chip->ngpio - 1, 0);
+	unsigned long status;
+	int bit;
 
 	clk_enable(nmk_chip->clk);
+
 	status = readl(nmk_chip->addr + NMK_GPIO_IS);
+
+	/* Ensure we cannot leave pending bits; this should never occur. */
+	if (unlikely(status & ~mask))
+		writel(status & ~mask, nmk_chip->addr + NMK_GPIO_IC);
+
 	clk_disable(nmk_chip->clk);
 
-	while (status) {
-		int bit = __ffs(status);
+	for_each_set_bit(bit, &status, chip->ngpio)
+		generic_handle_domain_irq_safe(chip->irq.domain, bit);
 
-		generic_handle_domain_irq(chip->irq.domain, bit);
-		status &= ~BIT(bit);
-	}
-
-	chained_irq_exit(host_chip, desc);
+	return IRQ_RETVAL((status & mask) != 0);
 }
 
 /* I/O Functions */
@@ -568,19 +569,20 @@ static const struct irq_chip nmk_irq_chip = {
 	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
-static int nmk_gpio_probe(struct platform_device *dev)
+static int nmk_gpio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = dev->dev.of_node;
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
 	struct nmk_gpio_chip *nmk_chip;
-	struct gpio_chip *chip;
 	struct gpio_irq_chip *girq;
 	bool supports_sleepmode;
+	struct gpio_chip *chip;
 	int irq;
 	int ret;
 
-	nmk_chip = nmk_gpio_populate_chip(np, dev);
+	nmk_chip = nmk_gpio_populate_chip(np, pdev);
 	if (IS_ERR(nmk_chip)) {
-		dev_err(&dev->dev, "could not populate nmk chip struct\n");
+		dev_err(dev, "could not populate nmk chip struct\n");
 		return PTR_ERR(nmk_chip);
 	}
 
@@ -588,9 +590,9 @@ static int nmk_gpio_probe(struct platform_device *dev)
 		device_property_read_bool(dev, "st,supports-sleepmode");
 
 	/* Correct platform device ID */
-	dev->id = nmk_chip->bank;
+	pdev->id = nmk_chip->bank;
 
-	irq = platform_get_irq(dev, 0);
+	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
 
@@ -602,7 +604,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	spin_lock_init(&nmk_chip->lock);
 
 	chip = &nmk_chip->chip;
-	chip->parent = &dev->dev;
+	chip->parent = dev;
 	chip->request = gpiochip_generic_request;
 	chip->free = gpiochip_generic_free;
 	chip->get_direction = nmk_gpio_get_dir;
@@ -616,16 +618,18 @@ static int nmk_gpio_probe(struct platform_device *dev)
 
 	girq = &chip->irq;
 	gpio_irq_chip_set_chip(girq, &nmk_irq_chip);
-	girq->parent_handler = nmk_gpio_irq_handler;
-	girq->num_parents = 1;
-	girq->parents = devm_kcalloc(&dev->dev, 1,
-				     sizeof(*girq->parents),
-				     GFP_KERNEL);
-	if (!girq->parents)
-		return -ENOMEM;
-	girq->parents[0] = irq;
+	girq->parent_handler = NULL;
+	girq->num_parents = 0;
+	girq->parents = NULL;
 	girq->default_type = IRQ_TYPE_NONE;
 	girq->handler = handle_edge_irq;
+
+	ret = devm_request_irq(dev, irq, nmk_gpio_irq_handler, IRQF_SHARED,
+			       dev_name(dev), nmk_chip);
+	if (ret) {
+		dev_err(dev, "failed requesting IRQ\n");
+		return ret;
+	}
 
 	clk_enable(nmk_chip->clk);
 	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
@@ -635,9 +639,9 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	if (ret)
 		return ret;
 
-	platform_set_drvdata(dev, nmk_chip);
+	platform_set_drvdata(pdev, nmk_chip);
 
-	dev_info(&dev->dev, "chip registered\n");
+	dev_info(dev, "chip registered\n");
 
 	return 0;
 }
