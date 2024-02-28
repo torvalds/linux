@@ -1766,12 +1766,6 @@ struct ieee802_11_elems {
 	size_t ml_basic_len;
 	size_t ml_reconf_len;
 
-	/* The basic Multi-Link element in the original elements */
-	const struct element *ml_basic_elem;
-
-	/* The reconfiguration Multi-Link element in the original elements */
-	const struct element *ml_reconf_elem;
-
 	u8 ttlm_num;
 
 	/*
@@ -1784,14 +1778,6 @@ struct ieee802_11_elems {
 
 	/* whether/which parse error occurred while retrieving these elements */
 	u8 parse_error;
-
-	/*
-	 * scratch buffer that can be used for various element parsing related
-	 * tasks, e.g., element de-fragmentation etc.
-	 */
-	size_t scratch_len;
-	u8 *scratch_pos;
-	u8 scratch[] __counted_by(scratch_len);
 };
 
 static inline struct ieee80211_local *hw_to_local(
