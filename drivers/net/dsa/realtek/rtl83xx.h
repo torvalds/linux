@@ -18,5 +18,7 @@ int rtl83xx_register_switch(struct realtek_priv *priv);
 void rtl83xx_unregister_switch(struct realtek_priv *priv);
 void rtl83xx_shutdown(struct realtek_priv *priv);
 void rtl83xx_remove(struct realtek_priv *priv);
+void rtl83xx_reset_assert(struct realtek_priv *priv);
+void rtl83xx_reset_deassert(struct realtek_priv *priv);
 
 #endif /* _RTL83XX_H */
