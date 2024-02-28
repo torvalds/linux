@@ -1034,7 +1034,6 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_beacon_key;
 
 	struct wiphy_work csa_finalize_work;
-	bool csa_block_tx;
 
 	bool operating_11g_mode;
 
@@ -1092,6 +1091,8 @@ struct ieee80211_sub_if_data {
 	unsigned int flags;
 
 	unsigned long state;
+
+	bool csa_blocked_tx;
 
 	char name[IFNAMSIZ];
 

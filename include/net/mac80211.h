@@ -2778,6 +2778,11 @@ struct ieee80211_txq {
  * @IEEE80211_HW_DISALLOW_PUNCTURING: HW requires disabling puncturing in EHT
  *	and connecting with a lower bandwidth instead
  *
+ * @IEEE80211_HW_HANDLES_QUIET_CSA: HW/driver handles quieting for CSA, so
+ *	no need to stop queues. This really should be set by a driver that
+ *	implements MLO, so operation can continue on other links when one
+ *	link is switching.
+ *
  * @NUM_IEEE80211_HW_FLAGS: number of hardware flags, used for sizing arrays
  */
 enum ieee80211_hw_flags {
@@ -2836,6 +2841,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_DETECTS_COLOR_COLLISION,
 	IEEE80211_HW_MLO_MCAST_MULTI_LINK_TX,
 	IEEE80211_HW_DISALLOW_PUNCTURING,
+	IEEE80211_HW_HANDLES_QUIET_CSA,
 
 	/* keep last, obviously */
 	NUM_IEEE80211_HW_FLAGS
