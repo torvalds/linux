@@ -4076,6 +4076,9 @@ static int ath11k_mac_op_hw_scan(struct ieee80211_hw *hw,
 	arg->vdev_id = arvif->vdev_id;
 	arg->scan_id = ATH11K_SCAN_ID;
 
+	if (ar->ab->hw_params.single_pdev_only)
+		arg->scan_f_filter_prb_req = 1;
+
 	if (req->ie_len) {
 		arg->extraie.ptr = kmemdup(req->ie, req->ie_len, GFP_KERNEL);
 		if (!arg->extraie.ptr) {
@@ -9333,8 +9336,10 @@ static int ath11k_mac_op_remain_on_channel(struct ieee80211_hw *hw,
 	arg->dwell_time_passive = scan_time_msec;
 	arg->max_scan_time = scan_time_msec;
 	arg->scan_f_passive = 1;
-	arg->scan_f_filter_prb_req = 1;
 	arg->burst_duration = duration;
+
+	if (!ar->ab->hw_params.single_pdev_only)
+		arg->scan_f_filter_prb_req = 1;
 
 	ret = ath11k_start_scan(ar, arg);
 	if (ret) {
