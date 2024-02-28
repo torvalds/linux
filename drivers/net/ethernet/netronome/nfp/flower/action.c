@@ -460,7 +460,7 @@ nfp_fl_set_tun(struct nfp_app *app, struct nfp_fl_set_tun *set_tun,
 			set_tun->ttl = ip6_dst_hoplimit(dst);
 			dst_release(dst);
 		} else {
-			set_tun->ttl = net->ipv6.devconf_all->hop_limit;
+			set_tun->ttl = READ_ONCE(net->ipv6.devconf_all->hop_limit);
 		}
 #endif
 	} else {
