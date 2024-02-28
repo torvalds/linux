@@ -483,17 +483,20 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 {
 	struct nmk_gpio_chip *nmk_chip;
 	struct platform_device *gpio_pdev;
+	struct device *gpio_dev;
 	struct gpio_chip *chip;
 	struct resource *res;
 	struct clk *clk;
 	void __iomem *base;
 	u32 id;
 
-	gpio_pdev = of_find_device_by_node(np);
-	if (!gpio_pdev) {
+	gpio_dev = bus_find_device_by_of_node(&platform_bus_type, np);
+	if (!gpio_dev) {
 		pr_err("populate \"%pOFn\": device not found\n", np);
 		return ERR_PTR(-ENODEV);
 	}
+	gpio_pdev = to_platform_device(gpio_dev);
+
 	if (of_property_read_u32(np, "gpio-bank", &id)) {
 		dev_err(&pdev->dev, "populate: gpio-bank property not found\n");
 		platform_device_put(gpio_pdev);
@@ -519,8 +522,8 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	chip = &nmk_chip->chip;
 	chip->base = id * NMK_GPIO_PER_CHIP;
 	chip->ngpio = NMK_GPIO_PER_CHIP;
-	chip->label = dev_name(&gpio_pdev->dev);
-	chip->parent = &gpio_pdev->dev;
+	chip->label = dev_name(gpio_dev);
+	chip->parent = gpio_dev;
 
 	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -530,7 +533,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	}
 	nmk_chip->addr = base;
 
-	clk = clk_get(&gpio_pdev->dev, NULL);
+	clk = clk_get(gpio_dev, NULL);
 	if (IS_ERR(clk)) {
 		platform_device_put(gpio_pdev);
 		return (void *)clk;
