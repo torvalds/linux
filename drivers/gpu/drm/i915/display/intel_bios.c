@@ -3194,8 +3194,10 @@ void intel_bios_init(struct drm_i915_private *i915)
 	oprom_vbt = firmware_get_vbt(i915, NULL);
 	vbt = oprom_vbt;
 
-	if (!vbt)
-		vbt = intel_opregion_get_vbt(i915, NULL);
+	if (!vbt) {
+		oprom_vbt = intel_opregion_get_vbt(i915, NULL);
+		vbt = oprom_vbt;
+	}
 
 	/*
 	 * If the OpRegion does not have VBT, look in SPI flash through MMIO or

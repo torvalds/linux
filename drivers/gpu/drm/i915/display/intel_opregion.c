@@ -1151,7 +1151,7 @@ const void *intel_opregion_get_vbt(struct drm_i915_private *i915, size_t *size)
 	if (size)
 		*size = opregion->vbt_size;
 
-	return opregion->vbt;
+	return kmemdup(opregion->vbt, opregion->vbt_size, GFP_KERNEL);
 }
 
 bool intel_opregion_headless_sku(struct drm_i915_private *i915)
