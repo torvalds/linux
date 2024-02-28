@@ -25,6 +25,8 @@
  *
  */
 
+#include <linux/firmware.h>
+
 #include <drm/display/drm_dp_helper.h>
 #include <drm/display/drm_dsc_helper.h>
 #include <drm/drm_edid.h>
@@ -3000,6 +3002,43 @@ bool intel_bios_is_valid_vbt(struct drm_i915_private *i915,
 	return vbt;
 }
 
+static struct vbt_header *firmware_get_vbt(struct drm_i915_private *i915,
+					   size_t *size)
+{
+	struct vbt_header *vbt = NULL;
+	const struct firmware *fw = NULL;
+	const char *name = i915->display.params.vbt_firmware;
+	int ret;
+
+	if (!name || !*name)
+		return NULL;
+
+	ret = request_firmware(&fw, name, i915->drm.dev);
+	if (ret) {
+		drm_err(&i915->drm,
+			"Requesting VBT firmware \"%s\" failed (%d)\n",
+			name, ret);
+		return NULL;
+	}
+
+	if (intel_bios_is_valid_vbt(i915, fw->data, fw->size)) {
+		vbt = kmemdup(fw->data, fw->size, GFP_KERNEL);
+		if (vbt) {
+			drm_dbg_kms(&i915->drm,
+				    "Found valid VBT firmware \"%s\"\n", name);
+			if (size)
+				*size = fw->size;
+		}
+	} else {
+		drm_dbg_kms(&i915->drm, "Invalid VBT firmware \"%s\"\n",
+			    name);
+	}
+
+	release_firmware(fw);
+
+	return vbt;
+}
+
 static u32 intel_spi_read(struct intel_uncore *uncore, u32 offset)
 {
 	intel_uncore_write(uncore, PRIMARY_SPI_ADDRESS, offset);
@@ -3152,7 +3191,11 @@ void intel_bios_init(struct drm_i915_private *i915)
 
 	init_vbt_defaults(i915);
 
-	vbt = intel_opregion_get_vbt(i915, NULL);
+	oprom_vbt = firmware_get_vbt(i915, NULL);
+	vbt = oprom_vbt;
+
+	if (!vbt)
+		vbt = intel_opregion_get_vbt(i915, NULL);
 
 	/*
 	 * If the OpRegion does not have VBT, look in SPI flash through MMIO or
