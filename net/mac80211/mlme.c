@@ -1934,11 +1934,6 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 
 	link->conf->csa_active = false;
 	link->u.mgd.csa_waiting_bcn = false;
-	/*
-	 * If the CSA IE is still present on the beacon after the switch,
-	 * we need to consider it as a new CSA (possibly to self).
-	 */
-	link->u.mgd.beacon_crc_valid = false;
 
 	ret = drv_post_channel_switch(link);
 	if (ret) {
@@ -2053,17 +2048,31 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	if (res < 0)
 		goto drop_connection;
 
-	if (beacon && link->conf->csa_active &&
-	    !link->u.mgd.csa_waiting_bcn) {
-		if (res)
+	if (link->conf->csa_active) {
+		/* already processing - disregard action frames */
+		if (!beacon)
+			return;
+
+		if (link->u.mgd.csa_waiting_bcn) {
+			ieee80211_chswitch_post_beacon(link);
+			/*
+			 * If the CSA IE is still present in the beacon after
+			 * the switch, we need to consider it as a new CSA
+			 * (possibly to self) - this happens by not returning
+			 * here so we'll get to the check below.
+			 */
+		} else if (res) {
 			ieee80211_sta_abort_chanswitch(link);
-		else
+			return;
+		} else {
 			drv_channel_switch_rx_beacon(sdata, &ch_switch);
-		return;
-	} else if (link->conf->csa_active || res) {
-		/* disregard subsequent announcements if already processing */
-		return;
+			return;
+		}
 	}
+
+	/* nothing to do at all - no active CSA nor a new one */
+	if (res)
+		return;
 
 	if (link->conf->chanreq.oper.chan->band !=
 	    csa_ie.chanreq.oper.chan->band) {
@@ -6292,9 +6301,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 			link->u.mgd.beacon_crc_valid = false;
 		}
 	}
-
-	if (link->u.mgd.csa_waiting_bcn)
-		ieee80211_chswitch_post_beacon(link);
 
 	/*
 	 * Update beacon timing and dtim count on every beacon appearance. This
