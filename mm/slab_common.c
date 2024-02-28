@@ -404,8 +404,12 @@ EXPORT_SYMBOL(kmem_cache_create);
  */
 static void kmem_cache_release(struct kmem_cache *s)
 {
-	sysfs_slab_unlink(s);
-	sysfs_slab_release(s);
+	if (slab_state >= FULL) {
+		sysfs_slab_unlink(s);
+		sysfs_slab_release(s);
+	} else {
+		slab_kmem_cache_release(s);
+	}
 }
 #else
 static void kmem_cache_release(struct kmem_cache *s)

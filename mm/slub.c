@@ -6794,14 +6794,12 @@ out_del_kobj:
 
 void sysfs_slab_unlink(struct kmem_cache *s)
 {
-	if (slab_state >= FULL)
-		kobject_del(&s->kobj);
+	kobject_del(&s->kobj);
 }
 
 void sysfs_slab_release(struct kmem_cache *s)
 {
-	if (slab_state >= FULL)
-		kobject_put(&s->kobj);
+	kobject_put(&s->kobj);
 }
 
 /*
