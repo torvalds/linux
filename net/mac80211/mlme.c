@@ -2115,12 +2115,13 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	}
 
 	/*
-	 * Drop all TDLS peers - either we disconnect or move to a different
-	 * channel from this point on. There's no telling what our peer will do.
+	 * Drop all TDLS peers on the affected link - either we disconnect or
+	 * move to a different channel from this point on. There's no telling
+	 * what our peer will do.
 	 * The TDLS WIDER_BW scenario is also problematic, as peers might now
 	 * have an incompatible wider chandef.
 	 */
-	ieee80211_teardown_tdls_peers(sdata);
+	ieee80211_teardown_tdls_peers(link);
 
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));

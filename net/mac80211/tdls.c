@@ -2028,8 +2028,9 @@ ieee80211_process_tdls_channel_switch(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
-void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
+void ieee80211_teardown_tdls_peers(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct sta_info *sta;
 	u16 reason = WLAN_REASON_TDLS_TEARDOWN_UNSPECIFIED;
 
@@ -2037,6 +2038,9 @@ void ieee80211_teardown_tdls_peers(struct ieee80211_sub_if_data *sdata)
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
 		if (!sta->sta.tdls || sta->sdata != sdata || !sta->uploaded ||
 		    !test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+			continue;
+
+		if (sta->deflink.link_id != link->link_id)
 			continue;
 
 		ieee80211_tdls_oper_request(&sdata->vif, sta->sta.addr,
