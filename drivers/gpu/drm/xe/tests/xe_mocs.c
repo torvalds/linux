@@ -39,30 +39,37 @@ static int live_mocs_init(struct live_mocs *arg, struct xe_gt *gt)
 static void read_l3cc_table(struct xe_gt *gt,
 			    const struct xe_mocs_info *info)
 {
+	struct kunit *test = xe_cur_kunit();
+	struct xe_device *xe = gt_to_xe(gt);
+	u32 l3cc, l3cc_expected;
 	unsigned int i;
-	u32 l3cc;
 	u32 reg_val;
 	u32 ret;
 
-	struct kunit *test = xe_cur_kunit();
-
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
-	mocs_dbg(&gt_to_xe(gt)->drm, "L3CC entries:%d\n", info->n_entries);
 
-	for (i = 0; i < (info->n_entries + 1) / 2; i++) {
-		l3cc = l3cc_combine(get_entry_l3cc(info, 2 * i),
-				    get_entry_l3cc(info, 2 * i + 1));
+	for (i = 0; i < info->n_entries; i++) {
+		if (!(i & 1)) {
+			if (GRAPHICS_VERx100(xe) >= 1250)
+				reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i >> 1));
+			else
+				reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i >> 1));
 
-		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
-			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_LNCFCMOCS(i));
-		else
-			reg_val = xe_mmio_read32(gt, XELP_LNCFCMOCS(i));
-		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x 0x%x\n", i,
-			 XELP_LNCFCMOCS(i).addr, reg_val, l3cc);
-		if (reg_val != l3cc)
-			KUNIT_FAIL(test, "l3cc reg 0x%x has incorrect val.\n",
-				   XELP_LNCFCMOCS(i).addr);
+			mocs_dbg(&xe->drm, "reg_val=0x%x\n", reg_val);
+		} else {
+			/* Just re-use value read on previous iteration */
+			reg_val >>= 16;
+		}
+
+		l3cc_expected = get_entry_l3cc(info, i);
+		l3cc = reg_val & 0xffff;
+
+		mocs_dbg(&xe->drm, "[%u] expected=0x%x actual=0x%x\n",
+			 i, l3cc_expected, l3cc);
+
+		KUNIT_EXPECT_EQ_MSG(test, l3cc_expected, l3cc,
+				    "l3cc idx=%u has incorrect val.\n", i);
 	}
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }
@@ -70,35 +77,35 @@ static void read_l3cc_table(struct xe_gt *gt,
 static void read_mocs_table(struct xe_gt *gt,
 			    const struct xe_mocs_info *info)
 {
+	struct kunit *test = xe_cur_kunit();
 	struct xe_device *xe = gt_to_xe(gt);
-
+	u32 mocs, mocs_expected;
 	unsigned int i;
-	u32 mocs;
 	u32 reg_val;
 	u32 ret;
-
-	struct kunit *test = xe_cur_kunit();
 
 	KUNIT_EXPECT_TRUE_MSG(test, info->unused_entries_index,
 			      "Unused entries index should have been defined\n");
 
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
-	mocs_dbg(&gt_to_xe(gt)->drm, "Global MOCS entries:%d\n", info->n_entries);
 
 	for (i = 0; i < info->n_entries; i++) {
-		mocs = get_entry_control(info, i);
-
-		if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
+		if (GRAPHICS_VERx100(xe) >= 1250)
 			reg_val = xe_gt_mcr_unicast_read_any(gt, XEHP_GLOBAL_MOCS(i));
 		else
 			reg_val = xe_mmio_read32(gt, XELP_GLOBAL_MOCS(i));
-		mocs_dbg(&gt_to_xe(gt)->drm, "%d 0x%x 0x%x 0x%x\n", i,
-			 XELP_GLOBAL_MOCS(i).addr, reg_val, mocs);
-		if (reg_val != mocs)
-			KUNIT_FAIL(test, "mocs reg 0x%x has incorrect val.\n",
-				   XELP_GLOBAL_MOCS(i).addr);
+
+		mocs_expected = get_entry_control(info, i);
+		mocs = reg_val;
+
+		mocs_dbg(&xe->drm, "[%u] expected=0x%x actual=0x%x\n",
+			 i, mocs_expected, mocs);
+
+		KUNIT_EXPECT_EQ_MSG(test, mocs_expected, mocs,
+				    "mocs reg 0x%x has incorrect val.\n", i);
 	}
+
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 }
 
