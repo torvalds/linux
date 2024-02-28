@@ -79,11 +79,12 @@ static void read_mocs_table(struct xe_gt *gt,
 
 	struct kunit *test = xe_cur_kunit();
 
+	KUNIT_EXPECT_TRUE_MSG(test, info->unused_entries_index,
+			      "Unused entries index should have been defined\n");
+
 	ret = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	KUNIT_ASSERT_EQ_MSG(test, ret, 0, "Forcewake Failed.\n");
 	mocs_dbg(&gt_to_xe(gt)->drm, "Global MOCS entries:%d\n", info->n_entries);
-	drm_WARN_ONCE(&xe->drm, !info->unused_entries_index,
-		      "Unused entries index should have been defined\n");
 
 	for (i = 0; i < info->n_entries; i++) {
 		mocs = get_entry_control(info, i);
