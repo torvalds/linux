@@ -49,7 +49,7 @@ for o in llrs rs; do
 Active FEC encoding: ${o^^}"
 done
 
-# Test mutliple bits
+# Test multiple bits
 $ETHTOOL --set-fec $NSIM_NETDEV encoding rs llrs
 check $?
 s=$($ETHTOOL --show-fec $NSIM_NETDEV | tail -2)
