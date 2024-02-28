@@ -18,7 +18,7 @@ config PINCTRL_AB8505
 
 endif
 
-if (ARCH_U8500 || ARCH_NOMADIK)
+if (ARCH_U8500 || ARCH_NOMADIK || COMPILE_TEST)
 
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
