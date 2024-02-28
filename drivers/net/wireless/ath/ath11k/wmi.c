@@ -20,6 +20,7 @@
 #include "hw.h"
 #include "peer.h"
 #include "testmode.h"
+#include "p2p.h"
 
 struct wmi_tlv_policy {
 	size_t min_len;
@@ -154,6 +155,10 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		.min_len = sizeof(struct wmi_per_chain_rssi_stats) },
 	[WMI_TAG_TWT_ADD_DIALOG_COMPLETE_EVENT] = {
 		.min_len = sizeof(struct wmi_twt_add_dialog_event) },
+	[WMI_TAG_P2P_NOA_INFO] = {
+		.min_len = sizeof(struct ath11k_wmi_p2p_noa_info) },
+	[WMI_TAG_P2P_NOA_EVENT] = {
+		.min_len = sizeof(struct wmi_p2p_noa_event) },
 };
 
 #define PRIMAP(_hw_mode_) \
@@ -981,7 +986,7 @@ int ath11k_wmi_vdev_start(struct ath11k *ar, struct wmi_vdev_start_req_arg *arg,
 		      FIELD_PREP(WMI_TLV_LEN, 0);
 
 	/* Note: This is a nested TLV containing:
-	 * [wmi_tlv][wmi_p2p_noa_descriptor][wmi_tlv]..
+	 * [wmi_tlv][ath11k_wmi_p2p_noa_descriptor][wmi_tlv]..
 	 */
 
 	ptr += sizeof(*tlv);
@@ -8645,6 +8650,64 @@ exit:
 	kfree(tb);
 }
 
+static int ath11k_wmi_p2p_noa_event(struct ath11k_base *ab,
+				    struct sk_buff *skb)
+{
+	const void **tb;
+	const struct wmi_p2p_noa_event *ev;
+	const struct ath11k_wmi_p2p_noa_info *noa;
+	struct ath11k *ar;
+	int ret, vdev_id;
+	u8 noa_descriptors;
+
+	tb = ath11k_wmi_tlv_parse_alloc(ab, skb, GFP_ATOMIC);
+	if (IS_ERR(tb)) {
+		ret = PTR_ERR(tb);
+		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
+		return ret;
+	}
+
+	ev = tb[WMI_TAG_P2P_NOA_EVENT];
+	noa = tb[WMI_TAG_P2P_NOA_INFO];
+
+	if (!ev || !noa) {
+		ret = -EPROTO;
+		goto out;
+	}
+
+	vdev_id = ev->vdev_id;
+	noa_descriptors = u32_get_bits(noa->noa_attr,
+				       WMI_P2P_NOA_INFO_DESC_NUM);
+
+	if (noa_descriptors > WMI_P2P_MAX_NOA_DESCRIPTORS) {
+		ath11k_warn(ab, "invalid descriptor num %d in P2P NoA event\n",
+			    noa_descriptors);
+		return -EINVAL;
+		goto out;
+	}
+
+	ath11k_dbg(ab, ATH11K_DBG_WMI,
+		   "wmi tlv p2p noa vdev_id %i descriptors %u\n",
+		   vdev_id, noa_descriptors);
+
+	rcu_read_lock();
+	ar = ath11k_mac_get_ar_by_vdev_id(ab, vdev_id);
+	if (!ar) {
+		ath11k_warn(ab, "invalid vdev id %d in P2P NoA event\n",
+			    vdev_id);
+		ret = -EINVAL;
+		goto unlock;
+	}
+
+	ath11k_p2p_noa_update_by_vdev_id(ar, vdev_id, noa);
+
+unlock:
+	rcu_read_unlock();
+out:
+	kfree(tb);
+	return 0;
+}
+
 static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 {
 	struct wmi_cmd_hdr *cmd_hdr;
@@ -8771,6 +8834,9 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_GTK_OFFLOAD_STATUS_EVENTID:
 		ath11k_wmi_gtk_offload_status_event(ab, skb);
+		break;
+	case WMI_P2P_NOA_EVENTID:
+		ath11k_wmi_p2p_noa_event(ab, skb);
 		break;
 	default:
 		ath11k_dbg(ab, ATH11K_DBG_WMI, "unsupported event id 0x%x\n", id);
