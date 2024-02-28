@@ -2105,20 +2105,21 @@ static long wb_writeback(struct bdi_writeback *wb,
 
 		spin_lock(&wb->list_lock);
 
-		/*
-		 * Kupdate and background works are special and we want to
-		 * include all inodes that need writing. Livelock avoidance is
-		 * handled by these works yielding to any other work so we are
-		 * safe.
-		 */
-		if (work->for_kupdate) {
-			dirtied_before = jiffies -
-				msecs_to_jiffies(dirty_expire_interval * 10);
-		} else if (work->for_background)
-			dirtied_before = jiffies;
-
 		trace_writeback_start(wb, work);
 		if (list_empty(&wb->b_io)) {
+			/*
+			 * Kupdate and background works are special and we want
+			 * to include all inodes that need writing. Livelock
+			 * avoidance is handled by these works yielding to any
+			 * other work so we are safe.
+			 */
+			if (work->for_kupdate) {
+				dirtied_before = jiffies -
+					msecs_to_jiffies(dirty_expire_interval *
+							 10);
+			} else if (work->for_background)
+				dirtied_before = jiffies;
+
 			queue_io(wb, work, dirtied_before);
 			queued = true;
 		}
