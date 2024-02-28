@@ -6399,20 +6399,19 @@ static void addrconf_disable_change(struct net *net, __s32 newf)
 
 static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)
 {
-	struct net *net;
+	struct net *net = (struct net *)table->extra2;
 	int old;
+
+	if (p == &net->ipv6.devconf_dflt->disable_ipv6) {
+		WRITE_ONCE(*p, newf);
+		return 0;
+	}
 
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	net = (struct net *)table->extra2;
 	old = *p;
 	WRITE_ONCE(*p, newf);
-
-	if (p == &net->ipv6.devconf_dflt->disable_ipv6) {
-		rtnl_unlock();
-		return 0;
-	}
 
 	if (p == &net->ipv6.devconf_all->disable_ipv6) {
 		WRITE_ONCE(net->ipv6.devconf_dflt->disable_ipv6, newf);
