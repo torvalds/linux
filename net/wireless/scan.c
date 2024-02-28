@@ -2504,16 +2504,22 @@ ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
 
 	if (elem->id == WLAN_EID_EXTENSION) {
 		copied = elem->datalen - 1;
-		if (copied > data_len)
-			return -ENOSPC;
 
-		memmove(data, elem->data + 1, copied);
+		if (data) {
+			if (copied > data_len)
+				return -ENOSPC;
+
+			memmove(data, elem->data + 1, copied);
+		}
 	} else {
 		copied = elem->datalen;
-		if (copied > data_len)
-			return -ENOSPC;
 
-		memmove(data, elem->data, copied);
+		if (data) {
+			if (copied > data_len)
+				return -ENOSPC;
+
+			memmove(data, elem->data, copied);
+		}
 	}
 
 	/* Fragmented elements must have 255 bytes */
@@ -2532,10 +2538,13 @@ ssize_t cfg80211_defragment_element(const struct element *elem, const u8 *ies,
 
 		elem_datalen = elem->datalen;
 
-		if (copied + elem_datalen > data_len)
-			return -ENOSPC;
+		if (data) {
+			if (copied + elem_datalen > data_len)
+				return -ENOSPC;
 
-		memmove(data + copied, elem->data, elem_datalen);
+			memmove(data + copied, elem->data, elem_datalen);
+		}
+
 		copied += elem_datalen;
 
 		/* Only the last fragment may be short */
