@@ -1176,14 +1176,14 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct device_node *prcm_np;
 	struct nmk_pinctrl *npct;
-	unsigned int version = 0;
+	uintptr_t version = 0;
 	int i;
 
 	npct = devm_kzalloc(&pdev->dev, sizeof(*npct), GFP_KERNEL);
 	if (!npct)
 		return -ENOMEM;
 
-	version = (unsigned int)device_get_match_data(&pdev->dev);
+	version = (uintptr_t)device_get_match_data(&pdev->dev);
 
 	/* Poke in other ASIC variants here */
 	if (version == PINCTRL_NMK_STN8815)
