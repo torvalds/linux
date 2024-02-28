@@ -1938,8 +1938,6 @@ static void identify_cpu(struct cpuinfo_x86 *c)
 	/* Init Machine Check Exception if available. */
 	mcheck_cpu_init(c);
 
-	select_idle_routine(c);
-
 #ifdef CONFIG_NUMA
 	numa_add_cpu(smp_processor_id());
 #endif
@@ -2343,6 +2341,8 @@ void arch_smt_update(void)
 void __init arch_cpu_finalize_init(void)
 {
 	identify_boot_cpu();
+
+	select_idle_routine();
 
 	/*
 	 * identify_boot_cpu() initialized SMT support information, let the
