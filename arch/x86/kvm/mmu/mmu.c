@@ -3269,6 +3269,10 @@ static int kvm_handle_noslot_fault(struct kvm_vcpu *vcpu,
 	vcpu_cache_mmio_info(vcpu, gva, fault->gfn,
 			     access & shadow_mmio_access_mask);
 
+	fault->slot = NULL;
+	fault->pfn = KVM_PFN_NOSLOT;
+	fault->map_writable = false;
+
 	/*
 	 * If MMIO caching is disabled, emulate immediately without
 	 * touching the shadow page tables as attempting to install an
@@ -4349,15 +4353,18 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		return -EFAULT;
 	}
 
+	if (unlikely(!slot))
+		return kvm_handle_noslot_fault(vcpu, fault, access);
+
 	/*
 	 * Retry the page fault if the gfn hit a memslot that is being deleted
 	 * or moved.  This ensures any existing SPTEs for the old memslot will
 	 * be zapped before KVM inserts a new MMIO SPTE for the gfn.
 	 */
-	if (slot && (slot->flags & KVM_MEMSLOT_INVALID))
+	if (slot->flags & KVM_MEMSLOT_INVALID)
 		return RET_PF_RETRY;
 
-	if (slot && slot->id == APIC_ACCESS_PAGE_PRIVATE_MEMSLOT) {
+	if (slot->id == APIC_ACCESS_PAGE_PRIVATE_MEMSLOT) {
 		/*
 		 * Don't map L1's APIC access page into L2, KVM doesn't support
 		 * using APICv/AVIC to accelerate L2 accesses to L1's APIC,
@@ -4369,12 +4376,9 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		 * uses different roots for L1 vs. L2, i.e. there is no danger
 		 * of breaking APICv/AVIC for L1.
 		 */
-		if (is_guest_mode(vcpu)) {
-			fault->slot = NULL;
-			fault->pfn = KVM_PFN_NOSLOT;
-			fault->map_writable = false;
-			goto faultin_done;
-		}
+		if (is_guest_mode(vcpu))
+			return kvm_handle_noslot_fault(vcpu, fault, access);
+
 		/*
 		 * If the APIC access page exists but is disabled, go directly
 		 * to emulation without caching the MMIO access or creating a
@@ -4384,6 +4388,9 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 		if (!kvm_apicv_activated(vcpu->kvm))
 			return RET_PF_EMULATE;
 	}
+
+	fault->mmu_seq = vcpu->kvm->mmu_invalidate_seq;
+	smp_rmb();
 
 	/*
 	 * Check for a relevant mmu_notifier invalidation event before getting
@@ -4406,19 +4413,17 @@ static int kvm_faultin_pfn(struct kvm_vcpu *vcpu, struct kvm_page_fault *fault,
 	 * *guaranteed* to need to retry, i.e. waiting until mmu_lock is held
 	 * to detect retry guarantees the worst case latency for the vCPU.
 	 */
-	if (fault->slot &&
-	    mmu_invalidate_retry_gfn_unsafe(vcpu->kvm, fault->mmu_seq, fault->gfn))
+	if (mmu_invalidate_retry_gfn_unsafe(vcpu->kvm, fault->mmu_seq, fault->gfn))
 		return RET_PF_RETRY;
 
 	ret = __kvm_faultin_pfn(vcpu, fault);
 	if (ret != RET_PF_CONTINUE)
 		return ret;
 
-faultin_done:
 	if (unlikely(is_error_pfn(fault->pfn)))
 		return kvm_handle_error_pfn(vcpu, fault);
 
-	if (unlikely(!fault->slot))
+	if (WARN_ON_ONCE(!fault->slot))
 		return kvm_handle_noslot_fault(vcpu, fault, access);
 
 	/*
