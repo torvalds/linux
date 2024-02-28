@@ -1203,17 +1203,16 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		struct nmk_gpio_chip *nmk_chip;
 
 		gpio_np = of_parse_phandle(np, "nomadik-gpio-chips", i);
-		if (gpio_np) {
-			dev_info(&pdev->dev,
-				 "populate NMK GPIO %d \"%pOFn\"\n",
-				 i, gpio_np);
-			nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
-			if (IS_ERR(nmk_chip))
-				dev_err(&pdev->dev,
-					"could not populate nmk chip struct "
-					"- continue anyway\n");
-			of_node_put(gpio_np);
-		}
+		if (!gpio_np)
+			continue;
+
+		dev_info(&pdev->dev, "populate NMK GPIO %d \"%pOFn\"\n",
+			 i, gpio_np);
+		nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
+		if (IS_ERR(nmk_chip))
+			dev_err(&pdev->dev,
+				"could not populate nmk chip struct - continue anyway\n");
+		of_node_put(gpio_np);
 	}
 
 	prcm_np = of_parse_phandle(np, "prcm", 0);
