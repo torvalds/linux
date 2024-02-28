@@ -307,39 +307,37 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
  */
 static int dasd_state_basic_to_ready(struct dasd_device *device)
 {
-	int rc;
-	struct dasd_block *block;
-	struct gendisk *disk;
+	struct dasd_block *block = device->block;
+	int rc = 0;
 
-	rc = 0;
-	block = device->block;
 	/* make disk known with correct capacity */
-	if (block) {
-		if (block->base->discipline->do_analysis != NULL)
-			rc = block->base->discipline->do_analysis(block);
-		if (rc) {
-			if (rc != -EAGAIN) {
-				device->state = DASD_STATE_UNFMT;
-				disk = device->block->gdp;
-				kobject_uevent(&disk_to_dev(disk)->kobj,
-					       KOBJ_CHANGE);
-				goto out;
-			}
-			return rc;
-		}
-		if (device->discipline->setup_blk_queue)
-			device->discipline->setup_blk_queue(block);
-		set_capacity(block->gdp,
-			     block->blocks << block->s2b_shift);
+	if (!block) {
 		device->state = DASD_STATE_READY;
-		rc = dasd_scan_partitions(block);
-		if (rc) {
-			device->state = DASD_STATE_BASIC;
-			return rc;
-		}
-	} else {
-		device->state = DASD_STATE_READY;
+		goto out;
 	}
+
+	if (block->base->discipline->do_analysis != NULL)
+		rc = block->base->discipline->do_analysis(block);
+	if (rc) {
+		if (rc == -EAGAIN)
+			return rc;
+		device->state = DASD_STATE_UNFMT;
+		kobject_uevent(&disk_to_dev(device->block->gdp)->kobj,
+			       KOBJ_CHANGE);
+		goto out;
+	}
+
+	if (device->discipline->setup_blk_queue)
+		device->discipline->setup_blk_queue(block);
+	set_capacity(block->gdp, block->blocks << block->s2b_shift);
+	device->state = DASD_STATE_READY;
+
+	rc = dasd_scan_partitions(block);
+	if (rc) {
+		device->state = DASD_STATE_BASIC;
+		return rc;
+	}
+
 out:
 	if (device->discipline->basic_to_ready)
 		rc = device->discipline->basic_to_ready(device);
