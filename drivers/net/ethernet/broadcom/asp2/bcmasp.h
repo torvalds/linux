@@ -33,6 +33,12 @@
 #define ASP_WAKEUP_INTR2_FILT_1			BIT(3)
 #define ASP_WAKEUP_INTR2_FW			BIT(4)
 
+#define ASP_CTRL2_OFFSET			0x2000
+#define  ASP_CTRL2_CORE_CLOCK_SELECT		0x0
+#define   ASP_CTRL2_CORE_CLOCK_SELECT_MAIN	BIT(0)
+#define  ASP_CTRL2_CPU_CLOCK_SELECT		0x4
+#define   ASP_CTRL2_CPU_CLOCK_SELECT_MAIN	BIT(0)
+
 #define ASP_TX_ANALYTICS_OFFSET			0x4c000
 #define  ASP_TX_ANALYTICS_CTRL			0x0
 
@@ -134,8 +140,11 @@ enum asp_rx_net_filter_block {
 #define ASP_EDPKT_RX_PKT_CNT			0x138
 #define ASP_EDPKT_HDR_EXTR_CNT			0x13c
 #define ASP_EDPKT_HDR_OUT_CNT			0x140
+#define ASP_EDPKT_SPARE_REG			0x174
+#define  ASP_EDPKT_SPARE_REG_EPHY_LPI		BIT(4)
+#define  ASP_EDPKT_SPARE_REG_GPHY_LPI		BIT(3)
 
-#define ASP_CTRL				0x101000
+#define ASP_CTRL_OFFSET				0x101000
 #define  ASP_CTRL_ASP_SW_INIT			0x04
 #define   ASP_CTRL_ASP_SW_INIT_ACPUSS_CORE	BIT(0)
 #define   ASP_CTRL_ASP_SW_INIT_ASP_TX		BIT(1)
@@ -372,6 +381,8 @@ struct bcmasp_plat_data {
 	void (*init_wol)(struct bcmasp_priv *priv);
 	void (*enable_wol)(struct bcmasp_intf *intf, bool en);
 	void (*destroy_wol)(struct bcmasp_priv *priv);
+	void (*core_clock_select)(struct bcmasp_priv *priv, bool slow);
+	void (*eee_fixup)(struct bcmasp_intf *priv, bool en);
 	struct bcmasp_hw_info		*hw_info;
 };
 
@@ -390,6 +401,8 @@ struct bcmasp_priv {
 	void (*init_wol)(struct bcmasp_priv *priv);
 	void (*enable_wol)(struct bcmasp_intf *intf, bool en);
 	void (*destroy_wol)(struct bcmasp_priv *priv);
+	void (*core_clock_select)(struct bcmasp_priv *priv, bool slow);
+	void (*eee_fixup)(struct bcmasp_intf *intf, bool en);
 
 	void __iomem			*base;
 	struct	bcmasp_hw_info		*hw_info;
@@ -530,7 +543,8 @@ BCMASP_CORE_IO_MACRO(rx_analytics, ASP_RX_ANALYTICS_OFFSET);
 BCMASP_CORE_IO_MACRO(rx_ctrl, ASP_RX_CTRL_OFFSET);
 BCMASP_CORE_IO_MACRO(rx_filter, ASP_RX_FILTER_OFFSET);
 BCMASP_CORE_IO_MACRO(rx_edpkt, ASP_EDPKT_OFFSET);
-BCMASP_CORE_IO_MACRO(ctrl, ASP_CTRL);
+BCMASP_CORE_IO_MACRO(ctrl, ASP_CTRL_OFFSET);
+BCMASP_CORE_IO_MACRO(ctrl2, ASP_CTRL2_OFFSET);
 
 struct bcmasp_intf *bcmasp_interface_create(struct bcmasp_priv *priv,
 					    struct device_node *ndev_dn, int i);

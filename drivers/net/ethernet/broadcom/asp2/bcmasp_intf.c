@@ -1333,6 +1333,9 @@ static void bcmasp_suspend_to_wol(struct bcmasp_intf *intf)
 				     ASP_WAKEUP_INTR2_MASK_CLEAR);
 	}
 
+	if (intf->eee.eee_enabled && intf->parent->eee_fixup)
+		intf->parent->eee_fixup(intf, true);
+
 	netif_dbg(intf, wol, ndev, "entered WOL mode\n");
 }
 
@@ -1380,6 +1383,9 @@ out:
 static void bcmasp_resume_from_wol(struct bcmasp_intf *intf)
 {
 	u32 reg;
+
+	if (intf->eee.eee_enabled && intf->parent->eee_fixup)
+		intf->parent->eee_fixup(intf, false);
 
 	reg = umac_rl(intf, UMC_MPD_CTRL);
 	reg &= ~UMC_MPD_CTRL_MPD_EN;
