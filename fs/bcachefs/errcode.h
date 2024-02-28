@@ -250,7 +250,8 @@
 	x(BCH_ERR_nopromote,		nopromote_congested)			\
 	x(BCH_ERR_nopromote,		nopromote_in_flight)			\
 	x(BCH_ERR_nopromote,		nopromote_no_writes)			\
-	x(BCH_ERR_nopromote,		nopromote_enomem)
+	x(BCH_ERR_nopromote,		nopromote_enomem)			\
+	x(0,				need_inode_lock)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,
