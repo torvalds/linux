@@ -818,8 +818,8 @@ DECLARE_EVENT_CLASS(station_add_change,
 			params->link_sta_params.opmode_notif_used;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", station mac: %pM"
-		  ", station flags mask: %u, station flags set: %u, "
-		  "station modify mask: %u, listen interval: %d, aid: %u, "
+		  ", station flags mask: 0x%x, station flags set: 0x%x, "
+		  "station modify mask: 0x%x, listen interval: %d, aid: %u, "
 		  "plink action: %u, plink state: %u, uapsd queues: %u, vlan:%s",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->sta_mac,
 		  __entry->sta_flags_mask, __entry->sta_flags_set,
@@ -1075,7 +1075,7 @@ TRACE_EVENT(rdev_return_int_mpath_info,
 	),
 	TP_printk(WIPHY_PR_FMT ", returned %d. mpath info - generation: %d, "
 		  "filled: %u, frame qlen: %u, sn: %u, metric: %u, exptime: %u,"
-		  " discovery timeout: %u, discovery retries: %u, flags: %u",
+		  " discovery timeout: %u, discovery retries: %u, flags: 0x%x",
 		  WIPHY_PR_ARG, __entry->ret, __entry->generation,
 		  __entry->filled, __entry->frame_qlen, __entry->sn,
 		  __entry->metric, __entry->exptime, __entry->discovery_timeout,
@@ -1317,7 +1317,7 @@ TRACE_EVENT(rdev_assoc,
 			       req->fils_nonces, 2 * FILS_NONCE_LEN);
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: %pM"
-		  ", previous bssid: %pM, use mfp: %s, flags: %u",
+		  ", previous bssid: %pM, use mfp: %s, flags: 0x%x",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->bssid,
 		  __entry->prev_bssid, BOOL_TO_STR(__entry->use_mfp),
 		  __entry->flags)
@@ -1439,7 +1439,7 @@ TRACE_EVENT(rdev_connect,
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", bssid: %pM"
 		  ", ssid: %s, auth type: %d, privacy: %s, wpa versions: %u, "
-		  "flags: %u, previous bssid: %pM",
+		  "flags: 0x%x, previous bssid: %pM",
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->bssid, __entry->ssid,
 		  __entry->auth_type, BOOL_TO_STR(__entry->privacy),
 		  __entry->wpa_versions, __entry->flags, __entry->prev_bssid)
