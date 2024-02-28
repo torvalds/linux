@@ -509,11 +509,13 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 {
 	struct nmk_gpio_chip *nmk_chip;
 	struct platform_device *gpio_pdev;
+	struct reset_control *reset;
 	struct device *gpio_dev;
 	struct gpio_chip *chip;
 	struct clk *clk;
 	void __iomem *base;
 	u32 id, ngpio;
+	int ret;
 
 	gpio_dev = bus_find_device_by_of_node(&platform_bus_type, np);
 	if (!gpio_dev) {
@@ -571,6 +573,24 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	}
 	clk_prepare(clk);
 	nmk_chip->clk = clk;
+
+	reset = devm_reset_control_get_optional_shared(gpio_dev, NULL);
+	if (IS_ERR(reset)) {
+		dev_err(&pdev->dev, "failed getting reset control: %ld\n",
+			PTR_ERR(reset));
+		return ERR_CAST(reset);
+	}
+
+	/*
+	 * Reset might be shared and asserts/deasserts calls are unbalanced. We
+	 * only support sharing this reset with other gpio-nomadik devices that
+	 * use this reset to ensure deassertion at probe.
+	 */
+	ret = reset_control_deassert(reset);
+	if (ret) {
+		dev_err(&pdev->dev, "failed reset deassert: %d\n", ret);
+		return ERR_PTR(ret);
+	}
 
 #ifdef CONFIG_PINCTRL_NOMADIK
 	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
@@ -690,6 +710,7 @@ static struct platform_driver nmk_gpio_driver = {
 	.driver = {
 		.name = "nomadik-gpio",
 		.of_match_table = nmk_gpio_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = nmk_gpio_probe,
 };
