@@ -519,7 +519,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 
 	nmk_chip->bank = id;
 	chip = &nmk_chip->chip;
-	chip->base = id * NMK_GPIO_PER_CHIP;
+	chip->base = -1;
 	chip->ngpio = NMK_GPIO_PER_CHIP;
 	chip->label = dev_name(gpio_dev);
 	chip->parent = gpio_dev;

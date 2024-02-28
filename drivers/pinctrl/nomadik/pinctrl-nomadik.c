@@ -531,25 +531,33 @@ static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned int selector
 	return 0;
 }
 
-static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned int pin)
+/* This makes the mapping from pin number to a GPIO chip. We also return the pin
+ * offset in the GPIO chip for convenience (and to avoid a second loop).
+ */
+static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned int pin,
+						    unsigned int *offset)
 {
-	int i;
+	int i, j = 0;
 	struct nmk_gpio_chip *nmk_gpio;
 
+	/* We assume that pins are allocated in bank order. */
 	for (i = 0; i < NMK_MAX_BANKS; i++) {
 		nmk_gpio = nmk_gpio_chips[i];
 		if (!nmk_gpio)
 			continue;
-		if (pin >= nmk_gpio->chip.base &&
-		    pin < nmk_gpio->chip.base + nmk_gpio->chip.ngpio)
+		if (pin >= j && pin < j + nmk_gpio->chip.ngpio) {
+			if (offset)
+				*offset = pin - j;
 			return nmk_gpio;
+		}
+		j += nmk_gpio->chip.ngpio;
 	}
 	return NULL;
 }
 
 static struct gpio_chip *find_gc_from_pin(unsigned int pin)
 {
-	struct nmk_gpio_chip *nmk_gpio = find_nmk_gpio_from_pin(pin);
+	struct nmk_gpio_chip *nmk_gpio = find_nmk_gpio_from_pin(pin, NULL);
 
 	if (nmk_gpio)
 		return &nmk_gpio->chip;
@@ -905,8 +913,18 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 		 * switching to the ALT C function.
 		 */
 		for (i = 0; i < g->grp.npins; i++) {
-			unsigned int bit = g->grp.pins[i] % NMK_GPIO_PER_CHIP;
-			slpm[g->grp.pins[i] / NMK_GPIO_PER_CHIP] &= ~BIT(bit);
+			struct nmk_gpio_chip *nmk_chip;
+			unsigned int bit;
+
+			nmk_chip = find_nmk_gpio_from_pin(g->grp.pins[i], &bit);
+			if (!nmk_chip) {
+				dev_err(npct->dev,
+					"invalid pin offset %d in group %s at index %d\n",
+					g->grp.pins[i], g->grp.name, i);
+				goto out_pre_slpm_init;
+			}
+
+			slpm[nmk_chip->bank] &= ~BIT(bit);
 		}
 		nmk_gpio_glitch_slpm_init(slpm);
 	}
@@ -915,7 +933,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 		struct nmk_gpio_chip *nmk_chip;
 		unsigned int bit;
 
-		nmk_chip = find_nmk_gpio_from_pin(g->grp.pins[i]);
+		nmk_chip = find_nmk_gpio_from_pin(g->grp.pins[i], &bit);
 		if (!nmk_chip) {
 			dev_err(npct->dev,
 				"invalid pin offset %d in group %s at index %d\n",
@@ -926,7 +944,6 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 			g->grp.pins[i], g->altsetting);
 
 		clk_enable(nmk_chip->clk);
-		bit = g->grp.pins[i] % NMK_GPIO_PER_CHIP;
 		/*
 		 * If the pin is switching to altfunc, and there was an
 		 * interrupt installed on it which has been lazy disabled,
@@ -957,17 +974,18 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
 	ret = 0;
 
 out_glitch:
-	if (glitch) {
+	if (glitch)
 		nmk_gpio_glitch_slpm_restore(slpm);
+out_pre_slpm_init:
+	if (glitch)
 		spin_unlock_irqrestore(&nmk_gpio_slpm_lock, flags);
-	}
 
 	return ret;
 }
 
 static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 				   struct pinctrl_gpio_range *range,
-				   unsigned int offset)
+				   unsigned int pin)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	struct nmk_gpio_chip *nmk_chip;
@@ -985,10 +1003,11 @@ static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 	chip = range->gc;
 	nmk_chip = gpiochip_get_data(chip);
 
-	dev_dbg(npct->dev, "enable pin %u as GPIO\n", offset);
+	dev_dbg(npct->dev, "enable pin %u as GPIO\n", pin);
+
+	find_nmk_gpio_from_pin(pin, &bit);
 
 	clk_enable(nmk_chip->clk);
-	bit = offset % NMK_GPIO_PER_CHIP;
 	/* There is no glitch when converting any pin to GPIO */
 	__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
 	clk_disable(nmk_chip->clk);
@@ -998,11 +1017,11 @@ static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
 				  struct pinctrl_gpio_range *range,
-				  unsigned int offset)
+				  unsigned int pin)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
-	dev_dbg(npct->dev, "disable pin %u as GPIO\n", offset);
+	dev_dbg(npct->dev, "disable pin %u as GPIO\n", pin);
 	/* Set the pin to some default state, GPIO is usually default */
 }
 
@@ -1043,7 +1062,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 	int pull, slpm, output, val, i;
 	bool lowemi, gpiomode, sleep;
 
-	nmk_chip = find_nmk_gpio_from_pin(pin);
+	nmk_chip = find_nmk_gpio_from_pin(pin, &bit);
 	if (!nmk_chip) {
 		dev_err(npct->dev,
 			"invalid pin offset %d\n", pin);
@@ -1101,7 +1120,6 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			lowemi ? "on" : "off");
 
 		clk_enable(nmk_chip->clk);
-		bit = pin % NMK_GPIO_PER_CHIP;
 		if (gpiomode)
 			/* No glitch when going to GPIO mode */
 			__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
