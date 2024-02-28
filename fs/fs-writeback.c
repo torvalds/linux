@@ -166,8 +166,7 @@ static void wb_wakeup_delayed(struct bdi_writeback *wb)
 	spin_unlock_irq(&wb->work_lock);
 }
 
-static void finish_writeback_work(struct bdi_writeback *wb,
-				  struct wb_writeback_work *work)
+static void finish_writeback_work(struct wb_writeback_work *work)
 {
 	struct wb_completion *done = work->done;
 
@@ -196,7 +195,7 @@ static void wb_queue_work(struct bdi_writeback *wb,
 		list_add_tail(&work->list, &wb->work_list);
 		mod_delayed_work(bdi_wq, &wb->dwork, 0);
 	} else
-		finish_writeback_work(wb, work);
+		finish_writeback_work(work);
 
 	spin_unlock_irq(&wb->work_lock);
 }
@@ -2272,7 +2271,7 @@ static long wb_do_writeback(struct bdi_writeback *wb)
 	while ((work = get_next_work_item(wb)) != NULL) {
 		trace_writeback_exec(wb, work);
 		wrote += wb_writeback(wb, work);
-		finish_writeback_work(wb, work);
+		finish_writeback_work(work);
 	}
 
 	/*
