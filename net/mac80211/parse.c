@@ -129,19 +129,15 @@ ieee80211_parse_extension_element(u32 *crc,
 			switch (le16_get_bits(mle->control,
 					      IEEE80211_ML_CONTROL_TYPE)) {
 			case IEEE80211_ML_CONTROL_TYPE_BASIC:
-				if (elems->ml_basic) {
+				if (elems->ml_basic_elem) {
 					elems->parse_error |=
 						IEEE80211_PARSE_ERR_DUP_NEST_ML_BASIC;
 					break;
 				}
 				elems->ml_basic_elem = (void *)elem;
-				elems->ml_basic = data;
-				elems->ml_basic_len = len;
 				break;
 			case IEEE80211_ML_CONTROL_TYPE_RECONF:
 				elems->ml_reconf_elem = (void *)elem;
-				elems->ml_reconf = data;
-				elems->ml_reconf_len = len;
 				break;
 			default:
 				break;
@@ -776,9 +772,6 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 	const struct element *non_inherit = NULL;
 	const u8 *end;
 
-	if (params->link_id == -1)
-		return;
-
 	ml_len = cfg80211_defragment_element(elems->ml_basic_elem,
 					     elems->ie_start,
 					     elems->total_len,
@@ -794,6 +787,9 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 	elems->ml_basic = (const void *)elems->scratch_pos;
 	elems->ml_basic_len = ml_len;
 	elems->scratch_pos += ml_len;
+
+	if (params->link_id == -1)
+		return;
 
 	ieee80211_mle_get_sta_prof(elems, params->link_id);
 	prof = elems->prof;

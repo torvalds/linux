@@ -5760,7 +5760,7 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 	u8 link_id;
 	u32 delay;
 
-	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_reconf)
+	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_reconf_elem)
 		return;
 
 	ml_len = cfg80211_defragment_element(elems->ml_reconf_elem,
@@ -5773,9 +5773,7 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 	if (ml_len < 0)
 		return;
 
-	elems->ml_reconf = (const void *)elems->scratch_pos;
-	elems->ml_reconf_len = ml_len;
-	ml = elems->ml_reconf;
+	ml = (const void *)elems->scratch_pos;
 
 	/* Directly parse the sub elements as the common information doesn't
 	 * hold any useful information.
