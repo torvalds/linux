@@ -6699,7 +6699,7 @@ int addrconf_disable_policy(struct ctl_table *ctl, int *valp, int val)
 	if (!rtnl_trylock())
 		return restart_syscall();
 
-	*valp = val;
+	WRITE_ONCE(*valp, val);
 
 	net = (struct net *)ctl->extra2;
 	if (valp == &net->ipv6.devconf_dflt->disable_policy) {

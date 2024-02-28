@@ -4584,8 +4584,8 @@ struct fib6_info *addrconf_f6i_alloc(struct net *net,
 		f6i->dst_nocount = true;
 
 		if (!anycast &&
-		    (net->ipv6.devconf_all->disable_policy ||
-		     idev->cnf.disable_policy))
+		    (READ_ONCE(net->ipv6.devconf_all->disable_policy) ||
+		     READ_ONCE(idev->cnf.disable_policy)))
 			f6i->dst_nopolicy = true;
 	}
 
