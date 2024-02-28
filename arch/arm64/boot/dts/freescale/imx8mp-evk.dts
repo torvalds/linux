@@ -145,6 +145,13 @@
 
 	};
 
+	sound-hdmi {
+		compatible = "fsl,imx-audio-hdmi";
+		model = "audio-hdmi";
+		audio-cpu = <&aud2htx>;
+		hdmi-out;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -196,6 +203,10 @@
 
 &A53_3 {
 	cpu-supply = <&reg_arm>;
+};
+
+&aud2htx {
+	status = "okay";
 };
 
 &eqos {
