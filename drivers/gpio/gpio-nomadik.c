@@ -488,7 +488,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	struct gpio_chip *chip;
 	struct clk *clk;
 	void __iomem *base;
-	u32 id;
+	u32 id, ngpio;
 
 	gpio_dev = bus_find_device_by_of_node(&platform_bus_type, np);
 	if (!gpio_dev) {
@@ -518,10 +518,15 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	if (device_property_read_u32(gpio_dev, "ngpios", &ngpio)) {
+		ngpio = NMK_GPIO_PER_CHIP;
+		dev_dbg(&pdev->dev, "populate: using default ngpio (%d)\n", ngpio);
+	}
+
 	nmk_chip->bank = id;
 	chip = &nmk_chip->chip;
 	chip->base = -1;
-	chip->ngpio = NMK_GPIO_PER_CHIP;
+	chip->ngpio = ngpio;
 	chip->label = dev_name(gpio_dev);
 	chip->parent = gpio_dev;
 
