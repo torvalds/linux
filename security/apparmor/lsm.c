@@ -784,7 +784,7 @@ static int apparmor_getselfattr(unsigned int attr, struct lsm_ctx __user *lx,
 	int error = -ENOENT;
 	struct aa_task_ctx *ctx = task_ctx(current);
 	struct aa_label *label = NULL;
-	char *value;
+	char *value = NULL;
 
 	switch (attr) {
 	case LSM_ATTR_CURRENT:
