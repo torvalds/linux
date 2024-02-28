@@ -2709,7 +2709,8 @@ int iwl_mvm_pre_channel_switch(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ieee80211_channel_switch *chsw);
 void iwl_mvm_abort_channel_switch(struct ieee80211_hw *hw,
-				  struct ieee80211_vif *vif);
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_bss_conf *link_conf);
 void iwl_mvm_channel_switch_rx_beacon(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      struct ieee80211_channel_switch *chsw);

@@ -4268,7 +4268,7 @@ struct ieee80211_prep_tx_info {
  *	after a channel switch procedure is completed, allowing the
  *	driver to go back to a normal configuration.
  * @abort_channel_switch: This is an optional callback that is called
- *	when channel switch procedure was completed, allowing the
+ *	when channel switch procedure was aborted, allowing the
  *	driver to go back to a normal configuration.
  * @channel_switch_rx_beacon: This is an optional callback that is called
  *	when channel switch procedure is in progress and additional beacon with
@@ -4664,7 +4664,8 @@ struct ieee80211_ops {
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *link_conf);
 	void (*abort_channel_switch)(struct ieee80211_hw *hw,
-				     struct ieee80211_vif *vif);
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_bss_conf *link_conf);
 	void (*channel_switch_rx_beacon)(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_channel_switch *ch_switch);

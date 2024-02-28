@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018 - 2019, 2021 - 2023 Intel Corporation
+* Copyright (C) 2018-2019, 2021-2024 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -1180,8 +1180,9 @@ drv_post_channel_switch(struct ieee80211_link_data *link)
 }
 
 static inline void
-drv_abort_channel_switch(struct ieee80211_sub_if_data *sdata)
+drv_abort_channel_switch(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 
 	might_sleep();
@@ -1193,7 +1194,8 @@ drv_abort_channel_switch(struct ieee80211_sub_if_data *sdata)
 	trace_drv_abort_channel_switch(local, sdata);
 
 	if (local->ops->abort_channel_switch)
-		local->ops->abort_channel_switch(&local->hw, &sdata->vif);
+		local->ops->abort_channel_switch(&local->hw, &sdata->vif,
+						 link->conf);
 }
 
 static inline void

@@ -2004,7 +2004,7 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 	link->csa_block_tx = false;
 	link->conf->csa_active = false;
 
-	drv_abort_channel_switch(sdata);
+	drv_abort_channel_switch(link);
 }
 
 static void
