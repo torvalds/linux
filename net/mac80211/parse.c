@@ -862,7 +862,6 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 					      elems, params->bss,
 					      nontransmitted_profile);
 	elems->scratch_pos += nontransmitted_profile_len;
-	elems->scratch_len -= nontransmitted_profile_len;
 	non_inherit = cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
 					     nontransmitted_profile,
 					     nontransmitted_profile_len);
