@@ -35,6 +35,7 @@
 #include "intel_dkl_phy.h"
 #include "intel_dmc.h"
 #include "intel_dp.h"
+#include "intel_dp_tunnel.h"
 #include "intel_dpll.h"
 #include "intel_dpll_mgr.h"
 #include "intel_fb.h"
@@ -434,10 +435,8 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 
 	for_each_pipe(i915, pipe) {
 		ret = intel_crtc_init(i915, pipe);
-		if (ret) {
-			intel_mode_config_cleanup(i915);
-			return ret;
-		}
+		if (ret)
+			goto err_mode_config;
 	}
 
 	intel_plane_possible_crtcs_init(i915);
@@ -457,6 +456,10 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 	intel_vga_disable(i915);
 	intel_setup_outputs(i915);
 
+	ret = intel_dp_tunnel_mgr_init(i915);
+	if (ret)
+		goto err_hdcp;
+
 	intel_display_driver_disable_user_access(i915);
 
 	drm_modeset_lock_all(dev);
@@ -475,6 +478,13 @@ int intel_display_driver_probe_nogem(struct drm_i915_private *i915)
 		ilk_wm_sanitize(i915);
 
 	return 0;
+
+err_hdcp:
+	intel_hdcp_component_fini(i915);
+err_mode_config:
+	intel_mode_config_cleanup(i915);
+
+	return ret;
 }
 
 /* part #3: call after gem init */
@@ -598,6 +608,8 @@ void intel_display_driver_remove_noirq(struct drm_i915_private *i915)
 	intel_hdcp_component_fini(i915);
 
 	intel_mode_config_cleanup(i915);
+
+	intel_dp_tunnel_mgr_cleanup(i915);
 
 	intel_overlay_cleanup(i915);
 

@@ -933,6 +933,9 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	struct i2c_adapter *ddc;
 	int ret;
 
+	if (!intel_display_driver_check_access(dev_priv))
+		return drm_edid_connector_add_modes(connector);
+
 	wakeref = intel_display_power_get(dev_priv,
 					  intel_encoder->power_domain);
 

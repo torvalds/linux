@@ -70,26 +70,25 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 	{0, 1, 400, 800, 6042, 36042, 6584, 36584},    /* DDR3-800 SC */
 };
 
-static const struct cxsr_latency *intel_get_cxsr_latency(bool is_desktop,
-							 bool is_ddr3,
-							 int fsb,
-							 int mem)
+static const struct cxsr_latency *intel_get_cxsr_latency(struct drm_i915_private *i915)
 {
-	const struct cxsr_latency *latency;
 	int i;
 
-	if (fsb == 0 || mem == 0)
+	if (i915->fsb_freq == 0 || i915->mem_freq == 0)
 		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(cxsr_latency_table); i++) {
-		latency = &cxsr_latency_table[i];
+		const struct cxsr_latency *latency = &cxsr_latency_table[i];
+		bool is_desktop = !IS_MOBILE(i915);
+
 		if (is_desktop == latency->is_desktop &&
-		    is_ddr3 == latency->is_ddr3 &&
-		    fsb == latency->fsb_freq && mem == latency->mem_freq)
+		    i915->is_ddr3 == latency->is_ddr3 &&
+		    i915->fsb_freq == latency->fsb_freq &&
+		    i915->mem_freq == latency->mem_freq)
 			return latency;
 	}
 
-	DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
+	drm_dbg_kms(&i915->drm, "Unknown FSB/MEM found, disable CxSR\n");
 
 	return NULL;
 }
@@ -525,6 +524,7 @@ static unsigned int intel_wm_method2(unsigned int pixel_rate,
 
 /**
  * intel_calculate_wm - calculate watermark level
+ * @i915: the device
  * @pixel_rate: pixel clock
  * @wm: chip FIFO params
  * @fifo_size: size of the FIFO buffer
@@ -542,7 +542,8 @@ static unsigned int intel_wm_method2(unsigned int pixel_rate,
  * past the watermark point.  If the FIFO drains completely, a FIFO underrun
  * will occur, and a display engine hang could result.
  */
-static unsigned int intel_calculate_wm(int pixel_rate,
+static unsigned int intel_calculate_wm(struct drm_i915_private *i915,
+				       int pixel_rate,
 				       const struct intel_watermark_params *wm,
 				       int fifo_size, int cpp,
 				       unsigned int latency_ns)
@@ -559,10 +560,10 @@ static unsigned int intel_calculate_wm(int pixel_rate,
 				   latency_ns / 100);
 	entries = DIV_ROUND_UP(entries, wm->cacheline_size) +
 		wm->guard_size;
-	DRM_DEBUG_KMS("FIFO entries required for mode: %d\n", entries);
+	drm_dbg_kms(&i915->drm, "FIFO entries required for mode: %d\n", entries);
 
 	wm_size = fifo_size - entries;
-	DRM_DEBUG_KMS("FIFO watermark level: %d\n", wm_size);
+	drm_dbg_kms(&i915->drm, "FIFO watermark level: %d\n", wm_size);
 
 	/* Don't promote wm_size to unsigned... */
 	if (wm_size > wm->max_wm)
@@ -634,10 +635,7 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 	u32 reg;
 	unsigned int wm;
 
-	latency = intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
-					 dev_priv->is_ddr3,
-					 dev_priv->fsb_freq,
-					 dev_priv->mem_freq);
+	latency = intel_get_cxsr_latency(dev_priv);
 	if (!latency) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "Unknown FSB/MEM found, disable CxSR\n");
@@ -653,7 +651,8 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 		int cpp = fb->format->cpp[0];
 
 		/* Display SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_display_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_display_wm,
 					pnv_display_wm.fifo_size,
 					cpp, latency->display_sr);
 		reg = intel_uncore_read(&dev_priv->uncore, DSPFW1);
@@ -663,20 +662,23 @@ static void pnv_update_wm(struct drm_i915_private *dev_priv)
 		drm_dbg_kms(&dev_priv->drm, "DSPFW1 register is %x\n", reg);
 
 		/* cursor SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_cursor_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_cursor_wm,
 					pnv_display_wm.fifo_size,
 					4, latency->cursor_sr);
 		intel_uncore_rmw(&dev_priv->uncore, DSPFW3, DSPFW_CURSOR_SR_MASK,
 				 FW_WM(wm, CURSOR_SR));
 
 		/* Display HPLL off SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_display_hplloff_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_display_hplloff_wm,
 					pnv_display_hplloff_wm.fifo_size,
 					cpp, latency->display_hpll_disable);
 		intel_uncore_rmw(&dev_priv->uncore, DSPFW3, DSPFW_HPLL_SR_MASK, FW_WM(wm, HPLL_SR));
 
 		/* cursor HPLL off SR */
-		wm = intel_calculate_wm(pixel_rate, &pnv_cursor_hplloff_wm,
+		wm = intel_calculate_wm(dev_priv, pixel_rate,
+					&pnv_cursor_hplloff_wm,
 					pnv_display_hplloff_wm.fifo_size,
 					4, latency->cursor_hpll_disable);
 		reg = intel_uncore_read(&dev_priv->uncore, DSPFW3);
@@ -2124,7 +2126,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		else
 			cpp = fb->format->cpp[0];
 
-		planea_wm = intel_calculate_wm(crtc->config->pixel_rate,
+		planea_wm = intel_calculate_wm(dev_priv, crtc->config->pixel_rate,
 					       wm_info, fifo_size, cpp,
 					       pessimal_latency_ns);
 	} else {
@@ -2151,7 +2153,7 @@ static void i9xx_update_wm(struct drm_i915_private *dev_priv)
 		else
 			cpp = fb->format->cpp[0];
 
-		planeb_wm = intel_calculate_wm(crtc->config->pixel_rate,
+		planeb_wm = intel_calculate_wm(dev_priv, crtc->config->pixel_rate,
 					       wm_info, fifo_size, cpp,
 					       pessimal_latency_ns);
 	} else {
@@ -2245,7 +2247,7 @@ static void i845_update_wm(struct drm_i915_private *dev_priv)
 	if (crtc == NULL)
 		return;
 
-	planea_wm = intel_calculate_wm(crtc->config->pixel_rate,
+	planea_wm = intel_calculate_wm(dev_priv, crtc->config->pixel_rate,
 				       &i845_wm_info,
 				       i845_get_fifo_size(dev_priv, PLANE_A),
 				       4, pessimal_latency_ns);
@@ -2531,7 +2533,8 @@ static void ilk_compute_wm_reg_maximums(const struct drm_i915_private *dev_priv,
 	max->fbc = ilk_fbc_wm_reg_max(dev_priv);
 }
 
-static bool ilk_validate_wm_level(int level,
+static bool ilk_validate_wm_level(struct drm_i915_private *i915,
+				  int level,
 				  const struct ilk_wm_maximums *max,
 				  struct intel_wm_level *result)
 {
@@ -2554,14 +2557,17 @@ static bool ilk_validate_wm_level(int level,
 	 */
 	if (level == 0 && !result->enable) {
 		if (result->pri_val > max->pri)
-			DRM_DEBUG_KMS("Primary WM%d too large %u (max %u)\n",
-				      level, result->pri_val, max->pri);
+			drm_dbg_kms(&i915->drm,
+				    "Primary WM%d too large %u (max %u)\n",
+				    level, result->pri_val, max->pri);
 		if (result->spr_val > max->spr)
-			DRM_DEBUG_KMS("Sprite WM%d too large %u (max %u)\n",
-				      level, result->spr_val, max->spr);
+			drm_dbg_kms(&i915->drm,
+				    "Sprite WM%d too large %u (max %u)\n",
+				    level, result->spr_val, max->spr);
 		if (result->cur_val > max->cur)
-			DRM_DEBUG_KMS("Cursor WM%d too large %u (max %u)\n",
-				      level, result->cur_val, max->cur);
+			drm_dbg_kms(&i915->drm,
+				    "Cursor WM%d too large %u (max %u)\n",
+				    level, result->cur_val, max->cur);
 
 		result->pri_val = min_t(u32, result->pri_val, max->pri);
 		result->spr_val = min_t(u32, result->spr_val, max->spr);
@@ -2761,7 +2767,7 @@ static void ilk_setup_wm_latency(struct drm_i915_private *dev_priv)
 	}
 }
 
-static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
+static bool ilk_validate_pipe_wm(struct drm_i915_private *dev_priv,
 				 struct intel_pipe_wm *pipe_wm)
 {
 	/* LP0 watermark maximums depend on this pipe alone */
@@ -2776,7 +2782,7 @@ static bool ilk_validate_pipe_wm(const struct drm_i915_private *dev_priv,
 	ilk_compute_wm_maximums(dev_priv, 0, &config, INTEL_DDB_PART_1_2, &max);
 
 	/* At least LP0 must be valid */
-	if (!ilk_validate_wm_level(0, &max, &pipe_wm->wm[0])) {
+	if (!ilk_validate_wm_level(dev_priv, 0, &max, &pipe_wm->wm[0])) {
 		drm_dbg_kms(&dev_priv->drm, "LP0 watermark invalid\n");
 		return false;
 	}
@@ -2845,7 +2851,7 @@ static int ilk_compute_pipe_wm(struct intel_atomic_state *state,
 		 * register maximums since such watermarks are
 		 * always invalid.
 		 */
-		if (!ilk_validate_wm_level(level, &max, wm)) {
+		if (!ilk_validate_wm_level(dev_priv, level, &max, wm)) {
 			memset(wm, 0, sizeof(*wm));
 			break;
 		}
@@ -2976,7 +2982,7 @@ static void ilk_wm_merge(struct drm_i915_private *dev_priv,
 
 		if (level > last_enabled_level)
 			wm->enable = false;
-		else if (!ilk_validate_wm_level(level, max, wm))
+		else if (!ilk_validate_wm_level(dev_priv, level, max, wm))
 			/* make sure all following levels get disabled */
 			last_enabled_level = level - 1;
 
@@ -4016,10 +4022,7 @@ void i9xx_wm_init(struct drm_i915_private *dev_priv)
 		g4x_setup_wm_latency(dev_priv);
 		dev_priv->display.funcs.wm = &g4x_wm_funcs;
 	} else if (IS_PINEVIEW(dev_priv)) {
-		if (!intel_get_cxsr_latency(!IS_MOBILE(dev_priv),
-					    dev_priv->is_ddr3,
-					    dev_priv->fsb_freq,
-					    dev_priv->mem_freq)) {
+		if (!intel_get_cxsr_latency(dev_priv)) {
 			drm_info(&dev_priv->drm,
 				 "failed to find known CxSR latency "
 				 "(found ddr%s fsb freq %d, mem freq %d), "

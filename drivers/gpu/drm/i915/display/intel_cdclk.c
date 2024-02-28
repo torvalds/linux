@@ -63,6 +63,16 @@
  * DMC will not change the active CDCLK frequency however, so that part
  * will still be performed by the driver directly.
  *
+ * Several methods exist to change the CDCLK frequency, which ones are
+ * supported depends on the platform:
+ *
+ * - Full PLL disable + re-enable with new VCO frequency. Pipes must be inactive.
+ * - CD2X divider update. Single pipe can be active as the divider update
+ *   can be synchronized with the pipe's start of vblank.
+ * - Crawl the PLL smoothly to the new VCO frequency. Pipes can be active.
+ * - Squash waveform update. Pipes can be active.
+ * - Crawl and squash can also be done back to back. Pipes can be active.
+ *
  * RAWCLK is a fixed frequency clock, often used by various auxiliary
  * blocks such as AUX CH or backlight PWM. Hence the only thing we
  * really need to know about RAWCLK is its frequency so that various
@@ -1406,6 +1416,20 @@ static const struct intel_cdclk_vals lnl_cdclk_table[] = {
 	{}
 };
 
+static const int cdclk_squash_len = 16;
+
+static int cdclk_squash_divider(u16 waveform)
+{
+	return hweight16(waveform ?: 0xffff);
+}
+
+static int cdclk_divider(int cdclk, int vco, u16 waveform)
+{
+	/* 2 * cd2x divider */
+	return DIV_ROUND_CLOSEST(vco * cdclk_squash_divider(waveform),
+				 cdclk * cdclk_squash_len);
+}
+
 static int bxt_calc_cdclk(struct drm_i915_private *dev_priv, int min_cdclk)
 {
 	const struct intel_cdclk_vals *table = dev_priv->display.cdclk.table;
@@ -1744,10 +1768,10 @@ static u32 bxt_cdclk_cd2x_pipe(struct drm_i915_private *dev_priv, enum pipe pipe
 }
 
 static u32 bxt_cdclk_cd2x_div_sel(struct drm_i915_private *dev_priv,
-				  int cdclk, int vco)
+				  int cdclk, int vco, u16 waveform)
 {
 	/* cdclk = vco / 2 / div{1,1.5,2,4} */
-	switch (DIV_ROUND_CLOSEST(vco, cdclk)) {
+	switch (cdclk_divider(cdclk, vco, waveform)) {
 	default:
 		drm_WARN_ON(&dev_priv->drm,
 			    cdclk != dev_priv->display.cdclk.hw.bypass);
@@ -1764,7 +1788,7 @@ static u32 bxt_cdclk_cd2x_div_sel(struct drm_i915_private *dev_priv,
 	}
 }
 
-static u32 cdclk_squash_waveform(struct drm_i915_private *dev_priv,
+static u16 cdclk_squash_waveform(struct drm_i915_private *dev_priv,
 				 int cdclk)
 {
 	const struct intel_cdclk_vals *table = dev_priv->display.cdclk.table;
@@ -1826,20 +1850,13 @@ static bool cdclk_pll_is_unknown(unsigned int vco)
 	return vco == ~0;
 }
 
-static const int cdclk_squash_len = 16;
-
-static int cdclk_squash_divider(u16 waveform)
-{
-	return hweight16(waveform ?: 0xffff);
-}
-
 static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i915,
 						    const struct intel_cdclk_config *old_cdclk_config,
 						    const struct intel_cdclk_config *new_cdclk_config,
 						    struct intel_cdclk_config *mid_cdclk_config)
 {
 	u16 old_waveform, new_waveform, mid_waveform;
-	int div = 2;
+	int old_div, new_div, mid_div;
 
 	/* Return if PLL is in an unknown state, force a complete disable and re-enable. */
 	if (cdclk_pll_is_unknown(old_cdclk_config->vco))
@@ -1858,6 +1875,18 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 	    old_waveform == new_waveform)
 		return false;
 
+	old_div = cdclk_divider(old_cdclk_config->cdclk,
+				old_cdclk_config->vco, old_waveform);
+	new_div = cdclk_divider(new_cdclk_config->cdclk,
+				new_cdclk_config->vco, new_waveform);
+
+	/*
+	 * Should not happen currently. We might need more midpoint
+	 * transitions if we need to also change the cd2x divider.
+	 */
+	if (drm_WARN_ON(&i915->drm, old_div != new_div))
+		return false;
+
 	*mid_cdclk_config = *new_cdclk_config;
 
 	/*
@@ -1870,15 +1899,17 @@ static bool cdclk_compute_crawl_and_squash_midpoint(struct drm_i915_private *i91
 
 	if (cdclk_squash_divider(new_waveform) > cdclk_squash_divider(old_waveform)) {
 		mid_cdclk_config->vco = old_cdclk_config->vco;
+		mid_div = old_div;
 		mid_waveform = new_waveform;
 	} else {
 		mid_cdclk_config->vco = new_cdclk_config->vco;
+		mid_div = new_div;
 		mid_waveform = old_waveform;
 	}
 
 	mid_cdclk_config->cdclk = DIV_ROUND_CLOSEST(cdclk_squash_divider(mid_waveform) *
 						    mid_cdclk_config->vco,
-						    cdclk_squash_len * div);
+						    cdclk_squash_len * mid_div);
 
 	/* make sure the mid clock came out sane */
 
@@ -1906,16 +1937,12 @@ static u32 bxt_cdclk_ctl(struct drm_i915_private *i915,
 {
 	int cdclk = cdclk_config->cdclk;
 	int vco = cdclk_config->vco;
-	int unsquashed_cdclk;
 	u16 waveform;
 	u32 val;
 
 	waveform = cdclk_squash_waveform(i915, cdclk);
 
-	unsquashed_cdclk = DIV_ROUND_CLOSEST(cdclk * cdclk_squash_len,
-					     cdclk_squash_divider(waveform));
-
-	val = bxt_cdclk_cd2x_div_sel(i915, unsquashed_cdclk, vco) |
+	val = bxt_cdclk_cd2x_div_sel(i915, cdclk, vco, waveform) |
 		bxt_cdclk_cd2x_pipe(i915, pipe);
 
 	/*

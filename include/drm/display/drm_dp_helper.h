@@ -811,5 +811,6 @@ int drm_dp_bw_overhead(int lane_count, int hactive,
 		       int dsc_slice_count,
 		       int bpp_x16, unsigned long flags);
 int drm_dp_bw_channel_coding_efficiency(bool is_uhbr);
+int drm_dp_max_dprx_data_rate(int max_link_rate, int max_lanes);
 
 #endif /* _DRM_DP_HELPER_H_ */
