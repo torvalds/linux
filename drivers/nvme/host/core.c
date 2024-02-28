@@ -3119,6 +3119,11 @@ static int nvme_check_ctrl_fabric_info(struct nvme_ctrl *ctrl, struct nvme_id_ct
 		return -EINVAL;
 	}
 
+	if (!ctrl->maxcmd) {
+		dev_err(ctrl->device, "Maximum outstanding commands is 0\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
