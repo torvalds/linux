@@ -720,9 +720,6 @@ static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 	ssize_t ml_len = elems->ml_basic_len;
 	const struct element *sub;
 
-	if (!ml || !ml_len)
-		return;
-
 	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
 		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
 		ssize_t sta_prof_len;
