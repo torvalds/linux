@@ -320,9 +320,8 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	dynamic_scs_init();
 
 	/*
-	 * Unmask asynchronous aborts and fiq after bringing up possible
-	 * earlycon. (Report possible System Errors once we can report this
-	 * occurred).
+	 * Unmask SError as soon as possible after initializing earlycon so
+	 * that we can report any SErrors immediately.
 	 */
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
 
