@@ -57,6 +57,7 @@ struct nmk_gpio_chip {
 	void (*set_ioforce)(bool enable);
 	spinlock_t lock;
 	bool sleepmode;
+	bool is_mobileye_soc;
 	/* Keep track of configured edges */
 	u32 edge_rising;
 	u32 edge_falling;

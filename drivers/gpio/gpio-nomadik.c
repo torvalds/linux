@@ -7,6 +7,12 @@
  * The GPIO chips are shared with pinctrl-nomadik if used; it needs access for
  * pinmuxing functionality and others.
  *
+ * This driver also handles the mobileye,eyeq5-gpio compatible. It is an STA2X11
+ * but with only data, direction and interrupts register active. We want to
+ * avoid touching SLPM, RWIMSC, FWIMSC, AFSLA and AFSLB registers; that is,
+ * wake and alternate function registers. It is NOT compatible with
+ * pinctrl-nomadik.
+ *
  * Copyright (C) 2008,2009 STMicroelectronics
  * Copyright (C) 2009 Alessandro Rubini <rubini@unipv.it>
  *   Rewritten based on work by Prafulla WADASKAR <prafulla.wadaskar@st.com>
@@ -36,6 +42,10 @@ void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip, unsigned int offset,
 			 enum nmk_gpio_slpm mode)
 {
 	u32 slpm;
+
+	/* We should NOT have been called. */
+	if (WARN_ON(nmk_chip->is_mobileye_soc))
+		return;
 
 	slpm = readl(nmk_chip->addr + NMK_GPIO_SLPC);
 	if (mode == NMK_GPIO_SLPM_NOCHANGE)
@@ -93,6 +103,9 @@ static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
 		rimscval = &nmk_chip->rimsc;
 		fimscval = &nmk_chip->fimsc;
 	} else  {
+		/* We should NOT have been called. */
+		if (WARN_ON(nmk_chip->is_mobileye_soc))
+			return;
 		rimscreg = NMK_GPIO_RWIMSC;
 		fimscreg = NMK_GPIO_FWIMSC;
 		rimscval = &nmk_chip->rwimsc;
@@ -119,6 +132,10 @@ static void __nmk_gpio_irq_modify(struct nmk_gpio_chip *nmk_chip,
 static void __nmk_gpio_set_wake(struct nmk_gpio_chip *nmk_chip,
 				int offset, bool on)
 {
+	/* We should NOT have been called. */
+	if (WARN_ON(nmk_chip->is_mobileye_soc))
+		return;
+
 	/*
 	 * Ensure WAKEUP_ENABLE is on.  No need to disable it if wakeup is
 	 * disabled, since setting SLPM to 1 increases power consumption, and
@@ -143,7 +160,7 @@ static void nmk_gpio_irq_maskunmask(struct nmk_gpio_chip *nmk_chip,
 
 	__nmk_gpio_irq_modify(nmk_chip, d->hwirq, NORMAL, enable);
 
-	if (!(nmk_chip->real_wake & BIT(d->hwirq)))
+	if (!nmk_chip->is_mobileye_soc && !(nmk_chip->real_wake & BIT(d->hwirq)))
 		__nmk_gpio_set_wake(nmk_chip, d->hwirq, enable);
 
 	spin_unlock(&nmk_chip->lock);
@@ -174,6 +191,10 @@ static int nmk_gpio_irq_set_wake(struct irq_data *d, unsigned int on)
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(gc);
 	unsigned long flags;
+
+	/* Handler is registered in all cases. */
+	if (nmk_chip->is_mobileye_soc)
+		return -ENXIO;
 
 	clk_enable(nmk_chip->clk);
 	spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
@@ -213,7 +234,7 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	if (enabled)
 		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, NORMAL, false);
 
-	if (enabled || wake)
+	if (!nmk_chip->is_mobileye_soc && (enabled || wake))
 		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, WAKE, false);
 
 	nmk_chip->edge_rising &= ~BIT(d->hwirq);
@@ -227,7 +248,7 @@ static int nmk_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	if (enabled)
 		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, NORMAL, true);
 
-	if (enabled || wake)
+	if (!nmk_chip->is_mobileye_soc && (enabled || wake))
 		__nmk_gpio_irq_modify(nmk_chip, d->hwirq, WAKE, true);
 
 	spin_unlock_irqrestore(&nmk_chip->lock, flags);
@@ -356,6 +377,10 @@ static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned int offset,
 static int nmk_gpio_get_mode(struct nmk_gpio_chip *nmk_chip, int offset)
 {
 	u32 afunc, bfunc;
+
+	/* We don't support modes. */
+	if (nmk_chip->is_mobileye_soc)
+		return NMK_GPIO_ALT_GPIO;
 
 	clk_enable(nmk_chip->clk);
 
@@ -523,6 +548,8 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 		dev_dbg(&pdev->dev, "populate: using default ngpio (%d)\n", ngpio);
 	}
 
+	nmk_chip->is_mobileye_soc = device_is_compatible(gpio_dev,
+							 "mobileye,eyeq5-gpio");
 	nmk_chip->bank = id;
 	chip = &nmk_chip->chip;
 	chip->base = -1;
@@ -636,9 +663,11 @@ static int nmk_gpio_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_enable(nmk_chip->clk);
-	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
-	clk_disable(nmk_chip->clk);
+	if (!nmk_chip->is_mobileye_soc) {
+		clk_enable(nmk_chip->clk);
+		nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
+		clk_disable(nmk_chip->clk);
+	}
 
 	ret = gpiochip_add_data(chip, nmk_chip);
 	if (ret)
@@ -653,6 +682,7 @@ static int nmk_gpio_probe(struct platform_device *pdev)
 
 static const struct of_device_id nmk_gpio_match[] = {
 	{ .compatible = "st,nomadik-gpio", },
+	{ .compatible = "mobileye,eyeq5-gpio", },
 	{}
 };
 

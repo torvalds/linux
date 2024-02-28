@@ -1230,6 +1230,8 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev,
 				"could not populate nmk chip struct - continue anyway\n");
 		of_node_put(gpio_np);
+		/* We are NOT compatible with mobileye,eyeq5-gpio. */
+		BUG_ON(nmk_chip->is_mobileye_soc);
 	}
 
 	prcm_np = of_parse_phandle(np, "prcm", 0);
