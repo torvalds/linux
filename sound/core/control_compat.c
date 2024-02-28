@@ -167,23 +167,18 @@ static int get_ctl_type(struct snd_card *card, struct snd_ctl_elem_id *id,
 	struct snd_ctl_elem_info *info __free(kfree) = NULL;
 	int err;
 
-	down_read(&card->controls_rwsem);
+	guard(rwsem_read)(&card->controls_rwsem);
 	kctl = snd_ctl_find_id_locked(card, id);
-	if (! kctl) {
-		up_read(&card->controls_rwsem);
+	if (!kctl)
 		return -ENOENT;
-	}
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL) {
-		up_read(&card->controls_rwsem);
+	if (info == NULL)
 		return -ENOMEM;
-	}
 	info->id = *id;
 	err = snd_power_ref_and_wait(card);
 	if (!err)
 		err = kctl->info(kctl, info);
 	snd_power_unref(card);
-	up_read(&card->controls_rwsem);
 	if (err >= 0) {
 		err = info->type;
 		*countp = info->count;
@@ -451,16 +446,13 @@ static inline long snd_ctl_ioctl_compat(struct file *file, unsigned int cmd, uns
 #endif /* CONFIG_X86_X32_ABI */
 	}
 
-	down_read(&snd_ioctl_rwsem);
+	guard(rwsem_read)(&snd_ioctl_rwsem);
 	list_for_each_entry(p, &snd_control_compat_ioctls, list) {
 		if (p->fioctl) {
 			err = p->fioctl(ctl->card, ctl, cmd, arg);
-			if (err != -ENOIOCTLCMD) {
-				up_read(&snd_ioctl_rwsem);
+			if (err != -ENOIOCTLCMD)
 				return err;
-			}
 		}
 	}
-	up_read(&snd_ioctl_rwsem);
 	return -ENOIOCTLCMD;
 }
