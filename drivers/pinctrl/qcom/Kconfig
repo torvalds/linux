@@ -23,6 +23,18 @@ config PINCTRL_PINEAPPLE
 	  Say Y here to compile statically, or M here to compile it as a
 	  module. If unsure, say N.
 
+config PINCTRL_ANORAK
+	tristate "Qualcomm Technologies Inc ANORAK pin controller driver"
+	depends on GPIOLIB && OF
+	select PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc Top Level Mode Multiplexer block (TLMM)
+	  block found on the Qualcomm Technologies Inc ANORAK platforms.
+	  This driver could also be used for a target supporting secondary VM.
+	  Say Y here to compile statically, or M here to compile it as a module.
+	  If unsure, say N.
+
 config PINCTRL_NIOBE
 	tristate "Qualcomm Technologies, Inc. NIOBE pin controller driver"
 	depends on GPIOLIB && OF
