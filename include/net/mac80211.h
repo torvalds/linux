@@ -5912,6 +5912,7 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
  * ieee80211_gtk_rekey_add - add a GTK key from rekeying during WoWLAN
  * @vif: the virtual interface to add the key on
  * @keyconf: new key data
+ * @link_id: the link id of the key or -1 for non-MLO
  *
  * When GTK rekeying was done while the system was suspended, (a) new
  * key(s) will be available. These will be needed by mac80211 for proper
@@ -5939,7 +5940,8 @@ void ieee80211_remove_key(struct ieee80211_key_conf *keyconf);
  */
 struct ieee80211_key_conf *
 ieee80211_gtk_rekey_add(struct ieee80211_vif *vif,
-			struct ieee80211_key_conf *keyconf);
+			struct ieee80211_key_conf *keyconf,
+			int link_id);
 
 /**
  * ieee80211_gtk_rekey_notify - notify userspace supplicant of rekeying
