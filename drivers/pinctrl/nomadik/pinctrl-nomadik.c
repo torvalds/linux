@@ -71,8 +71,6 @@
  * PIN_CFG	   - default config with alternate function
  */
 
-typedef unsigned long pin_cfg_t;
-
 #define PIN_NUM_MASK		0x1ff
 #define PIN_NUM(x)		((x) & PIN_NUM_MASK)
 
@@ -215,7 +213,7 @@ struct nmk_gpio_chip *nmk_gpio_chips[NMK_MAX_BANKS];
 DEFINE_SPINLOCK(nmk_gpio_slpm_lock);
 
 static void __nmk_gpio_set_mode(struct nmk_gpio_chip *nmk_chip,
-				unsigned offset, int gpio_mode)
+				unsigned int offset, int gpio_mode)
 {
 	u32 afunc, bfunc;
 
@@ -230,7 +228,7 @@ static void __nmk_gpio_set_mode(struct nmk_gpio_chip *nmk_chip,
 }
 
 static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
-				unsigned offset, enum nmk_gpio_pull pull)
+				unsigned int offset, enum nmk_gpio_pull pull)
 {
 	u32 pdis;
 
@@ -254,7 +252,7 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 }
 
 static void __nmk_gpio_set_lowemi(struct nmk_gpio_chip *nmk_chip,
-				  unsigned offset, bool lowemi)
+				  unsigned int offset, bool lowemi)
 {
 	bool enabled = nmk_chip->lowemi & BIT(offset);
 
@@ -271,13 +269,13 @@ static void __nmk_gpio_set_lowemi(struct nmk_gpio_chip *nmk_chip,
 }
 
 static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
-				  unsigned offset)
+				  unsigned int offset)
 {
 	writel(BIT(offset), nmk_chip->addr + NMK_GPIO_DIRC);
 }
 
 static void __nmk_gpio_set_mode_safe(struct nmk_gpio_chip *nmk_chip,
-				     unsigned offset, int gpio_mode,
+				     unsigned int offset, int gpio_mode,
 				     bool glitch)
 {
 	u32 rwimsc = nmk_chip->rwimsc;
@@ -304,7 +302,7 @@ static void __nmk_gpio_set_mode_safe(struct nmk_gpio_chip *nmk_chip,
 }
 
 static void
-nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned offset)
+nmk_gpio_disable_lazy_irq(struct nmk_gpio_chip *nmk_chip, unsigned int offset)
 {
 	u32 falling = nmk_chip->fimsc & BIT(offset);
 	u32 rising = nmk_chip->rimsc & BIT(offset);
@@ -343,7 +341,7 @@ static void nmk_write_masked(void __iomem *reg, u32 mask, u32 value)
 }
 
 static void nmk_prcm_altcx_set_mode(struct nmk_pinctrl *npct,
-	unsigned offset, unsigned alt_num)
+	unsigned int offset, unsigned int alt_num)
 {
 	int i;
 	u16 reg;
@@ -515,15 +513,15 @@ static int nmk_get_groups_cnt(struct pinctrl_dev *pctldev)
 }
 
 static const char *nmk_get_group_name(struct pinctrl_dev *pctldev,
-				       unsigned selector)
+				       unsigned int selector)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
 	return npct->soc->groups[selector].grp.name;
 }
 
-static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
-			      const unsigned **pins,
+static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned int selector,
+			      const unsigned int **pins,
 			      unsigned int *num_pins)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
@@ -533,7 +531,7 @@ static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned pin)
+static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned int pin)
 {
 	int i;
 	struct nmk_gpio_chip *nmk_gpio;
@@ -549,7 +547,7 @@ static struct nmk_gpio_chip *find_nmk_gpio_from_pin(unsigned pin)
 	return NULL;
 }
 
-static struct gpio_chip *find_gc_from_pin(unsigned pin)
+static struct gpio_chip *find_gc_from_pin(unsigned int pin)
 {
 	struct nmk_gpio_chip *nmk_gpio = find_nmk_gpio_from_pin(pin);
 
@@ -559,7 +557,7 @@ static struct gpio_chip *find_gc_from_pin(unsigned pin)
 }
 
 static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
-		   unsigned offset)
+		   unsigned int offset)
 {
 	struct gpio_chip *chip = find_gc_from_pin(offset);
 
@@ -570,8 +568,8 @@ static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 	nmk_gpio_dbg_show_one(s, pctldev, chip, offset - chip->base, offset);
 }
 
-static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned *reserved_maps,
-		unsigned *num_maps, const char *group,
+static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned int *reserved_maps,
+		unsigned int *num_maps, const char *group,
 		const char *function)
 {
 	if (*num_maps == *reserved_maps)
@@ -586,9 +584,9 @@ static int nmk_dt_add_map_mux(struct pinctrl_map **map, unsigned *reserved_maps,
 }
 
 static int nmk_dt_add_map_configs(struct pinctrl_map **map,
-		unsigned *reserved_maps,
-		unsigned *num_maps, const char *group,
-		unsigned long *configs, unsigned num_configs)
+		unsigned int *reserved_maps,
+		unsigned int *num_maps, const char *group,
+		unsigned long *configs, unsigned int num_configs)
 {
 	unsigned long *dup_configs;
 
@@ -727,8 +725,8 @@ static bool nmk_pinctrl_dt_get_config(struct device_node *np,
 static int nmk_pinctrl_dt_subnode_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np,
 		struct pinctrl_map **map,
-		unsigned *reserved_maps,
-		unsigned *num_maps)
+		unsigned int *reserved_maps,
+		unsigned int *num_maps)
 {
 	int ret;
 	const char *function = NULL;
@@ -795,9 +793,9 @@ exit:
 
 static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				 struct device_node *np_config,
-				 struct pinctrl_map **map, unsigned *num_maps)
+				 struct pinctrl_map **map, unsigned int *num_maps)
 {
-	unsigned reserved_maps;
+	unsigned int reserved_maps;
 	struct device_node *np;
 	int ret;
 
@@ -835,7 +833,7 @@ static int nmk_pmx_get_funcs_cnt(struct pinctrl_dev *pctldev)
 }
 
 static const char *nmk_pmx_get_func_name(struct pinctrl_dev *pctldev,
-					 unsigned function)
+					 unsigned int function)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
@@ -843,7 +841,7 @@ static const char *nmk_pmx_get_func_name(struct pinctrl_dev *pctldev,
 }
 
 static int nmk_pmx_get_func_groups(struct pinctrl_dev *pctldev,
-				   unsigned function,
+				   unsigned int function,
 				   const char * const **groups,
 				   unsigned * const num_groups)
 {
@@ -855,8 +853,8 @@ static int nmk_pmx_get_func_groups(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
-		       unsigned group)
+static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned int function,
+		       unsigned int group)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	const struct nmk_pingroup *g;
@@ -915,7 +913,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 
 	for (i = 0; i < g->grp.npins; i++) {
 		struct nmk_gpio_chip *nmk_chip;
-		unsigned bit;
+		unsigned int bit;
 
 		nmk_chip = find_nmk_gpio_from_pin(g->grp.pins[i]);
 		if (!nmk_chip) {
@@ -968,12 +966,12 @@ out_glitch:
 
 static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 				   struct pinctrl_gpio_range *range,
-				   unsigned offset)
+				   unsigned int offset)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
-	unsigned bit;
+	unsigned int bit;
 
 	if (!range) {
 		dev_err(npct->dev, "invalid range\n");
@@ -999,7 +997,7 @@ static int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 static void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
 				  struct pinctrl_gpio_range *range,
-				  unsigned offset)
+				  unsigned int offset)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
@@ -1017,30 +1015,30 @@ static const struct pinmux_ops nmk_pinmux_ops = {
 	.strict = true,
 };
 
-static int nmk_pin_config_get(struct pinctrl_dev *pctldev, unsigned pin,
+static int nmk_pin_config_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			      unsigned long *config)
 {
 	/* Not implemented */
 	return -EINVAL;
 }
 
-static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
-			      unsigned long *configs, unsigned num_configs)
+static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
+			      unsigned long *configs, unsigned int num_configs)
 {
-	static const char *pullnames[] = {
+	static const char * const pullnames[] = {
 		[NMK_GPIO_PULL_NONE]	= "none",
 		[NMK_GPIO_PULL_UP]	= "up",
 		[NMK_GPIO_PULL_DOWN]	= "down",
 		[3] /* illegal */	= "??"
 	};
-	static const char *slpmnames[] = {
+	static const char * const slpmnames[] = {
 		[NMK_GPIO_SLPM_INPUT]		= "input/wakeup",
 		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change/no-wakeup",
 	};
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 	struct nmk_gpio_chip *nmk_chip;
-	unsigned bit;
-	pin_cfg_t cfg;
+	unsigned int bit;
+	unsigned long cfg;
 	int pull, slpm, output, val, i;
 	bool lowemi, gpiomode, sleep;
 
@@ -1057,7 +1055,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 		 * here we just ignore that part. It's being handled by the
 		 * framework and pinmux callback respectively.
 		 */
-		cfg = (pin_cfg_t) configs[i];
+		cfg = configs[i];
 		pull = PIN_PULL(cfg);
 		slpm = PIN_SLPM(cfg);
 		output = PIN_DIR(cfg);
