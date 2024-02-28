@@ -257,7 +257,6 @@ static bool ieee80211_scan_accept_presp(struct ieee80211_sub_if_data *sdata,
 void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status *rx_status = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_sub_if_data *sdata1, *sdata2;
 	struct ieee80211_mgmt *mgmt = (void *)skb->data;
 	struct ieee80211_bss *bss;
 	struct ieee80211_channel *channel;
@@ -281,12 +280,6 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 	if (skb->len < min_hdr_len)
 		return;
 
-	sdata1 = rcu_dereference(local->scan_sdata);
-	sdata2 = rcu_dereference(local->sched_scan_sdata);
-
-	if (likely(!sdata1 && !sdata2))
-		return;
-
 	if (test_and_clear_bit(SCAN_BEACON_WAIT, &local->scanning)) {
 		/*
 		 * we were passive scanning because of radar/no-IR, but
@@ -304,9 +297,16 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		return;
 
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
+		struct ieee80211_sub_if_data *sdata1, *sdata2;
 		struct cfg80211_scan_request *scan_req;
 		struct cfg80211_sched_scan_request *sched_scan_req;
 		u32 scan_req_flags = 0, sched_scan_req_flags = 0;
+
+		sdata1 = rcu_dereference(local->scan_sdata);
+		sdata2 = rcu_dereference(local->sched_scan_sdata);
+
+		if (likely(!sdata1 && !sdata2))
+			return;
 
 		scan_req = rcu_dereference(local->scan_req);
 		sched_scan_req = rcu_dereference(local->sched_scan_req);
@@ -327,7 +327,15 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 						 sched_scan_req_flags,
 						 mgmt->da))
 			return;
+	} else {
+		/* Beacons are expected only with broadcast address */
+		if (!is_broadcast_ether_addr(mgmt->da))
+			return;
 	}
+
+	/* Do not update the BSS table in case of only monitor interfaces */
+	if (local->open_count == local->monitors)
+		return;
 
 	bss = ieee80211_bss_info_update(local, rx_status,
 					mgmt, skb->len,
