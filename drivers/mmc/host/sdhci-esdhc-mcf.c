@@ -313,7 +313,7 @@ static void esdhc_mcf_request_done(struct sdhci_host *host,
 	 * transfer endiannes. A swap after the transfer is needed.
 	 */
 	sg_miter_start(&sgm, mrq->data->sg, mrq->data->sg_len,
-		       SG_MITER_TO_SG | SG_MITER_FROM_SG);
+		       SG_MITER_ATOMIC | SG_MITER_TO_SG | SG_MITER_FROM_SG);
 	while (sg_miter_next(&sgm)) {
 		buffer = sgm.addr;
 		esdhc_mcf_buffer_swap32(buffer, sgm.length);
