@@ -1319,7 +1319,8 @@ static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
 						offset);
 
 	if (sband->band != NL80211_BAND_6GHZ &&
-	    assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_VHT) {
+	    assoc_data->link[link_id].conn.mode >= IEEE80211_CONN_MODE_VHT &&
+	    sband->vht_cap.vht_supported) {
 		bool mu_mimo_owner =
 			ieee80211_add_vht_ie(sdata, skb, sband,
 					     &assoc_data->link[link_id].ap_vht_cap,
