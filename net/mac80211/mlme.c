@@ -5752,33 +5752,20 @@ out:
 static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 					 struct ieee802_11_elems *elems)
 {
-	const struct ieee80211_multi_link_elem *ml;
 	const struct element *sub;
-	ssize_t ml_len;
 	unsigned long removed_links = 0;
 	u16 link_removal_timeout[IEEE80211_MLD_MAX_NUM_LINKS] = {};
 	u8 link_id;
 	u32 delay;
 
-	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_reconf_elem)
+	if (!ieee80211_vif_is_mld(&sdata->vif) || !elems->ml_reconf)
 		return;
-
-	ml_len = cfg80211_defragment_element(elems->ml_reconf_elem,
-					     elems->ie_start,
-					     elems->total_len,
-					     elems->scratch_pos,
-					     elems->scratch + elems->scratch_len -
-					     elems->scratch_pos,
-					     WLAN_EID_FRAGMENT);
-	if (ml_len < 0)
-		return;
-
-	ml = (const void *)elems->scratch_pos;
 
 	/* Directly parse the sub elements as the common information doesn't
 	 * hold any useful information.
 	 */
-	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
+	for_each_mle_subelement(sub, (const u8 *)elems->ml_reconf,
+				elems->ml_reconf_len) {
 		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
 		u8 *pos = prof->variable;
 		u16 control;

@@ -819,6 +819,26 @@ static void ieee80211_mle_parse_link(struct ieee802_11_elems *elems,
 	_ieee802_11_parse_elems_full(&sub, elems, non_inherit);
 }
 
+static void
+ieee80211_mle_defrag_reconf(struct ieee802_11_elems *elems)
+{
+	ssize_t ml_len;
+
+	ml_len = cfg80211_defragment_element(elems->ml_reconf_elem,
+					     elems->ie_start,
+					     elems->total_len,
+					     elems->scratch_pos,
+					     elems->scratch +
+					     elems->scratch_len -
+					     elems->scratch_pos,
+					     WLAN_EID_FRAGMENT);
+	if (ml_len < 0)
+		return;
+	elems->ml_reconf = (void *)elems->scratch_pos;
+	elems->ml_reconf_len = ml_len;
+	elems->scratch_pos += ml_len;
+}
+
 struct ieee802_11_elems *
 ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 {
@@ -863,6 +883,8 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	}
 
 	ieee80211_mle_parse_link(elems, params);
+
+	ieee80211_mle_defrag_reconf(elems);
 
 	if (elems->tim && !elems->parse_error) {
 		const struct ieee80211_tim_ie *tim_ie = elems->tim;
