@@ -2431,8 +2431,6 @@ static int qmp_v4_configure_dp_phy(struct qmp_combo *qmp)
 	writel(0x20, qmp->dp_tx2 + cfg->regs[QPHY_TX_TX_EMP_POST1_LVL]);
 
 	return 0;
-
-	return 0;
 }
 
 /*
