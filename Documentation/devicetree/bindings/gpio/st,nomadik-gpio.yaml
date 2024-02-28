@@ -19,7 +19,9 @@ properties:
     pattern: "^gpio@[0-9a-f]+$"
 
   compatible:
-    const: st,nomadik-gpio
+    enum:
+      - st,nomadik-gpio
+      - mobileye,eyeq5-gpio
 
   reg:
     maxItems: 1
@@ -65,6 +67,16 @@ required:
   - gpio-bank
 
 unevaluatedProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: mobileye,eyeq5-gpio
+    then:
+      properties:
+        st,supports-sleepmode: false
 
 examples:
   - |
