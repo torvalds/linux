@@ -649,7 +649,7 @@ static const struct of_device_id nmk_gpio_match[] = {
 
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
-		.name = "gpio",
+		.name = "nomadik-gpio",
 		.of_match_table = nmk_gpio_match,
 	},
 	.probe = nmk_gpio_probe,
