@@ -2011,6 +2011,21 @@ static inline bool ieee80211_vif_is_mld(const struct ieee80211_vif *vif)
 	return vif->valid_links != 0;
 }
 
+/**
+ * ieee80211_vif_link_active - check if a given link is active
+ * @vif: the vif
+ * @link_id: the link ID to check
+ * Return: %true if the vif is an MLD and the link is active, or if
+ *	the vif is not an MLD and the link ID is 0; %false otherwise.
+ */
+static inline bool ieee80211_vif_link_active(const struct ieee80211_vif *vif,
+					     unsigned int link_id)
+{
+	if (!ieee80211_vif_is_mld(vif))
+		return link_id == 0;
+	return vif->active_links & BIT(link_id);
+}
+
 #define for_each_vif_active_link(vif, link, link_id)				\
 	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++)	\
 		if ((!(vif)->active_links ||					\

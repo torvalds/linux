@@ -1701,8 +1701,7 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (sdata->vif.active_links &&
-	    !(sdata->vif.active_links & BIT(link->link_id))) {
+	if (!ieee80211_vif_link_active(&sdata->vif, link->link_id)) {
 		ieee80211_link_update_chanreq(link, chanreq);
 		return 0;
 	}

@@ -1935,8 +1935,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		for (link_id = 0;
 		     link_id < ARRAY_SIZE(sdata->vif.link_conf);
 		     link_id++) {
-			if (ieee80211_vif_is_mld(&sdata->vif) &&
-			    !(sdata->vif.active_links & BIT(link_id)))
+			if (!ieee80211_vif_link_active(&sdata->vif, link_id))
 				continue;
 
 			link = sdata_dereference(sdata->link[link_id], sdata);
