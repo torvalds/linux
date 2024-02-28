@@ -233,6 +233,7 @@
         "BriefDescription": "Number of cores in C0",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C0",
+        "Filter": "occ_sel=1",
         "PerPkg": "1",
         "PublicDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with thresholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
         "Unit": "PCU"
@@ -241,6 +242,7 @@
         "BriefDescription": "Number of cores in C0",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C3",
+        "Filter": "occ_sel=2",
         "PerPkg": "1",
         "PublicDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with thresholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
         "Unit": "PCU"
@@ -249,6 +251,7 @@
         "BriefDescription": "Number of cores in C0",
         "EventCode": "0x80",
         "EventName": "UNC_P_POWER_STATE_OCCUPANCY.CORES_C6",
+        "Filter": "occ_sel=3",
         "PerPkg": "1",
         "PublicDescription": "This is an occupancy event that tracks the number of cores that are in C0.  It can be used by itself to get the average number of cores in C0, with thresholding to generate histograms, or with other PCU events and occupancy triggering to capture other details.",
         "Unit": "PCU"
