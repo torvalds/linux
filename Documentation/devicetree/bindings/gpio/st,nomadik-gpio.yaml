@@ -51,6 +51,10 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+  ngpios:
+    minimum: 0
+    maximum: 32
+
 required:
   - compatible
   - reg
