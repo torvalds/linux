@@ -12,6 +12,7 @@
 #include <linux/net.h>
 #include <linux/ipv6.h>
 #include <linux/ioam6.h>
+#include <linux/ioam6_genl.h>
 #include <linux/rhashtable-types.h>
 
 struct ioam6_namespace {
@@ -64,5 +65,8 @@ void ioam6_exit(void);
 
 int ioam6_iptunnel_init(void);
 void ioam6_iptunnel_exit(void);
+
+void ioam6_event(enum ioam6_event_type type, struct net *net, gfp_t gfp,
+		 void *opt, unsigned int opt_len);
 
 #endif /* _NET_IOAM6_H */
