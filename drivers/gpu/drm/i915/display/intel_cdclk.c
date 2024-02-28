@@ -3559,13 +3559,6 @@ void intel_cdclk_debugfs_register(struct drm_i915_private *i915)
 			    i915, &i915_cdclk_info_fops);
 }
 
-static const struct intel_cdclk_funcs mtl_cdclk_funcs = {
-	.get_cdclk = bxt_get_cdclk,
-	.set_cdclk = bxt_set_cdclk,
-	.modeset_calc_cdclk = bxt_modeset_calc_cdclk,
-	.calc_voltage_level = rplu_calc_voltage_level,
-};
-
 static const struct intel_cdclk_funcs rplu_cdclk_funcs = {
 	.get_cdclk = bxt_get_cdclk,
 	.set_cdclk = bxt_set_cdclk,
@@ -3709,10 +3702,10 @@ static const struct intel_cdclk_funcs i830_cdclk_funcs = {
 void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 {
 	if (DISPLAY_VER(dev_priv) >= 20) {
-		dev_priv->display.funcs.cdclk = &mtl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
 		dev_priv->display.cdclk.table = lnl_cdclk_table;
 	} else if (DISPLAY_VER(dev_priv) >= 14) {
-		dev_priv->display.funcs.cdclk = &mtl_cdclk_funcs;
+		dev_priv->display.funcs.cdclk = &rplu_cdclk_funcs;
 		dev_priv->display.cdclk.table = mtl_cdclk_table;
 	} else if (IS_DG2(dev_priv)) {
 		dev_priv->display.funcs.cdclk = &tgl_cdclk_funcs;
