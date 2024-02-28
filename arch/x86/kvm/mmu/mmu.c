@@ -4500,6 +4500,13 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 	if (WARN_ON_ONCE(fault_address >> 32))
 		return -EFAULT;
 #endif
+	/*
+	 * Legacy #PF exception only have a 32-bit error code.  Simply drop the
+	 * upper bits as KVM doesn't use them for #PF (because they are never
+	 * set), and to ensure there are no collisions with KVM-defined bits.
+	 */
+	if (WARN_ON_ONCE(error_code >> 32))
+		error_code = lower_32_bits(error_code);
 
 	/* Ensure the above sanity check also covers KVM-defined flags. */
 	BUILD_BUG_ON(lower_32_bits(PFERR_SYNTHETIC_MASK));
