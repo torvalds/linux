@@ -209,6 +209,7 @@
   __traceiter_android_vh_free_oem_binder_struct
   __traceiter_android_vh_binder_special_task
   __traceiter_android_vh_binder_free_buf
+  __traceiter_android_vh_binder_buffer_release
   __traceiter_android_vh_copy_process
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_rtmutex_force_update
@@ -317,6 +318,7 @@
   __tracepoint_android_vh_free_oem_binder_struct
   __tracepoint_android_vh_binder_special_task
   __tracepoint_android_vh_binder_free_buf
+  __tracepoint_android_vh_binder_buffer_release
   __tracepoint_android_vh_copy_process
   __trace_puts
   try_to_free_mem_cgroup_pages
