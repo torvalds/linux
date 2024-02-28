@@ -119,3 +119,14 @@ config NVME_APPLE
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvme-apple.
+
+config MSM_SDEXPRESS
+	tristate "SD Express platform driver"
+	depends on BLK_DEV_NVME
+	help
+	  The SDExpress platform driver for SDX cards.
+	  If you know you don't have one of these, it is safe
+	  to answer N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvme.
