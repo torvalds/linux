@@ -469,7 +469,8 @@ err_gsi_geni_transfer:
 		Q2SPI_ERROR(q2spi, "%s Err QUP Gsi Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
-		dmaengine_terminate_all(q2spi->gsi->tx_c);
+		geni_gsi_ch_disconnect_doorbell(q2spi->gsi->tx_c);
+		geni_gsi_ch_start(q2spi->gsi->tx_c);
 	}
 	return ret;
 }
