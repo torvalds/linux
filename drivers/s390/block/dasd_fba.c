@@ -748,35 +748,9 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	free_page((unsigned long) page);
 }
 
-/*
- * Initialize block layer request queue.
- */
-static void dasd_fba_setup_blk_queue(struct dasd_block *block)
+static unsigned int dasd_fba_max_sectors(struct dasd_block *block)
 {
-	unsigned int logical_block_size = block->bp_block;
-	struct request_queue *q = block->gdp->queue;
-	unsigned int max_bytes, max_discard_sectors;
-	int max;
-
-	max = DASD_FBA_MAX_BLOCKS << block->s2b_shift;
-	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
-	q->limits.max_dev_sectors = max;
-	blk_queue_logical_block_size(q, logical_block_size);
-	blk_queue_max_hw_sectors(q, max);
-	blk_queue_max_segments(q, USHRT_MAX);
-	/* With page sized segments each segment can be translated into one idaw/tidaw */
-	blk_queue_max_segment_size(q, PAGE_SIZE);
-	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
-
-	q->limits.discard_granularity = logical_block_size;
-
-	/* Calculate max_discard_sectors and make it PAGE aligned */
-	max_bytes = USHRT_MAX * logical_block_size;
-	max_bytes = ALIGN_DOWN(max_bytes, PAGE_SIZE);
-	max_discard_sectors = max_bytes / logical_block_size;
-
-	blk_queue_max_discard_sectors(q, max_discard_sectors);
-	blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
+	return DASD_FBA_MAX_BLOCKS << block->s2b_shift;
 }
 
 static int dasd_fba_pe_handler(struct dasd_device *device,
@@ -789,10 +763,11 @@ static struct dasd_discipline dasd_fba_discipline = {
 	.owner = THIS_MODULE,
 	.name = "FBA ",
 	.ebcname = "FBA ",
+	.has_discard = true,
 	.check_device = dasd_fba_check_characteristics,
 	.do_analysis = dasd_fba_do_analysis,
 	.pe_handler = dasd_fba_pe_handler,
-	.setup_blk_queue = dasd_fba_setup_blk_queue,
+	.max_sectors = dasd_fba_max_sectors,
 	.fill_geometry = dasd_fba_fill_geometry,
 	.start_IO = dasd_start_IO,
 	.term_IO = dasd_term_IO,

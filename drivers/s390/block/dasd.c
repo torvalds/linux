@@ -308,6 +308,7 @@ static int dasd_state_basic_to_known(struct dasd_device *device)
 static int dasd_state_basic_to_ready(struct dasd_device *device)
 {
 	struct dasd_block *block = device->block;
+	struct request_queue *q;
 	int rc = 0;
 
 	/* make disk known with correct capacity */
@@ -327,8 +328,32 @@ static int dasd_state_basic_to_ready(struct dasd_device *device)
 		goto out;
 	}
 
-	if (device->discipline->setup_blk_queue)
-		device->discipline->setup_blk_queue(block);
+	q = block->gdp->queue;
+	blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
+	q->limits.max_dev_sectors = device->discipline->max_sectors(block);
+	blk_queue_max_hw_sectors(q, q->limits.max_dev_sectors);
+	blk_queue_logical_block_size(q, block->bp_block);
+	blk_queue_max_segments(q, USHRT_MAX);
+
+	/* With page sized segments each segment can be translated into one idaw/tidaw */
+	blk_queue_max_segment_size(q, PAGE_SIZE);
+	blk_queue_segment_boundary(q, PAGE_SIZE - 1);
+	blk_queue_dma_alignment(q, PAGE_SIZE - 1);
+
+	if (device->discipline->has_discard) {
+		unsigned int max_bytes, max_discard_sectors;
+
+		q->limits.discard_granularity = block->bp_block;
+
+		/* Calculate max_discard_sectors and make it PAGE aligned */
+		max_bytes = USHRT_MAX * block->bp_block;
+		max_bytes = ALIGN_DOWN(max_bytes, PAGE_SIZE);
+		max_discard_sectors = max_bytes / block->bp_block;
+
+		blk_queue_max_discard_sectors(q, max_discard_sectors);
+		blk_queue_max_write_zeroes_sectors(q, max_discard_sectors);
+	}
+
 	set_capacity(block->gdp, block->blocks << block->s2b_shift);
 	device->state = DASD_STATE_READY;
 

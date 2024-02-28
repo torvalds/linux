@@ -293,6 +293,7 @@ struct dasd_discipline {
 	struct module *owner;
 	char ebcname[8];	/* a name used for tagging and printks */
 	char name[8];		/* a name used for tagging and printks */
+	bool has_discard;
 
 	struct list_head list;	/* used for list of disciplines */
 
@@ -331,10 +332,7 @@ struct dasd_discipline {
 	int (*online_to_ready) (struct dasd_device *);
 	int (*basic_to_known)(struct dasd_device *);
 
-	/*
-	 * Initialize block layer request queue.
-	 */
-	void (*setup_blk_queue)(struct dasd_block *);
+	unsigned int (*max_sectors)(struct dasd_block *);
 	/* (struct dasd_device *);
 	 * Device operation functions. build_cp creates a ccw chain for
 	 * a block device request, start_io starts the request and
