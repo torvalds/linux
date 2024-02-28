@@ -283,6 +283,21 @@ nsim_set_features(struct net_device *dev, netdev_features_t features)
 	return 0;
 }
 
+static int nsim_get_iflink(const struct net_device *dev)
+{
+	struct netdevsim *nsim, *peer;
+	int iflink;
+
+	nsim = netdev_priv(dev);
+
+	rcu_read_lock();
+	peer = rcu_dereference(nsim->peer);
+	iflink = peer ? READ_ONCE(peer->netdev->ifindex) : 0;
+	rcu_read_unlock();
+
+	return iflink;
+}
+
 static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_start_xmit		= nsim_start_xmit,
 	.ndo_set_rx_mode	= nsim_set_rx_mode,
@@ -300,6 +315,7 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_set_vf_rss_query_en = nsim_set_vf_rss_query_en,
 	.ndo_setup_tc		= nsim_setup_tc,
 	.ndo_set_features	= nsim_set_features,
+	.ndo_get_iflink		= nsim_get_iflink,
 	.ndo_bpf		= nsim_bpf,
 };
 
