@@ -723,10 +723,6 @@ static void ieee80211_mle_get_sta_prof(struct ieee802_11_elems *elems,
 	if (!ml || !ml_len)
 		return;
 
-	if (le16_get_bits(ml->control, IEEE80211_ML_CONTROL_TYPE) !=
-	    IEEE80211_ML_CONTROL_TYPE_BASIC)
-		return;
-
 	for_each_mle_subelement(sub, (u8 *)ml, ml_len) {
 		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
 		ssize_t sta_prof_len;
