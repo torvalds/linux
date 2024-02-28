@@ -1209,7 +1209,7 @@ DEFINE_EVENT(sta_event, drv_flush_sta,
 	TP_ARGS(local, sdata, sta)
 );
 
-TRACE_EVENT(drv_channel_switch,
+DECLARE_EVENT_CLASS(chanswitch_evt,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_channel_switch *ch_switch),
@@ -1224,6 +1224,7 @@ TRACE_EVENT(drv_channel_switch,
 		__field(u32, device_timestamp)
 		__field(bool, block_tx)
 		__field(u8, count)
+		__field(u8, link_id)
 	),
 
 	TP_fast_assign(
@@ -1234,12 +1235,22 @@ TRACE_EVENT(drv_channel_switch,
 		__entry->device_timestamp = ch_switch->device_timestamp;
 		__entry->block_tx = ch_switch->block_tx;
 		__entry->count = ch_switch->count;
+		__entry->link_id = ch_switch->link_id;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT " new " CHANDEF_PR_FMT " count:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->count
+		LOCAL_PR_FMT VIF_PR_FMT CHANDEF_PR_FMT  " count:%d block_tx:%d timestamp:%llu device_ts:%u link_id:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->count,
+		__entry->block_tx, __entry->timestamp,
+		__entry->device_timestamp, __entry->link_id
 	)
+);
+
+DEFINE_EVENT(chanswitch_evt, drv_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_channel_switch *ch_switch),
+	TP_ARGS(local, sdata, ch_switch)
 );
 
 TRACE_EVENT(drv_set_antenna,
@@ -2121,39 +2132,11 @@ TRACE_EVENT(drv_channel_switch_beacon,
 	)
 );
 
-TRACE_EVENT(drv_pre_channel_switch,
+DEFINE_EVENT(chanswitch_evt, drv_pre_channel_switch,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_channel_switch *ch_switch),
-
-	TP_ARGS(local, sdata, ch_switch),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-		CHANDEF_ENTRY
-		__field(u64, timestamp)
-		__field(u32, device_timestamp)
-		__field(bool, block_tx)
-		__field(u8, count)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-		CHANDEF_ASSIGN(&ch_switch->chandef)
-		__entry->timestamp = ch_switch->timestamp;
-		__entry->device_timestamp = ch_switch->device_timestamp;
-		__entry->block_tx = ch_switch->block_tx;
-		__entry->count = ch_switch->count;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT " prepare channel switch to "
-		CHANDEF_PR_FMT  " count:%d block_tx:%d timestamp:%llu",
-		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->count,
-		__entry->block_tx, __entry->timestamp
-	)
+	TP_ARGS(local, sdata, ch_switch)
 );
 
 DEFINE_EVENT(local_sdata_evt, drv_post_channel_switch,
@@ -2168,40 +2151,11 @@ DEFINE_EVENT(local_sdata_evt, drv_abort_channel_switch,
 	     TP_ARGS(local, sdata)
 );
 
-TRACE_EVENT(drv_channel_switch_rx_beacon,
+DEFINE_EVENT(chanswitch_evt, drv_channel_switch_rx_beacon,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_channel_switch *ch_switch),
-
-	TP_ARGS(local, sdata, ch_switch),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-		CHANDEF_ENTRY
-		__field(u64, timestamp)
-		__field(u32, device_timestamp)
-		__field(bool, block_tx)
-		__field(u8, count)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-		CHANDEF_ASSIGN(&ch_switch->chandef)
-		__entry->timestamp = ch_switch->timestamp;
-		__entry->device_timestamp = ch_switch->device_timestamp;
-		__entry->block_tx = ch_switch->block_tx;
-		__entry->count = ch_switch->count;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT
-		" received a channel switch beacon to "
-		CHANDEF_PR_FMT  " count:%d block_tx:%d timestamp:%llu",
-		LOCAL_PR_ARG, VIF_PR_ARG, CHANDEF_PR_ARG, __entry->count,
-		__entry->block_tx, __entry->timestamp
-	)
+	TP_ARGS(local, sdata, ch_switch)
 );
 
 TRACE_EVENT(drv_get_txpower,

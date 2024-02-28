@@ -2021,7 +2021,9 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	struct ieee80211_chanctx *chanctx;
 	enum nl80211_band current_band;
 	struct ieee80211_csa_ie csa_ie;
-	struct ieee80211_channel_switch ch_switch;
+	struct ieee80211_channel_switch ch_switch = {
+		.link_id = link->link_id,
+	};
 	struct ieee80211_bss *bss;
 	unsigned long timeout;
 	int res;
