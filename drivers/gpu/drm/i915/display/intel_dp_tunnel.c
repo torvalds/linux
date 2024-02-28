@@ -348,7 +348,7 @@ void intel_dp_tunnel_resume(struct intel_dp *intel_dp,
 
 out_err:
 	drm_dbg_kms(&i915->drm,
-		    "[DPTUN %s][CONNECTOR:%d:%s][ENCODER:%d:%s] Tunnel can't be resumed, will drop and redect it (err %pe)\n",
+		    "[DPTUN %s][CONNECTOR:%d:%s][ENCODER:%d:%s] Tunnel can't be resumed, will drop and reject it (err %pe)\n",
 		    drm_dp_tunnel_name(intel_dp->tunnel),
 		    connector->base.base.id, connector->base.name,
 		    encoder->base.base.id, encoder->base.name,
