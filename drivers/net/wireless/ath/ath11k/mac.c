@@ -9850,12 +9850,18 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 	struct ieee80211_iface_combination *combinations;
 	struct ieee80211_iface_limit *limits;
 	int n_limits;
+	bool p2p;
+
+	p2p = ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_P2P_DEVICE);
 
 	combinations = kzalloc(sizeof(*combinations), GFP_KERNEL);
 	if (!combinations)
 		return -ENOMEM;
 
-	n_limits = 2;
+	if (p2p)
+		n_limits = 3;
+	else
+		n_limits = 2;
 
 	limits = kcalloc(n_limits, sizeof(*limits), GFP_KERNEL);
 	if (!limits) {
@@ -9863,45 +9869,42 @@ static int ath11k_mac_setup_iface_combinations(struct ath11k *ar)
 		return -ENOMEM;
 	}
 
+	limits[0].types |= BIT(NL80211_IFTYPE_STATION);
+	limits[1].types |= BIT(NL80211_IFTYPE_AP);
+	if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
+	    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
+		limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
+
+	combinations[0].limits = limits;
+	combinations[0].n_limits = n_limits;
+	combinations[0].beacon_int_infra_match = true;
+	combinations[0].beacon_int_min_gcd = 100;
+
 	if (ab->hw_params.support_dual_stations) {
 		limits[0].max = 2;
-		limits[0].types |= BIT(NL80211_IFTYPE_STATION);
-
 		limits[1].max = 1;
-		limits[1].types |= BIT(NL80211_IFTYPE_AP);
-		if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
-		    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
-			limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
 
-		combinations[0].limits = limits;
-		combinations[0].n_limits = 2;
 		combinations[0].max_interfaces = ab->hw_params.num_vdevs;
 		combinations[0].num_different_channels = 2;
-		combinations[0].beacon_int_infra_match = true;
-		combinations[0].beacon_int_min_gcd = 100;
 	} else {
 		limits[0].max = 1;
-		limits[0].types |= BIT(NL80211_IFTYPE_STATION);
-
 		limits[1].max = 16;
-		limits[1].types |= BIT(NL80211_IFTYPE_AP);
 
-		if (IS_ENABLED(CONFIG_MAC80211_MESH) &&
-		    ab->hw_params.interface_modes & BIT(NL80211_IFTYPE_MESH_POINT))
-			limits[1].types |= BIT(NL80211_IFTYPE_MESH_POINT);
-
-		combinations[0].limits = limits;
-		combinations[0].n_limits = 2;
 		combinations[0].max_interfaces = 16;
 		combinations[0].num_different_channels = 1;
-		combinations[0].beacon_int_infra_match = true;
-		combinations[0].beacon_int_min_gcd = 100;
 		combinations[0].radar_detect_widths = BIT(NL80211_CHAN_WIDTH_20_NOHT) |
 							BIT(NL80211_CHAN_WIDTH_20) |
 							BIT(NL80211_CHAN_WIDTH_40) |
 							BIT(NL80211_CHAN_WIDTH_80) |
 							BIT(NL80211_CHAN_WIDTH_80P80) |
 							BIT(NL80211_CHAN_WIDTH_160);
+	}
+
+	if (p2p) {
+		limits[1].types |= BIT(NL80211_IFTYPE_P2P_CLIENT) |
+			BIT(NL80211_IFTYPE_P2P_GO);
+		limits[2].max = 1;
+		limits[2].types |= BIT(NL80211_IFTYPE_P2P_DEVICE);
 	}
 
 	ar->hw->wiphy->iface_combinations = combinations;
