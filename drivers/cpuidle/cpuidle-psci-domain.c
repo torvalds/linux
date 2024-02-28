@@ -20,6 +20,7 @@
 #include <linux/string.h>
 
 #include "cpuidle-psci.h"
+#include "dt_idle_genpd.h"
 
 struct psci_pd_provider {
 	struct list_head link;
