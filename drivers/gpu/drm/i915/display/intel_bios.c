@@ -3414,8 +3414,7 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
 		 * additional data.  Trust that if the VBT was written into
 		 * the OpRegion then they have validated the LVDS's existence.
 		 */
-		if (intel_opregion_get_vbt(i915, NULL))
-			return true;
+		return intel_opregion_vbt_present(i915);
 	}
 
 	return false;
