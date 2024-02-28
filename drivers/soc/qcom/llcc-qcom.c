@@ -572,6 +572,30 @@ static const struct qcom_llcc_config monaco_auto_ivi_cfg = {
 };
 
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
+static DEFINE_MUTEX(dev_avail);
+
+/**
+ * is_llcc_device_available - checks for llcc device support
+ */
+static bool is_llcc_device_available(void)
+{
+	static struct llcc_drv_data *ptr;
+
+	mutex_lock(&dev_avail);
+	if (!ptr) {
+		struct device_node *node;
+
+		node = of_find_node_by_name(NULL, "cache-controller");
+		if (!of_device_is_available(node)) {
+			pr_warn("llcc-qcom: system-cache-controller node not found\n");
+			drv_data = ERR_PTR(-ENODEV);
+		}
+		of_node_put(node);
+		ptr = drv_data;
+	}
+	mutex_unlock(&dev_avail);
+	return (PTR_ERR(ptr) != -ENODEV) ? true : false;
+}
 
 /**
  * llcc_slice_getd - get llcc slice descriptor
@@ -585,7 +609,7 @@ struct llcc_slice_desc *llcc_slice_getd(u32 uid)
 	const struct llcc_slice_config *cfg;
 	u32 sz, count;
 
-	if (IS_ERR(drv_data))
+	if (!is_llcc_device_available() || IS_ERR(drv_data))
 		return ERR_CAST(drv_data);
 
 	cfg = drv_data->cfg;
