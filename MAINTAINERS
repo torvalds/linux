@@ -14380,7 +14380,7 @@ MICROCHIP MCP16502 PMIC DRIVER
 M:	Claudiu Beznea <claudiu.beznea@tuxon.dev>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Supported
-F:	Documentation/devicetree/bindings/regulator/mcp16502-regulator.txt
+F:	Documentation/devicetree/bindings/regulator/microchip,mcp16502.yaml
 F:	drivers/regulator/mcp16502.c
 
 MICROCHIP MCP3564 ADC DRIVER
