@@ -8049,6 +8049,67 @@ ieee80211_setup_assoc_link(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+static int
+ieee80211_mgd_get_ap_ht_vht_capa(struct ieee80211_sub_if_data *sdata,
+				 struct ieee80211_mgd_assoc_data *assoc_data,
+				 int link_id)
+{
+	struct cfg80211_bss *cbss = assoc_data->link[link_id].bss;
+	enum nl80211_band band = cbss->channel->band;
+	struct ieee80211_supported_band *sband;
+	const struct element *elem;
+	int err;
+
+	/* neither HT nor VHT elements used on 6 GHz */
+	if (band == NL80211_BAND_6GHZ)
+		return 0;
+
+	if (assoc_data->link[link_id].conn.mode < IEEE80211_CONN_MODE_HT)
+		return 0;
+
+	rcu_read_lock();
+	elem = ieee80211_bss_get_elem(cbss, WLAN_EID_HT_OPERATION);
+	if (!elem || elem->datalen < sizeof(struct ieee80211_ht_operation)) {
+		mlme_link_id_dbg(sdata, link_id, "no HT operation on BSS %pM\n",
+				 cbss->bssid);
+		err = -EINVAL;
+		goto out_rcu;
+	}
+	assoc_data->link[link_id].ap_ht_param =
+		((struct ieee80211_ht_operation *)(elem->data))->ht_param;
+	rcu_read_unlock();
+
+	if (assoc_data->link[link_id].conn.mode < IEEE80211_CONN_MODE_VHT)
+		return 0;
+
+	/* some drivers want to support VHT on 2.4 GHz even */
+	sband = sdata->local->hw.wiphy->bands[band];
+	if (!sband->vht_cap.vht_supported)
+		return 0;
+
+	rcu_read_lock();
+	elem = ieee80211_bss_get_elem(cbss, WLAN_EID_VHT_CAPABILITY);
+	/* but even then accept it not being present on the AP */
+	if (!elem && band == NL80211_BAND_2GHZ) {
+		err = 0;
+		goto out_rcu;
+	}
+	if (!elem || elem->datalen < sizeof(struct ieee80211_vht_cap)) {
+		mlme_link_id_dbg(sdata, link_id, "no VHT capa on BSS %pM\n",
+				 cbss->bssid);
+		err = -EINVAL;
+		goto out_rcu;
+	}
+	memcpy(&assoc_data->link[link_id].ap_vht_cap, elem->data,
+	       sizeof(struct ieee80211_vht_cap));
+	rcu_read_unlock();
+
+	return 0;
+out_rcu:
+	rcu_read_unlock();
+	return err;
+}
+
 int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			struct cfg80211_assoc_request *req)
 {
@@ -8193,6 +8254,14 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 				req->links[i].error = err;
 				goto err_free;
 			}
+
+			err = ieee80211_mgd_get_ap_ht_vht_capa(sdata,
+							       assoc_data, i);
+			if (err) {
+				err = -EINVAL;
+				req->links[i].error = err;
+				goto err_free;
+			}
 		}
 
 		assoc_data->wmm = true;
@@ -8228,6 +8297,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 						       &assoc_data->link[0].conn);
 
 		uapsd_supported = bss->uapsd_supported;
+
+		err = ieee80211_mgd_get_ap_ht_vht_capa(sdata, assoc_data, 0);
+		if (err)
+			goto err_free;
 	}
 
 	assoc_data->spp_amsdu = req->flags & ASSOC_REQ_SPP_AMSDU;
