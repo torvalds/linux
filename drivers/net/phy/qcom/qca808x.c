@@ -167,6 +167,16 @@ static bool qca808x_is_1g_only(struct phy_device *phydev)
 	return !!(QCA808X_PHY_CHIP_TYPE_1G & ret);
 }
 
+static void qca808x_fill_possible_interfaces(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+
+	__set_bit(PHY_INTERFACE_MODE_SGMII, possible);
+
+	if (!qca808x_is_1g_only(phydev))
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX, possible);
+}
+
 static int qca808x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -230,6 +240,8 @@ static int qca808x_config_init(struct phy_device *phydev)
 				return ret;
 		}
 	}
+
+	qca808x_fill_possible_interfaces(phydev);
 
 	/* Configure adc threshold as 100mv for the link 10M */
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_ADC_THRESHOLD,
