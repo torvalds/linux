@@ -1423,10 +1423,67 @@ static bool ath11k_mac_set_nontx_vif_params(struct ath11k_vif *tx_arvif,
 	return false;
 }
 
-static void ath11k_mac_set_vif_params(struct ath11k_vif *arvif,
-				      struct sk_buff *bcn)
+static int ath11k_mac_setup_bcn_p2p_ie(struct ath11k_vif *arvif,
+				       struct sk_buff *bcn)
 {
+	struct ath11k *ar = arvif->ar;
 	struct ieee80211_mgmt *mgmt;
+	const u8 *p2p_ie;
+	int ret;
+
+	mgmt = (void *)bcn->data;
+	p2p_ie = cfg80211_find_vendor_ie(WLAN_OUI_WFA, WLAN_OUI_TYPE_WFA_P2P,
+					 mgmt->u.beacon.variable,
+					 bcn->len - (mgmt->u.beacon.variable -
+						     bcn->data));
+	if (!p2p_ie)
+		return -ENOENT;
+
+	ret = ath11k_wmi_p2p_go_bcn_ie(ar, arvif->vdev_id, p2p_ie);
+	if (ret) {
+		ath11k_warn(ar->ab, "failed to submit P2P GO bcn ie for vdev %i: %d\n",
+			    arvif->vdev_id, ret);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int ath11k_mac_remove_vendor_ie(struct sk_buff *skb, unsigned int oui,
+				       u8 oui_type, size_t ie_offset)
+{
+	size_t len;
+	const u8 *next, *end;
+	u8 *ie;
+
+	if (WARN_ON(skb->len < ie_offset))
+		return -EINVAL;
+
+	ie = (u8 *)cfg80211_find_vendor_ie(oui, oui_type,
+					   skb->data + ie_offset,
+					   skb->len - ie_offset);
+	if (!ie)
+		return -ENOENT;
+
+	len = ie[1] + 2;
+	end = skb->data + skb->len;
+	next = ie + len;
+
+	if (WARN_ON(next > end))
+		return -EINVAL;
+
+	memmove(ie, next, end - next);
+	skb_trim(skb, skb->len - len);
+
+	return 0;
+}
+
+static int ath11k_mac_set_vif_params(struct ath11k_vif *arvif,
+				     struct sk_buff *bcn)
+{
+	struct ath11k_base *ab = arvif->ar->ab;
+	struct ieee80211_mgmt *mgmt;
+	int ret = 0;
 	u8 *ies;
 
 	ies = bcn->data + ieee80211_get_hdrlen_from_skb(bcn);
@@ -1444,6 +1501,32 @@ static void ath11k_mac_set_vif_params(struct ath11k_vif *arvif,
 		arvif->wpaie_present = true;
 	else
 		arvif->wpaie_present = false;
+
+	if (arvif->vdev_subtype != WMI_VDEV_SUBTYPE_P2P_GO)
+		return ret;
+
+	ret = ath11k_mac_setup_bcn_p2p_ie(arvif, bcn);
+	if (ret) {
+		ath11k_warn(ab, "failed to setup P2P GO bcn ie: %d\n",
+			    ret);
+		return ret;
+	}
+
+	/* P2P IE is inserted by firmware automatically (as
+	 * configured above) so remove it from the base beacon
+	 * template to avoid duplicate P2P IEs in beacon frames.
+	 */
+	ret = ath11k_mac_remove_vendor_ie(bcn, WLAN_OUI_WFA,
+					  WLAN_OUI_TYPE_WFA_P2P,
+					  offsetof(struct ieee80211_mgmt,
+						   u.beacon.variable));
+	if (ret) {
+		ath11k_warn(ab, "failed to remove P2P vendor ie: %d\n",
+			    ret);
+		return ret;
+	}
+
+	return ret;
 }
 
 static int ath11k_mac_setup_bcn_tmpl_ema(struct ath11k_vif *arvif)
@@ -1465,10 +1548,12 @@ static int ath11k_mac_setup_bcn_tmpl_ema(struct ath11k_vif *arvif)
 		return -EPERM;
 	}
 
-	if (tx_arvif == arvif)
-		ath11k_mac_set_vif_params(tx_arvif, beacons->bcn[0].skb);
-	else
+	if (tx_arvif == arvif) {
+		if (ath11k_mac_set_vif_params(tx_arvif, beacons->bcn[0].skb))
+			return -EINVAL;
+	} else {
 		arvif->wpaie_present = tx_arvif->wpaie_present;
+	}
 
 	for (i = 0; i < beacons->cnt; i++) {
 		if (tx_arvif != arvif && !nontx_vif_params_set)
@@ -1527,10 +1612,12 @@ static int ath11k_mac_setup_bcn_tmpl_mbssid(struct ath11k_vif *arvif)
 		return -EPERM;
 	}
 
-	if (tx_arvif == arvif)
-		ath11k_mac_set_vif_params(tx_arvif, bcn);
-	else if (!ath11k_mac_set_nontx_vif_params(tx_arvif, arvif, bcn))
+	if (tx_arvif == arvif) {
+		if (ath11k_mac_set_vif_params(tx_arvif, bcn))
+			return -EINVAL;
+	} else if (!ath11k_mac_set_nontx_vif_params(tx_arvif, arvif, bcn)) {
 		return -EINVAL;
+	}
 
 	ret = ath11k_wmi_bcn_tmpl(ar, arvif->vdev_id, &offs, bcn, 0);
 	kfree_skb(bcn);
