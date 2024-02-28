@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
 #include <linux/gpio/gpio-nomadik.h>
