@@ -8832,6 +8832,13 @@ static const struct tpacpi_quirk fan_quirk_table[] __initconst = {
 	TPACPI_Q_LNV3('N', '3', '7', TPACPI_FAN_2CTL),  /* T15g (2nd gen) */
 	TPACPI_Q_LNV3('R', '1', 'F', TPACPI_FAN_NS),	/* L13 Yoga Gen 2 */
 	TPACPI_Q_LNV3('N', '2', 'U', TPACPI_FAN_NS),	/* X13 Yoga Gen 2*/
+	TPACPI_Q_LNV3('R', '0', 'R', TPACPI_FAN_NS),	/* L380 */
+	TPACPI_Q_LNV3('R', '1', '5', TPACPI_FAN_NS),	/* L13 Yoga Gen 1 */
+	TPACPI_Q_LNV3('R', '1', '0', TPACPI_FAN_NS),	/* L390 */
+	TPACPI_Q_LNV3('N', '2', 'L', TPACPI_FAN_NS),	/* X13 Yoga Gen 1 */
+	TPACPI_Q_LNV3('R', '0', 'T', TPACPI_FAN_NS),	/* 11e Gen5 GL */
+	TPACPI_Q_LNV3('R', '1', 'D', TPACPI_FAN_NS),	/* 11e Gen5 GL-R */
+	TPACPI_Q_LNV3('R', '0', 'V', TPACPI_FAN_NS),	/* 11e Gen5 KL-Y */
 	TPACPI_Q_LNV3('N', '1', 'O', TPACPI_FAN_NOFAN),	/* X1 Tablet (2nd gen) */
 };
 
