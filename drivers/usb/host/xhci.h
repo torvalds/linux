@@ -1462,6 +1462,8 @@ struct xhci_port {
 	unsigned int		lpm_incapable:1;
 	unsigned long		resume_timestamp;
 	bool			rexit_active;
+	/* Slot ID is the index of the device directly connected to the port */
+	int			slot_id;
 	struct completion	rexit_done;
 	struct completion	u3exit_done;
 };
@@ -1944,8 +1946,6 @@ unsigned long xhci_get_resuming_ports(struct usb_hcd *hcd);
 #endif	/* CONFIG_PM */
 
 u32 xhci_port_state_to_neutral(u32 state);
-int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
-		u16 port);
 void xhci_ring_device(struct xhci_hcd *xhci, int slot_id);
 
 /* xHCI contexts */

@@ -907,6 +907,8 @@ void xhci_free_virt_device(struct xhci_hcd *xhci, int slot_id)
 
 	if (dev->udev && dev->udev->slot_id)
 		dev->udev->slot_id = 0;
+	if (dev->rhub_port && dev->rhub_port->slot_id == slot_id)
+		dev->rhub_port->slot_id = 0;
 	kfree(xhci->devs[slot_id]);
 	xhci->devs[slot_id] = NULL;
 }
@@ -1124,6 +1126,9 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	dev->rhub_port = xhci_find_rhub_port(xhci, udev);
 	if (!dev->rhub_port)
 		return -EINVAL;
+	/* Slot ID is set to the device directly below the root hub */
+	if (!udev->parent->parent)
+		dev->rhub_port->slot_id = udev->slot_id;
 	slot_ctx->dev_info2 |= cpu_to_le32(ROOT_HUB_PORT(dev->rhub_port->hw_portnum + 1));
 	xhci_dbg(xhci, "Slot ID %d: HW portnum %d, hcd portnum %d\n",
 		 udev->slot_id, dev->rhub_port->hw_portnum, dev->rhub_port->hcd_portnum);
