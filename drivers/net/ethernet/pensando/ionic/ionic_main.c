@@ -15,7 +15,7 @@
 #include "ionic_debugfs.h"
 
 MODULE_DESCRIPTION(IONIC_DRV_DESCRIPTION);
-MODULE_AUTHOR("Pensando Systems, Inc");
+MODULE_AUTHOR("Shannon Nelson <shannon.nelson@amd.com>");
 MODULE_LICENSE("GPL");
 
 static const char *ionic_error_to_str(enum ionic_status_code code)
