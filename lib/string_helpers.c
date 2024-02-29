@@ -25,7 +25,7 @@
  * string_get_size - get the size in the specified units
  * @size:	The size to be converted in blocks
  * @blk_size:	Size of the block (use 1 for size in bytes)
- * @units:	units to use (powers of 1000 or 1024)
+ * @units:	Units to use (powers of 1000 or 1024), whether to include space separator
  * @buf:	buffer to format to
  * @len:	length of buffer
  *
@@ -39,11 +39,12 @@
 int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 		    char *buf, int len)
 {
+	enum string_size_units units_base = units & STRING_UNITS_MASK;
 	static const char *const units_10[] = {
-		"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+		"", "k", "M", "G", "T", "P", "E", "Z", "Y",
 	};
 	static const char *const units_2[] = {
-		"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"
+		"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi",
 	};
 	static const char *const *const units_str[] = {
 		[STRING_UNITS_10] = units_10,
@@ -68,7 +69,7 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 
 	/* This is Napier's algorithm.  Reduce the original block size to
 	 *
-	 * coefficient * divisor[units]^i
+	 * coefficient * divisor[units_base]^i
 	 *
 	 * we do the reduction so both coefficients are just under 32 bits so
 	 * that multiplying them together won't overflow 64 bits and we keep
@@ -78,12 +79,12 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	 * precision is in the coefficients.
 	 */
 	while (blk_size >> 32) {
-		do_div(blk_size, divisor[units]);
+		do_div(blk_size, divisor[units_base]);
 		i++;
 	}
 
 	while (size >> 32) {
-		do_div(size, divisor[units]);
+		do_div(size, divisor[units_base]);
 		i++;
 	}
 
@@ -92,8 +93,8 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	size *= blk_size;
 
 	/* and logarithmically reduce it until it's just under the divisor */
-	while (size >= divisor[units]) {
-		remainder = do_div(size, divisor[units]);
+	while (size >= divisor[units_base]) {
+		remainder = do_div(size, divisor[units_base]);
 		i++;
 	}
 
@@ -103,10 +104,10 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	for (j = 0; sf_cap*10 < 1000; j++)
 		sf_cap *= 10;
 
-	if (units == STRING_UNITS_2) {
+	if (units_base == STRING_UNITS_2) {
 		/* express the remainder as a decimal.  It's currently the
 		 * numerator of a fraction whose denominator is
-		 * divisor[units], which is 1 << 10 for STRING_UNITS_2 */
+		 * divisor[units_base], which is 1 << 10 for STRING_UNITS_2 */
 		remainder *= 1000;
 		remainder >>= 10;
 	}
@@ -128,10 +129,12 @@ int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	if (i >= ARRAY_SIZE(units_2))
 		unit = "UNK";
 	else
-		unit = units_str[units][i];
+		unit = units_str[units_base][i];
 
-	return snprintf(buf, len, "%u%s %s", (u32)size,
-			tmp, unit);
+	return snprintf(buf, len, "%u%s%s%s%s", (u32)size, tmp,
+			(units & STRING_UNITS_NO_SPACE) ? "" : " ",
+			unit,
+			(units & STRING_UNITS_NO_BYTES) ? "" : "B");
 }
 EXPORT_SYMBOL(string_get_size);
 

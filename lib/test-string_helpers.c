@@ -3,6 +3,7 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
+#include <linux/array_size.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -500,21 +501,65 @@ static __init void test_string_get_size_check(const char *units,
 	pr_warn("expected: '%s', got '%s'\n", exp, res);
 }
 
+static __init void __strchrcut(char *dst, const char *src, const char *cut)
+{
+	const char *from = src;
+	size_t len;
+
+	do {
+		len = strcspn(from, cut);
+		memcpy(dst, from, len);
+		dst += len;
+		from += len;
+	} while (*from++);
+	*dst = '\0';
+}
+
+static __init void __test_string_get_size_one(const u64 size, const u64 blk_size,
+					      const char *exp_result10,
+					      const char *exp_result2,
+					      enum string_size_units units,
+					      const char *cut)
+{
+	char buf10[string_get_size_maxbuf];
+	char buf2[string_get_size_maxbuf];
+	char exp10[string_get_size_maxbuf];
+	char exp2[string_get_size_maxbuf];
+	char prefix10[64];
+	char prefix2[64];
+
+	sprintf(prefix10, "STRING_UNITS_10 [%s]", cut);
+	sprintf(prefix2, "STRING_UNITS_2 [%s]", cut);
+
+	__strchrcut(exp10, exp_result10, cut);
+	__strchrcut(exp2, exp_result2, cut);
+
+	string_get_size(size, blk_size, STRING_UNITS_10 | units, buf10, sizeof(buf10));
+	string_get_size(size, blk_size, STRING_UNITS_2 | units, buf2, sizeof(buf2));
+
+	test_string_get_size_check(prefix10, exp10, buf10, size, blk_size);
+	test_string_get_size_check(prefix2, exp2, buf2, size, blk_size);
+}
+
 static __init void __test_string_get_size(const u64 size, const u64 blk_size,
 					  const char *exp_result10,
 					  const char *exp_result2)
 {
-	char buf10[string_get_size_maxbuf];
-	char buf2[string_get_size_maxbuf];
+	struct {
+		enum string_size_units units;
+		const char *cut;
+	} get_size_test_cases[] = {
+		{ 0, "" },
+		{ STRING_UNITS_NO_SPACE, " " },
+		{ STRING_UNITS_NO_SPACE | STRING_UNITS_NO_BYTES, " B" },
+		{ STRING_UNITS_NO_BYTES, "B" },
+	};
+	int i;
 
-	string_get_size(size, blk_size, STRING_UNITS_10, buf10, sizeof(buf10));
-	string_get_size(size, blk_size, STRING_UNITS_2, buf2, sizeof(buf2));
-
-	test_string_get_size_check("STRING_UNITS_10", exp_result10, buf10,
-				   size, blk_size);
-
-	test_string_get_size_check("STRING_UNITS_2", exp_result2, buf2,
-				   size, blk_size);
+	for (i = 0; i < ARRAY_SIZE(get_size_test_cases); i++)
+		__test_string_get_size_one(size, blk_size, exp_result10, exp_result2,
+					   get_size_test_cases[i].units,
+					   get_size_test_cases[i].cut);
 }
 
 static __init void test_string_get_size(void)
