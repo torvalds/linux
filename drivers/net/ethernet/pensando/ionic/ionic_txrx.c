@@ -1669,7 +1669,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 
 static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 {
-	struct ionic_tx_stats *stats = q_to_tx_stats(q);
+	int nr_frags = skb_shinfo(skb)->nr_frags;
 	bool too_many_frags = false;
 	skb_frag_t *frag;
 	int desc_bufs;
@@ -1685,17 +1685,20 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 	/* Each desc is mss long max, so a descriptor for each gso_seg */
 	if (skb_is_gso(skb)) {
 		ndescs = skb_shinfo(skb)->gso_segs;
+		if (!nr_frags)
+			return ndescs;
 	} else {
 		ndescs = 1;
-		if (skb_shinfo(skb)->nr_frags > q->max_sg_elems) {
+		if (!nr_frags)
+			return ndescs;
+
+		if (unlikely(nr_frags > q->max_sg_elems)) {
 			too_many_frags = true;
 			goto linearize;
 		}
-	}
 
-	/* If non-TSO, or no frags to check, we're done */
-	if (!skb_is_gso(skb) || !skb_shinfo(skb)->nr_frags)
 		return ndescs;
+	}
 
 	/* We need to scan the skb to be sure that none of the MTU sized
 	 * packets in the TSO will require more sgs per descriptor than we
@@ -1743,6 +1746,8 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 
 linearize:
 	if (too_many_frags) {
+		struct ionic_tx_stats *stats = q_to_tx_stats(q);
+
 		err = skb_linearize(skb);
 		if (err)
 			return err;
