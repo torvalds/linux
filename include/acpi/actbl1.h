@@ -755,6 +755,7 @@ struct acpi_dbg2_device {
 #define ACPI_DBG2_16550_WITH_GAS    0x0012
 #define ACPI_DBG2_SDM845_7_372MHZ   0x0013
 #define ACPI_DBG2_INTEL_LPSS        0x0014
+#define ACPI_DBG2_RISCV_SBI_CON     0x0015
 
 #define ACPI_DBG2_1394_STANDARD     0x0000
 
