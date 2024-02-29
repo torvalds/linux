@@ -5,12 +5,11 @@
 #include <linux/ipv6.h>
 #include <linux/if_vlan.h>
 #include <net/ip6_checksum.h>
+#include <net/netdev_queues.h>
 
 #include "ionic.h"
 #include "ionic_lif.h"
 #include "ionic_txrx.h"
-
-static int ionic_maybe_stop_tx(struct ionic_queue *q, int ndescs);
 
 static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
 				      void *data, size_t len);
@@ -458,7 +457,9 @@ int ionic_xdp_xmit(struct net_device *netdev, int n,
 	txq_trans_cond_update(nq);
 
 	if (netif_tx_queue_stopped(nq) ||
-	    unlikely(ionic_maybe_stop_tx(txq, 1))) {
+	    !netif_txq_maybe_stop(q_to_ndq(txq),
+				  ionic_q_space_avail(txq),
+				  1, 1)) {
 		__netif_tx_unlock(nq);
 		return -EIO;
 	}
@@ -478,7 +479,9 @@ int ionic_xdp_xmit(struct net_device *netdev, int n,
 		ionic_dbell_ring(lif->kern_dbpage, txq->hw_type,
 				 txq->dbval | txq->head_idx);
 
-	ionic_maybe_stop_tx(txq, 4);
+	netif_txq_maybe_stop(q_to_ndq(txq),
+			     ionic_q_space_avail(txq),
+			     4, 4);
 	__netif_tx_unlock(nq);
 
 	return nxmit;
@@ -571,7 +574,9 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 		txq_trans_cond_update(nq);
 
 		if (netif_tx_queue_stopped(nq) ||
-		    unlikely(ionic_maybe_stop_tx(txq, 1))) {
+		    !netif_txq_maybe_stop(q_to_ndq(txq),
+					  ionic_q_space_avail(txq),
+					  1, 1)) {
 			__netif_tx_unlock(nq);
 			goto out_xdp_abort;
 		}
@@ -946,8 +951,7 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 	lif = cq->bound_q->lif;
 	idev = &lif->ionic->idev;
 
-	work_done = ionic_cq_service(cq, budget,
-				     ionic_tx_service, NULL, NULL);
+	work_done = ionic_tx_cq_service(cq, budget);
 
 	if (unlikely(!budget))
 		return budget;
@@ -1038,8 +1042,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	txqcq = lif->txqcqs[qi];
 	txcq = &lif->txqcqs[qi]->cq;
 
-	tx_work_done = ionic_cq_service(txcq, IONIC_TX_BUDGET_DEFAULT,
-					ionic_tx_service, NULL, NULL);
+	tx_work_done = ionic_tx_cq_service(txcq, IONIC_TX_BUDGET_DEFAULT);
 
 	if (unlikely(!budget))
 		return budget;
@@ -1183,7 +1186,6 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_qcq *qcq = q_to_qcq(q);
 	struct sk_buff *skb = cb_arg;
-	u16 qi;
 
 	if (desc_info->xdpf) {
 		ionic_xdp_tx_desc_clean(q->partner, desc_info);
@@ -1199,8 +1201,6 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 	if (!skb)
 		return;
-
-	qi = skb_get_queue_mapping(skb);
 
 	if (ionic_txq_hwstamp_enabled(q)) {
 		if (cq_info) {
@@ -1227,9 +1227,6 @@ static void ionic_tx_clean(struct ionic_queue *q,
 				stats->hwstamp_invalid++;
 			}
 		}
-
-	} else if (unlikely(__netif_subqueue_stopped(q->lif->netdev, qi))) {
-		netif_wake_subqueue(q->lif->netdev, qi);
 	}
 
 	desc_info->bytes = skb->len;
@@ -1238,7 +1235,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	dev_consume_skb_any(skb);
 }
 
-bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
+static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
@@ -1273,6 +1270,37 @@ bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
 
 	return true;
+}
+
+unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
+{
+	struct ionic_cq_info *cq_info;
+	unsigned int work_done = 0;
+
+	if (work_to_do == 0)
+		return 0;
+
+	cq_info = &cq->info[cq->tail_idx];
+	while (ionic_tx_service(cq, cq_info)) {
+		if (cq->tail_idx == cq->num_descs - 1)
+			cq->done_color = !cq->done_color;
+		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
+		cq_info = &cq->info[cq->tail_idx];
+
+		if (++work_done >= work_to_do)
+			break;
+	}
+
+	if (work_done) {
+		struct ionic_queue *q = cq->bound_q;
+
+		smp_mb();	/* assure sync'd state before stopped check */
+		if (unlikely(__netif_subqueue_stopped(q->lif->netdev, q->index)) &&
+		    ionic_q_has_space(q, IONIC_TSO_DESCS_NEEDED))
+			netif_wake_subqueue(q->lif->netdev, q->index);
+	}
+
+	return work_done;
 }
 
 void ionic_tx_flush(struct ionic_cq *cq)
@@ -1724,25 +1752,6 @@ linearize:
 	return ndescs;
 }
 
-static int ionic_maybe_stop_tx(struct ionic_queue *q, int ndescs)
-{
-	int stopped = 0;
-
-	if (unlikely(!ionic_q_has_space(q, ndescs))) {
-		netif_stop_subqueue(q->lif->netdev, q->index);
-		stopped = 1;
-
-		/* Might race with ionic_tx_clean, check again */
-		smp_rmb();
-		if (ionic_q_has_space(q, ndescs)) {
-			netif_wake_subqueue(q->lif->netdev, q->index);
-			stopped = 0;
-		}
-	}
-
-	return stopped;
-}
-
 static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 					    struct net_device *netdev)
 {
@@ -1804,7 +1813,9 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (ndescs < 0)
 		goto err_out_drop;
 
-	if (unlikely(ionic_maybe_stop_tx(q, ndescs)))
+	if (!netif_txq_maybe_stop(q_to_ndq(q),
+				  ionic_q_space_avail(q),
+				  ndescs, ndescs))
 		return NETDEV_TX_BUSY;
 
 	if (skb_is_gso(skb))
@@ -1814,12 +1825,6 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	if (err)
 		goto err_out_drop;
-
-	/* Stop the queue if there aren't descriptors for the next packet.
-	 * Since our SG lists per descriptor take care of most of the possible
-	 * fragmentation, we don't need to have many descriptors available.
-	 */
-	ionic_maybe_stop_tx(q, 4);
 
 	return NETDEV_TX_OK;
 
