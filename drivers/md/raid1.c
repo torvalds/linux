@@ -498,9 +498,6 @@ static void raid1_end_write_request(struct bio *bio)
 		 * to user-side. So if something waits for IO, then it
 		 * will wait for the 'master' bio.
 		 */
-		sector_t first_bad;
-		int bad_sectors;
-
 		r1_bio->bios[mirror] = NULL;
 		to_put = bio;
 		/*
@@ -516,8 +513,8 @@ static void raid1_end_write_request(struct bio *bio)
 			set_bit(R1BIO_Uptodate, &r1_bio->state);
 
 		/* Maybe we can clear some bad blocks. */
-		if (is_badblock(rdev, r1_bio->sector, r1_bio->sectors,
-				&first_bad, &bad_sectors) && !discard_error) {
+		if (rdev_has_badblock(rdev, r1_bio->sector, r1_bio->sectors) &&
+		    !discard_error) {
 			r1_bio->bios[mirror] = IO_MADE_GOOD;
 			set_bit(R1BIO_MadeGood, &r1_bio->state);
 		}
@@ -1944,8 +1941,6 @@ static void end_sync_write(struct bio *bio)
 	struct r1bio *r1_bio = get_resync_r1bio(bio);
 	struct mddev *mddev = r1_bio->mddev;
 	struct r1conf *conf = mddev->private;
-	sector_t first_bad;
-	int bad_sectors;
 	struct md_rdev *rdev = conf->mirrors[find_bio_disk(r1_bio, bio)].rdev;
 
 	if (!uptodate) {
@@ -1955,14 +1950,11 @@ static void end_sync_write(struct bio *bio)
 			set_bit(MD_RECOVERY_NEEDED, &
 				mddev->recovery);
 		set_bit(R1BIO_WriteError, &r1_bio->state);
-	} else if (is_badblock(rdev, r1_bio->sector, r1_bio->sectors,
-			       &first_bad, &bad_sectors) &&
-		   !is_badblock(conf->mirrors[r1_bio->read_disk].rdev,
-				r1_bio->sector,
-				r1_bio->sectors,
-				&first_bad, &bad_sectors)
-		)
+	} else if (rdev_has_badblock(rdev, r1_bio->sector, r1_bio->sectors) &&
+		   !rdev_has_badblock(conf->mirrors[r1_bio->read_disk].rdev,
+				      r1_bio->sector, r1_bio->sectors)) {
 		set_bit(R1BIO_MadeGood, &r1_bio->state);
+	}
 
 	put_sync_write_buf(r1_bio, uptodate);
 }
@@ -2279,16 +2271,12 @@ static void fix_read_error(struct r1conf *conf, struct r1bio *r1_bio)
 			s = PAGE_SIZE >> 9;
 
 		do {
-			sector_t first_bad;
-			int bad_sectors;
-
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    (test_bit(In_sync, &rdev->flags) ||
 			     (!test_bit(Faulty, &rdev->flags) &&
 			      rdev->recovery_offset >= sect + s)) &&
-			    is_badblock(rdev, sect, s,
-					&first_bad, &bad_sectors) == 0) {
+			    rdev_has_badblock(rdev, sect, s) == 0) {
 				atomic_inc(&rdev->nr_pending);
 				if (sync_page_io(rdev, sect, s<<9,
 					 conf->tmppage, REQ_OP_READ, false))
