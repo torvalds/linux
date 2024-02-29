@@ -10,11 +10,6 @@ MAKE_GOALS="
 modules
 "
 
-if [ "${LTO}" = "none" ]; then
-	echo "The FIPS140 module needs LTO to be enabled."
-	exit 1
-fi
-
 MODULES_ORDER=android/gki_aarch64_fips140_modules
 KERNEL_DIR=common
 
