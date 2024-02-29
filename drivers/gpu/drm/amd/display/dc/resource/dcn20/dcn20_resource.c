@@ -1282,8 +1282,13 @@ void dcn20_build_pipe_pix_clk_params(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 {
+	struct resource_pool *pool = pipe_ctx->stream->ctx->dc->res_pool;
 
-	dcn20_build_pipe_pix_clk_params(pipe_ctx);
+	if (pool->funcs->build_pipe_pix_clk_params) {
+		pool->funcs->build_pipe_pix_clk_params(pipe_ctx);
+	} else {
+		dcn20_build_pipe_pix_clk_params(pipe_ctx);
+	}
 
 	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
 
