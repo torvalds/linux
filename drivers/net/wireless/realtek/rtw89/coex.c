@@ -358,17 +358,26 @@ enum btc_cx_poicy_type {
 	/* TDMA off + pri: WL_Rx = BT, BT_HI > WL_Tx > BT_Lo */
 	BTC_CXP_OFF_EQ3 = (BTC_CXP_OFF << 8) | 5,
 
+	/* TDMA off + pri: WL_Rx = BT, BT_HI > WL_Tx > BT_Lo */
+	BTC_CXP_OFF_EQ4 = (BTC_CXP_OFF << 8) | 6,
+
+	/* TDMA off + pri: WL_Rx = BT, BT_HI > WL_Tx > BT_Lo */
+	BTC_CXP_OFF_EQ5 = (BTC_CXP_OFF << 8) | 7,
+
 	/* TDMA off + pri: BT_Hi > WL > BT_Lo */
-	BTC_CXP_OFF_BWB0 = (BTC_CXP_OFF << 8) | 6,
+	BTC_CXP_OFF_BWB0 = (BTC_CXP_OFF << 8) | 8,
 
 	/* TDMA off + pri: WL_Hi-Tx > BT_Hi_Rx, BT_Hi > WL > BT_Lo */
-	BTC_CXP_OFF_BWB1 = (BTC_CXP_OFF << 8) | 7,
+	BTC_CXP_OFF_BWB1 = (BTC_CXP_OFF << 8) | 9,
 
 	/* TDMA off + pri: WL_Hi-Tx > BT, BT_Hi > other-WL > BT_Lo */
-	BTC_CXP_OFF_BWB2 = (BTC_CXP_OFF << 8) | 8,
+	BTC_CXP_OFF_BWB2 = (BTC_CXP_OFF << 8) | 10,
 
 	/* TDMA off + pri: WL_Hi-Tx = BT */
-	BTC_CXP_OFF_BWB3 = (BTC_CXP_OFF << 8) | 9,
+	BTC_CXP_OFF_BWB3 = (BTC_CXP_OFF << 8) | 11,
+
+	/* TDMA off + pri: WL > BT, Block-BT*/
+	BTC_CXP_OFF_WL2 = (BTC_CXP_OFF << 8) | 12,
 
 	/* TDMA off+Bcn-Protect + pri: WL_Hi-Tx > BT_Hi_Rx, BT_Hi > WL > BT_Lo*/
 	BTC_CXP_OFFB_BWB0 = (BTC_CXP_OFFB << 8) | 0,
@@ -3086,6 +3095,7 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo = &btc->cx.wl.role_info_v1;
 	struct rtw89_btc_bt_hid_desc *hid = &btc->cx.bt.link_info.hid_desc;
 	struct rtw89_btc_bt_hfp_desc *hfp = &btc->cx.bt.link_info.hfp_desc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	u8 type, null_role;
 	u32 tbl_w1, tbl_b1, tbl_b4;
 
@@ -3111,9 +3121,16 @@ void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
 			tbl_b4 = cxtbl[2];
 		}
 	} else {
-		tbl_w1 = cxtbl[16];
 		tbl_b1 = cxtbl[17];
 		tbl_b4 = cxtbl[17];
+
+		if (wl->bg_mode)
+			tbl_w1 = cxtbl[8];
+		else if ((wl->status.map.traffic_dir & BIT(RTW89_TFC_UL)) &&
+			 hid->exist)
+			tbl_w1 = cxtbl[19];
+		else
+			tbl_w1 = cxtbl[16];
 	}
 
 	btc->bt_req_en = false;
@@ -3727,7 +3744,12 @@ static void _action_bt_hfp(struct rtw89_dev *rtwdev)
 			_set_policy(rtwdev, BTC_CXP_OFF_BWB1, BTC_ACT_BT_HFP);
 		}
 	} else {
-		_set_policy(rtwdev, BTC_CXP_OFF_EQ2, BTC_ACT_BT_HFP);
+		if (wl->bg_mode)
+			_set_policy(rtwdev, BTC_CXP_OFF_BWB1, BTC_ACT_BT_HFP);
+		else if (wl->status.map.traffic_dir & BIT(RTW89_TFC_UL))
+			_set_policy(rtwdev, BTC_CXP_OFF_EQ5, BTC_ACT_BT_HFP);
+		else
+			_set_policy(rtwdev, BTC_CXP_OFF_EQ2, BTC_ACT_BT_HFP);
 	}
 }
 
@@ -3760,7 +3782,12 @@ static void _action_bt_hid(struct rtw89_dev *rtwdev)
 			policy_type = BTC_CXP_OFF_BWB1;
 		}
 	} else { /* dedicated-antenna */
-		policy_type = BTC_CXP_OFF_EQ3;
+		if (wl->bg_mode)
+			policy_type = BTC_CXP_OFF_BWB1;
+		else if (wl->status.map.traffic_dir & BIT(RTW89_TFC_UL))
+			policy_type = BTC_CXP_OFF_EQ4;
+		else
+			policy_type = BTC_CXP_OFF_EQ3;
 	}
 
 	_set_policy(rtwdev, policy_type, BTC_ACT_BT_HID);
@@ -7049,10 +7076,13 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_POLICY_STR(OFF_EQ1);
 	CASE_BTC_POLICY_STR(OFF_EQ2);
 	CASE_BTC_POLICY_STR(OFF_EQ3);
+	CASE_BTC_POLICY_STR(OFF_EQ4);
+	CASE_BTC_POLICY_STR(OFF_EQ5);
 	CASE_BTC_POLICY_STR(OFF_BWB0);
 	CASE_BTC_POLICY_STR(OFF_BWB1);
 	CASE_BTC_POLICY_STR(OFF_BWB2);
 	CASE_BTC_POLICY_STR(OFF_BWB3);
+	CASE_BTC_POLICY_STR(OFF_WL2);
 	CASE_BTC_POLICY_STR(OFFB_BWB0);
 	CASE_BTC_POLICY_STR(OFFE_DEF);
 	CASE_BTC_POLICY_STR(OFFE_DEF2);

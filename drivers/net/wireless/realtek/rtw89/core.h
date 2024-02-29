@@ -1741,6 +1741,7 @@ struct rtw89_btc_wl_info {
 	u8 cn_report;
 	u8 coex_mode;
 
+	bool bg_mode;
 	bool scbd_change;
 	u32 scbd;
 };
