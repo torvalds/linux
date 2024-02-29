@@ -1385,10 +1385,6 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			struct amdgpu_bo_va_mapping, list);
 		list_del(&mapping->list);
 
-		if (vm->pte_support_ats &&
-		    mapping->start < AMDGPU_GMC_HOLE_START)
-			init_pte_value = AMDGPU_PTE_DEFAULT_ATC;
-
 		r = amdgpu_vm_update_range(adev, vm, false, false, true, false,
 					   resv, mapping->start, mapping->last,
 					   init_pte_value, 0, 0, NULL, NULL,
@@ -2264,7 +2260,6 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	if (r)
 		return r;
 
-	vm->pte_support_ats = false;
 	vm->is_compute_context = false;
 
 	vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &
@@ -2350,29 +2345,11 @@ error_free_delayed:
  */
 int amdgpu_vm_make_compute(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
-	bool pte_support_ats = (adev->asic_type == CHIP_RAVEN);
 	int r;
 
 	r = amdgpu_bo_reserve(vm->root.bo, true);
 	if (r)
 		return r;
-
-	/* Check if PD needs to be reinitialized and do it before
-	 * changing any other state, in case it fails.
-	 */
-	if (pte_support_ats != vm->pte_support_ats) {
-		/* Sanity checks */
-		if (!amdgpu_vm_pt_is_root_clean(adev, vm)) {
-			r = -EINVAL;
-			goto unreserve_bo;
-		}
-
-		vm->pte_support_ats = pte_support_ats;
-		r = amdgpu_vm_pt_clear(adev, vm, to_amdgpu_bo_vm(vm->root.bo),
-				       false);
-		if (r)
-			goto unreserve_bo;
-	}
 
 	/* Update VM state */
 	vm->use_cpu_for_update = !!(adev->vm_manager.vm_update_mode &

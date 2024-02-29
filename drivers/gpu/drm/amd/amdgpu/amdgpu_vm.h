@@ -357,9 +357,6 @@ struct amdgpu_vm {
 	/* Functions to use for VM table updates */
 	const struct amdgpu_vm_update_funcs	*update_funcs;
 
-	/* Flag to indicate ATS support from PTE for GFX9 */
-	bool			pte_support_ats;
-
 	/* Up to 128 pending retry page faults */
 	DECLARE_KFIFO(faults, u64, 128);
 
