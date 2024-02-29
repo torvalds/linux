@@ -276,3 +276,23 @@ static inline int raid1_check_read_range(struct md_rdev *rdev,
 	*len = first_bad + bad_sectors - this_sector;
 	return 0;
 }
+
+/*
+ * Check if read should choose the first rdev.
+ *
+ * Balance on the whole device if no resync is going on (recovery is ok) or
+ * below the resync window. Otherwise, take the first readable disk.
+ */
+static inline bool raid1_should_read_first(struct mddev *mddev,
+					   sector_t this_sector, int len)
+{
+	if ((mddev->recovery_cp < this_sector + len))
+		return true;
+
+	if (mddev_is_clustered(mddev) &&
+	    md_cluster_ops->area_resyncing(mddev, READ, this_sector,
+					   this_sector + len))
+		return true;
+
+	return false;
+}
