@@ -107,7 +107,7 @@ struct intel_dpll_mgr {
 				   struct intel_crtc *crtc,
 				   struct intel_encoder *encoder);
 	void (*update_ref_clks)(struct drm_i915_private *i915);
-	void (*dump_hw_state)(struct drm_i915_private *i915,
+	void (*dump_hw_state)(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state);
 	bool (*compare_hw_state)(const struct intel_dpll_hw_state *a,
 				 const struct intel_dpll_hw_state *b);
@@ -634,16 +634,15 @@ static int ibx_get_dpll(struct intel_atomic_state *state,
 	return 0;
 }
 
-static void ibx_dump_hw_state(struct drm_i915_private *i915,
+static void ibx_dump_hw_state(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state)
 {
-	drm_dbg_kms(&i915->drm,
-		    "dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
-		    "fp0: 0x%x, fp1: 0x%x\n",
-		    hw_state->dpll,
-		    hw_state->dpll_md,
-		    hw_state->fp0,
-		    hw_state->fp1);
+	drm_printf(p, "dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
+		   "fp0: 0x%x, fp1: 0x%x\n",
+		   hw_state->dpll,
+		   hw_state->dpll_md,
+		   hw_state->fp0,
+		   hw_state->fp1);
 }
 
 static bool ibx_compare_hw_state(const struct intel_dpll_hw_state *a,
@@ -1225,11 +1224,11 @@ static void hsw_update_dpll_ref_clks(struct drm_i915_private *i915)
 		i915->display.dpll.ref_clks.nssc = 135000;
 }
 
-static void hsw_dump_hw_state(struct drm_i915_private *i915,
+static void hsw_dump_hw_state(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state)
 {
-	drm_dbg_kms(&i915->drm, "dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
-		    hw_state->wrpll, hw_state->spll);
+	drm_printf(p, "dpll_hw_state: wrpll: 0x%x spll: 0x%x\n",
+		   hw_state->wrpll, hw_state->spll);
 }
 
 static bool hsw_compare_hw_state(const struct intel_dpll_hw_state *a,
@@ -1939,14 +1938,11 @@ static void skl_update_dpll_ref_clks(struct drm_i915_private *i915)
 	i915->display.dpll.ref_clks.nssc = i915->display.cdclk.hw.ref;
 }
 
-static void skl_dump_hw_state(struct drm_i915_private *i915,
+static void skl_dump_hw_state(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state)
 {
-	drm_dbg_kms(&i915->drm, "dpll_hw_state: "
-		      "ctrl1: 0x%x, cfgcr1: 0x%x, cfgcr2: 0x%x\n",
-		      hw_state->ctrl1,
-		      hw_state->cfgcr1,
-		      hw_state->cfgcr2);
+	drm_printf(p, "dpll_hw_state: ctrl1: 0x%x, cfgcr1: 0x%x, cfgcr2: 0x%x\n",
+		   hw_state->ctrl1, hw_state->cfgcr1, hw_state->cfgcr2);
 }
 
 static bool skl_compare_hw_state(const struct intel_dpll_hw_state *a,
@@ -2402,23 +2398,16 @@ static void bxt_update_dpll_ref_clks(struct drm_i915_private *i915)
 	/* DSI non-SSC ref 19.2MHz */
 }
 
-static void bxt_dump_hw_state(struct drm_i915_private *i915,
+static void bxt_dump_hw_state(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state)
 {
-	drm_dbg_kms(&i915->drm, "dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
-		    "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
-		    "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pll10: 0x%x, pcsdw12: 0x%x\n",
-		    hw_state->ebb0,
-		    hw_state->ebb4,
-		    hw_state->pll0,
-		    hw_state->pll1,
-		    hw_state->pll2,
-		    hw_state->pll3,
-		    hw_state->pll6,
-		    hw_state->pll8,
-		    hw_state->pll9,
-		    hw_state->pll10,
-		    hw_state->pcsdw12);
+	drm_printf(p, "dpll_hw_state: ebb0: 0x%x, ebb4: 0x%x,"
+		   "pll0: 0x%x, pll1: 0x%x, pll2: 0x%x, pll3: 0x%x, "
+		   "pll6: 0x%x, pll8: 0x%x, pll9: 0x%x, pll10: 0x%x, pcsdw12: 0x%x\n",
+		   hw_state->ebb0, hw_state->ebb4,
+		   hw_state->pll0, hw_state->pll1, hw_state->pll2, hw_state->pll3,
+		   hw_state->pll6, hw_state->pll8, hw_state->pll9, hw_state->pll10,
+		   hw_state->pcsdw12);
 }
 
 static bool bxt_compare_hw_state(const struct intel_dpll_hw_state *a,
@@ -4026,28 +4015,26 @@ static void icl_update_dpll_ref_clks(struct drm_i915_private *i915)
 	i915->display.dpll.ref_clks.nssc = i915->display.cdclk.hw.ref;
 }
 
-static void icl_dump_hw_state(struct drm_i915_private *i915,
+static void icl_dump_hw_state(struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state)
 {
-	drm_dbg_kms(&i915->drm,
-		    "dpll_hw_state: cfgcr0: 0x%x, cfgcr1: 0x%x, div0: 0x%x, "
-		    "mg_refclkin_ctl: 0x%x, hg_clktop2_coreclkctl1: 0x%x, "
-		    "mg_clktop2_hsclkctl: 0x%x, mg_pll_div0: 0x%x, "
-		    "mg_pll_div2: 0x%x, mg_pll_lf: 0x%x, "
-		    "mg_pll_frac_lock: 0x%x, mg_pll_ssc: 0x%x, "
-		    "mg_pll_bias: 0x%x, mg_pll_tdc_coldst_bias: 0x%x\n",
-		    hw_state->cfgcr0, hw_state->cfgcr1,
-		    hw_state->div0,
-		    hw_state->mg_refclkin_ctl,
-		    hw_state->mg_clktop2_coreclkctl1,
-		    hw_state->mg_clktop2_hsclkctl,
-		    hw_state->mg_pll_div0,
-		    hw_state->mg_pll_div1,
-		    hw_state->mg_pll_lf,
-		    hw_state->mg_pll_frac_lock,
-		    hw_state->mg_pll_ssc,
-		    hw_state->mg_pll_bias,
-		    hw_state->mg_pll_tdc_coldst_bias);
+	drm_printf(p, "dpll_hw_state: cfgcr0: 0x%x, cfgcr1: 0x%x, div0: 0x%x, "
+		   "mg_refclkin_ctl: 0x%x, hg_clktop2_coreclkctl1: 0x%x, "
+		   "mg_clktop2_hsclkctl: 0x%x, mg_pll_div0: 0x%x, "
+		   "mg_pll_div2: 0x%x, mg_pll_lf: 0x%x, "
+		   "mg_pll_frac_lock: 0x%x, mg_pll_ssc: 0x%x, "
+		   "mg_pll_bias: 0x%x, mg_pll_tdc_coldst_bias: 0x%x\n",
+		   hw_state->cfgcr0, hw_state->cfgcr1, hw_state->div0,
+		   hw_state->mg_refclkin_ctl,
+		   hw_state->mg_clktop2_coreclkctl1,
+		   hw_state->mg_clktop2_hsclkctl,
+		   hw_state->mg_pll_div0,
+		   hw_state->mg_pll_div1,
+		   hw_state->mg_pll_lf,
+		   hw_state->mg_pll_frac_lock,
+		   hw_state->mg_pll_ssc,
+		   hw_state->mg_pll_bias,
+		   hw_state->mg_pll_tdc_coldst_bias);
 }
 
 static bool icl_compare_hw_state(const struct intel_dpll_hw_state *a,
@@ -4514,22 +4501,24 @@ void intel_dpll_sanitize_state(struct drm_i915_private *i915)
 }
 
 /**
- * intel_dpll_dump_hw_state - write hw_state to dmesg
+ * intel_dpll_dump_hw_state - dump hw_state
  * @i915: i915 drm device
- * @hw_state: hw state to be written to the log
+ * @p: where to print the state to
+ * @hw_state: hw state to be dumped
  *
- * Write the relevant values in @hw_state to dmesg using drm_dbg_kms.
+ * Dumo out the relevant values in @hw_state.
  */
 void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
+			      struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state)
 {
 	if (i915->display.dpll.mgr) {
-		i915->display.dpll.mgr->dump_hw_state(i915, hw_state);
+		i915->display.dpll.mgr->dump_hw_state(p, hw_state);
 	} else {
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
 		 */
-		ibx_dump_hw_state(i915, hw_state);
+		ibx_dump_hw_state(p, hw_state);
 	}
 }
 

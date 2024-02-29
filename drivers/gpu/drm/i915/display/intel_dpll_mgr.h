@@ -36,6 +36,7 @@
 
 enum tc_port;
 struct drm_i915_private;
+struct drm_printer;
 struct intel_atomic_state;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -377,6 +378,7 @@ void intel_dpll_readout_hw_state(struct drm_i915_private *i915);
 void intel_dpll_sanitize_state(struct drm_i915_private *i915);
 
 void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
+			      struct drm_printer *p,
 			      const struct intel_dpll_hw_state *hw_state);
 bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
 				 const struct intel_dpll_hw_state *a,

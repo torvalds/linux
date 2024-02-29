@@ -205,8 +205,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
+	struct drm_printer p;
 	char buf[64];
 	int i;
+
+	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 
 	drm_dbg_kms(&i915->drm, "[CRTC:%d:%s] enable: %s [%s]\n",
 		    crtc->base.base.id, crtc->base.name,
@@ -356,7 +359,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		    pipe_config->ips_enabled, pipe_config->double_wide,
 		    pipe_config->has_drrs);
 
-	intel_dpll_dump_hw_state(i915, &pipe_config->dpll_hw_state);
+	intel_dpll_dump_hw_state(i915, &p, &pipe_config->dpll_hw_state);
 
 	if (IS_CHERRYVIEW(i915))
 		drm_dbg_kms(&i915->drm,
