@@ -720,6 +720,8 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 
 	/* Copy the header into the skb in the case of header split */
 	if (hsplit) {
+		int unsplit = 0;
+
 		if (hdr_len && !hbo) {
 			rx->ctx.skb_head = gve_rx_copy_data(priv->dev, napi,
 							    rx->dqo.hdr_bufs.data +
@@ -728,7 +730,14 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 			if (unlikely(!rx->ctx.skb_head))
 				goto error;
 			rx->ctx.skb_tail = rx->ctx.skb_head;
+		} else {
+			unsplit = 1;
 		}
+		u64_stats_update_begin(&rx->statss);
+		rx->rx_hsplit_pkt++;
+		rx->rx_hsplit_unsplit_pkt += unsplit;
+		rx->rx_hsplit_bytes += hdr_len;
+		u64_stats_update_end(&rx->statss);
 	}
 
 	/* Sync the portion of dma buffer for CPU to read. */
