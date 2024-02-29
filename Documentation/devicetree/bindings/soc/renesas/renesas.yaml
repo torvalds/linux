@@ -348,11 +348,24 @@ properties:
               - renesas,white-hawk-cpu # White Hawk CPU board (RTP8A779G0ASKB0FC0SA000)
           - const: renesas,r8a779g0
 
+      - description: R-Car V4H (R8A779G2)
+        items:
+          - enum:
+              - renesas,white-hawk-single # White Hawk Single board (RTP8A779G2ASKB0F10SA001)
+          - const: renesas,r8a779g2
+          - const: renesas,r8a779g0
+
       - items:
           - enum:
               - renesas,white-hawk-breakout # White Hawk BreakOut board (RTP8A779G0ASKB0SB0SA000)
           - const: renesas,white-hawk-cpu
           - const: renesas,r8a779g0
+
+      - description: R-Car V4M (R8A779H0)
+        items:
+          - enum:
+              - renesas,gray-hawk-single # Gray Hawk Single board (RTP8A779H0ASKB0F10S)
+          - const: renesas,r8a779h0
 
       - description: R-Car H3e (R8A779M0)
         items:
