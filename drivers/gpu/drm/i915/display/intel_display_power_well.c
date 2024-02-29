@@ -394,17 +394,11 @@ static void hsw_power_well_disable(struct drm_i915_private *dev_priv,
 	hsw_wait_for_power_well_disable(dev_priv, power_well);
 }
 
-static bool intel_port_is_edp(struct drm_i915_private *i915, enum port port)
+static bool intel_aux_ch_is_edp(struct drm_i915_private *i915, enum aux_ch aux_ch)
 {
-	struct intel_encoder *encoder;
+	struct intel_digital_port *dig_port = aux_ch_to_digital_port(i915, aux_ch);
 
-	for_each_intel_encoder(&i915->drm, encoder) {
-		if (encoder->type == INTEL_OUTPUT_EDP &&
-		    encoder->port == port)
-			return true;
-	}
-
-	return false;
+	return dig_port && dig_port->base.type == INTEL_OUTPUT_EDP;
 }
 
 static void
@@ -413,7 +407,6 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	int pw_idx = i915_power_well_instance(power_well)->hsw.idx;
-	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
 	drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
 
@@ -430,7 +423,7 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 
 	/* Display WA #1178: icl */
 	if (pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
-	    !intel_port_is_edp(dev_priv, (enum port)phy))
+	    !intel_aux_ch_is_edp(dev_priv, ICL_AUX_PW_TO_CH(pw_idx)))
 		intel_de_rmw(dev_priv, ICL_PORT_TX_DW6_AUX(ICL_AUX_PW_TO_PHY(pw_idx)),
 			     0, ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS);
 }
