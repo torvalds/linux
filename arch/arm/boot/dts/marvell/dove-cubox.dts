@@ -101,7 +101,7 @@
 		/* connect xtal input as source of pll0 and pll1 */
 		silabs,pll-source = <0 0>, <1 0>;
 
-		clkout0 {
+		clkout@0 {
 			reg = <0>;
 			silabs,drive-strength = <8>;
 			silabs,multisynth-source = <0>;
@@ -109,7 +109,7 @@
 			silabs,pll-master;
 		};
 
-		clkout2 {
+		clkout@2 {
 			reg = <2>;
 			silabs,drive-strength = <8>;
 			silabs,multisynth-source = <1>;
