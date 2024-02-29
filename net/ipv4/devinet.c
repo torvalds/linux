@@ -716,8 +716,10 @@ static void check_lifetime(struct work_struct *work)
 			unsigned long age, tstamp;
 			u32 preferred_lft;
 			u32 valid_lft;
+			u32 flags;
 
-			if (ifa->ifa_flags & IFA_F_PERMANENT)
+			flags = READ_ONCE(ifa->ifa_flags);
+			if (flags & IFA_F_PERMANENT)
 				continue;
 
 			preferred_lft = READ_ONCE(ifa->ifa_preferred_lft);
@@ -737,7 +739,7 @@ static void check_lifetime(struct work_struct *work)
 				if (time_before(tstamp + valid_lft * HZ, next))
 					next = tstamp + valid_lft * HZ;
 
-				if (!(ifa->ifa_flags & IFA_F_DEPRECATED))
+				if (!(flags & IFA_F_DEPRECATED))
 					change_needed = true;
 			} else if (time_before(tstamp + preferred_lft * HZ,
 					       next)) {
@@ -805,21 +807,23 @@ static void set_ifa_lifetime(struct in_ifaddr *ifa, __u32 valid_lft,
 			     __u32 prefered_lft)
 {
 	unsigned long timeout;
+	u32 flags;
 
-	ifa->ifa_flags &= ~(IFA_F_PERMANENT | IFA_F_DEPRECATED);
+	flags = ifa->ifa_flags & ~(IFA_F_PERMANENT | IFA_F_DEPRECATED);
 
 	timeout = addrconf_timeout_fixup(valid_lft, HZ);
 	if (addrconf_finite_timeout(timeout))
 		WRITE_ONCE(ifa->ifa_valid_lft, timeout);
 	else
-		ifa->ifa_flags |= IFA_F_PERMANENT;
+		flags |= IFA_F_PERMANENT;
 
 	timeout = addrconf_timeout_fixup(prefered_lft, HZ);
 	if (addrconf_finite_timeout(timeout)) {
 		if (timeout == 0)
-			ifa->ifa_flags |= IFA_F_DEPRECATED;
+			flags |= IFA_F_DEPRECATED;
 		WRITE_ONCE(ifa->ifa_preferred_lft, timeout);
 	}
+	WRITE_ONCE(ifa->ifa_flags, flags);
 	WRITE_ONCE(ifa->ifa_tstamp, jiffies);
 	if (!ifa->ifa_cstamp)
 		WRITE_ONCE(ifa->ifa_cstamp, ifa->ifa_tstamp);
@@ -1313,7 +1317,7 @@ static __be32 in_dev_select_addr(const struct in_device *in_dev,
 	const struct in_ifaddr *ifa;
 
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
-		if (ifa->ifa_flags & IFA_F_SECONDARY)
+		if (READ_ONCE(ifa->ifa_flags) & IFA_F_SECONDARY)
 			continue;
 		if (ifa->ifa_scope != RT_SCOPE_LINK &&
 		    ifa->ifa_scope <= scope)
@@ -1341,7 +1345,7 @@ __be32 inet_select_addr(const struct net_device *dev, __be32 dst, int scope)
 		localnet_scope = RT_SCOPE_LINK;
 
 	in_dev_for_each_ifa_rcu(ifa, in_dev) {
-		if (ifa->ifa_flags & IFA_F_SECONDARY)
+		if (READ_ONCE(ifa->ifa_flags) & IFA_F_SECONDARY)
 			continue;
 		if (min(ifa->ifa_scope, localnet_scope) > scope)
 			continue;
@@ -1688,7 +1692,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	ifm = nlmsg_data(nlh);
 	ifm->ifa_family = AF_INET;
 	ifm->ifa_prefixlen = ifa->ifa_prefixlen;
-	ifm->ifa_flags = ifa->ifa_flags;
+	ifm->ifa_flags = READ_ONCE(ifa->ifa_flags);
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
@@ -1728,7 +1732,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)) ||
 	    (ifa->ifa_proto &&
 	     nla_put_u8(skb, IFA_PROTO, ifa->ifa_proto)) ||
-	    nla_put_u32(skb, IFA_FLAGS, ifa->ifa_flags) ||
+	    nla_put_u32(skb, IFA_FLAGS, ifm->ifa_flags) ||
 	    (ifa->ifa_rt_priority &&
 	     nla_put_u32(skb, IFA_RT_PRIORITY, ifa->ifa_rt_priority)) ||
 	    put_cacheinfo(skb, READ_ONCE(ifa->ifa_cstamp), tstamp,
