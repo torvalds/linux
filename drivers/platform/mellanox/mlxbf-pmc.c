@@ -1505,8 +1505,9 @@ static ssize_t mlxbf_pmc_counter_show(struct device *dev,
 {
 	struct mlxbf_pmc_attribute *attr_counter = container_of(
 		attr, struct mlxbf_pmc_attribute, dev_attr);
-	unsigned int blk_num, cnt_num, offset;
+	unsigned int blk_num, cnt_num;
 	bool is_l3 = false;
+	int offset;
 	u64 value;
 
 	blk_num = attr_counter->nr;
@@ -1539,9 +1540,10 @@ static ssize_t mlxbf_pmc_counter_store(struct device *dev,
 {
 	struct mlxbf_pmc_attribute *attr_counter = container_of(
 		attr, struct mlxbf_pmc_attribute, dev_attr);
-	unsigned int blk_num, cnt_num, offset, data;
+	unsigned int blk_num, cnt_num, data;
 	bool is_l3 = false;
 	u64 evt_num;
+	int offset;
 	int err;
 
 	blk_num = attr_counter->nr;
@@ -1621,8 +1623,9 @@ static ssize_t mlxbf_pmc_event_store(struct device *dev,
 {
 	struct mlxbf_pmc_attribute *attr_event = container_of(
 		attr, struct mlxbf_pmc_attribute, dev_attr);
-	unsigned int blk_num, cnt_num, evt_num;
+	unsigned int blk_num, cnt_num;
 	bool is_l3 = false;
+	int evt_num;
 	int err;
 
 	blk_num = attr_event->nr;
