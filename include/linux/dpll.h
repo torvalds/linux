@@ -169,13 +169,13 @@ int dpll_device_change_ntf(struct dpll_device *dpll);
 
 int dpll_pin_change_ntf(struct dpll_pin *pin);
 
+#if !IS_ENABLED(CONFIG_DPLL)
 static inline struct dpll_pin *netdev_dpll_pin(const struct net_device *dev)
 {
-#if IS_ENABLED(CONFIG_DPLL)
-	return rcu_dereference_rtnl(dev->dpll_pin);
-#else
 	return NULL;
-#endif
 }
+#else
+struct dpll_pin *netdev_dpll_pin(const struct net_device *dev);
+#endif
 
 #endif
