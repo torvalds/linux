@@ -8,6 +8,8 @@
 #include <linux/clk.h>
 #include <linux/reset.h>
 #include <linux/interrupt.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <asm/io.h>
 
 #define LTPI_AUTO_CAP_LOW			0x24
@@ -24,13 +26,22 @@
 #define   LTPI_LINK_PARTNER_FLAG		BIT(24)
 
 #define LTPI_MANUAL_CAP_LOW			0x118
-#define LTPI_MANUAL_CAP_HIGH			0x11C
+#define LTPI_MANUAL_CAP_HIGH			0x11c
+
+#define SCU_IO_PINS_TRAP1			0x10
+#define SCU_IO_PINS_TRAP1_CLEAR			0x14
+#define   SCU_IO_PINS_TRAP_LTPI			GENMASK(2, 0)
+#define SCU_IO_OTP_TRAP1			0xa00
+#define SCU_IO_OTP_TRAP1_CLEAR			0xa04
+#define SCU_IO_OTP_TRAP2			0xa20
+#define SCU_IO_OTP_TRAP2_CLEAR			0xa24
 
 struct aspeed_ltpi_priv {
 	struct device *dev;
 	void __iomem *regs;
 	struct clk *ltpi_clk;
 	struct reset_control *ltpi_rst;
+	struct regmap *scu;
 };
 
 static irqreturn_t aspeed_ltpi_irq_handler(int irq, void *dev_id)
@@ -114,13 +125,30 @@ static int aspeed_ltpi_probe(struct platform_device *pdev)
 
 	reset_control_deassert(priv->ltpi_rst);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		/* Only controllers on the near end (AST2700) have IRQ signals */
-		dev_info(priv->dev, "No IRQ connected. It is okay for remote controllers\n");
+	priv->scu = syscon_regmap_lookup_by_phandle(np, "aspeed,scu");
+	if (of_get_property(np, "remote-controller", NULL)) {
+		u32 reg;
+
+		/* Clear all the pins/otp strap but LTPI related settings for AST1700 */
+		regmap_read(priv->scu, SCU_IO_PINS_TRAP1, &reg);
+		reg &= ~SCU_IO_PINS_TRAP_LTPI;
+		regmap_write(priv->scu, SCU_IO_PINS_TRAP1_CLEAR, reg);
+
+		regmap_read(priv->scu, SCU_IO_OTP_TRAP1, &reg);
+		regmap_write(priv->scu, SCU_IO_OTP_TRAP1_CLEAR, reg);
+
+		regmap_read(priv->scu, SCU_IO_OTP_TRAP2, &reg);
+		regmap_write(priv->scu, SCU_IO_OTP_TRAP2_CLEAR, reg);
 	} else {
+		irq = platform_get_irq(pdev, 0);
 		ret = devm_request_irq(priv->dev, irq, aspeed_ltpi_irq_handler,
 				       0, dev_name(priv->dev), priv);
+		if (ret) {
+			dev_err(priv->dev, "failed to request irq\n");
+			reset_control_assert(priv->ltpi_rst);
+			clk_disable_unprepare(priv->ltpi_clk);
+			return ret;
+		}
 
 		writel(LTPI_INTR_EN_OP_LINK_LOST, priv->regs + LTPI_INTR_EN);
 	}
