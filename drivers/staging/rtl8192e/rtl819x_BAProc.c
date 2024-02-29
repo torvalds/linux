@@ -334,14 +334,14 @@ int rtllib_rx_add_ba_rsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			    ieee->ht_info->current_ht_support,
 			    ieee->ht_info->current_ampdu_enable);
 		reason_code = DELBA_REASON_UNKNOWN_BA;
-		goto OnADDBARsp_Reject;
+		goto on_add_ba_rsp_reject;
 	}
 
 	if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
 			   (u8)(ba_param_set->field.tid), TX_DIR, false)) {
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
 		reason_code = DELBA_REASON_UNKNOWN_BA;
-		goto OnADDBARsp_Reject;
+		goto on_add_ba_rsp_reject;
 	}
 
 	ts->add_ba_req_in_progress = false;
@@ -358,7 +358,7 @@ int rtllib_rx_add_ba_rsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			    "%s(): ADDBA Rsp. BA invalid, DELBA!\n",
 			    __func__);
 		reason_code = DELBA_REASON_UNKNOWN_BA;
-		goto OnADDBARsp_Reject;
+		goto on_add_ba_rsp_reject;
 	} else {
 		netdev_dbg(ieee->dev,
 			   "%s(): Recv ADDBA Rsp. BA is admitted! Status code:%X\n",
@@ -371,7 +371,7 @@ int rtllib_rx_add_ba_rsp(struct rtllib_device *ieee, struct sk_buff *skb)
 			ts->add_ba_req_delayed = true;
 			deactivate_ba_entry(ieee, admitted_ba);
 			reason_code = DELBA_REASON_END_BA;
-			goto OnADDBARsp_Reject;
+			goto on_add_ba_rsp_reject;
 		}
 
 		admitted_ba->dialog_token = *dialog_token;
@@ -384,12 +384,12 @@ int rtllib_rx_add_ba_rsp(struct rtllib_device *ieee, struct sk_buff *skb)
 		ts->add_ba_req_delayed = true;
 		ts->disable_add_ba = true;
 		reason_code = DELBA_REASON_END_BA;
-		goto OnADDBARsp_Reject;
+		goto on_add_ba_rsp_reject;
 	}
 
 	return 0;
 
-OnADDBARsp_Reject:
+on_add_ba_rsp_reject:
 	{
 		struct ba_record BA;
 
