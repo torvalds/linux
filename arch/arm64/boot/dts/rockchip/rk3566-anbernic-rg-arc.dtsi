@@ -8,68 +8,10 @@
 #include "rk3566-anbernic-rgxx3.dtsi"
 
 / {
-	model = "RG503";
-	compatible = "anbernic,rg503", "rockchip,rk3566";
-
-	aliases {
-		mmc0 = &sdmmc0;
-		mmc1 = &sdmmc1;
-		mmc2 = &sdmmc2;
-	};
-
-	adc-joystick {
-		compatible = "adc-joystick";
-		io-channels = <&adc_mux 0>,
-			      <&adc_mux 1>,
-			      <&adc_mux 2>,
-			      <&adc_mux 3>;
-		pinctrl-0 = <&joy_mux_en>;
-		pinctrl-names = "default";
-		poll-interval = <60>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		axis@0 {
-			reg = <0>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <1023 15>;
-			linux,code = <ABS_X>;
-		};
-
-		axis@1 {
-			reg = <1>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <15 1023>;
-			linux,code = <ABS_RX>;
-		};
-
-		axis@2 {
-			reg = <2>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <15 1023>;
-			linux,code = <ABS_Y>;
-		};
-
-		axis@3 {
-			reg = <3>;
-			abs-flat = <32>;
-			abs-fuzz = <32>;
-			abs-range = <1023 15>;
-			linux,code = <ABS_RY>;
-		};
-	};
-
-	adc_mux: adc-mux {
-		compatible = "io-channel-mux";
-		channels = "left_x", "right_x", "left_y", "right_y";
-		#io-channel-cells = <1>;
-		io-channels = <&saradc 3>;
-		io-channel-names = "parent";
-		mux-controls = <&gpio_mux>;
-		settle-time-us = <100>;
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		power-supply = <&vcc_sys>;
+		pwms = <&pwm4 0 25000 0>;
 	};
 
 	battery: battery {
@@ -91,44 +33,11 @@
 					<3400000 0>;
 	};
 
-	gpio_mux: mux-controller {
-		compatible = "gpio-mux";
-		mux-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_LOW>,
-			    <&gpio0 RK_PB7 GPIO_ACTIVE_LOW>;
-		#mux-control-cells = <0>;
-	};
-
-	gpio_spi: spi {
-		compatible = "spi-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&spi_pins>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		sck-gpios = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
-		mosi-gpios = <&gpio4 RK_PB0 GPIO_ACTIVE_HIGH>;
-		cs-gpios = <&gpio4 RK_PA7 GPIO_ACTIVE_HIGH>;
-		num-chipselects = <0>;
-
-		panel@0 {
-			compatible = "samsung,ams495qa01";
-			reg = <0>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&lcd_reset>;
-			reset-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_LOW>;
-			vdd-supply = <&vcc_3v3>;
-
-			port {
-				mipi_in_panel: endpoint {
-					remote-endpoint = <&mipi_out_panel>;
-				};
-			};
-		};
-	};
-
 	/* Channels reversed for both headphones and speakers. */
 	sound {
 		compatible = "simple-audio-card";
+		pinctrl-0 = <&hp_det>;
+		pinctrl-names = "default";
 		simple-audio-card,name = "rk817_ext";
 		simple-audio-card,aux-devs = <&spk_amp>;
 		simple-audio-card,format = "i2s";
@@ -170,7 +79,7 @@
 	assigned-clocks = <&pmucru CLK_RTC_32K>, <&cru PLL_GPLL>,
 			  <&pmucru PLL_PPLL>, <&cru PLL_VPLL>;
 	assigned-clock-rates = <32768>, <1200000000>,
-			       <200000000>, <500000000>;
+			       <200000000>, <128000000>;
 };
 
 &dsi_dphy0 {
@@ -179,11 +88,12 @@
 
 &dsi0 {
 	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
 
 	ports {
 		dsi0_in: port@0 {
 			reg = <0>;
-
 			dsi0_in_vp1: endpoint {
 				remote-endpoint = <&vp1_out_dsi0>;
 			};
@@ -191,67 +101,95 @@
 
 		dsi0_out: port@1 {
 			reg = <1>;
-
 			mipi_out_panel: endpoint {
 				remote-endpoint = <&mipi_in_panel>;
 			};
 		};
 	};
+
+	panel: panel@0 {
+		compatible = "anbernic,rg-arc-panel", "sitronix,st7701";
+		reg = <0>;
+		backlight = <&backlight>;
+		IOVCC-supply = <&vcc3v3_lcd0_n>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&lcd_rst>;
+		reset-gpios = <&gpio4 RK_PA0 GPIO_ACTIVE_HIGH>;
+		rotation = <90>;
+		VCC-supply = <&vcc3v3_lcd0_n>;
+
+		port {
+			mipi_in_panel: endpoint {
+				remote-endpoint = <&mipi_out_panel>;
+			};
+		};
+	};
 };
 
+/*
+ * Device uses a non-standard six button layout for a gamepad with X,
+ * Y, and Z on the top row of buttons and A, B, and C under the bottom
+ * row.
+ */
 &gpio_keys_control {
 	button-a {
-		gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
-		label = "EAST";
-		linux,code = <BTN_EAST>;
+		gpios = <&gpio3 RK_PC3 GPIO_ACTIVE_LOW>;
+		label = "A";
+		linux,code = <BTN_A>;
+	};
+
+	button-b {
+		gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
+		label = "B";
+		linux,code = <BTN_B>;
+	};
+
+	button-c {
+		gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
+		label = "C";
+		linux,code = <BTN_C>;
 	};
 
 	button-left {
-		gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
 		label = "DPAD-LEFT";
 		linux,code = <BTN_DPAD_LEFT>;
 	};
 
-	button-right {
-		gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
-		label = "DPAD-RIGHT";
-		linux,code = <BTN_DPAD_RIGHT>;
-	};
-
 	button-r1 {
-		gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
 		label = "TR";
 		linux,code = <BTN_TR>;
 	};
 
 	button-r2 {
-		gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>;
 		label = "TR2";
 		linux,code = <BTN_TR2>;
 	};
 
 	button-right {
-		gpios = <&gpio3 RK_PA6 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio3 RK_PA5 GPIO_ACTIVE_LOW>;
 		label = "DPAD-RIGHT";
 		linux,code = <BTN_DPAD_RIGHT>;
 	};
 
-	button-thumbl {
-		gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
-		label = "THUMBL";
-		linux,code = <BTN_THUMBL>;
-	};
-
-	button-thumbr {
-		gpios = <&gpio3 RK_PA2 GPIO_ACTIVE_LOW>;
-		label = "THUMBR";
-		linux,code = <BTN_THUMBR>;
+	button-x {
+		gpios = <&gpio3 RK_PC0 GPIO_ACTIVE_LOW>;
+		label = "X";
+		linux,code = <BTN_X>;
 	};
 
 	button-y {
-		gpios = <&gpio3 RK_PC2 GPIO_ACTIVE_LOW>;
-		label = "WEST";
-		linux,code = <BTN_WEST>;
+		gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_LOW>;
+		label = "Y";
+		linux,code = <BTN_Y>;
+	};
+
+	button-z {
+		gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_LOW>;
+		label = "Z";
+		linux,code = <BTN_Z>;
 	};
 };
 
@@ -264,20 +202,22 @@
 	};
 
 	gpio-lcd {
-		lcd_reset: lcd-reset {
+		lcd_rst: lcd-rst {
 			rockchip,pins =
 				<4 RK_PA0 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 
-	gpio-spi {
-		spi_pins: spi-pins {
+	headphone {
+		hp_det: hp-det {
 			rockchip,pins =
-				<4 RK_PA7 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PB0 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_none>;
+				<4 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
+};
+
+&pwm4 {
+	status = "okay";
 };
 
 &rk817 {

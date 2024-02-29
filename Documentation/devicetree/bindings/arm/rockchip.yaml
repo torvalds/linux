@@ -37,29 +37,16 @@ properties:
               - anbernic,rg351v
           - const: rockchip,rk3326
 
-      - description: Anbernic RG353P
+      - description: Anbernic RK3566 Handheld Gaming Console
         items:
-          - const: anbernic,rg353p
-          - const: rockchip,rk3566
-
-      - description: Anbernic RG353PS
-        items:
-          - const: anbernic,rg353ps
-          - const: rockchip,rk3566
-
-      - description: Anbernic RG353V
-        items:
-          - const: anbernic,rg353v
-          - const: rockchip,rk3566
-
-      - description: Anbernic RG353VS
-        items:
-          - const: anbernic,rg353vs
-          - const: rockchip,rk3566
-
-      - description: Anbernic RG503
-        items:
-          - const: anbernic,rg503
+          - enum:
+              - anbernic,rg353p
+              - anbernic,rg353ps
+              - anbernic,rg353v
+              - anbernic,rg353vs
+              - anbernic,rg503
+              - anbernic,rg-arc-d
+              - anbernic,rg-arc-s
           - const: rockchip,rk3566
 
       - description: Asus Tinker board
@@ -236,6 +223,13 @@ properties:
               - friendlyarm,nanopi-r5c
               - friendlyarm,nanopi-r5s
           - const: rockchip,rk3568
+
+      - description: FriendlyElec NanoPi R6 series boards
+        items:
+          - enum:
+              - friendlyarm,nanopi-r6c
+              - friendlyarm,nanopi-r6s
+          - const: rockchip,rk3588s
 
       - description: FriendlyElec NanoPC T6
         items:
@@ -655,6 +649,14 @@ properties:
           - const: pine64,pinephone-pro
           - const: rockchip,rk3399
 
+      - description: Pine64 PineTab2
+        items:
+          - enum:
+              - pine64,pinetab2-v0.1
+              - pine64,pinetab2-v2.0
+          - const: pine64,pinetab2
+          - const: rockchip,rk3566
+
       - description: Pine64 Rock64
         items:
           - const: pine64,rock64
@@ -692,6 +694,7 @@ properties:
       - description: Powkiddy RK3566 Handheld Gaming Console
         items:
           - enum:
+              - powkiddy,rgb10max3
               - powkiddy,rgb30
               - powkiddy,rk2023
               - powkiddy,x55
