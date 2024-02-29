@@ -1982,7 +1982,7 @@ static int inet_fill_link_af(struct sk_buff *skb, const struct net_device *dev,
 		return -EMSGSIZE;
 
 	for (i = 0; i < IPV4_DEVCONF_MAX; i++)
-		((u32 *) nla_data(nla))[i] = in_dev->cnf.data[i];
+		((u32 *) nla_data(nla))[i] = READ_ONCE(in_dev->cnf.data[i]);
 
 	return 0;
 }
@@ -2068,9 +2068,9 @@ static int inet_netconf_msgsize_devconf(int type)
 }
 
 static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
-				     struct ipv4_devconf *devconf, u32 portid,
-				     u32 seq, int event, unsigned int flags,
-				     int type)
+				     const struct ipv4_devconf *devconf,
+				     u32 portid, u32 seq, int event,
+				     unsigned int flags, int type)
 {
 	struct nlmsghdr  *nlh;
 	struct netconfmsg *ncm;
@@ -2095,27 +2095,28 @@ static int inet_netconf_fill_devconf(struct sk_buff *skb, int ifindex,
 
 	if ((all || type == NETCONFA_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_FORWARDING,
-			IPV4_DEVCONF(*devconf, FORWARDING)) < 0)
+			IPV4_DEVCONF_RO(*devconf, FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_RP_FILTER) &&
 	    nla_put_s32(skb, NETCONFA_RP_FILTER,
-			IPV4_DEVCONF(*devconf, RP_FILTER)) < 0)
+			IPV4_DEVCONF_RO(*devconf, RP_FILTER)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_MC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_MC_FORWARDING,
-			IPV4_DEVCONF(*devconf, MC_FORWARDING)) < 0)
+			IPV4_DEVCONF_RO(*devconf, MC_FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_BC_FORWARDING) &&
 	    nla_put_s32(skb, NETCONFA_BC_FORWARDING,
-			IPV4_DEVCONF(*devconf, BC_FORWARDING)) < 0)
+			IPV4_DEVCONF_RO(*devconf, BC_FORWARDING)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_PROXY_NEIGH) &&
 	    nla_put_s32(skb, NETCONFA_PROXY_NEIGH,
-			IPV4_DEVCONF(*devconf, PROXY_ARP)) < 0)
+			IPV4_DEVCONF_RO(*devconf, PROXY_ARP)) < 0)
 		goto nla_put_failure;
 	if ((all || type == NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN) &&
 	    nla_put_s32(skb, NETCONFA_IGNORE_ROUTES_WITH_LINKDOWN,
-			IPV4_DEVCONF(*devconf, IGNORE_ROUTES_WITH_LINKDOWN)) < 0)
+			IPV4_DEVCONF_RO(*devconf,
+					IGNORE_ROUTES_WITH_LINKDOWN)) < 0)
 		goto nla_put_failure;
 
 out:
@@ -2204,21 +2205,20 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 				    struct netlink_ext_ack *extack)
 {
 	struct net *net = sock_net(in_skb->sk);
-	struct nlattr *tb[NETCONFA_MAX+1];
+	struct nlattr *tb[NETCONFA_MAX + 1];
+	const struct ipv4_devconf *devconf;
+	struct in_device *in_dev = NULL;
+	struct net_device *dev = NULL;
 	struct sk_buff *skb;
-	struct ipv4_devconf *devconf;
-	struct in_device *in_dev;
-	struct net_device *dev;
 	int ifindex;
 	int err;
 
 	err = inet_netconf_valid_get_req(in_skb, nlh, tb, extack);
 	if (err)
-		goto errout;
+		return err;
 
-	err = -EINVAL;
 	if (!tb[NETCONFA_IFINDEX])
-		goto errout;
+		return -EINVAL;
 
 	ifindex = nla_get_s32(tb[NETCONFA_IFINDEX]);
 	switch (ifindex) {
@@ -2229,10 +2229,10 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 		devconf = net->ipv4.devconf_dflt;
 		break;
 	default:
-		dev = __dev_get_by_index(net, ifindex);
-		if (!dev)
-			goto errout;
-		in_dev = __in_dev_get_rtnl(dev);
+		err = -ENODEV;
+		dev = dev_get_by_index(net, ifindex);
+		if (dev)
+			in_dev = in_dev_get(dev);
 		if (!in_dev)
 			goto errout;
 		devconf = &in_dev->cnf;
@@ -2256,6 +2256,9 @@ static int inet_netconf_get_devconf(struct sk_buff *in_skb,
 	}
 	err = rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 errout:
+	if (in_dev)
+		in_dev_put(in_dev);
+	dev_put(dev);
 	return err;
 }
 
@@ -2264,11 +2267,13 @@ static int inet_netconf_dump_devconf(struct sk_buff *skb,
 {
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	int h, s_h;
-	int idx, s_idx;
+	struct {
+		unsigned long ifindex;
+		unsigned int all_default;
+	} *ctx = (void *)cb->ctx;
+	const struct in_device *in_dev;
 	struct net_device *dev;
-	struct in_device *in_dev;
-	struct hlist_head *head;
+	int err = 0;
 
 	if (cb->strict_check) {
 		struct netlink_ext_ack *extack = cb->extack;
@@ -2285,64 +2290,47 @@ static int inet_netconf_dump_devconf(struct sk_buff *skb,
 		}
 	}
 
-	s_h = cb->args[0];
-	s_idx = idx = cb->args[1];
-
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &net->dev_index_head[h];
-		rcu_read_lock();
-		cb->seq = inet_base_seq(net);
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			in_dev = __in_dev_get_rcu(dev);
-			if (!in_dev)
-				goto cont;
-
-			if (inet_netconf_fill_devconf(skb, dev->ifindex,
-						      &in_dev->cnf,
-						      NETLINK_CB(cb->skb).portid,
-						      nlh->nlmsg_seq,
-						      RTM_NEWNETCONF,
-						      NLM_F_MULTI,
-						      NETCONFA_ALL) < 0) {
-				rcu_read_unlock();
-				goto done;
-			}
-			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
-cont:
-			idx++;
-		}
-		rcu_read_unlock();
-	}
-	if (h == NETDEV_HASHENTRIES) {
-		if (inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_ALL,
-					      net->ipv4.devconf_all,
-					      NETLINK_CB(cb->skb).portid,
-					      nlh->nlmsg_seq,
-					      RTM_NEWNETCONF, NLM_F_MULTI,
-					      NETCONFA_ALL) < 0)
+	rcu_read_lock();
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		in_dev = __in_dev_get_rcu(dev);
+		if (!in_dev)
+			continue;
+		err = inet_netconf_fill_devconf(skb, dev->ifindex,
+						&in_dev->cnf,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF, NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
 			goto done;
-		else
-			h++;
 	}
-	if (h == NETDEV_HASHENTRIES + 1) {
-		if (inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_DEFAULT,
-					      net->ipv4.devconf_dflt,
-					      NETLINK_CB(cb->skb).portid,
-					      nlh->nlmsg_seq,
-					      RTM_NEWNETCONF, NLM_F_MULTI,
-					      NETCONFA_ALL) < 0)
+	if (ctx->all_default == 0) {
+		err = inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_ALL,
+						net->ipv4.devconf_all,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF, NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
 			goto done;
-		else
-			h++;
+		ctx->all_default++;
+	}
+	if (ctx->all_default == 1) {
+		err = inet_netconf_fill_devconf(skb, NETCONFA_IFINDEX_DEFAULT,
+						net->ipv4.devconf_dflt,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF, NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
+			goto done;
+		ctx->all_default++;
 	}
 done:
-	cb->args[0] = h;
-	cb->args[1] = idx;
-
-	return skb->len;
+	if (err < 0 && likely(skb->len))
+		err = skb->len;
+	rcu_read_unlock();
+	return err;
 }
 
 #ifdef CONFIG_SYSCTL
@@ -2825,5 +2813,6 @@ void __init devinet_init(void)
 	rtnl_register(PF_INET, RTM_DELADDR, inet_rtm_deladdr, NULL, 0);
 	rtnl_register(PF_INET, RTM_GETADDR, NULL, inet_dump_ifaddr, 0);
 	rtnl_register(PF_INET, RTM_GETNETCONF, inet_netconf_get_devconf,
-		      inet_netconf_dump_devconf, 0);
+		      inet_netconf_dump_devconf,
+		      RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED);
 }

@@ -395,7 +395,7 @@ static int snmp_seq_show_ipstats(struct seq_file *seq, void *v)
 		seq_printf(seq, " %s", snmp4_ipstats_list[i].name);
 
 	seq_printf(seq, "\nIp: %d %d",
-		   IPV4_DEVCONF_ALL(net, FORWARDING) ? 1 : 2,
+		   IPV4_DEVCONF_ALL_RO(net, FORWARDING) ? 1 : 2,
 		   READ_ONCE(net->ipv4.sysctl_ip_default_ttl));
 
 	BUILD_BUG_ON(offsetof(struct ipstats_mib, mibs) != 0);
