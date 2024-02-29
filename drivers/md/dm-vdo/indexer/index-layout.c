@@ -1561,10 +1561,11 @@ static int __must_check load_index_save(struct index_save_layout *isl,
 
 
 	if (table->header.type != RH_TYPE_SAVE) {
+		uds_log_error_strerror(UDS_CORRUPT_DATA,
+				       "unexpected index save %u header type %u",
+				       instance, table->header.type);
 		vdo_free(table);
-		return uds_log_error_strerror(UDS_CORRUPT_DATA,
-					      "unexpected index save %u header type %u",
-					      instance, table->header.type);
+		return UDS_CORRUPT_DATA;
 	}
 
 	result = read_index_save_data(reader, isl, table->header.payload);
