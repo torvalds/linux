@@ -41,6 +41,8 @@ properties:
 
           pwm-names: true
 
+          active-low: true
+
           color: true
 
         required:
