@@ -657,6 +657,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
@@ -711,6 +712,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
@@ -765,6 +767,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
@@ -819,6 +822,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
@@ -873,6 +877,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
@@ -937,6 +942,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
@@ -995,6 +1001,7 @@
             "actions",
             "mirred"
         ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
         "plugins": {
             "requires": "nsPlugin"
         },
