@@ -99,9 +99,10 @@ bool ionic_rxq_poke_doorbell(struct ionic_queue *q)
 	return true;
 }
 
-static inline struct netdev_queue *q_to_ndq(struct ionic_queue *q)
+static inline struct netdev_queue *q_to_ndq(struct net_device *netdev,
+					    struct ionic_queue *q)
 {
-	return netdev_get_tx_queue(q->lif->netdev, q->index);
+	return netdev_get_tx_queue(netdev, q->index);
 }
 
 static void *ionic_rx_buf_va(struct ionic_buf_info *buf_info)
@@ -203,14 +204,14 @@ static bool ionic_rx_buf_recycle(struct ionic_queue *q,
 	return true;
 }
 
-static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
+static struct sk_buff *ionic_rx_frags(struct net_device *netdev,
+				      struct ionic_queue *q,
 				      struct ionic_desc_info *desc_info,
 				      unsigned int headroom,
 				      unsigned int len,
 				      unsigned int num_sg_elems,
 				      bool synced)
 {
-	struct net_device *netdev = q->lif->netdev;
 	struct ionic_buf_info *buf_info;
 	struct ionic_rx_stats *stats;
 	struct device *dev = q->dev;
@@ -271,13 +272,13 @@ static struct sk_buff *ionic_rx_frags(struct ionic_queue *q,
 	return skb;
 }
 
-static struct sk_buff *ionic_rx_copybreak(struct ionic_queue *q,
+static struct sk_buff *ionic_rx_copybreak(struct net_device *netdev,
+					  struct ionic_queue *q,
 					  struct ionic_desc_info *desc_info,
 					  unsigned int headroom,
 					  unsigned int len,
 					  bool synced)
 {
-	struct net_device *netdev = q->lif->netdev;
 	struct ionic_buf_info *buf_info;
 	struct ionic_rx_stats *stats;
 	struct device *dev = q->dev;
@@ -308,7 +309,7 @@ static struct sk_buff *ionic_rx_copybreak(struct ionic_queue *q,
 					 headroom, len, DMA_FROM_DEVICE);
 
 	skb_put(skb, len);
-	skb->protocol = eth_type_trans(skb, q->lif->netdev);
+	skb->protocol = eth_type_trans(skb, netdev);
 
 	return skb;
 }
@@ -348,8 +349,7 @@ static void ionic_xdp_tx_desc_clean(struct ionic_queue *q,
 	desc_info->act = 0;
 }
 
-static int ionic_xdp_post_frame(struct net_device *netdev,
-				struct ionic_queue *q, struct xdp_frame *frame,
+static int ionic_xdp_post_frame(struct ionic_queue *q, struct xdp_frame *frame,
 				enum xdp_action act, struct page *page, int off,
 				bool ring_doorbell)
 {
@@ -457,7 +457,7 @@ int ionic_xdp_xmit(struct net_device *netdev, int n,
 	txq_trans_cond_update(nq);
 
 	if (netif_tx_queue_stopped(nq) ||
-	    !netif_txq_maybe_stop(q_to_ndq(txq),
+	    !netif_txq_maybe_stop(q_to_ndq(netdev, txq),
 				  ionic_q_space_avail(txq),
 				  1, 1)) {
 		__netif_tx_unlock(nq);
@@ -466,7 +466,7 @@ int ionic_xdp_xmit(struct net_device *netdev, int n,
 
 	space = min_t(int, n, ionic_q_space_avail(txq));
 	for (nxmit = 0; nxmit < space ; nxmit++) {
-		if (ionic_xdp_post_frame(netdev, txq, xdp_frames[nxmit],
+		if (ionic_xdp_post_frame(txq, xdp_frames[nxmit],
 					 XDP_REDIRECT,
 					 virt_to_page(xdp_frames[nxmit]->data),
 					 0, false)) {
@@ -479,7 +479,7 @@ int ionic_xdp_xmit(struct net_device *netdev, int n,
 		ionic_dbell_ring(lif->kern_dbpage, txq->hw_type,
 				 txq->dbval | txq->head_idx);
 
-	netif_txq_maybe_stop(q_to_ndq(txq),
+	netif_txq_maybe_stop(q_to_ndq(netdev, txq),
 			     ionic_q_space_avail(txq),
 			     4, 4);
 	__netif_tx_unlock(nq);
@@ -574,7 +574,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 		txq_trans_cond_update(nq);
 
 		if (netif_tx_queue_stopped(nq) ||
-		    !netif_txq_maybe_stop(q_to_ndq(txq),
+		    !netif_txq_maybe_stop(q_to_ndq(netdev, txq),
 					  ionic_q_space_avail(txq),
 					  1, 1)) {
 			__netif_tx_unlock(nq);
@@ -584,7 +584,7 @@ static bool ionic_run_xdp(struct ionic_rx_stats *stats,
 		dma_unmap_page(rxq->dev, buf_info->dma_addr,
 			       IONIC_PAGE_SIZE, DMA_FROM_DEVICE);
 
-		err = ionic_xdp_post_frame(netdev, txq, xdpf, XDP_TX,
+		err = ionic_xdp_post_frame(txq, xdpf, XDP_TX,
 					   buf_info->page,
 					   buf_info->page_offset,
 					   true);
@@ -662,9 +662,10 @@ static void ionic_rx_clean(struct ionic_queue *q,
 
 	headroom = q->xdp_rxq_info ? XDP_PACKET_HEADROOM : 0;
 	if (len <= q->lif->rx_copybreak)
-		skb = ionic_rx_copybreak(q, desc_info, headroom, len, !!xdp_prog);
+		skb = ionic_rx_copybreak(netdev, q, desc_info,
+					 headroom, len, !!xdp_prog);
 	else
-		skb = ionic_rx_frags(q, desc_info, headroom, len,
+		skb = ionic_rx_frags(netdev, q, desc_info, headroom, len,
 				     comp->num_sg_elems, !!xdp_prog);
 
 	if (unlikely(!skb)) {
@@ -1298,7 +1299,8 @@ unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 		struct ionic_queue *q = cq->bound_q;
 
 		if (!ionic_txq_hwstamp_enabled(q))
-			netif_txq_completed_wake(q_to_ndq(q), pkts, bytes,
+			netif_txq_completed_wake(q_to_ndq(q->lif->netdev, q),
+						 pkts, bytes,
 						 ionic_q_space_avail(q),
 						 IONIC_TSO_DESCS_NEEDED);
 	}
@@ -1338,8 +1340,10 @@ void ionic_tx_empty(struct ionic_queue *q)
 	}
 
 	if (!ionic_txq_hwstamp_enabled(q)) {
-		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
-		netdev_tx_reset_queue(q_to_ndq(q));
+		struct netdev_queue *ndq = q_to_ndq(q->lif->netdev, q);
+
+		netdev_tx_completed_queue(ndq, pkts, bytes);
+		netdev_tx_reset_queue(ndq);
 	}
 }
 
@@ -1388,7 +1392,7 @@ static int ionic_tx_tcp_pseudo_csum(struct sk_buff *skb)
 	return 0;
 }
 
-static void ionic_tx_tso_post(struct ionic_queue *q,
+static void ionic_tx_tso_post(struct net_device *netdev, struct ionic_queue *q,
 			      struct ionic_desc_info *desc_info,
 			      struct sk_buff *skb,
 			      dma_addr_t addr, u8 nsge, u16 len,
@@ -1418,14 +1422,15 @@ static void ionic_tx_tso_post(struct ionic_queue *q,
 	if (start) {
 		skb_tx_timestamp(skb);
 		if (!ionic_txq_hwstamp_enabled(q))
-			netdev_tx_sent_queue(q_to_ndq(q), skb->len);
+			netdev_tx_sent_queue(q_to_ndq(netdev, q), skb->len);
 		ionic_txq_post(q, false, ionic_tx_clean, skb);
 	} else {
 		ionic_txq_post(q, done, NULL, NULL);
 	}
 }
 
-static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
+static int ionic_tx_tso(struct net_device *netdev, struct ionic_queue *q,
+			struct sk_buff *skb)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_desc_info *desc_info;
@@ -1533,7 +1538,7 @@ static int ionic_tx_tso(struct ionic_queue *q, struct sk_buff *skb)
 		seg_rem = min(tso_rem, mss);
 		done = (tso_rem == 0);
 		/* post descriptor */
-		ionic_tx_tso_post(q, desc_info, skb,
+		ionic_tx_tso_post(netdev, q, desc_info, skb,
 				  desc_addr, desc_nsge, desc_len,
 				  hdrlen, mss, outer_csum, vlan_tci, has_vlan,
 				  start, done);
@@ -1643,7 +1648,8 @@ static void ionic_tx_skb_frags(struct ionic_queue *q, struct sk_buff *skb,
 	stats->frags += skb_shinfo(skb)->nr_frags;
 }
 
-static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
+static int ionic_tx(struct net_device *netdev, struct ionic_queue *q,
+		    struct sk_buff *skb)
 {
 	struct ionic_desc_info *desc_info = &q->info[q->head_idx];
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
@@ -1666,7 +1672,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 	stats->bytes += skb->len;
 
 	if (!ionic_txq_hwstamp_enabled(q)) {
-		struct netdev_queue *ndq = q_to_ndq(q);
+		struct netdev_queue *ndq = q_to_ndq(netdev, q);
 
 		if (unlikely(!ionic_q_has_space(q, MAX_SKB_FRAGS + 1)))
 			netif_tx_stop_queue(ndq);
@@ -1789,9 +1795,9 @@ static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 
 	skb_shinfo(skb)->tx_flags |= SKBTX_HW_TSTAMP;
 	if (skb_is_gso(skb))
-		err = ionic_tx_tso(q, skb);
+		err = ionic_tx_tso(netdev, q, skb);
 	else
-		err = ionic_tx(q, skb);
+		err = ionic_tx(netdev, q, skb);
 
 	if (err)
 		goto err_out_drop;
@@ -1829,15 +1835,15 @@ netdev_tx_t ionic_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	if (ndescs < 0)
 		goto err_out_drop;
 
-	if (!netif_txq_maybe_stop(q_to_ndq(q),
+	if (!netif_txq_maybe_stop(q_to_ndq(netdev, q),
 				  ionic_q_space_avail(q),
 				  ndescs, ndescs))
 		return NETDEV_TX_BUSY;
 
 	if (skb_is_gso(skb))
-		err = ionic_tx_tso(q, skb);
+		err = ionic_tx_tso(netdev, q, skb);
 	else
-		err = ionic_tx(q, skb);
+		err = ionic_tx(netdev, q, skb);
 
 	if (err)
 		goto err_out_drop;
