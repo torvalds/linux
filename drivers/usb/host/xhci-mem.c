@@ -1051,16 +1051,16 @@ void xhci_copy_ep0_dequeue_into_input_ctx(struct xhci_hcd *xhci,
  * The xHCI roothub may have ports of differing speeds in any order in the port
  * status registers.
  *
- * The xHCI hardware wants to know the roothub port number that the USB device
+ * The xHCI hardware wants to know the roothub port that the USB device
  * is attached to (or the roothub port its ancestor hub is attached to).  All we
  * know is the index of that port under either the USB 2.0 or the USB 3.0
  * roothub, but that doesn't give us the real index into the HW port status
- * registers. Call xhci_find_raw_port_number() to get real index.
+ * registers.
  */
-static u32 xhci_find_real_port_number(struct xhci_hcd *xhci,
-		struct usb_device *udev)
+static struct xhci_port *xhci_find_rhub_port(struct xhci_hcd *xhci, struct usb_device *udev)
 {
 	struct usb_device *top_dev;
+	struct xhci_hub *rhub;
 	struct usb_hcd *hcd;
 
 	if (udev->speed >= USB_SPEED_SUPER)
@@ -1072,7 +1072,8 @@ static u32 xhci_find_real_port_number(struct xhci_hcd *xhci,
 			top_dev = top_dev->parent)
 		/* Found device below root hub */;
 
-	return	xhci_find_raw_port_number(hcd, top_dev->portnum);
+	rhub = xhci_get_rhub(hcd);
+	return rhub->ports[top_dev->portnum - 1];
 }
 
 /* Setup an xHCI virtual device for a Set Address command */
@@ -1081,9 +1082,8 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	struct xhci_virt_device *dev;
 	struct xhci_ep_ctx	*ep0_ctx;
 	struct xhci_slot_ctx    *slot_ctx;
-	u32			port_num;
+	struct xhci_port	*rhub_port;
 	u32			max_packets;
-	struct usb_device *top_dev;
 
 	dev = xhci->devs[udev->slot_id];
 	/* Slot ID 0 is reserved */
@@ -1124,17 +1124,13 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		return -EINVAL;
 	}
 	/* Find the root hub port this device is under */
-	port_num = xhci_find_real_port_number(xhci, udev);
-	if (!port_num)
+	rhub_port = xhci_find_rhub_port(xhci, udev);
+	if (!rhub_port)
 		return -EINVAL;
-	slot_ctx->dev_info2 |= cpu_to_le32(ROOT_HUB_PORT(port_num));
-	/* Set the port number in the virtual_device to the faked port number */
-	for (top_dev = udev; top_dev->parent && top_dev->parent->parent;
-			top_dev = top_dev->parent)
-		/* Found device below root hub */;
-	dev->fake_port = top_dev->portnum;
-	dev->real_port = port_num;
-	xhci_dbg(xhci, "Set root hub portnum to %d\n", port_num);
+	dev->real_port = rhub_port->hw_portnum + 1;
+	dev->fake_port = rhub_port->hcd_portnum + 1;
+	slot_ctx->dev_info2 |= cpu_to_le32(ROOT_HUB_PORT(dev->real_port));
+	xhci_dbg(xhci, "Set root hub portnum to %d\n", dev->real_port);
 	xhci_dbg(xhci, "Set fake root hub portnum to %d\n", dev->fake_port);
 
 	/* Find the right bandwidth table that this device will be a part of.
@@ -1144,12 +1140,12 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	 * will never be created for the HS root hub.
 	 */
 	if (!udev->tt || !udev->tt->hub->parent) {
-		dev->bw_table = &xhci->rh_bw[port_num - 1].bw_table;
+		dev->bw_table = &xhci->rh_bw[dev->real_port - 1].bw_table;
 	} else {
 		struct xhci_root_port_bw_info *rh_bw;
 		struct xhci_tt_bw_info *tt_bw;
 
-		rh_bw = &xhci->rh_bw[port_num - 1];
+		rh_bw = &xhci->rh_bw[dev->real_port - 1];
 		/* Find the right TT. */
 		list_for_each_entry(tt_bw, &rh_bw->tts, tt_list) {
 			if (tt_bw->slot_id != udev->tt->hub->slot_id)
