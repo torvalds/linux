@@ -316,7 +316,7 @@ static void nbd_mark_nsock_dead(struct nbd_device *nbd, struct nbd_sock *nsock,
 	nsock->sent = 0;
 }
 
-static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
+static int __nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
 		loff_t blksize)
 {
 	if (!blksize)
@@ -346,6 +346,18 @@ static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
 	if (!set_capacity_and_notify(nbd->disk, bytesize >> 9))
 		kobject_uevent(&nbd_to_dev(nbd)->kobj, KOBJ_CHANGE);
 	return 0;
+}
+
+static int nbd_set_size(struct nbd_device *nbd, loff_t bytesize,
+		loff_t blksize)
+{
+	int error;
+
+	blk_mq_freeze_queue(nbd->disk->queue);
+	error = __nbd_set_size(nbd, bytesize, blksize);
+	blk_mq_unfreeze_queue(nbd->disk->queue);
+
+	return error;
 }
 
 static void nbd_complete_rq(struct request *req)
