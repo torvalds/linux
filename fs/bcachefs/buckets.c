@@ -798,6 +798,16 @@ static int __trigger_extent(struct btree_trans *trans,
 			return ret;
 	}
 
+	if (level) {
+		struct disk_accounting_pos acc_btree_key = {
+			.type		= BCH_DISK_ACCOUNTING_btree,
+			.btree.id	= btree_id,
+		};
+		ret = bch2_disk_accounting_mod(trans, &acc_btree_key, &replicas_sectors, 1, gc);
+		if (ret)
+			return ret;
+	}
+
 	return 0;
 }
 

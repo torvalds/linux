@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "bcachefs_ioctl.h"
+#include "btree_cache.h"
 #include "btree_journal_iter.h"
 #include "btree_update.h"
 #include "btree_write_buffer.h"
@@ -148,6 +149,9 @@ void bch2_accounting_key_to_text(struct printbuf *out, struct disk_accounting_po
 		break;
 	case BCH_DISK_ACCOUNTING_snapshot:
 		prt_printf(out, "id=%u", k->snapshot.id);
+		break;
+	case BCH_DISK_ACCOUNTING_btree:
+		prt_printf(out, "btree=%s", bch2_btree_id_str(k->btree.id));
 		break;
 	}
 }

@@ -101,7 +101,8 @@ static inline bool data_type_is_hidden(enum bch_data_type type)
 	x(replicas,		2)		\
 	x(dev_data_type,	3)		\
 	x(compression,		4)		\
-	x(snapshot,		5)
+	x(snapshot,		5)		\
+	x(btree,		6)
 
 enum disk_accounting_type {
 #define x(f, nr)	BCH_DISK_ACCOUNTING_##f	= nr,
@@ -134,6 +135,10 @@ struct bch_acct_snapshot {
 	__u32			id;
 };
 
+struct bch_acct_btree {
+	__u32			id;
+};
+
 struct disk_accounting_pos {
 	union {
 	struct {
@@ -146,6 +151,7 @@ struct disk_accounting_pos {
 		struct bch_dev_stripe_buckets	dev_stripe_buckets;
 		struct bch_acct_compression	compression;
 		struct bch_acct_snapshot	snapshot;
+		struct bch_acct_btree		btree;
 		};
 	};
 		struct bpos			_pad;
