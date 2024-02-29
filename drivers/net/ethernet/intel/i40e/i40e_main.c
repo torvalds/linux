@@ -13213,7 +13213,7 @@ static netdev_features_t i40e_features_check(struct sk_buff *skb,
 		goto out_err;
 
 	/* IPLEN and EIPLEN can support at most 127 dwords */
-	len = skb_transport_header(skb) - skb_network_header(skb);
+	len = skb_network_header_len(skb);
 	if (len & ~(127 * 4))
 		goto out_err;
 

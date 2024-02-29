@@ -3036,6 +3036,7 @@ static inline int skb_transport_offset(const struct sk_buff *skb)
 
 static inline u32 skb_network_header_len(const struct sk_buff *skb)
 {
+	DEBUG_NET_WARN_ON_ONCE(!skb_transport_header_was_set(skb));
 	return skb->transport_header - skb->network_header;
 }
 

@@ -3621,8 +3621,7 @@ static u8 bnx2x_set_pbd_csum(struct bnx2x *bp, struct sk_buff *skb,
 			    ((skb->protocol == cpu_to_be16(ETH_P_8021Q)) <<
 			     ETH_TX_PARSE_BD_E1X_LLC_SNAP_EN_SHIFT));
 
-	pbd->ip_hlen_w = (skb_transport_header(skb) -
-			skb_network_header(skb)) >> 1;
+	pbd->ip_hlen_w = skb_network_header_len(skb) >> 1;
 
 	hlen += pbd->ip_hlen_w;
 
