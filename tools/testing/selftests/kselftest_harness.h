@@ -128,8 +128,7 @@
 		fprintf(TH_LOG_STREAM, "#      SKIP      %s\n", \
 			_metadata->results->reason); \
 	} \
-	_metadata->exit_code = KSFT_PASS; \
-	_metadata->skip = 1; \
+	_metadata->exit_code = KSFT_SKIP; \
 	_metadata->trigger = 0; \
 	statement; \
 } while (0)
@@ -387,7 +386,7 @@
 		if (setjmp(_metadata->env) == 0) { \
 			fixture_name##_setup(_metadata, &self, variant->data); \
 			/* Let setup failure terminate early. */ \
-			if (!__test_passed(_metadata) || _metadata->skip) \
+			if (_metadata->exit_code) \
 				return; \
 			_metadata->setup_completed = true; \
 			/* Use the same _metadata. */ \
@@ -837,7 +836,6 @@ struct __test_metadata {
 	struct __fixture_metadata *fixture;
 	int termsig;
 	int exit_code;
-	int skip;	/* did SKIP get used? */
 	int trigger; /* extra handler after the evaluation */
 	int timeout;	/* seconds to wait for test timeout */
 	bool timed_out;	/* did this test timeout instead of exiting? */
@@ -944,9 +942,7 @@ void __wait_for_test(struct __test_metadata *t)
 			"# %s: Test terminated by timeout\n", t->name);
 	} else if (WIFEXITED(status)) {
 		if (WEXITSTATUS(status) == KSFT_SKIP) {
-			/* SKIP */
-			t->exit_code = KSFT_PASS;
-			t->skip = 1;
+			t->exit_code = WEXITSTATUS(status);
 		} else if (t->termsig != -1) {
 			t->exit_code = KSFT_FAIL;
 			fprintf(TH_LOG_STREAM,
@@ -1118,7 +1114,6 @@ void __run_test(struct __fixture_metadata *f,
 
 	/* reset test struct */
 	t->exit_code = KSFT_PASS;
-	t->skip = 0;
 	t->trigger = 0;
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
@@ -1138,18 +1133,14 @@ void __run_test(struct __fixture_metadata *f,
 	} else if (t->pid == 0) {
 		setpgrp();
 		t->fn(t, variant);
-		if (t->skip)
-			_exit(KSFT_SKIP);
-		if (__test_passed(t))
-			_exit(KSFT_PASS);
-		_exit(KSFT_FAIL);
+		_exit(t->exit_code);
 	} else {
 		__wait_for_test(t);
 	}
 	ksft_print_msg("         %4s  %s\n",
 		       __test_passed(t) ? "OK" : "FAIL", test_name);
 
-	if (t->skip)
+	if (t->exit_code == KSFT_SKIP)
 		ksft_test_result_skip("%s\n", t->results->reason[0] ?
 					t->results->reason : "unknown");
 	else
