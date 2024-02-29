@@ -1837,7 +1837,7 @@ done:
 static u32 inet_base_seq(const struct net *net)
 {
 	u32 res = atomic_read(&net->ipv4.dev_addr_genid) +
-		  net->dev_base_seq;
+		  READ_ONCE(net->dev_base_seq);
 
 	/* Must not return 0 (see nl_dump_check_consistent()).
 	 * Chose a value far away from 0.
