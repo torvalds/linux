@@ -461,7 +461,7 @@ static int gfx_v12_0_init_microcode(struct amdgpu_device *adev)
 	/* only one MEC for gfx 12 */
 	adev->gfx.mec2_fw = NULL;
 
-	if (adev->gfx.imu.funcs && (amdgpu_dpm > 0)) {
+	if (adev->gfx.imu.funcs) {
 		if (adev->gfx.imu.funcs->init_microcode) {
 			err = adev->gfx.imu.funcs->init_microcode(adev);
 			if (err)
