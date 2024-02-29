@@ -630,6 +630,7 @@ static const struct freq_tbl ftbl_camcc_bps_clk_src[] = {
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL0_OUT_MAIN, 2, 0, 0),
 	F(760000000, P_CAMCC_PLL3_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_bps_clk_src = {
@@ -654,6 +655,7 @@ static const struct freq_tbl ftbl_camcc_camnoc_axi_clk_src[] = {
 	F(320000000, P_CAMCC_PLL7_OUT_ODD, 1, 0, 0),
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_camnoc_axi_clk_src = {
@@ -673,6 +675,7 @@ static struct clk_rcg2 camcc_camnoc_axi_clk_src = {
 static const struct freq_tbl ftbl_camcc_cci_0_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(37500000, P_CAMCC_PLL0_OUT_EVEN, 16, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_cci_0_clk_src = {
@@ -735,6 +738,7 @@ static const struct freq_tbl ftbl_camcc_cphy_rx_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(240000000, P_CAMCC_PLL0_OUT_EVEN, 2.5, 0, 0),
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_cphy_rx_clk_src = {
@@ -754,6 +758,7 @@ static struct clk_rcg2 camcc_cphy_rx_clk_src = {
 static const struct freq_tbl ftbl_camcc_csi0phytimer_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(300000000, P_CAMCC_PLL0_OUT_EVEN, 2, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_csi0phytimer_clk_src = {
@@ -818,6 +823,7 @@ static const struct freq_tbl ftbl_camcc_fast_ahb_clk_src[] = {
 	F(200000000, P_CAMCC_PLL0_OUT_EVEN, 3, 0, 0),
 	F(300000000, P_CAMCC_PLL0_OUT_MAIN, 4, 0, 0),
 	F(400000000, P_CAMCC_PLL0_OUT_MAIN, 3, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_fast_ahb_clk_src = {
@@ -838,6 +844,7 @@ static const struct freq_tbl ftbl_camcc_icp_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL0_OUT_MAIN, 2, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_icp_clk_src = {
@@ -860,6 +867,7 @@ static const struct freq_tbl ftbl_camcc_ife_0_clk_src[] = {
 	F(558000000, P_CAMCC_PLL3_OUT_EVEN, 1, 0, 0),
 	F(637000000, P_CAMCC_PLL3_OUT_EVEN, 1, 0, 0),
 	F(760000000, P_CAMCC_PLL3_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_0_clk_src = {
@@ -883,6 +891,7 @@ static const struct freq_tbl ftbl_camcc_ife_0_csid_clk_src[] = {
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL0_OUT_MAIN, 2, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_0_csid_clk_src = {
@@ -905,6 +914,7 @@ static const struct freq_tbl ftbl_camcc_ife_1_clk_src[] = {
 	F(558000000, P_CAMCC_PLL4_OUT_EVEN, 1, 0, 0),
 	F(637000000, P_CAMCC_PLL4_OUT_EVEN, 1, 0, 0),
 	F(760000000, P_CAMCC_PLL4_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_1_clk_src = {
@@ -941,6 +951,7 @@ static const struct freq_tbl ftbl_camcc_ife_2_clk_src[] = {
 	F(558000000, P_CAMCC_PLL5_OUT_EVEN, 1, 0, 0),
 	F(637000000, P_CAMCC_PLL5_OUT_EVEN, 1, 0, 0),
 	F(760000000, P_CAMCC_PLL5_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_2_clk_src = {
@@ -962,6 +973,7 @@ static const struct freq_tbl ftbl_camcc_ife_2_csid_clk_src[] = {
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL0_OUT_MAIN, 2, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_2_csid_clk_src = {
@@ -984,6 +996,7 @@ static const struct freq_tbl ftbl_camcc_ife_3_clk_src[] = {
 	F(558000000, P_CAMCC_PLL6_OUT_EVEN, 1, 0, 0),
 	F(637000000, P_CAMCC_PLL6_OUT_EVEN, 1, 0, 0),
 	F(760000000, P_CAMCC_PLL6_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_3_clk_src = {
@@ -1020,6 +1033,7 @@ static const struct freq_tbl ftbl_camcc_ife_lite_0_clk_src[] = {
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL0_OUT_MAIN, 2, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ife_lite_0_clk_src = {
@@ -1140,6 +1154,7 @@ static const struct freq_tbl ftbl_camcc_ipe_0_clk_src[] = {
 	F(475000000, P_CAMCC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(520000000, P_CAMCC_PLL1_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL1_OUT_EVEN, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_ipe_0_clk_src = {
@@ -1163,6 +1178,7 @@ static const struct freq_tbl ftbl_camcc_jpeg_clk_src[] = {
 	F(400000000, P_CAMCC_PLL0_OUT_ODD, 1, 0, 0),
 	F(480000000, P_CAMCC_PLL7_OUT_EVEN, 1, 0, 0),
 	F(600000000, P_CAMCC_PLL0_OUT_MAIN, 2, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_jpeg_clk_src = {
@@ -1184,6 +1200,7 @@ static const struct freq_tbl ftbl_camcc_lrme_clk_src[] = {
 	F(300000000, P_CAMCC_PLL0_OUT_EVEN, 2, 0, 0),
 	F(320000000, P_CAMCC_PLL7_OUT_ODD, 1, 0, 0),
 	F(400000000, P_CAMCC_PLL0_OUT_MAIN, 3, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_lrme_clk_src = {
@@ -1204,6 +1221,7 @@ static const struct freq_tbl ftbl_camcc_mclk0_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(24000000, P_CAMCC_PLL2_OUT_EARLY, 10, 1, 4),
 	F(64000000, P_CAMCC_PLL2_OUT_EARLY, 15, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_mclk0_clk_src = {
@@ -1320,6 +1338,7 @@ static struct clk_rcg2 camcc_mclk7_clk_src = {
 
 static const struct freq_tbl ftbl_camcc_sleep_clk_src[] = {
 	F(32000, P_SLEEP_CLK, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_sleep_clk_src = {
@@ -1339,6 +1358,7 @@ static struct clk_rcg2 camcc_sleep_clk_src = {
 static const struct freq_tbl ftbl_camcc_slow_ahb_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
 	F(80000000, P_CAMCC_PLL7_OUT_EVEN, 6, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_slow_ahb_clk_src = {
@@ -1357,6 +1377,7 @@ static struct clk_rcg2 camcc_slow_ahb_clk_src = {
 
 static const struct freq_tbl ftbl_camcc_xo_clk_src[] = {
 	F(19200000, P_BI_TCXO, 1, 0, 0),
+	{ }
 };
 
 static struct clk_rcg2 camcc_xo_clk_src = {
