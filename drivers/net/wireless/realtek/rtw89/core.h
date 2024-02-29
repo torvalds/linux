@@ -2605,6 +2605,18 @@ struct rtw89_btc_ctrl {
 	u32 rsvd: 12;
 };
 
+struct rtw89_btc_ctrl_v7 {
+	u8 manual;
+	u8 igno_bt;
+	u8 always_freerun;
+	u8 rsvd;
+} __packed;
+
+union rtw89_btc_ctrl_list {
+	struct rtw89_btc_ctrl ctrl;
+	struct rtw89_btc_ctrl_v7 ctrl_v7;
+};
+
 struct rtw89_btc_dbg {
 	/* cmd "rb" */
 	bool rb_done;
@@ -2790,7 +2802,7 @@ struct rtw89_btc {
 
 	struct rtw89_btc_cx cx;
 	struct rtw89_btc_dm dm;
-	struct rtw89_btc_ctrl ctrl;
+	union rtw89_btc_ctrl_list ctrl;
 	union rtw89_btc_module_info mdinfo;
 	struct rtw89_btc_btf_fwinfo fwinfo;
 	struct rtw89_btc_dbg dbg;
@@ -2810,6 +2822,7 @@ struct rtw89_btc {
 	bool bt_req_en;
 	bool update_policy_force;
 	bool lps;
+	bool manual_ctrl;
 };
 
 enum rtw89_btc_hmsg {

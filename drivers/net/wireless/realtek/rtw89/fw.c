@@ -3839,7 +3839,8 @@ int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev)
 	h2c = (struct rtw89_h2c_cxinit_v7 *)skb->data;
 
 	h2c->hdr.type = CXDRVINFO_INIT;
-	h2c->hdr.len = len - H2C_LEN_CXDRVHDR;
+	h2c->hdr.ver = btc->ver->fcxinit;
+	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
 	h2c->init = *init_info;
 
 	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
@@ -4124,7 +4125,7 @@ int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
-	struct rtw89_btc_ctrl *ctrl = &btc->ctrl;
+	struct rtw89_btc_ctrl *ctrl = &btc->ctrl.ctrl;
 	struct sk_buff *skb;
 	u8 *cmd;
 	int ret;
@@ -4150,6 +4151,45 @@ int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
 			      H2C_CAT_OUTSRC, BTFC_SET,
 			      SET_DRV_INFO, 0, 0,
 			      H2C_LEN_CXDRVINFO_CTRL);
+
+	ret = rtw89_h2c_tx(rtwdev, skb, false);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to send h2c\n");
+		goto fail;
+	}
+
+	return 0;
+fail:
+	dev_kfree_skb_any(skb);
+
+	return ret;
+}
+
+int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_ctrl_v7 *ctrl = &btc->ctrl.ctrl_v7;
+	struct rtw89_h2c_cxctrl_v7 *h2c;
+	u32 len = sizeof(*h2c);
+	struct sk_buff *skb;
+	int ret;
+
+	skb = rtw89_fw_h2c_alloc_skb_with_hdr(rtwdev, len);
+	if (!skb) {
+		rtw89_err(rtwdev, "failed to alloc skb for h2c cxdrv_ctrl\n");
+		return -ENOMEM;
+	}
+	skb_put(skb, len);
+	h2c = (struct rtw89_h2c_cxctrl_v7 *)skb->data;
+
+	h2c->hdr.type = CXDRVINFO_INIT;
+	h2c->hdr.ver = btc->ver->fcxctrl;
+	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
+	h2c->ctrl = *ctrl;
+
+	rtw89_h2c_pkt_set_hdr(rtwdev, skb, FWCMD_TYPE_H2C,
+			      H2C_CAT_OUTSRC, BTFC_SET,
+			      SET_DRV_INFO, 0, 0, len);
 
 	ret = rtw89_h2c_tx(rtwdev, skb, false);
 	if (ret) {

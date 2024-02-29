@@ -718,6 +718,7 @@ static void _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
@@ -735,7 +736,9 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 
 	if (type & BTC_RESET_CTRL) {
 		memset(&btc->ctrl, 0, sizeof(btc->ctrl));
-		btc->ctrl.trace_step = FCXDEF_STEP;
+		btc->manual_ctrl = false;
+		if (ver->fcxctrl != 7)
+			btc->ctrl.ctrl.trace_step = FCXDEF_STEP;
 	}
 
 	/* Init Coex variables that are not zero */
@@ -1129,7 +1132,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 	void *rpt_content = NULL, *pfinfo = NULL;
 	u8 rpt_type = 0;
 	u16 wl_slot_set = 0, wl_slot_real = 0;
-	u32 trace_step = btc->ctrl.trace_step, rpt_len = 0, diff_t = 0;
+	u32 trace_step = 0, rpt_len = 0, diff_t = 0;
 	u32 cnt_leak_slot, bt_slot_real, bt_slot_set, cnt_rx_imr;
 	u8 i, val = 0;
 
@@ -1219,6 +1222,9 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_STEP:
 		pcinfo = &pfwinfo->rpt_fbtc_step.cinfo;
+		if (ver->fcxctrl != 7)
+			trace_step = btc->ctrl.ctrl.trace_step;
+
 		if (ver->fcxstep == 2) {
 			pfinfo = &pfwinfo->rpt_fbtc_step.finfo.v2;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_step.finfo.v2.step[0]) *
@@ -2109,7 +2115,10 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 			rtw89_fw_h2c_cxdrv_role_v2(rtwdev);
 		break;
 	case CXDRVINFO_CTRL:
-		rtw89_fw_h2c_cxdrv_ctrl(rtwdev);
+		if (ver->fcxctrl == 7)
+			rtw89_fw_h2c_cxdrv_ctrl_v7(rtwdev);
+		else
+			rtw89_fw_h2c_cxdrv_ctrl(rtwdev);
 		break;
 	case CXDRVINFO_TRX:
 		dm->trx_info.tx_power = u32_get_bits(rf_para.wl_tx_power,
@@ -2450,7 +2459,7 @@ static void _set_bt_afh_info(struct rtw89_dev *rtwdev)
 	u8 en = 0, i, ch = 0, bw = 0;
 	u8 mode, connect_cnt;
 
-	if (btc->ctrl.manual || wl->status.map.scan)
+	if (btc->manual_ctrl || wl->status.map.scan)
 		return;
 
 	if (ver->fwlrole == 0) {
@@ -4014,7 +4023,7 @@ static void _set_btg_ctrl(struct rtw89_dev *rtwdev)
 	u32 is_btg;
 	u8 i, val;
 
-	if (btc->ctrl.manual)
+	if (btc->manual_ctrl)
 		return;
 
 	if (ver->fwlrole == 0)
@@ -4086,7 +4095,7 @@ static void _set_wl_preagc_ctrl(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_dm *dm = &btc->dm;
 	u8 is_preagc, val;
 
-	if (btc->ctrl.manual)
+	if (btc->manual_ctrl)
 		return;
 
 	if (wl_rinfo->link_mode == BTC_WLINK_25G_MCC)
@@ -4210,13 +4219,12 @@ static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
 	struct rtw89_btc_wl_role_info_v2 *wl_rinfo_v2 = &wl->role_info_v2;
 	struct rtw89_txtime_data data = {.rtwdev = rtwdev};
-	u8 mode;
-	u8 tx_retry;
+	u8 mode, igno_bt, tx_retry;
 	u32 tx_time;
 	u16 enable;
 	bool reenable = false;
 
-	if (btc->ctrl.manual)
+	if (btc->manual_ctrl)
 		return;
 
 	if (ver->fwlrole == 0)
@@ -4228,7 +4236,12 @@ static void _set_wl_tx_limit(struct rtw89_dev *rtwdev)
 	else
 		return;
 
-	if (btc->dm.freerun || btc->ctrl.igno_bt || b->profile_cnt.now == 0 ||
+	if (ver->fcxctrl == 7)
+		igno_bt = btc->ctrl.ctrl_v7.igno_bt;
+	else
+		igno_bt = btc->ctrl.ctrl.igno_bt;
+
+	if (btc->dm.freerun || igno_bt || b->profile_cnt.now == 0 ||
 	    mode == BTC_WLINK_5G || mode == BTC_WLINK_NOLINK) {
 		enable = 0;
 		tx_time = BTC_MAX_TX_TIME_DEF;
@@ -5374,7 +5387,7 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	struct rtw89_btc_wl_role_info *wl_rinfo = &wl->role_info;
 	struct rtw89_btc_wl_role_info_v1 *wl_rinfo_v1 = &wl->role_info_v1;
 	struct rtw89_btc_wl_role_info_v2 *wl_rinfo_v2 = &wl->role_info_v2;
-	u8 mode;
+	u8 mode, igno_bt, always_freerun;
 
 	lockdep_assert_held(&rtwdev->mutex);
 
@@ -5391,20 +5404,28 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	else
 		return;
 
+	if (ver->fcxctrl == 7) {
+		igno_bt = btc->ctrl.ctrl_v7.igno_bt;
+		always_freerun = btc->ctrl.ctrl_v7.always_freerun;
+	} else {
+		igno_bt = btc->ctrl.ctrl.igno_bt;
+		always_freerun = btc->ctrl.ctrl.always_freerun;
+	}
+
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): reason=%d, mode=%d\n",
 		    __func__, reason, mode);
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): wl_only=%d, bt_only=%d\n",
 		    __func__, dm->wl_only, dm->bt_only);
 
 	/* Be careful to change the following function sequence!! */
-	if (btc->ctrl.manual) {
+	if (btc->manual_ctrl) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): return for Manual CTRL!!\n",
 			    __func__);
 		return;
 	}
 
-	if (btc->ctrl.igno_bt &&
+	if (igno_bt &&
 	    (reason == BTC_RSN_UPDATE_BT_INFO ||
 	     reason == BTC_RSN_UPDATE_BT_SCBD)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -5441,24 +5462,24 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 	dm->freerun = false;
 	dm->cnt_dm[BTC_DCNT_RUN]++;
 	dm->fddt_train = BTC_FDDT_DISABLE;
-	btc->ctrl.igno_bt = false;
 	bt->scan_rx_low_pri = false;
+	igno_bt = false;
 
-	if (btc->ctrl.always_freerun) {
+	if (always_freerun) {
 		_action_freerun(rtwdev);
-		btc->ctrl.igno_bt = true;
+		igno_bt = true;
 		goto exit;
 	}
 
 	if (dm->wl_only) {
 		_action_wl_only(rtwdev);
-		btc->ctrl.igno_bt = true;
+		igno_bt = true;
 		goto exit;
 	}
 
 	if (wl->status.map.rf_off || wl->status.map.lps || dm->bt_only) {
 		_action_wl_off(rtwdev, mode);
-		btc->ctrl.igno_bt = true;
+		igno_bt = true;
 		goto exit;
 	}
 
@@ -5548,6 +5569,10 @@ void _run_coex(struct rtw89_dev *rtwdev, enum btc_reason_and_action reason)
 
 exit:
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): exit\n", __func__);
+	if (ver->fcxctrl == 7)
+		btc->ctrl.ctrl_v7.igno_bt = igno_bt;
+	else
+		btc->ctrl.ctrl.igno_bt = igno_bt;
 	_action_common(rtwdev);
 }
 
@@ -5611,11 +5636,15 @@ void rtw89_btc_ntfy_init(struct rtw89_dev *rtwdev, u8 mode)
 	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
+	const struct rtw89_btc_ver *ver = btc->ver;
 
 	_reset_btc_var(rtwdev, BTC_RESET_ALL);
 	btc->dm.run_reason = BTC_RSN_NONE;
 	btc->dm.run_action = BTC_ACT_NONE;
-	btc->ctrl.igno_bt = true;
+	if (ver->fcxctrl == 7)
+		btc->ctrl.ctrl_v7.igno_bt = true;
+	else
+		btc->ctrl.ctrl.igno_bt = true;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): mode=%d\n", __func__, mode);
@@ -7178,15 +7207,17 @@ static void _show_dm_step(struct rtw89_dev *rtwdev, struct seq_file *m)
 static void _show_dm_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	u8 igno_bt;
 
 	if (!(dm->coex_info_map & BTC_COEX_INFO_DM))
 		return;
 
 	seq_printf(m, "========== [Mechanism Status %s] ==========\n",
-		   (btc->ctrl.manual ? "(Manual)" : "(Auto)"));
+		   (btc->manual_ctrl ? "(Manual)" : "(Auto)"));
 
 	seq_printf(m,
 		   " %-15s : type:%s, reason:%s(), action:%s(), ant_path:%s, init_mode:%s, run_cnt:%d\n",
@@ -7200,8 +7231,13 @@ static void _show_dm_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 	_show_dm_step(rtwdev, m);
 
+	if (ver->fcxctrl == 7)
+		igno_bt = btc->ctrl.ctrl_v7.igno_bt;
+	else
+		igno_bt = btc->ctrl.ctrl.igno_bt;
+
 	seq_printf(m, " %-15s : wl_only:%d, bt_only:%d, igno_bt:%d, free_run:%d, wl_ps_ctrl:%d, wl_mimo_ps:%d, ",
-		   "[dm_flag]", dm->wl_only, dm->bt_only, btc->ctrl.igno_bt,
+		   "[dm_flag]", dm->wl_only, dm->bt_only, igno_bt,
 		   dm->freerun, btc->lps, dm->wl_mimo_ps);
 
 	seq_printf(m, "leak_ap:%d, fw_offload:%s%s\n", dm->leak_ap,
@@ -7942,10 +7978,11 @@ static void _show_fbtc_step_v2(struct rtw89_dev *rtwdev, struct seq_file *m)
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
 	struct rtw89_btc_fbtc_steps_v2 *pstep = NULL;
+	const struct rtw89_btc_ver *ver = btc->ver;
 	u8 type, val, cnt = 0, state = 0;
 	bool outloop = false;
 	u16 i, diff_t, n_start = 0, n_stop = 0;
-	u16 pos_old, pos_new;
+	u16 pos_old, pos_new, trace_step;
 
 	pcinfo = &pfwinfo->rpt_fbtc_step.cinfo;
 	if (!pcinfo->valid)
@@ -7962,11 +7999,16 @@ static void _show_fbtc_step_v2(struct rtw89_dev *rtwdev, struct seq_file *m)
 	do {
 		switch (state) {
 		case 0:
+			if (ver->fcxctrl == 7 || ver->fcxctrl == 1)
+				trace_step = 50;
+			else
+				trace_step = btc->ctrl.ctrl.trace_step;
+
 			n_start = pos_old;
 			if (pos_new >=  pos_old)
 				n_stop = pos_new;
 			else
-				n_stop = btc->ctrl.trace_step - 1;
+				n_stop = trace_step - 1;
 
 			state = 1;
 			break;
@@ -8796,7 +8838,7 @@ void rtw89_btc_dump_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 	seq_printf(m, "WL FW / BT FW		%d.%d.%d.%d / NA\n",
 		   fw_suit->major_ver, fw_suit->minor_ver,
 		   fw_suit->sub_ver, fw_suit->sub_idex);
-	seq_printf(m, "manual			%d\n", btc->ctrl.manual);
+	seq_printf(m, "manual			%d\n", btc->manual_ctrl);
 
 	seq_puts(m, "=========================================\n");
 
