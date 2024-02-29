@@ -803,6 +803,37 @@ struct __fixture_metadata {
 	.prev = &_fixture_global,
 };
 
+struct __test_xfail {
+	struct __fixture_metadata *fixture;
+	struct __fixture_variant_metadata *variant;
+	struct __test_metadata *test;
+	struct __test_xfail *prev, *next;
+};
+
+/**
+ * XFAIL_ADD() - mark variant + test case combination as expected to fail
+ * @fixture_name: name of the fixture
+ * @variant_name: name of the variant
+ * @test_name: name of the test case
+ *
+ * Mark a combination of variant + test case for a given fixture as expected
+ * to fail. Tests marked this way will report XPASS / XFAIL return codes,
+ * instead of PASS / FAIL,and use respective counters.
+ */
+#define XFAIL_ADD(fixture_name, variant_name, test_name) \
+	static struct __test_xfail \
+		_##fixture_name##_##variant_name##_##test_name##_xfail = \
+	{ \
+		.fixture = &_##fixture_name##_fixture_object, \
+		.variant = &_##fixture_name##_##variant_name##_object, \
+		.test = &_##fixture_name##_##test_name##_object, \
+	}; \
+	static void __attribute__((constructor)) \
+		_register_##fixture_name##_##variant_name##_##test_name##_xfail(void) \
+	{ \
+		__register_xfail(&_##fixture_name##_##variant_name##_##test_name##_xfail); \
+	}
+
 static struct __fixture_metadata *__fixture_list = &_fixture_global;
 static int __constructor_order;
 
@@ -817,6 +848,7 @@ static inline void __register_fixture(struct __fixture_metadata *f)
 struct __fixture_variant_metadata {
 	const char *name;
 	const void *data;
+	struct __test_xfail *xfails;
 	struct __fixture_variant_metadata *prev, *next;
 };
 
@@ -864,6 +896,11 @@ static inline bool __test_passed(struct __test_metadata *metadata)
 static inline void __register_test(struct __test_metadata *t)
 {
 	__LIST_APPEND(t->fixture->tests, t);
+}
+
+static inline void __register_xfail(struct __test_xfail *xf)
+{
+	__LIST_APPEND(xf->variant->xfails, xf);
 }
 
 static inline int __bail(int for_realz, struct __test_metadata *t)
@@ -941,7 +978,9 @@ void __wait_for_test(struct __test_metadata *t)
 		fprintf(TH_LOG_STREAM,
 			"# %s: Test terminated by timeout\n", t->name);
 	} else if (WIFEXITED(status)) {
-		if (WEXITSTATUS(status) == KSFT_SKIP) {
+		if (WEXITSTATUS(status) == KSFT_SKIP ||
+		    WEXITSTATUS(status) == KSFT_XPASS ||
+		    WEXITSTATUS(status) == KSFT_XFAIL) {
 			t->exit_code = WEXITSTATUS(status);
 		} else if (t->termsig != -1) {
 			t->exit_code = KSFT_FAIL;
@@ -1110,6 +1149,7 @@ void __run_test(struct __fixture_metadata *f,
 		struct __fixture_variant_metadata *variant,
 		struct __test_metadata *t)
 {
+	struct __test_xfail *xfail;
 	char test_name[LINE_MAX];
 	const char *diagnostic;
 
@@ -1140,6 +1180,13 @@ void __run_test(struct __fixture_metadata *f,
 	}
 	ksft_print_msg("         %4s  %s\n",
 		       __test_passed(t) ? "OK" : "FAIL", test_name);
+
+	/* Check if we're expecting this test to fail */
+	for (xfail = variant->xfails; xfail; xfail = xfail->next)
+		if (xfail->test == t)
+			break;
+	if (xfail)
+		t->exit_code = __test_passed(t) ? KSFT_XPASS : KSFT_XFAIL;
 
 	if (t->results->reason[0])
 		diagnostic = t->results->reason;
