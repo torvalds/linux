@@ -1277,6 +1277,18 @@ struct rtw89_btc_ant_info {
 	u8 stream_cnt: 4;
 };
 
+struct rtw89_btc_ant_info_v7 {
+	u8 type;  /* shared, dedicated(non-shared) */
+	u8 num;   /* antenna count  */
+	u8 isolation;
+	u8 single_pos;/* wifi 1ss-1ant at 0:S0 or 1:S1 */
+
+	u8 diversity; /* only for wifi use 1-antenna */
+	u8 btg_pos; /* btg-circuit at 0:S0/1:S1/others:all */
+	u8 stream_cnt;  /* spatial_stream count */
+	u8 rsvd;
+} __packed;
+
 enum rtw89_tfc_dir {
 	RTW89_TFC_UL,
 	RTW89_TFC_DL,
@@ -1671,6 +1683,16 @@ struct rtw89_btc_dm_emap {
 	u32 wl_e2g_hang: 1;
 	u32 wl_ver_mismatch: 1;
 	u32 bt_ver_mismatch: 1;
+	u32 rfe_type0: 1;
+	u32 h2c_buffer_over: 1;
+	u32 bt_tx_hang: 1; /* for SNR too low bug, BT has no Tx req*/
+	u32 wl_no_sta_ntfy: 1;
+
+	u32 h2c_bmap_mismatch: 1;
+	u32 c2h_bmap_mismatch: 1;
+	u32 h2c_struct_invalid: 1;
+	u32 c2h_struct_invalid: 1;
+	u32 h2c_c2h_buffer_mismatch: 1;
 };
 
 union rtw89_btc_dm_error_map {
@@ -1736,6 +1758,25 @@ struct rtw89_btc_module {
 	u8 kt_ver_adie;
 };
 
+struct rtw89_btc_module_v7 {
+	u8 rfe_type;
+	u8 kt_ver;
+	u8 bt_solo;
+	u8 bt_pos; /* wl-end view: get from efuse, must compare bt.btg_type*/
+
+	u8 switch_type; /* WL/BT switch type: 0: internal, 1: external */
+	u8 wa_type; /* WA type: 0:none, 1: 51B 5G_Hi-Ch_Rx */
+	u8 kt_ver_adie;
+	u8 rsvd;
+
+	struct rtw89_btc_ant_info_v7 ant;
+} __packed;
+
+union rtw89_btc_module_info {
+	struct rtw89_btc_module md;
+	struct rtw89_btc_module_v7 md_v7;
+};
+
 #define RTW89_BTC_DM_MAXSTEP 30
 #define RTW89_BTC_DM_CNT_MAX (RTW89_BTC_DM_MAXSTEP * 8)
 
@@ -1756,6 +1797,25 @@ struct rtw89_btc_init_info {
 	u8 bt_only: 1;
 
 	u16 rsvd;
+};
+
+struct rtw89_btc_init_info_v7 {
+	u8 wl_guard_ch;
+	u8 wl_only;
+	u8 wl_init_ok;
+	u8 rsvd3;
+
+	u8 cx_other;
+	u8 bt_only;
+	u8 pta_mode;
+	u8 pta_direction;
+
+	struct rtw89_btc_module_v7 module;
+} __packed;
+
+union rtw89_btc_init_info_u {
+	struct rtw89_btc_init_info init;
+	struct rtw89_btc_init_info_v7 init_v7;
 };
 
 struct rtw89_btc_wl_tx_limit_para {
@@ -2496,7 +2556,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_fbtc_tdma tdma;
 	struct rtw89_btc_fbtc_tdma tdma_now;
 	struct rtw89_mac_ax_coex_gnt gnt;
-	struct rtw89_btc_init_info init_info; /* pass to wl_fw if offload */
+	union rtw89_btc_init_info_u init_info; /* pass to wl_fw if offload */
 	struct rtw89_btc_rf_trx_para rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
@@ -2717,6 +2777,7 @@ struct rtw89_btc_ver {
 	u8 fwlrole;
 	u8 frptmap;
 	u8 fcxctrl;
+	u8 fcxinit;
 
 	u16 info_buf;
 	u8 max_role_num;
@@ -2730,7 +2791,7 @@ struct rtw89_btc {
 	struct rtw89_btc_cx cx;
 	struct rtw89_btc_dm dm;
 	struct rtw89_btc_ctrl ctrl;
-	struct rtw89_btc_module mdinfo;
+	union rtw89_btc_module_info mdinfo;
 	struct rtw89_btc_btf_fwinfo fwinfo;
 	struct rtw89_btc_dbg dbg;
 
@@ -2742,6 +2803,8 @@ struct rtw89_btc {
 	u32 bt_req_len;
 
 	u8 policy[RTW89_BTC_POLICY_MAXLEN];
+	u8 ant_type;
+	u8 btg_pos;
 	u16 policy_len;
 	u16 policy_type;
 	bool bt_req_en;
