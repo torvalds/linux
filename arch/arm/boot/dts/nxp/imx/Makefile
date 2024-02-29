@@ -349,6 +349,8 @@ dtb-$(CONFIG_SOC_IMX6UL) += \
 	imx6ull-phytec-segin-lc-rdk-nand.dtb \
 	imx6ull-phytec-tauri-emmc.dtb \
 	imx6ull-phytec-tauri-nand.dtb \
+	imx6ull-seeed-npi-dev-board-emmc.dtb \
+	imx6ull-seeed-npi-dev-board-nand.dtb \
 	imx6ull-tarragon-master.dtb \
 	imx6ull-tarragon-micro.dtb \
 	imx6ull-tarragon-slave.dtb \
