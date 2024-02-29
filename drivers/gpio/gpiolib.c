@@ -4285,7 +4285,7 @@ int gpiod_count(struct device *dev, const char *con_id)
 	int count = -ENOENT;
 
 	if (is_of_node(fwnode))
-		count = of_gpio_get_count(dev, con_id);
+		count = of_gpio_count(fwnode, con_id);
 	else if (is_acpi_node(fwnode))
 		count = acpi_gpio_count(dev, con_id);
 	else if (is_software_node(fwnode))

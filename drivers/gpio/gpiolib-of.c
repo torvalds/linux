@@ -68,7 +68,7 @@ static int of_gpio_named_count(const struct device_node *np,
 
 /**
  * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
- * @dev:    Consuming device
+ * @np:    Consuming device node
  * @con_id: Function within the GPIO consumer
  *
  * Some elder GPIO controllers need special quirks. Currently we handle
@@ -78,10 +78,9 @@ static int of_gpio_named_count(const struct device_node *np,
  * the counting of "cs-gpios" to count "gpios" transparent to the
  * driver.
  */
-static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
+static int of_gpio_spi_cs_get_count(const struct device_node *np,
+				    const char *con_id)
 {
-	struct device_node *np = dev->of_node;
-
 	if (!IS_ENABLED(CONFIG_SPI_MASTER))
 		return 0;
 	if (!con_id || strcmp(con_id, "cs"))
@@ -93,13 +92,14 @@ static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
 	return of_gpio_named_count(np, "gpios");
 }
 
-int of_gpio_get_count(struct device *dev, const char *con_id)
+int of_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 {
+	const struct device_node *np = to_of_node(fwnode);
 	int ret;
 	char propname[32];
 	unsigned int i;
 
-	ret = of_gpio_spi_cs_get_count(dev, con_id);
+	ret = of_gpio_spi_cs_get_count(np, con_id);
 	if (ret > 0)
 		return ret;
 
@@ -111,7 +111,7 @@ int of_gpio_get_count(struct device *dev, const char *con_id)
 			snprintf(propname, sizeof(propname), "%s",
 				 gpio_suffixes[i]);
 
-		ret = of_gpio_named_count(dev->of_node, propname);
+		ret = of_gpio_named_count(np, propname);
 		if (ret > 0)
 			break;
 	}
