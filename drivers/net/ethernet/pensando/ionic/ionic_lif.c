@@ -52,15 +52,20 @@ static void ionic_xdp_unregister_rxq_info(struct ionic_queue *q);
 static void ionic_dim_work(struct work_struct *work)
 {
 	struct dim *dim = container_of(work, struct dim, work);
-	struct ionic_intr_info *intr;
 	struct dim_cq_moder cur_moder;
+	struct ionic_intr_info *intr;
 	struct ionic_qcq *qcq;
 	struct ionic_lif *lif;
+	struct ionic_queue *q;
 	u32 new_coal;
 
-	cur_moder = net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
 	qcq = container_of(dim, struct ionic_qcq, dim);
-	lif = qcq->q.lif;
+	q = &qcq->q;
+	if (q->type == IONIC_QTYPE_RXQ)
+		cur_moder = net_dim_get_rx_moderation(dim->mode, dim->profile_ix);
+	else
+		cur_moder = net_dim_get_tx_moderation(dim->mode, dim->profile_ix);
+	lif = q->lif;
 	new_coal = ionic_coal_usec_to_hw(lif->ionic, cur_moder.usec);
 	new_coal = new_coal ? new_coal : 1;
 
@@ -685,7 +690,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	}
 
 	INIT_WORK(&new->dim.work, ionic_dim_work);
-	new->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
+	new->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_CQE;
 
 	*qcq = new;
 
