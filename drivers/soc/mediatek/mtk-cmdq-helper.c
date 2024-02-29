@@ -58,7 +58,7 @@ int cmdq_dev_get_client_reg(struct device *dev,
 					       "mediatek,gce-client-reg",
 					       3, idx, &spec);
 	if (err < 0) {
-		dev_err(dev,
+		dev_warn(dev,
 			"error %d can't parse gce-client-reg property (%d)",
 			err, idx);
 
