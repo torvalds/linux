@@ -4836,16 +4836,12 @@ pipe_config_infoframe_mismatch(bool fastset, const struct intel_crtc *crtc,
 
 		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 		loglevel = KERN_DEBUG;
-
-		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s infoframe\n",
-			   crtc->base.base.id, crtc->base.name, name);
 	} else {
 		p = drm_err_printer(&i915->drm, NULL);
 		loglevel = KERN_ERR;
-
-		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s infoframe\n",
-			   crtc->base.base.id, crtc->base.name, name);
 	}
+
+	pipe_config_mismatch(fastset, crtc, name, "infoframe");
 
 	drm_printf(&p, "expected:\n");
 	hdmi_infoframe_log(loglevel, i915->drm.dev, a);
@@ -4862,17 +4858,12 @@ pipe_config_dp_vsc_sdp_mismatch(bool fastset, const struct intel_crtc *crtc,
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct drm_printer p;
 
-	if (fastset) {
+	if (fastset)
 		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
-
-		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s dp sdp\n",
-			   crtc->base.base.id, crtc->base.name, name);
-	} else {
+	else
 		p = drm_err_printer(&i915->drm, NULL);
 
-		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s dp sdp\n",
-			   crtc->base.base.id, crtc->base.name, name);
-	}
+	pipe_config_mismatch(fastset, crtc, name, "dp sdp");
 
 	drm_printf(&p, "expected:\n");
 	drm_dp_vsc_sdp_log(&p, a);
@@ -4899,26 +4890,18 @@ pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
 			    const char *name,
 			    const u8 *a, const u8 *b, size_t len)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct drm_printer p;
 	const char *loglevel;
 
 	if (fastset) {
 		if (!drm_debug_enabled(DRM_UT_KMS))
 			return;
 
-		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 		loglevel = KERN_DEBUG;
-
-		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s buffer\n",
-			   crtc->base.base.id, crtc->base.name, name);
 	} else {
-		p = drm_err_printer(&i915->drm, NULL);
 		loglevel = KERN_ERR;
-
-		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s buffer\n",
-			   crtc->base.base.id, crtc->base.name, name);
 	}
+
+	pipe_config_mismatch(fastset, crtc, name, "buffer");
 
 	/* only dump up to the last difference */
 	len = memcmp_diff_len(a, b, len);
@@ -4939,17 +4922,12 @@ pipe_config_pll_mismatch(bool fastset,
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct drm_printer p;
 
-	if (fastset) {
+	if (fastset)
 		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
-
-		drm_printf(&p, "[CRTC:%d:%s] fastset requirement not met in %s\n",
-			   crtc->base.base.id, crtc->base.name, name);
-	} else {
+	else
 		p = drm_err_printer(&i915->drm, NULL);
 
-		drm_printf(&p, "[CRTC:%d:%s] mismatch in %s\n",
-			   crtc->base.base.id, crtc->base.name, name);
-	}
+	pipe_config_mismatch(fastset, crtc, name, " "); /* stupid -Werror=format-zero-length */
 
 	drm_printf(&p, "expected:\n");
 	intel_dpll_dump_hw_state(i915, &p, a);
