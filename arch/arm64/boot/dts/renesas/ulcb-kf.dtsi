@@ -32,32 +32,11 @@
 		};
 	};
 
-	accel_3v3: regulator-acc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "accel-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
 	hdmi_1v8: regulator-hdmi-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "hdmi-1v8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-	};
-
-	hdmi_3v3: regulator-hdmi-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "hdmi-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
-	snd_3p3v: regulator-snd_3p3v {
-		compatible = "regulator-fixed";
-		regulator-name = "snd-3.3v";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
 	};
 
 	snd_vcc5v: regulator-snd_vcc5v {
@@ -160,7 +139,7 @@
 				avdd-supply = <&hdmi_1v8>;
 				dvdd-supply = <&hdmi_1v8>;
 				pvdd-supply = <&hdmi_1v8>;
-				dvdd-3v-supply = <&hdmi_3v3>;
+				dvdd-3v-supply = <&reg_3p3v>;
 				bgvdd-supply = <&hdmi_1v8>;
 
 				adi,input-depth = <8>;
@@ -198,8 +177,8 @@
 				compatible = "st,lsm9ds0-imu";
 				reg = <0x1d>;
 
-				vdd-supply = <&accel_3v3>;
-				vddio-supply = <&accel_3v3>;
+				vdd-supply = <&reg_3p3v>;
+				vddio-supply = <&reg_3p3v>;
 			};
 
 			pcm3168a: audio-codec@44 {
@@ -209,8 +188,8 @@
 				clocks = <&clksndsel>;
 				clock-names = "scki";
 
-				VDD1-supply = <&snd_3p3v>;
-				VDD2-supply = <&snd_3p3v>;
+				VDD1-supply = <&reg_3p3v>;
+				VDD2-supply = <&reg_3p3v>;
 				VCCAD1-supply = <&snd_vcc5v>;
 				VCCAD2-supply = <&snd_vcc5v>;
 				VCCDA1-supply = <&snd_vcc5v>;
@@ -221,8 +200,8 @@
 				compatible = "st,lsm9ds0-gyro";
 				reg = <0x6b>;
 
-				vdd-supply = <&accel_3v3>;
-				vddio-supply = <&accel_3v3>;
+				vdd-supply = <&reg_3p3v>;
+				vddio-supply = <&reg_3p3v>;
 			};
 		};
 	};
@@ -417,6 +396,13 @@
 	pinctrl-names = "default";
 
 	status = "okay";
+
+	gnss {
+		compatible = "u-blox,neo-m8";
+		reset-gpios = <&gpio_exp_75 6 GPIO_ACTIVE_LOW>;
+		vcc-supply = <&reg_3p3v>;
+		current-speed = <9600>;
+	};
 };
 
 &sdhi3 {

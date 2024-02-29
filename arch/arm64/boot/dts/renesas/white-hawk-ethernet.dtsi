@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Device Tree Source for the R-Car V4H White Hawk RAVB/Ethernet(1000Base-T1)
+ * Device Tree Source for the White Hawk RAVB/Ethernet(1000Base-T1)
  * sub-board
  *
  * Copyright (C) 2022 Glider bv

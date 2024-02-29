@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 /*
- * Device Tree Source for the R-Car V4H White Hawk CSI/DSI sub-board
+ * Device Tree Source for the White Hawk CSI/DSI sub-board
  *
  * Copyright (C) 2022 Glider bv
  */
