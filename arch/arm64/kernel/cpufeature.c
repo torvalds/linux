@@ -3052,13 +3052,9 @@ static void __init enable_cpu_capabilities(u16 scope_mask)
 	boot_scope = !!(scope_mask & SCOPE_BOOT_CPU);
 
 	for (i = 0; i < ARM64_NCAPS; i++) {
-		unsigned int num;
-
 		caps = cpucap_ptrs[i];
-		if (!caps || !(caps->type & scope_mask))
-			continue;
-		num = caps->capability;
-		if (!cpus_have_cap(num))
+		if (!caps || !(caps->type & scope_mask) ||
+		    !cpus_have_cap(caps->capability))
 			continue;
 
 		if (boot_scope && caps->cpu_enable)
