@@ -464,13 +464,15 @@ int xhci_find_slot_id_by_port(struct usb_hcd *hcd, struct xhci_hcd *xhci,
 	int i;
 	enum usb_device_speed speed;
 
+	/* 'hcd_portnum' is zero-based, thus convert one-based 'port' to zero-based */
+	port -= 1;
 	slot_id = 0;
 	for (i = 0; i < MAX_HC_SLOTS; i++) {
 		if (!xhci->devs[i] || !xhci->devs[i]->udev)
 			continue;
 		speed = xhci->devs[i]->udev->speed;
 		if (((speed >= USB_SPEED_SUPER) == (hcd->speed >= HCD_USB3))
-				&& xhci->devs[i]->fake_port == port) {
+				&& xhci->devs[i]->rhub_port->hcd_portnum == port) {
 			slot_id = i;
 			break;
 		}

@@ -789,15 +789,14 @@ static void xhci_free_tt_info(struct xhci_hcd *xhci,
 	bool slot_found = false;
 
 	/* If the device never made it past the Set Address stage,
-	 * it may not have the real_port set correctly.
+	 * it may not have the root hub port pointer set correctly.
 	 */
-	if (virt_dev->real_port == 0 ||
-			virt_dev->real_port > HCS_MAX_PORTS(xhci->hcs_params1)) {
-		xhci_dbg(xhci, "Bad real port.\n");
+	if (!virt_dev->rhub_port) {
+		xhci_dbg(xhci, "Bad rhub port.\n");
 		return;
 	}
 
-	tt_list_head = &(xhci->rh_bw[virt_dev->real_port - 1].tts);
+	tt_list_head = &(xhci->rh_bw[virt_dev->rhub_port->hw_portnum].tts);
 	list_for_each_entry_safe(tt_info, next, tt_list_head, tt_list) {
 		/* Multi-TT hubs will have more than one entry */
 		if (tt_info->slot_id == slot_id) {
@@ -834,7 +833,7 @@ int xhci_alloc_tt_info(struct xhci_hcd *xhci,
 			goto free_tts;
 		INIT_LIST_HEAD(&tt_info->tt_list);
 		list_add(&tt_info->tt_list,
-				&xhci->rh_bw[virt_dev->real_port - 1].tts);
+				&xhci->rh_bw[virt_dev->rhub_port->hw_portnum].tts);
 		tt_info->slot_id = virt_dev->udev->slot_id;
 		if (tt->multi)
 			tt_info->ttport = i+1;
@@ -929,13 +928,12 @@ static void xhci_free_virt_devices_depth_first(struct xhci_hcd *xhci, int slot_i
 	if (!vdev)
 		return;
 
-	if (vdev->real_port == 0 ||
-			vdev->real_port > HCS_MAX_PORTS(xhci->hcs_params1)) {
-		xhci_dbg(xhci, "Bad vdev->real_port.\n");
+	if (!vdev->rhub_port) {
+		xhci_dbg(xhci, "Bad rhub port.\n");
 		goto out;
 	}
 
-	tt_list_head = &(xhci->rh_bw[vdev->real_port - 1].tts);
+	tt_list_head = &(xhci->rh_bw[vdev->rhub_port->hw_portnum].tts);
 	list_for_each_entry_safe(tt_info, next, tt_list_head, tt_list) {
 		/* is this a hub device that added a tt_info to the tts list */
 		if (tt_info->slot_id == slot_id) {
@@ -1082,7 +1080,6 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	struct xhci_virt_device *dev;
 	struct xhci_ep_ctx	*ep0_ctx;
 	struct xhci_slot_ctx    *slot_ctx;
-	struct xhci_port	*rhub_port;
 	u32			max_packets;
 
 	dev = xhci->devs[udev->slot_id];
@@ -1124,14 +1121,12 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 		return -EINVAL;
 	}
 	/* Find the root hub port this device is under */
-	rhub_port = xhci_find_rhub_port(xhci, udev);
-	if (!rhub_port)
+	dev->rhub_port = xhci_find_rhub_port(xhci, udev);
+	if (!dev->rhub_port)
 		return -EINVAL;
-	dev->real_port = rhub_port->hw_portnum + 1;
-	dev->fake_port = rhub_port->hcd_portnum + 1;
-	slot_ctx->dev_info2 |= cpu_to_le32(ROOT_HUB_PORT(dev->real_port));
-	xhci_dbg(xhci, "Set root hub portnum to %d\n", dev->real_port);
-	xhci_dbg(xhci, "Set fake root hub portnum to %d\n", dev->fake_port);
+	slot_ctx->dev_info2 |= cpu_to_le32(ROOT_HUB_PORT(dev->rhub_port->hw_portnum + 1));
+	xhci_dbg(xhci, "Slot ID %d: HW portnum %d, hcd portnum %d\n",
+		 udev->slot_id, dev->rhub_port->hw_portnum, dev->rhub_port->hcd_portnum);
 
 	/* Find the right bandwidth table that this device will be a part of.
 	 * If this is a full speed device attached directly to a root port (or a
@@ -1140,12 +1135,12 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	 * will never be created for the HS root hub.
 	 */
 	if (!udev->tt || !udev->tt->hub->parent) {
-		dev->bw_table = &xhci->rh_bw[dev->real_port - 1].bw_table;
+		dev->bw_table = &xhci->rh_bw[dev->rhub_port->hw_portnum].bw_table;
 	} else {
 		struct xhci_root_port_bw_info *rh_bw;
 		struct xhci_tt_bw_info *tt_bw;
 
-		rh_bw = &xhci->rh_bw[dev->real_port - 1];
+		rh_bw = &xhci->rh_bw[dev->rhub_port->hw_portnum];
 		/* Find the right TT. */
 		list_for_each_entry(tt_bw, &rh_bw->tts, tt_list) {
 			if (tt_bw->slot_id != udev->tt->hub->slot_id)
