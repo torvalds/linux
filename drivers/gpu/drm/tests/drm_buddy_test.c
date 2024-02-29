@@ -189,7 +189,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 							      &allocated,
 							      DRM_BUDDY_RANGE_ALLOCATION),
 				       "buddy_alloc failed with bias(%x-%x), size=%u, ps=%u\n",
-				       bias_start, bias_end, size);
+				       bias_start, bias_end, size, ps);
 		bias_rem -= size;
 
 		/*
