@@ -188,6 +188,10 @@
 	};
 };
 
+&ltpi0_jtag {
+	status = "okay";
+};
+
 &ltpi0_adc0 {
 	aspeed,int-vref-microvolt = <2500000>;
 	status = "okay";
