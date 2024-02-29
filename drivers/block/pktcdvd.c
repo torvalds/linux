@@ -828,6 +828,12 @@ static noinline_for_stack int pkt_set_speed(struct pktcdvd_device *pd,
  */
 static void pkt_queue_bio(struct pktcdvd_device *pd, struct bio *bio)
 {
+	/*
+	 * Some CDRW drives can not handle writes larger than one packet,
+	 * even if the size is a multiple of the packet size.
+	 */
+	bio->bi_opf |= REQ_NOMERGE;
+
 	spin_lock(&pd->iosched.lock);
 	if (bio_data_dir(bio) == READ)
 		bio_list_add(&pd->iosched.read_queue, bio);
@@ -2191,11 +2197,6 @@ static int pkt_open_dev(struct pktcdvd_device *pd, bool write)
 		ret = pkt_open_write(pd);
 		if (ret)
 			goto out_putdev;
-		/*
-		 * Some CDRW drives can not handle writes larger than one packet,
-		 * even if the size is a multiple of the packet size.
-		 */
-		blk_queue_max_hw_sectors(q, pd->settings.size);
 		set_bit(PACKET_WRITABLE, &pd->flags);
 	} else {
 		pkt_set_speed(pd, MAX_SPEED, MAX_SPEED);
