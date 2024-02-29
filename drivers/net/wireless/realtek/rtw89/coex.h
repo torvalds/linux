@@ -7,6 +7,8 @@
 
 #include "core.h"
 
+#define BTC_H2C_MAXLEN 2020
+
 enum btc_mode {
 	BTC_MODE_NORMAL,
 	BTC_MODE_WL,

@@ -683,20 +683,25 @@ static void _run_coex(struct rtw89_dev *rtwdev,
 static void _write_scbd(struct rtw89_dev *rtwdev, u32 val, bool state);
 static void _update_bt_scbd(struct rtw89_dev *rtwdev, bool only_update);
 
-static void _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
-			 void *param, u16 len)
+static int _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
+			void *param, u16 len)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_btf_fwinfo *pfwinfo = &btc->fwinfo;
 	struct rtw89_btc_cx *cx = &btc->cx;
 	struct rtw89_btc_wl_info *wl = &cx->wl;
+	struct rtw89_btc_dm *dm = &btc->dm;
 	int ret;
 
-	if (!wl->status.map.init_ok) {
+	if (len > BTC_H2C_MAXLEN || len == 0) {
+		btc->fwinfo.cnt_h2c_fail++;
+		dm->error.map.h2c_buffer_over = true;
+		return -EINVAL;
+	} else if (!wl->status.map.init_ok) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): return by btc not init!!\n", __func__);
 		pfwinfo->cnt_h2c_fail++;
-		return;
+		return -EINVAL;
 	} else if ((wl->status.map.rf_off_pre == BTC_LPS_RF_OFF &&
 		    wl->status.map.rf_off == BTC_LPS_RF_OFF) ||
 		   (wl->status.map.lps_pre == BTC_LPS_RF_OFF &&
@@ -704,15 +709,17 @@ static void _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): return by wl off!!\n", __func__);
 		pfwinfo->cnt_h2c_fail++;
-		return;
+		return -EINVAL;
 	}
-
-	pfwinfo->cnt_h2c++;
 
 	ret = rtw89_fw_h2c_raw_with_hdr(rtwdev, h2c_class, h2c_func, param, len,
 					false, true);
-	if (ret != 0)
+	if (ret)
 		pfwinfo->cnt_h2c_fail++;
+	else
+		pfwinfo->cnt_h2c++;
+
+	return ret;
 }
 
 static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
@@ -1938,6 +1945,7 @@ static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 	struct rtw89_btc_btf_fwinfo *fwinfo = &btc->fwinfo;
 	struct rtw89_btc_btf_set_report r = {0};
 	u32 val, bit_map;
+	int ret;
 
 	if ((wl_smap->rf_off || wl_smap->lps != BTC_LPS_OFF) && rpt_state != 0)
 		return;
@@ -1956,13 +1964,13 @@ static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 	if (val == fwinfo->rpt_en_map)
 		return;
 
-	fwinfo->rpt_en_map = val;
-
 	r.fver = BTF_SET_REPORT_VER;
 	r.enable = cpu_to_le32(val);
 	r.para = cpu_to_le32(rpt_state);
 
-	_send_fw_cmd(rtwdev, BTFC_SET, SET_REPORT_EN, &r, sizeof(r));
+	ret = _send_fw_cmd(rtwdev, BTFC_SET, SET_REPORT_EN, &r, sizeof(r));
+	if (!ret)
+		fwinfo->rpt_en_map = val;
 }
 
 static void rtw89_btc_fw_set_slots(struct rtw89_dev *rtwdev, u8 num,
@@ -2050,6 +2058,7 @@ static void _fw_set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
+	int ret;
 
 	dm->run_action = action;
 
@@ -2078,11 +2087,12 @@ static void _fw_set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 	if (btc->lps == 1)
 		rtw89_set_coex_ctrl_lps(rtwdev, btc->lps);
 
-	_send_fw_cmd(rtwdev, BTFC_SET, SET_CX_POLICY,
-		     btc->policy, btc->policy_len);
-
-	memcpy(&dm->tdma_now, &dm->tdma, sizeof(dm->tdma_now));
-	memcpy(&dm->slot_now, &dm->slot, sizeof(dm->slot_now));
+	ret = _send_fw_cmd(rtwdev, BTFC_SET, SET_CX_POLICY,
+			   btc->policy, btc->policy_len);
+	if (!ret) {
+		memcpy(&dm->tdma_now, &dm->tdma, sizeof(dm->tdma_now));
+		memcpy(&dm->slot_now, &dm->slot, sizeof(dm->slot_now));
+	}
 
 	if (btc->update_policy_force)
 		btc->update_policy_force = false;
@@ -2298,20 +2308,22 @@ static void _set_bt_tx_power(struct rtw89_dev *rtwdev, u8 level)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
+	int ret;
 	u8 buf;
 
 	if (bt->rf_para.tx_pwr_freerun == level)
 		return;
-
-	bt->rf_para.tx_pwr_freerun = level;
-	btc->dm.rf_trx_para.bt_tx_power = level;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): level = %d\n",
 		    __func__, level);
 
 	buf = (s8)(-level);
-	_send_fw_cmd(rtwdev, BTFC_SET, SET_BT_TX_PWR, &buf, 1);
+	ret = _send_fw_cmd(rtwdev, BTFC_SET, SET_BT_TX_PWR, &buf, 1);
+	if (!ret) {
+		bt->rf_para.tx_pwr_freerun = level;
+		btc->dm.rf_trx_para.bt_tx_power = level;
+	}
 }
 
 #define BTC_BT_RX_NORMAL_LVL 7
