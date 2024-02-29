@@ -92,4 +92,7 @@
 /********** VFS **********/
 #define VFS_PTR_POISON ((void *)(0xF5 + POISON_POINTER_DELTA))
 
+/********** lib/stackdepot.c **********/
+#define STACK_DEPOT_POISON ((void *)(0xD390 + POISON_POINTER_DELTA))
+
 #endif

@@ -60,7 +60,7 @@
 
 	#address-cells = <1>;
 	#size-cells = <0>;
-	eeprom@57{
+	eeprom@57 {
 		compatible = "atmel,24c16";
 		reg = <0x57>;
 		pagesize = <16>;
