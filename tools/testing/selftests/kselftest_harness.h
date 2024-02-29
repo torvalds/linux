@@ -936,7 +936,7 @@ void __wait_for_test(struct __test_metadata *t)
 		fprintf(TH_LOG_STREAM,
 			"# %s: Test terminated by timeout\n", t->name);
 	} else if (WIFEXITED(status)) {
-		if (WEXITSTATUS(status) == 255) {
+		if (WEXITSTATUS(status) == KSFT_SKIP) {
 			/* SKIP */
 			t->passed = 1;
 			t->skip = 1;
@@ -949,7 +949,7 @@ void __wait_for_test(struct __test_metadata *t)
 		} else {
 			switch (WEXITSTATUS(status)) {
 			/* Success */
-			case 0:
+			case KSFT_PASS:
 				t->passed = 1;
 				break;
 			/* Failure */
@@ -1128,11 +1128,10 @@ void __run_test(struct __fixture_metadata *f,
 		setpgrp();
 		t->fn(t, variant);
 		if (t->skip)
-			_exit(255);
-		/* Pass is exit 0 */
+			_exit(KSFT_SKIP);
 		if (t->passed)
-			_exit(0);
-		_exit(1);
+			_exit(KSFT_PASS);
+		_exit(KSFT_FAIL);
 	} else {
 		__wait_for_test(t);
 	}
