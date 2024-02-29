@@ -411,11 +411,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 	 * avoid conflicting with firmware updates.
 	 */
 	if (dc->ctx->dce_version > DCE_VERSION_MAX)
-		if (dc->optimized_required)
+		if (dc->optimized_required || dc->wm_optimized_required)
 			return false;
 
-	if (!memcmp(&stream->adjust, adjust, sizeof(*adjust)))
-		return true;
+	dc_exit_ips_for_hw_access(dc);
 
 	stream->adjust.v_total_max = adjust->v_total_max;
 	stream->adjust.v_total_mid = adjust->v_total_mid;
@@ -457,6 +456,8 @@ bool dc_stream_get_last_used_drr_vtotal(struct dc *dc,
 
 	int i = 0;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
@@ -486,6 +487,8 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 	int i;
 	bool ret = false;
 	struct crtc_position position;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe =
@@ -606,6 +609,8 @@ bool dc_stream_configure_crc(struct dc *dc, struct dc_stream_state *stream,
 	if (pipe == NULL)
 		return false;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	/* By default, capture the full frame */
 	param.windowa_x_start = 0;
 	param.windowa_y_start = 0;
@@ -665,6 +670,8 @@ bool dc_stream_get_crc(struct dc *dc, struct dc_stream_state *stream,
 	struct pipe_ctx *pipe;
 	struct timing_generator *tg;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		if (pipe->stream == stream)
@@ -688,6 +695,8 @@ void dc_stream_set_dyn_expansion(struct dc *dc, struct dc_stream_state *stream,
 	/* OPP FMT dyn expansion updates*/
 	int i;
 	struct pipe_ctx *pipe_ctx;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (dc->current_state->res_ctx.pipe_ctx[i].stream
@@ -724,6 +733,8 @@ void dc_stream_set_dither_option(struct dc_stream_state *stream,
 	if (option > DITHER_OPTION_MAX)
 		return;
 
+	dc_exit_ips_for_hw_access(stream->ctx->dc);
+
 	stream->dither_option = option;
 
 	memset(&params, 0, sizeof(params));
@@ -748,6 +759,8 @@ bool dc_stream_set_gamut_remap(struct dc *dc, const struct dc_stream_state *stre
 	bool ret = false;
 	struct pipe_ctx *pipes;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (dc->current_state->res_ctx.pipe_ctx[i].stream == stream) {
 			pipes = &dc->current_state->res_ctx.pipe_ctx[i];
@@ -764,6 +777,8 @@ bool dc_stream_program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 	int i;
 	bool ret = false;
 	struct pipe_ctx *pipes;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (dc->current_state->res_ctx.pipe_ctx[i].stream
@@ -790,6 +805,8 @@ void dc_stream_set_static_screen_params(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *pipes_affected[MAX_PIPES];
 	int num_pipes_affected = 0;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	for (i = 0; i < num_streams; i++) {
 		struct dc_stream_state *stream = streams[i];
@@ -1769,6 +1786,8 @@ void dc_enable_stereo(
 	int i, j;
 	struct pipe_ctx *pipe;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (context != NULL) {
 			pipe = &context->res_ctx.pipe_ctx[i];
@@ -1788,6 +1807,8 @@ void dc_enable_stereo(
 void dc_trigger_sync(struct dc *dc, struct dc_state *context)
 {
 	if (context->stream_count > 1 && !dc->debug.disable_timing_sync) {
+		dc_exit_ips_for_hw_access(dc);
+
 		enable_timing_multisync(dc, context);
 		program_timing_sync(dc, context);
 	}
@@ -2044,6 +2065,8 @@ enum dc_status dc_commit_streams(struct dc *dc,
 	if (!streams_changed(dc, streams, stream_count))
 		return res;
 
+	dc_exit_ips_for_hw_access(dc);
+
 	DC_LOG_DC("%s: %d streams\n", __func__, stream_count);
 
 	for (i = 0; i < stream_count; i++) {
@@ -2230,6 +2253,7 @@ void dc_post_update_surfaces_to_stream(struct dc *dc)
 	}
 
 	dc->optimized_required = false;
+	dc->wm_optimized_required = false;
 }
 
 bool dc_set_generic_gpio_for_stereo(bool enable,
@@ -2430,6 +2454,10 @@ static enum surface_update_type get_scaling_info_update_type(
 		 /* Changing clip size of a large surface may result in MPC slice count change */
 		update_flags->bits.bandwidth_change = 1;
 
+	if (u->scaling_info->clip_rect.width != u->surface->clip_rect.width ||
+			u->scaling_info->clip_rect.height != u->surface->clip_rect.height)
+		update_flags->bits.clip_size_change = 1;
+
 	if (u->scaling_info->src_rect.x != u->surface->src_rect.x
 			|| u->scaling_info->src_rect.y != u->surface->src_rect.y
 			|| u->scaling_info->clip_rect.x != u->surface->clip_rect.x
@@ -2443,7 +2471,8 @@ static enum surface_update_type get_scaling_info_update_type(
 			|| update_flags->bits.scaling_change)
 		return UPDATE_TYPE_FULL;
 
-	if (update_flags->bits.position_change)
+	if (update_flags->bits.position_change ||
+			update_flags->bits.clip_size_change)
 		return UPDATE_TYPE_MED;
 
 	return UPDATE_TYPE_FAST;
@@ -2652,6 +2681,8 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		} else if (memcmp(&dc->current_state->bw_ctx.bw.dcn.clk, &dc->clk_mgr->clks, offsetof(struct dc_clocks, prev_p_state_change_support)) != 0) {
 			dc->optimized_required = true;
 		}
+
+		dc->optimized_required |= dc->wm_optimized_required;
 	}
 
 	return type;
@@ -2858,6 +2889,9 @@ static void copy_stream_update_to_stream(struct dc *dc,
 
 	if (update->vrr_active_fixed)
 		stream->vrr_active_fixed = *update->vrr_active_fixed;
+
+	if (update->crtc_timing_adjust)
+		stream->adjust = *update->crtc_timing_adjust;
 
 	if (update->dpms_off)
 		stream->dpms_off = *update->dpms_off;
@@ -3373,6 +3407,8 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 	int i, j;
 	struct pipe_ctx *top_pipe_to_program = NULL;
 	struct dc_stream_status *stream_status = NULL;
+	dc_exit_ips_for_hw_access(dc);
+
 	dc_z10_restore(dc);
 
 	top_pipe_to_program = resource_get_otg_master_for_stream(
@@ -3500,9 +3536,22 @@ static void commit_planes_for_stream(struct dc *dc,
 	// dc->current_state anymore, so we have to cache it before we apply
 	// the new SubVP context
 	subvp_prev_use = false;
+	dc_exit_ips_for_hw_access(dc);
+
 	dc_z10_restore(dc);
 	if (update_type == UPDATE_TYPE_FULL)
 		wait_for_outstanding_hw_updates(dc, context);
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->plane_state) {
+			set_p_state_switch_method(dc, context, pipe);
+
+			if (dc->debug.visual_confirm)
+				dc_update_visual_confirm_color(dc, context, pipe);
+		}
+	}
 
 	if (update_type == UPDATE_TYPE_FULL) {
 		dc_allow_idle_optimizations(dc, false);
@@ -3519,7 +3568,7 @@ static void commit_planes_for_stream(struct dc *dc,
 	top_pipe_to_program = resource_get_otg_master_for_stream(
 				&context->res_ctx,
 				stream);
-
+	ASSERT(top_pipe_to_program != NULL);
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
@@ -3535,17 +3584,6 @@ static void commit_planes_for_stream(struct dc *dc,
 		if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_PHANTOM) {
 			subvp_curr_use = true;
 			break;
-		}
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (pipe->stream && pipe->plane_state) {
-			set_p_state_switch_method(dc, context, pipe);
-
-			if (dc->debug.visual_confirm)
-				dc_update_visual_confirm_color(dc, context, pipe);
 		}
 	}
 
@@ -3814,7 +3852,9 @@ static void commit_planes_for_stream(struct dc *dc,
 		 * programming has completed (we turn on phantom OTG in order
 		 * to complete the plane disable for phantom pipes).
 		 */
-		dc->hwss.apply_ctx_to_hw(dc, context);
+
+		if (dc->hwss.disable_phantom_streams)
+			dc->hwss.disable_phantom_streams(dc, context);
 	}
 
 	if (update_type != UPDATE_TYPE_FAST)
@@ -4288,7 +4328,8 @@ static bool full_update_required(struct dc *dc,
 			stream_update->mst_bw_update ||
 			stream_update->func_shaper ||
 			stream_update->lut3d_func ||
-			stream_update->pending_test_pattern))
+			stream_update->pending_test_pattern ||
+			stream_update->crtc_timing_adjust))
 		return true;
 
 	if (stream) {
@@ -4341,6 +4382,8 @@ static bool should_commit_minimal_transition_for_windowed_mpo_odm(struct dc *dc,
 
 	cur_pipe = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, stream);
 	new_pipe = resource_get_otg_master_for_stream(&context->res_ctx, stream);
+	if (!cur_pipe || !new_pipe)
+		return false;
 	cur_is_odm_in_use = resource_get_odm_slice_count(cur_pipe) > 1;
 	new_is_odm_in_use = resource_get_odm_slice_count(new_pipe) > 1;
 	if (cur_is_odm_in_use == new_is_odm_in_use)
@@ -4375,6 +4418,8 @@ bool dc_update_planes_and_stream(struct dc *dc,
 	bool force_minimal_pipe_splitting = 0;
 	bool is_plane_addition = 0;
 	bool is_fast_update_only;
+
+	dc_exit_ips_for_hw_access(dc);
 
 	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	is_fast_update_only = fast_update_only(dc, fast_update, srf_updates,
@@ -4495,6 +4540,8 @@ void dc_commit_updates_for_stream(struct dc *dc,
 	struct dc_context *dc_ctx = dc->ctx;
 	int i, j;
 	struct dc_fast_update fast_update[MAX_SURFACES] = {0};
+
+	dc_exit_ips_for_hw_access(dc);
 
 	populate_fast_updates(fast_update, srf_updates, surface_count, stream_update);
 	stream_status = dc_stream_get_status(stream);
@@ -4680,6 +4727,8 @@ void dc_set_power_state(
 	case DC_ACPI_CM_POWER_STATE_D0:
 		dc_state_construct(dc, dc->current_state);
 
+		dc_exit_ips_for_hw_access(dc);
+
 		dc_z10_restore(dc);
 
 		dc->hwss.init_hw(dc);
@@ -4819,6 +4868,12 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 
 	if (dc->hwss.apply_idle_power_optimizations && dc->hwss.apply_idle_power_optimizations(dc, allow))
 		dc->idle_optimizations_allowed = allow;
+}
+
+void dc_exit_ips_for_hw_access(struct dc *dc)
+{
+	if (dc->caps.ips_support)
+		dc_allow_idle_optimizations(dc, false);
 }
 
 bool dc_dmub_is_ips_idle_state(struct dc *dc)

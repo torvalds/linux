@@ -178,7 +178,7 @@ static void expect_call_denied(struct kvm_vcpu *vcpu)
 	struct ucall uc;
 
 	if (get_ucall(vcpu, &uc) != UCALL_SYNC)
-		TEST_FAIL("Unexpected ucall: %lu\n", uc.cmd);
+		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
 
 	TEST_ASSERT(uc.args[1] == SMCCC_RET_NOT_SUPPORTED,
 		    "Unexpected SMCCC return code: %lu", uc.args[1]);

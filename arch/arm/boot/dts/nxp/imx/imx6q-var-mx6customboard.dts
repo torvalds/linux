@@ -16,7 +16,7 @@
 	compatible = "variscite,mx6customboard", "variscite,var-som-imx6q", "fsl,imx6q";
 
 	panel0: lvds-panel0 {
-		compatible =  "panel-lvds";
+		compatible = "panel-lvds";
 		backlight = <&backlight_lvds>;
 		width-mm = <152>;
 		height-mm = <91>;
@@ -43,7 +43,7 @@
 	};
 
 	panel1: lvds-panel1 {
-		compatible =  "panel-lvds";
+		compatible = "panel-lvds";
 		width-mm = <152>;
 		height-mm = <91>;
 		data-mapping = "jeida-18";

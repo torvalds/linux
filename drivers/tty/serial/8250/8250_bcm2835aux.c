@@ -119,6 +119,8 @@ static int bcm2835aux_serial_probe(struct platform_device *pdev)
 
 	/* get the clock - this also enables the HW */
 	data->clk = devm_clk_get_optional(&pdev->dev, NULL);
+	if (IS_ERR(data->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(data->clk), "could not get clk\n");
 
 	/* get the interrupt */
 	ret = platform_get_irq(pdev, 0);
@@ -195,14 +197,12 @@ dis_clk:
 	return ret;
 }
 
-static int bcm2835aux_serial_remove(struct platform_device *pdev)
+static void bcm2835aux_serial_remove(struct platform_device *pdev)
 {
 	struct bcm2835aux_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->clk);
-
-	return 0;
 }
 
 static const struct bcm2835_aux_serial_driver_data bcm2835_acpi_data = {
@@ -228,7 +228,7 @@ static struct platform_driver bcm2835aux_serial_driver = {
 		.acpi_match_table = bcm2835aux_serial_acpi_match,
 	},
 	.probe  = bcm2835aux_serial_probe,
-	.remove = bcm2835aux_serial_remove,
+	.remove_new = bcm2835aux_serial_remove,
 };
 module_platform_driver(bcm2835aux_serial_driver);
 

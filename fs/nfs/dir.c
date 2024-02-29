@@ -1431,9 +1431,9 @@ static bool nfs_verifier_is_delegated(struct dentry *dentry)
 static void nfs_set_verifier_locked(struct dentry *dentry, unsigned long verf)
 {
 	struct inode *inode = d_inode(dentry);
-	struct inode *dir = d_inode(dentry->d_parent);
+	struct inode *dir = d_inode_rcu(dentry->d_parent);
 
-	if (!nfs_verify_change_attribute(dir, verf))
+	if (!dir || !nfs_verify_change_attribute(dir, verf))
 		return;
 	if (inode && NFS_PROTO(inode)->have_delegation(inode, FMODE_READ))
 		nfs_set_verifier_delegated(&verf);
@@ -2193,6 +2193,8 @@ nfs4_do_lookup_revalidate(struct inode *dir, struct dentry *dentry,
 			  unsigned int flags)
 {
 	struct inode *inode;
+
+	trace_nfs_lookup_revalidate_enter(dir, dentry, flags);
 
 	if (!(flags & LOOKUP_OPEN) || (flags & LOOKUP_DIRECTORY))
 		goto full_reval;
@@ -2963,7 +2965,7 @@ static u64 nfs_access_login_time(const struct task_struct *task,
 	rcu_read_lock();
 	for (;;) {
 		parent = rcu_dereference(task->real_parent);
-		pcred = rcu_dereference(parent->cred);
+		pcred = __task_cred(parent);
 		if (parent == task || cred_fscmp(pcred, cred) != 0)
 			break;
 		task = parent;

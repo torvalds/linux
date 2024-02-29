@@ -94,7 +94,7 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 
 	inode_lock(file_inode(file));
 	list_for_each_entry_safe(req, tmp_req, queue, queue) {
-		len = snprintf(tmpbuf, sizeof(tmpbuf),
+		len = scnprintf(tmpbuf, sizeof(tmpbuf),
 				"%8p %08x %c%c%c %5d %c%c%c\n",
 				req->req.buf, req->req.length,
 				req->req.no_interrupt ? 'i' : 'I',
@@ -104,7 +104,6 @@ static ssize_t queue_dbg_read(struct file *file, char __user *buf,
 				req->submitted ? 'F' : 'f',
 				req->using_dma ? 'D' : 'd',
 				req->last_transaction ? 'L' : 'l');
-		len = min(len, sizeof(tmpbuf));
 		if (len > nbytes)
 			break;
 

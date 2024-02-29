@@ -24,16 +24,16 @@ ifeq ($(CONFIG_SPARC64),y)
 
 $(obj)/zImage: $(obj)/image FORCE
 	$(call if_changed,gzip)
-	@echo '  kernel: $@ is ready'
+	@$(kecho) 'Kernel: $@ is ready' '(#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 
 $(obj)/vmlinux.aout: vmlinux FORCE
 	$(call if_changed,elftoaout)
-	@echo '  kernel: $@ is ready'
+	@$(kecho) 'Kernel: $@ is ready' '(#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 else
 
 $(obj)/zImage: $(obj)/image FORCE
 	$(call if_changed,strip)
-	@echo '  kernel: $@ is ready'
+	@$(kecho) 'Kernel: $@ is ready' '(#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 
 # The following lines make a readable image for U-Boot.
 #  uImage   - Binary file read by U-boot
@@ -59,13 +59,13 @@ targets += uImage
 $(obj)/uImage: $(obj)/image.gz FORCE
 	$(call if_changed,uimage)
 	$(call if_changed,uimage.o)
-	@echo '  Image $@ is ready'
+	@$(kecho) 'Kernel: $@ is ready' '(#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 
 endif
 
 $(obj)/image: vmlinux FORCE
 	$(call if_changed,strip)
-	@echo '  kernel: $@ is ready'
+	@$(kecho) 'Kernel: $@ is ready' '(#'$(or $(KBUILD_BUILD_VERSION),`cat .version`)')'
 
 $(obj)/tftpboot.img: $(obj)/image $(obj)/piggyback System.map $(ROOT_IMG) FORCE
 	$(call if_changed,elftoaout)

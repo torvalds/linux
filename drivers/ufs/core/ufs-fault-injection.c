@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/fault-inject.h>
 #include <linux/module.h>
+#include <ufs/ufshcd.h>
 #include "ufs-fault-injection.h"
 
 static int ufs_fault_get(char *buffer, const struct kernel_param *kp);
@@ -59,12 +60,22 @@ static int ufs_fault_set(const char *val, const struct kernel_param *kp)
 	return 0;
 }
 
-bool ufs_trigger_eh(void)
+void ufs_fault_inject_hba_init(struct ufs_hba *hba)
 {
-	return should_fail(&ufs_trigger_eh_attr, 1);
+	hba->trigger_eh_attr = ufs_trigger_eh_attr;
+	hba->timeout_attr = ufs_timeout_attr;
+#ifdef CONFIG_FAULT_INJECTION_DEBUG_FS
+	fault_create_debugfs_attr("trigger_eh_inject", hba->debugfs_root, &hba->trigger_eh_attr);
+	fault_create_debugfs_attr("timeout_inject", hba->debugfs_root, &hba->timeout_attr);
+#endif
 }
 
-bool ufs_fail_completion(void)
+bool ufs_trigger_eh(struct ufs_hba *hba)
 {
-	return should_fail(&ufs_timeout_attr, 1);
+	return should_fail(&hba->trigger_eh_attr, 1);
+}
+
+bool ufs_fail_completion(struct ufs_hba *hba)
+{
+	return should_fail(&hba->timeout_attr, 1);
 }

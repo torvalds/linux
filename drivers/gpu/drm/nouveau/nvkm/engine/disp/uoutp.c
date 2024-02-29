@@ -385,7 +385,7 @@ nvkm_uoutp_mthd_inherit(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	/* Ensure an ior is hooked up to this outp already */
 	ior = outp->func->inherit(outp);
-	if (!ior)
+	if (!ior || !ior->arm.head)
 		return -ENODEV;
 
 	/* With iors, there will be a separate output path for each type of connector - and all of

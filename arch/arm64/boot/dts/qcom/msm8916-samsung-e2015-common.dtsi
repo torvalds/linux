@@ -65,6 +65,10 @@
 	};
 };
 
+&mpss_mem {
+	reg = <0x0 0x86800000 0x0 0x5a00000>;
+};
+
 &reg_motor_vdd {
 	regulator-min-microvolt = <3300000>;
 	regulator-max-microvolt = <3300000>;

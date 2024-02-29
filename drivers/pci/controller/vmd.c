@@ -751,7 +751,7 @@ static int vmd_pm_enable_quirk(struct pci_dev *pdev, void *userdata)
 	if (!(features & VMD_FEAT_BIOS_PM_QUIRK))
 		return 0;
 
-	pci_enable_link_state(pdev, PCIE_LINK_STATE_ALL);
+	pci_enable_link_state_locked(pdev, PCIE_LINK_STATE_ALL);
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_LTR);
 	if (!pos)
@@ -984,7 +984,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENOMEM;
 
 	vmd->dev = dev;
-	vmd->instance = ida_simple_get(&vmd_instance_ida, 0, 0, GFP_KERNEL);
+	vmd->instance = ida_alloc(&vmd_instance_ida, GFP_KERNEL);
 	if (vmd->instance < 0)
 		return vmd->instance;
 
@@ -1026,7 +1026,7 @@ static int vmd_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	return 0;
 
  out_release_instance:
-	ida_simple_remove(&vmd_instance_ida, vmd->instance);
+	ida_free(&vmd_instance_ida, vmd->instance);
 	return err;
 }
 
@@ -1048,7 +1048,7 @@ static void vmd_remove(struct pci_dev *dev)
 	vmd_cleanup_srcu(vmd);
 	vmd_detach_resources(vmd);
 	vmd_remove_irq_domain(vmd);
-	ida_simple_remove(&vmd_instance_ida, vmd->instance);
+	ida_free(&vmd_instance_ida, vmd->instance);
 }
 
 static void vmd_shutdown(struct pci_dev *dev)

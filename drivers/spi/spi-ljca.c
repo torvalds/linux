@@ -223,7 +223,7 @@ static int ljca_spi_probe(struct auxiliary_device *auxdev,
 	struct ljca_spi_dev *ljca_spi;
 	int ret;
 
-	controller = devm_spi_alloc_master(&auxdev->dev, sizeof(*ljca_spi));
+	controller = devm_spi_alloc_host(&auxdev->dev, sizeof(*ljca_spi));
 	if (!controller)
 		return -ENOMEM;
 

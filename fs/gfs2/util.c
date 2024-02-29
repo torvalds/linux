@@ -372,7 +372,7 @@ void gfs2_assert_withdraw_i(struct gfs2_sbd *sdp, char *assertion,
 			    const char *function, char *file, unsigned int line,
 			    bool delayed)
 {
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return;
 
 	fs_err(sdp,
@@ -548,7 +548,7 @@ void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
 			const char *function, char *file, unsigned int line,
 			bool withdraw)
 {
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return;
 
 	fs_err(sdp, "fatal: I/O error\n"

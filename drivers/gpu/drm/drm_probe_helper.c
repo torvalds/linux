@@ -1101,42 +1101,6 @@ enum drm_mode_status drm_crtc_helper_mode_valid_fixed(struct drm_crtc *crtc,
 EXPORT_SYMBOL(drm_crtc_helper_mode_valid_fixed);
 
 /**
- * drm_connector_helper_get_modes_from_ddc - Updates the connector's EDID
- *                                           property from the connector's
- *                                           DDC channel
- * @connector: The connector
- *
- * Returns:
- * The number of detected display modes.
- *
- * Uses a connector's DDC channel to retrieve EDID data and update the
- * connector's EDID property and display modes. Drivers can use this
- * function to implement struct &drm_connector_helper_funcs.get_modes
- * for connectors with a DDC channel.
- */
-int drm_connector_helper_get_modes_from_ddc(struct drm_connector *connector)
-{
-	struct edid *edid;
-	int count = 0;
-
-	if (!connector->ddc)
-		return 0;
-
-	edid = drm_get_edid(connector, connector->ddc);
-
-	// clears property if EDID is NULL
-	drm_connector_update_edid_property(connector, edid);
-
-	if (edid) {
-		count = drm_add_edid_modes(connector, edid);
-		kfree(edid);
-	}
-
-	return count;
-}
-EXPORT_SYMBOL(drm_connector_helper_get_modes_from_ddc);
-
-/**
  * drm_connector_helper_get_modes_fixed - Duplicates a display mode for a connector
  * @connector: the connector
  * @fixed_mode: the display hardware's mode

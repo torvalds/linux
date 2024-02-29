@@ -12,7 +12,7 @@
         中文版維護者： 鍾宇  TripleX Chung <xxx.phy@gmail.com>
         中文版翻譯者： 鍾宇  TripleX Chung <xxx.phy@gmail.com>
         中文版校譯者： 李陽  Li Yang <leoyang.li@nxp.com>
-                      胡皓文 Hu Haowen <src.res.211@gmail.com>
+                      胡皓文 Hu Haowen <2023002089@link.tyut.edu.cn>
 
 Linux 內核驅動接口
 ==================

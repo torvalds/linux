@@ -730,15 +730,13 @@ fw_name_fail:
 	return ret;
 }
 
-static int m10bmc_sec_remove(struct platform_device *pdev)
+static void m10bmc_sec_remove(struct platform_device *pdev)
 {
 	struct m10bmc_sec *sec = dev_get_drvdata(&pdev->dev);
 
 	firmware_upload_unregister(sec->fwl);
 	kfree(sec->fw_name);
 	xa_erase(&fw_upload_xa, sec->fw_name_id);
-
-	return 0;
 }
 
 static const struct platform_device_id intel_m10bmc_sec_ids[] = {
@@ -760,7 +758,7 @@ MODULE_DEVICE_TABLE(platform, intel_m10bmc_sec_ids);
 
 static struct platform_driver intel_m10bmc_sec_driver = {
 	.probe = m10bmc_sec_probe,
-	.remove = m10bmc_sec_remove,
+	.remove_new = m10bmc_sec_remove,
 	.driver = {
 		.name = "intel-m10bmc-sec-update",
 		.dev_groups = m10bmc_sec_attr_groups,

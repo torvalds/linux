@@ -309,7 +309,7 @@ __ov2680_get_pad_format(struct ov2680_dev *sensor,
 			enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&sensor->sd, state, pad);
+		return v4l2_subdev_state_get_format(state, pad);
 
 	return &sensor->mode.fmt;
 }
@@ -321,7 +321,7 @@ __ov2680_get_pad_crop(struct ov2680_dev *sensor,
 		      enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&sensor->sd, state, pad);
+		return v4l2_subdev_state_get_crop(state, pad);
 
 	return &sensor->mode.crop;
 }
@@ -552,10 +552,18 @@ err_disable_regulators:
 	return ret;
 }
 
-static int ov2680_s_g_frame_interval(struct v4l2_subdev *sd,
+static int ov2680_get_frame_interval(struct v4l2_subdev *sd,
+				     struct v4l2_subdev_state *sd_state,
 				     struct v4l2_subdev_frame_interval *fi)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
+
+	/*
+	 * FIXME: Implement support for V4L2_SUBDEV_FORMAT_TRY, using the V4L2
+	 * subdev active state API.
+	 */
+	if (fi->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
 	mutex_lock(&sensor->lock);
 	fi->interval = sensor->mode.frame_interval;
@@ -650,7 +658,7 @@ static int ov2680_set_fmt(struct v4l2_subdev *sd,
 	ov2680_fill_format(sensor, &format->format, width, height);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		try_fmt = v4l2_subdev_get_try_format(sd, sd_state, 0);
+		try_fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		*try_fmt = format->format;
 		return 0;
 	}
@@ -755,14 +763,14 @@ static int ov2680_set_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov2680_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state)
+static int ov2680_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *sd_state)
 {
 	struct ov2680_dev *sensor = to_ov2680_dev(sd);
 
-	sd_state->pads[0].try_crop = ov2680_default_crop;
+	*v4l2_subdev_state_get_crop(sd_state, 0) = ov2680_default_crop;
 
-	ov2680_fill_format(sensor, &sd_state->pads[0].try_fmt,
+	ov2680_fill_format(sensor, v4l2_subdev_state_get_format(sd_state, 0),
 			   OV2680_DEFAULT_WIDTH, OV2680_DEFAULT_HEIGHT);
 	return 0;
 }
@@ -870,13 +878,10 @@ static const struct v4l2_ctrl_ops ov2680_ctrl_ops = {
 };
 
 static const struct v4l2_subdev_video_ops ov2680_video_ops = {
-	.g_frame_interval	= ov2680_s_g_frame_interval,
-	.s_frame_interval	= ov2680_s_g_frame_interval,
 	.s_stream		= ov2680_s_stream,
 };
 
 static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
-	.init_cfg		= ov2680_init_cfg,
 	.enum_mbus_code		= ov2680_enum_mbus_code,
 	.enum_frame_size	= ov2680_enum_frame_size,
 	.enum_frame_interval	= ov2680_enum_frame_interval,
@@ -884,11 +889,17 @@ static const struct v4l2_subdev_pad_ops ov2680_pad_ops = {
 	.set_fmt		= ov2680_set_fmt,
 	.get_selection		= ov2680_get_selection,
 	.set_selection		= ov2680_set_selection,
+	.get_frame_interval	= ov2680_get_frame_interval,
+	.set_frame_interval	= ov2680_get_frame_interval,
 };
 
 static const struct v4l2_subdev_ops ov2680_subdev_ops = {
 	.video	= &ov2680_video_ops,
 	.pad	= &ov2680_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops ov2680_internal_ops = {
+	.init_state		= ov2680_init_state,
 };
 
 static int ov2680_mode_init(struct ov2680_dev *sensor)
@@ -915,6 +926,7 @@ static int ov2680_v4l2_register(struct ov2680_dev *sensor)
 	int ret = 0;
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov2680_subdev_ops);
+	sensor->sd.internal_ops = &ov2680_internal_ops;
 
 	sensor->sd.flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sensor->pad.flags = MEDIA_PAD_FL_SOURCE;

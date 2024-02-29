@@ -141,8 +141,7 @@ mpt3sas_init_warpdrive_properties(struct MPT3SAS_ADAPTER *ioc,
 		return;
 	}
 
-	sz = offsetof(Mpi2RaidVolPage0_t, PhysDisk) + (num_pds *
-	    sizeof(Mpi2RaidVol0PhysDisk_t));
+	sz = struct_size(vol_pg0, PhysDisk, num_pds);
 	vol_pg0 = kzalloc(sz, GFP_KERNEL);
 	if (!vol_pg0) {
 		ioc_info(ioc, "WarpDrive : Direct IO is disabled Memory allocation failure for RVPG0\n");

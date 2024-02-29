@@ -211,6 +211,10 @@ static const char * const snd_pcm_format_names[] = {
 	FORMAT(DSD_U32_LE),
 	FORMAT(DSD_U16_BE),
 	FORMAT(DSD_U32_BE),
+	FORMAT(S20_LE),
+	FORMAT(S20_BE),
+	FORMAT(U20_LE),
+	FORMAT(U20_BE),
 };
 
 /**
@@ -266,6 +270,9 @@ static const char * const snd_pcm_access_names[] = {
 
 static const char * const snd_pcm_subformat_names[] = {
 	SUBFORMAT(STD), 
+	SUBFORMAT(MSBITS_MAX),
+	SUBFORMAT(MSBITS_20),
+	SUBFORMAT(MSBITS_24),
 };
 
 static const char * const snd_pcm_tstamp_mode_names[] = {

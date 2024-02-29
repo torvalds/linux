@@ -84,7 +84,7 @@ void
 xe_gt_topology_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
-	struct drm_printer p = drm_debug_printer("GT topology");
+	struct drm_printer p;
 	int num_geometry_regs, num_compute_regs;
 
 	get_num_dss_regs(xe, &num_geometry_regs, &num_compute_regs);
@@ -106,6 +106,8 @@ xe_gt_topology_init(struct xe_gt *gt)
 		      XEHPC_GT_COMPUTE_DSS_ENABLE_EXT,
 		      XE2_GT_COMPUTE_DSS_2);
 	load_eu_mask(gt, gt->fuse_topo.eu_mask_per_dss);
+
+	p = drm_dbg_printer(&gt_to_xe(gt)->drm, DRM_UT_DRIVER, "GT topology");
 
 	xe_gt_topology_dump(gt, &p);
 }

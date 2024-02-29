@@ -46,9 +46,9 @@ void mark_page_accessed(struct page *page)
 }
 EXPORT_SYMBOL(mark_page_accessed);
 
-bool set_page_writeback(struct page *page)
+void set_page_writeback(struct page *page)
 {
-	return folio_start_writeback(page_folio(page));
+	folio_start_writeback(page_folio(page));
 }
 EXPORT_SYMBOL(set_page_writeback);
 
@@ -76,12 +76,6 @@ bool redirty_page_for_writepage(struct writeback_control *wbc,
 	return folio_redirty_for_writepage(wbc, page_folio(page));
 }
 EXPORT_SYMBOL(redirty_page_for_writepage);
-
-void lru_cache_add_inactive_or_unevictable(struct page *page,
-		struct vm_area_struct *vma)
-{
-	folio_add_lru_vma(page_folio(page), vma);
-}
 
 int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 		pgoff_t index, gfp_t gfp)
@@ -122,13 +116,3 @@ void putback_lru_page(struct page *page)
 {
 	folio_putback_lru(page_folio(page));
 }
-
-#ifdef CONFIG_MMU
-void page_add_new_anon_rmap(struct page *page, struct vm_area_struct *vma,
-		unsigned long address)
-{
-	VM_BUG_ON_PAGE(PageTail(page), page);
-
-	return folio_add_new_anon_rmap((struct folio *)page, vma, address);
-}
-#endif

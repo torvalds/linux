@@ -45,9 +45,8 @@ static int mtk_efuse_gpu_speedbin_pp(void *context, const char *id, int index,
 	return 0;
 }
 
-static void mtk_efuse_fixup_cell_info(struct nvmem_device *nvmem,
-				      struct nvmem_layout *layout,
-				      struct nvmem_cell_info *cell)
+static void mtk_efuse_fixup_dt_cell_info(struct nvmem_device *nvmem,
+					 struct nvmem_cell_info *cell)
 {
 	size_t sz = strlen(cell->name);
 
@@ -60,10 +59,6 @@ static void mtk_efuse_fixup_cell_info(struct nvmem_device *nvmem,
 	    strncmp(cell->name, "gpu-speedbin", min(sz, strlen("gpu-speedbin"))) == 0)
 		cell->read_post_process = mtk_efuse_gpu_speedbin_pp;
 }
-
-static struct nvmem_layout mtk_efuse_layout = {
-	.fixup_cell_info = mtk_efuse_fixup_cell_info,
-};
 
 static int mtk_efuse_probe(struct platform_device *pdev)
 {
@@ -91,7 +86,7 @@ static int mtk_efuse_probe(struct platform_device *pdev)
 	econfig.priv = priv;
 	econfig.dev = dev;
 	if (pdata->uses_post_processing)
-		econfig.layout = &mtk_efuse_layout;
+		econfig.fixup_dt_cell_info = &mtk_efuse_fixup_dt_cell_info;
 	nvmem = devm_nvmem_register(dev, &econfig);
 
 	return PTR_ERR_OR_ZERO(nvmem);

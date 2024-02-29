@@ -1389,7 +1389,7 @@ static long pnv_pci_ioda2_setup_default_config(struct pnv_ioda_pe *pe)
 	 * DMA window can be larger than available memory, which will
 	 * cause errors later.
 	 */
-	const u64 maxblock = 1UL << (PAGE_SHIFT + MAX_ORDER);
+	const u64 maxblock = 1UL << (PAGE_SHIFT + MAX_PAGE_ORDER);
 
 	/*
 	 * We create the default window as big as we can. The constraint is

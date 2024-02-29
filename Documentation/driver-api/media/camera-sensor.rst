@@ -9,8 +9,8 @@ This document covers the in-kernel APIs only. For the best practices on
 userspace API implementation in camera sensor drivers, please see
 :ref:`media_using_camera_sensor_drivers`.
 
-CSI-2 and parallel (BT.601 and BT.656) busses
----------------------------------------------
+CSI-2, parallel and BT.656 buses
+--------------------------------
 
 Please see :ref:`transmitter-receiver`.
 
@@ -60,7 +60,8 @@ management over the pipeline.
 Camera sensor drivers are responsible for controlling the power state of the
 device they otherwise control as well. They shall use runtime PM to manage
 power states. Runtime PM shall be enabled at probe time and disabled at remove
-time. Drivers should enable runtime PM autosuspend.
+time. Drivers should enable runtime PM autosuspend. Also see
+:ref:`async sub-device registration <media-registering-async-subdevs>`.
 
 The runtime PM handlers shall handle clocks, regulators, GPIOs, and other
 system resources required to power the sensor up and down. For drivers that

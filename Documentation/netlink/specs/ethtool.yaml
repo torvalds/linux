@@ -908,6 +908,9 @@ attribute-sets:
       -
         name: hkey
         type: binary
+      -
+        name: input_xfrm
+        type: u32
   -
     name: plca
     attributes:
@@ -1598,6 +1601,7 @@ operations:
             - hfunc
             - indir
             - hkey
+            - input_xfrm
       dump: *rss-get-op
     -
       name: plca-get-cfg

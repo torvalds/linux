@@ -50,18 +50,20 @@ drm_connector_to_tfp410(struct drm_connector *connector)
 static int tfp410_get_modes(struct drm_connector *connector)
 {
 	struct tfp410 *dvi = drm_connector_to_tfp410(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	if (dvi->next_bridge->ops & DRM_BRIDGE_OP_EDID) {
-		edid = drm_bridge_get_edid(dvi->next_bridge, connector);
-		if (!edid)
+		drm_edid = drm_bridge_edid_read(dvi->next_bridge, connector);
+		if (!drm_edid)
 			DRM_INFO("EDID read failed. Fallback to standard modes\n");
 	} else {
-		edid = NULL;
+		drm_edid = NULL;
 	}
 
-	if (!edid) {
+	drm_edid_connector_update(connector, drm_edid);
+
+	if (!drm_edid) {
 		/*
 		 * No EDID, fallback on the XGA standard modes and prefer a mode
 		 * pretty much anything can handle.
@@ -71,11 +73,9 @@ static int tfp410_get_modes(struct drm_connector *connector)
 		return ret;
 	}
 
-	drm_connector_update_edid_property(connector, edid);
+	ret = drm_edid_connector_add_modes(connector);
 
-	ret = drm_add_edid_modes(connector, edid);
-
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	return ret;
 }

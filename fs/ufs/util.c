@@ -245,7 +245,7 @@ struct folio *ufs_get_locked_folio(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 	struct folio *folio = filemap_lock_folio(mapping, index);
-	if (!folio) {
+	if (IS_ERR(folio)) {
 		folio = read_mapping_folio(mapping, index, NULL);
 
 		if (IS_ERR(folio)) {

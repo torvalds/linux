@@ -26,16 +26,16 @@
  * @max_regions: maximum number of regions supported by hardware
  * @ob_region_map: bitmask of mapped outbound regions
  * @ob_addr: base addresses in the AXI bus where the outbound regions start
- * @irq_phys_addr: base address on the AXI bus where the MSI/legacy IRQ
+ * @irq_phys_addr: base address on the AXI bus where the MSI/INTX IRQ
  *		   dedicated outbound regions is mapped.
  * @irq_cpu_addr: base address in the CPU space where a write access triggers
- *		  the sending of a memory write (MSI) / normal message (legacy
+ *		  the sending of a memory write (MSI) / normal message (INTX
  *		  IRQ) TLP through the PCIe bus.
- * @irq_pci_addr: used to save the current mapping of the MSI/legacy IRQ
+ * @irq_pci_addr: used to save the current mapping of the MSI/INTX IRQ
  *		  dedicated outbound region.
  * @irq_pci_fn: the latest PCI function that has updated the mapping of
- *		the MSI/legacy IRQ dedicated outbound region.
- * @irq_pending: bitmask of asserted legacy IRQs.
+ *		the MSI/INTX IRQ dedicated outbound region.
+ * @irq_pending: bitmask of asserted INTX IRQs.
  */
 struct rockchip_pcie_ep {
 	struct rockchip_pcie	rockchip;
@@ -325,8 +325,8 @@ static void rockchip_pcie_ep_assert_intx(struct rockchip_pcie_ep *ep, u8 fn,
 	}
 }
 
-static int rockchip_pcie_ep_send_legacy_irq(struct rockchip_pcie_ep *ep, u8 fn,
-					    u8 intx)
+static int rockchip_pcie_ep_send_intx_irq(struct rockchip_pcie_ep *ep, u8 fn,
+					  u8 intx)
 {
 	u16 cmd;
 
@@ -407,15 +407,14 @@ static int rockchip_pcie_ep_send_msi_irq(struct rockchip_pcie_ep *ep, u8 fn,
 }
 
 static int rockchip_pcie_ep_raise_irq(struct pci_epc *epc, u8 fn, u8 vfn,
-				      enum pci_epc_irq_type type,
-				      u16 interrupt_num)
+				      unsigned int type, u16 interrupt_num)
 {
 	struct rockchip_pcie_ep *ep = epc_get_drvdata(epc);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		return rockchip_pcie_ep_send_legacy_irq(ep, fn, 0);
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_INTX:
+		return rockchip_pcie_ep_send_intx_irq(ep, fn, 0);
+	case PCI_IRQ_MSI:
 		return rockchip_pcie_ep_send_msi_irq(ep, fn, interrupt_num);
 	default:
 		return -EINVAL;

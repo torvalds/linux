@@ -45,6 +45,29 @@ struct bch_csum bch2_checksum(struct bch_fs *, unsigned, struct nonce,
 	bch2_checksum(_c, _type, _nonce, _start, vstruct_end(_i) - _start);\
 })
 
+static inline void bch2_csum_to_text(struct printbuf *out,
+				     enum bch_csum_type type,
+				     struct bch_csum csum)
+{
+	const u8 *p = (u8 *) &csum;
+	unsigned bytes = type < BCH_CSUM_NR ? bch_crc_bytes[type] : 16;
+
+	for (unsigned i = 0; i < bytes; i++)
+		prt_hex_byte(out, p[i]);
+}
+
+static inline void bch2_csum_err_msg(struct printbuf *out,
+				     enum bch_csum_type type,
+				     struct bch_csum expected,
+				     struct bch_csum got)
+{
+	prt_printf(out, "checksum error: got ");
+	bch2_csum_to_text(out, type, got);
+	prt_str(out, " should be ");
+	bch2_csum_to_text(out, type, expected);
+	prt_printf(out, " type %s", bch2_csum_types[type]);
+}
+
 int bch2_chacha_encrypt_key(struct bch_key *, struct nonce, void *, size_t);
 int bch2_request_key(struct bch_sb *, struct bch_key *);
 #ifndef __KERNEL__

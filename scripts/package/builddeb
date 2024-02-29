@@ -25,35 +25,20 @@ if_enabled_echo() {
 }
 
 create_package() {
-	local pname="$1" pdir="$2"
-	local dpkg_deb_opts
+	export DH_OPTIONS="-p${1}"
 
-	mkdir -m 755 -p "$pdir/DEBIAN"
-	mkdir -p "$pdir/usr/share/doc/$pname"
-	cp debian/copyright "$pdir/usr/share/doc/$pname/"
-	cp debian/changelog "$pdir/usr/share/doc/$pname/changelog.Debian"
-	gzip -n -9 "$pdir/usr/share/doc/$pname/changelog.Debian"
-	sh -c "cd '$pdir'; find . -type f ! -path './DEBIAN/*' -printf '%P\0' \
-		| xargs -r0 md5sum > DEBIAN/md5sums"
-
-	# Fix ownership and permissions
-	if [ "$DEB_RULES_REQUIRES_ROOT" = "no" ]; then
-		dpkg_deb_opts="--root-owner-group"
-	else
-		chown -R root:root "$pdir"
-	fi
-	# a+rX in case we are in a restrictive umask environment like 0077
-	# ug-s in case we build in a setuid/setgid directory
-	chmod -R go-w,a+rX,ug-s "$pdir"
-
-	# Create the package
-	dpkg-gencontrol -p$pname -P"$pdir"
-	dpkg-deb $dpkg_deb_opts ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS} --build "$pdir" ..
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb -- ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS}
 }
 
 install_linux_image () {
-	pdir=$1
-	pname=$2
+	pname=$1
+	pdir=debian/$1
 
 	rm -rf ${pdir}
 
@@ -62,7 +47,7 @@ install_linux_image () {
 		${MAKE} -f ${srctree}/Makefile INSTALL_DTBS_PATH="${pdir}/usr/lib/linux-image-${KERNELRELEASE}" dtbs_install
 	fi
 
-	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" modules_install
+	${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${pdir}" INSTALL_MOD_STRIP=1 modules_install
 	rm -f "${pdir}/lib/modules/${KERNELRELEASE}/build"
 
 	# Install the kernel
@@ -122,26 +107,22 @@ install_linux_image () {
 }
 
 install_linux_image_dbg () {
-	pdir=$1
-	image_pdir=$2
+	pdir=debian/$1
 
 	rm -rf ${pdir}
 
-	for module in $(find ${image_pdir}/lib/modules/ -name *.ko -printf '%P\n'); do
-		module=lib/modules/${module}
-		mkdir -p $(dirname ${pdir}/usr/lib/debug/${module})
-		# only keep debug symbols in the debug file
-		${OBJCOPY} --only-keep-debug ${image_pdir}/${module} ${pdir}/usr/lib/debug/${module}
-		# strip original module from debug symbols
-		${OBJCOPY} --strip-debug ${image_pdir}/${module}
-		# then add a link to those
-		${OBJCOPY} --add-gnu-debuglink=${pdir}/usr/lib/debug/${module} ${image_pdir}/${module}
-	done
+	# Parse modules.order directly because 'make modules_install' may sign,
+	# compress modules, and then run unneeded depmod.
+	while read -r mod; do
+		mod="${mod%.o}.ko"
+		dbg="${pdir}/usr/lib/debug/lib/modules/${KERNELRELEASE}/kernel/${mod}"
+		buildid=$("${READELF}" -n "${mod}" | sed -n 's@^.*Build ID: \(..\)\(.*\)@\1/\2@p')
+		link="${pdir}/usr/lib/debug/.build-id/${buildid}.debug"
 
-	# re-sign stripped modules
-	if is_enabled CONFIG_MODULE_SIG_ALL; then
-		${MAKE} -f ${srctree}/Makefile INSTALL_MOD_PATH="${image_pdir}" modules_sign
-	fi
+		mkdir -p "${dbg%/*}" "${link%/*}"
+		"${OBJCOPY}" --only-keep-debug "${mod}" "${dbg}"
+		ln -sf --relative "${dbg}" "${link}"
+	done < modules.order
 
 	# Build debug package
 	# Different tools want the image in different locations
@@ -156,8 +137,8 @@ install_linux_image_dbg () {
 }
 
 install_kernel_headers () {
-	pdir=$1
-	version=$2
+	pdir=debian/$1
+	version=${1#linux-headers-}
 
 	rm -rf $pdir
 
@@ -168,18 +149,16 @@ install_kernel_headers () {
 }
 
 install_libc_headers () {
-	pdir=$1
+	pdir=debian/$1
 
 	rm -rf $pdir
 
-	$MAKE -f $srctree/Makefile headers
 	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH=$pdir/usr
 
 	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
 	# used by Debian-based distros (to support multi-arch)
-	host_arch=$(dpkg-architecture -a$DEB_HOST_ARCH -qDEB_HOST_MULTIARCH)
-	mkdir $pdir/usr/include/$host_arch
-	mv $pdir/usr/include/asm $pdir/usr/include/$host_arch/
+	mkdir "$pdir/usr/include/${DEB_HOST_MULTIARCH}"
+	mv "$pdir/usr/include/asm" "$pdir/usr/include/${DEB_HOST_MULTIARCH}"
 }
 
 rm -f debian/files
@@ -190,30 +169,13 @@ for package in ${packages_enabled}
 do
 	case ${package} in
 	*-dbg)
-		# This must be done after linux-image, that is, we expect the
-		# debug package appears after linux-image in debian/control.
-		install_linux_image_dbg debian/linux-image-dbg debian/linux-image;;
+		install_linux_image_dbg "${package}";;
 	linux-image-*|user-mode-linux-*)
-		install_linux_image debian/linux-image ${package};;
+		install_linux_image "${package}";;
 	linux-libc-dev)
-		install_libc_headers debian/linux-libc-dev;;
+		install_libc_headers "${package}";;
 	linux-headers-*)
-		install_kernel_headers debian/linux-headers ${package#linux-headers-};;
+		install_kernel_headers "${package}";;
 	esac
+	create_package "${package}"
 done
-
-for package in ${packages_enabled}
-do
-	case ${package} in
-	*-dbg)
-		create_package ${package} debian/linux-image-dbg;;
-	linux-image-*|user-mode-linux-*)
-		create_package ${package} debian/linux-image;;
-	linux-libc-dev)
-		create_package ${package} debian/linux-libc-dev;;
-	linux-headers-*)
-		create_package ${package} debian/linux-headers;;
-	esac
-done
-
-exit 0

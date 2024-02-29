@@ -41,7 +41,8 @@ enum {
 	INTEL_TLV_LIMITED_CCE,
 	INTEL_TLV_SBE_TYPE,
 	INTEL_TLV_OTP_BDADDR,
-	INTEL_TLV_UNLOCKED_STATE
+	INTEL_TLV_UNLOCKED_STATE,
+	INTEL_TLV_GIT_SHA1
 };
 
 struct intel_tlv {
@@ -69,6 +70,7 @@ struct intel_version_tlv {
 	u8	min_fw_build_yy;
 	u8	limited_cce;
 	u8	sbe_type;
+	u32	git_sha1;
 	bdaddr_t otp_bd_addr;
 };
 

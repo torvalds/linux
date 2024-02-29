@@ -39,28 +39,6 @@ required:
 allOf:
   - $ref: mdio.yaml#
 
-  - if:
-      required:
-        - interrupts
-
-    then:
-      properties:
-        reg:
-          items:
-            - items:
-                - $ref: /schemas/types.yaml#/definitions/cell
-                - const: 0x84
-
-    else:
-      properties:
-        reg:
-          items:
-            - items:
-                - $ref: /schemas/types.yaml#/definitions/cell
-                - enum:
-                    - 0x4
-                    - 0x10
-
 unevaluatedProperties: false
 
 examples:

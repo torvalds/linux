@@ -3194,4 +3194,8 @@ enum rt2800_eeprom_word {
  */
 #define BCN_TBTT_OFFSET 64
 
+/* Watchdog type mask */
+#define RT2800_WATCHDOG_HANG		BIT(0)
+#define RT2800_WATCHDOG_DMA_BUSY	BIT(1)
+
 #endif /* RT2800_H */

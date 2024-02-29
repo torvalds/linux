@@ -2,14 +2,14 @@
 /*
  * DAMON Primitives for Virtual Address Spaces
  *
- * Author: SeongJae Park <sjpark@amazon.de>
+ * Author: SeongJae Park <sj@kernel.org>
  */
 
 #define pr_fmt(fmt) "damon-va: " fmt
 
-#include <asm-generic/mman-common.h>
 #include <linux/highmem.h>
 #include <linux/hugetlb.h>
+#include <linux/mman.h>
 #include <linux/mmu_notifier.h>
 #include <linux/page_idle.h>
 #include <linux/pagewalk.h>

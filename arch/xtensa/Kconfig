@@ -144,7 +144,7 @@ config XTENSA_VARIANT_CUSTOM_NAME
 	depends on XTENSA_VARIANT_CUSTOM
 	help
 	  Provide the name of a custom Xtensa processor variant.
-	  This CORENAME selects arch/xtensa/variant/CORENAME.
+	  This CORENAME selects arch/xtensa/variants/CORENAME.
 	  Don't forget you have to select MMU if you have one.
 
 config XTENSA_VARIANT_NAME
@@ -793,7 +793,7 @@ config ARCH_FORCE_MAX_ORDER
 	default "10"
 	help
 	  The kernel page allocator limits the size of maximal physically
-	  contiguous allocations. The limit is called MAX_ORDER and it
+	  contiguous allocations. The limit is called MAX_PAGE_ORDER and it
 	  defines the maximal power of two of number of pages that can be
 	  allocated as a single contiguous block. This option allows
 	  overriding the default setting when ability to allocate very

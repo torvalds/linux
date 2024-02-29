@@ -19,5 +19,7 @@ int global_func12(struct __sk_buff *skb)
 {
 	const struct S s = {.x = skb->len };
 
-	return foo(&s);
+	foo(&s);
+
+	return 1;
 }

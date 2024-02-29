@@ -598,3 +598,15 @@ int pci_write_config_dword(const struct pci_dev *dev, int where,
 	return pci_bus_write_config_dword(dev->bus, dev->devfn, where, val);
 }
 EXPORT_SYMBOL(pci_write_config_dword);
+
+void pci_clear_and_set_config_dword(const struct pci_dev *dev, int pos,
+				    u32 clear, u32 set)
+{
+	u32 val;
+
+	pci_read_config_dword(dev, pos, &val);
+	val &= ~clear;
+	val |= set;
+	pci_write_config_dword(dev, pos, val);
+}
+EXPORT_SYMBOL(pci_clear_and_set_config_dword);

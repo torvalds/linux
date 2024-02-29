@@ -2177,14 +2177,12 @@ static int user_events_open(struct inode *node, struct file *file)
 static ssize_t user_events_write(struct file *file, const char __user *ubuf,
 				 size_t count, loff_t *ppos)
 {
-	struct iovec iov;
 	struct iov_iter i;
 
 	if (unlikely(*ppos != 0))
 		return -EFAULT;
 
-	if (unlikely(import_single_range(ITER_SOURCE, (char __user *)ubuf,
-					 count, &iov, &i)))
+	if (unlikely(import_ubuf(ITER_SOURCE, (char __user *)ubuf, count, &i)))
 		return -EFAULT;
 
 	return user_events_write_core(file, &i);

@@ -240,6 +240,50 @@ sof_ipc4_set_generic_control_data(struct snd_sof_dev *sdev,
 	return ret;
 }
 
+static void sof_ipc4_refresh_generic_control(struct snd_sof_control *scontrol)
+{
+	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct sof_ipc4_control_msg_payload *data;
+	struct sof_ipc4_msg *msg = &cdata->msg;
+	size_t data_size;
+	unsigned int i;
+	int ret;
+
+	if (!scontrol->comp_data_dirty)
+		return;
+
+	if (!pm_runtime_active(scomp->dev))
+		return;
+
+	data_size = struct_size(data, chanv, scontrol->num_channels);
+	data = kmalloc(data_size, GFP_KERNEL);
+	if (!data)
+		return;
+
+	data->id = cdata->index;
+	data->num_elems = scontrol->num_channels;
+	msg->data_ptr = data;
+	msg->data_size = data_size;
+
+	scontrol->comp_data_dirty = false;
+	ret = sof_ipc4_set_get_kcontrol_data(scontrol, false, true);
+	msg->data_ptr = NULL;
+	msg->data_size = 0;
+	if (!ret) {
+		for (i = 0; i < scontrol->num_channels; i++) {
+			cdata->chanv[i].channel = data->chanv[i].channel;
+			cdata->chanv[i].value = data->chanv[i].value;
+		}
+	} else {
+		dev_err(scomp->dev, "Failed to read control data for %s\n",
+			scontrol->name);
+		scontrol->comp_data_dirty = true;
+	}
+
+	kfree(data);
+}
+
 static bool sof_ipc4_switch_put(struct snd_sof_control *scontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -289,6 +333,8 @@ static int sof_ipc4_switch_get(struct snd_sof_control *scontrol,
 {
 	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
 	unsigned int i;
+
+	sof_ipc4_refresh_generic_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < scontrol->num_channels; i++)
@@ -346,6 +392,8 @@ static int sof_ipc4_enum_get(struct snd_sof_control *scontrol,
 {
 	struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
 	unsigned int i;
+
+	sof_ipc4_refresh_generic_control(scontrol);
 
 	/* read back each channel */
 	for (i = 0; i < scontrol->num_channels; i++)
@@ -601,6 +649,136 @@ sof_ipc4_volsw_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 	return sof_ipc4_set_volume_data(sdev, swidget, scontrol, false);
 }
 
+#define PARAM_ID_FROM_EXTENSION(_ext)	(((_ext) & SOF_IPC4_MOD_EXT_MSG_PARAM_ID_MASK)	\
+					 >> SOF_IPC4_MOD_EXT_MSG_PARAM_ID_SHIFT)
+
+static void sof_ipc4_control_update(struct snd_sof_dev *sdev, void *ipc_message)
+{
+	struct sof_ipc4_msg *ipc4_msg = ipc_message;
+	struct sof_ipc4_notify_module_data *ndata = ipc4_msg->data_ptr;
+	struct sof_ipc4_control_msg_payload *msg_data;
+	struct sof_ipc4_control_data *cdata;
+	struct snd_soc_dapm_widget *widget;
+	struct snd_sof_control *scontrol;
+	struct snd_sof_widget *swidget;
+	struct snd_kcontrol *kc = NULL;
+	bool scontrol_found = false;
+	u32 event_param_id;
+	int i, type;
+
+	if (ndata->event_data_size < sizeof(*msg_data)) {
+		dev_err(sdev->dev,
+			"%s: Invalid event data size for module %u.%u: %u\n",
+			__func__, ndata->module_id, ndata->instance_id,
+			ndata->event_data_size);
+		return;
+	}
+
+	event_param_id = ndata->event_id & SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK;
+	switch (event_param_id) {
+	case SOF_IPC4_SWITCH_CONTROL_PARAM_ID:
+		type = SND_SOC_TPLG_TYPE_MIXER;
+		break;
+	case SOF_IPC4_ENUM_CONTROL_PARAM_ID:
+		type = SND_SOC_TPLG_TYPE_ENUM;
+		break;
+	default:
+		dev_err(sdev->dev,
+			"%s: Invalid control type for module %u.%u: %u\n",
+			__func__, ndata->module_id, ndata->instance_id,
+			event_param_id);
+		return;
+	}
+
+	/* Find the swidget based on ndata->module_id and ndata->instance_id */
+	swidget = sof_ipc4_find_swidget_by_ids(sdev, ndata->module_id,
+					       ndata->instance_id);
+	if (!swidget) {
+		dev_err(sdev->dev, "%s: Failed to find widget for module %u.%u\n",
+			__func__, ndata->module_id, ndata->instance_id);
+		return;
+	}
+
+	/* Find the scontrol which is the source of the notification */
+	msg_data = (struct sof_ipc4_control_msg_payload *)ndata->event_data;
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list) {
+		if (scontrol->comp_id == swidget->comp_id) {
+			u32 local_param_id;
+
+			cdata = scontrol->ipc_control_data;
+			/*
+			 * The scontrol's param_id is stored in the IPC message
+			 * template's extension
+			 */
+			local_param_id = PARAM_ID_FROM_EXTENSION(cdata->msg.extension);
+			if (local_param_id == event_param_id &&
+			    msg_data->id == cdata->index) {
+				scontrol_found = true;
+				break;
+			}
+		}
+	}
+
+	if (!scontrol_found) {
+		dev_err(sdev->dev,
+			"%s: Failed to find control on widget %s: %u:%u\n",
+			__func__, swidget->widget->name, ndata->event_id & 0xffff,
+			msg_data->id);
+		return;
+	}
+
+	if (msg_data->num_elems) {
+		/*
+		 * The message includes the updated value/data, update the
+		 * control's local cache using the received notification
+		 */
+		for (i = 0; i < msg_data->num_elems; i++) {
+			u32 channel = msg_data->chanv[i].channel;
+
+			if (channel >= scontrol->num_channels) {
+				dev_warn(sdev->dev,
+					 "Invalid channel index for %s: %u\n",
+					 scontrol->name, i);
+
+				/*
+				 * Mark the scontrol as dirty to force a refresh
+				 * on next read
+				 */
+				scontrol->comp_data_dirty = true;
+				break;
+			}
+
+			cdata->chanv[channel].value = msg_data->chanv[i].value;
+		}
+	} else {
+		/*
+		 * Mark the scontrol as dirty because the value/data is changed
+		 * in firmware, forcing a refresh on next read access
+		 */
+		scontrol->comp_data_dirty = true;
+	}
+
+	/*
+	 * Look up the ALSA kcontrol of the scontrol to be able to send a
+	 * notification to user space
+	 */
+	widget = swidget->widget;
+	for (i = 0; i < widget->num_kcontrols; i++) {
+		/* skip non matching types or non matching indexes within type */
+		if (widget->dobj.widget.kcontrol_type[i] == type &&
+		    widget->kcontrol_news[i].index == cdata->index) {
+			kc = widget->kcontrols[i];
+			break;
+		}
+	}
+
+	if (!kc)
+		return;
+
+	snd_ctl_notify_one(swidget->scomp->card->snd_card,
+			   SNDRV_CTL_EVENT_MASK_VALUE, kc, 0);
+}
+
 /* set up all controls for the widget */
 static int sof_ipc4_widget_kcontrol_setup(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
@@ -674,6 +852,7 @@ const struct sof_ipc_tplg_control_ops tplg_ipc4_control_ops = {
 	.bytes_ext_put = sof_ipc4_bytes_ext_put,
 	.bytes_ext_get = sof_ipc4_bytes_ext_get,
 	.bytes_ext_volatile_get = sof_ipc4_bytes_ext_volatile_get,
+	.update = sof_ipc4_control_update,
 	.widget_kcontrol_setup = sof_ipc4_widget_kcontrol_setup,
 	.set_up_volume_table = sof_ipc4_set_up_volume_table,
 };

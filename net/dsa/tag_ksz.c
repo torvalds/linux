@@ -459,4 +459,5 @@ static struct dsa_tag_driver *dsa_tag_driver_array[] = {
 
 module_dsa_tag_drivers(dsa_tag_driver_array);
 
+MODULE_DESCRIPTION("DSA tag driver for Microchip 8795/937x/9477/9893 families of switches");
 MODULE_LICENSE("GPL");

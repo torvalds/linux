@@ -80,10 +80,41 @@ static const struct sof_dev_desc arl_desc = {
 	.ops_free = hda_ops_free,
 };
 
+static const struct sof_dev_desc arl_s_desc = {
+	.use_acpi_target_states = true,
+	.machines               = snd_soc_acpi_intel_arl_machines,
+	.alt_machines           = snd_soc_acpi_intel_arl_sdw_machines,
+	.resindex_lpe_base      = 0,
+	.resindex_pcicfg_base   = -1,
+	.resindex_imr_base      = -1,
+	.irqindex_host_ipc      = -1,
+	.chip_info = &arl_s_chip_info,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_4),
+	.ipc_default            = SOF_IPC_TYPE_4,
+	.dspless_mode_supported = true,         /* Only supported for HDaudio */
+	.default_fw_path = {
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4/arl-s",
+	},
+	.default_lib_path = {
+		[SOF_IPC_TYPE_4] = "intel/sof-ipc4-lib/arl-s",
+	},
+	.default_tplg_path = {
+		[SOF_IPC_TYPE_4] = "intel/sof-ace-tplg",
+	},
+	.default_fw_filename = {
+		[SOF_IPC_TYPE_4] = "sof-arl-s.ri",
+	},
+	.nocodec_tplg_filename = "sof-arl-nocodec.tplg",
+	.ops = &sof_mtl_ops,
+	.ops_init = sof_mtl_ops_init,
+	.ops_free = hda_ops_free,
+};
+
 /* PCI IDs */
 static const struct pci_device_id sof_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, HDA_MTL, &mtl_desc) },
-	{ PCI_DEVICE_DATA(INTEL, HDA_ARL_S, &arl_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ARL_S, &arl_s_desc) },
+	{ PCI_DEVICE_DATA(INTEL, HDA_ARL, &arl_desc) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, sof_pci_ids);

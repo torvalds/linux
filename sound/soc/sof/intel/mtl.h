@@ -106,3 +106,6 @@ void mtl_ipc_dump(struct snd_sof_dev *sdev);
 u64 mtl_dsp_get_stream_hda_link_position(struct snd_sof_dev *sdev,
 					 struct snd_soc_component *component,
 					 struct snd_pcm_substream *substream);
+
+int mtl_dsp_core_get(struct snd_sof_dev *sdev, int core);
+int mtl_dsp_core_put(struct snd_sof_dev *sdev, int core);

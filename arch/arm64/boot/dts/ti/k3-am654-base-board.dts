@@ -449,6 +449,7 @@
 };
 
 &sdhci0 {
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc0_pins_default>;
 	bus-width = <8>;
@@ -463,6 +464,7 @@
  * disable sdhci1
  */
 &sdhci1 {
+	status = "okay";
 	vmmc-supply = <&vdd_mmc1_sd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;

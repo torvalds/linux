@@ -1452,7 +1452,7 @@ static void __prep_cap(struct cap_msg_args *arg, struct ceph_cap *cap,
 	if (flushing & CEPH_CAP_XATTR_EXCL) {
 		arg->old_xattr_buf = __ceph_build_xattrs_blob(ci);
 		arg->xattr_version = ci->i_xattrs.version;
-		arg->xattr_buf = ci->i_xattrs.blob;
+		arg->xattr_buf = ceph_buffer_get(ci->i_xattrs.blob);
 	} else {
 		arg->xattr_buf = NULL;
 		arg->old_xattr_buf = NULL;
@@ -1553,6 +1553,7 @@ static void __send_cap(struct cap_msg_args *arg, struct ceph_inode_info *ci)
 	encode_cap_msg(msg, arg);
 	ceph_con_send(&arg->session->s_con, msg);
 	ceph_buffer_put(arg->old_xattr_buf);
+	ceph_buffer_put(arg->xattr_buf);
 	if (arg->wake)
 		wake_up_all(&ci->i_cap_wq);
 }
@@ -2155,6 +2156,30 @@ retry:
 		      ceph_cap_string(cap->implemented),
 		      ceph_cap_string(revoking));
 
+		/* completed revocation? going down and there are no caps? */
+		if (revoking) {
+			if ((revoking & cap_used) == 0) {
+				doutc(cl, "completed revocation of %s\n",
+				      ceph_cap_string(cap->implemented & ~cap->issued));
+				goto ack;
+			}
+
+			/*
+			 * If the "i_wrbuffer_ref" was increased by mmap or generic
+			 * cache write just before the ceph_check_caps() is called,
+			 * the Fb capability revoking will fail this time. Then we
+			 * must wait for the BDI's delayed work to flush the dirty
+			 * pages and to release the "i_wrbuffer_ref", which will cost
+			 * at most 5 seconds. That means the MDS needs to wait at
+			 * most 5 seconds to finished the Fb capability's revocation.
+			 *
+			 * Let's queue a writeback for it.
+			 */
+			if (S_ISREG(inode->i_mode) && ci->i_wrbuffer_ref &&
+			    (revoking & CEPH_CAP_FILE_BUFFER))
+				queue_writeback = true;
+		}
+
 		if (cap == ci->i_auth_cap &&
 		    (cap->issued & CEPH_CAP_FILE_WR)) {
 			/* request larger max_size from MDS? */
@@ -2180,30 +2205,6 @@ retry:
 				doutc(cl, "flushing snap caps\n");
 				goto ack;
 			}
-		}
-
-		/* completed revocation? going down and there are no caps? */
-		if (revoking) {
-			if ((revoking & cap_used) == 0) {
-				doutc(cl, "completed revocation of %s\n",
-				      ceph_cap_string(cap->implemented & ~cap->issued));
-				goto ack;
-			}
-
-			/*
-			 * If the "i_wrbuffer_ref" was increased by mmap or generic
-			 * cache write just before the ceph_check_caps() is called,
-			 * the Fb capability revoking will fail this time. Then we
-			 * must wait for the BDI's delayed work to flush the dirty
-			 * pages and to release the "i_wrbuffer_ref", which will cost
-			 * at most 5 seconds. That means the MDS needs to wait at
-			 * most 5 seconds to finished the Fb capability's revocation.
-			 *
-			 * Let's queue a writeback for it.
-			 */
-			if (S_ISREG(inode->i_mode) && ci->i_wrbuffer_ref &&
-			    (revoking & CEPH_CAP_FILE_BUFFER))
-				queue_writeback = true;
 		}
 
 		/* want more caps from mds? */
@@ -3215,7 +3216,6 @@ static int ceph_try_drop_cap_snap(struct ceph_inode_info *ci,
 
 enum put_cap_refs_mode {
 	PUT_CAP_REFS_SYNC = 0,
-	PUT_CAP_REFS_NO_CHECK,
 	PUT_CAP_REFS_ASYNC,
 };
 
@@ -3329,11 +3329,6 @@ void ceph_put_cap_refs(struct ceph_inode_info *ci, int had)
 void ceph_put_cap_refs_async(struct ceph_inode_info *ci, int had)
 {
 	__ceph_put_cap_refs(ci, had, PUT_CAP_REFS_ASYNC);
-}
-
-void ceph_put_cap_refs_no_check_caps(struct ceph_inode_info *ci, int had)
-{
-	__ceph_put_cap_refs(ci, had, PUT_CAP_REFS_NO_CHECK);
 }
 
 /*
@@ -4777,7 +4772,22 @@ int ceph_drop_caps_for_unlink(struct inode *inode)
 		if (__ceph_caps_dirty(ci)) {
 			struct ceph_mds_client *mdsc =
 				ceph_inode_to_fs_client(inode)->mdsc;
-			__cap_delay_requeue_front(mdsc, ci);
+
+			doutc(mdsc->fsc->client, "%p %llx.%llx\n", inode,
+			      ceph_vinop(inode));
+			spin_lock(&mdsc->cap_unlink_delay_lock);
+			ci->i_ceph_flags |= CEPH_I_FLUSH;
+			if (!list_empty(&ci->i_cap_delay_list))
+				list_del_init(&ci->i_cap_delay_list);
+			list_add_tail(&ci->i_cap_delay_list,
+				      &mdsc->cap_unlink_delay_list);
+			spin_unlock(&mdsc->cap_unlink_delay_lock);
+
+			/*
+			 * Fire the work immediately, because the MDS maybe
+			 * waiting for caps release.
+			 */
+			ceph_queue_cap_unlink_work(mdsc);
 		}
 	}
 	spin_unlock(&ci->i_ceph_lock);
@@ -4887,12 +4897,14 @@ int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 			       struct inode *dir,
 			       int mds, int drop, int unless)
 {
-	struct dentry *parent = NULL;
 	struct ceph_mds_request_release *rel = *p;
 	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	struct ceph_client *cl;
 	int force = 0;
 	int ret;
+
+	/* This shouldn't happen */
+	BUG_ON(!dir);
 
 	/*
 	 * force an record for the directory caps if we have a dentry lease.
@@ -4903,14 +4915,9 @@ int ceph_encode_dentry_release(void **p, struct dentry *dentry,
 	spin_lock(&dentry->d_lock);
 	if (di->lease_session && di->lease_session->s_mds == mds)
 		force = 1;
-	if (!dir) {
-		parent = dget(dentry->d_parent);
-		dir = d_inode(parent);
-	}
 	spin_unlock(&dentry->d_lock);
 
 	ret = ceph_encode_inode_release(p, dir, mds, drop, unless, force);
-	dput(parent);
 
 	cl = ceph_inode_to_client(dir);
 	spin_lock(&dentry->d_lock);

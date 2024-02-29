@@ -697,7 +697,7 @@ static int ov9734_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&ov9734->mutex);
 	ov9734_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state, fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		ov9734->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(ov9734->link_freq, mode->link_freq_index);
@@ -730,9 +730,8 @@ static int ov9734_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&ov9734->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&ov9734->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		ov9734_update_pad_format(ov9734->cur_mode, &fmt->format);
 
@@ -777,7 +776,7 @@ static int ov9734_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov9734->mutex);
 	ov9734_update_pad_format(&supported_modes[0],
-				 v4l2_subdev_get_try_format(sd, fh->state, 0));
+				 v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&ov9734->mutex);
 
 	return 0;
@@ -894,6 +893,7 @@ static void ov9734_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	mutex_destroy(&ov9734->mutex);
 }
 
@@ -939,13 +939,6 @@ static int ov9734_probe(struct i2c_client *client)
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(&ov9734->sd);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
-			ret);
-		goto probe_error_media_entity_cleanup;
-	}
-
 	/*
 	 * Device is already turned on by i2c-core with ACPI domain PM.
 	 * Enable runtime PM and turn off the device.
@@ -954,9 +947,18 @@ static int ov9734_probe(struct i2c_client *client)
 	pm_runtime_enable(&client->dev);
 	pm_runtime_idle(&client->dev);
 
+	ret = v4l2_async_register_subdev_sensor(&ov9734->sd);
+	if (ret < 0) {
+		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
+			ret);
+		goto probe_error_media_entity_cleanup_pm;
+	}
+
 	return 0;
 
-probe_error_media_entity_cleanup:
+probe_error_media_entity_cleanup_pm:
+	pm_runtime_disable(&client->dev);
+	pm_runtime_set_suspended(&client->dev);
 	media_entity_cleanup(&ov9734->sd.entity);
 
 probe_error_v4l2_ctrl_handler_free:

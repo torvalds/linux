@@ -449,15 +449,8 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 			return -ENODEV;
 		}
 		bnxt_ulp_stop(bp);
-		if (netif_running(bp->dev)) {
-			rc = bnxt_close_nic(bp, true, true);
-			if (rc) {
-				NL_SET_ERR_MSG_MOD(extack, "Failed to close");
-				dev_close(bp->dev);
-				rtnl_unlock();
-				break;
-			}
-		}
+		if (netif_running(bp->dev))
+			bnxt_close_nic(bp, true, true);
 		bnxt_vf_reps_free(bp);
 		rc = bnxt_hwrm_func_drv_unrgtr(bp);
 		if (rc) {
@@ -469,8 +462,6 @@ static int bnxt_dl_reload_down(struct devlink *dl, bool netns_change,
 		}
 		bnxt_cancel_reservations(bp, false);
 		bnxt_free_ctx_mem(bp);
-		kfree(bp->ctx);
-		bp->ctx = NULL;
 		break;
 	}
 	case DEVLINK_RELOAD_ACTION_FW_ACTIVATE: {
@@ -741,7 +732,7 @@ static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp, u32 *nvm_cfg_ver)
 	}
 
 	/* earlier devices present as an array of raw bytes */
-	if (!BNXT_CHIP_P5(bp)) {
+	if (!BNXT_CHIP_P5_PLUS(bp)) {
 		dim = 0;
 		i = 0;
 		bits *= 3;  /* array of 3 version components */
@@ -761,7 +752,7 @@ static int bnxt_hwrm_get_nvm_cfg_ver(struct bnxt *bp, u32 *nvm_cfg_ver)
 			goto exit;
 		bnxt_copy_from_nvm_data(&ver, data, bits, bytes);
 
-		if (BNXT_CHIP_P5(bp)) {
+		if (BNXT_CHIP_P5_PLUS(bp)) {
 			*nvm_cfg_ver <<= 8;
 			*nvm_cfg_ver |= ver.vu8;
 		} else {
@@ -781,7 +772,7 @@ static int bnxt_dl_info_put(struct bnxt *bp, struct devlink_info_req *req,
 	if (!strlen(buf))
 		return 0;
 
-	if ((bp->flags & BNXT_FLAG_CHIP_P5) &&
+	if ((bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
 	    (!strcmp(key, DEVLINK_INFO_VERSION_GENERIC_FW_NCSI) ||
 	     !strcmp(key, DEVLINK_INFO_VERSION_GENERIC_FW_ROCE)))
 		return 0;
@@ -1007,7 +998,7 @@ static int bnxt_dl_info_get(struct devlink *dl, struct devlink_info_req *req,
 	if (rc)
 		return rc;
 
-	if (BNXT_CHIP_P5(bp)) {
+	if (BNXT_CHIP_P5_PLUS(bp)) {
 		rc = bnxt_dl_livepatch_info_put(bp, req, BNXT_FW_SRT_PATCH);
 		if (rc)
 			return rc;

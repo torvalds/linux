@@ -684,6 +684,8 @@ static int bcmasp_init_rx(struct bcmasp_intf *intf)
 
 	intf->rx_buf_order = get_order(RING_BUFFER_SIZE);
 	buffer_pg = alloc_pages(GFP_KERNEL, intf->rx_buf_order);
+	if (!buffer_pg)
+		return -ENOMEM;
 
 	dma = dma_map_page(kdev, buffer_pg, 0, RING_BUFFER_SIZE,
 			   DMA_FROM_DEVICE);
@@ -1048,6 +1050,9 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 			netdev_err(dev, "could not attach to PHY\n");
 			goto err_phy_disable;
 		}
+
+		/* Indicate that the MAC is responsible for PHY PM */
+		phydev->mac_managed_pm = true;
 	} else if (!intf->wolopts) {
 		ret = phy_resume(dev->phydev);
 		if (ret)
@@ -1092,6 +1097,7 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 	return 0;
 
 err_reclaim_tx:
+	netif_napi_del(&intf->tx_napi);
 	bcmasp_reclaim_free_all_tx(intf);
 err_phy_disconnect:
 	if (phydev)

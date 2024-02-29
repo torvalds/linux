@@ -191,7 +191,7 @@ err:
 	return ret;
 }
 
-static int alt_fpga_bridge_remove(struct platform_device *pdev)
+static void alt_fpga_bridge_remove(struct platform_device *pdev)
 {
 	struct fpga_bridge *bridge = platform_get_drvdata(pdev);
 	struct altera_hps2fpga_data *priv = bridge->priv;
@@ -199,15 +199,13 @@ static int alt_fpga_bridge_remove(struct platform_device *pdev)
 	fpga_bridge_unregister(bridge);
 
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 MODULE_DEVICE_TABLE(of, altera_fpga_of_match);
 
 static struct platform_driver alt_fpga_bridge_driver = {
 	.probe = alt_fpga_bridge_probe,
-	.remove = alt_fpga_bridge_remove,
+	.remove_new = alt_fpga_bridge_remove,
 	.driver = {
 		.name	= "altera_hps2fpga_bridge",
 		.of_match_table = of_match_ptr(altera_fpga_of_match),

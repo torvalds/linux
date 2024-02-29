@@ -8,73 +8,10 @@
 
 /dts-v1/;
 
-#include "ipq9574.dtsi"
+#include "ipq9574-rdp-common.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. IPQ9574/AP-AL02-C8";
 	compatible = "qcom,ipq9574-ap-al02-c8", "qcom,ipq9574";
 
-	aliases {
-		serial0 = &blsp1_uart2;
-	};
-
-	chosen {
-		stdout-path = "serial0:115200n8";
-	};
-};
-
-&blsp1_spi0 {
-	pinctrl-0 = <&spi_0_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-
-	flash@0 {
-		compatible = "micron,n25q128a11", "jedec,spi-nor";
-		reg = <0>;
-		#address-cells = <1>;
-		#size-cells = <1>;
-		spi-max-frequency = <50000000>;
-	};
-};
-
-&blsp1_uart2 {
-	pinctrl-0 = <&uart2_pins>;
-	pinctrl-names = "default";
-	status = "okay";
-};
-
-&rpm_requests {
-	regulators {
-		compatible = "qcom,rpm-mp5496-regulators";
-
-		ipq9574_s1: s1 {
-		/*
-		 * During kernel bootup, the SoC runs at 800MHz with 875mV set by the bootloaders.
-		 * During regulator registration, kernel not knowing the initial voltage,
-		 * considers it as zero and brings up the regulators with minimum supported voltage.
-		 * Update the regulator-min-microvolt with SVS voltage of 725mV so that
-		 * the regulators are brought up with 725mV which is sufficient for all the
-		 * corner parts to operate at 800MHz
-		 */
-			regulator-min-microvolt = <725000>;
-			regulator-max-microvolt = <1075000>;
-		};
-	};
-};
-
-&sleep_clk {
-	clock-frequency = <32000>;
-};
-
-&tlmm {
-	spi_0_pins: spi-0-state {
-		pins = "gpio11", "gpio12", "gpio13", "gpio14";
-		function = "blsp0_spi";
-		drive-strength = <8>;
-		bias-disable;
-	};
-};
-
-&xo_board_clk {
-	clock-frequency = <24000000>;
 };

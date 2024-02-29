@@ -180,7 +180,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 	for (addr = start; addr < end; addr += PAGE_SIZE) {
 		pte_t pte;
 		swp_entry_t entry;
-		struct page *page;
+		struct folio *folio;
 
 		if (!ptep++) {
 			ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
@@ -198,10 +198,10 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 		pte_unmap_unlock(ptep, ptl);
 		ptep = NULL;
 
-		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
+		folio = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
 					     vma, addr, &splug);
-		if (page)
-			put_page(page);
+		if (folio)
+			folio_put(folio);
 	}
 
 	if (ptep)
@@ -223,17 +223,17 @@ static void shmem_swapin_range(struct vm_area_struct *vma,
 {
 	XA_STATE(xas, &mapping->i_pages, linear_page_index(vma, start));
 	pgoff_t end_index = linear_page_index(vma, end) - 1;
-	struct page *page;
+	struct folio *folio;
 	struct swap_iocb *splug = NULL;
 
 	rcu_read_lock();
-	xas_for_each(&xas, page, end_index) {
+	xas_for_each(&xas, folio, end_index) {
 		unsigned long addr;
 		swp_entry_t entry;
 
-		if (!xa_is_value(page))
+		if (!xa_is_value(folio))
 			continue;
-		entry = radix_to_swp_entry(page);
+		entry = radix_to_swp_entry(folio);
 		/* There might be swapin error entries in shmem mapping. */
 		if (non_swap_entry(entry))
 			continue;
@@ -243,10 +243,10 @@ static void shmem_swapin_range(struct vm_area_struct *vma,
 		xas_pause(&xas);
 		rcu_read_unlock();
 
-		page = read_swap_cache_async(entry, mapping_gfp_mask(mapping),
+		folio = read_swap_cache_async(entry, mapping_gfp_mask(mapping),
 					     vma, addr, &splug);
-		if (page)
-			put_page(page);
+		if (folio)
+			folio_put(folio);
 
 		rcu_read_lock();
 	}
@@ -429,6 +429,7 @@ restart:
 		if (++batch_count == SWAP_CLUSTER_MAX) {
 			batch_count = 0;
 			if (need_resched()) {
+				arch_leave_lazy_mmu_mode();
 				pte_unmap_unlock(start_pte, ptl);
 				cond_resched();
 				goto restart;

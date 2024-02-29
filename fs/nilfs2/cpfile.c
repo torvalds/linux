@@ -552,11 +552,29 @@ static ssize_t nilfs_cpfile_do_get_ssinfo(struct inode *cpfile, __u64 *cnop,
 }
 
 /**
- * nilfs_cpfile_get_cpinfo -
- * @cpfile:
- * @cno:
- * @ci:
- * @nci:
+ * nilfs_cpfile_get_cpinfo - get information on checkpoints
+ * @cpfile: checkpoint file inode
+ * @cnop:   place to pass a starting checkpoint number and receive a
+ *          checkpoint number to continue the search
+ * @mode:   mode of checkpoints that the caller wants to retrieve
+ * @buf:    buffer for storing checkpoints' information
+ * @cisz:   byte size of one checkpoint info item in array
+ * @nci:    number of checkpoint info items to retrieve
+ *
+ * nilfs_cpfile_get_cpinfo() searches for checkpoints in @mode state
+ * starting from the checkpoint number stored in @cnop, and stores
+ * information about found checkpoints in @buf.
+ * The buffer pointed to by @buf must be large enough to store information
+ * for @nci checkpoints.  If at least one checkpoint information is
+ * successfully retrieved, @cnop is updated to point to the checkpoint
+ * number to continue searching.
+ *
+ * Return: Count of checkpoint info items stored in the output buffer on
+ * success, or the following negative error code on failure.
+ * * %-EINVAL	- Invalid checkpoint mode.
+ * * %-ENOMEM	- Insufficient memory available.
+ * * %-EIO	- I/O error (including metadata corruption).
+ * * %-ENOENT	- Invalid checkpoint number specified.
  */
 
 ssize_t nilfs_cpfile_get_cpinfo(struct inode *cpfile, __u64 *cnop, int mode,

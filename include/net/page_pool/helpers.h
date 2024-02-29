@@ -11,7 +11,7 @@
  * The page_pool allocator is optimized for recycling page or page fragment used
  * by skb packet and xdp frame.
  *
- * Basic use involves replacing and alloc_pages() calls with page_pool_alloc(),
+ * Basic use involves replacing any alloc_pages() calls with page_pool_alloc(),
  * which allocate memory with or without page splitting depending on the
  * requested memory size.
  *
@@ -29,7 +29,7 @@
  * page allocated from page pool. Page splitting enables memory saving and thus
  * avoids TLB/cache miss for data access, but there also is some cost to
  * implement page splitting, mainly some cache line dirtying/bouncing for
- * 'struct page' and atomic operation for page->pp_frag_count.
+ * 'struct page' and atomic operation for page->pp_ref_count.
  *
  * The API keeps track of in-flight pages, in order to let API users know when
  * it is safe to free a page_pool object, the API users must call
@@ -37,15 +37,15 @@
  * attach the page_pool object to a page_pool-aware object like skbs marked with
  * skb_mark_for_recycle().
  *
- * page_pool_put_page() may be called multi times on the same page if a page is
- * split into multi fragments. For the last fragment, it will either recycle the
- * page, or in case of page->_refcount > 1, it will release the DMA mapping and
- * in-flight state accounting.
+ * page_pool_put_page() may be called multiple times on the same page if a page
+ * is split into multiple fragments. For the last fragment, it will either
+ * recycle the page, or in case of page->_refcount > 1, it will release the DMA
+ * mapping and in-flight state accounting.
  *
  * dma_sync_single_range_for_device() is only called for the last fragment when
  * page_pool is created with PP_FLAG_DMA_SYNC_DEV flag, so it depends on the
  * last freed fragment to do the sync_for_device operation for all fragments in
- * the same page when a page is split, the API user must setup pool->p.max_len
+ * the same page when a page is split. The API user must setup pool->p.max_len
  * and pool->p.offset correctly and ensure that page_pool_put_page() is called
  * with dma_sync_size being -1 for fragment API.
  */
@@ -55,16 +55,12 @@
 #include <net/page_pool/types.h>
 
 #ifdef CONFIG_PAGE_POOL_STATS
+/* Deprecated driver-facing API, use netlink instead */
 int page_pool_ethtool_stats_get_count(void);
 u8 *page_pool_ethtool_stats_get_strings(u8 *data);
 u64 *page_pool_ethtool_stats_get(u64 *data, void *stats);
 
-/*
- * Drivers that wish to harvest page pool stats and report them to users
- * (perhaps via ethtool, debugfs, or another mechanism) can allocate a
- * struct page_pool_stats call page_pool_get_stats to get stats for the specified pool.
- */
-bool page_pool_get_stats(struct page_pool *pool,
+bool page_pool_get_stats(const struct page_pool *pool,
 			 struct page_pool_stats *stats);
 #else
 static inline int page_pool_ethtool_stats_get_count(void)
@@ -214,69 +210,82 @@ inline enum dma_data_direction page_pool_get_dma_dir(struct page_pool *pool)
 	return pool->p.dma_dir;
 }
 
-/* pp_frag_count represents the number of writers who can update the page
- * either by updating skb->data or via DMA mappings for the device.
- * We can't rely on the page refcnt for that as we don't know who might be
- * holding page references and we can't reliably destroy or sync DMA mappings
- * of the fragments.
+/**
+ * page_pool_fragment_page() - split a fresh page into fragments
+ * @page:	page to split
+ * @nr:		references to set
  *
- * When pp_frag_count reaches 0 we can either recycle the page if the page
- * refcnt is 1 or return it back to the memory allocator and destroy any
- * mappings we have.
+ * pp_ref_count represents the number of outstanding references to the page,
+ * which will be freed using page_pool APIs (rather than page allocator APIs
+ * like put_page()). Such references are usually held by page_pool-aware
+ * objects like skbs marked for page pool recycling.
+ *
+ * This helper allows the caller to take (set) multiple references to a
+ * freshly allocated page. The page must be freshly allocated (have a
+ * pp_ref_count of 1). This is commonly done by drivers and
+ * "fragment allocators" to save atomic operations - either when they know
+ * upfront how many references they will need; or to take MAX references and
+ * return the unused ones with a single atomic dec(), instead of performing
+ * multiple atomic inc() operations.
  */
 static inline void page_pool_fragment_page(struct page *page, long nr)
 {
-	atomic_long_set(&page->pp_frag_count, nr);
+	atomic_long_set(&page->pp_ref_count, nr);
 }
 
-static inline long page_pool_defrag_page(struct page *page, long nr)
+static inline long page_pool_unref_page(struct page *page, long nr)
 {
 	long ret;
 
-	/* If nr == pp_frag_count then we have cleared all remaining
+	/* If nr == pp_ref_count then we have cleared all remaining
 	 * references to the page:
 	 * 1. 'n == 1': no need to actually overwrite it.
 	 * 2. 'n != 1': overwrite it with one, which is the rare case
-	 *              for pp_frag_count draining.
+	 *              for pp_ref_count draining.
 	 *
 	 * The main advantage to doing this is that not only we avoid a atomic
 	 * update, as an atomic_read is generally a much cheaper operation than
 	 * an atomic update, especially when dealing with a page that may be
-	 * partitioned into only 2 or 3 pieces; but also unify the pp_frag_count
+	 * referenced by only 2 or 3 users; but also unify the pp_ref_count
 	 * handling by ensuring all pages have partitioned into only 1 piece
 	 * initially, and only overwrite it when the page is partitioned into
 	 * more than one piece.
 	 */
-	if (atomic_long_read(&page->pp_frag_count) == nr) {
+	if (atomic_long_read(&page->pp_ref_count) == nr) {
 		/* As we have ensured nr is always one for constant case using
 		 * the BUILD_BUG_ON(), only need to handle the non-constant case
-		 * here for pp_frag_count draining, which is a rare case.
+		 * here for pp_ref_count draining, which is a rare case.
 		 */
 		BUILD_BUG_ON(__builtin_constant_p(nr) && nr != 1);
 		if (!__builtin_constant_p(nr))
-			atomic_long_set(&page->pp_frag_count, 1);
+			atomic_long_set(&page->pp_ref_count, 1);
 
 		return 0;
 	}
 
-	ret = atomic_long_sub_return(nr, &page->pp_frag_count);
+	ret = atomic_long_sub_return(nr, &page->pp_ref_count);
 	WARN_ON(ret < 0);
 
-	/* We are the last user here too, reset pp_frag_count back to 1 to
+	/* We are the last user here too, reset pp_ref_count back to 1 to
 	 * ensure all pages have been partitioned into 1 piece initially,
 	 * this should be the rare case when the last two fragment users call
-	 * page_pool_defrag_page() currently.
+	 * page_pool_unref_page() currently.
 	 */
 	if (unlikely(!ret))
-		atomic_long_set(&page->pp_frag_count, 1);
+		atomic_long_set(&page->pp_ref_count, 1);
 
 	return ret;
 }
 
-static inline bool page_pool_is_last_frag(struct page *page)
+static inline void page_pool_ref_page(struct page *page)
 {
-	/* If page_pool_defrag_page() returns 0, we were the last user */
-	return page_pool_defrag_page(page, 1) == 0;
+	atomic_long_inc(&page->pp_ref_count);
+}
+
+static inline bool page_pool_is_last_ref(struct page *page)
+{
+	/* If page_pool_unref_page() returns 0, we were the last user */
+	return page_pool_unref_page(page, 1) == 0;
 }
 
 /**
@@ -301,10 +310,10 @@ static inline void page_pool_put_page(struct page_pool *pool,
 	 * allow registering MEM_TYPE_PAGE_POOL, but shield linker.
 	 */
 #ifdef CONFIG_PAGE_POOL
-	if (!page_pool_is_last_frag(page))
+	if (!page_pool_is_last_ref(page))
 		return;
 
-	page_pool_put_defragged_page(pool, page, dma_sync_size, allow_direct);
+	page_pool_put_unrefed_page(pool, page, dma_sync_size, allow_direct);
 #endif
 }
 

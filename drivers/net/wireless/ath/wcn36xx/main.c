@@ -1644,7 +1644,7 @@ out_err:
 	return ret;
 }
 
-static int wcn36xx_remove(struct platform_device *pdev)
+static void wcn36xx_remove(struct platform_device *pdev)
 {
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
 	struct wcn36xx *wcn = hw->priv;
@@ -1666,8 +1666,6 @@ static int wcn36xx_remove(struct platform_device *pdev)
 
 	mutex_destroy(&wcn->hal_mutex);
 	ieee80211_free_hw(hw);
-
-	return 0;
 }
 
 static const struct of_device_id wcn36xx_of_match[] = {
@@ -1678,7 +1676,7 @@ MODULE_DEVICE_TABLE(of, wcn36xx_of_match);
 
 static struct platform_driver wcn36xx_driver = {
 	.probe      = wcn36xx_probe,
-	.remove     = wcn36xx_remove,
+	.remove_new = wcn36xx_remove,
 	.driver         = {
 		.name   = "wcn36xx",
 		.of_match_table = wcn36xx_of_match,
@@ -1687,6 +1685,7 @@ static struct platform_driver wcn36xx_driver = {
 
 module_platform_driver(wcn36xx_driver);
 
+MODULE_DESCRIPTION("Qualcomm Atheros WCN3660/3680 wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Eugene Krasnikov k.eugene.e@gmail.com");
 MODULE_FIRMWARE(WLAN_NV_FILE);

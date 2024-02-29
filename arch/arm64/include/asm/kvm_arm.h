@@ -108,6 +108,7 @@
 #define HCRX_HOST_FLAGS (HCRX_EL2_MSCEn | HCRX_EL2_TCR2En)
 
 /* TCR_EL2 Registers bits */
+#define TCR_EL2_DS		(1UL << 32)
 #define TCR_EL2_RES1		((1U << 31) | (1 << 23))
 #define TCR_EL2_TBI		(1 << 20)
 #define TCR_EL2_PS_SHIFT	16
@@ -122,6 +123,7 @@
 			 TCR_EL2_ORGN0_MASK | TCR_EL2_IRGN0_MASK | TCR_EL2_T0SZ_MASK)
 
 /* VTCR_EL2 Registers bits */
+#define VTCR_EL2_DS		TCR_EL2_DS
 #define VTCR_EL2_RES1		(1U << 31)
 #define VTCR_EL2_HD		(1 << 22)
 #define VTCR_EL2_HA		(1 << 21)
@@ -344,36 +346,47 @@
  * Once we get to a point where the two describe the same thing, we'll
  * merge the definitions. One day.
  */
-#define __HFGRTR_EL2_RES0	(GENMASK(63, 56) | GENMASK(53, 51))
+#define __HFGRTR_EL2_RES0	HFGxTR_EL2_RES0
 #define __HFGRTR_EL2_MASK	GENMASK(49, 0)
-#define __HFGRTR_EL2_nMASK	(GENMASK(58, 57) | GENMASK(55, 54) | BIT(50))
+#define __HFGRTR_EL2_nMASK	~(__HFGRTR_EL2_RES0 | __HFGRTR_EL2_MASK)
 
-#define __HFGWTR_EL2_RES0	(GENMASK(63, 56) | GENMASK(53, 51) |	\
-				 BIT(46) | BIT(42) | BIT(40) | BIT(28) | \
-				 GENMASK(26, 25) | BIT(21) | BIT(18) |	\
+/*
+ * The HFGWTR bits are a subset of HFGRTR bits. To ensure we don't miss any
+ * future additions, define __HFGWTR* macros relative to __HFGRTR* ones.
+ */
+#define __HFGRTR_ONLY_MASK	(BIT(46) | BIT(42) | BIT(40) | BIT(28) | \
+				 GENMASK(26, 25) | BIT(21) | BIT(18) | \
 				 GENMASK(15, 14) | GENMASK(10, 9) | BIT(2))
-#define __HFGWTR_EL2_MASK	GENMASK(49, 0)
-#define __HFGWTR_EL2_nMASK	(GENMASK(58, 57) | GENMASK(55, 54) | BIT(50))
+#define __HFGWTR_EL2_RES0	(__HFGRTR_EL2_RES0 | __HFGRTR_ONLY_MASK)
+#define __HFGWTR_EL2_MASK	(__HFGRTR_EL2_MASK & ~__HFGRTR_ONLY_MASK)
+#define __HFGWTR_EL2_nMASK	~(__HFGWTR_EL2_RES0 | __HFGWTR_EL2_MASK)
 
-#define __HFGITR_EL2_RES0	GENMASK(63, 57)
-#define __HFGITR_EL2_MASK	GENMASK(54, 0)
-#define __HFGITR_EL2_nMASK	GENMASK(56, 55)
+#define __HFGITR_EL2_RES0	HFGITR_EL2_RES0
+#define __HFGITR_EL2_MASK	(BIT(62) | BIT(60) | GENMASK(54, 0))
+#define __HFGITR_EL2_nMASK	~(__HFGITR_EL2_RES0 | __HFGITR_EL2_MASK)
 
-#define __HDFGRTR_EL2_RES0	(BIT(49) | BIT(42) | GENMASK(39, 38) |	\
-				 GENMASK(21, 20) | BIT(8))
-#define __HDFGRTR_EL2_MASK	~__HDFGRTR_EL2_nMASK
-#define __HDFGRTR_EL2_nMASK	GENMASK(62, 59)
+#define __HDFGRTR_EL2_RES0	HDFGRTR_EL2_RES0
+#define __HDFGRTR_EL2_MASK	(BIT(63) | GENMASK(58, 50) | GENMASK(48, 43) | \
+				 GENMASK(41, 40) | GENMASK(37, 22) | \
+				 GENMASK(19, 9) | GENMASK(7, 0))
+#define __HDFGRTR_EL2_nMASK	~(__HDFGRTR_EL2_RES0 | __HDFGRTR_EL2_MASK)
 
-#define __HDFGWTR_EL2_RES0	(BIT(63) | GENMASK(59, 58) | BIT(51) | BIT(47) | \
-				 BIT(43) | GENMASK(40, 38) | BIT(34) | BIT(30) | \
-				 BIT(22) | BIT(9) | BIT(6))
-#define __HDFGWTR_EL2_MASK	~__HDFGWTR_EL2_nMASK
-#define __HDFGWTR_EL2_nMASK	GENMASK(62, 60)
+#define __HDFGWTR_EL2_RES0	HDFGWTR_EL2_RES0
+#define __HDFGWTR_EL2_MASK	(GENMASK(57, 52) | GENMASK(50, 48) | \
+				 GENMASK(46, 44) | GENMASK(42, 41) | \
+				 GENMASK(37, 35) | GENMASK(33, 31) | \
+				 GENMASK(29, 23) | GENMASK(21, 10) | \
+				 GENMASK(8, 7) | GENMASK(5, 0))
+#define __HDFGWTR_EL2_nMASK	~(__HDFGWTR_EL2_RES0 | __HDFGWTR_EL2_MASK)
+
+#define __HAFGRTR_EL2_RES0	HAFGRTR_EL2_RES0
+#define __HAFGRTR_EL2_MASK	(GENMASK(49, 17) | GENMASK(4, 0))
+#define __HAFGRTR_EL2_nMASK	~(__HAFGRTR_EL2_RES0 | __HAFGRTR_EL2_MASK)
 
 /* Similar definitions for HCRX_EL2 */
-#define __HCRX_EL2_RES0		(GENMASK(63, 16) | GENMASK(13, 12))
-#define __HCRX_EL2_MASK		(0)
-#define __HCRX_EL2_nMASK	(GENMASK(15, 14) | GENMASK(4, 0))
+#define __HCRX_EL2_RES0         HCRX_EL2_RES0
+#define __HCRX_EL2_MASK		(BIT(6))
+#define __HCRX_EL2_nMASK	~(__HCRX_EL2_RES0 | __HCRX_EL2_MASK)
 
 /* Hyp Prefetch Fault Address Register (HPFAR/HDFAR) */
 #define HPFAR_MASK	(~UL(0xf))

@@ -681,7 +681,8 @@ i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p)
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 {
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
-		struct drm_printer p = drm_debug_printer("i915 device info:");
+		struct drm_printer p = drm_dbg_printer(&dev_priv->drm, DRM_UT_DRIVER,
+						       "device info:");
 		struct intel_gt *gt;
 		unsigned int i;
 

@@ -5,9 +5,12 @@
  * Written by: Masami Hiramatsu <mhiramat@kernel.org>
  */
 
+#include <stdlib.h>
+#include <string.h>
 #include <debug.h>
 #include <dwarf-regs.h>
 #include <elf.h>
+#include <errno.h>
 #include <linux/kernel.h>
 
 #ifndef EM_AARCH64
@@ -67,4 +70,35 @@ const char *get_dwarf_regstr(unsigned int n, unsigned int machine)
 		pr_err("ELF MACHINE %x is not supported.\n", machine);
 	}
 	return NULL;
+}
+
+__weak int get_arch_regnum(const char *name __maybe_unused)
+{
+	return -ENOTSUP;
+}
+
+/* Return DWARF register number from architecture register name */
+int get_dwarf_regnum(const char *name, unsigned int machine)
+{
+	char *regname = strdup(name);
+	int reg = -1;
+	char *p;
+
+	if (regname == NULL)
+		return -EINVAL;
+
+	/* For convenience, remove trailing characters */
+	p = strpbrk(regname, " ,)");
+	if (p)
+		*p = '\0';
+
+	switch (machine) {
+	case EM_NONE:	/* Generic arch - use host arch */
+		reg = get_arch_regnum(regname);
+		break;
+	default:
+		pr_err("ELF MACHINE %x is not supported.\n", machine);
+	}
+	free(regname);
+	return reg;
 }

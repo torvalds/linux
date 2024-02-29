@@ -870,19 +870,17 @@ static int sa1100_serial_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int sa1100_serial_remove(struct platform_device *pdev)
+static void sa1100_serial_remove(struct platform_device *pdev)
 {
 	struct sa1100_port *sport = platform_get_drvdata(pdev);
 
 	if (sport)
 		uart_remove_one_port(&sa1100_reg, &sport->port);
-
-	return 0;
 }
 
 static struct platform_driver sa11x0_serial_driver = {
 	.probe		= sa1100_serial_probe,
-	.remove		= sa1100_serial_remove,
+	.remove_new	= sa1100_serial_remove,
 	.suspend	= sa1100_serial_suspend,
 	.resume		= sa1100_serial_resume,
 	.driver		= {

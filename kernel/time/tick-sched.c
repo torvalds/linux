@@ -839,6 +839,10 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 		ts->next_timer = next_tick;
 	}
 
+	/* Make sure next_tick is never before basemono! */
+	if (WARN_ON_ONCE(basemono > next_tick))
+		next_tick = basemono;
+
 	/*
 	 * If the tick is due in the next period, keep it ticking or
 	 * force prod the timer.
@@ -887,7 +891,6 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	struct clock_event_device *dev = __this_cpu_read(tick_cpu_device.evtdev);
 	u64 basemono = ts->timer_expires_base;
 	u64 expires = ts->timer_expires;
-	ktime_t tick = expires;
 
 	/* Make sure we won't be trying to stop it twice in a row. */
 	ts->timer_expires_base = 0;
@@ -910,7 +913,7 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	/* Skip reprogram of event if it's not changed */
 	if (ts->tick_stopped && (expires == ts->next_tick)) {
 		/* Sanity check: make sure clockevent is actually programmed */
-		if (tick == KTIME_MAX || ts->next_tick == hrtimer_get_expires(&ts->sched_timer))
+		if (expires == KTIME_MAX || ts->next_tick == hrtimer_get_expires(&ts->sched_timer))
 			return;
 
 		WARN_ON_ONCE(1);
@@ -920,11 +923,11 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	}
 
 	/*
-	 * nohz_stop_sched_tick() can be called several times before
-	 * nohz_restart_sched_tick() is called. This happens when
-	 * interrupts arrive which do not cause a reschedule. In the
-	 * first call we save the current tick time, so we can restart
-	 * the scheduler tick in nohz_restart_sched_tick().
+	 * tick_nohz_stop_tick() can be called several times before
+	 * tick_nohz_restart_sched_tick() is called. This happens when
+	 * interrupts arrive which do not cause a reschedule. In the first
+	 * call we save the current tick time, so we can restart the
+	 * scheduler tick in tick_nohz_restart_sched_tick().
 	 */
 	if (!ts->tick_stopped) {
 		calc_load_nohz_start();
@@ -935,7 +938,7 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 		trace_tick_stop(1, TICK_DEP_MASK_NONE);
 	}
 
-	ts->next_tick = tick;
+	ts->next_tick = expires;
 
 	/*
 	 * If the expiration time == KTIME_MAX, then we simply stop
@@ -950,11 +953,11 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	}
 
 	if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
-		hrtimer_start(&ts->sched_timer, tick,
+		hrtimer_start(&ts->sched_timer, expires,
 			      HRTIMER_MODE_ABS_PINNED_HARD);
 	} else {
-		hrtimer_set_expires(&ts->sched_timer, tick);
-		tick_program_event(tick, 1);
+		hrtimer_set_expires(&ts->sched_timer, expires);
+		tick_program_event(expires, 1);
 	}
 }
 
@@ -1573,13 +1576,23 @@ void tick_setup_sched_timer(void)
 void tick_cancel_sched_timer(int cpu)
 {
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
+	ktime_t idle_sleeptime, iowait_sleeptime;
+	unsigned long idle_calls, idle_sleeps;
 
 # ifdef CONFIG_HIGH_RES_TIMERS
 	if (ts->sched_timer.base)
 		hrtimer_cancel(&ts->sched_timer);
 # endif
 
+	idle_sleeptime = ts->idle_sleeptime;
+	iowait_sleeptime = ts->iowait_sleeptime;
+	idle_calls = ts->idle_calls;
+	idle_sleeps = ts->idle_sleeps;
 	memset(ts, 0, sizeof(*ts));
+	ts->idle_sleeptime = idle_sleeptime;
+	ts->iowait_sleeptime = iowait_sleeptime;
+	ts->idle_calls = idle_calls;
+	ts->idle_sleeps = idle_sleeps;
 }
 #endif
 

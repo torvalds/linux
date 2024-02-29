@@ -428,6 +428,9 @@ struct rt5645_platform_data {
 	/* Invert HP detect status polarity */
 	bool inv_hp_pol;
 
+	/* Only 1 speaker connected */
+	bool mono_speaker;
+
 	/* Value to assign to snd_soc_card.long_name */
 	const char *long_name;
 
@@ -3314,6 +3317,7 @@ static void rt5645_jack_detect_work(struct work_struct *work)
 				    report, SND_JACK_HEADPHONE);
 		snd_soc_jack_report(rt5645->mic_jack,
 				    report, SND_JACK_MICROPHONE);
+		mutex_unlock(&rt5645->jd_mutex);
 		return;
 	case 4:
 		val = snd_soc_component_read(rt5645->component, RT5645_A_JD_CTRL1) & 0x0020;
@@ -3660,6 +3664,7 @@ static const struct rt5645_platform_data buddy_platform_data = {
 static const struct rt5645_platform_data gpd_win_platform_data = {
 	.jd_mode = 3,
 	.inv_jd1_1 = true,
+	.mono_speaker = true,
 	.long_name = "gpd-win-pocket-rt5645",
 	/* The GPD pocket has a diff. mic, for the win this does not matter. */
 	.in2_diff = true,
@@ -3681,6 +3686,16 @@ static const struct rt5645_platform_data asus_t101ha_platform_data = {
 static const struct rt5645_platform_data lenovo_ideapad_miix_310_pdata = {
 	.jd_mode = 3,
 	.in2_diff = true,
+};
+
+static const struct rt5645_platform_data jd_mode3_monospk_platform_data = {
+	.jd_mode = 3,
+	.mono_speaker = true,
+};
+
+static const struct rt5645_platform_data jd_mode3_inv_data = {
+	.jd_mode = 3,
+	.inv_jd1_1 = true,
 };
 
 static const struct rt5645_platform_data jd_mode3_platform_data = {
@@ -3802,7 +3817,7 @@ static const struct dmi_system_id dmi_platform_data[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TECLAST"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "X80 Pro"),
 		},
-		.driver_data = (void *)&jd_mode3_platform_data,
+		.driver_data = (void *)&jd_mode3_monospk_platform_data,
 	},
 	{
 		.ident = "Lenovo Ideapad Miix 310",
@@ -3828,6 +3843,16 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		  DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "AMI Corporation"),
 		  DMI_EXACT_MATCH(DMI_BOARD_NAME, "Cherry Trail CR"),
 		  DMI_EXACT_MATCH(DMI_BOARD_VERSION, "Default string"),
+		  /*
+		   * Above strings are too generic, LattePanda BIOS versions for
+		   * all 4 hw revisions are:
+		   * DF-BI-7-S70CR100-*
+		   * DF-BI-7-S70CR110-*
+		   * DF-BI-7-S70CR200-*
+		   * LP-BS-7-S70CR700-*
+		   * Do a partial match for S70CR to avoid false positive matches.
+		   */
+		  DMI_MATCH(DMI_BIOS_VERSION, "S70CR"),
 		},
 		.driver_data = (void *)&lattepanda_board_platform_data,
 	},
@@ -3855,12 +3880,22 @@ static const struct dmi_system_id dmi_platform_data[] = {
 		.driver_data = (void *)&ecs_ef20_platform_data,
 	},
 	{
-		.ident = "EF20EA",
-		.callback = cht_rt5645_ef20_quirk_cb,
+		.ident = "Acer Switch V 10 (SW5-017)",
 		.matches = {
-			DMI_MATCH(DMI_PRODUCT_NAME, "EF20EA"),
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "SW5-017"),
 		},
-		.driver_data = (void *)&ecs_ef20_platform_data,
+		.driver_data = (void *)&intel_braswell_platform_data,
+	},
+	{
+		.ident = "Meegopad T08",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Default string"),
+			DMI_MATCH(DMI_BOARD_NAME, "T3 MRD"),
+			DMI_MATCH(DMI_BOARD_VERSION, "V1.1"),
+		},
+		.driver_data = (void *)&jd_mode3_inv_data,
 	},
 	{ }
 };
@@ -3876,24 +3911,68 @@ static bool rt5645_check_dp(struct device *dev)
 	return false;
 }
 
-static int rt5645_parse_dt(struct rt5645_priv *rt5645, struct device *dev)
+static void rt5645_parse_dt(struct device *dev, struct rt5645_platform_data *pdata)
 {
-	rt5645->pdata.in2_diff = device_property_read_bool(dev,
-		"realtek,in2-differential");
-	device_property_read_u32(dev,
-		"realtek,dmic1-data-pin", &rt5645->pdata.dmic1_data_pin);
-	device_property_read_u32(dev,
-		"realtek,dmic2-data-pin", &rt5645->pdata.dmic2_data_pin);
-	device_property_read_u32(dev,
-		"realtek,jd-mode", &rt5645->pdata.jd_mode);
-
-	return 0;
+	pdata->in2_diff = device_property_read_bool(dev, "realtek,in2-differential");
+	device_property_read_u32(dev, "realtek,dmic1-data-pin", &pdata->dmic1_data_pin);
+	device_property_read_u32(dev, "realtek,dmic2-data-pin", &pdata->dmic2_data_pin);
+	device_property_read_u32(dev, "realtek,jd-mode", &pdata->jd_mode);
 }
+
+static void rt5645_get_pdata(struct device *codec_dev, struct rt5645_platform_data *pdata)
+{
+	const struct dmi_system_id *dmi_data;
+
+	dmi_data = dmi_first_match(dmi_platform_data);
+	if (dmi_data) {
+		dev_info(codec_dev, "Detected %s platform\n", dmi_data->ident);
+		*pdata = *((struct rt5645_platform_data *)dmi_data->driver_data);
+	} else if (rt5645_check_dp(codec_dev)) {
+		rt5645_parse_dt(codec_dev, pdata);
+	} else {
+		*pdata = jd_mode3_platform_data;
+	}
+
+	if (quirk != -1) {
+		pdata->in2_diff = QUIRK_IN2_DIFF(quirk);
+		pdata->level_trigger_irq = QUIRK_LEVEL_IRQ(quirk);
+		pdata->inv_jd1_1 = QUIRK_INV_JD1_1(quirk);
+		pdata->inv_hp_pol = QUIRK_INV_HP_POL(quirk);
+		pdata->jd_mode = QUIRK_JD_MODE(quirk);
+		pdata->dmic1_data_pin = QUIRK_DMIC1_DATA_PIN(quirk);
+		pdata->dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
+	}
+}
+
+const char *rt5645_components(struct device *codec_dev)
+{
+	struct rt5645_platform_data pdata = { };
+	static char buf[32];
+	const char *mic;
+	int spk = 2;
+
+	rt5645_get_pdata(codec_dev, &pdata);
+
+	if (pdata.mono_speaker)
+		spk = 1;
+
+	if (pdata.dmic1_data_pin && pdata.dmic2_data_pin)
+		mic = "dmics12";
+	else if (pdata.dmic1_data_pin)
+		mic = "dmic1";
+	else if (pdata.dmic2_data_pin)
+		mic = "dmic2";
+	else
+		mic = "in2";
+
+	snprintf(buf, sizeof(buf), "cfg-spk:%d cfg-mic:%s", spk, mic);
+
+	return buf;
+}
+EXPORT_SYMBOL_GPL(rt5645_components);
 
 static int rt5645_i2c_probe(struct i2c_client *i2c)
 {
-	struct rt5645_platform_data *pdata = NULL;
-	const struct dmi_system_id *dmi_data;
 	struct rt5645_priv *rt5645;
 	int ret, i;
 	unsigned int val;
@@ -3906,29 +3985,7 @@ static int rt5645_i2c_probe(struct i2c_client *i2c)
 
 	rt5645->i2c = i2c;
 	i2c_set_clientdata(i2c, rt5645);
-
-	dmi_data = dmi_first_match(dmi_platform_data);
-	if (dmi_data) {
-		dev_info(&i2c->dev, "Detected %s platform\n", dmi_data->ident);
-		pdata = dmi_data->driver_data;
-	}
-
-	if (pdata)
-		rt5645->pdata = *pdata;
-	else if (rt5645_check_dp(&i2c->dev))
-		rt5645_parse_dt(rt5645, &i2c->dev);
-	else
-		rt5645->pdata = jd_mode3_platform_data;
-
-	if (quirk != -1) {
-		rt5645->pdata.in2_diff = QUIRK_IN2_DIFF(quirk);
-		rt5645->pdata.level_trigger_irq = QUIRK_LEVEL_IRQ(quirk);
-		rt5645->pdata.inv_jd1_1 = QUIRK_INV_JD1_1(quirk);
-		rt5645->pdata.inv_hp_pol = QUIRK_INV_HP_POL(quirk);
-		rt5645->pdata.jd_mode = QUIRK_JD_MODE(quirk);
-		rt5645->pdata.dmic1_data_pin = QUIRK_DMIC1_DATA_PIN(quirk);
-		rt5645->pdata.dmic2_data_pin = QUIRK_DMIC2_DATA_PIN(quirk);
-	}
+	rt5645_get_pdata(&i2c->dev, &rt5645->pdata);
 
 	if (has_acpi_companion(&i2c->dev)) {
 		if (cht_rt5645_gpios) {

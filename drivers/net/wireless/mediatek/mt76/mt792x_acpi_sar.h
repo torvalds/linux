@@ -77,6 +77,8 @@ struct mt792x_asar_cl {
 	u8 version;
 	u8 mode_6g;
 	u8 cl6g[6];
+	u8 mode_5g9;
+	u8 cl5g9[6];
 } __packed;
 
 struct mt792x_asar_fg {

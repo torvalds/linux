@@ -7,27 +7,74 @@ x86 Feature Flags
 Introduction
 ============
 
-On x86, flags appearing in /proc/cpuinfo have an X86_FEATURE definition
-in arch/x86/include/asm/cpufeatures.h. If the kernel cares about a feature
-or KVM want to expose the feature to a KVM guest, it can and should have
-an X86_FEATURE_* defined. These flags represent hardware features as
-well as software features.
+The list of feature flags in /proc/cpuinfo is not complete and
+represents an ill-fated attempt from long time ago to put feature flags
+in an easy to find place for userspace.
 
-If users want to know if a feature is available on a given system, they
-try to find the flag in /proc/cpuinfo. If a given flag is present, it
-means that the kernel supports it and is currently making it available.
-If such flag represents a hardware feature, it also means that the
-hardware supports it.
+However, the amount of feature flags is growing by the CPU generation,
+leading to unparseable and unwieldy /proc/cpuinfo.
 
-If the expected flag does not appear in /proc/cpuinfo, things are murkier.
-Users need to find out the reason why the flag is missing and find the way
-how to enable it, which is not always easy. There are several factors that
-can explain missing flags: the expected feature failed to enable, the feature
-is missing in hardware, platform firmware did not enable it, the feature is
-disabled at build or run time, an old kernel is in use, or the kernel does
-not support the feature and thus has not enabled it. In general, /proc/cpuinfo
-shows features which the kernel supports. For a full list of CPUID flags
-which the CPU supports, use tools/arch/x86/kcpuid.
+What is more, those feature flags do not even need to be in that file
+because userspace doesn't care about them - glibc et al already use
+CPUID to find out what the target machine supports and what not.
+
+And even if it doesn't show a particular feature flag - although the CPU
+still does have support for the respective hardware functionality and
+said CPU supports CPUID faulting - userspace can simply probe for the
+feature and figure out if it is supported or not, regardless of whether
+it is being advertised somewhere.
+
+Furthermore, those flag strings become an ABI the moment they appear
+there and maintaining them forever when nothing even uses them is a lot
+of wasted effort.
+
+So, the current use of /proc/cpuinfo is to show features which the
+kernel has *enabled* and *supports*. As in: the CPUID feature flag is
+there, there's an additional setup which the kernel has done while
+booting and the functionality is ready to use. A perfect example for
+that is "user_shstk" where additional code enablement is present in the
+kernel to support shadow stack for user programs.
+
+So, if users want to know if a feature is available on a given system,
+they try to find the flag in /proc/cpuinfo. If a given flag is present,
+it means that
+
+* the kernel knows about the feature enough to have an X86_FEATURE bit
+
+* the kernel supports it and is currently making it available either to
+  userspace or some other part of the kernel
+
+* if the flag represents a hardware feature the hardware supports it.
+
+The absence of a flag in /proc/cpuinfo by itself means almost nothing to
+an end user.
+
+On the one hand, a feature like "vaes" might be fully available to user
+applications on a kernel that has not defined X86_FEATURE_VAES and thus
+there is no "vaes" in /proc/cpuinfo.
+
+On the other hand, a new kernel running on non-VAES hardware would also
+have no "vaes" in /proc/cpuinfo.  There's no way for an application or
+user to tell the difference.
+
+The end result is that the flags field in /proc/cpuinfo is marginally
+useful for kernel debugging, but not really for anything else.
+Applications should instead use things like the glibc facilities for
+querying CPU support.  Users should rely on tools like
+tools/arch/x86/kcpuid and cpuid(1).
+
+Regarding implementation, flags appearing in /proc/cpuinfo have an
+X86_FEATURE definition in arch/x86/include/asm/cpufeatures.h. These flags
+represent hardware features as well as software features.
+
+If the kernel cares about a feature or KVM want to expose the feature to
+a KVM guest, it should only then expose it to the guest when the guest
+needs to parse /proc/cpuinfo. Which, as mentioned above, is highly
+unlikely. KVM can synthesize the CPUID bit and the KVM guest can simply
+query CPUID and figure out what the hypervisor supports and what not. As
+already stated, /proc/cpuinfo is not a dumping ground for useless
+feature flags.
+
 
 How are feature flags created?
 ==============================

@@ -202,7 +202,7 @@ static int tcf_pedit_init(struct net *net, struct nlattr *nla,
 		ret = ACT_P_CREATED;
 	} else if (err > 0) {
 		if (bind)
-			return 0;
+			return ACT_P_BOUND;
 		if (!(flags & TCA_ACT_FLAGS_REPLACE)) {
 			ret = -EEXIST;
 			goto out_release;

@@ -95,7 +95,7 @@ struct xlp_spi_priv {
 	int			rx_len;		/* rx xfer length */
 	int			txerrors;	/* TXFIFO underflow count */
 	int			rxerrors;	/* RXFIFO overflow count */
-	int			cs;		/* slave device chip select */
+	int			cs;		/* target device chip select */
 	u32			spi_clk;	/* spi clock frequency */
 	bool			cmd_cont;	/* cs active */
 	struct completion	done;		/* completion notification */
@@ -138,7 +138,7 @@ static int xlp_spi_setup(struct spi_device *spi)
 	u32 fdiv, cfg;
 	int cs;
 
-	xspi = spi_master_get_devdata(spi->master);
+	xspi = spi_controller_get_devdata(spi->controller);
 	cs = spi_get_chipselect(spi, 0);
 	/*
 	 * The value of fdiv must be between 4 and 65535.
@@ -343,17 +343,17 @@ static int xlp_spi_txrx_bufs(struct xlp_spi_priv *xs, struct spi_transfer *t)
 	return bytesleft;
 }
 
-static int xlp_spi_transfer_one(struct spi_master *master,
+static int xlp_spi_transfer_one(struct spi_controller *host,
 					struct spi_device *spi,
 					struct spi_transfer *t)
 {
-	struct xlp_spi_priv *xspi = spi_master_get_devdata(master);
+	struct xlp_spi_priv *xspi = spi_controller_get_devdata(host);
 	int ret = 0;
 
 	xspi->cs = spi_get_chipselect(spi, 0);
 	xspi->dev = spi->dev;
 
-	if (spi_transfer_is_last(master, t))
+	if (spi_transfer_is_last(host, t))
 		xspi->cmd_cont = 0;
 	else
 		xspi->cmd_cont = 1;
@@ -361,13 +361,13 @@ static int xlp_spi_transfer_one(struct spi_master *master,
 	if (xlp_spi_txrx_bufs(xspi, t))
 		ret = -EIO;
 
-	spi_finalize_current_transfer(master);
+	spi_finalize_current_transfer(host);
 	return ret;
 }
 
 static int xlp_spi_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct xlp_spi_priv *xspi;
 	struct clk *clk;
 	int irq, err;
@@ -398,28 +398,28 @@ static int xlp_spi_probe(struct platform_device *pdev)
 
 	xspi->spi_clk = clk_get_rate(clk);
 
-	master = spi_alloc_master(&pdev->dev, 0);
-	if (!master) {
-		dev_err(&pdev->dev, "could not alloc master\n");
+	host = spi_alloc_host(&pdev->dev, 0);
+	if (!host) {
+		dev_err(&pdev->dev, "could not alloc host\n");
 		return -ENOMEM;
 	}
 
-	master->bus_num = 0;
-	master->num_chipselect = XLP_SPI_MAX_CS;
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-	master->setup = xlp_spi_setup;
-	master->transfer_one = xlp_spi_transfer_one;
-	master->dev.of_node = pdev->dev.of_node;
+	host->bus_num = 0;
+	host->num_chipselect = XLP_SPI_MAX_CS;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	host->setup = xlp_spi_setup;
+	host->transfer_one = xlp_spi_transfer_one;
+	host->dev.of_node = pdev->dev.of_node;
 
 	init_completion(&xspi->done);
-	spi_master_set_devdata(master, xspi);
+	spi_controller_set_devdata(host, xspi);
 	xlp_spi_sysctl_setup(xspi);
 
 	/* register spi controller */
-	err = devm_spi_register_master(&pdev->dev, master);
+	err = devm_spi_register_controller(&pdev->dev, host);
 	if (err) {
-		dev_err(&pdev->dev, "spi register master failed!\n");
-		spi_master_put(master);
+		dev_err(&pdev->dev, "spi register host failed!\n");
+		spi_controller_put(host);
 		return err;
 	}
 

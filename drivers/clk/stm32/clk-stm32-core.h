@@ -70,14 +70,11 @@ struct stm32_rcc_match_data {
 	const struct clock_config	*tab_clocks;
 	unsigned int			maxbinding;
 	struct clk_stm32_clock_data	*clock_data;
-	u32				clear_offset;
+	struct clk_stm32_reset_data	*reset_data;
 	int (*check_security)(void __iomem *base,
 			      const struct clock_config *cfg);
 	int (*multi_mux)(void __iomem *base, const struct clock_config *cfg);
 };
-
-int stm32_rcc_reset_init(struct device *dev, const struct of_device_id *match,
-			 void __iomem *base);
 
 int stm32_rcc_init(struct device *dev, const struct of_device_id *match_data,
 		   void __iomem *base);

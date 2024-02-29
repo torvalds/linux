@@ -320,11 +320,10 @@ static int static_replicator_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int static_replicator_remove(struct platform_device *pdev)
+static void static_replicator_remove(struct platform_device *pdev)
 {
 	replicator_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -373,7 +372,7 @@ MODULE_DEVICE_TABLE(acpi, static_replicator_acpi_ids);
 
 static struct platform_driver static_replicator_driver = {
 	.probe          = static_replicator_probe,
-	.remove         = static_replicator_remove,
+	.remove_new     = static_replicator_remove,
 	.driver         = {
 		.name   = "coresight-static-replicator",
 		/* THIS_MODULE is taken care of by platform_driver_register() */

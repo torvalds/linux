@@ -63,6 +63,7 @@ static struct cxl_mem_command cxl_mem_commands[CXL_MEM_COMMAND_ID_MAX] = {
 	CXL_CMD(GET_SHUTDOWN_STATE, 0, 0x1, 0),
 	CXL_CMD(SET_SHUTDOWN_STATE, 0x1, 0, 0),
 	CXL_CMD(GET_SCAN_MEDIA_CAPS, 0x10, 0x4, 0),
+	CXL_CMD(GET_TIMESTAMP, 0, 0x8, 0),
 };
 
 /*
@@ -836,54 +837,37 @@ out:
 }
 EXPORT_SYMBOL_NS_GPL(cxl_enumerate_cmds, CXL);
 
-/*
- * General Media Event Record
- * CXL rev 3.0 Section 8.2.9.2.1.1; Table 8-43
- */
-static const uuid_t gen_media_event_uuid =
-	UUID_INIT(0xfbcd0a77, 0xc260, 0x417f,
-		  0x85, 0xa9, 0x08, 0x8b, 0x16, 0x21, 0xeb, 0xa6);
-
-/*
- * DRAM Event Record
- * CXL rev 3.0 section 8.2.9.2.1.2; Table 8-44
- */
-static const uuid_t dram_event_uuid =
-	UUID_INIT(0x601dcbb3, 0x9c06, 0x4eab,
-		  0xb8, 0xaf, 0x4e, 0x9b, 0xfb, 0x5c, 0x96, 0x24);
-
-/*
- * Memory Module Event Record
- * CXL rev 3.0 section 8.2.9.2.1.3; Table 8-45
- */
-static const uuid_t mem_mod_event_uuid =
-	UUID_INIT(0xfe927475, 0xdd59, 0x4339,
-		  0xa5, 0x86, 0x79, 0xba, 0xb1, 0x13, 0xb7, 0x74);
-
-static void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
-				   enum cxl_event_log_type type,
-				   struct cxl_event_record_raw *record)
+void cxl_event_trace_record(const struct cxl_memdev *cxlmd,
+			    enum cxl_event_log_type type,
+			    enum cxl_event_type event_type,
+			    const uuid_t *uuid, union cxl_event *evt)
 {
-	uuid_t *id = &record->hdr.id;
+	if (event_type == CXL_CPER_EVENT_GEN_MEDIA)
+		trace_cxl_general_media(cxlmd, type, &evt->gen_media);
+	else if (event_type == CXL_CPER_EVENT_DRAM)
+		trace_cxl_dram(cxlmd, type, &evt->dram);
+	else if (event_type == CXL_CPER_EVENT_MEM_MODULE)
+		trace_cxl_memory_module(cxlmd, type, &evt->mem_module);
+	else
+		trace_cxl_generic_event(cxlmd, type, uuid, &evt->generic);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_event_trace_record, CXL);
 
-	if (uuid_equal(id, &gen_media_event_uuid)) {
-		struct cxl_event_gen_media *rec =
-				(struct cxl_event_gen_media *)record;
+static void __cxl_event_trace_record(const struct cxl_memdev *cxlmd,
+				     enum cxl_event_log_type type,
+				     struct cxl_event_record_raw *record)
+{
+	enum cxl_event_type ev_type = CXL_CPER_EVENT_GENERIC;
+	const uuid_t *uuid = &record->id;
 
-		trace_cxl_general_media(cxlmd, type, rec);
-	} else if (uuid_equal(id, &dram_event_uuid)) {
-		struct cxl_event_dram *rec = (struct cxl_event_dram *)record;
+	if (uuid_equal(uuid, &CXL_EVENT_GEN_MEDIA_UUID))
+		ev_type = CXL_CPER_EVENT_GEN_MEDIA;
+	else if (uuid_equal(uuid, &CXL_EVENT_DRAM_UUID))
+		ev_type = CXL_CPER_EVENT_DRAM;
+	else if (uuid_equal(uuid, &CXL_EVENT_MEM_MODULE_UUID))
+		ev_type = CXL_CPER_EVENT_MEM_MODULE;
 
-		trace_cxl_dram(cxlmd, type, rec);
-	} else if (uuid_equal(id, &mem_mod_event_uuid)) {
-		struct cxl_event_mem_module *rec =
-				(struct cxl_event_mem_module *)record;
-
-		trace_cxl_memory_module(cxlmd, type, rec);
-	} else {
-		/* For unknown record types print just the header */
-		trace_cxl_generic_event(cxlmd, type, record);
-	}
+	cxl_event_trace_record(cxlmd, type, ev_type, uuid, &record->event);
 }
 
 static int cxl_clear_event_record(struct cxl_memdev_state *mds,
@@ -926,7 +910,10 @@ static int cxl_clear_event_record(struct cxl_memdev_state *mds,
 	 */
 	i = 0;
 	for (cnt = 0; cnt < total; cnt++) {
-		payload->handles[i++] = get_pl->records[cnt].hdr.handle;
+		struct cxl_event_record_raw *raw = &get_pl->records[cnt];
+		struct cxl_event_generic *gen = &raw->event.generic;
+
+		payload->handles[i++] = gen->hdr.handle;
 		dev_dbg(mds->cxlds.dev, "Event log '%d': Clearing %u\n", log,
 			le16_to_cpu(payload->handles[i]));
 
@@ -991,8 +978,8 @@ static void cxl_mem_get_records_log(struct cxl_memdev_state *mds,
 			break;
 
 		for (i = 0; i < nr_rec; i++)
-			cxl_event_trace_record(cxlmd, type,
-					       &payload->records[i]);
+			__cxl_event_trace_record(cxlmd, type,
+						 &payload->records[i]);
 
 		if (payload->flags & CXL_GET_EVENT_FLAG_OVERFLOW)
 			trace_cxl_overflow(cxlmd, type, payload);
@@ -1404,6 +1391,8 @@ struct cxl_memdev_state *cxl_memdev_state_create(struct device *dev)
 	mds->cxlds.reg_map.host = dev;
 	mds->cxlds.reg_map.resource = CXL_RESOURCE_NONE;
 	mds->cxlds.type = CXL_DEVTYPE_CLASSMEM;
+	mds->ram_perf.qos_class = CXL_QOS_CLASS_INVALID;
+	mds->pmem_perf.qos_class = CXL_QOS_CLASS_INVALID;
 
 	return mds;
 }

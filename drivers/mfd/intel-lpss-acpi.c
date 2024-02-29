@@ -8,14 +8,19 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/acpi.h>
+#include <linux/device.h>
+#include <linux/gfp_types.h>
 #include <linux/ioport.h>
-#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+
 #include <linux/pxa2xx_ssp.h>
+
+#include <asm/errno.h>
 
 #include "intel-lpss.h"
 
@@ -169,23 +174,20 @@ MODULE_DEVICE_TABLE(acpi, intel_lpss_acpi_ids);
 
 static int intel_lpss_acpi_probe(struct platform_device *pdev)
 {
+	const struct intel_lpss_platform_info *data;
 	struct intel_lpss_platform_info *info;
-	const struct acpi_device_id *id;
 	int ret;
 
-	id = acpi_match_device(intel_lpss_acpi_ids, &pdev->dev);
-	if (!id)
+	data = device_get_match_data(&pdev->dev);
+	if (!data)
 		return -ENODEV;
 
-	info = devm_kmemdup(&pdev->dev, (void *)id->driver_data, sizeof(*info),
-			    GFP_KERNEL);
+	info = devm_kmemdup(&pdev->dev, data, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
+	/* No need to check mem and irq here as intel_lpss_probe() does it for us */
 	info->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!info->mem)
-		return -ENODEV;
-
 	info->irq = platform_get_irq(pdev, 0);
 
 	ret = intel_lpss_probe(&pdev->dev, info);
@@ -198,23 +200,19 @@ static int intel_lpss_acpi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int intel_lpss_acpi_remove(struct platform_device *pdev)
+static void intel_lpss_acpi_remove(struct platform_device *pdev)
 {
 	intel_lpss_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
-
-	return 0;
 }
-
-static INTEL_LPSS_PM_OPS(intel_lpss_acpi_pm_ops);
 
 static struct platform_driver intel_lpss_acpi_driver = {
 	.probe = intel_lpss_acpi_probe,
-	.remove = intel_lpss_acpi_remove,
+	.remove_new = intel_lpss_acpi_remove,
 	.driver = {
 		.name = "intel-lpss",
 		.acpi_match_table = intel_lpss_acpi_ids,
-		.pm = &intel_lpss_acpi_pm_ops,
+		.pm = pm_ptr(&intel_lpss_pm_ops),
 	},
 };
 
@@ -224,3 +222,4 @@ MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
 MODULE_DESCRIPTION("Intel LPSS ACPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(INTEL_LPSS);

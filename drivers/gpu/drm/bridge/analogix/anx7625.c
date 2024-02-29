@@ -1762,6 +1762,7 @@ static ssize_t anx7625_aux_transfer(struct drm_dp_aux *aux,
 	u8 request = msg->request & ~DP_AUX_I2C_MOT;
 	int ret = 0;
 
+	mutex_lock(&ctx->aux_lock);
 	pm_runtime_get_sync(dev);
 	msg->reply = 0;
 	switch (request) {
@@ -1778,28 +1779,19 @@ static ssize_t anx7625_aux_transfer(struct drm_dp_aux *aux,
 					msg->size, msg->buffer);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
+	mutex_unlock(&ctx->aux_lock);
 
 	return ret;
 }
 
-static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
+static const struct drm_edid *anx7625_edid_read(struct anx7625_data *ctx)
 {
 	struct device *dev = ctx->dev;
 	struct s_edid_data *p_edid = &ctx->slimport_edid_p;
 	int edid_num;
-	u8 *edid;
 
-	edid = kmalloc(FOUR_BLOCK_SIZE, GFP_KERNEL);
-	if (!edid) {
-		DRM_DEV_ERROR(dev, "Fail to allocate buffer\n");
-		return NULL;
-	}
-
-	if (ctx->slimport_edid_p.edid_block_num > 0) {
-		memcpy(edid, ctx->slimport_edid_p.edid_raw_data,
-		       FOUR_BLOCK_SIZE);
-		return (struct edid *)edid;
-	}
+	if (ctx->slimport_edid_p.edid_block_num > 0)
+		goto out;
 
 	pm_runtime_get_sync(dev);
 	_anx7625_hpd_polling(ctx, 5000 * 100);
@@ -1808,14 +1800,14 @@ static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
 
 	if (edid_num < 1) {
 		DRM_DEV_ERROR(dev, "Fail to read EDID: %d\n", edid_num);
-		kfree(edid);
 		return NULL;
 	}
 
 	p_edid->edid_block_num = edid_num;
 
-	memcpy(edid, ctx->slimport_edid_p.edid_raw_data, FOUR_BLOCK_SIZE);
-	return (struct edid *)edid;
+out:
+	return drm_edid_alloc(ctx->slimport_edid_p.edid_raw_data,
+			      FOUR_BLOCK_SIZE);
 }
 
 static enum drm_connector_status anx7625_sink_detect(struct anx7625_data *ctx)
@@ -2474,7 +2466,9 @@ static void anx7625_bridge_atomic_disable(struct drm_bridge *bridge,
 	ctx->connector = NULL;
 	anx7625_dp_stop(ctx);
 
-	pm_runtime_put_sync(dev);
+	mutex_lock(&ctx->aux_lock);
+	pm_runtime_put_sync_suspend(dev);
+	mutex_unlock(&ctx->aux_lock);
 }
 
 static enum drm_connector_status
@@ -2488,15 +2482,15 @@ anx7625_bridge_detect(struct drm_bridge *bridge)
 	return anx7625_sink_detect(ctx);
 }
 
-static struct edid *anx7625_bridge_get_edid(struct drm_bridge *bridge,
-					    struct drm_connector *connector)
+static const struct drm_edid *anx7625_bridge_edid_read(struct drm_bridge *bridge,
+						       struct drm_connector *connector)
 {
 	struct anx7625_data *ctx = bridge_to_anx7625(bridge);
 	struct device *dev = ctx->dev;
 
 	DRM_DEV_DEBUG_DRIVER(dev, "drm bridge get edid\n");
 
-	return anx7625_get_edid(ctx);
+	return anx7625_edid_read(ctx);
 }
 
 static const struct drm_bridge_funcs anx7625_bridge_funcs = {
@@ -2511,7 +2505,7 @@ static const struct drm_bridge_funcs anx7625_bridge_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.detect = anx7625_bridge_detect,
-	.get_edid = anx7625_bridge_get_edid,
+	.edid_read = anx7625_bridge_edid_read,
 };
 
 static int anx7625_register_i2c_dummy_clients(struct anx7625_data *ctx,
@@ -2668,6 +2662,7 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 
 	mutex_init(&platform->lock);
 	mutex_init(&platform->hdcp_wq_lock);
+	mutex_init(&platform->aux_lock);
 
 	INIT_DELAYED_WORK(&platform->hdcp_work, hdcp_check_work_func);
 	platform->hdcp_workqueue = create_workqueue("hdcp workqueue");

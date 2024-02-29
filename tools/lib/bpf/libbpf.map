@@ -409,3 +409,6 @@ LIBBPF_1.3.0 {
 		ring__size;
 		ring_buffer__ring;
 } LIBBPF_1.2.0;
+
+LIBBPF_1.4.0 {
+} LIBBPF_1.3.0;

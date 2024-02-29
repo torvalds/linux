@@ -423,6 +423,15 @@ config COMMON_CLK_MT7986_ETHSYS
 	  This driver adds support for clocks for Ethernet and SGMII
 	  required on MediaTek MT7986 SoC.
 
+config COMMON_CLK_MT7988
+	tristate "Clock driver for MediaTek MT7988"
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	select COMMON_CLK_MEDIATEK
+	default ARCH_MEDIATEK
+	help
+	  This driver supports MediaTek MT7988 basic clocks and clocks
+	  required for various periperals found on this SoC.
+
 config COMMON_CLK_MT8135
 	tristate "Clock driver for MediaTek MT8135"
 	depends on (ARCH_MEDIATEK && ARM) || COMPILE_TEST

@@ -209,14 +209,17 @@ test_l2_miss_multicast()
 	# both registered and unregistered multicast traffic.
 	bridge link set dev $swp2 mcast_router 2
 
+	# Set the Max Response Delay to 100 centiseconds (1 second) so that the
+	# bridge will start forwarding according to its MDB soon after a
+	# multicast querier is enabled.
+	ip link set dev br1 type bridge mcast_query_response_interval 100
+
 	# Forwarding according to MDB entries only takes place when the bridge
 	# detects that there is a valid querier in the network. Set the bridge
 	# as the querier and assign it a valid IPv6 link-local address to be
 	# used as the source address for MLD queries.
 	ip link set dev br1 type bridge mcast_querier 1
 	ip -6 address add fe80::1/64 nodad dev br1
-	# Wait the default Query Response Interval (10 seconds) for the bridge
-	# to determine that there are no other queriers in the network.
 	sleep 10
 
 	test_l2_miss_multicast_ipv4
@@ -224,6 +227,7 @@ test_l2_miss_multicast()
 
 	ip -6 address del fe80::1/64 dev br1
 	ip link set dev br1 type bridge mcast_querier 0
+	ip link set dev br1 type bridge mcast_query_response_interval 1000
 	bridge link set dev $swp2 mcast_router 1
 }
 

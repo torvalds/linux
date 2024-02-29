@@ -750,6 +750,32 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	return 0;
 }
 
+int io_register_pbuf_status(struct io_ring_ctx *ctx, void __user *arg)
+{
+	struct io_uring_buf_status buf_status;
+	struct io_buffer_list *bl;
+	int i;
+
+	if (copy_from_user(&buf_status, arg, sizeof(buf_status)))
+		return -EFAULT;
+
+	for (i = 0; i < ARRAY_SIZE(buf_status.resv); i++)
+		if (buf_status.resv[i])
+			return -EINVAL;
+
+	bl = io_buffer_get_list(ctx, buf_status.buf_group);
+	if (!bl)
+		return -ENOENT;
+	if (!bl->is_mapped)
+		return -EINVAL;
+
+	buf_status.head = bl->head;
+	if (copy_to_user(arg, &buf_status, sizeof(buf_status)))
+		return -EFAULT;
+
+	return 0;
+}
+
 void *io_pbuf_get_address(struct io_ring_ctx *ctx, unsigned long bgid)
 {
 	struct io_buffer_list *bl;

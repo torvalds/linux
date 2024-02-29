@@ -3,7 +3,7 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc.
+// Copyright(c) 2021, 2023 Advanced Micro Devices, Inc.
 //
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
 //	    Vijendar Mukunda <Vijendar.Mukunda@amd.com>
@@ -282,6 +282,22 @@ static int acp_card_rt5682_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (drvdata->tdm_mode) {
+		ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL1, RT5682S_PLL_S_BCLK1,
+					  6144000, 49152000);
+		if (ret < 0) {
+			dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL1,
+					     49152000, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
+			return ret;
+		}
+	}
+
 	/* Set tdm/i2s1 master bclk ratio */
 	ret = snd_soc_dai_set_bclk_ratio(codec_dai, ch * format);
 	if (ret < 0) {
@@ -464,6 +480,22 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	if (drvdata->tdm_mode) {
+		ret = snd_soc_dai_set_pll(codec_dai, RT5682S_PLL1, RT5682S_PLL_S_BCLK1,
+					  6144000, 49152000);
+		if (ret < 0) {
+			dev_err(rtd->dev, "Failed to set codec PLL: %d\n", ret);
+			return ret;
+		}
+
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5682S_SCLK_S_PLL1,
+					     49152000, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(rtd->dev, "Failed to set codec SYSCLK: %d\n", ret);
+			return ret;
+		}
+	}
+
 	/* Set tdm/i2s1 master bclk ratio */
 	ret = snd_soc_dai_set_bclk_ratio(codec_dai, ch * format);
 	if (ret < 0) {
@@ -473,6 +505,13 @@ static int acp_card_rt5682s_hw_params(struct snd_pcm_substream *substream,
 
 	clk_set_rate(drvdata->wclk, srate);
 	clk_set_rate(drvdata->bclk, srate * ch * format);
+	if (!drvdata->soc_mclk) {
+		ret = acp_clk_enable(drvdata, srate, ch * format);
+		if (ret < 0) {
+			dev_err(rtd->card->dev, "Failed to enable HS clk: %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -1290,6 +1329,8 @@ SND_SOC_DAILINK_DEF(sof_hs,
 		    DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-hs")));
 SND_SOC_DAILINK_DEF(sof_hs_virtual,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-hs-virtual")));
+SND_SOC_DAILINK_DEF(sof_bt,
+		    DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-bt")));
 SND_SOC_DAILINK_DEF(sof_dmic,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-dmic")));
 SND_SOC_DAILINK_DEF(pdm_dmic,
@@ -1347,6 +1388,8 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	int i = 0, num_links = 0;
 
 	if (drv_data->hs_cpu_id)
+		num_links++;
+	if (drv_data->bt_cpu_id)
 		num_links++;
 	if (drv_data->amp_cpu_id)
 		num_links++;
@@ -1428,8 +1471,13 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 	if (drv_data->amp_cpu_id == I2S_SP) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
-		links[i].cpus = sof_sp_virtual;
-		links[i].num_cpus = ARRAY_SIZE(sof_sp_virtual);
+		if (drv_data->platform == RENOIR) {
+			links[i].cpus = sof_sp;
+			links[i].num_cpus = ARRAY_SIZE(sof_sp);
+		} else {
+			links[i].cpus = sof_sp_virtual;
+			links[i].num_cpus = ARRAY_SIZE(sof_sp_virtual);
+		}
 		links[i].platforms = sof_component;
 		links[i].num_platforms = ARRAY_SIZE(sof_component);
 		links[i].dpcm_playback = 1;
@@ -1479,6 +1527,7 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 			links[i].init = acp_card_maxim_init;
 		}
 		if (drv_data->amp_codec_id == MAX98388) {
+			links[i].dpcm_capture = 1;
 			links[i].codecs = max98388;
 			links[i].num_codecs = ARRAY_SIZE(max98388);
 			links[i].ops = &acp_max98388_ops;
@@ -1493,6 +1542,25 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 			links[i].init = acp_card_rt1019_init;
 			card->codec_conf = rt1019_conf;
 			card->num_configs = ARRAY_SIZE(rt1019_conf);
+		}
+		i++;
+	}
+
+	if (drv_data->bt_cpu_id == I2S_BT) {
+		links[i].name = "acp-bt-codec";
+		links[i].id = BT_BE_ID;
+		links[i].cpus = sof_bt;
+		links[i].num_cpus = ARRAY_SIZE(sof_bt);
+		links[i].platforms = sof_component;
+		links[i].num_platforms = ARRAY_SIZE(sof_component);
+		links[i].dpcm_playback = 1;
+		links[i].dpcm_capture = 1;
+		links[i].nonatomic = true;
+		links[i].no_pcm = 1;
+		if (!drv_data->bt_codec_id) {
+			/* Use dummy codec if codec id not specified */
+			links[i].codecs = &snd_soc_dummy_dlc;
+			links[i].num_codecs = 1;
 		}
 		i++;
 	}
@@ -1717,4 +1785,5 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 }
 EXPORT_SYMBOL_NS_GPL(acp_legacy_dai_links_create, SND_SOC_AMD_MACH);
 
+MODULE_DESCRIPTION("AMD ACP Common Machine driver");
 MODULE_LICENSE("GPL v2");

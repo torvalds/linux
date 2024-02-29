@@ -14,6 +14,7 @@ properties:
   compatible:
     enum:
       - adi,adt75
+      - ams,as6200
       - atmel,at30ts74
       - dallas,ds1775
       - dallas,ds75
@@ -48,9 +49,27 @@ properties:
   vs-supply:
     description: phandle to the regulator that provides the +VS supply
 
+  interrupts:
+    maxItems: 1
+
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - ams,as6200
+                - ti,tmp100
+                - ti,tmp101
+                - ti,tmp112
+    then:
+      properties:
+        interrupts: false
 
 additionalProperties: false
 
@@ -64,5 +83,19 @@ examples:
         compatible = "st,stlm75";
         reg = <0x48>;
         vs-supply = <&vs>;
+      };
+    };
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      temperature-sensor@48 {
+        compatible = "ams,as6200";
+        reg = <0x48>;
+        vs-supply = <&vs>;
+        interrupt-parent = <&gpio1>;
+        interrupts = <17 IRQ_TYPE_EDGE_BOTH>;
       };
     };

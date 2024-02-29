@@ -12,6 +12,7 @@
 
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
+#include <linux/rseq.h>
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/kernel.h>
@@ -149,10 +150,6 @@ static int restore_sigregs(struct pt_regs *regs, _sigregs __user *sregs)
 	if (!is_ri_task(current) && (user_sregs.regs.psw.mask & PSW_MASK_RI))
 		return -EINVAL;
 
-	/* Test the floating-point-control word. */
-	if (test_fp_ctl(user_sregs.fpregs.fpc))
-		return -EINVAL;
-
 	/* Use regs->psw.mask instead of PSW_USER_BITS to preserve PER bit. */
 	regs->psw.mask = (regs->psw.mask & ~(PSW_MASK_USER | PSW_MASK_RI)) |
 		(user_sregs.regs.psw.mask & (PSW_MASK_USER | PSW_MASK_RI));
@@ -182,7 +179,7 @@ static int save_sigregs_ext(struct pt_regs *regs,
 	int i;
 
 	/* Save vector registers to signal stack */
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		for (i = 0; i < __NUM_VXRS_LOW; i++)
 			vxrs[i] = current->thread.fpu.vxrs[i].low;
 		if (__copy_to_user(&sregs_ext->vxrs_low, vxrs,
@@ -202,7 +199,7 @@ static int restore_sigregs_ext(struct pt_regs *regs,
 	int i;
 
 	/* Restore vector registers from signal stack */
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		if (__copy_from_user(vxrs, &sregs_ext->vxrs_low,
 				     sizeof(sregs_ext->vxrs_low)) ||
 		    __copy_from_user(current->thread.fpu.vxrs + __NUM_VXRS_LOW,
@@ -300,7 +297,7 @@ static int setup_frame(int sig, struct k_sigaction *ka,
 	 * included in the signal frame on a 31-bit system.
 	 */
 	frame_size = sizeof(*frame) - sizeof(frame->sregs_ext);
-	if (MACHINE_HAS_VX)
+	if (cpu_has_vx())
 		frame_size += sizeof(frame->sregs_ext);
 	frame = get_sigframe(ka, regs, frame_size);
 	if (frame == (void __user *) -1UL)
@@ -377,7 +374,7 @@ static int setup_rt_frame(struct ksignal *ksig, sigset_t *set,
 	 * included in the signal frame on a 31-bit system.
 	 */
 	uc_flags = 0;
-	if (MACHINE_HAS_VX) {
+	if (cpu_has_vx()) {
 		frame_size += sizeof(_sigregs_ext);
 		uc_flags |= UC_VXRS;
 	}

@@ -700,7 +700,7 @@ static int pidfd_getfd(struct pid *pid, int fd)
 	if (IS_ERR(file))
 		return PTR_ERR(file);
 
-	ret = receive_fd(file, O_CLOEXEC);
+	ret = receive_fd(file, NULL, O_CLOEXEC);
 	fput(file);
 
 	return ret;

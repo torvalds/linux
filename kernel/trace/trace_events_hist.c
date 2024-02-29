@@ -4805,36 +4805,35 @@ static int parse_actions(struct hist_trigger_data *hist_data)
 	int len;
 
 	for (i = 0; i < hist_data->attrs->n_actions; i++) {
+		enum handler_id hid = 0;
+		char *action_str;
+
 		str = hist_data->attrs->action_str[i];
 
-		if ((len = str_has_prefix(str, "onmatch("))) {
-			char *action_str = str + len;
+		if ((len = str_has_prefix(str, "onmatch(")))
+			hid = HANDLER_ONMATCH;
+		else if ((len = str_has_prefix(str, "onmax(")))
+			hid = HANDLER_ONMAX;
+		else if ((len = str_has_prefix(str, "onchange(")))
+			hid = HANDLER_ONCHANGE;
 
+		action_str = str + len;
+
+		switch (hid) {
+		case HANDLER_ONMATCH:
 			data = onmatch_parse(tr, action_str);
-			if (IS_ERR(data)) {
-				ret = PTR_ERR(data);
-				break;
-			}
-		} else if ((len = str_has_prefix(str, "onmax("))) {
-			char *action_str = str + len;
+			break;
+		case HANDLER_ONMAX:
+		case HANDLER_ONCHANGE:
+			data = track_data_parse(hist_data, action_str, hid);
+			break;
+		default:
+			data = ERR_PTR(-EINVAL);
+			break;
+		}
 
-			data = track_data_parse(hist_data, action_str,
-						HANDLER_ONMAX);
-			if (IS_ERR(data)) {
-				ret = PTR_ERR(data);
-				break;
-			}
-		} else if ((len = str_has_prefix(str, "onchange("))) {
-			char *action_str = str + len;
-
-			data = track_data_parse(hist_data, action_str,
-						HANDLER_ONCHANGE);
-			if (IS_ERR(data)) {
-				ret = PTR_ERR(data);
-				break;
-			}
-		} else {
-			ret = -EINVAL;
+		if (IS_ERR(data)) {
+			ret = PTR_ERR(data);
 			break;
 		}
 
@@ -5623,10 +5622,12 @@ static int event_hist_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
-	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	ret = tracing_open_file_tr(inode, file);
 	if (ret)
 		return ret;
 
+	/* Clear private_data to avoid warning in single_open() */
+	file->private_data = NULL;
 	return single_open(file, hist_show, file);
 }
 
@@ -5634,7 +5635,7 @@ const struct file_operations event_hist_fops = {
 	.open = event_hist_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = single_release,
+	.release = tracing_single_release_file_tr,
 };
 
 #ifdef CONFIG_HIST_TRIGGERS_DEBUG
@@ -5900,10 +5901,12 @@ static int event_hist_debug_open(struct inode *inode, struct file *file)
 {
 	int ret;
 
-	ret = security_locked_down(LOCKDOWN_TRACEFS);
+	ret = tracing_open_file_tr(inode, file);
 	if (ret)
 		return ret;
 
+	/* Clear private_data to avoid warning in single_open() */
+	file->private_data = NULL;
 	return single_open(file, hist_debug_show, file);
 }
 
@@ -5911,7 +5914,7 @@ const struct file_operations event_hist_debug_fops = {
 	.open = event_hist_debug_open,
 	.read = seq_read,
 	.llseek = seq_lseek,
-	.release = single_release,
+	.release = tracing_single_release_file_tr,
 };
 #endif
 

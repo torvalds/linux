@@ -90,8 +90,7 @@ static int __net_init afs_net_init(struct net *net_ns)
 	INIT_LIST_HEAD(&net->fs_probe_slow);
 	INIT_HLIST_HEAD(&net->fs_proc);
 
-	INIT_HLIST_HEAD(&net->fs_addresses4);
-	INIT_HLIST_HEAD(&net->fs_addresses6);
+	INIT_HLIST_HEAD(&net->fs_addresses);
 	seqlock_init(&net->fs_addr_lock);
 
 	INIT_WORK(&net->fs_manager, afs_manage_servers);
@@ -156,6 +155,7 @@ static void __net_exit afs_net_exit(struct net *net_ns)
 	afs_close_socket(net);
 	afs_proc_cleanup(net);
 	afs_put_sysnames(net->sysnames);
+	kfree_rcu(rcu_access_pointer(net->address_prefs), rcu);
 }
 
 static struct pernet_operations afs_net_ops = {

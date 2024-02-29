@@ -3,6 +3,8 @@
  * Copyright 2020 Compass Electronics Group, LLC
  */
 
+#include "imx8mm-overdrive.dtsi"
+
 / {
 	aliases {
 		rtc0 = &rtc;

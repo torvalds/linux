@@ -868,7 +868,7 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bcm_uart_remove(struct platform_device *pdev)
+static void bcm_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 
@@ -876,7 +876,6 @@ static int bcm_uart_remove(struct platform_device *pdev)
 	uart_remove_one_port(&bcm_uart_driver, port);
 	/* mark port as free */
 	ports[pdev->id].membase = NULL;
-	return 0;
 }
 
 static const struct of_device_id bcm63xx_of_match[] = {
@@ -890,7 +889,7 @@ MODULE_DEVICE_TABLE(of, bcm63xx_of_match);
  */
 static struct platform_driver bcm_uart_platform_driver = {
 	.probe	= bcm_uart_probe,
-	.remove	= bcm_uart_remove,
+	.remove_new = bcm_uart_remove,
 	.driver	= {
 		.name  = "bcm63xx_uart",
 		.of_match_table = bcm63xx_of_match,

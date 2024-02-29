@@ -18,6 +18,16 @@
 #define IS_VDEC_LAT_ARCH(hw_arch) ((hw_arch) >= MTK_VDEC_LAT_SINGLE_CORE)
 #define IS_VDEC_INNER_RACING(capability) ((capability) & MTK_VCODEC_INNER_RACING)
 
+enum mtk_vcodec_dec_chip_name {
+	MTK_VDEC_INVAL = 0,
+	MTK_VDEC_MT8173 = 8173,
+	MTK_VDEC_MT8183 = 8183,
+	MTK_VDEC_MT8186 = 8186,
+	MTK_VDEC_MT8188 = 8188,
+	MTK_VDEC_MT8192 = 8192,
+	MTK_VDEC_MT8195 = 8195,
+};
+
 /*
  * enum mtk_vdec_format_types - Structure used to get supported
  *		  format types according to decoder capability
@@ -249,6 +259,8 @@ struct mtk_vcodec_dec_ctx {
  * @vdec_racing_info: record register value
  * @dec_racing_info_mutex: mutex lock used for inner racing mode
  * @dbgfs: debug log related information
+ *
+ * @chip_name: used to distinguish platforms and select the correct codec configuration values
  */
 struct mtk_vcodec_dec_dev {
 	struct v4l2_device v4l2_dev;
@@ -289,6 +301,8 @@ struct mtk_vcodec_dec_dev {
 	/* Protects access to vdec_racing_info data */
 	struct mutex dec_racing_info_mutex;
 	struct mtk_vcodec_dbgfs dbgfs;
+
+	enum mtk_vcodec_dec_chip_name chip_name;
 };
 
 static inline struct mtk_vcodec_dec_ctx *fh_to_dec_ctx(struct v4l2_fh *fh)

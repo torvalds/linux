@@ -66,7 +66,19 @@ static int sm8250_snd_startup(struct snd_pcm_substream *substream)
 	default:
 		break;
 	}
-	return 0;
+
+	return qcom_snd_sdw_startup(substream);
+}
+
+static void sm2450_snd_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = snd_soc_rtd_to_cpu(rtd, 0);
+	struct sm8250_snd_data *data = snd_soc_card_get_drvdata(rtd->card);
+	struct sdw_stream_runtime *sruntime = data->sruntime[cpu_dai->id];
+
+	data->sruntime[cpu_dai->id] = NULL;
+	sdw_release_stream(sruntime);
 }
 
 static int sm8250_snd_hw_params(struct snd_pcm_substream *substream,
@@ -103,6 +115,7 @@ static int sm8250_snd_hw_free(struct snd_pcm_substream *substream)
 
 static const struct snd_soc_ops sm8250_be_ops = {
 	.startup = sm8250_snd_startup,
+	.shutdown = sm2450_snd_shutdown,
 	.hw_params = sm8250_snd_hw_params,
 	.hw_free = sm8250_snd_hw_free,
 	.prepare = sm8250_snd_prepare,
@@ -169,4 +182,4 @@ static struct platform_driver snd_sm8250_driver = {
 module_platform_driver(snd_sm8250_driver);
 MODULE_AUTHOR("Srinivas Kandagatla <srinivas.kandagatla@linaro.org");
 MODULE_DESCRIPTION("SM8250 ASoC Machine Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

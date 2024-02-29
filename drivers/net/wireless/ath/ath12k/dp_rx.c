@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/ieee80211.h>
@@ -256,22 +256,20 @@ static int ath12k_dp_purge_mon_ring(struct ath12k_base *ab)
 }
 
 /* Returns number of Rx buffers replenished */
-int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab, int mac_id,
+int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab,
 				struct dp_rxdma_ring *rx_ring,
-				int req_entries,
-				enum hal_rx_buf_return_buf_manager mgr,
-				bool hw_cc)
+				int req_entries)
 {
 	struct ath12k_buffer_addr *desc;
 	struct hal_srng *srng;
 	struct sk_buff *skb;
 	int num_free;
 	int num_remain;
-	int buf_id;
 	u32 cookie;
 	dma_addr_t paddr;
 	struct ath12k_dp *dp = &ab->dp;
 	struct ath12k_rx_desc_info *rx_desc;
+	enum hal_rx_buf_return_buf_manager mgr = ab->hw_params->hal_params->rx_buf_rbm;
 
 	req_entries = min(req_entries, rx_ring->bufs_max);
 
@@ -307,41 +305,28 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab, int mac_id,
 		if (dma_mapping_error(ab->dev, paddr))
 			goto fail_free_skb;
 
-		if (hw_cc) {
-			spin_lock_bh(&dp->rx_desc_lock);
+		spin_lock_bh(&dp->rx_desc_lock);
 
-			/* Get desc from free list and store in used list
-			 * for cleanup purposes
-			 *
-			 * TODO: pass the removed descs rather than
-			 * add/read to optimize
-			 */
-			rx_desc = list_first_entry_or_null(&dp->rx_desc_free_list,
-							   struct ath12k_rx_desc_info,
-							   list);
-			if (!rx_desc) {
-				spin_unlock_bh(&dp->rx_desc_lock);
-				goto fail_dma_unmap;
-			}
-
-			rx_desc->skb = skb;
-			cookie = rx_desc->cookie;
-			list_del(&rx_desc->list);
-			list_add_tail(&rx_desc->list, &dp->rx_desc_used_list);
-
+		/* Get desc from free list and store in used list
+		 * for cleanup purposes
+		 *
+		 * TODO: pass the removed descs rather than
+		 * add/read to optimize
+		 */
+		rx_desc = list_first_entry_or_null(&dp->rx_desc_free_list,
+						   struct ath12k_rx_desc_info,
+						   list);
+		if (!rx_desc) {
 			spin_unlock_bh(&dp->rx_desc_lock);
-		} else {
-			spin_lock_bh(&rx_ring->idr_lock);
-			buf_id = idr_alloc(&rx_ring->bufs_idr, skb, 0,
-					   rx_ring->bufs_max * 3, GFP_ATOMIC);
-			spin_unlock_bh(&rx_ring->idr_lock);
-			if (buf_id < 0)
-				goto fail_dma_unmap;
-			cookie = u32_encode_bits(mac_id,
-						 DP_RXDMA_BUF_COOKIE_PDEV_ID) |
-				 u32_encode_bits(buf_id,
-						 DP_RXDMA_BUF_COOKIE_BUF_ID);
+			goto fail_dma_unmap;
 		}
+
+		rx_desc->skb = skb;
+		cookie = rx_desc->cookie;
+		list_del(&rx_desc->list);
+		list_add_tail(&rx_desc->list, &dp->rx_desc_used_list);
+
+		spin_unlock_bh(&dp->rx_desc_lock);
 
 		desc = ath12k_hal_srng_src_get_next_entry(ab, srng);
 		if (!desc)
@@ -361,17 +346,11 @@ int ath12k_dp_rx_bufs_replenish(struct ath12k_base *ab, int mac_id,
 	return req_entries - num_remain;
 
 fail_buf_unassign:
-	if (hw_cc) {
-		spin_lock_bh(&dp->rx_desc_lock);
-		list_del(&rx_desc->list);
-		list_add_tail(&rx_desc->list, &dp->rx_desc_free_list);
-		rx_desc->skb = NULL;
-		spin_unlock_bh(&dp->rx_desc_lock);
-	} else {
-		spin_lock_bh(&rx_ring->idr_lock);
-		idr_remove(&rx_ring->bufs_idr, buf_id);
-		spin_unlock_bh(&rx_ring->idr_lock);
-	}
+	spin_lock_bh(&dp->rx_desc_lock);
+	list_del(&rx_desc->list);
+	list_add_tail(&rx_desc->list, &dp->rx_desc_free_list);
+	rx_desc->skb = NULL;
+	spin_unlock_bh(&dp->rx_desc_lock);
 fail_dma_unmap:
 	dma_unmap_single(ab->dev, paddr, skb->len + skb_tailroom(skb),
 			 DMA_FROM_DEVICE);
@@ -385,8 +364,8 @@ fail_free_skb:
 	return req_entries - num_remain;
 }
 
-static int ath12k_dp_rxdma_buf_ring_free(struct ath12k_base *ab,
-					 struct dp_rxdma_ring *rx_ring)
+static int ath12k_dp_rxdma_mon_buf_ring_free(struct ath12k_base *ab,
+					     struct dp_rxdma_mon_ring *rx_ring)
 {
 	struct sk_buff *skb;
 	int buf_id;
@@ -411,22 +390,17 @@ static int ath12k_dp_rxdma_buf_ring_free(struct ath12k_base *ab,
 static int ath12k_dp_rxdma_buf_free(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
-	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 
-	ath12k_dp_rxdma_buf_ring_free(ab, rx_ring);
+	ath12k_dp_rxdma_mon_buf_ring_free(ab, &dp->rxdma_mon_buf_ring);
 
-	rx_ring = &dp->rxdma_mon_buf_ring;
-	ath12k_dp_rxdma_buf_ring_free(ab, rx_ring);
-
-	rx_ring = &dp->tx_mon_buf_ring;
-	ath12k_dp_rxdma_buf_ring_free(ab, rx_ring);
+	ath12k_dp_rxdma_mon_buf_ring_free(ab, &dp->tx_mon_buf_ring);
 
 	return 0;
 }
 
-static int ath12k_dp_rxdma_ring_buf_setup(struct ath12k_base *ab,
-					  struct dp_rxdma_ring *rx_ring,
-					  u32 ringtype)
+static int ath12k_dp_rxdma_mon_ring_buf_setup(struct ath12k_base *ab,
+					      struct dp_rxdma_mon_ring *rx_ring,
+					      u32 ringtype)
 {
 	int num_entries;
 
@@ -434,23 +408,31 @@ static int ath12k_dp_rxdma_ring_buf_setup(struct ath12k_base *ab,
 		ath12k_hal_srng_get_entrysize(ab, ringtype);
 
 	rx_ring->bufs_max = num_entries;
-	if ((ringtype == HAL_RXDMA_MONITOR_BUF) || (ringtype == HAL_TX_MONITOR_BUF))
-		ath12k_dp_mon_buf_replenish(ab, rx_ring, num_entries);
-	else
-		ath12k_dp_rx_bufs_replenish(ab, 0, rx_ring, num_entries,
-					    ab->hw_params->hal_params->rx_buf_rbm,
-					    ringtype == HAL_RXDMA_BUF);
+	ath12k_dp_mon_buf_replenish(ab, rx_ring, num_entries);
+
+	return 0;
+}
+
+static int ath12k_dp_rxdma_ring_buf_setup(struct ath12k_base *ab,
+					  struct dp_rxdma_ring *rx_ring)
+{
+	int num_entries;
+
+	num_entries = rx_ring->refill_buf_ring.size /
+		ath12k_hal_srng_get_entrysize(ab, HAL_RXDMA_BUF);
+
+	rx_ring->bufs_max = num_entries;
+	ath12k_dp_rx_bufs_replenish(ab, rx_ring, num_entries);
+
 	return 0;
 }
 
 static int ath12k_dp_rxdma_buf_setup(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
-	struct dp_rxdma_ring *rx_ring = &dp->rx_refill_buf_ring;
 	int ret;
 
-	ret = ath12k_dp_rxdma_ring_buf_setup(ab, rx_ring,
-					     HAL_RXDMA_BUF);
+	ret = ath12k_dp_rxdma_ring_buf_setup(ab, &dp->rx_refill_buf_ring);
 	if (ret) {
 		ath12k_warn(ab,
 			    "failed to setup HAL_RXDMA_BUF\n");
@@ -458,18 +440,18 @@ static int ath12k_dp_rxdma_buf_setup(struct ath12k_base *ab)
 	}
 
 	if (ab->hw_params->rxdma1_enable) {
-		rx_ring = &dp->rxdma_mon_buf_ring;
-		ret = ath12k_dp_rxdma_ring_buf_setup(ab, rx_ring,
-						     HAL_RXDMA_MONITOR_BUF);
+		ret = ath12k_dp_rxdma_mon_ring_buf_setup(ab,
+							 &dp->rxdma_mon_buf_ring,
+							 HAL_RXDMA_MONITOR_BUF);
 		if (ret) {
 			ath12k_warn(ab,
 				    "failed to setup HAL_RXDMA_MONITOR_BUF\n");
 			return ret;
 		}
 
-		rx_ring = &dp->tx_mon_buf_ring;
-		ret = ath12k_dp_rxdma_ring_buf_setup(ab, rx_ring,
-						     HAL_TX_MONITOR_BUF);
+		ret = ath12k_dp_rxdma_mon_ring_buf_setup(ab,
+							 &dp->tx_mon_buf_ring,
+							 HAL_TX_MONITOR_BUF);
 		if (ret) {
 			ath12k_warn(ab,
 				    "failed to setup HAL_TX_MONITOR_BUF\n");
@@ -1338,9 +1320,6 @@ ath12k_update_per_peer_tx_stats(struct ath12k *ar,
 	u32 tx_duration = 0;
 	u8 tid = HTT_PPDU_STATS_NON_QOS_TID;
 	bool is_ampdu = false;
-
-	if (!usr_stats)
-		return;
 
 	if (!(usr_stats->tlv_flags & BIT(HTT_PPDU_STATS_TAG_USR_RATE)))
 		return;
@@ -2438,7 +2417,7 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 	spin_unlock_bh(&ab->base_lock);
 
 	ath12k_dbg(ab, ATH12K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %d %s sn %u %s%s%s%s%s%s%s%s rate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %pK len %u peer %pM %d %s sn %u %s%s%s%s%s%s%s%s%s rate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
 		   peer ? peer->addr : NULL,
@@ -2452,6 +2431,7 @@ static void ath12k_dp_rx_deliver_msdu(struct ath12k *ar, struct napi_struct *nap
 		   (status->bw == RATE_INFO_BW_40) ? "40" : "",
 		   (status->bw == RATE_INFO_BW_80) ? "80" : "",
 		   (status->bw == RATE_INFO_BW_160) ? "160" : "",
+		   (status->bw == RATE_INFO_BW_320) ? "320" : "",
 		   status->enc_flags & RX_ENC_FLAG_SHORT_GI ? "sgi " : "",
 		   status->rate_idx,
 		   status->nss,
@@ -2714,9 +2694,7 @@ try_again:
 	if (!total_msdu_reaped)
 		goto exit;
 
-	/* TODO: Move to implicit BM? */
-	ath12k_dp_rx_bufs_replenish(ab, 0, rx_ring, num_buffs_reaped,
-				    ab->hw_params->hal_params->rx_buf_rbm, true);
+	ath12k_dp_rx_bufs_replenish(ab, rx_ring, num_buffs_reaped);
 
 	ath12k_dp_rx_process_received_packets(ab, napi, &msdu_list,
 					      ring_id);
@@ -3494,8 +3472,7 @@ exit:
 
 	rx_ring = &dp->rx_refill_buf_ring;
 
-	ath12k_dp_rx_bufs_replenish(ab, 0, rx_ring, tot_n_bufs_reaped,
-				    ab->hw_params->hal_params->rx_buf_rbm, true);
+	ath12k_dp_rx_bufs_replenish(ab, rx_ring, tot_n_bufs_reaped);
 
 	return tot_n_bufs_reaped;
 }
@@ -3808,8 +3785,7 @@ int ath12k_dp_rx_process_wbm_err(struct ath12k_base *ab,
 	if (!num_buffs_reaped)
 		goto done;
 
-	ath12k_dp_rx_bufs_replenish(ab, 0, rx_ring, num_buffs_reaped,
-				    ab->hw_params->hal_params->rx_buf_rbm, true);
+	ath12k_dp_rx_bufs_replenish(ab, rx_ring, num_buffs_reaped);
 
 	rcu_read_lock();
 	for (i = 0; i <  ab->num_radios; i++) {
@@ -4089,9 +4065,6 @@ int ath12k_dp_rx_alloc(struct ath12k_base *ab)
 {
 	struct ath12k_dp *dp = &ab->dp;
 	int i, ret;
-
-	idr_init(&dp->rx_refill_buf_ring.bufs_idr);
-	spin_lock_init(&dp->rx_refill_buf_ring.idr_lock);
 
 	idr_init(&dp->rxdma_mon_buf_ring.bufs_idr);
 	spin_lock_init(&dp->rxdma_mon_buf_ring.idr_lock);

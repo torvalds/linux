@@ -13,13 +13,13 @@
 #define _LINUX_HRTIMER_H
 
 #include <linux/hrtimer_defs.h>
-#include <linux/rbtree.h>
+#include <linux/hrtimer_types.h>
 #include <linux/init.h>
 #include <linux/list.h>
-#include <linux/percpu.h>
+#include <linux/percpu-defs.h>
+#include <linux/rbtree.h>
 #include <linux/seqlock.h>
 #include <linux/timer.h>
-#include <linux/timerqueue.h>
 
 struct hrtimer_clock_base;
 struct hrtimer_cpu_base;
@@ -60,14 +60,6 @@ enum hrtimer_mode {
 };
 
 /*
- * Return values for the callback function
- */
-enum hrtimer_restart {
-	HRTIMER_NORESTART,	/* Timer is not restarted */
-	HRTIMER_RESTART,	/* Timer must be restarted */
-};
-
-/*
  * Values to track state of the timer
  *
  * Possible states:
@@ -93,38 +85,6 @@ enum hrtimer_restart {
  */
 #define HRTIMER_STATE_INACTIVE	0x00
 #define HRTIMER_STATE_ENQUEUED	0x01
-
-/**
- * struct hrtimer - the basic hrtimer structure
- * @node:	timerqueue node, which also manages node.expires,
- *		the absolute expiry time in the hrtimers internal
- *		representation. The time is related to the clock on
- *		which the timer is based. Is setup by adding
- *		slack to the _softexpires value. For non range timers
- *		identical to _softexpires.
- * @_softexpires: the absolute earliest expiry time of the hrtimer.
- *		The time which was given as expiry time when the timer
- *		was armed.
- * @function:	timer expiry callback function
- * @base:	pointer to the timer base (per cpu and per clock)
- * @state:	state information (See bit values above)
- * @is_rel:	Set if the timer was armed relative
- * @is_soft:	Set if hrtimer will be expired in soft interrupt context.
- * @is_hard:	Set if hrtimer will be expired in hard interrupt context
- *		even on RT.
- *
- * The hrtimer structure must be initialized by hrtimer_init()
- */
-struct hrtimer {
-	struct timerqueue_node		node;
-	ktime_t				_softexpires;
-	enum hrtimer_restart		(*function)(struct hrtimer *);
-	struct hrtimer_clock_base	*base;
-	u8				state;
-	u8				is_rel;
-	u8				is_soft;
-	u8				is_hard;
-};
 
 /**
  * struct hrtimer_sleeper - simple sleeper structure
@@ -197,6 +157,7 @@ enum  hrtimer_base_type {
  * @max_hang_time:	Maximum time spent in hrtimer_interrupt
  * @softirq_expiry_lock: Lock which is taken while softirq based hrtimer are
  *			 expired
+ * @online:		CPU is online from an hrtimers point of view
  * @timer_waiters:	A hrtimer_cancel() invocation waits for the timer
  *			callback to finish.
  * @expires_next:	absolute time of the next event, is required for remote
@@ -219,7 +180,8 @@ struct hrtimer_cpu_base {
 	unsigned int			hres_active		: 1,
 					in_hrtirq		: 1,
 					hang_detected		: 1,
-					softirq_activated       : 1;
+					softirq_activated       : 1,
+					online			: 1;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	unsigned int			nr_events;
 	unsigned short			nr_retries;

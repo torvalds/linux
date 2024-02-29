@@ -1072,7 +1072,7 @@ static void seccomp_handle_addfd(struct seccomp_kaddfd *addfd, struct seccomp_kn
 	 */
 	list_del_init(&addfd->list);
 	if (!addfd->setfd)
-		fd = receive_fd(addfd->file, addfd->flags);
+		fd = receive_fd(addfd->file, NULL, addfd->flags);
 	else
 		fd = receive_fd_replace(addfd->fd, addfd->file, addfd->flags);
 	addfd->ret = fd;

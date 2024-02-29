@@ -12,14 +12,13 @@
  * Kevin Chea
  */
 
+#include <linux/bits.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqchip/xtensa-pic.h>
 #include <linux/of.h>
-
-unsigned int cached_irq_mask;
 
 /*
  * Device Tree IRQ specifier translation function which works with one or
@@ -44,34 +43,30 @@ static const struct irq_domain_ops xtensa_irq_domain_ops = {
 
 static void xtensa_irq_mask(struct irq_data *d)
 {
-	cached_irq_mask &= ~(1 << d->hwirq);
-	xtensa_set_sr(cached_irq_mask, intenable);
+	u32 irq_mask;
+
+	irq_mask = xtensa_get_sr(intenable);
+	irq_mask &= ~BIT(d->hwirq);
+	xtensa_set_sr(irq_mask, intenable);
 }
 
 static void xtensa_irq_unmask(struct irq_data *d)
 {
-	cached_irq_mask |= 1 << d->hwirq;
-	xtensa_set_sr(cached_irq_mask, intenable);
-}
+	u32 irq_mask;
 
-static void xtensa_irq_enable(struct irq_data *d)
-{
-	xtensa_irq_unmask(d);
-}
-
-static void xtensa_irq_disable(struct irq_data *d)
-{
-	xtensa_irq_mask(d);
+	irq_mask = xtensa_get_sr(intenable);
+	irq_mask |= BIT(d->hwirq);
+	xtensa_set_sr(irq_mask, intenable);
 }
 
 static void xtensa_irq_ack(struct irq_data *d)
 {
-	xtensa_set_sr(1 << d->hwirq, intclear);
+	xtensa_set_sr(BIT(d->hwirq), intclear);
 }
 
 static int xtensa_irq_retrigger(struct irq_data *d)
 {
-	unsigned int mask = 1u << d->hwirq;
+	unsigned int mask = BIT(d->hwirq);
 
 	if (WARN_ON(mask & ~XCHAL_INTTYPE_MASK_SOFTWARE))
 		return 0;
@@ -81,8 +76,6 @@ static int xtensa_irq_retrigger(struct irq_data *d)
 
 static struct irq_chip xtensa_irq_chip = {
 	.name		= "xtensa",
-	.irq_enable	= xtensa_irq_enable,
-	.irq_disable	= xtensa_irq_disable,
 	.irq_mask	= xtensa_irq_mask,
 	.irq_unmask	= xtensa_irq_unmask,
 	.irq_ack	= xtensa_irq_ack,

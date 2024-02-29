@@ -355,7 +355,7 @@ static void l1d_flush_evaluate(unsigned long prev_mm, unsigned long next_mm,
 
 	/*
 	 * Validate that it is not running on an SMT sibling as this would
-	 * make the excercise pointless because the siblings share L1D. If
+	 * make the exercise pointless because the siblings share L1D. If
 	 * it runs on a SMT sibling, notify it with SIGBUS on return to
 	 * user/guest
 	 */

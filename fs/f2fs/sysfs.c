@@ -143,6 +143,33 @@ static ssize_t pending_discard_show(struct f2fs_attr *a,
 				&SM_I(sbi)->dcc_info->discard_cmd_cnt));
 }
 
+static ssize_t issued_discard_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	if (!SM_I(sbi)->dcc_info)
+		return -EINVAL;
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)atomic_read(
+				&SM_I(sbi)->dcc_info->issued_discard));
+}
+
+static ssize_t queued_discard_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	if (!SM_I(sbi)->dcc_info)
+		return -EINVAL;
+	return sysfs_emit(buf, "%llu\n", (unsigned long long)atomic_read(
+				&SM_I(sbi)->dcc_info->queued_discard));
+}
+
+static ssize_t undiscard_blks_show(struct f2fs_attr *a,
+		struct f2fs_sb_info *sbi, char *buf)
+{
+	if (!SM_I(sbi)->dcc_info)
+		return -EINVAL;
+	return sysfs_emit(buf, "%u\n",
+				SM_I(sbi)->dcc_info->undiscard_blks);
+}
+
 static ssize_t gc_mode_show(struct f2fs_attr *a,
 		struct f2fs_sb_info *sbi, char *buf)
 {
@@ -516,6 +543,13 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "discard_io_aware")) {
+		if (t >= DPOLICY_IO_AWARE_MAX)
+			return -EINVAL;
+		*ui = t;
+		return count;
+	}
+
 	if (!strcmp(a->attr.name, "migration_granularity")) {
 		if (t == 0 || t > sbi->segs_per_sec)
 			return -EINVAL;
@@ -734,6 +768,13 @@ out:
 		return count;
 	}
 
+	if (!strcmp(a->attr.name, "dir_level")) {
+		if (t > MAX_DIR_HASH_DEPTH)
+			return -EINVAL;
+		sbi->dir_level = t;
+		return count;
+	}
+
 	*ui = (unsigned int)t;
 
 	return count;
@@ -926,6 +967,7 @@ DCC_INFO_GENERAL_RW_ATTR(discard_io_aware_gran);
 DCC_INFO_GENERAL_RW_ATTR(discard_urgent_util);
 DCC_INFO_GENERAL_RW_ATTR(discard_granularity);
 DCC_INFO_GENERAL_RW_ATTR(max_ordered_discard);
+DCC_INFO_GENERAL_RW_ATTR(discard_io_aware);
 
 /* NM_INFO ATTR */
 NM_INFO_RW_ATTR(max_roll_forward_node_blocks, max_rf_node_blocks);
@@ -1074,6 +1116,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(discard_urgent_util),
 	ATTR_LIST(discard_granularity),
 	ATTR_LIST(max_ordered_discard),
+	ATTR_LIST(discard_io_aware),
 	ATTR_LIST(pending_discard),
 	ATTR_LIST(gc_mode),
 	ATTR_LIST(ipu_policy),
@@ -1197,9 +1240,16 @@ ATTRIBUTE_GROUPS(f2fs_feat);
 
 F2FS_GENERAL_RO_ATTR(sb_status);
 F2FS_GENERAL_RO_ATTR(cp_status);
+F2FS_GENERAL_RO_ATTR(issued_discard);
+F2FS_GENERAL_RO_ATTR(queued_discard);
+F2FS_GENERAL_RO_ATTR(undiscard_blks);
+
 static struct attribute *f2fs_stat_attrs[] = {
 	ATTR_LIST(sb_status),
 	ATTR_LIST(cp_status),
+	ATTR_LIST(issued_discard),
+	ATTR_LIST(queued_discard),
+	ATTR_LIST(undiscard_blks),
 	NULL,
 };
 ATTRIBUTE_GROUPS(f2fs_stat);

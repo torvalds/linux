@@ -954,7 +954,7 @@ static int mipi_csis_s_stream(struct v4l2_subdev *sd, int enable)
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
 
-	format = v4l2_subdev_get_pad_format(sd, state, CSIS_PAD_SINK);
+	format = v4l2_subdev_state_get_format(state, CSIS_PAD_SINK);
 	csis_fmt = find_csis_format(format->code);
 
 	ret = mipi_csis_calculate_params(csis, csis_fmt);
@@ -1002,7 +1002,7 @@ static int mipi_csis_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index > 0)
 			return -EINVAL;
 
-		fmt = v4l2_subdev_get_pad_format(sd, sd_state, code->pad);
+		fmt = v4l2_subdev_state_get_format(sd_state, code->pad);
 		code->code = fmt->code;
 		return 0;
 	}
@@ -1069,7 +1069,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 			      &sdformat->format.height, 1,
 			      CSIS_MAX_PIX_HEIGHT, 0, 0);
 
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, sdformat->pad);
+	fmt = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 
 	fmt->code = csis_fmt->code;
 	fmt->width = sdformat->format.width;
@@ -1083,7 +1083,7 @@ static int mipi_csis_set_fmt(struct v4l2_subdev *sd,
 	sdformat->format = *fmt;
 
 	/* Propagate the format from sink to source. */
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, CSIS_PAD_SOURCE);
+	fmt = v4l2_subdev_state_get_format(sd_state, CSIS_PAD_SOURCE);
 	*fmt = sdformat->format;
 
 	/* The format on the source pad might change due to unpacking. */
@@ -1104,7 +1104,7 @@ static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 		return -EINVAL;
 
 	state = v4l2_subdev_lock_and_get_active_state(sd);
-	fmt = v4l2_subdev_get_pad_format(sd, state, CSIS_PAD_SOURCE);
+	fmt = v4l2_subdev_state_get_format(state, CSIS_PAD_SOURCE);
 	csis_fmt = find_csis_format(fmt->code);
 	v4l2_subdev_unlock_state(state);
 
@@ -1122,8 +1122,8 @@ static int mipi_csis_get_frame_desc(struct v4l2_subdev *sd, unsigned int pad,
 	return 0;
 }
 
-static int mipi_csis_init_cfg(struct v4l2_subdev *sd,
-			      struct v4l2_subdev_state *sd_state)
+static int mipi_csis_init_state(struct v4l2_subdev *sd,
+				struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_subdev_format fmt = {
 		.pad = CSIS_PAD_SINK,
@@ -1163,7 +1163,6 @@ static const struct v4l2_subdev_video_ops mipi_csis_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mipi_csis_pad_ops = {
-	.init_cfg		= mipi_csis_init_cfg,
 	.enum_mbus_code		= mipi_csis_enum_mbus_code,
 	.get_fmt		= v4l2_subdev_get_fmt,
 	.set_fmt		= mipi_csis_set_fmt,
@@ -1174,6 +1173,10 @@ static const struct v4l2_subdev_ops mipi_csis_subdev_ops = {
 	.core	= &mipi_csis_core_ops,
 	.video	= &mipi_csis_video_ops,
 	.pad	= &mipi_csis_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mipi_csis_internal_ops = {
+	.init_state		= mipi_csis_init_state,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1350,6 +1353,7 @@ static int mipi_csis_subdev_init(struct mipi_csis_device *csis)
 	int ret;
 
 	v4l2_subdev_init(sd, &mipi_csis_subdev_ops);
+	sd->internal_ops = &mipi_csis_internal_ops;
 	sd->owner = THIS_MODULE;
 	snprintf(sd->name, sizeof(sd->name), "csis-%s",
 		 dev_name(csis->dev));
@@ -1435,24 +1439,18 @@ static int mipi_csis_probe(struct platform_device *pdev)
 	/* Reset PHY and enable the clocks. */
 	mipi_csis_phy_reset(csis);
 
-	ret = mipi_csis_clk_enable(csis);
-	if (ret < 0) {
-		dev_err(csis->dev, "failed to enable clocks: %d\n", ret);
-		return ret;
-	}
-
 	/* Now that the hardware is initialized, request the interrupt. */
 	ret = devm_request_irq(dev, irq, mipi_csis_irq_handler, 0,
 			       dev_name(dev), csis);
 	if (ret) {
 		dev_err(dev, "Interrupt request failed\n");
-		goto err_disable_clock;
+		return ret;
 	}
 
 	/* Initialize and register the subdev. */
 	ret = mipi_csis_subdev_init(csis);
 	if (ret < 0)
-		goto err_disable_clock;
+		return ret;
 
 	platform_set_drvdata(pdev, &csis->sd);
 
@@ -1486,8 +1484,6 @@ err_cleanup:
 	v4l2_async_nf_unregister(&csis->notifier);
 	v4l2_async_nf_cleanup(&csis->notifier);
 	v4l2_async_unregister_subdev(&csis->sd);
-err_disable_clock:
-	mipi_csis_clk_disable(csis);
 
 	return ret;
 }
@@ -1502,9 +1498,10 @@ static void mipi_csis_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&csis->notifier);
 	v4l2_async_unregister_subdev(&csis->sd);
 
+	if (!pm_runtime_enabled(&pdev->dev))
+		mipi_csis_runtime_suspend(&pdev->dev);
+
 	pm_runtime_disable(&pdev->dev);
-	mipi_csis_runtime_suspend(&pdev->dev);
-	mipi_csis_clk_disable(csis);
 	v4l2_subdev_cleanup(&csis->sd);
 	media_entity_cleanup(&csis->sd.entity);
 	pm_runtime_set_suspended(&pdev->dev);

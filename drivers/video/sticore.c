@@ -1041,6 +1041,9 @@ static int __init sticore_pa_init(struct parisc_device *dev)
 
 	print_pa_hwpath(dev, sti->pa_path);
 	sticore_check_for_default_sti(sti, sti->pa_path);
+
+	sti->dev = &dev->dev;
+
 	return 0;
 }
 
@@ -1084,6 +1087,8 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 		pr_warn("Unable to handle STI device '%s'\n", pci_name(pd));
 		return -ENODEV;
 	}
+
+	sti->dev = &pd->dev;
 #endif /* CONFIG_PCI */
 
 	return 0;

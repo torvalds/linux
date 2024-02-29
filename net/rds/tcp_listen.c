@@ -165,7 +165,7 @@ int rds_tcp_accept_one(struct socket *sock)
 		struct ipv6_pinfo *inet6;
 
 		inet6 = inet6_sk(new_sock->sk);
-		dev_if = inet6->mcast_oif;
+		dev_if = READ_ONCE(inet6->mcast_oif);
 	} else {
 		dev_if = new_sock->sk->sk_bound_dev_if;
 	}

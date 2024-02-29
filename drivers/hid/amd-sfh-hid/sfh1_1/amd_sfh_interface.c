@@ -7,10 +7,13 @@
  *
  * Author: Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
+#include <linux/amd-pmf-io.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
 
 #include "amd_sfh_interface.h"
+
+static struct amd_mp2_dev *emp2;
 
 static int amd_sfh_wait_response(struct amd_mp2_dev *mp2, u8 sid, u32 cmd_id)
 {
@@ -73,7 +76,63 @@ static struct amd_mp2_ops amd_sfh_ops = {
 	.response = amd_sfh_wait_response,
 };
 
+void sfh_deinit_emp2(void)
+{
+	emp2 = NULL;
+}
+
 void sfh_interface_init(struct amd_mp2_dev *mp2)
 {
 	mp2->mp2_ops = &amd_sfh_ops;
+	emp2 = mp2;
 }
+
+static int amd_sfh_hpd_info(u8 *user_present)
+{
+	struct hpd_status hpdstatus;
+
+	if (!user_present)
+		return -EINVAL;
+
+	if (!emp2 || !emp2->dev_en.is_hpd_present)
+		return -ENODEV;
+
+	hpdstatus.val = readl(emp2->mmio + AMD_C2P_MSG(4));
+	*user_present = hpdstatus.shpd.presence;
+
+	return 0;
+}
+
+static int amd_sfh_als_info(u32 *ambient_light)
+{
+	struct sfh_als_data als_data;
+	void __iomem *sensoraddr;
+
+	if (!ambient_light)
+		return -EINVAL;
+
+	if (!emp2 || !emp2->dev_en.is_als_present)
+		return -ENODEV;
+
+	sensoraddr = emp2->vsbase +
+		(ALS_IDX * SENSOR_DATA_MEM_SIZE_DEFAULT) +
+		OFFSET_SENSOR_DATA_DEFAULT;
+	memcpy_fromio(&als_data, sensoraddr, sizeof(struct sfh_als_data));
+	*ambient_light = amd_sfh_float_to_int(als_data.lux);
+
+	return 0;
+}
+
+int amd_get_sfh_info(struct amd_sfh_info *sfh_info, enum sfh_message_type op)
+{
+	if (sfh_info) {
+		switch (op) {
+		case MT_HPD:
+			return amd_sfh_hpd_info(&sfh_info->user_present);
+		case MT_ALS:
+			return amd_sfh_als_info(&sfh_info->ambient_light);
+		}
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(amd_get_sfh_info);

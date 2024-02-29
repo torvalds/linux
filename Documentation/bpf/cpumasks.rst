@@ -352,7 +352,7 @@ can be used to query the contents of cpumasks.
 
 .. kernel-doc:: kernel/bpf/cpumask.c
    :identifiers: bpf_cpumask_first bpf_cpumask_first_zero bpf_cpumask_first_and
-                 bpf_cpumask_test_cpu
+                 bpf_cpumask_test_cpu bpf_cpumask_weight
 
 .. kernel-doc:: kernel/bpf/cpumask.c
    :identifiers: bpf_cpumask_equal bpf_cpumask_intersects bpf_cpumask_subset

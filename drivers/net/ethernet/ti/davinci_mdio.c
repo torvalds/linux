@@ -511,16 +511,12 @@ static const struct k3_mdio_soc_data am65_mdio_soc_data = {
 };
 
 static const struct soc_device_attribute k3_mdio_socinfo[] = {
-	{ .family = "AM62X", .revision = "SR1.0", .data = &am65_mdio_soc_data },
-	{ .family = "AM64X", .revision = "SR1.0", .data = &am65_mdio_soc_data },
-	{ .family = "AM64X", .revision = "SR2.0", .data = &am65_mdio_soc_data },
-	{ .family = "AM65X", .revision = "SR1.0", .data = &am65_mdio_soc_data },
-	{ .family = "AM65X", .revision = "SR2.0", .data = &am65_mdio_soc_data },
-	{ .family = "J7200", .revision = "SR1.0", .data = &am65_mdio_soc_data },
-	{ .family = "J7200", .revision = "SR2.0", .data = &am65_mdio_soc_data },
-	{ .family = "J721E", .revision = "SR1.0", .data = &am65_mdio_soc_data },
-	{ .family = "J721E", .revision = "SR2.0", .data = &am65_mdio_soc_data },
-	{ .family = "J721S2", .revision = "SR1.0", .data = &am65_mdio_soc_data},
+	{ .family = "AM62X", .data = &am65_mdio_soc_data },
+	{ .family = "AM64X", .data = &am65_mdio_soc_data },
+	{ .family = "AM65X", .data = &am65_mdio_soc_data },
+	{ .family = "J7200", .data = &am65_mdio_soc_data },
+	{ .family = "J721E", .data = &am65_mdio_soc_data },
+	{ .family = "J721S2", .data = &am65_mdio_soc_data },
 	{ /* sentinel */ },
 };
 

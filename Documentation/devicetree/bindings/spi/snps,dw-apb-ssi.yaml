@@ -72,8 +72,6 @@ properties:
           - const: snps,dw-apb-ssi
       - description: Intel Keem Bay SPI Controller
         const: intel,keembay-ssi
-      - description: Intel Thunder Bay SPI Controller
-        const: intel,thunderbay-ssi
       - description: Intel Mount Evans Integrated Management Complex SPI Controller
         const: intel,mountevans-imc-ssi
       - description: AMD Pensando Elba SoC SPI Controller

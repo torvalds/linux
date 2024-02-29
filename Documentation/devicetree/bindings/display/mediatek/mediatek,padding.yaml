@@ -20,7 +20,9 @@ description:
 
 properties:
   compatible:
-    const: mediatek,mt8188-disp-padding
+    enum:
+      - mediatek,mt8188-disp-padding
+      - mediatek,mt8195-mdp3-padding
 
   reg:
     maxItems: 1

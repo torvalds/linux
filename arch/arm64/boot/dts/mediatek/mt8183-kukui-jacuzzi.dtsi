@@ -149,7 +149,6 @@
 		reg = <0x58>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&anx7625_pins>;
-		panel_flags = <1>;
 		enable-gpios = <&pio 45 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&pio 73 GPIO_ACTIVE_HIGH>;
 		vdd10-supply = <&pp1200_mipibrdg>;

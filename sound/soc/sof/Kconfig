@@ -126,6 +126,17 @@ config SND_SOC_SOF_STRICT_ABI_CHECKS
 	  If you are not involved in SOF releases and CI development,
 	  select "N".
 
+config SND_SOC_SOF_ALLOW_FALLBACK_TO_NEWER_IPC_VERSION
+	bool "SOF allow fallback to newer IPC version"
+	help
+	  This option will allow the kernel to try to 'fallback' to a newer IPC
+	  version if there are missing firmware files to satisfy the default IPC
+	  version.
+	  IPC version fallback to older versions is not affected by this option,
+	  it is always available.
+	  Say Y if you are involved in SOF development and need this option.
+	  If not, select N.
+
 config SND_SOC_SOF_DEBUG
 	bool "SOF debugging features"
 	help

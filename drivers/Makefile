@@ -71,9 +71,8 @@ obj-y				+= gpu/
 
 obj-$(CONFIG_CONNECTOR)		+= connector/
 
-# i810fb and intelfb depend on char/agp/
+# i810fb depends on char/agp/
 obj-$(CONFIG_FB_I810)           += video/fbdev/i810/
-obj-$(CONFIG_FB_INTEL)          += video/fbdev/intelfb/
 
 obj-$(CONFIG_PARPORT)		+= parport/
 obj-y				+= base/ block/ misc/ mfd/ nfc/

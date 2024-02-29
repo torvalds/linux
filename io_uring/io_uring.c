@@ -60,7 +60,6 @@
 #include <linux/net.h>
 #include <net/sock.h>
 #include <net/af_unix.h>
-#include <net/scm.h>
 #include <linux/anon_inodes.h>
 #include <linux/sched/mm.h>
 #include <linux/uaccess.h>
@@ -70,6 +69,7 @@
 #include <linux/fadvise.h>
 #include <linux/task_work.h>
 #include <linux/io_uring.h>
+#include <linux/io_uring/cmd.h>
 #include <linux/audit.h>
 #include <linux/security.h>
 #include <asm/shmparam.h>
@@ -85,6 +85,7 @@
 #include "opdef.h"
 #include "refs.h"
 #include "tctx.h"
+#include "register.h"
 #include "sqpoll.h"
 #include "fdinfo.h"
 #include "kbuf.h"
@@ -102,9 +103,6 @@
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
-
-#define IORING_MAX_RESTRICTIONS	(IORING_RESTRICTION_LAST + \
-				 IORING_REGISTER_LAST + IORING_OP_LAST)
 
 #define SQE_COMMON_FLAGS (IOSQE_FIXED_FILE | IOSQE_IO_LINK | \
 			  IOSQE_IO_HARDLINK | IOSQE_ASYNC)
@@ -129,11 +127,6 @@ enum {
 	IO_CHECK_CQ_DROPPED_BIT,
 };
 
-enum {
-	IO_EVENTFD_OP_SIGNAL_BIT,
-	IO_EVENTFD_OP_FREE_BIT,
-};
-
 struct io_defer_entry {
 	struct list_head	list;
 	struct io_kiocb		*req;
@@ -143,6 +136,14 @@ struct io_defer_entry {
 /* requests with any of those set should undergo io_disarm_next() */
 #define IO_DISARM_MASK (REQ_F_ARM_LTIMEOUT | REQ_F_LINK_TIMEOUT | REQ_F_FAIL)
 #define IO_REQ_LINK_FLAGS (REQ_F_LINK | REQ_F_HARDLINK)
+
+/*
+ * No waiters. It's larger than any valid value of the tw counter
+ * so that tests against ->cq_wait_nr would fail and skip wake_up().
+ */
+#define IO_CQ_WAKE_INIT		(-1U)
+/* Forced wake up if there is a waiter regardless of ->cq_wait_nr */
+#define IO_CQ_WAKE_FORCE	(IO_CQ_WAKE_INIT >> 1)
 
 static bool io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 struct task_struct *task,
@@ -176,19 +177,6 @@ static struct ctl_table kernel_io_uring_disabled_table[] = {
 	{},
 };
 #endif
-
-struct sock *io_uring_get_socket(struct file *file)
-{
-#if defined(CONFIG_UNIX)
-	if (io_is_uring_fops(file)) {
-		struct io_ring_ctx *ctx = file->private_data;
-
-		return ctx->ring_sock->sk;
-	}
-#endif
-	return NULL;
-}
-EXPORT_SYMBOL(io_uring_get_socket);
 
 static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
 {
@@ -323,6 +311,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 		goto err;
 
 	ctx->flags = p->flags;
+	atomic_set(&ctx->cq_wait_nr, IO_CQ_WAKE_INIT);
 	init_waitqueue_head(&ctx->sqo_sq_wait);
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
@@ -554,14 +543,13 @@ static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
 	}
 }
 
-
-static void io_eventfd_ops(struct rcu_head *rcu)
+void io_eventfd_ops(struct rcu_head *rcu)
 {
 	struct io_ev_fd *ev_fd = container_of(rcu, struct io_ev_fd, rcu);
 	int ops = atomic_xchg(&ev_fd->ops, 0);
 
 	if (ops & BIT(IO_EVENTFD_OP_SIGNAL_BIT))
-		eventfd_signal_mask(ev_fd->cq_ev_fd, 1, EPOLL_URING_WAKE);
+		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
 
 	/* IO_EVENTFD_OP_FREE_BIT may not be set here depending on callback
 	 * ordering in a race but if references are 0 we know we have to free
@@ -597,7 +585,7 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx)
 		goto out;
 
 	if (likely(eventfd_signal_allowed())) {
-		eventfd_signal_mask(ev_fd->cq_ev_fd, 1, EPOLL_URING_WAKE);
+		eventfd_signal_mask(ev_fd->cq_ev_fd, EPOLL_URING_WAKE);
 	} else {
 		atomic_inc(&ev_fd->refs);
 		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_SIGNAL_BIT), &ev_fd->ops))
@@ -1325,16 +1313,23 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	unsigned nr_wait, nr_tw, nr_tw_prev;
-	struct llist_node *first;
+	struct llist_node *head;
 
+	/* See comment above IO_CQ_WAKE_INIT */
+	BUILD_BUG_ON(IO_CQ_WAKE_FORCE <= IORING_MAX_CQ_ENTRIES);
+
+	/*
+	 * We don't know how many reuqests is there in the link and whether
+	 * they can even be queued lazily, fall back to non-lazy.
+	 */
 	if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
 		flags &= ~IOU_F_TWQ_LAZY_WAKE;
 
-	first = READ_ONCE(ctx->work_llist.first);
+	head = READ_ONCE(ctx->work_llist.first);
 	do {
 		nr_tw_prev = 0;
-		if (first) {
-			struct io_kiocb *first_req = container_of(first,
+		if (head) {
+			struct io_kiocb *first_req = container_of(head,
 							struct io_kiocb,
 							io_task_work.node);
 			/*
@@ -1343,17 +1338,29 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 			 */
 			nr_tw_prev = READ_ONCE(first_req->nr_tw);
 		}
+
+		/*
+		 * Theoretically, it can overflow, but that's fine as one of
+		 * previous adds should've tried to wake the task.
+		 */
 		nr_tw = nr_tw_prev + 1;
-		/* Large enough to fail the nr_wait comparison below */
 		if (!(flags & IOU_F_TWQ_LAZY_WAKE))
-			nr_tw = -1U;
+			nr_tw = IO_CQ_WAKE_FORCE;
 
 		req->nr_tw = nr_tw;
-		req->io_task_work.node.next = first;
-	} while (!try_cmpxchg(&ctx->work_llist.first, &first,
+		req->io_task_work.node.next = head;
+	} while (!try_cmpxchg(&ctx->work_llist.first, &head,
 			      &req->io_task_work.node));
 
-	if (!first) {
+	/*
+	 * cmpxchg implies a full barrier, which pairs with the barrier
+	 * in set_current_state() on the io_cqring_wait() side. It's used
+	 * to ensure that either we see updated ->cq_wait_nr, or waiters
+	 * going to sleep will observe the work added to the list, which
+	 * is similar to the wait/wawke task state sync.
+	 */
+
+	if (!head) {
 		if (ctx->flags & IORING_SETUP_TASKRUN_FLAG)
 			atomic_or(IORING_SQ_TASKRUN, &ctx->rings->sq_flags);
 		if (ctx->has_evfd)
@@ -1361,14 +1368,12 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	}
 
 	nr_wait = atomic_read(&ctx->cq_wait_nr);
-	/* no one is waiting */
-	if (!nr_wait)
+	/* not enough or no one is waiting */
+	if (nr_tw < nr_wait)
 		return;
-	/* either not enough or the previous add has already woken it up */
-	if (nr_wait > nr_tw || nr_tw_prev >= nr_wait)
+	/* the previous add has already woken it up */
+	if (nr_tw_prev >= nr_wait)
 		return;
-	/* pairs with set_current_state() in io_cqring_wait() */
-	smp_mb__after_atomic();
 	wake_up_state(ctx->submitter_task, TASK_INTERRUPTIBLE);
 }
 
@@ -1898,14 +1903,19 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 			io_req_complete_defer(req);
 		else
 			io_req_complete_post(req, issue_flags);
-	} else if (ret != IOU_ISSUE_SKIP_COMPLETE)
-		return ret;
 
-	/* If the op doesn't have a file, we're not polling for it */
-	if ((req->ctx->flags & IORING_SETUP_IOPOLL) && def->iopoll_queue)
-		io_iopoll_req_issued(req, issue_flags);
+		return 0;
+	}
 
-	return 0;
+	if (ret == IOU_ISSUE_SKIP_COMPLETE) {
+		ret = 0;
+		io_arm_ltimeout(req);
+
+		/* If the op doesn't have a file, we're not polling for it */
+		if ((req->ctx->flags & IORING_SETUP_IOPOLL) && def->iopoll_queue)
+			io_iopoll_req_issued(req, issue_flags);
+	}
+	return ret;
 }
 
 int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts)
@@ -2016,9 +2026,10 @@ inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 		goto out;
 	fd = array_index_nospec(fd, ctx->nr_user_files);
 	slot = io_fixed_file_slot(&ctx->file_table, fd);
-	file = io_slot_file(slot);
+	if (!req->rsrc_node)
+		__io_req_set_rsrc_node(req, ctx);
 	req->flags |= io_slot_flags(slot);
-	io_req_set_rsrc_node(req, ctx, 0);
+	file = io_slot_file(slot);
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return file;
@@ -2076,9 +2087,7 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
 	 * doesn't support non-blocking read/write attempts
 	 */
-	if (likely(!ret))
-		io_arm_ltimeout(req);
-	else
+	if (unlikely(ret))
 		io_queue_async(req, ret);
 }
 
@@ -2631,10 +2640,8 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 
 		ret = io_cqring_wait_schedule(ctx, &iowq);
 		__set_current_state(TASK_RUNNING);
-		atomic_set(&ctx->cq_wait_nr, 0);
+		atomic_set(&ctx->cq_wait_nr, IO_CQ_WAKE_INIT);
 
-		if (ret < 0)
-			break;
 		/*
 		 * Run task_work after scheduling and before io_should_wake().
 		 * If we got woken because of task_work being processed, run it
@@ -2643,6 +2650,18 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 		io_run_task_work();
 		if (!llist_empty(&ctx->work_llist))
 			io_run_local_work(ctx);
+
+		/*
+		 * Non-local task_work will be run on exit to userspace, but
+		 * if we're using DEFER_TASKRUN, then we could have waited
+		 * with a timeout for a number of requests. If the timeout
+		 * hits, we could have some requests ready to process. Ensure
+		 * this break is _after_ we have run task_work, to avoid
+		 * deferring running potentially pending requests until the
+		 * next time we wait for events.
+		 */
+		if (ret < 0)
+			break;
 
 		check_cq = READ_ONCE(ctx->check_cq);
 		if (unlikely(check_cq)) {
@@ -2831,61 +2850,6 @@ static unsigned long rings_size(struct io_ring_ctx *ctx, unsigned int sq_entries
 	return off;
 }
 
-static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
-			       unsigned int eventfd_async)
-{
-	struct io_ev_fd *ev_fd;
-	__s32 __user *fds = arg;
-	int fd;
-
-	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
-					lockdep_is_held(&ctx->uring_lock));
-	if (ev_fd)
-		return -EBUSY;
-
-	if (copy_from_user(&fd, fds, sizeof(*fds)))
-		return -EFAULT;
-
-	ev_fd = kmalloc(sizeof(*ev_fd), GFP_KERNEL);
-	if (!ev_fd)
-		return -ENOMEM;
-
-	ev_fd->cq_ev_fd = eventfd_ctx_fdget(fd);
-	if (IS_ERR(ev_fd->cq_ev_fd)) {
-		int ret = PTR_ERR(ev_fd->cq_ev_fd);
-		kfree(ev_fd);
-		return ret;
-	}
-
-	spin_lock(&ctx->completion_lock);
-	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
-	spin_unlock(&ctx->completion_lock);
-
-	ev_fd->eventfd_async = eventfd_async;
-	ctx->has_evfd = true;
-	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);
-	atomic_set(&ev_fd->refs, 1);
-	atomic_set(&ev_fd->ops, 0);
-	return 0;
-}
-
-static int io_eventfd_unregister(struct io_ring_ctx *ctx)
-{
-	struct io_ev_fd *ev_fd;
-
-	ev_fd = rcu_dereference_protected(ctx->io_ev_fd,
-					lockdep_is_held(&ctx->uring_lock));
-	if (ev_fd) {
-		ctx->has_evfd = false;
-		rcu_assign_pointer(ctx->io_ev_fd, NULL);
-		if (!atomic_fetch_or(BIT(IO_EVENTFD_OP_FREE_BIT), &ev_fd->ops))
-			call_rcu(&ev_fd->rcu, io_eventfd_ops);
-		return 0;
-	}
-
-	return -ENXIO;
-}
-
 static void io_req_caches_free(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
@@ -2938,13 +2902,6 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 		io_rsrc_node_destroy(ctx, ctx->rsrc_node);
 
 	WARN_ON_ONCE(!list_empty(&ctx->rsrc_ref_list));
-
-#if defined(CONFIG_UNIX)
-	if (ctx->ring_sock) {
-		ctx->ring_sock->file = NULL; /* so that iput() is called */
-		sock_release(ctx->ring_sock);
-	}
-#endif
 	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
 
 	io_alloc_cache_free(&ctx->rsrc_node_cache, io_rsrc_node_cache_free);
@@ -2984,7 +2941,7 @@ static __cold void io_activate_pollwq_cb(struct callback_head *cb)
 	percpu_ref_put(&ctx->refs);
 }
 
-static __cold void io_activate_pollwq(struct io_ring_ctx *ctx)
+__cold void io_activate_pollwq(struct io_ring_ctx *ctx)
 {
 	spin_lock(&ctx->completion_lock);
 	/* already activated or in progress */
@@ -3041,19 +2998,6 @@ static __poll_t io_uring_poll(struct file *file, poll_table *wait)
 		mask |= EPOLLIN | EPOLLRDNORM;
 
 	return mask;
-}
-
-static int io_unregister_personality(struct io_ring_ctx *ctx, unsigned id)
-{
-	const struct cred *creds;
-
-	creds = xa_erase(&ctx->personalities, id);
-	if (creds) {
-		put_cred(creds);
-		return 0;
-	}
-
-	return -EINVAL;
 }
 
 struct io_tctx_exit {
@@ -3866,32 +3810,13 @@ static int io_uring_install_fd(struct file *file)
 /*
  * Allocate an anonymous fd, this is what constitutes the application
  * visible backing of an io_uring instance. The application mmaps this
- * fd to gain access to the SQ/CQ ring details. If UNIX sockets are enabled,
- * we have to tie this fd to a socket for file garbage collection purposes.
+ * fd to gain access to the SQ/CQ ring details.
  */
 static struct file *io_uring_get_file(struct io_ring_ctx *ctx)
 {
-	struct file *file;
-#if defined(CONFIG_UNIX)
-	int ret;
-
-	ret = sock_create_kern(&init_net, PF_UNIX, SOCK_RAW, IPPROTO_IP,
-				&ctx->ring_sock);
-	if (ret)
-		return ERR_PTR(ret);
-#endif
-
-	file = anon_inode_getfile_secure("[io_uring]", &io_uring_fops, ctx,
+	/* Create a new inode so that the LSM can block the creation.  */
+	return anon_inode_create_getfile("[io_uring]", &io_uring_fops, ctx,
 					 O_RDWR | O_CLOEXEC, NULL);
-#if defined(CONFIG_UNIX)
-	if (IS_ERR(file)) {
-		sock_release(ctx->ring_sock);
-		ctx->ring_sock = NULL;
-	} else {
-		ctx->ring_sock->file = file;
-	}
-#endif
-	return file;
 }
 
 static __cold int io_uring_create(unsigned entries, struct io_uring_params *p,
@@ -4156,506 +4081,6 @@ SYSCALL_DEFINE2(io_uring_setup, u32, entries,
 		return -EPERM;
 
 	return io_uring_setup(entries, params);
-}
-
-static __cold int io_probe(struct io_ring_ctx *ctx, void __user *arg,
-			   unsigned nr_args)
-{
-	struct io_uring_probe *p;
-	size_t size;
-	int i, ret;
-
-	size = struct_size(p, ops, nr_args);
-	if (size == SIZE_MAX)
-		return -EOVERFLOW;
-	p = kzalloc(size, GFP_KERNEL);
-	if (!p)
-		return -ENOMEM;
-
-	ret = -EFAULT;
-	if (copy_from_user(p, arg, size))
-		goto out;
-	ret = -EINVAL;
-	if (memchr_inv(p, 0, size))
-		goto out;
-
-	p->last_op = IORING_OP_LAST - 1;
-	if (nr_args > IORING_OP_LAST)
-		nr_args = IORING_OP_LAST;
-
-	for (i = 0; i < nr_args; i++) {
-		p->ops[i].op = i;
-		if (!io_issue_defs[i].not_supported)
-			p->ops[i].flags = IO_URING_OP_SUPPORTED;
-	}
-	p->ops_len = i;
-
-	ret = 0;
-	if (copy_to_user(arg, p, size))
-		ret = -EFAULT;
-out:
-	kfree(p);
-	return ret;
-}
-
-static int io_register_personality(struct io_ring_ctx *ctx)
-{
-	const struct cred *creds;
-	u32 id;
-	int ret;
-
-	creds = get_current_cred();
-
-	ret = xa_alloc_cyclic(&ctx->personalities, &id, (void *)creds,
-			XA_LIMIT(0, USHRT_MAX), &ctx->pers_next, GFP_KERNEL);
-	if (ret < 0) {
-		put_cred(creds);
-		return ret;
-	}
-	return id;
-}
-
-static __cold int io_register_restrictions(struct io_ring_ctx *ctx,
-					   void __user *arg, unsigned int nr_args)
-{
-	struct io_uring_restriction *res;
-	size_t size;
-	int i, ret;
-
-	/* Restrictions allowed only if rings started disabled */
-	if (!(ctx->flags & IORING_SETUP_R_DISABLED))
-		return -EBADFD;
-
-	/* We allow only a single restrictions registration */
-	if (ctx->restrictions.registered)
-		return -EBUSY;
-
-	if (!arg || nr_args > IORING_MAX_RESTRICTIONS)
-		return -EINVAL;
-
-	size = array_size(nr_args, sizeof(*res));
-	if (size == SIZE_MAX)
-		return -EOVERFLOW;
-
-	res = memdup_user(arg, size);
-	if (IS_ERR(res))
-		return PTR_ERR(res);
-
-	ret = 0;
-
-	for (i = 0; i < nr_args; i++) {
-		switch (res[i].opcode) {
-		case IORING_RESTRICTION_REGISTER_OP:
-			if (res[i].register_op >= IORING_REGISTER_LAST) {
-				ret = -EINVAL;
-				goto out;
-			}
-
-			__set_bit(res[i].register_op,
-				  ctx->restrictions.register_op);
-			break;
-		case IORING_RESTRICTION_SQE_OP:
-			if (res[i].sqe_op >= IORING_OP_LAST) {
-				ret = -EINVAL;
-				goto out;
-			}
-
-			__set_bit(res[i].sqe_op, ctx->restrictions.sqe_op);
-			break;
-		case IORING_RESTRICTION_SQE_FLAGS_ALLOWED:
-			ctx->restrictions.sqe_flags_allowed = res[i].sqe_flags;
-			break;
-		case IORING_RESTRICTION_SQE_FLAGS_REQUIRED:
-			ctx->restrictions.sqe_flags_required = res[i].sqe_flags;
-			break;
-		default:
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-out:
-	/* Reset all restrictions if an error happened */
-	if (ret != 0)
-		memset(&ctx->restrictions, 0, sizeof(ctx->restrictions));
-	else
-		ctx->restrictions.registered = true;
-
-	kfree(res);
-	return ret;
-}
-
-static int io_register_enable_rings(struct io_ring_ctx *ctx)
-{
-	if (!(ctx->flags & IORING_SETUP_R_DISABLED))
-		return -EBADFD;
-
-	if (ctx->flags & IORING_SETUP_SINGLE_ISSUER && !ctx->submitter_task) {
-		WRITE_ONCE(ctx->submitter_task, get_task_struct(current));
-		/*
-		 * Lazy activation attempts would fail if it was polled before
-		 * submitter_task is set.
-		 */
-		if (wq_has_sleeper(&ctx->poll_wq))
-			io_activate_pollwq(ctx);
-	}
-
-	if (ctx->restrictions.registered)
-		ctx->restricted = 1;
-
-	ctx->flags &= ~IORING_SETUP_R_DISABLED;
-	if (ctx->sq_data && wq_has_sleeper(&ctx->sq_data->wait))
-		wake_up(&ctx->sq_data->wait);
-	return 0;
-}
-
-static __cold int __io_register_iowq_aff(struct io_ring_ctx *ctx,
-					 cpumask_var_t new_mask)
-{
-	int ret;
-
-	if (!(ctx->flags & IORING_SETUP_SQPOLL)) {
-		ret = io_wq_cpu_affinity(current->io_uring, new_mask);
-	} else {
-		mutex_unlock(&ctx->uring_lock);
-		ret = io_sqpoll_wq_cpu_affinity(ctx, new_mask);
-		mutex_lock(&ctx->uring_lock);
-	}
-
-	return ret;
-}
-
-static __cold int io_register_iowq_aff(struct io_ring_ctx *ctx,
-				       void __user *arg, unsigned len)
-{
-	cpumask_var_t new_mask;
-	int ret;
-
-	if (!alloc_cpumask_var(&new_mask, GFP_KERNEL))
-		return -ENOMEM;
-
-	cpumask_clear(new_mask);
-	if (len > cpumask_size())
-		len = cpumask_size();
-
-	if (in_compat_syscall()) {
-		ret = compat_get_bitmap(cpumask_bits(new_mask),
-					(const compat_ulong_t __user *)arg,
-					len * 8 /* CHAR_BIT */);
-	} else {
-		ret = copy_from_user(new_mask, arg, len);
-	}
-
-	if (ret) {
-		free_cpumask_var(new_mask);
-		return -EFAULT;
-	}
-
-	ret = __io_register_iowq_aff(ctx, new_mask);
-	free_cpumask_var(new_mask);
-	return ret;
-}
-
-static __cold int io_unregister_iowq_aff(struct io_ring_ctx *ctx)
-{
-	return __io_register_iowq_aff(ctx, NULL);
-}
-
-static __cold int io_register_iowq_max_workers(struct io_ring_ctx *ctx,
-					       void __user *arg)
-	__must_hold(&ctx->uring_lock)
-{
-	struct io_tctx_node *node;
-	struct io_uring_task *tctx = NULL;
-	struct io_sq_data *sqd = NULL;
-	__u32 new_count[2];
-	int i, ret;
-
-	if (copy_from_user(new_count, arg, sizeof(new_count)))
-		return -EFAULT;
-	for (i = 0; i < ARRAY_SIZE(new_count); i++)
-		if (new_count[i] > INT_MAX)
-			return -EINVAL;
-
-	if (ctx->flags & IORING_SETUP_SQPOLL) {
-		sqd = ctx->sq_data;
-		if (sqd) {
-			/*
-			 * Observe the correct sqd->lock -> ctx->uring_lock
-			 * ordering. Fine to drop uring_lock here, we hold
-			 * a ref to the ctx.
-			 */
-			refcount_inc(&sqd->refs);
-			mutex_unlock(&ctx->uring_lock);
-			mutex_lock(&sqd->lock);
-			mutex_lock(&ctx->uring_lock);
-			if (sqd->thread)
-				tctx = sqd->thread->io_uring;
-		}
-	} else {
-		tctx = current->io_uring;
-	}
-
-	BUILD_BUG_ON(sizeof(new_count) != sizeof(ctx->iowq_limits));
-
-	for (i = 0; i < ARRAY_SIZE(new_count); i++)
-		if (new_count[i])
-			ctx->iowq_limits[i] = new_count[i];
-	ctx->iowq_limits_set = true;
-
-	if (tctx && tctx->io_wq) {
-		ret = io_wq_max_workers(tctx->io_wq, new_count);
-		if (ret)
-			goto err;
-	} else {
-		memset(new_count, 0, sizeof(new_count));
-	}
-
-	if (sqd) {
-		mutex_unlock(&sqd->lock);
-		io_put_sq_data(sqd);
-	}
-
-	if (copy_to_user(arg, new_count, sizeof(new_count)))
-		return -EFAULT;
-
-	/* that's it for SQPOLL, only the SQPOLL task creates requests */
-	if (sqd)
-		return 0;
-
-	/* now propagate the restriction to all registered users */
-	list_for_each_entry(node, &ctx->tctx_list, ctx_node) {
-		struct io_uring_task *tctx = node->task->io_uring;
-
-		if (WARN_ON_ONCE(!tctx->io_wq))
-			continue;
-
-		for (i = 0; i < ARRAY_SIZE(new_count); i++)
-			new_count[i] = ctx->iowq_limits[i];
-		/* ignore errors, it always returns zero anyway */
-		(void)io_wq_max_workers(tctx->io_wq, new_count);
-	}
-	return 0;
-err:
-	if (sqd) {
-		mutex_unlock(&sqd->lock);
-		io_put_sq_data(sqd);
-	}
-	return ret;
-}
-
-static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
-			       void __user *arg, unsigned nr_args)
-	__releases(ctx->uring_lock)
-	__acquires(ctx->uring_lock)
-{
-	int ret;
-
-	/*
-	 * We don't quiesce the refs for register anymore and so it can't be
-	 * dying as we're holding a file ref here.
-	 */
-	if (WARN_ON_ONCE(percpu_ref_is_dying(&ctx->refs)))
-		return -ENXIO;
-
-	if (ctx->submitter_task && ctx->submitter_task != current)
-		return -EEXIST;
-
-	if (ctx->restricted) {
-		opcode = array_index_nospec(opcode, IORING_REGISTER_LAST);
-		if (!test_bit(opcode, ctx->restrictions.register_op))
-			return -EACCES;
-	}
-
-	switch (opcode) {
-	case IORING_REGISTER_BUFFERS:
-		ret = -EFAULT;
-		if (!arg)
-			break;
-		ret = io_sqe_buffers_register(ctx, arg, nr_args, NULL);
-		break;
-	case IORING_UNREGISTER_BUFFERS:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_sqe_buffers_unregister(ctx);
-		break;
-	case IORING_REGISTER_FILES:
-		ret = -EFAULT;
-		if (!arg)
-			break;
-		ret = io_sqe_files_register(ctx, arg, nr_args, NULL);
-		break;
-	case IORING_UNREGISTER_FILES:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_sqe_files_unregister(ctx);
-		break;
-	case IORING_REGISTER_FILES_UPDATE:
-		ret = io_register_files_update(ctx, arg, nr_args);
-		break;
-	case IORING_REGISTER_EVENTFD:
-		ret = -EINVAL;
-		if (nr_args != 1)
-			break;
-		ret = io_eventfd_register(ctx, arg, 0);
-		break;
-	case IORING_REGISTER_EVENTFD_ASYNC:
-		ret = -EINVAL;
-		if (nr_args != 1)
-			break;
-		ret = io_eventfd_register(ctx, arg, 1);
-		break;
-	case IORING_UNREGISTER_EVENTFD:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_eventfd_unregister(ctx);
-		break;
-	case IORING_REGISTER_PROBE:
-		ret = -EINVAL;
-		if (!arg || nr_args > 256)
-			break;
-		ret = io_probe(ctx, arg, nr_args);
-		break;
-	case IORING_REGISTER_PERSONALITY:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_register_personality(ctx);
-		break;
-	case IORING_UNREGISTER_PERSONALITY:
-		ret = -EINVAL;
-		if (arg)
-			break;
-		ret = io_unregister_personality(ctx, nr_args);
-		break;
-	case IORING_REGISTER_ENABLE_RINGS:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_register_enable_rings(ctx);
-		break;
-	case IORING_REGISTER_RESTRICTIONS:
-		ret = io_register_restrictions(ctx, arg, nr_args);
-		break;
-	case IORING_REGISTER_FILES2:
-		ret = io_register_rsrc(ctx, arg, nr_args, IORING_RSRC_FILE);
-		break;
-	case IORING_REGISTER_FILES_UPDATE2:
-		ret = io_register_rsrc_update(ctx, arg, nr_args,
-					      IORING_RSRC_FILE);
-		break;
-	case IORING_REGISTER_BUFFERS2:
-		ret = io_register_rsrc(ctx, arg, nr_args, IORING_RSRC_BUFFER);
-		break;
-	case IORING_REGISTER_BUFFERS_UPDATE:
-		ret = io_register_rsrc_update(ctx, arg, nr_args,
-					      IORING_RSRC_BUFFER);
-		break;
-	case IORING_REGISTER_IOWQ_AFF:
-		ret = -EINVAL;
-		if (!arg || !nr_args)
-			break;
-		ret = io_register_iowq_aff(ctx, arg, nr_args);
-		break;
-	case IORING_UNREGISTER_IOWQ_AFF:
-		ret = -EINVAL;
-		if (arg || nr_args)
-			break;
-		ret = io_unregister_iowq_aff(ctx);
-		break;
-	case IORING_REGISTER_IOWQ_MAX_WORKERS:
-		ret = -EINVAL;
-		if (!arg || nr_args != 2)
-			break;
-		ret = io_register_iowq_max_workers(ctx, arg);
-		break;
-	case IORING_REGISTER_RING_FDS:
-		ret = io_ringfd_register(ctx, arg, nr_args);
-		break;
-	case IORING_UNREGISTER_RING_FDS:
-		ret = io_ringfd_unregister(ctx, arg, nr_args);
-		break;
-	case IORING_REGISTER_PBUF_RING:
-		ret = -EINVAL;
-		if (!arg || nr_args != 1)
-			break;
-		ret = io_register_pbuf_ring(ctx, arg);
-		break;
-	case IORING_UNREGISTER_PBUF_RING:
-		ret = -EINVAL;
-		if (!arg || nr_args != 1)
-			break;
-		ret = io_unregister_pbuf_ring(ctx, arg);
-		break;
-	case IORING_REGISTER_SYNC_CANCEL:
-		ret = -EINVAL;
-		if (!arg || nr_args != 1)
-			break;
-		ret = io_sync_cancel(ctx, arg);
-		break;
-	case IORING_REGISTER_FILE_ALLOC_RANGE:
-		ret = -EINVAL;
-		if (!arg || nr_args)
-			break;
-		ret = io_register_file_alloc_range(ctx, arg);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
-	}
-
-	return ret;
-}
-
-SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
-		void __user *, arg, unsigned int, nr_args)
-{
-	struct io_ring_ctx *ctx;
-	long ret = -EBADF;
-	struct file *file;
-	bool use_registered_ring;
-
-	use_registered_ring = !!(opcode & IORING_REGISTER_USE_REGISTERED_RING);
-	opcode &= ~IORING_REGISTER_USE_REGISTERED_RING;
-
-	if (opcode >= IORING_REGISTER_LAST)
-		return -EINVAL;
-
-	if (use_registered_ring) {
-		/*
-		 * Ring fd has been registered via IORING_REGISTER_RING_FDS, we
-		 * need only dereference our task private array to find it.
-		 */
-		struct io_uring_task *tctx = current->io_uring;
-
-		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
-			return -EINVAL;
-		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
-		file = tctx->registered_rings[fd];
-		if (unlikely(!file))
-			return -EBADF;
-	} else {
-		file = fget(fd);
-		if (unlikely(!file))
-			return -EBADF;
-		ret = -EOPNOTSUPP;
-		if (!io_is_uring_fops(file))
-			goto out_fput;
-	}
-
-	ctx = file->private_data;
-
-	mutex_lock(&ctx->uring_lock);
-	ret = __io_uring_register(ctx, opcode, arg, nr_args);
-	mutex_unlock(&ctx->uring_lock);
-	trace_io_uring_register(ctx, opcode, ctx->nr_user_files, ctx->nr_user_bufs, ret);
-out_fput:
-	if (!use_registered_ring)
-		fput(file);
-	return ret;
 }
 
 static int __init io_uring_init(void)

@@ -171,7 +171,7 @@ xfs_qm_dqpurge(
 	 * hits zero, so it really should be on the freelist here.
 	 */
 	ASSERT(!list_empty(&dqp->q_lru));
-	list_lru_del(&qi->qi_lru, &dqp->q_lru);
+	list_lru_del_obj(&qi->qi_lru, &dqp->q_lru);
 	XFS_STATS_DEC(dqp->q_mount, xs_qm_dquot_unused);
 
 	xfs_qm_dqdestroy(dqp);

@@ -31,6 +31,11 @@ struct io_close {
 	u32				file_slot;
 };
 
+struct io_fixed_install {
+	struct file			*file;
+	unsigned int			o_flags;
+};
+
 static bool io_openat_force_async(struct io_open *open)
 {
 	/*
@@ -241,7 +246,7 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 	}
 
-	file = __close_fd_get_file(close->fd);
+	file = file_close_fd_locked(files, close->fd);
 	spin_unlock(&files->file_lock);
 	if (!file)
 		goto err;
@@ -249,6 +254,49 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 	/* No ->flush() or already async, safely close from here */
 	ret = filp_close(file, current->files);
 err:
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
+}
+
+int io_install_fixed_fd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_fixed_install *ifi;
+	unsigned int flags;
+
+	if (sqe->off || sqe->addr || sqe->len || sqe->buf_index ||
+	    sqe->splice_fd_in || sqe->addr3)
+		return -EINVAL;
+
+	/* must be a fixed file */
+	if (!(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	flags = READ_ONCE(sqe->install_fd_flags);
+	if (flags & ~IORING_FIXED_FD_NO_CLOEXEC)
+		return -EINVAL;
+
+	/* ensure the task's creds are used when installing/receiving fds */
+	if (req->flags & REQ_F_CREDS)
+		return -EPERM;
+
+	/* default to O_CLOEXEC, disable if IORING_FIXED_FD_NO_CLOEXEC is set */
+	ifi = io_kiocb_to_cmd(req, struct io_fixed_install);
+	ifi->o_flags = O_CLOEXEC;
+	if (flags & IORING_FIXED_FD_NO_CLOEXEC)
+		ifi->o_flags = 0;
+
+	return 0;
+}
+
+int io_install_fixed_fd(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_fixed_install *ifi;
+	int ret;
+
+	ifi = io_kiocb_to_cmd(req, struct io_fixed_install);
+	ret = receive_fd(req->file, NULL, ifi->o_flags);
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);

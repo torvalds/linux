@@ -20,8 +20,10 @@ u64 perf_reg_value(struct pt_regs *regs, int idx)
 			return 0;
 
 		idx -= PERF_REG_S390_FP0;
-		fp = MACHINE_HAS_VX ? *(freg_t *)(current->thread.fpu.vxrs + idx)
-				    : current->thread.fpu.fprs[idx];
+		if (cpu_has_vx())
+			fp = *(freg_t *)(current->thread.fpu.vxrs + idx);
+		else
+			fp = current->thread.fpu.fprs[idx];
 		return fp.ui;
 	}
 

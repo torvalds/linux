@@ -1985,15 +1985,13 @@ release:
 	return err;
 }
 
-static int tegra210_emc_remove(struct platform_device *pdev)
+static void tegra210_emc_remove(struct platform_device *pdev)
 {
 	struct tegra210_emc *emc = platform_get_drvdata(pdev);
 
 	debugfs_remove_recursive(emc->debugfs.root);
 	tegra210_clk_emc_detach(emc->clk);
 	of_reserved_mem_device_release(emc->dev);
-
-	return 0;
 }
 
 static int __maybe_unused tegra210_emc_suspend(struct device *dev)
@@ -2053,7 +2051,7 @@ static struct platform_driver tegra210_emc_driver = {
 		.pm = &tegra210_emc_pm_ops,
 	},
 	.probe = tegra210_emc_probe,
-	.remove = tegra210_emc_remove,
+	.remove_new = tegra210_emc_remove,
 };
 
 module_platform_driver(tegra210_emc_driver);

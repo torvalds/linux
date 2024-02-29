@@ -213,16 +213,16 @@ struct fdc_word {
  */
 
 /* ranges >= 1 && sizes[0] >= 1 */
-static struct fdc_word mips_ejtag_fdc_encode(const char **ptrs,
+static struct fdc_word mips_ejtag_fdc_encode(const u8 **ptrs,
 					     unsigned int *sizes,
 					     unsigned int ranges)
 {
 	struct fdc_word word = { 0, 0 };
-	const char **ptrs_end = ptrs + ranges;
+	const u8 **ptrs_end = ptrs + ranges;
 
 	for (; ptrs < ptrs_end; ++ptrs) {
-		const char *ptr = *(ptrs++);
-		const char *end = ptr + *(sizes++);
+		const u8 *ptr = *(ptrs++);
+		const u8 *end = ptr + *(sizes++);
 
 		for (; ptr < end; ++ptr) {
 			word.word |= (u8)*ptr << (8*word.bytes);
@@ -417,7 +417,7 @@ static unsigned int mips_ejtag_fdc_put_chan(struct mips_ejtag_fdc_tty *priv,
 {
 	struct mips_ejtag_fdc_tty_port *dport;
 	struct tty_struct *tty;
-	const char *ptrs[2];
+	const u8 *ptrs[2];
 	unsigned int sizes[2] = { 0 };
 	struct fdc_word word = { .bytes = 0 };
 	unsigned long flags;

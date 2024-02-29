@@ -180,8 +180,9 @@ static inline phys_addr_t memblock_cap_size(phys_addr_t base, phys_addr_t *size)
 /*
  * Address comparison utilities
  */
-static unsigned long __init_memblock memblock_addrs_overlap(phys_addr_t base1, phys_addr_t size1,
-				       phys_addr_t base2, phys_addr_t size2)
+unsigned long __init_memblock
+memblock_addrs_overlap(phys_addr_t base1, phys_addr_t size1, phys_addr_t base2,
+		       phys_addr_t size2)
 {
 	return ((base1 < (base2 + size2)) && (base2 < (base1 + size1)));
 }
@@ -733,6 +734,40 @@ int __init_memblock memblock_add(phys_addr_t base, phys_addr_t size)
 
 	return memblock_add_range(&memblock.memory, base, size, MAX_NUMNODES, 0);
 }
+
+/**
+ * memblock_validate_numa_coverage - check if amount of memory with
+ * no node ID assigned is less than a threshold
+ * @threshold_bytes: maximal number of pages that can have unassigned node
+ * ID (in bytes).
+ *
+ * A buggy firmware may report memory that does not belong to any node.
+ * Check if amount of such memory is below @threshold_bytes.
+ *
+ * Return: true on success, false on failure.
+ */
+bool __init_memblock memblock_validate_numa_coverage(unsigned long threshold_bytes)
+{
+	unsigned long nr_pages = 0;
+	unsigned long start_pfn, end_pfn, mem_size_mb;
+	int nid, i;
+
+	/* calculate lose page */
+	for_each_mem_pfn_range(i, MAX_NUMNODES, &start_pfn, &end_pfn, &nid) {
+		if (nid == NUMA_NO_NODE)
+			nr_pages += end_pfn - start_pfn;
+	}
+
+	if ((nr_pages << PAGE_SHIFT) >= threshold_bytes) {
+		mem_size_mb = memblock_phys_mem_size() >> 20;
+		pr_err("NUMA: no nodes coverage for %luMB of %luMB RAM\n",
+		       (nr_pages << PAGE_SHIFT) >> 20, mem_size_mb);
+		return false;
+	}
+
+	return true;
+}
+
 
 /**
  * memblock_isolate_range - isolate given range into disjoint memblocks
@@ -1851,7 +1886,7 @@ int __init_memblock memblock_search_pfn_nid(unsigned long pfn,
 	int mid = memblock_search(type, PFN_PHYS(pfn));
 
 	if (mid == -1)
-		return -1;
+		return NUMA_NO_NODE;
 
 	*start_pfn = PFN_DOWN(type->regions[mid].base);
 	*end_pfn = PFN_DOWN(type->regions[mid].base + type->regions[mid].size);
@@ -2079,12 +2114,13 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 		 * Free the pages in the largest chunks alignment allows.
 		 *
 		 * __ffs() behaviour is undefined for 0. start == 0 is
-		 * MAX_ORDER-aligned, set order to MAX_ORDER for the case.
+		 * MAX_PAGE_ORDER-aligned, set order to MAX_PAGE_ORDER for
+		 * the case.
 		 */
 		if (start)
-			order = min_t(int, MAX_ORDER, __ffs(start));
+			order = min_t(int, MAX_PAGE_ORDER, __ffs(start));
 		else
-			order = MAX_ORDER;
+			order = MAX_PAGE_ORDER;
 
 		while (start + (1UL << order) > end)
 			order--;
@@ -2140,6 +2176,9 @@ static void __init memmap_init_reserved_pages(void)
 			nid = memblock_get_region_node(region);
 			start = region->base;
 			end = start + region->size;
+
+			if (nid == NUMA_NO_NODE || nid >= MAX_NUMNODES)
+				nid = early_pfn_to_nid(PFN_DOWN(start));
 
 			reserve_bootmem_region(start, end, nid);
 		}
@@ -2211,6 +2250,7 @@ static const char * const flagname[] = {
 	[ilog2(MEMBLOCK_MIRROR)] = "MIRROR",
 	[ilog2(MEMBLOCK_NOMAP)] = "NOMAP",
 	[ilog2(MEMBLOCK_DRIVER_MANAGED)] = "DRV_MNG",
+	[ilog2(MEMBLOCK_RSRV_NOINIT)] = "RSV_NIT",
 };
 
 static int memblock_debug_show(struct seq_file *m, void *private)

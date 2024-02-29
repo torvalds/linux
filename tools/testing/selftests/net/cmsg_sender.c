@@ -45,11 +45,13 @@ struct options {
 	const char *host;
 	const char *service;
 	unsigned int size;
+	unsigned int num_pkt;
 	struct {
 		unsigned int mark;
 		unsigned int dontfrag;
 		unsigned int tclass;
 		unsigned int hlimit;
+		unsigned int priority;
 	} sockopt;
 	struct {
 		unsigned int family;
@@ -72,6 +74,7 @@ struct options {
 	} v6;
 } opt = {
 	.size = 13,
+	.num_pkt = 1,
 	.sock = {
 		.family	= AF_UNSPEC,
 		.type	= SOCK_DGRAM,
@@ -112,7 +115,7 @@ static void cs_parse_args(int argc, char *argv[])
 {
 	int o;
 
-	while ((o = getopt(argc, argv, "46sS:p:m:M:d:tf:F:c:C:l:L:H:")) != -1) {
+	while ((o = getopt(argc, argv, "46sS:p:P:m:M:n:d:tf:F:c:C:l:L:H:")) != -1) {
 		switch (o) {
 		case 's':
 			opt.silent_send = true;
@@ -138,13 +141,18 @@ static void cs_parse_args(int argc, char *argv[])
 				cs_usage(argv[0]);
 			}
 			break;
-
+		case 'P':
+			opt.sockopt.priority = atoi(optarg);
+			break;
 		case 'm':
 			opt.mark.ena = true;
 			opt.mark.val = atoi(optarg);
 			break;
 		case 'M':
 			opt.sockopt.mark = atoi(optarg);
+			break;
+		case 'n':
+			opt.num_pkt = atoi(optarg);
 			break;
 		case 'd':
 			opt.txtime.ena = true;
@@ -410,6 +418,10 @@ static void ca_set_sockopts(int fd)
 	    setsockopt(fd, SOL_IPV6, IPV6_UNICAST_HOPS,
 		       &opt.sockopt.hlimit, sizeof(opt.sockopt.hlimit)))
 		error(ERN_SOCKOPT, errno, "setsockopt IPV6_HOPLIMIT");
+	if (opt.sockopt.priority &&
+	    setsockopt(fd, SOL_SOCKET, SO_PRIORITY,
+		       &opt.sockopt.priority, sizeof(opt.sockopt.priority)))
+		error(ERN_SOCKOPT, errno, "setsockopt SO_PRIORITY");
 }
 
 int main(int argc, char *argv[])
@@ -421,6 +433,7 @@ int main(int argc, char *argv[])
 	char cbuf[1024];
 	int err;
 	int fd;
+	int i;
 
 	cs_parse_args(argc, argv);
 
@@ -480,24 +493,27 @@ int main(int argc, char *argv[])
 
 	cs_write_cmsg(fd, &msg, cbuf, sizeof(cbuf));
 
-	err = sendmsg(fd, &msg, 0);
-	if (err < 0) {
-		if (!opt.silent_send)
-			fprintf(stderr, "send failed: %s\n", strerror(errno));
-		err = ERN_SEND;
-		goto err_out;
-	} else if (err != (int)opt.size) {
-		fprintf(stderr, "short send\n");
-		err = ERN_SEND_SHORT;
-		goto err_out;
-	} else {
-		err = ERN_SUCCESS;
+	for (i = 0; i < opt.num_pkt; i++) {
+		err = sendmsg(fd, &msg, 0);
+		if (err < 0) {
+			if (!opt.silent_send)
+				fprintf(stderr, "send failed: %s\n", strerror(errno));
+			err = ERN_SEND;
+			goto err_out;
+		} else if (err != (int)opt.size) {
+			fprintf(stderr, "short send\n");
+			err = ERN_SEND_SHORT;
+			goto err_out;
+		}
 	}
+	err = ERN_SUCCESS;
 
-	/* Make sure all timestamps have time to loop back */
-	usleep(opt.txtime.delay);
+	if (opt.ts.ena) {
+		/* Make sure all timestamps have time to loop back */
+		usleep(opt.txtime.delay);
 
-	cs_read_cmsg(fd, &msg, cbuf, sizeof(cbuf));
+		cs_read_cmsg(fd, &msg, cbuf, sizeof(cbuf));
+	}
 
 err_out:
 	close(fd);

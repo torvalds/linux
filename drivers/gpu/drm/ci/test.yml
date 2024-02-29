@@ -82,19 +82,34 @@
   tags:
     - $RUNNER_TAG
 
-msm:sc7180:
+.msm-sc7180:
   extends:
     - .lava-igt:arm64
   stage: msm
-  parallel: 4
   variables:
     DRIVER_NAME: msm
-    DEVICE_TYPE: sc7180-trogdor-lazor-limozeen
-    DTB: sc7180-trogdor-lazor-limozeen-nots-r5
     BOOT_METHOD: depthcharge
     KERNEL_IMAGE_TYPE: ""
-    GPU_VERSION: sc7180
+
+msm:sc7180-trogdor-lazor-limozeen:
+  extends:
+    - .msm-sc7180
+  parallel: 4
+  variables:
+    DEVICE_TYPE: sc7180-trogdor-lazor-limozeen
+    DTB: sc7180-trogdor-lazor-limozeen-nots-r5
+    GPU_VERSION: ${DEVICE_TYPE}
     RUNNER_TAG: mesa-ci-x86-64-lava-sc7180-trogdor-lazor-limozeen
+
+msm:sc7180-trogdor-kingoftown:
+  extends:
+    - .msm-sc7180
+  parallel: 6
+  variables:
+    DEVICE_TYPE: sc7180-trogdor-kingoftown
+    DTB: sc7180-trogdor-kingoftown
+    GPU_VERSION: ${DEVICE_TYPE}
+    RUNNER_TAG: mesa-ci-x86-64-lava-sc7180-trogdor-kingoftown
 
 msm:apq8016:
   extends:
@@ -104,7 +119,10 @@ msm:apq8016:
     DRIVER_NAME: msm
     BM_DTB: https://${PIPELINE_ARTIFACTS_BASE}/arm64/apq8016-sbc-usb-host.dtb
     GPU_VERSION: apq8016
-    BM_CMDLINE: "ip=dhcp console=ttyMSM0,115200n8 $BM_KERNEL_EXTRA_ARGS root=/dev/nfs rw nfsrootdebug nfsroot=,tcp,nfsvers=4.2 init=/init $BM_KERNELARGS"
+    # disabling unused clocks congests with the MDSS runtime PM trying to
+    # disable those clocks and causes boot to fail.
+    # Reproducer: DRM_MSM=y, DRM_I2C_ADV7511=m
+    BM_KERNEL_EXTRA_ARGS: clk_ignore_unused
     RUNNER_TAG: google-freedreno-db410c
   script:
     - ./install/bare-metal/fastboot.sh
@@ -324,6 +342,7 @@ virtio_gpu:none:
     GPU_VERSION: none
   extends:
     - .test-gl
+    - .test-rules
   tags:
     - kvm
   script:

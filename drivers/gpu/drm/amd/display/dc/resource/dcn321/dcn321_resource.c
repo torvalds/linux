@@ -1574,7 +1574,7 @@ static void dcn321_destroy_resource_pool(struct resource_pool **pool)
 
 static struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap,
-	.get_subvp_en = resource_subvp_in_use,
+	.get_subvp_en = dcn32_subvp_in_use,
 };
 
 static void dcn321_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
@@ -1760,6 +1760,7 @@ static bool dcn321_resource_construct(
 	dc->caps.color.mpc.ocsc = 1;
 
 	dc->config.dc_mode_clk_limit_support = true;
+	dc->config.enable_windowed_mpo_odm = false;
 	/* read VBIOS LTTPR caps */
 	{
 		if (ctx->dc_bios->funcs->get_lttpr_caps) {

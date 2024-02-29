@@ -411,7 +411,7 @@ void gfs2_recover_func(struct work_struct *work)
 	int error = 0;
 	int jlocked = 0;
 
-	if (gfs2_withdrawn(sdp)) {
+	if (gfs2_withdrawing_or_withdrawn(sdp)) {
 		fs_err(sdp, "jid=%u: Recovery not attempted due to withdraw.\n",
 		       jd->jd_jid);
 		goto fail;

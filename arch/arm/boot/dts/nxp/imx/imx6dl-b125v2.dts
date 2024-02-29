@@ -22,7 +22,7 @@
 		compatible = "eeti,exc80h60";
 		reg = <0x2a>;
 		pinctrl-names = "default";
-		pinctrl-0 =<&pinctrl_q7_gpio0>;
+		pinctrl-0 = <&pinctrl_q7_gpio0>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 		reset-gpios = <&tca6424a 21 GPIO_ACTIVE_HIGH>;

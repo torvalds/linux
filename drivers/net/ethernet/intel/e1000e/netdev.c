@@ -1788,8 +1788,7 @@ static irqreturn_t e1000_intr_msi(int __always_unused irq, void *data)
 		adapter->corr_errors +=
 		    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
 		adapter->uncorr_errors +=
-		    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
-		    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+		    FIELD_GET(E1000_PBECCSTS_UNCORR_ERR_CNT_MASK, pbeccsts);
 
 		/* Do the reset outside of interrupt context */
 		schedule_work(&adapter->reset_task);
@@ -1868,8 +1867,7 @@ static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 		adapter->corr_errors +=
 		    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
 		adapter->uncorr_errors +=
-		    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
-		    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+		    FIELD_GET(E1000_PBECCSTS_UNCORR_ERR_CNT_MASK, pbeccsts);
 
 		/* Do the reset outside of interrupt context */
 		schedule_work(&adapter->reset_task);
@@ -5031,8 +5029,7 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 		adapter->corr_errors +=
 		    pbeccsts & E1000_PBECCSTS_CORR_ERR_CNT_MASK;
 		adapter->uncorr_errors +=
-		    (pbeccsts & E1000_PBECCSTS_UNCORR_ERR_CNT_MASK) >>
-		    E1000_PBECCSTS_UNCORR_ERR_CNT_SHIFT;
+		    FIELD_GET(E1000_PBECCSTS_UNCORR_ERR_CNT_MASK, pbeccsts);
 	}
 }
 
@@ -6249,7 +6246,7 @@ static int e1000_init_phy_wakeup(struct e1000_adapter *adapter, u32 wufc)
 		phy_reg |= BM_RCTL_MPE;
 	phy_reg &= ~(BM_RCTL_MO_MASK);
 	if (mac_reg & E1000_RCTL_MO_3)
-		phy_reg |= (((mac_reg & E1000_RCTL_MO_3) >> E1000_RCTL_MO_SHIFT)
+		phy_reg |= (FIELD_GET(E1000_RCTL_MO_3, mac_reg)
 			    << BM_RCTL_MO_SHIFT);
 	if (mac_reg & E1000_RCTL_BAM)
 		phy_reg |= BM_RCTL_BAM;

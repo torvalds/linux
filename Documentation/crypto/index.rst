@@ -9,11 +9,8 @@ This documentation outlines the Linux kernel crypto API with its
 concepts, details about developing cipher implementations, employment of the API
 for cryptographic use cases, as well as programming examples.
 
-.. class:: toc-title
-
-	   Table of contents
-
 .. toctree::
+   :caption: Table of contents
    :maxdepth: 2
 
    intro
@@ -28,3 +25,4 @@ for cryptographic use cases, as well as programming examples.
    api
    api-samples
    descore-readme
+   device_drivers/index

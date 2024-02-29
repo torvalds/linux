@@ -42,13 +42,12 @@ struct pmreg_sets {
 
 static uint64_t get_pmcr_n(uint64_t pmcr)
 {
-	return (pmcr >> ARMV8_PMU_PMCR_N_SHIFT) & ARMV8_PMU_PMCR_N_MASK;
+	return FIELD_GET(ARMV8_PMU_PMCR_N, pmcr);
 }
 
 static void set_pmcr_n(uint64_t *pmcr, uint64_t pmcr_n)
 {
-	*pmcr = *pmcr & ~(ARMV8_PMU_PMCR_N_MASK << ARMV8_PMU_PMCR_N_SHIFT);
-	*pmcr |= (pmcr_n << ARMV8_PMU_PMCR_N_SHIFT);
+	u64p_replace_bits((__u64 *) pmcr, pmcr_n, ARMV8_PMU_PMCR_N);
 }
 
 static uint64_t get_counters_mask(uint64_t n)
@@ -518,11 +517,11 @@ static void test_create_vpmu_vm_with_pmcr_n(uint64_t pmcr_n, bool expect_fail)
 
 	if (expect_fail)
 		TEST_ASSERT(pmcr_orig == pmcr,
-			    "PMCR.N modified by KVM to a larger value (PMCR: 0x%lx) for pmcr_n: 0x%lx\n",
+			    "PMCR.N modified by KVM to a larger value (PMCR: 0x%lx) for pmcr_n: 0x%lx",
 			    pmcr, pmcr_n);
 	else
 		TEST_ASSERT(pmcr_n == get_pmcr_n(pmcr),
-			    "Failed to update PMCR.N to %lu (received: %lu)\n",
+			    "Failed to update PMCR.N to %lu (received: %lu)",
 			    pmcr_n, get_pmcr_n(pmcr));
 }
 
@@ -595,12 +594,12 @@ static void run_pmregs_validity_test(uint64_t pmcr_n)
 		 */
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Initial read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Initial read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(set_reg_id), reg_val);
 
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(clr_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Initial read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Initial read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(clr_reg_id), reg_val);
 
 		/*
@@ -612,12 +611,12 @@ static void run_pmregs_validity_test(uint64_t pmcr_n)
 
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(set_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Read of set_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(set_reg_id), reg_val);
 
 		vcpu_get_reg(vcpu, KVM_ARM64_SYS_REG(clr_reg_id), &reg_val);
 		TEST_ASSERT((reg_val & (~valid_counters_mask)) == 0,
-			    "Read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx\n",
+			    "Read of clr_reg: 0x%llx has unimplemented counters enabled: 0x%lx",
 			    KVM_ARM64_SYS_REG(clr_reg_id), reg_val);
 	}
 

@@ -89,6 +89,7 @@ static const struct dsa_device_ops ar9331_netdev_ops = {
 	.needed_headroom = AR9331_HDR_LEN,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Atheros AR9331 SoC with built-in switch");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_AR9331, AR9331_NAME);
 module_dsa_tag_driver(ar9331_netdev_ops);

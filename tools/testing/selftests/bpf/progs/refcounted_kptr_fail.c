@@ -54,6 +54,25 @@ long rbtree_refcounted_node_ref_escapes(void *ctx)
 }
 
 SEC("?tc")
+__failure __msg("Possibly NULL pointer passed to trusted arg0")
+long refcount_acquire_maybe_null(void *ctx)
+{
+	struct node_acquire *n, *m;
+
+	n = bpf_obj_new(typeof(*n));
+	/* Intentionally not testing !n
+	 * it's MAYBE_NULL for refcount_acquire
+	 */
+	m = bpf_refcount_acquire(n);
+	if (m)
+		bpf_obj_drop(m);
+	if (n)
+		bpf_obj_drop(n);
+
+	return 0;
+}
+
+SEC("?tc")
 __failure __msg("Unreleased reference id=3 alloc_insn=9")
 long rbtree_refcounted_node_ref_escapes_owning_input(void *ctx)
 {

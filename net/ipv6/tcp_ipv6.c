@@ -1699,7 +1699,7 @@ ipv6_pktoptions:
 	if (TCP_SKB_CB(opt_skb)->end_seq == tp->rcv_nxt &&
 	    !((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN))) {
 		if (np->rxopt.bits.rxinfo || np->rxopt.bits.rxoinfo)
-			np->mcast_oif = tcp_v6_iif(opt_skb);
+			WRITE_ONCE(np->mcast_oif, tcp_v6_iif(opt_skb));
 		if (np->rxopt.bits.rxhlim || np->rxopt.bits.rxohlim)
 			WRITE_ONCE(np->mcast_hops,
 				   ipv6_hdr(opt_skb)->hop_limit);

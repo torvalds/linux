@@ -105,6 +105,7 @@ struct affs_sb_info {
 	int work_queued;		/* non-zero delayed work is queued */
 	struct delayed_work sb_work;	/* superblock flush delayed work */
 	spinlock_t work_lock;		/* protects sb_work and work_queued */
+	struct rcu_head rcu;
 };
 
 #define AFFS_MOUNT_SF_INTL		0x0001 /* International filesystem. */

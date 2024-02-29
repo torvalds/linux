@@ -1494,12 +1494,14 @@ static int check_info_data(struct perf_pmu *pmu,
  * defined for the alias
  */
 int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_terms,
-			  struct perf_pmu_info *info, struct parse_events_error *err)
+			  struct perf_pmu_info *info, bool *rewrote_terms,
+			  struct parse_events_error *err)
 {
 	struct parse_events_term *term, *h;
 	struct perf_pmu_alias *alias;
 	int ret;
 
+	*rewrote_terms = false;
 	info->per_pkg = false;
 
 	/*
@@ -1521,7 +1523,7 @@ int perf_pmu__check_alias(struct perf_pmu *pmu, struct parse_events_terms *head_
 						NULL);
 			return ret;
 		}
-
+		*rewrote_terms = true;
 		ret = check_info_data(pmu, alias, info, err, term->err_term);
 		if (ret)
 			return ret;
@@ -1615,6 +1617,8 @@ bool perf_pmu__auto_merge_stats(const struct perf_pmu *pmu)
 
 bool perf_pmu__have_event(struct perf_pmu *pmu, const char *name)
 {
+	if (!name)
+		return false;
 	if (perf_pmu__find_alias(pmu, name, /*load=*/ true) != NULL)
 		return true;
 	if (pmu->cpu_aliases_added || !pmu->events_table)

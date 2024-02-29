@@ -134,7 +134,7 @@ MODULE_DEVICE_TABLE(of, iproc_nand_of_match);
 
 static struct platform_driver iproc_nand_driver = {
 	.probe			= iproc_nand_probe,
-	.remove			= brcmnand_remove,
+	.remove_new		= brcmnand_remove,
 	.driver = {
 		.name		= "iproc_nand",
 		.pm		= &brcmnand_pm_ops,

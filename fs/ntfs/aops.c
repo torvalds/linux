@@ -1304,7 +1304,7 @@ done:
  * page cleaned.  The VM has already locked the page and marked it clean.
  *
  * For non-resident attributes, ntfs_writepage() writes the @page by calling
- * the ntfs version of the generic block_write_full_page() function,
+ * the ntfs version of the generic block_write_full_folio() function,
  * ntfs_write_block(), which in turn if necessary creates and writes the
  * buffers associated with the page asynchronously.
  *
@@ -1314,7 +1314,7 @@ done:
  * vfs inode dirty code path for the inode the mft record belongs to or via the
  * vm page dirty code path for the page the mft record is in.
  *
- * Based on ntfs_read_folio() and fs/buffer.c::block_write_full_page().
+ * Based on ntfs_read_folio() and fs/buffer.c::block_write_full_folio().
  *
  * Return 0 on success and -errno on error.
  */
@@ -1644,7 +1644,7 @@ const struct address_space_operations ntfs_normal_aops = {
 	.bmap		= ntfs_bmap,
 	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 /*
@@ -1658,7 +1658,7 @@ const struct address_space_operations ntfs_compressed_aops = {
 #endif /* NTFS_RW */
 	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate = block_is_partially_uptodate,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 /*
@@ -1673,7 +1673,7 @@ const struct address_space_operations ntfs_mst_aops = {
 #endif /* NTFS_RW */
 	.migrate_folio	= buffer_migrate_folio,
 	.is_partially_uptodate	= block_is_partially_uptodate,
-	.error_remove_page = generic_error_remove_page,
+	.error_remove_folio = generic_error_remove_folio,
 };
 
 #ifdef NTFS_RW
@@ -1690,7 +1690,7 @@ const struct address_space_operations ntfs_mst_aops = {
  *
  * If the page does not have buffers, we create them and set them uptodate.
  * The page may not be locked which is why we need to handle the buffers under
- * the mapping->private_lock.  Once the buffers are marked dirty we no longer
+ * the mapping->i_private_lock.  Once the buffers are marked dirty we no longer
  * need the lock since try_to_free_buffers() does not free dirty buffers.
  */
 void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
@@ -1702,11 +1702,11 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 	BUG_ON(!PageUptodate(page));
 	end = ofs + ni->itype.index.block_size;
 	bh_size = VFS_I(ni)->i_sb->s_blocksize;
-	spin_lock(&mapping->private_lock);
+	spin_lock(&mapping->i_private_lock);
 	if (unlikely(!page_has_buffers(page))) {
-		spin_unlock(&mapping->private_lock);
+		spin_unlock(&mapping->i_private_lock);
 		bh = head = alloc_page_buffers(page, bh_size, true);
-		spin_lock(&mapping->private_lock);
+		spin_lock(&mapping->i_private_lock);
 		if (likely(!page_has_buffers(page))) {
 			struct buffer_head *tail;
 
@@ -1730,7 +1730,7 @@ void mark_ntfs_record_dirty(struct page *page, const unsigned int ofs) {
 			break;
 		set_buffer_dirty(bh);
 	} while ((bh = bh->b_this_page) != head);
-	spin_unlock(&mapping->private_lock);
+	spin_unlock(&mapping->i_private_lock);
 	filemap_dirty_folio(mapping, page_folio(page));
 	if (unlikely(buffers_to_free)) {
 		do {

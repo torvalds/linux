@@ -342,6 +342,18 @@
 		#clock-cells = <0>;
 	};
 
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		mfc_left: region@84000000 {
+			compatible = "shared-dma-pool";
+			no-map;
+			reg = <0 0x84000000 0 0x8000000>;
+		};
+	};
+
 	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
@@ -581,7 +593,7 @@
 		};
 
 		serial_0: serial@14180000 {
-			compatible = "samsung,exynos4210-uart";
+			compatible = "tesla,fsd-uart", "samsung,exynos4210-uart";
 			reg = <0x0 0x14180000 0x0 0x100>;
 			interrupts = <GIC_SPI 171 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&pdma1 1>, <&pdma1 0>;
@@ -593,7 +605,7 @@
 		};
 
 		serial_1: serial@14190000 {
-			compatible = "samsung,exynos4210-uart";
+			compatible = "tesla,fsd-uart", "samsung,exynos4210-uart";
 			reg = <0x0 0x14190000 0x0 0x100>;
 			interrupts = <GIC_SPI 172 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&pdma1 3>, <&pdma1 2>;
@@ -605,12 +617,12 @@
 		};
 
 		pmu_system_controller: system-controller@11400000 {
-			compatible = "samsung,exynos7-pmu", "syscon";
+			compatible = "tesla,fsd-pmu", "samsung,exynos7-pmu", "syscon";
 			reg = <0x0 0x11400000 0x0 0x5000>;
 		};
 
 		watchdog_0: watchdog@100a0000 {
-			compatible = "samsung,exynos7-wdt";
+			compatible = "tesla,fsd-wdt", "samsung,exynos7-wdt";
 			reg = <0x0 0x100a0000 0x0 0x100>;
 			interrupts = <GIC_SPI 471 IRQ_TYPE_LEVEL_HIGH>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
@@ -619,7 +631,7 @@
 		};
 
 		watchdog_1: watchdog@100b0000 {
-			compatible = "samsung,exynos7-wdt";
+			compatible = "tesla,fsd-wdt", "samsung,exynos7-wdt";
 			reg = <0x0 0x100b0000 0x0 0x100>;
 			interrupts = <GIC_SPI 472 IRQ_TYPE_LEVEL_HIGH>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
@@ -628,7 +640,7 @@
 		};
 
 		watchdog_2: watchdog@100c0000 {
-			compatible = "samsung,exynos7-wdt";
+			compatible = "tesla,fsd-wdt", "samsung,exynos7-wdt";
 			reg = <0x0 0x100c0000 0x0 0x100>;
 			interrupts = <GIC_SPI 473 IRQ_TYPE_LEVEL_HIGH>;
 			samsung,syscon-phandle = <&pmu_system_controller>;
@@ -637,7 +649,7 @@
 		};
 
 		pwm_0: pwm@14100000 {
-			compatible = "samsung,exynos4210-pwm";
+			compatible = "tesla,fsd-pwm", "samsung,exynos4210-pwm";
 			reg = <0x0 0x14100000 0x0 0x100>;
 			samsung,pwm-outputs = <0>, <1>, <2>, <3>;
 			#pwm-cells = <3>;
@@ -647,7 +659,7 @@
 		};
 
 		pwm_1: pwm@14110000 {
-			compatible = "samsung,exynos4210-pwm";
+			compatible = "tesla,fsd-pwm", "samsung,exynos4210-pwm";
 			reg = <0x0 0x14110000 0x0 0x100>;
 			samsung,pwm-outputs = <0>, <1>, <2>, <3>;
 			#pwm-cells = <3>;
@@ -657,7 +669,7 @@
 		};
 
 		hsi2c_0: i2c@14200000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14200000 0x0 0x1000>;
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -670,7 +682,7 @@
 		};
 
 		hsi2c_1: i2c@14210000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14210000 0x0 0x1000>;
 			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -683,7 +695,7 @@
 		};
 
 		hsi2c_2: i2c@14220000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14220000 0x0 0x1000>;
 			interrupts = <GIC_SPI 150 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -696,7 +708,7 @@
 		};
 
 		hsi2c_3: i2c@14230000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14230000 0x0 0x1000>;
 			interrupts = <GIC_SPI 151 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -709,7 +721,7 @@
 		};
 
 		hsi2c_4: i2c@14240000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14240000 0x0 0x1000>;
 			interrupts = <GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -722,7 +734,7 @@
 		};
 
 		hsi2c_5: i2c@14250000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14250000 0x0 0x1000>;
 			interrupts = <GIC_SPI 153 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -735,7 +747,7 @@
 		};
 
 		hsi2c_6: i2c@14260000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14260000 0x0 0x1000>;
 			interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -748,7 +760,7 @@
 		};
 
 		hsi2c_7: i2c@14270000 {
-			compatible = "samsung,exynos7-hsi2c";
+			compatible = "tesla,fsd-hsi2c", "samsung,exynos7-hsi2c";
 			reg = <0x0 0x14270000 0x0 0x1000>;
 			interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
@@ -954,6 +966,15 @@
 				<GIC_SPI 470 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&fin_pll>, <&clock_imem IMEM_MCT_PCLK>;
 			clock-names = "fin_pll", "mct";
+		};
+
+		mfc: mfc@12880000 {
+			compatible = "tesla,fsd-mfc";
+			reg = <0x0 0x12880000 0x0 0x10000>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_LEVEL_HIGH>;
+			clock-names = "mfc";
+			clocks = <&clock_mfc MFC_MFC_IPCLKPORT_ACLK>;
+			memory-region = <&mfc_left>;
 		};
 
 		ufs: ufs@15120000 {

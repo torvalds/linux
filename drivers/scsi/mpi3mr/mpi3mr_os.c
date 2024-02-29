@@ -1047,8 +1047,9 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
 		if ((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) &&
-		    tgtdev->host_exposed && tgtdev->starget &&
-		    tgtdev->starget->hostdata) {
+		     tgtdev->is_hidden &&
+		     tgtdev->host_exposed && tgtdev->starget &&
+		     tgtdev->starget->hostdata) {
 			tgt_priv = tgtdev->starget->hostdata;
 			tgt_priv->dev_removed = 1;
 			atomic_set(&tgt_priv->block_io, 0);
@@ -1064,14 +1065,24 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
 			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev, true);
 			mpi3mr_tgtdev_put(tgtdev);
+		} else if (tgtdev->is_hidden & tgtdev->host_exposed) {
+			dprint_reset(mrioc, "hiding target device with perst_id(%d)\n",
+				     tgtdev->perst_id);
+			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
 		}
 	}
 
 	tgtdev = NULL;
 	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list) {
 		if ((tgtdev->dev_handle != MPI3MR_INVALID_DEV_HANDLE) &&
-		    !tgtdev->is_hidden && !tgtdev->host_exposed)
-			mpi3mr_report_tgtdev_to_host(mrioc, tgtdev->perst_id);
+		    !tgtdev->is_hidden) {
+			if (!tgtdev->host_exposed)
+				mpi3mr_report_tgtdev_to_host(mrioc,
+							     tgtdev->perst_id);
+			else if (tgtdev->starget)
+				starget_for_each_device(tgtdev->starget,
+							(void *)tgtdev, mpi3mr_update_sdev);
+	}
 	}
 }
 
@@ -3194,6 +3205,7 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
 			tg = stgt_priv_data->throttle_group;
 			throttle_enabled_dev =
 			    stgt_priv_data->io_throttle_enabled;
+			dev_handle = stgt_priv_data->dev_handle;
 		}
 	}
 	if (unlikely((data_len_blks >= mrioc->io_throttle_data_length) &&
@@ -5101,7 +5113,10 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		mpi3mr_init_drv_cmd(&mrioc->evtack_cmds[i],
 				    MPI3MR_HOSTTAG_EVTACKCMD_MIN + i);
 
-	if (pdev->revision)
+	if ((pdev->device == MPI3_MFGPAGE_DEVID_SAS4116) &&
+		!pdev->revision)
+		mrioc->enable_segqueue = false;
+	else
 		mrioc->enable_segqueue = true;
 
 	init_waitqueue_head(&mrioc->reset_waitq);
@@ -5429,6 +5444,14 @@ static const struct pci_device_id mpi3mr_pci_id_table[] = {
 	{
 		PCI_DEVICE_SUB(MPI3_MFGPAGE_VENDORID_BROADCOM,
 		    MPI3_MFGPAGE_DEVID_SAS4116, PCI_ANY_ID, PCI_ANY_ID)
+	},
+	{
+		PCI_DEVICE_SUB(MPI3_MFGPAGE_VENDORID_BROADCOM,
+		    MPI3_MFGPAGE_DEVID_SAS5116_MPI, PCI_ANY_ID, PCI_ANY_ID)
+	},
+	{
+		PCI_DEVICE_SUB(MPI3_MFGPAGE_VENDORID_BROADCOM,
+		    MPI3_MFGPAGE_DEVID_SAS5116_MPI_MGMT, PCI_ANY_ID, PCI_ANY_ID)
 	},
 	{ 0 }
 };

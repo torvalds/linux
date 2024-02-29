@@ -326,6 +326,26 @@ static const struct v4l2_file_operations mtk_vcodec_fops = {
 	.mmap		= v4l2_m2m_fop_mmap,
 };
 
+static void mtk_vcodec_dec_get_chip_name(struct mtk_vcodec_dec_dev *vdec_dev)
+{
+	struct device *dev = &vdec_dev->plat_dev->dev;
+
+	if (of_device_is_compatible(dev->of_node, "mediatek,mt8173-vcodec-dec"))
+		vdec_dev->chip_name = MTK_VDEC_MT8173;
+	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8183-vcodec-dec"))
+		vdec_dev->chip_name = MTK_VDEC_MT8183;
+	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8192-vcodec-dec"))
+		vdec_dev->chip_name = MTK_VDEC_MT8192;
+	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8195-vcodec-dec"))
+		vdec_dev->chip_name = MTK_VDEC_MT8195;
+	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8186-vcodec-dec"))
+		vdec_dev->chip_name = MTK_VDEC_MT8186;
+	else if (of_device_is_compatible(dev->of_node, "mediatek,mt8188-vcodec-dec"))
+		vdec_dev->chip_name = MTK_VDEC_MT8188;
+	else
+		vdec_dev->chip_name = MTK_VDEC_INVAL;
+}
+
 static int mtk_vcodec_probe(struct platform_device *pdev)
 {
 	struct mtk_vcodec_dec_dev *dev;
@@ -340,6 +360,12 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 
 	INIT_LIST_HEAD(&dev->ctx_list);
 	dev->plat_dev = pdev;
+
+	mtk_vcodec_dec_get_chip_name(dev);
+	if (dev->chip_name == MTK_VDEC_INVAL) {
+		dev_err(&pdev->dev, "Failed to get decoder chip name");
+		return -EINVAL;
+	}
 
 	dev->vdec_pdata = of_device_get_match_data(&pdev->dev);
 	if (!of_property_read_u32(pdev->dev.of_node, "mediatek,vpu",

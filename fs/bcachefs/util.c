@@ -241,10 +241,15 @@ bool bch2_is_zero(const void *_p, size_t n)
 	return true;
 }
 
-void bch2_prt_u64_binary(struct printbuf *out, u64 v, unsigned nr_bits)
+void bch2_prt_u64_base2_nbits(struct printbuf *out, u64 v, unsigned nr_bits)
 {
 	while (nr_bits)
 		prt_char(out, '0' + ((v >> --nr_bits) & 1));
+}
+
+void bch2_prt_u64_base2(struct printbuf *out, u64 v)
+{
+	bch2_prt_u64_base2_nbits(out, v, fls64(v) ?: 1);
 }
 
 void bch2_print_string_as_lines(const char *prefix, const char *lines)
@@ -267,14 +272,14 @@ void bch2_print_string_as_lines(const char *prefix, const char *lines)
 	console_unlock();
 }
 
-int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
+int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigned skipnr,
+			gfp_t gfp)
 {
 #ifdef CONFIG_STACKTRACE
 	unsigned nr_entries = 0;
-	int ret = 0;
 
 	stack->nr = 0;
-	ret = darray_make_room(stack, 32);
+	int ret = darray_make_room_gfp(stack, 32, gfp);
 	if (ret)
 		return ret;
 
@@ -282,9 +287,9 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 		return -1;
 
 	do {
-		nr_entries = stack_trace_save_tsk(task, stack->data, stack->size, 0);
+		nr_entries = stack_trace_save_tsk(task, stack->data, stack->size, skipnr + 1);
 	} while (nr_entries == stack->size &&
-		 !(ret = darray_make_room(stack, stack->size * 2)));
+		 !(ret = darray_make_room_gfp(stack, stack->size * 2, gfp)));
 
 	stack->nr = nr_entries;
 	up_read(&task->signal->exec_update_lock);
@@ -297,22 +302,72 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task)
 
 void bch2_prt_backtrace(struct printbuf *out, bch_stacktrace *stack)
 {
-	unsigned long *i;
-
 	darray_for_each(*stack, i) {
 		prt_printf(out, "[<0>] %pB", (void *) *i);
 		prt_newline(out);
 	}
 }
 
-int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task)
+int bch2_prt_task_backtrace(struct printbuf *out, struct task_struct *task, unsigned skipnr, gfp_t gfp)
 {
 	bch_stacktrace stack = { 0 };
-	int ret = bch2_save_backtrace(&stack, task);
+	int ret = bch2_save_backtrace(&stack, task, skipnr + 1, gfp);
 
 	bch2_prt_backtrace(out, &stack);
 	darray_exit(&stack);
 	return ret;
+}
+
+#ifndef __KERNEL__
+#include <time.h>
+void bch2_prt_datetime(struct printbuf *out, time64_t sec)
+{
+	time_t t = sec;
+	char buf[64];
+	ctime_r(&t, buf);
+	strim(buf);
+	prt_str(out, buf);
+}
+#else
+void bch2_prt_datetime(struct printbuf *out, time64_t sec)
+{
+	char buf[64];
+	snprintf(buf, sizeof(buf), "%ptT", &sec);
+	prt_u64(out, sec);
+}
+#endif
+
+static const struct time_unit {
+	const char	*name;
+	u64		nsecs;
+} time_units[] = {
+	{ "ns",		1		 },
+	{ "us",		NSEC_PER_USEC	 },
+	{ "ms",		NSEC_PER_MSEC	 },
+	{ "s",		NSEC_PER_SEC	 },
+	{ "m",          (u64) NSEC_PER_SEC * 60},
+	{ "h",          (u64) NSEC_PER_SEC * 3600},
+	{ "eon",        U64_MAX          },
+};
+
+static const struct time_unit *pick_time_units(u64 ns)
+{
+	const struct time_unit *u;
+
+	for (u = time_units;
+	     u + 1 < time_units + ARRAY_SIZE(time_units) &&
+	     ns >= u[1].nsecs << 1;
+	     u++)
+		;
+
+	return u;
+}
+
+void bch2_pr_time_units(struct printbuf *out, u64 ns)
+{
+	const struct time_unit *u = pick_time_units(ns);
+
+	prt_printf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
 }
 
 /* time stats: */
@@ -359,42 +414,48 @@ static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 		mean_and_variance_weighted_update(&stats->duration_stats_weighted, duration);
 		stats->max_duration = max(stats->max_duration, duration);
 		stats->min_duration = min(stats->min_duration, duration);
+		stats->total_duration += duration;
 		bch2_quantiles_update(&stats->quantiles, duration);
 	}
 
-	if (time_after64(end, stats->last_event)) {
+	if (stats->last_event && time_after64(end, stats->last_event)) {
 		freq = end - stats->last_event;
 		mean_and_variance_update(&stats->freq_stats, freq);
 		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
 		stats->max_freq = max(stats->max_freq, freq);
 		stats->min_freq = min(stats->min_freq, freq);
-		stats->last_event = end;
 	}
+
+	stats->last_event = end;
+}
+
+static void __bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
+					   struct bch2_time_stat_buffer *b)
+{
+	for (struct bch2_time_stat_buffer_entry *i = b->entries;
+	     i < b->entries + ARRAY_SIZE(b->entries);
+	     i++)
+		bch2_time_stats_update_one(stats, i->start, i->end);
+	b->nr = 0;
 }
 
 static noinline void bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,
 						  struct bch2_time_stat_buffer *b)
 {
-	struct bch2_time_stat_buffer_entry *i;
 	unsigned long flags;
 
 	spin_lock_irqsave(&stats->lock, flags);
-	for (i = b->entries;
-	     i < b->entries + ARRAY_SIZE(b->entries);
-	     i++)
-		bch2_time_stats_update_one(stats, i->start, i->end);
+	__bch2_time_stats_clear_buffer(stats, b);
 	spin_unlock_irqrestore(&stats->lock, flags);
-
-	b->nr = 0;
 }
 
 void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 {
 	unsigned long flags;
 
-	WARN_RATELIMIT(!stats->min_duration || !stats->min_freq,
-		       "time_stats: min_duration = %llu, min_freq = %llu",
-		       stats->min_duration, stats->min_freq);
+	WARN_ONCE(!stats->duration_stats_weighted.weight ||
+		  !stats->freq_stats_weighted.weight,
+		  "uninitialized time_stats");
 
 	if (!stats->buffer) {
 		spin_lock_irqsave(&stats->lock, flags);
@@ -423,40 +484,6 @@ void __bch2_time_stats_update(struct bch2_time_stats *stats, u64 start, u64 end)
 		preempt_enable();
 	}
 }
-#endif
-
-static const struct time_unit {
-	const char	*name;
-	u64		nsecs;
-} time_units[] = {
-	{ "ns",		1		 },
-	{ "us",		NSEC_PER_USEC	 },
-	{ "ms",		NSEC_PER_MSEC	 },
-	{ "s",		NSEC_PER_SEC	 },
-	{ "m",          (u64) NSEC_PER_SEC * 60},
-	{ "h",          (u64) NSEC_PER_SEC * 3600},
-	{ "eon",        U64_MAX          },
-};
-
-static const struct time_unit *pick_time_units(u64 ns)
-{
-	const struct time_unit *u;
-
-	for (u = time_units;
-	     u + 1 < time_units + ARRAY_SIZE(time_units) &&
-	     ns >= u[1].nsecs << 1;
-	     u++)
-		;
-
-	return u;
-}
-
-void bch2_pr_time_units(struct printbuf *out, u64 ns)
-{
-	const struct time_unit *u = pick_time_units(ns);
-
-	prt_printf(out, "%llu %s", div_u64(ns, u->nsecs), u->name);
-}
 
 static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
 {
@@ -467,26 +494,6 @@ static void bch2_pr_time_units_aligned(struct printbuf *out, u64 ns)
 	prt_printf(out, "%s", u->name);
 }
 
-#ifndef __KERNEL__
-#include <time.h>
-void bch2_prt_datetime(struct printbuf *out, time64_t sec)
-{
-	time_t t = sec;
-	char buf[64];
-	ctime_r(&t, buf);
-	prt_str(out, buf);
-}
-#else
-void bch2_prt_datetime(struct printbuf *out, time64_t sec)
-{
-	char buf[64];
-	snprintf(buf, sizeof(buf), "%ptT", &sec);
-	prt_u64(out, sec);
-}
-#endif
-
-#define TABSTOP_SIZE 12
-
 static inline void pr_name_and_units(struct printbuf *out, const char *name, u64 ns)
 {
 	prt_str(out, name);
@@ -495,12 +502,24 @@ static inline void pr_name_and_units(struct printbuf *out, const char *name, u64
 	prt_newline(out);
 }
 
+#define TABSTOP_SIZE 12
+
 void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats)
 {
 	const struct time_unit *u;
 	s64 f_mean = 0, d_mean = 0;
 	u64 q, last_q = 0, f_stddev = 0, d_stddev = 0;
 	int i;
+
+	if (stats->buffer) {
+		int cpu;
+
+		spin_lock_irq(&stats->lock);
+		for_each_possible_cpu(cpu)
+			__bch2_time_stats_clear_buffer(stats, per_cpu_ptr(stats->buffer, cpu));
+		spin_unlock_irq(&stats->lock);
+	}
+
 	/*
 	 * avoid divide by zero
 	 */
@@ -546,6 +565,7 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 
 	pr_name_and_units(out, "min:", stats->min_duration);
 	pr_name_and_units(out, "max:", stats->max_duration);
+	pr_name_and_units(out, "total:", stats->total_duration);
 
 	prt_printf(out, "mean:");
 	prt_tab(out);
@@ -603,6 +623,9 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 		last_q = q;
 	}
 }
+#else
+void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats) {}
+#endif
 
 void bch2_time_stats_exit(struct bch2_time_stats *stats)
 {
@@ -1156,4 +1179,40 @@ u64 *bch2_acc_percpu_u64s(u64 __percpu *p, unsigned nr)
 	}
 
 	return ret;
+}
+
+void bch2_darray_str_exit(darray_str *d)
+{
+	darray_for_each(*d, i)
+		kfree(*i);
+	darray_exit(d);
+}
+
+int bch2_split_devs(const char *_dev_name, darray_str *ret)
+{
+	darray_init(ret);
+
+	char *dev_name, *s, *orig;
+
+	dev_name = orig = kstrdup(_dev_name, GFP_KERNEL);
+	if (!dev_name)
+		return -ENOMEM;
+
+	while ((s = strsep(&dev_name, ":"))) {
+		char *p = kstrdup(s, GFP_KERNEL);
+		if (!p)
+			goto err;
+
+		if (darray_push(ret, p)) {
+			kfree(p);
+			goto err;
+		}
+	}
+
+	kfree(orig);
+	return 0;
+err:
+	bch2_darray_str_exit(ret);
+	kfree(orig);
+	return -ENOMEM;
 }

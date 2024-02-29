@@ -91,3 +91,19 @@ Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Size of the trace buffer for TMC-ETR when used in SYSFS
 		mode. Writable only for TMC-ETR configurations. The value
 		should be aligned to the kernel pagesize.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/buf_modes_available
+Date:		August 2023
+KernelVersion:	6.7
+Contact:	Anshuman Khandual <anshuman.khandual@arm.com>
+Description:	(Read) Shows all supported Coresight TMC-ETR buffer modes available
+		for the users to configure explicitly. This file is avaialble only
+		for TMC ETR devices.
+
+What:		/sys/bus/coresight/devices/<memory_map>.tmc/buf_mode_preferred
+Date:		August 2023
+KernelVersion:	6.7
+Contact:	Anshuman Khandual <anshuman.khandual@arm.com>
+Description:	(RW) Current Coresight TMC-ETR buffer mode selected. But user could
+		only provide a mode which is supported for a given ETR device. This
+		file is available only for TMC ETR devices.

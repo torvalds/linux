@@ -366,7 +366,6 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 				      struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	char name[32];
 	int ret, i;
 
 	/* This is an optional property */
@@ -387,9 +386,8 @@ static int kirin_pcie_get_gpio_enable(struct kirin_pcie *pcie,
 		if (pcie->gpio_id_clkreq[i] < 0)
 			return pcie->gpio_id_clkreq[i];
 
-		sprintf(name, "pcie_clkreq_%d", i);
-		pcie->clkreq_names[i] = devm_kstrdup_const(dev, name,
-							    GFP_KERNEL);
+		pcie->clkreq_names[i] = devm_kasprintf(dev, GFP_KERNEL,
+						       "pcie_clkreq_%d", i);
 		if (!pcie->clkreq_names[i])
 			return -ENOMEM;
 	}
@@ -404,7 +402,6 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 	struct device *dev = &pdev->dev;
 	struct device_node *parent, *child;
 	int ret, slot, i;
-	char name[32];
 
 	for_each_available_child_of_node(node, parent) {
 		for_each_available_child_of_node(parent, child) {
@@ -430,9 +427,9 @@ static int kirin_pcie_parse_port(struct kirin_pcie *pcie,
 
 			slot = PCI_SLOT(ret);
 
-			sprintf(name, "pcie_perst_%d", slot);
-			pcie->reset_names[i] = devm_kstrdup_const(dev, name,
-								GFP_KERNEL);
+			pcie->reset_names[i] = devm_kasprintf(dev, GFP_KERNEL,
+							      "pcie_perst_%d",
+							      slot);
 			if (!pcie->reset_names[i]) {
 				ret = -ENOMEM;
 				goto put_node;
@@ -672,7 +669,7 @@ static const struct dw_pcie_ops kirin_dw_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops kirin_pcie_host_ops = {
-	.host_init = kirin_pcie_host_init,
+	.init = kirin_pcie_host_init,
 };
 
 static int kirin_pcie_power_off(struct kirin_pcie *kirin_pcie)
@@ -741,15 +738,13 @@ err:
 	return ret;
 }
 
-static int kirin_pcie_remove(struct platform_device *pdev)
+static void kirin_pcie_remove(struct platform_device *pdev)
 {
 	struct kirin_pcie *kirin_pcie = platform_get_drvdata(pdev);
 
 	dw_pcie_host_deinit(&kirin_pcie->pci->pp);
 
 	kirin_pcie_power_off(kirin_pcie);
-
-	return 0;
 }
 
 struct kirin_pcie_data {
@@ -818,7 +813,7 @@ static int kirin_pcie_probe(struct platform_device *pdev)
 
 static struct platform_driver kirin_pcie_driver = {
 	.probe			= kirin_pcie_probe,
-	.remove	        	= kirin_pcie_remove,
+	.remove_new		= kirin_pcie_remove,
 	.driver			= {
 		.name			= "kirin-pcie",
 		.of_match_table		= kirin_pcie_match,

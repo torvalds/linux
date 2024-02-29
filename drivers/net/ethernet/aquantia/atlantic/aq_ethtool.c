@@ -447,8 +447,8 @@ static u32 aq_ethtool_get_rss_key_size(struct net_device *ndev)
 	return sizeof(cfg->aq_rss.hash_secret_key);
 }
 
-static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
-			      u8 *hfunc)
+static int aq_ethtool_get_rss(struct net_device *ndev,
+			      struct ethtool_rxfh_param *rxfh)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 	struct aq_nic_cfg_s *cfg;
@@ -456,21 +456,21 @@ static int aq_ethtool_get_rss(struct net_device *ndev, u32 *indir, u8 *key,
 
 	cfg = aq_nic_get_cfg(aq_nic);
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
-	if (indir) {
+	rxfh->hfunc = ETH_RSS_HASH_TOP; /* Toeplitz */
+	if (rxfh->indir) {
 		for (i = 0; i < AQ_CFG_RSS_INDIRECTION_TABLE_MAX; i++)
-			indir[i] = cfg->aq_rss.indirection_table[i];
+			rxfh->indir[i] = cfg->aq_rss.indirection_table[i];
 	}
-	if (key)
-		memcpy(key, cfg->aq_rss.hash_secret_key,
+	if (rxfh->key)
+		memcpy(rxfh->key, cfg->aq_rss.hash_secret_key,
 		       sizeof(cfg->aq_rss.hash_secret_key));
 
 	return 0;
 }
 
-static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
-			      const u8 *key, const u8 hfunc)
+static int aq_ethtool_set_rss(struct net_device *netdev,
+			      struct ethtool_rxfh_param *rxfh,
+			      struct netlink_ext_ack *extack)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(netdev);
 	struct aq_nic_cfg_s *cfg;
@@ -482,16 +482,17 @@ static int aq_ethtool_set_rss(struct net_device *netdev, const u32 *indir,
 	rss_entries = cfg->aq_rss.indirection_table_size;
 
 	/* We do not allow change in unsupported parameters */
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 	/* Fill out the redirection table */
-	if (indir)
+	if (rxfh->indir)
 		for (i = 0; i < rss_entries; i++)
-			cfg->aq_rss.indirection_table[i] = indir[i];
+			cfg->aq_rss.indirection_table[i] = rxfh->indir[i];
 
 	/* Fill out the rss hash key */
-	if (key) {
-		memcpy(cfg->aq_rss.hash_secret_key, key,
+	if (rxfh->key) {
+		memcpy(cfg->aq_rss.hash_secret_key, rxfh->key,
 		       sizeof(cfg->aq_rss.hash_secret_key));
 		err = aq_nic->aq_hw_ops->hw_rss_hash_set(aq_nic->aq_hw,
 			&cfg->aq_rss);

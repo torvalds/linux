@@ -23,8 +23,6 @@ asmlinkage void sm4_aesni_avx2_ctr_enc_blk16(const u32 *rk, u8 *dst,
 					const u8 *src, u8 *iv);
 asmlinkage void sm4_aesni_avx2_cbc_dec_blk16(const u32 *rk, u8 *dst,
 					const u8 *src, u8 *iv);
-asmlinkage void sm4_aesni_avx2_cfb_dec_blk16(const u32 *rk, u8 *dst,
-					const u8 *src, u8 *iv);
 
 static int sm4_skcipher_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int key_len)
@@ -40,12 +38,6 @@ static int cbc_decrypt(struct skcipher_request *req)
 				sm4_aesni_avx2_cbc_dec_blk16);
 }
 
-
-static int cfb_decrypt(struct skcipher_request *req)
-{
-	return sm4_avx_cfb_decrypt(req, SM4_CRYPT16_BLOCK_SIZE,
-				sm4_aesni_avx2_cfb_dec_blk16);
-}
 
 static int ctr_crypt(struct skcipher_request *req)
 {
@@ -87,24 +79,6 @@ static struct skcipher_alg sm4_aesni_avx2_skciphers[] = {
 		.setkey		= sm4_skcipher_setkey,
 		.encrypt	= sm4_cbc_encrypt,
 		.decrypt	= cbc_decrypt,
-	}, {
-		.base = {
-			.cra_name		= "__cfb(sm4)",
-			.cra_driver_name	= "__cfb-sm4-aesni-avx2",
-			.cra_priority		= 500,
-			.cra_flags		= CRYPTO_ALG_INTERNAL,
-			.cra_blocksize		= 1,
-			.cra_ctxsize		= sizeof(struct sm4_ctx),
-			.cra_module		= THIS_MODULE,
-		},
-		.min_keysize	= SM4_KEY_SIZE,
-		.max_keysize	= SM4_KEY_SIZE,
-		.ivsize		= SM4_BLOCK_SIZE,
-		.chunksize	= SM4_BLOCK_SIZE,
-		.walksize	= 16 * SM4_BLOCK_SIZE,
-		.setkey		= sm4_skcipher_setkey,
-		.encrypt	= sm4_cfb_encrypt,
-		.decrypt	= cfb_decrypt,
 	}, {
 		.base = {
 			.cra_name		= "__ctr(sm4)",

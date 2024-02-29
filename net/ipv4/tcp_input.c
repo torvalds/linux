@@ -202,23 +202,17 @@ static void bpf_skops_established(struct sock *sk, int bpf_op,
 }
 #endif
 
-static void tcp_gro_dev_warn(struct sock *sk, const struct sk_buff *skb,
-			     unsigned int len)
+static __cold void tcp_gro_dev_warn(const struct sock *sk, const struct sk_buff *skb,
+				    unsigned int len)
 {
-	static bool __once __read_mostly;
+	struct net_device *dev;
 
-	if (!__once) {
-		struct net_device *dev;
-
-		__once = true;
-
-		rcu_read_lock();
-		dev = dev_get_by_index_rcu(sock_net(sk), skb->skb_iif);
-		if (!dev || len >= dev->mtu)
-			pr_warn("%s: Driver has suspect GRO implementation, TCP performance may be compromised.\n",
-				dev ? dev->name : "Unknown driver");
-		rcu_read_unlock();
-	}
+	rcu_read_lock();
+	dev = dev_get_by_index_rcu(sock_net(sk), skb->skb_iif);
+	if (!dev || len >= READ_ONCE(dev->mtu))
+		pr_warn("%s: Driver has suspect GRO implementation, TCP performance may be compromised.\n",
+			dev ? dev->name : "Unknown driver");
+	rcu_read_unlock();
 }
 
 /* Adapt the MSS value used to make delayed ack decision to the
@@ -250,9 +244,8 @@ static void tcp_measure_rcv_mss(struct sock *sk, const struct sk_buff *skb)
 		icsk->icsk_ack.rcv_mss = min_t(unsigned int, len,
 					       tcp_sk(sk)->advmss);
 		/* Account for possibly-removed options */
-		if (unlikely(len > icsk->icsk_ack.rcv_mss +
-				   MAX_TCP_OPTION_SPACE))
-			tcp_gro_dev_warn(sk, skb, len);
+		DO_ONCE_LITE_IF(len > icsk->icsk_ack.rcv_mss + MAX_TCP_OPTION_SPACE,
+				tcp_gro_dev_warn, sk, skb, len);
 		/* If the skb has a len of exactly 1*MSS and has the PSH bit
 		 * set then it is likely the end of an application write. So
 		 * more data may not be arriving soon, and yet the data sender
@@ -4368,6 +4361,23 @@ EXPORT_SYMBOL(tcp_do_parse_auth_options);
  * up to bandwidth of 18Gigabit/sec. 8) ]
  */
 
+/* Estimates max number of increments of remote peer TSval in
+ * a replay window (based on our current RTO estimation).
+ */
+static u32 tcp_tsval_replay(const struct sock *sk)
+{
+	/* If we use usec TS resolution,
+	 * then expect the remote peer to use the same resolution.
+	 */
+	if (tcp_sk(sk)->tcp_usec_ts)
+		return inet_csk(sk)->icsk_rto * (USEC_PER_SEC / HZ);
+
+	/* RFC 7323 recommends a TSval clock between 1ms and 1sec.
+	 * We know that some OS (including old linux) can use 1200 Hz.
+	 */
+	return inet_csk(sk)->icsk_rto * 1200 / HZ;
+}
+
 static int tcp_disordered_ack(const struct sock *sk, const struct sk_buff *skb)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
@@ -4375,7 +4385,7 @@ static int tcp_disordered_ack(const struct sock *sk, const struct sk_buff *skb)
 	u32 seq = TCP_SKB_CB(skb)->seq;
 	u32 ack = TCP_SKB_CB(skb)->ack_seq;
 
-	return (/* 1. Pure ACK with correct sequence number. */
+	return	/* 1. Pure ACK with correct sequence number. */
 		(th->ack && seq == TCP_SKB_CB(skb)->end_seq && seq == tp->rcv_nxt) &&
 
 		/* 2. ... and duplicate ACK. */
@@ -4385,7 +4395,8 @@ static int tcp_disordered_ack(const struct sock *sk, const struct sk_buff *skb)
 		!tcp_may_update_window(tp, ack, seq, ntohs(th->window) << tp->rx_opt.snd_wscale) &&
 
 		/* 4. ... and sits in replay window. */
-		(s32)(tp->rx_opt.ts_recent - tp->rx_opt.rcv_tsval) <= (inet_csk(sk)->icsk_rto * 1024) / HZ);
+		(s32)(tp->rx_opt.ts_recent - tp->rx_opt.rcv_tsval) <=
+		tcp_tsval_replay(sk);
 }
 
 static inline bool tcp_paws_discard(const struct sock *sk,

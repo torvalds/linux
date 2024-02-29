@@ -286,7 +286,7 @@ static int ltc2952_poweroff_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ltc2952_poweroff_remove(struct platform_device *pdev)
+static void ltc2952_poweroff_remove(struct platform_device *pdev)
 {
 	struct ltc2952_poweroff *data = platform_get_drvdata(pdev);
 
@@ -295,7 +295,6 @@ static int ltc2952_poweroff_remove(struct platform_device *pdev)
 	hrtimer_cancel(&data->timer_wde);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &data->panic_notifier);
-	return 0;
 }
 
 static const struct of_device_id of_ltc2952_poweroff_match[] = {
@@ -306,7 +305,7 @@ MODULE_DEVICE_TABLE(of, of_ltc2952_poweroff_match);
 
 static struct platform_driver ltc2952_poweroff_driver = {
 	.probe = ltc2952_poweroff_probe,
-	.remove = ltc2952_poweroff_remove,
+	.remove_new = ltc2952_poweroff_remove,
 	.driver = {
 		.name = "ltc2952-poweroff",
 		.of_match_table = of_ltc2952_poweroff_match,

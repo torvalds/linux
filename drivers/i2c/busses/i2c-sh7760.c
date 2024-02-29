@@ -477,7 +477,7 @@ static int sh7760_i2c_probe(struct platform_device *pdev)
 
 	id->adap.nr = pdev->id;
 	id->adap.algo = &sh7760_i2c_algo;
-	id->adap.class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
+	id->adap.class = I2C_CLASS_HWMON;
 	id->adap.retries = 3;
 	id->adap.algo_data = id;
 	id->adap.dev.parent = &pdev->dev;

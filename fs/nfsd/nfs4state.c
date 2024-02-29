@@ -127,7 +127,6 @@ static void free_session(struct nfsd4_session *);
 
 static const struct nfsd4_callback_ops nfsd4_cb_recall_ops;
 static const struct nfsd4_callback_ops nfsd4_cb_notify_lock_ops;
-static const struct nfsd4_callback_ops nfsd4_cb_getattr_ops;
 
 static struct workqueue_struct *laundry_wq;
 
@@ -1190,10 +1189,6 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_file *fp,
 	dp->dl_recalled = false;
 	nfsd4_init_cb(&dp->dl_recall, dp->dl_stid.sc_client,
 		      &nfsd4_cb_recall_ops, NFSPROC4_CLNT_CB_RECALL);
-	nfsd4_init_cb(&dp->dl_cb_fattr.ncf_getattr, dp->dl_stid.sc_client,
-			&nfsd4_cb_getattr_ops, NFSPROC4_CLNT_CB_GETATTR);
-	dp->dl_cb_fattr.ncf_file_modified = false;
-	dp->dl_cb_fattr.ncf_cb_bmap[0] = FATTR4_WORD0_CHANGE | FATTR4_WORD0_SIZE;
 	get_nfs4_file(fp);
 	dp->dl_stid.sc_file = fp;
 	return dp;
@@ -2901,55 +2896,10 @@ nfsd4_cb_recall_any_release(struct nfsd4_callback *cb)
 	spin_unlock(&nn->client_lock);
 }
 
-static int
-nfsd4_cb_getattr_done(struct nfsd4_callback *cb, struct rpc_task *task)
-{
-	struct nfs4_cb_fattr *ncf =
-			container_of(cb, struct nfs4_cb_fattr, ncf_getattr);
-
-	ncf->ncf_cb_status = task->tk_status;
-	switch (task->tk_status) {
-	case -NFS4ERR_DELAY:
-		rpc_delay(task, 2 * HZ);
-		return 0;
-	default:
-		return 1;
-	}
-}
-
-static void
-nfsd4_cb_getattr_release(struct nfsd4_callback *cb)
-{
-	struct nfs4_cb_fattr *ncf =
-			container_of(cb, struct nfs4_cb_fattr, ncf_getattr);
-	struct nfs4_delegation *dp =
-			container_of(ncf, struct nfs4_delegation, dl_cb_fattr);
-
-	nfs4_put_stid(&dp->dl_stid);
-	clear_bit(CB_GETATTR_BUSY, &ncf->ncf_cb_flags);
-	wake_up_bit(&ncf->ncf_cb_flags, CB_GETATTR_BUSY);
-}
-
 static const struct nfsd4_callback_ops nfsd4_cb_recall_any_ops = {
 	.done		= nfsd4_cb_recall_any_done,
 	.release	= nfsd4_cb_recall_any_release,
 };
-
-static const struct nfsd4_callback_ops nfsd4_cb_getattr_ops = {
-	.done		= nfsd4_cb_getattr_done,
-	.release	= nfsd4_cb_getattr_release,
-};
-
-void nfs4_cb_getattr(struct nfs4_cb_fattr *ncf)
-{
-	struct nfs4_delegation *dp =
-			container_of(ncf, struct nfs4_delegation, dl_cb_fattr);
-
-	if (test_and_set_bit(CB_GETATTR_BUSY, &ncf->ncf_cb_flags))
-		return;
-	refcount_inc(&dp->dl_stid.sc_count);
-	nfsd4_run_cb(&ncf->ncf_getattr);
-}
 
 static struct nfs4_client *create_client(struct xdr_netobj name,
 		struct svc_rqst *rqstp, nfs4_verifier *verf)
@@ -4995,10 +4945,8 @@ nfsd_break_deleg_cb(struct file_lock *fl)
 	 */
 	fl->fl_break_time = 0;
 
-	spin_lock(&fp->fi_lock);
 	fp->fi_had_conflict = true;
 	nfsd_break_one_deleg(dp);
-	spin_unlock(&fp->fi_lock);
 	return false;
 }
 
@@ -5607,12 +5555,13 @@ nfs4_set_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	if (status)
 		goto out_unlock;
 
+	status = -EAGAIN;
+	if (fp->fi_had_conflict)
+		goto out_unlock;
+
 	spin_lock(&state_lock);
 	spin_lock(&fp->fi_lock);
-	if (fp->fi_had_conflict)
-		status = -EAGAIN;
-	else
-		status = hash_delegation_locked(dp, fp);
+	status = hash_delegation_locked(dp, fp);
 	spin_unlock(&fp->fi_lock);
 	spin_unlock(&state_lock);
 
@@ -5685,8 +5634,6 @@ nfs4_open_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	struct svc_fh *parent = NULL;
 	int cb_up;
 	int status = 0;
-	struct kstat stat;
-	struct path path;
 
 	cb_up = nfsd4_cb_channel_good(oo->oo_owner.so_client);
 	open->op_recall = false;
@@ -5724,18 +5671,6 @@ nfs4_open_delegation(struct nfsd4_open *open, struct nfs4_ol_stateid *stp,
 	if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE) {
 		open->op_delegate_type = NFS4_OPEN_DELEGATE_WRITE;
 		trace_nfsd_deleg_write(&dp->dl_stid.sc_stateid);
-		path.mnt = currentfh->fh_export->ex_path.mnt;
-		path.dentry = currentfh->fh_dentry;
-		if (vfs_getattr(&path, &stat,
-				(STATX_SIZE | STATX_CTIME | STATX_CHANGE_COOKIE),
-				AT_STATX_SYNC_AS_STAT)) {
-			nfs4_put_stid(&dp->dl_stid);
-			destroy_delegation(dp);
-			goto out_no_deleg;
-		}
-		dp->dl_cb_fattr.ncf_cur_fsize = stat.size;
-		dp->dl_cb_fattr.ncf_initial_cinfo =
-			nfsd4_change_attribute(&stat, d_inode(currentfh->fh_dentry));
 	} else {
 		open->op_delegate_type = NFS4_OPEN_DELEGATE_READ;
 		trace_nfsd_deleg_read(&dp->dl_stid.sc_stateid);
@@ -6639,7 +6574,7 @@ unlock:
 	spin_unlock(&nn->s2s_cp_lock);
 	if (!state)
 		return nfserr_bad_stateid;
-	if (!clp && state)
+	if (!clp)
 		*cps = state;
 	return 0;
 }
@@ -7975,14 +7910,16 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 {
 	struct file_lock *fl;
 	int status = false;
-	struct nfsd_file *nf = find_any_file(fp);
+	struct nfsd_file *nf;
 	struct inode *inode;
 	struct file_lock_context *flctx;
 
+	spin_lock(&fp->fi_lock);
+	nf = find_any_file_locked(fp);
 	if (!nf) {
 		/* Any valid lock stateid should have some sort of access */
 		WARN_ON_ONCE(1);
-		return status;
+		goto out;
 	}
 
 	inode = file_inode(nf->nf_file);
@@ -7998,7 +7935,8 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
 		}
 		spin_unlock(&flctx->flc_lock);
 	}
-	nfsd_file_put(nf);
+out:
+	spin_unlock(&fp->fi_lock);
 	return status;
 }
 
@@ -8008,10 +7946,8 @@ check_for_locks(struct nfs4_file *fp, struct nfs4_lockowner *lowner)
  * @cstate: NFSv4 COMPOUND state
  * @u: RELEASE_LOCKOWNER arguments
  *
- * The lockowner's so_count is bumped when a lock record is added
- * or when copying a conflicting lock. The latter case is brief,
- * but can lead to fleeting false positives when looking for
- * locks-in-use.
+ * Check if theree are any locks still held and if not - free the lockowner
+ * and any lock state that is owned.
  *
  * Return values:
  *   %nfs_ok: lockowner released or not found
@@ -8047,10 +7983,13 @@ nfsd4_release_lockowner(struct svc_rqst *rqstp,
 		spin_unlock(&clp->cl_lock);
 		return nfs_ok;
 	}
-	if (atomic_read(&lo->lo_owner.so_count) != 2) {
-		spin_unlock(&clp->cl_lock);
-		nfs4_put_stateowner(&lo->lo_owner);
-		return nfserr_locks_held;
+
+	list_for_each_entry(stp, &lo->lo_owner.so_stateids, st_perstateowner) {
+		if (check_for_locks(stp->st_stid.sc_file, lo)) {
+			spin_unlock(&clp->cl_lock);
+			nfs4_put_stateowner(&lo->lo_owner);
+			return nfserr_locks_held;
+		}
 	}
 	unhash_lockowner_locked(lo);
 	while (!list_empty(&lo->lo_owner.so_stateids)) {
@@ -8492,8 +8431,6 @@ nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
  * nfsd4_deleg_getattr_conflict - Recall if GETATTR causes conflict
  * @rqstp: RPC transaction context
  * @inode: file to be checked for a conflict
- * @modified: return true if file was modified
- * @size: new size of file if modified is true
  *
  * This function is called when there is a conflict between a write
  * delegation and a change/size GETATTR from another client. The server
@@ -8502,23 +8439,21 @@ nfsd4_get_writestateid(struct nfsd4_compound_state *cstate,
  * delegation before replying to the GETATTR. See RFC 8881 section
  * 18.7.4.
  *
+ * The current implementation does not support CB_GETATTR yet. However
+ * this can avoid recalling the delegation could be added in follow up
+ * work.
+ *
  * Returns 0 if there is no conflict; otherwise an nfs_stat
  * code is returned.
  */
 __be32
-nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
-			     bool *modified, u64 *size)
+nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode)
 {
-	struct file_lock_context *ctx;
-	struct nfs4_delegation *dp;
-	struct nfs4_cb_fattr *ncf;
-	struct file_lock *fl;
-	struct iattr attrs;
 	__be32 status;
+	struct file_lock_context *ctx;
+	struct file_lock *fl;
+	struct nfs4_delegation *dp;
 
-	might_sleep();
-
-	*modified = false;
 	ctx = locks_inode_context(inode);
 	if (!ctx)
 		return 0;
@@ -8545,34 +8480,10 @@ nfsd4_deleg_getattr_conflict(struct svc_rqst *rqstp, struct inode *inode,
 break_lease:
 			spin_unlock(&ctx->flc_lock);
 			nfsd_stats_wdeleg_getattr_inc();
-
-			dp = fl->fl_owner;
-			ncf = &dp->dl_cb_fattr;
-			nfs4_cb_getattr(&dp->dl_cb_fattr);
-			wait_on_bit(&ncf->ncf_cb_flags, CB_GETATTR_BUSY, TASK_INTERRUPTIBLE);
-			if (ncf->ncf_cb_status) {
-				status = nfserrno(nfsd_open_break_lease(inode, NFSD_MAY_READ));
-				if (status != nfserr_jukebox ||
-						!nfsd_wait_for_delegreturn(rqstp, inode))
-					return status;
-			}
-			if (!ncf->ncf_file_modified &&
-					(ncf->ncf_initial_cinfo != ncf->ncf_cb_change ||
-					ncf->ncf_cur_fsize != ncf->ncf_cb_fsize))
-				ncf->ncf_file_modified = true;
-			if (ncf->ncf_file_modified) {
-				/*
-				 * The server would not update the file's metadata
-				 * with the client's modified size.
-				 */
-				attrs.ia_mtime = attrs.ia_ctime = current_time(inode);
-				attrs.ia_valid = ATTR_MTIME | ATTR_CTIME;
-				setattr_copy(&nop_mnt_idmap, inode, &attrs);
-				mark_inode_dirty(inode);
-				ncf->ncf_cur_fsize = ncf->ncf_cb_fsize;
-				*size = ncf->ncf_cur_fsize;
-				*modified = true;
-			}
+			status = nfserrno(nfsd_open_break_lease(inode, NFSD_MAY_READ));
+			if (status != nfserr_jukebox ||
+					!nfsd_wait_for_delegreturn(rqstp, inode))
+				return status;
 			return 0;
 		}
 		break;

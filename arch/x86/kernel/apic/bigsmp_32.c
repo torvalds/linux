@@ -80,7 +80,6 @@ static struct apic apic_bigsmp __ro_after_init = {
 	.name				= "bigsmp",
 	.probe				= probe_bigsmp,
 
-	.delivery_mode			= APIC_DELIVERY_MODE_FIXED,
 	.dest_mode_logical		= false,
 
 	.disable_esr			= 1,

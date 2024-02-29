@@ -531,4 +531,5 @@ static struct platform_driver fsl_pq_mdio_driver = {
 
 module_platform_driver(fsl_pq_mdio_driver);
 
+MODULE_DESCRIPTION("Freescale PQ MDIO helpers");
 MODULE_LICENSE("GPL");

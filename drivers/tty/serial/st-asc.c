@@ -793,13 +793,11 @@ static int asc_serial_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int asc_serial_remove(struct platform_device *pdev)
+static void asc_serial_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&asc_uart_driver, port);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -932,7 +930,7 @@ static const struct dev_pm_ops asc_serial_pm_ops = {
 
 static struct platform_driver asc_serial_driver = {
 	.probe		= asc_serial_probe,
-	.remove		= asc_serial_remove,
+	.remove_new	= asc_serial_remove,
 	.driver	= {
 		.name	= DRIVER_NAME,
 		.pm	= &asc_serial_pm_ops,

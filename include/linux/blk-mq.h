@@ -391,9 +391,6 @@ struct blk_mq_hw_ctx {
 	 */
 	struct blk_mq_tags	*sched_tags;
 
-	/** @run: Number of dispatched requests. */
-	unsigned long		run;
-
 	/** @numa_node: NUMA node the storage adapter has been connected to. */
 	unsigned int		numa_node;
 	/** @queue_num: Index of this hardware queue. */
@@ -830,6 +827,12 @@ void blk_mq_end_request_batch(struct io_comp_batch *ib);
  */
 static inline bool blk_mq_need_time_stamp(struct request *rq)
 {
+	/*
+	 * passthrough io doesn't use iostat accounting, cgroup stats
+	 * and io scheduler functionalities.
+	 */
+	if (blk_rq_is_passthrough(rq))
+		return false;
 	return (rq->rq_flags & (RQF_IO_STAT | RQF_STATS | RQF_USE_SCHED));
 }
 

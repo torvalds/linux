@@ -972,8 +972,8 @@ static int __ip_append_data(struct sock *sk,
 	unsigned int maxfraglen, fragheaderlen, maxnonfragsize;
 	int csummode = CHECKSUM_NONE;
 	struct rtable *rt = (struct rtable *)cork->dst;
+	bool paged, hold_tskey, extra_uref = false;
 	unsigned int wmem_alloc_delta = 0;
-	bool paged, extra_uref = false;
 	u32 tskey = 0;
 
 	skb = skb_peek_tail(queue);
@@ -981,10 +981,6 @@ static int __ip_append_data(struct sock *sk,
 	exthdrlen = !skb ? rt->dst.header_len : 0;
 	mtu = cork->gso_size ? IP_MAX_MTU : cork->fragsize;
 	paged = !!cork->gso_size;
-
-	if (cork->tx_flags & SKBTX_ANY_TSTAMP &&
-	    READ_ONCE(sk->sk_tsflags) & SOF_TIMESTAMPING_OPT_ID)
-		tskey = atomic_inc_return(&sk->sk_tskey) - 1;
 
 	hh_len = LL_RESERVED_SPACE(rt->dst.dev);
 
@@ -1051,6 +1047,11 @@ static int __ip_append_data(struct sock *sk,
 	}
 
 	cork->length += length;
+
+	hold_tskey = cork->tx_flags & SKBTX_ANY_TSTAMP &&
+		     READ_ONCE(sk->sk_tsflags) & SOF_TIMESTAMPING_OPT_ID;
+	if (hold_tskey)
+		tskey = atomic_inc_return(&sk->sk_tskey) - 1;
 
 	/* So, what's going on in the loop below?
 	 *
@@ -1274,6 +1275,8 @@ error:
 	cork->length -= length;
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTDISCARDS);
 	refcount_add(wmem_alloc_delta, &sk->sk_wmem_alloc);
+	if (hold_tskey)
+		atomic_dec(&sk->sk_tskey);
 	return err;
 }
 
@@ -1286,6 +1289,12 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 	rt = *rtp;
 	if (unlikely(!rt))
 		return -EFAULT;
+
+	cork->fragsize = ip_sk_use_pmtu(sk) ?
+			 dst_mtu(&rt->dst) : READ_ONCE(rt->dst.dev->mtu);
+
+	if (!inetdev_valid_mtu(cork->fragsize))
+		return -ENETUNREACH;
 
 	/*
 	 * setup for corking.
@@ -1302,12 +1311,6 @@ static int ip_setup_cork(struct sock *sk, struct inet_cork *cork,
 		cork->flags |= IPCORK_OPT;
 		cork->addr = ipc->addr;
 	}
-
-	cork->fragsize = ip_sk_use_pmtu(sk) ?
-			 dst_mtu(&rt->dst) : READ_ONCE(rt->dst.dev->mtu);
-
-	if (!inetdev_valid_mtu(cork->fragsize))
-		return -ENETUNREACH;
 
 	cork->gso_size = ipc->gso_size;
 

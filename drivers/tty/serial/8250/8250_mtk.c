@@ -581,7 +581,7 @@ static int mtk8250_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk8250_remove(struct platform_device *pdev)
+static void mtk8250_remove(struct platform_device *pdev)
 {
 	struct mtk8250_data *data = platform_get_drvdata(pdev);
 
@@ -591,8 +591,6 @@ static int mtk8250_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
-
-	return 0;
 }
 
 static int __maybe_unused mtk8250_suspend(struct device *dev)
@@ -652,7 +650,7 @@ static struct platform_driver mtk8250_platform_driver = {
 		.of_match_table	= mtk8250_of_match,
 	},
 	.probe			= mtk8250_probe,
-	.remove			= mtk8250_remove,
+	.remove_new		= mtk8250_remove,
 };
 module_platform_driver(mtk8250_platform_driver);
 

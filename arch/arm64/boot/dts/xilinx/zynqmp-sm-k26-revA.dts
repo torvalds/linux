@@ -131,9 +131,7 @@
 &qspi { /* MIO 0-5 - U143 */
 	status = "okay";
 	spi_flash: flash@0 { /* MT25QU512A */
-		compatible = "mt25qu512a", "jedec,spi-nor"; /* 64MB */
-		#address-cells = <1>;
-		#size-cells = <1>;
+		compatible = "jedec,spi-nor"; /* 64MB */
 		reg = <0>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
@@ -222,9 +220,9 @@
 				label = "Secure OS Storage";
 				reg = <0x2280000 0x20000>; /* 128KB */
 			};
-			partition@22A0000 {
+			partition@22a0000 {
 				label = "User";
-				reg = <0x22A0000 0x1d60000>; /* 29.375 MB */
+				reg = <0x22a0000 0x1d60000>; /* 29.375 MB */
 			};
 		};
 	};

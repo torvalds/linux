@@ -191,7 +191,7 @@ static const enum gpiod_flags gpio_flags[] = {
  * R_PHY_RETRY is the number of attempts.
  */
 #define T_PHY_RETRY		msecs_to_jiffies(50)
-#define R_PHY_RETRY		12
+#define R_PHY_RETRY		25
 
 /* SFP module presence detection is poor: the three MOD DEF signals are
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
@@ -275,6 +275,7 @@ struct sfp {
 	unsigned int module_power_mW;
 	unsigned int module_t_start_up;
 	unsigned int module_t_wait;
+	unsigned int phy_t_retry;
 
 	unsigned int rate_kbd;
 	unsigned int rs_threshold_kbd;
@@ -372,18 +373,28 @@ static void sfp_fixup_10gbaset_30m(struct sfp *sfp)
 	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SR;
 }
 
-static void sfp_fixup_rollball_proto(struct sfp *sfp, unsigned int secs)
+static void sfp_fixup_rollball(struct sfp *sfp)
 {
 	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
-	sfp->module_t_wait = msecs_to_jiffies(secs * 1000);
+
+	/* RollBall modules may disallow access to PHY registers for up to 25
+	 * seconds, and the reads return 0xffff before that. Increase the time
+	 * between PHY probe retries from 50ms to 1s so that we will wait for
+	 * the PHY for a sufficient amount of time.
+	 */
+	sfp->phy_t_retry = msecs_to_jiffies(1000);
 }
 
 static void sfp_fixup_fs_10gt(struct sfp *sfp)
 {
 	sfp_fixup_10gbaset_30m(sfp);
+	sfp_fixup_rollball(sfp);
 
-	// These SFPs need 4 seconds before the PHY can be accessed
-	sfp_fixup_rollball_proto(sfp, 4);
+	/* The RollBall fixup is not enough for FS modules, the AQR chip inside
+	 * them does not return 0xffff for PHY ID registers in all MMDs for the
+	 * while initializing. They need a 4 second wait before accessing PHY.
+	 */
+	sfp->module_t_wait = msecs_to_jiffies(4000);
 }
 
 static void sfp_fixup_halny_gsfp(struct sfp *sfp)
@@ -393,12 +404,6 @@ static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 	 * module, e.g. a serial port.
 	 */
 	sfp->state_hw_mask &= ~(SFP_F_TX_FAULT | SFP_F_LOS);
-}
-
-static void sfp_fixup_rollball(struct sfp *sfp)
-{
-	// Rollball SFPs need 25 seconds before the PHY can be accessed
-	sfp_fixup_rollball_proto(sfp, 25);
 }
 
 static void sfp_fixup_rollball_cc(struct sfp *sfp)
@@ -2332,6 +2337,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 
 	sfp->module_t_start_up = T_START_UP;
 	sfp->module_t_wait = T_WAIT;
+	sfp->phy_t_retry = T_PHY_RETRY;
 
 	sfp->state_ignore_mask = 0;
 
@@ -2629,7 +2635,11 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		ret = sfp_sm_probe_for_phy(sfp);
 		if (ret == -ENODEV) {
 			if (--sfp->sm_phy_retries) {
-				sfp_sm_next(sfp, SFP_S_INIT_PHY, T_PHY_RETRY);
+				sfp_sm_next(sfp, SFP_S_INIT_PHY,
+					    sfp->phy_t_retry);
+				dev_dbg(sfp->dev,
+					"no PHY detected, %u tries left\n",
+					sfp->sm_phy_retries);
 				break;
 			} else {
 				dev_info(sfp->dev, "no PHY detected\n");
@@ -3096,7 +3106,7 @@ static int sfp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sfp_remove(struct platform_device *pdev)
+static void sfp_remove(struct platform_device *pdev)
 {
 	struct sfp *sfp = platform_get_drvdata(pdev);
 
@@ -3106,8 +3116,6 @@ static int sfp_remove(struct platform_device *pdev)
 	rtnl_lock();
 	sfp_sm_event(sfp, SFP_E_REMOVE);
 	rtnl_unlock();
-
-	return 0;
 }
 
 static void sfp_shutdown(struct platform_device *pdev)
@@ -3128,7 +3136,7 @@ static void sfp_shutdown(struct platform_device *pdev)
 
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,
-	.remove = sfp_remove,
+	.remove_new = sfp_remove,
 	.shutdown = sfp_shutdown,
 	.driver = {
 		.name = "sfp",

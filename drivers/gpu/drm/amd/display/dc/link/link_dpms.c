@@ -900,10 +900,14 @@ bool link_set_dsc_pps_packet(struct pipe_ctx *pipe_ctx, bool enable, bool immedi
 {
 	struct display_stream_compressor *dsc = pipe_ctx->stream_res.dsc;
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	DC_LOGGER_INIT(dsc->ctx->logger);
 
-	if (!pipe_ctx->stream->timing.flags.DSC || !dsc)
+	if (!pipe_ctx->stream->timing.flags.DSC)
 		return false;
+
+	if (!dsc)
+		return false;
+
+	DC_LOGGER_INIT(dsc->ctx->logger);
 
 	if (enable) {
 		struct dsc_config dsc_cfg;
@@ -2005,17 +2009,11 @@ static enum dc_status enable_link_dp(struct dc_state *state,
 		}
 	}
 
-	/*
-	 * If the link is DP-over-USB4 do the following:
-	 * - Train with fallback when enabling DPIA link. Conventional links are
+	/* Train with fallback when enabling DPIA link. Conventional links are
 	 * trained with fallback during sink detection.
-	 * - Allocate only what the stream needs for bw in Gbps. Inform the CM
-	 * in case stream needs more or less bw from what has been allocated
-	 * earlier at plug time.
 	 */
-	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
+	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
 		do_fallback = true;
-	}
 
 	/*
 	 * Temporary w/a to get DP2.0 link rates to work with SST.
@@ -2197,6 +2195,90 @@ static enum dc_status enable_link(
 	return status;
 }
 
+static bool allocate_usb4_bandwidth_for_stream(struct dc_stream_state *stream, int bw)
+{
+	struct dc_link *link = stream->sink->link;
+	int req_bw = bw;
+
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	if (!link->dpia_bw_alloc_config.bw_alloc_enabled)
+		return false;
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		int sink_index = 0;
+		int i = 0;
+
+		for (i = 0; i < link->sink_count; i++) {
+			if (link->remote_sinks[i] == NULL)
+				continue;
+
+			if (stream->sink->sink_id != link->remote_sinks[i]->sink_id)
+				req_bw += link->dpia_bw_alloc_config.remote_sink_req_bw[i];
+			else
+				sink_index = i;
+		}
+
+		link->dpia_bw_alloc_config.remote_sink_req_bw[sink_index] = bw;
+	}
+
+	/* get dp overhead for dp tunneling */
+	link->dpia_bw_alloc_config.dp_overhead = link_dp_dpia_get_dp_overhead_in_dp_tunneling(link);
+	req_bw += link->dpia_bw_alloc_config.dp_overhead;
+
+	if (link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, req_bw)) {
+		if (req_bw <= link->dpia_bw_alloc_config.allocated_bw) {
+			DC_LOG_DEBUG("%s, Success in allocate bw for link(%d), allocated_bw(%d), dp_overhead(%d)\n",
+					__func__, link->link_index, link->dpia_bw_alloc_config.allocated_bw,
+					link->dpia_bw_alloc_config.dp_overhead);
+		} else {
+			// Cannot get the required bandwidth.
+			DC_LOG_ERROR("%s, Failed to allocate bw for link(%d), allocated_bw(%d), dp_overhead(%d)\n",
+					__func__, link->link_index, link->dpia_bw_alloc_config.allocated_bw,
+					link->dpia_bw_alloc_config.dp_overhead);
+			return false;
+		}
+	} else {
+		DC_LOG_DEBUG("%s, usb4 request bw timeout\n", __func__);
+		return false;
+	}
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		int i = 0;
+
+		for (i = 0; i < link->sink_count; i++) {
+			if (link->remote_sinks[i] == NULL)
+				continue;
+			DC_LOG_DEBUG("%s, remote_sink=%s, request_bw=%d\n", __func__,
+					(const char *)(&link->remote_sinks[i]->edid_caps.display_name[0]),
+					link->dpia_bw_alloc_config.remote_sink_req_bw[i]);
+		}
+	}
+
+	return true;
+}
+
+static bool allocate_usb4_bandwidth(struct dc_stream_state *stream)
+{
+	bool ret;
+
+	int bw = dc_bandwidth_in_kbps_from_timing(&stream->timing,
+			dc_link_get_highest_encoding_format(stream->sink->link));
+
+	ret = allocate_usb4_bandwidth_for_stream(stream, bw);
+
+	return ret;
+}
+
+static bool deallocate_usb4_bandwidth(struct dc_stream_state *stream)
+{
+	bool ret;
+
+	ret = allocate_usb4_bandwidth_for_stream(stream, 0);
+
+	return ret;
+}
+
 void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 {
 	struct dc  *dc = pipe_ctx->stream->ctx->dc;
@@ -2231,6 +2313,9 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);
+
+	if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+		deallocate_usb4_bandwidth(pipe_ctx->stream);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
@@ -2473,6 +2558,9 @@ void link_set_dpms_on(
 			link_set_dsc_pps_packet(pipe_ctx, true, true);
 		}
 	}
+
+	if (pipe_ctx->stream->link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA)
+		allocate_usb4_bandwidth(pipe_ctx->stream);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		allocate_mst_payload(pipe_ctx);

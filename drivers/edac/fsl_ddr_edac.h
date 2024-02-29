@@ -72,5 +72,5 @@ struct fsl_mc_pdata {
 	int irq;
 };
 int fsl_mc_err_probe(struct platform_device *op);
-int fsl_mc_err_remove(struct platform_device *op);
+void fsl_mc_err_remove(struct platform_device *op);
 #endif

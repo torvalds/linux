@@ -175,7 +175,7 @@ static void ttm_device_init_pools(struct kunit *test)
 
 	if (params->pools_init_expected) {
 		for (int i = 0; i < TTM_NUM_CACHING_TYPES; ++i) {
-			for (int j = 0; j <= MAX_ORDER; ++j) {
+			for (int j = 0; j < NR_PAGE_ORDERS; ++j) {
 				pt = pool->caching[i].orders[j];
 				KUNIT_EXPECT_PTR_EQ(test, pt.pool, pool);
 				KUNIT_EXPECT_EQ(test, pt.caching, i);

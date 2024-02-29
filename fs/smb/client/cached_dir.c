@@ -145,20 +145,26 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	struct cached_fid *cfid;
 	struct cached_fids *cfids;
 	const char *npath;
+	int retries = 0, cur_sleep = 1;
 
 	if (tcon == NULL || tcon->cfids == NULL || tcon->nohandlecache ||
 	    is_smb1_server(tcon->ses->server) || (dir_cache_timeout == 0))
 		return -EOPNOTSUPP;
 
 	ses = tcon->ses;
-	server = ses->server;
 	cfids = tcon->cfids;
-
-	if (!server->ops->new_lease_key)
-		return -EIO;
 
 	if (cifs_sb->root == NULL)
 		return -ENOENT;
+
+replay_again:
+	/* reinitialize for possible replay */
+	flags = 0;
+	oplock = SMB2_OPLOCK_LEVEL_II;
+	server = cifs_pick_channel(ses);
+
+	if (!server->ops->new_lease_key)
+		return -EIO;
 
 	utf16_path = cifs_convert_path_to_utf16(path, cifs_sb);
 	if (!utf16_path)
@@ -236,6 +242,7 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		.desired_access =  FILE_READ_DATA | FILE_READ_ATTRIBUTES,
 		.disposition = FILE_OPEN,
 		.fid = pfid,
+		.replay = !!(retries),
 	};
 
 	rc = SMB2_open_init(tcon, server,
@@ -268,6 +275,11 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	 */
 	cfid->has_lease = true;
 
+	if (retries) {
+		smb2_set_replay(server, &rqst[0]);
+		smb2_set_replay(server, &rqst[1]);
+	}
+
 	rc = compound_send_recv(xid, ses, server,
 				flags, 2, rqst,
 				resp_buftype, rsp_iov);
@@ -291,16 +303,23 @@ int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 	oparms.fid->mid = le64_to_cpu(o_rsp->hdr.MessageId);
 #endif /* CIFS_DEBUG2 */
 
-	rc = -EINVAL;
+
 	if (o_rsp->OplockLevel != SMB2_OPLOCK_LEVEL_LEASE) {
+		spin_unlock(&cfids->cfid_list_lock);
+		rc = -EINVAL;
+		goto oshr_free;
+	}
+
+	rc = smb2_parse_contexts(server, rsp_iov,
+				 &oparms.fid->epoch,
+				 oparms.fid->lease_key,
+				 &oplock, NULL, NULL);
+	if (rc) {
 		spin_unlock(&cfids->cfid_list_lock);
 		goto oshr_free;
 	}
 
-	smb2_parse_contexts(server, o_rsp,
-			    &oparms.fid->epoch,
-			    oparms.fid->lease_key, &oplock,
-			    NULL, NULL);
+	rc = -EINVAL;
 	if (!(oplock & SMB2_LEASE_READ_CACHING_HE)) {
 		spin_unlock(&cfids->cfid_list_lock);
 		goto oshr_free;
@@ -360,6 +379,11 @@ out:
 		atomic_inc(&tcon->num_remote_opens);
 	}
 	kfree(utf16_path);
+
+	if (is_replayable_error(rc) &&
+	    smb2_should_replay(tcon, &retries, &cur_sleep))
+		goto replay_again;
+
 	return rc;
 }
 

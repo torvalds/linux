@@ -219,16 +219,16 @@ EXPORT_SYMBOL_GPL(chsc_sadc);
 
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	if (sch->driver && sch->driver->chp_event)
 		if (sch->driver->chp_event(sch, data, CHP_OFFLINE) != 0)
 			goto out_unreg;
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	return 0;
 
 out_unreg:
 	sch->lpm = 0;
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	css_schedule_eval(sch->schid);
 	return 0;
 }
@@ -258,10 +258,10 @@ void chsc_chp_offline(struct chp_id chpid)
 
 static int __s390_process_res_acc(struct subchannel *sch, void *data)
 {
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	if (sch->driver && sch->driver->chp_event)
 		sch->driver->chp_event(sch, data, CHP_ONLINE);
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 
 	return 0;
 }
@@ -292,10 +292,10 @@ static void s390_process_res_acc(struct chp_link *link)
 
 static int process_fces_event(struct subchannel *sch, void *data)
 {
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	if (sch->driver && sch->driver->chp_event)
 		sch->driver->chp_event(sch, data, CHP_FCES_EVENT);
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	return 0;
 }
 
@@ -769,11 +769,11 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 
 	memset(&link, 0, sizeof(struct chp_link));
 	link.chpid = chpid;
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 	if (sch->driver && sch->driver->chp_event)
 		sch->driver->chp_event(sch, &link,
 				       on ? CHP_VARY_ON : CHP_VARY_OFF);
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 }
 
 static int s390_subchannel_vary_chpid_off(struct subchannel *sch, void *data)

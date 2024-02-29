@@ -35,9 +35,8 @@
 # | sw1                                | | sw2                                |
 # +------------------------------------+ +------------------------------------+
 
+source lib.sh
 ret=0
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
 
 # All tests in this script. Can be overridden with -t option.
 TESTS="
@@ -125,15 +124,22 @@ tc_check_packets()
 	[[ $pkts == $count ]]
 }
 
+bridge_link_check()
+{
+	local ns=$1; shift
+	local dev=$1; shift
+	local state=$1; shift
+
+	bridge -n $ns -d -j link show dev $dev | \
+		jq -e ".[][\"state\"] == \"$state\"" &> /dev/null
+}
+
 ################################################################################
 # Setup
 
 setup_topo_ns()
 {
 	local ns=$1; shift
-
-	ip netns add $ns
-	ip -n $ns link set dev lo up
 
 	ip netns exec $ns sysctl -qw net.ipv6.conf.all.keep_addr_on_down=1
 	ip netns exec $ns sysctl -qw net.ipv6.conf.default.ignore_routes_with_linkdown=1
@@ -145,13 +151,14 @@ setup_topo()
 {
 	local ns
 
-	for ns in sw1 sw2; do
+	setup_ns sw1 sw2
+	for ns in $sw1 $sw2; do
 		setup_topo_ns $ns
 	done
 
 	ip link add name veth0 type veth peer name veth1
-	ip link set dev veth0 netns sw1 name veth0
-	ip link set dev veth1 netns sw2 name veth0
+	ip link set dev veth0 netns $sw1 name veth0
+	ip link set dev veth1 netns $sw2 name veth0
 }
 
 setup_sw_common()
@@ -190,7 +197,7 @@ setup_sw_common()
 
 setup_sw1()
 {
-	local ns=sw1
+	local ns=$sw1
 	local local_addr=192.0.2.33
 	local remote_addr=192.0.2.34
 	local veth_addr=192.0.2.49
@@ -203,7 +210,7 @@ setup_sw1()
 
 setup_sw2()
 {
-	local ns=sw2
+	local ns=$sw2
 	local local_addr=192.0.2.34
 	local remote_addr=192.0.2.33
 	local veth_addr=192.0.2.50
@@ -229,11 +236,7 @@ setup()
 
 cleanup()
 {
-	local ns
-
-	for ns in h1 h2 sw1 sw2; do
-		ip netns del $ns &> /dev/null
-	done
+	cleanup_ns $sw1 $sw2
 }
 
 ################################################################################
@@ -248,85 +251,90 @@ backup_port()
 	echo "Backup port"
 	echo "-----------"
 
-	run_cmd "tc -n sw1 qdisc replace dev swp1 clsact"
-	run_cmd "tc -n sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $sw1 qdisc replace dev swp1 clsact"
+	run_cmd "tc -n $sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
 
-	run_cmd "tc -n sw1 qdisc replace dev vx0 clsact"
-	run_cmd "tc -n sw1 filter replace dev vx0 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
 
-	run_cmd "bridge -n sw1 fdb replace $dmac dev swp1 master static vlan 10"
+	run_cmd "bridge -n $sw1 fdb replace $dmac dev swp1 master static vlan 10"
 
 	# Initial state - check that packets are forwarded out of swp1 when it
 	# has a carrier and not forwarded out of any port when it does not have
 	# a carrier.
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 1
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 1
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 0
+	tc_check_packets $sw1 "dev vx0 egress" 101 0
 	log_test $? 0 "No forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 1
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 1
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 0
+	tc_check_packets $sw1 "dev vx0 egress" 101 0
 	log_test $? 0 "No forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier on"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier on"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
 	log_test $? 0 "swp1 carrier on"
 
 	# Configure vx0 as the backup port of swp1 and check that packets are
 	# forwarded out of swp1 when it has a carrier and out of vx0 when swp1
 	# does not have a carrier.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_port vx0"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_port vx0\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
 	log_test $? 0 "vx0 configured as backup port of swp1"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 2
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 2
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 0
+	tc_check_packets $sw1 "dev vx0 egress" 101 0
 	log_test $? 0 "No forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 2
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 2
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "Forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier on"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier on"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
 	log_test $? 0 "swp1 carrier on"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 3
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 3
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "No forwarding out of vx0"
 
 	# Remove vx0 as the backup port of swp1 and check that packets are no
 	# longer forwarded out of vx0 when swp1 does not have a carrier.
-	run_cmd "bridge -n sw1 link set dev swp1 nobackup_port"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_port vx0\""
+	run_cmd "bridge -n $sw1 link set dev swp1 nobackup_port"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
 	log_test $? 1 "vx0 not configured as backup port of swp1"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 4
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 4
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "No forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 4
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 4
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "No forwarding out of vx0"
 }
 
@@ -339,125 +347,130 @@ backup_nhid()
 	echo "Backup nexthop ID"
 	echo "-----------------"
 
-	run_cmd "tc -n sw1 qdisc replace dev swp1 clsact"
-	run_cmd "tc -n sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $sw1 qdisc replace dev swp1 clsact"
+	run_cmd "tc -n $sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
 
-	run_cmd "tc -n sw1 qdisc replace dev vx0 clsact"
-	run_cmd "tc -n sw1 filter replace dev vx0 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
 
-	run_cmd "ip -n sw1 nexthop replace id 1 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 2 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 10 group 1/2 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 1 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 2 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 10 group 1/2 fdb"
 
-	run_cmd "bridge -n sw1 fdb replace $dmac dev swp1 master static vlan 10"
-	run_cmd "bridge -n sw1 fdb replace $dmac dev vx0 self static dst 192.0.2.36 src_vni 10010"
+	run_cmd "bridge -n $sw1 fdb replace $dmac dev swp1 master static vlan 10"
+	run_cmd "bridge -n $sw1 fdb replace $dmac dev vx0 self static dst 192.0.2.36 src_vni 10010"
 
-	run_cmd "ip -n sw2 address replace 192.0.2.36/32 dev lo"
+	run_cmd "ip -n $sw2 address replace 192.0.2.36/32 dev lo"
 
 	# The first filter matches on packets forwarded using the backup
 	# nexthop ID and the second filter matches on packets forwarded using a
 	# regular VXLAN FDB entry.
-	run_cmd "tc -n sw2 qdisc replace dev vx0 clsact"
-	run_cmd "tc -n sw2 filter replace dev vx0 ingress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac enc_key_id 10010 enc_dst_ip 192.0.2.34 action pass"
-	run_cmd "tc -n sw2 filter replace dev vx0 ingress pref 1 handle 102 proto ip flower src_mac $smac dst_mac $dmac enc_key_id 10010 enc_dst_ip 192.0.2.36 action pass"
+	run_cmd "tc -n $sw2 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw2 filter replace dev vx0 ingress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac enc_key_id 10010 enc_dst_ip 192.0.2.34 action pass"
+	run_cmd "tc -n $sw2 filter replace dev vx0 ingress pref 1 handle 102 proto ip flower src_mac $smac dst_mac $dmac enc_key_id 10010 enc_dst_ip 192.0.2.36 action pass"
 
 	# Configure vx0 as the backup port of swp1 and check that packets are
 	# forwarded out of swp1 when it has a carrier and out of vx0 when swp1
 	# does not have a carrier. When packets are forwarded out of vx0, check
 	# that they are forwarded by the VXLAN FDB entry.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_port vx0"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_port vx0\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
 	log_test $? 0 "vx0 configured as backup port of swp1"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 1
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 1
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 0
+	tc_check_packets $sw1 "dev vx0 egress" 101 0
 	log_test $? 0 "No forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 1
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 1
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 0
+	tc_check_packets $sw2 "dev vx0 ingress" 101 0
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	tc_check_packets sw2 "dev vx0 ingress" 102 1
+	tc_check_packets $sw2 "dev vx0 ingress" 102 1
 	log_test $? 0 "Forwarding using VXLAN FDB entry"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier on"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier on"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
 	log_test $? 0 "swp1 carrier on"
 
 	# Configure nexthop ID 10 as the backup nexthop ID of swp1 and check
 	# that when packets are forwarded out of vx0, they are forwarded using
 	# the backup nexthop ID.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 10"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid 10\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 10"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 10\""
 	log_test $? 0 "nexthop ID 10 configured as backup nexthop ID of swp1"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 2
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 2
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "No forwarding out of vx0"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 2
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 2
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 2
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "Forwarding using backup nexthop ID"
-	tc_check_packets sw2 "dev vx0 ingress" 102 1
+	tc_check_packets $sw2 "dev vx0 ingress" 102 1
 	log_test $? 0 "No forwarding using VXLAN FDB entry"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier on"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier on"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 forwarding
 	log_test $? 0 "swp1 carrier on"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 3
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 3
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 2
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "No forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	tc_check_packets sw2 "dev vx0 ingress" 102 1
+	tc_check_packets $sw2 "dev vx0 ingress" 102 1
 	log_test $? 0 "No forwarding using VXLAN FDB entry"
 
 	# Reset the backup nexthop ID to 0 and check that packets are no longer
 	# forwarded using the backup nexthop ID when swp1 does not have a
 	# carrier and are instead forwarded by the VXLAN FDB.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 0"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 0"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid\""
 	log_test $? 1 "No backup nexthop ID configured for swp1"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 4
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 4
 	log_test $? 0 "Forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 2
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "No forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	tc_check_packets sw2 "dev vx0 ingress" 102 1
+	tc_check_packets $sw2 "dev vx0 ingress" 102 1
 	log_test $? 0 "No forwarding using VXLAN FDB entry"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 4
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 4
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 3
+	tc_check_packets $sw1 "dev vx0 egress" 101 3
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	tc_check_packets sw2 "dev vx0 ingress" 102 2
+	tc_check_packets $sw2 "dev vx0 ingress" 102 2
 	log_test $? 0 "Forwarding using VXLAN FDB entry"
 }
 
@@ -475,109 +488,110 @@ backup_nhid_invalid()
 	# is forwarded out of the VXLAN port, but dropped by the VXLAN driver
 	# and does not crash the host.
 
-	run_cmd "tc -n sw1 qdisc replace dev swp1 clsact"
-	run_cmd "tc -n sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $sw1 qdisc replace dev swp1 clsact"
+	run_cmd "tc -n $sw1 filter replace dev swp1 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
 
-	run_cmd "tc -n sw1 qdisc replace dev vx0 clsact"
-	run_cmd "tc -n sw1 filter replace dev vx0 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $sw1 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac action pass"
 	# Drop all other Tx traffic to avoid changes to Tx drop counter.
-	run_cmd "tc -n sw1 filter replace dev vx0 egress pref 2 handle 102 proto all matchall action drop"
+	run_cmd "tc -n $sw1 filter replace dev vx0 egress pref 2 handle 102 proto all matchall action drop"
 
-	tx_drop=$(ip -n sw1 -s -j link show dev vx0 | jq '.[]["stats64"]["tx"]["dropped"]')
+	tx_drop=$(ip -n $sw1 -s -j link show dev vx0 | jq '.[]["stats64"]["tx"]["dropped"]')
 
-	run_cmd "ip -n sw1 nexthop replace id 1 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 2 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 10 group 1/2 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 1 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 2 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 10 group 1/2 fdb"
 
-	run_cmd "bridge -n sw1 fdb replace $dmac dev swp1 master static vlan 10"
+	run_cmd "bridge -n $sw1 fdb replace $dmac dev swp1 master static vlan 10"
 
-	run_cmd "tc -n sw2 qdisc replace dev vx0 clsact"
-	run_cmd "tc -n sw2 filter replace dev vx0 ingress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac enc_key_id 10010 enc_dst_ip 192.0.2.34 action pass"
+	run_cmd "tc -n $sw2 qdisc replace dev vx0 clsact"
+	run_cmd "tc -n $sw2 filter replace dev vx0 ingress pref 1 handle 101 proto ip flower src_mac $smac dst_mac $dmac enc_key_id 10010 enc_dst_ip 192.0.2.34 action pass"
 
 	# First, check that redirection works.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_port vx0"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_port vx0\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_port vx0\""
 	log_test $? 0 "vx0 configured as backup port of swp1"
 
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 10"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid 10\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 10"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 10\""
 	log_test $? 0 "Valid nexthop as backup nexthop"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
 	log_test $? 0 "swp1 carrier off"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 0
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 0
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 1
+	tc_check_packets $sw1 "dev vx0 egress" 101 1
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "Forwarding using backup nexthop ID"
-	run_cmd "ip -n sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $tx_drop'"
+	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $tx_drop'"
 	log_test $? 0 "No Tx drop increase"
 
 	# Use a non-existent nexthop ID.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 20"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid 20\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 20"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 20\""
 	log_test $? 0 "Non-existent nexthop as backup nexthop"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 0
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 0
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 2
+	tc_check_packets $sw1 "dev vx0 egress" 101 2
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	run_cmd "ip -n sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 1))'"
+	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 1))'"
 	log_test $? 0 "Tx drop increased"
 
 	# Use a blckhole nexthop.
-	run_cmd "ip -n sw1 nexthop replace id 30 blackhole"
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 30"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid 30\""
+	run_cmd "ip -n $sw1 nexthop replace id 30 blackhole"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 30"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 30\""
 	log_test $? 0 "Blackhole nexthop as backup nexthop"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 0
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 0
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 3
+	tc_check_packets $sw1 "dev vx0 egress" 101 3
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	run_cmd "ip -n sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 2))'"
+	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 2))'"
 	log_test $? 0 "Tx drop increased"
 
 	# Non-group FDB nexthop.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 1"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid 1\""
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 1"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 1\""
 	log_test $? 0 "Non-group FDB nexthop as backup nexthop"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 0
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 0
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 4
+	tc_check_packets $sw1 "dev vx0 egress" 101 4
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	run_cmd "ip -n sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 3))'"
+	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 3))'"
 	log_test $? 0 "Tx drop increased"
 
 	# IPv6 address family nexthop.
-	run_cmd "ip -n sw1 nexthop replace id 100 via 2001:db8:100::1 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 200 via 2001:db8:100::1 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 300 group 100/200 fdb"
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 300"
-	run_cmd "bridge -n sw1 -d link show dev swp1 | grep \"backup_nhid 300\""
+	run_cmd "ip -n $sw1 nexthop replace id 100 via 2001:db8:100::1 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 200 via 2001:db8:100::1 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 300 group 100/200 fdb"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 300"
+	run_cmd "bridge -n $sw1 -d link show dev swp1 | grep \"backup_nhid 300\""
 	log_test $? 0 "IPv6 address family nexthop as backup nexthop"
 
-	run_cmd "ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
-	tc_check_packets sw1 "dev swp1 egress" 101 0
+	run_cmd "ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 1"
+	tc_check_packets $sw1 "dev swp1 egress" 101 0
 	log_test $? 0 "No forwarding out of swp1"
-	tc_check_packets sw1 "dev vx0 egress" 101 5
+	tc_check_packets $sw1 "dev vx0 egress" 101 5
 	log_test $? 0 "Forwarding out of vx0"
-	tc_check_packets sw2 "dev vx0 ingress" 101 1
+	tc_check_packets $sw2 "dev vx0 ingress" 101 1
 	log_test $? 0 "No forwarding using backup nexthop ID"
-	run_cmd "ip -n sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 4))'"
+	run_cmd "ip -n $sw1 -s -j link show dev vx0 | jq -e '.[][\"stats64\"][\"tx\"][\"dropped\"] == $((tx_drop + 4))'"
 	log_test $? 0 "Tx drop increased"
 }
 
@@ -591,44 +605,46 @@ backup_nhid_ping()
 	echo "------------------------"
 
 	# Test bidirectional traffic when traffic is redirected in both VTEPs.
-	sw1_mac=$(ip -n sw1 -j -p link show br0.10 | jq -r '.[]["address"]')
-	sw2_mac=$(ip -n sw2 -j -p link show br0.10 | jq -r '.[]["address"]')
+	sw1_mac=$(ip -n $sw1 -j -p link show br0.10 | jq -r '.[]["address"]')
+	sw2_mac=$(ip -n $sw2 -j -p link show br0.10 | jq -r '.[]["address"]')
 
-	run_cmd "bridge -n sw1 fdb replace $sw2_mac dev swp1 master static vlan 10"
-	run_cmd "bridge -n sw2 fdb replace $sw1_mac dev swp1 master static vlan 10"
+	run_cmd "bridge -n $sw1 fdb replace $sw2_mac dev swp1 master static vlan 10"
+	run_cmd "bridge -n $sw2 fdb replace $sw1_mac dev swp1 master static vlan 10"
 
-	run_cmd "ip -n sw1 neigh replace 192.0.2.66 lladdr $sw2_mac nud perm dev br0.10"
-	run_cmd "ip -n sw2 neigh replace 192.0.2.65 lladdr $sw1_mac nud perm dev br0.10"
+	run_cmd "ip -n $sw1 neigh replace 192.0.2.66 lladdr $sw2_mac nud perm dev br0.10"
+	run_cmd "ip -n $sw2 neigh replace 192.0.2.65 lladdr $sw1_mac nud perm dev br0.10"
 
-	run_cmd "ip -n sw1 nexthop replace id 1 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw2 nexthop replace id 1 via 192.0.2.33 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 10 group 1 fdb"
-	run_cmd "ip -n sw2 nexthop replace id 10 group 1 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 1 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw2 nexthop replace id 1 via 192.0.2.33 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 10 group 1 fdb"
+	run_cmd "ip -n $sw2 nexthop replace id 10 group 1 fdb"
 
-	run_cmd "bridge -n sw1 link set dev swp1 backup_port vx0"
-	run_cmd "bridge -n sw2 link set dev swp1 backup_port vx0"
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 10"
-	run_cmd "bridge -n sw2 link set dev swp1 backup_nhid 10"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
+	run_cmd "bridge -n $sw2 link set dev swp1 backup_port vx0"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 10"
+	run_cmd "bridge -n $sw2 link set dev swp1 backup_nhid 10"
 
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
-	run_cmd "ip -n sw2 link set dev swp1 carrier off"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw1 swp1 disabled
+	run_cmd "ip -n $sw2 link set dev swp1 carrier off"
+	busywait $BUSYWAIT_TIMEOUT bridge_link_check $sw2 swp1 disabled
 
-	run_cmd "ip netns exec sw1 ping -i 0.1 -c 10 -w $PING_TIMEOUT 192.0.2.66"
+	run_cmd "ip netns exec $sw1 ping -i 0.1 -c 10 -w $PING_TIMEOUT 192.0.2.66"
 	log_test $? 0 "Ping with backup nexthop ID"
 
 	# Reset the backup nexthop ID to 0 and check that ping fails.
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 0"
-	run_cmd "bridge -n sw2 link set dev swp1 backup_nhid 0"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 0"
+	run_cmd "bridge -n $sw2 link set dev swp1 backup_nhid 0"
 
-	run_cmd "ip netns exec sw1 ping -i 0.1 -c 10 -w $PING_TIMEOUT 192.0.2.66"
+	run_cmd "ip netns exec $sw1 ping -i 0.1 -c 10 -w $PING_TIMEOUT 192.0.2.66"
 	log_test $? 1 "Ping after disabling backup nexthop ID"
 }
 
 backup_nhid_add_del_loop()
 {
 	while true; do
-		ip -n sw1 nexthop del id 10
-		ip -n sw1 nexthop replace id 10 group 1/2 fdb
+		ip -n $sw1 nexthop del id 10
+		ip -n $sw1 nexthop replace id 10 group 1/2 fdb
 	done >/dev/null 2>&1
 }
 
@@ -648,19 +664,19 @@ backup_nhid_torture()
 	# deleting the group. The test is considered successful if nothing
 	# crashed.
 
-	run_cmd "ip -n sw1 nexthop replace id 1 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 2 via 192.0.2.34 fdb"
-	run_cmd "ip -n sw1 nexthop replace id 10 group 1/2 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 1 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 2 via 192.0.2.34 fdb"
+	run_cmd "ip -n $sw1 nexthop replace id 10 group 1/2 fdb"
 
-	run_cmd "bridge -n sw1 fdb replace $dmac dev swp1 master static vlan 10"
+	run_cmd "bridge -n $sw1 fdb replace $dmac dev swp1 master static vlan 10"
 
-	run_cmd "bridge -n sw1 link set dev swp1 backup_port vx0"
-	run_cmd "bridge -n sw1 link set dev swp1 backup_nhid 10"
-	run_cmd "ip -n sw1 link set dev swp1 carrier off"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_port vx0"
+	run_cmd "bridge -n $sw1 link set dev swp1 backup_nhid 10"
+	run_cmd "ip -n $sw1 link set dev swp1 carrier off"
 
 	backup_nhid_add_del_loop &
 	pid1=$!
-	ip netns exec sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 0 &
+	ip netns exec $sw1 mausezahn br0.10 -a $smac -b $dmac -A 198.51.100.1 -B 198.51.100.2 -t ip -p 100 -q -c 0 &
 	pid2=$!
 
 	sleep 30

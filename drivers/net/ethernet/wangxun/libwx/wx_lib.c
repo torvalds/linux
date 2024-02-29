@@ -160,60 +160,6 @@ static __le32 wx_test_staterr(union wx_rx_desc *rx_desc,
 	return rx_desc->wb.upper.status_error & cpu_to_le32(stat_err_bits);
 }
 
-static bool wx_can_reuse_rx_page(struct wx_rx_buffer *rx_buffer,
-				 int rx_buffer_pgcnt)
-{
-	unsigned int pagecnt_bias = rx_buffer->pagecnt_bias;
-	struct page *page = rx_buffer->page;
-
-	/* avoid re-using remote and pfmemalloc pages */
-	if (!dev_page_is_reusable(page))
-		return false;
-
-#if (PAGE_SIZE < 8192)
-	/* if we are only owner of page we can reuse it */
-	if (unlikely((rx_buffer_pgcnt - pagecnt_bias) > 1))
-		return false;
-#endif
-
-	/* If we have drained the page fragment pool we need to update
-	 * the pagecnt_bias and page count so that we fully restock the
-	 * number of references the driver holds.
-	 */
-	if (unlikely(pagecnt_bias == 1)) {
-		page_ref_add(page, USHRT_MAX - 1);
-		rx_buffer->pagecnt_bias = USHRT_MAX;
-	}
-
-	return true;
-}
-
-/**
- * wx_reuse_rx_page - page flip buffer and store it back on the ring
- * @rx_ring: rx descriptor ring to store buffers on
- * @old_buff: donor buffer to have page reused
- *
- * Synchronizes page for reuse by the adapter
- **/
-static void wx_reuse_rx_page(struct wx_ring *rx_ring,
-			     struct wx_rx_buffer *old_buff)
-{
-	u16 nta = rx_ring->next_to_alloc;
-	struct wx_rx_buffer *new_buff;
-
-	new_buff = &rx_ring->rx_buffer_info[nta];
-
-	/* update, and store next to alloc */
-	nta++;
-	rx_ring->next_to_alloc = (nta < rx_ring->count) ? nta : 0;
-
-	/* transfer page from old buffer to new buffer */
-	new_buff->page = old_buff->page;
-	new_buff->page_dma = old_buff->page_dma;
-	new_buff->page_offset = old_buff->page_offset;
-	new_buff->pagecnt_bias	= old_buff->pagecnt_bias;
-}
-
 static void wx_dma_sync_frag(struct wx_ring *rx_ring,
 			     struct wx_rx_buffer *rx_buffer)
 {
@@ -270,8 +216,6 @@ static struct wx_rx_buffer *wx_get_rx_buffer(struct wx_ring *rx_ring,
 				      size,
 				      DMA_FROM_DEVICE);
 skip_sync:
-	rx_buffer->pagecnt_bias--;
-
 	return rx_buffer;
 }
 
@@ -280,19 +224,9 @@ static void wx_put_rx_buffer(struct wx_ring *rx_ring,
 			     struct sk_buff *skb,
 			     int rx_buffer_pgcnt)
 {
-	if (wx_can_reuse_rx_page(rx_buffer, rx_buffer_pgcnt)) {
-		/* hand second half of page back to the ring */
-		wx_reuse_rx_page(rx_ring, rx_buffer);
-	} else {
-		if (!IS_ERR(skb) && WX_CB(skb)->dma == rx_buffer->dma)
-			/* the page has been released from the ring */
-			WX_CB(skb)->page_released = true;
-		else
-			page_pool_put_full_page(rx_ring->page_pool, rx_buffer->page, false);
-
-		__page_frag_cache_drain(rx_buffer->page,
-					rx_buffer->pagecnt_bias);
-	}
+	if (!IS_ERR(skb) && WX_CB(skb)->dma == rx_buffer->dma)
+		/* the page has been released from the ring */
+		WX_CB(skb)->page_released = true;
 
 	/* clear contents of rx_buffer */
 	rx_buffer->page = NULL;
@@ -335,10 +269,11 @@ static struct sk_buff *wx_build_skb(struct wx_ring *rx_ring,
 		if (size <= WX_RXBUFFER_256) {
 			memcpy(__skb_put(skb, size), page_addr,
 			       ALIGN(size, sizeof(long)));
-			rx_buffer->pagecnt_bias++;
-
+			page_pool_put_full_page(rx_ring->page_pool, rx_buffer->page, true);
 			return skb;
 		}
+
+		skb_mark_for_recycle(skb);
 
 		if (!wx_test_staterr(rx_desc, WX_RXD_STAT_EOP))
 			WX_CB(skb)->dma = rx_buffer->dma;
@@ -382,8 +317,6 @@ static bool wx_alloc_mapped_page(struct wx_ring *rx_ring,
 	bi->page_dma = dma;
 	bi->page = page;
 	bi->page_offset = 0;
-	page_ref_add(page, USHRT_MAX - 1);
-	bi->pagecnt_bias = USHRT_MAX;
 
 	return true;
 }
@@ -723,7 +656,6 @@ static int wx_clean_rx_irq(struct wx_q_vector *q_vector,
 		/* exit if we failed to retrieve a buffer */
 		if (!skb) {
 			rx_ring->rx_stats.alloc_rx_buff_failed++;
-			rx_buffer->pagecnt_bias++;
 			break;
 		}
 
@@ -1636,8 +1568,14 @@ EXPORT_SYMBOL(wx_napi_disable_all);
  **/
 static void wx_set_rss_queues(struct wx *wx)
 {
-	wx->num_rx_queues = wx->mac.max_rx_queues;
-	wx->num_tx_queues = wx->mac.max_tx_queues;
+	struct wx_ring_feature *f;
+
+	/* set mask for 16 queue limit of RSS */
+	f = &wx->ring_feature[RING_F_RSS];
+	f->indices = f->limit;
+
+	wx->num_rx_queues = f->limit;
+	wx->num_tx_queues = f->limit;
 }
 
 static void wx_set_num_queues(struct wx *wx)
@@ -1663,13 +1601,28 @@ static int wx_acquire_msix_vectors(struct wx *wx)
 	struct irq_affinity affd = {0, };
 	int nvecs, i;
 
-	nvecs = min_t(int, num_online_cpus(), wx->mac.max_msix_vectors);
+	/* We start by asking for one vector per queue pair */
+	nvecs = max(wx->num_rx_queues, wx->num_tx_queues);
+	nvecs = min_t(int, nvecs, num_online_cpus());
+	nvecs = min_t(int, nvecs, wx->mac.max_msix_vectors);
 
-	wx->msix_entries = kcalloc(nvecs,
-				   sizeof(struct msix_entry),
-				   GFP_KERNEL);
-	if (!wx->msix_entries)
+	wx->msix_q_entries = kcalloc(nvecs, sizeof(struct msix_entry),
+				     GFP_KERNEL);
+	if (!wx->msix_q_entries)
 		return -ENOMEM;
+
+	/* One for non-queue interrupts */
+	nvecs += 1;
+
+	if (!wx->msix_in_use) {
+		wx->msix_entry = kcalloc(1, sizeof(struct msix_entry),
+					 GFP_KERNEL);
+		if (!wx->msix_entry) {
+			kfree(wx->msix_q_entries);
+			wx->msix_q_entries = NULL;
+			return -ENOMEM;
+		}
+	}
 
 	nvecs = pci_alloc_irq_vectors_affinity(wx->pdev, nvecs,
 					       nvecs,
@@ -1677,21 +1630,22 @@ static int wx_acquire_msix_vectors(struct wx *wx)
 					       &affd);
 	if (nvecs < 0) {
 		wx_err(wx, "Failed to allocate MSI-X interrupts. Err: %d\n", nvecs);
-		kfree(wx->msix_entries);
-		wx->msix_entries = NULL;
+		kfree(wx->msix_q_entries);
+		wx->msix_q_entries = NULL;
+		kfree(wx->msix_entry);
+		wx->msix_entry = NULL;
 		return nvecs;
 	}
 
+	wx->msix_entry->entry = 0;
+	wx->msix_entry->vector = pci_irq_vector(wx->pdev, 0);
+	nvecs -= 1;
 	for (i = 0; i < nvecs; i++) {
-		wx->msix_entries[i].entry = i;
-		wx->msix_entries[i].vector = pci_irq_vector(wx->pdev, i);
+		wx->msix_q_entries[i].entry = i;
+		wx->msix_q_entries[i].vector = pci_irq_vector(wx->pdev, i + 1);
 	}
 
-	/* one for msix_other */
-	nvecs -= 1;
 	wx->num_q_vectors = nvecs;
-	wx->num_rx_queues = nvecs;
-	wx->num_tx_queues = nvecs;
 
 	return 0;
 }
@@ -1713,9 +1667,11 @@ static int wx_set_interrupt_capability(struct wx *wx)
 	if (ret == 0 || (ret == -ENOMEM))
 		return ret;
 
-	wx->num_rx_queues = 1;
-	wx->num_tx_queues = 1;
-	wx->num_q_vectors = 1;
+	/* Disable RSS */
+	dev_warn(&wx->pdev->dev, "Disabling RSS support\n");
+	wx->ring_feature[RING_F_RSS].limit = 1;
+
+	wx_set_num_queues(wx);
 
 	/* minmum one for queue, one for misc*/
 	nvecs = 1;
@@ -1973,8 +1929,12 @@ void wx_reset_interrupt_capability(struct wx *wx)
 		return;
 
 	if (pdev->msix_enabled) {
-		kfree(wx->msix_entries);
-		wx->msix_entries = NULL;
+		kfree(wx->msix_q_entries);
+		wx->msix_q_entries = NULL;
+		if (!wx->msix_in_use) {
+			kfree(wx->msix_entry);
+			wx->msix_entry = NULL;
+		}
 	}
 	pci_free_irq_vectors(wx->pdev);
 }
@@ -2046,7 +2006,7 @@ void wx_free_irq(struct wx *wx)
 
 	for (vector = 0; vector < wx->num_q_vectors; vector++) {
 		struct wx_q_vector *q_vector = wx->q_vector[vector];
-		struct msix_entry *entry = &wx->msix_entries[vector];
+		struct msix_entry *entry = &wx->msix_q_entries[vector];
 
 		/* free only the irqs that were actually requested */
 		if (!q_vector->rx.ring && !q_vector->tx.ring)
@@ -2056,7 +2016,7 @@ void wx_free_irq(struct wx *wx)
 	}
 
 	if (wx->mac.type == wx_mac_em)
-		free_irq(wx->msix_entries[vector].vector, wx);
+		free_irq(wx->msix_entry->vector, wx);
 }
 EXPORT_SYMBOL(wx_free_irq);
 
@@ -2133,6 +2093,7 @@ static void wx_set_ivar(struct wx *wx, s8 direction,
 		wr32(wx, WX_PX_MISC_IVAR, ivar);
 	} else {
 		/* tx or rx causes */
+		msix_vector += 1; /* offset for queue vectors */
 		msix_vector |= WX_PX_IVAR_ALLOC_VAL;
 		index = ((16 * (queue & 1)) + (8 * direction));
 		ivar = rd32(wx, WX_PX_IVAR(queue >> 1));
@@ -2150,7 +2111,7 @@ static void wx_set_ivar(struct wx *wx, s8 direction,
  * when it needs to update EITR registers at runtime.  Hardware
  * specific quirks/differences are taken care of here.
  */
-static void wx_write_eitr(struct wx_q_vector *q_vector)
+void wx_write_eitr(struct wx_q_vector *q_vector)
 {
 	struct wx *wx = q_vector->wx;
 	int v_idx = q_vector->v_idx;
@@ -2163,7 +2124,7 @@ static void wx_write_eitr(struct wx_q_vector *q_vector)
 
 	itr_reg |= WX_PX_ITR_CNT_WDIS;
 
-	wr32(wx, WX_PX_ITR(v_idx), itr_reg);
+	wr32(wx, WX_PX_ITR(v_idx + 1), itr_reg);
 }
 
 /**
@@ -2209,9 +2170,9 @@ void wx_configure_vectors(struct wx *wx)
 		wx_write_eitr(q_vector);
 	}
 
-	wx_set_ivar(wx, -1, 0, v_idx);
+	wx_set_ivar(wx, -1, 0, 0);
 	if (pdev->msix_enabled)
-		wr32(wx, WX_PX_ITR(v_idx), 1950);
+		wr32(wx, WX_PX_ITR(0), 1950);
 }
 EXPORT_SYMBOL(wx_configure_vectors);
 
@@ -2248,8 +2209,6 @@ static void wx_clean_rx_ring(struct wx_ring *rx_ring)
 
 		/* free resources associated with mapping */
 		page_pool_put_full_page(rx_ring->page_pool, rx_buffer->page, false);
-		__page_frag_cache_drain(rx_buffer->page,
-					rx_buffer->pagecnt_bias);
 
 		i++;
 		rx_buffer++;
@@ -2726,11 +2685,14 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 	netdev_features_t changed = netdev->features ^ features;
 	struct wx *wx = netdev_priv(netdev);
 
-	if (changed & NETIF_F_RXHASH)
+	if (features & NETIF_F_RXHASH) {
 		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN,
 		      WX_RDB_RA_CTL_RSS_EN);
-	else
+		wx->rss_enabled = true;
+	} else {
 		wr32m(wx, WX_RDB_RA_CTL, WX_RDB_RA_CTL_RSS_EN, 0);
+		wx->rss_enabled = false;
+	}
 
 	if (changed &
 	    (NETIF_F_HW_VLAN_CTAG_RX |
@@ -2741,4 +2703,71 @@ int wx_set_features(struct net_device *netdev, netdev_features_t features)
 }
 EXPORT_SYMBOL(wx_set_features);
 
+void wx_set_ring(struct wx *wx, u32 new_tx_count,
+		 u32 new_rx_count, struct wx_ring *temp_ring)
+{
+	int i, err = 0;
+
+	/* Setup new Tx resources and free the old Tx resources in that order.
+	 * We can then assign the new resources to the rings via a memcpy.
+	 * The advantage to this approach is that we are guaranteed to still
+	 * have resources even in the case of an allocation failure.
+	 */
+	if (new_tx_count != wx->tx_ring_count) {
+		for (i = 0; i < wx->num_tx_queues; i++) {
+			memcpy(&temp_ring[i], wx->tx_ring[i],
+			       sizeof(struct wx_ring));
+
+			temp_ring[i].count = new_tx_count;
+			err = wx_setup_tx_resources(&temp_ring[i]);
+			if (err) {
+				wx_err(wx, "setup new tx resources failed, keep using the old config\n");
+				while (i) {
+					i--;
+					wx_free_tx_resources(&temp_ring[i]);
+				}
+				return;
+			}
+		}
+
+		for (i = 0; i < wx->num_tx_queues; i++) {
+			wx_free_tx_resources(wx->tx_ring[i]);
+
+			memcpy(wx->tx_ring[i], &temp_ring[i],
+			       sizeof(struct wx_ring));
+		}
+
+		wx->tx_ring_count = new_tx_count;
+	}
+
+	/* Repeat the process for the Rx rings if needed */
+	if (new_rx_count != wx->rx_ring_count) {
+		for (i = 0; i < wx->num_rx_queues; i++) {
+			memcpy(&temp_ring[i], wx->rx_ring[i],
+			       sizeof(struct wx_ring));
+
+			temp_ring[i].count = new_rx_count;
+			err = wx_setup_rx_resources(&temp_ring[i]);
+			if (err) {
+				wx_err(wx, "setup new rx resources failed, keep using the old config\n");
+				while (i) {
+					i--;
+					wx_free_rx_resources(&temp_ring[i]);
+				}
+				return;
+			}
+		}
+
+		for (i = 0; i < wx->num_rx_queues; i++) {
+			wx_free_rx_resources(wx->rx_ring[i]);
+			memcpy(wx->rx_ring[i], &temp_ring[i],
+			       sizeof(struct wx_ring));
+		}
+
+		wx->rx_ring_count = new_rx_count;
+	}
+}
+EXPORT_SYMBOL(wx_set_ring);
+
+MODULE_DESCRIPTION("Common library for Wangxun(R) Ethernet drivers.");
 MODULE_LICENSE("GPL");

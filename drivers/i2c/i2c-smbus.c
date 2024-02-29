@@ -308,8 +308,8 @@ EXPORT_SYMBOL_GPL(i2c_free_slave_host_notify_device);
  * target systems are the same.
  * Restrictions to automatic SPD instantiation:
  *  - Only works if all filled slots have the same memory type
- *  - Only works for DDR2, DDR3 and DDR4 for now
- *  - Only works on systems with 1 to 4 memory slots
+ *  - Only works for DDR, DDR2, DDR3 and DDR4 for now
+ *  - Only works on systems with 1 to 8 memory slots
  */
 #if IS_ENABLED(CONFIG_DMI)
 void i2c_register_spd(struct i2c_adapter *adap)
@@ -354,9 +354,9 @@ void i2c_register_spd(struct i2c_adapter *adap)
 	dev_info(&adap->dev, "%d/%d memory slots populated (from DMI)\n",
 		 dimm_count, slot_count);
 
-	if (slot_count > 4) {
+	if (slot_count > 8) {
 		dev_warn(&adap->dev,
-			 "Systems with more than 4 memory slots not supported yet, not instantiating SPD\n");
+			 "Systems with more than 8 memory slots not supported yet, not instantiating SPD\n");
 		return;
 	}
 

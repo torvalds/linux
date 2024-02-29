@@ -17,6 +17,7 @@
 #include <asm/esr.h>
 #include <asm/kvm_arm.h>
 #include <asm/kvm_hyp.h>
+#include <asm/kvm_nested.h>
 #include <asm/ptrace.h>
 #include <asm/cputype.h>
 #include <asm/virt.h>
@@ -53,11 +54,6 @@ void kvm_vcpu_wfi(struct kvm_vcpu *vcpu);
 void kvm_emulate_nested_eret(struct kvm_vcpu *vcpu);
 int kvm_inject_nested_sync(struct kvm_vcpu *vcpu, u64 esr_el2);
 int kvm_inject_nested_irq(struct kvm_vcpu *vcpu);
-
-static inline bool vcpu_has_feature(const struct kvm_vcpu *vcpu, int feature)
-{
-	return test_bit(feature, vcpu->kvm->arch.vcpu_features);
-}
 
 #if defined(__KVM_VHE_HYPERVISOR__) || defined(__KVM_NVHE_HYPERVISOR__)
 static __always_inline bool vcpu_el1_is_32bit(struct kvm_vcpu *vcpu)
@@ -248,7 +244,7 @@ static inline bool __is_hyp_ctxt(const struct kvm_cpu_context *ctxt)
 
 static inline bool is_hyp_ctxt(const struct kvm_vcpu *vcpu)
 {
-	return __is_hyp_ctxt(&vcpu->arch.ctxt);
+	return vcpu_has_nv(vcpu) && __is_hyp_ctxt(&vcpu->arch.ctxt);
 }
 
 /*
@@ -404,14 +400,25 @@ static __always_inline u8 kvm_vcpu_trap_get_fault(const struct kvm_vcpu *vcpu)
 	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC;
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_type(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_permission_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_TYPE;
+	return esr_fsc_is_permission_fault(kvm_vcpu_get_esr(vcpu));
 }
 
-static __always_inline u8 kvm_vcpu_trap_get_fault_level(const struct kvm_vcpu *vcpu)
+static inline
+bool kvm_vcpu_trap_is_translation_fault(const struct kvm_vcpu *vcpu)
 {
-	return kvm_vcpu_get_esr(vcpu) & ESR_ELx_FSC_LEVEL;
+	return esr_fsc_is_translation_fault(kvm_vcpu_get_esr(vcpu));
+}
+
+static inline
+u64 kvm_vcpu_trap_get_perm_fault_granule(const struct kvm_vcpu *vcpu)
+{
+	unsigned long esr = kvm_vcpu_get_esr(vcpu);
+
+	BUG_ON(!esr_fsc_is_permission_fault(esr));
+	return BIT(ARM64_HW_PGTABLE_LEVEL_SHIFT(esr & ESR_ELx_FSC_LEVEL));
 }
 
 static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
@@ -454,12 +461,7 @@ static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
 		 * first), then a permission fault to allow the flags
 		 * to be set.
 		 */
-		switch (kvm_vcpu_trap_get_fault_type(vcpu)) {
-		case ESR_ELx_FSC_PERM:
-			return true;
-		default:
-			return false;
-		}
+		return kvm_vcpu_trap_is_permission_fault(vcpu);
 	}
 
 	if (kvm_vcpu_trap_is_iabt(vcpu))

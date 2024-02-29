@@ -943,12 +943,12 @@ static ssize_t fw_info_show(struct device *dev,
 	if (!iqs5xx->dev_id_info.bl_status)
 		return -ENODATA;
 
-	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u.%u:%u.%u\n",
-			 be16_to_cpu(iqs5xx->dev_id_info.prod_num),
-			 be16_to_cpu(iqs5xx->dev_id_info.proj_num),
-			 iqs5xx->dev_id_info.major_ver,
-			 iqs5xx->dev_id_info.minor_ver,
-			 iqs5xx->exp_file[0], iqs5xx->exp_file[1]);
+	return sysfs_emit(buf, "%u.%u.%u.%u:%u.%u\n",
+			  be16_to_cpu(iqs5xx->dev_id_info.prod_num),
+			  be16_to_cpu(iqs5xx->dev_id_info.proj_num),
+			  iqs5xx->dev_id_info.major_ver,
+			  iqs5xx->dev_id_info.minor_ver,
+			  iqs5xx->exp_file[0], iqs5xx->exp_file[1]);
 }
 
 static DEVICE_ATTR_WO(fw_file);

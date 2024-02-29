@@ -40,7 +40,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{0, "R1", "ctx(off=0,imm=0)"},
+			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
 			{0, "R3_w", "2"},
 			{1, "R3_w", "4"},
@@ -68,7 +68,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{0, "R1", "ctx(off=0,imm=0)"},
+			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
 			{0, "R3_w", "1"},
 			{1, "R3_w", "2"},
@@ -97,7 +97,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{0, "R1", "ctx(off=0,imm=0)"},
+			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
 			{0, "R3_w", "4"},
 			{1, "R3_w", "8"},
@@ -119,7 +119,7 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{0, "R1", "ctx(off=0,imm=0)"},
+			{0, "R1", "ctx()"},
 			{0, "R10", "fp0"},
 			{0, "R3_w", "7"},
 			{1, "R3_w", "7"},
@@ -162,13 +162,13 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{6, "R0_w", "pkt(off=8,r=8,imm=0)"},
+			{6, "R0_w", "pkt(off=8,r=8)"},
 			{6, "R3_w", "var_off=(0x0; 0xff)"},
 			{7, "R3_w", "var_off=(0x0; 0x1fe)"},
 			{8, "R3_w", "var_off=(0x0; 0x3fc)"},
 			{9, "R3_w", "var_off=(0x0; 0x7f8)"},
 			{10, "R3_w", "var_off=(0x0; 0xff0)"},
-			{12, "R3_w", "pkt_end(off=0,imm=0)"},
+			{12, "R3_w", "pkt_end()"},
 			{17, "R4_w", "var_off=(0x0; 0xff)"},
 			{18, "R4_w", "var_off=(0x0; 0x1fe0)"},
 			{19, "R4_w", "var_off=(0x0; 0xff0)"},
@@ -235,11 +235,11 @@ static struct bpf_align_test tests[] = {
 		},
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.matches = {
-			{2, "R5_w", "pkt(off=0,r=0,imm=0)"},
-			{4, "R5_w", "pkt(off=14,r=0,imm=0)"},
-			{5, "R4_w", "pkt(off=14,r=0,imm=0)"},
-			{9, "R2", "pkt(off=0,r=18,imm=0)"},
-			{10, "R5", "pkt(off=14,r=18,imm=0)"},
+			{2, "R5_w", "pkt(r=0)"},
+			{4, "R5_w", "pkt(off=14,r=0)"},
+			{5, "R4_w", "pkt(off=14,r=0)"},
+			{9, "R2", "pkt(r=18)"},
+			{10, "R5", "pkt(off=14,r=18)"},
 			{10, "R4_w", "var_off=(0x0; 0xff)"},
 			{13, "R4_w", "var_off=(0x0; 0xffff)"},
 			{14, "R4_w", "var_off=(0x0; 0xffff)"},
@@ -299,7 +299,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(off=0,r=8,imm=0)"},
+			{6, "R2_w", "pkt(r=8)"},
 			{7, "R6_w", "var_off=(0x0; 0x3fc)"},
 			/* Offset is added to packet pointer R5, resulting in
 			 * known fixed offset, and variable offset from R6.
@@ -337,7 +337,7 @@ static struct bpf_align_test tests[] = {
 			/* Constant offset is added to R5 packet pointer,
 			 * resulting in reg->off value of 14.
 			 */
-			{26, "R5_w", "pkt(off=14,r=8,"},
+			{26, "R5_w", "pkt(off=14,r=8)"},
 			/* Variable offset is added to R5, resulting in a
 			 * variable offset of (4n). See comment for insn #18
 			 * for R4 = R5 trick.
@@ -397,7 +397,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(off=0,r=8,imm=0)"},
+			{6, "R2_w", "pkt(r=8)"},
 			{7, "R6_w", "var_off=(0x0; 0x3fc)"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{8, "R6_w", "var_off=(0x2; 0x7fc)"},
@@ -459,7 +459,7 @@ static struct bpf_align_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 		.result = REJECT,
 		.matches = {
-			{3, "R5_w", "pkt_end(off=0,imm=0)"},
+			{3, "R5_w", "pkt_end()"},
 			/* (ptr - ptr) << 2 == unknown, (4n) */
 			{5, "R5_w", "var_off=(0x0; 0xfffffffffffffffc)"},
 			/* (4n) + 14 == (4n+2).  We blow our bounds, because
@@ -513,7 +513,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(off=0,r=8,imm=0)"},
+			{6, "R2_w", "pkt(r=8)"},
 			{8, "R6_w", "var_off=(0x0; 0x3fc)"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{9, "R6_w", "var_off=(0x2; 0x7fc)"},
@@ -566,7 +566,7 @@ static struct bpf_align_test tests[] = {
 			/* Calculated offset in R6 has unknown value, but known
 			 * alignment of 4.
 			 */
-			{6, "R2_w", "pkt(off=0,r=8,imm=0)"},
+			{6, "R2_w", "pkt(r=8)"},
 			{9, "R6_w", "var_off=(0x0; 0x3c)"},
 			/* Adding 14 makes R6 be (4n+2) */
 			{10, "R6_w", "var_off=(0x2; 0x7c)"},
@@ -659,14 +659,14 @@ static int do_test_single(struct bpf_align_test *test)
 			/* Check the next line as well in case the previous line
 			 * did not have a corresponding bpf insn. Example:
 			 * func#0 @0
-			 * 0: R1=ctx(off=0,imm=0) R10=fp0
+			 * 0: R1=ctx() R10=fp0
 			 * 0: (b7) r3 = 2                 ; R3_w=2
 			 *
 			 * Sometimes it's actually two lines below, e.g. when
 			 * searching for "6: R3_w=scalar(umax=255,var_off=(0x0; 0xff))":
-			 *   from 4 to 6: R0_w=pkt(off=8,r=8,imm=0) R1=ctx(off=0,imm=0) R2_w=pkt(off=0,r=8,imm=0) R3_w=pkt_end(off=0,imm=0) R10=fp0
-			 *   6: R0_w=pkt(off=8,r=8,imm=0) R1=ctx(off=0,imm=0) R2_w=pkt(off=0,r=8,imm=0) R3_w=pkt_end(off=0,imm=0) R10=fp0
-			 *   6: (71) r3 = *(u8 *)(r2 +0)           ; R2_w=pkt(off=0,r=8,imm=0) R3_w=scalar(umax=255,var_off=(0x0; 0xff))
+			 *   from 4 to 6: R0_w=pkt(off=8,r=8) R1=ctx() R2_w=pkt(r=8) R3_w=pkt_end() R10=fp0
+			 *   6: R0_w=pkt(off=8,r=8) R1=ctx() R2_w=pkt(r=8) R3_w=pkt_end() R10=fp0
+			 *   6: (71) r3 = *(u8 *)(r2 +0)           ; R2_w=pkt(r=8) R3_w=scalar(umax=255,var_off=(0x0; 0xff))
 			 */
 			while (!(p = strstr(line_ptr, m.reg)) || !strstr(p, m.match)) {
 				cur_line = -1;

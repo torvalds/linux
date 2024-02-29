@@ -3763,10 +3763,10 @@ static struct fib6_info *ip6_route_info_create(struct fib6_config *cfg,
 		rt->dst_nocount = true;
 
 	if (cfg->fc_flags & RTF_EXPIRES)
-		fib6_set_expires_locked(rt, jiffies +
-					clock_t_to_jiffies(cfg->fc_expires));
+		fib6_set_expires(rt, jiffies +
+				clock_t_to_jiffies(cfg->fc_expires));
 	else
-		fib6_clean_expires_locked(rt);
+		fib6_clean_expires(rt);
 
 	if (cfg->fc_protocol == RTPROT_UNSPEC)
 		cfg->fc_protocol = RTPROT_BOOT;

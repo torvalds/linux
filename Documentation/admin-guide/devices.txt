@@ -2704,6 +2704,9 @@
 		    ...
 		 185 = /dev/ttyNX15		Hilscher netX serial port 15
 		 186 = /dev/ttyJ0		JTAG1 DCC protocol based serial port emulation
+
+		 If maximum number of uartlite serial ports is more than 4, then the driver
+		 uses dynamic allocation instead of static allocation for major number.
 		 187 = /dev/ttyUL0		Xilinx uartlite - port 0
 		    ...
 		 190 = /dev/ttyUL3		Xilinx uartlite - port 3

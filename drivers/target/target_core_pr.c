@@ -470,6 +470,7 @@ static int core_scsi3_pr_seq_non_holder(struct se_cmd *cmd, u32 pr_reg_type,
 	case INQUIRY:
 	case LOG_SENSE:
 	case SERVICE_ACTION_IN_12:
+	case READ_CAPACITY:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
 	case PERSISTENT_RESERVE_IN:

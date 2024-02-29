@@ -85,7 +85,7 @@ allOf:
         clocks:
           minItems: 6
           maxItems: 6
-        regs:
+        reg:
           minItems: 2
           maxItems: 2
 
@@ -99,7 +99,7 @@ allOf:
         clocks:
           minItems: 4
           maxItems: 4
-        regs:
+        reg:
           minItems: 2
           maxItems: 2
 
@@ -116,7 +116,7 @@ allOf:
         clocks:
           minItems: 3
           maxItems: 3
-        regs:
+        reg:
           minItems: 1
           maxItems: 1
 

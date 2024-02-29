@@ -167,7 +167,7 @@ properties:
       Note that this flag is mainly used for PWM-LEDs, where it is not possible
       to map brightness to current. Drivers for other controllers should use
       led-max-microamp.
-    $ref: /schemas/types.yaml#definitions/uint32
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   panic-indicator:
     description:

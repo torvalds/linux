@@ -133,6 +133,7 @@ static struct dpp_funcs dcn32_dpp_funcs = {
 	.set_optional_cursor_attributes	= dpp1_cnv_set_optional_cursor_attributes,
 	.dpp_dppclk_control			= dpp1_dppclk_control,
 	.dpp_set_hdr_multiplier		= dpp3_set_hdr_multiplier,
+	.dpp_get_gamut_remap		= dpp3_cm_get_gamut_remap,
 };
 
 

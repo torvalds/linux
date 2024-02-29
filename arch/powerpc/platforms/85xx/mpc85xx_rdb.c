@@ -76,7 +76,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 			/* P1025 has pins muxed for QE and other functions. To
 			* enable QE UEC mode, we need to set bit QE0 for UCC1
 			* in Eth mode, QE0 and QE3 for UCC5 in Eth mode, QE9
-			* and QE12 for QE MII management singals in PMUXCR
+			* and QE12 for QE MII management signals in PMUXCR
 			* register.
 			*/
 				setbits32(&guts->pmuxcr, MPC85xx_PMUXCR_QE(0) |

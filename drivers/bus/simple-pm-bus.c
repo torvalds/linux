@@ -74,17 +74,16 @@ static int simple_pm_bus_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int simple_pm_bus_remove(struct platform_device *pdev)
+static void simple_pm_bus_remove(struct platform_device *pdev)
 {
 	const void *data = of_device_get_match_data(&pdev->dev);
 
 	if (pdev->driver_override || data)
-		return 0;
+		return;
 
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	pm_runtime_disable(&pdev->dev);
-	return 0;
 }
 
 static int simple_pm_bus_runtime_suspend(struct device *dev)
@@ -129,7 +128,7 @@ MODULE_DEVICE_TABLE(of, simple_pm_bus_of_match);
 
 static struct platform_driver simple_pm_bus_driver = {
 	.probe = simple_pm_bus_probe,
-	.remove = simple_pm_bus_remove,
+	.remove_new = simple_pm_bus_remove,
 	.driver = {
 		.name = "simple-pm-bus",
 		.of_match_table = simple_pm_bus_of_match,

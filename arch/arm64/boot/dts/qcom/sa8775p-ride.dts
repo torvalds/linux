@@ -461,6 +461,11 @@
 			  "ANALOG_PON_OPT";
 };
 
+&pmm8654au_0_pon_resin {
+	linux,code = <KEY_VOLUMEDOWN>;
+	status = "okay";
+};
+
 &pmm8654au_1_gpios {
 	gpio-line-names = "PMIC_C_ID0",
 			  "PMIC_C_ID1",

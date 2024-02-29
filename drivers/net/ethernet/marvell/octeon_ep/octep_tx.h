@@ -36,6 +36,7 @@ struct octep_tx_sglist_desc {
 	u16 len[4];
 	dma_addr_t dma_ptr[4];
 };
+
 static_assert(sizeof(struct octep_tx_sglist_desc) == 40);
 
 /* Each Scatter/Gather entry sent to hardwar hold four pointers.
@@ -60,6 +61,18 @@ struct octep_tx_buffer {
 
 /* Hardware interface Tx statistics */
 struct octep_iface_tx_stats {
+	/* Total frames sent on the interface */
+	u64 pkts;
+
+	/* Total octets sent on the interface */
+	u64 octs;
+
+	/* Packets sent to a broadcast DMAC */
+	u64 bcst;
+
+	/* Packets sent to the multicast DMAC */
+	u64 mcst;
+
 	/* Packets dropped due to excessive collisions */
 	u64 xscol;
 
@@ -75,12 +88,6 @@ struct octep_iface_tx_stats {
 	 * transmission
 	 */
 	u64 scol;
-
-	/* Total octets sent on the interface */
-	u64 octs;
-
-	/* Total frames sent on the interface */
-	u64 pkts;
 
 	/* Packets sent with an octet count < 64 */
 	u64 hist_lt64;
@@ -105,12 +112,6 @@ struct octep_iface_tx_stats {
 
 	/* Packets sent with an octet count of > 1518 */
 	u64 hist_gt1518;
-
-	/* Packets sent to a broadcast DMAC */
-	u64 bcst;
-
-	/* Packets sent to the multicast DMAC */
-	u64 mcst;
 
 	/* Packets sent that experienced a transmit underflow and were
 	 * truncated
@@ -171,9 +172,6 @@ struct octep_iq {
 
 	/* Statistics for this input queue. */
 	struct octep_iq_stats stats;
-
-	/* This field keeps track of the instructions pending in this queue. */
-	atomic_t instr_pending;
 
 	/* Pointer to the Virtual Base addr of the input ring. */
 	struct octep_tx_desc_hw *desc_ring;
@@ -240,32 +238,53 @@ struct octep_instr_hdr {
 	/* Reserved3 */
 	u64 reserved3:1;
 };
+
 static_assert(sizeof(struct octep_instr_hdr) == 8);
 
-/* Hardware Tx completion response header */
-struct octep_instr_resp_hdr {
-	/* Request ID  */
-	u64 rid:16;
+/* Tx offload flags */
+#define OCTEP_TX_OFFLOAD_VLAN_INSERT   BIT(0)
+#define OCTEP_TX_OFFLOAD_IPV4_CKSUM    BIT(1)
+#define OCTEP_TX_OFFLOAD_UDP_CKSUM     BIT(2)
+#define OCTEP_TX_OFFLOAD_TCP_CKSUM     BIT(3)
+#define OCTEP_TX_OFFLOAD_SCTP_CKSUM    BIT(4)
+#define OCTEP_TX_OFFLOAD_TCP_TSO       BIT(5)
+#define OCTEP_TX_OFFLOAD_UDP_TSO       BIT(6)
 
-	/* PCIe port to use for response */
-	u64 pcie_port:3;
+#define OCTEP_TX_OFFLOAD_CKSUM         (OCTEP_TX_OFFLOAD_IPV4_CKSUM | \
+					OCTEP_TX_OFFLOAD_UDP_CKSUM | \
+					OCTEP_TX_OFFLOAD_TCP_CKSUM)
 
-	/* Scatter indicator  1=scatter */
-	u64 scatter:1;
+#define OCTEP_TX_OFFLOAD_TSO           (OCTEP_TX_OFFLOAD_TCP_TSO | \
+					OCTEP_TX_OFFLOAD_UDP_TSO)
 
-	/* Size of Expected result OR no. of entries in scatter list */
-	u64 rlenssz:14;
+#define OCTEP_TX_IP_CSUM(flags)		((flags) & \
+					 (OCTEP_TX_OFFLOAD_IPV4_CKSUM | \
+					  OCTEP_TX_OFFLOAD_TCP_CKSUM | \
+					  OCTEP_TX_OFFLOAD_UDP_CKSUM))
 
-	/* Desired destination port for result */
-	u64 dport:6;
+#define OCTEP_TX_TSO(flags)		((flags) & \
+					 (OCTEP_TX_OFFLOAD_TCP_TSO | \
+					  OCTEP_TX_OFFLOAD_UDP_TSO))
 
-	/* Opcode Specific parameters */
-	u64 param:8;
+struct tx_mdata {
 
-	/* Opcode for the return packet  */
-	u64 opcode:16;
+	/* offload flags */
+	u16 ol_flags;
+
+	/* gso size */
+	u16 gso_size;
+
+	/* gso flags */
+	u16 gso_segs;
+
+	/* reserved */
+	u16 rsvd1;
+
+	/* reserved */
+	u64 rsvd2;
 };
-static_assert(sizeof(struct octep_instr_hdr) == 8);
+
+static_assert(sizeof(struct tx_mdata) == 16);
 
 /* 64-byte Tx instruction format.
  * Format of instruction for a 64-byte mode input queue.
@@ -284,18 +303,14 @@ struct octep_tx_desc_hw {
 		struct octep_instr_hdr ih;
 		u64 ih64;
 	};
-
-	/* Pointer where the response for a RAW mode packet will be written
-	 * by Octeon.
-	 */
-	u64 rptr;
-
-	/* Input Instruction Response Header. */
-	struct octep_instr_resp_hdr irh;
-
+	union  {
+		u64 txm64[2];
+		struct tx_mdata txm;
+	};
 	/* Additional headers available in a 64-byte instruction. */
-	u64 exhdr[4];
+	u64 exthdr[4];
 };
+
 static_assert(sizeof(struct octep_tx_desc_hw) == 64);
 
 #define OCTEP_IQ_DESC_SIZE (sizeof(struct octep_tx_desc_hw))

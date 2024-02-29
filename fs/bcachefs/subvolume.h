@@ -23,6 +23,9 @@ int bch2_subvolume_get(struct btree_trans *, unsigned,
 		       bool, int, struct bch_subvolume *);
 int bch2_subvolume_get_snapshot(struct btree_trans *, u32, u32 *);
 
+int bch2_subvol_is_ro_trans(struct btree_trans *, u32);
+int bch2_subvol_is_ro(struct bch_fs *, u32);
+
 int bch2_delete_dead_snapshots(struct bch_fs *);
 void bch2_delete_dead_snapshots_async(struct bch_fs *);
 

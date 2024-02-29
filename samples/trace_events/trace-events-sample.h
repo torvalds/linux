@@ -305,7 +305,7 @@ TRACE_EVENT(foo_bar,
 	),
 
 	TP_fast_assign(
-		strlcpy(__entry->foo, foo, 10);
+		strscpy(__entry->foo, foo, 10);
 		__entry->bar	= bar;
 		memcpy(__get_dynamic_array(list), lst,
 		       __length_of(lst) * sizeof(int));

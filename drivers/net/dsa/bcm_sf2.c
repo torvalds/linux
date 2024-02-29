@@ -621,8 +621,6 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 		goto err_of_node_put;
 	}
 
-	priv->master_mii_dn = dn;
-
 	priv->user_mii_bus = mdiobus_alloc();
 	if (!priv->user_mii_bus) {
 		err = -ENOMEM;
@@ -635,7 +633,6 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	priv->user_mii_bus->write = bcm_sf2_sw_mdio_write;
 	snprintf(priv->user_mii_bus->id, MII_BUS_ID_SIZE, "sf2-%d",
 		 index++);
-	priv->user_mii_bus->dev.of_node = dn;
 
 	/* Include the pseudo-PHY address to divert reads towards our
 	 * workaround. This is only required for 7445D0, since 7445E0
@@ -683,8 +680,10 @@ static int bcm_sf2_mdio_register(struct dsa_switch *ds)
 	}
 
 	err = mdiobus_register(priv->user_mii_bus);
-	if (err && dn)
+	if (err)
 		goto err_free_user_mii_bus;
+
+	of_node_put(dn);
 
 	return 0;
 

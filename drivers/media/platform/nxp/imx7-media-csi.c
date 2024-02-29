@@ -3,31 +3,46 @@
  * V4L2 Capture CSI Subdev for Freescale i.MX6UL/L / i.MX7 SOC
  *
  * Copyright (c) 2019 Linaro Ltd
- *
  */
 
 #include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/container_of.h>
 #include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
+#include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/math.h>
-#include <linux/mfd/syscon.h>
 #include <linux/minmax.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/of.h>
-#include <linux/of_graph.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/timekeeping.h>
 #include <linux/types.h>
 
+#include <media/media-device.h>
+#include <media/media-entity.h>
+#include <media/v4l2-async.h>
+#include <media/v4l2-common.h>
+#include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-fwnode.h>
+#include <media/v4l2-fh.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-mc.h>
 #include <media/v4l2-subdev.h>
+#include <media/videobuf2-core.h>
 #include <media/videobuf2-dma-contig.h>
+#include <media/videobuf2-v4l2.h>
 
 #define IMX7_CSI_PAD_SINK		0
 #define IMX7_CSI_PAD_SRC		1
@@ -542,8 +557,8 @@ static void imx7_csi_configure(struct imx7_csi *csi,
 	} else {
 		const struct v4l2_mbus_framefmt *sink_fmt;
 
-		sink_fmt = v4l2_subdev_get_pad_format(&csi->sd, sd_state,
-						      IMX7_CSI_PAD_SINK);
+		sink_fmt = v4l2_subdev_state_get_format(sd_state,
+							IMX7_CSI_PAD_SINK);
 
 		cr1 = BIT_SOF_POL | BIT_REDGE | BIT_HSYNC_POL | BIT_FCC
 		    | BIT_MCLKDIV(1) | BIT_MCLKEN;
@@ -1245,6 +1260,7 @@ static int imx7_csi_video_queue_setup(struct vb2_queue *vq,
 				      struct device *alloc_devs[])
 {
 	struct imx7_csi *csi = vb2_get_drv_priv(vq);
+	unsigned int q_num_bufs = vb2_get_num_buffers(vq);
 	struct v4l2_pix_format *pix = &csi->vdev_fmt;
 	unsigned int count = *nbuffers;
 
@@ -1254,14 +1270,14 @@ static int imx7_csi_video_queue_setup(struct vb2_queue *vq,
 	if (*nplanes) {
 		if (*nplanes != 1 || sizes[0] < pix->sizeimage)
 			return -EINVAL;
-		count += vq->num_buffers;
+		count += q_num_bufs;
 	}
 
 	count = min_t(__u32, IMX7_CSI_VIDEO_MEM_LIMIT / pix->sizeimage, count);
 
 	if (*nplanes)
-		*nbuffers = (count < vq->num_buffers) ? 0 :
-			count - vq->num_buffers;
+		*nbuffers = (count < q_num_bufs) ? 0 :
+			count - q_num_bufs;
 	else
 		*nbuffers = count;
 
@@ -1675,7 +1691,7 @@ static int imx7_csi_video_init(struct imx7_csi *csi)
 	vq->mem_ops = &vb2_dma_contig_memops;
 	vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	vq->lock = &csi->vdev_mutex;
-	vq->min_buffers_needed = 2;
+	vq->min_queued_buffers = 2;
 	vq->dev = csi->dev;
 
 	ret = vb2_queue_init(vq);
@@ -1728,8 +1744,8 @@ out_unlock:
 	return ret;
 }
 
-static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *sd_state)
+static int imx7_csi_init_state(struct v4l2_subdev *sd,
+			       struct v4l2_subdev_state *sd_state)
 {
 	const struct imx7_csi_pixfmt *cc;
 	int i;
@@ -1738,7 +1754,7 @@ static int imx7_csi_init_cfg(struct v4l2_subdev *sd,
 
 	for (i = 0; i < IMX7_CSI_PADS_NUM; i++) {
 		struct v4l2_mbus_framefmt *mf =
-			v4l2_subdev_get_pad_format(sd, sd_state, i);
+			v4l2_subdev_state_get_format(sd_state, i);
 
 		mf->code = IMX7_CSI_DEF_MBUS_CODE;
 		mf->width = IMX7_CSI_DEF_PIX_WIDTH;
@@ -1762,7 +1778,7 @@ static int imx7_csi_enum_mbus_code(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *in_fmt;
 	int ret = 0;
 
-	in_fmt = v4l2_subdev_get_pad_format(sd, sd_state, IMX7_CSI_PAD_SINK);
+	in_fmt = v4l2_subdev_state_get_format(sd_state, IMX7_CSI_PAD_SINK);
 
 	switch (code->pad) {
 	case IMX7_CSI_PAD_SINK:
@@ -1841,7 +1857,7 @@ static void imx7_csi_try_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *in_fmt;
 	u32 code;
 
-	in_fmt = v4l2_subdev_get_pad_format(sd, sd_state, IMX7_CSI_PAD_SINK);
+	in_fmt = v4l2_subdev_state_get_format(sd_state, IMX7_CSI_PAD_SINK);
 
 	switch (sdformat->pad) {
 	case IMX7_CSI_PAD_SRC:
@@ -1891,7 +1907,7 @@ static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
 
 	imx7_csi_try_fmt(sd, sd_state, sdformat, &cc);
 
-	fmt = v4l2_subdev_get_pad_format(sd, sd_state, sdformat->pad);
+	fmt = v4l2_subdev_state_get_format(sd_state, sdformat->pad);
 
 	*fmt = sdformat->format;
 
@@ -1902,8 +1918,8 @@ static int imx7_csi_set_fmt(struct v4l2_subdev *sd,
 		format.format = sdformat->format;
 		imx7_csi_try_fmt(sd, sd_state, &format, &outcc);
 
-		outfmt = v4l2_subdev_get_pad_format(sd, sd_state,
-						    IMX7_CSI_PAD_SRC);
+		outfmt = v4l2_subdev_state_get_format(sd_state,
+						      IMX7_CSI_PAD_SRC);
 		*outfmt = format.format;
 	}
 
@@ -2005,7 +2021,6 @@ static const struct v4l2_subdev_video_ops imx7_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops imx7_csi_pad_ops = {
-	.init_cfg	= imx7_csi_init_cfg,
 	.enum_mbus_code	= imx7_csi_enum_mbus_code,
 	.get_fmt	= v4l2_subdev_get_fmt,
 	.set_fmt	= imx7_csi_set_fmt,
@@ -2018,6 +2033,7 @@ static const struct v4l2_subdev_ops imx7_csi_subdev_ops = {
 };
 
 static const struct v4l2_subdev_internal_ops imx7_csi_internal_ops = {
+	.init_state	= imx7_csi_init_state,
 	.registered	= imx7_csi_registered,
 	.unregistered	= imx7_csi_unregistered,
 };

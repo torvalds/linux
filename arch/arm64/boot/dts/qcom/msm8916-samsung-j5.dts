@@ -19,6 +19,10 @@
 	status = "disabled";
 };
 
+&pm8916_codec {
+	qcom,micbias1-ext-cap;
+};
+
 &touchscreen {
 	/* FIXME: Missing sm5703-mfd driver to power up vdd-supply */
 };

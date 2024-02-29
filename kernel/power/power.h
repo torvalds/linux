@@ -175,6 +175,8 @@ extern int swsusp_write(unsigned int flags);
 void swsusp_close(void);
 #ifdef CONFIG_SUSPEND
 extern int swsusp_unmark(void);
+#else
+static inline int swsusp_unmark(void) { return 0; }
 #endif
 
 struct __kernel_old_timeval;

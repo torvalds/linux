@@ -60,8 +60,7 @@ static unsigned int nr_unresolved;
 
 #define MODULE_NAME_LEN (64 - sizeof(Elf_Addr))
 
-void __attribute__((format(printf, 2, 3)))
-modpost_log(enum loglevel loglevel, const char *fmt, ...)
+void modpost_log(enum loglevel loglevel, const char *fmt, ...)
 {
 	va_list arglist;
 
@@ -71,9 +70,7 @@ modpost_log(enum loglevel loglevel, const char *fmt, ...)
 		break;
 	case LOG_ERROR:
 		fprintf(stderr, "ERROR: ");
-		break;
-	case LOG_FATAL:
-		fprintf(stderr, "FATAL: ");
+		error_occurred = true;
 		break;
 	default: /* invalid loglevel, ignore */
 		break;
@@ -84,11 +81,6 @@ modpost_log(enum loglevel loglevel, const char *fmt, ...)
 	va_start(arglist, fmt);
 	vfprintf(stderr, fmt, arglist);
 	va_end(arglist);
-
-	if (loglevel == LOG_FATAL)
-		exit(1);
-	if (loglevel == LOG_ERROR)
-		error_occurred = true;
 }
 
 static inline bool strends(const char *str, const char *postfix)
@@ -474,11 +466,9 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		fatal("%s: not relocatable object.", filename);
 
 	/* Check if file offset is correct */
-	if (hdr->e_shoff > info->size) {
+	if (hdr->e_shoff > info->size)
 		fatal("section header offset=%lu in file '%s' is bigger than filesize=%zu\n",
 		      (unsigned long)hdr->e_shoff, filename, info->size);
-		return 0;
-	}
 
 	if (hdr->e_shnum == SHN_UNDEF) {
 		/*
@@ -516,12 +506,11 @@ static int parse_elf(struct elf_info *info, const char *filename)
 		const char *secname;
 		int nobits = sechdrs[i].sh_type == SHT_NOBITS;
 
-		if (!nobits && sechdrs[i].sh_offset > info->size) {
+		if (!nobits && sechdrs[i].sh_offset > info->size)
 			fatal("%s is truncated. sechdrs[i].sh_offset=%lu > sizeof(*hrd)=%zu\n",
 			      filename, (unsigned long)sechdrs[i].sh_offset,
 			      sizeof(*hdr));
-			return 0;
-		}
+
 		secname = secstrings + sechdrs[i].sh_name;
 		if (strcmp(secname, ".modinfo") == 0) {
 			if (nobits)
@@ -807,7 +796,8 @@ static void check_section(const char *modname, struct elf_info *elf,
 
 #define DATA_SECTIONS ".data", ".data.rel"
 #define TEXT_SECTIONS ".text", ".text.*", ".sched.text", \
-		".kprobes.text", ".cpuidle.text", ".noinstr.text"
+		".kprobes.text", ".cpuidle.text", ".noinstr.text", \
+		".ltext", ".ltext.*"
 #define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
 		".fixup", ".entry.text", ".exception.text", \
 		".coldtext", ".softirqentry.text"
@@ -1346,6 +1336,14 @@ static Elf_Addr addend_mips_rel(uint32_t *location, unsigned int r_type)
 #define R_LARCH_SUB32		55
 #endif
 
+#ifndef R_LARCH_RELAX
+#define R_LARCH_RELAX		100
+#endif
+
+#ifndef R_LARCH_ALIGN
+#define R_LARCH_ALIGN		102
+#endif
+
 static void get_rel_type_and_sym(struct elf_info *elf, uint64_t r_info,
 				 unsigned int *r_type, unsigned int *r_sym)
 {
@@ -1400,9 +1398,16 @@ static void section_rela(struct module *mod, struct elf_info *elf,
 				continue;
 			break;
 		case EM_LOONGARCH:
-			if (!strcmp("__ex_table", fromsec) &&
-			    r_type == R_LARCH_SUB32)
+			switch (r_type) {
+			case R_LARCH_SUB32:
+				if (!strcmp("__ex_table", fromsec))
+					continue;
+				break;
+			case R_LARCH_RELAX:
+			case R_LARCH_ALIGN:
+				/* These relocs do not refer to symbols */
 				continue;
+			}
 			break;
 		}
 
@@ -1419,7 +1424,7 @@ static void section_rel(struct module *mod, struct elf_info *elf,
 
 	for (rel = start; rel < stop; rel++) {
 		Elf_Sym *tsym;
-		Elf_Addr taddr = 0, r_offset;
+		Elf_Addr taddr, r_offset;
 		unsigned int r_type, r_sym;
 		void *loc;
 

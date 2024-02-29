@@ -133,6 +133,7 @@ static const struct dsa_device_ops ocelot_8021q_netdev_ops = {
 	.promisc_on_conduit	= true,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Ocelot family of switches, using VLAN");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_OCELOT_8021Q, OCELOT_8021Q_NAME);
 

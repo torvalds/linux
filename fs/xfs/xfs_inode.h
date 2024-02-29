@@ -622,4 +622,6 @@ xfs_inode_unlinked_incomplete(
 int xfs_inode_reload_unlinked_bucket(struct xfs_trans *tp, struct xfs_inode *ip);
 int xfs_inode_reload_unlinked(struct xfs_inode *ip);
 
+bool xfs_ifork_zapped(const struct xfs_inode *ip, int whichfork);
+
 #endif	/* __XFS_INODE_H__ */

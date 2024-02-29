@@ -306,7 +306,7 @@ static const struct attribute_group nhmex_uncore_cbox_format_group = {
 };
 
 /* msr offset for each instance of cbox */
-static unsigned nhmex_cbox_msr_offsets[] = {
+static u64 nhmex_cbox_msr_offsets[] = {
 	0x0, 0x80, 0x40, 0xc0, 0x20, 0xa0, 0x60, 0xe0, 0x240, 0x2c0,
 };
 

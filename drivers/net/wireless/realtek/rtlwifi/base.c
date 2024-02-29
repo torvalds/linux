@@ -1402,10 +1402,6 @@ bool rtl_action_proc(struct ieee80211_hw *hw, struct sk_buff *skb, u8 is_tx)
 
 				sta_entry =
 					(struct rtl_sta_info *)sta->drv_priv;
-				if (!sta_entry) {
-					rcu_read_unlock();
-					return true;
-				}
 				capab =
 				  le16_to_cpu(mgmt->u.action.u.addba_req.capab);
 				tid = (capab &
@@ -1760,8 +1756,6 @@ int rtl_tx_agg_start(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		return -EINVAL;
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	if (!sta_entry)
-		return -ENXIO;
 	tid_data = &sta_entry->tids[tid];
 
 	rtl_dbg(rtlpriv, COMP_SEND, DBG_DMESG,
@@ -1818,8 +1812,6 @@ int rtl_rx_agg_start(struct ieee80211_hw *hw,
 	}
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
-	if (!sta_entry)
-		return -ENXIO;
 	tid_data = &sta_entry->tids[tid];
 
 	rtl_dbg(rtlpriv, COMP_RECV, DBG_DMESG,

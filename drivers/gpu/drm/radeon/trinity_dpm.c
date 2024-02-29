@@ -39,8 +39,7 @@
 #ifndef TRINITY_MGCG_SEQUENCE
 #define TRINITY_MGCG_SEQUENCE  100
 
-static const u32 trinity_mgcg_shls_default[] =
-{
+static const u32 trinity_mgcg_shls_default[] = {
 	/* Register, Value, Mask */
 	0x0000802c, 0xc0000000, 0xffffffff,
 	0x00003fc4, 0xc0000000, 0xffffffff,
@@ -122,8 +121,7 @@ static const u32 trinity_mgcg_shls_default[] =
 #ifndef TRINITY_SYSLS_SEQUENCE
 #define TRINITY_SYSLS_SEQUENCE  100
 
-static const u32 trinity_sysls_disable[] =
-{
+static const u32 trinity_sysls_disable[] = {
 	/* Register, Value, Mask */
 	0x0000d0c0, 0x00000000, 0xffffffff,
 	0x0000d8c0, 0x00000000, 0xffffffff,
@@ -146,8 +144,7 @@ static const u32 trinity_sysls_disable[] =
 	0x00006dfc, 0x0000007f, 0xffffffff
 };
 
-static const u32 trinity_sysls_enable[] =
-{
+static const u32 trinity_sysls_enable[] = {
 	/* Register, Value, Mask */
 	0x000055e8, 0x00000001, 0xffffffff,
 	0x0000d0bc, 0x00000100, 0xffffffff,
@@ -169,8 +166,7 @@ static const u32 trinity_sysls_enable[] =
 };
 #endif
 
-static const u32 trinity_override_mgpg_sequences[] =
-{
+static const u32 trinity_override_mgpg_sequences[] = {
 	/* Register, Value */
 	0x00000200, 0xE030032C,
 	0x00000204, 0x00000FFF,
@@ -366,9 +362,9 @@ static void trinity_mg_clockgating_enable(struct radeon_device *rdev,
 		local1 = RREG32_CG(CG_CGTT_LOCAL_1);
 
 		WREG32_CG(CG_CGTT_LOCAL_0,
-			  (0x00380000 & CGCG_CGTT_LOCAL0_MASK) | (local0 & ~CGCG_CGTT_LOCAL0_MASK) );
+			  (0x00380000 & CGCG_CGTT_LOCAL0_MASK) | (local0 & ~CGCG_CGTT_LOCAL0_MASK));
 		WREG32_CG(CG_CGTT_LOCAL_1,
-			  (0x0E000000 & CGCG_CGTT_LOCAL1_MASK) | (local1 & ~CGCG_CGTT_LOCAL1_MASK) );
+			  (0x0E000000 & CGCG_CGTT_LOCAL1_MASK) | (local1 & ~CGCG_CGTT_LOCAL1_MASK));
 
 		WREG32(CGTS_SM_CTRL_REG, CGTS_SM_CTRL_REG_ENABLE);
 	} else {
@@ -378,9 +374,9 @@ static void trinity_mg_clockgating_enable(struct radeon_device *rdev,
 		local1 = RREG32_CG(CG_CGTT_LOCAL_1);
 
 		WREG32_CG(CG_CGTT_LOCAL_0,
-			  CGCG_CGTT_LOCAL0_MASK | (local0 & ~CGCG_CGTT_LOCAL0_MASK) );
+			  CGCG_CGTT_LOCAL0_MASK | (local0 & ~CGCG_CGTT_LOCAL0_MASK));
 		WREG32_CG(CG_CGTT_LOCAL_1,
-			  CGCG_CGTT_LOCAL1_MASK | (local1 & ~CGCG_CGTT_LOCAL1_MASK) );
+			  CGCG_CGTT_LOCAL1_MASK | (local1 & ~CGCG_CGTT_LOCAL1_MASK));
 	}
 }
 
@@ -1434,7 +1430,7 @@ static void trinity_adjust_uvd_state(struct radeon_device *rdev,
 	if (pi->uvd_dpm && r600_is_uvd_state(rps->class, rps->class2)) {
 		high_index = trinity_get_uvd_clock_index(rdev, rps);
 
-		switch(high_index) {
+		switch (high_index) {
 		case 3:
 		case 2:
 			low_index = 1;

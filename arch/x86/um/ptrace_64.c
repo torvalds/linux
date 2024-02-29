@@ -188,32 +188,6 @@ int peek_user(struct task_struct *child, long addr, long data)
 	return put_user(tmp, (unsigned long *) data);
 }
 
-/* XXX Mostly copied from sys-i386 */
-int is_syscall(unsigned long addr)
-{
-	unsigned short instr;
-	int n;
-
-	n = copy_from_user(&instr, (void __user *) addr, sizeof(instr));
-	if (n) {
-		/*
-		 * access_process_vm() grants access to vsyscall and stub,
-		 * while copy_from_user doesn't. Maybe access_process_vm is
-		 * slow, but that doesn't matter, since it will be called only
-		 * in case of singlestepping, if copy_from_user failed.
-		 */
-		n = access_process_vm(current, addr, &instr, sizeof(instr),
-				FOLL_FORCE);
-		if (n != sizeof(instr)) {
-			printk("is_syscall : failed to read instruction from "
-			       "0x%lx\n", addr);
-			return 1;
-		}
-	}
-	/* sysenter */
-	return instr == 0x050f;
-}
-
 static int get_fpregs(struct user_i387_struct __user *buf, struct task_struct *child)
 {
 	int err, n, cpu = ((struct thread_info *) child->stack)->cpu;

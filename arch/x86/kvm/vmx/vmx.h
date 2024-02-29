@@ -241,9 +241,11 @@ struct nested_vmx {
 		bool guest_mode;
 	} smm;
 
+#ifdef CONFIG_KVM_HYPERV
 	gpa_t hv_evmcs_vmptr;
 	struct kvm_host_map hv_evmcs_map;
 	struct hv_enlightened_vmcs *hv_evmcs;
+#endif
 };
 
 struct vcpu_vmx {
@@ -419,6 +421,8 @@ void vmx_enable_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr, int type);
 
 u64 vmx_get_l2_tsc_offset(struct kvm_vcpu *vcpu);
 u64 vmx_get_l2_tsc_multiplier(struct kvm_vcpu *vcpu);
+
+gva_t vmx_get_untagged_addr(struct kvm_vcpu *vcpu, gva_t gva, unsigned int flags);
 
 static inline void vmx_set_intercept_for_msr(struct kvm_vcpu *vcpu, u32 msr,
 					     int type, bool value)
@@ -743,16 +747,6 @@ static inline int vmx_get_instr_info_reg2(u32 vmx_instr_info)
 static inline bool vmx_can_use_ipiv(struct kvm_vcpu *vcpu)
 {
 	return  lapic_in_kernel(vcpu) && enable_ipiv;
-}
-
-static inline bool guest_cpuid_has_evmcs(struct kvm_vcpu *vcpu)
-{
-	/*
-	 * eVMCS is exposed to the guest if Hyper-V is enabled in CPUID and
-	 * eVMCS has been explicitly enabled by userspace.
-	 */
-	return vcpu->arch.hyperv_enabled &&
-	       to_vmx(vcpu)->nested.enlightened_vmcs_enabled;
 }
 
 #endif /* __KVM_X86_VMX_H */

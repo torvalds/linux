@@ -486,7 +486,7 @@
 &uart4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart4>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usb3_phy0 {

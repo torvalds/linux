@@ -275,6 +275,7 @@ static struct dpp_funcs dcn201_dpp_funcs = {
 	.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
 	.dpp_dppclk_control = dpp1_dppclk_control,
 	.dpp_set_hdr_multiplier = dpp2_set_hdr_multiplier,
+	.dpp_get_gamut_remap = dpp2_cm_get_gamut_remap,
 };
 
 static struct dpp_caps dcn201_dpp_cap = {

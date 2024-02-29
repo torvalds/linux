@@ -34,8 +34,6 @@
 
 #include "../rtllib.h"
 
-#include "../dot11d.h"
-
 #include "r8192E_firmware.h"
 #include "r8192E_hw.h"
 
@@ -219,7 +217,6 @@ struct r8192_priv {
 
 	struct tasklet_struct		irq_rx_tasklet;
 	struct tasklet_struct		irq_tx_tasklet;
-	struct tasklet_struct		irq_prepare_beacon_tasklet;
 
 	struct mutex				wx_mutex;
 	struct mutex				rf_mutex;
@@ -228,16 +225,12 @@ struct r8192_priv {
 	struct rt_stats stats;
 	struct iw_statistics			wstats;
 
-	u8 (*rf_set_chan)(struct net_device *dev, u8 ch);
-
 	struct rx_desc *rx_ring;
 	struct sk_buff	*rx_buf[MAX_RX_COUNT];
 	dma_addr_t	rx_ring_dma;
 	unsigned int	rx_idx;
 	int		rxringcount;
 	u16		rxbuffersize;
-
-	u64 last_rx_desc_tsf;
 
 	u32 receive_config;
 	u8		retry_data;
@@ -286,7 +279,6 @@ struct r8192_priv {
 	u16 eeprom_vid;
 	u16 eeprom_did;
 	u8 eeprom_customer_id;
-	u16 eeprom_chnl_plan;
 
 	u8 eeprom_tx_pwr_level_cck[14];
 	u8 eeprom_tx_pwr_level_ofdm24g[14];
@@ -312,7 +304,6 @@ struct r8192_priv {
 
 	bool tx_pwr_data_read_from_eeprom;
 
-	u16 chnl_plan;
 	u8 hw_rf_off_action;
 
 	bool rf_change_in_progress;
@@ -396,8 +387,6 @@ void rtl92e_irq_enable(struct net_device *dev);
 void rtl92e_config_rate(struct net_device *dev, u16 *rate_config);
 void rtl92e_irq_disable(struct net_device *dev);
 
-void rtl92e_update_rx_pkt_timestamp(struct net_device *dev,
-				    struct rtllib_rx_stats *stats);
 long rtl92e_translate_to_dbm(struct r8192_priv *priv, u8 signal_strength_index);
 void rtl92e_update_rx_statistics(struct r8192_priv *priv,
 				 struct rtllib_rx_stats *pprevious_stats);

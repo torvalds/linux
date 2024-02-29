@@ -14,6 +14,9 @@
 #include "protocols.h"
 #include "notify.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x30000
+
 #define SCMI_MAX_NUM_SENSOR_AXIS	63
 #define	SCMIv2_SENSOR_PROTOCOL		0x10000
 
@@ -644,7 +647,7 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 	if (PROTOCOL_REV_MAJOR(si->version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(attrl))
 		ph->hops->extended_name_get(ph, SENSOR_NAME_GET, s->id,
-					    s->name, SCMI_MAX_STR_SIZE);
+					    NULL, s->name, SCMI_MAX_STR_SIZE);
 
 	if (s->extended_scalar_attrs) {
 		s->sensor_power = le32_to_cpu(sdesc->power);
@@ -1138,7 +1141,7 @@ static int scmi_sensors_protocol_init(const struct scmi_protocol_handle *ph)
 	if (ret)
 		return ret;
 
-	return ph->set_priv(ph, sinfo);
+	return ph->set_priv(ph, sinfo, version);
 }
 
 static const struct scmi_protocol scmi_sensors = {
@@ -1147,6 +1150,7 @@ static const struct scmi_protocol scmi_sensors = {
 	.instance_init = &scmi_sensors_protocol_init,
 	.ops = &sensor_proto_ops,
 	.events = &sensor_protocol_events,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(sensors, scmi_sensors)

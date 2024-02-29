@@ -363,8 +363,10 @@ static int __maybe_unused dwc3_imx8mp_pm_resume(struct device *dev)
 	}
 
 	ret = clk_prepare_enable(dwc3_imx->hsio_clk);
-	if (ret)
+	if (ret) {
+		clk_disable_unprepare(dwc3_imx->suspend_clk);
 		return ret;
+	}
 
 	ret = dwc3_imx8mp_resume(dwc3_imx, PMSG_RESUME);
 

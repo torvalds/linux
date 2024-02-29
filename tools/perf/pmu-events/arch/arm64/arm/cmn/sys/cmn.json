@@ -107,7 +107,7 @@
 		"EventName": "hnf_qos_hh_retry",
 		"EventidCode": "0xe",
 		"NodeType": "0x5",
-		"BriefDescription": "Counts number of times a HighHigh priority request is protocolretried at the HN‑F.",
+		"BriefDescription": "Counts number of times a HighHigh priority request is protocolretried at the HN-F.",
 		"Unit": "arm_cmn",
 		"Compat": "(434|436|43c|43a).*"
 	},

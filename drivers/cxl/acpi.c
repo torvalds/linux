@@ -6,6 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <linux/node.h>
 #include <asm/div64.h>
 #include "cxlpci.h"
 #include "cxl.h"
@@ -16,6 +17,10 @@ struct cxl_cxims_data {
 	int nr_maps;
 	u64 xormaps[] __counted_by(nr_maps);
 };
+
+static const guid_t acpi_cxl_qtg_id_guid =
+	GUID_INIT(0xF365F9A6, 0xA7DE, 0x4071,
+		  0xA6, 0x6A, 0xB4, 0x0C, 0x0B, 0x4F, 0x8E, 0x52);
 
 /*
  * Find a targets entry (n) in the host bridge interleave list.
@@ -194,31 +199,144 @@ struct cxl_cfmws_context {
 	int id;
 };
 
-static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
-			   const unsigned long end)
+/**
+ * cxl_acpi_evaluate_qtg_dsm - Retrieve QTG ids via ACPI _DSM
+ * @handle: ACPI handle
+ * @coord: performance access coordinates
+ * @entries: number of QTG IDs to return
+ * @qos_class: int array provided by caller to return QTG IDs
+ *
+ * Return: number of QTG IDs returned, or -errno for errors
+ *
+ * Issue QTG _DSM with accompanied bandwidth and latency data in order to get
+ * the QTG IDs that are suitable for the performance point in order of most
+ * suitable to least suitable. Write back array of QTG IDs and return the
+ * actual number of QTG IDs written back.
+ */
+static int
+cxl_acpi_evaluate_qtg_dsm(acpi_handle handle, struct access_coordinate *coord,
+			  int entries, int *qos_class)
+{
+	union acpi_object *out_obj, *out_buf, *obj;
+	union acpi_object in_array[4] = {
+		[0].integer = { ACPI_TYPE_INTEGER, coord->read_latency },
+		[1].integer = { ACPI_TYPE_INTEGER, coord->write_latency },
+		[2].integer = { ACPI_TYPE_INTEGER, coord->read_bandwidth },
+		[3].integer = { ACPI_TYPE_INTEGER, coord->write_bandwidth },
+	};
+	union acpi_object in_obj = {
+		.package = {
+			.type = ACPI_TYPE_PACKAGE,
+			.count = 4,
+			.elements = in_array,
+		},
+	};
+	int count, pkg_entries, i;
+	u16 max_qtg;
+	int rc;
+
+	if (!entries)
+		return -EINVAL;
+
+	out_obj = acpi_evaluate_dsm(handle, &acpi_cxl_qtg_id_guid, 1, 1, &in_obj);
+	if (!out_obj)
+		return -ENXIO;
+
+	if (out_obj->type != ACPI_TYPE_PACKAGE) {
+		rc = -ENXIO;
+		goto out;
+	}
+
+	/* Check Max QTG ID */
+	obj = &out_obj->package.elements[0];
+	if (obj->type != ACPI_TYPE_INTEGER) {
+		rc = -ENXIO;
+		goto out;
+	}
+
+	max_qtg = obj->integer.value;
+
+	/* It's legal to have 0 QTG entries */
+	pkg_entries = out_obj->package.count;
+	if (pkg_entries <= 1) {
+		rc = 0;
+		goto out;
+	}
+
+	/* Retrieve QTG IDs package */
+	obj = &out_obj->package.elements[1];
+	if (obj->type != ACPI_TYPE_PACKAGE) {
+		rc = -ENXIO;
+		goto out;
+	}
+
+	pkg_entries = obj->package.count;
+	count = min(entries, pkg_entries);
+	for (i = 0; i < count; i++) {
+		u16 qtg_id;
+
+		out_buf = &obj->package.elements[i];
+		if (out_buf->type != ACPI_TYPE_INTEGER) {
+			rc = -ENXIO;
+			goto out;
+		}
+
+		qtg_id = out_buf->integer.value;
+		if (qtg_id > max_qtg)
+			pr_warn("QTG ID %u greater than MAX %u\n",
+				qtg_id, max_qtg);
+
+		qos_class[i] = qtg_id;
+	}
+	rc = count;
+
+out:
+	ACPI_FREE(out_obj);
+	return rc;
+}
+
+static int cxl_acpi_qos_class(struct cxl_root *cxl_root,
+			      struct access_coordinate *coord, int entries,
+			      int *qos_class)
+{
+	struct device *dev = cxl_root->port.uport_dev;
+	acpi_handle handle;
+
+	if (!dev_is_platform(dev))
+		return -ENODEV;
+
+	handle = ACPI_HANDLE(dev);
+	if (!handle)
+		return -ENODEV;
+
+	return cxl_acpi_evaluate_qtg_dsm(handle, coord, entries, qos_class);
+}
+
+static const struct cxl_root_ops acpi_root_ops = {
+	.qos_class = cxl_acpi_qos_class,
+};
+
+static int __cxl_parse_cfmws(struct acpi_cedt_cfmws *cfmws,
+			     struct cxl_cfmws_context *ctx)
 {
 	int target_map[CXL_DECODER_MAX_INTERLEAVE];
-	struct cxl_cfmws_context *ctx = arg;
 	struct cxl_port *root_port = ctx->root_port;
 	struct resource *cxl_res = ctx->cxl_res;
 	struct cxl_cxims_context cxims_ctx;
 	struct cxl_root_decoder *cxlrd;
 	struct device *dev = ctx->dev;
-	struct acpi_cedt_cfmws *cfmws;
 	cxl_calc_hb_fn cxl_calc_hb;
 	struct cxl_decoder *cxld;
 	unsigned int ways, i, ig;
 	struct resource *res;
 	int rc;
 
-	cfmws = (struct acpi_cedt_cfmws *) header;
-
 	rc = cxl_acpi_cfmws_verify(dev, cfmws);
 	if (rc) {
 		dev_err(dev, "CFMWS range %#llx-%#llx not registered\n",
 			cfmws->base_hpa,
 			cfmws->base_hpa + cfmws->window_size - 1);
-		return 0;
+		return rc;
 	}
 
 	rc = eiw_to_ways(cfmws->interleave_ways, &ways);
@@ -254,7 +372,7 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 
 	cxlrd = cxl_root_decoder_alloc(root_port, ways, cxl_calc_hb);
 	if (IS_ERR(cxlrd))
-		return 0;
+		return PTR_ERR(cxlrd);
 
 	cxld = &cxlrd->cxlsd.cxld;
 	cxld->flags = cfmws_to_decoder_flags(cfmws->restrictions);
@@ -298,22 +416,36 @@ err_xormap:
 		put_device(&cxld->dev);
 	else
 		rc = cxl_decoder_autoremove(dev, cxld);
-	if (rc) {
-		dev_err(dev, "Failed to add decode range: %pr", res);
-		return rc;
-	}
-	dev_dbg(dev, "add: %s node: %d range [%#llx - %#llx]\n",
-		dev_name(&cxld->dev),
-		phys_to_target_node(cxld->hpa_range.start),
-		cxld->hpa_range.start, cxld->hpa_range.end);
-
-	return 0;
+	return rc;
 
 err_insert:
 	kfree(res->name);
 err_name:
 	kfree(res);
 	return -ENOMEM;
+}
+
+static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
+			   const unsigned long end)
+{
+	struct acpi_cedt_cfmws *cfmws = (struct acpi_cedt_cfmws *)header;
+	struct cxl_cfmws_context *ctx = arg;
+	struct device *dev = ctx->dev;
+	int rc;
+
+	rc = __cxl_parse_cfmws(cfmws, ctx);
+	if (rc)
+		dev_err(dev,
+			"Failed to add decode range: [%#llx - %#llx] (%d)\n",
+			cfmws->base_hpa,
+			cfmws->base_hpa + cfmws->window_size - 1, rc);
+	else
+		dev_dbg(dev, "decode range: node: %d range [%#llx - %#llx]\n",
+			phys_to_target_node(cfmws->base_hpa), cfmws->base_hpa,
+			cfmws->base_hpa + cfmws->window_size - 1);
+
+	/* never fail cxl_acpi load for a single window failure */
+	return 0;
 }
 
 __mock struct acpi_device *to_cxl_host_bridge(struct device *host,
@@ -389,8 +521,29 @@ static int cxl_get_chbs(struct device *dev, struct acpi_device *hb,
 	return 0;
 }
 
+static int get_genport_coordinates(struct device *dev, struct cxl_dport *dport)
+{
+	struct acpi_device *hb = to_cxl_host_bridge(NULL, dev);
+	u32 uid;
+	int rc;
+
+	if (kstrtou32(acpi_device_uid(hb), 0, &uid))
+		return -EINVAL;
+
+	rc = acpi_get_genport_coordinates(uid, &dport->hb_coord);
+	if (rc < 0)
+		return rc;
+
+	/* Adjust back to picoseconds from nanoseconds */
+	dport->hb_coord.read_latency *= 1000;
+	dport->hb_coord.write_latency *= 1000;
+
+	return 0;
+}
+
 static int add_host_bridge_dport(struct device *match, void *arg)
 {
+	int ret;
 	acpi_status rc;
 	struct device *bridge;
 	struct cxl_dport *dport;
@@ -439,6 +592,10 @@ static int add_host_bridge_dport(struct device *match, void *arg)
 
 	if (IS_ERR(dport))
 		return PTR_ERR(dport);
+
+	ret = get_genport_coordinates(match, dport);
+	if (ret)
+		dev_dbg(match, "Failed to get generic port perf coordinates.\n");
 
 	return 0;
 }
@@ -656,6 +813,7 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 {
 	int rc;
 	struct resource *cxl_res;
+	struct cxl_root *cxl_root;
 	struct cxl_port *root_port;
 	struct device *host = &pdev->dev;
 	struct acpi_device *adev = ACPI_COMPANION(host);
@@ -675,9 +833,10 @@ static int cxl_acpi_probe(struct platform_device *pdev)
 	cxl_res->end = -1;
 	cxl_res->flags = IORESOURCE_MEM;
 
-	root_port = devm_cxl_add_port(host, host, CXL_RESOURCE_NONE, NULL);
-	if (IS_ERR(root_port))
-		return PTR_ERR(root_port);
+	cxl_root = devm_cxl_add_root(host, &acpi_root_ops);
+	if (IS_ERR(cxl_root))
+		return PTR_ERR(cxl_root);
+	root_port = &cxl_root->port;
 
 	rc = bus_for_each_dev(adev->dev.bus, NULL, root_port,
 			      add_host_bridge_dport);

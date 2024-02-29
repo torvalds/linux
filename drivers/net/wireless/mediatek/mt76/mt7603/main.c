@@ -728,6 +728,7 @@ const struct ieee80211_ops mt7603_ops = {
 	.set_sar_specs = mt7603_set_sar_specs,
 };
 
+MODULE_DESCRIPTION("MediaTek MT7603E and MT76x8 wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");
 
 static int __init mt7603_init(void)

@@ -425,7 +425,7 @@ __v4l2_find_nearest_size(const void *array, size_t array_size,
 
 /**
  * v4l2_g_parm_cap - helper routine for vidioc_g_parm to fill this in by
- *      calling the g_frame_interval op of the given subdev. It only works
+ *      calling the get_frame_interval op of the given subdev. It only works
  *      for V4L2_BUF_TYPE_VIDEO_CAPTURE(_MPLANE), hence the _cap in the
  *      function name.
  *
@@ -438,7 +438,7 @@ int v4l2_g_parm_cap(struct video_device *vdev,
 
 /**
  * v4l2_s_parm_cap - helper routine for vidioc_s_parm to fill this in by
- *      calling the s_frame_interval op of the given subdev. It only works
+ *      calling the set_frame_interval op of the given subdev. It only works
  *      for V4L2_BUF_TYPE_VIDEO_CAPTURE(_MPLANE), hence the _cap in the
  *      function name.
  *

@@ -30,9 +30,10 @@
 #include "rt2800lib.h"
 #include "rt2800.h"
 
-static bool modparam_watchdog;
-module_param_named(watchdog, modparam_watchdog, bool, S_IRUGO);
-MODULE_PARM_DESC(watchdog, "Enable watchdog to detect tx/rx hangs and reset hardware if detected");
+static unsigned int modparam_watchdog = RT2800_WATCHDOG_DMA_BUSY;
+module_param_named(watchdog, modparam_watchdog, uint, 0444);
+MODULE_PARM_DESC(watchdog, "Enable watchdog to recover tx/rx hangs.\n"
+		 "\t\t(0=disabled, 1=hang watchdog, 2=DMA watchdog(default), 3=both)");
 
 /*
  * Register access.
@@ -1261,14 +1262,11 @@ static void rt2800_update_survey(struct rt2x00_dev *rt2x00dev)
 	chan_survey->time_ext_busy += rt2800_register_read(rt2x00dev, CH_BUSY_STA_SEC);
 }
 
-void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
+static bool rt2800_watchdog_hung(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	bool hung_tx = false;
 	bool hung_rx = false;
-
-	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
-		return;
 
 	rt2800_update_survey(rt2x00dev);
 
@@ -1297,18 +1295,72 @@ void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
 		}
 	}
 
+	if (!hung_tx && !hung_rx)
+		return false;
+
 	if (hung_tx)
 		rt2x00_warn(rt2x00dev, "Watchdog TX hung detected\n");
 
 	if (hung_rx)
 		rt2x00_warn(rt2x00dev, "Watchdog RX hung detected\n");
 
-	if (hung_tx || hung_rx) {
-		queue_for_each(rt2x00dev, queue)
-			queue->wd_count = 0;
+	queue_for_each(rt2x00dev, queue)
+		queue->wd_count = 0;
 
+	return true;
+}
+
+static bool rt2800_watchdog_dma_busy(struct rt2x00_dev *rt2x00dev)
+{
+	bool busy_rx, busy_tx;
+	u32 reg_cfg = rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG);
+	u32 reg_int = rt2800_register_read(rt2x00dev, INT_SOURCE_CSR);
+
+	if (rt2x00_get_field32(reg_cfg, WPDMA_GLO_CFG_RX_DMA_BUSY) &&
+	    rt2x00_get_field32(reg_int, INT_SOURCE_CSR_RX_COHERENT))
+		rt2x00dev->rxdma_busy++;
+	else
+		rt2x00dev->rxdma_busy = 0;
+
+	if (rt2x00_get_field32(reg_cfg, WPDMA_GLO_CFG_TX_DMA_BUSY) &&
+	    rt2x00_get_field32(reg_int, INT_SOURCE_CSR_TX_COHERENT))
+		rt2x00dev->txdma_busy++;
+	else
+		rt2x00dev->txdma_busy = 0;
+
+	busy_rx = rt2x00dev->rxdma_busy > 30;
+	busy_tx = rt2x00dev->txdma_busy > 30;
+
+	if (!busy_rx && !busy_tx)
+		return false;
+
+	if (busy_rx)
+		rt2x00_warn(rt2x00dev, "Watchdog RX DMA busy detected\n");
+
+	if (busy_tx)
+		rt2x00_warn(rt2x00dev, "Watchdog TX DMA busy detected\n");
+
+	rt2x00dev->rxdma_busy = 0;
+	rt2x00dev->txdma_busy = 0;
+
+	return true;
+}
+
+void rt2800_watchdog(struct rt2x00_dev *rt2x00dev)
+{
+	bool reset = false;
+
+	if (test_bit(DEVICE_STATE_SCANNING, &rt2x00dev->flags))
+		return;
+
+	if (rt2x00dev->link.watchdog & RT2800_WATCHDOG_DMA_BUSY)
+		reset = rt2800_watchdog_dma_busy(rt2x00dev);
+
+	if (rt2x00dev->link.watchdog & RT2800_WATCHDOG_HANG)
+		reset = rt2800_watchdog_hung(rt2x00dev) || reset;
+
+	if (reset)
 		ieee80211_restart_hw(rt2x00dev->hw);
-	}
 }
 EXPORT_SYMBOL_GPL(rt2800_watchdog);
 
@@ -6048,7 +6100,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, CCK_PROT_CFG_TX_OP_ALLOW_MM40, 0);
 	rt2x00_set_field32(&reg, CCK_PROT_CFG_TX_OP_ALLOW_GF20, 1);
 	rt2x00_set_field32(&reg, CCK_PROT_CFG_TX_OP_ALLOW_GF40, 0);
-	rt2x00_set_field32(&reg, CCK_PROT_CFG_RTS_TH_EN, 1);
+	rt2x00_set_field32(&reg, CCK_PROT_CFG_RTS_TH_EN, 0);
 	rt2800_register_write(rt2x00dev, CCK_PROT_CFG, reg);
 
 	reg = rt2800_register_read(rt2x00dev, OFDM_PROT_CFG);
@@ -6061,7 +6113,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, OFDM_PROT_CFG_TX_OP_ALLOW_MM40, 0);
 	rt2x00_set_field32(&reg, OFDM_PROT_CFG_TX_OP_ALLOW_GF20, 1);
 	rt2x00_set_field32(&reg, OFDM_PROT_CFG_TX_OP_ALLOW_GF40, 0);
-	rt2x00_set_field32(&reg, OFDM_PROT_CFG_RTS_TH_EN, 1);
+	rt2x00_set_field32(&reg, OFDM_PROT_CFG_RTS_TH_EN, 0);
 	rt2800_register_write(rt2x00dev, OFDM_PROT_CFG, reg);
 
 	reg = rt2800_register_read(rt2x00dev, MM20_PROT_CFG);
@@ -8659,7 +8711,7 @@ static void rt2800_rxdcoc_calibration(struct rt2x00_dev *rt2x00dev)
 	rt2800_rfcsr_write_bank(rt2x00dev, 5, 4, saverfb5r4);
 	rt2800_rfcsr_write_bank(rt2x00dev, 7, 4, saverfb7r4);
 
-	rt2800_bbp_write(rt2x00dev, 158, 141);
+	rt2800_bbp_write(rt2x00dev, 158, 140);
 	bbpreg = rt2800_bbp_read(rt2x00dev, 159);
 	bbpreg = bbpreg & (~0x40);
 	rt2800_bbp_write(rt2x00dev, 159, bbpreg);
@@ -12013,11 +12065,13 @@ int rt2800_probe_hw(struct rt2x00_dev *rt2x00dev)
 		__set_bit(REQUIRE_TASKLET_CONTEXT, &rt2x00dev->cap_flags);
 	}
 
-	if (modparam_watchdog) {
+	rt2x00dev->link.watchdog = modparam_watchdog;
+	/* USB NICs don't support DMA watchdog as INT_SOURCE_CSR is invalid */
+	if (rt2x00_is_usb(rt2x00dev))
+		rt2x00dev->link.watchdog &= ~RT2800_WATCHDOG_DMA_BUSY;
+	if (rt2x00dev->link.watchdog) {
 		__set_bit(CAPABILITY_RESTART_HW, &rt2x00dev->cap_flags);
 		rt2x00dev->link.watchdog_interval = msecs_to_jiffies(100);
-	} else {
-		rt2x00dev->link.watchdog_disabled = true;
 	}
 
 	/*

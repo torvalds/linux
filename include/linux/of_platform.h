@@ -7,11 +7,11 @@
  */
 
 #include <linux/mod_devicetable.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
 
 struct device;
+struct device_node;
 struct of_device_id;
+struct platform_device;
 
 /**
  * struct of_dev_auxdata - lookup table entry for device names & platform_data

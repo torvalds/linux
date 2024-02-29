@@ -61,13 +61,7 @@ import sphinx
 from sphinx.util.nodes import clean_astext
 import kernellog
 
-# Get Sphinx version
-major, minor, patch = sphinx.version_info[:3]
-if major == 1 and minor > 3:
-    # patches.Figure only landed in Sphinx 1.4
-    from sphinx.directives.patches import Figure  # pylint: disable=C0413
-else:
-    Figure = images.Figure
+Figure = images.Figure
 
 __version__  = '1.0.0'
 

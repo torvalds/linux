@@ -80,10 +80,36 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 
 bool fwnode_device_is_available(const struct fwnode_handle *fwnode);
 
+static inline bool fwnode_device_is_big_endian(const struct fwnode_handle *fwnode)
+{
+	if (fwnode_property_present(fwnode, "big-endian"))
+		return true;
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN) &&
+	    fwnode_property_present(fwnode, "native-endian"))
+		return true;
+	return false;
+}
+
 static inline
 bool fwnode_device_is_compatible(const struct fwnode_handle *fwnode, const char *compat)
 {
 	return fwnode_property_match_string(fwnode, "compatible", compat) >= 0;
+}
+
+/**
+ * device_is_big_endian - check if a device has BE registers
+ * @dev: Pointer to the struct device
+ *
+ * Returns: true if the device has a "big-endian" property, or if the kernel
+ * was compiled for BE *and* the device has a "native-endian" property.
+ * Returns false otherwise.
+ *
+ * Callers would nominally use ioread32be/iowrite32be if
+ * device_is_big_endian() == true, or readl/writel otherwise.
+ */
+static inline bool device_is_big_endian(const struct device *dev)
+{
+	return fwnode_device_is_big_endian(dev_fwnode(dev));
 }
 
 /**
@@ -98,6 +124,18 @@ static inline bool device_is_compatible(const struct device *dev, const char *co
 	return fwnode_device_is_compatible(dev_fwnode(dev), compat);
 }
 
+int fwnode_property_match_property_string(const struct fwnode_handle *fwnode,
+					  const char *propname,
+					  const char * const *array, size_t n);
+
+static inline
+int device_property_match_property_string(const struct device *dev,
+					  const char *propname,
+					  const char * const *array, size_t n)
+{
+	return fwnode_property_match_property_string(dev_fwnode(dev), propname, array, n);
+}
+
 int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 				       const char *prop, const char *nargs_prop,
 				       unsigned int nargs, unsigned int index,
@@ -109,6 +147,7 @@ struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
 
 const char *fwnode_get_name(const struct fwnode_handle *fwnode);
 const char *fwnode_get_name_prefix(const struct fwnode_handle *fwnode);
+bool fwnode_name_eq(const struct fwnode_handle *fwnode, const char *name);
 
 struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode);
@@ -488,6 +527,13 @@ struct software_node {
 	const struct software_node *parent;
 	const struct property_entry *properties;
 };
+
+#define SOFTWARE_NODE(_name_, _properties_, _parent_)	\
+	(struct software_node) {			\
+		.name = _name_,				\
+		.properties = _properties_,		\
+		.parent = _parent_,			\
+	}
 
 bool is_software_node(const struct fwnode_handle *fwnode);
 const struct software_node *

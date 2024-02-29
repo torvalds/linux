@@ -18,10 +18,10 @@ grep -E $ipproto_regex ${uapi_header_dir}/in.h | \
 printf "};\n\n"
 
 printf "static const char *socket_level[] = {\n"
-socket_level_regex='^#define[[:space:]]+SOL_(\w+)[[:space:]]+([[:digit:]]+)([[:space:]]+\/.*)?'
+socket_level_regex='^#define[[:space:]]+SOL_(\w+)[[:space:]]+([[:digit:]]+)([[:space:]]+/.*)?'
 
 grep -E $socket_level_regex ${beauty_header_dir}/socket.h | \
-	sed -r "s/$socket_level_regex/\2 \1/g"	| \
+	sed -E "s%$socket_level_regex%\2 \1%g"	| \
 	sort -n | xargs printf "\t[%s] = \"%s\",\n"
 printf "};\n\n"
 

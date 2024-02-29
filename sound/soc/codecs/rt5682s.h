@@ -1263,6 +1263,13 @@
 #define RT5682S_JDH_NO_PLUG			(0x1 << 4)
 #define RT5682S_JDH_PLUG			(0x0 << 4)
 
+/* Bias current control 7  (0x0110) */
+#define RT5682S_LDO_DACREF_MASK			(0x3 << 4)
+#define RT5682S_LDO_DACREF_1_607V		(0x0 << 4)
+#define RT5682S_LDO_DACREF_1_5V			(0x1 << 4)
+#define RT5682S_LDO_DACREF_1_406V		(0x2 << 4)
+#define RT5682S_LDO_DACREF_1_731V		(0x3 << 4)
+
 /* Charge Pump Internal Register1 (0x0125) */
 #define RT5682S_CP_CLK_HP_MASK			(0x3 << 4)
 #define RT5682S_CP_CLK_HP_100KHZ		(0x0 << 4)

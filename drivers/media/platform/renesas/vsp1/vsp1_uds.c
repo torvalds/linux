@@ -128,17 +128,15 @@ static int uds_enum_frame_size(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_frame_size_enum *fse)
 {
 	struct vsp1_uds *uds = to_uds(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
-	config = vsp1_entity_get_pad_config(&uds->entity, sd_state,
-					    fse->which);
-	if (!config)
+	state = vsp1_entity_get_state(&uds->entity, sd_state, fse->which);
+	if (!state)
 		return -EINVAL;
 
-	format = vsp1_entity_get_pad_format(&uds->entity, config,
-					    UDS_PAD_SINK);
+	format = vsp1_entity_get_pad_format(&uds->entity, state, UDS_PAD_SINK);
 
 	mutex_lock(&uds->entity.lock);
 
@@ -205,31 +203,30 @@ static int uds_set_format(struct v4l2_subdev *subdev,
 			  struct v4l2_subdev_format *fmt)
 {
 	struct vsp1_uds *uds = to_uds(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0;
 
 	mutex_lock(&uds->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&uds->entity, sd_state,
-					    fmt->which);
-	if (!config) {
+	state = vsp1_entity_get_state(&uds->entity, sd_state, fmt->which);
+	if (!state) {
 		ret = -EINVAL;
 		goto done;
 	}
 
-	uds_try_format(uds, config, fmt->pad, &fmt->format);
+	uds_try_format(uds, state, fmt->pad, &fmt->format);
 
-	format = vsp1_entity_get_pad_format(&uds->entity, config, fmt->pad);
+	format = vsp1_entity_get_pad_format(&uds->entity, state, fmt->pad);
 	*format = fmt->format;
 
 	if (fmt->pad == UDS_PAD_SINK) {
 		/* Propagate the format to the source pad. */
-		format = vsp1_entity_get_pad_format(&uds->entity, config,
+		format = vsp1_entity_get_pad_format(&uds->entity, state,
 						    UDS_PAD_SOURCE);
 		*format = fmt->format;
 
-		uds_try_format(uds, config, UDS_PAD_SOURCE, format);
+		uds_try_format(uds, state, UDS_PAD_SOURCE, format);
 	}
 
 done:
@@ -242,7 +239,6 @@ done:
  */
 
 static const struct v4l2_subdev_pad_ops uds_pad_ops = {
-	.init_cfg = vsp1_entity_init_cfg,
 	.enum_mbus_code = uds_enum_mbus_code,
 	.enum_frame_size = uds_enum_frame_size,
 	.get_fmt = vsp1_subdev_get_pad_format,
@@ -269,9 +265,9 @@ static void uds_configure_stream(struct vsp1_entity *entity,
 	unsigned int vscale;
 	bool multitap;
 
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					    UDS_PAD_SOURCE);
 
 	hscale = uds_compute_ratio(input->width, output->width);
@@ -314,7 +310,7 @@ static void uds_configure_partition(struct vsp1_entity *entity,
 	struct vsp1_partition *partition = pipe->partition;
 	const struct v4l2_mbus_framefmt *output;
 
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					    UDS_PAD_SOURCE);
 
 	/* Input size clipping. */
@@ -339,9 +335,9 @@ static unsigned int uds_max_width(struct vsp1_entity *entity,
 	const struct v4l2_mbus_framefmt *input;
 	unsigned int hscale;
 
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					    UDS_PAD_SOURCE);
 	hscale = output->width / input->width;
 
@@ -381,9 +377,9 @@ static void uds_partition(struct vsp1_entity *entity,
 	partition->uds_sink = *window;
 	partition->uds_source = *window;
 
-	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	input = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					   UDS_PAD_SINK);
-	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.config,
+	output = vsp1_entity_get_pad_format(&uds->entity, uds->entity.state,
 					    UDS_PAD_SOURCE);
 
 	partition->uds_sink.width = window->width * input->width

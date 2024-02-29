@@ -524,8 +524,10 @@ static int m1_pmu_set_event_filter(struct hw_perf_event *event,
 {
 	unsigned long config_base = 0;
 
-	if (!attr->exclude_guest)
-		return -EINVAL;
+	if (!attr->exclude_guest) {
+		pr_debug("ARM performance counters do not support mode exclusion\n");
+		return -EOPNOTSUPP;
+	}
 	if (!attr->exclude_kernel)
 		config_base |= M1_PMU_CFG_COUNT_KERNEL;
 	if (!attr->exclude_user)

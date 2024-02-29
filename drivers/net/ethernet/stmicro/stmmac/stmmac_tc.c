@@ -975,6 +975,8 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 		return -EINVAL;
 	if (!qopt->cycle_time)
 		return -ERANGE;
+	if (qopt->cycle_time_extension >= BIT(wid + 7))
+		return -ERANGE;
 
 	if (!plat->est) {
 		plat->est = devm_kzalloc(priv->device, sizeof(*plat->est),
@@ -1041,6 +1043,8 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	priv->plat->est->ctr[0] = do_div(ctr, NSEC_PER_SEC);
 	priv->plat->est->ctr[1] = (u32)ctr;
 
+	priv->plat->est->ter = qopt->cycle_time_extension;
+
 	if (fpe && !priv->dma_cap.fpesel) {
 		mutex_unlock(&priv->plat->est->lock);
 		return -EOPNOTSUPP;
@@ -1051,7 +1055,7 @@ static int tc_setup_taprio(struct stmmac_priv *priv,
 	 */
 	priv->plat->fpe_cfg->enable = fpe;
 
-	ret = stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+	ret = stmmac_est_configure(priv, priv, priv->plat->est,
 				   priv->plat->clk_ptp_rate);
 	mutex_unlock(&priv->plat->est->lock);
 	if (ret) {
@@ -1072,7 +1076,7 @@ disable:
 	if (priv->plat->est) {
 		mutex_lock(&priv->plat->est->lock);
 		priv->plat->est->enable = false;
-		stmmac_est_configure(priv, priv->ioaddr, priv->plat->est,
+		stmmac_est_configure(priv, priv, priv->plat->est,
 				     priv->plat->clk_ptp_rate);
 		mutex_unlock(&priv->plat->est->lock);
 	}

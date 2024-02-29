@@ -54,7 +54,7 @@ struct tty3270_attribute {
 };
 
 struct tty3270_cell {
-	unsigned char character;
+	u8 character;
 	struct tty3270_attribute attributes;
 };
 
@@ -123,7 +123,7 @@ struct tty3270 {
 
 	/* Character array for put_char/flush_chars. */
 	unsigned int char_count;
-	char char_buf[TTY3270_CHAR_BUF_SIZE];
+	u8 char_buf[TTY3270_CHAR_BUF_SIZE];
 };
 
 /* tty3270->update_flags. See tty3270_update for details. */
@@ -1255,7 +1255,7 @@ static unsigned int tty3270_write_room(struct tty_struct *tty)
  * Insert character into the screen at the current position with the
  * current color and highlight. This function does NOT do cursor movement.
  */
-static void tty3270_put_character(struct tty3270 *tp, char ch)
+static void tty3270_put_character(struct tty3270 *tp, u8 ch)
 {
 	struct tty3270_line *line;
 	struct tty3270_cell *cell;
@@ -1561,7 +1561,7 @@ static void tty3270_goto_xy(struct tty3270 *tp, int cx, int cy)
  *  Pn is a numeric parameter, a string of zero or more decimal digits.
  *  Ps is a selective parameter.
  */
-static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
+static void tty3270_escape_sequence(struct tty3270 *tp, u8 ch)
 {
 	enum { ES_NORMAL, ES_ESC, ES_SQUARE, ES_PAREN, ES_GETPARS };
 
@@ -1726,7 +1726,7 @@ static void tty3270_escape_sequence(struct tty3270 *tp, char ch)
  * String write routine for 3270 ttys
  */
 static void tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
-			     const unsigned char *buf, int count)
+			     const u8 *buf, size_t count)
 {
 	int i_msg, i;
 
@@ -2052,7 +2052,7 @@ con3270_write(struct console *co, const char *str, unsigned int count)
 {
 	struct tty3270 *tp = co->data;
 	unsigned long flags;
-	char c;
+	u8 c;
 
 	spin_lock_irqsave(&tp->view.lock, flags);
 	while (count--) {

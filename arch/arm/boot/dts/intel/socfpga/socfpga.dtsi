@@ -768,7 +768,7 @@
 			status = "disabled";
 		};
 
-		nand0: nand@ff900000 {
+		nand0: nand-controller@ff900000 {
 			#address-cells = <0x1>;
 			#size-cells = <0x0>;
 			compatible = "altr,socfpga-denali-nand";

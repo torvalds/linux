@@ -140,7 +140,7 @@ config DRM_I915_GVT_KVMGT
 
 	  Note that this driver only supports newer device from Broadwell on.
 	  For further information and setup guide, you can visit:
-	  http://01.org/igvt-g.
+	  https://github.com/intel/gvt-linux/wiki.
 
 	  If in doubt, say "N".
 

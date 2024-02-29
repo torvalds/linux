@@ -16,19 +16,15 @@
 #endif
 
 enum {
-	/*
-	 * A hint to not wake right away but delay until there are enough of
-	 * tw's queued to match the number of CQEs the task is waiting for.
-	 *
-	 * Must not be used wirh requests generating more than one CQE.
-	 * It's also ignored unless IORING_SETUP_DEFER_TASKRUN is set.
-	 */
-	IOU_F_TWQ_LAZY_WAKE			= 1,
-};
-
-enum {
 	IOU_OK			= 0,
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
+
+	/*
+	 * Requeue the task_work to restart operations on this request. The
+	 * actual value isn't important, should just be not an otherwise
+	 * valid error code, yet less than -MAX_ERRNO and valid internally.
+	 */
+	IOU_REQUEUE		= -3072,
 
 	/*
 	 * Intended only when both IO_URING_F_MULTISHOT is passed
@@ -54,7 +50,6 @@ struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
-bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_queue(struct io_kiocb *req);
 void io_queue_iowq(struct io_kiocb *req, struct io_tw_state *ts_dont_use);
@@ -88,6 +83,14 @@ bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 
 void *io_mem_alloc(size_t size);
 void io_mem_free(void *ptr);
+
+enum {
+	IO_EVENTFD_OP_SIGNAL_BIT,
+	IO_EVENTFD_OP_FREE_BIT,
+};
+
+void io_eventfd_ops(struct rcu_head *rcu);
+void io_activate_pollwq(struct io_ring_ctx *ctx);
 
 #if defined(CONFIG_PROVE_LOCKING)
 static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)

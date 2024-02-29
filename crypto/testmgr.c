@@ -4609,25 +4609,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "cfb(aes)",
-		.test = alg_test_skcipher,
-		.fips_allowed = 1,
-		.suite = {
-			.cipher = __VECS(aes_cfb_tv_template)
-		},
-	}, {
-		.alg = "cfb(aria)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(aria_cfb_tv_template)
-		},
-	}, {
-		.alg = "cfb(sm4)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(sm4_cfb_tv_template)
-		}
-	}, {
 		.alg = "chacha20",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4816,6 +4797,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "deflate-iaa",
+		.test = alg_test_comp,
+		.fips_allowed = 1,
+		.suite = {
+			.comp = {
+				.comp = __VECS(deflate_comp_tv_template),
+				.decomp = __VECS(deflate_decomp_tv_template)
+			}
+		}
+	}, {
 		.alg = "dh",
 		.test = alg_test_kpp,
 		.suite = {
@@ -4846,14 +4837,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.drbg = __VECS(drbg_nopr_ctr_aes256_tv_template)
 		}
 	}, {
-		/*
-		 * There is no need to specifically test the DRBG with every
-		 * backend cipher -- covered by drbg_nopr_hmac_sha256 test
-		 */
-		.alg = "drbg_nopr_hmac_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
-	}, {
 		.alg = "drbg_nopr_hmac_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
@@ -4861,7 +4844,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.drbg = __VECS(drbg_nopr_hmac_sha256_tv_template)
 		}
 	}, {
-		/* covered by drbg_nopr_hmac_sha256 test */
+		/*
+		 * There is no need to specifically test the DRBG with every
+		 * backend cipher -- covered by drbg_nopr_hmac_sha512 test
+		 */
 		.alg = "drbg_nopr_hmac_sha384",
 		.test = alg_test_null,
 	}, {
@@ -4871,10 +4857,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.drbg = __VECS(drbg_nopr_hmac_sha512_tv_template)
 		}
-	}, {
-		.alg = "drbg_nopr_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
 	}, {
 		.alg = "drbg_nopr_sha256",
 		.test = alg_test_drbg,
@@ -4907,10 +4889,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_pr_hmac_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
-	}, {
 		.alg = "drbg_pr_hmac_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
@@ -4925,10 +4903,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "drbg_pr_hmac_sha512",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-	}, {
-		.alg = "drbg_pr_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
 	}, {
 		.alg = "drbg_pr_sha256",
 		.test = alg_test_drbg,
@@ -5418,26 +5392,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.test = alg_test_hash,
 		.suite = {
 			.hash = __VECS(nhpoly1305_tv_template)
-		}
-	}, {
-		.alg = "ofb(aes)",
-		.test = alg_test_skcipher,
-		.fips_allowed = 1,
-		.suite = {
-			.cipher = __VECS(aes_ofb_tv_template)
-		}
-	}, {
-		/* Same as ofb(aes) except the key is stored in
-		 * hardware secure memory which we reference by index
-		 */
-		.alg = "ofb(paes)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "ofb(sm4)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(sm4_ofb_tv_template)
 		}
 	}, {
 		.alg = "pcbc(fcrypt)",

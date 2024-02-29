@@ -967,6 +967,11 @@ static __be32 nfs4_callback_compound(struct svc_rqst *rqstp)
 		nops--;
 	}
 
+	if (svc_is_backchannel(rqstp) && cps.clp) {
+		rqstp->bc_to_initval = cps.clp->cl_rpcclient->cl_timeout->to_initval;
+		rqstp->bc_to_retries = cps.clp->cl_rpcclient->cl_timeout->to_retries;
+	}
+
 	*hdr_res.status = status;
 	*hdr_res.nops = htonl(nops);
 	nfs4_cb_free_slot(&cps);

@@ -1560,12 +1560,12 @@ disconnected:
 	return connector_status_disconnected;
 }
 
-static struct edid *zynqmp_dp_bridge_get_edid(struct drm_bridge *bridge,
-					      struct drm_connector *connector)
+static const struct drm_edid *zynqmp_dp_bridge_edid_read(struct drm_bridge *bridge,
+							 struct drm_connector *connector)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 
-	return drm_get_edid(connector, &dp->aux.ddc);
+	return drm_edid_read_ddc(connector, &dp->aux.ddc);
 }
 
 static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
@@ -1579,7 +1579,7 @@ static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_check = zynqmp_dp_bridge_atomic_check,
 	.detect = zynqmp_dp_bridge_detect,
-	.get_edid = zynqmp_dp_bridge_get_edid,
+	.edid_read = zynqmp_dp_bridge_edid_read,
 };
 
 /* -----------------------------------------------------------------------------
@@ -1624,8 +1624,17 @@ static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
 	u32 status, mask;
 
 	status = zynqmp_dp_read(dp, ZYNQMP_DP_INT_STATUS);
+	/* clear status register as soon as we read it */
+	zynqmp_dp_write(dp, ZYNQMP_DP_INT_STATUS, status);
 	mask = zynqmp_dp_read(dp, ZYNQMP_DP_INT_MASK);
-	if (!(status & ~mask))
+
+	/*
+	 * Status register may report some events, which corresponding interrupts
+	 * have been disabled. Filter out those events against interrupts' mask.
+	 */
+	status &= ~mask;
+
+	if (!status)
 		return IRQ_NONE;
 
 	/* dbg for diagnostic, but not much that the driver can do */
@@ -1633,8 +1642,6 @@ static irqreturn_t zynqmp_dp_irq_handler(int irq, void *data)
 		dev_dbg_ratelimited(dp->dev, "underflow interrupt\n");
 	if (status & ZYNQMP_DP_INT_CHBUF_OVERFLW_MASK)
 		dev_dbg_ratelimited(dp->dev, "overflow interrupt\n");
-
-	zynqmp_dp_write(dp, ZYNQMP_DP_INT_STATUS, status);
 
 	if (status & ZYNQMP_DP_INT_VBLANK_START)
 		zynqmp_dpsub_drm_handle_vblank(dp->dpsub);
@@ -1721,6 +1728,7 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 	bridge->ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID
 		    | DRM_BRIDGE_OP_HPD;
 	bridge->type = DRM_MODE_CONNECTOR_DisplayPort;
+	bridge->of_node = dp->dev->of_node;
 	dpsub->bridge = bridge;
 
 	/*

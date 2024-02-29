@@ -12,6 +12,7 @@
 #ifndef _LINUX_TRACE_IRQFLAGS_H
 #define _LINUX_TRACE_IRQFLAGS_H
 
+#include <linux/irqflags_types.h>
 #include <linux/typecheck.h>
 #include <linux/cleanup.h>
 #include <asm/irqflags.h>
@@ -33,19 +34,6 @@
 #endif
 
 #ifdef CONFIG_TRACE_IRQFLAGS
-
-/* Per-task IRQ trace events information. */
-struct irqtrace_events {
-	unsigned int	irq_events;
-	unsigned long	hardirq_enable_ip;
-	unsigned long	hardirq_disable_ip;
-	unsigned int	hardirq_enable_event;
-	unsigned int	hardirq_disable_event;
-	unsigned long	softirq_disable_ip;
-	unsigned long	softirq_enable_ip;
-	unsigned int	softirq_disable_event;
-	unsigned int	softirq_enable_event;
-};
 
 DECLARE_PER_CPU(int, hardirqs_enabled);
 DECLARE_PER_CPU(int, hardirq_context);

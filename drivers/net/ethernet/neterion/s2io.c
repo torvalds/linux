@@ -414,6 +414,7 @@ static const u64 fix_mac[] = {
 	END_SIGN
 };
 
+MODULE_DESCRIPTION("Neterion 10GbE driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 

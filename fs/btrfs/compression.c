@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/sched/mm.h>
 #include <linux/log2.h>
+#include <linux/shrinker.h>
 #include <crypto/hash.h>
 #include "misc.h"
 #include "ctree.h"
@@ -140,16 +141,16 @@ static int compression_decompress_bio(struct list_head *ws,
 }
 
 static int compression_decompress(int type, struct list_head *ws,
-               const u8 *data_in, struct page *dest_page,
-               unsigned long start_byte, size_t srclen, size_t destlen)
+		const u8 *data_in, struct page *dest_page,
+		unsigned long dest_pgoff, size_t srclen, size_t destlen)
 {
 	switch (type) {
 	case BTRFS_COMPRESS_ZLIB: return zlib_decompress(ws, data_in, dest_page,
-						start_byte, srclen, destlen);
+						dest_pgoff, srclen, destlen);
 	case BTRFS_COMPRESS_LZO:  return lzo_decompress(ws, data_in, dest_page,
-						start_byte, srclen, destlen);
+						dest_pgoff, srclen, destlen);
 	case BTRFS_COMPRESS_ZSTD: return zstd_decompress(ws, data_in, dest_page,
-						start_byte, srclen, destlen);
+						dest_pgoff, srclen, destlen);
 	case BTRFS_COMPRESS_NONE:
 	default:
 		/*
@@ -163,13 +164,107 @@ static int compression_decompress(int type, struct list_head *ws,
 static void btrfs_free_compressed_pages(struct compressed_bio *cb)
 {
 	for (unsigned int i = 0; i < cb->nr_pages; i++)
-		put_page(cb->compressed_pages[i]);
+		btrfs_free_compr_page(cb->compressed_pages[i]);
 	kfree(cb->compressed_pages);
 }
 
 static int btrfs_decompress_bio(struct compressed_bio *cb);
 
-static void end_compressed_bio_read(struct btrfs_bio *bbio)
+/*
+ * Global cache of last unused pages for compression/decompression.
+ */
+static struct btrfs_compr_pool {
+	struct shrinker *shrinker;
+	spinlock_t lock;
+	struct list_head list;
+	int count;
+	int thresh;
+} compr_pool;
+
+static unsigned long btrfs_compr_pool_count(struct shrinker *sh, struct shrink_control *sc)
+{
+	int ret;
+
+	/*
+	 * We must not read the values more than once if 'ret' gets expanded in
+	 * the return statement so we don't accidentally return a negative
+	 * number, even if the first condition finds it positive.
+	 */
+	ret = READ_ONCE(compr_pool.count) - READ_ONCE(compr_pool.thresh);
+
+	return ret > 0 ? ret : 0;
+}
+
+static unsigned long btrfs_compr_pool_scan(struct shrinker *sh, struct shrink_control *sc)
+{
+	struct list_head remove;
+	struct list_head *tmp, *next;
+	int freed;
+
+	if (compr_pool.count == 0)
+		return SHRINK_STOP;
+
+	INIT_LIST_HEAD(&remove);
+
+	/* For now, just simply drain the whole list. */
+	spin_lock(&compr_pool.lock);
+	list_splice_init(&compr_pool.list, &remove);
+	freed = compr_pool.count;
+	compr_pool.count = 0;
+	spin_unlock(&compr_pool.lock);
+
+	list_for_each_safe(tmp, next, &remove) {
+		struct page *page = list_entry(tmp, struct page, lru);
+
+		ASSERT(page_ref_count(page) == 1);
+		put_page(page);
+	}
+
+	return freed;
+}
+
+/*
+ * Common wrappers for page allocation from compression wrappers
+ */
+struct page *btrfs_alloc_compr_page(void)
+{
+	struct page *page = NULL;
+
+	spin_lock(&compr_pool.lock);
+	if (compr_pool.count > 0) {
+		page = list_first_entry(&compr_pool.list, struct page, lru);
+		list_del_init(&page->lru);
+		compr_pool.count--;
+	}
+	spin_unlock(&compr_pool.lock);
+
+	if (page)
+		return page;
+
+	return alloc_page(GFP_NOFS);
+}
+
+void btrfs_free_compr_page(struct page *page)
+{
+	bool do_free = false;
+
+	spin_lock(&compr_pool.lock);
+	if (compr_pool.count > compr_pool.thresh) {
+		do_free = true;
+	} else {
+		list_add(&page->lru, &compr_pool.list);
+		compr_pool.count++;
+	}
+	spin_unlock(&compr_pool.lock);
+
+	if (!do_free)
+		return;
+
+	ASSERT(page_ref_count(page) == 1);
+	put_page(page);
+}
+
+static void end_bbio_comprssed_read(struct btrfs_bio *bbio)
 {
 	struct compressed_bio *cb = to_compressed_bio(bbio);
 	blk_status_t status = bbio->bio.bi_status;
@@ -211,8 +306,8 @@ static noinline void end_compressed_writeback(const struct compressed_bio *cb)
 		for (i = 0; i < ret; i++) {
 			struct folio *folio = fbatch.folios[i];
 
-			btrfs_page_clamp_clear_writeback(fs_info, &folio->page,
-							 cb->start, cb->len);
+			btrfs_folio_clamp_clear_writeback(fs_info, folio,
+							  cb->start, cb->len);
 		}
 		folio_batch_release(&fbatch);
 	}
@@ -242,7 +337,7 @@ static void btrfs_finish_compressed_write_work(struct work_struct *work)
  * This also calls the writeback end hooks for the file pages so that metadata
  * and checksums can be updated in the file.
  */
-static void end_compressed_bio_write(struct btrfs_bio *bbio)
+static void end_bbio_comprssed_write(struct btrfs_bio *bbio)
 {
 	struct compressed_bio *cb = to_compressed_bio(bbio);
 	struct btrfs_fs_info *fs_info = bbio->inode->root->fs_info;
@@ -289,7 +384,7 @@ void btrfs_submit_compressed_write(struct btrfs_ordered_extent *ordered,
 
 	cb = alloc_compressed_bio(inode, ordered->file_offset,
 				  REQ_OP_WRITE | write_flags,
-				  end_compressed_bio_write);
+				  end_bbio_comprssed_write);
 	cb->start = ordered->file_offset;
 	cb->len = ordered->num_bytes;
 	cb->compressed_pages = compressed_pages;
@@ -446,7 +541,8 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 		 * subpage::readers and to unlock the page.
 		 */
 		if (fs_info->sectorsize < PAGE_SIZE)
-			btrfs_subpage_start_reader(fs_info, page, cur, add_size);
+			btrfs_subpage_start_reader(fs_info, page_folio(page),
+						   cur, add_size);
 		put_page(page);
 		cur += add_size;
 	}
@@ -489,11 +585,11 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 		goto out;
 	}
 
-	ASSERT(em->compress_type != BTRFS_COMPRESS_NONE);
+	ASSERT(extent_map_is_compressed(em));
 	compressed_len = em->block_len;
 
 	cb = alloc_compressed_bio(inode, file_offset, REQ_OP_READ,
-				  end_compressed_bio_read);
+				  end_bbio_comprssed_read);
 
 	cb->start = em->orig_start;
 	em_len = em->len;
@@ -501,7 +597,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 
 	cb->len = bbio->bio.bi_iter.bi_size;
 	cb->compressed_len = compressed_len;
-	cb->compress_type = em->compress_type;
+	cb->compress_type = extent_map_compression(em);
 	cb->orig_bbio = bbio;
 
 	free_extent_map(em);
@@ -513,7 +609,7 @@ void btrfs_submit_compressed_read(struct btrfs_bio *bbio)
 		goto out_free_bio;
 	}
 
-	ret2 = btrfs_alloc_page_array(cb->nr_pages, cb->compressed_pages);
+	ret2 = btrfs_alloc_page_array(cb->nr_pages, cb->compressed_pages, 0);
 	if (ret2) {
 		ret = BLK_STS_RESOURCE;
 		goto out_free_compressed_pages;
@@ -941,14 +1037,23 @@ static int btrfs_decompress_bio(struct compressed_bio *cb)
  * start_byte tells us the offset into the compressed data we're interested in
  */
 int btrfs_decompress(int type, const u8 *data_in, struct page *dest_page,
-		     unsigned long start_byte, size_t srclen, size_t destlen)
+		     unsigned long dest_pgoff, size_t srclen, size_t destlen)
 {
+	struct btrfs_fs_info *fs_info = btrfs_sb(dest_page->mapping->host->i_sb);
 	struct list_head *workspace;
+	const u32 sectorsize = fs_info->sectorsize;
 	int ret;
+
+	/*
+	 * The full destination page range should not exceed the page size.
+	 * And the @destlen should not exceed sectorsize, as this is only called for
+	 * inline file extents, which should not exceed sectorsize.
+	 */
+	ASSERT(dest_pgoff + destlen <= PAGE_SIZE && destlen <= sectorsize);
 
 	workspace = get_workspace(type, 0);
 	ret = compression_decompress(type, workspace, data_in, dest_page,
-				     start_byte, srclen, destlen);
+				     dest_pgoff, srclen, destlen);
 	put_workspace(type, workspace);
 
 	return ret;
@@ -960,15 +1065,36 @@ int __init btrfs_init_compress(void)
 			offsetof(struct compressed_bio, bbio.bio),
 			BIOSET_NEED_BVECS))
 		return -ENOMEM;
+
+	compr_pool.shrinker = shrinker_alloc(SHRINKER_NONSLAB, "btrfs-compr-pages");
+	if (!compr_pool.shrinker)
+		return -ENOMEM;
+
 	btrfs_init_workspace_manager(BTRFS_COMPRESS_NONE);
 	btrfs_init_workspace_manager(BTRFS_COMPRESS_ZLIB);
 	btrfs_init_workspace_manager(BTRFS_COMPRESS_LZO);
 	zstd_init_workspace_manager();
+
+	spin_lock_init(&compr_pool.lock);
+	INIT_LIST_HEAD(&compr_pool.list);
+	compr_pool.count = 0;
+	/* 128K / 4K = 32, for 8 threads is 256 pages. */
+	compr_pool.thresh = BTRFS_MAX_COMPRESSED / PAGE_SIZE * 8;
+	compr_pool.shrinker->count_objects = btrfs_compr_pool_count;
+	compr_pool.shrinker->scan_objects = btrfs_compr_pool_scan;
+	compr_pool.shrinker->batch = 32;
+	compr_pool.shrinker->seeks = DEFAULT_SEEKS;
+	shrinker_register(compr_pool.shrinker);
+
 	return 0;
 }
 
 void __cold btrfs_exit_compress(void)
 {
+	/* For now scan drains all pages and does not touch the parameters. */
+	btrfs_compr_pool_scan(NULL, NULL);
+	shrinker_free(compr_pool.shrinker);
+
 	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_NONE);
 	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_ZLIB);
 	btrfs_cleanup_workspace_manager(BTRFS_COMPRESS_LZO);

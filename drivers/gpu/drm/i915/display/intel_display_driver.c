@@ -528,7 +528,8 @@ int intel_display_driver_probe(struct drm_i915_private *i915)
 
 void intel_display_driver_register(struct drm_i915_private *i915)
 {
-	struct drm_printer p = drm_debug_printer("i915 display info:");
+	struct drm_printer p = drm_dbg_printer(&i915->drm, DRM_UT_KMS,
+					       "i915 display info:");
 
 	if (!HAS_DISPLAY(i915))
 		return;

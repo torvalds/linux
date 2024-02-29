@@ -91,7 +91,7 @@ static noinline depot_stack_handle_t __drm_stack_depot_save(void)
 
 static void __drm_stack_depot_print(depot_stack_handle_t stack_depot)
 {
-	struct drm_printer p = drm_debug_printer("drm_modeset_lock");
+	struct drm_printer p = drm_dbg_printer(NULL, DRM_UT_KMS, "drm_modeset_lock");
 	unsigned long *entries;
 	unsigned int nr_entries;
 	char *buf;

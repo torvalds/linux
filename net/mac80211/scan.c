@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2013-2015  Intel Mobile Communications GmbH
  * Copyright 2016-2017  Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 
 #include <linux/if_arp.h>
@@ -194,11 +194,32 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	if (scan_sdata && scan_sdata->vif.type == NL80211_IFTYPE_STATION &&
 	    scan_sdata->vif.cfg.assoc &&
 	    ieee80211_have_rx_timestamp(rx_status)) {
-		bss_meta.parent_tsf =
-			ieee80211_calculate_rx_timestamp(local, rx_status,
-							 len + FCS_LEN, 24);
-		ether_addr_copy(bss_meta.parent_bssid,
-				scan_sdata->vif.bss_conf.bssid);
+		struct ieee80211_bss_conf *link_conf = NULL;
+
+		/* for an MLO connection, set the TSF data only in case we have
+		 * an indication on which of the links the frame was received
+		 */
+		if (ieee80211_vif_is_mld(&scan_sdata->vif)) {
+			if (rx_status->link_valid) {
+				s8 link_id = rx_status->link_id;
+
+				link_conf =
+					rcu_dereference(scan_sdata->vif.link_conf[link_id]);
+			}
+		} else {
+			link_conf = &scan_sdata->vif.bss_conf;
+		}
+
+		if (link_conf) {
+			bss_meta.parent_tsf =
+				ieee80211_calculate_rx_timestamp(local,
+								 rx_status,
+								 len + FCS_LEN,
+								 24);
+
+			ether_addr_copy(bss_meta.parent_bssid,
+					link_conf->bssid);
+		}
 	}
 	rcu_read_unlock();
 
@@ -216,14 +237,18 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 }
 
 static bool ieee80211_scan_accept_presp(struct ieee80211_sub_if_data *sdata,
+					struct ieee80211_channel *channel,
 					u32 scan_flags, const u8 *da)
 {
 	if (!sdata)
 		return false;
-	/* accept broadcast for OCE */
-	if (scan_flags & NL80211_SCAN_FLAG_ACCEPT_BCAST_PROBE_RESP &&
-	    is_broadcast_ether_addr(da))
+
+	/* accept broadcast on 6 GHz and for OCE */
+	if (is_broadcast_ether_addr(da) &&
+	    (channel->band == NL80211_BAND_6GHZ ||
+	     scan_flags & NL80211_SCAN_FLAG_ACCEPT_BCAST_PROBE_RESP))
 		return true;
+
 	if (scan_flags & NL80211_SCAN_FLAG_RANDOM_ADDR)
 		return true;
 	return ether_addr_equal(da, sdata->vif.addr);
@@ -272,6 +297,12 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		wiphy_delayed_work_queue(local->hw.wiphy, &local->scan_work, 0);
 	}
 
+	channel = ieee80211_get_channel_khz(local->hw.wiphy,
+					    ieee80211_rx_status_to_khz(rx_status));
+
+	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
+		return;
+
 	if (ieee80211_is_probe_resp(mgmt->frame_control)) {
 		struct cfg80211_scan_request *scan_req;
 		struct cfg80211_sched_scan_request *sched_scan_req;
@@ -289,18 +320,14 @@ void ieee80211_scan_rx(struct ieee80211_local *local, struct sk_buff *skb)
 		/* ignore ProbeResp to foreign address or non-bcast (OCE)
 		 * unless scanning with randomised address
 		 */
-		if (!ieee80211_scan_accept_presp(sdata1, scan_req_flags,
+		if (!ieee80211_scan_accept_presp(sdata1, channel,
+						 scan_req_flags,
 						 mgmt->da) &&
-		    !ieee80211_scan_accept_presp(sdata2, sched_scan_req_flags,
+		    !ieee80211_scan_accept_presp(sdata2, channel,
+						 sched_scan_req_flags,
 						 mgmt->da))
 			return;
 	}
-
-	channel = ieee80211_get_channel_khz(local->hw.wiphy,
-					ieee80211_rx_status_to_khz(rx_status));
-
-	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
-		return;
 
 	bss = ieee80211_bss_info_update(local, rx_status,
 					mgmt, skb->len,
@@ -666,6 +693,21 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		return -EBUSY;
 
+	/* For an MLO connection, if a link ID was specified, validate that it
+	 * is indeed active. If no link ID was specified, select one of the
+	 * active links.
+	 */
+	if (ieee80211_vif_is_mld(&sdata->vif)) {
+		if (req->tsf_report_link_id >= 0) {
+			if (!(sdata->vif.active_links &
+			      BIT(req->tsf_report_link_id)))
+				return -EINVAL;
+		} else {
+			req->tsf_report_link_id =
+				__ffs(sdata->vif.active_links);
+		}
+	}
+
 	if (!__ieee80211_can_leave_ch(sdata))
 		return -EBUSY;
 
@@ -714,6 +756,8 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 		local->hw_scan_req->req.duration = req->duration;
 		local->hw_scan_req->req.duration_mandatory =
 			req->duration_mandatory;
+		local->hw_scan_req->req.tsf_report_link_id =
+			req->tsf_report_link_id;
 
 		local->hw_scan_band = 0;
 		local->hw_scan_req->req.n_6ghz_params = req->n_6ghz_params;
@@ -1251,7 +1295,7 @@ int __ieee80211_request_sched_scan_start(struct ieee80211_sub_if_data *sdata,
 	iebufsz = local->scan_ies_len + req->ie_len;
 
 	if (!local->ops->sched_scan_start)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	for (i = 0; i < NUM_NL80211_BANDS; i++) {
 		if (local->hw.wiphy->bands[i]) {
@@ -1316,7 +1360,7 @@ int ieee80211_request_sched_scan_stop(struct ieee80211_local *local)
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!local->ops->sched_scan_stop)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	/* We don't want to restart sched scan anymore. */
 	RCU_INIT_POINTER(local->sched_scan_req, NULL);

@@ -20,8 +20,8 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -1726,8 +1726,7 @@ static int xcan_probe(struct platform_device *pdev)
 	struct net_device *ndev;
 	struct xcan_priv *priv;
 	struct phy *transceiver;
-	const struct of_device_id *of_id;
-	const struct xcan_devtype_data *devtype = &xcan_axi_data;
+	const struct xcan_devtype_data *devtype;
 	void __iomem *addr;
 	int ret;
 	int rx_max, tx_max;
@@ -1741,9 +1740,7 @@ static int xcan_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	of_id = of_match_device(xcan_of_match, &pdev->dev);
-	if (of_id && of_id->data)
-		devtype = of_id->data;
+	devtype = device_get_match_data(&pdev->dev);
 
 	hw_tx_max_property = devtype->flags & XCAN_FLAG_TX_MAILBOXES ?
 			     "tx-mailbox-count" : "tx-fifo-depth";

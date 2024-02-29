@@ -58,6 +58,15 @@ static const struct mtk_stateless_control mtk_stateless_controls[] = {
 	},
 	{
 		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_H264_LEVEL,
+			.min = V4L2_MPEG_VIDEO_H264_LEVEL_1_0,
+			.def = V4L2_MPEG_VIDEO_H264_LEVEL_4_1,
+			.max = V4L2_MPEG_VIDEO_H264_LEVEL_4_2,
+		},
+		.codec_type = V4L2_PIX_FMT_H264_SLICE,
+	},
+	{
+		.cfg = {
 			.id = V4L2_CID_STATELESS_H264_DECODE_MODE,
 			.min = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
 			.def = V4L2_STATELESS_H264_DECODE_MODE_FRAME_BASED,
@@ -100,7 +109,17 @@ static const struct mtk_stateless_control mtk_stateless_controls[] = {
 			.id = V4L2_CID_MPEG_VIDEO_VP9_PROFILE,
 			.min = V4L2_MPEG_VIDEO_VP9_PROFILE_0,
 			.def = V4L2_MPEG_VIDEO_VP9_PROFILE_0,
-			.max = V4L2_MPEG_VIDEO_VP9_PROFILE_3,
+			.max = V4L2_MPEG_VIDEO_VP9_PROFILE_2,
+			.menu_skip_mask = BIT(V4L2_MPEG_VIDEO_VP9_PROFILE_1),
+		},
+		.codec_type = V4L2_PIX_FMT_VP9_FRAME,
+	},
+	{
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_VP9_LEVEL,
+			.min = V4L2_MPEG_VIDEO_VP9_LEVEL_1_0,
+			.def = V4L2_MPEG_VIDEO_VP9_LEVEL_4_0,
+			.max = V4L2_MPEG_VIDEO_VP9_LEVEL_4_1,
 		},
 		.codec_type = V4L2_PIX_FMT_VP9_FRAME,
 	},
@@ -138,6 +157,16 @@ static const struct mtk_stateless_control mtk_stateless_controls[] = {
 		},
 		.codec_type = V4L2_PIX_FMT_HEVC_SLICE,
 	},
+	{
+		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_HEVC_LEVEL,
+			.min = V4L2_MPEG_VIDEO_HEVC_LEVEL_1,
+			.def = V4L2_MPEG_VIDEO_HEVC_LEVEL_4,
+			.max = V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1,
+		},
+		.codec_type = V4L2_PIX_FMT_HEVC_SLICE,
+	},
+
 	{
 		.cfg = {
 			.id = V4L2_CID_STATELESS_HEVC_DECODE_MODE,
@@ -519,6 +548,141 @@ static const struct v4l2_ctrl_ops mtk_vcodec_dec_ctrl_ops = {
 	.s_ctrl = mtk_vdec_s_ctrl,
 };
 
+static void mtk_vcodec_dec_fill_h264_level(struct v4l2_ctrl_config *cfg,
+					   struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (ctx->dev->chip_name) {
+	case MTK_VDEC_MT8192:
+	case MTK_VDEC_MT8188:
+		cfg->max = V4L2_MPEG_VIDEO_H264_LEVEL_5_2;
+		break;
+	case MTK_VDEC_MT8195:
+		cfg->max = V4L2_MPEG_VIDEO_H264_LEVEL_6_0;
+		break;
+	case MTK_VDEC_MT8183:
+	case MTK_VDEC_MT8186:
+		cfg->max = V4L2_MPEG_VIDEO_H264_LEVEL_4_2;
+		break;
+	default:
+		cfg->max = V4L2_MPEG_VIDEO_H264_LEVEL_4_1;
+		break;
+	};
+}
+
+static void mtk_vcodec_dec_fill_h264_profile(struct v4l2_ctrl_config *cfg,
+					     struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (ctx->dev->chip_name) {
+	case MTK_VDEC_MT8188:
+	case MTK_VDEC_MT8195:
+		cfg->max = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH_10;
+		break;
+	default:
+		cfg->max = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH;
+		break;
+	};
+}
+
+static void mtk_vcodec_dec_fill_h265_level(struct v4l2_ctrl_config *cfg,
+					   struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (ctx->dev->chip_name) {
+	case MTK_VDEC_MT8188:
+		cfg->max = V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1;
+		break;
+	case MTK_VDEC_MT8195:
+		cfg->max = V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2;
+		break;
+	default:
+		cfg->max = V4L2_MPEG_VIDEO_HEVC_LEVEL_4;
+		break;
+	};
+}
+
+static void mtk_vcodec_dec_fill_h265_profile(struct v4l2_ctrl_config *cfg,
+					     struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (ctx->dev->chip_name) {
+	case MTK_VDEC_MT8188:
+	case MTK_VDEC_MT8195:
+		cfg->max = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10;
+		break;
+	default:
+		cfg->max = V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE;
+		break;
+	};
+}
+
+static void mtk_vcodec_dec_fill_vp9_level(struct v4l2_ctrl_config *cfg,
+					  struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (ctx->dev->chip_name) {
+	case MTK_VDEC_MT8192:
+	case MTK_VDEC_MT8188:
+		cfg->max = V4L2_MPEG_VIDEO_VP9_LEVEL_5_1;
+		break;
+	case MTK_VDEC_MT8195:
+		cfg->max = V4L2_MPEG_VIDEO_VP9_LEVEL_5_2;
+		break;
+	case MTK_VDEC_MT8186:
+		cfg->max = V4L2_MPEG_VIDEO_VP9_LEVEL_4_1;
+		break;
+	default:
+		cfg->max = V4L2_MPEG_VIDEO_VP9_LEVEL_4_0;
+		break;
+	};
+}
+
+static void mtk_vcodec_dec_fill_vp9_profile(struct v4l2_ctrl_config *cfg,
+					    struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (ctx->dev->chip_name) {
+	case MTK_VDEC_MT8188:
+	case MTK_VDEC_MT8195:
+		cfg->max = V4L2_MPEG_VIDEO_VP9_PROFILE_2;
+		break;
+	default:
+		cfg->max = V4L2_MPEG_VIDEO_VP9_PROFILE_1;
+		break;
+	};
+}
+
+static void mtk_vcodec_dec_reset_controls(struct v4l2_ctrl_config *cfg,
+					  struct mtk_vcodec_dec_ctx *ctx)
+{
+	switch (cfg->id) {
+	case V4L2_CID_MPEG_VIDEO_H264_LEVEL:
+		mtk_vcodec_dec_fill_h264_level(cfg, ctx);
+		mtk_v4l2_vdec_dbg(3, ctx, "h264 supported level: %lld %lld", cfg->max, cfg->def);
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_LEVEL:
+		mtk_vcodec_dec_fill_h265_level(cfg, ctx);
+		mtk_v4l2_vdec_dbg(3, ctx, "h265 supported level: %lld %lld", cfg->max, cfg->def);
+		break;
+	case V4L2_CID_MPEG_VIDEO_VP9_LEVEL:
+		mtk_vcodec_dec_fill_vp9_level(cfg, ctx);
+		mtk_v4l2_vdec_dbg(3, ctx, "vp9 supported level: %lld %lld", cfg->max, cfg->def);
+		break;
+	case V4L2_CID_MPEG_VIDEO_H264_PROFILE:
+		mtk_vcodec_dec_fill_h264_profile(cfg, ctx);
+		mtk_v4l2_vdec_dbg(3, ctx, "h264 supported profile: %lld %lld", cfg->max,
+				  cfg->menu_skip_mask);
+		break;
+	case V4L2_CID_MPEG_VIDEO_HEVC_PROFILE:
+		mtk_vcodec_dec_fill_h265_profile(cfg, ctx);
+		mtk_v4l2_vdec_dbg(3, ctx, "h265 supported profile: %lld %lld", cfg->max,
+				  cfg->menu_skip_mask);
+		break;
+	case V4L2_CID_MPEG_VIDEO_VP9_PROFILE:
+		mtk_vcodec_dec_fill_vp9_profile(cfg, ctx);
+		mtk_v4l2_vdec_dbg(3, ctx, "vp9 supported profile: %lld %lld", cfg->max,
+				  cfg->menu_skip_mask);
+		break;
+	default:
+		break;
+	};
+}
+
 static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_dec_ctx *ctx)
 {
 	unsigned int i;
@@ -532,6 +696,8 @@ static int mtk_vcodec_dec_ctrls_setup(struct mtk_vcodec_dec_ctx *ctx)
 	for (i = 0; i < NUM_CTRLS; i++) {
 		struct v4l2_ctrl_config cfg = mtk_stateless_controls[i].cfg;
 		cfg.ops = &mtk_vcodec_dec_ctrl_ops;
+
+		mtk_vcodec_dec_reset_controls(&cfg, ctx);
 		v4l2_ctrl_new_custom(&ctx->ctrl_hdl, &cfg, NULL);
 		if (ctx->ctrl_hdl.error) {
 			mtk_v4l2_vdec_err(ctx, "Adding control %d failed %d", i,

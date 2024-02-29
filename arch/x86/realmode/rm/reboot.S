@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
+#include <asm/desc_defs.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
 #include <asm/processor-flags.h>
@@ -153,5 +154,5 @@ SYM_DATA_START(machine_real_restart_gdt)
 	 * base value 0x100; since this is consistent with real mode
 	 * semantics we don't have to reload the segments once CR0.PE = 0.
 	 */
-	.quad	GDT_ENTRY(0x0093, 0x100, 0xffff)
+	.quad	GDT_ENTRY(DESC_DATA16, 0x100, 0xffff)
 SYM_DATA_END(machine_real_restart_gdt)

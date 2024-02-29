@@ -253,8 +253,8 @@ static struct call_path *call_path_from_sample(struct db_export *dbe,
 		 */
 		addr_location__init(&al);
 		al.sym = node->ms.sym;
-		al.map = node->ms.map;
-		al.maps = thread__maps(thread);
+		al.map = map__get(node->ms.map);
+		al.maps = maps__get(thread__maps(thread));
 		al.addr = node->ip;
 
 		if (al.map && !al.sym)

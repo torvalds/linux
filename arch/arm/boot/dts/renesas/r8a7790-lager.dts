@@ -122,6 +122,15 @@
 		};
 	};
 
+	fixedregulator1v8: regulator-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-1.8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
 	fixedregulator3v3: regulator-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "fixed-3.3V";
@@ -303,7 +312,7 @@
 	 *
 	 * IIC0/I2C0 does not appear to support fallback to GPIO.
 	 */
-	i2cexio0: i2c-10 {
+	i2cexio0: i2c-mux1 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic0>, <&i2c0>;
 		i2c-bus-name = "i2c-exio0";
@@ -316,7 +325,7 @@
 	 * This is similar to the arangement described for i2cexio0 (above)
 	 * with a fallback to GPIO also provided.
 	 */
-	i2cexio1: i2c-11 {
+	i2cexio1: i2c-mux2 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic1>, <&i2c1>, <&gpioi2c1>;
 		i2c-bus-name = "i2c-exio1";
@@ -328,7 +337,7 @@
 	 * IIC2 and I2C2 may be switched using pinmux.
 	 * A fallback to GPIO is also provided.
 	 */
-	i2chdmi: i2c-12 {
+	i2chdmi: i2c-mux3 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;
 		i2c-bus-name = "i2c-hdmi";
@@ -360,6 +369,12 @@
 			interrupts = <15 IRQ_TYPE_LEVEL_LOW>;
 			clocks = <&cec_clock>;
 			clock-names = "cec";
+
+			avdd-supply = <&fixedregulator1v8>;
+			dvdd-supply = <&fixedregulator1v8>;
+			pvdd-supply = <&fixedregulator1v8>;
+			dvdd-3v-supply = <&fixedregulator3v3>;
+			bgvdd-supply = <&fixedregulator1v8>;
 
 			adi,input-depth = <8>;
 			adi,input-colorspace = "rgb";
@@ -417,7 +432,7 @@
 	 * IIC3 and I2C3 may be switched using pinmux.
 	 * IIC3/I2C3 does not appear to support fallback to GPIO.
 	 */
-	i2cpwr: i2c-13 {
+	i2cpwr: i2c-mux4 {
 		compatible = "i2c-demux-pinctrl";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pmic_irq_pins>;
@@ -432,6 +447,7 @@
 			interrupt-parent = <&irqc0>;
 			interrupts = <2 IRQ_TYPE_LEVEL_LOW>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 
 			rtc {
 				compatible = "dlg,da9063-rtc";

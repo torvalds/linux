@@ -391,7 +391,7 @@ static const struct dw_pcie_ops intel_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
-	.host_init =		intel_pcie_rc_init,
+	.init = intel_pcie_rc_init,
 };
 
 static int intel_pcie_probe(struct platform_device *pdev)

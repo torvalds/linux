@@ -12,11 +12,11 @@ description: |
   timer counters. The first timer (called "Timer A") is the only one that can be
   used as watchdog.
 
-allOf:
-  - $ref: watchdog.yaml#
-
 maintainers:
   - Baruch Siach <baruch@tkos.co.il>
+
+allOf:
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:

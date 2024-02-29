@@ -3,6 +3,7 @@
 #define _FS_CEPH_SUPER_H
 
 #include <linux/ceph/ceph_debug.h>
+#include <linux/ceph/osd_client.h>
 
 #include <asm/unaligned.h>
 #include <linux/backing-dev.h>
@@ -1254,8 +1255,6 @@ extern void ceph_take_cap_refs(struct ceph_inode_info *ci, int caps,
 extern void ceph_get_cap_refs(struct ceph_inode_info *ci, int caps);
 extern void ceph_put_cap_refs(struct ceph_inode_info *ci, int had);
 extern void ceph_put_cap_refs_async(struct ceph_inode_info *ci, int had);
-extern void ceph_put_cap_refs_no_check_caps(struct ceph_inode_info *ci,
-					    int had);
 extern void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 				       struct ceph_snap_context *snapc);
 extern void __ceph_remove_capsnap(struct inode *inode,
@@ -1405,6 +1404,19 @@ static inline void __ceph_update_quota(struct ceph_inode_info *ci,
 
 	if (had_quota != has_quota)
 		ceph_adjust_quota_realms_count(&ci->netfs.inode, has_quota);
+}
+
+static inline int __ceph_sparse_read_ext_count(struct inode *inode, u64 len)
+{
+	int cnt = 0;
+
+	if (IS_ENCRYPTED(inode)) {
+		cnt = len >> CEPH_FSCRYPT_BLOCK_SHIFT;
+		if (cnt > CEPH_SPARSE_EXT_ARRAY_INITIAL)
+			cnt = 0;
+	}
+
+	return cnt;
 }
 
 extern void ceph_handle_quota(struct ceph_mds_client *mdsc,

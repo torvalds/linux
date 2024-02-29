@@ -2136,7 +2136,7 @@ static int allocate_mr_list(struct smbd_connection *info)
 	for (i = 0; i < info->responder_resources * 2; i++) {
 		smbdirect_mr = kzalloc(sizeof(*smbdirect_mr), GFP_KERNEL);
 		if (!smbdirect_mr)
-			goto out;
+			goto cleanup_entries;
 		smbdirect_mr->mr = ib_alloc_mr(info->pd, info->mr_type,
 					info->max_frmr_depth);
 		if (IS_ERR(smbdirect_mr->mr)) {
@@ -2162,7 +2162,7 @@ static int allocate_mr_list(struct smbd_connection *info)
 
 out:
 	kfree(smbdirect_mr);
-
+cleanup_entries:
 	list_for_each_entry_safe(smbdirect_mr, tmp, &info->mr_list, list) {
 		list_del(&smbdirect_mr->list);
 		ib_dereg_mr(smbdirect_mr->mr);

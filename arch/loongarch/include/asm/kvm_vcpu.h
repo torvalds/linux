@@ -55,7 +55,26 @@ void kvm_save_fpu(struct loongarch_fpu *fpu);
 void kvm_restore_fpu(struct loongarch_fpu *fpu);
 void kvm_restore_fcsr(struct loongarch_fpu *fpu);
 
-void kvm_acquire_timer(struct kvm_vcpu *vcpu);
+#ifdef CONFIG_CPU_HAS_LSX
+int kvm_own_lsx(struct kvm_vcpu *vcpu);
+void kvm_save_lsx(struct loongarch_fpu *fpu);
+void kvm_restore_lsx(struct loongarch_fpu *fpu);
+#else
+static inline int kvm_own_lsx(struct kvm_vcpu *vcpu) { return -EINVAL; }
+static inline void kvm_save_lsx(struct loongarch_fpu *fpu) { }
+static inline void kvm_restore_lsx(struct loongarch_fpu *fpu) { }
+#endif
+
+#ifdef CONFIG_CPU_HAS_LASX
+int kvm_own_lasx(struct kvm_vcpu *vcpu);
+void kvm_save_lasx(struct loongarch_fpu *fpu);
+void kvm_restore_lasx(struct loongarch_fpu *fpu);
+#else
+static inline int kvm_own_lasx(struct kvm_vcpu *vcpu) { return -EINVAL; }
+static inline void kvm_save_lasx(struct loongarch_fpu *fpu) { }
+static inline void kvm_restore_lasx(struct loongarch_fpu *fpu) { }
+#endif
+
 void kvm_init_timer(struct kvm_vcpu *vcpu, unsigned long hz);
 void kvm_reset_timer(struct kvm_vcpu *vcpu);
 void kvm_save_timer(struct kvm_vcpu *vcpu);

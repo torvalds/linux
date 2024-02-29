@@ -22,17 +22,20 @@
 #include <linux/mm_types.h>
 #include <linux/page-flags.h>
 #include <linux/local_lock.h>
+#include <linux/zswap.h>
 #include <asm/page.h>
 
 /* Free memory management - zoned buddy allocator.  */
 #ifndef CONFIG_ARCH_FORCE_MAX_ORDER
-#define MAX_ORDER 10
+#define MAX_PAGE_ORDER 10
 #else
-#define MAX_ORDER CONFIG_ARCH_FORCE_MAX_ORDER
+#define MAX_PAGE_ORDER CONFIG_ARCH_FORCE_MAX_ORDER
 #endif
-#define MAX_ORDER_NR_PAGES (1 << MAX_ORDER)
+#define MAX_ORDER_NR_PAGES (1 << MAX_PAGE_ORDER)
 
 #define IS_MAX_ORDER_ALIGNED(pfn) IS_ALIGNED(pfn, MAX_ORDER_NR_PAGES)
+
+#define NR_PAGE_ORDERS (MAX_PAGE_ORDER + 1)
 
 /*
  * PAGE_ALLOC_COSTLY_ORDER is the order at which allocations are deemed
@@ -95,7 +98,7 @@ static inline bool migratetype_is_mergeable(int mt)
 }
 
 #define for_each_migratetype_order(order, type) \
-	for (order = 0; order <= MAX_ORDER; order++) \
+	for (order = 0; order < NR_PAGE_ORDERS; order++) \
 		for (type = 0; type < MIGRATE_TYPES; type++)
 
 extern int page_group_by_mobility_disabled;
@@ -207,6 +210,10 @@ enum node_stat_item {
 	PGPROMOTE_SUCCESS,	/* promote successfully */
 	PGPROMOTE_CANDIDATE,	/* candidate pages to promote */
 #endif
+	/* PGDEMOTE_*: pages demoted */
+	PGDEMOTE_KSWAPD,
+	PGDEMOTE_DIRECT,
+	PGDEMOTE_KHUGEPAGED,
 	NR_VM_NODE_STAT_ITEMS
 };
 
@@ -435,14 +442,12 @@ struct lru_gen_folio {
 	atomic_long_t refaulted[NR_HIST_GENS][ANON_AND_FILE][MAX_NR_TIERS];
 	/* whether the multi-gen LRU is enabled */
 	bool enabled;
-#ifdef CONFIG_MEMCG
 	/* the memcg generation this lru_gen_folio belongs to */
 	u8 gen;
 	/* the list segment this lru_gen_folio belongs to */
 	u8 seg;
 	/* per-node lru_gen_folio list for global reclaim */
 	struct hlist_nulls_node list;
-#endif
 };
 
 enum {
@@ -488,11 +493,6 @@ struct lru_gen_mm_walk {
 	bool force_scan;
 };
 
-void lru_gen_init_lruvec(struct lruvec *lruvec);
-void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
-
-#ifdef CONFIG_MEMCG
-
 /*
  * For each node, memcgs are divided into two generations: the old and the
  * young. For each generation, memcgs are randomly sharded into multiple bins
@@ -505,33 +505,37 @@ void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
  * the old generation, is incremented when all its bins become empty.
  *
  * There are four operations:
- * 1. MEMCG_LRU_HEAD, which moves an memcg to the head of a random bin in its
+ * 1. MEMCG_LRU_HEAD, which moves a memcg to the head of a random bin in its
  *    current generation (old or young) and updates its "seg" to "head";
- * 2. MEMCG_LRU_TAIL, which moves an memcg to the tail of a random bin in its
+ * 2. MEMCG_LRU_TAIL, which moves a memcg to the tail of a random bin in its
  *    current generation (old or young) and updates its "seg" to "tail";
- * 3. MEMCG_LRU_OLD, which moves an memcg to the head of a random bin in the old
+ * 3. MEMCG_LRU_OLD, which moves a memcg to the head of a random bin in the old
  *    generation, updates its "gen" to "old" and resets its "seg" to "default";
- * 4. MEMCG_LRU_YOUNG, which moves an memcg to the tail of a random bin in the
+ * 4. MEMCG_LRU_YOUNG, which moves a memcg to the tail of a random bin in the
  *    young generation, updates its "gen" to "young" and resets its "seg" to
  *    "default".
  *
  * The events that trigger the above operations are:
  * 1. Exceeding the soft limit, which triggers MEMCG_LRU_HEAD;
- * 2. The first attempt to reclaim an memcg below low, which triggers
+ * 2. The first attempt to reclaim a memcg below low, which triggers
  *    MEMCG_LRU_TAIL;
- * 3. The first attempt to reclaim an memcg below reclaimable size threshold,
- *    which triggers MEMCG_LRU_TAIL;
- * 4. The second attempt to reclaim an memcg below reclaimable size threshold,
- *    which triggers MEMCG_LRU_YOUNG;
- * 5. Attempting to reclaim an memcg below min, which triggers MEMCG_LRU_YOUNG;
+ * 3. The first attempt to reclaim a memcg offlined or below reclaimable size
+ *    threshold, which triggers MEMCG_LRU_TAIL;
+ * 4. The second attempt to reclaim a memcg offlined or below reclaimable size
+ *    threshold, which triggers MEMCG_LRU_YOUNG;
+ * 5. Attempting to reclaim a memcg below min, which triggers MEMCG_LRU_YOUNG;
  * 6. Finishing the aging on the eviction path, which triggers MEMCG_LRU_YOUNG;
- * 7. Offlining an memcg, which triggers MEMCG_LRU_OLD.
+ * 7. Offlining a memcg, which triggers MEMCG_LRU_OLD.
  *
- * Note that memcg LRU only applies to global reclaim, and the round-robin
- * incrementing of their max_seq counters ensures the eventual fairness to all
- * eligible memcgs. For memcg reclaim, it still relies on mem_cgroup_iter().
+ * Notes:
+ * 1. Memcg LRU only applies to global reclaim, and the round-robin incrementing
+ *    of their max_seq counters ensures the eventual fairness to all eligible
+ *    memcgs. For memcg reclaim, it still relies on mem_cgroup_iter().
+ * 2. There are only two valid generations: old (seq) and young (seq+1).
+ *    MEMCG_NR_GENS is set to three so that when reading the generation counter
+ *    locklessly, a stale value (seq-1) does not wraparound to young.
  */
-#define MEMCG_NR_GENS	2
+#define MEMCG_NR_GENS	3
 #define MEMCG_NR_BINS	8
 
 struct lru_gen_memcg {
@@ -546,6 +550,8 @@ struct lru_gen_memcg {
 };
 
 void lru_gen_init_pgdat(struct pglist_data *pgdat);
+void lru_gen_init_lruvec(struct lruvec *lruvec);
+void lru_gen_look_around(struct page_vma_mapped_walk *pvmw);
 
 void lru_gen_init_memcg(struct mem_cgroup *memcg);
 void lru_gen_exit_memcg(struct mem_cgroup *memcg);
@@ -553,19 +559,6 @@ void lru_gen_online_memcg(struct mem_cgroup *memcg);
 void lru_gen_offline_memcg(struct mem_cgroup *memcg);
 void lru_gen_release_memcg(struct mem_cgroup *memcg);
 void lru_gen_soft_reclaim(struct mem_cgroup *memcg, int nid);
-
-#else /* !CONFIG_MEMCG */
-
-#define MEMCG_NR_GENS	1
-
-struct lru_gen_memcg {
-};
-
-static inline void lru_gen_init_pgdat(struct pglist_data *pgdat)
-{
-}
-
-#endif /* CONFIG_MEMCG */
 
 #else /* !CONFIG_LRU_GEN */
 
@@ -580,8 +573,6 @@ static inline void lru_gen_init_lruvec(struct lruvec *lruvec)
 static inline void lru_gen_look_around(struct page_vma_mapped_walk *pvmw)
 {
 }
-
-#ifdef CONFIG_MEMCG
 
 static inline void lru_gen_init_memcg(struct mem_cgroup *memcg)
 {
@@ -607,8 +598,6 @@ static inline void lru_gen_soft_reclaim(struct mem_cgroup *memcg, int nid)
 {
 }
 
-#endif /* CONFIG_MEMCG */
-
 #endif /* CONFIG_LRU_GEN */
 
 struct lruvec {
@@ -631,12 +620,15 @@ struct lruvec {
 #ifdef CONFIG_LRU_GEN
 	/* evictable pages divided into generations */
 	struct lru_gen_folio		lrugen;
+#ifdef CONFIG_LRU_GEN_WALKS_MMU
 	/* to concurrently iterate lru_gen_mm_list */
 	struct lru_gen_mm_state		mm_state;
 #endif
+#endif /* CONFIG_LRU_GEN */
 #ifdef CONFIG_MEMCG
 	struct pglist_data *pgdat;
 #endif
+	struct zswap_lruvec_state zswap_lruvec_state;
 };
 
 /* Isolate for asynchronous migration */
@@ -943,10 +935,10 @@ struct zone {
 	CACHELINE_PADDING(_pad1_);
 
 	/* free areas of different sizes */
-	struct free_area	free_area[MAX_ORDER + 1];
+	struct free_area	free_area[NR_PAGE_ORDERS];
 
 #ifdef CONFIG_UNACCEPTED_MEMORY
-	/* Pages to be accepted. All pages on the list are MAX_ORDER */
+	/* Pages to be accepted. All pages on the list are MAX_PAGE_ORDER */
 	struct list_head	unaccepted_pages;
 #endif
 
@@ -1756,8 +1748,8 @@ static inline bool movable_only_nodes(nodemask_t *nodes)
 #define SECTION_BLOCKFLAGS_BITS \
 	((1UL << (PFN_SECTION_SHIFT - pageblock_order)) * NR_PAGEBLOCK_BITS)
 
-#if (MAX_ORDER + PAGE_SHIFT) > SECTION_SIZE_BITS
-#error Allocator MAX_ORDER exceeds SECTION_SIZE
+#if (MAX_PAGE_ORDER + PAGE_SHIFT) > SECTION_SIZE_BITS
+#error Allocator MAX_PAGE_ORDER exceeds SECTION_SIZE
 #endif
 
 static inline unsigned long pfn_to_section_nr(unsigned long pfn)
@@ -1789,6 +1781,7 @@ static inline unsigned long section_nr_to_pfn(unsigned long sec)
 #define SUBSECTION_ALIGN_DOWN(pfn) ((pfn) & PAGE_SUBSECTION_MASK)
 
 struct mem_section_usage {
+	struct rcu_head rcu;
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 	DECLARE_BITMAP(subsection_map, SUBSECTIONS_PER_SECTION);
 #endif
@@ -1982,7 +1975,7 @@ static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
 {
 	int idx = subsection_map_index(pfn);
 
-	return test_bit(idx, ms->usage->subsection_map);
+	return test_bit(idx, READ_ONCE(ms->usage)->subsection_map);
 }
 #else
 static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
@@ -2006,6 +1999,7 @@ static inline int pfn_section_valid(struct mem_section *ms, unsigned long pfn)
 static inline int pfn_valid(unsigned long pfn)
 {
 	struct mem_section *ms;
+	int ret;
 
 	/*
 	 * Ensure the upper PAGE_SHIFT bits are clear in the
@@ -2019,13 +2013,19 @@ static inline int pfn_valid(unsigned long pfn)
 	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
 		return 0;
 	ms = __pfn_to_section(pfn);
-	if (!valid_section(ms))
+	rcu_read_lock_sched();
+	if (!valid_section(ms)) {
+		rcu_read_unlock_sched();
 		return 0;
+	}
 	/*
 	 * Traditionally early sections always returned pfn_valid() for
 	 * the entire section-sized span.
 	 */
-	return early_section(ms) || pfn_section_valid(ms, pfn);
+	ret = early_section(ms) || pfn_section_valid(ms, pfn);
+	rcu_read_unlock_sched();
+
+	return ret;
 }
 #endif
 

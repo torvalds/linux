@@ -93,8 +93,12 @@ static int platform_clock_control(struct snd_soc_dapm_widget *w,
 		 * when codec is runtime suspended. Codec needs clock for jack
 		 * detection and button press.
 		 */
-		snd_soc_dai_set_sysclk(codec_dai, RT5670_SCLK_S_RCCLK,
-				       48000 * 512, SND_SOC_CLOCK_IN);
+		ret = snd_soc_dai_set_sysclk(codec_dai, RT5670_SCLK_S_RCCLK,
+					     48000 * 512, SND_SOC_CLOCK_IN);
+		if (ret < 0) {
+			dev_err(card->dev, "failed to set codec sysclk: %d\n", ret);
+			return ret;
+		}
 
 		if (ctx->mclk)
 			clk_disable_unprepare(ctx->mclk);
@@ -462,7 +466,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	/* find index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(cht_dailink); i++) {
-		if (!strcmp(cht_dailink[i].codecs->name, RT5672_I2C_DEFAULT)) {
+		if (cht_dailink[i].codecs->name &&
+		    !strcmp(cht_dailink[i].codecs->name, RT5672_I2C_DEFAULT)) {
 			dai_index = i;
 			break;
 		}

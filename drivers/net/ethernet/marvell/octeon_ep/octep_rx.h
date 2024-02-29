@@ -20,13 +20,33 @@ struct octep_oq_desc_hw {
 	dma_addr_t buffer_ptr;
 	u64 info_ptr;
 };
+
 static_assert(sizeof(struct octep_oq_desc_hw) == 16);
 
 #define OCTEP_OQ_DESC_SIZE    (sizeof(struct octep_oq_desc_hw))
 
-#define OCTEP_CSUM_L4_VERIFIED 0x1
-#define OCTEP_CSUM_IP_VERIFIED 0x2
-#define OCTEP_CSUM_VERIFIED (OCTEP_CSUM_L4_VERIFIED | OCTEP_CSUM_IP_VERIFIED)
+/* Rx offload flags */
+#define OCTEP_RX_OFFLOAD_VLAN_STRIP	BIT(0)
+#define OCTEP_RX_OFFLOAD_IPV4_CKSUM	BIT(1)
+#define OCTEP_RX_OFFLOAD_UDP_CKSUM	BIT(2)
+#define OCTEP_RX_OFFLOAD_TCP_CKSUM	BIT(3)
+
+#define OCTEP_RX_OFFLOAD_CKSUM		(OCTEP_RX_OFFLOAD_IPV4_CKSUM | \
+					 OCTEP_RX_OFFLOAD_UDP_CKSUM | \
+					 OCTEP_RX_OFFLOAD_TCP_CKSUM)
+
+#define OCTEP_RX_IP_CSUM(flags)		((flags) & \
+					 (OCTEP_RX_OFFLOAD_IPV4_CKSUM | \
+					  OCTEP_RX_OFFLOAD_TCP_CKSUM | \
+					  OCTEP_RX_OFFLOAD_UDP_CKSUM))
+
+/* bit 0 is vlan strip */
+#define OCTEP_RX_CSUM_IP_VERIFIED	BIT(1)
+#define OCTEP_RX_CSUM_L4_VERIFIED	BIT(2)
+
+#define OCTEP_RX_CSUM_VERIFIED(flags)	((flags) & \
+					 (OCTEP_RX_CSUM_L4_VERIFIED | \
+					  OCTEP_RX_CSUM_IP_VERIFIED))
 
 /* Extended Response Header in packet data received from Hardware.
  * Includes metadata like checksum status.
@@ -35,11 +55,12 @@ static_assert(sizeof(struct octep_oq_desc_hw) == 16);
  */
 struct octep_oq_resp_hw_ext {
 	/* Reserved. */
-	u64 reserved:62;
+	u64 rsvd:48;
 
-	/* checksum verified. */
-	u64 csum_verified:2;
+	/* offload flags */
+	u16 rx_ol_flags;
 };
+
 static_assert(sizeof(struct octep_oq_resp_hw_ext) == 8);
 
 #define  OCTEP_OQ_RESP_HW_EXT_SIZE   (sizeof(struct octep_oq_resp_hw_ext))
@@ -52,6 +73,7 @@ struct octep_oq_resp_hw {
 	/* The Length of the packet. */
 	__be64 length;
 };
+
 static_assert(sizeof(struct octep_oq_resp_hw) == 8);
 
 #define OCTEP_OQ_RESP_HW_SIZE   (sizeof(struct octep_oq_resp_hw))

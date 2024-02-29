@@ -9,6 +9,14 @@
 	compatible = "samsung,gt510", "qcom,msm8916";
 	chassis-type = "tablet";
 
+	speaker_codec: audio-codec {
+		compatible = "maxim,max98357a";
+		sdmode-gpios = <&tlmm 55 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		pinctrl-0 = <&audio_sdmode_default>;
+		pinctrl-names = "default";
+	};
+
 	clk_pwm: pwm {
 		compatible = "clk-pwm";
 		#pwm-cells = <2>;
@@ -112,6 +120,10 @@
 	};
 };
 
+&gpu {
+	status = "okay";
+};
+
 &mdss {
 	status = "okay";
 };
@@ -142,7 +154,21 @@
 	remote-endpoint = <&panel_in>;
 };
 
+&sound {
+	model = "samsung-gt510";
+	pinctrl-0 = <&cdc_pdm_default &sec_mi2s_default>;
+	pinctrl-1 = <&cdc_pdm_sleep &sec_mi2s_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
 &tlmm {
+	audio_sdmode_default: audio-sdmode-default-state {
+		pins = "gpio55";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	buckbooster_en_default: buckbooster-en-default-state {
 		pins = "gpio51";
 		function = "gpio";

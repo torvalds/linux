@@ -31,7 +31,7 @@ you probably needn't concern yourself with pcmciautils.
 ====================== ===============  ========================================
 GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  11.0.0           clang --version
-Rust (optional)        1.73.0           rustc --version
+Rust (optional)        1.74.1           rustc --version
 bindgen (optional)     0.65.1           bindgen --version
 GNU make               3.82             make --version
 bash                   4.2              bash --version
@@ -39,7 +39,7 @@ binutils               2.25             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
 pahole                 1.16             pahole --version
-util-linux             2.10o            fdformat --version
+util-linux             2.10o            mount --version
 kmod                   13               depmod -V
 e2fsprogs              1.41.4           e2fsck -V
 jfsutils               1.1.3            fsck.jfs -V
@@ -58,7 +58,7 @@ mcelog                 0.6              mcelog --version
 iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
-Sphinx\ [#f1]_         1.7              sphinx-build --version
+Sphinx\ [#f1]_         2.4.4            sphinx-build --version
 cpio                   any              cpio --version
 GNU tar                1.28             tar --version
 gtags (optional)       6.6.5            gtags --version
@@ -213,7 +213,7 @@ Util-linux
 
 New versions of util-linux provide ``fdisk`` support for larger disks,
 support new options to mount, recognize more supported partition
-types, have a fdformat which works with 2.4 kernels, and similar goodies.
+types, and similar goodies.
 You'll probably want to upgrade.
 
 Ksymoops

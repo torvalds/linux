@@ -3,25 +3,25 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
-#include <linux/types.h>
-#include <linux/init.h>
-#include <linux/pci.h>
-#include <linux/vmalloc.h>
-#include <linux/pagemap.h>
+#include <linux/bitfield.h>
 #include <linux/delay.h>
-#include <linux/netdevice.h>
-#include <linux/tcp.h>
-#include <linux/ipv6.h>
-#include <linux/slab.h>
-#include <net/checksum.h>
-#include <net/ip6_checksum.h>
-#include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/init.h>
+#include <linux/ipv6.h>
+#include <linux/mii.h>
+#include <linux/module.h>
+#include <linux/netdevice.h>
+#include <linux/pagemap.h>
+#include <linux/pci.h>
 #include <linux/prefetch.h>
 #include <linux/sctp.h>
-
+#include <linux/slab.h>
+#include <linux/tcp.h>
+#include <linux/types.h>
+#include <linux/vmalloc.h>
+#include <net/checksum.h>
+#include <net/ip6_checksum.h>
 #include "igbvf.h"
 
 char igbvf_driver_name[] = "igbvf";
@@ -273,9 +273,8 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 		 * that case, it fills the header buffer and spills the rest
 		 * into the page.
 		 */
-		hlen = (le16_to_cpu(rx_desc->wb.lower.lo_dword.hs_rss.hdr_info)
-		       & E1000_RXDADV_HDRBUFLEN_MASK) >>
-		       E1000_RXDADV_HDRBUFLEN_SHIFT;
+		hlen = le16_get_bits(rx_desc->wb.lower.lo_dword.hs_rss.hdr_info,
+				     E1000_RXDADV_HDRBUFLEN_MASK);
 		if (hlen > adapter->rx_ps_hdr_size)
 			hlen = adapter->rx_ps_hdr_size;
 

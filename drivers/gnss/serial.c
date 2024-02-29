@@ -80,8 +80,8 @@ static const struct gnss_operations gnss_serial_gnss_ops = {
 	.write_raw	= gnss_serial_write_raw,
 };
 
-static int gnss_serial_receive_buf(struct serdev_device *serdev,
-					const unsigned char *buf, size_t count)
+static ssize_t gnss_serial_receive_buf(struct serdev_device *serdev,
+				       const u8 *buf, size_t count)
 {
 	struct gnss_serial *gserial = serdev_device_get_drvdata(serdev);
 	struct gnss_device *gdev = gserial->gdev;

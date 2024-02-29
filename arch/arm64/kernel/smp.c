@@ -439,9 +439,8 @@ static void __init hyp_mode_check(void)
 void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
-	setup_system_features();
 	hyp_mode_check();
-	apply_alternatives_all();
+	setup_system_features();
 	setup_user_features();
 	mark_linear_text_alias_ro();
 }
@@ -454,14 +453,9 @@ void __init smp_prepare_boot_cpu(void)
 	 * freed shortly, so we must move over to the runtime per-cpu area.
 	 */
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
-	cpuinfo_store_boot_cpu();
 
-	/*
-	 * We now know enough about the boot CPU to apply the
-	 * alternatives that cannot wait until interrupt handling
-	 * and/or scheduling is enabled.
-	 */
-	apply_boot_alternatives();
+	cpuinfo_store_boot_cpu();
+	setup_boot_cpu_features();
 
 	/* Conditionally switch to GIC PMR for interrupt masking */
 	if (system_uses_irq_prio_masking())

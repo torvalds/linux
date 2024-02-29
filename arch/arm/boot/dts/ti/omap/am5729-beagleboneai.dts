@@ -197,7 +197,7 @@
 	extcon_usb1: extcon_usb1 {
 		compatible = "linux,extcon-usb-gpio";
 		ti,enable-id-detection;
-		id-gpio = <&gpio3 13 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&gpio3 13 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -415,7 +415,6 @@
 		reg = <0x41>;
 		interrupts = <30 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio2>;
-		interrupt-controller;
 		id = <0>;
 		blocks = <0x5>;
 		irq-trigger = <0x1>;

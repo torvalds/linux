@@ -46,7 +46,7 @@ struct devlink_rel {
 		u32 obj_index;
 		devlink_rel_notify_cb_t *notify_cb;
 		devlink_rel_cleanup_cb_t *cleanup_cb;
-		struct work_struct notify_work;
+		struct delayed_work notify_work;
 	} nested_in;
 };
 
@@ -70,7 +70,7 @@ static void __devlink_rel_put(struct devlink_rel *rel)
 static void devlink_rel_nested_in_notify_work(struct work_struct *work)
 {
 	struct devlink_rel *rel = container_of(work, struct devlink_rel,
-					       nested_in.notify_work);
+					       nested_in.notify_work.work);
 	struct devlink *devlink;
 
 	devlink = devlinks_xa_get(rel->nested_in.devlink_index);
@@ -96,13 +96,13 @@ rel_put:
 	return;
 
 reschedule_work:
-	schedule_work(&rel->nested_in.notify_work);
+	schedule_delayed_work(&rel->nested_in.notify_work, 1);
 }
 
 static void devlink_rel_nested_in_notify_work_schedule(struct devlink_rel *rel)
 {
 	__devlink_rel_get(rel);
-	schedule_work(&rel->nested_in.notify_work);
+	schedule_delayed_work(&rel->nested_in.notify_work, 0);
 }
 
 static struct devlink_rel *devlink_rel_alloc(void)
@@ -123,8 +123,8 @@ static struct devlink_rel *devlink_rel_alloc(void)
 	}
 
 	refcount_set(&rel->refcount, 1);
-	INIT_WORK(&rel->nested_in.notify_work,
-		  &devlink_rel_nested_in_notify_work);
+	INIT_DELAYED_WORK(&rel->nested_in.notify_work,
+			  &devlink_rel_nested_in_notify_work);
 	return rel;
 }
 
@@ -503,14 +503,14 @@ static void __net_exit devlink_pernet_pre_exit(struct net *net)
 	 * all devlink instances from this namespace into init_net.
 	 */
 	devlinks_xa_for_each_registered_get(net, index, devlink) {
-		devl_lock(devlink);
+		devl_dev_lock(devlink, true);
 		err = 0;
 		if (devl_is_registered(devlink))
 			err = devlink_reload(devlink, &init_net,
 					     DEVLINK_RELOAD_ACTION_DRIVER_REINIT,
 					     DEVLINK_RELOAD_LIMIT_UNSPEC,
 					     &actions_performed, NULL);
-		devl_unlock(devlink);
+		devl_dev_unlock(devlink, true);
 		devlink_put(devlink);
 		if (err && err != -EOPNOTSUPP)
 			pr_warn("Failed to reload devlink instance into init_net\n");
@@ -529,14 +529,20 @@ static int __init devlink_init(void)
 {
 	int err;
 
-	err = genl_register_family(&devlink_nl_family);
-	if (err)
-		goto out;
 	err = register_pernet_subsys(&devlink_pernet_ops);
 	if (err)
 		goto out;
+	err = genl_register_family(&devlink_nl_family);
+	if (err)
+		goto out_unreg_pernet_subsys;
 	err = register_netdevice_notifier(&devlink_port_netdevice_nb);
+	if (!err)
+		return 0;
 
+	genl_unregister_family(&devlink_nl_family);
+
+out_unreg_pernet_subsys:
+	unregister_pernet_subsys(&devlink_pernet_ops);
 out:
 	WARN_ON(err);
 	return err;

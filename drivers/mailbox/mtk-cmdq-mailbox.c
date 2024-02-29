@@ -367,7 +367,7 @@ static int cmdq_resume(struct device *dev)
 	return 0;
 }
 
-static int cmdq_remove(struct platform_device *pdev)
+static void cmdq_remove(struct platform_device *pdev)
 {
 	struct cmdq *cmdq = platform_get_drvdata(pdev);
 
@@ -378,7 +378,6 @@ static int cmdq_remove(struct platform_device *pdev)
 		cmdq_runtime_suspend(&pdev->dev);
 
 	clk_bulk_unprepare(cmdq->pdata->gce_num, cmdq->clocks);
-	return 0;
 }
 
 static int cmdq_mbox_send_data(struct mbox_chan *chan, void *data)
@@ -706,42 +705,28 @@ static const struct dev_pm_ops cmdq_pm_ops = {
 			   cmdq_runtime_resume, NULL)
 };
 
-static const struct gce_plat gce_plat_v2 = {
+static const struct gce_plat gce_plat_mt6779 = {
+	.thread_nr = 24,
+	.shift = 3,
+	.control_by_sw = false,
+	.gce_num = 1
+};
+
+static const struct gce_plat gce_plat_mt8173 = {
 	.thread_nr = 16,
 	.shift = 0,
 	.control_by_sw = false,
 	.gce_num = 1
 };
 
-static const struct gce_plat gce_plat_v3 = {
+static const struct gce_plat gce_plat_mt8183 = {
 	.thread_nr = 24,
 	.shift = 0,
 	.control_by_sw = false,
 	.gce_num = 1
 };
 
-static const struct gce_plat gce_plat_v4 = {
-	.thread_nr = 24,
-	.shift = 3,
-	.control_by_sw = false,
-	.gce_num = 1
-};
-
-static const struct gce_plat gce_plat_v5 = {
-	.thread_nr = 24,
-	.shift = 3,
-	.control_by_sw = true,
-	.gce_num = 1
-};
-
-static const struct gce_plat gce_plat_v6 = {
-	.thread_nr = 24,
-	.shift = 3,
-	.control_by_sw = true,
-	.gce_num = 2
-};
-
-static const struct gce_plat gce_plat_v7 = {
+static const struct gce_plat gce_plat_mt8186 = {
 	.thread_nr = 24,
 	.shift = 3,
 	.control_by_sw = true,
@@ -749,19 +734,41 @@ static const struct gce_plat gce_plat_v7 = {
 	.gce_num = 1
 };
 
+static const struct gce_plat gce_plat_mt8188 = {
+	.thread_nr = 32,
+	.shift = 3,
+	.control_by_sw = true,
+	.gce_num = 2
+};
+
+static const struct gce_plat gce_plat_mt8192 = {
+	.thread_nr = 24,
+	.shift = 3,
+	.control_by_sw = true,
+	.gce_num = 1
+};
+
+static const struct gce_plat gce_plat_mt8195 = {
+	.thread_nr = 24,
+	.shift = 3,
+	.control_by_sw = true,
+	.gce_num = 2
+};
+
 static const struct of_device_id cmdq_of_ids[] = {
-	{.compatible = "mediatek,mt8173-gce", .data = (void *)&gce_plat_v2},
-	{.compatible = "mediatek,mt8183-gce", .data = (void *)&gce_plat_v3},
-	{.compatible = "mediatek,mt8186-gce", .data = (void *)&gce_plat_v7},
-	{.compatible = "mediatek,mt6779-gce", .data = (void *)&gce_plat_v4},
-	{.compatible = "mediatek,mt8192-gce", .data = (void *)&gce_plat_v5},
-	{.compatible = "mediatek,mt8195-gce", .data = (void *)&gce_plat_v6},
+	{.compatible = "mediatek,mt6779-gce", .data = (void *)&gce_plat_mt6779},
+	{.compatible = "mediatek,mt8173-gce", .data = (void *)&gce_plat_mt8173},
+	{.compatible = "mediatek,mt8183-gce", .data = (void *)&gce_plat_mt8183},
+	{.compatible = "mediatek,mt8186-gce", .data = (void *)&gce_plat_mt8186},
+	{.compatible = "mediatek,mt8188-gce", .data = (void *)&gce_plat_mt8188},
+	{.compatible = "mediatek,mt8192-gce", .data = (void *)&gce_plat_mt8192},
+	{.compatible = "mediatek,mt8195-gce", .data = (void *)&gce_plat_mt8195},
 	{}
 };
 
 static struct platform_driver cmdq_drv = {
 	.probe = cmdq_probe,
-	.remove = cmdq_remove,
+	.remove_new = cmdq_remove,
 	.driver = {
 		.name = "mtk_cmdq",
 		.pm = &cmdq_pm_ops,

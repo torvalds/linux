@@ -1621,7 +1621,7 @@ repeat:
 
 		/*
 		 * We need to keep the pfn from the existing PTE,
-		 * after all we're only going to change it's attributes
+		 * after all we're only going to change its attributes
 		 * not the memory it points to
 		 */
 		new_pte = pfn_pte(pfn, new_prot);
@@ -2447,7 +2447,7 @@ int __init kernel_unmap_pages_in_pgd(pgd_t *pgd, unsigned long address,
 	/*
 	 * The typical sequence for unmapping is to find a pte through
 	 * lookup_address_in_pgd() (ideally, it should never return NULL because
-	 * the address is already mapped) and change it's protections. As pfn is
+	 * the address is already mapped) and change its protections. As pfn is
 	 * the *target* of a mapping, it's not useful while unmapping.
 	 */
 	struct cpa_data cpa = {

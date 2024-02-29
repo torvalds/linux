@@ -77,3 +77,17 @@ CFLAGS_python-use.o   += -DPYTHONPATH="BUILD_STR($(OUTPUT)python)" -DPYTHON="BUI
 CFLAGS_dwarf-unwind.o += -fno-optimize-sibling-calls
 
 perf-y += workloads/
+
+ifdef SHELLCHECK
+  SHELL_TESTS := $(shell find tests/shell -executable -type f -name '*.sh')
+  TEST_LOGS := $(SHELL_TESTS:tests/shell/%=shell/%.shellcheck_log)
+else
+  SHELL_TESTS :=
+  TEST_LOGS :=
+endif
+
+$(OUTPUT)%.shellcheck_log: %
+	$(call rule_mkdir)
+	$(Q)$(call echo-cmd,test)shellcheck -a -S warning "$<" > $@ || (cat $@ && rm $@ && false)
+
+perf-y += $(TEST_LOGS)

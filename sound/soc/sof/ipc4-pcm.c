@@ -413,7 +413,18 @@ skip_pause_transition:
 	ret = sof_ipc4_set_multi_pipeline_state(sdev, state, trigger_list);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to set final state %d for all pipelines\n", state);
-		goto free;
+		/*
+		 * workaround: if the firmware is crashed while setting the
+		 * pipelines to reset state we must ignore the error code and
+		 * reset it to 0.
+		 * Since the firmware is crashed we will not send IPC messages
+		 * and we are going to see errors printed, but the state of the
+		 * widgets will be correct for the next boot.
+		 */
+		if (sdev->fw_state != SOF_FW_CRASHED || state != SOF_IPC4_PIPE_RESET)
+			goto free;
+
+		ret = 0;
 	}
 
 	/* update RUNNING/RESET state for all pipelines that were just triggered */
@@ -768,10 +779,8 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_evad_reading_slot) +
 					sdev->fw_info_box.offset;
 	sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
-	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id) {
-		dev_info(sdev->dev, "no llp found, fall back to default HDA path");
+	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id)
 		info->llp_offset = 0;
-	}
 }
 
 static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,

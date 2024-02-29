@@ -428,6 +428,10 @@ void __init mtrr_copy_map(void)
  * from the x86_init.hyper.init_platform() hook.  It can be called only once.
  * The MTRR state can't be changed afterwards.  To ensure that, X86_FEATURE_MTRR
  * is cleared.
+ *
+ * @var: MTRR variable range array to use
+ * @num_var: length of the @var array
+ * @def_type: default caching type
  */
 void mtrr_overwrite_state(struct mtrr_var_range *var, unsigned int num_var,
 			  mtrr_type def_type)
@@ -492,13 +496,15 @@ static u8 type_merge(u8 type, u8 new_type, u8 *uniform)
 /**
  * mtrr_type_lookup - look up memory type in MTRR
  *
+ * @start: Begin of the physical address range
+ * @end: End of the physical address range
+ * @uniform: output argument:
+ *  - 1: the returned MTRR type is valid for the whole region
+ *  - 0: otherwise
+ *
  * Return Values:
  * MTRR_TYPE_(type)  - The effective MTRR type for the region
  * MTRR_TYPE_INVALID - MTRR is disabled
- *
- * Output Argument:
- * uniform - Set to 1 when the returned MTRR type is valid for the whole
- *	     region, set to 0 else.
  */
 u8 mtrr_type_lookup(u64 start, u64 end, u8 *uniform)
 {

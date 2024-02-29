@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0
 
-BPF_FILE="../bpf/xdp_dummy.bpf.o"
+BPF_FILE="xdp_dummy.o"
 readonly STATS="$(mktemp -p /tmp ns-XXXXXX)"
 readonly BASE=`basename $STATS`
 readonly SRC=2
@@ -218,7 +218,7 @@ while getopts "hs:" option; do
 done
 
 if [ ! -f ${BPF_FILE} ]; then
-	echo "Missing ${BPF_FILE}. Build bpf selftest first"
+	echo "Missing ${BPF_FILE}. Run 'make' first"
 	exit 1
 fi
 

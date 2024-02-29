@@ -9,7 +9,8 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/slab.h>
 #include <linux/tty_flip.h>
@@ -678,15 +679,10 @@ static struct uart_driver esp32_uart_reg = {
 static int esp32_uart_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	static const struct of_device_id *match;
 	struct uart_port *port;
 	struct esp32_port *sport;
 	struct resource *res;
 	int ret;
-
-	match = of_match_device(esp32_uart_dt_ids, &pdev->dev);
-	if (!match)
-		return -ENODEV;
 
 	sport = devm_kzalloc(&pdev->dev, sizeof(*sport), GFP_KERNEL);
 	if (!sport)
@@ -728,7 +724,7 @@ static int esp32_uart_probe(struct platform_device *pdev)
 	port->flags = UPF_BOOT_AUTOCONF;
 	port->has_sysrq = 1;
 	port->fifosize = ESP32_UART_TX_FIFO_SIZE;
-	port->private_data = (void *)match->data;
+	port->private_data = (void *)device_get_match_data(&pdev->dev);
 
 	esp32_uart_ports[port->line] = sport;
 
@@ -737,19 +733,17 @@ static int esp32_uart_probe(struct platform_device *pdev)
 	return uart_add_one_port(&esp32_uart_reg, port);
 }
 
-static int esp32_uart_remove(struct platform_device *pdev)
+static void esp32_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 
 	uart_remove_one_port(&esp32_uart_reg, port);
-
-	return 0;
 }
 
 
 static struct platform_driver esp32_uart_driver = {
 	.probe		= esp32_uart_probe,
-	.remove		= esp32_uart_remove,
+	.remove_new	= esp32_uart_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.of_match_table	= esp32_uart_dt_ids,

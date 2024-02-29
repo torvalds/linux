@@ -258,4 +258,5 @@ static struct dsa_tag_driver *dsa_tag_drivers[] = {
 };
 module_dsa_tag_drivers(dsa_tag_drivers);
 
+MODULE_DESCRIPTION("DSA tag driver for Realtek 8 byte protocol 4 tags");
 MODULE_LICENSE("GPL");

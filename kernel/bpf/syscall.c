@@ -142,9 +142,13 @@ static u32 bpf_map_value_size(const struct bpf_map *map)
 
 static void maybe_wait_bpf_programs(struct bpf_map *map)
 {
-	/* Wait for any running BPF programs to complete so that
-	 * userspace, when we return to it, knows that all programs
-	 * that could be running use the new map value.
+	/* Wait for any running non-sleepable BPF programs to complete so that
+	 * userspace, when we return to it, knows that all non-sleepable
+	 * programs that could be running use the new map value. For sleepable
+	 * BPF programs, synchronize_rcu_tasks_trace() should be used to wait
+	 * for the completions of these programs, but considering the waiting
+	 * time can be very long and userspace may think it will hang forever,
+	 * so don't handle sleepable BPF programs now.
 	 */
 	if (map->map_type == BPF_MAP_TYPE_HASH_OF_MAPS ||
 	    map->map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS)
@@ -180,15 +184,11 @@ static int bpf_map_update_value(struct bpf_map *map, struct file *map_file,
 		err = bpf_percpu_cgroup_storage_update(map, key, value,
 						       flags);
 	} else if (IS_FD_ARRAY(map)) {
-		rcu_read_lock();
 		err = bpf_fd_array_map_update_elem(map, map_file, key, value,
 						   flags);
-		rcu_read_unlock();
 	} else if (map->map_type == BPF_MAP_TYPE_HASH_OF_MAPS) {
-		rcu_read_lock();
 		err = bpf_fd_htab_map_update_elem(map, map_file, key, value,
 						  flags);
-		rcu_read_unlock();
 	} else if (map->map_type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY) {
 		/* rcu_read_lock() is not needed */
 		err = bpf_fd_reuseport_array_update_elem(map, key, value,
@@ -203,7 +203,6 @@ static int bpf_map_update_value(struct bpf_map *map, struct file *map_file,
 		rcu_read_unlock();
 	}
 	bpf_enable_instrumentation();
-	maybe_wait_bpf_programs(map);
 
 	return err;
 }
@@ -264,7 +263,6 @@ static int bpf_map_copy_value(struct bpf_map *map, void *key, void *value,
 	}
 
 	bpf_enable_instrumentation();
-	maybe_wait_bpf_programs(map);
 
 	return err;
 }
@@ -694,6 +692,7 @@ static void bpf_map_free_deferred(struct work_struct *work)
 {
 	struct bpf_map *map = container_of(work, struct bpf_map, work);
 	struct btf_record *rec = map->record;
+	struct btf *btf = map->btf;
 
 	security_bpf_map_free(map);
 	bpf_map_release_memcg(map);
@@ -709,6 +708,10 @@ static void bpf_map_free_deferred(struct work_struct *work)
 	 * template bpf_map struct used during verification.
 	 */
 	btf_record_free(rec);
+	/* Delay freeing of btf for maps, as map_free callback may need
+	 * struct_meta info which will be freed with btf_put().
+	 */
+	btf_put(btf);
 }
 
 static void bpf_map_put_uref(struct bpf_map *map)
@@ -719,6 +722,28 @@ static void bpf_map_put_uref(struct bpf_map *map)
 	}
 }
 
+static void bpf_map_free_in_work(struct bpf_map *map)
+{
+	INIT_WORK(&map->work, bpf_map_free_deferred);
+	/* Avoid spawning kworkers, since they all might contend
+	 * for the same mutex like slab_mutex.
+	 */
+	queue_work(system_unbound_wq, &map->work);
+}
+
+static void bpf_map_free_rcu_gp(struct rcu_head *rcu)
+{
+	bpf_map_free_in_work(container_of(rcu, struct bpf_map, rcu));
+}
+
+static void bpf_map_free_mult_rcu_gp(struct rcu_head *rcu)
+{
+	if (rcu_trace_implies_rcu_gp())
+		bpf_map_free_rcu_gp(rcu);
+	else
+		call_rcu(rcu, bpf_map_free_rcu_gp);
+}
+
 /* decrement map refcnt and schedule it for freeing via workqueue
  * (underlying map implementation ops->map_free() might sleep)
  */
@@ -727,12 +752,14 @@ void bpf_map_put(struct bpf_map *map)
 	if (atomic64_dec_and_test(&map->refcnt)) {
 		/* bpf_map_free_id() must be called first */
 		bpf_map_free_id(map);
-		btf_put(map->btf);
-		INIT_WORK(&map->work, bpf_map_free_deferred);
-		/* Avoid spawning kworkers, since they all might contend
-		 * for the same mutex like slab_mutex.
-		 */
-		queue_work(system_unbound_wq, &map->work);
+
+		WARN_ON_ONCE(atomic64_read(&map->sleepable_refcnt));
+		if (READ_ONCE(map->free_after_mult_rcu_gp))
+			call_rcu_tasks_trace(&map->rcu, bpf_map_free_mult_rcu_gp);
+		else if (READ_ONCE(map->free_after_rcu_gp))
+			call_rcu(&map->rcu, bpf_map_free_rcu_gp);
+		else
+			bpf_map_free_in_work(map);
 	}
 }
 EXPORT_SYMBOL_GPL(bpf_map_put);
@@ -1524,6 +1551,8 @@ static int map_update_elem(union bpf_attr *attr, bpfptr_t uattr)
 	}
 
 	err = bpf_map_update_value(map, f.file, key, value, attr->flags);
+	if (!err)
+		maybe_wait_bpf_programs(map);
 
 	kvfree(value);
 free_key:
@@ -1579,7 +1608,8 @@ static int map_delete_elem(union bpf_attr *attr, bpfptr_t uattr)
 	err = map->ops->map_delete_elem(map, key);
 	rcu_read_unlock();
 	bpf_enable_instrumentation();
-	maybe_wait_bpf_programs(map);
+	if (!err)
+		maybe_wait_bpf_programs(map);
 out:
 	kvfree(key);
 err_put:
@@ -1676,6 +1706,9 @@ int generic_map_delete_batch(struct bpf_map *map,
 	if (!max_count)
 		return 0;
 
+	if (put_user(0, &uattr->batch.count))
+		return -EFAULT;
+
 	key = kvmalloc(map->key_size, GFP_USER | __GFP_NOWARN);
 	if (!key)
 		return -ENOMEM;
@@ -1705,7 +1738,6 @@ int generic_map_delete_batch(struct bpf_map *map,
 
 	kvfree(key);
 
-	maybe_wait_bpf_programs(map);
 	return err;
 }
 
@@ -1732,6 +1764,9 @@ int generic_map_update_batch(struct bpf_map *map, struct file *map_file,
 	max_count = attr->batch.count;
 	if (!max_count)
 		return 0;
+
+	if (put_user(0, &uattr->batch.count))
+		return -EFAULT;
 
 	key = kvmalloc(map->key_size, GFP_USER | __GFP_NOWARN);
 	if (!key)
@@ -1763,6 +1798,7 @@ int generic_map_update_batch(struct bpf_map *map, struct file *map_file,
 
 	kvfree(value);
 	kvfree(key);
+
 	return err;
 }
 
@@ -2573,7 +2609,8 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 				 BPF_F_SLEEPABLE |
 				 BPF_F_TEST_RND_HI32 |
 				 BPF_F_XDP_HAS_FRAGS |
-				 BPF_F_XDP_DEV_BOUND_ONLY))
+				 BPF_F_XDP_DEV_BOUND_ONLY |
+				 BPF_F_TEST_REG_INVARIANTS))
 		return -EINVAL;
 
 	if (!IS_ENABLED(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS) &&
@@ -2699,6 +2736,22 @@ static int bpf_prog_load(union bpf_attr *attr, bpfptr_t uattr, u32 uattr_size)
 		err = bpf_prog_dev_bound_inherit(prog, dst_prog);
 		if (err)
 			goto free_prog_sec;
+	}
+
+	/*
+	 * Bookkeeping for managing the program attachment chain.
+	 *
+	 * It might be tempting to set attach_tracing_prog flag at the attachment
+	 * time, but this will not prevent from loading bunch of tracing prog
+	 * first, then attach them one to another.
+	 *
+	 * The flag attach_tracing_prog is set for the whole program lifecycle, and
+	 * doesn't have to be cleared in bpf_tracing_link_release, since tracing
+	 * programs cannot change attachment target.
+	 */
+	if (type == BPF_PROG_TYPE_TRACING && dst_prog &&
+	    dst_prog->type == BPF_PROG_TYPE_TRACING) {
+		prog->aux->attach_tracing_prog = true;
 	}
 
 	/* find program type: socket_filter vs tracing_filter */
@@ -3134,7 +3187,12 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 	}
 
 	if (tgt_prog_fd) {
-		/* For now we only allow new targets for BPF_PROG_TYPE_EXT */
+		/*
+		 * For now we only allow new targets for BPF_PROG_TYPE_EXT. If this
+		 * part would be changed to implement the same for
+		 * BPF_PROG_TYPE_TRACING, do not forget to update the way how
+		 * attach_tracing_prog flag is set.
+		 */
 		if (prog->type != BPF_PROG_TYPE_EXT) {
 			err = -EINVAL;
 			goto out_put_prog;
@@ -3179,6 +3237,10 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 	 *
 	 * - if prog->aux->dst_trampoline and tgt_prog is NULL, the program
 	 *   was detached and is going for re-attachment.
+	 *
+	 * - if prog->aux->dst_trampoline is NULL and tgt_prog and prog->aux->attach_btf
+	 *   are NULL, then program was already attached and user did not provide
+	 *   tgt_prog_fd so we have no way to find out or create trampoline
 	 */
 	if (!prog->aux->dst_trampoline && !tgt_prog) {
 		/*
@@ -3189,6 +3251,11 @@ static int bpf_tracing_prog_attach(struct bpf_prog *prog,
 		 */
 		if (prog->type != BPF_PROG_TYPE_TRACING &&
 		    prog->type != BPF_PROG_TYPE_LSM) {
+			err = -EINVAL;
+			goto out_unlock;
+		}
+		/* We can allow re-attach only if we have valid attach_btf. */
+		if (!prog->aux->attach_btf) {
 			err = -EINVAL;
 			goto out_unlock;
 		}
@@ -4919,8 +4986,10 @@ static int bpf_map_do_batch(const union bpf_attr *attr,
 	else
 		BPF_DO_BATCH(map->ops->map_delete_batch, map, attr, uattr);
 err_put:
-	if (has_write)
+	if (has_write) {
+		maybe_wait_bpf_programs(map);
 		bpf_map_write_active_dec(map);
+	}
 	fdput(f);
 	return err;
 }
@@ -5322,6 +5391,11 @@ static int bpf_prog_bind_map(union bpf_attr *attr)
 		goto out_unlock;
 	}
 
+	/* The bpf program will not access the bpf map, but for the sake of
+	 * simplicity, increase sleepable_refcnt for sleepable program as well.
+	 */
+	if (prog->aux->sleepable)
+		atomic64_inc(&map->sleepable_refcnt);
 	memcpy(used_maps_new, used_maps_old,
 	       sizeof(used_maps_old[0]) * prog->aux->used_map_cnt);
 	used_maps_new[prog->aux->used_map_cnt] = map;

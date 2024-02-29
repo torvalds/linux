@@ -33,7 +33,7 @@ static int cs35l56_hda_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = cs35l56_hda_common_probe(cs35l56, spi->chip_select);
+	ret = cs35l56_hda_common_probe(cs35l56, spi_get_chipselect(spi, 0));
 	if (ret)
 		return ret;
 	ret = cs35l56_irq_request(&cs35l56->base, spi->irq);

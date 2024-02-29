@@ -1801,7 +1801,7 @@ static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 
 	if (cpus == NULL) {
 		if (empty_cpu_map == NULL) {
-			empty_cpu_map = perf_cpu_map__dummy_new();
+			empty_cpu_map = perf_cpu_map__new_any_cpu();
 			if (empty_cpu_map == NULL)
 				return -ENOMEM;
 		}
@@ -1832,6 +1832,8 @@ static int __evsel__prepare_open(struct evsel *evsel, struct perf_cpu_map *cpus,
 
 static void evsel__disable_missing_features(struct evsel *evsel)
 {
+	if (perf_missing_features.branch_counters)
+		evsel->core.attr.branch_sample_type &= ~PERF_SAMPLE_BRANCH_COUNTERS;
 	if (perf_missing_features.read_lost)
 		evsel->core.attr.read_format &= ~PERF_FORMAT_LOST;
 	if (perf_missing_features.weight_struct) {
@@ -1885,7 +1887,12 @@ bool evsel__detect_missing_features(struct evsel *evsel)
 	 * Must probe features in the order they were added to the
 	 * perf_event_attr interface.
 	 */
-	if (!perf_missing_features.read_lost &&
+	if (!perf_missing_features.branch_counters &&
+	    (evsel->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS)) {
+		perf_missing_features.branch_counters = true;
+		pr_debug2("switching off branch counters support\n");
+		return true;
+	} else if (!perf_missing_features.read_lost &&
 	    (evsel->core.attr.read_format & PERF_FORMAT_LOST)) {
 		perf_missing_features.read_lost = true;
 		pr_debug2("switching off PERF_FORMAT_LOST support\n");
@@ -2318,6 +2325,22 @@ u64 evsel__bitfield_swap_branch_flags(u64 value)
 	return new_val;
 }
 
+static inline bool evsel__has_branch_counters(const struct evsel *evsel)
+{
+	struct evsel *cur, *leader = evsel__leader(evsel);
+
+	/* The branch counters feature only supports group */
+	if (!leader || !evsel->evlist)
+		return false;
+
+	evlist__for_each_entry(evsel->evlist, cur) {
+		if ((leader == evsel__leader(cur)) &&
+		    (cur->core.attr.branch_sample_type & PERF_SAMPLE_BRANCH_COUNTERS))
+			return true;
+	}
+	return false;
+}
+
 int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 			struct perf_sample *data)
 {
@@ -2551,6 +2574,16 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 
 		OVERFLOW_CHECK(array, sz, max_size);
 		array = (void *)array + sz;
+
+		if (evsel__has_branch_counters(evsel)) {
+			OVERFLOW_CHECK_u64(array);
+
+			data->branch_stack_cntr = (u64 *)array;
+			sz = data->branch_stack->nr * sizeof(u64);
+
+			OVERFLOW_CHECK(array, sz, max_size);
+			array = (void *)array + sz;
+		}
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
@@ -2820,7 +2853,8 @@ u64 evsel__intval_common(struct evsel *evsel, struct perf_sample *sample, const 
 
 #endif
 
-bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize)
+bool evsel__fallback(struct evsel *evsel, struct target *target, int err,
+		     char *msg, size_t msgsize)
 {
 	int paranoid;
 
@@ -2828,18 +2862,19 @@ bool evsel__fallback(struct evsel *evsel, int err, char *msg, size_t msgsize)
 	    evsel->core.attr.type   == PERF_TYPE_HARDWARE &&
 	    evsel->core.attr.config == PERF_COUNT_HW_CPU_CYCLES) {
 		/*
-		 * If it's cycles then fall back to hrtimer based
-		 * cpu-clock-tick sw counter, which is always available even if
-		 * no PMU support.
+		 * If it's cycles then fall back to hrtimer based cpu-clock sw
+		 * counter, which is always available even if no PMU support.
 		 *
 		 * PPC returns ENXIO until 2.6.37 (behavior changed with commit
 		 * b0a873e).
 		 */
-		scnprintf(msg, msgsize, "%s",
-"The cycles event is not supported, trying to fall back to cpu-clock-ticks");
-
 		evsel->core.attr.type   = PERF_TYPE_SOFTWARE;
-		evsel->core.attr.config = PERF_COUNT_SW_CPU_CLOCK;
+		evsel->core.attr.config = target__has_cpu(target)
+			? PERF_COUNT_SW_CPU_CLOCK
+			: PERF_COUNT_SW_TASK_CLOCK;
+		scnprintf(msg, msgsize,
+			"The cycles event is not supported, trying to fall back to %s",
+			target__has_cpu(target) ? "cpu-clock" : "task-clock");
 
 		zfree(&evsel->name);
 		return true;

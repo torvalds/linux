@@ -175,8 +175,7 @@ For 32-bit we have the following conventions - kernel is built with
 #define THIS_CPU_user_pcid_flush_mask   \
 	PER_CPU_VAR(cpu_tlbstate) + TLB_STATE_user_pcid_flush_mask
 
-.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
-	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+.macro SWITCH_TO_USER_CR3 scratch_reg:req scratch_reg2:req
 	mov	%cr3, \scratch_reg
 
 	ALTERNATIVE "jmp .Lwrcr3_\@", "", X86_FEATURE_PCID
@@ -206,13 +205,20 @@ For 32-bit we have the following conventions - kernel is built with
 	/* Flip the PGD to the user version */
 	orq     $(PTI_USER_PGTABLE_MASK), \scratch_reg
 	mov	\scratch_reg, %cr3
+.endm
+
+.macro SWITCH_TO_USER_CR3_NOSTACK scratch_reg:req scratch_reg2:req
+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
+	SWITCH_TO_USER_CR3 \scratch_reg \scratch_reg2
 .Lend_\@:
 .endm
 
 .macro SWITCH_TO_USER_CR3_STACK	scratch_reg:req
+	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_PTI
 	pushq	%rax
-	SWITCH_TO_USER_CR3_NOSTACK scratch_reg=\scratch_reg scratch_reg2=%rax
+	SWITCH_TO_USER_CR3 scratch_reg=\scratch_reg scratch_reg2=%rax
 	popq	%rax
+.Lend_\@:
 .endm
 
 .macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req

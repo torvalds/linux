@@ -59,11 +59,8 @@ static inline uint16_t complete_integer_division_u16(
 
 static uint16_t vpe_u1_8_from_fraction(uint16_t numerator, uint16_t denominator)
 {
-	bool arg1_negative = numerator < 0;
-	bool arg2_negative = denominator < 0;
-
-	uint16_t arg1_value = (uint16_t)(arg1_negative ? -numerator : numerator);
-	uint16_t arg2_value = (uint16_t)(arg2_negative ? -denominator : denominator);
+	u16 arg1_value = numerator;
+	u16 arg2_value = denominator;
 
 	uint16_t remainder;
 
@@ -99,9 +96,6 @@ static uint16_t vpe_u1_8_from_fraction(uint16_t numerator, uint16_t denominator)
 
 		res_value += summand;
 	}
-
-	if (arg1_negative ^ arg2_negative)
-		res_value = -res_value;
 
 	return res_value;
 }

@@ -4825,11 +4825,11 @@
         "Unit": "M3UPI"
     },
     {
-        "BriefDescription": "Number of allocations into the CRS Egress  used to queue up requests destined to the mesh (AD Bouncable)",
+        "BriefDescription": "Number of allocations into the CRS Egress  used to queue up requests destined to the mesh (AD Bounceable)",
         "EventCode": "0x47",
         "EventName": "UNC_MDF_CRS_TxR_INSERTS.AD_BNC",
         "PerPkg": "1",
-        "PublicDescription": "AD Bouncable : Number of allocations into the CRS Egress",
+        "PublicDescription": "AD Bounceable : Number of allocations into the CRS Egress",
         "UMask": "0x1",
         "Unit": "MDF"
     },
@@ -4861,11 +4861,11 @@
         "Unit": "MDF"
     },
     {
-        "BriefDescription": "Number of allocations into the CRS Egress  used to queue up requests destined to the mesh (BL Bouncable)",
+        "BriefDescription": "Number of allocations into the CRS Egress  used to queue up requests destined to the mesh (BL Bounceable)",
         "EventCode": "0x47",
         "EventName": "UNC_MDF_CRS_TxR_INSERTS.BL_BNC",
         "PerPkg": "1",
-        "PublicDescription": "BL Bouncable : Number of allocations into the CRS Egress",
+        "PublicDescription": "BL Bounceable : Number of allocations into the CRS Egress",
         "UMask": "0x4",
         "Unit": "MDF"
     },

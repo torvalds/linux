@@ -338,7 +338,7 @@ mei_csi_get_pad_format(struct v4l2_subdev *sd,
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_format(sd, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return &csi->format_mbus[pad];
 	default:
@@ -346,8 +346,8 @@ mei_csi_get_pad_format(struct v4l2_subdev *sd,
 	}
 }
 
-static int mei_csi_init_cfg(struct v4l2_subdev *sd,
-			    struct v4l2_subdev_state *sd_state)
+static int mei_csi_init_state(struct v4l2_subdev *sd,
+			      struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mbusformat;
 	struct mei_csi *csi = sd_to_csi(sd);
@@ -356,7 +356,7 @@ static int mei_csi_init_cfg(struct v4l2_subdev *sd,
 	mutex_lock(&csi->lock);
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
-		mbusformat = v4l2_subdev_get_try_format(sd, sd_state, i);
+		mbusformat = v4l2_subdev_state_get_format(sd_state, i);
 		*mbusformat = mei_csi_format_mbus_default;
 	}
 
@@ -554,7 +554,6 @@ static const struct v4l2_subdev_video_ops mei_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mei_csi_pad_ops = {
-	.init_cfg = mei_csi_init_cfg,
 	.get_fmt = mei_csi_get_fmt,
 	.set_fmt = mei_csi_set_fmt,
 };
@@ -562,6 +561,10 @@ static const struct v4l2_subdev_pad_ops mei_csi_pad_ops = {
 static const struct v4l2_subdev_ops mei_csi_subdev_ops = {
 	.video = &mei_csi_video_ops,
 	.pad = &mei_csi_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops mei_csi_internal_ops = {
+	.init_state = mei_csi_init_state,
 };
 
 static const struct media_entity_operations mei_csi_entity_ops = {
@@ -645,47 +648,66 @@ static int mei_csi_parse_firmware(struct mei_csi *csi)
 	};
 	struct device *dev = &csi->cldev->dev;
 	struct v4l2_async_connection *asd;
-	struct fwnode_handle *fwnode;
-	struct fwnode_handle *ep;
+	struct fwnode_handle *sink_ep, *source_ep;
 	int ret;
 
-	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
-	if (!ep) {
-		dev_err(dev, "not connected to subdevice\n");
+	sink_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 0, 0, 0);
+	if (!sink_ep) {
+		dev_err(dev, "can't obtain sink endpoint\n");
 		return -EINVAL;
 	}
-
-	ret = v4l2_fwnode_endpoint_parse(ep, &v4l2_ep);
-	if (ret) {
-		dev_err(dev, "could not parse v4l2 endpoint\n");
-		fwnode_handle_put(ep);
-		return -EINVAL;
-	}
-
-	fwnode = fwnode_graph_get_remote_endpoint(ep);
-	fwnode_handle_put(ep);
 
 	v4l2_async_subdev_nf_init(&csi->notifier, &csi->subdev);
 	csi->notifier.ops = &mei_csi_notify_ops;
 
-	asd = v4l2_async_nf_add_fwnode(&csi->notifier, fwnode,
-				       struct v4l2_async_connection);
-	if (IS_ERR(asd)) {
-		fwnode_handle_put(fwnode);
-		return PTR_ERR(asd);
+	ret = v4l2_fwnode_endpoint_parse(sink_ep, &v4l2_ep);
+	if (ret) {
+		dev_err(dev, "could not parse v4l2 sink endpoint\n");
+		goto out_nf_cleanup;
 	}
 
-	ret = v4l2_fwnode_endpoint_alloc_parse(fwnode, &v4l2_ep);
-	fwnode_handle_put(fwnode);
-	if (ret)
-		return ret;
 	csi->nr_of_lanes = v4l2_ep.bus.mipi_csi2.num_data_lanes;
+
+	source_ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(dev), 1, 0, 0);
+	if (!source_ep) {
+		ret = -ENOTCONN;
+		dev_err(dev, "can't obtain source endpoint\n");
+		goto out_nf_cleanup;
+	}
+
+	ret = v4l2_fwnode_endpoint_parse(source_ep, &v4l2_ep);
+	fwnode_handle_put(source_ep);
+	if (ret) {
+		dev_err(dev, "could not parse v4l2 source endpoint\n");
+		goto out_nf_cleanup;
+	}
+
+	if (csi->nr_of_lanes != v4l2_ep.bus.mipi_csi2.num_data_lanes) {
+		ret = -EINVAL;
+		dev_err(dev,
+			"the number of lanes does not match (%u vs. %u)\n",
+			csi->nr_of_lanes, v4l2_ep.bus.mipi_csi2.num_data_lanes);
+		goto out_nf_cleanup;
+	}
+
+	asd = v4l2_async_nf_add_fwnode_remote(&csi->notifier, sink_ep,
+					      struct v4l2_async_connection);
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		goto out_nf_cleanup;
+	}
 
 	ret = v4l2_async_nf_register(&csi->notifier);
 	if (ret)
-		v4l2_async_nf_cleanup(&csi->notifier);
+		goto out_nf_cleanup;
 
-	v4l2_fwnode_endpoint_free(&v4l2_ep);
+	fwnode_handle_put(sink_ep);
+
+	return 0;
+
+out_nf_cleanup:
+	v4l2_async_nf_cleanup(&csi->notifier);
+	fwnode_handle_put(sink_ep);
 
 	return ret;
 }
@@ -728,6 +750,7 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 
 	csi->subdev.dev = &cldev->dev;
 	v4l2_subdev_init(&csi->subdev, &mei_csi_subdev_ops);
+	csi->subdev.internal_ops = &mei_csi_internal_ops;
 	v4l2_set_subdevdata(&csi->subdev, csi);
 	csi->subdev.flags = V4L2_SUBDEV_FL_HAS_DEVNODE |
 			    V4L2_SUBDEV_FL_HAS_EVENTS;

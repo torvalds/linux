@@ -10,6 +10,7 @@
 #include "rtw8852a.h"
 
 static const struct rtw89_pci_info rtw8852a_pci_info = {
+	.gen_def		= &rtw89_pci_gen_ax,
 	.txbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_trunc_mode	= MAC_AX_BD_TRUNC,
 	.rxbd_mode		= MAC_AX_RXBD_PKT,
@@ -24,6 +25,7 @@ static const struct rtw89_pci_info rtw8852a_pci_info = {
 	.autok_en		= MAC_AX_PCIE_DISABLE,
 	.io_rcy_en		= MAC_AX_PCIE_DISABLE,
 	.io_rcy_tmr		= MAC_AX_IO_RCY_ANA_TMR_6MS,
+	.rx_ring_eq_is_full	= false,
 
 	.init_cfg_reg		= R_AX_PCIE_INIT_CFG1,
 	.txhci_en_bit		= B_AX_TXHCI_EN,
@@ -33,6 +35,7 @@ static const struct rtw89_pci_info rtw8852a_pci_info = {
 	.max_tag_num_mask	= B_AX_MAX_TAG_NUM,
 	.rxbd_rwptr_clr_reg	= R_AX_RXBD_RWPTR_CLR,
 	.txbd_rwptr_clr2_reg	= R_AX_TXBD_RWPTR_CLR2,
+	.dma_io_stop		= {R_AX_PCIE_DMA_STOP1, B_AX_STOP_PCIEIO},
 	.dma_stop1		= {R_AX_PCIE_DMA_STOP1, B_AX_TX_STOP1_MASK},
 	.dma_stop2		= {R_AX_PCIE_DMA_STOP2, B_AX_TX_STOP2_ALL},
 	.dma_busy1		= {R_AX_PCIE_DMA_BUSY1, DMA_BUSY1_CHECK},
@@ -41,6 +44,7 @@ static const struct rtw89_pci_info rtw8852a_pci_info = {
 
 	.rpwm_addr		= R_AX_PCIE_HRPWM,
 	.cpwm_addr		= R_AX_CPWM,
+	.mit_addr		= R_AX_INT_MIT_RX,
 	.tx_dma_ch_mask		= 0,
 	.bd_idx_addr_low_power	= NULL,
 	.dma_addr_set		= &rtw89_pci_ch_dma_addr_set,

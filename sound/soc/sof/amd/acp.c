@@ -278,6 +278,17 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 			return ret;
 	}
 
+	/* psp_send_cmd only required for vangogh platform (rev - 5) */
+	if (desc->rev == 5) {
+		/* Modify IRAM and DRAM size */
+		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | IRAM_DRAM_FENCE_2);
+		if (ret)
+			return ret;
+		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | MBOX_ISREADY_FLAG);
+		if (ret)
+			return ret;
+	}
+
 	ret = snd_sof_dsp_read_poll_timeout(sdev, ACP_DSP_BAR, ACP_SHA_DSP_FW_QUALIFIER,
 					    fw_qualifier, fw_qualifier & DSP_FW_RUN_ENABLE,
 					    ACP_REG_POLL_INTERVAL, ACP_DMA_COMPLETE_TIMEOUT_US);
@@ -343,13 +354,15 @@ static irqreturn_t acp_irq_thread(int irq, void *context)
 	const struct sof_amd_acp_desc *desc = get_chip_info(sdev->pdata);
 	unsigned int count = ACP_HW_SEM_RETRY_COUNT;
 
-	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset)) {
-		/* Wait until acquired HW Semaphore lock or timeout */
-		count--;
-		if (!count) {
-			dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
-			return IRQ_NONE;
-		}
+	spin_lock_irq(&sdev->ipc_lock);
+	/* Wait until acquired HW Semaphore lock or timeout */
+	while (snd_sof_dsp_read(sdev, ACP_DSP_BAR, desc->hw_semaphore_offset) && --count)
+		;
+	spin_unlock_irq(&sdev->ipc_lock);
+
+	if (!count) {
+		dev_err(sdev->dev, "%s: Failed to acquire HW lock\n", __func__);
+		return IRQ_NONE;
 	}
 
 	sof_ops(sdev)->irq_thread(irq, sdev);

@@ -21,7 +21,7 @@ unsafe fn krealloc_aligned(ptr: *mut u8, new_layout: Layout, flags: bindings::gf
 
     let mut size = layout.size();
 
-    if layout.align() > bindings::BINDINGS_ARCH_SLAB_MINALIGN {
+    if layout.align() > bindings::ARCH_SLAB_MINALIGN {
         // The alignment requirement exceeds the slab guarantee, thus try to enlarge the size
         // to use the "power-of-two" size/alignment guarantee (see comments in `kmalloc()` for
         // more information).

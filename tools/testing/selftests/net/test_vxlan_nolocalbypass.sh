@@ -9,9 +9,8 @@
 # option and verifies that packets are no longer received by the second VXLAN
 # device.
 
+source lib.sh
 ret=0
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
 
 TESTS="
 	nolocalbypass
@@ -98,20 +97,19 @@ tc_check_packets()
 
 setup()
 {
-	ip netns add ns1
+	setup_ns ns1
 
-	ip -n ns1 link set dev lo up
-	ip -n ns1 address add 192.0.2.1/32 dev lo
-	ip -n ns1 address add 198.51.100.1/32 dev lo
+	ip -n $ns1 address add 192.0.2.1/32 dev lo
+	ip -n $ns1 address add 198.51.100.1/32 dev lo
 
-	ip -n ns1 link add name vx0 up type vxlan id 100 local 198.51.100.1 \
+	ip -n $ns1 link add name vx0 up type vxlan id 100 local 198.51.100.1 \
 		dstport 4789 nolearning
-	ip -n ns1 link add name vx1 up type vxlan id 100 dstport 4790
+	ip -n $ns1 link add name vx1 up type vxlan id 100 dstport 4790
 }
 
 cleanup()
 {
-	ip netns del ns1 &> /dev/null
+	cleanup_ns $ns1
 }
 
 ################################################################################
@@ -122,40 +120,40 @@ nolocalbypass()
 	local smac=00:01:02:03:04:05
 	local dmac=00:0a:0b:0c:0d:0e
 
-	run_cmd "bridge -n ns1 fdb add $dmac dev vx0 self static dst 192.0.2.1 port 4790"
+	run_cmd "bridge -n $ns1 fdb add $dmac dev vx0 self static dst 192.0.2.1 port 4790"
 
-	run_cmd "tc -n ns1 qdisc add dev vx1 clsact"
-	run_cmd "tc -n ns1 filter add dev vx1 ingress pref 1 handle 101 proto all flower src_mac $smac dst_mac $dmac action pass"
+	run_cmd "tc -n $ns1 qdisc add dev vx1 clsact"
+	run_cmd "tc -n $ns1 filter add dev vx1 ingress pref 1 handle 101 proto all flower src_mac $smac dst_mac $dmac action pass"
 
-	run_cmd "tc -n ns1 qdisc add dev lo clsact"
-	run_cmd "tc -n ns1 filter add dev lo ingress pref 1 handle 101 proto ip flower ip_proto udp dst_port 4790 action drop"
+	run_cmd "tc -n $ns1 qdisc add dev lo clsact"
+	run_cmd "tc -n $ns1 filter add dev lo ingress pref 1 handle 101 proto ip flower ip_proto udp dst_port 4790 action drop"
 
-	run_cmd "ip -n ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == true'"
+	run_cmd "ip -n $ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == true'"
 	log_test $? 0 "localbypass enabled"
 
-	run_cmd "ip netns exec ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
+	run_cmd "ip netns exec $ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
 
-	tc_check_packets "ns1" "dev vx1 ingress" 101 1
+	tc_check_packets "$ns1" "dev vx1 ingress" 101 1
 	log_test $? 0 "Packet received by local VXLAN device - localbypass"
 
-	run_cmd "ip -n ns1 link set dev vx0 type vxlan nolocalbypass"
+	run_cmd "ip -n $ns1 link set dev vx0 type vxlan nolocalbypass"
 
-	run_cmd "ip -n ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == false'"
+	run_cmd "ip -n $ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == false'"
 	log_test $? 0 "localbypass disabled"
 
-	run_cmd "ip netns exec ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
+	run_cmd "ip netns exec $ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
 
-	tc_check_packets "ns1" "dev vx1 ingress" 101 1
+	tc_check_packets "$ns1" "dev vx1 ingress" 101 1
 	log_test $? 0 "Packet not received by local VXLAN device - nolocalbypass"
 
-	run_cmd "ip -n ns1 link set dev vx0 type vxlan localbypass"
+	run_cmd "ip -n $ns1 link set dev vx0 type vxlan localbypass"
 
-	run_cmd "ip -n ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == true'"
+	run_cmd "ip -n $ns1 -d -j link show dev vx0 | jq -e '.[][\"linkinfo\"][\"info_data\"][\"localbypass\"] == true'"
 	log_test $? 0 "localbypass enabled"
 
-	run_cmd "ip netns exec ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
+	run_cmd "ip netns exec $ns1 mausezahn vx0 -a $smac -b $dmac -c 1 -p 100 -q"
 
-	tc_check_packets "ns1" "dev vx1 ingress" 101 2
+	tc_check_packets "$ns1" "dev vx1 ingress" 101 2
 	log_test $? 0 "Packet received by local VXLAN device - localbypass"
 }
 

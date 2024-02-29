@@ -519,7 +519,7 @@ static int gve_set_tunable(struct net_device *netdev,
 	case ETHTOOL_RX_COPYBREAK:
 	{
 		u32 max_copybreak = gve_is_gqi(priv) ?
-			(PAGE_SIZE / 2) : priv->data_buffer_size_dqo;
+			GVE_DEFAULT_RX_BUFFER_SIZE : priv->data_buffer_size_dqo;
 
 		len = *(u32 *)value;
 		if (len > max_copybreak)

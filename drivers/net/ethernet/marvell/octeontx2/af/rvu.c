@@ -156,7 +156,7 @@ int rvu_alloc_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc)
 	return start;
 }
 
-static void rvu_free_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc, int start)
+void rvu_free_rsrc_contig(struct rsrc_bmap *rsrc, int nrsrc, int start)
 {
 	if (!rsrc->bmap)
 		return;
@@ -934,6 +934,9 @@ static int rvu_setup_hw_resources(struct rvu *rvu)
 	hw->total_pfs = (cfg >> 32) & 0xFF;
 	hw->total_vfs = (cfg >> 20) & 0xFFF;
 	hw->max_vfs_per_pf = (cfg >> 40) & 0xFF;
+
+	if (!is_rvu_otx2(rvu))
+		rvu_apr_block_cn10k_init(rvu);
 
 	/* Init NPA LF's bitmap */
 	block = &hw->block[BLKADDR_NPA];
@@ -2614,6 +2617,10 @@ static void __rvu_flr_handler(struct rvu *rvu, u16 pcifunc)
 	 * 2. Flush and reset SSO/SSOW
 	 * 3. Cleanup pools (NPA)
 	 */
+
+	/* Free multicast/mirror node associated with the 'pcifunc' */
+	rvu_nix_mcast_flr_free_entries(rvu, pcifunc);
+
 	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_NIX0);
 	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_NIX1);
 	rvu_blklf_teardown(rvu, pcifunc, BLKADDR_CPT0);

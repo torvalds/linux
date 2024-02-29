@@ -123,7 +123,7 @@ static struct snd_pcm_hardware q6apm_dai_hardware_playback = {
 	.fifo_size =            0,
 };
 
-static void event_handler(uint32_t opcode, uint32_t token, uint32_t *payload, void *priv)
+static void event_handler(uint32_t opcode, uint32_t token, void *payload, void *priv)
 {
 	struct q6apm_dai_rtd *prtd = priv;
 	struct snd_pcm_substream *substream = prtd->substream;
@@ -134,7 +134,7 @@ static void event_handler(uint32_t opcode, uint32_t token, uint32_t *payload, vo
 		prtd->state = Q6APM_STREAM_STOPPED;
 		break;
 	case APM_CLIENT_EVENT_DATA_WRITE_DONE:
-	        spin_lock_irqsave(&prtd->lock, flags);
+		spin_lock_irqsave(&prtd->lock, flags);
 		prtd->pos += prtd->pcm_count;
 		spin_unlock_irqrestore(&prtd->lock, flags);
 		snd_pcm_period_elapsed(substream);
@@ -143,7 +143,7 @@ static void event_handler(uint32_t opcode, uint32_t token, uint32_t *payload, vo
 
 		break;
 	case APM_CLIENT_EVENT_DATA_READ_DONE:
-	        spin_lock_irqsave(&prtd->lock, flags);
+		spin_lock_irqsave(&prtd->lock, flags);
 		prtd->pos += prtd->pcm_count;
 		spin_unlock_irqrestore(&prtd->lock, flags);
 		snd_pcm_period_elapsed(substream);
@@ -157,7 +157,7 @@ static void event_handler(uint32_t opcode, uint32_t token, uint32_t *payload, vo
 }
 
 static void event_handler_compr(uint32_t opcode, uint32_t token,
-				uint32_t *payload, void *priv)
+				void *payload, void *priv)
 {
 	struct q6apm_dai_rtd *prtd = priv;
 	struct snd_compr_stream *substream = prtd->cstream;
@@ -352,7 +352,7 @@ static int q6apm_dai_open(struct snd_soc_component *component,
 
 	spin_lock_init(&prtd->lock);
 	prtd->substream = substream;
-	prtd->graph = q6apm_graph_open(dev, (q6apm_cb)event_handler, prtd, graph_id);
+	prtd->graph = q6apm_graph_open(dev, event_handler, prtd, graph_id);
 	if (IS_ERR(prtd->graph)) {
 		dev_err(dev, "%s: Could not allocate memory\n", __func__);
 		ret = PTR_ERR(prtd->graph);
@@ -496,7 +496,7 @@ static int q6apm_dai_compr_open(struct snd_soc_component *component,
 		return -ENOMEM;
 
 	prtd->cstream = stream;
-	prtd->graph = q6apm_graph_open(dev, (q6apm_cb)event_handler_compr, prtd, graph_id);
+	prtd->graph = q6apm_graph_open(dev, event_handler_compr, prtd, graph_id);
 	if (IS_ERR(prtd->graph)) {
 		ret = PTR_ERR(prtd->graph);
 		kfree(prtd);

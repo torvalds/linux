@@ -761,14 +761,15 @@ config HID_MULTITOUCH
 	  module will be called hid-multitouch.
 
 config HID_NINTENDO
-	tristate "Nintendo Joy-Con and Pro Controller support"
+	tristate "Nintendo Joy-Con, NSO, and Pro Controller support"
 	depends on NEW_LEDS
 	depends on LEDS_CLASS
 	select POWER_SUPPLY
 	help
-	Adds support for the Nintendo Switch Joy-Cons and Pro Controller.
+	Adds support for the Nintendo Switch Joy-Cons, NSO, Pro Controller.
 	All controllers support bluetooth, and the Pro Controller also supports
-	its USB mode.
+	its USB mode. This also includes support for the Nintendo Switch Online
+	Controllers which include the Genesis, SNES, and N64 controllers.
 
 	To compile this driver as a module, choose M here: the
 	module will be called hid-nintendo.
@@ -779,9 +780,9 @@ config NINTENDO_FF
 	select INPUT_FF_MEMLESS
 	help
 	Say Y here if you have a Nintendo Switch controller and want to enable
-	force feedback support for it. This works for both joy-cons and the pro
-	controller. For the pro controller, both rumble motors can be controlled
-	individually.
+	force feedback support for it. This works for both joy-cons, the pro
+	controller, and the NSO N64 controller. For the pro controller, both
+	rumble motors can be controlled individually.
 
 config HID_NTI
 	tristate "NTI keyboard adapters"
@@ -1295,6 +1296,15 @@ config HID_ALPS
 	Support for Alps I2C HID touchpads and StickPointer.
 	Say Y here if you have a Alps touchpads over i2c-hid or usbhid
 	and want support for its special functionalities.
+
+config HID_MCP2200
+	tristate "Microchip MCP2200 HID USB-to-GPIO bridge"
+	depends on USB_HID && GPIOLIB
+	help
+	  Provides GPIO functionality over USB-HID through MCP2200 device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called hid-mcp2200.ko.
 
 config HID_MCP2221
 	tristate "Microchip MCP2221 HID USB-to-I2C/SMbus host support"

@@ -819,7 +819,7 @@ int gve_xdp_xmit_one(struct gve_priv *priv, struct gve_tx_ring *tx,
 	return 0;
 }
 
-#define GVE_TX_START_THRESH	PAGE_SIZE
+#define GVE_TX_START_THRESH	4096
 
 static int gve_clean_tx_done(struct gve_priv *priv, struct gve_tx_ring *tx,
 			     u32 to_do, bool try_to_wake)

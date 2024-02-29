@@ -115,7 +115,7 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 		do {
 			struct page *page;
 
-			GEM_BUG_ON(order > MAX_ORDER);
+			GEM_BUG_ON(order > MAX_PAGE_ORDER);
 			page = alloc_pages(GFP | __GFP_ZERO, order);
 			if (!page)
 				goto err;

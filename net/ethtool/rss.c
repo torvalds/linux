@@ -13,6 +13,7 @@ struct rss_reply_data {
 	u32				indir_size;
 	u32				hkey_size;
 	u32				hfunc;
+	u32				input_xfrm;
 	u32				*indir_table;
 	u8				*hkey;
 };
@@ -48,9 +49,9 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 	struct rss_reply_data *data = RSS_REPDATA(reply_base);
 	struct rss_req_info *request = RSS_REQINFO(req_base);
 	struct net_device *dev = reply_base->dev;
+	struct ethtool_rxfh_param rxfh = {};
 	const struct ethtool_ops *ops;
 	u32 total_size, indir_bytes;
-	u8 dev_hfunc = 0;
 	u8 *rss_config;
 	int ret;
 
@@ -59,7 +60,7 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 		return -EOPNOTSUPP;
 
 	/* Some drivers don't handle rss_context */
-	if (request->rss_context && !ops->get_rxfh_context)
+	if (request->rss_context && !ops->cap_rss_ctx_supported)
 		return -EOPNOTSUPP;
 
 	ret = ethnl_ops_begin(dev);
@@ -83,21 +84,21 @@ rss_prepare_data(const struct ethnl_req_info *req_base,
 
 	if (data->indir_size)
 		data->indir_table = (u32 *)rss_config;
-
 	if (data->hkey_size)
 		data->hkey = rss_config + indir_bytes;
 
-	if (request->rss_context)
-		ret = ops->get_rxfh_context(dev, data->indir_table, data->hkey,
-					    &dev_hfunc, request->rss_context);
-	else
-		ret = ops->get_rxfh(dev, data->indir_table, data->hkey,
-				    &dev_hfunc);
+	rxfh.indir_size = data->indir_size;
+	rxfh.indir = data->indir_table;
+	rxfh.key_size = data->hkey_size;
+	rxfh.key = data->hkey;
+	rxfh.rss_context = request->rss_context;
 
+	ret = ops->get_rxfh(dev, &rxfh);
 	if (ret)
 		goto out_ops;
 
-	data->hfunc = dev_hfunc;
+	data->hfunc = rxfh.hfunc;
+	data->input_xfrm = rxfh.input_xfrm;
 out_ops:
 	ethnl_ops_complete(dev);
 	return ret;
@@ -111,6 +112,7 @@ rss_reply_size(const struct ethnl_req_info *req_base,
 	int len;
 
 	len = nla_total_size(sizeof(u32)) +	/* _RSS_HFUNC */
+	      nla_total_size(sizeof(u32)) +	/* _RSS_INPUT_XFRM */
 	      nla_total_size(sizeof(u32) * data->indir_size) + /* _RSS_INDIR */
 	      nla_total_size(data->hkey_size);	/* _RSS_HKEY */
 
@@ -125,6 +127,8 @@ rss_fill_reply(struct sk_buff *skb, const struct ethnl_req_info *req_base,
 
 	if ((data->hfunc &&
 	     nla_put_u32(skb, ETHTOOL_A_RSS_HFUNC, data->hfunc)) ||
+	    (data->input_xfrm &&
+	     nla_put_u32(skb, ETHTOOL_A_RSS_INPUT_XFRM, data->input_xfrm)) ||
 	    (data->indir_size &&
 	     nla_put(skb, ETHTOOL_A_RSS_INDIR,
 		     sizeof(u32) * data->indir_size, data->indir_table)) ||

@@ -252,7 +252,8 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
 	if (blkcg == &blkcg_root)
 		return q->root_blkg;
 
-	blkg = rcu_dereference(blkcg->blkg_hint);
+	blkg = rcu_dereference_check(blkcg->blkg_hint,
+			lockdep_is_held(&q->queue_lock));
 	if (blkg && blkg->q == q)
 		return blkg;
 

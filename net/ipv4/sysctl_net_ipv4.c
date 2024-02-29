@@ -50,26 +50,22 @@ static int tcp_plb_max_cong_thresh = 256;
 static int sysctl_tcp_low_latency __read_mostly;
 
 /* Update system visible IP port range */
-static void set_local_port_range(struct net *net, int range[2])
+static void set_local_port_range(struct net *net, unsigned int low, unsigned int high)
 {
-	bool same_parity = !((range[0] ^ range[1]) & 1);
+	bool same_parity = !((low ^ high) & 1);
 
-	write_seqlock_bh(&net->ipv4.ip_local_ports.lock);
 	if (same_parity && !net->ipv4.ip_local_ports.warned) {
 		net->ipv4.ip_local_ports.warned = true;
 		pr_err_ratelimited("ip_local_port_range: prefer different parity for start/end values.\n");
 	}
-	net->ipv4.ip_local_ports.range[0] = range[0];
-	net->ipv4.ip_local_ports.range[1] = range[1];
-	write_sequnlock_bh(&net->ipv4.ip_local_ports.lock);
+	WRITE_ONCE(net->ipv4.ip_local_ports.range, high << 16 | low);
 }
 
 /* Validate changes from /proc interface. */
 static int ipv4_local_port_range(struct ctl_table *table, int write,
 				 void *buffer, size_t *lenp, loff_t *ppos)
 {
-	struct net *net =
-		container_of(table->data, struct net, ipv4.ip_local_ports.range);
+	struct net *net = table->data;
 	int ret;
 	int range[2];
 	struct ctl_table tmp = {
@@ -93,7 +89,7 @@ static int ipv4_local_port_range(struct ctl_table *table, int write,
 		    (range[0] < READ_ONCE(net->ipv4.sysctl_ip_prot_sock)))
 			ret = -EINVAL;
 		else
-			set_local_port_range(net, range);
+			set_local_port_range(net, range[0], range[1]);
 	}
 
 	return ret;
@@ -733,8 +729,8 @@ static struct ctl_table ipv4_net_table[] = {
 	},
 	{
 		.procname	= "ip_local_port_range",
-		.maxlen		= sizeof(init_net.ipv4.ip_local_ports.range),
-		.data		= &init_net.ipv4.ip_local_ports.range,
+		.maxlen		= 0,
+		.data		= &init_net,
 		.mode		= 0644,
 		.proc_handler	= ipv4_local_port_range,
 	},

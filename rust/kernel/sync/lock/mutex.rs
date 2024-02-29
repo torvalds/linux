@@ -84,7 +84,7 @@ macro_rules! new_mutex {
 /// }
 /// ```
 ///
-/// [`struct mutex`]: ../../../../include/linux/mutex.h
+/// [`struct mutex`]: srctree/include/linux/mutex.h
 pub type Mutex<T> = super::Lock<T, MutexBackend>;
 
 /// A kernel `struct mutex` lock backend.

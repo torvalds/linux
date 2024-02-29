@@ -54,16 +54,12 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 
 int bch2_resume_logged_ops(struct bch_fs *c)
 {
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret;
-
-	ret = bch2_trans_run(c,
-		for_each_btree_key2(trans, iter,
-				BTREE_ID_logged_ops, POS_MIN, BTREE_ITER_PREFETCH, k,
+	int ret = bch2_trans_run(c,
+		for_each_btree_key(trans, iter,
+				   BTREE_ID_logged_ops, POS_MIN,
+				   BTREE_ITER_PREFETCH, k,
 			resume_logged_op(trans, &iter, k)));
-	if (ret)
-		bch_err_fn(c, ret);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -85,13 +81,13 @@ static int __bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 
 int bch2_logged_op_start(struct btree_trans *trans, struct bkey_i *k)
 {
-	return commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+	return commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			 __bch2_logged_op_start(trans, k));
 }
 
 void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 {
-	int ret = commit_do(trans, NULL, NULL, BTREE_INSERT_NOFAIL,
+	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			    bch2_btree_delete(trans, BTREE_ID_logged_ops, k->k.p, 0));
 	/*
 	 * This needs to be a fatal error because we've left an unfinished

@@ -298,6 +298,18 @@ BTF_ID(func, bpf_lsm_kernel_module_request)
 BTF_ID(func, bpf_lsm_kernel_read_file)
 BTF_ID(func, bpf_lsm_kernfs_init_security)
 
+#ifdef CONFIG_SECURITY_PATH
+BTF_ID(func, bpf_lsm_path_unlink)
+BTF_ID(func, bpf_lsm_path_mkdir)
+BTF_ID(func, bpf_lsm_path_rmdir)
+BTF_ID(func, bpf_lsm_path_truncate)
+BTF_ID(func, bpf_lsm_path_symlink)
+BTF_ID(func, bpf_lsm_path_link)
+BTF_ID(func, bpf_lsm_path_rename)
+BTF_ID(func, bpf_lsm_path_chmod)
+BTF_ID(func, bpf_lsm_path_chown)
+#endif /* CONFIG_SECURITY_PATH */
+
 #ifdef CONFIG_KEYS
 BTF_ID(func, bpf_lsm_key_free)
 #endif /* CONFIG_KEYS */

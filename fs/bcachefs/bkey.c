@@ -33,7 +33,7 @@ void bch2_bkey_packed_to_binary_text(struct printbuf *out,
 			next_key_bits -= 64;
 		}
 
-		bch2_prt_u64_binary(out, v, min(word_bits, nr_key_bits));
+		bch2_prt_u64_base2_nbits(out, v, min(word_bits, nr_key_bits));
 
 		if (!next_key_bits)
 			break;

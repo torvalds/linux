@@ -35,6 +35,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/buffer_head.h>
+#include <linux/mpage.h>
 #include <linux/writeback.h>
 #include <linux/iversion.h>
 
@@ -390,7 +391,7 @@ out:
 
 /**
  * ufs_getfrag_block() - `get_block_t' function, interface between UFS and
- * read_folio, writepage and so on
+ * read_folio, writepages and so on
  */
 
 static int ufs_getfrag_block(struct inode *inode, sector_t fragment, struct buffer_head *bh_result, int create)
@@ -467,9 +468,10 @@ done:
 	return 0;
 }
 
-static int ufs_writepage(struct page *page, struct writeback_control *wbc)
+static int ufs_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	return block_write_full_page(page,ufs_getfrag_block,wbc);
+	return mpage_writepages(mapping, wbc, ufs_getfrag_block);
 }
 
 static int ufs_read_folio(struct file *file, struct folio *folio)
@@ -528,9 +530,10 @@ const struct address_space_operations ufs_aops = {
 	.dirty_folio = block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio = ufs_read_folio,
-	.writepage = ufs_writepage,
+	.writepages = ufs_writepages,
 	.write_begin = ufs_write_begin,
 	.write_end = ufs_write_end,
+	.migrate_folio = buffer_migrate_folio,
 	.bmap = ufs_bmap
 };
 

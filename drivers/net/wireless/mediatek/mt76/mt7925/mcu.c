@@ -345,7 +345,7 @@ static void
 mt7925_mcu_scan_event(struct mt792x_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_phy *mphy = &dev->mt76.phy;
-	struct mt792x_phy *phy = (struct mt792x_phy *)mphy->priv;
+	struct mt792x_phy *phy = mphy->priv;
 
 	spin_lock_bh(&dev->mt76.lock);
 	__skb_queue_tail(&phy->scan_event_list, skb);

@@ -45,6 +45,7 @@ enum ceph_sparse_read_state {
 	CEPH_SPARSE_READ_HDR	= 0,
 	CEPH_SPARSE_READ_EXTENTS,
 	CEPH_SPARSE_READ_DATA_LEN,
+	CEPH_SPARSE_READ_DATA_PRE,
 	CEPH_SPARSE_READ_DATA,
 };
 
@@ -64,7 +65,7 @@ struct ceph_sparse_read {
 	u64				sr_req_len;  /* orig request length */
 	u64				sr_pos;      /* current pos in buffer */
 	int				sr_index;    /* current extent index */
-	__le32				sr_datalen;  /* length of actual data */
+	u32				sr_datalen;  /* length of actual data */
 	u32				sr_count;    /* extent count in reply */
 	int				sr_ext_len;  /* length of extent array */
 	struct ceph_sparse_extent	*sr_extent;  /* extent array */
@@ -572,9 +573,12 @@ int __ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op, int cnt);
  */
 #define CEPH_SPARSE_EXT_ARRAY_INITIAL  16
 
-static inline int ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op)
+static inline int ceph_alloc_sparse_ext_map(struct ceph_osd_req_op *op, int cnt)
 {
-	return __ceph_alloc_sparse_ext_map(op, CEPH_SPARSE_EXT_ARRAY_INITIAL);
+	if (!cnt)
+		cnt = CEPH_SPARSE_EXT_ARRAY_INITIAL;
+
+	return __ceph_alloc_sparse_ext_map(op, cnt);
 }
 
 extern void ceph_osdc_get_request(struct ceph_osd_request *req);

@@ -3190,10 +3190,10 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_lag_init;
 	}
 
-	err = mlxsw_sp_fids_init(mlxsw_sp);
+	err = mlxsw_sp->fid_core_ops->init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize FIDs\n");
-		goto err_fids_init;
+		goto err_fid_core_init;
 	}
 
 	err = mlxsw_sp_policers_init(mlxsw_sp);
@@ -3379,8 +3379,8 @@ err_devlink_traps_init:
 err_traps_init:
 	mlxsw_sp_policers_fini(mlxsw_sp);
 err_policers_init:
-	mlxsw_sp_fids_fini(mlxsw_sp);
-err_fids_init:
+	mlxsw_sp->fid_core_ops->fini(mlxsw_sp);
+err_fid_core_init:
 	mlxsw_sp_lag_fini(mlxsw_sp);
 err_lag_init:
 	mlxsw_sp_pgt_fini(mlxsw_sp);
@@ -3416,7 +3416,7 @@ static int mlxsw_sp1_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp1_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp1_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp1_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp1_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp1_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP1;
 	mlxsw_sp->pgt_smpe_index_valid = true;
 
@@ -3450,7 +3450,7 @@ static int mlxsw_sp2_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp2_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp2_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp2_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp2_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP2;
 	mlxsw_sp->pgt_smpe_index_valid = false;
 
@@ -3484,7 +3484,7 @@ static int mlxsw_sp3_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp2_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp2_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp2_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp2_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP3;
 	mlxsw_sp->pgt_smpe_index_valid = false;
 
@@ -3518,7 +3518,7 @@ static int mlxsw_sp4_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->router_ops = &mlxsw_sp2_router_ops;
 	mlxsw_sp->listeners = mlxsw_sp2_listener;
 	mlxsw_sp->listeners_count = ARRAY_SIZE(mlxsw_sp2_listener);
-	mlxsw_sp->fid_family_arr = mlxsw_sp2_fid_family_arr;
+	mlxsw_sp->fid_core_ops = &mlxsw_sp2_fid_core_ops;
 	mlxsw_sp->lowest_shaper_bs = MLXSW_REG_QEEC_LOWEST_SHAPER_BS_SP4;
 	mlxsw_sp->pgt_smpe_index_valid = false;
 
@@ -3552,7 +3552,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_devlink_traps_fini(mlxsw_sp);
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_policers_fini(mlxsw_sp);
-	mlxsw_sp_fids_fini(mlxsw_sp);
+	mlxsw_sp->fid_core_ops->fini(mlxsw_sp);
 	mlxsw_sp_lag_fini(mlxsw_sp);
 	mlxsw_sp_pgt_fini(mlxsw_sp);
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
@@ -3598,6 +3598,7 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 	.used_cqe_time_stamp_type	= 1,
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
 	.lag_mode_prefer_sw		= true,
+	.flood_mode_prefer_cff		= true,
 };
 
 /* Reduce number of LAGs from full capacity (256) to the maximum supported LAGs
@@ -3626,6 +3627,7 @@ static const struct mlxsw_config_profile mlxsw_sp4_config_profile = {
 	.used_cqe_time_stamp_type	= 1,
 	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
 	.lag_mode_prefer_sw		= true,
+	.flood_mode_prefer_cff		= true,
 };
 
 static void
@@ -4515,6 +4517,10 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_port->lagged = 1;
 	lag->ref_count++;
 
+	err = mlxsw_sp_fid_port_join_lag(mlxsw_sp_port);
+	if (err)
+		goto err_fid_port_join_lag;
+
 	/* Port is no longer usable as a router interface */
 	if (mlxsw_sp_port->default_vlan->fid)
 		mlxsw_sp_port_vlan_router_leave(mlxsw_sp_port->default_vlan);
@@ -4534,6 +4540,8 @@ static int mlxsw_sp_port_lag_join(struct mlxsw_sp_port *mlxsw_sp_port,
 err_replay:
 	mlxsw_sp_router_port_leave_lag(mlxsw_sp_port, lag_dev);
 err_router_join:
+	mlxsw_sp_fid_port_leave_lag(mlxsw_sp_port);
+err_fid_port_join_lag:
 	lag->ref_count--;
 	mlxsw_sp_port->lagged = 0;
 	mlxsw_core_lag_mapping_clear(mlxsw_sp->core, lag_id,
@@ -4568,6 +4576,8 @@ static void mlxsw_sp_port_lag_leave(struct mlxsw_sp_port *mlxsw_sp_port,
 	 * are memeber in
 	 */
 	mlxsw_sp_port_lag_uppers_cleanup(mlxsw_sp_port, lag_dev);
+
+	mlxsw_sp_fid_port_leave_lag(mlxsw_sp_port);
 
 	if (lag->ref_count == 1)
 		mlxsw_sp_lag_destroy(mlxsw_sp, lag_id);

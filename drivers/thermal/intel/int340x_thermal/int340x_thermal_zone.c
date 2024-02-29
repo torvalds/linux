@@ -225,7 +225,8 @@ EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);
 
 static int int340x_update_one_trip(struct thermal_trip *trip, void *arg)
 {
-	struct acpi_device *zone_adev = arg;
+	struct int34x_thermal_zone *int34x_zone = arg;
+	struct acpi_device *zone_adev = int34x_zone->adev;
 	int temp, err;
 
 	switch (trip->type) {
@@ -249,14 +250,15 @@ static int int340x_update_one_trip(struct thermal_trip *trip, void *arg)
 	if (err)
 		temp = THERMAL_TEMP_INVALID;
 
-	trip->temperature = temp;
+	thermal_zone_set_trip_temp(int34x_zone->zone, trip, temp);
+
 	return 0;
 }
 
 void int340x_thermal_update_trips(struct int34x_thermal_zone *int34x_zone)
 {
 	thermal_zone_for_each_trip(int34x_zone->zone, int340x_update_one_trip,
-				   int34x_zone->adev);
+				   int34x_zone);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_update_trips);
 

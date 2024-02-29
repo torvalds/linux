@@ -31,10 +31,10 @@ static struct hvc_struct *hvc_rtas_dev;
 static int rtascons_put_char_token = RTAS_UNKNOWN_SERVICE;
 static int rtascons_get_char_token = RTAS_UNKNOWN_SERVICE;
 
-static inline int hvc_rtas_write_console(uint32_t vtermno, const char *buf,
-		int count)
+static ssize_t hvc_rtas_write_console(uint32_t vtermno, const u8 *buf,
+				      size_t count)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < count; i++) {
 		if (rtas_call(rtascons_put_char_token, 1, 1, NULL, buf[i]))
@@ -44,9 +44,10 @@ static inline int hvc_rtas_write_console(uint32_t vtermno, const char *buf,
 	return i;
 }
 
-static int hvc_rtas_read_console(uint32_t vtermno, char *buf, int count)
+static ssize_t hvc_rtas_read_console(uint32_t vtermno, u8 *buf, size_t count)
 {
-	int i, c;
+	size_t i;
+	int c;
 
 	for (i = 0; i < count; i++) {
 		if (rtas_call(rtascons_get_char_token, 0, 2, &c))

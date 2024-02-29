@@ -6,10 +6,6 @@
 #include "btree_locking.h"
 #include "btree_update.h"
 
-void __bch2_btree_calc_format(struct bkey_format_state *, struct btree *);
-bool bch2_btree_node_format_fits(struct bch_fs *c, struct btree *,
-				struct bkey_format *);
-
 #define BTREE_UPDATE_NODES_MAX		((BTREE_MAX_DEPTH - 2) * 2 + GC_MERGE_NODES)
 
 #define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_NODES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
@@ -121,16 +117,17 @@ struct btree *__bch2_btree_node_alloc_replacement(struct btree_update *,
 						  struct btree *,
 						  struct bkey_format);
 
-int bch2_btree_split_leaf(struct btree_trans *, struct btree_path *, unsigned);
+int bch2_btree_split_leaf(struct btree_trans *, btree_path_idx_t, unsigned);
 
-int __bch2_foreground_maybe_merge(struct btree_trans *, struct btree_path *,
+int __bch2_foreground_maybe_merge(struct btree_trans *, btree_path_idx_t,
 				  unsigned, unsigned, enum btree_node_sibling);
 
 static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
-					struct btree_path *path,
+					btree_path_idx_t path_idx,
 					unsigned level, unsigned flags,
 					enum btree_node_sibling sib)
 {
+	struct btree_path *path = trans->paths + path_idx;
 	struct btree *b;
 
 	EBUG_ON(!btree_node_locked(path, level));
@@ -139,11 +136,11 @@ static inline int bch2_foreground_maybe_merge_sibling(struct btree_trans *trans,
 	if (b->sib_u64s[sib] > trans->c->btree_foreground_merge_threshold)
 		return 0;
 
-	return __bch2_foreground_maybe_merge(trans, path, level, flags, sib);
+	return __bch2_foreground_maybe_merge(trans, path_idx, level, flags, sib);
 }
 
 static inline int bch2_foreground_maybe_merge(struct btree_trans *trans,
-					      struct btree_path *path,
+					      btree_path_idx_t path,
 					      unsigned level,
 					      unsigned flags)
 {
@@ -187,21 +184,19 @@ static inline void btree_node_reset_sib_u64s(struct btree *b)
 	b->sib_u64s[1] = b->nr.live_u64s;
 }
 
-static inline void *btree_data_end(struct bch_fs *c, struct btree *b)
+static inline void *btree_data_end(struct btree *b)
 {
-	return (void *) b->data + btree_bytes(c);
+	return (void *) b->data + btree_buf_bytes(b);
 }
 
-static inline struct bkey_packed *unwritten_whiteouts_start(struct bch_fs *c,
-							    struct btree *b)
+static inline struct bkey_packed *unwritten_whiteouts_start(struct btree *b)
 {
-	return (void *) ((u64 *) btree_data_end(c, b) - b->whiteout_u64s);
+	return (void *) ((u64 *) btree_data_end(b) - b->whiteout_u64s);
 }
 
-static inline struct bkey_packed *unwritten_whiteouts_end(struct bch_fs *c,
-							  struct btree *b)
+static inline struct bkey_packed *unwritten_whiteouts_end(struct btree *b)
 {
-	return btree_data_end(c, b);
+	return btree_data_end(b);
 }
 
 static inline void *write_block(struct btree *b)
@@ -224,13 +219,11 @@ static inline bool bkey_written(struct btree *b, struct bkey_packed *k)
 	return __btree_addr_written(b, k);
 }
 
-static inline ssize_t __bch_btree_u64s_remaining(struct bch_fs *c,
-						 struct btree *b,
-						 void *end)
+static inline ssize_t __bch2_btree_u64s_remaining(struct btree *b, void *end)
 {
 	ssize_t used = bset_byte_offset(b, end) / sizeof(u64) +
 		b->whiteout_u64s;
-	ssize_t total = c->opts.btree_node_size >> 3;
+	ssize_t total = btree_buf_bytes(b) >> 3;
 
 	/* Always leave one extra u64 for bch2_varint_decode: */
 	used++;
@@ -238,10 +231,9 @@ static inline ssize_t __bch_btree_u64s_remaining(struct bch_fs *c,
 	return total - used;
 }
 
-static inline size_t bch_btree_keys_u64s_remaining(struct bch_fs *c,
-						   struct btree *b)
+static inline size_t bch2_btree_keys_u64s_remaining(struct btree *b)
 {
-	ssize_t remaining = __bch_btree_u64s_remaining(c, b,
+	ssize_t remaining = __bch2_btree_u64s_remaining(b,
 				btree_bkey_last(b, bset_tree_last(b)));
 
 	BUG_ON(remaining < 0);
@@ -263,14 +255,13 @@ static inline unsigned btree_write_set_buffer(struct btree *b)
 	return 8 << BTREE_WRITE_SET_U64s_BITS;
 }
 
-static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
-						     struct btree *b)
+static inline struct btree_node_entry *want_new_bset(struct bch_fs *c, struct btree *b)
 {
 	struct bset_tree *t = bset_tree_last(b);
 	struct btree_node_entry *bne = max(write_block(b),
 			(void *) btree_bkey_last(b, bset_tree_last(b)));
 	ssize_t remaining_space =
-		__bch_btree_u64s_remaining(c, b, bne->keys.start);
+		__bch2_btree_u64s_remaining(b, bne->keys.start);
 
 	if (unlikely(bset_written(b, bset(b, t)))) {
 		if (remaining_space > (ssize_t) (block_bytes(c) >> 3))
@@ -284,12 +275,11 @@ static inline struct btree_node_entry *want_new_bset(struct bch_fs *c,
 	return NULL;
 }
 
-static inline void push_whiteout(struct bch_fs *c, struct btree *b,
-				 struct bpos pos)
+static inline void push_whiteout(struct btree *b, struct bpos pos)
 {
 	struct bkey_packed k;
 
-	BUG_ON(bch_btree_keys_u64s_remaining(c, b) < BKEY_U64s);
+	BUG_ON(bch2_btree_keys_u64s_remaining(b) < BKEY_U64s);
 	EBUG_ON(btree_node_just_written(b));
 
 	if (!bkey_pack_pos(&k, pos, b)) {
@@ -302,20 +292,19 @@ static inline void push_whiteout(struct bch_fs *c, struct btree *b,
 	k.needs_whiteout = true;
 
 	b->whiteout_u64s += k.u64s;
-	bkey_p_copy(unwritten_whiteouts_start(c, b), &k);
+	bkey_p_copy(unwritten_whiteouts_start(b), &k);
 }
 
 /*
  * write lock must be held on @b (else the dirty bset that we were going to
  * insert into could be written out from under us)
  */
-static inline bool bch2_btree_node_insert_fits(struct bch_fs *c,
-					       struct btree *b, unsigned u64s)
+static inline bool bch2_btree_node_insert_fits(struct btree *b, unsigned u64s)
 {
 	if (unlikely(btree_node_need_rewrite(b)))
 		return false;
 
-	return u64s <= bch_btree_keys_u64s_remaining(c, b);
+	return u64s <= bch2_btree_keys_u64s_remaining(b);
 }
 
 void bch2_btree_updates_to_text(struct printbuf *, struct bch_fs *);

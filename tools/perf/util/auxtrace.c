@@ -174,7 +174,7 @@ void auxtrace_mmap_params__set_idx(struct auxtrace_mmap_params *mp,
 				   struct evlist *evlist,
 				   struct evsel *evsel, int idx)
 {
-	bool per_cpu = !perf_cpu_map__empty(evlist->core.user_requested_cpus);
+	bool per_cpu = !perf_cpu_map__has_any_cpu_or_is_empty(evlist->core.user_requested_cpus);
 
 	mp->mmap_needed = evsel->needs_auxtrace_mmap;
 
@@ -648,7 +648,7 @@ int auxtrace_parse_snapshot_options(struct auxtrace_record *itr,
 
 static int evlist__enable_event_idx(struct evlist *evlist, struct evsel *evsel, int idx)
 {
-	bool per_cpu_mmaps = !perf_cpu_map__empty(evlist->core.user_requested_cpus);
+	bool per_cpu_mmaps = !perf_cpu_map__has_any_cpu_or_is_empty(evlist->core.user_requested_cpus);
 
 	if (per_cpu_mmaps) {
 		struct perf_cpu evlist_cpu = perf_cpu_map__cpu(evlist->core.all_cpus, idx);
@@ -1637,6 +1637,9 @@ int itrace_do_parse_synth_opts(struct itrace_synth_opts *synth_opts,
 			break;
 		case 'Z':
 			synth_opts->timeless_decoding = true;
+			break;
+		case 'T':
+			synth_opts->use_timestamp = true;
 			break;
 		case ' ':
 		case ',':

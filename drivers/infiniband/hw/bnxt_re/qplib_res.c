@@ -343,7 +343,7 @@ done:
 	hwq->cons = 0;
 	hwq->pdev = pdev;
 	hwq->depth = hwq_attr->depth;
-	hwq->max_elements = depth;
+	hwq->max_elements = hwq->depth;
 	hwq->element_size = stride;
 	hwq->qe_ppg = pg_size / stride;
 	/* For direct access to the elements */
@@ -805,7 +805,7 @@ static int bnxt_qplib_alloc_dpi_tbl(struct bnxt_qplib_res *res,
 	dpit = &res->dpi_tbl;
 	reg = &dpit->wcreg;
 
-	if (!bnxt_qplib_is_chip_gen_p5(res->cctx)) {
+	if (!bnxt_qplib_is_chip_gen_p5_p7(res->cctx)) {
 		/* Offest should come from L2 driver */
 		dbr_offset = dev_attr->l2_db_size;
 		dpit->ucreg.offset = dbr_offset;

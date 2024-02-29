@@ -434,7 +434,8 @@ static void __init sev_map_percpu_data(void)
 {
 	int cpu;
 
-	if (!cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT))
+	if (cc_vendor != CC_VENDOR_AMD ||
+	    !cc_platform_has(CC_ATTR_GUEST_MEM_ENCRYPT))
 		return;
 
 	for_each_possible_cpu(cpu) {
@@ -803,8 +804,8 @@ extern bool __raw_callee_save___kvm_vcpu_is_preempted(long);
  "cmpb   $0, " __stringify(KVM_STEAL_TIME_preempted) "+steal_time(%rax)\n\t" \
  "setne  %al\n\t"
 
-DEFINE_PARAVIRT_ASM(__raw_callee_save___kvm_vcpu_is_preempted,
-		    PV_VCPU_PREEMPTED_ASM, .text);
+DEFINE_ASM_FUNC(__raw_callee_save___kvm_vcpu_is_preempted,
+		PV_VCPU_PREEMPTED_ASM, .text);
 #endif
 
 static void __init kvm_guest_init(void)
@@ -942,7 +943,7 @@ static void __init kvm_init_platform(void)
 		 * Reset the host's shared pages list related to kernel
 		 * specific page encryption status settings before we load a
 		 * new kernel by kexec. Reset the page encryption status
-		 * during early boot intead of just before kexec to avoid SMP
+		 * during early boot instead of just before kexec to avoid SMP
 		 * races during kvm_pv_guest_cpu_reboot().
 		 * NOTE: We cannot reset the complete shared pages list
 		 * here as we need to retain the UEFI/OVMF firmware

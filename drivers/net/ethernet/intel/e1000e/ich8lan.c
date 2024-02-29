@@ -1072,13 +1072,11 @@ static s32 e1000_platform_pm_pch_lpt(struct e1000_hw *hw, bool link)
 
 		lat_enc_d = (lat_enc & E1000_LTRV_VALUE_MASK) *
 			     (1U << (E1000_LTRV_SCALE_FACTOR *
-			     ((lat_enc & E1000_LTRV_SCALE_MASK)
-			     >> E1000_LTRV_SCALE_SHIFT)));
+			     FIELD_GET(E1000_LTRV_SCALE_MASK, lat_enc)));
 
 		max_ltr_enc_d = (max_ltr_enc & E1000_LTRV_VALUE_MASK) *
-				 (1U << (E1000_LTRV_SCALE_FACTOR *
-				 ((max_ltr_enc & E1000_LTRV_SCALE_MASK)
-				 >> E1000_LTRV_SCALE_SHIFT)));
+			(1U << (E1000_LTRV_SCALE_FACTOR *
+				FIELD_GET(E1000_LTRV_SCALE_MASK, max_ltr_enc)));
 
 		if (lat_enc_d > max_ltr_enc_d)
 			lat_enc = max_ltr_enc;
@@ -2075,8 +2073,7 @@ static s32 e1000_write_smbus_addr(struct e1000_hw *hw)
 {
 	u16 phy_data;
 	u32 strap = er32(STRAP);
-	u32 freq = (strap & E1000_STRAP_SMT_FREQ_MASK) >>
-	    E1000_STRAP_SMT_FREQ_SHIFT;
+	u32 freq = FIELD_GET(E1000_STRAP_SMT_FREQ_MASK, strap);
 	s32 ret_val;
 
 	strap &= E1000_STRAP_SMBUS_ADDRESS_MASK;
@@ -2562,8 +2559,7 @@ void e1000_copy_rx_addrs_to_phy_ich8lan(struct e1000_hw *hw)
 		hw->phy.ops.write_reg_page(hw, BM_RAR_H(i),
 					   (u16)(mac_reg & 0xFFFF));
 		hw->phy.ops.write_reg_page(hw, BM_RAR_CTRL(i),
-					   (u16)((mac_reg & E1000_RAH_AV)
-						 >> 16));
+					   FIELD_GET(E1000_RAH_AV, mac_reg));
 	}
 
 	e1000_disable_phy_wakeup_reg_access_bm(hw, &phy_reg);
@@ -3205,7 +3201,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 							 &nvm_dword);
 		if (ret_val)
 			return ret_val;
-		sig_byte = (u8)((nvm_dword & 0xFF00) >> 8);
+		sig_byte = FIELD_GET(0xFF00, nvm_dword);
 		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
 		    E1000_ICH_NVM_SIG_VALUE) {
 			*bank = 0;
@@ -3218,7 +3214,7 @@ static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
 							 &nvm_dword);
 		if (ret_val)
 			return ret_val;
-		sig_byte = (u8)((nvm_dword & 0xFF00) >> 8);
+		sig_byte = FIELD_GET(0xFF00, nvm_dword);
 		if ((sig_byte & E1000_ICH_NVM_VALID_SIG_MASK) ==
 		    E1000_ICH_NVM_SIG_VALUE) {
 			*bank = 1;

@@ -248,7 +248,7 @@ void nvmet_ns_changed(struct nvmet_subsys *subsys, u32 nsid)
 		nvmet_add_to_changed_ns_log(ctrl, cpu_to_le32(nsid));
 		if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_NS_ATTR))
 			continue;
-		nvmet_add_async_event(ctrl, NVME_AER_TYPE_NOTICE,
+		nvmet_add_async_event(ctrl, NVME_AER_NOTICE,
 				NVME_AER_NOTICE_NS_CHANGED,
 				NVME_LOG_CHANGED_NS);
 	}
@@ -265,7 +265,7 @@ void nvmet_send_ana_event(struct nvmet_subsys *subsys,
 			continue;
 		if (nvmet_aen_bit_disabled(ctrl, NVME_AEN_BIT_ANA_CHANGE))
 			continue;
-		nvmet_add_async_event(ctrl, NVME_AER_TYPE_NOTICE,
+		nvmet_add_async_event(ctrl, NVME_AER_NOTICE,
 				NVME_AER_NOTICE_ANA, NVME_LOG_ANA);
 	}
 	mutex_unlock(&subsys->lock);
@@ -1425,9 +1425,6 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	if (!ctrl->sqs)
 		goto out_free_changed_ns_list;
 
-	if (subsys->cntlid_min > subsys->cntlid_max)
-		goto out_free_sqs;
-
 	ret = ida_alloc_range(&cntlid_ida,
 			     subsys->cntlid_min, subsys->cntlid_max,
 			     GFP_KERNEL);
@@ -1708,4 +1705,5 @@ static void __exit nvmet_exit(void)
 module_init(nvmet_init);
 module_exit(nvmet_exit);
 
+MODULE_DESCRIPTION("NVMe target core framework");
 MODULE_LICENSE("GPL v2");

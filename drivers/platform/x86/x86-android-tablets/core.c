@@ -21,6 +21,7 @@
 #include <linux/string.h>
 
 #include "x86-android-tablets.h"
+#include "../serdev_helpers.h"
 
 static struct platform_device *x86_android_tablet_device;
 
@@ -113,6 +114,9 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 		if (irq_type != IRQ_TYPE_NONE && irq_type != irq_get_trigger_type(irq))
 			irq_set_irq_type(irq, irq_type);
 
+		if (data->free_gpio)
+			devm_gpiod_put(&x86_android_tablet_device->dev, gpiod);
+
 		return irq;
 	case X86_ACPI_IRQ_TYPE_PMIC:
 		status = acpi_get_handle(NULL, data->chip, &handle);
@@ -141,9 +145,11 @@ int x86_acpi_irq_helper_get(const struct x86_acpi_irq_data *data)
 }
 
 static int i2c_client_count;
+static int spi_dev_count;
 static int pdev_count;
 static int serdev_count;
 static struct i2c_client **i2c_clients;
+static struct spi_device **spi_devs;
 static struct platform_device **pdevs;
 static struct serdev_device **serdevs;
 static struct gpio_keys_button *buttons;
@@ -185,40 +191,62 @@ static __init int x86_instantiate_i2c_client(const struct x86_dev_info *dev_info
 	return 0;
 }
 
+static __init int x86_instantiate_spi_dev(const struct x86_dev_info *dev_info, int idx)
+{
+	const struct x86_spi_dev_info *spi_dev_info = &dev_info->spi_dev_info[idx];
+	struct spi_board_info board_info = spi_dev_info->board_info;
+	struct spi_controller *controller;
+	struct acpi_device *adev;
+	acpi_handle handle;
+	acpi_status status;
+
+	board_info.irq = x86_acpi_irq_helper_get(&spi_dev_info->irq_data);
+	if (board_info.irq < 0)
+		return board_info.irq;
+
+	status = acpi_get_handle(NULL, spi_dev_info->ctrl_path, &handle);
+	if (ACPI_FAILURE(status)) {
+		pr_err("Error could not get %s handle\n", spi_dev_info->ctrl_path);
+		return -ENODEV;
+	}
+
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev) {
+		pr_err("Error could not get adev for %s\n", spi_dev_info->ctrl_path);
+		return -ENODEV;
+	}
+
+	controller = acpi_spi_find_controller_by_adev(adev);
+	if (!controller) {
+		pr_err("Error could not get SPI controller for %s\n", spi_dev_info->ctrl_path);
+		return -ENODEV;
+	}
+
+	spi_devs[idx] = spi_new_device(controller, &board_info);
+	put_device(&controller->dev);
+	if (!spi_devs[idx])
+		return dev_err_probe(&controller->dev, -ENOMEM,
+				     "creating SPI-device %d\n", idx);
+
+	return 0;
+}
+
 static __init int x86_instantiate_serdev(const struct x86_serdev_info *info, int idx)
 {
-	struct acpi_device *ctrl_adev, *serdev_adev;
+	struct acpi_device *serdev_adev;
 	struct serdev_device *serdev;
 	struct device *ctrl_dev;
 	int ret = -ENODEV;
 
-	ctrl_adev = acpi_dev_get_first_match_dev(info->ctrl_hid, info->ctrl_uid, -1);
-	if (!ctrl_adev) {
-		pr_err("error could not get %s/%s ctrl adev\n",
-		       info->ctrl_hid, info->ctrl_uid);
-		return -ENODEV;
-	}
+	ctrl_dev = get_serdev_controller(info->ctrl_hid, info->ctrl_uid, 0,
+					 info->ctrl_devname);
+	if (IS_ERR(ctrl_dev))
+		return PTR_ERR(ctrl_dev);
 
 	serdev_adev = acpi_dev_get_first_match_dev(info->serdev_hid, NULL, -1);
 	if (!serdev_adev) {
 		pr_err("error could not get %s serdev adev\n", info->serdev_hid);
-		goto put_ctrl_adev;
-	}
-
-	/* get_first_physical_node() returns a weak ref, no need to put() it */
-	ctrl_dev = acpi_get_first_physical_node(ctrl_adev);
-	if (!ctrl_dev)	{
-		pr_err("error could not get %s/%s ctrl physical dev\n",
-		       info->ctrl_hid, info->ctrl_uid);
-		goto put_serdev_adev;
-	}
-
-	/* ctrl_dev now points to the controller's parent, get the controller */
-	ctrl_dev = device_find_child_by_name(ctrl_dev, info->ctrl_devname);
-	if (!ctrl_dev) {
-		pr_err("error could not get %s/%s %s ctrl dev\n",
-		       info->ctrl_hid, info->ctrl_uid, info->ctrl_devname);
-		goto put_serdev_adev;
+		goto put_ctrl_dev;
 	}
 
 	serdev = serdev_device_alloc(to_serdev_controller(ctrl_dev));
@@ -241,8 +269,8 @@ static __init int x86_instantiate_serdev(const struct x86_serdev_info *info, int
 
 put_serdev_adev:
 	acpi_dev_put(serdev_adev);
-put_ctrl_adev:
-	acpi_dev_put(ctrl_adev);
+put_ctrl_dev:
+	put_device(ctrl_dev);
 	return ret;
 }
 
@@ -262,6 +290,11 @@ static void x86_android_tablet_remove(struct platform_device *pdev)
 
 	kfree(pdevs);
 	kfree(buttons);
+
+	for (i = 0; i < spi_dev_count; i++)
+		spi_unregister_device(spi_devs[i]);
+
+	kfree(spi_devs);
 
 	for (i = 0; i < i2c_client_count; i++)
 		i2c_unregister_device(i2c_clients[i]);
@@ -327,6 +360,21 @@ static __init int x86_android_tablet_probe(struct platform_device *pdev)
 	i2c_client_count = dev_info->i2c_client_count;
 	for (i = 0; i < i2c_client_count; i++) {
 		ret = x86_instantiate_i2c_client(dev_info, i);
+		if (ret < 0) {
+			x86_android_tablet_remove(pdev);
+			return ret;
+		}
+	}
+
+	spi_devs = kcalloc(dev_info->spi_dev_count, sizeof(*spi_devs), GFP_KERNEL);
+	if (!spi_devs) {
+		x86_android_tablet_remove(pdev);
+		return -ENOMEM;
+	}
+
+	spi_dev_count = dev_info->spi_dev_count;
+	for (i = 0; i < spi_dev_count; i++) {
+		ret = x86_instantiate_spi_dev(dev_info, i);
 		if (ret < 0) {
 			x86_android_tablet_remove(pdev);
 			return ret;

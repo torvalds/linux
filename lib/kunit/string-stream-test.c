@@ -72,7 +72,7 @@ static void string_stream_unmanaged_init_test(struct kunit *test)
 
 	KUNIT_EXPECT_EQ(test, stream->length, 0);
 	KUNIT_EXPECT_TRUE(test, list_empty(&stream->fragments));
-	KUNIT_EXPECT_EQ(test, stream->gfp, GFP_KERNEL);
+	KUNIT_EXPECT_TRUE(test, (stream->gfp == GFP_KERNEL));
 	KUNIT_EXPECT_FALSE(test, stream->append_newlines);
 
 	KUNIT_EXPECT_TRUE(test, string_stream_is_empty(stream));

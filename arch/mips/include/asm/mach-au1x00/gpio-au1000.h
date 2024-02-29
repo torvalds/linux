@@ -435,7 +435,7 @@ static inline void alchemy_gpio2_disable_int(int gpio2)
 /**
  * alchemy_gpio2_enable -  Activate GPIO2 block.
  *
- * The GPIO2 block must be enabled excplicitly to work.	 On systems
+ * The GPIO2 block must be enabled explicitly to work.	 On systems
  * where this isn't done by the bootloader, this macro can be used.
  */
 static inline void alchemy_gpio2_enable(void)

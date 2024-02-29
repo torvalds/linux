@@ -243,6 +243,7 @@ int mlx5_query_mcam_reg(struct mlx5_core_dev *dev, u32 *mcap, u8 feature_group,
 			u8 access_reg_group);
 int mlx5_query_qcam_reg(struct mlx5_core_dev *mdev, u32 *qcam,
 			u8 feature_group, u8 access_reg_group);
+int mlx5_query_mpir_reg(struct mlx5_core_dev *dev, u32 *mpir);
 
 void mlx5_lag_add_netdev(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_remove_netdev(struct mlx5_core_dev *dev, struct net_device *netdev);

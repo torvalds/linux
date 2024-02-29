@@ -178,11 +178,9 @@ static inline void sdio_uart_release_func(struct sdio_uart_port *port)
 		sdio_release_host(port->func);
 }
 
-static inline unsigned int sdio_in(struct sdio_uart_port *port, int offset)
+static inline u8 sdio_in(struct sdio_uart_port *port, int offset)
 {
-	unsigned char c;
-	c = sdio_readb(port->func, port->regs_offset + offset, NULL);
-	return c;
+	return sdio_readb(port->func, port->regs_offset + offset, NULL);
 }
 
 static inline void sdio_out(struct sdio_uart_port *port, int offset, int value)
@@ -192,8 +190,8 @@ static inline void sdio_out(struct sdio_uart_port *port, int offset, int value)
 
 static unsigned int sdio_uart_get_mctrl(struct sdio_uart_port *port)
 {
-	unsigned char status;
 	unsigned int ret;
+	u8 status;
 
 	/* FIXME: What stops this losing the delta bits and breaking
 	   sdio_uart_check_modem_status ? */
@@ -354,15 +352,13 @@ static void sdio_uart_stop_rx(struct sdio_uart_port *port)
 	sdio_out(port, UART_IER, port->ier);
 }
 
-static void sdio_uart_receive_chars(struct sdio_uart_port *port,
-				    unsigned int *status)
+static void sdio_uart_receive_chars(struct sdio_uart_port *port, u8 *status)
 {
-	unsigned int ch, flag;
 	int max_count = 256;
 
 	do {
-		ch = sdio_in(port, UART_RX);
-		flag = TTY_NORMAL;
+		u8 ch = sdio_in(port, UART_RX);
+		u8 flag = TTY_NORMAL;
 		port->icount.rx++;
 
 		if (unlikely(*status & (UART_LSR_BI | UART_LSR_PE |
@@ -449,8 +445,8 @@ static void sdio_uart_transmit_chars(struct sdio_uart_port *port)
 
 static void sdio_uart_check_modem_status(struct sdio_uart_port *port)
 {
-	int status;
 	struct tty_struct *tty;
+	u8 status;
 
 	status = sdio_in(port, UART_MSR);
 
@@ -499,7 +495,7 @@ static void sdio_uart_check_modem_status(struct sdio_uart_port *port)
 static void sdio_uart_irq(struct sdio_func *func)
 {
 	struct sdio_uart_port *port = sdio_get_drvdata(func);
-	unsigned int iir, lsr;
+	u8 iir, lsr;
 
 	/*
 	 * In a few places sdio_uart_irq() is called directly instead of
@@ -795,7 +791,7 @@ static unsigned int sdio_uart_chars_in_buffer(struct tty_struct *tty)
 	return kfifo_len(&port->xmit_fifo);
 }
 
-static void sdio_uart_send_xchar(struct tty_struct *tty, char ch)
+static void sdio_uart_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	struct sdio_uart_port *port = tty->driver_data;
 

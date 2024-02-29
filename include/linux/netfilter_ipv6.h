@@ -51,7 +51,7 @@ struct nf_ipv6_ops {
 	u32 (*cookie_init_sequence)(const struct ipv6hdr *iph,
 				    const struct tcphdr *th, u16 *mssp);
 	int (*cookie_v6_check)(const struct ipv6hdr *iph,
-			       const struct tcphdr *th, __u32 cookie);
+			       const struct tcphdr *th);
 #endif
 	void (*route_input)(struct sk_buff *skb);
 	int (*fragment)(struct net *net, struct sock *sk, struct sk_buff *skb,
@@ -179,16 +179,16 @@ static inline u32 nf_ipv6_cookie_init_sequence(const struct ipv6hdr *iph,
 }
 
 static inline int nf_cookie_v6_check(const struct ipv6hdr *iph,
-				     const struct tcphdr *th, __u32 cookie)
+				     const struct tcphdr *th)
 {
 #if IS_ENABLED(CONFIG_SYN_COOKIES)
 #if IS_MODULE(CONFIG_IPV6)
 	const struct nf_ipv6_ops *v6_ops = nf_get_ipv6_ops();
 
 	if (v6_ops)
-		return v6_ops->cookie_v6_check(iph, th, cookie);
+		return v6_ops->cookie_v6_check(iph, th);
 #elif IS_BUILTIN(CONFIG_IPV6)
-	return __cookie_v6_check(iph, th, cookie);
+	return __cookie_v6_check(iph, th);
 #endif
 #endif
 	return 0;

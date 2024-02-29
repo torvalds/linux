@@ -283,11 +283,13 @@ void tsi721_bdma_handler(struct tsi721_bdma_chan *bdma_chan)
 
 #ifdef CONFIG_PCI_MSI
 /**
- * tsi721_omsg_msix - MSI-X interrupt handler for BDMA channels
+ * tsi721_bdma_msix - MSI-X interrupt handler for BDMA channels
  * @irq: Linux interrupt number
  * @ptr: Pointer to interrupt-specific data (BDMA channel structure)
  *
  * Handles BDMA channel interrupts signaled using MSI-X.
+ *
+ * Returns: %IRQ_HANDLED
  */
 static irqreturn_t tsi721_bdma_msix(int irq, void *ptr)
 {

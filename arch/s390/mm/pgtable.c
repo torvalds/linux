@@ -125,32 +125,23 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 
 static inline pgste_t pgste_get_lock(pte_t *ptep)
 {
-	unsigned long new = 0;
+	unsigned long value = 0;
 #ifdef CONFIG_PGSTE
-	unsigned long old;
+	unsigned long *ptr = (unsigned long *)(ptep + PTRS_PER_PTE);
 
-	asm(
-		"	lg	%0,%2\n"
-		"0:	lgr	%1,%0\n"
-		"	nihh	%0,0xff7f\n"	/* clear PCL bit in old */
-		"	oihh	%1,0x0080\n"	/* set PCL bit in new */
-		"	csg	%0,%1,%2\n"
-		"	jl	0b\n"
-		: "=&d" (old), "=&d" (new), "=Q" (ptep[PTRS_PER_PTE])
-		: "Q" (ptep[PTRS_PER_PTE]) : "cc", "memory");
+	do {
+		value = __atomic64_or_barrier(PGSTE_PCL_BIT, ptr);
+	} while (value & PGSTE_PCL_BIT);
+	value |= PGSTE_PCL_BIT;
 #endif
-	return __pgste(new);
+	return __pgste(value);
 }
 
 static inline void pgste_set_unlock(pte_t *ptep, pgste_t pgste)
 {
 #ifdef CONFIG_PGSTE
-	asm(
-		"	nihh	%1,0xff7f\n"	/* clear PCL bit */
-		"	stg	%1,%0\n"
-		: "=Q" (ptep[PTRS_PER_PTE])
-		: "d" (pgste_val(pgste)), "Q" (ptep[PTRS_PER_PTE])
-		: "cc", "memory");
+	barrier();
+	WRITE_ONCE(*(unsigned long *)(ptep + PTRS_PER_PTE), pgste_val(pgste) & ~PGSTE_PCL_BIT);
 #endif
 }
 

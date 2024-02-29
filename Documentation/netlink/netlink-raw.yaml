@@ -126,8 +126,10 @@ properties:
               name:
                 type: string
               type:
-                description: The netlink attribute type
-                enum: [ u8, u16, u32, u64, s8, s16, s32, s64, string, binary ]
+                description: |
+                  The netlink attribute type. Members of type 'binary' or 'pad'
+                  must also have the 'len' property set.
+                enum: [ u8, u16, u32, u64, s8, s16, s32, s64, string, binary, pad ]
               len:
                 $ref: '#/$defs/len-or-define'
               byte-order:
@@ -150,6 +152,14 @@ properties:
                   the right formatting mechanism when displaying values of this
                   type.
                 enum: [ hex, mac, fddi, ipv4, ipv6, uuid ]
+            if:
+              properties:
+                type:
+                  oneOf:
+                    - const: binary
+                    - const: pad
+            then:
+              required: [ len ]
         # End genetlink-legacy
 
   attribute-sets:
@@ -200,8 +210,10 @@ properties:
                 type: string
               type: &attr-type
                 description: The netlink attribute type
-                enum: [ unused, pad, flag, binary, u8, u16, u32, u64, s32, s64,
-                        string, nest, array-nest, nest-type-value ]
+                enum: [ unused, pad, flag, binary, bitfield32,
+                        u8, u16, u32, u64, s8, s16, s32, s64,
+                        string, nest, array-nest, nest-type-value,
+                        sub-message ]
               doc:
                 description: Documentation of the attribute.
                 type: string
@@ -260,6 +272,17 @@ properties:
                 description: Name of the struct type used for the attribute.
                 type: string
               # End genetlink-legacy
+              # Start netlink-raw
+              sub-message:
+                description: |
+                  Name of the sub-message definition to use for the attribute.
+                type: string
+              selector:
+                description: |
+                  Name of the attribute to use for dynamic selection of sub-message
+                  format specifier.
+                type: string
+              # End netlink-raw
 
       # Make sure name-prefix does not appear in subsets (subsets inherit naming)
       dependencies:
@@ -281,6 +304,43 @@ properties:
           attributes:
             items:
               required: [ type ]
+
+  # Start netlink-raw
+  sub-messages:
+    description: Definition of sub message attributes
+    type: array
+    items:
+      type: object
+      additionalProperties: False
+      required: [ name, formats ]
+      properties:
+        name:
+          description: Name of the sub-message definition
+          type: string
+        formats:
+          description: Dynamically selected format specifiers
+          type: array
+          items:
+            type: object
+            additionalProperties: False
+            required: [ value ]
+            properties:
+              value:
+                description: |
+                  Value to match for dynamic selection of sub-message format
+                  specifier.
+                type: string
+              fixed-header:
+                description: |
+                  Name of the struct definition to use as the fixed header
+                  for the sub message.
+                type: string
+              attribute-set:
+                description: |
+                  Name of the attribute space from which to resolve attributes
+                  in the sub message.
+                type: string
+  # End netlink-raw
 
   operations:
     description: Operations supported by the protocol.

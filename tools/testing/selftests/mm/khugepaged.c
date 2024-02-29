@@ -22,13 +22,14 @@
 #include "linux/magic.h"
 
 #include "vm_util.h"
+#include "thp_settings.h"
 
 #define BASE_ADDR ((void *)(1UL << 30))
 static unsigned long hpage_pmd_size;
 static unsigned long page_size;
 static int hpage_pmd_nr;
+static int anon_order;
 
-#define THP_SYSFS "/sys/kernel/mm/transparent_hugepage/"
 #define PID_SMAPS "/proc/self/smaps"
 #define TEST_FILE "collapse_test_file"
 
@@ -71,78 +72,7 @@ struct file_info {
 };
 
 static struct file_info finfo;
-
-enum thp_enabled {
-	THP_ALWAYS,
-	THP_MADVISE,
-	THP_NEVER,
-};
-
-static const char *thp_enabled_strings[] = {
-	"always",
-	"madvise",
-	"never",
-	NULL
-};
-
-enum thp_defrag {
-	THP_DEFRAG_ALWAYS,
-	THP_DEFRAG_DEFER,
-	THP_DEFRAG_DEFER_MADVISE,
-	THP_DEFRAG_MADVISE,
-	THP_DEFRAG_NEVER,
-};
-
-static const char *thp_defrag_strings[] = {
-	"always",
-	"defer",
-	"defer+madvise",
-	"madvise",
-	"never",
-	NULL
-};
-
-enum shmem_enabled {
-	SHMEM_ALWAYS,
-	SHMEM_WITHIN_SIZE,
-	SHMEM_ADVISE,
-	SHMEM_NEVER,
-	SHMEM_DENY,
-	SHMEM_FORCE,
-};
-
-static const char *shmem_enabled_strings[] = {
-	"always",
-	"within_size",
-	"advise",
-	"never",
-	"deny",
-	"force",
-	NULL
-};
-
-struct khugepaged_settings {
-	bool defrag;
-	unsigned int alloc_sleep_millisecs;
-	unsigned int scan_sleep_millisecs;
-	unsigned int max_ptes_none;
-	unsigned int max_ptes_swap;
-	unsigned int max_ptes_shared;
-	unsigned long pages_to_scan;
-};
-
-struct settings {
-	enum thp_enabled thp_enabled;
-	enum thp_defrag thp_defrag;
-	enum shmem_enabled shmem_enabled;
-	bool use_zero_page;
-	struct khugepaged_settings khugepaged;
-	unsigned long read_ahead_kb;
-};
-
-static struct settings saved_settings;
 static bool skip_settings_restore;
-
 static int exit_status;
 
 static void success(const char *msg)
@@ -161,260 +91,34 @@ static void skip(const char *msg)
 	printf(" \e[33m%s\e[0m\n", msg);
 }
 
-static int read_file(const char *path, char *buf, size_t buflen)
+static void restore_settings_atexit(void)
 {
-	int fd;
-	ssize_t numread;
+	if (skip_settings_restore)
+		return;
 
-	fd = open(path, O_RDONLY);
-	if (fd == -1)
-		return 0;
+	printf("Restore THP and khugepaged settings...");
+	thp_restore_settings();
+	success("OK");
 
-	numread = read(fd, buf, buflen - 1);
-	if (numread < 1) {
-		close(fd);
-		return 0;
-	}
-
-	buf[numread] = '\0';
-	close(fd);
-
-	return (unsigned int) numread;
-}
-
-static int write_file(const char *path, const char *buf, size_t buflen)
-{
-	int fd;
-	ssize_t numwritten;
-
-	fd = open(path, O_WRONLY);
-	if (fd == -1) {
-		printf("open(%s)\n", path);
-		exit(EXIT_FAILURE);
-		return 0;
-	}
-
-	numwritten = write(fd, buf, buflen - 1);
-	close(fd);
-	if (numwritten < 1) {
-		printf("write(%s)\n", buf);
-		exit(EXIT_FAILURE);
-		return 0;
-	}
-
-	return (unsigned int) numwritten;
-}
-
-static int read_string(const char *name, const char *strings[])
-{
-	char path[PATH_MAX];
-	char buf[256];
-	char *c;
-	int ret;
-
-	ret = snprintf(path, PATH_MAX, THP_SYSFS "%s", name);
-	if (ret >= PATH_MAX) {
-		printf("%s: Pathname is too long\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-
-	if (!read_file(path, buf, sizeof(buf))) {
-		perror(path);
-		exit(EXIT_FAILURE);
-	}
-
-	c = strchr(buf, '[');
-	if (!c) {
-		printf("%s: Parse failure\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-
-	c++;
-	memmove(buf, c, sizeof(buf) - (c - buf));
-
-	c = strchr(buf, ']');
-	if (!c) {
-		printf("%s: Parse failure\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-	*c = '\0';
-
-	ret = 0;
-	while (strings[ret]) {
-		if (!strcmp(strings[ret], buf))
-			return ret;
-		ret++;
-	}
-
-	printf("Failed to parse %s\n", name);
-	exit(EXIT_FAILURE);
-}
-
-static void write_string(const char *name, const char *val)
-{
-	char path[PATH_MAX];
-	int ret;
-
-	ret = snprintf(path, PATH_MAX, THP_SYSFS "%s", name);
-	if (ret >= PATH_MAX) {
-		printf("%s: Pathname is too long\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-
-	if (!write_file(path, val, strlen(val) + 1)) {
-		perror(path);
-		exit(EXIT_FAILURE);
-	}
-}
-
-static const unsigned long _read_num(const char *path)
-{
-	char buf[21];
-
-	if (read_file(path, buf, sizeof(buf)) < 0) {
-		perror("read_file(read_num)");
-		exit(EXIT_FAILURE);
-	}
-
-	return strtoul(buf, NULL, 10);
-}
-
-static const unsigned long read_num(const char *name)
-{
-	char path[PATH_MAX];
-	int ret;
-
-	ret = snprintf(path, PATH_MAX, THP_SYSFS "%s", name);
-	if (ret >= PATH_MAX) {
-		printf("%s: Pathname is too long\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-	return _read_num(path);
-}
-
-static void _write_num(const char *path, unsigned long num)
-{
-	char buf[21];
-
-	sprintf(buf, "%ld", num);
-	if (!write_file(path, buf, strlen(buf) + 1)) {
-		perror(path);
-		exit(EXIT_FAILURE);
-	}
-}
-
-static void write_num(const char *name, unsigned long num)
-{
-	char path[PATH_MAX];
-	int ret;
-
-	ret = snprintf(path, PATH_MAX, THP_SYSFS "%s", name);
-	if (ret >= PATH_MAX) {
-		printf("%s: Pathname is too long\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-	_write_num(path, num);
-}
-
-static void write_settings(struct settings *settings)
-{
-	struct khugepaged_settings *khugepaged = &settings->khugepaged;
-
-	write_string("enabled", thp_enabled_strings[settings->thp_enabled]);
-	write_string("defrag", thp_defrag_strings[settings->thp_defrag]);
-	write_string("shmem_enabled",
-			shmem_enabled_strings[settings->shmem_enabled]);
-	write_num("use_zero_page", settings->use_zero_page);
-
-	write_num("khugepaged/defrag", khugepaged->defrag);
-	write_num("khugepaged/alloc_sleep_millisecs",
-			khugepaged->alloc_sleep_millisecs);
-	write_num("khugepaged/scan_sleep_millisecs",
-			khugepaged->scan_sleep_millisecs);
-	write_num("khugepaged/max_ptes_none", khugepaged->max_ptes_none);
-	write_num("khugepaged/max_ptes_swap", khugepaged->max_ptes_swap);
-	write_num("khugepaged/max_ptes_shared", khugepaged->max_ptes_shared);
-	write_num("khugepaged/pages_to_scan", khugepaged->pages_to_scan);
-
-	if (file_ops && finfo.type == VMA_FILE)
-		_write_num(finfo.dev_queue_read_ahead_path,
-			   settings->read_ahead_kb);
-}
-
-#define MAX_SETTINGS_DEPTH 4
-static struct settings settings_stack[MAX_SETTINGS_DEPTH];
-static int settings_index;
-
-static struct settings *current_settings(void)
-{
-	if (!settings_index) {
-		printf("Fail: No settings set");
-		exit(EXIT_FAILURE);
-	}
-	return settings_stack + settings_index - 1;
-}
-
-static void push_settings(struct settings *settings)
-{
-	if (settings_index >= MAX_SETTINGS_DEPTH) {
-		printf("Fail: Settings stack exceeded");
-		exit(EXIT_FAILURE);
-	}
-	settings_stack[settings_index++] = *settings;
-	write_settings(current_settings());
-}
-
-static void pop_settings(void)
-{
-	if (settings_index <= 0) {
-		printf("Fail: Settings stack empty");
-		exit(EXIT_FAILURE);
-	}
-	--settings_index;
-	write_settings(current_settings());
+	skip_settings_restore = true;
 }
 
 static void restore_settings(int sig)
 {
-	if (skip_settings_restore)
-		goto out;
-
-	printf("Restore THP and khugepaged settings...");
-	write_settings(&saved_settings);
-	success("OK");
-	if (sig)
-		exit(EXIT_FAILURE);
-out:
-	exit(exit_status);
+	/* exit() will invoke the restore_settings_atexit handler. */
+	exit(sig ? EXIT_FAILURE : exit_status);
 }
 
 static void save_settings(void)
 {
 	printf("Save THP and khugepaged settings...");
-	saved_settings = (struct settings) {
-		.thp_enabled = read_string("enabled", thp_enabled_strings),
-		.thp_defrag = read_string("defrag", thp_defrag_strings),
-		.shmem_enabled =
-			read_string("shmem_enabled", shmem_enabled_strings),
-		.use_zero_page = read_num("use_zero_page"),
-	};
-	saved_settings.khugepaged = (struct khugepaged_settings) {
-		.defrag = read_num("khugepaged/defrag"),
-		.alloc_sleep_millisecs =
-			read_num("khugepaged/alloc_sleep_millisecs"),
-		.scan_sleep_millisecs =
-			read_num("khugepaged/scan_sleep_millisecs"),
-		.max_ptes_none = read_num("khugepaged/max_ptes_none"),
-		.max_ptes_swap = read_num("khugepaged/max_ptes_swap"),
-		.max_ptes_shared = read_num("khugepaged/max_ptes_shared"),
-		.pages_to_scan = read_num("khugepaged/pages_to_scan"),
-	};
 	if (file_ops && finfo.type == VMA_FILE)
-		saved_settings.read_ahead_kb =
-				_read_num(finfo.dev_queue_read_ahead_path);
+		thp_set_read_ahead_path(finfo.dev_queue_read_ahead_path);
+	thp_save_settings();
 
 	success("OK");
 
+	atexit(restore_settings_atexit);
 	signal(SIGTERM, restore_settings);
 	signal(SIGINT, restore_settings);
 	signal(SIGHUP, restore_settings);
@@ -793,7 +497,7 @@ static void __madvise_collapse(const char *msg, char *p, int nr_hpages,
 			       struct mem_ops *ops, bool expect)
 {
 	int ret;
-	struct settings settings = *current_settings();
+	struct thp_settings settings = *thp_current_settings();
 
 	printf("%s...", msg);
 
@@ -803,7 +507,7 @@ static void __madvise_collapse(const char *msg, char *p, int nr_hpages,
 	 */
 	settings.thp_enabled = THP_NEVER;
 	settings.shmem_enabled = SHMEM_NEVER;
-	push_settings(&settings);
+	thp_push_settings(&settings);
 
 	/* Clear VM_NOHUGEPAGE */
 	madvise(p, nr_hpages * hpage_pmd_size, MADV_HUGEPAGE);
@@ -815,7 +519,7 @@ static void __madvise_collapse(const char *msg, char *p, int nr_hpages,
 	else
 		success("OK");
 
-	pop_settings();
+	thp_pop_settings();
 }
 
 static void madvise_collapse(const char *msg, char *p, int nr_hpages,
@@ -845,13 +549,13 @@ static bool wait_for_scan(const char *msg, char *p, int nr_hpages,
 	madvise(p, nr_hpages * hpage_pmd_size, MADV_HUGEPAGE);
 
 	/* Wait until the second full_scan completed */
-	full_scans = read_num("khugepaged/full_scans") + 2;
+	full_scans = thp_read_num("khugepaged/full_scans") + 2;
 
 	printf("%s...", msg);
 	while (timeout--) {
 		if (ops->check_huge(p, nr_hpages))
 			break;
-		if (read_num("khugepaged/full_scans") >= full_scans)
+		if (thp_read_num("khugepaged/full_scans") >= full_scans)
 			break;
 		printf(".");
 		usleep(TICK);
@@ -904,13 +608,18 @@ static bool is_tmpfs(struct mem_ops *ops)
 	return ops == &__file_ops && finfo.type == VMA_SHMEM;
 }
 
+static bool is_anon(struct mem_ops *ops)
+{
+	return ops == &__anon_ops;
+}
+
 static void alloc_at_fault(void)
 {
-	struct settings settings = *current_settings();
+	struct thp_settings settings = *thp_current_settings();
 	char *p;
 
 	settings.thp_enabled = THP_ALWAYS;
-	push_settings(&settings);
+	thp_push_settings(&settings);
 
 	p = alloc_mapping(1);
 	*p = 1;
@@ -920,7 +629,7 @@ static void alloc_at_fault(void)
 	else
 		fail("Fail");
 
-	pop_settings();
+	thp_pop_settings();
 
 	madvise(p, page_size, MADV_DONTNEED);
 	printf("Split huge PMD on MADV_DONTNEED...");
@@ -968,11 +677,12 @@ static void collapse_single_pte_entry(struct collapse_context *c, struct mem_ops
 static void collapse_max_ptes_none(struct collapse_context *c, struct mem_ops *ops)
 {
 	int max_ptes_none = hpage_pmd_nr / 2;
-	struct settings settings = *current_settings();
+	struct thp_settings settings = *thp_current_settings();
 	void *p;
+	int fault_nr_pages = is_anon(ops) ? 1 << anon_order : 1;
 
 	settings.khugepaged.max_ptes_none = max_ptes_none;
-	push_settings(&settings);
+	thp_push_settings(&settings);
 
 	p = ops->setup_area(1);
 
@@ -983,10 +693,10 @@ static void collapse_max_ptes_none(struct collapse_context *c, struct mem_ops *o
 		goto skip;
 	}
 
-	ops->fault(p, 0, (hpage_pmd_nr - max_ptes_none - 1) * page_size);
+	ops->fault(p, 0, (hpage_pmd_nr - max_ptes_none - fault_nr_pages) * page_size);
 	c->collapse("Maybe collapse with max_ptes_none exceeded", p, 1,
 		    ops, !c->enforce_pte_scan_limits);
-	validate_memory(p, 0, (hpage_pmd_nr - max_ptes_none - 1) * page_size);
+	validate_memory(p, 0, (hpage_pmd_nr - max_ptes_none - fault_nr_pages) * page_size);
 
 	if (c->enforce_pte_scan_limits) {
 		ops->fault(p, 0, (hpage_pmd_nr - max_ptes_none) * page_size);
@@ -997,7 +707,7 @@ static void collapse_max_ptes_none(struct collapse_context *c, struct mem_ops *o
 	}
 skip:
 	ops->cleanup_area(p, hpage_pmd_size);
-	pop_settings();
+	thp_pop_settings();
 }
 
 static void collapse_swapin_single_pte(struct collapse_context *c, struct mem_ops *ops)
@@ -1028,7 +738,7 @@ out:
 
 static void collapse_max_ptes_swap(struct collapse_context *c, struct mem_ops *ops)
 {
-	int max_ptes_swap = read_num("khugepaged/max_ptes_swap");
+	int max_ptes_swap = thp_read_num("khugepaged/max_ptes_swap");
 	void *p;
 
 	p = ops->setup_area(1);
@@ -1245,11 +955,11 @@ static void collapse_fork_compound(struct collapse_context *c, struct mem_ops *o
 			fail("Fail");
 		ops->fault(p, 0, page_size);
 
-		write_num("khugepaged/max_ptes_shared", hpage_pmd_nr - 1);
+		thp_write_num("khugepaged/max_ptes_shared", hpage_pmd_nr - 1);
 		c->collapse("Collapse PTE table full of compound pages in child",
 			    p, 1, ops, true);
-		write_num("khugepaged/max_ptes_shared",
-			  current_settings()->khugepaged.max_ptes_shared);
+		thp_write_num("khugepaged/max_ptes_shared",
+			  thp_current_settings()->khugepaged.max_ptes_shared);
 
 		validate_memory(p, 0, hpage_pmd_size);
 		ops->cleanup_area(p, hpage_pmd_size);
@@ -1270,7 +980,7 @@ static void collapse_fork_compound(struct collapse_context *c, struct mem_ops *o
 
 static void collapse_max_ptes_shared(struct collapse_context *c, struct mem_ops *ops)
 {
-	int max_ptes_shared = read_num("khugepaged/max_ptes_shared");
+	int max_ptes_shared = thp_read_num("khugepaged/max_ptes_shared");
 	int wstatus;
 	void *p;
 
@@ -1373,7 +1083,7 @@ static void madvise_retracted_page_tables(struct collapse_context *c,
 
 static void usage(void)
 {
-	fprintf(stderr, "\nUsage: ./khugepaged <test type> [dir]\n\n");
+	fprintf(stderr, "\nUsage: ./khugepaged [OPTIONS] <test type> [dir]\n\n");
 	fprintf(stderr, "\t<test type>\t: <context>:<mem_type>\n");
 	fprintf(stderr, "\t<context>\t: [all|khugepaged|madvise]\n");
 	fprintf(stderr, "\t<mem_type>\t: [all|anon|file|shmem]\n");
@@ -1382,15 +1092,34 @@ static void usage(void)
 	fprintf(stderr,	"\tCONFIG_READ_ONLY_THP_FOR_FS=y\n");
 	fprintf(stderr, "\n\tif [dir] is a (sub)directory of a tmpfs mount, tmpfs must be\n");
 	fprintf(stderr,	"\tmounted with huge=madvise option for khugepaged tests to work\n");
+	fprintf(stderr,	"\n\tSupported Options:\n");
+	fprintf(stderr,	"\t\t-h: This help message.\n");
+	fprintf(stderr,	"\t\t-s: mTHP size, expressed as page order.\n");
+	fprintf(stderr,	"\t\t    Defaults to 0. Use this size for anon allocations.\n");
 	exit(1);
 }
 
-static void parse_test_type(int argc, const char **argv)
+static void parse_test_type(int argc, char **argv)
 {
+	int opt;
 	char *buf;
 	const char *token;
 
-	if (argc == 1) {
+	while ((opt = getopt(argc, argv, "s:h")) != -1) {
+		switch (opt) {
+		case 's':
+			anon_order = atoi(optarg);
+			break;
+		case 'h':
+		default:
+			usage();
+		}
+	}
+
+	argv += optind;
+	argc -= optind;
+
+	if (argc == 0) {
 		/* Backwards compatibility */
 		khugepaged_context =  &__khugepaged_context;
 		madvise_context =  &__madvise_context;
@@ -1398,7 +1127,7 @@ static void parse_test_type(int argc, const char **argv)
 		return;
 	}
 
-	buf = strdup(argv[1]);
+	buf = strdup(argv[0]);
 	token = strsep(&buf, ":");
 
 	if (!strcmp(token, "all")) {
@@ -1432,13 +1161,16 @@ static void parse_test_type(int argc, const char **argv)
 	if (!file_ops)
 		return;
 
-	if (argc != 3)
+	if (argc != 2)
 		usage();
+
+	get_finfo(argv[1]);
 }
 
-int main(int argc, const char **argv)
+int main(int argc, char **argv)
 {
-	struct settings default_settings = {
+	int hpage_pmd_order;
+	struct thp_settings default_settings = {
 		.thp_enabled = THP_MADVISE,
 		.thp_defrag = THP_DEFRAG_ALWAYS,
 		.shmem_enabled = SHMEM_ADVISE,
@@ -1460,9 +1192,6 @@ int main(int argc, const char **argv)
 
 	parse_test_type(argc, argv);
 
-	if (file_ops)
-		get_finfo(argv[2]);
-
 	setbuf(stdout, NULL);
 
 	page_size = getpagesize();
@@ -1472,14 +1201,17 @@ int main(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 	hpage_pmd_nr = hpage_pmd_size / page_size;
+	hpage_pmd_order = __builtin_ctz(hpage_pmd_nr);
 
 	default_settings.khugepaged.max_ptes_none = hpage_pmd_nr - 1;
 	default_settings.khugepaged.max_ptes_swap = hpage_pmd_nr / 8;
 	default_settings.khugepaged.max_ptes_shared = hpage_pmd_nr / 2;
 	default_settings.khugepaged.pages_to_scan = hpage_pmd_nr * 8;
+	default_settings.hugepages[hpage_pmd_order].enabled = THP_INHERIT;
+	default_settings.hugepages[anon_order].enabled = THP_ALWAYS;
 
 	save_settings();
-	push_settings(&default_settings);
+	thp_push_settings(&default_settings);
 
 	alloc_at_fault();
 

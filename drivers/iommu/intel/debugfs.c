@@ -106,9 +106,6 @@ static const struct iommu_regset iommu_regs_64[] = {
 	IOMMU_REGSET_ENTRY(MTRR_PHYSMASK8),
 	IOMMU_REGSET_ENTRY(MTRR_PHYSBASE9),
 	IOMMU_REGSET_ENTRY(MTRR_PHYSMASK9),
-	IOMMU_REGSET_ENTRY(VCCAP),
-	IOMMU_REGSET_ENTRY(VCMD),
-	IOMMU_REGSET_ENTRY(VCRSP),
 };
 
 static struct dentry *intel_iommu_debug;

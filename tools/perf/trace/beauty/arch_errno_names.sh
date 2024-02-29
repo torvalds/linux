@@ -57,13 +57,13 @@ create_arch_errno_table_func()
 	archlist="$1"
 	default="$2"
 
-	printf 'const char *arch_syscalls__strerrno(const char *arch, int err)\n'
+	printf 'arch_syscalls__strerrno_t *arch_syscalls__strerrno_function(const char *arch)\n'
 	printf '{\n'
 	for arch in $archlist; do
 		printf '\tif (!strcmp(arch, "%s"))\n' $(arch_string "$arch")
-		printf '\t\treturn errno_to_name__%s(err);\n' $(arch_string "$arch")
+		printf '\t\treturn errno_to_name__%s;\n' $(arch_string "$arch")
 	done
-	printf '\treturn errno_to_name__%s(err);\n' $(arch_string "$default")
+	printf '\treturn errno_to_name__%s;\n' $(arch_string "$default")
 	printf '}\n'
 }
 
@@ -76,7 +76,9 @@ EoHEADER
 
 # Create list of architectures that have a specific errno.h.
 archlist=""
-for arch in $(find $toolsdir/arch -maxdepth 1 -mindepth 1 -type d -printf "%f\n" | sort -r); do
+for f in $toolsdir/arch/*/include/uapi/asm/errno.h; do
+	d=${f%/include/uapi/asm/errno.h}
+	arch="${d##*/}"
 	test -f $toolsdir/arch/$arch/include/uapi/asm/errno.h && archlist="$archlist $arch"
 done
 

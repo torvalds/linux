@@ -52,7 +52,7 @@
 
 &uart2 {
 	/delete-property/dma-names;
-	bluetooth {
+	bluetooth-gnss {
 		compatible = "ti,wl1283-st";
 		enable-gpios = <&gpio6 2 GPIO_ACTIVE_HIGH>; /* gpio 162 */
 		max-speed = <3000000>;

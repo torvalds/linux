@@ -269,7 +269,7 @@ mt7915_mcu_rx_thermal_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 	    dev->mt76.phys[MT_BAND1])
 		mphy = dev->mt76.phys[MT_BAND1];
 
-	phy = (struct mt7915_phy *)mphy->priv;
+	phy = mphy->priv;
 	phy->throttle_state = t->ctrl.duty.duty_cycle;
 }
 

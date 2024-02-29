@@ -171,7 +171,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	/* init tx queue */
 	ret = mt76_connac_init_tx_queues(dev->phy.mt76, MT7921_TXQ_BAND0,
 					 MT7921_TX_RING_SIZE,
-					 MT_TX_RING_BASE, 0);
+					 MT_TX_RING_BASE, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -200,7 +200,7 @@ static int mt7921_dma_init(struct mt792x_dev *dev)
 	/* Change mcu queue after firmware download */
 	ret = mt76_queue_alloc(dev, &dev->mt76.q_rx[MT_RXQ_MCU_WA],
 			       MT7921_RXQ_MCU_WM,
-			       MT7921_RX_MCU_RING_SIZE,
+			       MT7921_RX_MCU_WA_RING_SIZE,
 			       MT_RX_BUF_SIZE, MT_WFDMA0(0x540));
 	if (ret)
 		return ret;
@@ -507,6 +507,9 @@ static int mt7921_pci_resume(struct device *device)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
 	err = mt76_connac_mcu_set_hif_suspend(mdev, false);
+
+	mt7921_regd_update(dev);
+
 failed:
 	pm->suspended = false;
 
@@ -541,4 +544,5 @@ MODULE_FIRMWARE(MT7922_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7922_ROM_PATCH);
 MODULE_AUTHOR("Sean Wang <sean.wang@mediatek.com>");
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
+MODULE_DESCRIPTION("MediaTek MT7921E (PCIe) wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");

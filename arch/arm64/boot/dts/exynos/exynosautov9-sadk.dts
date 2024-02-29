@@ -9,6 +9,7 @@
 /dts-v1/;
 #include "exynosautov9.dtsi"
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
 
 / {
 	model = "Samsung ExynosAuto v9 SADK board";
@@ -32,6 +33,31 @@
 		      <0xa 0x00000000 0x2 0x00000000>;
 	};
 
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-names = "default";
+		pinctrl-0 = <&key_wakeup &key_volup &key_voldown>;
+
+		key-wakeup {
+			label = "Wakeup";
+			linux,code = <KEY_WAKEUP>;
+			gpios = <&gpa0 0 GPIO_ACTIVE_LOW>;
+			wakeup-source;
+		};
+
+		key-volume-down {
+			label = "Volume Down";
+			linux,code = <KEY_VOLUMEDOWN>;
+			gpios = <&gpg2 0 GPIO_ACTIVE_LOW>;
+		};
+
+		key-volume-up {
+			label = "Volume Up";
+			linux,code = <KEY_VOLUMEUP>;
+			gpios = <&gpg1 5 GPIO_ACTIVE_LOW>;
+		};
+	};
+
 	ufs_0_fixed_vcc_reg: regulator-0 {
 		compatible = "regulator-fixed";
 		regulator-name = "ufs-vcc";
@@ -46,6 +72,31 @@
 		gpio = <&gpg2 2 GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
 		enable-active-high;
+	};
+};
+
+&pinctrl_alive {
+	key_wakeup: key-wakeup-pins {
+		samsung,pins = "gpa0-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+};
+
+&pinctrl_peric1 {
+	key_voldown: key-voldown-pins {
+		samsung,pins = "gpg2-0";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
+	};
+
+	key_volup: key-volup-pins {
+		samsung,pins = "gpg1-5";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_EINT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 };
 

@@ -128,6 +128,7 @@
 	EM(rxrpc_skb_eaten_by_unshare_nomem,	"ETN unshar-nm") \
 	EM(rxrpc_skb_get_conn_secured,		"GET conn-secd") \
 	EM(rxrpc_skb_get_conn_work,		"GET conn-work") \
+	EM(rxrpc_skb_get_last_nack,		"GET last-nack") \
 	EM(rxrpc_skb_get_local_work,		"GET locl-work") \
 	EM(rxrpc_skb_get_reject_work,		"GET rej-work ") \
 	EM(rxrpc_skb_get_to_recvmsg,		"GET to-recv  ") \
@@ -141,6 +142,7 @@
 	EM(rxrpc_skb_put_error_report,		"PUT error-rep") \
 	EM(rxrpc_skb_put_input,			"PUT input    ") \
 	EM(rxrpc_skb_put_jumbo_subpacket,	"PUT jumbo-sub") \
+	EM(rxrpc_skb_put_last_nack,		"PUT last-nack") \
 	EM(rxrpc_skb_put_purge,			"PUT purge    ") \
 	EM(rxrpc_skb_put_rotate,		"PUT rotate   ") \
 	EM(rxrpc_skb_put_unknown,		"PUT unknown  ") \
@@ -178,7 +180,9 @@
 #define rxrpc_peer_traces \
 	EM(rxrpc_peer_free,			"FREE        ") \
 	EM(rxrpc_peer_get_accept,		"GET accept  ") \
+	EM(rxrpc_peer_get_application,		"GET app     ") \
 	EM(rxrpc_peer_get_bundle,		"GET bundle  ") \
+	EM(rxrpc_peer_get_call,			"GET call    ") \
 	EM(rxrpc_peer_get_client_conn,		"GET cln-conn") \
 	EM(rxrpc_peer_get_input,		"GET input   ") \
 	EM(rxrpc_peer_get_input_error,		"GET inpt-err") \
@@ -187,6 +191,7 @@
 	EM(rxrpc_peer_get_service_conn,		"GET srv-conn") \
 	EM(rxrpc_peer_new_client,		"NEW client  ") \
 	EM(rxrpc_peer_new_prealloc,		"NEW prealloc") \
+	EM(rxrpc_peer_put_application,		"PUT app     ") \
 	EM(rxrpc_peer_put_bundle,		"PUT bundle  ") \
 	EM(rxrpc_peer_put_call,			"PUT call    ") \
 	EM(rxrpc_peer_put_conn,			"PUT conn    ") \
@@ -1549,7 +1554,7 @@ TRACE_EVENT(rxrpc_congest,
 		    memcpy(&__entry->sum, summary, sizeof(__entry->sum));
 			   ),
 
-	    TP_printk("c=%08x r=%08x %s q=%08x %s cw=%u ss=%u nA=%u,%u+%u r=%u b=%u u=%u d=%u l=%x%s%s%s",
+	    TP_printk("c=%08x r=%08x %s q=%08x %s cw=%u ss=%u nA=%u,%u+%u,%u b=%u u=%u d=%u l=%x%s%s%s",
 		      __entry->call,
 		      __entry->ack_serial,
 		      __print_symbolic(__entry->sum.ack_reason, rxrpc_ack_names),
@@ -1557,9 +1562,9 @@ TRACE_EVENT(rxrpc_congest,
 		      __print_symbolic(__entry->sum.mode, rxrpc_congest_modes),
 		      __entry->sum.cwnd,
 		      __entry->sum.ssthresh,
-		      __entry->sum.nr_acks, __entry->sum.saw_nacks,
+		      __entry->sum.nr_acks, __entry->sum.nr_retained_nacks,
 		      __entry->sum.nr_new_acks,
-		      __entry->sum.nr_rot_new_acks,
+		      __entry->sum.nr_new_nacks,
 		      __entry->top - __entry->hard_ack,
 		      __entry->sum.cumulative_acks,
 		      __entry->sum.dup_acks,

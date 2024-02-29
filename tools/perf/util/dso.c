@@ -31,6 +31,7 @@
 #include "debug.h"
 #include "string2.h"
 #include "vdso.h"
+#include "annotate-data.h"
 
 static const char * const debuglink_paths[] = {
 	"%.0s%s",
@@ -1327,6 +1328,7 @@ struct dso *dso__new_id(const char *name, struct dso_id *id)
 		dso->data.cache = RB_ROOT;
 		dso->inlined_nodes = RB_ROOT_CACHED;
 		dso->srclines = RB_ROOT_CACHED;
+		dso->data_types = RB_ROOT;
 		dso->data.fd = -1;
 		dso->data.status = DSO_DATA_STATUS_UNKNOWN;
 		dso->symtab_type = DSO_BINARY_TYPE__NOT_FOUND;
@@ -1370,6 +1372,8 @@ void dso__delete(struct dso *dso)
 	symbols__delete(&dso->symbols);
 	dso->symbol_names_len = 0;
 	zfree(&dso->symbol_names);
+	annotated_data_type__tree_delete(&dso->data_types);
+
 	if (dso->short_name_allocated) {
 		zfree((char **)&dso->short_name);
 		dso->short_name_allocated = false;

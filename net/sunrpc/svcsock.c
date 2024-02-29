@@ -717,12 +717,12 @@ static int svc_udp_sendto(struct svc_rqst *rqstp)
 				ARRAY_SIZE(rqstp->rq_bvec), xdr);
 
 	iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, rqstp->rq_bvec,
-		      count, 0);
+		      count, rqstp->rq_res.len);
 	err = sock_sendmsg(svsk->sk_sock, &msg);
 	if (err == -ECONNREFUSED) {
 		/* ICMP error on earlier request. */
 		iov_iter_bvec(&msg.msg_iter, ITER_SOURCE, rqstp->rq_bvec,
-			      count, 0);
+			      count, rqstp->rq_res.len);
 		err = sock_sendmsg(svsk->sk_sock, &msg);
 	}
 
@@ -1049,18 +1049,14 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	struct rpc_rqst *req = NULL;
 	struct kvec *src, *dst;
 	__be32 *p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
-	__be32 xid;
-	__be32 calldir;
-
-	xid = *p++;
-	calldir = *p;
+	__be32 xid = *p;
 
 	if (!bc_xprt)
 		return -EAGAIN;
 	spin_lock(&bc_xprt->queue_lock);
 	req = xprt_lookup_rqst(bc_xprt, xid);
 	if (!req)
-		goto unlock_notfound;
+		goto unlock_eagain;
 
 	memcpy(&req->rq_private_buf, &req->rq_rcv_buf, sizeof(struct xdr_buf));
 	/*
@@ -1077,12 +1073,6 @@ static int receive_cb_reply(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	rqstp->rq_arg.len = 0;
 	spin_unlock(&bc_xprt->queue_lock);
 	return 0;
-unlock_notfound:
-	printk(KERN_NOTICE
-		"%s: Got unrecognized reply: "
-		"calldir 0x%x xpt_bc_xprt %p xid %08x\n",
-		__func__, ntohl(calldir),
-		bc_xprt, ntohl(xid));
 unlock_eagain:
 	spin_unlock(&bc_xprt->queue_lock);
 	return -EAGAIN;

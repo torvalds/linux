@@ -143,3 +143,4 @@ static struct kunit_suite mptcp_token_suite = {
 kunit_test_suite(mptcp_token_suite);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("KUnit tests for MPTCP Token");

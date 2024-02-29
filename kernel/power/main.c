@@ -60,22 +60,6 @@ EXPORT_SYMBOL_GPL(lock_system_sleep);
 
 void unlock_system_sleep(unsigned int flags)
 {
-	/*
-	 * Don't use freezer_count() because we don't want the call to
-	 * try_to_freeze() here.
-	 *
-	 * Reason:
-	 * Fundamentally, we just don't need it, because freezing condition
-	 * doesn't come into effect until we release the
-	 * system_transition_mutex lock, since the freezer always works with
-	 * system_transition_mutex held.
-	 *
-	 * More importantly, in the case of hibernation,
-	 * unlock_system_sleep() gets called in snapshot_read() and
-	 * snapshot_write() when the freezing condition is still in effect.
-	 * Which means, if we use try_to_freeze() here, it would make them
-	 * enter the refrigerator, thus causing hibernation to lockup.
-	 */
 	if (!(flags & PF_NOFREEZE))
 		current->flags &= ~PF_NOFREEZE;
 	mutex_unlock(&system_transition_mutex);

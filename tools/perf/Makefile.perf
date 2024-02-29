@@ -134,6 +134,8 @@ include ../scripts/utilities.mak
 #	x86 instruction decoder - new instructions test
 #
 # Define GEN_VMLINUX_H to generate vmlinux.h from the BTF.
+#
+# Define NO_SHELLCHECK if you do not want to run shellcheck during build
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
@@ -227,8 +229,25 @@ else
   force_fixdep := $(config)
 endif
 
+# Runs shellcheck on perf test shell scripts
+ifeq ($(NO_SHELLCHECK),1)
+  SHELLCHECK :=
+else
+  SHELLCHECK := $(shell which shellcheck 2> /dev/null)
+endif
+
+# shellcheck is using in tools/perf/tests/Build with option -a/--check-sourced (
+# introduced in v0.4.7) and -S/--severity (introduced in v0.6.0). So make the
+# minimal shellcheck version as v0.6.0.
+ifneq ($(SHELLCHECK),)
+  ifeq ($(shell expr $(shell $(SHELLCHECK) --version | grep version: | \
+        sed -e 's/.\+ \([0-9]\+\).\([0-9]\+\).\([0-9]\+\)/\1\2\3/g') \< 060), 1)
+    SHELLCHECK :=
+  endif
+endif
+
 export srctree OUTPUT RM CC CXX LD AR CFLAGS CXXFLAGS V BISON FLEX AWK
-export HOSTCC HOSTLD HOSTAR HOSTCFLAGS
+export HOSTCC HOSTLD HOSTAR HOSTCFLAGS SHELLCHECK
 
 include $(srctree)/tools/build/Makefile.include
 
@@ -1152,7 +1171,7 @@ bpf-skel-clean:
 
 clean:: $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clean $(LIBSYMBOL)-clean $(LIBPERF)-clean arm64-sysreg-defs-clean fixdep-clean python-clean bpf-skel-clean tests-coresight-targets-clean
 	$(call QUIET_CLEAN, core-objs)  $(RM) $(LIBPERF_A) $(OUTPUT)perf-archive $(OUTPUT)perf-iostat $(LANG_BINDINGS)
-	$(Q)find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
+	$(Q)find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete -o -name '*.shellcheck_log' -delete
 	$(Q)$(RM) $(OUTPUT).config-detected
 	$(call QUIET_CLEAN, core-progs) $(RM) $(ALL_PROGRAMS) perf perf-read-vdso32 perf-read-vdsox32 $(OUTPUT)$(LIBJVMTI).so
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \

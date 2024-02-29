@@ -426,17 +426,6 @@ static void pcie_aspm_check_latency(struct pci_dev *endpoint)
 	}
 }
 
-static void pci_clear_and_set_dword(struct pci_dev *pdev, int pos,
-				    u32 clear, u32 set)
-{
-	u32 val;
-
-	pci_read_config_dword(pdev, pos, &val);
-	val &= ~clear;
-	val |= set;
-	pci_write_config_dword(pdev, pos, val);
-}
-
 /* Calculate L1.2 PM substate timing parameters */
 static void aspm_calc_l12_info(struct pcie_link_state *link,
 				u32 parent_l1ss_cap, u32 child_l1ss_cap)
@@ -501,10 +490,12 @@ static void aspm_calc_l12_info(struct pcie_link_state *link,
 	cl1_2_enables = cctl1 & PCI_L1SS_CTL1_L1_2_MASK;
 
 	if (pl1_2_enables || cl1_2_enables) {
-		pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
-					PCI_L1SS_CTL1_L1_2_MASK, 0);
-		pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
-					PCI_L1SS_CTL1_L1_2_MASK, 0);
+		pci_clear_and_set_config_dword(child,
+					       child->l1ss + PCI_L1SS_CTL1,
+					       PCI_L1SS_CTL1_L1_2_MASK, 0);
+		pci_clear_and_set_config_dword(parent,
+					       parent->l1ss + PCI_L1SS_CTL1,
+					       PCI_L1SS_CTL1_L1_2_MASK, 0);
 	}
 
 	/* Program T_POWER_ON times in both ports */
@@ -512,22 +503,26 @@ static void aspm_calc_l12_info(struct pcie_link_state *link,
 	pci_write_config_dword(child, child->l1ss + PCI_L1SS_CTL2, ctl2);
 
 	/* Program Common_Mode_Restore_Time in upstream device */
-	pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_CM_RESTORE_TIME, ctl1);
+	pci_clear_and_set_config_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_CM_RESTORE_TIME, ctl1);
 
 	/* Program LTR_L1.2_THRESHOLD time in both ports */
-	pci_clear_and_set_dword(parent,	parent->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
-				PCI_L1SS_CTL1_LTR_L12_TH_SCALE, ctl1);
-	pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
-				PCI_L1SS_CTL1_LTR_L12_TH_SCALE, ctl1);
+	pci_clear_and_set_config_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
+				       PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
+				       ctl1);
+	pci_clear_and_set_config_dword(child, child->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_LTR_L12_TH_VALUE |
+				       PCI_L1SS_CTL1_LTR_L12_TH_SCALE,
+				       ctl1);
 
 	if (pl1_2_enables || cl1_2_enables) {
-		pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1, 0,
-					pl1_2_enables);
-		pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1, 0,
-					cl1_2_enables);
+		pci_clear_and_set_config_dword(parent,
+					       parent->l1ss + PCI_L1SS_CTL1, 0,
+					       pl1_2_enables);
+		pci_clear_and_set_config_dword(child,
+					       child->l1ss + PCI_L1SS_CTL1, 0,
+					       cl1_2_enables);
 	}
 }
 
@@ -687,10 +682,10 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 	 */
 
 	/* Disable all L1 substates */
-	pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_L1SS_MASK, 0);
-	pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_L1SS_MASK, 0);
+	pci_clear_and_set_config_dword(child, child->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_L1SS_MASK, 0);
+	pci_clear_and_set_config_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_L1SS_MASK, 0);
 	/*
 	 * If needed, disable L1, and it gets enabled later
 	 * in pcie_config_aspm_link().
@@ -713,10 +708,10 @@ static void pcie_config_aspm_l1ss(struct pcie_link_state *link, u32 state)
 		val |= PCI_L1SS_CTL1_PCIPM_L1_2;
 
 	/* Enable what we need to enable */
-	pci_clear_and_set_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_L1SS_MASK, val);
-	pci_clear_and_set_dword(child, child->l1ss + PCI_L1SS_CTL1,
-				PCI_L1SS_CTL1_L1SS_MASK, val);
+	pci_clear_and_set_config_dword(parent, parent->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_L1SS_MASK, val);
+	pci_clear_and_set_config_dword(child, child->l1ss + PCI_L1SS_CTL1,
+				       PCI_L1SS_CTL1_L1SS_MASK, val);
 }
 
 static void pcie_config_aspm_dev(struct pci_dev *pdev, u32 val)
@@ -1008,6 +1003,30 @@ void pcie_aspm_exit_link_state(struct pci_dev *pdev)
 	up_read(&pci_bus_sem);
 }
 
+/*
+ * @pdev: the root port or switch downstream port
+ * @locked: whether pci_bus_sem is held
+ */
+void pcie_aspm_pm_state_change(struct pci_dev *pdev, bool locked)
+{
+	struct pcie_link_state *link = pdev->link_state;
+
+	if (aspm_disabled || !link)
+		return;
+	/*
+	 * Devices changed PM state, we should recheck if latency
+	 * meets all functions' requirement
+	 */
+	if (!locked)
+		down_read(&pci_bus_sem);
+	mutex_lock(&aspm_lock);
+	pcie_update_aspm_capable(link->root);
+	pcie_config_aspm_path(link);
+	mutex_unlock(&aspm_lock);
+	if (!locked)
+		up_read(&pci_bus_sem);
+}
+
 void pcie_aspm_powersave_config_link(struct pci_dev *pdev)
 {
 	struct pcie_link_state *link = pdev->link_state;
@@ -1041,7 +1060,7 @@ static struct pcie_link_state *pcie_aspm_get_link(struct pci_dev *pdev)
 	return bridge->link_state;
 }
 
-static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
+static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool locked)
 {
 	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
 
@@ -1060,7 +1079,7 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 		return -EPERM;
 	}
 
-	if (sem)
+	if (!locked)
 		down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
 	if (state & PCIE_LINK_STATE_L0S)
@@ -1082,7 +1101,7 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 		link->clkpm_disable = 1;
 	pcie_set_clkpm(link, policy_to_clkpm_state(link));
 	mutex_unlock(&aspm_lock);
-	if (sem)
+	if (!locked)
 		up_read(&pci_bus_sem);
 
 	return 0;
@@ -1090,7 +1109,9 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool sem)
 
 int pci_disable_link_state_locked(struct pci_dev *pdev, int state)
 {
-	return __pci_disable_link_state(pdev, state, false);
+	lockdep_assert_held_read(&pci_bus_sem);
+
+	return __pci_disable_link_state(pdev, state, true);
 }
 EXPORT_SYMBOL(pci_disable_link_state_locked);
 
@@ -1105,21 +1126,11 @@ EXPORT_SYMBOL(pci_disable_link_state_locked);
  */
 int pci_disable_link_state(struct pci_dev *pdev, int state)
 {
-	return __pci_disable_link_state(pdev, state, true);
+	return __pci_disable_link_state(pdev, state, false);
 }
 EXPORT_SYMBOL(pci_disable_link_state);
 
-/**
- * pci_enable_link_state - Clear and set the default device link state so that
- * the link may be allowed to enter the specified states. Note that if the
- * BIOS didn't grant ASPM control to the OS, this does nothing because we can't
- * touch the LNKCTL register. Also note that this does not enable states
- * disabled by pci_disable_link_state(). Return 0 or a negative errno.
- *
- * @pdev: PCI device
- * @state: Mask of ASPM link states to enable
- */
-int pci_enable_link_state(struct pci_dev *pdev, int state)
+static int __pci_enable_link_state(struct pci_dev *pdev, int state, bool locked)
 {
 	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
 
@@ -1136,7 +1147,8 @@ int pci_enable_link_state(struct pci_dev *pdev, int state)
 		return -EPERM;
 	}
 
-	down_read(&pci_bus_sem);
+	if (!locked)
+		down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
 	link->aspm_default = 0;
 	if (state & PCIE_LINK_STATE_L0S)
@@ -1157,11 +1169,47 @@ int pci_enable_link_state(struct pci_dev *pdev, int state)
 	link->clkpm_default = (state & PCIE_LINK_STATE_CLKPM) ? 1 : 0;
 	pcie_set_clkpm(link, policy_to_clkpm_state(link));
 	mutex_unlock(&aspm_lock);
-	up_read(&pci_bus_sem);
+	if (!locked)
+		up_read(&pci_bus_sem);
 
 	return 0;
 }
+
+/**
+ * pci_enable_link_state - Clear and set the default device link state so that
+ * the link may be allowed to enter the specified states. Note that if the
+ * BIOS didn't grant ASPM control to the OS, this does nothing because we can't
+ * touch the LNKCTL register. Also note that this does not enable states
+ * disabled by pci_disable_link_state(). Return 0 or a negative errno.
+ *
+ * @pdev: PCI device
+ * @state: Mask of ASPM link states to enable
+ */
+int pci_enable_link_state(struct pci_dev *pdev, int state)
+{
+	return __pci_enable_link_state(pdev, state, false);
+}
 EXPORT_SYMBOL(pci_enable_link_state);
+
+/**
+ * pci_enable_link_state_locked - Clear and set the default device link state
+ * so that the link may be allowed to enter the specified states. Note that if
+ * the BIOS didn't grant ASPM control to the OS, this does nothing because we
+ * can't touch the LNKCTL register. Also note that this does not enable states
+ * disabled by pci_disable_link_state(). Return 0 or a negative errno.
+ *
+ * @pdev: PCI device
+ * @state: Mask of ASPM link states to enable
+ *
+ * Context: Caller holds pci_bus_sem read lock.
+ */
+int pci_enable_link_state_locked(struct pci_dev *pdev, int state)
+{
+	lockdep_assert_held_read(&pci_bus_sem);
+
+	return __pci_enable_link_state(pdev, state, true);
+}
+EXPORT_SYMBOL(pci_enable_link_state_locked);
 
 static int pcie_aspm_set_policy(const char *val,
 				const struct kernel_param *kp)

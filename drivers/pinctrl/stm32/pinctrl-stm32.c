@@ -240,9 +240,8 @@ static int stm32_gpio_direction_output(struct gpio_chip *chip,
 	struct stm32_gpio_bank *bank = gpiochip_get_data(chip);
 
 	__stm32_gpio_set(bank, offset, value);
-	pinctrl_gpio_direction_output(chip, offset);
 
-	return 0;
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 

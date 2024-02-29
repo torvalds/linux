@@ -91,13 +91,13 @@ static int hash_sendmsg(struct socket *sock, struct msghdr *msg,
 		if (!(msg->msg_flags & MSG_MORE)) {
 			err = hash_alloc_result(sk, ctx);
 			if (err)
-				goto unlock_free;
+				goto unlock_free_result;
 			ahash_request_set_crypt(&ctx->req, NULL,
 						ctx->result, 0);
 			err = crypto_wait_req(crypto_ahash_final(&ctx->req),
 					      &ctx->wait);
 			if (err)
-				goto unlock_free;
+				goto unlock_free_result;
 		}
 		goto done_more;
 	}
@@ -170,6 +170,7 @@ unlock:
 
 unlock_free:
 	af_alg_free_sg(&ctx->sgl);
+unlock_free_result:
 	hash_free_result(sk, ctx);
 	ctx->more = false;
 	goto unlock;

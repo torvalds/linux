@@ -9,6 +9,9 @@ title: Azoteq IQS269A Capacitive Touch Controller
 maintainers:
   - Jeff LaBundy <jeff@labundy.com>
 
+allOf:
+  - $ref: input.yaml#
+
 description: |
   The Azoteq IQS269A is an 8-channel capacitive touch controller that features
   additional Hall-effect and inductive sensing capabilities.
@@ -17,7 +20,10 @@ description: |
 
 properties:
   compatible:
-    const: azoteq,iqs269a
+    enum:
+      - azoteq,iqs269a
+      - azoteq,iqs269a-00
+      - azoteq,iqs269a-d0
 
   reg:
     maxItems: 1
@@ -203,6 +209,73 @@ properties:
     enum: [0, 1, 2, 3]
     default: 1
     description: Specifies the slider coordinate filter strength.
+
+  azoteq,touch-hold-ms:
+    multipleOf: 256
+    minimum: 256
+    maximum: 65280
+    default: 5120
+    description:
+      Specifies the length of time (in ms) for which the channel selected by
+      'azoteq,gpio3-select' must be held in a state of touch in order for an
+      approximately 60-ms pulse to be asserted on the GPIO4 pin.
+
+  linux,keycodes:
+    minItems: 1
+    maxItems: 8
+    description: |
+      Specifies the numeric keycodes associated with each available gesture in
+      the following order (enter 0 for unused gestures):
+      0: Slider 0 tap
+      1: Slider 0 hold
+      2: Slider 0 positive flick or swipe
+      3: Slider 0 negative flick or swipe
+      4: Slider 1 tap
+      5: Slider 1 hold
+      6: Slider 1 positive flick or swipe
+      7: Slider 1 negative flick or swipe
+
+  azoteq,gesture-swipe:
+    type: boolean
+    description:
+      Directs the device to interpret axial gestures as a swipe (finger remains
+      on slider) instead of a flick (finger leaves slider).
+
+  azoteq,timeout-tap-ms:
+    multipleOf: 16
+    minimum: 0
+    maximum: 4080
+    default: 400
+    description:
+      Specifies the length of time (in ms) within which a slider touch must be
+      released in order to be interpreted as a tap. Default and maximum values
+      as well as step size are reduced by a factor of 4 with device version 2.
+
+  azoteq,timeout-swipe-ms:
+    multipleOf: 16
+    minimum: 0
+    maximum: 4080
+    default: 2000
+    description:
+      Specifies the length of time (in ms) within which an axial gesture must be
+      completed in order to be interpreted as a flick or swipe. Default and max-
+      imum values as well as step size are reduced by a factor of 4 with device
+      version 2.
+
+  azoteq,thresh-swipe:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+    default: 128
+    description:
+      Specifies the number of points across which an axial gesture must travel
+      in order to be interpreted as a flick or swipe.
+
+dependencies:
+  azoteq,gesture-swipe: ["linux,keycodes"]
+  azoteq,timeout-tap-ms: ["linux,keycodes"]
+  azoteq,timeout-swipe-ms: ["linux,keycodes"]
+  azoteq,thresh-swipe: ["linux,keycodes"]
 
 patternProperties:
   "^channel@[0-7]$":
@@ -454,6 +527,21 @@ patternProperties:
 
     additionalProperties: false
 
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - azoteq,iqs269a-d0
+then:
+  patternProperties:
+    "^channel@[0-7]$":
+      properties:
+        azoteq,slider1-select: false
+else:
+  properties:
+    azoteq,touch-hold-ms: false
+
 required:
   - compatible
   - reg
@@ -483,6 +571,14 @@ examples:
 
                     azoteq,hall-enable;
                     azoteq,suspend-mode = <2>;
+
+                    linux,keycodes = <KEY_PLAYPAUSE>,
+                                     <KEY_STOPCD>,
+                                     <KEY_NEXTSONG>,
+                                     <KEY_PREVIOUSSONG>;
+
+                    azoteq,timeout-tap-ms = <400>;
+                    azoteq,timeout-swipe-ms = <800>;
 
                     channel@0 {
                             reg = <0x0>;

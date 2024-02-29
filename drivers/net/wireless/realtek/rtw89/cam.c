@@ -488,6 +488,20 @@ static int rtw89_cam_get_avail_addr_cam(struct rtw89_dev *rtwdev,
 	return 0;
 }
 
+static u8 rtw89_get_addr_cam_entry_size(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	switch (chip->chip_id) {
+	case RTL8852A:
+	case RTL8852B:
+	case RTL8851B:
+		return ADDR_CAM_ENT_SIZE;
+	default:
+		return ADDR_CAM_ENT_SHORT_SIZE;
+	}
+}
+
 int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 			    struct rtw89_addr_cam_entry *addr_cam,
 			    const struct rtw89_bssid_cam_entry *bssid_cam)
@@ -509,7 +523,7 @@ int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 	}
 
 	addr_cam->addr_cam_idx = addr_cam_idx;
-	addr_cam->len = ADDR_CAM_ENT_SIZE;
+	addr_cam->len = rtw89_get_addr_cam_entry_size(rtwdev);
 	addr_cam->offset = 0;
 	addr_cam->valid = true;
 	addr_cam->addr_mask = 0;

@@ -517,90 +517,6 @@ test_ip6ip6()
         echo -e ${GREEN}"PASS: ip6$TYPE"${NC}
 }
 
-setup_xfrm_tunnel()
-{
-	auth=0x$(printf '1%.0s' {1..40})
-	enc=0x$(printf '2%.0s' {1..32})
-	spi_in_to_out=0x1
-	spi_out_to_in=0x2
-	# at_ns0 namespace
-	# at_ns0 -> root
-	ip netns exec at_ns0 \
-		ip xfrm state add src 172.16.1.100 dst 172.16.1.200 proto esp \
-			spi $spi_in_to_out reqid 1 mode tunnel \
-			auth-trunc 'hmac(sha1)' $auth 96 enc 'cbc(aes)' $enc
-	ip netns exec at_ns0 \
-		ip xfrm policy add src 10.1.1.100/32 dst 10.1.1.200/32 dir out \
-		tmpl src 172.16.1.100 dst 172.16.1.200 proto esp reqid 1 \
-		mode tunnel
-	# root -> at_ns0
-	ip netns exec at_ns0 \
-		ip xfrm state add src 172.16.1.200 dst 172.16.1.100 proto esp \
-			spi $spi_out_to_in reqid 2 mode tunnel \
-			auth-trunc 'hmac(sha1)' $auth 96 enc 'cbc(aes)' $enc
-	ip netns exec at_ns0 \
-		ip xfrm policy add src 10.1.1.200/32 dst 10.1.1.100/32 dir in \
-		tmpl src 172.16.1.200 dst 172.16.1.100 proto esp reqid 2 \
-		mode tunnel
-	# address & route
-	ip netns exec at_ns0 \
-		ip addr add dev veth0 10.1.1.100/32
-	ip netns exec at_ns0 \
-		ip route add 10.1.1.200 dev veth0 via 172.16.1.200 \
-			src 10.1.1.100
-
-	# root namespace
-	# at_ns0 -> root
-	ip xfrm state add src 172.16.1.100 dst 172.16.1.200 proto esp \
-		spi $spi_in_to_out reqid 1 mode tunnel \
-		auth-trunc 'hmac(sha1)' $auth 96  enc 'cbc(aes)' $enc
-	ip xfrm policy add src 10.1.1.100/32 dst 10.1.1.200/32 dir in \
-		tmpl src 172.16.1.100 dst 172.16.1.200 proto esp reqid 1 \
-		mode tunnel
-	# root -> at_ns0
-	ip xfrm state add src 172.16.1.200 dst 172.16.1.100 proto esp \
-		spi $spi_out_to_in reqid 2 mode tunnel \
-		auth-trunc 'hmac(sha1)' $auth 96  enc 'cbc(aes)' $enc
-	ip xfrm policy add src 10.1.1.200/32 dst 10.1.1.100/32 dir out \
-		tmpl src 172.16.1.200 dst 172.16.1.100 proto esp reqid 2 \
-		mode tunnel
-	# address & route
-	ip addr add dev veth1 10.1.1.200/32
-	ip route add 10.1.1.100 dev veth1 via 172.16.1.100 src 10.1.1.200
-}
-
-test_xfrm_tunnel()
-{
-	if [[ -e /sys/kernel/tracing/trace ]]; then
-		TRACE=/sys/kernel/tracing/trace
-	else
-		TRACE=/sys/kernel/debug/tracing/trace
-	fi
-	config_device
-	> ${TRACE}
-	setup_xfrm_tunnel
-	mkdir -p ${BPF_PIN_TUNNEL_DIR}
-	bpftool prog loadall ${BPF_FILE} ${BPF_PIN_TUNNEL_DIR}
-	tc qdisc add dev veth1 clsact
-	tc filter add dev veth1 proto ip ingress bpf da object-pinned \
-		${BPF_PIN_TUNNEL_DIR}/xfrm_get_state
-	ip netns exec at_ns0 ping $PING_ARG 10.1.1.200
-	sleep 1
-	grep "reqid 1" ${TRACE}
-	check_err $?
-	grep "spi 0x1" ${TRACE}
-	check_err $?
-	grep "remote ip 0xac100164" ${TRACE}
-	check_err $?
-	cleanup
-
-	if [ $ret -ne 0 ]; then
-		echo -e ${RED}"FAIL: xfrm tunnel"${NC}
-		return 1
-	fi
-	echo -e ${GREEN}"PASS: xfrm tunnel"${NC}
-}
-
 attach_bpf()
 {
 	DEV=$1
@@ -630,10 +546,6 @@ cleanup()
 	ip link del ip6geneve11 2> /dev/null
 	ip link del erspan11 2> /dev/null
 	ip link del ip6erspan11 2> /dev/null
-	ip xfrm policy delete dir out src 10.1.1.200/32 dst 10.1.1.100/32 2> /dev/null
-	ip xfrm policy delete dir in src 10.1.1.100/32 dst 10.1.1.200/32 2> /dev/null
-	ip xfrm state delete src 172.16.1.100 dst 172.16.1.200 proto esp spi 0x1 2> /dev/null
-	ip xfrm state delete src 172.16.1.200 dst 172.16.1.100 proto esp spi 0x2 2> /dev/null
 }
 
 cleanup_exit()
@@ -714,10 +626,6 @@ bpf_tunnel_test()
 
 	echo "Testing IP6IP6 tunnel..."
 	test_ip6ip6
-	errors=$(( $errors + $? ))
-
-	echo "Testing IPSec tunnel..."
-	test_xfrm_tunnel
 	errors=$(( $errors + $? ))
 
 	return $errors

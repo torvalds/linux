@@ -81,7 +81,7 @@
 #define START_RW_WRITE		0
 #define START_RW_READ		1
 
-/**
+/*
  * START_BYTE(id, rs, rw)
  *
  * Set the start byte according to the required operation.
@@ -100,7 +100,7 @@
 #define START_BYTE(id, rs, rw)	\
 	(0x70 | (((id) & 0x01) << 2) | (((rs) & 0x01) << 1) | ((rw) & 0x01))
 
-/**
+/*
  * CHECK_FREQ_REG(spi_device s, spi_transfer x) - Check the frequency
  *	for the SPI transfer. According to the datasheet, the controller
  *	accept higher frequency for the GRAM transfer, but it requires
@@ -269,6 +269,10 @@ static int ili922x_write(struct spi_device *spi, u8 reg, u16 value)
 	spi_message_add_tail(&xfer_regindex, &msg);
 
 	ret = spi_sync(spi, &msg);
+	if (ret < 0) {
+		dev_err(&spi->dev, "Error sending SPI message 0x%x", ret);
+		return ret;
+	}
 
 	spi_message_init(&msg);
 	tbuf[0] = set_tx_byte(START_BYTE(ili922x_id, START_RS_REG,

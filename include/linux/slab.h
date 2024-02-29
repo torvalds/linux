@@ -24,7 +24,7 @@
 
 /*
  * Flags to pass to kmem_cache_create().
- * The ones marked DEBUG are only valid if CONFIG_DEBUG_SLAB is set.
+ * The ones marked DEBUG need CONFIG_SLUB_DEBUG enabled, otherwise are no-op
  */
 /* DEBUG: Perform (expensive) checks on alloc/free */
 #define SLAB_CONSISTENCY_CHECKS	((slab_flags_t __force)0x00000100U)
@@ -302,24 +302,14 @@ static inline unsigned int arch_slab_minalign(void)
  * Kmalloc array related definitions
  */
 
-#ifdef CONFIG_SLAB
 /*
- * SLAB and SLUB directly allocates requests fitting in to an order-1 page
+ * SLUB directly allocates requests fitting in to an order-1 page
  * (PAGE_SIZE*2).  Larger requests are passed to the page allocator.
  */
 #define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
-#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
-#ifndef KMALLOC_SHIFT_LOW
-#define KMALLOC_SHIFT_LOW	5
-#endif
-#endif
-
-#ifdef CONFIG_SLUB
-#define KMALLOC_SHIFT_HIGH	(PAGE_SHIFT + 1)
-#define KMALLOC_SHIFT_MAX	(MAX_ORDER + PAGE_SHIFT)
+#define KMALLOC_SHIFT_MAX	(MAX_PAGE_ORDER + PAGE_SHIFT)
 #ifndef KMALLOC_SHIFT_LOW
 #define KMALLOC_SHIFT_LOW	3
-#endif
 #endif
 
 /* Maximum allocatable size */
@@ -787,13 +777,5 @@ unsigned int kmem_cache_size(struct kmem_cache *s);
 size_t kmalloc_size_roundup(size_t size);
 
 void __init kmem_cache_init_late(void);
-
-#if defined(CONFIG_SMP) && defined(CONFIG_SLAB)
-int slab_prepare_cpu(unsigned int cpu);
-int slab_dead_cpu(unsigned int cpu);
-#else
-#define slab_prepare_cpu	NULL
-#define slab_dead_cpu		NULL
-#endif
 
 #endif	/* _LINUX_SLAB_H */

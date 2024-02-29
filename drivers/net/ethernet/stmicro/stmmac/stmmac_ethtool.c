@@ -212,6 +212,8 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_tx_excessdef),
 	STMMAC_MMC_STAT(mmc_tx_pause_frame),
 	STMMAC_MMC_STAT(mmc_tx_vlan_frame_g),
+	STMMAC_MMC_STAT(mmc_tx_lpi_usec),
+	STMMAC_MMC_STAT(mmc_tx_lpi_tran),
 	STMMAC_MMC_STAT(mmc_rx_framecount_gb),
 	STMMAC_MMC_STAT(mmc_rx_octetcount_gb),
 	STMMAC_MMC_STAT(mmc_rx_octetcount_g),
@@ -236,6 +238,11 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_fifo_overflow),
 	STMMAC_MMC_STAT(mmc_rx_vlan_frames_gb),
 	STMMAC_MMC_STAT(mmc_rx_watchdog_error),
+	STMMAC_MMC_STAT(mmc_rx_lpi_usec),
+	STMMAC_MMC_STAT(mmc_rx_lpi_tran),
+	STMMAC_MMC_STAT(mmc_rx_discard_frames_gb),
+	STMMAC_MMC_STAT(mmc_rx_discard_octets_gb),
+	STMMAC_MMC_STAT(mmc_rx_align_err_frames),
 	STMMAC_MMC_STAT(mmc_rx_ipc_intr_mask),
 	STMMAC_MMC_STAT(mmc_rx_ipc_intr),
 	STMMAC_MMC_STAT(mmc_rx_ipv4_gd),
@@ -266,8 +273,11 @@ static const struct stmmac_stats stmmac_mmc[] = {
 	STMMAC_MMC_STAT(mmc_rx_tcp_err_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_gd_octets),
 	STMMAC_MMC_STAT(mmc_rx_icmp_err_octets),
+	STMMAC_MMC_STAT(mmc_sgf_pass_fragment_cntr),
+	STMMAC_MMC_STAT(mmc_sgf_fail_fragment_cntr),
 	STMMAC_MMC_STAT(mmc_tx_fpe_fragment_cntr),
 	STMMAC_MMC_STAT(mmc_tx_hold_req_cntr),
+	STMMAC_MMC_STAT(mmc_tx_gate_overrun_cntr),
 	STMMAC_MMC_STAT(mmc_rx_packet_assembly_err_cntr),
 	STMMAC_MMC_STAT(mmc_rx_packet_smd_err_cntr),
 	STMMAC_MMC_STAT(mmc_rx_packet_assembly_ok_cntr),
@@ -311,8 +321,9 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
-	    priv->hw->pcs & STMMAC_PCS_SGMII) {
+	if (!(priv->plat->flags & STMMAC_FLAG_HAS_INTEGRATED_PCS) &&
+	    (priv->hw->pcs & STMMAC_PCS_RGMII ||
+	     priv->hw->pcs & STMMAC_PCS_SGMII)) {
 		struct rgmii_adv adv;
 		u32 supported, advertising, lp_advertising;
 
@@ -397,8 +408,9 @@ stmmac_ethtool_set_link_ksettings(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
-	    priv->hw->pcs & STMMAC_PCS_SGMII) {
+	if (!(priv->plat->flags & STMMAC_FLAG_HAS_INTEGRATED_PCS) &&
+	    (priv->hw->pcs & STMMAC_PCS_RGMII ||
+	     priv->hw->pcs & STMMAC_PCS_SGMII)) {
 		/* Only support ANE */
 		if (cmd->base.autoneg != AUTONEG_ENABLE)
 			return -EINVAL;
@@ -537,49 +549,79 @@ stmmac_set_pauseparam(struct net_device *netdev,
 	}
 }
 
+static u64 stmmac_get_rx_normal_irq_n(struct stmmac_priv *priv, int q)
+{
+	u64 total;
+	int cpu;
+
+	total = 0;
+	for_each_possible_cpu(cpu) {
+		struct stmmac_pcpu_stats *pcpu;
+		unsigned int start;
+		u64 irq_n;
+
+		pcpu = per_cpu_ptr(priv->xstats.pcpu_stats, cpu);
+		do {
+			start = u64_stats_fetch_begin(&pcpu->syncp);
+			irq_n = u64_stats_read(&pcpu->rx_normal_irq_n[q]);
+		} while (u64_stats_fetch_retry(&pcpu->syncp, start));
+		total += irq_n;
+	}
+	return total;
+}
+
+static u64 stmmac_get_tx_normal_irq_n(struct stmmac_priv *priv, int q)
+{
+	u64 total;
+	int cpu;
+
+	total = 0;
+	for_each_possible_cpu(cpu) {
+		struct stmmac_pcpu_stats *pcpu;
+		unsigned int start;
+		u64 irq_n;
+
+		pcpu = per_cpu_ptr(priv->xstats.pcpu_stats, cpu);
+		do {
+			start = u64_stats_fetch_begin(&pcpu->syncp);
+			irq_n = u64_stats_read(&pcpu->tx_normal_irq_n[q]);
+		} while (u64_stats_fetch_retry(&pcpu->syncp, start));
+		total += irq_n;
+	}
+	return total;
+}
+
 static void stmmac_get_per_qstats(struct stmmac_priv *priv, u64 *data)
 {
 	u32 tx_cnt = priv->plat->tx_queues_to_use;
 	u32 rx_cnt = priv->plat->rx_queues_to_use;
 	unsigned int start;
-	int q, stat;
-	u64 *pos;
-	char *p;
+	int q;
 
-	pos = data;
 	for (q = 0; q < tx_cnt; q++) {
 		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[q];
-		struct stmmac_txq_stats snapshot;
+		u64 pkt_n;
 
-		data = pos;
 		do {
-			start = u64_stats_fetch_begin(&txq_stats->syncp);
-			snapshot = *txq_stats;
-		} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&txq_stats->napi_syncp);
+			pkt_n = u64_stats_read(&txq_stats->napi.tx_pkt_n);
+		} while (u64_stats_fetch_retry(&txq_stats->napi_syncp, start));
 
-		p = (char *)&snapshot + offsetof(struct stmmac_txq_stats, tx_pkt_n);
-		for (stat = 0; stat < STMMAC_TXQ_STATS; stat++) {
-			*data++ += (*(u64 *)p);
-			p += sizeof(u64);
-		}
+		*data++ = pkt_n;
+		*data++ = stmmac_get_tx_normal_irq_n(priv, q);
 	}
 
-	pos = data;
 	for (q = 0; q < rx_cnt; q++) {
 		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[q];
-		struct stmmac_rxq_stats snapshot;
+		u64 pkt_n;
 
-		data = pos;
 		do {
-			start = u64_stats_fetch_begin(&rxq_stats->syncp);
-			snapshot = *rxq_stats;
-		} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&rxq_stats->napi_syncp);
+			pkt_n = u64_stats_read(&rxq_stats->napi.rx_pkt_n);
+		} while (u64_stats_fetch_retry(&rxq_stats->napi_syncp, start));
 
-		p = (char *)&snapshot + offsetof(struct stmmac_rxq_stats, rx_pkt_n);
-		for (stat = 0; stat < STMMAC_RXQ_STATS; stat++) {
-			*data++ += (*(u64 *)p);
-			p += sizeof(u64);
-		}
+		*data++ = pkt_n;
+		*data++ = stmmac_get_rx_normal_irq_n(priv, q);
 	}
 }
 
@@ -638,39 +680,49 @@ static void stmmac_get_ethtool_stats(struct net_device *dev,
 	pos = j;
 	for (i = 0; i < rx_queues_count; i++) {
 		struct stmmac_rxq_stats *rxq_stats = &priv->xstats.rxq_stats[i];
-		struct stmmac_rxq_stats snapshot;
+		struct stmmac_napi_rx_stats snapshot;
+		u64 n_irq;
 
 		j = pos;
 		do {
-			start = u64_stats_fetch_begin(&rxq_stats->syncp);
-			snapshot = *rxq_stats;
-		} while (u64_stats_fetch_retry(&rxq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&rxq_stats->napi_syncp);
+			snapshot = rxq_stats->napi;
+		} while (u64_stats_fetch_retry(&rxq_stats->napi_syncp, start));
 
-		data[j++] += snapshot.rx_pkt_n;
-		data[j++] += snapshot.rx_normal_irq_n;
-		normal_irq_n += snapshot.rx_normal_irq_n;
-		napi_poll += snapshot.napi_poll;
+		data[j++] += u64_stats_read(&snapshot.rx_pkt_n);
+		n_irq = stmmac_get_rx_normal_irq_n(priv, i);
+		data[j++] += n_irq;
+		normal_irq_n += n_irq;
+		napi_poll += u64_stats_read(&snapshot.poll);
 	}
 
 	pos = j;
 	for (i = 0; i < tx_queues_count; i++) {
 		struct stmmac_txq_stats *txq_stats = &priv->xstats.txq_stats[i];
-		struct stmmac_txq_stats snapshot;
+		struct stmmac_napi_tx_stats napi_snapshot;
+		struct stmmac_q_tx_stats q_snapshot;
+		u64 n_irq;
 
 		j = pos;
 		do {
-			start = u64_stats_fetch_begin(&txq_stats->syncp);
-			snapshot = *txq_stats;
-		} while (u64_stats_fetch_retry(&txq_stats->syncp, start));
+			start = u64_stats_fetch_begin(&txq_stats->q_syncp);
+			q_snapshot = txq_stats->q;
+		} while (u64_stats_fetch_retry(&txq_stats->q_syncp, start));
+		do {
+			start = u64_stats_fetch_begin(&txq_stats->napi_syncp);
+			napi_snapshot = txq_stats->napi;
+		} while (u64_stats_fetch_retry(&txq_stats->napi_syncp, start));
 
-		data[j++] += snapshot.tx_pkt_n;
-		data[j++] += snapshot.tx_normal_irq_n;
-		normal_irq_n += snapshot.tx_normal_irq_n;
-		data[j++] += snapshot.tx_clean;
-		data[j++] += snapshot.tx_set_ic_bit;
-		data[j++] += snapshot.tx_tso_frames;
-		data[j++] += snapshot.tx_tso_nfrags;
-		napi_poll += snapshot.napi_poll;
+		data[j++] += u64_stats_read(&napi_snapshot.tx_pkt_n);
+		n_irq = stmmac_get_tx_normal_irq_n(priv, i);
+		data[j++] += n_irq;
+		normal_irq_n += n_irq;
+		data[j++] += u64_stats_read(&napi_snapshot.tx_clean);
+		data[j++] += u64_stats_read(&q_snapshot.tx_set_ic_bit) +
+			u64_stats_read(&napi_snapshot.tx_set_ic_bit);
+		data[j++] += u64_stats_read(&q_snapshot.tx_tso_frames);
+		data[j++] += u64_stats_read(&q_snapshot.tx_tso_nfrags);
+		napi_poll += u64_stats_read(&napi_snapshot.poll);
 	}
 	normal_irq_n += priv->xstats.rx_early_irq;
 	data[j++] = normal_irq_n;
@@ -825,10 +877,16 @@ static int stmmac_set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	if (wol->wolopts) {
 		pr_info("stmmac: wakeup enable\n");
 		device_set_wakeup_enable(priv->device, 1);
-		enable_irq_wake(priv->wol_irq);
+		/* Avoid unbalanced enable_irq_wake calls */
+		if (priv->wol_irq_disabled)
+			enable_irq_wake(priv->wol_irq);
+		priv->wol_irq_disabled = false;
 	} else {
 		device_set_wakeup_enable(priv->device, 0);
-		disable_irq_wake(priv->wol_irq);
+		/* Avoid unbalanced disable_irq_wake calls */
+		if (!priv->wol_irq_disabled)
+			disable_irq_wake(priv->wol_irq);
+		priv->wol_irq_disabled = true;
 	}
 
 	mutex_lock(&priv->lock);
@@ -1077,41 +1135,42 @@ static u32 stmmac_get_rxfh_indir_size(struct net_device *dev)
 	return ARRAY_SIZE(priv->rss.table);
 }
 
-static int stmmac_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
-			   u8 *hfunc)
+static int stmmac_get_rxfh(struct net_device *dev,
+			   struct ethtool_rxfh_param *rxfh)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int i;
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < ARRAY_SIZE(priv->rss.table); i++)
-			indir[i] = priv->rss.table[i];
+			rxfh->indir[i] = priv->rss.table[i];
 	}
 
-	if (key)
-		memcpy(key, priv->rss.key, sizeof(priv->rss.key));
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
+	if (rxfh->key)
+		memcpy(rxfh->key, priv->rss.key, sizeof(priv->rss.key));
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
 
 	return 0;
 }
 
-static int stmmac_set_rxfh(struct net_device *dev, const u32 *indir,
-			   const u8 *key, const u8 hfunc)
+static int stmmac_set_rxfh(struct net_device *dev,
+			   struct ethtool_rxfh_param *rxfh,
+			   struct netlink_ext_ack *extack)
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int i;
 
-	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) && (hfunc != ETH_RSS_HASH_TOP))
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (indir) {
+	if (rxfh->indir) {
 		for (i = 0; i < ARRAY_SIZE(priv->rss.table); i++)
-			priv->rss.table[i] = indir[i];
+			priv->rss.table[i] = rxfh->indir[i];
 	}
 
-	if (key)
-		memcpy(priv->rss.key, key, sizeof(priv->rss.key));
+	if (rxfh->key)
+		memcpy(priv->rss.key, rxfh->key, sizeof(priv->rss.key));
 
 	return stmmac_rss_configure(priv, priv->hw, &priv->rss,
 				    priv->plat->rx_queues_to_use);

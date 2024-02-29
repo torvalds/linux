@@ -90,7 +90,7 @@ static int pwm_regulator_set_voltage_sel(struct regulator_dev *rdev,
 	pwm_set_relative_duty_cycle(&pstate,
 			drvdata->duty_cycle_table[selector].dutycycle, 100);
 
-	ret = pwm_apply_state(drvdata->pwm, &pstate);
+	ret = pwm_apply_might_sleep(drvdata->pwm, &pstate);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
@@ -157,7 +157,17 @@ static int pwm_regulator_get_voltage(struct regulator_dev *rdev)
 
 	pwm_get_state(drvdata->pwm, &pstate);
 
+	if (!pstate.enabled) {
+		if (pstate.polarity == PWM_POLARITY_INVERSED)
+			pstate.duty_cycle = pstate.period;
+		else
+			pstate.duty_cycle = 0;
+	}
+
 	voltage = pwm_get_relative_duty_cycle(&pstate, duty_unit);
+	if (voltage < min(max_uV_duty, min_uV_duty) ||
+	    voltage > max(max_uV_duty, min_uV_duty))
+		return -ENOTRECOVERABLE;
 
 	/*
 	 * The dutycycle for min_uV might be greater than the one for max_uV.
@@ -216,7 +226,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *rdev,
 
 	pwm_set_relative_duty_cycle(&pstate, dutycycle, duty_unit);
 
-	ret = pwm_apply_state(drvdata->pwm, &pstate);
+	ret = pwm_apply_might_sleep(drvdata->pwm, &pstate);
 	if (ret) {
 		dev_err(&rdev->dev, "Failed to configure PWM: %d\n", ret);
 		return ret;
@@ -313,6 +323,32 @@ static int pwm_regulator_init_continuous(struct platform_device *pdev,
 	return 0;
 }
 
+static int pwm_regulator_init_boot_on(struct platform_device *pdev,
+				      struct pwm_regulator_data *drvdata,
+				      const struct regulator_init_data *init_data)
+{
+	struct pwm_state pstate;
+
+	if (!init_data->constraints.boot_on || drvdata->enb_gpio)
+		return 0;
+
+	pwm_get_state(drvdata->pwm, &pstate);
+	if (pstate.enabled)
+		return 0;
+
+	/*
+	 * Update the duty cycle so the output does not change
+	 * when the regulator core enables the regulator (and
+	 * thus the PWM channel).
+	 */
+	if (pstate.polarity == PWM_POLARITY_INVERSED)
+		pstate.duty_cycle = pstate.period;
+	else
+		pstate.duty_cycle = 0;
+
+	return pwm_apply_might_sleep(drvdata->pwm, &pstate);
+}
+
 static int pwm_regulator_probe(struct platform_device *pdev)
 {
 	const struct regulator_init_data *init_data;
@@ -371,6 +407,13 @@ static int pwm_regulator_probe(struct platform_device *pdev)
 	ret = pwm_adjust_config(drvdata->pwm);
 	if (ret)
 		return ret;
+
+	ret = pwm_regulator_init_boot_on(pdev, drvdata, init_data);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to apply boot_on settings: %d\n",
+			ret);
+		return ret;
+	}
 
 	regulator = devm_regulator_register(&pdev->dev,
 					    &drvdata->desc, &config);

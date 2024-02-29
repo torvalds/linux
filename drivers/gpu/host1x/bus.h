@@ -10,7 +10,7 @@
 struct bus_type;
 struct host1x;
 
-extern struct bus_type host1x_bus_type;
+extern const struct bus_type host1x_bus_type;
 
 int host1x_register(struct host1x *host1x);
 int host1x_unregister(struct host1x *host1x);

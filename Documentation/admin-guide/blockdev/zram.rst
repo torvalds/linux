@@ -328,7 +328,7 @@ as idle::
 From now on, any pages on zram are idle pages. The idle mark
 will be removed until someone requests access of the block.
 IOW, unless there is access request, those pages are still idle pages.
-Additionally, when CONFIG_ZRAM_MEMORY_TRACKING is enabled pages can be
+Additionally, when CONFIG_ZRAM_TRACK_ENTRY_ACTIME is enabled pages can be
 marked as idle based on how long (in seconds) it's been since they were
 last accessed::
 

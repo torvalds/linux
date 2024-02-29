@@ -77,7 +77,8 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 
 	bch2_inode_opts_get(&opts, c, &inode->ei_inode);
 
-	if ((offset|iter->count) & (block_bytes(c) - 1))
+	/* bios must be 512 byte aligned: */
+	if ((offset|iter->count) & (SECTOR_SIZE - 1))
 		return -EINVAL;
 
 	ret = min_t(loff_t, iter->count,
@@ -87,6 +88,8 @@ static int bch2_direct_IO_read(struct kiocb *req, struct iov_iter *iter)
 		return ret;
 
 	shorten = iov_iter_count(iter) - round_up(ret, block_bytes(c));
+	if (shorten >= iter->count)
+		shorten = 0;
 	iter->count -= shorten;
 
 	bio = bio_alloc_bioset(NULL,
@@ -216,11 +219,11 @@ struct dio_write {
 	struct address_space		*mapping;
 	struct bch_inode_info		*inode;
 	struct mm_struct		*mm;
+	const struct iovec		*iov;
 	unsigned			loop:1,
 					extending:1,
 					sync:1,
-					flush:1,
-					free_iov:1;
+					flush:1;
 	struct quota_res		quota_res;
 	u64				written;
 
@@ -312,12 +315,10 @@ static noinline int bch2_dio_write_copy_iov(struct dio_write *dio)
 		return -1;
 
 	if (dio->iter.nr_segs > ARRAY_SIZE(dio->inline_vecs)) {
-		iov = kmalloc_array(dio->iter.nr_segs, sizeof(*iov),
+		dio->iov = iov = kmalloc_array(dio->iter.nr_segs, sizeof(*iov),
 				    GFP_KERNEL);
 		if (unlikely(!iov))
 			return -ENOMEM;
-
-		dio->free_iov = true;
 	}
 
 	memcpy(iov, dio->iter.__iov, dio->iter.nr_segs * sizeof(*iov));
@@ -381,8 +382,7 @@ static __always_inline long bch2_dio_write_done(struct dio_write *dio)
 
 	bch2_pagecache_block_put(inode);
 
-	if (dio->free_iov)
-		kfree(dio->iter.__iov);
+	kfree(dio->iov);
 
 	ret = dio->op.error ?: ((long) dio->written << 9);
 	bio_put(&dio->op.wbio.bio);
@@ -626,11 +626,11 @@ ssize_t bch2_direct_write(struct kiocb *req, struct iov_iter *iter)
 	dio->mapping		= mapping;
 	dio->inode		= inode;
 	dio->mm			= current->mm;
+	dio->iov		= NULL;
 	dio->loop		= false;
 	dio->extending		= extending;
 	dio->sync		= is_sync_kiocb(req) || extending;
 	dio->flush		= iocb_is_dsync(req) && !c->opts.journal_flush_disabled;
-	dio->free_iov		= false;
 	dio->quota_res.sectors	= 0;
 	dio->written		= 0;
 	dio->iter		= *iter;

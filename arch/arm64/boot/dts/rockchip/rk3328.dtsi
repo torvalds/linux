@@ -20,6 +20,10 @@
 	#size-cells = <2>;
 
 	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
 		serial0 = &uart0;
 		serial1 = &uart1;
 		serial2 = &uart2;
@@ -27,8 +31,6 @@
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		i2c3 = &i2c3;
-		ethernet0 = &gmac2io;
-		ethernet1 = &gmac2phy;
 	};
 
 	cpus {
@@ -486,7 +488,6 @@
 	pwm3: pwm@ff1b0030 {
 		compatible = "rockchip,rk3328-pwm";
 		reg = <0x0 0xff1b0030 0x0 0x10>;
-		interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru SCLK_PWM>, <&cru PCLK_PWM>;
 		clock-names = "pwm", "pclk";
 		pinctrl-names = "default";
@@ -916,6 +917,8 @@
 		resets = <&cru SRST_GMAC2IO_A>;
 		reset-names = "stmmaceth";
 		rockchip,grf = <&grf>;
+		tx-fifo-depth = <2048>;
+		rx-fifo-depth = <4096>;
 		snps,txpbl = <0x4>;
 		status = "disabled";
 	};
@@ -938,6 +941,8 @@
 		reset-names = "stmmaceth";
 		phy-mode = "rmii";
 		phy-handle = <&phy>;
+		tx-fifo-depth = <2048>;
+		rx-fifo-depth = <4096>;
 		snps,txpbl = <0x4>;
 		clock_in_out = "output";
 		status = "disabled";

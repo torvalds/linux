@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright(c) 2007 - 2018 Intel Corporation. */
 
-#include <linux/if_ether.h>
+#include <linux/bitfield.h>
 #include <linux/delay.h>
-
+#include <linux/if_ether.h>
 #include "e1000_mac.h"
 #include "e1000_phy.h"
 
@@ -255,7 +255,7 @@ s32 igb_read_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 *data)
 	}
 
 	/* Need to byte-swap the 16-bit value. */
-	*data = ((i2ccmd >> 8) & 0x00FF) | ((i2ccmd << 8) & 0xFF00);
+	*data = ((i2ccmd >> 8) & 0x00FF) | FIELD_PREP(0xFF00, i2ccmd);
 
 	return 0;
 }
@@ -282,7 +282,7 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 	}
 
 	/* Swap the data bytes for the I2C interface */
-	phy_data_swapped = ((data >> 8) & 0x00FF) | ((data << 8) & 0xFF00);
+	phy_data_swapped = ((data >> 8) & 0x00FF) | FIELD_PREP(0xFF00, data);
 
 	/* Set up Op-code, Phy Address, and register address in the I2CCMD
 	 * register.  The MAC will take care of interfacing with the
@@ -1682,8 +1682,7 @@ s32 igb_get_cable_length_m88(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-		M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+	index = FIELD_GET(M88E1000_PSSR_CABLE_LENGTH, phy_data);
 	if (index >= ARRAY_SIZE(e1000_m88_cable_length_table) - 1) {
 		ret_val = -E1000_ERR_PHY;
 		goto out;
@@ -1796,8 +1795,7 @@ s32 igb_get_cable_length_m88_gen2(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		index = (phy_data & M88E1000_PSSR_CABLE_LENGTH) >>
-			M88E1000_PSSR_CABLE_LENGTH_SHIFT;
+		index = FIELD_GET(M88E1000_PSSR_CABLE_LENGTH, phy_data);
 		if (index >= ARRAY_SIZE(e1000_m88_cable_length_table) - 1) {
 			ret_val = -E1000_ERR_PHY;
 			goto out;
@@ -2578,8 +2576,7 @@ s32 igb_get_cable_length_82580(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	length = (phy_data & I82580_DSTATUS_CABLE_LENGTH) >>
-		 I82580_DSTATUS_CABLE_LENGTH_SHIFT;
+	length = FIELD_GET(I82580_DSTATUS_CABLE_LENGTH, phy_data);
 
 	if (length == E1000_CABLE_LENGTH_UNDEFINED)
 		ret_val = -E1000_ERR_PHY;

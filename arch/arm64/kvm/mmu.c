@@ -223,12 +223,12 @@ static void stage2_free_unlinked_table_rcu_cb(struct rcu_head *head)
 {
 	struct page *page = container_of(head, struct page, rcu_head);
 	void *pgtable = page_to_virt(page);
-	u32 level = page_private(page);
+	s8 level = page_private(page);
 
 	kvm_pgtable_stage2_free_unlinked(&kvm_s2_mm_ops, pgtable, level);
 }
 
-static void stage2_free_unlinked_table(void *addr, u32 level)
+static void stage2_free_unlinked_table(void *addr, s8 level)
 {
 	struct page *page = virt_to_page(addr);
 
@@ -804,13 +804,13 @@ static int get_user_mapping_size(struct kvm *kvm, u64 addr)
 	struct kvm_pgtable pgt = {
 		.pgd		= (kvm_pteref_t)kvm->mm->pgd,
 		.ia_bits	= vabits_actual,
-		.start_level	= (KVM_PGTABLE_MAX_LEVELS -
-				   CONFIG_PGTABLE_LEVELS),
+		.start_level	= (KVM_PGTABLE_LAST_LEVEL -
+				   CONFIG_PGTABLE_LEVELS + 1),
 		.mm_ops		= &kvm_user_mm_ops,
 	};
 	unsigned long flags;
 	kvm_pte_t pte = 0;	/* Keep GCC quiet... */
-	u32 level = ~0;
+	s8 level = S8_MAX;
 	int ret;
 
 	/*
@@ -829,7 +829,9 @@ static int get_user_mapping_size(struct kvm *kvm, u64 addr)
 	 * Not seeing an error, but not updating level? Something went
 	 * deeply wrong...
 	 */
-	if (WARN_ON(level >= KVM_PGTABLE_MAX_LEVELS))
+	if (WARN_ON(level > KVM_PGTABLE_LAST_LEVEL))
+		return -EFAULT;
+	if (WARN_ON(level < KVM_PGTABLE_FIRST_LEVEL))
 		return -EFAULT;
 
 	/* Oops, the userspace PTs are gone... Replay the fault */
@@ -1374,7 +1376,7 @@ static bool kvm_vma_mte_allowed(struct vm_area_struct *vma)
 
 static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 			  struct kvm_memory_slot *memslot, unsigned long hva,
-			  unsigned long fault_status)
+			  bool fault_is_perm)
 {
 	int ret = 0;
 	bool write_fault, writable, force_pte = false;
@@ -1388,17 +1390,17 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	gfn_t gfn;
 	kvm_pfn_t pfn;
 	bool logging_active = memslot_is_logging(memslot);
-	unsigned long fault_level = kvm_vcpu_trap_get_fault_level(vcpu);
 	long vma_pagesize, fault_granule;
 	enum kvm_pgtable_prot prot = KVM_PGTABLE_PROT_R;
 	struct kvm_pgtable *pgt;
 
-	fault_granule = 1UL << ARM64_HW_PGTABLE_LEVEL_SHIFT(fault_level);
+	if (fault_is_perm)
+		fault_granule = kvm_vcpu_trap_get_perm_fault_granule(vcpu);
 	write_fault = kvm_is_write_fault(vcpu);
 	exec_fault = kvm_vcpu_trap_is_exec_fault(vcpu);
 	VM_BUG_ON(write_fault && exec_fault);
 
-	if (fault_status == ESR_ELx_FSC_PERM && !write_fault && !exec_fault) {
+	if (fault_is_perm && !write_fault && !exec_fault) {
 		kvm_err("Unexpected L2 read permission error\n");
 		return -EFAULT;
 	}
@@ -1409,8 +1411,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * only exception to this is when dirty logging is enabled at runtime
 	 * and a write fault needs to collapse a block entry into a table.
 	 */
-	if (fault_status != ESR_ELx_FSC_PERM ||
-	    (logging_active && write_fault)) {
+	if (!fault_is_perm || (logging_active && write_fault)) {
 		ret = kvm_mmu_topup_memory_cache(memcache,
 						 kvm_mmu_cache_min_pages(vcpu->arch.hw_mmu));
 		if (ret)
@@ -1527,8 +1528,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * backed by a THP and thus use block mapping if possible.
 	 */
 	if (vma_pagesize == PAGE_SIZE && !(force_pte || device)) {
-		if (fault_status ==  ESR_ELx_FSC_PERM &&
-		    fault_granule > PAGE_SIZE)
+		if (fault_is_perm && fault_granule > PAGE_SIZE)
 			vma_pagesize = fault_granule;
 		else
 			vma_pagesize = transparent_hugepage_adjust(kvm, memslot,
@@ -1541,7 +1541,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 		}
 	}
 
-	if (fault_status != ESR_ELx_FSC_PERM && !device && kvm_has_mte(kvm)) {
+	if (!fault_is_perm && !device && kvm_has_mte(kvm)) {
 		/* Check the VMM hasn't introduced a new disallowed VMA */
 		if (mte_allowed) {
 			sanitise_mte_tags(kvm, pfn, vma_pagesize);
@@ -1567,7 +1567,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	 * permissions only if vma_pagesize equals fault_granule. Otherwise,
 	 * kvm_pgtable_stage2_map() should be called to change block size.
 	 */
-	if (fault_status == ESR_ELx_FSC_PERM && vma_pagesize == fault_granule)
+	if (fault_is_perm && vma_pagesize == fault_granule)
 		ret = kvm_pgtable_stage2_relax_perms(pgt, fault_ipa, prot);
 	else
 		ret = kvm_pgtable_stage2_map(pgt, fault_ipa, vma_pagesize,
@@ -1618,7 +1618,7 @@ static void handle_access_fault(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa)
  */
 int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 {
-	unsigned long fault_status;
+	unsigned long esr;
 	phys_addr_t fault_ipa;
 	struct kvm_memory_slot *memslot;
 	unsigned long hva;
@@ -1626,12 +1626,12 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 	gfn_t gfn;
 	int ret, idx;
 
-	fault_status = kvm_vcpu_trap_get_fault_type(vcpu);
+	esr = kvm_vcpu_get_esr(vcpu);
 
 	fault_ipa = kvm_vcpu_get_fault_ipa(vcpu);
 	is_iabt = kvm_vcpu_trap_is_iabt(vcpu);
 
-	if (fault_status == ESR_ELx_FSC_FAULT) {
+	if (esr_fsc_is_permission_fault(esr)) {
 		/* Beyond sanitised PARange (which is the IPA limit) */
 		if (fault_ipa >= BIT_ULL(get_kvm_ipa_limit())) {
 			kvm_inject_size_fault(vcpu);
@@ -1666,9 +1666,9 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 			      kvm_vcpu_get_hfar(vcpu), fault_ipa);
 
 	/* Check the stage-2 fault is trans. fault or write fault */
-	if (fault_status != ESR_ELx_FSC_FAULT &&
-	    fault_status != ESR_ELx_FSC_PERM &&
-	    fault_status != ESR_ELx_FSC_ACCESS) {
+	if (!esr_fsc_is_translation_fault(esr) &&
+	    !esr_fsc_is_permission_fault(esr) &&
+	    !esr_fsc_is_access_flag_fault(esr)) {
 		kvm_err("Unsupported FSC: EC=%#x xFSC=%#lx ESR_EL2=%#lx\n",
 			kvm_vcpu_trap_get_class(vcpu),
 			(unsigned long)kvm_vcpu_trap_get_fault(vcpu),
@@ -1730,13 +1730,14 @@ int kvm_handle_guest_abort(struct kvm_vcpu *vcpu)
 	/* Userspace should not be able to register out-of-bounds IPAs */
 	VM_BUG_ON(fault_ipa >= kvm_phys_size(vcpu->arch.hw_mmu));
 
-	if (fault_status == ESR_ELx_FSC_ACCESS) {
+	if (esr_fsc_is_access_flag_fault(esr)) {
 		handle_access_fault(vcpu, fault_ipa);
 		ret = 1;
 		goto out_unlock;
 	}
 
-	ret = user_mem_abort(vcpu, fault_ipa, memslot, hva, fault_status);
+	ret = user_mem_abort(vcpu, fault_ipa, memslot, hva,
+			     esr_fsc_is_permission_fault(esr));
 	if (ret == 0)
 		ret = 1;
 out:

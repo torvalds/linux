@@ -3,19 +3,16 @@
 #define _GNU_SOURCE
 #include <sched.h>
 
+#include <fcntl.h>
+
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <sys/sysinfo.h>
 
 #include "../kselftest_harness.h"
 
-#define CLIENT_PER_SERVER	32 /* More sockets, more reliable */
-#define NR_SERVER		self->nproc
-#define NR_CLIENT		(CLIENT_PER_SERVER * NR_SERVER)
-
 FIXTURE(so_incoming_cpu)
 {
-	int nproc;
 	int *servers;
 	union {
 		struct sockaddr addr;
@@ -56,12 +53,47 @@ FIXTURE_VARIANT_ADD(so_incoming_cpu, after_all_listen)
 	.when_to_set = AFTER_ALL_LISTEN,
 };
 
+static void write_sysctl(struct __test_metadata *_metadata,
+			 char *filename, char *string)
+{
+	int fd, len, ret;
+
+	fd = open(filename, O_WRONLY);
+	ASSERT_NE(fd, -1);
+
+	len = strlen(string);
+	ret = write(fd, string, len);
+	ASSERT_EQ(ret, len);
+}
+
+static void setup_netns(struct __test_metadata *_metadata)
+{
+	ASSERT_EQ(unshare(CLONE_NEWNET), 0);
+	ASSERT_EQ(system("ip link set lo up"), 0);
+
+	write_sysctl(_metadata, "/proc/sys/net/ipv4/ip_local_port_range", "10000 60001");
+	write_sysctl(_metadata, "/proc/sys/net/ipv4/tcp_tw_reuse", "0");
+}
+
+#define NR_PORT				(60001 - 10000 - 1)
+#define NR_CLIENT_PER_SERVER_DEFAULT	32
+static int nr_client_per_server, nr_server, nr_client;
+
 FIXTURE_SETUP(so_incoming_cpu)
 {
-	self->nproc = get_nprocs();
-	ASSERT_LE(2, self->nproc);
+	setup_netns(_metadata);
 
-	self->servers = malloc(sizeof(int) * NR_SERVER);
+	nr_server = get_nprocs();
+	ASSERT_LE(2, nr_server);
+
+	if (NR_CLIENT_PER_SERVER_DEFAULT * nr_server < NR_PORT)
+		nr_client_per_server = NR_CLIENT_PER_SERVER_DEFAULT;
+	else
+		nr_client_per_server = NR_PORT / nr_server;
+
+	nr_client = nr_client_per_server * nr_server;
+
+	self->servers = malloc(sizeof(int) * nr_server);
 	ASSERT_NE(self->servers, NULL);
 
 	self->in_addr.sin_family = AF_INET;
@@ -74,7 +106,7 @@ FIXTURE_TEARDOWN(so_incoming_cpu)
 {
 	int i;
 
-	for (i = 0; i < NR_SERVER; i++)
+	for (i = 0; i < nr_server; i++)
 		close(self->servers[i]);
 
 	free(self->servers);
@@ -110,10 +142,10 @@ int create_server(struct __test_metadata *_metadata,
 	if (variant->when_to_set == BEFORE_LISTEN)
 		set_so_incoming_cpu(_metadata, fd, cpu);
 
-	/* We don't use CLIENT_PER_SERVER here not to block
+	/* We don't use nr_client_per_server here not to block
 	 * this test at connect() if SO_INCOMING_CPU is broken.
 	 */
-	ret = listen(fd, NR_CLIENT);
+	ret = listen(fd, nr_client);
 	ASSERT_EQ(ret, 0);
 
 	if (variant->when_to_set == AFTER_LISTEN)
@@ -128,7 +160,7 @@ void create_servers(struct __test_metadata *_metadata,
 {
 	int i, ret;
 
-	for (i = 0; i < NR_SERVER; i++) {
+	for (i = 0; i < nr_server; i++) {
 		self->servers[i] = create_server(_metadata, self, variant, i);
 
 		if (i == 0) {
@@ -138,7 +170,7 @@ void create_servers(struct __test_metadata *_metadata,
 	}
 
 	if (variant->when_to_set == AFTER_ALL_LISTEN) {
-		for (i = 0; i < NR_SERVER; i++)
+		for (i = 0; i < nr_server; i++)
 			set_so_incoming_cpu(_metadata, self->servers[i], i);
 	}
 }
@@ -149,7 +181,7 @@ void create_clients(struct __test_metadata *_metadata,
 	cpu_set_t cpu_set;
 	int i, j, fd, ret;
 
-	for (i = 0; i < NR_SERVER; i++) {
+	for (i = 0; i < nr_server; i++) {
 		CPU_ZERO(&cpu_set);
 
 		CPU_SET(i, &cpu_set);
@@ -162,7 +194,7 @@ void create_clients(struct __test_metadata *_metadata,
 		ret = sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
 		ASSERT_EQ(ret, 0);
 
-		for (j = 0; j < CLIENT_PER_SERVER; j++) {
+		for (j = 0; j < nr_client_per_server; j++) {
 			fd  = socket(AF_INET, SOCK_STREAM, 0);
 			ASSERT_NE(fd, -1);
 
@@ -180,8 +212,8 @@ void verify_incoming_cpu(struct __test_metadata *_metadata,
 	int i, j, fd, cpu, ret, total = 0;
 	socklen_t len = sizeof(int);
 
-	for (i = 0; i < NR_SERVER; i++) {
-		for (j = 0; j < CLIENT_PER_SERVER; j++) {
+	for (i = 0; i < nr_server; i++) {
+		for (j = 0; j < nr_client_per_server; j++) {
 			/* If we see -EAGAIN here, SO_INCOMING_CPU is broken */
 			fd = accept(self->servers[i], &self->addr, &self->addrlen);
 			ASSERT_NE(fd, -1);
@@ -195,7 +227,7 @@ void verify_incoming_cpu(struct __test_metadata *_metadata,
 		}
 	}
 
-	ASSERT_EQ(total, NR_CLIENT);
+	ASSERT_EQ(total, nr_client);
 	TH_LOG("SO_INCOMING_CPU is very likely to be "
 	       "working correctly with %d sockets.", total);
 }

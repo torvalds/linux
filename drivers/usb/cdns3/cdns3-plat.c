@@ -87,16 +87,20 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 	cdns->dev_irq = platform_get_irq_byname(pdev, "peripheral");
 
 	if (cdns->dev_irq < 0)
-		return cdns->dev_irq;
+		return dev_err_probe(dev, cdns->dev_irq,
+				     "Failed to get peripheral IRQ\n");
 
 	regs = devm_platform_ioremap_resource_byname(pdev, "dev");
 	if (IS_ERR(regs))
-		return PTR_ERR(regs);
+		return dev_err_probe(dev, PTR_ERR(regs),
+				     "Failed to get dev base\n");
+
 	cdns->dev_regs	= regs;
 
 	cdns->otg_irq = platform_get_irq_byname(pdev, "otg");
 	if (cdns->otg_irq < 0)
-		return cdns->otg_irq;
+		return dev_err_probe(dev, cdns->otg_irq,
+				     "Failed to get otg IRQ\n");
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "otg");
 	if (!res) {
@@ -119,7 +123,8 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 
 	cdns->usb2_phy = devm_phy_optional_get(dev, "cdns3,usb2-phy");
 	if (IS_ERR(cdns->usb2_phy))
-		return PTR_ERR(cdns->usb2_phy);
+		return dev_err_probe(dev, PTR_ERR(cdns->usb2_phy),
+				     "Failed to get cdn3,usb2-phy\n");
 
 	ret = phy_init(cdns->usb2_phy);
 	if (ret)
@@ -127,7 +132,8 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 
 	cdns->usb3_phy = devm_phy_optional_get(dev, "cdns3,usb3-phy");
 	if (IS_ERR(cdns->usb3_phy))
-		return PTR_ERR(cdns->usb3_phy);
+		return dev_err_probe(dev, PTR_ERR(cdns->usb3_phy),
+				     "Failed to get cdn3,usb3-phy\n");
 
 	ret = phy_init(cdns->usb3_phy);
 	if (ret)

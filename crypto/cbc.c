@@ -51,9 +51,10 @@ out:
 }
 
 static int crypto_cbc_encrypt(struct crypto_lskcipher *tfm, const u8 *src,
-			      u8 *dst, unsigned len, u8 *iv, bool final)
+			      u8 *dst, unsigned len, u8 *iv, u32 flags)
 {
 	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+	bool final = flags & CRYPTO_LSKCIPHER_FLAG_FINAL;
 	struct crypto_lskcipher *cipher = *ctx;
 	int rem;
 
@@ -119,9 +120,10 @@ out:
 }
 
 static int crypto_cbc_decrypt(struct crypto_lskcipher *tfm, const u8 *src,
-			      u8 *dst, unsigned len, u8 *iv, bool final)
+			      u8 *dst, unsigned len, u8 *iv, u32 flags)
 {
 	struct crypto_lskcipher **ctx = crypto_lskcipher_ctx(tfm);
+	bool final = flags & CRYPTO_LSKCIPHER_FLAG_FINAL;
 	struct crypto_lskcipher *cipher = *ctx;
 	int rem;
 
@@ -144,6 +146,9 @@ static int crypto_cbc_create(struct crypto_template *tmpl, struct rtattr **tb)
 
 	err = -EINVAL;
 	if (!is_power_of_2(inst->alg.co.base.cra_blocksize))
+		goto out_free_inst;
+
+	if (inst->alg.co.statesize)
 		goto out_free_inst;
 
 	inst->alg.encrypt = crypto_cbc_encrypt;

@@ -239,16 +239,9 @@ static int imx8mp_icc_probe(struct platform_device *pdev)
 	return imx_icc_register(pdev, nodes, ARRAY_SIZE(nodes), noc_setting_nodes);
 }
 
-static int imx8mp_icc_remove(struct platform_device *pdev)
-{
-	imx_icc_unregister(pdev);
-
-	return 0;
-}
-
 static struct platform_driver imx8mp_icc_driver = {
 	.probe = imx8mp_icc_probe,
-	.remove = imx8mp_icc_remove,
+	.remove_new = imx_icc_unregister,
 	.driver = {
 		.name = "imx8mp-interconnect",
 	},

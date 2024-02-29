@@ -406,6 +406,7 @@ static int exfat_find_empty_entry(struct inode *inode,
 		i_size_write(inode, size);
 		ei->i_size_ondisk += sbi->cluster_size;
 		ei->i_size_aligned += sbi->cluster_size;
+		ei->valid_size += sbi->cluster_size;
 		ei->flags = p_dir->flags;
 		inode->i_blocks += sbi->cluster_size >> 9;
 	}
@@ -558,6 +559,8 @@ static int exfat_add_entry(struct inode *inode, const char *path,
 		info->size = clu_size;
 		info->num_subdirs = EXFAT_MIN_SUBDIR;
 	}
+	info->valid_size = info->size;
+
 	memset(&info->crtime, 0, sizeof(info->crtime));
 	memset(&info->mtime, 0, sizeof(info->mtime));
 	memset(&info->atime, 0, sizeof(info->atime));
@@ -660,6 +663,8 @@ static int exfat_find(struct inode *dir, struct qstr *qname,
 	info->type = exfat_get_entry_type(ep);
 	info->attr = le16_to_cpu(ep->dentry.file.attr);
 	info->size = le64_to_cpu(ep2->dentry.stream.valid_size);
+	info->valid_size = le64_to_cpu(ep2->dentry.stream.valid_size);
+	info->size = le64_to_cpu(ep2->dentry.stream.size);
 	if (info->size == 0) {
 		info->flags = ALLOC_NO_FAT_CHAIN;
 		info->start_clu = EXFAT_EOF_CLUSTER;
@@ -1288,6 +1293,7 @@ static int __exfat_rename(struct inode *old_parent_inode,
 			}
 
 			i_size_write(new_inode, 0);
+			new_ei->valid_size = 0;
 			new_ei->start_clu = EXFAT_EOF_CLUSTER;
 			new_ei->flags = ALLOC_NO_FAT_CHAIN;
 		}

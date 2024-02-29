@@ -455,6 +455,7 @@ static int k10temp_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 		switch (boot_cpu_data.x86_model) {
 		case 0x0 ... 0x1:	/* Zen3 SP3/TR */
+		case 0x8:		/* Zen3 TR Chagall */
 		case 0x21:		/* Zen3 Ryzen Desktop */
 		case 0x50 ... 0x5f:	/* Green Sardine */
 			data->ccd_offset = 0x154;

@@ -6,7 +6,7 @@
 /dts-v1/;
 
 #include "qcom-msm8226.dtsi"
-#include "qcom-pm8226.dtsi"
+#include "pm8226.dtsi"
 #include <dt-bindings/input/ti-drv260x.h>
 
 /delete-node/ &adsp_region;
@@ -335,6 +335,8 @@
 	qcom,fast-charge-current-limit = <300000>;
 	qcom,fast-charge-safe-current = <600000>;
 	qcom,auto-recharge-threshold-voltage = <4240000>;
+
+	status = "okay";
 };
 
 &tlmm {

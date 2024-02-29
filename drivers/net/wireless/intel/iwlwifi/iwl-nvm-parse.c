@@ -668,7 +668,6 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 			.has_eht = true,
 			.eht_cap_elem = {
 				.mac_cap_info[0] =
-					IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
 					IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1 |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE2 |
@@ -793,7 +792,6 @@ static const struct ieee80211_sband_iftype_data iwl_he_eht_capa[] = {
 			.has_eht = true,
 			.eht_cap_elem = {
 				.mac_cap_info[0] =
-					IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
 					IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1 |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE2,
@@ -1020,8 +1018,7 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 	if (CSR_HW_REV_TYPE(trans->hw_rev) == IWL_CFG_MAC_TYPE_GL &&
 	    iftype_data->eht_cap.has_eht) {
 		iftype_data->eht_cap.eht_cap_elem.mac_cap_info[0] &=
-			~(IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
-			  IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1 |
+			~(IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1 |
 			  IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE2);
 		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[3] &=
 			~(IEEE80211_EHT_PHY_CAP0_PARTIAL_BW_UL_MU_MIMO |
@@ -1029,7 +1026,8 @@ iwl_nvm_fixup_sband_iftd(struct iwl_trans *trans,
 			  IEEE80211_EHT_PHY_CAP3_NG_16_MU_FEEDBACK |
 			  IEEE80211_EHT_PHY_CAP3_CODEBOOK_4_2_SU_FDBK |
 			  IEEE80211_EHT_PHY_CAP3_CODEBOOK_7_5_MU_FDBK |
-			  IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK);
+			  IEEE80211_EHT_PHY_CAP3_TRIG_MU_BF_PART_BW_FDBK |
+			  IEEE80211_EHT_PHY_CAP3_TRIG_CQI_FDBK);
 		iftype_data->eht_cap.eht_cap_elem.phy_cap_info[4] &=
 			~(IEEE80211_EHT_PHY_CAP4_PART_BW_DL_MU_MIMO |
 			  IEEE80211_EHT_PHY_CAP4_POWER_BOOST_FACT_SUPP);
@@ -1608,10 +1606,17 @@ static u32 iwl_nvm_get_regdom_bw_flags(const u16 *nvm_chan,
 	/* Set the GO concurrent flag only in case that NO_IR is set.
 	 * Otherwise it is meaningless
 	 */
-	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT) &&
-	    (flags & NL80211_RRF_NO_IR))
-		flags |= NL80211_RRF_GO_CONCURRENT;
-
+	if ((nvm_flags & NVM_CHANNEL_GO_CONCURRENT)) {
+		if (flags & NL80211_RRF_NO_IR)
+			flags |= NL80211_RRF_GO_CONCURRENT;
+		if (flags & NL80211_RRF_DFS) {
+			flags |= NL80211_RRF_DFS_CONCURRENT;
+			/* Our device doesn't set active bit for DFS channels
+			 * however, once marked as DFS no-ir is not needed.
+			 */
+			flags &= ~NL80211_RRF_NO_IR;
+		}
+	}
 	/*
 	 * reg_capa is per regulatory domain so apply it for every channel
 	 */

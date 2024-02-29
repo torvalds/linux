@@ -91,26 +91,26 @@ static int stdp2690_read_block(void *context, u8 *buf, unsigned int block, size_
 	return 0;
 }
 
-static struct edid *ge_b850v3_lvds_get_edid(struct drm_bridge *bridge,
-					    struct drm_connector *connector)
+static const struct drm_edid *ge_b850v3_lvds_edid_read(struct drm_bridge *bridge,
+						       struct drm_connector *connector)
 {
 	struct i2c_client *client;
 
 	client = ge_b850v3_lvds_ptr->stdp2690_i2c;
 
-	return drm_do_get_edid(connector, stdp2690_read_block, client);
+	return drm_edid_read_custom(connector, stdp2690_read_block, client);
 }
 
 static int ge_b850v3_lvds_get_modes(struct drm_connector *connector)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int num_modes;
 
-	edid = ge_b850v3_lvds_get_edid(&ge_b850v3_lvds_ptr->bridge, connector);
+	drm_edid = ge_b850v3_lvds_edid_read(&ge_b850v3_lvds_ptr->bridge, connector);
 
-	drm_connector_update_edid_property(connector, edid);
-	num_modes = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	drm_edid_connector_update(connector, drm_edid);
+	num_modes = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return num_modes;
 }
@@ -226,7 +226,7 @@ static int ge_b850v3_lvds_attach(struct drm_bridge *bridge,
 static const struct drm_bridge_funcs ge_b850v3_lvds_funcs = {
 	.attach = ge_b850v3_lvds_attach,
 	.detect = ge_b850v3_lvds_bridge_detect,
-	.get_edid = ge_b850v3_lvds_get_edid,
+	.edid_read = ge_b850v3_lvds_edid_read,
 };
 
 static int ge_b850v3_lvds_init(struct device *dev)

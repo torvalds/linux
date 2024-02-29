@@ -30,9 +30,9 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/clk.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
@@ -259,22 +259,13 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	void __iomem *addr;
 	struct net_device *dev;
 	struct c_can_priv *priv;
-	const struct of_device_id *match;
 	struct resource *mem;
 	int irq;
 	struct clk *clk;
 	const struct c_can_driver_data *drvdata;
 	struct device_node *np = pdev->dev.of_node;
 
-	match = of_match_device(c_can_of_table, &pdev->dev);
-	if (match) {
-		drvdata = match->data;
-	} else if (pdev->id_entry->driver_data) {
-		drvdata = (struct c_can_driver_data *)
-			platform_get_device_id(pdev)->driver_data;
-	} else {
-		return -ENODEV;
-	}
+	drvdata = device_get_match_data(&pdev->dev);
 
 	/* get the appropriate clk */
 	clk = devm_clk_get(&pdev->dev, NULL);

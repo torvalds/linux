@@ -32,6 +32,7 @@ properties:
     oneOf:
       - items:
           - enum:
+              - amd,mbv32
               - andestech,ax45mp
               - canaan,k210
               - sifive,bullet0
@@ -62,8 +63,8 @@ properties:
 
   mmu-type:
     description:
-      Identifies the MMU address translation mode used on this
-      hart.  These values originate from the RISC-V Privileged
+      Identifies the largest MMU address translation mode supported by
+      this hart.  These values originate from the RISC-V Privileged
       Specification document, available from
       https://riscv.org/specifications/
     $ref: /schemas/types.yaml#/definitions/string
@@ -78,6 +79,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
       The blocksize in bytes for the Zicbom cache operations.
+
+  riscv,cbop-block-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      The blocksize in bytes for the Zicbop cache operations.
 
   riscv,cboz-block-size:
     $ref: /schemas/types.yaml#/definitions/uint32

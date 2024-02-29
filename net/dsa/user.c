@@ -920,30 +920,6 @@ netdev_tx_t dsa_enqueue_skb(struct sk_buff *skb, struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(dsa_enqueue_skb);
 
-static int dsa_realloc_skb(struct sk_buff *skb, struct net_device *dev)
-{
-	int needed_headroom = dev->needed_headroom;
-	int needed_tailroom = dev->needed_tailroom;
-
-	/* For tail taggers, we need to pad short frames ourselves, to ensure
-	 * that the tail tag does not fail at its role of being at the end of
-	 * the packet, once the conduit interface pads the frame. Account for
-	 * that pad length here, and pad later.
-	 */
-	if (unlikely(needed_tailroom && skb->len < ETH_ZLEN))
-		needed_tailroom += ETH_ZLEN - skb->len;
-	/* skb_headroom() returns unsigned int... */
-	needed_headroom = max_t(int, needed_headroom - skb_headroom(skb), 0);
-	needed_tailroom = max_t(int, needed_tailroom - skb_tailroom(skb), 0);
-
-	if (likely(!needed_headroom && !needed_tailroom && !skb_cloned(skb)))
-		/* No reallocation needed, yay! */
-		return 0;
-
-	return pskb_expand_head(skb, needed_headroom, needed_tailroom,
-				GFP_ATOMIC);
-}
-
 static netdev_tx_t dsa_user_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct dsa_user_priv *p = netdev_priv(dev);
@@ -956,13 +932,14 @@ static netdev_tx_t dsa_user_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Handle tx timestamp if any */
 	dsa_skb_tx_timestamp(p, skb);
 
-	if (dsa_realloc_skb(skb, dev)) {
+	if (skb_ensure_writable_head_tail(skb, dev)) {
 		dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
 
 	/* needed_tailroom should still be 'warm' in the cache line from
-	 * dsa_realloc_skb(), which has also ensured that padding is safe.
+	 * skb_ensure_writable_head_tail(), which has also ensured that
+	 * padding is safe.
 	 */
 	if (dev->needed_tailroom)
 		eth_skb_pad(skb);
@@ -2829,13 +2806,14 @@ EXPORT_SYMBOL_GPL(dsa_user_dev_check);
 static int dsa_user_changeupper(struct net_device *dev,
 				struct netdev_notifier_changeupper_info *info)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct netlink_ext_ack *extack;
 	int err = NOTIFY_DONE;
+	struct dsa_port *dp;
 
 	if (!dsa_user_dev_check(dev))
 		return err;
 
+	dp = dsa_user_to_port(dev);
 	extack = netdev_notifier_info_to_extack(&info->info);
 
 	if (netif_is_bridge_master(info->upper_dev)) {
@@ -2888,10 +2866,12 @@ static int dsa_user_changeupper(struct net_device *dev,
 static int dsa_user_prechangeupper(struct net_device *dev,
 				   struct netdev_notifier_changeupper_info *info)
 {
-	struct dsa_port *dp = dsa_user_to_port(dev);
+	struct dsa_port *dp;
 
 	if (!dsa_user_dev_check(dev))
 		return NOTIFY_DONE;
+
+	dp = dsa_user_to_port(dev);
 
 	if (netif_is_bridge_master(info->upper_dev) && !info->linking)
 		dsa_port_pre_bridge_leave(dp, info->upper_dev);

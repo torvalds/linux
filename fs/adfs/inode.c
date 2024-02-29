@@ -5,6 +5,7 @@
  *  Copyright (C) 1997-1999 Russell King
  */
 #include <linux/buffer_head.h>
+#include <linux/mpage.h>
 #include <linux/writeback.h>
 #include "adfs.h"
 
@@ -33,9 +34,10 @@ abort_toobig:
 	return 0;
 }
 
-static int adfs_writepage(struct page *page, struct writeback_control *wbc)
+static int adfs_writepages(struct address_space *mapping,
+		struct writeback_control *wbc)
 {
-	return block_write_full_page(page, adfs_get_block, wbc);
+	return mpage_writepages(mapping, wbc, adfs_get_block);
 }
 
 static int adfs_read_folio(struct file *file, struct folio *folio)
@@ -76,10 +78,11 @@ static const struct address_space_operations adfs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio	= adfs_read_folio,
-	.writepage	= adfs_writepage,
+	.writepages	= adfs_writepages,
 	.write_begin	= adfs_write_begin,
 	.write_end	= generic_write_end,
-	.bmap		= _adfs_bmap
+	.migrate_folio	= buffer_migrate_folio,
+	.bmap		= _adfs_bmap,
 };
 
 /*

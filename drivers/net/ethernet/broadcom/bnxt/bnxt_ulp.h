@@ -73,6 +73,10 @@ struct bnxt_en_dev {
 							 * bytes mapped as non-
 							 * cacheable.
 							 */
+	int				l2_db_offset;	/* Doorbell offset in
+							 * bytes within
+							 * l2_db_size_nc.
+							 */
 	u16				chip_num;
 	u16				hw_ring_stats_size;
 	u16				pf_port_id;

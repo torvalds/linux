@@ -336,15 +336,13 @@ err_erase_id:
 	return ret;
 }
 
-static int liteuart_remove(struct platform_device *pdev)
+static void liteuart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port = platform_get_drvdata(pdev);
 	unsigned int line = port->line;
 
 	uart_remove_one_port(&liteuart_driver, port);
 	xa_erase(&liteuart_array, line);
-
-	return 0;
 }
 
 static const struct of_device_id liteuart_of_match[] = {
@@ -355,7 +353,7 @@ MODULE_DEVICE_TABLE(of, liteuart_of_match);
 
 static struct platform_driver liteuart_platform_driver = {
 	.probe = liteuart_probe,
-	.remove = liteuart_remove,
+	.remove_new = liteuart_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = liteuart_of_match,

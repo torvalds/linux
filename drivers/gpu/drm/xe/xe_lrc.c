@@ -19,12 +19,14 @@
 #include "xe_gt_printk.h"
 #include "xe_hw_fence.h"
 #include "xe_map.h"
+#include "xe_memirq.h"
+#include "xe_sriov.h"
 #include "xe_vm.h"
 
-#define CTX_VALID				(1 << 0)
-#define CTX_PRIVILEGE				(1 << 8)
-#define CTX_ADDRESSING_MODE_SHIFT		3
-#define LEGACY_64B_CONTEXT			3
+#define LRC_VALID				(1 << 0)
+#define LRC_PRIVILEGE				(1 << 8)
+#define LRC_ADDRESSING_MODE_SHIFT		3
+#define LRC_LEGACY_64B_CONTEXT			3
 
 #define ENGINE_CLASS_SHIFT			61
 #define ENGINE_INSTANCE_SHIFT			48
@@ -532,6 +534,27 @@ static void set_context_control(u32 *regs, struct xe_hw_engine *hwe)
 	/* TODO: Timestamp */
 }
 
+static void set_memory_based_intr(u32 *regs, struct xe_hw_engine *hwe)
+{
+	struct xe_memirq *memirq = &gt_to_tile(hwe->gt)->sriov.vf.memirq;
+	struct xe_device *xe = gt_to_xe(hwe->gt);
+
+	if (!IS_SRIOV_VF(xe) || !xe_device_has_memirq(xe))
+		return;
+
+	regs[CTX_LRM_INT_MASK_ENABLE] = MI_LOAD_REGISTER_MEM |
+					MI_LRI_LRM_CS_MMIO | MI_LRM_USE_GGTT;
+	regs[CTX_INT_MASK_ENABLE_REG] = RING_IMR(0).addr;
+	regs[CTX_INT_MASK_ENABLE_PTR] = xe_memirq_enable_ptr(memirq);
+
+	regs[CTX_LRI_INT_REPORT_PTR] = MI_LOAD_REGISTER_IMM | MI_LRI_NUM_REGS(2) |
+				       MI_LRI_LRM_CS_MMIO | MI_LRI_FORCE_POSTED;
+	regs[CTX_INT_STATUS_REPORT_REG] = RING_INT_STATUS_RPT_PTR(0).addr;
+	regs[CTX_INT_STATUS_REPORT_PTR] = xe_memirq_status_ptr(memirq);
+	regs[CTX_INT_SRC_REPORT_REG] = RING_INT_SRC_RPT_PTR(0).addr;
+	regs[CTX_INT_SRC_REPORT_PTR] = xe_memirq_source_ptr(memirq);
+}
+
 static int lrc_ring_mi_mode(struct xe_hw_engine *hwe)
 {
 	struct xe_device *xe = gt_to_xe(hwe->gt);
@@ -667,6 +690,7 @@ static void *empty_lrc_data(struct xe_hw_engine *hwe)
 	regs = data + LRC_PPHWSP_SIZE;
 	set_offsets(regs, reg_offsets(xe, hwe->class), hwe);
 	set_context_control(regs, hwe);
+	set_memory_based_intr(regs, hwe);
 	reset_stop_ring(regs, hwe);
 
 	return data;
@@ -762,15 +786,15 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 				     (q->usm.acc_notify << ACC_NOTIFY_S) |
 				     q->usm.acc_trigger);
 
-	lrc->desc = CTX_VALID;
-	lrc->desc |= LEGACY_64B_CONTEXT << CTX_ADDRESSING_MODE_SHIFT;
+	lrc->desc = LRC_VALID;
+	lrc->desc |= LRC_LEGACY_64B_CONTEXT << LRC_ADDRESSING_MODE_SHIFT;
 	/* TODO: Priority */
 
 	/* While this appears to have something about privileged batches or
 	 * some such, it really just means PPGTT mode.
 	 */
 	if (vm)
-		lrc->desc |= CTX_PRIVILEGE;
+		lrc->desc |= LRC_PRIVILEGE;
 
 	if (GRAPHICS_VERx100(xe) < 1250) {
 		lrc->desc |= (u64)hwe->instance << ENGINE_INSTANCE_SHIFT;
@@ -962,6 +986,20 @@ static int dump_mi_command(struct drm_printer *p,
 			   inst_header, (numdw - 1) / 2);
 		for (int i = 1; i < numdw; i += 2)
 			drm_printf(p, " - %#6x = %#010x\n", dw[i], dw[i + 1]);
+		return numdw;
+
+	case MI_LOAD_REGISTER_MEM & MI_OPCODE:
+		drm_printf(p, "[%#010x] MI_LOAD_REGISTER_MEM: %s%s\n",
+			   inst_header,
+			   dw[0] & MI_LRI_LRM_CS_MMIO ? "CS_MMIO " : "",
+			   dw[0] & MI_LRM_USE_GGTT ? "USE_GGTT " : "");
+		if (numdw == 4)
+			drm_printf(p, " - %#6x = %#010llx\n",
+				   dw[1], ((u64)(dw[3]) << 32 | (u64)(dw[2])));
+		else
+			drm_printf(p, " - %*ph (%s)\n",
+				   (int)sizeof(u32) * (numdw - 1), dw + 1,
+				   numdw < 4 ? "truncated" : "malformed");
 		return numdw;
 
 	case MI_FORCE_WAKEUP:

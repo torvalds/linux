@@ -74,6 +74,7 @@ struct rt5663_priv {
 	int pll_out;
 
 	int jack_type;
+	unsigned int irq;
 };
 
 static const struct reg_sequence rt5663_patch_list[] = {
@@ -3186,6 +3187,12 @@ static int rt5663_suspend(struct snd_soc_component *component)
 {
 	struct rt5663_priv *rt5663 = snd_soc_component_get_drvdata(component);
 
+	if (rt5663->irq)
+		disable_irq(rt5663->irq);
+
+	cancel_delayed_work_sync(&rt5663->jack_detect_work);
+	cancel_delayed_work_sync(&rt5663->jd_unplug_work);
+
 	regcache_cache_only(rt5663->regmap, true);
 	regcache_mark_dirty(rt5663->regmap);
 
@@ -3200,6 +3207,9 @@ static int rt5663_resume(struct snd_soc_component *component)
 	regcache_sync(rt5663->regmap);
 
 	rt5663_irq(0, rt5663);
+
+	if (rt5663->irq)
+		enable_irq(rt5663->irq);
 
 	return 0;
 }
@@ -3686,6 +3696,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c)
 				__func__, ret);
 			goto err_enable;
 		}
+		rt5663->irq = i2c->irq;
 	}
 
 	ret = devm_snd_soc_register_component(&i2c->dev,

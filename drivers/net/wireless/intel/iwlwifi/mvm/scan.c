@@ -101,6 +101,7 @@ struct iwl_mvm_scan_params {
 	bool scan_6ghz;
 	bool enable_6ghz_passive;
 	bool respect_p2p_go, respect_p2p_go_hb;
+	s8 tsf_report_link_id;
 	u8 bssid[ETH_ALEN] __aligned(2);
 };
 
@@ -2342,20 +2343,15 @@ iwl_mvm_scan_umac_fill_general_p_v12(struct iwl_mvm *mvm,
 	if (gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_V2_FRAGMENTED_LMAC2)
 		gp->num_of_fragments[SCAN_HB_LMAC_IDX] = IWL_SCAN_NUM_OF_FRAGS;
 
+	mvm->scan_link_id = 0;
+
 	if (version < 16) {
 		gp->scan_start_mac_or_link_id = scan_vif->id;
 	} else {
-		struct iwl_mvm_vif_link_info *link_info;
-		u8 link_id = 0;
+		struct iwl_mvm_vif_link_info *link_info =
+			scan_vif->link[params->tsf_report_link_id];
 
-		/* Use one of the active link (if any). In the future it would
-		 * be possible that the link ID would be part of the scan
-		 * request coming from upper layers so we would need to use it.
-		 */
-		if (vif->active_links)
-			link_id = ffs(vif->active_links) - 1;
-
-		link_info = scan_vif->link[link_id];
+		mvm->scan_link_id = params->tsf_report_link_id;
 		if (!WARN_ON(!link_info))
 			gp->scan_start_mac_or_link_id = link_info->fw_link_id;
 	}
@@ -2977,6 +2973,14 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (req->duration)
 		params.iter_notif = true;
 
+	params.tsf_report_link_id = req->tsf_report_link_id;
+	if (params.tsf_report_link_id < 0) {
+		if (vif->active_links)
+			params.tsf_report_link_id = __ffs(vif->active_links);
+		else
+			params.tsf_report_link_id = 0;
+	}
+
 	iwl_mvm_build_scan_probe(mvm, vif, ies, &params);
 
 	iwl_mvm_scan_6ghz_passive_scan(mvm, &params, vif);
@@ -3164,8 +3168,13 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 			.aborted = aborted,
 			.scan_start_tsf = mvm->scan_start,
 		};
+		struct iwl_mvm_vif *scan_vif = mvm->scan_vif;
+		struct iwl_mvm_vif_link_info *link_info =
+			scan_vif->link[mvm->scan_link_id];
 
-		memcpy(info.tsf_bssid, mvm->scan_vif->deflink.bssid, ETH_ALEN);
+		if (!WARN_ON(!link_info))
+			memcpy(info.tsf_bssid, link_info->bssid, ETH_ALEN);
+
 		ieee80211_scan_completed(mvm->hw, &info);
 		mvm->scan_vif = NULL;
 		cancel_delayed_work(&mvm->scan_timeout_dwork);

@@ -57,22 +57,19 @@ static void sdma_v2_4_set_irq_funcs(struct amdgpu_device *adev);
 MODULE_FIRMWARE("amdgpu/topaz_sdma.bin");
 MODULE_FIRMWARE("amdgpu/topaz_sdma1.bin");
 
-static const u32 sdma_offsets[SDMA_MAX_INSTANCE] =
-{
+static const u32 sdma_offsets[SDMA_MAX_INSTANCE] = {
 	SDMA0_REGISTER_OFFSET,
 	SDMA1_REGISTER_OFFSET
 };
 
-static const u32 golden_settings_iceland_a11[] =
-{
+static const u32 golden_settings_iceland_a11[] = {
 	mmSDMA0_CHICKEN_BITS, 0xfc910007, 0x00810007,
 	mmSDMA0_CLK_CTRL, 0xff000fff, 0x00000000,
 	mmSDMA1_CHICKEN_BITS, 0xfc910007, 0x00810007,
 	mmSDMA1_CLK_CTRL, 0xff000fff, 0x00000000,
 };
 
-static const u32 iceland_mgcg_cgcg_init[] =
-{
+static const u32 iceland_mgcg_cgcg_init[] = {
 	mmSDMA0_CLK_CTRL, 0xff000ff0, 0x00000100,
 	mmSDMA1_CLK_CTRL, 0xff000ff0, 0x00000100
 };
@@ -142,7 +139,8 @@ static int sdma_v2_4_init_microcode(struct amdgpu_device *adev)
 	case CHIP_TOPAZ:
 		chip_name = "topaz";
 		break;
-	default: BUG();
+	default:
+		BUG();
 	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -1258,8 +1256,7 @@ static void sdma_v2_4_set_vm_pte_funcs(struct amdgpu_device *adev)
 	adev->vm_manager.vm_pte_num_scheds = adev->sdma.num_instances;
 }
 
-const struct amdgpu_ip_block_version sdma_v2_4_ip_block =
-{
+const struct amdgpu_ip_block_version sdma_v2_4_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_SDMA,
 	.major = 2,
 	.minor = 4,

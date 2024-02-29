@@ -404,7 +404,8 @@ static int xgpu_ai_request_init_data(struct amdgpu_device *adev)
 	return xgpu_ai_send_access_requests(adev, IDH_REQ_GPU_INIT_DATA);
 }
 
-static void xgpu_ai_ras_poison_handler(struct amdgpu_device *adev)
+static void xgpu_ai_ras_poison_handler(struct amdgpu_device *adev,
+					enum amdgpu_ras_block block)
 {
 	xgpu_ai_send_access_requests(adev, IDH_RAS_POISON);
 }

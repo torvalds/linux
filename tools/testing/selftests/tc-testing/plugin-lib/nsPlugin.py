@@ -9,43 +9,13 @@ from TdcPlugin import TdcPlugin
 
 from tdc_config import *
 
-def prepare_suite(obj, test):
-    original = obj.args.NAMES
-
-    if 'skip' in test and test['skip'] == 'yes':
-        return
-
-    if 'nsPlugin' not in test['plugins']:
-        return
-
-    shadow = {}
-    shadow['IP'] = original['IP']
-    shadow['TC'] = original['TC']
-    shadow['NS'] = '{}-{}'.format(original['NS'], test['random'])
-    shadow['DEV0'] = '{}id{}'.format(original['DEV0'], test['id'])
-    shadow['DEV1'] = '{}id{}'.format(original['DEV1'], test['id'])
-    shadow['DUMMY'] = '{}id{}'.format(original['DUMMY'], test['id'])
-    shadow['DEV2'] = original['DEV2']
-    obj.args.NAMES = shadow
-
-    if obj.args.namespace:
-        obj._ns_create()
-    else:
-        obj._ports_create()
-
-    # Make sure the netns is visible in the fs
-    while True:
-        obj._proc_check()
-        try:
-            ns = obj.args.NAMES['NS']
-            f = open('/run/netns/{}'.format(ns))
-            f.close()
-            break
-        except:
-            time.sleep(0.1)
-            continue
-
-    obj.args.NAMES = original
+try:
+    from pyroute2 import netns
+    from pyroute2 import IPRoute
+    netlink = True
+except ImportError:
+    netlink = False
+    print("!!! Consider installing pyroute2 !!!")
 
 class SubPlugin(TdcPlugin):
     def __init__(self):
@@ -53,63 +23,70 @@ class SubPlugin(TdcPlugin):
         super().__init__()
 
     def pre_suite(self, testcount, testlist):
-        from itertools import cycle
-
         super().pre_suite(testcount, testlist)
 
-        print("Setting up namespaces and devices...")
+    def prepare_test(self, test):
+        if 'skip' in test and test['skip'] == 'yes':
+            return
 
-        with Pool(self.args.mp) as p:
-            it = zip(cycle([self]), testlist)
-            p.starmap(prepare_suite, it)
+        if 'nsPlugin' not in test['plugins']:
+            return
 
-    def pre_case(self, caseinfo, test_skip):
+        if netlink == True:
+            self._nl_ns_create()
+        else:
+            self._ipr2_ns_create()
+
+        # Make sure the netns is visible in the fs
+        ticks = 20
+        while True:
+            if ticks == 0:
+                raise TimeoutError
+            self._proc_check()
+            try:
+                ns = self.args.NAMES['NS']
+                f = open('/run/netns/{}'.format(ns))
+                f.close()
+                break
+            except:
+                time.sleep(0.1)
+                ticks -= 1
+                continue
+
+    def pre_case(self, test, test_skip):
         if self.args.verbose:
             print('{}.pre_case'.format(self.sub_class))
 
         if test_skip:
             return
 
+        self.prepare_test(test)
 
     def post_case(self):
         if self.args.verbose:
             print('{}.post_case'.format(self.sub_class))
 
-        if self.args.namespace:
-            self._ns_destroy()
+        if netlink == True:
+            self._nl_ns_destroy()
         else:
-            self._ports_destroy()
+            self._ipr2_ns_destroy()
 
     def post_suite(self, index):
         if self.args.verbose:
             print('{}.post_suite'.format(self.sub_class))
 
         # Make sure we don't leak resources
-        for f in os.listdir('/run/netns/'):
-            cmd = self._replace_keywords("$IP netns del {}".format(f))
+        cmd = self._replace_keywords("$IP -a netns del")
 
-            if self.args.verbose > 3:
-                print('_exec_cmd:  command "{}"'.format(cmd))
+        if self.args.verbose > 3:
+            print('_exec_cmd:  command "{}"'.format(cmd))
 
-            subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-    def add_args(self, parser):
-        super().add_args(parser)
-        self.argparser_group = self.argparser.add_argument_group(
-            'netns',
-            'options for nsPlugin(run commands in net namespace)')
-        self.argparser_group.add_argument(
-            '-N', '--no-namespace', action='store_false', default=True,
-            dest='namespace', help='Don\'t run commands in namespace')
-        return self.argparser
+        subprocess.run(cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def adjust_command(self, stage, command):
         super().adjust_command(stage, command)
         cmdform = 'list'
         cmdlist = list()
-
-        if not self.args.namespace:
-            return command
 
         if self.args.verbose:
             print('{}.adjust_command'.format(self.sub_class))
@@ -138,63 +115,90 @@ class SubPlugin(TdcPlugin):
             print('adjust_command:  return command [{}]'.format(command))
         return command
 
-    def _ports_create_cmds(self):
+    def _nl_ns_create(self):
+        ns = self.args.NAMES["NS"];
+        dev0 = self.args.NAMES["DEV0"];
+        dev1 = self.args.NAMES["DEV1"];
+        dummy = self.args.NAMES["DUMMY"];
+
+        if self.args.verbose:
+            print('{}._nl_ns_create'.format(self.sub_class))
+
+        netns.create(ns)
+        netns.pushns(newns=ns)
+        with IPRoute() as ip:
+            ip.link('add', ifname=dev1, kind='veth', peer={'ifname': dev0, 'net_ns_fd':'/proc/1/ns/net'})
+            ip.link('add', ifname=dummy, kind='dummy')
+            ticks = 20
+            while True:
+                if ticks == 0:
+                    raise TimeoutError
+                try:
+                    dev1_idx = ip.link_lookup(ifname=dev1)[0]
+                    dummy_idx = ip.link_lookup(ifname=dummy)[0]
+                    ip.link('set', index=dev1_idx, state='up')
+                    ip.link('set', index=dummy_idx, state='up')
+                    break
+                except:
+                    time.sleep(0.1)
+                    ticks -= 1
+                    continue
+        netns.popns()
+
+        with IPRoute() as ip:
+            ticks = 20
+            while True:
+                if ticks == 0:
+                    raise TimeoutError
+                try:
+                    dev0_idx = ip.link_lookup(ifname=dev0)[0]
+                    ip.link('set', index=dev0_idx, state='up')
+                    break
+                except:
+                    time.sleep(0.1)
+                    ticks -= 1
+                    continue
+
+    def _ipr2_ns_create_cmds(self):
         cmds = []
 
-        cmds.append(self._replace_keywords('link add $DEV0 type veth peer name $DEV1'))
-        cmds.append(self._replace_keywords('link set $DEV0 up'))
-        cmds.append(self._replace_keywords('link add $DUMMY type dummy'))
-        if not self.args.namespace:
-            cmds.append(self._replace_keywords('link set $DEV1 up'))
+        ns = self.args.NAMES['NS']
+
+        cmds.append(self._replace_keywords('netns add {}'.format(ns)))
+        cmds.append(self._replace_keywords('link add $DEV1 type veth peer name $DEV0'))
+        cmds.append(self._replace_keywords('link set $DEV1 netns {}'.format(ns)))
+        cmds.append(self._replace_keywords('link add $DUMMY type dummy'.format(ns)))
+        cmds.append(self._replace_keywords('link set $DUMMY netns {}'.format(ns)))
+        cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV1 up'.format(ns)))
+        cmds.append(self._replace_keywords('netns exec {} $IP link set $DUMMY up'.format(ns)))
+        cmds.append(self._replace_keywords('link set $DEV0 up'.format(ns)))
+
+        if self.args.device:
+            cmds.append(self._replace_keywords('link set $DEV2 netns {}'.format(ns)))
+            cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV2 up'.format(ns)))
 
         return cmds
 
-    def _ports_create(self):
-        self._exec_cmd_batched('pre', self._ports_create_cmds())
-
-    def _ports_destroy_cmd(self):
-        return self._replace_keywords('link del $DEV0')
-
-    def _ports_destroy(self):
-        self._exec_cmd('post', self._ports_destroy_cmd())
-
-    def _ns_create_cmds(self):
-        cmds = []
-
-        if self.args.namespace:
-            ns = self.args.NAMES['NS']
-
-            cmds.append(self._replace_keywords('netns add {}'.format(ns)))
-            cmds.append(self._replace_keywords('link set $DEV1 netns {}'.format(ns)))
-            cmds.append(self._replace_keywords('link set $DUMMY netns {}'.format(ns)))
-            cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV1 up'.format(ns)))
-            cmds.append(self._replace_keywords('netns exec {} $IP link set $DUMMY up'.format(ns)))
-
-            if self.args.device:
-                cmds.append(self._replace_keywords('link set $DEV2 netns {}'.format(ns)))
-                cmds.append(self._replace_keywords('netns exec {} $IP link set $DEV2 up'.format(ns)))
-
-        return cmds
-
-    def _ns_create(self):
+    def _ipr2_ns_create(self):
         '''
         Create the network namespace in which the tests will be run and set up
         the required network devices for it.
         '''
-        self._ports_create()
-        self._exec_cmd_batched('pre', self._ns_create_cmds())
+        self._exec_cmd_batched('pre', self._ipr2_ns_create_cmds())
 
-    def _ns_destroy_cmd(self):
+    def _nl_ns_destroy(self):
+        ns = self.args.NAMES['NS']
+        netns.remove(ns)
+
+    def _ipr2_ns_destroy_cmd(self):
         return self._replace_keywords('netns delete {}'.format(self.args.NAMES['NS']))
 
-    def _ns_destroy(self):
+    def _ipr2_ns_destroy(self):
         '''
         Destroy the network namespace for testing (and any associated network
         devices as well)
         '''
-        if self.args.namespace:
-            self._exec_cmd('post', self._ns_destroy_cmd())
-            self._ports_destroy()
+        self._exec_cmd('post', self._ipr2_ns_destroy_cmd())
 
     @cached_property
     def _proc(self):

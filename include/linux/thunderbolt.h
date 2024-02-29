@@ -86,7 +86,7 @@ struct tb {
 	unsigned long privdata[];
 };
 
-extern struct bus_type tb_bus_type;
+extern const struct bus_type tb_bus_type;
 extern struct device_type tb_service_type;
 extern struct device_type tb_xdomain_type;
 

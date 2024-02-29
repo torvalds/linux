@@ -6,11 +6,14 @@
 #include <linux/module.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/pci.h>
 #include <linux/ratelimit.h>
 #include <linux/types.h>
 #include "adf_cfg_common.h"
 #include "adf_rl.h"
+#include "adf_telemetry.h"
 #include "adf_pfvf_msg.h"
+#include "icp_qat_hw.h"
 
 #define ADF_DH895XCC_DEVICE_NAME "dh895xcc"
 #define ADF_DH895XCCVF_DEVICE_NAME "dh895xccvf"
@@ -19,12 +22,15 @@
 #define ADF_C3XXX_DEVICE_NAME "c3xxx"
 #define ADF_C3XXXVF_DEVICE_NAME "c3xxxvf"
 #define ADF_4XXX_DEVICE_NAME "4xxx"
+#define ADF_420XX_DEVICE_NAME "420xx"
 #define ADF_4XXX_PCI_DEVICE_ID 0x4940
 #define ADF_4XXXIOV_PCI_DEVICE_ID 0x4941
 #define ADF_401XX_PCI_DEVICE_ID 0x4942
 #define ADF_401XXIOV_PCI_DEVICE_ID 0x4943
 #define ADF_402XX_PCI_DEVICE_ID 0x4944
 #define ADF_402XXIOV_PCI_DEVICE_ID 0x4945
+#define ADF_420XX_PCI_DEVICE_ID 0x4946
+#define ADF_420XXIOV_PCI_DEVICE_ID 0x4947
 #define ADF_DEVICE_FUSECTL_OFFSET 0x40
 #define ADF_DEVICE_LEGFUSE_OFFSET 0x4C
 #define ADF_DEVICE_FUSECTL_MASK 0x80000000
@@ -92,6 +98,7 @@ enum ras_errors {
 
 struct adf_error_counters {
 	atomic_t counter[ADF_RAS_ERRORS];
+	bool sysfs_added;
 	bool enabled;
 };
 
@@ -240,8 +247,10 @@ struct adf_hw_device_data {
 	void (*reset_device)(struct adf_accel_dev *accel_dev);
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	const char *(*uof_get_name)(struct adf_accel_dev *accel_dev, u32 obj_num);
-	u32 (*uof_get_num_objs)(void);
+	u32 (*uof_get_num_objs)(struct adf_accel_dev *accel_dev);
 	u32 (*uof_get_ae_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
+	int (*get_rp_group)(struct adf_accel_dev *accel_dev, u32 ae_mask);
+	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*dev_config)(struct adf_accel_dev *accel_dev);
 	struct adf_pfvf_ops pfvf_ops;
 	struct adf_hw_csr_ops csr_ops;
@@ -249,6 +258,7 @@ struct adf_hw_device_data {
 	struct adf_ras_ops ras_ops;
 	struct adf_dev_err_mask dev_err_mask;
 	struct adf_rl_hw_data rl_data;
+	struct adf_tl_hw_data tl_data;
 	const char *fw_name;
 	const char *fw_mmp_name;
 	u32 fuses;
@@ -263,6 +273,7 @@ struct adf_hw_device_data {
 	u32 admin_ae_mask;
 	u16 tx_rings_mask;
 	u16 ring_to_svc_map;
+	u32 thd_to_arb_map[ICP_QAT_HW_AE_DELIMITER];
 	u8 tx_rx_gap;
 	u8 num_banks;
 	u16 num_banks_per_vf;
@@ -271,6 +282,7 @@ struct adf_hw_device_data {
 	u8 num_logical_accel;
 	u8 num_engines;
 	u32 num_hb_ctrs;
+	u8 num_rps;
 };
 
 /* CSR write macro */
@@ -303,6 +315,7 @@ struct adf_hw_device_data {
 #define GET_CSR_OPS(accel_dev) (&(accel_dev)->hw_device->csr_ops)
 #define GET_PFVF_OPS(accel_dev) (&(accel_dev)->hw_device->pfvf_ops)
 #define GET_DC_OPS(accel_dev) (&(accel_dev)->hw_device->dc_ops)
+#define GET_TL_DATA(accel_dev) GET_HW_DATA(accel_dev)->tl_data
 #define accel_to_pci_dev(accel_ptr) accel_ptr->accel_pci_dev.pci_dev
 
 struct adf_admin_comms;
@@ -351,6 +364,7 @@ struct adf_accel_dev {
 	struct adf_cfg_device_data *cfg;
 	struct adf_fw_loader_data *fw_loader;
 	struct adf_admin_comms *admin;
+	struct adf_telemetry *telemetry;
 	struct adf_dc_data *dc_data;
 	struct adf_pm power_management;
 	struct list_head crypto_list;

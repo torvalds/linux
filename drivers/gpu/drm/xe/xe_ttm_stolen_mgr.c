@@ -11,7 +11,8 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_range_manager.h>
 
-#include "generated/xe_wa_oob.h"
+#include <generated/xe_wa_oob.h>
+
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_regs.h"
 #include "xe_bo.h"
@@ -19,6 +20,7 @@
 #include "xe_gt.h"
 #include "xe_mmio.h"
 #include "xe_res_cursor.h"
+#include "xe_sriov.h"
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_ttm_vram_mgr.h"
 #include "xe_wa.h"
@@ -31,7 +33,7 @@ struct xe_ttm_stolen_mgr {
 	/* GPU base offset */
 	resource_size_t stolen_base;
 
-	void *__iomem mapping;
+	void __iomem *mapping;
 };
 
 static inline struct xe_ttm_stolen_mgr *
@@ -205,7 +207,9 @@ void xe_ttm_stolen_mgr_init(struct xe_device *xe)
 	u64 stolen_size, io_size, pgsize;
 	int err;
 
-	if (IS_DGFX(xe))
+	if (IS_SRIOV_VF(xe))
+		stolen_size = 0;
+	else if (IS_DGFX(xe))
 		stolen_size = detect_bar2_dgfx(xe, mgr);
 	else if (GRAPHICS_VERx100(xe) >= 1270)
 		stolen_size = detect_bar2_integrated(xe, mgr);
@@ -275,7 +279,7 @@ static int __xe_ttm_stolen_io_mem_reserve_bar2(struct xe_device *xe,
 	drm_WARN_ON(&xe->drm, !(mem->placement & TTM_PL_FLAG_CONTIGUOUS));
 
 	if (mem->placement & TTM_PL_FLAG_CONTIGUOUS && mgr->mapping)
-		mem->bus.addr = (u8 *)mgr->mapping + mem->bus.offset;
+		mem->bus.addr = (u8 __force *)mgr->mapping + mem->bus.offset;
 
 	mem->bus.offset += mgr->io_base;
 	mem->bus.is_iomem = true;

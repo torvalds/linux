@@ -341,6 +341,8 @@ static enum mlx5_sw_icm_type get_icm_type(int uapi_type)
 		return MLX5_SW_ICM_TYPE_HEADER_MODIFY;
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_PATTERN_SW_ICM:
 		return MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN;
+	case MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM:
+		return MLX5_SW_ICM_TYPE_SW_ENCAP;
 	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
 	default:
 		return MLX5_SW_ICM_TYPE_STEERING;
@@ -364,6 +366,7 @@ static struct ib_dm *handle_alloc_dm_sw_icm(struct ib_ucontext *ctx,
 	switch (type) {
 	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
+	case MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM:
 		if (!(MLX5_CAP_FLOWTABLE_NIC_RX(dev, sw_owner) ||
 		      MLX5_CAP_FLOWTABLE_NIC_TX(dev, sw_owner) ||
 		      MLX5_CAP_FLOWTABLE_NIC_RX(dev, sw_owner_v2) ||
@@ -438,6 +441,7 @@ struct ib_dm *mlx5_ib_alloc_dm(struct ib_device *ibdev,
 	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_PATTERN_SW_ICM:
+	case MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM:
 		return handle_alloc_dm_sw_icm(context, attr, attrs, type);
 	default:
 		return ERR_PTR(-EOPNOTSUPP);
@@ -491,6 +495,7 @@ static int mlx5_ib_dealloc_dm(struct ib_dm *ibdm,
 	case MLX5_IB_UAPI_DM_TYPE_STEERING_SW_ICM:
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_SW_ICM:
 	case MLX5_IB_UAPI_DM_TYPE_HEADER_MODIFY_PATTERN_SW_ICM:
+	case MLX5_IB_UAPI_DM_TYPE_ENCAP_SW_ICM:
 		return mlx5_dm_icm_dealloc(ctx, to_icm(ibdm));
 	default:
 		return -EOPNOTSUPP;

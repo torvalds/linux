@@ -44,11 +44,23 @@ extern const struct bnxt_qplib_gid bnxt_qplib_gid_zero;
 #define CHIP_NUM_57508		0x1750
 #define CHIP_NUM_57504		0x1751
 #define CHIP_NUM_57502		0x1752
+#define CHIP_NUM_58818          0xd818
+#define CHIP_NUM_57608          0x1760
+
+#define BNXT_QPLIB_DBR_VALID		(0x1UL << 26)
+#define BNXT_QPLIB_DBR_EPOCH_SHIFT	24
+#define BNXT_QPLIB_DBR_TOGGLE_SHIFT	25
 
 struct bnxt_qplib_drv_modes {
 	u8	wqe_mode;
 	bool db_push;
 	bool dbr_pacing;
+	u32 toggle_bits;
+};
+
+enum bnxt_re_toggle_modes {
+	BNXT_QPLIB_CQ_TOGGLE_BIT = 0x1,
+	BNXT_QPLIB_SRQ_TOGGLE_BIT = 0x2,
 };
 
 struct bnxt_qplib_chip_ctx {
@@ -186,6 +198,20 @@ struct bnxt_qplib_db_info {
 	struct bnxt_qplib_hwq	*hwq;
 	u32			xid;
 	u32			max_slot;
+	u32                     flags;
+	u8			toggle;
+};
+
+enum bnxt_qplib_db_info_flags_mask {
+	BNXT_QPLIB_FLAG_EPOCH_CONS_SHIFT        = 0x0UL,
+	BNXT_QPLIB_FLAG_EPOCH_PROD_SHIFT        = 0x1UL,
+	BNXT_QPLIB_FLAG_EPOCH_CONS_MASK         = 0x1UL,
+	BNXT_QPLIB_FLAG_EPOCH_PROD_MASK         = 0x2UL,
+};
+
+enum bnxt_qplib_db_epoch_flag_shift {
+	BNXT_QPLIB_DB_EPOCH_CONS_SHIFT  = BNXT_QPLIB_DBR_EPOCH_SHIFT,
+	BNXT_QPLIB_DB_EPOCH_PROD_SHIFT  = (BNXT_QPLIB_DBR_EPOCH_SHIFT - 1),
 };
 
 /* Tables */
@@ -288,6 +314,12 @@ struct bnxt_qplib_res {
 	struct bnxt_qplib_db_pacing_data *pacing_data;
 };
 
+static inline bool bnxt_qplib_is_chip_gen_p7(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return (cctx->chip_num == CHIP_NUM_58818 ||
+		cctx->chip_num == CHIP_NUM_57608);
+}
+
 static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
 {
 	return (cctx->chip_num == CHIP_NUM_57508 ||
@@ -295,15 +327,20 @@ static inline bool bnxt_qplib_is_chip_gen_p5(struct bnxt_qplib_chip_ctx *cctx)
 		cctx->chip_num == CHIP_NUM_57502);
 }
 
+static inline bool bnxt_qplib_is_chip_gen_p5_p7(struct bnxt_qplib_chip_ctx *cctx)
+{
+	return bnxt_qplib_is_chip_gen_p5(cctx) || bnxt_qplib_is_chip_gen_p7(cctx);
+}
+
 static inline u8 bnxt_qplib_get_hwq_type(struct bnxt_qplib_res *res)
 {
-	return bnxt_qplib_is_chip_gen_p5(res->cctx) ?
+	return bnxt_qplib_is_chip_gen_p5_p7(res->cctx) ?
 					HWQ_TYPE_QUEUE : HWQ_TYPE_L2_CMPL;
 }
 
 static inline u8 bnxt_qplib_get_ring_type(struct bnxt_qplib_chip_ctx *cctx)
 {
-	return bnxt_qplib_is_chip_gen_p5(cctx) ?
+	return bnxt_qplib_is_chip_gen_p5_p7(cctx) ?
 	       RING_ALLOC_REQ_RING_TYPE_NQ :
 	       RING_ALLOC_REQ_RING_TYPE_ROCE_CMPL;
 }
@@ -396,39 +433,61 @@ void bnxt_qplib_unmap_db_bar(struct bnxt_qplib_res *res);
 
 int bnxt_qplib_determine_atomics(struct pci_dev *dev);
 
-static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_hwq *hwq, u32 cnt)
+static inline void bnxt_qplib_hwq_incr_prod(struct bnxt_qplib_db_info *dbinfo,
+					    struct bnxt_qplib_hwq *hwq, u32 cnt)
 {
-	hwq->prod = (hwq->prod + cnt) % hwq->depth;
+	/* move prod and update toggle/epoch if wrap around */
+	hwq->prod += cnt;
+	if (hwq->prod >= hwq->depth) {
+		hwq->prod %= hwq->depth;
+		dbinfo->flags ^= 1UL << BNXT_QPLIB_FLAG_EPOCH_PROD_SHIFT;
+	}
 }
 
-static inline void bnxt_qplib_hwq_incr_cons(struct bnxt_qplib_hwq *hwq,
-					    u32 cnt)
+static inline void bnxt_qplib_hwq_incr_cons(u32 max_elements, u32 *cons, u32 cnt,
+					    u32 *dbinfo_flags)
 {
-	hwq->cons = (hwq->cons + cnt) % hwq->depth;
+	/* move cons and update toggle/epoch if wrap around */
+	*cons += cnt;
+	if (*cons >= max_elements) {
+		*cons %= max_elements;
+		*dbinfo_flags ^= 1UL << BNXT_QPLIB_FLAG_EPOCH_CONS_SHIFT;
+	}
 }
 
 static inline void bnxt_qplib_ring_db32(struct bnxt_qplib_db_info *info,
 					bool arm)
 {
-	u32 key;
+	u32 key = 0;
 
-	key = info->hwq->cons & (info->hwq->max_elements - 1);
-	key |= (CMPL_DOORBELL_IDX_VALID |
+	key |= info->hwq->cons | (CMPL_DOORBELL_IDX_VALID |
 		(CMPL_DOORBELL_KEY_CMPL & CMPL_DOORBELL_KEY_MASK));
 	if (!arm)
 		key |= CMPL_DOORBELL_MASK;
 	writel(key, info->db);
 }
 
+#define BNXT_QPLIB_INIT_DBHDR(xid, type, indx, toggle) \
+	(((u64)(((xid) & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE |  \
+		(type) | BNXT_QPLIB_DBR_VALID) << 32) | (indx) |  \
+	 (((u32)(toggle)) << (BNXT_QPLIB_DBR_TOGGLE_SHIFT)))
+
 static inline void bnxt_qplib_ring_db(struct bnxt_qplib_db_info *info,
 				      u32 type)
 {
 	u64 key = 0;
+	u32 indx;
+	u8 toggle = 0;
 
-	key = (info->xid & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE | type;
-	key <<= 32;
-	key |= (info->hwq->cons & (info->hwq->max_elements - 1)) &
-		DBC_DBC_INDEX_MASK;
+	if (type == DBC_DBC_TYPE_CQ_ARMALL ||
+	    type == DBC_DBC_TYPE_CQ_ARMSE)
+		toggle = info->toggle;
+
+	indx = (info->hwq->cons & DBC_DBC_INDEX_MASK) |
+	       ((info->flags & BNXT_QPLIB_FLAG_EPOCH_CONS_MASK) <<
+		 BNXT_QPLIB_DB_EPOCH_CONS_SHIFT);
+
+	key =  BNXT_QPLIB_INIT_DBHDR(info->xid, type, indx, toggle);
 	writeq(key, info->db);
 }
 
@@ -436,10 +495,12 @@ static inline void bnxt_qplib_ring_prod_db(struct bnxt_qplib_db_info *info,
 					   u32 type)
 {
 	u64 key = 0;
+	u32 indx;
 
-	key = (info->xid & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE | type;
-	key <<= 32;
-	key |= ((info->hwq->prod / info->max_slot)) & DBC_DBC_INDEX_MASK;
+	indx = (((info->hwq->prod / info->max_slot) & DBC_DBC_INDEX_MASK) |
+		((info->flags & BNXT_QPLIB_FLAG_EPOCH_PROD_MASK) <<
+		 BNXT_QPLIB_DB_EPOCH_PROD_SHIFT));
+	key = BNXT_QPLIB_INIT_DBHDR(info->xid, type, indx, 0);
 	writeq(key, info->db);
 }
 
@@ -447,9 +508,12 @@ static inline void bnxt_qplib_armen_db(struct bnxt_qplib_db_info *info,
 				       u32 type)
 {
 	u64 key = 0;
+	u8 toggle = 0;
 
-	key = (info->xid & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE | type;
-	key <<= 32;
+	if (type == DBC_DBC_TYPE_CQ_ARMENA || type == DBC_DBC_TYPE_SRQ_ARMENA)
+		toggle = info->toggle;
+	/* Index always at 0 */
+	key = BNXT_QPLIB_INIT_DBHDR(info->xid, type, 0, toggle);
 	writeq(key, info->priv_db);
 }
 
@@ -458,9 +522,7 @@ static inline void bnxt_qplib_srq_arm_db(struct bnxt_qplib_db_info *info,
 {
 	u64 key = 0;
 
-	key = (info->xid & DBC_DBC_XID_MASK) | DBC_DBC_PATH_ROCE | th;
-	key <<= 32;
-	key |=  th & DBC_DBC_INDEX_MASK;
+	key = BNXT_QPLIB_INIT_DBHDR(info->xid, DBC_DBC_TYPE_SRQ_ARM, th, info->toggle);
 	writeq(key, info->priv_db);
 }
 
@@ -471,7 +533,7 @@ static inline void bnxt_qplib_ring_nq_db(struct bnxt_qplib_db_info *info,
 	u32 type;
 
 	type = arm ? DBC_DBC_TYPE_NQ_ARM : DBC_DBC_TYPE_NQ;
-	if (bnxt_qplib_is_chip_gen_p5(cctx))
+	if (bnxt_qplib_is_chip_gen_p5_p7(cctx))
 		bnxt_qplib_ring_db(info, type);
 	else
 		bnxt_qplib_ring_db32(info, arm);
@@ -482,6 +544,15 @@ static inline bool _is_ext_stats_supported(u16 dev_cap_flags)
 	return dev_cap_flags &
 		CREQ_QUERY_FUNC_RESP_SB_EXT_STATS;
 }
+
+static inline bool _is_hw_retx_supported(u16 dev_cap_flags)
+{
+	return dev_cap_flags &
+		(CREQ_QUERY_FUNC_RESP_SB_HW_REQUESTER_RETX_ENABLED |
+		 CREQ_QUERY_FUNC_RESP_SB_HW_RESPONDER_RETX_ENABLED);
+}
+
+#define BNXT_RE_HW_RETX(a) _is_hw_retx_supported((a))
 
 static inline u8 bnxt_qplib_dbr_pacing_en(struct bnxt_qplib_chip_ctx *cctx)
 {

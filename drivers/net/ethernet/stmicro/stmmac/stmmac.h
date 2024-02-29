@@ -51,6 +51,7 @@ struct stmmac_tx_info {
 	bool last_segment;
 	bool is_jumbo;
 	enum stmmac_txbuf_type buf_type;
+	struct xsk_tx_metadata_compl xsk_meta;
 };
 
 #define STMMAC_TBS_AVAIL	BIT(0)
@@ -98,6 +99,17 @@ struct stmmac_xdp_buff {
 	struct stmmac_priv *priv;
 	struct dma_desc *desc;
 	struct dma_desc *ndesc;
+};
+
+struct stmmac_metadata_request {
+	struct stmmac_priv *priv;
+	struct dma_desc *tx_desc;
+	bool *set_ic;
+};
+
+struct stmmac_xsk_tx_complete {
+	struct stmmac_priv *priv;
+	struct dma_desc *desc;
 };
 
 struct stmmac_rx_queue {
@@ -255,6 +267,7 @@ struct stmmac_priv {
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;
+	bool wol_irq_disabled;
 	int clk_csr;
 	struct timer_list eee_ctrl_timer;
 	int lpi_irq;
@@ -283,6 +296,7 @@ struct stmmac_priv {
 
 	void __iomem *mmcaddr;
 	void __iomem *ptpaddr;
+	void __iomem *estaddr;
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	int sfty_ce_irq;
 	int sfty_ue_irq;

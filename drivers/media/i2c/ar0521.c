@@ -446,8 +446,7 @@ static int ar0521_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state, 0
-						 /* pad */);
+		fmt = v4l2_subdev_state_get_format(sd_state, 0);
 	else
 		fmt = &sensor->fmt;
 
@@ -472,7 +471,7 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, 0 /* pad */);
+		fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		*fmt = format->format;
 
 		mutex_unlock(&sensor->lock);

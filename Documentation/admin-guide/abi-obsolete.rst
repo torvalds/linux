@@ -7,5 +7,5 @@ marked to be removed at some later point in time.
 The description of the interface will document the reason why it is
 obsolete and when it can be expected to be removed.
 
-.. kernel-abi:: $srctree/Documentation/ABI/obsolete
+.. kernel-abi:: ABI/obsolete
    :rst:

@@ -6793,6 +6793,7 @@ MODULE_PARM_DESC(bug_on_recovery, "BUG() on fw recovery");
 module_param(no_recovery, int, 0600);
 MODULE_PARM_DESC(no_recovery, "Prevent HW recovery. FW will remain stuck.");
 
+MODULE_DESCRIPTION("TI WLAN core driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

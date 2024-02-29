@@ -58,8 +58,8 @@ static void ivpu_ipc_mem_fini(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 
-	ivpu_bo_free_internal(ipc->mem_rx);
-	ivpu_bo_free_internal(ipc->mem_tx);
+	ivpu_bo_free(ipc->mem_rx);
+	ivpu_bo_free(ipc->mem_tx);
 }
 
 static int
@@ -343,10 +343,8 @@ int ivpu_ipc_send_receive_active(struct ivpu_device *vdev, struct vpu_jsm_msg *r
 	hb_ret = ivpu_ipc_send_receive_internal(vdev, &hb_req, VPU_JSM_MSG_QUERY_ENGINE_HB_DONE,
 						&hb_resp, VPU_IPC_CHAN_ASYNC_CMD,
 						vdev->timeout.jsm);
-	if (hb_ret == -ETIMEDOUT) {
-		ivpu_hw_diagnose_failure(vdev);
-		ivpu_pm_schedule_recovery(vdev);
-	}
+	if (hb_ret == -ETIMEDOUT)
+		ivpu_pm_trigger_recovery(vdev, "IPC timeout");
 
 	return ret;
 }
@@ -473,13 +471,13 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;
 
-	ipc->mem_tx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
+	ipc->mem_tx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_tx) {
 		ivpu_err(vdev, "Failed to allocate mem_tx\n");
 		return -ENOMEM;
 	}
 
-	ipc->mem_rx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
+	ipc->mem_rx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_rx) {
 		ivpu_err(vdev, "Failed to allocate mem_rx\n");
 		ret = -ENOMEM;
@@ -508,9 +506,9 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	return 0;
 
 err_free_rx:
-	ivpu_bo_free_internal(ipc->mem_rx);
+	ivpu_bo_free(ipc->mem_rx);
 err_free_tx:
-	ivpu_bo_free_internal(ipc->mem_tx);
+	ivpu_bo_free(ipc->mem_tx);
 	return ret;
 }
 

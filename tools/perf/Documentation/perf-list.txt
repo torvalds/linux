@@ -47,6 +47,10 @@ Print PMU events and metrics limited to the specific PMU name.
 --json::
 Output in JSON format.
 
+-o::
+--output=::
+	Output file name. By default output is written to stdout.
+
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
 ---------------
@@ -81,11 +85,13 @@ For Intel systems precise event sampling is implemented with PEBS
 which supports up to precise-level 2, and precise level 3 for
 some special cases
 
-On AMD systems it is implemented using IBS (up to precise-level 2).
-The precise modifier works with event types 0x76 (cpu-cycles, CPU
-clocks not halted) and 0xC1 (micro-ops retired). Both events map to
-IBS execution sampling (IBS op) with the IBS Op Counter Control bit
-(IbsOpCntCtl) set respectively (see the
+On AMD systems it is implemented using IBS OP (up to precise-level 2).
+Unlike Intel PEBS which provides levels of precision, AMD core pmu is
+inherently non-precise and IBS is inherently precise. (i.e. ibs_op//,
+ibs_op//p, ibs_op//pp and ibs_op//ppp are all same). The precise modifier
+works with event types 0x76 (cpu-cycles, CPU clocks not halted) and 0xC1
+(micro-ops retired). Both events map to IBS execution sampling (IBS op)
+with the IBS Op Counter Control bit (IbsOpCntCtl) set respectively (see the
 Core Complex (CCX) -> Processor x86 Core -> Instruction Based Sampling (IBS)
 section of the [AMD Processor Programming Reference (PPR)] relevant to the
 family, model and stepping of the processor being used).

@@ -1259,7 +1259,7 @@ free_uhdlc_priv:
 	return ret;
 }
 
-static int ucc_hdlc_remove(struct platform_device *pdev)
+static void ucc_hdlc_remove(struct platform_device *pdev)
 {
 	struct ucc_hdlc_private *priv = dev_get_drvdata(&pdev->dev);
 
@@ -1277,8 +1277,6 @@ static int ucc_hdlc_remove(struct platform_device *pdev)
 	kfree(priv);
 
 	dev_info(&pdev->dev, "UCC based hdlc module removed\n");
-
-	return 0;
 }
 
 static const struct of_device_id fsl_ucc_hdlc_of_match[] = {
@@ -1292,7 +1290,7 @@ MODULE_DEVICE_TABLE(of, fsl_ucc_hdlc_of_match);
 
 static struct platform_driver ucc_hdlc_driver = {
 	.probe	= ucc_hdlc_probe,
-	.remove	= ucc_hdlc_remove,
+	.remove_new = ucc_hdlc_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.pm		= HDLC_PM_OPS,

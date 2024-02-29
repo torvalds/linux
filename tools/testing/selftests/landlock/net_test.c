@@ -17,6 +17,7 @@
 #include <string.h>
 #include <sys/prctl.h>
 #include <sys/socket.h>
+#include <sys/syscall.h>
 #include <sys/un.h>
 
 #include "common.h"
@@ -54,6 +55,11 @@ struct service_fixture {
 	};
 };
 
+static pid_t sys_gettid(void)
+{
+	return syscall(__NR_gettid);
+}
+
 static int set_service(struct service_fixture *const srv,
 		       const struct protocol_variant prot,
 		       const unsigned short index)
@@ -88,7 +94,7 @@ static int set_service(struct service_fixture *const srv,
 	case AF_UNIX:
 		srv->unix_addr.sun_family = prot.domain;
 		sprintf(srv->unix_addr.sun_path,
-			"_selftests-landlock-net-tid%d-index%d", gettid(),
+			"_selftests-landlock-net-tid%d-index%d", sys_gettid(),
 			index);
 		srv->unix_addr_len = SUN_LEN(&srv->unix_addr);
 		srv->unix_addr.sun_path[0] = '\0';
@@ -101,8 +107,11 @@ static void setup_loopback(struct __test_metadata *const _metadata)
 {
 	set_cap(_metadata, CAP_SYS_ADMIN);
 	ASSERT_EQ(0, unshare(CLONE_NEWNET));
-	ASSERT_EQ(0, system("ip link set dev lo up"));
 	clear_cap(_metadata, CAP_SYS_ADMIN);
+
+	set_ambient_cap(_metadata, CAP_NET_ADMIN);
+	ASSERT_EQ(0, system("ip link set dev lo up"));
+	clear_ambient_cap(_metadata, CAP_NET_ADMIN);
 }
 
 static bool is_restricted(const struct protocol_variant *const prot,
@@ -1260,7 +1269,7 @@ TEST_F(mini, network_access_rights)
 }
 
 /* Checks invalid attribute, out of landlock network access range. */
-TEST_F(mini, unknown_access_rights)
+TEST_F(mini, ruleset_with_unknown_access)
 {
 	__u64 access_mask;
 
@@ -1274,6 +1283,63 @@ TEST_F(mini, unknown_access_rights)
 						      sizeof(ruleset_attr), 0));
 		EXPECT_EQ(EINVAL, errno);
 	}
+}
+
+TEST_F(mini, rule_with_unknown_access)
+{
+	const struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_net = ACCESS_ALL,
+	};
+	struct landlock_net_port_attr net_port = {
+		.port = sock_port_start,
+	};
+	int ruleset_fd;
+	__u64 access;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	for (access = 1ULL << 63; access != ACCESS_LAST; access >>= 1) {
+		net_port.allowed_access = access;
+		EXPECT_EQ(-1,
+			  landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
+					    &net_port, 0));
+		EXPECT_EQ(EINVAL, errno);
+	}
+	EXPECT_EQ(0, close(ruleset_fd));
+}
+
+TEST_F(mini, rule_with_unhandled_access)
+{
+	struct landlock_ruleset_attr ruleset_attr = {
+		.handled_access_net = LANDLOCK_ACCESS_NET_BIND_TCP,
+	};
+	struct landlock_net_port_attr net_port = {
+		.port = sock_port_start,
+	};
+	int ruleset_fd;
+	__u64 access;
+
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	ASSERT_LE(0, ruleset_fd);
+
+	for (access = 1; access > 0; access <<= 1) {
+		int err;
+
+		net_port.allowed_access = access;
+		err = landlock_add_rule(ruleset_fd, LANDLOCK_RULE_NET_PORT,
+					&net_port, 0);
+		if (access == ruleset_attr.handled_access_net) {
+			EXPECT_EQ(0, err);
+		} else {
+			EXPECT_EQ(-1, err);
+			EXPECT_EQ(EINVAL, errno);
+		}
+	}
+
+	EXPECT_EQ(0, close(ruleset_fd));
 }
 
 TEST_F(mini, inval)

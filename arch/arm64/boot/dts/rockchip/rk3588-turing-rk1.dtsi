@@ -19,8 +19,6 @@
 	aliases {
 		ethernet0 = &gmac1;
 		mmc0 = &sdhci;
-		serial2 = &uart2;
-		serial9 = &uart9;
 	};
 
 	fan: pwm-fan {

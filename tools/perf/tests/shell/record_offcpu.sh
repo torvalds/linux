@@ -77,9 +77,9 @@ test_offcpu_child() {
     err=1
     return
   fi
-  # each process waits for read and write, so it should be more than 800 events
+  # each process waits at least for poll, so it should be more than 400 events
   if ! perf report -i ${perfdata} -s comm -q -n -t ';' --percent-limit=90 | \
-    awk -F ";" '{ if (NF > 3 && int($3) < 800) exit 1; }'
+    awk -F ";" '{ if (NF > 3 && int($3) < 400) exit 1; }'
   then
     echo "Child task off-cpu test [Failed invalid output]"
     err=1

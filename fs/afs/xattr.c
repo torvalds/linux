@@ -75,7 +75,7 @@ static bool afs_make_acl(struct afs_operation *op,
 {
 	struct afs_acl *acl;
 
-	acl = kmalloc(sizeof(*acl) + size, GFP_KERNEL);
+	acl = kmalloc(struct_size(acl, data, size), GFP_KERNEL);
 	if (!acl) {
 		afs_op_nomem(op);
 		return false;

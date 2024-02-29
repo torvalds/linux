@@ -174,7 +174,7 @@ static int gfs2_rgrp_metasync(struct gfs2_glock *gl)
 
 	filemap_fdatawrite_range(metamapping, start, end);
 	error = filemap_fdatawait_range(metamapping, start, end);
-	WARN_ON_ONCE(error && !gfs2_withdrawn(sdp));
+	WARN_ON_ONCE(error && !gfs2_withdrawing_or_withdrawn(sdp));
 	mapping_set_error(metamapping, error);
 	if (error)
 		gfs2_io_error(sdp);
@@ -494,7 +494,7 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 
 /**
  * inode_go_instantiate - read in an inode if necessary
- * @gh: The glock holder
+ * @gl: The glock
  *
  * Returns: errno
  */

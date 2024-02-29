@@ -241,8 +241,7 @@ ahc_linux_pci_dev_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		ahc_linux_pci_inherit_flags(ahc);
 
 	pci_set_drvdata(pdev, ahc);
-	ahc_linux_register_host(ahc, &aic7xxx_driver_template);
-	return (0);
+	return ahc_linux_register_host(ahc, &aic7xxx_driver_template);
 }
 
 /******************************* PCI Routines *********************************/

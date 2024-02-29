@@ -369,6 +369,8 @@ static int iommu_v1_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 	bool updated = false;
 	u64 __pte, *pte;
 	int ret, i, count;
+	size_t size = pgcount << __ffs(pgsize);
+	unsigned long o_iova = iova;
 
 	BUG_ON(!IS_ALIGNED(iova, pgsize));
 	BUG_ON(!IS_ALIGNED(paddr, pgsize));
@@ -424,8 +426,7 @@ out:
 		 * Updates and flushing already happened in
 		 * increase_address_space().
 		 */
-		amd_iommu_domain_flush_tlb_pde(dom);
-		amd_iommu_domain_flush_complete(dom);
+		amd_iommu_domain_flush_pages(dom, o_iova, size);
 		spin_unlock_irqrestore(&dom->lock, flags);
 	}
 

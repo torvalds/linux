@@ -1106,12 +1106,6 @@ static void dasd_statistics_removeroot(void)
 	return;
 }
 
-int dasd_stats_generic_show(struct seq_file *m, void *v)
-{
-	seq_puts(m, "Statistics are not activated in this kernel\n");
-	return 0;
-}
-
 static void dasd_profile_init(struct dasd_profile *profile,
 			      struct dentry *base_dentry)
 {

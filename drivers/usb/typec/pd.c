@@ -468,7 +468,7 @@ static struct device_type pd_capabilities_type = {
 /**
  * usb_power_delivery_register_capabilities - Register a set of capabilities.
  * @pd: The USB PD instance that the capabilities belong to.
- * @desc: Description of the Capablities Message.
+ * @desc: Description of the Capabilities Message.
  *
  * This function registers a Capabilities Message described in @desc. The
  * capabilities will have their own sub-directory under @pd in sysfs.
@@ -571,7 +571,7 @@ static void pd_release(struct device *dev)
 {
 	struct usb_power_delivery *pd = to_usb_power_delivery(dev);
 
-	ida_simple_remove(&pd_ida, pd->id);
+	ida_free(&pd_ida, pd->id);
 	kfree(pd);
 }
 
@@ -616,7 +616,7 @@ usb_power_delivery_register(struct device *parent, struct usb_power_delivery_des
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
 
-	ret = ida_simple_get(&pd_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&pd_ida, GFP_KERNEL);
 	if (ret < 0) {
 		kfree(pd);
 		return ERR_PTR(ret);

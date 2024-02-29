@@ -181,7 +181,7 @@ static int fix_host_ownership_walker(const struct kvm_pgtable_visit_ctx *ctx,
 	if (!kvm_pte_valid(ctx->old))
 		return 0;
 
-	if (ctx->level != (KVM_PGTABLE_MAX_LEVELS - 1))
+	if (ctx->level != KVM_PGTABLE_LAST_LEVEL)
 		return -EINVAL;
 
 	phys = kvm_pte_to_phys(ctx->old);

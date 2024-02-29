@@ -19,6 +19,7 @@
  * Copyright (C) 2006	   Nicolas Boichat (nicolas@boichat.ch)
  */
 
+#include "linux/usb.h"
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
@@ -193,6 +194,8 @@ enum tp_type {
 
 /* list of device capability bits */
 #define HAS_INTEGRATED_BUTTON	1
+/* maximum number of supported endpoints (currently trackpad and button) */
+#define MAX_ENDPOINTS	2
 
 /* trackpad finger data block size */
 #define FSIZE_TYPE1		(14 * sizeof(__le16))
@@ -891,6 +894,18 @@ static int bcm5974_resume(struct usb_interface *iface)
 	return error;
 }
 
+static bool bcm5974_check_endpoints(struct usb_interface *iface,
+				    const struct bcm5974_config *cfg)
+{
+	u8 ep_addr[MAX_ENDPOINTS + 1] = {0};
+
+	ep_addr[0] = cfg->tp_ep;
+	if (cfg->tp_type == TYPE1)
+		ep_addr[1] = cfg->bt_ep;
+
+	return usb_check_int_endpoints(iface, ep_addr);
+}
+
 static int bcm5974_probe(struct usb_interface *iface,
 			 const struct usb_device_id *id)
 {
@@ -902,6 +917,11 @@ static int bcm5974_probe(struct usb_interface *iface,
 
 	/* find the product index */
 	cfg = bcm5974_get_config(udev);
+
+	if (!bcm5974_check_endpoints(iface, cfg)) {
+		dev_err(&iface->dev, "Unexpected non-int endpoint\n");
+		return -ENODEV;
+	}
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(struct bcm5974), GFP_KERNEL);

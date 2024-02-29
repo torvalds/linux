@@ -81,8 +81,8 @@ static int i40e_ddp_does_profile_exist(struct i40e_hw *hw,
 static bool i40e_ddp_profiles_overlap(struct i40e_profile_info *new,
 				      struct i40e_profile_info *old)
 {
-	unsigned int group_id_old = (u8)((old->track_id & 0x00FF0000) >> 16);
-	unsigned int group_id_new = (u8)((new->track_id & 0x00FF0000) >> 16);
+	unsigned int group_id_old = FIELD_GET(0x00FF0000, old->track_id);
+	unsigned int group_id_new = FIELD_GET(0x00FF0000, new->track_id);
 
 	/* 0x00 group must be only the first */
 	if (group_id_new == 0)

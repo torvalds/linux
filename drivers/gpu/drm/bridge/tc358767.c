@@ -41,8 +41,24 @@
 
 /* Registers */
 
+/* DSI D-PHY Layer registers */
+#define D0W_DPHYCONTTX		0x0004
+#define CLW_DPHYCONTTX		0x0020
+#define D0W_DPHYCONTRX		0x0024
+#define D1W_DPHYCONTRX		0x0028
+#define D2W_DPHYCONTRX		0x002c
+#define D3W_DPHYCONTRX		0x0030
+#define COM_DPHYCONTRX		0x0038
+#define CLW_CNTRL		0x0040
+#define D0W_CNTRL		0x0044
+#define D1W_CNTRL		0x0048
+#define D2W_CNTRL		0x004c
+#define D3W_CNTRL		0x0050
+#define TESTMODE_CNTRL		0x0054
+
 /* PPI layer registers */
 #define PPI_STARTPPI		0x0104 /* START control bit */
+#define PPI_BUSYPPI		0x0108 /* PPI busy status */
 #define PPI_LPTXTIMECNT		0x0114 /* LPTX timing signal */
 #define LPX_PERIOD			3
 #define PPI_LANEENABLE		0x0134
@@ -59,6 +75,7 @@
 
 /* DSI layer registers */
 #define DSI_STARTDSI		0x0204 /* START control bit of DSI-TX */
+#define DSI_BUSYDSI		0x0208 /* DSI busy status */
 #define DSI_LANEENABLE		0x0210 /* Enables each lane */
 #define DSI_RX_START			BIT(0)
 
@@ -68,6 +85,20 @@
 #define LANEENABLE_L1EN		BIT(2)
 #define LANEENABLE_L2EN		BIT(1)
 #define LANEENABLE_L3EN		BIT(2)
+
+#define DSI_LANESTATUS0		0x0214	/* DSI lane status 0 */
+#define DSI_LANESTATUS1		0x0218	/* DSI lane status 1 */
+#define DSI_INTSTATUS		0x0220	/* Interrupt Status */
+#define DSI_INTMASK		0x0224	/* Interrupt Mask */
+#define DSI_INTCLR		0x0228	/* Interrupt Clear */
+#define DSI_LPTXTO		0x0230	/* LPTX Time Out Counter */
+
+/* DSI General Registers */
+#define DSIERRCNT		0x0300	/* DSI Error Count Register */
+
+/* DSI Application Layer Registers */
+#define APLCTRL			0x0400	/* Application layer Control Register */
+#define RDPKTLN			0x0404	/* DSI Read packet Length Register */
 
 /* Display Parallel Input Interface */
 #define DPIPXLFMT		0x0440
@@ -114,35 +145,39 @@
 #define VFUEN				BIT(0)   /* Video Frame Timing Upload */
 
 /* System */
-#define TC_IDREG		0x0500
-#define SYSSTAT			0x0508
-#define SYSCTRL			0x0510
-#define DP0_AUDSRC_NO_INPUT		(0 << 3)
-#define DP0_AUDSRC_I2S_RX		(1 << 3)
-#define DP0_VIDSRC_NO_INPUT		(0 << 0)
-#define DP0_VIDSRC_DSI_RX		(1 << 0)
-#define DP0_VIDSRC_DPI_RX		(2 << 0)
-#define DP0_VIDSRC_COLOR_BAR		(3 << 0)
-#define SYSRSTENB		0x050c
+#define TC_IDREG		0x0500	/* Chip ID and Revision ID */
+#define SYSBOOT			0x0504	/* System BootStrap Status Register */
+#define SYSSTAT			0x0508	/* System Status Register */
+#define SYSRSTENB		0x050c /* System Reset/Enable Register */
 #define ENBI2C				(1 << 0)
 #define ENBLCD0				(1 << 2)
 #define ENBBM				(1 << 3)
 #define ENBDSIRX			(1 << 4)
 #define ENBREG				(1 << 5)
 #define ENBHDCP				(1 << 8)
-#define GPIOM			0x0540
-#define GPIOC			0x0544
-#define GPIOO			0x0548
-#define GPIOI			0x054c
-#define INTCTL_G		0x0560
-#define INTSTS_G		0x0564
+#define SYSCTRL			0x0510	/* System Control Register */
+#define DP0_AUDSRC_NO_INPUT		(0 << 3)
+#define DP0_AUDSRC_I2S_RX		(1 << 3)
+#define DP0_VIDSRC_NO_INPUT		(0 << 0)
+#define DP0_VIDSRC_DSI_RX		(1 << 0)
+#define DP0_VIDSRC_DPI_RX		(2 << 0)
+#define DP0_VIDSRC_COLOR_BAR		(3 << 0)
+#define GPIOM			0x0540	/* GPIO Mode Control Register */
+#define GPIOC			0x0544	/* GPIO Direction Control Register */
+#define GPIOO			0x0548	/* GPIO Output Register */
+#define GPIOI			0x054c	/* GPIO Input Register */
+#define INTCTL_G		0x0560	/* General Interrupts Control Register */
+#define INTSTS_G		0x0564	/* General Interrupts Status Register */
 
 #define INT_SYSERR		BIT(16)
 #define INT_GPIO_H(x)		(1 << (x == 0 ? 2 : 10))
 #define INT_GPIO_LC(x)		(1 << (x == 0 ? 3 : 11))
 
-#define INT_GP0_LCNT		0x0584
-#define INT_GP1_LCNT		0x0588
+#define TEST_INT_C		0x0570	/* Test Interrupts Control Register */
+#define TEST_INT_S		0x0574	/* Test Interrupts Status Register */
+
+#define INT_GP0_LCNT		0x0584	/* Interrupt GPIO0 Low Count Value Register */
+#define INT_GP1_LCNT		0x0588	/* Interrupt GPIO1 Low Count Value Register */
 
 /* Control */
 #define DP0CTL			0x0600
@@ -152,9 +187,12 @@
 #define DP_EN				BIT(0)   /* Enable DPTX function */
 
 /* Clocks */
-#define DP0_VIDMNGEN0		0x0610
-#define DP0_VIDMNGEN1		0x0614
-#define DP0_VMNGENSTATUS	0x0618
+#define DP0_VIDMNGEN0		0x0610	/* DP0 Video Force M Value Register */
+#define DP0_VIDMNGEN1		0x0614	/* DP0 Video Force N Value Register */
+#define DP0_VMNGENSTATUS	0x0618	/* DP0 Video Current M Value Register */
+#define DP0_AUDMNGEN0		0x0628	/* DP0 Audio Force M Value Register */
+#define DP0_AUDMNGEN1		0x062c	/* DP0 Audio Force N Value Register */
+#define DP0_AMNGENSTATUS	0x0630	/* DP0 Audio Current M Value Register */
 
 /* Main Channel */
 #define DP0_SECSAMPLE		0x0640
@@ -224,8 +262,22 @@
 #define DP0_SNKLTCHGREQ		0x06d4
 #define DP0_LTLOOPCTRL		0x06d8
 #define DP0_SNKLTCTRL		0x06e4
+#define DP0_TPATDAT0		0x06e8	/* DP0 Test Pattern bits 29 to 0 */
+#define DP0_TPATDAT1		0x06ec	/* DP0 Test Pattern bits 59 to 30 */
+#define DP0_TPATDAT2		0x06f0	/* DP0 Test Pattern bits 89 to 60 */
+#define DP0_TPATDAT3		0x06f4	/* DP0 Test Pattern bits 119 to 90 */
 
-#define DP1_SRCCTRL		0x07a0
+#define AUDCFG0			0x0700	/* DP0 Audio Config0 Register */
+#define AUDCFG1			0x0704	/* DP0 Audio Config1 Register */
+#define AUDIFDATA0		0x0708	/* DP0 Audio Info Frame Bytes 3 to 0 */
+#define AUDIFDATA1		0x070c	/* DP0 Audio Info Frame Bytes 7 to 4 */
+#define AUDIFDATA2		0x0710	/* DP0 Audio Info Frame Bytes 11 to 8 */
+#define AUDIFDATA3		0x0714	/* DP0 Audio Info Frame Bytes 15 to 12 */
+#define AUDIFDATA4		0x0718	/* DP0 Audio Info Frame Bytes 19 to 16 */
+#define AUDIFDATA5		0x071c	/* DP0 Audio Info Frame Bytes 23 to 20 */
+#define AUDIFDATA6		0x0720	/* DP0 Audio Info Frame Bytes 27 to 24 */
+
+#define DP1_SRCCTRL		0x07a0	/* DP1 Control Register */
 
 /* PHY */
 #define DP_PHY_CTRL		0x0800
@@ -238,6 +290,25 @@
 #define PHY_2LANE			BIT(2)   /* PHY Enable 2 lanes */
 #define PHY_A0_EN			BIT(1)   /* PHY Aux Channel0 Enable */
 #define PHY_M0_EN			BIT(0)   /* PHY Main Channel0 Enable */
+#define DP_PHY_CFG_WR		0x0810	/* DP PHY Configuration Test Write Register */
+#define DP_PHY_CFG_RD		0x0814	/* DP PHY Configuration Test Read Register */
+#define DP0_AUX_PHY_CTRL	0x0820	/* DP0 AUX PHY Control Register */
+#define DP0_MAIN_PHY_DBG	0x0840	/* DP0 Main PHY Test Debug Register */
+
+/* I2S */
+#define I2SCFG			0x0880	/* I2S Audio Config 0 Register */
+#define I2SCH0STAT0		0x0888	/* I2S Audio Channel 0 Status Bytes 3 to 0 */
+#define I2SCH0STAT1		0x088c	/* I2S Audio Channel 0 Status Bytes 7 to 4 */
+#define I2SCH0STAT2		0x0890	/* I2S Audio Channel 0 Status Bytes 11 to 8 */
+#define I2SCH0STAT3		0x0894	/* I2S Audio Channel 0 Status Bytes 15 to 12 */
+#define I2SCH0STAT4		0x0898	/* I2S Audio Channel 0 Status Bytes 19 to 16 */
+#define I2SCH0STAT5		0x089c	/* I2S Audio Channel 0 Status Bytes 23 to 20 */
+#define I2SCH1STAT0		0x08a0	/* I2S Audio Channel 1 Status Bytes 3 to 0 */
+#define I2SCH1STAT1		0x08a4	/* I2S Audio Channel 1 Status Bytes 7 to 4 */
+#define I2SCH1STAT2		0x08a8	/* I2S Audio Channel 1 Status Bytes 11 to 8 */
+#define I2SCH1STAT3		0x08ac	/* I2S Audio Channel 1 Status Bytes 15 to 12 */
+#define I2SCH1STAT4		0x08b0	/* I2S Audio Channel 1 Status Bytes 19 to 16 */
+#define I2SCH1STAT5		0x08b4	/* I2S Audio Channel 1 Status Bytes 23 to 20 */
 
 /* PLL */
 #define DP0_PLLCTRL		0x0900
@@ -546,8 +617,13 @@ static int tc_pxl_pll_en(struct tc_data *tc, u32 refclk, u32 pixelclock)
 			continue;
 		for (i_post = 0; i_post < ARRAY_SIZE(ext_div); i_post++) {
 			for (div = 1; div <= 16; div++) {
-				u32 clk;
+				u32 clk, iclk;
 				u64 tmp;
+
+				/* PCLK PLL input unit clock ... 6..40 MHz */
+				iclk = refclk / (div * ext_div[i_pre]);
+				if (iclk < 6000000 || iclk > 40000000)
+					continue;
 
 				tmp = pixelclock * ext_div[i_pre] *
 				      ext_div[i_post] * div;
@@ -1575,19 +1651,19 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 	drm_mode_copy(&tc->mode, mode);
 }
 
-static struct edid *tc_get_edid(struct drm_bridge *bridge,
-				struct drm_connector *connector)
+static const struct drm_edid *tc_edid_read(struct drm_bridge *bridge,
+					   struct drm_connector *connector)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	return drm_get_edid(connector, &tc->aux.ddc);
+	return drm_edid_read_ddc(connector, &tc->aux.ddc);
 }
 
 static int tc_connector_get_modes(struct drm_connector *connector)
 {
 	struct tc_data *tc = connector_to_tc(connector);
 	int num_modes;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	ret = tc_get_display_props(tc);
@@ -1602,9 +1678,10 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 			return num_modes;
 	}
 
-	edid = tc_get_edid(&tc->bridge, connector);
-	num_modes = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	drm_edid = tc_edid_read(&tc->bridge, connector);
+	drm_edid_connector_update(connector, drm_edid);
+	num_modes = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return num_modes;
 }
@@ -1773,7 +1850,7 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.atomic_enable = tc_edp_bridge_atomic_enable,
 	.atomic_disable = tc_edp_bridge_atomic_disable,
 	.detect = tc_bridge_detect,
-	.get_edid = tc_get_edid,
+	.edid_read = tc_edid_read,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
@@ -1833,16 +1910,16 @@ static bool tc_readable_reg(struct device *dev, unsigned int reg)
 	case 0x1f4:
 	/* DSI Protocol Layer */
 	case DSI_STARTDSI:
-	case 0x208:
+	case DSI_BUSYDSI:
 	case DSI_LANEENABLE:
-	case 0x214:
-	case 0x218:
-	case 0x220:
+	case DSI_LANESTATUS0:
+	case DSI_LANESTATUS1:
+	case DSI_INTSTATUS:
 	case 0x224:
 	case 0x228:
 	case 0x230:
 	/* DSI General */
-	case 0x300:
+	case DSIERRCNT:
 	/* DSI Application Layer */
 	case 0x400:
 	case 0x404:
@@ -1978,13 +2055,20 @@ static bool tc_readable_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_range tc_volatile_ranges[] = {
+	regmap_reg_range(PPI_BUSYPPI, PPI_BUSYPPI),
+	regmap_reg_range(DSI_BUSYDSI, DSI_BUSYDSI),
+	regmap_reg_range(DSI_LANESTATUS0, DSI_INTSTATUS),
+	regmap_reg_range(DSIERRCNT, DSIERRCNT),
+	regmap_reg_range(VFUEN0, VFUEN0),
+	regmap_reg_range(SYSSTAT, SYSSTAT),
+	regmap_reg_range(GPIOI, GPIOI),
+	regmap_reg_range(INTSTS_G, INTSTS_G),
+	regmap_reg_range(DP0_VMNGENSTATUS, DP0_VMNGENSTATUS),
+	regmap_reg_range(DP0_AMNGENSTATUS, DP0_AMNGENSTATUS),
 	regmap_reg_range(DP0_AUXWDATA(0), DP0_AUXSTATUS),
 	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
 	regmap_reg_range(DP_PHY_CTRL, DP_PHY_CTRL),
 	regmap_reg_range(DP0_PLLCTRL, PXL_PLLCTRL),
-	regmap_reg_range(VFUEN0, VFUEN0),
-	regmap_reg_range(INTSTS_G, INTSTS_G),
-	regmap_reg_range(GPIOI, GPIOI),
 };
 
 static const struct regmap_access_table tc_volatile_table = {
@@ -1992,12 +2076,28 @@ static const struct regmap_access_table tc_volatile_table = {
 	.n_yes_ranges = ARRAY_SIZE(tc_volatile_ranges),
 };
 
-static bool tc_writeable_reg(struct device *dev, unsigned int reg)
-{
-	return (reg != TC_IDREG) &&
-	       (reg != DP0_LTSTAT) &&
-	       (reg != DP0_SNKLTCHGREQ);
-}
+static const struct regmap_range tc_precious_ranges[] = {
+	regmap_reg_range(SYSSTAT, SYSSTAT),
+};
+
+static const struct regmap_access_table tc_precious_table = {
+	.yes_ranges = tc_precious_ranges,
+	.n_yes_ranges = ARRAY_SIZE(tc_precious_ranges),
+};
+
+static const struct regmap_range tc_non_writeable_ranges[] = {
+	regmap_reg_range(PPI_BUSYPPI, PPI_BUSYPPI),
+	regmap_reg_range(DSI_BUSYDSI, DSI_BUSYDSI),
+	regmap_reg_range(DSI_LANESTATUS0, DSI_INTSTATUS),
+	regmap_reg_range(TC_IDREG, SYSSTAT),
+	regmap_reg_range(GPIOI, GPIOI),
+	regmap_reg_range(DP0_LTSTAT, DP0_SNKLTCHGREQ),
+};
+
+static const struct regmap_access_table tc_writeable_table = {
+	.no_ranges = tc_non_writeable_ranges,
+	.n_no_ranges = ARRAY_SIZE(tc_non_writeable_ranges),
+};
 
 static const struct regmap_config tc_regmap_config = {
 	.name = "tc358767",
@@ -2008,7 +2108,8 @@ static const struct regmap_config tc_regmap_config = {
 	.cache_type = REGCACHE_MAPLE,
 	.readable_reg = tc_readable_reg,
 	.volatile_table = &tc_volatile_table,
-	.writeable_reg = tc_writeable_reg,
+	.precious_table = &tc_precious_table,
+	.wr_table = &tc_writeable_table,
 	.reg_format_endian = REGMAP_ENDIAN_BIG,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 };

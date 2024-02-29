@@ -293,6 +293,7 @@ acpi_parse_lapic(union acpi_subtable_headers * header, const unsigned long end)
 			    processor->processor_id, /* ACPI ID */
 			    processor->lapic_flags & ACPI_MADT_ENABLED);
 
+	has_lapic_cpus = true;
 	return 0;
 }
 
@@ -1134,7 +1135,6 @@ static int __init acpi_parse_madt_lapic_entries(void)
 	if (!count) {
 		count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_APIC,
 					acpi_parse_lapic, MAX_LOCAL_APIC);
-		has_lapic_cpus = count > 0;
 		x2count = acpi_table_parse_madt(ACPI_MADT_TYPE_LOCAL_X2APIC,
 					acpi_parse_x2apic, MAX_LOCAL_APIC);
 	}

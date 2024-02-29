@@ -217,6 +217,13 @@ config MARVELL_CN10K_DDR_PMU
 	  Enable perf support for Marvell DDR Performance monitoring
 	  event on CN10K platform.
 
+config DWC_PCIE_PMU
+	tristate "Synopsys DesignWare PCIe PMU"
+	depends on PCI
+	help
+	  Enable perf support for Synopsys DesignWare PCIe PMU Performance
+	  monitoring event on platform including the Alibaba Yitian 710.
+
 source "drivers/perf/arm_cspmu/Kconfig"
 
 source "drivers/perf/amlogic/Kconfig"

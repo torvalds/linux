@@ -402,19 +402,10 @@ static inline bool cpu_can_disable(unsigned int cpu)
 	return false;
 }
 
-static int __init topology_init(void)
+bool arch_cpu_is_hotpluggable(int num)
 {
-	int i;
-
-	for_each_possible_cpu(i) {
-		struct cpu *cpu = &per_cpu(cpu_data.cpu, i);
-		cpu->hotpluggable = cpu_can_disable(i);
-		register_cpu(cpu, i);
-	}
-
-	return 0;
+	return cpu_can_disable(num);
 }
-subsys_initcall(topology_init);
 
 static void dump_kernel_offset(void)
 {

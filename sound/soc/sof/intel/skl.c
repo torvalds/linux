@@ -62,7 +62,7 @@ int sof_skl_ops_init(struct snd_sof_dev *sdev)
 	/* probe/remove/shutdown */
 	sof_skl_ops.shutdown	= hda_dsp_shutdown;
 
-	sdev->private = devm_kzalloc(sdev->dev, sizeof(*ipc4_data), GFP_KERNEL);
+	sdev->private = kzalloc(sizeof(*ipc4_data), GFP_KERNEL);
 	if (!sdev->private)
 		return -ENOMEM;
 

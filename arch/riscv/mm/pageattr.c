@@ -29,7 +29,7 @@ static unsigned long set_pageattr_masks(unsigned long val, struct mm_walk *walk)
 static int pageattr_p4d_entry(p4d_t *p4d, unsigned long addr,
 			      unsigned long next, struct mm_walk *walk)
 {
-	p4d_t val = READ_ONCE(*p4d);
+	p4d_t val = p4dp_get(p4d);
 
 	if (p4d_leaf(val)) {
 		val = __p4d(set_pageattr_masks(p4d_val(val), walk));
@@ -42,7 +42,7 @@ static int pageattr_p4d_entry(p4d_t *p4d, unsigned long addr,
 static int pageattr_pud_entry(pud_t *pud, unsigned long addr,
 			      unsigned long next, struct mm_walk *walk)
 {
-	pud_t val = READ_ONCE(*pud);
+	pud_t val = pudp_get(pud);
 
 	if (pud_leaf(val)) {
 		val = __pud(set_pageattr_masks(pud_val(val), walk));
@@ -55,7 +55,7 @@ static int pageattr_pud_entry(pud_t *pud, unsigned long addr,
 static int pageattr_pmd_entry(pmd_t *pmd, unsigned long addr,
 			      unsigned long next, struct mm_walk *walk)
 {
-	pmd_t val = READ_ONCE(*pmd);
+	pmd_t val = pmdp_get(pmd);
 
 	if (pmd_leaf(val)) {
 		val = __pmd(set_pageattr_masks(pmd_val(val), walk));
@@ -68,7 +68,7 @@ static int pageattr_pmd_entry(pmd_t *pmd, unsigned long addr,
 static int pageattr_pte_entry(pte_t *pte, unsigned long addr,
 			      unsigned long next, struct mm_walk *walk)
 {
-	pte_t val = READ_ONCE(*pte);
+	pte_t val = ptep_get(pte);
 
 	val = __pte(set_pageattr_masks(pte_val(val), walk));
 	set_pte(pte, val);
@@ -108,10 +108,10 @@ static int __split_linear_mapping_pmd(pud_t *pudp,
 		    vaddr <= (vaddr & PMD_MASK) && end >= next)
 			continue;
 
-		if (pmd_leaf(*pmdp)) {
+		if (pmd_leaf(pmdp_get(pmdp))) {
 			struct page *pte_page;
-			unsigned long pfn = _pmd_pfn(*pmdp);
-			pgprot_t prot = __pgprot(pmd_val(*pmdp) & ~_PAGE_PFN_MASK);
+			unsigned long pfn = _pmd_pfn(pmdp_get(pmdp));
+			pgprot_t prot = __pgprot(pmd_val(pmdp_get(pmdp)) & ~_PAGE_PFN_MASK);
 			pte_t *ptep_new;
 			int i;
 
@@ -148,10 +148,10 @@ static int __split_linear_mapping_pud(p4d_t *p4dp,
 		    vaddr <= (vaddr & PUD_MASK) && end >= next)
 			continue;
 
-		if (pud_leaf(*pudp)) {
+		if (pud_leaf(pudp_get(pudp))) {
 			struct page *pmd_page;
-			unsigned long pfn = _pud_pfn(*pudp);
-			pgprot_t prot = __pgprot(pud_val(*pudp) & ~_PAGE_PFN_MASK);
+			unsigned long pfn = _pud_pfn(pudp_get(pudp));
+			pgprot_t prot = __pgprot(pud_val(pudp_get(pudp)) & ~_PAGE_PFN_MASK);
 			pmd_t *pmdp_new;
 			int i;
 
@@ -197,10 +197,10 @@ static int __split_linear_mapping_p4d(pgd_t *pgdp,
 		    vaddr <= (vaddr & P4D_MASK) && end >= next)
 			continue;
 
-		if (p4d_leaf(*p4dp)) {
+		if (p4d_leaf(p4dp_get(p4dp))) {
 			struct page *pud_page;
-			unsigned long pfn = _p4d_pfn(*p4dp);
-			pgprot_t prot = __pgprot(p4d_val(*p4dp) & ~_PAGE_PFN_MASK);
+			unsigned long pfn = _p4d_pfn(p4dp_get(p4dp));
+			pgprot_t prot = __pgprot(p4d_val(p4dp_get(p4dp)) & ~_PAGE_PFN_MASK);
 			pud_t *pudp_new;
 			int i;
 
@@ -305,8 +305,13 @@ static int __set_memory(unsigned long addr, int numpages, pgprot_t set_mask,
 				goto unlock;
 		}
 	} else if (is_kernel_mapping(start) || is_linear_mapping(start)) {
-		lm_start = (unsigned long)lm_alias(start);
-		lm_end = (unsigned long)lm_alias(end);
+		if (is_kernel_mapping(start)) {
+			lm_start = (unsigned long)lm_alias(start);
+			lm_end = (unsigned long)lm_alias(end);
+		} else {
+			lm_start = start;
+			lm_end = end;
+		}
 
 		ret = split_linear_mapping(lm_start, lm_end);
 		if (ret)
@@ -378,7 +383,7 @@ int set_direct_map_invalid_noflush(struct page *page)
 int set_direct_map_default_noflush(struct page *page)
 {
 	return __set_memory((unsigned long)page_address(page), 1,
-			    PAGE_KERNEL, __pgprot(0));
+			    PAGE_KERNEL, __pgprot(_PAGE_EXEC));
 }
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
@@ -406,29 +411,29 @@ bool kernel_page_present(struct page *page)
 	pte_t *pte;
 
 	pgd = pgd_offset_k(addr);
-	if (!pgd_present(*pgd))
+	if (!pgd_present(pgdp_get(pgd)))
 		return false;
-	if (pgd_leaf(*pgd))
+	if (pgd_leaf(pgdp_get(pgd)))
 		return true;
 
 	p4d = p4d_offset(pgd, addr);
-	if (!p4d_present(*p4d))
+	if (!p4d_present(p4dp_get(p4d)))
 		return false;
-	if (p4d_leaf(*p4d))
+	if (p4d_leaf(p4dp_get(p4d)))
 		return true;
 
 	pud = pud_offset(p4d, addr);
-	if (!pud_present(*pud))
+	if (!pud_present(pudp_get(pud)))
 		return false;
-	if (pud_leaf(*pud))
+	if (pud_leaf(pudp_get(pud)))
 		return true;
 
 	pmd = pmd_offset(pud, addr);
-	if (!pmd_present(*pmd))
+	if (!pmd_present(pmdp_get(pmd)))
 		return false;
-	if (pmd_leaf(*pmd))
+	if (pmd_leaf(pmdp_get(pmd)))
 		return true;
 
 	pte = pte_offset_kernel(pmd, addr);
-	return pte_present(*pte);
+	return pte_present(ptep_get(pte));
 }

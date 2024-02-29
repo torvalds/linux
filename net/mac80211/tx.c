@@ -5,7 +5,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * Transmit and frame generation functions.
  */
@@ -3048,7 +3048,7 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	    sdata->vif.type == NL80211_IFTYPE_STATION)
 		goto out;
 
-	if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED))
+	if (!test_sta_flag(sta, WLAN_STA_AUTHORIZED) || !sta->uploaded)
 		goto out;
 
 	if (test_sta_flag(sta, WLAN_STA_PS_STA) ||
@@ -3100,10 +3100,11 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 			/* DA SA BSSID */
 			build.da_offs = offsetof(struct ieee80211_hdr, addr1);
 			build.sa_offs = offsetof(struct ieee80211_hdr, addr2);
+			rcu_read_lock();
 			link = rcu_dereference(sdata->link[tdls_link_id]);
-			if (WARN_ON_ONCE(!link))
-				break;
-			memcpy(hdr->addr3, link->u.mgd.bssid, ETH_ALEN);
+			if (!WARN_ON_ONCE(!link))
+				memcpy(hdr->addr3, link->u.mgd.bssid, ETH_ALEN);
+			rcu_read_unlock();
 			build.hdr_len = 24;
 			break;
 		}
@@ -3926,6 +3927,7 @@ begin:
 			goto begin;
 
 		skb = __skb_dequeue(&tx.skbs);
+		info = IEEE80211_SKB_CB(skb);
 
 		if (!skb_queue_empty(&tx.skbs)) {
 			spin_lock_bh(&fq->lock);
@@ -3970,7 +3972,7 @@ begin:
 	}
 
 encap_out:
-	IEEE80211_SKB_CB(skb)->control.vif = vif;
+	info->control.vif = vif;
 
 	if (tx.sta &&
 	    wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL)) {
@@ -4013,14 +4015,13 @@ ieee80211_txq_set_active(struct txq_info *txqi)
 		return;
 
 	sta = container_of(txqi->txq.sta, struct sta_info, sta);
-	sta->airtime[txqi->txq.ac].last_active = (u32)jiffies;
+	sta->airtime[txqi->txq.ac].last_active = jiffies;
 }
 
 static bool
 ieee80211_txq_keep_active(struct txq_info *txqi)
 {
 	struct sta_info *sta;
-	u32 diff;
 
 	if (!txqi->txq.sta)
 		return false;
@@ -4029,9 +4030,7 @@ ieee80211_txq_keep_active(struct txq_info *txqi)
 	if (ieee80211_sta_deficit(sta, txqi->txq.ac) >= 0)
 		return false;
 
-	diff = (u32)jiffies - sta->airtime[txqi->txq.ac].last_active;
-
-	return diff <= AIRTIME_ACTIVE_DURATION;
+	return ieee80211_sta_keep_active(sta, txqi->txq.ac);
 }
 
 struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)

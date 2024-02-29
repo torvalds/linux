@@ -293,11 +293,15 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 		goto err_clk_put;
 
 	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_suspend_ignore_children(dev, false);
-	pm_runtime_get_sync(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0)
+		goto err_pm_set_suspended;
 
-	return 0;
+	pm_suspend_ignore_children(dev, false);
+	return pm_runtime_resume_and_get(dev);
+
+err_pm_set_suspended:
+	pm_runtime_set_suspended(dev);
 
 err_clk_put:
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
@@ -315,7 +319,6 @@ static void dwc3_xlnx_remove(struct platform_device *pdev)
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
 	priv_data->num_clocks = 0;
 
-	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
 	pm_runtime_set_suspended(dev);
 }

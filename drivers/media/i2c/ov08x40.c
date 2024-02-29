@@ -2536,7 +2536,7 @@ static int ov08x40_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	const struct ov08x40_mode *default_mode = &supported_modes[0];
 	struct ov08x40 *ov08x = to_ov08x40(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	mutex_lock(&ov08x->mutex);
 
@@ -2774,10 +2774,9 @@ static int ov08x40_do_get_pad_format(struct ov08x40 *ov08x,
 				     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
-	struct v4l2_subdev *sd = &ov08x->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		ov08x40_update_pad_format(ov08x->cur_mode, fmt);
@@ -2826,7 +2825,7 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov08x40_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ov08x->cur_mode = mode;

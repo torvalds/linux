@@ -267,7 +267,8 @@ void dc_state_construct(struct dc *dc, struct dc_state *state)
 	state->clk_mgr = dc->clk_mgr;
 
 	/* Initialise DIG link encoder resource tracking variables. */
-	link_enc_cfg_init(dc, state);
+	if (dc->res_pool)
+		link_enc_cfg_init(dc, state);
 }
 
 void dc_state_destruct(struct dc_state *state)
@@ -290,11 +291,14 @@ void dc_state_destruct(struct dc_state *state)
 		dc_stream_release(state->phantom_streams[i]);
 		state->phantom_streams[i] = NULL;
 	}
+	state->phantom_stream_count = 0;
 
 	for (i = 0; i < state->phantom_plane_count; i++) {
 		dc_plane_state_release(state->phantom_planes[i]);
 		state->phantom_planes[i] = NULL;
 	}
+	state->phantom_plane_count = 0;
+
 	state->stream_mask = 0;
 	memset(&state->res_ctx, 0, sizeof(state->res_ctx));
 	memset(&state->pp_display_cfg, 0, sizeof(state->pp_display_cfg));
@@ -433,8 +437,9 @@ bool dc_state_add_plane(
 
 	otg_master_pipe = resource_get_otg_master_for_stream(
 			&state->res_ctx, stream);
-	added = resource_append_dpp_pipes_for_plane_composition(state,
-			dc->current_state, pool, otg_master_pipe, plane_state);
+	if (otg_master_pipe)
+		added = resource_append_dpp_pipes_for_plane_composition(state,
+				dc->current_state, pool, otg_master_pipe, plane_state);
 
 	if (added) {
 		stream_status->plane_states[stream_status->plane_count] =

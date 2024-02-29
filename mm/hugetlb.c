@@ -1141,7 +1141,7 @@ static inline struct resv_map *inode_resv_map(struct inode *inode)
 	 * The VERY common case is inode->mapping == &inode->i_data but,
 	 * this may not be true for device special inodes.
 	 */
-	return (struct resv_map *)(&inode->i_data)->private_data;
+	return (struct resv_map *)(&inode->i_data)->i_private_data;
 }
 
 static struct resv_map *vma_resv_map(struct vm_area_struct *vma)
@@ -3410,7 +3410,7 @@ static void __init prep_and_add_bootmem_folios(struct hstate *h,
 
 /*
  * Put bootmem huge pages into the standard lists after mem_map is up.
- * Note: This only applies to gigantic (order > MAX_ORDER) pages.
+ * Note: This only applies to gigantic (order > MAX_PAGE_ORDER) pages.
  */
 static void __init gather_bootmem_prealloc(void)
 {
@@ -4790,7 +4790,7 @@ static int __init default_hugepagesz_setup(char *s)
 	 * The number of default huge pages (for this size) could have been
 	 * specified as the first hugetlb parameter: hugepages=X.  If so,
 	 * then default_hstate_max_huge_pages is set.  If the default huge
-	 * page size is gigantic (> MAX_ORDER), then the pages must be
+	 * page size is gigantic (> MAX_PAGE_ORDER), then the pages must be
 	 * allocated here from bootmem allocator.
 	 */
 	if (default_hstate_max_huge_pages) {
@@ -5285,7 +5285,7 @@ hugetlb_install_folio(struct vm_area_struct *vma, pte_t *ptep, unsigned long add
 	pte_t newpte = make_huge_pte(vma, &new_folio->page, 1);
 
 	__folio_mark_uptodate(new_folio);
-	hugepage_add_new_anon_rmap(new_folio, vma, addr);
+	hugetlb_add_new_anon_rmap(new_folio, vma, addr);
 	if (userfaultfd_wp(vma) && huge_pte_uffd_wp(old))
 		newpte = huge_pte_mkuffd_wp(newpte);
 	set_huge_pte_at(vma->vm_mm, addr, ptep, newpte, sz);
@@ -5408,9 +5408,8 @@ again:
 			 * sleep during the process.
 			 */
 			if (!folio_test_anon(pte_folio)) {
-				page_dup_file_rmap(&pte_folio->page, true);
-			} else if (page_try_dup_anon_rmap(&pte_folio->page,
-							  true, src_vma)) {
+				hugetlb_add_file_rmap(pte_folio);
+			} else if (hugetlb_try_dup_anon_rmap(pte_folio, src_vma)) {
 				pte_t src_pte_old = entry;
 				struct folio *new_folio;
 
@@ -5676,7 +5675,7 @@ void __unmap_hugepage_range(struct mmu_gather *tlb, struct vm_area_struct *vma,
 					make_pte_marker(PTE_MARKER_UFFD_WP),
 					sz);
 		hugetlb_count_sub(pages_per_huge_page(h), mm);
-		page_remove_rmap(page, vma, true);
+		hugetlb_remove_rmap(page_folio(page));
 
 		spin_unlock(ptl);
 		tlb_remove_page_size(tlb, page, huge_page_size(h));
@@ -5987,8 +5986,8 @@ retry_avoidcopy:
 
 		/* Break COW or unshare */
 		huge_ptep_clear_flush(vma, haddr, ptep);
-		page_remove_rmap(&old_folio->page, vma, true);
-		hugepage_add_new_anon_rmap(new_folio, vma, haddr);
+		hugetlb_remove_rmap(old_folio);
+		hugetlb_add_new_anon_rmap(new_folio, vma, haddr);
 		if (huge_pte_uffd_wp(pte))
 			newpte = huge_pte_mkuffd_wp(newpte);
 		set_huge_pte_at(mm, haddr, ptep, newpte, huge_page_size(h));
@@ -6277,9 +6276,9 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
 		goto backout;
 
 	if (anon_rmap)
-		hugepage_add_new_anon_rmap(folio, vma, haddr);
+		hugetlb_add_new_anon_rmap(folio, vma, haddr);
 	else
-		page_dup_file_rmap(&folio->page, true);
+		hugetlb_add_file_rmap(folio);
 	new_pte = make_huge_pte(vma, &folio->page, ((vma->vm_flags & VM_WRITE)
 				&& (vma->vm_flags & VM_SHARED)));
 	/*
@@ -6730,9 +6729,9 @@ int hugetlb_mfill_atomic_pte(pte_t *dst_pte,
 		goto out_release_unlock;
 
 	if (folio_in_pagecache)
-		page_dup_file_rmap(&folio->page, true);
+		hugetlb_add_file_rmap(folio);
 	else
-		hugepage_add_new_anon_rmap(folio, dst_vma, dst_addr);
+		hugetlb_add_new_anon_rmap(folio, dst_vma, dst_addr);
 
 	/*
 	 * For either: (1) CONTINUE on a non-shared VMA, or (2) UFFDIO_COPY

@@ -1059,8 +1059,9 @@ mt7915_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
 
 	phy->mt76->antenna_mask = tx_ant;
 
-	/* handle a variant of mt7916 which has 3T3R but nss2 on 5 GHz band */
-	if (is_mt7916(&dev->mt76) && band && hweight8(tx_ant) == max_nss)
+	/* handle a variant of mt7916/mt7981 which has 3T3R but nss2 on 5 GHz band */
+	if ((is_mt7916(&dev->mt76) || is_mt7981(&dev->mt76)) &&
+	    band && hweight8(tx_ant) == max_nss)
 		phy->mt76->chainmask = (dev->chainmask >> chainshift) << chainshift;
 	else
 		phy->mt76->chainmask = tx_ant << (chainshift * band);
@@ -1653,20 +1654,6 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
 
 	return 0;
 }
-
-static int
-mt7915_net_setup_tc(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    struct net_device *netdev, enum tc_setup_type type,
-		    void *type_data)
-{
-	struct mt7915_dev *dev = mt7915_hw_dev(hw);
-	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
-
-	if (!mtk_wed_device_active(wed))
-		return -EOPNOTSUPP;
-
-	return mtk_wed_device_setup_tc(wed, netdev, type, type_data);
-}
 #endif
 
 const struct ieee80211_ops mt7915_ops = {
@@ -1721,6 +1708,6 @@ const struct ieee80211_ops mt7915_ops = {
 	.set_radar_background = mt7915_set_radar_background,
 #ifdef CONFIG_NET_MEDIATEK_SOC_WED
 	.net_fill_forward_path = mt7915_net_fill_forward_path,
-	.net_setup_tc = mt7915_net_setup_tc,
+	.net_setup_tc = mt76_net_setup_tc,
 #endif
 };

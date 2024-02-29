@@ -15,49 +15,97 @@ to learn about how our community works.  Reading these documents will make
 it much easier for you to get your changes merged with a minimum of
 trouble.
 
-Below are the essential guides that every developer should read.
+An introduction to how kernel development works
+-----------------------------------------------
+
+Read these documents first: an understanding of the material here will ease
+your entry into the kernel community.
 
 .. toctree::
    :maxdepth: 1
 
-   license-rules
    howto
-   code-of-conduct
-   code-of-conduct-interpretation
    development-process
    submitting-patches
-   handling-regressions
-   programming-language
-   coding-style
-   maintainer-handbooks
-   maintainer-pgp-guide
-   email-clients
-   kernel-enforcement-statement
-   kernel-driver-statement
+   submit-checklist
 
-For security issues, see:
+Tools and technical guides for kernel developers
+------------------------------------------------
 
-.. toctree::
-   :maxdepth: 1
-
-   security-bugs
-   embargoed-hardware-issues
-
-Other guides to the community that are of interest to most developers are:
+This is a collection of material that kernel developers should be familiar
+with.
 
 .. toctree::
    :maxdepth: 1
 
    changes
+   programming-language
+   coding-style
+   maintainer-pgp-guide
+   email-clients
+   applying-patches
+   backporting
+   adding-syscalls
+   volatile-considered-harmful
+   botching-up-ioctls
+
+Policy guides and developer statements
+--------------------------------------
+
+These are the rules that we try to live by in the kernel community (and
+beyond).
+
+.. toctree::
+   :maxdepth: 1
+
+   license-rules
+   code-of-conduct
+   code-of-conduct-interpretation
+   contribution-maturity-model
+   kernel-enforcement-statement
+   kernel-driver-statement
    stable-api-nonsense
-   management-style
    stable-kernel-rules
-   submit-checklist
+   management-style
+   researcher-guidelines
+
+Dealing with bugs
+-----------------
+
+Bugs are a fact of life; it is important that we handle them properly.
+The documents below describe our policies around the handling of a couple
+of special classes of bugs: regressions and security problems.
+
+.. toctree::
+   :maxdepth: 1
+
+   handling-regressions
+   security-bugs
+   cve
+   embargoed-hardware-issues
+
+Maintainer information
+----------------------
+
+How to find the people who will accept your patches.
+
+.. toctree::
+   :maxdepth: 1
+
+   maintainer-handbooks
+   maintainers
+
+Other material
+--------------
+
+Here are some other guides to the community that are of interest to most
+developers:
+
+.. toctree::
+   :maxdepth: 1
+
    kernel-docs
    deprecated
-   maintainers
-   researcher-guidelines
-   contribution-maturity-model
 
 These are some overall technical guides that have been put here for now for
 lack of a better place.
@@ -65,12 +113,7 @@ lack of a better place.
 .. toctree::
    :maxdepth: 1
 
-   applying-patches
-   backporting
-   adding-syscalls
    magic-number
-   volatile-considered-harmful
-   botching-up-ioctls
    clang-format
    ../arch/riscv/patch-acceptance
    ../core-api/unaligned-memory-access

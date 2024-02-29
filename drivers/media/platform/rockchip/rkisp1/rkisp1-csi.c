@@ -125,8 +125,20 @@ static void rkisp1_csi_disable(struct rkisp1_csi *csi)
 	struct rkisp1_device *rkisp1 = csi->rkisp1;
 	u32 val;
 
-	/* Mask and clear interrupts. */
+	/* Mask MIPI interrupts. */
 	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC, 0);
+
+	/* Flush posted writes */
+	rkisp1_read(rkisp1, RKISP1_CIF_MIPI_IMSC);
+
+	/*
+	 * Wait until the IRQ handler has ended. The IRQ handler may get called
+	 * even after this, but it will return immediately as the MIPI
+	 * interrupts have been masked.
+	 */
+	synchronize_irq(rkisp1->irqs[RKISP1_IRQ_MIPI]);
+
+	/* Clear MIPI interrupt status */
 	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_ICR, ~0);
 
 	val = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_CTRL);
@@ -183,6 +195,9 @@ irqreturn_t rkisp1_csi_isr(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct rkisp1_device *rkisp1 = dev_get_drvdata(dev);
 	u32 val, status;
+
+	if (!rkisp1->irqs_enabled)
+		return IRQ_NONE;
 
 	status = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_MIS);
 	if (!status)
@@ -242,8 +257,8 @@ static int rkisp1_csi_enum_mbus_code(struct v4l2_subdev *sd,
 		if (code->index)
 			return -EINVAL;
 
-		sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-						      RKISP1_CSI_PAD_SINK);
+		sink_fmt = v4l2_subdev_state_get_format(sd_state,
+							RKISP1_CSI_PAD_SINK);
 		code->code = sink_fmt->code;
 
 		return 0;
@@ -270,15 +285,13 @@ static int rkisp1_csi_enum_mbus_code(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int rkisp1_csi_init_config(struct v4l2_subdev *sd,
-				  struct v4l2_subdev_state *sd_state)
+static int rkisp1_csi_init_state(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					      RKISP1_CSI_PAD_SINK);
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state,
-					     RKISP1_CSI_PAD_SRC);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SINK);
+	src_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SRC);
 
 	sink_fmt->width = RKISP1_DEFAULT_WIDTH;
 	sink_fmt->height = RKISP1_DEFAULT_HEIGHT;
@@ -301,7 +314,7 @@ static int rkisp1_csi_set_fmt(struct v4l2_subdev *sd,
 	if (fmt->pad == RKISP1_CSI_PAD_SRC)
 		return v4l2_subdev_get_fmt(sd, sd_state, fmt);
 
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state, RKISP1_CSI_PAD_SINK);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SINK);
 
 	sink_fmt->code = fmt->format.code;
 
@@ -321,7 +334,7 @@ static int rkisp1_csi_set_fmt(struct v4l2_subdev *sd,
 	fmt->format = *sink_fmt;
 
 	/* Propagate the format to the source pad. */
-	src_fmt = v4l2_subdev_get_pad_format(sd, sd_state, RKISP1_CSI_PAD_SRC);
+	src_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SRC);
 	*src_fmt = *sink_fmt;
 
 	return 0;
@@ -374,7 +387,7 @@ static int rkisp1_csi_s_stream(struct v4l2_subdev *sd, int enable)
 		return -EINVAL;
 
 	sd_state = v4l2_subdev_lock_and_get_active_state(sd);
-	sink_fmt = v4l2_subdev_get_pad_format(sd, sd_state, RKISP1_CSI_PAD_SINK);
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, RKISP1_CSI_PAD_SINK);
 	format = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 	v4l2_subdev_unlock_state(sd_state);
 
@@ -407,7 +420,6 @@ static const struct v4l2_subdev_video_ops rkisp1_csi_video_ops = {
 
 static const struct v4l2_subdev_pad_ops rkisp1_csi_pad_ops = {
 	.enum_mbus_code = rkisp1_csi_enum_mbus_code,
-	.init_cfg = rkisp1_csi_init_config,
 	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = rkisp1_csi_set_fmt,
 };
@@ -415,6 +427,10 @@ static const struct v4l2_subdev_pad_ops rkisp1_csi_pad_ops = {
 static const struct v4l2_subdev_ops rkisp1_csi_ops = {
 	.video = &rkisp1_csi_video_ops,
 	.pad = &rkisp1_csi_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops rkisp1_csi_internal_ops = {
+	.init_state = rkisp1_csi_init_state,
 };
 
 int rkisp1_csi_register(struct rkisp1_device *rkisp1)
@@ -428,6 +444,7 @@ int rkisp1_csi_register(struct rkisp1_device *rkisp1)
 
 	sd = &csi->sd;
 	v4l2_subdev_init(sd, &rkisp1_csi_ops);
+	sd->internal_ops = &rkisp1_csi_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	sd->entity.ops = &rkisp1_csi_media_ops;
 	sd->entity.function = MEDIA_ENT_F_VID_IF_BRIDGE;

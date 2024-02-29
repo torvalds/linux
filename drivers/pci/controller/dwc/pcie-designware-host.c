@@ -441,14 +441,14 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 	bridge->ops = &dw_pcie_ops;
 	bridge->child_ops = &dw_child_pcie_ops;
 
-	if (pp->ops->host_init) {
-		ret = pp->ops->host_init(pp);
+	if (pp->ops->init) {
+		ret = pp->ops->init(pp);
 		if (ret)
 			return ret;
 	}
 
 	if (pci_msi_enabled()) {
-		pp->has_msi_ctrl = !(pp->ops->msi_host_init ||
+		pp->has_msi_ctrl = !(pp->ops->msi_init ||
 				     of_property_read_bool(np, "msi-parent") ||
 				     of_property_read_bool(np, "msi-map"));
 
@@ -464,8 +464,8 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 			goto err_deinit_host;
 		}
 
-		if (pp->ops->msi_host_init) {
-			ret = pp->ops->msi_host_init(pp);
+		if (pp->ops->msi_init) {
+			ret = pp->ops->msi_init(pp);
 			if (ret < 0)
 				goto err_deinit_host;
 		} else if (pp->has_msi_ctrl) {
@@ -502,8 +502,8 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 	if (ret)
 		goto err_stop_link;
 
-	if (pp->ops->host_post_init)
-		pp->ops->host_post_init(pp);
+	if (pp->ops->post_init)
+		pp->ops->post_init(pp);
 
 	return 0;
 
@@ -518,8 +518,8 @@ err_free_msi:
 		dw_pcie_free_msi(pp);
 
 err_deinit_host:
-	if (pp->ops->host_deinit)
-		pp->ops->host_deinit(pp);
+	if (pp->ops->deinit)
+		pp->ops->deinit(pp);
 
 	return ret;
 }
@@ -539,8 +539,8 @@ void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 	if (pp->has_msi_ctrl)
 		dw_pcie_free_msi(pp);
 
-	if (pp->ops->host_deinit)
-		pp->ops->host_deinit(pp);
+	if (pp->ops->deinit)
+		pp->ops->deinit(pp);
 }
 EXPORT_SYMBOL_GPL(dw_pcie_host_deinit);
 
@@ -842,8 +842,8 @@ int dw_pcie_suspend_noirq(struct dw_pcie *pci)
 		return ret;
 	}
 
-	if (pci->pp.ops->host_deinit)
-		pci->pp.ops->host_deinit(&pci->pp);
+	if (pci->pp.ops->deinit)
+		pci->pp.ops->deinit(&pci->pp);
 
 	pci->suspended = true;
 
@@ -860,8 +860,8 @@ int dw_pcie_resume_noirq(struct dw_pcie *pci)
 
 	pci->suspended = false;
 
-	if (pci->pp.ops->host_init) {
-		ret = pci->pp.ops->host_init(&pci->pp);
+	if (pci->pp.ops->init) {
+		ret = pci->pp.ops->init(&pci->pp);
 		if (ret) {
 			dev_err(pci->dev, "Host init failed: %d\n", ret);
 			return ret;

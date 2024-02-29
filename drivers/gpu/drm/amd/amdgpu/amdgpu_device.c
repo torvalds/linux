@@ -96,6 +96,9 @@ MODULE_FIRMWARE("amdgpu/navi12_gpu_info.bin");
 #define AMDGPU_RESUME_MS		2000
 #define AMDGPU_MAX_RETRY_LIMIT		2
 #define AMDGPU_RETRY_SRIOV_RESET(r) ((r) == -EBUSY || (r) == -ETIMEDOUT || (r) == -EINVAL)
+#define AMDGPU_PCIE_INDEX_FALLBACK (0x38 >> 2)
+#define AMDGPU_PCIE_INDEX_HI_FALLBACK (0x44 >> 2)
+#define AMDGPU_PCIE_DATA_FALLBACK (0x3C >> 2)
 
 static const struct drm_driver amdgpu_kms_driver;
 
@@ -781,12 +784,22 @@ u32 amdgpu_device_indirect_rreg_ext(struct amdgpu_device *adev,
 	void __iomem *pcie_index_hi_offset;
 	void __iomem *pcie_data_offset;
 
-	pcie_index = adev->nbio.funcs->get_pcie_index_offset(adev);
-	pcie_data = adev->nbio.funcs->get_pcie_data_offset(adev);
-	if ((reg_addr >> 32) && (adev->nbio.funcs->get_pcie_index_hi_offset))
-		pcie_index_hi = adev->nbio.funcs->get_pcie_index_hi_offset(adev);
-	else
+	if (unlikely(!adev->nbio.funcs)) {
+		pcie_index = AMDGPU_PCIE_INDEX_FALLBACK;
+		pcie_data = AMDGPU_PCIE_DATA_FALLBACK;
+	} else {
+		pcie_index = adev->nbio.funcs->get_pcie_index_offset(adev);
+		pcie_data = adev->nbio.funcs->get_pcie_data_offset(adev);
+	}
+
+	if (reg_addr >> 32) {
+		if (unlikely(!adev->nbio.funcs))
+			pcie_index_hi = AMDGPU_PCIE_INDEX_HI_FALLBACK;
+		else
+			pcie_index_hi = adev->nbio.funcs->get_pcie_index_hi_offset(adev);
+	} else {
 		pcie_index_hi = 0;
+	}
 
 	spin_lock_irqsave(&adev->pcie_idx_lock, flags);
 	pcie_index_offset = (void __iomem *)adev->rmmio + pcie_index * 4;
@@ -1218,8 +1231,6 @@ static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 	    amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0)) {
 		amdgpu_psp_wait_for_bootloader(adev);
 		ret = amdgpu_atomfirmware_asic_init(adev, true);
-		/* TODO: check the return val and stop device initialization if boot fails */
-		amdgpu_psp_query_boot_status(adev);
 		return ret;
 	} else {
 		return amdgpu_atom_asic_init(adev->mode_info.atom_context);
@@ -1442,6 +1453,10 @@ int amdgpu_device_resize_fb_bar(struct amdgpu_device *adev)
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	/* PCI_EXT_CAP_ID_VNDR extended capability is located at 0x100 */
+	if (!pci_find_ext_capability(adev->pdev, PCI_EXT_CAP_ID_VNDR))
+		DRM_WARN("System can't access extended configuration space,please check!!\n");
+
 	/* skip if the bios has already enabled large BAR */
 	if (adev->gmc.real_vram_size &&
 	    (pci_resource_len(adev->pdev, 0) >= adev->gmc.real_vram_size))
@@ -1544,6 +1559,7 @@ bool amdgpu_device_need_post(struct amdgpu_device *adev)
 				return true;
 
 			fw_ver = *((uint32_t *)adev->pm.fw->data + 69);
+			release_firmware(adev->pm.fw);
 			if (fw_ver < 0x00160e00)
 				return true;
 		}
@@ -4120,23 +4136,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 				}
 			}
 		} else {
-			switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-			case IP_VERSION(13, 0, 0):
-			case IP_VERSION(13, 0, 7):
-			case IP_VERSION(13, 0, 10):
-				r = psp_gpu_reset(adev);
-				break;
-			default:
-				tmp = amdgpu_reset_method;
-				/* It should do a default reset when loading or reloading the driver,
-				 * regardless of the module parameter reset_method.
-				 */
-				amdgpu_reset_method = AMD_RESET_METHOD_NONE;
-				r = amdgpu_asic_reset(adev);
-				amdgpu_reset_method = tmp;
-				break;
-			}
-
+			tmp = amdgpu_reset_method;
+			/* It should do a default reset when loading or reloading the driver,
+			 * regardless of the module parameter reset_method.
+			 */
+			amdgpu_reset_method = AMD_RESET_METHOD_NONE;
+			r = amdgpu_asic_reset(adev);
+			amdgpu_reset_method = tmp;
 			if (r) {
 				dev_err(adev->dev, "asic reset on init failed\n");
 				goto failed;
@@ -4523,13 +4529,15 @@ int amdgpu_device_prepare(struct drm_device *dev)
 	struct amdgpu_device *adev = drm_to_adev(dev);
 	int i, r;
 
+	amdgpu_choose_low_power_state(adev);
+
 	if (dev->switch_power_state == DRM_SWITCH_POWER_OFF)
 		return 0;
 
 	/* Evict the majority of BOs before starting suspend sequence */
 	r = amdgpu_device_evict_resources(adev);
 	if (r)
-		return r;
+		goto unprepare;
 
 	for (i = 0; i < adev->num_ip_blocks; i++) {
 		if (!adev->ip_blocks[i].status.valid)
@@ -4538,10 +4546,15 @@ int amdgpu_device_prepare(struct drm_device *dev)
 			continue;
 		r = adev->ip_blocks[i].version->funcs->prepare_suspend((void *)adev);
 		if (r)
-			return r;
+			goto unprepare;
 	}
 
 	return 0;
+
+unprepare:
+	adev->in_s0ix = adev->in_s3 = false;
+
+	return r;
 }
 
 /**
@@ -4578,7 +4591,6 @@ int amdgpu_device_suspend(struct drm_device *dev, bool fbcon)
 		drm_fb_helper_set_suspend_unlocked(adev_to_drm(adev)->fb_helper, true);
 
 	cancel_delayed_work_sync(&adev->delayed_init_work);
-	flush_delayed_work(&adev->gfx.gfx_off_delay_work);
 
 	amdgpu_ras_suspend(adev);
 
@@ -5030,7 +5042,7 @@ bool amdgpu_device_has_job_running(struct amdgpu_device *adev)
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		spin_lock(&ring->sched.job_list_lock);
@@ -5169,7 +5181,7 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		/* Clear job fence from fence drv to avoid force_completion
@@ -5245,7 +5257,6 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	struct amdgpu_device *tmp_adev = NULL;
 	bool need_full_reset, skip_hw_reset, vram_lost = false;
 	int r = 0;
-	bool gpu_reset_for_dev_remove = 0;
 
 	/* Try reset handler method first */
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
@@ -5264,10 +5275,6 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	need_full_reset =
 		test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
 	skip_hw_reset = test_bit(AMDGPU_SKIP_HW_RESET, &reset_context->flags);
-
-	gpu_reset_for_dev_remove =
-		test_bit(AMDGPU_RESET_FOR_DEVICE_REMOVE, &reset_context->flags) &&
-			test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
 
 	/*
 	 * ASIC reset has to be done on all XGMI hive nodes ASAP
@@ -5309,18 +5316,6 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 		}
 
 		amdgpu_ras_intr_cleared();
-	}
-
-	/* Since the mode1 reset affects base ip blocks, the
-	 * phase1 ip blocks need to be resumed. Otherwise there
-	 * will be a BIOS signature error and the psp bootloader
-	 * can't load kdb on the next amdgpu install.
-	 */
-	if (gpu_reset_for_dev_remove) {
-		list_for_each_entry(tmp_adev, device_list_handle, reset_list)
-			amdgpu_device_ip_resume_phase1(tmp_adev);
-
-		goto end;
 	}
 
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
@@ -5559,11 +5554,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	int i, r = 0;
 	bool need_emergency_restart = false;
 	bool audio_suspended = false;
-	bool gpu_reset_for_dev_remove = false;
-
-	gpu_reset_for_dev_remove =
-			test_bit(AMDGPU_RESET_FOR_DEVICE_REMOVE, &reset_context->flags) &&
-				test_bit(AMDGPU_NEED_FULL_RESET, &reset_context->flags);
 
 	/*
 	 * Special case: RAS triggered and full reset isn't supported
@@ -5601,7 +5591,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	if (!amdgpu_sriov_vf(adev) && (adev->gmc.xgmi.num_physical_nodes > 1)) {
 		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head) {
 			list_add_tail(&tmp_adev->reset_list, &device_list);
-			if (gpu_reset_for_dev_remove && adev->shutdown)
+			if (adev->shutdown)
 				tmp_adev->shutdown = true;
 		}
 		if (!list_is_first(&adev->reset_list, &device_list))
@@ -5658,7 +5648,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
-			if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
 			drm_sched_stop(&ring->sched, job ? &job->base : NULL);
@@ -5686,10 +5676,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-		if (gpu_reset_for_dev_remove) {
-			/* Workaroud for ASICs need to disable SMC first */
-			amdgpu_device_smu_fini_early(tmp_adev);
-		}
 		r = amdgpu_device_pre_asic_reset(tmp_adev, reset_context);
 		/*TODO Should we stop ?*/
 		if (r) {
@@ -5715,15 +5701,13 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		/* Aldebaran and gfx_11_0_3 support ras in SRIOV, so need resume ras during reset */
 		if (amdgpu_ip_version(adev, GC_HWIP, 0) ==
 			    IP_VERSION(9, 4, 2) ||
+		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
 		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3))
 			amdgpu_ras_resume(adev);
 	} else {
 		r = amdgpu_do_asic_reset(device_list_handle, reset_context);
 		if (r && r == -EAGAIN)
 			goto retry;
-
-		if (!r && gpu_reset_for_dev_remove)
-			goto recover_end;
 	}
 
 skip_hw_reset:
@@ -5734,7 +5718,7 @@ skip_hw_reset:
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
 
-			if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
 			drm_sched_start(&ring->sched, true);
@@ -5779,7 +5763,6 @@ skip_sched_resume:
 		amdgpu_ras_set_error_query_ready(tmp_adev, true);
 	}
 
-recover_end:
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
 					    reset_list);
 	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
@@ -6090,7 +6073,7 @@ pci_ers_result_t amdgpu_pci_error_detected(struct pci_dev *pdev, pci_channel_sta
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = adev->rings[i];
 
-			if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+			if (!amdgpu_ring_sched_ready(ring))
 				continue;
 
 			drm_sched_stop(&ring->sched, NULL);
@@ -6140,6 +6123,20 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 	struct amdgpu_reset_context reset_context;
 	u32 memsize;
 	struct list_head device_list;
+	struct amdgpu_hive_info *hive;
+	int hive_ras_recovery = 0;
+	struct amdgpu_ras *ras;
+
+	/* PCI error slot reset should be skipped During RAS recovery */
+	hive = amdgpu_get_xgmi_hive(adev);
+	if (hive) {
+		hive_ras_recovery = atomic_read(&hive->ras_recovery);
+		amdgpu_put_xgmi_hive(hive);
+	}
+	ras = amdgpu_ras_get_context(adev);
+	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3)) &&
+		 ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
+		return PCI_ERS_RESULT_RECOVERED;
 
 	DRM_INFO("PCI error: slot reset callback!!\n");
 
@@ -6218,7 +6215,7 @@ void amdgpu_pci_resume(struct pci_dev *pdev)
 	for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 		struct amdgpu_ring *ring = adev->rings[i];
 
-		if (!ring || !drm_sched_wqueue_ready(&ring->sched))
+		if (!amdgpu_ring_sched_ready(ring))
 			continue;
 
 		drm_sched_start(&ring->sched, true);

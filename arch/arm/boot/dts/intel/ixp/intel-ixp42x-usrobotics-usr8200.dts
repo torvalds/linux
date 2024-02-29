@@ -165,6 +165,24 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 
+				/*
+				 * PHY 0..4 are internal to the MV88E6060 switch but appear
+				 * as independent devices.
+				 */
+				phy0: ethernet-phy@0 {
+					reg = <0>;
+				};
+				phy1: ethernet-phy@1 {
+					reg = <1>;
+				};
+				phy2: ethernet-phy@2 {
+					reg = <2>;
+				};
+				phy3: ethernet-phy@3 {
+					reg = <3>;
+				};
+
+				/* Altima AMI101L used by the WAN port */
 				phy9: ethernet-phy@9 {
 					reg = <9>;
 				};
@@ -181,21 +199,25 @@
 						port@0 {
 							reg = <0>;
 							label = "lan1";
+							phy-handle = <&phy0>;
 						};
 
 						port@1 {
 							reg = <1>;
 							label = "lan2";
+							phy-handle = <&phy1>;
 						};
 
 						port@2 {
 							reg = <2>;
 							label = "lan3";
+							phy-handle = <&phy2>;
 						};
 
 						port@3 {
 							reg = <3>;
 							label = "lan4";
+							phy-handle = <&phy3>;
 						};
 
 						port@5 {

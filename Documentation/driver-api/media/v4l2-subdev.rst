@@ -181,6 +181,8 @@ You can unregister a sub-device using:
 Afterwards the subdev module can be unloaded and
 :c:type:`sd <v4l2_subdev>`->dev == ``NULL``.
 
+.. _media-registering-async-subdevs:
+
 Registering asynchronous sub-devices
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -194,6 +196,11 @@ the :c:func:`v4l2_async_register_subdev` function. Unregistration is
 performed using the :c:func:`v4l2_async_unregister_subdev` call. Subdevices
 registered this way are stored in a global list of subdevices, ready to be
 picked up by bridge drivers.
+
+Drivers must complete all initialization of the sub-device before
+registering it using :c:func:`v4l2_async_register_subdev`, including
+enabling runtime PM. This is because the sub-device becomes accessible
+as soon as it gets registered.
 
 Asynchronous sub-device notifiers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -562,8 +569,8 @@ device configuration. This is often implemented as e.g. an array of struct
 v4l2_mbus_framefmt, one entry for each pad, and similarly for crop and compose
 rectangles.
 
-In addition to the active configuration, each subdev file handle has an array of
-struct v4l2_subdev_pad_config, managed by the V4L2 core, which contains the try
+In addition to the active configuration, each subdev file handle has a struct
+v4l2_subdev_state, managed by the V4L2 core, which contains the try
 configuration.
 
 To simplify the subdev drivers the V4L2 subdev API now optionally supports a

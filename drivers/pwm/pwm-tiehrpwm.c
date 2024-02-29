@@ -521,7 +521,6 @@ static void ehrpwm_pwm_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static void ehrpwm_pwm_save_context(struct ehrpwm_pwm_chip *pc)
 {
 	pm_runtime_get_sync(pc->chip.dev);
@@ -589,16 +588,15 @@ static int ehrpwm_pwm_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
-			 ehrpwm_pwm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ehrpwm_pwm_pm_ops, ehrpwm_pwm_suspend,
+				ehrpwm_pwm_resume);
 
 static struct platform_driver ehrpwm_pwm_driver = {
 	.driver = {
 		.name = "ehrpwm",
 		.of_match_table = ehrpwm_of_match,
-		.pm = &ehrpwm_pwm_pm_ops,
+		.pm = pm_ptr(&ehrpwm_pwm_pm_ops),
 	},
 	.probe = ehrpwm_pwm_probe,
 	.remove_new = ehrpwm_pwm_remove,

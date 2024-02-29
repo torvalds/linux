@@ -24,7 +24,7 @@
 #define SKU_HW_ID_SHIFT              16u
 #define SKU_HW_ID_MASK               0xffff0000u
 
-#define PLL_CONFIG_DEFAULT           0x1
+#define PLL_CONFIG_DEFAULT           0x0
 #define PLL_CDYN_DEFAULT             0x80
 #define PLL_EPP_DEFAULT              0x80
 #define PLL_REF_CLK_FREQ	     (50 * 1000000)
@@ -80,11 +80,11 @@ static char *ivpu_platform_to_str(u32 platform)
 {
 	switch (platform) {
 	case IVPU_PLATFORM_SILICON:
-		return "IVPU_PLATFORM_SILICON";
+		return "SILICON";
 	case IVPU_PLATFORM_SIMICS:
-		return "IVPU_PLATFORM_SIMICS";
+		return "SIMICS";
 	case IVPU_PLATFORM_FPGA:
-		return "IVPU_PLATFORM_FPGA";
+		return "FPGA";
 	default:
 		return "Invalid platform";
 	}
@@ -530,7 +530,7 @@ static void ivpu_boot_no_snoop_enable(struct ivpu_device *vdev)
 	u32 val = REGV_RD32(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES);
 
 	val = REG_SET_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, SNOOP_OVERRIDE_EN, val);
-	val = REG_CLR_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AW_SNOOP_OVERRIDE, val);
+	val = REG_SET_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AW_SNOOP_OVERRIDE, val);
 	val = REG_CLR_FLD(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, AR_SNOOP_OVERRIDE, val);
 
 	REGV_WR32(VPU_40XX_HOST_IF_TCU_PTW_OVERRIDES, val);
@@ -704,7 +704,6 @@ static int ivpu_hw_40xx_info_init(struct ivpu_device *vdev)
 {
 	struct ivpu_hw_info *hw = vdev->hw;
 	u32 tile_disable;
-	u32 tile_enable;
 	u32 fuse;
 
 	fuse = REGB_RD32(VPU_40XX_BUTTRESS_TILE_FUSE);
@@ -725,10 +724,6 @@ static int ivpu_hw_40xx_info_init(struct ivpu_device *vdev)
 	else
 		ivpu_dbg(vdev, MISC, "Fuse: All %d tiles enabled\n", TILE_MAX_NUM);
 
-	tile_enable = (~tile_disable) & TILE_MAX_MASK;
-
-	hw->sku = REG_SET_FLD_NUM(SKU, HW_ID, LNL_HW_ID, hw->sku);
-	hw->sku = REG_SET_FLD_NUM(SKU, TILE, tile_enable, hw->sku);
 	hw->tile_fuse = tile_disable;
 	hw->pll.profiling_freq = PLL_PROFILING_FREQ_DEFAULT;
 
@@ -746,7 +741,7 @@ static int ivpu_hw_40xx_info_init(struct ivpu_device *vdev)
 	return 0;
 }
 
-static int ivpu_hw_40xx_reset(struct ivpu_device *vdev)
+static int ivpu_hw_40xx_ip_reset(struct ivpu_device *vdev)
 {
 	int ret;
 	u32 val;
@@ -764,6 +759,23 @@ static int ivpu_hw_40xx_reset(struct ivpu_device *vdev)
 	ret = REGB_POLL_FLD(VPU_40XX_BUTTRESS_IP_RESET, TRIGGER, 0, TIMEOUT_US);
 	if (ret)
 		ivpu_err(vdev, "Timed out waiting for RESET completion\n");
+
+	return ret;
+}
+
+static int ivpu_hw_40xx_reset(struct ivpu_device *vdev)
+{
+	int ret = 0;
+
+	if (ivpu_hw_40xx_ip_reset(vdev)) {
+		ivpu_err(vdev, "Failed to reset NPU IP\n");
+		ret = -EIO;
+	}
+
+	if (ivpu_pll_disable(vdev)) {
+		ivpu_err(vdev, "Failed to disable PLL\n");
+		ret = -EIO;
+	}
 
 	return ret;
 }
@@ -913,8 +925,8 @@ static int ivpu_hw_40xx_power_down(struct ivpu_device *vdev)
 
 	ivpu_hw_40xx_save_d0i3_entry_timestamp(vdev);
 
-	if (!ivpu_hw_40xx_is_idle(vdev) && ivpu_hw_40xx_reset(vdev))
-		ivpu_warn(vdev, "Failed to reset the VPU\n");
+	if (!ivpu_hw_40xx_is_idle(vdev) && ivpu_hw_40xx_ip_reset(vdev))
+		ivpu_warn(vdev, "Failed to reset the NPU\n");
 
 	if (ivpu_pll_disable(vdev)) {
 		ivpu_err(vdev, "Failed to disable PLL\n");
@@ -1032,18 +1044,18 @@ static void ivpu_hw_40xx_irq_disable(struct ivpu_device *vdev)
 static void ivpu_hw_40xx_irq_wdt_nce_handler(struct ivpu_device *vdev)
 {
 	/* TODO: For LNN hang consider engine reset instead of full recovery */
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "WDT NCE IRQ");
 }
 
 static void ivpu_hw_40xx_irq_wdt_mss_handler(struct ivpu_device *vdev)
 {
 	ivpu_hw_wdt_disable(vdev);
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "WDT MSS IRQ");
 }
 
 static void ivpu_hw_40xx_irq_noc_firewall_handler(struct ivpu_device *vdev)
 {
-	ivpu_pm_schedule_recovery(vdev);
+	ivpu_pm_trigger_recovery(vdev, "NOC Firewall IRQ");
 }
 
 /* Handler for IRQs from VPU core (irqV) */
@@ -1137,7 +1149,7 @@ static bool ivpu_hw_40xx_irqb_handler(struct ivpu_device *vdev, int irq)
 	REGB_WR32(VPU_40XX_BUTTRESS_INTERRUPT_STAT, status);
 
 	if (schedule_recovery)
-		ivpu_pm_schedule_recovery(vdev);
+		ivpu_pm_trigger_recovery(vdev, "Buttress IRQ");
 
 	return true;
 }

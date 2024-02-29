@@ -195,6 +195,61 @@ static int _test_cmd_hwpt_alloc(int fd, __u32 device_id, __u32 pt_id,
 		     _test_cmd_hwpt_alloc(self->fd, device_id, pt_id, flags, \
 					  hwpt_id, data_type, data, data_len))
 
+#define test_cmd_hwpt_check_iotlb(hwpt_id, iotlb_id, expected)                 \
+	({                                                                     \
+		struct iommu_test_cmd test_cmd = {                             \
+			.size = sizeof(test_cmd),                              \
+			.op = IOMMU_TEST_OP_MD_CHECK_IOTLB,                    \
+			.id = hwpt_id,                                         \
+			.check_iotlb = {                                       \
+				.id = iotlb_id,                                \
+				.iotlb = expected,                             \
+			},                                                     \
+		};                                                             \
+		ASSERT_EQ(0,                                                   \
+			  ioctl(self->fd,                                      \
+				_IOMMU_TEST_CMD(IOMMU_TEST_OP_MD_CHECK_IOTLB), \
+				&test_cmd));                                   \
+	})
+
+#define test_cmd_hwpt_check_iotlb_all(hwpt_id, expected)                       \
+	({                                                                     \
+		int i;                                                         \
+		for (i = 0; i < MOCK_NESTED_DOMAIN_IOTLB_NUM; i++)             \
+			test_cmd_hwpt_check_iotlb(hwpt_id, i, expected);       \
+	})
+
+static int _test_cmd_hwpt_invalidate(int fd, __u32 hwpt_id, void *reqs,
+				     uint32_t data_type, uint32_t lreq,
+				     uint32_t *nreqs)
+{
+	struct iommu_hwpt_invalidate cmd = {
+		.size = sizeof(cmd),
+		.hwpt_id = hwpt_id,
+		.data_type = data_type,
+		.data_uptr = (uint64_t)reqs,
+		.entry_len = lreq,
+		.entry_num = *nreqs,
+	};
+	int rc = ioctl(fd, IOMMU_HWPT_INVALIDATE, &cmd);
+	*nreqs = cmd.entry_num;
+	return rc;
+}
+
+#define test_cmd_hwpt_invalidate(hwpt_id, reqs, data_type, lreq, nreqs)       \
+	({                                                                    \
+		ASSERT_EQ(0,                                                  \
+			  _test_cmd_hwpt_invalidate(self->fd, hwpt_id, reqs,  \
+						    data_type, lreq, nreqs)); \
+	})
+#define test_err_hwpt_invalidate(_errno, hwpt_id, reqs, data_type, lreq, \
+				 nreqs)                                  \
+	({                                                               \
+		EXPECT_ERRNO(_errno, _test_cmd_hwpt_invalidate(          \
+					     self->fd, hwpt_id, reqs,    \
+					     data_type, lreq, nreqs));   \
+	})
+
 static int _test_cmd_access_replace_ioas(int fd, __u32 access_id,
 					 unsigned int ioas_id)
 {
@@ -289,16 +344,19 @@ static int _test_cmd_mock_domain_set_dirty(int fd, __u32 hwpt_id, size_t length,
 						  page_size, bitmap, nr))
 
 static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
-				    __u64 iova, size_t page_size, __u64 *bitmap,
+				    __u64 iova, size_t page_size,
+				    size_t pte_page_size, __u64 *bitmap,
 				    __u64 bitmap_size, __u32 flags,
 				    struct __test_metadata *_metadata)
 {
-	unsigned long i, nbits = bitmap_size * BITS_PER_BYTE;
-	unsigned long nr = nbits / 2;
+	unsigned long npte = pte_page_size / page_size, pteset = 2 * npte;
+	unsigned long nbits = bitmap_size * BITS_PER_BYTE;
+	unsigned long j, i, nr = nbits / pteset ?: 1;
 	__u64 out_dirty = 0;
 
 	/* Mark all even bits as dirty in the mock domain */
-	for (i = 0; i < nbits; i += 2)
+	memset(bitmap, 0, bitmap_size);
+	for (i = 0; i < nbits; i += pteset)
 		set_bit(i, (unsigned long *)bitmap);
 
 	test_cmd_mock_domain_set_dirty(fd, hwpt_id, length, iova, page_size,
@@ -310,8 +368,12 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 	test_cmd_get_dirty_bitmap(fd, hwpt_id, length, iova, page_size, bitmap,
 				  flags);
 	/* Beware ASSERT_EQ() is two statements -- braces are not redundant! */
-	for (i = 0; i < nbits; i++) {
-		ASSERT_EQ(!(i % 2), test_bit(i, (unsigned long *)bitmap));
+	for (i = 0; i < nbits; i += pteset) {
+		for (j = 0; j < pteset; j++) {
+			ASSERT_EQ(j < npte,
+				  test_bit(i + j, (unsigned long *)bitmap));
+		}
+		ASSERT_EQ(!(i % pteset), test_bit(i, (unsigned long *)bitmap));
 	}
 
 	memset(bitmap, 0, bitmap_size);
@@ -319,19 +381,23 @@ static int _test_mock_dirty_bitmaps(int fd, __u32 hwpt_id, size_t length,
 				  flags);
 
 	/* It as read already -- expect all zeroes */
-	for (i = 0; i < nbits; i++) {
-		ASSERT_EQ(!(i % 2) && (flags &
-				       IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
-			  test_bit(i, (unsigned long *)bitmap));
+	for (i = 0; i < nbits; i += pteset) {
+		for (j = 0; j < pteset; j++) {
+			ASSERT_EQ(
+				(j < npte) &&
+					(flags &
+					 IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR),
+				test_bit(i + j, (unsigned long *)bitmap));
+		}
 	}
 
 	return 0;
 }
-#define test_mock_dirty_bitmaps(hwpt_id, length, iova, page_size, bitmap,      \
-				bitmap_size, flags, _metadata)                 \
+#define test_mock_dirty_bitmaps(hwpt_id, length, iova, page_size, pte_size,\
+				bitmap, bitmap_size, flags, _metadata)     \
 	ASSERT_EQ(0, _test_mock_dirty_bitmaps(self->fd, hwpt_id, length, iova, \
-					      page_size, bitmap, bitmap_size,  \
-					      flags, _metadata))
+					      page_size, pte_size, bitmap,     \
+					      bitmap_size, flags, _metadata))
 
 static int _test_cmd_create_access(int fd, unsigned int ioas_id,
 				   __u32 *access_id, unsigned int flags)

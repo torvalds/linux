@@ -449,6 +449,7 @@
 		ti,otap-del-sel-hs400 = <0x0>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
+		status = "disabled";
 	};
 
 	sdhci1: mmc@4fa0000 {
@@ -471,6 +472,7 @@
 		ti,clkbuf-sel = <0x7>;
 		ti,trm-icp = <0x8>;
 		dma-coherent;
+		status = "disabled";
 	};
 
 	scm_conf: scm-conf@100000 {
@@ -498,8 +500,8 @@
 		};
 
 		dss_oldi_io_ctrl: dss-oldi-io-ctrl@41e0 {
-			compatible = "syscon";
-			reg = <0x000041e0 0x14>;
+			compatible = "ti,am654-dss-oldi-io-ctrl", "syscon";
+			reg = <0x41e0 0x14>;
 		};
 
 		ehrpwm_tbclk: clock-controller@4140 {
@@ -790,8 +792,12 @@
 			compatible = "ti,am654-navss-main-udmap";
 			reg = <0x0 0x31150000 0x0 0x100>,
 			      <0x0 0x34000000 0x0 0x100000>,
-			      <0x0 0x35000000 0x0 0x100000>;
-			reg-names = "gcfg", "rchanrt", "tchanrt";
+			      <0x0 0x35000000 0x0 0x100000>,
+			      <0x0 0x30b00000 0x0 0x10000>,
+			      <0x0 0x30c00000 0x0 0x10000>,
+			      <0x0 0x30d00000 0x0 0x8000>;
+			reg-names = "gcfg", "rchanrt", "tchanrt",
+				    "tchan", "rchan", "rflow";
 			msi-parent = <&inta_main_udmass>;
 			#dma-cells = <1>;
 
@@ -1034,7 +1040,7 @@
 		assigned-clocks = <&k3_clks 67 2>;
 		assigned-clock-parents = <&k3_clks 67 5>;
 
-		interrupts = <GIC_SPI 166 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <GIC_SPI 166 IRQ_TYPE_LEVEL_HIGH>;
 
 		dma-coherent;
 

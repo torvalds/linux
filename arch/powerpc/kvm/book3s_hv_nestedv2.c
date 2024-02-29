@@ -138,6 +138,7 @@ static int gs_msg_ops_vcpu_fill_info(struct kvmppc_gs_buff *gsb,
 	vector128 v;
 	int rc, i;
 	u16 iden;
+	u32 arch_compat = 0;
 
 	vcpu = gsm->data;
 
@@ -347,8 +348,23 @@ static int gs_msg_ops_vcpu_fill_info(struct kvmppc_gs_buff *gsb,
 			break;
 		}
 		case KVMPPC_GSID_LOGICAL_PVR:
-			rc = kvmppc_gse_put_u32(gsb, iden,
-						vcpu->arch.vcore->arch_compat);
+			/*
+			 * Though 'arch_compat == 0' would mean the default
+			 * compatibility, arch_compat, being a Guest Wide
+			 * Element, cannot be filled with a value of 0 in GSB
+			 * as this would result into a kernel trap.
+			 * Hence, when `arch_compat == 0`, arch_compat should
+			 * default to L1's PVR.
+			 */
+			if (!vcpu->arch.vcore->arch_compat) {
+				if (cpu_has_feature(CPU_FTR_ARCH_31))
+					arch_compat = PVR_ARCH_31;
+				else if (cpu_has_feature(CPU_FTR_ARCH_300))
+					arch_compat = PVR_ARCH_300;
+			} else {
+				arch_compat = vcpu->arch.vcore->arch_compat;
+			}
+			rc = kvmppc_gse_put_u32(gsb, iden, arch_compat);
 			break;
 		}
 
@@ -854,6 +870,35 @@ free_gsb:
 	return rc;
 }
 EXPORT_SYMBOL_GPL(kvmhv_nestedv2_set_ptbl_entry);
+
+/**
+ * kvmhv_nestedv2_set_vpa() - register L2 VPA with L0
+ * @vcpu: vcpu
+ * @vpa: L1 logical real address
+ */
+int kvmhv_nestedv2_set_vpa(struct kvm_vcpu *vcpu, unsigned long vpa)
+{
+	struct kvmhv_nestedv2_io *io;
+	struct kvmppc_gs_buff *gsb;
+	int rc = 0;
+
+	io = &vcpu->arch.nestedv2_io;
+	gsb = io->vcpu_run_input;
+
+	kvmppc_gsb_reset(gsb);
+	rc = kvmppc_gse_put_u64(gsb, KVMPPC_GSID_VPA, vpa);
+	if (rc < 0)
+		goto out;
+
+	rc = kvmppc_gsb_send(gsb, 0);
+	if (rc < 0)
+		pr_err("KVM-NESTEDv2: couldn't register the L2 VPA (rc=%d)\n", rc);
+
+out:
+	kvmppc_gsb_reset(gsb);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(kvmhv_nestedv2_set_vpa);
 
 /**
  * kvmhv_nestedv2_parse_output() - receive values from H_GUEST_RUN_VCPU output

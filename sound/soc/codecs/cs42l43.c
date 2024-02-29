@@ -138,7 +138,87 @@ CS42L43_IRQ_ERROR(spkr_therm_warm)
 CS42L43_IRQ_ERROR(spkl_therm_warm)
 CS42L43_IRQ_ERROR(spkr_sc_detect)
 CS42L43_IRQ_ERROR(spkl_sc_detect)
-CS42L43_IRQ_ERROR(hp_ilimit)
+
+static void cs42l43_hp_ilimit_clear_work(struct work_struct *work)
+{
+	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
+						  hp_ilimit_clear_work.work);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(priv->component);
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	priv->hp_ilimit_count--;
+
+	if (priv->hp_ilimit_count)
+		queue_delayed_work(system_wq, &priv->hp_ilimit_clear_work,
+				   msecs_to_jiffies(CS42L43_HP_ILIMIT_DECAY_MS));
+
+	snd_soc_dapm_mutex_unlock(dapm);
+}
+
+static void cs42l43_hp_ilimit_work(struct work_struct *work)
+{
+	struct cs42l43_codec *priv = container_of(work, struct cs42l43_codec,
+						  hp_ilimit_work);
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(priv->component);
+	struct cs42l43 *cs42l43 = priv->core;
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if (priv->hp_ilimit_count < CS42L43_HP_ILIMIT_MAX_COUNT) {
+		if (!priv->hp_ilimit_count)
+			queue_delayed_work(system_wq, &priv->hp_ilimit_clear_work,
+					   msecs_to_jiffies(CS42L43_HP_ILIMIT_DECAY_MS));
+
+		priv->hp_ilimit_count++;
+		snd_soc_dapm_mutex_unlock(dapm);
+		return;
+	}
+
+	dev_err(priv->dev, "Disabling headphone for %dmS, due to frequent current limit\n",
+		CS42L43_HP_ILIMIT_BACKOFF_MS);
+
+	priv->hp_ilimited = true;
+
+	// No need to wait for disable, as just disabling for a period of time
+	regmap_update_bits(cs42l43->regmap, CS42L43_BLOCK_EN8,
+			   CS42L43_HP_EN_MASK, 0);
+
+	snd_soc_dapm_mutex_unlock(dapm);
+
+	msleep(CS42L43_HP_ILIMIT_BACKOFF_MS);
+
+	snd_soc_dapm_mutex_lock(dapm);
+
+	if (priv->hp_ena && !priv->load_detect_running) {
+		unsigned long time_left;
+
+		reinit_completion(&priv->hp_startup);
+
+		regmap_update_bits(cs42l43->regmap, CS42L43_BLOCK_EN8,
+				   CS42L43_HP_EN_MASK, priv->hp_ena);
+
+		time_left = wait_for_completion_timeout(&priv->hp_startup,
+							msecs_to_jiffies(CS42L43_HP_TIMEOUT_MS));
+		if (!time_left)
+			dev_err(priv->dev, "ilimit HP restore timed out\n");
+	}
+
+	priv->hp_ilimited = false;
+
+	snd_soc_dapm_mutex_unlock(dapm);
+}
+
+static irqreturn_t cs42l43_hp_ilimit(int irq, void *data)
+{
+	struct cs42l43_codec *priv = data;
+
+	dev_dbg(priv->dev, "headphone ilimit IRQ\n");
+
+	queue_work(system_long_wq, &priv->hp_ilimit_work);
+
+	return IRQ_HANDLED;
+}
 
 #define CS42L43_IRQ_COMPLETE(name) \
 static irqreturn_t cs42l43_##name(int irq, void *data) \
@@ -1452,13 +1532,13 @@ static int cs42l43_hp_ev(struct snd_soc_dapm_widget *w,
 		if (ret)
 			return ret;
 
-		if (!priv->load_detect_running)
+		if (!priv->load_detect_running && !priv->hp_ilimited)
 			regmap_update_bits(cs42l43->regmap, CS42L43_BLOCK_EN8,
 					   mask, val);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 	case SND_SOC_DAPM_POST_PMD:
-		if (priv->load_detect_running)
+		if (priv->load_detect_running || priv->hp_ilimited)
 			break;
 
 		ret = cs42l43_dapm_wait_completion(&priv->hp_startup,
@@ -2169,13 +2249,18 @@ static int cs42l43_codec_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&priv->tip_sense_work, cs42l43_tip_sense_work);
 	INIT_DELAYED_WORK(&priv->bias_sense_timeout, cs42l43_bias_sense_timeout);
 	INIT_DELAYED_WORK(&priv->button_press_work, cs42l43_button_press_work);
+	INIT_DELAYED_WORK(&priv->hp_ilimit_clear_work, cs42l43_hp_ilimit_clear_work);
 	INIT_WORK(&priv->button_release_work, cs42l43_button_release_work);
+	INIT_WORK(&priv->hp_ilimit_work, cs42l43_hp_ilimit_work);
 
 	pm_runtime_set_autosuspend_delay(priv->dev, 100);
 	pm_runtime_use_autosuspend(priv->dev);
 	pm_runtime_set_active(priv->dev);
 	pm_runtime_get_noresume(priv->dev);
-	devm_pm_runtime_enable(priv->dev);
+
+	ret = devm_pm_runtime_enable(priv->dev);
+	if (ret)
+		goto err_pm;
 
 	for (i = 0; i < ARRAY_SIZE(cs42l43_irqs); i++) {
 		ret = cs42l43_request_irq(priv, dom, cs42l43_irqs[i].name,
@@ -2251,8 +2336,47 @@ static int cs42l43_codec_runtime_resume(struct device *dev)
 	return 0;
 }
 
-DEFINE_RUNTIME_DEV_PM_OPS(cs42l43_codec_pm_ops, NULL,
-			  cs42l43_codec_runtime_resume, NULL);
+static int cs42l43_codec_suspend(struct device *dev)
+{
+	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+
+	disable_irq(cs42l43->irq);
+
+	return 0;
+}
+
+static int cs42l43_codec_suspend_noirq(struct device *dev)
+{
+	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+
+	enable_irq(cs42l43->irq);
+
+	return 0;
+}
+
+static int cs42l43_codec_resume(struct device *dev)
+{
+	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+
+	enable_irq(cs42l43->irq);
+
+	return 0;
+}
+
+static int cs42l43_codec_resume_noirq(struct device *dev)
+{
+	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+
+	disable_irq(cs42l43->irq);
+
+	return 0;
+}
+
+static const struct dev_pm_ops cs42l43_codec_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend, cs42l43_codec_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs42l43_codec_suspend_noirq, cs42l43_codec_resume_noirq)
+	RUNTIME_PM_OPS(NULL, cs42l43_codec_runtime_resume, NULL)
+};
 
 static const struct platform_device_id cs42l43_codec_id_table[] = {
 	{ "cs42l43-codec", },

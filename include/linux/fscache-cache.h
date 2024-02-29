@@ -189,17 +189,20 @@ extern atomic_t fscache_n_write;
 extern atomic_t fscache_n_no_write_space;
 extern atomic_t fscache_n_no_create_space;
 extern atomic_t fscache_n_culled;
+extern atomic_t fscache_n_dio_misfit;
 #define fscache_count_read() atomic_inc(&fscache_n_read)
 #define fscache_count_write() atomic_inc(&fscache_n_write)
 #define fscache_count_no_write_space() atomic_inc(&fscache_n_no_write_space)
 #define fscache_count_no_create_space() atomic_inc(&fscache_n_no_create_space)
 #define fscache_count_culled() atomic_inc(&fscache_n_culled)
+#define fscache_count_dio_misfit() atomic_inc(&fscache_n_dio_misfit)
 #else
 #define fscache_count_read() do {} while(0)
 #define fscache_count_write() do {} while(0)
 #define fscache_count_no_write_space() do {} while(0)
 #define fscache_count_no_create_space() do {} while(0)
 #define fscache_count_culled() do {} while(0)
+#define fscache_count_dio_misfit() do {} while(0)
 #endif
 
 #endif /* _LINUX_FSCACHE_CACHE_H */

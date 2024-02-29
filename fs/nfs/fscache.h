@@ -80,7 +80,7 @@ static inline void nfs_netfs_put(struct nfs_netfs_io_data *netfs)
 }
 static inline void nfs_netfs_inode_init(struct nfs_inode *nfsi)
 {
-	netfs_inode_init(&nfsi->netfs, &nfs_netfs_ops);
+	netfs_inode_init(&nfsi->netfs, &nfs_netfs_ops, false);
 }
 extern void nfs_netfs_initiate_read(struct nfs_pgio_header *hdr);
 extern void nfs_netfs_read_completion(struct nfs_pgio_header *hdr);

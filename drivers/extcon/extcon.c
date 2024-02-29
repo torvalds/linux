@@ -1280,8 +1280,6 @@ int extcon_dev_register(struct extcon_dev *edev)
 
 	edev->id = ret;
 
-	dev_set_name(&edev->dev, "extcon%d", edev->id);
-
 	ret = extcon_alloc_cables(edev);
 	if (ret < 0)
 		goto err_alloc_cables;
@@ -1310,6 +1308,7 @@ int extcon_dev_register(struct extcon_dev *edev)
 	RAW_INIT_NOTIFIER_HEAD(&edev->nh_all);
 
 	dev_set_drvdata(&edev->dev, edev);
+	dev_set_name(&edev->dev, "extcon%d", edev->id);
 	edev->state = 0;
 
 	ret = device_register(&edev->dev);

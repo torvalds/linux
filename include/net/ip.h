@@ -349,8 +349,14 @@ static inline u64 snmp_fold_field64(void __percpu *mib, int offt, size_t syncp_o
 	} \
 }
 
-void inet_get_local_port_range(const struct net *net, int *low, int *high);
-void inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
+static inline void inet_get_local_port_range(const struct net *net, int *low, int *high)
+{
+	u32 range = READ_ONCE(net->ipv4.ip_local_ports.range);
+
+	*low = range & 0xffff;
+	*high = range >> 16;
+}
+bool inet_sk_get_local_port_range(const struct sock *sk, int *low, int *high);
 
 #ifdef CONFIG_SYSCTL
 static inline bool inet_is_local_reserved_port(struct net *net, unsigned short port)
@@ -761,7 +767,7 @@ int ip_options_rcv_srr(struct sk_buff *skb, struct net_device *dev);
  *	Functions provided by ip_sockglue.c
  */
 
-void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb);
+void ipv4_pktinfo_prepare(const struct sock *sk, struct sk_buff *skb, bool drop_dst);
 void ip_cmsg_recv_offset(struct msghdr *msg, struct sock *sk,
 			 struct sk_buff *skb, int tlen, int offset);
 int ip_cmsg_send(struct sock *sk, struct msghdr *msg,

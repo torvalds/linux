@@ -181,7 +181,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 
 	if (new_page) {
 		folio_get(new_folio);
-		page_add_new_anon_rmap(new_page, vma, addr);
+		folio_add_new_anon_rmap(new_folio, vma, addr);
 		folio_add_lru_vma(new_folio, vma);
 	} else
 		/* no new page, just dec_mm_counter for old_page */
@@ -198,7 +198,7 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
 		set_pte_at_notify(mm, addr, pvmw.pte,
 				  mk_pte(new_page, vma->vm_page_prot));
 
-	page_remove_rmap(old_page, vma, false);
+	folio_remove_rmap_pte(old_folio, old_page, vma);
 	if (!folio_mapped(old_folio))
 		folio_free_swap(old_folio);
 	page_vma_mapped_walk_done(&pvmw);
@@ -537,7 +537,7 @@ retry:
 		}
 	}
 
-	ret = __replace_page(vma, vaddr, old_page, new_page);
+	ret = __replace_page(vma, vaddr & PAGE_MASK, old_page, new_page);
 	if (new_page)
 		put_page(new_page);
 put_old:

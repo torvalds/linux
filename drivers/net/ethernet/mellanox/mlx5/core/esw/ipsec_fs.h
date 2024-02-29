@@ -8,11 +8,6 @@ struct mlx5e_ipsec;
 struct mlx5e_ipsec_sa_entry;
 
 #ifdef CONFIG_MLX5_ESWITCH
-void mlx5_esw_ipsec_rx_status_destroy(struct mlx5e_ipsec *ipsec,
-				      struct mlx5e_ipsec_rx *rx);
-int mlx5_esw_ipsec_rx_status_create(struct mlx5e_ipsec *ipsec,
-				    struct mlx5e_ipsec_rx *rx,
-				    struct mlx5_flow_destination *dest);
 void mlx5_esw_ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
 				       struct mlx5e_ipsec_rx_create_attr *attr);
 int mlx5_esw_ipsec_rx_status_pass_dest_get(struct mlx5e_ipsec *ipsec,
@@ -26,16 +21,6 @@ void mlx5_esw_ipsec_tx_create_attr_set(struct mlx5e_ipsec *ipsec,
 				       struct mlx5e_ipsec_tx_create_attr *attr);
 void mlx5_esw_ipsec_restore_dest_uplink(struct mlx5_core_dev *mdev);
 #else
-static inline void mlx5_esw_ipsec_rx_status_destroy(struct mlx5e_ipsec *ipsec,
-						    struct mlx5e_ipsec_rx *rx) {}
-
-static inline int mlx5_esw_ipsec_rx_status_create(struct mlx5e_ipsec *ipsec,
-						  struct mlx5e_ipsec_rx *rx,
-						  struct mlx5_flow_destination *dest)
-{
-	return  -EINVAL;
-}
-
 static inline void mlx5_esw_ipsec_rx_create_attr_set(struct mlx5e_ipsec *ipsec,
 						     struct mlx5e_ipsec_rx_create_attr *attr) {}
 

@@ -109,8 +109,7 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 	map__set_pgoff(map, pgoff);
 	map__set_reloc(map, 0);
 	map__set_dso(map, dso__get(dso));
-	map__set_map_ip(map, map__dso_map_ip);
-	map__set_unmap_ip(map, map__dso_unmap_ip);
+	map__set_mapping_type(map, MAPPING_TYPE__DSO);
 	map__set_erange_warned(map, false);
 	refcount_set(map__refcnt(map), 1);
 }
@@ -172,7 +171,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
-			map->map_ip = map->unmap_ip = identity__map_ip;
+			map->mapping_type = MAPPING_TYPE__IDENTITY;
 
 			/*
 			 * Set memory without DSO as loaded. All map__find_*
@@ -629,19 +628,4 @@ struct maps *map__kmaps(struct map *map)
 		return NULL;
 	}
 	return kmap->kmaps;
-}
-
-u64 map__dso_map_ip(const struct map *map, u64 ip)
-{
-	return ip - map__start(map) + map__pgoff(map);
-}
-
-u64 map__dso_unmap_ip(const struct map *map, u64 ip)
-{
-	return ip + map__start(map) - map__pgoff(map);
-}
-
-u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)
-{
-	return ip;
 }

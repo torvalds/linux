@@ -30,7 +30,6 @@ int __init dev_proc_init(void);
 #endif
 
 void linkwatch_init_dev(struct net_device *dev);
-void linkwatch_forget_dev(struct net_device *dev);
 void linkwatch_run_queue(void);
 
 void dev_addr_flush(struct net_device *dev);
@@ -64,6 +63,9 @@ int dev_change_name(struct net_device *dev, const char *newname);
 
 #define netdev_for_each_altname(dev, namenode)				\
 	list_for_each_entry((namenode), &(dev)->name_node->list, list)
+#define netdev_for_each_altname_safe(dev, namenode, next)		\
+	list_for_each_entry_safe((namenode), (next), &(dev)->name_node->list, \
+				 list)
 
 int netdev_name_node_alt_create(struct net_device *dev, const char *name);
 int netdev_name_node_alt_destroy(struct net_device *dev, const char *name);
@@ -145,4 +147,6 @@ void xdp_do_check_flushed(struct napi_struct *napi);
 #else
 static inline void xdp_do_check_flushed(struct napi_struct *napi) { }
 #endif
+
+struct napi_struct *napi_by_id(unsigned int napi_id);
 #endif

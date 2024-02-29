@@ -1276,7 +1276,7 @@ static ssize_t nvmet_subsys_attr_cntlid_min_store(struct config_item *item,
 		return -EINVAL;
 
 	down_write(&nvmet_config_sem);
-	if (cntlid_min >= to_subsys(item)->cntlid_max)
+	if (cntlid_min > to_subsys(item)->cntlid_max)
 		goto out_unlock;
 	to_subsys(item)->cntlid_min = cntlid_min;
 	up_write(&nvmet_config_sem);
@@ -1306,7 +1306,7 @@ static ssize_t nvmet_subsys_attr_cntlid_max_store(struct config_item *item,
 		return -EINVAL;
 
 	down_write(&nvmet_config_sem);
-	if (cntlid_max <= to_subsys(item)->cntlid_min)
+	if (cntlid_max < to_subsys(item)->cntlid_min)
 		goto out_unlock;
 	to_subsys(item)->cntlid_max = cntlid_max;
 	up_write(&nvmet_config_sem);

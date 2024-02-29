@@ -107,23 +107,6 @@ static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL2, 0xfcffffff, 0x0000000a)
 };
 
-static const struct soc15_reg_golden golden_settings_gc_11_5_0[] = {
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regDB_DEBUG5, 0xffffffff, 0x00000800),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGB_ADDR_CONFIG, 0x0c1807ff, 0x00000242),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGCR_GENERAL_CNTL, 0x1ff1ffff, 0x00000500),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2A_ADDR_MATCH_MASK, 0xffffffff, 0xfffffff3),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_ADDR_MATCH_MASK, 0xffffffff, 0xfffffff3),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL, 0xffffffff, 0xf37fff3f),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL3, 0xfffffffb, 0x00f40188),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regGL2C_CTRL4, 0xf0ffffff, 0x8000b007),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regPA_CL_ENHANCE, 0xf1ffffff, 0x00880007),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regPC_CONFIG_CNTL_1, 0xffffffff, 0x00010000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTA_CNTL_AUX, 0xf7f7ffff, 0x01030000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTA_CNTL2, 0x007f0000, 0x00000000),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regTCP_CNTL2, 0xffcfffff, 0x0000200a),
-	SOC15_REG_GOLDEN_VALUE(GC, 0, regUTCL1_CTRL_2, 0xffffffff, 0x0000048f)
-};
-
 #define DEFAULT_SH_MEM_CONFIG \
 	((SH_MEM_ADDRESS_MODE_64 << SH_MEM_CONFIG__ADDRESS_MODE__SHIFT) | \
 	 (SH_MEM_ALIGNMENT_MODE_UNALIGNED << SH_MEM_CONFIG__ALIGNMENT_MODE__SHIFT) | \
@@ -303,11 +286,6 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_11_0_1,
 						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_1));
-		break;
-	case IP_VERSION(11, 5, 0):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_5_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_5_0));
 		break;
 	default:
 		break;
@@ -749,7 +727,7 @@ static int gfx_v11_0_rlc_init(struct amdgpu_device *adev)
 
 	/* init spm vmid with 0xf */
 	if (adev->gfx.rlc.funcs->update_spm_vmid)
-		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, NULL, 0xf);
 
 	return 0;
 }
@@ -3846,7 +3824,7 @@ static int gfx_v11_0_compute_mqd_init(struct amdgpu_device *adev, void *m,
 			    (order_base_2(prop->queue_size / 4) - 1));
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, RPTR_BLOCK_SIZE,
 			    (order_base_2(AMDGPU_GPU_PAGE_SIZE / 4) - 1));
-	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, UNORD_DISPATCH, 0);
+	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, UNORD_DISPATCH, 1);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, TUNNEL_DISPATCH,
 			    prop->allow_tunneling);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, PRIV_STATE, 1);
@@ -5049,7 +5027,7 @@ static int gfx_v11_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 	return 0;
 }
 
-static void gfx_v11_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
+static void gfx_v11_0_update_spm_vmid(struct amdgpu_device *adev, struct amdgpu_ring *ring, unsigned vmid)
 {
 	u32 data;
 
@@ -5063,6 +5041,14 @@ static void gfx_v11_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
 	WREG32_SOC15_NO_KIQ(GC, 0, regRLC_SPM_MC_CNTL, data);
 
 	amdgpu_gfx_off_ctrl(adev, true);
+
+	if (ring
+		&& amdgpu_sriov_is_pp_one_vf(adev)
+		&& ((ring->funcs->type == AMDGPU_RING_TYPE_GFX)
+			|| (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE))) {
+		uint32_t reg = SOC15_REG_OFFSET(GC, 0, regRLC_SPM_MC_CNTL);
+		amdgpu_ring_emit_wreg(ring, reg, data);
+	}
 }
 
 static const struct amdgpu_rlc_funcs gfx_v11_0_rlc_funcs = {
@@ -6126,7 +6112,8 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_gfx = {
 	.get_rptr = gfx_v11_0_ring_get_rptr_gfx,
 	.get_wptr = gfx_v11_0_ring_get_wptr_gfx,
 	.set_wptr = gfx_v11_0_ring_set_wptr_gfx,
-	.emit_frame_size = /* totally 242 maximum if 16 IBs */
+	.emit_frame_size = /* totally 247 maximum if 16 IBs */
+		5 + /* update_spm_vmid */
 		5 + /* COND_EXEC */
 		9 + /* SET_Q_PREEMPTION_MODE */
 		7 + /* PIPELINE_SYNC */
@@ -6176,6 +6163,7 @@ static const struct amdgpu_ring_funcs gfx_v11_0_ring_funcs_compute = {
 	.get_wptr = gfx_v11_0_ring_get_wptr_compute,
 	.set_wptr = gfx_v11_0_ring_set_wptr_compute,
 	.emit_frame_size =
+		5 + /* update_spm_vmid */
 		20 + /* gfx_v11_0_ring_emit_gds_switch */
 		7 + /* gfx_v11_0_ring_emit_hdp_flush */
 		5 + /* hdp invalidate */
@@ -6383,6 +6371,9 @@ static int gfx_v11_0_get_cu_info(struct amdgpu_device *adev,
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (i = 0; i < adev->gfx.config.max_shader_engines; i++) {
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
+			bitmap = i * adev->gfx.config.max_sh_per_se + j;
+			if (!((gfx_v11_0_get_sa_active_bitmap(adev) >> bitmap) & 1))
+				continue;
 			mask = 1;
 			counter = 0;
 			gfx_v11_0_select_se_sh(adev, i, j, 0xffffffff, 0);

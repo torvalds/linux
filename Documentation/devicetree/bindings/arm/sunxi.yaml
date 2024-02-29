@@ -868,6 +868,11 @@ properties:
           - const: topwise,a721
           - const: allwinner,sun4i-a10
 
+      - description: Transpeed 8K618-T
+        items:
+          - const: transpeed,8k618-t
+          - const: allwinner,sun50i-h618
+
       - description: Utoo P66
         items:
           - const: utoo,p66
@@ -1012,6 +1017,11 @@ properties:
         items:
           - const: xunlong,orangepi-zero2
           - const: allwinner,sun50i-h616
+
+      - description: Xunlong OrangePi Zero 2W
+        items:
+          - const: xunlong,orangepi-zero2w
+          - const: allwinner,sun50i-h618
 
       - description: Xunlong OrangePi Zero 3
         items:

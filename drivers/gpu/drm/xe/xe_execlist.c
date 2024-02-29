@@ -378,8 +378,6 @@ static void execlist_exec_queue_fini_async(struct work_struct *w)
 		list_del(&exl->active_link);
 	spin_unlock_irqrestore(&exl->port->lock, flags);
 
-	if (q->flags & EXEC_QUEUE_FLAG_PERSISTENT)
-		xe_device_remove_persistent_exec_queues(xe, q);
 	drm_sched_entity_fini(&exl->entity);
 	drm_sched_fini(&exl->sched);
 	kfree(exl);
@@ -418,13 +416,6 @@ static int execlist_exec_queue_set_preempt_timeout(struct xe_exec_queue *q,
 	return 0;
 }
 
-static int execlist_exec_queue_set_job_timeout(struct xe_exec_queue *q,
-					       u32 job_timeout_ms)
-{
-	/* NIY */
-	return 0;
-}
-
 static int execlist_exec_queue_suspend(struct xe_exec_queue *q)
 {
 	/* NIY */
@@ -455,7 +446,6 @@ static const struct xe_exec_queue_ops execlist_exec_queue_ops = {
 	.set_priority = execlist_exec_queue_set_priority,
 	.set_timeslice = execlist_exec_queue_set_timeslice,
 	.set_preempt_timeout = execlist_exec_queue_set_preempt_timeout,
-	.set_job_timeout = execlist_exec_queue_set_job_timeout,
 	.suspend = execlist_exec_queue_suspend,
 	.suspend_wait = execlist_exec_queue_suspend_wait,
 	.resume = execlist_exec_queue_resume,

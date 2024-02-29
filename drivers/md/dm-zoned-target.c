@@ -702,7 +702,7 @@ static int dmz_get_zoned_device(struct dm_target *ti, char *path,
 	}
 
 	bdev = ddev->bdev;
-	if (bdev_zoned_model(bdev) == BLK_ZONED_NONE) {
+	if (!bdev_is_zoned(bdev)) {
 		if (nr_devs == 1) {
 			ti->error = "Invalid regular device";
 			goto err;
@@ -1010,7 +1010,7 @@ static void dmz_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	limits->max_sectors = chunk_sectors;
 
 	/* We are exposing a drive-managed zoned block device */
-	limits->zoned = BLK_ZONED_NONE;
+	limits->zoned = false;
 }
 
 /*

@@ -5,36 +5,46 @@
 $id: http://devicetree.org/schemas/sound/ti,tas2781.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Texas Instruments TAS2781 SmartAMP
+title: Texas Instruments TAS2563/TAS2781 SmartAMP
 
 maintainers:
   - Shenghao Ding <shenghao-ding@ti.com>
 
-description:
-  The TAS2781 is a mono, digital input Class-D audio amplifier
-  optimized for efficiently driving high peak power into small
-  loudspeakers. An integrated on-chip DSP supports Texas Instruments
-  Smart Amp speaker protection algorithm. The integrated speaker
-  voltage and current sense provides for real time
+description: |
+  The TAS2563/TAS2781 is a mono, digital input Class-D audio
+  amplifier optimized for efficiently driving high peak power into
+  small loudspeakers. An integrated on-chip DSP supports Texas
+  Instruments Smart Amp speaker protection algorithm. The
+  integrated speaker voltage and current sense provides for real time
   monitoring of loudspeaker behavior.
 
-allOf:
-  - $ref: dai-common.yaml#
+  Specifications about the audio amplifier can be found at:
+    https://www.ti.com/lit/gpn/tas2563
+    https://www.ti.com/lit/gpn/tas2781
 
 properties:
   compatible:
-    enum:
-      - ti,tas2781
+    description: |
+      ti,tas2563: 6.1-W Boosted Class-D Audio Amplifier With Integrated
+      DSP and IV Sense, 16/20/24/32bit stereo I2S or multichannel TDM.
+
+      ti,tas2781: 24-V Class-D Amplifier with Real Time Integrated Speaker
+      Protection and Audio Processing, 16/20/24/32bit stereo I2S or
+      multichannel TDM.
+    oneOf:
+      - items:
+          - enum:
+              - ti,tas2563
+          - const: ti,tas2781
+      - enum:
+          - ti,tas2781
 
   reg:
     description:
-      I2C address, in multiple tas2781s case, all the i2c address
+      I2C address, in multiple-AMP case, all the i2c address
       aggregate as one Audio Device to support multiple audio slots.
     maxItems: 8
     minItems: 1
-    items:
-      minimum: 0x38
-      maximum: 0x3f
 
   reset-gpios:
     maxItems: 1
@@ -48,6 +58,44 @@ properties:
 required:
   - compatible
   - reg
+
+allOf:
+  - $ref: dai-common.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,tas2563
+    then:
+      properties:
+        reg:
+          description:
+            I2C address, in multiple-AMP case, all the i2c address
+            aggregate as one Audio Device to support multiple audio slots.
+          maxItems: 4
+          minItems: 1
+          items:
+            minimum: 0x4c
+            maximum: 0x4f
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - ti,tas2781
+    then:
+      properties:
+        reg:
+          description:
+            I2C address, in multiple-AMP case, all the i2c address
+            aggregate as one Audio Device to support multiple audio slots.
+          maxItems: 8
+          minItems: 1
+          items:
+            minimum: 0x38
+            maximum: 0x3f
 
 additionalProperties: false
 

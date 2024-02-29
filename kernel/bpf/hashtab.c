@@ -7,6 +7,7 @@
 #include <linux/jhash.h>
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
+#include <linux/rcupdate_wait.h>
 #include <linux/random.h>
 #include <uapi/linux/btf.h>
 #include <linux/rcupdate_trace.h>
@@ -897,7 +898,7 @@ static void htab_put_fd_value(struct bpf_htab *htab, struct htab_elem *l)
 
 	if (map->ops->map_fd_put_ptr) {
 		ptr = fd_htab_map_get_ptr(map, l);
-		map->ops->map_fd_put_ptr(ptr);
+		map->ops->map_fd_put_ptr(map, ptr, true);
 	}
 }
 
@@ -2484,7 +2485,7 @@ static void fd_htab_map_free(struct bpf_map *map)
 		hlist_nulls_for_each_entry_safe(l, n, head, hash_node) {
 			void *ptr = fd_htab_map_get_ptr(map, l);
 
-			map->ops->map_fd_put_ptr(ptr);
+			map->ops->map_fd_put_ptr(map, ptr, false);
 		}
 	}
 
@@ -2523,9 +2524,15 @@ int bpf_fd_htab_map_update_elem(struct bpf_map *map, struct file *map_file,
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 
+	/* The htab bucket lock is always held during update operations in fd
+	 * htab map, and the following rcu_read_lock() is only used to avoid
+	 * the WARN_ON_ONCE in htab_map_update_elem().
+	 */
+	rcu_read_lock();
 	ret = htab_map_update_elem(map, key, &ptr, map_flags);
+	rcu_read_unlock();
 	if (ret)
-		map->ops->map_fd_put_ptr(ptr);
+		map->ops->map_fd_put_ptr(map, ptr, false);
 
 	return ret;
 }

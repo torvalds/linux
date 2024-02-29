@@ -329,7 +329,7 @@ __cfg_test_port_ip_star_g()
 
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q " 0.00"
 	check_err $? "(*, G) \"permanent\" entry has a pending group timer"
-	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "\/0.00"
+	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "/0.00"
 	check_err $? "\"permanent\" source entry has a pending source timer"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
@@ -346,7 +346,7 @@ __cfg_test_port_ip_star_g()
 
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q " 0.00"
 	check_fail $? "(*, G) EXCLUDE entry does not have a pending group timer"
-	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "\/0.00"
+	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "/0.00"
 	check_err $? "\"blocked\" source entry has a pending source timer"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
@@ -363,7 +363,7 @@ __cfg_test_port_ip_star_g()
 
 	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q " 0.00"
 	check_err $? "(*, G) INCLUDE entry has a pending group timer"
-	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "\/0.00"
+	bridge -d -s mdb get dev br0 grp $grp vid 10 | grep -q "/0.00"
 	check_fail $? "Source entry does not have a pending source timer"
 
 	bridge mdb del dev br0 port $swp1 grp $grp vid 10
@@ -803,11 +803,198 @@ cfg_test_dump()
 	cfg_test_dump_common "L2" l2_grps_get
 }
 
+# Check flush functionality with different parameters.
+cfg_test_flush()
+{
+	local num_entries
+
+	# Add entries with different attributes and check that they are all
+	# flushed when the flush command is given with no parameters.
+
+	# Different port.
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.2 vid 10
+
+	# Different VLAN ID.
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.3 vid 10
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.4 vid 20
+
+	# Different routing protocol.
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.5 vid 10 proto bgp
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.6 vid 10 proto zebra
+
+	# Different state.
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.7 vid 10 permanent
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.8 vid 10 temp
+
+	bridge mdb flush dev br0
+	num_entries=$(bridge mdb show dev br0 | wc -l)
+	[[ $num_entries -eq 0 ]]
+	check_err $? 0 "Not all entries flushed after flush all"
+
+	# Check that when flushing by port only entries programmed with the
+	# specified port are flushed and the rest are not.
+
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 10
+	bridge mdb add dev br0 port br0 grp 239.1.1.1 vid 10
+
+	bridge mdb flush dev br0 port $swp1
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
+	check_fail $? "Entry not flushed by specified port"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
+	check_err $? "Entry flushed by wrong port"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port br0"
+	check_err $? "Host entry flushed by wrong port"
+
+	bridge mdb flush dev br0 port br0
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port br0"
+	check_fail $? "Host entry not flushed by specified port"
+
+	bridge mdb flush dev br0
+
+	# Check that when flushing by VLAN ID only entries programmed with the
+	# specified VLAN ID are flushed and the rest are not.
+
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 10
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 20
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 20
+
+	bridge mdb flush dev br0 vid 10
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 &> /dev/null
+	check_fail $? "Entry not flushed by specified VLAN ID"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 20 &> /dev/null
+	check_err $? "Entry flushed by wrong VLAN ID"
+
+	bridge mdb flush dev br0
+
+	# Check that all permanent entries are flushed when "permanent" is
+	# specified and that temporary entries are not.
+
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 permanent vid 10
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 temp vid 10
+
+	bridge mdb flush dev br0 permanent
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
+	check_fail $? "Entry not flushed by \"permanent\" state"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
+	check_err $? "Entry flushed by wrong state (\"permanent\")"
+
+	bridge mdb flush dev br0
+
+	# Check that all temporary entries are flushed when "nopermanent" is
+	# specified and that permanent entries are not.
+
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 permanent vid 10
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 temp vid 10
+
+	bridge mdb flush dev br0 nopermanent
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
+	check_err $? "Entry flushed by wrong state (\"nopermanent\")"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
+	check_fail $? "Entry not flushed by \"nopermanent\" state"
+
+	bridge mdb flush dev br0
+
+	# Check that L2 host entries are not flushed when "nopermanent" is
+	# specified, but flushed when "permanent" is specified.
+
+	bridge mdb add dev br0 port br0 grp 01:02:03:04:05:06 permanent vid 10
+
+	bridge mdb flush dev br0 nopermanent
+
+	bridge mdb get dev br0 grp 01:02:03:04:05:06 vid 10 &> /dev/null
+	check_err $? "L2 host entry flushed by wrong state (\"nopermanent\")"
+
+	bridge mdb flush dev br0 permanent
+
+	bridge mdb get dev br0 grp 01:02:03:04:05:06 vid 10 &> /dev/null
+	check_fail $? "L2 host entry not flushed by \"permanent\" state"
+
+	bridge mdb flush dev br0
+
+	# Check that IPv4 host entries are not flushed when "permanent" is
+	# specified, but flushed when "nopermanent" is specified.
+
+	bridge mdb add dev br0 port br0 grp 239.1.1.1 temp vid 10
+
+	bridge mdb flush dev br0 permanent
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 &> /dev/null
+	check_err $? "IPv4 host entry flushed by wrong state (\"permanent\")"
+
+	bridge mdb flush dev br0 nopermanent
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 &> /dev/null
+	check_fail $? "IPv4 host entry not flushed by \"nopermanent\" state"
+
+	bridge mdb flush dev br0
+
+	# Check that IPv6 host entries are not flushed when "permanent" is
+	# specified, but flushed when "nopermanent" is specified.
+
+	bridge mdb add dev br0 port br0 grp ff0e::1 temp vid 10
+
+	bridge mdb flush dev br0 permanent
+
+	bridge mdb get dev br0 grp ff0e::1 vid 10 &> /dev/null
+	check_err $? "IPv6 host entry flushed by wrong state (\"permanent\")"
+
+	bridge mdb flush dev br0 nopermanent
+
+	bridge mdb get dev br0 grp ff0e::1 vid 10 &> /dev/null
+	check_fail $? "IPv6 host entry not flushed by \"nopermanent\" state"
+
+	bridge mdb flush dev br0
+
+	# Check that when flushing by routing protocol only entries programmed
+	# with the specified routing protocol are flushed and the rest are not.
+
+	bridge mdb add dev br0 port $swp1 grp 239.1.1.1 vid 10 proto bgp
+	bridge mdb add dev br0 port $swp2 grp 239.1.1.1 vid 10 proto zebra
+	bridge mdb add dev br0 port br0 grp 239.1.1.1 vid 10
+
+	bridge mdb flush dev br0 proto bgp
+
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp1"
+	check_fail $? "Entry not flushed by specified routing protocol"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port $swp2"
+	check_err $? "Entry flushed by wrong routing protocol"
+	bridge mdb get dev br0 grp 239.1.1.1 vid 10 | grep -q "port br0"
+	check_err $? "Host entry flushed by wrong routing protocol"
+
+	bridge mdb flush dev br0
+
+	# Test that an error is returned when trying to flush using unsupported
+	# parameters.
+
+	bridge mdb flush dev br0 src_vni 10 &> /dev/null
+	check_fail $? "Managed to flush by source VNI"
+
+	bridge mdb flush dev br0 dst 198.51.100.1 &> /dev/null
+	check_fail $? "Managed to flush by destination IP"
+
+	bridge mdb flush dev br0 dst_port 4789 &> /dev/null
+	check_fail $? "Managed to flush by UDP destination port"
+
+	bridge mdb flush dev br0 vni 10 &> /dev/null
+	check_fail $? "Managed to flush by destination VNI"
+
+	log_test "Flush tests"
+}
+
 cfg_test()
 {
 	cfg_test_host
 	cfg_test_port
 	cfg_test_dump
+	cfg_test_flush
 }
 
 __fwd_test_host_ip()
@@ -1065,14 +1252,17 @@ fwd_test()
 	echo
 	log_info "# Forwarding tests"
 
+	# Set the Max Response Delay to 100 centiseconds (1 second) so that the
+	# bridge will start forwarding according to its MDB soon after a
+	# multicast querier is enabled.
+	ip link set dev br0 type bridge mcast_query_response_interval 100
+
 	# Forwarding according to MDB entries only takes place when the bridge
 	# detects that there is a valid querier in the network. Set the bridge
 	# as the querier and assign it a valid IPv6 link-local address to be
 	# used as the source address for MLD queries.
 	ip -6 address add fe80::1/64 nodad dev br0
 	ip link set dev br0 type bridge mcast_querier 1
-	# Wait the default Query Response Interval (10 seconds) for the bridge
-	# to determine that there are no other queriers in the network.
 	sleep 10
 
 	fwd_test_host
@@ -1080,6 +1270,7 @@ fwd_test()
 
 	ip link set dev br0 type bridge mcast_querier 0
 	ip -6 address del fe80::1/64 dev br0
+	ip link set dev br0 type bridge mcast_query_response_interval 1000
 }
 
 ctrl_igmpv3_is_in_test()
@@ -1166,8 +1357,8 @@ ctrl_test()
 	ctrl_mldv2_is_in_test
 }
 
-if ! bridge mdb help 2>&1 | grep -q "get"; then
-	echo "SKIP: iproute2 too old, missing bridge mdb get support"
+if ! bridge mdb help 2>&1 | grep -q "flush"; then
+	echo "SKIP: iproute2 too old, missing bridge mdb flush support"
 	exit $ksft_skip
 fi
 

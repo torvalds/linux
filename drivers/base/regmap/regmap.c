@@ -2136,7 +2136,7 @@ static int regmap_noinc_readwrite(struct regmap *map, unsigned int reg,
 }
 
 /**
- * regmap_noinc_write(): Write data from a register without incrementing the
+ * regmap_noinc_write(): Write data to a register without incrementing the
  *			register number
  *
  * @map: Register map to write to

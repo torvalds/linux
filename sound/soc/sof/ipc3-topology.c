@@ -72,6 +72,8 @@ static const struct sof_topology_token buffer_tokens[] = {
 		offsetof(struct sof_ipc_buffer, size)},
 	{SOF_TKN_BUF_CAPS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc_buffer, caps)},
+	{SOF_TKN_BUF_FLAGS, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_buffer, flags)},
 };
 
 /* DAI */
@@ -286,6 +288,16 @@ static const struct sof_topology_token acpi2s_tokens[] = {
 		offsetof(struct sof_ipc_dai_acp_params, tdm_mode)},
 };
 
+/* MICFIL PDM */
+static const struct sof_topology_token micfil_pdm_tokens[] = {
+	{SOF_TKN_IMX_MICFIL_RATE,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_micfil_params, pdm_rate)},
+	{SOF_TKN_IMX_MICFIL_CH,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc_dai_micfil_params, pdm_ch)},
+};
+
 /* Core tokens */
 static const struct sof_topology_token core_tokens[] = {
 	{SOF_TKN_COMP_CORE_ID, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -322,6 +334,8 @@ static const struct sof_token_info ipc3_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_AFE_TOKENS] = {"AFE tokens", afe_tokens, ARRAY_SIZE(afe_tokens)},
 	[SOF_ACPDMIC_TOKENS] = {"ACPDMIC tokens", acpdmic_tokens, ARRAY_SIZE(acpdmic_tokens)},
 	[SOF_ACPI2S_TOKENS]   = {"ACPI2S tokens", acpi2s_tokens, ARRAY_SIZE(acpi2s_tokens)},
+	[SOF_MICFIL_TOKENS] = {"MICFIL PDM tokens",
+		micfil_pdm_tokens, ARRAY_SIZE(micfil_pdm_tokens)},
 };
 
 /**
@@ -1138,6 +1152,37 @@ static int sof_link_esai_load(struct snd_soc_component *scomp, struct snd_sof_da
 	return 0;
 }
 
+static int sof_link_micfil_load(struct snd_soc_component *scomp, struct snd_sof_dai_link *slink,
+				struct sof_ipc_dai_config *config, struct snd_sof_dai *dai)
+{
+	struct snd_soc_tplg_hw_config *hw_config = slink->hw_configs;
+	struct sof_dai_private_data *private = dai->private;
+	u32 size = sizeof(*config);
+	int ret;
+
+       /* handle master/slave and inverted clocks */
+	sof_dai_set_format(hw_config, config);
+
+	config->hdr.size = size;
+
+	/* parse the required set of MICFIL PDM tokens based on num_hw_cfgs */
+	ret = sof_update_ipc_object(scomp, &config->micfil, SOF_MICFIL_TOKENS, slink->tuples,
+				    slink->num_tuples, size, slink->num_hw_configs);
+	if (ret < 0)
+		return ret;
+
+	dev_info(scomp->dev, "MICFIL PDM config dai_index %d channel %d rate %d\n",
+		 config->dai_index, config->micfil.pdm_ch, config->micfil.pdm_rate);
+
+	dai->number_configs = 1;
+	dai->current_config = 0;
+	private->dai_config = kmemdup(config, size, GFP_KERNEL);
+	if (!private->dai_config)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int sof_link_acp_dmic_load(struct snd_soc_component *scomp, struct snd_sof_dai_link *slink,
 				  struct sof_ipc_dai_config *config, struct snd_sof_dai *dai)
 {
@@ -1176,6 +1221,7 @@ static int sof_link_acp_bt_load(struct snd_soc_component *scomp, struct snd_sof_
 	struct snd_soc_tplg_hw_config *hw_config = slink->hw_configs;
 	struct sof_dai_private_data *private = dai->private;
 	u32 size = sizeof(*config);
+	int ret;
 
 	/* handle master/slave and inverted clocks */
 	sof_dai_set_format(hw_config, config);
@@ -1184,12 +1230,14 @@ static int sof_link_acp_bt_load(struct snd_soc_component *scomp, struct snd_sof_
 	memset(&config->acpbt, 0, sizeof(config->acpbt));
 	config->hdr.size = size;
 
-	config->acpbt.fsync_rate = le32_to_cpu(hw_config->fsync_rate);
-	config->acpbt.tdm_slots = le32_to_cpu(hw_config->tdm_slots);
+	ret = sof_update_ipc_object(scomp, &config->acpbt, SOF_ACPI2S_TOKENS, slink->tuples,
+				    slink->num_tuples, size, slink->num_hw_configs);
+	if (ret < 0)
+		return ret;
 
-	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d\n",
+	dev_info(scomp->dev, "ACP_BT config ACP%d channel %d rate %d tdm_mode %d\n",
 		 config->dai_index, config->acpbt.tdm_slots,
-		 config->acpbt.fsync_rate);
+		 config->acpbt.fsync_rate, config->acpbt.tdm_mode);
 
 	dai->number_configs = 1;
 	dai->current_config = 0;
@@ -1560,6 +1608,9 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 			break;
 		case SOF_DAI_IMX_ESAI:
 			ret = sof_link_esai_load(scomp, slink, config, dai);
+			break;
+		case SOF_DAI_IMX_MICFIL:
+			ret = sof_link_micfil_load(scomp, slink, config, dai);
 			break;
 		case SOF_DAI_AMD_BT:
 			ret = sof_link_acp_bt_load(scomp, slink, config, dai);
@@ -2309,6 +2360,44 @@ static int sof_tear_down_left_over_pipelines(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static int sof_ipc3_free_widgets_in_list(struct snd_sof_dev *sdev, bool include_scheduler,
+					 bool *dyn_widgets, bool verify)
+{
+	struct sof_ipc_fw_version *v = &sdev->fw_ready.version;
+	struct snd_sof_widget *swidget;
+	int ret;
+
+	list_for_each_entry(swidget, &sdev->widget_list, list) {
+		if (swidget->dynamic_pipeline_widget) {
+			*dyn_widgets = true;
+			continue;
+		}
+
+		/* Do not free widgets for static pipelines with FW older than SOF2.2 */
+		if (!verify && !swidget->dynamic_pipeline_widget &&
+		    SOF_FW_VER(v->major, v->minor, v->micro) < SOF_FW_VER(2, 2, 0)) {
+			mutex_lock(&swidget->setup_mutex);
+			swidget->use_count = 0;
+			mutex_unlock(&swidget->setup_mutex);
+			if (swidget->spipe)
+				swidget->spipe->complete = 0;
+			continue;
+		}
+
+		if (include_scheduler && swidget->id != snd_soc_dapm_scheduler)
+			continue;
+
+		if (!include_scheduler && swidget->id == snd_soc_dapm_scheduler)
+			continue;
+
+		ret = sof_widget_free(sdev, swidget);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 /*
  * For older firmware, this function doesn't free widgets for static pipelines during suspend.
  * It only resets use_count for all widgets.
@@ -2325,29 +2414,18 @@ static int sof_ipc3_tear_down_all_pipelines(struct snd_sof_dev *sdev, bool verif
 	 * This function is called during suspend and for one-time topology verification during
 	 * first boot. In both cases, there is no need to protect swidget->use_count and
 	 * sroute->setup because during suspend all running streams are suspended and during
-	 * topology loading the sound card unavailable to open PCMs.
+	 * topology loading the sound card unavailable to open PCMs. Do not free the scheduler
+	 * widgets yet so that the secondary cores do not get powered down before all the widgets
+	 * associated with the scheduler are freed.
 	 */
-	list_for_each_entry(swidget, &sdev->widget_list, list) {
-		if (swidget->dynamic_pipeline_widget) {
-			dyn_widgets = true;
-			continue;
-		}
+	ret = sof_ipc3_free_widgets_in_list(sdev, false, &dyn_widgets, verify);
+	if (ret < 0)
+		return ret;
 
-		/* Do not free widgets for static pipelines with FW older than SOF2.2 */
-		if (!verify && !swidget->dynamic_pipeline_widget &&
-		    SOF_FW_VER(v->major, v->minor, v->micro) < SOF_FW_VER(2, 2, 0)) {
-			mutex_lock(&swidget->setup_mutex);
-			swidget->use_count = 0;
-			mutex_unlock(&swidget->setup_mutex);
-			if (swidget->spipe)
-				swidget->spipe->complete = 0;
-			continue;
-		}
-
-		ret = sof_widget_free(sdev, swidget);
-		if (ret < 0)
-			return ret;
-	}
+	/* free all the scheduler widgets now */
+	ret = sof_ipc3_free_widgets_in_list(sdev, true, &dyn_widgets, verify);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Tear down all pipelines associated with PCMs that did not get suspended

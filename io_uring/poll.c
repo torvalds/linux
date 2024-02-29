@@ -226,7 +226,28 @@ enum {
 	IOU_POLL_NO_ACTION = 1,
 	IOU_POLL_REMOVE_POLL_USE_RES = 2,
 	IOU_POLL_REISSUE = 3,
+	IOU_POLL_REQUEUE = 4,
 };
+
+static void __io_poll_execute(struct io_kiocb *req, int mask)
+{
+	unsigned flags = 0;
+
+	io_req_set_res(req, mask, 0);
+	req->io_task_work.func = io_poll_task_func;
+
+	trace_io_uring_task_add(req, mask);
+
+	if (!(req->flags & REQ_F_POLL_NO_LAZY))
+		flags = IOU_F_TWQ_LAZY_WAKE;
+	__io_req_task_work_add(req, flags);
+}
+
+static inline void io_poll_execute(struct io_kiocb *req, int res)
+{
+	if (io_poll_get_ownership(req))
+		__io_poll_execute(req, res);
+}
 
 /*
  * All poll tw should go through this. Checks for poll events, manages
@@ -309,6 +330,8 @@ static int io_poll_check_events(struct io_kiocb *req, struct io_tw_state *ts)
 			int ret = io_poll_issue(req, ts);
 			if (ret == IOU_STOP_MULTISHOT)
 				return IOU_POLL_REMOVE_POLL_USE_RES;
+			else if (ret == IOU_REQUEUE)
+				return IOU_POLL_REQUEUE;
 			if (ret < 0)
 				return ret;
 		}
@@ -331,8 +354,12 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 	int ret;
 
 	ret = io_poll_check_events(req, ts);
-	if (ret == IOU_POLL_NO_ACTION)
+	if (ret == IOU_POLL_NO_ACTION) {
 		return;
+	} else if (ret == IOU_POLL_REQUEUE) {
+		__io_poll_execute(req, 0);
+		return;
+	}
 	io_poll_remove_entries(req);
 	io_poll_tw_hash_eject(req, ts);
 
@@ -362,21 +389,6 @@ void io_poll_task_func(struct io_kiocb *req, struct io_tw_state *ts)
 		else
 			io_req_defer_failed(req, ret);
 	}
-}
-
-static void __io_poll_execute(struct io_kiocb *req, int mask)
-{
-	io_req_set_res(req, mask, 0);
-	req->io_task_work.func = io_poll_task_func;
-
-	trace_io_uring_task_add(req, mask);
-	__io_req_task_work_add(req, IOU_F_TWQ_LAZY_WAKE);
-}
-
-static inline void io_poll_execute(struct io_kiocb *req, int res)
-{
-	if (io_poll_get_ownership(req))
-		__io_poll_execute(req, res);
 }
 
 static void io_poll_cancel_req(struct io_kiocb *req)
@@ -526,10 +538,19 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 	poll->head = head;
 	poll->wait.private = (void *) wqe_private;
 
-	if (poll->events & EPOLLEXCLUSIVE)
+	if (poll->events & EPOLLEXCLUSIVE) {
+		/*
+		 * Exclusive waits may only wake a limited amount of entries
+		 * rather than all of them, this may interfere with lazy
+		 * wake if someone does wait(events > 1). Ensure we don't do
+		 * lazy wake for those, as we need to process each one as they
+		 * come in.
+		 */
+		req->flags |= REQ_F_POLL_NO_LAZY;
 		add_wait_queue_exclusive(head, &poll->wait);
-	else
+	} else {
 		add_wait_queue(head, &poll->wait);
+	}
 }
 
 static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,

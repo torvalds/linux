@@ -32,6 +32,8 @@ struct page_owner {
 	char comm[TASK_COMM_LEN];
 	pid_t pid;
 	pid_t tgid;
+	pid_t free_pid;
+	pid_t free_tgid;
 };
 
 static bool page_owner_enabled __initdata;
@@ -119,7 +121,6 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	 * Sometimes page metadata allocation tracking requires more
 	 * memory to be allocated:
 	 * - when new stack trace is saved to stack depot
-	 * - when backtrace itself is calculated (ia64)
 	 */
 	if (current->in_page_owner)
 		return dummy_handle;
@@ -152,6 +153,8 @@ void __reset_page_owner(struct page *page, unsigned short order)
 		page_owner = get_page_owner(page_ext);
 		page_owner->free_handle = handle;
 		page_owner->free_ts_nsec = free_ts_nsec;
+		page_owner->free_pid = current->pid;
+		page_owner->free_tgid = current->tgid;
 		page_ext = page_ext_next(page_ext);
 	}
 	page_ext_put(page_ext);
@@ -253,6 +256,8 @@ void __folio_copy_owner(struct folio *newfolio, struct folio *old)
 	new_page_owner->handle = old_page_owner->handle;
 	new_page_owner->pid = old_page_owner->pid;
 	new_page_owner->tgid = old_page_owner->tgid;
+	new_page_owner->free_pid = old_page_owner->free_pid;
+	new_page_owner->free_tgid = old_page_owner->free_tgid;
 	new_page_owner->ts_nsec = old_page_owner->ts_nsec;
 	new_page_owner->free_ts_nsec = old_page_owner->ts_nsec;
 	strcpy(new_page_owner->comm, old_page_owner->comm);
@@ -315,7 +320,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
 				unsigned long freepage_order;
 
 				freepage_order = buddy_order_unsafe(page);
-				if (freepage_order <= MAX_ORDER)
+				if (freepage_order <= MAX_PAGE_ORDER)
 					pfn += (1UL << freepage_order) - 1;
 				continue;
 			}
@@ -495,7 +500,8 @@ void __dump_page_owner(const struct page *page)
 	if (!handle) {
 		pr_alert("page_owner free stack trace missing\n");
 	} else {
-		pr_alert("page last free stack trace:\n");
+		pr_alert("page last free pid %d tgid %d stack trace:\n",
+			  page_owner->free_pid, page_owner->free_tgid);
 		stack_depot_print(handle);
 	}
 
@@ -549,7 +555,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
 		if (PageBuddy(page)) {
 			unsigned long freepage_order = buddy_order_unsafe(page);
 
-			if (freepage_order <= MAX_ORDER)
+			if (freepage_order <= MAX_PAGE_ORDER)
 				pfn += (1UL << freepage_order) - 1;
 			continue;
 		}
@@ -657,7 +663,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
 			if (PageBuddy(page)) {
 				unsigned long order = buddy_order_unsafe(page);
 
-				if (order > 0 && order <= MAX_ORDER)
+				if (order > 0 && order <= MAX_PAGE_ORDER)
 					pfn += (1UL << order) - 1;
 				continue;
 			}

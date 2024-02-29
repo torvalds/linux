@@ -467,6 +467,8 @@ bool drm_mode_is_420_also(const struct drm_display_info *display,
 			  const struct drm_display_mode *mode);
 bool drm_mode_is_420(const struct drm_display_info *display,
 		     const struct drm_display_mode *mode);
+void drm_set_preferred_mode(struct drm_connector *connector,
+			    int hpref, int vpref);
 
 struct drm_display_mode *drm_analog_tv_mode(struct drm_device *dev,
 					    enum drm_connector_tv_mode mode,

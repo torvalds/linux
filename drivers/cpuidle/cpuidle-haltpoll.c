@@ -25,13 +25,12 @@ MODULE_PARM_DESC(force, "Load unconditionally");
 static struct cpuidle_device __percpu *haltpoll_cpuidle_devices;
 static enum cpuhp_state haltpoll_hp_state;
 
-static int default_enter_idle(struct cpuidle_device *dev,
-			      struct cpuidle_driver *drv, int index)
+static __cpuidle int default_enter_idle(struct cpuidle_device *dev,
+					struct cpuidle_driver *drv, int index)
 {
-	if (current_clr_polling_and_test()) {
-		local_irq_enable();
+	if (current_clr_polling_and_test())
 		return index;
-	}
+
 	arch_cpu_idle();
 	return index;
 }

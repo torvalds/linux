@@ -22,6 +22,7 @@
 #include <linux/of_platform.h>
 #include <linux/panic_notifier.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -279,7 +280,6 @@ release:
 
 static int altr_sdram_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *id;
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;
 	struct altr_sdram_mc_data *drvdata;
@@ -289,10 +289,6 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	u32 read_reg;
 	int irq, irq2, res = 0;
 	unsigned long mem_size, irqflags = 0;
-
-	id = of_match_device(altr_sdram_ctrl_of_match, &pdev->dev);
-	if (!id)
-		return -ENODEV;
 
 	/* Grab the register range from the sdr controller in device tree */
 	mc_vbase = syscon_regmap_lookup_by_phandle(pdev->dev.of_node,
@@ -304,8 +300,7 @@ static int altr_sdram_probe(struct platform_device *pdev)
 	}
 
 	/* Check specific dependencies for the module */
-	priv = of_match_node(altr_sdram_ctrl_of_match,
-			     pdev->dev.of_node)->data;
+	priv = device_get_match_data(&pdev->dev);
 
 	/* Validate the SDRAM controller has ECC enabled */
 	if (regmap_read(mc_vbase, priv->ecc_ctrl_offset, &read_reg) ||
@@ -459,15 +454,13 @@ free:
 	return res;
 }
 
-static int altr_sdram_remove(struct platform_device *pdev)
+static void altr_sdram_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);
 	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 /*
@@ -489,7 +482,7 @@ static const struct dev_pm_ops altr_sdram_pm_ops = {
 
 static struct platform_driver altr_sdram_edac_driver = {
 	.probe = altr_sdram_probe,
-	.remove = altr_sdram_remove,
+	.remove_new = altr_sdram_remove,
 	.driver = {
 		.name = "altr_sdram_edac",
 #ifdef CONFIG_PM
@@ -812,7 +805,7 @@ fail:
 	return res;
 }
 
-static int altr_edac_device_remove(struct platform_device *pdev)
+static void altr_edac_device_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *dci = platform_get_drvdata(pdev);
 	struct altr_edac_device_dev *drvdata = dci->pvt_info;
@@ -820,13 +813,11 @@ static int altr_edac_device_remove(struct platform_device *pdev)
 	debugfs_remove_recursive(drvdata->debugfs_dir);
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(dci);
-
-	return 0;
 }
 
 static struct platform_driver altr_edac_device_driver = {
 	.probe =  altr_edac_device_probe,
-	.remove = altr_edac_device_remove,
+	.remove_new = altr_edac_device_remove,
 	.driver = {
 		.name = "altr_edac_device",
 		.of_match_table = altr_edac_device_of_match,

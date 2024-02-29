@@ -11,8 +11,6 @@
 #include <linux/types.h>
 
 /* PCIe device related definition. */
-#define PCI_VENDOR_ID_ALIBABA 0x1ded
-
 #define ERDMA_PCI_WIDTH 64
 #define ERDMA_FUNC_BAR 0
 #define ERDMA_MISX_BAR 2
@@ -146,6 +144,7 @@ enum CMDQ_COMMON_OPCODE {
 	CMDQ_OPCODE_DESTROY_EQ = 1,
 	CMDQ_OPCODE_QUERY_FW_INFO = 2,
 	CMDQ_OPCODE_CONF_MTU = 3,
+	CMDQ_OPCODE_GET_STATS = 4,
 	CMDQ_OPCODE_CONF_DEVICE = 5,
 	CMDQ_OPCODE_ALLOC_DB = 8,
 	CMDQ_OPCODE_FREE_DB = 9,
@@ -355,6 +354,44 @@ struct erdma_cmdq_reflush_req {
 	u32 qpn;
 	u32 sq_pi;
 	u32 rq_pi;
+};
+
+#define ERDMA_HW_RESP_SIZE 256
+
+struct erdma_cmdq_query_req {
+	u64 hdr;
+	u32 rsvd;
+	u32 index;
+
+	u64 target_addr;
+	u32 target_length;
+};
+
+#define ERDMA_HW_RESP_MAGIC 0x5566
+
+struct erdma_cmdq_query_resp_hdr {
+	u16 magic;
+	u8 ver;
+	u8 length;
+
+	u32 index;
+	u32 rsvd[2];
+};
+
+struct erdma_cmdq_query_stats_resp {
+	struct erdma_cmdq_query_resp_hdr hdr;
+
+	u64 tx_req_cnt;
+	u64 tx_packets_cnt;
+	u64 tx_bytes_cnt;
+	u64 tx_drop_packets_cnt;
+	u64 tx_bps_meter_drop_packets_cnt;
+	u64 tx_pps_meter_drop_packets_cnt;
+	u64 rx_packets_cnt;
+	u64 rx_bytes_cnt;
+	u64 rx_drop_packets_cnt;
+	u64 rx_bps_meter_drop_packets_cnt;
+	u64 rx_pps_meter_drop_packets_cnt;
 };
 
 /* cap qword 0 definition */

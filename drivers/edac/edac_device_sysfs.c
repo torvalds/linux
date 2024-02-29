@@ -229,7 +229,7 @@ static struct kobj_type ktype_device_ctrl = {
 int edac_device_register_sysfs_main_kobj(struct edac_device_ctl_info *edac_dev)
 {
 	struct device *dev_root;
-	struct bus_type *edac_subsys;
+	const struct bus_type *edac_subsys;
 	int err = -ENODEV;
 
 	edac_dbg(1, "\n");

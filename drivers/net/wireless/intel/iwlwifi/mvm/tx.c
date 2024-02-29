@@ -520,13 +520,24 @@ static void iwl_mvm_set_tx_cmd_crypto(struct iwl_mvm *mvm,
 	}
 }
 
+static void iwl_mvm_copy_hdr(void *cmd, const void *hdr, int hdrlen,
+			     const u8 *addr3_override)
+{
+	struct ieee80211_hdr *out_hdr = cmd;
+
+	memcpy(cmd, hdr, hdrlen);
+	if (addr3_override)
+		memcpy(out_hdr->addr3, addr3_override, ETH_ALEN);
+}
+
 /*
  * Allocates and sets the Tx cmd the driver data pointers in the skb
  */
 static struct iwl_device_tx_cmd *
 iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 		      struct ieee80211_tx_info *info, int hdrlen,
-		      struct ieee80211_sta *sta, u8 sta_id)
+		      struct ieee80211_sta *sta, u8 sta_id,
+		      const u8 *addr3_override)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_device_tx_cmd *dev_cmd;
@@ -584,7 +595,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			cmd->len = cpu_to_le16((u16)skb->len);
 
 			/* Copy MAC header from skb into command buffer */
-			memcpy(cmd->hdr, hdr, hdrlen);
+			iwl_mvm_copy_hdr(cmd->hdr, hdr, hdrlen, addr3_override);
 
 			cmd->flags = cpu_to_le16(flags);
 			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
@@ -599,7 +610,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 			cmd->len = cpu_to_le16((u16)skb->len);
 
 			/* Copy MAC header from skb into command buffer */
-			memcpy(cmd->hdr, hdr, hdrlen);
+			iwl_mvm_copy_hdr(cmd->hdr, hdr, hdrlen, addr3_override);
 
 			cmd->flags = cpu_to_le32(flags);
 			cmd->rate_n_flags = cpu_to_le32(rate_n_flags);
@@ -617,7 +628,7 @@ iwl_mvm_set_tx_params(struct iwl_mvm *mvm, struct sk_buff *skb,
 	iwl_mvm_set_tx_cmd_rate(mvm, tx_cmd, info, sta, hdr->frame_control);
 
 	/* Copy MAC header from skb into command buffer */
-	memcpy(tx_cmd->hdr, hdr, hdrlen);
+	iwl_mvm_copy_hdr(tx_cmd->hdr, hdr, hdrlen, addr3_override);
 
 out:
 	return dev_cmd;
@@ -820,7 +831,8 @@ int iwl_mvm_tx_skb_non_sta(struct iwl_mvm *mvm, struct sk_buff *skb)
 
 	IWL_DEBUG_TX(mvm, "station Id %d, queue=%d\n", sta_id, queue);
 
-	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, &info, hdrlen, NULL, sta_id);
+	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, &info, hdrlen, NULL, sta_id,
+					NULL);
 	if (!dev_cmd)
 		return -1;
 
@@ -1140,7 +1152,8 @@ static int iwl_mvm_tx_pkt_queued(struct iwl_mvm *mvm,
  */
 static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 			   struct ieee80211_tx_info *info,
-			   struct ieee80211_sta *sta)
+			   struct ieee80211_sta *sta,
+			   const u8 *addr3_override)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct iwl_mvm_sta *mvmsta;
@@ -1172,7 +1185,8 @@ static int iwl_mvm_tx_mpdu(struct iwl_mvm *mvm, struct sk_buff *skb,
 		iwl_mvm_probe_resp_set_noa(mvm, skb);
 
 	dev_cmd = iwl_mvm_set_tx_params(mvm, skb, info, hdrlen,
-					sta, mvmsta->deflink.sta_id);
+					sta, mvmsta->deflink.sta_id,
+					addr3_override);
 	if (!dev_cmd)
 		goto drop;
 
@@ -1294,9 +1308,11 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 	struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
 	struct ieee80211_tx_info info;
 	struct sk_buff_head mpdus_skbs;
+	struct ieee80211_vif *vif;
 	unsigned int payload_len;
 	int ret;
 	struct sk_buff *orig_skb = skb;
+	const u8 *addr3;
 
 	if (WARN_ON_ONCE(!mvmsta))
 		return -1;
@@ -1307,15 +1323,19 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 	memcpy(&info, skb->cb, sizeof(info));
 
 	if (!skb_is_gso(skb))
-		return iwl_mvm_tx_mpdu(mvm, skb, &info, sta);
+		return iwl_mvm_tx_mpdu(mvm, skb, &info, sta, NULL);
 
 	payload_len = skb_tail_pointer(skb) - skb_transport_header(skb) -
 		tcp_hdrlen(skb) + skb->data_len;
 
 	if (payload_len <= skb_shinfo(skb)->gso_size)
-		return iwl_mvm_tx_mpdu(mvm, skb, &info, sta);
+		return iwl_mvm_tx_mpdu(mvm, skb, &info, sta, NULL);
 
 	__skb_queue_head_init(&mpdus_skbs);
+
+	vif = info.control.vif;
+	if (!vif)
+		return -1;
 
 	ret = iwl_mvm_tx_tso(mvm, skb, &info, sta, &mpdus_skbs);
 	if (ret)
@@ -1323,10 +1343,39 @@ int iwl_mvm_tx_skb_sta(struct iwl_mvm *mvm, struct sk_buff *skb,
 
 	WARN_ON(skb_queue_empty(&mpdus_skbs));
 
-	while (!skb_queue_empty(&mpdus_skbs)) {
-		skb = __skb_dequeue(&mpdus_skbs);
+	/*
+	 * As described in IEEE sta 802.11-2020, table 9-30 (Address
+	 * field contents), A-MSDU address 3 should contain the BSSID
+	 * address.
+	 * Pass address 3 down to iwl_mvm_tx_mpdu() and further to set it
+	 * in the command header. We need to preserve the original
+	 * address 3 in the skb header to correctly create all the
+	 * A-MSDU subframe headers from it.
+	 */
+	switch (vif->type) {
+	case NL80211_IFTYPE_STATION:
+		addr3 = vif->cfg.ap_addr;
+		break;
+	case NL80211_IFTYPE_AP:
+		addr3 = vif->addr;
+		break;
+	default:
+		addr3 = NULL;
+		break;
+	}
 
-		ret = iwl_mvm_tx_mpdu(mvm, skb, &info, sta);
+	while (!skb_queue_empty(&mpdus_skbs)) {
+		struct ieee80211_hdr *hdr;
+		bool amsdu;
+
+		skb = __skb_dequeue(&mpdus_skbs);
+		hdr = (void *)skb->data;
+		amsdu = ieee80211_is_data_qos(hdr->frame_control) &&
+			(*ieee80211_get_qos_ctl(hdr) &
+			 IEEE80211_QOS_CTL_A_MSDU_PRESENT);
+
+		ret = iwl_mvm_tx_mpdu(mvm, skb, &info, sta,
+				      amsdu ? addr3 : NULL);
 		if (ret) {
 			/* Free skbs created as part of TSO logic that have not yet been dequeued */
 			__skb_queue_purge(&mpdus_skbs);
@@ -2256,7 +2305,7 @@ int iwl_mvm_flush_sta_tids(struct iwl_mvm *mvm, u32 sta_id, u16 tids)
 	WARN_ON(!iwl_mvm_has_new_tx_api(mvm));
 
 	if (iwl_fw_lookup_notif_ver(mvm->fw, LONG_GROUP, TXPATH_FLUSH, 0) > 0)
-		cmd.flags |= CMD_WANT_SKB;
+		cmd.flags |= CMD_WANT_SKB | CMD_SEND_IN_RFKILL;
 
 	IWL_DEBUG_TX_QUEUES(mvm, "flush for sta id %d tid mask 0x%x\n",
 			    sta_id, tids);

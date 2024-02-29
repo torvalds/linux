@@ -122,11 +122,7 @@ alternative_if ARM64_HAS_CNP
 alternative_else_nop_endif
 	msr	ttbr0_el2, x2
 
-	/*
-	 * Set the PS bits in TCR_EL2.
-	 */
 	ldr	x0, [x0, #NVHE_INIT_TCR_EL2]
-	tcr_compute_pa_size x0, #TCR_EL2_PS_SHIFT, x1, x2
 	msr	tcr_el2, x0
 
 	isb
@@ -292,6 +288,8 @@ alternative_else_nop_endif
 	mov	sp, x0
 
 	/* And turn the MMU back on! */
+	dsb	nsh
+	isb
 	set_sctlr_el2	x2
 	ret	x1
 SYM_FUNC_END(__pkvm_init_switch_pgd)

@@ -18,7 +18,7 @@ struct drm_exec {
 	/**
 	 * @flags: Flags to control locking behavior
 	 */
-	uint32_t		flags;
+	u32                     flags;
 
 	/**
 	 * @ticket: WW ticket used for acquiring locks
@@ -135,7 +135,7 @@ static inline bool drm_exec_is_contended(struct drm_exec *exec)
 	return !!exec->contended;
 }
 
-void drm_exec_init(struct drm_exec *exec, uint32_t flags, unsigned nr);
+void drm_exec_init(struct drm_exec *exec, u32 flags, unsigned nr);
 void drm_exec_fini(struct drm_exec *exec);
 bool drm_exec_cleanup(struct drm_exec *exec);
 int drm_exec_lock_obj(struct drm_exec *exec, struct drm_gem_object *obj);

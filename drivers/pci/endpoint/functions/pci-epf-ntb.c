@@ -140,9 +140,9 @@ static struct pci_epf_header epf_ntb_header = {
 static int epf_ntb_link_up(struct epf_ntb *ntb, bool link_up)
 {
 	enum pci_epc_interface_type type;
-	enum pci_epc_irq_type irq_type;
 	struct epf_ntb_epc *ntb_epc;
 	struct epf_ntb_ctrl *ctrl;
+	unsigned int irq_type;
 	struct pci_epc *epc;
 	u8 func_no, vfunc_no;
 	bool is_msix;
@@ -159,7 +159,7 @@ static int epf_ntb_link_up(struct epf_ntb *ntb, bool link_up)
 			ctrl->link_status |= LINK_STATUS_UP;
 		else
 			ctrl->link_status &= ~LINK_STATUS_UP;
-		irq_type = is_msix ? PCI_EPC_IRQ_MSIX : PCI_EPC_IRQ_MSI;
+		irq_type = is_msix ? PCI_IRQ_MSIX : PCI_IRQ_MSI;
 		ret = pci_epc_raise_irq(epc, func_no, vfunc_no, irq_type, 1);
 		if (ret) {
 			dev_err(&epc->dev,
@@ -2099,7 +2099,7 @@ static int epf_ntb_probe(struct pci_epf *epf,
 	return 0;
 }
 
-static struct pci_epf_ops epf_ntb_ops = {
+static const struct pci_epf_ops epf_ntb_ops = {
 	.bind	= epf_ntb_bind,
 	.unbind	= epf_ntb_unbind,
 	.add_cfs = epf_ntb_add_cfs,

@@ -24,13 +24,15 @@ struct loongson_board_info {
 	const char *board_vendor;
 };
 
+#define NR_WORDS DIV_ROUND_UP(NR_CPUS, BITS_PER_LONG)
+
 struct loongson_system_configuration {
 	int nr_cpus;
 	int nr_nodes;
 	int boot_cpu_id;
 	int cores_per_node;
 	int cores_per_package;
-	unsigned long cores_io_master;
+	unsigned long cores_io_master[NR_WORDS];
 	unsigned long suspend_addr;
 	const char *cpuname;
 };
@@ -42,7 +44,7 @@ extern struct loongson_system_configuration loongson_sysconf;
 
 static inline bool io_master(int cpu)
 {
-	return test_bit(cpu, &loongson_sysconf.cores_io_master);
+	return test_bit(cpu, loongson_sysconf.cores_io_master);
 }
 
 #endif /* _ASM_BOOTINFO_H */

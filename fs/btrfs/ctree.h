@@ -212,8 +212,6 @@ struct btrfs_root {
 
 	u64 last_trans;
 
-	u32 type;
-
 	u64 free_objectid;
 
 	struct btrfs_key defrag_progress;
@@ -224,18 +222,15 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	spinlock_t log_extents_lock[2];
-	struct list_head logged_list[2];
-
 	spinlock_t inode_lock;
 	/* red-black tree that keeps track of in-memory inodes */
 	struct rb_root inode_tree;
 
 	/*
-	 * radix tree that keeps track of delayed nodes of every inode,
-	 * protected by inode_lock
+	 * Xarray that keeps track of delayed nodes of every inode, protected
+	 * by @inode_lock.
 	 */
-	struct radix_tree_root delayed_nodes_tree;
+	struct xarray delayed_nodes;
 	/*
 	 * right now this just gets used so that a root has its own devid
 	 * for stat.  It may be used for more later
@@ -561,9 +556,9 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root,
 		      struct extent_buffer *buf,
 		      struct extent_buffer **cow_ret, u64 new_root_objectid);
-int btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
-			      struct btrfs_root *root,
-			      struct extent_buffer *buf);
+bool btrfs_block_can_be_shared(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct extent_buffer *buf);
 int btrfs_del_ptr(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		  struct btrfs_path *path, int level, int slot);
 void btrfs_extend_item(struct btrfs_trans_handle *trans,

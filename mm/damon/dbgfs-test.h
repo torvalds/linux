@@ -2,7 +2,7 @@
 /*
  * DAMON Debugfs Interface Unit Tests
  *
- * Author: SeongJae Park <sjpark@amazon.de>
+ * Author: SeongJae Park <sj@kernel.org>
  */
 
 #ifdef CONFIG_DAMON_DBGFS_KUNIT_TEST

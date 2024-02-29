@@ -139,6 +139,17 @@ If your installed version of gcc doesn't work, you can tweak the steps:
 	$ ./tools/testing/kunit/kunit.py run --make_options=CC=/usr/bin/gcc-6
 	$ lcov -t "my_kunit_tests" -o coverage.info -c -d .kunit/ --gcov-tool=/usr/bin/gcov-6
 
+Alternatively, LLVM-based toolchains can also be used:
+
+.. code-block:: bash
+
+	# Build with LLVM and append coverage options to the current config
+	$ ./tools/testing/kunit/kunit.py run --make_options LLVM=1 --kunitconfig=.kunit/ --kunitconfig=tools/testing/kunit/configs/coverage_uml.config
+	$ llvm-profdata merge -sparse default.profraw -o default.profdata
+	$ llvm-cov export --format=lcov .kunit/vmlinux -instr-profile default.profdata > coverage.info
+	# The coverage.info file is in lcov-compatible format and it can be used to e.g. generate HTML report
+	$ genhtml -o /tmp/coverage_html coverage.info
+
 
 Running tests manually
 ======================
@@ -428,3 +439,10 @@ This attribute indicates the name of the module associated with the test.
 
 This attribute is automatically saved as a string and is printed for each suite.
 Tests can also be filtered using this attribute.
+
+``is_init``
+
+This attribute indicates whether the test uses init data or functions.
+
+This attribute is automatically saved as a boolean and tests can also be
+filtered using this attribute.

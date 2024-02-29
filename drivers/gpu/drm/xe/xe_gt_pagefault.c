@@ -165,7 +165,8 @@ retry_userptr:
 		goto unlock_vm;
 	}
 
-	if (!xe_vma_is_userptr(vma) || !xe_vma_userptr_check_repin(vma)) {
+	if (!xe_vma_is_userptr(vma) ||
+	    !xe_vma_userptr_check_repin(to_userptr_vma(vma))) {
 		downgrade_write(&vm->lock);
 		write_locked = false;
 	}
@@ -181,11 +182,13 @@ retry_userptr:
 	/* TODO: Validate fault */
 
 	if (xe_vma_is_userptr(vma) && write_locked) {
+		struct xe_userptr_vma *uvma = to_userptr_vma(vma);
+
 		spin_lock(&vm->userptr.invalidated_lock);
-		list_del_init(&vma->userptr.invalidate_link);
+		list_del_init(&uvma->userptr.invalidate_link);
 		spin_unlock(&vm->userptr.invalidated_lock);
 
-		ret = xe_vma_userptr_pin_pages(vma);
+		ret = xe_vma_userptr_pin_pages(uvma);
 		if (ret)
 			goto unlock_vm;
 
@@ -220,7 +223,7 @@ retry_userptr:
 	dma_fence_put(fence);
 
 	if (xe_vma_is_userptr(vma))
-		ret = xe_vma_userptr_check_repin(vma);
+		ret = xe_vma_userptr_check_repin(to_userptr_vma(vma));
 	vma->usm.tile_invalidated &= ~BIT(tile->id);
 
 unlock_dma_resv:
@@ -282,9 +285,9 @@ static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 	bool ret = false;
 
 	spin_lock_irq(&pf_queue->lock);
-	if (pf_queue->head != pf_queue->tail) {
+	if (pf_queue->tail != pf_queue->head) {
 		desc = (const struct xe_guc_pagefault_desc *)
-			(pf_queue->data + pf_queue->head);
+			(pf_queue->data + pf_queue->tail);
 
 		pf->fault_level = FIELD_GET(PFD_FAULT_LEVEL, desc->dw0);
 		pf->trva_fault = FIELD_GET(XE2_PFD_TRVA_FAULT, desc->dw0);
@@ -302,7 +305,7 @@ static bool get_pagefault(struct pf_queue *pf_queue, struct pagefault *pf)
 		pf->page_addr |= FIELD_GET(PFD_VIRTUAL_ADDR_LO, desc->dw2) <<
 			PFD_VIRTUAL_ADDR_LO_SHIFT;
 
-		pf_queue->head = (pf_queue->head + PF_MSG_LEN_DW) %
+		pf_queue->tail = (pf_queue->tail + PF_MSG_LEN_DW) %
 			PF_QUEUE_NUM_DW;
 		ret = true;
 	}
@@ -315,7 +318,7 @@ static bool pf_queue_full(struct pf_queue *pf_queue)
 {
 	lockdep_assert_held(&pf_queue->lock);
 
-	return CIRC_SPACE(pf_queue->tail, pf_queue->head, PF_QUEUE_NUM_DW) <=
+	return CIRC_SPACE(pf_queue->head, pf_queue->tail, PF_QUEUE_NUM_DW) <=
 		PF_MSG_LEN_DW;
 }
 
@@ -328,17 +331,22 @@ int xe_guc_pagefault_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	u32 asid;
 	bool full;
 
+	/*
+	 * The below logic doesn't work unless PF_QUEUE_NUM_DW % PF_MSG_LEN_DW == 0
+	 */
+	BUILD_BUG_ON(PF_QUEUE_NUM_DW % PF_MSG_LEN_DW);
+
 	if (unlikely(len != PF_MSG_LEN_DW))
 		return -EPROTO;
 
 	asid = FIELD_GET(PFD_ASID, msg[1]);
-	pf_queue = &gt->usm.pf_queue[asid % NUM_PF_QUEUE];
+	pf_queue = gt->usm.pf_queue + (asid % NUM_PF_QUEUE);
 
 	spin_lock_irqsave(&pf_queue->lock, flags);
 	full = pf_queue_full(pf_queue);
 	if (!full) {
-		memcpy(pf_queue->data + pf_queue->tail, msg, len * sizeof(u32));
-		pf_queue->tail = (pf_queue->tail + len) % PF_QUEUE_NUM_DW;
+		memcpy(pf_queue->data + pf_queue->head, msg, len * sizeof(u32));
+		pf_queue->head = (pf_queue->head + len) % PF_QUEUE_NUM_DW;
 		queue_work(gt->usm.pf_wq, &pf_queue->worker);
 	} else {
 		drm_warn(&xe->drm, "PF Queue full, shouldn't be possible");
@@ -384,7 +392,7 @@ static void pf_queue_work_func(struct work_struct *w)
 		send_pagefault_reply(&gt->uc.guc, &reply);
 
 		if (time_after(jiffies, threshold) &&
-		    pf_queue->head != pf_queue->tail) {
+		    pf_queue->tail != pf_queue->head) {
 			queue_work(gt->usm.pf_wq, w);
 			break;
 		}
@@ -559,9 +567,9 @@ static bool get_acc(struct acc_queue *acc_queue, struct acc *acc)
 	bool ret = false;
 
 	spin_lock(&acc_queue->lock);
-	if (acc_queue->head != acc_queue->tail) {
+	if (acc_queue->tail != acc_queue->head) {
 		desc = (const struct xe_guc_acc_desc *)
-			(acc_queue->data + acc_queue->head);
+			(acc_queue->data + acc_queue->tail);
 
 		acc->granularity = FIELD_GET(ACC_GRANULARITY, desc->dw2);
 		acc->sub_granularity = FIELD_GET(ACC_SUBG_HI, desc->dw1) << 31 |
@@ -574,7 +582,7 @@ static bool get_acc(struct acc_queue *acc_queue, struct acc *acc)
 		acc->va_range_base = make_u64(desc->dw3 & ACC_VIRTUAL_ADDR_RANGE_HI,
 					      desc->dw2 & ACC_VIRTUAL_ADDR_RANGE_LO);
 
-		acc_queue->head = (acc_queue->head + ACC_MSG_LEN_DW) %
+		acc_queue->tail = (acc_queue->tail + ACC_MSG_LEN_DW) %
 				  ACC_QUEUE_NUM_DW;
 		ret = true;
 	}
@@ -602,7 +610,7 @@ static void acc_queue_work_func(struct work_struct *w)
 		}
 
 		if (time_after(jiffies, threshold) &&
-		    acc_queue->head != acc_queue->tail) {
+		    acc_queue->tail != acc_queue->head) {
 			queue_work(gt->usm.acc_wq, w);
 			break;
 		}
@@ -613,7 +621,7 @@ static bool acc_queue_full(struct acc_queue *acc_queue)
 {
 	lockdep_assert_held(&acc_queue->lock);
 
-	return CIRC_SPACE(acc_queue->tail, acc_queue->head, ACC_QUEUE_NUM_DW) <=
+	return CIRC_SPACE(acc_queue->head, acc_queue->tail, ACC_QUEUE_NUM_DW) <=
 		ACC_MSG_LEN_DW;
 }
 
@@ -624,6 +632,11 @@ int xe_guc_access_counter_notify_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	u32 asid;
 	bool full;
 
+	/*
+	 * The below logic doesn't work unless ACC_QUEUE_NUM_DW % ACC_MSG_LEN_DW == 0
+	 */
+	BUILD_BUG_ON(ACC_QUEUE_NUM_DW % ACC_MSG_LEN_DW);
+
 	if (unlikely(len != ACC_MSG_LEN_DW))
 		return -EPROTO;
 
@@ -633,9 +646,9 @@ int xe_guc_access_counter_notify_handler(struct xe_guc *guc, u32 *msg, u32 len)
 	spin_lock(&acc_queue->lock);
 	full = acc_queue_full(acc_queue);
 	if (!full) {
-		memcpy(acc_queue->data + acc_queue->tail, msg,
+		memcpy(acc_queue->data + acc_queue->head, msg,
 		       len * sizeof(u32));
-		acc_queue->tail = (acc_queue->tail + len) % ACC_QUEUE_NUM_DW;
+		acc_queue->head = (acc_queue->head + len) % ACC_QUEUE_NUM_DW;
 		queue_work(gt->usm.acc_wq, &acc_queue->worker);
 	} else {
 		drm_warn(&gt_to_xe(gt)->drm, "ACC Queue full, dropping ACC");

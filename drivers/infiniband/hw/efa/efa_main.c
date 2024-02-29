@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
 /*
- * Copyright 2018-2022 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -9,6 +9,7 @@
 #include <linux/version.h>
 
 #include <rdma/ib_user_verbs.h>
+#include <rdma/uverbs_ioctl.h>
 
 #include "efa.h"
 
@@ -35,6 +36,8 @@ MODULE_DEVICE_TABLE(pci, efa_pci_tbl);
 #define EFA_AENQ_ENABLED_GROUPS \
 	(BIT(EFA_ADMIN_FATAL_ERROR) | BIT(EFA_ADMIN_WARNING) | \
 	 BIT(EFA_ADMIN_NOTIFICATION) | BIT(EFA_ADMIN_KEEP_ALIVE))
+
+extern const struct uapi_definition efa_uapi_defs[];
 
 /* This handler will called for unknown event group or unimplemented handlers */
 static void unimplemented_aenq_handler(void *data,
@@ -431,6 +434,8 @@ static int efa_ib_device_add(struct efa_dev *dev)
 	dev->ibdev.dev.parent = &pdev->dev;
 
 	ib_set_device_ops(&dev->ibdev, &efa_dev_ops);
+
+	dev->ibdev.driver_def = efa_uapi_defs;
 
 	err = ib_register_device(&dev->ibdev, "efa_%d", &pdev->dev);
 	if (err)

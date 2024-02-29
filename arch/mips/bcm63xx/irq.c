@@ -72,7 +72,7 @@ static inline int enable_irq_for_cpu(int cpu, struct irq_data *d,
  */
 
 #define BUILD_IPIC_INTERNAL(width)					\
-void __dispatch_internal_##width(int cpu)				\
+static void __dispatch_internal_##width(int cpu)			\
 {									\
 	u32 pending[width / 32];					\
 	unsigned int src, tgt;						\

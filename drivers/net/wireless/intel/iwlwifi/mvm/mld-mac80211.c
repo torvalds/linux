@@ -81,7 +81,8 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		ieee80211_hw_set(mvm->hw, RX_INCLUDES_FCS);
 	}
 
-	iwl_mvm_vif_dbgfs_add_link(mvm, vif);
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_vif_dbgfs_add_link(mvm, vif);
 
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
@@ -271,16 +272,16 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 		}
 	}
 
+	mvmvif->link[link_id]->phy_ctxt = phy_ctxt;
+
 	if (iwl_mvm_is_esr_supported(mvm->fwrt.trans) && n_active > 1) {
 		mvmvif->link[link_id]->listen_lmac = true;
 		ret = iwl_mvm_esr_mode_active(mvm, vif);
 		if (ret) {
 			IWL_ERR(mvm, "failed to activate ESR mode (%d)\n", ret);
-			return ret;
+			goto out;
 		}
 	}
-
-	mvmvif->link[link_id]->phy_ctxt = phy_ctxt;
 
 	if (switching_chanctx) {
 		/* reactivate if we turned this off during channel switch */
@@ -437,6 +438,9 @@ __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		mvmvif->ap_ibss_active = false;
 	}
 
+	iwl_mvm_link_changed(mvm, vif, link_conf,
+			     LINK_CONTEXT_MODIFY_ACTIVE, false);
+
 	if (iwl_mvm_is_esr_supported(mvm->fwrt.trans) && n_active > 1) {
 		int ret = iwl_mvm_esr_mode_inactive(mvm, vif);
 
@@ -447,9 +451,6 @@ __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_mld_rm_snif_sta(mvm, vif);
-
-	iwl_mvm_link_changed(mvm, vif, link_conf,
-			     LINK_CONTEXT_MODIFY_ACTIVE, false);
 
 	if (switching_chanctx)
 		return;
@@ -716,7 +717,7 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		}
 	}
 
-	if (WARN_ON(!new_active_links))
+	if (!new_active_links)
 		return;
 
 	if (vif->active_links != new_active_links)

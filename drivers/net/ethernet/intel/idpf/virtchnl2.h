@@ -978,7 +978,7 @@ struct virtchnl2_ptype {
 	u8 proto_id_count;
 	__le16 pad;
 	__le16 proto_id[];
-};
+} __packed __aligned(2);
 VIRTCHNL2_CHECK_STRUCT_LEN(6, virtchnl2_ptype);
 
 /**
@@ -1104,9 +1104,9 @@ struct virtchnl2_rss_key {
 	__le32 vport_id;
 	__le16 key_len;
 	u8 pad;
-	__DECLARE_FLEX_ARRAY(u8, key_flex);
-};
-VIRTCHNL2_CHECK_STRUCT_LEN(8, virtchnl2_rss_key);
+	u8 key_flex[];
+} __packed;
+VIRTCHNL2_CHECK_STRUCT_LEN(7, virtchnl2_rss_key);
 
 /**
  * struct virtchnl2_queue_chunk - chunk of contiguous queues

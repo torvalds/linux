@@ -512,6 +512,7 @@ config SENSORS_DS1621
 
 config SENSORS_DELL_SMM
 	tristate "Dell laptop SMM BIOS hwmon driver"
+	depends on ACPI_WMI
 	depends on X86
 	imply THERMAL
 	help
@@ -662,6 +663,16 @@ config SENSORS_FTSTEUTATES
 
 	  This driver can also be built as a module. If so, the module
 	  will be called ftsteutates.
+
+config SENSORS_GIGABYTE_WATERFORCE
+	tristate "Gigabyte Waterforce X240/X280/X360 AIO CPU coolers"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  Gigabyte Waterforce X240/X280/X360 all-in-one CPU liquid coolers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gigabyte_waterforce.
 
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"

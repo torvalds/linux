@@ -61,7 +61,7 @@ void __init reserve_real_mode(void)
 		set_real_mode_mem(mem);
 
 	/*
-	 * Unconditionally reserve the entire fisrt 1M, see comment in
+	 * Unconditionally reserve the entire first 1M, see comment in
 	 * setup_arch().
 	 */
 	memblock_reserve(0, SZ_1M);

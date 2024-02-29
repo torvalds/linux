@@ -128,6 +128,7 @@ enum AMDGPU_DEBUG_MASK {
 	AMDGPU_DEBUG_VM = BIT(0),
 	AMDGPU_DEBUG_LARGEBAR = BIT(1),
 	AMDGPU_DEBUG_DISABLE_GPU_SOFT_RECOVERY = BIT(2),
+	AMDGPU_DEBUG_USE_VRAM_FW_BUF = BIT(3),
 };
 
 unsigned int amdgpu_vram_limit = UINT_MAX;
@@ -210,7 +211,7 @@ int amdgpu_seamless = -1; /* auto */
 uint amdgpu_debug_mask;
 int amdgpu_agp = -1; /* auto */
 int amdgpu_wbrf = -1;
-int fw_bo_location = -1;
+int amdgpu_damage_clips = -1; /* auto */
 
 static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work);
 
@@ -366,7 +367,7 @@ module_param_named(aspm, amdgpu_aspm, int, 0444);
  * Setting the value to 0 disables this functionality.
  * Setting the value to -2 is auto enabled with power down when displays are attached.
  */
-MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto, -2 = autowith displays)");
+MODULE_PARM_DESC(runpm, "PX runtime pm (2 = force enable with BAMACO, 1 = force enable with BACO, 0 = disable, -1 = auto, -2 = auto with displays)");
 module_param_named(runpm, amdgpu_runtime_pm, int, 0444);
 
 /**
@@ -593,7 +594,7 @@ module_param_named(timeout_period, amdgpu_watchdog_timer.period, uint, 0644);
 #ifdef CONFIG_DRM_AMDGPU_SI
 
 #if IS_ENABLED(CONFIG_DRM_RADEON) || IS_ENABLED(CONFIG_DRM_RADEON_MODULE)
-int amdgpu_si_support = 0;
+int amdgpu_si_support;
 MODULE_PARM_DESC(si_support, "SI support (1 = enabled, 0 = disabled (default))");
 #else
 int amdgpu_si_support = 1;
@@ -612,7 +613,7 @@ module_param_named(si_support, amdgpu_si_support, int, 0444);
 #ifdef CONFIG_DRM_AMDGPU_CIK
 
 #if IS_ENABLED(CONFIG_DRM_RADEON) || IS_ENABLED(CONFIG_DRM_RADEON_MODULE)
-int amdgpu_cik_support = 0;
+int amdgpu_cik_support;
 MODULE_PARM_DESC(cik_support, "CIK support (1 = enabled, 0 = disabled (default))");
 #else
 int amdgpu_cik_support = 1;
@@ -848,16 +849,29 @@ module_param_named(visualconfirm, amdgpu_dc_visual_confirm, uint, 0444);
  * the ABM algorithm, with 1 being the least reduction and 4 being the most
  * reduction.
  *
- * Defaults to 0, or disabled. Userspace can still override this level later
- * after boot.
+ * Defaults to -1, or disabled. Userspace can only override this level after
+ * boot if it's set to auto.
  */
-uint amdgpu_dm_abm_level;
-MODULE_PARM_DESC(abmlevel, "ABM level (0 = off (default), 1-4 = backlight reduction level) ");
-module_param_named(abmlevel, amdgpu_dm_abm_level, uint, 0444);
+int amdgpu_dm_abm_level = -1;
+MODULE_PARM_DESC(abmlevel,
+		 "ABM level (0 = off, 1-4 = backlight reduction level, -1 auto (default))");
+module_param_named(abmlevel, amdgpu_dm_abm_level, int, 0444);
 
 int amdgpu_backlight = -1;
 MODULE_PARM_DESC(backlight, "Backlight control (0 = pwm, 1 = aux, -1 auto (default))");
 module_param_named(backlight, amdgpu_backlight, bint, 0444);
+
+/**
+ * DOC: damageclips (int)
+ * Enable or disable damage clips support. If damage clips support is disabled,
+ * we will force full frame updates, irrespective of what user space sends to
+ * us.
+ *
+ * Defaults to -1 (where it is enabled unless a PSR-SU display is detected).
+ */
+MODULE_PARM_DESC(damageclips,
+		 "Damage clips support (0 = disable, 1 = enable, -1 auto (default))");
+module_param_named(damageclips, amdgpu_damage_clips, int, 0444);
 
 /**
  * DOC: tmz (int)
@@ -989,10 +1003,6 @@ module_param_named(agp, amdgpu_agp, int, 0444);
 MODULE_PARM_DESC(wbrf,
 	"Enable Wifi RFI interference mitigation (0 = disabled, 1 = enabled, -1 = auto(default)");
 module_param_named(wbrf, amdgpu_wbrf, int, 0444);
-
-MODULE_PARM_DESC(fw_bo_location,
-	"location to put firmware bo for frontdoor loading (-1 = auto (default), 0 = on ram, 1 = on vram");
-module_param(fw_bo_location, int, 0644);
 
 /* These devices are not supported by amdgpu.
  * They are supported by the mach64, r128, radeon drivers
@@ -2122,6 +2132,11 @@ static void amdgpu_init_debug_options(struct amdgpu_device *adev)
 		pr_info("debug: soft reset for GPU recovery disabled\n");
 		adev->debug_disable_soft_recovery = true;
 	}
+
+	if (amdgpu_debug_mask & AMDGPU_DEBUG_USE_VRAM_FW_BUF) {
+		pr_info("debug: place fw in vram for frontdoor loading\n");
+		adev->debug_use_vram_fw_buf = true;
+	}
 }
 
 static unsigned long amdgpu_fix_asic_type(struct pci_dev *pdev, unsigned long flags)
@@ -2233,6 +2248,8 @@ static int amdgpu_pci_probe(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, ddev);
 
+	amdgpu_init_debug_options(adev);
+
 	ret = amdgpu_driver_load_kms(adev, flags);
 	if (ret)
 		goto err_pci;
@@ -2249,6 +2266,10 @@ retry_init:
 	}
 
 	ret = amdgpu_xcp_dev_register(adev, ent);
+	if (ret)
+		goto err_pci;
+
+	ret = amdgpu_amdkfd_drm_client_create(adev);
 	if (ret)
 		goto err_pci;
 
@@ -2313,8 +2334,6 @@ retry_init:
 			amdgpu_get_secondary_funcs(adev);
 	}
 
-	amdgpu_init_debug_options(adev);
-
 	return 0;
 
 err_pci:
@@ -2334,38 +2353,6 @@ amdgpu_pci_remove(struct pci_dev *pdev)
 	if (adev->pm.rpm_mode != AMDGPU_RUNPM_NONE) {
 		pm_runtime_get_sync(dev->dev);
 		pm_runtime_forbid(dev->dev);
-	}
-
-	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 2) &&
-	    !amdgpu_sriov_vf(adev)) {
-		bool need_to_reset_gpu = false;
-
-		if (adev->gmc.xgmi.num_physical_nodes > 1) {
-			struct amdgpu_hive_info *hive;
-
-			hive = amdgpu_get_xgmi_hive(adev);
-			if (hive->device_remove_count == 0)
-				need_to_reset_gpu = true;
-			hive->device_remove_count++;
-			amdgpu_put_xgmi_hive(hive);
-		} else {
-			need_to_reset_gpu = true;
-		}
-
-		/* Workaround for ASICs need to reset SMU.
-		 * Called only when the first device is removed.
-		 */
-		if (need_to_reset_gpu) {
-			struct amdgpu_reset_context reset_context;
-
-			adev->shutdown = true;
-			memset(&reset_context, 0, sizeof(reset_context));
-			reset_context.method = AMD_RESET_METHOD_NONE;
-			reset_context.reset_req_dev = adev;
-			set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
-			set_bit(AMDGPU_RESET_FOR_DEVICE_REMOVE, &reset_context.flags);
-			amdgpu_device_gpu_recover(adev, NULL, &reset_context);
-		}
 	}
 
 	amdgpu_driver_unload_kms(dev);
@@ -2503,6 +2490,7 @@ static int amdgpu_pmops_suspend(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 
+	adev->suspend_complete = false;
 	if (amdgpu_acpi_is_s0ix_active(adev))
 		adev->in_s0ix = true;
 	else if (amdgpu_acpi_is_s3_active(adev))
@@ -2517,6 +2505,7 @@ static int amdgpu_pmops_suspend_noirq(struct device *dev)
 	struct drm_device *drm_dev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(drm_dev);
 
+	adev->suspend_complete = true;
 	if (amdgpu_acpi_should_gpu_reset(adev))
 		return amdgpu_asic_reset(adev);
 

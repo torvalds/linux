@@ -311,6 +311,25 @@
 		};
 	};
 
+	mpm: interrupt-controller {
+		compatible = "qcom,mpm";
+		qcom,rpm-msg-ram = <&apss_mpm>;
+		interrupts = <GIC_SPI 197 IRQ_TYPE_EDGE_RISING>;
+		mboxes = <&ipcc IPCC_CLIENT_AOP IPCC_MPROC_SIGNAL_SMP2P>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		#power-domain-cells = <0>;
+		interrupt-parent = <&intc>;
+		qcom,mpm-pin-count = <96>;
+		qcom,mpm-pin-map = <5 296>,  /* Soundwire wake_irq */
+				   <12 422>, /* DWC3 ss_phy_irq */
+				   <86 183>, /* MPM wake, SPMI */
+				   <89 314>, /* TSENS0 0C */
+				   <90 315>, /* TSENS1 0C */
+				   <93 164>, /* DWC3 dm_hs_phy_irq */
+				   <94 165>; /* DWC3 dp_hs_phy_irq */
+	};
+
 	memory@80000000 {
 		device_type = "memory";
 		/* We expect the bootloader to fill in the size */
@@ -486,6 +505,7 @@
 
 		CLUSTER_PD: power-domain-cpu-cluster0 {
 			#power-domain-cells = <0>;
+			power-domains = <&mpm>;
 			domain-idle-states = <&CLUSTER_SLEEP_0>;
 		};
 	};
@@ -808,7 +828,7 @@
 			reg = <0 0x00500000 0 0x800000>;
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&tlmm 0 0 157>;
-			/* TODO: Hook up MPM as wakeup-parent when it's there */
+			wakeup-parent = <&mpm>;
 			interrupt-controller;
 			gpio-controller;
 			#interrupt-cells = <2>;
@@ -896,6 +916,36 @@
 				drive-strength = <6>;
 				bias-disable;
 			};
+
+			qup_uart1_default: qup-uart1-default-state {
+				cts-pins {
+					pins = "gpio61";
+					function = "qup01";
+					drive-strength = <2>;
+					bias-pull-down;
+				};
+
+				rts-pins {
+					pins = "gpio62";
+					function = "qup01";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				tx-pins {
+					pins = "gpio63";
+					function = "qup01";
+					drive-strength = <2>;
+					bias-disable;
+				};
+
+				rx-pins {
+					pins = "gpio64";
+					function = "qup01";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
 		};
 
 		gcc: clock-controller@1400000 {
@@ -930,7 +980,7 @@
 			      <0 0x01c0a000 0 0x26000>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
-			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&mpm 86 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
 			#address-cells = <2>;
@@ -962,8 +1012,15 @@
 		};
 
 		rpm_msg_ram: sram@45f0000 {
-			compatible = "qcom,rpm-msg-ram";
+			compatible = "qcom,rpm-msg-ram", "mmio-sram";
 			reg = <0 0x045f0000 0 0x7000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x0 0x045f0000 0x7000>;
+
+			apss_mpm: sram@1b8 {
+				reg = <0x1b8 0x48>;
+			};
 		};
 
 		sram@4690000 {
@@ -1108,6 +1165,19 @@
 				dma-names = "tx", "rx";
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "disabled";
+			};
+
+			uart1: serial@4a84000 {
+				compatible = "qcom,geni-uart";
+				reg = <0x0 0x04a84000 0x0 0x4000>;
+				interrupts = <GIC_SPI 328 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&gcc GCC_QUPV3_WRAP0_S1_CLK>;
+				clock-names = "se";
+				power-domains = <&rpmpd SM6375_VDDCX>;
+				operating-points-v2 = <&qup_opp_table>;
+				pinctrl-0 = <&qup_uart1_default>;
+				pinctrl-names = "default";
 				status = "disabled";
 			};
 
@@ -1360,10 +1430,10 @@
 					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <133333333>;
 
-			interrupts = <GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&intc GIC_SPI 302 IRQ_TYPE_LEVEL_HIGH>,
+					      <&mpm 12 IRQ_TYPE_LEVEL_HIGH>,
+					      <&mpm 93 IRQ_TYPE_EDGE_BOTH>,
+					      <&mpm 94 IRQ_TYPE_EDGE_BOTH>;
 			interrupt-names = "hs_phy_irq",
 					  "ss_phy_irq",
 					  "dm_hs_phy_irq",

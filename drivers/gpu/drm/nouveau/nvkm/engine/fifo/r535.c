@@ -242,6 +242,7 @@ r535_chan_id_put(struct nvkm_chan *chan)
 				nvkm_memory_unref(&userd->mem);
 				nvkm_chid_put(runl->chid, userd->chid, &chan->cgrp->lock);
 				list_del(&userd->head);
+				kfree(userd);
 			}
 
 			break;

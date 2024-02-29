@@ -17,9 +17,9 @@
 	compatible = "pine64,quartzpro64", "rockchip,rk3588";
 
 	aliases {
+		ethernet0 = &gmac0;
 		mmc0 = &sdhci;
 		mmc1 = &sdmmc;
-		serial2 = &uart2;
 	};
 
 	chosen {

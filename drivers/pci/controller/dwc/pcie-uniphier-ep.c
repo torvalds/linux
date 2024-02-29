@@ -212,7 +212,7 @@ static void uniphier_pcie_ep_init(struct dw_pcie_ep *ep)
 		dw_pcie_ep_reset_bar(pci, bar);
 }
 
-static int uniphier_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep)
+static int uniphier_pcie_ep_raise_intx_irq(struct dw_pcie_ep *ep)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 	struct uniphier_pcie_ep_priv *priv = to_uniphier_pcie(pci);
@@ -256,15 +256,14 @@ static int uniphier_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep,
 }
 
 static int uniphier_pcie_ep_raise_irq(struct dw_pcie_ep *ep, u8 func_no,
-				      enum pci_epc_irq_type type,
-				      u16 interrupt_num)
+				      unsigned int type, u16 interrupt_num)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
 
 	switch (type) {
-	case PCI_EPC_IRQ_LEGACY:
-		return uniphier_pcie_ep_raise_legacy_irq(ep);
-	case PCI_EPC_IRQ_MSI:
+	case PCI_IRQ_INTX:
+		return uniphier_pcie_ep_raise_intx_irq(ep);
+	case PCI_IRQ_MSI:
 		return uniphier_pcie_ep_raise_msi_irq(ep, func_no,
 						      interrupt_num);
 	default:
@@ -284,7 +283,7 @@ uniphier_pcie_get_features(struct dw_pcie_ep *ep)
 }
 
 static const struct dw_pcie_ep_ops uniphier_pcie_ep_ops = {
-	.ep_init = uniphier_pcie_ep_init,
+	.init = uniphier_pcie_ep_init,
 	.raise_irq = uniphier_pcie_ep_raise_irq,
 	.get_features = uniphier_pcie_get_features,
 };

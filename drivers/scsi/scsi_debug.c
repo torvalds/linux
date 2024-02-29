@@ -339,7 +339,7 @@ struct sdebug_dev_info {
 	bool used;
 
 	/* For ZBC devices */
-	enum blk_zoned_model zmodel;
+	bool zoned;
 	unsigned int zcap;
 	unsigned int zsize;
 	unsigned int zsize_shift;
@@ -844,8 +844,11 @@ static bool write_since_sync;
 static bool sdebug_statistics = DEF_STATISTICS;
 static bool sdebug_wp;
 static bool sdebug_allow_restart;
-/* Following enum: 0: no zbc, def; 1: host aware; 2: host managed */
-static enum blk_zoned_model sdeb_zbc_model = BLK_ZONED_NONE;
+static enum {
+	BLK_ZONED_NONE	= 0,
+	BLK_ZONED_HA	= 1,
+	BLK_ZONED_HM	= 2,
+} sdeb_zbc_model = BLK_ZONED_NONE;
 static char *sdeb_zbc_model_s;
 
 enum sam_lun_addr_method {SAM_LUN_AM_PERIPHERAL = 0x0,
@@ -1815,8 +1818,6 @@ static int inquiry_vpd_b1(struct sdebug_dev_info *devip, unsigned char *arr)
 	arr[1] = 1;	/* non rotating medium (e.g. solid state) */
 	arr[2] = 0;
 	arr[3] = 5;	/* less than 1.8" */
-	if (devip->zmodel == BLK_ZONED_HA)
-		arr[4] = 1 << 4;	/* zoned field = 01b */
 
 	return 0x3c;
 }
@@ -1883,7 +1884,7 @@ static int resp_inquiry(struct scsi_cmnd *scp, struct sdebug_dev_info *devip)
 	if (! arr)
 		return DID_REQUEUE << 16;
 	is_disk = (sdebug_ptype == TYPE_DISK);
-	is_zbc = (devip->zmodel != BLK_ZONED_NONE);
+	is_zbc = devip->zoned;
 	is_disk_zbc = (is_disk || is_zbc);
 	have_wlun = scsi_is_wlun(scp->device->lun);
 	if (have_wlun)
@@ -2195,7 +2196,7 @@ static int resp_readcap16(struct scsi_cmnd *scp,
 	 * Since the scsi_debug READ CAPACITY implementation always reports the
 	 * total disk capacity, set RC BASIS = 1 for host-managed ZBC devices.
 	 */
-	if (devip->zmodel == BLK_ZONED_HM)
+	if (devip->zoned)
 		arr[12] |= 1 << 4;
 
 	arr[15] = sdebug_lowest_aligned & 0xff;
@@ -2648,7 +2649,7 @@ static int resp_mode_sense(struct scsi_cmnd *scp,
 	msense_6 = (MODE_SENSE == cmd[0]);
 	llbaa = msense_6 ? false : !!(cmd[1] & 0x10);
 	is_disk = (sdebug_ptype == TYPE_DISK);
-	is_zbc = (devip->zmodel != BLK_ZONED_NONE);
+	is_zbc = devip->zoned;
 	if ((is_disk || is_zbc) && !dbd)
 		bd_len = llbaa ? 16 : 8;
 	else
@@ -3194,8 +3195,6 @@ static int check_zbc_access_params(struct scsi_cmnd *scp,
 	struct sdeb_zone_state *zsp_end = zbc_zone(devip, lba + num - 1);
 
 	if (!write) {
-		if (devip->zmodel == BLK_ZONED_HA)
-			return 0;
 		/* For host-managed, reads cannot cross zone types boundaries */
 		if (zsp->z_type != zsp_end->z_type) {
 			mk_sense_buffer(scp, ILLEGAL_REQUEST,
@@ -5322,7 +5321,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 	if (devip->zcap < devip->zsize)
 		devip->nr_zones += devip->nr_seq_zones;
 
-	if (devip->zmodel == BLK_ZONED_HM) {
+	if (devip->zoned) {
 		/* zbc_max_open_zones can be 0, meaning "not reported" */
 		if (sdeb_zbc_max_open >= devip->nr_zones - 1)
 			devip->max_open = (devip->nr_zones - 1) / 2;
@@ -5347,7 +5346,7 @@ static int sdebug_device_create_zones(struct sdebug_dev_info *devip)
 			zsp->z_size =
 				min_t(u64, devip->zsize, capacity - zstart);
 		} else if ((zstart & (devip->zsize - 1)) == 0) {
-			if (devip->zmodel == BLK_ZONED_HM)
+			if (devip->zoned)
 				zsp->z_type = ZBC_ZTYPE_SWR;
 			else
 				zsp->z_type = ZBC_ZTYPE_SWP;
@@ -5390,13 +5389,13 @@ static struct sdebug_dev_info *sdebug_device_create(
 		}
 		devip->sdbg_host = sdbg_host;
 		if (sdeb_zbc_in_use) {
-			devip->zmodel = sdeb_zbc_model;
+			devip->zoned = sdeb_zbc_model == BLK_ZONED_HM;
 			if (sdebug_device_create_zones(devip)) {
 				kfree(devip);
 				return NULL;
 			}
 		} else {
-			devip->zmodel = BLK_ZONED_NONE;
+			devip->zoned = false;
 		}
 		devip->create_ts = ktime_get_boottime();
 		atomic_set(&devip->stopped, (sdeb_tur_ms_to_ready > 0 ? 2 : 0));

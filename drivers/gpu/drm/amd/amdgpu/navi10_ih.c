@@ -442,6 +442,12 @@ static u32 navi10_ih_get_wptr(struct amdgpu_device *adev,
 	tmp = RREG32_NO_KIQ(ih_regs->ih_rb_cntl);
 	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 1);
 	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
+
+	/* Unset the CLEAR_OVERFLOW bit immediately so new overflows
+	 * can be detected.
+	 */
+	tmp = REG_SET_FIELD(tmp, IH_RB_CNTL, WPTR_OVERFLOW_CLEAR, 0);
+	WREG32_NO_KIQ(ih_regs->ih_rb_cntl, tmp);
 out:
 	return (wptr & ih->ptr_mask);
 }
@@ -722,8 +728,7 @@ static void navi10_ih_set_interrupt_funcs(struct amdgpu_device *adev)
 		adev->irq.ih_funcs = &navi10_ih_funcs;
 }
 
-const struct amdgpu_ip_block_version navi10_ih_ip_block =
-{
+const struct amdgpu_ip_block_version navi10_ih_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_IH,
 	.major = 5,
 	.minor = 0,

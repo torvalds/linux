@@ -769,8 +769,7 @@ static int og01a1b_set_format(struct v4l2_subdev *sd,
 	mutex_lock(&og01a1b->mutex);
 	og01a1b_update_pad_format(mode, &fmt->format);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		*v4l2_subdev_get_try_format(sd, sd_state,
-					    fmt->pad) = fmt->format;
+		*v4l2_subdev_state_get_format(sd_state, fmt->pad) = fmt->format;
 	} else {
 		og01a1b->cur_mode = mode;
 		__v4l2_ctrl_s_ctrl(og01a1b->link_freq, mode->link_freq_index);
@@ -803,9 +802,8 @@ static int og01a1b_get_format(struct v4l2_subdev *sd,
 
 	mutex_lock(&og01a1b->mutex);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt->format = *v4l2_subdev_get_try_format(&og01a1b->sd,
-							  sd_state,
-							  fmt->pad);
+		fmt->format = *v4l2_subdev_state_get_format(sd_state,
+							    fmt->pad);
 	else
 		og01a1b_update_pad_format(og01a1b->cur_mode, &fmt->format);
 
@@ -850,7 +848,7 @@ static int og01a1b_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&og01a1b->mutex);
 	og01a1b_update_pad_format(&supported_modes[0],
-				  v4l2_subdev_get_try_format(sd, fh->state, 0));
+				  v4l2_subdev_state_get_format(fh->state, 0));
 	mutex_unlock(&og01a1b->mutex);
 
 	return 0;

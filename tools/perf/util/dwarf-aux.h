@@ -116,12 +116,14 @@ Dwarf_Die *die_find_variable_at(Dwarf_Die *sp_die, const char *name,
 Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
 			   Dwarf_Die *die_mem);
 
+/* Get the name of given type DIE */
+int die_get_typename_from_type(Dwarf_Die *type_die, struct strbuf *buf);
+
 /* Get the name of given variable DIE */
 int die_get_typename(Dwarf_Die *vr_die, struct strbuf *buf);
 
 /* Get the name and type of given variable DIE, stored as "type\tname" */
 int die_get_varname(Dwarf_Die *vr_die, struct strbuf *buf);
-int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
 
 /* Check if target program is compiled with optimization */
 bool die_is_optimized_target(Dwarf_Die *cu_die);
@@ -130,4 +132,49 @@ bool die_is_optimized_target(Dwarf_Die *cu_die);
 void die_skip_prologue(Dwarf_Die *sp_die, Dwarf_Die *cu_die,
 		       Dwarf_Addr *entrypc);
 
-#endif
+/* Get the list of including scopes */
+int die_get_scopes(Dwarf_Die *cu_die, Dwarf_Addr pc, Dwarf_Die **scopes);
+
+#ifdef HAVE_DWARF_GETLOCATIONS_SUPPORT
+
+/* Get byte offset range of given variable DIE */
+int die_get_var_range(Dwarf_Die *sp_die, Dwarf_Die *vr_die, struct strbuf *buf);
+
+/* Find a variable saved in the 'reg' at given address */
+Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die, Dwarf_Addr pc, int reg,
+				    Dwarf_Die *die_mem);
+
+/* Find a (global) variable located in the 'addr' */
+Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die, Dwarf_Addr pc,
+				     Dwarf_Addr addr, Dwarf_Die *die_mem,
+				     int *offset);
+
+#else /*  HAVE_DWARF_GETLOCATIONS_SUPPORT */
+
+static inline int die_get_var_range(Dwarf_Die *sp_die __maybe_unused,
+				    Dwarf_Die *vr_die __maybe_unused,
+				    struct strbuf *buf __maybe_unused)
+{
+	return -ENOTSUP;
+}
+
+static inline Dwarf_Die *die_find_variable_by_reg(Dwarf_Die *sc_die __maybe_unused,
+						  Dwarf_Addr pc __maybe_unused,
+						  int reg __maybe_unused,
+						  Dwarf_Die *die_mem __maybe_unused)
+{
+	return NULL;
+}
+
+static inline Dwarf_Die *die_find_variable_by_addr(Dwarf_Die *sc_die __maybe_unused,
+						   Dwarf_Addr pc __maybe_unused,
+						   Dwarf_Addr addr __maybe_unused,
+						   Dwarf_Die *die_mem __maybe_unused,
+						   int *offset __maybe_unused)
+{
+	return NULL;
+}
+
+#endif /* HAVE_DWARF_GETLOCATIONS_SUPPORT */
+
+#endif /* _DWARF_AUX_H */

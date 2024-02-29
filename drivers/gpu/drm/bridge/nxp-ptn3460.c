@@ -154,10 +154,11 @@ static void ptn3460_disable(struct drm_bridge *bridge)
 }
 
 
-static struct edid *ptn3460_get_edid(struct drm_bridge *bridge,
-				     struct drm_connector *connector)
+static const struct drm_edid *ptn3460_edid_read(struct drm_bridge *bridge,
+						struct drm_connector *connector)
 {
 	struct ptn3460_bridge *ptn_bridge = bridge_to_ptn3460(bridge);
+	const struct drm_edid *drm_edid = NULL;
 	bool power_off;
 	u8 *edid;
 	int ret;
@@ -175,27 +176,28 @@ static struct edid *ptn3460_get_edid(struct drm_bridge *bridge,
 				 EDID_LENGTH);
 	if (ret) {
 		kfree(edid);
-		edid = NULL;
 		goto out;
 	}
+
+	drm_edid = drm_edid_alloc(edid, EDID_LENGTH);
 
 out:
 	if (power_off)
 		ptn3460_disable(&ptn_bridge->bridge);
 
-	return (struct edid *)edid;
+	return drm_edid;
 }
 
 static int ptn3460_connector_get_modes(struct drm_connector *connector)
 {
 	struct ptn3460_bridge *ptn_bridge = connector_to_ptn3460(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int num_modes;
 
-	edid = ptn3460_get_edid(&ptn_bridge->bridge, connector);
-	drm_connector_update_edid_property(connector, edid);
-	num_modes = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	drm_edid = ptn3460_edid_read(&ptn_bridge->bridge, connector);
+	drm_edid_connector_update(connector, drm_edid);
+	num_modes = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return num_modes;
 }
@@ -254,7 +256,7 @@ static const struct drm_bridge_funcs ptn3460_bridge_funcs = {
 	.pre_enable = ptn3460_pre_enable,
 	.disable = ptn3460_disable,
 	.attach = ptn3460_bridge_attach,
-	.get_edid = ptn3460_get_edid,
+	.edid_read = ptn3460_edid_read,
 };
 
 static int ptn3460_probe(struct i2c_client *client)

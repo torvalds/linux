@@ -241,7 +241,7 @@ queue_max_sectors_store(struct request_queue *q, const char *page, size_t count)
 	if (max_sectors_kb == 0) {
 		q->limits.max_user_sectors = 0;
 		max_sectors_kb = min(max_hw_sectors_kb,
-				     BLK_DEF_MAX_SECTORS >> 1);
+				     BLK_DEF_MAX_SECTORS_CAP >> 1);
 	} else {
 		if (max_sectors_kb > max_hw_sectors_kb ||
 		    max_sectors_kb < page_kb)
@@ -309,14 +309,9 @@ QUEUE_SYSFS_BIT_FNS(stable_writes, STABLE_WRITES, 0);
 
 static ssize_t queue_zoned_show(struct request_queue *q, char *page)
 {
-	switch (blk_queue_zoned_model(q)) {
-	case BLK_ZONED_HA:
-		return sprintf(page, "host-aware\n");
-	case BLK_ZONED_HM:
+	if (blk_queue_is_zoned(q))
 		return sprintf(page, "host-managed\n");
-	default:
-		return sprintf(page, "none\n");
-	}
+	return sprintf(page, "none\n");
 }
 
 static ssize_t queue_nr_zones_show(struct request_queue *q, char *page)

@@ -241,8 +241,6 @@ void loongarch_dump_regs64(u64 *uregs, const struct pt_regs *regs);
 do {									\
 	current->thread.vdso = &vdso_info;				\
 									\
-	loongarch_set_personality_fcsr(state);				\
-									\
 	if (personality(current->personality) != PER_LINUX)		\
 		set_personality(PER_LINUX);				\
 } while (0)
@@ -259,7 +257,6 @@ do {									\
 	clear_thread_flag(TIF_32BIT_ADDR);				\
 									\
 	current->thread.vdso = &vdso_info;				\
-	loongarch_set_personality_fcsr(state);				\
 									\
 	p = personality(current->personality);				\
 	if (p != PER_LINUX32 && p != PER_LINUX)				\
@@ -339,7 +336,5 @@ extern int arch_elf_pt_proc(void *ehdr, void *phdr, struct file *elf,
 
 extern int arch_check_elf(void *ehdr, bool has_interpreter, void *interp_ehdr,
 			  struct arch_elf_state *state);
-
-extern void loongarch_set_personality_fcsr(struct arch_elf_state *state);
 
 #endif /* _ASM_ELF_H */

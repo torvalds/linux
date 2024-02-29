@@ -498,6 +498,21 @@ Description:	Show status of f2fs checkpoint in real time.
 		CP_RESIZEFS_FLAG		0x00004000
 		=============================== ==============================
 
+What:		/sys/fs/f2fs/<disk>/stat/issued_discard
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the number of issued discard.
+
+What:		/sys/fs/f2fs/<disk>/stat/queued_discard
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the number of queued discard.
+
+What:		/sys/fs/f2fs/<disk>/stat/undiscard_blks
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the total number of undiscard blocks.
+
 What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
 Date:		January 2021
 Contact:	"Daeho Jeong" <daehojeong@google.com>
@@ -740,3 +755,9 @@ Description:	When compress cache is on, it controls cached page
 		If cached page percent exceed threshold, then deny caching compress page.
 		The value should be in range of (0, 100], by default it was initialized
 		as 20(%).
+
+What:		/sys/fs/f2fs/<disk>/discard_io_aware
+Date:		November 2023
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	It controls to enable/disable IO aware feature for background discard.
+		By default, the value is 1 which indicates IO aware is on.

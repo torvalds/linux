@@ -1003,6 +1003,8 @@ struct nand_op_parser {
 /**
  * struct nand_operation - NAND operation descriptor
  * @cs: the CS line to select for this NAND operation
+ * @deassert_wp: set to true when the operation requires the WP pin to be
+ *		 de-asserted (ERASE, PROG, ...)
  * @instrs: array of instructions to execute
  * @ninstrs: length of the @instrs array
  *
@@ -1010,6 +1012,7 @@ struct nand_op_parser {
  */
 struct nand_operation {
 	unsigned int cs;
+	bool deassert_wp;
 	const struct nand_op_instr *instrs;
 	unsigned int ninstrs;
 };
@@ -1017,6 +1020,14 @@ struct nand_operation {
 #define NAND_OPERATION(_cs, _instrs)				\
 	{							\
 		.cs = _cs,					\
+		.instrs = _instrs,				\
+		.ninstrs = ARRAY_SIZE(_instrs),			\
+	}
+
+#define NAND_DESTRUCTIVE_OPERATION(_cs, _instrs)		\
+	{							\
+		.cs = _cs,					\
+		.deassert_wp = true,				\
 		.instrs = _instrs,				\
 		.ninstrs = ARRAY_SIZE(_instrs),			\
 	}
@@ -1104,6 +1115,7 @@ struct nand_controller_ops {
  *			the bus without restarting an entire read operation nor
  *			changing the column.
  * @supported_op.cont_read: The controller supports sequential cache reads.
+ * @controller_wp:	the controller is in charge of handling the WP pin.
  */
 struct nand_controller {
 	struct mutex lock;
@@ -1112,6 +1124,7 @@ struct nand_controller {
 		unsigned int data_only_read: 1;
 		unsigned int cont_read: 1;
 	} supported_op;
+	bool controller_wp;
 };
 
 static inline void nand_controller_init(struct nand_controller *nfc)
@@ -1265,6 +1278,7 @@ struct nand_secure_region {
  * @cont_read: Sequential page read internals
  * @cont_read.ongoing: Whether a continuous read is ongoing or not
  * @cont_read.first_page: Start of the continuous read operation
+ * @cont_read.pause_page: End of the current sequential cache read operation
  * @cont_read.last_page: End of the continuous read operation
  * @controller: The hardware controller	structure which is shared among multiple
  *              independent devices
@@ -1321,6 +1335,7 @@ struct nand_chip {
 	struct {
 		bool ongoing;
 		unsigned int first_page;
+		unsigned int pause_page;
 		unsigned int last_page;
 	} cont_read;
 

@@ -404,7 +404,7 @@ __ov2685_get_pad_crop(struct ov2685 *ov2685,
 
 	switch (which) {
 	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_get_try_crop(&ov2685->subdev, state, pad);
+		return v4l2_subdev_state_get_crop(state, pad);
 	case V4L2_SUBDEV_FORMAT_ACTIVE:
 		return mode->analog_crop;
 	}
@@ -547,7 +547,7 @@ static int ov2685_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 
 	mutex_lock(&ov2685->mutex);
 
-	try_fmt = v4l2_subdev_get_try_format(sd, fh->state, 0);
+	try_fmt = v4l2_subdev_state_get_format(fh->state, 0);
 	/* Initialize try_fmt */
 	ov2685_fill_fmt(&supported_modes[0], try_fmt);
 

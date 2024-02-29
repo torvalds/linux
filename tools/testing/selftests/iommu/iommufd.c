@@ -12,6 +12,7 @@
 static unsigned long HUGEPAGE_SIZE;
 
 #define MOCK_PAGE_SIZE (PAGE_SIZE / 2)
+#define MOCK_HUGE_PAGE_SIZE (512 * MOCK_PAGE_SIZE)
 
 static unsigned long get_huge_page_size(void)
 {
@@ -116,6 +117,7 @@ TEST_F(iommufd, cmd_length)
 	TEST_LENGTH(iommu_destroy, IOMMU_DESTROY, id);
 	TEST_LENGTH(iommu_hw_info, IOMMU_GET_HW_INFO, __reserved);
 	TEST_LENGTH(iommu_hwpt_alloc, IOMMU_HWPT_ALLOC, __reserved);
+	TEST_LENGTH(iommu_hwpt_invalidate, IOMMU_HWPT_INVALIDATE, __reserved);
 	TEST_LENGTH(iommu_ioas_alloc, IOMMU_IOAS_ALLOC, out_ioas_id);
 	TEST_LENGTH(iommu_ioas_iova_ranges, IOMMU_IOAS_IOVA_RANGES,
 		    out_iova_alignment);
@@ -271,7 +273,9 @@ TEST_F(iommufd_ioas, alloc_hwpt_nested)
 	struct iommu_hwpt_selftest data = {
 		.iotlb = IOMMU_TEST_IOTLB_DEFAULT,
 	};
+	struct iommu_hwpt_invalidate_selftest inv_reqs[2] = {};
 	uint32_t nested_hwpt_id[2] = {};
+	uint32_t num_inv;
 	uint32_t parent_hwpt_id = 0;
 	uint32_t parent_hwpt_id_not_work = 0;
 	uint32_t test_hwpt_id = 0;
@@ -330,6 +334,10 @@ TEST_F(iommufd_ioas, alloc_hwpt_nested)
 					   &nested_hwpt_id[1],
 					   IOMMU_HWPT_DATA_SELFTEST, &data,
 					   sizeof(data));
+		test_cmd_hwpt_check_iotlb_all(nested_hwpt_id[0],
+					      IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb_all(nested_hwpt_id[1],
+					      IOMMU_TEST_IOTLB_DEFAULT);
 
 		/* Negative test: a nested hwpt on top of a nested hwpt */
 		test_err_hwpt_alloc_nested(EINVAL, self->device_id,
@@ -339,6 +347,151 @@ TEST_F(iommufd_ioas, alloc_hwpt_nested)
 		/* Negative test: parent hwpt now cannot be freed */
 		EXPECT_ERRNO(EBUSY,
 			     _test_ioctl_destroy(self->fd, parent_hwpt_id));
+
+		/* hwpt_invalidate only supports a user-managed hwpt (nested) */
+		num_inv = 1;
+		test_err_hwpt_invalidate(ENOENT, parent_hwpt_id, inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Check data_type by passing zero-length array */
+		num_inv = 0;
+		test_cmd_hwpt_invalidate(nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: Invalid data_type */
+		num_inv = 1;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST_INVALID,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: structure size sanity */
+		num_inv = 1;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs) + 1, &num_inv);
+		assert(!num_inv);
+
+		num_inv = 1;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 1, &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid flag is passed */
+		num_inv = 1;
+		inv_reqs[0].flags = 0xffffffff;
+		test_err_hwpt_invalidate(EOPNOTSUPP, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid data_uptr when array is not empty */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], NULL,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid entry_len when array is not empty */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 0, &num_inv);
+		assert(!num_inv);
+
+		/* Negative test: invalid iotlb_id */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].iotlb_id = MOCK_NESTED_DOMAIN_IOTLB_ID_MAX + 1;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(!num_inv);
+
+		/*
+		 * Invalidate the 1st iotlb entry but fail the 2nd request
+		 * due to invalid flags configuration in the 2nd request.
+		 */
+		num_inv = 2;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].iotlb_id = 0;
+		inv_reqs[1].flags = 0xffffffff;
+		inv_reqs[1].iotlb_id = 1;
+		test_err_hwpt_invalidate(EOPNOTSUPP, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 0, 0);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 1,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 2,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 3,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+
+		/*
+		 * Invalidate the 1st iotlb entry but fail the 2nd request
+		 * due to invalid iotlb_id configuration in the 2nd request.
+		 */
+		num_inv = 2;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].iotlb_id = 0;
+		inv_reqs[1].flags = 0;
+		inv_reqs[1].iotlb_id = MOCK_NESTED_DOMAIN_IOTLB_ID_MAX + 1;
+		test_err_hwpt_invalidate(EINVAL, nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 0, 0);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 1,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 2,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 3,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+
+		/* Invalidate the 2nd iotlb entry and verify */
+		num_inv = 1;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].iotlb_id = 1;
+		test_cmd_hwpt_invalidate(nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 0, 0);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 1, 0);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 2,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+		test_cmd_hwpt_check_iotlb(nested_hwpt_id[0], 3,
+					  IOMMU_TEST_IOTLB_DEFAULT);
+
+		/* Invalidate the 3rd and 4th iotlb entries and verify */
+		num_inv = 2;
+		inv_reqs[0].flags = 0;
+		inv_reqs[0].iotlb_id = 2;
+		inv_reqs[1].flags = 0;
+		inv_reqs[1].iotlb_id = 3;
+		test_cmd_hwpt_invalidate(nested_hwpt_id[0], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 2);
+		test_cmd_hwpt_check_iotlb_all(nested_hwpt_id[0], 0);
+
+		/* Invalidate all iotlb entries for nested_hwpt_id[1] and verify */
+		num_inv = 1;
+		inv_reqs[0].flags = IOMMU_TEST_INVALIDATE_FLAG_ALL;
+		test_cmd_hwpt_invalidate(nested_hwpt_id[1], inv_reqs,
+					 IOMMU_HWPT_INVALIDATE_DATA_SELFTEST,
+					 sizeof(*inv_reqs), &num_inv);
+		assert(num_inv == 1);
+		test_cmd_hwpt_check_iotlb_all(nested_hwpt_id[1], 0);
 
 		/* Attach device to nested_hwpt_id[0] that then will be busy */
 		test_cmd_mock_domain_replace(self->stdev_id, nested_hwpt_id[0]);
@@ -1564,10 +1717,12 @@ FIXTURE(iommufd_dirty_tracking)
 FIXTURE_VARIANT(iommufd_dirty_tracking)
 {
 	unsigned long buffer_size;
+	bool hugepages;
 };
 
 FIXTURE_SETUP(iommufd_dirty_tracking)
 {
+	int mmap_flags;
 	void *vrc;
 	int rc;
 
@@ -1580,25 +1735,41 @@ FIXTURE_SETUP(iommufd_dirty_tracking)
 			   variant->buffer_size, rc);
 	}
 
+	mmap_flags = MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED;
+	if (variant->hugepages) {
+		/*
+		 * MAP_POPULATE will cause the kernel to fail mmap if THPs are
+		 * not available.
+		 */
+		mmap_flags |= MAP_HUGETLB | MAP_POPULATE;
+	}
 	assert((uintptr_t)self->buffer % HUGEPAGE_SIZE == 0);
 	vrc = mmap(self->buffer, variant->buffer_size, PROT_READ | PROT_WRITE,
-		   MAP_SHARED | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+		   mmap_flags, -1, 0);
 	assert(vrc == self->buffer);
 
 	self->page_size = MOCK_PAGE_SIZE;
 	self->bitmap_size =
 		variant->buffer_size / self->page_size / BITS_PER_BYTE;
 
-	/* Provision with an extra (MOCK_PAGE_SIZE) for the unaligned case */
+	/* Provision with an extra (PAGE_SIZE) for the unaligned case */
 	rc = posix_memalign(&self->bitmap, PAGE_SIZE,
-			    self->bitmap_size + MOCK_PAGE_SIZE);
+			    self->bitmap_size + PAGE_SIZE);
 	assert(!rc);
 	assert(self->bitmap);
 	assert((uintptr_t)self->bitmap % PAGE_SIZE == 0);
 
 	test_ioctl_ioas_alloc(&self->ioas_id);
-	test_cmd_mock_domain(self->ioas_id, &self->stdev_id, &self->hwpt_id,
-			     &self->idev_id);
+	/* Enable 1M mock IOMMU hugepages */
+	if (variant->hugepages) {
+		test_cmd_mock_domain_flags(self->ioas_id,
+					   MOCK_FLAGS_DEVICE_HUGE_IOVA,
+					   &self->stdev_id, &self->hwpt_id,
+					   &self->idev_id);
+	} else {
+		test_cmd_mock_domain(self->ioas_id, &self->stdev_id,
+				     &self->hwpt_id, &self->idev_id);
+	}
 }
 
 FIXTURE_TEARDOWN(iommufd_dirty_tracking)
@@ -1632,10 +1803,24 @@ FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128M)
 	.buffer_size = 128UL * 1024UL * 1024UL,
 };
 
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty128M_huge)
+{
+	/* 4K bitmap (128M IOVA range) */
+	.buffer_size = 128UL * 1024UL * 1024UL,
+	.hugepages = true,
+};
+
 FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty256M)
 {
 	/* 8K bitmap (256M IOVA range) */
 	.buffer_size = 256UL * 1024UL * 1024UL,
+};
+
+FIXTURE_VARIANT_ADD(iommufd_dirty_tracking, domain_dirty256M_huge)
+{
+	/* 8K bitmap (256M IOVA range) */
+	.buffer_size = 256UL * 1024UL * 1024UL,
+	.hugepages = true,
 };
 
 TEST_F(iommufd_dirty_tracking, enforce_dirty)
@@ -1697,9 +1882,12 @@ TEST_F(iommufd_dirty_tracking, device_dirty_capability)
 
 TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
 {
-	uint32_t stddev_id;
+	uint32_t page_size = MOCK_PAGE_SIZE;
 	uint32_t hwpt_id;
 	uint32_t ioas_id;
+
+	if (variant->hugepages)
+		page_size = MOCK_HUGE_PAGE_SIZE;
 
 	test_ioctl_ioas_alloc(&ioas_id);
 	test_ioctl_ioas_map_fixed_id(ioas_id, self->buffer,
@@ -1707,29 +1895,36 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap)
 
 	test_cmd_hwpt_alloc(self->idev_id, ioas_id,
 			    IOMMU_HWPT_ALLOC_DIRTY_TRACKING, &hwpt_id);
-	test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
 
 	test_cmd_set_dirty_tracking(hwpt_id, true);
 
 	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
-				MOCK_APERTURE_START, self->page_size,
+				MOCK_APERTURE_START, self->page_size, page_size,
 				self->bitmap, self->bitmap_size, 0, _metadata);
 
 	/* PAGE_SIZE unaligned bitmap */
 	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
-				MOCK_APERTURE_START, self->page_size,
+				MOCK_APERTURE_START, self->page_size, page_size,
 				self->bitmap + MOCK_PAGE_SIZE,
 				self->bitmap_size, 0, _metadata);
 
-	test_ioctl_destroy(stddev_id);
+	/* u64 unaligned bitmap */
+	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
+				MOCK_APERTURE_START, self->page_size, page_size,
+				self->bitmap + 0xff1, self->bitmap_size, 0,
+				_metadata);
+
 	test_ioctl_destroy(hwpt_id);
 }
 
 TEST_F(iommufd_dirty_tracking, get_dirty_bitmap_no_clear)
 {
-	uint32_t stddev_id;
+	uint32_t page_size = MOCK_PAGE_SIZE;
 	uint32_t hwpt_id;
 	uint32_t ioas_id;
+
+	if (variant->hugepages)
+		page_size = MOCK_HUGE_PAGE_SIZE;
 
 	test_ioctl_ioas_alloc(&ioas_id);
 	test_ioctl_ioas_map_fixed_id(ioas_id, self->buffer,
@@ -1737,25 +1932,30 @@ TEST_F(iommufd_dirty_tracking, get_dirty_bitmap_no_clear)
 
 	test_cmd_hwpt_alloc(self->idev_id, ioas_id,
 			    IOMMU_HWPT_ALLOC_DIRTY_TRACKING, &hwpt_id);
-	test_cmd_mock_domain(hwpt_id, &stddev_id, NULL, NULL);
 
 	test_cmd_set_dirty_tracking(hwpt_id, true);
 
 	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
-				MOCK_APERTURE_START, self->page_size,
+				MOCK_APERTURE_START, self->page_size, page_size,
 				self->bitmap, self->bitmap_size,
 				IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR,
 				_metadata);
 
 	/* Unaligned bitmap */
 	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
-				MOCK_APERTURE_START, self->page_size,
+				MOCK_APERTURE_START, self->page_size, page_size,
 				self->bitmap + MOCK_PAGE_SIZE,
 				self->bitmap_size,
 				IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR,
 				_metadata);
 
-	test_ioctl_destroy(stddev_id);
+	/* u64 unaligned bitmap */
+	test_mock_dirty_bitmaps(hwpt_id, variant->buffer_size,
+				MOCK_APERTURE_START, self->page_size, page_size,
+				self->bitmap + 0xff1, self->bitmap_size,
+				IOMMU_HWPT_GET_DIRTY_BITMAP_NO_CLEAR,
+				_metadata);
+
 	test_ioctl_destroy(hwpt_id);
 }
 

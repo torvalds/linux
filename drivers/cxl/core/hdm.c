@@ -363,10 +363,9 @@ resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled)
 {
 	resource_size_t base = -1;
 
-	down_read(&cxl_dpa_rwsem);
+	lockdep_assert_held(&cxl_dpa_rwsem);
 	if (cxled->dpa_res)
 		base = cxled->dpa_res->start;
-	up_read(&cxl_dpa_rwsem);
 
 	return base;
 }
@@ -839,6 +838,8 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			cxld->target_type = CXL_DECODER_HOSTONLYMEM;
 		else
 			cxld->target_type = CXL_DECODER_DEVMEM;
+
+		guard(rwsem_write)(&cxl_region_rwsem);
 		if (cxld->id != cxl_num_decoders_committed(port)) {
 			dev_warn(&port->dev,
 				 "decoder%d.%d: Committed out of order\n",

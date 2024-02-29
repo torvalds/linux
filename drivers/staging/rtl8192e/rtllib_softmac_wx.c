@@ -14,7 +14,6 @@
 #include <linux/etherdevice.h>
 
 #include "rtllib.h"
-#include "dot11d.h"
 
 int rtllib_wx_set_freq(struct rtllib_device *ieee, struct iw_request_info *a,
 			     union iwreq_data *wrqu, char *b)
@@ -208,7 +207,7 @@ int rtllib_wx_get_rate(struct rtllib_device *ieee,
 {
 	u32 tmp_rate;
 
-	tmp_rate = TxCountToDataRate(ieee,
+	tmp_rate = tx_count_to_data_rate(ieee,
 				     ieee->softmac_stats.CurrentShowTxate);
 	wrqu->bitrate.value = tmp_rate * 500000;
 
@@ -267,11 +266,11 @@ int rtllib_wx_set_mode(struct rtllib_device *ieee, struct iw_request_info *a,
 
 	if (wrqu->mode == IW_MODE_MONITOR) {
 		ieee->dev->type = ARPHRD_IEEE80211;
-		rtllib_EnableNetMonitorMode(ieee->dev, false);
+		rtllib_enable_net_monitor_mode(ieee->dev, false);
 	} else {
 		ieee->dev->type = ARPHRD_ETHER;
 		if (ieee->iw_mode == IW_MODE_MONITOR)
-			rtllib_DisableNetMonitorMode(ieee->dev, false);
+			rtllib_disable_net_monitor_mode(ieee->dev, false);
 	}
 
 	if (!ieee->proto_started) {
@@ -318,10 +317,10 @@ void rtllib_wx_sync_scan_wq(void *data)
 	ieee->ScanOperationBackupHandler(ieee->dev, SCAN_OPT_BACKUP);
 
 	if (ieee->ht_info->current_ht_support && ieee->ht_info->enable_ht &&
-	    ieee->ht_info->bCurBW40MHz) {
+	    ieee->ht_info->cur_bw_40mhz) {
 		b40M = 1;
 		chan_offset = ieee->ht_info->CurSTAExtChnlOffset;
-		bandwidth = (enum ht_channel_width)ieee->ht_info->bCurBW40MHz;
+		bandwidth = (enum ht_channel_width)ieee->ht_info->cur_bw_40mhz;
 		ieee->set_bw_mode_handler(ieee->dev, HT_CHANNEL_WIDTH_20,
 				       HT_EXTCHNL_OFFSET_NO_EXT);
 	}

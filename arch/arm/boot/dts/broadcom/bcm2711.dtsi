@@ -604,6 +604,20 @@
 			};
 		};
 
+		xhci: usb@7e9c0000 {
+			compatible = "brcm,bcm2711-xhci", "brcm,xhci-brcm-v2";
+			reg = <0x0 0x7e9c0000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			/* DWC2 and this IP block share the same USB PHY,
+			 * enabling both at the same time results in lockups.
+			 * So keep this node disabled and let the bootloader
+			 * decide which interface should be enabled.
+			 */
+			status = "disabled";
+		};
+
 		v3d: gpu@7ec00000 {
 			compatible = "brcm,2711-v3d";
 			reg = <0x0 0x7ec00000 0x4000>,

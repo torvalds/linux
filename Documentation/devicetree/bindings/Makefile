@@ -28,7 +28,10 @@ $(obj)/%.example.dts: $(src)/%.yaml check_dtschema_version FORCE
 find_all_cmd = find $(srctree)/$(src) \( -name '*.yaml' ! \
 		-name 'processed-schema*' \)
 
-find_cmd = $(find_all_cmd) | grep -F -e "$(subst :," -e ",$(DT_SCHEMA_FILES))"
+find_cmd = $(find_all_cmd) | \
+		sed 's|^$(srctree)/||' | \
+		grep -F -e "$(subst :," -e ",$(DT_SCHEMA_FILES))" | \
+		sed 's|^|$(srctree)/|'
 CHK_DT_DOCS := $(shell $(find_cmd))
 
 quiet_cmd_yamllint = LINT    $(src)

@@ -42,6 +42,7 @@
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
+#include <asm/mips-cps.h>
 #include <asm/prom.h>
 #include <asm/fw/fw.h>
 
@@ -146,7 +147,7 @@ static unsigned long __init init_initrd(void)
 	/*
 	 * Board specific code or command line parser should have
 	 * already set up initrd_start and initrd_end. In these cases
-	 * perfom sanity checks and use them if all looks good.
+	 * perform sanity checks and use them if all looks good.
 	 */
 	if (!initrd_start || initrd_end <= initrd_start)
 		goto disable;
@@ -321,11 +322,11 @@ static void __init bootmem_init(void)
 		panic("Incorrect memory mapping !!!");
 
 	if (max_pfn > PFN_DOWN(HIGHMEM_START)) {
+		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 #ifdef CONFIG_HIGHMEM
-		highstart_pfn = PFN_DOWN(HIGHMEM_START);
+		highstart_pfn = max_low_pfn;
 		highend_pfn = max_pfn;
 #else
-		max_low_pfn = PFN_DOWN(HIGHMEM_START);
 		max_pfn = max_low_pfn;
 #endif
 	}

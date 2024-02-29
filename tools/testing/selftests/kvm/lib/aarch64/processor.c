@@ -12,6 +12,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 #include <linux/bitfield.h>
+#include <linux/sizes.h>
 
 #define DEFAULT_ARM64_GUEST_STACK_VADDR_MIN	0xac0000
 
@@ -58,13 +59,25 @@ static uint64_t pte_index(struct kvm_vm *vm, vm_vaddr_t gva)
 	return (gva >> vm->page_shift) & mask;
 }
 
+static inline bool use_lpa2_pte_format(struct kvm_vm *vm)
+{
+	return (vm->page_size == SZ_4K || vm->page_size == SZ_16K) &&
+	    (vm->pa_bits > 48 || vm->va_bits > 48);
+}
+
 static uint64_t addr_pte(struct kvm_vm *vm, uint64_t pa, uint64_t attrs)
 {
 	uint64_t pte;
 
-	pte = pa & GENMASK(47, vm->page_shift);
-	if (vm->page_shift == 16)
-		pte |= FIELD_GET(GENMASK(51, 48), pa) << 12;
+	if (use_lpa2_pte_format(vm)) {
+		pte = pa & GENMASK(49, vm->page_shift);
+		pte |= FIELD_GET(GENMASK(51, 50), pa) << 8;
+		attrs &= ~GENMASK(9, 8);
+	} else {
+		pte = pa & GENMASK(47, vm->page_shift);
+		if (vm->page_shift == 16)
+			pte |= FIELD_GET(GENMASK(51, 48), pa) << 12;
+	}
 	pte |= attrs;
 
 	return pte;
@@ -74,9 +87,14 @@ static uint64_t pte_addr(struct kvm_vm *vm, uint64_t pte)
 {
 	uint64_t pa;
 
-	pa = pte & GENMASK(47, vm->page_shift);
-	if (vm->page_shift == 16)
-		pa |= FIELD_GET(GENMASK(15, 12), pte) << 48;
+	if (use_lpa2_pte_format(vm)) {
+		pa = pte & GENMASK(49, vm->page_shift);
+		pa |= FIELD_GET(GENMASK(9, 8), pte) << 50;
+	} else {
+		pa = pte & GENMASK(47, vm->page_shift);
+		if (vm->page_shift == 16)
+			pa |= FIELD_GET(GENMASK(15, 12), pte) << 48;
+	}
 
 	return pa;
 }
@@ -266,9 +284,6 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 
 	/* Configure base granule size */
 	switch (vm->mode) {
-	case VM_MODE_P52V48_4K:
-		TEST_FAIL("AArch64 does not support 4K sized pages "
-			  "with 52-bit physical address ranges");
 	case VM_MODE_PXXV48_4K:
 		TEST_FAIL("AArch64 does not support 4K sized pages "
 			  "with ANY-bit physical address ranges");
@@ -278,12 +293,14 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	case VM_MODE_P36V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		break;
+	case VM_MODE_P52V48_16K:
 	case VM_MODE_P48V48_16K:
 	case VM_MODE_P40V48_16K:
 	case VM_MODE_P36V48_16K:
 	case VM_MODE_P36V47_16K:
 		tcr_el1 |= 2ul << 14; /* TG0 = 16KB */
 		break;
+	case VM_MODE_P52V48_4K:
 	case VM_MODE_P48V48_4K:
 	case VM_MODE_P40V48_4K:
 	case VM_MODE_P36V48_4K:
@@ -297,6 +314,8 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 
 	/* Configure output size */
 	switch (vm->mode) {
+	case VM_MODE_P52V48_4K:
+	case VM_MODE_P52V48_16K:
 	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
 		ttbr0_el1 |= FIELD_GET(GENMASK(51, 48), vm->pgd) << 2;
@@ -325,6 +344,8 @@ void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init)
 	/* TCR_EL1 |= IRGN0:WBWA | ORGN0:WBWA | SH0:Inner-Shareable */;
 	tcr_el1 |= (1 << 8) | (1 << 10) | (3 << 12);
 	tcr_el1 |= (64 - vm->va_bits) /* T0SZ */;
+	if (use_lpa2_pte_format(vm))
+		tcr_el1 |= (1ul << 59) /* DS */;
 
 	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_SCTLR_EL1), sctlr_el1);
 	vcpu_set_reg(vcpu, KVM_ARM64_SYS_REG(SYS_TCR_EL1), tcr_el1);
@@ -377,7 +398,7 @@ void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 	int i;
 
 	TEST_ASSERT(num >= 1 && num <= 8, "Unsupported number of args,\n"
-		    "  num: %u\n", num);
+		    "  num: %u", num);
 
 	va_start(ap, num);
 
@@ -492,12 +513,24 @@ uint32_t guest_get_vcpuid(void)
 	return read_sysreg(tpidr_el1);
 }
 
-void aarch64_get_supported_page_sizes(uint32_t ipa,
-				      bool *ps4k, bool *ps16k, bool *ps64k)
+static uint32_t max_ipa_for_page_size(uint32_t vm_ipa, uint32_t gran,
+				uint32_t not_sup_val, uint32_t ipa52_min_val)
+{
+	if (gran == not_sup_val)
+		return 0;
+	else if (gran >= ipa52_min_val && vm_ipa >= 52)
+		return 52;
+	else
+		return min(vm_ipa, 48U);
+}
+
+void aarch64_get_supported_page_sizes(uint32_t ipa, uint32_t *ipa4k,
+					uint32_t *ipa16k, uint32_t *ipa64k)
 {
 	struct kvm_vcpu_init preferred_init;
 	int kvm_fd, vm_fd, vcpu_fd, err;
 	uint64_t val;
+	uint32_t gran;
 	struct kvm_one_reg reg = {
 		.id	= KVM_ARM64_SYS_REG(SYS_ID_AA64MMFR0_EL1),
 		.addr	= (uint64_t)&val,
@@ -518,9 +551,17 @@ void aarch64_get_supported_page_sizes(uint32_t ipa,
 	err = ioctl(vcpu_fd, KVM_GET_ONE_REG, &reg);
 	TEST_ASSERT(err == 0, KVM_IOCTL_ERROR(KVM_GET_ONE_REG, vcpu_fd));
 
-	*ps4k = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN4), val) != 0xf;
-	*ps64k = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN64), val) == 0;
-	*ps16k = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN16), val) != 0;
+	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN4), val);
+	*ipa4k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN4_NI,
+					ID_AA64MMFR0_EL1_TGRAN4_52_BIT);
+
+	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN64), val);
+	*ipa64k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN64_NI,
+					ID_AA64MMFR0_EL1_TGRAN64_IMP);
+
+	gran = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64MMFR0_EL1_TGRAN16), val);
+	*ipa16k = max_ipa_for_page_size(ipa, gran, ID_AA64MMFR0_EL1_TGRAN16_NI,
+					ID_AA64MMFR0_EL1_TGRAN16_52_BIT);
 
 	close(vcpu_fd);
 	close(vm_fd);
