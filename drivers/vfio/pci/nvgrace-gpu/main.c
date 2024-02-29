@@ -160,8 +160,17 @@ static int nvgrace_gpu_mmap(struct vfio_device *core_vdev,
 	 * The carved out region of the device memory needs the NORMAL_NC
 	 * property. Communicate as such to the hypervisor.
 	 */
-	if (index == RESMEM_REGION_INDEX)
+	if (index == RESMEM_REGION_INDEX) {
+		/*
+		 * The nvgrace-gpu module has no issues with uncontained
+		 * failures on NORMAL_NC accesses. VM_ALLOW_ANY_UNCACHED is
+		 * set to communicate to the KVM to S2 map as NORMAL_NC.
+		 * This opens up guest usage of NORMAL_NC for this mapping.
+		 */
+		vm_flags_set(vma, VM_ALLOW_ANY_UNCACHED);
+
 		vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	}
 
 	/*
 	 * Perform a PFN map to the memory and back the device BAR by the
