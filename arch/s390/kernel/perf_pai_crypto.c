@@ -84,13 +84,11 @@ static DEFINE_MUTEX(pai_reserve_mutex);
 /* Adjust usage counters and remove allocated memory when all users are
  * gone.
  */
-static void paicrypt_event_destroy(struct perf_event *event)
+static void paicrypt_event_destroy_cpu(struct perf_event *event, int cpu)
 {
-	struct paicrypt_mapptr *mp = per_cpu_ptr(paicrypt_root.mapptr,
-						 event->cpu);
+	struct paicrypt_mapptr *mp = per_cpu_ptr(paicrypt_root.mapptr, cpu);
 	struct paicrypt_map *cpump = mp->mapptr;
 
-	static_branch_dec(&pai_key);
 	mutex_lock(&pai_reserve_mutex);
 	debug_sprintf_event(cfm_dbg, 5, "%s event %#llx cpu %d users %d"
 			    " mode %d refcnt %u\n", __func__,
@@ -99,7 +97,6 @@ static void paicrypt_event_destroy(struct perf_event *event)
 			    refcount_read(&cpump->refcnt));
 	if (event->attr.sample_period)
 		cpump->mode &= ~PAI_MODE_SAMPLING;
-	free_page(PAI_SAVE_AREA(event));
 	if (refcount_dec_and_test(&cpump->refcnt)) {
 		debug_sprintf_event(cfm_dbg, 4, "%s page %#lx save %p\n",
 				    __func__, (unsigned long)cpump->page,
@@ -111,6 +108,23 @@ static void paicrypt_event_destroy(struct perf_event *event)
 	}
 	paicrypt_root_free();
 	mutex_unlock(&pai_reserve_mutex);
+}
+
+static void paicrypt_event_destroy(struct perf_event *event)
+{
+	int cpu;
+
+	static_branch_dec(&pai_key);
+	free_page(PAI_SAVE_AREA(event));
+	if (event->cpu == -1) {
+		struct cpumask *mask = PAI_CPU_MASK(event);
+
+		for_each_cpu(cpu, mask)
+			paicrypt_event_destroy_cpu(event, cpu);
+		kfree(mask);
+	} else {
+		paicrypt_event_destroy_cpu(event, event->cpu);
+	}
 }
 
 static u64 paicrypt_getctr(unsigned long *page, int nr, bool kernel)
@@ -170,7 +184,7 @@ static u64 paicrypt_getall(struct perf_event *event)
  *
  * Allocate the memory for the event.
  */
-static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
+static struct paicrypt_map *paicrypt_busy(struct perf_event *event, int cpu)
 {
 	struct perf_event_attr *a = &event->attr;
 	struct paicrypt_map *cpump = NULL;
@@ -185,7 +199,7 @@ static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
 		goto unlock;
 
 	/* Allocate node for this event */
-	mp = per_cpu_ptr(paicrypt_root.mapptr, event->cpu);
+	mp = per_cpu_ptr(paicrypt_root.mapptr, cpu);
 	cpump = mp->mapptr;
 	if (!cpump) {			/* Paicrypt_map allocated? */
 		cpump = kzalloc(sizeof(*cpump), GFP_KERNEL);
@@ -253,6 +267,40 @@ unlock:
 	return rc ? ERR_PTR(rc) : cpump;
 }
 
+static int paicrypt_event_init_all(struct perf_event *event)
+{
+	struct paicrypt_map *cpump;
+	struct cpumask *maskptr;
+	int cpu, rc = -ENOMEM;
+
+	maskptr = kzalloc(sizeof(*maskptr), GFP_KERNEL);
+	if (!maskptr)
+		goto out;
+
+	for_each_online_cpu(cpu) {
+		cpump = paicrypt_busy(event, cpu);
+		if (IS_ERR(cpump)) {
+			for_each_cpu(cpu, maskptr)
+				paicrypt_event_destroy_cpu(event, cpu);
+			kfree(maskptr);
+			rc = PTR_ERR(cpump);
+			goto out;
+		}
+		cpumask_set_cpu(cpu, maskptr);
+	}
+
+	/*
+	 * On error all cpumask are freed and all events have been destroyed.
+	 * Save of which CPUs data structures have been allocated for.
+	 * Release them in paicrypt_event_destroy call back function
+	 * for this event.
+	 */
+	PAI_CPU_MASK(event) = maskptr;
+	rc = 0;
+out:
+	return rc;
+}
+
 /* Might be called on different CPU than the one the event is intended for. */
 static int paicrypt_event_init(struct perf_event *event)
 {
@@ -267,8 +315,9 @@ static int paicrypt_event_init(struct perf_event *event)
 	if (a->config < PAI_CRYPTO_BASE ||
 	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
 		return -EINVAL;
-	/* Allow only CPU wide operation, no process context for now. */
-	if ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1)
+	/* Allow only CPU wide operation for sampling */
+	if (a->sample_period &&
+	    ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1))
 		return -ENOENT;
 	/* Allow only CRYPTO_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_CRYPTO_BASE)
@@ -282,13 +331,17 @@ static int paicrypt_event_init(struct perf_event *event)
 		}
 	}
 
-	cpump = paicrypt_busy(event);
-	if (IS_ERR(cpump)) {
+	if (event->cpu >= 0) {
+		cpump = paicrypt_busy(event, event->cpu);
+		if (IS_ERR(cpump))
+			rc = PTR_ERR(cpump);
+	} else {
+		rc = paicrypt_event_init_all(event);
+	}
+	if (rc) {
 		free_page(PAI_SAVE_AREA(event));
-		rc = PTR_ERR(cpump);
 		goto out;
 	}
-
 	event->destroy = paicrypt_event_destroy;
 
 	if (a->sample_period) {
@@ -526,7 +579,7 @@ static const struct attribute_group *paicrypt_attr_groups[] = {
 
 /* Performance monitoring unit for mapped counters */
 static struct pmu paicrypt = {
-	.task_ctx_nr  = perf_invalid_context,
+	.task_ctx_nr  = perf_hw_context,
 	.event_init   = paicrypt_event_init,
 	.add	      = paicrypt_add,
 	.del	      = paicrypt_del,
