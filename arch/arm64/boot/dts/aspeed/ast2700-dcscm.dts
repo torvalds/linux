@@ -358,21 +358,30 @@
 			compatible = "fixed-partitions";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			spi1_pch_bios@0 {
-				reg = <0x0 0x3fe0000>;
+
+			spi1_pch_reserved@0 {
+				reg = <0x0 0x7f0000>;
 				label = "spi1_pch_reserved";
 			};
-			spi1_pch_pfm@3fe0000 {
-				reg = <0x3fe0000 0x20000>;
-				label = "spi1_pch_pfm";
-			};
-			spi1_pch_stg@4000000 {
-				reg = <0x4000000 0x2000000>;
+
+			spi1_pch_stg@7f0000 {
+				reg = <0x7f0000 0x1400000>;
 				label = "spi1_pch_stg";
 			};
-			spi1_pch_rc@6000000 {
-				reg = <0x6000000 0x2000000>;
+
+			spi1_pch_rc@1bf0000 {
+				reg = <0x1bf0000 0x1400000>;
 				label = "spi1_pch_rc";
+			};
+
+			spi1_pch_pfm@2ff0000 {
+				reg = <0x2ff0000 0x10000>;
+				label = "spi1_pch_pfm";
+			};
+
+			spi1_pch_bios@3000000 {
+				reg = <0x3000000 0x1000000>;
+				label = "spi1_pch_bios";
 			};
 		};
 	};
