@@ -95,14 +95,6 @@
  * E.g., #define TH_LOG_ENABLED 1
  *
  * If no definition is provided, logging is enabled by default.
- *
- * If there is no way to print an error message for the process running the
- * test (e.g. not allowed to write to stderr), it is still possible to get the
- * ASSERT_* number for which the test failed.  This behavior can be enabled by
- * writing `_metadata->no_print = true;` before the check sequence that is
- * unable to print.  When an error occur, instead of printing an error message
- * and calling `abort(3)`, the test process call `_exit(2)` with the assert
- * number as argument, which is then printed by the parent process.
  */
 #define TH_LOG(fmt, ...) do { \
 	if (TH_LOG_ENABLED) \
@@ -363,6 +355,11 @@
  * Defines a test that depends on a fixture (e.g., is part of a test case).
  * Very similar to TEST() except that *self* is the setup instance of fixture's
  * datatype exposed for use by the implementation.
+ *
+ * The @test_name code is run in a separate process sharing the same memory
+ * (i.e. vfork), which means that the test process can update its privileges
+ * without impacting the related FIXTURE_TEARDOWN() (e.g. to remove files from
+ * a directory where write access was dropped).
  */
 #define TEST_F(fixture_name, test_name) \
 	__TEST_F_IMPL(fixture_name, test_name, -1, TEST_TIMEOUT_DEFAULT)
@@ -384,15 +381,28 @@
 	{ \
 		/* fixture data is alloced, setup, and torn down per call. */ \
 		FIXTURE_DATA(fixture_name) self; \
+		pid_t child = 1; \
 		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
 		if (setjmp(_metadata->env) == 0) { \
 			fixture_name##_setup(_metadata, &self, variant->data); \
 			/* Let setup failure terminate early. */ \
-                       if (!_metadata->passed || _metadata->skip) \
+			if (!_metadata->passed || _metadata->skip) \
 				return; \
 			_metadata->setup_completed = true; \
-			fixture_name##_##test_name(_metadata, &self, variant->data); \
+			/* Use the same _metadata. */ \
+			child = vfork(); \
+			if (child == 0) { \
+				fixture_name##_##test_name(_metadata, &self, variant->data); \
+				_exit(0); \
+			} \
+			if (child < 0) { \
+				ksft_print_msg("ERROR SPAWNING TEST GRANDCHILD\n"); \
+				_metadata->passed = 0; \
+			} \
 		} \
+		if (child == 0) \
+			/* Child failed and updated the shared _metadata. */ \
+			_exit(0); \
 		if (_metadata->setup_completed) \
 			fixture_name##_teardown(_metadata, &self, variant->data); \
 		__test_check_assert(_metadata); \
@@ -694,18 +704,12 @@
 	for (; _metadata->trigger; _metadata->trigger = \
 			__bail(_assert, _metadata))
 
-#define __INC_STEP(_metadata) \
-	/* Keep "step" below 255 (which is used for "SKIP" reporting). */	\
-	if (_metadata->passed && _metadata->step < 253) \
-		_metadata->step++;
-
 #define is_signed_type(var)       (!!(((__typeof__(var))(-1)) < (__typeof__(var))1))
 
 #define __EXPECT(_expected, _expected_str, _seen, _seen_str, _t, _assert) do { \
 	/* Avoid multiple evaluation of the cases */ \
 	__typeof__(_expected) __exp = (_expected); \
 	__typeof__(_seen) __seen = (_seen); \
-	if (_assert) __INC_STEP(_metadata); \
 	if (!(__exp _t __seen)) { \
 		/* Report with actual signedness to avoid weird output. */ \
 		switch (is_signed_type(__exp) * 2 + is_signed_type(__seen)) { \
@@ -751,7 +755,6 @@
 #define __EXPECT_STR(_expected, _seen, _t, _assert) do { \
 	const char *__exp = (_expected); \
 	const char *__seen = (_seen); \
-	if (_assert) __INC_STEP(_metadata); \
 	if (!(strcmp(__exp, __seen) _t 0))  { \
 		__TH_LOG("Expected '%s' %s '%s'.", __exp, #_t, __seen); \
 		_metadata->passed = 0; \
@@ -837,8 +840,6 @@ struct __test_metadata {
 	int trigger; /* extra handler after the evaluation */
 	int timeout;	/* seconds to wait for test timeout */
 	bool timed_out;	/* did this test timeout instead of exiting? */
-	__u8 step;
-	bool no_print; /* manual trigger when TH_LOG_STREAM is not available */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool setup_completed; /* did setup finish? */
 	jmp_buf env;	/* for exiting out of test early */
@@ -873,11 +874,8 @@ static inline int __bail(int for_realz, struct __test_metadata *t)
 
 static inline void __test_check_assert(struct __test_metadata *t)
 {
-	if (t->aborted) {
-		if (t->no_print)
-			_exit(t->step);
+	if (t->aborted)
 		abort();
-	}
 }
 
 struct __test_metadata *__active_test;
@@ -954,13 +952,12 @@ void __wait_for_test(struct __test_metadata *t)
 			case 0:
 				t->passed = 1;
 				break;
-			/* Other failure, assume step report. */
+			/* Failure */
 			default:
 				t->passed = 0;
 				fprintf(TH_LOG_STREAM,
-					"# %s: Test failed at step #%d\n",
-					t->name,
-					WEXITSTATUS(status));
+					"# %s: Test failed\n",
+					t->name);
 			}
 		}
 	} else if (WIFSIGNALED(status)) {
@@ -1114,8 +1111,6 @@ void __run_test(struct __fixture_metadata *f,
 	t->passed = 1;
 	t->skip = 0;
 	t->trigger = 0;
-	t->step = 1;
-	t->no_print = 0;
 	memset(t->results->reason, 0, sizeof(t->results->reason));
 
 	ksft_print_msg(" RUN           %s%s%s.%s ...\n",
@@ -1137,8 +1132,7 @@ void __run_test(struct __fixture_metadata *f,
 		/* Pass is exit 0 */
 		if (t->passed)
 			_exit(0);
-		/* Something else happened, report the step. */
-		_exit(t->step);
+		_exit(1);
 	} else {
 		__wait_for_test(t);
 	}
