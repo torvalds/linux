@@ -32,18 +32,40 @@
 		};
 	};
 
-	hdmi_1v8: regulator-hdmi-1v8 {
+	reg_t1p8v: regulator-t1p8v {
 		compatible = "regulator-fixed";
-		regulator-name = "hdmi-1v8";
+		regulator-name = "T1.8V";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
-	snd_vcc5v: regulator-snd_vcc5v {
+	pcie_1v5: regulator-pcie-1v5 {
 		compatible = "regulator-fixed";
-		regulator-name = "snd-vcc5v";
+		regulator-name = "pcie-1v5";
+		regulator-min-microvolt = <1500000>;
+		regulator-max-microvolt = <1500000>;
+		gpio = <&gpio_exp_77 15 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	pcie_3v3: regulator-pcie-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "pcie-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio_exp_77 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	reg_5v: regulator-5v {
+		compatible = "regulator-fixed";
+		regulator-name = "fixed-5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+		regulator-always-on;
 	};
 
 	wlan_en: regulator-wlan_en {
@@ -136,11 +158,11 @@
 
 				pd-gpios = <&gpio_exp_75 5 GPIO_ACTIVE_LOW>;
 
-				avdd-supply = <&hdmi_1v8>;
-				dvdd-supply = <&hdmi_1v8>;
-				pvdd-supply = <&hdmi_1v8>;
+				avdd-supply = <&reg_t1p8v>;
+				dvdd-supply = <&reg_t1p8v>;
+				pvdd-supply = <&reg_t1p8v>;
 				dvdd-3v-supply = <&reg_3p3v>;
-				bgvdd-supply = <&hdmi_1v8>;
+				bgvdd-supply = <&reg_t1p8v>;
 
 				adi,input-depth = <8>;
 				adi,input-colorspace = "rgb";
@@ -190,10 +212,10 @@
 
 				VDD1-supply = <&reg_3p3v>;
 				VDD2-supply = <&reg_3p3v>;
-				VCCAD1-supply = <&snd_vcc5v>;
-				VCCAD2-supply = <&snd_vcc5v>;
-				VCCDA1-supply = <&snd_vcc5v>;
-				VCCDA2-supply = <&snd_vcc5v>;
+				VCCAD1-supply = <&reg_5v>;
+				VCCAD2-supply = <&reg_5v>;
+				VCCDA1-supply = <&reg_5v>;
+				VCCDA2-supply = <&reg_5v>;
 			};
 
 			gyroscope@6b {
@@ -327,6 +349,9 @@
 
 &pciec1 {
 	status = "okay";
+
+	vpcie1v5-supply = <&pcie_1v5>;
+	vpcie3v3-supply = <&pcie_3v3>;
 };
 
 &pfc {
