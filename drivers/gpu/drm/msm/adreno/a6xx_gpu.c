@@ -1255,8 +1255,9 @@ static const u32 a730_protect[] = {
 	A6XX_PROTECT_NORDWR(0x00699, 0x01e9),
 	A6XX_PROTECT_NORDWR(0x008a0, 0x0008),
 	A6XX_PROTECT_NORDWR(0x008ab, 0x0024),
-	/* 0x008d0-0x008dd are unprotected on purpose for tools like perfetto */
-	A6XX_PROTECT_RDONLY(0x008de, 0x0154),
+	/* 0x008d0-0x008dd and 0x008e0-0x008e6 are unprotected on purpose for tools like perfetto */
+	A6XX_PROTECT_NORDWR(0x008de, 0x0001),
+	A6XX_PROTECT_RDONLY(0x008e7, 0x014b),
 	A6XX_PROTECT_NORDWR(0x00900, 0x004d),
 	A6XX_PROTECT_NORDWR(0x0098d, 0x00b2),
 	A6XX_PROTECT_NORDWR(0x00a41, 0x01be),
@@ -1291,8 +1292,7 @@ static const u32 a730_protect[] = {
 	A6XX_PROTECT_RDONLY(0x1f844, 0x007b),
 	A6XX_PROTECT_NORDWR(0x1f860, 0x0000),
 	A6XX_PROTECT_NORDWR(0x1f878, 0x002a),
-	/* CP_PROTECT_REG[44, 46] are left untouched! */
-	0,
+	/* CP_PROTECT_REG[45, 46] are left untouched! */
 	0,
 	0,
 	A6XX_PROTECT_NORDWR(0x1f8c0, 0x00000),
