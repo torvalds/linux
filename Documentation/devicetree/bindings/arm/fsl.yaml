@@ -813,6 +813,14 @@ properties:
           - const: tq,imx6ull-tqma6ull2l      # MCIMX6Y2, LGA SoM variant
           - const: fsl,imx6ull
 
+      - description: Seeed Stuido i.MX6ULL SoM on dev boards
+        items:
+          - enum:
+              - seeed,imx6ull-seeed-npi-emmc
+              - seeed,imx6ull-seeed-npi-nand
+          - const: seeed,imx6ull-seeed-npi
+          - const: fsl,imx6ull
+
       - description: i.MX6ULZ based Boards
         items:
           - enum:
