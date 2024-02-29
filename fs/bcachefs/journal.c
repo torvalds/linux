@@ -716,7 +716,7 @@ recheck_need_open:
 			return ret;
 
 		seq = res.seq;
-		buf = j->buf + (seq & JOURNAL_BUF_MASK);
+		buf = journal_seq_to_buf(j, seq);
 		buf->must_flush = true;
 
 		if (!buf->flush_time) {
@@ -734,8 +734,8 @@ recheck_need_open:
 	}
 
 	/*
-	 * if write was kicked off without a flush, flush the next sequence
-	 * number instead
+	 * if write was kicked off without a flush, or if we promised it
+	 * wouldn't be a flush, flush the next sequence number instead
 	 */
 	buf = journal_seq_to_buf(j, seq);
 	if (buf->noflush) {
@@ -813,8 +813,8 @@ bool bch2_journal_noflush_seq(struct journal *j, u64 seq)
 	     unwritten_seq++) {
 		struct journal_buf *buf = journal_seq_to_buf(j, unwritten_seq);
 
-		/* journal write is already in flight, and was a flush write: */
-		if (unwritten_seq == journal_last_unwritten_seq(j) && !buf->noflush)
+		/* journal flush already in flight, or flush requseted */
+		if (buf->must_flush)
 			goto out;
 
 		buf->noflush = true;

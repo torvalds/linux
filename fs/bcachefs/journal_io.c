@@ -1936,6 +1936,7 @@ static int bch2_journal_write_pick_flush(struct journal *j, struct journal_buf *
 
 		j->nr_noflush_writes++;
 	} else {
+		w->must_flush = true;
 		j->last_flush_write = jiffies;
 		j->nr_flush_writes++;
 		clear_bit(JOURNAL_NEED_FLUSH_WRITE, &j->flags);
