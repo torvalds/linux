@@ -418,7 +418,7 @@ struct btrfs_caching_control *btrfs_get_caching_control(
 	return ctl;
 }
 
-void btrfs_put_caching_control(struct btrfs_caching_control *ctl)
+static void btrfs_put_caching_control(struct btrfs_caching_control *ctl)
 {
 	if (refcount_dec_and_test(&ctl->count))
 		kfree(ctl);
