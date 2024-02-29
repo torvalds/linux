@@ -278,6 +278,7 @@
 
 #define DEV_ADDR_TABLE_LEGACY_I2C_DEV	BIT(31)
 #define DEV_ADDR_TABLE_DYNAMIC_ADDR	GENMASK(23, 16)
+#define DEV_ADDR_TABLE_MR_REJECT	BIT(14)
 #define DEV_ADDR_TABLE_SIR_REJECT	BIT(13)
 #define DEV_ADDR_TABLE_IBI_MDB		BIT(12)
 #define DEV_ADDR_TABLE_STATIC_ADDR	GENMASK(6, 0)
@@ -1224,6 +1225,16 @@ static int dw_i3c_master_daa(struct i3c_master_controller *m)
 	for (pos = 0; pos < master->maxdevs; pos++) {
 		if (newdevs & BIT(pos))
 			i3c_master_add_i3c_dev_locked(m, master->devs[pos].addr);
+
+		/* cleanup the free HW DATs */
+		if (master->free_pos & BIT(pos)) {
+			u32 dat = DEV_ADDR_TABLE_SIR_REJECT |
+				  DEV_ADDR_TABLE_MR_REJECT;
+
+			writel(dat,
+			       master->regs +
+			       DEV_ADDR_TABLE_LOC(master->datstartaddr, pos));
+		}
 	}
 
 	dw_i3c_master_free_xfer(xfer);
