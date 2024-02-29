@@ -730,74 +730,71 @@ static bool should_choose_next(struct r1conf *conf, int disk)
 	       mirror->next_seq_sect - opt_iosize >= mirror->seq_start;
 }
 
-/*
- * This routine returns the disk from which the requested read should
- * be done. There is a per-array 'next expected sequential IO' sector
- * number - if this matches on the next IO then we use the last disk.
- * There is also a per-disk 'last know head position' sector that is
- * maintained from IRQ contexts, both the normal and the resync IO
- * completion handlers update this position correctly. If there is no
- * perfect sequential match then we pick the disk whose head is closest.
- *
- * If there are 2 mirrors in the same 2 devices, performance degrades
- * because position is mirror, not device based.
- *
- * The rdev for the device selected will have nr_pending incremented.
- */
-static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sectors)
+static bool rdev_readable(struct md_rdev *rdev, struct r1bio *r1_bio)
 {
-	const sector_t this_sector = r1_bio->sector;
-	int sectors;
-	int best_good_sectors;
-	int best_disk, best_dist_disk, best_pending_disk, sequential_disk;
+	if (!rdev || test_bit(Faulty, &rdev->flags))
+		return false;
+
+	/* still in recovery */
+	if (!test_bit(In_sync, &rdev->flags) &&
+	    rdev->recovery_offset < r1_bio->sector + r1_bio->sectors)
+		return false;
+
+	/* don't read from slow disk unless have to */
+	if (test_bit(WriteMostly, &rdev->flags))
+		return false;
+
+	/* don't split IO for bad blocks unless have to */
+	if (rdev_has_badblock(rdev, r1_bio->sector, r1_bio->sectors))
+		return false;
+
+	return true;
+}
+
+struct read_balance_ctl {
+	sector_t closest_dist;
+	int closest_dist_disk;
+	int min_pending;
+	int min_pending_disk;
+	int sequential_disk;
+	int readable_disks;
+};
+
+static int choose_best_rdev(struct r1conf *conf, struct r1bio *r1_bio)
+{
 	int disk;
-	sector_t best_dist;
-	unsigned int min_pending;
-	struct md_rdev *rdev;
-
- retry:
-	sectors = r1_bio->sectors;
-	best_disk = -1;
-	best_dist_disk = -1;
-	sequential_disk = -1;
-	best_dist = MaxSector;
-	best_pending_disk = -1;
-	min_pending = UINT_MAX;
-	best_good_sectors = 0;
-	clear_bit(R1BIO_FailFast, &r1_bio->state);
-
-	if (raid1_should_read_first(conf->mddev, this_sector, sectors))
-		return choose_first_rdev(conf, r1_bio, max_sectors);
+	struct read_balance_ctl ctl = {
+		.closest_dist_disk      = -1,
+		.closest_dist           = MaxSector,
+		.min_pending_disk       = -1,
+		.min_pending            = UINT_MAX,
+		.sequential_disk	= -1,
+	};
 
 	for (disk = 0 ; disk < conf->raid_disks * 2 ; disk++) {
+		struct md_rdev *rdev;
 		sector_t dist;
 		unsigned int pending;
 
-		rdev = conf->mirrors[disk].rdev;
-		if (r1_bio->bios[disk] == IO_BLOCKED
-		    || rdev == NULL
-		    || test_bit(Faulty, &rdev->flags))
-			continue;
-		if (!test_bit(In_sync, &rdev->flags) &&
-		    rdev->recovery_offset < this_sector + sectors)
-			continue;
-		if (test_bit(WriteMostly, &rdev->flags))
-			continue;
-		if (rdev_has_badblock(rdev, this_sector, sectors))
+		if (r1_bio->bios[disk] == IO_BLOCKED)
 			continue;
 
-		if (best_disk >= 0)
-			/* At least two disks to choose from so failfast is OK */
+		rdev = conf->mirrors[disk].rdev;
+		if (!rdev_readable(rdev, r1_bio))
+			continue;
+
+		/* At least two disks to choose from so failfast is OK */
+		if (ctl.readable_disks++ == 1)
 			set_bit(R1BIO_FailFast, &r1_bio->state);
 
 		pending = atomic_read(&rdev->nr_pending);
-		dist = abs(this_sector - conf->mirrors[disk].head_position);
+		dist = abs(r1_bio->sector - conf->mirrors[disk].head_position);
+
 		/* Don't change to another disk for sequential reads */
 		if (is_sequential(conf, disk, r1_bio)) {
-			if (!should_choose_next(conf, disk)) {
-				best_disk = disk;
-				break;
-			}
+			if (!should_choose_next(conf, disk))
+				return disk;
+
 			/*
 			 * Add 'pending' to avoid choosing this disk if
 			 * there is other idle disk.
@@ -807,17 +804,17 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 			 * If there is no other idle disk, this disk
 			 * will be chosen.
 			 */
-			sequential_disk = disk;
+			ctl.sequential_disk = disk;
 		}
 
-		if (min_pending > pending) {
-			min_pending = pending;
-			best_pending_disk = disk;
+		if (ctl.min_pending > pending) {
+			ctl.min_pending = pending;
+			ctl.min_pending_disk = disk;
 		}
 
-		if (dist < best_dist) {
-			best_dist = dist;
-			best_dist_disk = disk;
+		if (ctl.closest_dist > dist) {
+			ctl.closest_dist = dist;
+			ctl.closest_dist_disk = disk;
 		}
 	}
 
@@ -825,8 +822,8 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	 * sequential IO size exceeds optimal iosize, however, there is no other
 	 * idle disk, so choose the sequential disk.
 	 */
-	if (best_disk == -1 && min_pending != 0)
-		best_disk = sequential_disk;
+	if (ctl.sequential_disk != -1 && ctl.min_pending != 0)
+		return ctl.sequential_disk;
 
 	/*
 	 * If all disks are rotational, choose the closest disk. If any disk is
@@ -834,25 +831,49 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	 * disk is rotational, which might/might not be optimal for raids with
 	 * mixed ratation/non-rotational disks depending on workload.
 	 */
-	if (best_disk == -1) {
-		if (READ_ONCE(conf->nonrot_disks) || min_pending == 0)
-			best_disk = best_pending_disk;
-		else
-			best_disk = best_dist_disk;
+	if (ctl.min_pending_disk != -1 &&
+	    (READ_ONCE(conf->nonrot_disks) || ctl.min_pending == 0))
+		return ctl.min_pending_disk;
+	else
+		return ctl.closest_dist_disk;
+}
+
+/*
+ * This routine returns the disk from which the requested read should be done.
+ *
+ * 1) If resync is in progress, find the first usable disk and use it even if it
+ * has some bad blocks.
+ *
+ * 2) Now that there is no resync, loop through all disks and skipping slow
+ * disks and disks with bad blocks for now. Only pay attention to key disk
+ * choice.
+ *
+ * 3) If we've made it this far, now look for disks with bad blocks and choose
+ * the one with most number of sectors.
+ *
+ * 4) If we are all the way at the end, we have no choice but to use a disk even
+ * if it is write mostly.
+ *
+ * The rdev for the device selected will have nr_pending incremented.
+ */
+static int read_balance(struct r1conf *conf, struct r1bio *r1_bio,
+			int *max_sectors)
+{
+	int disk;
+
+	clear_bit(R1BIO_FailFast, &r1_bio->state);
+
+	if (raid1_should_read_first(conf->mddev, r1_bio->sector,
+				    r1_bio->sectors))
+		return choose_first_rdev(conf, r1_bio, max_sectors);
+
+	disk = choose_best_rdev(conf, r1_bio);
+	if (disk >= 0) {
+		*max_sectors = r1_bio->sectors;
+		update_read_sectors(conf, disk, r1_bio->sector,
+				    r1_bio->sectors);
+		return disk;
 	}
-
-	if (best_disk >= 0) {
-		rdev = conf->mirrors[best_disk].rdev;
-		if (!rdev)
-			goto retry;
-
-		sectors = best_good_sectors;
-		update_read_sectors(conf, disk, this_sector, sectors);
-	}
-	*max_sectors = sectors;
-
-	if (best_disk >= 0)
-		return best_disk;
 
 	/*
 	 * If we are here it means we didn't find a perfectly good disk so
