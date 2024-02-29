@@ -12,7 +12,6 @@
 	compatible = "nvidia,p3737-0000+p3701-0000", "nvidia,p3701-0000", "nvidia,tegra234";
 
 	aliases {
-		mmc3 = "/bus@0/mmc@3460000";
 		serial0 = &tcu;
 		serial1 = &uarta;
 	};
