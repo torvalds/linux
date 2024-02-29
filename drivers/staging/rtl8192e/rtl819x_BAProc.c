@@ -268,7 +268,7 @@ int rtllib_rx_add_ba_req(struct rtllib_device *ieee, struct sk_buff *skb)
 		goto on_add_ba_req_fail;
 	}
 
-	rtllib_FlushRxTsPendingPkts(ieee, ts);
+	rtllib_flush_rx_ts_pending_pkts(ieee, ts);
 
 	deactivate_ba_entry(ieee, ba);
 	ba->dialog_token = *dialog_token;
