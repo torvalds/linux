@@ -84,7 +84,7 @@ static void xhci_free_segments_for_ring(struct xhci_hcd *xhci,
 	struct xhci_segment *seg;
 
 	seg = first->next;
-	while (seg != first) {
+	while (seg && seg != first) {
 		struct xhci_segment *next = seg->next;
 		xhci_segment_free(xhci, seg);
 		seg = next;
@@ -351,17 +351,10 @@ static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci,
 
 		next = xhci_segment_alloc(xhci, cycle_state, max_packet, num,
 					  flags);
-		if (!next) {
-			prev = *first;
-			while (prev) {
-				next = prev->next;
-				xhci_segment_free(xhci, prev);
-				prev = next;
-			}
-			return -ENOMEM;
-		}
-		xhci_link_segments(prev, next, type, chain_links);
+		if (!next)
+			goto free_segments;
 
+		xhci_link_segments(prev, next, type, chain_links);
 		prev = next;
 		num++;
 	}
@@ -369,6 +362,10 @@ static int xhci_alloc_segments_for_ring(struct xhci_hcd *xhci,
 	*last = prev;
 
 	return 0;
+
+free_segments:
+	xhci_free_segments_for_ring(xhci, *first);
+	return -ENOMEM;
 }
 
 /*
@@ -444,19 +441,11 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	if (ret)
 		return -ENOMEM;
 
-	if (ring->type == TYPE_STREAM)
+	if (ring->type == TYPE_STREAM) {
 		ret = xhci_update_stream_segment_mapping(ring->trb_address_map,
 						ring, first, last, flags);
-	if (ret) {
-		struct xhci_segment *next;
-		do {
-			next = first->next;
-			xhci_segment_free(xhci, first);
-			if (first == last)
-				break;
-			first = next;
-		} while (true);
-		return ret;
+		if (ret)
+			goto free_segments;
 	}
 
 	xhci_link_rings(xhci, ring, first, last, num_new_segs);
@@ -466,6 +455,10 @@ int xhci_ring_expansion(struct xhci_hcd *xhci, struct xhci_ring *ring,
 			ring->num_segs);
 
 	return 0;
+
+free_segments:
+	xhci_free_segments_for_ring(xhci, first);
+	return ret;
 }
 
 struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
