@@ -134,70 +134,70 @@ static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
 	 .fcxstep = 7,   .fcxnullsta = 7, .fcxmreg = 7,  .fcxgpiodbg = 7,
 	 .fcxbtver = 7,  .fcxbtscan = 7,  .fcxbtafh = 7, .fcxbtdevinfo = 7,
 	 .fwlrole = 2,   .frptmap = 7,    .fcxctrl = 7,  .fcxinit = 7,
-	 .info_buf = 1800, .max_role_num = 6,
+	 .drvinfo_type = 1, .info_buf = 1800, .max_role_num = 6,
 	},
 	{RTL8851B, RTW89_FW_VER_CODE(0, 29, 29, 0),
 	 .fcxbtcrpt = 105, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 5,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 2,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 2,  .fcxbtafh = 2, .fcxbtdevinfo = 1,
 	 .fwlrole = 2,   .frptmap = 3,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1800, .max_role_num = 6,
+	 .drvinfo_type = 0, .info_buf = 1800, .max_role_num = 6,
 	},
 	{RTL8852C, RTW89_FW_VER_CODE(0, 27, 57, 0),
 	 .fcxbtcrpt = 4, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 3,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 2, .fcxbtdevinfo = 1,
 	 .fwlrole = 1,   .frptmap = 3,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1280, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1280, .max_role_num = 5,
 	},
 	{RTL8852C, RTW89_FW_VER_CODE(0, 27, 42, 0),
 	 .fcxbtcrpt = 4, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 3,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 2, .fcxbtdevinfo = 1,
 	 .fwlrole = 1,   .frptmap = 2,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1280, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1280, .max_role_num = 5,
 	},
 	{RTL8852C, RTW89_FW_VER_CODE(0, 27, 0, 0),
 	 .fcxbtcrpt = 4, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 3,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 1, .fcxbtdevinfo = 1,
 	 .fwlrole = 1,   .frptmap = 2,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1280, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1280, .max_role_num = 5,
 	},
 	{RTL8852B, RTW89_FW_VER_CODE(0, 29, 29, 0),
 	 .fcxbtcrpt = 105, .fcxtdma = 3,  .fcxslots = 1, .fcxcysta = 5,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 2,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 2,  .fcxbtafh = 2, .fcxbtdevinfo = 1,
 	 .fwlrole = 2,   .frptmap = 3,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1800, .max_role_num = 6,
+	 .drvinfo_type = 0, .info_buf = 1800, .max_role_num = 6,
 	},
 	{RTL8852B, RTW89_FW_VER_CODE(0, 29, 14, 0),
 	 .fcxbtcrpt = 5, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 4,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 2, .fcxbtdevinfo = 1,
 	 .fwlrole = 1,   .frptmap = 3,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1800, .max_role_num = 6,
+	 .drvinfo_type = 0, .info_buf = 1800, .max_role_num = 6,
 	},
 	{RTL8852B, RTW89_FW_VER_CODE(0, 27, 0, 0),
 	 .fcxbtcrpt = 4, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 3,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 1, .fcxbtdevinfo = 1,
 	 .fwlrole = 1,   .frptmap = 1,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1280, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1280, .max_role_num = 5,
 	},
 	{RTL8852A, RTW89_FW_VER_CODE(0, 13, 37, 0),
 	 .fcxbtcrpt = 4, .fcxtdma = 3,    .fcxslots = 1, .fcxcysta = 3,
 	 .fcxstep = 3,   .fcxnullsta = 2, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 2, .fcxbtdevinfo = 1,
 	 .fwlrole = 1,   .frptmap = 3,    .fcxctrl = 1,  .fcxinit = 0,
-	 .info_buf = 1280, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1280, .max_role_num = 5,
 	},
 	{RTL8852A, RTW89_FW_VER_CODE(0, 13, 0, 0),
 	 .fcxbtcrpt = 1, .fcxtdma = 1,    .fcxslots = 1, .fcxcysta = 2,
 	 .fcxstep = 2,   .fcxnullsta = 1, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 1, .fcxbtdevinfo = 1,
 	 .fwlrole = 0,   .frptmap = 0,    .fcxctrl = 0,  .fcxinit = 0,
-	 .info_buf = 1024, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1024, .max_role_num = 5,
 	},
 
 	/* keep it to be the last as default entry */
@@ -206,7 +206,7 @@ static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
 	 .fcxstep = 2,   .fcxnullsta = 1, .fcxmreg = 1,  .fcxgpiodbg = 1,
 	 .fcxbtver = 1,  .fcxbtscan = 1,  .fcxbtafh = 1, .fcxbtdevinfo = 1,
 	 .fwlrole = 0,   .frptmap = 0,    .fcxctrl = 0,  .fcxinit = 0,
-	 .info_buf = 1024, .max_role_num = 5,
+	 .drvinfo_type = 0, .info_buf = 1024, .max_role_num = 5,
 	},
 };
 
@@ -2102,25 +2102,31 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 	switch (type) {
 	case CXDRVINFO_INIT:
 		if (ver->fcxinit == 7)
-			rtw89_fw_h2c_cxdrv_init_v7(rtwdev);
+			rtw89_fw_h2c_cxdrv_init_v7(rtwdev, type);
 		else
-			rtw89_fw_h2c_cxdrv_init(rtwdev);
+			rtw89_fw_h2c_cxdrv_init(rtwdev, type);
 		break;
 	case CXDRVINFO_ROLE:
 		if (ver->fwlrole == 0)
-			rtw89_fw_h2c_cxdrv_role(rtwdev);
+			rtw89_fw_h2c_cxdrv_role(rtwdev, type);
 		else if (ver->fwlrole == 1)
-			rtw89_fw_h2c_cxdrv_role_v1(rtwdev);
+			rtw89_fw_h2c_cxdrv_role_v1(rtwdev, type);
 		else if (ver->fwlrole == 2)
-			rtw89_fw_h2c_cxdrv_role_v2(rtwdev);
+			rtw89_fw_h2c_cxdrv_role_v2(rtwdev, type);
 		break;
 	case CXDRVINFO_CTRL:
+		if (ver->drvinfo_type == 1)
+			type = 2;
+
 		if (ver->fcxctrl == 7)
-			rtw89_fw_h2c_cxdrv_ctrl_v7(rtwdev);
+			rtw89_fw_h2c_cxdrv_ctrl_v7(rtwdev, type);
 		else
-			rtw89_fw_h2c_cxdrv_ctrl(rtwdev);
+			rtw89_fw_h2c_cxdrv_ctrl(rtwdev, type);
 		break;
 	case CXDRVINFO_TRX:
+		if (ver->drvinfo_type == 1)
+			type = 3;
+
 		dm->trx_info.tx_power = u32_get_bits(rf_para.wl_tx_power,
 						     RTW89_BTC_WL_DEF_TX_PWR);
 		dm->trx_info.rx_gain = u32_get_bits(rf_para.wl_rx_gain,
@@ -2131,11 +2137,18 @@ static void _fw_set_drv_info(struct rtw89_dev *rtwdev, u8 type)
 						       RTW89_BTC_WL_DEF_TX_PWR);
 		dm->trx_info.cn = wl->cn_report;
 		dm->trx_info.nhm = wl->nhm.pwr;
-		rtw89_fw_h2c_cxdrv_trx(rtwdev);
+		rtw89_fw_h2c_cxdrv_trx(rtwdev, type);
 		break;
 	case CXDRVINFO_RFK:
-		rtw89_fw_h2c_cxdrv_rfk(rtwdev);
+		if (ver->drvinfo_type == 1)
+			return;
+
+		rtw89_fw_h2c_cxdrv_rfk(rtwdev, type);
 		break;
+	case CXDRVINFO_TXPWR:
+	case CXDRVINFO_FDDT:
+	case CXDRVINFO_MLO:
+	case CXDRVINFO_OSI:
 	default:
 		break;
 	}

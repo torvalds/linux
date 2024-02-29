@@ -3753,7 +3753,7 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
@@ -3773,7 +3773,7 @@ int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev)
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_cxinit *)skb->data;
 
-	h2c->hdr.type = CXDRVINFO_INIT;
+	h2c->hdr.type = type;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR;
 
 	h2c->ant_type = ant->type;
@@ -3820,7 +3820,7 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
@@ -3838,7 +3838,7 @@ int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev)
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_cxinit_v7 *)skb->data;
 
-	h2c->hdr.type = CXDRVINFO_INIT;
+	h2c->hdr.type = type;
 	h2c->hdr.ver = btc->ver->fcxinit;
 	h2c->hdr.len = len - H2C_LEN_CXDRVHDR_V7;
 	h2c->init = *init_info;
@@ -3866,7 +3866,7 @@ fail:
 #define H2C_LEN_CXDRVINFO_ROLE_SIZE(max_role_num) \
 	(4 + 12 * (max_role_num) + H2C_LEN_CXDRVHDR)
 
-int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
@@ -3891,7 +3891,7 @@ int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev)
 	skb_put(skb, len);
 	cmd = skb->data;
 
-	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_ROLE);
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
 
 	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
@@ -3947,7 +3947,7 @@ fail:
 #define H2C_LEN_CXDRVINFO_ROLE_SIZE_V1(max_role_num) \
 	(4 + 16 * (max_role_num) + H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN + H2C_LEN_CXDRVHDR)
 
-int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
@@ -3971,7 +3971,7 @@ int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev)
 	skb_put(skb, len);
 	cmd = skb->data;
 
-	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_ROLE);
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
 
 	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
@@ -4037,7 +4037,7 @@ fail:
 #define H2C_LEN_CXDRVINFO_ROLE_SIZE_V2(max_role_num) \
 	(4 + 8 * (max_role_num) + H2C_LEN_CXDRVINFO_ROLE_DBCC_LEN + H2C_LEN_CXDRVHDR)
 
-int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
@@ -4061,7 +4061,7 @@ int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev)
 	skb_put(skb, len);
 	cmd = skb->data;
 
-	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_ROLE);
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, len - H2C_LEN_CXDRVHDR);
 
 	RTW89_SET_FWCMD_CXROLE_CONNECT_CNT(cmd, role_info->connect_cnt);
@@ -4121,7 +4121,7 @@ fail:
 }
 
 #define H2C_LEN_CXDRVINFO_CTRL (4 + H2C_LEN_CXDRVHDR)
-int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	const struct rtw89_btc_ver *ver = btc->ver;
@@ -4138,7 +4138,7 @@ int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev)
 	skb_put(skb, H2C_LEN_CXDRVINFO_CTRL);
 	cmd = skb->data;
 
-	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_CTRL);
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, H2C_LEN_CXDRVINFO_CTRL - H2C_LEN_CXDRVHDR);
 
 	RTW89_SET_FWCMD_CXCTRL_MANUAL(cmd, ctrl->manual);
@@ -4165,7 +4165,7 @@ fail:
 	return ret;
 }
 
-int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_ctrl_v7 *ctrl = &btc->ctrl.ctrl_v7;
@@ -4182,7 +4182,7 @@ int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev)
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_cxctrl_v7 *)skb->data;
 
-	h2c->hdr.type = CXDRVINFO_INIT;
+	h2c->hdr.type = type;
 	h2c->hdr.ver = btc->ver->fcxctrl;
 	h2c->hdr.len = sizeof(*h2c) - H2C_LEN_CXDRVHDR_V7;
 	h2c->ctrl = *ctrl;
@@ -4205,7 +4205,7 @@ fail:
 }
 
 #define H2C_LEN_CXDRVINFO_TRX (28 + H2C_LEN_CXDRVHDR)
-int rtw89_fw_h2c_cxdrv_trx(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_trx(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_trx_info *trx = &btc->dm.trx_info;
@@ -4221,7 +4221,7 @@ int rtw89_fw_h2c_cxdrv_trx(struct rtw89_dev *rtwdev)
 	skb_put(skb, H2C_LEN_CXDRVINFO_TRX);
 	cmd = skb->data;
 
-	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_TRX);
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, H2C_LEN_CXDRVINFO_TRX - H2C_LEN_CXDRVHDR);
 
 	RTW89_SET_FWCMD_CXTRX_TXLV(cmd, trx->tx_lvl);
@@ -4261,7 +4261,7 @@ fail:
 }
 
 #define H2C_LEN_CXDRVINFO_RFK (4 + H2C_LEN_CXDRVHDR)
-int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev)
+int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev, u8 type)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
@@ -4278,7 +4278,7 @@ int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev)
 	skb_put(skb, H2C_LEN_CXDRVINFO_RFK);
 	cmd = skb->data;
 
-	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, CXDRVINFO_RFK);
+	RTW89_SET_FWCMD_CXHDR_TYPE(cmd, type);
 	RTW89_SET_FWCMD_CXHDR_LEN(cmd, H2C_LEN_CXDRVINFO_RFK - H2C_LEN_CXDRVHDR);
 
 	RTW89_SET_FWCMD_CXRFK_STATE(cmd, rfk_info->state);

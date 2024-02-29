@@ -2324,9 +2324,15 @@ enum rtw89_btc_btf_set {
 	SET_BT_IGNORE_WLAN_ACT,
 	SET_BT_TX_PWR,
 	SET_BT_LNA_CONSTRAIN,
-	SET_BT_GOLDEN_RX_RANGE,
+	SET_BT_QUERY_DEV_LIST,
+	SET_BT_QUERY_DEV_INFO,
 	SET_BT_PSD_REPORT,
 	SET_H2C_TEST,
+	SET_IOFLD_RF,
+	SET_IOFLD_BB,
+	SET_IOFLD_MAC,
+	SET_IOFLD_SCBD,
+	SET_H2C_MACRO,
 	SET_MAX1,
 };
 
@@ -2340,6 +2346,10 @@ enum rtw89_btc_cxdrvinfo {
 	CXDRVINFO_CTRL,
 	CXDRVINFO_SCAN,
 	CXDRVINFO_TRX,  /* WL traffic to WL fw */
+	CXDRVINFO_TXPWR,
+	CXDRVINFO_FDDT,
+	CXDRVINFO_MLO,
+	CXDRVINFO_OSI,
 	CXDRVINFO_MAX,
 };
 
@@ -4548,15 +4558,15 @@ int rtw89_fw_h2c_rssi_offload(struct rtw89_dev *rtwdev,
 			      struct rtw89_rx_phy_ppdu *phy_ppdu);
 int rtw89_fw_h2c_tp_offload(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif);
 int rtw89_fw_h2c_ra(struct rtw89_dev *rtwdev, struct rtw89_ra_info *ra, bool csi);
-int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_trx(struct rtw89_dev *rtwdev);
-int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev);
+int rtw89_fw_h2c_cxdrv_init(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_init_v7(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_role(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_role_v1(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_role_v2(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_ctrl(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_ctrl_v7(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_trx(struct rtw89_dev *rtwdev, u8 type);
+int rtw89_fw_h2c_cxdrv_rfk(struct rtw89_dev *rtwdev, u8 type);
 int rtw89_fw_h2c_del_pkt_offload(struct rtw89_dev *rtwdev, u8 id);
 int rtw89_fw_h2c_add_pkt_offload(struct rtw89_dev *rtwdev, u8 *id,
 				 struct sk_buff *skb_ofld);
