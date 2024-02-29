@@ -2260,8 +2260,8 @@ static int ast2600_i2c_probe(struct platform_device *pdev)
 		i2c_bus->mode = BUFF_MODE;
 	}
 
-	/* support smbus xfer if it's not byte mode */
-	if (i2c_bus->mode != BYTE_MODE)
+	/* support smbus xfer if mode is buffer mode */
+	if (i2c_bus->mode == BUFF_MODE)
 		i2c_ast2600_algorithm.smbus_xfer = ast2600_i2c_smbus_xfer;
 
 	/*
