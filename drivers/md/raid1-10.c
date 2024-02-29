@@ -227,3 +227,52 @@ static inline bool exceed_read_errors(struct mddev *mddev, struct md_rdev *rdev)
 
 	return false;
 }
+
+/**
+ * raid1_check_read_range() - check a given read range for bad blocks,
+ * available read length is returned;
+ * @rdev: the rdev to read;
+ * @this_sector: read position;
+ * @len: read length;
+ *
+ * helper function for read_balance()
+ *
+ * 1) If there are no bad blocks in the range, @len is returned;
+ * 2) If the range are all bad blocks, 0 is returned;
+ * 3) If there are partial bad blocks:
+ *  - If the bad block range starts after @this_sector, the length of first
+ *  good region is returned;
+ *  - If the bad block range starts before @this_sector, 0 is returned and
+ *  the @len is updated to the offset into the region before we get to the
+ *  good blocks;
+ */
+static inline int raid1_check_read_range(struct md_rdev *rdev,
+					 sector_t this_sector, int *len)
+{
+	sector_t first_bad;
+	int bad_sectors;
+
+	/* no bad block overlap */
+	if (!is_badblock(rdev, this_sector, *len, &first_bad, &bad_sectors))
+		return *len;
+
+	/*
+	 * bad block range starts offset into our range so we can return the
+	 * number of sectors before the bad blocks start.
+	 */
+	if (first_bad > this_sector)
+		return first_bad - this_sector;
+
+	/* read range is fully consumed by bad blocks. */
+	if (this_sector + *len <= first_bad + bad_sectors)
+		return 0;
+
+	/*
+	 * final case, bad block range starts before or at the start of our
+	 * range but does not cover our entire range so we still return 0 but
+	 * update the length with the number of sectors before we get to the
+	 * good ones.
+	 */
+	*len = first_bad + bad_sectors - this_sector;
+	return 0;
+}
