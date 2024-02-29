@@ -714,26 +714,26 @@ static void check_lifetime(struct work_struct *work)
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(ifa, &inet_addr_lst[i], hash) {
 			unsigned long age, tstamp;
+			u32 valid_lft;
 
 			if (ifa->ifa_flags & IFA_F_PERMANENT)
 				continue;
 
+			valid_lft = READ_ONCE(ifa->ifa_valid_lft);
 			tstamp = READ_ONCE(ifa->ifa_tstamp);
 			/* We try to batch several events at once. */
 			age = (now - tstamp +
 			       ADDRCONF_TIMER_FUZZ_MINUS) / HZ;
 
-			if (ifa->ifa_valid_lft != INFINITY_LIFE_TIME &&
-			    age >= ifa->ifa_valid_lft) {
+			if (valid_lft != INFINITY_LIFE_TIME &&
+			    age >= valid_lft) {
 				change_needed = true;
 			} else if (ifa->ifa_preferred_lft ==
 				   INFINITY_LIFE_TIME) {
 				continue;
 			} else if (age >= ifa->ifa_preferred_lft) {
-				if (time_before(tstamp +
-						ifa->ifa_valid_lft * HZ, next))
-					next = tstamp +
-					       ifa->ifa_valid_lft * HZ;
+				if (time_before(tstamp + valid_lft * HZ, next))
+					next = tstamp + valid_lft * HZ;
 
 				if (!(ifa->ifa_flags & IFA_F_DEPRECATED))
 					change_needed = true;
@@ -810,7 +810,7 @@ static void set_ifa_lifetime(struct in_ifaddr *ifa, __u32 valid_lft,
 
 	timeout = addrconf_timeout_fixup(valid_lft, HZ);
 	if (addrconf_finite_timeout(timeout))
-		ifa->ifa_valid_lft = timeout;
+		WRITE_ONCE(ifa->ifa_valid_lft, timeout);
 	else
 		ifa->ifa_flags |= IFA_F_PERMANENT;
 
@@ -1699,7 +1699,7 @@ static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
 	tstamp = READ_ONCE(ifa->ifa_tstamp);
 	if (!(ifm->ifa_flags & IFA_F_PERMANENT)) {
 		preferred = ifa->ifa_preferred_lft;
-		valid = ifa->ifa_valid_lft;
+		valid = READ_ONCE(ifa->ifa_valid_lft);
 		if (preferred != INFINITY_LIFE_TIME) {
 			long tval = (jiffies - tstamp) / HZ;
 
