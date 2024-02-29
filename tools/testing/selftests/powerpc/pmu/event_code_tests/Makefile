@@ -9,6 +9,7 @@ TEST_GEN_PROGS := group_constraint_pmc56_test group_pmc56_exclude_constraints_te
 
 top_srcdir = ../../../../../..
 include ../../../lib.mk
+include ../../flags.mk
 
 CFLAGS += -m64
 

@@ -18,6 +18,7 @@ TEST_GEN_PROGS := reg_access_test event_attributes_test cycles_test	\
 
 top_srcdir = ../../../../../..
 include ../../../lib.mk
+include ../../flags.mk
 
 # The EBB handler is 64-bit code and everything links against it
 CFLAGS += -m64

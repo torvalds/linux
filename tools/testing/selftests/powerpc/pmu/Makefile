@@ -7,6 +7,7 @@ EXTRA_SOURCES := ../harness.c event.c lib.c ../utils.c
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 all: $(TEST_GEN_PROGS) ebb sampling_tests event_code_tests
 
