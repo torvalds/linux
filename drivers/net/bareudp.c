@@ -194,15 +194,10 @@ static int bareudp_init(struct net_device *dev)
 	struct bareudp_dev *bareudp = netdev_priv(dev);
 	int err;
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	err = gro_cells_init(&bareudp->gro_cells, dev);
-	if (err) {
-		free_percpu(dev->tstats);
+	if (err)
 		return err;
-	}
+
 	return 0;
 }
 
@@ -211,7 +206,6 @@ static void bareudp_uninit(struct net_device *dev)
 	struct bareudp_dev *bareudp = netdev_priv(dev);
 
 	gro_cells_destroy(&bareudp->gro_cells);
-	free_percpu(dev->tstats);
 }
 
 static struct socket *bareudp_create_sock(struct net *net, __be16 port)
@@ -567,6 +561,7 @@ static void bareudp_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 	dev->priv_flags |= IFF_NO_QUEUE;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 }
 
 static int bareudp_validate(struct nlattr *tb[], struct nlattr *data[],
