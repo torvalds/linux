@@ -97,6 +97,8 @@ static void paicrypt_event_destroy(struct perf_event *event)
 			    event->attr.config, event->cpu,
 			    cpump->active_events, cpump->mode,
 			    refcount_read(&cpump->refcnt));
+	if (event->attr.sample_period)
+		cpump->mode &= ~PAI_MODE_SAMPLING;
 	free_page(PAI_SAVE_AREA(event));
 	if (refcount_dec_and_test(&cpump->refcnt)) {
 		debug_sprintf_event(cfm_dbg, 4, "%s page %#lx save %p\n",
@@ -160,9 +162,7 @@ static u64 paicrypt_getall(struct perf_event *event)
  * sampling for crypto events
  *
  * Only one instance of event pai_crypto/CRYPTO_ALL/ for sampling is
- * allowed and when this event is running, no counting event is allowed.
- * Several counting events are allowed in parallel, but no sampling event
- * is allowed while one (or more) counting events are running.
+ * allowed. Several counting events are allowed in parallel.
  *
  * This function is called in process context and it is save to block.
  * When the event initialization functions fails, no other call back will
@@ -196,12 +196,12 @@ static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
 	}
 
 	if (a->sample_period) {		/* Sampling requested */
-		if (cpump->mode != PAI_MODE_NONE)
-			rc = -EBUSY;	/* ... sampling/counting active */
-	} else {			/* Counting requested */
-		if (cpump->mode == PAI_MODE_SAMPLING)
+		if (cpump->mode & PAI_MODE_SAMPLING)
 			rc = -EBUSY;	/* ... and sampling active */
+		else
+			cpump->mode |= PAI_MODE_SAMPLING;
 	}
+
 	/*
 	 * This error case triggers when there is a conflict:
 	 * Either sampling requested and counting already active, or visa
@@ -235,7 +235,6 @@ static struct paicrypt_map *paicrypt_busy(struct perf_event *event)
 	/* Set mode and reference count */
 	rc = 0;
 	refcount_set(&cpump->refcnt, 1);
-	cpump->mode = a->sample_period ? PAI_MODE_SAMPLING : PAI_MODE_COUNTING;
 	mp->mapptr = cpump;
 	debug_sprintf_event(cfm_dbg, 5, "%s sample_period %#llx users %d"
 			    " mode %d refcnt %u page %#lx save %p rc %d\n",
@@ -249,7 +248,6 @@ free_paicrypt_map:
 	mp->mapptr = NULL;
 free_root:
 	paicrypt_root_free();
-
 unlock:
 	mutex_unlock(&pai_reserve_mutex);
 	return rc ? ERR_PTR(rc) : cpump;
@@ -332,6 +330,7 @@ static void paicrypt_start(struct perf_event *event, int flags)
 		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
 		cpump->event = event;
+		memcpy((void *)PAI_SAVE_AREA(event), cpump->page, PAGE_SIZE);
 		perf_sched_cb_inc(event->pmu);
 	}
 }
@@ -480,7 +479,7 @@ static int paicrypt_have_sample(void)
 static void paicrypt_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
 	/* We started with a clean page on event installation. So read out
-	 * results on schedule_out and if page was dirty, clear values.
+	 * results on schedule_out and if page was dirty, save old values.
 	 */
 	if (!sched_in)
 		paicrypt_have_sample();
