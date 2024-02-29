@@ -173,6 +173,8 @@
 			reg = <0x0 0x50c34000 0x0 0x100>;
 			clocks = <&ltpi1_syscon AST1700_CLK_GATE_LTPICLK>;
 			resets = <&ltpi1_syscon AST1700_RESET_LTPI>;
+			remote-controller;
+			aspeed,scu = <&ltpi1_syscon>;
 			status = "okay";
 		};
 
