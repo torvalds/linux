@@ -40,8 +40,8 @@ static inline void ionic_rxq_post(struct ionic_queue *q, bool ring_dbell,
 
 bool ionic_txq_poke_doorbell(struct ionic_queue *q)
 {
-	unsigned long now, then, dif;
 	struct netdev_queue *netdev_txq;
+	unsigned long now, then, dif;
 	struct net_device *netdev;
 
 	netdev = q->lif->netdev;
@@ -1776,7 +1776,7 @@ static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 					    struct net_device *netdev)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
-	struct ionic_queue *q = &lif->hwstamp_txq->q;
+	struct ionic_queue *q;
 	int err, ndescs;
 
 	/* Does not stop/start txq, because we post to a separate tx queue
@@ -1784,6 +1784,7 @@ static netdev_tx_t ionic_start_hwstamp_xmit(struct sk_buff *skb,
 	 * the timestamping queue, it is dropped.
 	 */
 
+	q = &lif->hwstamp_txq->q;
 	ndescs = ionic_tx_descs_needed(q, skb);
 	if (unlikely(ndescs < 0))
 		goto err_out_drop;
