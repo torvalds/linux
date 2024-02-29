@@ -8,9 +8,6 @@ This module contains a full list of kernel modules
 
 _COMMON_GKI_MODULES_LIST = [
     # keep sorted
-    "crypto/crct10dif_common.ko",
-    "crypto/crct10dif_generic.ko",
-    "drivers/block/null_blk/null_blk.ko",
     "drivers/block/zram/zram.ko",
     "drivers/bluetooth/btbcm.ko",
     "drivers/bluetooth/btqca.ko",
@@ -38,12 +35,10 @@ _COMMON_GKI_MODULES_LIST = [
     "drivers/net/usb/rtl8150.ko",
     "drivers/net/usb/usbnet.ko",
     "drivers/net/wwan/wwan.ko",
-    "drivers/scsi/scsi_debug.ko",
     "drivers/usb/class/cdc-acm.ko",
     "drivers/usb/serial/ftdi_sio.ko",
     "drivers/usb/serial/usbserial.ko",
     "kernel/kheaders.ko",
-    "lib/crc-t10dif.ko",
     "lib/crypto/libarc4.ko",
     "mm/zsmalloc.ko",
     "net/6lowpan/6lowpan.ko",
