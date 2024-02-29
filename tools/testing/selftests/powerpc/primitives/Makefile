@@ -3,6 +3,7 @@ TEST_GEN_PROGS := load_unaligned_zeropad
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 CFLAGS += -I$(CURDIR)
 

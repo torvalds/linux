@@ -3,6 +3,7 @@ TEST_GEN_PROGS := fpu_syscall fpu_preempt fpu_signal fpu_denormal vmx_syscall vm
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 $(TEST_GEN_PROGS): ../harness.c
 $(TEST_GEN_PROGS): CFLAGS += -O2 -g -pthread -m64 -maltivec

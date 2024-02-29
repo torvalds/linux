@@ -7,12 +7,6 @@ ARCH := $(shell echo $(ARCH) | sed -e s/ppc.*/powerpc/)
 
 ifeq ($(ARCH),powerpc)
 
-GIT_VERSION = $(shell git describe --always --long --dirty || echo "unknown")
-
-CFLAGS := -std=gnu99 -O2 -Wall -Werror -DGIT_VERSION='"$(GIT_VERSION)"' -I$(CURDIR)/include $(CFLAGS)
-
-export CFLAGS
-
 SUB_DIRS = alignment		\
 	   benchmarks		\
 	   cache_shape		\
@@ -46,6 +40,7 @@ $(SUB_DIRS):
 	BUILD_TARGET=$(OUTPUT)/$@; mkdir -p $$BUILD_TARGET; $(MAKE) OUTPUT=$$BUILD_TARGET -k -C $@ all
 
 include ../lib.mk
+include ./flags.mk
 
 override define RUN_TESTS
 	+@for TARGET in $(SUB_DIRS); do \

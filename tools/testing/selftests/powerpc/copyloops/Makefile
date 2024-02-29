@@ -10,6 +10,7 @@ EXTRA_SOURCES := validate.c ../harness.c stubs.S
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 # The loops are all 64-bit code
 CFLAGS += -m64

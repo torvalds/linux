@@ -5,6 +5,7 @@ EXTRA_CLEAN = $(OUTPUT)/*.o $(OUTPUT)/check-reversed.S
 
 top_srcdir = ../../../../..
 include ../../lib.mk
+include ../flags.mk
 
 ASFLAGS += -O2 -Wall -g -nostdlib -m64
 
