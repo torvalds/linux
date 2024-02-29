@@ -25,6 +25,7 @@
  *     ksft_test_result_skip(fmt, ...);
  *     ksft_test_result_xfail(fmt, ...);
  *     ksft_test_result_error(fmt, ...);
+ *     ksft_test_result_code(exit_code, test_name, fmt, ...);
  *
  * When all tests are finished, clean up and exit the program with one of:
  *
@@ -249,6 +250,44 @@ static inline __printf(1, 2) void ksft_test_result_error(const char *msg, ...)
 
 	va_start(args, msg);
 	printf("not ok %u # error ", ksft_test_num());
+	errno = saved_errno;
+	vprintf(msg, args);
+	va_end(args);
+}
+
+static inline __printf(2, 3)
+void ksft_test_result_code(int exit_code, const char *msg, ...)
+{
+	const char *tap_code = "ok";
+	const char *directive = "";
+	int saved_errno = errno;
+	va_list args;
+
+	switch (exit_code) {
+	case KSFT_PASS:
+		ksft_cnt.ksft_pass++;
+		break;
+	case KSFT_XFAIL:
+		directive = " # XFAIL ";
+		ksft_cnt.ksft_xfail++;
+		break;
+	case KSFT_XPASS:
+		directive = " # XPASS ";
+		ksft_cnt.ksft_xpass++;
+		break;
+	case KSFT_SKIP:
+		directive = " # SKIP ";
+		ksft_cnt.ksft_xskip++;
+		break;
+	case KSFT_FAIL:
+	default:
+		tap_code = "not ok";
+		ksft_cnt.ksft_fail++;
+		break;
+	}
+
+	va_start(args, msg);
+	printf("%s %u%s", tap_code, ksft_test_num(), directive);
 	errno = saved_errno;
 	vprintf(msg, args);
 	va_end(args);
