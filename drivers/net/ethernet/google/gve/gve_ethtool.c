@@ -4,7 +4,6 @@
  * Copyright (C) 2015-2021 Google, Inc.
  */
 
-#include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include "gve.h"
 #include "gve_adminq.h"
@@ -480,6 +479,29 @@ static void gve_get_ringparam(struct net_device *netdev,
 	cmd->tx_max_pending = priv->tx_desc_cnt;
 	cmd->rx_pending = priv->rx_desc_cnt;
 	cmd->tx_pending = priv->tx_desc_cnt;
+
+	if (!gve_header_split_supported(priv))
+		kernel_cmd->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_UNKNOWN;
+	else if (priv->header_split_enabled)
+		kernel_cmd->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_ENABLED;
+	else
+		kernel_cmd->tcp_data_split = ETHTOOL_TCP_DATA_SPLIT_DISABLED;
+}
+
+static int gve_set_ringparam(struct net_device *netdev,
+			     struct ethtool_ringparam *cmd,
+			     struct kernel_ethtool_ringparam *kernel_cmd,
+			     struct netlink_ext_ack *extack)
+{
+	struct gve_priv *priv = netdev_priv(netdev);
+
+	if (priv->tx_desc_cnt != cmd->tx_pending ||
+	    priv->rx_desc_cnt != cmd->rx_pending) {
+		dev_info(&priv->pdev->dev, "Modify ring size is not supported.\n");
+		return -EOPNOTSUPP;
+	}
+
+	return gve_set_hsplit_config(priv, kernel_cmd->tcp_data_split);
 }
 
 static int gve_user_reset(struct net_device *netdev, u32 *flags)
@@ -655,6 +677,7 @@ static int gve_set_coalesce(struct net_device *netdev,
 
 const struct ethtool_ops gve_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_USECS,
+	.supported_ring_params = ETHTOOL_RING_USE_TCP_DATA_SPLIT,
 	.get_drvinfo = gve_get_drvinfo,
 	.get_strings = gve_get_strings,
 	.get_sset_count = gve_get_sset_count,
@@ -667,6 +690,7 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.get_coalesce = gve_get_coalesce,
 	.set_coalesce = gve_set_coalesce,
 	.get_ringparam = gve_get_ringparam,
+	.set_ringparam = gve_set_ringparam,
 	.reset = gve_user_reset,
 	.get_tunable = gve_get_tunable,
 	.set_tunable = gve_set_tunable,

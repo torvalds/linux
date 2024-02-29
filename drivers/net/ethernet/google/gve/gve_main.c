@@ -1307,9 +1307,13 @@ static void gve_rx_get_curr_alloc_cfg(struct gve_priv *priv,
 	cfg->qcfg = &priv->rx_cfg;
 	cfg->qcfg_tx = &priv->tx_cfg;
 	cfg->raw_addressing = !gve_is_qpl(priv);
+	cfg->enable_header_split = priv->header_split_enabled;
 	cfg->qpls = priv->qpls;
 	cfg->qpl_cfg = &priv->qpl_cfg;
 	cfg->ring_size = priv->rx_desc_cnt;
+	cfg->packet_buffer_size = gve_is_gqi(priv) ?
+				  GVE_DEFAULT_RX_BUFFER_SIZE :
+				  priv->data_buffer_size_dqo;
 	cfg->rx = priv->rx;
 }
 
@@ -1447,6 +1451,9 @@ static int gve_queues_start(struct gve_priv *priv,
 	err = gve_register_qpls(priv);
 	if (err)
 		goto reset;
+
+	priv->header_split_enabled = rx_alloc_cfg->enable_header_split;
+	priv->data_buffer_size_dqo = rx_alloc_cfg->packet_buffer_size;
 
 	err = gve_create_rings(priv);
 	if (err)
@@ -2057,6 +2064,56 @@ out:
 	if (tx)
 		tx->queue_timeout++;
 	priv->tx_timeo_cnt++;
+}
+
+u16 gve_get_pkt_buf_size(const struct gve_priv *priv, bool enable_hsplit)
+{
+	if (enable_hsplit && priv->max_rx_buffer_size >= GVE_MAX_RX_BUFFER_SIZE)
+		return GVE_MAX_RX_BUFFER_SIZE;
+	else
+		return GVE_DEFAULT_RX_BUFFER_SIZE;
+}
+
+/* header-split is not supported on non-DQO_RDA yet even if device advertises it */
+bool gve_header_split_supported(const struct gve_priv *priv)
+{
+	return priv->header_buf_size && priv->queue_format == GVE_DQO_RDA_FORMAT;
+}
+
+int gve_set_hsplit_config(struct gve_priv *priv, u8 tcp_data_split)
+{
+	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
+	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
+	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
+	bool enable_hdr_split;
+	int err = 0;
+
+	if (tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_UNKNOWN)
+		return 0;
+
+	if (!gve_header_split_supported(priv)) {
+		dev_err(&priv->pdev->dev, "Header-split not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (tcp_data_split == ETHTOOL_TCP_DATA_SPLIT_ENABLED)
+		enable_hdr_split = true;
+	else
+		enable_hdr_split = false;
+
+	if (enable_hdr_split == priv->header_split_enabled)
+		return 0;
+
+	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
+				&tx_alloc_cfg, &rx_alloc_cfg);
+
+	rx_alloc_cfg.enable_header_split = enable_hdr_split;
+	rx_alloc_cfg.packet_buffer_size = gve_get_pkt_buf_size(priv, enable_hdr_split);
+
+	if (netif_running(priv->dev))
+		err = gve_adjust_config(priv, &qpls_alloc_cfg,
+					&tx_alloc_cfg, &rx_alloc_cfg);
+	return err;
 }
 
 static int gve_set_features(struct net_device *netdev,

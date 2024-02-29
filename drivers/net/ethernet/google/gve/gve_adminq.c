@@ -659,6 +659,9 @@ static int gve_adminq_create_rx_queue(struct gve_priv *priv, u32 queue_index)
 			cpu_to_be16(rx_buff_ring_entries);
 		cmd.create_rx_queue.enable_rsc =
 			!!(priv->dev->features & NETIF_F_LRO);
+		if (priv->header_split_enabled)
+			cmd.create_rx_queue.header_buffer_size =
+				cpu_to_be16(priv->header_buf_size);
 	}
 
 	return gve_adminq_issue_cmd(priv, &cmd);

@@ -9,6 +9,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/dmapool.h>
+#include <linux/ethtool_netlink.h>
 #include <linux/netdevice.h>
 #include <linux/pci.h>
 #include <linux/u64_stats_sync.h>
@@ -154,6 +155,11 @@ struct gve_rx_compl_queue_dqo {
 	u32 mask; /* Mask for indices to the size of the ring */
 };
 
+struct gve_header_buf {
+	u8 *data;
+	dma_addr_t addr;
+};
+
 /* Stores state for tracking buffers posted to HW */
 struct gve_rx_buf_state_dqo {
 	/* The page posted to HW. */
@@ -256,6 +262,9 @@ struct gve_rx_ring {
 
 			/* track number of used buffers */
 			u16 used_buf_states_cnt;
+
+			/* Address info of the buffers for header-split */
+			struct gve_header_buf hdr_bufs;
 		} dqo;
 	};
 
@@ -668,6 +677,7 @@ struct gve_rx_alloc_rings_cfg {
 	struct gve_qpl_config *qpl_cfg;
 
 	u16 ring_size;
+	u16 packet_buffer_size;
 	bool raw_addressing;
 	bool enable_header_split;
 
@@ -792,6 +802,7 @@ struct gve_priv {
 	u32 rx_coalesce_usecs;
 
 	u16 header_buf_size; /* device configured, header-split supported if non-zero */
+	bool header_split_enabled; /* True if the header split is enabled by the user */
 };
 
 enum gve_service_task_flags_bit {
@@ -1129,6 +1140,9 @@ void gve_rx_free_rings_gqi(struct gve_priv *priv,
 			   struct gve_rx_alloc_rings_cfg *cfg);
 void gve_rx_start_ring_gqi(struct gve_priv *priv, int idx);
 void gve_rx_stop_ring_gqi(struct gve_priv *priv, int idx);
+u16 gve_get_pkt_buf_size(const struct gve_priv *priv, bool enable_hplit);
+bool gve_header_split_supported(const struct gve_priv *priv);
+int gve_set_hsplit_config(struct gve_priv *priv, u8 tcp_data_split);
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
 int gve_reset(struct gve_priv *priv, bool attempt_teardown);

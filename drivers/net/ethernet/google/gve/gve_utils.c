@@ -64,11 +64,9 @@ void gve_rx_add_to_block(struct gve_priv *priv, int queue_idx)
 	rx->ntfy_id = ntfy_idx;
 }
 
-struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
-			    struct gve_rx_slot_page_info *page_info, u16 len)
+struct sk_buff *gve_rx_copy_data(struct net_device *dev, struct napi_struct *napi,
+				 u8 *data, u16 len)
 {
-	void *va = page_info->page_address + page_info->page_offset +
-		page_info->pad;
 	struct sk_buff *skb;
 
 	skb = napi_alloc_skb(napi, len);
@@ -76,10 +74,19 @@ struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
 		return NULL;
 
 	__skb_put(skb, len);
-	skb_copy_to_linear_data_offset(skb, 0, va, len);
+	skb_copy_to_linear_data_offset(skb, 0, data, len);
 	skb->protocol = eth_type_trans(skb, dev);
 
 	return skb;
+}
+
+struct sk_buff *gve_rx_copy(struct net_device *dev, struct napi_struct *napi,
+			    struct gve_rx_slot_page_info *page_info, u16 len)
+{
+	void *va = page_info->page_address + page_info->page_offset +
+		page_info->pad;
+
+	return gve_rx_copy_data(dev, napi, va, len);
 }
 
 void gve_dec_pagecnt_bias(struct gve_rx_slot_page_info *page_info)
