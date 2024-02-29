@@ -142,6 +142,12 @@
 #define   RTERM_SELECT(x)			((x) << 3)
 #define   RTERM_SELECT_MASK			(0x7 << 3)
 
+#define ICL_PORT_TX_DW6_AUX(phy)		_MMIO(_ICL_PORT_TX_DW_AUX(6, phy))
+#define ICL_PORT_TX_DW6_GRP(phy)		_MMIO(_ICL_PORT_TX_DW_GRP(6, phy))
+#define ICL_PORT_TX_DW6_LN(ln, phy)		_MMIO(_ICL_PORT_TX_DW_LN(6, ln, phy))
+#define   ICL_AUX_ANAOVRD1_LDO_BYPASS		(1 << 7)
+#define   ICL_AUX_ANAOVRD1_ENABLE		(1 << 0)
+
 #define ICL_PORT_TX_DW7_AUX(phy)		_MMIO(_ICL_PORT_TX_DW_AUX(7, phy))
 #define ICL_PORT_TX_DW7_GRP(phy)		_MMIO(_ICL_PORT_TX_DW_GRP(7, phy))
 #define ICL_PORT_TX_DW7_LN(ln, phy)		_MMIO(_ICL_PORT_TX_DW_LN(7, ln, phy))

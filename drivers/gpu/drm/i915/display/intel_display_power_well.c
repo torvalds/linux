@@ -199,6 +199,9 @@ static void hsw_power_well_pre_disable(struct drm_i915_private *dev_priv,
 		gen8_irq_power_well_pre_disable(dev_priv, irq_pipe_mask);
 }
 
+#define ICL_AUX_PW_TO_PHY(pw_idx)	\
+	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + PHY_A)
+
 #define ICL_AUX_PW_TO_CH(pw_idx)	\
 	((pw_idx) - ICL_PW_CTL_IDX_AUX_A + AUX_CH_A)
 
@@ -426,7 +429,7 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 	/* Display WA #1178: icl */
 	if (pw_idx >= ICL_PW_CTL_IDX_AUX_A && pw_idx <= ICL_PW_CTL_IDX_AUX_B &&
 	    !intel_port_is_edp(dev_priv, (enum port)phy))
-		intel_de_rmw(dev_priv, ICL_AUX_ANAOVRD1(pw_idx),
+		intel_de_rmw(dev_priv, ICL_PORT_TX_DW6_AUX(ICL_AUX_PW_TO_PHY(pw_idx)),
 			     0, ICL_AUX_ANAOVRD1_ENABLE | ICL_AUX_ANAOVRD1_LDO_BYPASS);
 }
 

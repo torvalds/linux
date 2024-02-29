@@ -5566,15 +5566,6 @@ enum skl_power_gate {
 	((pw_idx) - ICL_PW_CTL_IDX_PW_1 + SKL_PG1)
 #define  SKL_FUSE_PG_DIST_STATUS(pg)		(1 << (27 - (pg)))
 
-#define _ICL_AUX_REG_IDX(pw_idx)	((pw_idx) - ICL_PW_CTL_IDX_AUX_A)
-#define _ICL_AUX_ANAOVRD1_A		0x162398
-#define _ICL_AUX_ANAOVRD1_B		0x6C398
-#define ICL_AUX_ANAOVRD1(pw_idx)	_MMIO(_PICK(_ICL_AUX_REG_IDX(pw_idx), \
-						    _ICL_AUX_ANAOVRD1_A, \
-						    _ICL_AUX_ANAOVRD1_B))
-#define   ICL_AUX_ANAOVRD1_LDO_BYPASS	(1 << 7)
-#define   ICL_AUX_ANAOVRD1_ENABLE	(1 << 0)
-
 /* Per-pipe DDI Function Control */
 #define _TRANS_DDI_FUNC_CTL_A		0x60400
 #define _TRANS_DDI_FUNC_CTL_B		0x61400
