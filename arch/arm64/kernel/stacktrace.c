@@ -247,7 +247,7 @@ struct kunwind_consume_entry_data {
 	void *cookie;
 };
 
-static bool
+static __always_inline bool
 arch_kunwind_consume_entry(const struct kunwind_state *state, void *cookie)
 {
 	struct kunwind_consume_entry_data *data = cookie;
