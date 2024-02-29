@@ -1428,7 +1428,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 	 * Due to pipeline delays the LBRs might be missing a branch
 	 * or two, which can result in very large or negative blocks
 	 * between final branch and sample. When this happens just
-	 * continue walking after the last TO until we hit a branch.
+	 * continue walking after the last TO.
 	 */
 	start = entries[0].to;
 	end = sample->ip;
@@ -1463,7 +1463,9 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 		printed += fprintf(fp, "\n");
 		if (ilen == 0)
 			break;
-		if (arch_is_branch(buffer + off, len - off, x.is64bit) && start + off != sample->ip) {
+		if ((attr->branch_sample_type == 0 || attr->branch_sample_type & PERF_SAMPLE_BRANCH_ANY)
+				&& arch_is_uncond_branch(buffer + off, len - off, x.is64bit)
+				&& start + off != sample->ip) {
 			/*
 			 * Hit a missing branch. Just stop.
 			 */
