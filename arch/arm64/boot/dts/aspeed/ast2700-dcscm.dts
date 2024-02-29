@@ -4,6 +4,7 @@
 
 #include "aspeed-g7.dtsi"
 #include <dt-bindings/gpio/aspeed-gpio.h>
+#include <dt-bindings/i2c/i2c.h>
 
 / {
 	model = "AST2700 DCSCM";
@@ -740,6 +741,11 @@
 	/* SMB_PCIE_BMC */
 	status = "okay";
 	multi-master;
+	mctp-controller;
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 };
 
 /* AST2700 A1 i2c11 -> AST1060 i2c0 for PFR mailbox. */
@@ -747,6 +753,11 @@
 	/* SMB_HSBP_BMC */
 	status = "okay";
 	multi-master;
+	mctp-controller;
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 };
 
 &i2c12 {
@@ -755,6 +766,19 @@
 	lm75@4a {
 		compatible = "national,lm75";
 		reg = <0x4a>;
+	};
+};
+
+/* AST2700 i2c15 -> AST1060 i2c2 for PCH mailbox. */
+&i2c15 {
+	/* SMB_IPMB */
+	status = "okay";
+	pinctrl-0 = <&pinctrl_di2c15_default>;
+	multi-master;
+	mctp-controller;
+	mctp@10 {
+		compatible = "mctp-i2c-controller";
+		reg = <(0x10 | I2C_OWN_SLAVE_ADDRESS)>;
 	};
 };
 
