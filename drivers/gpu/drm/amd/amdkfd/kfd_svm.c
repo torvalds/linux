@@ -1242,6 +1242,7 @@ svm_range_get_pte_flags(struct kfd_node *node,
 		break;
 	case IP_VERSION(9, 4, 3):
 	case IP_VERSION(9, 4, 4):
+	case IP_VERSION(9, 5, 0):
 		if (ext_coherent)
 			mtype_local = node->adev->rev_id ? AMDGPU_VM_MTYPE_CC : AMDGPU_VM_MTYPE_UC;
 		else
