@@ -450,7 +450,9 @@ bool rxrpc_input_call_event(struct rxrpc_call *call, struct sk_buff *skb)
 		rxrpc_send_ACK(call, RXRPC_ACK_PING, 0,
 			       rxrpc_propose_ack_ping_for_lost_ack);
 
-	if (resend && __rxrpc_call_state(call) != RXRPC_CALL_CLIENT_RECV_REPLY)
+	if (resend &&
+	    __rxrpc_call_state(call) != RXRPC_CALL_CLIENT_RECV_REPLY &&
+	    !test_bit(RXRPC_CALL_TX_ALL_ACKED, &call->flags))
 		rxrpc_resend(call, NULL);
 
 	if (test_and_clear_bit(RXRPC_CALL_RX_IS_IDLE, &call->flags))
