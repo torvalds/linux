@@ -510,6 +510,18 @@ END_FTR_SECTION_NESTED(CPU_FTR_CELL_TB_BUG, CPU_FTR_CELL_TB_BUG, 96)
        lis     scratch,0x60000000@h;			\
        dcbt    0,scratch,0b01010
 
+#define DCBT_SETUP_STREAMS(from, from_parms, to, to_parms, scratch)	\
+	lis	scratch,0x8000;	/* GO=1 */				\
+	clrldi	scratch,scratch,32;					\
+	/* setup read stream 0 */					\
+	dcbt	0,from,0b01000;		/* addr from */			\
+	dcbt	0,from_parms,0b01010;	/* length and depth from */	\
+	/* setup write stream 1 */					\
+	dcbtst	0,to,0b01000;		/* addr to */			\
+	dcbtst	0,to_parms,0b01010;	/* length and depth to */	\
+	eieio;								\
+	dcbt	0,scratch,0b01010;	/* all streams GO */
+
 /*
  * toreal/fromreal/tophys/tovirt macros. 32-bit BookE makes them
  * keep the address intact to be compatible with code shared with
