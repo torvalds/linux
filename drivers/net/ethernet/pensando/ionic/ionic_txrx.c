@@ -1235,13 +1235,14 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	napi_consume_skb(skb, 1);
 }
 
-static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
+static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info,
+			     unsigned int *total_pkts, unsigned int *total_bytes)
 {
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
 	struct ionic_txq_comp *comp;
-	int bytes = 0;
-	int pkts = 0;
+	unsigned int bytes = 0;
+	unsigned int pkts = 0;
 	u16 index;
 
 	comp = cq_info->cq_desc + cq->desc_size - sizeof(*comp);
@@ -1266,8 +1267,8 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 		desc_info->cb_arg = NULL;
 	} while (index != le16_to_cpu(comp->comp_index));
 
-	if (pkts && bytes && !ionic_txq_hwstamp_enabled(q))
-		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
+	(*total_pkts) += pkts;
+	(*total_bytes) += bytes;
 
 	return true;
 }
@@ -1276,12 +1277,14 @@ unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 {
 	struct ionic_cq_info *cq_info;
 	unsigned int work_done = 0;
+	unsigned int bytes = 0;
+	unsigned int pkts = 0;
 
 	if (work_to_do == 0)
 		return 0;
 
 	cq_info = &cq->info[cq->tail_idx];
-	while (ionic_tx_service(cq, cq_info)) {
+	while (ionic_tx_service(cq, cq_info, &pkts, &bytes)) {
 		if (cq->tail_idx == cq->num_descs - 1)
 			cq->done_color = !cq->done_color;
 		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
@@ -1294,10 +1297,10 @@ unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 	if (work_done) {
 		struct ionic_queue *q = cq->bound_q;
 
-		smp_mb();	/* assure sync'd state before stopped check */
-		if (unlikely(__netif_subqueue_stopped(q->lif->netdev, q->index)) &&
-		    ionic_q_has_space(q, IONIC_TSO_DESCS_NEEDED))
-			netif_wake_subqueue(q->lif->netdev, q->index);
+		if (!ionic_txq_hwstamp_enabled(q))
+			netif_txq_completed_wake(q_to_ndq(q), pkts, bytes,
+						 ionic_q_space_avail(q),
+						 IONIC_TSO_DESCS_NEEDED);
 	}
 
 	return work_done;
@@ -1308,8 +1311,7 @@ void ionic_tx_flush(struct ionic_cq *cq)
 	struct ionic_dev *idev = &cq->lif->ionic->idev;
 	u32 work_done;
 
-	work_done = ionic_cq_service(cq, cq->num_descs,
-				     ionic_tx_service, NULL, NULL);
+	work_done = ionic_tx_cq_service(cq, cq->num_descs);
 	if (work_done)
 		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
 				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
@@ -1335,8 +1337,10 @@ void ionic_tx_empty(struct ionic_queue *q)
 		desc_info->cb_arg = NULL;
 	}
 
-	if (pkts && bytes && !ionic_txq_hwstamp_enabled(q))
+	if (!ionic_txq_hwstamp_enabled(q)) {
 		netdev_tx_completed_queue(q_to_ndq(q), pkts, bytes);
+		netdev_tx_reset_queue(q_to_ndq(q));
+	}
 }
 
 static int ionic_tx_tcp_inner_pseudo_csum(struct sk_buff *skb)
@@ -1643,6 +1647,7 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 {
 	struct ionic_desc_info *desc_info = &q->info[q->head_idx];
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
+	bool ring_dbell = true;
 
 	if (unlikely(ionic_tx_map_skb(q, skb, desc_info)))
 		return -EIO;
@@ -1661,8 +1666,9 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 	stats->bytes += skb->len;
 
 	if (!ionic_txq_hwstamp_enabled(q))
-		netdev_tx_sent_queue(q_to_ndq(q), skb->len);
-	ionic_txq_post(q, !netdev_xmit_more(), ionic_tx_clean, skb);
+		ring_dbell = __netdev_tx_sent_queue(q_to_ndq(q), skb->len,
+						    netdev_xmit_more());
+	ionic_txq_post(q, ring_dbell, ionic_tx_clean, skb);
 
 	return 0;
 }
