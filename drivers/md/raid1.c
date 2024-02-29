@@ -579,6 +579,47 @@ static sector_t align_to_barrier_unit_end(sector_t start_sector,
 	return len;
 }
 
+static void update_read_sectors(struct r1conf *conf, int disk,
+				sector_t this_sector, int len)
+{
+	struct raid1_info *info = &conf->mirrors[disk];
+
+	atomic_inc(&info->rdev->nr_pending);
+	if (info->next_seq_sect != this_sector)
+		info->seq_start = this_sector;
+	info->next_seq_sect = this_sector + len;
+}
+
+static int choose_first_rdev(struct r1conf *conf, struct r1bio *r1_bio,
+			     int *max_sectors)
+{
+	sector_t this_sector = r1_bio->sector;
+	int len = r1_bio->sectors;
+	int disk;
+
+	for (disk = 0 ; disk < conf->raid_disks * 2 ; disk++) {
+		struct md_rdev *rdev;
+		int read_len;
+
+		if (r1_bio->bios[disk] == IO_BLOCKED)
+			continue;
+
+		rdev = conf->mirrors[disk].rdev;
+		if (!rdev || test_bit(Faulty, &rdev->flags))
+			continue;
+
+		/* choose the first disk even if it has some bad blocks. */
+		read_len = raid1_check_read_range(rdev, this_sector, &len);
+		if (read_len > 0) {
+			update_read_sectors(conf, disk, this_sector, read_len);
+			*max_sectors = read_len;
+			return disk;
+		}
+	}
+
+	return -1;
+}
+
 /*
  * This routine returns the disk from which the requested read should
  * be done. There is a per-array 'next expected sequential IO' sector
@@ -603,7 +644,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	sector_t best_dist;
 	unsigned int min_pending;
 	struct md_rdev *rdev;
-	int choose_first;
 
  retry:
 	sectors = r1_bio->sectors;
@@ -614,9 +654,10 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	best_pending_disk = -1;
 	min_pending = UINT_MAX;
 	best_good_sectors = 0;
-	choose_first = raid1_should_read_first(conf->mddev, this_sector,
-					       sectors);
 	clear_bit(R1BIO_FailFast, &r1_bio->state);
+
+	if (raid1_should_read_first(conf->mddev, this_sector, sectors))
+		return choose_first_rdev(conf, r1_bio, max_sectors);
 
 	for (disk = 0 ; disk < conf->raid_disks * 2 ; disk++) {
 		sector_t dist;
@@ -663,8 +704,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 				 * bad_sectors from another device..
 				 */
 				bad_sectors -= (this_sector - first_bad);
-				if (choose_first && sectors > bad_sectors)
-					sectors = bad_sectors;
 				if (best_good_sectors > sectors)
 					best_good_sectors = sectors;
 
@@ -674,8 +713,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 					best_good_sectors = good_sectors;
 					best_disk = disk;
 				}
-				if (choose_first)
-					break;
 			}
 			continue;
 		} else {
@@ -690,10 +727,6 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 
 		pending = atomic_read(&rdev->nr_pending);
 		dist = abs(this_sector - conf->mirrors[disk].head_position);
-		if (choose_first) {
-			best_disk = disk;
-			break;
-		}
 		/* Don't change to another disk for sequential reads */
 		if (conf->mirrors[disk].next_seq_sect == this_sector
 		    || dist == 0) {
@@ -769,13 +802,9 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		rdev = conf->mirrors[best_disk].rdev;
 		if (!rdev)
 			goto retry;
-		atomic_inc(&rdev->nr_pending);
+
 		sectors = best_good_sectors;
-
-		if (conf->mirrors[best_disk].next_seq_sect != this_sector)
-			conf->mirrors[best_disk].seq_start = this_sector;
-
-		conf->mirrors[best_disk].next_seq_sect = this_sector + sectors;
+		update_read_sectors(conf, disk, this_sector, sectors);
 	}
 	*max_sectors = sectors;
 
