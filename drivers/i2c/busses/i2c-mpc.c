@@ -30,8 +30,6 @@
 #include <asm/mpc85xx.h>
 #include <sysdev/fsl_soc.h>
 
-#define DRV_NAME "mpc-i2c"
-
 #define MPC_I2C_CLOCK_LEGACY   0
 #define MPC_I2C_CLOCK_PRESERVE (~0U)
 
@@ -960,7 +958,7 @@ static struct platform_driver mpc_i2c_driver = {
 	.probe		= fsl_i2c_probe,
 	.remove_new	= fsl_i2c_remove,
 	.driver = {
-		.name = DRV_NAME,
+		.name = "mpc-i2c",
 		.of_match_table = mpc_i2c_of_match,
 		.pm = &mpc_i2c_pm_ops,
 	},
