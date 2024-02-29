@@ -51,11 +51,15 @@
 
 #define GVE_DEFAULT_RX_BUFFER_SIZE 2048
 
+#define GVE_MAX_RX_BUFFER_SIZE 4096
+
 #define GVE_DEFAULT_RX_BUFFER_OFFSET 2048
 
 #define GVE_XDP_ACTIONS 5
 
 #define GVE_GQ_TX_MIN_PKT_DESC_BYTES 182
+
+#define GVE_DEFAULT_HEADER_BUFFER_SIZE 128
 
 #define DQO_QPL_DEFAULT_TX_PAGES 512
 #define DQO_QPL_DEFAULT_RX_PAGES 2048
@@ -778,13 +782,16 @@ struct gve_priv {
 	struct gve_ptype_lut *ptype_lut_dqo;
 
 	/* Must be a power of two. */
-	int data_buffer_size_dqo;
+	u16 data_buffer_size_dqo;
+	u16 max_rx_buffer_size; /* device limit */
 
 	enum gve_queue_format queue_format;
 
 	/* Interrupt coalescing settings */
 	u32 tx_coalesce_usecs;
 	u32 rx_coalesce_usecs;
+
+	u16 header_buf_size; /* device configured, header-split supported if non-zero */
 };
 
 enum gve_service_task_flags_bit {

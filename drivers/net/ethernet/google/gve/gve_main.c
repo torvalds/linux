@@ -1448,12 +1448,6 @@ static int gve_queues_start(struct gve_priv *priv,
 	if (err)
 		goto reset;
 
-	if (!gve_is_gqi(priv)) {
-		/* Hard code this for now. This may be tuned in the future for
-		 * performance.
-		 */
-		priv->data_buffer_size_dqo = GVE_DEFAULT_RX_BUFFER_SIZE;
-	}
 	err = gve_create_rings(priv);
 	if (err)
 		goto reset;
@@ -2511,6 +2505,8 @@ static int gve_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	priv->service_task_flags = 0x0;
 	priv->state_flags = 0x0;
 	priv->ethtool_flags = 0x0;
+	priv->data_buffer_size_dqo = GVE_DEFAULT_RX_BUFFER_SIZE;
+	priv->max_rx_buffer_size = GVE_DEFAULT_RX_BUFFER_SIZE;
 
 	gve_set_probe_in_progress(priv);
 	priv->gve_wq = alloc_ordered_workqueue("gve", 0);
