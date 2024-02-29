@@ -1143,14 +1143,13 @@ void __run_test(struct __fixture_metadata *f,
 
 	if (t->results->reason[0])
 		diagnostic = t->results->reason;
+	else if (t->exit_code == KSFT_PASS || t->exit_code == KSFT_FAIL)
+		diagnostic = NULL;
 	else
 		diagnostic = "unknown";
 
-	if (t->exit_code == KSFT_SKIP)
-		ksft_test_result_code(t->exit_code, test_name,
-				      "%s", diagnostic);
-	else
-		ksft_test_result(__test_passed(t), "%s\n", test_name);
+	ksft_test_result_code(t->exit_code, test_name,
+			      diagnostic ? "%s" : "", diagnostic);
 }
 
 static int test_harness_run(int argc, char **argv)
