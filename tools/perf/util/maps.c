@@ -611,14 +611,14 @@ struct symbol *maps__find_symbol(struct maps *maps, u64 addr, struct map **mapp)
 	struct symbol *result = NULL;
 
 	/* Ensure map is loaded before using map->map_ip */
-	if (map != NULL && map__load(map) >= 0) {
-		if (mapp)
-			*mapp = map;
-
+	if (map != NULL && map__load(map) >= 0)
 		result = map__find_symbol(map, map__map_ip(map, addr));
-		if (!mapp)
-			map__put(map);
-	}
+
+	if (mapp)
+		*mapp = map;
+	else
+		map__put(map);
+
 	return result;
 }
 
