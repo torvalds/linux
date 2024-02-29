@@ -419,10 +419,12 @@ icl_combo_phy_aux_power_well_enable(struct drm_i915_private *dev_priv,
 
 	intel_de_rmw(dev_priv, regs->driver, 0, HSW_PWR_WELL_CTL_REQ(pw_idx));
 
-	/* FIXME this is a mess */
-	if (phy != PHY_NONE)
-		intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(phy),
-			     0, ICL_LANE_ENABLE_AUX);
+	/*
+	 * FIXME not sure if we should derive the PHY from the pw_idx, or
+	 * from the VBT defined AUX_CH->DDI->PHY mapping.
+	 */
+	intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(ICL_AUX_PW_TO_PHY(pw_idx)),
+		     0, ICL_LANE_ENABLE_AUX);
 
 	hsw_wait_for_power_well_enable(dev_priv, power_well, false);
 
@@ -439,14 +441,15 @@ icl_combo_phy_aux_power_well_disable(struct drm_i915_private *dev_priv,
 {
 	const struct i915_power_well_regs *regs = power_well->desc->ops->regs;
 	int pw_idx = i915_power_well_instance(power_well)->hsw.idx;
-	enum phy phy = icl_aux_pw_to_phy(dev_priv, power_well);
 
 	drm_WARN_ON(&dev_priv->drm, !IS_ICELAKE(dev_priv));
 
-	/* FIXME this is a mess */
-	if (phy != PHY_NONE)
-		intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(phy),
-			     ICL_LANE_ENABLE_AUX, 0);
+	/*
+	 * FIXME not sure if we should derive the PHY from the pw_idx, or
+	 * from the VBT defined AUX_CH->DDI->PHY mapping.
+	 */
+	intel_de_rmw(dev_priv, ICL_PORT_CL_DW12(ICL_AUX_PW_TO_PHY(pw_idx)),
+		     ICL_LANE_ENABLE_AUX, 0);
 
 	intel_de_rmw(dev_priv, regs->driver, HSW_PWR_WELL_CTL_REQ(pw_idx), 0);
 
