@@ -886,7 +886,7 @@ static int ext4_file_open(struct inode *inode, struct file *filp)
 	}
 
 	filp->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC |
-			FMODE_DIO_PARALLEL_WRITE;
+			FMODE_DIO_PARALLEL_WRITE | FMODE_CAN_ODIRECT;
 	return dquot_file_open(inode, filp);
 }
 
