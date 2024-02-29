@@ -196,6 +196,8 @@ void arch_cpu_idle(void);
 void arch_cpu_idle_prepare(void);
 void arch_cpu_idle_enter(void);
 void arch_cpu_idle_exit(void);
+void arch_tick_broadcast_enter(void);
+void arch_tick_broadcast_exit(void);
 void __noreturn arch_cpu_idle_dead(void);
 
 #ifdef CONFIG_ARCH_HAS_CPU_FINALIZE_INIT
