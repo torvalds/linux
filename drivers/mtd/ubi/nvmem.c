@@ -23,9 +23,12 @@ struct ubi_nvmem {
 static int ubi_nvmem_reg_read(void *priv, unsigned int from,
 			      void *val, size_t bytes)
 {
-	int err = 0, lnum = from, offs, bytes_left = bytes, to_read;
+	size_t to_read, bytes_left = bytes;
 	struct ubi_nvmem *unv = priv;
 	struct ubi_volume_desc *desc;
+	uint32_t offs;
+	uint64_t lnum = from;
+	int err = 0;
 
 	desc = ubi_open_volume(unv->ubi_num, unv->vol_id, UBI_READONLY);
 	if (IS_ERR(desc))
