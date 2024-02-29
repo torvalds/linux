@@ -4797,11 +4797,11 @@ intel_compare_buffer(const u8 *a, const u8 *b, size_t len)
 	return memcmp(a, b, len) == 0;
 }
 
-static void __printf(4, 5)
-pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
+static void __printf(5, 6)
+pipe_config_mismatch(struct drm_printer *p, bool fastset,
+		     const struct intel_crtc *crtc,
 		     const char *name, const char *format, ...)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct va_format vaf;
 	va_list args;
 
@@ -4810,65 +4810,55 @@ pipe_config_mismatch(bool fastset, const struct intel_crtc *crtc,
 	vaf.va = &args;
 
 	if (fastset)
-		drm_dbg_kms(&i915->drm,
-			    "[CRTC:%d:%s] fastset requirement not met in %s %pV\n",
-			    crtc->base.base.id, crtc->base.name, name, &vaf);
+		drm_printf(p, "[CRTC:%d:%s] fastset requirement not met in %s %pV\n",
+			   crtc->base.base.id, crtc->base.name, name, &vaf);
 	else
-		drm_err(&i915->drm, "[CRTC:%d:%s] mismatch in %s %pV\n",
-			crtc->base.base.id, crtc->base.name, name, &vaf);
+		drm_printf(p, "[CRTC:%d:%s] mismatch in %s %pV\n",
+			   crtc->base.base.id, crtc->base.name, name, &vaf);
 
 	va_end(args);
 }
 
 static void
-pipe_config_infoframe_mismatch(bool fastset, const struct intel_crtc *crtc,
+pipe_config_infoframe_mismatch(struct drm_printer *p, bool fastset,
+			       const struct intel_crtc *crtc,
 			       const char *name,
 			       const union hdmi_infoframe *a,
 			       const union hdmi_infoframe *b)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct drm_printer p;
 	const char *loglevel;
 
 	if (fastset) {
 		if (!drm_debug_enabled(DRM_UT_KMS))
 			return;
 
-		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
 		loglevel = KERN_DEBUG;
 	} else {
-		p = drm_err_printer(&i915->drm, NULL);
 		loglevel = KERN_ERR;
 	}
 
-	pipe_config_mismatch(fastset, crtc, name, "infoframe");
+	pipe_config_mismatch(p, fastset, crtc, name, "infoframe");
 
-	drm_printf(&p, "expected:\n");
+	drm_printf(p, "expected:\n");
 	hdmi_infoframe_log(loglevel, i915->drm.dev, a);
-	drm_printf(&p, "found:\n");
+	drm_printf(p, "found:\n");
 	hdmi_infoframe_log(loglevel, i915->drm.dev, b);
 }
 
 static void
-pipe_config_dp_vsc_sdp_mismatch(bool fastset, const struct intel_crtc *crtc,
+pipe_config_dp_vsc_sdp_mismatch(struct drm_printer *p, bool fastset,
+				const struct intel_crtc *crtc,
 				const char *name,
 				const struct drm_dp_vsc_sdp *a,
 				const struct drm_dp_vsc_sdp *b)
 {
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct drm_printer p;
+	pipe_config_mismatch(p, fastset, crtc, name, "dp sdp");
 
-	if (fastset)
-		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
-	else
-		p = drm_err_printer(&i915->drm, NULL);
-
-	pipe_config_mismatch(fastset, crtc, name, "dp sdp");
-
-	drm_printf(&p, "expected:\n");
-	drm_dp_vsc_sdp_log(&p, a);
-	drm_printf(&p, "found:\n");
-	drm_dp_vsc_sdp_log(&p, b);
+	drm_printf(p, "expected:\n");
+	drm_dp_vsc_sdp_log(p, a);
+	drm_printf(p, "found:\n");
+	drm_dp_vsc_sdp_log(p, b);
 }
 
 /* Returns the length up to and including the last differing byte */
@@ -4886,7 +4876,8 @@ memcmp_diff_len(const u8 *a, const u8 *b, size_t len)
 }
 
 static void
-pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
+pipe_config_buffer_mismatch(struct drm_printer *p, bool fastset,
+			    const struct intel_crtc *crtc,
 			    const char *name,
 			    const u8 *a, const u8 *b, size_t len)
 {
@@ -4901,7 +4892,7 @@ pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
 		loglevel = KERN_ERR;
 	}
 
-	pipe_config_mismatch(fastset, crtc, name, "buffer");
+	pipe_config_mismatch(p, fastset, crtc, name, "buffer");
 
 	/* only dump up to the last difference */
 	len = memcmp_diff_len(a, b, len);
@@ -4913,26 +4904,20 @@ pipe_config_buffer_mismatch(bool fastset, const struct intel_crtc *crtc,
 }
 
 static void
-pipe_config_pll_mismatch(bool fastset,
+pipe_config_pll_mismatch(struct drm_printer *p, bool fastset,
 			 const struct intel_crtc *crtc,
 			 const char *name,
 			 const struct intel_dpll_hw_state *a,
 			 const struct intel_dpll_hw_state *b)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
-	struct drm_printer p;
 
-	if (fastset)
-		p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, NULL);
-	else
-		p = drm_err_printer(&i915->drm, NULL);
+	pipe_config_mismatch(p, fastset, crtc, name, " "); /* stupid -Werror=format-zero-length */
 
-	pipe_config_mismatch(fastset, crtc, name, " "); /* stupid -Werror=format-zero-length */
-
-	drm_printf(&p, "expected:\n");
-	intel_dpll_dump_hw_state(i915, &p, a);
-	drm_printf(&p, "found:\n");
-	intel_dpll_dump_hw_state(i915, &p, b);
+	drm_printf(p, "expected:\n");
+	intel_dpll_dump_hw_state(i915, p, a);
+	drm_printf(p, "found:\n");
+	intel_dpll_dump_hw_state(i915, p, b);
 }
 
 bool
@@ -4942,13 +4927,19 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 {
 	struct drm_i915_private *dev_priv = to_i915(current_config->uapi.crtc->dev);
 	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_printer p;
 	bool ret = true;
+
+	if (fastset)
+		p = drm_dbg_printer(&dev_priv->drm, DRM_UT_KMS, NULL);
+	else
+		p = drm_err_printer(&dev_priv->drm, NULL);
 
 #define PIPE_CONF_CHECK_X(name) do { \
 	if (current_config->name != pipe_config->name) { \
 		BUILD_BUG_ON_MSG(__same_type(current_config->name, bool), \
 				 __stringify(name) " is bool");	\
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected 0x%08x, found 0x%08x)", \
 				     current_config->name, \
 				     pipe_config->name); \
@@ -4960,7 +4951,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if ((current_config->name & (mask)) != (pipe_config->name & (mask))) { \
 		BUILD_BUG_ON_MSG(__same_type(current_config->name, bool), \
 				 __stringify(name) " is bool");	\
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected 0x%08x, found 0x%08x)", \
 				     current_config->name & (mask), \
 				     pipe_config->name & (mask)); \
@@ -4972,7 +4963,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (current_config->name != pipe_config->name) { \
 		BUILD_BUG_ON_MSG(__same_type(current_config->name, bool), \
 				 __stringify(name) " is bool");	\
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected %i, found %i)", \
 				     current_config->name, \
 				     pipe_config->name); \
@@ -4984,7 +4975,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	if (current_config->name != pipe_config->name) { \
 		BUILD_BUG_ON_MSG(!__same_type(current_config->name, bool), \
 				 __stringify(name) " is not bool");	\
-		pipe_config_mismatch(fastset, crtc,  __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc,  __stringify(name), \
 				     "(expected %s, found %s)", \
 				     str_yes_no(current_config->name), \
 				     str_yes_no(pipe_config->name)); \
@@ -4994,7 +4985,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 #define PIPE_CONF_CHECK_P(name) do { \
 	if (current_config->name != pipe_config->name) { \
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected %p, found %p)", \
 				     current_config->name, \
 				     pipe_config->name); \
@@ -5005,7 +4996,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_M_N(name) do { \
 	if (!intel_compare_link_m_n(&current_config->name, \
 				    &pipe_config->name)) { \
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(expected tu %i data %i/%i link %i/%i, " \
 				     "found tu %i, data %i/%i link %i/%i)", \
 				     current_config->name.tu, \
@@ -5025,7 +5016,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_PLL(name) do { \
 	if (!intel_dpll_compare_hw_state(dev_priv, &current_config->name, \
 					 &pipe_config->name)) { \
-		pipe_config_pll_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_pll_mismatch(&p, fastset, crtc, __stringify(name), \
 					 &current_config->name, \
 					 &pipe_config->name); \
 		ret = false; \
@@ -5058,7 +5049,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 
 #define PIPE_CONF_CHECK_FLAGS(name, mask) do { \
 	if ((current_config->name ^ pipe_config->name) & (mask)) { \
-		pipe_config_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(name), \
 				     "(%x) (expected %i, found %i)", \
 				     (mask), \
 				     current_config->name & (mask), \
@@ -5070,7 +5061,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_INFOFRAME(name) do { \
 	if (!intel_compare_infoframe(&current_config->infoframes.name, \
 				     &pipe_config->infoframes.name)) { \
-		pipe_config_infoframe_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_infoframe_mismatch(&p, fastset, crtc, __stringify(name), \
 					       &current_config->infoframes.name, \
 					       &pipe_config->infoframes.name); \
 		ret = false; \
@@ -5080,7 +5071,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 #define PIPE_CONF_CHECK_DP_VSC_SDP(name) do { \
 	if (!intel_compare_dp_vsc_sdp(&current_config->infoframes.name, \
 				      &pipe_config->infoframes.name)) { \
-		pipe_config_dp_vsc_sdp_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_dp_vsc_sdp_mismatch(&p, fastset, crtc, __stringify(name), \
 						&current_config->infoframes.name, \
 						&pipe_config->infoframes.name); \
 		ret = false; \
@@ -5091,7 +5082,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	BUILD_BUG_ON(sizeof(current_config->name) != (len)); \
 	BUILD_BUG_ON(sizeof(pipe_config->name) != (len)); \
 	if (!intel_compare_buffer(current_config->name, pipe_config->name, (len))) { \
-		pipe_config_buffer_mismatch(fastset, crtc, __stringify(name), \
+		pipe_config_buffer_mismatch(&p, fastset, crtc, __stringify(name), \
 					    current_config->name, \
 					    pipe_config->name, \
 					    (len)); \
@@ -5104,7 +5095,7 @@ intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 	    !intel_color_lut_equal(current_config, \
 				   current_config->lut, pipe_config->lut, \
 				   is_pre_csc_lut)) {	\
-		pipe_config_mismatch(fastset, crtc, __stringify(lut), \
+		pipe_config_mismatch(&p, fastset, crtc, __stringify(lut), \
 				     "hw_state doesn't match sw_state"); \
 		ret = false; \
 	} \
