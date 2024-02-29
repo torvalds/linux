@@ -251,13 +251,13 @@ int rtllib_rx_add_ba_req(struct rtllib_device *ieee, struct sk_buff *skb)
 			    "Failed to reply on ADDBA_REQ as some capability is not ready(%d, %d)\n",
 			    ieee->current_network.qos_data.active,
 			    ieee->ht_info->current_ht_support);
-		goto OnADDBAReq_Fail;
+		goto on_add_ba_req_fail;
 	}
 	if (!rtllib_get_ts(ieee, (struct ts_common_info **)&ts, dst,
 			   (u8)(ba_param_set->field.tid), RX_DIR, true)) {
 		rc = ADDBA_STATUS_REFUSED;
 		netdev_warn(ieee->dev, "%s(): can't get TS\n", __func__);
-		goto OnADDBAReq_Fail;
+		goto on_add_ba_req_fail;
 	}
 	ba = &ts->rx_admitted_ba_record;
 
@@ -265,7 +265,7 @@ int rtllib_rx_add_ba_req(struct rtllib_device *ieee, struct sk_buff *skb)
 		rc = ADDBA_STATUS_INVALID_PARAM;
 		netdev_warn(ieee->dev, "%s(): BA Policy is not correct\n",
 			    __func__);
-		goto OnADDBAReq_Fail;
+		goto on_add_ba_req_fail;
 	}
 
 	rtllib_FlushRxTsPendingPkts(ieee, ts);
@@ -287,7 +287,7 @@ int rtllib_rx_add_ba_req(struct rtllib_device *ieee, struct sk_buff *skb)
 
 	return 0;
 
-OnADDBAReq_Fail:
+on_add_ba_req_fail:
 	{
 		struct ba_record BA;
 
