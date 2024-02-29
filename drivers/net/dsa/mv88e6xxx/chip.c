@@ -3712,7 +3712,10 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 
 	if (external) {
 		mv88e6xxx_reg_lock(chip);
-		err = mv88e6xxx_g2_scratch_gpio_set_smi(chip, true);
+		if (chip->info->family == MV88E6XXX_FAMILY_6393)
+			err = mv88e6393x_g2_scratch_gpio_set_smi(chip, true);
+		else
+			err = mv88e6390_g2_scratch_gpio_set_smi(chip, true);
 		mv88e6xxx_reg_unlock(chip);
 
 		if (err)
