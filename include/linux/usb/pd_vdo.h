@@ -7,6 +7,7 @@
 #define __LINUX_USB_PD_VDO_H
 
 #include "pd.h"
+#include <linux/bitfield.h>
 
 /*
  * VDO : Vendor Defined Message Object
@@ -188,7 +189,7 @@
  * <5:3>   :: Alternate modes
  * <2:0>   :: USB highest speed
  */
-#define PD_VDO_UFP_DEVCAP(vdo)	(((vdo) & GENMASK(27, 24)) >> 24)
+#define PD_VDO_UFP_DEVCAP(vdo)	FIELD_GET(GENMASK(27, 24), vdo)
 
 /* UFP VDO Version */
 #define UFP_VDO_VER1_2		2
@@ -247,7 +248,7 @@
  * <21:5>  :: Reserved
  * <4:0>   :: Port number
  */
-#define PD_VDO_DFP_HOSTCAP(vdo)	(((vdo) & GENMASK(26, 24)) >> 24)
+#define PD_VDO_DFP_HOSTCAP(vdo)	FIELD_GET(GENMASK(26, 24), vdo)
 
 #define DFP_VDO_VER1_1		1
 #define HOST_USB2_CAPABLE	BIT(0)
