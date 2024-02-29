@@ -276,7 +276,7 @@ int rtllib_rx_add_ba_req(struct rtllib_device *ieee, struct sk_buff *skb)
 	ba->ba_timeout_value = *ba_timeout_value;
 	ba->ba_start_seq_ctrl = *ba_start_seq_ctrl;
 
-	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev) ||
+	if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev) ||
 	    (ieee->ht_info->iot_action & HT_IOT_ACT_ALLOW_PEER_AGG_ONE_PKT))
 		ba->ba_param_set.field.buffer_size = 1;
 	else

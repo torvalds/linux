@@ -252,7 +252,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 	}
 
 	cap_ele->AdvCoding		= 0;
-	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev))
 		cap_ele->ChlWidth = 0;
 	else
 		cap_ele->ChlWidth = 1;
@@ -301,7 +301,7 @@ void ht_construct_capability_element(struct rtllib_device *ieee, u8 *pos_ht_cap,
 		if (ht->iot_action & HT_IOT_ACT_DISABLE_RX_40MHZ_SHORT_GI)
 			cap_ele->ShortGI40Mhz		= 0;
 
-		if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) {
+		if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev)) {
 			cap_ele->ChlWidth = 0;
 			cap_ele->MCS[1] = 0;
 		}
@@ -408,7 +408,7 @@ static u8 ht_filter_mcs_rate(struct rtllib_device *ieee, u8 *pSupportMCS,
 
 	ht_pick_mcs_rate(ieee, pOperateMCS);
 
-	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev))
 		pOperateMCS[1] = 0;
 
 	for (i = 2; i <= 15; i++)
@@ -666,7 +666,7 @@ void ht_set_connect_bw_mode(struct rtllib_device *ieee,
 {
 	struct rt_hi_throughput *ht_info = ieee->ht_info;
 
-	if (ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
+	if (ieee->get_half_nmode_support_by_aps_handler(ieee->dev))
 		bandwidth = HT_CHANNEL_WIDTH_20;
 
 	if (ht_info->sw_bw_in_progress) {

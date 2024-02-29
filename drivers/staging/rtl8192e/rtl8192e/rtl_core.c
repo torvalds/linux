@@ -657,7 +657,7 @@ static void _rtl92e_init_priv_handler(struct net_device *dev)
 	priv->rtllib->ps_is_queue_empty = _rtl92e_is_tx_queue_empty;
 
 	priv->rtllib->get_nmode_support_by_sec_cfg = rtl92e_get_nmode_support_by_sec;
-	priv->rtllib->GetHalfNmodeSupportByAPsHandler =
+	priv->rtllib->get_half_nmode_support_by_aps_handler =
 						rtl92e_is_halfn_supported_by_ap;
 
 	priv->rtllib->set_hw_reg_handler = rtl92e_set_reg;
