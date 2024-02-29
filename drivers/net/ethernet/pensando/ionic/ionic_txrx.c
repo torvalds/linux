@@ -1665,9 +1665,14 @@ static int ionic_tx(struct ionic_queue *q, struct sk_buff *skb)
 	stats->pkts++;
 	stats->bytes += skb->len;
 
-	if (!ionic_txq_hwstamp_enabled(q))
-		ring_dbell = __netdev_tx_sent_queue(q_to_ndq(q), skb->len,
+	if (!ionic_txq_hwstamp_enabled(q)) {
+		struct netdev_queue *ndq = q_to_ndq(q);
+
+		if (unlikely(!ionic_q_has_space(q, MAX_SKB_FRAGS + 1)))
+			netif_tx_stop_queue(ndq);
+		ring_dbell = __netdev_tx_sent_queue(ndq, skb->len,
 						    netdev_xmit_more());
+	}
 	ionic_txq_post(q, ring_dbell, ionic_tx_clean, skb);
 
 	return 0;
