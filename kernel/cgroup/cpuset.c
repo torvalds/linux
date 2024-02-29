@@ -3897,6 +3897,7 @@ static struct cftype legacy_files[] = {
 	},
 
 	{
+		/* obsolete, may be removed in the future */
 		.name = "memory_spread_slab",
 		.read_u64 = cpuset_read_u64,
 		.write_u64 = cpuset_write_u64,
