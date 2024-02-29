@@ -1232,7 +1232,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	desc_info->bytes = skb->len;
 	stats->clean++;
 
-	dev_consume_skb_any(skb);
+	napi_consume_skb(skb, 1);
 }
 
 static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
