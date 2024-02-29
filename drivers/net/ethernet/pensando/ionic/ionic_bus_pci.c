@@ -93,6 +93,7 @@ static void ionic_unmap_bars(struct ionic *ionic)
 			bars[i].len = 0;
 		}
 	}
+	ionic->num_bars = 0;
 }
 
 void __iomem *ionic_bus_map_dbpage(struct ionic *ionic, int page_num)
@@ -215,13 +216,15 @@ out:
 
 static void ionic_clear_pci(struct ionic *ionic)
 {
-	ionic->idev.dev_info_regs = NULL;
-	ionic->idev.dev_cmd_regs = NULL;
-	ionic->idev.intr_status = NULL;
-	ionic->idev.intr_ctrl = NULL;
+	if (ionic->num_bars) {
+		ionic->idev.dev_info_regs = NULL;
+		ionic->idev.dev_cmd_regs = NULL;
+		ionic->idev.intr_status = NULL;
+		ionic->idev.intr_ctrl = NULL;
 
-	ionic_unmap_bars(ionic);
-	pci_release_regions(ionic->pdev);
+		ionic_unmap_bars(ionic);
+		pci_release_regions(ionic->pdev);
+	}
 
 	if (pci_is_enabled(ionic->pdev))
 		pci_disable_device(ionic->pdev);

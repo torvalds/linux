@@ -9078,7 +9078,7 @@ static void netdev_dpll_pin_assign(struct net_device *dev, struct dpll_pin *dpll
 {
 #if IS_ENABLED(CONFIG_DPLL)
 	rtnl_lock();
-	dev->dpll_pin = dpll_pin;
+	rcu_assign_pointer(dev->dpll_pin, dpll_pin);
 	rtnl_unlock();
 #endif
 }
