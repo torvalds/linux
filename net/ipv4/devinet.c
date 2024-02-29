@@ -1676,7 +1676,7 @@ static int put_cacheinfo(struct sk_buff *skb, unsigned long cstamp,
 	return nla_put(skb, IFA_CACHEINFO, sizeof(ci), &ci);
 }
 
-static int inet_fill_ifaddr(struct sk_buff *skb, struct in_ifaddr *ifa,
+static int inet_fill_ifaddr(struct sk_buff *skb, const struct in_ifaddr *ifa,
 			    struct inet_fill_args *args)
 {
 	struct ifaddrmsg *ifm;
@@ -1805,15 +1805,15 @@ static int inet_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 }
 
 static int in_dev_dump_addr(struct in_device *in_dev, struct sk_buff *skb,
-			    struct netlink_callback *cb, int s_ip_idx,
+			    struct netlink_callback *cb, int *s_ip_idx,
 			    struct inet_fill_args *fillargs)
 {
 	struct in_ifaddr *ifa;
 	int ip_idx = 0;
 	int err;
 
-	in_dev_for_each_ifa_rtnl(ifa, in_dev) {
-		if (ip_idx < s_ip_idx) {
+	in_dev_for_each_ifa_rcu(ifa, in_dev) {
+		if (ip_idx < *s_ip_idx) {
 			ip_idx++;
 			continue;
 		}
@@ -1825,9 +1825,9 @@ static int in_dev_dump_addr(struct in_device *in_dev, struct sk_buff *skb,
 		ip_idx++;
 	}
 	err = 0;
-
+	ip_idx = 0;
 done:
-	cb->args[2] = ip_idx;
+	*s_ip_idx = ip_idx;
 
 	return err;
 }
@@ -1859,75 +1859,53 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 	};
 	struct net *net = sock_net(skb->sk);
 	struct net *tgt_net = net;
-	int h, s_h;
-	int idx, s_idx;
-	int s_ip_idx;
-	struct net_device *dev;
+	struct {
+		unsigned long ifindex;
+		int ip_idx;
+	} *ctx = (void *)cb->ctx;
 	struct in_device *in_dev;
-	struct hlist_head *head;
+	struct net_device *dev;
 	int err = 0;
 
-	s_h = cb->args[0];
-	s_idx = idx = cb->args[1];
-	s_ip_idx = cb->args[2];
-
+	rcu_read_lock();
 	if (cb->strict_check) {
 		err = inet_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
 						 skb->sk, cb);
 		if (err < 0)
-			goto put_tgt_net;
+			goto done;
 
-		err = 0;
 		if (fillargs.ifindex) {
-			dev = __dev_get_by_index(tgt_net, fillargs.ifindex);
-			if (!dev) {
-				err = -ENODEV;
-				goto put_tgt_net;
-			}
-
-			in_dev = __in_dev_get_rtnl(dev);
-			if (in_dev) {
-				err = in_dev_dump_addr(in_dev, skb, cb, s_ip_idx,
-						       &fillargs);
-			}
-			goto put_tgt_net;
-		}
-	}
-
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &tgt_net->dev_index_head[h];
-		rcu_read_lock();
-		cb->seq = inet_base_seq(tgt_net);
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			if (h > s_h || idx > s_idx)
-				s_ip_idx = 0;
+			err = -ENODEV;
+			dev = dev_get_by_index_rcu(tgt_net, fillargs.ifindex);
+			if (!dev)
+				goto done;
 			in_dev = __in_dev_get_rcu(dev);
 			if (!in_dev)
-				goto cont;
-
-			err = in_dev_dump_addr(in_dev, skb, cb, s_ip_idx,
-					       &fillargs);
-			if (err < 0) {
-				rcu_read_unlock();
 				goto done;
-			}
-cont:
-			idx++;
+			err = in_dev_dump_addr(in_dev, skb, cb, &ctx->ip_idx,
+					       &fillargs);
+			goto done;
 		}
-		rcu_read_unlock();
 	}
 
+	cb->seq = inet_base_seq(tgt_net);
+
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		in_dev = __in_dev_get_rcu(dev);
+		if (!in_dev)
+			continue;
+		err = in_dev_dump_addr(in_dev, skb, cb, &ctx->ip_idx,
+				       &fillargs);
+		if (err < 0)
+			goto done;
+	}
 done:
-	cb->args[0] = h;
-	cb->args[1] = idx;
-put_tgt_net:
+	if (err < 0 && likely(skb->len))
+		err = skb->len;
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
-
-	return skb->len ? : err;
+	rcu_read_unlock();
+	return err;
 }
 
 static void rtmsg_ifa(int event, struct in_ifaddr *ifa, struct nlmsghdr *nlh,
@@ -2818,7 +2796,8 @@ void __init devinet_init(void)
 
 	rtnl_register(PF_INET, RTM_NEWADDR, inet_rtm_newaddr, NULL, 0);
 	rtnl_register(PF_INET, RTM_DELADDR, inet_rtm_deladdr, NULL, 0);
-	rtnl_register(PF_INET, RTM_GETADDR, NULL, inet_dump_ifaddr, 0);
+	rtnl_register(PF_INET, RTM_GETADDR, NULL, inet_dump_ifaddr,
+		      RTNL_FLAG_DUMP_UNLOCKED);
 	rtnl_register(PF_INET, RTM_GETNETCONF, inet_netconf_get_devconf,
 		      inet_netconf_dump_devconf,
 		      RTNL_FLAG_DOIT_UNLOCKED | RTNL_FLAG_DUMP_UNLOCKED);
