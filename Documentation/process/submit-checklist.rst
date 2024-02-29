@@ -1,7 +1,8 @@
 .. _submitchecklist:
 
+=======================================
 Linux Kernel patch submission checklist
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+=======================================
 
 Here are some basic things that developers should do if they want to see their
 kernel patch submissions accepted more quickly.
@@ -10,8 +11,8 @@ These are all above and beyond the documentation that is provided in
 :ref:`Documentation/process/submitting-patches.rst <submittingpatches>`
 and elsewhere regarding submitting Linux kernel patches.
 
-
-*Review your code:*
+Review your code
+================
 
 1) If you use a facility then #include the file that defines/declares
    that facility.  Don't depend on other header files pulling in ones
@@ -24,8 +25,8 @@ and elsewhere regarding submitting Linux kernel patches.
    comment in the source code that explains the logic of what they are doing
    and why.
 
-
-*Review Kconfig changes:*
+Review Kconfig changes
+======================
 
 1) Any new or modified ``CONFIG`` options do not muck up the config menu and
    default to off unless they meet the exception criteria documented in
@@ -37,7 +38,8 @@ and elsewhere regarding submitting Linux kernel patches.
    combinations.  This is very hard to get right with testing---brainpower
    pays off here.
 
-*Provide documentation:*
+Provide documentation
+=====================
 
 1) Include :ref:`kernel-doc <kernel_doc>` to document global kernel APIs.
    (Not required for static functions, but OK there also.)
@@ -57,8 +59,8 @@ and elsewhere regarding submitting Linux kernel patches.
 6) If any ioctl's are added by the patch, then also update
    ``Documentation/userspace-api/ioctl/ioctl-number.rst``.
 
-
-*Check your code with tools:*
+Check your code with tools
+==========================
 
 1) Check for trivial violations with the patch style checker prior to
    submission (``scripts/checkpatch.pl``).
@@ -72,8 +74,8 @@ and elsewhere regarding submitting Linux kernel patches.
    but any one function that uses more than 512 bytes on the stack is a
    candidate for change.
 
-
-*Build your code:*
+Build your code
+===============
 
 1) Builds cleanly:
 
@@ -107,8 +109,8 @@ and elsewhere regarding submitting Linux kernel patches.
    ``CONFIG_PCI``, ``CONFIG_BLOCK``, ``CONFIG_PM``, ``CONFIG_MAGIC_SYSRQ``,
    ``CONFIG_NET``, ``CONFIG_INET=n`` (but latter with ``CONFIG_NET=y``).
 
-
-*Test your code:*
+Test your code
+==============
 
 1) Has been tested with ``CONFIG_PREEMPT``, ``CONFIG_DEBUG_PREEMPT``,
    ``CONFIG_SLUB_DEBUG``, ``CONFIG_DEBUG_PAGEALLOC``, ``CONFIG_DEBUG_MUTEXES``,
