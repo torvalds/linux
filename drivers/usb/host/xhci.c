@@ -794,19 +794,7 @@ static void xhci_clear_command_ring(struct xhci_hcd *xhci)
 		seg = seg->next;
 	} while (seg != ring->deq_seg);
 
-	/* Reset the software enqueue and dequeue pointers */
-	ring->deq_seg = ring->first_seg;
-	ring->dequeue = ring->first_seg->trbs;
-	ring->enq_seg = ring->deq_seg;
-	ring->enqueue = ring->dequeue;
-
-	ring->num_trbs_free = ring->num_segs * (TRBS_PER_SEGMENT - 1) - 1;
-	/*
-	 * Ring is now zeroed, so the HW should look for change of ownership
-	 * when the cycle bit is set to 1.
-	 */
-	ring->cycle_state = 1;
-
+	xhci_initialize_ring_info(ring, 1);
 	/*
 	 * Reset the hardware dequeue pointer.
 	 * Yes, this will need to be re-written after resume, but we're paranoid
