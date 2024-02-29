@@ -123,7 +123,6 @@ static unsigned int ionic_rx_buf_size(struct ionic_buf_info *buf_info)
 static int ionic_rx_page_alloc(struct ionic_queue *q,
 			       struct ionic_buf_info *buf_info)
 {
-	struct net_device *netdev = q->lif->netdev;
 	struct ionic_rx_stats *stats;
 	struct device *dev;
 	struct page *page;
@@ -133,14 +132,14 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 
 	if (unlikely(!buf_info)) {
 		net_err_ratelimited("%s: %s invalid buf_info in alloc\n",
-				    netdev->name, q->name);
+				    dev_name(dev), q->name);
 		return -EINVAL;
 	}
 
 	page = alloc_pages(IONIC_PAGE_GFP_MASK, 0);
 	if (unlikely(!page)) {
 		net_err_ratelimited("%s: %s page alloc failed\n",
-				    netdev->name, q->name);
+				    dev_name(dev), q->name);
 		stats->alloc_err++;
 		return -ENOMEM;
 	}
@@ -150,7 +149,7 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 	if (unlikely(dma_mapping_error(dev, buf_info->dma_addr))) {
 		__free_pages(page, 0);
 		net_err_ratelimited("%s: %s dma map failed\n",
-				    netdev->name, q->name);
+				    dev_name(dev), q->name);
 		stats->dma_map_err++;
 		return -EIO;
 	}
@@ -164,12 +163,11 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 static void ionic_rx_page_free(struct ionic_queue *q,
 			       struct ionic_buf_info *buf_info)
 {
-	struct net_device *netdev = q->lif->netdev;
 	struct device *dev = q->dev;
 
 	if (unlikely(!buf_info)) {
 		net_err_ratelimited("%s: %s invalid buf_info in free\n",
-				    netdev->name, q->name);
+				    dev_name(dev), q->name);
 		return;
 	}
 
@@ -228,7 +226,7 @@ static struct sk_buff *ionic_rx_frags(struct net_device *netdev,
 	skb = napi_get_frags(&q_to_qcq(q)->napi);
 	if (unlikely(!skb)) {
 		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
-				     netdev->name, q->name);
+				     dev_name(dev), q->name);
 		stats->alloc_err++;
 		return NULL;
 	}
@@ -291,7 +289,7 @@ static struct sk_buff *ionic_rx_copybreak(struct net_device *netdev,
 	skb = napi_alloc_skb(&q_to_qcq(q)->napi, len);
 	if (unlikely(!skb)) {
 		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
-				     netdev->name, q->name);
+				     dev_name(dev), q->name);
 		stats->alloc_err++;
 		return NULL;
 	}
@@ -1086,7 +1084,7 @@ static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
 	dma_addr = dma_map_single(dev, data, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
 		net_warn_ratelimited("%s: DMA single map failed on %s!\n",
-				     q->lif->netdev->name, q->name);
+				     dev_name(dev), q->name);
 		stats->dma_map_err++;
 		return 0;
 	}
@@ -1104,7 +1102,7 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
 	dma_addr = skb_frag_dma_map(dev, frag, offset, len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, dma_addr)) {
 		net_warn_ratelimited("%s: DMA frag map failed on %s!\n",
-				     q->lif->netdev->name, q->name);
+				     dev_name(dev), q->name);
 		stats->dma_map_err++;
 	}
 	return dma_addr;
