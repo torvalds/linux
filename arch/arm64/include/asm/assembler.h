@@ -38,10 +38,6 @@
 	msr	daifset, #0xf
 	.endm
 
-	.macro enable_daif
-	msr	daifclr, #0xf
-	.endm
-
 /*
  * Save/restore interrupts.
  */
