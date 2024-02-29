@@ -397,7 +397,7 @@ struct clock_sync_data {
 /*
  * Server Time Protocol (STP) code.
  */
-static bool stp_online;
+static bool stp_online = true;
 static struct stp_sstpi stp_info;
 static void *stp_page;
 
@@ -423,7 +423,6 @@ static void __init stp_reset(void)
 	if (rc == 0)
 		set_bit(CLOCK_SYNC_HAS_STP, &clock_sync_flags);
 	else if (stp_online) {
-		pr_warn("The real or virtual hardware system does not provide an STP interface\n");
 		free_page((unsigned long) stp_page);
 		stp_page = NULL;
 		stp_online = false;
