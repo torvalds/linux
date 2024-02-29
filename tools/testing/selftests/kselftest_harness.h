@@ -1147,7 +1147,8 @@ void __run_test(struct __fixture_metadata *f,
 		diagnostic = "unknown";
 
 	if (t->exit_code == KSFT_SKIP)
-		ksft_test_result_code(t->exit_code, "%s\n", diagnostic);
+		ksft_test_result_code(t->exit_code, test_name,
+				      "%s\n", diagnostic);
 	else
 		ksft_test_result(__test_passed(t), "%s\n", test_name);
 }
