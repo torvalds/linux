@@ -314,6 +314,26 @@ ppc32_allmodconfig:
 	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/book3s_32.config \
 		-f $(srctree)/Makefile allmodconfig
 
+generated_configs += ppc40x_allmodconfig
+ppc40x_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/40x.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc44x_allmodconfig
+ppc44x_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/44x.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc8xx_allmodconfig
+ppc8xx_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/8xx.config \
+		-f $(srctree)/Makefile allmodconfig
+
+generated_configs += ppc85xx_allmodconfig
+ppc85xx_allmodconfig:
+	$(Q)$(MAKE) KCONFIG_ALLCONFIG=$(srctree)/arch/powerpc/configs/85xx-32bit.config \
+		-f $(srctree)/Makefile allmodconfig
+
 generated_configs += ppc_defconfig
 ppc_defconfig:
 	$(call merge_into_defconfig,book3s_32.config,)
