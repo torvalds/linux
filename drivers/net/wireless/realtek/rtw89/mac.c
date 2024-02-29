@@ -5615,7 +5615,8 @@ int rtw89_mac_cfg_gnt_v1(struct rtw89_dev *rtwdev,
 }
 EXPORT_SYMBOL(rtw89_mac_cfg_gnt_v1);
 
-int rtw89_mac_cfg_plt(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
+static
+int rtw89_mac_cfg_plt_ax(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
 {
 	u32 reg;
 	u16 val;
@@ -5711,7 +5712,7 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 	return !!val;
 }
 
-u16 rtw89_mac_get_plt_cnt(struct rtw89_dev *rtwdev, u8 band)
+static u16 rtw89_mac_get_plt_cnt_ax(struct rtw89_dev *rtwdev, u8 band)
 {
 	u32 reg;
 	u16 cnt;
@@ -6339,6 +6340,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_ax = {
 	.parse_efuse_map = rtw89_parse_efuse_map_ax,
 	.parse_phycap_map = rtw89_parse_phycap_map_ax,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_ax,
+
+	.cfg_plt = rtw89_mac_cfg_plt_ax,
+	.get_plt_cnt = rtw89_mac_get_plt_cnt_ax,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_ax,
 

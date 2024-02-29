@@ -1797,6 +1797,44 @@ static int trx_init_be(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
+static
+int rtw89_mac_cfg_plt_be(struct rtw89_dev *rtwdev, struct rtw89_mac_ax_plt *plt)
+{
+	u32 reg;
+	u16 val;
+	int ret;
+
+	ret = rtw89_mac_check_mac_en(rtwdev, plt->band, RTW89_CMAC_SEL);
+	if (ret)
+		return ret;
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_BT_PLT, plt->band);
+	val = (plt->tx & RTW89_MAC_AX_PLT_LTE_RX ? B_BE_TX_PLT_GNT_LTE_RX : 0) |
+	      (plt->tx & RTW89_MAC_AX_PLT_GNT_BT_TX ? B_BE_TX_PLT_GNT_BT_TX : 0) |
+	      (plt->tx & RTW89_MAC_AX_PLT_GNT_BT_RX ? B_BE_TX_PLT_GNT_BT_RX : 0) |
+	      (plt->tx & RTW89_MAC_AX_PLT_GNT_WL ? B_BE_TX_PLT_GNT_WL : 0) |
+	      (plt->rx & RTW89_MAC_AX_PLT_LTE_RX ? B_BE_RX_PLT_GNT_LTE_RX : 0) |
+	      (plt->rx & RTW89_MAC_AX_PLT_GNT_BT_TX ? B_BE_RX_PLT_GNT_BT_TX : 0) |
+	      (plt->rx & RTW89_MAC_AX_PLT_GNT_BT_RX ? B_BE_RX_PLT_GNT_BT_RX : 0) |
+	      (plt->rx & RTW89_MAC_AX_PLT_GNT_WL ? B_BE_RX_PLT_GNT_WL : 0) |
+	      B_BE_PLT_EN;
+	rtw89_write16(rtwdev, reg, val);
+
+	return 0;
+}
+
+static u16 rtw89_mac_get_plt_cnt_be(struct rtw89_dev *rtwdev, u8 band)
+{
+	u32 reg;
+	u16 cnt;
+
+	reg = rtw89_mac_reg_by_idx(rtwdev, R_BE_BT_PLT, band);
+	cnt = rtw89_read32_mask(rtwdev, reg, B_BE_BT_PLT_PKT_CNT_MASK);
+	rtw89_write16_set(rtwdev, reg, B_BE_BT_PLT_RST);
+
+	return cnt;
+}
+
 static int rtw89_set_hw_sch_tx_en_v2(struct rtw89_dev *rtwdev, u8 mac_idx,
 				     u32 tx_en, u32 tx_en_mask)
 {
@@ -2438,6 +2476,9 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 	.parse_efuse_map = rtw89_parse_efuse_map_be,
 	.parse_phycap_map = rtw89_parse_phycap_map_be,
 	.cnv_efuse_state = rtw89_cnv_efuse_state_be,
+
+	.cfg_plt = rtw89_mac_cfg_plt_be,
+	.get_plt_cnt = rtw89_mac_get_plt_cnt_be,
 
 	.get_txpwr_cr = rtw89_mac_get_txpwr_cr_be,
 
