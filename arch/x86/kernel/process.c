@@ -910,11 +910,13 @@ static __cpuidle void mwait_idle(void)
 
 void select_idle_routine(const struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_SMP
-	if (boot_option_idle_override == IDLE_POLL && smp_num_siblings > 1)
-		pr_warn_once("WARNING: polling idle and HT enabled, performance may degrade\n");
-#endif
-	if (x86_idle_set() || boot_option_idle_override == IDLE_POLL)
+	if (boot_option_idle_override == IDLE_POLL) {
+		if (IS_ENABLED(CONFIG_SMP) && smp_num_siblings > 1)
+			pr_warn_once("WARNING: polling idle and HT enabled, performance may degrade\n");
+		return;
+	}
+
+	if (x86_idle_set())
 		return;
 
 	if (prefer_mwait_c1_over_halt(c)) {
