@@ -50,7 +50,7 @@ static const struct xe_rtp_entry_sr gt_tunings[] = {
 
 static const struct xe_rtp_entry_sr engine_tunings[] = {
 	{ XE_RTP_NAME("Tuning: Set Indirect State Override"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1271),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1200, 1274),
 		       ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(SET(SAMPLER_MODE, INDIRECT_STATE_BASE_ADDR_OVERRIDE))
 	},
@@ -88,7 +88,7 @@ static const struct xe_rtp_entry_sr lrc_tunings[] = {
 	/* Xe_LPG */
 
 	{ XE_RTP_NAME("Tuning: L3 cache"),
-	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1271), ENGINE_CLASS(RENDER)),
+	  XE_RTP_RULES(GRAPHICS_VERSION_RANGE(1270, 1274), ENGINE_CLASS(RENDER)),
 	  XE_RTP_ACTIONS(FIELD_SET(XEHP_L3SQCREG5, L3_PWM_TIMER_INIT_VAL_MASK,
 				   REG_FIELD_PREP(L3_PWM_TIMER_INIT_VAL_MASK, 0x7f)))
 	},
