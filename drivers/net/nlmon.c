@@ -40,15 +40,7 @@ static int nlmon_close(struct net_device *dev)
 static void
 nlmon_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
-	u64 packets, bytes;
-
-	dev_lstats_read(dev, &packets, &bytes);
-
-	stats->rx_packets = packets;
-	stats->tx_packets = 0;
-
-	stats->rx_bytes = bytes;
-	stats->tx_bytes = 0;
+	dev_lstats_read(dev, &stats->rx_packets, &stats->rx_bytes);
 }
 
 static u32 always_on(struct net_device *dev)
