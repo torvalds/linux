@@ -67,7 +67,7 @@
 		regulator-always-on;
 	};
 
-	hdmi_p5v0: regulator-hdmi_p5v0 {
+	hdmi_p5v0: regulator-hdmi-p5v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "HDMI_P5V0";
 		regulator-min-microvolt = <5000000>;
@@ -76,7 +76,7 @@
 		vin-supply = <&p5v0>;
 	};
 
-	tflash_vdd: regulator-tflash_vdd {
+	tflash_vdd: regulator-tflash-vdd {
 		compatible = "regulator-fixed";
 
 		regulator-name = "TFLASH_VDD";
@@ -92,7 +92,7 @@
 		vin-supply = <&vddio_ao3v3>;
 	};
 
-	tf_io: gpio-regulator-tf_io {
+	tf_io: gpio-regulator-tf-io {
 		compatible = "regulator-gpio";
 
 		regulator-name = "TF_IO";
@@ -148,7 +148,7 @@
 		vin-supply = <&p5v0>;
 	};
 
-	ddr3_1v5: regulator-ddr3_1v5 {
+	ddr3_1v5: regulator-ddr3-1v5 {
 		compatible = "regulator-fixed";
 		regulator-name = "DDR3_1V5";
 		regulator-min-microvolt = <1500000>;

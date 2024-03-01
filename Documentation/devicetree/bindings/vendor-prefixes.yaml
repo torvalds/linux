@@ -502,6 +502,8 @@ patternProperties:
     description: FocalTech Systems Co.,Ltd
   "^forlinx,.*":
     description: Baoding Forlinx Embedded Technology Co., Ltd.
+  "^freebox,.*":
+    description: Freebox SAS
   "^freecom,.*":
     description: Freecom Gmbh
   "^frida,.*":

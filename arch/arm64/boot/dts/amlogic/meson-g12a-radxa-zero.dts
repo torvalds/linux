@@ -60,7 +60,7 @@
 		clock-names = "ext_clock";
 	};
 
-	ao_5v: regulator-ao_5v {
+	ao_5v: regulator-ao-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "AO_5V";
 		regulator-min-microvolt = <5000000>;
@@ -68,7 +68,7 @@
 		regulator-always-on;
 	};
 
-	vcc_1v8: regulator-vcc_1v8 {
+	vcc_1v8: regulator-vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -77,7 +77,7 @@
 		regulator-always-on;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -86,7 +86,7 @@
 		regulator-always-on;
 	};
 
-	hdmi_pw: regulator-hdmi_pw {
+	hdmi_pw: regulator-hdmi-pw {
 		compatible = "regulator-fixed";
 		regulator-name = "HDMI_PW";
 		regulator-min-microvolt = <5000000>;
@@ -95,7 +95,7 @@
 		regulator-always-on;
 	};
 
-	vddao_1v8: regulator-vddao_1v8 {
+	vddao_1v8: regulator-vddao-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -104,7 +104,7 @@
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
