@@ -76,7 +76,7 @@
 };
 
 /*
- * Pins available on CN2 connector at TTL voltage level (3V3).
+ * Pins available on CN3 connector at TTL voltage level (3V3).
  * ,_  _.
  * |1234|  1=TX 2=VCC
  * `----'  3=RX 4=GND
