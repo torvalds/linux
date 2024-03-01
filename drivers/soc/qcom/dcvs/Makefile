@@ -6,6 +6,7 @@ obj-$(CONFIG_QCOM_DCVS) += qcom-dcvs.o
 qcom-dcvs-y := dcvs.o dcvs_icc.o dcvs_epss.o trace-dcvs.o
 obj-$(CONFIG_QCOM_MEMLAT) += memlat.o
 obj-$(CONFIG_QCOM_BWMON) += bwmon.o
+obj-$(CONFIG_QCOM_BWPROF) += bwprof.o
 obj-$(CONFIG_QTI_PMU_SCMI_CLIENT) += pmu_scmi.o
 obj-$(CONFIG_QTI_C1DCVS_SCMI_CLIENT) += c1dcvs_scmi.o
 obj-$(CONFIG_QTI_QCOM_SCMI_CLIENT)	+= qcom_scmi_client.o
