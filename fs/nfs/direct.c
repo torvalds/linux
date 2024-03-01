@@ -606,6 +606,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 
 	trace_nfs_direct_commit_complete(dreq);
 
+	spin_lock(&dreq->lock);
 	if (status < 0) {
 		/* Errors in commit are fatal */
 		dreq->error = status;
@@ -613,6 +614,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 	} else {
 		status = dreq->error;
 	}
+	spin_unlock(&dreq->lock);
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
 
@@ -625,7 +627,10 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 			spin_unlock(&dreq->lock);
 			nfs_release_request(req);
 		} else if (!nfs_write_match_verf(verf, req)) {
-			dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+			spin_lock(&dreq->lock);
+			if (dreq->flags == 0)
+				dreq->flags = NFS_ODIRECT_RESCHED_WRITES;
+			spin_unlock(&dreq->lock);
 			/*
 			 * Despite the reboot, the write was successful,
 			 * so reset wb_nio.
