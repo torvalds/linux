@@ -740,8 +740,7 @@ static void ice_lag_move_vf_nodes(struct ice_lag *lag, u8 oldport, u8 newport)
 
 	pf = lag->pf;
 	ice_for_each_vsi(pf, i)
-		if (pf->vsi[i] && (pf->vsi[i]->type == ICE_VSI_VF ||
-				   pf->vsi[i]->type == ICE_VSI_SWITCHDEV_CTRL))
+		if (pf->vsi[i] && pf->vsi[i]->type == ICE_VSI_VF)
 			ice_lag_move_single_vf_nodes(lag, oldport, newport, i);
 }
 
@@ -979,8 +978,7 @@ ice_lag_reclaim_vf_nodes(struct ice_lag *lag, struct ice_hw *src_hw)
 
 	pf = lag->pf;
 	ice_for_each_vsi(pf, i)
-		if (pf->vsi[i] && (pf->vsi[i]->type == ICE_VSI_VF ||
-				   pf->vsi[i]->type == ICE_VSI_SWITCHDEV_CTRL))
+		if (pf->vsi[i] && pf->vsi[i]->type == ICE_VSI_VF)
 			ice_for_each_traffic_class(tc)
 				ice_lag_reclaim_vf_tc(lag, src_hw, i, tc);
 }
@@ -2002,8 +2000,7 @@ ice_lag_move_vf_nodes_sync(struct ice_lag *lag, struct ice_hw *dest_hw)
 
 	pf = lag->pf;
 	ice_for_each_vsi(pf, i)
-		if (pf->vsi[i] && (pf->vsi[i]->type == ICE_VSI_VF ||
-				   pf->vsi[i]->type == ICE_VSI_SWITCHDEV_CTRL))
+		if (pf->vsi[i] && pf->vsi[i]->type == ICE_VSI_VF)
 			ice_for_each_traffic_class(tc)
 				ice_lag_move_vf_nodes_tc_sync(lag, dest_hw, i,
 							      tc);

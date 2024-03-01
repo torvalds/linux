@@ -9,11 +9,9 @@
 struct ice_repr {
 	struct ice_vsi *src_vsi;
 	struct ice_vf *vf;
-	struct ice_q_vector *q_vector;
 	struct net_device *netdev;
 	struct metadata_dst *dst;
 	struct ice_esw_br_port *br_port;
-	int q_id;
 	u32 id;
 	u8 parent_mac[ETH_ALEN];
 };
