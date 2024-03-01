@@ -732,12 +732,12 @@ static int virtblk_read_zoned_limits(struct virtio_blk *vblk,
 
 	virtio_cread(vdev, struct virtio_blk_config,
 		     zoned.max_open_zones, &v);
-	disk_set_max_open_zones(vblk->disk, v);
+	lim->max_open_zones = v;
 	dev_dbg(&vdev->dev, "max open zones = %u\n", v);
 
 	virtio_cread(vdev, struct virtio_blk_config,
 		     zoned.max_active_zones, &v);
-	disk_set_max_active_zones(vblk->disk, v);
+	lim->max_active_zones = v;
 	dev_dbg(&vdev->dev, "max active zones = %u\n", v);
 
 	virtio_cread(vdev, struct virtio_blk_config,
