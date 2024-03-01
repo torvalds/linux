@@ -778,11 +778,6 @@ static int handle_rx_to(struct eg20t_port *priv)
 	return PCH_UART_HANDLED_RX_INT;
 }
 
-static int handle_rx(struct eg20t_port *priv)
-{
-	return handle_rx_to(priv);
-}
-
 static int dma_handle_rx(struct eg20t_port *priv)
 {
 	struct uart_port *port = &priv->port;
@@ -1051,7 +1046,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 						PCH_UART_HAL_RX_INT |
 						PCH_UART_HAL_RX_ERR_INT);
 			} else {
-				ret = handle_rx(priv);
+				ret = handle_rx_to(priv);
 			}
 			break;
 		case PCH_UART_IID_RDR_TO:	/* Received Data Ready
