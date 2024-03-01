@@ -28,6 +28,14 @@
 #include "xe_ttm_stolen_mgr.h"
 #include "xe_vm.h"
 
+const char *const xe_mem_type_to_name[TTM_NUM_MEM_TYPES]  = {
+	[XE_PL_SYSTEM] = "system",
+	[XE_PL_TT] = "gtt",
+	[XE_PL_VRAM0] = "vram0",
+	[XE_PL_VRAM1] = "vram1",
+	[XE_PL_STOLEN] = "stolen"
+};
+
 static const struct ttm_place sys_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
@@ -713,8 +721,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		migrate = xe->tiles[0].migrate;
 
 	xe_assert(xe, migrate);
-
-	trace_xe_bo_move(bo);
+	trace_xe_bo_move(bo, new_mem->mem_type, old_mem_type, move_lacks_source);
 	xe_device_mem_access_get(xe);
 
 	if (xe_bo_is_pinned(bo) && !xe_bo_is_user(bo)) {
