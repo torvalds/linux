@@ -8,6 +8,7 @@
 	x(EINVAL,			mount_option)				\
 	x(BCH_ERR_mount_option,		option_name)				\
 	x(BCH_ERR_mount_option,		option_value)				\
+	x(BCH_ERR_mount_option,         option_not_bool)                        \
 	x(ENOMEM,			ENOMEM_stripe_buf)			\
 	x(ENOMEM,			ENOMEM_replicas_table)			\
 	x(ENOMEM,			ENOMEM_cpu_replicas)			\

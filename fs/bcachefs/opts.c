@@ -314,7 +314,7 @@ int bch2_opt_parse(struct bch_fs *c,
 		if (ret < 0 || (*res != 0 && *res != 1)) {
 			if (err)
 				prt_printf(err, "%s: must be bool", opt->attr.name);
-			return ret;
+			return ret < 0 ? ret : -BCH_ERR_option_not_bool;
 		}
 		break;
 	case BCH_OPT_UINT:
