@@ -760,9 +760,11 @@ static void output_poll_execute(struct work_struct *work)
 	changed = dev->mode_config.delayed_event;
 	dev->mode_config.delayed_event = false;
 
-	if (!drm_kms_helper_poll && dev->mode_config.poll_running) {
-		drm_kms_helper_disable_hpd(dev);
-		dev->mode_config.poll_running = false;
+	if (!drm_kms_helper_poll) {
+		if (dev->mode_config.poll_running) {
+			drm_kms_helper_disable_hpd(dev);
+			dev->mode_config.poll_running = false;
+		}
 		goto out;
 	}
 
