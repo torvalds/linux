@@ -1622,15 +1622,8 @@ EXPORT_SYMBOL_GPL(power_supply_get_drvdata);
 
 static int __init power_supply_class_init(void)
 {
-	int err;
-
-	err = class_register(&power_supply_class);
-	if (err)
-		return err;
-
 	power_supply_init_attrs();
-
-	return 0;
+	return class_register(&power_supply_class);
 }
 
 static void __exit power_supply_class_exit(void)
