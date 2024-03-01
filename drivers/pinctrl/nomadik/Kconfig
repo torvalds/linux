@@ -25,6 +25,7 @@ config PINCTRL_NOMADIK
 	depends on OF
 	select PINMUX
 	select PINCONF
+	select GPIOLIB
 	select GPIO_NOMADIK
 
 config PINCTRL_STN8815
