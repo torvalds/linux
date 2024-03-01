@@ -508,7 +508,7 @@ static struct sk_buff *geneve_gro_receive(struct sock *sk,
 	gh_len = geneve_hlen(gh);
 
 	hlen = off_gnv + gh_len;
-	if (skb_gro_header_hard(skb, hlen)) {
+	if (!skb_gro_may_pull(skb, hlen)) {
 		gh = skb_gro_header_slow(skb, hlen, off_gnv);
 		if (unlikely(!gh))
 			goto out;
