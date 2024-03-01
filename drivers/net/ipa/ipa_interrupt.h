@@ -89,4 +89,18 @@ int ipa_interrupt_config(struct ipa *ipa);
  */
 void ipa_interrupt_deconfig(struct ipa *ipa);
 
+/**
+ * ipa_interrupt_init() - Initialize the IPA interrupt structure
+ * @pdev:	IPA platform device pointer
+ *
+ * Return:	Pointer to an IPA interrupt structure, or a pointer-coded error
+ */
+struct ipa_interrupt *ipa_interrupt_init(struct platform_device *pdev);
+
+/**
+ * ipa_interrupt_exit() - Inverse of ipa_interrupt_init()
+ * @interrupt:	IPA interrupt structure
+ */
+void ipa_interrupt_exit(struct ipa_interrupt *interrupt);
+
 #endif /* _IPA_INTERRUPT_H_ */

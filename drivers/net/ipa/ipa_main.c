@@ -803,6 +803,7 @@ out_self:
 static int ipa_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
+	struct ipa_interrupt *interrupt;
 	enum ipa_firmware_loader loader;
 	const struct ipa_data *data;
 	struct ipa_power *power;
@@ -834,12 +835,21 @@ static int ipa_probe(struct platform_device *pdev)
 	if (loader == IPA_LOADER_DEFER)
 		return -EPROBE_DEFER;
 
-	/* The clock and interconnects might not be ready when we're
-	 * probed, so might return -EPROBE_DEFER.
+	/* The IPA interrupt might not be ready when we're probed, so this
+	 * might return -EPROBE_DEFER.
+	 */
+	interrupt = ipa_interrupt_init(pdev);
+	if (IS_ERR(interrupt))
+		return PTR_ERR(interrupt);
+
+	/* The clock and interconnects might not be ready when we're probed,
+	 * so this might return -EPROBE_DEFER.
 	 */
 	power = ipa_power_init(dev, data->power_data);
-	if (IS_ERR(power))
-		return PTR_ERR(power);
+	if (IS_ERR(power)) {
+		ret = PTR_ERR(power);
+		goto err_interrupt_exit;
+	}
 
 	/* No more EPROBE_DEFER.  Allocate and initialize the IPA structure */
 	ipa = kzalloc(sizeof(*ipa), GFP_KERNEL);
@@ -850,6 +860,7 @@ static int ipa_probe(struct platform_device *pdev)
 
 	ipa->pdev = pdev;
 	dev_set_drvdata(dev, ipa);
+	ipa->interrupt = interrupt;
 	ipa->power = power;
 	ipa->version = data->version;
 	ipa->modem_route_count = data->modem_route_count;
@@ -934,6 +945,8 @@ err_kfree_ipa:
 	kfree(ipa);
 err_power_exit:
 	ipa_power_exit(power);
+err_interrupt_exit:
+	ipa_interrupt_exit(interrupt);
 
 	return ret;
 }
@@ -941,9 +954,13 @@ err_power_exit:
 static void ipa_remove(struct platform_device *pdev)
 {
 	struct ipa *ipa = dev_get_drvdata(&pdev->dev);
-	struct ipa_power *power = ipa->power;
 	struct device *dev = &pdev->dev;
+	struct ipa_interrupt *interrupt;
+	struct ipa_power *power;
 	int ret;
+
+	power = ipa->power;
+	interrupt = ipa->interrupt;
 
 	/* Prevent the modem from triggering a call to ipa_setup().  This
 	 * also ensures a modem-initiated setup that's underway completes.
@@ -986,6 +1003,7 @@ out_power_put:
 	ipa_reg_exit(ipa);
 	kfree(ipa);
 	ipa_power_exit(power);
+	ipa_interrupt_exit(interrupt);
 
 	dev_info(dev, "IPA driver removed");
 }
