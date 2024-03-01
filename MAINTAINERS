@@ -1395,6 +1395,7 @@ F:	drivers/hwmon/max31760.c
 
 ANALOGBITS PLL LIBRARIES
 M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Samuel Holland <samuel.holland@sifive.com>
 S:	Supported
 F:	drivers/clk/analogbits/*
 F:	include/linux/clk/analogbits*
@@ -16743,6 +16744,7 @@ F:	drivers/pci/controller/dwc/*layerscape*
 PCI DRIVER FOR FU740
 M:	Paul Walmsley <paul.walmsley@sifive.com>
 M:	Greentime Hu <greentime.hu@sifive.com>
+M:	Samuel Holland <samuel.holland@sifive.com>
 L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/pci/sifive,fu740-pcie.yaml
@@ -19988,35 +19990,14 @@ S:	Maintained
 F:	drivers/watchdog/simatic-ipc-wdt.c
 
 SIFIVE DRIVERS
-M:	Palmer Dabbelt <palmer@dabbelt.com>
 M:	Paul Walmsley <paul.walmsley@sifive.com>
+M:	Samuel Holland <samuel.holland@sifive.com>
 L:	linux-riscv@lists.infradead.org
 S:	Supported
-N:	sifive
-K:	[^@]sifive
-
-SIFIVE CACHE DRIVER
-M:	Conor Dooley <conor@kernel.org>
-L:	linux-riscv@lists.infradead.org
-S:	Maintained
-F:	Documentation/devicetree/bindings/cache/sifive,ccache0.yaml
-F:	drivers/cache/sifive_ccache.c
-
-SIFIVE FU540 SYSTEM-ON-CHIP
-M:	Paul Walmsley <paul.walmsley@sifive.com>
-M:	Palmer Dabbelt <palmer@dabbelt.com>
-L:	linux-riscv@lists.infradead.org
-S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pjw/sifive.git
-N:	fu540
-K:	fu540
-
-SIFIVE PDMA DRIVER
-M:	Green Wan <green.wan@sifive.com>
-S:	Maintained
-F:	Documentation/devicetree/bindings/dma/sifive,fu540-c000-pdma.yaml
 F:	drivers/dma/sf-pdma/
-
+N:	sifive
+K:	fu[57]40
+K:	[^@]sifive
 
 SILEAD TOUCHSCREEN DRIVER
 M:	Hans de Goede <hdegoede@redhat.com>
