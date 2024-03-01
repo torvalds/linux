@@ -152,7 +152,7 @@ static const struct attribute_group fieldbus_group = {
 };
 __ATTRIBUTE_GROUPS(fieldbus);
 
-static struct class fieldbus_class = {
+static const struct class fieldbus_class = {
 	.name =		"fieldbus_dev",
 	.dev_groups =	fieldbus_groups,
 };
