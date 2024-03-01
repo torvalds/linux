@@ -11,6 +11,7 @@
 #define _LINUX_PROPERTY_H_
 
 #include <linux/args.h>
+#include <linux/array_size.h>
 #include <linux/bits.h>
 #include <linux/fwnode.h>
 #include <linux/stddef.h>
