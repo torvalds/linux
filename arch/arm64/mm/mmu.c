@@ -777,7 +777,7 @@ static void __init create_idmap(void)
 		       IDMAP_ROOT_LEVEL, (pte_t *)idmap_pg_dir, false,
 		       __phys_to_virt(ptep) - ptep);
 
-	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0)) {
+	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0) && !arm64_use_ng_mappings) {
 		extern u32 __idmap_kpti_flag;
 		u64 pa = __pa_symbol(&__idmap_kpti_flag);
 
