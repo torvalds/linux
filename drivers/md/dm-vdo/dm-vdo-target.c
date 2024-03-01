@@ -34,6 +34,7 @@
 #include "string-utils.h"
 #include "thread-device.h"
 #include "thread-registry.h"
+#include "thread-utils.h"
 #include "types.h"
 #include "vdo.h"
 #include "vio.h"
@@ -2872,6 +2873,7 @@ static int __init vdo_init(void)
 
 	/* Memory tracking must be initialized first for accurate accounting. */
 	vdo_memory_init();
+	vdo_initialize_threads_mutex();
 	vdo_initialize_thread_device_registry();
 	vdo_initialize_device_registry_once();
 	vdo_log_info("loaded version %s", CURRENT_VERSION);
