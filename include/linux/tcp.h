@@ -304,7 +304,7 @@ struct tcp_sock {
 	__cacheline_group_end(tcp_sock_write_txrx);
 
 	/* RX read-write hotpath cache lines */
-	__cacheline_group_begin(tcp_sock_write_rx);
+	__cacheline_group_begin(tcp_sock_write_rx) __aligned(8);
 	u64	bytes_received;
 				/* RFC4898 tcpEStatsAppHCThruOctetsReceived
 				 * sum(delta(rcv_nxt)), or how many bytes
