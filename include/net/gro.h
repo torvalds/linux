@@ -139,7 +139,7 @@ static inline void skb_gro_pull(struct sk_buff *skb, unsigned int len)
 	NAPI_GRO_CB(skb)->data_offset += len;
 }
 
-static inline void *skb_gro_header_fast(struct sk_buff *skb,
+static inline void *skb_gro_header_fast(const struct sk_buff *skb,
 					unsigned int offset)
 {
 	return NAPI_GRO_CB(skb)->frag0 + offset;
@@ -151,24 +151,17 @@ static inline bool skb_gro_may_pull(const struct sk_buff *skb,
 	return hlen <= NAPI_GRO_CB(skb)->frag0_len;
 }
 
-static inline void skb_gro_frag0_invalidate(struct sk_buff *skb)
-{
-	NAPI_GRO_CB(skb)->frag0 = NULL;
-	NAPI_GRO_CB(skb)->frag0_len = 0;
-}
-
 static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
 					unsigned int offset)
 {
 	if (!pskb_may_pull(skb, hlen))
 		return NULL;
 
-	skb_gro_frag0_invalidate(skb);
 	return skb->data + offset;
 }
 
-static inline void *skb_gro_header(struct sk_buff *skb,
-					unsigned int hlen, unsigned int offset)
+static inline void *skb_gro_header(struct sk_buff *skb, unsigned int hlen,
+				   unsigned int offset)
 {
 	void *ptr;
 
@@ -178,13 +171,16 @@ static inline void *skb_gro_header(struct sk_buff *skb,
 	return ptr;
 }
 
-static inline void *skb_gro_network_header(struct sk_buff *skb)
+static inline void *skb_gro_network_header(const struct sk_buff *skb)
 {
-	return (NAPI_GRO_CB(skb)->frag0 ?: skb->data) +
-	       skb_network_offset(skb);
+	if (skb_gro_may_pull(skb, skb_gro_offset(skb)))
+		return skb_gro_header_fast(skb, skb_network_offset(skb));
+
+	return skb_network_header(skb);
 }
 
-static inline __wsum inet_gro_compute_pseudo(struct sk_buff *skb, int proto)
+static inline __wsum inet_gro_compute_pseudo(const struct sk_buff *skb,
+					     int proto)
 {
 	const struct iphdr *iph = skb_gro_network_header(skb);
 
@@ -422,7 +418,8 @@ static inline struct udphdr *udp_gro_udphdr(struct sk_buff *skb)
 	return uh;
 }
 
-static inline __wsum ip6_gro_compute_pseudo(struct sk_buff *skb, int proto)
+static inline __wsum ip6_gro_compute_pseudo(const struct sk_buff *skb,
+					    int proto)
 {
 	const struct ipv6hdr *iph = skb_gro_network_header(skb);
 
