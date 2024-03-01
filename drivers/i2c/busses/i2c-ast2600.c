@@ -2083,8 +2083,15 @@ static int ast2600_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg
 
 master_out:
 	if (i2c_bus->mode == DMA_MODE) {
-		kfree(i2c_bus->master_safe_buf);
-	    i2c_bus->master_safe_buf = NULL;
+		/* still have master_safe_buf need to be released */
+		if (i2c_bus->master_safe_buf) {
+			struct i2c_msg *msg = &i2c_bus->msgs[i2c_bus->msgs_index];
+
+			dma_unmap_single(i2c_bus->dev, i2c_bus->master_dma_addr, msg->len,
+					 DMA_TO_DEVICE);
+			i2c_put_dma_safe_msg_buf(i2c_bus->master_safe_buf, msg, true);
+			i2c_bus->master_safe_buf = NULL;
+		}
 	}
 
 	return ret;
