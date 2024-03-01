@@ -417,7 +417,7 @@ static inline bool ip6_ignore_linkdown(const struct net_device *dev)
 	if (unlikely(!idev))
 		return true;
 
-	return !!idev->cnf.ignore_routes_with_linkdown;
+	return !!READ_ONCE(idev->cnf.ignore_routes_with_linkdown);
 }
 
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp);
