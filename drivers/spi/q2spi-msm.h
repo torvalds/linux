@@ -161,7 +161,7 @@
 #define CR_EXTENSION_DATA_BYTES		5 /* 1 for EXTID + 4 Bytes for one 1DW */
 
 #define Q2SPI_HRF_SLEEP_CMD		0x100
-#define Q2SPI_AUTOSUSPEND_DELAY		(XFER_TIMEOUT_OFFSET + 3000) /* 5 secs */
+#define Q2SPI_AUTOSUSPEND_DELAY		(XFER_TIMEOUT_OFFSET + 3000)
 #define PINCTRL_DEFAULT		"default"
 #define PINCTRL_ACTIVE		"active"
 #define PINCTRL_SLEEP		"sleep"
@@ -646,7 +646,6 @@ struct q2spi_cr_packet {
  * @list: list for hc packets.
  * @state: state of q2spi packet, defined in enum q2spi_pkt_state
  * @data_length: Represents data length of the packet transfer
- * @gsi_done: used to check if q2spi_pkt gsi transfer is done
  * @bulk_done: used to check if bulk status is done for q2spi_pkt
  * @wait_for_db: used to check if doorbell came for q2spi_pkt
  * @cr_hdr: cr_hdr corresponding to q2spi_packet
@@ -678,7 +677,6 @@ struct q2spi_packet {
 	struct list_head list;
 	u8 state;
 	unsigned int data_length;
-	struct completion gsi_done;
 	struct completion bulk_wait;
 	struct completion wait_for_db;
 	/* CR data corresponding to q2spi_packet */
@@ -710,5 +708,6 @@ int q2spi_geni_resources_on(struct q2spi_geni *q2spi);
 void q2spi_geni_resources_off(struct q2spi_geni *q2spi);
 int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr);
 int q2spi_wakeup_hw_through_gpio(struct q2spi_geni *q2spi);
+int q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt);
 
 #endif /* _SPI_Q2SPI_MSM_H_ */

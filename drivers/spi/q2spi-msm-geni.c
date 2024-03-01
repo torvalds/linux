@@ -250,7 +250,6 @@ struct q2spi_packet *q2spi_alloc_q2spi_pkt(struct q2spi_geni *q2spi, int line)
 	}
 	Q2SPI_DEBUG(q2spi, "%s q2spi_pkt=%p PID=%d\n", __func__, q2spi_pkt, current->pid);
 	init_completion(&q2spi_pkt->bulk_wait);
-	init_completion(&q2spi_pkt->gsi_done);
 	init_completion(&q2spi_pkt->wait_for_db);
 	q2spi_pkt->q2spi = q2spi;
 	return q2spi_pkt;
@@ -1775,15 +1774,23 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 	}
 
 	ret = __q2spi_send_messages(q2spi, (void *)q2spi_pkt);
-	Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p waiting for gsi_done\n", __func__, q2spi_pkt);
-	timeout = wait_for_completion_interruptible(&q2spi_pkt->gsi_done);
-	if (timeout < 0) {
-		Q2SPI_ERROR(q2spi, "%s q2spi_pkt:%p Err timeout for gsi_done\n",
-			    __func__, q2spi_pkt);
+	if (ret == -ETIMEDOUT) {
 		return -ETIMEDOUT;
+	} else if (ret) {
+		Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p __q2spi_send_messages ret:%d\n",
+			    __func__, q2spi_pkt, ret);
+		/* return 0 to userspace to retry the transfer from application */
+		return 0;
 	}
-	if (ret == -ETIMEDOUT)
-		return -ETIMEDOUT;
+
+	if (q2spi_pkt->vtype == VARIANT_5_HRF) {
+		ret = q2spi_process_hrf_flow_after_lra(q2spi, q2spi_pkt);
+		if (ret) {
+			Q2SPI_ERROR(q2spi, "%s Err hrf_flow sma write fail ret %d\n",
+				    __func__, ret);
+			return ret;
+		}
+	}
 
 	Q2SPI_DEBUG(q2spi, "%s q2spi_pkt:%p cmd:%d gsi_done completed\n",
 		    __func__, q2spi_pkt, q2spi_req.cmd);
@@ -2547,7 +2554,6 @@ static int q2spi_gsi_submit(struct q2spi_packet *q2spi_pkt)
 unmap_buf:
 	mutex_unlock(&q2spi->gsi_lock);
 	q2spi_unmap_dma_buf_used(q2spi, xfer->tx_dma, xfer->rx_dma);
-	complete(&q2spi_pkt->gsi_done);
 	return ret;
 }
 
@@ -2717,8 +2723,7 @@ static int q2spi_prep_hrf_request(struct q2spi_geni *q2spi, struct q2spi_packet 
 	return 0;
 }
 
-static int
-q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
+int q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt)
 {
 	unsigned long xfer_timeout = 0;
 	long timeout = 0;
@@ -2831,7 +2836,6 @@ int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr)
 	if (!cm_flow_pkt && atomic_read(&q2spi->doorbell_pending)) {
 		atomic_inc(&q2spi->retry);
 		Q2SPI_DEBUG(q2spi, "%s doorbell pending retry\n", __func__);
-		complete(&q2spi_pkt->gsi_done);
 		complete(&q2spi_pkt->bulk_wait);
 		q2spi_unmap_var_bufs(q2spi, q2spi_pkt);
 		ret = -EAGAIN;
@@ -2847,14 +2851,8 @@ int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr)
 	if (q2spi_pkt->vtype == VARIANT_5) {
 		Q2SPI_DEBUG(q2spi, "%s wakeup sma_wait\n", __func__);
 		complete_all(&q2spi->sma_wait);
-	} else if (q2spi_pkt->vtype == VARIANT_5_HRF) {
-		ret = q2spi_process_hrf_flow_after_lra(q2spi, q2spi_pkt);
-		if (ret) {
-			Q2SPI_ERROR(q2spi, "%s Err hrf_flow sma write fail ret %d\n",
-				    __func__, ret);
-			goto send_msg_exit;
-		}
 	}
+
 send_msg_exit:
 	mutex_unlock(&q2spi->send_msgs_lock);
 	Q2SPI_DEBUG(q2spi, "%s: line:%d End\n", __func__, __LINE__);
@@ -4064,7 +4062,7 @@ static int q2spi_geni_probe(struct platform_device *pdev)
 		goto free_buf;
 	}
 
-	Q2SPI_INFO(q2spi, "%s Q2SPI GENI SE Driver probed ck\n", __func__);
+	Q2SPI_INFO(q2spi, "%s Q2SPI GENI SE Driver probe\n", __func__);
 	pr_info("boot_kpi: M - DRIVER GENI_Q2SPI Ready\n");
 	return 0;
 free_buf:
