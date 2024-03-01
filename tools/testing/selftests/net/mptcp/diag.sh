@@ -96,8 +96,8 @@ chk_listener_nr()
 	local expected=$1
 	local msg="$2"
 
-	__chk_nr "ss -inmlHMON $ns | wc -l" "$expected" "$msg - mptcp" 0
-	__chk_nr "ss -inmlHtON $ns | wc -l" "$expected" "$msg - subflows"
+	__chk_nr "ss -nlHMON $ns | wc -l" "$expected" "$msg - mptcp" 0
+	__chk_nr "ss -nlHtON $ns | wc -l" "$expected" "$msg - subflows"
 }
 
 wait_msk_nr()
@@ -304,10 +304,7 @@ for I in $(seq 1 $NR_SERVERS); do
 	ip netns exec $ns ./mptcp_connect -p $((I + 20001)) \
 		-t ${timeout_poll} -l 0.0.0.0 >/dev/null 2>&1 &
 done
-
-for I in $(seq 1 $NR_SERVERS); do
-	mptcp_lib_wait_local_port_listen $ns $((I + 20001))
-done
+mptcp_lib_wait_local_port_listen $ns $((NR_SERVERS + 20001))
 
 chk_listener_nr $NR_SERVERS "many listener sockets"
 
