@@ -39,6 +39,7 @@ MODULE_FIRMWARE("amdgpu/gc_12_0_1_mes.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_mes1.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_uni_mes.bin");
 
+static int mes_v12_0_hw_init(void *handle);
 static int mes_v12_0_hw_fini(void *handle);
 static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev);
 static int mes_v12_0_kiq_hw_fini(struct amdgpu_device *adev);
@@ -586,13 +587,13 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 	if (enable) {
 		data = RREG32_SOC15(GC, 0, regCP_MES_CNTL);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
-		data = REG_SET_FIELD(data, CP_MES_CNTL,
-			     MES_PIPE1_RESET, adev->enable_mes_kiq ? 1 : 0);
+		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET,
+		       (!adev->enable_uni_mes && adev->enable_mes_kiq) ? 1 : 0);
 		WREG32_SOC15(GC, 0, regCP_MES_CNTL, data);
 
 		mutex_lock(&adev->srbm_mutex);
 		for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
-			if (!adev->enable_mes_kiq &&
+			if ((!adev->enable_mes_kiq || adev->enable_uni_mes) &&
 			    pipe == AMDGPU_MES_KIQ_PIPE)
 				continue;
 
@@ -610,11 +611,13 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 		/* unhalt MES and activate pipe0 */
 		data = REG_SET_FIELD(0, CP_MES_CNTL, MES_PIPE0_ACTIVE, 1);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_ACTIVE,
-				     adev->enable_mes_kiq ? 1 : 0);
+		       (!adev->enable_uni_mes && adev->enable_mes_kiq) ? 1 : 0);
 		WREG32_SOC15(GC, 0, regCP_MES_CNTL, data);
 
 		if (amdgpu_emu_mode)
 			msleep(100);
+		else if (adev->enable_uni_mes)
+			udelay(500);
 		else
 			udelay(50);
 	} else {
@@ -625,7 +628,7 @@ static void mes_v12_0_enable(struct amdgpu_device *adev, bool enable)
 				     MES_INVALIDATE_ICACHE, 1);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE0_RESET, 1);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_PIPE1_RESET,
-				     adev->enable_mes_kiq ? 1 : 0);
+		       (!adev->enable_uni_mes && adev->enable_mes_kiq) ? 1 : 0);
 		data = REG_SET_FIELD(data, CP_MES_CNTL, MES_HALT, 1);
 		WREG32_SOC15(GC, 0, regCP_MES_CNTL, data);
 	}
@@ -640,6 +643,10 @@ static void mes_v12_0_set_ucode_start_addr(struct amdgpu_device *adev)
 
 	mutex_lock(&adev->srbm_mutex);
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
+		if ((!adev->enable_mes_kiq || adev->enable_uni_mes) &&
+		    pipe == AMDGPU_MES_KIQ_PIPE)
+			continue;
+
 		/* me=3, queue=0 */
 		soc21_grbm_select(adev, 3, pipe, 0, 0);
 
@@ -966,9 +973,13 @@ static int mes_v12_0_queue_init(struct amdgpu_device *adev,
 		return r;
 
 	if (pipe == AMDGPU_MES_SCHED_PIPE) {
-		r = mes_v12_0_kiq_enable_queue(adev);
-		if (r)
-			return r;
+		if (adev->enable_uni_mes) {
+			mes_v12_0_queue_init_register(ring);
+		} else {
+			r = mes_v12_0_kiq_enable_queue(adev);
+			if (r)
+				return r;
+		}
 	} else {
 		mes_v12_0_queue_init_register(ring);
 	}
@@ -1202,6 +1213,11 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 {
 	int r = 0;
 
+	mes_v12_0_kiq_setting(&adev->gfx.kiq[0].ring);
+
+	if (adev->enable_uni_mes)
+		return mes_v12_0_hw_init(adev);
+
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 
 		r = mes_v12_0_load_microcode(adev, AMDGPU_MES_SCHED_PIPE, false);
@@ -1223,8 +1239,6 @@ static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev)
 
 	mes_v12_0_enable(adev, true);
 
-	mes_v12_0_kiq_setting(&adev->gfx.kiq[0].ring);
-
 	r = mes_v12_0_queue_init(adev, AMDGPU_MES_KIQ_PIPE);
 	if (r)
 		goto failure;
@@ -1238,7 +1252,7 @@ failure:
 
 static int mes_v12_0_kiq_hw_fini(struct amdgpu_device *adev)
 {
-	if (adev->mes.ring.sched.ready)
+	if (!adev->enable_uni_mes && adev->mes.ring.sched.ready)
 		mes_v12_0_kiq_dequeue_sched(adev);
 
 	if (!amdgpu_sriov_vf(adev))
@@ -1252,7 +1266,10 @@ static int mes_v12_0_hw_init(void *handle)
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->enable_mes_kiq) {
+	if (adev->mes.ring.sched.ready)
+		return 0;
+
+	if (!adev->enable_mes_kiq || adev->enable_uni_mes) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 			r = mes_v12_0_load_microcode(adev,
 					     AMDGPU_MES_SCHED_PIPE, true);
@@ -1260,6 +1277,13 @@ static int mes_v12_0_hw_init(void *handle)
 				DRM_ERROR("failed to MES fw, r=%d\n", r);
 				return r;
 			}
+
+			mes_v12_0_set_ucode_start_addr(adev);
+
+		} else if (adev->firmware.load_type ==
+			   AMDGPU_FW_LOAD_RLC_BACKDOOR_AUTO) {
+
+			mes_v12_0_set_ucode_start_addr(adev);
 		}
 
 		mes_v12_0_enable(adev, true);
@@ -1357,7 +1381,8 @@ static int mes_v12_0_late_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* it's only intended for use in mes_self_test case, not for s0ix and reset */
-	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend)
+	if (!amdgpu_in_reset(adev) && !adev->in_s0ix && !adev->in_suspend &&
+	    !adev->enable_uni_mes)
 		amdgpu_mes_self_test(adev);
 
 	return 0;
