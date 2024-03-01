@@ -966,18 +966,10 @@ mt753x_trap_frames(struct mt7530_priv *priv)
 		   MT753X_R0E_PORT_FW(MT753X_BPDU_CPU_ONLY));
 }
 
-static int
+static void
 mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 {
 	struct mt7530_priv *priv = ds->priv;
-	int ret;
-
-	/* Setup max capability of CPU port at first */
-	if (priv->info->cpu_port_config) {
-		ret = priv->info->cpu_port_config(ds, port);
-		if (ret)
-			return ret;
-	}
 
 	/* Enable Mediatek header mode on the cpu port */
 	mt7530_write(priv, MT7530_PVC_P(port),
@@ -1003,8 +995,6 @@ mt753x_cpu_port_enable(struct dsa_switch *ds, int port)
 	/* Set to fallback mode for independent VLAN learning */
 	mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
 		   MT7530_PORT_FALLBACK_MODE);
-
-	return 0;
 }
 
 static int
@@ -2261,8 +2251,6 @@ mt7530_setup(struct dsa_switch *ds)
 	val |= MHWTRAP_MANUAL;
 	mt7530_write(priv, MT7530_MHWTRAP, val);
 
-	priv->p6_interface = PHY_INTERFACE_MODE_NA;
-
 	mt753x_trap_frames(priv);
 
 	/* Enable and reset MIB counters */
@@ -2277,9 +2265,7 @@ mt7530_setup(struct dsa_switch *ds)
 		mt7530_set(priv, MT7530_PSC_P(i), SA_DIS);
 
 		if (dsa_is_cpu_port(ds, i)) {
-			ret = mt753x_cpu_port_enable(ds, i);
-			if (ret)
-				return ret;
+			mt753x_cpu_port_enable(ds, i);
 		} else {
 			mt7530_port_disable(ds, i);
 
@@ -2383,9 +2369,7 @@ mt7531_setup_common(struct dsa_switch *ds)
 		mt7530_set(priv, MT7531_DBG_CNT(i), MT7531_DIS_CLR);
 
 		if (dsa_is_cpu_port(ds, i)) {
-			ret = mt753x_cpu_port_enable(ds, i);
-			if (ret)
-				return ret;
+			mt753x_cpu_port_enable(ds, i);
 		} else {
 			mt7530_port_disable(ds, i);
 
@@ -2473,10 +2457,6 @@ mt7531_setup(struct dsa_switch *ds)
 
 	mt7530_rmw(priv, MT7531_GPIO_MODE0, MT7531_GPIO0_MASK,
 		   MT7531_GPIO0_INTERRUPT);
-
-	/* Let phylink decide the interface later. */
-	priv->p5_interface = PHY_INTERFACE_MODE_NA;
-	priv->p6_interface = PHY_INTERFACE_MODE_NA;
 
 	/* Enable PHY core PLL, since phy_device has not yet been created
 	 * provided for phy_[read,write]_mmd_indirect is called, we provide
@@ -2689,25 +2669,8 @@ mt753x_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 	struct mt7530_priv *priv = ds->priv;
 	u32 mcr_cur, mcr_new;
 
-	switch (port) {
-	case 5:
-		if (priv->p5_interface == state->interface)
-			break;
-
+	if (port == 5 || port == 6)
 		mt753x_mac_config(ds, port, mode, state);
-
-		if (priv->p5_intf_sel != P5_DISABLED)
-			priv->p5_interface = state->interface;
-		break;
-	case 6:
-		if (priv->p6_interface == state->interface)
-			break;
-
-		mt753x_mac_config(ds, port, mode, state);
-
-		priv->p6_interface = state->interface;
-		break;
-	}
 
 	mcr_cur = mt7530_read(priv, MT7530_PMCR_P(port));
 	mcr_new = mcr_cur;
@@ -2744,17 +2707,10 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 
 	mcr = PMCR_RX_EN | PMCR_TX_EN | PMCR_FORCE_LNK;
 
-	/* MT753x MAC works in 1G full duplex mode for all up-clocked
-	 * variants.
-	 */
-	if (interface == PHY_INTERFACE_MODE_TRGMII ||
-	    (phy_interface_mode_is_8023z(interface))) {
-		speed = SPEED_1000;
-		duplex = DUPLEX_FULL;
-	}
-
 	switch (speed) {
 	case SPEED_1000:
+	case SPEED_2500:
+	case SPEED_10000:
 		mcr |= PMCR_FORCE_SPEED_1000;
 		break;
 	case SPEED_100:
@@ -2772,6 +2728,7 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	if (mode == MLO_AN_PHY && phydev && phy_init_eee(phydev, false) >= 0) {
 		switch (speed) {
 		case SPEED_1000:
+		case SPEED_2500:
 			mcr |= PMCR_FORCE_EEE1G;
 			break;
 		case SPEED_100:
@@ -2781,61 +2738,6 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	}
 
 	mt7530_set(priv, MT7530_PMCR_P(port), mcr);
-}
-
-static int
-mt7531_cpu_port_config(struct dsa_switch *ds, int port)
-{
-	struct mt7530_priv *priv = ds->priv;
-	phy_interface_t interface;
-	int speed;
-
-	switch (port) {
-	case 5:
-		if (!priv->p5_sgmii)
-			interface = PHY_INTERFACE_MODE_RGMII;
-		else
-			interface = PHY_INTERFACE_MODE_2500BASEX;
-
-		priv->p5_interface = interface;
-		break;
-	case 6:
-		interface = PHY_INTERFACE_MODE_2500BASEX;
-
-		priv->p6_interface = interface;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (interface == PHY_INTERFACE_MODE_2500BASEX)
-		speed = SPEED_2500;
-	else
-		speed = SPEED_1000;
-
-	mt7531_mac_config(ds, port, MLO_AN_FIXED, interface);
-
-	mt7530_write(priv, MT7530_PMCR_P(port),
-		     PMCR_CPU_PORT_SETTING(priv->id));
-	mt753x_phylink_mac_link_up(ds, port, MLO_AN_FIXED, interface, NULL,
-				   speed, DUPLEX_FULL, true, true);
-
-	return 0;
-}
-
-static int
-mt7988_cpu_port_config(struct dsa_switch *ds, int port)
-{
-	struct mt7530_priv *priv = ds->priv;
-
-	mt7530_write(priv, MT7530_PMCR_P(port),
-		     PMCR_CPU_PORT_SETTING(priv->id));
-
-	mt753x_phylink_mac_link_up(ds, port, MLO_AN_FIXED,
-				   PHY_INTERFACE_MODE_INTERNAL, NULL,
-				   SPEED_10000, DUPLEX_FULL, true, true);
-
-	return 0;
 }
 
 static void mt753x_phylink_get_caps(struct dsa_switch *ds, int port,
@@ -3096,7 +2998,6 @@ const struct mt753x_info mt753x_table[] = {
 		.phy_write_c22 = mt7531_ind_c22_phy_write,
 		.phy_read_c45 = mt7531_ind_c45_phy_read,
 		.phy_write_c45 = mt7531_ind_c45_phy_write,
-		.cpu_port_config = mt7531_cpu_port_config,
 		.mac_port_get_caps = mt7531_mac_port_get_caps,
 		.mac_port_config = mt7531_mac_config,
 	},
@@ -3108,7 +3009,6 @@ const struct mt753x_info mt753x_table[] = {
 		.phy_write_c22 = mt7531_ind_c22_phy_write,
 		.phy_read_c45 = mt7531_ind_c45_phy_read,
 		.phy_write_c45 = mt7531_ind_c45_phy_write,
-		.cpu_port_config = mt7988_cpu_port_config,
 		.mac_port_get_caps = mt7988_mac_port_get_caps,
 	},
 };
