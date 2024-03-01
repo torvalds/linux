@@ -180,8 +180,9 @@ static DECLARE_RWSEM(devnet_rename_sem);
 
 static inline void dev_base_seq_inc(struct net *net)
 {
-	while (++net->dev_base_seq == 0)
-		;
+	unsigned int val = net->dev_base_seq + 1;
+
+	WRITE_ONCE(net->dev_base_seq, val ?: 1);
 }
 
 static inline struct hlist_head *dev_name_hash(struct net *net, const char *name)
