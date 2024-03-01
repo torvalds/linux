@@ -325,11 +325,6 @@ struct dw_i3c_xfer {
 	struct dw_i3c_cmd cmds[] __counted_by(ncmds);
 };
 
-struct dw_i3c_i2c_dev_data {
-	u8 index;
-	struct i3c_generic_ibi_pool *ibi_pool;
-};
-
 static u8 even_parity(u8 p)
 {
 	p ^= p >> 4;

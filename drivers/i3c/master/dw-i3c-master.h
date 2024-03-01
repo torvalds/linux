@@ -22,6 +22,11 @@ struct dw_i3c_dat_entry {
 	struct i3c_dev_desc *ibi_dev;
 };
 
+struct dw_i3c_i2c_dev_data {
+	u8 index;
+	struct i3c_generic_ibi_pool *ibi_pool;
+};
+
 struct dw_i3c_master {
 	struct i3c_master_controller base;
 	u16 maxdevs;
