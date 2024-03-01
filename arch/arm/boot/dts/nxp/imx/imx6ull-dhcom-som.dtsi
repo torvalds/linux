@@ -52,7 +52,7 @@
 	};
 
 	/* SoM with WiFi/BT: WiFi pin WL_REG_ON is connected to a DHCOM GPIO */
-	/omit-if-no-ref/ usdhc1_pwrseq: usdhc1-pwrseq {
+	usdhc1_pwrseq: usdhc1-pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		reset-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>; /* GPIO H */
 	};
@@ -273,7 +273,7 @@
 	pinctrl-names = "default";
 	pre-charge-time = <0xfff>;
 	touchscreen-average-samples = <32>;
-	xnur-gpio = <&gpio1 3 GPIO_ACTIVE_LOW>;
+	xnur-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 };
 
 /* DHCOM UART1 */

@@ -374,7 +374,7 @@
 				status = "disabled";
 			};
 
-			weim: weim@b8002000 {
+			weim: memory-controller@b8002000 {
 				#address-cells = <2>;
 				#size-cells = <1>;
 				clocks = <&clks 0>;
