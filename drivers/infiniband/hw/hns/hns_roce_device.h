@@ -845,7 +845,8 @@ struct hns_roce_caps {
 	u16		default_aeq_period;
 	u16		default_aeq_arm_st;
 	u16		default_ceq_arm_st;
-	enum hns_roce_cong_type cong_type;
+	u8		cong_cap;
+	enum hns_roce_cong_type default_cong_type;
 };
 
 enum hns_roce_device_state {
