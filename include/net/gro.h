@@ -148,7 +148,7 @@ static inline void *skb_gro_header_fast(const struct sk_buff *skb,
 static inline bool skb_gro_may_pull(const struct sk_buff *skb,
 				    unsigned int hlen)
 {
-	return hlen <= NAPI_GRO_CB(skb)->frag0_len;
+	return likely(hlen <= NAPI_GRO_CB(skb)->frag0_len);
 }
 
 static inline void *skb_gro_header_slow(struct sk_buff *skb, unsigned int hlen,
