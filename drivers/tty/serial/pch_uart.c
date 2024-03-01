@@ -1010,11 +1010,10 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 	u8 lsr;
 	int ret = 0;
 	unsigned char iid;
-	unsigned long flags;
 	int next = 1;
 	u8 msr;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	spin_lock(&priv->lock);
 	handled = 0;
 	while (next) {
 		iid = pch_uart_hal_get_iid(priv);
@@ -1074,7 +1073,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 		handled |= (unsigned int)ret;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock(&priv->lock);
 	return IRQ_RETVAL(handled);
 }
 
