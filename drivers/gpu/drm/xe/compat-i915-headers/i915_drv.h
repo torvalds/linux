@@ -166,11 +166,7 @@ static inline intel_wakeref_t intel_runtime_pm_get(struct xe_runtime_pm *pm)
 {
 	struct xe_device *xe = container_of(pm, struct xe_device, runtime_pm);
 
-	if (xe_pm_runtime_get(xe) < 0) {
-		xe_pm_runtime_put(xe);
-		return 0;
-	}
-	return 1;
+	return xe_pm_runtime_resume_and_get(xe);
 }
 
 static inline intel_wakeref_t intel_runtime_pm_get_if_in_use(struct xe_runtime_pm *pm)
