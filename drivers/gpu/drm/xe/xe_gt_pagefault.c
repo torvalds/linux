@@ -146,10 +146,12 @@ static int handle_pagefault(struct xe_gt *gt, struct pagefault *pf)
 	/* ASID to VM */
 	mutex_lock(&xe->usm.lock);
 	vm = xa_load(&xe->usm.asid_to_vm, pf->asid);
-	if (vm)
+	if (vm && xe_vm_in_fault_mode(vm))
 		xe_vm_get(vm);
+	else
+		vm = NULL;
 	mutex_unlock(&xe->usm.lock);
-	if (!vm || !xe_vm_in_fault_mode(vm))
+	if (!vm)
 		return -EINVAL;
 
 retry_userptr:
