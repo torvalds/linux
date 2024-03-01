@@ -76,8 +76,6 @@ required:
   - compatible
   - clocks
   - clock-names
-  - dmas
-  - dma-names
   - interrupts
   - reg
 
