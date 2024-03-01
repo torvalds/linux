@@ -599,16 +599,14 @@ static void pch_uart_hal_set_break(struct eg20t_port *priv, int on)
 	iowrite8(lcr, priv->membase + UART_LCR);
 }
 
-static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
-		   int size)
+static void push_rx(struct eg20t_port *priv, const unsigned char *buf,
+		    int size)
 {
 	struct uart_port *port = &priv->port;
 	struct tty_port *tport = &port->state->port;
 
 	tty_insert_flip_string(tport, buf, size);
 	tty_flip_buffer_push(tport);
-
-	return 0;
 }
 
 static int dma_push_rx(struct eg20t_port *priv, int size)
@@ -761,7 +759,7 @@ static int handle_rx_to(struct eg20t_port *priv)
 {
 	struct pch_uart_buffer *buf;
 	int rx_size;
-	int ret;
+
 	if (!priv->start_rx) {
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_RX_INT |
 						     PCH_UART_HAL_RX_ERR_INT);
@@ -770,9 +768,7 @@ static int handle_rx_to(struct eg20t_port *priv)
 	buf = &priv->rxbuf;
 	do {
 		rx_size = pch_uart_hal_read(priv, buf->buf, buf->size);
-		ret = push_rx(priv, buf->buf, rx_size);
-		if (ret)
-			return 0;
+		push_rx(priv, buf->buf, rx_size);
 	} while (rx_size == buf->size);
 
 	return PCH_UART_HANDLED_RX_INT;
