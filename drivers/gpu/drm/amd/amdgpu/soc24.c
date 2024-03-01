@@ -401,7 +401,8 @@ static int soc24_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x40;
 		break;
 	case IP_VERSION(12, 0, 1):
-		adev->cg_flags = 0;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS;
 		adev->pg_flags = AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_JPEG |
 			AMD_PG_SUPPORT_VCN_DPG;
