@@ -23,62 +23,8 @@
 #define __maybe_unused __attribute__((__unused__))
 #endif
 
-/*
- * TEST_F_FORK() is useful when a test drop privileges but the corresponding
- * FIXTURE_TEARDOWN() requires them (e.g. to remove files from a directory
- * where write actions are denied).  For convenience, FIXTURE_TEARDOWN() is
- * also called when the test failed, but not when FIXTURE_SETUP() failed.  For
- * this to be possible, we must not call abort() but instead exit smoothly
- * (hence the step print).
- */
-/* clang-format off */
-#define TEST_F_FORK(fixture_name, test_name) \
-	static void fixture_name##_##test_name##_child( \
-		struct __test_metadata *_metadata, \
-		FIXTURE_DATA(fixture_name) *self, \
-		const FIXTURE_VARIANT(fixture_name) *variant); \
-	TEST_F(fixture_name, test_name) \
-	{ \
-		int status; \
-		const pid_t child = fork(); \
-		if (child < 0) \
-			abort(); \
-		if (child == 0) { \
-			_metadata->no_print = 1; \
-			fixture_name##_##test_name##_child(_metadata, self, variant); \
-			if (_metadata->skip) \
-				_exit(255); \
-			if (_metadata->passed) \
-				_exit(0); \
-			_exit(_metadata->step); \
-		} \
-		if (child != waitpid(child, &status, 0)) \
-			abort(); \
-		if (WIFSIGNALED(status) || !WIFEXITED(status)) { \
-			_metadata->passed = 0; \
-			_metadata->step = 1; \
-			return; \
-		} \
-		switch (WEXITSTATUS(status)) { \
-		case 0: \
-			_metadata->passed = 1; \
-			break; \
-		case 255: \
-			_metadata->passed = 1; \
-			_metadata->skip = 1; \
-			break; \
-		default: \
-			_metadata->passed = 0; \
-			_metadata->step = WEXITSTATUS(status); \
-			break; \
-		} \
-	} \
-	static void fixture_name##_##test_name##_child( \
-		struct __test_metadata __attribute__((unused)) *_metadata, \
-		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self, \
-		const FIXTURE_VARIANT(fixture_name) \
-			__attribute__((unused)) *variant)
-/* clang-format on */
+/* TEST_F_FORK() should not be used for new tests. */
+#define TEST_F_FORK(fixture_name, test_name) TEST_F(fixture_name, test_name)
 
 #ifndef landlock_create_ruleset
 static inline int

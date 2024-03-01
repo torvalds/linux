@@ -1964,7 +1964,7 @@ static void test_execute(struct __test_metadata *const _metadata, const int err,
 			       strerror(errno));
 		};
 		ASSERT_EQ(err, errno);
-		_exit(_metadata->passed ? 2 : 1);
+		_exit(__test_passed(_metadata) ? 2 : 1);
 		return;
 	}
 	ASSERT_EQ(child, waitpid(child, &status, 0));
@@ -3807,7 +3807,7 @@ TEST_F_FORK(ftruncate, open_and_ftruncate_in_different_processes)
 
 		ASSERT_EQ(0, close(socket_fds[0]));
 
-		_exit(_metadata->passed ? EXIT_SUCCESS : EXIT_FAILURE);
+		_exit(_metadata->exit_code);
 		return;
 	}
 
