@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2013-2015, 2019-2021, Linux Foundation. All rights reserved.
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef UFS_QCOM_PHY_I_H_
@@ -72,6 +72,7 @@ struct ufs_qcom_phy {
 	bool is_iface_clk_enabled;
 	struct clk *ref_clk_src;
 	struct clk *ref_clk_parent;
+	struct clk *ref_clk_pad_en;
 	struct clk *ref_clk;
 	struct clk *ref_aux_clk;
 	struct clk *qref_clk;
