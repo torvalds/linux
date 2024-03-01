@@ -783,7 +783,7 @@ static int aspeed_i3c_master_set_group_dat(struct aspeed_i3c_master *master, u8 
 				goto out;
 
 			master->free_pos &= ~BIT(dev_grp->hw_index);
-			val &= dev_grp->mask.clr;
+			val &= ~dev_grp->mask.clr;
 			val |= dev_grp->mask.set;
 			writel(val, master->regs + DEV_ADDR_TABLE_LOC(
 							   master->datstartaddr,
