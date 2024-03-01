@@ -18,7 +18,7 @@ description: |-
   available via CSI-2 serial data output (two or four lanes).
 
 allOf:
-  - $ref: ../video-interface-devices.yaml#
+  - $ref: /schemas/media/video-interface-devices.yaml#
 
 properties:
   compatible:
