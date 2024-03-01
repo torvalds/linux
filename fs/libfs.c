@@ -1991,12 +1991,11 @@ static inline struct dentry *get_stashed_dentry(struct dentry *stashed)
 static struct dentry *prepare_anon_dentry(struct dentry **stashed,
 					  unsigned long ino,
 					  struct super_block *sb,
-					  const struct file_operations *fops,
-					  const struct inode_operations *iops,
 					  void *data)
 {
 	struct dentry *dentry;
 	struct inode *inode;
+	const struct stashed_operations *sops = sb->s_fs_info;
 
 	dentry = d_alloc_anon(sb);
 	if (!dentry)
@@ -2010,15 +2009,13 @@ static struct dentry *prepare_anon_dentry(struct dentry **stashed,
 
 	inode->i_ino = ino;
 	inode->i_flags |= S_IMMUTABLE;
-	if (is_pidfs_sb(sb))
-		inode->i_flags |= S_PRIVATE;
-	inode->i_mode = S_IFREG | S_IRUGO;
-	if (iops)
-		inode->i_op = iops;
-	if (fops)
-		inode->i_fop = fops;
-	inode->i_private = data;
+	inode->i_mode = S_IFREG;
 	simple_inode_init_ts(inode);
+	sops->init_inode(inode, data);
+
+	/* Notice when this is changed. */
+	WARN_ON_ONCE(!S_ISREG(inode->i_mode));
+	WARN_ON_ONCE(!IS_IMMUTABLE(inode));
 
 	/* Store address of location where dentry's supposed to be stashed. */
 	dentry->d_fsdata = stashed;
@@ -2055,8 +2052,6 @@ static struct dentry *stash_dentry(struct dentry **stashed,
  * @stashed:    where to retrieve or stash dentry
  * @ino:        inode number to use
  * @mnt:        mnt of the filesystems to use
- * @iops:       inode operations to use
- * @fops:       file operations to use
  * @data:       data to store in inode->i_private
  * @path:       path to create
  *
@@ -2068,38 +2063,38 @@ static struct dentry *stash_dentry(struct dentry **stashed,
  *
  * Special-purpose helper for nsfs and pidfs.
  *
- * Return: If 0 or an error is returned the caller can be sure that @data must
- *         be cleaned up. If 1 is returned @data is owned by the filesystem.
+ * Return: On success zero and on failure a negative error is returned.
  */
 int path_from_stashed(struct dentry **stashed, unsigned long ino,
-		      struct vfsmount *mnt, const struct file_operations *fops,
-		      const struct inode_operations *iops, void *data,
-		      struct path *path)
+		      struct vfsmount *mnt, void *data, struct path *path)
 {
 	struct dentry *dentry;
-	int ret = 0;
+	const struct stashed_operations *sops = mnt->mnt_sb->s_fs_info;
 
 	/* See if dentry can be reused. */
 	path->dentry = get_stashed_dentry(*stashed);
-	if (path->dentry)
+	if (path->dentry) {
+		sops->put_data(data);
 		goto out_path;
+	}
 
 	/* Allocate a new dentry. */
-	dentry = prepare_anon_dentry(stashed, ino, mnt->mnt_sb, fops, iops, data);
-	if (IS_ERR(dentry))
+	dentry = prepare_anon_dentry(stashed, ino, mnt->mnt_sb, data);
+	if (IS_ERR(dentry)) {
+		sops->put_data(data);
 		return PTR_ERR(dentry);
+	}
 
 	/* Added a new dentry. @data is now owned by the filesystem. */
 	path->dentry = stash_dentry(stashed, dentry);
 	if (path->dentry != dentry)
 		dput(dentry);
-	ret = 1;
 
 out_path:
 	WARN_ON_ONCE(path->dentry->d_fsdata != stashed);
 	WARN_ON_ONCE(d_inode(path->dentry)->i_private != data);
 	path->mnt = mntget(mnt);
-	return ret;
+	return 0;
 }
 
 void stashed_dentry_prune(struct dentry *dentry)

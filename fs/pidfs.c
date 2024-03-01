@@ -193,6 +193,26 @@ static const struct dentry_operations pidfs_dentry_operations = {
 	.d_prune	= stashed_dentry_prune,
 };
 
+static void pidfs_init_inode(struct inode *inode, void *data)
+{
+	inode->i_private = data;
+	inode->i_flags |= S_PRIVATE;
+	inode->i_mode |= S_IRWXU;
+	inode->i_op = &pidfs_inode_operations;
+	inode->i_fop = &pidfs_file_operations;
+}
+
+static void pidfs_put_data(void *data)
+{
+	struct pid *pid = data;
+	put_pid(pid);
+}
+
+static const struct stashed_operations pidfs_stashed_ops = {
+	.init_inode = pidfs_init_inode,
+	.put_data = pidfs_put_data,
+};
+
 static int pidfs_init_fs_context(struct fs_context *fc)
 {
 	struct pseudo_fs_context *ctx;
@@ -203,6 +223,7 @@ static int pidfs_init_fs_context(struct fs_context *fc)
 
 	ctx->ops = &pidfs_sops;
 	ctx->dops = &pidfs_dentry_operations;
+	fc->s_fs_info = (void *)&pidfs_stashed_ops;
 	return 0;
 }
 
@@ -225,10 +246,7 @@ struct file *pidfs_alloc_file(struct pid *pid, unsigned int flags)
 	* for pseudo filesystems.
 	 */
 	ret = path_from_stashed(&pid->stashed, pid->ino, pidfs_mnt,
-				&pidfs_file_operations, &pidfs_inode_operations,
 				get_pid(pid), &path);
-	if (ret <= 0)
-		put_pid(pid);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
