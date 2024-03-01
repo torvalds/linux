@@ -545,6 +545,13 @@ struct kvm_host_data {
 	struct kvm_cpu_context host_ctxt;
 	struct user_fpsimd_state *fpsimd_state;	/* hyp VA */
 
+	/* Ownership of the FP regs */
+	enum {
+		FP_STATE_FREE,
+		FP_STATE_HOST_OWNED,
+		FP_STATE_GUEST_OWNED,
+	} fp_owner;
+
 	/*
 	 * host_debug_state contains the host registers which are
 	 * saved and restored during world switches.
@@ -621,13 +628,6 @@ struct kvm_vcpu_arch {
 
 	/* Exception Information */
 	struct kvm_vcpu_fault_info fault;
-
-	/* Ownership of the FP regs */
-	enum {
-		FP_STATE_FREE,
-		FP_STATE_HOST_OWNED,
-		FP_STATE_GUEST_OWNED,
-	} fp_state;
 
 	/* Configuration flags, set once and for all before the vcpu can run */
 	u8 cflags;
