@@ -107,6 +107,12 @@ static inline int is_module_addr(void *addr)
 	return 1;
 }
 
+#ifdef CONFIG_RANDOMIZE_BASE
+#define KASLR_LEN	(1UL << 31)
+#else
+#define KASLR_LEN	0UL
+#endif
+
 /*
  * A 64 bit pagetable entry of S390 has following format:
  * |			 PFRA			      |0IPC|  OS  |

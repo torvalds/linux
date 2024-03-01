@@ -203,7 +203,7 @@ static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
 
 	/* Adjust R_390_64 relocations */
 	for (reloc = vmlinux_relocs_64_start; reloc < vmlinux_relocs_64_end; reloc++) {
-		loc = (long)*reloc + offset;
+		loc = (long)*reloc + phys_offset;
 		if (loc < min_addr || loc > max_addr)
 			error("64-bit relocation outside of kernel!\n");
 		*(u64 *)loc += offset;
@@ -263,8 +263,25 @@ static void setup_ident_map_size(unsigned long max_physmem_end)
 #endif
 }
 
-static unsigned long setup_kernel_memory_layout(void)
+#define FIXMAP_SIZE	round_up(MEMCPY_REAL_SIZE + ABS_LOWCORE_MAP_SIZE, sizeof(struct lowcore))
+
+static unsigned long get_vmem_size(unsigned long identity_size,
+				   unsigned long vmemmap_size,
+				   unsigned long vmalloc_size,
+				   unsigned long rte_size)
 {
+	unsigned long max_mappable, vsize;
+
+	max_mappable = max(identity_size, MAX_DCSS_ADDR);
+	vsize = round_up(SZ_2G + max_mappable, rte_size) +
+		round_up(vmemmap_size, rte_size) +
+		FIXMAP_SIZE + MODULES_LEN + KASLR_LEN;
+	return size_add(vsize, vmalloc_size);
+}
+
+static unsigned long setup_kernel_memory_layout(unsigned long kernel_size)
+{
+	unsigned long kernel_start, kernel_end;
 	unsigned long vmemmap_start;
 	unsigned long asce_limit;
 	unsigned long rte_size;
@@ -277,12 +294,11 @@ static unsigned long setup_kernel_memory_layout(void)
 	vmemmap_size = SECTION_ALIGN_UP(pages) * sizeof(struct page);
 
 	/* choose kernel address space layout: 4 or 3 levels. */
-	vsize = round_up(ident_map_size, _REGION3_SIZE) + vmemmap_size +
-		MODULES_LEN + MEMCPY_REAL_SIZE + ABS_LOWCORE_MAP_SIZE;
-	vsize = size_add(vsize, vmalloc_size);
+	vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION3_SIZE);
 	if (IS_ENABLED(CONFIG_KASAN) || (vsize > _REGION2_SIZE)) {
 		asce_limit = _REGION1_SIZE;
 		rte_size = _REGION2_SIZE;
+		vsize = get_vmem_size(ident_map_size, vmemmap_size, vmalloc_size, _REGION2_SIZE);
 	} else {
 		asce_limit = _REGION2_SIZE;
 		rte_size = _REGION3_SIZE;
@@ -298,12 +314,26 @@ static unsigned long setup_kernel_memory_layout(void)
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
 #endif
-	MODULES_END = round_down(vmax, _SEGMENT_SIZE);
+	kernel_end = vmax;
+	if (kaslr_enabled()) {
+		unsigned long kaslr_len, slots, pos;
+
+		vsize = min(vsize, vmax);
+		kaslr_len = max(KASLR_LEN, vmax - vsize);
+		slots = DIV_ROUND_UP(kaslr_len - kernel_size, THREAD_SIZE);
+		if (get_random(slots, &pos))
+			pos = 0;
+		kernel_end -= pos * THREAD_SIZE;
+	}
+	kernel_start = round_down(kernel_end - kernel_size, THREAD_SIZE);
+	__kaslr_offset = kernel_start;
+
+	MODULES_END = round_down(kernel_start, _SEGMENT_SIZE);
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 
 	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
-	vsize = (VMALLOC_END - (MEMCPY_REAL_SIZE + ABS_LOWCORE_MAP_SIZE)) / 2;
+	vsize = (VMALLOC_END - FIXMAP_SIZE) / 2;
 	vsize = round_down(vsize, _SEGMENT_SIZE);
 	vmalloc_size = min(vmalloc_size, vsize);
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
@@ -330,6 +360,7 @@ static unsigned long setup_kernel_memory_layout(void)
 	BUILD_BUG_ON(MAX_DCSS_ADDR > (1UL << MAX_PHYSMEM_BITS));
 	max_mappable = max(ident_map_size, MAX_DCSS_ADDR);
 	max_mappable = min(max_mappable, vmemmap_start);
+	__identity_base = round_down(vmemmap_start - max_mappable, rte_size);
 
 	return asce_limit;
 }
@@ -358,7 +389,6 @@ static void setup_vmalloc_size(void)
 
 static void kaslr_adjust_vmlinux_info(unsigned long offset)
 {
-	*(unsigned long *)(&vmlinux.entry) += offset;
 	vmlinux.bootdata_off += offset;
 	vmlinux.bootdata_preserved_off += offset;
 #ifdef CONFIG_PIE_BUILD
@@ -386,6 +416,7 @@ void startup_kernel(void)
 	unsigned long max_physmem_end;
 	unsigned long vmlinux_lma = 0;
 	unsigned long amode31_lma = 0;
+	unsigned long kernel_size;
 	unsigned long asce_limit;
 	unsigned long safe_addr;
 	void *img;
@@ -417,7 +448,8 @@ void startup_kernel(void)
 	max_physmem_end = detect_max_physmem_end();
 	setup_ident_map_size(max_physmem_end);
 	setup_vmalloc_size();
-	asce_limit = setup_kernel_memory_layout();
+	kernel_size = vmlinux.default_lma + vmlinux.image_size + vmlinux.bss_size;
+	asce_limit = setup_kernel_memory_layout(kernel_size);
 	/* got final ident_map_size, physmem allocations could be performed now */
 	physmem_set_usable_limit(ident_map_size);
 	detect_physmem_online_ranges(max_physmem_end);
@@ -432,7 +464,6 @@ void startup_kernel(void)
 		if (vmlinux_lma) {
 			__kaslr_offset_phys = vmlinux_lma - vmlinux.default_lma;
 			kaslr_adjust_vmlinux_info(__kaslr_offset_phys);
-			__kaslr_offset = __kaslr_offset_phys;
 		}
 	}
 	vmlinux_lma = vmlinux_lma ?: vmlinux.default_lma;
@@ -472,7 +503,7 @@ void startup_kernel(void)
 			    __kaslr_offset, __kaslr_offset_phys);
 	kaslr_adjust_got(__kaslr_offset);
 	free_relocs();
-	setup_vmem(asce_limit);
+	setup_vmem(__kaslr_offset, __kaslr_offset + kernel_size, asce_limit);
 	copy_bootdata();
 
 	/*
@@ -484,7 +515,7 @@ void startup_kernel(void)
 	/*
 	 * Jump to the decompressed kernel entry point and switch DAT mode on.
 	 */
-	psw.addr = vmlinux.entry;
+	psw.addr = __kaslr_offset + vmlinux.entry;
 	psw.mask = PSW_KERNEL_BITS;
 	__load_psw(psw);
 }

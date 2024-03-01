@@ -208,15 +208,21 @@ static inline int kaslr_enabled(void)
 #define __PAGE_OFFSET		__identity_base
 #define PAGE_OFFSET		__PAGE_OFFSET
 
-#define __pa_nodebug(x)		((unsigned long)(x))
-
 #ifdef __DECOMPRESSOR
 
+#define __pa_nodebug(x)		((unsigned long)(x))
 #define __pa(x)			__pa_nodebug(x)
 #define __pa32(x)		__pa(x)
 #define __va(x)			((void *)(unsigned long)(x))
 
 #else /* __DECOMPRESSOR */
+
+static inline unsigned long __pa_nodebug(unsigned long x)
+{
+	if (x < __kaslr_offset)
+		return x - __identity_base;
+	return x - __kaslr_offset + __kaslr_offset_phys;
+}
 
 #ifdef CONFIG_DEBUG_VIRTUAL
 
@@ -233,7 +239,7 @@ static inline unsigned long __phys_addr(unsigned long x, bool is_31bit)
 
 #define __pa(x)			__phys_addr((unsigned long)(x), false)
 #define __pa32(x)		__phys_addr((unsigned long)(x), true)
-#define __va(x)			((void *)(unsigned long)(x))
+#define __va(x)			((void *)((unsigned long)(x) + __identity_base))
 
 #endif /* __DECOMPRESSOR */
 
@@ -258,7 +264,7 @@ static inline unsigned long virt_to_pfn(const void *kaddr)
 #define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
 
-#define virt_addr_valid(kaddr)	pfn_valid(phys_to_pfn(__pa_nodebug(kaddr)))
+#define virt_addr_valid(kaddr)	pfn_valid(phys_to_pfn(__pa_nodebug((unsigned long)(kaddr))))
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_NON_EXEC
 

@@ -74,10 +74,11 @@ void sclp_early_setup_buffer(void);
 void print_pgm_check_info(void);
 unsigned long randomize_within_range(unsigned long size, unsigned long align,
 				     unsigned long min, unsigned long max);
-void setup_vmem(unsigned long asce_limit);
+void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned long asce_limit);
 void __printf(1, 2) decompressor_printk(const char *fmt, ...);
 void print_stacktrace(unsigned long sp);
 void error(char *m);
+int get_random(unsigned long limit, unsigned long *value);
 
 extern struct machine_info machine;
 
@@ -98,6 +99,10 @@ extern struct vmlinux_info _vmlinux_info;
 #define vmlinux _vmlinux_info
 
 #define __abs_lowcore_pa(x)	(((unsigned long)(x) - __abs_lowcore) % sizeof(struct lowcore))
+#define __kernel_va(x)		((void *)((unsigned long)(x) - __kaslr_offset_phys + __kaslr_offset))
+#define __kernel_pa(x)		((unsigned long)(x) - __kaslr_offset + __kaslr_offset_phys)
+#define __identity_va(x)	((void *)((unsigned long)(x) + __identity_base))
+#define __identity_pa(x)	((unsigned long)(x) - __identity_base)
 
 static inline bool intersects(unsigned long addr0, unsigned long size0,
 			      unsigned long addr1, unsigned long size1)
