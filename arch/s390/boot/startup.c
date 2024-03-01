@@ -297,28 +297,30 @@ static unsigned long setup_kernel_memory_layout(void)
 	/* force vmalloc and modules below kasan shadow */
 	vmax = min(vmax, KASAN_SHADOW_START);
 #endif
-	__memcpy_real_area = round_down(vmax - MEMCPY_REAL_SIZE, PAGE_SIZE);
-	__abs_lowcore = round_down(__memcpy_real_area - ABS_LOWCORE_MAP_SIZE,
-				   sizeof(struct lowcore));
-	MODULES_END = round_down(__abs_lowcore, _SEGMENT_SIZE);
+	MODULES_END = round_down(vmax, _SEGMENT_SIZE);
 	MODULES_VADDR = MODULES_END - MODULES_LEN;
 	VMALLOC_END = MODULES_VADDR;
 
 	/* allow vmalloc area to occupy up to about 1/2 of the rest virtual space left */
-	vsize = round_down(VMALLOC_END / 2, _SEGMENT_SIZE);
+	vsize = (VMALLOC_END - (MEMCPY_REAL_SIZE + ABS_LOWCORE_MAP_SIZE)) / 2;
+	vsize = round_down(vsize, _SEGMENT_SIZE);
 	vmalloc_size = min(vmalloc_size, vsize);
 	VMALLOC_START = VMALLOC_END - vmalloc_size;
 
+	__memcpy_real_area = round_down(VMALLOC_START - MEMCPY_REAL_SIZE, PAGE_SIZE);
+	__abs_lowcore = round_down(__memcpy_real_area - ABS_LOWCORE_MAP_SIZE,
+				   sizeof(struct lowcore));
+
 	/* split remaining virtual space between 1:1 mapping & vmemmap array */
-	pages = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
+	pages = __abs_lowcore / (PAGE_SIZE + sizeof(struct page));
 	pages = SECTION_ALIGN_UP(pages);
 	/* keep vmemmap_start aligned to a top level region table entry */
-	vmemmap_start = round_down(VMALLOC_START - pages * sizeof(struct page), rte_size);
+	vmemmap_start = round_down(__abs_lowcore - pages * sizeof(struct page), rte_size);
 	/* make sure identity map doesn't overlay with vmemmap */
 	ident_map_size = min(ident_map_size, vmemmap_start);
 	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
-	/* make sure vmemmap doesn't overlay with vmalloc area */
-	if (vmemmap_start + vmemmap_size > VMALLOC_START) {
+	/* make sure vmemmap doesn't overlay with absolute lowcore area */
+	if (vmemmap_start + vmemmap_size > __abs_lowcore) {
 		vmemmap_size = SECTION_ALIGN_DOWN(ident_map_size / PAGE_SIZE) * sizeof(struct page);
 		ident_map_size = vmemmap_size / sizeof(struct page) * PAGE_SIZE;
 	}
