@@ -167,7 +167,6 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 	struct resource *res;
 	struct dcss_dev *dcss;
 	const struct dcss_type_data *devtype;
-	resource_size_t res_len;
 
 	devtype = of_device_get_match_data(dev);
 	if (!devtype) {
@@ -181,8 +180,7 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 		return ERR_PTR(-EINVAL);
 	}
 
-	res_len = res->end - res->start;
-	if (!devm_request_mem_region(dev, res->start, res_len, "dcss")) {
+	if (!devm_request_mem_region(dev, res->start, resource_size(res), "dcss")) {
 		dev_err(dev, "cannot request memory region\n");
 		return ERR_PTR(-EBUSY);
 	}
