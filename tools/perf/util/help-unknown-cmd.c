@@ -73,10 +73,14 @@ const char *help_unknown_cmd(const char *cmd, struct cmdnames *main_cmds)
 
 	if (main_cmds->cnt) {
 		/* This reuses cmdname->len for similarity index */
-		for (i = 0; i < main_cmds->cnt; ++i)
+		for (i = 0; i < main_cmds->cnt; ++i) {
 			main_cmds->names[i]->len =
-				levenshtein(cmd, main_cmds->names[i]->name, 0, 2, 1, 4);
-
+				levenshtein(cmd, main_cmds->names[i]->name,
+					/*swap_penalty=*/0,
+					/*substition_penality=*/2,
+					/*insertion_penality=*/1,
+					/*deletion_penalty=*/1);
+		}
 		qsort(main_cmds->names, main_cmds->cnt,
 		      sizeof(*main_cmds->names), levenshtein_compare);
 
