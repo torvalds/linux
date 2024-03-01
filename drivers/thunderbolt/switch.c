@@ -2880,9 +2880,22 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 {
 	struct tb_port *up, *down;
 
-	if (sw->is_unplugged)
-		return;
 	if (!tb_route(sw) || tb_switch_is_icm(sw))
+		return;
+
+	/*
+	 * Unconfigure downstream port so that wake-on-connect can be
+	 * configured after router unplug. No need to unconfigure upstream port
+	 * since its router is unplugged.
+	 */
+	up = tb_upstream_port(sw);
+	down = up->remote;
+	if (tb_switch_is_usb4(down->sw))
+		usb4_port_unconfigure(down);
+	else
+		tb_lc_unconfigure_port(down);
+
+	if (sw->is_unplugged)
 		return;
 
 	up = tb_upstream_port(sw);
@@ -2890,12 +2903,6 @@ void tb_switch_unconfigure_link(struct tb_switch *sw)
 		usb4_port_unconfigure(up);
 	else
 		tb_lc_unconfigure_port(up);
-
-	down = up->remote;
-	if (tb_switch_is_usb4(down->sw))
-		usb4_port_unconfigure(down);
-	else
-		tb_lc_unconfigure_port(down);
 }
 
 static void tb_switch_credits_init(struct tb_switch *sw)
