@@ -307,8 +307,8 @@ static int finish_test(struct child_test *child_test, int width)
 		char buf[512];
 		ssize_t len;
 
-		/* Poll to avoid excessive spinning, timeout set for 1000ms. */
-		poll(pfds, ARRAY_SIZE(pfds), /*timeout=*/1000);
+		/* Poll to avoid excessive spinning, timeout set for 100ms. */
+		poll(pfds, ARRAY_SIZE(pfds), /*timeout=*/100);
 		if (!err_done && pfds[0].revents) {
 			errno = 0;
 			len = read(err, buf, sizeof(buf) - 1);
