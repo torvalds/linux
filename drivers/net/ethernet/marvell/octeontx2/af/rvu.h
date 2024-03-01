@@ -469,11 +469,12 @@ struct rvu_fwdata {
 	u32 ptp_ext_clk_rate;
 	u32 ptp_ext_tstamp;
 	struct channel_fwdata channel_data;
-#define FWDATA_RESERVED_MEM 1014
+#define FWDATA_RESERVED_MEM 958
 	u64 reserved[FWDATA_RESERVED_MEM];
 #define CGX_MAX         9
 #define CGX_LMACS_MAX   4
 #define CGX_LMACS_USX   8
+#define FWDATA_CGX_LMAC_OFFSET 10536
 	union {
 		struct cgx_lmac_fwdata_s
 			cgx_fw_data[CGX_MAX][CGX_LMACS_MAX];
