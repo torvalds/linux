@@ -138,6 +138,22 @@
 		vin-supply = <&reg_1v8>;
 	};
 
+	/*
+	 * By default we enable CTRL_SLEEP_MOCI#, this is required to have
+	 * peripherals on the carrier board powered.
+	 * If more granularity or power saving is required this can be disabled
+	 * in the carrier board device tree files.
+	 */
+	reg_force_sleep_moci: regulator-force-sleep-moci {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
+		gpio = <&main_gpio0 31 GPIO_ACTIVE_HIGH>;
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-name = "CTRL_SLEEP_MOCI#";
+	};
+
 	/* Verdin SD_1 Power Supply */
 	reg_sdhc1_vmmc: regulator-sdhci1 {
 		compatible = "regulator-fixed";
@@ -985,14 +1001,6 @@
 		"",
 		"",
 		"";
-
-	verdin_ctrl_sleep_moci: ctrl-sleep-moci-hog {
-		gpio-hog;
-		/* Verdin CTRL_SLEEP_MOCI# (SODIMM 256) */
-		gpios = <31 GPIO_ACTIVE_HIGH>;
-		line-name = "CTRL_SLEEP_MOCI#";
-		output-high;
-	};
 };
 
 &main_gpio1 {
