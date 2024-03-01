@@ -6373,6 +6373,7 @@ L:	linux-doc@vger.kernel.org
 S:	Maintained
 F:	Documentation/admin-guide/quickly-build-trimmed-linux.rst
 F:	Documentation/admin-guide/reporting-issues.rst
+F:	Documentation/admin-guide/verify-bugs-and-bisect-regressions.rst
 
 DOCUMENTATION SCRIPTS
 M:	Mauro Carvalho Chehab <mchehab@kernel.org>
