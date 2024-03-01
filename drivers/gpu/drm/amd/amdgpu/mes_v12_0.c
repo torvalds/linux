@@ -34,8 +34,10 @@
 
 MODULE_FIRMWARE("amdgpu/gc_12_0_0_mes.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_0_0_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_12_0_0_uni_mes.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_mes.bin");
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_mes1.bin");
+MODULE_FIRMWARE("amdgpu/gc_12_0_1_uni_mes.bin");
 
 static int mes_v12_0_hw_fini(void *handle);
 static int mes_v12_0_kiq_hw_init(struct amdgpu_device *adev);
@@ -1330,6 +1332,14 @@ static int mes_v12_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int pipe, r;
+
+	if (adev->enable_uni_mes) {
+		r = amdgpu_mes_init_microcode(adev, AMDGPU_MES_SCHED_PIPE);
+		if (!r)
+			return 0;
+
+		adev->enable_uni_mes = false;
+	}
 
 	for (pipe = 0; pipe < AMDGPU_MAX_MES_PIPES; pipe++) {
 		if (!adev->enable_mes_kiq && pipe == AMDGPU_MES_KIQ_PIPE)
