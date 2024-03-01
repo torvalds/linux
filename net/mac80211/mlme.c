@@ -8173,7 +8173,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 				eth_random_addr(assoc_data->link[i].addr);
 			sband = local->hw.wiphy->bands[link_cbss->channel->band];
 
-			if (match_auth && i == assoc_link_id)
+			if (match_auth && i == assoc_link_id && link)
 				assoc_data->link[i].conn = link->u.mgd.conn;
 			else
 				assoc_data->link[i].conn =
