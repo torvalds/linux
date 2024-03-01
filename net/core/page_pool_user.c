@@ -94,11 +94,12 @@ netdev_nl_page_pool_get_dump(struct sk_buff *skb, struct netlink_callback *cb,
 			state->pp_id = pool->user.id;
 			err = fill(skb, pool, info);
 			if (err)
-				break;
+				goto out;
 		}
 
 		state->pp_id = 0;
 	}
+out:
 	mutex_unlock(&page_pools_lock);
 	rtnl_unlock();
 
