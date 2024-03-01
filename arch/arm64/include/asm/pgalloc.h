@@ -60,8 +60,7 @@ static inline void pud_free(struct mm_struct *mm, pud_t *pud)
 {
 	if (!pgtable_l4_enabled())
 		return;
-	BUG_ON((unsigned long)pud & (PAGE_SIZE-1));
-	free_page((unsigned long)pud);
+	__pud_free(mm, pud);
 }
 #else
 static inline void __p4d_populate(p4d_t *p4dp, phys_addr_t pudp, p4dval_t prot)
