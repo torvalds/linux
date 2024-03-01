@@ -1871,6 +1871,7 @@ static void fw_devlink_unblock_consumers(struct device *dev)
 	device_links_write_unlock();
 }
 
+#define get_dev_from_fwnode(fwnode)	get_device((fwnode)->dev)
 
 static bool fwnode_init_without_drv(struct fwnode_handle *fwnode)
 {
@@ -1899,6 +1900,63 @@ static bool fwnode_ancestor_init_without_drv(struct fwnode_handle *fwnode)
 	}
 
 	return false;
+}
+
+/**
+ * fwnode_is_ancestor_of - Test if @ancestor is ancestor of @child
+ * @ancestor: Firmware which is tested for being an ancestor
+ * @child: Firmware which is tested for being the child
+ *
+ * A node is considered an ancestor of itself too.
+ *
+ * Return: true if @ancestor is an ancestor of @child. Otherwise, returns false.
+ */
+static bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor,
+				  const struct fwnode_handle *child)
+{
+	struct fwnode_handle *parent;
+
+	if (IS_ERR_OR_NULL(ancestor))
+		return false;
+
+	if (child == ancestor)
+		return true;
+
+	fwnode_for_each_parent_node(child, parent) {
+		if (parent == ancestor) {
+			fwnode_handle_put(parent);
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * fwnode_get_next_parent_dev - Find device of closest ancestor fwnode
+ * @fwnode: firmware node
+ *
+ * Given a firmware node (@fwnode), this function finds its closest ancestor
+ * firmware node that has a corresponding struct device and returns that struct
+ * device.
+ *
+ * The caller is responsible for calling put_device() on the returned device
+ * pointer.
+ *
+ * Return: a pointer to the device of the @fwnode's closest ancestor.
+ */
+static struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *parent;
+	struct device *dev;
+
+	fwnode_for_each_parent_node(fwnode, parent) {
+		dev = get_dev_from_fwnode(parent);
+		if (dev) {
+			fwnode_handle_put(parent);
+			return dev;
+		}
+	}
+	return NULL;
 }
 
 /**
