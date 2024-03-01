@@ -10,7 +10,7 @@
 #include <linux/reset.h>
 #include <linux/types.h>
 
-#define DW_I3C_MAX_DEVS 32
+#define DW_I3C_MAX_DEVS 128
 
 struct dw_i3c_master_caps {
 	u8 cmdfifodepth;
