@@ -2705,7 +2705,7 @@ void vdo_traverse_forest(struct block_map *map, vdo_entry_callback_fn callback,
 
 		cursor->waiter.callback = launch_cursor;
 		acquire_vio_from_pool(cursors->pool, &cursor->waiter);
-	};
+	}
 }
 
 /**
