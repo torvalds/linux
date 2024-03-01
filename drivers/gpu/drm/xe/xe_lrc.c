@@ -682,8 +682,6 @@ static void xe_lrc_set_ppgtt(struct xe_lrc *lrc, struct xe_vm *vm)
 
 #define PVC_CTX_ASID		(0x2e + 1)
 #define PVC_CTX_ACC_CTR_THOLD	(0x2a + 1)
-#define ACC_GRANULARITY_S       20
-#define ACC_NOTIFY_S            16
 
 int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 		struct xe_exec_queue *q, struct xe_vm *vm, u32 ring_size)
@@ -754,13 +752,7 @@ int xe_lrc_init(struct xe_lrc *lrc, struct xe_hw_engine *hwe,
 	xe_lrc_write_ctx_reg(lrc, CTX_RING_CTL,
 			     RING_CTL_SIZE(lrc->ring.size) | RING_VALID);
 	if (xe->info.has_asid && vm)
-		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID,
-				     (q->usm.acc_granularity <<
-				      ACC_GRANULARITY_S) | vm->usm.asid);
-	if (xe->info.has_usm && vm)
-		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ACC_CTR_THOLD,
-				     (q->usm.acc_notify << ACC_NOTIFY_S) |
-				     q->usm.acc_trigger);
+		xe_lrc_write_ctx_reg(lrc, PVC_CTX_ASID, vm->usm.asid);
 
 	lrc->desc = LRC_VALID;
 	lrc->desc |= LRC_LEGACY_64B_CONTEXT << LRC_ADDRESSING_MODE_SHIFT;

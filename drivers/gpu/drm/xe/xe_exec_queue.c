@@ -309,85 +309,6 @@ static int exec_queue_set_timeslice(struct xe_device *xe, struct xe_exec_queue *
 	return q->ops->set_timeslice(q, value);
 }
 
-static int exec_queue_set_preemption_timeout(struct xe_device *xe,
-					     struct xe_exec_queue *q, u64 value,
-					     bool create)
-{
-	u32 min = 0, max = 0;
-
-	xe_exec_queue_get_prop_minmax(q->hwe->eclass,
-				      XE_EXEC_QUEUE_PREEMPT_TIMEOUT, &min, &max);
-
-	if (xe_exec_queue_enforce_schedule_limit() &&
-	    !xe_hw_engine_timeout_in_range(value, min, max))
-		return -EINVAL;
-
-	return q->ops->set_preempt_timeout(q, value);
-}
-
-static int exec_queue_set_job_timeout(struct xe_device *xe, struct xe_exec_queue *q,
-				      u64 value, bool create)
-{
-	u32 min = 0, max = 0;
-
-	if (XE_IOCTL_DBG(xe, !create))
-		return -EINVAL;
-
-	xe_exec_queue_get_prop_minmax(q->hwe->eclass,
-				      XE_EXEC_QUEUE_JOB_TIMEOUT, &min, &max);
-
-	if (xe_exec_queue_enforce_schedule_limit() &&
-	    !xe_hw_engine_timeout_in_range(value, min, max))
-		return -EINVAL;
-
-	return q->ops->set_job_timeout(q, value);
-}
-
-static int exec_queue_set_acc_trigger(struct xe_device *xe, struct xe_exec_queue *q,
-				      u64 value, bool create)
-{
-	if (XE_IOCTL_DBG(xe, !create))
-		return -EINVAL;
-
-	if (XE_IOCTL_DBG(xe, !xe->info.has_usm))
-		return -EINVAL;
-
-	q->usm.acc_trigger = value;
-
-	return 0;
-}
-
-static int exec_queue_set_acc_notify(struct xe_device *xe, struct xe_exec_queue *q,
-				     u64 value, bool create)
-{
-	if (XE_IOCTL_DBG(xe, !create))
-		return -EINVAL;
-
-	if (XE_IOCTL_DBG(xe, !xe->info.has_usm))
-		return -EINVAL;
-
-	q->usm.acc_notify = value;
-
-	return 0;
-}
-
-static int exec_queue_set_acc_granularity(struct xe_device *xe, struct xe_exec_queue *q,
-					  u64 value, bool create)
-{
-	if (XE_IOCTL_DBG(xe, !create))
-		return -EINVAL;
-
-	if (XE_IOCTL_DBG(xe, !xe->info.has_usm))
-		return -EINVAL;
-
-	if (value > DRM_XE_ACC_GRANULARITY_64M)
-		return -EINVAL;
-
-	q->usm.acc_granularity = value;
-
-	return 0;
-}
-
 typedef int (*xe_exec_queue_set_property_fn)(struct xe_device *xe,
 					     struct xe_exec_queue *q,
 					     u64 value, bool create);
@@ -395,11 +316,6 @@ typedef int (*xe_exec_queue_set_property_fn)(struct xe_device *xe,
 static const xe_exec_queue_set_property_fn exec_queue_set_property_funcs[] = {
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY] = exec_queue_set_priority,
 	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE] = exec_queue_set_timeslice,
-	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_PREEMPTION_TIMEOUT] = exec_queue_set_preemption_timeout,
-	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_JOB_TIMEOUT] = exec_queue_set_job_timeout,
-	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_TRIGGER] = exec_queue_set_acc_trigger,
-	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_NOTIFY] = exec_queue_set_acc_notify,
-	[DRM_XE_EXEC_QUEUE_SET_PROPERTY_ACC_GRANULARITY] = exec_queue_set_acc_granularity,
 };
 
 static int exec_queue_user_ext_set_property(struct xe_device *xe,
@@ -418,7 +334,9 @@ static int exec_queue_user_ext_set_property(struct xe_device *xe,
 
 	if (XE_IOCTL_DBG(xe, ext.property >=
 			 ARRAY_SIZE(exec_queue_set_property_funcs)) ||
-	    XE_IOCTL_DBG(xe, ext.pad))
+	    XE_IOCTL_DBG(xe, ext.pad) ||
+	    XE_IOCTL_DBG(xe, ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_PRIORITY &&
+			 ext.property != DRM_XE_EXEC_QUEUE_SET_PROPERTY_TIMESLICE))
 		return -EINVAL;
 
 	idx = array_index_nospec(ext.property, ARRAY_SIZE(exec_queue_set_property_funcs));

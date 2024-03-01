@@ -150,16 +150,6 @@ struct xe_exec_queue {
 		spinlock_t lock;
 	} compute;
 
-	/** @usm: unified shared memory state */
-	struct {
-		/** @acc_trigger: access counter trigger */
-		u32 acc_trigger;
-		/** @acc_notify: access counter notify */
-		u32 acc_notify;
-		/** @acc_granularity: access counter granularity */
-		u32 acc_granularity;
-	} usm;
-
 	/** @ops: submission backend exec queue operations */
 	const struct xe_exec_queue_ops *ops;
 

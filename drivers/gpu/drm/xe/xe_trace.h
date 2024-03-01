@@ -12,6 +12,7 @@
 #include <linux/tracepoint.h>
 #include <linux/types.h>
 
+#include "xe_bo.h"
 #include "xe_bo_types.h"
 #include "xe_exec_queue_types.h"
 #include "xe_gpu_scheduler_types.h"
@@ -26,16 +27,16 @@ DECLARE_EVENT_CLASS(xe_gt_tlb_invalidation_fence,
 		    TP_ARGS(fence),
 
 		    TP_STRUCT__entry(
-			     __field(u64, fence)
+			     __field(struct xe_gt_tlb_invalidation_fence *, fence)
 			     __field(int, seqno)
 			     ),
 
 		    TP_fast_assign(
-			   __entry->fence = (u64)fence;
+			   __entry->fence = fence;
 			   __entry->seqno = fence->seqno;
 			   ),
 
-		    TP_printk("fence=0x%016llx, seqno=%d",
+		    TP_printk("fence=%p, seqno=%d",
 			      __entry->fence, __entry->seqno)
 );
 
@@ -82,16 +83,16 @@ DECLARE_EVENT_CLASS(xe_bo,
 		    TP_STRUCT__entry(
 			     __field(size_t, size)
 			     __field(u32, flags)
-			     __field(u64, vm)
+			     __field(struct xe_vm *, vm)
 			     ),
 
 		    TP_fast_assign(
 			   __entry->size = bo->size;
 			   __entry->flags = bo->flags;
-			   __entry->vm = (unsigned long)bo->vm;
+			   __entry->vm = bo->vm;
 			   ),
 
-		    TP_printk("size=%zu, flags=0x%02x, vm=0x%016llx",
+		    TP_printk("size=%zu, flags=0x%02x, vm=%p",
 			      __entry->size, __entry->flags, __entry->vm)
 );
 
@@ -100,9 +101,31 @@ DEFINE_EVENT(xe_bo, xe_bo_cpu_fault,
 	     TP_ARGS(bo)
 );
 
-DEFINE_EVENT(xe_bo, xe_bo_move,
-	     TP_PROTO(struct xe_bo *bo),
-	     TP_ARGS(bo)
+TRACE_EVENT(xe_bo_move,
+	    TP_PROTO(struct xe_bo *bo, uint32_t new_placement, uint32_t old_placement,
+		     bool move_lacks_source),
+	    TP_ARGS(bo, new_placement, old_placement, move_lacks_source),
+	    TP_STRUCT__entry(
+		     __field(struct xe_bo *, bo)
+		     __field(size_t, size)
+		     __field(u32, new_placement)
+		     __field(u32, old_placement)
+		     __array(char, device_id, 12)
+		     __field(bool, move_lacks_source)
+			),
+
+	    TP_fast_assign(
+		   __entry->bo      = bo;
+		   __entry->size = bo->size;
+		   __entry->new_placement = new_placement;
+		   __entry->old_placement = old_placement;
+		   strscpy(__entry->device_id, dev_name(xe_bo_device(__entry->bo)->drm.dev), 12);
+		   __entry->move_lacks_source = move_lacks_source;
+		   ),
+	    TP_printk("move_lacks_source:%s, migrate object %p [size %zu] from %s to %s device_id:%s",
+		      __entry->move_lacks_source ? "yes" : "no", __entry->bo, __entry->size,
+		      xe_mem_type_to_name[__entry->old_placement],
+		      xe_mem_type_to_name[__entry->new_placement], __entry->device_id)
 );
 
 DECLARE_EVENT_CLASS(xe_exec_queue,
@@ -327,16 +350,16 @@ DECLARE_EVENT_CLASS(xe_hw_fence,
 		    TP_STRUCT__entry(
 			     __field(u64, ctx)
 			     __field(u32, seqno)
-			     __field(u64, fence)
+			     __field(struct xe_hw_fence *, fence)
 			     ),
 
 		    TP_fast_assign(
 			   __entry->ctx = fence->dma.context;
 			   __entry->seqno = fence->dma.seqno;
-			   __entry->fence = (unsigned long)fence;
+			   __entry->fence = fence;
 			   ),
 
-		    TP_printk("ctx=0x%016llx, fence=0x%016llx, seqno=%u",
+		    TP_printk("ctx=0x%016llx, fence=%p, seqno=%u",
 			      __entry->ctx, __entry->fence, __entry->seqno)
 );
 
@@ -365,7 +388,7 @@ DECLARE_EVENT_CLASS(xe_vma,
 		    TP_ARGS(vma),
 
 		    TP_STRUCT__entry(
-			     __field(u64, vma)
+			     __field(struct xe_vma *, vma)
 			     __field(u32, asid)
 			     __field(u64, start)
 			     __field(u64, end)
@@ -373,14 +396,14 @@ DECLARE_EVENT_CLASS(xe_vma,
 			     ),
 
 		    TP_fast_assign(
-			   __entry->vma = (unsigned long)vma;
+			   __entry->vma = vma;
 			   __entry->asid = xe_vma_vm(vma)->usm.asid;
 			   __entry->start = xe_vma_start(vma);
 			   __entry->end = xe_vma_end(vma) - 1;
 			   __entry->ptr = xe_vma_userptr(vma);
 			   ),
 
-		    TP_printk("vma=0x%016llx, asid=0x%05x, start=0x%012llx, end=0x%012llx, ptr=0x%012llx,",
+		    TP_printk("vma=%p, asid=0x%05x, start=0x%012llx, end=0x%012llx, userptr=0x%012llx,",
 			      __entry->vma, __entry->asid, __entry->start,
 			      __entry->end, __entry->ptr)
 )
@@ -465,16 +488,16 @@ DECLARE_EVENT_CLASS(xe_vm,
 		    TP_ARGS(vm),
 
 		    TP_STRUCT__entry(
-			     __field(u64, vm)
+			     __field(struct xe_vm *, vm)
 			     __field(u32, asid)
 			     ),
 
 		    TP_fast_assign(
-			   __entry->vm = (unsigned long)vm;
+			   __entry->vm = vm;
 			   __entry->asid = vm->usm.asid;
 			   ),
 
-		    TP_printk("vm=0x%016llx, asid=0x%05x",  __entry->vm,
+		    TP_printk("vm=%p, asid=0x%05x",  __entry->vm,
 			      __entry->asid)
 );
 
