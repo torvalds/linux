@@ -103,6 +103,8 @@ struct dw_i3c_platform_ops {
 	 */
 	void (*set_dat_ibi)(struct dw_i3c_master *i3c,
 			    struct i3c_dev_desc *dev, bool enable, u32 *reg);
+	void (*set_sir_enabled)(struct dw_i3c_master *i3c,
+				struct i3c_dev_desc *dev, u8 idx, bool enable);
 
 	/* Enter the software force mode by isolating the SCL and SDA pins */
 	void (*enter_sw_mode)(struct dw_i3c_master *i3c);
@@ -115,6 +117,18 @@ struct dw_i3c_platform_ops {
 
 	/* For target mode, pending read notification */
 	void (*set_ibi_mdb)(struct dw_i3c_master *i3c, u8 mdb);
+
+	/* DAT handling */
+	int (*reattach_i3c_dev)(struct i3c_dev_desc *dev, u8 old_dyn_addr);
+	int (*attach_i3c_dev)(struct i3c_dev_desc *dev);
+	void (*detach_i3c_dev)(struct i3c_dev_desc *dev);
+	int (*attach_i2c_dev)(struct i2c_dev_desc *dev);
+	void (*detach_i2c_dev)(struct i2c_dev_desc *dev);
+	int (*get_addr_pos)(struct dw_i3c_master *i3c, u8 addr);
+	int (*flush_dat)(struct dw_i3c_master *i3c, u8 addr);
+	void (*set_ibi_dev)(struct dw_i3c_master *i3c,
+			    struct i3c_dev_desc *dev);
+	struct i3c_dev_desc *(*get_ibi_dev)(struct dw_i3c_master *i3c, u8 addr);
 };
 
 extern int dw_i3c_common_probe(struct dw_i3c_master *master,
