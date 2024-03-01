@@ -27,12 +27,6 @@ enum dev_prop_type {
 	DEV_PROP_REF,
 };
 
-enum dev_dma_attr {
-	DEV_DMA_NOT_SUPPORTED,
-	DEV_DMA_NON_COHERENT,
-	DEV_DMA_COHERENT,
-};
-
 const struct fwnode_handle *__dev_fwnode_const(const struct device *dev);
 struct fwnode_handle *__dev_fwnode(struct device *dev);
 #define dev_fwnode(dev)							\
