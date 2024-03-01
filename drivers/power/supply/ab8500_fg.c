@@ -2407,7 +2407,7 @@ out:
  */
 static void ab8500_fg_external_power_changed(struct power_supply *psy)
 {
-	class_for_each_device(power_supply_class, NULL, psy,
+	class_for_each_device(&power_supply_class, NULL, psy,
 			      ab8500_fg_get_ext_psy_data);
 }
 

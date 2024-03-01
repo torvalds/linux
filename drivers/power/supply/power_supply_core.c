@@ -26,7 +26,10 @@
 #include "samsung-sdi-battery.h"
 
 /* exported for the APM Power driver, APM emulation */
-struct class *power_supply_class;
+const struct class power_supply_class = {
+	.name = "power_supply",
+	.dev_uevent = power_supply_uevent,
+};
 EXPORT_SYMBOL_GPL(power_supply_class);
 
 static BLOCKING_NOTIFIER_HEAD(power_supply_notifier);
@@ -97,7 +100,7 @@ static void power_supply_changed_work(struct work_struct *work)
 	if (likely(psy->changed)) {
 		psy->changed = false;
 		spin_unlock_irqrestore(&psy->changed_lock, flags);
-		class_for_each_device(power_supply_class, NULL, psy,
+		class_for_each_device(&power_supply_class, NULL, psy,
 				      __power_supply_changed_work);
 		power_supply_update_leds(psy);
 		blocking_notifier_call_chain(&power_supply_notifier,
@@ -191,7 +194,7 @@ static int power_supply_populate_supplied_from(struct power_supply *psy)
 {
 	int error;
 
-	error = class_for_each_device(power_supply_class, NULL, psy,
+	error = class_for_each_device(&power_supply_class, NULL, psy,
 				      __power_supply_populate_supplied_from);
 
 	dev_dbg(&psy->dev, "%s %d\n", __func__, error);
@@ -226,8 +229,8 @@ static int power_supply_find_supply_from_node(struct device_node *supply_node)
 	 * We return 0 if class_for_each_device() returned 1, -EPROBE_DEFER if
 	 * it returned 0, or error as returned by it.
 	 */
-	error = class_for_each_device(power_supply_class, NULL, supply_node,
-				       __power_supply_find_supply_from_node);
+	error = class_for_each_device(&power_supply_class, NULL, supply_node,
+				      __power_supply_find_supply_from_node);
 
 	return error ? (error == 1 ? 0 : error) : -EPROBE_DEFER;
 }
@@ -333,7 +336,7 @@ int power_supply_am_i_supplied(struct power_supply *psy)
 	struct psy_am_i_supplied_data data = { psy, 0 };
 	int error;
 
-	error = class_for_each_device(power_supply_class, NULL, &data,
+	error = class_for_each_device(&power_supply_class, NULL, &data,
 				      __power_supply_am_i_supplied);
 
 	dev_dbg(&psy->dev, "%s count %u err %d\n", __func__, data.count, error);
@@ -369,7 +372,7 @@ int power_supply_is_system_supplied(void)
 	int error;
 	unsigned int count = 0;
 
-	error = class_for_each_device(power_supply_class, NULL, &count,
+	error = class_for_each_device(&power_supply_class, NULL, &count,
 				      __power_supply_is_system_supplied);
 
 	/*
@@ -416,7 +419,7 @@ int power_supply_get_property_from_supplier(struct power_supply *psy,
 	 * This function is not intended for use with a supply with multiple
 	 * suppliers, we simply pick the first supply to report the psp.
 	 */
-	ret = class_for_each_device(power_supply_class, NULL, &data,
+	ret = class_for_each_device(&power_supply_class, NULL, &data,
 				    __power_supply_get_supplier_property);
 	if (ret < 0)
 		return ret;
@@ -462,8 +465,8 @@ static int power_supply_match_device_by_name(struct device *dev, const void *dat
 struct power_supply *power_supply_get_by_name(const char *name)
 {
 	struct power_supply *psy = NULL;
-	struct device *dev = class_find_device(power_supply_class, NULL, name,
-					power_supply_match_device_by_name);
+	struct device *dev = class_find_device(&power_supply_class, NULL, name,
+					       power_supply_match_device_by_name);
 
 	if (dev) {
 		psy = dev_get_drvdata(dev);
@@ -519,8 +522,8 @@ struct power_supply *power_supply_get_by_phandle(struct device_node *np,
 	if (!power_supply_np)
 		return ERR_PTR(-ENODEV);
 
-	dev = class_find_device(power_supply_class, NULL, power_supply_np,
-						power_supply_match_device_node);
+	dev = class_find_device(&power_supply_class, NULL, power_supply_np,
+				power_supply_match_device_node);
 
 	of_node_put(power_supply_np);
 
@@ -1373,7 +1376,7 @@ __power_supply_register(struct device *parent,
 
 	device_initialize(dev);
 
-	dev->class = power_supply_class;
+	dev->class = &power_supply_class;
 	dev->type = &power_supply_dev_type;
 	dev->parent = parent;
 	dev->release = power_supply_dev_release;
@@ -1621,12 +1624,12 @@ EXPORT_SYMBOL_GPL(power_supply_get_drvdata);
 
 static int __init power_supply_class_init(void)
 {
-	power_supply_class = class_create("power_supply");
+	int err;
 
-	if (IS_ERR(power_supply_class))
-		return PTR_ERR(power_supply_class);
+	err = class_register(&power_supply_class);
+	if (err)
+		return err;
 
-	power_supply_class->dev_uevent = power_supply_uevent;
 	power_supply_init_attrs();
 
 	return 0;
@@ -1634,7 +1637,7 @@ static int __init power_supply_class_init(void)
 
 static void __exit power_supply_class_exit(void)
 {
-	class_destroy(power_supply_class);
+	class_unregister(&power_supply_class);
 }
 
 subsys_initcall(power_supply_class_init);
