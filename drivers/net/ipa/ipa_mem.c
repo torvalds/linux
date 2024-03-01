@@ -88,7 +88,7 @@ int ipa_mem_setup(struct ipa *ipa)
 	 */
 	trans = ipa_cmd_trans_alloc(ipa, 4);
 	if (!trans) {
-		dev_err(&ipa->pdev->dev, "no transaction for memory setup\n");
+		dev_err(ipa->dev, "no transaction for memory setup\n");
 		return -EBUSY;
 	}
 
@@ -218,8 +218,8 @@ static bool ipa_mem_id_required(struct ipa *ipa, enum ipa_mem_id mem_id)
 
 static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 {
-	struct device *dev = &ipa->pdev->dev;
 	enum ipa_mem_id mem_id = mem->id;
+	struct device *dev = ipa->dev;
 	u16 size_multiple;
 
 	/* Make sure the memory region is valid for this version of IPA */
@@ -255,7 +255,7 @@ static bool ipa_mem_valid_one(struct ipa *ipa, const struct ipa_mem *mem)
 static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 {
 	DECLARE_BITMAP(regions, IPA_MEM_COUNT) = { };
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	enum ipa_mem_id mem_id;
 	u32 i;
 
@@ -291,7 +291,7 @@ static bool ipa_mem_valid(struct ipa *ipa, const struct ipa_mem_data *mem_data)
 /* Do all memory regions fit within the IPA local memory? */
 static bool ipa_mem_size_valid(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	u32 limit = ipa->mem_size;
 	u32 i;
 
@@ -318,7 +318,7 @@ static bool ipa_mem_size_valid(struct ipa *ipa)
  */
 int ipa_mem_config(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	const struct ipa_mem *mem;
 	const struct reg *reg;
 	dma_addr_t addr;
@@ -394,7 +394,7 @@ err_dma_free:
 /* Inverse of ipa_mem_config() */
 void ipa_mem_deconfig(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	dma_free_coherent(dev, ipa->zero_size, ipa->zero_virt, ipa->zero_addr);
 	ipa->zero_size = 0;
@@ -421,8 +421,7 @@ int ipa_mem_zero_modem(struct ipa *ipa)
 	 */
 	trans = ipa_cmd_trans_alloc(ipa, 3);
 	if (!trans) {
-		dev_err(&ipa->pdev->dev,
-			"no transaction to zero modem memory\n");
+		dev_err(ipa->dev, "no transaction to zero modem memory\n");
 		return -EBUSY;
 	}
 
@@ -453,7 +452,7 @@ int ipa_mem_zero_modem(struct ipa *ipa)
  */
 static int ipa_imem_init(struct ipa *ipa, unsigned long addr, size_t size)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	struct iommu_domain *domain;
 	unsigned long iova;
 	phys_addr_t phys;
@@ -486,13 +485,12 @@ static int ipa_imem_init(struct ipa *ipa, unsigned long addr, size_t size)
 
 static void ipa_imem_exit(struct ipa *ipa)
 {
+	struct device *dev = ipa->dev;
 	struct iommu_domain *domain;
-	struct device *dev;
 
 	if (!ipa->imem_size)
 		return;
 
-	dev = &ipa->pdev->dev;
 	domain = iommu_get_domain_for_dev(dev);
 	if (domain) {
 		size_t size;
@@ -528,7 +526,7 @@ static void ipa_imem_exit(struct ipa *ipa)
  */
 static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	struct iommu_domain *domain;
 	unsigned long iova;
 	phys_addr_t phys;
@@ -595,7 +593,7 @@ static int ipa_smem_init(struct ipa *ipa, u32 item, size_t size)
 
 static void ipa_smem_exit(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	struct iommu_domain *domain;
 
 	domain = iommu_get_domain_for_dev(dev);

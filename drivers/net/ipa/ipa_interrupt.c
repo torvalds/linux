@@ -110,14 +110,13 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
 	u32 enabled = interrupt->enabled;
+	struct device *dev = ipa->dev;
 	const struct reg *reg;
-	struct device *dev;
 	u32 pending;
 	u32 offset;
 	u32 mask;
 	int ret;
 
-	dev = &ipa->pdev->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))
 		goto out_power_put;
@@ -240,8 +239,8 @@ void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt)
 int ipa_interrupt_config(struct ipa *ipa)
 {
 	struct ipa_interrupt *interrupt = ipa->interrupt;
-	struct device *dev = &ipa->pdev->dev;
 	unsigned int irq = interrupt->irq;
+	struct device *dev = ipa->dev;
 	const struct reg *reg;
 	int ret;
 
@@ -281,7 +280,7 @@ err_kfree:
 void ipa_interrupt_deconfig(struct ipa *ipa)
 {
 	struct ipa_interrupt *interrupt = ipa->interrupt;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	ipa->interrupt = NULL;
 

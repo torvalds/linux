@@ -238,7 +238,7 @@ int ipa_power_setup(struct ipa *ipa)
 
 	ipa_interrupt_enable(ipa, IPA_IRQ_TX_SUSPEND);
 
-	ret = device_init_wakeup(&ipa->pdev->dev, true);
+	ret = device_init_wakeup(ipa->dev, true);
 	if (ret)
 		ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 
@@ -247,7 +247,7 @@ int ipa_power_setup(struct ipa *ipa)
 
 void ipa_power_teardown(struct ipa *ipa)
 {
-	(void)device_init_wakeup(&ipa->pdev->dev, false);
+	(void)device_init_wakeup(ipa->dev, false);
 	ipa_interrupt_disable(ipa, IPA_IRQ_TX_SUSPEND);
 }
 

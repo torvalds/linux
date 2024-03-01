@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/atomic.h>
 #include <linux/bitfield.h>
-#include <linux/device.h>
 #include <linux/bug.h>
 #include <linux/io.h>
 #include <linux/firmware.h>
@@ -114,7 +113,7 @@ int ipa_setup(struct ipa *ipa)
 {
 	struct ipa_endpoint *exception_endpoint;
 	struct ipa_endpoint *command_endpoint;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	int ret;
 
 	ret = gsi_setup(&ipa->gsi);
@@ -858,7 +857,7 @@ static int ipa_probe(struct platform_device *pdev)
 		goto err_power_exit;
 	}
 
-	ipa->pdev = pdev;
+	ipa->dev = dev;
 	dev_set_drvdata(dev, ipa);
 	ipa->interrupt = interrupt;
 	ipa->power = power;
@@ -953,11 +952,15 @@ err_interrupt_exit:
 
 static void ipa_remove(struct platform_device *pdev)
 {
-	struct ipa *ipa = dev_get_drvdata(&pdev->dev);
-	struct device *dev = &pdev->dev;
 	struct ipa_interrupt *interrupt;
 	struct ipa_power *power;
+	struct device *dev;
+	struct ipa *ipa;
 	int ret;
+
+	ipa = dev_get_drvdata(&pdev->dev);
+	dev = ipa->dev;
+	WARN_ON(dev != &pdev->dev);
 
 	power = ipa->power;
 	interrupt = ipa->interrupt;
