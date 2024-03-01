@@ -17,6 +17,32 @@
 		power-domains = <&pd IMX_SC_R_UART_4>;
 	};
 
+	i2c4: i2c@5a840000 {
+		compatible = "fsl,imx8qm-lpi2c", "fsl,imx7ulp-lpi2c";
+		reg = <0x5a840000 0x4000>;
+		interrupts = <GIC_SPI 344 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-parent = <&gic>;
+		clocks = <&i2c4_lpcg 0>,
+			 <&i2c4_lpcg 1>;
+		clock-names = "per", "ipg";
+		assigned-clocks = <&clk IMX_SC_R_I2C_4 IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		power-domains = <&pd IMX_SC_R_I2C_4>;
+		status = "disabled";
+	};
+
+	i2c4_lpcg: clock-controller@5ac40000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x5ac40000 0x10000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_I2C_4 IMX_SC_PM_CLK_PER>,
+			 <&dma_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_4>;
+		clock-output-names = "i2c4_lpcg_clk",
+				     "i2c4_lpcg_ipg_clk";
+		power-domains = <&pd IMX_SC_R_I2C_4>;
+	};
+
 	can1_lpcg: clock-controller@5ace0000 {
 		compatible = "fsl,imx8qxp-lpcg";
 		reg = <0x5ace0000 0x10000>;
@@ -96,15 +122,30 @@
 	status = "okay";
 };
 
+/* It is eDMA1 in 8QM RM, but 8QXP it is eDMA3 */
 &edma3 {
+	reg = <0x5a9f0000 0x210000>;
+	dma-channels = <10>;
+	interrupts = <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 426 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 427 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 428 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 429 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 431 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 432 IRQ_TYPE_LEVEL_HIGH>,
+		     <GIC_SPI 433 IRQ_TYPE_LEVEL_HIGH>;
 	power-domains = <&pd IMX_SC_R_DMA_1_CH0>,
-		     <&pd IMX_SC_R_DMA_1_CH1>,
-		     <&pd IMX_SC_R_DMA_1_CH2>,
-		     <&pd IMX_SC_R_DMA_1_CH3>,
-		     <&pd IMX_SC_R_DMA_1_CH4>,
-		     <&pd IMX_SC_R_DMA_1_CH5>,
-		     <&pd IMX_SC_R_DMA_1_CH6>,
-		     <&pd IMX_SC_R_DMA_1_CH7>;
+			<&pd IMX_SC_R_DMA_1_CH1>,
+			<&pd IMX_SC_R_DMA_1_CH2>,
+			<&pd IMX_SC_R_DMA_1_CH3>,
+			<&pd IMX_SC_R_DMA_1_CH4>,
+			<&pd IMX_SC_R_DMA_1_CH5>,
+			<&pd IMX_SC_R_DMA_1_CH6>,
+			<&pd IMX_SC_R_DMA_1_CH7>,
+			<&pd IMX_SC_R_DMA_1_CH8>,
+			<&pd IMX_SC_R_DMA_1_CH9>;
 };
 
 &flexcan1 {
