@@ -295,51 +295,51 @@ single-build	:=
 
 ifneq ($(filter $(no-dot-config-targets), $(MAKECMDGOALS)),)
     ifeq ($(filter-out $(no-dot-config-targets), $(MAKECMDGOALS)),)
-		need-config :=
+        need-config :=
     endif
 endif
 
 ifneq ($(filter $(no-sync-config-targets), $(MAKECMDGOALS)),)
     ifeq ($(filter-out $(no-sync-config-targets), $(MAKECMDGOALS)),)
-		may-sync-config :=
+        may-sync-config :=
     endif
 endif
 
 need-compiler := $(may-sync-config)
 
 ifneq ($(KBUILD_EXTMOD),)
-	may-sync-config :=
+    may-sync-config :=
 endif
 
 ifeq ($(KBUILD_EXTMOD),)
-        ifneq ($(filter %config,$(MAKECMDGOALS)),)
-		config-build := 1
-                ifneq ($(words $(MAKECMDGOALS)),1)
-			mixed-build := 1
-                endif
+    ifneq ($(filter %config,$(MAKECMDGOALS)),)
+        config-build := 1
+        ifneq ($(words $(MAKECMDGOALS)),1)
+            mixed-build := 1
         endif
+    endif
 endif
 
 # We cannot build single targets and the others at the same time
 ifneq ($(filter $(single-targets), $(MAKECMDGOALS)),)
-	single-build := 1
+    single-build := 1
     ifneq ($(filter-out $(single-targets), $(MAKECMDGOALS)),)
-		mixed-build := 1
+        mixed-build := 1
     endif
 endif
 
 # For "make -j clean all", "make -j mrproper defconfig all", etc.
 ifneq ($(filter $(clean-targets),$(MAKECMDGOALS)),)
-        ifneq ($(filter-out $(clean-targets),$(MAKECMDGOALS)),)
-		mixed-build := 1
-        endif
+    ifneq ($(filter-out $(clean-targets),$(MAKECMDGOALS)),)
+        mixed-build := 1
+    endif
 endif
 
 # install and modules_install need also be processed one by one
 ifneq ($(filter install,$(MAKECMDGOALS)),)
-        ifneq ($(filter modules_install,$(MAKECMDGOALS)),)
-		mixed-build := 1
-        endif
+    ifneq ($(filter modules_install,$(MAKECMDGOALS)),)
+        mixed-build := 1
+    endif
 endif
 
 ifdef mixed-build
