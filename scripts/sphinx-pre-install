@@ -280,8 +280,6 @@ sub get_sphinx_version($)
 
 sub check_sphinx()
 {
-	my $default_version;
-
 	open IN, $conf or die "Can't open $conf";
 	while (<IN>) {
 		if (m/^\s*needs_sphinx\s*=\s*[\'\"]([\d\.]+)[\'\"]/) {
@@ -293,18 +291,7 @@ sub check_sphinx()
 
 	die "Can't get needs_sphinx version from $conf" if (!$min_version);
 
-	open IN, $requirement_file or die "Can't open $requirement_file";
-	while (<IN>) {
-		if (m/^\s*Sphinx\s*==\s*([\d\.]+)$/) {
-			$default_version=$1;
-			last;
-		}
-	}
-	close IN;
-
-	die "Can't get default sphinx version from $requirement_file" if (!$default_version);
-
-	$virtenv_dir = $virtenv_prefix . $default_version;
+	$virtenv_dir = $virtenv_prefix . "latest";
 
 	my $sphinx = get_sphinx_fname();
 	if ($sphinx eq "") {
@@ -318,8 +305,8 @@ sub check_sphinx()
 	die "$sphinx didn't return its version" if (!$cur_version);
 
 	if ($cur_version lt $min_version) {
-		printf "ERROR: Sphinx version is %s. It should be >= %s (recommended >= %s)\n",
-		       $cur_version, $min_version, $default_version;
+		printf "ERROR: Sphinx version is %s. It should be >= %s\n",
+		       $cur_version, $min_version;
 		$need_sphinx = 1;
 		return;
 	}
