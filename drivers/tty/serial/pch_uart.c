@@ -564,7 +564,7 @@ static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 			if (uart_handle_break(port))
 				continue;
 		}
-		if (uart_handle_sysrq_char(port, rbr))
+		if (uart_prepare_sysrq_char(port, rbr))
 			continue;
 
 		buf[i++] = rbr;
@@ -1070,7 +1070,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 		handled |= (unsigned int)ret;
 	}
 
-	uart_port_unlock(&priv->port);
+	uart_unlock_and_check_sysrq(&priv->port);
 	return IRQ_RETVAL(handled);
 }
 
@@ -1550,22 +1550,17 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct eg20t_port *priv;
 	unsigned long flags;
-	int port_locked = 1;
+	int locked = 1;
 	u8 ier;
 
 	priv = pch_uart_ports[co->index];
 
 	touch_nmi_watchdog();
 
-	local_irq_save(flags);
-	if (priv->port.sysrq) {
-		/* serial8250_handle_port() already took the port lock */
-		port_locked = 0;
-	} else if (oops_in_progress) {
-		port_locked = uart_port_trylock(&priv->port);
-	} else {
-		uart_port_lock(&priv->port);
-	}
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&priv->port, &flags);
+	else
+		uart_port_lock_irqsave(&priv->port, &flags);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -1583,9 +1578,8 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 	wait_for_xmitr(priv, UART_LSR_BOTH_EMPTY);
 	iowrite8(ier, priv->membase + UART_IER);
 
-	if (port_locked)
-		uart_port_unlock(&priv->port);
-	local_irq_restore(flags);
+	if (locked)
+		uart_port_unlock_irqrestore(&priv->port, flags);
 }
 
 static int __init pch_console_setup(struct console *co, char *options)
