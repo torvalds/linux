@@ -408,26 +408,29 @@ out:
 /**
  * xe_pm_runtime_get - Get a runtime_pm reference and resume synchronously
  * @xe: xe device instance
- *
- * Returns: Any number greater than or equal to 0 for success, negative error
- * code otherwise.
  */
-int xe_pm_runtime_get(struct xe_device *xe)
+void xe_pm_runtime_get(struct xe_device *xe)
 {
-	return pm_runtime_get_sync(xe->drm.dev);
+	pm_runtime_get_noresume(xe->drm.dev);
+
+	if (xe_pm_read_callback_task(xe) == current)
+		return;
+
+	pm_runtime_resume(xe->drm.dev);
 }
 
 /**
  * xe_pm_runtime_put - Put the runtime_pm reference back and mark as idle
  * @xe: xe device instance
- *
- * Returns: Any number greater than or equal to 0 for success, negative error
- * code otherwise.
  */
-int xe_pm_runtime_put(struct xe_device *xe)
+void xe_pm_runtime_put(struct xe_device *xe)
 {
-	pm_runtime_mark_last_busy(xe->drm.dev);
-	return pm_runtime_put(xe->drm.dev);
+	if (xe_pm_read_callback_task(xe) == current) {
+		pm_runtime_put_noidle(xe->drm.dev);
+	} else {
+		pm_runtime_mark_last_busy(xe->drm.dev);
+		pm_runtime_put(xe->drm.dev);
+	}
 }
 
 /**
