@@ -557,6 +557,34 @@ err:
 	return ret;
 }
 
+static long bch2_ioctl_query_accounting(struct bch_fs *c,
+			struct bch_ioctl_query_accounting __user *user_arg)
+{
+	struct bch_ioctl_query_accounting arg;
+	darray_char accounting = {};
+	int ret = 0;
+
+	if (!test_bit(BCH_FS_started, &c->flags))
+		return -EINVAL;
+
+	ret   = copy_from_user_errcode(&arg, user_arg, sizeof(arg)) ?:
+		bch2_fs_accounting_read(c, &accounting, arg.accounting_types_mask) ?:
+		(arg.accounting_u64s * sizeof(u64) < accounting.nr ? -ERANGE : 0) ?:
+		copy_to_user_errcode(&user_arg->accounting, accounting.data, accounting.nr);
+	if (ret)
+		goto err;
+
+	arg.capacity		= c->capacity;
+	arg.used		= bch2_fs_usage_read_short(c).used;
+	arg.online_reserved	= percpu_u64_get(c->online_reserved);
+	arg.accounting_u64s	= accounting.nr / sizeof(u64);
+
+	ret = copy_to_user_errcode(user_arg, &arg, sizeof(arg));
+err:
+	darray_exit(&accounting);
+	return ret;
+}
+
 /* obsolete, didn't allow for new data types: */
 static long bch2_ioctl_dev_usage(struct bch_fs *c,
 				 struct bch_ioctl_dev_usage __user *user_arg)
@@ -910,6 +938,8 @@ long bch2_fs_ioctl(struct bch_fs *c, unsigned cmd, void __user *arg)
 		BCH_IOCTL(disk_resize_journal, struct bch_ioctl_disk_resize_journal);
 	case BCH_IOCTL_FSCK_ONLINE:
 		BCH_IOCTL(fsck_online, struct bch_ioctl_fsck_online);
+	case BCH_IOCTL_QUERY_ACCOUNTING:
+		return bch2_ioctl_query_accounting(c, arg);
 	default:
 		return -ENOTTY;
 	}

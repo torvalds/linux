@@ -315,6 +315,44 @@ int bch2_fs_replicas_usage_read(struct bch_fs *c, darray_char *usage)
 	return ret;
 }
 
+int bch2_fs_accounting_read(struct bch_fs *c, darray_char *out_buf, unsigned accounting_types_mask)
+{
+
+	struct bch_accounting_mem *acc = &c->accounting[0];
+	int ret = 0;
+
+	darray_init(out_buf);
+
+	percpu_down_read(&c->mark_lock);
+	darray_for_each(acc->k, i) {
+		struct disk_accounting_pos a_p;
+		bpos_to_disk_accounting_pos(&a_p, i->pos);
+
+		if (!(accounting_types_mask & BIT(a_p.type)))
+			continue;
+
+		ret = darray_make_room(out_buf, sizeof(struct bkey_i_accounting) +
+				       sizeof(u64) * i->nr_counters);
+		if (ret)
+			break;
+
+		struct bkey_i_accounting *a_out =
+			bkey_accounting_init((void *) &darray_top(*out_buf));
+		set_bkey_val_u64s(&a_out->k, i->nr_counters);
+		a_out->k.p = i->pos;
+		bch2_accounting_mem_read(c, i->pos, a_out->v.d, i->nr_counters);
+
+		if (!bch2_accounting_key_is_zero(accounting_i_to_s_c(a_out)))
+			out_buf->nr += bkey_bytes(&a_out->k);
+	}
+
+	percpu_up_read(&c->mark_lock);
+
+	if (ret)
+		darray_exit(out_buf);
+	return ret;
+}
+
 void bch2_fs_accounting_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct bch_accounting_mem *acc = &c->accounting[0];
