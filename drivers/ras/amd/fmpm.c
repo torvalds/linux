@@ -54,6 +54,8 @@
 #include <asm/cpu_device_id.h>
 #include <asm/mce.h>
 
+#include "../debugfs.h"
+
 #define INVALID_CPU			UINT_MAX
 
 /* Validation Bits */
@@ -116,6 +118,9 @@ static u64 *spa_entries;
 
 #define INVALID_SPA	~0ULL
 
+static struct dentry *fmpm_dfs_dir;
+static struct dentry *fmpm_dfs_entries;
+
 #define CPER_CREATOR_FMP						\
 	GUID_INIT(0xcd5c2993, 0xf4b2, 0x41b2, 0xb5, 0xd4, 0xf9, 0xc3,	\
 		  0xa0, 0x33, 0x08, 0x75)
@@ -152,6 +157,11 @@ static unsigned int spa_nr_entries;
  * Protect the local records cache in fru_records and prevent concurrent
  * writes to storage. This is only needed after init once notifier block
  * registration is done.
+ *
+ * The majority of a record is fixed at module init and will not change
+ * during run time. The entries within a record will be updated as new
+ * errors are reported. The mutex should be held whenever the entries are
+ * accessed during run time.
  */
 static DEFINE_MUTEX(fmpm_update_mutex);
 
@@ -815,6 +825,124 @@ out:
 	return ret;
 }
 
+static void *fmpm_start(struct seq_file *f, loff_t *pos)
+{
+	if (*pos >= (spa_nr_entries + 1))
+		return NULL;
+	return pos;
+}
+
+static void *fmpm_next(struct seq_file *f, void *data, loff_t *pos)
+{
+	if (++(*pos) >= (spa_nr_entries + 1))
+		return NULL;
+	return pos;
+}
+
+static void fmpm_stop(struct seq_file *f, void *data)
+{
+}
+
+#define SHORT_WIDTH	8
+#define U64_WIDTH	18
+#define TIMESTAMP_WIDTH	19
+#define LONG_WIDTH	24
+#define U64_PAD		(LONG_WIDTH - U64_WIDTH)
+#define TS_PAD		(LONG_WIDTH - TIMESTAMP_WIDTH)
+static int fmpm_show(struct seq_file *f, void *data)
+{
+	unsigned int fru_idx, entry, spa_entry, line;
+	struct cper_fru_poison_desc *fpd;
+	struct fru_rec *rec;
+
+	line = *(loff_t *)data;
+	if (line == 0) {
+		seq_printf(f, "%-*s", SHORT_WIDTH, "fru_idx");
+		seq_printf(f, "%-*s", LONG_WIDTH,  "fru_id");
+		seq_printf(f, "%-*s", SHORT_WIDTH, "entry");
+		seq_printf(f, "%-*s", LONG_WIDTH,  "timestamp");
+		seq_printf(f, "%-*s", LONG_WIDTH,  "hw_id");
+		seq_printf(f, "%-*s", LONG_WIDTH,  "addr");
+		seq_printf(f, "%-*s", LONG_WIDTH,  "spa");
+		goto out_newline;
+	}
+
+	spa_entry = line - 1;
+	fru_idx	  = spa_entry / max_nr_entries;
+	entry	  = spa_entry % max_nr_entries;
+
+	rec = fru_records[fru_idx];
+	if (!rec)
+		goto out;
+
+	seq_printf(f, "%-*u",		SHORT_WIDTH, fru_idx);
+	seq_printf(f, "0x%016llx%-*s",	rec->fmp.fru_id, U64_PAD, "");
+	seq_printf(f, "%-*u",		SHORT_WIDTH, entry);
+
+	mutex_lock(&fmpm_update_mutex);
+
+	if (entry >= rec->fmp.nr_entries) {
+		seq_printf(f, "%-*s", LONG_WIDTH, "*");
+		seq_printf(f, "%-*s", LONG_WIDTH, "*");
+		seq_printf(f, "%-*s", LONG_WIDTH, "*");
+		seq_printf(f, "%-*s", LONG_WIDTH, "*");
+		goto out_unlock;
+	}
+
+	fpd = &rec->entries[entry];
+
+	seq_printf(f, "%ptT%-*s",	&fpd->timestamp, TS_PAD,  "");
+	seq_printf(f, "0x%016llx%-*s",	fpd->hw_id,	 U64_PAD, "");
+	seq_printf(f, "0x%016llx%-*s",	fpd->addr,	 U64_PAD, "");
+
+	if (spa_entries[spa_entry] == INVALID_SPA)
+		seq_printf(f, "%-*s", LONG_WIDTH, "*");
+	else
+		seq_printf(f, "0x%016llx%-*s", spa_entries[spa_entry], U64_PAD, "");
+
+out_unlock:
+	mutex_unlock(&fmpm_update_mutex);
+out_newline:
+	seq_putc(f, '\n');
+out:
+	return 0;
+}
+
+static const struct seq_operations fmpm_seq_ops = {
+	.start	= fmpm_start,
+	.next	= fmpm_next,
+	.stop	= fmpm_stop,
+	.show	= fmpm_show,
+};
+
+static int fmpm_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &fmpm_seq_ops);
+}
+
+static const struct file_operations fmpm_fops = {
+	.open		= fmpm_open,
+	.release	= seq_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
+static void setup_debugfs(void)
+{
+	struct dentry *dfs = ras_get_debugfs_root();
+
+	if (!dfs)
+		return;
+
+	fmpm_dfs_dir = debugfs_create_dir("fmpm", dfs);
+	if (!fmpm_dfs_dir)
+		return;
+
+	fmpm_dfs_entries = debugfs_create_file("entries", 0400, fmpm_dfs_dir, NULL, &fmpm_fops);
+	if (!fmpm_dfs_entries)
+		debugfs_remove(fmpm_dfs_dir);
+}
+
 static const struct x86_cpu_id fmpm_cpuids[] = {
 	X86_MATCH_VENDOR_FAM(AMD, 0x19, NULL),
 	{ }
@@ -856,6 +984,8 @@ static int __init fru_mem_poison_init(void)
 	if (ret)
 		goto out_free;
 
+	setup_debugfs();
+
 	retire_mem_records();
 
 	mce_register_decode_chain(&fru_mem_poison_nb);
@@ -872,6 +1002,7 @@ out:
 static void __exit fru_mem_poison_exit(void)
 {
 	mce_unregister_decode_chain(&fru_mem_poison_nb);
+	debugfs_remove(fmpm_dfs_dir);
 	free_records();
 }
 
