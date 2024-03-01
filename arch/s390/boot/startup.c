@@ -3,6 +3,7 @@
 #include <linux/elf.h>
 #include <asm/page-states.h>
 #include <asm/boot_data.h>
+#include <asm/extmem.h>
 #include <asm/sections.h>
 #include <asm/maccess.h>
 #include <asm/cpu_mf.h>
@@ -313,14 +314,16 @@ static unsigned long setup_kernel_memory_layout(void)
 	pages = SECTION_ALIGN_UP(pages);
 	/* keep vmemmap_start aligned to a top level region table entry */
 	vmemmap_start = round_down(VMALLOC_START - pages * sizeof(struct page), rte_size);
-	/* maximum address for which linear mapping could be created (DCSS, memory) */
-	max_mappable = min(vmemmap_start, 1UL << MAX_PHYSMEM_BITS);
 	/* make sure identity map doesn't overlay with vmemmap */
 	ident_map_size = min(ident_map_size, vmemmap_start);
 	vmemmap_size = SECTION_ALIGN_UP(ident_map_size / PAGE_SIZE) * sizeof(struct page);
 	/* make sure vmemmap doesn't overlay with vmalloc area */
 	VMALLOC_START = max(vmemmap_start + vmemmap_size, VMALLOC_START);
 	vmemmap = (struct page *)vmemmap_start;
+	/* maximum address for which linear mapping could be created (DCSS, memory) */
+	BUILD_BUG_ON(MAX_DCSS_ADDR > (1UL << MAX_PHYSMEM_BITS));
+	max_mappable = max(ident_map_size, MAX_DCSS_ADDR);
+	max_mappable = min(max_mappable, vmemmap_start);
 
 	return asce_limit;
 }
