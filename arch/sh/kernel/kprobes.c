@@ -296,7 +296,7 @@ static void __used kretprobe_trampoline_holder(void)
 /*
  * Called when we hit the probe point at __kretprobe_trampoline
  */
-int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
+static int __kprobes trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	regs->pc = __kretprobe_trampoline_handler(regs, NULL);
 
