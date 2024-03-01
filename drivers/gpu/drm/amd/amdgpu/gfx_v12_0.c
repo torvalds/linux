@@ -3797,7 +3797,20 @@ static void gfx_v12_0_update_repeater_fgcg(struct amdgpu_device *adev,
 static void gfx_v12_0_update_sram_fgcg(struct amdgpu_device *adev,
 				       bool enable)
 {
-	/* TODO */
+	uint32_t def, data;
+
+	if (!(adev->cg_flags & AMD_CG_SUPPORT_GFX_FGCG))
+		return;
+
+	def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+	if (enable)
+		data &= ~RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK;
+	else
+		data |= RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK;
+
+	if (def != data)
+		WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
 }
 
 static int gfx_v12_0_update_gfx_clock_gating(struct amdgpu_device *adev,
