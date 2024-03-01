@@ -3729,7 +3729,35 @@ static void gfx_v12_0_update_coarse_grain_clock_gating(struct amdgpu_device *ade
 static void gfx_v12_0_update_medium_grain_clock_gating(struct amdgpu_device *adev,
 						       bool enable)
 {
-	/* TODO */
+	uint32_t data, def;
+	if (!(adev->cg_flags & (AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_MGLS)))
+		return;
+
+	/* It is disabled by HW by default */
+	if (enable) {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			/* 1 - RLC_CGTT_MGCG_OVERRIDE */
+			def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+			data &= ~(RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__RLC_CGTT_SCLK_OVERRIDE_MASK |
+				  RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK);
+
+			if (def != data)
+				WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+		}
+	} else {
+		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG) {
+			def = data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+
+			data |= (RLC_CGTT_MGCG_OVERRIDE__RLC_CGTT_SCLK_OVERRIDE_MASK |
+				 RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
+				 RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK);
+
+			if (def != data)
+				WREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE, data);
+		}
+	}
 }
 
 static void gfx_v12_0_update_repeater_fgcg(struct amdgpu_device *adev,
