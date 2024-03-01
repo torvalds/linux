@@ -54,21 +54,17 @@ check()
 	local cmd="$1"
 	local expected="$2"
 	local msg="$3"
-	local out=`$cmd 2>$err`
-	local cmd_ret=$?
+	local rc=0
 
 	printf "%-50s" "$msg"
-	if [ $cmd_ret -ne 0 ]; then
-		echo "[FAIL] command execution '$cmd' stderr "
-		cat $err
-		mptcp_lib_result_fail "${msg} # error ${cmd_ret}"
+	mptcp_lib_check_output "${err}" "${cmd}" "${expected}" || rc=${?}
+	if [ ${rc} -eq 2 ]; then
+		mptcp_lib_result_fail "${msg} # error ${rc}"
 		ret=1
-	elif [ "$out" = "$expected" ]; then
-		echo "[ OK ]"
+	elif [ ${rc} -eq 0 ]; then
+		mptcp_lib_print_ok "[ OK ]"
 		mptcp_lib_result_pass "${msg}"
-	else
-		echo -n "[FAIL] "
-		echo "expected '$expected' got '$out'"
+	elif [ ${rc} -eq 1 ]; then
 		mptcp_lib_result_fail "${msg} # different output"
 		ret=1
 	fi

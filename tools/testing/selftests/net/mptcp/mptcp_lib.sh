@@ -319,3 +319,26 @@ mptcp_lib_wait_local_port_listen() {
 		sleep 0.1
 	done
 }
+
+mptcp_lib_check_output() {
+	local err="${1}"
+	local cmd="${2}"
+	local expected="${3}"
+	local cmd_ret=0
+	local out
+
+	if ! out=$(${cmd} 2>"${err}"); then
+		cmd_ret=${?}
+	fi
+
+	if [ ${cmd_ret} -ne 0 ]; then
+		mptcp_lib_print_err "[FAIL] command execution '${cmd}' stderr"
+		cat "${err}"
+		return 2
+	elif [ "${out}" = "${expected}" ]; then
+		return 0
+	else
+		mptcp_lib_print_err "[FAIL] expected '${expected}' got '${out}'"
+		return 1
+	fi
+}
