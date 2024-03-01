@@ -638,7 +638,7 @@
 			};
 		};
 
-		abb_mpu: regulator-abb-mpu {
+		abb_mpu: regulator-abb-mpu@4ae07ddc {
 			compatible = "ti,abb-v3";
 			regulator-name = "abb_mpu";
 			#address-cells = <0>;
@@ -671,7 +671,7 @@
 			>;
 		};
 
-		abb_ivahd: regulator-abb-ivahd {
+		abb_ivahd: regulator-abb-ivahd@4ae07e34 {
 			compatible = "ti,abb-v3";
 			regulator-name = "abb_ivahd";
 			#address-cells = <0>;
@@ -704,7 +704,7 @@
 			>;
 		};
 
-		abb_dspeve: regulator-abb-dspeve {
+		abb_dspeve: regulator-abb-dspeve@4ae07e30 {
 			compatible = "ti,abb-v3";
 			regulator-name = "abb_dspeve";
 			#address-cells = <0>;
@@ -737,7 +737,7 @@
 			>;
 		};
 
-		abb_gpu: regulator-abb-gpu {
+		abb_gpu: regulator-abb-gpu@4ae07de4 {
 			compatible = "ti,abb-v3";
 			regulator-name = "abb_gpu";
 			#address-cells = <0>;
