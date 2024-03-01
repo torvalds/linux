@@ -1210,10 +1210,8 @@ again:
 		 */
 		while (op_is_write(op) && rdev &&
 		       test_bit(WriteErrorSeen, &rdev->flags)) {
-			sector_t first_bad;
-			int bad_sectors;
-			int bad = is_badblock(rdev, sh->sector, RAID5_STRIPE_SECTORS(conf),
-					      &first_bad, &bad_sectors);
+			int bad = rdev_has_badblock(rdev, sh->sector,
+						    RAID5_STRIPE_SECTORS(conf));
 			if (!bad)
 				break;
 
@@ -2855,8 +2853,6 @@ static void raid5_end_write_request(struct bio *bi)
 	struct r5conf *conf = sh->raid_conf;
 	int disks = sh->disks, i;
 	struct md_rdev *rdev;
-	sector_t first_bad;
-	int bad_sectors;
 	int replacement = 0;
 
 	for (i = 0 ; i < disks; i++) {
@@ -2888,9 +2884,8 @@ static void raid5_end_write_request(struct bio *bi)
 	if (replacement) {
 		if (bi->bi_status)
 			md_error(conf->mddev, rdev);
-		else if (is_badblock(rdev, sh->sector,
-				     RAID5_STRIPE_SECTORS(conf),
-				     &first_bad, &bad_sectors))
+		else if (rdev_has_badblock(rdev, sh->sector,
+					   RAID5_STRIPE_SECTORS(conf)))
 			set_bit(R5_MadeGoodRepl, &sh->dev[i].flags);
 	} else {
 		if (bi->bi_status) {
@@ -2900,9 +2895,8 @@ static void raid5_end_write_request(struct bio *bi)
 			if (!test_and_set_bit(WantReplacement, &rdev->flags))
 				set_bit(MD_RECOVERY_NEEDED,
 					&rdev->mddev->recovery);
-		} else if (is_badblock(rdev, sh->sector,
-				       RAID5_STRIPE_SECTORS(conf),
-				       &first_bad, &bad_sectors)) {
+		} else if (rdev_has_badblock(rdev, sh->sector,
+					     RAID5_STRIPE_SECTORS(conf))) {
 			set_bit(R5_MadeGood, &sh->dev[i].flags);
 			if (test_bit(R5_ReadError, &sh->dev[i].flags))
 				/* That was a successful write so make
@@ -4674,8 +4668,6 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 	/* Now to look around and see what can be done */
 	for (i=disks; i--; ) {
 		struct md_rdev *rdev;
-		sector_t first_bad;
-		int bad_sectors;
 		int is_bad = 0;
 
 		dev = &sh->dev[i];
@@ -4719,8 +4711,8 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 		rdev = conf->disks[i].replacement;
 		if (rdev && !test_bit(Faulty, &rdev->flags) &&
 		    rdev->recovery_offset >= sh->sector + RAID5_STRIPE_SECTORS(conf) &&
-		    !is_badblock(rdev, sh->sector, RAID5_STRIPE_SECTORS(conf),
-				 &first_bad, &bad_sectors))
+		    !rdev_has_badblock(rdev, sh->sector,
+				       RAID5_STRIPE_SECTORS(conf)))
 			set_bit(R5_ReadRepl, &dev->flags);
 		else {
 			if (rdev && !test_bit(Faulty, &rdev->flags))
@@ -4733,8 +4725,8 @@ static void analyse_stripe(struct stripe_head *sh, struct stripe_head_state *s)
 		if (rdev && test_bit(Faulty, &rdev->flags))
 			rdev = NULL;
 		if (rdev) {
-			is_bad = is_badblock(rdev, sh->sector, RAID5_STRIPE_SECTORS(conf),
-					     &first_bad, &bad_sectors);
+			is_bad = rdev_has_badblock(rdev, sh->sector,
+						   RAID5_STRIPE_SECTORS(conf));
 			if (s->blocked_rdev == NULL
 			    && (test_bit(Blocked, &rdev->flags)
 				|| is_bad < 0)) {
@@ -5463,8 +5455,8 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 	struct r5conf *conf = mddev->private;
 	struct bio *align_bio;
 	struct md_rdev *rdev;
-	sector_t sector, end_sector, first_bad;
-	int bad_sectors, dd_idx;
+	sector_t sector, end_sector;
+	int dd_idx;
 	bool did_inc;
 
 	if (!in_chunk_boundary(mddev, raid_bio)) {
@@ -5493,8 +5485,7 @@ static int raid5_read_one_chunk(struct mddev *mddev, struct bio *raid_bio)
 
 	atomic_inc(&rdev->nr_pending);
 
-	if (is_badblock(rdev, sector, bio_sectors(raid_bio), &first_bad,
-			&bad_sectors)) {
+	if (rdev_has_badblock(rdev, sector, bio_sectors(raid_bio))) {
 		rdev_dec_pending(rdev, mddev);
 		return 0;
 	}

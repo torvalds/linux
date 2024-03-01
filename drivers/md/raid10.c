@@ -518,11 +518,7 @@ static void raid10_end_write_request(struct bio *bio)
 		 * The 'master' represents the composite IO operation to
 		 * user-side. So if something waits for IO, then it will
 		 * wait for the 'master' bio.
-		 */
-		sector_t first_bad;
-		int bad_sectors;
-
-		/*
+		 *
 		 * Do not set R10BIO_Uptodate if the current device is
 		 * rebuilding or Faulty. This is because we cannot use
 		 * such device for properly reading the data back (we could
@@ -535,10 +531,9 @@ static void raid10_end_write_request(struct bio *bio)
 			set_bit(R10BIO_Uptodate, &r10_bio->state);
 
 		/* Maybe we can clear some bad blocks. */
-		if (is_badblock(rdev,
-				r10_bio->devs[slot].addr,
-				r10_bio->sectors,
-				&first_bad, &bad_sectors) && !discard_error) {
+		if (rdev_has_badblock(rdev, r10_bio->devs[slot].addr,
+				      r10_bio->sectors) &&
+		    !discard_error) {
 			bio_put(bio);
 			if (repl)
 				r10_bio->devs[slot].repl_bio = IO_MADE_GOOD;
@@ -753,17 +748,8 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 	best_good_sectors = 0;
 	do_balance = 1;
 	clear_bit(R10BIO_FailFast, &r10_bio->state);
-	/*
-	 * Check if we can balance. We can balance on the whole
-	 * device if no resync is going on (recovery is ok), or below
-	 * the resync window. We take the first readable disk when
-	 * above the resync window.
-	 */
-	if ((conf->mddev->recovery_cp < MaxSector
-	     && (this_sector + sectors >= conf->next_resync)) ||
-	    (mddev_is_clustered(conf->mddev) &&
-	     md_cluster_ops->area_resyncing(conf->mddev, READ, this_sector,
-					    this_sector + sectors)))
+
+	if (raid1_should_read_first(conf->mddev, this_sector, sectors))
 		do_balance = 0;
 
 	for (slot = 0; slot < conf->copies ; slot++) {
@@ -1330,10 +1316,7 @@ retry_wait:
 		}
 
 		if (rdev && test_bit(WriteErrorSeen, &rdev->flags)) {
-			sector_t first_bad;
 			sector_t dev_sector = r10_bio->devs[i].addr;
-			int bad_sectors;
-			int is_bad;
 
 			/*
 			 * Discard request doesn't care the write result
@@ -1342,9 +1325,8 @@ retry_wait:
 			if (!r10_bio->sectors)
 				continue;
 
-			is_bad = is_badblock(rdev, dev_sector, r10_bio->sectors,
-					     &first_bad, &bad_sectors);
-			if (is_bad < 0) {
+			if (rdev_has_badblock(rdev, dev_sector,
+					      r10_bio->sectors) < 0) {
 				/*
 				 * Mustn't write here until the bad block
 				 * is acknowledged
@@ -2290,8 +2272,6 @@ static void end_sync_write(struct bio *bio)
 	struct mddev *mddev = r10_bio->mddev;
 	struct r10conf *conf = mddev->private;
 	int d;
-	sector_t first_bad;
-	int bad_sectors;
 	int slot;
 	int repl;
 	struct md_rdev *rdev = NULL;
@@ -2312,11 +2292,10 @@ static void end_sync_write(struct bio *bio)
 					&rdev->mddev->recovery);
 			set_bit(R10BIO_WriteError, &r10_bio->state);
 		}
-	} else if (is_badblock(rdev,
-			     r10_bio->devs[slot].addr,
-			     r10_bio->sectors,
-			     &first_bad, &bad_sectors))
+	} else if (rdev_has_badblock(rdev, r10_bio->devs[slot].addr,
+				     r10_bio->sectors)) {
 		set_bit(R10BIO_MadeGood, &r10_bio->state);
+	}
 
 	rdev_dec_pending(rdev, mddev);
 
@@ -2597,11 +2576,8 @@ static void recovery_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 static int r10_sync_page_io(struct md_rdev *rdev, sector_t sector,
 			    int sectors, struct page *page, enum req_op op)
 {
-	sector_t first_bad;
-	int bad_sectors;
-
-	if (is_badblock(rdev, sector, sectors, &first_bad, &bad_sectors)
-	    && (op == REQ_OP_READ || test_bit(WriteErrorSeen, &rdev->flags)))
+	if (rdev_has_badblock(rdev, sector, sectors) &&
+	    (op == REQ_OP_READ || test_bit(WriteErrorSeen, &rdev->flags)))
 		return -1;
 	if (sync_page_io(rdev, sector, sectors << 9, page, op, false))
 		/* success */
@@ -2658,16 +2634,14 @@ static void fix_read_error(struct r10conf *conf, struct mddev *mddev, struct r10
 			s = PAGE_SIZE >> 9;
 
 		do {
-			sector_t first_bad;
-			int bad_sectors;
-
 			d = r10_bio->devs[sl].devnum;
 			rdev = conf->mirrors[d].rdev;
 			if (rdev &&
 			    test_bit(In_sync, &rdev->flags) &&
 			    !test_bit(Faulty, &rdev->flags) &&
-			    is_badblock(rdev, r10_bio->devs[sl].addr + sect, s,
-					&first_bad, &bad_sectors) == 0) {
+			    rdev_has_badblock(rdev,
+					      r10_bio->devs[sl].addr + sect,
+					      s) == 0) {
 				atomic_inc(&rdev->nr_pending);
 				success = sync_page_io(rdev,
 						       r10_bio->devs[sl].addr +
