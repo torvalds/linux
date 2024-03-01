@@ -288,11 +288,10 @@ static int snd_hwdep_control_ioctl(struct snd_card *card,
 				}
 				if (device >= SNDRV_MINOR_HWDEPS)
 					device = -1;
-				if (put_user(device, (int __user *)arg))
-					return -EFAULT;
-				return 0;
 			}
-			break;
+			if (put_user(device, (int __user *)arg))
+				return -EFAULT;
+			return 0;
 		}
 	case SNDRV_CTL_IOCTL_HWDEP_INFO:
 		{
