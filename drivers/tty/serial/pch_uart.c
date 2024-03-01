@@ -1725,8 +1725,6 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 		 KBUILD_MODNAME ":" PCH_UART_DRIVER_DEVICE "%d",
 		 priv->port.line);
 
-	spin_lock_init(&priv->port.lock);
-
 	pci_set_drvdata(pdev, priv);
 	priv->trigger_level = 1;
 	priv->fcr = 0;
