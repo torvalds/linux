@@ -3109,6 +3109,7 @@ static int __allocate_new_segment(struct f2fs_sb_info *sbi, int type,
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
 	unsigned int old_segno;
+	int err = 0;
 
 	if (type == CURSEG_COLD_DATA_PINNED && !curseg->inited)
 		goto allocate;
@@ -3121,8 +3122,9 @@ static int __allocate_new_segment(struct f2fs_sb_info *sbi, int type,
 
 allocate:
 	old_segno = curseg->segno;
-	if (new_curseg(sbi, type, true))
-		return -EAGAIN;
+	err = new_curseg(sbi, type, true);
+	if (err)
+		return err;
 	stat_inc_seg_type(sbi, curseg);
 	locate_dirty_segment(sbi, old_segno);
 	return 0;
@@ -3151,13 +3153,14 @@ retry:
 	err = f2fs_allocate_new_section(sbi, CURSEG_COLD_DATA_PINNED, false);
 	f2fs_unlock_op(sbi);
 
-	if (f2fs_sb_has_blkzoned(sbi) && err && gc_required) {
+	if (f2fs_sb_has_blkzoned(sbi) && err == -EAGAIN && gc_required) {
 		f2fs_down_write(&sbi->gc_lock);
-		f2fs_gc_range(sbi, 0, GET_SEGNO(sbi, FDEV(0).end_blk), true, 1);
+		err = f2fs_gc_range(sbi, 0, GET_SEGNO(sbi, FDEV(0).end_blk), true, 1);
 		f2fs_up_write(&sbi->gc_lock);
 
 		gc_required = false;
-		goto retry;
+		if (!err)
+			goto retry;
 	}
 
 	return err;
