@@ -543,6 +543,7 @@ struct kvm_cpu_context {
  */
 struct kvm_host_data {
 	struct kvm_cpu_context host_ctxt;
+	struct user_fpsimd_state *fpsimd_state;	/* hyp VA */
 
 	/*
 	 * host_debug_state contains the host registers which are
@@ -662,7 +663,6 @@ struct kvm_vcpu_arch {
 	struct kvm_guest_debug_arch vcpu_debug_state;
 	struct kvm_guest_debug_arch external_debug_state;
 
-	struct user_fpsimd_state *host_fpsimd_state;	/* hyp VA */
 	struct task_struct *parent_task;
 
 	/* VGIC state */
