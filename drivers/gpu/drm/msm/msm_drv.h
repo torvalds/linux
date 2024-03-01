@@ -128,6 +128,11 @@ struct msm_drm_private {
 	struct msm_perf_state *perf;
 
 	/**
+	 * total_mem: Total/global amount of memory backing GEM objects.
+	 */
+	atomic64_t total_mem;
+
+	/**
 	 * List of all GEM objects (mainly for debugfs, protected by obj_lock
 	 * (acquire before per GEM object lock)
 	 */
