@@ -161,33 +161,6 @@ int request_dma_bycap(const char **dmac, const char **caps, const char *dev_id)
 }
 EXPORT_SYMBOL(request_dma_bycap);
 
-int dmac_search_free_channel(const char *dev_id)
-{
-	struct dma_channel *channel = { 0 };
-	struct dma_info *info = get_dma_info(0);
-	int i;
-
-	for (i = 0; i < info->nr_channels; i++) {
-		channel = &info->channels[i];
-		if (unlikely(!channel))
-			return -ENODEV;
-
-		if (atomic_read(&channel->busy) == 0)
-			break;
-	}
-
-	if (info->ops->request) {
-		int result = info->ops->request(channel);
-		if (result)
-			return result;
-
-		atomic_set(&channel->busy, 1);
-		return channel->chan;
-	}
-
-	return -ENOSYS;
-}
-
 int request_dma(unsigned int chan, const char *dev_id)
 {
 	struct dma_channel *channel = { 0 };
