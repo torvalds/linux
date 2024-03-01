@@ -870,7 +870,7 @@ static int ipa_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_kfree_ipa;
 
-	ret = ipa_mem_init(ipa, data->mem_data);
+	ret = ipa_mem_init(ipa, pdev, data->mem_data);
 	if (ret)
 		goto err_reg_exit;
 
