@@ -321,8 +321,10 @@
 
 		sdhc_1: mmc@7804000 {
 			compatible = "qcom,ipq9574-sdhci", "qcom,sdhci-msm-v5";
-			reg = <0x07804000 0x1000>, <0x07805000 0x1000>;
-			reg-names = "hc", "cqhci";
+			reg = <0x07804000 0x1000>,
+			      <0x07805000 0x1000>,
+			      <0x07808000 0x2000>;
+			reg-names = "hc", "cqhci", "ice";
 
 			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
@@ -330,9 +332,11 @@
 
 			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
 				 <&gcc GCC_SDCC1_APPS_CLK>,
-				 <&xo_board_clk>;
-			clock-names = "iface", "core", "xo";
+				 <&xo_board_clk>,
+				 <&gcc GCC_SDCC1_ICE_CORE_CLK>;
+			clock-names = "iface", "core", "xo", "ice";
 			non-removable;
+			supports-cqe;
 			status = "disabled";
 		};
 

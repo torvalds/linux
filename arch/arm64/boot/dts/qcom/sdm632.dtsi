@@ -79,3 +79,11 @@
 	compatible = "qcom,kryo250";
 	capacity-dmips-mhz = <1980>;
 };
+
+&gpu_opp_table {
+	opp-725000000 {
+		opp-hz = /bits/ 64 <725000000>;
+		opp-supported-hw = <0xff>;
+		required-opps = <&rpmpd_opp_turbo>;
+	};
+};
