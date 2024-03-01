@@ -84,6 +84,7 @@ static void library_status(void)
 	STATUS(HAVE_LIBTRACEEVENT, libtraceevent);
 	STATUS(HAVE_BPF_SKEL, bpf_skeletons);
 	STATUS(HAVE_DWARF_UNWIND_SUPPORT, dwarf-unwind-support);
+	STATUS(HAVE_CSTRACE_SUPPORT, libopencsd);
 }
 
 int cmd_version(int argc, const char **argv)
