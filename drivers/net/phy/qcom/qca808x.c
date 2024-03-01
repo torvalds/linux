@@ -156,6 +156,27 @@ static bool qca808x_has_fast_retrain_or_slave_seed(struct phy_device *phydev)
 	return linkmode_test_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported);
 }
 
+static bool qca808x_is_1g_only(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_PHY_MMD7_CHIP_TYPE);
+	if (ret < 0)
+		return true;
+
+	return !!(QCA808X_PHY_CHIP_TYPE_1G & ret);
+}
+
+static void qca808x_fill_possible_interfaces(struct phy_device *phydev)
+{
+	unsigned long *possible = phydev->possible_interfaces;
+
+	__set_bit(PHY_INTERFACE_MODE_SGMII, possible);
+
+	if (!qca808x_is_1g_only(phydev))
+		__set_bit(PHY_INTERFACE_MODE_2500BASEX, possible);
+}
+
 static int qca808x_probe(struct phy_device *phydev)
 {
 	struct device *dev = &phydev->mdio.dev;
@@ -219,6 +240,8 @@ static int qca808x_config_init(struct phy_device *phydev)
 				return ret;
 		}
 	}
+
+	qca808x_fill_possible_interfaces(phydev);
 
 	/* Configure adc threshold as 100mv for the link 10M */
 	return at803x_debug_reg_mask(phydev, QCA808X_PHY_DEBUG_ADC_THRESHOLD,
@@ -350,11 +373,7 @@ static int qca808x_get_features(struct phy_device *phydev)
 	 * existed in the bit0 of MMD1.21, we need to remove it manually if
 	 * it is the qca8081 1G chip according to the bit0 of MMD7.0x901d.
 	 */
-	ret = phy_read_mmd(phydev, MDIO_MMD_AN, QCA808X_PHY_MMD7_CHIP_TYPE);
-	if (ret < 0)
-		return ret;
-
-	if (QCA808X_PHY_CHIP_TYPE_1G & ret)
+	if (qca808x_is_1g_only(phydev))
 		linkmode_clear_bit(ETHTOOL_LINK_MODE_2500baseT_Full_BIT, phydev->supported);
 
 	return 0;
