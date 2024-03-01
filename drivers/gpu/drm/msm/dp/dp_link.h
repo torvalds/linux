@@ -112,29 +112,6 @@ static inline u32 dp_link_bit_depth_to_bpp(u32 tbd)
 	}
 }
 
-/**
- * dp_test_bit_depth_to_bpc() - convert test bit depth to bpc
- * @tbd: test bit depth
- *
- * Returns the bits per comp (bpc) to be used corresponding to the
- * bit depth value. This function assumes that bit depth has
- * already been validated.
- */
-static inline u32 dp_link_bit_depth_to_bpc(u32 tbd)
-{
-	switch (tbd) {
-	case DP_TEST_BIT_DEPTH_6:
-		return 6;
-	case DP_TEST_BIT_DEPTH_8:
-		return 8;
-	case DP_TEST_BIT_DEPTH_10:
-		return 10;
-	case DP_TEST_BIT_DEPTH_UNKNOWN:
-	default:
-		return 0;
-	}
-}
-
 void dp_link_reset_phy_params_vx_px(struct dp_link *dp_link);
 u32 dp_link_get_test_bits_depth(struct dp_link *dp_link, u32 bpp);
 int dp_link_process_request(struct dp_link *dp_link);
