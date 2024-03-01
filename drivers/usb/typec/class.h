@@ -93,9 +93,9 @@ extern const struct device_type typec_port_dev_type;
 #define is_typec_plug(dev) ((dev)->type == &typec_plug_dev_type)
 #define is_typec_port(dev) ((dev)->type == &typec_port_dev_type)
 
-extern struct class typec_mux_class;
-extern struct class retimer_class;
-extern struct class typec_class;
+extern const struct class typec_mux_class;
+extern const struct class retimer_class;
+extern const struct class typec_class;
 
 #if defined(CONFIG_ACPI)
 int typec_link_ports(struct typec_port *connector);
