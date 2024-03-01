@@ -27,6 +27,7 @@
 #include <asm/alignment.h>
 #include <asm/fpu.h>
 #include <asm/kprobes.h>
+#include <asm/setup.h>
 #include <asm/traps.h>
 #include <asm/bl_bit.h>
 
