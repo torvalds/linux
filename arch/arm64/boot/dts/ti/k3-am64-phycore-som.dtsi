@@ -1,9 +1,9 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
- * Copyright (C) 2021 PHYTEC America, LLC - https://www.phytec.com
+ * Copyright (C) 2021-2024 PHYTEC America, LLC - https://www.phytec.com
  * Author: Matt McKee <mmckee@phytec.com>
  *
- * Copyright (C) 2022 PHYTEC Messtechnik GmbH
+ * Copyright (C) 2022-2024 PHYTEC Messtechnik GmbH
  * Author: Wadim Egorov <w.egorov@phytec.de>
  *
  * Product homepage:
@@ -317,4 +317,11 @@
 	ti,driver-strength-ohm = <50>;
 	disable-wp;
 	keep-power-in-suspend;
+};
+
+&tscadc0 {
+	status = "okay";
+	adc {
+		ti,adc-channels = <0 1 2 3 4 5 6 7>;
+	};
 };

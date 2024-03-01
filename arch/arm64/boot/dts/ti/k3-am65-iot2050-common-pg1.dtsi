@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) Siemens AG, 2021-2023
  *
@@ -8,10 +8,7 @@
  * Common bits of the IOT2050 Basic and Advanced variants, PG1
  */
 
-&dss {
-	assigned-clocks = <&k3_clks 67 2>;
-	assigned-clock-parents = <&k3_clks 67 5>;
-};
+#include "k3-am65-iot2050-dp.dtsi"
 
 &serdes0 {
 	status = "disabled";
