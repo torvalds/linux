@@ -135,6 +135,9 @@ static void init_mqd(struct mqd_manager *mm, void **mqd,
 	 */
 	m->cp_hqd_hq_status0 = 1 << 14;
 
+	if (amdgpu_amdkfd_have_atomics_support(mm->dev->adev))
+		m->cp_hqd_hq_status0 |= 1 << 29;
+
 	if (q->format == KFD_QUEUE_FORMAT_AQL) {
 		m->cp_hqd_aql_control =
 			1 << CP_HQD_AQL_CONTROL__CONTROL0__SHIFT;

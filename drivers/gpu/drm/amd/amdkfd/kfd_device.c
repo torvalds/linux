@@ -232,6 +232,8 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			 */
 			kfd->device_info.needs_pci_atomics = true;
 			kfd->device_info.no_atomic_fw_version = kfd->adev->gfx.rs64_enable ? 509 : 0;
+		} else {
+			kfd->device_info.needs_pci_atomics = true;
 		}
 	} else {
 		kfd->device_info.doorbell_size = 4;
