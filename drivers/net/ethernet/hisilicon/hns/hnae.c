@@ -12,7 +12,9 @@
 
 #define cls_to_ae_dev(dev) container_of(dev, struct hnae_ae_dev, cls_dev)
 
-static struct class *hnae_class;
+static const struct class hnae_class = {
+	.name = "hnae",
+};
 
 static void
 hnae_list_add(spinlock_t *lock, struct list_head *node, struct list_head *head)
@@ -111,7 +113,7 @@ static struct hnae_ae_dev *find_ae(const struct fwnode_handle *fwnode)
 
 	WARN_ON(!fwnode);
 
-	dev = class_find_device(hnae_class, NULL, fwnode, __ae_match);
+	dev = class_find_device(&hnae_class, NULL, fwnode, __ae_match);
 
 	return dev ? cls_to_ae_dev(dev) : NULL;
 }
@@ -415,7 +417,7 @@ int hnae_ae_register(struct hnae_ae_dev *hdev, struct module *owner)
 	hdev->owner = owner;
 	hdev->id = (int)atomic_inc_return(&id);
 	hdev->cls_dev.parent = hdev->dev;
-	hdev->cls_dev.class = hnae_class;
+	hdev->cls_dev.class = &hnae_class;
 	hdev->cls_dev.release = hnae_release;
 	(void)dev_set_name(&hdev->cls_dev, "hnae%d", hdev->id);
 	ret = device_register(&hdev->cls_dev);
@@ -448,13 +450,12 @@ EXPORT_SYMBOL(hnae_ae_unregister);
 
 static int __init hnae_init(void)
 {
-	hnae_class = class_create("hnae");
-	return PTR_ERR_OR_ZERO(hnae_class);
+	return class_register(&hnae_class);
 }
 
 static void __exit hnae_exit(void)
 {
-	class_destroy(hnae_class);
+	class_unregister(&hnae_class);
 }
 
 subsys_initcall(hnae_init);
