@@ -23,10 +23,10 @@
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -504,7 +504,7 @@ static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
  * it is the pin controller or GPIO driver. However we need to use the right
  * platform device when looking up resources so pay attention to pdev.
  */
-struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
+struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 					     struct platform_device *pdev)
 {
 	struct nmk_gpio_chip *nmk_chip;
@@ -517,9 +517,9 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	u32 id, ngpio;
 	int ret;
 
-	gpio_dev = bus_find_device_by_of_node(&platform_bus_type, np);
+	gpio_dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
 	if (!gpio_dev) {
-		pr_err("populate \"%pOFn\": device not found\n", np);
+		dev_err(&pdev->dev, "populate \"%pfwP\": device not found\n", fwnode);
 		return ERR_PTR(-ENODEV);
 	}
 	gpio_pdev = to_platform_device(gpio_dev);
@@ -624,7 +624,6 @@ static const struct irq_chip nmk_irq_chip = {
 static int nmk_gpio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_irq_chip *girq;
 	bool supports_sleepmode;
@@ -632,7 +631,7 @@ static int nmk_gpio_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	nmk_chip = nmk_gpio_populate_chip(np, pdev);
+	nmk_chip = nmk_gpio_populate_chip(dev_fwnode(dev), pdev);
 	if (IS_ERR(nmk_chip)) {
 		dev_err(dev, "could not populate nmk chip struct\n");
 		return PTR_ERR(nmk_chip);

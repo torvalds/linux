@@ -2,6 +2,8 @@
 #ifndef __LINUX_GPIO_NOMADIK_H
 #define __LINUX_GPIO_NOMADIK_H
 
+struct fwnode_handle;
+
 /* Package definitions */
 #define PINCTRL_NMK_STN8815	0
 #define PINCTRL_NMK_DB8500	1
@@ -263,7 +265,7 @@ void __nmk_gpio_make_output(struct nmk_gpio_chip *nmk_chip,
 			    unsigned int offset, int val);
 void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip, unsigned int offset,
 			 enum nmk_gpio_slpm mode);
-struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
+struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 					     struct platform_device *pdev);
 
 /* Symbols declared in pinctrl-nomadik used by gpio-nomadik. */

@@ -1190,8 +1190,8 @@ static int nmk_pinctrl_resume(struct device *dev)
 
 static int nmk_pinctrl_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
-	struct device_node *prcm_np;
+	struct fwnode_handle *fwnode = dev_fwnode(&pdev->dev);
+	struct fwnode_handle *prcm_fwnode;
 	struct nmk_pinctrl *npct;
 	uintptr_t version = 0;
 	int i;
@@ -1216,28 +1216,27 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 	 * or after this point: it shouldn't matter as the APIs are orthogonal.
 	 */
 	for (i = 0; i < NMK_MAX_BANKS; i++) {
-		struct device_node *gpio_np;
+		struct fwnode_handle *gpio_fwnode;
 		struct nmk_gpio_chip *nmk_chip;
 
-		gpio_np = of_parse_phandle(np, "nomadik-gpio-chips", i);
-		if (!gpio_np)
+		gpio_fwnode = fwnode_find_reference(fwnode, "nomadik-gpio-chips", i);
+		if (IS_ERR(gpio_fwnode))
 			continue;
 
-		dev_info(&pdev->dev, "populate NMK GPIO %d \"%pOFn\"\n",
-			 i, gpio_np);
-		nmk_chip = nmk_gpio_populate_chip(gpio_np, pdev);
+		dev_info(&pdev->dev, "populate NMK GPIO %d \"%pfwP\"\n", i, gpio_fwnode);
+		nmk_chip = nmk_gpio_populate_chip(gpio_fwnode, pdev);
 		if (IS_ERR(nmk_chip))
 			dev_err(&pdev->dev,
 				"could not populate nmk chip struct - continue anyway\n");
-		of_node_put(gpio_np);
+		fwnode_handle_put(gpio_fwnode);
 		/* We are NOT compatible with mobileye,eyeq5-gpio. */
 		BUG_ON(nmk_chip->is_mobileye_soc);
 	}
 
-	prcm_np = of_parse_phandle(np, "prcm", 0);
-	if (prcm_np) {
-		npct->prcm_base = of_iomap(prcm_np, 0);
-		of_node_put(prcm_np);
+	prcm_fwnode = fwnode_find_reference(fwnode, "prcm", 0);
+	if (!IS_ERR(prcm_fwnode)) {
+		npct->prcm_base = fwnode_iomap(prcm_fwnode, 0);
+		fwnode_handle_put(prcm_fwnode);
 	}
 	if (!npct->prcm_base) {
 		if (version == PINCTRL_NMK_STN8815) {
