@@ -930,6 +930,17 @@ config NPCM_ADC
 	  This driver can also be built as a module. If so, the module
 	  will be called npcm_adc.
 
+config PAC1934
+	tristate "Microchip Technology PAC1934 driver"
+	depends on I2C
+	help
+	  Say yes here to build support for Microchip Technology's PAC1931,
+	  PAC1932, PAC1933, PAC1934 Single/Multi-Channel Power Monitor with
+	  Accumulator.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pac1934.
+
 config PALMAS_GPADC
 	tristate "TI Palmas General Purpose ADC"
 	depends on MFD_PALMAS

@@ -258,6 +258,8 @@ static int ads1298_set_samp_freq(struct ads1298_private *priv, int val)
 		rate = ADS1298_CLK_RATE_HZ;
 	if (!rate)
 		return -EINVAL;
+	if (val <= 0)
+		return -EINVAL;
 
 	factor = (rate >> ADS1298_SHIFT_DR_HR) / val;
 	if (factor >= BIT(ADS1298_SHIFT_DR_LP))
@@ -657,7 +659,7 @@ static int ads1298_probe(struct spi_device *spi)
 	priv->reg_vref = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(priv->reg_vref)) {
 		if (PTR_ERR(priv->reg_vref) != -ENODEV)
-			return dev_err_probe(dev, PTR_ERR(priv->reg_avdd),
+			return dev_err_probe(dev, PTR_ERR(priv->reg_vref),
 					     "Failed to get vref regulator\n");
 
 		priv->reg_vref = NULL;
