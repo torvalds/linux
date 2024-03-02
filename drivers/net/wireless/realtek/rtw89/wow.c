@@ -667,13 +667,13 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
+	rtw89_fw_release_general_pkt_list(rtwdev, true);
+
 	ret = rtw89_wow_cfg_wake(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to disable config wake\n");
 		goto out;
 	}
-
-	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_check_fw_status(rtwdev, false);
 	if (ret) {
