@@ -22,12 +22,6 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
-__must_check
-static int copy_to_user_errcode(void __user *to, const void *from, unsigned long n)
-{
-	return copy_to_user(to, from, n) ? -EFAULT : 0;
-}
-
 /* returns with ref on ca->ref */
 static struct bch_dev *bch2_device_lookup(struct bch_fs *c, u64 dev,
 					  unsigned flags)

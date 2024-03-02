@@ -848,4 +848,20 @@ static inline bool qstr_eq(const struct qstr l, const struct qstr r)
 void bch2_darray_str_exit(darray_str *);
 int bch2_split_devs(const char *, darray_str *);
 
+#ifdef __KERNEL__
+
+__must_check
+static inline int copy_to_user_errcode(void __user *to, const void *from, unsigned long n)
+{
+	return copy_to_user(to, from, n) ? -EFAULT : 0;
+}
+
+__must_check
+static inline int copy_from_user_errcode(void *to, const void __user *from, unsigned long n)
+{
+	return copy_from_user(to, from, n) ? -EFAULT : 0;
+}
+
+#endif
+
 #endif /* _BCACHEFS_UTIL_H */
