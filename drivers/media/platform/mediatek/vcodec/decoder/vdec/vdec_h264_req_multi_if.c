@@ -131,7 +131,7 @@ struct vdec_h264_slice_share_info {
 /**
  * struct vdec_h264_slice_inst - h264 decoder instance
  *
- * @slice_dec_num:	how many picture be decoded
+ * @slice_dec_num:	Number of frames to be decoded
  * @ctx:		point to mtk_vcodec_dec_ctx
  * @pred_buf:		HW working prediction buffer
  * @mv_buf:		HW working motion vector buffer
