@@ -41,34 +41,8 @@ static void rtw89_wow_leave_lps(struct rtw89_dev *rtwdev)
 static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
-	int ret;
 
-	if (enable_wow) {
-		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, true);
-		if (ret) {
-			rtw89_err(rtwdev, "[ERR]patch rx qta %d\n", ret);
-			return ret;
-		}
-		rtw89_write32_set(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
-		rtw89_write32_clr(rtwdev, mac->rx_fltr, B_AX_SNIFFER_MODE);
-		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
-		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, 0);
-		rtw89_write32(rtwdev, R_AX_ACTION_FWD1, 0);
-		rtw89_write32(rtwdev, R_AX_TF_FWD, 0);
-		rtw89_write32(rtwdev, R_AX_HW_RPT_FWD, 0);
-	} else {
-		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, false);
-		if (ret) {
-			rtw89_err(rtwdev, "[ERR]patch rx qta %d\n", ret);
-			return ret;
-		}
-		rtw89_write32_clr(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
-		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
-		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, TRXCFG_MPDU_PROC_ACT_FRWD);
-		rtw89_write32(rtwdev, R_AX_TF_FWD, TRXCFG_MPDU_PROC_TF_FRWD);
-	}
-
-	return 0;
+	return mac->wow_config_mac(rtwdev, enable_wow);
 }
 
 static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)

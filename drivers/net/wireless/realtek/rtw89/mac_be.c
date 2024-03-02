@@ -2307,6 +2307,52 @@ static void rtw89_mac_dump_qta_lost_be(struct rtw89_dev *rtwdev)
 	dump_err_status_dispatcher_be(rtwdev);
 }
 
+static int rtw89_mac_cpu_io_rx(struct rtw89_dev *rtwdev, bool wow_enable)
+{
+	struct rtw89_mac_h2c_info h2c_info = {};
+	struct rtw89_mac_c2h_info c2h_info = {};
+	u32 ret;
+
+	h2c_info.id = RTW89_FWCMD_H2CREG_FUNC_WOW_CPUIO_RX_CTRL;
+	h2c_info.content_len = sizeof(h2c_info.u.hdr);
+	h2c_info.u.hdr.w0 = u32_encode_bits(wow_enable, RTW89_H2CREG_WOW_CPUIO_RX_CTRL_EN);
+
+	ret = rtw89_fw_msg_reg(rtwdev, &h2c_info, &c2h_info);
+	if (ret)
+		return ret;
+
+	if (c2h_info.id != RTW89_FWCMD_C2HREG_FUNC_WOW_CPUIO_RX_ACK)
+		ret = -EINVAL;
+
+	return ret;
+}
+
+static int rtw89_wow_config_mac_be(struct rtw89_dev *rtwdev, bool enable_wow)
+{
+	if (enable_wow) {
+		rtw89_write32_set(rtwdev, R_BE_RX_STOP, B_BE_HOST_RX_STOP);
+		rtw89_write32_clr(rtwdev, R_BE_RX_FLTR_OPT, B_BE_SNIFFER_MODE);
+		rtw89_mac_cpu_io_rx(rtwdev, enable_wow);
+		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
+		rtw89_write32(rtwdev, R_BE_FWD_ERR, 0);
+		rtw89_write32(rtwdev, R_BE_FWD_ACTN0, 0);
+		rtw89_write32(rtwdev, R_BE_FWD_ACTN1, 0);
+		rtw89_write32(rtwdev, R_BE_FWD_ACTN2, 0);
+		rtw89_write32(rtwdev, R_BE_FWD_TF0, 0);
+		rtw89_write32(rtwdev, R_BE_FWD_TF1, 0);
+		rtw89_write32(rtwdev, R_BE_FWD_ERR, 0);
+		rtw89_write32(rtwdev, R_BE_HW_PPDU_STATUS, 0);
+		rtw89_write8(rtwdev, R_BE_DBG_WOW_READY, WOWLAN_NOT_READY);
+	} else {
+		rtw89_mac_cpu_io_rx(rtwdev, enable_wow);
+		rtw89_write32_clr(rtwdev, R_BE_RX_STOP, B_BE_HOST_RX_STOP);
+		rtw89_write32_set(rtwdev, R_BE_RX_FLTR_OPT, R_BE_RX_FLTR_OPT);
+		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
+	}
+
+	return 0;
+}
+
 static void rtw89_mac_dump_cmac_err_status_be(struct rtw89_dev *rtwdev,
 					      u8 band)
 {
@@ -2569,5 +2615,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 
 	.add_chan_list = rtw89_hw_scan_add_chan_list_be,
 	.scan_offload = rtw89_fw_h2c_scan_offload_be,
+
+	.wow_config_mac = rtw89_wow_config_mac_be,
 };
 EXPORT_SYMBOL(rtw89_mac_gen_be);
