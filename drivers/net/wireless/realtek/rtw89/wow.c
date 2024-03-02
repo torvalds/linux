@@ -85,21 +85,14 @@ static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u32 wow_reason_reg = rtwdev->chip->wow_reason_reg;
 	struct cfg80211_wowlan_nd_info nd_info;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
-	u32 wow_reason_reg;
 	u8 reason;
 
-	if (chip_id == RTL8852A || chip_id == RTL8852B || chip_id == RTL8851B)
-		wow_reason_reg = R_AX_C2HREG_DATA3 + 3;
-	else
-		wow_reason_reg = R_AX_C2HREG_DATA3_V1 + 3;
-
 	reason = rtw89_read8(rtwdev, wow_reason_reg);
-
 	switch (reason) {
 	case RTW89_WOW_RSN_RX_DEAUTH:
 		wakeup.disconnect = true;

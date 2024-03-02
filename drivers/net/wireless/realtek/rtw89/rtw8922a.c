@@ -2453,6 +2453,7 @@ const struct rtw89_chip_info rtw8922a_chip_info = {
 	.c2h_counter_reg	= {R_BE_UDM1 + 1, B_BE_UDM1_HALMAC_C2H_ENQ_CNT_MASK >> 8},
 	.c2h_regs		= rtw8922a_c2h_regs,
 	.page_regs		= &rtw8922a_page_regs,
+	.wow_reason_reg		= R_AX_C2HREG_DATA3_V1 + 3,
 	.cfo_src_fd		= true,
 	.cfo_hw_comp            = true,
 	.dcfo_comp		= NULL,
