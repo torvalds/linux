@@ -18,7 +18,12 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-static struct class *framer_class;
+static void framer_release(struct device *dev);
+static const struct class framer_class = {
+	.name = "framer",
+	.dev_release = framer_release,
+};
+
 static DEFINE_MUTEX(framer_provider_mutex);
 static LIST_HEAD(framer_provider_list);
 static DEFINE_IDA(framer_ida);
@@ -627,7 +632,7 @@ struct framer *framer_create(struct device *dev, struct device_node *node,
 	INIT_DELAYED_WORK(&framer->polling_work, framer_polling_work);
 	BLOCKING_INIT_NOTIFIER_HEAD(&framer->notifier_list);
 
-	framer->dev.class = framer_class;
+	framer->dev.class = &framer_class;
 	framer->dev.parent = dev;
 	framer->dev.of_node = node ? node : dev->of_node;
 	framer->id = id;
@@ -741,7 +746,7 @@ struct framer *framer_provider_simple_of_xlate(struct device *dev,
 	struct class_dev_iter iter;
 	struct framer *framer;
 
-	class_dev_iter_init(&iter, framer_class, NULL, NULL);
+	class_dev_iter_init(&iter, &framer_class, NULL, NULL);
 	while ((dev = class_dev_iter_next(&iter))) {
 		framer = dev_to_framer(dev);
 		if (args->np != framer->dev.of_node)
@@ -870,14 +875,6 @@ static void framer_release(struct device *dev)
 
 static int __init framer_core_init(void)
 {
-	framer_class = class_create("framer");
-	if (IS_ERR(framer_class)) {
-		pr_err("failed to create framer class (%pe)\n", framer_class);
-		return PTR_ERR(framer_class);
-	}
-
-	framer_class->dev_release = framer_release;
-
-	return 0;
+	return class_register(&framer_class);
 }
 device_initcall(framer_core_init);
