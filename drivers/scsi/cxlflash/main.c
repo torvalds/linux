@@ -28,7 +28,12 @@ MODULE_AUTHOR("Manoj N. Kumar <manoj@linux.vnet.ibm.com>");
 MODULE_AUTHOR("Matthew R. Ochs <mrochs@linux.vnet.ibm.com>");
 MODULE_LICENSE("GPL");
 
-static struct class *cxlflash_class;
+static char *cxlflash_devnode(const struct device *dev, umode_t *mode);
+static const struct class cxlflash_class = {
+	.name = "cxlflash",
+	.devnode = cxlflash_devnode,
+};
+
 static u32 cxlflash_major;
 static DECLARE_BITMAP(cxlflash_minor, CXLFLASH_MAX_ADAPTERS);
 
@@ -3602,7 +3607,7 @@ static int init_chrdev(struct cxlflash_cfg *cfg)
 		goto err1;
 	}
 
-	char_dev = device_create(cxlflash_class, NULL, devno,
+	char_dev = device_create(&cxlflash_class, NULL, devno,
 				 NULL, "cxlflash%d", minor);
 	if (IS_ERR(char_dev)) {
 		rc = PTR_ERR(char_dev);
@@ -3880,14 +3885,12 @@ static int cxlflash_class_init(void)
 
 	cxlflash_major = MAJOR(devno);
 
-	cxlflash_class = class_create("cxlflash");
-	if (IS_ERR(cxlflash_class)) {
-		rc = PTR_ERR(cxlflash_class);
+	rc = class_register(&cxlflash_class);
+	if (rc) {
 		pr_err("%s: class_create failed rc=%d\n", __func__, rc);
 		goto err;
 	}
 
-	cxlflash_class->devnode = cxlflash_devnode;
 out:
 	pr_debug("%s: returning rc=%d\n", __func__, rc);
 	return rc;
@@ -3903,7 +3906,7 @@ static void cxlflash_class_exit(void)
 {
 	dev_t devno = MKDEV(cxlflash_major, 0);
 
-	class_destroy(cxlflash_class);
+	class_unregister(&cxlflash_class);
 	unregister_chrdev_region(devno, CXLFLASH_MAX_ADAPTERS);
 }
 
