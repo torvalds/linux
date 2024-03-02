@@ -326,7 +326,7 @@ struct vdec_av1_slice_quantization {
  * @use_lr:                     whether to use loop restoration
  * @use_chroma_lr:              whether to use chroma loop restoration
  * @frame_restoration_type:     specifies the type of restoration used for each plane
- * @loop_restoration_size:      pecifies the size of loop restoration units in units
+ * @loop_restoration_size:      specifies the size of loop restoration units in units
  *                              of samples in the current plane
  */
 struct vdec_av1_slice_lr {
@@ -347,7 +347,7 @@ struct vdec_av1_slice_lr {
  *                              and loop_filter_sharpness together determine when
  *                              a block edge is filtered, and by how much the
  *                              filtering can change the sample values
- * @loop_filter_delta_enabled:  filetr level depends on the mode and reference
+ * @loop_filter_delta_enabled:  filter level depends on the mode and reference
  *                              frame used to predict a block
  */
 struct vdec_av1_slice_loop_filter {
@@ -392,7 +392,7 @@ struct vdec_av1_slice_mfmv {
 /**
  * struct vdec_av1_slice_tile - AV1 Tile info
  * @tile_cols:                  specifies the number of tiles across the frame
- * @tile_rows:                  pecifies the number of tiles down the frame
+ * @tile_rows:                  specifies the number of tiles down the frame
  * @mi_col_starts:              an array specifying the start column
  * @mi_row_starts:              an array specifying the start row
  * @context_update_tile_id:     specifies which tile to use for the CDF update
@@ -423,15 +423,15 @@ struct vdec_av1_slice_tile {
  *                              or the tile sizes are coded
  * @interpolation_filter:       specifies the filter selection used for performing inter prediction
  * @allow_warped_motion:        motion_mode may be present or not
- * @is_motion_mode_switchable : euqlt to 0 specifies that only the SIMPLE motion mode will be used
+ * @is_motion_mode_switchable : equal to 0 specifies that only the SIMPLE motion mode will be used
  * @reference_mode :            frame reference mode selected
  * @allow_high_precision_mv:    specifies that motion vectors are specified to
  *                              quarter pel precision or to eighth pel precision
- * @allow_intra_bc:             ubducates that intra block copy may be used in this frame
+ * @allow_intra_bc:             allows that intra block copy may be used in this frame
  * @force_integer_mv:           specifies motion vectors will always be integers or
  *                              can contain fractional bits
  * @allow_screen_content_tools: intra blocks may use palette encoding
- * @error_resilient_mode:       error resislent mode is enable/disable
+ * @error_resilient_mode:       error resilient mode is enable/disable
  * @frame_type:                 specifies the AV1 frame type
  * @primary_ref_frame:          specifies which reference frame contains the CDF values
  *                              and other state that should be loaded at the start of the frame
@@ -440,8 +440,8 @@ struct vdec_av1_slice_tile {
  * @disable_cdf_update:         specified whether the CDF update in the symbol
  *                              decoding process should be disables
  * @skip_mode:                  av1 skip mode parameters
- * @seg:                        av1 segmentaon parameters
- * @delta_q_lf:                 av1 delta loop fileter
+ * @seg:                        av1 segmentation parameters
+ * @delta_q_lf:                 av1 delta loop filter
  * @quant:                      av1 Quantization params
  * @lr:                         av1 Loop Restauration parameters
  * @superres_denom:             the denominator for the upscaling ratio
@@ -450,8 +450,8 @@ struct vdec_av1_slice_tile {
  * @mfmv:                       av1 mfmv parameters
  * @tile:                       av1 Tile info
  * @frame_is_intra:             intra frame
- * @loss_less_array:            loss less array
- * @coded_loss_less:            coded lsss less
+ * @loss_less_array:            lossless array
+ * @coded_loss_less:            coded lossless
  * @mi_rows:                    size of mi unit in rows
  * @mi_cols:                    size of mi unit in cols
  */

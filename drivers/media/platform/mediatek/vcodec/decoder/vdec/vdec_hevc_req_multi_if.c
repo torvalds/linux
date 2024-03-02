@@ -254,7 +254,7 @@ struct vdec_hevc_slice_lat_dec_param {
  * struct vdec_hevc_slice_info - decode information
  *
  * @wdma_end_addr_offset: wdma end address offset
- * @timeout:              Decode timeout: 1 timeout, 0 no timeount
+ * @timeout:              Decode timeout: 1 timeout, 0 no timeout
  * @vdec_fb_va:           VDEC frame buffer struct virtual address
  * @crc:                  Used to check whether hardware's status is right
  */

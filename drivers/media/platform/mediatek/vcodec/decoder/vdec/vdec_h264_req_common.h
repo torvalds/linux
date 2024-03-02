@@ -175,7 +175,7 @@ void mtk_vdec_h264_get_ref_list(u8 *ref_list,
 				int num_valid);
 
 /**
- * mtk_vdec_h264_get_ctrl_ptr - get each CID contrl address.
+ * mtk_vdec_h264_get_ctrl_ptr - get each CID control address.
  *
  * @ctx:	v4l2 ctx
  * @id:	CID control ID
@@ -246,7 +246,7 @@ mtk_vdec_h264_copy_decode_params(struct slice_api_h264_decode_param *dst_params,
 				 const struct v4l2_h264_dpb_entry dpb[V4L2_H264_NUM_DPB_ENTRIES]);
 
 /**
- * mtk_vdec_h264_update_dpb - updata dpb list.
+ * mtk_vdec_h264_update_dpb - update dpb list.
  *
  * @dec_param:	v4l2 control decode params
  * @dpb:	dpb entry informaton
