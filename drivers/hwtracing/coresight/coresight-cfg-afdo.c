@@ -9,6 +9,7 @@
 /* ETMv4 includes and features */
 #if IS_ENABLED(CONFIG_CORESIGHT_SOURCE_ETM4X)
 #include "coresight-etm4x-cfg.h"
+#include "coresight-cfg-preload.h"
 
 /* preload configurations and features */
 
