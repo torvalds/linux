@@ -22,20 +22,54 @@
  */
 #define work_data_bits(work) ((unsigned long *)(&(work)->data))
 
-enum {
+enum work_bits {
 	WORK_STRUCT_PENDING_BIT	= 0,	/* work item is pending execution */
-	WORK_STRUCT_INACTIVE_BIT= 1,	/* work item is inactive */
-	WORK_STRUCT_PWQ_BIT	= 2,	/* data points to pwq */
-	WORK_STRUCT_LINKED_BIT	= 3,	/* next work is linked to this one */
+	WORK_STRUCT_INACTIVE_BIT,	/* work item is inactive */
+	WORK_STRUCT_PWQ_BIT,		/* data points to pwq */
+	WORK_STRUCT_LINKED_BIT,		/* next work is linked to this one */
 #ifdef CONFIG_DEBUG_OBJECTS_WORK
-	WORK_STRUCT_STATIC_BIT	= 4,	/* static initializer (debugobjects) */
-	WORK_STRUCT_COLOR_SHIFT	= 5,	/* color for workqueue flushing */
-#else
-	WORK_STRUCT_COLOR_SHIFT	= 4,	/* color for workqueue flushing */
+	WORK_STRUCT_STATIC_BIT,		/* static initializer (debugobjects) */
 #endif
+	WORK_STRUCT_FLAG_BITS,
 
+	/* color for workqueue flushing */
+	WORK_STRUCT_COLOR_SHIFT	= WORK_STRUCT_FLAG_BITS,
 	WORK_STRUCT_COLOR_BITS	= 4,
 
+	/*
+	 * When WORK_STRUCT_PWQ is set, reserve 8 bits off of pwq pointer w/
+	 * debugobjects turned off. This makes pwqs aligned to 256 bytes (512
+	 * bytes w/ DEBUG_OBJECTS_WORK) and allows 16 workqueue flush colors.
+	 *
+	 * MSB
+	 * [ pwq pointer ] [ flush color ] [ STRUCT flags ]
+	 *                     4 bits        4 or 5 bits
+	 */
+	WORK_STRUCT_PWQ_SHIFT	= WORK_STRUCT_COLOR_SHIFT + WORK_STRUCT_COLOR_BITS,
+
+	/*
+	 * data contains off-queue information when !WORK_STRUCT_PWQ.
+	 *
+	 * MSB
+	 * [ pool ID ] [ OFFQ flags ] [ STRUCT flags ]
+	 *                 1 bit        4 or 5 bits
+	 */
+	WORK_OFFQ_FLAG_SHIFT	= WORK_STRUCT_FLAG_BITS,
+	WORK_OFFQ_CANCELING_BIT = WORK_OFFQ_FLAG_SHIFT,
+	WORK_OFFQ_FLAG_END,
+	WORK_OFFQ_FLAG_BITS	= WORK_OFFQ_FLAG_END - WORK_OFFQ_FLAG_SHIFT,
+
+	/*
+	 * When a work item is off queue, the high bits encode off-queue flags
+	 * and the last pool it was on. Cap pool ID to 31 bits and use the
+	 * highest number to indicate that no pool is associated.
+	 */
+	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_SHIFT + WORK_OFFQ_FLAG_BITS,
+	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
+	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
+};
+
+enum work_flags {
 	WORK_STRUCT_PENDING	= 1 << WORK_STRUCT_PENDING_BIT,
 	WORK_STRUCT_INACTIVE	= 1 << WORK_STRUCT_INACTIVE_BIT,
 	WORK_STRUCT_PWQ		= 1 << WORK_STRUCT_PWQ_BIT,
@@ -45,34 +79,13 @@ enum {
 #else
 	WORK_STRUCT_STATIC	= 0,
 #endif
+};
 
+enum wq_misc_consts {
 	WORK_NR_COLORS		= (1 << WORK_STRUCT_COLOR_BITS),
 
 	/* not bound to any CPU, prefer the local CPU */
 	WORK_CPU_UNBOUND	= NR_CPUS,
-
-	/*
-	 * Reserve 8 bits off of pwq pointer w/ debugobjects turned off.
-	 * This makes pwqs aligned to 256 bytes and allows 16 workqueue
-	 * flush colors.
-	 */
-	WORK_STRUCT_FLAG_BITS	= WORK_STRUCT_COLOR_SHIFT +
-				  WORK_STRUCT_COLOR_BITS,
-
-	/* data contains off-queue information when !WORK_STRUCT_PWQ */
-	WORK_OFFQ_FLAG_BASE	= WORK_STRUCT_COLOR_SHIFT,
-
-	__WORK_OFFQ_CANCELING	= WORK_OFFQ_FLAG_BASE,
-
-	/*
-	 * When a work item is off queue, its high bits point to the last
-	 * pool it was on.  Cap at 31 bits and use the highest number to
-	 * indicate that no pool is associated.
-	 */
-	WORK_OFFQ_FLAG_BITS	= 1,
-	WORK_OFFQ_POOL_SHIFT	= WORK_OFFQ_FLAG_BASE + WORK_OFFQ_FLAG_BITS,
-	WORK_OFFQ_LEFT		= BITS_PER_LONG - WORK_OFFQ_POOL_SHIFT,
-	WORK_OFFQ_POOL_BITS	= WORK_OFFQ_LEFT <= 31 ? WORK_OFFQ_LEFT : 31,
 
 	/* bit mask for work_busy() return values */
 	WORK_BUSY_PENDING	= 1 << 0,
@@ -83,12 +96,10 @@ enum {
 };
 
 /* Convenience constants - of type 'unsigned long', not 'enum'! */
-#define WORK_OFFQ_CANCELING	(1ul << __WORK_OFFQ_CANCELING)
+#define WORK_OFFQ_CANCELING	(1ul << WORK_OFFQ_CANCELING_BIT)
 #define WORK_OFFQ_POOL_NONE	((1ul << WORK_OFFQ_POOL_BITS) - 1)
 #define WORK_STRUCT_NO_POOL	(WORK_OFFQ_POOL_NONE << WORK_OFFQ_POOL_SHIFT)
-
-#define WORK_STRUCT_FLAG_MASK    ((1ul << WORK_STRUCT_FLAG_BITS) - 1)
-#define WORK_STRUCT_WQ_DATA_MASK (~WORK_STRUCT_FLAG_MASK)
+#define WORK_STRUCT_PWQ_MASK	(~((1ul << WORK_STRUCT_PWQ_SHIFT) - 1))
 
 #define WORK_DATA_INIT()	ATOMIC_LONG_INIT((unsigned long)WORK_STRUCT_NO_POOL)
 #define WORK_DATA_STATIC_INIT()	\
@@ -347,7 +358,8 @@ static inline unsigned int work_static(struct work_struct *work) { return 0; }
  * Workqueue flags and constants.  For details, please refer to
  * Documentation/core-api/workqueue.rst.
  */
-enum {
+enum wq_flags {
+	WQ_BH			= 1 << 0, /* execute in bottom half (softirq) context */
 	WQ_UNBOUND		= 1 << 1, /* not bound to any cpu */
 	WQ_FREEZABLE		= 1 << 2, /* freeze during suspend */
 	WQ_MEM_RECLAIM		= 1 << 3, /* may be used for memory reclaim */
@@ -386,11 +398,22 @@ enum {
 	__WQ_DRAINING		= 1 << 16, /* internal: workqueue is draining */
 	__WQ_ORDERED		= 1 << 17, /* internal: workqueue is ordered */
 	__WQ_LEGACY		= 1 << 18, /* internal: create*_workqueue() */
-	__WQ_ORDERED_EXPLICIT	= 1 << 19, /* internal: alloc_ordered_workqueue() */
 
+	/* BH wq only allows the following flags */
+	__WQ_BH_ALLOWS		= WQ_BH | WQ_HIGHPRI,
+};
+
+enum wq_consts {
 	WQ_MAX_ACTIVE		= 512,	  /* I like 512, better ideas? */
 	WQ_UNBOUND_MAX_ACTIVE	= WQ_MAX_ACTIVE,
 	WQ_DFL_ACTIVE		= WQ_MAX_ACTIVE / 2,
+
+	/*
+	 * Per-node default cap on min_active. Unless explicitly set, min_active
+	 * is set to min(max_active, WQ_DFL_MIN_ACTIVE). For more details, see
+	 * workqueue_struct->min_active definition.
+	 */
+	WQ_DFL_MIN_ACTIVE	= 8,
 };
 
 /*
@@ -420,6 +443,9 @@ enum {
  * they are same as their non-power-efficient counterparts - e.g.
  * system_power_efficient_wq is identical to system_wq if
  * 'wq_power_efficient' is disabled.  See WQ_POWER_EFFICIENT for more info.
+ *
+ * system_bh[_highpri]_wq are convenience interface to softirq. BH work items
+ * are executed in the queueing CPU's BH context in the queueing order.
  */
 extern struct workqueue_struct *system_wq;
 extern struct workqueue_struct *system_highpri_wq;
@@ -428,16 +454,43 @@ extern struct workqueue_struct *system_unbound_wq;
 extern struct workqueue_struct *system_freezable_wq;
 extern struct workqueue_struct *system_power_efficient_wq;
 extern struct workqueue_struct *system_freezable_power_efficient_wq;
+extern struct workqueue_struct *system_bh_wq;
+extern struct workqueue_struct *system_bh_highpri_wq;
+
+void workqueue_softirq_action(bool highpri);
+void workqueue_softirq_dead(unsigned int cpu);
 
 /**
  * alloc_workqueue - allocate a workqueue
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags
- * @max_active: max in-flight work items per CPU, 0 for default
+ * @max_active: max in-flight work items, 0 for default
  * remaining args: args for @fmt
  *
- * Allocate a workqueue with the specified parameters.  For detailed
- * information on WQ_* flags, please refer to
+ * For a per-cpu workqueue, @max_active limits the number of in-flight work
+ * items for each CPU. e.g. @max_active of 1 indicates that each CPU can be
+ * executing at most one work item for the workqueue.
+ *
+ * For unbound workqueues, @max_active limits the number of in-flight work items
+ * for the whole system. e.g. @max_active of 16 indicates that that there can be
+ * at most 16 work items executing for the workqueue in the whole system.
+ *
+ * As sharing the same active counter for an unbound workqueue across multiple
+ * NUMA nodes can be expensive, @max_active is distributed to each NUMA node
+ * according to the proportion of the number of online CPUs and enforced
+ * independently.
+ *
+ * Depending on online CPU distribution, a node may end up with per-node
+ * max_active which is significantly lower than @max_active, which can lead to
+ * deadlocks if the per-node concurrency limit is lower than the maximum number
+ * of interdependent work items for the workqueue.
+ *
+ * To guarantee forward progress regardless of online CPU distribution, the
+ * concurrency limit on every node is guaranteed to be equal to or greater than
+ * min_active which is set to min(@max_active, %WQ_DFL_MIN_ACTIVE). This means
+ * that the sum of per-node max_active's may be larger than @max_active.
+ *
+ * For detailed information on %WQ_* flags, please refer to
  * Documentation/core-api/workqueue.rst.
  *
  * RETURNS:
@@ -460,8 +513,7 @@ alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
  * Pointer to the allocated workqueue on success, %NULL on failure.
  */
 #define alloc_ordered_workqueue(fmt, flags, args...)			\
-	alloc_workqueue(fmt, WQ_UNBOUND | __WQ_ORDERED |		\
-			__WQ_ORDERED_EXPLICIT | (flags), 1, ##args)
+	alloc_workqueue(fmt, WQ_UNBOUND | __WQ_ORDERED | (flags), 1, ##args)
 
 #define create_workqueue(name)						\
 	alloc_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, 1, (name))
@@ -470,6 +522,9 @@ alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
 			WQ_MEM_RECLAIM, 1, (name))
 #define create_singlethread_workqueue(name)				\
 	alloc_ordered_workqueue("%s", __WQ_LEGACY | WQ_MEM_RECLAIM, name)
+
+#define from_work(var, callback_work, work_fieldname)	\
+	container_of(callback_work, typeof(*var), work_fieldname)
 
 extern void destroy_workqueue(struct workqueue_struct *wq);
 
@@ -508,6 +563,8 @@ extern bool flush_rcu_work(struct rcu_work *rwork);
 
 extern void workqueue_set_max_active(struct workqueue_struct *wq,
 				     int max_active);
+extern void workqueue_set_min_active(struct workqueue_struct *wq,
+				     int min_active);
 extern struct work_struct *current_work(void);
 extern bool current_is_workqueue_rescuer(void);
 extern bool workqueue_congested(int cpu, struct workqueue_struct *wq);
