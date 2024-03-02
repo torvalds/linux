@@ -560,7 +560,7 @@ static int rtw89_wow_enable_trx_pre(struct rtw89_dev *rtwdev)
 
 	rtw89_mac_ptk_drop_by_band_and_wait(rtwdev, RTW89_MAC_0);
 
-	ret = rtw89_hci_poll_txdma_ch(rtwdev);
+	ret = rtw89_hci_poll_txdma_ch_idle(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "txdma ch busy\n");
 		return ret;
@@ -583,7 +583,7 @@ static int rtw89_wow_enable_trx_post(struct rtw89_dev *rtwdev)
 	rtw89_hci_disable_intr(rtwdev);
 	rtw89_hci_ctrl_trxhci(rtwdev, false);
 
-	ret = rtw89_hci_poll_txdma_ch(rtwdev);
+	ret = rtw89_hci_poll_txdma_ch_idle(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to poll txdma ch idle pcie\n");
 		return ret;

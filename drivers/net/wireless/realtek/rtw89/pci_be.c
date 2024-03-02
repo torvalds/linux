@@ -317,8 +317,7 @@ static void rtw89_pci_ser_setting_be(struct rtw89_dev *rtwdev)
 	rtw89_write32(rtwdev, R_BE_REG_PL1_MASK, val32);
 }
 
-static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool all_en,
-				       bool h2c_en)
+static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool enable)
 {
 	u32 mask_all;
 	u32 val;
@@ -331,12 +330,19 @@ static void rtw89_pci_ctrl_txdma_ch_be(struct rtw89_dev *rtwdev, bool all_en,
 	val = rtw89_read32(rtwdev, R_BE_HAXI_DMA_STOP1);
 	val |= B_BE_STOP_CH13 | B_BE_STOP_CH14;
 
-	if (all_en)
+	if (enable)
 		val &= ~mask_all;
 	else
 		val |= mask_all;
 
-	if (h2c_en)
+	rtw89_write32(rtwdev, R_BE_HAXI_DMA_STOP1, val);
+}
+
+static void rtw89_pci_ctrl_txdma_fw_ch_be(struct rtw89_dev *rtwdev, bool enable)
+{
+	u32 val = rtw89_read32(rtwdev, R_BE_HAXI_DMA_STOP1);
+
+	if (enable)
 		val &= ~B_BE_STOP_CH12;
 	else
 		val |= B_BE_STOP_CH12;
@@ -375,7 +381,8 @@ static int rtw89_pci_ops_mac_pre_init_be(struct rtw89_dev *rtwdev)
 	rtw89_pci_pcie_setting_be(rtwdev);
 	rtw89_pci_ser_setting_be(rtwdev);
 
-	rtw89_pci_ctrl_txdma_ch_be(rtwdev, false, true);
+	rtw89_pci_ctrl_txdma_ch_be(rtwdev, false);
+	rtw89_pci_ctrl_txdma_fw_ch_be(rtwdev, true);
 	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_ENABLE,
 				      MAC_AX_PCIE_ENABLE, MAC_AX_PCIE_ENABLE);
 
@@ -485,7 +492,8 @@ static int rtw89_pci_ops_mac_post_init_be(struct rtw89_dev *rtwdev)
 	rtw89_pci_ctrl_trxdma_pcie_be(rtwdev, MAC_AX_PCIE_IGNORE,
 				      MAC_AX_PCIE_IGNORE, MAC_AX_PCIE_ENABLE);
 	rtw89_pci_ctrl_wpdma_pcie_be(rtwdev, true);
-	rtw89_pci_ctrl_txdma_ch_be(rtwdev, true, true);
+	rtw89_pci_ctrl_txdma_ch_be(rtwdev, true);
+	rtw89_pci_ctrl_txdma_fw_ch_be(rtwdev, true);
 	rtw89_pci_configure_mit_be(rtwdev);
 
 	return 0;
@@ -558,6 +566,10 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_be = {
 
 	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_be,
 	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_be,
+
+	.ctrl_txdma_ch = rtw89_pci_ctrl_txdma_ch_be,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_be,
+	.poll_txdma_ch_idle = rtw89_pci_poll_txdma_ch_idle_be,
 
 	.aspm_set = rtw89_pci_aspm_set_be,
 	.clkreq_set = rtw89_pci_clkreq_set_be,

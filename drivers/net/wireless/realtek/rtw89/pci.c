@@ -218,7 +218,7 @@ int rtw89_pci_sync_skb_for_device_and_validate_rx_info(struct rtw89_dev *rtwdev,
 	return ret;
 }
 
-static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+static void rtw89_pci_ctrl_txdma_ch_ax(struct rtw89_dev *rtwdev, bool enable)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
@@ -235,7 +235,7 @@ static void rtw89_pci_ctrl_txdma_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
 	}
 }
 
-static void rtw89_pci_ctrl_txdma_fw_ch_pcie(struct rtw89_dev *rtwdev, bool enable)
+static void rtw89_pci_ctrl_txdma_fw_ch_ax(struct rtw89_dev *rtwdev, bool enable)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	const struct rtw89_reg_def *dma_stop1 = &info->dma_stop1;
@@ -2524,7 +2524,7 @@ static void rtw89_pci_clr_idx_all_ax(struct rtw89_dev *rtwdev)
 			  B_AX_CLR_RXQ_IDX | B_AX_CLR_RPQ_IDX);
 }
 
-static int rtw89_poll_txdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
+static int rtw89_pci_poll_txdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 ret, check, dma_busy;
@@ -2551,7 +2551,7 @@ static int rtw89_poll_txdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
 	return 0;
 }
 
-static int rtw89_poll_rxdma_ch_idle_pcie(struct rtw89_dev *rtwdev)
+static int rtw89_pci_poll_rxdma_ch_idle_ax(struct rtw89_dev *rtwdev)
 {
 	const struct rtw89_pci_info *info = rtwdev->pci_info;
 	u32 ret, check, dma_busy;
@@ -2571,13 +2571,13 @@ static int rtw89_pci_poll_dma_all_idle(struct rtw89_dev *rtwdev)
 {
 	u32 ret;
 
-	ret = rtw89_poll_txdma_ch_idle_pcie(rtwdev);
+	ret = rtw89_pci_poll_txdma_ch_idle_ax(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "txdma ch busy\n");
 		return ret;
 	}
 
-	ret = rtw89_poll_rxdma_ch_idle_pcie(rtwdev);
+	ret = rtw89_pci_poll_rxdma_ch_idle_ax(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "rxdma ch busy\n");
 		return ret;
@@ -2756,8 +2756,8 @@ static int rtw89_pci_ops_mac_pre_init_ax(struct rtw89_dev *rtwdev)
 	}
 
 	/* disable all channels except to FW CMD channel to download firmware */
-	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, false);
-	rtw89_pci_ctrl_txdma_fw_ch_pcie(rtwdev, true);
+	rtw89_pci_ctrl_txdma_ch_ax(rtwdev, false);
+	rtw89_pci_ctrl_txdma_fw_ch_ax(rtwdev, true);
 
 	/* start DMA activities */
 	rtw89_pci_ctrl_dma_all(rtwdev, true);
@@ -2870,7 +2870,7 @@ static int rtw89_pci_ops_mac_post_init_ax(struct rtw89_dev *rtwdev)
 	}
 
 	/* enable DMA for all queues */
-	rtw89_pci_ctrl_txdma_ch_pcie(rtwdev, true);
+	rtw89_pci_ctrl_txdma_ch_ax(rtwdev, true);
 
 	/* Release PCI IO */
 	rtw89_write32_clr(rtwdev, info->dma_stop1.addr,
@@ -4093,6 +4093,10 @@ const struct rtw89_pci_gen_def rtw89_pci_gen_ax = {
 	.lv1rst_stop_dma = rtw89_pci_lv1rst_stop_dma_ax,
 	.lv1rst_start_dma = rtw89_pci_lv1rst_start_dma_ax,
 
+	.ctrl_txdma_ch = rtw89_pci_ctrl_txdma_ch_ax,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_ax,
+	.poll_txdma_ch_idle = rtw89_pci_poll_txdma_ch_idle_ax,
+
 	.aspm_set = rtw89_pci_aspm_set_ax,
 	.clkreq_set = rtw89_pci_clkreq_set_ax,
 	.l1ss_set = rtw89_pci_l1ss_set_ax,
@@ -4130,10 +4134,11 @@ static const struct rtw89_hci_ops rtw89_pci_ops = {
 	.recovery_start = rtw89_pci_ops_recovery_start,
 	.recovery_complete = rtw89_pci_ops_recovery_complete,
 
-	.ctrl_txdma_ch	= rtw89_pci_ctrl_txdma_ch_pcie,
-	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch_pcie,
+	.ctrl_txdma_ch	= rtw89_pci_ctrl_txdma_ch,
+	.ctrl_txdma_fw_ch = rtw89_pci_ctrl_txdma_fw_ch,
 	.ctrl_trxhci	= rtw89_pci_ctrl_dma_trx,
-	.poll_txdma_ch	= rtw89_poll_txdma_ch_idle_pcie,
+	.poll_txdma_ch_idle = rtw89_pci_poll_txdma_ch_idle,
+
 	.clr_idx_all	= rtw89_pci_clr_idx_all,
 	.clear		= rtw89_pci_clear_resource,
 	.disable_intr	= rtw89_pci_disable_intr_lock,

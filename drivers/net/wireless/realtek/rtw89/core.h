@@ -3202,7 +3202,7 @@ struct rtw89_hci_ops {
 	void (*ctrl_txdma_ch)(struct rtw89_dev *rtwdev, bool enable);
 	void (*ctrl_txdma_fw_ch)(struct rtw89_dev *rtwdev, bool enable);
 	void (*ctrl_trxhci)(struct rtw89_dev *rtwdev, bool enable);
-	int (*poll_txdma_ch)(struct rtw89_dev *rtwdev);
+	int (*poll_txdma_ch_idle)(struct rtw89_dev *rtwdev);
 	void (*clr_idx_all)(struct rtw89_dev *rtwdev);
 	void (*clear)(struct rtw89_dev *rtwdev, struct pci_dev *pdev);
 	void (*disable_intr)(struct rtw89_dev *rtwdev);
@@ -5253,12 +5253,12 @@ static inline void rtw89_hci_ctrl_trxhci(struct rtw89_dev *rtwdev, bool enable)
 		rtwdev->hci.ops->ctrl_trxhci(rtwdev, enable);
 }
 
-static inline int rtw89_hci_poll_txdma_ch(struct rtw89_dev *rtwdev)
+static inline int rtw89_hci_poll_txdma_ch_idle(struct rtw89_dev *rtwdev)
 {
 	int ret = 0;
 
-	if (rtwdev->hci.ops->poll_txdma_ch)
-		ret = rtwdev->hci.ops->poll_txdma_ch(rtwdev);
+	if (rtwdev->hci.ops->poll_txdma_ch_idle)
+		ret = rtwdev->hci.ops->poll_txdma_ch_idle(rtwdev);
 	return ret;
 }
 

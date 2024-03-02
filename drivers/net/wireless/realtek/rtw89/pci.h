@@ -1243,6 +1243,10 @@ struct rtw89_pci_gen_def {
 	int (*lv1rst_stop_dma)(struct rtw89_dev *rtwdev);
 	int (*lv1rst_start_dma)(struct rtw89_dev *rtwdev);
 
+	void (*ctrl_txdma_ch)(struct rtw89_dev *rtwdev, bool enable);
+	void (*ctrl_txdma_fw_ch)(struct rtw89_dev *rtwdev, bool enable);
+	int (*poll_txdma_ch_idle)(struct rtw89_dev *rtwdev);
+
 	void (*aspm_set)(struct rtw89_dev *rtwdev, bool enable);
 	void (*clkreq_set)(struct rtw89_dev *rtwdev, bool enable);
 	void (*l1ss_set)(struct rtw89_dev *rtwdev, bool enable);
@@ -1709,4 +1713,27 @@ static inline int rtw89_pci_reset_bdram(struct rtw89_dev *rtwdev)
 	return gen_def->rst_bdram(rtwdev);
 }
 
+static inline void rtw89_pci_ctrl_txdma_ch(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	return gen_def->ctrl_txdma_ch(rtwdev, enable);
+}
+
+static inline void rtw89_pci_ctrl_txdma_fw_ch(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	return gen_def->ctrl_txdma_fw_ch(rtwdev, enable);
+}
+
+static inline int rtw89_pci_poll_txdma_ch_idle(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	return gen_def->poll_txdma_ch_idle(rtwdev);
+}
 #endif
