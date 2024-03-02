@@ -115,6 +115,11 @@
 #define SUN50I_ADDA_HS_MBIAS_CTRL	0x0e
 #define SUN50I_ADDA_HS_MBIAS_CTRL_MMICBIASEN	7
 
+#define SUN50I_ADDA_MDET_CTRL		0x1c
+#define SUN50I_ADDA_MDET_CTRL_SELDETADC_FS	4
+#define SUN50I_ADDA_MDET_CTRL_SELDETADC_DB	2
+#define SUN50I_ADDA_MDET_CTRL_SELDETADC_BF	0
+
 #define SUN50I_ADDA_JACK_MIC_CTRL	0x1d
 #define SUN50I_ADDA_JACK_MIC_CTRL_JACKDETEN	7
 #define SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN	6
@@ -563,6 +568,13 @@ static int sun50i_codec_analog_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, SUN50I_ADDA_JACK_MIC_CTRL,
 			   BIT(SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN),
 			   enable << SUN50I_ADDA_JACK_MIC_CTRL_INNERRESEN);
+
+	/* Select sample interval of the ADC sample to 16ms */
+	regmap_update_bits(regmap, SUN50I_ADDA_MDET_CTRL,
+			   0x7 << SUN50I_ADDA_MDET_CTRL_SELDETADC_FS |
+			   0x3 << SUN50I_ADDA_MDET_CTRL_SELDETADC_BF,
+			   0x3 << SUN50I_ADDA_MDET_CTRL_SELDETADC_FS |
+			   0x3 << SUN50I_ADDA_MDET_CTRL_SELDETADC_BF);
 
 	return devm_snd_soc_register_component(&pdev->dev,
 					       &sun50i_codec_analog_cmpnt_drv,
