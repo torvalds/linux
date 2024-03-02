@@ -185,7 +185,7 @@ void mtk_vdec_h264_get_ref_list(u8 *ref_list,
 void *mtk_vdec_h264_get_ctrl_ptr(struct mtk_vcodec_dec_ctx *ctx, int id);
 
 /**
- * mtk_vdec_h264_fill_dpb_info - get each CID contrl address.
+ * mtk_vdec_h264_fill_dpb_info - Fill the decoded picture buffer info
  *
  * @ctx:		v4l2 ctx
  * @decode_params:	slice decode params
@@ -225,10 +225,13 @@ void mtk_vdec_h264_copy_slice_hd_params(struct mtk_h264_slice_hd_param *dst_para
 					const struct v4l2_ctrl_h264_decode_params *dec_param);
 
 /**
- * mtk_vdec_h264_copy_scaling_matrix - get each CID contrl address.
+ * mtk_vdec_h264_copy_scaling_matrix - Copy scaling matrix from a control to the driver
  *
- * @dst_matrix:	scaling list params for hw decoder
- * @src_matrix:	scaling list params from user driver
+ * @dst_matrix:	scaling list params for the HW decoder
+ * @src_matrix:	scaling list params from a V4L2 control
+ *
+ * This function is used to copy the scaling matrix from a
+ * v4l2 control into the slice parameters for a decode.
  */
 void mtk_vdec_h264_copy_scaling_matrix(struct slice_api_h264_scaling_matrix *dst_matrix,
 				       const struct v4l2_ctrl_h264_scaling_matrix *src_matrix);
