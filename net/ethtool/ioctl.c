@@ -1514,17 +1514,12 @@ static void eee_to_keee(struct ethtool_keee *keee,
 {
 	memset(keee, 0, sizeof(*keee));
 
-	keee->eee_active = eee->eee_active;
 	keee->eee_enabled = eee->eee_enabled;
 	keee->tx_lpi_enabled = eee->tx_lpi_enabled;
 	keee->tx_lpi_timer = eee->tx_lpi_timer;
 
-	ethtool_convert_legacy_u32_to_link_mode(keee->supported,
-						eee->supported);
 	ethtool_convert_legacy_u32_to_link_mode(keee->advertised,
 						eee->advertised);
-	ethtool_convert_legacy_u32_to_link_mode(keee->lp_advertised,
-						eee->lp_advertised);
 }
 
 static void keee_to_eee(struct ethtool_eee *eee,
