@@ -127,7 +127,7 @@ This document defines the following conformance groups:
 * divmul32: includes 32-bit division, multiplication, and modulo instructions.
 * divmul64: includes divmul32, plus 64-bit division, multiplication,
   and modulo instructions.
-* legacy: deprecated packet access instructions.
+* packet: deprecated packet access instructions.
 
 Instruction encoding
 ====================
@@ -710,4 +710,4 @@ class of ``LD``, a size modifier of ``W``, ``H``, or ``B``, and a
 mode modifier of ``ABS`` or ``IND``.  The 'dst_reg' and 'offset' fields were
 set to zero, and 'src_reg' was set to zero for ``ABS``.  However, these
 instructions are deprecated and should no longer be used.  All legacy packet
-access instructions belong to the "legacy" conformance group.
+access instructions belong to the "packet" conformance group.
