@@ -4968,7 +4968,7 @@ struct btf *btf__load_vmlinux_btf(void)
 			pr_warn("failed to read kernel BTF from '%s': %d\n", sysfs_btf_path, err);
 			return libbpf_err_ptr(err);
 		}
-		pr_debug("loaded kernel BTF from '%s'\n", path);
+		pr_debug("loaded kernel BTF from '%s'\n", sysfs_btf_path);
 		return btf;
 	}
 
