@@ -4776,7 +4776,8 @@ static int fault_around_bytes_set(void *data, u64 val)
 	 * The minimum value is 1 page, however this results in no fault-around
 	 * at all. See should_fault_around().
 	 */
-	fault_around_pages = max(rounddown_pow_of_two(val) >> PAGE_SHIFT, 1UL);
+	val = max(val, PAGE_SIZE);
+	fault_around_pages = rounddown_pow_of_two(val) >> PAGE_SHIFT;
 
 	return 0;
 }
