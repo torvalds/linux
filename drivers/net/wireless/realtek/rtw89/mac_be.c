@@ -2520,6 +2520,7 @@ const struct rtw89_mac_gen_def rtw89_mac_gen_be = {
 		.addr = R_BE_RXTRIG_TEST_USER_2,
 		.mask = B_BE_RXTRIG_RU26_DIS,
 	},
+	.wow_ctrl = {.addr = R_BE_WOW_CTRL, .mask = B_BE_WOW_WOWEN,},
 
 	.check_mac_en = rtw89_mac_check_mac_en_be,
 	.sys_init = sys_init_be,

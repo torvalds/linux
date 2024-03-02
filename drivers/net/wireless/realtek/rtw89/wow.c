@@ -463,13 +463,14 @@ static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
 
 static int rtw89_wow_check_fw_status(struct rtw89_dev *rtwdev, bool wow_enable)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u8 polling;
 	int ret;
 
 	ret = read_poll_timeout_atomic(rtw89_read8_mask, polling,
 				       wow_enable == !!polling,
 				       50, 50000, false, rtwdev,
-				       R_AX_WOW_CTRL, B_AX_WOW_WOWEN);
+				       mac->wow_ctrl.addr, mac->wow_ctrl.mask);
 	if (ret)
 		rtw89_err(rtwdev, "failed to check wow status %s\n",
 			  wow_enable ? "enabled" : "disabled");
