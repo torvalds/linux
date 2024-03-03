@@ -18,7 +18,7 @@
 #define VT_TRIGGER(_name)	.trigger = NULL
 #endif
 
-#if IS_ENABLED(CONFIG_LEDS_TRIGGER_AUDIO)
+#if IS_ENABLED(CONFIG_SND_CTL_LED)
 #define AUDIO_TRIGGER(_name)	.trigger = _name
 #else
 #define AUDIO_TRIGGER(_name)	.trigger = NULL
