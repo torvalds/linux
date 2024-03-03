@@ -2106,7 +2106,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			continue;
 		}
 
-		if (mddev->gendisk)
+		if (!mddev_is_dm(mddev))
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
 
@@ -2126,7 +2126,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		set_bit(Replacement, &rdev->flags);
 		rdev->raid_disk = repl_slot;
 		err = 0;
-		if (mddev->gendisk)
+		if (!mddev_is_dm(mddev))
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
 		conf->fullsync = 1;
@@ -4014,7 +4014,7 @@ static int raid10_run(struct mddev *mddev)
 		}
 	}
 
-	if (mddev->queue) {
+	if (!mddev_is_dm(conf->mddev)) {
 		blk_queue_max_write_zeroes_sectors(mddev->queue, 0);
 		blk_queue_io_min(mddev->queue, mddev->chunk_sectors << 9);
 		raid10_set_io_opt(conf);
@@ -4048,7 +4048,7 @@ static int raid10_run(struct mddev *mddev)
 		if (first || diff < min_offset_diff)
 			min_offset_diff = diff;
 
-		if (mddev->gendisk)
+		if (!mddev_is_dm(mddev))
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
 
@@ -4933,7 +4933,7 @@ static void end_reshape(struct r10conf *conf)
 	conf->reshape_safe = MaxSector;
 	spin_unlock_irq(&conf->device_lock);
 
-	if (conf->mddev->queue)
+	if (!mddev_is_dm(conf->mddev))
 		raid10_set_io_opt(conf);
 	conf->fullsync = 0;
 }

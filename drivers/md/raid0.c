@@ -399,7 +399,7 @@ static int raid0_run(struct mddev *mddev)
 		mddev->private = conf;
 	}
 	conf = mddev->private;
-	if (mddev->queue) {
+	if (!mddev_is_dm(mddev)) {
 		struct md_rdev *rdev;
 
 		blk_queue_max_hw_sectors(mddev->queue, mddev->chunk_sectors);

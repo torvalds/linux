@@ -911,16 +911,24 @@ int do_md_run(struct mddev *mddev);
 
 extern const struct block_device_operations md_fops;
 
+/*
+ * MD devices can be used undeneath by DM, in which case ->gendisk is NULL.
+ */
+static inline bool mddev_is_dm(struct mddev *mddev)
+{
+	return !mddev->gendisk;
+}
+
 static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
 		sector_t sector)
 {
-	if (mddev->gendisk)
+	if (!mddev_is_dm(mddev))
 		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
 }
 
 #define mddev_add_trace_msg(mddev, fmt, args...)			\
 do {									\
-	if ((mddev)->gendisk)						\
+	if (!mddev_is_dm(mddev))					\
 		blk_add_trace_msg((mddev)->queue, fmt, ##args);		\
 } while (0)
 
