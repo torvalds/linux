@@ -15,6 +15,7 @@
 #include <linux/cleanup.h>
 #include <linux/crc8.h>
 #include <linux/delay.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -70,6 +71,7 @@
 
 struct hdc3020_data {
 	struct i2c_client *client;
+	struct gpio_desc *reset_gpio;
 	struct regulator *vdd_supply;
 	/*
 	 * Ensure that the sensor configuration (currently only heater is
@@ -558,6 +560,9 @@ static int hdc3020_power_off(struct hdc3020_data *data)
 {
 	hdc3020_exec_cmd(data, HDC3020_EXIT_AUTO);
 
+	if (data->reset_gpio)
+		gpiod_set_value_cansleep(data->reset_gpio, 1);
+
 	return regulator_disable(data->vdd_supply);
 }
 
@@ -570,6 +575,11 @@ static int hdc3020_power_on(struct hdc3020_data *data)
 		return ret;
 
 	fsleep(5000);
+
+	if (data->reset_gpio) {
+		gpiod_set_value_cansleep(data->reset_gpio, 0);
+		fsleep(3000);
+	}
 
 	if (data->client->irq) {
 		/*
@@ -626,6 +636,12 @@ static int hdc3020_probe(struct i2c_client *client)
 	if (IS_ERR(data->vdd_supply))
 		return dev_err_probe(&client->dev, PTR_ERR(data->vdd_supply),
 				     "Unable to get VDD regulator\n");
+
+	data->reset_gpio = devm_gpiod_get_optional(&client->dev, "reset",
+						   GPIOD_OUT_HIGH);
+	if (IS_ERR(data->reset_gpio))
+		return dev_err_probe(&client->dev, PTR_ERR(data->reset_gpio),
+				     "Cannot get reset GPIO\n");
 
 	ret = hdc3020_power_on(data);
 	if (ret)
