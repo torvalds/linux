@@ -175,6 +175,7 @@ struct aca_smu_funcs {
 struct amdgpu_aca {
 	struct aca_handle_manager mgr;
 	const struct aca_smu_funcs *smu_funcs;
+	atomic_t ue_update_flag;
 	bool is_enabled;
 };
 
