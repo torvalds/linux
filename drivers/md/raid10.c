@@ -1235,10 +1235,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 	    test_bit(R10BIO_FailFast, &r10_bio->state))
 	        read_bio->bi_opf |= MD_FAILFAST;
 	read_bio->bi_private = r10_bio;
-
-	if (mddev->gendisk)
-	        trace_block_bio_remap(read_bio, disk_devt(mddev->gendisk),
-	                              r10_bio->sector);
+	mddev_trace_remap(mddev, read_bio, r10_bio->sector);
 	submit_bio_noacct(read_bio);
 	return;
 }
@@ -1274,10 +1271,7 @@ static void raid10_write_one_disk(struct mddev *mddev, struct r10bio *r10_bio,
 			 && enough(conf, devnum))
 		mbio->bi_opf |= MD_FAILFAST;
 	mbio->bi_private = r10_bio;
-
-	if (conf->mddev->gendisk)
-		trace_block_bio_remap(mbio, disk_devt(conf->mddev->gendisk),
-				      r10_bio->sector);
+	mddev_trace_remap(mddev, mbio, r10_bio->sector);
 	/* flush_pending_writes() needs access to the rdev so...*/
 	mbio->bi_bdev = (void *)rdev;
 

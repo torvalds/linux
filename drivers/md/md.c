@@ -65,7 +65,6 @@
 #include <linux/percpu-refcount.h>
 #include <linux/part_stat.h>
 
-#include <trace/events/block.h>
 #include "md.h"
 #include "md-bitmap.h"
 #include "md-cluster.h"
@@ -8686,10 +8685,7 @@ void md_submit_discard_bio(struct mddev *mddev, struct md_rdev *rdev,
 
 	bio_chain(discard_bio, bio);
 	bio_clone_blkg_association(discard_bio, bio);
-	if (mddev->gendisk)
-		trace_block_bio_remap(discard_bio,
-				disk_devt(mddev->gendisk),
-				bio->bi_iter.bi_sector);
+	mddev_trace_remap(mddev, discard_bio, bio->bi_iter.bi_sector);
 	submit_bio_noacct(discard_bio);
 }
 EXPORT_SYMBOL_GPL(md_submit_discard_bio);

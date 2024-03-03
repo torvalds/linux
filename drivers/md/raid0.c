@@ -578,10 +578,7 @@ static void raid0_map_submit_bio(struct mddev *mddev, struct bio *bio)
 	bio_set_dev(bio, tmp_dev->bdev);
 	bio->bi_iter.bi_sector = sector + zone->dev_start +
 		tmp_dev->data_offset;
-
-	if (mddev->gendisk)
-		trace_block_bio_remap(bio, disk_devt(mddev->gendisk),
-				      bio_sector);
+	mddev_trace_remap(mddev, bio, bio_sector);
 	mddev_check_write_zeroes(mddev, bio);
 	submit_bio_noacct(bio);
 }

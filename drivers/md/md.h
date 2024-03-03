@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <trace/events/block.h>
 #include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
@@ -909,5 +910,12 @@ int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
 int do_md_run(struct mddev *mddev);
 
 extern const struct block_device_operations md_fops;
+
+static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
+		sector_t sector)
+{
+	if (mddev->gendisk)
+		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
+}
 
 #endif /* _MD_MD_H */
