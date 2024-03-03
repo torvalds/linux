@@ -76,9 +76,6 @@ static void reshape_request_write(struct mddev *mddev, struct r10bio *r10_bio);
 static void end_reshape_write(struct bio *bio);
 static void end_reshape(struct r10conf *conf);
 
-#define raid10_log(md, fmt, args...)				\
-	do { if ((md)->queue) blk_add_trace_msg((md)->queue, "raid10 " fmt, ##args); } while (0)
-
 #include "raid1-10.c"
 
 #define NULL_CMD
@@ -1019,7 +1016,7 @@ static bool wait_barrier(struct r10conf *conf, bool nowait)
 			ret = false;
 		} else {
 			conf->nr_waiting++;
-			raid10_log(conf->mddev, "wait barrier");
+			mddev_add_trace_msg(conf->mddev, "raid10 wait barrier");
 			wait_event_barrier(conf, stop_waiting_barrier(conf));
 			conf->nr_waiting--;
 		}
@@ -1138,7 +1135,7 @@ static bool regular_request_wait(struct mddev *mddev, struct r10conf *conf,
 			bio_wouldblock_error(bio);
 			return false;
 		}
-		raid10_log(conf->mddev, "wait reshape");
+		mddev_add_trace_msg(conf->mddev, "raid10 wait reshape");
 		wait_event(conf->wait_barrier,
 			   conf->reshape_progress <= bio->bi_iter.bi_sector ||
 			   conf->reshape_progress >= bio->bi_iter.bi_sector +
@@ -1336,8 +1333,9 @@ retry_wait:
 	if (unlikely(blocked_rdev)) {
 		/* Have to wait for this device to get unblocked, then retry */
 		allow_barrier(conf);
-		raid10_log(conf->mddev, "%s wait rdev %d blocked",
-				__func__, blocked_rdev->raid_disk);
+		mddev_add_trace_msg(conf->mddev,
+			"raid10 %s wait rdev %d blocked",
+			__func__, blocked_rdev->raid_disk);
 		md_wait_for_blocked_rdev(blocked_rdev, mddev);
 		wait_barrier(conf, false);
 		goto retry_wait;
@@ -1392,7 +1390,8 @@ static void raid10_write_request(struct mddev *mddev, struct bio *bio,
 			bio_wouldblock_error(bio);
 			return;
 		}
-		raid10_log(conf->mddev, "wait reshape metadata");
+		mddev_add_trace_msg(conf->mddev,
+			"raid10 wait reshape metadata");
 		wait_event(mddev->sb_wait,
 			   !test_bit(MD_SB_CHANGE_PENDING, &mddev->sb_flags));
 

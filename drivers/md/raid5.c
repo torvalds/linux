@@ -4195,10 +4195,9 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 	set_bit(STRIPE_HANDLE, &sh->state);
 	if ((rmw < rcw || (rmw == rcw && conf->rmw_level == PARITY_PREFER_RMW)) && rmw > 0) {
 		/* prefer read-modify-write, but need to get some data */
-		if (conf->mddev->queue)
-			blk_add_trace_msg(conf->mddev->queue,
-					  "raid5 rmw %llu %d",
-					  (unsigned long long)sh->sector, rmw);
+		mddev_add_trace_msg(conf->mddev, "raid5 rmw %llu %d",
+				sh->sector, rmw);
+
 		for (i = disks; i--; ) {
 			struct r5dev *dev = &sh->dev[i];
 			if (test_bit(R5_InJournal, &dev->flags) &&
@@ -4276,9 +4275,10 @@ static int handle_stripe_dirtying(struct r5conf *conf,
 			}
 		}
 		if (rcw && conf->mddev->queue)
-			blk_add_trace_msg(conf->mddev->queue, "raid5 rcw %llu %d %d %d",
-					  (unsigned long long)sh->sector,
-					  rcw, qread, test_bit(STRIPE_DELAYED, &sh->state));
+			mddev_add_trace_msg(conf->mddev,
+				"raid5 rcw %llu %d %d %d",
+				sh->sector, rcw, qread,
+				test_bit(STRIPE_DELAYED, &sh->state));
 	}
 
 	if (rcw > disks && rmw > disks &&

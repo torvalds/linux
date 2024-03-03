@@ -918,4 +918,10 @@ static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
 		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
 }
 
+#define mddev_add_trace_msg(mddev, fmt, args...)			\
+do {									\
+	if ((mddev)->gendisk)						\
+		blk_add_trace_msg((mddev)->queue, fmt, ##args);		\
+} while (0)
+
 #endif /* _MD_MD_H */

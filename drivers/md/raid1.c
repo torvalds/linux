@@ -46,9 +46,6 @@
 static void allow_barrier(struct r1conf *conf, sector_t sector_nr);
 static void lower_barrier(struct r1conf *conf, sector_t sector_nr);
 
-#define raid1_log(md, fmt, args...)				\
-	do { if ((md)->queue) blk_add_trace_msg((md)->queue, "raid1 " fmt, ##args); } while (0)
-
 #define RAID_1_10_NAME "raid1"
 #include "raid1-10.c"
 
@@ -1196,7 +1193,7 @@ static void freeze_array(struct r1conf *conf, int extra)
 	 */
 	spin_lock_irq(&conf->resync_lock);
 	conf->array_frozen = 1;
-	raid1_log(conf->mddev, "wait freeze");
+	mddev_add_trace_msg(conf->mddev, "raid1 wait freeze");
 	wait_event_lock_irq_cmd(
 		conf->wait_barrier,
 		get_unqueued_pending(conf) == extra,
@@ -1385,7 +1382,7 @@ static void raid1_read_request(struct mddev *mddev, struct bio *bio,
 		 * Reading from a write-mostly device must take care not to
 		 * over-take any writes that are 'behind'
 		 */
-		raid1_log(mddev, "wait behind writes");
+		mddev_add_trace_msg(mddev, "raid1 wait behind writes");
 		wait_event(bitmap->behind_wait,
 			   atomic_read(&bitmap->behind_writes) == 0);
 	}
@@ -1568,7 +1565,8 @@ static void raid1_write_request(struct mddev *mddev, struct bio *bio,
 			bio_wouldblock_error(bio);
 			return;
 		}
-		raid1_log(mddev, "wait rdev %d blocked", blocked_rdev->raid_disk);
+		mddev_add_trace_msg(mddev, "raid1 wait rdev %d blocked",
+				blocked_rdev->raid_disk);
 		md_wait_for_blocked_rdev(blocked_rdev, mddev);
 		wait_barrier(conf, bio->bi_iter.bi_sector, false);
 		goto retry_write;
