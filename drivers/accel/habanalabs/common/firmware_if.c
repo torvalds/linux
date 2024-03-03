@@ -2093,7 +2093,7 @@ static int hl_fw_dynamic_validate_descriptor(struct hl_device *hdev,
 	 * note that no alignment/stride address issues here as all structures
 	 * are 64 bit padded.
 	 */
-	data_ptr = (u8 *)fw_desc + sizeof(struct comms_desc_header);
+	data_ptr = (u8 *)fw_desc + sizeof(struct comms_msg_header);
 	data_size = le16_to_cpu(fw_desc->header.size);
 
 	data_crc32 = hl_fw_compat_crc32(data_ptr, data_size);
@@ -2247,11 +2247,11 @@ static int hl_fw_dynamic_read_and_validate_descriptor(struct hl_device *hdev,
 	memcpy_fromio(fw_desc, src, sizeof(struct lkd_fw_comms_desc));
 	fw_data_size = le16_to_cpu(fw_desc->header.size);
 
-	temp_fw_desc = vzalloc(sizeof(struct comms_desc_header) + fw_data_size);
+	temp_fw_desc = vzalloc(sizeof(struct comms_msg_header) + fw_data_size);
 	if (!temp_fw_desc)
 		return -ENOMEM;
 
-	memcpy_fromio(temp_fw_desc, src, sizeof(struct comms_desc_header) + fw_data_size);
+	memcpy_fromio(temp_fw_desc, src, sizeof(struct comms_msg_header) + fw_data_size);
 
 	rc = hl_fw_dynamic_validate_descriptor(hdev, fw_loader,
 					(struct lkd_fw_comms_desc *) temp_fw_desc);
