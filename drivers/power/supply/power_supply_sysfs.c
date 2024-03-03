@@ -298,11 +298,6 @@ static ssize_t power_supply_show_property(struct device *dev,
 		}
 	}
 
-	if (ps_attr->text_values_len > 0 &&
-	    value.intval < ps_attr->text_values_len && value.intval >= 0) {
-		return sysfs_emit(buf, "%s\n", ps_attr->text_values[value.intval]);
-	}
-
 	switch (psp) {
 	case POWER_SUPPLY_PROP_USB_TYPE:
 		ret = power_supply_show_usb_type(dev, psy->desc,
@@ -312,7 +307,12 @@ static ssize_t power_supply_show_property(struct device *dev,
 		ret = sysfs_emit(buf, "%s\n", value.strval);
 		break;
 	default:
-		ret = sysfs_emit(buf, "%d\n", value.intval);
+		if (ps_attr->text_values_len > 0 &&
+				value.intval < ps_attr->text_values_len && value.intval >= 0) {
+			ret = sysfs_emit(buf, "%s\n", ps_attr->text_values[value.intval]);
+		} else {
+			ret = sysfs_emit(buf, "%d\n", value.intval);
+		}
 	}
 
 	return ret;
