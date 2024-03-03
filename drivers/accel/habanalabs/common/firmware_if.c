@@ -1482,7 +1482,7 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
 	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
 	u32 status = 0, timeout;
-	int rc, tries = 1;
+	int rc, tries = 1, fw_err = 0;
 	bool preboot_still_runs;
 
 	/* Need to check two possible scenarios:
@@ -1522,18 +1522,18 @@ retry:
 		}
 	}
 
-	if (rc) {
+	/* If we read all FF, then something is totally wrong, no point
+	 * of reading specific errors
+	 */
+	if (status != -1)
+		fw_err = fw_read_errors(hdev, pre_fw_load->boot_err0_reg,
+					pre_fw_load->boot_err1_reg,
+					pre_fw_load->sts_boot_dev_sts0_reg,
+					pre_fw_load->sts_boot_dev_sts1_reg);
+	if (rc || fw_err) {
 		detect_cpu_boot_status(hdev, status);
-		dev_err(hdev->dev, "CPU boot ready timeout (status = %d)\n", status);
-
-		/* If we read all FF, then something is totally wrong, no point
-		 * of reading specific errors
-		 */
-		if (status != -1)
-			fw_read_errors(hdev, pre_fw_load->boot_err0_reg,
-						pre_fw_load->boot_err1_reg,
-						pre_fw_load->sts_boot_dev_sts0_reg,
-						pre_fw_load->sts_boot_dev_sts1_reg);
+		dev_err(hdev->dev, "CPU boot %s (status = %d)\n",
+				fw_err ? "failed due to an error" : "ready timeout", status);
 		return -EIO;
 	}
 
