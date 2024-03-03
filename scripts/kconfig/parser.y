@@ -94,7 +94,7 @@ struct menu *current_menu, *current_entry;
 %type <expr> if_expr
 %type <string> end
 %type <menu> if_entry menu_entry choice_entry
-%type <string> word_opt assign_val
+%type <string> assign_val
 %type <flavor> assign_op
 
 %destructor {
@@ -222,13 +222,12 @@ config_option: T_MODULES T_EOL
 
 /* choice entry */
 
-choice: T_CHOICE word_opt T_EOL
+choice: T_CHOICE T_EOL
 {
-	struct symbol *sym = sym_lookup($2, SYMBOL_CHOICE);
+	struct symbol *sym = sym_lookup(NULL, SYMBOL_CHOICE);
 	sym->flags |= SYMBOL_NO_WRITE;
 	menu_add_entry(sym);
 	menu_add_expr(P_CHOICE, NULL, NULL);
-	free($2);
 	printd(DEBUG_PARSE, "%s:%d:choice\n", cur_filename, cur_lineno);
 };
 
@@ -448,9 +447,6 @@ nonconst_symbol: T_WORD { $$ = sym_lookup($1, 0); free($1); };
 symbol:	  nonconst_symbol
 	| T_WORD_QUOTE	{ $$ = sym_lookup($1, SYMBOL_CONST); free($1); }
 ;
-
-word_opt: /* empty */			{ $$ = NULL; }
-	| T_WORD
 
 /* assignment statement */
 
