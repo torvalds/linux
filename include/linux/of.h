@@ -362,9 +362,6 @@ extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
 						 int index);
 extern u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread);
 
-#define for_each_property_of_node(dn, pp) \
-	for (pp = dn->properties; pp != NULL; pp = pp->next)
-
 extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
 extern const struct of_device_id *of_match_node(
@@ -891,6 +888,9 @@ static inline int of_prop_val_eq(struct property *p1, struct property *p2)
 	return p1->length == p2->length &&
 	       !memcmp(p1->value, p2->value, (size_t)p1->length);
 }
+
+#define for_each_property_of_node(dn, pp) \
+	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
 #if defined(CONFIG_OF) && defined(CONFIG_NUMA)
 extern int of_node_to_nid(struct device_node *np);
