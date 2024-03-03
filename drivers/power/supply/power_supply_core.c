@@ -32,7 +32,6 @@ static const struct class power_supply_class = {
 
 static BLOCKING_NOTIFIER_HEAD(power_supply_notifier);
 
-__ATTRIBUTE_GROUPS(power_supply_attr);
 static const struct device_type power_supply_dev_type = {
 	.name = "power_supply",
 	.groups = power_supply_attr_groups,

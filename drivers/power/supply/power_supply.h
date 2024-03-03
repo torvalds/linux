@@ -17,12 +17,12 @@ struct power_supply;
 
 extern void power_supply_init_attrs(void);
 extern int power_supply_uevent(const struct device *dev, struct kobj_uevent_env *env);
-extern const struct attribute_group power_supply_attr_group;
+extern const struct attribute_group *power_supply_attr_groups[];
 
 #else
 
 static inline void power_supply_init_attrs(void) {}
-static const struct attribute_group power_supply_attr_group;
+#define power_supply_attr_groups NULL
 #define power_supply_uevent NULL
 
 #endif /* CONFIG_SYSFS */

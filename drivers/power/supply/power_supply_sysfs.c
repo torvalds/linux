@@ -389,9 +389,14 @@ static umode_t power_supply_attr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
-const struct attribute_group power_supply_attr_group = {
+static const struct attribute_group power_supply_attr_group = {
 	.attrs = __power_supply_attrs,
 	.is_visible = power_supply_attr_is_visible,
+};
+
+const struct attribute_group *power_supply_attr_groups[] = {
+	&power_supply_attr_group,
+	NULL
 };
 
 void power_supply_init_attrs(void)
