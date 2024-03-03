@@ -242,6 +242,7 @@ struct power_supply_config {
 struct power_supply_desc {
 	const char *name;
 	enum power_supply_type type;
+	u8 charge_behaviours;
 	const enum power_supply_usb_type *usb_types;
 	size_t num_usb_types;
 	const enum power_supply_property *properties;
