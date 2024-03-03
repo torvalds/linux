@@ -10,6 +10,7 @@
 #include <linux/filter.h>
 #include <linux/memory.h>
 #include <asm/patch.h>
+#include <asm/cfi.h>
 #include "bpf_jit.h"
 
 /* Number of iterations to try until offsets converge. */
@@ -100,7 +101,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		pass++;
 		ctx->ninsns = 0;
 
-		bpf_jit_build_prologue(ctx);
+		bpf_jit_build_prologue(ctx, bpf_is_subprog(prog));
 		ctx->prologue_len = ctx->ninsns;
 
 		if (build_body(ctx, extra_pass, ctx->offset)) {
@@ -160,7 +161,7 @@ skip_init_ctx:
 	ctx->ninsns = 0;
 	ctx->nexentries = 0;
 
-	bpf_jit_build_prologue(ctx);
+	bpf_jit_build_prologue(ctx, bpf_is_subprog(prog));
 	if (build_body(ctx, extra_pass, NULL)) {
 		prog = orig_prog;
 		goto out_free_hdr;
@@ -170,9 +171,9 @@ skip_init_ctx:
 	if (bpf_jit_enable > 1)
 		bpf_jit_dump(prog->len, prog_size, pass, ctx->insns);
 
-	prog->bpf_func = (void *)ctx->ro_insns;
+	prog->bpf_func = (void *)ctx->ro_insns + cfi_get_offset();
 	prog->jited = 1;
-	prog->jited_len = prog_size;
+	prog->jited_len = prog_size - cfi_get_offset();
 
 	if (!prog->is_func || extra_pass) {
 		if (WARN_ON(bpf_jit_binary_pack_finalize(prog, jit_data->ro_header,
