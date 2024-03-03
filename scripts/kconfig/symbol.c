@@ -15,18 +15,21 @@
 struct symbol symbol_yes = {
 	.name = "y",
 	.curr = { "y", yes },
+	.menus = LIST_HEAD_INIT(symbol_yes.menus),
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
 };
 
 struct symbol symbol_mod = {
 	.name = "m",
 	.curr = { "m", mod },
+	.menus = LIST_HEAD_INIT(symbol_mod.menus),
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
 };
 
 struct symbol symbol_no = {
 	.name = "n",
 	.curr = { "n", no },
+	.menus = LIST_HEAD_INIT(symbol_no.menus),
 	.flags = SYMBOL_CONST|SYMBOL_VALID,
 };
 
@@ -838,6 +841,7 @@ struct symbol *sym_lookup(const char *name, int flags)
 	symbol->name = new_name;
 	symbol->type = S_UNKNOWN;
 	symbol->flags = flags;
+	INIT_LIST_HEAD(&symbol->menus);
 
 	hash_add(sym_hashtable, &symbol->node, hash);
 

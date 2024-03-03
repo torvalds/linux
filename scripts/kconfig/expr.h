@@ -108,6 +108,9 @@ struct symbol {
 	 */
 	tristate visible;
 
+	/* config entries associated with this symbol */
+	struct list_head menus;
+
 	/* SYMBOL_* flags */
 	int flags;
 
@@ -221,6 +224,8 @@ struct menu {
 	 * a special kind of symbol. NULL for menus, comments, and ifs.
 	 */
 	struct symbol *sym;
+
+	struct list_head link;	/* link to symbol::menus */
 
 	/*
 	 * The prompt associated with the node. This holds the prompt for a
