@@ -389,7 +389,7 @@ static int raid0_set_limits(struct mddev *mddev)
 	lim.io_min = mddev->chunk_sectors << 9;
 	lim.io_opt = lim.io_min * mddev->raid_disks;
 	mddev_stack_rdev_limits(mddev, &lim);
-	return queue_limits_set(mddev->queue, &lim);
+	return queue_limits_set(mddev->gendisk->queue, &lim);
 }
 
 static int raid0_run(struct mddev *mddev)

@@ -480,7 +480,6 @@ struct mddev {
 	struct timer_list		safemode_timer;
 	struct percpu_ref		writes_pending;
 	int				sync_checkers;	/* # of threads checking writes_pending */
-	struct request_queue		*queue;	/* for plugging ... */
 
 	struct bitmap			*bitmap; /* the bitmap for the device */
 	struct {
@@ -869,7 +868,7 @@ static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 	    !bio->bi_bdev->bd_disk->queue->limits.max_write_zeroes_sectors)
-		mddev->queue->limits.max_write_zeroes_sectors = 0;
+		mddev->gendisk->queue->limits.max_write_zeroes_sectors = 0;
 }
 
 static inline int mddev_suspend_and_lock(struct mddev *mddev)
@@ -932,7 +931,7 @@ static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
 #define mddev_add_trace_msg(mddev, fmt, args...)			\
 do {									\
 	if (!mddev_is_dm(mddev))					\
-		blk_add_trace_msg((mddev)->queue, fmt, ##args);		\
+		blk_add_trace_msg((mddev)->gendisk->queue, fmt, ##args); \
 } while (0)
 
 #endif /* _MD_MD_H */

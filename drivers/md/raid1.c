@@ -3201,7 +3201,7 @@ static int raid1_set_limits(struct mddev *mddev)
 	blk_set_stacking_limits(&lim);
 	lim.max_write_zeroes_sectors = 0;
 	mddev_stack_rdev_limits(mddev, &lim);
-	return queue_limits_set(mddev->queue, &lim);
+	return queue_limits_set(mddev->gendisk->queue, &lim);
 }
 
 static void raid1_free(struct mddev *mddev, void *priv);
