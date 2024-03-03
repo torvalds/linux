@@ -23,41 +23,42 @@ struct array_map {
 	__uint(max_entries, 1);
 } __cpumask_map SEC(".maps");
 
-struct bpf_cpumask *bpf_cpumask_create(void) __ksym;
-void bpf_cpumask_release(struct bpf_cpumask *cpumask) __ksym;
-struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask) __ksym;
-u32 bpf_cpumask_first(const struct cpumask *cpumask) __ksym;
-u32 bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym;
+struct bpf_cpumask *bpf_cpumask_create(void) __ksym __weak;
+void bpf_cpumask_release(struct bpf_cpumask *cpumask) __ksym __weak;
+struct bpf_cpumask *bpf_cpumask_acquire(struct bpf_cpumask *cpumask) __ksym __weak;
+u32 bpf_cpumask_first(const struct cpumask *cpumask) __ksym __weak;
+u32 bpf_cpumask_first_zero(const struct cpumask *cpumask) __ksym __weak;
 u32 bpf_cpumask_first_and(const struct cpumask *src1,
-			  const struct cpumask *src2) __ksym;
-void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
-void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
-bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask) __ksym;
-bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
-bool bpf_cpumask_test_and_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym;
-void bpf_cpumask_setall(struct bpf_cpumask *cpumask) __ksym;
-void bpf_cpumask_clear(struct bpf_cpumask *cpumask) __ksym;
+			  const struct cpumask *src2) __ksym __weak;
+void bpf_cpumask_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym __weak;
+void bpf_cpumask_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym __weak;
+bool bpf_cpumask_test_cpu(u32 cpu, const struct cpumask *cpumask) __ksym __weak;
+bool bpf_cpumask_test_and_set_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym __weak;
+bool bpf_cpumask_test_and_clear_cpu(u32 cpu, struct bpf_cpumask *cpumask) __ksym __weak;
+void bpf_cpumask_setall(struct bpf_cpumask *cpumask) __ksym __weak;
+void bpf_cpumask_clear(struct bpf_cpumask *cpumask) __ksym __weak;
 bool bpf_cpumask_and(struct bpf_cpumask *cpumask,
 		     const struct cpumask *src1,
-		     const struct cpumask *src2) __ksym;
+		     const struct cpumask *src2) __ksym __weak;
 void bpf_cpumask_or(struct bpf_cpumask *cpumask,
 		    const struct cpumask *src1,
-		    const struct cpumask *src2) __ksym;
+		    const struct cpumask *src2) __ksym __weak;
 void bpf_cpumask_xor(struct bpf_cpumask *cpumask,
 		     const struct cpumask *src1,
-		     const struct cpumask *src2) __ksym;
-bool bpf_cpumask_equal(const struct cpumask *src1, const struct cpumask *src2) __ksym;
-bool bpf_cpumask_intersects(const struct cpumask *src1, const struct cpumask *src2) __ksym;
-bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpumask *src2) __ksym;
-bool bpf_cpumask_empty(const struct cpumask *cpumask) __ksym;
-bool bpf_cpumask_full(const struct cpumask *cpumask) __ksym;
-void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src) __ksym;
-u32 bpf_cpumask_any_distribute(const struct cpumask *src) __ksym;
-u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1, const struct cpumask *src2) __ksym;
-u32 bpf_cpumask_weight(const struct cpumask *cpumask) __ksym;
+		     const struct cpumask *src2) __ksym __weak;
+bool bpf_cpumask_equal(const struct cpumask *src1, const struct cpumask *src2) __ksym __weak;
+bool bpf_cpumask_intersects(const struct cpumask *src1, const struct cpumask *src2) __ksym __weak;
+bool bpf_cpumask_subset(const struct cpumask *src1, const struct cpumask *src2) __ksym __weak;
+bool bpf_cpumask_empty(const struct cpumask *cpumask) __ksym __weak;
+bool bpf_cpumask_full(const struct cpumask *cpumask) __ksym __weak;
+void bpf_cpumask_copy(struct bpf_cpumask *dst, const struct cpumask *src) __ksym __weak;
+u32 bpf_cpumask_any_distribute(const struct cpumask *src) __ksym __weak;
+u32 bpf_cpumask_any_and_distribute(const struct cpumask *src1,
+				   const struct cpumask *src2) __ksym __weak;
+u32 bpf_cpumask_weight(const struct cpumask *cpumask) __ksym __weak;
 
-void bpf_rcu_read_lock(void) __ksym;
-void bpf_rcu_read_unlock(void) __ksym;
+void bpf_rcu_read_lock(void) __ksym __weak;
+void bpf_rcu_read_unlock(void) __ksym __weak;
 
 static inline const struct cpumask *cast(struct bpf_cpumask *cpumask)
 {

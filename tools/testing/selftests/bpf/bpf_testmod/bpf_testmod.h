@@ -5,6 +5,8 @@
 
 #include <linux/types.h>
 
+struct task_struct;
+
 struct bpf_testmod_test_read_ctx {
 	char *buf;
 	loff_t off;
@@ -30,7 +32,17 @@ struct bpf_iter_testmod_seq {
 
 struct bpf_testmod_ops {
 	int (*test_1)(void);
-	int (*test_2)(int a, int b);
+	void (*test_2)(int a, int b);
+	/* Used to test nullable arguments. */
+	int (*test_maybe_null)(int dummy, struct task_struct *task);
+
+	/* The following fields are used to test shadow copies. */
+	char onebyte;
+	struct {
+		int a;
+		int b;
+	} unsupported;
+	int data;
 };
 
 #endif /* _BPF_TESTMOD_H */

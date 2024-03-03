@@ -1079,6 +1079,11 @@ struct btf *btf__new(const void *data, __u32 size)
 	return libbpf_ptr(btf_new(data, size, NULL));
 }
 
+struct btf *btf__new_split(const void *data, __u32 size, struct btf *base_btf)
+{
+	return libbpf_ptr(btf_new(data, size, base_btf));
+}
+
 static struct btf *btf_parse_elf(const char *path, struct btf *base_btf,
 				 struct btf_ext **btf_ext)
 {
@@ -3045,11 +3050,15 @@ done:
 	return btf_ext;
 }
 
-const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size)
+const void *btf_ext__raw_data(const struct btf_ext *btf_ext, __u32 *size)
 {
 	*size = btf_ext->data_size;
 	return btf_ext->data;
 }
+
+__attribute__((alias("btf_ext__raw_data")))
+const void *btf_ext__get_raw_data(const struct btf_ext *btf_ext, __u32 *size);
+
 
 struct btf_dedup;
 
@@ -4932,10 +4941,9 @@ static int btf_dedup_remap_types(struct btf_dedup *d)
  */
 struct btf *btf__load_vmlinux_btf(void)
 {
+	const char *sysfs_btf_path = "/sys/kernel/btf/vmlinux";
+	/* fall back locations, trying to find vmlinux on disk */
 	const char *locations[] = {
-		/* try canonical vmlinux BTF through sysfs first */
-		"/sys/kernel/btf/vmlinux",
-		/* fall back to trying to find vmlinux on disk otherwise */
 		"/boot/vmlinux-%1$s",
 		"/lib/modules/%1$s/vmlinux-%1$s",
 		"/lib/modules/%1$s/build/vmlinux",
@@ -4949,8 +4957,23 @@ struct btf *btf__load_vmlinux_btf(void)
 	struct btf *btf;
 	int i, err;
 
-	uname(&buf);
+	/* is canonical sysfs location accessible? */
+	if (faccessat(AT_FDCWD, sysfs_btf_path, F_OK, AT_EACCESS) < 0) {
+		pr_warn("kernel BTF is missing at '%s', was CONFIG_DEBUG_INFO_BTF enabled?\n",
+			sysfs_btf_path);
+	} else {
+		btf = btf__parse(sysfs_btf_path, NULL);
+		if (!btf) {
+			err = -errno;
+			pr_warn("failed to read kernel BTF from '%s': %d\n", sysfs_btf_path, err);
+			return libbpf_err_ptr(err);
+		}
+		pr_debug("loaded kernel BTF from '%s'\n", path);
+		return btf;
+	}
 
+	/* try fallback locations */
+	uname(&buf);
 	for (i = 0; i < ARRAY_SIZE(locations); i++) {
 		snprintf(path, PATH_MAX, locations[i], buf.release);
 

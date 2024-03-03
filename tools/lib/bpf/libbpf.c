@@ -33,6 +33,7 @@
 #include <linux/filter.h>
 #include <linux/limits.h>
 #include <linux/perf_event.h>
+#include <linux/bpf_perf_event.h>
 #include <linux/ring_buffer.h>
 #include <sys/epoll.h>
 #include <sys/ioctl.h>
@@ -1013,6 +1014,19 @@ static bool bpf_map__is_struct_ops(const struct bpf_map *map)
 	return map->def.type == BPF_MAP_TYPE_STRUCT_OPS;
 }
 
+static bool is_valid_st_ops_program(struct bpf_object *obj,
+				    const struct bpf_program *prog)
+{
+	int i;
+
+	for (i = 0; i < obj->nr_programs; i++) {
+		if (&obj->programs[i] == prog)
+			return prog->type == BPF_PROG_TYPE_STRUCT_OPS;
+	}
+
+	return false;
+}
+
 /* Init the map's fields that depend on kern_btf */
 static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 {
@@ -1101,9 +1115,16 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		if (btf_is_ptr(mtype)) {
 			struct bpf_program *prog;
 
-			prog = st_ops->progs[i];
+			/* Update the value from the shadow type */
+			prog = *(void **)mdata;
+			st_ops->progs[i] = prog;
 			if (!prog)
 				continue;
+			if (!is_valid_st_ops_program(obj, prog)) {
+				pr_warn("struct_ops init_kern %s: member %s is not a struct_ops program\n",
+					map->name, mname);
+				return -ENOTSUP;
+			}
 
 			kern_mtype = skip_mods_and_typedefs(kern_btf,
 							    kern_mtype->type,
@@ -1228,6 +1249,7 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 		map->name = strdup(var_name);
 		if (!map->name)
 			return -ENOMEM;
+		map->btf_value_type_id = type_id;
 
 		map->def.type = BPF_MAP_TYPE_STRUCT_OPS;
 		map->def.key_size = sizeof(int);
@@ -1524,11 +1546,20 @@ static Elf64_Sym *find_elf_var_sym(const struct bpf_object *obj, const char *nam
 	return ERR_PTR(-ENOENT);
 }
 
+/* Some versions of Android don't provide memfd_create() in their libc
+ * implementation, so avoid complications and just go straight to Linux
+ * syscall.
+ */
+static int sys_memfd_create(const char *name, unsigned flags)
+{
+	return syscall(__NR_memfd_create, name, flags);
+}
+
 static int create_placeholder_fd(void)
 {
 	int fd;
 
-	fd = ensure_good_fd(memfd_create("libbpf-placeholder-fd", MFD_CLOEXEC));
+	fd = ensure_good_fd(sys_memfd_create("libbpf-placeholder-fd", MFD_CLOEXEC));
 	if (fd < 0)
 		return -errno;
 	return fd;
@@ -4660,7 +4691,7 @@ bpf_object__probe_loading(struct bpf_object *obj)
 
 bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id)
 {
-	if (obj && obj->gen_loader)
+	if (obj->gen_loader)
 		/* To generate loader program assume the latest kernel
 		 * to avoid doing extra prog_load, map_create syscalls.
 		 */
@@ -4847,6 +4878,10 @@ static int bpf_object__create_map(struct bpf_object *obj, struct bpf_map *map, b
 		create_attr.btf_value_type_id = 0;
 		map->btf_key_type_id = 0;
 		map->btf_value_type_id = 0;
+		break;
+	case BPF_MAP_TYPE_STRUCT_OPS:
+		create_attr.btf_value_type_id = 0;
+		break;
 	default:
 		break;
 	}
@@ -6339,6 +6374,14 @@ static struct {
 	/* all other program types don't have "named" context structs */
 };
 
+/* forward declarations for arch-specific underlying types of bpf_user_pt_regs_t typedef,
+ * for below __builtin_types_compatible_p() checks;
+ * with this approach we don't need any extra arch-specific #ifdef guards
+ */
+struct pt_regs;
+struct user_pt_regs;
+struct user_regs_struct;
+
 static bool need_func_arg_type_fixup(const struct btf *btf, const struct bpf_program *prog,
 				     const char *subprog_name, int arg_idx,
 				     int arg_type_id, const char *ctx_name)
@@ -6379,9 +6422,19 @@ static bool need_func_arg_type_fixup(const struct btf *btf, const struct bpf_pro
 	/* special cases */
 	switch (prog->type) {
 	case BPF_PROG_TYPE_KPROBE:
-	case BPF_PROG_TYPE_PERF_EVENT:
 		/* `struct pt_regs *` is expected, but we need to fix up */
 		if (btf_is_struct(t) && strcmp(tname, "pt_regs") == 0)
+			return true;
+		break;
+	case BPF_PROG_TYPE_PERF_EVENT:
+		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct pt_regs) &&
+		    btf_is_struct(t) && strcmp(tname, "pt_regs") == 0)
+			return true;
+		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct user_pt_regs) &&
+		    btf_is_struct(t) && strcmp(tname, "user_pt_regs") == 0)
+			return true;
+		if (__builtin_types_compatible_p(bpf_user_pt_regs_t, struct user_regs_struct) &&
+		    btf_is_struct(t) && strcmp(tname, "user_regs_struct") == 0)
 			return true;
 		break;
 	case BPF_PROG_TYPE_RAW_TRACEPOINT:
@@ -6462,69 +6515,6 @@ static int clone_func_btf_info(struct btf *btf, int orig_fn_id, struct bpf_progr
 	return fn_id;
 }
 
-static int probe_kern_arg_ctx_tag(void)
-{
-	/* To minimize merge conflicts with BPF token series that refactors
-	 * feature detection code a lot, we don't integrate
-	 * probe_kern_arg_ctx_tag() into kernel_supports() feature-detection
-	 * framework yet, doing our own caching internally.
-	 * This will be cleaned up a bit later when bpf/bpf-next trees settle.
-	 */
-	static int cached_result = -1;
-	static const char strs[] = "\0a\0b\0arg:ctx\0";
-	const __u32 types[] = {
-		/* [1] INT */
-		BTF_TYPE_INT_ENC(1 /* "a" */, BTF_INT_SIGNED, 0, 32, 4),
-		/* [2] PTR -> VOID */
-		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_PTR, 0, 0), 0),
-		/* [3] FUNC_PROTO `int(void *a)` */
-		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 0, 1), 1),
-		BTF_PARAM_ENC(1 /* "a" */, 2),
-		/* [4] FUNC 'a' -> FUNC_PROTO (main prog) */
-		BTF_TYPE_ENC(1 /* "a" */, BTF_INFO_ENC(BTF_KIND_FUNC, 0, BTF_FUNC_GLOBAL), 3),
-		/* [5] FUNC_PROTO `int(void *b __arg_ctx)` */
-		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_FUNC_PROTO, 0, 1), 1),
-		BTF_PARAM_ENC(3 /* "b" */, 2),
-		/* [6] FUNC 'b' -> FUNC_PROTO (subprog) */
-		BTF_TYPE_ENC(3 /* "b" */, BTF_INFO_ENC(BTF_KIND_FUNC, 0, BTF_FUNC_GLOBAL), 5),
-		/* [7] DECL_TAG 'arg:ctx' -> func 'b' arg 'b' */
-		BTF_TYPE_DECL_TAG_ENC(5 /* "arg:ctx" */, 6, 0),
-	};
-	const struct bpf_insn insns[] = {
-		/* main prog */
-		BPF_CALL_REL(+1),
-		BPF_EXIT_INSN(),
-		/* global subprog */
-		BPF_EMIT_CALL(BPF_FUNC_get_func_ip), /* needs PTR_TO_CTX */
-		BPF_EXIT_INSN(),
-	};
-	const struct bpf_func_info_min func_infos[] = {
-		{ 0, 4 }, /* main prog -> FUNC 'a' */
-		{ 2, 6 }, /* subprog -> FUNC 'b' */
-	};
-	LIBBPF_OPTS(bpf_prog_load_opts, opts);
-	int prog_fd, btf_fd, insn_cnt = ARRAY_SIZE(insns);
-
-	if (cached_result >= 0)
-		return cached_result;
-
-	btf_fd = libbpf__load_raw_btf((char *)types, sizeof(types), strs, sizeof(strs), 0);
-	if (btf_fd < 0)
-		return 0;
-
-	opts.prog_btf_fd = btf_fd;
-	opts.func_info = &func_infos;
-	opts.func_info_cnt = ARRAY_SIZE(func_infos);
-	opts.func_info_rec_size = sizeof(func_infos[0]);
-
-	prog_fd = bpf_prog_load(BPF_PROG_TYPE_KPROBE, "det_arg_ctx",
-				"GPL", insns, insn_cnt, &opts);
-	close(btf_fd);
-
-	cached_result = probe_fd(prog_fd);
-	return cached_result;
-}
-
 /* Check if main program or global subprog's function prototype has `arg:ctx`
  * argument tags, and, if necessary, substitute correct type to match what BPF
  * verifier would expect, taking into account specific program type. This
@@ -6549,7 +6539,7 @@ static int bpf_program_fixup_func_info(struct bpf_object *obj, struct bpf_progra
 		return 0;
 
 	/* don't do any fix ups if kernel natively supports __arg_ctx */
-	if (probe_kern_arg_ctx_tag() > 0)
+	if (kernel_supports(obj, FEAT_ARG_CTX_TAG))
 		return 0;
 
 	/* some BPF program types just don't have named context structs, so
@@ -9340,7 +9330,9 @@ static struct bpf_map *find_struct_ops_map_by_offset(struct bpf_object *obj,
 	return NULL;
 }
 
-/* Collect the reloc from ELF and populate the st_ops->progs[] */
+/* Collect the reloc from ELF, populate the st_ops->progs[], and update
+ * st_ops->data for shadow type.
+ */
 static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 					    Elf64_Shdr *shdr, Elf_Data *data)
 {
@@ -9454,6 +9446,14 @@ static int bpf_object__collect_st_ops_relos(struct bpf_object *obj,
 		}
 
 		st_ops->progs[member_idx] = prog;
+
+		/* st_ops->data will be exposed to users, being returned by
+		 * bpf_map__initial_value() as a pointer to the shadow
+		 * type. All function pointers in the original struct type
+		 * should be converted to a pointer to struct bpf_program
+		 * in the shadow type.
+		 */
+		*((struct bpf_program **)(st_ops->data + moff)) = prog;
 	}
 
 	return 0;
@@ -9912,6 +9912,12 @@ int bpf_map__set_initial_value(struct bpf_map *map,
 
 void *bpf_map__initial_value(struct bpf_map *map, size_t *psize)
 {
+	if (bpf_map__is_struct_ops(map)) {
+		if (psize)
+			*psize = map->def.value_size;
+		return map->st_ops->data;
+	}
+
 	if (!map->mmaped)
 		return NULL;
 	*psize = map->def.value_size;

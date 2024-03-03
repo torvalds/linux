@@ -117,10 +117,10 @@ __bpf_kfunc void bpf_xdp_xfrm_state_release(struct xfrm_state *x)
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(xfrm_state_kfunc_set)
+BTF_KFUNCS_START(xfrm_state_kfunc_set)
 BTF_ID_FLAGS(func, bpf_xdp_get_xfrm_state, KF_RET_NULL | KF_ACQUIRE)
 BTF_ID_FLAGS(func, bpf_xdp_xfrm_state_release, KF_RELEASE)
-BTF_SET8_END(xfrm_state_kfunc_set)
+BTF_KFUNCS_END(xfrm_state_kfunc_set)
 
 static const struct btf_kfunc_id_set xfrm_state_xdp_kfunc_set = {
 	.owner = THIS_MODULE,

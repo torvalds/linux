@@ -251,10 +251,7 @@ struct bpf_list_node_kern {
 } __attribute__((aligned(8)));
 
 struct bpf_map {
-	/* The first two cachelines with read-mostly members of which some
-	 * are also accessed in fast-path (e.g. ops, max_entries).
-	 */
-	const struct bpf_map_ops *ops ____cacheline_aligned;
+	const struct bpf_map_ops *ops;
 	struct bpf_map *inner_map_meta;
 #ifdef CONFIG_SECURITY
 	void *security;
@@ -276,17 +273,14 @@ struct bpf_map {
 	struct obj_cgroup *objcg;
 #endif
 	char name[BPF_OBJ_NAME_LEN];
-	/* The 3rd and 4th cacheline with misc members to avoid false sharing
-	 * particularly with refcounting.
-	 */
-	atomic64_t refcnt ____cacheline_aligned;
+	struct mutex freeze_mutex;
+	atomic64_t refcnt;
 	atomic64_t usercnt;
 	/* rcu is used before freeing and work is only used during freeing */
 	union {
 		struct work_struct work;
 		struct rcu_head rcu;
 	};
-	struct mutex freeze_mutex;
 	atomic64_t writecnt;
 	/* 'Ownership' of program-containing map is claimed by the first program
 	 * that is going to use this map or by the first program which FD is
@@ -1189,7 +1183,6 @@ struct bpf_trampoline {
 	int progs_cnt[BPF_TRAMP_MAX];
 	/* Executable image of trampoline */
 	struct bpf_tramp_image *cur_image;
-	struct module *mod;
 };
 
 struct bpf_attach_target_info {
@@ -1416,6 +1409,7 @@ struct bpf_jit_poke_descriptor {
 struct bpf_ctx_arg_aux {
 	u32 offset;
 	enum bpf_reg_type reg_type;
+	struct btf *btf;
 	u32 btf_id;
 };
 
@@ -1709,6 +1703,19 @@ struct bpf_struct_ops {
 	struct btf_func_model func_models[BPF_STRUCT_OPS_MAX_NR_MEMBERS];
 };
 
+/* Every member of a struct_ops type has an instance even a member is not
+ * an operator (function pointer). The "info" field will be assigned to
+ * prog->aux->ctx_arg_info of BPF struct_ops programs to provide the
+ * argument information required by the verifier to verify the program.
+ *
+ * btf_ctx_access() will lookup prog->aux->ctx_arg_info to find the
+ * corresponding entry for an given argument.
+ */
+struct bpf_struct_ops_arg_info {
+	struct bpf_ctx_arg_aux *info;
+	u32 cnt;
+};
+
 struct bpf_struct_ops_desc {
 	struct bpf_struct_ops *st_ops;
 
@@ -1716,6 +1723,9 @@ struct bpf_struct_ops_desc {
 	const struct btf_type *value_type;
 	u32 type_id;
 	u32 value_id;
+
+	/* Collection of argument information for each member */
+	struct bpf_struct_ops_arg_info *arg_info;
 };
 
 enum bpf_struct_ops_state {
@@ -1790,6 +1800,7 @@ int bpf_struct_ops_desc_init(struct bpf_struct_ops_desc *st_ops_desc,
 			     struct btf *btf,
 			     struct bpf_verifier_log *log);
 void bpf_map_struct_ops_info_fill(struct bpf_map_info *info, struct bpf_map *map);
+void bpf_struct_ops_desc_release(struct bpf_struct_ops_desc *st_ops_desc);
 #else
 #define register_bpf_struct_ops(st_ops, type) ({ (void *)(st_ops); 0; })
 static inline bool bpf_try_module_get(const void *data, struct module *owner)
@@ -1811,6 +1822,10 @@ static inline int bpf_struct_ops_link_create(union bpf_attr *attr)
 	return -EOPNOTSUPP;
 }
 static inline void bpf_map_struct_ops_info_fill(struct bpf_map_info *info, struct bpf_map *map)
+{
+}
+
+static inline void bpf_struct_ops_desc_release(struct bpf_struct_ops_desc *st_ops_desc)
 {
 }
 

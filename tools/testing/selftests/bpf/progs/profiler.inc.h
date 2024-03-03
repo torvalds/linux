@@ -8,6 +8,7 @@
 #include "profiler.h"
 #include "err.h"
 #include "bpf_experimental.h"
+#include "bpf_compiler.h"
 
 #ifndef NULL
 #define NULL 0
@@ -169,7 +170,7 @@ static INLINE int get_var_spid_index(struct var_kill_data_arr_t* arr_struct,
 				     int spid)
 {
 #ifdef UNROLL
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < ARRAY_SIZE(arr_struct->array); i++)
 		if (arr_struct->array[i].meta.pid == spid)
@@ -185,7 +186,7 @@ static INLINE void populate_ancestors(struct task_struct* task,
 
 	ancestors_data->num_ancestors = 0;
 #ifdef UNROLL
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (num_ancestors = 0; num_ancestors < MAX_ANCESTORS; num_ancestors++) {
 		parent = BPF_CORE_READ(parent, real_parent);
@@ -212,7 +213,7 @@ static INLINE void* read_full_cgroup_path(struct kernfs_node* cgroup_node,
 	size_t filepart_length;
 
 #ifdef UNROLL
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < MAX_CGROUPS_PATH_DEPTH; i++) {
 		filepart_length =
@@ -261,7 +262,7 @@ static INLINE void* populate_cgroup_info(struct cgroup_data_t* cgroup_data,
 		int cgrp_id = bpf_core_enum_value(enum cgroup_subsys_id___local,
 						  pids_cgrp_id___local);
 #ifdef UNROLL
-#pragma unroll
+		__pragma_loop_unroll
 #endif
 		for (int i = 0; i < CGROUP_SUBSYS_COUNT; i++) {
 			struct cgroup_subsys_state* subsys =
@@ -402,7 +403,7 @@ static INLINE int trace_var_sys_kill(void* ctx, int tpid, int sig)
 			if (kill_data == NULL)
 				return 0;
 #ifdef UNROLL
-#pragma unroll
+			__pragma_loop_unroll
 #endif
 			for (int i = 0; i < ARRAY_SIZE(arr_struct->array); i++)
 				if (arr_struct->array[i].meta.pid == 0) {
@@ -482,7 +483,7 @@ read_absolute_file_path_from_dentry(struct dentry* filp_dentry, void* payload)
 	struct dentry* parent_dentry;
 
 #ifdef UNROLL
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < MAX_PATH_DEPTH; i++) {
 		filepart_length =
@@ -508,7 +509,7 @@ is_ancestor_in_allowed_inodes(struct dentry* filp_dentry)
 {
 	struct dentry* parent_dentry;
 #ifdef UNROLL
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < MAX_PATH_DEPTH; i++) {
 		u64 dir_ino = BPF_CORE_READ(filp_dentry, d_inode, i_ino);
@@ -629,7 +630,7 @@ int raw_tracepoint__sched_process_exit(void* ctx)
 	struct kernfs_node* proc_kernfs = BPF_CORE_READ(task, cgroups, dfl_cgrp, kn);
 
 #ifdef UNROLL
-#pragma unroll
+	__pragma_loop_unroll
 #endif
 	for (int i = 0; i < ARRAY_SIZE(arr_struct->array); i++) {
 		struct var_kill_data_t* past_kill_data = &arr_struct->array[i];

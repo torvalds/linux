@@ -217,7 +217,7 @@ __naked void uninit_u32_from_the_stack(void)
 
 SEC("tc")
 __description("Spill a u32 const scalar.  Refill as u16.  Offset to skb->data")
-__failure __msg("invalid access to packet")
+__success __retval(0)
 __naked void u16_offset_to_skb_data(void)
 {
 	asm volatile ("					\
@@ -225,13 +225,19 @@ __naked void u16_offset_to_skb_data(void)
 	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	w4 = 20;					\
 	*(u32*)(r10 - 8) = r4;				\
-	r4 = *(u16*)(r10 - 8);				\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r4 = *(u16*)(r10 - 8);"
+#else
+	"r4 = *(u16*)(r10 - 6);"
+#endif
+	"						\
 	r0 = r2;					\
-	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */\
+	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=20 */\
 	r0 += r4;					\
-	/* if (r0 > r3) R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=umax=65535 */\
+	/* if (r0 > r3) R0=pkt,off=20 R2=pkt R3=pkt_end R4=20 */\
 	if r0 > r3 goto l0_%=;				\
-	/* r0 = *(u32 *)r2 R0=pkt,umax=65535 R2=pkt R3=pkt_end R4=20 */\
+	/* r0 = *(u32 *)r2 R0=pkt,off=20 R2=pkt R3=pkt_end R4=20 */\
 	r0 = *(u32*)(r2 + 0);				\
 l0_%=:	r0 = 0;						\
 	exit;						\
@@ -268,7 +274,7 @@ l0_%=:	r0 = 0;						\
 }
 
 SEC("tc")
-__description("Spill a u32 const scalar.  Refill as u16 from fp-6.  Offset to skb->data")
+__description("Spill a u32 const scalar.  Refill as u16 from MSB.  Offset to skb->data")
 __failure __msg("invalid access to packet")
 __naked void _6_offset_to_skb_data(void)
 {
@@ -277,7 +283,13 @@ __naked void _6_offset_to_skb_data(void)
 	r3 = *(u32*)(r1 + %[__sk_buff_data_end]);	\
 	w4 = 20;					\
 	*(u32*)(r10 - 8) = r4;				\
-	r4 = *(u16*)(r10 - 6);				\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r4 = *(u16*)(r10 - 6);"
+#else
+	"r4 = *(u16*)(r10 - 8);"
+#endif
+	"						\
 	r0 = r2;					\
 	/* r0 += r4 R0=pkt R2=pkt R3=pkt_end R4=umax=65535 */\
 	r0 += r4;					\
@@ -452,9 +464,9 @@ l0_%=:	r1 >>= 16;					\
 SEC("raw_tp")
 __log_level(2)
 __success
-__msg("fp-8=0m??mmmm")
-__msg("fp-16=00mm??mm")
-__msg("fp-24=00mm???m")
+__msg("fp-8=0m??scalar()")
+__msg("fp-16=00mm??scalar()")
+__msg("fp-24=00mm???scalar()")
 __naked void spill_subregs_preserve_stack_zero(void)
 {
 	asm volatile (
@@ -937,6 +949,298 @@ l0_%=:	r0 = 0;						\
 	exit;						\
 "	:
 	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("spill unbounded reg, then range check src")
+__success __retval(0)
+__naked void spill_unbounded(void)
+{
+	asm volatile ("					\
+	/* Produce an unbounded scalar. */		\
+	call %[bpf_get_prandom_u32];			\
+	/* Spill r0 to stack. */			\
+	*(u64*)(r10 - 8) = r0;				\
+	/* Boundary check on r0. */			\
+	if r0 > 16 goto l0_%=;				\
+	/* Fill r0 from stack. */			\
+	r0 = *(u64*)(r10 - 8);				\
+	/* Boundary check on r0 with predetermined result. */\
+	if r0 <= 16 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit fill after 64-bit spill")
+__success __retval(0)
+__naked void fill_32bit_after_spill_64bit(void)
+{
+	asm volatile("					\
+	/* Randomize the upper 32 bits. */		\
+	call %[bpf_get_prandom_u32];			\
+	r0 <<= 32;					\
+	/* 64-bit spill r0 to stack. */			\
+	*(u64*)(r10 - 8) = r0;				\
+	/* 32-bit fill r0 from stack. */		\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r0 = *(u32*)(r10 - 8);"
+#else
+	"r0 = *(u32*)(r10 - 4);"
+#endif
+	"						\
+	/* Boundary check on r0 with predetermined result. */\
+	if r0 == 0 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+l0_%=:	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit fill after 64-bit spill of 32-bit value should preserve ID")
+__success __retval(0)
+__naked void fill_32bit_after_spill_64bit_preserve_id(void)
+{
+	asm volatile ("					\
+	/* Randomize the lower 32 bits. */		\
+	call %[bpf_get_prandom_u32];			\
+	w0 &= 0xffffffff;				\
+	/* 64-bit spill r0 to stack - should assign an ID. */\
+	*(u64*)(r10 - 8) = r0;				\
+	/* 32-bit fill r1 from stack - should preserve the ID. */\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r1 = *(u32*)(r10 - 8);"
+#else
+	"r1 = *(u32*)(r10 - 4);"
+#endif
+	"						\
+	/* Compare r1 with another register to trigger find_equal_scalars. */\
+	r2 = 0;						\
+	if r1 != r2 goto l0_%=;				\
+	/* The result of this comparison is predefined. */\
+	if r0 == r2 goto l0_%=;				\
+	/* Dead branch: the verifier should prune it. Do an invalid memory\
+	 * access if the verifier follows it.		\
+	 */						\
+	r0 = *(u64*)(r9 + 0);				\
+	exit;						\
+l0_%=:	r0 = 0;						\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+SEC("xdp")
+__description("32-bit fill after 64-bit spill should clear ID")
+__failure __msg("math between ctx pointer and 4294967295 is not allowed")
+__naked void fill_32bit_after_spill_64bit_clear_id(void)
+{
+	asm volatile ("					\
+	r6 = r1;					\
+	/* Roll one bit to force the verifier to track both branches. */\
+	call %[bpf_get_prandom_u32];			\
+	r0 &= 0x8;					\
+	/* Put a large number into r1. */		\
+	r1 = 0xffffffff;				\
+	r1 <<= 32;					\
+	r1 += r0;					\
+	/* 64-bit spill r1 to stack - should assign an ID. */\
+	*(u64*)(r10 - 8) = r1;				\
+	/* 32-bit fill r2 from stack - should clear the ID. */\
+	"
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+	"r2 = *(u32*)(r10 - 8);"
+#else
+	"r2 = *(u32*)(r10 - 4);"
+#endif
+	"						\
+	/* Compare r2 with another register to trigger find_equal_scalars.\
+	 * Having one random bit is important here, otherwise the verifier cuts\
+	 * the corners. If the ID was mistakenly preserved on fill, this would\
+	 * cause the verifier to think that r1 is also equal to zero in one of\
+	 * the branches, and equal to eight on the other branch.\
+	 */						\
+	r3 = 0;						\
+	if r2 != r3 goto l0_%=;				\
+l0_%=:	r1 >>= 32;					\
+	/* The verifier shouldn't propagate r2's range to r1, so it should\
+	 * still remember r1 = 0xffffffff and reject the below.\
+	 */						\
+	r6 += r1;					\
+	r0 = *(u32*)(r6 + 0);				\
+	exit;						\
+"	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all);
+}
+
+/* stacksafe(): check if stack spill of an imprecise scalar in old state
+ * is considered equivalent to STACK_{MISC,INVALID} in cur state.
+ */
+SEC("socket")
+__success __log_level(2)
+__msg("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg("8: safe")
+__msg("processed 11 insns")
+/* STACK_INVALID should prevent verifier in unpriv mode from
+ * considering states equivalent and force an error on second
+ * verification path (entry - label 1 - label 2).
+ */
+__failure_unpriv
+__msg_unpriv("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg_unpriv("9: (95) exit")
+__msg_unpriv("8: (79) r1 = *(u64 *)(r10 -8)")
+__msg_unpriv("invalid read from stack off -8+2 size 8")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_imprecise_scalar_vs_cur_stack_misc(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure scalar at fp-8 */
+	"r0 = 42;"
+	"*(u64*)(r10 - 8) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure STACK_{MISC,INVALID} at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u16*)(r10 - 8) = r0;"
+	"*(u16*)(r10 - 4) = r0;"
+"2:"
+	/* read fp-8, should be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/* stacksafe(): check that stack spill of a precise scalar in old state
+ * is not considered equivalent to STACK_MISC in cur state.
+ */
+SEC("socket")
+__success __log_level(2)
+/* verifier should visit 'if r1 == 0x2a ...' two times:
+ * - once for path entry - label 2;
+ * - once for path entry - label 1 - label 2.
+ */
+__msg("if r1 == 0x2a goto pc+0")
+__msg("if r1 == 0x2a goto pc+0")
+__msg("processed 15 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_precise_scalar_vs_cur_stack_misc(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure scalar at fp-8 */
+	"r0 = 42;"
+	"*(u64*)(r10 - 8) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure STACK_MISC at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u64*)(r10 - 8) = r0;"
+	"*(u32*)(r10 - 4) = r0;"
+"2:"
+	/* read fp-8, should not be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	/* use r1 in precise context */
+	"if r1 == 42 goto +0;"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/* stacksafe(): check if STACK_MISC in old state is considered
+ * equivalent to stack spill of a scalar in cur state.
+ */
+SEC("socket")
+__success  __log_level(2)
+__msg("8: (79) r0 = *(u64 *)(r10 -8)")
+__msg("8: safe")
+__msg("processed 11 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_stack_misc_vs_cur_scalar(void)
+{
+	asm volatile(
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure STACK_{MISC,INVALID} at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u16*)(r10 - 8) = r0;"
+	"*(u16*)(r10 - 4) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure scalar at fp-8 */
+	"r0 = 42;"
+	"*(u64*)(r10 - 8) = r0;"
+"2:"
+	/* read fp-8, should be considered safe on second visit */
+	"r0 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
+	: __clobber_all);
+}
+
+/* stacksafe(): check that STACK_MISC in old state is not considered
+ * equivalent to stack spill of a non-scalar in cur state.
+ */
+SEC("socket")
+__success  __log_level(2)
+/* verifier should process exit instructions twice:
+ * - once for path entry - label 2;
+ * - once for path entry - label 1 - label 2.
+ */
+__msg("r1 = *(u64 *)(r10 -8)")
+__msg("exit")
+__msg("r1 = *(u64 *)(r10 -8)")
+__msg("exit")
+__msg("processed 11 insns")
+__flag(BPF_F_TEST_STATE_FREQ)
+__naked void old_stack_misc_vs_cur_ctx_ptr(void)
+{
+	asm volatile(
+	/* remember context pointer in r9 */
+	"r9 = r1;"
+	/* get a random value for branching */
+	"call %[bpf_ktime_get_ns];"
+	"if r0 == 0 goto 1f;"
+	/* conjure STACK_MISC at fp-8 */
+	"call %[bpf_ktime_get_ns];"
+	"*(u64*)(r10 - 8) = r0;"
+	"*(u32*)(r10 - 4) = r0;"
+	"goto 2f;"
+"1:"
+	/* conjure context pointer in fp-8 */
+	"*(u64*)(r10 - 8) = r9;"
+"2:"
+	/* read fp-8, should not be considered safe on second visit */
+	"r1 = *(u64*)(r10 - 8);"
+	"exit;"
+	:
+	: __imm(bpf_ktime_get_ns)
 	: __clobber_all);
 }
 

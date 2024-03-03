@@ -169,9 +169,9 @@ void test_log_fixup(void)
 	if (test__start_subtest("bad_core_relo_trunc_none"))
 		bad_core_relo(0, TRUNC_NONE /* full buf */);
 	if (test__start_subtest("bad_core_relo_trunc_partial"))
-		bad_core_relo(280, TRUNC_PARTIAL /* truncate original log a bit */);
+		bad_core_relo(300, TRUNC_PARTIAL /* truncate original log a bit */);
 	if (test__start_subtest("bad_core_relo_trunc_full"))
-		bad_core_relo(220, TRUNC_FULL  /* truncate also libbpf's message patch */);
+		bad_core_relo(240, TRUNC_FULL  /* truncate also libbpf's message patch */);
 	if (test__start_subtest("bad_core_relo_subprog"))
 		bad_core_relo_subprog();
 	if (test__start_subtest("missing_map"))

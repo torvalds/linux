@@ -2732,7 +2732,7 @@ static int finalize_btf(struct bpf_linker *linker)
 
 	/* Emit .BTF.ext section */
 	if (linker->btf_ext) {
-		raw_data = btf_ext__get_raw_data(linker->btf_ext, &raw_sz);
+		raw_data = btf_ext__raw_data(linker->btf_ext, &raw_sz);
 		if (!raw_data)
 			return -ENOMEM;
 

@@ -257,18 +257,48 @@ EXAMPLES
   	return 0;
   }
 
-This is example BPF application with two BPF programs and a mix of BPF maps
-and global variables. Source code is split across two source code files.
+**$ cat example3.bpf.c**
+
+::
+
+  #include <linux/ptrace.h>
+  #include <linux/bpf.h>
+  #include <bpf/bpf_helpers.h>
+  /* This header file is provided by the bpf_testmod module. */
+  #include "bpf_testmod.h"
+
+  int test_2_result = 0;
+
+  /* bpf_Testmod.ko calls this function, passing a "4"
+   * and testmod_map->data.
+   */
+  SEC("struct_ops/test_2")
+  void BPF_PROG(test_2, int a, int b)
+  {
+	test_2_result = a + b;
+  }
+
+  SEC(".struct_ops")
+  struct bpf_testmod_ops testmod_map = {
+	.test_2 = (void *)test_2,
+	.data = 0x1,
+  };
+
+This is example BPF application with three BPF programs and a mix of BPF
+maps and global variables. Source code is split across three source code
+files.
 
 **$ clang --target=bpf -g example1.bpf.c -o example1.bpf.o**
 
 **$ clang --target=bpf -g example2.bpf.c -o example2.bpf.o**
 
-**$ bpftool gen object example.bpf.o example1.bpf.o example2.bpf.o**
+**$ clang --target=bpf -g example3.bpf.c -o example3.bpf.o**
 
-This set of commands compiles *example1.bpf.c* and *example2.bpf.c*
-individually and then statically links respective object files into the final
-BPF ELF object file *example.bpf.o*.
+**$ bpftool gen object example.bpf.o example1.bpf.o example2.bpf.o example3.bpf.o**
+
+This set of commands compiles *example1.bpf.c*, *example2.bpf.c* and
+*example3.bpf.c* individually and then statically links respective object
+files into the final BPF ELF object file *example.bpf.o*.
 
 **$ bpftool gen skeleton example.bpf.o name example | tee example.skel.h**
 
@@ -291,7 +321,15 @@ BPF ELF object file *example.bpf.o*.
   		struct bpf_map *data;
   		struct bpf_map *bss;
   		struct bpf_map *my_map;
+		struct bpf_map *testmod_map;
   	} maps;
+	struct {
+		struct example__testmod_map__bpf_testmod_ops {
+			const struct bpf_program *test_1;
+			const struct bpf_program *test_2;
+			int data;
+		} *testmod_map;
+	} struct_ops;
   	struct {
   		struct bpf_program *handle_sys_enter;
   		struct bpf_program *handle_sys_exit;
@@ -304,6 +342,7 @@ BPF ELF object file *example.bpf.o*.
   		struct {
   			int x;
   		} data;
+		int test_2_result;
   	} *bss;
   	struct example__data {
   		_Bool global_flag;
@@ -342,9 +381,15 @@ BPF ELF object file *example.bpf.o*.
 
   	skel->rodata->param1 = 128;
 
+	/* Change the value through the pointer of shadow type */
+	skel->struct_ops.testmod_map->data = 13;
+
   	err = example__load(skel);
   	if (err)
   		goto cleanup;
+
+	/* The result of the function test_2() */
+	printf("test_2_result: %d\n", skel->bss->test_2_result);
 
   	err = example__attach(skel);
   	if (err)
@@ -372,6 +417,7 @@ BPF ELF object file *example.bpf.o*.
 
 ::
 
+  test_2_result: 17
   my_map name: my_map
   sys_enter prog FD: 8
   my_static_var: 7

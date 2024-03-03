@@ -6,13 +6,13 @@
 
 char tp_name[128];
 
-SEC("lsm/bpf")
+SEC("lsm.s/bpf")
 int BPF_PROG(lsm_run, int cmd, union bpf_attr *attr, unsigned int size)
 {
 	switch (cmd) {
 	case BPF_RAW_TRACEPOINT_OPEN:
-		bpf_probe_read_user_str(tp_name, sizeof(tp_name) - 1,
-					(void *)attr->raw_tracepoint.name);
+		bpf_copy_from_user(tp_name, sizeof(tp_name) - 1,
+				   (void *)attr->raw_tracepoint.name);
 		break;
 	default:
 		break;

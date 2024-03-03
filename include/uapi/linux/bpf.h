@@ -77,10 +77,27 @@ struct bpf_insn {
 	__s32	imm;		/* signed immediate constant */
 };
 
-/* Key of an a BPF_MAP_TYPE_LPM_TRIE entry */
+/* Deprecated: use struct bpf_lpm_trie_key_u8 (when the "data" member is needed for
+ * byte access) or struct bpf_lpm_trie_key_hdr (when using an alternative type for
+ * the trailing flexible array member) instead.
+ */
 struct bpf_lpm_trie_key {
 	__u32	prefixlen;	/* up to 32 for AF_INET, 128 for AF_INET6 */
 	__u8	data[0];	/* Arbitrary size */
+};
+
+/* Header for bpf_lpm_trie_key structs */
+struct bpf_lpm_trie_key_hdr {
+	__u32	prefixlen;
+};
+
+/* Key of an a BPF_MAP_TYPE_LPM_TRIE entry, with trailing byte array. */
+struct bpf_lpm_trie_key_u8 {
+	union {
+		struct bpf_lpm_trie_key_hdr	hdr;
+		__u32				prefixlen;
+	};
+	__u8	data[];		/* Arbitrary size */
 };
 
 struct bpf_cgroup_storage_key {
@@ -617,7 +634,11 @@ union bpf_iter_link_info {
  *		to NULL to begin the batched operation. After each subsequent
  *		**BPF_MAP_LOOKUP_BATCH**, the caller should pass the resultant
  *		*out_batch* as the *in_batch* for the next operation to
- *		continue iteration from the current point.
+ *		continue iteration from the current point. Both *in_batch* and
+ *		*out_batch* must point to memory large enough to hold a key,
+ *		except for maps of type **BPF_MAP_TYPE_{HASH, PERCPU_HASH,
+ *		LRU_HASH, LRU_PERCPU_HASH}**, for which batch parameters
+ *		must be at least 4 bytes wide regardless of key size.
  *
  *		The *keys* and *values* are output parameters which must point
  *		to memory large enough to hold *count* items based on the key

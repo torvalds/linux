@@ -610,6 +610,7 @@ struct bpf_subprog_arg_info {
 	enum bpf_arg_type arg_type;
 	union {
 		u32 mem_size;
+		u32 btf_id;
 	};
 };
 
@@ -916,6 +917,15 @@ static inline void mark_verifier_state_scratched(struct bpf_verifier_env *env)
 {
 	env->scratched_regs = ~0U;
 	env->scratched_stack_slots = ~0ULL;
+}
+
+static inline bool bpf_stack_narrow_access_ok(int off, int fill_size, int spill_size)
+{
+#ifdef __BIG_ENDIAN
+	off -= spill_size - fill_size;
+#endif
+
+	return !(off % BPF_REG_SIZE);
 }
 
 const char *reg_type_str(struct bpf_verifier_env *env, enum bpf_reg_type type);

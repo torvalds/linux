@@ -1466,11 +1466,6 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 config HAVE_PCSPKR_PLATFORM
 	bool
 
-# interpreter that classic socket filters depend on
-config BPF
-	bool
-	select CRYPTO_LIB_SHA1
-
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
 	# Unhide debug options, to make the on-by-default options visible

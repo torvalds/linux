@@ -16,15 +16,22 @@ int BPF_PROG(test_1)
 }
 
 SEC("struct_ops/test_2")
-int BPF_PROG(test_2, int a, int b)
+void BPF_PROG(test_2, int a, int b)
 {
 	test_2_result = a + b;
-	return a + b;
+}
+
+SEC("struct_ops/test_3")
+int BPF_PROG(test_3, int a, int b)
+{
+	test_2_result = a + b + 3;
+	return a + b + 3;
 }
 
 SEC(".struct_ops.link")
 struct bpf_testmod_ops testmod_1 = {
 	.test_1 = (void *)test_1,
 	.test_2 = (void *)test_2,
+	.data = 0x1,
 };
 

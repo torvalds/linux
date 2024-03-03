@@ -5,6 +5,7 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include "bpf_compiler.h"
 
 #define ARRAY_SIZE(x) (int)(sizeof(x) / sizeof((x)[0]))
 
@@ -183,7 +184,7 @@ int iter_pragma_unroll_loop(const void *ctx)
 	MY_PID_GUARD();
 
 	bpf_iter_num_new(&it, 0, 2);
-#pragma nounroll
+	__pragma_loop_no_unroll
 	for (i = 0; i < 3; i++) {
 		v = bpf_iter_num_next(&it);
 		bpf_printk("ITER_BASIC: E3 VAL: i=%d v=%d", i, v ? *v : -1);
@@ -238,7 +239,7 @@ int iter_multiple_sequential_loops(const void *ctx)
 	bpf_iter_num_destroy(&it);
 
 	bpf_iter_num_new(&it, 0, 2);
-#pragma nounroll
+	__pragma_loop_no_unroll
 	for (i = 0; i < 3; i++) {
 		v = bpf_iter_num_next(&it);
 		bpf_printk("ITER_BASIC: E3 VAL: i=%d v=%d", i, v ? *v : -1);

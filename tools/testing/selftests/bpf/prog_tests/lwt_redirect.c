@@ -54,6 +54,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define NETNS "ns_lwt_redirect"
 #include "lwt_helpers.h"
 #include "test_progs.h"
 #include "network_helpers.h"
@@ -85,7 +86,7 @@ static void ping_dev(const char *dev, bool is_ingress)
 		snprintf(ip, sizeof(ip), "20.0.0.%d", link_index);
 
 	/* We won't get a reply. Don't fail here */
-	SYS_NOFAIL("ping %s -c1 -W1 -s %d >/dev/null 2>&1",
+	SYS_NOFAIL("ping %s -c1 -W1 -s %d",
 		   ip, ICMP_PAYLOAD_SIZE);
 }
 
@@ -203,6 +204,7 @@ static int setup_redirect_target(const char *target_dev, bool need_mac)
 	if (!ASSERT_GE(target_index, 0, "if_nametoindex"))
 		goto fail;
 
+	SYS(fail, "sysctl -w net.ipv6.conf.all.disable_ipv6=1");
 	SYS(fail, "ip link add link_err type dummy");
 	SYS(fail, "ip link set lo up");
 	SYS(fail, "ip addr add dev lo " LOCAL_SRC "/32");
