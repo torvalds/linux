@@ -569,7 +569,7 @@ uspace_segv:
 /*
  *	SH-DSP support gerg@snapgear.com.
  */
-int is_dsp_inst(struct pt_regs *regs)
+static int is_dsp_inst(struct pt_regs *regs)
 {
 	unsigned short inst = 0;
 
@@ -591,7 +591,7 @@ int is_dsp_inst(struct pt_regs *regs)
 	return 0;
 }
 #else
-#define is_dsp_inst(regs)	(0)
+static inline int is_dsp_inst(struct pt_regs *regs) { return 0; }
 #endif /* CONFIG_SH_DSP */
 
 #ifdef CONFIG_CPU_SH2A
