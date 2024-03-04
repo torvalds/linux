@@ -242,7 +242,6 @@ void symbol__calc_percent(struct symbol *sym, struct evsel *evsel);
 struct sym_hist {
 	u64		      nr_samples;
 	u64		      period;
-	struct sym_hist_entry addr[];
 };
 
 struct cyc_hist {
@@ -278,7 +277,6 @@ struct cyc_hist {
  */
 struct annotated_source {
 	struct list_head	source;
-	size_t			sizeof_sym_hist;
 	struct sym_hist		*histograms;
 	struct annotation_line	**offsets;
 	struct hashmap	   	*samples;
@@ -348,7 +346,7 @@ void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *m
 
 static inline struct sym_hist *annotated_source__histogram(struct annotated_source *src, int idx)
 {
-	return ((void *)src->histograms) + (src->sizeof_sym_hist * idx);
+	return &src->histograms[idx];
 }
 
 static inline struct sym_hist *annotation__histogram(struct annotation *notes, int idx)

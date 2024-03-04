@@ -896,33 +896,10 @@ static __maybe_unused void annotated_source__delete(struct annotated_source *src
 }
 
 static int annotated_source__alloc_histograms(struct annotated_source *src,
-					      size_t size, int nr_hists)
+					      int nr_hists)
 {
-	size_t sizeof_sym_hist;
-
-	/*
-	 * Add buffer of one element for zero length symbol.
-	 * When sample is taken from first instruction of
-	 * zero length symbol, perf still resolves it and
-	 * shows symbol name in perf report and allows to
-	 * annotate it.
-	 */
-	if (size == 0)
-		size = 1;
-
-	/* Check for overflow when calculating sizeof_sym_hist */
-	if (size > (SIZE_MAX - sizeof(struct sym_hist)) / sizeof(struct sym_hist_entry))
-		return -1;
-
-	sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(struct sym_hist_entry));
-
-	/* Check for overflow in zalloc argument */
-	if (sizeof_sym_hist > SIZE_MAX / nr_hists)
-		return -1;
-
-	src->sizeof_sym_hist = sizeof_sym_hist;
 	src->nr_histograms   = nr_hists;
-	src->histograms	     = calloc(nr_hists, sizeof_sym_hist) ;
+	src->histograms	     = calloc(nr_hists, sizeof(*src->histograms));
 
 	if (src->histograms == NULL)
 		return -1;
@@ -941,7 +918,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 	annotation__lock(notes);
 	if (notes->src != NULL) {
 		memset(notes->src->histograms, 0,
-		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
+		       notes->src->nr_histograms * sizeof(*notes->src->histograms));
 		hashmap__clear(notes->src->samples);
 	}
 	if (notes->branch && notes->branch->cycles_hist) {
@@ -1039,9 +1016,7 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 	}
 
 	h->nr_samples++;
-	h->addr[offset].nr_samples++;
 	h->period += sample->period;
-	h->addr[offset].period += sample->period;
 	entry->nr_samples++;
 	entry->period += sample->period;
 
@@ -1094,8 +1069,7 @@ struct annotated_source *symbol__hists(struct symbol *sym, int nr_hists)
 
 	if (notes->src->histograms == NULL) {
 alloc_histograms:
-		annotated_source__alloc_histograms(notes->src, symbol__size(sym),
-						   nr_hists);
+		annotated_source__alloc_histograms(notes->src, nr_hists);
 	}
 
 	return notes->src;
@@ -2854,7 +2828,7 @@ void symbol__annotate_zero_histogram(struct symbol *sym, int evidx)
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
 
-	memset(h, 0, notes->src->sizeof_sym_hist);
+	memset(h, 0, sizeof(*notes->src->histograms) * notes->src->nr_histograms);
 }
 
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
