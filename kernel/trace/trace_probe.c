@@ -594,6 +594,8 @@ static int parse_btf_field(char *fieldname, const struct btf_type *type,
 	return 0;
 }
 
+static int __store_entry_arg(struct trace_probe *tp, int argnum);
+
 static int parse_btf_arg(char *varname,
 			 struct fetch_insn **pcode, struct fetch_insn *end,
 			 struct traceprobe_parse_context *ctx)
@@ -618,11 +620,7 @@ static int parse_btf_arg(char *varname,
 		return -EOPNOTSUPP;
 	}
 
-	if (ctx->flags & TPARG_FL_RETURN) {
-		if (strcmp(varname, "$retval") != 0) {
-			trace_probe_log_err(ctx->offset, NO_BTFARG);
-			return -ENOENT;
-		}
+	if (ctx->flags & TPARG_FL_RETURN && !strcmp(varname, "$retval")) {
 		code->op = FETCH_OP_RETVAL;
 		/* Check whether the function return type is not void */
 		if (query_btf_context(ctx) == 0) {
@@ -654,11 +652,21 @@ static int parse_btf_arg(char *varname,
 		const char *name = btf_name_by_offset(ctx->btf, params[i].name_off);
 
 		if (name && !strcmp(name, varname)) {
-			code->op = FETCH_OP_ARG;
-			if (ctx->flags & TPARG_FL_TPOINT)
-				code->param = i + 1;
-			else
-				code->param = i;
+			if (tparg_is_function_entry(ctx->flags)) {
+				code->op = FETCH_OP_ARG;
+				if (ctx->flags & TPARG_FL_TPOINT)
+					code->param = i + 1;
+				else
+					code->param = i;
+			} else if (tparg_is_function_return(ctx->flags)) {
+				code->op = FETCH_OP_EDATA;
+				ret = __store_entry_arg(ctx->tp, i);
+				if (ret < 0) {
+					/* internal error */
+					return ret;
+				}
+				code->offset = ret;
+			}
 			tid = params[i].type;
 			goto found;
 		}
@@ -755,6 +763,110 @@ static int check_prepare_btf_string_fetch(char *typename,
 
 #endif
 
+#ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
+
+static int __store_entry_arg(struct trace_probe *tp, int argnum)
+{
+	struct probe_entry_arg *earg = tp->entry_arg;
+	bool match = false;
+	int i, offset;
+
+	if (!earg) {
+		earg = kzalloc(sizeof(*tp->entry_arg), GFP_KERNEL);
+		if (!earg)
+			return -ENOMEM;
+		earg->size = 2 * tp->nr_args + 1;
+		earg->code = kcalloc(earg->size, sizeof(struct fetch_insn),
+				     GFP_KERNEL);
+		if (!earg->code) {
+			kfree(earg);
+			return -ENOMEM;
+		}
+		/* Fill the code buffer with 'end' to simplify it */
+		for (i = 0; i < earg->size; i++)
+			earg->code[i].op = FETCH_OP_END;
+		tp->entry_arg = earg;
+	}
+
+	offset = 0;
+	for (i = 0; i < earg->size - 1; i++) {
+		switch (earg->code[i].op) {
+		case FETCH_OP_END:
+			earg->code[i].op = FETCH_OP_ARG;
+			earg->code[i].param = argnum;
+			earg->code[i + 1].op = FETCH_OP_ST_EDATA;
+			earg->code[i + 1].offset = offset;
+			return offset;
+		case FETCH_OP_ARG:
+			match = (earg->code[i].param == argnum);
+			break;
+		case FETCH_OP_ST_EDATA:
+			offset = earg->code[i].offset;
+			if (match)
+				return offset;
+			offset += sizeof(unsigned long);
+			break;
+		default:
+			break;
+		}
+	}
+	return -ENOSPC;
+}
+
+int traceprobe_get_entry_data_size(struct trace_probe *tp)
+{
+	struct probe_entry_arg *earg = tp->entry_arg;
+	int i, size = 0;
+
+	if (!earg)
+		return 0;
+
+	for (i = 0; i < earg->size; i++) {
+		switch (earg->code[i].op) {
+		case FETCH_OP_END:
+			goto out;
+		case FETCH_OP_ST_EDATA:
+			size = earg->code[i].offset + sizeof(unsigned long);
+			break;
+		default:
+			break;
+		}
+	}
+out:
+	return size;
+}
+
+void store_trace_entry_data(void *edata, struct trace_probe *tp, struct pt_regs *regs)
+{
+	struct probe_entry_arg *earg = tp->entry_arg;
+	unsigned long val;
+	int i;
+
+	if (!earg)
+		return;
+
+	for (i = 0; i < earg->size; i++) {
+		struct fetch_insn *code = &earg->code[i];
+
+		switch (code->op) {
+		case FETCH_OP_ARG:
+			val = regs_get_kernel_argument(regs, code->param);
+			break;
+		case FETCH_OP_ST_EDATA:
+			*(unsigned long *)((unsigned long)edata + code->offset) = val;
+			break;
+		case FETCH_OP_END:
+			goto end;
+		default:
+			break;
+		}
+	}
+end:
+	return;
+}
+NOKPROBE_SYMBOL(store_trace_entry_data)
+#endif
+
 #define PARAM_MAX_STACK (THREAD_SIZE / sizeof(unsigned long))
 
 /* Parse $vars. @orig_arg points '$', which syncs to @ctx->offset */
@@ -830,7 +942,7 @@ static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 
 #ifdef CONFIG_HAVE_FUNCTION_ARG_ACCESS_API
 	len = str_has_prefix(arg, "arg");
-	if (len && tparg_is_function_entry(ctx->flags)) {
+	if (len) {
 		ret = kstrtoul(arg + len, 10, &param);
 		if (ret)
 			goto inval;
@@ -839,15 +951,29 @@ static int parse_probe_vars(char *orig_arg, const struct fetch_type *t,
 			err = TP_ERR_BAD_ARG_NUM;
 			goto inval;
 		}
+		param--; /* argN starts from 1, but internal arg[N] starts from 0 */
 
-		code->op = FETCH_OP_ARG;
-		code->param = (unsigned int)param - 1;
-		/*
-		 * The tracepoint probe will probe a stub function, and the
-		 * first parameter of the stub is a dummy and should be ignored.
-		 */
-		if (ctx->flags & TPARG_FL_TPOINT)
-			code->param++;
+		if (tparg_is_function_entry(ctx->flags)) {
+			code->op = FETCH_OP_ARG;
+			code->param = (unsigned int)param;
+			/*
+			 * The tracepoint probe will probe a stub function, and the
+			 * first parameter of the stub is a dummy and should be ignored.
+			 */
+			if (ctx->flags & TPARG_FL_TPOINT)
+				code->param++;
+		} else if (tparg_is_function_return(ctx->flags)) {
+			/* function entry argument access from return probe */
+			ret = __store_entry_arg(ctx->tp, param);
+			if (ret < 0)	/* This error should be an internal error */
+				return ret;
+
+			code->op = FETCH_OP_EDATA;
+			code->offset = ret;
+		} else {
+			err = TP_ERR_NOFENTRY_ARGS;
+			goto inval;
+		}
 		return 0;
 	}
 #endif
@@ -1037,7 +1163,8 @@ parse_probe_arg(char *arg, const struct fetch_type *type,
 		break;
 	default:
 		if (isalpha(arg[0]) || arg[0] == '_') {	/* BTF variable */
-			if (!tparg_is_function_entry(ctx->flags)) {
+			if (!tparg_is_function_entry(ctx->flags) &&
+			    !tparg_is_function_return(ctx->flags)) {
 				trace_probe_log_err(ctx->offset, NOSUP_BTFARG);
 				return -EINVAL;
 			}
@@ -1423,6 +1550,7 @@ int traceprobe_parse_probe_arg(struct trace_probe *tp, int i, const char *arg,
 	struct probe_arg *parg = &tp->args[i];
 	const char *body;
 
+	ctx->tp = tp;
 	body = strchr(arg, '=');
 	if (body) {
 		if (body - arg > MAX_ARG_NAME_LEN) {
@@ -1479,7 +1607,8 @@ static int argv_has_var_arg(int argc, const char *argv[], int *args_idx,
 		if (str_has_prefix(argv[i], "$arg")) {
 			trace_probe_log_set_index(i + 2);
 
-			if (!tparg_is_function_entry(ctx->flags)) {
+			if (!tparg_is_function_entry(ctx->flags) &&
+			    !tparg_is_function_return(ctx->flags)) {
 				trace_probe_log_err(0, NOFENTRY_ARGS);
 				return -EINVAL;
 			}
@@ -1801,6 +1930,12 @@ void trace_probe_cleanup(struct trace_probe *tp)
 
 	for (i = 0; i < tp->nr_args; i++)
 		traceprobe_free_probe_arg(&tp->args[i]);
+
+	if (tp->entry_arg) {
+		kfree(tp->entry_arg->code);
+		kfree(tp->entry_arg);
+		tp->entry_arg = NULL;
+	}
 
 	if (tp->event)
 		trace_probe_unlink(tp);
