@@ -42,8 +42,8 @@ DEFINE_PER_CPU(u64, __x86_call_count);
 DEFINE_PER_CPU(u64, __x86_ret_count);
 DEFINE_PER_CPU(u64, __x86_stuffs_count);
 DEFINE_PER_CPU(u64, __x86_ctxsw_count);
-EXPORT_SYMBOL_GPL(__x86_ctxsw_count);
-EXPORT_SYMBOL_GPL(__x86_call_count);
+EXPORT_PER_CPU_SYMBOL_GPL(__x86_ctxsw_count);
+EXPORT_PER_CPU_SYMBOL_GPL(__x86_call_count);
 #endif
 
 extern s32 __call_sites[], __call_sites_end[];
