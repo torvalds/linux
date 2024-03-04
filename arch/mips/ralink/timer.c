@@ -9,7 +9,6 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/timer.h>
-#include <linux/of_gpio.h>
 #include <linux/clk.h>
 
 #include <asm/mach-ralink/ralink_regs.h>
