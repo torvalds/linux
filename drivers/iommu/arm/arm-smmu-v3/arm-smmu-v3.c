@@ -1139,7 +1139,8 @@ static void arm_smmu_write_ste(struct arm_smmu_master *master, u32 sid,
 		 * requires a breaking update, zero the V bit, write all qwords
 		 * but 0, then set qword 0
 		 */
-		unused_update.data[0] = entry->data[0] & (~STRTAB_STE_0_V);
+		unused_update.data[0] = entry->data[0] &
+					cpu_to_le64(~STRTAB_STE_0_V);
 		entry_set(smmu, sid, entry, &unused_update, 0, 1);
 		entry_set(smmu, sid, entry, target, 1, num_entry_qwords - 1);
 		entry_set(smmu, sid, entry, target, 0, 1);
