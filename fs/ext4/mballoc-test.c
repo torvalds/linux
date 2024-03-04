@@ -716,7 +716,10 @@ test_mb_mark_used_range(struct kunit *test, struct ext4_buddy *e4b,
 	ex.fe_start = start;
 	ex.fe_len = len;
 	ex.fe_group = TEST_GOAL_GROUP;
+
+	ext4_lock_group(sb, TEST_GOAL_GROUP);
 	mb_mark_used(e4b, &ex);
+	ext4_unlock_group(sb, TEST_GOAL_GROUP);
 
 	mb_set_bits(bitmap, start, len);
 	/* bypass bb_free validatoin in ext4_mb_generate_buddy */
@@ -776,7 +779,9 @@ test_mb_free_blocks_range(struct kunit *test, struct ext4_buddy *e4b,
 	if (len == 0)
 		return;
 
+	ext4_lock_group(sb, e4b->bd_group);
 	mb_free_blocks(NULL, e4b, start, len);
+	ext4_unlock_group(sb, e4b->bd_group);
 
 	mb_clear_bits(bitmap, start, len);
 	/* bypass bb_free validatoin in ext4_mb_generate_buddy */
@@ -820,7 +825,11 @@ static void test_mb_free_blocks(struct kunit *test)
 	ex.fe_start = 0;
 	ex.fe_len = EXT4_CLUSTERS_PER_GROUP(sb);
 	ex.fe_group = TEST_GOAL_GROUP;
+
+	ext4_lock_group(sb, TEST_GOAL_GROUP);
 	mb_mark_used(&e4b, &ex);
+	ext4_unlock_group(sb, TEST_GOAL_GROUP);
+
 	grp->bb_free = 0;
 	memset(bitmap, 0xff, sb->s_blocksize);
 
