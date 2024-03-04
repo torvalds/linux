@@ -38,6 +38,7 @@
 #include "arch/common.h"
 #include "namespaces.h"
 #include "thread.h"
+#include "hashmap.h"
 #include <regex.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -863,6 +864,17 @@ bool arch__is(struct arch *arch, const char *name)
 	return !strcmp(arch->name, name);
 }
 
+/* symbol histogram: key = offset << 16 | evsel->core.idx */
+static size_t sym_hist_hash(long key, void *ctx __maybe_unused)
+{
+	return (key >> 16) + (key & 0xffff);
+}
+
+static bool sym_hist_equal(long key1, long key2, void *ctx __maybe_unused)
+{
+	return key1 == key2;
+}
+
 static struct annotated_source *annotated_source__new(void)
 {
 	struct annotated_source *src = zalloc(sizeof(*src));
@@ -877,6 +889,8 @@ static __maybe_unused void annotated_source__delete(struct annotated_source *src
 {
 	if (src == NULL)
 		return;
+
+	hashmap__free(src->samples);
 	zfree(&src->histograms);
 	free(src);
 }
@@ -909,6 +923,14 @@ static int annotated_source__alloc_histograms(struct annotated_source *src,
 	src->sizeof_sym_hist = sizeof_sym_hist;
 	src->nr_histograms   = nr_hists;
 	src->histograms	     = calloc(nr_hists, sizeof_sym_hist) ;
+
+	if (src->histograms == NULL)
+		return -1;
+
+	src->samples = hashmap__new(sym_hist_hash, sym_hist_equal, NULL);
+	if (src->samples == NULL)
+		zfree(&src->histograms);
+
 	return src->histograms ? 0 : -1;
 }
 
@@ -920,6 +942,7 @@ void symbol__annotate_zero_histograms(struct symbol *sym)
 	if (notes->src != NULL) {
 		memset(notes->src->histograms, 0,
 		       notes->src->nr_histograms * notes->src->sizeof_sym_hist);
+		hashmap__clear(notes->src->samples);
 	}
 	if (notes->branch && notes->branch->cycles_hist) {
 		memset(notes->branch->cycles_hist, 0,
@@ -983,8 +1006,10 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 				      struct perf_sample *sample)
 {
 	struct symbol *sym = ms->sym;
-	unsigned offset;
+	long hash_key;
+	u64 offset;
 	struct sym_hist *h;
+	struct sym_hist_entry *entry;
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map__unmap_ip(ms->map, addr));
 
@@ -1002,15 +1027,28 @@ static int __symbol__inc_addr_samples(struct map_symbol *ms,
 			 __func__, __LINE__, sym->name, sym->start, addr, sym->end, sym->type == STT_FUNC);
 		return -ENOMEM;
 	}
+
+	hash_key = offset << 16 | evidx;
+	if (!hashmap__find(src->samples, hash_key, &entry)) {
+		entry = zalloc(sizeof(*entry));
+		if (entry == NULL)
+			return -ENOMEM;
+
+		if (hashmap__add(src->samples, hash_key, entry) < 0)
+			return -ENOMEM;
+	}
+
 	h->nr_samples++;
 	h->addr[offset].nr_samples++;
 	h->period += sample->period;
 	h->addr[offset].period += sample->period;
+	entry->nr_samples++;
+	entry->period += sample->period;
 
 	pr_debug3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
 		  ", evidx=%d] => nr_samples: %" PRIu64 ", period: %" PRIu64 "\n",
 		  sym->start, sym->name, addr, addr - sym->start, evidx,
-		  h->addr[offset].nr_samples, h->addr[offset].period);
+		  entry->nr_samples, entry->period);
 	return 0;
 }
 

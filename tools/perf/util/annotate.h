@@ -12,6 +12,7 @@
 #include "symbol_conf.h"
 #include "mutex.h"
 #include "spark.h"
+#include "hashmap.h"
 
 struct hist_browser_timer;
 struct hist_entry;
@@ -280,6 +281,7 @@ struct annotated_source {
 	size_t			sizeof_sym_hist;
 	struct sym_hist		*histograms;
 	struct annotation_line	**offsets;
+	struct hashmap	   	*samples;
 	int    			nr_histograms;
 	int			nr_entries;
 	int			nr_asm_entries;
