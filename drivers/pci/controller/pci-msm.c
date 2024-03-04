@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved. */
+/* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved. */
 
 #include <dt-bindings/regulator/qcom,rpmh-regulator-levels.h>
 #include <dt-bindings/interconnect/qcom,icc.h>
@@ -107,6 +107,12 @@
 #define PCIE20_PARF_DEBUG_CNT_IN_L1SUB_L1 (0xc84)
 #define PCIE20_PARF_DEBUG_CNT_IN_L1SUB_L2 (0xc88)
 #define PCIE20_PARF_PM_STTS_1 (0x28)
+#define PM_STATE_L0    0
+#define PM_STATE_L0s   1
+#define PM_STATE_L1    2
+#define PM_STATE_L2    3
+#define PCIE_LINK_PM_STATE(val) ((val & (7 << 7)) >> 7)
+#define PCIE_LINK_IN_L2_STATE(val) ((PCIE_LINK_PM_STATE(val)) == PM_STATE_L2)
 #define PCIE20_PARF_L1SS_SLEEP_MODE_HANDLER_STATUS (0x4D0)
 #define PCIE20_PARF_L1SS_SLEEP_MODE_HANDLER_CFG (0x4D4)
 #define PCIE20_PARF_CORE_ERRORS (0x3C0)
@@ -9305,14 +9311,14 @@ static int msm_pcie_pm_suspend(struct pci_dev *dev,
 	PCIE_DBG(pcie_dev, "RC%d: PME_TURNOFF_MSG is sent out\n",
 		pcie_dev->rc_idx);
 
-	ret_l23 = readl_poll_timeout((pcie_dev->parf
-		+ PCIE20_PARF_PM_STTS), val, (val & BIT(5)), 10000,
-		pcie_dev->l23_rdy_poll_timeout);
+	ret_l23 = readl_poll_timeout((pcie_dev->parf + PCIE20_PARF_PM_STTS_1),
+		val, PCIE_LINK_IN_L2_STATE(val),
+		9000, pcie_dev->l23_rdy_poll_timeout);
 
 	/* check L23_Ready */
-	PCIE_DBG(pcie_dev, "RC%d: PCIE20_PARF_PM_STTS is 0x%x.\n",
+	PCIE_DBG(pcie_dev, "RC%d: PCIE20_PARF_PM_STTS_1 is 0x%x.\n",
 		pcie_dev->rc_idx,
-		readl_relaxed(pcie_dev->parf + PCIE20_PARF_PM_STTS));
+		readl_relaxed(pcie_dev->parf + PCIE20_PARF_PM_STTS_1));
 	if (!ret_l23)
 		PCIE_DBG(pcie_dev, "RC%d: PM_Enter_L23 is received\n",
 			pcie_dev->rc_idx);
