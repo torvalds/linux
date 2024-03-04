@@ -199,6 +199,15 @@
 	status = "okay";
 };
 
+/* Enable UART2 and UART3 for obmc-console. */
+&uart2 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
 &uart5 {
 	/* CPU1 SYSUART */
 	status = "okay";
@@ -438,12 +447,11 @@
 	assigned-clock-rates = <200000000>, <125000000>, <50000000>;
 };
 
-/* GPIOB[0:7] and GPIOC[0:7] are defined in Chapter 4.1.2 of the AST1700 Design Guide_v01.docx. */
 &gpio0 {
 	gpio-line-names =
 		/*A0-A7*/ "","","","","","","","",
-		/*B0-B7*/ "FM_PFR_BMC_SPI_MASTERSEL","FM_PFR_CPU0_SPI_MASTERSEL","FM_PFR_CPU1_SPI_MASTERSEL","RES_PFR_BMC_SPI_RESET_N","RST_SPI_PFR_CPU0_RESET_N","RST_SPI_PFR_CPU1_RESET_N","FM_PFR_MNG_SEL","RST_PFR_BMC_EXTRST_N",
-		/*C0-C7*/ "FM_PFR_SMB_CPLD_UPDATE_SEL","FP_PWR_BTN_PFR_N","FM_PFR_PCIE_SEL","","FM_LED_BMC_CPU_RSTIND","SCM_BOARD_ID","","",
+		/*B0-B7*/ "","","","","","","","",
+		/*C0-C7*/ "","","","","","","","",
 		/*D0-D7*/ "","","","","","","","",
 		/*E0-E7*/ "","","","","","","","",
 		/*F0-F7*/ "","","","","","","","",
@@ -479,7 +487,6 @@
 /* line 0:SCM_GPI0, 1:SCM_GPO0, 2:SCM_GPI1, 3:SCM_GPO2, etc... */
 /* line 32:PFR_GPI0, 33:PFR_GPO0, 34:PFR_GPI1, 35:PFR_GPO2, etc... */
 /* line 80:BMC_GPI0, 81:BMC_GPO0, 82:BMC_GPI1, 83:BMC_GPO1, etc... */
-/* We added a POST_COMPLETE fake pin for x86-power-control use. */
 &sgpios {
 	status = "okay";
 	gpio-line-names =
@@ -499,8 +506,8 @@
 		/*104-111*/ "","FM_BMC_ONCTL_N","","","","","","",
 		/*112-119*/ "","BIOS_POST_CODE_LED_0","","BIOS_POST_CODE_LED_1","","BIOS_POST_CODE_LED_2","","BIOS_POST_CODE_LED_3",
 		/*120-127*/ "","BIOS_POST_CODE_LED_4","","BIOS_POST_CODE_LED_5","","BIOS_POST_CODE_LED_6","","BIOS_POST_CODE_LED_7",
-		/*128-135*/ "","","","","","","","",
-		/*136-143*/ "","","","","","","","",
+		/*128-135*/ "","A_P3V_BAT_SCALED_EN","","FM_TPM_EN_PULSE","","FM_SKT0_FAULT_LED","","FM_SKT1_FAULT_LED",
+		/*136-143*/ "","","","","","RST_BMC_SMB_PCIE_MUX_N","","SURPRISE_RESET",
 		/*144-151*/ "","","","","","","","",
 		/*152-159*/ "","","","","","","","",
 		/*160-167*/ "","","","","","","","",
@@ -516,7 +523,7 @@
 		/*240-247*/ "","","","","","","","",
 		/*248-255*/ "","","","","","","","",
 		/*256-263*/ "","","","","","","","",
-		/*264-271*/ "","","","","","","POST_COMPLETE","";
+		/*264-271*/ "","","","","","","","";
 
 	gpio_97 {
 		gpio-hog;
@@ -535,6 +542,24 @@
 		gpios = <105 GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "FM_BMC_ONCTL_N";
+	};
+	gpio_133 {
+		gpio-hog;
+		gpios = <133 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "FM_SKT0_FAULT_LED";
+	};
+	gpio_141 {
+		gpio-hog;
+		gpios = <141 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "RST_BMC_SMB_PCIE_MUX_N";
+	};
+	gpio_143 {
+		gpio-hog;
+		gpios = <143 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "SURPRISE_RESET";
 	};
 };
 
