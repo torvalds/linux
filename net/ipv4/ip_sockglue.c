@@ -894,7 +894,7 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct net *net = sock_net(sk);
-	int val = 0, err;
+	int val = 0, err, retv;
 	bool needs_rtnl = setsockopt_needs_rtnl(optname);
 
 	switch (optname) {
@@ -938,8 +938,12 @@ int do_ip_setsockopt(struct sock *sk, int level, int optname,
 
 	/* If optlen==0, it is equivalent to val == 0 */
 
-	if (optname == IP_ROUTER_ALERT)
-		return ip_ra_control(sk, val ? 1 : 0, NULL);
+	if (optname == IP_ROUTER_ALERT) {
+		retv = ip_ra_control(sk, val ? 1 : 0, NULL);
+		if (retv == 0)
+			inet_assign_bit(RTALERT, sk, val);
+		return retv;
+	}
 	if (ip_mroute_opt(optname))
 		return ip_mroute_setsockopt(sk, optname, optval, optlen);
 
@@ -1574,6 +1578,9 @@ int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		goto copyval;
 	case IP_BIND_ADDRESS_NO_PORT:
 		val = inet_test_bit(BIND_ADDRESS_NO_PORT, sk);
+		goto copyval;
+	case IP_ROUTER_ALERT:
+		val = inet_test_bit(RTALERT, sk);
 		goto copyval;
 	case IP_TTL:
 		val = READ_ONCE(inet->uc_ttl);
