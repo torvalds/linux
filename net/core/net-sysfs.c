@@ -1415,6 +1415,65 @@ static struct netdev_queue_attribute bql_hold_time_attribute __ro_after_init
 	= __ATTR(hold_time, 0644,
 		 bql_show_hold_time, bql_set_hold_time);
 
+static ssize_t bql_show_stall_thrs(struct netdev_queue *queue, char *buf)
+{
+	struct dql *dql = &queue->dql;
+
+	return sprintf(buf, "%u\n", jiffies_to_msecs(dql->stall_thrs));
+}
+
+static ssize_t bql_set_stall_thrs(struct netdev_queue *queue,
+				  const char *buf, size_t len)
+{
+	struct dql *dql = &queue->dql;
+	unsigned int value;
+	int err;
+
+	err = kstrtouint(buf, 10, &value);
+	if (err < 0)
+		return err;
+
+	value = msecs_to_jiffies(value);
+	if (value && (value < 4 || value > 4 / 2 * BITS_PER_LONG))
+		return -ERANGE;
+
+	if (!dql->stall_thrs && value)
+		dql->last_reap = jiffies;
+	/* Force last_reap to be live */
+	smp_wmb();
+	dql->stall_thrs = value;
+
+	return len;
+}
+
+static struct netdev_queue_attribute bql_stall_thrs_attribute __ro_after_init =
+	__ATTR(stall_thrs, 0644, bql_show_stall_thrs, bql_set_stall_thrs);
+
+static ssize_t bql_show_stall_max(struct netdev_queue *queue, char *buf)
+{
+	return sprintf(buf, "%u\n", READ_ONCE(queue->dql.stall_max));
+}
+
+static ssize_t bql_set_stall_max(struct netdev_queue *queue,
+				 const char *buf, size_t len)
+{
+	WRITE_ONCE(queue->dql.stall_max, 0);
+	return len;
+}
+
+static struct netdev_queue_attribute bql_stall_max_attribute __ro_after_init =
+	__ATTR(stall_max, 0644, bql_show_stall_max, bql_set_stall_max);
+
+static ssize_t bql_show_stall_cnt(struct netdev_queue *queue, char *buf)
+{
+	struct dql *dql = &queue->dql;
+
+	return sprintf(buf, "%lu\n", dql->stall_cnt);
+}
+
+static struct netdev_queue_attribute bql_stall_cnt_attribute __ro_after_init =
+	__ATTR(stall_cnt, 0444, bql_show_stall_cnt, NULL);
+
 static ssize_t bql_show_inflight(struct netdev_queue *queue,
 				 char *buf)
 {
@@ -1453,6 +1512,9 @@ static struct attribute *dql_attrs[] __ro_after_init = {
 	&bql_limit_min_attribute.attr,
 	&bql_hold_time_attribute.attr,
 	&bql_inflight_attribute.attr,
+	&bql_stall_thrs_attribute.attr,
+	&bql_stall_cnt_attribute.attr,
+	&bql_stall_max_attribute.attr,
 	NULL
 };
 
