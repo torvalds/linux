@@ -4,6 +4,7 @@
 /* Copyright 2023 Collabora ltd. */
 
 #include <linux/clk.h>
+#include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
