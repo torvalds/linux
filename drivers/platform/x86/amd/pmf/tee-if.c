@@ -269,7 +269,7 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	} else {
 		dev_err(dev->dev, "ta invoke cmd init failed err: %x\n", res);
 		dev->smart_pc_enabled = PMF_SMART_PC_DISABLED;
-		return res;
+		return -EIO;
 	}
 
 	return 0;
@@ -309,8 +309,8 @@ static ssize_t amd_pmf_get_pb_data(struct file *filp, const char __user *buf,
 
 	amd_pmf_hex_dump_pb(dev);
 	ret = amd_pmf_start_policy_engine(dev);
-	if (ret)
-		return -EINVAL;
+	if (ret < 0)
+		return ret;
 
 	return length;
 }
