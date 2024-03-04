@@ -577,8 +577,9 @@ u64 bch2_recovery_passes_from_stable(u64 v)
 
 static bool check_version_upgrade(struct bch_fs *c)
 {
-	unsigned latest_compatible = bch2_latest_compatible_version(c->sb.version);
 	unsigned latest_version	= bcachefs_metadata_version_current;
+	unsigned latest_compatible = min(latest_version,
+					 bch2_latest_compatible_version(c->sb.version));
 	unsigned old_version = c->sb.version_upgrade_complete ?: c->sb.version;
 	unsigned new_version = 0;
 
@@ -597,7 +598,7 @@ static bool check_version_upgrade(struct bch_fs *c)
 			new_version = latest_version;
 			break;
 		case BCH_VERSION_UPGRADE_none:
-			new_version = old_version;
+			new_version = min(old_version, latest_version);
 			break;
 		}
 	}
@@ -774,7 +775,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!(c->opts.nochanges && c->opts.norecovery)) {
+	if (!c->opts.nochanges) {
 		mutex_lock(&c->sb_lock);
 		bool write_sb = false;
 
@@ -804,7 +805,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		if (bch2_check_version_downgrade(c)) {
 			struct printbuf buf = PRINTBUF;
 
-			prt_str(&buf, "Version downgrade required:\n");
+			prt_str(&buf, "Version downgrade required:");
 
 			__le64 passes = ext->recovery_passes_required[0];
 			bch2_sb_set_downgrade(c,
@@ -812,7 +813,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 					BCH_VERSION_MINOR(c->sb.version));
 			passes = ext->recovery_passes_required[0] & ~passes;
 			if (passes) {
-				prt_str(&buf, "  running recovery passes: ");
+				prt_str(&buf, "\n  running recovery passes: ");
 				prt_bitflags(&buf, bch2_recovery_passes,
 					     bch2_recovery_passes_from_stable(le64_to_cpu(passes)));
 			}

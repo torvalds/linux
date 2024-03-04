@@ -435,7 +435,7 @@ static int bch2_link(struct dentry *old_dentry, struct inode *vdir,
 		bch2_subvol_is_ro(c, inode->ei_subvol) ?:
 		__bch2_link(c, inode, dir, dentry);
 	if (unlikely(ret))
-		return ret;
+		return bch2_err_class(ret);
 
 	ihold(&inode->v);
 	d_instantiate(dentry, &inode->v);
@@ -487,8 +487,9 @@ static int bch2_unlink(struct inode *vdir, struct dentry *dentry)
 	struct bch_inode_info *dir= to_bch_ei(vdir);
 	struct bch_fs *c = dir->v.i_sb->s_fs_info;
 
-	return bch2_subvol_is_ro(c, dir->ei_subvol) ?:
+	int ret = bch2_subvol_is_ro(c, dir->ei_subvol) ?:
 		__bch2_unlink(vdir, dentry, false);
+	return bch2_err_class(ret);
 }
 
 static int bch2_symlink(struct mnt_idmap *idmap,
@@ -523,7 +524,7 @@ static int bch2_symlink(struct mnt_idmap *idmap,
 	return 0;
 err:
 	iput(&inode->v);
-	return ret;
+	return bch2_err_class(ret);
 }
 
 static int bch2_mkdir(struct mnt_idmap *idmap,
@@ -641,7 +642,7 @@ err:
 			   src_inode,
 			   dst_inode);
 
-	return ret;
+	return bch2_err_class(ret);
 }
 
 static void bch2_setattr_copy(struct mnt_idmap *idmap,

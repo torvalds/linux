@@ -978,6 +978,7 @@ config CHARGER_QCOM_SMB2
 config FUEL_GAUGE_MM8013
 	tristate "Mitsumi MM8013 fuel gauge driver"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say Y here to enable the Mitsumi MM8013 fuel gauge driver.
 	  It enables the monitoring of many battery parameters, including

@@ -401,5 +401,6 @@ static void __exit xfrm6_tunnel_fini(void)
 
 module_init(xfrm6_tunnel_init);
 module_exit(xfrm6_tunnel_fini);
+MODULE_DESCRIPTION("IPv6 XFRM tunnel driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_XFRM_TYPE(AF_INET6, XFRM_PROTO_IPV6);

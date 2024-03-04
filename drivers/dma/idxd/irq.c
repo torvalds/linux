@@ -367,9 +367,9 @@ static void process_evl_entries(struct idxd_device *idxd)
 	/* Clear interrupt pending bit */
 	iowrite32(evl_status.bits_upper32,
 		  idxd->reg_base + IDXD_EVLSTATUS_OFFSET + sizeof(u32));
-	h = evl->head;
 	evl_status.bits = ioread64(idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
 	t = evl_status.tail;
+	h = evl_status.head;
 	size = idxd->evl->size;
 
 	while (h != t) {
@@ -378,7 +378,6 @@ static void process_evl_entries(struct idxd_device *idxd)
 		h = (h + 1) % size;
 	}
 
-	evl->head = h;
 	evl_status.head = h;
 	iowrite32(evl_status.bits_lower32, idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
 	spin_unlock(&evl->lock);

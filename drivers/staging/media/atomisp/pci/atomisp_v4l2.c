@@ -862,6 +862,9 @@ static void atomisp_unregister_entities(struct atomisp_device *isp)
 	v4l2_device_unregister(&isp->v4l2_dev);
 	media_device_unregister(&isp->media_dev);
 	media_device_cleanup(&isp->media_dev);
+
+	for (i = 0; i < isp->input_cnt; i++)
+		__v4l2_subdev_state_free(isp->inputs[i].try_sd_state);
 }
 
 static int atomisp_register_entities(struct atomisp_device *isp)
@@ -933,32 +936,49 @@ v4l2_device_failed:
 
 static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 {
+	static struct lock_class_key try_sd_state_key;
 	struct v4l2_subdev_mbus_code_enum mbus_code_enum = { };
 	struct v4l2_subdev_frame_size_enum fse = { };
-	struct v4l2_subdev_state sd_state = {
-		.pads = &input->pad_cfg,
-	};
 	struct v4l2_subdev_selection sel = { };
+	struct v4l2_subdev_state *try_sd_state, *act_sd_state;
 	int i, err;
 
+	/*
+	 * FIXME: Drivers are not supposed to use __v4l2_subdev_state_alloc()
+	 * but atomisp needs this for try_fmt on its /dev/video# node since
+	 * it emulates a normal v4l2 device there, passing through try_fmt /
+	 * set_fmt to the sensor.
+	 */
+	try_sd_state = __v4l2_subdev_state_alloc(input->camera,
+				"atomisp:try_sd_state->lock", &try_sd_state_key);
+	if (IS_ERR(try_sd_state))
+		return;
+
+	input->try_sd_state = try_sd_state;
+
+	act_sd_state = v4l2_subdev_lock_and_get_active_state(input->camera);
+
 	mbus_code_enum.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-	err = v4l2_subdev_call(input->camera, pad, enum_mbus_code, NULL, &mbus_code_enum);
+	err = v4l2_subdev_call(input->camera, pad, enum_mbus_code,
+			       act_sd_state, &mbus_code_enum);
 	if (!err)
 		input->code = mbus_code_enum.code;
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_NATIVE_SIZE;
-	err = v4l2_subdev_call(input->camera, pad, get_selection, NULL, &sel);
+	err = v4l2_subdev_call(input->camera, pad, get_selection,
+			       act_sd_state, &sel);
 	if (err)
-		return;
+		goto unlock_act_sd_state;
 
 	input->native_rect = sel.r;
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_CROP_DEFAULT;
-	err = v4l2_subdev_call(input->camera, pad, get_selection, NULL, &sel);
+	err = v4l2_subdev_call(input->camera, pad, get_selection,
+			       act_sd_state, &sel);
 	if (err)
-		return;
+		goto unlock_act_sd_state;
 
 	input->active_rect = sel.r;
 
@@ -973,7 +993,8 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 		fse.code = input->code;
 		fse.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 
-		err = v4l2_subdev_call(input->camera, pad, enum_frame_size, NULL, &fse);
+		err = v4l2_subdev_call(input->camera, pad, enum_frame_size,
+				       act_sd_state, &fse);
 		if (err)
 			break;
 
@@ -989,22 +1010,26 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 	 * for padding, set the crop rect to cover the entire sensor instead
 	 * of only the default active area.
 	 *
-	 * Do this for both try and active formats since the try_crop rect in
-	 * pad_cfg may influence (clamp) future try_fmt calls with which == try.
+	 * Do this for both try and active formats since the crop rect in
+	 * try_sd_state may influence (clamp size) in calls with which == try.
 	 */
 	sel.which = V4L2_SUBDEV_FORMAT_TRY;
 	sel.target = V4L2_SEL_TGT_CROP;
 	sel.r = input->native_rect;
-	err = v4l2_subdev_call(input->camera, pad, set_selection, &sd_state, &sel);
+	v4l2_subdev_lock_state(input->try_sd_state);
+	err = v4l2_subdev_call(input->camera, pad, set_selection,
+			       input->try_sd_state, &sel);
+	v4l2_subdev_unlock_state(input->try_sd_state);
 	if (err)
-		return;
+		goto unlock_act_sd_state;
 
 	sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
 	sel.target = V4L2_SEL_TGT_CROP;
 	sel.r = input->native_rect;
-	err = v4l2_subdev_call(input->camera, pad, set_selection, NULL, &sel);
+	err = v4l2_subdev_call(input->camera, pad, set_selection,
+			       act_sd_state, &sel);
 	if (err)
-		return;
+		goto unlock_act_sd_state;
 
 	dev_info(input->camera->dev, "Supports crop native %dx%d active %dx%d binning %d\n",
 		 input->native_rect.width, input->native_rect.height,
@@ -1012,6 +1037,10 @@ static void atomisp_init_sensor(struct atomisp_input_subdev *input)
 		 input->binning_support);
 
 	input->crop_support = true;
+
+unlock_act_sd_state:
+	if (act_sd_state)
+		v4l2_subdev_unlock_state(act_sd_state);
 }
 
 int atomisp_register_device_nodes(struct atomisp_device *isp)

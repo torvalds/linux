@@ -237,4 +237,5 @@ static void __exit ipvtap_exit(void)
 module_exit(ipvtap_exit);
 MODULE_ALIAS_RTNL_LINK("ipvtap");
 MODULE_AUTHOR("Sainath Grandhi <sainath.grandhi@intel.com>");
+MODULE_DESCRIPTION("IP-VLAN based tap driver");
 MODULE_LICENSE("GPL");

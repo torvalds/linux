@@ -41,6 +41,7 @@ static struct iommu_mm_data *iommu_alloc_mm_data(struct mm_struct *mm, struct de
 	}
 	iommu_mm->pasid = pasid;
 	INIT_LIST_HEAD(&iommu_mm->sva_domains);
+	INIT_LIST_HEAD(&iommu_mm->sva_handles);
 	/*
 	 * Make sure the write to mm->iommu_mm is not reordered in front of
 	 * initialization to iommu_mm fields. If it does, readers may see a
@@ -82,6 +83,14 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 		goto out_unlock;
 	}
 
+	list_for_each_entry(handle, &mm->iommu_mm->sva_handles, handle_item) {
+		if (handle->dev == dev) {
+			refcount_inc(&handle->users);
+			mutex_unlock(&iommu_sva_lock);
+			return handle;
+		}
+	}
+
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle) {
 		ret = -ENOMEM;
@@ -111,6 +120,8 @@ struct iommu_sva *iommu_sva_bind_device(struct device *dev, struct mm_struct *mm
 	list_add(&domain->next, &mm->iommu_mm->sva_domains);
 
 out:
+	refcount_set(&handle->users, 1);
+	list_add(&handle->handle_item, &mm->iommu_mm->sva_handles);
 	mutex_unlock(&iommu_sva_lock);
 	handle->dev = dev;
 	handle->domain = domain;
@@ -141,6 +152,12 @@ void iommu_sva_unbind_device(struct iommu_sva *handle)
 	struct device *dev = handle->dev;
 
 	mutex_lock(&iommu_sva_lock);
+	if (!refcount_dec_and_test(&handle->users)) {
+		mutex_unlock(&iommu_sva_lock);
+		return;
+	}
+	list_del(&handle->handle_item);
+
 	iommu_detach_device_pasid(domain, dev, iommu_mm->pasid);
 	if (--domain->users == 0) {
 		list_del(&domain->next);

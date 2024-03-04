@@ -222,7 +222,6 @@
 		reg = <0x42>;
 		interrupts = <8 3>;
 		interrupt-parent = <&gpioi>;
-		interrupt-controller;
 		wakeup-source;
 
 		stmpegpio: stmpe_gpio {

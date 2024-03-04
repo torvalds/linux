@@ -18,6 +18,7 @@
 #include <pthread.h>
 
 #include "utils.h"
+#include "fpu.h"
 
 /* Number of times each thread should receive the signal */
 #define ITERATIONS 10
@@ -27,9 +28,7 @@
  */
 #define THREAD_FACTOR 8
 
-__thread double darray[] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-		     1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0,
-		     2.1};
+__thread double darray[32];
 
 bool bad_context;
 int threads_starting;
@@ -43,9 +42,9 @@ void signal_fpu_sig(int sig, siginfo_t *info, void *context)
 	ucontext_t *uc = context;
 	mcontext_t *mc = &uc->uc_mcontext;
 
-	/* Only the non volatiles were loaded up */
-	for (i = 14; i < 32; i++) {
-		if (mc->fp_regs[i] != darray[i - 14]) {
+	// Don't check f30/f31, they're used as scratches in check_all_fprs()
+	for (i = 0; i < 30; i++) {
+		if (mc->fp_regs[i] != darray[i]) {
 			bad_context = true;
 			break;
 		}
@@ -54,7 +53,6 @@ void signal_fpu_sig(int sig, siginfo_t *info, void *context)
 
 void *signal_fpu_c(void *p)
 {
-	int i;
 	long rc;
 	struct sigaction act;
 	act.sa_sigaction = signal_fpu_sig;
@@ -64,9 +62,7 @@ void *signal_fpu_c(void *p)
 		return p;
 
 	srand(pthread_self());
-	for (i = 0; i < 21; i++)
-		darray[i] = rand();
-
+	randomise_darray(darray, ARRAY_SIZE(darray));
 	rc = preempt_fpu(darray, &threads_starting, &running);
 
 	return (void *) rc;

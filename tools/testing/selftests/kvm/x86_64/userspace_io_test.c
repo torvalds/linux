@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 			break;
 
 		TEST_ASSERT(run->io.port == 0x80,
-			    "Expected I/O at port 0x80, got port 0x%x\n", run->io.port);
+			    "Expected I/O at port 0x80, got port 0x%x", run->io.port);
 
 		/*
 		 * Modify the rep string count in RCX: 2 => 1 and 3 => 8192.

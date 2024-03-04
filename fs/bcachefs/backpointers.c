@@ -68,9 +68,11 @@ void bch2_backpointer_to_text(struct printbuf *out, const struct bch_backpointer
 
 void bch2_backpointer_k_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
 {
-	prt_str(out, "bucket=");
-	bch2_bpos_to_text(out, bp_pos_to_bucket(c, k.k->p));
-	prt_str(out, " ");
+	if (bch2_dev_exists2(c, k.k->p.inode)) {
+		prt_str(out, "bucket=");
+		bch2_bpos_to_text(out, bp_pos_to_bucket(c, k.k->p));
+		prt_str(out, " ");
+	}
 
 	bch2_backpointer_to_text(out, bkey_s_c_to_backpointer(k).v);
 }

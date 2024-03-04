@@ -47,6 +47,7 @@ struct dpll_device {
  * @prop:		pin properties copied from the registerer
  * @rclk_dev_name:	holds name of device when pin can recover clock from it
  * @refcount:		refcount
+ * @rcu:		rcu_head for kfree_rcu()
  **/
 struct dpll_pin {
 	u32 id;
@@ -57,6 +58,7 @@ struct dpll_pin {
 	struct xarray parent_refs;
 	struct dpll_pin_properties prop;
 	refcount_t refcount;
+	struct rcu_head rcu;
 };
 
 /**

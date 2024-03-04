@@ -124,6 +124,7 @@ struct nfs_client {
 	char			cl_ipaddr[48];
 	struct net		*cl_net;
 	struct list_head	pending_cb_stateids;
+	struct rcu_head		rcu;
 };
 
 /*
@@ -265,6 +266,7 @@ struct nfs_server {
 	const struct cred	*cred;
 	bool			has_sec_mnt_opts;
 	struct kobject		kobj;
+	struct rcu_head		rcu;
 };
 
 /* Server capabilities */

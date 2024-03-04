@@ -16,8 +16,9 @@ description:
   USB 2.0 traffic.
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@amd.com>
   - Michal Simek <michal.simek@amd.com>
+  - Mubin Sayyed <mubin.sayyed@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 properties:
   compatible:

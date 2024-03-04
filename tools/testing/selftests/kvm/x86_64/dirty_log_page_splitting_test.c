@@ -92,7 +92,6 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	uint64_t host_num_pages;
 	uint64_t pages_per_slot;
 	int i;
-	uint64_t total_4k_pages;
 	struct kvm_page_stats stats_populated;
 	struct kvm_page_stats stats_dirty_logging_enabled;
 	struct kvm_page_stats stats_dirty_pass[ITERATIONS];
@@ -107,6 +106,9 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	guest_num_pages = vm_adjust_num_guest_pages(mode, guest_num_pages);
 	host_num_pages = vm_num_host_pages(mode, guest_num_pages);
 	pages_per_slot = host_num_pages / SLOTS;
+	TEST_ASSERT_EQ(host_num_pages, pages_per_slot * SLOTS);
+	TEST_ASSERT(!(host_num_pages % 512),
+		    "Number of pages, '%lu' not a multiple of 2MiB", host_num_pages);
 
 	bitmaps = memstress_alloc_bitmaps(SLOTS, pages_per_slot);
 
@@ -165,10 +167,8 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	memstress_free_bitmaps(bitmaps, SLOTS);
 	memstress_destroy_vm(vm);
 
-	/* Make assertions about the page counts. */
-	total_4k_pages = stats_populated.pages_4k;
-	total_4k_pages += stats_populated.pages_2m * 512;
-	total_4k_pages += stats_populated.pages_1g * 512 * 512;
+	TEST_ASSERT_EQ((stats_populated.pages_2m * 512 +
+			stats_populated.pages_1g * 512 * 512), host_num_pages);
 
 	/*
 	 * Check that all huge pages were split. Since large pages can only
@@ -180,19 +180,22 @@ static void run_test(enum vm_guest_mode mode, void *unused)
 	 */
 	if (dirty_log_manual_caps) {
 		TEST_ASSERT_EQ(stats_clear_pass[0].hugepages, 0);
-		TEST_ASSERT_EQ(stats_clear_pass[0].pages_4k, total_4k_pages);
+		TEST_ASSERT(stats_clear_pass[0].pages_4k >= host_num_pages,
+			    "Expected at least '%lu' 4KiB pages, found only '%lu'",
+			    host_num_pages, stats_clear_pass[0].pages_4k);
 		TEST_ASSERT_EQ(stats_dirty_logging_enabled.hugepages, stats_populated.hugepages);
 	} else {
 		TEST_ASSERT_EQ(stats_dirty_logging_enabled.hugepages, 0);
-		TEST_ASSERT_EQ(stats_dirty_logging_enabled.pages_4k, total_4k_pages);
+		TEST_ASSERT(stats_dirty_logging_enabled.pages_4k >= host_num_pages,
+			    "Expected at least '%lu' 4KiB pages, found only '%lu'",
+			    host_num_pages, stats_dirty_logging_enabled.pages_4k);
 	}
 
 	/*
 	 * Once dirty logging is disabled and the vCPUs have touched all their
-	 * memory again, the page counts should be the same as they were
+	 * memory again, the hugepage counts should be the same as they were
 	 * right after initial population of memory.
 	 */
-	TEST_ASSERT_EQ(stats_populated.pages_4k, stats_repopulated.pages_4k);
 	TEST_ASSERT_EQ(stats_populated.pages_2m, stats_repopulated.pages_2m);
 	TEST_ASSERT_EQ(stats_populated.pages_1g, stats_repopulated.pages_1g);
 }

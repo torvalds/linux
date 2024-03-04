@@ -319,22 +319,32 @@ do_check_time:
 
 u8 ionic_dev_cmd_status(struct ionic_dev *idev)
 {
+	if (!idev->dev_cmd_regs)
+		return (u8)PCI_ERROR_RESPONSE;
 	return ioread8(&idev->dev_cmd_regs->comp.comp.status);
 }
 
 bool ionic_dev_cmd_done(struct ionic_dev *idev)
 {
+	if (!idev->dev_cmd_regs)
+		return false;
 	return ioread32(&idev->dev_cmd_regs->done) & IONIC_DEV_CMD_DONE;
 }
 
 void ionic_dev_cmd_comp(struct ionic_dev *idev, union ionic_dev_cmd_comp *comp)
 {
+	if (!idev->dev_cmd_regs)
+		return;
 	memcpy_fromio(comp, &idev->dev_cmd_regs->comp, sizeof(*comp));
 }
 
 void ionic_dev_cmd_go(struct ionic_dev *idev, union ionic_dev_cmd *cmd)
 {
 	idev->opcode = cmd->cmd.opcode;
+
+	if (!idev->dev_cmd_regs)
+		return;
+
 	memcpy_toio(&idev->dev_cmd_regs->cmd, cmd, sizeof(*cmd));
 	iowrite32(0, &idev->dev_cmd_regs->done);
 	iowrite32(1, &idev->dev_cmd_regs->doorbell);
