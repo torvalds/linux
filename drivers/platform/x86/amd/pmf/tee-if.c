@@ -249,9 +249,15 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	struct cookie_header *header;
 	int res;
 
+	if (dev->policy_sz < POLICY_COOKIE_OFFSET + sizeof(*header))
+		return -EINVAL;
+
 	header = (struct cookie_header *)(dev->policy_buf + POLICY_COOKIE_OFFSET);
 
 	if (header->sign != POLICY_SIGN_COOKIE || !header->length)
+		return -EINVAL;
+
+	if (dev->policy_sz < header->length + 512)
 		return -EINVAL;
 
 	/* Update the actual length */
