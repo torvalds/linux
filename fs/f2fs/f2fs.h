@@ -1815,12 +1815,14 @@ struct f2fs_sb_info {
 };
 
 /* Definitions to access f2fs_sb_info */
-#define BLKS_PER_SEG(sbi)					\
-	((sbi)->blocks_per_seg)
-#define BLKS_PER_SEC(sbi)					\
-	((sbi)->segs_per_sec << (sbi)->log_blocks_per_seg)
-#define SEGS_PER_SEC(sbi)					\
-	((sbi)->segs_per_sec)
+#define SEGS_TO_BLKS(sbi, segs)					\
+		((segs) << (sbi)->log_blocks_per_seg)
+#define BLKS_TO_SEGS(sbi, blks)					\
+		((blks) >> (sbi)->log_blocks_per_seg)
+
+#define BLKS_PER_SEG(sbi)	((sbi)->blocks_per_seg)
+#define BLKS_PER_SEC(sbi)	(SEGS_TO_BLKS(sbi, (sbi)->segs_per_sec))
+#define SEGS_PER_SEC(sbi)	((sbi)->segs_per_sec)
 
 __printf(3, 4)
 void f2fs_printk(struct f2fs_sb_info *sbi, bool limit_rate, const char *fmt, ...);

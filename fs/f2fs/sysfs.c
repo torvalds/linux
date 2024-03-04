@@ -493,8 +493,8 @@ out:
 		spin_lock(&sbi->stat_lock);
 		if (t > (unsigned long)(sbi->user_block_count -
 				F2FS_OPTION(sbi).root_reserved_blocks -
-				(SM_I(sbi)->additional_reserved_segments <<
-					sbi->log_blocks_per_seg))) {
+				SEGS_TO_BLKS(sbi,
+				SM_I(sbi)->additional_reserved_segments))) {
 			spin_unlock(&sbi->stat_lock);
 			return -EINVAL;
 		}

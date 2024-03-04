@@ -451,8 +451,8 @@ static inline bool excess_dirty_threshold(struct f2fs_sb_info *sbi)
 	unsigned int nodes = get_pages(sbi, F2FS_DIRTY_NODES);
 	unsigned int meta = get_pages(sbi, F2FS_DIRTY_META);
 	unsigned int imeta = get_pages(sbi, F2FS_DIRTY_IMETA);
-	unsigned int threshold = (factor * DEFAULT_DIRTY_THRESHOLD) <<
-				sbi->log_blocks_per_seg;
+	unsigned int threshold =
+		SEGS_TO_BLKS(sbi, (factor * DEFAULT_DIRTY_THRESHOLD));
 	unsigned int global_threshold = threshold * 3 / 2;
 
 	if (dents >= threshold || qdata >= threshold ||
@@ -875,7 +875,7 @@ block_t f2fs_get_unusable_blocks(struct f2fs_sb_info *sbi)
 {
 	int ovp_hole_segs =
 		(overprovision_segments(sbi) - reserved_segments(sbi));
-	block_t ovp_holes = ovp_hole_segs << sbi->log_blocks_per_seg;
+	block_t ovp_holes = SEGS_TO_BLKS(sbi, ovp_hole_segs);
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
 	block_t holes[2] = {0, 0};	/* DATA and NODE */
 	block_t unusable;
@@ -2188,7 +2188,7 @@ void f2fs_clear_prefree_segments(struct f2fs_sb_info *sbi,
 		if (!f2fs_sb_has_blkzoned(sbi) &&
 		    (!f2fs_lfs_mode(sbi) || !__is_large_section(sbi))) {
 			f2fs_issue_discard(sbi, START_BLOCK(sbi, start),
-				(end - start) << sbi->log_blocks_per_seg);
+				SEGS_TO_BLKS(sbi, end - start));
 			continue;
 		}
 next:
@@ -2305,7 +2305,7 @@ static int create_discard_cmd_control(struct f2fs_sb_info *sbi)
 	atomic_set(&dcc->queued_discard, 0);
 	atomic_set(&dcc->discard_cmd_cnt, 0);
 	dcc->nr_discards = 0;
-	dcc->max_discards = MAIN_SEGS(sbi) << sbi->log_blocks_per_seg;
+	dcc->max_discards = SEGS_TO_BLKS(sbi, MAIN_SEGS(sbi));
 	dcc->max_discard_request = DEF_MAX_DISCARD_REQUEST;
 	dcc->min_discard_issue_time = DEF_MIN_DISCARD_ISSUE_TIME;
 	dcc->mid_discard_issue_time = DEF_MID_DISCARD_ISSUE_TIME;
@@ -4548,7 +4548,7 @@ static int build_sit_info(struct f2fs_sb_info *sbi)
 #endif
 
 	sit_i->sit_base_addr = le32_to_cpu(raw_super->sit_blkaddr);
-	sit_i->sit_blocks = sit_segs << sbi->log_blocks_per_seg;
+	sit_i->sit_blocks = SEGS_TO_BLKS(sbi, sit_segs);
 	sit_i->written_valid_blocks = 0;
 	sit_i->bitmap_size = sit_bitmap_size;
 	sit_i->dirty_sentries = 0;
