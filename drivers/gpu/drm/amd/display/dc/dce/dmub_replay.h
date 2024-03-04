@@ -50,7 +50,7 @@ struct dmub_replay_funcs {
 	void (*replay_set_coasting_vtotal)(struct dmub_replay *dmub, uint32_t coasting_vtotal,
 		uint8_t panel_inst);
 	void (*replay_residency)(struct dmub_replay *dmub,
-		uint8_t panel_inst, uint32_t *residency, const bool is_start, const bool is_alpm);
+		uint8_t panel_inst, uint32_t *residency, const bool is_start, const enum pr_residency_mode mode);
 	void (*replay_set_power_opt_and_coasting_vtotal)(struct dmub_replay *dmub,
 		unsigned int power_opt, uint8_t panel_inst, uint32_t coasting_vtotal);
 };

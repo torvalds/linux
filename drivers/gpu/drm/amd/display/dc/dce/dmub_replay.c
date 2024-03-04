@@ -239,23 +239,39 @@ static void dmub_replay_set_coasting_vtotal(struct dmub_replay *dmub,
  * Get Replay residency from firmware.
  */
 static void dmub_replay_residency(struct dmub_replay *dmub, uint8_t panel_inst,
-	uint32_t *residency, const bool is_start, const bool is_alpm)
+	uint32_t *residency, const bool is_start, enum pr_residency_mode mode)
 {
-	struct dmub_srv *srv = dmub->ctx->dmub_srv->dmub;
 	uint16_t param = (uint16_t)(panel_inst << 8);
 
-	if (is_alpm)
+	switch (mode) {
+	case PR_RESIDENCY_MODE_PHY:
+		param |= REPLAY_RESIDENCY_FIELD_MODE_PHY;
+		break;
+	case PR_RESIDENCY_MODE_ALPM:
 		param |= REPLAY_RESIDENCY_FIELD_MODE_ALPM;
+		break;
+	case PR_RESIDENCY_MODE_IPS2:
+		param |= REPLAY_RESIDENCY_REVISION_1;
+		param |= REPLAY_RESIDENCY_FIELD_MODE2_IPS;
+		break;
+	case PR_RESIDENCY_MODE_FRAME_CNT:
+		param |= REPLAY_RESIDENCY_REVISION_1;
+		param |= REPLAY_RESIDENCY_FIELD_MODE2_FRAME_CNT;
+		break;
+	case PR_RESIDENCY_MODE_ENABLEMENT_PERIOD:
+		param |= REPLAY_RESIDENCY_REVISION_1;
+		param |= REPLAY_RESIDENCY_FIELD_MODE2_EN_PERIOD;
+		break;
+	default:
+		break;
+	}
 
 	if (is_start)
 		param |= REPLAY_RESIDENCY_ENABLE;
 
 	// Send gpint command and wait for ack
-	dmub_srv_send_gpint_command(srv, DMUB_GPINT__REPLAY_RESIDENCY, param, 30);
-
-	if (!is_start)
-		dmub_srv_get_gpint_response(srv, residency);
-	else
+	if (!dc_wake_and_execute_gpint(dmub->ctx, DMUB_GPINT__REPLAY_RESIDENCY, param,
+				       residency, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY))
 		*residency = 0;
 }
 
