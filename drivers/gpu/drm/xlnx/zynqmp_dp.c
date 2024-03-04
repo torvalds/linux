@@ -1560,12 +1560,12 @@ disconnected:
 	return connector_status_disconnected;
 }
 
-static struct edid *zynqmp_dp_bridge_get_edid(struct drm_bridge *bridge,
-					      struct drm_connector *connector)
+static const struct drm_edid *zynqmp_dp_bridge_edid_read(struct drm_bridge *bridge,
+							 struct drm_connector *connector)
 {
 	struct zynqmp_dp *dp = bridge_to_dp(bridge);
 
-	return drm_get_edid(connector, &dp->aux.ddc);
+	return drm_edid_read_ddc(connector, &dp->aux.ddc);
 }
 
 static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
@@ -1579,7 +1579,7 @@ static const struct drm_bridge_funcs zynqmp_dp_bridge_funcs = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_check = zynqmp_dp_bridge_atomic_check,
 	.detect = zynqmp_dp_bridge_detect,
-	.get_edid = zynqmp_dp_bridge_get_edid,
+	.edid_read = zynqmp_dp_bridge_edid_read,
 };
 
 /* -----------------------------------------------------------------------------

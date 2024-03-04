@@ -1020,14 +1020,17 @@ static size_t rtnl_xdp_size(void)
 static size_t rtnl_prop_list_size(const struct net_device *dev)
 {
 	struct netdev_name_node *name_node;
-	size_t size;
+	unsigned int cnt = 0;
 
-	if (list_empty(&dev->name_node->list))
+	rcu_read_lock();
+	list_for_each_entry_rcu(name_node, &dev->name_node->list, list)
+		cnt++;
+	rcu_read_unlock();
+
+	if (!cnt)
 		return 0;
-	size = nla_total_size(0);
-	list_for_each_entry(name_node, &dev->name_node->list, list)
-		size += nla_total_size(ALTIFNAMSIZ);
-	return size;
+
+	return nla_total_size(0) + cnt * nla_total_size(ALTIFNAMSIZ);
 }
 
 static size_t rtnl_proto_down_size(const struct net_device *dev)

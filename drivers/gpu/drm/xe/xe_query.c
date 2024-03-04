@@ -198,7 +198,7 @@ static int query_engines(struct xe_device *xe,
 		return -EINVAL;
 	}
 
-	engines = kmalloc(size, GFP_KERNEL);
+	engines = kzalloc(size, GFP_KERNEL);
 	if (!engines)
 		return -ENOMEM;
 
@@ -212,14 +212,10 @@ static int query_engines(struct xe_device *xe,
 			engines->engines[i].instance.engine_instance =
 				hwe->logical_instance;
 			engines->engines[i].instance.gt_id = gt->info.id;
-			engines->engines[i].instance.pad = 0;
-			memset(engines->engines[i].reserved, 0,
-			       sizeof(engines->engines[i].reserved));
 
 			i++;
 		}
 
-	engines->pad = 0;
 	engines->num_engines = i;
 
 	if (copy_to_user(query_ptr, engines, size)) {
@@ -520,6 +516,49 @@ static int query_gt_topology(struct xe_device *xe,
 	return 0;
 }
 
+static int
+query_uc_fw_version(struct xe_device *xe, struct drm_xe_device_query *query)
+{
+	struct drm_xe_query_uc_fw_version __user *query_ptr = u64_to_user_ptr(query->data);
+	size_t size = sizeof(struct drm_xe_query_uc_fw_version);
+	struct drm_xe_query_uc_fw_version resp;
+	struct xe_uc_fw_version *version = NULL;
+
+	if (query->size == 0) {
+		query->size = size;
+		return 0;
+	} else if (XE_IOCTL_DBG(xe, query->size != size)) {
+		return -EINVAL;
+	}
+
+	if (copy_from_user(&resp, query_ptr, size))
+		return -EFAULT;
+
+	if (XE_IOCTL_DBG(xe, resp.pad || resp.pad2 || resp.reserved))
+		return -EINVAL;
+
+	switch (resp.uc_type) {
+	case XE_QUERY_UC_TYPE_GUC_SUBMISSION: {
+		struct xe_guc *guc = &xe->tiles[0].primary_gt->uc.guc;
+
+		version = &guc->fw.versions.found[XE_UC_FW_VER_COMPATIBILITY];
+		break;
+	}
+	default:
+		return -EINVAL;
+	}
+
+	resp.branch_ver = 0;
+	resp.major_ver = version->major;
+	resp.minor_ver = version->minor;
+	resp.patch_ver = version->patch;
+
+	if (copy_to_user(query_ptr, &resp, size))
+		return -EFAULT;
+
+	return 0;
+}
+
 static int (* const xe_query_funcs[])(struct xe_device *xe,
 				      struct drm_xe_device_query *query) = {
 	query_engines,
@@ -529,6 +568,7 @@ static int (* const xe_query_funcs[])(struct xe_device *xe,
 	query_hwconfig,
 	query_gt_topology,
 	query_engine_cycles,
+	query_uc_fw_version,
 };
 
 int xe_query_ioctl(struct drm_device *dev, void *data, struct drm_file *file)

@@ -1651,19 +1651,19 @@ static void tc_bridge_mode_set(struct drm_bridge *bridge,
 	drm_mode_copy(&tc->mode, mode);
 }
 
-static struct edid *tc_get_edid(struct drm_bridge *bridge,
-				struct drm_connector *connector)
+static const struct drm_edid *tc_edid_read(struct drm_bridge *bridge,
+					   struct drm_connector *connector)
 {
 	struct tc_data *tc = bridge_to_tc(bridge);
 
-	return drm_get_edid(connector, &tc->aux.ddc);
+	return drm_edid_read_ddc(connector, &tc->aux.ddc);
 }
 
 static int tc_connector_get_modes(struct drm_connector *connector)
 {
 	struct tc_data *tc = connector_to_tc(connector);
 	int num_modes;
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	ret = tc_get_display_props(tc);
@@ -1678,9 +1678,10 @@ static int tc_connector_get_modes(struct drm_connector *connector)
 			return num_modes;
 	}
 
-	edid = tc_get_edid(&tc->bridge, connector);
-	num_modes = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	drm_edid = tc_edid_read(&tc->bridge, connector);
+	drm_edid_connector_update(connector, drm_edid);
+	num_modes = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	return num_modes;
 }
@@ -1849,7 +1850,7 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.atomic_enable = tc_edp_bridge_atomic_enable,
 	.atomic_disable = tc_edp_bridge_atomic_disable,
 	.detect = tc_bridge_detect,
-	.get_edid = tc_get_edid,
+	.edid_read = tc_edid_read,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,
 	.atomic_reset = drm_atomic_helper_bridge_reset,

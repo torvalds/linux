@@ -289,7 +289,7 @@ int bch2_save_backtrace(bch_stacktrace *stack, struct task_struct *task, unsigne
 	do {
 		nr_entries = stack_trace_save_tsk(task, stack->data, stack->size, skipnr + 1);
 	} while (nr_entries == stack->size &&
-		 !(ret = darray_make_room(stack, stack->size * 2)));
+		 !(ret = darray_make_room_gfp(stack, stack->size * 2, gfp)));
 
 	stack->nr = nr_entries;
 	up_read(&task->signal->exec_update_lock);
@@ -418,14 +418,15 @@ static inline void bch2_time_stats_update_one(struct bch2_time_stats *stats,
 		bch2_quantiles_update(&stats->quantiles, duration);
 	}
 
-	if (time_after64(end, stats->last_event)) {
+	if (stats->last_event && time_after64(end, stats->last_event)) {
 		freq = end - stats->last_event;
 		mean_and_variance_update(&stats->freq_stats, freq);
 		mean_and_variance_weighted_update(&stats->freq_stats_weighted, freq);
 		stats->max_freq = max(stats->max_freq, freq);
 		stats->min_freq = min(stats->min_freq, freq);
-		stats->last_event = end;
 	}
+
+	stats->last_event = end;
 }
 
 static void __bch2_time_stats_clear_buffer(struct bch2_time_stats *stats,

@@ -55,7 +55,8 @@ static u64 hl_set_dram_bar(struct hl_device *hdev, u64 addr, struct pci_mem_regi
 	if (is_power_of_2(prop->dram_pci_bar_size))
 		bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
 	else
-		bar_base_addr = DIV_ROUND_DOWN_ULL(addr, prop->dram_pci_bar_size) *
+		bar_base_addr = region->region_base +
+				div64_u64((addr - region->region_base), prop->dram_pci_bar_size) *
 				prop->dram_pci_bar_size;
 
 	old_base = hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
@@ -1034,14 +1035,14 @@ static void device_early_fini(struct hl_device *hdev)
 
 static bool is_pci_link_healthy(struct hl_device *hdev)
 {
-	u16 vendor_id;
+	u16 device_id;
 
 	if (!hdev->pdev)
 		return false;
 
-	pci_read_config_word(hdev->pdev, PCI_VENDOR_ID, &vendor_id);
+	pci_read_config_word(hdev->pdev, PCI_DEVICE_ID, &device_id);
 
-	return (vendor_id == PCI_VENDOR_ID_HABANALABS);
+	return (device_id == hdev->pdev->device);
 }
 
 static int hl_device_eq_heartbeat_check(struct hl_device *hdev)
@@ -1768,14 +1769,16 @@ kill_processes:
 		hdev->device_cpu_disabled = false;
 		hdev->reset_info.hard_reset_pending = false;
 
+		/*
+		 * Put the device in an unusable state if there are 2 back to back resets due to
+		 * fatal errors.
+		 */
 		if (hdev->reset_info.reset_trigger_repeated &&
-				(hdev->reset_info.prev_reset_trigger ==
-						HL_DRV_RESET_FW_FATAL_ERR)) {
-			/* if there 2 back to back resets from FW,
-			 * ensure driver puts the driver in a unusable state
-			 */
+				(hdev->reset_info.prev_reset_trigger == HL_DRV_RESET_FW_FATAL_ERR ||
+						hdev->reset_info.prev_reset_trigger ==
+								HL_DRV_RESET_HEARTBEAT)) {
 			dev_crit(hdev->dev,
-				"%s Consecutive FW fatal errors received, stopping hard reset\n",
+				"%s Consecutive fatal errors, stopping hard reset\n",
 				dev_name(&(hdev)->pdev->dev));
 			rc = -EIO;
 			goto out_err;
@@ -2800,4 +2803,36 @@ void hl_enable_err_info_capture(struct hl_error_info *captured_err_info)
 	memset(captured_err_info, 0, sizeof(struct hl_error_info));
 	atomic_set(&captured_err_info->cs_timeout.write_enable, 1);
 	captured_err_info->undef_opcode.write_enable = true;
+}
+
+void hl_init_cpu_for_irq(struct hl_device *hdev)
+{
+#ifdef CONFIG_NUMA
+	struct cpumask *available_mask = &hdev->irq_affinity_mask;
+	int numa_node = hdev->pdev->dev.numa_node, i;
+	static struct cpumask cpu_mask;
+
+	if (numa_node < 0)
+		return;
+
+	if (!cpumask_and(&cpu_mask, cpumask_of_node(numa_node), cpu_online_mask)) {
+		dev_err(hdev->dev, "No available affinities in current numa node\n");
+		return;
+	}
+
+	/* Remove HT siblings */
+	for_each_cpu(i, &cpu_mask)
+		cpumask_set_cpu(cpumask_first(topology_sibling_cpumask(i)), available_mask);
+#endif
+}
+
+void hl_set_irq_affinity(struct hl_device *hdev, int irq)
+{
+	if (cpumask_empty(&hdev->irq_affinity_mask)) {
+		dev_dbg(hdev->dev, "affinity mask is empty\n");
+		return;
+	}
+
+	if (irq_set_affinity_and_hint(irq, &hdev->irq_affinity_mask))
+		dev_err(hdev->dev, "Failed setting irq %d affinity\n", irq);
 }

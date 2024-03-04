@@ -347,7 +347,7 @@ u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *i915,
 		default:
 			drm_err(&i915->drm, "Unknown transcoder %d\n",
 				cpu_transcoder);
-			return -EINVAL;
+			return 0;
 		}
 	}
 
@@ -364,7 +364,7 @@ u32 intel_hdcp_get_repeater_ctl(struct drm_i915_private *i915,
 		return HDCP_DDIE_REP_PRESENT | HDCP_DDIE_SHA1_M0;
 	default:
 		drm_err(&i915->drm, "Unknown port %d\n", port);
-		return -EINVAL;
+		return 0;
 	}
 }
 
@@ -853,8 +853,8 @@ static int intel_hdcp_auth(struct intel_connector *connector)
 	if (shim->stream_encryption) {
 		ret = shim->stream_encryption(connector, true);
 		if (ret) {
-			drm_err(&i915->drm, "[%s:%d] Failed to enable HDCP 1.4 stream enc\n",
-				connector->base.name, connector->base.base.id);
+			drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to enable HDCP 1.4 stream enc\n",
+				connector->base.base.id, connector->base.name);
 			return ret;
 		}
 		drm_dbg_kms(&i915->drm, "HDCP 1.4 transcoder: %s stream encrypted\n",
@@ -878,14 +878,14 @@ static int _intel_hdcp_disable(struct intel_connector *connector)
 	u32 repeater_ctl;
 	int ret;
 
-	drm_dbg_kms(&i915->drm, "[%s:%d] HDCP is being disabled...\n",
-		    connector->base.name, connector->base.base.id);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] HDCP is being disabled...\n",
+		    connector->base.base.id, connector->base.name);
 
 	if (hdcp->shim->stream_encryption) {
 		ret = hdcp->shim->stream_encryption(connector, false);
 		if (ret) {
-			drm_err(&i915->drm, "[%s:%d] Failed to disable HDCP 1.4 stream enc\n",
-				connector->base.name, connector->base.base.id);
+			drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to disable HDCP 1.4 stream enc\n",
+				connector->base.base.id, connector->base.name);
 			return ret;
 		}
 		drm_dbg_kms(&i915->drm, "HDCP 1.4 transcoder: %s stream encryption disabled\n",
@@ -929,8 +929,8 @@ static int intel_hdcp1_enable(struct intel_connector *connector)
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	int i, ret, tries = 3;
 
-	drm_dbg_kms(&i915->drm, "[%s:%d] HDCP is being enabled...\n",
-		    connector->base.name, connector->base.base.id);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] HDCP is being enabled...\n",
+		    connector->base.base.id, connector->base.name);
 
 	if (!hdcp_key_loadable(i915)) {
 		drm_err(&i915->drm, "HDCP key Load is not possible\n");
@@ -1027,8 +1027,8 @@ static int intel_hdcp_check_link(struct intel_connector *connector)
 	if (drm_WARN_ON(&i915->drm,
 			!intel_hdcp_in_use(i915, cpu_transcoder, port))) {
 		drm_err(&i915->drm,
-			"%s:%d HDCP link stopped encryption,%x\n",
-			connector->base.name, connector->base.base.id,
+			"[CONNECTOR:%d:%s] HDCP link stopped encryption,%x\n",
+			connector->base.base.id, connector->base.name,
 			intel_de_read(i915, HDCP_STATUS(i915, cpu_transcoder, port)));
 		ret = -ENXIO;
 		intel_hdcp_update_value(connector,
@@ -1046,8 +1046,8 @@ static int intel_hdcp_check_link(struct intel_connector *connector)
 	}
 
 	drm_dbg_kms(&i915->drm,
-		    "[%s:%d] HDCP link failed, retrying authentication\n",
-		    connector->base.name, connector->base.base.id);
+		    "[CONNECTOR:%d:%s] HDCP link failed, retrying authentication\n",
+		    connector->base.base.id, connector->base.name);
 
 	ret = _intel_hdcp_disable(connector);
 	if (ret) {
@@ -1633,6 +1633,12 @@ int hdcp2_authenticate_repeater_topology(struct intel_connector *connector)
 		!HDCP_2_2_HDCP1_DEVICE_CONNECTED(rx_info[1]) &&
 		!HDCP_2_2_HDCP_2_0_REP_CONNECTED(rx_info[1]);
 
+	if (!dig_port->hdcp_mst_type1_capable && hdcp->content_type) {
+		drm_dbg_kms(&i915->drm,
+			    "HDCP1.x or 2.0 Legacy Device Downstream\n");
+		return -EINVAL;
+	}
+
 	/* Converting and Storing the seq_num_v to local variable as DWORD */
 	seq_num_v =
 		drm_hdcp_be24_to_cpu((const u8 *)msgs.recvid_list.seq_num_v);
@@ -1731,8 +1737,8 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 
 	if (!(intel_de_read(i915, HDCP2_STATUS(i915, cpu_transcoder, port)) &
 			    LINK_ENCRYPTION_STATUS)) {
-		drm_err(&i915->drm, "[%s:%d] HDCP 2.2 Link is not encrypted\n",
-			connector->base.name, connector->base.base.id);
+		drm_err(&i915->drm, "[CONNECTOR:%d:%s] HDCP 2.2 Link is not encrypted\n",
+			connector->base.base.id, connector->base.name);
 		ret = -EPERM;
 		goto link_recover;
 	}
@@ -1740,8 +1746,8 @@ static int hdcp2_enable_stream_encryption(struct intel_connector *connector)
 	if (hdcp->shim->stream_2_2_encryption) {
 		ret = hdcp->shim->stream_2_2_encryption(connector, true);
 		if (ret) {
-			drm_err(&i915->drm, "[%s:%d] Failed to enable HDCP 2.2 stream enc\n",
-				connector->base.name, connector->base.base.id);
+			drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to enable HDCP 2.2 stream enc\n",
+				connector->base.base.id, connector->base.name);
 			return ret;
 		}
 		drm_dbg_kms(&i915->drm, "HDCP 2.2 transcoder: %s stream encrypted\n",
@@ -1925,8 +1931,8 @@ static int _intel_hdcp2_enable(struct intel_connector *connector)
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	int ret;
 
-	drm_dbg_kms(&i915->drm, "[%s:%d] HDCP2.2 is being enabled. Type: %d\n",
-		    connector->base.name, connector->base.base.id,
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] HDCP2.2 is being enabled. Type: %d\n",
+		    connector->base.base.id, connector->base.name,
 		    hdcp->content_type);
 
 	ret = hdcp2_authenticate_and_encrypt(connector);
@@ -1936,8 +1942,8 @@ static int _intel_hdcp2_enable(struct intel_connector *connector)
 		return ret;
 	}
 
-	drm_dbg_kms(&i915->drm, "[%s:%d] HDCP2.2 is enabled. Type %d\n",
-		    connector->base.name, connector->base.base.id,
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] HDCP2.2 is enabled. Type %d\n",
+		    connector->base.base.id, connector->base.name,
 		    hdcp->content_type);
 
 	hdcp->hdcp2_encrypted = true;
@@ -1953,14 +1959,14 @@ _intel_hdcp2_disable(struct intel_connector *connector, bool hdcp2_link_recovery
 	struct intel_hdcp *hdcp = &connector->hdcp;
 	int ret;
 
-	drm_dbg_kms(&i915->drm, "[%s:%d] HDCP2.2 is being Disabled\n",
-		    connector->base.name, connector->base.base.id);
+	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s] HDCP2.2 is being Disabled\n",
+		    connector->base.base.id, connector->base.name);
 
 	if (hdcp->shim->stream_2_2_encryption) {
 		ret = hdcp->shim->stream_2_2_encryption(connector, false);
 		if (ret) {
-			drm_err(&i915->drm, "[%s:%d] Failed to disable HDCP 2.2 stream enc\n",
-				connector->base.name, connector->base.base.id);
+			drm_err(&i915->drm, "[CONNECTOR:%d:%s] Failed to disable HDCP 2.2 stream enc\n",
+				connector->base.base.id, connector->base.name);
 			return ret;
 		}
 		drm_dbg_kms(&i915->drm, "HDCP 2.2 transcoder: %s stream encryption disabled\n",
@@ -2040,20 +2046,20 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 			goto out;
 		}
 		drm_dbg_kms(&i915->drm,
-			    "[%s:%d] Repeater topology auth failed.(%d)\n",
-			    connector->base.name, connector->base.base.id,
+			    "[CONNECTOR:%d:%s] Repeater topology auth failed.(%d)\n",
+			    connector->base.base.id, connector->base.name,
 			    ret);
 	} else {
 		drm_dbg_kms(&i915->drm,
-			    "[%s:%d] HDCP2.2 link failed, retrying auth\n",
-			    connector->base.name, connector->base.base.id);
+			    "[CONNECTOR:%d:%s] HDCP2.2 link failed, retrying auth\n",
+			    connector->base.base.id, connector->base.name);
 	}
 
 	ret = _intel_hdcp2_disable(connector, true);
 	if (ret) {
 		drm_err(&i915->drm,
-			"[%s:%d] Failed to disable hdcp2.2 (%d)\n",
-			connector->base.name, connector->base.base.id, ret);
+			"[CONNECTOR:%d:%s] Failed to disable hdcp2.2 (%d)\n",
+			connector->base.base.id, connector->base.name, ret);
 		intel_hdcp_update_value(connector,
 				DRM_MODE_CONTENT_PROTECTION_DESIRED, true);
 		goto out;
@@ -2062,8 +2068,8 @@ static int intel_hdcp2_check_link(struct intel_connector *connector)
 	ret = _intel_hdcp2_enable(connector);
 	if (ret) {
 		drm_dbg_kms(&i915->drm,
-			    "[%s:%d] Failed to enable hdcp2.2 (%d)\n",
-			    connector->base.name, connector->base.base.id,
+			    "[CONNECTOR:%d:%s] Failed to enable hdcp2.2 (%d)\n",
+			    connector->base.base.id, connector->base.name,
 			    ret);
 		intel_hdcp_update_value(connector,
 					DRM_MODE_CONTENT_PROTECTION_DESIRED,
@@ -2341,8 +2347,8 @@ static int _intel_hdcp_enable(struct intel_atomic_state *state,
 		return -ENOENT;
 
 	if (!connector->encoder) {
-		drm_err(&i915->drm, "[%s:%d] encoder is not initialized\n",
-			connector->base.name, connector->base.base.id);
+		drm_err(&i915->drm, "[CONNECTOR:%d:%s] encoder is not initialized\n",
+			connector->base.base.id, connector->base.name);
 		return -ENODEV;
 	}
 

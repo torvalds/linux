@@ -91,8 +91,8 @@ retry:
 	for_each_member(i, type, member) {
 		if (!member->name_off) {
 			/* Anonymous union/struct: push it for later use */
-			type = btf_type_skip_modifiers(btf, member->type, &tid);
-			if (type && top < BTF_ANON_STACK_MAX) {
+			if (btf_type_skip_modifiers(btf, member->type, &tid) &&
+			    top < BTF_ANON_STACK_MAX) {
 				anon_stack[top].tid = tid;
 				anon_stack[top++].offset =
 					cur_offset + member->offset;

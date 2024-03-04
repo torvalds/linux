@@ -37,6 +37,7 @@
 #include "intel_backlight.h"
 #include "intel_connector.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_drrs.h"
 #include "intel_lvds_regs.h"
@@ -682,6 +683,9 @@ intel_panel_detect(struct drm_connector *connector, bool force)
 
 	if (!intel_display_device_enabled(i915))
 		return connector_status_disconnected;
+
+	if (!intel_display_driver_check_access(i915))
+		return connector->status;
 
 	return connector_status_connected;
 }

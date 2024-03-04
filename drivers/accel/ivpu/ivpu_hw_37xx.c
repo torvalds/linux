@@ -13,7 +13,7 @@
 #include "ivpu_pm.h"
 
 #define TILE_FUSE_ENABLE_BOTH        0x0
-#define TILE_SKU_BOTH_MTL            0x3630
+#define TILE_SKU_BOTH                0x3630
 
 /* Work point configuration values */
 #define CONFIG_1_TILE                0x01
@@ -228,7 +228,7 @@ static int ivpu_pll_drive(struct ivpu_device *vdev, bool enable)
 
 		ret = ivpu_hw_37xx_wait_for_vpuip_bar(vdev);
 		if (ret) {
-			ivpu_err(vdev, "Timed out waiting for VPUIP bar\n");
+			ivpu_err(vdev, "Timed out waiting for NPU IP bar\n");
 			return ret;
 		}
 	}
@@ -510,22 +510,12 @@ static int ivpu_boot_pwr_domain_enable(struct ivpu_device *vdev)
 	return ret;
 }
 
-static int ivpu_boot_pwr_domain_disable(struct ivpu_device *vdev)
-{
-	ivpu_boot_dpu_active_drive(vdev, false);
-	ivpu_boot_pwr_island_isolation_drive(vdev, true);
-	ivpu_boot_pwr_island_trickle_drive(vdev, false);
-	ivpu_boot_pwr_island_drive(vdev, false);
-
-	return ivpu_boot_wait_for_pwr_island_status(vdev, 0x0);
-}
-
 static void ivpu_boot_no_snoop_enable(struct ivpu_device *vdev)
 {
 	u32 val = REGV_RD32(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES);
 
 	val = REG_SET_FLD(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES, NOSNOOP_OVERRIDE_EN, val);
-	val = REG_SET_FLD(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES, AW_NOSNOOP_OVERRIDE, val);
+	val = REG_CLR_FLD(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES, AW_NOSNOOP_OVERRIDE, val);
 	val = REG_SET_FLD(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES, AR_NOSNOOP_OVERRIDE, val);
 
 	REGV_WR32(VPU_37XX_HOST_IF_TCU_PTW_OVERRIDES, val);
@@ -599,7 +589,7 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 	struct ivpu_hw_info *hw = vdev->hw;
 
 	hw->tile_fuse = TILE_FUSE_ENABLE_BOTH;
-	hw->sku = TILE_SKU_BOTH_MTL;
+	hw->sku = TILE_SKU_BOTH;
 	hw->config = WP_CONFIG_2_TILE_4_3_RATIO;
 
 	ivpu_pll_init_frequency_ratios(vdev);
@@ -616,12 +606,37 @@ static int ivpu_hw_37xx_info_init(struct ivpu_device *vdev)
 	return 0;
 }
 
+static int ivpu_hw_37xx_ip_reset(struct ivpu_device *vdev)
+{
+	int ret;
+	u32 val;
+
+	if (IVPU_WA(punit_disabled))
+		return 0;
+
+	ret = REGB_POLL_FLD(VPU_37XX_BUTTRESS_VPU_IP_RESET, TRIGGER, 0, TIMEOUT_US);
+	if (ret) {
+		ivpu_err(vdev, "Timed out waiting for TRIGGER bit\n");
+		return ret;
+	}
+
+	val = REGB_RD32(VPU_37XX_BUTTRESS_VPU_IP_RESET);
+	val = REG_SET_FLD(VPU_37XX_BUTTRESS_VPU_IP_RESET, TRIGGER, val);
+	REGB_WR32(VPU_37XX_BUTTRESS_VPU_IP_RESET, val);
+
+	ret = REGB_POLL_FLD(VPU_37XX_BUTTRESS_VPU_IP_RESET, TRIGGER, 0, TIMEOUT_US);
+	if (ret)
+		ivpu_err(vdev, "Timed out waiting for RESET completion\n");
+
+	return ret;
+}
+
 static int ivpu_hw_37xx_reset(struct ivpu_device *vdev)
 {
 	int ret = 0;
 
-	if (ivpu_boot_pwr_domain_disable(vdev)) {
-		ivpu_err(vdev, "Failed to disable power domain\n");
+	if (ivpu_hw_37xx_ip_reset(vdev)) {
+		ivpu_err(vdev, "Failed to reset NPU\n");
 		ret = -EIO;
 	}
 
@@ -660,6 +675,11 @@ static int ivpu_hw_37xx_d0i3_disable(struct ivpu_device *vdev)
 static int ivpu_hw_37xx_power_up(struct ivpu_device *vdev)
 {
 	int ret;
+
+	/* PLL requests may fail when powering down, so issue WP 0 here */
+	ret = ivpu_pll_disable(vdev);
+	if (ret)
+		ivpu_warn(vdev, "Failed to disable PLL: %d\n", ret);
 
 	ret = ivpu_hw_37xx_d0i3_disable(vdev);
 	if (ret)
@@ -742,10 +762,10 @@ static int ivpu_hw_37xx_power_down(struct ivpu_device *vdev)
 	ivpu_hw_37xx_save_d0i3_entry_timestamp(vdev);
 
 	if (!ivpu_hw_37xx_is_idle(vdev))
-		ivpu_warn(vdev, "VPU not idle during power down\n");
+		ivpu_warn(vdev, "NPU not idle during power down\n");
 
 	if (ivpu_hw_37xx_reset(vdev)) {
-		ivpu_err(vdev, "Failed to reset VPU\n");
+		ivpu_err(vdev, "Failed to reset NPU\n");
 		ret = -EIO;
 	}
 

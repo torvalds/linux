@@ -54,11 +54,14 @@ struct intel_global_obj {
 	     (__i)++) \
 		for_each_if(obj)
 
+struct intel_global_commit;
+
 struct intel_global_state {
 	struct intel_global_obj *obj;
 	struct intel_atomic_state *state;
+	struct intel_global_commit *commit;
 	struct kref ref;
-	bool changed;
+	bool changed, serialized;
 };
 
 struct __intel_global_objs_state {
@@ -86,6 +89,10 @@ void intel_atomic_swap_global_state(struct intel_atomic_state *state);
 void intel_atomic_clear_global_state(struct intel_atomic_state *state);
 int intel_atomic_lock_global_state(struct intel_global_state *obj_state);
 int intel_atomic_serialize_global_state(struct intel_global_state *obj_state);
+
+int intel_atomic_global_state_setup_commit(struct intel_atomic_state *state);
+void intel_atomic_global_state_commit_done(struct intel_atomic_state *state);
+int intel_atomic_global_state_wait_for_dependencies(struct intel_atomic_state *state);
 
 bool intel_atomic_global_state_is_serialized(struct intel_atomic_state *state);
 

@@ -19,6 +19,8 @@ struct reset_control;
 
 #define GMP_GRANULARITY (128 * 1024)
 
+#define V3D_MMU_PAGE_SHIFT 12
+
 #define V3D_MAX_QUEUES (V3D_CPU + 1)
 
 static inline char *v3d_queue_to_string(enum v3d_queue queue)

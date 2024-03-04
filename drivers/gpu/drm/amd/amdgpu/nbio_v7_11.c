@@ -89,7 +89,9 @@ static void nbio_v7_11_vpe_doorbell_range(struct amdgpu_device *adev, int instan
 					  bool use_doorbell, int doorbell_index,
 					  int doorbell_size)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE_DOORBELL_RANGE);
+	u32 reg = instance == 0 ?
+		  SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE_DOORBELL_RANGE) :
+		  SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VPE1_DOORBELL_RANGE);
 	u32 doorbell_range = RREG32_PCIE_PORT(reg);
 
 	if (use_doorbell) {
@@ -112,7 +114,10 @@ static void nbio_v7_11_vcn_doorbell_range(struct amdgpu_device *adev,
 					  bool use_doorbell,
 					  int doorbell_index, int instance)
 {
-	u32 reg = SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VCN0_DOORBELL_RANGE);
+	u32 reg = instance == 0 ?
+		SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VCN0_DOORBELL_RANGE):
+		SOC15_REG_OFFSET(NBIO, 0, regGDC0_BIF_VCN1_DOORBELL_RANGE);
+
 	u32 doorbell_range = RREG32_PCIE_PORT(reg);
 
 	if (use_doorbell) {

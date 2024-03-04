@@ -62,7 +62,6 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&led1_pin>;
-		status = "okay";
 
 		/* LED1 on PCB */
 		led-1 {

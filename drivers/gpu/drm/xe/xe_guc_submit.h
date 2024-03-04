@@ -9,8 +9,8 @@
 #include <linux/types.h>
 
 struct drm_printer;
-struct xe_exec_queue;
 struct xe_guc;
+struct xe_sched_job;
 
 int xe_guc_submit_init(struct xe_guc *guc);
 
@@ -27,7 +27,7 @@ int xe_guc_exec_queue_memory_cat_error_handler(struct xe_guc *guc, u32 *msg,
 int xe_guc_exec_queue_reset_failure_handler(struct xe_guc *guc, u32 *msg, u32 len);
 
 struct xe_guc_submit_exec_queue_snapshot *
-xe_guc_exec_queue_snapshot_capture(struct xe_exec_queue *q);
+xe_guc_exec_queue_snapshot_capture(struct xe_sched_job *job);
 void
 xe_guc_exec_queue_snapshot_print(struct xe_guc_submit_exec_queue_snapshot *snapshot,
 				 struct drm_printer *p);

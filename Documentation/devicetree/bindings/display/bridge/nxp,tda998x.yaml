@@ -29,19 +29,22 @@ properties:
 
   audio-ports:
     description:
-      Array of 8-bit values, 2 values per DAI (Documentation/sound/soc/dai.rst).
+      Array of 2 values per DAI (Documentation/sound/soc/dai.rst).
       The implementation allows one or two DAIs.
       If two DAIs are defined, they must be of different type.
     $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    minItems: 1
+    maxItems: 2
     items:
-      minItems: 1
       items:
         - description: |
             The first value defines the DAI type: TDA998x_SPDIF or TDA998x_I2S
             (see include/dt-bindings/display/tda998x.h).
+          enum: [ 1, 2 ]
         - description:
             The second value defines the tda998x AP_ENA reg content when the
             DAI in question is used.
+          maximum: 0xff
 
   '#sound-dai-cells':
     enum: [ 0, 1 ]

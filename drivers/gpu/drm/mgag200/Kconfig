@@ -11,3 +11,15 @@ config DRM_MGAG200
 	 MGA G200 desktop chips and the server variants. It requires 0.3.0
 	 of the modesetting userspace driver, and a version of mga driver
 	 that will fail on KMS enabled devices.
+
+config DRM_MGAG200_IOBURST_WORKAROUND
+	bool "Disable buffer caching"
+	depends on DRM_MGAG200 && PREEMPT_RT && X86
+	help
+	  Enable a workaround to avoid I/O bursts within the mgag200 driver at
+	  the expense of overall display performance.
+	  It restores the <v5.10 behavior, by mapping the framebuffer in system
+	  RAM as Write-Combining, and flushing the cache after each write.
+	  This is only useful on x86_64 if you want to run processes with
+	  deterministic latency.
+	  If unsure, say N.

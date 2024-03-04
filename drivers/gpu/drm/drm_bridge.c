@@ -1216,9 +1216,6 @@ EXPORT_SYMBOL_GPL(drm_bridge_get_modes);
  * DRM_BRIDGE_OP_EDID bridge ops flag, call &drm_bridge_funcs.edid_read to get
  * the EDID and return it. Otherwise return NULL.
  *
- * If &drm_bridge_funcs.edid_read is not set, fall back to using
- * &drm_bridge_funcs.get_edid and wrapping it in struct drm_edid.
- *
  * RETURNS:
  * The retrieved EDID on success, or NULL otherwise.
  */
@@ -1227,22 +1224,6 @@ const struct drm_edid *drm_bridge_edid_read(struct drm_bridge *bridge,
 {
 	if (!(bridge->ops & DRM_BRIDGE_OP_EDID))
 		return NULL;
-
-	/* Transitional: Fall back to ->get_edid. */
-	if (!bridge->funcs->edid_read) {
-		const struct drm_edid *drm_edid;
-		struct edid *edid;
-
-		edid = bridge->funcs->get_edid(bridge, connector);
-		if (!edid)
-			return NULL;
-
-		drm_edid = drm_edid_alloc(edid, (edid->extensions + 1) * EDID_LENGTH);
-
-		kfree(edid);
-
-		return drm_edid;
-	}
 
 	return bridge->funcs->edid_read(bridge, connector);
 }

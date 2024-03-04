@@ -2204,8 +2204,7 @@ static u8 map_ddc_pin(struct drm_i915_private *i915, u8 vbt_pin)
 	if (IS_DGFX(i915))
 		return vbt_pin;
 
-	if (INTEL_PCH_TYPE(i915) >= PCH_LNL || HAS_PCH_MTP(i915) ||
-	    IS_ALDERLAKE_P(i915)) {
+	if (INTEL_PCH_TYPE(i915) >= PCH_MTL || IS_ALDERLAKE_P(i915)) {
 		ddc_pin_map = adlp_ddc_pin_map;
 		n_entries = ARRAY_SIZE(adlp_ddc_pin_map);
 	} else if (IS_ALDERLAKE_S(i915)) {
@@ -3074,7 +3073,7 @@ err_unmap_oprom:
  */
 void intel_bios_init(struct drm_i915_private *i915)
 {
-	const struct vbt_header *vbt = i915->display.opregion.vbt;
+	const struct vbt_header *vbt;
 	struct vbt_header *oprom_vbt = NULL;
 	const struct bdb_header *bdb;
 
@@ -3088,6 +3087,8 @@ void intel_bios_init(struct drm_i915_private *i915)
 	}
 
 	init_vbt_defaults(i915);
+
+	vbt = intel_opregion_get_vbt(i915, NULL);
 
 	/*
 	 * If the OpRegion does not have VBT, look in SPI flash through MMIO or
@@ -3306,7 +3307,7 @@ bool intel_bios_is_lvds_present(struct drm_i915_private *i915, u8 *i2c_pin)
 		 * additional data.  Trust that if the VBT was written into
 		 * the OpRegion then they have validated the LVDS's existence.
 		 */
-		if (i915->display.opregion.vbt)
+		if (intel_opregion_get_vbt(i915, NULL))
 			return true;
 	}
 
@@ -3656,4 +3657,31 @@ void intel_bios_for_each_encoder(struct drm_i915_private *i915,
 
 	list_for_each_entry(devdata, &i915->display.vbt.display_devices, node)
 		func(i915, devdata);
+}
+
+static int intel_bios_vbt_show(struct seq_file *m, void *unused)
+{
+	struct drm_i915_private *i915 = m->private;
+	const void *vbt;
+	size_t vbt_size;
+
+	/*
+	 * FIXME: VBT might originate from other places than opregion, and then
+	 * this would be incorrect.
+	 */
+	vbt = intel_opregion_get_vbt(i915, &vbt_size);
+	if (vbt)
+		seq_write(m, vbt, vbt_size);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(intel_bios_vbt);
+
+void intel_bios_debugfs_register(struct drm_i915_private *i915)
+{
+	struct drm_minor *minor = i915->drm.primary;
+
+	debugfs_create_file("i915_vbt", 0444, minor->debugfs_root,
+			    i915, &intel_bios_vbt_fops);
 }

@@ -681,7 +681,8 @@ i915_print_iommu_status(struct drm_i915_private *i915, struct drm_printer *p)
 static void i915_welcome_messages(struct drm_i915_private *dev_priv)
 {
 	if (drm_debug_enabled(DRM_UT_DRIVER)) {
-		struct drm_printer p = drm_debug_printer("i915 device info:");
+		struct drm_printer p = drm_dbg_printer(&dev_priv->drm, DRM_UT_DRIVER,
+						       "device info:");
 		struct intel_gt *gt;
 		unsigned int i;
 
@@ -1003,8 +1004,10 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 	intel_runtime_pm_disable(&i915->runtime_pm);
 	intel_power_domains_disable(i915);
 
+	intel_fbdev_set_suspend(&i915->drm, FBINFO_STATE_SUSPENDED, true);
 	if (HAS_DISPLAY(i915)) {
 		drm_kms_helper_poll_disable(&i915->drm);
+		intel_display_driver_disable_user_access(i915);
 
 		drm_atomic_helper_shutdown(&i915->drm);
 	}
@@ -1013,6 +1016,9 @@ void i915_driver_shutdown(struct drm_i915_private *i915)
 
 	intel_runtime_pm_disable_interrupts(i915);
 	intel_hpd_cancel_work(i915);
+
+	if (HAS_DISPLAY(i915))
+		intel_display_driver_suspend_access(i915);
 
 	intel_suspend_encoders(i915);
 	intel_shutdown_encoders(i915);
@@ -1080,8 +1086,11 @@ static int i915_drm_suspend(struct drm_device *dev)
 	/* We do a lot of poking in a lot of registers, make sure they work
 	 * properly. */
 	intel_power_domains_disable(dev_priv);
-	if (HAS_DISPLAY(dev_priv))
+	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
+	if (HAS_DISPLAY(dev_priv)) {
 		drm_kms_helper_poll_disable(dev);
+		intel_display_driver_disable_user_access(dev_priv);
+	}
 
 	pci_save_state(pdev);
 
@@ -1091,6 +1100,9 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	intel_runtime_pm_disable_interrupts(dev_priv);
 	intel_hpd_cancel_work(dev_priv);
+
+	if (HAS_DISPLAY(dev_priv))
+		intel_display_driver_suspend_access(dev_priv);
 
 	intel_suspend_encoders(dev_priv);
 
@@ -1102,8 +1114,6 @@ static int i915_drm_suspend(struct drm_device *dev)
 
 	opregion_target_state = suspend_to_idle(dev_priv) ? PCI_D1 : PCI_D3cold;
 	intel_opregion_suspend(dev_priv, opregion_target_state);
-
-	intel_fbdev_set_suspend(dev, FBINFO_STATE_SUSPENDED, true);
 
 	dev_priv->suspend_count++;
 
@@ -1243,15 +1253,21 @@ static int i915_drm_resume(struct drm_device *dev)
 	intel_display_driver_init_hw(dev_priv);
 
 	intel_clock_gating_init(dev_priv);
+
+	if (HAS_DISPLAY(dev_priv))
+		intel_display_driver_resume_access(dev_priv);
+
 	intel_hpd_init(dev_priv);
 
 	/* MST sideband requires HPD interrupts enabled */
 	intel_dp_mst_resume(dev_priv);
 	intel_display_driver_resume(dev_priv);
 
-	intel_hpd_poll_disable(dev_priv);
-	if (HAS_DISPLAY(dev_priv))
+	if (HAS_DISPLAY(dev_priv)) {
+		intel_display_driver_enable_user_access(dev_priv);
 		drm_kms_helper_poll_enable(dev);
+	}
+	intel_hpd_poll_disable(dev_priv);
 
 	intel_opregion_resume(dev_priv);
 

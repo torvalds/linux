@@ -278,38 +278,34 @@ static const struct drm_connector_funcs sii902x_connector_funcs = {
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 };
 
-static struct edid *sii902x_get_edid(struct sii902x *sii902x,
-				     struct drm_connector *connector)
+static const struct drm_edid *sii902x_edid_read(struct sii902x *sii902x,
+						struct drm_connector *connector)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	mutex_lock(&sii902x->mutex);
 
-	edid = drm_get_edid(connector, sii902x->i2cmux->adapter[0]);
-	if (edid) {
-		if (drm_detect_hdmi_monitor(edid))
-			sii902x->sink_is_hdmi = true;
-		else
-			sii902x->sink_is_hdmi = false;
-	}
+	drm_edid = drm_edid_read_ddc(connector, sii902x->i2cmux->adapter[0]);
 
 	mutex_unlock(&sii902x->mutex);
 
-	return edid;
+	return drm_edid;
 }
 
 static int sii902x_get_modes(struct drm_connector *connector)
 {
 	struct sii902x *sii902x = connector_to_sii902x(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int num = 0;
 
-	edid = sii902x_get_edid(sii902x, connector);
-	drm_connector_update_edid_property(connector, edid);
-	if (edid) {
-		num = drm_add_edid_modes(connector, edid);
-		kfree(edid);
+	drm_edid = sii902x_edid_read(sii902x, connector);
+	drm_edid_connector_update(connector, drm_edid);
+	if (drm_edid) {
+		num = drm_edid_connector_add_modes(connector);
+		drm_edid_free(drm_edid);
 	}
+
+	sii902x->sink_is_hdmi = connector->display_info.is_hdmi;
 
 	return num;
 }
@@ -465,12 +461,12 @@ static enum drm_connector_status sii902x_bridge_detect(struct drm_bridge *bridge
 	return sii902x_detect(sii902x);
 }
 
-static struct edid *sii902x_bridge_get_edid(struct drm_bridge *bridge,
-					    struct drm_connector *connector)
+static const struct drm_edid *sii902x_bridge_edid_read(struct drm_bridge *bridge,
+						       struct drm_connector *connector)
 {
 	struct sii902x *sii902x = bridge_to_sii902x(bridge);
 
-	return sii902x_get_edid(sii902x, connector);
+	return sii902x_edid_read(sii902x, connector);
 }
 
 static u32 *sii902x_bridge_atomic_get_input_bus_fmts(struct drm_bridge *bridge,
@@ -514,7 +510,7 @@ static const struct drm_bridge_funcs sii902x_bridge_funcs = {
 	.disable = sii902x_bridge_disable,
 	.enable = sii902x_bridge_enable,
 	.detect = sii902x_bridge_detect,
-	.get_edid = sii902x_bridge_get_edid,
+	.edid_read = sii902x_bridge_edid_read,
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_bridge_destroy_state,

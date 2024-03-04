@@ -358,7 +358,7 @@ static int setup_umsch_mm_test(struct amdgpu_device *adev,
 
 	memset(test->ring_data_cpu_addr, 0, sizeof(struct umsch_mm_test_ring_data));
 
-	test->ring_data_gpu_addr = AMDGPU_VA_RESERVED_SIZE;
+	test->ring_data_gpu_addr = AMDGPU_VA_RESERVED_BOTTOM;
 	r = map_ring_data(adev, test->vm, test->ring_data_obj, &test->bo_va,
 			  test->ring_data_gpu_addr, sizeof(struct umsch_mm_test_ring_data));
 	if (r)

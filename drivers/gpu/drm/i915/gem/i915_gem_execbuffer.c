@@ -2160,12 +2160,6 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 
 #ifdef CONFIG_MMU_NOTIFIER
 	if (!err && (eb->args->flags & __EXEC_USERPTR_USED)) {
-		read_lock(&eb->i915->mm.notifier_lock);
-
-		/*
-		 * count is always at least 1, otherwise __EXEC_USERPTR_USED
-		 * could not have been set
-		 */
 		for (i = 0; i < count; i++) {
 			struct eb_vma *ev = &eb->vma[i];
 			struct drm_i915_gem_object *obj = ev->vma->obj;
@@ -2177,8 +2171,6 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 			if (err)
 				break;
 		}
-
-		read_unlock(&eb->i915->mm.notifier_lock);
 	}
 #endif
 
