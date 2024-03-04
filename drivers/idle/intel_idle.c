@@ -1934,7 +1934,8 @@ static void __init spr_idle_state_table_update(void)
 
 static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 {
-	unsigned int mwait_cstate = MWAIT_HINT2CSTATE(mwait_hint) + 1;
+	unsigned int mwait_cstate = (MWAIT_HINT2CSTATE(mwait_hint) + 1) &
+					MWAIT_CSTATE_MASK;
 	unsigned int num_substates = (mwait_substates >> mwait_cstate * 4) &
 					MWAIT_SUBSTATE_MASK;
 
