@@ -1056,7 +1056,7 @@ bool edp_set_coasting_vtotal(struct dc_link *link, uint32_t coasting_vtotal)
 }
 
 bool edp_replay_residency(const struct dc_link *link,
-	unsigned int *residency, const bool is_start, const bool is_alpm)
+	unsigned int *residency, const bool is_start, const enum pr_residency_mode mode)
 {
 	struct dc  *dc = link->ctx->dc;
 	struct dmub_replay *replay = dc->res_pool->replay;
@@ -1065,8 +1065,11 @@ bool edp_replay_residency(const struct dc_link *link,
 	if (!dc_get_edp_link_panel_inst(dc, link, &panel_inst))
 		return false;
 
+	if (!residency)
+		return false;
+
 	if (replay != NULL && link->replay_settings.replay_feature_enabled)
-		replay->funcs->replay_residency(replay, panel_inst, residency, is_start, is_alpm);
+		replay->funcs->replay_residency(replay, panel_inst, residency, is_start, mode);
 	else
 		*residency = 0;
 
