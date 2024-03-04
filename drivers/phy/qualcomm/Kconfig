@@ -140,6 +140,16 @@ config PHY_QCOM_UFS_V4_LAHAINA
 	  This is required to enable UFS on Lahaina chipset.
 	  To compile this driver as a module, choose M here.
 
+config PHY_QCOM_UFS_V4_CROW
+	tristate "Qualcomm Technologies, Inc. UFS Crow Phy Driver"
+	help
+	  Support for UFS phy present on QCOM Crow chipsets is essential
+	  for enabling UFS on Crow chipsets.
+	  To compile this driver as a module, users can choose "M" to have
+	  the flexibility of loading and unloading the driver as needed.
+	  By incorporating support for UFS phy on Crow chipsets, users
+	  can take advantage of the benefits offered by CROW UFS PHY.
+
 endif
 
 config PHY_QCOM_QUSB2
