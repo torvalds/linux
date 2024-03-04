@@ -2059,6 +2059,38 @@ static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdg
 	return 0;
 }
 
+static int pp_dpm_dcefclk_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+				      uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	struct device_attribute *dev_attr = &attr->dev_attr;
+	uint32_t gc_ver;
+
+	*states = ATTR_STATE_SUPPORTED;
+
+	if (!(attr->flags & mask)) {
+		*states = ATTR_STATE_UNSUPPORTED;
+		return 0;
+	}
+
+	gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
+	/* dcefclk node is not available on gfx 11.0.3 sriov */
+	if ((gc_ver == IP_VERSION(11, 0, 3) && amdgpu_sriov_is_pp_one_vf(adev)) ||
+	    gc_ver < IP_VERSION(9, 0, 0) ||
+	    !amdgpu_device_has_display_hardware(adev))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	/* SMU MP1 does not support dcefclk level setting,
+	 * setting should not be allowed from VF if not in one VF mode.
+	 */
+	if (gc_ver >= IP_VERSION(10, 0, 0) ||
+	    (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))) {
+		dev_attr->attr.mode &= ~S_IWUGO;
+		dev_attr->store = NULL;
+	}
+
+	return 0;
+}
+
 /* Following items will be read out to indicate current plpd policy:
  *  - -1: none
  *  - 0: disallow
@@ -2138,7 +2170,8 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_dcefclk_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_sclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_mclk_od,				ATTR_FLAG_BASIC),
@@ -2181,10 +2214,6 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 
 	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
 		if (gc_ver < IP_VERSION(9, 0, 0))
-			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		if (gc_ver < IP_VERSION(9, 0, 0) ||
-		    !amdgpu_device_has_display_hardware(adev))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
 		if (mp1_ver < IP_VERSION(10, 0, 0))
@@ -2301,14 +2330,6 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		break;
 	default:
 		break;
-	}
-
-	if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		/* SMU MP1 does not support dcefclk level setting */
-		if (gc_ver >= IP_VERSION(10, 0, 0)) {
-			dev_attr->attr.mode &= ~S_IWUGO;
-			dev_attr->store = NULL;
-		}
 	}
 
 	/* setting should not be allowed from VF if not in one VF mode */
