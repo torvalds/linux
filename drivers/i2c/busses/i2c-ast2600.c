@@ -952,7 +952,6 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 			}
 		}
 	} else {
-		cmd |= AST2600_I2CM_TX_CMD;
 		if (i2c_bus->mode == DMA_MODE) {
 			/* dma mode */
 			if (msg->len > AST2600_I2C_DMA_SIZE) {
@@ -964,7 +963,7 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 			}
 
 			if (xfer_len) {
-				cmd |= AST2600_I2CM_TX_DMA_EN;
+				cmd |= AST2600_I2CM_TX_DMA_EN | AST2600_I2CM_TX_CMD;
 				writel(AST2600_I2CM_SET_TX_DMA_LEN(xfer_len - 1),
 				       i2c_bus->reg_base + AST2600_I2CM_DMA_LEN);
 				i2c_bus->master_safe_buf = i2c_get_dma_safe_msg_buf(msg, 1);
@@ -997,7 +996,7 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 				xfer_len = msg->len;
 			}
 			if (xfer_len) {
-				cmd |= AST2600_I2CM_TX_BUFF_EN;
+				cmd |= AST2600_I2CM_TX_BUFF_EN | AST2600_I2CM_TX_CMD;
 				if (readl(i2c_bus->reg_base + AST2600_I2CS_ISR))
 					return -ENOMEM;
 				writel(AST2600_I2CC_SET_TX_BUF_LEN(xfer_len),
@@ -1020,6 +1019,7 @@ static int ast2600_i2c_do_start(struct ast2600_i2c_bus *i2c_bus)
 				cmd |= AST2600_I2CM_STOP_CMD;
 
 			if (msg->len) {
+				cmd |= AST2600_I2CM_TX_CMD;
 				xfer_len = 1;
 				writel(msg->buf[0], i2c_bus->reg_base + AST2600_I2CC_STS_AND_BUFF);
 			} else {
