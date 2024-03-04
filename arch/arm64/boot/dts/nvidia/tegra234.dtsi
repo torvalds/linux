@@ -1459,7 +1459,7 @@
 					<&mc TEGRA234_MEMORY_CLIENT_MGBEAWR &emc>;
 			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE>;
-			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEA>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEB>;
 			status = "disabled";
 		};
 
@@ -1493,7 +1493,7 @@
 					<&mc TEGRA234_MEMORY_CLIENT_MGBEBWR &emc>;
 			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF1>;
-			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEB>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEC>;
 			status = "disabled";
 		};
 
@@ -1527,7 +1527,7 @@
 					<&mc TEGRA234_MEMORY_CLIENT_MGBECWR &emc>;
 			interconnect-names = "dma-mem", "write";
 			iommus = <&smmu_niso0 TEGRA234_SID_MGBE_VF2>;
-			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBEC>;
+			power-domains = <&bpmp TEGRA234_POWER_DOMAIN_MGBED>;
 			status = "disabled";
 		};
 
