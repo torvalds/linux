@@ -159,7 +159,7 @@ static void device_stats_show(struct seq_file *m, struct iaa_device *iaa_device)
 		wq_show(m, iaa_wq);
 }
 
-static void global_stats_show(struct seq_file *m)
+static int global_stats_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "global stats:\n");
 	seq_printf(m, "  total_comp_calls: %llu\n", total_comp_calls);
@@ -173,6 +173,8 @@ static void global_stats_show(struct seq_file *m)
 		   total_completion_timeout_errors);
 	seq_printf(m, "  total_completion_comp_buf_overflow_errors: %llu\n\n",
 		   total_completion_comp_buf_overflow_errors);
+
+	return 0;
 }
 
 static int wq_stats_show(struct seq_file *m, void *v)
@@ -180,8 +182,6 @@ static int wq_stats_show(struct seq_file *m, void *v)
 	struct iaa_device *iaa_device;
 
 	mutex_lock(&iaa_devices_lock);
-
-	global_stats_show(m);
 
 	list_for_each_entry(iaa_device, &iaa_devices, list)
 		device_stats_show(m, iaa_device);
@@ -219,6 +219,18 @@ static const struct file_operations wq_stats_fops = {
 	.release = single_release,
 };
 
+static int global_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, global_stats_show, file);
+}
+
+static const struct file_operations global_stats_fops = {
+	.open = global_stats_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 DEFINE_DEBUGFS_ATTRIBUTE(wq_stats_reset_fops, NULL, iaa_crypto_stats_reset, "%llu\n");
 
 int __init iaa_crypto_debugfs_init(void)
@@ -228,16 +240,8 @@ int __init iaa_crypto_debugfs_init(void)
 
 	iaa_crypto_debugfs_root = debugfs_create_dir("iaa_crypto", NULL);
 
-	debugfs_create_u64("total_comp_calls", 0644,
-			   iaa_crypto_debugfs_root, &total_comp_calls);
-	debugfs_create_u64("total_decomp_calls", 0644,
-			   iaa_crypto_debugfs_root, &total_decomp_calls);
-	debugfs_create_u64("total_sw_decomp_calls", 0644,
-			   iaa_crypto_debugfs_root, &total_sw_decomp_calls);
-	debugfs_create_u64("total_comp_bytes_out", 0644,
-			   iaa_crypto_debugfs_root, &total_comp_bytes_out);
-	debugfs_create_u64("total_decomp_bytes_in", 0644,
-			   iaa_crypto_debugfs_root, &total_decomp_bytes_in);
+	debugfs_create_file("global_stats", 0644, iaa_crypto_debugfs_root, NULL,
+			    &global_stats_fops);
 	debugfs_create_file("wq_stats", 0644, iaa_crypto_debugfs_root, NULL,
 			    &wq_stats_fops);
 	debugfs_create_file("stats_reset", 0644, iaa_crypto_debugfs_root, NULL,
