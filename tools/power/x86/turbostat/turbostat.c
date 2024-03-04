@@ -839,6 +839,23 @@ static const struct platform_features spr_features = {
 	.rapl_msrs = RAPL_PKG_ALL | RAPL_DRAM_ALL | RAPL_PSYS,
 };
 
+static const struct platform_features dmr_features = {
+	.has_msr_misc_feature_control = spr_features.has_msr_misc_feature_control,
+	.has_msr_misc_pwr_mgmt = spr_features.has_msr_misc_pwr_mgmt,
+	.has_nhm_msrs = spr_features.has_nhm_msrs,
+	.has_config_tdp = spr_features.has_config_tdp,
+	.bclk_freq = spr_features.bclk_freq,
+	.supported_cstates = spr_features.supported_cstates,
+	.cst_limit = spr_features.cst_limit,
+	.has_msr_core_c1_res = spr_features.has_msr_core_c1_res,
+	.has_msr_module_c6_res_ms = 1,	/* DMR has Dual Core Module and MC6 MSR */
+	.has_irtl_msrs = spr_features.has_irtl_msrs,
+	.has_cst_prewake_bit = spr_features.has_cst_prewake_bit,
+	.has_fixed_rapl_psys_unit = spr_features.has_fixed_rapl_psys_unit,
+	.trl_msrs = spr_features.trl_msrs,
+	.rapl_msrs = 0,		/* DMR does not have RAPL MSRs */
+};
+
 static const struct platform_features srf_features = {
 	.has_msr_misc_feature_control = 1,
 	.has_msr_misc_pwr_mgmt = 1,
@@ -1028,6 +1045,7 @@ static const struct platform_data turbostat_pdata[] = {
 	{ INTEL_EMERALDRAPIDS_X, &spr_features },
 	{ INTEL_GRANITERAPIDS_X, &spr_features },
 	{ INTEL_GRANITERAPIDS_D, &spr_features },
+	{ INTEL_PANTHERCOVE_X, &dmr_features },
 	{ INTEL_LAKEFIELD, &cnl_features },
 	{ INTEL_ALDERLAKE, &adl_features },
 	{ INTEL_ALDERLAKE_L, &adl_features },
