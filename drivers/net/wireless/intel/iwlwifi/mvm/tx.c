@@ -1015,8 +1015,7 @@ static int iwl_mvm_tx_tso(struct iwl_mvm *mvm, struct sk_buff *skb,
 	netdev_features_t netdev_flags = NETIF_F_CSUM_MASK | NETIF_F_SG;
 	u8 tid;
 
-	snap_ip_tcp = 8 + skb_transport_header(skb) - skb_network_header(skb) +
-		tcp_hdrlen(skb);
+	snap_ip_tcp = 8 + skb_network_header_len(skb) + tcp_hdrlen(skb);
 
 	if (!mvmsta->max_amsdu_len ||
 	    !ieee80211_is_data_qos(hdr->frame_control) ||

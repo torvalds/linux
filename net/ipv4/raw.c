@@ -310,7 +310,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 	}
 	nf_reset_ct(skb);
 
-	skb_push(skb, skb->data - skb_network_header(skb));
+	skb_push(skb, -skb_network_offset(skb));
 
 	raw_rcv_skb(sk, skb);
 	return 0;

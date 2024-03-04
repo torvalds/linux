@@ -1257,7 +1257,7 @@ static int wx_tso(struct wx_ring *tx_ring, struct wx_tx_buffer *first,
 
 	/* compute header lengths */
 	l4len = enc ? inner_tcp_hdrlen(skb) : tcp_hdrlen(skb);
-	*hdr_len = enc ? (skb_inner_transport_header(skb) - skb->data) :
+	*hdr_len = enc ? skb_inner_transport_offset(skb) :
 			 skb_transport_offset(skb);
 	*hdr_len += l4len;
 
