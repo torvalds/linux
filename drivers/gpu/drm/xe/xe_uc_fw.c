@@ -296,36 +296,28 @@ static void uc_fw_fini(struct drm_device *drm, void *arg)
 	xe_uc_fw_change_status(uc_fw, XE_UC_FIRMWARE_SELECTED);
 }
 
-static void guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
+static int guc_read_css_info(struct xe_uc_fw *uc_fw, struct uc_css_header *css)
 {
 	struct xe_gt *gt = uc_fw_to_gt(uc_fw);
 	struct xe_uc_fw_version *release = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
 	struct xe_uc_fw_version *compatibility = &uc_fw->versions.found[XE_UC_FW_VER_COMPATIBILITY];
 
 	xe_gt_assert(gt, uc_fw->type == XE_UC_FW_TYPE_GUC);
-	xe_gt_assert(gt, release->major >= 70);
 
-	if (release->major > 70 || release->minor >= 6) {
-		/* v70.6.0 adds CSS header support */
-		compatibility->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR,
-						 css->submission_version);
-		compatibility->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR,
-						 css->submission_version);
-		compatibility->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH,
-						 css->submission_version);
-	} else if (release->minor >= 3) {
-		/* v70.3.0 introduced v1.1.0 */
-		compatibility->major = 1;
-		compatibility->minor = 1;
-		compatibility->patch = 0;
-	} else {
-		/* v70.0.0 introduced v1.0.0 */
-		compatibility->major = 1;
-		compatibility->minor = 0;
-		compatibility->patch = 0;
+	/* We don't support GuC releases older than 70.19 */
+	if (release->major < 70 || (release->major == 70 && release->minor < 19)) {
+		xe_gt_err(gt, "Unsupported GuC v%u.%u! v70.19 or newer is required\n",
+			  release->major, release->minor);
+		return -EINVAL;
 	}
 
+	compatibility->major = FIELD_GET(CSS_SW_VERSION_UC_MAJOR, css->submission_version);
+	compatibility->minor = FIELD_GET(CSS_SW_VERSION_UC_MINOR, css->submission_version);
+	compatibility->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->submission_version);
+
 	uc_fw->private_data_size = css->private_data_size;
+
+	return 0;
 }
 
 int xe_uc_fw_check_version_requirements(struct xe_uc_fw *uc_fw)
@@ -424,7 +416,7 @@ static int parse_css_header(struct xe_uc_fw *uc_fw, const void *fw_data, size_t 
 	release->patch = FIELD_GET(CSS_SW_VERSION_UC_PATCH, css->sw_version);
 
 	if (uc_fw->type == XE_UC_FW_TYPE_GUC)
-		guc_read_css_info(uc_fw, css);
+		return guc_read_css_info(uc_fw, css);
 
 	return 0;
 }

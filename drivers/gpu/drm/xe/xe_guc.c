@@ -133,15 +133,10 @@ static u32 guc_ctl_ads_flags(struct xe_guc *guc)
 	return flags;
 }
 
-#define GUC_VER(maj, min, pat)	(((maj) << 16) | ((min) << 8) | (pat))
-
 static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 {
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gt *gt = guc_to_gt(guc);
-	struct xe_uc_fw *uc_fw = &guc->fw;
-	struct xe_uc_fw_version *version = &uc_fw->versions.found[XE_UC_FW_VER_RELEASE];
-
 	u32 flags = 0;
 
 	if (XE_WA(gt, 22012773006))
@@ -171,13 +166,8 @@ static u32 guc_ctl_wa_flags(struct xe_guc *guc)
 	if (XE_WA(gt, 1509372804))
 		flags |= GUC_WA_RENDER_RST_RC6_EXIT;
 
-	if (XE_WA(gt, 14018913170)) {
-		if (GUC_VER(version->major, version->minor, version->patch) >= GUC_VER(70, 7, 0))
-			flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
-		else
-			drm_dbg(&xe->drm, "Skip WA 14018913170: GUC version expected >= 70.7.0, found %u.%u.%u\n",
-				version->major, version->minor, version->patch);
-	}
+	if (XE_WA(gt, 14018913170))
+		flags |= GUC_WA_ENABLE_TSC_CHECK_ON_RC6;
 
 	return flags;
 }
