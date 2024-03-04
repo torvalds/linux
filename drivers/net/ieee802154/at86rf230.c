@@ -11,17 +11,16 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/gpio/consumer.h>
 #include <linux/hrtimer.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
 #include <linux/skbuff.h>
-#include <linux/of_gpio.h>
 #include <linux/ieee802154.h>
 
 #include <net/mac802154.h>
