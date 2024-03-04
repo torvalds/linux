@@ -124,6 +124,8 @@ struct scmi_powercap_state {
 struct powercap_info {
 	u32 version;
 	int num_domains;
+	bool notify_cap_cmd;
+	bool notify_measurements_cmd;
 	struct scmi_powercap_state *states;
 	struct scmi_powercap_info *powercaps;
 };
@@ -157,6 +159,18 @@ scmi_powercap_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret) {
+		if (!ph->hops->protocol_msg_check(ph,
+						  POWERCAP_CAP_NOTIFY, NULL))
+			pi->notify_cap_cmd = true;
+
+		if (!ph->hops->protocol_msg_check(ph,
+						  POWERCAP_MEASUREMENTS_NOTIFY,
+						  NULL))
+			pi->notify_measurements_cmd = true;
+	}
+
 	return ret;
 }
 
@@ -200,10 +214,12 @@ scmi_powercap_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		flags = le32_to_cpu(resp->attributes);
 
 		dom_info->id = domain;
-		dom_info->notify_powercap_cap_change =
-			SUPPORTS_POWERCAP_CAP_CHANGE_NOTIFY(flags);
-		dom_info->notify_powercap_measurement_change =
-			SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_NOTIFY(flags);
+		if (pinfo->notify_cap_cmd)
+			dom_info->notify_powercap_cap_change =
+				SUPPORTS_POWERCAP_CAP_CHANGE_NOTIFY(flags);
+		if (pinfo->notify_measurements_cmd)
+			dom_info->notify_powercap_measurement_change =
+				SUPPORTS_POWERCAP_MEASUREMENTS_CHANGE_NOTIFY(flags);
 		dom_info->async_powercap_cap_set =
 			SUPPORTS_ASYNC_POWERCAP_CAP_SET(flags);
 		dom_info->powercap_cap_config =
@@ -788,6 +804,26 @@ static int scmi_powercap_notify(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
+static bool
+scmi_powercap_notify_supported(const struct scmi_protocol_handle *ph,
+			       u8 evt_id, u32 src_id)
+{
+	bool supported = false;
+	const struct scmi_powercap_info *dom_info;
+	struct powercap_info *pi = ph->get_priv(ph);
+
+	if (evt_id >= ARRAY_SIZE(evt_2_cmd) || src_id >= pi->num_domains)
+		return false;
+
+	dom_info = pi->powercaps + src_id;
+	if (evt_id == SCMI_EVENT_POWERCAP_CAP_CHANGED)
+		supported = dom_info->notify_powercap_cap_change;
+	else if (evt_id == SCMI_EVENT_POWERCAP_MEASUREMENTS_CHANGED)
+		supported = dom_info->notify_powercap_measurement_change;
+
+	return supported;
+}
+
 static int
 scmi_powercap_set_notify_enabled(const struct scmi_protocol_handle *ph,
 				 u8 evt_id, u32 src_id, bool enable)
@@ -904,6 +940,7 @@ static const struct scmi_event powercap_events[] = {
 };
 
 static const struct scmi_event_ops powercap_event_ops = {
+	.is_notify_supported = scmi_powercap_notify_supported,
 	.get_num_sources = scmi_powercap_get_num_sources,
 	.set_notify_enabled = scmi_powercap_set_notify_enabled,
 	.fill_custom_report = scmi_powercap_fill_custom_report,

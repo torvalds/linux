@@ -109,8 +109,10 @@ enum scmi_optee_pta_cmd {
  * @rx_len: Response size
  * @mu: Mutex protection on channel access
  * @cinfo: SCMI channel information
- * @shmem: Virtual base address of the shared memory
- * @req: Shared memory protocol handle for SCMI request and synchronous response
+ * @req: union for SCMI interface
+ * @req.shmem: Virtual base address of the shared memory
+ * @req.msg: Shared memory protocol handle for SCMI request and
+ *   synchronous response
  * @tee_shm: TEE shared memory handle @req or NULL if using IOMEM shmem
  * @link: Reference in agent's channel list
  */

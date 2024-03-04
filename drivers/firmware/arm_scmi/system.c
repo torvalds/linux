@@ -36,7 +36,19 @@ struct scmi_system_power_state_notifier_payld {
 struct scmi_system_info {
 	u32 version;
 	bool graceful_timeout_supported;
+	bool power_state_notify_cmd;
 };
+
+static bool scmi_system_notify_supported(const struct scmi_protocol_handle *ph,
+					 u8 evt_id, u32 src_id)
+{
+	struct scmi_system_info *pinfo = ph->get_priv(ph);
+
+	if (evt_id != SCMI_EVENT_SYSTEM_POWER_STATE_NOTIFIER)
+		return false;
+
+	return pinfo->power_state_notify_cmd;
+}
 
 static int scmi_system_request_notify(const struct scmi_protocol_handle *ph,
 				      bool enable)
@@ -114,6 +126,7 @@ static const struct scmi_event system_events[] = {
 };
 
 static const struct scmi_event_ops system_event_ops = {
+	.is_notify_supported = scmi_system_notify_supported,
 	.set_notify_enabled = scmi_system_set_notify_enabled,
 	.fill_custom_report = scmi_system_fill_custom_report,
 };
@@ -146,6 +159,9 @@ static int scmi_system_protocol_init(const struct scmi_protocol_handle *ph)
 	pinfo->version = version;
 	if (PROTOCOL_REV_MAJOR(pinfo->version) >= 0x2)
 		pinfo->graceful_timeout_supported = true;
+
+	if (!ph->hops->protocol_msg_check(ph, SYSTEM_POWER_STATE_NOTIFY, NULL))
+		pinfo->power_state_notify_cmd = true;
 
 	return ph->set_priv(ph, pinfo, version);
 }
