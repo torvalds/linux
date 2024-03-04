@@ -6,6 +6,7 @@
 //               Cirrus Logic International Semiconductor Ltd.
 
 #include <asm/byteorder.h>
+#include <kunit/static_stub.h>
 #include <linux/dev_printk.h>
 #include <linux/efi.h>
 #include <linux/firmware/cirrus/cs_dsp.h>
@@ -26,6 +27,8 @@ static int cs_amp_write_cal_coeff(struct cs_dsp *dsp,
 	struct cs_dsp_coeff_ctl *cs_ctl;
 	__be32 beval = cpu_to_be32(val);
 	int ret;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs_amp_write_cal_coeff, dsp, controls, ctl_name, val);
 
 	if (IS_REACHABLE(CONFIG_FW_CS_DSP)) {
 		mutex_lock(&dsp->pwr_lock);
@@ -84,7 +87,7 @@ int cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 			    const struct cirrus_amp_cal_controls *controls,
 			    const struct cirrus_amp_cal_data *data)
 {
-	if (IS_REACHABLE(CONFIG_FW_CS_DSP))
+	if (IS_REACHABLE(CONFIG_FW_CS_DSP) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
 		return _cs_amp_write_cal_coeffs(dsp, controls, data);
 	else
 		return -ENODEV;
@@ -97,6 +100,8 @@ static efi_status_t cs_amp_get_efi_variable(efi_char16_t *name,
 					    void *buf)
 {
 	u32 attr;
+
+	KUNIT_STATIC_STUB_REDIRECT(cs_amp_get_efi_variable, name, guid, size, buf);
 
 	if (IS_ENABLED(CONFIG_EFI))
 		return efi.get_variable(name, guid, &attr, size, buf);
@@ -250,12 +255,21 @@ static int _cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, 
 int cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_index,
 				    struct cirrus_amp_cal_data *out_data)
 {
-	if (IS_ENABLED(CONFIG_EFI))
+	if (IS_ENABLED(CONFIG_EFI) || IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST))
 		return _cs_amp_get_efi_calibration_data(dev, target_uid, amp_index, out_data);
 	else
 		return -ENOENT;
 }
 EXPORT_SYMBOL_NS_GPL(cs_amp_get_efi_calibration_data, SND_SOC_CS_AMP_LIB);
+
+static const struct cs_amp_test_hooks cs_amp_test_hook_ptrs = {
+	.get_efi_variable = cs_amp_get_efi_variable,
+	.write_cal_coeff = cs_amp_write_cal_coeff,
+};
+
+const struct cs_amp_test_hooks * const cs_amp_test_hooks =
+	PTR_IF(IS_ENABLED(CONFIG_SND_SOC_CS_AMP_LIB_TEST), &cs_amp_test_hook_ptrs);
+EXPORT_SYMBOL_NS_GPL(cs_amp_test_hooks, SND_SOC_CS_AMP_LIB);
 
 MODULE_DESCRIPTION("Cirrus Logic amplifier library");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");

@@ -49,4 +49,18 @@ int cs_amp_write_cal_coeffs(struct cs_dsp *dsp,
 			    const struct cirrus_amp_cal_data *data);
 int cs_amp_get_efi_calibration_data(struct device *dev, u64 target_uid, int amp_index,
 				    struct cirrus_amp_cal_data *out_data);
+
+struct cs_amp_test_hooks {
+	efi_status_t (*get_efi_variable)(efi_char16_t *name,
+					 efi_guid_t *guid,
+					 unsigned long *size,
+					 void *buf);
+
+	int (*write_cal_coeff)(struct cs_dsp *dsp,
+			       const struct cirrus_amp_cal_controls *controls,
+			       const char *ctl_name, u32 val);
+};
+
+extern const struct cs_amp_test_hooks * const cs_amp_test_hooks;
+
 #endif /* CS_AMP_LIB_H */
