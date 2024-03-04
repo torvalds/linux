@@ -34,7 +34,7 @@ struct panthor_devfreq {
 	/** @last_busy_state: True if the GPU was busy last time we updated the state. */
 	bool last_busy_state;
 
-	/*
+	/**
 	 * @lock: Lock used to protect busy_time, idle_time, time_last_update and
 	 * last_busy_state.
 	 *
