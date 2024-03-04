@@ -199,6 +199,18 @@ static int gve_alloc_page_dqo(struct gve_rx_ring *rx,
 	return 0;
 }
 
+static void gve_rx_free_hdr_bufs(struct gve_priv *priv, struct gve_rx_ring *rx)
+{
+	struct device *hdev = &priv->pdev->dev;
+	int buf_count = rx->dqo.bufq.mask + 1;
+
+	if (rx->dqo.hdr_bufs.data) {
+		dma_free_coherent(hdev, priv->header_buf_size * buf_count,
+				  rx->dqo.hdr_bufs.data, rx->dqo.hdr_bufs.addr);
+		rx->dqo.hdr_bufs.data = NULL;
+	}
+}
+
 void gve_rx_stop_ring_dqo(struct gve_priv *priv, int idx)
 {
 	int ntfy_idx = gve_rx_idx_to_ntfy(priv, idx);
@@ -258,7 +270,22 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 	kvfree(rx->dqo.buf_states);
 	rx->dqo.buf_states = NULL;
 
+	gve_rx_free_hdr_bufs(priv, rx);
+
 	netif_dbg(priv, drv, priv->dev, "freed rx ring %d\n", idx);
+}
+
+static int gve_rx_alloc_hdr_bufs(struct gve_priv *priv, struct gve_rx_ring *rx)
+{
+	struct device *hdev = &priv->pdev->dev;
+	int buf_count = rx->dqo.bufq.mask + 1;
+
+	rx->dqo.hdr_bufs.data = dma_alloc_coherent(hdev, priv->header_buf_size * buf_count,
+						   &rx->dqo.hdr_bufs.addr, GFP_KERNEL);
+	if (!rx->dqo.hdr_bufs.data)
+		return -ENOMEM;
+
+	return 0;
 }
 
 void gve_rx_start_ring_dqo(struct gve_priv *priv, int idx)
@@ -301,6 +328,11 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 				      GFP_KERNEL);
 	if (!rx->dqo.buf_states)
 		return -ENOMEM;
+
+	/* Allocate header buffers for header-split */
+	if (cfg->enable_header_split)
+		if (gve_rx_alloc_hdr_bufs(priv, rx))
+			goto err;
 
 	/* Set up linked list of buffer IDs */
 	for (i = 0; i < rx->dqo.num_buf_states - 1; i++)
@@ -443,6 +475,10 @@ void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)
 		desc->buf_id = cpu_to_le16(buf_state - rx->dqo.buf_states);
 		desc->buf_addr = cpu_to_le64(buf_state->addr +
 					     buf_state->page_info.page_offset);
+		if (rx->dqo.hdr_bufs.data)
+			desc->header_buf_addr =
+				cpu_to_le64(rx->dqo.hdr_bufs.addr +
+					    priv->header_buf_size * bufq->tail);
 
 		bufq->tail = (bufq->tail + 1) & bufq->mask;
 		complq->num_free_slots--;
@@ -458,7 +494,7 @@ void gve_rx_post_buffers_dqo(struct gve_rx_ring *rx)
 static void gve_try_recycle_buf(struct gve_priv *priv, struct gve_rx_ring *rx,
 				struct gve_rx_buf_state_dqo *buf_state)
 {
-	const int data_buffer_size = priv->data_buffer_size_dqo;
+	const u16 data_buffer_size = priv->data_buffer_size_dqo;
 	int pagecount;
 
 	/* Can't reuse if we only fit one buffer per page */
@@ -645,13 +681,16 @@ static int gve_rx_append_frags(struct napi_struct *napi,
  */
 static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 		      const struct gve_rx_compl_desc_dqo *compl_desc,
-		      int queue_idx)
+		      u32 desc_idx, int queue_idx)
 {
 	const u16 buffer_id = le16_to_cpu(compl_desc->buf_id);
+	const bool hbo = compl_desc->header_buffer_overflow;
 	const bool eop = compl_desc->end_of_packet != 0;
+	const bool hsplit = compl_desc->split_header;
 	struct gve_rx_buf_state_dqo *buf_state;
 	struct gve_priv *priv = rx->gve;
 	u16 buf_len;
+	u16 hdr_len;
 
 	if (unlikely(buffer_id >= rx->dqo.num_buf_states)) {
 		net_err_ratelimited("%s: Invalid RX buffer_id=%u\n",
@@ -672,11 +711,34 @@ static int gve_rx_dqo(struct napi_struct *napi, struct gve_rx_ring *rx,
 	}
 
 	buf_len = compl_desc->packet_len;
+	hdr_len = compl_desc->header_len;
 
 	/* Page might have not been used for awhile and was likely last written
 	 * by a different thread.
 	 */
 	prefetch(buf_state->page_info.page);
+
+	/* Copy the header into the skb in the case of header split */
+	if (hsplit) {
+		int unsplit = 0;
+
+		if (hdr_len && !hbo) {
+			rx->ctx.skb_head = gve_rx_copy_data(priv->dev, napi,
+							    rx->dqo.hdr_bufs.data +
+							    desc_idx * priv->header_buf_size,
+							    hdr_len);
+			if (unlikely(!rx->ctx.skb_head))
+				goto error;
+			rx->ctx.skb_tail = rx->ctx.skb_head;
+		} else {
+			unsplit = 1;
+		}
+		u64_stats_update_begin(&rx->statss);
+		rx->rx_hsplit_pkt++;
+		rx->rx_hsplit_unsplit_pkt += unsplit;
+		rx->rx_hsplit_bytes += hdr_len;
+		u64_stats_update_end(&rx->statss);
+	}
 
 	/* Sync the portion of dma buffer for CPU to read. */
 	dma_sync_single_range_for_cpu(&priv->pdev->dev, buf_state->addr,
@@ -820,7 +882,7 @@ int gve_rx_poll_dqo(struct gve_notify_block *block, int budget)
 		/* Do not read data until we own the descriptor */
 		dma_rmb();
 
-		err = gve_rx_dqo(napi, rx, compl_desc, rx->q_num);
+		err = gve_rx_dqo(napi, rx, compl_desc, complq->head, rx->q_num);
 		if (err < 0) {
 			gve_rx_free_skb(rx);
 			u64_stats_update_begin(&rx->statss);
