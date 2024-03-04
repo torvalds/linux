@@ -1855,26 +1855,14 @@ static int nvme_identify_ns_nvm(struct nvme_ctrl *ctrl, unsigned int nsid,
 	return ret;
 }
 
-static void nvme_init_ms(struct nvme_ctrl *ctrl, struct nvme_ns_head *head,
+static void nvme_configure_pi_elbas(struct nvme_ns_head *head,
 		struct nvme_id_ns *id, struct nvme_id_ns_nvm *nvm)
 {
-	bool first = id->dps & NVME_NS_DPS_PI_FIRST;
-	unsigned lbaf = nvme_lbaf_index(id->flbas);
-	u32 elbaf;
-
-	head->pi_size = 0;
-	head->ms = le16_to_cpu(id->lbaf[lbaf].ms);
-	if (!nvm || !(ctrl->ctratt & NVME_CTRL_ATTR_ELBAS)) {
-		head->pi_size = sizeof(struct t10_pi_tuple);
-		head->guard_type = NVME_NVM_NS_16B_GUARD;
-		goto set_pi;
-	}
-
-	elbaf = le32_to_cpu(nvm->elbaf[lbaf]);
+	u32 elbaf = le32_to_cpu(nvm->elbaf[nvme_lbaf_index(id->flbas)]);
 
 	/* no support for storage tag formats right now */
 	if (nvme_elbaf_sts(elbaf))
-		goto set_pi;
+		return;
 
 	head->guard_type = nvme_elbaf_guard_type(elbaf);
 	switch (head->guard_type) {
@@ -1887,28 +1875,31 @@ static void nvme_init_ms(struct nvme_ctrl *ctrl, struct nvme_ns_head *head,
 	default:
 		break;
 	}
-
-set_pi:
-	if (head->pi_size && head->ms >= head->pi_size)
-		head->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
-	else
-		head->pi_type = 0;
-
-	if (first)
-		head->pi_offset = 0;
-	else
-		head->pi_offset = head->ms - head->pi_size;
 }
 
 static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
 		struct nvme_ns_head *head, struct nvme_id_ns *id,
 		struct nvme_id_ns_nvm *nvm)
 {
-	nvme_init_ms(ctrl, head, id, nvm);
-
 	head->features &= ~(NVME_NS_METADATA_SUPPORTED | NVME_NS_EXT_LBAS);
+	head->pi_type = 0;
+	head->pi_size = 0;
+	head->pi_offset = 0;
+	head->ms = le16_to_cpu(id->lbaf[nvme_lbaf_index(id->flbas)].ms);
 	if (!head->ms || !(ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
 		return;
+
+	if (nvm && (ctrl->ctratt & NVME_CTRL_ATTR_ELBAS)) {
+		nvme_configure_pi_elbas(head, id, nvm);
+	} else {
+		head->pi_size = sizeof(struct t10_pi_tuple);
+		head->guard_type = NVME_NVM_NS_16B_GUARD;
+	}
+
+	if (head->pi_size && head->ms >= head->pi_size)
+		head->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
+	if (!(id->dps & NVME_NS_DPS_PI_FIRST))
+		head->pi_offset = head->ms - head->pi_size;
 
 	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		/*
