@@ -432,14 +432,6 @@ out:
 	return error;
 }
 
-static inline bool
-is_rt_data_fork(
-	struct xfs_inode	*ip,
-	int			whichfork)
-{
-	return XFS_IS_REALTIME_INODE(ip) && whichfork == XFS_DATA_FORK;
-}
-
 /*
  * Iterate the block mapping btree to collect rmap records for anything in this
  * fork that matches the AG.  Sets @mappings_done to true if we've scanned the
