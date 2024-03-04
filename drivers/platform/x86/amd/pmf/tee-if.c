@@ -246,17 +246,16 @@ static void amd_pmf_invoke_cmd(struct work_struct *work)
 
 static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 {
-	u32 cookie, length;
+	struct cookie_header *header;
 	int res;
 
-	cookie = *(u32 *)(dev->policy_buf + POLICY_COOKIE_OFFSET);
-	length = *(u32 *)(dev->policy_buf + POLICY_COOKIE_LEN);
+	header = (struct cookie_header *)(dev->policy_buf + POLICY_COOKIE_OFFSET);
 
-	if (cookie != POLICY_SIGN_COOKIE || !length)
+	if (header->sign != POLICY_SIGN_COOKIE || !header->length)
 		return -EINVAL;
 
 	/* Update the actual length */
-	dev->policy_sz = length + 512;
+	dev->policy_sz = header->length + 512;
 	res = amd_pmf_invoke_cmd_init(dev);
 	if (res == TA_PMF_TYPE_SUCCESS) {
 		/* Now its safe to announce that smart pc is enabled */

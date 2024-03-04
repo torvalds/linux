@@ -17,7 +17,11 @@
 #define POLICY_BUF_MAX_SZ		0x4b000
 #define POLICY_SIGN_COOKIE		0x31535024
 #define POLICY_COOKIE_OFFSET		0x10
-#define POLICY_COOKIE_LEN		0x14
+
+struct cookie_header {
+	u32 sign;
+	u32 length;
+} __packed;
 
 /* APMF Functions */
 #define APMF_FUNC_VERIFY_INTERFACE			0
