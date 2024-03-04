@@ -1079,8 +1079,8 @@ static void iaa_desc_complete(struct idxd_desc *idxd_desc,
 		update_total_comp_bytes_out(ctx->req->dlen);
 		update_wq_comp_bytes(iaa_wq->wq, ctx->req->dlen);
 	} else {
-		update_total_decomp_bytes_in(ctx->req->dlen);
-		update_wq_decomp_bytes(iaa_wq->wq, ctx->req->dlen);
+		update_total_decomp_bytes_in(ctx->req->slen);
+		update_wq_decomp_bytes(iaa_wq->wq, ctx->req->slen);
 	}
 
 	if (ctx->compress && compression_ctx->verify_compress) {
