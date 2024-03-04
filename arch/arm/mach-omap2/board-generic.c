@@ -246,6 +246,12 @@ DT_MACHINE_START(AM33XX_DT, "Generic AM33XX (Flattened Device Tree)")
 	.init_time	= omap_init_time_of,
 	.dt_compat	= am33xx_boards_compat,
 	.restart	= am33xx_restart,
+	/*
+	 * Historically am33xx supported only REBOOT_WARM even though default
+	 * reboot_mode was REBOOT_COLD. Reflect legacy de-facto behaviour in
+	 * SYSFS.
+	 */
+	.reboot_mode	= REBOOT_WARM,
 MACHINE_END
 #endif
 

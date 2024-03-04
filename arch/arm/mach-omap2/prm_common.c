@@ -67,6 +67,12 @@ struct omap_domain_base prm_base;
 u16 prm_features;
 
 /*
+ * Platforms that implement different reboot modes can store the requested
+ * mode here.
+ */
+enum reboot_mode prm_reboot_mode;
+
+/*
  * prm_ll_data: function pointers to SoC-specific implementations of
  * common PRM functions
  */
