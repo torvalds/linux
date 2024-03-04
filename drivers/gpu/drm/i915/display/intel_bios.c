@@ -3166,6 +3166,32 @@ err_unmap_oprom:
 	return NULL;
 }
 
+static const struct vbt_header *intel_bios_get_vbt(struct drm_i915_private *i915,
+						   size_t *sizep)
+{
+	const struct vbt_header *vbt = NULL;
+	intel_wakeref_t wakeref;
+
+	vbt = firmware_get_vbt(i915, sizep);
+
+	if (!vbt)
+		vbt = intel_opregion_get_vbt(i915, sizep);
+
+	/*
+	 * If the OpRegion does not have VBT, look in SPI flash
+	 * through MMIO or PCI mapping
+	 */
+	if (!vbt && IS_DGFX(i915))
+		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+			vbt = spi_oprom_get_vbt(i915, sizep);
+
+	if (!vbt)
+		with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+			vbt = oprom_get_vbt(i915, sizep);
+
+	return vbt;
+}
+
 /**
  * intel_bios_init - find VBT and initialize settings from the BIOS
  * @i915: i915 device instance
@@ -3177,7 +3203,6 @@ err_unmap_oprom:
 void intel_bios_init(struct drm_i915_private *i915)
 {
 	const struct vbt_header *vbt;
-	struct vbt_header *oprom_vbt = NULL;
 	const struct bdb_header *bdb;
 
 	INIT_LIST_HEAD(&i915->display.vbt.display_devices);
@@ -3191,27 +3216,7 @@ void intel_bios_init(struct drm_i915_private *i915)
 
 	init_vbt_defaults(i915);
 
-	oprom_vbt = firmware_get_vbt(i915, NULL);
-	vbt = oprom_vbt;
-
-	if (!vbt) {
-		oprom_vbt = intel_opregion_get_vbt(i915, NULL);
-		vbt = oprom_vbt;
-	}
-
-	/*
-	 * If the OpRegion does not have VBT, look in SPI flash through MMIO or
-	 * PCI mapping
-	 */
-	if (!vbt && IS_DGFX(i915)) {
-		oprom_vbt = spi_oprom_get_vbt(i915, NULL);
-		vbt = oprom_vbt;
-	}
-
-	if (!vbt) {
-		oprom_vbt = oprom_get_vbt(i915, NULL);
-		vbt = oprom_vbt;
-	}
+	vbt = intel_bios_get_vbt(i915, NULL);
 
 	if (!vbt)
 		goto out;
@@ -3244,7 +3249,7 @@ out:
 	parse_sdvo_device_mapping(i915);
 	parse_ddi_ports(i915);
 
-	kfree(oprom_vbt);
+	kfree(vbt);
 }
 
 static void intel_bios_init_panel(struct drm_i915_private *i915,
@@ -3774,13 +3779,12 @@ static int intel_bios_vbt_show(struct seq_file *m, void *unused)
 	const void *vbt;
 	size_t vbt_size;
 
-	/*
-	 * FIXME: VBT might originate from other places than opregion, and then
-	 * this would be incorrect.
-	 */
-	vbt = intel_opregion_get_vbt(i915, &vbt_size);
-	if (vbt)
+	vbt = intel_bios_get_vbt(i915, &vbt_size);
+
+	if (vbt) {
 		seq_write(m, vbt, vbt_size);
+		kfree(vbt);
+	}
 
 	return 0;
 }
