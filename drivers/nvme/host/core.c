@@ -2188,6 +2188,8 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	}
 
 	if (!ret && nvme_ns_head_multipath(ns->head)) {
+		struct queue_limits lim;
+
 		blk_mq_freeze_queue(ns->head->disk->queue);
 		if (unsupported)
 			ns->head->disk->flags |= GENHD_FL_HIDDEN;
@@ -2196,10 +2198,11 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 		set_capacity_and_notify(ns->head->disk, get_capacity(ns->disk));
 		set_disk_ro(ns->head->disk, nvme_ns_is_readonly(ns, info));
 		nvme_mpath_revalidate_paths(ns);
-		blk_stack_limits(&ns->head->disk->queue->limits,
-				 &ns->queue->limits, 0);
 
-		disk_update_readahead(ns->head->disk);
+		lim = queue_limits_start_update(ns->head->disk->queue);
+		queue_limits_stack_bdev(&lim, ns->disk->part0, 0,
+					ns->head->disk->disk_name);
+		ret = queue_limits_commit_update(ns->head->disk->queue, &lim);
 		blk_mq_unfreeze_queue(ns->head->disk->queue);
 	}
 
