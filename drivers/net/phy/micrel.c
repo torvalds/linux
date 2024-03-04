@@ -117,6 +117,10 @@
 #define LAN8814_EEE_STATE			0x38
 #define LAN8814_EEE_STATE_MASK2P5P		BIT(10)
 
+#define LAN8814_PD_CONTROLS			0x9d
+#define LAN8814_PD_CONTROLS_PD_MEAS_TIME_MASK	GENMASK(3, 0)
+#define LAN8814_PD_CONTROLS_PD_MEAS_TIME_VAL	0xb
+
 /* Represents 1ppm adjustment in 2^32 format with
  * each nsec contains 4 clock cycles.
  * The value is calculated as following: (1/1000000)/((2^-32)/4)
@@ -3304,6 +3308,20 @@ static void lan8814_clear_2psp_bit(struct phy_device *phydev)
 	lanphy_write_page_reg(phydev, 2, LAN8814_EEE_STATE, val);
 }
 
+static void lan8814_update_meas_time(struct phy_device *phydev)
+{
+	u16 val;
+
+	/* By setting the measure time to a value of 0xb this will allow cables
+	 * longer than 100m to be used. This configuration can be used
+	 * regardless of the mode of operation of the PHY
+	 */
+	val = lanphy_read_page_reg(phydev, 1, LAN8814_PD_CONTROLS);
+	val &= ~LAN8814_PD_CONTROLS_PD_MEAS_TIME_MASK;
+	val |= LAN8814_PD_CONTROLS_PD_MEAS_TIME_VAL;
+	lanphy_write_page_reg(phydev, 1, LAN8814_PD_CONTROLS, val);
+}
+
 static int lan8814_probe(struct phy_device *phydev)
 {
 	const struct kszphy_type *type = phydev->drv->driver_data;
@@ -3342,6 +3360,7 @@ static int lan8814_probe(struct phy_device *phydev)
 
 	/* Errata workarounds */
 	lan8814_clear_2psp_bit(phydev);
+	lan8814_update_meas_time(phydev);
 
 	return 0;
 }
