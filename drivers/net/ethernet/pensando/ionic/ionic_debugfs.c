@@ -113,8 +113,8 @@ static const struct debugfs_reg32 intr_ctrl_regs[] = {
 void ionic_debugfs_add_qcq(struct ionic_lif *lif, struct ionic_qcq *qcq)
 {
 	struct dentry *qcq_dentry, *q_dentry, *cq_dentry;
-	struct dentry *intr_dentry, *stats_dentry;
 	struct ionic_dev *idev = &lif->ionic->idev;
+	struct dentry *intr_dentry, *stats_dentry;
 	struct debugfs_regset32 *intr_ctrl_regset;
 	struct ionic_intr_info *intr = &qcq->intr;
 	struct debugfs_blob_wrapper *desc_blob;

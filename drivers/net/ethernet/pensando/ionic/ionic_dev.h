@@ -16,9 +16,10 @@
 #define IONIC_MAX_TX_DESC		8192
 #define IONIC_MAX_RX_DESC		16384
 #define IONIC_MIN_TXRX_DESC		64
-#define IONIC_DEF_TXRX_DESC		4096
+#define IONIC_DEF_TXRX_DESC		1024
 #define IONIC_RX_FILL_THRESHOLD		16
 #define IONIC_RX_FILL_DIV		8
+#define IONIC_TSO_DESCS_NEEDED		44 /* 64K TSO @1500B */
 #define IONIC_LIFS_MAX			1024
 #define IONIC_WATCHDOG_SECS		5
 #define IONIC_ITR_COAL_USEC_DEFAULT	64
@@ -379,6 +380,7 @@ typedef void (*ionic_cq_done_cb)(void *done_arg);
 unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
 			      ionic_cq_cb cb, ionic_cq_done_cb done_cb,
 			      void *done_arg);
+unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do);
 
 int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 struct ionic_queue *q, unsigned int index, const char *name,

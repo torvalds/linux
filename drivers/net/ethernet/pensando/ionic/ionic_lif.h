@@ -327,7 +327,7 @@ static inline u32 ionic_coal_usec_to_hw(struct ionic *ionic, u32 usecs)
 
 static inline bool ionic_txq_hwstamp_enabled(struct ionic_queue *q)
 {
-	return unlikely(q->features & IONIC_TXQ_F_HWSTAMP);
+	return q->features & IONIC_TXQ_F_HWSTAMP;
 }
 
 void ionic_link_status_check_request(struct ionic_lif *lif, bool can_sleep);
