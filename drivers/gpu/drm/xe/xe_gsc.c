@@ -27,6 +27,7 @@
 #include "xe_wa.h"
 #include "instructions/xe_gsc_commands.h"
 #include "regs/xe_gsc_regs.h"
+#include "regs/xe_gt_regs.h"
 
 static struct xe_gt *
 gsc_to_gt(struct xe_gsc *gsc)
@@ -273,6 +274,44 @@ static int gsc_upload_and_init(struct xe_gsc *gsc)
 	return 0;
 }
 
+static int gsc_er_complete(struct xe_gt *gt)
+{
+	u32 er_status;
+
+	if (!gsc_fw_is_loaded(gt))
+		return 0;
+
+	/*
+	 * Starting on Xe2, the GSCCS engine reset is a 2-step process. When the
+	 * driver or the GuC hit the GDRST register, the CS is immediately reset
+	 * and a success is reported, but the GSC shim keeps resetting in the
+	 * background. While the shim reset is ongoing, the CS is able to accept
+	 * new context submission, but any commands that require the shim will
+	 * be stalled until the reset is completed. This means that we can keep
+	 * submitting to the GSCCS as long as we make sure that the preemption
+	 * timeout is big enough to cover any delay introduced by the reset.
+	 * When the shim reset completes, a specific CS interrupt is triggered,
+	 * in response to which we need to check the GSCI_TIMER_STATUS register
+	 * to see if the reset was successful or not.
+	 * Note that the GSCI_TIMER_STATUS register is not power save/restored,
+	 * so it gets reset on MC6 entry. However, a reset failure stops MC6,
+	 * so in that scenario we're always guaranteed to find the correct
+	 * value.
+	 */
+	er_status = xe_mmio_read32(gt, GSCI_TIMER_STATUS) & GSCI_TIMER_STATUS_VALUE;
+
+	if (er_status == GSCI_TIMER_STATUS_TIMER_EXPIRED) {
+		/*
+		 * XXX: we should trigger an FLR here, but we don't have support
+		 * for that yet.
+		 */
+		xe_gt_err(gt, "GSC ER timed out!\n");
+		return -EIO;
+	}
+
+	return 0;
+}
+
 static void gsc_work(struct work_struct *work)
 {
 	struct xe_gsc *gsc = container_of(work, typeof(*gsc), work);
@@ -289,6 +328,12 @@ static void gsc_work(struct work_struct *work)
 	xe_pm_runtime_get(xe);
 	xe_force_wake_get(gt_to_fw(gt), XE_FW_GSC);
 
+	if (actions & GSC_ACTION_ER_COMPLETE) {
+		ret = gsc_er_complete(gt);
+		if (ret)
+			goto out;
+	}
+
 	if (actions & GSC_ACTION_FW_LOAD) {
 		ret = gsc_upload_and_init(gsc);
 		if (ret && ret != -EEXIST)
@@ -300,8 +345,26 @@ static void gsc_work(struct work_struct *work)
 	if (actions & GSC_ACTION_SW_PROXY)
 		xe_gsc_proxy_request_handler(gsc);
 
+out:
 	xe_force_wake_put(gt_to_fw(gt), XE_FW_GSC);
 	xe_pm_runtime_put(xe);
+}
+
+void xe_gsc_hwe_irq_handler(struct xe_hw_engine *hwe, u16 intr_vec)
+{
+	struct xe_gt *gt = hwe->gt;
+	struct xe_gsc *gsc = &gt->uc.gsc;
+
+	if (unlikely(!intr_vec))
+		return;
+
+	if (intr_vec & GSC_ER_COMPLETE) {
+		spin_lock(&gsc->lock);
+		gsc->work_actions |= GSC_ACTION_ER_COMPLETE;
+		spin_unlock(&gsc->lock);
+
+		queue_work(gsc->wq, &gsc->work);
+	}
 }
 
 int xe_gsc_init(struct xe_gsc *gsc)

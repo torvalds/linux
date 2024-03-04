@@ -14,8 +14,10 @@
 #include "xe_device.h"
 #include "xe_execlist.h"
 #include "xe_force_wake.h"
+#include "xe_gsc.h"
 #include "xe_gt.h"
 #include "xe_gt_ccs_mode.h"
+#include "xe_gt_printk.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
@@ -463,6 +465,32 @@ static void hw_engine_init_early(struct xe_gt *gt, struct xe_hw_engine *hwe,
 		hwe->eclass->sched_props.preempt_timeout_us = XE_HW_ENGINE_PREEMPT_TIMEOUT;
 		hwe->eclass->sched_props.preempt_timeout_min = XE_HW_ENGINE_PREEMPT_TIMEOUT_MIN;
 		hwe->eclass->sched_props.preempt_timeout_max = XE_HW_ENGINE_PREEMPT_TIMEOUT_MAX;
+
+		/*
+		 * The GSC engine can accept submissions while the GSC shim is
+		 * being reset, during which time the submission is stalled. In
+		 * the worst case, the shim reset can take up to the maximum GSC
+		 * command execution time (250ms), so the request start can be
+		 * delayed by that much; the request itself can take that long
+		 * without being preemptible, which means worst case it can
+		 * theoretically take up to 500ms for a preemption to go through
+		 * on the GSC engine. Adding to that an extra 100ms as a safety
+		 * margin, we get a minimum recommended timeout of 600ms.
+		 * The preempt_timeout value can't be tuned for OTHER_CLASS
+		 * because the class is reserved for kernel usage, so we just
+		 * need to make sure that the starting value is above that
+		 * threshold; since our default value (640ms) is greater than
+		 * 600ms, the only way we can go below is via a kconfig setting.
+		 * If that happens, log it in dmesg and update the value.
+		 */
+		if (hwe->class == XE_ENGINE_CLASS_OTHER) {
+			const u32 min_preempt_timeout = 600 * 1000;
+			if (hwe->eclass->sched_props.preempt_timeout_us < min_preempt_timeout) {
+				hwe->eclass->sched_props.preempt_timeout_us = min_preempt_timeout;
+				xe_gt_notice(gt, "Increasing preempt_timeout for GSC to 600ms\n");
+			}
+		}
+
 		/* Record default props */
 		hwe->eclass->defaults = hwe->eclass->sched_props;
 	}
@@ -509,8 +537,13 @@ static int hw_engine_init(struct xe_gt *gt, struct xe_hw_engine *hwe,
 		}
 	}
 
-	if (xe_device_uc_enabled(xe))
+	if (xe_device_uc_enabled(xe)) {
+		/* GSCCS has a special interrupt for reset */
+		if (hwe->class == XE_ENGINE_CLASS_OTHER)
+			hwe->irq_handler = xe_gsc_hwe_irq_handler;
+
 		xe_hw_engine_enable_ring(hwe);
+	}
 
 	/* We reserve the highest BCS instance for USM */
 	if (xe->info.has_usm && hwe->class == XE_ENGINE_CLASS_COPY)
