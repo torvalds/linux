@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -502,6 +502,7 @@ static int nb7vpq904m_notify_connect(struct usb_redriver *r, int ort)
 
 static int nb7vpq904m_notify_disconnect(struct usb_redriver *r)
 {
+	int ret = 0;
 	struct nb7vpq904m_redriver *redriver =
 		container_of(r, struct nb7vpq904m_redriver, r);
 
@@ -512,9 +513,10 @@ static int nb7vpq904m_notify_disconnect(struct usb_redriver *r)
 		return 0;
 
 	redriver->op_mode = OP_MODE_NONE;
-	nb7vpq904m_reg_set(redriver, GEN_DEV_SET_REG, 0);
+	ret = nb7vpq904m_reg_set(redriver, GEN_DEV_SET_REG, 0);
 
-	nb7vpq904m_vdd_enable(redriver, false);
+	if (!ret)
+		nb7vpq904m_vdd_enable(redriver, false);
 
 	return 0;
 }
