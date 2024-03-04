@@ -3373,7 +3373,7 @@ static u32
 spi_nor_get_region_erasesize(const struct spi_nor_erase_region *region,
 			     const struct spi_nor_erase_type *erase_type)
 {
-	u8 i;
+	int i;
 
 	if (region->overlaid)
 		return region->size;
