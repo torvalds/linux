@@ -249,8 +249,8 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	u32 cookie, length;
 	int res;
 
-	cookie = readl(dev->policy_buf + POLICY_COOKIE_OFFSET);
-	length = readl(dev->policy_buf + POLICY_COOKIE_LEN);
+	cookie = *(u32 *)(dev->policy_buf + POLICY_COOKIE_OFFSET);
+	length = *(u32 *)(dev->policy_buf + POLICY_COOKIE_LEN);
 
 	if (cookie != POLICY_SIGN_COOKIE || !length)
 		return -EINVAL;
