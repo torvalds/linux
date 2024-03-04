@@ -45,6 +45,7 @@ static struct file_system_type mbt_fs_type = {
 
 static int mbt_mb_init(struct super_block *sb)
 {
+	ext4_fsblk_t block;
 	int ret;
 
 	/* needed by ext4_mb_init->bdev_nonrot(sb->s_bdev) */
@@ -69,8 +70,23 @@ static int mbt_mb_init(struct super_block *sb)
 	if (ret != 0)
 		goto err_out;
 
+	block = ext4_count_free_clusters(sb);
+	ret = percpu_counter_init(&EXT4_SB(sb)->s_freeclusters_counter, block,
+				  GFP_KERNEL);
+	if (ret != 0)
+		goto err_mb_release;
+
+	ret = percpu_counter_init(&EXT4_SB(sb)->s_dirtyclusters_counter, 0,
+				  GFP_KERNEL);
+	if (ret != 0)
+		goto err_freeclusters;
+
 	return 0;
 
+err_freeclusters:
+	percpu_counter_destroy(&EXT4_SB(sb)->s_freeclusters_counter);
+err_mb_release:
+	ext4_mb_release(sb);
 err_out:
 	kfree(sb->s_bdev->bd_queue);
 	kfree(sb->s_bdev);
@@ -79,6 +95,8 @@ err_out:
 
 static void mbt_mb_release(struct super_block *sb)
 {
+	percpu_counter_destroy(&EXT4_SB(sb)->s_dirtyclusters_counter);
+	percpu_counter_destroy(&EXT4_SB(sb)->s_freeclusters_counter);
 	ext4_mb_release(sb);
 	kfree(sb->s_bdev->bd_queue);
 	kfree(sb->s_bdev);
@@ -333,7 +351,7 @@ static int mbt_kunit_init(struct kunit *test)
 				   ext4_mb_mark_context,
 				   ext4_mb_mark_context_stub);
 
-	/* stub function will be called in mt_mb_init->ext4_mb_init */
+	/* stub function will be called in mbt_mb_init->ext4_mb_init */
 	if (mbt_mb_init(sb) != 0) {
 		mbt_ctx_release(sb);
 		mbt_ext4_free_super_block(sb);
