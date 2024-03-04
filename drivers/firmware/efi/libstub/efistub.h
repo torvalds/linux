@@ -419,6 +419,26 @@ union efi_dxe_services_table {
 	} mixed_mode;
 };
 
+typedef union efi_memory_attribute_protocol efi_memory_attribute_protocol_t;
+
+union efi_memory_attribute_protocol {
+	struct {
+		efi_status_t (__efiapi *get_memory_attributes)(
+			efi_memory_attribute_protocol_t *, efi_physical_addr_t, u64, u64 *);
+
+		efi_status_t (__efiapi *set_memory_attributes)(
+			efi_memory_attribute_protocol_t *, efi_physical_addr_t, u64, u64);
+
+		efi_status_t (__efiapi *clear_memory_attributes)(
+			efi_memory_attribute_protocol_t *, efi_physical_addr_t, u64, u64);
+	};
+	struct {
+		u32 get_memory_attributes;
+		u32 set_memory_attributes;
+		u32 clear_memory_attributes;
+	} mixed_mode;
+};
+
 typedef union efi_uga_draw_protocol efi_uga_draw_protocol_t;
 
 union efi_uga_draw_protocol {
