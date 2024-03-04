@@ -12,7 +12,6 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/skbuff.h>
-#include <linux/of_gpio.h>
 #include <linux/regmap.h>
 #include <linux/ieee802154.h>
 #include <linux/debugfs.h>
