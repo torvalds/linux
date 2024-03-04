@@ -53,11 +53,10 @@
 #include <asm/cmpxchg.h>
 #include <asm/io.h>
 #include <asm/set_memory.h>
+#include <asm/spec-ctrl.h>
 #include <asm/vmx.h>
 
 #include "trace.h"
-
-extern bool itlb_multihit_kvm_mitigation;
 
 static bool nx_hugepage_mitigation_hard_disabled;
 
