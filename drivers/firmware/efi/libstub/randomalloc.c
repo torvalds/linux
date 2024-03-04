@@ -29,7 +29,7 @@ static unsigned long get_entry_num_slots(efi_memory_desc_t *md,
 		return 0;
 
 	region_end = min(md->phys_addr + md->num_pages * EFI_PAGE_SIZE - 1,
-			 (u64)ULONG_MAX);
+			 (u64)EFI_ALLOC_LIMIT);
 	if (region_end < size)
 		return 0;
 
