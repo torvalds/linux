@@ -2368,17 +2368,25 @@ out_remove_tmp:
 	return err;
 }
 
-static void calc_percent(struct sym_hist *sym_hist,
-			 struct hists *hists,
+static void calc_percent(struct annotation *notes,
+			 struct evsel *evsel,
 			 struct annotation_data *data,
 			 s64 offset, s64 end)
 {
+	struct hists *hists = evsel__hists(evsel);
+	int evidx = evsel->core.idx;
+	struct sym_hist *sym_hist = annotation__histogram(notes, evidx);
 	unsigned int hits = 0;
 	u64 period = 0;
 
 	while (offset < end) {
-		hits   += sym_hist->addr[offset].nr_samples;
-		period += sym_hist->addr[offset].period;
+		struct sym_hist_entry *entry;
+
+		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		if (entry) {
+			hits   += entry->nr_samples;
+			period += entry->period;
+		}
 		++offset;
 	}
 
@@ -2415,16 +2423,13 @@ static void annotation__calc_percent(struct annotation *notes,
 		end  = next ? next->offset : len;
 
 		for_each_group_evsel(evsel, leader) {
-			struct hists *hists = evsel__hists(evsel);
 			struct annotation_data *data;
-			struct sym_hist *sym_hist;
 
 			BUG_ON(i >= al->data_nr);
 
-			sym_hist = annotation__histogram(notes, evsel->core.idx);
 			data = &al->data[i++];
 
-			calc_percent(sym_hist, hists, data, al->offset, end);
+			calc_percent(notes, evsel, data, al->offset, end);
 		}
 	}
 }
@@ -2619,14 +2624,19 @@ static void print_summary(struct rb_root *root, const char *filename)
 
 static void symbol__annotate_hits(struct symbol *sym, struct evsel *evsel)
 {
+	int evidx = evsel->core.idx;
 	struct annotation *notes = symbol__annotation(sym);
-	struct sym_hist *h = annotation__histogram(notes, evsel->core.idx);
+	struct sym_hist *h = annotation__histogram(notes, evidx);
 	u64 len = symbol__size(sym), offset;
 
-	for (offset = 0; offset < len; ++offset)
-		if (h->addr[offset].nr_samples != 0)
+	for (offset = 0; offset < len; ++offset) {
+		struct sym_hist_entry *entry;
+
+		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		if (entry && entry->nr_samples != 0)
 			printf("%*" PRIx64 ": %" PRIu64 "\n", BITS_PER_LONG / 2,
-			       sym->start + offset, h->addr[offset].nr_samples);
+			       sym->start + offset, entry->nr_samples);
+	}
 	printf("%*s: %" PRIu64 "\n", BITS_PER_LONG / 2, "h->nr_samples", h->nr_samples);
 }
 
@@ -2855,8 +2865,14 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 
 	h->nr_samples = 0;
 	for (offset = 0; offset < len; ++offset) {
-		h->addr[offset].nr_samples = h->addr[offset].nr_samples * 7 / 8;
-		h->nr_samples += h->addr[offset].nr_samples;
+		struct sym_hist_entry *entry;
+
+		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		if (entry == NULL)
+			continue;
+
+		entry->nr_samples = entry->nr_samples * 7 / 8;
+		h->nr_samples += entry->nr_samples;
 	}
 }
 

@@ -356,6 +356,17 @@ static inline struct sym_hist *annotation__histogram(struct annotation *notes, i
 	return annotated_source__histogram(notes->src, idx);
 }
 
+static inline struct sym_hist_entry *
+annotated_source__hist_entry(struct annotated_source *src, int idx, u64 offset)
+{
+	struct sym_hist_entry *entry;
+	long key = offset << 16 | idx;
+
+	if (!hashmap__find(src->samples, key, &entry))
+		return NULL;
+	return entry;
+}
+
 static inline struct annotation *symbol__annotation(struct symbol *sym)
 {
 	return (void *)sym - symbol_conf.priv_size;
