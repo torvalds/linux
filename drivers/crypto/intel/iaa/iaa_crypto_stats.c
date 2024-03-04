@@ -17,117 +17,117 @@
 #include "iaa_crypto.h"
 #include "iaa_crypto_stats.h"
 
-static u64 total_comp_calls;
-static u64 total_decomp_calls;
-static u64 total_sw_decomp_calls;
-static u64 total_comp_bytes_out;
-static u64 total_decomp_bytes_in;
-static u64 total_completion_einval_errors;
-static u64 total_completion_timeout_errors;
-static u64 total_completion_comp_buf_overflow_errors;
+static atomic64_t total_comp_calls;
+static atomic64_t total_decomp_calls;
+static atomic64_t total_sw_decomp_calls;
+static atomic64_t total_comp_bytes_out;
+static atomic64_t total_decomp_bytes_in;
+static atomic64_t total_completion_einval_errors;
+static atomic64_t total_completion_timeout_errors;
+static atomic64_t total_completion_comp_buf_overflow_errors;
 
 static struct dentry *iaa_crypto_debugfs_root;
 
 void update_total_comp_calls(void)
 {
-	total_comp_calls++;
+	atomic64_inc(&total_comp_calls);
 }
 
 void update_total_comp_bytes_out(int n)
 {
-	total_comp_bytes_out += n;
+	atomic64_add(n, &total_comp_bytes_out);
 }
 
 void update_total_decomp_calls(void)
 {
-	total_decomp_calls++;
+	atomic64_inc(&total_decomp_calls);
 }
 
 void update_total_sw_decomp_calls(void)
 {
-	total_sw_decomp_calls++;
+	atomic64_inc(&total_sw_decomp_calls);
 }
 
 void update_total_decomp_bytes_in(int n)
 {
-	total_decomp_bytes_in += n;
+	atomic64_add(n, &total_decomp_bytes_in);
 }
 
 void update_completion_einval_errs(void)
 {
-	total_completion_einval_errors++;
+	atomic64_inc(&total_completion_einval_errors);
 }
 
 void update_completion_timeout_errs(void)
 {
-	total_completion_timeout_errors++;
+	atomic64_inc(&total_completion_timeout_errors);
 }
 
 void update_completion_comp_buf_overflow_errs(void)
 {
-	total_completion_comp_buf_overflow_errors++;
+	atomic64_inc(&total_completion_comp_buf_overflow_errors);
 }
 
 void update_wq_comp_calls(struct idxd_wq *idxd_wq)
 {
 	struct iaa_wq *wq = idxd_wq_get_private(idxd_wq);
 
-	wq->comp_calls++;
-	wq->iaa_device->comp_calls++;
+	atomic64_inc(&wq->comp_calls);
+	atomic64_inc(&wq->iaa_device->comp_calls);
 }
 
 void update_wq_comp_bytes(struct idxd_wq *idxd_wq, int n)
 {
 	struct iaa_wq *wq = idxd_wq_get_private(idxd_wq);
 
-	wq->comp_bytes += n;
-	wq->iaa_device->comp_bytes += n;
+	atomic64_add(n, &wq->comp_bytes);
+	atomic64_add(n, &wq->iaa_device->comp_bytes);
 }
 
 void update_wq_decomp_calls(struct idxd_wq *idxd_wq)
 {
 	struct iaa_wq *wq = idxd_wq_get_private(idxd_wq);
 
-	wq->decomp_calls++;
-	wq->iaa_device->decomp_calls++;
+	atomic64_inc(&wq->decomp_calls);
+	atomic64_inc(&wq->iaa_device->decomp_calls);
 }
 
 void update_wq_decomp_bytes(struct idxd_wq *idxd_wq, int n)
 {
 	struct iaa_wq *wq = idxd_wq_get_private(idxd_wq);
 
-	wq->decomp_bytes += n;
-	wq->iaa_device->decomp_bytes += n;
+	atomic64_add(n, &wq->decomp_bytes);
+	atomic64_add(n, &wq->iaa_device->decomp_bytes);
 }
 
 static void reset_iaa_crypto_stats(void)
 {
-	total_comp_calls = 0;
-	total_decomp_calls = 0;
-	total_sw_decomp_calls = 0;
-	total_comp_bytes_out = 0;
-	total_decomp_bytes_in = 0;
-	total_completion_einval_errors = 0;
-	total_completion_timeout_errors = 0;
-	total_completion_comp_buf_overflow_errors = 0;
+	atomic64_set(&total_comp_calls, 0);
+	atomic64_set(&total_decomp_calls, 0);
+	atomic64_set(&total_sw_decomp_calls, 0);
+	atomic64_set(&total_comp_bytes_out, 0);
+	atomic64_set(&total_decomp_bytes_in, 0);
+	atomic64_set(&total_completion_einval_errors, 0);
+	atomic64_set(&total_completion_timeout_errors, 0);
+	atomic64_set(&total_completion_comp_buf_overflow_errors, 0);
 }
 
 static void reset_wq_stats(struct iaa_wq *wq)
 {
-	wq->comp_calls = 0;
-	wq->comp_bytes = 0;
-	wq->decomp_calls = 0;
-	wq->decomp_bytes = 0;
+	atomic64_set(&wq->comp_calls, 0);
+	atomic64_set(&wq->comp_bytes, 0);
+	atomic64_set(&wq->decomp_calls, 0);
+	atomic64_set(&wq->decomp_bytes, 0);
 }
 
 static void reset_device_stats(struct iaa_device *iaa_device)
 {
 	struct iaa_wq *iaa_wq;
 
-	iaa_device->comp_calls = 0;
-	iaa_device->comp_bytes = 0;
-	iaa_device->decomp_calls = 0;
-	iaa_device->decomp_bytes = 0;
+	atomic64_set(&iaa_device->comp_calls, 0);
+	atomic64_set(&iaa_device->comp_bytes, 0);
+	atomic64_set(&iaa_device->decomp_calls, 0);
+	atomic64_set(&iaa_device->decomp_bytes, 0);
 
 	list_for_each_entry(iaa_wq, &iaa_device->wqs, list)
 		reset_wq_stats(iaa_wq);
@@ -136,10 +136,14 @@ static void reset_device_stats(struct iaa_device *iaa_device)
 static void wq_show(struct seq_file *m, struct iaa_wq *iaa_wq)
 {
 	seq_printf(m, "    name: %s\n", iaa_wq->wq->name);
-	seq_printf(m, "    comp_calls: %llu\n", iaa_wq->comp_calls);
-	seq_printf(m, "    comp_bytes: %llu\n", iaa_wq->comp_bytes);
-	seq_printf(m, "    decomp_calls: %llu\n", iaa_wq->decomp_calls);
-	seq_printf(m, "    decomp_bytes: %llu\n\n", iaa_wq->decomp_bytes);
+	seq_printf(m, "    comp_calls: %llu\n",
+		   atomic64_read(&iaa_wq->comp_calls));
+	seq_printf(m, "    comp_bytes: %llu\n",
+		   atomic64_read(&iaa_wq->comp_bytes));
+	seq_printf(m, "    decomp_calls: %llu\n",
+		   atomic64_read(&iaa_wq->decomp_calls));
+	seq_printf(m, "    decomp_bytes: %llu\n\n",
+		   atomic64_read(&iaa_wq->decomp_bytes));
 }
 
 static void device_stats_show(struct seq_file *m, struct iaa_device *iaa_device)
@@ -149,10 +153,14 @@ static void device_stats_show(struct seq_file *m, struct iaa_device *iaa_device)
 	seq_puts(m, "iaa device:\n");
 	seq_printf(m, "  id: %d\n", iaa_device->idxd->id);
 	seq_printf(m, "  n_wqs: %d\n", iaa_device->n_wq);
-	seq_printf(m, "  comp_calls: %llu\n", iaa_device->comp_calls);
-	seq_printf(m, "  comp_bytes: %llu\n", iaa_device->comp_bytes);
-	seq_printf(m, "  decomp_calls: %llu\n", iaa_device->decomp_calls);
-	seq_printf(m, "  decomp_bytes: %llu\n", iaa_device->decomp_bytes);
+	seq_printf(m, "  comp_calls: %llu\n",
+		   atomic64_read(&iaa_device->comp_calls));
+	seq_printf(m, "  comp_bytes: %llu\n",
+		   atomic64_read(&iaa_device->comp_bytes));
+	seq_printf(m, "  decomp_calls: %llu\n",
+		   atomic64_read(&iaa_device->decomp_calls));
+	seq_printf(m, "  decomp_bytes: %llu\n",
+		   atomic64_read(&iaa_device->decomp_bytes));
 	seq_puts(m, "  wqs:\n");
 
 	list_for_each_entry(iaa_wq, &iaa_device->wqs, list)
@@ -162,17 +170,22 @@ static void device_stats_show(struct seq_file *m, struct iaa_device *iaa_device)
 static int global_stats_show(struct seq_file *m, void *v)
 {
 	seq_puts(m, "global stats:\n");
-	seq_printf(m, "  total_comp_calls: %llu\n", total_comp_calls);
-	seq_printf(m, "  total_decomp_calls: %llu\n", total_decomp_calls);
-	seq_printf(m, "  total_sw_decomp_calls: %llu\n", total_sw_decomp_calls);
-	seq_printf(m, "  total_comp_bytes_out: %llu\n", total_comp_bytes_out);
-	seq_printf(m, "  total_decomp_bytes_in: %llu\n", total_decomp_bytes_in);
+	seq_printf(m, "  total_comp_calls: %llu\n",
+		   atomic64_read(&total_comp_calls));
+	seq_printf(m, "  total_decomp_calls: %llu\n",
+		   atomic64_read(&total_decomp_calls));
+	seq_printf(m, "  total_sw_decomp_calls: %llu\n",
+		   atomic64_read(&total_sw_decomp_calls));
+	seq_printf(m, "  total_comp_bytes_out: %llu\n",
+		   atomic64_read(&total_comp_bytes_out));
+	seq_printf(m, "  total_decomp_bytes_in: %llu\n",
+		   atomic64_read(&total_decomp_bytes_in));
 	seq_printf(m, "  total_completion_einval_errors: %llu\n",
-		   total_completion_einval_errors);
+		   atomic64_read(&total_completion_einval_errors));
 	seq_printf(m, "  total_completion_timeout_errors: %llu\n",
-		   total_completion_timeout_errors);
+		   atomic64_read(&total_completion_timeout_errors));
 	seq_printf(m, "  total_completion_comp_buf_overflow_errors: %llu\n\n",
-		   total_completion_comp_buf_overflow_errors);
+		   atomic64_read(&total_completion_comp_buf_overflow_errors));
 
 	return 0;
 }
