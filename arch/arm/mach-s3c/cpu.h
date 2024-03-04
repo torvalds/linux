@@ -76,6 +76,6 @@ extern void s3c24xx_init_uartdevs(char *name,
 				  struct s3c24xx_uart_resources *res,
 				  struct s3c2410_uartcfg *cfg, int no);
 
-extern struct bus_type s3c6410_subsys;
+extern const struct bus_type s3c6410_subsys;
 
 #endif
