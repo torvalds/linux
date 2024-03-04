@@ -358,9 +358,6 @@ fail:
 	return NULL;
 }
 
-extern int bbc_envctrl_init(struct bbc_i2c_bus *bp);
-extern void bbc_envctrl_cleanup(struct bbc_i2c_bus *bp);
-
 static int bbc_i2c_probe(struct platform_device *op)
 {
 	struct bbc_i2c_bus *bp;
