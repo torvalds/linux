@@ -1057,7 +1057,6 @@ struct ravb_hw_info {
 	netdev_features_t net_hw_features;
 	netdev_features_t net_features;
 	int stats_len;
-	size_t max_rx_len;
 	u32 tccr_mask;
 	u32 rx_max_frame_size;
 	unsigned aligned_tx: 1;
