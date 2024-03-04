@@ -21,14 +21,26 @@ struct mbt_ctx {
 };
 
 struct mbt_ext4_super_block {
-	struct super_block sb;
+	struct ext4_super_block es;
+	struct ext4_sb_info sbi;
 	struct mbt_ctx mbt_ctx;
 };
 
-#define MBT_CTX(_sb) (&(container_of((_sb), struct mbt_ext4_super_block, sb)->mbt_ctx))
+#define MBT_SB(_sb) (container_of((_sb)->s_fs_info, struct mbt_ext4_super_block, sbi))
+#define MBT_CTX(_sb) (&MBT_SB(_sb)->mbt_ctx)
 #define MBT_GRP_CTX(_sb, _group) (&MBT_CTX(_sb)->grp_ctx[_group])
 
 static const struct super_operations mbt_sops = {
+};
+
+static void mbt_kill_sb(struct super_block *sb)
+{
+	generic_shutdown_super(sb);
+}
+
+static struct file_system_type mbt_fs_type = {
+	.name			= "mballoc test",
+	.kill_sb		= mbt_kill_sb,
 };
 
 static int mbt_mb_init(struct super_block *sb)
@@ -72,43 +84,54 @@ static void mbt_mb_release(struct super_block *sb)
 	kfree(sb->s_bdev);
 }
 
+static int mbt_set(struct super_block *sb, void *data)
+{
+	return 0;
+}
+
 static struct super_block *mbt_ext4_alloc_super_block(void)
 {
-	struct ext4_super_block *es = kzalloc(sizeof(*es), GFP_KERNEL);
-	struct ext4_sb_info *sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
-	struct mbt_ext4_super_block *fsb = kzalloc(sizeof(*fsb), GFP_KERNEL);
+	struct mbt_ext4_super_block *fsb;
+	struct super_block *sb;
+	struct ext4_sb_info *sbi;
 
-	if (fsb == NULL || sbi == NULL || es == NULL)
+	fsb = kzalloc(sizeof(*fsb), GFP_KERNEL);
+	if (fsb == NULL)
+		return NULL;
+
+	sb = sget(&mbt_fs_type, NULL, mbt_set, 0, NULL);
+	if (IS_ERR(sb))
 		goto out;
+
+	sbi = &fsb->sbi;
 
 	sbi->s_blockgroup_lock =
 		kzalloc(sizeof(struct blockgroup_lock), GFP_KERNEL);
 	if (!sbi->s_blockgroup_lock)
-		goto out;
+		goto out_deactivate;
 
 	bgl_lock_init(sbi->s_blockgroup_lock);
 
-	sbi->s_es = es;
-	fsb->sb.s_fs_info = sbi;
+	sbi->s_es = &fsb->es;
+	sb->s_fs_info = sbi;
 
-	return &fsb->sb;
+	up_write(&sb->s_umount);
+	return sb;
 
+out_deactivate:
+	deactivate_locked_super(sb);
 out:
 	kfree(fsb);
-	kfree(sbi);
-	kfree(es);
 	return NULL;
 }
 
 static void mbt_ext4_free_super_block(struct super_block *sb)
 {
-	struct mbt_ext4_super_block *fsb =
-		container_of(sb, struct mbt_ext4_super_block, sb);
+	struct mbt_ext4_super_block *fsb = MBT_SB(sb);
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
 	kfree(sbi->s_blockgroup_lock);
-	kfree(sbi->s_es);
-	kfree(sbi);
+	deactivate_super(sb);
 	kfree(fsb);
 }
 
