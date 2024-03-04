@@ -620,9 +620,9 @@ properties:
           - const: openailab,eaidk-610
           - const: rockchip,rk3399
 
-      - description: Orange Pi RK3399 board
+      - description: Xunlong Orange Pi RK3399 board
         items:
-          - const: rockchip,rk3399-orangepi
+          - const: xunlong,rk3399-orangepi
           - const: rockchip,rk3399
 
       - description: Phytec phyCORE-RK3288 Rapid Development Kit
@@ -699,6 +699,11 @@ properties:
               - powkiddy,rk2023
               - powkiddy,x55
           - const: rockchip,rk3566
+
+      - description: QNAP TS-433-4G 4-Bay NAS
+        items:
+          - const: qnap,ts433
+          - const: rockchip,rk3568
 
       - description: Radxa Compute Module 3(CM3)
         items:
@@ -881,6 +886,11 @@ properties:
           - const: rockchip,rv1108-evb
           - const: rockchip,rv1108
 
+      - description: Rockchip Toybrick TB-RK3588X board
+        items:
+          - const: rockchip,rk3588-toybrick-x0
+          - const: rockchip,rk3588
+
       - description: Theobroma Systems PX30-uQ7 with Haikou baseboard
         items:
           - const: tsd,px30-ringneck-haikou
@@ -899,6 +909,12 @@ properties:
       - description: Theobroma Systems RK3588-SBC Jaguar
         items:
           - const: tsd,rk3588-jaguar
+          - const: rockchip,rk3588
+
+      - description: Theobroma Systems RK3588-Q7 with Haikou baseboard
+        items:
+          - const: tsd,rk3588-tiger-haikou
+          - const: tsd,rk3588-tiger
           - const: rockchip,rk3588
 
       - description: Tronsmart Orion R68 Meta
@@ -943,9 +959,9 @@ properties:
           - const: rockchip,rk3568-evb1-v10
           - const: rockchip,rk3568
 
-      - description: Rockchip RK3568 Banana Pi R2 Pro
+      - description: Sinovoip RK3568 Banana Pi R2 Pro
         items:
-          - const: rockchip,rk3568-bpi-r2pro
+          - const: sinovoip,rk3568-bpi-r2pro
           - const: rockchip,rk3568
 
       - description: Sonoff iHost Smart Home Hub
