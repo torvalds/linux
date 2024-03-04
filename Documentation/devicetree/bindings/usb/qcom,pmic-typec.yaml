@@ -22,6 +22,11 @@ properties:
           - enum:
               - qcom,pm6150-typec
           - const: qcom,pm8150b-typec
+      - items:
+          - enum:
+              - qcom,pm4125-typec
+          - const: qcom,pmi632-typec
+
 
   connector:
     type: object
