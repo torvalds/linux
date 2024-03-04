@@ -6,7 +6,9 @@
 #include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/ptrace.h>
+
 #include <asm/desc.h>
+#include <asm/debugreg.h>
 #include <asm/mmu_context.h>
 
 unsigned long convert_ip_to_linear(struct task_struct *child, struct pt_regs *regs)
