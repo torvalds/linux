@@ -63,7 +63,12 @@ void vpg31_poweron(struct vpg *vpg)
 {
 	struct dcn31_vpg *vpg31 = DCN31_VPG_FROM_VPG(vpg);
 
-	if (vpg->ctx->dc->debug.enable_mem_low_power.bits.vpg == false)
+	uint32_t vpg_gsp_mem_pwr_state;
+
+	REG_GET(VPG_MEM_PWR, VPG_GSP_MEM_PWR_STATE, &vpg_gsp_mem_pwr_state);
+
+	if (vpg->ctx->dc->debug.enable_mem_low_power.bits.vpg == false &&
+			vpg_gsp_mem_pwr_state == 0)
 		return;
 
 	REG_UPDATE_2(VPG_MEM_PWR, VPG_GSP_MEM_LIGHT_SLEEP_DIS, 1, VPG_GSP_LIGHT_SLEEP_FORCE, 0);
