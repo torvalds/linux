@@ -337,6 +337,7 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 {
 	struct pwm_chip *chip;
 	struct imx_tpm_pwm_chip *tpm;
+	struct clk *clk;
 	void __iomem *base;
 	int ret;
 	unsigned int npwm;
@@ -345,6 +346,11 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+
+	clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(clk),
+				     "failed to get PWM clock\n");
 
 	/* get number of channels */
 	val = readl(base + PWM_IMX_TPM_PARAM);
@@ -358,11 +364,7 @@ static int pwm_imx_tpm_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, tpm);
 
 	tpm->base = base;
-
-	tpm->clk = devm_clk_get_enabled(&pdev->dev, NULL);
-	if (IS_ERR(tpm->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(tpm->clk),
-				     "failed to get PWM clock\n");
+	tpm->clk = clk;
 
 	chip->ops = &imx_tpm_pwm_ops;
 
