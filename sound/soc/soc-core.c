@@ -283,11 +283,11 @@ static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
 
 	/* see snd_soc_dai_name_get() */
 
-	if (strcmp(dlc->dai_name, dai->name) == 0)
-		return 1;
-
 	if (dai->driver->name &&
 	    strcmp(dlc->dai_name, dai->driver->name) == 0)
+		return 1;
+
+	if (strcmp(dlc->dai_name, dai->name) == 0)
 		return 1;
 
 	if (dai->component->name &&
@@ -300,11 +300,11 @@ static int snd_soc_is_matching_dai(const struct snd_soc_dai_link_component *dlc,
 const char *snd_soc_dai_name_get(struct snd_soc_dai *dai)
 {
 	/* see snd_soc_is_matching_dai() */
-	if (dai->name)
-		return dai->name;
-
 	if (dai->driver->name)
 		return dai->driver->name;
+
+	if (dai->name)
+		return dai->name;
 
 	if (dai->component->name)
 		return dai->component->name;
