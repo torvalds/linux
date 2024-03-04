@@ -575,6 +575,22 @@ static const struct qcom_llcc_config monaco_auto_ivi_cfg = {
 	.size           = ARRAY_SIZE(monaco_auto_ivi_data),
 };
 
+static const struct llcc_slice_config anorak_data[] =  {
+	{LLCC_CPUSS,    1,  4096, 1, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_VIDSC0,   2,  512,  3, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_AUDIO,    6,  1024, 1, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_GPUHTW,   11, 1024, 1, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_GPU,      9, 5120, 1, 0,  0xFFFFFFFF, 0x0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_MMUHWT,   18, 768,  1, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_CVP,      28,  64,  3, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{LLCC_WRTCH,    31, 512,  1, 1, 0xFFFFFFFF, 0x0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+};
+
+static const struct qcom_llcc_config anorak_cfg = {
+	.sct_data       = anorak_data,
+	.size           = ARRAY_SIZE(anorak_data),
+};
+
 static struct llcc_drv_data *drv_data = (void *) -EPROBE_DEFER;
 static DEFINE_MUTEX(dev_avail);
 
@@ -1336,6 +1352,7 @@ static const struct of_device_id qcom_llcc_of_match[] = {
 	{ .compatible = "qcom,cliffs7-llcc", .data = &cliffs7_cfg },
 	{ .compatible = "qcom,monaco_auto_ivi-llcc", .data = &monaco_auto_ivi_cfg },
 	{ .compatible = "qcom,niobe-llcc", .data = &niobe_cfg },
+	{ .compatible = "qcom,anorak-llcc", .data = &anorak_cfg },
 	{ }
 };
 
