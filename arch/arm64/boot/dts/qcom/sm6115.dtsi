@@ -1304,6 +1304,9 @@
 						 &config_noc SLAVE_QUP_0 RPM_ALWAYS_TAG>,
 						<&system_noc MASTER_QUP_0 RPM_ALWAYS_TAG
 						 &bimc SLAVE_EBI_CH0 RPM_ALWAYS_TAG>;
+				interconnect-names = "qup-core",
+						     "qup-config",
+						     "qup-memory";
 				#address-cells = <1>;
 				#size-cells = <0>;
 				status = "disabled";
