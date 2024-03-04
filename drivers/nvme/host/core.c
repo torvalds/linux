@@ -1965,12 +1965,13 @@ static void nvme_set_queue_limits(struct nvme_ctrl *ctrl,
 	blk_queue_write_cache(q, vwc, vwc);
 }
 
-static void nvme_update_disk_info(struct nvme_ctrl *ctrl, struct gendisk *disk,
-		struct nvme_ns_head *head, struct nvme_id_ns *id)
+static bool nvme_update_disk_info(struct nvme_ns *ns, struct nvme_id_ns *id)
 {
-	sector_t capacity = nvme_lba_to_sect(head, le64_to_cpu(id->nsze));
+	struct gendisk *disk = ns->disk;
+	struct nvme_ns_head *head = ns->head;
 	u32 bs = 1U << head->lba_shift;
 	u32 atomic_bs, phys_bs, io_opt = 0;
+	bool valid = true;
 
 	/*
 	 * The block layer can't support LBA sizes larger than the page size
@@ -1978,8 +1979,8 @@ static void nvme_update_disk_info(struct nvme_ctrl *ctrl, struct gendisk *disk,
 	 * allow block I/O.
 	 */
 	if (head->lba_shift > PAGE_SHIFT || head->lba_shift < SECTOR_SHIFT) {
-		capacity = 0;
 		bs = (1 << 9);
+		valid = false;
 	}
 
 	atomic_bs = phys_bs = bs;
@@ -1992,7 +1993,7 @@ static void nvme_update_disk_info(struct nvme_ctrl *ctrl, struct gendisk *disk,
 		if (id->nsfeat & NVME_NS_FEAT_ATOMICS && id->nawupf)
 			atomic_bs = (1 + le16_to_cpu(id->nawupf)) * bs;
 		else
-			atomic_bs = (1 + ctrl->subsys->awupf) * bs;
+			atomic_bs = (1 + ns->ctrl->subsys->awupf) * bs;
 	}
 
 	if (id->nsfeat & NVME_NS_FEAT_IO_OPT) {
@@ -2012,24 +2013,14 @@ static void nvme_update_disk_info(struct nvme_ctrl *ctrl, struct gendisk *disk,
 	blk_queue_io_min(disk->queue, phys_bs);
 	blk_queue_io_opt(disk->queue, io_opt);
 
-	/*
-	 * Register a metadata profile for PI, or the plain non-integrity NVMe
-	 * metadata masquerading as Type 0 if supported, otherwise reject block
-	 * I/O to namespaces with metadata except when the namespace supports
-	 * PI, as it can strip/insert in that case.
-	 */
-	if (!nvme_init_integrity(disk, head))
-		capacity = 0;
+	nvme_config_discard(ns->ctrl, disk, head);
 
-	set_capacity_and_notify(disk, capacity);
-
-	nvme_config_discard(ctrl, disk, head);
-
-	if (ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
+	if (ns->ctrl->quirks & NVME_QUIRK_DEALLOCATE_ZEROES)
 		blk_queue_max_write_zeroes_sectors(disk->queue, UINT_MAX);
 	else
 		blk_queue_max_write_zeroes_sectors(disk->queue,
-				ctrl->max_zeroes_sectors);
+				ns->ctrl->max_zeroes_sectors);
+	return valid;
 }
 
 static bool nvme_ns_is_readonly(struct nvme_ns *ns, struct nvme_ns_info *info)
@@ -2103,6 +2094,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		struct nvme_ns_info *info)
 {
 	struct nvme_id_ns *id;
+	sector_t capacity;
 	unsigned lbaf;
 	int ret;
 
@@ -2121,6 +2113,8 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	lbaf = nvme_lbaf_index(id->flbas);
 	ns->head->lba_shift = id->lbaf[lbaf].ds;
 	ns->head->nuse = le64_to_cpu(id->nuse);
+	capacity = nvme_lba_to_sect(ns->head, le64_to_cpu(id->nsze));
+
 	nvme_set_queue_limits(ns->ctrl, ns->queue);
 
 	ret = nvme_configure_metadata(ns->ctrl, ns->head, id);
@@ -2129,7 +2123,19 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		goto out;
 	}
 	nvme_set_chunk_sectors(ns, id);
-	nvme_update_disk_info(ns->ctrl, ns->disk, ns->head, id);
+	if (!nvme_update_disk_info(ns, id))
+		capacity = 0;
+
+	/*
+	 * Register a metadata profile for PI, or the plain non-integrity NVMe
+	 * metadata masquerading as Type 0 if supported, otherwise reject block
+	 * I/O to namespaces with metadata except when the namespace supports
+	 * PI, as it can strip/insert in that case.
+	 */
+	if (!nvme_init_integrity(ns->disk, ns->head))
+		capacity = 0;
+
+	set_capacity_and_notify(ns->disk, capacity);
 
 	if (ns->head->ids.csi == NVME_CSI_ZNS) {
 		ret = nvme_update_zone_info(ns, lbaf);
