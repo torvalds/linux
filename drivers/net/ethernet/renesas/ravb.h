@@ -1039,9 +1039,6 @@ struct ravb_ptp {
 };
 
 struct ravb_hw_info {
-	void (*rx_ring_free)(struct net_device *ndev, int q);
-	void (*rx_ring_format)(struct net_device *ndev, int q);
-	void *(*alloc_rx_desc)(struct net_device *ndev, int q);
 	bool (*receive)(struct net_device *ndev, int *quota, int q);
 	void (*set_rate)(struct net_device *ndev);
 	int (*set_feature)(struct net_device *ndev, netdev_features_t features);
@@ -1055,6 +1052,7 @@ struct ravb_hw_info {
 	u32 tccr_mask;
 	u32 rx_max_frame_size;
 	u32 rx_max_desc_use;
+	u32 rx_desc_size;
 	unsigned aligned_tx: 1;
 
 	/* hardware features */
@@ -1090,6 +1088,7 @@ struct ravb_private {
 	union {
 		struct ravb_rx_desc *desc;
 		struct ravb_ex_rx_desc *ex_desc;
+		void *raw;
 	} rx_ring[NUM_RX_QUEUE];
 	struct ravb_tx_desc *tx_ring[NUM_TX_QUEUE];
 	void *tx_align[NUM_TX_QUEUE];
