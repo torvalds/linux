@@ -237,7 +237,7 @@ static void omap4_cminst_clkdm_disable_hwsup(u8 part, u16 inst, u16 cdoffs)
 }
 
 /**
- * omap4_cminst_clkdm_force_sleep - try to take a clockdomain out of idle
+ * omap4_cminst_clkdm_force_wakeup - try to take a clockdomain out of idle
  * @part: PRCM partition ID that the clockdomain registers exist in
  * @inst: CM instance register offset (*_INST macro)
  * @cdoffs: Clockdomain register offset (*_CDOFFS macro)

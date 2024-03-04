@@ -9,7 +9,7 @@
 #include "prm.h"
 
 /**
- * am3xx_restart - trigger a software restart of the SoC
+ * am33xx_restart - trigger a software restart of the SoC
  * @mode: the "reboot mode", see arch/arm/kernel/{setup,process}.c
  * @cmd: passed from the userspace program rebooting the system (if provided)
  *
