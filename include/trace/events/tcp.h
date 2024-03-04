@@ -362,7 +362,8 @@ DECLARE_EVENT_CLASS(tcp_event_skb,
 		TP_STORE_ADDR_PORTS_SKB(__entry, skb);
 	),
 
-	TP_printk("src=%pISpc dest=%pISpc", __entry->saddr, __entry->daddr)
+	TP_printk("skbaddr=%p src=%pISpc dest=%pISpc",
+		  __entry->skbaddr, __entry->saddr, __entry->daddr)
 );
 
 DEFINE_EVENT(tcp_event_skb, tcp_bad_csum,
