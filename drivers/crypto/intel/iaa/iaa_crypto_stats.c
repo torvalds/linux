@@ -20,8 +20,6 @@
 static u64 total_comp_calls;
 static u64 total_decomp_calls;
 static u64 total_sw_decomp_calls;
-static u64 max_comp_delay_ns;
-static u64 max_decomp_delay_ns;
 static u64 total_comp_bytes_out;
 static u64 total_decomp_bytes_in;
 static u64 total_completion_einval_errors;
@@ -70,26 +68,6 @@ void update_completion_comp_buf_overflow_errs(void)
 	total_completion_comp_buf_overflow_errors++;
 }
 
-void update_max_comp_delay_ns(u64 start_time_ns)
-{
-	u64 time_diff;
-
-	time_diff = ktime_get_ns() - start_time_ns;
-
-	if (time_diff > max_comp_delay_ns)
-		max_comp_delay_ns = time_diff;
-}
-
-void update_max_decomp_delay_ns(u64 start_time_ns)
-{
-	u64 time_diff;
-
-	time_diff = ktime_get_ns() - start_time_ns;
-
-	if (time_diff > max_decomp_delay_ns)
-		max_decomp_delay_ns = time_diff;
-}
-
 void update_wq_comp_calls(struct idxd_wq *idxd_wq)
 {
 	struct iaa_wq *wq = idxd_wq_get_private(idxd_wq);
@@ -127,8 +105,6 @@ static void reset_iaa_crypto_stats(void)
 	total_comp_calls = 0;
 	total_decomp_calls = 0;
 	total_sw_decomp_calls = 0;
-	max_comp_delay_ns = 0;
-	max_decomp_delay_ns = 0;
 	total_comp_bytes_out = 0;
 	total_decomp_bytes_in = 0;
 	total_completion_einval_errors = 0;
@@ -252,10 +228,6 @@ int __init iaa_crypto_debugfs_init(void)
 
 	iaa_crypto_debugfs_root = debugfs_create_dir("iaa_crypto", NULL);
 
-	debugfs_create_u64("max_comp_delay_ns", 0644,
-			   iaa_crypto_debugfs_root, &max_comp_delay_ns);
-	debugfs_create_u64("max_decomp_delay_ns", 0644,
-			   iaa_crypto_debugfs_root, &max_decomp_delay_ns);
 	debugfs_create_u64("total_comp_calls", 0644,
 			   iaa_crypto_debugfs_root, &total_comp_calls);
 	debugfs_create_u64("total_decomp_calls", 0644,
