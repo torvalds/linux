@@ -127,7 +127,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 		goto err_free;
 	}
 
-	err = mana_ib_gd_create_dma_region(dev, mr->umem, &dma_region_handle);
+	err = mana_ib_create_dma_region(dev, mr->umem, &dma_region_handle, iova);
 	if (err) {
 		ibdev_dbg(ibdev, "Failed create dma region for user-mr, %d\n",
 			  err);
@@ -135,7 +135,7 @@ struct ib_mr *mana_ib_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 length,
 	}
 
 	ibdev_dbg(ibdev,
-		  "mana_ib_gd_create_dma_region ret %d gdma_region %llx\n", err,
+		  "create_dma_region ret %d gdma_region %llx\n", err,
 		  dma_region_handle);
 
 	mr_params.pd_handle = pd->pd_handle;

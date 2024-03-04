@@ -301,8 +301,8 @@ mana_ib_gd_add_dma_region(struct mana_ib_dev *dev, struct gdma_context *gc,
 	return 0;
 }
 
-int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
-				 mana_handle_t *gdma_region)
+static int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+					mana_handle_t *gdma_region, unsigned long page_sz)
 {
 	struct gdma_dma_region_add_pages_req *add_req = NULL;
 	size_t num_pages_processed = 0, num_pages_to_handle;
@@ -314,7 +314,6 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 	size_t max_pgs_create_cmd;
 	struct gdma_context *gc;
 	size_t num_pages_total;
-	unsigned long page_sz;
 	unsigned int tail = 0;
 	u64 *page_addr_list;
 	void *request_buf;
@@ -323,12 +322,6 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 	gc = mdev_to_gc(dev);
 	hwc = gc->hwc.driver_data;
 
-	/* Hardware requires dma region to align to chosen page size */
-	page_sz = ib_umem_find_best_pgsz(umem, PAGE_SZ_BM, 0);
-	if (!page_sz) {
-		ibdev_dbg(&dev->ib_dev, "failed to find page size.\n");
-		return -ENOMEM;
-	}
 	num_pages_total = ib_umem_num_dma_blocks(umem, page_sz);
 
 	max_pgs_create_cmd =
@@ -412,6 +405,35 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 out:
 	kfree(request_buf);
 	return err;
+}
+
+int mana_ib_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+			      mana_handle_t *gdma_region, u64 virt)
+{
+	unsigned long page_sz;
+
+	page_sz = ib_umem_find_best_pgsz(umem, PAGE_SZ_BM, virt);
+	if (!page_sz) {
+		ibdev_dbg(&dev->ib_dev, "Failed to find page size.\n");
+		return -EINVAL;
+	}
+
+	return mana_ib_gd_create_dma_region(dev, umem, gdma_region, page_sz);
+}
+
+int mana_ib_create_zero_offset_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+					  mana_handle_t *gdma_region)
+{
+	unsigned long page_sz;
+
+	/* Hardware requires dma region to align to chosen page size */
+	page_sz = ib_umem_find_best_pgoff(umem, PAGE_SZ_BM, 0);
+	if (!page_sz) {
+		ibdev_dbg(&dev->ib_dev, "Failed to find page size.\n");
+		return -EINVAL;
+	}
+
+	return mana_ib_gd_create_dma_region(dev, umem, gdma_region, page_sz);
 }
 
 int mana_ib_gd_destroy_dma_region(struct mana_ib_dev *dev, u64 gdma_region)
