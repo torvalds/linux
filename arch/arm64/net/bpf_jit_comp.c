@@ -2076,7 +2076,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 		/* store return value */
 		emit(A64_STR64I(A64_R(0), A64_SP, retval_off), ctx);
 		/* reserve a nop for bpf_tramp_image_put */
-		im->ip_after_call = ctx->image + ctx->idx;
+		im->ip_after_call = ctx->ro_image + ctx->idx;
 		emit(A64_NOP, ctx);
 	}
 
@@ -2091,7 +2091,7 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 				run_ctx_off, false);
 
 	if (flags & BPF_TRAMP_F_CALL_ORIG) {
-		im->ip_epilogue = ctx->image + ctx->idx;
+		im->ip_epilogue = ctx->ro_image + ctx->idx;
 		emit_addr_mov_i64(A64_R(0), (const u64)im, ctx);
 		emit_call((const u64)__bpf_tramp_exit, ctx);
 	}
@@ -2123,9 +2123,6 @@ static int prepare_trampoline(struct jit_ctx *ctx, struct bpf_tramp_image *im,
 		emit(A64_MOV(1, A64_LR, A64_R(9)), ctx);
 		emit(A64_RET(A64_R(10)), ctx);
 	}
-
-	if (ctx->image)
-		bpf_flush_icache(ctx->image, ctx->image + ctx->idx);
 
 	kfree(branches);
 
@@ -2169,14 +2166,43 @@ int arch_bpf_trampoline_size(const struct btf_func_model *m, u32 flags,
 	return ret < 0 ? ret : ret * AARCH64_INSN_SIZE;
 }
 
-int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
-				void *image_end, const struct btf_func_model *m,
+void *arch_alloc_bpf_trampoline(unsigned int size)
+{
+	return bpf_prog_pack_alloc(size, jit_fill_hole);
+}
+
+void arch_free_bpf_trampoline(void *image, unsigned int size)
+{
+	bpf_prog_pack_free(image, size);
+}
+
+void arch_protect_bpf_trampoline(void *image, unsigned int size)
+{
+}
+
+void arch_unprotect_bpf_trampoline(void *image, unsigned int size)
+{
+}
+
+int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *ro_image,
+				void *ro_image_end, const struct btf_func_model *m,
 				u32 flags, struct bpf_tramp_links *tlinks,
 				void *func_addr)
 {
 	int ret, nregs;
+	void *image, *tmp;
+	u32 size = ro_image_end - ro_image;
+
+	/* image doesn't need to be in module memory range, so we can
+	 * use kvmalloc.
+	 */
+	image = kvmalloc(size, GFP_KERNEL);
+	if (!image)
+		return -ENOMEM;
+
 	struct jit_ctx ctx = {
 		.image = image,
+		.ro_image = ro_image,
 		.idx = 0,
 	};
 
@@ -2185,15 +2211,26 @@ int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image,
 	if (nregs > 8)
 		return -ENOTSUPP;
 
-	jit_fill_hole(image, (unsigned int)(image_end - image));
+	jit_fill_hole(image, (unsigned int)(ro_image_end - ro_image));
 	ret = prepare_trampoline(&ctx, im, tlinks, func_addr, nregs, flags);
 
-	if (ret > 0 && validate_code(&ctx) < 0)
+	if (ret > 0 && validate_code(&ctx) < 0) {
 		ret = -EINVAL;
+		goto out;
+	}
 
 	if (ret > 0)
 		ret *= AARCH64_INSN_SIZE;
 
+	tmp = bpf_arch_text_copy(ro_image, image, size);
+	if (IS_ERR(tmp)) {
+		ret = PTR_ERR(tmp);
+		goto out;
+	}
+
+	bpf_flush_icache(ro_image, ro_image + size);
+out:
+	kvfree(image);
 	return ret;
 }
 
