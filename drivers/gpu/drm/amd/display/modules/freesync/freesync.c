@@ -1057,7 +1057,7 @@ void mod_freesync_build_vrr_params(struct mod_freesync *mod_freesync,
 			in_out_vrr->fixed_refresh_in_uhz = 0;
 
 		refresh_range = div_u64(in_out_vrr->max_refresh_in_uhz + 500000, 1000000) -
-+				div_u64(in_out_vrr->min_refresh_in_uhz + 500000, 1000000);
+				div_u64(in_out_vrr->min_refresh_in_uhz + 500000, 1000000);
 
 		in_out_vrr->supported = true;
 	}
