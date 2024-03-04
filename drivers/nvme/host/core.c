@@ -1855,32 +1855,26 @@ static int nvme_identify_ns_nvm(struct nvme_ctrl *ctrl, unsigned int nsid,
 	return ret;
 }
 
-static int nvme_init_ms(struct nvme_ctrl *ctrl, struct nvme_ns_head *head,
-		struct nvme_id_ns *id)
+static void nvme_init_ms(struct nvme_ctrl *ctrl, struct nvme_ns_head *head,
+		struct nvme_id_ns *id, struct nvme_id_ns_nvm *nvm)
 {
 	bool first = id->dps & NVME_NS_DPS_PI_FIRST;
 	unsigned lbaf = nvme_lbaf_index(id->flbas);
-	struct nvme_id_ns_nvm *nvm;
-	int ret = 0;
 	u32 elbaf;
 
 	head->pi_size = 0;
 	head->ms = le16_to_cpu(id->lbaf[lbaf].ms);
-	if (!(ctrl->ctratt & NVME_CTRL_ATTR_ELBAS)) {
+	if (!nvm || !(ctrl->ctratt & NVME_CTRL_ATTR_ELBAS)) {
 		head->pi_size = sizeof(struct t10_pi_tuple);
 		head->guard_type = NVME_NVM_NS_16B_GUARD;
 		goto set_pi;
 	}
 
-	ret = nvme_identify_ns_nvm(ctrl, head->ns_id, &nvm);
-	if (ret)
-		goto set_pi;
-
 	elbaf = le32_to_cpu(nvm->elbaf[lbaf]);
 
 	/* no support for storage tag formats right now */
 	if (nvme_elbaf_sts(elbaf))
-		goto free_data;
+		goto set_pi;
 
 	head->guard_type = nvme_elbaf_guard_type(elbaf);
 	switch (head->guard_type) {
@@ -1894,8 +1888,6 @@ static int nvme_init_ms(struct nvme_ctrl *ctrl, struct nvme_ns_head *head,
 		break;
 	}
 
-free_data:
-	kfree(nvm);
 set_pi:
 	if (head->pi_size && head->ms >= head->pi_size)
 		head->pi_type = id->dps & NVME_NS_DPS_PI_MASK;
@@ -1906,22 +1898,17 @@ set_pi:
 		head->pi_offset = 0;
 	else
 		head->pi_offset = head->ms - head->pi_size;
-
-	return ret;
 }
 
-static int nvme_configure_metadata(struct nvme_ctrl *ctrl,
-		struct nvme_ns_head *head, struct nvme_id_ns *id)
+static void nvme_configure_metadata(struct nvme_ctrl *ctrl,
+		struct nvme_ns_head *head, struct nvme_id_ns *id,
+		struct nvme_id_ns_nvm *nvm)
 {
-	int ret;
-
-	ret = nvme_init_ms(ctrl, head, id);
-	if (ret)
-		return ret;
+	nvme_init_ms(ctrl, head, id, nvm);
 
 	head->features &= ~(NVME_NS_METADATA_SUPPORTED | NVME_NS_EXT_LBAS);
 	if (!head->ms || !(ctrl->ops->flags & NVME_F_METADATA_SUPPORTED))
-		return 0;
+		return;
 
 	if (ctrl->ops->flags & NVME_F_FABRICS) {
 		/*
@@ -1930,7 +1917,7 @@ static int nvme_configure_metadata(struct nvme_ctrl *ctrl,
 		 * remap the separate metadata buffer from the block layer.
 		 */
 		if (WARN_ON_ONCE(!(id->flbas & NVME_NS_FLBAS_META_EXT)))
-			return 0;
+			return;
 
 		head->features |= NVME_NS_EXT_LBAS;
 
@@ -1957,7 +1944,6 @@ static int nvme_configure_metadata(struct nvme_ctrl *ctrl,
 		else
 			head->features |= NVME_NS_METADATA_SUPPORTED;
 	}
-	return 0;
 }
 
 static u32 nvme_max_drv_segments(struct nvme_ctrl *ctrl)
@@ -2092,6 +2078,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		struct nvme_ns_info *info)
 {
 	bool vwc = ns->ctrl->vwc & NVME_CTRL_VWC_PRESENT;
+	struct nvme_id_ns_nvm *nvm = NULL;
 	struct nvme_id_ns *id;
 	sector_t capacity;
 	unsigned lbaf;
@@ -2108,6 +2095,12 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		goto out;
 	}
 
+	if (ns->ctrl->ctratt & NVME_CTRL_ATTR_ELBAS) {
+		ret = nvme_identify_ns_nvm(ns->ctrl, info->nsid, &nvm);
+		if (ret < 0)
+			goto out;
+	}
+
 	blk_mq_freeze_queue(ns->disk->queue);
 	lbaf = nvme_lbaf_index(id->flbas);
 	ns->head->lba_shift = id->lbaf[lbaf].ds;
@@ -2115,12 +2108,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 	capacity = nvme_lba_to_sect(ns->head, le64_to_cpu(id->nsze));
 
 	nvme_set_queue_limits(ns->ctrl, ns->queue);
-
-	ret = nvme_configure_metadata(ns->ctrl, ns->head, id);
-	if (ret < 0) {
-		blk_mq_unfreeze_queue(ns->disk->queue);
-		goto out;
-	}
+	nvme_configure_metadata(ns->ctrl, ns->head, id, nvm);
 	nvme_set_chunk_sectors(ns, id);
 	if (!nvme_update_disk_info(ns, id))
 		capacity = 0;
@@ -2165,6 +2153,7 @@ static int nvme_update_ns_info_block(struct nvme_ns *ns,
 
 	ret = 0;
 out:
+	kfree(nvm);
 	kfree(id);
 	return ret;
 }
