@@ -1652,6 +1652,34 @@ static const struct usb_feature_control_info *get_feature_control_info(int contr
 	return NULL;
 }
 
+static int feature_unit_mutevol_ctl_name(struct usb_mixer_interface *mixer,
+					 struct snd_kcontrol *kctl,
+					 struct usb_audio_term *iterm,
+					 struct usb_audio_term *oterm)
+{
+	struct usb_audio_term *aterm, *bterm;
+	bool output_first;
+	int len = 0;
+
+	/*
+	 * If the input terminal is USB Streaming, we try getting the name of
+	 * the output terminal first in hopes of getting something more
+	 * descriptive than "PCM".
+	 */
+	output_first = iterm && !(iterm->type >> 16) && (iterm->type & 0xff00) == 0x0100;
+
+	aterm = output_first ? oterm : iterm;
+	bterm = output_first ? iterm : oterm;
+
+	if (aterm)
+		len = get_term_name(mixer->chip, aterm, kctl->id.name,
+				    sizeof(kctl->id.name), 1);
+	if (!len && bterm)
+		len = get_term_name(mixer->chip, bterm, kctl->id.name,
+				    sizeof(kctl->id.name), 1);
+	return len;
+}
+
 static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 				const struct usbmix_name_map *imap,
 				unsigned int ctl_mask, int control,
@@ -1733,22 +1761,15 @@ static void __build_feature_ctl(struct usb_mixer_interface *mixer,
 	case UAC_FU_MUTE:
 	case UAC_FU_VOLUME:
 		/*
-		 * determine the control name.  the rule is:
-		 * - if a name id is given in descriptor, use it.
-		 * - if the connected input can be determined, then use the name
-		 *   of terminal type.
-		 * - if the connected output can be determined, use it.
-		 * - otherwise, anonymous name.
+		 * Determine the control name:
+		 * - If a name id is given in descriptor, use it.
+		 * - If input and output terminals are present, try to derive
+		 *   the name from either of these.
+		 * - Otherwise, make up a name using the feature unit ID.
 		 */
 		if (!len) {
-			if (iterm)
-				len = get_term_name(mixer->chip, iterm,
-						    kctl->id.name,
-						    sizeof(kctl->id.name), 1);
-			if (!len && oterm)
-				len = get_term_name(mixer->chip, oterm,
-						    kctl->id.name,
-						    sizeof(kctl->id.name), 1);
+			len = feature_unit_mutevol_ctl_name(mixer, kctl, iterm,
+							    oterm);
 			if (!len)
 				snprintf(kctl->id.name, sizeof(kctl->id.name),
 					 "Feature %d", unitid);
