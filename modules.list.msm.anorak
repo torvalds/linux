@@ -51,3 +51,7 @@ icc-bcm-voter.ko
 icc-debug.ko
 qnoc-anorak.ko
 qnoc-qos.ko
+proxy-consumer.ko
+rpmh-regulator.ko
+qti-fixed-regulator.ko
+debug-regulator.ko
