@@ -996,13 +996,11 @@ static int idtfc3_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int idtfc3_remove(struct platform_device *pdev)
+static void idtfc3_remove(struct platform_device *pdev)
 {
 	struct idtfc3 *idtfc3 = platform_get_drvdata(pdev);
 
 	ptp_clock_unregister(idtfc3->ptp_clock);
-
-	return 0;
 }
 
 static struct platform_driver idtfc3_driver = {
@@ -1010,7 +1008,7 @@ static struct platform_driver idtfc3_driver = {
 		.name = "rc38xxx-phc",
 	},
 	.probe = idtfc3_probe,
-	.remove	= idtfc3_remove,
+	.remove_new = idtfc3_remove,
 };
 
 module_platform_driver(idtfc3_driver);
