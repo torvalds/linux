@@ -1015,10 +1015,6 @@ enum CSR2_BIT {
 #define NUM_RX_QUEUE	2
 #define NUM_TX_QUEUE	2
 
-#define RX_BUF_SZ	(2048 - ETH_FCS_LEN + sizeof(__sum16))
-
-#define GBETH_RX_DESC_DATA_SIZE 4080
-
 struct ravb_tstamp_skb {
 	struct list_head list;
 	struct sk_buff *skb;
@@ -1058,6 +1054,7 @@ struct ravb_hw_info {
 	int stats_len;
 	u32 tccr_mask;
 	u32 rx_max_frame_size;
+	u32 rx_max_desc_use;
 	unsigned aligned_tx: 1;
 
 	/* hardware features */
