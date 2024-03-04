@@ -246,6 +246,10 @@ static int gdsc_init_is_enabled(struct gdsc *sc)
 
 	sc->is_gdsc_enabled = !(regval & mask);
 
+	if (sc->is_gdsc_enabled && sc->retain_ff_enable)
+		regmap_update_bits(sc->regmap, REG_OFFSET,
+			RETAIN_FF_ENABLE_MASK, RETAIN_FF_ENABLE_MASK);
+
 	return 0;
 }
 
