@@ -76,17 +76,31 @@ void ipa_interrupt_irq_enable(struct ipa *ipa);
 void ipa_interrupt_irq_disable(struct ipa *ipa);
 
 /**
- * ipa_interrupt_config() - Configure the IPA interrupt framework
+ * ipa_interrupt_config() - Configure IPA interrupts
  * @ipa:	IPA pointer
  *
- * Return:	Pointer to IPA SMP2P info, or a pointer-coded error
+ * Return:	0 if successful, or a negative error code
  */
-struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa);
+int ipa_interrupt_config(struct ipa *ipa);
 
 /**
  * ipa_interrupt_deconfig() - Inverse of ipa_interrupt_config()
+ * @ipa:	IPA pointer
+ */
+void ipa_interrupt_deconfig(struct ipa *ipa);
+
+/**
+ * ipa_interrupt_init() - Initialize the IPA interrupt structure
+ * @pdev:	IPA platform device pointer
+ *
+ * Return:	Pointer to an IPA interrupt structure, or a pointer-coded error
+ */
+struct ipa_interrupt *ipa_interrupt_init(struct platform_device *pdev);
+
+/**
+ * ipa_interrupt_exit() - Inverse of ipa_interrupt_init()
  * @interrupt:	IPA interrupt structure
  */
-void ipa_interrupt_deconfig(struct ipa_interrupt *interrupt);
+void ipa_interrupt_exit(struct ipa_interrupt *interrupt);
 
 #endif /* _IPA_INTERRUPT_H_ */

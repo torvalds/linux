@@ -19,6 +19,7 @@
  * time only these three are supported.
  */
 
+#include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
@@ -109,14 +110,13 @@ static irqreturn_t ipa_isr_thread(int irq, void *dev_id)
 	struct ipa_interrupt *interrupt = dev_id;
 	struct ipa *ipa = interrupt->ipa;
 	u32 enabled = interrupt->enabled;
+	struct device *dev = ipa->dev;
 	const struct reg *reg;
-	struct device *dev;
 	u32 pending;
 	u32 offset;
 	u32 mask;
 	int ret;
 
-	dev = &ipa->pdev->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (WARN_ON(ret < 0))
 		goto out_power_put;
@@ -236,29 +236,17 @@ void ipa_interrupt_simulate_suspend(struct ipa_interrupt *interrupt)
 }
 
 /* Configure the IPA interrupt framework */
-struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
+int ipa_interrupt_config(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
-	struct ipa_interrupt *interrupt;
+	struct ipa_interrupt *interrupt = ipa->interrupt;
+	unsigned int irq = interrupt->irq;
+	struct device *dev = ipa->dev;
 	const struct reg *reg;
-	unsigned int irq;
 	int ret;
 
-	ret = platform_get_irq_byname(ipa->pdev, "ipa");
-	if (ret <= 0) {
-		dev_err(dev, "DT error %d getting \"ipa\" IRQ property\n",
-			ret);
-		return ERR_PTR(ret ? : -EINVAL);
-	}
-	irq = ret;
-
-	interrupt = kzalloc(sizeof(*interrupt), GFP_KERNEL);
-	if (!interrupt)
-		return ERR_PTR(-ENOMEM);
 	interrupt->ipa = ipa;
-	interrupt->irq = irq;
 
-	/* Start with all IPA interrupts disabled */
+	/* Disable all IPA interrupt types */
 	reg = ipa_reg(ipa, IPA_IRQ_EN);
 	iowrite32(0, ipa->reg_virt + reg_offset(reg));
 
@@ -271,26 +259,59 @@ struct ipa_interrupt *ipa_interrupt_config(struct ipa *ipa)
 
 	ret = dev_pm_set_wake_irq(dev, irq);
 	if (ret) {
-		dev_err(dev, "error %d registering \"ipa\" IRQ as wakeirq\n", ret);
+		dev_err(dev, "error %d registering \"ipa\" IRQ as wakeirq\n",
+			ret);
 		goto err_free_irq;
 	}
 
-	return interrupt;
+	ipa->interrupt = interrupt;
+
+	return 0;
 
 err_free_irq:
 	free_irq(interrupt->irq, interrupt);
 err_kfree:
 	kfree(interrupt);
 
-	return ERR_PTR(ret);
+	return ret;
 }
 
 /* Inverse of ipa_interrupt_config() */
-void ipa_interrupt_deconfig(struct ipa_interrupt *interrupt)
+void ipa_interrupt_deconfig(struct ipa *ipa)
 {
-	struct device *dev = &interrupt->ipa->pdev->dev;
+	struct ipa_interrupt *interrupt = ipa->interrupt;
+	struct device *dev = ipa->dev;
+
+	ipa->interrupt = NULL;
 
 	dev_pm_clear_wake_irq(dev);
 	free_irq(interrupt->irq, interrupt);
+}
+
+/* Initialize the IPA interrupt structure */
+struct ipa_interrupt *ipa_interrupt_init(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct ipa_interrupt *interrupt;
+	int irq;
+
+	irq = platform_get_irq_byname(pdev, "ipa");
+	if (irq <= 0) {
+		dev_err(dev, "DT error %d getting \"ipa\" IRQ property\n", irq);
+
+		return ERR_PTR(irq ? : -EINVAL);
+	}
+
+	interrupt = kzalloc(sizeof(*interrupt), GFP_KERNEL);
+	if (!interrupt)
+		return ERR_PTR(-ENOMEM);
+	interrupt->irq = irq;
+
+	return interrupt;
+}
+
+/* Inverse of ipa_interrupt_init() */
+void ipa_interrupt_exit(struct ipa_interrupt *interrupt)
+{
 	kfree(interrupt);
 }

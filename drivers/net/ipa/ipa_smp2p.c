@@ -5,7 +5,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/panic_notifier.h>
@@ -84,15 +84,13 @@ struct ipa_smp2p {
  */
 static void ipa_smp2p_notify(struct ipa_smp2p *smp2p)
 {
-	struct device *dev;
 	u32 value;
 	u32 mask;
 
 	if (smp2p->notified)
 		return;
 
-	dev = &smp2p->ipa->pdev->dev;
-	smp2p->power_on = pm_runtime_get_if_active(dev, true) > 0;
+	smp2p->power_on = pm_runtime_get_if_active(smp2p->ipa->dev, true) > 0;
 
 	/* Signal whether the IPA power is enabled */
 	mask = BIT(smp2p->enabled_bit);
@@ -152,15 +150,16 @@ static void ipa_smp2p_panic_notifier_unregister(struct ipa_smp2p *smp2p)
 static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 {
 	struct ipa_smp2p *smp2p = dev_id;
+	struct ipa *ipa = smp2p->ipa;
 	struct device *dev;
 	int ret;
 
 	/* Ignore any (spurious) interrupts received after the first */
-	if (smp2p->ipa->setup_complete)
+	if (ipa->setup_complete)
 		return IRQ_HANDLED;
 
 	/* Power needs to be active for setup */
-	dev = &smp2p->ipa->pdev->dev;
+	dev = ipa->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		dev_err(dev, "error %d getting power for setup\n", ret);
@@ -168,7 +167,7 @@ static irqreturn_t ipa_smp2p_modem_setup_ready_isr(int irq, void *dev_id)
 	}
 
 	/* An error here won't cause driver shutdown, so warn if one occurs */
-	ret = ipa_setup(smp2p->ipa);
+	ret = ipa_setup(ipa);
 	WARN(ret != 0, "error %d from ipa_setup()\n", ret);
 
 out_power_put:
@@ -179,14 +178,15 @@ out_power_put:
 }
 
 /* Initialize SMP2P interrupts */
-static int ipa_smp2p_irq_init(struct ipa_smp2p *smp2p, const char *name,
-			      irq_handler_t handler)
+static int ipa_smp2p_irq_init(struct ipa_smp2p *smp2p,
+			      struct platform_device *pdev,
+			      const char *name, irq_handler_t handler)
 {
-	struct device *dev = &smp2p->ipa->pdev->dev;
+	struct device *dev = &pdev->dev;
 	unsigned int irq;
 	int ret;
 
-	ret = platform_get_irq_byname(smp2p->ipa->pdev, name);
+	ret = platform_get_irq_byname(pdev, name);
 	if (ret <= 0)
 		return ret ? : -EINVAL;
 	irq = ret;
@@ -208,7 +208,7 @@ static void ipa_smp2p_irq_exit(struct ipa_smp2p *smp2p, u32 irq)
 /* Drop the power reference if it was taken in ipa_smp2p_notify() */
 static void ipa_smp2p_power_release(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	if (!ipa->smp2p->power_on)
 		return;
@@ -219,10 +219,11 @@ static void ipa_smp2p_power_release(struct ipa *ipa)
 }
 
 /* Initialize the IPA SMP2P subsystem */
-int ipa_smp2p_init(struct ipa *ipa, bool modem_init)
+int
+ipa_smp2p_init(struct ipa *ipa, struct platform_device *pdev, bool modem_init)
 {
 	struct qcom_smem_state *enabled_state;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = &pdev->dev;
 	struct qcom_smem_state *valid_state;
 	struct ipa_smp2p *smp2p;
 	u32 enabled_bit;
@@ -261,7 +262,7 @@ int ipa_smp2p_init(struct ipa *ipa, bool modem_init)
 	/* We have enough information saved to handle notifications */
 	ipa->smp2p = smp2p;
 
-	ret = ipa_smp2p_irq_init(smp2p, "ipa-clock-query",
+	ret = ipa_smp2p_irq_init(smp2p, pdev, "ipa-clock-query",
 				 ipa_smp2p_modem_clk_query_isr);
 	if (ret < 0)
 		goto err_null_smp2p;
@@ -273,7 +274,7 @@ int ipa_smp2p_init(struct ipa *ipa, bool modem_init)
 
 	if (modem_init) {
 		/* Result will be non-zero (negative for error) */
-		ret = ipa_smp2p_irq_init(smp2p, "ipa-setup-ready",
+		ret = ipa_smp2p_irq_init(smp2p, pdev, "ipa-setup-ready",
 					 ipa_smp2p_modem_setup_ready_isr);
 		if (ret < 0)
 			goto err_notifier_unregister;

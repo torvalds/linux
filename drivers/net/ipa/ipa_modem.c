@@ -58,7 +58,7 @@ static int ipa_open(struct net_device *netdev)
 	struct device *dev;
 	int ret;
 
-	dev = &ipa->pdev->dev;
+	dev = ipa->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		goto err_power_put;
@@ -94,7 +94,7 @@ static int ipa_stop(struct net_device *netdev)
 	struct device *dev;
 	int ret;
 
-	dev = &ipa->pdev->dev;
+	dev = ipa->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0)
 		goto out_power_put;
@@ -158,7 +158,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	 */
 	netif_stop_queue(netdev);
 
-	dev = &ipa->pdev->dev;
+	dev = ipa->dev;
 	ret = pm_runtime_get(dev);
 	if (ret < 1) {
 		/* If a resume won't happen, just drop the packet */
@@ -322,7 +322,7 @@ int ipa_modem_start(struct ipa *ipa)
 		goto out_set_state;
 	}
 
-	SET_NETDEV_DEV(netdev, &ipa->pdev->dev);
+	SET_NETDEV_DEV(netdev, ipa->dev);
 	priv = netdev_priv(netdev);
 	priv->ipa = ipa;
 	priv->tx = ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX];
@@ -396,7 +396,7 @@ int ipa_modem_stop(struct ipa *ipa)
 /* Treat a "clean" modem stop the same as a crash */
 static void ipa_modem_crashed(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	int ret;
 
 	/* Prevent the modem from triggering a call to ipa_setup() */
@@ -443,7 +443,7 @@ static int ipa_modem_notify(struct notifier_block *nb, unsigned long action,
 {
 	struct ipa *ipa = container_of(nb, struct ipa, nb);
 	struct qcom_ssr_notify_data *notify_data = data;
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	switch (action) {
 	case QCOM_SSR_BEFORE_POWERUP:
@@ -492,7 +492,7 @@ int ipa_modem_config(struct ipa *ipa)
 
 void ipa_modem_deconfig(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 	int ret;
 
 	ret = qcom_unregister_ssr_notifier(ipa->notifier, &ipa->nb);
