@@ -107,7 +107,20 @@
 		};
 
 		unknown@fb00000 {
-			reg = <0x0fb00000 0x1b00000>;
+			reg = <0x0fb00000 0x280000>;
+			no-map;
+		};
+
+		rmtfs@fd80000 {
+			compatible = "qcom,rmtfs-mem";
+			reg = <0x0fd80000 0x180000>;
+			no-map;
+
+			qcom,client-id = <1>;
+		};
+
+		unknown@ff00000 {
+			reg = <0x0ff00000 0x1700000>;
 			no-map;
 		};
 	};

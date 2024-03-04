@@ -31,7 +31,7 @@
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		interrupts = <GIC_PPI 9 0xf04>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 
 		CPU0: cpu@0 {
 			compatible = "qcom,krait";
@@ -110,7 +110,7 @@
 
 	pmu {
 		compatible = "qcom,krait-pmu";
-		interrupts = <GIC_PPI 7 0xf04>;
+		interrupts = <GIC_PPI 7 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	rpm: remoteproc {
@@ -346,10 +346,9 @@
 			reg = <0xf9011000 0x1000>;
 		};
 
-		saw_l2: power-controller@f9012000 {
-			compatible = "qcom,saw2";
+		saw_l2: power-manager@f9012000 {
+			compatible = "qcom,msm8974-saw2-v2.1-l2", "qcom,saw2";
 			reg = <0xf9012000 0x1000>;
-			regulator;
 		};
 
 		watchdog@f9017000 {
@@ -424,7 +423,7 @@
 			reg = <0xf9088000 0x1000>, <0xf9008000 0x1000>;
 		};
 
-		saw0: power-controller@f9089000 {
+		saw0: power-manager@f9089000 {
 			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
 			reg = <0xf9089000 0x1000>, <0xf9009000 0x1000>;
 		};
@@ -434,7 +433,7 @@
 			reg = <0xf9098000 0x1000>, <0xf9008000 0x1000>;
 		};
 
-		saw1: power-controller@f9099000 {
+		saw1: power-manager@f9099000 {
 			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
 			reg = <0xf9099000 0x1000>, <0xf9009000 0x1000>;
 		};
@@ -444,7 +443,7 @@
 			reg = <0xf90a8000 0x1000>, <0xf9008000 0x1000>;
 		};
 
-		saw2: power-controller@f90a9000 {
+		saw2: power-manager@f90a9000 {
 			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
 			reg = <0xf90a9000 0x1000>, <0xf9009000 0x1000>;
 		};
@@ -454,7 +453,7 @@
 			reg = <0xf90b8000 0x1000>, <0xf9008000 0x1000>;
 		};
 
-		saw3: power-controller@f90b9000 {
+		saw3: power-manager@f90b9000 {
 			compatible = "qcom,msm8974-saw2-v2.1-cpu", "qcom,saw2";
 			reg = <0xf90b9000 0x1000>, <0xf9009000 0x1000>;
 		};
@@ -538,7 +537,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9923000 0x1000>;
-			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP1_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -566,7 +565,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9925000 0x1000>;
-			interrupts = <0 97 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>, <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -666,7 +665,7 @@
 			status = "disabled";
 			compatible = "qcom,i2c-qup-v2.1.1";
 			reg = <0xf9968000 0x1000>;
-			interrupts = <0 106 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 106 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP2_QUP6_I2C_APPS_CLK>, <&gcc GCC_BLSP2_AHB_CLK>;
 			clock-names = "core", "iface";
 			pinctrl-names = "default", "sleep";
@@ -1234,7 +1233,7 @@
 
 		qfprom: qfprom@fc4bc000 {
 			compatible = "qcom,msm8974-qfprom", "qcom,qfprom";
-			reg = <0xfc4bc000 0x1000>;
+			reg = <0xfc4bc000 0x2100>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
@@ -2403,10 +2402,10 @@
 
 	timer {
 		compatible = "arm,armv7-timer";
-		interrupts = <GIC_PPI 2 0xf08>,
-			     <GIC_PPI 3 0xf08>,
-			     <GIC_PPI 4 0xf08>,
-			     <GIC_PPI 1 0xf08>;
+		interrupts = <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 4 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			     <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 		clock-frequency = <19200000>;
 	};
 };
