@@ -861,7 +861,7 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 			       struct lock_class_key *request_key)
 {
 	struct gpio_device *gdev;
-	unsigned int i, j;
+	unsigned int desc_index;
 	int base = 0;
 	int ret = 0;
 
@@ -965,8 +965,8 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 		}
 	}
 
-	for (i = 0; i < gc->ngpio; i++)
-		gdev->descs[i].gdev = gdev;
+	for (desc_index = 0; desc_index < gc->ngpio; desc_index++)
+		gdev->descs[desc_index].gdev = gdev;
 
 	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->line_state_notifier);
 	BLOCKING_INIT_NOTIFIER_HEAD(&gdev->device_notifier);
@@ -992,19 +992,16 @@ int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
 	if (ret)
 		goto err_cleanup_gdev_srcu;
 
-	for (i = 0; i < gc->ngpio; i++) {
-		struct gpio_desc *desc = &gdev->descs[i];
+	for (desc_index = 0; desc_index < gc->ngpio; desc_index++) {
+		struct gpio_desc *desc = &gdev->descs[desc_index];
 
 		ret = init_srcu_struct(&desc->srcu);
-		if (ret) {
-			for (j = 0; j < i; j++)
-				cleanup_srcu_struct(&gdev->descs[j].srcu);
-			goto err_free_gpiochip_mask;
-		}
+		if (ret)
+			goto err_cleanup_desc_srcu;
 
-		if (gc->get_direction && gpiochip_line_is_valid(gc, i)) {
+		if (gc->get_direction && gpiochip_line_is_valid(gc, desc_index)) {
 			assign_bit(FLAG_IS_OUT,
-				   &desc->flags, !gc->get_direction(gc, i));
+				   &desc->flags, !gc->get_direction(gc, desc_index));
 		} else {
 			assign_bit(FLAG_IS_OUT,
 				   &desc->flags, !gc->direction_input);
@@ -1061,9 +1058,8 @@ err_free_hogs:
 err_remove_of_chip:
 	of_gpiochip_remove(gc);
 err_cleanup_desc_srcu:
-	for (i = 0; i < gdev->ngpio; i++)
-		cleanup_srcu_struct(&gdev->descs[i].srcu);
-err_free_gpiochip_mask:
+	while (desc_index--)
+		cleanup_srcu_struct(&gdev->descs[desc_index].srcu);
 	gpiochip_free_valid_mask(gc);
 err_cleanup_gdev_srcu:
 	cleanup_srcu_struct(&gdev->srcu);
