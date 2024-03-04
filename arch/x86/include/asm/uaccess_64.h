@@ -54,7 +54,7 @@ static inline unsigned long __untagged_addr_remote(struct mm_struct *mm,
  * half and a user half.  When cast to a signed type, user pointers
  * are positive and kernel pointers are negative.
  */
-#define valid_user_address(x) ((long)(x) >= 0)
+#define valid_user_address(x) ((__force long)(x) >= 0)
 
 /*
  * User pointers can have tag bits on x86-64.  This scheme tolerates
@@ -87,8 +87,9 @@ static inline bool __access_ok(const void __user *ptr, unsigned long size)
 	if (__builtin_constant_p(size <= PAGE_SIZE) && size <= PAGE_SIZE) {
 		return valid_user_address(ptr);
 	} else {
-		unsigned long sum = size + (unsigned long)ptr;
-		return valid_user_address(sum) && sum >= (unsigned long)ptr;
+		unsigned long sum = size + (__force unsigned long)ptr;
+
+		return valid_user_address(sum) && sum >= (__force unsigned long)ptr;
 	}
 }
 #define __access_ok __access_ok
