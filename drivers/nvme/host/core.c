@@ -1723,10 +1723,20 @@ int nvme_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-#ifdef CONFIG_BLK_DEV_INTEGRITY
-static void nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
+static bool nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 {
 	struct blk_integrity integrity = { };
+
+	if (!head->ms)
+		return true;
+
+	/*
+	 * PI can always be supported as we can ask the controller to simply
+	 * insert/strip it, which is not possible for other kinds of metadata.
+	 */
+	if (!IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) ||
+	    !(head->features & NVME_NS_METADATA_SUPPORTED))
+		return nvme_ns_has_pi(head);
 
 	switch (head->pi_type) {
 	case NVME_NS_DPS_PI_TYPE3:
@@ -1772,12 +1782,8 @@ static void nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
 	integrity.tuple_size = head->ms;
 	integrity.pi_offset = head->pi_offset;
 	blk_integrity_register(disk, &integrity);
+	return true;
 }
-#else
-static void nvme_init_integrity(struct gendisk *disk, struct nvme_ns_head *head)
-{
-}
-#endif /* CONFIG_BLK_DEV_INTEGRITY */
 
 static void nvme_config_discard(struct nvme_ctrl *ctrl, struct gendisk *disk,
 		struct nvme_ns_head *head)
@@ -2012,13 +2018,8 @@ static void nvme_update_disk_info(struct nvme_ctrl *ctrl, struct gendisk *disk,
 	 * I/O to namespaces with metadata except when the namespace supports
 	 * PI, as it can strip/insert in that case.
 	 */
-	if (head->ms) {
-		if (IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY) &&
-		    (head->features & NVME_NS_METADATA_SUPPORTED))
-			nvme_init_integrity(disk, head);
-		else if (!nvme_ns_has_pi(head))
-			capacity = 0;
-	}
+	if (!nvme_init_integrity(disk, head))
+		capacity = 0;
 
 	set_capacity_and_notify(disk, capacity);
 
