@@ -389,7 +389,7 @@ static struct trace_fprobe *alloc_trace_fprobe(const char *group,
 	tf->tpoint = tpoint;
 	tf->fp.nr_maxactive = maxactive;
 
-	ret = trace_probe_init(&tf->tp, event, group, false);
+	ret = trace_probe_init(&tf->tp, event, group, false, nargs);
 	if (ret < 0)
 		goto error;
 
