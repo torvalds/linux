@@ -108,6 +108,12 @@ struct scan_control {
 	/* Can folios be swapped as part of reclaim? */
 	unsigned int may_swap:1;
 
+	/* Not allow cache_trim_mode to be turned on as part of reclaim? */
+	unsigned int no_cache_trim_mode:1;
+
+	/* Has cache_trim_mode failed at least once? */
+	unsigned int cache_trim_mode_failed:1;
+
 	/* Proactive reclaim invoked by userspace through memory.reclaim */
 	unsigned int proactive:1;
 
@@ -2271,7 +2277,8 @@ static void prepare_scan_control(pg_data_t *pgdat, struct scan_control *sc)
 	 * anonymous pages.
 	 */
 	file = lruvec_page_state(target_lruvec, NR_INACTIVE_FILE);
-	if (file >> sc->priority && !(sc->may_deactivate & DEACTIVATE_FILE))
+	if (file >> sc->priority && !(sc->may_deactivate & DEACTIVATE_FILE) &&
+	    !sc->no_cache_trim_mode)
 		sc->cache_trim_mode = 1;
 	else
 		sc->cache_trim_mode = 0;
@@ -5986,6 +5993,8 @@ again:
 	 */
 	if (reclaimable)
 		pgdat->kswapd_failures = 0;
+	else if (sc->cache_trim_mode)
+		sc->cache_trim_mode_failed = 1;
 }
 
 /*
@@ -6917,6 +6926,16 @@ restart:
 		if (raise_priority || !nr_reclaimed)
 			sc.priority--;
 	} while (sc.priority >= 1);
+
+	/*
+	 * Restart only if it went through the priority loop all the way,
+	 * but cache_trim_mode didn't work.
+	 */
+	if (!sc.nr_reclaimed && sc.priority < 1 &&
+	    !sc.no_cache_trim_mode && sc.cache_trim_mode_failed) {
+		sc.no_cache_trim_mode = 1;
+		goto restart;
+	}
 
 	if (!sc.nr_reclaimed)
 		pgdat->kswapd_failures++;
