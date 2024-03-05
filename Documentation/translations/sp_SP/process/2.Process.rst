@@ -1,0 +1,11 @@
+.. include:: ../disclaimer-sp.rst
+
+:Original: Documentation/process/2.Process.rst
+
+.. _sp_development_process:
+
+Cómo funciona el proceso de desarrollo
+======================================
+
+.. warning::
+	TODO aún no traducido
