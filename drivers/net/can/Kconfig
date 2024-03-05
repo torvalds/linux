@@ -169,6 +169,7 @@ config CAN_KVASER_PCIEFD
 	    Kvaser Mini PCI Express 1xCAN v3
 	    Kvaser Mini PCI Express 2xCAN v3
 	    Kvaser M.2 PCIe 4xCAN
+	    Kvaser PCIe 8xCAN
 
 config CAN_SLCAN
 	tristate "Serial / USB serial CAN Adaptors (slcan)"

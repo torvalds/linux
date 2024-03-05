@@ -27,7 +27,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 #define KVASER_PCIEFD_BEC_POLL_FREQ (jiffies + msecs_to_jiffies(200))
 #define KVASER_PCIEFD_MAX_ERR_REP 256U
 #define KVASER_PCIEFD_CAN_TX_MAX_COUNT 17U
-#define KVASER_PCIEFD_MAX_CAN_CHANNELS 4UL
+#define KVASER_PCIEFD_MAX_CAN_CHANNELS 8UL
 #define KVASER_PCIEFD_DMA_COUNT 2U
 
 #define KVASER_PCIEFD_DMA_SIZE (4U * 1024U)
@@ -49,6 +49,7 @@ MODULE_DESCRIPTION("CAN driver for Kvaser CAN/PCIe devices");
 
 /* Xilinx based devices */
 #define KVASER_PCIEFD_M2_4CAN_DEVICE_ID 0x0017
+#define KVASER_PCIEFD_8CAN_DEVICE_ID 0x0019
 
 /* Altera SerDes Enable 64-bit DMA address translation */
 #define KVASER_PCIEFD_ALTERA_DMA_64BIT BIT(0)
@@ -494,6 +495,10 @@ static struct pci_device_id kvaser_pciefd_id_table[] = {
 	},
 	{
 		PCI_DEVICE(KVASER_PCIEFD_VENDOR, KVASER_PCIEFD_M2_4CAN_DEVICE_ID),
+		.driver_data = (kernel_ulong_t)&kvaser_pciefd_xilinx_driver_data,
+	},
+	{
+		PCI_DEVICE(KVASER_PCIEFD_VENDOR, KVASER_PCIEFD_8CAN_DEVICE_ID),
 		.driver_data = (kernel_ulong_t)&kvaser_pciefd_xilinx_driver_data,
 	},
 	{
