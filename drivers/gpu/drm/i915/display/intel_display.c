@@ -6746,11 +6746,11 @@ static void intel_update_crtc(struct intel_atomic_state *state,
 }
 
 static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
-					  struct intel_crtc_state *old_crtc_state,
-					  struct intel_crtc_state *new_crtc_state,
 					  struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	const struct intel_crtc_state *new_crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
 	/*
 	 * We need to disable pipe CRC before disabling the pipe,
@@ -6769,7 +6769,7 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	const struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
 	u8 disable_pipes = 0;
 	int i;
@@ -6799,8 +6799,7 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 	}
 
 	/* Only disable port sync and MST slaves */
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_old_intel_crtc_in_state(state, crtc, old_crtc_state, i) {
 		if ((disable_pipes & BIT(crtc->pipe)) == 0)
 			continue;
 
@@ -6814,20 +6813,17 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		    !intel_crtc_is_bigjoiner_slave(old_crtc_state))
 			continue;
 
-		intel_old_crtc_state_disables(state, old_crtc_state,
-					      new_crtc_state, crtc);
+		intel_old_crtc_state_disables(state, crtc);
 
 		disable_pipes &= ~BIT(crtc->pipe);
 	}
 
 	/* Disable everything else left on */
-	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
-					    new_crtc_state, i) {
+	for_each_old_intel_crtc_in_state(state, crtc, old_crtc_state, i) {
 		if ((disable_pipes & BIT(crtc->pipe)) == 0)
 			continue;
 
-		intel_old_crtc_state_disables(state, old_crtc_state,
-					      new_crtc_state, crtc);
+		intel_old_crtc_state_disables(state, crtc);
 
 		disable_pipes &= ~BIT(crtc->pipe);
 	}
