@@ -36,8 +36,7 @@ struct ir_spi_data {
 	struct regulator *regulator;
 };
 
-static int ir_spi_tx(struct rc_dev *dev,
-		     unsigned int *buffer, unsigned int count)
+static int ir_spi_tx(struct rc_dev *dev, unsigned int *buffer, unsigned int count)
 {
 	int i;
 	int ret;
@@ -57,7 +56,7 @@ static int ir_spi_tx(struct rc_dev *dev,
 			return -EINVAL;
 
 		/*
-		 * the first value in buffer is a pulse, so that 0, 2, 4, ...
+		 * The first value in buffer is a pulse, so that 0, 2, 4, ...
 		 * contain a pulse duration. On the contrary, 1, 3, 5, ...
 		 * contain a space duration.
 		 */
@@ -146,9 +145,9 @@ static int ir_spi_probe(struct spi_device *spi)
 	if (ret)
 		dc = 50;
 
-	/* ir_spi_set_duty_cycle cannot fail,
-	 * it returns int to be compatible with the
-	 * rc->s_tx_duty_cycle function
+	/*
+	 * ir_spi_set_duty_cycle() cannot fail, it returns int
+	 * to be compatible with the rc->s_tx_duty_cycle function.
 	 */
 	ir_spi_set_duty_cycle(idata->rc, dc);
 
@@ -177,7 +176,6 @@ static struct spi_driver ir_spi_driver = {
 		.of_match_table = ir_spi_of_match,
 	},
 };
-
 module_spi_driver(ir_spi_driver);
 
 MODULE_AUTHOR("Andi Shyti <andi@etezian.org>");
