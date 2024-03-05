@@ -9,9 +9,6 @@ title: Abracon ABX80X I2C ultra low power RTC/Alarm chip
 maintainers:
   - linux-rtc@vger.kernel.org
 
-allOf:
-  - $ref: rtc.yaml#
-
 properties:
   compatible:
     description:
@@ -55,9 +52,31 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 3, 6, 11]
 
+dependentRequired:
+  abracon,tc-diode: ["abracon,tc-resistor"]
+  abracon,tc-resistor: ["abracon,tc-diode"]
+
 required:
   - compatible
   - reg
+
+allOf:
+  - $ref: rtc.yaml#
+  - if:
+      properties:
+        compatible:
+          not:
+            contains:
+              enum:
+                - abracon,abx80x
+                - abracon,ab0804
+                - abracon,ab1804
+                - abracon,ab0805
+                - abracon,ab1805
+    then:
+      properties:
+        abracon,tc-diode: false
+        abracon,tc-resistor: false
 
 unevaluatedProperties: false
 
