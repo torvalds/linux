@@ -1318,7 +1318,10 @@ out_free_opts:
 	return ERR_PTR(ret);
 }
 
-static struct class *nvmf_class;
+static const struct class nvmf_class = {
+	.name = "nvme-fabrics",
+};
+
 static struct device *nvmf_device;
 static DEFINE_MUTEX(nvmf_dev_mutex);
 
@@ -1438,15 +1441,14 @@ static int __init nvmf_init(void)
 	if (!nvmf_default_host)
 		return -ENOMEM;
 
-	nvmf_class = class_create("nvme-fabrics");
-	if (IS_ERR(nvmf_class)) {
+	ret = class_register(&nvmf_class);
+	if (ret) {
 		pr_err("couldn't register class nvme-fabrics\n");
-		ret = PTR_ERR(nvmf_class);
 		goto out_free_host;
 	}
 
 	nvmf_device =
-		device_create(nvmf_class, NULL, MKDEV(0, 0), NULL, "ctl");
+		device_create(&nvmf_class, NULL, MKDEV(0, 0), NULL, "ctl");
 	if (IS_ERR(nvmf_device)) {
 		pr_err("couldn't create nvme-fabrics device!\n");
 		ret = PTR_ERR(nvmf_device);
@@ -1462,9 +1464,9 @@ static int __init nvmf_init(void)
 	return 0;
 
 out_destroy_device:
-	device_destroy(nvmf_class, MKDEV(0, 0));
+	device_destroy(&nvmf_class, MKDEV(0, 0));
 out_destroy_class:
-	class_destroy(nvmf_class);
+	class_unregister(&nvmf_class);
 out_free_host:
 	nvmf_host_put(nvmf_default_host);
 	return ret;
@@ -1473,8 +1475,8 @@ out_free_host:
 static void __exit nvmf_exit(void)
 {
 	misc_deregister(&nvmf_misc);
-	device_destroy(nvmf_class, MKDEV(0, 0));
-	class_destroy(nvmf_class);
+	device_destroy(&nvmf_class, MKDEV(0, 0));
+	class_unregister(&nvmf_class);
 	nvmf_host_put(nvmf_default_host);
 
 	BUILD_BUG_ON(sizeof(struct nvmf_common_command) != 64);
