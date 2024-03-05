@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# st-lsm6ds3 drivers for STMicroelectronics combo sensor
+#
+
+menuconfig ST_LSM6DS3_IIO
+	tristate "STMicroelectronics LSM6DS3/LSM6DS33 sensor"
+	depends on (I2C || SPI) && SYSFS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select ST_LSM6DS3_I2C_IIO if (I2C)
+	select ST_LSM6DS3_SPI_IIO if (SPI)
+	help
+	  This driver supports LSM6DS3 and LSM6DS33 sensors.
+	  It is a gyroscope/accelerometer combo device.
+	  This driver can be built as a module. The module will be called
+	  st-lsm6ds3.
+
+if ST_LSM6DS3_IIO
+
+config ST_LSM6DS3_I2C_IIO
+	tristate
+	depends on ST_LSM6DS3_IIO
+	depends on I2C
+
+config ST_LSM6DS3_SPI_IIO
+	tristate
+	depends on ST_LSM6DS3_IIO
+	depends on SPI
+
+config ST_LSM6DS3_IIO_LIMIT_FIFO
+	int "Limit fifo read lenght (#n byte)"
+	depends on ST_LSM6DS3_IIO
+	range 0 8192
+	default 0
+	help
+	  Limit atomic fifo read to #n byte. In some platform i2c/spi read
+	  can be limited by software or hardware.
+
+	  Set 0 to disable the limit.
+
+config ST_LSM6DS3_STEP_COUNTER_ON_DURING_SUSPEND
+	bool "Keep Step counter on during suspend"
+	depends on ST_LSM6DS3_IIO
+	default n
+	help
+	  During suspend step counter is kept on if enabled. Only interrupt
+	  is disabled.
+
+menuconfig ST_LSM6DS3_IIO_MASTER_SUPPORT
+	bool "I2C master controller"
+	depends on I2C && ST_LSM6DS3_IIO
+	default n
+	help
+	  Added support for I2C master controller. Supported sensors up
+	  to 4.
+
+if ST_LSM6DS3_IIO_MASTER_SUPPORT
+
+config ST_LSM6DS3_ENABLE_INTERNAL_PULLUP
+	bool "Enabled internals pull-up resistors"
+	default y
+
+choice
+	prompt "External sensor 0"
+	default ST_LSM6DS3_IIO_EXT0_LIS3MDL
+	help
+	  Choose the external sensor 0 connected to LSM6DS3.
+
+config ST_LSM6DS3_IIO_EXT0_LIS3MDL
+	bool "LIS3MDL"
+config ST_LSM6DS3_IIO_EXT0_AKM09911
+	bool "AKM09911"
+config ST_LSM6DS3_IIO_EXT0_AKM09912
+	bool "AKM09912"
+config ST_LSM6DS3_IIO_EXT0_AKM09916
+	bool "AKM09916"
+config ST_LSM6DS3_IIO_EXT0_LPS22HB
+	bool "LPS22HB"
+config ST_LSM6DS3_IIO_EXT0_LIS2MDL
+	bool "LIS2MDL"
+endchoice
+
+endif
+
+config ST_LSM6DS3_XL_DATA_INJECTION
+	bool "Enable XL data injection support"
+	depends on ST_LSM6DS3_IIO
+	default n
+	help
+	  This option enables the accelerometer data injection
+	  support. The device functions may so use an injected
+	  pattern instead of taking the real sensor data.
+
+endif #ST_LSM6DS3_IIO

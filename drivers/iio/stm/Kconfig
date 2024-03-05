@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# STM Industrial I/O drivers configuration
+#
+# When adding new entries keep the list in alphabetical order
+
+menuconfig IIO_STM
+           tristate "STM MEMS Device Drivers"
+
+if IIO_STM
+
+source "drivers/iio/stm/accel/Kconfig"
+source "drivers/iio/stm/imu/Kconfig"
+source "drivers/iio/stm/magnetometer/Kconfig"
+source "drivers/iio/stm/pressure/Kconfig"
+source "drivers/iio/stm/temperature/Kconfig"
+source "drivers/iio/stm/tmos/Kconfig"
+
+endif # IIO_STM
+

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config IIO_ST_ISM330DHCX
+	tristate "STMicroelectronics ISM330DHCX sensor"
+	depends on (I2C || SPI)
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IIO_ST_ISM330DHCX_I2C if (I2C)
+	select IIO_ST_ISM330DHCX_SPI if (SPI_MASTER)
+	help
+	  Say yes here to build support for STMicroelectronics ISM330DHCX imu
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called st_ism330dhcx.
+
+config IIO_ST_ISM330DHCX_I2C
+	tristate
+	depends on IIO_ST_ISM330DHCX
+
+config IIO_ST_ISM330DHCX_SPI
+	tristate
+	depends on IIO_ST_ISM330DHCX

@@ -1,0 +1,107 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Pressure drivers
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Pressure sensors"
+
+config ST_LPS22HH_IIO
+	tristate "STMicroelectronics LPS22CH/LPS22HH/LPS27HHW sensor"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select ST_LPS22HH_I2C_IIO if (I2C)
+	select ST_LPS22HH_SPI_IIO if (SPI)
+	help
+	  This driver supports LPS22HH sensors. This driver can be
+	  built as a module. The module will be called st-lps22hh.
+
+config ST_LPS22HH_I2C_IIO
+	tristate
+	depends on ST_LPS22HH_IIO
+
+config ST_LPS22HH_SPI_IIO
+	tristate
+	depends on ST_LPS22HH_IIO
+
+config ST_LPS22DF_IIO
+        tristate "STMicroelectronics LPS22DF/LPS28DFW sensor"
+        depends on (I2C || SPI_MASTER) && SYSFS
+        select IIO_BUFFER
+        select IIO_KFIFO_BUF
+        select ST_LPS22DF_I2C_IIO if (I2C)
+        select ST_LPS22DF_SPI_IIO if (SPI)
+        help
+          Say yes here to build support for the ST MEMS LPS22DF/LPS28DFW
+	  pressure and temperature  sensor.
+
+          This driver can be built as a module. The module will be called
+          st-lps22df.
+
+config ST_LPS22DF_I2C_IIO
+        tristate
+        depends on ST_LPS22DF_IIO
+
+config ST_LPS22DF_SPI_IIO
+        tristate
+        depends on ST_LPS22DF_IIO
+
+config ST_LPS22HB_IIO
+        tristate "STMicroelectronics LPS22HB sensor"
+        depends on (I2C || SPI_MASTER) && SYSFS
+        select IIO_BUFFER
+        select IIO_KFIFO_BUF
+        select ST_LPS22HB_I2C_IIO if (I2C)
+        select ST_LPS22HB_SPI_IIO if (SPI)
+        help
+          This driver supports LPS22HB pressure sensor. This driver can be
+          built as a module. The module will be called st-lps22hb.
+
+config ST_LPS22HB_I2C_IIO
+        tristate
+        depends on ST_LPS22HB_IIO
+
+config ST_LPS22HB_SPI_IIO
+        tristate
+        depends on ST_LPS22HB_IIO
+
+config ST_LPS33HW_IIO
+        tristate "STMicroelectronics LPS33HW sensor"
+        depends on (I2C || SPI_MASTER) && SYSFS
+        select IIO_BUFFER
+        select IIO_KFIFO_BUF
+        select ST_LPS33HW_I2C_IIO if (I2C)
+        select ST_LPS33HW_SPI_IIO if (SPI)
+        help
+          This driver supports LPS33HW pressure sensors. This driver can be
+          built as a module. The module will be called st-lps33hw.
+
+config ST_LPS33HW_I2C_IIO
+        tristate
+        depends on ST_LPS33HW_IIO
+
+config ST_LPS33HW_SPI_IIO
+        tristate
+        depends on ST_LPS33HW_IIO
+
+config ST_ILPS22QS_IIO
+	tristate "STMicroelectronics ILPS22QS sensor"
+	depends on (I2C || SPI_MASTER) && SYSFS
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select ST_ILPS22QS_I2C_IIO if (I2C)
+	select ST_ILPS22QS_SPI_IIO if (SPI)
+	help
+	  This driver supports ILPS22QS sensor. This driver can be
+	  built as a module. The module will be called st-ilps22qs.
+
+config ST_ILPS22QS_I2C_IIO
+	tristate
+	depends on ST_ILPS22QS_IIO
+
+config ST_ILPS22QS_SPI_IIO
+	tristate
+	depends on ST_ILPS22QS_IIO
+
+endmenu
