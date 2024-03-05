@@ -156,15 +156,13 @@ static int rzg2l_usbphy_ctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rzg2l_usbphy_ctrl_remove(struct platform_device *pdev)
+static void rzg2l_usbphy_ctrl_remove(struct platform_device *pdev)
 {
 	struct rzg2l_usbphy_ctrl_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	reset_control_assert(priv->rstc);
-
-	return 0;
 }
 
 static struct platform_driver rzg2l_usbphy_ctrl_driver = {
@@ -173,7 +171,7 @@ static struct platform_driver rzg2l_usbphy_ctrl_driver = {
 		.of_match_table	= rzg2l_usbphy_ctrl_match_table,
 	},
 	.probe	= rzg2l_usbphy_ctrl_probe,
-	.remove	= rzg2l_usbphy_ctrl_remove,
+	.remove_new = rzg2l_usbphy_ctrl_remove,
 };
 module_platform_driver(rzg2l_usbphy_ctrl_driver);
 
