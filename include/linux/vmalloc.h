@@ -35,6 +35,7 @@ struct iov_iter;		/* in uio.h */
 #else
 #define VM_DEFER_KMEMLEAK	0
 #endif
+#define VM_SPARSE		0x00001000	/* sparse vm_area. not all pages are present. */
 
 /* bits [20..32] reserved for arch specific ioremap internals */
 
@@ -232,6 +233,10 @@ static inline bool is_vm_area_hugepages(const void *addr)
 }
 
 #ifdef CONFIG_MMU
+int vm_area_map_pages(struct vm_struct *area, unsigned long start,
+		      unsigned long end, struct page **pages);
+void vm_area_unmap_pages(struct vm_struct *area, unsigned long start,
+			 unsigned long end);
 void vunmap_range(unsigned long addr, unsigned long end);
 static inline void set_vm_flush_reset_perms(void *addr)
 {
