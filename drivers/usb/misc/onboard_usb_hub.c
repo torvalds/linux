@@ -260,7 +260,7 @@ static int onboard_hub_probe(struct platform_device *pdev)
 	if (!hub)
 		return -ENOMEM;
 
-	hub->pdata = device_get_match_data(&pdev->dev);
+	hub->pdata = device_get_match_data(dev);
 	if (!hub->pdata)
 		return -EINVAL;
 
