@@ -135,6 +135,8 @@ int ynl_error_parse(struct ynl_parse_arg *yarg, const char *msg);
 
 /* Netlink message handling helpers */
 
+#define YNL_MSG_OVERFLOW	1
+
 static inline struct nlmsghdr *ynl_nlmsg_put_header(void *buf)
 {
 	struct nlmsghdr *nlh = buf;
@@ -239,10 +241,28 @@ ynl_attr_first(const void *start, size_t len, size_t skip)
 	return ynl_attr_if_good(start + len, attr);
 }
 
+static inline bool
+__ynl_attr_put_overflow(struct nlmsghdr *nlh, size_t size)
+{
+	bool o;
+
+	/* ynl_msg_start() stashed buffer length in nlmsg_pid. */
+	o = nlh->nlmsg_len + NLA_HDRLEN + NLMSG_ALIGN(size) > nlh->nlmsg_pid;
+	if (o)
+		/* YNL_MSG_OVERFLOW is < NLMSG_HDRLEN, all subsequent checks
+		 * are guaranteed to fail.
+		 */
+		nlh->nlmsg_pid = YNL_MSG_OVERFLOW;
+	return o;
+}
+
 static inline struct nlattr *
 ynl_attr_nest_start(struct nlmsghdr *nlh, unsigned int attr_type)
 {
 	struct nlattr *attr;
+
+	if (__ynl_attr_put_overflow(nlh, 0))
+		return ynl_nlmsg_end_addr(nlh) - NLA_HDRLEN;
 
 	attr = ynl_nlmsg_end_addr(nlh);
 	attr->nla_type = attr_type | NLA_F_NESTED;
@@ -263,6 +283,9 @@ ynl_attr_put(struct nlmsghdr *nlh, unsigned int attr_type,
 {
 	struct nlattr *attr;
 
+	if (__ynl_attr_put_overflow(nlh, size))
+		return;
+
 	attr = ynl_nlmsg_end_addr(nlh);
 	attr->nla_type = attr_type;
 	attr->nla_len = NLA_HDRLEN + size;
@@ -276,14 +299,17 @@ static inline void
 ynl_attr_put_str(struct nlmsghdr *nlh, unsigned int attr_type, const char *str)
 {
 	struct nlattr *attr;
-	const char *end;
+	size_t len;
+
+	len = strlen(str);
+	if (__ynl_attr_put_overflow(nlh, len))
+		return;
 
 	attr = ynl_nlmsg_end_addr(nlh);
 	attr->nla_type = attr_type;
 
-	end = stpcpy(ynl_attr_data(attr), str);
-	attr->nla_len =
-		NLA_HDRLEN + NLA_ALIGN(end - (char *)ynl_attr_data(attr));
+	strcpy(ynl_attr_data(attr), str);
+	attr->nla_len = NLA_HDRLEN + NLA_ALIGN(len);
 
 	nlh->nlmsg_len += NLMSG_ALIGN(attr->nla_len);
 }

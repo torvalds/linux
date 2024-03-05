@@ -404,7 +404,31 @@ struct nlmsghdr *ynl_msg_start(struct ynl_sock *ys, __u32 id, __u16 flags)
 	nlh->nlmsg_flags = flags;
 	nlh->nlmsg_seq = ++ys->seq;
 
+	/* This is a local YNL hack for length checking, we put the buffer
+	 * length in nlmsg_pid, since messages sent to the kernel always use
+	 * PID 0. Message needs to be terminated with ynl_msg_end().
+	 */
+	nlh->nlmsg_pid = YNL_SOCKET_BUFFER_SIZE;
+
 	return nlh;
+}
+
+static int ynl_msg_end(struct ynl_sock *ys, struct nlmsghdr *nlh)
+{
+	/* We stash buffer length in nlmsg_pid. */
+	if (nlh->nlmsg_pid == 0) {
+		yerr(ys, YNL_ERROR_INPUT_INVALID,
+		     "Unknown input buffer length");
+		return -EINVAL;
+	}
+	if (nlh->nlmsg_pid == YNL_MSG_OVERFLOW) {
+		yerr(ys, YNL_ERROR_INPUT_TOO_BIG,
+		     "Constructred message longer than internal buffer");
+		return -EMSGSIZE;
+	}
+
+	nlh->nlmsg_pid = 0;
+	return 0;
 }
 
 struct nlmsghdr *
@@ -606,6 +630,10 @@ static int ynl_sock_read_family(struct ynl_sock *ys, const char *family_name)
 
 	nlh = ynl_gemsg_start_req(ys, GENL_ID_CTRL, CTRL_CMD_GETFAMILY, 1);
 	ynl_attr_put_str(nlh, CTRL_ATTR_FAMILY_NAME, family_name);
+
+	err = ynl_msg_end(ys, nlh);
+	if (err < 0)
+		return err;
 
 	err = send(ys->socket, nlh, nlh->nlmsg_len, 0);
 	if (err < 0) {
@@ -868,6 +896,10 @@ int ynl_exec(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 {
 	int err;
 
+	err = ynl_msg_end(ys, req_nlh);
+	if (err < 0)
+		return err;
+
 	err = send(ys->socket, req_nlh, req_nlh->nlmsg_len, 0);
 	if (err < 0)
 		return err;
@@ -920,6 +952,10 @@ int ynl_exec_dump(struct ynl_sock *ys, struct nlmsghdr *req_nlh,
 		  struct ynl_dump_state *yds)
 {
 	int err;
+
+	err = ynl_msg_end(ys, req_nlh);
+	if (err < 0)
+		return err;
 
 	err = send(ys->socket, req_nlh, req_nlh->nlmsg_len, 0);
 	if (err < 0)
