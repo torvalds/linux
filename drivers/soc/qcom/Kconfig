@@ -191,6 +191,15 @@ config QCOM_MDT_LOADER
 	tristate
 	select QCOM_SCM
 
+config MSM_RPM_SMD_DEBUG
+	tristate "RPM SMD debug driver"
+	depends on DEBUG_FS && MSM_RPM_SMD
+	help
+	  This driver provides the debugfs node interface to the user so that
+	  user can directly writes the required votes (active, sleep and wake)
+          in to this interface then this driver sends the respective votes to
+	  RPM so that RPM apply these votes to corresponding resources.
+
 config QCOM_OCMEM
 	tristate "Qualcomm On Chip Memory (OCMEM) driver"
 	depends on ARCH_QCOM
