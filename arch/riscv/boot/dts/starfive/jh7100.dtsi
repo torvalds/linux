@@ -116,6 +116,7 @@
 	osc_sys: osc-sys {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
+		clock-output-names = "osc_sys";
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
 	};
@@ -123,6 +124,7 @@
 	osc_aud: osc-aud {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
+		clock-output-names = "osc_aud";
 		/* This value must be overridden by the board */
 		clock-frequency = <0>;
 	};
@@ -130,6 +132,7 @@
 	gmac_rmii_ref: gmac-rmii-ref {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
+		clock-output-names = "gmac_rmii_ref";
 		/* Should be overridden by the board when needed */
 		clock-frequency = <0>;
 	};
@@ -137,6 +140,7 @@
 	gmac_gr_mii_rxclk: gmac-gr-mii-rxclk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
+		clock-output-names = "gmac_gr_mii_rxclk";
 		/* Should be overridden by the board when needed */
 		clock-frequency = <0>;
 	};
