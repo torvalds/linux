@@ -169,6 +169,7 @@ struct starfive_cryp_ctx {
 	struct crypto_akcipher			*akcipher_fbk;
 	struct crypto_ahash			*ahash_fbk;
 	struct crypto_aead			*aead_fbk;
+	struct crypto_skcipher			*skcipher_fbk;
 };
 
 struct starfive_cryp_dev {
@@ -186,10 +187,7 @@ struct starfive_cryp_dev {
 	struct dma_chan				*rx;
 	struct dma_slave_config			cfg_in;
 	struct dma_slave_config			cfg_out;
-	struct scatter_walk			in_walk;
-	struct scatter_walk			out_walk;
 	struct crypto_engine			*engine;
-	struct tasklet_struct			aes_done;
 	struct completion			dma_done;
 	size_t					assoclen;
 	size_t					total_in;
@@ -237,6 +235,4 @@ void starfive_rsa_unregister_algs(void);
 
 int starfive_aes_register_algs(void);
 void starfive_aes_unregister_algs(void);
-
-void starfive_aes_done_task(unsigned long param);
 #endif
