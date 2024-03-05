@@ -382,29 +382,33 @@
 		/* fixture data is alloced, setup, and torn down per call. */ \
 		FIXTURE_DATA(fixture_name) self; \
 		pid_t child = 1; \
+		int status = 0; \
 		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
 		if (setjmp(_metadata->env) == 0) { \
-			fixture_name##_setup(_metadata, &self, variant->data); \
-			/* Let setup failure terminate early. */ \
-			if (_metadata->exit_code) \
-				return; \
-			_metadata->setup_completed = true; \
 			/* Use the same _metadata. */ \
 			child = vfork(); \
 			if (child == 0) { \
+				fixture_name##_setup(_metadata, &self, variant->data); \
+				/* Let setup failure terminate early. */ \
+				if (_metadata->exit_code) \
+					_exit(0); \
+				_metadata->setup_completed = true; \
 				fixture_name##_##test_name(_metadata, &self, variant->data); \
-				_exit(0); \
-			} \
-			if (child < 0) { \
+			} else if (child < 0 || child != waitpid(child, &status, 0)) { \
 				ksft_print_msg("ERROR SPAWNING TEST GRANDCHILD\n"); \
 				_metadata->exit_code = KSFT_FAIL; \
 			} \
 		} \
-		if (child == 0) \
-			/* Child failed and updated the shared _metadata. */ \
+		if (child == 0) { \
+			if (_metadata->setup_completed && !_metadata->teardown_parent) \
+				fixture_name##_teardown(_metadata, &self, variant->data); \
 			_exit(0); \
-		if (_metadata->setup_completed) \
+		} \
+		if (_metadata->setup_completed && _metadata->teardown_parent) \
 			fixture_name##_teardown(_metadata, &self, variant->data); \
+		if (!WIFEXITED(status) && WIFSIGNALED(status)) \
+			/* Forward signal to __wait_for_test(). */ \
+			kill(getpid(), WTERMSIG(status)); \
 		__test_check_assert(_metadata); \
 	} \
 	static struct __test_metadata \
@@ -414,6 +418,7 @@
 		.fixture = &_##fixture_name##_fixture_object, \
 		.termsig = signal, \
 		.timeout = tmout, \
+		.teardown_parent = false, \
 	 }; \
 	static void __attribute__((constructor)) \
 			_register_##fixture_name##_##test_name(void) \
@@ -873,6 +878,7 @@ struct __test_metadata {
 	bool timed_out;	/* did this test timeout instead of exiting? */
 	bool aborted;	/* stopped test due to failed ASSERT */
 	bool setup_completed; /* did setup finish? */
+	bool teardown_parent; /* run teardown in a parent process */
 	jmp_buf env;	/* for exiting out of test early */
 	struct __test_results *results;
 	struct __test_metadata *prev, *next;
