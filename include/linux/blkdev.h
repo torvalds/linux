@@ -42,7 +42,7 @@ struct blk_crypto_profile;
 
 extern const struct device_type disk_type;
 extern const struct device_type part_type;
-extern struct class block_class;
+extern const struct class block_class;
 
 /*
  * Maximum number of blkcg policies allowed to be registered concurrently.

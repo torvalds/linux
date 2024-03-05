@@ -1201,7 +1201,7 @@ static int block_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return add_uevent_var(env, "DISKSEQ=%llu", disk->diskseq);
 }
 
-struct class block_class = {
+const struct class block_class = {
 	.name		= "block",
 	.dev_uevent	= block_uevent,
 };
