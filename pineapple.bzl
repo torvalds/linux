@@ -106,6 +106,7 @@ def define_pineapple():
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4.ko",
+        "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-crow.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qmp-v4-pineapple.ko",
         "drivers/phy/qualcomm/phy-qcom-ufs-qrbtc-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-cliffs.ko",

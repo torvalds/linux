@@ -66,6 +66,7 @@ ufshcd-crypto-qti.ko
 mdt_loader.ko
 debug-regulator.ko
 phy-qcom-ufs.ko
+phy-qcom-ufs-qmp-v4-crow.ko
 phy-qcom-ufs-qmp-v4-pineapple.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
