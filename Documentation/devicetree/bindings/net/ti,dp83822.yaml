@@ -84,10 +84,10 @@ properties:
     description: |
        If present, select the RMII operation mode. Two modes are
        available:
-         - RMII master, where the PHY operates from a 25MHz clock reference,
-         provided by a crystal or a CMOS-level oscillator
-         - RMII slave, where the PHY operates from a 50MHz clock reference,
-         provided by a CMOS-level oscillator
+         - RMII master, where the PHY outputs a 50MHz reference clock which can
+         be connected to the MAC.
+         - RMII slave, where the PHY expects a 50MHz reference clock input
+         shared with the MAC.
        The RMII operation mode can also be configured by its straps.
        If the strap pin is not set correctly or not set at all, then this can be
        used to configure it.
