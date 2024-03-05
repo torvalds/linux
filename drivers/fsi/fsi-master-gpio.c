@@ -867,15 +867,13 @@ static int fsi_master_gpio_probe(struct platform_device *pdev)
 
 
 
-static int fsi_master_gpio_remove(struct platform_device *pdev)
+static void fsi_master_gpio_remove(struct platform_device *pdev)
 {
 	struct fsi_master_gpio *master = platform_get_drvdata(pdev);
 
 	device_remove_file(&pdev->dev, &dev_attr_external_mode);
 
 	fsi_master_unregister(&master->master);
-
-	return 0;
 }
 
 static const struct of_device_id fsi_master_gpio_match[] = {
@@ -890,7 +888,7 @@ static struct platform_driver fsi_master_gpio_driver = {
 		.of_match_table	= fsi_master_gpio_match,
 	},
 	.probe	= fsi_master_gpio_probe,
-	.remove = fsi_master_gpio_remove,
+	.remove_new = fsi_master_gpio_remove,
 };
 
 module_platform_driver(fsi_master_gpio_driver);
