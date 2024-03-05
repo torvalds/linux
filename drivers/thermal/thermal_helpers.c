@@ -26,8 +26,8 @@ int get_tz_trend(struct thermal_zone_device *tz, const struct thermal_trip *trip
 {
 	enum thermal_trend trend;
 
-	if (tz->emul_temperature || !tz->ops->get_trend ||
-	    tz->ops->get_trend(tz, trip, &trend)) {
+	if (tz->emul_temperature || !tz->ops.get_trend ||
+	    tz->ops.get_trend(tz, trip, &trend)) {
 		if (tz->temperature > tz->last_temperature)
 			trend = THERMAL_TREND_RAISING;
 		else if (tz->temperature < tz->last_temperature)
@@ -75,7 +75,7 @@ EXPORT_SYMBOL(get_thermal_instance);
  * temperature and fill @temp.
  *
  * Both tz and tz->ops must be valid pointers when calling this function,
- * and the tz->ops->get_temp callback must be provided.
+ * and the tz->ops.get_temp callback must be provided.
  * The function must be called under tz->lock.
  *
  * Return: On success returns 0, an error code otherwise
@@ -88,7 +88,7 @@ int __thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 
 	lockdep_assert_held(&tz->lock);
 
-	ret = tz->ops->get_temp(tz, temp);
+	ret = tz->ops.get_temp(tz, temp);
 
 	if (IS_ENABLED(CONFIG_THERMAL_EMULATION) && tz->emul_temperature) {
 		for_each_trip(tz, trip) {
@@ -132,7 +132,7 @@ int thermal_zone_get_temp(struct thermal_zone_device *tz, int *temp)
 
 	mutex_lock(&tz->lock);
 
-	if (!tz->ops->get_temp) {
+	if (!tz->ops.get_temp) {
 		ret = -EINVAL;
 		goto unlock;
 	}

@@ -233,11 +233,7 @@ static int get_trip_temp(struct proc_thermal_pci *pci_info)
 	return temp;
 }
 
-static struct thermal_trip psv_trip = {
-	.type = THERMAL_TRIP_PASSIVE,
-};
-
-static struct thermal_zone_device_ops tzone_ops = {
+static const struct thermal_zone_device_ops tzone_ops = {
 	.get_temp = sys_get_curr_temp,
 	.set_trip_temp	= sys_set_trip_temp,
 };
@@ -251,6 +247,10 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 {
 	struct proc_thermal_device *proc_priv;
 	struct proc_thermal_pci *pci_info;
+	struct thermal_trip psv_trip = {
+		.type = THERMAL_TRIP_PASSIVE,
+		.flags = THERMAL_TRIP_FLAG_RW_TEMP,
+	};
 	int irq_flag = 0, irq, ret;
 	bool msi_irq = false;
 
@@ -290,7 +290,7 @@ static int proc_thermal_pci_probe(struct pci_dev *pdev, const struct pci_device_
 	psv_trip.temperature = get_trip_temp(pci_info);
 
 	pci_info->tzone = thermal_zone_device_register_with_trips("TCPU_PCI", &psv_trip,
-							1, 1, pci_info,
+							1, pci_info,
 							&tzone_ops,
 							&tzone_params, 0, 0);
 	if (IS_ERR(pci_info->tzone)) {

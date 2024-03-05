@@ -489,7 +489,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 						&rcar_thermal_zone_ops);
 		} else {
 			priv->zone = thermal_zone_device_register_with_trips(
-				"rcar_thermal", trips, ARRAY_SIZE(trips), 0, priv,
+				"rcar_thermal", trips, ARRAY_SIZE(trips), priv,
 						&rcar_thermal_zone_ops, NULL, 0,
 						idle);
 
