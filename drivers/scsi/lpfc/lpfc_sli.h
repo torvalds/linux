@@ -183,7 +183,11 @@ typedef struct lpfcMboxq {
 	} u;
 	struct lpfc_vport *vport; /* virtual port pointer */
 	struct lpfc_nodelist *ctx_ndlp;	/* caller ndlp pointer */
-	void *ctx_buf;			/* caller buffer information */
+	struct lpfc_dmabuf *ctx_buf;	/* caller buffer information */
+	void *ext_buf;			/* extended buffer for extended mbox
+					 * cmds.  Not a generic pointer.
+					 * Use for storing virtual address.
+					 */
 	void *context3;			/* a generic pointer.  Code must
 					 * accommodate the actual datatype.
 					 */

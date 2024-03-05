@@ -7290,7 +7290,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 		mbox->in_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
 		mbox->out_ext_byte_len = DMP_SFF_PAGE_A0_SIZE;
 		mbox->mbox_offset_word = 5;
-		mbox->ctx_buf = virt;
+		mbox->ext_buf = virt;
 	} else {
 		bf_set(lpfc_mbx_memory_dump_type3_length,
 		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A0_SIZE);
@@ -7306,7 +7306,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 	}
 
 	if (phba->sli_rev == LPFC_SLI_REV4)
-		mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
+		mp = mbox->ctx_buf;
 	else
 		mp = mpsave;
 
@@ -7349,7 +7349,7 @@ int lpfc_get_sfp_info_wait(struct lpfc_hba *phba,
 		mbox->in_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
 		mbox->out_ext_byte_len = DMP_SFF_PAGE_A2_SIZE;
 		mbox->mbox_offset_word = 5;
-		mbox->ctx_buf = virt;
+		mbox->ext_buf = virt;
 	} else {
 		bf_set(lpfc_mbx_memory_dump_type3_length,
 		       &mbox->u.mqe.un.mem_dump_type3, DMP_SFF_PAGE_A2_SIZE);
@@ -8637,9 +8637,9 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb = &pmb->u.mb;
 
 	ndlp = pmb->ctx_ndlp;
-	rxid = (uint16_t)((unsigned long)(pmb->ctx_buf) & 0xffff);
-	oxid = (uint16_t)(((unsigned long)(pmb->ctx_buf) >> 16) & 0xffff);
-	pmb->ctx_buf = NULL;
+	rxid = (uint16_t)((unsigned long)(pmb->context3) & 0xffff);
+	oxid = (uint16_t)(((unsigned long)(pmb->context3) >> 16) & 0xffff);
+	pmb->context3 = NULL;
 	pmb->ctx_ndlp = NULL;
 
 	if (mb->mbxStatus) {
@@ -8743,7 +8743,7 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 	if (mbox) {
 		lpfc_read_lnk_stat(phba, mbox);
-		mbox->ctx_buf = (void *)((unsigned long)
+		mbox->context3 = (void *)((unsigned long)
 					 (ox_id << 16 | ctx));
 		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		if (!mbox->ctx_ndlp)

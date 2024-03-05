@@ -102,7 +102,7 @@ lpfc_mbox_rsrc_cleanup(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox,
 {
 	struct lpfc_dmabuf *mp;
 
-	mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
+	mp = mbox->ctx_buf;
 	mbox->ctx_buf = NULL;
 
 	/* Release the generic BPL buffer memory.  */
@@ -204,10 +204,8 @@ lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
 		uint16_t region_id)
 {
 	MAILBOX_t *mb;
-	void *ctx;
 
 	mb = &pmb->u.mb;
-	ctx = pmb->ctx_buf;
 
 	/* Setup to dump VPD region */
 	memset(pmb, 0, sizeof (LPFC_MBOXQ_t));
@@ -219,7 +217,6 @@ lpfc_dump_mem(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb, uint16_t offset,
 	mb->un.varDmp.word_cnt = (DMP_RSP_SIZE / sizeof (uint32_t));
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
-	pmb->ctx_buf = ctx;
 	mb->mbxOwner = OWN_HOST;
 	return;
 }
@@ -236,11 +233,8 @@ void
 lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb;
-	void *ctx;
 
 	mb = &pmb->u.mb;
-	/* Save context so that we can restore after memset */
-	ctx = pmb->ctx_buf;
 
 	/* Setup to dump VPD region */
 	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
@@ -254,7 +248,6 @@ lpfc_dump_wakeup_param(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->un.varDmp.word_cnt = WAKE_UP_PARMS_WORD_SIZE;
 	mb->un.varDmp.co = 0;
 	mb->un.varDmp.resp_offset = 0;
-	pmb->ctx_buf = ctx;
 	return;
 }
 
@@ -372,7 +365,7 @@ lpfc_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb,
 	/* Save address for later completion and set the owner to host so that
 	 * the FW knows this mailbox is available for processing.
 	 */
-	pmb->ctx_buf = (uint8_t *)mp;
+	pmb->ctx_buf = mp;
 	mb->mbxOwner = OWN_HOST;
 	return (0);
 }
@@ -2385,7 +2378,7 @@ mbx_failed:
 static void
 lpfc_mbx_cmpl_rdp_page_a2(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)mbox->ctx_buf;
+	struct lpfc_dmabuf *mp = mbox->ctx_buf;
 	struct lpfc_rdp_context *rdp_context =
 			(struct lpfc_rdp_context *)(mbox->context3);
 
@@ -2416,7 +2409,7 @@ void
 lpfc_mbx_cmpl_rdp_page_a0(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 {
 	int rc;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(mbox->ctx_buf);
+	struct lpfc_dmabuf *mp = mbox->ctx_buf;
 	struct lpfc_rdp_context *rdp_context =
 			(struct lpfc_rdp_context *)(mbox->context3);
 

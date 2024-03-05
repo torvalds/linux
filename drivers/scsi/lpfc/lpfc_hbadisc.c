@@ -3428,7 +3428,7 @@ static void
 lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+	struct lpfc_dmabuf *mp = pmb->ctx_buf;
 	struct lpfc_vport  *vport = pmb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct serv_parm *sp = &vport->fc_sparam;
@@ -3736,7 +3736,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_mbx_read_top *la;
 	struct lpfc_sli_ring *pring;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_dmabuf *mp = pmb->ctx_buf;
 	uint8_t attn_type;
 
 	/* Unblock ELS traffic */
@@ -3850,7 +3850,7 @@ void
 lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+	struct lpfc_dmabuf *mp = pmb->ctx_buf;
 	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 
 	/* The driver calls the state machine with the pmb pointer
@@ -4065,7 +4065,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 		 * the dump routine is a single-use construct.
 		 */
 		if (pmb->ctx_buf) {
-			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+			mp = pmb->ctx_buf;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 			pmb->ctx_buf = NULL;
@@ -4088,7 +4088,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			byte_count = pmb->u.mqe.un.mb_words[5];
-			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+			mp = pmb->ctx_buf;
 			if (byte_count > sizeof(struct static_vport_info) -
 					offset)
 				byte_count = sizeof(struct static_vport_info)
