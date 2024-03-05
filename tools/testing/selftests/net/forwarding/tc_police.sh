@@ -140,7 +140,7 @@ police_common_test()
 	sleep 10
 	local t1=$(tc_rule_stats_get $h2 1 ingress .bytes)
 
-	local er=$((80 * 1000 * 1000))
+	local er=$((10 * 1000 * 1000))
 	local nr=$(rate $t0 $t1 10)
 	local nr_pct=$((100 * (nr - er) / er))
 	((-10 <= nr_pct && nr_pct <= 10))
@@ -157,7 +157,7 @@ police_rx_test()
 	# Rule to police traffic destined to $h2 on ingress of $rp1
 	tc filter add dev $rp1 ingress protocol ip pref 1 handle 101 flower \
 		dst_ip 198.51.100.1 ip_proto udp dst_port 54321 \
-		action police rate 80mbit burst 16k conform-exceed drop/ok
+		action police rate 10mbit burst 16k conform-exceed drop/ok
 
 	police_common_test "police on rx"
 
@@ -169,7 +169,7 @@ police_tx_test()
 	# Rule to police traffic destined to $h2 on egress of $rp2
 	tc filter add dev $rp2 egress protocol ip pref 1 handle 101 flower \
 		dst_ip 198.51.100.1 ip_proto udp dst_port 54321 \
-		action police rate 80mbit burst 16k conform-exceed drop/ok
+		action police rate 10mbit burst 16k conform-exceed drop/ok
 
 	police_common_test "police on tx"
 
@@ -190,7 +190,7 @@ police_shared_common_test()
 	sleep 10
 	local t1=$(tc_rule_stats_get $h2 1 ingress .bytes)
 
-	local er=$((80 * 1000 * 1000))
+	local er=$((10 * 1000 * 1000))
 	local nr=$(rate $t0 $t1 10)
 	local nr_pct=$((100 * (nr - er) / er))
 	((-10 <= nr_pct && nr_pct <= 10))
@@ -211,7 +211,7 @@ police_shared_test()
 	# Rule to police traffic destined to $h2 on ingress of $rp1
 	tc filter add dev $rp1 ingress protocol ip pref 1 handle 101 flower \
 		dst_ip 198.51.100.1 ip_proto udp dst_port 54321 \
-		action police rate 80mbit burst 16k conform-exceed drop/ok \
+		action police rate 10mbit burst 16k conform-exceed drop/ok \
 		index 10
 
 	# Rule to police a different flow destined to $h2 on egress of $rp2
@@ -250,7 +250,7 @@ police_mirror_common_test()
 	# Rule to police traffic destined to $h2 and mirror to $h3
 	tc filter add dev $pol_if $dir protocol ip pref 1 handle 101 flower \
 		dst_ip 198.51.100.1 ip_proto udp dst_port 54321 \
-		action police rate 80mbit burst 16k conform-exceed drop/pipe \
+		action police rate 10mbit burst 16k conform-exceed drop/pipe \
 		action mirred egress mirror dev $rp3
 
 	mausezahn $h1 -a own -b $(mac_get $rp1) -A 192.0.2.1 -B 198.51.100.1 \
@@ -260,7 +260,7 @@ police_mirror_common_test()
 	sleep 10
 	local t1=$(tc_rule_stats_get $h2 1 ingress .bytes)
 
-	local er=$((80 * 1000 * 1000))
+	local er=$((10 * 1000 * 1000))
 	local nr=$(rate $t0 $t1 10)
 	local nr_pct=$((100 * (nr - er) / er))
 	((-10 <= nr_pct && nr_pct <= 10))
@@ -270,7 +270,7 @@ police_mirror_common_test()
 	sleep 10
 	local t1=$(tc_rule_stats_get $h3 1 ingress .bytes)
 
-	local er=$((80 * 1000 * 1000))
+	local er=$((10 * 1000 * 1000))
 	local nr=$(rate $t0 $t1 10)
 	local nr_pct=$((100 * (nr - er) / er))
 	((-10 <= nr_pct && nr_pct <= 10))

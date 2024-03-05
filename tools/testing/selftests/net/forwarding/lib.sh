@@ -8,6 +8,7 @@
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
 MZ=${MZ:=mausezahn}
+MZ_DELAY=${MZ_DELAY:=0}
 ARPING=${ARPING:=arping}
 TEAMD=${TEAMD:=teamd}
 WAIT_TIME=${WAIT_TIME:=5}
