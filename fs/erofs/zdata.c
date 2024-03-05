@@ -1566,19 +1566,19 @@ static void z_erofs_submissionqueue_endio(struct bio *bio)
 {
 	struct z_erofs_decompressqueue *q = bio->bi_private;
 	blk_status_t err = bio->bi_status;
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		struct page *page = bvec->bv_page;
+	bio_for_each_folio_all(fi, bio) {
+		struct folio *folio = fi.folio;
 
-		DBG_BUGON(PageUptodate(page));
-		DBG_BUGON(z_erofs_page_is_invalidated(page));
-		if (erofs_page_is_managed(EROFS_SB(q->sb), page)) {
-			if (!err)
-				SetPageUptodate(page);
-			unlock_page(page);
-		}
+		DBG_BUGON(folio_test_uptodate(folio));
+		DBG_BUGON(z_erofs_page_is_invalidated(&folio->page));
+		if (!erofs_page_is_managed(EROFS_SB(q->sb), &folio->page))
+			continue;
+
+		if (!err)
+			folio_mark_uptodate(folio);
+		folio_unlock(folio);
 	}
 	if (err)
 		q->eio = true;
