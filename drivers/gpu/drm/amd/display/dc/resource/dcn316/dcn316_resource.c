@@ -125,7 +125,6 @@
 #include "link_enc_cfg.h"
 
 #define DCN3_16_MAX_DET_SIZE 384
-#define DCN3_16_MIN_COMPBUF_SIZE_KB 128
 #define DCN3_16_CRB_SEGMENT_SIZE_KB 64
 
 enum dcn31_clk_src_array_id {
