@@ -404,6 +404,12 @@
 				label = "vdd_dram";
 			};
 
+			channel@9e {
+				gw,mode = <2>;
+				reg = <0x9e>;
+				label = "vdd_1p0";
+			};
+
 			channel@a2 {
 				gw,mode = <2>;
 				reg = <0xa2>;
