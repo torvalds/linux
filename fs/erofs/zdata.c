@@ -19,7 +19,10 @@
 typedef void *z_erofs_next_pcluster_t;
 
 struct z_erofs_bvec {
-	struct page *page;
+	union {
+		struct page *page;
+		struct folio *folio;
+	};
 	int offset;
 	unsigned int end;
 };
@@ -1420,33 +1423,32 @@ static void z_erofs_fill_bio_vec(struct bio_vec *bvec,
 	struct page *page;
 	int bs = i_blocksize(f->inode);
 
-	/* Except for inplace pages, the entire page can be used for I/Os */
+	/* Except for inplace folios, the entire folio can be used for I/Os */
 	bvec->bv_offset = 0;
 	bvec->bv_len = PAGE_SIZE;
 repeat:
 	spin_lock(&pcl->obj.lockref.lock);
 	zbv = pcl->compressed_bvecs[nr];
-	page = zbv.page;
 	spin_unlock(&pcl->obj.lockref.lock);
-	if (!page)
-		goto out_allocpage;
+	if (!zbv.folio)
+		goto out_allocfolio;
 
-	bvec->bv_page = page;
-	DBG_BUGON(z_erofs_is_shortlived_page(page));
+	bvec->bv_page = &zbv.folio->page;
+	DBG_BUGON(z_erofs_is_shortlived_page(bvec->bv_page));
 	/*
-	 * Handle preallocated cached pages.  We tried to allocate such pages
+	 * Handle preallocated cached folios.  We tried to allocate such folios
 	 * without triggering direct reclaim.  If allocation failed, inplace
-	 * file-backed pages will be used instead.
+	 * file-backed folios will be used instead.
 	 */
-	if (page->private == Z_EROFS_PREALLOCATED_PAGE) {
-		set_page_private(page, 0);
+	if (zbv.folio->private == (void *)Z_EROFS_PREALLOCATED_PAGE) {
+		zbv.folio->private = 0;
 		tocache = true;
 		goto out_tocache;
 	}
 
-	mapping = READ_ONCE(page->mapping);
+	mapping = READ_ONCE(zbv.folio->mapping);
 	/*
-	 * File-backed pages for inplace I/Os are all locked steady,
+	 * File-backed folios for inplace I/Os are all locked steady,
 	 * therefore it is impossible for `mapping` to be NULL.
 	 */
 	if (mapping && mapping != mc) {
@@ -1456,22 +1458,21 @@ repeat:
 		return;
 	}
 
-	lock_page(page);
-	/* the cached page is still in managed cache */
-	if (page->mapping == mc) {
+	folio_lock(zbv.folio);
+	if (zbv.folio->mapping == mc) {
 		/*
-		 * The cached page is still available but without a valid
-		 * `->private` pcluster hint.  Let's reconnect them.
+		 * The cached folio is still in managed cache but without
+		 * a valid `->private` pcluster hint.  Let's reconnect them.
 		 */
-		if (!PagePrivate(page)) {
-			/* compressed_bvecs[] already takes a ref */
-			attach_page_private(page, pcl);
-			put_page(page);
+		if (!folio_test_private(zbv.folio)) {
+			folio_attach_private(zbv.folio, pcl);
+			/* compressed_bvecs[] already takes a ref before */
+			folio_put(zbv.folio);
 		}
 
 		/* no need to submit if it is already up-to-date */
-		if (PageUptodate(page)) {
-			unlock_page(page);
+		if (folio_test_uptodate(zbv.folio)) {
+			folio_unlock(zbv.folio);
 			bvec->bv_page = NULL;
 		}
 		return;
@@ -1481,32 +1482,32 @@ repeat:
 	 * It has been truncated, so it's unsafe to reuse this one. Let's
 	 * allocate a new page for compressed data.
 	 */
-	DBG_BUGON(page->mapping);
+	DBG_BUGON(zbv.folio->mapping);
 	tocache = true;
-	unlock_page(page);
-	put_page(page);
-out_allocpage:
+	folio_unlock(zbv.folio);
+	folio_put(zbv.folio);
+out_allocfolio:
 	page = erofs_allocpage(&f->pagepool, gfp | __GFP_NOFAIL);
 	spin_lock(&pcl->obj.lockref.lock);
-	if (pcl->compressed_bvecs[nr].page) {
+	if (pcl->compressed_bvecs[nr].folio) {
 		erofs_pagepool_add(&f->pagepool, page);
 		spin_unlock(&pcl->obj.lockref.lock);
 		cond_resched();
 		goto repeat;
 	}
-	pcl->compressed_bvecs[nr].page = page;
+	pcl->compressed_bvecs[nr].folio = zbv.folio = page_folio(page);
 	spin_unlock(&pcl->obj.lockref.lock);
 	bvec->bv_page = page;
 out_tocache:
 	if (!tocache || bs != PAGE_SIZE ||
-	    add_to_page_cache_lru(page, mc, pcl->obj.index + nr, gfp)) {
-		/* turn into a temporary shortlived page (1 ref) */
-		set_page_private(page, Z_EROFS_SHORTLIVED_PAGE);
+	    filemap_add_folio(mc, zbv.folio, pcl->obj.index + nr, gfp)) {
+		/* turn into a temporary shortlived folio (1 ref) */
+		zbv.folio->private = (void *)Z_EROFS_SHORTLIVED_PAGE;
 		return;
 	}
-	attach_page_private(page, pcl);
+	folio_attach_private(zbv.folio, pcl);
 	/* drop a refcount added by allocpage (then 2 refs in total here) */
-	put_page(page);
+	folio_put(zbv.folio);
 }
 
 static struct z_erofs_decompressqueue *jobqueue_init(struct super_block *sb,
