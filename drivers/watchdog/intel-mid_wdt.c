@@ -127,7 +127,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdt_dev;
-	struct intel_mid_wdt_pdata *pdata = dev->platform_data;
+	struct intel_mid_wdt_pdata *pdata = dev_get_platdata(dev);
 	struct mid_wdt *mid;
 	int ret;
 
