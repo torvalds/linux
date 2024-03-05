@@ -955,21 +955,20 @@ static int z_erofs_read_fragment(struct super_block *sb, struct page *page,
 	return 0;
 }
 
-static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
-				struct page *page, bool ra)
+static int z_erofs_scan_folio(struct z_erofs_decompress_frontend *fe,
+			      struct folio *folio, bool ra)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *const inode = fe->inode;
 	struct erofs_map_blocks *const map = &fe->map;
-	const loff_t offset = page_offset(page);
-	const unsigned int bs = i_blocksize(inode);
+	const loff_t offset = folio_pos(folio);
+	const unsigned int bs = i_blocksize(inode), fs = folio_size(folio);
 	bool tight = true, exclusive;
 	unsigned int cur, end, len, split;
 	int err = 0;
 
 	z_erofs_onlinefolio_init(folio);
 	split = 0;
-	end = PAGE_SIZE;
+	end = fs;
 repeat:
 	if (offset + end - 1 < map->m_la ||
 	    offset + end - 1 >= map->m_la + map->m_llen) {
@@ -986,7 +985,7 @@ repeat:
 	++split;
 
 	if (!(map->m_flags & EROFS_MAP_MAPPED)) {
-		zero_user_segment(page, cur, end);
+		folio_zero_segment(folio, cur, end);
 		tight = false;
 		goto next_part;
 	}
@@ -995,8 +994,8 @@ repeat:
 		erofs_off_t fpos = offset + cur - map->m_la;
 
 		len = min_t(unsigned int, map->m_llen - fpos, end - cur);
-		err = z_erofs_read_fragment(inode->i_sb, page, cur, cur + len,
-				EROFS_I(inode)->z_fragmentoff + fpos);
+		err = z_erofs_read_fragment(inode->i_sb, &folio->page, cur,
+			cur + len, EROFS_I(inode)->z_fragmentoff + fpos);
 		if (err)
 			goto out;
 		tight = false;
@@ -1011,18 +1010,18 @@ repeat:
 	}
 
 	/*
-	 * Ensure the current partial page belongs to this submit chain rather
+	 * Ensure the current partial folio belongs to this submit chain rather
 	 * than other concurrent submit chains or the noio(bypass) chain since
-	 * those chains are handled asynchronously thus the page cannot be used
+	 * those chains are handled asynchronously thus the folio cannot be used
 	 * for inplace I/O or bvpage (should be processed in a strict order.)
 	 */
 	tight &= (fe->mode > Z_EROFS_PCLUSTER_FOLLOWED_NOINPLACE);
-	exclusive = (!cur && ((split <= 1) || (tight && bs == PAGE_SIZE)));
+	exclusive = (!cur && ((split <= 1) || (tight && bs == fs)));
 	if (cur)
 		tight &= (fe->mode >= Z_EROFS_PCLUSTER_FOLLOWED);
 
 	err = z_erofs_attach_page(fe, &((struct z_erofs_bvec) {
-					.page = page,
+					.page = &folio->page,
 					.offset = offset - map->m_la,
 					.end = end,
 				  }), exclusive);
@@ -1789,7 +1788,7 @@ static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,
 			if (PageUptodate(page))
 				unlock_page(page);
 			else
-				(void)z_erofs_do_read_page(f, page, !!rac);
+				z_erofs_scan_folio(f, page_folio(page), !!rac);
 			put_page(page);
 		}
 
@@ -1810,7 +1809,7 @@ static int z_erofs_read_folio(struct file *file, struct folio *folio)
 	f.headoffset = (erofs_off_t)folio->index << PAGE_SHIFT;
 
 	z_erofs_pcluster_readmore(&f, NULL, true);
-	err = z_erofs_do_read_page(&f, &folio->page, false);
+	err = z_erofs_scan_folio(&f, folio, false);
 	z_erofs_pcluster_readmore(&f, NULL, false);
 	z_erofs_pcluster_end(&f);
 
@@ -1851,7 +1850,7 @@ static void z_erofs_readahead(struct readahead_control *rac)
 		folio = head;
 		head = folio_get_private(folio);
 
-		err = z_erofs_do_read_page(&f, &folio->page, true);
+		err = z_erofs_scan_folio(&f, folio, true);
 		if (err && err != -EINTR)
 			erofs_err(inode->i_sb, "readahead error at folio %lu @ nid %llu",
 				  folio->index, EROFS_I(inode)->nid);
