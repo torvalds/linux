@@ -22,8 +22,8 @@
 #define NCP5623_DIMMING_TIME_REG	NCP5623_REG(0x7)
 
 #define NCP5623_MAX_BRIGHTNESS		0x1f
-#define NCP5623_MAX_DIM_TIME		240 /* ms */
-#define NCP5623_DIM_STEP		8   /* ms */
+#define NCP5623_MAX_DIM_TIME_MS		240
+#define NCP5623_DIM_STEP_MS		8
 
 struct ncp5623 {
 	struct i2c_client *client;
@@ -92,8 +92,8 @@ static int ncp5623_pattern_set(struct led_classdev *cdev,
 
 	ncp->delay = 0;
 
-	if (pattern[0].delta_t > NCP5623_MAX_DIM_TIME ||
-	   (pattern[0].delta_t % NCP5623_DIM_STEP) != 0)
+	if (pattern[0].delta_t > NCP5623_MAX_DIM_TIME_MS ||
+	   (pattern[0].delta_t % NCP5623_DIM_STEP_MS) != 0)
 		return -EINVAL;
 
 	brightness_diff = pattern[0].brightness - ncp->current_brightness;
@@ -117,7 +117,7 @@ static int ncp5623_pattern_set(struct led_classdev *cdev,
 
 	ret = ncp5623_write(ncp->client,
 			    NCP5623_DIMMING_TIME_REG,
-			    pattern[0].delta_t / NCP5623_DIM_STEP);
+			    pattern[0].delta_t / NCP5623_DIM_STEP_MS);
 	if (ret)
 		return ret;
 
