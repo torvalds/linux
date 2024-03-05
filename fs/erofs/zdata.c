@@ -119,6 +119,12 @@ static inline unsigned int z_erofs_pclusterpages(struct z_erofs_pcluster *pcl)
 	return PAGE_ALIGN(pcl->pclustersize) >> PAGE_SHIFT;
 }
 
+#define MNGD_MAPPING(sbi)	((sbi)->managed_cache->i_mapping)
+static bool erofs_folio_is_managed(struct erofs_sb_info *sbi, struct folio *fo)
+{
+	return fo->mapping == MNGD_MAPPING(sbi);
+}
+
 /*
  * bit 30: I/O error occurred on this folio
  * bit 0 - 29: remaining parts to complete this folio
@@ -611,9 +617,9 @@ static void z_erofs_bind_cache(struct z_erofs_decompress_frontend *fe)
 		fe->mode = Z_EROFS_PCLUSTER_FOLLOWED_NOINPLACE;
 }
 
-/* called by erofs_shrinker to get rid of all compressed_pages */
-int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
-				       struct erofs_workgroup *grp)
+/* called by erofs_shrinker to get rid of all cached compressed bvecs */
+int erofs_try_to_free_all_cached_folios(struct erofs_sb_info *sbi,
+					struct erofs_workgroup *grp)
 {
 	struct z_erofs_pcluster *const pcl =
 		container_of(grp, struct z_erofs_pcluster, obj);
@@ -621,27 +627,22 @@ int erofs_try_to_free_all_cached_pages(struct erofs_sb_info *sbi,
 	int i;
 
 	DBG_BUGON(z_erofs_is_inline_pcluster(pcl));
-	/*
-	 * refcount of workgroup is now freezed as 0,
-	 * therefore no need to worry about available decompression users.
-	 */
+	/* There is no actice user since the pcluster is now freezed */
 	for (i = 0; i < pclusterpages; ++i) {
-		struct page *page = pcl->compressed_bvecs[i].page;
+		struct folio *folio = pcl->compressed_bvecs[i].folio;
 
-		if (!page)
+		if (!folio)
 			continue;
 
-		/* block other users from reclaiming or migrating the page */
-		if (!trylock_page(page))
+		/* Avoid reclaiming or migrating this folio */
+		if (!folio_trylock(folio))
 			return -EBUSY;
 
-		if (!erofs_page_is_managed(sbi, page))
+		if (!erofs_folio_is_managed(sbi, folio))
 			continue;
-
-		/* barrier is implied in the following 'unlock_page' */
-		WRITE_ONCE(pcl->compressed_bvecs[i].page, NULL);
-		detach_page_private(page);
-		unlock_page(page);
+		pcl->compressed_bvecs[i].folio = NULL;
+		folio_detach_private(folio);
+		folio_unlock(folio);
 	}
 	return 0;
 }
@@ -658,20 +659,17 @@ static bool z_erofs_cache_release_folio(struct folio *folio, gfp_t gfp)
 
 	ret = false;
 	spin_lock(&pcl->obj.lockref.lock);
-	if (pcl->obj.lockref.count > 0)
-		goto out;
-
-	DBG_BUGON(z_erofs_is_inline_pcluster(pcl));
-	for (i = 0; i < pclusterpages; ++i) {
-		if (pcl->compressed_bvecs[i].page == &folio->page) {
-			WRITE_ONCE(pcl->compressed_bvecs[i].page, NULL);
-			ret = true;
-			break;
+	if (pcl->obj.lockref.count <= 0) {
+		DBG_BUGON(z_erofs_is_inline_pcluster(pcl));
+		for (i = 0; i < pclusterpages; ++i) {
+			if (pcl->compressed_bvecs[i].folio == folio) {
+				pcl->compressed_bvecs[i].folio = NULL;
+				folio_detach_private(folio);
+				ret = true;
+				break;
+			}
 		}
 	}
-	if (ret)
-		folio_detach_private(folio);
-out:
 	spin_unlock(&pcl->obj.lockref.lock);
 	return ret;
 }
@@ -1201,7 +1199,7 @@ static int z_erofs_parse_in_bvecs(struct z_erofs_decompress_backend *be,
 		be->compressed_pages[i] = page;
 
 		if (z_erofs_is_inline_pcluster(pcl) ||
-		    erofs_page_is_managed(EROFS_SB(be->sb), page)) {
+		    erofs_folio_is_managed(EROFS_SB(be->sb), page_folio(page))) {
 			if (!PageUptodate(page))
 				err = -EIO;
 			continue;
@@ -1286,7 +1284,8 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 			/* consider shortlived pages added when decompressing */
 			page = be->compressed_pages[i];
 
-			if (!page || erofs_page_is_managed(sbi, page))
+			if (!page ||
+			    erofs_folio_is_managed(sbi, page_folio(page)))
 				continue;
 			(void)z_erofs_put_shortlivedpage(be->pagepool, page);
 			WRITE_ONCE(pcl->compressed_bvecs[i].page, NULL);
@@ -1573,7 +1572,7 @@ static void z_erofs_submissionqueue_endio(struct bio *bio)
 
 		DBG_BUGON(folio_test_uptodate(folio));
 		DBG_BUGON(z_erofs_page_is_invalidated(&folio->page));
-		if (!erofs_page_is_managed(EROFS_SB(q->sb), &folio->page))
+		if (!erofs_folio_is_managed(EROFS_SB(q->sb), folio))
 			continue;
 
 		if (!err)
