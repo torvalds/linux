@@ -2171,6 +2171,7 @@
   regmap_raw_write
   regmap_read
   regmap_register_patch
+  regmap_test_bits
   regmap_update_bits_base
   regmap_write
   regulator_bulk_disable
