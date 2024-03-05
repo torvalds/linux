@@ -732,24 +732,24 @@ static int qca807x_probe(struct phy_device *phydev)
 	priv->dac_disable_bias_current_tweak = of_property_read_bool(node,
 								     "qcom,dac-disable-bias-current-tweak");
 
-	if (IS_ENABLED(CONFIG_GPIOLIB)) {
-		/* Make sure we don't have mixed leds node and gpio-controller
-		 * to prevent registering leds and having gpio-controller usage
-		 * conflicting with them.
-		 */
-		if (of_find_property(node, "leds", NULL) &&
-		    of_find_property(node, "gpio-controller", NULL)) {
-			phydev_err(phydev, "Invalid property detected. LEDs and gpio-controller are mutually exclusive.");
-			return -EINVAL;
-		}
-
-		/* Do not register a GPIO controller unless flagged for it */
-		if (of_property_read_bool(node, "gpio-controller")) {
-			ret = qca807x_gpio(phydev);
-			if (ret)
-				return ret;
-		}
+#if IS_ENABLED(CONFIG_GPIOLIB)
+	/* Make sure we don't have mixed leds node and gpio-controller
+	 * to prevent registering leds and having gpio-controller usage
+	 * conflicting with them.
+	 */
+	if (of_find_property(node, "leds", NULL) &&
+	    of_find_property(node, "gpio-controller", NULL)) {
+		phydev_err(phydev, "Invalid property detected. LEDs and gpio-controller are mutually exclusive.");
+		return -EINVAL;
 	}
+
+	/* Do not register a GPIO controller unless flagged for it */
+	if (of_property_read_bool(node, "gpio-controller")) {
+		ret = qca807x_gpio(phydev);
+		if (ret)
+			return ret;
+	}
+#endif
 
 	/* Attach SFP bus on combo port*/
 	if (phy_read(phydev, QCA807X_CHIP_CONFIGURATION)) {
