@@ -1097,7 +1097,6 @@ static inline int pud_bad(pud_t pud)
 	return (pud_flags(pud) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
 }
 #else
-#define pud_leaf	pud_large
 static inline int pud_large(pud_t pud)
 {
 	return 0;
