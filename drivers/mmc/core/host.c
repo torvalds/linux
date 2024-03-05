@@ -88,7 +88,7 @@ static int mmc_host_classdev_shutdown(struct device *dev)
 	return 0;
 }
 
-static struct class mmc_host_class = {
+static const struct class mmc_host_class = {
 	.name		= "mmc_host",
 	.dev_release	= mmc_host_classdev_release,
 	.shutdown_pre	= mmc_host_classdev_shutdown,
