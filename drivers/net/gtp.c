@@ -711,15 +711,6 @@ static int gtp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	return ret;
 }
 
-static int gtp_dev_init(struct net_device *dev)
-{
-	struct gtp_dev *gtp = netdev_priv(dev);
-
-	gtp->dev = dev;
-
-	return 0;
-}
-
 static void gtp_dev_uninit(struct net_device *dev)
 {
 	struct gtp_dev *gtp = netdev_priv(dev);
@@ -937,7 +928,6 @@ tx_err:
 }
 
 static const struct net_device_ops gtp_netdev_ops = {
-	.ndo_init		= gtp_dev_init,
 	.ndo_uninit		= gtp_dev_uninit,
 	.ndo_start_xmit		= gtp_dev_xmit,
 };
@@ -951,6 +941,7 @@ static void gtp_link_setup(struct net_device *dev)
 	unsigned int max_gtp_header_len = sizeof(struct iphdr) +
 					  sizeof(struct udphdr) +
 					  sizeof(struct gtp0_header);
+	struct gtp_dev *gtp = netdev_priv(dev);
 
 	dev->netdev_ops		= &gtp_netdev_ops;
 	dev->needs_free_netdev	= true;
@@ -970,6 +961,7 @@ static void gtp_link_setup(struct net_device *dev)
 	netif_keep_dst(dev);
 
 	dev->needed_headroom	= LL_MAX_HEADER + max_gtp_header_len;
+	gtp->dev = dev;
 }
 
 static int gtp_hashtable_new(struct gtp_dev *gtp, int hsize);
