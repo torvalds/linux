@@ -6768,9 +6768,10 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 
 static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
 	struct intel_crtc *crtc;
-	u32 handled = 0;
+	u8 disable_pipes = 0;
 	int i;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
@@ -6778,21 +6779,24 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		if (!intel_crtc_needs_modeset(new_crtc_state))
 			continue;
 
+		/*
+		 * Needs to be done even for pipes
+		 * that weren't enabled previously.
+		 */
 		intel_pre_plane_update(state, crtc);
 
 		if (!old_crtc_state->hw.active)
 			continue;
 
 		intel_crtc_disable_planes(state, crtc);
+
+		disable_pipes |= BIT(crtc->pipe);
 	}
 
 	/* Only disable port sync and MST slaves */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (!intel_crtc_needs_modeset(new_crtc_state))
-			continue;
-
-		if (!old_crtc_state->hw.active)
+		if ((disable_pipes & BIT(crtc->pipe)) == 0)
 			continue;
 
 		/* In case of Transcoder port Sync master slave CRTCs can be
@@ -6807,22 +6811,23 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 
 		intel_old_crtc_state_disables(state, old_crtc_state,
 					      new_crtc_state, crtc);
-		handled |= BIT(crtc->pipe);
+
+		disable_pipes &= ~BIT(crtc->pipe);
 	}
 
 	/* Disable everything else left on */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
-		if (!intel_crtc_needs_modeset(new_crtc_state) ||
-		    (handled & BIT(crtc->pipe)))
-			continue;
-
-		if (!old_crtc_state->hw.active)
+		if ((disable_pipes & BIT(crtc->pipe)) == 0)
 			continue;
 
 		intel_old_crtc_state_disables(state, old_crtc_state,
 					      new_crtc_state, crtc);
+
+		disable_pipes &= ~BIT(crtc->pipe);
 	}
+
+	drm_WARN_ON(&i915->drm, disable_pipes);
 }
 
 static void intel_commit_modeset_enables(struct intel_atomic_state *state)
