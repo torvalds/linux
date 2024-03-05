@@ -409,26 +409,23 @@ int amdgpu_vm_pt_clear(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 
 	addr = 0;
 
-	if (entries) {
-		uint64_t value = 0, flags = 0;
-
-		if (adev->asic_type >= CHIP_VEGA10) {
-			if (level != AMDGPU_VM_PTB) {
-				/* Handle leaf PDEs as PTEs */
-				flags |= AMDGPU_PDE_PTE;
-				amdgpu_gmc_get_vm_pde(adev, level,
-						      &value, &flags);
-			} else {
-				/* Workaround for fault priority problem on GMC9 */
-				flags = AMDGPU_PTE_EXECUTABLE;
-			}
+	uint64_t value = 0, flags = 0;
+	if (adev->asic_type >= CHIP_VEGA10) {
+		if (level != AMDGPU_VM_PTB) {
+			/* Handle leaf PDEs as PTEs */
+			flags |= AMDGPU_PDE_PTE;
+			amdgpu_gmc_get_vm_pde(adev, level,
+					      &value, &flags);
+		} else {
+			/* Workaround for fault priority problem on GMC9 */
+			flags = AMDGPU_PTE_EXECUTABLE;
 		}
-
-		r = vm->update_funcs->update(&params, vmbo, addr, 0, entries,
-					     value, flags);
-		if (r)
-			goto exit;
 	}
+
+	r = vm->update_funcs->update(&params, vmbo, addr, 0, entries,
+				     value, flags);
+	if (r)
+		goto exit;
 
 	r = vm->update_funcs->commit(&params, NULL);
 exit:
@@ -671,33 +668,6 @@ static void amdgpu_vm_pt_free_dfs(struct amdgpu_device *adev,
 void amdgpu_vm_pt_free_root(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	amdgpu_vm_pt_free_dfs(adev, vm, NULL, false);
-}
-
-/**
- * amdgpu_vm_pt_is_root_clean - check if a root PD is clean
- *
- * @adev: amdgpu_device pointer
- * @vm: the VM to check
- *
- * Check all entries of the root PD, if any subsequent PDs are allocated,
- * it means there are page table creating and filling, and is no a clean
- * VM
- *
- * Returns:
- *	0 if this VM is clean
- */
-bool amdgpu_vm_pt_is_root_clean(struct amdgpu_device *adev,
-				struct amdgpu_vm *vm)
-{
-	enum amdgpu_vm_level root = adev->vm_manager.root_level;
-	unsigned int entries = amdgpu_vm_pt_num_entries(adev, root);
-	unsigned int i = 0;
-
-	for (i = 0; i < entries; i++) {
-		if (to_amdgpu_bo_vm(vm->root.bo)->entries[i].bo)
-			return false;
-	}
-	return true;
 }
 
 /**
