@@ -30,6 +30,7 @@ enum ath10k_bus {
 #define QCA9888_2_0_DEVICE_ID	(0x0056)
 #define QCA9984_1_0_DEVICE_ID	(0x0046)
 #define QCA9377_1_0_DEVICE_ID   (0x0042)
+#define QCA9379_1_0_DEVICE_ID   (0x0042)
 #define QCA9887_1_0_DEVICE_ID   (0x0050)
 
 /* QCA988X 1.0 definitions (unsupported) */
@@ -58,6 +59,9 @@ enum ath10k_bus {
 /* QCA9377 target BMI version signatures */
 #define QCA9377_HW_1_0_DEV_VERSION	0x05020000
 #define QCA9377_HW_1_1_DEV_VERSION	0x05020001
+
+/* QCA9379 target BMI version signatures */
+#define QCA9379_HW_1_0_DEV_VERSION	0x05040000
 
 enum qca6174_pci_rev {
 	QCA6174_PCI_REV_1_1 = 0x11,
@@ -114,6 +118,11 @@ enum qca9377_chip_id_rev {
 /* QCA9377 1.0 definitions */
 #define QCA9377_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9377/hw1.0"
 #define QCA9377_HW_1_0_PATCH_LOAD_ADDR	0x1234
+
+/* QCA9379 1.0 definitions */
+#define QCA9379_HW_1_0_FW_DIR          ATH10K_FW_DIR "/QCA9379/hw1.0"
+#define QCA9379_HW_1_0_BOARD_DATA_FILE "board.bin"
+#define QCA9379_HW_1_0_PATCH_LOAD_ADDR	0x1234
 
 /* QCA4019 1.0 definitions */
 #define QCA4019_HW_1_0_DEV_VERSION     0x01000000
@@ -230,6 +239,7 @@ enum ath10k_hw_rev {
 	ATH10K_HW_QCA9888,
 	ATH10K_HW_QCA9984,
 	ATH10K_HW_QCA9377,
+	ATH10K_HW_QCA9379,
 	ATH10K_HW_QCA4019,
 	ATH10K_HW_QCA9887,
 	ATH10K_HW_WCN3990,
@@ -401,6 +411,7 @@ int ath10k_hw_diag_fast_download(struct ath10k *ar,
 #define QCA_REV_9888(ar) ((ar)->hw_rev == ATH10K_HW_QCA9888)
 #define QCA_REV_9984(ar) ((ar)->hw_rev == ATH10K_HW_QCA9984)
 #define QCA_REV_9377(ar) ((ar)->hw_rev == ATH10K_HW_QCA9377)
+#define QCA_REV_9379(ar) ((ar)->hw_rev == ATH10K_HW_QCA9379)
 #define QCA_REV_40XX(ar) ((ar)->hw_rev == ATH10K_HW_QCA4019)
 #define QCA_REV_WCN3990(ar) ((ar)->hw_rev == ATH10K_HW_WCN3990)
 

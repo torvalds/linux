@@ -662,6 +662,42 @@ static const struct ath10k_hw_params ath10k_hw_params_list[] = {
 		.mcast_frame_registration = false,
 	},
 	{
+		.id = QCA9379_HW_1_0_DEV_VERSION,
+		.dev_id = QCA9379_1_0_DEVICE_ID,
+		.bus = ATH10K_BUS_SDIO,
+		.name = "qca9379 hw1.0 sdio",
+		.patch_load_addr = QCA9379_HW_1_0_PATCH_LOAD_ADDR,
+		.uart_pin = 19,
+		.otp_exe_param = 0,
+		.channel_counters_freq_hz = 88000,
+		.max_probe_resp_desc_thres = 0,
+		.cal_data_len = 0,
+		.fw = {
+			.dir = QCA9379_HW_1_0_FW_DIR,
+			.board_size = QCA9379_BOARD_DATA_SZ,
+			.board_ext_size = QCA9379_BOARD_EXT_DATA_SZ,
+		},
+		.rx_desc_ops = &qca988x_rx_desc_ops,
+		.hw_ops = &qca6174_sdio_ops,
+		.hw_clk = qca6174_clk,
+		.target_cpu_freq = 176000000,
+		.decap_align_bytes = 4,
+		.n_cipher_suites = 8,
+		.num_peers = 10,
+		.ast_skid_limit = 0x10,
+		.num_wds_entries = 0x20,
+		.uart_pin_workaround = true,
+		.tx_stats_over_pktlog = false,
+		.credit_size_workaround = true,
+		.bmi_large_size_download = true,
+		.supports_peer_stats_info = false,
+		.dynamic_sar_support = false,
+		.hw_restart_disconnect = false,
+		.use_fw_tx_credits = true,
+		.delay_unmap_buffer = false,
+		.mcast_frame_registration = false,
+	},
+	{
 		.id = QCA4019_HW_1_0_DEV_VERSION,
 		.dev_id = 0,
 		.bus = ATH10K_BUS_AHB,
@@ -3609,6 +3645,7 @@ struct ath10k *ath10k_core_create(size_t priv_size, struct device *dev,
 		break;
 	case ATH10K_HW_QCA6174:
 	case ATH10K_HW_QCA9377:
+	case ATH10K_HW_QCA9379:
 		ar->regs = &qca6174_regs;
 		ar->hw_ce_regs = &qcax_ce_regs;
 		ar->hw_values = &qca6174_values;
