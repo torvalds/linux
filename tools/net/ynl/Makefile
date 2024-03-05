@@ -11,7 +11,7 @@ $(SUBDIRS):
 		$(MAKE) -C $@ ; \
 	fi
 
-clean hardclean:
+clean distclean:
 	@for dir in $(SUBDIRS) ; do \
 		if [ -f "$$dir/Makefile" ] ; then \
 			$(MAKE) -C $$dir $@; \

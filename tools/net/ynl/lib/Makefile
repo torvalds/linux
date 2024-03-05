@@ -18,7 +18,7 @@ ynl.a: $(OBJS)
 clean:
 	rm -f *.o *.d *~
 
-hardclean: clean
+distclean: clean
 	rm -f *.a
 
 %.o: %.c
