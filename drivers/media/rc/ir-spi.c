@@ -159,13 +159,13 @@ static int ir_spi_probe(struct spi_device *spi)
 
 static const struct of_device_id ir_spi_of_match[] = {
 	{ .compatible = "ir-spi-led" },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(of, ir_spi_of_match);
 
 static const struct spi_device_id ir_spi_ids[] = {
 	{ "ir-spi-led" },
-	{},
+	{}
 };
 MODULE_DEVICE_TABLE(spi, ir_spi_ids);
 
