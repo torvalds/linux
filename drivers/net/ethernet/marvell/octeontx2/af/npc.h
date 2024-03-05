@@ -217,6 +217,7 @@ enum key_fields {
 	NPC_MPLS4_TTL,
 	NPC_TYPE_ICMP,
 	NPC_CODE_ICMP,
+	NPC_TCP_FLAGS,
 	NPC_HEADER_FIELDS_MAX,
 	NPC_CHAN = NPC_HEADER_FIELDS_MAX, /* Valid when Rx */
 	NPC_PF_FUNC, /* Valid when Tx */

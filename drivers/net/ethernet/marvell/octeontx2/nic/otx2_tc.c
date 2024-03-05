@@ -638,6 +638,7 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 	      BIT(FLOW_DISSECTOR_KEY_IPSEC) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_MPLS) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ICMP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_TCP) |
 	      BIT_ULL(FLOW_DISSECTOR_KEY_IP))))  {
 		netdev_info(nic->netdev, "unsupported flow used key 0x%llx",
 			    dissector->used_keys);
@@ -855,6 +856,16 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 			else if (ip_proto == IPPROTO_SCTP)
 				req->features |= BIT_ULL(NPC_SPORT_SCTP);
 		}
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_TCP)) {
+		struct flow_match_tcp match;
+
+		flow_rule_match_tcp(rule, &match);
+
+		flow_spec->tcp_flags = match.key->flags;
+		flow_mask->tcp_flags = match.mask->flags;
+		req->features |= BIT_ULL(NPC_TCP_FLAGS);
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_MPLS)) {
