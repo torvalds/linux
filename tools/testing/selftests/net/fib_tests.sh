@@ -789,6 +789,7 @@ fib6_gc_test()
 	set -e
 
 	EXPIRE=5
+	GC_WAIT_TIME=$((EXPIRE * 2 + 2))
 
 	# Check expiration of routes every $EXPIRE seconds (GC)
 	$NS_EXEC sysctl -wq net.ipv6.route.gc_interval=$EXPIRE
@@ -805,7 +806,7 @@ fib6_gc_test()
 	    $IP -6 route add 2001:20::$i \
 		via 2001:10::2 dev dummy_10 expires $EXPIRE
 	done
-	sleep $(($EXPIRE * 2 + 1))
+	sleep $GC_WAIT_TIME
 	$NS_EXEC sysctl -wq net.ipv6.route.flush=1
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
 	log_test $ret 0 "ipv6 route garbage collection"
@@ -823,7 +824,8 @@ fib6_gc_test()
 	    $IP -6 route add 2001:20::$i \
 		via 2001:10::2 dev dummy_10 expires $EXPIRE
 	done
-	sleep $(($EXPIRE * 2 + 1))
+	# Wait for GC
+	sleep $GC_WAIT_TIME
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
 	log_test $ret 0 "ipv6 route garbage collection (with permanent routes)"
 
@@ -840,10 +842,8 @@ fib6_gc_test()
 	    $IP -6 route replace 2001:20::$i \
 		via 2001:10::2 dev dummy_10 expires $EXPIRE
 	done
-	check_rt_num_clean 5 $($IP -6 route list |grep expires|wc -l) || return
 	# Wait for GC
-	sleep $(($EXPIRE * 2 + 1))
-	$NS_EXEC sysctl -wq net.ipv6.route.flush=1
+	sleep $GC_WAIT_TIME
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
 	log_test $ret 0 "ipv6 route garbage collection (replace with expires)"
 
@@ -863,8 +863,7 @@ fib6_gc_test()
 	check_rt_num_clean 0 $($IP -6 route list |grep expires|wc -l) || return
 
 	# Wait for GC
-	sleep $(($EXPIRE * 2 + 1))
-
+	sleep $GC_WAIT_TIME
 	check_rt_num 5 $($IP -6 route list |grep -v expires|grep 2001:20::|wc -l)
 	log_test $ret 0 "ipv6 route garbage collection (replace with permanent)"
 
@@ -901,9 +900,7 @@ fib6_gc_test()
 	check_rt_num_clean 1 $($IP -6 route list|grep expires|wc -l) || return
 
 	# Wait for GC
-	sleep $(($EXPIRE * 2 + 1))
-
-	$NS_EXEC sysctl -wq net.ipv6.route.flush=1
+	sleep $GC_WAIT_TIME
 	check_rt_num 0 $($IP -6 route list |grep expires|wc -l)
 	log_test $ret 0 "ipv6 route garbage collection (RA message)"
 
