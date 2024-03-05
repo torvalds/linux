@@ -252,7 +252,7 @@ static inline unsigned long pgd_pfn(pgd_t pgd)
 }
 
 #define p4d_leaf p4d_leaf
-static inline int p4d_leaf(p4d_t p4d)
+static inline bool p4d_leaf(p4d_t p4d)
 {
 	/* No 512 GiB pages yet */
 	return 0;
@@ -261,7 +261,7 @@ static inline int p4d_leaf(p4d_t p4d)
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 #define pmd_leaf pmd_leaf
-static inline int pmd_leaf(pmd_t pte)
+static inline bool pmd_leaf(pmd_t pte)
 {
 	return pmd_flags(pte) & _PAGE_PSE;
 }
@@ -1086,7 +1086,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 #define pud_page(pud)	pfn_to_page(pud_pfn(pud))
 
 #define pud_leaf pud_leaf
-static inline int pud_leaf(pud_t pud)
+static inline bool pud_leaf(pud_t pud)
 {
 	return (pud_val(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
 		(_PAGE_PSE | _PAGE_PRESENT);
@@ -1413,7 +1413,7 @@ static inline bool pgdp_maps_userspace(void *__ptr)
 }
 
 #define pgd_leaf	pgd_leaf
-static inline int pgd_leaf(pgd_t pgd) { return 0; }
+static inline bool pgd_leaf(pgd_t pgd) { return false; }
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
 /*

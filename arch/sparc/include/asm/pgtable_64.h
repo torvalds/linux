@@ -681,7 +681,7 @@ static inline unsigned long pte_special(pte_t pte)
 }
 
 #define pmd_leaf pmd_leaf
-static inline unsigned long pmd_leaf(pmd_t pmd)
+static inline bool pmd_leaf(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
 
@@ -868,7 +868,7 @@ static inline pmd_t *pud_pgtable(pud_t pud)
 #define p4d_page(p4d)			NULL
 
 #define pud_leaf pud_leaf
-static inline unsigned long pud_leaf(pud_t pud)
+static inline bool pud_leaf(pud_t pud)
 {
 	pte_t pte = __pte(pud_val(pud));
 
