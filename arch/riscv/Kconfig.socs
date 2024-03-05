@@ -1,12 +1,12 @@
 menu "SoC selection"
 
 config ARCH_MICROCHIP_POLARFIRE
-	def_bool SOC_MICROCHIP_POLARFIRE
+	def_bool ARCH_MICROCHIP
 
-config SOC_MICROCHIP_POLARFIRE
-	bool "Microchip PolarFire SoCs"
+config ARCH_MICROCHIP
+	bool "Microchip SoCs"
 	help
-	  This enables support for Microchip PolarFire SoC platforms.
+	  This enables support for Microchip SoC platforms.
 
 config ARCH_RENESAS
 	bool "Renesas RISC-V SoCs"
