@@ -215,7 +215,7 @@ static const u32 init_sums_no_overflow[] = {
 	0xffff0000, 0xfffffffb,
 };
 
-static const __sum16 expected_csum_ipv6_magic[] = {
+static const u16 expected_csum_ipv6_magic[] = {
 	0x18d4, 0x3085, 0x2e4b, 0xd9f4, 0xbdc8, 0x78f,	0x1034, 0x8422, 0x6fc0,
 	0xd2f6, 0xbeb5, 0x9d3,	0x7e2a, 0x312e, 0x778e, 0xc1bb, 0x7cf2, 0x9d1e,
 	0xca21, 0xf3ff, 0x7569, 0xb02e, 0xca86, 0x7e76, 0x4539, 0x45e3, 0xf28d,
@@ -241,7 +241,7 @@ static const __sum16 expected_csum_ipv6_magic[] = {
 	0x3845, 0x1014
 };
 
-static const __sum16 expected_fast_csum[] = {
+static const u16 expected_fast_csum[] = {
 	0xda83, 0x45da, 0x4f46, 0x4e4f, 0x34e,	0xe902, 0xa5e9, 0x87a5, 0x7187,
 	0x5671, 0xf556, 0x6df5, 0x816d, 0x8f81, 0xbb8f, 0xfbba, 0x5afb, 0xbe5a,
 	0xedbe, 0xabee, 0x6aac, 0xe6b,	0xea0d, 0x67ea, 0x7e68, 0x8a7e, 0x6f8a,
@@ -577,7 +577,8 @@ static void test_csum_no_carry_inputs(struct kunit *test)
 
 static void test_ip_fast_csum(struct kunit *test)
 {
-	__sum16 csum_result, expected;
+	__sum16 csum_result;
+	u16 expected;
 
 	for (int len = IPv4_MIN_WORDS; len < IPv4_MAX_WORDS; len++) {
 		for (int index = 0; index < NUM_IP_FAST_CSUM_TESTS; index++) {
@@ -586,7 +587,7 @@ static void test_ip_fast_csum(struct kunit *test)
 				expected_fast_csum[(len - IPv4_MIN_WORDS) *
 						   NUM_IP_FAST_CSUM_TESTS +
 						   index];
-			CHECK_EQ(expected, csum_result);
+			CHECK_EQ(to_sum16(expected), csum_result);
 		}
 	}
 }
@@ -598,7 +599,7 @@ static void test_csum_ipv6_magic(struct kunit *test)
 	const struct in6_addr *daddr;
 	unsigned int len;
 	unsigned char proto;
-	unsigned int csum;
+	__wsum csum;
 
 	const int daddr_offset = sizeof(struct in6_addr);
 	const int len_offset = sizeof(struct in6_addr) + sizeof(struct in6_addr);
@@ -611,10 +612,10 @@ static void test_csum_ipv6_magic(struct kunit *test)
 		saddr = (const struct in6_addr *)(random_buf + i);
 		daddr = (const struct in6_addr *)(random_buf + i +
 						  daddr_offset);
-		len = *(unsigned int *)(random_buf + i + len_offset);
+		len = le32_to_cpu(*(__le32 *)(random_buf + i + len_offset));
 		proto = *(random_buf + i + proto_offset);
-		csum = *(unsigned int *)(random_buf + i + csum_offset);
-		CHECK_EQ(expected_csum_ipv6_magic[i],
+		csum = *(__wsum *)(random_buf + i + csum_offset);
+		CHECK_EQ(to_sum16(expected_csum_ipv6_magic[i]),
 			 csum_ipv6_magic(saddr, daddr, len, proto, csum));
 	}
 #endif /* !CONFIG_NET */

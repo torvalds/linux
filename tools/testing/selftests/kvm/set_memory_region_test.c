@@ -98,11 +98,11 @@ static void wait_for_vcpu(void)
 	struct timespec ts;
 
 	TEST_ASSERT(!clock_gettime(CLOCK_REALTIME, &ts),
-		    "clock_gettime() failed: %d\n", errno);
+		    "clock_gettime() failed: %d", errno);
 
 	ts.tv_sec += 2;
 	TEST_ASSERT(!sem_timedwait(&vcpu_ready, &ts),
-		    "sem_timedwait() failed: %d\n", errno);
+		    "sem_timedwait() failed: %d", errno);
 
 	/* Wait for the vCPU thread to reenter the guest. */
 	usleep(100000);
@@ -302,7 +302,7 @@ static void test_delete_memory_region(void)
 	if (run->exit_reason == KVM_EXIT_INTERNAL_ERROR)
 		TEST_ASSERT(regs.rip >= final_rip_start &&
 			    regs.rip < final_rip_end,
-			    "Bad rip, expected 0x%lx - 0x%lx, got 0x%llx\n",
+			    "Bad rip, expected 0x%lx - 0x%lx, got 0x%llx",
 			    final_rip_start, final_rip_end, regs.rip);
 
 	kvm_vm_free(vm);

@@ -1638,12 +1638,10 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 		else
 			mode = UNKNOWN_MEMORY_PARTITION_MODE;
 
-		if (pcache->cache_level == 2)
-			pcache->cache_size = pcache_info[cache_type].cache_size * num_xcc;
-		else if (mode)
-			pcache->cache_size = pcache_info[cache_type].cache_size / mode;
-		else
-			pcache->cache_size = pcache_info[cache_type].cache_size;
+		pcache->cache_size = pcache_info[cache_type].cache_size;
+		/* Partition mode only affects L3 cache size */
+		if (mode && pcache->cache_level == 3)
+			pcache->cache_size /= mode;
 
 		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_DATA_CACHE)
 			pcache->cache_type |= HSA_CACHE_TYPE_DATA;

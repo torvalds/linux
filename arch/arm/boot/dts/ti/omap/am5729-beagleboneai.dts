@@ -415,7 +415,6 @@
 		reg = <0x41>;
 		interrupts = <30 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-parent = <&gpio2>;
-		interrupt-controller;
 		id = <0>;
 		blocks = <0x5>;
 		irq-trigger = <0x1>;

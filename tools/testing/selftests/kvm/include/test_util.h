@@ -195,4 +195,6 @@ __printf(3, 4) int guest_snprintf(char *buf, int n, const char *fmt, ...);
 
 char *strdup_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2), nonnull(1)));
 
+char *sys_get_cur_clocksource(void);
+
 #endif /* SELFTEST_KVM_TEST_UTIL_H */

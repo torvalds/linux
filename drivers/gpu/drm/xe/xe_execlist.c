@@ -212,7 +212,7 @@ static void xe_execlist_port_wake_locked(struct xe_execlist_port *port,
 static void xe_execlist_make_active(struct xe_execlist_exec_queue *exl)
 {
 	struct xe_execlist_port *port = exl->port;
-	enum xe_exec_queue_priority priority = exl->active_priority;
+	enum xe_exec_queue_priority priority = exl->q->sched_props.priority;
 
 	XE_WARN_ON(priority == XE_EXEC_QUEUE_PRIORITY_UNSET);
 	XE_WARN_ON(priority < 0);
@@ -378,8 +378,6 @@ static void execlist_exec_queue_fini_async(struct work_struct *w)
 		list_del(&exl->active_link);
 	spin_unlock_irqrestore(&exl->port->lock, flags);
 
-	if (q->flags & EXEC_QUEUE_FLAG_PERSISTENT)
-		xe_device_remove_persistent_exec_queues(xe, q);
 	drm_sched_entity_fini(&exl->entity);
 	drm_sched_fini(&exl->sched);
 	kfree(exl);

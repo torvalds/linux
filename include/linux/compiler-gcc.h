@@ -67,10 +67,9 @@
 /*
  * GCC 'asm goto' with outputs miscompiles certain code sequences:
  *
- *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110420
- *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110422
+ *   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=113921
  *
- * Work it around via the same compiler barrier quirk that we used
+ * Work around it via the same compiler barrier quirk that we used
  * to use for the old 'asm goto' workaround.
  *
  * Also, always mark such 'asm goto' statements as volatile: all
@@ -80,8 +79,10 @@
  *
  *    https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98619
  */
+#ifdef CONFIG_GCC_ASM_GOTO_OUTPUT_WORKAROUND
 #define asm_goto_output(x...) \
 	do { asm volatile goto(x); asm (""); } while (0)
+#endif
 
 #if defined(CONFIG_ARCH_USE_BUILTIN_BSWAP)
 #define __HAVE_BUILTIN_BSWAP32__

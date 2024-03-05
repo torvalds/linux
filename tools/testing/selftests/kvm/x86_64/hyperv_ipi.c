@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
 		switch (get_ucall(vcpu[0], &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(uc.args[1] == stage,
-				    "Unexpected stage: %ld (%d expected)\n",
+				    "Unexpected stage: %ld (%d expected)",
 				    uc.args[1], stage);
 			break;
 		case UCALL_DONE:

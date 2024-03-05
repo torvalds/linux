@@ -416,6 +416,9 @@ static void ionic_dev_cmd_clean(struct ionic *ionic)
 {
 	struct ionic_dev *idev = &ionic->idev;
 
+	if (!idev->dev_cmd_regs)
+		return;
+
 	iowrite32(0, &idev->dev_cmd_regs->doorbell);
 	memset_io(&idev->dev_cmd_regs->cmd, 0, sizeof(idev->dev_cmd_regs->cmd));
 }

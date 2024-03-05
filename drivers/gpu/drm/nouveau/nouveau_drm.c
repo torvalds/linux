@@ -201,7 +201,8 @@ nouveau_cli_fini(struct nouveau_cli *cli)
 	WARN_ON(!list_empty(&cli->worker));
 
 	usif_client_fini(cli);
-	nouveau_sched_fini(&cli->sched);
+	if (cli->sched)
+		nouveau_sched_destroy(&cli->sched);
 	if (uvmm)
 		nouveau_uvmm_fini(uvmm);
 	nouveau_vmm_fini(&cli->svm);
@@ -311,7 +312,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	cli->mem = &mems[ret];
 
 	/* Don't pass in the (shared) sched_wq in order to let
-	 * nouveau_sched_init() create a dedicated one for VM_BIND jobs.
+	 * nouveau_sched_create() create a dedicated one for VM_BIND jobs.
 	 *
 	 * This is required to ensure that for VM_BIND jobs free_job() work and
 	 * run_job() work can always run concurrently and hence, free_job() work
@@ -320,7 +321,7 @@ nouveau_cli_init(struct nouveau_drm *drm, const char *sname,
 	 * locks which indirectly or directly are held for allocations
 	 * elsewhere.
 	 */
-	ret = nouveau_sched_init(&cli->sched, drm, NULL, 1);
+	ret = nouveau_sched_create(&cli->sched, drm, NULL, 1);
 	if (ret)
 		goto done;
 

@@ -205,7 +205,7 @@ void bch2_journal_space_available(struct journal *j)
 
 	j->can_discard = can_discard;
 
-	if (nr_online < c->opts.metadata_replicas_required) {
+	if (nr_online < metadata_replicas_required(c)) {
 		ret = JOURNAL_ERR_insufficient_devices;
 		goto out;
 	}
@@ -892,9 +892,11 @@ int bch2_journal_flush_device_pins(struct journal *j, int dev_idx)
 					 journal_seq_pin(j, seq)->devs);
 		seq++;
 
-		spin_unlock(&j->lock);
-		ret = bch2_mark_replicas(c, &replicas.e);
-		spin_lock(&j->lock);
+		if (replicas.e.nr_devs) {
+			spin_unlock(&j->lock);
+			ret = bch2_mark_replicas(c, &replicas.e);
+			spin_lock(&j->lock);
+		}
 	}
 	spin_unlock(&j->lock);
 err:

@@ -3495,7 +3495,7 @@ static void ice_napi_add(struct ice_vsi *vsi)
 	ice_for_each_q_vector(vsi, v_idx) {
 		netif_napi_add(vsi->netdev, &vsi->q_vectors[v_idx]->napi,
 			       ice_napi_poll);
-		ice_q_vector_set_napi_queues(vsi->q_vectors[v_idx], false);
+		__ice_q_vector_set_napi_queues(vsi->q_vectors[v_idx], false);
 	}
 }
 
@@ -5447,6 +5447,7 @@ static int ice_reinit_interrupt_scheme(struct ice_pf *pf)
 		if (ret)
 			goto err_reinit;
 		ice_vsi_map_rings_to_vectors(pf->vsi[v]);
+		ice_vsi_set_napi_queues(pf->vsi[v]);
 	}
 
 	ret = ice_req_irq_msix_misc(pf);
