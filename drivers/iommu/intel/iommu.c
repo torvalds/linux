@@ -4012,6 +4012,10 @@ int prepare_domain_attach_device(struct iommu_domain *domain,
 		dmar_domain->agaw--;
 	}
 
+	if (sm_supported(iommu) && !dev_is_real_dma_subdevice(dev) &&
+	    context_copied(iommu, info->bus, info->devfn))
+		return intel_pasid_setup_sm_context(dev);
+
 	return 0;
 }
 
@@ -4322,11 +4326,19 @@ static struct iommu_device *intel_iommu_probe_device(struct device *dev)
 			dev_err(dev, "PASID table allocation failed\n");
 			goto clear_rbtree;
 		}
+
+		if (!context_copied(iommu, info->bus, info->devfn)) {
+			ret = intel_pasid_setup_sm_context(dev);
+			if (ret)
+				goto free_table;
+		}
 	}
 
 	intel_iommu_debugfs_create_dev(info);
 
 	return &iommu->iommu;
+free_table:
+	intel_pasid_free_table(dev);
 clear_rbtree:
 	device_rbtree_remove(info);
 free:
