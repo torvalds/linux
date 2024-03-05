@@ -117,14 +117,14 @@
 #define	BIT_SCC_SDIO		BIT(9)
 #define	BIT_SCC_SDCARD		BIT(10)
 #define	BIT_SCC_MIPI		BIT(11)
-#define	BIT_HDA			BIT(12)
+#define	BIT_HDA			BIT(12) /* CHT datasheet: reserved */
 #define	BIT_LPE			BIT(13)
 #define	BIT_OTG			BIT(14)
-#define	BIT_USH			BIT(15)
-#define	BIT_GBE			BIT(16)
-#define	BIT_SATA		BIT(17)
-#define	BIT_USB_EHCI		BIT(18)
-#define	BIT_SEC			BIT(19)
+#define	BIT_USH			BIT(15) /* CHT datasheet: reserved */
+#define	BIT_GBE			BIT(16) /* CHT datasheet: reserved */
+#define	BIT_SATA		BIT(17) /* CHT datasheet: reserved */
+#define	BIT_USB_EHCI		BIT(18) /* CHT datasheet: XHCI!    */
+#define	BIT_SEC			BIT(19) /* BYT datasheet: reserved */
 #define	BIT_PCIE_PORT0		BIT(20)
 #define	BIT_PCIE_PORT1		BIT(21)
 #define	BIT_PCIE_PORT2		BIT(22)
