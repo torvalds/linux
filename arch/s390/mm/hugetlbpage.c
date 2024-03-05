@@ -235,7 +235,7 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 
 int pmd_huge(pmd_t pmd)
 {
-	return pmd_large(pmd);
+	return pmd_leaf(pmd);
 }
 
 int pud_huge(pud_t pud)

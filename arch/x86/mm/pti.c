@@ -252,7 +252,7 @@ static pte_t *pti_user_pagetable_walk_pte(unsigned long address)
 		return NULL;
 
 	/* We can't do anything sensible if we hit a large mapping. */
-	if (pmd_large(*pmd)) {
+	if (pmd_leaf(*pmd)) {
 		WARN_ON(1);
 		return NULL;
 	}
@@ -341,7 +341,7 @@ pti_clone_pgtable(unsigned long start, unsigned long end,
 			continue;
 		}
 
-		if (pmd_large(*pmd) || level == PTI_CLONE_PMD) {
+		if (pmd_leaf(*pmd) || level == PTI_CLONE_PMD) {
 			target_pmd = pti_user_pagetable_walk_pmd(addr);
 			if (WARN_ON(!target_pmd))
 				return;

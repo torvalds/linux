@@ -333,7 +333,7 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 			}
 			pte = boot_pte_alloc();
 			pmd_populate(&init_mm, pmd, pte);
-		} else if (pmd_large(*pmd)) {
+		} else if (pmd_leaf(*pmd)) {
 			continue;
 		}
 		pgtable_pte_populate(pmd, addr, next, mode);

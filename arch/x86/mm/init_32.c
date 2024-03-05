@@ -463,7 +463,7 @@ void __init native_pagetable_init(void)
 			break;
 
 		/* should not be large page here */
-		if (pmd_large(*pmd)) {
+		if (pmd_leaf(*pmd)) {
 			pr_warn("try to clear pte for ram above max_low_pfn: pfn: %lx pmd: %p pmd phys: %lx, but pmd is big page and is not using pte !\n",
 				pfn, pmd, __pa(pmd));
 			BUG_ON(1);

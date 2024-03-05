@@ -924,7 +924,7 @@ bool vmemmap_can_optimize(struct vmem_altmap *altmap, struct dev_pagemap *pgmap)
 int __meminit vmemmap_check_pmd(pmd_t *pmdp, int node,
 				unsigned long addr, unsigned long next)
 {
-	int large = pmd_large(*pmdp);
+	int large = pmd_leaf(*pmdp);
 
 	if (large)
 		vmemmap_verify(pmdp_ptep(pmdp), node, addr, next);

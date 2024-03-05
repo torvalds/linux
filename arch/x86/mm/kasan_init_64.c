@@ -95,7 +95,7 @@ static void __init kasan_populate_pud(pud_t *pud, unsigned long addr,
 	pmd = pmd_offset(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
-		if (!pmd_large(*pmd))
+		if (!pmd_leaf(*pmd))
 			kasan_populate_pmd(pmd, addr, next, nid);
 	} while (pmd++, addr = next, addr != end);
 }

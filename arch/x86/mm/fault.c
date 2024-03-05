@@ -250,7 +250,7 @@ static noinline int vmalloc_fault(unsigned long address)
 	if (!pmd_k)
 		return -1;
 
-	if (pmd_large(*pmd_k))
+	if (pmd_leaf(*pmd_k))
 		return 0;
 
 	pte_k = pte_offset_kernel(pmd_k, address);
@@ -319,7 +319,7 @@ static void dump_pagetable(unsigned long address)
 	 * And let's rather not kmap-atomic the pte, just in case
 	 * it's allocated already:
 	 */
-	if (!low_pfn(pmd_pfn(*pmd)) || !pmd_present(*pmd) || pmd_large(*pmd))
+	if (!low_pfn(pmd_pfn(*pmd)) || !pmd_present(*pmd) || pmd_leaf(*pmd))
 		goto out;
 
 	pte = pte_offset_kernel(pmd, address);
@@ -384,7 +384,7 @@ static void dump_pagetable(unsigned long address)
 		goto bad;
 
 	pr_cont("PMD %lx ", pmd_val(*pmd));
-	if (!pmd_present(*pmd) || pmd_large(*pmd))
+	if (!pmd_present(*pmd) || pmd_leaf(*pmd))
 		goto out;
 
 	pte = pte_offset_kernel(pmd, address);
@@ -1053,7 +1053,7 @@ spurious_kernel_fault(unsigned long error_code, unsigned long address)
 	if (!pmd_present(*pmd))
 		return 0;
 
-	if (pmd_large(*pmd))
+	if (pmd_leaf(*pmd))
 		return spurious_kernel_fault_check(error_code, (pte_t *) pmd);
 
 	pte = pte_offset_kernel(pmd, address);
