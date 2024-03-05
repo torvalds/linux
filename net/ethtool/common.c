@@ -712,8 +712,3 @@ ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size)
 	}
 }
 EXPORT_SYMBOL_GPL(ethtool_forced_speed_maps_init);
-
-bool ethtool_eee_use_linkmodes(const struct ethtool_keee *eee)
-{
-	return !linkmode_empty(eee->supported);
-}
