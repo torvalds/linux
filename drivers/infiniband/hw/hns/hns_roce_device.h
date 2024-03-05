@@ -947,6 +947,7 @@ struct hns_roce_hw {
 	int (*query_qpc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_mpt)(struct hns_roce_dev *hr_dev, u32 key, void *buffer);
 	int (*query_srqc)(struct hns_roce_dev *hr_dev, u32 srqn, void *buffer);
+	int (*query_sccc)(struct hns_roce_dev *hr_dev, u32 qpn, void *buffer);
 	int (*query_hw_counter)(struct hns_roce_dev *hr_dev,
 				u64 *stats, u32 port, int *hw_counters);
 	const struct ib_device_ops *hns_roce_dev_ops;

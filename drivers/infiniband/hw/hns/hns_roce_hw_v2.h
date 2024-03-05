@@ -646,6 +646,12 @@ struct hns_roce_v2_qp_context {
 #define QPCEX_SQ_RQ_NOT_FORBID_EN QPCEX_FIELD_LOC(23, 23)
 #define QPCEX_STASH QPCEX_FIELD_LOC(82, 82)
 
+#define SCC_CONTEXT_SIZE 16
+
+struct hns_roce_v2_scc_context {
+	__le32 data[SCC_CONTEXT_SIZE];
+};
+
 #define	V2_QP_RWE_S 1 /* rdma write enable */
 #define	V2_QP_RRE_S 2 /* rdma read enable */
 #define	V2_QP_ATE_S 3 /* rdma atomic enable */
