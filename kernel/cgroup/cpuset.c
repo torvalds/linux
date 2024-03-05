@@ -2562,7 +2562,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 		update_partition_sd_lb(cs, old_prs);
 out_free:
 	free_cpumasks(NULL, &tmp);
-	return 0;
+	return retval;
 }
 
 /**
@@ -2598,9 +2598,6 @@ static int update_exclusive_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	if (cpumask_equal(cs->exclusive_cpus, trialcs->exclusive_cpus))
 		return 0;
 
-	if (alloc_cpumasks(NULL, &tmp))
-		return -ENOMEM;
-
 	if (*buf)
 		compute_effective_exclusive_cpumask(trialcs, NULL);
 
@@ -2614,6 +2611,9 @@ static int update_exclusive_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	retval = validate_change(cs, trialcs);
 	if (retval)
 		return retval;
+
+	if (alloc_cpumasks(NULL, &tmp))
+		return -ENOMEM;
 
 	if (old_prs) {
 		if (cpumask_empty(trialcs->effective_xcpus)) {
