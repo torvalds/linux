@@ -57,7 +57,7 @@ struct io_sr_msg {
 		struct user_msghdr __user	*umsg;
 		void __user			*buf;
 	};
-	unsigned			len;
+	int				len;
 	unsigned			done_io;
 	unsigned			msg_flags;
 	unsigned			nr_multishot_loops;
@@ -389,6 +389,8 @@ static int io_sendmsg_prep_setup(struct io_kiocb *req, int is_msg)
 	return ret;
 }
 
+#define SENDMSG_FLAGS (IORING_RECVSEND_POLL_FIRST | IORING_RECVSEND_BUNDLE)
+
 int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -407,11 +409,20 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	sr->len = READ_ONCE(sqe->len);
 	sr->flags = READ_ONCE(sqe->ioprio);
-	if (sr->flags & ~IORING_RECVSEND_POLL_FIRST)
+	if (sr->flags & ~SENDMSG_FLAGS)
 		return -EINVAL;
 	sr->msg_flags = READ_ONCE(sqe->msg_flags) | MSG_NOSIGNAL;
 	if (sr->msg_flags & MSG_DONTWAIT)
 		req->flags |= REQ_F_NOWAIT;
+	if (sr->flags & IORING_RECVSEND_BUNDLE) {
+		if (req->opcode == IORING_OP_SENDMSG)
+			return -EINVAL;
+		if (!(req->flags & REQ_F_BUFFER_SELECT))
+			return -EINVAL;
+		sr->msg_flags |= MSG_WAITALL;
+		sr->buf_group = req->buf_index;
+		req->buf_list = NULL;
+	}
 
 #ifdef CONFIG_COMPAT
 	if (req->ctx->compat)
@@ -425,6 +436,79 @@ static void io_req_msg_cleanup(struct io_kiocb *req,
 {
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	io_netmsg_recycle(req, issue_flags);
+}
+
+/*
+ * For bundle completions, we need to figure out how many segments we consumed.
+ * A bundle could be using a single ITER_UBUF if that's all we mapped, or it
+ * could be using an ITER_IOVEC. If the latter, then if we consumed all of
+ * the segments, then it's a trivial questiont o answer. If we have residual
+ * data in the iter, then loop the segments to figure out how much we
+ * transferred.
+ */
+static int io_bundle_nbufs(struct io_async_msghdr *kmsg, int ret)
+{
+	struct iovec *iov;
+	int nbufs;
+
+	/* no data is always zero segments, and a ubuf is always 1 segment */
+	if (ret <= 0)
+		return 0;
+	if (iter_is_ubuf(&kmsg->msg.msg_iter))
+		return 1;
+
+	iov = kmsg->free_iov;
+	if (!iov)
+		iov = &kmsg->fast_iov;
+
+	/* if all data was transferred, it's basic pointer math */
+	if (!iov_iter_count(&kmsg->msg.msg_iter))
+		return iter_iov(&kmsg->msg.msg_iter) - iov;
+
+	/* short transfer, count segments */
+	nbufs = 0;
+	do {
+		int this_len = min_t(int, iov[nbufs].iov_len, ret);
+
+		nbufs++;
+		ret -= this_len;
+	} while (ret);
+
+	return nbufs;
+}
+
+static inline bool io_send_finish(struct io_kiocb *req, int *ret,
+				  struct io_async_msghdr *kmsg,
+				  unsigned issue_flags)
+{
+	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
+	bool bundle_finished = *ret <= 0;
+	unsigned int cflags;
+
+	if (!(sr->flags & IORING_RECVSEND_BUNDLE)) {
+		cflags = io_put_kbuf(req, issue_flags);
+		goto finish;
+	}
+
+	cflags = io_put_kbufs(req, io_bundle_nbufs(kmsg, *ret), issue_flags);
+
+	if (bundle_finished || req->flags & REQ_F_BL_EMPTY)
+		goto finish;
+
+	/*
+	 * Fill CQE for this receive and see if we should keep trying to
+	 * receive from this socket.
+	 */
+	if (io_req_post_cqe(req, *ret, cflags | IORING_CQE_F_MORE)) {
+		io_mshot_prep_retry(req, kmsg);
+		return false;
+	}
+
+	/* Otherwise stop bundle and use the current result. */
+finish:
+	io_req_set_res(req, *ret, cflags);
+	*ret = IOU_OK;
+	return true;
 }
 
 int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
@@ -482,7 +566,6 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
 	struct io_async_msghdr *kmsg = req->async_data;
 	struct socket *sock;
-	unsigned int cflags;
 	unsigned flags;
 	int min_ret = 0;
 	int ret;
@@ -495,21 +578,47 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
 		return -EAGAIN;
 
-	if (io_do_buffer_select(req)) {
-		size_t len = sr->len;
-		void __user *buf;
-
-		buf = io_buffer_select(req, &len, issue_flags);
-		if (unlikely(!buf))
-			return -ENOBUFS;
-		sr->buf = buf;
-		sr->len = len;
-	}
-
 	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
 		flags |= MSG_DONTWAIT;
-	if (flags & MSG_WAITALL)
+
+retry_bundle:
+	if (io_do_buffer_select(req)) {
+		struct buf_sel_arg arg = {
+			.iovs = &kmsg->fast_iov,
+			.max_len = min_not_zero(sr->len, INT_MAX),
+			.nr_iovs = 1,
+			.mode = KBUF_MODE_EXPAND,
+		};
+
+		if (kmsg->free_iov) {
+			arg.nr_iovs = kmsg->free_iov_nr;
+			arg.iovs = kmsg->free_iov;
+			arg.mode |= KBUF_MODE_FREE;
+		}
+
+		if (!(sr->flags & IORING_RECVSEND_BUNDLE))
+			arg.nr_iovs = 1;
+
+		ret = io_buffers_select(req, &arg, issue_flags);
+		if (unlikely(ret < 0))
+			return ret;
+
+		sr->len = arg.out_len;
+		iov_iter_init(&kmsg->msg.msg_iter, ITER_SOURCE, arg.iovs, ret,
+				arg.out_len);
+		if (arg.iovs != &kmsg->fast_iov && arg.iovs != kmsg->free_iov) {
+			kmsg->free_iov_nr = ret;
+			kmsg->free_iov = arg.iovs;
+		}
+	}
+
+	/*
+	 * If MSG_WAITALL is set, or this is a bundle send, then we need
+	 * the full amount. If just bundle is set, if we do a short send
+	 * then we complete the bundle sequence rather than continue on.
+	 */
+	if (flags & MSG_WAITALL || sr->flags & IORING_RECVSEND_BUNDLE)
 		min_ret = iov_iter_count(&kmsg->msg.msg_iter);
 
 	flags &= ~MSG_INTERNAL_SENDMSG_FLAGS;
@@ -534,10 +643,12 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
+
+	if (!io_send_finish(req, &ret, kmsg, issue_flags))
+		goto retry_bundle;
+
 	io_req_msg_cleanup(req, issue_flags);
-	cflags = io_put_kbuf(req, issue_flags);
-	io_req_set_res(req, ret, cflags);
-	return IOU_OK;
+	return ret;
 }
 
 static int io_recvmsg_mshot_prep(struct io_kiocb *req,
