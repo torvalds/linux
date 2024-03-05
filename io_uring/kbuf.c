@@ -117,6 +117,27 @@ static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
 	return NULL;
 }
 
+static int io_provided_buffers_select(struct io_kiocb *req, size_t *len,
+				      struct io_buffer_list *bl,
+				      struct iovec *iov)
+{
+	void __user *buf;
+
+	buf = io_provided_buffer_select(req, len, bl);
+	if (unlikely(!buf))
+		return -ENOBUFS;
+
+	iov[0].iov_base = buf;
+	iov[0].iov_len = *len;
+	return 0;
+}
+
+static struct io_uring_buf *io_ring_head_to_buf(struct io_uring_buf_ring *br,
+						__u16 head, __u16 mask)
+{
+	return &br->bufs[head & mask];
+}
+
 static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 					  struct io_buffer_list *bl,
 					  unsigned int issue_flags)
@@ -132,11 +153,10 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	if (head + 1 == tail)
 		req->flags |= REQ_F_BL_EMPTY;
 
-	head &= bl->mask;
-	buf = &br->bufs[head];
+	buf = io_ring_head_to_buf(br, head, bl->mask);
 	if (*len == 0 || *len > buf->len)
 		*len = buf->len;
-	req->flags |= REQ_F_BUFFER_RING;
+	req->flags |= REQ_F_BUFFER_RING | REQ_F_BUFFERS_COMMIT;
 	req->buf_list = bl;
 	req->buf_index = buf->bid;
 
@@ -151,6 +171,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 		 * the transfer completes (or if we get -EAGAIN and must poll of
 		 * retry).
 		 */
+		req->flags &= ~REQ_F_BUFFERS_COMMIT;
 		req->buf_list = NULL;
 		bl->head++;
 	}
@@ -175,6 +196,136 @@ void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
 	}
 	io_ring_submit_unlock(req->ctx, issue_flags);
 	return ret;
+}
+
+/* cap it at a reasonable 256, will be one page even for 4K */
+#define PEEK_MAX_IMPORT		256
+
+static int io_ring_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg,
+				struct io_buffer_list *bl)
+{
+	struct io_uring_buf_ring *br = bl->buf_ring;
+	struct iovec *iov = arg->iovs;
+	int nr_iovs = arg->nr_iovs;
+	__u16 nr_avail, tail, head;
+	struct io_uring_buf *buf;
+
+	tail = smp_load_acquire(&br->tail);
+	head = bl->head;
+	nr_avail = min_t(__u16, tail - head, UIO_MAXIOV);
+	if (unlikely(!nr_avail))
+		return -ENOBUFS;
+
+	buf = io_ring_head_to_buf(br, head, bl->mask);
+	if (arg->max_len) {
+		int needed;
+
+		needed = (arg->max_len + buf->len - 1) / buf->len;
+		needed = min(needed, PEEK_MAX_IMPORT);
+		if (nr_avail > needed)
+			nr_avail = needed;
+	}
+
+	/*
+	 * only alloc a bigger array if we know we have data to map, eg not
+	 * a speculative peek operation.
+	 */
+	if (arg->mode & KBUF_MODE_EXPAND && nr_avail > nr_iovs && arg->max_len) {
+		iov = kmalloc_array(nr_avail, sizeof(struct iovec), GFP_KERNEL);
+		if (unlikely(!iov))
+			return -ENOMEM;
+		if (arg->mode & KBUF_MODE_FREE)
+			kfree(arg->iovs);
+		arg->iovs = iov;
+		nr_iovs = nr_avail;
+	} else if (nr_avail < nr_iovs) {
+		nr_iovs = nr_avail;
+	}
+
+	/* set it to max, if not set, so we can use it unconditionally */
+	if (!arg->max_len)
+		arg->max_len = INT_MAX;
+
+	req->buf_index = buf->bid;
+	do {
+		/* truncate end piece, if needed */
+		if (buf->len > arg->max_len)
+			buf->len = arg->max_len;
+
+		iov->iov_base = u64_to_user_ptr(buf->addr);
+		iov->iov_len = buf->len;
+		iov++;
+
+		arg->out_len += buf->len;
+		arg->max_len -= buf->len;
+		if (!arg->max_len)
+			break;
+
+		buf = io_ring_head_to_buf(br, ++head, bl->mask);
+	} while (--nr_iovs);
+
+	if (head == tail)
+		req->flags |= REQ_F_BL_EMPTY;
+
+	req->flags |= REQ_F_BUFFER_RING;
+	req->buf_list = bl;
+	return iov - arg->iovs;
+}
+
+int io_buffers_select(struct io_kiocb *req, struct buf_sel_arg *arg,
+		      unsigned int issue_flags)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_buffer_list *bl;
+	int ret = -ENOENT;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	bl = io_buffer_get_list(ctx, req->buf_index);
+	if (unlikely(!bl))
+		goto out_unlock;
+
+	if (bl->is_buf_ring) {
+		ret = io_ring_buffers_peek(req, arg, bl);
+		/*
+		 * Don't recycle these buffers if we need to go through poll.
+		 * Nobody else can use them anyway, and holding on to provided
+		 * buffers for a send/write operation would happen on the app
+		 * side anyway with normal buffers. Besides, we already
+		 * committed them, they cannot be put back in the queue.
+		 */
+		if (ret > 0) {
+			req->flags |= REQ_F_BL_NO_RECYCLE;
+			req->buf_list->head += ret;
+		}
+	} else {
+		ret = io_provided_buffers_select(req, &arg->out_len, bl, arg->iovs);
+	}
+out_unlock:
+	io_ring_submit_unlock(ctx, issue_flags);
+	return ret;
+}
+
+int io_buffers_peek(struct io_kiocb *req, struct buf_sel_arg *arg)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_buffer_list *bl;
+	int ret;
+
+	lockdep_assert_held(&ctx->uring_lock);
+
+	bl = io_buffer_get_list(ctx, req->buf_index);
+	if (unlikely(!bl))
+		return -ENOENT;
+
+	if (bl->is_buf_ring) {
+		ret = io_ring_buffers_peek(req, arg, bl);
+		if (ret > 0)
+			req->flags |= REQ_F_BUFFERS_COMMIT;
+		return ret;
+	}
+
+	/* don't support multiple buffer selections for legacy */
+	return io_provided_buffers_select(req, &arg->max_len, bl, arg->iovs);
 }
 
 static int __io_remove_buffers(struct io_ring_ctx *ctx,
