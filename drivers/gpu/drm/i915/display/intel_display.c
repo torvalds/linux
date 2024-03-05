@@ -6788,9 +6788,14 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		if (!old_crtc_state->hw.active)
 			continue;
 
-		intel_crtc_disable_planes(state, crtc);
-
 		disable_pipes |= BIT(crtc->pipe);
+	}
+
+	for_each_old_intel_crtc_in_state(state, crtc, old_crtc_state, i) {
+		if ((disable_pipes & BIT(crtc->pipe)) == 0)
+			continue;
+
+		intel_crtc_disable_planes(state, crtc);
 	}
 
 	/* Only disable port sync and MST slaves */
