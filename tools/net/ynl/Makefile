@@ -18,4 +18,4 @@ clean distclean:
 		fi \
 	done
 
-.PHONY: clean all $(SUBDIRS)
+.PHONY: all clean distclean $(SUBDIRS)

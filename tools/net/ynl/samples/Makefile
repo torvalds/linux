@@ -31,5 +31,5 @@ clean:
 distclean: clean
 	rm -f $(BINS)
 
-.PHONY: all clean
+.PHONY: all clean distclean
 .DEFAULT_GOAL=all

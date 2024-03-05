@@ -24,5 +24,5 @@ distclean: clean
 %.o: %.c
 	$(COMPILE.c) -MMD -c -o $@ $<
 
-.PHONY: all clean
+.PHONY: all clean distclean
 .DEFAULT_GOAL=all
