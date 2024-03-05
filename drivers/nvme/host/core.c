@@ -114,12 +114,21 @@ static DEFINE_MUTEX(nvme_subsystems_lock);
 
 static DEFINE_IDA(nvme_instance_ida);
 static dev_t nvme_ctrl_base_chr_devt;
-static struct class *nvme_class;
-static struct class *nvme_subsys_class;
+static int nvme_class_uevent(const struct device *dev, struct kobj_uevent_env *env);
+static const struct class nvme_class = {
+	.name = "nvme",
+	.dev_uevent = nvme_class_uevent,
+};
+
+static const struct class nvme_subsys_class = {
+	.name = "nvme-subsystem",
+};
 
 static DEFINE_IDA(nvme_ns_chr_minor_ida);
 static dev_t nvme_ns_chr_devt;
-static struct class *nvme_ns_chr_class;
+static const struct class nvme_ns_chr_class = {
+	.name = "nvme-generic",
+};
 
 static void nvme_put_subsystem(struct nvme_subsystem *subsys);
 static void nvme_remove_invalid_namespaces(struct nvme_ctrl *ctrl,
@@ -2881,7 +2890,7 @@ static int nvme_init_subsystem(struct nvme_ctrl *ctrl, struct nvme_id_ctrl *id)
 	subsys->awupf = le16_to_cpu(id->awupf);
 	nvme_mpath_default_iopolicy(subsys);
 
-	subsys->dev.class = nvme_subsys_class;
+	subsys->dev.class = &nvme_subsys_class;
 	subsys->dev.release = nvme_release_subsystem;
 	subsys->dev.groups = nvme_subsys_attrs_groups;
 	dev_set_name(&subsys->dev, "nvme-subsys%d", ctrl->instance);
@@ -3435,7 +3444,7 @@ int nvme_cdev_add(struct cdev *cdev, struct device *cdev_device,
 	if (minor < 0)
 		return minor;
 	cdev_device->devt = MKDEV(MAJOR(nvme_ns_chr_devt), minor);
-	cdev_device->class = nvme_ns_chr_class;
+	cdev_device->class = &nvme_ns_chr_class;
 	cdev_device->release = nvme_cdev_rel;
 	device_initialize(cdev_device);
 	cdev_init(cdev, fops);
@@ -4627,7 +4636,7 @@ int nvme_init_ctrl(struct nvme_ctrl *ctrl, struct device *dev,
 	ctrl->device = &ctrl->ctrl_device;
 	ctrl->device->devt = MKDEV(MAJOR(nvme_ctrl_base_chr_devt),
 			ctrl->instance);
-	ctrl->device->class = nvme_class;
+	ctrl->device->class = &nvme_class;
 	ctrl->device->parent = ctrl->dev;
 	if (ops->dev_attr_groups)
 		ctrl->device->groups = ops->dev_attr_groups;
@@ -4860,42 +4869,36 @@ static int __init nvme_core_init(void)
 	if (result < 0)
 		goto destroy_delete_wq;
 
-	nvme_class = class_create("nvme");
-	if (IS_ERR(nvme_class)) {
-		result = PTR_ERR(nvme_class);
+	result = class_register(&nvme_class);
+	if (result)
 		goto unregister_chrdev;
-	}
-	nvme_class->dev_uevent = nvme_class_uevent;
 
-	nvme_subsys_class = class_create("nvme-subsystem");
-	if (IS_ERR(nvme_subsys_class)) {
-		result = PTR_ERR(nvme_subsys_class);
+	result = class_register(&nvme_subsys_class);
+	if (result)
 		goto destroy_class;
-	}
 
 	result = alloc_chrdev_region(&nvme_ns_chr_devt, 0, NVME_MINORS,
 				     "nvme-generic");
 	if (result < 0)
 		goto destroy_subsys_class;
 
-	nvme_ns_chr_class = class_create("nvme-generic");
-	if (IS_ERR(nvme_ns_chr_class)) {
-		result = PTR_ERR(nvme_ns_chr_class);
+	result = class_register(&nvme_ns_chr_class);
+	if (result)
 		goto unregister_generic_ns;
-	}
+
 	result = nvme_init_auth();
 	if (result)
 		goto destroy_ns_chr;
 	return 0;
 
 destroy_ns_chr:
-	class_destroy(nvme_ns_chr_class);
+	class_unregister(&nvme_ns_chr_class);
 unregister_generic_ns:
 	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
 destroy_subsys_class:
-	class_destroy(nvme_subsys_class);
+	class_unregister(&nvme_subsys_class);
 destroy_class:
-	class_destroy(nvme_class);
+	class_unregister(&nvme_class);
 unregister_chrdev:
 	unregister_chrdev_region(nvme_ctrl_base_chr_devt, NVME_MINORS);
 destroy_delete_wq:
@@ -4911,9 +4914,9 @@ out:
 static void __exit nvme_core_exit(void)
 {
 	nvme_exit_auth();
-	class_destroy(nvme_ns_chr_class);
-	class_destroy(nvme_subsys_class);
-	class_destroy(nvme_class);
+	class_unregister(&nvme_ns_chr_class);
+	class_unregister(&nvme_subsys_class);
+	class_unregister(&nvme_class);
 	unregister_chrdev_region(nvme_ns_chr_devt, NVME_MINORS);
 	unregister_chrdev_region(nvme_ctrl_base_chr_devt, NVME_MINORS);
 	destroy_workqueue(nvme_delete_wq);
