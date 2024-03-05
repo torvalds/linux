@@ -10,7 +10,7 @@
 #include <linux/math.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/string.h>
@@ -116,6 +116,7 @@ static int ir_spi_set_duty_cycle(struct rc_dev *dev, u32 duty_cycle)
 
 static int ir_spi_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	int ret;
 	u8 dc;
 	struct ir_spi_data *idata;
@@ -140,9 +141,8 @@ static int ir_spi_probe(struct spi_device *spi)
 	idata->rc->priv            = idata;
 	idata->spi                 = spi;
 
-	idata->negated = of_property_read_bool(spi->dev.of_node,
-							"led-active-low");
-	ret = of_property_read_u8(spi->dev.of_node, "duty-cycle", &dc);
+	idata->negated = device_property_read_bool(dev, "led-active-low");
+	ret = device_property_read_u8(dev, "duty-cycle", &dc);
 	if (ret)
 		dc = 50;
 
