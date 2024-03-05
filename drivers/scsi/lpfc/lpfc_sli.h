@@ -188,9 +188,23 @@ typedef struct lpfcMboxq {
 					 * cmds.  Not a generic pointer.
 					 * Use for storing virtual address.
 					 */
-	void *context3;			/* a generic pointer.  Code must
-					 * accommodate the actual datatype.
-					 */
+
+	/* Pointers that are seldom used during mbox execution, but require
+	 * a saved context.
+	 */
+	union {
+		unsigned long ox_rx_id;		/* Used in els_rsp_rls_acc */
+		struct lpfc_rdp_context *rdp;	/* Used in get_rdp_info */
+		struct lpfc_lcb_context *lcb;	/* Used in set_beacon */
+		struct completion *mbox_wait;	/* Used in issue_mbox_wait */
+		struct bsg_job_data *dd_data;	/* Used in bsg_issue_mbox_cmpl
+						 * and
+						 * bsg_issue_mbox_ext_handle_job
+						 */
+		struct lpfc_iocbq *save_iocb;	/* Used in defer_plogi_acc and
+						 * lpfc_mbx_cmpl_resume_rpi
+						 */
+	} ctx_u;
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;

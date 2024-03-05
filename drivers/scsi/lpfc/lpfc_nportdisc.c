@@ -300,7 +300,7 @@ lpfc_defer_plogi_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *login_mbox)
 	int rc;
 
 	ndlp = login_mbox->ctx_ndlp;
-	save_iocb = login_mbox->context3;
+	save_iocb = login_mbox->ctx_u.save_iocb;
 
 	if (mb->mbxStatus == MBX_SUCCESS) {
 		/* Now that REG_RPI completed successfully,
@@ -640,7 +640,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!login_mbox->ctx_ndlp)
 		goto out;
 
-	login_mbox->context3 = save_iocb; /* For PLOGI ACC */
+	login_mbox->ctx_u.save_iocb = save_iocb; /* For PLOGI ACC */
 
 	spin_lock_irq(&ndlp->lock);
 	ndlp->nlp_flag |= (NLP_ACC_REGLOGIN | NLP_RCV_PLOGI);
@@ -682,7 +682,7 @@ lpfc_mbx_cmpl_resume_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_nodelist *ndlp;
 	uint32_t cmd;
 
-	elsiocb = mboxq->context3;
+	elsiocb = mboxq->ctx_u.save_iocb;
 	ndlp = mboxq->ctx_ndlp;
 	vport = mboxq->vport;
 	cmd = elsiocb->drvrTimeout;

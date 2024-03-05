@@ -2830,7 +2830,7 @@ lpfc_sli_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	 */
 	pmboxq->mbox_flag |= LPFC_MBX_WAKE;
 	spin_lock_irqsave(&phba->hbalock, drvr_flag);
-	pmbox_done = (struct completion *)pmboxq->context3;
+	pmbox_done = pmboxq->ctx_u.mbox_wait;
 	if (pmbox_done)
 		complete(pmbox_done);
 	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
@@ -13262,9 +13262,9 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 	/* setup wake call as IOCB callback */
 	pmboxq->mbox_cmpl = lpfc_sli_wake_mbox_wait;
 
-	/* setup context3 field to pass wait_queue pointer to wake function  */
+	/* setup ctx_u field to pass wait_queue pointer to wake function  */
 	init_completion(&mbox_done);
-	pmboxq->context3 = &mbox_done;
+	pmboxq->ctx_u.mbox_wait = &mbox_done;
 	/* now issue the command */
 	retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 	if (retval == MBX_BUSY || retval == MBX_SUCCESS) {
@@ -13272,7 +13272,7 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 					    msecs_to_jiffies(timeout * 1000));
 
 		spin_lock_irqsave(&phba->hbalock, flag);
-		pmboxq->context3 = NULL;
+		pmboxq->ctx_u.mbox_wait = NULL;
 		/*
 		 * if LPFC_MBX_WAKE flag is set the mailbox is completed
 		 * else do not free the resources.
@@ -19821,14 +19821,15 @@ lpfc_sli4_remove_rpis(struct lpfc_hba *phba)
  * lpfc_sli4_resume_rpi - Remove the rpi bitmask region
  * @ndlp: pointer to lpfc nodelist data structure.
  * @cmpl: completion call-back.
- * @arg: data to load as MBox 'caller buffer information'
+ * @iocbq: data to load as mbox ctx_u information
  *
  * This routine is invoked to remove the memory region that
  * provided rpi via a bitmask.
  **/
 int
 lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
-	void (*cmpl)(struct lpfc_hba *, LPFC_MBOXQ_t *), void *arg)
+		     void (*cmpl)(struct lpfc_hba *, LPFC_MBOXQ_t *),
+		     struct lpfc_iocbq *iocbq)
 {
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_hba *phba = ndlp->phba;
@@ -19857,7 +19858,7 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 	lpfc_resume_rpi(mboxq, ndlp);
 	if (cmpl) {
 		mboxq->mbox_cmpl = cmpl;
-		mboxq->context3 = arg;
+		mboxq->ctx_u.save_iocb = iocbq;
 	} else
 		mboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mboxq->ctx_ndlp = ndlp;

@@ -7238,7 +7238,7 @@ lpfc_get_rdp_info(struct lpfc_hba *phba, struct lpfc_rdp_context *rdp_context)
 		goto rdp_fail;
 	mbox->vport = rdp_context->ndlp->vport;
 	mbox->mbox_cmpl = lpfc_mbx_cmpl_rdp_page_a0;
-	mbox->context3 = (struct lpfc_rdp_context *)rdp_context;
+	mbox->ctx_u.rdp = rdp_context;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED) {
 		lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
@@ -7498,9 +7498,9 @@ lpfc_els_lcb_rsp(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	int rc;
 
 	mb = &pmb->u.mb;
-	lcb_context = (struct lpfc_lcb_context *)pmb->context3;
+	lcb_context = pmb->ctx_u.lcb;
 	ndlp = lcb_context->ndlp;
-	pmb->context3 = NULL;
+	memset(&pmb->ctx_u, 0, sizeof(pmb->ctx_u));
 	pmb->ctx_buf = NULL;
 
 	shdr = (union lpfc_sli4_cfg_shdr *)
@@ -7640,7 +7640,7 @@ lpfc_sli4_set_beacon(struct lpfc_vport *vport,
 	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_COMMON,
 			 LPFC_MBOX_OPCODE_SET_BEACON_CONFIG, len,
 			 LPFC_SLI4_MBX_EMBED);
-	mbox->context3 = (void *)lcb_context;
+	mbox->ctx_u.lcb = lcb_context;
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_els_lcb_rsp;
 	bf_set(lpfc_mbx_set_beacon_port_num, &mbox->u.mqe.un.beacon_config,
@@ -8637,9 +8637,9 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb = &pmb->u.mb;
 
 	ndlp = pmb->ctx_ndlp;
-	rxid = (uint16_t)((unsigned long)(pmb->context3) & 0xffff);
-	oxid = (uint16_t)(((unsigned long)(pmb->context3) >> 16) & 0xffff);
-	pmb->context3 = NULL;
+	rxid = (uint16_t)(pmb->ctx_u.ox_rx_id & 0xffff);
+	oxid = (uint16_t)((pmb->ctx_u.ox_rx_id >> 16) & 0xffff);
+	memset(&pmb->ctx_u, 0, sizeof(pmb->ctx_u));
 	pmb->ctx_ndlp = NULL;
 
 	if (mb->mbxStatus) {
@@ -8743,8 +8743,7 @@ lpfc_els_rcv_rls(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_ATOMIC);
 	if (mbox) {
 		lpfc_read_lnk_stat(phba, mbox);
-		mbox->context3 = (void *)((unsigned long)
-					 (ox_id << 16 | ctx));
+		mbox->ctx_u.ox_rx_id = ox_id << 16 | ctx;
 		mbox->ctx_ndlp = lpfc_nlp_get(ndlp);
 		if (!mbox->ctx_ndlp)
 			goto node_err;
