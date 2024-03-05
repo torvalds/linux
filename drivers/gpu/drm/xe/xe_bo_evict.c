@@ -220,7 +220,7 @@ int xe_bo_restore_user(struct xe_device *xe)
 	list_splice_tail(&still_in_list, &xe->pinned.external_vram);
 	spin_unlock(&xe->pinned.lock);
 
-	/* Wait for validate to complete */
+	/* Wait for restore to complete */
 	for_each_tile(tile, xe, id)
 		xe_tile_migrate_wait(tile);
 
