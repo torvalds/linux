@@ -180,6 +180,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_PCM512x_I2C
 	imply SND_SOC_PCM512x_SPI
 	imply SND_SOC_PEB2466
+	imply SND_SOC_RK3308
 	imply SND_SOC_RK3328
 	imply SND_SOC_RK817
 	imply SND_SOC_RT274
@@ -1432,6 +1433,16 @@ config SND_SOC_PEB2466
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-soc-peb2466.
+
+config SND_SOC_RK3308
+	tristate "Rockchip RK3308 audio CODEC"
+	select REGMAP_MMIO
+	help
+	  This is a device driver for the audio codec embedded in the
+	  Rockchip RK3308 SoC.
+
+	  It has 8 24-bit ADCs and 2 24-bit DACs. The maximum supported
+	  sampling rate is 192 kHz.
 
 config SND_SOC_RK3328
 	tristate "Rockchip RK3328 audio CODEC"
