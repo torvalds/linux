@@ -213,11 +213,11 @@ class NlMsg:
         return self.nl_type
 
     def __repr__(self):
-        msg = f"nl_len = {self.nl_len} ({len(self.raw)}) nl_flags = 0x{self.nl_flags:x} nl_type = {self.nl_type}\n"
+        msg = f"nl_len = {self.nl_len} ({len(self.raw)}) nl_flags = 0x{self.nl_flags:x} nl_type = {self.nl_type}"
         if self.error:
-            msg += '\terror: ' + str(self.error)
+            msg += '\n\terror: ' + str(self.error)
         if self.extack:
-            msg += '\textack: ' + repr(self.extack)
+            msg += '\n\textack: ' + repr(self.extack)
         return msg
 
 
