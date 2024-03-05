@@ -29,7 +29,9 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
-struct class *class3270;
+const struct class class3270 = {
+	.name = "3270",
+};
 EXPORT_SYMBOL(class3270);
 
 /* The main 3270 data structure. */
@@ -1318,9 +1320,9 @@ static int raw3270_init(void)
 	rc = ccw_driver_register(&raw3270_ccw_driver);
 	if (rc)
 		return rc;
-	class3270 = class_create("3270");
-	if (IS_ERR(class3270))
-		return PTR_ERR(class3270);
+	rc = class_register(&class3270);
+	if (rc)
+		return rc;
 	/* Create attributes for early (= console) device. */
 	mutex_lock(&raw3270_mutex);
 	list_for_each_entry(rp, &raw3270_devices, list) {
@@ -1334,7 +1336,7 @@ static int raw3270_init(void)
 static void raw3270_exit(void)
 {
 	ccw_driver_unregister(&raw3270_ccw_driver);
-	class_destroy(class3270);
+	class_unregister(&class3270);
 }
 
 MODULE_LICENSE("GPL");
