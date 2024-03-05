@@ -121,11 +121,11 @@ static int ir_spi_probe(struct spi_device *spi)
 	u8 dc;
 	struct ir_spi_data *idata;
 
-	idata = devm_kzalloc(&spi->dev, sizeof(*idata), GFP_KERNEL);
+	idata = devm_kzalloc(dev, sizeof(*idata), GFP_KERNEL);
 	if (!idata)
 		return -ENOMEM;
 
-	idata->regulator = devm_regulator_get(&spi->dev, "irda_regulator");
+	idata->regulator = devm_regulator_get(dev, "irda_regulator");
 	if (IS_ERR(idata->regulator))
 		return PTR_ERR(idata->regulator);
 
@@ -154,7 +154,7 @@ static int ir_spi_probe(struct spi_device *spi)
 
 	idata->freq = IR_SPI_DEFAULT_FREQUENCY;
 
-	return devm_rc_register_device(&spi->dev, idata->rc);
+	return devm_rc_register_device(dev, idata->rc);
 }
 
 static const struct of_device_id ir_spi_of_match[] = {
