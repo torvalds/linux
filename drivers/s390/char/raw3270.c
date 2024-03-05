@@ -1316,17 +1316,19 @@ static int raw3270_init(void)
 		return 0;
 	raw3270_registered = 1;
 	rc = ccw_driver_register(&raw3270_ccw_driver);
-	if (rc == 0) {
-		/* Create attributes for early (= console) device. */
-		mutex_lock(&raw3270_mutex);
-		class3270 = class_create("3270");
-		list_for_each_entry(rp, &raw3270_devices, list) {
-			get_device(&rp->cdev->dev);
-			raw3270_create_attributes(rp);
-		}
-		mutex_unlock(&raw3270_mutex);
+	if (rc)
+		return rc;
+	class3270 = class_create("3270");
+	if (IS_ERR(class3270))
+		return PTR_ERR(class3270);
+	/* Create attributes for early (= console) device. */
+	mutex_lock(&raw3270_mutex);
+	list_for_each_entry(rp, &raw3270_devices, list) {
+		get_device(&rp->cdev->dev);
+		raw3270_create_attributes(rp);
 	}
-	return rc;
+	mutex_unlock(&raw3270_mutex);
+	return 0;
 }
 
 static void raw3270_exit(void)
