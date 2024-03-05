@@ -58,7 +58,7 @@ struct regulator {
 	struct dentry *debugfs;
 };
 
-extern struct class regulator_class;
+extern const struct class regulator_class;
 
 static inline struct regulator_dev *dev_to_rdev(struct device *dev)
 {
