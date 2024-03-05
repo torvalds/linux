@@ -213,6 +213,7 @@ struct raid_dev {
 #define RT_FLAG_RS_IN_SYNC		6
 #define RT_FLAG_RS_RESYNCING		7
 #define RT_FLAG_RS_GROW			8
+#define RT_FLAG_RS_FROZEN		9
 
 /* Array elements of 64 bit needed for rebuild/failed disk bits */
 #define DISKS_ARRAY_ELEMS ((MAX_RAID_DEVICES + (sizeof(uint64_t) * 8 - 1)) / sizeof(uint64_t) / 8)
@@ -3340,7 +3341,8 @@ static int raid_map(struct dm_target *ti, struct bio *bio)
 	if (unlikely(bio_end_sector(bio) > mddev->array_sectors))
 		return DM_MAPIO_REQUEUE;
 
-	md_handle_request(mddev, bio);
+	if (unlikely(!md_handle_request(mddev, bio)))
+		return DM_MAPIO_REQUEUE;
 
 	return DM_MAPIO_SUBMITTED;
 }
@@ -3724,7 +3726,8 @@ static int raid_message(struct dm_target *ti, unsigned int argc, char **argv,
 	if (!mddev->pers || !mddev->pers->sync_request)
 		return -EINVAL;
 
-	if (test_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags))
+	if (test_bit(RT_FLAG_RS_SUSPENDED, &rs->runtime_flags) ||
+	    test_bit(RT_FLAG_RS_FROZEN, &rs->runtime_flags))
 		return -EBUSY;
 
 	if (!strcasecmp(argv[0], "frozen")) {
@@ -3808,6 +3811,12 @@ static void raid_presuspend(struct dm_target *ti)
 	struct raid_set *rs = ti->private;
 	struct mddev *mddev = &rs->md;
 
+	/*
+	 * From now on, disallow raid_message() to change sync_thread until
+	 * resume, raid_postsuspend() is too late.
+	 */
+	set_bit(RT_FLAG_RS_FROZEN, &rs->runtime_flags);
+
 	if (!reshape_interrupted(mddev))
 		return;
 
@@ -3818,6 +3827,13 @@ static void raid_presuspend(struct dm_target *ti)
 	 */
 	if (mddev->pers && mddev->pers->prepare_suspend)
 		mddev->pers->prepare_suspend(mddev);
+}
+
+static void raid_presuspend_undo(struct dm_target *ti)
+{
+	struct raid_set *rs = ti->private;
+
+	clear_bit(RT_FLAG_RS_FROZEN, &rs->runtime_flags);
 }
 
 static void raid_postsuspend(struct dm_target *ti)
@@ -4085,6 +4101,7 @@ static void raid_resume(struct dm_target *ti)
 
 		WARN_ON_ONCE(!test_bit(MD_RECOVERY_FROZEN, &mddev->recovery));
 		WARN_ON_ONCE(test_bit(MD_RECOVERY_RUNNING, &mddev->recovery));
+		clear_bit(RT_FLAG_RS_FROZEN, &rs->runtime_flags);
 		mddev_lock_nointr(mddev);
 		mddev->ro = 0;
 		mddev->in_sync = 0;
@@ -4105,6 +4122,7 @@ static struct target_type raid_target = {
 	.iterate_devices = raid_iterate_devices,
 	.io_hints = raid_io_hints,
 	.presuspend = raid_presuspend,
+	.presuspend_undo = raid_presuspend_undo,
 	.postsuspend = raid_postsuspend,
 	.preresume = raid_preresume,
 	.resume = raid_resume,

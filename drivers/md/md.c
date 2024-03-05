@@ -366,7 +366,7 @@ static bool is_suspended(struct mddev *mddev, struct bio *bio)
 	return true;
 }
 
-void md_handle_request(struct mddev *mddev, struct bio *bio)
+bool md_handle_request(struct mddev *mddev, struct bio *bio)
 {
 check_suspended:
 	if (is_suspended(mddev, bio)) {
@@ -374,7 +374,7 @@ check_suspended:
 		/* Bail out if REQ_NOWAIT is set for the bio */
 		if (bio->bi_opf & REQ_NOWAIT) {
 			bio_wouldblock_error(bio);
-			return;
+			return true;
 		}
 		for (;;) {
 			prepare_to_wait(&mddev->sb_wait, &__wait,
@@ -390,10 +390,13 @@ check_suspended:
 
 	if (!mddev->pers->make_request(mddev, bio)) {
 		percpu_ref_put(&mddev->active_io);
+		if (!mddev->gendisk && mddev->pers->prepare_suspend)
+			return false;
 		goto check_suspended;
 	}
 
 	percpu_ref_put(&mddev->active_io);
+	return true;
 }
 EXPORT_SYMBOL(md_handle_request);
 
@@ -8732,6 +8735,23 @@ void md_account_bio(struct mddev *mddev, struct bio **bio)
 	md_clone_bio(mddev, bio);
 }
 EXPORT_SYMBOL_GPL(md_account_bio);
+
+void md_free_cloned_bio(struct bio *bio)
+{
+	struct md_io_clone *md_io_clone = bio->bi_private;
+	struct bio *orig_bio = md_io_clone->orig_bio;
+	struct mddev *mddev = md_io_clone->mddev;
+
+	if (bio->bi_status && !orig_bio->bi_status)
+		orig_bio->bi_status = bio->bi_status;
+
+	if (md_io_clone->start_time)
+		bio_end_io_acct(orig_bio, md_io_clone->start_time);
+
+	bio_put(bio);
+	percpu_ref_put(&mddev->active_io);
+}
+EXPORT_SYMBOL_GPL(md_free_cloned_bio);
 
 /* md_allow_write(mddev)
  * Calling this ensures that the array is marked 'active' so that writes
