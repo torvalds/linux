@@ -112,7 +112,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 
 	if (!bd->ops)
 		goto out;
-	if (bd->ops->check_fb && !bd->ops->check_fb(bd, info))
+	if (bd->ops->controls_device && !bd->ops->controls_device(bd, info->device))
 		goto out;
 	if (fb_bd && fb_bd != bd)
 		goto out;
