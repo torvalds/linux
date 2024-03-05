@@ -717,10 +717,6 @@ static int gtp_dev_init(struct net_device *dev)
 
 	gtp->dev = dev;
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	return 0;
 }
 
@@ -729,7 +725,6 @@ static void gtp_dev_uninit(struct net_device *dev)
 	struct gtp_dev *gtp = netdev_priv(dev);
 
 	gtp_encap_disable(gtp);
-	free_percpu(dev->tstats);
 }
 
 static inline void gtp0_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
@@ -970,6 +965,7 @@ static void gtp_link_setup(struct net_device *dev)
 	dev->type = ARPHRD_NONE;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	dev->priv_flags	|= IFF_NO_QUEUE;
 	dev->features	|= NETIF_F_LLTX;
 	netif_keep_dst(dev);
