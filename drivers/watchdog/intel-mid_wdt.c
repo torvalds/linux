@@ -17,7 +17,6 @@
 #include <linux/platform_data/intel-mid_wdt.h>
 
 #include <asm/intel_scu_ipc.h>
-#include <asm/intel-mid.h>
 
 #define IPC_WATCHDOG 0xf8
 
