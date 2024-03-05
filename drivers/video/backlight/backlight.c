@@ -319,8 +319,6 @@ static ssize_t scale_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(scale);
 
-static struct class *backlight_class;
-
 #ifdef CONFIG_PM_SLEEP
 static int backlight_suspend(struct device *dev)
 {
@@ -371,6 +369,12 @@ static struct attribute *bl_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(bl_device);
 
+static const struct class backlight_class = {
+	.name = "backlight",
+	.dev_groups = bl_device_groups,
+	.pm = &backlight_class_dev_pm_ops,
+};
+
 /**
  * backlight_force_update - tell the backlight subsystem that hardware state
  *   has changed
@@ -420,7 +424,7 @@ struct backlight_device *backlight_device_register(const char *name,
 	mutex_init(&new_bd->update_lock);
 	mutex_init(&new_bd->ops_lock);
 
-	new_bd->dev.class = backlight_class;
+	new_bd->dev.class = &backlight_class;
 	new_bd->dev.parent = parent;
 	new_bd->dev.release = bl_device_release;
 	dev_set_name(&new_bd->dev, "%s", name);
@@ -512,7 +516,7 @@ struct backlight_device *backlight_device_get_by_name(const char *name)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_name(backlight_class, name);
+	dev = class_find_device_by_name(&backlight_class, name);
 
 	return dev ? to_backlight_device(dev) : NULL;
 }
@@ -680,7 +684,7 @@ struct backlight_device *of_find_backlight_by_node(struct device_node *node)
 {
 	struct device *dev;
 
-	dev = class_find_device(backlight_class, NULL, node, of_parent_match);
+	dev = class_find_device(&backlight_class, NULL, node, of_parent_match);
 
 	return dev ? to_backlight_device(dev) : NULL;
 }
@@ -748,20 +752,19 @@ EXPORT_SYMBOL(devm_of_find_backlight);
 
 static void __exit backlight_class_exit(void)
 {
-	class_destroy(backlight_class);
+	class_unregister(&backlight_class);
 }
 
 static int __init backlight_class_init(void)
 {
-	backlight_class = class_create("backlight");
-	if (IS_ERR(backlight_class)) {
-		pr_warn("Unable to create backlight class; errno = %ld\n",
-			PTR_ERR(backlight_class));
-		return PTR_ERR(backlight_class);
+	int ret;
+
+	ret = class_register(&backlight_class);
+	if (ret) {
+		pr_warn("Unable to create backlight class; errno = %d\n", ret);
+		return ret;
 	}
 
-	backlight_class->dev_groups = bl_device_groups;
-	backlight_class->pm = &backlight_class_dev_pm_ops;
 	INIT_LIST_HEAD(&backlight_dev_list);
 	mutex_init(&backlight_dev_list_mutex);
 	BLOCKING_INIT_NOTIFIER_HEAD(&backlight_notifier);
