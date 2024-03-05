@@ -44,6 +44,7 @@ gcc-pineapple.ko
 gcc-volcano.ko
 videocc-pineapple.ko
 debug-regulator.ko
+qcom-i2c-pmic.ko
 proxy-consumer.ko
 rpmh-regulator.ko
 camcc-cliffs.ko
