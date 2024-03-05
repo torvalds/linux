@@ -703,7 +703,7 @@ static int occ_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int occ_remove(struct platform_device *pdev)
+static void occ_remove(struct platform_device *pdev)
 {
 	struct occ *occ = platform_get_drvdata(pdev);
 
@@ -720,8 +720,6 @@ static int occ_remove(struct platform_device *pdev)
 		device_for_each_child(&pdev->dev, NULL, occ_unregister_of_child);
 
 	ida_simple_remove(&occ_ida, occ->idx);
-
-	return 0;
 }
 
 static const struct of_device_id occ_match[] = {
@@ -743,7 +741,7 @@ static struct platform_driver occ_driver = {
 		.of_match_table	= occ_match,
 	},
 	.probe	= occ_probe,
-	.remove = occ_remove,
+	.remove_new = occ_remove,
 };
 
 static int occ_init(void)
