@@ -41,7 +41,7 @@ static char *_get_cpuid(void)
 	char *mimpid = NULL;
 	char *cpuid = NULL;
 	int read;
-	unsigned long line_sz;
+	size_t line_sz;
 	FILE *cpuinfo;
 
 	cpuinfo = fopen(CPUINFO, "r");
