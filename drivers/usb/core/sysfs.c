@@ -849,16 +849,10 @@ static const struct attribute_group dev_string_attr_grp = {
 	.is_visible =	dev_string_attrs_are_visible,
 };
 
-const struct attribute_group *usb_device_groups[] = {
-	&dev_attr_grp,
-	&dev_string_attr_grp,
-	NULL
-};
-
 /* Binary descriptors */
 
 static ssize_t
-read_descriptors(struct file *filp, struct kobject *kobj,
+descriptors_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
 		char *buf, loff_t off, size_t count)
 {
@@ -880,7 +874,7 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 			srclen = sizeof(struct usb_device_descriptor);
 		} else {
 			src = udev->rawdescriptors[cfgno];
-			srclen = __le16_to_cpu(udev->config[cfgno].desc.
+			srclen = le16_to_cpu(udev->config[cfgno].desc.
 					wTotalLength);
 		}
 		if (off < srclen) {
@@ -895,11 +889,66 @@ read_descriptors(struct file *filp, struct kobject *kobj,
 	}
 	return count - nleft;
 }
+static BIN_ATTR_RO(descriptors, 18 + 65535); /* dev descr + max-size raw descriptor */
 
-static struct bin_attribute dev_bin_attr_descriptors = {
-	.attr = {.name = "descriptors", .mode = 0444},
-	.read = read_descriptors,
-	.size = 18 + 65535,	/* dev descr + max-size raw descriptor */
+static ssize_t
+bos_descriptors_read(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
+		char *buf, loff_t off, size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb_device *udev = to_usb_device(dev);
+	struct usb_host_bos *bos = udev->bos;
+	struct usb_bos_descriptor *desc;
+	size_t desclen, n = 0;
+
+	if (bos) {
+		desc = bos->desc;
+		desclen = le16_to_cpu(desc->wTotalLength);
+		if (off < desclen) {
+			n = min(count, desclen - (size_t) off);
+			memcpy(buf, (void *) desc + off, n);
+		}
+	}
+	return n;
+}
+static BIN_ATTR_RO(bos_descriptors, 65535); /* max-size BOS */
+
+/* When modifying this list, be sure to modify dev_bin_attrs_are_visible()
+ * accordingly.
+ */
+static struct bin_attribute *dev_bin_attrs[] = {
+	&bin_attr_descriptors,
+	&bin_attr_bos_descriptors,
+	NULL
+};
+
+static umode_t dev_bin_attrs_are_visible(struct kobject *kobj,
+		struct bin_attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct usb_device *udev = to_usb_device(dev);
+
+	/* All USB devices have a device descriptor, so the descriptors
+	 * attribute always exists. No need to check for its visibility.
+	 */
+	if (a == &bin_attr_bos_descriptors) {
+		if (udev->bos == NULL)
+			return 0;
+	}
+	return a->attr.mode;
+}
+
+static const struct attribute_group dev_bin_attr_grp = {
+	.bin_attrs =		dev_bin_attrs,
+	.is_bin_visible =	dev_bin_attrs_are_visible,
+};
+
+const struct attribute_group *usb_device_groups[] = {
+	&dev_attr_grp,
+	&dev_string_attr_grp,
+	&dev_bin_attr_grp,
+	NULL
 };
 
 /*
@@ -1017,10 +1066,6 @@ int usb_create_sysfs_dev_files(struct usb_device *udev)
 	struct device *dev = &udev->dev;
 	int retval;
 
-	retval = device_create_bin_file(dev, &dev_bin_attr_descriptors);
-	if (retval)
-		goto error;
-
 	retval = add_persist_attributes(dev);
 	if (retval)
 		goto error;
@@ -1050,7 +1095,6 @@ void usb_remove_sysfs_dev_files(struct usb_device *udev)
 
 	remove_power_attributes(dev);
 	remove_persist_attributes(dev);
-	device_remove_bin_file(dev, &dev_bin_attr_descriptors);
 }
 
 /* Interface Association Descriptor fields */
