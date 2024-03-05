@@ -44,6 +44,7 @@ The related events usually used to calculate the bandwidth, latency or others.
 They need to start and end counting at the same time, therefore related events
 are best used in the same event group to get the expected value. There are two
 ways to know if they are related events:
+
 a) By event name, such as the latency events "xxx_latency, xxx_cnt" or
    bandwidth events "xxx_flux, xxx_time".
 b) By event type, such as "event=0xXXXX, event=0x1XXXX".
