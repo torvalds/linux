@@ -174,6 +174,7 @@ def define_niobe():
         "drivers/usb/phy/phy-qcom-emu.ko",
         "drivers/usb/typec/ucsi/ucsi_glink.ko",
         "drivers/virt/gunyah/gh_virt_wdt.ko",
+        "kernel/sched/walt/sched-walt.ko",
         "kernel/trace/qcom_ipc_logging.ko",
         "net/mac80211/mac80211.ko",
         "net/qrtr/qrtr.ko",
