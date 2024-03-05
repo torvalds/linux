@@ -509,9 +509,11 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 {
 	struct nmk_gpio_chip *nmk_chip;
 	struct platform_device *gpio_pdev;
+	struct device *dev = &pdev->dev;
 	struct reset_control *reset;
 	struct device *gpio_dev;
 	struct gpio_chip *chip;
+	struct resource *res;
 	struct clk *clk;
 	void __iomem *base;
 	u32 id, ngpio;
@@ -519,13 +521,13 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 
 	gpio_dev = bus_find_device_by_fwnode(&platform_bus_type, fwnode);
 	if (!gpio_dev) {
-		dev_err(&pdev->dev, "populate \"%pfwP\": device not found\n", fwnode);
+		dev_err(dev, "populate \"%pfwP\": device not found\n", fwnode);
 		return ERR_PTR(-ENODEV);
 	}
 	gpio_pdev = to_platform_device(gpio_dev);
 
 	if (device_property_read_u32(gpio_dev, "gpio-bank", &id)) {
-		dev_err(&pdev->dev, "populate: gpio-bank property not found\n");
+		dev_err(dev, "populate: gpio-bank property not found\n");
 		platform_device_put(gpio_pdev);
 		return ERR_PTR(-EINVAL);
 	}
@@ -539,7 +541,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	}
 #endif
 
-	nmk_chip = devm_kzalloc(&pdev->dev, sizeof(*nmk_chip), GFP_KERNEL);
+	nmk_chip = devm_kzalloc(dev, sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		platform_device_put(gpio_pdev);
 		return ERR_PTR(-ENOMEM);
@@ -547,7 +549,7 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 
 	if (device_property_read_u32(gpio_dev, "ngpios", &ngpio)) {
 		ngpio = NMK_GPIO_PER_CHIP;
-		dev_dbg(&pdev->dev, "populate: using default ngpio (%d)\n", ngpio);
+		dev_dbg(dev, "populate: using default ngpio (%u)\n", ngpio);
 	}
 
 	nmk_chip->is_mobileye_soc = device_is_compatible(gpio_dev,
@@ -559,25 +561,32 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	chip->label = dev_name(gpio_dev);
 	chip->parent = gpio_dev;
 
-	base = devm_platform_ioremap_resource(pdev, 0);
+	/* NOTE: different devices! No devm_platform_ioremap_resource() here! */
+	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
+	base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(base)) {
 		platform_device_put(gpio_pdev);
 		return ERR_CAST(base);
 	}
 	nmk_chip->addr = base;
 
-	clk = devm_clk_get_optional(gpio_dev, NULL);
+	/* NOTE: do not use devm_ here! */
+	clk = clk_get_optional(gpio_dev, NULL);
 	if (IS_ERR(clk)) {
 		platform_device_put(gpio_pdev);
-		return (void *)clk;
+		return ERR_CAST(clk);
 	}
 	clk_prepare(clk);
 	nmk_chip->clk = clk;
 
-	reset = devm_reset_control_get_optional_shared(gpio_dev, NULL);
+	/* NOTE: do not use devm_ here! */
+	reset = reset_control_get_optional_shared(gpio_dev, NULL);
 	if (IS_ERR(reset)) {
-		dev_err(&pdev->dev, "failed getting reset control: %ld\n",
-			PTR_ERR(reset));
+		clk_unprepare(clk);
+		clk_put(clk);
+		platform_device_put(gpio_pdev);
+		dev_err(dev, "failed getting reset control: %pe\n",
+			reset);
 		return ERR_CAST(reset);
 	}
 
@@ -588,7 +597,11 @@ struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
 	 */
 	ret = reset_control_deassert(reset);
 	if (ret) {
-		dev_err(&pdev->dev, "failed reset deassert: %d\n", ret);
+		reset_control_put(reset);
+		clk_unprepare(clk);
+		clk_put(clk);
+		platform_device_put(gpio_pdev);
+		dev_err(dev, "failed reset deassert: %d\n", ret);
 		return ERR_PTR(ret);
 	}
 
