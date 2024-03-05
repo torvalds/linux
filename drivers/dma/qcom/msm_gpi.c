@@ -139,6 +139,7 @@ enum EV_PRIORITY {
 	((0x0 << 20) | (0x0 << 16) | (link_rx << 11) | (bei << 10) | \
 	(ieot << 9) | (ieob << 8) | ch)
 #define NOOP_TRE (0x0 << 20 | 0x1 << 16)
+#define HID_CMD_TIMEOUT_MS (250)
 
 struct __packed gpi_error_log_entry {
 	u32 routine : 4;
@@ -412,13 +413,13 @@ static const struct {
 		GPI_CH_CMD_ENABLE_HID,
 		GPI_GPII_n_CH_CMD_ENABLE_HID,
 		CH_STATE_ENABLE_HID,
-		CMD_TIMEOUT_MS,
+		HID_CMD_TIMEOUT_MS,
 	},
 	{
 		GPI_CH_CMD_DISABLE_HID,
 		GPI_GPII_n_CH_CMD_DISABLE_HID,
 		CH_STATE_DISABLE_HID,
-		CMD_TIMEOUT_MS,
+		HID_CMD_TIMEOUT_MS,
 	},
 	{
 		GPI_EV_CMD_ALLOCATE,

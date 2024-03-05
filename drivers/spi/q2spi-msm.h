@@ -27,7 +27,7 @@
 #define Q2SPI_MAX_RESP_BUF		40
 #define Q2SPI_RESP_BUF_SIZE		SMA_BUF_SIZE
 #define XFER_TIMEOUT_OFFSET		(250)
-#define EXT_CR_TIMEOUT_MSECS		(250)
+#define EXT_CR_TIMEOUT_MSECS		(50)
 #define TIMEOUT_MSECONDS		10 /* 10 milliseconds */
 #define RETRIES				1
 #define Q2SPI_MAX_DATA_LEN		4096
