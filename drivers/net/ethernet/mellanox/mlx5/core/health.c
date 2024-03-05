@@ -452,10 +452,10 @@ mlx5_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 	struct health_buffer __iomem *h = health->health;
 	u8 synd = ioread8(&h->synd);
 
+	devlink_fmsg_u8_pair_put(fmsg, "Syndrome", synd);
 	if (!synd)
 		return 0;
 
-	devlink_fmsg_u8_pair_put(fmsg, "Syndrome", synd);
 	devlink_fmsg_string_pair_put(fmsg, "Description", hsynd_str(synd));
 
 	return 0;
