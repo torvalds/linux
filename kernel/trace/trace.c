@@ -7293,6 +7293,8 @@ tracing_free_buffer_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+#define TRACE_MARKER_MAX_SIZE		4096
+
 static ssize_t
 tracing_mark_write(struct file *filp, const char __user *ubuf,
 					size_t cnt, loff_t *fpos)
@@ -7320,6 +7322,9 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	if ((ssize_t)cnt < 0)
 		return -EINVAL;
 
+	if (cnt > TRACE_MARKER_MAX_SIZE)
+		cnt = TRACE_MARKER_MAX_SIZE;
+
 	meta_size = sizeof(*entry) + 2;  /* add '\0' and possible '\n' */
  again:
 	size = cnt + meta_size;
@@ -7327,11 +7332,6 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	/* If less than "<faulted>", then make sure we can still add that */
 	if (cnt < FAULTED_SIZE)
 		size += FAULTED_SIZE - cnt;
-
-	if (size > TRACE_SEQ_BUFFER_SIZE) {
-		cnt -= size - TRACE_SEQ_BUFFER_SIZE;
-		goto again;
-	}
 
 	buffer = tr->array_buffer.buffer;
 	event = __trace_buffer_lock_reserve(buffer, TRACE_PRINT, size,
