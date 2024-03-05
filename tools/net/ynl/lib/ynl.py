@@ -7,6 +7,7 @@ import random
 import socket
 import struct
 from struct import Struct
+import sys
 import yaml
 import ipaddress
 import uuid
@@ -420,6 +421,7 @@ class YnlFamily(SpecFamily):
         except KeyError:
             raise Exception(f"Family '{self.yaml['name']}' not supported by the kernel")
 
+        self._recv_dbg = False
         # Note that netlink will use conservative (min) message size for
         # the first dump recv() on the socket, our setting will only matter
         # from the second recv() on.
@@ -452,6 +454,17 @@ class YnlFamily(SpecFamily):
         self.sock.bind((0, 0))
         self.sock.setsockopt(Netlink.SOL_NETLINK, Netlink.NETLINK_ADD_MEMBERSHIP,
                              mcast_id)
+
+    def set_recv_dbg(self, enabled):
+        self._recv_dbg = enabled
+
+    def _recv_dbg_print(self, reply, nl_msgs):
+        if not self._recv_dbg:
+            return
+        print("Recv: read", len(reply), "bytes,",
+              len(nl_msgs.msgs), "messages", file=sys.stderr)
+        for nl_msg in nl_msgs:
+            print("  ", nl_msg, file=sys.stderr)
 
     def _encode_enum(self, attr_spec, value):
         enum = self.consts[attr_spec['enum']]
@@ -819,6 +832,7 @@ class YnlFamily(SpecFamily):
                 return
 
             nms = NlMsgs(reply)
+            self._recv_dbg_print(reply, nms)
             for nl_msg in nms:
                 if nl_msg.error:
                     print("Netlink error in ntf!?", os.strerror(-nl_msg.error))
@@ -871,6 +885,7 @@ class YnlFamily(SpecFamily):
         while not done:
             reply = self.sock.recv(self._recv_size)
             nms = NlMsgs(reply, attr_space=op.attr_set)
+            self._recv_dbg_print(reply, nms)
             for nl_msg in nms:
                 if nl_msg.extack:
                     self._decode_extack(msg, op, nl_msg.extack)
