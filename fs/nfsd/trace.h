@@ -696,6 +696,24 @@ DEFINE_EVENT(nfsd_stid_class, nfsd_stid_##name,			\
 
 DEFINE_STID_EVENT(revoke);
 
+TRACE_EVENT(nfsd_stateowner_replay,
+	TP_PROTO(
+		u32 opnum,
+		const struct nfs4_replay *rp
+	),
+	TP_ARGS(opnum, rp),
+	TP_STRUCT__entry(
+		__field(unsigned long, status)
+		__field(u32, opnum)
+	),
+	TP_fast_assign(
+		__entry->status = be32_to_cpu(rp->rp_status);
+		__entry->opnum = opnum;
+	),
+	TP_printk("opnum=%u status=%lu",
+		__entry->opnum, __entry->status)
+);
+
 TRACE_EVENT_CONDITION(nfsd_seq4_status,
 	TP_PROTO(
 		const struct svc_rqst *rqstp,

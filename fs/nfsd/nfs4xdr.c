@@ -5732,27 +5732,24 @@ release:
 	rqstp->rq_next_page = xdr->page_ptr + 1;
 }
 
-/* 
- * Encode the reply stored in the stateowner reply cache 
- * 
- * XDR note: do not encode rp->rp_buflen: the buffer contains the
- * previously sent already encoded operation.
+/**
+ * nfsd4_encode_replay - encode a result stored in the stateowner reply cache
+ * @xdr: send buffer's XDR stream
+ * @op: operation being replayed
+ *
+ * @op->replay->rp_buf contains the previously-sent already-encoded result.
  */
-void
-nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
+void nfsd4_encode_replay(struct xdr_stream *xdr, struct nfsd4_op *op)
 {
-	__be32 *p;
 	struct nfs4_replay *rp = op->replay;
 
-	p = xdr_reserve_space(xdr, 8 + rp->rp_buflen);
-	if (!p) {
-		WARN_ON_ONCE(1);
-		return;
-	}
-	*p++ = cpu_to_be32(op->opnum);
-	*p++ = rp->rp_status;  /* already xdr'ed */
+	trace_nfsd_stateowner_replay(op->opnum, rp);
 
-	p = xdr_encode_opaque_fixed(p, rp->rp_buf, rp->rp_buflen);
+	if (xdr_stream_encode_u32(xdr, op->opnum) != XDR_UNIT)
+		return;
+	if (xdr_stream_encode_be32(xdr, rp->rp_status) != XDR_UNIT)
+		return;
+	xdr_stream_encode_opaque_fixed(xdr, rp->rp_buf, rp->rp_buflen);
 }
 
 void nfsd4_release_compoundargs(struct svc_rqst *rqstp)
