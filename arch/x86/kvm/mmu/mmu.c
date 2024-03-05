@@ -3126,7 +3126,7 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	if (pud_none(pud) || !pud_present(pud))
 		goto out;
 
-	if (pud_large(pud)) {
+	if (pud_leaf(pud)) {
 		level = PG_LEVEL_1G;
 		goto out;
 	}
