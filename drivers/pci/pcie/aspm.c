@@ -105,6 +105,7 @@ void pci_restore_aspm_l1ss_state(struct pci_dev *pdev)
 	struct pci_dev *parent = pdev->bus->self;
 	u32 *cap, pl_ctl1, pl_ctl2, pl_l1_2_enable;
 	u32 cl_ctl1, cl_ctl2, cl_l1_2_enable;
+	u16 clnkctl, plnkctl;
 
 	/*
 	 * In case BIOS enabled L1.2 when resuming, we need to disable it first
@@ -128,6 +129,17 @@ void pci_restore_aspm_l1ss_state(struct pci_dev *pdev)
 	cap = &pl_save_state->cap.data[0];
 	pl_ctl2 = *cap++;
 	pl_ctl1 = *cap;
+
+	/* Make sure L0s/L1 are disabled before updating L1SS config */
+	pcie_capability_read_word(pdev, PCI_EXP_LNKCTL, &clnkctl);
+	pcie_capability_read_word(parent, PCI_EXP_LNKCTL, &plnkctl);
+	if (FIELD_GET(PCI_EXP_LNKCTL_ASPMC, clnkctl) ||
+	    FIELD_GET(PCI_EXP_LNKCTL_ASPMC, plnkctl)) {
+		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL,
+					   clnkctl & ~PCI_EXP_LNKCTL_ASPMC);
+		pcie_capability_write_word(parent, PCI_EXP_LNKCTL,
+					   plnkctl & ~PCI_EXP_LNKCTL_ASPMC);
+	}
 
 	/*
 	 * Disable L1.2 on this downstream endpoint device first, followed
@@ -160,6 +172,13 @@ void pci_restore_aspm_l1ss_state(struct pci_dev *pdev)
 				       pl_ctl1 | pl_l1_2_enable);
 		pci_write_config_dword(pdev, pdev->l1ss + PCI_L1SS_CTL1,
 				       cl_ctl1 | cl_l1_2_enable);
+	}
+
+	/* Restore L0s/L1 if they were enabled */
+	if (FIELD_GET(PCI_EXP_LNKCTL_ASPMC, clnkctl) ||
+	    FIELD_GET(PCI_EXP_LNKCTL_ASPMC, plnkctl)) {
+		pcie_capability_write_word(parent, PCI_EXP_LNKCTL, clnkctl);
+		pcie_capability_write_word(pdev, PCI_EXP_LNKCTL, plnkctl);
 	}
 }
 

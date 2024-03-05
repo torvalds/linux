@@ -1633,13 +1633,14 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 {
 	int i = 0;
 	struct pci_cap_saved_state *save_state;
-	u16 *cap, lnkctl;
+	u16 *cap;
 
 	/*
 	 * Restore max latencies (in the LTR capability) before enabling
 	 * LTR itself in PCI_EXP_DEVCTL2.
 	 */
 	pci_restore_ltr_state(dev);
+	pci_restore_aspm_l1ss_state(dev);
 
 	save_state = pci_find_saved_cap(dev, PCI_CAP_ID_EXP);
 	if (!save_state)
@@ -1654,23 +1655,12 @@ static void pci_restore_pcie_state(struct pci_dev *dev)
 
 	cap = (u16 *)&save_state->cap.data[0];
 	pcie_capability_write_word(dev, PCI_EXP_DEVCTL, cap[i++]);
-
-	/* Restore LNKCTL register with ASPM control field clear */
-	lnkctl = cap[i++];
-	pcie_capability_write_word(dev, PCI_EXP_LNKCTL,
-				   lnkctl & ~PCI_EXP_LNKCTL_ASPMC);
-
+	pcie_capability_write_word(dev, PCI_EXP_LNKCTL, cap[i++]);
 	pcie_capability_write_word(dev, PCI_EXP_SLTCTL, cap[i++]);
 	pcie_capability_write_word(dev, PCI_EXP_RTCTL, cap[i++]);
 	pcie_capability_write_word(dev, PCI_EXP_DEVCTL2, cap[i++]);
 	pcie_capability_write_word(dev, PCI_EXP_LNKCTL2, cap[i++]);
 	pcie_capability_write_word(dev, PCI_EXP_SLTCTL2, cap[i++]);
-
-	pci_restore_aspm_l1ss_state(dev);
-
-	/* Restore ASPM control after restoring L1SS state */
-	pcie_capability_set_word(dev, PCI_EXP_LNKCTL,
-				 lnkctl & PCI_EXP_LNKCTL_ASPMC);
 }
 
 static int pci_save_pcix_state(struct pci_dev *dev)
