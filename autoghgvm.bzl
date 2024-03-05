@@ -18,6 +18,7 @@ def define_autoghgvm():
         "drivers/iommu/iommu-logger.ko",
         "drivers/iommu/qcom_iommu_debug.ko",
         "drivers/iommu/qcom_iommu_util.ko",
+        "drivers/mailbox/qcom-ipcc.ko",
         "drivers/net/net_failover.ko",
         "drivers/net/virtio_net.ko",
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
