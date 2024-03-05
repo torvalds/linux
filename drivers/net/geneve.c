@@ -319,19 +319,12 @@ static int geneve_init(struct net_device *dev)
 	struct geneve_dev *geneve = netdev_priv(dev);
 	int err;
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	err = gro_cells_init(&geneve->gro_cells, dev);
-	if (err) {
-		free_percpu(dev->tstats);
+	if (err)
 		return err;
-	}
 
 	err = dst_cache_init(&geneve->cfg.info.dst_cache, GFP_KERNEL);
 	if (err) {
-		free_percpu(dev->tstats);
 		gro_cells_destroy(&geneve->gro_cells);
 		return err;
 	}
@@ -345,7 +338,6 @@ static void geneve_uninit(struct net_device *dev)
 
 	dst_cache_destroy(&geneve->cfg.info.dst_cache);
 	gro_cells_destroy(&geneve->gro_cells);
-	free_percpu(dev->tstats);
 }
 
 /* Callback from net/ipv4/udp.c to receive packets */
@@ -1189,6 +1181,7 @@ static void geneve_setup(struct net_device *dev)
 	dev->hw_features |= NETIF_F_RXCSUM;
 	dev->hw_features |= NETIF_F_GSO_SOFTWARE;
 
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	/* MTU range: 68 - (something less than 65535) */
 	dev->min_mtu = ETH_MIN_MTU;
 	/* The max_mtu calculation does not take account of GENEVE
