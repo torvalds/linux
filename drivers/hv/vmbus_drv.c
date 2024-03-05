@@ -988,7 +988,7 @@ static const struct dev_pm_ops vmbus_pm = {
 };
 
 /* The one and only one */
-static struct bus_type  hv_bus = {
+static const struct bus_type  hv_bus = {
 	.name =		"vmbus",
 	.match =		vmbus_match,
 	.shutdown =		vmbus_shutdown,
