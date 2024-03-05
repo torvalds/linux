@@ -602,6 +602,7 @@ const struct io_cold_def io_cold_defs[] = {
 		.name			= "SEND",
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
+		.cleanup		= io_sendmsg_recvmsg_cleanup,
 		.fail			= io_sendrecv_fail,
 		.prep_async		= io_send_prep_async,
 #endif
