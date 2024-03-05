@@ -646,6 +646,108 @@ static int ucsi_get_src_pdos(struct ucsi_connector *con)
 	return ret;
 }
 
+static int ucsi_read_identity(struct ucsi_connector *con, u8 recipient,
+			      u8 offset, u8 bytes, void *resp)
+{
+	struct ucsi *ucsi = con->ucsi;
+	u64 command;
+	int ret;
+
+	command = UCSI_COMMAND(UCSI_GET_PD_MESSAGE) |
+	    UCSI_CONNECTOR_NUMBER(con->num);
+	command |= UCSI_GET_PD_MESSAGE_RECIPIENT(recipient);
+	command |= UCSI_GET_PD_MESSAGE_OFFSET(offset);
+	command |= UCSI_GET_PD_MESSAGE_BYTES(bytes);
+	command |= UCSI_GET_PD_MESSAGE_TYPE(UCSI_GET_PD_MESSAGE_TYPE_IDENTITY);
+
+	ret = ucsi_send_command(ucsi, command, resp, bytes);
+	if (ret < 0)
+		dev_err(ucsi->dev, "UCSI_GET_PD_MESSAGE failed (%d)\n", ret);
+
+	return ret;
+}
+
+static int ucsi_get_identity(struct ucsi_connector *con, u8 recipient,
+			      struct usb_pd_identity *id)
+{
+	struct ucsi *ucsi = con->ucsi;
+	struct ucsi_pd_message_disc_id resp = {};
+	int ret;
+
+	if (ucsi->version < UCSI_VERSION_2_0) {
+		/*
+		 * Before UCSI v2.0, MESSAGE_IN is 16 bytes which cannot fit
+		 * the 28 byte identity response including the VDM header.
+		 * First request the VDM header, ID Header VDO, Cert Stat VDO
+		 * and Product VDO.
+		 */
+		ret = ucsi_read_identity(con, recipient, 0, 0x10, &resp);
+		if (ret < 0)
+			return ret;
+
+
+		/* Then request Product Type VDO1 through Product Type VDO3. */
+		ret = ucsi_read_identity(con, recipient, 0x10, 0xc,
+					 &resp.vdo[0]);
+		if (ret < 0)
+			return ret;
+
+	} else {
+		/*
+		 * In UCSI v2.0 and after, MESSAGE_IN is large enough to request
+		 * the large enough to request the full Discover Identity
+		 * response at once.
+		 */
+		ret = ucsi_read_identity(con, recipient, 0x0, 0x1c, &resp);
+		if (ret < 0)
+			return ret;
+	}
+
+	id->id_header = resp.id_header;
+	id->cert_stat = resp.cert_stat;
+	id->product = resp.product;
+	id->vdo[0] = resp.vdo[0];
+	id->vdo[1] = resp.vdo[1];
+	id->vdo[2] = resp.vdo[2];
+	return 0;
+}
+
+static int ucsi_get_partner_identity(struct ucsi_connector *con)
+{
+	int ret;
+
+	ret = ucsi_get_identity(con, UCSI_RECIPIENT_SOP,
+				 &con->partner_identity);
+	if (ret < 0)
+		return ret;
+
+	ret = typec_partner_set_identity(con->partner);
+	if (ret < 0) {
+		dev_err(con->ucsi->dev, "Failed to set partner identity (%d)\n",
+			ret);
+	}
+
+	return ret;
+}
+
+static int ucsi_get_cable_identity(struct ucsi_connector *con)
+{
+	int ret;
+
+	ret = ucsi_get_identity(con, UCSI_RECIPIENT_SOP_P,
+				 &con->cable_identity);
+	if (ret < 0)
+		return ret;
+
+	ret = typec_cable_set_identity(con->cable);
+	if (ret < 0) {
+		dev_err(con->ucsi->dev, "Failed to set cable identity (%d)\n",
+			ret);
+	}
+
+	return ret;
+}
+
 static int ucsi_check_altmodes(struct ucsi_connector *con)
 {
 	int ret, num_partner_am;
@@ -754,6 +856,7 @@ static int ucsi_register_cable(struct ucsi_connector *con)
 		break;
 	}
 
+	desc.identity = &con->cable_identity;
 	desc.active = !!(UCSI_CABLE_PROP_FLAG_ACTIVE_CABLE &
 			 con->cable_prop.flags);
 	desc.pd_revision = UCSI_CABLE_PROP_FLAG_PD_MAJOR_REV_AS_BCD(
@@ -777,6 +880,7 @@ static void ucsi_unregister_cable(struct ucsi_connector *con)
 		return;
 
 	typec_unregister_cable(con->cable);
+	memset(&con->cable_identity, 0, sizeof(con->cable_identity));
 	con->cable = NULL;
 }
 
@@ -827,6 +931,7 @@ static int ucsi_register_partner(struct ucsi_connector *con)
 		break;
 	}
 
+	desc.identity = &con->partner_identity;
 	desc.usb_pd = pwr_opmode == UCSI_CONSTAT_PWR_OPMODE_PD;
 	desc.pd_revision = UCSI_CONCAP_FLAG_PARTNER_PD_MAJOR_REV_AS_BCD(con->cap.flags);
 
@@ -855,6 +960,7 @@ static void ucsi_unregister_partner(struct ucsi_connector *con)
 	ucsi_unregister_altmodes(con, UCSI_RECIPIENT_SOP);
 	ucsi_unregister_cable(con);
 	typec_unregister_partner(con->partner);
+	memset(&con->partner_identity, 0, sizeof(con->partner_identity));
 	con->partner = NULL;
 }
 
@@ -975,6 +1081,10 @@ static int ucsi_check_cable(struct ucsi_connector *con)
 	if (ret < 0)
 		return ret;
 
+	ret = ucsi_get_cable_identity(con);
+	if (ret < 0)
+		return ret;
+
 	return 0;
 }
 
@@ -1019,6 +1129,7 @@ static void ucsi_handle_connector_change(struct work_struct *work)
 			ucsi_register_partner(con);
 			ucsi_partner_task(con, ucsi_check_connection, 1, HZ);
 			ucsi_partner_task(con, ucsi_check_connector_capability, 1, HZ);
+			ucsi_partner_task(con, ucsi_get_partner_identity, 1, HZ);
 			ucsi_partner_task(con, ucsi_check_cable, 1, HZ);
 
 			if (UCSI_CONSTAT_PWR_OPMODE(con->status.flags) ==
@@ -1418,6 +1529,7 @@ static int ucsi_register_port(struct ucsi *ucsi, struct ucsi_connector *con)
 		ucsi_register_partner(con);
 		ucsi_pwr_opmode_change(con);
 		ucsi_port_psy_changed(con);
+		ucsi_get_partner_identity(con);
 		ucsi_check_cable(con);
 	}
 
