@@ -14,6 +14,7 @@
 #include <linux/random.h>
 
 #include <net/addrconf.h>
+#include <net/hotdata.h>
 #include <net/inet_connection_sock.h>
 #include <net/inet_hashtables.h>
 #include <net/inet6_hashtables.h>
@@ -25,7 +26,6 @@ u32 inet6_ehashfn(const struct net *net,
 		  const struct in6_addr *laddr, const u16 lport,
 		  const struct in6_addr *faddr, const __be16 fport)
 {
-	static u32 inet6_ehash_secret __read_mostly;
 	static u32 ipv6_hash_secret __read_mostly;
 
 	u32 lhash, fhash;

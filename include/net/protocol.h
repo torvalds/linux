@@ -60,6 +60,7 @@ struct inet6_protocol {
 			       __be32 info);
 
 	unsigned int	flags;	/* INET6_PROTO_xxx */
+	u32		secret;
 };
 
 #define INET6_PROTO_NOPOLICY	0x1
