@@ -4796,7 +4796,6 @@ void dev_get_tstats64(struct net_device *dev, struct rtnl_link_stats64 *s);
 extern int		netdev_max_backlog;
 extern int		dev_rx_weight;
 extern int		dev_tx_weight;
-extern int		gro_normal_batch;
 
 enum {
 	NESTED_SYNC_IMM_BIT,

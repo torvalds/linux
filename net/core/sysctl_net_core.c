@@ -23,6 +23,7 @@
 #include <net/net_ratelimit.h>
 #include <net/busy_poll.h>
 #include <net/pkt_sched.h>
+#include <net/hotdata.h>
 
 #include "dev.h"
 
@@ -632,7 +633,7 @@ static struct ctl_table net_core_table[] = {
 	},
 	{
 		.procname	= "gro_normal_batch",
-		.data		= &gro_normal_batch,
+		.data		= &net_hotdata.gro_normal_batch,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
