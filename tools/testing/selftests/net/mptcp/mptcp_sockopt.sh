@@ -40,13 +40,6 @@ init()
 {
 	mptcp_lib_ns_init ns1 ns2 ns_sbox
 
-	local netns
-	for netns in "$ns1" "$ns2" "$ns_sbox";do
-		ip netns exec $netns sysctl -q net.mptcp.enabled=1
-		ip netns exec $netns sysctl -q net.ipv4.conf.all.rp_filter=0
-		ip netns exec $netns sysctl -q net.ipv4.conf.default.rp_filter=0
-	done
-
 	local i
 	for i in `seq 1 4`; do
 		ip link add ns1eth$i netns "$ns1" type veth peer name ns2eth$i netns "$ns2"

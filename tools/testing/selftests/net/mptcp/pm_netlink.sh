@@ -39,7 +39,6 @@ mptcp_lib_check_tools ip
 trap cleanup EXIT
 
 mptcp_lib_ns_init ns1
-ip netns exec $ns1 sysctl -q net.mptcp.enabled=1
 
 check()
 {

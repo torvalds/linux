@@ -61,10 +61,6 @@ setup()
 	trap cleanup EXIT
 
 	mptcp_lib_ns_init ns1 ns2 ns3
-	for i in "$ns1" "$ns2" "$ns3";do
-		ip netns exec $i sysctl -q net.ipv4.conf.all.rp_filter=0
-		ip netns exec $i sysctl -q net.ipv4.conf.default.rp_filter=0
-	done
 
 	ip link add ns1eth1 netns "$ns1" type veth peer name ns2eth1 netns "$ns2"
 	ip link add ns1eth2 netns "$ns1" type veth peer name ns2eth2 netns "$ns2"
