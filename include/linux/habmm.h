@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef HABMM_H
 #define HABMM_H
@@ -42,6 +42,12 @@
 #define HABMM_SOCKET_OPEN_FLAGS_SINGLE_BE_SINGLE_DOMU      0x00000001
 /* one BE for all the domUs */
 #define HABMM_SOCKET_OPEN_FLAGS_SINGLE_BE_MULTI_DOMUS      0x00000002
+
+/* This option is only available for HAB clients in kernel space, and it will
+ * be HAB clients responsibility in kernel space to avoid calling any unexpected
+ * uninterruptible habmm_socket_open() since it is not killable.
+ */
+#define HABMM_SOCKET_OPEN_FLAGS_UNINTERRUPTIBLE            0x00000004
 
 int32_t habmm_socket_open(int32_t *handle, uint32_t mm_ip_id,
 		uint32_t timeout, uint32_t flags);

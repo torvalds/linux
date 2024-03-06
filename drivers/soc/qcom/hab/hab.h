@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __HAB_H
 #define __HAB_H
@@ -606,7 +606,8 @@ int hab_open_listen(struct uhab_context *ctx,
 		struct hab_device *dev,
 		struct hab_open_request *listen,
 		struct hab_open_request **recv_request,
-		int ms_timeout);
+		int ms_timeout,
+		uint32_t flags);
 
 struct virtual_channel *hab_vchan_alloc(struct uhab_context *ctx,
 		struct physical_channel *pchan, int openid);
