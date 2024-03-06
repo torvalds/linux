@@ -2625,11 +2625,7 @@ int dsa_user_create(struct dsa_port *port)
 	user_dev->vlan_features = conduit->vlan_features;
 
 	p = netdev_priv(user_dev);
-	user_dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!user_dev->tstats) {
-		free_netdev(user_dev);
-		return -ENOMEM;
-	}
+	user_dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	ret = gro_cells_init(&p->gcells, user_dev);
 	if (ret)
@@ -2695,7 +2691,6 @@ out_phy:
 out_gcells:
 	gro_cells_destroy(&p->gcells);
 out_free:
-	free_percpu(user_dev->tstats);
 	free_netdev(user_dev);
 	port->user = NULL;
 	return ret;
@@ -2716,7 +2711,6 @@ void dsa_user_destroy(struct net_device *user_dev)
 
 	dsa_port_phylink_destroy(dp);
 	gro_cells_destroy(&p->gcells);
-	free_percpu(user_dev->tstats);
 	free_netdev(user_dev);
 }
 
