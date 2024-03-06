@@ -16,5 +16,6 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 
 	.tstamp_prequeue = 1,
 	.max_backlog = 1000,
+	.dev_tx_weight = 64,
 };
 EXPORT_SYMBOL(net_hotdata);

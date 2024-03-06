@@ -21,6 +21,7 @@ struct net_hotdata {
 	int			netdev_budget_usecs;
 	int			tstamp_prequeue;
 	int			max_backlog;
+	int			dev_tx_weight;
 };
 
 extern struct net_hotdata net_hotdata;

@@ -4794,7 +4794,6 @@ void dev_fetch_sw_netstats(struct rtnl_link_stats64 *s,
 void dev_get_tstats64(struct net_device *dev, struct rtnl_link_stats64 *s);
 
 extern int		dev_rx_weight;
-extern int		dev_tx_weight;
 
 enum {
 	NESTED_SYNC_IMM_BIT,

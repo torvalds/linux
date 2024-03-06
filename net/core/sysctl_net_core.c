@@ -302,7 +302,7 @@ static int proc_do_dev_weight(struct ctl_table *table, int write,
 	if (!ret && write) {
 		weight = READ_ONCE(weight_p);
 		WRITE_ONCE(dev_rx_weight, weight * dev_weight_rx_bias);
-		WRITE_ONCE(dev_tx_weight, weight * dev_weight_tx_bias);
+		WRITE_ONCE(net_hotdata.dev_tx_weight, weight * dev_weight_tx_bias);
 	}
 	mutex_unlock(&dev_weight_mutex);
 
