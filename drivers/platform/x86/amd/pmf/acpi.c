@@ -140,6 +140,43 @@ static void apmf_sbios_heartbeat_notify(struct work_struct *work)
 	kfree(info);
 }
 
+int amd_pmf_notify_sbios_heartbeat_event_v2(struct amd_pmf_dev *dev, u8 flag)
+{
+	struct sbios_hb_event_v2 args = { };
+	struct acpi_buffer params;
+	union acpi_object *info;
+
+	args.size = sizeof(args);
+
+	switch (flag) {
+	case ON_LOAD:
+		args.load = 1;
+		break;
+	case ON_UNLOAD:
+		args.unload = 1;
+		break;
+	case ON_SUSPEND:
+		args.suspend = 1;
+		break;
+	case ON_RESUME:
+		args.resume = 1;
+		break;
+	default:
+		dev_dbg(dev->dev, "Failed to send v2 heartbeat event, flag:0x%x\n", flag);
+		return -EINVAL;
+	}
+
+	params.length = sizeof(args);
+	params.pointer = &args;
+
+	info = apmf_if_call(dev, APMF_FUNC_SBIOS_HEARTBEAT_V2, &params);
+	if (!info)
+		return -EIO;
+
+	kfree(info);
+	return 0;
+}
+
 int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx)
 {
 	union acpi_object *info;
@@ -327,7 +364,7 @@ void apmf_acpi_deinit(struct amd_pmf_dev *pmf_dev)
 {
 	acpi_handle ahandle = ACPI_HANDLE(pmf_dev->dev);
 
-	if (pmf_dev->hb_interval)
+	if (pmf_dev->hb_interval && pmf_dev->pmf_if_version == PMF_IF_V1)
 		cancel_delayed_work_sync(&pmf_dev->heart_beat);
 
 	if (is_apmf_func_supported(pmf_dev, APMF_FUNC_AUTO_MODE) &&
@@ -351,7 +388,7 @@ int apmf_acpi_init(struct amd_pmf_dev *pmf_dev)
 		goto out;
 	}
 
-	if (pmf_dev->hb_interval) {
+	if (pmf_dev->hb_interval && pmf_dev->pmf_if_version == PMF_IF_V1) {
 		/* send heartbeats only if the interval is not zero */
 		INIT_DELAYED_WORK(&pmf_dev->heart_beat, apmf_sbios_heartbeat_notify);
 		schedule_delayed_work(&pmf_dev->heart_beat, 0);

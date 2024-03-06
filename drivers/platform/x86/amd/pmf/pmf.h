@@ -34,6 +34,7 @@ struct cookie_header {
 #define APMF_FUNC_STATIC_SLIDER_GRANULAR       9
 #define APMF_FUNC_DYN_SLIDER_AC				11
 #define APMF_FUNC_DYN_SLIDER_DC				12
+#define APMF_FUNC_SBIOS_HEARTBEAT_V2			16
 
 /* Message Definitions */
 #define SET_SPL				0x03 /* SPL: Sustained Power Limit */
@@ -88,6 +89,21 @@ struct cookie_header {
 #define MAX_OPERATION_PARAMS					4
 
 #define PMF_IF_V1		1
+
+struct sbios_hb_event_v2 {
+	u16 size;
+	u8 load;
+	u8 unload;
+	u8 suspend;
+	u8 resume;
+} __packed;
+
+enum sbios_hb_v2 {
+	ON_LOAD,
+	ON_UNLOAD,
+	ON_SUSPEND,
+	ON_RESUME,
+};
 
 /* AMD PMF BIOS interfaces */
 struct apmf_verify_interface {
@@ -609,6 +625,7 @@ int amd_pmf_get_power_source(void);
 int apmf_install_handler(struct amd_pmf_dev *pmf_dev);
 int apmf_os_power_slider_update(struct amd_pmf_dev *dev, u8 flag);
 int amd_pmf_set_dram_addr(struct amd_pmf_dev *dev, bool alloc_buffer);
+int amd_pmf_notify_sbios_heartbeat_event_v2(struct amd_pmf_dev *dev, u8 flag);
 
 /* SPS Layer */
 int amd_pmf_get_pprof_modes(struct amd_pmf_dev *pmf);
