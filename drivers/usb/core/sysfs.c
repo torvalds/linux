@@ -929,8 +929,11 @@ static umode_t dev_bin_attrs_are_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct usb_device *udev = to_usb_device(dev);
 
-	/* All USB devices have a device descriptor, so the descriptors
-	 * attribute always exists. No need to check for its visibility.
+	/*
+	 * There's no need to check if the descriptors attribute should
+	 * be visible because all devices have a device descriptor. The
+	 * bos_descriptors attribute should be visible if and only if
+	 * the device has a BOS, so check if it exists here.
 	 */
 	if (a == &bin_attr_bos_descriptors) {
 		if (udev->bos == NULL)
