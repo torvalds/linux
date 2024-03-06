@@ -1231,6 +1231,22 @@ static unsigned int drbd_max_discard_sectors(struct drbd_connection *connection)
 	return AL_EXTENT_SIZE >> 9;
 }
 
+static bool drbd_discard_supported(struct drbd_connection *connection,
+		struct drbd_backing_dev *bdev)
+{
+	if (bdev && !bdev_max_discard_sectors(bdev->backing_bdev))
+		return false;
+
+	if (connection->cstate >= C_CONNECTED &&
+	    !(connection->agreed_features & DRBD_FF_TRIM)) {
+		drbd_info(connection,
+			"peer DRBD too old, does not support TRIM: disabling discards\n");
+		return false;
+	}
+
+	return true;
+}
+
 static void decide_on_discard_support(struct drbd_device *device,
 		struct drbd_backing_dev *bdev)
 {
@@ -1239,15 +1255,8 @@ static void decide_on_discard_support(struct drbd_device *device,
 	struct request_queue *q = device->rq_queue;
 	unsigned int max_discard_sectors;
 
-	if (bdev && !bdev_max_discard_sectors(bdev->backing_bdev))
+	if (!drbd_discard_supported(connection, bdev))
 		goto not_supported;
-
-	if (connection->cstate >= C_CONNECTED &&
-	    !(connection->agreed_features & DRBD_FF_TRIM)) {
-		drbd_info(connection,
-			"peer DRBD too old, does not support TRIM: disabling discards\n");
-		goto not_supported;
-	}
 
 	/*
 	 * We don't care for the granularity, really.
