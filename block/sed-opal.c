@@ -3108,10 +3108,9 @@ static int opal_read_table(struct opal_dev *dev,
 		{ read_table_data, rw_tbl },
 		{ end_opal_session, }
 	};
-	int ret = 0;
 
 	if (!rw_tbl->size)
-		return ret;
+		return 0;
 
 	return execute_steps(dev, read_table_steps,
 			     ARRAY_SIZE(read_table_steps));
@@ -3125,10 +3124,9 @@ static int opal_write_table(struct opal_dev *dev,
 		{ write_table_data, rw_tbl },
 		{ end_opal_session, }
 	};
-	int ret = 0;
 
 	if (!rw_tbl->size)
-		return ret;
+		return 0;
 
 	return execute_steps(dev, write_table_steps,
 			     ARRAY_SIZE(write_table_steps));
