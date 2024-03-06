@@ -612,6 +612,7 @@ enum sec_type {
 	SEC_BSS,
 	SEC_DATA,
 	SEC_RODATA,
+	SEC_ST_OPS,
 };
 
 struct elf_sec_desc {
@@ -627,8 +628,6 @@ struct elf_state {
 	Elf *elf;
 	Elf64_Ehdr *ehdr;
 	Elf_Data *symbols;
-	Elf_Data *st_ops_data;
-	Elf_Data *st_ops_link_data;
 	size_t shstrndx; /* section index for section name strings */
 	size_t strtabidx;
 	struct elf_sec_desc *secs;
@@ -637,8 +636,7 @@ struct elf_state {
 	__u32 btf_maps_sec_btf_id;
 	int text_shndx;
 	int symbols_shndx;
-	int st_ops_shndx;
-	int st_ops_link_shndx;
+	bool has_st_ops;
 };
 
 struct usdt_manager;
@@ -1266,7 +1264,7 @@ static int bpf_object__init_kern_struct_ops_maps(struct bpf_object *obj)
 }
 
 static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
-				int shndx, Elf_Data *data, __u32 map_flags)
+				int shndx, Elf_Data *data)
 {
 	const struct btf_type *type, *datasec;
 	const struct btf_var_secinfo *vsi;
@@ -1328,7 +1326,7 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 		map->def.key_size = sizeof(int);
 		map->def.value_size = type->size;
 		map->def.max_entries = 1;
-		map->def.map_flags = map_flags;
+		map->def.map_flags = strcmp(sec_name, STRUCT_OPS_LINK_SEC) == 0 ? BPF_F_LINK : 0;
 
 		map->st_ops = calloc(1, sizeof(*map->st_ops));
 		if (!map->st_ops)
@@ -1363,15 +1361,25 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 
 static int bpf_object_init_struct_ops(struct bpf_object *obj)
 {
-	int err;
+	const char *sec_name;
+	int sec_idx, err;
 
-	err = init_struct_ops_maps(obj, STRUCT_OPS_SEC, obj->efile.st_ops_shndx,
-				   obj->efile.st_ops_data, 0);
-	err = err ?: init_struct_ops_maps(obj, STRUCT_OPS_LINK_SEC,
-					  obj->efile.st_ops_link_shndx,
-					  obj->efile.st_ops_link_data,
-					  BPF_F_LINK);
-	return err;
+	for (sec_idx = 0; sec_idx < obj->efile.sec_cnt; ++sec_idx) {
+		struct elf_sec_desc *desc = &obj->efile.secs[sec_idx];
+
+		if (desc->sec_type != SEC_ST_OPS)
+			continue;
+
+		sec_name = elf_sec_name(obj, elf_sec_by_idx(obj, sec_idx));
+		if (!sec_name)
+			return -LIBBPF_ERRNO__FORMAT;
+
+		err = init_struct_ops_maps(obj, sec_name, sec_idx, desc->data);
+		if (err)
+			return err;
+	}
+
+	return 0;
 }
 
 static struct bpf_object *bpf_object__new(const char *path,
@@ -1409,8 +1417,6 @@ static struct bpf_object *bpf_object__new(const char *path,
 	obj->efile.obj_buf = obj_buf;
 	obj->efile.obj_buf_sz = obj_buf_sz;
 	obj->efile.btf_maps_shndx = -1;
-	obj->efile.st_ops_shndx = -1;
-	obj->efile.st_ops_link_shndx = -1;
 	obj->kconfig_map_idx = -1;
 
 	obj->kern_version = get_kernel_version();
@@ -1427,8 +1433,6 @@ static void bpf_object__elf_finish(struct bpf_object *obj)
 	elf_end(obj->efile.elf);
 	obj->efile.elf = NULL;
 	obj->efile.symbols = NULL;
-	obj->efile.st_ops_data = NULL;
-	obj->efile.st_ops_link_data = NULL;
 
 	zfree(&obj->efile.secs);
 	obj->efile.sec_cnt = 0;
@@ -2973,14 +2977,13 @@ static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 static bool libbpf_needs_btf(const struct bpf_object *obj)
 {
 	return obj->efile.btf_maps_shndx >= 0 ||
-	       obj->efile.st_ops_shndx >= 0 ||
-	       obj->efile.st_ops_link_shndx >= 0 ||
+	       obj->efile.has_st_ops ||
 	       obj->nr_extern > 0;
 }
 
 static bool kernel_needs_btf(const struct bpf_object *obj)
 {
-	return obj->efile.st_ops_shndx >= 0 || obj->efile.st_ops_link_shndx >= 0;
+	return obj->efile.has_st_ops;
 }
 
 static int bpf_object__init_btf(struct bpf_object *obj,
@@ -3681,12 +3684,12 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				sec_desc->sec_type = SEC_RODATA;
 				sec_desc->shdr = sh;
 				sec_desc->data = data;
-			} else if (strcmp(name, STRUCT_OPS_SEC) == 0) {
-				obj->efile.st_ops_data = data;
-				obj->efile.st_ops_shndx = idx;
-			} else if (strcmp(name, STRUCT_OPS_LINK_SEC) == 0) {
-				obj->efile.st_ops_link_data = data;
-				obj->efile.st_ops_link_shndx = idx;
+			} else if (strcmp(name, STRUCT_OPS_SEC) == 0 ||
+				   strcmp(name, STRUCT_OPS_LINK_SEC) == 0) {
+				sec_desc->sec_type = SEC_ST_OPS;
+				sec_desc->shdr = sh;
+				sec_desc->data = data;
+				obj->efile.has_st_ops = true;
 			} else {
 				pr_info("elf: skipping unrecognized data section(%d) %s\n",
 					idx, name);
@@ -6999,12 +7002,12 @@ static int bpf_object__collect_relos(struct bpf_object *obj)
 		data = sec_desc->data;
 		idx = shdr->sh_info;
 
-		if (shdr->sh_type != SHT_REL) {
+		if (shdr->sh_type != SHT_REL || idx < 0 || idx >= obj->efile.sec_cnt) {
 			pr_warn("internal error at %d\n", __LINE__);
 			return -LIBBPF_ERRNO__INTERNAL;
 		}
 
-		if (idx == obj->efile.st_ops_shndx || idx == obj->efile.st_ops_link_shndx)
+		if (obj->efile.secs[idx].sec_type == SEC_ST_OPS)
 			err = bpf_object__collect_st_ops_relos(obj, shdr, data);
 		else if (idx == obj->efile.btf_maps_shndx)
 			err = bpf_object__collect_map_relos(obj, shdr, data);
