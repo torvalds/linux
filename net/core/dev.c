@@ -4404,9 +4404,6 @@ EXPORT_SYMBOL(__dev_direct_xmit);
  *			Receiver routines
  *************************************************************************/
 
-int netdev_max_backlog __read_mostly = 1000;
-EXPORT_SYMBOL(netdev_max_backlog);
-
 unsigned int sysctl_skb_defer_max __read_mostly = 64;
 int weight_p __read_mostly = 64;           /* old backlog weight */
 int dev_weight_rx_bias __read_mostly = 1;  /* bias for backlog weight */
@@ -4713,7 +4710,7 @@ static bool skb_flow_limit(struct sk_buff *skb, unsigned int qlen)
 	struct softnet_data *sd;
 	unsigned int old_flow, new_flow;
 
-	if (qlen < (READ_ONCE(netdev_max_backlog) >> 1))
+	if (qlen < (READ_ONCE(net_hotdata.max_backlog) >> 1))
 		return false;
 
 	sd = this_cpu_ptr(&softnet_data);
@@ -4761,7 +4758,8 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 	if (!netif_running(skb->dev))
 		goto drop;
 	qlen = skb_queue_len(&sd->input_pkt_queue);
-	if (qlen <= READ_ONCE(netdev_max_backlog) && !skb_flow_limit(skb, qlen)) {
+	if (qlen <= READ_ONCE(net_hotdata.max_backlog) &&
+	    !skb_flow_limit(skb, qlen)) {
 		if (qlen) {
 enqueue:
 			__skb_queue_tail(&sd->input_pkt_queue, skb);

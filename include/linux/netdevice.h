@@ -4793,7 +4793,6 @@ void dev_fetch_sw_netstats(struct rtnl_link_stats64 *s,
 			   const struct pcpu_sw_netstats __percpu *netstats);
 void dev_get_tstats64(struct net_device *dev, struct rtnl_link_stats64 *s);
 
-extern int		netdev_max_backlog;
 extern int		dev_rx_weight;
 extern int		dev_tx_weight;
 

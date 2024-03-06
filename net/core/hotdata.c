@@ -15,4 +15,6 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 	.netdev_budget_usecs = 2 * USEC_PER_SEC / HZ,
 
 	.tstamp_prequeue = 1,
+	.max_backlog = 1000,
 };
+EXPORT_SYMBOL(net_hotdata);
