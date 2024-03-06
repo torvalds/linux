@@ -342,3 +342,34 @@ mptcp_lib_check_output() {
 		return 1
 	fi
 }
+
+mptcp_lib_check_tools() {
+	local tool
+
+	for tool in "${@}"; do
+		case "${tool}" in
+		"ip")
+			if ! ip -Version &> /dev/null; then
+				mptcp_lib_print_warn "SKIP: Could not run test without ip tool"
+				exit ${KSFT_SKIP}
+			fi
+			;;
+		"ss")
+			if ! ss -h | grep -q MPTCP; then
+				mptcp_lib_print_warn "SKIP: ss tool does not support MPTCP"
+				exit ${KSFT_SKIP}
+			fi
+			;;
+		"iptables"* | "ip6tables"*)
+			if ! "${tool}" -V &> /dev/null; then
+				mptcp_lib_print_warn "SKIP: Could not run all tests without ${tool}"
+				exit ${KSFT_SKIP}
+			fi
+			;;
+		*)
+			mptcp_lib_print_err "Internal error: unsupported tool: ${tool}"
+			exit ${KSFT_FAIL}
+			;;
+		esac
+	done
+}
