@@ -1904,14 +1904,6 @@ static int ipv4_proc_init(void);
  *	IP protocol layer initialiser
  */
 
-static struct packet_offload ip_packet_offload __read_mostly = {
-	.type = cpu_to_be16(ETH_P_IP),
-	.callbacks = {
-		.gso_segment = inet_gso_segment,
-		.gro_receive = inet_gro_receive,
-		.gro_complete = inet_gro_complete,
-	},
-};
 
 static const struct net_offload ipip_offload = {
 	.callbacks = {
@@ -1938,7 +1930,15 @@ static int __init ipv4_offload_init(void)
 	if (ipip_offload_init() < 0)
 		pr_crit("%s: Cannot add IPIP protocol offload\n", __func__);
 
-	dev_add_offload(&ip_packet_offload);
+	net_hotdata.ip_packet_offload = (struct packet_offload) {
+		.type = cpu_to_be16(ETH_P_IP),
+		.callbacks = {
+			.gso_segment = inet_gso_segment,
+			.gro_receive = inet_gro_receive,
+			.gro_complete = inet_gro_complete,
+		},
+	};
+	dev_add_offload(&net_hotdata.ip_packet_offload);
 	return 0;
 }
 

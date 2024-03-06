@@ -3,9 +3,14 @@
 #define _NET_HOTDATA_H
 
 #include <linux/types.h>
+#include <linux/netdevice.h>
 
 /* Read mostly data used in network fast paths. */
 struct net_hotdata {
+#if IS_ENABLED(CONFIG_INET)
+	struct packet_offload	ip_packet_offload;
+	struct packet_offload	ipv6_packet_offload;
+#endif
 	struct list_head	offload_base;
 	struct list_head	ptype_all;
 	int			gro_normal_batch;
