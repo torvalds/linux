@@ -89,7 +89,6 @@
  * @base:		Base address of this instance of QUP wrapper core
  * @clks:		Handle to the primary & optional secondary AHB clocks
  * @num_clks:		Count of clocks
- * @to_core:		Core ICC path
  */
 struct geni_wrapper {
 	struct device *dev;
