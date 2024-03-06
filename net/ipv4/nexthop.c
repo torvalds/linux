@@ -480,6 +480,7 @@ static void nexthop_free_group(struct nexthop *nh)
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
 
 		WARN_ON(!list_empty(&nhge->nh_list));
+		free_percpu(nhge->stats);
 		nexthop_put(nhge->nh);
 	}
 
@@ -658,6 +659,16 @@ static int nla_put_nh_group_res(struct sk_buff *skb, struct nh_group *nhg)
 nla_put_failure:
 	nla_nest_cancel(skb, nest);
 	return -EMSGSIZE;
+}
+
+static void nh_grp_entry_stats_inc(struct nh_grp_entry *nhge)
+{
+	struct nh_grp_entry_stats *cpu_stats;
+
+	cpu_stats = this_cpu_ptr(nhge->stats);
+	u64_stats_update_begin(&cpu_stats->syncp);
+	u64_stats_inc(&cpu_stats->packets);
+	u64_stats_update_end(&cpu_stats->syncp);
 }
 
 static int nla_put_nh_group(struct sk_buff *skb, struct nh_group *nhg)
@@ -1182,6 +1193,7 @@ static struct nexthop *nexthop_select_path_fdb(struct nh_group *nhg, int hash)
 		if (hash > atomic_read(&nhge->hthr.upper_bound))
 			continue;
 
+		nh_grp_entry_stats_inc(nhge);
 		return nhge->nh;
 	}
 
@@ -1191,7 +1203,7 @@ static struct nexthop *nexthop_select_path_fdb(struct nh_group *nhg, int hash)
 
 static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 {
-	struct nexthop *rc = NULL;
+	struct nh_grp_entry *nhge0 = NULL;
 	int i;
 
 	if (nhg->fdb_nh)
@@ -1206,16 +1218,20 @@ static struct nexthop *nexthop_select_path_hthr(struct nh_group *nhg, int hash)
 		if (!nexthop_is_good_nh(nhge->nh))
 			continue;
 
-		if (!rc)
-			rc = nhge->nh;
+		if (!nhge0)
+			nhge0 = nhge;
 
 		if (hash > atomic_read(&nhge->hthr.upper_bound))
 			continue;
 
+		nh_grp_entry_stats_inc(nhge);
 		return nhge->nh;
 	}
 
-	return rc ? : nhg->nh_entries[0].nh;
+	if (!nhge0)
+		nhge0 = &nhg->nh_entries[0];
+	nh_grp_entry_stats_inc(nhge0);
+	return nhge0->nh;
 }
 
 static struct nexthop *nexthop_select_path_res(struct nh_group *nhg, int hash)
@@ -1231,6 +1247,7 @@ static struct nexthop *nexthop_select_path_res(struct nh_group *nhg, int hash)
 	bucket = &res_table->nh_buckets[bucket_index];
 	nh_res_bucket_set_busy(bucket);
 	nhge = rcu_dereference(bucket->nh_entry);
+	nh_grp_entry_stats_inc(nhge);
 	return nhge->nh;
 }
 
@@ -1804,6 +1821,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 			newg->has_v4 = true;
 
 		list_del(&nhges[i].nh_list);
+		new_nhges[j].stats = nhges[i].stats;
 		new_nhges[j].nh_parent = nhges[i].nh_parent;
 		new_nhges[j].nh = nhges[i].nh;
 		new_nhges[j].weight = nhges[i].weight;
@@ -1819,6 +1837,7 @@ static void remove_nh_grp_entry(struct net *net, struct nh_grp_entry *nhge,
 	rcu_assign_pointer(nhp->nh_grp, newg);
 
 	list_del(&nhge->nh_list);
+	free_percpu(nhge->stats);
 	nexthop_put(nhge->nh);
 
 	/* Removal of a NH from a resilient group is notified through
@@ -2483,6 +2502,13 @@ static struct nexthop *nexthop_create_group(struct net *net,
 		if (nhi->family == AF_INET)
 			nhg->has_v4 = true;
 
+		nhg->nh_entries[i].stats =
+			netdev_alloc_pcpu_stats(struct nh_grp_entry_stats);
+		if (!nhg->nh_entries[i].stats) {
+			err = -ENOMEM;
+			nexthop_put(nhe);
+			goto out_no_nh;
+		}
 		nhg->nh_entries[i].nh = nhe;
 		nhg->nh_entries[i].weight = entry[i].weight + 1;
 		list_add(&nhg->nh_entries[i].nh_list, &nhe->grp_list);
@@ -2522,6 +2548,7 @@ static struct nexthop *nexthop_create_group(struct net *net,
 out_no_nh:
 	for (i--; i >= 0; --i) {
 		list_del(&nhg->nh_entries[i].nh_list);
+		free_percpu(nhg->nh_entries[i].stats);
 		nexthop_put(nhg->nh_entries[i].nh);
 	}
 

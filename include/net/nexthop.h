@@ -95,8 +95,14 @@ struct nh_res_table {
 	struct nh_res_bucket	nh_buckets[] __counted_by(num_nh_buckets);
 };
 
+struct nh_grp_entry_stats {
+	u64_stats_t packets;
+	struct u64_stats_sync syncp;
+};
+
 struct nh_grp_entry {
 	struct nexthop	*nh;
+	struct nh_grp_entry_stats __percpu	*stats;
 	u8		weight;
 
 	union {
