@@ -2267,6 +2267,15 @@ static int netlink_dump(struct sock *sk, bool lock_taken)
 		if (extra_mutex)
 			mutex_unlock(extra_mutex);
 
+		/* EMSGSIZE plus something already in the skb means
+		 * that there's more to dump but current skb has filled up.
+		 * If the callback really wants to return EMSGSIZE to user space
+		 * it needs to do so again, on the next cb->dump() call,
+		 * without putting data in the skb.
+		 */
+		if (nlk->dump_done_errno == -EMSGSIZE && skb->len)
+			nlk->dump_done_errno = skb->len;
+
 		cb->extack = NULL;
 	}
 
