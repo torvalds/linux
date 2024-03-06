@@ -19,6 +19,7 @@
 #include <asm/param.h>
 #include <kern_util.h>
 #include <os.h>
+#include <linux/delay.h>
 #include <linux/time-internal.h>
 #include <linux/um_timetravel.h>
 #include <shared/init.h>
