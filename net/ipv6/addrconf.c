@@ -717,7 +717,7 @@ errout:
 static u32 inet6_base_seq(const struct net *net)
 {
 	u32 res = atomic_read(&net->ipv6.dev_addr_genid) +
-		  net->dev_base_seq;
+		  READ_ONCE(net->dev_base_seq);
 
 	/* Must not return 0 (see nl_dump_check_consistent()).
 	 * Chose a value far away from 0.
@@ -5272,13 +5272,13 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb,
 
 /* called with rcu_read_lock() */
 static int in6_dump_addrs(const struct inet6_dev *idev, struct sk_buff *skb,
-			  struct netlink_callback *cb, int s_ip_idx,
+			  struct netlink_callback *cb, int *s_ip_idx,
 			  struct inet6_fill_args *fillargs)
 {
 	const struct ifmcaddr6 *ifmca;
 	const struct ifacaddr6 *ifaca;
 	int ip_idx = 0;
-	int err = 1;
+	int err = 0;
 
 	switch (fillargs->type) {
 	case UNICAST_ADDR: {
@@ -5287,7 +5287,7 @@ static int in6_dump_addrs(const struct inet6_dev *idev, struct sk_buff *skb,
 
 		/* unicast address incl. temp addr */
 		list_for_each_entry_rcu(ifa, &idev->addr_list, if_list) {
-			if (ip_idx < s_ip_idx)
+			if (ip_idx < *s_ip_idx)
 				goto next;
 			err = inet6_fill_ifaddr(skb, ifa, fillargs);
 			if (err < 0)
@@ -5305,7 +5305,7 @@ next:
 		for (ifmca = rcu_dereference(idev->mc_list);
 		     ifmca;
 		     ifmca = rcu_dereference(ifmca->next), ip_idx++) {
-			if (ip_idx < s_ip_idx)
+			if (ip_idx < *s_ip_idx)
 				continue;
 			err = inet6_fill_ifmcaddr(skb, ifmca, fillargs);
 			if (err < 0)
@@ -5317,7 +5317,7 @@ next:
 		/* anycast address */
 		for (ifaca = rcu_dereference(idev->ac_list); ifaca;
 		     ifaca = rcu_dereference(ifaca->aca_next), ip_idx++) {
-			if (ip_idx < s_ip_idx)
+			if (ip_idx < *s_ip_idx)
 				continue;
 			err = inet6_fill_ifacaddr(skb, ifaca, fillargs);
 			if (err < 0)
@@ -5327,7 +5327,7 @@ next:
 	default:
 		break;
 	}
-	cb->args[2] = ip_idx;
+	*s_ip_idx = err ? ip_idx : 0;
 	return err;
 }
 
@@ -5390,6 +5390,7 @@ static int inet6_valid_dump_ifaddr_req(const struct nlmsghdr *nlh,
 static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 			   enum addr_type_t type)
 {
+	struct net *tgt_net = sock_net(skb->sk);
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct inet6_fill_args fillargs = {
 		.portid = NETLINK_CB(cb->skb).portid,
@@ -5398,72 +5399,52 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 		.netnsid = -1,
 		.type = type,
 	};
-	struct net *tgt_net = sock_net(skb->sk);
-	int idx, s_idx, s_ip_idx;
-	int h, s_h;
+	struct {
+		unsigned long ifindex;
+		int ip_idx;
+	} *ctx = (void *)cb->ctx;
 	struct net_device *dev;
 	struct inet6_dev *idev;
-	struct hlist_head *head;
 	int err = 0;
-
-	s_h = cb->args[0];
-	s_idx = idx = cb->args[1];
-	s_ip_idx = cb->args[2];
 
 	rcu_read_lock();
 	if (cb->strict_check) {
 		err = inet6_valid_dump_ifaddr_req(nlh, &fillargs, &tgt_net,
 						  skb->sk, cb);
 		if (err < 0)
-			goto put_tgt_net;
+			goto done;
 
 		err = 0;
 		if (fillargs.ifindex) {
-			dev = __dev_get_by_index(tgt_net, fillargs.ifindex);
-			if (!dev) {
-				err = -ENODEV;
-				goto put_tgt_net;
-			}
+			err = -ENODEV;
+			dev = dev_get_by_index_rcu(tgt_net, fillargs.ifindex);
+			if (!dev)
+				goto done;
 			idev = __in6_dev_get(dev);
-			if (idev) {
-				err = in6_dump_addrs(idev, skb, cb, s_ip_idx,
+			if (idev)
+				err = in6_dump_addrs(idev, skb, cb,
+						     &ctx->ip_idx,
 						     &fillargs);
-				if (err > 0)
-					err = 0;
-			}
-			goto put_tgt_net;
+			goto done;
 		}
 	}
 
 	cb->seq = inet6_base_seq(tgt_net);
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &tgt_net->dev_index_head[h];
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			if (h > s_h || idx > s_idx)
-				s_ip_idx = 0;
-			idev = __in6_dev_get(dev);
-			if (!idev)
-				goto cont;
-
-			if (in6_dump_addrs(idev, skb, cb, s_ip_idx,
-					   &fillargs) < 0)
-				goto done;
-cont:
-			idx++;
-		}
+	for_each_netdev_dump(tgt_net, dev, ctx->ifindex) {
+		idev = __in6_dev_get(dev);
+		if (!idev)
+			continue;
+		err = in6_dump_addrs(idev, skb, cb, &ctx->ip_idx,
+				     &fillargs);
+		if (err < 0)
+			goto done;
 	}
 done:
-	cb->args[0] = h;
-	cb->args[1] = idx;
-put_tgt_net:
 	rcu_read_unlock();
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 
-	return skb->len ? : err;
+	return err;
 }
 
 static int inet6_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
