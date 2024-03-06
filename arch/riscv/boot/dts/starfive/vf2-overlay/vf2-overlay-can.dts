@@ -1,0 +1,23 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
+/ {
+	compatible = "starfive,visionfive-v2", "starfive,jh7110";
+
+	/* can0 */
+	fragment@0 {
+		target-path = "/soc/can@130d0000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	/* can1 */
+	fragment@1 {
+		target-path = "/soc/can@130e0000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
