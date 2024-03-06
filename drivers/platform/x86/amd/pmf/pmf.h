@@ -89,6 +89,7 @@ struct cookie_header {
 #define MAX_OPERATION_PARAMS					4
 
 #define PMF_IF_V1		1
+#define PMF_IF_V2		2
 
 struct sbios_hb_event_v2 {
 	u16 size;
@@ -228,6 +229,14 @@ enum power_modes {
 	POWER_MODE_MAX,
 };
 
+enum power_modes_v2 {
+	POWER_MODE_BEST_PERFORMANCE,
+	POWER_MODE_BALANCED,
+	POWER_MODE_BEST_POWER_EFFICIENCY,
+	POWER_MODE_ENERGY_SAVE,
+	POWER_MODE_V2_MAX,
+};
+
 struct amd_pmf_dev {
 	void __iomem *regbase;
 	void __iomem *smu_virt_addr;
@@ -268,6 +277,10 @@ struct amd_pmf_dev {
 	u16 pmf_if_version;
 };
 
+struct apmf_sps_prop_granular_v2 {
+	u8 power_states[POWER_SOURCE_MAX][POWER_MODE_V2_MAX];
+} __packed;
+
 struct apmf_sps_prop_granular {
 	u32 fppt;
 	u32 sppt;
@@ -287,6 +300,16 @@ struct apmf_static_slider_granular_output {
 struct amd_pmf_static_slider_granular {
 	u16 size;
 	struct apmf_sps_prop_granular prop[POWER_SOURCE_MAX][POWER_MODE_MAX];
+};
+
+struct apmf_static_slider_granular_output_v2 {
+	u16 size;
+	struct apmf_sps_prop_granular_v2 sps_idx;
+} __packed;
+
+struct amd_pmf_static_slider_granular_v2 {
+	u16 size;
+	struct apmf_sps_prop_granular_v2 sps_idx;
 };
 
 struct os_power_slider {
@@ -643,6 +666,8 @@ const char *amd_pmf_source_as_str(unsigned int state);
 
 int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx);
 int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf);
+int apmf_get_static_slider_granular_v2(struct amd_pmf_dev *dev,
+				       struct apmf_static_slider_granular_output_v2 *data);
 
 /* Auto Mode Layer */
 int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data);

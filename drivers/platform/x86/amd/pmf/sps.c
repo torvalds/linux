@@ -10,9 +10,26 @@
 
 #include "pmf.h"
 
+static struct amd_pmf_static_slider_granular_v2 config_store_v2;
 static struct amd_pmf_static_slider_granular config_store;
 
 #ifdef CONFIG_AMD_PMF_DEBUG
+static const char *slider_v2_as_str(unsigned int state)
+{
+	switch (state) {
+	case POWER_MODE_BEST_PERFORMANCE:
+		return "Best Performance";
+	case POWER_MODE_BALANCED:
+		return "Balanced";
+	case POWER_MODE_BEST_POWER_EFFICIENCY:
+		return "Best Power Efficiency";
+	case POWER_MODE_ENERGY_SAVE:
+		return "Energy Save";
+	default:
+		return "Unknown Power Mode";
+	}
+}
+
 static const char *slider_as_str(unsigned int state)
 {
 	switch (state) {
@@ -63,9 +80,43 @@ static void amd_pmf_dump_sps_defaults(struct amd_pmf_static_slider_granular *dat
 
 	pr_debug("Static Slider Data - END\n");
 }
+
+static void amd_pmf_dump_sps_defaults_v2(struct amd_pmf_static_slider_granular_v2 *data)
+{
+	unsigned int i, j;
+
+	pr_debug("Static Slider APTS state index data - BEGIN");
+	pr_debug("size: %u\n", data->size);
+
+	for (i = 0; i < POWER_SOURCE_MAX; i++)
+		for (j = 0; j < POWER_MODE_V2_MAX; j++)
+			pr_debug("%s %s: %u\n", amd_pmf_source_as_str(i), slider_v2_as_str(j),
+				 data->sps_idx.power_states[i][j]);
+
+	pr_debug("Static Slider APTS state index data - END\n");
+}
 #else
 static void amd_pmf_dump_sps_defaults(struct amd_pmf_static_slider_granular *data) {}
+static void amd_pmf_dump_sps_defaults_v2(struct amd_pmf_static_slider_granular_v2 *data) {}
 #endif
+
+static void amd_pmf_load_defaults_sps_v2(struct amd_pmf_dev *dev)
+{
+	struct apmf_static_slider_granular_output_v2 output;
+	unsigned int i, j;
+
+	memset(&config_store_v2, 0, sizeof(config_store_v2));
+	apmf_get_static_slider_granular_v2(dev, &output);
+
+	config_store_v2.size = output.size;
+
+	for (i = 0; i < POWER_SOURCE_MAX; i++)
+		for (j = 0; j < POWER_MODE_V2_MAX; j++)
+			config_store_v2.sps_idx.power_states[i][j] =
+							output.sps_idx.power_states[i][j];
+
+	amd_pmf_dump_sps_defaults_v2(&config_store_v2);
+}
 
 static void amd_pmf_load_defaults_sps(struct amd_pmf_dev *dev)
 {
@@ -256,7 +307,10 @@ int amd_pmf_init_sps(struct amd_pmf_dev *dev)
 	dev->current_profile = PLATFORM_PROFILE_BALANCED;
 
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR)) {
-		amd_pmf_load_defaults_sps(dev);
+		if (dev->pmf_if_version == PMF_IF_V2)
+			amd_pmf_load_defaults_sps_v2(dev);
+		else
+			amd_pmf_load_defaults_sps(dev);
 
 		/* update SPS balanced power mode thermals */
 		amd_pmf_set_sps_power_limits(dev);
