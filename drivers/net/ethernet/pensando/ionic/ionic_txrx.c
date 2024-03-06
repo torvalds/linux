@@ -128,19 +128,15 @@ static unsigned int ionic_rx_buf_size(struct ionic_buf_info *buf_info)
 static int ionic_rx_page_alloc(struct ionic_queue *q,
 			       struct ionic_buf_info *buf_info)
 {
-	struct ionic_rx_stats *stats;
+	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
-	struct device *dev;
 	struct page *page;
-
-	dev = q->dev;
-	stats = q_to_rx_stats(q);
 
 	page = alloc_pages(IONIC_PAGE_GFP_MASK, 0);
 	if (unlikely(!page)) {
 		net_err_ratelimited("%s: %s page alloc failed\n",
 				    dev_name(dev), q->name);
-		stats->alloc_err++;
+		q_to_rx_stats(q)->alloc_err++;
 		return -ENOMEM;
 	}
 
@@ -150,7 +146,7 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 		__free_pages(page, 0);
 		net_err_ratelimited("%s: %s dma map failed\n",
 				    dev_name(dev), q->name);
-		stats->dma_map_err++;
+		q_to_rx_stats(q)->dma_map_err++;
 		return -EIO;
 	}
 
@@ -233,12 +229,9 @@ static struct sk_buff *ionic_rx_build_skb(struct ionic_queue *q,
 					  bool synced)
 {
 	struct ionic_buf_info *buf_info;
-	struct ionic_rx_stats *stats;
 	struct sk_buff *skb;
 	unsigned int i;
 	u16 frag_len;
-
-	stats = q_to_rx_stats(q);
 
 	buf_info = &desc_info->bufs[0];
 	prefetchw(buf_info->page);
@@ -247,7 +240,7 @@ static struct sk_buff *ionic_rx_build_skb(struct ionic_queue *q,
 	if (unlikely(!skb)) {
 		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
 				     dev_name(q->dev), q->name);
-		stats->alloc_err++;
+		q_to_rx_stats(q)->alloc_err++;
 		return NULL;
 	}
 
@@ -286,11 +279,8 @@ static struct sk_buff *ionic_rx_copybreak(struct net_device *netdev,
 					  bool synced)
 {
 	struct ionic_buf_info *buf_info;
-	struct ionic_rx_stats *stats;
 	struct device *dev = q->dev;
 	struct sk_buff *skb;
-
-	stats = q_to_rx_stats(q);
 
 	buf_info = &desc_info->bufs[0];
 
@@ -298,7 +288,7 @@ static struct sk_buff *ionic_rx_copybreak(struct net_device *netdev,
 	if (unlikely(!skb)) {
 		net_warn_ratelimited("%s: SKB alloc failed on %s!\n",
 				     dev_name(dev), q->name);
-		stats->alloc_err++;
+		q_to_rx_stats(q)->alloc_err++;
 		return NULL;
 	}
 
@@ -1064,7 +1054,6 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
 				      void *data, size_t len)
 {
-	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 
@@ -1072,7 +1061,7 @@ static dma_addr_t ionic_tx_map_single(struct ionic_queue *q,
 	if (dma_mapping_error(dev, dma_addr)) {
 		net_warn_ratelimited("%s: DMA single map failed on %s!\n",
 				     dev_name(dev), q->name);
-		stats->dma_map_err++;
+		q_to_tx_stats(q)->dma_map_err++;
 		return 0;
 	}
 	return dma_addr;
@@ -1082,7 +1071,6 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
 				    const skb_frag_t *frag,
 				    size_t offset, size_t len)
 {
-	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct device *dev = q->dev;
 	dma_addr_t dma_addr;
 
@@ -1090,7 +1078,7 @@ static dma_addr_t ionic_tx_map_frag(struct ionic_queue *q,
 	if (dma_mapping_error(dev, dma_addr)) {
 		net_warn_ratelimited("%s: DMA frag map failed on %s!\n",
 				     dev_name(dev), q->name);
-		stats->dma_map_err++;
+		q_to_tx_stats(q)->dma_map_err++;
 		return 0;
 	}
 	return dma_addr;
@@ -1742,12 +1730,10 @@ static int ionic_tx_descs_needed(struct ionic_queue *q, struct sk_buff *skb)
 
 linearize:
 	if (too_many_frags) {
-		struct ionic_tx_stats *stats = q_to_tx_stats(q);
-
 		err = skb_linearize(skb);
 		if (err)
 			return err;
-		stats->linearize++;
+		q_to_tx_stats(q)->linearize++;
 	}
 
 	return ndescs;
