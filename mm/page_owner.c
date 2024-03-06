@@ -107,8 +107,10 @@ static __init void init_page_owner(void)
 	/* Initialize dummy and failure stacks and link them to stack_list */
 	dummy_stack.stack_record = __stack_depot_get_stack_record(dummy_handle);
 	failure_stack.stack_record = __stack_depot_get_stack_record(failure_handle);
-	refcount_set(&dummy_stack.stack_record->count, 1);
-	refcount_set(&failure_stack.stack_record->count, 1);
+	if (dummy_stack.stack_record)
+		refcount_set(&dummy_stack.stack_record->count, 1);
+	if (failure_stack.stack_record)
+		refcount_set(&failure_stack.stack_record->count, 1);
 	dummy_stack.next = &failure_stack;
 	stack_list = &dummy_stack;
 }
@@ -855,6 +857,9 @@ static int stack_print(struct seq_file *m, void *v)
 	unsigned long *entries;
 	unsigned long nr_entries;
 	struct stack_record *stack_record = stack->stack_record;
+
+	if (!stack->stack_record)
+		return 0;
 
 	nr_entries = stack_record->size;
 	entries = stack_record->entries;
