@@ -975,6 +975,8 @@ static const struct i2c_algorithm nmk_i2c_algo = {
 static void nmk_i2c_of_probe(struct device_node *np,
 			     struct nmk_i2c_dev *priv)
 {
+	u32 timeout_usecs;
+
 	/* Default to 100 kHz if no frequency is given in the node */
 	if (of_property_read_u32(np, "clock-frequency", &priv->clk_freq))
 		priv->clk_freq = I2C_MAX_STANDARD_MODE_FREQ;
@@ -986,7 +988,12 @@ static void nmk_i2c_of_probe(struct device_node *np,
 		priv->sm = I2C_FREQ_MODE_FAST;
 	priv->tft = 1; /* Tx FIFO threshold */
 	priv->rft = 8; /* Rx FIFO threshold */
-	priv->timeout_usecs = 200 * USEC_PER_MSEC; /* Slave response timeout */
+
+	/* Slave response timeout */
+	if (!of_property_read_u32(np, "i2c-transfer-timeout-us", &timeout_usecs))
+		priv->timeout_usecs = timeout_usecs;
+	else
+		priv->timeout_usecs = 200 * USEC_PER_MSEC;
 }
 
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
