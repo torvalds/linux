@@ -11,7 +11,7 @@
 
 #ifndef __ASSEMBLY__
 /* Performance Monitor Registers */
-static inline unsigned int mfpmr(unsigned int rn)
+static __always_inline unsigned int mfpmr(unsigned int rn)
 {
 	unsigned int rval;
 
@@ -24,7 +24,7 @@ static inline unsigned int mfpmr(unsigned int rn)
 	return rval;
 }
 
-static inline void mtpmr(unsigned int rn, unsigned int val)
+static __always_inline void mtpmr(unsigned int rn, unsigned int val)
 {
 	asm (".machine push; "
 	     ".machine e300; "
