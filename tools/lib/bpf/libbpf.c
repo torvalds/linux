@@ -1322,6 +1322,15 @@ static int init_struct_ops_maps(struct bpf_object *obj, const char *sec_name,
 			return -ENOMEM;
 		map->btf_value_type_id = type_id;
 
+		/* Follow same convention as for programs autoload:
+		 * SEC("?.struct_ops") means map is not created by default.
+		 */
+		if (sec_name[0] == '?') {
+			map->autocreate = false;
+			/* from now on forget there was ? in section name */
+			sec_name++;
+		}
+
 		map->def.type = BPF_MAP_TYPE_STRUCT_OPS;
 		map->def.key_size = sizeof(int);
 		map->def.value_size = type->size;
@@ -3685,7 +3694,9 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 				sec_desc->shdr = sh;
 				sec_desc->data = data;
 			} else if (strcmp(name, STRUCT_OPS_SEC) == 0 ||
-				   strcmp(name, STRUCT_OPS_LINK_SEC) == 0) {
+				   strcmp(name, STRUCT_OPS_LINK_SEC) == 0 ||
+				   strcmp(name, "?" STRUCT_OPS_SEC) == 0 ||
+				   strcmp(name, "?" STRUCT_OPS_LINK_SEC) == 0) {
 				sec_desc->sec_type = SEC_ST_OPS;
 				sec_desc->shdr = sh;
 				sec_desc->data = data;
@@ -3705,6 +3716,8 @@ static int bpf_object__elf_collect(struct bpf_object *obj)
 			if (!section_have_execinstr(obj, targ_sec_idx) &&
 			    strcmp(name, ".rel" STRUCT_OPS_SEC) &&
 			    strcmp(name, ".rel" STRUCT_OPS_LINK_SEC) &&
+			    strcmp(name, ".rel?" STRUCT_OPS_SEC) &&
+			    strcmp(name, ".rel?" STRUCT_OPS_LINK_SEC) &&
 			    strcmp(name, ".rel" MAPS_ELF_SEC)) {
 				pr_info("elf: skipping relo section(%d) %s for section(%d) %s\n",
 					idx, name, targ_sec_idx,
