@@ -22,6 +22,7 @@
 #include "smb2proto.h"
 #include "fs_context.h"
 #include "cached_dir.h"
+#include "reparse.h"
 
 /*
  * To be safe - for UCS to UTF-8 with strings loaded with the rare long
@@ -54,23 +55,6 @@ static inline void dump_cifs_file_struct(struct file *file, char *label)
 {
 }
 #endif /* DEBUG2 */
-
-/*
- * Match a reparse point inode if reparse tag and ctime haven't changed.
- *
- * Windows Server updates ctime of reparse points when their data have changed.
- * The server doesn't allow changing reparse tags from existing reparse points,
- * though it's worth checking.
- */
-static inline bool reparse_inode_match(struct inode *inode,
-				       struct cifs_fattr *fattr)
-{
-	struct timespec64 ctime = inode_get_ctime(inode);
-
-	return (CIFS_I(inode)->cifsAttrs & ATTR_REPARSE) &&
-		CIFS_I(inode)->reparse_tag == fattr->cf_cifstag &&
-		timespec64_equal(&ctime, &fattr->cf_ctime);
-}
 
 /*
  * Attempt to preload the dcache with the results from the FIND_FIRST/NEXT
