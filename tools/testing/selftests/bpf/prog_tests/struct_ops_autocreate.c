@@ -34,10 +34,24 @@ cleanup:
 	struct_ops_autocreate__destroy(skel);
 }
 
+static int check_test_1_link(struct struct_ops_autocreate *skel, struct bpf_map *map)
+{
+	struct bpf_link *link;
+	int err;
+
+	link = bpf_map__attach_struct_ops(skel->maps.testmod_1);
+	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops"))
+		return -1;
+
+	/* test_1() would be called from bpf_dummy_reg2() in bpf_testmod.c */
+	err = ASSERT_EQ(skel->bss->test_1_result, 42, "test_1_result");
+	bpf_link__destroy(link);
+	return err;
+}
+
 static void can_load_partial_object(void)
 {
 	struct struct_ops_autocreate *skel;
-	struct bpf_link *link = NULL;
 	int err;
 
 	skel = struct_ops_autocreate__open();
@@ -58,15 +72,39 @@ static void can_load_partial_object(void)
 	ASSERT_TRUE(bpf_program__autoload(skel->progs.test_1), "test_1 actual autoload");
 	ASSERT_FALSE(bpf_program__autoload(skel->progs.test_2), "test_2 actual autoload");
 
-	link = bpf_map__attach_struct_ops(skel->maps.testmod_1);
-	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops"))
-		goto cleanup;
-
-	/* test_1() would be called from bpf_dummy_reg2() in bpf_testmod.c */
-	ASSERT_EQ(skel->bss->test_1_result, 42, "test_1_result");
+	check_test_1_link(skel, skel->maps.testmod_1);
 
 cleanup:
-	bpf_link__destroy(link);
+	struct_ops_autocreate__destroy(skel);
+}
+
+static void optional_maps(void)
+{
+	struct struct_ops_autocreate *skel;
+	int err;
+
+	skel = struct_ops_autocreate__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_autocreate__open"))
+		return;
+
+	ASSERT_TRUE(bpf_map__autocreate(skel->maps.testmod_1), "testmod_1 autocreate");
+	ASSERT_TRUE(bpf_map__autocreate(skel->maps.testmod_2), "testmod_2 autocreate");
+	ASSERT_FALSE(bpf_map__autocreate(skel->maps.optional_map), "optional_map autocreate");
+	ASSERT_FALSE(bpf_map__autocreate(skel->maps.optional_map2), "optional_map2 autocreate");
+
+	err  = bpf_map__set_autocreate(skel->maps.testmod_1, false);
+	err |= bpf_map__set_autocreate(skel->maps.testmod_2, false);
+	err |= bpf_map__set_autocreate(skel->maps.optional_map2, true);
+	if (!ASSERT_OK(err, "bpf_map__set_autocreate"))
+		goto cleanup;
+
+	err = struct_ops_autocreate__load(skel);
+	if (ASSERT_OK(err, "struct_ops_autocreate__load"))
+		goto cleanup;
+
+	check_test_1_link(skel, skel->maps.optional_map2);
+
+cleanup:
 	struct_ops_autocreate__destroy(skel);
 }
 
@@ -116,4 +154,6 @@ void test_struct_ops_autocreate(void)
 		can_load_partial_object();
 	if (test__start_subtest("autoload_and_shadow_vars"))
 		autoload_and_shadow_vars();
+	if (test__start_subtest("optional_maps"))
+		optional_maps();
 }

@@ -40,3 +40,13 @@ struct bpf_testmod_ops___v2 testmod_2 = {
 	.test_1 = (void *)test_1,
 	.does_not_exist = (void *)test_2
 };
+
+SEC("?.struct_ops")
+struct bpf_testmod_ops___v1 optional_map = {
+	.test_1 = (void *)test_1,
+};
+
+SEC("?.struct_ops.link")
+struct bpf_testmod_ops___v1 optional_map2 = {
+	.test_1 = (void *)test_1,
+};
