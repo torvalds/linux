@@ -251,7 +251,6 @@ err:
 
 static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 {
-	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	if (!gt)
@@ -259,7 +258,7 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 
 	err = xe_gt_tlb_invalidation_ggtt(gt);
 	if (err)
-		drm_warn(&xe->drm, "xe_gt_tlb_invalidation_ggtt error=%d", err);
+		drm_warn(&gt_to_xe(gt)->drm, "xe_gt_tlb_invalidation_ggtt error=%d", err);
 }
 
 void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
