@@ -1500,6 +1500,7 @@ static int btt_blk_init(struct btt *btt)
 	struct queue_limits lim = {
 		.logical_block_size	= btt->sector_size,
 		.max_hw_sectors		= UINT_MAX,
+		.max_integrity_segments	= 1,
 	};
 	int rc;
 
@@ -1521,7 +1522,6 @@ static int btt_blk_init(struct btt *btt)
 			.tag_size	= btt_meta_size(btt),
 		};
 		blk_integrity_register(btt->btt_disk, &bi);
-		blk_queue_max_integrity_segments(btt->btt_disk->queue, 1);
 	}
 
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);
