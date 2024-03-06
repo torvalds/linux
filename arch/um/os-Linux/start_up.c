@@ -20,6 +20,7 @@
 #include <asm/unistd.h>
 #include <init.h>
 #include <os.h>
+#include <kern_util.h>
 #include <mem_user.h>
 #include <ptrace_user.h>
 #include <registers.h>
