@@ -63,9 +63,9 @@ Exercises
 .. include:: ../labs/exercises-summary.hrst
 .. |LAB_NAME| replace:: kernel_modules
 
-.. include:: ../labs/introduction.rst
-    :start-after: [EXERCISE1-BEGIN]
-    :end-before: [EXERCISE1-END]
+.. .. include:: ../labs/introduction.rst
+..     :start-after: [EXERCISE1-BEGIN]
+..     :end-before: [EXERCISE1-END]
 
 .. include:: ../labs/kernel_modules.rst
     :start-after: [EXERCISE1-BEGIN]

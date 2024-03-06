@@ -1,6 +1,11 @@
 .. _vm_link:
 
 =====================
+Recommended Setup
+=====================
+The simplest way to achieve a functional setup is to follow the steps listed in `this repo <https://gitlab.cs.pub.ro/so2/so2-labs>`__.
+
+=====================
 Virtual Machine Setup
 =====================
 

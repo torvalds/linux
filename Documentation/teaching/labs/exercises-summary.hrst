@@ -1,10 +1,10 @@
 .. important::
 
-   To solve exercises, you need to perform these steps:
+   We strongly encourage you to use the setup from `this repository <https://gitlab.cs.pub.ro/so2/so2-labs>`__.
 
+   To solve exercises, you need to perform these steps:
       * prepare skeletons from templates
       * build modules
-      * copy modules to the VM
       * start the VM and test the module in the VM.
 
    The current lab name is |LAB_NAME|. See the exercises for the task name.
@@ -30,17 +30,16 @@
 
       tools/labs $ make build
 
-   Then, copy the modules and start the VM:
+   Then, start the VM:
 
    .. code-block:: shell
 
-      tools/labs $ make copy
-      tools/labs $ make boot
+      tools/labs $ make console
 
    The modules are placed in /home/root/skels/|LAB_NAME|/<task_name>.
 
-   Alternatively, we can copy files via :command:`scp`, in order to avoid restarting the VM.
-   For additional details about connecting to the VM via the network, please check :ref:`vm_interaction_link`.
+   You DO NOT need to STOP the VM when rebuilding modules!
+   The local `skels` directory is shared with the VM.
 
    Review the `Exercises`_ section for more detailed information.
 

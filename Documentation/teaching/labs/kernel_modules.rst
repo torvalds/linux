@@ -996,17 +996,15 @@ in the Linux kernel source code:
 To work with the kernel modules, we will follow the steps described
 :ref:`above <exercises_summary>`.
 
-Generate the skeleton for the task named **1-2-test-mod** then build and
-copy the module to the VM, by running the following commands in
-:file:`tools/labs`.
+Generate the skeleton for the task named **1-2-test-mod** then build the module,
+ by running the following command in :file:`tools/labs`.
 
 .. code-block:: bash
 
   $ LABS=kernel_modules make skels
   $ make build
-  $ make copy
 
-These commands will build and copy all the modules in the current
+These command will build all the modules in the current
 lab skeleton.
 
 .. warning::
@@ -1015,8 +1013,7 @@ lab skeleton.
   :file:`skels/kernel_modules/3-error-mod/` and remove the corresponding
   line from ``skels/Kbuild``.
 
-Start the VM using :command:`make boot`, connect to the serial console
-using `minicom -D serial.pts` and perform the following tasks:
+Start the VM using :command:`make console`, and perform the following tasks:
 
 * load the kernel module.
 
