@@ -46,6 +46,7 @@ struct net_protocol {
 				 * socket lookup?
 				 */
 				icmp_strict_tag_validation:1;
+	u32			secret;
 };
 
 #if IS_ENABLED(CONFIG_IPV6)
