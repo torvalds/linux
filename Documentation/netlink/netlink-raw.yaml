@@ -189,8 +189,9 @@ properties:
             Prefix for the C enum name of the attributes. Default family[name]-set[name]-a-
           type: string
         enum-name:
-          description: Name for the enum type of the attribute.
-          type: string
+          description: |
+            Name for the enum type of the attribute, if empty no name will be used.
+          type: [ string, "null" ]
         doc:
           description: Documentation of the space.
           type: string
@@ -371,14 +372,16 @@ properties:
           the prefix with the upper case name of the command, with dashes replaced by underscores.
         type: string
       enum-name:
-        description: Name for the enum type with commands.
-        type: string
+        description: |
+          Name for the enum type with commands, if empty no name will be used.
+        type: [ string, "null" ]
       async-prefix:
         description: Same as name-prefix but used to render notifications and events to separate enum.
         type: string
       async-enum:
-        description: Name for the enum type with notifications/events.
-        type: string
+        description: |
+          Name for the enum type with commands, if empty no name will be used.
+        type: [ string, "null" ]
       # Start genetlink-legacy
       fixed-header: &fixed-header
         description: |
