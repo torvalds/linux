@@ -20,12 +20,14 @@ intel_qat-objs := adf_cfg.o \
 	adf_gen4_config.o \
 	adf_gen4_hw_csr_data.o \
 	adf_gen4_hw_data.o \
+	adf_gen4_vf_mig.o \
 	adf_gen4_pm.o \
 	adf_gen2_dc.o \
 	adf_gen4_dc.o \
 	adf_gen4_ras.o \
 	adf_gen4_timer.o \
 	adf_clock.o \
+	adf_mstate_mgr.o \
 	qat_crypto.o \
 	qat_compression.o \
 	qat_comp_algs.o \

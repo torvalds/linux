@@ -412,11 +412,17 @@ struct adf_fw_loader_data {
 struct adf_accel_vf_info {
 	struct adf_accel_dev *accel_dev;
 	struct mutex pf2vf_lock; /* protect CSR access for PF2VF messages */
+	struct mutex pfvf_mig_lock; /* protects PFVF state for migration */
 	struct ratelimit_state vf2pf_ratelimit;
 	u32 vf_nr;
 	bool init;
 	bool restarting;
 	u8 vf_compat_ver;
+	/*
+	 * Private area used for device migration.
+	 * Memory allocation and free is managed by migration driver.
+	 */
+	void *mig_priv;
 };
 
 struct adf_dc_data {

@@ -86,6 +86,7 @@
 #define ADF_RP_INT_SRC_SEL_F_RISE_MASK	BIT(2)
 #define ADF_RP_INT_SRC_SEL_F_FALL_MASK	GENMASK(2, 0)
 #define ADF_RP_INT_SRC_SEL_RANGE_WIDTH	4
+#define ADF_COALESCED_POLL_TIMEOUT_US	(1 * USEC_PER_SEC)
 #define ADF_COALESCED_POLL_DELAY_US	1000
 #define ADF_WQM_CSR_RPINTSOU(bank)	(0x200000 + ((bank) << 12))
 #define ADF_WQM_CSR_RP_IDX_RX		1
@@ -120,6 +121,15 @@
 /* PF2VM communication channel */
 #define ADF_GEN4_PF2VM_OFFSET(i)	(0x40B010 + (i) * 0x20)
 #define ADF_GEN4_VM2PF_OFFSET(i)	(0x40B014 + (i) * 0x20)
+#define ADF_GEN4_VINTMSKPF2VM_OFFSET(i)	(0x40B00C + (i) * 0x20)
+#define ADF_GEN4_VINTSOUPF2VM_OFFSET(i)	(0x40B008 + (i) * 0x20)
+#define ADF_GEN4_VINTMSK_OFFSET(i)	(0x40B004 + (i) * 0x20)
+#define ADF_GEN4_VINTSOU_OFFSET(i)	(0x40B000 + (i) * 0x20)
+
+struct adf_gen4_vfmig {
+	struct adf_mstate_mgr *mstate_mgr;
+	bool bank_stopped[ADF_GEN4_NUM_BANKS_PER_VF];
+};
 
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 
