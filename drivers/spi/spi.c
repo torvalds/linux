@@ -745,6 +745,23 @@ int spi_add_device(struct spi_device *spi)
 }
 EXPORT_SYMBOL_GPL(spi_add_device);
 
+static void spi_set_all_cs_unused(struct spi_device *spi)
+{
+	u8 idx;
+
+	/*
+	 * Zero(0) is a valid physical CS value and can be located at any
+	 * logical CS in the spi->chip_select[]. If all the physical CS
+	 * are initialized to 0 then It would be difficult to differentiate
+	 * between a valid physical CS 0 & an unused logical CS whose physical
+	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
+	 * Now all the unused logical CS will have 0xFF physical CS value & can be
+	 * ignore while performing physical CS validity checks.
+	 */
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
+		spi_set_chipselect(spi, idx, 0xFF);
+}
+
 /**
  * spi_new_device - instantiate one new SPI device
  * @ctlr: Controller to which device is connected
@@ -764,7 +781,6 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 {
 	struct spi_device	*proxy;
 	int			status;
-	u8                      idx;
 
 	/*
 	 * NOTE:  caller did any chip->bus_num checks necessary.
@@ -780,19 +796,10 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 
 	WARN_ON(strlen(chip->modalias) >= sizeof(proxy->modalias));
 
-	/*
-	 * Zero(0) is a valid physical CS value and can be located at any
-	 * logical CS in the spi->chip_select[]. If all the physical CS
-	 * are initialized to 0 then It would be difficult to differentiate
-	 * between a valid physical CS 0 & an unused logical CS whose physical
-	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
-	 */
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
-		spi_set_chipselect(proxy, idx, 0xFF);
-
+	/* Use provided chip-select for proxy device */
+	spi_set_all_cs_unused(proxy);
 	spi_set_chipselect(proxy, 0, chip->chip_select);
+
 	proxy->max_speed_hz = chip->max_speed_hz;
 	proxy->mode = chip->mode;
 	proxy->irq = chip->irq;
@@ -2418,17 +2425,7 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		return -EINVAL;
 	}
 
-	/*
-	 * Zero(0) is a valid physical CS value and can be located at any
-	 * logical CS in the spi->chip_select[]. If all the physical CS
-	 * are initialized to 0 then It would be difficult to differentiate
-	 * between a valid physical CS 0 & an unused logical CS whose physical
-	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
-	 */
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
-		spi_set_chipselect(spi, idx, 0xFF);
+	spi_set_all_cs_unused(spi);
 
 	/* Device address */
 	rc = of_property_read_variable_u32_array(nc, "reg", &cs[0], 1,
@@ -2565,7 +2562,6 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 	struct spi_controller *ctlr = spi->controller;
 	struct spi_device *ancillary;
 	int rc = 0;
-	u8 idx;
 
 	/* Alloc an spi_device */
 	ancillary = spi_alloc_device(ctlr);
@@ -2576,19 +2572,8 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 
 	strscpy(ancillary->modalias, "dummy", sizeof(ancillary->modalias));
 
-	/*
-	 * Zero(0) is a valid physical CS value and can be located at any
-	 * logical CS in the spi->chip_select[]. If all the physical CS
-	 * are initialized to 0 then It would be difficult to differentiate
-	 * between a valid physical CS 0 & an unused logical CS whose physical
-	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
-	 */
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
-		spi_set_chipselect(ancillary, idx, 0xFF);
-
 	/* Use provided chip-select for ancillary device */
+	spi_set_all_cs_unused(ancillary);
 	spi_set_chipselect(ancillary, 0, chip_select);
 
 	/* Take over SPI mode/speed from SPI main device */
@@ -2805,7 +2790,6 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 	struct acpi_spi_lookup lookup = {};
 	struct spi_device *spi;
 	int ret;
-	u8 idx;
 
 	if (!ctlr && index == -1)
 		return ERR_PTR(-EINVAL);
@@ -2841,24 +2825,14 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 		return ERR_PTR(-ENOMEM);
 	}
 
-	/*
-	 * Zero(0) is a valid physical CS value and can be located at any
-	 * logical CS in the spi->chip_select[]. If all the physical CS
-	 * are initialized to 0 then It would be difficult to differentiate
-	 * between a valid physical CS 0 & an unused logical CS whose physical
-	 * CS can be 0. As a solution to this issue initialize all the CS to 0xFF.
-	 * Now all the unused logical CS will have 0xFF physical CS value & can be
-	 * ignore while performing physical CS validity checks.
-	 */
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)
-		spi_set_chipselect(spi, idx, 0xFF);
+	spi_set_all_cs_unused(spi);
+	spi_set_chipselect(spi, 0, lookup.chip_select);
 
 	ACPI_COMPANION_SET(&spi->dev, adev);
 	spi->max_speed_hz	= lookup.max_speed_hz;
 	spi->mode		|= lookup.mode;
 	spi->irq		= lookup.irq;
 	spi->bits_per_word	= lookup.bits_per_word;
-	spi_set_chipselect(spi, 0, lookup.chip_select);
 	/*
 	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
 	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
