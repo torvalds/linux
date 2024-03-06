@@ -577,6 +577,7 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 {
 	enum dcn_zstate_support_state support = DCN_ZSTATE_SUPPORT_DISALLOW;
 	unsigned int i, plane_count = 0;
+	DC_LOGGER_INIT(dc->ctx->logger);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (context->res_ctx.pipe_ctx[i].plane_state)
@@ -607,6 +608,9 @@ void dcn35_decide_zstate_support(struct dc *dc, struct dc_state *context)
 			support = DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY;
 
 	}
+
+	DC_LOG_SMU("zstate_support: %d, StutterPeriod: %d\n", support,
+		   (int)context->bw_ctx.dml.vba.StutterPeriod);
 
 	context->bw_ctx.bw.dcn.clk.zstate_support = support;
 }
