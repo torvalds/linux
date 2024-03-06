@@ -190,6 +190,19 @@ static void amd_pmf_load_defaults_sps(struct amd_pmf_dev *dev)
 	amd_pmf_dump_sps_defaults(&config_store);
 }
 
+static void amd_pmf_update_slider_v2(struct amd_pmf_dev *dev, int idx)
+{
+	amd_pmf_send_cmd(dev, SET_PMF_PPT, false, apts_config_store.val[idx].pmf_ppt, NULL);
+	amd_pmf_send_cmd(dev, SET_PMF_PPT_APU_ONLY, false,
+			 apts_config_store.val[idx].ppt_pmf_apu_only, NULL);
+	amd_pmf_send_cmd(dev, SET_STT_MIN_LIMIT, false,
+			 apts_config_store.val[idx].stt_min_limit, NULL);
+	amd_pmf_send_cmd(dev, SET_STT_LIMIT_APU, false,
+			 apts_config_store.val[idx].stt_skin_temp_limit_apu, NULL);
+	amd_pmf_send_cmd(dev, SET_STT_LIMIT_HS2, false,
+			 apts_config_store.val[idx].stt_skin_temp_limit_hs2, NULL);
+}
+
 void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 			   struct amd_pmf_static_slider_granular *table)
 {
@@ -222,6 +235,32 @@ void amd_pmf_update_slider(struct amd_pmf_dev *dev, bool op, int idx,
 	}
 }
 
+static int amd_pmf_update_sps_power_limits_v2(struct amd_pmf_dev *pdev, int pwr_mode)
+{
+	int src, index;
+
+	src = amd_pmf_get_power_source();
+
+	switch (pwr_mode) {
+	case POWER_MODE_PERFORMANCE:
+		index = config_store_v2.sps_idx.power_states[src][POWER_MODE_BEST_PERFORMANCE];
+		amd_pmf_update_slider_v2(pdev, index);
+		break;
+	case POWER_MODE_BALANCED_POWER:
+		index = config_store_v2.sps_idx.power_states[src][POWER_MODE_BALANCED];
+		amd_pmf_update_slider_v2(pdev, index);
+		break;
+	case POWER_MODE_POWER_SAVER:
+		index = config_store_v2.sps_idx.power_states[src][POWER_MODE_BEST_POWER_EFFICIENCY];
+		amd_pmf_update_slider_v2(pdev, index);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf)
 {
 	int mode;
@@ -229,6 +268,9 @@ int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf)
 	mode = amd_pmf_get_pprof_modes(pmf);
 	if (mode < 0)
 		return mode;
+
+	if (pmf->pmf_if_version == PMF_IF_V2)
+		return amd_pmf_update_sps_power_limits_v2(pmf, mode);
 
 	amd_pmf_update_slider(pmf, SLIDER_OP_SET, mode, NULL);
 
