@@ -20,6 +20,7 @@
  * and finally report the pass/fail/skip/xfail state of the test with one of:
  *
  *     ksft_test_result(condition, fmt, ...);
+ *     ksft_test_result_report(result, fmt, ...);
  *     ksft_test_result_pass(fmt, ...);
  *     ksft_test_result_fail(fmt, ...);
  *     ksft_test_result_skip(fmt, ...);
@@ -304,6 +305,27 @@ void ksft_test_result_code(int exit_code, const char *test_name,
 	}
 	printf("\n");
 }
+
+/**
+ * ksft_test_result() - Report test success based on truth of condition
+ *
+ * @condition: if true, report test success, otherwise failure.
+ */
+#define ksft_test_result_report(result, fmt, ...) do {		\
+	switch (result) {					\
+	case KSFT_PASS:						\
+		ksft_test_result_pass(fmt, ##__VA_ARGS__);	\
+		break;						\
+	case KSFT_FAIL:						\
+		ksft_test_result_fail(fmt, ##__VA_ARGS__);	\
+		break;						\
+	case KSFT_XFAIL:					\
+		ksft_test_result_xfail(fmt, ##__VA_ARGS__);	\
+		break;						\
+	case KSFT_SKIP:						\
+		ksft_test_result_skip(fmt, ##__VA_ARGS__);	\
+		break;						\
+	} } while (0)
 
 static inline __noreturn int ksft_exit_pass(void)
 {
