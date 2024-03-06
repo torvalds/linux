@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <trace/events/block.h>
 #include "md-cluster.h"
 
 #define MaxSector (~(sector_t)0)
@@ -479,7 +480,6 @@ struct mddev {
 	struct timer_list		safemode_timer;
 	struct percpu_ref		writes_pending;
 	int				sync_checkers;	/* # of threads checking writes_pending */
-	struct request_queue		*queue;	/* for plugging ... */
 
 	struct bitmap			*bitmap; /* the bitmap for the device */
 	struct {
@@ -868,7 +868,7 @@ static inline void mddev_check_write_zeroes(struct mddev *mddev, struct bio *bio
 {
 	if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
 	    !bio->bi_bdev->bd_disk->queue->limits.max_write_zeroes_sectors)
-		mddev->queue->limits.max_write_zeroes_sectors = 0;
+		mddev->gendisk->queue->limits.max_write_zeroes_sectors = 0;
 }
 
 static inline int mddev_suspend_and_lock(struct mddev *mddev)
@@ -907,7 +907,31 @@ void md_autostart_arrays(int part);
 int md_set_array_info(struct mddev *mddev, struct mdu_array_info_s *info);
 int md_add_new_disk(struct mddev *mddev, struct mdu_disk_info_s *info);
 int do_md_run(struct mddev *mddev);
+void mddev_stack_rdev_limits(struct mddev *mddev, struct queue_limits *lim);
+int mddev_stack_new_rdev(struct mddev *mddev, struct md_rdev *rdev);
+void mddev_update_io_opt(struct mddev *mddev, unsigned int nr_stripes);
 
 extern const struct block_device_operations md_fops;
+
+/*
+ * MD devices can be used undeneath by DM, in which case ->gendisk is NULL.
+ */
+static inline bool mddev_is_dm(struct mddev *mddev)
+{
+	return !mddev->gendisk;
+}
+
+static inline void mddev_trace_remap(struct mddev *mddev, struct bio *bio,
+		sector_t sector)
+{
+	if (!mddev_is_dm(mddev))
+		trace_block_bio_remap(bio, disk_devt(mddev->gendisk), sector);
+}
+
+#define mddev_add_trace_msg(mddev, fmt, args...)			\
+do {									\
+	if (!mddev_is_dm(mddev))					\
+		blk_add_trace_msg((mddev)->gendisk->queue, fmt, ##args); \
+} while (0)
 
 #endif /* _MD_MD_H */
