@@ -146,6 +146,7 @@ def define_niobe():
         "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/smp2p.ko",
+        "drivers/soc/qcom/smp2p_sleepstate.ko",
         "drivers/soc/qcom/socinfo.ko",
         "drivers/soc/qcom/sps/sps_drv.ko",
         "drivers/soc/qcom/sysmon_subsystem_stats.ko",
