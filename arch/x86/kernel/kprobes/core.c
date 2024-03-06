@@ -252,7 +252,28 @@ unsigned long recover_probed_instruction(kprobe_opcode_t *buf, unsigned long add
 	return __recover_probed_insn(buf, addr);
 }
 
-/* Check if paddr is at an instruction boundary */
+/* Check if insn is INT or UD */
+static inline bool is_exception_insn(struct insn *insn)
+{
+	/* UD uses 0f escape */
+	if (insn->opcode.bytes[0] == 0x0f) {
+		/* UD0 / UD1 / UD2 */
+		return insn->opcode.bytes[1] == 0xff ||
+		       insn->opcode.bytes[1] == 0xb9 ||
+		       insn->opcode.bytes[1] == 0x0b;
+	}
+
+	/* INT3 / INT n / INTO / INT1 */
+	return insn->opcode.bytes[0] == 0xcc ||
+	       insn->opcode.bytes[0] == 0xcd ||
+	       insn->opcode.bytes[0] == 0xce ||
+	       insn->opcode.bytes[0] == 0xf1;
+}
+
+/*
+ * Check if paddr is at an instruction boundary and that instruction can
+ * be probed
+ */
 static bool can_probe(unsigned long paddr)
 {
 	unsigned long addr, __addr, offset = 0;
@@ -291,6 +312,22 @@ static bool can_probe(unsigned long paddr)
 #endif
 		addr += insn.length;
 	}
+
+	/* Check if paddr is at an instruction boundary */
+	if (addr != paddr)
+		return false;
+
+	__addr = recover_probed_instruction(buf, addr);
+	if (!__addr)
+		return false;
+
+	if (insn_decode_kernel(&insn, (void *)__addr) < 0)
+		return false;
+
+	/* INT and UD are special and should not be kprobed */
+	if (is_exception_insn(&insn))
+		return false;
+
 	if (IS_ENABLED(CONFIG_CFI_CLANG)) {
 		/*
 		 * The compiler generates the following instruction sequence
@@ -305,13 +342,6 @@ static bool can_probe(unsigned long paddr)
 		 * Also, these movl and addl are used for showing expected
 		 * type. So those must not be touched.
 		 */
-		__addr = recover_probed_instruction(buf, addr);
-		if (!__addr)
-			return false;
-
-		if (insn_decode_kernel(&insn, (void *)__addr) < 0)
-			return false;
-
 		if (insn.opcode.value == 0xBA)
 			offset = 12;
 		else if (insn.opcode.value == 0x3)
@@ -325,7 +355,7 @@ static bool can_probe(unsigned long paddr)
 	}
 
 out:
-	return (addr == paddr);
+	return true;
 }
 
 /* If x86 supports IBT (ENDBR) it must be skipped. */
