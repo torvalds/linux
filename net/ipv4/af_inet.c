@@ -1751,19 +1751,6 @@ static const struct net_protocol igmp_protocol = {
 };
 #endif
 
-static const struct net_protocol tcp_protocol = {
-	.handler	=	tcp_v4_rcv,
-	.err_handler	=	tcp_v4_err,
-	.no_policy	=	1,
-	.icmp_strict_tag_validation = 1,
-};
-
-static const struct net_protocol udp_protocol = {
-	.handler =	udp_rcv,
-	.err_handler =	udp_err,
-	.no_policy =	1,
-};
-
 static const struct net_protocol icmp_protocol = {
 	.handler =	icmp_rcv,
 	.err_handler =	icmp_err,
@@ -1992,9 +1979,22 @@ static int __init inet_init(void)
 
 	if (inet_add_protocol(&icmp_protocol, IPPROTO_ICMP) < 0)
 		pr_crit("%s: Cannot add ICMP protocol\n", __func__);
-	if (inet_add_protocol(&udp_protocol, IPPROTO_UDP) < 0)
+
+	net_hotdata.udp_protocol = (struct net_protocol) {
+		.handler =	udp_rcv,
+		.err_handler =	udp_err,
+		.no_policy =	1,
+	};
+	if (inet_add_protocol(&net_hotdata.udp_protocol, IPPROTO_UDP) < 0)
 		pr_crit("%s: Cannot add UDP protocol\n", __func__);
-	if (inet_add_protocol(&tcp_protocol, IPPROTO_TCP) < 0)
+
+	net_hotdata.tcp_protocol = (struct net_protocol) {
+		.handler	=	tcp_v4_rcv,
+		.err_handler	=	tcp_v4_err,
+		.no_policy	=	1,
+		.icmp_strict_tag_validation = 1,
+	};
+	if (inet_add_protocol(&net_hotdata.tcp_protocol, IPPROTO_TCP) < 0)
 		pr_crit("%s: Cannot add TCP protocol\n", __func__);
 #ifdef CONFIG_IP_MULTICAST
 	if (inet_add_protocol(&igmp_protocol, IPPROTO_IGMP) < 0)
