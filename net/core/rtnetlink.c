@@ -2267,11 +2267,8 @@ walk_entries:
 				       nlh->nlmsg_seq, 0, flags,
 				       ext_filter_mask, 0, NULL, 0,
 				       netnsid, GFP_KERNEL);
-		if (err < 0) {
-			if (likely(skb->len))
-				err = skb->len;
+		if (err < 0)
 			break;
-		}
 	}
 	cb->seq = tgt_net->dev_base_seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));

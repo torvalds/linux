@@ -1900,8 +1900,6 @@ static int inet_dump_ifaddr(struct sk_buff *skb, struct netlink_callback *cb)
 			goto done;
 	}
 done:
-	if (err < 0 && likely(skb->len))
-		err = skb->len;
 	if (fillargs.netnsid >= 0)
 		put_net(tgt_net);
 	rcu_read_unlock();
@@ -2312,8 +2310,6 @@ static int inet_netconf_dump_devconf(struct sk_buff *skb,
 		ctx->all_default++;
 	}
 done:
-	if (err < 0 && likely(skb->len))
-		err = skb->len;
 	rcu_read_unlock();
 	return err;
 }

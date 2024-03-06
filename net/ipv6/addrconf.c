@@ -793,8 +793,6 @@ static int inet6_netconf_dump_devconf(struct sk_buff *skb,
 		ctx->all_default++;
 	}
 done:
-	if (err < 0 && likely(skb->len))
-		err = skb->len;
 	rcu_read_unlock();
 	return err;
 }
@@ -6158,11 +6156,8 @@ static int inet6_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 					NETLINK_CB(cb->skb).portid,
 					cb->nlh->nlmsg_seq,
 					RTM_NEWLINK, NLM_F_MULTI);
-		if (err < 0) {
-			if (likely(skb->len))
-				err = skb->len;
+		if (err < 0)
 			break;
-		}
 	}
 	rcu_read_unlock();
 

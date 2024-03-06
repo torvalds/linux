@@ -1026,8 +1026,6 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 			goto unlock;
 		}
 		err = fib_table_dump(tb, skb, cb, &filter);
-		if (err < 0 && skb->len)
-			err = skb->len;
 		goto unlock;
 	}
 
@@ -1045,11 +1043,8 @@ static int inet_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 				memset(&cb->args[2], 0, sizeof(cb->args) -
 						 2 * sizeof(cb->args[0]));
 			err = fib_table_dump(tb, skb, cb, &filter);
-			if (err < 0) {
-				if (likely(skb->len))
-					err = skb->len;
+			if (err < 0)
 				goto out;
-			}
 			dumped = 1;
 next:
 			e++;
