@@ -26,7 +26,8 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 #define NH_DEV_HASHBITS  8
 #define NH_DEV_HASHSIZE (1U << NH_DEV_HASHBITS)
 
-#define NHA_OP_FLAGS_DUMP_ALL (NHA_OP_FLAG_DUMP_STATS)
+#define NHA_OP_FLAGS_DUMP_ALL (NHA_OP_FLAG_DUMP_STATS |		\
+			       NHA_OP_FLAG_DUMP_HW_STATS)
 
 static const struct nla_policy rtm_nh_policy_new[] = {
 	[NHA_ID]		= { .type = NLA_U32 },
@@ -700,8 +701,95 @@ static void nh_grp_entry_stats_read(struct nh_grp_entry *nhge,
 	}
 }
 
+static int nh_notifier_grp_hw_stats_init(struct nh_notifier_info *info,
+					 const struct nexthop *nh)
+{
+	struct nh_group *nhg;
+	int i;
+
+	ASSERT_RTNL();
+	nhg = rtnl_dereference(nh->nh_grp);
+
+	info->id = nh->id;
+	info->type = NH_NOTIFIER_INFO_TYPE_GRP_HW_STATS;
+	info->nh_grp_hw_stats = kzalloc(struct_size(info->nh_grp_hw_stats,
+						    stats, nhg->num_nh),
+					GFP_KERNEL);
+	if (!info->nh_grp_hw_stats)
+		return -ENOMEM;
+
+	info->nh_grp_hw_stats->num_nh = nhg->num_nh;
+	for (i = 0; i < nhg->num_nh; i++) {
+		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+
+		info->nh_grp_hw_stats->stats[i].id = nhge->nh->id;
+	}
+
+	return 0;
+}
+
+static void nh_notifier_grp_hw_stats_fini(struct nh_notifier_info *info)
+{
+	kfree(info->nh_grp_hw_stats);
+}
+
+void nh_grp_hw_stats_report_delta(struct nh_notifier_grp_hw_stats_info *info,
+				  unsigned int nh_idx,
+				  u64 delta_packets)
+{
+	info->hw_stats_used = true;
+	info->stats[nh_idx].packets += delta_packets;
+}
+EXPORT_SYMBOL(nh_grp_hw_stats_report_delta);
+
+static void nh_grp_hw_stats_apply_update(struct nexthop *nh,
+					 struct nh_notifier_info *info)
+{
+	struct nh_group *nhg;
+	int i;
+
+	ASSERT_RTNL();
+	nhg = rtnl_dereference(nh->nh_grp);
+
+	for (i = 0; i < nhg->num_nh; i++) {
+		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+
+		nhge->packets_hw += info->nh_grp_hw_stats->stats[i].packets;
+	}
+}
+
+static int nh_grp_hw_stats_update(struct nexthop *nh, bool *hw_stats_used)
+{
+	struct nh_notifier_info info = {
+		.net = nh->net,
+	};
+	struct net *net = nh->net;
+	int err;
+
+	if (nexthop_notifiers_is_empty(net))
+		return 0;
+
+	err = nh_notifier_grp_hw_stats_init(&info, nh);
+	if (err)
+		return err;
+
+	err = blocking_notifier_call_chain(&net->nexthop.notifier_chain,
+					   NEXTHOP_EVENT_HW_STATS_REPORT_DELTA,
+					   &info);
+
+	/* Cache whatever we got, even if there was an error, otherwise the
+	 * successful stats retrievals would get lost.
+	 */
+	nh_grp_hw_stats_apply_update(nh, &info);
+	*hw_stats_used = info.nh_grp_hw_stats->hw_stats_used;
+
+	nh_notifier_grp_hw_stats_fini(&info);
+	return notifier_to_errno(err);
+}
+
 static int nla_put_nh_group_stats_entry(struct sk_buff *skb,
-					struct nh_grp_entry *nhge)
+					struct nh_grp_entry *nhge,
+					u32 op_flags)
 {
 	struct nlattr *nest;
 	u64 packets;
@@ -713,7 +801,13 @@ static int nla_put_nh_group_stats_entry(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	if (nla_put_u32(skb, NHA_GROUP_STATS_ENTRY_ID, nhge->nh->id) ||
-	    nla_put_uint(skb, NHA_GROUP_STATS_ENTRY_PACKETS, packets))
+	    nla_put_uint(skb, NHA_GROUP_STATS_ENTRY_PACKETS,
+			 packets + nhge->packets_hw))
+		goto nla_put_failure;
+
+	if (op_flags & NHA_OP_FLAG_DUMP_HW_STATS &&
+	    nla_put_uint(skb, NHA_GROUP_STATS_ENTRY_PACKETS_HW,
+			 nhge->packets_hw))
 		goto nla_put_failure;
 
 	nla_nest_end(skb, nest);
@@ -724,18 +818,35 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
-static int nla_put_nh_group_stats(struct sk_buff *skb, struct nexthop *nh)
+static int nla_put_nh_group_stats(struct sk_buff *skb, struct nexthop *nh,
+				  u32 op_flags)
 {
 	struct nh_group *nhg = rtnl_dereference(nh->nh_grp);
 	struct nlattr *nest;
+	bool hw_stats_used;
+	int err;
 	int i;
+
+	if (nla_put_u32(skb, NHA_HW_STATS_ENABLE, nhg->hw_stats))
+		goto err_out;
+
+	if (op_flags & NHA_OP_FLAG_DUMP_HW_STATS &&
+	    nhg->hw_stats) {
+		err = nh_grp_hw_stats_update(nh, &hw_stats_used);
+		if (err)
+			goto out;
+
+		if (nla_put_u32(skb, NHA_HW_STATS_USED, hw_stats_used))
+			goto err_out;
+	}
 
 	nest = nla_nest_start(skb, NHA_GROUP_STATS);
 	if (!nest)
-		return -EMSGSIZE;
+		goto err_out;
 
 	for (i = 0; i < nhg->num_nh; i++)
-		if (nla_put_nh_group_stats_entry(skb, &nhg->nh_entries[i]))
+		if (nla_put_nh_group_stats_entry(skb, &nhg->nh_entries[i],
+						 op_flags))
 			goto cancel_out;
 
 	nla_nest_end(skb, nest);
@@ -743,7 +854,10 @@ static int nla_put_nh_group_stats(struct sk_buff *skb, struct nexthop *nh)
 
 cancel_out:
 	nla_nest_cancel(skb, nest);
-	return -EMSGSIZE;
+err_out:
+	err = -EMSGSIZE;
+out:
+	return err;
 }
 
 static int nla_put_nh_group(struct sk_buff *skb, struct nexthop *nh,
@@ -780,7 +894,7 @@ static int nla_put_nh_group(struct sk_buff *skb, struct nexthop *nh,
 
 	if (op_flags & NHA_OP_FLAG_DUMP_STATS &&
 	    (nla_put_u32(skb, NHA_HW_STATS_ENABLE, nhg->hw_stats) ||
-	     nla_put_nh_group_stats(skb, nh)))
+	     nla_put_nh_group_stats(skb, nh, op_flags)))
 		goto nla_put_failure;
 
 	return 0;

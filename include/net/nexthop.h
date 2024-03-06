@@ -122,6 +122,7 @@ struct nh_grp_entry {
 
 	struct list_head nh_list;
 	struct nexthop	*nh_parent;  /* nexthop of group with this entry */
+	u64		packets_hw;
 };
 
 struct nh_group {
@@ -166,6 +167,7 @@ enum nexthop_event_type {
 	NEXTHOP_EVENT_REPLACE,
 	NEXTHOP_EVENT_RES_TABLE_PRE_REPLACE,
 	NEXTHOP_EVENT_BUCKET_REPLACE,
+	NEXTHOP_EVENT_HW_STATS_REPORT_DELTA,
 };
 
 enum nh_notifier_info_type {
@@ -173,6 +175,7 @@ enum nh_notifier_info_type {
 	NH_NOTIFIER_INFO_TYPE_GRP,
 	NH_NOTIFIER_INFO_TYPE_RES_TABLE,
 	NH_NOTIFIER_INFO_TYPE_RES_BUCKET,
+	NH_NOTIFIER_INFO_TYPE_GRP_HW_STATS,
 };
 
 struct nh_notifier_single_info {
@@ -214,6 +217,17 @@ struct nh_notifier_res_table_info {
 	struct nh_notifier_single_info nhs[] __counted_by(num_nh_buckets);
 };
 
+struct nh_notifier_grp_hw_stats_entry_info {
+	u32 id;
+	u64 packets;
+};
+
+struct nh_notifier_grp_hw_stats_info {
+	u16 num_nh;
+	bool hw_stats_used;
+	struct nh_notifier_grp_hw_stats_entry_info stats[] __counted_by(num_nh);
+};
+
 struct nh_notifier_info {
 	struct net *net;
 	struct netlink_ext_ack *extack;
@@ -224,6 +238,7 @@ struct nh_notifier_info {
 		struct nh_notifier_grp_info *nh_grp;
 		struct nh_notifier_res_table_info *nh_res_table;
 		struct nh_notifier_res_bucket_info *nh_res_bucket;
+		struct nh_notifier_grp_hw_stats_info *nh_grp_hw_stats;
 	};
 };
 
@@ -236,6 +251,9 @@ void nexthop_bucket_set_hw_flags(struct net *net, u32 id, u16 bucket_index,
 				 bool offload, bool trap);
 void nexthop_res_grp_activity_update(struct net *net, u32 id, u16 num_buckets,
 				     unsigned long *activity);
+void nh_grp_hw_stats_report_delta(struct nh_notifier_grp_hw_stats_info *info,
+				  unsigned int nh_idx,
+				  u64 delta_packets);
 
 /* caller is holding rcu or rtnl; no reference taken to nexthop */
 struct nexthop *nexthop_find_by_id(struct net *net, u32 id);

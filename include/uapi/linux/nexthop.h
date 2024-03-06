@@ -31,6 +31,7 @@ enum {
 #define NEXTHOP_GRP_TYPE_MAX (__NEXTHOP_GRP_TYPE_MAX - 1)
 
 #define NHA_OP_FLAG_DUMP_STATS		BIT(0)
+#define NHA_OP_FLAG_DUMP_HW_STATS	BIT(1)
 
 enum {
 	NHA_UNSPEC,
@@ -70,6 +71,9 @@ enum {
 
 	/* u32; nexthop hardware stats enable */
 	NHA_HW_STATS_ENABLE,
+
+	/* u32; read-only; whether any driver collects HW stats */
+	NHA_HW_STATS_USED,
 
 	__NHA_MAX,
 };
@@ -131,6 +135,11 @@ enum {
 
 	/* uint; number of packets forwarded via the nexthop group entry */
 	NHA_GROUP_STATS_ENTRY_PACKETS,
+
+	/* uint; number of packets forwarded via the nexthop group entry in
+	 * hardware
+	 */
+	NHA_GROUP_STATS_ENTRY_PACKETS_HW,
 
 	__NHA_GROUP_STATS_ENTRY_MAX,
 };
