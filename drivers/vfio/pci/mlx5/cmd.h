@@ -13,9 +13,6 @@
 #include <linux/mlx5/cq.h>
 #include <linux/mlx5/qp.h>
 
-#define MLX5VF_PRE_COPY_SUPP(mvdev) \
-	((mvdev)->core_device.vdev.migration_flags & VFIO_MIGRATION_PRE_COPY)
-
 enum mlx5_vf_migf_state {
 	MLX5_MIGF_STATE_ERROR = 1,
 	MLX5_MIGF_STATE_PRE_COPY_ERROR,
@@ -25,7 +22,6 @@ enum mlx5_vf_migf_state {
 };
 
 enum mlx5_vf_load_state {
-	MLX5_VF_LOAD_STATE_READ_IMAGE_NO_HEADER,
 	MLX5_VF_LOAD_STATE_READ_HEADER,
 	MLX5_VF_LOAD_STATE_PREP_HEADER_DATA,
 	MLX5_VF_LOAD_STATE_READ_HEADER_DATA,
@@ -228,8 +224,6 @@ struct mlx5_vhca_data_buffer *
 mlx5vf_get_data_buffer(struct mlx5_vf_migration_file *migf,
 		       size_t length, enum dma_data_direction dma_dir);
 void mlx5vf_put_data_buffer(struct mlx5_vhca_data_buffer *buf);
-int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
-			       unsigned int npages);
 struct page *mlx5vf_get_migration_page(struct mlx5_vhca_data_buffer *buf,
 				       unsigned long offset);
 void mlx5vf_state_mutex_unlock(struct mlx5vf_pci_core_device *mvdev);

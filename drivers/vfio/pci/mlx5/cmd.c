@@ -233,6 +233,10 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 	if (!MLX5_CAP_GEN(mvdev->mdev, migration))
 		goto end;
 
+	if (!(MLX5_CAP_GEN_2(mvdev->mdev, migration_multi_load) &&
+	      MLX5_CAP_GEN_2(mvdev->mdev, migration_tracking_state)))
+		goto end;
+
 	mvdev->vf_id = pci_iov_vf_id(pdev);
 	if (mvdev->vf_id < 0)
 		goto end;
@@ -262,16 +266,13 @@ void mlx5vf_cmd_set_migratable(struct mlx5vf_pci_core_device *mvdev,
 	mvdev->migrate_cap = 1;
 	mvdev->core_device.vdev.migration_flags =
 		VFIO_MIGRATION_STOP_COPY |
-		VFIO_MIGRATION_P2P;
+		VFIO_MIGRATION_P2P |
+		VFIO_MIGRATION_PRE_COPY;
+
 	mvdev->core_device.vdev.mig_ops = mig_ops;
 	init_completion(&mvdev->tracker_comp);
 	if (MLX5_CAP_GEN(mvdev->mdev, adv_virtualization))
 		mvdev->core_device.vdev.log_ops = log_ops;
-
-	if (MLX5_CAP_GEN_2(mvdev->mdev, migration_multi_load) &&
-	    MLX5_CAP_GEN_2(mvdev->mdev, migration_tracking_state))
-		mvdev->core_device.vdev.migration_flags |=
-			VFIO_MIGRATION_PRE_COPY;
 
 	if (MLX5_CAP_GEN_2(mvdev->mdev, migration_in_chunks))
 		mvdev->chunk_mode = 1;
@@ -412,6 +413,50 @@ void mlx5vf_free_data_buffer(struct mlx5_vhca_data_buffer *buf)
 		__free_page(sg_page_iter_page(&sg_iter));
 	sg_free_append_table(&buf->table);
 	kfree(buf);
+}
+
+static int mlx5vf_add_migration_pages(struct mlx5_vhca_data_buffer *buf,
+				      unsigned int npages)
+{
+	unsigned int to_alloc = npages;
+	struct page **page_list;
+	unsigned long filled;
+	unsigned int to_fill;
+	int ret;
+
+	to_fill = min_t(unsigned int, npages, PAGE_SIZE / sizeof(*page_list));
+	page_list = kvzalloc(to_fill * sizeof(*page_list), GFP_KERNEL_ACCOUNT);
+	if (!page_list)
+		return -ENOMEM;
+
+	do {
+		filled = alloc_pages_bulk_array(GFP_KERNEL_ACCOUNT, to_fill,
+						page_list);
+		if (!filled) {
+			ret = -ENOMEM;
+			goto err;
+		}
+		to_alloc -= filled;
+		ret = sg_alloc_append_table_from_pages(
+			&buf->table, page_list, filled, 0,
+			filled << PAGE_SHIFT, UINT_MAX, SG_MAX_SINGLE_ALLOC,
+			GFP_KERNEL_ACCOUNT);
+
+		if (ret)
+			goto err;
+		buf->allocated_length += filled * PAGE_SIZE;
+		/* clean input for another bulk allocation */
+		memset(page_list, 0, filled * sizeof(*page_list));
+		to_fill = min_t(unsigned int, to_alloc,
+				PAGE_SIZE / sizeof(*page_list));
+	} while (to_alloc > 0);
+
+	kvfree(page_list);
+	return 0;
+
+err:
+	kvfree(page_list);
+	return ret;
 }
 
 struct mlx5_vhca_data_buffer *
@@ -680,22 +725,20 @@ int mlx5vf_cmd_save_vhca_state(struct mlx5vf_pci_core_device *mvdev,
 		goto err_out;
 	}
 
-	if (MLX5VF_PRE_COPY_SUPP(mvdev)) {
-		if (async_data->stop_copy_chunk) {
-			u8 header_idx = buf->stop_copy_chunk_num ?
-				buf->stop_copy_chunk_num - 1 : 0;
+	if (async_data->stop_copy_chunk) {
+		u8 header_idx = buf->stop_copy_chunk_num ?
+			buf->stop_copy_chunk_num - 1 : 0;
 
-			header_buf = migf->buf_header[header_idx];
-			migf->buf_header[header_idx] = NULL;
-		}
+		header_buf = migf->buf_header[header_idx];
+		migf->buf_header[header_idx] = NULL;
+	}
 
-		if (!header_buf) {
-			header_buf = mlx5vf_get_data_buffer(migf,
-				sizeof(struct mlx5_vf_migration_header), DMA_NONE);
-			if (IS_ERR(header_buf)) {
-				err = PTR_ERR(header_buf);
-				goto err_free;
-			}
+	if (!header_buf) {
+		header_buf = mlx5vf_get_data_buffer(migf,
+			sizeof(struct mlx5_vf_migration_header), DMA_NONE);
+		if (IS_ERR(header_buf)) {
+			err = PTR_ERR(header_buf);
+			goto err_free;
 		}
 	}
 
