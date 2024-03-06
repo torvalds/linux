@@ -389,9 +389,6 @@ void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 		pte = ggtt->pt_ops->pte_encode_bo(bo, offset, pat_index);
 		xe_ggtt_set_pte(ggtt, start + offset, pte);
 	}
-
-	if (bo->flags & XE_BO_GGTT_INVALIDATE)
-		xe_ggtt_invalidate(ggtt);
 }
 
 static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
@@ -420,6 +417,9 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 	if (!err)
 		xe_ggtt_map_bo(ggtt, bo);
 	mutex_unlock(&ggtt->lock);
+
+	if (!err && bo->flags & XE_BO_GGTT_INVALIDATE)
+		xe_ggtt_invalidate(ggtt);
 	xe_device_mem_access_put(tile_to_xe(ggtt->tile));
 
 	return err;
@@ -440,16 +440,16 @@ void xe_ggtt_remove_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
 			 bool invalidate)
 {
 	xe_device_mem_access_get(tile_to_xe(ggtt->tile));
-	mutex_lock(&ggtt->lock);
 
+	mutex_lock(&ggtt->lock);
 	xe_ggtt_clear(ggtt, node->start, node->size);
 	drm_mm_remove_node(node);
 	node->size = 0;
+	mutex_unlock(&ggtt->lock);
 
 	if (invalidate)
 		xe_ggtt_invalidate(ggtt);
 
-	mutex_unlock(&ggtt->lock);
 	xe_device_mem_access_put(tile_to_xe(ggtt->tile));
 }
 
