@@ -1212,6 +1212,9 @@ static int bpf_object__init_kern_struct_ops_maps(struct bpf_object *obj)
 		if (!bpf_map__is_struct_ops(map))
 			continue;
 
+		if (!map->autocreate)
+			continue;
+
 		err = bpf_map__init_kern_struct_ops(map);
 		if (err)
 			return err;
@@ -8133,11 +8136,20 @@ static void bpf_map_prepare_vdata(const struct bpf_map *map)
 
 static int bpf_object_prepare_struct_ops(struct bpf_object *obj)
 {
+	struct bpf_map *map;
 	int i;
 
-	for (i = 0; i < obj->nr_maps; i++)
-		if (bpf_map__is_struct_ops(&obj->maps[i]))
-			bpf_map_prepare_vdata(&obj->maps[i]);
+	for (i = 0; i < obj->nr_maps; i++) {
+		map = &obj->maps[i];
+
+		if (!bpf_map__is_struct_ops(map))
+			continue;
+
+		if (!map->autocreate)
+			continue;
+
+		bpf_map_prepare_vdata(map);
+	}
 
 	return 0;
 }
