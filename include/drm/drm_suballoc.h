@@ -37,7 +37,7 @@ struct drm_suballoc_manager {
  * @manager: The drm_suballoc_manager.
  * @soffset: Start offset.
  * @eoffset: End offset + 1 so that @eoffset - @soffset = size.
- * @dma_fence: The fence protecting the allocation.
+ * @fence: The fence protecting the allocation.
  */
 struct drm_suballoc {
 	struct list_head olist;
