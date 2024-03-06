@@ -23,19 +23,18 @@ static void ionic_tx_desc_unmap_bufs(struct ionic_queue *q,
 
 static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info,
-			   void *cb_arg);
+			   struct ionic_cq_info *cq_info);
 
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell,
-				  ionic_desc_cb cb_func, void *cb_arg)
+				  void *arg)
 {
-	ionic_q_post(q, ring_dbell, cb_func, cb_arg);
+	ionic_q_post(q, ring_dbell, arg);
 }
 
 static inline void ionic_rxq_post(struct ionic_queue *q, bool ring_dbell,
-				  ionic_desc_cb cb_func, void *cb_arg)
+				  void *arg)
 {
-	ionic_q_post(q, ring_dbell, cb_func, cb_arg);
+	ionic_q_post(q, ring_dbell, arg);
 }
 
 bool ionic_txq_poke_doorbell(struct ionic_queue *q)
@@ -427,7 +426,7 @@ static int ionic_xdp_post_frame(struct ionic_queue *q, struct xdp_frame *frame,
 	stats->pkts++;
 	stats->bytes += len;
 
-	ionic_txq_post(q, ring_doorbell, ionic_tx_clean, NULL);
+	ionic_txq_post(q, ring_doorbell, NULL);
 
 	return 0;
 }
@@ -636,8 +635,7 @@ out_xdp_abort:
 
 static void ionic_rx_clean(struct ionic_queue *q,
 			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info,
-			   void *cb_arg)
+			   struct ionic_cq_info *cq_info)
 {
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
@@ -767,10 +765,9 @@ bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 
 	/* clean the related q entry, only one per qc completion */
-	ionic_rx_clean(q, desc_info, cq_info, desc_info->cb_arg);
+	ionic_rx_clean(q, desc_info, cq_info);
 
-	desc_info->cb = NULL;
-	desc_info->cb_arg = NULL;
+	desc_info->arg = NULL;
 
 	return true;
 }
@@ -874,7 +871,7 @@ void ionic_rx_fill(struct ionic_queue *q)
 
 		ionic_write_cmb_desc(q, desc);
 
-		ionic_rxq_post(q, false, ionic_rx_clean, NULL);
+		ionic_rxq_post(q, false, NULL);
 	}
 
 	ionic_dbell_ring(q->lif->kern_dbpage, q->hw_type,
@@ -902,8 +899,7 @@ void ionic_rx_empty(struct ionic_queue *q)
 		}
 
 		desc_info->nbufs = 0;
-		desc_info->cb = NULL;
-		desc_info->cb_arg = NULL;
+		desc_info->arg = NULL;
 	}
 
 	q->head_idx = 0;
@@ -1185,12 +1181,11 @@ static void ionic_tx_desc_unmap_bufs(struct ionic_queue *q,
 
 static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info,
-			   void *cb_arg)
+			   struct ionic_cq_info *cq_info)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_qcq *qcq = q_to_qcq(q);
-	struct sk_buff *skb = cb_arg;
+	struct sk_buff *skb;
 
 	if (desc_info->xdpf) {
 		ionic_xdp_tx_desc_clean(q->partner, desc_info);
@@ -1204,6 +1199,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 
 	ionic_tx_desc_unmap_bufs(q, desc_info);
 
+	skb = desc_info->arg;
 	if (!skb)
 		return;
 
@@ -1263,13 +1259,12 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info,
 		desc_info->bytes = 0;
 		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-		ionic_tx_clean(q, desc_info, cq_info, desc_info->cb_arg);
-		if (desc_info->cb_arg) {
+		ionic_tx_clean(q, desc_info, cq_info);
+		if (desc_info->arg) {
 			pkts++;
 			bytes += desc_info->bytes;
+			desc_info->arg = NULL;
 		}
-		desc_info->cb = NULL;
-		desc_info->cb_arg = NULL;
 	} while (index != le16_to_cpu(comp->comp_index));
 
 	(*total_pkts) += pkts;
@@ -1334,13 +1329,12 @@ void ionic_tx_empty(struct ionic_queue *q)
 		desc_info = &q->info[q->tail_idx];
 		desc_info->bytes = 0;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-		ionic_tx_clean(q, desc_info, NULL, desc_info->cb_arg);
-		if (desc_info->cb_arg) {
+		ionic_tx_clean(q, desc_info, NULL);
+		if (desc_info->arg) {
 			pkts++;
 			bytes += desc_info->bytes;
+			desc_info->arg = NULL;
 		}
-		desc_info->cb = NULL;
-		desc_info->cb_arg = NULL;
 	}
 
 	if (likely(!ionic_txq_hwstamp_enabled(q))) {
@@ -1427,9 +1421,9 @@ static void ionic_tx_tso_post(struct net_device *netdev, struct ionic_queue *q,
 		skb_tx_timestamp(skb);
 		if (likely(!ionic_txq_hwstamp_enabled(q)))
 			netdev_tx_sent_queue(q_to_ndq(netdev, q), skb->len);
-		ionic_txq_post(q, false, ionic_tx_clean, skb);
+		ionic_txq_post(q, false, skb);
 	} else {
-		ionic_txq_post(q, done, NULL, NULL);
+		ionic_txq_post(q, done, NULL);
 	}
 }
 
@@ -1683,7 +1677,7 @@ static int ionic_tx(struct net_device *netdev, struct ionic_queue *q,
 		ring_dbell = __netdev_tx_sent_queue(ndq, skb->len,
 						    netdev_xmit_more());
 	}
-	ionic_txq_post(q, ring_dbell, ionic_tx_clean, skb);
+	ionic_txq_post(q, ring_dbell, skb);
 
 	return 0;
 }

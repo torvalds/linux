@@ -3564,7 +3564,7 @@ static int ionic_lif_notifyq_init(struct ionic_lif *lif)
 	dev_dbg(dev, "notifyq->hw_index %d\n", q->hw_index);
 
 	/* preset the callback info */
-	q->info[0].cb_arg = lif;
+	q->info[0].arg = lif;
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 

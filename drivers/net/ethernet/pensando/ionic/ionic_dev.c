@@ -706,16 +706,14 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 	return 0;
 }
 
-void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
-		  void *cb_arg)
+void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, void *arg)
 {
 	struct ionic_desc_info *desc_info;
 	struct ionic_lif *lif = q->lif;
 	struct device *dev = q->dev;
 
 	desc_info = &q->info[q->head_idx];
-	desc_info->cb = cb;
-	desc_info->cb_arg = cb_arg;
+	desc_info->arg = arg;
 
 	q->head_idx = (q->head_idx + 1) & (q->num_descs - 1);
 
@@ -735,7 +733,7 @@ void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
 	}
 }
 
-static bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos)
+bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos)
 {
 	unsigned int mask, tail, head;
 
@@ -744,38 +742,4 @@ static bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos)
 	head = q->head_idx;
 
 	return ((pos - tail) & mask) < ((head - tail) & mask);
-}
-
-void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
-		     unsigned int stop_index)
-{
-	struct ionic_desc_info *desc_info;
-	ionic_desc_cb cb;
-	void *cb_arg;
-	u16 index;
-
-	/* check for empty queue */
-	if (q->tail_idx == q->head_idx)
-		return;
-
-	/* stop index must be for a descriptor that is not yet completed */
-	if (unlikely(!ionic_q_is_posted(q, stop_index)))
-		dev_err(q->dev,
-			"ionic stop is not posted %s stop %u tail %u head %u\n",
-			q->name, stop_index, q->tail_idx, q->head_idx);
-
-	do {
-		desc_info = &q->info[q->tail_idx];
-		index = q->tail_idx;
-		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-
-		cb = desc_info->cb;
-		cb_arg = desc_info->cb_arg;
-
-		desc_info->cb = NULL;
-		desc_info->cb_arg = NULL;
-
-		if (cb)
-			cb(q, desc_info, cq_info, cb_arg);
-	} while (index != stop_index);
 }

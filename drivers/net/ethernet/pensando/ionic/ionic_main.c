@@ -207,8 +207,7 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 		desc = &q->adminq[q->tail_idx];
 		desc_info = &q->info[q->tail_idx];
 		memset(desc, 0, sizeof(union ionic_adminq_cmd));
-		desc_info->cb = NULL;
-		desc_info->cb_arg = NULL;
+		desc_info->arg = NULL;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 	}
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
@@ -248,11 +247,11 @@ static int ionic_adminq_check_err(struct ionic_lif *lif,
 	return err;
 }
 
-static void ionic_adminq_cb(struct ionic_queue *q,
-			    struct ionic_desc_info *desc_info,
-			    struct ionic_cq_info *cq_info, void *cb_arg)
+static void ionic_adminq_clean(struct ionic_queue *q,
+			       struct ionic_desc_info *desc_info,
+			       struct ionic_cq_info *cq_info)
 {
-	struct ionic_admin_ctx *ctx = cb_arg;
+	struct ionic_admin_ctx *ctx = desc_info->arg;
 	struct ionic_admin_comp *comp;
 
 	if (!ctx)
@@ -280,7 +279,7 @@ bool ionic_notifyq_service(struct ionic_cq *cq,
 	u64 eid;
 
 	q = cq->bound_q;
-	lif = q->info[0].cb_arg;
+	lif = q->info[0].arg;
 	netdev = lif->netdev;
 	eid = le64_to_cpu(comp->event.eid);
 
@@ -321,15 +320,30 @@ bool ionic_notifyq_service(struct ionic_cq *cq,
 	return true;
 }
 
-bool ionic_adminq_service(struct ionic_cq *cq,
-			  struct ionic_cq_info *cq_info)
+bool ionic_adminq_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 {
-	struct ionic_admin_comp *comp = cq_info->cq_desc;
+	struct ionic_queue *q = cq->bound_q;
+	struct ionic_desc_info *desc_info;
+	struct ionic_admin_comp *comp;
+	u16 index;
+
+	comp = cq_info->cq_desc;
 
 	if (!color_match(comp->color, cq->done_color))
 		return false;
 
-	ionic_q_service(cq->bound_q, cq_info, le16_to_cpu(comp->comp_index));
+	/* check for empty queue */
+	if (q->tail_idx == q->head_idx)
+		return false;
+
+	do {
+		desc_info = &q->info[q->tail_idx];
+		index = q->tail_idx;
+		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
+		if (likely(desc_info->arg))
+			ionic_adminq_clean(q, desc_info, cq_info);
+		desc_info->arg = NULL;
+	} while (index != le16_to_cpu(comp->comp_index));
 
 	return true;
 }
@@ -394,7 +408,7 @@ int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	dynamic_hex_dump("cmd ", DUMP_PREFIX_OFFSET, 16, 1,
 			 &ctx->cmd, sizeof(ctx->cmd), true);
 
-	ionic_q_post(q, true, ionic_adminq_cb, ctx);
+	ionic_q_post(q, true, ctx);
 
 err_out:
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);

@@ -189,10 +189,6 @@ struct ionic_queue;
 struct ionic_qcq;
 struct ionic_desc_info;
 
-typedef void (*ionic_desc_cb)(struct ionic_queue *q,
-			      struct ionic_desc_info *desc_info,
-			      struct ionic_cq_info *cq_info, void *cb_arg);
-
 #define IONIC_MAX_BUF_LEN			((u16)-1)
 #define IONIC_PAGE_SIZE				PAGE_SIZE
 #define IONIC_PAGE_SPLIT_SZ			(PAGE_SIZE / 2)
@@ -216,8 +212,7 @@ struct ionic_buf_info {
 struct ionic_desc_info {
 	unsigned int bytes;
 	unsigned int nbufs;
-	ionic_desc_cb cb;
-	void *cb_arg;
+	void *arg;
 	struct xdp_frame *xdpf;
 	enum xdp_action act;
 	struct ionic_buf_info bufs[MAX_SKB_FRAGS + 1];
@@ -381,10 +376,9 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 struct ionic_queue *q, unsigned int index, const char *name,
 		 unsigned int num_descs, size_t desc_size,
 		 size_t sg_desc_size, unsigned int pid);
-void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
-		  void *cb_arg);
-void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,
-		     unsigned int stop_index);
+void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, void *arg);
+bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos);
+
 int ionic_heartbeat_check(struct ionic *ionic);
 bool ionic_is_fw_running(struct ionic_dev *idev);
 
