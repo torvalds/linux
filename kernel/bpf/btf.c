@@ -809,9 +809,23 @@ static bool btf_name_valid_identifier(const struct btf *btf, u32 offset)
 	return __btf_name_valid(btf, offset);
 }
 
+/* Allow any printable character in DATASEC names */
 static bool btf_name_valid_section(const struct btf *btf, u32 offset)
 {
-	return __btf_name_valid(btf, offset);
+	/* offset must be valid */
+	const char *src = btf_str_by_offset(btf, offset);
+	const char *src_limit;
+
+	/* set a limit on identifier length */
+	src_limit = src + KSYM_NAME_LEN;
+	src++;
+	while (*src && src < src_limit) {
+		if (!isprint(*src))
+			return false;
+		src++;
+	}
+
+	return !*src;
 }
 
 static const char *__btf_name_by_offset(const struct btf *btf, u32 offset)

@@ -89,4 +89,8 @@ struct bpf_testmod_ops {
 	int (*tramp_40)(int value);
 };
 
+struct bpf_testmod_ops2 {
+	int (*test_1)(void);
+};
+
 #endif /* _BPF_TESTMOD_H */
