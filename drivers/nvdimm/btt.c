@@ -6,6 +6,7 @@
 #include <linux/highmem.h>
 #include <linux/debugfs.h>
 #include <linux/blkdev.h>
+#include <linux/blk-integrity.h>
 #include <linux/pagemap.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -1514,10 +1515,13 @@ static int btt_blk_init(struct btt *btt)
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, btt->btt_disk->queue);
 	blk_queue_flag_set(QUEUE_FLAG_SYNCHRONOUS, btt->btt_disk->queue);
 
-	if (btt_meta_size(btt)) {
-		rc = nd_integrity_init(btt->btt_disk, btt_meta_size(btt));
-		if (rc)
-			goto out_cleanup_disk;
+	if (btt_meta_size(btt) && IS_ENABLED(CONFIG_BLK_DEV_INTEGRITY)) {
+		struct blk_integrity bi = {
+			.tuple_size	= btt_meta_size(btt),
+			.tag_size	= btt_meta_size(btt),
+		};
+		blk_integrity_register(btt->btt_disk, &bi);
+		blk_queue_max_integrity_segments(btt->btt_disk->queue, 1);
 	}
 
 	set_capacity(btt->btt_disk, btt->nlba * btt->sector_size >> 9);
