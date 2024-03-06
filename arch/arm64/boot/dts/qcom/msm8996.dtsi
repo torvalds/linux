@@ -457,25 +457,6 @@
 		};
 	};
 
-	mpm: interrupt-controller {
-		compatible = "qcom,mpm";
-		qcom,rpm-msg-ram = <&apss_mpm>;
-		interrupts = <GIC_SPI 171 IRQ_TYPE_EDGE_RISING>;
-		mboxes = <&apcs_glb 1>;
-		interrupt-controller;
-		#interrupt-cells = <2>;
-		#power-domain-cells = <0>;
-		interrupt-parent = <&intc>;
-		qcom,mpm-pin-count = <96>;
-		qcom,mpm-pin-map = <2 184>,  /* TSENS1 upper_lower_int */
-				   <52 243>, /* DWC3_PRI ss_phy_irq */
-				   <79 347>, /* DWC3_PRI hs_phy_irq */
-				   <80 352>, /* DWC3_SEC hs_phy_irq */
-				   <81 347>, /* QUSB2_PHY_PRI DP+DM */
-				   <82 352>, /* QUSB2_PHY_SEC DP+DM */
-				   <87 326>; /* SPMI */
-	};
-
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -765,15 +746,8 @@
 		};
 
 		rpm_msg_ram: sram@68000 {
-			compatible = "qcom,rpm-msg-ram", "mmio-sram";
+			compatible = "qcom,rpm-msg-ram";
 			reg = <0x00068000 0x6000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0x00068000 0x7000>;
-
-			apss_mpm: sram@1b8 {
-				reg = <0x1b8 0x48>;
-			};
 		};
 
 		qfprom@74000 {
@@ -856,8 +830,8 @@
 			reg = <0x004ad000 0x1000>, /* TM */
 			      <0x004ac000 0x1000>; /* SROT */
 			#qcom,sensors = <8>;
-			interrupts-extended = <&mpm 2 IRQ_TYPE_LEVEL_HIGH>,
-					      <&intc GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 430 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "uplow", "critical";
 			#thermal-sensor-cells = <1>;
 		};
@@ -1363,7 +1337,6 @@
 			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
 			gpio-ranges = <&tlmm 0 0 150>;
-			wakeup-parent = <&mpm>;
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -1891,7 +1864,7 @@
 			      <0x0400a000 0x002100>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
-			interrupts-extended = <&mpm 87 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 326 IRQ_TYPE_LEVEL_HIGH>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
 			#address-cells = <2>;
@@ -3052,8 +3025,8 @@
 			#size-cells = <1>;
 			ranges;
 
-			interrupts-extended = <&mpm 79 IRQ_TYPE_LEVEL_HIGH>,
-					      <&mpm 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 347 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 243 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hs_phy_irq", "ss_phy_irq";
 
 			clocks = <&gcc GCC_SYS_NOC_USB3_AXI_CLK>,
