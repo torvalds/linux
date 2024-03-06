@@ -1795,6 +1795,30 @@ int recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
 	return free_pipe_idx;
 }
 
+int resource_find_free_pipe_used_as_cur_sec_dpp(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool)
+{
+	int free_pipe_idx = FREE_PIPE_INDEX_NOT_FOUND;
+	const struct pipe_ctx *new_pipe, *cur_pipe;
+	int i;
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		cur_pipe = &cur_res_ctx->pipe_ctx[i];
+		new_pipe = &new_res_ctx->pipe_ctx[i];
+
+		if (resource_is_pipe_type(cur_pipe, DPP_PIPE) &&
+				!resource_is_pipe_type(cur_pipe, OPP_HEAD) &&
+				resource_is_pipe_type(new_pipe, FREE_PIPE)) {
+			free_pipe_idx = i;
+			break;
+		}
+	}
+
+	return free_pipe_idx;
+}
+
 int resource_find_free_pipe_used_as_cur_sec_dpp_in_mpcc_combine(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
@@ -3372,10 +3396,30 @@ static bool acquire_otg_master_pipe_for_stream(
 	 * any free pipes already used in current context as this could tear
 	 * down exiting ODM/MPC/MPO configuration unnecessarily.
 	 */
+
+	/*
+	 * Try to acquire the same OTG master already in use. This is not
+	 * optimal because resetting an enabled OTG master pipe for a new stream
+	 * requires an extra frame of wait. However there are test automation
+	 * and eDP assumptions that rely on reusing the same OTG master pipe
+	 * during mode change. We have to keep this logic as is for now.
+	 */
 	pipe_idx = recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
 			&cur_ctx->res_ctx, &new_ctx->res_ctx, pool);
+	/*
+	 * Try to acquire a pipe not used in current resource context to avoid
+	 * pipe swapping.
+	 */
 	if (pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
 		pipe_idx = recource_find_free_pipe_not_used_in_cur_res_ctx(
+				&cur_ctx->res_ctx, &new_ctx->res_ctx, pool);
+	/*
+	 * If pipe swapping is unavoidable, try to acquire pipe used as
+	 * secondary DPP pipe in current state as we prioritize to support more
+	 * streams over supporting MPO planes.
+	 */
+	if (pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
+		pipe_idx = resource_find_free_pipe_used_as_cur_sec_dpp(
 				&cur_ctx->res_ctx, &new_ctx->res_ctx, pool);
 	if (pipe_idx == FREE_PIPE_INDEX_NOT_FOUND)
 		pipe_idx = resource_find_any_free_pipe(&new_ctx->res_ctx, pool);

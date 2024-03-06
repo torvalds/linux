@@ -510,6 +510,17 @@ int recource_find_free_pipe_used_as_otg_master_in_cur_res_ctx(
 
 /*
  * Look for a free pipe in new resource context that is used as a secondary DPP
+ * pipe in current resource context.
+ * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
+ * pipe idx of the free pipe
+ */
+int resource_find_free_pipe_used_as_cur_sec_dpp(
+		const struct resource_context *cur_res_ctx,
+		struct resource_context *new_res_ctx,
+		const struct resource_pool *pool);
+
+/*
+ * Look for a free pipe in new resource context that is used as a secondary DPP
  * pipe in any MPCC combine in current resource context.
  * return - FREE_PIPE_INDEX_NOT_FOUND if free pipe is not found, otherwise
  * pipe idx of the free pipe
