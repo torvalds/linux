@@ -8,6 +8,8 @@
 struct net_hotdata {
 	struct list_head	offload_base;
 	int			gro_normal_batch;
+	int			netdev_budget;
+	int			netdev_budget_usecs;
 };
 
 extern struct net_hotdata net_hotdata;

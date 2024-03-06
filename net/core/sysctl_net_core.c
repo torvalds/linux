@@ -577,7 +577,7 @@ static struct ctl_table net_core_table[] = {
 #endif
 	{
 		.procname	= "netdev_budget",
-		.data		= &netdev_budget,
+		.data		= &net_hotdata.netdev_budget,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
@@ -600,7 +600,7 @@ static struct ctl_table net_core_table[] = {
 	},
 	{
 		.procname	= "netdev_budget_usecs",
-		.data		= &netdev_budget_usecs,
+		.data		= &net_hotdata.netdev_budget_usecs,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
