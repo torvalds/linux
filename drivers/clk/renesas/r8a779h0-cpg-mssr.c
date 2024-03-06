@@ -192,6 +192,7 @@ static const struct mssr_mod_clk r8a779h0_mod_clks[] = {
 	DEF_MOD("pfc0",		915,	R8A779H0_CLK_CP),
 	DEF_MOD("pfc1",		916,	R8A779H0_CLK_CP),
 	DEF_MOD("pfc2",		917,	R8A779H0_CLK_CP),
+	DEF_MOD("tsc2:tsc1",	919,	R8A779H0_CLK_CL16M),
 };
 
 /*
