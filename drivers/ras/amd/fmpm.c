@@ -817,7 +817,7 @@ static int allocate_records(void)
 	return ret;
 
 out_free:
-	for (; i >= 0; i--)
+	while (--i >= 0)
 		kfree(fru_records[i]);
 
 	kfree(fru_records);
