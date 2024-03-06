@@ -23,24 +23,6 @@ static inline u64 tick_to_ns(struct kvm_vcpu *vcpu, u64 tick)
 	return div_u64(tick * MNSEC_PER_SEC, vcpu->arch.timer_mhz);
 }
 
-/*
- * Push timer forward on timeout.
- * Handle an hrtimer event by push the hrtimer forward a period.
- */
-static enum hrtimer_restart kvm_count_timeout(struct kvm_vcpu *vcpu)
-{
-	unsigned long cfg, period;
-
-	/* Add periodic tick to current expire time */
-	cfg = kvm_read_sw_gcsr(vcpu->arch.csr, LOONGARCH_CSR_TCFG);
-	if (cfg & CSR_TCFG_PERIOD) {
-		period = tick_to_ns(vcpu, cfg & CSR_TCFG_VAL);
-		hrtimer_add_expires_ns(&vcpu->arch.swtimer, period);
-		return HRTIMER_RESTART;
-	} else
-		return HRTIMER_NORESTART;
-}
-
 /* Low level hrtimer wake routine */
 enum hrtimer_restart kvm_swtimer_wakeup(struct hrtimer *timer)
 {
@@ -50,7 +32,7 @@ enum hrtimer_restart kvm_swtimer_wakeup(struct hrtimer *timer)
 	kvm_queue_irq(vcpu, INT_TI);
 	rcuwait_wake_up(&vcpu->wait);
 
-	return kvm_count_timeout(vcpu);
+	return HRTIMER_NORESTART;
 }
 
 /*
