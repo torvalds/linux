@@ -269,6 +269,71 @@ static void ionic_adminq_cb(struct ionic_queue *q,
 	complete_all(&ctx->work);
 }
 
+bool ionic_notifyq_service(struct ionic_cq *cq,
+			   struct ionic_cq_info *cq_info)
+{
+	union ionic_notifyq_comp *comp = cq_info->cq_desc;
+	struct ionic_deferred_work *work;
+	struct net_device *netdev;
+	struct ionic_queue *q;
+	struct ionic_lif *lif;
+	u64 eid;
+
+	q = cq->bound_q;
+	lif = q->info[0].cb_arg;
+	netdev = lif->netdev;
+	eid = le64_to_cpu(comp->event.eid);
+
+	/* Have we run out of new completions to process? */
+	if ((s64)(eid - lif->last_eid) <= 0)
+		return false;
+
+	lif->last_eid = eid;
+
+	dev_dbg(lif->ionic->dev, "notifyq event:\n");
+	dynamic_hex_dump("event ", DUMP_PREFIX_OFFSET, 16, 1,
+			 comp, sizeof(*comp), true);
+
+	switch (le16_to_cpu(comp->event.ecode)) {
+	case IONIC_EVENT_LINK_CHANGE:
+		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
+		break;
+	case IONIC_EVENT_RESET:
+		if (lif->ionic->idev.fw_status_ready &&
+		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			if (!work) {
+				netdev_err(lif->netdev, "Reset event dropped\n");
+				clear_bit(IONIC_LIF_F_FW_STOPPING, lif->state);
+			} else {
+				work->type = IONIC_DW_TYPE_LIF_RESET;
+				ionic_lif_deferred_enqueue(&lif->deferred, work);
+			}
+		}
+		break;
+	default:
+		netdev_warn(netdev, "Notifyq event ecode=%d eid=%lld\n",
+			    comp->event.ecode, eid);
+		break;
+	}
+
+	return true;
+}
+
+bool ionic_adminq_service(struct ionic_cq *cq,
+			  struct ionic_cq_info *cq_info)
+{
+	struct ionic_admin_comp *comp = cq_info->cq_desc;
+
+	if (!color_match(comp->color, cq->done_color))
+		return false;
+
+	ionic_q_service(cq->bound_q, cq_info, le16_to_cpu(comp->comp_index));
+
+	return true;
+}
+
 bool ionic_adminq_poke_doorbell(struct ionic_queue *q)
 {
 	struct ionic_lif *lif = q->lif;
