@@ -110,9 +110,8 @@ struct mpcc_blnd_cfg {
 	 */
 	enum mpcc_alpha_blend_mode alpha_mode;
 
-	/***
-	 * @@pre_multiplied_alpha:
-	 *
+	/**
+	 * @pre_multiplied_alpha:
 	 * Whether pixel color values were pre-multiplied by the alpha channel
 	 * (MPCC_ALPHA_MULTIPLIED_MODE).
 	 */
@@ -129,7 +128,7 @@ struct mpcc_blnd_cfg {
 	int global_alpha;
 
 	/**
-	 * @@overlap_only: Whether overlapping of different planes is allowed.
+	 * @overlap_only: Whether overlapping of different planes is allowed.
 	 */
 	bool overlap_only;
 
