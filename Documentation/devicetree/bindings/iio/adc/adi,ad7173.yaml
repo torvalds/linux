@@ -21,17 +21,23 @@ description: |
 
   Datasheets for supported chips:
     https://www.analog.com/media/en/technical-documentation/data-sheets/AD7172-2.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD7172-4.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/AD7173-8.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/AD7175-2.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD7175-8.pdf
     https://www.analog.com/media/en/technical-documentation/data-sheets/AD7176-2.pdf
+    https://www.analog.com/media/en/technical-documentation/data-sheets/AD7177-2.pdf
 
 properties:
   compatible:
     enum:
       - adi,ad7172-2
+      - adi,ad7172-4
       - adi,ad7173-8
       - adi,ad7175-2
+      - adi,ad7175-8
       - adi,ad7176-2
+      - adi,ad7177-2
 
   reg:
     maxItems: 1
@@ -136,8 +142,10 @@ patternProperties:
           refout-avss: REFOUT/AVSS (Internal reference)
           avdd       : AVDD  /AVSS
 
-          External reference ref2 only available on ad7173-8.
-          If not specified, internal reference used.
+          External reference ref2 only available on ad7173-8 and ad7172-4.
+          Internal reference refout-avss not available on ad7172-4.
+
+          If not specified, internal reference used (if available).
         $ref: /schemas/types.yaml#/definitions/string
         enum:
           - vref
@@ -157,12 +165,17 @@ required:
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
+  # Only ad7172-4, ad7173-8 and ad7175-8 support vref2
+  # Other models have [0-3] channel registers
   - if:
       properties:
         compatible:
           not:
             contains:
-              const: adi,ad7173-8
+              enum:
+                - adi,ad7172-4
+                - adi,ad7173-8
+                - adi,ad7175-8
     then:
       properties:
         vref2-supply: false
@@ -176,6 +189,26 @@ allOf:
                 - avdd
             reg:
               maximum: 3
+
+  # Model ad7172-4 does not support internal reference
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: adi,ad7172-4
+    then:
+      patternProperties:
+        "^channel@[0-9a-f]$":
+          properties:
+            reg:
+              maximum: 7
+            adi,reference-select:
+              enum:
+                - vref
+                - vref2
+                - avdd
+          required:
+            - adi,reference-select
 
   - if:
       anyOf:
