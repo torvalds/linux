@@ -96,15 +96,11 @@ if [ $? -ne 0 ];then
 	exit $ksft_skip
 fi
 
-# Use the legacy version if available to support old kernel versions
-if iptables-legacy -V &> /dev/null; then
-	iptables="iptables-legacy"
-	ip6tables="ip6tables-legacy"
-elif ! iptables -V &> /dev/null; then
-	echo "SKIP: Could not run all tests without iptables tool"
+if ! "${iptables}" -V &> /dev/null; then
+	echo "SKIP: Could not run all tests without ${iptables} tool"
 	exit $ksft_skip
-elif ! ip6tables -V &> /dev/null; then
-	echo "SKIP: Could not run all tests without ip6tables tool"
+elif ! "${ip6tables}" -V &> /dev/null; then
+	echo "SKIP: Could not run all tests without ${ip6tables} tool"
 	exit $ksft_skip
 fi
 
