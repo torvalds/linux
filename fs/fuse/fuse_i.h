@@ -243,12 +243,6 @@ struct fuse_file {
 
 	/* Readdir related */
 	struct {
-		/*
-		 * Protects below fields against (crazy) parallel readdir on
-		 * same open file.  Uncontended in the normal case.
-		 */
-		struct mutex lock;
-
 		/* Dir stream position */
 		loff_t pos;
 
