@@ -70,6 +70,7 @@ struct inet6_protocol {
 struct net_offload {
 	struct offload_callbacks callbacks;
 	unsigned int		 flags;	/* Flags used by IPv6 for now */
+	u32			 secret;
 };
 /* This should be set for any extension header which is compatible with GSO. */
 #define INET6_PROTO_GSO_EXTHDR	0x1

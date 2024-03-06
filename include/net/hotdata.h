@@ -39,7 +39,9 @@ struct net_hotdata {
 #define inet_ehash_secret	net_hotdata.tcp_protocol.secret
 #define udp_ehash_secret	net_hotdata.udp_protocol.secret
 #define inet6_ehash_secret	net_hotdata.tcpv6_protocol.secret
+#define tcp_ipv6_hash_secret	net_hotdata.tcpv6_offload.secret
 #define udp6_ehash_secret	net_hotdata.udpv6_protocol.secret
+#define udp_ipv6_hash_secret	net_hotdata.udpv6_offload.secret
 
 extern struct net_hotdata net_hotdata;
 
