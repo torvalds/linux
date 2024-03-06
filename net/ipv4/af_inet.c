@@ -119,6 +119,7 @@
 #endif
 #include <net/l3mdev.h>
 #include <net/compat.h>
+#include <net/rps.h>
 
 #include <trace/events/sock.h>
 

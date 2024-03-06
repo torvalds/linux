@@ -279,6 +279,7 @@
 #include <linux/uaccess.h>
 #include <asm/ioctls.h>
 #include <net/busy_poll.h>
+#include <net/rps.h>
 
 /* Track pending CMSGs. */
 enum {

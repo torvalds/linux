@@ -78,6 +78,7 @@
 #include <net/ax25.h>
 #include <net/rose.h>
 #include <net/6lowpan.h>
+#include <net/rps.h>
 
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
