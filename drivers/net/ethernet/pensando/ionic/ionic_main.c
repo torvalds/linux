@@ -247,24 +247,6 @@ static int ionic_adminq_check_err(struct ionic_lif *lif,
 	return err;
 }
 
-static void ionic_adminq_clean(struct ionic_queue *q,
-			       struct ionic_admin_desc_info *desc_info,
-			       struct ionic_admin_comp *comp)
-{
-	struct ionic_admin_ctx *ctx = desc_info->ctx;
-
-	if (!ctx)
-		return;
-
-	memcpy(&ctx->comp, comp, sizeof(*comp));
-
-	dev_dbg(q->dev, "comp admin queue command:\n");
-	dynamic_hex_dump("comp ", DUMP_PREFIX_OFFSET, 16, 1,
-			 &ctx->comp, sizeof(ctx->comp), true);
-
-	complete_all(&ctx->work);
-}
-
 bool ionic_notifyq_service(struct ionic_cq *cq)
 {
 	struct ionic_deferred_work *work;
@@ -338,9 +320,17 @@ bool ionic_adminq_service(struct ionic_cq *cq)
 		desc_info = &q->admin_info[q->tail_idx];
 		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-		if (likely(desc_info->ctx))
-			ionic_adminq_clean(q, desc_info, comp);
-		desc_info->ctx = NULL;
+		if (likely(desc_info->ctx)) {
+			struct ionic_admin_ctx *ctx = desc_info->ctx;
+
+			memcpy(&ctx->comp, comp, sizeof(*comp));
+
+			dev_dbg(q->dev, "comp admin queue command:\n");
+			dynamic_hex_dump("comp ", DUMP_PREFIX_OFFSET, 16, 1,
+					 &ctx->comp, sizeof(ctx->comp), true);
+			complete_all(&ctx->work);
+			desc_info->ctx = NULL;
+		}
 	} while (index != le16_to_cpu(comp->comp_index));
 
 	return true;
