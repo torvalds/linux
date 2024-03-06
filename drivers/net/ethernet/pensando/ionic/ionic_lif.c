@@ -542,11 +542,9 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 {
 	struct ionic_dev *idev = &lif->ionic->idev;
 	struct device *dev = lif->ionic->dev;
-	void *q_base, *cq_base, *sg_base;
 	dma_addr_t cq_base_pa = 0;
-	dma_addr_t sg_base_pa = 0;
-	dma_addr_t q_base_pa = 0;
 	struct ionic_qcq *new;
+	void *cq_base;
 	int err;
 
 	*qcq = NULL;
@@ -612,11 +610,10 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			err = -ENOMEM;
 			goto err_out_free_cq_info;
 		}
-		q_base = PTR_ALIGN(new->q_base, PAGE_SIZE);
-		q_base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
-		ionic_q_map(&new->q, q_base, q_base_pa);
+		new->q.base = PTR_ALIGN(new->q_base, PAGE_SIZE);
+		new->q.base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
 
-		cq_base = PTR_ALIGN(q_base + q_size, PAGE_SIZE);
+		cq_base = PTR_ALIGN(new->q_base + q_size, PAGE_SIZE);
 		cq_base_pa = ALIGN(new->q_base_pa + q_size, PAGE_SIZE);
 		ionic_cq_map(&new->cq, cq_base, cq_base_pa);
 		ionic_cq_bind(&new->cq, &new->q);
@@ -630,9 +627,8 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			err = -ENOMEM;
 			goto err_out_free_cq_info;
 		}
-		q_base = PTR_ALIGN(new->q_base, PAGE_SIZE);
-		q_base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
-		ionic_q_map(&new->q, q_base, q_base_pa);
+		new->q.base = PTR_ALIGN(new->q_base, PAGE_SIZE);
+		new->q.base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
 
 		if (flags & IONIC_QCQ_F_CMB_RINGS) {
 			/* on-chip CMB q descriptors */
@@ -657,7 +653,8 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			}
 
 			new->cmb_q_base_pa -= idev->phy_cmb_pages;
-			ionic_q_cmb_map(&new->q, new->cmb_q_base, new->cmb_q_base_pa);
+			new->q.cmb_base = new->cmb_q_base;
+			new->q.cmb_base_pa = new->cmb_q_base_pa;
 		}
 
 		/* cq DMA descriptors */
@@ -684,9 +681,8 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			err = -ENOMEM;
 			goto err_out_free_cq;
 		}
-		sg_base = PTR_ALIGN(new->sg_base, PAGE_SIZE);
-		sg_base_pa = ALIGN(new->sg_base_pa, PAGE_SIZE);
-		ionic_q_sg_map(&new->q, sg_base, sg_base_pa);
+		new->q.sg_base = PTR_ALIGN(new->sg_base, PAGE_SIZE);
+		new->q.sg_base_pa = ALIGN(new->sg_base_pa, PAGE_SIZE);
 	}
 
 	INIT_WORK(&new->dim.work, ionic_dim_work);

@@ -381,9 +381,6 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 struct ionic_queue *q, unsigned int index, const char *name,
 		 unsigned int num_descs, size_t desc_size,
 		 size_t sg_desc_size, unsigned int pid);
-void ionic_q_map(struct ionic_queue *q, void *base, dma_addr_t base_pa);
-void ionic_q_cmb_map(struct ionic_queue *q, void __iomem *base, dma_addr_t base_pa);
-void ionic_q_sg_map(struct ionic_queue *q, void *base, dma_addr_t base_pa);
 void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
 		  void *cb_arg);
 void ionic_q_service(struct ionic_queue *q, struct ionic_cq_info *cq_info,

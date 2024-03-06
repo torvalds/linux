@@ -706,24 +706,6 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 	return 0;
 }
 
-void ionic_q_map(struct ionic_queue *q, void *base, dma_addr_t base_pa)
-{
-	q->base = base;
-	q->base_pa = base_pa;
-}
-
-void ionic_q_cmb_map(struct ionic_queue *q, void __iomem *base, dma_addr_t base_pa)
-{
-	q->cmb_base = base;
-	q->cmb_base_pa = base_pa;
-}
-
-void ionic_q_sg_map(struct ionic_queue *q, void *base, dma_addr_t base_pa)
-{
-	q->sg_base = base;
-	q->sg_base_pa = base_pa;
-}
-
 void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,
 		  void *cb_arg)
 {
