@@ -58,6 +58,7 @@
 #include <net/timewait_sock.h>
 #include <net/inet_common.h>
 #include <net/secure_seq.h>
+#include <net/hotdata.h>
 #include <net/busy_poll.h>
 
 #include <linux/proc_fs.h>
@@ -2367,11 +2368,6 @@ struct proto tcpv6_prot = {
 };
 EXPORT_SYMBOL_GPL(tcpv6_prot);
 
-static const struct inet6_protocol tcpv6_protocol = {
-	.handler	=	tcp_v6_rcv,
-	.err_handler	=	tcp_v6_err,
-	.flags		=	INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
-};
 
 static struct inet_protosw tcpv6_protosw = {
 	.type		=	SOCK_STREAM,
@@ -2408,7 +2404,12 @@ int __init tcpv6_init(void)
 {
 	int ret;
 
-	ret = inet6_add_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	net_hotdata.tcpv6_protocol = (struct inet6_protocol) {
+		.handler     = tcp_v6_rcv,
+		.err_handler = tcp_v6_err,
+		.flags	     = INET6_PROTO_NOPOLICY | INET6_PROTO_FINAL,
+	};
+	ret = inet6_add_protocol(&net_hotdata.tcpv6_protocol, IPPROTO_TCP);
 	if (ret)
 		goto out;
 
@@ -2433,7 +2434,7 @@ out_tcpv6_pernet_subsys:
 out_tcpv6_protosw:
 	inet6_unregister_protosw(&tcpv6_protosw);
 out_tcpv6_protocol:
-	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	inet6_del_protocol(&net_hotdata.tcpv6_protocol, IPPROTO_TCP);
 	goto out;
 }
 
@@ -2441,5 +2442,5 @@ void tcpv6_exit(void)
 {
 	unregister_pernet_subsys(&tcpv6_net_ops);
 	inet6_unregister_protosw(&tcpv6_protosw);
-	inet6_del_protocol(&tcpv6_protocol, IPPROTO_TCP);
+	inet6_del_protocol(&net_hotdata.tcpv6_protocol, IPPROTO_TCP);
 }
