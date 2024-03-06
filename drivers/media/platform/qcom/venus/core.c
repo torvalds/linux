@@ -68,6 +68,7 @@ static void venus_event_notify(struct venus_core *core, u32 event)
 
 	mutex_lock(&core->lock);
 	set_bit(0, &core->sys_error);
+	set_bit(0, &core->dump_core);
 	list_for_each_entry(inst, &core->instances, list)
 		inst->ops->event_notify(inst, EVT_SESSION_ERROR, NULL);
 	mutex_unlock(&core->lock);
@@ -110,7 +111,10 @@ static void venus_sys_error_handler(struct work_struct *work)
 
 	venus_shutdown(core);
 
-	venus_coredump(core);
+	if (test_bit(0, &core->dump_core)) {
+		venus_coredump(core);
+		clear_bit(0, &core->dump_core);
+	}
 
 	pm_runtime_put_sync(core->dev);
 
