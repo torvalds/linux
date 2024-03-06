@@ -1841,6 +1841,7 @@ static void do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 		struct migration_target_control mtc = {
 			.nmask = &nmask,
 			.gfp_mask = GFP_USER | __GFP_MOVABLE | __GFP_RETRY_MAYFAIL,
+			.reason = MR_MEMORY_HOTPLUG,
 		};
 		int ret;
 
