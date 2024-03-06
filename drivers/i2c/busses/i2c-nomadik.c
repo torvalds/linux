@@ -225,8 +225,8 @@ static inline void i2c_clr_bit(void __iomem *reg, u32 mask)
 static int flush_i2c_fifo(struct nmk_i2c_dev *priv)
 {
 #define LOOP_ATTEMPTS 10
+	ktime_t timeout;
 	int i;
-	unsigned long timeout;
 
 	/*
 	 * flush the transmit and receive FIFO. The flushing
@@ -238,9 +238,9 @@ static int flush_i2c_fifo(struct nmk_i2c_dev *priv)
 	writel((I2C_CR_FTX | I2C_CR_FRX), priv->virtbase + I2C_CR);
 
 	for (i = 0; i < LOOP_ATTEMPTS; i++) {
-		timeout = jiffies + priv->adap.timeout;
+		timeout = ktime_add_us(ktime_get(), priv->timeout_usecs);
 
-		while (!time_after(jiffies, timeout)) {
+		while (ktime_after(timeout, ktime_get())) {
 			if ((readl(priv->virtbase + I2C_CR) &
 				(I2C_CR_FTX | I2C_CR_FRX)) == 0)
 				return 0;
