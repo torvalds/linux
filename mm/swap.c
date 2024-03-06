@@ -152,10 +152,10 @@ EXPORT_SYMBOL(__folio_put);
 void put_pages_list(struct list_head *pages)
 {
 	struct folio_batch fbatch;
-	struct folio *folio;
+	struct folio *folio, *next;
 
 	folio_batch_init(&fbatch);
-	list_for_each_entry(folio, pages, lru) {
+	list_for_each_entry_safe(folio, next, pages, lru) {
 		if (!folio_put_testzero(folio))
 			continue;
 		if (folio_test_large(folio)) {
