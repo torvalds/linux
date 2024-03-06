@@ -287,7 +287,7 @@ static int gp8psk_frontend_attach(struct dvb_usb_adapter *adap)
 	int id = le16_to_cpu(d->udev->descriptor.idProduct);
 	int is_rev1;
 
-	is_rev1 = (id == USB_PID_GENPIX_8PSK_REV_1_WARM) ? true : false;
+	is_rev1 = id == USB_PID_GENPIX_8PSK_REV_1_WARM;
 
 	adap->fe_adap[0].fe = dvb_attach(gp8psk_fe_attach,
 					 &gp8psk_fe_ops, d, is_rev1);

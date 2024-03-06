@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+#include "bcm2835.dtsi"
+#include "bcm2835-rpi.dtsi"
+#include "bcm2835-rpi-common.dtsi"
+#include "bcm283x-rpi-led-deprecated.dtsi"
+#include "bcm283x-rpi-smsc9512.dtsi"
+#include "bcm283x-rpi-usb-host.dtsi"
+
+/ {
+	compatible = "raspberrypi,model-b-rev2", "brcm,bcm2835";
+	model = "Raspberry Pi Model B rev2";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x10000000>;
+	};
+};
+
+&gpio {
+	/*
+	 * Taken from Raspberry-Pi-Rev-2.0-Model-AB-Schematics.pdf
+	 * RPI00022 sheet 02
+	 *
+	 * Legend:
+	 * "FOO" = GPIO line named "FOO" on the schematic
+	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
+	 */
+	gpio-line-names = "SDA0",
+			  "SCL0",
+			  "SDA1",
+			  "SCL1",
+			  "GPIO_GCLK",
+			  "CAM_CLK",
+			  "LAN_RUN",
+			  "SPI_CE1_N",
+			  "SPI_CE0_N",
+			  "SPI_MISO",
+			  "SPI_MOSI",
+			  "SPI_SCLK",
+			  "", /* GPIO12 */
+			  "", /* GPIO13 */
+			  /* Serial port */
+			  "TXD0",
+			  "RXD0",
+			  "STATUS_LED_N",
+			  "GPIO17",
+			  "GPIO18",
+			  "", /* GPIO19 */
+			  "", /* GPIO20 */
+			  "CAM_GPIO",
+			  "GPIO22",
+			  "GPIO23",
+			  "GPIO24",
+			  "GPIO25",
+			  "", /* GPIO26 */
+			  "GPIO27",
+			  "GPIO28",
+			  "GPIO29",
+			  "GPIO30",
+			  "GPIO31",
+			  "", /* GPIO32 */
+			  "", /* GPIO33 */
+			  "", /* GPIO34 */
+			  "", /* GPIO35 */
+			  "", /* GPIO36 */
+			  "", /* GPIO37 */
+			  "", /* GPIO38 */
+			  "", /* GPIO39 */
+			  "PWM0_OUT",
+			  "", /* GPIO41 */
+			  "", /* GPIO42 */
+			  "", /* GPIO43 */
+			  "", /* GPIO44 */
+			  "PWM1_OUT",
+			  "HDMI_HPD_P",
+			  "SD_CARD_DET",
+			  /* Used by SD Card */
+			  "SD_CLK_R",
+			  "SD_CMD_R",
+			  "SD_DATA0_R",
+			  "SD_DATA1_R",
+			  "SD_DATA2_R",
+			  "SD_DATA3_R";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&gpioout &alt0 &i2s_alt2>;
+
+	/* I2S interface */
+	i2s_alt2: i2s_alt2 {
+		brcm,pins = <28 29 30 31>;
+		brcm,function = <BCM2835_FSEL_ALT2>;
+	};
+};
+
+&hdmi {
+	hpd-gpios = <&gpio 46 GPIO_ACTIVE_HIGH>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
+};
+
+&led_act {
+	gpios = <&gpio 16 GPIO_ACTIVE_LOW>;
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm0_gpio40 &pwm1_gpio45>;
+	status = "okay";
+};
+
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	bus-width = <4>;
+	status = "okay";
+};
+
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_gpio14>;
+	status = "okay";
+};

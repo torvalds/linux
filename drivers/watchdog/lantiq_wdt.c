@@ -9,7 +9,8 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/watchdog.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/uaccess.h>
 #include <linux/clk.h>
 #include <linux/io.h>

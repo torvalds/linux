@@ -10,6 +10,7 @@
 #include <linux/vmalloc.h>
 #include <linux/binfmts.h>
 
+#include <asm/elf.h>
 #include <asm/vdso.h>
 
 static struct page *vdso_page;

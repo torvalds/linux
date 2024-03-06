@@ -807,7 +807,7 @@ static struct i2c_driver max8973_i2c_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_max8973_match_tbl,
 	},
-	.probe_new = max8973_probe,
+	.probe = max8973_probe,
 	.id_table = max8973_id,
 };
 

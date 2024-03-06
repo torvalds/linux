@@ -18,8 +18,9 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 
 #include "dmaengine.h"
 
@@ -1775,7 +1776,7 @@ err_clk_enable:
 	return ret;
 }
 
-static int xgene_dma_remove(struct platform_device *pdev)
+static void xgene_dma_remove(struct platform_device *pdev)
 {
 	struct xgene_dma *pdma = platform_get_drvdata(pdev);
 	struct xgene_dma_chan *chan;
@@ -1796,8 +1797,6 @@ static int xgene_dma_remove(struct platform_device *pdev)
 
 	if (!IS_ERR(pdma->clk))
 		clk_disable_unprepare(pdma->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -1816,7 +1815,7 @@ MODULE_DEVICE_TABLE(of, xgene_dma_of_match_ptr);
 
 static struct platform_driver xgene_dma_driver = {
 	.probe = xgene_dma_probe,
-	.remove = xgene_dma_remove,
+	.remove_new = xgene_dma_remove,
 	.driver = {
 		.name = "X-Gene-DMA",
 		.of_match_table = xgene_dma_of_match_ptr,

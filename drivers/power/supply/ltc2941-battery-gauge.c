@@ -11,7 +11,7 @@
 #include <linux/devm-helpers.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/swab.h>
@@ -635,7 +635,7 @@ static struct i2c_driver ltc294x_driver = {
 		.of_match_table = ltc294x_i2c_of_match,
 		.pm	= LTC294X_PM_OPS,
 	},
-	.probe_new	= ltc294x_i2c_probe,
+	.probe		= ltc294x_i2c_probe,
 	.shutdown	= ltc294x_i2c_shutdown,
 	.id_table	= ltc294x_i2c_id,
 };

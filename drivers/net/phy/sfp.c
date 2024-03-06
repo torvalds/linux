@@ -24,14 +24,18 @@ enum {
 	GPIO_LOS,
 	GPIO_TX_FAULT,
 	GPIO_TX_DISABLE,
-	GPIO_RATE_SELECT,
+	GPIO_RS0,
+	GPIO_RS1,
 	GPIO_MAX,
 
 	SFP_F_PRESENT = BIT(GPIO_MODDEF0),
 	SFP_F_LOS = BIT(GPIO_LOS),
 	SFP_F_TX_FAULT = BIT(GPIO_TX_FAULT),
 	SFP_F_TX_DISABLE = BIT(GPIO_TX_DISABLE),
-	SFP_F_RATE_SELECT = BIT(GPIO_RATE_SELECT),
+	SFP_F_RS0 = BIT(GPIO_RS0),
+	SFP_F_RS1 = BIT(GPIO_RS1),
+
+	SFP_F_OUTPUTS = SFP_F_TX_DISABLE | SFP_F_RS0 | SFP_F_RS1,
 
 	SFP_E_INSERT = 0,
 	SFP_E_REMOVE,
@@ -148,12 +152,14 @@ static const char *gpio_names[] = {
 	"tx-fault",
 	"tx-disable",
 	"rate-select0",
+	"rate-select1",
 };
 
 static const enum gpiod_flags gpio_flags[] = {
 	GPIOD_IN,
 	GPIOD_IN,
 	GPIOD_IN,
+	GPIOD_ASIS,
 	GPIOD_ASIS,
 	GPIOD_ASIS,
 };
@@ -164,7 +170,6 @@ static const enum gpiod_flags gpio_flags[] = {
  * on board (for a copper SFP) time to initialise.
  */
 #define T_WAIT			msecs_to_jiffies(50)
-#define T_WAIT_ROLLBALL		msecs_to_jiffies(25000)
 #define T_START_UP		msecs_to_jiffies(300)
 #define T_START_UP_BAD_GPON	msecs_to_jiffies(60000)
 
@@ -186,7 +191,7 @@ static const enum gpiod_flags gpio_flags[] = {
  * R_PHY_RETRY is the number of attempts.
  */
 #define T_PHY_RETRY		msecs_to_jiffies(50)
-#define R_PHY_RETRY		12
+#define R_PHY_RETRY		25
 
 /* SFP module presence detection is poor: the three MOD DEF signals are
  * the same length on the PCB, which means it's possible for MOD DEF 0 to
@@ -242,10 +247,19 @@ struct sfp {
 
 	bool need_poll;
 
+	/* Access rules:
+	 * state_hw_drive: st_mutex held
+	 * state_hw_mask: st_mutex held
+	 * state_soft_mask: st_mutex held
+	 * state: st_mutex held unless reading input bits
+	 */
 	struct mutex st_mutex;			/* Protects state */
+	unsigned int state_hw_drive;
 	unsigned int state_hw_mask;
 	unsigned int state_soft_mask;
+	unsigned int state_ignore_mask;
 	unsigned int state;
+
 	struct delayed_work poll;
 	struct delayed_work timeout;
 	struct mutex sm_mutex;			/* Protects state machine */
@@ -261,9 +275,13 @@ struct sfp {
 	unsigned int module_power_mW;
 	unsigned int module_t_start_up;
 	unsigned int module_t_wait;
+	unsigned int phy_t_retry;
+
+	unsigned int rate_kbd;
+	unsigned int rs_threshold_kbd;
+	unsigned int rs_state_mask;
 
 	bool have_a2;
-	bool tx_fault_ignore;
 
 	const struct sfp_quirk *quirk;
 
@@ -312,7 +330,7 @@ static bool sfp_module_supported(const struct sfp_eeprom_id *id)
 
 static const struct sff_data sfp_data = {
 	.gpios = SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT |
-		 SFP_F_TX_DISABLE | SFP_F_RATE_SELECT,
+		 SFP_F_TX_DISABLE | SFP_F_RS0 | SFP_F_RS1,
 	.module_supported = sfp_module_supported,
 };
 
@@ -328,9 +346,55 @@ static void sfp_fixup_long_startup(struct sfp *sfp)
 	sfp->module_t_start_up = T_START_UP_BAD_GPON;
 }
 
+static void sfp_fixup_ignore_los(struct sfp *sfp)
+{
+	/* This forces LOS to zero, so we ignore transitions */
+	sfp->state_ignore_mask |= SFP_F_LOS;
+	/* Make sure that LOS options are clear */
+	sfp->id.ext.options &= ~cpu_to_be16(SFP_OPTIONS_LOS_INVERTED |
+					    SFP_OPTIONS_LOS_NORMAL);
+}
+
 static void sfp_fixup_ignore_tx_fault(struct sfp *sfp)
 {
-	sfp->tx_fault_ignore = true;
+	sfp->state_ignore_mask |= SFP_F_TX_FAULT;
+}
+
+static void sfp_fixup_nokia(struct sfp *sfp)
+{
+	sfp_fixup_long_startup(sfp);
+	sfp_fixup_ignore_los(sfp);
+}
+
+// For 10GBASE-T short-reach modules
+static void sfp_fixup_10gbaset_30m(struct sfp *sfp)
+{
+	sfp->id.base.connector = SFF8024_CONNECTOR_RJ45;
+	sfp->id.base.extended_cc = SFF8024_ECC_10GBASE_T_SR;
+}
+
+static void sfp_fixup_rollball(struct sfp *sfp)
+{
+	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
+
+	/* RollBall modules may disallow access to PHY registers for up to 25
+	 * seconds, and the reads return 0xffff before that. Increase the time
+	 * between PHY probe retries from 50ms to 1s so that we will wait for
+	 * the PHY for a sufficient amount of time.
+	 */
+	sfp->phy_t_retry = msecs_to_jiffies(1000);
+}
+
+static void sfp_fixup_fs_10gt(struct sfp *sfp)
+{
+	sfp_fixup_10gbaset_30m(sfp);
+	sfp_fixup_rollball(sfp);
+
+	/* The RollBall fixup is not enough for FS modules, the AQR chip inside
+	 * them does not return 0xffff for PHY ID registers in all MMDs for the
+	 * while initializing. They need a 4 second wait before accessing PHY.
+	 */
+	sfp->module_t_wait = msecs_to_jiffies(4000);
 }
 
 static void sfp_fixup_halny_gsfp(struct sfp *sfp)
@@ -340,12 +404,6 @@ static void sfp_fixup_halny_gsfp(struct sfp *sfp)
 	 * module, e.g. a serial port.
 	 */
 	sfp->state_hw_mask &= ~(SFP_F_TX_FAULT | SFP_F_LOS);
-}
-
-static void sfp_fixup_rollball(struct sfp *sfp)
-{
-	sfp->mdio_protocol = MDIO_I2C_ROLLBALL;
-	sfp->module_t_wait = T_WAIT_ROLLBALL;
 }
 
 static void sfp_fixup_rollball_cc(struct sfp *sfp)
@@ -408,7 +466,16 @@ static const struct sfp_quirk sfp_quirks[] = {
 	// Alcatel Lucent G-010S-A can operate at 2500base-X, but report 3.2GBd
 	// NRZ in their EEPROM
 	SFP_QUIRK("ALCATELLUCENT", "3FE46541AA", sfp_quirk_2500basex,
-		  sfp_fixup_long_startup),
+		  sfp_fixup_nokia),
+
+	// Fiberstore SFP-10G-T doesn't identify as copper, and uses the
+	// Rollball protocol to talk to the PHY.
+	SFP_QUIRK_F("FS", "SFP-10G-T", sfp_fixup_fs_10gt),
+
+	// Fiberstore GPON-ONU-34-20BI can operate at 2500base-X, but report 1.2GBd
+	// NRZ in their EEPROM
+	SFP_QUIRK("FS", "GPON-ONU-34-20BI", sfp_quirk_2500basex,
+		  sfp_fixup_ignore_tx_fault),
 
 	SFP_QUIRK_F("HALNy", "HL-GSFP", sfp_fixup_halny_gsfp),
 
@@ -421,11 +488,19 @@ static const struct sfp_quirk sfp_quirks[] = {
 	SFP_QUIRK("HUAWEI", "MA5671A", sfp_quirk_2500basex,
 		  sfp_fixup_ignore_tx_fault),
 
+	// FS 2.5G Base-T
+	SFP_QUIRK_M("FS", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
+
 	// Lantech 8330-262D-E can operate at 2500base-X, but incorrectly report
 	// 2500MBd NRZ in their EEPROM
 	SFP_QUIRK_M("Lantech", "8330-262D-E", sfp_quirk_2500basex),
 
 	SFP_QUIRK_M("UBNT", "UF-INSTANT", sfp_quirk_ubnt_uf_instant),
+
+	// Walsun HXSX-ATR[CI]-1 don't identify as copper, and use the
+	// Rollball protocol to talk to the PHY.
+	SFP_QUIRK_F("Walsun", "HXSX-ATRC-1", sfp_fixup_fs_10gt),
+	SFP_QUIRK_F("Walsun", "HXSX-ATRI-1", sfp_fixup_fs_10gt),
 
 	SFP_QUIRK_F("OEM", "SFP-10G-T", sfp_fixup_rollball_cc),
 	SFP_QUIRK_M("OEM", "SFP-2.5G-T", sfp_quirk_oem_2_5g),
@@ -500,20 +575,37 @@ static unsigned int sff_gpio_get_state(struct sfp *sfp)
 
 static void sfp_gpio_set_state(struct sfp *sfp, unsigned int state)
 {
-	if (state & SFP_F_PRESENT) {
-		/* If the module is present, drive the signals */
-		if (sfp->gpio[GPIO_TX_DISABLE])
+	unsigned int drive;
+
+	if (state & SFP_F_PRESENT)
+		/* If the module is present, drive the requested signals */
+		drive = sfp->state_hw_drive;
+	else
+		/* Otherwise, let them float to the pull-ups */
+		drive = 0;
+
+	if (sfp->gpio[GPIO_TX_DISABLE]) {
+		if (drive & SFP_F_TX_DISABLE)
 			gpiod_direction_output(sfp->gpio[GPIO_TX_DISABLE],
 					       state & SFP_F_TX_DISABLE);
-		if (state & SFP_F_RATE_SELECT)
-			gpiod_direction_output(sfp->gpio[GPIO_RATE_SELECT],
-					       state & SFP_F_RATE_SELECT);
-	} else {
-		/* Otherwise, let them float to the pull-ups */
-		if (sfp->gpio[GPIO_TX_DISABLE])
+		else
 			gpiod_direction_input(sfp->gpio[GPIO_TX_DISABLE]);
-		if (state & SFP_F_RATE_SELECT)
-			gpiod_direction_input(sfp->gpio[GPIO_RATE_SELECT]);
+	}
+
+	if (sfp->gpio[GPIO_RS0]) {
+		if (drive & SFP_F_RS0)
+			gpiod_direction_output(sfp->gpio[GPIO_RS0],
+					       state & SFP_F_RS0);
+		else
+			gpiod_direction_input(sfp->gpio[GPIO_RS0]);
+	}
+
+	if (sfp->gpio[GPIO_RS1]) {
+		if (drive & SFP_F_RS1)
+			gpiod_direction_output(sfp->gpio[GPIO_RS1],
+					       state & SFP_F_RS1);
+		else
+			gpiod_direction_input(sfp->gpio[GPIO_RS1]);
 	}
 }
 
@@ -675,16 +767,33 @@ static unsigned int sfp_soft_get_state(struct sfp *sfp)
 	return state & sfp->state_soft_mask;
 }
 
-static void sfp_soft_set_state(struct sfp *sfp, unsigned int state)
+static void sfp_soft_set_state(struct sfp *sfp, unsigned int state,
+			       unsigned int soft)
 {
-	u8 mask = SFP_STATUS_TX_DISABLE_FORCE;
+	u8 mask = 0;
 	u8 val = 0;
 
+	if (soft & SFP_F_TX_DISABLE)
+		mask |= SFP_STATUS_TX_DISABLE_FORCE;
 	if (state & SFP_F_TX_DISABLE)
 		val |= SFP_STATUS_TX_DISABLE_FORCE;
 
+	if (soft & SFP_F_RS0)
+		mask |= SFP_STATUS_RS0_SELECT;
+	if (state & SFP_F_RS0)
+		val |= SFP_STATUS_RS0_SELECT;
 
-	sfp_modify_u8(sfp, true, SFP_STATUS, mask, val);
+	if (mask)
+		sfp_modify_u8(sfp, true, SFP_STATUS, mask, val);
+
+	val = mask = 0;
+	if (soft & SFP_F_RS1)
+		mask |= SFP_EXT_STATUS_RS1_SELECT;
+	if (state & SFP_F_RS1)
+		val |= SFP_EXT_STATUS_RS1_SELECT;
+
+	if (mask)
+		sfp_modify_u8(sfp, true, SFP_EXT_STATUS, mask, val);
 }
 
 static void sfp_soft_start_poll(struct sfp *sfp)
@@ -692,27 +801,36 @@ static void sfp_soft_start_poll(struct sfp *sfp)
 	const struct sfp_eeprom_id *id = &sfp->id;
 	unsigned int mask = 0;
 
-	sfp->state_soft_mask = 0;
 	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_DISABLE)
 		mask |= SFP_F_TX_DISABLE;
 	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_TX_FAULT)
 		mask |= SFP_F_TX_FAULT;
 	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RX_LOS)
 		mask |= SFP_F_LOS;
+	if (id->ext.enhopts & SFP_ENHOPTS_SOFT_RATE_SELECT)
+		mask |= sfp->rs_state_mask;
 
+	mutex_lock(&sfp->st_mutex);
 	// Poll the soft state for hardware pins we want to ignore
-	sfp->state_soft_mask = ~sfp->state_hw_mask & mask;
+	sfp->state_soft_mask = ~sfp->state_hw_mask & ~sfp->state_ignore_mask &
+			       mask;
 
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) &&
 	    !sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static void sfp_soft_stop_poll(struct sfp *sfp)
 {
+	mutex_lock(&sfp->st_mutex);
 	sfp->state_soft_mask = 0;
+	mutex_unlock(&sfp->st_mutex);
 }
 
+/* sfp_get_state() - must be called with st_mutex held, or in the
+ * initialisation path.
+ */
 static unsigned int sfp_get_state(struct sfp *sfp)
 {
 	unsigned int soft = sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT);
@@ -725,13 +843,26 @@ static unsigned int sfp_get_state(struct sfp *sfp)
 	return state;
 }
 
+/* sfp_set_state() - must be called with st_mutex held, or in the
+ * initialisation path.
+ */
 static void sfp_set_state(struct sfp *sfp, unsigned int state)
 {
+	unsigned int soft;
+
 	sfp->set_state(sfp, state);
 
-	if (state & SFP_F_PRESENT &&
-	    sfp->state_soft_mask & SFP_F_TX_DISABLE)
-		sfp_soft_set_state(sfp, state);
+	soft = sfp->state_soft_mask & SFP_F_OUTPUTS;
+	if (state & SFP_F_PRESENT && soft)
+		sfp_soft_set_state(sfp, state, soft);
+}
+
+static void sfp_mod_state(struct sfp *sfp, unsigned int mask, unsigned int set)
+{
+	mutex_lock(&sfp->st_mutex);
+	sfp->state = (sfp->state & ~mask) | set;
+	sfp_set_state(sfp, sfp->state);
+	mutex_unlock(&sfp->st_mutex);
 }
 
 static unsigned int sfp_check(void *buf, size_t len)
@@ -1537,16 +1668,14 @@ static void sfp_module_tx_disable(struct sfp *sfp)
 {
 	dev_dbg(sfp->dev, "tx disable %u -> %u\n",
 		sfp->state & SFP_F_TX_DISABLE ? 1 : 0, 1);
-	sfp->state |= SFP_F_TX_DISABLE;
-	sfp_set_state(sfp, sfp->state);
+	sfp_mod_state(sfp, SFP_F_TX_DISABLE, SFP_F_TX_DISABLE);
 }
 
 static void sfp_module_tx_enable(struct sfp *sfp)
 {
 	dev_dbg(sfp->dev, "tx disable %u -> %u\n",
 		sfp->state & SFP_F_TX_DISABLE ? 1 : 0, 0);
-	sfp->state &= ~SFP_F_TX_DISABLE;
-	sfp_set_state(sfp, sfp->state);
+	sfp_mod_state(sfp, SFP_F_TX_DISABLE, 0);
 }
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
@@ -1567,10 +1696,15 @@ static int sfp_debug_state_show(struct seq_file *s, void *data)
 		   sfp->sm_fault_retries);
 	seq_printf(s, "PHY probe remaining retries: %d\n",
 		   sfp->sm_phy_retries);
+	seq_printf(s, "Signalling rate: %u kBd\n", sfp->rate_kbd);
+	seq_printf(s, "Rate select threshold: %u kBd\n",
+		   sfp->rs_threshold_kbd);
 	seq_printf(s, "moddef0: %d\n", !!(sfp->state & SFP_F_PRESENT));
 	seq_printf(s, "rx_los: %d\n", !!(sfp->state & SFP_F_LOS));
 	seq_printf(s, "tx_fault: %d\n", !!(sfp->state & SFP_F_TX_FAULT));
 	seq_printf(s, "tx_disable: %d\n", !!(sfp->state & SFP_F_TX_DISABLE));
+	seq_printf(s, "rs0: %d\n", !!(sfp->state & SFP_F_RS0));
+	seq_printf(s, "rs1: %d\n", !!(sfp->state & SFP_F_RS1));
 	return 0;
 }
 DEFINE_SHOW_ATTRIBUTE(sfp_debug_state);
@@ -1599,16 +1733,18 @@ static void sfp_debugfs_exit(struct sfp *sfp)
 
 static void sfp_module_tx_fault_reset(struct sfp *sfp)
 {
-	unsigned int state = sfp->state;
+	unsigned int state;
 
-	if (state & SFP_F_TX_DISABLE)
-		return;
+	mutex_lock(&sfp->st_mutex);
+	state = sfp->state;
+	if (!(state & SFP_F_TX_DISABLE)) {
+		sfp_set_state(sfp, state | SFP_F_TX_DISABLE);
 
-	sfp_set_state(sfp, state | SFP_F_TX_DISABLE);
+		udelay(T_RESET_US);
 
-	udelay(T_RESET_US);
-
-	sfp_set_state(sfp, state);
+		sfp_set_state(sfp, state);
+	}
+	mutex_unlock(&sfp->st_mutex);
 }
 
 /* SFP state machine */
@@ -1655,6 +1791,9 @@ static int sfp_sm_probe_phy(struct sfp *sfp, int addr, bool is_c45)
 		dev_err(sfp->dev, "mdiobus scan returned %pe\n", phy);
 		return PTR_ERR(phy);
 	}
+
+	/* Mark this PHY as being on a SFP module */
+	phy->is_on_sfp_module = true;
 
 	err = phy_device_register(phy);
 	if (err) {
@@ -1874,6 +2013,95 @@ static int sfp_sm_mod_hpower(struct sfp *sfp, bool enable)
 	return 0;
 }
 
+static void sfp_module_parse_rate_select(struct sfp *sfp)
+{
+	u8 rate_id;
+
+	sfp->rs_threshold_kbd = 0;
+	sfp->rs_state_mask = 0;
+
+	if (!(sfp->id.ext.options & cpu_to_be16(SFP_OPTIONS_RATE_SELECT)))
+		/* No support for RateSelect */
+		return;
+
+	/* Default to INF-8074 RateSelect operation. The signalling threshold
+	 * rate is not well specified, so always select "Full Bandwidth", but
+	 * SFF-8079 reveals that it is understood that RS0 will be low for
+	 * 1.0625Gb/s and high for 2.125Gb/s. Choose a value half-way between.
+	 * This method exists prior to SFF-8472.
+	 */
+	sfp->rs_state_mask = SFP_F_RS0;
+	sfp->rs_threshold_kbd = 1594;
+
+	/* Parse the rate identifier, which is complicated due to history:
+	 * SFF-8472 rev 9.5 marks this field as reserved.
+	 * SFF-8079 references SFF-8472 rev 9.5 and defines bit 0. SFF-8472
+	 *  compliance is not required.
+	 * SFF-8472 rev 10.2 defines this field using values 0..4
+	 * SFF-8472 rev 11.0 redefines this field with bit 0 for SFF-8079
+	 * and even values.
+	 */
+	rate_id = sfp->id.base.rate_id;
+	if (rate_id == 0)
+		/* Unspecified */
+		return;
+
+	/* SFF-8472 rev 10.0..10.4 did not account for SFF-8079 using bit 0,
+	 * and allocated value 3 to SFF-8431 independent tx/rx rate select.
+	 * Convert this to a SFF-8472 rev 11.0 rate identifier.
+	 */
+	if (sfp->id.ext.sff8472_compliance >= SFP_SFF8472_COMPLIANCE_REV10_2 &&
+	    sfp->id.ext.sff8472_compliance < SFP_SFF8472_COMPLIANCE_REV11_0 &&
+	    rate_id == 3)
+		rate_id = SFF_RID_8431;
+
+	if (rate_id & SFF_RID_8079) {
+		/* SFF-8079 RateSelect / Application Select in conjunction with
+		 * SFF-8472 rev 9.5. SFF-8079 defines rate_id as a bitfield
+		 * with only bit 0 used, which takes precedence over SFF-8472.
+		 */
+		if (!(sfp->id.ext.enhopts & SFP_ENHOPTS_APP_SELECT_SFF8079)) {
+			/* SFF-8079 Part 1 - rate selection between Fibre
+			 * Channel 1.0625/2.125/4.25 Gbd modes. Note that RS0
+			 * is high for 2125, so we have to subtract 1 to
+			 * include it.
+			 */
+			sfp->rs_threshold_kbd = 2125 - 1;
+			sfp->rs_state_mask = SFP_F_RS0;
+		}
+		return;
+	}
+
+	/* SFF-8472 rev 9.5 does not define the rate identifier */
+	if (sfp->id.ext.sff8472_compliance <= SFP_SFF8472_COMPLIANCE_REV9_5)
+		return;
+
+	/* SFF-8472 rev 11.0 defines rate_id as a numerical value which will
+	 * always have bit 0 clear due to SFF-8079's bitfield usage of rate_id.
+	 */
+	switch (rate_id) {
+	case SFF_RID_8431_RX_ONLY:
+		sfp->rs_threshold_kbd = 4250;
+		sfp->rs_state_mask = SFP_F_RS0;
+		break;
+
+	case SFF_RID_8431_TX_ONLY:
+		sfp->rs_threshold_kbd = 4250;
+		sfp->rs_state_mask = SFP_F_RS1;
+		break;
+
+	case SFF_RID_8431:
+		sfp->rs_threshold_kbd = 4250;
+		sfp->rs_state_mask = SFP_F_RS0 | SFP_F_RS1;
+		break;
+
+	case SFF_RID_10G8G:
+		sfp->rs_threshold_kbd = 9000;
+		sfp->rs_state_mask = SFP_F_RS0 | SFP_F_RS1;
+		break;
+	}
+}
+
 /* GPON modules based on Realtek RTL8672 and RTL9601C chips (e.g. V-SOL
  * V2801F, CarlitoxxPro CPGOS03-0490, Ubiquiti U-Fiber Instant, ...) do
  * not support multibyte reads from the EEPROM. Each multi-byte read
@@ -1953,6 +2181,7 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	/* SFP module inserted - read I2C data */
 	struct sfp_eeprom_id id;
 	bool cotsworks_sfbg;
+	unsigned int mask;
 	bool cotsworks;
 	u8 check;
 	int ret;
@@ -2092,19 +2321,25 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 	if (ret < 0)
 		return ret;
 
-	/* Initialise state bits to use from hardware */
-	sfp->state_hw_mask = SFP_F_PRESENT;
+	sfp_module_parse_rate_select(sfp);
+
+	mask = SFP_F_PRESENT;
 	if (sfp->gpio[GPIO_TX_DISABLE])
-		sfp->state_hw_mask |= SFP_F_TX_DISABLE;
+		mask |= SFP_F_TX_DISABLE;
 	if (sfp->gpio[GPIO_TX_FAULT])
-		sfp->state_hw_mask |= SFP_F_TX_FAULT;
+		mask |= SFP_F_TX_FAULT;
 	if (sfp->gpio[GPIO_LOS])
-		sfp->state_hw_mask |= SFP_F_LOS;
+		mask |= SFP_F_LOS;
+	if (sfp->gpio[GPIO_RS0])
+		mask |= SFP_F_RS0;
+	if (sfp->gpio[GPIO_RS1])
+		mask |= SFP_F_RS1;
 
 	sfp->module_t_start_up = T_START_UP;
 	sfp->module_t_wait = T_WAIT;
+	sfp->phy_t_retry = T_PHY_RETRY;
 
-	sfp->tx_fault_ignore = false;
+	sfp->state_ignore_mask = 0;
 
 	if (sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SFI ||
 	    sfp->id.base.extended_cc == SFF8024_ECC_10GBASE_T_SR ||
@@ -2117,8 +2352,19 @@ static int sfp_sm_mod_probe(struct sfp *sfp, bool report)
 		sfp->mdio_protocol = MDIO_I2C_NONE;
 
 	sfp->quirk = sfp_lookup_quirk(&id);
+
+	mutex_lock(&sfp->st_mutex);
+	/* Initialise state bits to use from hardware */
+	sfp->state_hw_mask = mask;
+
+	/* We want to drive the rate select pins that the module is using */
+	sfp->state_hw_drive |= sfp->rs_state_mask;
+
 	if (sfp->quirk && sfp->quirk->fixup)
 		sfp->quirk->fixup(sfp);
+
+	sfp->state_hw_mask &= ~sfp->state_ignore_mask;
+	mutex_unlock(&sfp->st_mutex);
 
 	return 0;
 }
@@ -2132,6 +2378,7 @@ static void sfp_sm_mod_remove(struct sfp *sfp)
 
 	memset(&sfp->id, 0, sizeof(sfp->id));
 	sfp->module_power_mW = 0;
+	sfp->state_hw_drive = SFP_F_TX_DISABLE;
 	sfp->have_a2 = false;
 
 	dev_info(sfp->dev, "module removed\n");
@@ -2388,7 +2635,11 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 		ret = sfp_sm_probe_for_phy(sfp);
 		if (ret == -ENODEV) {
 			if (--sfp->sm_phy_retries) {
-				sfp_sm_next(sfp, SFP_S_INIT_PHY, T_PHY_RETRY);
+				sfp_sm_next(sfp, SFP_S_INIT_PHY,
+					    sfp->phy_t_retry);
+				dev_dbg(sfp->dev,
+					"no PHY detected, %u tries left\n",
+					sfp->sm_phy_retries);
 				break;
 			} else {
 				dev_info(sfp->dev, "no PHY detected\n");
@@ -2452,10 +2703,8 @@ static void sfp_sm_main(struct sfp *sfp, unsigned int event)
 	}
 }
 
-static void sfp_sm_event(struct sfp *sfp, unsigned int event)
+static void __sfp_sm_event(struct sfp *sfp, unsigned int event)
 {
-	mutex_lock(&sfp->sm_mutex);
-
 	dev_dbg(sfp->dev, "SM: enter %s:%s:%s event %s\n",
 		mod_state_to_str(sfp->sm_mod_state),
 		dev_state_to_str(sfp->sm_dev_state),
@@ -2470,7 +2719,12 @@ static void sfp_sm_event(struct sfp *sfp, unsigned int event)
 		mod_state_to_str(sfp->sm_mod_state),
 		dev_state_to_str(sfp->sm_dev_state),
 		sm_state_to_str(sfp->sm_state));
+}
 
+static void sfp_sm_event(struct sfp *sfp, unsigned int event)
+{
+	mutex_lock(&sfp->sm_mutex);
+	__sfp_sm_event(sfp, event);
 	mutex_unlock(&sfp->sm_mutex);
 }
 
@@ -2492,6 +2746,20 @@ static void sfp_start(struct sfp *sfp)
 static void sfp_stop(struct sfp *sfp)
 {
 	sfp_sm_event(sfp, SFP_E_DEV_DOWN);
+}
+
+static void sfp_set_signal_rate(struct sfp *sfp, unsigned int rate_kbd)
+{
+	unsigned int set;
+
+	sfp->rate_kbd = rate_kbd;
+
+	if (rate_kbd > sfp->rs_threshold_kbd)
+		set = sfp->rs_state_mask;
+	else
+		set = 0;
+
+	sfp_mod_state(sfp, SFP_F_RS0 | SFP_F_RS1, set);
 }
 
 static int sfp_module_info(struct sfp *sfp, struct ethtool_modinfo *modinfo)
@@ -2578,6 +2846,7 @@ static const struct sfp_socket_ops sfp_module_ops = {
 	.detach = sfp_detach,
 	.start = sfp_start,
 	.stop = sfp_stop,
+	.set_signal_rate = sfp_set_signal_rate,
 	.module_info = sfp_module_info,
 	.module_eeprom = sfp_module_eeprom,
 	.module_eeprom_by_page = sfp_module_eeprom_by_page,
@@ -2596,36 +2865,35 @@ static void sfp_check_state(struct sfp *sfp)
 {
 	unsigned int state, i, changed;
 
+	rtnl_lock();
 	mutex_lock(&sfp->st_mutex);
 	state = sfp_get_state(sfp);
 	changed = state ^ sfp->state;
-	if (sfp->tx_fault_ignore)
-		changed &= SFP_F_PRESENT | SFP_F_LOS;
-	else
-		changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
+	changed &= SFP_F_PRESENT | SFP_F_LOS | SFP_F_TX_FAULT;
 
 	for (i = 0; i < GPIO_MAX; i++)
 		if (changed & BIT(i))
 			dev_dbg(sfp->dev, "%s %u -> %u\n", gpio_names[i],
 				!!(sfp->state & BIT(i)), !!(state & BIT(i)));
 
-	state |= sfp->state & (SFP_F_TX_DISABLE | SFP_F_RATE_SELECT);
+	state |= sfp->state & SFP_F_OUTPUTS;
 	sfp->state = state;
+	mutex_unlock(&sfp->st_mutex);
 
-	rtnl_lock();
+	mutex_lock(&sfp->sm_mutex);
 	if (changed & SFP_F_PRESENT)
-		sfp_sm_event(sfp, state & SFP_F_PRESENT ?
-				SFP_E_INSERT : SFP_E_REMOVE);
+		__sfp_sm_event(sfp, state & SFP_F_PRESENT ?
+				    SFP_E_INSERT : SFP_E_REMOVE);
 
 	if (changed & SFP_F_TX_FAULT)
-		sfp_sm_event(sfp, state & SFP_F_TX_FAULT ?
-				SFP_E_TX_FAULT : SFP_E_TX_CLEAR);
+		__sfp_sm_event(sfp, state & SFP_F_TX_FAULT ?
+				    SFP_E_TX_FAULT : SFP_E_TX_CLEAR);
 
 	if (changed & SFP_F_LOS)
-		sfp_sm_event(sfp, state & SFP_F_LOS ?
-				SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
+		__sfp_sm_event(sfp, state & SFP_F_LOS ?
+				    SFP_E_LOS_HIGH : SFP_E_LOS_LOW);
+	mutex_unlock(&sfp->sm_mutex);
 	rtnl_unlock();
-	mutex_unlock(&sfp->st_mutex);
 }
 
 static irqreturn_t sfp_irq(int irq, void *data)
@@ -2643,6 +2911,8 @@ static void sfp_poll(struct work_struct *work)
 
 	sfp_check_state(sfp);
 
+	// st_mutex doesn't need to be held here for state_soft_mask,
+	// it's unimportant if we race while reading this.
 	if (sfp->state_soft_mask & (SFP_F_LOS | SFP_F_TX_FAULT) ||
 	    sfp->need_poll)
 		mod_delayed_work(system_wq, &sfp->poll, poll_jiffies);
@@ -2748,6 +3018,7 @@ static int sfp_probe(struct platform_device *pdev)
 		}
 
 	sfp->state_hw_mask = SFP_F_PRESENT;
+	sfp->state_hw_drive = SFP_F_TX_DISABLE;
 
 	sfp->get_state = sfp_gpio_get_state;
 	sfp->set_state = sfp_gpio_set_state;
@@ -2773,9 +3044,9 @@ static int sfp_probe(struct platform_device *pdev)
 	 */
 	sfp->state = sfp_get_state(sfp) | SFP_F_TX_DISABLE;
 
-	if (sfp->gpio[GPIO_RATE_SELECT] &&
-	    gpiod_get_value_cansleep(sfp->gpio[GPIO_RATE_SELECT]))
-		sfp->state |= SFP_F_RATE_SELECT;
+	if (sfp->gpio[GPIO_RS0] &&
+	    gpiod_get_value_cansleep(sfp->gpio[GPIO_RS0]))
+		sfp->state |= SFP_F_RS0;
 	sfp_set_state(sfp, sfp->state);
 	sfp_module_tx_disable(sfp);
 	if (sfp->state & SFP_F_PRESENT) {
@@ -2835,7 +3106,7 @@ static int sfp_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sfp_remove(struct platform_device *pdev)
+static void sfp_remove(struct platform_device *pdev)
 {
 	struct sfp *sfp = platform_get_drvdata(pdev);
 
@@ -2845,8 +3116,6 @@ static int sfp_remove(struct platform_device *pdev)
 	rtnl_lock();
 	sfp_sm_event(sfp, SFP_E_REMOVE);
 	rtnl_unlock();
-
-	return 0;
 }
 
 static void sfp_shutdown(struct platform_device *pdev)
@@ -2867,7 +3136,7 @@ static void sfp_shutdown(struct platform_device *pdev)
 
 static struct platform_driver sfp_driver = {
 	.probe = sfp_probe,
-	.remove = sfp_remove,
+	.remove_new = sfp_remove,
 	.shutdown = sfp_shutdown,
 	.driver = {
 		.name = "sfp",
@@ -2892,3 +3161,4 @@ module_exit(sfp_exit);
 MODULE_ALIAS("platform:sfp");
 MODULE_AUTHOR("Russell King");
 MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("SFP cage support");

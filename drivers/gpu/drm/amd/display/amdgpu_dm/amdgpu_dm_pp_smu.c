@@ -334,7 +334,8 @@ bool dm_pp_get_clock_levels_by_type(
 			if (dc_clks->clocks_in_khz[i] > validation_clks.engine_max_clock) {
 				/* This clock is higher the validation clock.
 				 * Than means the previous one is the highest
-				 * non-boosted one. */
+				 * non-boosted one.
+				 */
 				DRM_INFO("DM_PPLIB: reducing engine clock level from %d to %d\n",
 						dc_clks->num_levels, i);
 				dc_clks->num_levels = i > 0 ? i : 1;
@@ -406,10 +407,10 @@ bool dm_pp_notify_wm_clock_changes(
 	 * TODO: expand this to other ASICs
 	 */
 	if ((adev->asic_type >= CHIP_POLARIS10) &&
-	     (adev->asic_type <= CHIP_VEGAM) &&
-	     !amdgpu_dpm_set_watermarks_for_clocks_ranges(adev,
-						(void *)wm_with_clock_ranges))
-			return true;
+	    (adev->asic_type <= CHIP_VEGAM) &&
+	    !amdgpu_dpm_set_watermarks_for_clocks_ranges(adev,
+							 (void *)wm_with_clock_ranges))
+		return true;
 
 	return false;
 }

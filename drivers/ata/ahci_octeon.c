@@ -16,7 +16,6 @@
 #include <linux/of_platform.h>
 
 #include <asm/octeon/octeon.h>
-#include <asm/bitfield.h>
 
 #define CVMX_SATA_UCTL_SHIM_CFG		0xE8
 
@@ -32,13 +31,11 @@ static int ahci_octeon_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource *res;
 	void __iomem *base;
 	u64 cfg;
 	int ret;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

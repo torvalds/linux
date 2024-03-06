@@ -154,7 +154,7 @@ static struct i2c_driver usb4604_i2c_driver = {
 		.pm = pm_ptr(&usb4604_i2c_pm_ops),
 		.of_match_table = of_match_ptr(usb4604_of_match),
 	},
-	.probe_new	= usb4604_i2c_probe,
+	.probe		= usb4604_i2c_probe,
 	.id_table	= usb4604_id,
 };
 module_i2c_driver(usb4604_i2c_driver);

@@ -7,7 +7,6 @@
 #ifndef _R819XU_PHYREG_H
 #define _R819XU_PHYREG_H
 
-
 #define RF_DATA			0x1d4
 
 #define rPMAC_Reset		0x100
@@ -125,7 +124,6 @@
 #define rOFDM0_TxCoeff5			0xcb4
 #define rOFDM0_TxCoeff6			0xcb8
 
-
 #define rOFDM1_LSTF			0xd00
 #define rOFDM1_TRxPathEnable		0xd04
 #define rOFDM1_CFO			0xd08
@@ -162,7 +160,6 @@
 #define rTxAGC_Mcs07_Mcs04		0xe14
 #define rTxAGC_Mcs11_Mcs08		0xe18
 #define rTxAGC_Mcs15_Mcs12		0xe1c
-
 
 #define rZebra1_HSSIEnable		0x0
 #define rZebra1_TRxEnable1		0x1
@@ -251,77 +248,15 @@
 #define bPAEnd				0xf
 #define bTREnd				0x0f000000
 #define bRFEnd				0x000f0000
-/* T2R */
-#define bCCAMask			0x000000f0
-#define bR2RCCAMask			0x00000f00
-#define bHSSI_R2TDelay			0xf8000000
-#define bHSSI_T2RDelay			0xf80000
 /* Channel gain at continue TX. */
-#define bContTxHSSI			0x400
-#define bIGFromCCK			0x200
-#define bAGCAddress			0x3f
-#define bRxHPTx				0x7000
-#define bRxHPT2R			0x38000
-#define bRxHPCCKIni			0xc0000
-#define bAGCTxCode			0xc00000
-#define bAGCRxCode			0x300000
 #define b3WireDataLength		0x800
 #define b3WireAddressLength		0x400
-#define b3WireRFPowerDown		0x1
-/*#define bHWSISelect			0x8 */
-#define b5GPAPEPolarity			0x40000000
-#define b2GPAPEPolarity			0x80000000
-#define bRFSW_TxDefaultAnt		0x3
-#define bRFSW_TxOptionAnt		0x30
-#define bRFSW_RxDefaultAnt		0x300
-#define bRFSW_RxOptionAnt		0x3000
-#define bRFSI_3WireData			0x1
-#define bRFSI_3WireClock		0x2
-#define bRFSI_3WireLoad			0x4
-#define bRFSI_3WireRW			0x8
 /* 3-wire total control */
-#define bRFSI_3Wire			0xf
 #define bRFSI_RFENV			0x10
-#define bRFSI_TRSW			0x20
-#define bRFSI_TRSWB			0x40
-#define bRFSI_ANTSW			0x100
-#define bRFSI_ANTSWB			0x200
-#define bRFSI_PAPE			0x400
-#define bRFSI_PAPE5G			0x800
-#define bBandSelect			0x1
-#define bHTSIG2_GI			0x80
-#define bHTSIG2_Smoothing		0x01
-#define bHTSIG2_Sounding		0x02
-#define bHTSIG2_Aggreaton		0x08
-#define bHTSIG2_STBC			0x30
-#define bHTSIG2_AdvCoding		0x40
-#define bHTSIG2_NumOfHTLTF		0x300
-#define bHTSIG2_CRC8			0x3fc
-#define bHTSIG1_MCS			0x7f
-#define bHTSIG1_BandWidth		0x80
-#define bHTSIG1_HTLength		0xffff
-#define bLSIG_Rate			0xf
-#define bLSIG_Reserved			0x10
-#define bLSIG_Length			0x1fffe
-#define bLSIG_Parity			0x20
-#define bCCKRxPhase			0x4
 #define bLSSIReadAddress		0x3f000000 /* LSSI "read" address */
 #define bLSSIReadEdge			0x80000000 /* LSSI "read" edge signal */
 #define bLSSIReadBackData		0xfff
-#define bLSSIReadOKFlag			0x1000
-#define bCCKSampleRate			0x8 /* 0: 44 MHz, 1: 88MHz */
 
-#define bRegulator0Standby		0x1
-#define bRegulatorPLLStandby		0x2
-#define bRegulator1Standby		0x4
-#define bPLLPowerUp			0x8
-#define bDPLLPowerUp			0x10
-#define bDA10PowerUp			0x20
-#define bAD7PowerUp			0x200
-#define bDA6PowerUp			0x2000
-#define bXtalPowerUp			0x4000
-#define b40MDClkPowerUP			0x8000
-#define bDA6DebugMode			0x20000
 #define bDA6Swing			0x380000
 #define bADClkPhase			0x4000000
 #define b80MClkDelay			0x18000000
@@ -818,7 +753,6 @@
 #define bCCKPHY0_End	0xaff
 #define bOFDMPHY0_End	0xcff
 #define bOFDMPHY1_End	0xdff
-
 
 #define bPMACControl	0x0
 #define bWMACControl	0x1

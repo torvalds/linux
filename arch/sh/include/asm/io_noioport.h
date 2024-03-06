@@ -46,13 +46,6 @@ static inline void ioport_unmap(void __iomem *addr)
 	BUG();
 }
 
-#define inb_p(addr)	inb(addr)
-#define inw_p(addr)	inw(addr)
-#define inl_p(addr)	inl(addr)
-#define outb_p(x, addr)	outb((x), (addr))
-#define outw_p(x, addr)	outw((x), (addr))
-#define outl_p(x, addr)	outl((x), (addr))
-
 static inline void insb(unsigned long port, void *dst, unsigned long count)
 {
 	BUG();

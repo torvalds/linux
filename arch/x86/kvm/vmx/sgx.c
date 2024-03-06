@@ -37,6 +37,7 @@ static int sgx_get_encls_gva(struct kvm_vcpu *vcpu, unsigned long offset,
 	if (!IS_ALIGNED(*gva, alignment)) {
 		fault = true;
 	} else if (likely(is_64_bit_mode(vcpu))) {
+		*gva = vmx_get_untagged_addr(vcpu, *gva, 0);
 		fault = is_noncanonical_address(*gva, vcpu);
 	} else {
 		*gva &= 0xffffffff;
@@ -357,11 +358,12 @@ static int handle_encls_einit(struct kvm_vcpu *vcpu)
 
 static inline bool encls_leaf_enabled_in_guest(struct kvm_vcpu *vcpu, u32 leaf)
 {
-	if (!enable_sgx || !guest_cpuid_has(vcpu, X86_FEATURE_SGX))
-		return false;
-
+	/*
+	 * ENCLS generates a #UD if SGX1 isn't supported, i.e. this point will
+	 * be reached if and only if the SGX1 leafs are enabled.
+	 */
 	if (leaf >= ECREATE && leaf <= ETRACK)
-		return guest_cpuid_has(vcpu, X86_FEATURE_SGX1);
+		return true;
 
 	if (leaf >= EAUG && leaf <= EMODT)
 		return guest_cpuid_has(vcpu, X86_FEATURE_SGX2);
@@ -380,9 +382,11 @@ int handle_encls(struct kvm_vcpu *vcpu)
 {
 	u32 leaf = (u32)kvm_rax_read(vcpu);
 
-	if (!encls_leaf_enabled_in_guest(vcpu, leaf)) {
+	if (!enable_sgx || !guest_cpuid_has(vcpu, X86_FEATURE_SGX) ||
+	    !guest_cpuid_has(vcpu, X86_FEATURE_SGX1)) {
 		kvm_queue_exception(vcpu, UD_VECTOR);
-	} else if (!sgx_enabled_in_guest_bios(vcpu)) {
+	} else if (!encls_leaf_enabled_in_guest(vcpu, leaf) ||
+		   !sgx_enabled_in_guest_bios(vcpu) || !is_paging(vcpu)) {
 		kvm_inject_gp(vcpu, 0);
 	} else {
 		if (leaf == ECREATE)

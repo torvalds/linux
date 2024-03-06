@@ -225,13 +225,9 @@ void rtl92de_set_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 	}
 	case HW_VAR_AMPDU_MIN_SPACE: {
 		u8 min_spacing_to_set;
-		u8 sec_min_space;
 
 		min_spacing_to_set = *val;
 		if (min_spacing_to_set <= 7) {
-			sec_min_space = 0;
-			if (min_spacing_to_set < sec_min_space)
-				min_spacing_to_set = sec_min_space;
 			mac->min_space_cfg = ((mac->min_space_cfg & 0xf8) |
 					      min_spacing_to_set);
 			*val = min_spacing_to_set;
@@ -595,16 +591,16 @@ static void _rtl92de_gen_refresh_led_state(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	struct rtl_led *pled0 = &rtlpriv->ledctl.sw_led0;
+	enum rtl_led_pin pin0 = rtlpriv->ledctl.sw_led0;
 
 	if (rtlpci->up_first_time)
 		return;
 	if (ppsc->rfoff_reason == RF_CHANGE_BY_IPS)
-		rtl92de_sw_led_on(hw, pled0);
+		rtl92de_sw_led_on(hw, pin0);
 	else if (ppsc->rfoff_reason == RF_CHANGE_BY_INIT)
-		rtl92de_sw_led_on(hw, pled0);
+		rtl92de_sw_led_on(hw, pin0);
 	else
-		rtl92de_sw_led_off(hw, pled0);
+		rtl92de_sw_led_off(hw, pin0);
 }
 
 static bool _rtl92de_init_mac(struct ieee80211_hw *hw)

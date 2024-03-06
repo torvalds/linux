@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- * Copyright(c) 2018 - 2020 Intel Corporation
+ * Copyright(c) 2018 - 2020, 2023 Intel Corporation
  *****************************************************************************/
 
 #include <linux/module.h>
@@ -28,17 +28,17 @@
 #define EEPROM_2000_EEPROM_VERSION	(0x805)
 
 
-#define IWL2030_FW_PRE "iwlwifi-2030-"
-#define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE __stringify(api) ".ucode"
+#define IWL2030_FW_PRE "iwlwifi-2030"
+#define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL2000_FW_PRE "iwlwifi-2000-"
-#define IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE __stringify(api) ".ucode"
+#define IWL2000_FW_PRE "iwlwifi-2000"
+#define IWL2000_MODULE_FIRMWARE(api) IWL2000_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL105_FW_PRE "iwlwifi-105-"
-#define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE __stringify(api) ".ucode"
+#define IWL105_FW_PRE "iwlwifi-105"
+#define IWL105_MODULE_FIRMWARE(api) IWL105_FW_PRE "-" __stringify(api) ".ucode"
 
-#define IWL135_FW_PRE "iwlwifi-135-"
-#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE __stringify(api) ".ucode"
+#define IWL135_FW_PRE "iwlwifi-135"
+#define IWL135_MODULE_FIRMWARE(api) IWL135_FW_PRE "-" __stringify(api) ".ucode"
 
 static const struct iwl_base_params iwl2000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE_2K,

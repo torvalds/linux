@@ -17,8 +17,7 @@
 #include <linux/export.h>
 #include <linux/io.h>
 #include <linux/perf_event.h>
-
-#include <asm/ctl_reg.h>
+#include <asm/ctlreg.h>
 #include <asm/pai.h>
 #include <asm/debug.h>
 
@@ -50,7 +49,7 @@ struct paiext_map {
 	struct pai_userdata *save;	/* Area to store non-zero counters */
 	enum paievt_mode mode;		/* Type of event */
 	unsigned int active_events;	/* # of PAI Extension users */
-	unsigned int refcnt;
+	refcount_t refcnt;
 	struct perf_event *event;	/* Perf event for sampling */
 	struct paiext_cb *paiext_cb;	/* PAI extension control block area */
 };
@@ -60,14 +59,14 @@ struct paiext_mapptr {
 };
 
 static struct paiext_root {		/* Anchor to per CPU data */
-	int refcnt;			/* Overall active events */
+	refcount_t refcnt;		/* Overall active events */
 	struct paiext_mapptr __percpu *mapptr;
 } paiext_root;
 
 /* Free per CPU data when the last event is removed. */
 static void paiext_root_free(void)
 {
-	if (!--paiext_root.refcnt) {
+	if (refcount_dec_and_test(&paiext_root.refcnt)) {
 		free_percpu(paiext_root.mapptr);
 		paiext_root.mapptr = NULL;
 	}
@@ -80,17 +79,18 @@ static void paiext_root_free(void)
  */
 static int paiext_root_alloc(void)
 {
-	if (++paiext_root.refcnt == 1) {
+	if (!refcount_inc_not_zero(&paiext_root.refcnt)) {
 		/* The memory is already zeroed. */
 		paiext_root.mapptr = alloc_percpu(struct paiext_mapptr);
 		if (!paiext_root.mapptr) {
-			/* Returing without refcnt adjustment is ok. The
+			/* Returning without refcnt adjustment is ok. The
 			 * error code is handled by paiext_alloc() which
 			 * decrements refcnt when an event can not be
 			 * created.
 			 */
 			return -ENOMEM;
 		}
+		refcount_set(&paiext_root.refcnt, 1);
 	}
 	return 0;
 }
@@ -122,7 +122,7 @@ static void paiext_event_destroy(struct perf_event *event)
 
 	mutex_lock(&paiext_reserve_mutex);
 	cpump->event = NULL;
-	if (!--cpump->refcnt)		/* Last reference gone */
+	if (refcount_dec_and_test(&cpump->refcnt))	/* Last reference gone */
 		paiext_free(mp);
 	paiext_root_free();
 	mutex_unlock(&paiext_reserve_mutex);
@@ -163,7 +163,7 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 		rc = -ENOMEM;
 		cpump = kzalloc(sizeof(*cpump), GFP_KERNEL);
 		if (!cpump)
-			goto unlock;
+			goto undo;
 
 		/* Allocate memory for counter area and counter extraction.
 		 * These are
@@ -183,27 +183,28 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 					     GFP_KERNEL);
 		if (!cpump->save || !cpump->area || !cpump->paiext_cb) {
 			paiext_free(mp);
-			goto unlock;
+			goto undo;
 		}
+		refcount_set(&cpump->refcnt, 1);
 		cpump->mode = a->sample_period ? PAI_MODE_SAMPLING
 					       : PAI_MODE_COUNTING;
 	} else {
-		/* Multiple invocation, check whats active.
+		/* Multiple invocation, check what is active.
 		 * Supported are multiple counter events or only one sampling
 		 * event concurrently at any one time.
 		 */
 		if (cpump->mode == PAI_MODE_SAMPLING ||
 		    (cpump->mode == PAI_MODE_COUNTING && a->sample_period)) {
 			rc = -EBUSY;
-			goto unlock;
+			goto undo;
 		}
+		refcount_inc(&cpump->refcnt);
 	}
 
 	rc = 0;
 	cpump->event = event;
-	++cpump->refcnt;
 
-unlock:
+undo:
 	if (rc) {
 		/* Error in allocation of event, decrement anchor. Since
 		 * the event in not created, its destroy() function is never
@@ -211,6 +212,7 @@ unlock:
 		 */
 		paiext_root_free();
 	}
+unlock:
 	mutex_unlock(&paiext_reserve_mutex);
 	/* If rc is non-zero, no increment of counter/sampler was done. */
 	return rc;
@@ -246,7 +248,7 @@ static int paiext_event_init(struct perf_event *event)
 	if (rc)
 		return rc;
 	/* Allow only CPU wide operation, no process context for now. */
-	if (event->hw.target || event->cpu == -1)
+	if ((event->attach_state & PERF_ATTACH_TASK) || event->cpu == -1)
 		return -ENOENT;
 	/* Allow only event NNPA_ALL for sampling. */
 	if (a->sample_period && a->config != PAI_NNPA_BASE)
@@ -258,7 +260,6 @@ static int paiext_event_init(struct perf_event *event)
 	rc = paiext_alloc(a, event);
 	if (rc)
 		return rc;
-	event->hw.last_tag = 0;
 	event->destroy = paiext_event_destroy;
 
 	if (a->sample_period) {
@@ -275,9 +276,9 @@ static int paiext_event_init(struct perf_event *event)
 	return 0;
 }
 
-static u64 paiext_getctr(struct paiext_map *cpump, int nr)
+static u64 paiext_getctr(unsigned long *area, int nr)
 {
-	return cpump->area[nr];
+	return area[nr];
 }
 
 /* Read the counter values. Return value from location in buffer. For event
@@ -291,10 +292,11 @@ static u64 paiext_getdata(struct perf_event *event)
 	int i;
 
 	if (event->attr.config != PAI_NNPA_BASE)
-		return paiext_getctr(cpump, event->attr.config - PAI_NNPA_BASE);
+		return paiext_getctr(cpump->area,
+				     event->attr.config - PAI_NNPA_BASE);
 
 	for (i = 1; i <= paiext_cnt; i++)
-		sum += paiext_getctr(cpump, i);
+		sum += paiext_getctr(cpump->area, i);
 
 	return sum;
 }
@@ -319,12 +321,15 @@ static void paiext_start(struct perf_event *event, int flags)
 {
 	u64 sum;
 
-	if (event->hw.last_tag)
-		return;
-	event->hw.last_tag = 1;
-	sum = paiext_getall(event);		/* Get current value */
-	local64_set(&event->hw.prev_count, sum);
-	local64_set(&event->count, 0);
+	if (!event->attr.sample_period) {	/* Counting */
+		if (!event->hw.last_tag) {
+			event->hw.last_tag = 1;
+			sum = paiext_getall(event);	/* Get current value */
+			local64_set(&event->hw.prev_count, sum);
+		}
+	} else {				/* Sampling */
+		perf_sched_cb_inc(event->pmu);
+	}
 }
 
 static int paiext_add(struct perf_event *event, int flags)
@@ -337,25 +342,23 @@ static int paiext_add(struct perf_event *event, int flags)
 		S390_lowcore.aicd = virt_to_phys(cpump->paiext_cb);
 		pcb->acc = virt_to_phys(cpump->area) | 0x1;
 		/* Enable CPU instruction lookup for PAIE1 control block */
-		__ctl_set_bit(0, 49);
+		local_ctl_set_bit(0, CR0_PAI_EXTENSION_BIT);
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",
 				    __func__, S390_lowcore.aicd, pcb->acc);
 	}
-	if (flags & PERF_EF_START && !event->attr.sample_period) {
-		/* Only counting needs initial counter value */
+	cpump->event = event;
+	if (flags & PERF_EF_START)
 		paiext_start(event, PERF_EF_RELOAD);
-	}
 	event->hw.state = 0;
-	if (event->attr.sample_period) {
-		cpump->event = event;
-		perf_sched_cb_inc(event->pmu);
-	}
 	return 0;
 }
 
 static void paiext_stop(struct perf_event *event, int flags)
 {
-	paiext_read(event);
+	if (!event->attr.sample_period)	/* Counting */
+		paiext_read(event);
+	else				/* Sampling */
+		perf_sched_cb_dec(event->pmu);
 	event->hw.state = PERF_HES_STOPPED;
 }
 
@@ -365,15 +368,10 @@ static void paiext_del(struct perf_event *event, int flags)
 	struct paiext_map *cpump = mp->mapptr;
 	struct paiext_cb *pcb = cpump->paiext_cb;
 
-	if (event->attr.sample_period)
-		perf_sched_cb_dec(event->pmu);
-	if (!event->attr.sample_period) {
-		/* Only counting needs to read counter */
-		paiext_stop(event, PERF_EF_UPDATE);
-	}
+	paiext_stop(event, PERF_EF_UPDATE);
 	if (--cpump->active_events == 0) {
 		/* Disable CPU instruction lookup for PAIE1 control block */
-		__ctl_clear_bit(0, 49);
+		local_ctl_clear_bit(0, CR0_PAI_EXTENSION_BIT);
 		pcb->acc = 0;
 		S390_lowcore.aicd = 0;
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",
@@ -386,13 +384,12 @@ static void paiext_del(struct perf_event *event, int flags)
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
-static size_t paiext_copy(struct paiext_map *cpump)
+static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area)
 {
-	struct pai_userdata *userdata = cpump->save;
 	int i, outidx = 0;
 
 	for (i = 1; i <= paiext_cnt; i++) {
-		u64 val = paiext_getctr(cpump, i);
+		u64 val = paiext_getctr(area, i);
 
 		if (val) {
 			userdata[outidx].num = i;
@@ -418,20 +415,13 @@ static size_t paiext_copy(struct paiext_map *cpump)
  * sched_task() callback. That callback is not active after paiext_del()
  * returns and has deleted the event on that CPU.
  */
-static int paiext_push_sample(void)
+static int paiext_push_sample(size_t rawsize, struct paiext_map *cpump,
+			      struct perf_event *event)
 {
-	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
-	struct paiext_map *cpump = mp->mapptr;
-	struct perf_event *event = cpump->event;
 	struct perf_sample_data data;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
-	size_t rawsize;
 	int overflow;
-
-	rawsize = paiext_copy(cpump);
-	if (!rawsize)			/* No incremented counters */
-		return 0;
 
 	/* Setup perf sample */
 	memset(&regs, 0, sizeof(regs));
@@ -461,6 +451,23 @@ static int paiext_push_sample(void)
 	return overflow;
 }
 
+/* Check if there is data to be saved on schedule out of a task. */
+static int paiext_have_sample(void)
+{
+	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
+	struct paiext_map *cpump = mp->mapptr;
+	struct perf_event *event = cpump->event;
+	size_t rawsize;
+	int rc = 0;
+
+	if (!event)
+		return 0;
+	rawsize = paiext_copy(cpump->save, cpump->area);
+	if (rawsize)			/* Incremented counters */
+		rc = paiext_push_sample(rawsize, cpump, event);
+	return rc;
+}
+
 /* Called on schedule-in and schedule-out. No access to event structure,
  * but for sampling only event NNPA_ALL is allowed.
  */
@@ -470,7 +477,7 @@ static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched
 	 * results on schedule_out and if page was dirty, clear values.
 	 */
 	if (!sched_in)
-		paiext_push_sample();
+		paiext_have_sample();
 }
 
 /* Attribute definitions for pai extension1 interface. As with other CPU

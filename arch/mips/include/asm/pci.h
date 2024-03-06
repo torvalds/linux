@@ -23,7 +23,7 @@
 #ifdef CONFIG_PCI_DRIVERS_LEGACY
 
 /*
- * Each pci channel is a top-level PCI bus seem by CPU.	 A machine  with
+ * Each PCI channel is a top-level PCI bus seem by CPU.	 A machine with
  * multiple PCI channels may have multiple PCI host controllers or a
  * single controller supporting multiple channels.
  */

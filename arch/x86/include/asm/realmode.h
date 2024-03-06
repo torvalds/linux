@@ -52,6 +52,7 @@ struct trampoline_header {
 	u64 efer;
 	u32 cr4;
 	u32 flags;
+	u32 lock;
 #endif
 };
 
@@ -63,6 +64,8 @@ extern unsigned long initial_stack;
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 extern unsigned long initial_vc_handler;
 #endif
+
+extern u32 *trampoline_lock;
 
 extern unsigned char real_mode_blob[];
 extern unsigned char real_mode_relocs[];

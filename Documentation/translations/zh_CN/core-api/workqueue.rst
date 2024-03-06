@@ -202,7 +202,7 @@ workqueue将自动创建与属性相匹配的后备工作者池。调节并发�
 同的排序属性。
 
 在目前的实现中，上述配置只保证了特定NUMA节点内的ST行为。相反，
-``alloc_ordered_queue()`` 应该被用来实现全系统的ST行为。
+``alloc_ordered_workqueue()`` 应该被用来实现全系统的ST行为。
 
 
 执行场景示例

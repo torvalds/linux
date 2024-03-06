@@ -1061,10 +1061,9 @@ static int vc4_hvs_dev_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &vc4_hvs_ops);
 }
 
-static int vc4_hvs_dev_remove(struct platform_device *pdev)
+static void vc4_hvs_dev_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vc4_hvs_ops);
-	return 0;
 }
 
 static const struct of_device_id vc4_hvs_dt_match[] = {
@@ -1075,7 +1074,7 @@ static const struct of_device_id vc4_hvs_dt_match[] = {
 
 struct platform_driver vc4_hvs_driver = {
 	.probe = vc4_hvs_dev_probe,
-	.remove = vc4_hvs_dev_remove,
+	.remove_new = vc4_hvs_dev_remove,
 	.driver = {
 		.name = "vc4_hvs",
 		.of_match_table = vc4_hvs_dt_match,

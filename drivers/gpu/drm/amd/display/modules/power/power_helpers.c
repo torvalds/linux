@@ -31,7 +31,7 @@
 
 #define DIV_ROUNDUP(a, b) (((a)+((b)/2))/(b))
 #define bswap16_based_on_endian(big_endian, value) \
-	(big_endian) ? cpu_to_be16(value) : cpu_to_le16(value)
+	((big_endian) ? cpu_to_be16(value) : cpu_to_le16(value))
 
 /* Possible Min Reduction config from least aggressive to most aggressive
  *  0    1     2     3     4     5     6     7     8     9     10    11   12
@@ -114,6 +114,27 @@ static const struct abm_parameters * const abm_settings[] = {
 	abm_settings_config0,
 	abm_settings_config1,
 	abm_settings_config2,
+};
+
+static const struct dm_bl_data_point custom_backlight_curve0[] = {
+		{2, 14}, {4, 16}, {6, 18}, {8, 21}, {10, 23}, {12, 26}, {14, 29}, {16, 32}, {18, 35},
+		{20, 38}, {22, 41}, {24, 44}, {26, 48}, {28, 52}, {30, 55}, {32, 59}, {34, 62},
+		{36, 67}, {38, 71}, {40, 75}, {42, 80}, {44, 84}, {46, 88}, {48, 93}, {50, 98},
+		{52, 103}, {54, 108}, {56, 113}, {58, 118}, {60, 123}, {62, 129}, {64, 135}, {66, 140},
+		{68, 146}, {70, 152}, {72, 158}, {74, 164}, {76, 171}, {78, 177}, {80, 183}, {82, 190},
+		{84, 197}, {86, 204}, {88, 211}, {90, 218}, {92, 225}, {94, 232}, {96, 240}, {98, 247}};
+
+struct custom_backlight_profile {
+	uint8_t  ac_level_percentage;
+	uint8_t  dc_level_percentage;
+	uint8_t  min_input_signal;
+	uint8_t  max_input_signal;
+	uint8_t  num_data_points;
+	const struct dm_bl_data_point *data_points;
+};
+
+static const struct custom_backlight_profile custom_backlight_profiles[] = {
+		{100, 32, 12, 255, ARRAY_SIZE(custom_backlight_curve0), custom_backlight_curve0},
 };
 
 #define NUM_AMBI_LEVEL    5
@@ -722,13 +743,13 @@ bool dmub_init_abm_config(struct resource_pool *res_pool,
 		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
 			config.blRampReduction[i] = params.backlight_ramping_reduction;
 			config.blRampStart[i] = params.backlight_ramping_start;
-			}
-		} else {
-			for (i = 0; i < NUM_AGGR_LEVEL; i++) {
-				config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
-				config.blRampStart[i] = abm_settings[set][i].blRampStart;
-				}
-			}
+		}
+	} else {
+		for (i = 0; i < NUM_AGGR_LEVEL; i++) {
+			config.blRampReduction[i] = abm_settings[set][i].blRampReduction;
+			config.blRampStart[i] = abm_settings[set][i].blRampStart;
+		}
+	}
 
 	config.min_abm_backlight = ram_table.min_abm_backlight;
 
@@ -818,6 +839,8 @@ bool is_psr_su_specific_panel(struct dc_link *link)
 				((dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x08) ||
 				(dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x07)))
 				isPSRSUSupported = false;
+			else if (dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x03)
+				isPSRSUSupported = false;
 			else if (dpcd_caps->psr_info.force_psrsu_cap == 0x1)
 				isPSRSUSupported = true;
 		}
@@ -905,6 +928,11 @@ void mod_power_calc_psr_configs(struct psr_config *psr_config,
 		!link->dpcd_caps.psr_info.psr_dpcd_caps.bits.LINK_TRAINING_ON_EXIT_NOT_REQUIRED;
 }
 
+void init_replay_config(struct dc_link *link, struct replay_config *pr_config)
+{
+	link->replay_settings.config = *pr_config;
+}
+
 bool mod_power_only_edp(const struct dc_state *context, const struct dc_stream_state *stream)
 {
 	return context && context->stream_count == 1 && dc_is_embedded_signal(stream->signal);
@@ -918,11 +946,11 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 	uint16_t slice_height;
 
 	config->dsc_slice_height = 0;
-	if ((link->connector_signal & SIGNAL_TYPE_EDP) &&
-	    (!dc->caps.edp_dsc_support ||
+	if (!(link->connector_signal & SIGNAL_TYPE_EDP) ||
+	    !dc->caps.edp_dsc_support ||
 	    link->panel_config.dsc.disable_dsc_edp ||
 	    !link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT ||
-	    !stream->timing.dsc_cfg.num_slices_v))
+	    !stream->timing.dsc_cfg.num_slices_v)
 		return true;
 
 	pic_height = stream->timing.v_addressable +
@@ -942,5 +970,60 @@ bool psr_su_set_dsc_slice_height(struct dc *dc, struct dc_link *link,
 		}
 	}
 
+	return true;
+}
+
+void set_replay_coasting_vtotal(struct dc_link *link,
+	enum replay_coasting_vtotal_type type,
+	uint16_t vtotal)
+{
+	link->replay_settings.coasting_vtotal_table[type] = vtotal;
+}
+
+void set_replay_ips_full_screen_video_src_vtotal(struct dc_link *link, uint16_t vtotal)
+{
+	link->replay_settings.abm_with_ips_on_full_screen_video_pseudo_vtotal = vtotal;
+}
+
+void calculate_replay_link_off_frame_count(struct dc_link *link,
+	uint16_t vtotal, uint16_t htotal)
+{
+	uint8_t max_link_off_frame_count = 0;
+	uint16_t max_deviation_line = 0,  pixel_deviation_per_line = 0;
+
+	max_deviation_line = link->dpcd_caps.pr_info.max_deviation_line;
+	pixel_deviation_per_line = link->dpcd_caps.pr_info.pixel_deviation_per_line;
+
+	if (htotal != 0 && vtotal != 0)
+		max_link_off_frame_count = htotal * max_deviation_line / (pixel_deviation_per_line * vtotal);
+	else
+		ASSERT(0);
+
+	link->replay_settings.link_off_frame_count_level =
+		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_BEST ? PR_LINK_OFF_FRAME_COUNT_BEST :
+		max_link_off_frame_count >= PR_LINK_OFF_FRAME_COUNT_GOOD ? PR_LINK_OFF_FRAME_COUNT_GOOD :
+		PR_LINK_OFF_FRAME_COUNT_FAIL;
+
+}
+
+bool fill_custom_backlight_caps(unsigned int config_no, struct dm_acpi_atif_backlight_caps *caps)
+{
+	unsigned int data_points_size;
+
+	if (config_no >= ARRAY_SIZE(custom_backlight_profiles))
+		return false;
+
+	data_points_size = custom_backlight_profiles[config_no].num_data_points
+			* sizeof(custom_backlight_profiles[config_no].data_points[0]);
+
+	caps->size = sizeof(struct dm_acpi_atif_backlight_caps) - sizeof(caps->data_points) + data_points_size;
+	caps->flags = 0;
+	caps->error_code = 0;
+	caps->ac_level_percentage = custom_backlight_profiles[config_no].ac_level_percentage;
+	caps->dc_level_percentage = custom_backlight_profiles[config_no].dc_level_percentage;
+	caps->min_input_signal = custom_backlight_profiles[config_no].min_input_signal;
+	caps->max_input_signal = custom_backlight_profiles[config_no].max_input_signal;
+	caps->num_data_points = custom_backlight_profiles[config_no].num_data_points;
+	memcpy(caps->data_points, custom_backlight_profiles[config_no].data_points, data_points_size);
 	return true;
 }

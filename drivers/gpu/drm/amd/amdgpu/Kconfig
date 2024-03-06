@@ -21,6 +21,7 @@ config DRM_AMDGPU
 	select INTERVAL_TREE
 	select DRM_BUDDY
 	select DRM_SUBALLOC_HELPER
+	select DRM_EXEC
 	# amdgpu depends on ACPI_VIDEO when ACPI is enabled, for select to work
 	# ACPI_VIDEO's dependencies must also be selected.
 	select INPUT if ACPI
@@ -68,6 +69,16 @@ config DRM_AMDGPU_USERPTR
 	help
 	  This option selects CONFIG_HMM and CONFIG_HMM_MIRROR if it
 	  isn't already selected to enabled full userptr support.
+
+config DRM_AMDGPU_WERROR
+	bool "Force the compiler to throw an error instead of a warning when compiling"
+	depends on DRM_AMDGPU
+	depends on EXPERT
+	depends on !COMPILE_TEST
+	default n
+	help
+	  Add -Werror to the build flags for amdgpu.ko.
+	  Only enable this if you are warning code for amdgpu.ko.
 
 source "drivers/gpu/drm/amd/acp/Kconfig"
 source "drivers/gpu/drm/amd/display/Kconfig"

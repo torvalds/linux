@@ -9,7 +9,6 @@
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/of_regulator.h>
@@ -292,7 +291,7 @@ static struct i2c_driver max77826_regulator_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(max77826_of_match),
 	},
-	.probe_new = max77826_i2c_probe,
+	.probe = max77826_i2c_probe,
 	.id_table = max77826_id,
 };
 module_i2c_driver(max77826_regulator_driver);

@@ -77,9 +77,9 @@
 #define WM8960_SYSCLK_DIV_1		(0 << 1)
 #define WM8960_SYSCLK_DIV_2		(2 << 1)
 
-#define WM8960_SYSCLK_MCLK		(0 << 0)
+#define WM8960_SYSCLK_AUTO		(0 << 0)
 #define WM8960_SYSCLK_PLL		(1 << 0)
-#define WM8960_SYSCLK_AUTO		(2 << 0)
+#define WM8960_SYSCLK_MCLK		(2 << 0)
 
 #define WM8960_DAC_DIV_1		(0 << 3)
 #define WM8960_DAC_DIV_1_5		(1 << 3)

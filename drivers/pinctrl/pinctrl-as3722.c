@@ -500,16 +500,11 @@ static void as3722_gpio_set(struct gpio_chip *chip, unsigned offset,
 			"GPIO_SIGNAL_OUT_REG update failed: %d\n", ret);
 }
 
-static int as3722_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
-{
-	return pinctrl_gpio_direction_input(chip->base + offset);
-}
-
 static int as3722_gpio_direction_output(struct gpio_chip *chip,
 		unsigned offset, int value)
 {
 	as3722_gpio_set(chip, offset, value);
-	return pinctrl_gpio_direction_output(chip->base + offset);
+	return pinctrl_gpio_direction_output(chip, offset);
 }
 
 static int as3722_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
@@ -526,7 +521,7 @@ static const struct gpio_chip as3722_gpio_chip = {
 	.free			= gpiochip_generic_free,
 	.get			= as3722_gpio_get,
 	.set			= as3722_gpio_set,
-	.direction_input	= as3722_gpio_direction_input,
+	.direction_input	= pinctrl_gpio_direction_input,
 	.direction_output	= as3722_gpio_direction_output,
 	.to_irq			= as3722_gpio_to_irq,
 	.can_sleep		= true,
@@ -547,7 +542,6 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 
 	as_pci->dev = &pdev->dev;
 	as_pci->as3722 = dev_get_drvdata(pdev->dev.parent);
-	platform_set_drvdata(pdev, as_pci);
 
 	as_pci->pins = as3722_pins_desc;
 	as_pci->num_pins = ARRAY_SIZE(as3722_pins_desc);
@@ -567,7 +561,7 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 
 	as_pci->gpio_chip = as3722_gpio_chip;
 	as_pci->gpio_chip.parent = &pdev->dev;
-	ret = gpiochip_add_data(&as_pci->gpio_chip, as_pci);
+	ret = devm_gpiochip_add_data(&pdev->dev, &as_pci->gpio_chip, as_pci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't register gpiochip, %d\n", ret);
 		return ret;
@@ -577,21 +571,9 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 				0, 0, AS3722_PIN_NUM);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't add pin range, %d\n", ret);
-		goto fail_range_add;
+		return ret;
 	}
 
-	return 0;
-
-fail_range_add:
-	gpiochip_remove(&as_pci->gpio_chip);
-	return ret;
-}
-
-static int as3722_pinctrl_remove(struct platform_device *pdev)
-{
-	struct as3722_pctrl_info *as_pci = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&as_pci->gpio_chip);
 	return 0;
 }
 
@@ -607,7 +589,6 @@ static struct platform_driver as3722_pinctrl_driver = {
 		.of_match_table = as3722_pinctrl_of_match,
 	},
 	.probe = as3722_pinctrl_probe,
-	.remove = as3722_pinctrl_remove,
 };
 module_platform_driver(as3722_pinctrl_driver);
 

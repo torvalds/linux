@@ -16,15 +16,10 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm.h>
 #include <linux/soundwire/sdw.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-#include <linux/gpio/consumer.h>
-#include <linux/of.h>
-#include <linux/of_gpio.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -45,12 +40,66 @@ static int rt715_index_write(struct regmap *regmap, unsigned int reg,
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0) {
-		pr_err("Failed to set private value: %08x <= %04x %d\n", ret,
-			addr, value);
+		pr_err("Failed to set private value: %08x <= %04x %d\n",
+		       addr, value, ret);
 	}
 
 	return ret;
 }
+
+static int rt715_index_write_nid(struct regmap *regmap,
+		unsigned int nid, unsigned int reg, unsigned int value)
+{
+	int ret;
+	unsigned int addr = ((RT715_PRIV_INDEX_W_H_2 | nid) << 8) | reg;
+
+	ret = regmap_write(regmap, addr, value);
+	if (ret < 0)
+		pr_err("Failed to set private value: %06x <= %04x ret=%d\n",
+			addr, value, ret);
+
+	return ret;
+}
+
+static int rt715_index_read_nid(struct regmap *regmap,
+		unsigned int nid, unsigned int reg, unsigned int *value)
+{
+	int ret;
+	unsigned int addr = ((RT715_PRIV_INDEX_W_H_2 | nid) << 8) | reg;
+
+	*value = 0;
+	ret = regmap_read(regmap, addr, value);
+	if (ret < 0)
+		pr_err("Failed to get private value: %06x => %04x ret=%d\n",
+			addr, *value, ret);
+
+	return ret;
+}
+
+static int rt715_index_update_bits(struct regmap *regmap, unsigned int nid,
+			unsigned int reg, unsigned int mask, unsigned int val)
+{
+	unsigned int tmp, orig;
+	int ret;
+
+	ret = rt715_index_read_nid(regmap, nid, reg, &orig);
+	if (ret < 0)
+		return ret;
+
+	tmp = orig & ~mask;
+	tmp |= val & mask;
+
+	return rt715_index_write_nid(regmap, nid, reg, tmp);
+}
+
+static void rt715_reset(struct regmap *regmap)
+{
+	regmap_write(regmap, RT715_FUNC_RESET, 0);
+	rt715_index_update_bits(regmap, RT715_VENDOR_REGISTERS,
+		RT715_VD_CLEAR_CTRL, RT715_CLEAR_HIDDEN_REG,
+		RT715_CLEAR_HIDDEN_REG);
+}
+
 
 static void rt715_get_gain(struct rt715_priv *rt715, unsigned int addr_h,
 				unsigned int addr_l, unsigned int val_h,
@@ -740,7 +789,11 @@ static int rt715_set_bias_level(struct snd_soc_component *component,
 
 static int rt715_probe(struct snd_soc_component *component)
 {
+	struct rt715_priv *rt715 = snd_soc_component_get_drvdata(component);
 	int ret;
+
+	if (!rt715->first_hw_init)
+		return 0;
 
 	ret = pm_runtime_resume(component->dev);
 	if (ret < 0 && ret != -EACCES)
@@ -984,6 +1037,8 @@ int rt715_init(struct device *dev, struct regmap *sdw_regmap,
 	rt715->regmap = regmap;
 	rt715->sdw_regmap = sdw_regmap;
 
+	regcache_cache_only(rt715->regmap, true);
+
 	/*
 	 * Mark hw_init to false
 	 * HW init will be performed when device reports present
@@ -995,8 +1050,25 @@ int rt715_init(struct device *dev, struct regmap *sdw_regmap,
 						&soc_codec_dev_rt715,
 						rt715_dai,
 						ARRAY_SIZE(rt715_dai));
+	if (ret < 0)
+		return ret;
 
-	return ret;
+	/* set autosuspend parameters */
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+
+	/* make sure the device does not suspend immediately */
+	pm_runtime_mark_last_busy(dev);
+
+	pm_runtime_enable(dev);
+
+	/* important note: the device is NOT tagged as 'active' and will remain
+	 * 'suspended' until the hardware is enumerated/initialized. This is required
+	 * to make sure the ASoC framework use of pm_runtime_get_sync() does not silently
+	 * fail with -EACCESS because of race conditions between card creation and enumeration
+	 */
+
+	return 0;
 }
 
 int rt715_io_init(struct device *dev, struct sdw_slave *slave)
@@ -1006,24 +1078,18 @@ int rt715_io_init(struct device *dev, struct sdw_slave *slave)
 	if (rt715->hw_init)
 		return 0;
 
-	/*
-	 * PM runtime is only enabled when a Slave reports as Attached
-	 */
-	if (!rt715->first_hw_init) {
-		/* set autosuspend parameters */
-		pm_runtime_set_autosuspend_delay(&slave->dev, 3000);
-		pm_runtime_use_autosuspend(&slave->dev);
+	regcache_cache_only(rt715->regmap, false);
 
+	/*
+	 *  PM runtime status is marked as 'active' only when a Slave reports as Attached
+	 */
+	if (!rt715->first_hw_init)
 		/* update count of parent 'active' children */
 		pm_runtime_set_active(&slave->dev);
 
-		/* make sure the device does not suspend immediately */
-		pm_runtime_mark_last_busy(&slave->dev);
-
-		pm_runtime_enable(&slave->dev);
-	}
-
 	pm_runtime_get_noresume(&slave->dev);
+
+	rt715_reset(rt715->regmap);
 
 	/* Mute nid=08h/09h */
 	regmap_write(rt715->regmap, RT715_SET_GAIN_LINE_ADC_H, 0xb080);

@@ -10,8 +10,6 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
@@ -450,7 +448,7 @@ static struct i2c_driver sec_pmic_driver = {
 		   .pm = pm_sleep_ptr(&sec_pmic_pm_ops),
 		   .of_match_table = sec_dt_match,
 	},
-	.probe_new = sec_pmic_probe,
+	.probe = sec_pmic_probe,
 	.shutdown = sec_pmic_shutdown,
 };
 module_i2c_driver(sec_pmic_driver);

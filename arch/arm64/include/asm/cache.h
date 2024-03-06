@@ -33,6 +33,7 @@
  * the CPU.
  */
 #define ARCH_DMA_MINALIGN	(128)
+#define ARCH_KMALLOC_MINALIGN	(8)
 
 #ifndef __ASSEMBLY__
 
@@ -57,7 +58,6 @@ static inline unsigned int arch_slab_minalign(void)
 #define CTR_L1IP(ctr)		SYS_FIELD_GET(CTR_EL0, L1Ip, ctr)
 
 #define ICACHEF_ALIASING	0
-#define ICACHEF_VPIPT		1
 extern unsigned long __icache_flags;
 
 /*
@@ -67,11 +67,6 @@ extern unsigned long __icache_flags;
 static inline int icache_is_aliasing(void)
 {
 	return test_bit(ICACHEF_ALIASING, &__icache_flags);
-}
-
-static __always_inline int icache_is_vpipt(void)
-{
-	return test_bit(ICACHEF_VPIPT, &__icache_flags);
 }
 
 static inline u32 cache_type_cwg(void)
@@ -89,6 +84,8 @@ static inline int cache_line_size_of_cpu(void)
 }
 
 int cache_line_size(void);
+
+#define dma_get_cache_alignment	cache_line_size
 
 /*
  * Read the effective value of CTR_EL0.

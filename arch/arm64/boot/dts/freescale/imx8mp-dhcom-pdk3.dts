@@ -23,37 +23,16 @@
 		stdout-path = &uart1;
 	};
 
-	clk_pcie: clock-pcie {
+	clk_ext_audio_codec: clock-codec {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <100000000>;
+		clock-frequency = <24000000>;
 	};
 
-	connector {
-		compatible = "usb-c-connector";
-		label = "USB-C";
-		data-role = "dual";
-
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-
-				usb_c_0_hs_ep: endpoint {
-					remote-endpoint = <&dwc3_0_hs_ep>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-
-				usb_c_0_ss_ep: endpoint {
-					remote-endpoint = <&ptn5150_in_ep>;
-				};
-			};
-		};
+	clk_xtal25: clock-xtal25 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
 	};
 
 	gpio-keys {
@@ -140,12 +119,30 @@
 		};
 	};
 
-	reg_avdd: regulator-avdd {	/* AUDIO_VDD */
+	reg_3p3vdd: regulator-3p3vdd {	/* 3.3VDD */
 		compatible = "regulator-fixed";
 		regulator-always-on;
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-name = "AUDIO_VDD";
+		regulator-name = "3P3VDD";
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SGTL5000-Card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,widgets = "Headphone", "Headphone Jack";
+		simple-audio-card,routing = "Headphone Jack", "HP_OUT";
+
+		cpu_dai: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
 	};
 };
 
@@ -161,6 +158,15 @@
 			#size-cells = <0>;
 			reg = <0>;
 
+			sgtl5000: codec@a {
+				compatible = "fsl,sgtl5000";
+				reg = <0x0a>;
+				#sound-dai-cells = <0>;
+				clocks = <&clk_ext_audio_codec>;
+				VDDA-supply = <&reg_3p3vdd>;
+				VDDIO-supply = <&reg_vdd_3p3v_awo>;
+			};
+
 			typec@3d {
 				compatible = "nxp,ptn5150";
 				reg = <0x3d>;
@@ -169,39 +175,32 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_ptn5150>;
 
-				ports {
-					#address-cells = <1>;
-					#size-cells = <0>;
+				port {
 
-					port@0 {
-						reg = <0>;
-
-						ptn5150_in_ep: endpoint {
-							remote-endpoint = <&usb_c_0_ss_ep>;
-						};
-					};
-
-					port@1 {
-						reg = <1>;
-
-						ptn5150_out_ep: endpoint {
-							remote-endpoint = <&dwc3_0_ss_ep>;
-						};
+					ptn5150_out_ep: endpoint {
+						remote-endpoint = <&dwc3_0_ep>;
 					};
 				};
 			};
 
 			power-sensor@40 {
-			    compatible = "ti,ina238";
-			    reg = <0x40>;
-			    shunt-resistor = <20000>;	/* 0.02 R */
-			    ti,shunt-gain = <1>;	/* Drop cca. 40mV */
+				compatible = "ti,ina238";
+				reg = <0x40>;
+				shunt-resistor = <20000>;	/* 0.02 R */
+				ti,shunt-gain = <1>;	/* Drop cca. 40mV */
 			};
 
 			eeprom_board: eeprom@54 {
 				compatible = "atmel,24c04";
 				pagesize = <16>;
 				reg = <0x54>;
+			};
+
+			pcieclk: clock@6b {
+				compatible = "skyworks,si52144";
+				reg = <0x6b>;
+				clocks = <&clk_xtal25>;
+				#clock-cells = <1>;
 			};
 		};
 
@@ -211,10 +210,6 @@
 			reg = <1>;
 		};
 	};
-};
-
-&ethphy0g {
-	reg = <7>;
 };
 
 &fec {	/* Second ethernet */
@@ -244,7 +239,7 @@
 };
 
 &pcie_phy {
-	clocks = <&clk_pcie>;
+	clocks = <&pcieclk 1>;
 	clock-names = "ref";
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	status = "okay";
@@ -256,20 +251,21 @@
 	status = "okay";
 };
 
+&sai3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai3>;
+	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <12288000>;
+	fsl,sai-mclk-direction-output;
+	status = "okay";
+};
+
 &usb_dwc3_0 {
 	usb-role-switch;
 
 	port {
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		dwc3_0_hs_ep: endpoint@0 {
-			reg = <0>;
-			remote-endpoint = <&usb_c_0_hs_ep>;
-		};
-
-		dwc3_0_ss_ep: endpoint@1 {
-			reg = <1>;
+		dwc3_0_ep: endpoint {
 			remote-endpoint = <&ptn5150_out_ep>;
 		};
 	};

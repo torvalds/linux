@@ -789,7 +789,6 @@ static int rt298_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	d_len_code = 0;
 	switch (params_width(params)) {
 	/* bit 6:4 Bits per Sample */
 	case 16:
@@ -1311,7 +1310,7 @@ static struct i2c_driver rt298_i2c_driver = {
 		   .name = "rt298",
 		   .acpi_match_table = ACPI_PTR(rt298_acpi_match),
 		   },
-	.probe_new = rt298_i2c_probe,
+	.probe = rt298_i2c_probe,
 	.remove = rt298_i2c_remove,
 	.id_table = rt298_i2c_id,
 };

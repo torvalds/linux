@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -15,6 +15,7 @@
 #include "iwl-prph.h"
 #include "fw/acpi.h"
 #include "fw/pnvm.h"
+#include "fw/uefi.h"
 
 #include "mvm.h"
 #include "fw/dbg.h"
@@ -23,11 +24,11 @@
 #include "iwl-nvm-parse.h"
 #include "time-sync.h"
 
-#define MVM_UCODE_ALIVE_TIMEOUT	(HZ)
+#define MVM_UCODE_ALIVE_TIMEOUT	(2 * HZ)
 #define MVM_UCODE_CALIB_TIMEOUT	(2 * HZ)
 
-#define IWL_TAS_US_MCC 0x5553
-#define IWL_TAS_CANADA_MCC 0x4341
+#define IWL_UATS_VLP_AP_SUPPORTED BIT(29)
+#define IWL_UATS_AFC_AP_SUPPORTED BIT(30)
 
 struct iwl_mvm_alive_data {
 	bool valid;
@@ -433,7 +434,8 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	/* if reached this point, Alive notification was received */
 	iwl_mei_alive_notif(true);
 
-	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait);
+	ret = iwl_pnvm_load(mvm->trans, &mvm->notif_wait,
+			    &mvm->fw->ucode_capa);
 	if (ret) {
 		IWL_ERR(mvm, "Timeout waiting for PNVM load!\n");
 		iwl_fw_set_current_image(&mvm->fwrt, old_type);
@@ -477,42 +479,61 @@ static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,
 	return 0;
 }
 
+static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
+				    struct iwl_phy_specific_cfg *phy_filters)
+{
 #ifdef CONFIG_ACPI
-static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
-				    struct iwl_phy_specific_cfg *phy_filters)
-{
-	/*
-	 * TODO: read specific phy config from BIOS
-	 * ACPI table for this feature has not been defined yet,
-	 * so for now we use hardcoded values.
-	 */
-
-	if (IWL_MVM_PHY_FILTER_CHAIN_A) {
-		phy_filters->filter_cfg_chain_a =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_A);
-	}
-	if (IWL_MVM_PHY_FILTER_CHAIN_B) {
-		phy_filters->filter_cfg_chain_b =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_B);
-	}
-	if (IWL_MVM_PHY_FILTER_CHAIN_C) {
-		phy_filters->filter_cfg_chain_c =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_C);
-	}
-	if (IWL_MVM_PHY_FILTER_CHAIN_D) {
-		phy_filters->filter_cfg_chain_d =
-			cpu_to_le32(IWL_MVM_PHY_FILTER_CHAIN_D);
-	}
-}
-#else /* CONFIG_ACPI */
-
-static void iwl_mvm_phy_filter_init(struct iwl_mvm *mvm,
-				    struct iwl_phy_specific_cfg *phy_filters)
-{
-}
+	*phy_filters = mvm->phy_filters;
 #endif /* CONFIG_ACPI */
+}
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_EFI)
+static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
+{
+	u8 cmd_ver;
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(REGULATORY_AND_NVM_GROUP,
+			      UATS_TABLE_CMD),
+		.flags = 0,
+		.data[0] = &mvm->fwrt.uats_table,
+		.len[0] =  sizeof(mvm->fwrt.uats_table),
+		.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
+	};
+
+	if (!(mvm->trans->trans_cfg->device_family >=
+	      IWL_DEVICE_FAMILY_AX210)) {
+		IWL_DEBUG_RADIO(mvm, "UATS feature is not supported\n");
+		return;
+	}
+
+	if (!mvm->fwrt.uats_enabled) {
+		IWL_DEBUG_RADIO(mvm, "UATS feature is disabled\n");
+		return;
+	}
+
+	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd.id,
+					IWL_FW_CMD_VER_UNKNOWN);
+	if (cmd_ver != 1) {
+		IWL_DEBUG_RADIO(mvm,
+				"UATS_TABLE_CMD ver %d not supported\n",
+				cmd_ver);
+		return;
+	}
+
+	ret = iwl_uefi_get_uats_table(mvm->trans, &mvm->fwrt);
+	if (ret < 0) {
+		IWL_ERR(mvm, "failed to read UATS table (%d)\n", ret);
+		return;
+	}
+
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret < 0)
+		IWL_ERR(mvm, "failed to send UATS_TABLE_CMD (%d)\n", ret);
+	else
+		IWL_DEBUG_RADIO(mvm, "UATS_TABLE_CMD sent to FW\n");
+}
+
 static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
 {
 	u8 cmd_ver;
@@ -552,6 +573,10 @@ static int iwl_mvm_sgom_init(struct iwl_mvm *mvm)
 {
 	return 0;
 }
+
+static void iwl_mvm_uats_init(struct iwl_mvm *mvm)
+{
+}
 #endif
 
 static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
@@ -559,7 +584,6 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 	u32 cmd_id = PHY_CONFIGURATION_CMD;
 	struct iwl_phy_cfg_cmd_v3 phy_cfg_cmd;
 	enum iwl_ucode_type ucode_type = mvm->fwrt.cur_fw_img;
-	struct iwl_phy_specific_cfg phy_filters = {};
 	u8 cmd_ver;
 	size_t cmd_size;
 
@@ -590,11 +614,8 @@ static int iwl_send_phy_cfg_cmd(struct iwl_mvm *mvm)
 
 	cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
 					IWL_FW_CMD_VER_UNKNOWN);
-	if (cmd_ver == 3) {
-		iwl_mvm_phy_filter_init(mvm, &phy_filters);
-		memcpy(&phy_cfg_cmd.phy_specific_cfg, &phy_filters,
-		       sizeof(struct iwl_phy_specific_cfg));
-	}
+	if (cmd_ver >= 3)
+		iwl_mvm_phy_filter_init(mvm, &phy_cfg_cmd.phy_specific_cfg);
 
 	IWL_DEBUG_INFO(mvm, "Sending Phy CFG command: 0x%x\n",
 		       phy_cfg_cmd.phy_cfg);
@@ -613,6 +634,7 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	static const u16 init_complete[] = {
 		INIT_COMPLETE_NOTIF,
 	};
+	u32 sb_cfg;
 	int ret;
 
 	if (mvm->trans->cfg->tx_with_siso_diversity)
@@ -621,6 +643,14 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	lockdep_assert_held(&mvm->mutex);
 
 	mvm->rfkill_safe_init_done = false;
+
+	if (mvm->trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
+		sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
+		/* if needed, we'll reset this on our way out later */
+		mvm->pldr_sync = sb_cfg == SB_CFG_RESIDES_IN_ROM;
+		if (mvm->pldr_sync && iwl_mei_pldr_req())
+			return -EBUSY;
+	}
 
 	iwl_init_notification_wait(&mvm->notif_wait,
 				   &init_wait,
@@ -635,6 +665,13 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 	ret = iwl_mvm_load_ucode_wait_alive(mvm, IWL_UCODE_REGULAR);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to start RT ucode: %d\n", ret);
+
+		/* if we needed reset then fail here, but notify and remove */
+		if (mvm->pldr_sync) {
+			iwl_mei_alive_notif(false);
+			iwl_trans_pcie_remove(mvm->trans, true);
+		}
+
 		goto error;
 	}
 	iwl_dbg_tlv_time_point(&mvm->fwrt, IWL_FW_INI_TIME_POINT_AFTER_ALIVE,
@@ -697,7 +734,8 @@ static int iwl_run_unified_mvm_ucode(struct iwl_mvm *mvm)
 
 	/* Read the NVM only at driver load time, no need to do this twice */
 	if (!IWL_MVM_PARSE_NVM && !mvm->nvm_data) {
-		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw);
+		mvm->nvm_data = iwl_get_nvm(mvm->trans, mvm->fw,
+					    mvm->set_tx_ant, mvm->set_rx_ant);
 		if (IS_ERR(mvm->nvm_data)) {
 			ret = PTR_ERR(mvm->nvm_data);
 			mvm->nvm_data = NULL;
@@ -832,7 +870,7 @@ out:
 		mvm->nvm_data->bands[0].n_channels = 1;
 		mvm->nvm_data->bands[0].n_bitrates = 1;
 		mvm->nvm_data->bands[0].bitrates =
-			(void *)((u8 *)mvm->nvm_data->channels + 1);
+			(void *)(mvm->nvm_data->channels + 1);
 		mvm->nvm_data->bands[0].bitrates->hw_value = 10;
 	}
 
@@ -1104,7 +1142,32 @@ static const struct dmi_system_id dmi_tas_approved_list[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 		},
 	},
-
+	{ .ident = "Acer",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+		},
+	},
+	{ .ident = "ASUS",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK COMPUTER INC."),
+		},
+	},
+	{ .ident = "GOOGLE-HP",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+			DMI_MATCH(DMI_BOARD_VENDOR, "HP"),
+		},
+	},
+	{ .ident = "MSI",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star International Co., Ltd."),
+		},
+	},
+	{ .ident = "Honor",
+	  .matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HONOR"),
+		},
+	},
 	/* keep last */
 	{}
 };
@@ -1162,20 +1225,24 @@ static void iwl_mvm_tas_init(struct iwl_mvm *mvm)
 	if (ret == 0)
 		return;
 
-	if (!dmi_check_system(dmi_tas_approved_list)) {
+	if (!iwl_mvm_is_vendor_in_approved_list()) {
 		IWL_DEBUG_RADIO(mvm,
 				"System vendor '%s' is not in the approved list, disabling TAS in US and Canada.\n",
 				dmi_get_system_info(DMI_SYS_VENDOR));
 		if ((!iwl_mvm_add_to_tas_block_list(cmd.v4.block_list_array,
 						    &cmd.v4.block_list_size,
-							IWL_TAS_US_MCC)) ||
+							IWL_MCC_US)) ||
 		    (!iwl_mvm_add_to_tas_block_list(cmd.v4.block_list_array,
 						    &cmd.v4.block_list_size,
-							IWL_TAS_CANADA_MCC))) {
+							IWL_MCC_CANADA))) {
 			IWL_DEBUG_RADIO(mvm,
 					"Unable to add US/Canada to TAS block list, disabling TAS\n");
 			return;
 		}
+	} else {
+		IWL_DEBUG_RADIO(mvm,
+				"System vendor '%s' is in the approved list.\n",
+				dmi_get_system_info(DMI_SYS_VENDOR));
 	}
 
 	/* v4 is the same size as v3, so no need to differentiate here */
@@ -1216,7 +1283,10 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
 	int ret;
 	u32 value;
-	struct iwl_lari_config_change_cmd_v6 cmd = {};
+	struct iwl_lari_config_change_cmd_v7 cmd = {};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
+						   LARI_CONFIG_CHANGE), 1);
 
 	cmd.config_bitmap = iwl_acpi_get_lari_config_bitmap(&mvm->fwrt);
 
@@ -1234,8 +1304,11 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
 				   DSM_FUNC_ACTIVATE_CHANNEL,
 				   &iwl_guid, &value);
-	if (!ret)
+	if (!ret) {
+		if (cmd_ver < 8)
+			value &= ~ACTIVATE_5G2_IN_WW_MASK;
 		cmd.chan_state_active_bitmap = cpu_to_le32(value);
+	}
 
 	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
 				   DSM_FUNC_ENABLE_6E,
@@ -1249,18 +1322,26 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 	if (!ret)
 		cmd.force_disable_channels_bitmap = cpu_to_le32(value);
 
+	ret = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
+				   DSM_FUNC_ENERGY_DETECTION_THRESHOLD,
+				   &iwl_guid, &value);
+	if (!ret)
+		cmd.edt_bitmap = cpu_to_le32(value);
+
 	if (cmd.config_bitmap ||
 	    cmd.oem_uhb_allow_bitmap ||
 	    cmd.oem_11ax_allow_bitmap ||
 	    cmd.oem_unii4_allow_bitmap ||
 	    cmd.chan_state_active_bitmap ||
-	    cmd.force_disable_channels_bitmap) {
+	    cmd.force_disable_channels_bitmap ||
+	    cmd.edt_bitmap) {
 		size_t cmd_size;
-		u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
-						   WIDE_ID(REGULATORY_AND_NVM_GROUP,
-							   LARI_CONFIG_CHANGE),
-						   1);
+
 		switch (cmd_ver) {
+		case 8:
+		case 7:
+			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v7);
+			break;
 		case 6:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v6);
 			break;
@@ -1294,6 +1375,9 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 				"sending LARI_CONFIG_CHANGE, oem_uhb_allow_bitmap=0x%x, force_disable_channels_bitmap=0x%x\n",
 				le32_to_cpu(cmd.oem_uhb_allow_bitmap),
 				le32_to_cpu(cmd.force_disable_channels_bitmap));
+		IWL_DEBUG_RADIO(mvm,
+				"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x\n",
+				le32_to_cpu(cmd.edt_bitmap));
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WIDE_ID(REGULATORY_AND_NVM_GROUP,
 						   LARI_CONFIG_CHANGE),
@@ -1303,6 +1387,10 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 					"Failed to send LARI_CONFIG_CHANGE (%d)\n",
 					ret);
 	}
+
+	if (le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_VLP_AP_SUPPORTED ||
+	    le32_to_cpu(cmd.oem_uhb_allow_bitmap) & IWL_UATS_AFC_AP_SUPPORTED)
+		mvm->fwrt.uats_enabled = TRUE;
 }
 
 void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
@@ -1356,6 +1444,8 @@ void iwl_mvm_get_acpi_tables(struct iwl_mvm *mvm)
 				/* we don't fail if the table is not available */
 		}
 	}
+
+	iwl_acpi_get_phy_filters(&mvm->fwrt, &mvm->phy_filters);
 }
 #else /* CONFIG_ACPI */
 
@@ -1504,21 +1594,13 @@ static int iwl_mvm_load_rt_fw(struct iwl_mvm *mvm)
 int iwl_mvm_up(struct iwl_mvm *mvm)
 {
 	int ret, i;
-	struct ieee80211_channel *chan;
-	struct cfg80211_chan_def chandef;
 	struct ieee80211_supported_band *sband = NULL;
-	u32 sb_cfg;
 
 	lockdep_assert_held(&mvm->mutex);
 
 	ret = iwl_trans_start_hw(mvm->trans);
 	if (ret)
 		return ret;
-
-	sb_cfg = iwl_read_umac_prph(mvm->trans, SB_MODIFY_CFG_FLAG);
-	mvm->pldr_sync = !(sb_cfg & SB_CFG_RESIDES_IN_OTP_MASK);
-	if (mvm->pldr_sync && iwl_mei_pldr_req())
-		return -EBUSY;
 
 	ret = iwl_mvm_load_rt_fw(mvm);
 	if (ret) {
@@ -1532,6 +1614,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	/* FW loaded successfully */
 	mvm->pldr_sync = false;
 
+	iwl_fw_disable_dbg_asserts(&mvm->fwrt);
 	iwl_get_shared_mem_conf(&mvm->fwrt);
 
 	ret = iwl_mvm_sf_update(mvm, NULL, false);
@@ -1571,6 +1654,8 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 			goto error;
 	}
 
+	iwl_mvm_lari_cfg(mvm);
+
 	/* Init RSS configuration */
 	ret = iwl_configure_rxq(&mvm->fwrt);
 	if (ret)
@@ -1591,6 +1676,9 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
 	}
 
+	for (i = 0; i < IWL_MVM_FW_MAX_LINK_ID + 1; i++)
+		RCU_INIT_POINTER(mvm->link_id_to_link_conf[i], NULL);
+
 	memset(&mvm->fw_link_ids_map, 0, sizeof(mvm->fw_link_ids_map));
 
 	mvm->tdls_cs.peer.sta_id = IWL_MVM_INVALID_STA;
@@ -1610,7 +1698,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	 * internal aux station for all aux activities that don't
 	 * requires a dedicated data queue.
 	 */
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
+	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		 /*
 		  * In old version the aux station uses mac id like other
 		  * station and not lmac id
@@ -1628,21 +1716,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (WARN_ON_ONCE(!sband)) {
 		ret = -ENODEV;
 		goto error;
-	}
-
-	chan = &sband->channels[0];
-
-	cfg80211_chandef_create(&chandef, chan, NL80211_CHAN_NO_HT);
-	for (i = 0; i < NUM_PHY_CTX; i++) {
-		/*
-		 * The channel used here isn't relevant as it's
-		 * going to be overwritten in the other flows.
-		 * For now use the first channel we have.
-		 */
-		ret = iwl_mvm_phy_ctxt_add(mvm, &mvm->phy_ctxts[i],
-					   &chandef, 1, 1);
-		if (ret)
-			goto error;
 	}
 
 	if (iwl_mvm_is_tt_in_fw(mvm)) {
@@ -1678,7 +1751,6 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 	if (ret)
 		goto error;
 
-	iwl_mvm_lari_cfg(mvm);
 	/*
 	 * RTNL is not taken during Ct-kill, but we don't need to scan/Tx
 	 * anyway, so don't init MCC.
@@ -1699,9 +1771,11 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		iwl_mvm_send_recovery_cmd(mvm, ERROR_RECOVERY_UPDATE_DB);
-		iwl_mvm_time_sync_config(mvm, mvm->time_sync.peer_addr,
-					 IWL_TIME_SYNC_PROTOCOL_TM |
-					 IWL_TIME_SYNC_PROTOCOL_FTM);
+
+		if (mvm->time_sync.active)
+			iwl_mvm_time_sync_config(mvm, mvm->time_sync.peer_addr,
+						 IWL_TIME_SYNC_PROTOCOL_TM |
+						 IWL_TIME_SYNC_PROTOCOL_FTM);
 	}
 
 	if (!mvm->ptp_data.ptp_clock)
@@ -1726,6 +1800,7 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 
 	iwl_mvm_tas_init(mvm);
 	iwl_mvm_leds_sync(mvm);
+	iwl_mvm_uats_init(mvm);
 
 	if (iwl_rfi_supported(mvm)) {
 		if (iwl_mvm_eval_dsm_rfi(mvm) == DSM_VALUE_RFI_ENABLE)
@@ -1777,7 +1852,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		RCU_INIT_POINTER(mvm->fw_id_to_link_sta[i], NULL);
 	}
 
-	if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) < 12) {
+	if (!iwl_mvm_has_new_station_api(mvm->fw)) {
 		/*
 		 * Add auxiliary station for scanning.
 		 * Newer versions of this command implies that the fw uses

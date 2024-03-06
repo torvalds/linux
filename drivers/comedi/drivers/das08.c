@@ -429,7 +429,7 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	s = &dev->subdevices[4];
 	/* 8255 */
 	if (board->i8255_offset != 0) {
-		ret = subdev_8255_init(dev, s, NULL, board->i8255_offset);
+		ret = subdev_8255_io_init(dev, s, board->i8255_offset);
 		if (ret)
 			return ret;
 	} else {
@@ -439,10 +439,11 @@ int das08_common_attach(struct comedi_device *dev, unsigned long iobase)
 	/* Counter subdevice (8254) */
 	s = &dev->subdevices[5];
 	if (board->i8254_offset) {
-		dev->pacer = comedi_8254_init(dev->iobase + board->i8254_offset,
-					      0, I8254_IO8, 0);
-		if (!dev->pacer)
-			return -ENOMEM;
+		dev->pacer =
+		    comedi_8254_io_alloc(dev->iobase + board->i8254_offset,
+					 0, I8254_IO8, 0);
+		if (IS_ERR(dev->pacer))
+			return PTR_ERR(dev->pacer);
 
 		comedi_8254_subdevice_init(s, dev->pacer);
 	} else {

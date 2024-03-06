@@ -878,28 +878,6 @@ static void cls_uart_off(struct jsm_channel *ch)
 }
 
 /*
- * cls_get_uarts_bytes_left.
- * Returns 0 is nothing left in the FIFO, returns 1 otherwise.
- *
- * The channel lock MUST be held by the calling function.
- */
-static u32 cls_get_uart_bytes_left(struct jsm_channel *ch)
-{
-	u8 left = 0;
-	u8 lsr = readb(&ch->ch_cls_uart->lsr);
-
-	/* Determine whether the Transmitter is empty or not */
-	if (!(lsr & UART_LSR_TEMT))
-		left = 1;
-	else {
-		ch->ch_flags |= (CH_TX_FIFO_EMPTY | CH_TX_FIFO_LWM);
-		left = 0;
-	}
-
-	return left;
-}
-
-/*
  * cls_send_break.
  * Starts sending a break thru the UART.
  *
@@ -914,18 +892,6 @@ static void cls_send_break(struct jsm_channel *ch)
 		writeb((temp | UART_LCR_SBC), &ch->ch_cls_uart->lcr);
 		ch->ch_flags |= (CH_BREAK_SENDING);
 	}
-}
-
-/*
- * cls_send_immediate_char.
- * Sends a specific character as soon as possible to the UART,
- * jumping over any bytes that might be in the write queue.
- *
- * The channel lock MUST be held by the calling function.
- */
-static void cls_send_immediate_char(struct jsm_channel *ch, unsigned char c)
-{
-	writeb(c, &ch->ch_cls_uart->txrx);
 }
 
 struct board_ops jsm_cls_ops = {
@@ -943,7 +909,5 @@ struct board_ops jsm_cls_ops = {
 	.send_start_character =		cls_send_start_character,
 	.send_stop_character =		cls_send_stop_character,
 	.copy_data_from_queue_to_uart = cls_copy_data_from_queue_to_uart,
-	.get_uart_bytes_left =		cls_get_uart_bytes_left,
-	.send_immediate_char =		cls_send_immediate_char
 };
 

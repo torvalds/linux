@@ -46,6 +46,8 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 
+struct platform_driver;
+
 extern struct bus_type ibmebus_bus_type;
 
 int ibmebus_register_driver(struct platform_driver *drv);

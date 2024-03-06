@@ -41,4 +41,32 @@ struct fpu_context {
 	__u32	fcsr;
 };
 
+/* LSX context */
+#define LSX_CTX_MAGIC		0x53580001
+#define LSX_CTX_ALIGN		16
+struct lsx_context {
+	__u64	regs[2*32];
+	__u64	fcc;
+	__u32	fcsr;
+};
+
+/* LASX context */
+#define LASX_CTX_MAGIC		0x41535801
+#define LASX_CTX_ALIGN		32
+struct lasx_context {
+	__u64	regs[4*32];
+	__u64	fcc;
+	__u32	fcsr;
+};
+
+/* LBT context */
+#define LBT_CTX_MAGIC		0x42540001
+#define LBT_CTX_ALIGN		8
+struct lbt_context {
+	__u64	regs[4];
+	__u32	eflags;
+	__u32	ftop;
+};
+
+
 #endif /* _UAPI_ASM_SIGCONTEXT_H */

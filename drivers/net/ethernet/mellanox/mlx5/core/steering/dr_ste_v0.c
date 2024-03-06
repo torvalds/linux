@@ -1647,21 +1647,23 @@ dr_ste_v0_build_src_gvmi_qpn_tag(struct mlx5dr_match_param *value,
 				 u8 *tag)
 {
 	struct mlx5dr_match_misc *misc = &value->misc;
+	int id = misc->source_eswitch_owner_vhca_id;
 	struct mlx5dr_cmd_vport_cap *vport_cap;
 	struct mlx5dr_domain *dmn = sb->dmn;
 	struct mlx5dr_domain *vport_dmn;
 	u8 *bit_mask = sb->bit_mask;
+	struct mlx5dr_domain *peer;
 	bool source_gvmi_set;
 
 	DR_STE_SET_TAG(src_gvmi_qp, tag, source_qp, misc, source_sqn);
 
 	if (sb->vhca_id_valid) {
+		peer = xa_load(&dmn->peer_dmn_xa, id);
 		/* Find port GVMI based on the eswitch_owner_vhca_id */
-		if (misc->source_eswitch_owner_vhca_id == dmn->info.caps.gvmi)
+		if (id == dmn->info.caps.gvmi)
 			vport_dmn = dmn;
-		else if (dmn->peer_dmn && (misc->source_eswitch_owner_vhca_id ==
-					   dmn->peer_dmn->info.caps.gvmi))
-			vport_dmn = dmn->peer_dmn;
+		else if (peer && (id == peer->info.caps.gvmi))
+			vport_dmn = peer;
 		else
 			return -EINVAL;
 

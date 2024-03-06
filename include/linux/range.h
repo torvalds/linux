@@ -31,12 +31,4 @@ int clean_sort_range(struct range *range, int az);
 
 void sort_range(struct range *range, int nr_range);
 
-#define MAX_RESOURCE ((resource_size_t)~0)
-static inline resource_size_t cap_resource(u64 val)
-{
-	if (val > MAX_RESOURCE)
-		return MAX_RESOURCE;
-
-	return val;
-}
 #endif

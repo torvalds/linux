@@ -208,6 +208,9 @@
 #define    CN93_SDP_R_MBOX_PF_VF_INT_START        0x10220
 #define    CN93_SDP_R_MBOX_VF_PF_DATA_START       0x10230
 
+#define    CN93_SDP_MBOX_VF_PF_DATA_START       0x24000
+#define    CN93_SDP_MBOX_PF_VF_DATA_START       0x22000
+
 #define    CN93_SDP_R_MBOX_PF_VF_DATA(ring)		\
 	(CN93_SDP_R_MBOX_PF_VF_DATA_START + ((ring) * CN93_RING_OFFSET))
 
@@ -216,6 +219,12 @@
 
 #define    CN93_SDP_R_MBOX_VF_PF_DATA(ring)		\
 	(CN93_SDP_R_MBOX_VF_PF_DATA_START + ((ring) * CN93_RING_OFFSET))
+
+#define    CN93_SDP_MBOX_VF_PF_DATA(ring)          \
+	(CN93_SDP_MBOX_VF_PF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
+
+#define    CN93_SDP_MBOX_PF_VF_DATA(ring)      \
+	(CN93_SDP_MBOX_PF_VF_DATA_START + ((ring) * CN93_EPVF_RING_OFFSET))
 
 /* ##################### Interrupt Registers ########################## */
 #define	   CN93_SDP_R_ERR_TYPE_START	          0x10400
@@ -362,6 +371,10 @@
 #define    CN93_SDP_MAC_PF_RING_CTL_SRN(val)   (((val) >> 8) & 0xFF)
 #define    CN93_SDP_MAC_PF_RING_CTL_RPPF(val)  (((val) >> 16) & 0x3F)
 
+#define    CN98_SDP_MAC_PF_RING_CTL_NPFS(val)  (((val) >> 48) & 0xF)
+#define    CN98_SDP_MAC_PF_RING_CTL_SRN(val)   ((val) & 0xFF)
+#define    CN98_SDP_MAC_PF_RING_CTL_RPPF(val)  (((val) >> 32) & 0x3F)
+
 /* Number of non-queue interrupts in CN93xx */
 #define    CN93_NUM_NON_IOQ_INTR    16
 
@@ -369,5 +382,9 @@
 #define CN93_SDP_EPF_OEI_RINT_DATA_BIT_MBOX	BIT_ULL(0)
 /* bit 1 for firmware heartbeat interrupt */
 #define CN93_SDP_EPF_OEI_RINT_DATA_BIT_HBEAT	BIT_ULL(1)
+
+#define CN93_PEM_BAR4_INDEX            7
+#define CN93_PEM_BAR4_INDEX_SIZE       0x400000ULL
+#define CN93_PEM_BAR4_INDEX_OFFSET     (CN93_PEM_BAR4_INDEX * CN93_PEM_BAR4_INDEX_SIZE)
 
 #endif /* _OCTEP_REGS_CN9K_PF_H_ */

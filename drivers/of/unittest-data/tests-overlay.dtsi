@@ -3,7 +3,6 @@
 / {
 	testcase-data {
 		overlay-node {
-
 			/* test bus */
 			unittest_test_bus: test-bus {
 				compatible = "simple-bus";

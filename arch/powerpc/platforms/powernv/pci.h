@@ -10,7 +10,6 @@
 struct pci_dn;
 
 enum pnv_phb_type {
-	PNV_PHB_IODA1,
 	PNV_PHB_IODA2,
 	PNV_PHB_NPU_OCAPI,
 };
@@ -162,10 +161,6 @@ struct pnv_phb {
 		unsigned int		*m64_segmap;
 		unsigned int		*m32_segmap;
 		unsigned int		*io_segmap;
-
-		/* DMA32 segment maps - IODA1 only */
-		unsigned int		dma32_count;
-		unsigned int		*dma32_segmap;
 
 		/* IRQ chip */
 		int			irq_chip_init;

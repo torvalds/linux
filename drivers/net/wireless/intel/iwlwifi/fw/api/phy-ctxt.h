@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -25,8 +25,8 @@
  * For legacy set bit means upper channel, otherwise lower.
  * For VHT - bit-2 marks if the control is lower/upper relative to center-freq
  *   bits-1:0 mark the distance from the center freq. for 20Mhz, offset is 0.
- *                                   center_freq
  * For EHT - bit-3 is used for extended distance
+ *                                           center_freq
  *                                                |
  * 40Mhz                                     |____|____|
  * 80Mhz                                |____|____|____|____|
@@ -116,7 +116,7 @@ struct iwl_phy_context_cmd_tail {
  * struct iwl_phy_context_cmd - config of the PHY context
  * ( PHY_CONTEXT_CMD = 0x8 )
  * @id_and_color: ID and color of the relevant Binding
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @apply_time: 0 means immediate apply and context switch.
  *	other value means apply new params after X usecs
  * @tx_param_color: ???
@@ -138,7 +138,7 @@ struct iwl_phy_context_cmd_v1 {
  * struct iwl_phy_context_cmd - config of the PHY context
  * ( PHY_CONTEXT_CMD = 0x8 )
  * @id_and_color: ID and color of the relevant Binding
- * @action: action to perform, one of FW_CTXT_ACTION_*
+ * @action: action to perform, see &enum iwl_ctxt_action
  * @lmac_id: the lmac id the phy context belongs to
  * @ci: channel info
  * @rxchain_info: ???

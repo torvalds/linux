@@ -26,7 +26,7 @@ properties:
     maxItems: 1
 
   shunt-resistor-micro-ohms:
-    description: The value of curent sense resistor in microohms.
+    description: The value of current sense resistor in microohms.
     default: 255000
     minimum: 250000
     maximum: 255000

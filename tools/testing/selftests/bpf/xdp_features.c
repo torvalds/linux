@@ -360,9 +360,9 @@ static int recv_msg(int sockfd, void *buf, size_t bufsize, void *val,
 static int dut_run(struct xdp_features *skel)
 {
 	int flags = XDP_FLAGS_UPDATE_IF_NOEXIST | XDP_FLAGS_DRV_MODE;
-	int state, err, *sockfd, ctrl_sockfd, echo_sockfd;
+	int state, err = 0, *sockfd, ctrl_sockfd, echo_sockfd;
 	struct sockaddr_storage ctrl_addr;
-	pthread_t dut_thread;
+	pthread_t dut_thread = 0;
 	socklen_t addrlen;
 
 	sockfd = start_reuseport_server(AF_INET6, SOCK_STREAM, NULL,

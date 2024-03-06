@@ -154,7 +154,6 @@ static void adc081c_reg_disable(void *reg)
 
 static int adc081c_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct iio_dev *iio;
 	struct adc081c *adc;
 	const struct adcxx1c_model *model;
@@ -163,10 +162,7 @@ static int adc081c_probe(struct i2c_client *client)
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_WORD_DATA))
 		return -EOPNOTSUPP;
 
-	if (dev_fwnode(&client->dev))
-		model = device_get_match_data(&client->dev);
-	else
-		model = &adcxx1c_models[id->driver_data];
+	model = i2c_get_match_data(client);
 
 	iio = devm_iio_device_alloc(&client->dev, sizeof(*adc));
 	if (!iio)
@@ -207,9 +203,9 @@ static int adc081c_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adc081c_id[] = {
-	{ "adc081c", ADC081C },
-	{ "adc101c", ADC101C },
-	{ "adc121c", ADC121C },
+	{ "adc081c", (kernel_ulong_t)&adcxx1c_models[ADC081C] },
+	{ "adc101c", (kernel_ulong_t)&adcxx1c_models[ADC101C] },
+	{ "adc121c", (kernel_ulong_t)&adcxx1c_models[ADC121C] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adc081c_id);
@@ -235,7 +231,7 @@ static struct i2c_driver adc081c_driver = {
 		.of_match_table = adc081c_of_match,
 		.acpi_match_table = adc081c_acpi_match,
 	},
-	.probe_new = adc081c_probe,
+	.probe = adc081c_probe,
 	.id_table = adc081c_id,
 };
 module_i2c_driver(adc081c_driver);

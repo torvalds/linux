@@ -14,7 +14,7 @@ static const struct snd_soc_acpi_codecs essx_83x6 = {
 	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
 };
 
-static const struct snd_soc_acpi_codecs jsl_7219_98373_codecs = {
+static const struct snd_soc_acpi_codecs mx98373_spk = {
 	.num_codecs = 1,
 	.codecs = {"MX98373"}
 };
@@ -34,6 +34,11 @@ static const struct snd_soc_acpi_codecs mx98360a_spk = {
 	.codecs = {"MX98360A"}
 };
 
+static struct snd_soc_acpi_codecs rt5650_spk = {
+	.num_codecs = 1,
+	.codecs = {"10EC5650"}
+};
+
 static const struct snd_soc_acpi_codecs rt5682_rt5682s_hp = {
 	.num_codecs = 2,
 	.codecs = {"10EC5682", "RTL5682"},
@@ -47,14 +52,16 @@ static const struct snd_soc_acpi_codecs rt5682_rt5682s_hp = {
 struct snd_soc_acpi_mach snd_soc_acpi_intel_jsl_machines[] = {
 	{
 		.id = "DLGS7219",
-		.drv_name = "sof_da7219_mx98373",
-		.sof_tplg_filename = "sof-jsl-da7219.tplg",
+		.drv_name = "jsl_mx98373_da7219",
 		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &jsl_7219_98373_codecs,
+		.quirk_data = &mx98373_spk,
+		.sof_tplg_filename = "sof-jsl-da7219.tplg",
 	},
 	{
 		.id = "DLGS7219",
-		.drv_name = "sof_da7219_mx98360a",
+		.drv_name = "jsl_mx98360_da7219",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &mx98360a_spk,
 		.sof_tplg_filename = "sof-jsl-da7219-mx98360a.tplg",
 	},
 	{
@@ -97,6 +104,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_jsl_machines[] = {
 		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_SSP_NUMBER |
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
+	},
+	{
+		.id = "10EC5650",
+		.drv_name = "jsl_rt5650",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &rt5650_spk,
+		.sof_tplg_filename = "sof-jsl-rt5650.tplg",
 	},
 	{},
 };

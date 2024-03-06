@@ -54,25 +54,15 @@ void mlxsw_sp_pgt_mid_free(struct mlxsw_sp *mlxsw_sp, u16 mid_base)
 	mutex_unlock(&mlxsw_sp->pgt->lock);
 }
 
-int
-mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base, u16 count)
+int mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 *p_mid_base,
+				 u16 count)
 {
-	unsigned int idr_cursor;
+	unsigned int mid_base;
 	int i, err;
 
 	mutex_lock(&mlxsw_sp->pgt->lock);
 
-	/* This function is supposed to be called several times as part of
-	 * driver init, in specific order. Verify that the mid_index is the
-	 * first free index in the idr, to be able to free the indexes in case
-	 * of error.
-	 */
-	idr_cursor = idr_get_cursor(&mlxsw_sp->pgt->pgt_idr);
-	if (WARN_ON(idr_cursor != mid_base)) {
-		err = -EINVAL;
-		goto err_idr_cursor;
-	}
-
+	mid_base = idr_get_cursor(&mlxsw_sp->pgt->pgt_idr);
 	for (i = 0; i < count; i++) {
 		err = idr_alloc_cyclic(&mlxsw_sp->pgt->pgt_idr, NULL,
 				       mid_base, mid_base + count, GFP_KERNEL);
@@ -81,12 +71,12 @@ mlxsw_sp_pgt_mid_alloc_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base, u16 count)
 	}
 
 	mutex_unlock(&mlxsw_sp->pgt->lock);
+	*p_mid_base = mid_base;
 	return 0;
 
 err_idr_alloc_cyclic:
 	for (i--; i >= 0; i--)
 		idr_remove(&mlxsw_sp->pgt->pgt_idr, mid_base + i);
-err_idr_cursor:
 	mutex_unlock(&mlxsw_sp->pgt->lock);
 	return err;
 }

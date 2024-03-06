@@ -45,6 +45,13 @@ struct visl_hevc_run {
 	const struct v4l2_ctrl_hevc_decode_params *dpram;
 };
 
+struct visl_av1_run {
+	const struct v4l2_ctrl_av1_sequence *seq;
+	const struct v4l2_ctrl_av1_frame *frame;
+	const struct v4l2_ctrl_av1_tile_group_entry *tge;
+	const struct v4l2_ctrl_av1_film_grain *grain;
+};
+
 struct visl_run {
 	struct vb2_v4l2_buffer	*src;
 	struct vb2_v4l2_buffer	*dst;
@@ -56,6 +63,7 @@ struct visl_run {
 		struct visl_vp9_run	vp9;
 		struct visl_h264_run	h264;
 		struct visl_hevc_run	hevc;
+		struct visl_av1_run	av1;
 	};
 };
 

@@ -35,6 +35,7 @@
 /* buffers */
 #define SOF_TKN_BUF_SIZE			100
 #define SOF_TKN_BUF_CAPS			101
+#define SOF_TKN_BUF_FLAGS			102
 
 /* DAI */
 /* Token retired with ABI 3.2, do not use for new capabilities
@@ -99,7 +100,11 @@
 #define SOF_TKN_COMP_OUTPUT_PIN_BINDING_WNAME	414
 #define SOF_TKN_COMP_NUM_INPUT_AUDIO_FORMATS	415
 #define SOF_TKN_COMP_NUM_OUTPUT_AUDIO_FORMATS	416
-
+/*
+ * The token value is copied to the dapm_widget's
+ * no_wname_in_kcontrol_name.
+ */
+#define SOF_TKN_COMP_NO_WNAME_IN_KCONTROL_NAME	417
 
 /* SSP */
 #define SOF_TKN_INTEL_SSP_CLKS_CONTROL		500
@@ -208,5 +213,9 @@
 #define SOF_TKN_AMD_ACPI2S_RATE			1700
 #define SOF_TKN_AMD_ACPI2S_CH			1701
 #define SOF_TKN_AMD_ACPI2S_TDM_MODE		1702
+
+/* MICFIL PDM */
+#define SOF_TKN_IMX_MICFIL_RATE			2000
+#define SOF_TKN_IMX_MICFIL_CH			2001
 
 #endif

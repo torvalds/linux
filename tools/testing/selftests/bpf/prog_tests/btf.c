@@ -3991,6 +3991,46 @@ static struct btf_raw_test raw_tests[] = {
 	.err_str = "Invalid arg#1",
 },
 {
+	.descr = "decl_tag test #18, decl_tag as the map key type",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_STRUCT_ENC(0, 2, 8),			/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_MEMBER_ENC(NAME_TBD, 1, 32),
+		BTF_DECL_TAG_ENC(NAME_TBD, 2, -1),		/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0m1\0m2\0tag"),
+	.map_type = BPF_MAP_TYPE_HASH,
+	.map_name = "tag_type_check_btf",
+	.key_size = 8,
+	.value_size = 4,
+	.key_type_id = 3,
+	.value_type_id = 1,
+	.max_entries = 1,
+	.map_create_err = true,
+},
+{
+	.descr = "decl_tag test #19, decl_tag as the map value type",
+	.raw_types = {
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
+		BTF_STRUCT_ENC(0, 2, 8),			/* [2] */
+		BTF_MEMBER_ENC(NAME_TBD, 1, 0),
+		BTF_MEMBER_ENC(NAME_TBD, 1, 32),
+		BTF_DECL_TAG_ENC(NAME_TBD, 2, -1),		/* [3] */
+		BTF_END_RAW,
+	},
+	BTF_STR_SEC("\0m1\0m2\0tag"),
+	.map_type = BPF_MAP_TYPE_HASH,
+	.map_name = "tag_type_check_btf",
+	.key_size = 4,
+	.value_size = 8,
+	.key_type_id = 1,
+	.value_type_id = 3,
+	.max_entries = 1,
+	.map_create_err = true,
+},
+{
 	.descr = "type_tag test #1",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),	/* [1] */
@@ -4590,11 +4630,6 @@ static int test_btf_id(unsigned int test_num)
 	/* The map holds the last ref to BTF and its btf_id */
 	close(map_fd);
 	map_fd = -1;
-	btf_fd[0] = bpf_btf_get_fd_by_id(map_info.btf_id);
-	if (CHECK(btf_fd[0] >= 0, "BTF lingers")) {
-		err = -1;
-		goto done;
-	}
 
 	fprintf(stderr, "OK");
 
@@ -5225,6 +5260,7 @@ static size_t get_pprint_mapv_size(enum pprint_mapv_kind_t mapv_kind)
 #endif
 
 	assert(0);
+	return 0;
 }
 
 static void set_pprint_mapv(enum pprint_mapv_kind_t mapv_kind,
@@ -7256,7 +7292,7 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(2), 1),
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(3), 1),
-			BTF_FUNC_ENC(NAME_NTH(4), 2),			/* [4] */
+			BTF_FUNC_ENC(NAME_NTH(4), 3),			/* [4] */
 			/* tag -> t */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 2, -1),		/* [5] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 2, -1),		/* [6] */
@@ -7277,7 +7313,7 @@ static struct btf_dedup_test dedup_tests[] = {
 			BTF_FUNC_PROTO_ENC(0, 2),			/* [3] */
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(2), 1),
 				BTF_FUNC_PROTO_ARG_ENC(NAME_NTH(3), 1),
-			BTF_FUNC_ENC(NAME_NTH(4), 2),			/* [4] */
+			BTF_FUNC_ENC(NAME_NTH(4), 3),			/* [4] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 2, -1),		/* [5] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 4, -1),		/* [6] */
 			BTF_DECL_TAG_ENC(NAME_NTH(5), 4, 1),		/* [7] */

@@ -231,7 +231,7 @@ static void armada380_init(struct platform_device *pdev,
 	regmap_write(priv->syscon, data->syscon_control0_off, reg);
 }
 
-static void armada_ap806_init(struct platform_device *pdev,
+static void armada_ap80x_init(struct platform_device *pdev,
 			      struct armada_thermal_priv *priv)
 {
 	struct armada_thermal_data *data = priv->data;
@@ -614,7 +614,7 @@ static const struct armada_thermal_data armada380_data = {
 };
 
 static const struct armada_thermal_data armada_ap806_data = {
-	.init = armada_ap806_init,
+	.init = armada_ap80x_init,
 	.is_valid_bit = BIT(16),
 	.temp_shift = 0,
 	.temp_mask = 0x3ff,
@@ -623,6 +623,30 @@ static const struct armada_thermal_data armada_ap806_data = {
 	.hyst_mask = 0x3,
 	.coef_b = -150000LL,
 	.coef_m = 423ULL,
+	.coef_div = 1,
+	.inverted = true,
+	.signed_sample = true,
+	.syscon_control0_off = 0x84,
+	.syscon_control1_off = 0x88,
+	.syscon_status_off = 0x8C,
+	.dfx_irq_cause_off = 0x108,
+	.dfx_irq_mask_off = 0x10C,
+	.dfx_overheat_irq = BIT(22),
+	.dfx_server_irq_mask_off = 0x104,
+	.dfx_server_irq_en = BIT(1),
+	.cpu_nr = 4,
+};
+
+static const struct armada_thermal_data armada_ap807_data = {
+	.init = armada_ap80x_init,
+	.is_valid_bit = BIT(16),
+	.temp_shift = 0,
+	.temp_mask = 0x3ff,
+	.thresh_shift = 3,
+	.hyst_shift = 19,
+	.hyst_mask = 0x3,
+	.coef_b = -128900LL,
+	.coef_m = 394ULL,
 	.coef_div = 1,
 	.inverted = true,
 	.signed_sample = true,
@@ -679,6 +703,10 @@ static const struct of_device_id armada_thermal_id_table[] = {
 	{
 		.compatible = "marvell,armada-ap806-thermal",
 		.data       = &armada_ap806_data,
+	},
+	{
+		.compatible = "marvell,armada-ap807-thermal",
+		.data       = &armada_ap807_data,
 	},
 	{
 		.compatible = "marvell,armada-cp110-thermal",
@@ -848,8 +876,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		/* Wait the sensors to be valid */
 		armada_wait_sensor_validity(priv);
 
-		tz = thermal_zone_device_register(priv->zone_name, 0, 0, priv,
-						  &legacy_ops, NULL, 0, 0);
+		tz = thermal_tripless_zone_device_register(priv->zone_name,
+							   priv, &legacy_ops,
+							   NULL);
 		if (IS_ERR(tz)) {
 			dev_err(&pdev->dev,
 				"Failed to register thermal zone device\n");
@@ -936,19 +965,17 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int armada_thermal_exit(struct platform_device *pdev)
+static void armada_thermal_exit(struct platform_device *pdev)
 {
 	struct armada_drvdata *drvdata = platform_get_drvdata(pdev);
 
 	if (drvdata->type == LEGACY)
 		thermal_zone_device_unregister(drvdata->data.tz);
-
-	return 0;
 }
 
 static struct platform_driver armada_thermal_driver = {
 	.probe = armada_thermal_probe,
-	.remove = armada_thermal_exit,
+	.remove_new = armada_thermal_exit,
 	.driver = {
 		.name = "armada_thermal",
 		.of_match_table = armada_thermal_id_table,

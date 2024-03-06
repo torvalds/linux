@@ -120,6 +120,7 @@ struct rpc_authops {
 						struct rpcsec_gss_info *);
 	int			(*key_timeout)(struct rpc_auth *,
 						struct rpc_cred *);
+	int			(*ping)(struct rpc_clnt *clnt);
 };
 
 struct rpc_credops {
@@ -144,6 +145,7 @@ struct rpc_credops {
 
 extern const struct rpc_authops	authunix_ops;
 extern const struct rpc_authops	authnull_ops;
+extern const struct rpc_authops	authtls_ops;
 
 int __init		rpc_init_authunix(void);
 int __init		rpcauth_init_module(void);

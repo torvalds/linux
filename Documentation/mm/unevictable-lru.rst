@@ -463,7 +463,7 @@ can request that a region of memory be mlocked by supplying the MAP_LOCKED flag
 to the mmap() call.  There is one important and subtle difference here, though.
 mmap() + mlock() will fail if the range cannot be faulted in (e.g. because
 mm_populate fails) and returns with ENOMEM while mmap(MAP_LOCKED) will not fail.
-The mmaped area will still have properties of the locked area - pages will not
+The mmapped area will still have properties of the locked area - pages will not
 get swapped out - but major page faults to fault memory in might still happen.
 
 Furthermore, any mmap() call or brk() call that expands the heap by a task
@@ -486,7 +486,7 @@ munlock the pages if we're removing the last VM_LOCKED VMA that maps the pages.
 Before the unevictable/mlock changes, mlocking did not mark the pages in any
 way, so unmapping them required no processing.
 
-For each PTE (or PMD) being unmapped from a VMA, page_remove_rmap() calls
+For each PTE (or PMD) being unmapped from a VMA, folio_remove_rmap_*() calls
 munlock_vma_folio(), which calls munlock_folio() when the VMA is VM_LOCKED
 (unless it was a PTE mapping of a part of a transparent huge page).
 
@@ -511,7 +511,7 @@ userspace; truncation even unmaps and deletes any private anonymous pages
 which had been Copied-On-Write from the file pages now being truncated.
 
 Mlocked pages can be munlocked and deleted in this way: like with munmap(),
-for each PTE (or PMD) being unmapped from a VMA, page_remove_rmap() calls
+for each PTE (or PMD) being unmapped from a VMA, folio_remove_rmap_*() calls
 munlock_vma_folio(), which calls munlock_folio() when the VMA is VM_LOCKED
 (unless it was a PTE mapping of a part of a transparent huge page).
 

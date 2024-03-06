@@ -5,17 +5,12 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/acpi.h>
-#include <linux/dmi.h>
 #include <linux/hwmon.h>
 #include <linux/module.h>
 #include <linux/wmi.h>
 
 #define GIGABYTE_WMI_GUID	"DEADBEEF-2001-0000-00A0-C90629100000"
 #define NUM_TEMPERATURE_SENSORS	6
-
-static bool force_load;
-module_param(force_load, bool, 0444);
-MODULE_PARM_DESC(force_load, "Force loading on unknown platform");
 
 static u8 usable_sensors_mask;
 
@@ -99,7 +94,7 @@ static umode_t gigabyte_wmi_hwmon_is_visible(const void *data, enum hwmon_sensor
 	return usable_sensors_mask & BIT(channel) ? 0444  : 0;
 }
 
-static const struct hwmon_channel_info *gigabyte_wmi_hwmon_info[] = {
+static const struct hwmon_channel_info * const gigabyte_wmi_hwmon_info[] = {
 	HWMON_CHANNEL_INFO(temp,
 			   HWMON_T_INPUT,
 			   HWMON_T_INPUT,
@@ -133,48 +128,9 @@ static u8 gigabyte_wmi_detect_sensor_usability(struct wmi_device *wdev)
 	return r;
 }
 
-#define DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME(name) \
-	{ .matches = { \
-		DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co., Ltd."), \
-		DMI_EXACT_MATCH(DMI_BOARD_NAME, name), \
-	}}
-
-static const struct dmi_system_id gigabyte_wmi_known_working_platforms[] = {
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("A320M-S2H V2-CF"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B450M DS3H-CF"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B450M DS3H WIFI-CF"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B450M S2H V2"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550 AORUS ELITE AX V2"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550 AORUS ELITE"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550 AORUS ELITE V2"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550 GAMING X V2"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550I AORUS PRO AX"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550M AORUS PRO-P"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B550M DS3H"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B650 AORUS ELITE AX"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B660 GAMING X DDR4"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("B660I AORUS PRO DDR4"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("Z390 I AORUS PRO WIFI-CF"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("Z490 AORUS ELITE AC"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("X570 AORUS ELITE"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("X570 AORUS ELITE WIFI"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("X570 GAMING X"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("X570 I AORUS PRO WIFI"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("X570 UD"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("X570S AORUS ELITE"),
-	DMI_EXACT_MATCH_GIGABYTE_BOARD_NAME("Z690M AORUS ELITE AX DDR4"),
-	{ }
-};
-
 static int gigabyte_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct device *hwmon_dev;
-
-	if (!dmi_check_system(gigabyte_wmi_known_working_platforms)) {
-		if (!force_load)
-			return -ENODEV;
-		dev_warn(&wdev->dev, "Forcing load on unknown platform");
-	}
 
 	usable_sensors_mask = gigabyte_wmi_detect_sensor_usability(wdev);
 	if (!usable_sensors_mask) {

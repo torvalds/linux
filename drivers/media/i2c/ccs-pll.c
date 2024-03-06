@@ -296,7 +296,7 @@ __ccs_pll_calculate_vt_tree(struct device *dev,
 	struct ccs_pll_branch_fr *pll_fr = &pll->vt_fr;
 	struct ccs_pll_branch_bk *pll_bk = &pll->vt_bk;
 	u32 more_mul;
-	u16 best_pix_div = SHRT_MAX >> 1, best_div;
+	u16 best_pix_div = SHRT_MAX >> 1, best_div = lim_bk->max_sys_clk_div;
 	u16 vt_div, min_sys_div, max_sys_div, sys_div;
 
 	pll_fr->pll_ip_clk_freq_hz =

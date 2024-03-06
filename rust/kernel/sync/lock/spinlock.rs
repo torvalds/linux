@@ -61,6 +61,7 @@ macro_rules! new_spinlock {
 /// assert_eq!(e.c, 10);
 /// assert_eq!(e.d.lock().a, 20);
 /// assert_eq!(e.d.lock().b, 30);
+/// # Ok::<(), Error>(())
 /// ```
 ///
 /// The following example shows how to use interior mutability to modify the contents of a struct
@@ -81,7 +82,7 @@ macro_rules! new_spinlock {
 /// }
 /// ```
 ///
-/// [`spinlock_t`]: ../../../../include/linux/spinlock.h
+/// [`spinlock_t`]: srctree/include/linux/spinlock.h
 pub type SpinLock<T> = super::Lock<T, SpinLockBackend>;
 
 /// A kernel `spinlock_t` lock backend.

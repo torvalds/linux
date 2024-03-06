@@ -301,12 +301,9 @@ struct inode *qnx4_iget(struct super_block *sb, unsigned long ino)
 	i_gid_write(inode, (gid_t)le16_to_cpu(raw_inode->di_gid));
 	set_nlink(inode, le16_to_cpu(raw_inode->di_nlink));
 	inode->i_size    = le32_to_cpu(raw_inode->di_size);
-	inode->i_mtime.tv_sec   = le32_to_cpu(raw_inode->di_mtime);
-	inode->i_mtime.tv_nsec = 0;
-	inode->i_atime.tv_sec   = le32_to_cpu(raw_inode->di_atime);
-	inode->i_atime.tv_nsec = 0;
-	inode->i_ctime.tv_sec   = le32_to_cpu(raw_inode->di_ctime);
-	inode->i_ctime.tv_nsec = 0;
+	inode_set_mtime(inode, le32_to_cpu(raw_inode->di_mtime), 0);
+	inode_set_atime(inode, le32_to_cpu(raw_inode->di_atime), 0);
+	inode_set_ctime(inode, le32_to_cpu(raw_inode->di_ctime), 0);
 	inode->i_blocks  = le32_to_cpu(raw_inode->di_first_xtnt.xtnt_size);
 
 	memcpy(qnx4_inode, raw_inode, QNX4_DIR_ENTRY_SIZE);

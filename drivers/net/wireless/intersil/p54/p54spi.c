@@ -28,6 +28,7 @@
 #endif /* CONFIG_P54_SPI_DEFAULT_EEPROM */
 
 MODULE_FIRMWARE("3826.arm");
+MODULE_FIRMWARE("3826.eeprom");
 
 /* gpios should be handled in board files and provided via platform data,
  * but because it's currently impossible for p54spi to have a header file
@@ -699,6 +700,7 @@ static struct spi_driver p54spi_driver = {
 
 module_spi_driver(p54spi_driver);
 
+MODULE_DESCRIPTION("Prism54 SPI wireless driver");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Lamparter <chunkeey@web.de>");
 MODULE_ALIAS("spi:cx3110x");

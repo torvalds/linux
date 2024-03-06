@@ -12,6 +12,9 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -19,9 +22,6 @@
 #include <scsi/scsi_cmnd.h>
 #include <linux/libata.h>
 #include <asm/io.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 
 static unsigned int intr_coalescing_count;
 module_param(intr_coalescing_count, int, S_IRUGO);
@@ -1526,7 +1526,7 @@ error_exit_with_cleanup:
 	return retval;
 }
 
-static int sata_fsl_remove(struct platform_device *ofdev)
+static void sata_fsl_remove(struct platform_device *ofdev)
 {
 	struct ata_host *host = platform_get_drvdata(ofdev);
 	struct sata_fsl_host_priv *host_priv = host->private_data;
@@ -1535,8 +1535,6 @@ static int sata_fsl_remove(struct platform_device *ofdev)
 	device_remove_file(&ofdev->dev, &host_priv->rx_watermark);
 
 	ata_host_detach(host);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1591,7 +1589,7 @@ static struct platform_driver fsl_sata_driver = {
 		.of_match_table = fsl_sata_match,
 	},
 	.probe		= sata_fsl_probe,
-	.remove		= sata_fsl_remove,
+	.remove_new	= sata_fsl_remove,
 #ifdef CONFIG_PM_SLEEP
 	.suspend	= sata_fsl_suspend,
 	.resume		= sata_fsl_resume,

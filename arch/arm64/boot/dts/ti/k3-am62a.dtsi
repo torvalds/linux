@@ -115,6 +115,8 @@
 				 <0x00 0x78100000 0x00 0x78100000 0x00 0x00008000>; /* DM R5 BTCM*/
 		};
 	};
+
+	#include "k3-am62a-thermal.dtsi"
 };
 
 /* Now include the peripherals for each bus segments */

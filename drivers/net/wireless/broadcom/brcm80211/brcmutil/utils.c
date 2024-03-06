@@ -186,7 +186,7 @@ struct sk_buff *brcmu_pktq_peek_tail(struct pktq *pq, int *prec_out)
 {
 	int prec;
 
-	if (pq->len == 0)
+	if (pktq_empty(pq))
 		return NULL;
 
 	for (prec = 0; prec < pq->hi_prec; prec++)
@@ -223,7 +223,7 @@ struct sk_buff *brcmu_pktq_mdeq(struct pktq *pq, uint prec_bmp,
 	struct sk_buff *p;
 	int prec;
 
-	if (pq->len == 0)
+	if (pktq_empty(pq))
 		return NULL;
 
 	while ((prec = pq->hi_prec) > 0 &&

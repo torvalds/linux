@@ -133,8 +133,6 @@ struct ar0521_dev {
 		u16 mult2;
 		u16 vt_pix;
 	} pll;
-
-	bool streaming;
 };
 
 static inline struct ar0521_dev *to_ar0521_dev(struct v4l2_subdev *sd)
@@ -448,8 +446,7 @@ static int ar0521_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, sd_state, 0
-						 /* pad */);
+		fmt = v4l2_subdev_state_get_format(sd_state, 0);
 	else
 		fmt = &sensor->fmt;
 
@@ -474,7 +471,7 @@ static int ar0521_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		struct v4l2_mbus_framefmt *fmt;
 
-		fmt = v4l2_subdev_get_try_format(sd, sd_state, 0 /* pad */);
+		fmt = v4l2_subdev_state_get_format(sd_state, 0);
 		*fmt = format->format;
 
 		mutex_unlock(&sensor->lock);
@@ -991,12 +988,9 @@ static int ar0521_s_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	mutex_lock(&sensor->lock);
-
 	ret = ar0521_set_stream(sensor, enable);
-	if (!ret)
-		sensor->streaming = enable;
-
 	mutex_unlock(&sensor->lock);
+
 	return ret;
 }
 
@@ -1022,28 +1016,6 @@ static const struct v4l2_subdev_ops ar0521_subdev_ops = {
 	.video = &ar0521_video_ops,
 	.pad = &ar0521_pad_ops,
 };
-
-static int __maybe_unused ar0521_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ar0521_dev *sensor = to_ar0521_dev(sd);
-
-	if (sensor->streaming)
-		ar0521_set_stream(sensor, 0);
-
-	return 0;
-}
-
-static int __maybe_unused ar0521_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ar0521_dev *sensor = to_ar0521_dev(sd);
-
-	if (sensor->streaming)
-		return ar0521_set_stream(sensor, 1);
-
-	return 0;
-}
 
 static int ar0521_probe(struct i2c_client *client)
 {
@@ -1183,7 +1155,6 @@ static void ar0521_remove(struct i2c_client *client)
 }
 
 static const struct dev_pm_ops ar0521_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ar0521_suspend, ar0521_resume)
 	SET_RUNTIME_PM_OPS(ar0521_power_off, ar0521_power_on, NULL)
 };
 static const struct of_device_id ar0521_dt_ids[] = {
@@ -1198,7 +1169,7 @@ static struct i2c_driver ar0521_i2c_driver = {
 		.pm = &ar0521_pm_ops,
 		.of_match_table = ar0521_dt_ids,
 	},
-	.probe_new = ar0521_probe,
+	.probe = ar0521_probe,
 	.remove = ar0521_remove,
 };
 

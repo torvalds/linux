@@ -877,7 +877,7 @@ static struct i2c_driver tda18250_driver = {
 	.driver = {
 		.name	= "tda18250",
 	},
-	.probe_new	= tda18250_probe,
+	.probe		= tda18250_probe,
 	.remove		= tda18250_remove,
 	.id_table	= tda18250_id_table,
 };

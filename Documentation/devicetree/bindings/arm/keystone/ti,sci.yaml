@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: (GPL-2.0-only or BSD-2-Clause)
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
 %YAML 1.2
 ---
 $id: http://devicetree.org/schemas/arm/keystone/ti,sci.yaml#
@@ -96,8 +96,8 @@ examples:
       compatible = "ti,k2g-sci";
       ti,system-reboot-controller;
       mbox-names = "rx", "tx";
-      mboxes= <&msgmgr 5 2>,
-              <&msgmgr 0 0>;
+      mboxes = <&msgmgr 5 2>,
+               <&msgmgr 0 0>;
       reg-names = "debug_messages";
       reg = <0x02921800 0x800>;
     };
@@ -107,8 +107,8 @@ examples:
       compatible = "ti,k2g-sci";
       ti,host-id = <12>;
       mbox-names = "rx", "tx";
-      mboxes= <&secure_proxy_main 11>,
-              <&secure_proxy_main 13>;
+      mboxes = <&secure_proxy_main 11>,
+               <&secure_proxy_main 13>;
       reg-names = "debug_messages";
       reg = <0x44083000 0x1000>;
 

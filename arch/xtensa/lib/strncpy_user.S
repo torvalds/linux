@@ -201,6 +201,7 @@ EX(10f)	s8i	a9, a11, 0
 	abi_ret_default
 
 ENDPROC(__strncpy_user)
+EXPORT_SYMBOL(__strncpy_user)
 
 	.section .fixup, "ax"
 	.align	4

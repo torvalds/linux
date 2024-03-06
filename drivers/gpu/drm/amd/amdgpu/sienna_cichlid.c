@@ -36,7 +36,7 @@ static bool sienna_cichlid_is_mode2_default(struct amdgpu_reset_control *reset_c
 #if 0
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7) &&
+	if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(11, 0, 7) &&
 	    adev->pm.fw_version >= 0x3a5500 && !amdgpu_sriov_vf(adev))
 		return true;
 #endif
@@ -48,18 +48,17 @@ sienna_cichlid_get_reset_handler(struct amdgpu_reset_control *reset_ctl,
 			    struct amdgpu_reset_context *reset_context)
 {
 	struct amdgpu_reset_handler *handler;
+	int i;
 
 	if (reset_context->method != AMD_RESET_METHOD_NONE) {
-		list_for_each_entry(handler, &reset_ctl->reset_handlers,
-				     handler_list) {
+		for_each_handler(i, handler, reset_ctl)	{
 			if (handler->reset_method == reset_context->method)
 				return handler;
 		}
 	}
 
 	if (sienna_cichlid_is_mode2_default(reset_ctl)) {
-		list_for_each_entry (handler, &reset_ctl->reset_handlers,
-				     handler_list) {
+		for_each_handler(i, handler, reset_ctl)	{
 			if (handler->reset_method == AMD_RESET_METHOD_MODE2)
 				return handler;
 		}
@@ -120,9 +119,9 @@ static void sienna_cichlid_async_reset(struct work_struct *work)
 	struct amdgpu_reset_control *reset_ctl =
 		container_of(work, struct amdgpu_reset_control, reset_work);
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
+	int i;
 
-	list_for_each_entry(handler, &reset_ctl->reset_handlers,
-			     handler_list) {
+	for_each_handler(i, handler, reset_ctl)	{
 		if (handler->reset_method == reset_ctl->active_reset) {
 			dev_dbg(adev->dev, "Resetting device\n");
 			handler->do_reset(adev);
@@ -281,6 +280,11 @@ static struct amdgpu_reset_handler sienna_cichlid_mode2_handler = {
 	.do_reset		= sienna_cichlid_mode2_reset,
 };
 
+static struct amdgpu_reset_handler
+	*sienna_cichlid_rst_handlers[AMDGPU_RESET_MAX_HANDLERS] = {
+		&sienna_cichlid_mode2_handler,
+	};
+
 int sienna_cichlid_reset_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_reset_control *reset_ctl;
@@ -294,11 +298,9 @@ int sienna_cichlid_reset_init(struct amdgpu_device *adev)
 	reset_ctl->active_reset = AMD_RESET_METHOD_NONE;
 	reset_ctl->get_reset_handler = sienna_cichlid_get_reset_handler;
 
-	INIT_LIST_HEAD(&reset_ctl->reset_handlers);
 	INIT_WORK(&reset_ctl->reset_work, reset_ctl->async_reset);
 	/* Only mode2 is handled through reset control now */
-	amdgpu_reset_add_handler(reset_ctl, &sienna_cichlid_mode2_handler);
-
+	reset_ctl->reset_handlers = &sienna_cichlid_rst_handlers;
 	adev->reset_cntl = reset_ctl;
 
 	return 0;

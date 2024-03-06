@@ -22,7 +22,7 @@ cleanup_files()
 	rm -f ${PERF_DATA}
 }
 
-trap cleanup_files exit term int
+trap cleanup_files EXIT TERM INT
 
 echo "Recording workload..."
 perf record -o ${PERF_DATA} -e arm_spe/period=65536/ -vvv -- $TEST_PROGRAM > ${PERF_RECORD_LOG} 2>&1 &

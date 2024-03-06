@@ -68,7 +68,7 @@ static struct i2c_driver ir36021_driver = {
 		.name = "ir36021",
 		.of_match_table = of_match_ptr(ir36021_of_id),
 	},
-	.probe_new = ir36021_probe,
+	.probe = ir36021_probe,
 	.id_table = ir36021_id,
 };
 

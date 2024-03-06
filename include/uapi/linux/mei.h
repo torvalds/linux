@@ -14,8 +14,8 @@
  * FW Client (given by UUID). This opens a communication channel
  * between a host client and a FW client. From this point every read and write
  * will communicate with the associated FW client.
- * Only in close() (file_operation release()) the communication between
- * the clients is disconnected
+ * Only in close() (file_operation release()) is the communication between
+ * the clients disconnected.
  *
  * The IOCTL argument is a struct with a union that contains
  * the input parameter and the output parameter for this IOCTL.
@@ -51,7 +51,7 @@ struct mei_connect_client_data {
  * DOC: set and unset event notification for a connected client
  *
  * The IOCTL argument is 1 for enabling event notification and 0 for
- * disabling the service
+ * disabling the service.
  * Return:  -EOPNOTSUPP if the devices doesn't support the feature
  */
 #define IOCTL_MEI_NOTIFY_SET _IOW('H', 0x02, __u32)
@@ -59,8 +59,8 @@ struct mei_connect_client_data {
 /**
  * DOC: retrieve notification
  *
- * The IOCTL output argument is 1 if an event was is pending and 0 otherwise
- * the ioctl has to be called in order to acknowledge pending event
+ * The IOCTL output argument is 1 if an event was pending and 0 otherwise.
+ * The ioctl has to be called in order to acknowledge pending event.
  *
  * Return:  -EOPNOTSUPP if the devices doesn't support the feature
  */
@@ -98,16 +98,16 @@ struct mei_connect_client_data_vtag {
  * FW Client (given by UUID), and virtual tag (vtag).
  * The IOCTL opens a communication channel between a host client and
  * a FW client on a tagged channel. From this point on, every read
- * and write will communicate with the associated FW client with
+ * and write will communicate with the associated FW client
  * on the tagged channel.
- * Upone close() the communication is terminated.
+ * Upon close() the communication is terminated.
  *
  * The IOCTL argument is a struct with a union that contains
  * the input parameter and the output parameter for this IOCTL.
  *
- * The input parameter is UUID of the FW Client, a vtag [0,255]
+ * The input parameter is UUID of the FW Client, a vtag [0,255].
  * The output parameter is the properties of the FW client
- * (FW protocool version and max message size).
+ * (FW protocol version and max message size).
  *
  * Clients that do not support tagged connection
  * will respond with -EOPNOTSUPP.

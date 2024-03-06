@@ -736,30 +736,6 @@ do {										\
 #define san_consumer_warn(dev, handle, fmt, ...) \
 	san_consumer_printk(warn, dev, handle, fmt, ##__VA_ARGS__)
 
-static bool is_san_consumer(struct platform_device *pdev, acpi_handle handle)
-{
-	struct acpi_handle_list dep_devices;
-	acpi_handle supplier = ACPI_HANDLE(&pdev->dev);
-	acpi_status status;
-	int i;
-
-	if (!acpi_has_method(handle, "_DEP"))
-		return false;
-
-	status = acpi_evaluate_reference(handle, "_DEP", NULL, &dep_devices);
-	if (ACPI_FAILURE(status)) {
-		san_consumer_dbg(&pdev->dev, handle, "failed to evaluate _DEP\n");
-		return false;
-	}
-
-	for (i = 0; i < dep_devices.count; i++) {
-		if (dep_devices.handles[i] == supplier)
-			return true;
-	}
-
-	return false;
-}
-
 static acpi_status san_consumer_setup(acpi_handle handle, u32 lvl,
 				      void *context, void **rv)
 {
@@ -768,7 +744,7 @@ static acpi_status san_consumer_setup(acpi_handle handle, u32 lvl,
 	struct acpi_device *adev;
 	struct device_link *link;
 
-	if (!is_san_consumer(pdev, handle))
+	if (!acpi_device_dep(handle, ACPI_HANDLE(&pdev->dev)))
 		return AE_OK;
 
 	/* Ignore ACPI devices that are not present. */
@@ -850,7 +826,7 @@ err_enable_events:
 	return status;
 }
 
-static int san_remove(struct platform_device *pdev)
+static void san_remove(struct platform_device *pdev)
 {
 	acpi_handle san = ACPI_HANDLE(&pdev->dev);
 
@@ -864,8 +840,6 @@ static int san_remove(struct platform_device *pdev)
 	 * all delayed works they may have spawned are run to completion.
 	 */
 	flush_workqueue(san_wq);
-
-	return 0;
 }
 
 static const struct acpi_device_id san_match[] = {
@@ -876,7 +850,7 @@ MODULE_DEVICE_TABLE(acpi, san_match);
 
 static struct platform_driver surface_acpi_notify = {
 	.probe = san_probe,
-	.remove = san_remove,
+	.remove_new = san_remove,
 	.driver = {
 		.name = "surface_acpi_notify",
 		.acpi_match_table = san_match,

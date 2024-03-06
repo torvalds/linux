@@ -26,7 +26,7 @@
 
 	v1p05: v1p05-regulator {
 		compatible = "regulator-fixed";
-		reglator-name = "v1p05";
+		regulator-name = "v1p05";
 		regulator-always-on;
 		regulator-boot-on;
 
@@ -38,7 +38,7 @@
 
 	v12_poe: v12-poe-regulator {
 		compatible = "regulator-fixed";
-		reglator-name = "v12_poe";
+		regulator-name = "v12_poe";
 		regulator-always-on;
 		regulator-boot-on;
 
@@ -92,15 +92,15 @@
 	status = "okay";
 };
 
-&hdmi {
-	status = "okay";
-};
-
-&hdmi_phy {
-	status = "okay";
-};
-
 &mdss {
+	status = "okay";
+};
+
+&mdss_hdmi {
+	status = "okay";
+};
+
+&mdss_hdmi_phy {
 	status = "okay";
 };
 

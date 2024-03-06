@@ -11,6 +11,7 @@
 #include <linux/cpu.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/vmalloc.h>
 #include <asm/asm-extable.h>
 #include <asm/diag.h>
 #include <asm/trace/diag.h>
@@ -50,6 +51,7 @@ static const struct diag_desc diag_map[NR_DIAG_STAT] = {
 	[DIAG_STAT_X304] = { .code = 0x304, .name = "Partition-Resource Service" },
 	[DIAG_STAT_X308] = { .code = 0x308, .name = "List-Directed IPL" },
 	[DIAG_STAT_X318] = { .code = 0x318, .name = "CP Name and Version Codes" },
+	[DIAG_STAT_X320] = { .code = 0x320, .name = "Certificate Store" },
 	[DIAG_STAT_X500] = { .code = 0x500, .name = "Virtio Service" },
 };
 
@@ -167,8 +169,29 @@ static inline int __diag204(unsigned long *subcode, unsigned long size, void *ad
 	return rp.odd;
 }
 
+/**
+ * diag204() - Issue diagnose 204 call.
+ * @subcode: Subcode of diagnose 204 to be executed.
+ * @size: Size of area in pages which @area points to, if given.
+ * @addr: Vmalloc'ed memory area where the result is written to.
+ *
+ * Execute diagnose 204 with the given subcode and write the result to the
+ * memory area specified with @addr. For subcodes which do not write a
+ * result to memory both @size and @addr must be zero. If @addr is
+ * specified it must be page aligned and must have been allocated with
+ * vmalloc(). Conversion to real / physical addresses will be handled by
+ * this function if required.
+ */
 int diag204(unsigned long subcode, unsigned long size, void *addr)
 {
+	if (addr) {
+		if (WARN_ON_ONCE(!is_vmalloc_addr(addr)))
+			return -1;
+		if (WARN_ON_ONCE(!IS_ALIGNED((unsigned long)addr, PAGE_SIZE)))
+			return -1;
+	}
+	if ((subcode & DIAG204_SUBCODE_MASK) == DIAG204_SUBC_STIB4)
+		addr = (void *)pfn_to_phys(vmalloc_to_pfn(addr));
 	diag_stat_inc(DIAG_STAT_X204);
 	size = __diag204(&subcode, size, addr);
 	if (subcode)
@@ -200,7 +223,7 @@ int diag210(struct diag210 *addr)
 EXPORT_SYMBOL(diag210);
 
 /*
- * Diagnose 210: Get information about a virtual device
+ * Diagnose 8C: Access 3270 Display Device Information
  */
 int diag8c(struct diag8c *addr, struct ccw_dev_id *devno)
 {
@@ -222,6 +245,7 @@ EXPORT_SYMBOL(diag8c);
 
 int diag224(void *ptr)
 {
+	unsigned long addr = __pa(ptr);
 	int rc = -EOPNOTSUPP;
 
 	diag_stat_inc(DIAG_STAT_X224);
@@ -230,7 +254,7 @@ int diag224(void *ptr)
 		"0:	lhi	%0,0x0\n"
 		"1:\n"
 		EX_TABLE(0b,1b)
-		: "+d" (rc) :"d" (0), "d" (ptr) : "memory");
+		: "+d" (rc) :"d" (0), "d" (addr) : "memory");
 	return rc;
 }
 EXPORT_SYMBOL(diag224);

@@ -305,7 +305,7 @@ int __ipv6_dev_ac_inc(struct inet6_dev *idev, const struct in6_addr *addr)
 	}
 
 	net = dev_net(idev->dev);
-	f6i = addrconf_f6i_alloc(net, idev, addr, true, GFP_ATOMIC);
+	f6i = addrconf_f6i_alloc(net, idev, addr, true, GFP_ATOMIC, NULL);
 	if (IS_ERR(f6i)) {
 		err = PTR_ERR(f6i);
 		goto out;

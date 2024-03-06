@@ -444,7 +444,7 @@ err_unprepare_clk:
 	return error;
 }
 
-static int samsung_keypad_remove(struct platform_device *pdev)
+static void samsung_keypad_remove(struct platform_device *pdev)
 {
 	struct samsung_keypad *keypad = platform_get_drvdata(pdev);
 
@@ -453,8 +453,6 @@ static int samsung_keypad_remove(struct platform_device *pdev)
 	input_unregister_device(keypad->input_dev);
 
 	clk_unprepare(keypad->clk);
-
-	return 0;
 }
 
 static int samsung_keypad_runtime_suspend(struct device *dev)
@@ -589,7 +587,7 @@ MODULE_DEVICE_TABLE(platform, samsung_keypad_driver_ids);
 
 static struct platform_driver samsung_keypad_driver = {
 	.probe		= samsung_keypad_probe,
-	.remove		= samsung_keypad_remove,
+	.remove_new	= samsung_keypad_remove,
 	.driver		= {
 		.name	= "samsung-keypad",
 		.of_match_table = of_match_ptr(samsung_keypad_dt_match),

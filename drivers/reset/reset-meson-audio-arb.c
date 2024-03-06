@@ -5,7 +5,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/spinlock.h>
 
@@ -138,7 +139,6 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	const struct meson_audio_arb_match_data *data;
 	struct meson_audio_arb_data *arb;
-	struct resource *res;
 	int ret;
 
 	data = of_device_get_match_data(dev);
@@ -151,14 +151,10 @@ static int meson_audio_arb_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, arb);
 
 	arb->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(arb->clk)) {
-		if (PTR_ERR(arb->clk) != -EPROBE_DEFER)
-			dev_err(dev, "failed to get clock\n");
-		return PTR_ERR(arb->clk);
-	}
+	if (IS_ERR(arb->clk))
+		return dev_err_probe(dev, PTR_ERR(arb->clk), "failed to get clock\n");
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	arb->regs = devm_ioremap_resource(dev, res);
+	arb->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(arb->regs))
 		return PTR_ERR(arb->regs);
 

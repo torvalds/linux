@@ -25,6 +25,8 @@
 #include <asm/machdep.h>
 #include <asm/MC68VZ328.h>
 
+#include "m68328.h"
+
 /***************************************************************************/
 
 #if defined(CONFIG_DRAGEN2)

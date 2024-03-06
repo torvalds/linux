@@ -406,6 +406,15 @@ n:
 /* offsets for stack frame layout */
 #define LRSAVE	16
 
+/*
+ * GCC stack frames follow a different pattern on 32 vs 64. This can be used
+ * to make asm frames be consistent with C.
+ */
+#define PPC_CREATE_STACK_FRAME(size)			\
+	mflr		r0;				\
+	std		r0,16(r1);			\
+	stdu		r1,-(size)(r1)
+
 #else /* 32-bit */
 
 #define LOAD_REG_IMMEDIATE(reg, expr) __LOAD_REG_IMMEDIATE_32 reg, expr
@@ -421,6 +430,11 @@ n:
 
 /* offsets for stack frame layout */
 #define LRSAVE	4
+
+#define PPC_CREATE_STACK_FRAME(size)			\
+	stwu		r1,-(size)(r1);			\
+	mflr		r0;				\
+	stw		r0,(size+4)(r1)
 
 #endif
 

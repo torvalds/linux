@@ -598,7 +598,7 @@ static void assert_dsi_pll(struct drm_i915_private *i915, bool state)
 	cur_state = vlv_cck_read(i915, CCK_REG_DSI_PLL_CONTROL) & DSI_PLL_VCO_EN;
 	vlv_cck_put(i915);
 
-	I915_STATE_WARN(cur_state != state,
+	I915_STATE_WARN(i915, cur_state != state,
 			"DSI PLL state assertion failure (expected %s, current %s)\n",
 			str_on_off(state), str_on_off(cur_state));
 }

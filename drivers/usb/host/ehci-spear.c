@@ -91,8 +91,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
@@ -124,7 +123,7 @@ fail:
 	return retval ;
 }
 
-static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
+static void spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct spear_ehci *sehci = to_spear_ehci(hcd);
@@ -134,8 +133,6 @@ static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 	if (sehci->clk)
 		clk_disable_unprepare(sehci->clk);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static const struct of_device_id spear_ehci_id_table[] = {
@@ -146,7 +143,7 @@ MODULE_DEVICE_TABLE(of, spear_ehci_id_table);
 
 static struct platform_driver spear_ehci_hcd_driver = {
 	.probe		= spear_ehci_hcd_drv_probe,
-	.remove		= spear_ehci_hcd_drv_remove,
+	.remove_new	= spear_ehci_hcd_drv_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.name = "spear-ehci",

@@ -72,8 +72,8 @@ pub unsafe trait Backend {
 
 /// A mutual exclusion primitive.
 ///
-/// Exposes one of the kernel locking primitives. Which one is exposed depends on the lock backend
-/// specified as the generic parameter `B`.
+/// Exposes one of the kernel locking primitives. Which one is exposed depends on the lock
+/// [`Backend`] specified as the generic parameter `B`.
 #[pin_data]
 pub struct Lock<T: ?Sized, B: Backend> {
     /// The kernel lock object.
@@ -99,7 +99,6 @@ unsafe impl<T: ?Sized + Send, B: Backend> Sync for Lock<T, B> {}
 
 impl<T, B: Backend> Lock<T, B> {
     /// Constructs a new lock initialiser.
-    #[allow(clippy::new_ret_no_self)]
     pub fn new(t: T, name: &'static CStr, key: &'static LockClassKey) -> impl PinInit<Self> {
         pin_init!(Self {
             data: UnsafeCell::new(t),
@@ -126,7 +125,7 @@ impl<T: ?Sized, B: Backend> Lock<T, B> {
 
 /// A lock guard.
 ///
-/// Allows mutual exclusion primitives that implement the `Backend` trait to automatically unlock
+/// Allows mutual exclusion primitives that implement the [`Backend`] trait to automatically unlock
 /// when a guard goes out of scope. It also provides a safe and convenient way to access the data
 /// protected by the lock.
 #[must_use = "the lock unlocks immediately when the guard is unused"]

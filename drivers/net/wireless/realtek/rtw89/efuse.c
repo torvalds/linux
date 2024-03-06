@@ -7,6 +7,10 @@
 #include "mac.h"
 #include "reg.h"
 
+#define EF_FV_OFSET 0x5ea
+#define EF_CV_MASK GENMASK(7, 4)
+#define EF_CV_INV 15
+
 enum rtw89_efuse_bank {
 	RTW89_EFUSE_BANK_WIFI,
 	RTW89_EFUSE_BANK_BT,
@@ -107,6 +111,11 @@ static int rtw89_dump_physical_efuse_map_ddv(struct rtw89_dev *rtwdev, u8 *map,
 
 	rtw89_disable_efuse_pwr_cut_ddv(rtwdev);
 
+	return 0;
+}
+
+int rtw89_cnv_efuse_state_ax(struct rtw89_dev *rtwdev, bool idle)
+{
 	return 0;
 }
 
@@ -227,7 +236,7 @@ static int rtw89_dump_logical_efuse_map(struct rtw89_dev *rtwdev, u8 *phy_map,
 	return 0;
 }
 
-int rtw89_parse_efuse_map(struct rtw89_dev *rtwdev)
+int rtw89_parse_efuse_map_ax(struct rtw89_dev *rtwdev)
 {
 	u32 phy_size = rtwdev->chip->physical_efuse_size;
 	u32 log_size = rtwdev->chip->logical_efuse_size;
@@ -282,7 +291,7 @@ int rtw89_parse_efuse_map(struct rtw89_dev *rtwdev)
 
 	rtw89_hex_dump(rtwdev, RTW89_DBG_FW, "log_map: ", log_map, full_log_size);
 
-	ret = rtwdev->chip->ops->read_efuse(rtwdev, log_map);
+	ret = rtwdev->chip->ops->read_efuse(rtwdev, log_map, RTW89_EFUSE_BLOCK_IGNORE);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to read efuse map\n");
 		goto out_free;
@@ -296,7 +305,7 @@ out_free:
 	return ret;
 }
 
-int rtw89_parse_phycap_map(struct rtw89_dev *rtwdev)
+int rtw89_parse_phycap_map_ax(struct rtw89_dev *rtwdev)
 {
 	u32 phycap_addr = rtwdev->chip->phycap_addr;
 	u32 phycap_size = rtwdev->chip->phycap_size;
@@ -328,3 +337,20 @@ out_free:
 
 	return ret;
 }
+
+int rtw89_read_efuse_ver(struct rtw89_dev *rtwdev, u8 *ecv)
+{
+	int ret;
+	u8 val;
+
+	ret = rtw89_dump_physical_efuse_map(rtwdev, &val, EF_FV_OFSET, 1, false);
+	if (ret)
+		return ret;
+
+	*ecv = u8_get_bits(val, EF_CV_MASK);
+	if (*ecv == EF_CV_INV)
+		return -ENOENT;
+
+	return 0;
+}
+EXPORT_SYMBOL(rtw89_read_efuse_ver);

@@ -16,6 +16,7 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <scsi/scsi_host.h>
@@ -804,9 +805,7 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	struct resource *res_cs0, *res_cs1;
 
 	bool is_16bit;
-	const __be32 *cs_num;
-	struct property *reg_prop;
-	int n_addr, n_size, reg_len;
+	u64 reg;
 	struct device_node *node;
 	void __iomem *cs0;
 	void __iomem *cs1 = NULL;
@@ -816,8 +815,8 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	irq_handler_t irq_handler = NULL;
 	void __iomem *base;
 	struct octeon_cf_port *cf_port;
-	int rv = -ENOMEM;
 	u32 bus_width;
+	int rv;
 
 	node = pdev->dev.of_node;
 	if (node == NULL)
@@ -834,15 +833,10 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	else
 		is_16bit = false;
 
-	n_addr = of_n_addr_cells(node);
-	n_size = of_n_size_cells(node);
-
-	reg_prop = of_find_property(node, "reg", &reg_len);
-	if (!reg_prop || reg_len < sizeof(__be32))
-		return -EINVAL;
-
-	cs_num = reg_prop->value;
-	cf_port->cs0 = be32_to_cpup(cs_num);
+	rv = of_property_read_reg(node, 0, &reg, NULL);
+	if (rv < 0)
+		return rv;
+	cf_port->cs0 = upper_32_bits(reg);
 
 	if (cf_port->is_true_ide) {
 		struct device_node *dma_node;
@@ -884,13 +878,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 		cs1 = devm_ioremap(&pdev->dev, res_cs1->start,
 					   resource_size(res_cs1));
 		if (!cs1)
-			return rv;
-
-		if (reg_len < (n_addr + n_size + 1) * sizeof(__be32))
 			return -EINVAL;
 
-		cs_num += n_addr + n_size;
-		cf_port->cs1 = be32_to_cpup(cs_num);
+		rv = of_property_read_reg(node, 1, &reg, NULL);
+		if (rv < 0)
+			return rv;
+		cf_port->cs1 = upper_32_bits(reg);
 	}
 
 	res_cs0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -900,12 +893,12 @@ static int octeon_cf_probe(struct platform_device *pdev)
 	cs0 = devm_ioremap(&pdev->dev, res_cs0->start,
 				   resource_size(res_cs0));
 	if (!cs0)
-		return rv;
+		return -ENOMEM;
 
 	/* allocate host */
 	host = ata_host_alloc(&pdev->dev, 1);
 	if (!host)
-		return rv;
+		return -ENOMEM;
 
 	ap = host->ports[0];
 	ap->private_data = cf_port;

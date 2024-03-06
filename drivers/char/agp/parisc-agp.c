@@ -38,7 +38,7 @@ static struct _parisc_agp_info {
 
 	int lba_cap_offset;
 
-	u64 *gatt;
+	__le64 *gatt;
 	u64 gatt_entries;
 
 	u64 gart_base;
@@ -104,7 +104,7 @@ parisc_agp_create_gatt_table(struct agp_bridge_data *bridge)
 	int i;
 
 	for (i = 0; i < info->gatt_entries; i++) {
-		info->gatt[i] = (unsigned long)agp_bridge->scratch_page;
+		info->gatt[i] = cpu_to_le64(agp_bridge->scratch_page);
 	}
 
 	return 0;
@@ -158,9 +158,9 @@ parisc_agp_insert_memory(struct agp_memory *mem, off_t pg_start, int type)
 		for (k = 0;
 		     k < info->io_pages_per_kpage;
 		     k++, j++, paddr += info->io_page_size) {
-			info->gatt[j] =
+			info->gatt[j] = cpu_to_le64(
 				parisc_agp_mask_memory(agp_bridge,
-					paddr, type);
+					paddr, type));
 			asm_io_fdc(&info->gatt[j]);
 		}
 	}
@@ -184,7 +184,7 @@ parisc_agp_remove_memory(struct agp_memory *mem, off_t pg_start, int type)
 	io_pg_start = info->io_pages_per_kpage * pg_start;
 	io_pg_count = info->io_pages_per_kpage * mem->page_count;
 	for (i = io_pg_start; i < io_pg_count + io_pg_start; i++) {
-		info->gatt[i] = agp_bridge->scratch_page;
+		info->gatt[i] = cpu_to_le64(agp_bridge->scratch_page);
 	}
 
 	agp_bridge->driver->tlb_flush(mem);
@@ -204,7 +204,8 @@ parisc_agp_mask_memory(struct agp_bridge_data *bridge, dma_addr_t addr,
 	pa |= (ci >> PAGE_SHIFT) & 0xff;/* move CI (8 bits) into lowest byte */
 	pa |= SBA_PDIR_VALID_BIT;	/* set "valid" bit */
 
-	return cpu_to_le64(pa);
+	/* return native (big-endian) PDIR entry */
+	return pa;
 }
 
 static void
@@ -251,7 +252,8 @@ static int __init
 agp_ioc_init(void __iomem *ioc_regs)
 {
 	struct _parisc_agp_info *info = &parisc_agp_info;
-        u64 iova_base, *io_pdir, io_tlb_ps;
+        u64 iova_base, io_tlb_ps;
+	__le64 *io_pdir;
         int io_tlb_shift;
 
         printk(KERN_INFO DRVPFX "IO PDIR shared with sba_iommu\n");
@@ -394,8 +396,6 @@ find_quicksilver(struct device *dev, void *data)
 static int __init
 parisc_agp_init(void)
 {
-	extern struct sba_device *sba_list;
-
 	int err = -1;
 	struct parisc_device *sba = NULL, *lba = NULL;
 	struct lba_device *lbadev = NULL;

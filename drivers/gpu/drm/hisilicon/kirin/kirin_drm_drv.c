@@ -11,9 +11,9 @@
  *	Xinwei Kong <kong.kongxinwei@hisilicon.com>
  */
 
-#include <linux/of_platform.h>
 #include <linux/component.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 
@@ -206,6 +206,7 @@ err_mode_config_cleanup:
 static int kirin_drm_kms_cleanup(struct drm_device *dev)
 {
 	drm_kms_helper_poll_fini(dev);
+	drm_atomic_helper_shutdown(dev);
 	kirin_drm_private_cleanup(dev);
 	drm_mode_config_cleanup(dev);
 
@@ -244,6 +245,7 @@ err_kms_cleanup:
 	kirin_drm_kms_cleanup(drm_dev);
 err_drm_dev_put:
 	drm_dev_put(drm_dev);
+	dev_set_drvdata(dev, NULL);
 
 	return ret;
 }
@@ -255,6 +257,7 @@ static void kirin_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm_dev);
 	kirin_drm_kms_cleanup(drm_dev);
 	drm_dev_put(drm_dev);
+	dev_set_drvdata(dev, NULL);
 }
 
 static const struct component_master_ops kirin_drm_ops = {
@@ -279,10 +282,14 @@ static int kirin_drm_platform_probe(struct platform_device *pdev)
 	return component_master_add_with_match(dev, &kirin_drm_ops, match);
 }
 
-static int kirin_drm_platform_remove(struct platform_device *pdev)
+static void kirin_drm_platform_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &kirin_drm_ops);
-	return 0;
+}
+
+static void kirin_drm_platform_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
 static const struct of_device_id kirin_drm_dt_ids[] = {
@@ -295,7 +302,8 @@ MODULE_DEVICE_TABLE(of, kirin_drm_dt_ids);
 
 static struct platform_driver kirin_drm_platform_driver = {
 	.probe = kirin_drm_platform_probe,
-	.remove = kirin_drm_platform_remove,
+	.remove_new = kirin_drm_platform_remove,
+	.shutdown = kirin_drm_platform_shutdown,
 	.driver = {
 		.name = "kirin-drm",
 		.of_match_table = kirin_drm_dt_ids,

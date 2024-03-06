@@ -829,8 +829,6 @@ static int tw9910_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return tw9910_s_fmt(sd, mf);
 
-	sd_state->pads->try_fmt = *mf;
-
 	return 0;
 }
 
@@ -1012,7 +1010,7 @@ static struct i2c_driver tw9910_i2c_driver = {
 	.driver = {
 		.name = "tw9910",
 	},
-	.probe_new = tw9910_probe,
+	.probe    = tw9910_probe,
 	.remove   = tw9910_remove,
 	.id_table = tw9910_id,
 };

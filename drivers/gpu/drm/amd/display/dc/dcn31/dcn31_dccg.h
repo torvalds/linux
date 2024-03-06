@@ -179,6 +179,11 @@ void dccg31_disable_symclk32_le(
 		struct dccg *dccg,
 		int hpo_le_inst);
 
+void dccg31_set_symclk32_le_root_clock_gating(
+		struct dccg *dccg,
+		int hpo_le_inst,
+		bool enable);
+
 void dccg31_set_physymclk(
 		struct dccg *dccg,
 		int phy_inst,

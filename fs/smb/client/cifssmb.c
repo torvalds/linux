@@ -129,7 +129,7 @@ again:
 	}
 	spin_unlock(&server->srv_lock);
 
-	nls_codepage = load_nls_default();
+	nls_codepage = ses->local_nls;
 
 	/*
 	 * need to prevent multiple threads trying to simultaneously
@@ -200,7 +200,6 @@ out:
 		rc = -EAGAIN;
 	}
 
-	unload_nls(nls_codepage);
 	return rc;
 }
 
@@ -1245,8 +1244,10 @@ openRetry:
 		*oplock |= CIFS_CREATE_ACTION;
 
 	if (buf) {
-		/* copy from CreationTime to Attributes */
-		memcpy((char *)buf, (char *)&rsp->CreationTime, 36);
+		/* copy commonly used attributes */
+		memcpy(&buf->common_attributes,
+		       &rsp->common_attributes,
+		       sizeof(buf->common_attributes));
 		/* the file_info buf is endian converted by caller */
 		buf->AllocationSize = rsp->AllocationSize;
 		buf->EndOfFile = rsp->EndOfFile;
@@ -2148,10 +2149,10 @@ CIFSSMBFlush(const unsigned int xid, struct cifs_tcon *tcon, int smb_file_id)
 	return rc;
 }
 
-int
-CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
-	      const char *from_name, const char *to_name,
-	      struct cifs_sb_info *cifs_sb)
+int CIFSSMBRename(const unsigned int xid, struct cifs_tcon *tcon,
+		  struct dentry *source_dentry,
+		  const char *from_name, const char *to_name,
+		  struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;
 	RENAME_REQ *pSMB = NULL;
@@ -2529,10 +2530,11 @@ createHardLinkRetry:
 	return rc;
 }
 
-int
-CIFSCreateHardLink(const unsigned int xid, struct cifs_tcon *tcon,
-		   const char *from_name, const char *to_name,
-		   struct cifs_sb_info *cifs_sb)
+int CIFSCreateHardLink(const unsigned int xid,
+		       struct cifs_tcon *tcon,
+		       struct dentry *source_dentry,
+		       const char *from_name, const char *to_name,
+		       struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;
 	NT_RENAME_REQ *pSMB = NULL;
@@ -2691,136 +2693,107 @@ querySymLinkRetry:
 	return rc;
 }
 
-/*
- *	Recent Windows versions now create symlinks more frequently
- *	and they use the "reparse point" mechanism below.  We can of course
- *	do symlinks nicely to Samba and other servers which support the
- *	CIFS Unix Extensions and we can also do SFU symlinks and "client only"
- *	"MF" symlinks optionally, but for recent Windows we really need to
- *	reenable the code below and fix the cifs_symlink callers to handle this.
- *	In the interim this code has been moved to its own config option so
- *	it is not compiled in by default until callers fixed up and more tested.
- */
-int
-CIFSSMBQuerySymLink(const unsigned int xid, struct cifs_tcon *tcon,
-		    __u16 fid, char **symlinkinfo,
-		    const struct nls_table *nls_codepage)
+int cifs_query_reparse_point(const unsigned int xid,
+			     struct cifs_tcon *tcon,
+			     struct cifs_sb_info *cifs_sb,
+			     const char *full_path,
+			     u32 *tag, struct kvec *rsp,
+			     int *rsp_buftype)
 {
-	int rc = 0;
-	int bytes_returned;
-	struct smb_com_transaction_ioctl_req *pSMB;
-	struct smb_com_transaction_ioctl_rsp *pSMBr;
-	bool is_unicode;
-	unsigned int sub_len;
-	char *sub_start;
-	struct reparse_symlink_data *reparse_buf;
-	struct reparse_posix_data *posix_buf;
-	__u32 data_offset, data_count;
-	char *end_of_smb;
+	struct reparse_data_buffer *buf;
+	struct cifs_open_parms oparms;
+	TRANSACT_IOCTL_REQ *io_req = NULL;
+	TRANSACT_IOCTL_RSP *io_rsp = NULL;
+	struct cifs_fid fid;
+	__u32 data_offset, data_count, len;
+	__u8 *start, *end;
+	int io_rsp_len;
+	int oplock = 0;
+	int rc;
 
-	cifs_dbg(FYI, "In Windows reparse style QueryLink for fid %u\n", fid);
-	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon, (void **) &pSMB,
-		      (void **) &pSMBr);
+	cifs_tcon_dbg(FYI, "%s: path=%s\n", __func__, full_path);
+
+	if (cap_unix(tcon->ses))
+		return -EOPNOTSUPP;
+
+	oparms = (struct cifs_open_parms) {
+		.tcon = tcon,
+		.cifs_sb = cifs_sb,
+		.desired_access = FILE_READ_ATTRIBUTES,
+		.create_options = cifs_create_options(cifs_sb,
+						      OPEN_REPARSE_POINT),
+		.disposition = FILE_OPEN,
+		.path = full_path,
+		.fid = &fid,
+	};
+
+	rc = CIFS_open(xid, &oparms, &oplock, NULL);
 	if (rc)
 		return rc;
 
-	pSMB->TotalParameterCount = 0 ;
-	pSMB->TotalDataCount = 0;
-	pSMB->MaxParameterCount = cpu_to_le32(2);
+	rc = smb_init(SMB_COM_NT_TRANSACT, 23, tcon,
+		      (void **)&io_req, (void **)&io_rsp);
+	if (rc)
+		goto error;
+
+	io_req->TotalParameterCount = 0;
+	io_req->TotalDataCount = 0;
+	io_req->MaxParameterCount = cpu_to_le32(2);
 	/* BB find exact data count max from sess structure BB */
-	pSMB->MaxDataCount = cpu_to_le32(CIFSMaxBufSize & 0xFFFFFF00);
-	pSMB->MaxSetupCount = 4;
-	pSMB->Reserved = 0;
-	pSMB->ParameterOffset = 0;
-	pSMB->DataCount = 0;
-	pSMB->DataOffset = 0;
-	pSMB->SetupCount = 4;
-	pSMB->SubCommand = cpu_to_le16(NT_TRANSACT_IOCTL);
-	pSMB->ParameterCount = pSMB->TotalParameterCount;
-	pSMB->FunctionCode = cpu_to_le32(FSCTL_GET_REPARSE_POINT);
-	pSMB->IsFsctl = 1; /* FSCTL */
-	pSMB->IsRootFlag = 0;
-	pSMB->Fid = fid; /* file handle always le */
-	pSMB->ByteCount = 0;
+	io_req->MaxDataCount = cpu_to_le32(CIFSMaxBufSize & 0xFFFFFF00);
+	io_req->MaxSetupCount = 4;
+	io_req->Reserved = 0;
+	io_req->ParameterOffset = 0;
+	io_req->DataCount = 0;
+	io_req->DataOffset = 0;
+	io_req->SetupCount = 4;
+	io_req->SubCommand = cpu_to_le16(NT_TRANSACT_IOCTL);
+	io_req->ParameterCount = io_req->TotalParameterCount;
+	io_req->FunctionCode = cpu_to_le32(FSCTL_GET_REPARSE_POINT);
+	io_req->IsFsctl = 1;
+	io_req->IsRootFlag = 0;
+	io_req->Fid = fid.netfid;
+	io_req->ByteCount = 0;
 
-	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
-			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
-	if (rc) {
-		cifs_dbg(FYI, "Send error in QueryReparseLinkInfo = %d\n", rc);
-		goto qreparse_out;
-	}
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *)io_req,
+			 (struct smb_hdr *)io_rsp, &io_rsp_len, 0);
+	if (rc)
+		goto error;
 
-	data_offset = le32_to_cpu(pSMBr->DataOffset);
-	data_count = le32_to_cpu(pSMBr->DataCount);
-	if (get_bcc(&pSMBr->hdr) < 2 || data_offset > 512) {
-		/* BB also check enough total bytes returned */
-		rc = -EIO;	/* bad smb */
-		goto qreparse_out;
-	}
-	if (!data_count || (data_count > 2048)) {
+	data_offset = le32_to_cpu(io_rsp->DataOffset);
+	data_count = le32_to_cpu(io_rsp->DataCount);
+	if (get_bcc(&io_rsp->hdr) < 2 || data_offset > 512 ||
+	    !data_count || data_count > 2048) {
 		rc = -EIO;
-		cifs_dbg(FYI, "Invalid return data count on get reparse info ioctl\n");
-		goto qreparse_out;
+		goto error;
 	}
-	end_of_smb = 2 + get_bcc(&pSMBr->hdr) + (char *)&pSMBr->ByteCount;
-	reparse_buf = (struct reparse_symlink_data *)
-				((char *)&pSMBr->hdr.Protocol + data_offset);
-	if ((char *)reparse_buf >= end_of_smb) {
+
+	end = 2 + get_bcc(&io_rsp->hdr) + (__u8 *)&io_rsp->ByteCount;
+	start = (__u8 *)&io_rsp->hdr.Protocol + data_offset;
+	if (start >= end) {
 		rc = -EIO;
-		goto qreparse_out;
-	}
-	if (reparse_buf->ReparseTag == cpu_to_le32(IO_REPARSE_TAG_NFS)) {
-		cifs_dbg(FYI, "NFS style reparse tag\n");
-		posix_buf =  (struct reparse_posix_data *)reparse_buf;
-
-		if (posix_buf->InodeType != cpu_to_le64(NFS_SPECFILE_LNK)) {
-			cifs_dbg(FYI, "unsupported file type 0x%llx\n",
-				 le64_to_cpu(posix_buf->InodeType));
-			rc = -EOPNOTSUPP;
-			goto qreparse_out;
-		}
-		is_unicode = true;
-		sub_len = le16_to_cpu(reparse_buf->ReparseDataLength);
-		if (posix_buf->PathBuffer + sub_len > end_of_smb) {
-			cifs_dbg(FYI, "reparse buf beyond SMB\n");
-			rc = -EIO;
-			goto qreparse_out;
-		}
-		*symlinkinfo = cifs_strndup_from_utf16(posix_buf->PathBuffer,
-				sub_len, is_unicode, nls_codepage);
-		goto qreparse_out;
-	} else if (reparse_buf->ReparseTag !=
-			cpu_to_le32(IO_REPARSE_TAG_SYMLINK)) {
-		rc = -EOPNOTSUPP;
-		goto qreparse_out;
+		goto error;
 	}
 
-	/* Reparse tag is NTFS symlink */
-	sub_start = le16_to_cpu(reparse_buf->SubstituteNameOffset) +
-				reparse_buf->PathBuffer;
-	sub_len = le16_to_cpu(reparse_buf->SubstituteNameLength);
-	if (sub_start + sub_len > end_of_smb) {
-		cifs_dbg(FYI, "reparse buf beyond SMB\n");
+	data_count = le16_to_cpu(io_rsp->ByteCount);
+	buf = (struct reparse_data_buffer *)start;
+	len = sizeof(*buf);
+	if (data_count < len ||
+	    data_count < le16_to_cpu(buf->ReparseDataLength) + len) {
 		rc = -EIO;
-		goto qreparse_out;
+		goto error;
 	}
-	if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
-		is_unicode = true;
-	else
-		is_unicode = false;
 
-	/* BB FIXME investigate remapping reserved chars here */
-	*symlinkinfo = cifs_strndup_from_utf16(sub_start, sub_len, is_unicode,
-					       nls_codepage);
-	if (!*symlinkinfo)
-		rc = -ENOMEM;
-qreparse_out:
-	cifs_buf_release(pSMB);
+	*tag = le32_to_cpu(buf->ReparseTag);
+	rsp->iov_base = io_rsp;
+	rsp->iov_len = io_rsp_len;
+	*rsp_buftype = CIFS_LARGE_BUFFER;
+	CIFSSMBClose(xid, tcon, fid.netfid);
+	return 0;
 
-	/*
-	 * Note: On -EAGAIN error only caller can retry on handle based calls
-	 * since file handle passed in no longer valid.
-	 */
+error:
+	cifs_buf_release(io_req);
+	CIFSSMBClose(xid, tcon, fid.netfid);
 	return rc;
 }
 
@@ -3184,7 +3157,7 @@ setAclRetry:
 	param_offset = offsetof(struct smb_com_transaction2_spi_req,
 				InformationLevel) - 4;
 	offset = param_offset + params;
-	parm_data = ((char *) &pSMB->hdr.Protocol) + offset;
+	parm_data = ((char *)pSMB) + sizeof(pSMB->hdr.smb_buf_length) + offset;
 	pSMB->ParameterOffset = cpu_to_le16(param_offset);
 
 	/* convert to on the wire format for POSIX ACL */
@@ -3958,11 +3931,12 @@ CIFSFindFirst(const unsigned int xid, struct cifs_tcon *tcon,
 	TRANSACTION2_FFIRST_REQ *pSMB = NULL;
 	TRANSACTION2_FFIRST_RSP *pSMBr = NULL;
 	T2_FFIRST_RSP_PARMS *parms;
-	int rc = 0;
+	struct nls_table *nls_codepage;
+	unsigned int lnoff;
+	__u16 params, byte_count;
 	int bytes_returned = 0;
 	int name_len, remap;
-	__u16 params, byte_count;
-	struct nls_table *nls_codepage;
+	int rc = 0;
 
 	cifs_dbg(FYI, "In FindFirst for %s\n", searchName);
 
@@ -4043,63 +4017,52 @@ findFirstRetry:
 			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_ffirst);
 
-	if (rc) {/* BB add logic to retry regular search if Unix search
-			rejected unexpectedly by server */
-		/* BB Add code to handle unsupported level rc */
+	if (rc) {
+		/*
+		 * BB: add logic to retry regular search if Unix search rejected
+		 * unexpectedly by server.
+		 */
+		/* BB: add code to handle unsupported level rc */
 		cifs_dbg(FYI, "Error in FindFirst = %d\n", rc);
-
 		cifs_buf_release(pSMB);
-
-		/* BB eventually could optimize out free and realloc of buf */
-		/*    for this case */
+		/*
+		 * BB: eventually could optimize out free and realloc of buf for
+		 * this case.
+		 */
 		if (rc == -EAGAIN)
 			goto findFirstRetry;
-	} else { /* decode response */
-		/* BB remember to free buffer if error BB */
-		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-		if (rc == 0) {
-			unsigned int lnoff;
-
-			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
-				psrch_inf->unicode = true;
-			else
-				psrch_inf->unicode = false;
-
-			psrch_inf->ntwrk_buf_start = (char *)pSMBr;
-			psrch_inf->smallBuf = false;
-			psrch_inf->srch_entries_start =
-				(char *) &pSMBr->hdr.Protocol +
-					le16_to_cpu(pSMBr->t2.DataOffset);
-			parms = (T2_FFIRST_RSP_PARMS *)((char *) &pSMBr->hdr.Protocol +
-			       le16_to_cpu(pSMBr->t2.ParameterOffset));
-
-			if (parms->EndofSearch)
-				psrch_inf->endOfSearch = true;
-			else
-				psrch_inf->endOfSearch = false;
-
-			psrch_inf->entries_in_buffer =
-					le16_to_cpu(parms->SearchCount);
-			psrch_inf->index_of_last_entry = 2 /* skip . and .. */ +
-				psrch_inf->entries_in_buffer;
-			lnoff = le16_to_cpu(parms->LastNameOffset);
-			if (CIFSMaxBufSize < lnoff) {
-				cifs_dbg(VFS, "ignoring corrupt resume name\n");
-				psrch_inf->last_entry = NULL;
-				return rc;
-			}
-
-			psrch_inf->last_entry = psrch_inf->srch_entries_start +
-							lnoff;
-
-			if (pnetfid)
-				*pnetfid = parms->SearchHandle;
-		} else {
-			cifs_buf_release(pSMB);
-		}
+		return rc;
+	}
+	/* decode response */
+	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+	if (rc) {
+		cifs_buf_release(pSMB);
+		return rc;
 	}
 
-	return rc;
+	psrch_inf->unicode = !!(pSMBr->hdr.Flags2 & SMBFLG2_UNICODE);
+	psrch_inf->ntwrk_buf_start = (char *)pSMBr;
+	psrch_inf->smallBuf = false;
+	psrch_inf->srch_entries_start = (char *)&pSMBr->hdr.Protocol +
+		le16_to_cpu(pSMBr->t2.DataOffset);
+
+	parms = (T2_FFIRST_RSP_PARMS *)((char *)&pSMBr->hdr.Protocol +
+					le16_to_cpu(pSMBr->t2.ParameterOffset));
+	psrch_inf->endOfSearch = !!parms->EndofSearch;
+
+	psrch_inf->entries_in_buffer = le16_to_cpu(parms->SearchCount);
+	psrch_inf->index_of_last_entry = 2 /* skip . and .. */ +
+		psrch_inf->entries_in_buffer;
+	lnoff = le16_to_cpu(parms->LastNameOffset);
+	if (CIFSMaxBufSize < lnoff) {
+		cifs_dbg(VFS, "ignoring corrupt resume name\n");
+		psrch_inf->last_entry = NULL;
+	} else {
+		psrch_inf->last_entry = psrch_inf->srch_entries_start + lnoff;
+		if (pnetfid)
+			*pnetfid = parms->SearchHandle;
+	}
+	return 0;
 }
 
 int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
@@ -4109,11 +4072,12 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 	TRANSACTION2_FNEXT_REQ *pSMB = NULL;
 	TRANSACTION2_FNEXT_RSP *pSMBr = NULL;
 	T2_FNEXT_RSP_PARMS *parms;
-	char *response_data;
-	int rc = 0;
-	int bytes_returned;
 	unsigned int name_len;
+	unsigned int lnoff;
 	__u16 params, byte_count;
+	char *response_data;
+	int bytes_returned;
+	int rc = 0;
 
 	cifs_dbg(FYI, "In FindNext\n");
 
@@ -4158,8 +4122,8 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 		pSMB->ResumeFileName[name_len] = 0;
 		pSMB->ResumeFileName[name_len+1] = 0;
 	} else {
-		rc = -EINVAL;
-		goto FNext2_err_exit;
+		cifs_buf_release(pSMB);
+		return -EINVAL;
 	}
 	byte_count = params + 1 /* pad */ ;
 	pSMB->TotalParameterCount = cpu_to_le16(params);
@@ -4170,71 +4134,61 @@ int CIFSFindNext(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
 			(struct smb_hdr *) pSMBr, &bytes_returned, 0);
 	cifs_stats_inc(&tcon->stats.cifs_stats.num_fnext);
+
 	if (rc) {
+		cifs_buf_release(pSMB);
 		if (rc == -EBADF) {
 			psrch_inf->endOfSearch = true;
-			cifs_buf_release(pSMB);
 			rc = 0; /* search probably was closed at end of search*/
-		} else
+		} else {
 			cifs_dbg(FYI, "FindNext returned = %d\n", rc);
-	} else {                /* decode response */
-		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
-
-		if (rc == 0) {
-			unsigned int lnoff;
-
-			/* BB fixme add lock for file (srch_info) struct here */
-			if (pSMBr->hdr.Flags2 & SMBFLG2_UNICODE)
-				psrch_inf->unicode = true;
-			else
-				psrch_inf->unicode = false;
-			response_data = (char *) &pSMBr->hdr.Protocol +
-			       le16_to_cpu(pSMBr->t2.ParameterOffset);
-			parms = (T2_FNEXT_RSP_PARMS *)response_data;
-			response_data = (char *)&pSMBr->hdr.Protocol +
-				le16_to_cpu(pSMBr->t2.DataOffset);
-			if (psrch_inf->smallBuf)
-				cifs_small_buf_release(
-					psrch_inf->ntwrk_buf_start);
-			else
-				cifs_buf_release(psrch_inf->ntwrk_buf_start);
-			psrch_inf->srch_entries_start = response_data;
-			psrch_inf->ntwrk_buf_start = (char *)pSMB;
-			psrch_inf->smallBuf = false;
-			if (parms->EndofSearch)
-				psrch_inf->endOfSearch = true;
-			else
-				psrch_inf->endOfSearch = false;
-			psrch_inf->entries_in_buffer =
-						le16_to_cpu(parms->SearchCount);
-			psrch_inf->index_of_last_entry +=
-				psrch_inf->entries_in_buffer;
-			lnoff = le16_to_cpu(parms->LastNameOffset);
-			if (CIFSMaxBufSize < lnoff) {
-				cifs_dbg(VFS, "ignoring corrupt resume name\n");
-				psrch_inf->last_entry = NULL;
-				return rc;
-			} else
-				psrch_inf->last_entry =
-					psrch_inf->srch_entries_start + lnoff;
-
-/*  cifs_dbg(FYI, "fnxt2 entries in buf %d index_of_last %d\n",
-    psrch_inf->entries_in_buffer, psrch_inf->index_of_last_entry); */
-
-			/* BB fixme add unlock here */
 		}
-
+		return rc;
 	}
 
-	/* BB On error, should we leave previous search buf (and count and
-	last entry fields) intact or free the previous one? */
-
-	/* Note: On -EAGAIN error only caller can retry on handle based calls
-	since file handle passed in no longer valid */
-FNext2_err_exit:
-	if (rc != 0)
+	/* decode response */
+	rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+	if (rc) {
 		cifs_buf_release(pSMB);
-	return rc;
+		return rc;
+	}
+	/* BB fixme add lock for file (srch_info) struct here */
+	psrch_inf->unicode = !!(pSMBr->hdr.Flags2 & SMBFLG2_UNICODE);
+	response_data = (char *)&pSMBr->hdr.Protocol +
+		le16_to_cpu(pSMBr->t2.ParameterOffset);
+	parms = (T2_FNEXT_RSP_PARMS *)response_data;
+	response_data = (char *)&pSMBr->hdr.Protocol +
+		le16_to_cpu(pSMBr->t2.DataOffset);
+
+	if (psrch_inf->smallBuf)
+		cifs_small_buf_release(psrch_inf->ntwrk_buf_start);
+	else
+		cifs_buf_release(psrch_inf->ntwrk_buf_start);
+
+	psrch_inf->srch_entries_start = response_data;
+	psrch_inf->ntwrk_buf_start = (char *)pSMB;
+	psrch_inf->smallBuf = false;
+	psrch_inf->endOfSearch = !!parms->EndofSearch;
+	psrch_inf->entries_in_buffer = le16_to_cpu(parms->SearchCount);
+	psrch_inf->index_of_last_entry += psrch_inf->entries_in_buffer;
+	lnoff = le16_to_cpu(parms->LastNameOffset);
+	if (CIFSMaxBufSize < lnoff) {
+		cifs_dbg(VFS, "ignoring corrupt resume name\n");
+		psrch_inf->last_entry = NULL;
+	} else {
+		psrch_inf->last_entry =
+			psrch_inf->srch_entries_start + lnoff;
+	}
+	/* BB fixme add unlock here */
+
+	/*
+	 * BB: On error, should we leave previous search buf
+	 * (and count and last entry fields) intact or free the previous one?
+	 *
+	 * Note: On -EAGAIN error only caller can retry on handle based calls
+	 * since file handle passed in no longer valid.
+	 */
+	return 0;
 }
 
 int

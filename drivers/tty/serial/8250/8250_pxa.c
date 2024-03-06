@@ -60,7 +60,7 @@ static const struct of_device_id serial_pxa_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, serial_pxa_dt_ids);
 
 /* Uart divisor latch write */
-static void serial_pxa_dl_write(struct uart_8250_port *up, int value)
+static void serial_pxa_dl_write(struct uart_8250_port *up, u32 value)
 {
 	unsigned int dll;
 
@@ -146,20 +146,18 @@ static int serial_pxa_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int serial_pxa_remove(struct platform_device *pdev)
+static void serial_pxa_remove(struct platform_device *pdev)
 {
 	struct pxa8250_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 
 	clk_unprepare(data->clk);
-
-	return 0;
 }
 
 static struct platform_driver serial_pxa_driver = {
 	.probe          = serial_pxa_probe,
-	.remove         = serial_pxa_remove,
+	.remove_new     = serial_pxa_remove,
 
 	.driver		= {
 		.name	= "pxa2xx-uart",
@@ -183,6 +181,7 @@ static int __init early_serial_pxa_setup(struct earlycon_device *device,
 	return early_serial8250_setup(device, NULL);
 }
 OF_EARLYCON_DECLARE(early_pxa, "mrvl,pxa-uart", early_serial_pxa_setup);
+OF_EARLYCON_DECLARE(mmp, "mrvl,mmp-uart", early_serial_pxa_setup);
 #endif
 
 MODULE_AUTHOR("Sergei Ianovich");

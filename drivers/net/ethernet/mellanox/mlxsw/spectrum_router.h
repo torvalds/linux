@@ -20,6 +20,7 @@ struct mlxsw_sp_router_nve_decap {
 
 struct mlxsw_sp_router {
 	struct mlxsw_sp *mlxsw_sp;
+	struct rhashtable crif_ht;
 	struct gen_pool *rifs_table;
 	struct mlxsw_sp_rif **rifs;
 	struct idr rif_mac_profiles_idr;
@@ -52,12 +53,14 @@ struct mlxsw_sp_router {
 	struct notifier_block inetaddr_nb;
 	struct notifier_block inet6addr_nb;
 	struct notifier_block netdevice_nb;
+	struct notifier_block inetaddr_valid_nb;
+	struct notifier_block inet6addr_valid_nb;
 	const struct mlxsw_sp_rif_ops **rif_ops_arr;
 	const struct mlxsw_sp_ipip_ops **ipip_ops_arr;
 	struct mlxsw_sp_router_nve_decap nve_decap_config;
 	struct mutex lock; /* Protects shared router resources */
 	struct mlxsw_sp_fib_entry_op_ctx *ll_op_ctx;
-	u16 lb_rif_index;
+	struct mlxsw_sp_crif *lb_crif;
 	const struct mlxsw_sp_adj_grp_size_range *adj_grp_size_ranges;
 	size_t adj_grp_size_ranges_count;
 	struct delayed_work nh_grp_activity_dw;
@@ -91,7 +94,9 @@ u16 mlxsw_sp_ipip_lb_ul_vr_id(const struct mlxsw_sp_rif_ipip_lb *rif);
 u16 mlxsw_sp_ipip_lb_ul_rif_id(const struct mlxsw_sp_rif_ipip_lb *lb_rif);
 u32 mlxsw_sp_ipip_dev_ul_tb_id(const struct net_device *ol_dev);
 int mlxsw_sp_rif_dev_ifindex(const struct mlxsw_sp_rif *rif);
-const struct net_device *mlxsw_sp_rif_dev(const struct mlxsw_sp_rif *rif);
+bool mlxsw_sp_rif_has_dev(const struct mlxsw_sp_rif *rif);
+bool mlxsw_sp_rif_dev_is(const struct mlxsw_sp_rif *rif,
+			 const struct net_device *dev);
 int mlxsw_sp_rif_counter_value_get(struct mlxsw_sp *mlxsw_sp,
 				   struct mlxsw_sp_rif *rif,
 				   enum mlxsw_sp_rif_counter_dir dir,
@@ -166,5 +171,19 @@ int mlxsw_sp_ipip_ecn_encap_init(struct mlxsw_sp *mlxsw_sp);
 int mlxsw_sp_ipip_ecn_decap_init(struct mlxsw_sp *mlxsw_sp);
 struct net_device *
 mlxsw_sp_ipip_netdev_ul_dev_get(const struct net_device *ol_dev);
+int mlxsw_sp_router_bridge_vlan_add(struct mlxsw_sp *mlxsw_sp,
+				    struct net_device *dev,
+				    u16 new_vid, bool is_pvid,
+				    struct netlink_ext_ack *extack);
+int mlxsw_sp_router_port_join_lag(struct mlxsw_sp_port *mlxsw_sp_port,
+				  struct net_device *lag_dev,
+				  struct netlink_ext_ack *extack);
+void mlxsw_sp_router_port_leave_lag(struct mlxsw_sp_port *mlxsw_sp_port,
+				    struct net_device *lag_dev);
+int mlxsw_sp_netdevice_enslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					  struct net_device *upper_dev,
+					  struct netlink_ext_ack *extack);
+void mlxsw_sp_netdevice_deslavement_replay(struct mlxsw_sp *mlxsw_sp,
+					   struct net_device *dev);
 
 #endif /* _MLXSW_ROUTER_H_*/

@@ -8,8 +8,8 @@
 #include <linux/input/mt.h>
 #include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
@@ -370,22 +370,33 @@ static int ili251x_firmware_update_resolution(struct device *dev)
 
 	/* The firmware update blob might have changed the resolution. */
 	error = priv->chip->read_reg(client, REG_PANEL_INFO, &rs, sizeof(rs));
-	if (error)
-		return error;
+	if (!error) {
+		resx = le16_to_cpup((__le16 *)rs);
+		resy = le16_to_cpup((__le16 *)(rs + 2));
 
-	resx = le16_to_cpup((__le16 *)rs);
-	resy = le16_to_cpup((__le16 *)(rs + 2));
+		/* The value reported by the firmware is invalid. */
+		if (!resx || resx == 0xffff || !resy || resy == 0xffff)
+			error = -EINVAL;
+	}
 
-	/* The value reported by the firmware is invalid. */
-	if (!resx || resx == 0xffff || !resy || resy == 0xffff)
-		return -EINVAL;
+	/*
+	 * In case of error, the firmware might be stuck in bootloader mode,
+	 * e.g. after a failed firmware update. Set maximum resolution, but
+	 * do not fail to probe, so the user can re-trigger the firmware
+	 * update and recover the touch controller.
+	 */
+	if (error) {
+		dev_warn(dev, "Invalid resolution reported by controller.\n");
+		resx = 16384;
+		resy = 16384;
+	}
 
 	input_abs_set_max(priv->input, ABS_X, resx - 1);
 	input_abs_set_max(priv->input, ABS_Y, resy - 1);
 	input_abs_set_max(priv->input, ABS_MT_POSITION_X, resx - 1);
 	input_abs_set_max(priv->input, ABS_MT_POSITION_Y, resy - 1);
 
-	return 0;
+	return error;
 }
 
 static ssize_t ili251x_firmware_update_firmware_version(struct device *dev)
@@ -865,7 +876,7 @@ exit:
 
 static DEVICE_ATTR(firmware_update, 0200, NULL, ili210x_firmware_update_store);
 
-static struct attribute *ili210x_attributes[] = {
+static struct attribute *ili210x_attrs[] = {
 	&dev_attr_calibrate.attr,
 	&dev_attr_firmware_update.attr,
 	&dev_attr_firmware_version.attr,
@@ -893,10 +904,11 @@ static umode_t ili210x_attributes_visible(struct kobject *kobj,
 	return attr->mode;
 }
 
-static const struct attribute_group ili210x_attr_group = {
-	.attrs = ili210x_attributes,
+static const struct attribute_group ili210x_group = {
+	.attrs = ili210x_attrs,
 	.is_visible = ili210x_attributes_visible,
 };
+__ATTRIBUTE_GROUPS(ili210x);
 
 static void ili210x_power_down(void *data)
 {
@@ -977,11 +989,10 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 	if (priv->chip->has_pressure_reg)
 		input_set_abs_params(input, ABS_MT_PRESSURE, 0, 0xa, 0, 0);
 	error = ili251x_firmware_update_cached_state(dev);
-	if (error) {
-		dev_err(dev, "Unable to cache firmware information, err: %d\n",
-			error);
-		return error;
-	}
+	if (error)
+		dev_warn(dev, "Unable to cache firmware information, err: %d\n",
+			 error);
+
 	touchscreen_parse_properties(input, true, &priv->prop);
 
 	error = input_mt_init_slots(input, priv->chip->max_touches,
@@ -1002,13 +1013,6 @@ static int ili210x_i2c_probe(struct i2c_client *client)
 	error = devm_add_action_or_reset(dev, ili210x_stop, priv);
 	if (error)
 		return error;
-
-	error = devm_device_add_group(dev, &ili210x_attr_group);
-	if (error) {
-		dev_err(dev, "Unable to create sysfs attributes, err: %d\n",
-			error);
-		return error;
-	}
 
 	error = input_register_device(priv->input);
 	if (error) {
@@ -1040,10 +1044,11 @@ MODULE_DEVICE_TABLE(of, ili210x_dt_ids);
 static struct i2c_driver ili210x_ts_driver = {
 	.driver = {
 		.name = "ili210x_i2c",
+		.dev_groups = ili210x_groups,
 		.of_match_table = ili210x_dt_ids,
 	},
 	.id_table = ili210x_i2c_id,
-	.probe_new = ili210x_i2c_probe,
+	.probe = ili210x_i2c_probe,
 };
 
 module_i2c_driver(ili210x_ts_driver);

@@ -947,7 +947,7 @@ struct option_vector7 {
 } __packed;
 
 struct ibm_arch_vec {
-	struct { u32 mask, val; } pvrs[14];
+	struct { __be32 mask, val; } pvrs[14];
 
 	u8 num_vectors;
 

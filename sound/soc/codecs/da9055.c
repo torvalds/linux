@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -1531,7 +1530,7 @@ static struct i2c_driver da9055_i2c_driver = {
 		.name = "da9055-codec",
 		.of_match_table = of_match_ptr(da9055_of_match),
 	},
-	.probe_new	= da9055_i2c_probe,
+	.probe		= da9055_i2c_probe,
 	.id_table	= da9055_i2c_id,
 };
 

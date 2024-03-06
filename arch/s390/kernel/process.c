@@ -30,8 +30,8 @@
 #include <linux/export.h>
 #include <linux/init_task.h>
 #include <linux/entry-common.h>
+#include <linux/io.h>
 #include <asm/cpu_mf.h>
-#include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
 #include <asm/exec.h>
@@ -89,7 +89,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	 */
 	save_fpu_regs();
 
-	memcpy(dst, src, arch_task_struct_size);
+	*dst = *src;
 	dst->thread.fpu.regs = dst->thread.fpu.fprs;
 
 	/*

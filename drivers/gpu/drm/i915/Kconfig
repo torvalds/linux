@@ -17,6 +17,7 @@ config DRM_I915
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_MIPI_DSI
+	select FB_IOMEM_HELPERS if DRM_FBDEV_EMULATION
 	select RELAY
 	select I2C
 	select I2C_ALGOBIT
@@ -93,7 +94,7 @@ config DRM_I915_CAPTURE_ERROR
 	  This option enables capturing the GPU state when a hang is detected.
 	  This information is vital for triaging hangs and assists in debugging.
 	  Please report any hang for triaging according to:
-	    https://gitlab.freedesktop.org/drm/intel/-/wikis/How-to-file-i915-bugs
+	    https://drm.pages.freedesktop.org/intel-docs/how-to-file-i915-bugs.html
 
 	  If in doubt, say "Y".
 
@@ -139,7 +140,7 @@ config DRM_I915_GVT_KVMGT
 
 	  Note that this driver only supports newer device from Broadwell on.
 	  For further information and setup guide, you can visit:
-	  http://01.org/igvt-g.
+	  https://github.com/intel/gvt-linux/wiki.
 
 	  If in doubt, say "N".
 

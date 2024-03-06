@@ -54,5 +54,7 @@ int expr__find_ids(const char *expr, const char *one,
 double expr_id_data__value(const struct expr_id_data *data);
 double expr_id_data__source_count(const struct expr_id_data *data);
 double expr__get_literal(const char *literal, const struct expr_scanner_ctx *ctx);
+double expr__has_event(const struct expr_parse_ctx *ctx, bool compute_ids, const char *id);
+double expr__strcmp_cpuid_str(const struct expr_parse_ctx *ctx, bool compute_ids, const char *id);
 
 #endif

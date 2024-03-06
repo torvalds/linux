@@ -12,7 +12,6 @@ maintainers:
 
 allOf:
   - $ref: /schemas/pci/pci-bus.yaml#
-  - $ref: /schemas/interrupt-controller/msi-controller.yaml#
 
 properties:
   compatible:
@@ -34,13 +33,6 @@ properties:
     description: >
        Base address and length of the PCIe controller I/O register space
 
-  interrupt-map: true
-
-  interrupt-map-mask: true
-
-  "#interrupt-cells":
-    const: 1
-
   ranges:
     minItems: 1
     maxItems: 2
@@ -54,15 +46,7 @@ properties:
     items:
       - const: pcie-phy
 
-  bus-range: true
-
   dma-coherent: true
-
-  "#address-cells": true
-
-  "#size-cells": true
-
-  device_type: true
 
   brcm,pcie-ob:
     type: boolean
@@ -78,20 +62,24 @@ properties:
 
   msi:
     type: object
+    $ref: /schemas/interrupt-controller/msi-controller.yaml#
+    unevaluatedProperties: false
+
     properties:
       compatible:
         items:
           - const: brcm,iproc-msi
 
+      interrupts:
+        maxItems: 4
+
+      brcm,pcie-msi-inten:
+        type: boolean
+        description:
+          Needs to be present for some older iProc platforms that require the
+          interrupt enable registers to be set explicitly to enable MSI
+
   msi-parent: true
-
-  msi-controller: true
-
-  brcm,pcie-msi-inten:
-    type: boolean
-    description: >
-      Needs to be present for some older iProc platforms that require the
-      interrupt enable registers to be set explicitly to enable MSI
 
 dependencies:
   brcm,pcie-ob-axi-offset: ["brcm,pcie-ob"]
@@ -117,68 +105,69 @@ unevaluatedProperties: false
 
 examples:
   - |
-   #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-   bus {
-      #address-cells = <1>;
-      #size-cells = <1>;
-           pcie0: pcie@18012000 {
-              compatible = "brcm,iproc-pcie";
-              reg = <0x18012000 0x1000>;
+    gic: interrupt-controller {
+        interrupt-controller;
+        #interrupt-cells = <3>;
+    };
 
-              #interrupt-cells = <1>;
-              interrupt-map-mask = <0 0 0 0>;
-              interrupt-map = <0 0 0 0 &gic GIC_SPI 100 IRQ_TYPE_NONE>;
+    pcie@18012000 {
+        compatible = "brcm,iproc-pcie";
+        reg = <0x18012000 0x1000>;
 
-              linux,pci-domain = <0>;
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0 0 0 0>;
+        interrupt-map = <0 0 0 0 &gic GIC_SPI 100 IRQ_TYPE_NONE>;
 
-              bus-range = <0x00 0xff>;
+        linux,pci-domain = <0>;
 
-              #address-cells = <3>;
-              #size-cells = <2>;
-              device_type = "pci";
-              ranges = <0x81000000 0 0     0x28000000 0 0x00010000>,
-                   <0x82000000 0 0x20000000 0x20000000 0 0x04000000>;
+        bus-range = <0x00 0xff>;
 
-              phys = <&phy 0 5>;
-              phy-names = "pcie-phy";
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        ranges = <0x81000000 0          0 0x28000000 0 0x00010000>,
+                 <0x82000000 0 0x20000000 0x20000000 0 0x04000000>;
 
-              brcm,pcie-ob;
-              brcm,pcie-ob-axi-offset = <0x00000000>;
+        phys = <&phy 0 5>;
+        phy-names = "pcie-phy";
 
-              msi-parent = <&msi0>;
+        brcm,pcie-ob;
+        brcm,pcie-ob-axi-offset = <0x00000000>;
 
-              /* iProc event queue based MSI */
-              msi0: msi {
-                 compatible = "brcm,iproc-msi";
-                 msi-controller;
-                 interrupt-parent = <&gic>;
-                 interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>,
-                         <GIC_SPI 97 IRQ_TYPE_NONE>,
-                         <GIC_SPI 98 IRQ_TYPE_NONE>,
-                         <GIC_SPI 99 IRQ_TYPE_NONE>;
-              };
-           };
+        msi-parent = <&msi0>;
 
-           pcie1: pcie@18013000 {
-              compatible = "brcm,iproc-pcie";
-              reg = <0x18013000 0x1000>;
+        /* iProc event queue based MSI */
+        msi0: msi {
+            compatible = "brcm,iproc-msi";
+            msi-controller;
+            interrupt-parent = <&gic>;
+            interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>,
+                    <GIC_SPI 97 IRQ_TYPE_NONE>,
+                    <GIC_SPI 98 IRQ_TYPE_NONE>,
+                    <GIC_SPI 99 IRQ_TYPE_NONE>;
+        };
+    };
+  - |
+    pcie@18013000 {
+        compatible = "brcm,iproc-pcie";
+        reg = <0x18013000 0x1000>;
 
-              #interrupt-cells = <1>;
-              interrupt-map-mask = <0 0 0 0>;
-              interrupt-map = <0 0 0 0 &gic GIC_SPI 106 IRQ_TYPE_NONE>;
+        #interrupt-cells = <1>;
+        interrupt-map-mask = <0 0 0 0>;
+        interrupt-map = <0 0 0 0 &gic GIC_SPI 106 IRQ_TYPE_NONE>;
 
-              linux,pci-domain = <1>;
+        linux,pci-domain = <1>;
 
-              bus-range = <0x00 0xff>;
+        bus-range = <0x00 0xff>;
 
-              #address-cells = <3>;
-              #size-cells = <2>;
-              device_type = "pci";
-              ranges = <0x81000000 0 0     0x48000000 0 0x00010000>,
-                   <0x82000000 0 0x40000000 0x40000000 0 0x04000000>;
+        #address-cells = <3>;
+        #size-cells = <2>;
+        device_type = "pci";
+        ranges = <0x81000000 0          0 0x48000000 0 0x00010000>,
+                 <0x82000000 0 0x40000000 0x40000000 0 0x04000000>;
 
-              phys = <&phy 1 6>;
-              phy-names = "pcie-phy";
-           };
+        phys = <&phy 1 6>;
+        phy-names = "pcie-phy";
     };

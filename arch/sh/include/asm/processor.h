@@ -166,6 +166,8 @@ extern unsigned int instruction_size(unsigned int insn);
 #define instruction_size(insn)	(2)
 #endif
 
+void select_idle_routine(void);
+
 #endif /* __ASSEMBLY__ */
 
 #include <asm/processor_32.h>

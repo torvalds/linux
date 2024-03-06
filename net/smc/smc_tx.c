@@ -168,8 +168,7 @@ static bool smc_tx_should_cork(struct smc_sock *smc, struct msghdr *msg)
 	 * should known how/when to uncork it.
 	 */
 	if ((msg->msg_flags & MSG_MORE ||
-	     smc_tx_is_corked(smc) ||
-	     msg->msg_flags & MSG_SENDPAGE_NOTLAST) &&
+	     smc_tx_is_corked(smc)) &&
 	    atomic_read(&conn->sndbuf_space))
 		return true;
 
@@ -295,22 +294,6 @@ out_err:
 	/* make sure we wake any epoll edge trigger waiter */
 	if (unlikely(rc == -EAGAIN))
 		sk->sk_write_space(sk);
-	return rc;
-}
-
-int smc_tx_sendpage(struct smc_sock *smc, struct page *page, int offset,
-		    size_t size, int flags)
-{
-	struct msghdr msg = {.msg_flags = flags};
-	char *kaddr = kmap(page);
-	struct kvec iov;
-	int rc;
-
-	iov.iov_base = kaddr + offset;
-	iov.iov_len = size;
-	iov_iter_kvec(&msg.msg_iter, ITER_SOURCE, &iov, 1, size);
-	rc = smc_tx_sendmsg(smc, &msg, size);
-	kunmap(page);
 	return rc;
 }
 
@@ -638,7 +621,7 @@ static int smcd_tx_sndbuf_nonempty(struct smc_connection *conn)
 	return rc;
 }
 
-static int __smc_tx_sndbuf_nonempty(struct smc_connection *conn)
+int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 {
 	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
 	int rc = 0;
@@ -669,34 +652,6 @@ static int __smc_tx_sndbuf_nonempty(struct smc_connection *conn)
 	}
 
 out:
-	return rc;
-}
-
-int smc_tx_sndbuf_nonempty(struct smc_connection *conn)
-{
-	int rc;
-
-	/* This make sure only one can send simultaneously to prevent wasting
-	 * of CPU and CDC slot.
-	 * Record whether someone has tried to push while we are pushing.
-	 */
-	if (atomic_inc_return(&conn->tx_pushing) > 1)
-		return 0;
-
-again:
-	atomic_set(&conn->tx_pushing, 1);
-	smp_wmb(); /* Make sure tx_pushing is 1 before real send */
-	rc = __smc_tx_sndbuf_nonempty(conn);
-
-	/* We need to check whether someone else have added some data into
-	 * the send queue and tried to push but failed after the atomic_set()
-	 * when we are pushing.
-	 * If so, we need to push again to prevent those data hang in the send
-	 * queue.
-	 */
-	if (unlikely(!atomic_dec_and_test(&conn->tx_pushing)))
-		goto again;
-
 	return rc;
 }
 

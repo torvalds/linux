@@ -102,4 +102,5 @@ static void __exit NS8390p_cleanup_module(void)
 
 module_init(NS8390p_init_module);
 module_exit(NS8390p_cleanup_module);
+MODULE_DESCRIPTION("National Semiconductor 8390 core for ISA driver");
 MODULE_LICENSE("GPL");

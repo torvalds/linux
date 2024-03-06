@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 #include <linux/serial_core.h>
@@ -321,14 +320,13 @@ out:
 	return err;
 }
 
-static int ingenic_uart_remove(struct platform_device *pdev)
+static void ingenic_uart_remove(struct platform_device *pdev)
 {
 	struct ingenic_uart_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->clk_module);
 	clk_disable_unprepare(data->clk_baud);
-	return 0;
 }
 
 static const struct ingenic_uart_config jz4740_uart_config = {
@@ -369,7 +367,7 @@ static struct platform_driver ingenic_uart_platform_driver = {
 		.of_match_table	= of_match,
 	},
 	.probe			= ingenic_uart_probe,
-	.remove			= ingenic_uart_remove,
+	.remove_new		= ingenic_uart_remove,
 };
 
 module_platform_driver(ingenic_uart_platform_driver);

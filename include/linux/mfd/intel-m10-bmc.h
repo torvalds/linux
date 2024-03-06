@@ -11,6 +11,7 @@
 #include <linux/bits.h>
 #include <linux/dev_printk.h>
 #include <linux/regmap.h>
+#include <linux/rwsem.h>
 
 #define M10BMC_N3000_LEGACY_BUILD_VER	0x300468
 #define M10BMC_N3000_SYS_BASE		0x300800
@@ -38,6 +39,11 @@
 #define M10BMC_N3000_VER_MAJOR_MSK	GENMASK(23, 16)
 #define M10BMC_N3000_VER_PCB_INFO_MSK	GENMASK(31, 24)
 #define M10BMC_N3000_VER_LEGACY_INVALID	0xffffffff
+
+/* Telemetry registers */
+#define M10BMC_N3000_TELEM_START	0x100
+#define M10BMC_N3000_TELEM_END		0x250
+#define M10BMC_D5005_TELEM_END		0x300
 
 /* Secure update doorbell register, in system register region */
 #define M10BMC_N3000_DOORBELL		0x400
@@ -205,11 +211,15 @@ struct m10bmc_csr_map {
  * struct intel_m10bmc_platform_info - Intel MAX 10 BMC platform specific information
  * @cells: MFD cells
  * @n_cells: MFD cells ARRAY_SIZE()
+ * @handshake_sys_reg_ranges: array of register ranges for fw handshake regs
+ * @handshake_sys_reg_nranges: number of register ranges for fw handshake regs
  * @csr_map: the mappings for register definition of MAX10 BMC
  */
 struct intel_m10bmc_platform_info {
 	struct mfd_cell *cells;
 	int n_cells;
+	const struct regmap_range *handshake_sys_reg_ranges;
+	unsigned int handshake_sys_reg_nranges;
 	const struct m10bmc_csr_map *csr_map;
 };
 
@@ -232,18 +242,30 @@ struct intel_m10bmc_flash_bulk_ops {
 	void (*unlock_write)(struct intel_m10bmc *m10bmc);
 };
 
+enum m10bmc_fw_state {
+	M10BMC_FW_STATE_NORMAL,
+	M10BMC_FW_STATE_SEC_UPDATE_PREPARE,
+	M10BMC_FW_STATE_SEC_UPDATE_WRITE,
+	M10BMC_FW_STATE_SEC_UPDATE_PROGRAM,
+};
+
 /**
  * struct intel_m10bmc - Intel MAX 10 BMC parent driver data structure
  * @dev: this device
  * @regmap: the regmap used to access registers by m10bmc itself
  * @info: the platform information for MAX10 BMC
  * @flash_bulk_ops: optional device specific operations for flash R/W
+ * @bmcfw_lock: read/write semaphore to BMC firmware running state
+ * @bmcfw_state: BMC firmware running state. Available only when
+ *		 handshake_sys_reg_nranges > 0.
  */
 struct intel_m10bmc {
 	struct device *dev;
 	struct regmap *regmap;
 	const struct intel_m10bmc_platform_info *info;
 	const struct intel_m10bmc_flash_bulk_ops *flash_bulk_ops;
+	struct rw_semaphore bmcfw_lock;		/* Protects bmcfw_state */
+	enum m10bmc_fw_state bmcfw_state;
 };
 
 /*
@@ -251,6 +273,7 @@ struct intel_m10bmc {
  *
  * m10bmc_raw_read - read m10bmc register per addr
  * m10bmc_sys_read - read m10bmc system register per offset
+ * m10bmc_sys_update_bits - update m10bmc system register per offset
  */
 static inline int
 m10bmc_raw_read(struct intel_m10bmc *m10bmc, unsigned int addr,
@@ -266,21 +289,15 @@ m10bmc_raw_read(struct intel_m10bmc *m10bmc, unsigned int addr,
 	return ret;
 }
 
-/*
- * The base of the system registers could be configured by HW developers, and
- * in HW SPEC, the base is not added to the addresses of the system registers.
- *
- * This function helps to simplify the accessing of the system registers. And if
- * the base is reconfigured in HW, SW developers could simply change the
- * csr_map's base accordingly.
- */
-static inline int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset,
-				  unsigned int *val)
-{
-	const struct m10bmc_csr_map *csr_map = m10bmc->info->csr_map;
+int m10bmc_sys_read(struct intel_m10bmc *m10bmc, unsigned int offset, unsigned int *val);
+int m10bmc_sys_update_bits(struct intel_m10bmc *m10bmc, unsigned int offset,
+			   unsigned int msk, unsigned int val);
 
-	return m10bmc_raw_read(m10bmc, csr_map->base + offset, val);
-}
+/*
+ * Track the state of the firmware, as it is not available for register
+ * handshakes during secure updates on some MAX 10 cards.
+ */
+void m10bmc_fw_state_set(struct intel_m10bmc *m10bmc, enum m10bmc_fw_state new_state);
 
 /*
  * MAX10 BMC Core support

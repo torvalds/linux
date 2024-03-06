@@ -6,7 +6,7 @@
 extra-y		:= vmlinux.lds
 
 obj-y		:= head.o cache.o pacache.o setup.o pdt.o traps.o time.o irq.o \
-		   pa7300lc.o syscall.o entry.o sys_parisc.o firmware.o \
+		   syscall.o entry.o sys_parisc.o firmware.o \
 		   ptrace.o hardware.o inventory.o drivers.o alternative.o \
 		   signal.o hpmc.o real2.o parisc_ksyms.o unaligned.o \
 		   process.o processor.o pdc_cons.o pdc_chassis.o unwind.o \
@@ -20,6 +20,9 @@ CFLAGS_REMOVE_perf.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_unwind.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_patch.o = $(CC_FLAGS_FTRACE)
 endif
+
+CFLAGS_REMOVE_sys_parisc.o = -Wmissing-prototypes -Wmissing-declarations
+CFLAGS_REMOVE_sys_parisc32.o = -Wmissing-prototypes -Wmissing-declarations
 
 obj-$(CONFIG_SMP)	+= smp.o
 obj-$(CONFIG_PA11)	+= pci-dma.o

@@ -188,14 +188,12 @@ static const struct i2c_adapter_quirks i2c_powermac_quirks = {
 	.max_num_msgs = 1,
 };
 
-static int i2c_powermac_remove(struct platform_device *dev)
+static void i2c_powermac_remove(struct platform_device *dev)
 {
 	struct i2c_adapter	*adapter = platform_get_drvdata(dev);
 
 	i2c_del_adapter(adapter);
 	memset(adapter, 0, sizeof(*adapter));
-
-	return 0;
 }
 
 static u32 i2c_powermac_get_addr(struct i2c_adapter *adap,
@@ -233,7 +231,7 @@ static void i2c_powermac_create_one(struct i2c_adapter *adap,
 	struct i2c_board_info info = {};
 	struct i2c_client *newdev;
 
-	strncpy(info.type, type, sizeof(info.type));
+	strscpy(info.type, type, sizeof(info.type));
 	info.addr = addr;
 	newdev = i2c_new_client_device(adap, &info);
 	if (IS_ERR(newdev))
@@ -439,7 +437,7 @@ static int i2c_powermac_probe(struct platform_device *dev)
 
 static struct platform_driver i2c_powermac_driver = {
 	.probe = i2c_powermac_probe,
-	.remove = i2c_powermac_remove,
+	.remove_new = i2c_powermac_remove,
 	.driver = {
 		.name = "i2c-powermac",
 		.bus = &platform_bus_type,

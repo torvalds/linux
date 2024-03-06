@@ -547,8 +547,6 @@ static int ov9640_set_fmt(struct v4l2_subdev *sd,
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return ov9640_s_fmt(sd, mf);
 
-	sd_state->pads->try_fmt = *mf;
-
 	return 0;
 }
 
@@ -762,7 +760,7 @@ static struct i2c_driver ov9640_i2c_driver = {
 	.driver = {
 		.name = "ov9640",
 	},
-	.probe_new = ov9640_probe,
+	.probe    = ov9640_probe,
 	.remove   = ov9640_remove,
 	.id_table = ov9640_id,
 };

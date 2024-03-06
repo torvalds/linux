@@ -127,7 +127,7 @@ static void btf_dumper_ptr(const struct btf_dumper *d,
 
 print_ptr_value:
 	if (d->is_plain_text)
-		jsonw_printf(d->jw, "%p", (void *)value);
+		jsonw_printf(d->jw, "\"%p\"", (void *)value);
 	else
 		jsonw_printf(d->jw, "%lu", value);
 }
@@ -835,7 +835,7 @@ static void dotlabel_puts(const char *s)
 		case '|':
 		case ' ':
 			putchar('\\');
-			/* fallthrough */
+			fallthrough;
 		default:
 			putchar(*s);
 		}

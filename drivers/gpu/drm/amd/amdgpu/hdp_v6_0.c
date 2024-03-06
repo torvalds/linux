@@ -28,6 +28,9 @@
 #include "hdp/hdp_6_0_0_sh_mask.h"
 #include <uapi/linux/kfd_ioctl.h>
 
+#define regHDP_CLK_CNTL_V6_1	0xd5
+#define regHDP_CLK_CNTL_V6_1_BASE_IDX 0
+
 static void hdp_v6_0_flush_hdp(struct amdgpu_device *adev,
 				struct amdgpu_ring *ring)
 {
@@ -40,7 +43,7 @@ static void hdp_v6_0_flush_hdp(struct amdgpu_device *adev,
 static void hdp_v6_0_update_clock_gating(struct amdgpu_device *adev,
 					 bool enable)
 {
-	uint32_t hdp_clk_cntl, hdp_clk_cntl1;
+	uint32_t hdp_clk_cntl;
 	uint32_t hdp_mem_pwr_cntl;
 
 	if (!(adev->cg_flags & (AMD_CG_SUPPORT_HDP_LS |
@@ -48,14 +51,20 @@ static void hdp_v6_0_update_clock_gating(struct amdgpu_device *adev,
 				AMD_CG_SUPPORT_HDP_SD)))
 		return;
 
-	hdp_clk_cntl = hdp_clk_cntl1 = RREG32_SOC15(HDP, 0,regHDP_CLK_CNTL);
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(6, 1, 0))
+		hdp_clk_cntl = RREG32_SOC15(HDP, 0, regHDP_CLK_CNTL_V6_1);
+	else
+		hdp_clk_cntl = RREG32_SOC15(HDP, 0, regHDP_CLK_CNTL);
 	hdp_mem_pwr_cntl = RREG32_SOC15(HDP, 0, regHDP_MEM_POWER_CTRL);
 
 	/* Before doing clock/power mode switch,
 	 * forced on IPH & RC clock */
 	hdp_clk_cntl = REG_SET_FIELD(hdp_clk_cntl, HDP_CLK_CNTL,
 				     RC_MEM_CLK_SOFT_OVERRIDE, 1);
-	WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL, hdp_clk_cntl);
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(6, 1, 0))
+		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL_V6_1, hdp_clk_cntl);
+	else
+		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL, hdp_clk_cntl);
 
 	/* disable clock and power gating before any changing */
 	hdp_mem_pwr_cntl = REG_SET_FIELD(hdp_mem_pwr_cntl, HDP_MEM_POWER_CTRL,
@@ -117,7 +126,10 @@ static void hdp_v6_0_update_clock_gating(struct amdgpu_device *adev,
 	/* disable IPH & RC clock override after clock/power mode changing */
 	hdp_clk_cntl = REG_SET_FIELD(hdp_clk_cntl, HDP_CLK_CNTL,
 				     RC_MEM_CLK_SOFT_OVERRIDE, 0);
-	WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL, hdp_clk_cntl);
+	if (amdgpu_ip_version(adev, HDP_HWIP, 0) == IP_VERSION(6, 1, 0))
+		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL_V6_1, hdp_clk_cntl);
+	else
+		WREG32_SOC15(HDP, 0, regHDP_CLK_CNTL, hdp_clk_cntl);
 }
 
 static void hdp_v6_0_get_clockgating_state(struct amdgpu_device *adev,

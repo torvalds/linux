@@ -11,7 +11,8 @@ config RTL8XXXU
 	  parts written to utilize the Linux mac80211 stack.
 	  The driver is known to work with a number of RTL8723AU,
 	  RL8188CU, RTL8188RU, RTL8191CU, RTL8192CU, RTL8723BU, RTL8192EU,
-	  RTL8188FU, RTL8188EU, and RTL8710BU (aka RTL8188GU) devices.
+	  RTL8188FU, RTL8188EU, RTL8710BU (aka RTL8188GU), and RTL8192FU
+	  devices.
 
 	  This driver is under development and has a limited feature
 	  set. In particular it does not yet support 40MHz channels

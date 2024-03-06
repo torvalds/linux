@@ -10,6 +10,8 @@
 
 #include <kunit/test.h>
 
+static const struct clk_ops empty_clk_ops = { };
+
 #define DUMMY_CLOCK_INIT_RATE	(42 * 1000 * 1000)
 #define DUMMY_CLOCK_RATE_1	(142 * 1000 * 1000)
 #define DUMMY_CLOCK_RATE_2	(242 * 1000 * 1000)
@@ -104,6 +106,23 @@ static const struct clk_ops clk_dummy_minimize_rate_ops = {
 };
 
 static const struct clk_ops clk_dummy_single_parent_ops = {
+	/*
+	 * FIXME: Even though we should probably be able to use
+	 * __clk_mux_determine_rate() here, if we use it and call
+	 * clk_round_rate() or clk_set_rate() with a rate lower than
+	 * what all the parents can provide, it will return -EINVAL.
+	 *
+	 * This is due to the fact that it has the undocumented
+	 * behaviour to always pick up the closest rate higher than the
+	 * requested rate. If we get something lower, it thus considers
+	 * that it's not acceptable and will return an error.
+	 *
+	 * It's somewhat inconsistent and creates a weird threshold
+	 * between rates above the parent rate which would be rounded to
+	 * what the parent can provide, but rates below will simply
+	 * return an error.
+	 */
+	.determine_rate = __clk_mux_determine_rate_closest,
 	.set_parent = clk_dummy_single_set_parent,
 	.get_parent = clk_dummy_single_get_parent,
 };
@@ -139,6 +158,12 @@ static const struct clk_ops clk_multiple_parents_mux_ops = {
 	.get_parent = clk_multiple_parents_mux_get_parent,
 	.set_parent = clk_multiple_parents_mux_set_parent,
 	.determine_rate = __clk_mux_determine_rate_closest,
+};
+
+static const struct clk_ops clk_multiple_parents_no_reparent_mux_ops = {
+	.determine_rate = clk_hw_determine_rate_no_reparent,
+	.get_parent = clk_multiple_parents_mux_get_parent,
+	.set_parent = clk_multiple_parents_mux_set_parent,
 };
 
 static int clk_test_init_with_ops(struct kunit *test, const struct clk_ops *ops)
@@ -266,7 +291,8 @@ static void clk_test_round_set_get_rate(struct kunit *test)
 	struct clk_dummy_context *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
-	unsigned long rounded_rate, set_rate;
+	unsigned long set_rate;
+	long rounded_rate;
 
 	rounded_rate = clk_round_rate(clk, DUMMY_CLOCK_RATE_1);
 	KUNIT_ASSERT_GT(test, rounded_rate, 0);
@@ -851,7 +877,7 @@ clk_test_orphan_transparent_multiple_parent_mux_set_range_round_rate(struct kuni
 	struct clk_multiple_parent_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	ret = clk_set_rate_range(clk, DUMMY_CLOCK_RATE_1, DUMMY_CLOCK_RATE_2);
@@ -1090,7 +1116,7 @@ clk_test_single_parent_mux_set_range_round_rate_parent_only(struct kunit *test)
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *parent;
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	parent = clk_get_parent(clk);
@@ -1120,7 +1146,7 @@ clk_test_single_parent_mux_set_range_round_rate_child_smaller(struct kunit *test
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *parent;
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	parent = clk_get_parent(clk);
@@ -1158,7 +1184,7 @@ clk_test_single_parent_mux_set_range_round_rate_parent_smaller(struct kunit *tes
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk *parent;
-	unsigned long rate;
+	long rate;
 	int ret;
 
 	parent = clk_get_parent(clk);
@@ -2131,6 +2157,31 @@ static struct kunit_suite clk_range_minimize_test_suite = {
 struct clk_leaf_mux_ctx {
 	struct clk_multiple_parent_ctx mux_ctx;
 	struct clk_hw hw;
+	struct clk_hw parent;
+	struct clk_rate_request *req;
+	int (*determine_rate_func)(struct clk_hw *hw, struct clk_rate_request *req);
+};
+
+static int clk_leaf_mux_determine_rate(struct clk_hw *hw, struct clk_rate_request *req)
+{
+	struct clk_leaf_mux_ctx *ctx = container_of(hw, struct clk_leaf_mux_ctx, hw);
+	int ret;
+	struct clk_rate_request *parent_req = ctx->req;
+
+	clk_hw_forward_rate_request(hw, req, req->best_parent_hw, parent_req, req->rate);
+	ret = ctx->determine_rate_func(req->best_parent_hw, parent_req);
+	if (ret)
+		return ret;
+
+	req->rate = parent_req->rate;
+
+	return 0;
+}
+
+static const struct clk_ops clk_leaf_mux_set_rate_parent_ops = {
+	.determine_rate = clk_leaf_mux_determine_rate,
+	.set_parent = clk_dummy_single_set_parent,
+	.get_parent = clk_dummy_single_get_parent,
 };
 
 static int
@@ -2169,8 +2220,14 @@ clk_leaf_mux_set_rate_parent_test_init(struct kunit *test)
 	if (ret)
 		return ret;
 
-	ctx->hw.init = CLK_HW_INIT_HW("test-clock", &ctx->mux_ctx.hw,
-				      &clk_dummy_single_parent_ops,
+	ctx->parent.init = CLK_HW_INIT_HW("test-parent", &ctx->mux_ctx.hw,
+					  &empty_clk_ops, CLK_SET_RATE_PARENT);
+	ret = clk_hw_register(NULL, &ctx->parent);
+	if (ret)
+		return ret;
+
+	ctx->hw.init = CLK_HW_INIT_HW("test-clock", &ctx->parent,
+				      &clk_leaf_mux_set_rate_parent_ops,
 				      CLK_SET_RATE_PARENT);
 	ret = clk_hw_register(NULL, &ctx->hw);
 	if (ret)
@@ -2184,32 +2241,94 @@ static void clk_leaf_mux_set_rate_parent_test_exit(struct kunit *test)
 	struct clk_leaf_mux_ctx *ctx = test->priv;
 
 	clk_hw_unregister(&ctx->hw);
+	clk_hw_unregister(&ctx->parent);
 	clk_hw_unregister(&ctx->mux_ctx.hw);
 	clk_hw_unregister(&ctx->mux_ctx.parents_ctx[0].hw);
 	clk_hw_unregister(&ctx->mux_ctx.parents_ctx[1].hw);
 }
 
+struct clk_leaf_mux_set_rate_parent_determine_rate_test_case {
+	const char *desc;
+	int (*determine_rate_func)(struct clk_hw *hw, struct clk_rate_request *req);
+};
+
+static void
+clk_leaf_mux_set_rate_parent_determine_rate_test_case_to_desc(
+		const struct clk_leaf_mux_set_rate_parent_determine_rate_test_case *t, char *desc)
+{
+	strcpy(desc, t->desc);
+}
+
+static const struct clk_leaf_mux_set_rate_parent_determine_rate_test_case
+clk_leaf_mux_set_rate_parent_determine_rate_test_cases[] = {
+	{
+		/*
+		 * Test that __clk_determine_rate() on the parent that can't
+		 * change rate doesn't return a clk_rate_request structure with
+		 * the best_parent_hw pointer pointing to the parent.
+		 */
+		.desc = "clk_leaf_mux_set_rate_parent__clk_determine_rate_proper_parent",
+		.determine_rate_func = __clk_determine_rate,
+	},
+	{
+		/*
+		 * Test that __clk_mux_determine_rate() on the parent that
+		 * can't change rate doesn't return a clk_rate_request
+		 * structure with the best_parent_hw pointer pointing to
+		 * the parent.
+		 */
+		.desc = "clk_leaf_mux_set_rate_parent__clk_mux_determine_rate_proper_parent",
+		.determine_rate_func = __clk_mux_determine_rate,
+	},
+	{
+		/*
+		 * Test that __clk_mux_determine_rate_closest() on the parent
+		 * that can't change rate doesn't return a clk_rate_request
+		 * structure with the best_parent_hw pointer pointing to
+		 * the parent.
+		 */
+		.desc = "clk_leaf_mux_set_rate_parent__clk_mux_determine_rate_closest_proper_parent",
+		.determine_rate_func = __clk_mux_determine_rate_closest,
+	},
+	{
+		/*
+		 * Test that clk_hw_determine_rate_no_reparent() on the parent
+		 * that can't change rate doesn't return a clk_rate_request
+		 * structure with the best_parent_hw pointer pointing to
+		 * the parent.
+		 */
+		.desc = "clk_leaf_mux_set_rate_parent_clk_hw_determine_rate_no_reparent_proper_parent",
+		.determine_rate_func = clk_hw_determine_rate_no_reparent,
+	},
+};
+
+KUNIT_ARRAY_PARAM(clk_leaf_mux_set_rate_parent_determine_rate_test,
+		  clk_leaf_mux_set_rate_parent_determine_rate_test_cases,
+		  clk_leaf_mux_set_rate_parent_determine_rate_test_case_to_desc)
+
 /*
- * Test that, for a clock that will forward any rate request to its
- * parent, the rate request structure returned by __clk_determine_rate
- * is sane and will be what we expect.
+ * Test that when a clk that can't change rate itself calls a function like
+ * __clk_determine_rate() on its parent it doesn't get back a clk_rate_request
+ * structure that has the best_parent_hw pointer point to the clk_hw passed
+ * into the determine rate function. See commit 262ca38f4b6e ("clk: Stop
+ * forwarding clk_rate_requests to the parent") for more background.
  */
-static void clk_leaf_mux_set_rate_parent_determine_rate(struct kunit *test)
+static void clk_leaf_mux_set_rate_parent_determine_rate_test(struct kunit *test)
 {
 	struct clk_leaf_mux_ctx *ctx = test->priv;
 	struct clk_hw *hw = &ctx->hw;
 	struct clk *clk = clk_hw_get_clk(hw, NULL);
 	struct clk_rate_request req;
 	unsigned long rate;
-	int ret;
+	const struct clk_leaf_mux_set_rate_parent_determine_rate_test_case *test_param;
 
+	test_param = test->param_value;
+	ctx->determine_rate_func = test_param->determine_rate_func;
+
+	ctx->req = &req;
 	rate = clk_get_rate(clk);
 	KUNIT_ASSERT_EQ(test, rate, DUMMY_CLOCK_RATE_1);
-
-	clk_hw_init_rate_request(hw, &req, DUMMY_CLOCK_RATE_2);
-
-	ret = __clk_determine_rate(hw, &req);
-	KUNIT_ASSERT_EQ(test, ret, 0);
+	KUNIT_ASSERT_EQ(test, DUMMY_CLOCK_RATE_2, clk_round_rate(clk, DUMMY_CLOCK_RATE_2));
 
 	KUNIT_EXPECT_EQ(test, req.rate, DUMMY_CLOCK_RATE_2);
 	KUNIT_EXPECT_EQ(test, req.best_parent_rate, DUMMY_CLOCK_RATE_2);
@@ -2219,15 +2338,16 @@ static void clk_leaf_mux_set_rate_parent_determine_rate(struct kunit *test)
 }
 
 static struct kunit_case clk_leaf_mux_set_rate_parent_test_cases[] = {
-	KUNIT_CASE(clk_leaf_mux_set_rate_parent_determine_rate),
+	KUNIT_CASE_PARAM(clk_leaf_mux_set_rate_parent_determine_rate_test,
+			 clk_leaf_mux_set_rate_parent_determine_rate_test_gen_params),
 	{}
 };
 
 /*
- * Test suite for a clock whose parent is a mux with multiple parents.
- * The leaf clock has CLK_SET_RATE_PARENT, and will forward rate
- * requests to the mux, which will then select which parent is the best
- * fit for a given rate.
+ * Test suite for a clock whose parent is a pass-through clk whose parent is a
+ * mux with multiple parents. The leaf and pass-through clocks have the
+ * CLK_SET_RATE_PARENT flag, and will forward rate requests to the mux, which
+ * will then select which parent is the best fit for a given rate.
  *
  * These tests exercise the behaviour of muxes, and the proper selection
  * of parents.
@@ -2394,10 +2514,156 @@ static struct kunit_suite clk_mux_notifier_test_suite = {
 	.test_cases = clk_mux_notifier_test_cases,
 };
 
+static int
+clk_mux_no_reparent_test_init(struct kunit *test)
+{
+	struct clk_multiple_parent_ctx *ctx;
+	const char *parents[2] = { "parent-0", "parent-1"};
+	int ret;
+
+	ctx = kunit_kzalloc(test, sizeof(*ctx), GFP_KERNEL);
+	if (!ctx)
+		return -ENOMEM;
+	test->priv = ctx;
+
+	ctx->parents_ctx[0].hw.init = CLK_HW_INIT_NO_PARENT("parent-0",
+							    &clk_dummy_rate_ops,
+							    0);
+	ctx->parents_ctx[0].rate = DUMMY_CLOCK_RATE_1;
+	ret = clk_hw_register(NULL, &ctx->parents_ctx[0].hw);
+	if (ret)
+		return ret;
+
+	ctx->parents_ctx[1].hw.init = CLK_HW_INIT_NO_PARENT("parent-1",
+							    &clk_dummy_rate_ops,
+							    0);
+	ctx->parents_ctx[1].rate = DUMMY_CLOCK_RATE_2;
+	ret = clk_hw_register(NULL, &ctx->parents_ctx[1].hw);
+	if (ret)
+		return ret;
+
+	ctx->current_parent = 0;
+	ctx->hw.init = CLK_HW_INIT_PARENTS("test-mux", parents,
+					   &clk_multiple_parents_no_reparent_mux_ops,
+					   0);
+	ret = clk_hw_register(NULL, &ctx->hw);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static void
+clk_mux_no_reparent_test_exit(struct kunit *test)
+{
+	struct clk_multiple_parent_ctx *ctx = test->priv;
+
+	clk_hw_unregister(&ctx->hw);
+	clk_hw_unregister(&ctx->parents_ctx[0].hw);
+	clk_hw_unregister(&ctx->parents_ctx[1].hw);
+}
+
+/*
+ * Test that if the we have a mux that cannot change parent and we call
+ * clk_round_rate() on it with a rate that should cause it to change
+ * parent, it won't.
+ */
+static void clk_mux_no_reparent_round_rate(struct kunit *test)
+{
+	struct clk_multiple_parent_ctx *ctx = test->priv;
+	struct clk_hw *hw = &ctx->hw;
+	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *other_parent, *parent;
+	unsigned long other_parent_rate;
+	unsigned long parent_rate;
+	long rounded_rate;
+
+	parent = clk_get_parent(clk);
+	KUNIT_ASSERT_PTR_NE(test, parent, NULL);
+
+	parent_rate = clk_get_rate(parent);
+	KUNIT_ASSERT_GT(test, parent_rate, 0);
+
+	other_parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, other_parent);
+	KUNIT_ASSERT_FALSE(test, clk_is_match(parent, other_parent));
+
+	other_parent_rate = clk_get_rate(other_parent);
+	KUNIT_ASSERT_GT(test, other_parent_rate, 0);
+	clk_put(other_parent);
+
+	rounded_rate = clk_round_rate(clk, other_parent_rate);
+	KUNIT_ASSERT_GT(test, rounded_rate, 0);
+	KUNIT_EXPECT_EQ(test, rounded_rate, parent_rate);
+
+	clk_put(clk);
+}
+
+/*
+ * Test that if the we have a mux that cannot change parent and we call
+ * clk_set_rate() on it with a rate that should cause it to change
+ * parent, it won't.
+ */
+static void clk_mux_no_reparent_set_rate(struct kunit *test)
+{
+	struct clk_multiple_parent_ctx *ctx = test->priv;
+	struct clk_hw *hw = &ctx->hw;
+	struct clk *clk = clk_hw_get_clk(hw, NULL);
+	struct clk *other_parent, *parent;
+	unsigned long other_parent_rate;
+	unsigned long parent_rate;
+	unsigned long rate;
+	int ret;
+
+	parent = clk_get_parent(clk);
+	KUNIT_ASSERT_PTR_NE(test, parent, NULL);
+
+	parent_rate = clk_get_rate(parent);
+	KUNIT_ASSERT_GT(test, parent_rate, 0);
+
+	other_parent = clk_hw_get_clk(&ctx->parents_ctx[1].hw, NULL);
+	KUNIT_ASSERT_NOT_ERR_OR_NULL(test, other_parent);
+	KUNIT_ASSERT_FALSE(test, clk_is_match(parent, other_parent));
+
+	other_parent_rate = clk_get_rate(other_parent);
+	KUNIT_ASSERT_GT(test, other_parent_rate, 0);
+	clk_put(other_parent);
+
+	ret = clk_set_rate(clk, other_parent_rate);
+	KUNIT_ASSERT_EQ(test, ret, 0);
+
+	rate = clk_get_rate(clk);
+	KUNIT_ASSERT_GT(test, rate, 0);
+	KUNIT_EXPECT_EQ(test, rate, parent_rate);
+
+	clk_put(clk);
+}
+
+static struct kunit_case clk_mux_no_reparent_test_cases[] = {
+	KUNIT_CASE(clk_mux_no_reparent_round_rate),
+	KUNIT_CASE(clk_mux_no_reparent_set_rate),
+	{}
+};
+
+/*
+ * Test suite for a clock mux that isn't allowed to change parent, using
+ * the clk_hw_determine_rate_no_reparent() helper.
+ *
+ * These tests exercise that helper, and the proper selection of
+ * rates and parents.
+ */
+static struct kunit_suite clk_mux_no_reparent_test_suite = {
+	.name = "clk-mux-no-reparent",
+	.init = clk_mux_no_reparent_test_init,
+	.exit = clk_mux_no_reparent_test_exit,
+	.test_cases = clk_mux_no_reparent_test_cases,
+};
+
 kunit_test_suites(
 	&clk_leaf_mux_set_rate_parent_test_suite,
 	&clk_test_suite,
 	&clk_multiple_parents_mux_test_suite,
+	&clk_mux_no_reparent_test_suite,
 	&clk_mux_notifier_test_suite,
 	&clk_orphan_transparent_multiple_parent_mux_test_suite,
 	&clk_orphan_transparent_single_parent_test_suite,

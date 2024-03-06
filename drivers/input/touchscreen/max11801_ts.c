@@ -230,7 +230,7 @@ static struct i2c_driver max11801_ts_driver = {
 		.of_match_table = max11801_ts_dt_ids,
 	},
 	.id_table	= max11801_ts_id,
-	.probe_new	= max11801_ts_probe,
+	.probe		= max11801_ts_probe,
 };
 
 module_i2c_driver(max11801_ts_driver);

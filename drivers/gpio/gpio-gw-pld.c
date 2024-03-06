@@ -125,7 +125,7 @@ static struct i2c_driver gw_pld_driver = {
 		.name = "gw_pld",
 		.of_match_table = gw_pld_dt_ids,
 	},
-	.probe_new = gw_pld_probe,
+	.probe = gw_pld_probe,
 	.id_table = gw_pld_id,
 };
 module_i2c_driver(gw_pld_driver);

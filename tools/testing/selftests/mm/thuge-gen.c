@@ -3,7 +3,8 @@
 
    Before running this huge pages for each huge page size must have been
    reserved.
-   For large pages beyond MAX_ORDER (like 1GB on x86) boot options must be used.
+   For large pages beyond MAX_PAGE_ORDER (like 1GB on x86) boot options must
+   be used.
    Also shmmax must be increased.
    And you need to run as root to work around some weird permissions in shm.
    And nothing using huge pages should run in parallel.
@@ -139,7 +140,7 @@ void test_mmap(unsigned long size, unsigned flags)
 		before, after, before - after, size);
 	assert(size == getpagesize() || (before - after) == NUM_PAGES);
 	show(size);
-	err = munmap(map, size);
+	err = munmap(map, size * NUM_PAGES);
 	assert(!err);
 }
 
@@ -222,7 +223,7 @@ int main(void)
 		test_mmap(ps, MAP_HUGETLB | arg);
 	}
 	printf("Testing default huge mmap\n");
-	test_mmap(default_hps, SHM_HUGETLB);
+	test_mmap(default_hps, MAP_HUGETLB);
 
 	puts("Testing non-huge shmget");
 	test_shmget(getpagesize(), 0);

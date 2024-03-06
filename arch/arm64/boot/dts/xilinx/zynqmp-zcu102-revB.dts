@@ -2,9 +2,10 @@
 /*
  * dts file for Xilinx ZynqMP ZCU102 RevB
  *
- * (C) Copyright 2016 - 2021, Xilinx, Inc.
+ * (C) Copyright 2016 - 2022, Xilinx, Inc.
+ * (C) Copyright 2022 - 2023, Advanced Micro Devices, Inc.
  *
- * Michal Simek <michal.simek@xilinx.com>
+ * Michal Simek <michal.simek@amd.com>
  */
 
 #include "zynqmp-zcu102-revA.dts"
@@ -16,16 +17,20 @@
 
 &gem3 {
 	phy-handle = <&phyc>;
-	phyc: ethernet-phy@c {
-		reg = <0xc>;
-		ti,rx-internal-delay = <0x8>;
-		ti,tx-internal-delay = <0xa>;
-		ti,fifo-depth = <0x1>;
-		ti,dp83867-rxctrl-strap-quirk;
-		/* reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>; */
+	mdio: mdio {
+		phyc: ethernet-phy@c {
+			#phy-cells = <0x1>;
+			compatible = "ethernet-phy-id2000.a231";
+			reg = <0xc>;
+			ti,rx-internal-delay = <0x8>;
+			ti,tx-internal-delay = <0xa>;
+			ti,fifo-depth = <0x1>;
+			ti,dp83867-rxctrl-strap-quirk;
+			reset-gpios = <&tca6416_u97 6 GPIO_ACTIVE_LOW>;
+		};
+		/* Cleanup from RevA */
+		/delete-node/ ethernet-phy@21;
 	};
-	/* Cleanup from RevA */
-	/delete-node/ ethernet-phy@21;
 };
 
 /* Fix collision with u61 */

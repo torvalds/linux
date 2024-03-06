@@ -61,6 +61,15 @@ enum rnbd_access_mode {
 	RNBD_ACCESS_MIGRATION,
 };
 
+static const __maybe_unused struct {
+	enum rnbd_access_mode mode;
+	const char *str;
+} rnbd_access_modes[] = {
+	[RNBD_ACCESS_RO] = {RNBD_ACCESS_RO, "ro"},
+	[RNBD_ACCESS_RW] = {RNBD_ACCESS_RW, "rw"},
+	[RNBD_ACCESS_MIGRATION] = {RNBD_ACCESS_MIGRATION, "migration"},
+};
+
 /**
  * struct rnbd_msg_sess_info - initial session info from client to server
  * @hdr:		message header
@@ -119,7 +128,7 @@ enum rnbd_cache_policy {
  * @device_id:		device_id on server side to identify the device
  * @nsectors:		number of sectors in the usual 512b unit
  * @max_hw_sectors:	max hardware sectors in the usual 512b unit
- * @max_write_same_sectors: max sectors for WRITE SAME in the 512b unit
+ * @max_write_zeroes_sectors: max sectors for WRITE ZEROES in the 512b unit
  * @max_discard_sectors: max. sectors that can be discarded at once in 512b
  * unit.
  * @discard_granularity: size of the internal discard allocation unit in bytes
@@ -136,7 +145,7 @@ struct rnbd_msg_open_rsp {
 	__le32			device_id;
 	__le64			nsectors;
 	__le32			max_hw_sectors;
-	__le32			max_write_same_sectors;
+	__le32			max_write_zeroes_sectors;
 	__le32			max_discard_sectors;
 	__le32			discard_granularity;
 	__le32			discard_alignment;
@@ -177,7 +186,7 @@ struct rnbd_msg_io {
  * @RNBD_OP_FLUSH:	     flush the volatile write cache
  * @RNBD_OP_DISCARD:        discard sectors
  * @RNBD_OP_SECURE_ERASE:   securely erase sectors
- * @RNBD_OP_WRITE_SAME:     write the same sectors many times
+ * @RNBD_OP_WRITE_ZEROES:   write zeroes sectors
 
  * @RNBD_F_SYNC:	     request is sync (sync write or read)
  * @RNBD_F_FUA:             forced unit access
@@ -185,23 +194,16 @@ struct rnbd_msg_io {
 enum rnbd_io_flags {
 
 	/* Operations */
-
 	RNBD_OP_READ		= 0,
 	RNBD_OP_WRITE		= 1,
 	RNBD_OP_FLUSH		= 2,
 	RNBD_OP_DISCARD	= 3,
 	RNBD_OP_SECURE_ERASE	= 4,
-	RNBD_OP_WRITE_SAME	= 5,
-
-	RNBD_OP_LAST,
+	RNBD_OP_WRITE_ZEROES	= 5,
 
 	/* Flags */
-
 	RNBD_F_SYNC  = 1<<(RNBD_OP_BITS + 0),
 	RNBD_F_FUA   = 1<<(RNBD_OP_BITS + 1),
-
-	RNBD_F_ALL   = (RNBD_F_SYNC | RNBD_F_FUA)
-
 };
 
 static inline u32 rnbd_op(u32 flags)
@@ -212,21 +214,6 @@ static inline u32 rnbd_op(u32 flags)
 static inline u32 rnbd_flags(u32 flags)
 {
 	return flags & ~RNBD_OP_MASK;
-}
-
-static inline bool rnbd_flags_supported(u32 flags)
-{
-	u32 op;
-
-	op = rnbd_op(flags);
-	flags = rnbd_flags(flags);
-
-	if (op >= RNBD_OP_LAST)
-		return false;
-	if (flags & ~RNBD_F_ALL)
-		return false;
-
-	return true;
 }
 
 static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
@@ -248,6 +235,9 @@ static inline blk_opf_t rnbd_to_bio_flags(u32 rnbd_opf)
 		break;
 	case RNBD_OP_SECURE_ERASE:
 		bio_opf = REQ_OP_SECURE_ERASE;
+		break;
+	case RNBD_OP_WRITE_ZEROES:
+		bio_opf = REQ_OP_WRITE_ZEROES;
 		break;
 	default:
 		WARN(1, "Unknown RNBD type: %d (flags %d)\n",
@@ -280,6 +270,9 @@ static inline u32 rq_to_rnbd_flags(struct request *rq)
 		break;
 	case REQ_OP_SECURE_ERASE:
 		rnbd_opf = RNBD_OP_SECURE_ERASE;
+		break;
+	case REQ_OP_WRITE_ZEROES:
+		rnbd_opf = RNBD_OP_WRITE_ZEROES;
 		break;
 	case REQ_OP_FLUSH:
 		rnbd_opf = RNBD_OP_FLUSH;

@@ -8,7 +8,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "emif.h"
 #include "ti-emif-asm-offsets.h"

@@ -1342,7 +1342,7 @@ static inline void cvmx_pow_tag_sw_wait(void)
  * This function does NOT wait for previous tag switches to complete,
  * so the caller must ensure that there is not a pending tag switch.
  *
- * @wait:   When set, call stalls until work becomes avaiable, or times out.
+ * @wait:   When set, call stalls until work becomes available, or times out.
  *		 If not set, returns immediately.
  *
  * Returns: the WQE pointer from POW. Returns NULL if no work
@@ -1376,7 +1376,7 @@ static inline struct cvmx_wqe *cvmx_pow_work_request_sync_nocheck(cvmx_pow_wait_
  * This function waits for any previous tag switch to complete before
  * requesting the new work.
  *
- * @wait:   When set, call stalls until work becomes avaiable, or times out.
+ * @wait:   When set, call stalls until work becomes available, or times out.
  *		 If not set, returns immediately.
  *
  * Returns: the WQE pointer from POW. Returns NULL if no work

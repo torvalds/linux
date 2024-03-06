@@ -19,7 +19,7 @@
  * typical sockaddr_storage. This is for space reasons, since sockaddr_storage
  * is much larger than a sockaddr_in6.
  */
-struct svc_cacherep {
+struct nfsd_cacherep {
 	struct {
 		/* Keep often-read xid, csum in the same cache line: */
 		__be32			k_xid;
@@ -80,10 +80,14 @@ enum {
 
 int	nfsd_drc_slab_create(void);
 void	nfsd_drc_slab_free(void);
+int	nfsd_net_reply_cache_init(struct nfsd_net *nn);
+void	nfsd_net_reply_cache_destroy(struct nfsd_net *nn);
 int	nfsd_reply_cache_init(struct nfsd_net *);
 void	nfsd_reply_cache_shutdown(struct nfsd_net *);
-int	nfsd_cache_lookup(struct svc_rqst *);
-void	nfsd_cache_update(struct svc_rqst *, int, __be32 *);
+int	nfsd_cache_lookup(struct svc_rqst *rqstp, unsigned int start,
+			  unsigned int len, struct nfsd_cacherep **cacherep);
+void	nfsd_cache_update(struct svc_rqst *rqstp, struct nfsd_cacherep *rp,
+			  int cachetype, __be32 *statp);
 int	nfsd_reply_cache_stats_show(struct seq_file *m, void *v);
 
 #endif /* NFSCACHE_H */

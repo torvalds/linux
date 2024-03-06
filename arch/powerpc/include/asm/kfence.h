@@ -23,7 +23,7 @@ static inline bool arch_kfence_init_pool(void)
 #ifdef CONFIG_PPC64
 static inline bool kfence_protect_page(unsigned long addr, bool protect)
 {
-	struct page *page = virt_to_page(addr);
+	struct page *page = virt_to_page((void *)addr);
 
 	__kernel_map_pages(page, 1, !protect);
 

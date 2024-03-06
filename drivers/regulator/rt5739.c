@@ -31,9 +31,16 @@
 #define RT5739_MODEVSEL1_MASK	BIT(1)
 #define RT5739_MODEVSEL0_MASK	BIT(0)
 #define RT5739_VID_MASK		GENMASK(7, 5)
+#define RT5739_DID_MASK		GENMASK(3, 0)
 #define RT5739_ACTD_MASK	BIT(7)
 #define RT5739_ENVSEL1_MASK	BIT(1)
 #define RT5739_ENVSEL0_MASK	BIT(0)
+
+#define RT5733_CHIPDIE_ID	0x1
+#define RT5733_VOLT_MINUV	270000
+#define RT5733_VOLT_MAXUV	1401250
+#define RT5733_VOLT_STPUV	6250
+#define RT5733_N_VOLTS		182
 
 #define RT5739_VOLT_MINUV	300000
 #define RT5739_VOLT_MAXUV	1300000
@@ -93,8 +100,11 @@ static int rt5739_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	const struct regulator_desc *desc = rdev->desc;
 	struct regmap *regmap = rdev_get_regmap(rdev);
 	unsigned int reg, vsel;
+	int max_uV;
 
-	if (uV < RT5739_VOLT_MINUV || uV > RT5739_VOLT_MAXUV)
+	max_uV = desc->min_uV + desc->uV_step * (desc->n_voltages - 1);
+
+	if (uV < desc->min_uV || uV > max_uV)
 		return -EINVAL;
 
 	if (desc->vsel_reg == RT5739_REG_NSEL0)
@@ -102,7 +112,7 @@ static int rt5739_set_suspend_voltage(struct regulator_dev *rdev, int uV)
 	else
 		reg = RT5739_REG_NSEL0;
 
-	vsel = (uV - RT5739_VOLT_MINUV) / RT5739_VOLT_STPUV;
+	vsel = (uV - desc->min_uV) / desc->uV_step;
 	return regmap_write(regmap, reg, vsel);
 }
 
@@ -189,15 +199,12 @@ static unsigned int rt5739_of_map_mode(unsigned int mode)
 }
 
 static void rt5739_init_regulator_desc(struct regulator_desc *desc,
-				       bool vsel_active_high)
+				       bool vsel_active_high, u8 did)
 {
 	/* Fixed */
 	desc->name = "rt5739-regulator";
 	desc->owner = THIS_MODULE;
 	desc->ops = &rt5739_regulator_ops;
-	desc->n_voltages = RT5739_N_VOLTS;
-	desc->min_uV = RT5739_VOLT_MINUV;
-	desc->uV_step = RT5739_VOLT_STPUV;
 	desc->vsel_mask = RT5739_VSEL_MASK;
 	desc->enable_reg = RT5739_REG_CNTL2;
 	desc->active_discharge_reg = RT5739_REG_CNTL1;
@@ -212,6 +219,20 @@ static void rt5739_init_regulator_desc(struct regulator_desc *desc,
 	} else {
 		desc->vsel_reg = RT5739_REG_NSEL0;
 		desc->enable_mask = RT5739_ENVSEL0_MASK;
+	}
+
+	/* Assigned by CHIPDIE ID */
+	switch (did) {
+	case RT5733_CHIPDIE_ID:
+		desc->n_voltages = RT5733_N_VOLTS;
+		desc->min_uV = RT5733_VOLT_MINUV;
+		desc->uV_step = RT5733_VOLT_STPUV;
+		break;
+	default:
+		desc->n_voltages = RT5739_N_VOLTS;
+		desc->min_uV = RT5739_VOLT_MINUV;
+		desc->uV_step = RT5739_VOLT_STPUV;
+		break;
 	}
 }
 
@@ -258,7 +279,7 @@ static int rt5739_probe(struct i2c_client *i2c)
 
 	vsel_acth = device_property_read_bool(dev, "richtek,vsel-active-high");
 
-	rt5739_init_regulator_desc(desc, vsel_acth);
+	rt5739_init_regulator_desc(desc, vsel_acth, vid & RT5739_DID_MASK);
 
 	cfg.dev = dev;
 	cfg.of_node = dev_of_node(dev);
@@ -271,6 +292,7 @@ static int rt5739_probe(struct i2c_client *i2c)
 }
 
 static const struct of_device_id rt5739_device_table[] = {
+	{ .compatible = "richtek,rt5733" },
 	{ .compatible = "richtek,rt5739" },
 	{ /* sentinel */ }
 };
@@ -282,7 +304,7 @@ static struct i2c_driver rt5739_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = rt5739_device_table,
 	},
-	.probe_new = rt5739_probe,
+	.probe = rt5739_probe,
 };
 module_i2c_driver(rt5739_driver);
 

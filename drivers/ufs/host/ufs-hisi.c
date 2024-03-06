@@ -293,9 +293,9 @@ static int ufs_hisi_link_startup_notify(struct ufs_hba *hba,
 	return err;
 }
 
-static void ufs_hisi_set_dev_cap(struct ufs_dev_params *hisi_param)
+static void ufs_hisi_set_dev_cap(struct ufs_host_params *host_params)
 {
-	ufshcd_init_pwr_dev_param(hisi_param);
+	ufshcd_init_host_params(host_params);
 }
 
 static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
@@ -335,29 +335,29 @@ static void ufs_hisi_pwr_change_pre_change(struct ufs_hba *hba)
 	/* PA_TxSkip */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(0x155c), 0x0);
 	/*PA_PWRModeUserData0 = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b0), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b0), SZ_8K - 1);
 	/*PA_PWRModeUserData1 = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b1), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b1), SZ_64K - 1);
 	/*PA_PWRModeUserData2 = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b2), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b2), SZ_32K - 1);
 	/*DME_FC0ProtectionTimeOutVal = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd041), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd041), SZ_8K - 1);
 	/*DME_TC0ReplayTimeOutVal = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd042), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd042), SZ_64K - 1);
 	/*DME_AFC0ReqTimeOutVal = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd043), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd043), SZ_32K - 1);
 	/*PA_PWRModeUserData3 = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b3), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b3), SZ_8K - 1);
 	/*PA_PWRModeUserData4 = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b4), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b4), SZ_64K - 1);
 	/*PA_PWRModeUserData5 = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b5), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0x15b5), SZ_32K - 1);
 	/*DME_FC1ProtectionTimeOutVal = 8191, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd044), 8191);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd044), SZ_8K - 1);
 	/*DME_TC1ReplayTimeOutVal = 65535, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd045), 65535);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd045), SZ_64K - 1);
 	/*DME_AFC1ReqTimeOutVal = 32767, default is 0*/
-	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), 32767);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(0xd046), SZ_32K - 1);
 }
 
 static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
@@ -365,7 +365,7 @@ static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
 				       struct ufs_pa_layer_attr *dev_max_params,
 				       struct ufs_pa_layer_attr *dev_req_params)
 {
-	struct ufs_dev_params ufs_hisi_cap;
+	struct ufs_host_params host_params;
 	int ret = 0;
 
 	if (!dev_req_params) {
@@ -377,9 +377,8 @@ static int ufs_hisi_pwr_change_notify(struct ufs_hba *hba,
 
 	switch (status) {
 	case PRE_CHANGE:
-		ufs_hisi_set_dev_cap(&ufs_hisi_cap);
-		ret = ufshcd_get_pwr_dev_param(&ufs_hisi_cap,
-					       dev_max_params, dev_req_params);
+		ufs_hisi_set_dev_cap(&host_params);
+		ret = ufshcd_negotiate_pwr_params(&host_params, dev_max_params, dev_req_params);
 		if (ret) {
 			dev_err(hba->dev,
 			    "%s: failed to determine capabilities\n", __func__);
@@ -575,12 +574,11 @@ static int ufs_hisi_probe(struct platform_device *pdev)
 	return ufshcd_pltfrm_init(pdev, of_id->data);
 }
 
-static int ufs_hisi_remove(struct platform_device *pdev)
+static void ufs_hisi_remove(struct platform_device *pdev)
 {
 	struct ufs_hba *hba =  platform_get_drvdata(pdev);
 
 	ufshcd_remove(hba);
-	return 0;
 }
 
 static const struct dev_pm_ops ufs_hisi_pm_ops = {
@@ -592,8 +590,7 @@ static const struct dev_pm_ops ufs_hisi_pm_ops = {
 
 static struct platform_driver ufs_hisi_pltform = {
 	.probe	= ufs_hisi_probe,
-	.remove	= ufs_hisi_remove,
-	.shutdown = ufshcd_pltfrm_shutdown,
+	.remove_new = ufs_hisi_remove,
 	.driver	= {
 		.name	= "ufshcd-hisi",
 		.pm	= &ufs_hisi_pm_ops,

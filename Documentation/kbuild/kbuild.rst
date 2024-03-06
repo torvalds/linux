@@ -150,6 +150,12 @@ the UTS_MACHINE variable, and on some architectures also the kernel config.
 The value of KBUILD_DEBARCH is assumed (not checked) to be a valid Debian
 architecture.
 
+KDOCFLAGS
+---------
+Specify extra (warning/error) flags for kernel-doc checks during the build,
+see scripts/kernel-doc for which flags are supported. Note that this doesn't
+(currently) apply to documentation builds.
+
 ARCH
 ----
 Set ARCH to the architecture to be built.
@@ -236,6 +242,12 @@ $(objtree) is the directory where output files are saved.
 The output directory is often set using "O=..." on the commandline.
 
 The value can be overridden in which case the default value is ignored.
+
+INSTALL_DTBS_PATH
+-----------------
+INSTALL_DTBS_PATH specifies where to install device tree blobs for
+relocations required by build roots.  This is not defined in the
+makefile but the argument can be passed to make if needed.
 
 KBUILD_ABS_SRCTREE
 --------------------------------------------------

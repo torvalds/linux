@@ -1066,13 +1066,18 @@ static void t7xx_hw_info_init(struct cldma_ctrl *md_ctrl)
 	struct t7xx_cldma_hw *hw_info = &md_ctrl->hw_info;
 	u32 phy_ao_base, phy_pd_base;
 
-	if (md_ctrl->hif_id != CLDMA_ID_MD)
-		return;
-
-	phy_ao_base = CLDMA1_AO_BASE;
-	phy_pd_base = CLDMA1_PD_BASE;
-	hw_info->phy_interrupt_id = CLDMA1_INT;
 	hw_info->hw_mode = MODE_BIT_64;
+
+	if (md_ctrl->hif_id == CLDMA_ID_MD) {
+		phy_ao_base = CLDMA1_AO_BASE;
+		phy_pd_base = CLDMA1_PD_BASE;
+		hw_info->phy_interrupt_id = CLDMA1_INT;
+	} else {
+		phy_ao_base = CLDMA0_AO_BASE;
+		phy_pd_base = CLDMA0_PD_BASE;
+		hw_info->phy_interrupt_id = CLDMA0_INT;
+	}
+
 	hw_info->ap_ao_base = t7xx_pcie_addr_transfer(pbase->pcie_ext_reg_base,
 						      pbase->pcie_dev_reg_trsl_addr, phy_ao_base);
 	hw_info->ap_pdn_base = t7xx_pcie_addr_transfer(pbase->pcie_ext_reg_base,
@@ -1293,9 +1298,9 @@ int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 	for (i = 0; i < CLDMA_TXQ_NUM; i++) {
 		md_cd_queue_struct_init(&md_ctrl->txq[i], md_ctrl, MTK_TX, i);
 		md_ctrl->txq[i].worker =
-			alloc_workqueue("md_hif%d_tx%d_worker",
-					WQ_UNBOUND | WQ_MEM_RECLAIM | (i ? 0 : WQ_HIGHPRI),
-					1, md_ctrl->hif_id, i);
+			alloc_ordered_workqueue("md_hif%d_tx%d_worker",
+					WQ_MEM_RECLAIM | (i ? 0 : WQ_HIGHPRI),
+					md_ctrl->hif_id, i);
 		if (!md_ctrl->txq[i].worker)
 			goto err_workqueue;
 
@@ -1306,9 +1311,10 @@ int t7xx_cldma_init(struct cldma_ctrl *md_ctrl)
 		md_cd_queue_struct_init(&md_ctrl->rxq[i], md_ctrl, MTK_RX, i);
 		INIT_WORK(&md_ctrl->rxq[i].cldma_work, t7xx_cldma_rx_done);
 
-		md_ctrl->rxq[i].worker = alloc_workqueue("md_hif%d_rx%d_worker",
-							 WQ_UNBOUND | WQ_MEM_RECLAIM,
-							 1, md_ctrl->hif_id, i);
+		md_ctrl->rxq[i].worker =
+			alloc_ordered_workqueue("md_hif%d_rx%d_worker",
+						WQ_MEM_RECLAIM,
+						md_ctrl->hif_id, i);
 		if (!md_ctrl->rxq[i].worker)
 			goto err_workqueue;
 	}

@@ -35,16 +35,16 @@ patternProperties:
   "^gpio@[0-9a-f]+$":
     # Child node
     type: object
-    $ref: "../gpio/brcm,bcm6345-gpio.yaml"
+    $ref: /schemas/gpio/brcm,bcm63xx-gpio.yaml
     description:
       GPIO controller for the SoC GPIOs. This child node definition
       should follow the bindings specified in
-      Documentation/devicetree/bindings/gpio/brcm,bcm6345-gpio.yaml.
+      Documentation/devicetree/bindings/gpio/brcm,bcm63xx-gpio.yaml.
 
   "^pinctrl@[0-9a-f]+$":
     # Child node
     type: object
-    $ref: "../pinctrl/brcm,bcm6328-pinctrl.yaml"
+    $ref: /schemas/pinctrl/brcm,bcm6328-pinctrl.yaml
     description:
       Pin controller for the SoC pins. This child node definition
       should follow the bindings specified in

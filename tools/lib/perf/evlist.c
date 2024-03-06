@@ -36,18 +36,33 @@ void perf_evlist__init(struct perf_evlist *evlist)
 static void __perf_evlist__propagate_maps(struct perf_evlist *evlist,
 					  struct perf_evsel *evsel)
 {
-	/*
-	 * We already have cpus for evsel (via PMU sysfs) so
-	 * keep it, if there's no target cpu list defined.
-	 */
 	if (evsel->system_wide) {
+		/* System wide: set the cpu map of the evsel to all online CPUs. */
 		perf_cpu_map__put(evsel->cpus);
-		evsel->cpus = perf_cpu_map__new(NULL);
+		evsel->cpus = perf_cpu_map__new_online_cpus();
+	} else if (evlist->has_user_cpus && evsel->is_pmu_core) {
+		/*
+		 * User requested CPUs on a core PMU, ensure the requested CPUs
+		 * are valid by intersecting with those of the PMU.
+		 */
+		perf_cpu_map__put(evsel->cpus);
+		evsel->cpus = perf_cpu_map__intersect(evlist->user_requested_cpus, evsel->own_cpus);
 	} else if (!evsel->own_cpus || evlist->has_user_cpus ||
-		   (!evsel->requires_cpu && perf_cpu_map__empty(evlist->user_requested_cpus))) {
+		(!evsel->requires_cpu && perf_cpu_map__has_any_cpu(evlist->user_requested_cpus))) {
+		/*
+		 * The PMU didn't specify a default cpu map, this isn't a core
+		 * event and the user requested CPUs or the evlist user
+		 * requested CPUs have the "any CPU" (aka dummy) CPU value. In
+		 * which case use the user requested CPUs rather than the PMU
+		 * ones.
+		 */
 		perf_cpu_map__put(evsel->cpus);
 		evsel->cpus = perf_cpu_map__get(evlist->user_requested_cpus);
 	} else if (evsel->cpus != evsel->own_cpus) {
+		/*
+		 * No user requested cpu map but the PMU cpu map doesn't match
+		 * the evsel's. Reset it back to the PMU cpu map.
+		 */
 		perf_cpu_map__put(evsel->cpus);
 		evsel->cpus = perf_cpu_map__get(evsel->own_cpus);
 	}
@@ -604,7 +619,7 @@ static int perf_evlist__nr_mmaps(struct perf_evlist *evlist)
 
 	/* One for each CPU */
 	nr_mmaps = perf_cpu_map__nr(evlist->all_cpus);
-	if (perf_cpu_map__empty(evlist->all_cpus)) {
+	if (perf_cpu_map__has_any_cpu_or_is_empty(evlist->all_cpus)) {
 		/* Plus one for each thread */
 		nr_mmaps += perf_thread_map__nr(evlist->threads);
 		/* Minus the per-thread CPU (-1) */
@@ -638,7 +653,7 @@ int perf_evlist__mmap_ops(struct perf_evlist *evlist,
 	if (evlist->pollfd.entries == NULL && perf_evlist__alloc_pollfd(evlist) < 0)
 		return -ENOMEM;
 
-	if (perf_cpu_map__empty(cpus))
+	if (perf_cpu_map__has_any_cpu_or_is_empty(cpus))
 		return mmap_per_thread(evlist, ops, mp);
 
 	return mmap_per_cpu(evlist, ops, mp);
@@ -722,4 +737,13 @@ int perf_evlist__nr_groups(struct perf_evlist *evlist)
 			nr_groups++;
 	}
 	return nr_groups;
+}
+
+void perf_evlist__go_system_wide(struct perf_evlist *evlist, struct perf_evsel *evsel)
+{
+	if (!evsel->system_wide) {
+		evsel->system_wide = true;
+		if (evlist->needs_map_propagation)
+			__perf_evlist__propagate_maps(evlist, evsel);
+	}
 }

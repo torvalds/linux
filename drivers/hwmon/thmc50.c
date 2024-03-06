@@ -420,7 +420,7 @@ static struct i2c_driver thmc50_driver = {
 	.driver = {
 		.name = "thmc50",
 	},
-	.probe_new = thmc50_probe,
+	.probe = thmc50_probe,
 	.id_table = thmc50_id,
 	.detect = thmc50_detect,
 	.address_list = normal_i2c,

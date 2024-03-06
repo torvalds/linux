@@ -56,17 +56,17 @@ static inline void setbits(struct sh_sci_spi *sp, int bits, int on)
 
 static inline void setsck(struct spi_device *dev, int on)
 {
-	setbits(spi_master_get_devdata(dev->master), PIN_SCK, on);
+	setbits(spi_controller_get_devdata(dev->controller), PIN_SCK, on);
 }
 
 static inline void setmosi(struct spi_device *dev, int on)
 {
-	setbits(spi_master_get_devdata(dev->master), PIN_TXD, on);
+	setbits(spi_controller_get_devdata(dev->controller), PIN_TXD, on);
 }
 
 static inline u32 getmiso(struct spi_device *dev)
 {
-	struct sh_sci_spi *sp = spi_master_get_devdata(dev->master);
+	struct sh_sci_spi *sp = spi_controller_get_devdata(dev->controller);
 
 	return (ioread8(SCSPTR(sp)) & PIN_RXD) ? 1 : 0;
 }
@@ -105,7 +105,7 @@ static u32 sh_sci_spi_txrx_mode3(struct spi_device *spi,
 
 static void sh_sci_spi_chipselect(struct spi_device *dev, int value)
 {
-	struct sh_sci_spi *sp = spi_master_get_devdata(dev->master);
+	struct sh_sci_spi *sp = spi_controller_get_devdata(dev->controller);
 
 	if (sp->info->chip_select)
 		(sp->info->chip_select)(sp->info, spi_get_chipselect(dev, 0), value);
@@ -114,18 +114,18 @@ static void sh_sci_spi_chipselect(struct spi_device *dev, int value)
 static int sh_sci_spi_probe(struct platform_device *dev)
 {
 	struct resource	*r;
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct sh_sci_spi *sp;
 	int ret;
 
-	master = spi_alloc_master(&dev->dev, sizeof(struct sh_sci_spi));
-	if (master == NULL) {
-		dev_err(&dev->dev, "failed to allocate spi master\n");
+	host = spi_alloc_host(&dev->dev, sizeof(struct sh_sci_spi));
+	if (host == NULL) {
+		dev_err(&dev->dev, "failed to allocate spi host\n");
 		ret = -ENOMEM;
 		goto err0;
 	}
 
-	sp = spi_master_get_devdata(master);
+	sp = spi_controller_get_devdata(host);
 
 	platform_set_drvdata(dev, sp);
 	sp->info = dev_get_platdata(&dev->dev);
@@ -136,7 +136,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	}
 
 	/* setup spi bitbang adaptor */
-	sp->bitbang.master = master;
+	sp->bitbang.master = host;
 	sp->bitbang.master->bus_num = sp->info->bus_num;
 	sp->bitbang.master->num_chipselect = sp->info->num_chipselect;
 	sp->bitbang.chipselect = sh_sci_spi_chipselect;
@@ -166,7 +166,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	setbits(sp, PIN_INIT, 0);
 	iounmap(sp->membase);
  err1:
-	spi_master_put(sp->bitbang.master);
+	spi_controller_put(sp->bitbang.master);
  err0:
 	return ret;
 }
@@ -178,7 +178,7 @@ static void sh_sci_spi_remove(struct platform_device *dev)
 	spi_bitbang_stop(&sp->bitbang);
 	setbits(sp, PIN_INIT, 0);
 	iounmap(sp->membase);
-	spi_master_put(sp->bitbang.master);
+	spi_controller_put(sp->bitbang.master);
 }
 
 static struct platform_driver sh_sci_spi_drv = {

@@ -13,6 +13,7 @@
 #include <linux/of_address.h>
 #include <linux/clk/ti.h>
 #include <linux/delay.h>
+#include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
 #include "clock.h"
 
@@ -258,6 +259,9 @@ static const char * __init clkctrl_get_clock_name(struct device_node *np,
 	if (clkctrl_name && !legacy_naming) {
 		clock_name = kasprintf(GFP_KERNEL, "%s-clkctrl:%04x:%d",
 				       clkctrl_name, offset, index);
+		if (!clock_name)
+			return NULL;
+
 		strreplace(clock_name, '_', '-');
 
 		return clock_name;
@@ -470,11 +474,11 @@ static const char * __init clkctrl_get_name(struct device_node *np)
 	const int prefix_len = 11;
 	const char *compat;
 	const char *output;
+	const char *end;
 	char *name;
 
 	if (!of_property_read_string_index(np, "clock-output-names", 0,
 					   &output)) {
-		const char *end;
 		int len;
 
 		len = strlen(output);
@@ -488,13 +492,13 @@ static const char * __init clkctrl_get_name(struct device_node *np)
 
 	of_property_for_each_string(np, "compatible", prop, compat) {
 		if (!strncmp("ti,clkctrl-", compat, prefix_len)) {
+			end = compat + prefix_len;
 			/* Two letter minimum name length for l3, l4 etc */
-			if (strnlen(compat + prefix_len, 16) < 2)
+			if (strnlen(end, 16) < 2)
 				continue;
-			name = kasprintf(GFP_KERNEL, "%s", compat + prefix_len);
+			name = kstrdup_and_replace(end, '-', '_', GFP_KERNEL);
 			if (!name)
 				continue;
-			strreplace(name, '-', '_');
 
 			return name;
 		}
@@ -586,6 +590,10 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	if (clkctrl_name) {
 		provider->clkdm_name = kasprintf(GFP_KERNEL,
 						 "%s_clkdm", clkctrl_name);
+		if (!provider->clkdm_name) {
+			kfree(provider);
+			return;
+		}
 		goto clkdm_found;
 	}
 

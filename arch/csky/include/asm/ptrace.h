@@ -96,5 +96,7 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 	return *(unsigned long *)((unsigned long)regs + offset);
 }
 
+asmlinkage int syscall_trace_enter(struct pt_regs *regs);
+asmlinkage void syscall_trace_exit(struct pt_regs *regs);
 #endif /* __ASSEMBLY__ */
 #endif /* __ASM_CSKY_PTRACE_H */

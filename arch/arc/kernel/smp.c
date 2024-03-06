@@ -23,9 +23,10 @@
 #include <linux/export.h>
 #include <linux/of_fdt.h>
 
-#include <asm/processor.h>
-#include <asm/setup.h>
 #include <asm/mach_desc.h>
+#include <asm/setup.h>
+#include <asm/smp.h>
+#include <asm/processor.h>
 
 #ifndef CONFIG_ARC_HAS_LLSC
 arch_spinlock_t smp_atomic_ops_lock = __ARCH_SPIN_LOCK_UNLOCKED;
@@ -351,7 +352,7 @@ static inline int __do_IPI(unsigned long msg)
  * arch-common ISR to handle for inter-processor interrupts
  * Has hooks for platform specific IPI
  */
-irqreturn_t do_IPI(int irq, void *dev_id)
+static irqreturn_t do_IPI(int irq, void *dev_id)
 {
 	unsigned long pending;
 	unsigned long __maybe_unused copy;

@@ -5,20 +5,29 @@
  * This file contains network checksum routines that are better done
  * in an architecture-specific manner due to speed.
  */
- 
+
 #include <linux/compiler.h>
 #include <linux/export.h>
 #include <asm/checksum.h>
 #include <asm/word-at-a-time.h>
 
-static inline unsigned short from32to16(unsigned a) 
+static inline __wsum csum_finalize_sum(u64 temp64)
 {
-	unsigned short b = a >> 16; 
-	asm("addw %w2,%w0\n\t"
-	    "adcw $0,%w0\n" 
-	    : "=r" (b)
-	    : "0" (b), "r" (a));
-	return b;
+	return (__force __wsum)((temp64 + ror64(temp64, 32)) >> 32);
+}
+
+static inline unsigned long update_csum_40b(unsigned long sum, const unsigned long m[5])
+{
+	asm("addq %1,%0\n\t"
+	     "adcq %2,%0\n\t"
+	     "adcq %3,%0\n\t"
+	     "adcq %4,%0\n\t"
+	     "adcq %5,%0\n\t"
+	     "adcq $0,%0"
+		:"+r" (sum)
+		:"m" (m[0]), "m" (m[1]), "m" (m[2]),
+		 "m" (m[3]), "m" (m[4]));
+	return sum;
 }
 
 /*
@@ -35,33 +44,32 @@ static inline unsigned short from32to16(unsigned a)
 __wsum csum_partial(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (__force u64)sum;
-	unsigned odd, result;
 
-	odd = 1 & (unsigned long) buff;
-	if (unlikely(odd)) {
-		if (unlikely(len == 0))
-			return sum;
-		temp64 = ror32((__force u32)sum, 8);
-		temp64 += (*(unsigned char *)buff << 8);
-		len--;
-		buff++;
+	/* Do two 40-byte chunks in parallel to get better ILP */
+	if (likely(len >= 80)) {
+		u64 temp64_2 = 0;
+		do {
+			temp64 = update_csum_40b(temp64, buff);
+			temp64_2 = update_csum_40b(temp64_2, buff + 40);
+			buff += 80;
+			len -= 80;
+		} while (len >= 80);
+
+		asm("addq %1,%0\n\t"
+		    "adcq $0,%0"
+		    :"+r" (temp64): "r" (temp64_2));
 	}
 
-	while (unlikely(len >= 64)) {
-		asm("addq 0*8(%[src]),%[res]\n\t"
-		    "adcq 1*8(%[src]),%[res]\n\t"
-		    "adcq 2*8(%[src]),%[res]\n\t"
-		    "adcq 3*8(%[src]),%[res]\n\t"
-		    "adcq 4*8(%[src]),%[res]\n\t"
-		    "adcq 5*8(%[src]),%[res]\n\t"
-		    "adcq 6*8(%[src]),%[res]\n\t"
-		    "adcq 7*8(%[src]),%[res]\n\t"
-		    "adcq $0,%[res]"
-		    : [res] "+r" (temp64)
-		    : [src] "r" (buff)
-		    : "memory");
-		buff += 64;
-		len -= 64;
+	/*
+	 * len == 40 is the hot case due to IPv6 headers, so return
+	 * early for that exact case without checking the tail bytes.
+	 */
+	if (len >= 40) {
+		temp64 = update_csum_40b(temp64, buff);
+		len -= 40;
+		if (!len)
+			return csum_finalize_sum(temp64);
+		buff += 40;
 	}
 
 	if (len & 32) {
@@ -70,45 +78,37 @@ __wsum csum_partial(const void *buff, int len, __wsum sum)
 		    "adcq 2*8(%[src]),%[res]\n\t"
 		    "adcq 3*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [src] "r" (buff)
-			: "memory");
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[32])buff));
 		buff += 32;
 	}
 	if (len & 16) {
 		asm("addq 0*8(%[src]),%[res]\n\t"
 		    "adcq 1*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [src] "r" (buff)
-			: "memory");
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[16])buff));
 		buff += 16;
 	}
 	if (len & 8) {
 		asm("addq 0*8(%[src]),%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [src] "r" (buff)
-			: "memory");
+		    : [res] "+r"(temp64)
+		    : [src] "r"(buff), "m"(*(const char(*)[8])buff));
 		buff += 8;
 	}
 	if (len & 7) {
-		unsigned int shift = (8 - (len & 7)) * 8;
+		unsigned int shift = (-len << 3) & 63;
 		unsigned long trail;
 
 		trail = (load_unaligned_zeropad(buff) << shift) >> shift;
 
 		asm("addq %[trail],%[res]\n\t"
 		    "adcq $0,%[res]"
-			: [res] "+r" (temp64)
-			: [trail] "r" (trail));
+		    : [res] "+r"(temp64)
+		    : [trail] "r"(trail));
 	}
-	result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
-	if (unlikely(odd)) {
-		result = from32to16(result);
-		result = ((result >> 8) & 0xff) | ((result & 0xff) << 8);
-	}
-	return (__force __wsum)result;
+	return csum_finalize_sum(temp64);
 }
 EXPORT_SYMBOL(csum_partial);
 
@@ -118,6 +118,6 @@ EXPORT_SYMBOL(csum_partial);
  */
 __sum16 ip_compute_csum(const void *buff, int len)
 {
-	return csum_fold(csum_partial(buff,len,0));
+	return csum_fold(csum_partial(buff, len, 0));
 }
 EXPORT_SYMBOL(ip_compute_csum);

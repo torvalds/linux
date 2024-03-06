@@ -790,7 +790,7 @@ static struct i2c_driver as73211_driver = {
 		.of_match_table = as73211_of_match,
 		.pm             = pm_sleep_ptr(&as73211_pm_ops),
 	},
-	.probe_new  = as73211_probe,
+	.probe      = as73211_probe,
 	.id_table   = as73211_id,
 };
 module_i2c_driver(as73211_driver);

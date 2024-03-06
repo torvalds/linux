@@ -49,12 +49,18 @@ MODULE_FIRMWARE("amdgpu/psp_13_0_10_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_11_toc.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_11_ta.bin");
 MODULE_FIRMWARE("amdgpu/psp_13_0_6_sos.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_6_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_0_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_14_0_0_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
 
 /* Read USB-PD from LFB */
 #define GFX_CMD_USB_PD_USE_LFB 0x480
+
+/* Retry times for vmbx ready wait */
+#define PSP_VMBX_POLLING_LIMIT 3000
 
 /* VBIOS gfl defines */
 #define MBOX_READY_MASK 0x80000000
@@ -76,7 +82,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 
 	amdgpu_ucode_ip_version_decode(adev, MP0_HWIP, ucode_prefix, sizeof(ucode_prefix));
 
-	switch (adev->ip_versions[MP0_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, MP0_HWIP, 0)) {
 	case IP_VERSION(13, 0, 2):
 		err = psp_init_sos_microcode(psp, ucode_prefix);
 		if (err)
@@ -93,6 +99,7 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	case IP_VERSION(13, 0, 5):
 	case IP_VERSION(13, 0, 8):
 	case IP_VERSION(13, 0, 11):
+	case IP_VERSION(14, 0, 0):
 		err = psp_init_toc_microcode(psp, ucode_prefix);
 		if (err)
 			return err;
@@ -129,27 +136,65 @@ static bool psp_v13_0_is_sos_alive(struct psp_context *psp)
 	return sol_reg != 0x0;
 }
 
+static int psp_v13_0_wait_for_vmbx_ready(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	int retry_loop, ret;
+
+	for (retry_loop = 0; retry_loop < PSP_VMBX_POLLING_LIMIT; retry_loop++) {
+		/* Wait for bootloader to signify that is
+		   ready having bit 31 of C2PMSG_33 set to 1 */
+		ret = psp_wait_for(
+			psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_33),
+			0x80000000, 0xffffffff, false);
+
+		if (ret == 0)
+			break;
+	}
+
+	if (ret)
+		dev_warn(adev->dev, "Bootloader wait timed out");
+
+	return ret;
+}
+
 static int psp_v13_0_wait_for_bootloader(struct psp_context *psp)
 {
 	struct amdgpu_device *adev = psp->adev;
+	int retry_loop, retry_cnt, ret;
 
-	int ret;
-	int retry_loop;
-
-	for (retry_loop = 0; retry_loop < 10; retry_loop++) {
-		/* Wait for bootloader to signify that is
-		    ready having bit 31 of C2PMSG_35 set to 1 */
-		ret = psp_wait_for(psp,
-				   SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_35),
-				   0x80000000,
-				   0x80000000,
-				   false);
+	retry_cnt =
+		(amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) ?
+			PSP_VMBX_POLLING_LIMIT :
+			10;
+	/* Wait for bootloader to signify that it is ready having bit 31 of
+	 * C2PMSG_35 set to 1. All other bits are expected to be cleared.
+	 * If there is an error in processing command, bits[7:0] will be set.
+	 * This is applicable for PSP v13.0.6 and newer.
+	 */
+	for (retry_loop = 0; retry_loop < retry_cnt; retry_loop++) {
+		ret = psp_wait_for(
+			psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_35),
+			0x80000000, 0xffffffff, false);
 
 		if (ret == 0)
 			return 0;
 	}
 
 	return ret;
+}
+
+static int psp_v13_0_wait_for_bootloader_steady_state(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 6)) {
+		psp_v13_0_wait_for_vmbx_ready(psp);
+
+		return psp_v13_0_wait_for_bootloader(psp);
+	}
+
+	return 0;
 }
 
 static int psp_v13_0_bootloader_load_component(struct psp_context  	*psp,
@@ -222,6 +267,12 @@ static int psp_v13_0_bootloader_load_ras_drv(struct psp_context *psp)
 	return psp_v13_0_bootloader_load_component(psp, &psp->ras_drv, PSP_BL__LOAD_RASDRV);
 }
 
+static inline void psp_v13_0_init_sos_version(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	psp->sos.fw_version = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_58);
+}
 
 static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 {
@@ -232,8 +283,10 @@ static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 	/* Check sOS sign of life register to confirm sys driver and sOS
 	 * are already been loaded.
 	 */
-	if (psp_v13_0_is_sos_alive(psp))
+	if (psp_v13_0_is_sos_alive(psp)) {
+		psp_v13_0_init_sos_version(psp);
 		return 0;
+	}
 
 	ret = psp_v13_0_wait_for_bootloader(psp);
 	if (ret)
@@ -256,6 +309,9 @@ static int psp_v13_0_bootloader_load_sos(struct psp_context *psp)
 	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_81),
 			   RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_81),
 			   0, true);
+
+	if (!ret)
+		psp_v13_0_init_sos_version(psp);
 
 	return ret;
 }
@@ -624,10 +680,11 @@ static int psp_v13_0_exec_spi_cmd(struct psp_context *psp, int cmd)
 	WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_73, 1);
 
 	if (cmd == C2PMSG_CMD_SPI_UPDATE_FLASH_IMAGE)
-		return 0;
-
-	ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
-				MBOX_READY_FLAG, MBOX_READY_MASK, false);
+		ret = psp_wait_for_spirom_update(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
+						 MBOX_READY_FLAG, MBOX_READY_MASK, PSP_SPIROM_UPDATE_TIMEOUT);
+	else
+		ret = psp_wait_for(psp, SOC15_REG_OFFSET(MP0, 0, regMP0_SMN_C2PMSG_115),
+				   MBOX_READY_FLAG, MBOX_READY_MASK, false);
 	if (ret) {
 		dev_err(adev->dev, "SPI cmd %x timed out, ret = %d", cmd, ret);
 		return ret;
@@ -685,8 +742,107 @@ static int psp_v13_0_vbflash_status(struct psp_context *psp)
 	return RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_115);
 }
 
+static int psp_v13_0_fatal_error_recovery_quirk(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) == IP_VERSION(13, 0, 10)) {
+		uint32_t  reg_data;
+		/* MP1 fatal error: trigger PSP dram read to unhalt PSP
+		 * during MP1 triggered sync flood.
+		 */
+		reg_data = RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_67);
+		WREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_67, reg_data + 0x10);
+
+		/* delay 1000ms for the mode1 reset for fatal error
+		 * to be recovered back.
+		 */
+		msleep(1000);
+	}
+
+	return 0;
+}
+
+
+static void psp_v13_0_boot_error_reporting(struct amdgpu_device *adev,
+					   uint32_t inst,
+					   uint32_t boot_error)
+{
+	uint32_t socket_id;
+	uint32_t aid_id;
+	uint32_t hbm_id;
+	uint32_t reg_data;
+
+	socket_id = REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, SOCKET_ID);
+	aid_id = REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, AID_ID);
+	hbm_id = REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, HBM_ID);
+
+	reg_data = RREG32_SOC15(MP0, inst, regMP0_SMN_C2PMSG_109);
+	dev_info(adev->dev, "socket: %d, aid: %d, firmware boot failed, fw status is 0x%x\n",
+		 socket_id, aid_id, reg_data);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_MEM_TRAINING))
+		dev_info(adev->dev, "socket: %d, aid: %d, hbm: %d, memory training failed\n",
+			 socket_id, aid_id, hbm_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_FW_LOAD))
+		dev_info(adev->dev, "socket: %d, aid: %d, firmware load failed at boot time\n",
+			 socket_id, aid_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_WAFL_LINK_TRAINING))
+		dev_info(adev->dev, "socket: %d, aid: %d, wafl link training failed\n",
+			 socket_id, aid_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_XGMI_LINK_TRAINING))
+		dev_info(adev->dev, "socket: %d, aid: %d, xgmi link training failed\n",
+			 socket_id, aid_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_USR_CP_LINK_TRAINING))
+		dev_info(adev->dev, "socket: %d, aid: %d, usr cp link training failed\n",
+			 socket_id, aid_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_USR_DP_LINK_TRAINING))
+		dev_info(adev->dev, "socket: %d, aid: %d, usr dp link training failed\n",
+			 socket_id, aid_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_HBM_MEM_TEST))
+		dev_info(adev->dev, "socket: %d, aid: %d, hbm: %d, hbm memory test failed\n",
+			 socket_id, aid_id, hbm_id);
+
+	if (REG_GET_FIELD(boot_error, MP0_SMN_C2PMSG_126, GPU_ERR_HBM_BIST_TEST))
+		dev_info(adev->dev, "socket: %d, aid: %d, hbm: %d, hbm bist test failed\n",
+			 socket_id, aid_id, hbm_id);
+}
+
+static int psp_v13_0_query_boot_status(struct psp_context *psp)
+{
+	struct amdgpu_device *adev = psp->adev;
+	int inst_mask = adev->aid_mask;
+	uint32_t reg_data;
+	uint32_t i;
+	int ret = 0;
+
+	if (amdgpu_ip_version(adev, MP0_HWIP, 0) != IP_VERSION(13, 0, 6))
+		return 0;
+
+	if (RREG32_SOC15(MP0, 0, regMP0_SMN_C2PMSG_59) < 0x00a10109)
+		return 0;
+
+	for_each_inst(i, inst_mask) {
+		reg_data = RREG32_SOC15(MP0, i, regMP0_SMN_C2PMSG_126);
+		if (!REG_GET_FIELD(reg_data, MP0_SMN_C2PMSG_126, BOOT_STATUS)) {
+			psp_v13_0_boot_error_reporting(adev, i, reg_data);
+			ret = -EINVAL;
+			break;
+		}
+	}
+
+	return ret;
+}
+
 static const struct psp_funcs psp_v13_0_funcs = {
 	.init_microcode = psp_v13_0_init_microcode,
+	.wait_for_bootloader = psp_v13_0_wait_for_bootloader_steady_state,
 	.bootloader_load_kdb = psp_v13_0_bootloader_load_kdb,
 	.bootloader_load_spl = psp_v13_0_bootloader_load_spl,
 	.bootloader_load_sysdrv = psp_v13_0_bootloader_load_sysdrv,
@@ -704,7 +860,9 @@ static const struct psp_funcs psp_v13_0_funcs = {
 	.load_usbc_pd_fw = psp_v13_0_load_usbc_pd_fw,
 	.read_usbc_pd_fw = psp_v13_0_read_usbc_pd_fw,
 	.update_spirom = psp_v13_0_update_spirom,
-	.vbflash_stat = psp_v13_0_vbflash_status
+	.vbflash_stat = psp_v13_0_vbflash_status,
+	.fatal_error_recovery_quirk = psp_v13_0_fatal_error_recovery_quirk,
+	.query_boot_status = psp_v13_0_query_boot_status,
 };
 
 void psp_v13_0_set_psp_funcs(struct psp_context *psp)

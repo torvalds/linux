@@ -509,7 +509,7 @@ static int blkif_getgeo(struct block_device *bd, struct hd_geometry *hg)
 	return 0;
 }
 
-static int blkif_ioctl(struct block_device *bdev, fmode_t mode,
+static int blkif_ioctl(struct block_device *bdev, blk_mode_t mode,
 		       unsigned command, unsigned long argument)
 {
 	struct blkfront_info *info = bdev->bd_disk->private_data;

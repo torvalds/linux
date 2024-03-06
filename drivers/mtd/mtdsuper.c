@@ -20,38 +20,6 @@
 #include "mtdcore.h"
 
 /*
- * compare superblocks to see if they're equivalent
- * - they are if the underlying MTD device is the same
- */
-static int mtd_test_super(struct super_block *sb, struct fs_context *fc)
-{
-	struct mtd_info *mtd = fc->sget_key;
-
-	if (sb->s_mtd == fc->sget_key) {
-		pr_debug("MTDSB: Match on device %d (\"%s\")\n",
-			 mtd->index, mtd->name);
-		return 1;
-	}
-
-	pr_debug("MTDSB: No match, device %d (\"%s\"), device %d (\"%s\")\n",
-		 sb->s_mtd->index, sb->s_mtd->name, mtd->index, mtd->name);
-	return 0;
-}
-
-/*
- * mark the superblock by the MTD device it is using
- * - set the device number to be the correct MTD block device for pesuperstence
- *   of NFS exports
- */
-static int mtd_set_super(struct super_block *sb, struct fs_context *fc)
-{
-	sb->s_mtd = fc->sget_key;
-	sb->s_dev = MKDEV(MTD_BLOCK_MAJOR, sb->s_mtd->index);
-	sb->s_bdi = bdi_get(mtd_bdi);
-	return 0;
-}
-
-/*
  * get a superblock on an MTD-backed filesystem
  */
 static int mtd_get_sb(struct fs_context *fc,
@@ -62,8 +30,7 @@ static int mtd_get_sb(struct fs_context *fc,
 	struct super_block *sb;
 	int ret;
 
-	fc->sget_key = mtd;
-	sb = sget_fc(fc, mtd_test_super, mtd_set_super);
+	sb = sget_dev(fc, MKDEV(MTD_BLOCK_MAJOR, mtd->index));
 	if (IS_ERR(sb))
 		return PTR_ERR(sb);
 
@@ -76,6 +43,16 @@ static int mtd_get_sb(struct fs_context *fc,
 		/* fresh new superblock */
 		pr_debug("MTDSB: New superblock for device %d (\"%s\")\n",
 			 mtd->index, mtd->name);
+
+		/*
+		 * Would usually have been set with @sb_lock held but in
+		 * contrast to sb->s_bdev that's checked with only
+		 * @sb_lock held, nothing checks sb->s_mtd without also
+		 * holding sb->s_umount and we're holding sb->s_umount
+		 * here.
+		 */
+		sb->s_mtd = mtd;
+		sb->s_bdi = bdi_get(mtd_bdi);
 
 		ret = fill_super(sb, fc);
 		if (ret < 0)

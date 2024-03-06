@@ -279,11 +279,9 @@ static int cn23xx_setup_vf_mbox(struct octeon_device *oct)
 {
 	struct octeon_mbox *mbox = NULL;
 
-	mbox = vmalloc(sizeof(*mbox));
+	mbox = vzalloc(sizeof(*mbox));
 	if (!mbox)
 		return 1;
-
-	memset(mbox, 0, sizeof(struct octeon_mbox));
 
 	spin_lock_init(&mbox->lock);
 
@@ -386,6 +384,7 @@ void cn23xx_vf_ask_pf_to_do_flr(struct octeon_device *oct)
 
 	octeon_mbox_write(oct, &mbox_cmd);
 }
+EXPORT_SYMBOL_GPL(cn23xx_vf_ask_pf_to_do_flr);
 
 static void octeon_pfvf_hs_callback(struct octeon_device *oct,
 				    struct octeon_mbox_cmd *cmd,
@@ -430,7 +429,7 @@ int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct)
 	mbox_cmd.q_no = 0;
 	mbox_cmd.recv_len = 0;
 	mbox_cmd.recv_status = 0;
-	mbox_cmd.fn = (octeon_mbox_callback_t)octeon_pfvf_hs_callback;
+	mbox_cmd.fn = octeon_pfvf_hs_callback;
 	mbox_cmd.fn_arg = &status;
 
 	octeon_mbox_write(oct, &mbox_cmd);
@@ -468,6 +467,7 @@ int cn23xx_octeon_pfvf_handshake(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cn23xx_octeon_pfvf_handshake);
 
 static void cn23xx_handle_vf_mbox_intr(struct octeon_ioq_vector *ioq_vector)
 {
@@ -680,3 +680,4 @@ int cn23xx_setup_octeon_vf_device(struct octeon_device *oct)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(cn23xx_setup_octeon_vf_device);

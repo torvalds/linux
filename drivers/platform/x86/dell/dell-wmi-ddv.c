@@ -616,7 +616,8 @@ static int dell_wmi_ddv_hwmon_add(struct dell_wmi_ddv_data *data)
 	}
 
 	if (index < 2) {
-		ret = -ENODEV;
+		/* Finding no available sensors is not an error */
+		ret = 0;
 
 		goto err_release;
 	}
@@ -841,13 +842,13 @@ static int dell_wmi_ddv_probe(struct wmi_device *wdev, const void *context)
 
 	if (IS_REACHABLE(CONFIG_ACPI_BATTERY)) {
 		ret = dell_wmi_ddv_battery_add(data);
-		if (ret < 0 && ret != -ENODEV)
+		if (ret < 0)
 			dev_warn(&wdev->dev, "Unable to register ACPI battery hook: %d\n", ret);
 	}
 
 	if (IS_REACHABLE(CONFIG_HWMON)) {
 		ret = dell_wmi_ddv_hwmon_add(data);
-		if (ret < 0 && ret != -ENODEV)
+		if (ret < 0)
 			dev_warn(&wdev->dev, "Unable to register hwmon interface: %d\n", ret);
 	}
 

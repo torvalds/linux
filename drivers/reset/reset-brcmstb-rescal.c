@@ -66,14 +66,12 @@ static const struct reset_control_ops brcm_rescal_reset_ops = {
 static int brcm_rescal_reset_probe(struct platform_device *pdev)
 {
 	struct brcm_rescal_reset *data;
-	struct resource *res;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 

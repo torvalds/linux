@@ -528,7 +528,7 @@ static struct i2c_driver sunrise_driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = sunrise_of_match,
 	},
-	.probe_new = sunrise_probe,
+	.probe = sunrise_probe,
 };
 module_i2c_driver(sunrise_driver);
 

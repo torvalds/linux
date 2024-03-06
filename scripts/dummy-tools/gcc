@@ -85,11 +85,20 @@ if arg_contain -S "$@"; then
 	fi
 
 	# For arch/powerpc/tools/gcc-check-mprofile-kernel.sh
-	if arg_contain -m64 "$@" && arg_contain -mlittle-endian "$@" &&
-		arg_contain -mprofile-kernel "$@"; then
+	if arg_contain -m64 "$@" && arg_contain -mprofile-kernel "$@"; then
 		if ! test -t 0 && ! grep -q notrace; then
 			echo "_mcount"
 		fi
+		exit 0
+	fi
+
+	# For arch/powerpc/tools/gcc-check-fpatchable-function-entry.sh
+	if arg_contain -m64 "$@" && arg_contain -fpatchable-function-entry=2 "$@"; then
+		echo "func:"
+		echo ".section __patchable_function_entries"
+		echo ".localentry"
+		echo "  nop"
+		echo "  nop"
 		exit 0
 	fi
 fi

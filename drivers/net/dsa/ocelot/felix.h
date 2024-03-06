@@ -57,7 +57,6 @@ struct felix_info {
 	void	(*mdio_bus_free)(struct ocelot *ocelot);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type, void *type_data);
-	void	(*tas_guard_bands_update)(struct ocelot *ocelot, int port);
 	void	(*port_sched_speed_set)(struct ocelot *ocelot, int port,
 					u32 speed);
 	void	(*phylink_mac_config)(struct ocelot *ocelot, int port,
@@ -78,9 +77,9 @@ struct felix_tag_proto_ops {
 	int (*setup)(struct dsa_switch *ds);
 	void (*teardown)(struct dsa_switch *ds);
 	unsigned long (*get_host_fwd_mask)(struct dsa_switch *ds);
-	int (*change_master)(struct dsa_switch *ds, int port,
-			     struct net_device *master,
-			     struct netlink_ext_ack *extack);
+	int (*change_conduit)(struct dsa_switch *ds, int port,
+			      struct net_device *conduit,
+			      struct netlink_ext_ack *extack);
 };
 
 extern const struct dsa_switch_ops felix_switch_ops;

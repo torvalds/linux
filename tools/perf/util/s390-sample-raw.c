@@ -27,7 +27,7 @@
 #include "color.h"
 #include "sample-raw.h"
 #include "s390-cpumcf-kernel.h"
-#include "pmu-events/pmu-events.h"
+#include "util/pmu.h"
 #include "util/sample.h"
 
 static size_t ctrset_size(struct cf_ctrset_entry *set)
@@ -51,8 +51,6 @@ static bool s390_cpumcfdg_testctr(struct perf_sample *sample)
 	struct cf_trailer_entry *te;
 	struct cf_ctrset_entry *cep, ce;
 
-	if (!len)
-		return false;
 	while (offset < len) {
 		cep = (struct cf_ctrset_entry *)(buf + offset);
 		ce.def = be16_to_cpu(cep->def);
@@ -125,6 +123,9 @@ static int get_counterset_start(int setnr)
 		return 128;
 	case CPUMF_CTR_SET_MT_DIAG:		/* Diagnostic counter set */
 		return 448;
+	case PERF_EVENT_PAI_NNPA_ALL:		/* PAI NNPA counter set */
+	case PERF_EVENT_PAI_CRYPTO_ALL:		/* PAI CRYPTO counter set */
+		return setnr;
 	default:
 		return -1;
 	}
@@ -132,56 +133,58 @@ static int get_counterset_start(int setnr)
 
 struct get_counter_name_data {
 	int wanted;
-	const char *result;
+	char *result;
 };
 
-static int get_counter_name_callback(const struct pmu_event *evp,
-				     const struct pmu_events_table *table __maybe_unused,
-				     void *vdata)
+static int get_counter_name_callback(void *vdata, struct pmu_event_info *info)
 {
 	struct get_counter_name_data *data = vdata;
 	int rc, event_nr;
+	const char *event_str;
 
-	if (evp->name == NULL || evp->event == NULL)
+	if (info->str == NULL)
 		return 0;
-	rc = sscanf(evp->event, "event=%x", &event_nr);
+
+	event_str = strstr(info->str, "event=");
+	if (!event_str)
+		return 0;
+
+	rc = sscanf(event_str, "event=%x", &event_nr);
 	if (rc == 1 && event_nr == data->wanted) {
-		data->result = evp->name;
+		data->result = strdup(info->name);
 		return 1; /* Terminate the search. */
 	}
 	return 0;
 }
 
-/* Scan the PMU table and extract the logical name of a counter from the
- * PMU events table. Input is the counter set and counter number with in the
- * set. Construct the event number and use this as key. If they match return
- * the name of this counter.
+/* Scan the PMU and extract the logical name of a counter from the event. Input
+ * is the counter set and counter number with in the set. Construct the event
+ * number and use this as key. If they match return the name of this counter.
  * If no match is found a NULL pointer is returned.
  */
-static const char *get_counter_name(int set, int nr, const struct pmu_events_table *table)
+static char *get_counter_name(int set, int nr, struct perf_pmu *pmu)
 {
 	struct get_counter_name_data data = {
 		.wanted = get_counterset_start(set) + nr,
 		.result = NULL,
 	};
 
-	if (!table)
+	if (!pmu)
 		return NULL;
 
-	pmu_events_table_for_each_event(table, get_counter_name_callback, &data);
+	perf_pmu__for_each_event(pmu, /*skip_duplicate_pmus=*/ true,
+				 &data, get_counter_name_callback);
 	return data.result;
 }
 
-static void s390_cpumcfdg_dump(struct perf_sample *sample)
+static void s390_cpumcfdg_dump(struct perf_pmu *pmu, struct perf_sample *sample)
 {
 	size_t i, len = sample->raw_size, offset = 0;
 	unsigned char *buf = sample->raw_data;
 	const char *color = PERF_COLOR_BLUE;
 	struct cf_ctrset_entry *cep, ce;
-	const struct pmu_events_table *table;
 	u64 *p;
 
-	table = pmu_events_table__find();
 	while (offset < len) {
 		cep = (struct cf_ctrset_entry *)(buf + offset);
 
@@ -199,37 +202,131 @@ static void s390_cpumcfdg_dump(struct perf_sample *sample)
 		color_fprintf(stdout, color, "    [%#08zx] Counterset:%d"
 			      " Counters:%d\n", offset, ce.set, ce.ctr);
 		for (i = 0, p = (u64 *)(cep + 1); i < ce.ctr; ++i, ++p) {
-			const char *ev_name = get_counter_name(ce.set, i, table);
+			char *ev_name = get_counter_name(ce.set, i, pmu);
 
 			color_fprintf(stdout, color,
 				      "\tCounter:%03d %s Value:%#018lx\n", i,
 				      ev_name ?: "<unknown>", be64_to_cpu(*p));
+			free(ev_name);
 		}
 		offset += ctrset_size(&ce);
 	}
 }
 
-/* S390 specific trace event function. Check for PERF_RECORD_SAMPLE events
- * and if the event was triggered by a counter set diagnostic event display
- * its raw data.
- * The function is only invoked when the dump flag -D is set.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpacked"
+#pragma GCC diagnostic ignored "-Wattributes"
+/*
+ * Check for consistency of PAI_CRYPTO/PAI_NNPA raw data.
  */
-void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event, struct perf_sample *sample)
+struct pai_data {		/* Event number and value */
+	u16 event_nr;
+	u64 event_val;
+} __packed;
+
+#pragma GCC diagnostic pop
+
+/*
+ * Test for valid raw data. At least one PAI event should be in the raw
+ * data section.
+ */
+static bool s390_pai_all_test(struct perf_sample *sample)
 {
-	struct evsel *ev_bc000;
+	size_t len = sample->raw_size;
+
+	if (len < 0xa)
+		return false;
+	return true;
+}
+
+static void s390_pai_all_dump(struct evsel *evsel, struct perf_sample *sample)
+{
+	size_t len = sample->raw_size, offset = 0;
+	unsigned char *p = sample->raw_data;
+	const char *color = PERF_COLOR_BLUE;
+	struct pai_data pai_data;
+	char *ev_name;
+
+	while (offset < len) {
+		memcpy(&pai_data.event_nr, p, sizeof(pai_data.event_nr));
+		pai_data.event_nr = be16_to_cpu(pai_data.event_nr);
+		p += sizeof(pai_data.event_nr);
+		offset += sizeof(pai_data.event_nr);
+
+		memcpy(&pai_data.event_val, p, sizeof(pai_data.event_val));
+		pai_data.event_val = be64_to_cpu(pai_data.event_val);
+		p += sizeof(pai_data.event_val);
+		offset += sizeof(pai_data.event_val);
+
+		ev_name = get_counter_name(evsel->core.attr.config,
+					   pai_data.event_nr, evsel->pmu);
+		color_fprintf(stdout, color, "\tCounter:%03d %s Value:%#018lx\n",
+			      pai_data.event_nr, ev_name ?: "<unknown>",
+			      pai_data.event_val);
+		free(ev_name);
+
+		if (offset + 0xa > len)
+			break;
+	}
+	color_fprintf(stdout, color, "\n");
+}
+
+/* S390 specific trace event function. Check for PERF_RECORD_SAMPLE events
+ * and if the event was triggered by a
+ * - counter set diagnostic event
+ * - processor activity assist (PAI) crypto counter event
+ * - processor activity assist (PAI) neural network processor assist (NNPA)
+ *   counter event
+ * display its raw data.
+ * The function is only invoked when the dump flag -D is set.
+ *
+ * Function evlist__s390_sample_raw() is defined as call back after it has
+ * been verified that the perf.data file was created on s390 platform.
+ */
+void evlist__s390_sample_raw(struct evlist *evlist, union perf_event *event,
+			     struct perf_sample *sample)
+{
+	const char *pai_name;
+	struct evsel *evsel;
 
 	if (event->header.type != PERF_RECORD_SAMPLE)
 		return;
 
-	ev_bc000 = evlist__event2evsel(evlist, event);
-	if (ev_bc000 == NULL ||
-	    ev_bc000->core.attr.config != PERF_EVENT_CPUM_CF_DIAG)
+	evsel = evlist__event2evsel(evlist, event);
+	if (!evsel)
+		return;
+
+	/* Check for raw data in sample */
+	if (!sample->raw_size || !sample->raw_data)
 		return;
 
 	/* Display raw data on screen */
-	if (!s390_cpumcfdg_testctr(sample)) {
-		pr_err("Invalid counter set data encountered\n");
+	if (evsel->core.attr.config == PERF_EVENT_CPUM_CF_DIAG) {
+		if (!evsel->pmu)
+			evsel->pmu = perf_pmus__find("cpum_cf");
+		if (!s390_cpumcfdg_testctr(sample))
+			pr_err("Invalid counter set data encountered\n");
+		else
+			s390_cpumcfdg_dump(evsel->pmu, sample);
 		return;
 	}
-	s390_cpumcfdg_dump(sample);
+
+	switch (evsel->core.attr.config) {
+	case PERF_EVENT_PAI_NNPA_ALL:
+		pai_name = "NNPA_ALL";
+		break;
+	case PERF_EVENT_PAI_CRYPTO_ALL:
+		pai_name = "CRYPTO_ALL";
+		break;
+	default:
+		return;
+	}
+
+	if (!s390_pai_all_test(sample)) {
+		pr_err("Invalid %s raw data encountered\n", pai_name);
+	} else {
+		if (!evsel->pmu)
+			evsel->pmu = perf_pmus__find_by_type(evsel->core.attr.type);
+		s390_pai_all_dump(evsel, sample);
+	}
 }

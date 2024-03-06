@@ -23,14 +23,19 @@ run_test() {
   # on every try.
   for tries in {1..3}; do
     # Actual test starts here
-    ip netns exec server_ns ./gro "${ARGS[@]}" "--rx" "--iface" "server" \
+    ip netns exec $server_ns ./gro "${ARGS[@]}" "--rx" "--iface" "server" \
       1>>log.txt &
     server_pid=$!
     sleep 0.5  # to allow for socket init
-    ip netns exec client_ns ./gro "${ARGS[@]}" "--iface" "client" \
+    ip netns exec $client_ns ./gro "${ARGS[@]}" "--iface" "client" \
       1>>log.txt
     wait "${server_pid}"
     exit_code=$?
+    if [[ ${test} == "large" && -n "${KSFT_MACHINE_SLOW}" && \
+          ${exit_code} -ne 0 ]]; then
+        echo "Ignoring errors due to slow environment" 1>&2
+        exit_code=0
+    fi
     if [[ "${exit_code}" -eq 0 ]]; then
         break;
     fi

@@ -48,6 +48,9 @@ struct snd_sof_pcm_stream;
 #define SOF_DBG_FORCE_NOCODEC			BIT(10) /* ignore all codec-related
 							 * configurations
 							 */
+#define SOF_DBG_DUMP_IPC_MESSAGE_PAYLOAD	BIT(11) /* On top of the IPC message header
+							 * dump the message payload also
+							 */
 #define SOF_DBG_DSPLESS_MODE			BIT(15) /* Do not initialize and use the DSP */
 
 /* Flag definitions used for controlling the DSP dump behavior */
@@ -162,8 +165,10 @@ struct sof_firmware {
 struct snd_sof_dsp_ops {
 
 	/* probe/remove/shutdown */
+	int (*probe_early)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*probe)(struct snd_sof_dev *sof_dev); /* mandatory */
-	int (*remove)(struct snd_sof_dev *sof_dev); /* optional */
+	void (*remove)(struct snd_sof_dev *sof_dev); /* optional */
+	void (*remove_late)(struct snd_sof_dev *sof_dev); /* optional */
 	int (*shutdown)(struct snd_sof_dev *sof_dev); /* optional */
 
 	/* DSP core boot / reset */
@@ -691,6 +696,13 @@ void snd_sof_new_platform_drv(struct snd_sof_dev *sdev);
 extern struct snd_compress_ops sof_compressed_ops;
 
 /*
+ * Firmware (firmware, libraries, topologies) file location
+ */
+int sof_create_ipc_file_profile(struct snd_sof_dev *sdev,
+				struct sof_loadable_file_profile *base_profile,
+				struct sof_loadable_file_profile *out_profile);
+
+/*
  * Firmware loading.
  */
 int snd_sof_load_firmware_raw(struct snd_sof_dev *sdev);
@@ -808,8 +820,6 @@ int sof_stream_pcm_open(struct snd_sof_dev *sdev,
 			struct snd_pcm_substream *substream);
 int sof_stream_pcm_close(struct snd_sof_dev *sdev,
 			 struct snd_pcm_substream *substream);
-
-int sof_machine_check(struct snd_sof_dev *sdev);
 
 /* SOF client support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CLIENT)

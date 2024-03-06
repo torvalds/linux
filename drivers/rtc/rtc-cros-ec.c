@@ -182,21 +182,15 @@ static int cros_ec_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 	ret = cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM, alarm_offset);
 	if (ret < 0) {
-		if (ret == -EINVAL && alarm_offset >= SECS_PER_DAY) {
-			/*
-			 * RTC chips on some older Chromebooks can only handle
-			 * alarms up to 24h in the future. Try to set an alarm
-			 * below that limit to avoid suspend failures.
-			 */
-			ret = cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM,
-					      SECS_PER_DAY - 1);
-		}
-
-		if (ret < 0) {
-			dev_err(dev, "error setting alarm in %u seconds: %d\n",
-				alarm_offset, ret);
-			return ret;
-		}
+		dev_err(dev, "error setting alarm in %u seconds: %d\n",
+			alarm_offset, ret);
+		/*
+		 * The EC code returns -EINVAL if the alarm time is too
+		 * far in the future. Convert it to the expected error code.
+		 */
+		if (ret == -EINVAL)
+			ret = -ERANGE;
+		return ret;
 	}
 
 	return 0;
@@ -354,6 +348,20 @@ static int cros_ec_rtc_probe(struct platform_device *pdev)
 
 	cros_ec_rtc->rtc->ops = &cros_ec_rtc_ops;
 	cros_ec_rtc->rtc->range_max = U32_MAX;
+
+	/*
+	 * The RTC on some older Chromebooks can only handle alarms less than
+	 * 24 hours in the future. The only way to find out is to try to set an
+	 * alarm further in the future. If that fails, assume that the RTC
+	 * connected to the EC can only handle less than 24 hours of alarm
+	 * window.
+	 */
+	ret = cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM, SECS_PER_DAY * 2);
+	if (ret == -EINVAL)
+		cros_ec_rtc->rtc->alarm_offset_max = SECS_PER_DAY - 1;
+
+	(void)cros_ec_rtc_set(cros_ec, EC_CMD_RTC_SET_ALARM,
+			      EC_RTC_ALARM_CLEAR);
 
 	ret = devm_rtc_register_device(cros_ec_rtc->rtc);
 	if (ret)

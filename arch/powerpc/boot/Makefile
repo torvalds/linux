@@ -32,46 +32,58 @@ else
     BOOTAR := $(AR)
 endif
 
-BOOTCFLAGS    := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
-		 -fno-strict-aliasing -O2 -msoft-float -mno-altivec -mno-vsx \
-		 $(call cc-option,-mno-spe) $(call cc-option,-mspe=no) \
-		 -pipe -fomit-frame-pointer -fno-builtin -fPIC -nostdinc \
-		 $(LINUXINCLUDE)
-
 ifdef CONFIG_PPC64_BOOT_WRAPPER
-BOOTCFLAGS	+= -m64
+BOOTTARGETFLAGS	+= -m64
+BOOTTARGETFLAGS	+= -mabi=elfv2
 ifdef CONFIG_PPC64_ELF_ABI_V2
-BOOTCFLAGS	+= $(call cc-option,-mabi=elfv2)
+BOOTTARGETFLAGS	+= $(call cc-option,-mabi=elfv2)
 endif
 else
-BOOTCFLAGS	+= -m32
+BOOTTARGETFLAGS	:= -m32
 endif
 
 ifdef CONFIG_TARGET_CPU_BOOL
-BOOTCFLAGS	+= -mcpu=$(CONFIG_TARGET_CPU)
+BOOTTARGETFLAGS	+= -mcpu=$(CONFIG_TARGET_CPU)
 else ifdef CONFIG_PPC64_BOOT_WRAPPER
 ifdef CONFIG_CPU_LITTLE_ENDIAN
-BOOTCFLAGS	+= -mcpu=powerpc64le
+BOOTTARGETFLAGS	+= -mcpu=powerpc64le
 else
-BOOTCFLAGS	+= -mcpu=powerpc64
+BOOTTARGETFLAGS	+= -mcpu=powerpc64
 endif
 endif
 
-BOOTCFLAGS	+= -isystem $(shell $(BOOTCC) -print-file-name=include)
+$(obj)/4xx.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/ebony.o: BOOTTARGETFLAGS += -mcpu=440
+$(obj)/cuboot-hotfoot.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/cuboot-taishan.o: BOOTTARGETFLAGS += -mcpu=440
+$(obj)/cuboot-katmai.o: BOOTTARGETFLAGS += -mcpu=440
+$(obj)/cuboot-acadia.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/treeboot-iss4xx.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/treeboot-currituck.o: BOOTTARGETFLAGS += -mcpu=405
+$(obj)/treeboot-akebono.o: BOOTTARGETFLAGS += -mcpu=405
 
 ifdef CONFIG_CPU_BIG_ENDIAN
-BOOTCFLAGS	+= -mbig-endian
+BOOTTARGETFLAGS	+= -mbig-endian
 else
-BOOTCFLAGS	+= -mlittle-endian
+BOOTTARGETFLAGS	+= -mlittle-endian
 endif
 
-BOOTAFLAGS	:= -D__ASSEMBLY__ $(BOOTCFLAGS) -nostdinc
+BOOTCPPFLAGS	:= -nostdinc $(LINUXINCLUDE)
+BOOTCPPFLAGS	+= -isystem $(shell $(BOOTCC) -print-file-name=include)
+
+BOOTCFLAGS	:= $(BOOTTARGETFLAGS) \
+		   -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
+		   -fno-strict-aliasing -O2 \
+		   -msoft-float -mno-altivec -mno-vsx \
+		   $(call cc-option,-mno-prefixed) \
+		   $(call cc-option,-mno-pcrel) \
+		   $(call cc-option,-mno-mma) \
+		   $(call cc-option,-mno-spe) $(call cc-option,-mspe=no) \
+		   -fomit-frame-pointer -fno-builtin -fPIC
+
+BOOTAFLAGS	:= $(BOOTTARGETFLAGS) -D__ASSEMBLY__
 
 BOOTARFLAGS	:= -crD
-
-BOOTCFLAGS	+= $(call cc-option,-mno-prefixed) \
-		   $(call cc-option,-mno-pcrel) \
-		   $(call cc-option,-mno-mma)
 
 ifdef CONFIG_CC_IS_CLANG
 BOOTCFLAGS += $(CLANG_FLAGS)
@@ -90,16 +102,6 @@ BOOTCFLAGS	+= -include $(srctree)/include/linux/compiler_attributes.h
 BOOTCFLAGS	+= -I$(objtree)/$(obj) -I$(srctree)/$(obj)
 
 DTC_FLAGS	?= -p 1024
-
-$(obj)/4xx.o: BOOTCFLAGS += -mcpu=405
-$(obj)/ebony.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-hotfoot.o: BOOTCFLAGS += -mcpu=405
-$(obj)/cuboot-taishan.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-katmai.o: BOOTCFLAGS += -mcpu=440
-$(obj)/cuboot-acadia.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-iss4xx.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-currituck.o: BOOTCFLAGS += -mcpu=405
-$(obj)/treeboot-akebono.o: BOOTCFLAGS += -mcpu=405
 
 # The pre-boot decompressors pull in a lot of kernel headers and other source
 # files. This creates a bit of a dependency headache since we need to copy
@@ -224,10 +226,10 @@ clean-files := $(zlib-) $(zlibheader-) $(zliblinuxheader-) \
 		empty.c zImage.coff.lds zImage.ps3.lds zImage.lds
 
 quiet_cmd_bootcc = BOOTCC  $@
-      cmd_bootcc = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCFLAGS) -c -o $@ $<
+      cmd_bootcc = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCPPFLAGS) $(BOOTCFLAGS) -c -o $@ $<
 
 quiet_cmd_bootas = BOOTAS  $@
-      cmd_bootas = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTAFLAGS) -c -o $@ $<
+      cmd_bootas = $(BOOTCC) -Wp,-MD,$(depfile) $(BOOTCPPFLAGS) $(BOOTAFLAGS) -c -o $@ $<
 
 quiet_cmd_bootar = BOOTAR  $@
       cmd_bootar = $(BOOTAR) $(BOOTARFLAGS) $@.$$$$ $(real-prereqs); mv $@.$$$$ $@
@@ -340,11 +342,6 @@ image-$(CONFIG_MPC834x_ITX)		+= cuImage.mpc8349emitx \
 image-$(CONFIG_ASP834x)			+= dtbImage.asp834x-redboot
 
 # Board ports in arch/powerpc/platform/85xx/Kconfig
-image-$(CONFIG_MPC8540_ADS)		+= cuImage.mpc8540ads
-image-$(CONFIG_MPC8560_ADS)		+= cuImage.mpc8560ads
-image-$(CONFIG_MPC85xx_CDS)		+= cuImage.mpc8541cds \
-					   cuImage.mpc8548cds_32b \
-					   cuImage.mpc8555cds
 image-$(CONFIG_MPC85xx_MDS)		+= cuImage.mpc8568mds
 image-$(CONFIG_MPC85xx_DS)		+= cuImage.mpc8544ds \
 					   cuImage.mpc8572ds

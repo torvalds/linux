@@ -51,8 +51,9 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch);
  * @len: Length (in bytes) of the maintenance transaction
  * @data: Value to be read into
  *
- * Generates a local SREP space read. Returns %0 on
- * success or %-EINVAL on failure.
+ * Generates a local SREP space read.
+ *
+ * Returns: %0 on success or %-EINVAL on failure.
  */
 static int tsi721_lcread(struct rio_mport *mport, int index, u32 offset,
 			 int len, u32 *data)
@@ -75,8 +76,9 @@ static int tsi721_lcread(struct rio_mport *mport, int index, u32 offset,
  * @len: Length (in bytes) of the maintenance transaction
  * @data: Value to be written
  *
- * Generates a local write into SREP configuration space. Returns %0 on
- * success or %-EINVAL on failure.
+ * Generates a local write into SREP configuration space.
+ *
+ * Returns: %0 on success or %-EINVAL on failure.
  */
 static int tsi721_lcwrite(struct rio_mport *mport, int index, u32 offset,
 			  int len, u32 data)
@@ -104,7 +106,7 @@ static int tsi721_lcwrite(struct rio_mport *mport, int index, u32 offset,
  * @do_wr: Operation flag (1 == MAINT_WR)
  *
  * Generates a RapidIO maintenance transaction (Read or Write).
- * Returns %0 on success and %-EINVAL or %-EFAULT on failure.
+ * Returns: %0 on success and %-EINVAL or %-EFAULT on failure.
  */
 static int tsi721_maint_dma(struct tsi721_device *priv, u32 sys_size,
 			u16 destid, u8 hopcount, u32 offset, int len,
@@ -205,10 +207,10 @@ err_out:
  * @hopcount: Number of hops to target device
  * @offset: Offset into configuration space
  * @len: Length (in bytes) of the maintenance transaction
- * @val: Location to be read into
+ * @data: Location to be read into
  *
  * Generates a RapidIO maintenance read transaction.
- * Returns %0 on success and %-EINVAL or %-EFAULT on failure.
+ * Returns: %0 on success and %-EINVAL or %-EFAULT on failure.
  */
 static int tsi721_cread_dma(struct rio_mport *mport, int index, u16 destid,
 			u8 hopcount, u32 offset, int len, u32 *data)
@@ -228,10 +230,10 @@ static int tsi721_cread_dma(struct rio_mport *mport, int index, u16 destid,
  * @hopcount: Number of hops to target device
  * @offset: Offset into configuration space
  * @len: Length (in bytes) of the maintenance transaction
- * @val: Value to be written
+ * @data: Value to be written
  *
  * Generates a RapidIO maintenance write transaction.
- * Returns %0 on success and %-EINVAL or %-EFAULT on failure.
+ * Returns: %0 on success and %-EINVAL or %-EFAULT on failure.
  */
 static int tsi721_cwrite_dma(struct rio_mport *mport, int index, u16 destid,
 			 u8 hopcount, u32 offset, int len, u32 data)
@@ -250,6 +252,8 @@ static int tsi721_cwrite_dma(struct rio_mport *mport, int index, u16 destid,
  * Handles inbound port-write interrupts. Copies PW message from an internal
  * buffer into PW message FIFO and schedules deferred routine to process
  * queued messages.
+ *
+ * Returns: %0
  */
 static int
 tsi721_pw_handler(struct tsi721_device *priv)
@@ -307,6 +311,8 @@ static void tsi721_pw_dpc(struct work_struct *work)
  * tsi721_pw_enable - enable/disable port-write interface init
  * @mport: Master port implementing the port write unit
  * @enable:    1=enable; 0=disable port-write message handling
+ *
+ * Returns: %0
  */
 static int tsi721_pw_enable(struct rio_mport *mport, int enable)
 {
@@ -336,7 +342,9 @@ static int tsi721_pw_enable(struct rio_mport *mport, int enable)
  * @destid: Destination ID of target device
  * @data: 16-bit info field of RapidIO doorbell
  *
- * Sends a RapidIO doorbell message. Always returns %0.
+ * Sends a RapidIO doorbell message.
+ *
+ * Returns: %0
  */
 static int tsi721_dsend(struct rio_mport *mport, int index,
 			u16 destid, u16 data)
@@ -361,6 +369,8 @@ static int tsi721_dsend(struct rio_mport *mport, int index,
  * Handles inbound doorbell interrupts. Copies doorbell entry from an internal
  * buffer into DB message FIFO and schedules deferred  routine to process
  * queued DBs.
+ *
+ * Returns: %0
  */
 static int
 tsi721_dbell_handler(struct tsi721_device *priv)
@@ -453,6 +463,8 @@ static void tsi721_db_dpc(struct work_struct *work)
  *
  * Handles Tsi721 interrupts signaled using MSI and INTA. Checks reported
  * interrupt events and calls an event-specific handler(s).
+ *
+ * Returns: %IRQ_HANDLED or %IRQ_NONE
  */
 static irqreturn_t tsi721_irqhandler(int irq, void *ptr)
 {
@@ -607,6 +619,8 @@ static void tsi721_interrupts_init(struct tsi721_device *priv)
  * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles outbound messaging interrupts signaled using MSI-X.
+ *
+ * Returns: %IRQ_HANDLED
  */
 static irqreturn_t tsi721_omsg_msix(int irq, void *ptr)
 {
@@ -624,6 +638,8 @@ static irqreturn_t tsi721_omsg_msix(int irq, void *ptr)
  * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles inbound messaging interrupts signaled using MSI-X.
+ *
+ * Returns: %IRQ_HANDLED
  */
 static irqreturn_t tsi721_imsg_msix(int irq, void *ptr)
 {
@@ -641,6 +657,8 @@ static irqreturn_t tsi721_imsg_msix(int irq, void *ptr)
  * @ptr: Pointer to interrupt-specific data (tsi721_device structure)
  *
  * Handles Tsi721 interrupts from SRIO MAC.
+ *
+ * Returns: %IRQ_HANDLED
  */
 static irqreturn_t tsi721_srio_msix(int irq, void *ptr)
 {
@@ -663,6 +681,8 @@ static irqreturn_t tsi721_srio_msix(int irq, void *ptr)
  * Handles Tsi721 interrupts from SR2PC Channel.
  * NOTE: At this moment services only one SR2PC channel associated with inbound
  * doorbells.
+ *
+ * Returns: %IRQ_HANDLED
  */
 static irqreturn_t tsi721_sr2pc_ch_msix(int irq, void *ptr)
 {
@@ -689,6 +709,8 @@ static irqreturn_t tsi721_sr2pc_ch_msix(int irq, void *ptr)
  * Registers MSI-X interrupt service routines for interrupts that are active
  * immediately after mport initialization. Messaging interrupt service routines
  * should be registered during corresponding open requests.
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int tsi721_request_msix(struct tsi721_device *priv)
 {
@@ -717,6 +739,8 @@ static int tsi721_request_msix(struct tsi721_device *priv)
  *
  * Configures MSI-X support for Tsi721. Supports only an exact number
  * of requested vectors.
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int tsi721_enable_msix(struct tsi721_device *priv)
 {
@@ -1334,7 +1358,7 @@ static void tsi721_close_sr2pc_mapping(struct tsi721_device *priv)
  * @priv: pointer to tsi721 private data
  *
  * Initializes inbound port write handler.
- * Returns %0 on success or %-ENOMEM on failure.
+ * Returns: %0 on success or %-ENOMEM on failure.
  */
 static int tsi721_port_write_init(struct tsi721_device *priv)
 {
@@ -1412,7 +1436,8 @@ static void tsi721_doorbell_free(struct tsi721_device *priv)
  *
  * Initialize BDMA channel allocated for RapidIO maintenance read/write
  * request generation
- * Returns %0 on success or %-ENOMEM on failure.
+ *
+ * Returns: %0 on success or %-ENOMEM on failure.
  */
 static int tsi721_bdma_maint_init(struct tsi721_device *priv)
 {
@@ -1662,6 +1687,8 @@ tsi721_omsg_interrupt_disable(struct tsi721_device *priv, int ch,
  * @mbox: Outbound mailbox
  * @buffer: Message to add to outbound queue
  * @len: Length of message
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int
 tsi721_add_outb_message(struct rio_mport *mport, struct rio_dev *rdev, int mbox,
@@ -1869,6 +1896,8 @@ no_sts_update:
  * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
  * @entries: Number of entries in the outbound mailbox ring
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int tsi721_open_outb_mbox(struct rio_mport *mport, void *dev_id,
 				 int mbox, int entries)
@@ -2156,6 +2185,8 @@ static void tsi721_imsg_handler(struct tsi721_device *priv, int ch)
  * @dev_id: Device specific pointer to pass on event
  * @mbox: Mailbox to open
  * @entries: Number of entries in the inbound mailbox ring
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int tsi721_open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				int mbox, int entries)
@@ -2409,6 +2440,8 @@ static void tsi721_close_inb_mbox(struct rio_mport *mport, int mbox)
  * @mport: Master port implementing the Inbound Messaging Engine
  * @mbox: Inbound mailbox number
  * @buf: Buffer to add to inbound queue
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int tsi721_add_inb_buffer(struct rio_mport *mport, int mbox, void *buf)
 {
@@ -2439,7 +2472,7 @@ out:
  * @mport: Master port implementing the Inbound Messaging Engine
  * @mbox: Inbound mailbox number
  *
- * Returns pointer to the message on success or NULL on failure.
+ * Returns: pointer to the message on success or %NULL on failure.
  */
 static void *tsi721_get_inb_message(struct rio_mport *mport, int mbox)
 {
@@ -2507,6 +2540,8 @@ out:
  * @priv: pointer to tsi721 private data
  *
  * Configures Tsi721 messaging engine.
+ *
+ * Returns: %0
  */
 static int tsi721_messages_init(struct tsi721_device *priv)
 {
@@ -2539,9 +2574,9 @@ static int tsi721_messages_init(struct tsi721_device *priv)
 /**
  * tsi721_query_mport - Fetch inbound message from the Tsi721 MSG Queue
  * @mport: Master port implementing the Inbound Messaging Engine
- * @mbox: Inbound mailbox number
+ * @attr: mport device attributes
  *
- * Returns pointer to the message on success or NULL on failure.
+ * Returns: pointer to the message on success or %NULL on failure.
  */
 static int tsi721_query_mport(struct rio_mport *mport,
 			      struct rio_mport_attr *attr)
@@ -2653,6 +2688,8 @@ static void tsi721_mport_release(struct device *dev)
  * @priv: pointer to tsi721 private data
  *
  * Configures Tsi721 as RapidIO master port.
+ *
+ * Returns: %0 on success or -errno value on failure.
  */
 static int tsi721_setup_mport(struct tsi721_device *priv)
 {

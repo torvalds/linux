@@ -220,6 +220,13 @@ enum sec_cap_type {
 	SEC_CORE4_ALG_BITMAP_HIGH,
 };
 
+enum sec_cap_reg_record_idx {
+	SEC_DRV_ALG_BITMAP_LOW_IDX = 0x0,
+	SEC_DRV_ALG_BITMAP_HIGH_IDX,
+	SEC_DEV_ALG_BITMAP_LOW_IDX,
+	SEC_DEV_ALG_BITMAP_HIGH_IDX,
+};
+
 void sec_destroy_qps(struct hisi_qp **qps, int qp_num);
 struct hisi_qp **sec_create_qps(void);
 int sec_register_to_crypto(struct hisi_qm *qm);

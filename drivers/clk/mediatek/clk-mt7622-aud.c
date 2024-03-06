@@ -8,7 +8,7 @@
 #include <linux/clk-provider.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 
 #include "clk-mtk.h"
@@ -135,10 +135,10 @@ err_plat_populate:
 	return r;
 }
 
-static int clk_mt7622_aud_remove(struct platform_device *pdev)
+static void clk_mt7622_aud_remove(struct platform_device *pdev)
 {
 	of_platform_depopulate(&pdev->dev);
-	return mtk_clk_simple_remove(pdev);
+	mtk_clk_simple_remove(pdev);
 }
 
 static const struct of_device_id of_match_clk_mt7622_aud[] = {
@@ -149,7 +149,7 @@ MODULE_DEVICE_TABLE(of, of_match_clk_mt7622_aud);
 
 static struct platform_driver clk_mt7622_aud_drv = {
 	.probe = clk_mt7622_aud_probe,
-	.remove = clk_mt7622_aud_remove,
+	.remove_new = clk_mt7622_aud_remove,
 	.driver = {
 		.name = "clk-mt7622-aud",
 		.of_match_table = of_match_clk_mt7622_aud,

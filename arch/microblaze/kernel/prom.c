@@ -20,7 +20,7 @@ void __init early_init_devtree(void *params)
 
 	early_init_dt_scan(params);
 	if (!strlen(boot_command_line))
-		strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
+		strscpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
 
 	memblock_allow_resize();
 

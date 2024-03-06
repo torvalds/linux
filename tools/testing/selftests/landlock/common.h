@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <linux/landlock.h>
+#include <linux/securebits.h>
 #include <sys/capability.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
@@ -112,11 +113,19 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	cap_t cap_p;
 	/* Only these three capabilities are useful for the tests. */
 	const cap_value_t caps[] = {
+		/* clang-format off */
 		CAP_DAC_OVERRIDE,
 		CAP_MKNOD,
+		CAP_NET_ADMIN,
+		CAP_NET_BIND_SERVICE,
 		CAP_SYS_ADMIN,
 		CAP_SYS_CHROOT,
+		/* clang-format on */
 	};
+	const unsigned int noroot = SECBIT_NOROOT | SECBIT_NOROOT_LOCKED;
+
+	if ((cap_get_secbits() & noroot) != noroot)
+		EXPECT_EQ(0, cap_set_secbits(noroot));
 
 	cap_p = cap_get_proc();
 	EXPECT_NE(NULL, cap_p)
@@ -134,6 +143,8 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 			TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
 		}
 	}
+
+	/* Automatically resets ambient capabilities. */
 	EXPECT_NE(-1, cap_set_proc(cap_p))
 	{
 		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
@@ -142,6 +153,9 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	{
 		TH_LOG("Failed to cap_free: %s", strerror(errno));
 	}
+
+	/* Quickly checks that ambient capabilities are cleared. */
+	EXPECT_NE(-1, cap_get_ambient(caps[0]));
 }
 
 /* We cannot put such helpers in a library because of kselftest_harness.h . */
@@ -155,8 +169,9 @@ static void __maybe_unused drop_caps(struct __test_metadata *const _metadata)
 	_init_caps(_metadata, true);
 }
 
-static void _effective_cap(struct __test_metadata *const _metadata,
-			   const cap_value_t caps, const cap_flag_value_t value)
+static void _change_cap(struct __test_metadata *const _metadata,
+			const cap_flag_t flag, const cap_value_t cap,
+			const cap_flag_value_t value)
 {
 	cap_t cap_p;
 
@@ -165,7 +180,7 @@ static void _effective_cap(struct __test_metadata *const _metadata,
 	{
 		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_set_flag(cap_p, CAP_EFFECTIVE, 1, &caps, value))
+	EXPECT_NE(-1, cap_set_flag(cap_p, flag, 1, &cap, value))
 	{
 		TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
 	}
@@ -180,15 +195,35 @@ static void _effective_cap(struct __test_metadata *const _metadata,
 }
 
 static void __maybe_unused set_cap(struct __test_metadata *const _metadata,
-				   const cap_value_t caps)
+				   const cap_value_t cap)
 {
-	_effective_cap(_metadata, caps, CAP_SET);
+	_change_cap(_metadata, CAP_EFFECTIVE, cap, CAP_SET);
 }
 
 static void __maybe_unused clear_cap(struct __test_metadata *const _metadata,
-				     const cap_value_t caps)
+				     const cap_value_t cap)
 {
-	_effective_cap(_metadata, caps, CAP_CLEAR);
+	_change_cap(_metadata, CAP_EFFECTIVE, cap, CAP_CLEAR);
+}
+
+static void __maybe_unused
+set_ambient_cap(struct __test_metadata *const _metadata, const cap_value_t cap)
+{
+	_change_cap(_metadata, CAP_INHERITABLE, cap, CAP_SET);
+
+	EXPECT_NE(-1, cap_set_ambient(cap, CAP_SET))
+	{
+		TH_LOG("Failed to set ambient capability %d: %s", cap,
+		       strerror(errno));
+	}
+}
+
+static void __maybe_unused clear_ambient_cap(
+	struct __test_metadata *const _metadata, const cap_value_t cap)
+{
+	EXPECT_EQ(1, cap_get_ambient(cap));
+	_change_cap(_metadata, CAP_INHERITABLE, cap, CAP_CLEAR);
+	EXPECT_EQ(0, cap_get_ambient(cap));
 }
 
 /* Receives an FD from a UNIX socket. Returns the received FD, or -errno. */
@@ -255,4 +290,14 @@ static int __maybe_unused send_fd(int usock, int fd_tx)
 	if (sendmsg(usock, &msg, 0) < 0)
 		return -errno;
 	return 0;
+}
+
+static void __maybe_unused
+enforce_ruleset(struct __test_metadata *const _metadata, const int ruleset_fd)
+{
+	ASSERT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
+	ASSERT_EQ(0, landlock_restrict_self(ruleset_fd, 0))
+	{
+		TH_LOG("Failed to enforce ruleset: %s", strerror(errno));
+	}
 }

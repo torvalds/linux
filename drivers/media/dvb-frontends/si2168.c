@@ -798,7 +798,7 @@ static struct i2c_driver si2168_driver = {
 		.name                = "si2168",
 		.suppress_bind_attrs = true,
 	},
-	.probe_new	= si2168_probe,
+	.probe		= si2168_probe,
 	.remove		= si2168_remove,
 	.id_table	= si2168_id_table,
 };

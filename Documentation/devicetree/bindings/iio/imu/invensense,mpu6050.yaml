@@ -31,6 +31,9 @@ properties:
           - invensense,mpu9250
           - invensense,mpu9255
       - items:
+          - const: invensense,icm20600
+          - const: invensense,icm20602
+      - items:
           - const: invensense,icm20608d
           - const: invensense,icm20608
 
@@ -44,6 +47,11 @@ properties:
   vddio-supply: true
 
   mount-matrix: true
+
+  invensense,level-shifter:
+    type: boolean
+    description: |
+      From ancient platform data struct: false: VLogic, true: VDD
 
   i2c-gate:
     $ref: /schemas/i2c/i2c-controller.yaml

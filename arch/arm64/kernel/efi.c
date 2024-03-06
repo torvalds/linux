@@ -9,6 +9,7 @@
 
 #include <linux/efi.h>
 #include <linux/init.h>
+#include <linux/screen_info.h>
 
 #include <asm/efi.h>
 #include <asm/stacktrace.h>
@@ -70,10 +71,6 @@ static __init pteval_t create_mapping_protection(efi_memory_desc_t *md)
 	return pgprot_val(PAGE_KERNEL_EXEC);
 }
 
-/* we will fill this structure from the stub, so don't put it in .bss */
-struct screen_info screen_info __section(".data");
-EXPORT_SYMBOL(screen_info);
-
 int __init efi_create_mapping(struct mm_struct *mm, efi_memory_desc_t *md)
 {
 	pteval_t prot_val = create_mapping_protection(md);
@@ -112,8 +109,7 @@ static int __init set_permissions(pte_t *ptep, unsigned long addr, void *data)
 		pte = set_pte_bit(pte, __pgprot(PTE_RDONLY));
 	if (md->attribute & EFI_MEMORY_XP)
 		pte = set_pte_bit(pte, __pgprot(PTE_PXN));
-	else if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) &&
-		 system_supports_bti() && spd->has_bti)
+	else if (system_supports_bti_kernel() && spd->has_bti)
 		pte = set_pte_bit(pte, __pgprot(PTE_GP));
 	set_pte(ptep, pte);
 	return 0;
@@ -158,7 +154,21 @@ asmlinkage efi_status_t efi_handle_corrupted_x18(efi_status_t s, const char *f)
 	return s;
 }
 
-DEFINE_RAW_SPINLOCK(efi_rt_lock);
+static DEFINE_RAW_SPINLOCK(efi_rt_lock);
+
+void arch_efi_call_virt_setup(void)
+{
+	efi_virtmap_load();
+	__efi_fpsimd_begin();
+	raw_spin_lock(&efi_rt_lock);
+}
+
+void arch_efi_call_virt_teardown(void)
+{
+	raw_spin_unlock(&efi_rt_lock);
+	__efi_fpsimd_end();
+	efi_virtmap_unload();
+}
 
 asmlinkage u64 *efi_rt_stack_top __ro_after_init;
 

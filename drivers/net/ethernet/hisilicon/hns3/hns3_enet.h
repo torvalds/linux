@@ -6,7 +6,7 @@
 
 #include <linux/dim.h>
 #include <linux/if_vlan.h>
-#include <net/page_pool.h>
+#include <net/page_pool/types.h>
 #include <asm/barrier.h>
 
 #include "hnae3.h"

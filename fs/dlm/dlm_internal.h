@@ -246,7 +246,7 @@ struct dlm_lkb {
 	int8_t			lkb_highbast;	/* highest mode bast sent for */
 
 	int8_t			lkb_wait_type;	/* type of reply waiting for */
-	int8_t			lkb_wait_count;
+	atomic_t		lkb_wait_count;
 	int			lkb_wait_nodeid; /* for debugging */
 
 	struct list_head	lkb_statequeue;	/* rsb g/c/w list */
@@ -598,6 +598,7 @@ struct dlm_ls {
 	struct dentry		*ls_debug_locks_dentry; /* debugfs */
 	struct dentry		*ls_debug_all_dentry; /* debugfs */
 	struct dentry		*ls_debug_toss_dentry; /* debugfs */
+	struct dentry		*ls_debug_queued_asts_dentry; /* debugfs */
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;

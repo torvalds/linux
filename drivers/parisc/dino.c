@@ -924,8 +924,6 @@ static const char cujo_vers[][4] = {
 	"2.0"
 };
 
-void ccio_cujo20_fixup(struct parisc_device *dev, u32 iovp);
-
 /*
 ** Determine if dino should claim this chip (return 0) or not (return 1).
 ** If so, initialize the chip appropriately (card-mode vs bridge mode).
@@ -1086,9 +1084,8 @@ static struct parisc_driver dino_driver __refdata = {
  * This is the only routine which is NOT static.
  * Must be called exactly once before pci_init().
  */
-int __init dino_init(void)
+static int __init dino_init(void)
 {
-	register_parisc_driver(&dino_driver);
-	return 0;
+	return register_parisc_driver(&dino_driver);
 }
-
+arch_initcall(dino_init);

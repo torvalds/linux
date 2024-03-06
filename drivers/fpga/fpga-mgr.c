@@ -19,7 +19,7 @@
 #include <linux/highmem.h>
 
 static DEFINE_IDA(fpga_mgr_ida);
-static struct class *fpga_mgr_class;
+static const struct class fpga_mgr_class;
 
 struct fpga_mgr_devres {
 	struct fpga_manager *mgr;
@@ -693,7 +693,7 @@ static int fpga_mgr_dev_match(struct device *dev, const void *data)
  */
 struct fpga_manager *fpga_mgr_get(struct device *dev)
 {
-	struct device *mgr_dev = class_find_device(fpga_mgr_class, NULL, dev,
+	struct device *mgr_dev = class_find_device(&fpga_mgr_class, NULL, dev,
 						   fpga_mgr_dev_match);
 	if (!mgr_dev)
 		return ERR_PTR(-ENODEV);
@@ -713,7 +713,7 @@ struct fpga_manager *of_fpga_mgr_get(struct device_node *node)
 {
 	struct device *dev;
 
-	dev = class_find_device_by_of_node(fpga_mgr_class, node);
+	dev = class_find_device_by_of_node(&fpga_mgr_class, node);
 	if (!dev)
 		return ERR_PTR(-ENODEV);
 
@@ -809,7 +809,7 @@ fpga_mgr_register_full(struct device *parent, const struct fpga_manager_info *in
 	mgr->priv = info->priv;
 	mgr->compat_id = info->compat_id;
 
-	mgr->dev.class = fpga_mgr_class;
+	mgr->dev.class = &fpga_mgr_class;
 	mgr->dev.groups = mops->groups;
 	mgr->dev.parent = parent;
 	mgr->dev.of_node = parent->of_node;
@@ -967,23 +967,22 @@ static void fpga_mgr_dev_release(struct device *dev)
 	kfree(mgr);
 }
 
+static const struct class fpga_mgr_class = {
+	.name = "fpga_manager",
+	.dev_groups = fpga_mgr_groups,
+	.dev_release = fpga_mgr_dev_release,
+};
+
 static int __init fpga_mgr_class_init(void)
 {
 	pr_info("FPGA manager framework\n");
 
-	fpga_mgr_class = class_create("fpga_manager");
-	if (IS_ERR(fpga_mgr_class))
-		return PTR_ERR(fpga_mgr_class);
-
-	fpga_mgr_class->dev_groups = fpga_mgr_groups;
-	fpga_mgr_class->dev_release = fpga_mgr_dev_release;
-
-	return 0;
+	return class_register(&fpga_mgr_class);
 }
 
 static void __exit fpga_mgr_class_exit(void)
 {
-	class_destroy(fpga_mgr_class);
+	class_unregister(&fpga_mgr_class);
 	ida_destroy(&fpga_mgr_ida);
 }
 

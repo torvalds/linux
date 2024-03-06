@@ -112,4 +112,12 @@
 
 #define AT_RECURSIVE		0x8000	/* Apply to the entire subtree */
 
+/* Flags for name_to_handle_at(2). We reuse AT_ flag space to save bits... */
+#define AT_HANDLE_FID		AT_REMOVEDIR	/* file handle is needed to
+					compare object identity and may not
+					be usable to open_by_handle_at(2) */
+#if defined(__KERNEL__)
+#define AT_GETATTR_NOSEC	0x80000000
+#endif
+
 #endif /* _UAPI_LINUX_FCNTL_H */

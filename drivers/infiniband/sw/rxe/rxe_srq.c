@@ -45,39 +45,40 @@ int rxe_srq_from_init(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_init_attr *init, struct ib_udata *udata,
 		      struct rxe_create_srq_resp __user *uresp)
 {
-	int err;
-	int srq_wqe_size;
 	struct rxe_queue *q;
-	enum queue_type type;
+	int wqe_size;
+	int err;
 
-	srq->ibsrq.event_handler	= init->event_handler;
-	srq->ibsrq.srq_context		= init->srq_context;
-	srq->limit		= init->attr.srq_limit;
-	srq->srq_num		= srq->elem.index;
-	srq->rq.max_wr		= init->attr.max_wr;
-	srq->rq.max_sge		= init->attr.max_sge;
+	srq->ibsrq.event_handler = init->event_handler;
+	srq->ibsrq.srq_context = init->srq_context;
+	srq->limit = init->attr.srq_limit;
+	srq->srq_num = srq->elem.index;
+	srq->rq.max_wr = init->attr.max_wr;
+	srq->rq.max_sge = init->attr.max_sge;
 
-	srq_wqe_size		= rcv_wqe_size(srq->rq.max_sge);
+	wqe_size = sizeof(struct rxe_recv_wqe) +
+			srq->rq.max_sge*sizeof(struct ib_sge);
 
 	spin_lock_init(&srq->rq.producer_lock);
 	spin_lock_init(&srq->rq.consumer_lock);
 
-	type = QUEUE_TYPE_FROM_CLIENT;
-	q = rxe_queue_init(rxe, &srq->rq.max_wr, srq_wqe_size, type);
+	q = rxe_queue_init(rxe, &srq->rq.max_wr, wqe_size,
+			   QUEUE_TYPE_FROM_CLIENT);
 	if (!q) {
 		rxe_dbg_srq(srq, "Unable to allocate queue\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out;
 	}
-
-	srq->rq.queue = q;
 
 	err = do_mmap_info(rxe, uresp ? &uresp->mi : NULL, udata, q->buf,
 			   q->buf_size, &q->ip);
 	if (err) {
-		vfree(q->buf);
-		kfree(q);
-		return err;
+		rxe_dbg_srq(srq, "Unable to init mmap info for caller\n");
+		goto err_free;
 	}
+
+	srq->rq.queue = q;
+	init->attr.max_wr = srq->rq.max_wr;
 
 	if (uresp) {
 		if (copy_to_user(&uresp->srq_num, &srq->srq_num,
@@ -88,6 +89,12 @@ int rxe_srq_from_init(struct rxe_dev *rxe, struct rxe_srq *srq,
 	}
 
 	return 0;
+
+err_free:
+	vfree(q->buf);
+	kfree(q);
+err_out:
+	return err;
 }
 
 int rxe_srq_chk_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
@@ -145,9 +152,10 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		      struct ib_srq_attr *attr, enum ib_srq_attr_mask mask,
 		      struct rxe_modify_srq_cmd *ucmd, struct ib_udata *udata)
 {
-	int err;
 	struct rxe_queue *q = srq->rq.queue;
 	struct mminfo __user *mi = NULL;
+	int wqe_size;
+	int err;
 
 	if (mask & IB_SRQ_MAX_WR) {
 		/*
@@ -156,12 +164,16 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 		 */
 		mi = u64_to_user_ptr(ucmd->mmap_info_addr);
 
-		err = rxe_queue_resize(q, &attr->max_wr,
-				       rcv_wqe_size(srq->rq.max_sge), udata, mi,
-				       &srq->rq.producer_lock,
+		wqe_size = sizeof(struct rxe_recv_wqe) +
+				srq->rq.max_sge*sizeof(struct ib_sge);
+
+		err = rxe_queue_resize(q, &attr->max_wr, wqe_size,
+				       udata, mi, &srq->rq.producer_lock,
 				       &srq->rq.consumer_lock);
 		if (err)
-			goto err2;
+			goto err_free;
+
+		srq->rq.max_wr = attr->max_wr;
 	}
 
 	if (mask & IB_SRQ_LIMIT)
@@ -169,7 +181,7 @@ int rxe_srq_from_attr(struct rxe_dev *rxe, struct rxe_srq *srq,
 
 	return 0;
 
-err2:
+err_free:
 	rxe_queue_cleanup(q);
 	srq->rq.queue = NULL;
 	return err;

@@ -138,7 +138,7 @@ static void find_controls(void)
 			err = snd_ctl_elem_info(card_data->handle,
 						ctl_data->info);
 			if (err < 0) {
-				ksft_print_msg("%s getting info for %d\n",
+				ksft_print_msg("%s getting info for %s\n",
 					       snd_strerror(err),
 					       ctl_data->name);
 			}
@@ -166,7 +166,7 @@ static void find_controls(void)
 		err = snd_ctl_poll_descriptors(card_data->handle,
 					       &card_data->pollfd, 1);
 		if (err != 1) {
-			ksft_exit_fail_msg("snd_ctl_poll_descriptors() failed for %d\n",
+			ksft_exit_fail_msg("snd_ctl_poll_descriptors() failed for card %d: %d\n",
 				       card, err);
 		}
 
@@ -188,7 +188,7 @@ static int wait_for_event(struct ctl_data *ctl, int timeout)
 {
 	unsigned short revents;
 	snd_ctl_event_t *event;
-	int count, err;
+	int err;
 	unsigned int mask = 0;
 	unsigned int ev_id;
 
@@ -319,7 +319,7 @@ static bool ctl_value_index_valid(struct ctl_data *ctl,
 		}
 
 		if (int64_val > snd_ctl_elem_info_get_max64(ctl->info)) {
-			ksft_print_msg("%s.%d value %lld more than maximum %lld\n",
+			ksft_print_msg("%s.%d value %lld more than maximum %ld\n",
 				       ctl->name, index, int64_val,
 				       snd_ctl_elem_info_get_max(ctl->info));
 			return false;
@@ -347,7 +347,7 @@ static bool ctl_value_index_valid(struct ctl_data *ctl,
 		}
 
 		if (int_val >= snd_ctl_elem_info_get_items(ctl->info)) {
-			ksft_print_msg("%s.%d value %ld more than item count %ld\n",
+			ksft_print_msg("%s.%d value %ld more than item count %u\n",
 				       ctl->name, index, int_val,
 				       snd_ctl_elem_info_get_items(ctl->info));
 			return false;
@@ -430,7 +430,6 @@ static bool strend(const char *haystack, const char *needle)
 static void test_ctl_name(struct ctl_data *ctl)
 {
 	bool name_ok = true;
-	bool check;
 
 	ksft_print_msg("%d.%d %s\n", ctl->card->card, ctl->elem,
 		       ctl->name);
@@ -863,7 +862,6 @@ static bool test_ctl_write_invalid_value(struct ctl_data *ctl,
 					 snd_ctl_elem_value_t *val)
 {
 	int err;
-	long val_read;
 
 	/* Ideally this will fail... */
 	err = snd_ctl_elem_write(ctl->card->handle, val);
@@ -883,8 +881,7 @@ static bool test_ctl_write_invalid_value(struct ctl_data *ctl,
 
 static bool test_ctl_write_invalid_boolean(struct ctl_data *ctl)
 {
-	int err, i;
-	long val_read;
+	int i;
 	bool fail = false;
 	snd_ctl_elem_value_t *val;
 	snd_ctl_elem_value_alloca(&val);
@@ -994,8 +991,7 @@ static bool test_ctl_write_invalid_integer64(struct ctl_data *ctl)
 
 static bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
 {
-	int err, i;
-	unsigned int val_read;
+	int i;
 	bool fail = false;
 	snd_ctl_elem_value_t *val;
 	snd_ctl_elem_value_alloca(&val);
@@ -1027,7 +1023,6 @@ static bool test_ctl_write_invalid_enumerated(struct ctl_data *ctl)
 static void test_ctl_write_invalid(struct ctl_data *ctl)
 {
 	bool pass;
-	int err;
 
 	/* If the control is turned off let's be polite */
 	if (snd_ctl_elem_info_is_inactive(ctl->info)) {

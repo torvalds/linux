@@ -102,7 +102,11 @@ struct tegra_bpmp {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_mirror;
 #endif
+
+	bool suspended;
 };
+
+#define TEGRA_BPMP_MESSAGE_RESET BIT(0)
 
 struct tegra_bpmp_message {
 	unsigned int mrq;
@@ -117,6 +121,8 @@ struct tegra_bpmp_message {
 		size_t size;
 		int ret;
 	} rx;
+
+	unsigned long flags;
 };
 
 #if IS_ENABLED(CONFIG_TEGRA_BPMP)

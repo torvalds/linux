@@ -55,6 +55,7 @@ properties:
   linux,rootfs:
     description: Marks partition that contains root filesystem to mount and boot
       user space from
+    type: boolean
 
 if:
   not:

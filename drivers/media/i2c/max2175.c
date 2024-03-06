@@ -1429,7 +1429,7 @@ static struct i2c_driver max2175_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = max2175_of_ids,
 	},
-	.probe_new	= max2175_probe,
+	.probe		= max2175_probe,
 	.remove		= max2175_remove,
 	.id_table	= max2175_id,
 };

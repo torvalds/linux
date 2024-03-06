@@ -292,7 +292,7 @@ static int supported_arch(void)
 #elif defined(__x86_64__)
 	return 1;
 #elif defined(__aarch64__)
-	return 1;
+	return getpagesize() == PAGE_SIZE;
 #else
 	return 0;
 #endif

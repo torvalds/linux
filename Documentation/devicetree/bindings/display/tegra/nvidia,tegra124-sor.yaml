@@ -97,7 +97,7 @@ properties:
 
   # optional when driving an eDP output
   nvidia,dpaux:
-    description: phandle to a DispayPort AUX interface
+    description: phandle to a DisplayPort AUX interface
     $ref: /schemas/types.yaml#/definitions/phandle
 
 allOf:

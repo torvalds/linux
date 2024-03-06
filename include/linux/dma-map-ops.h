@@ -8,8 +8,10 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/pgtable.h>
+#include <linux/slab.h>
 
 struct cma;
+struct iommu_ops;
 
 /*
  * Values for struct dma_map_ops.flags:
@@ -168,12 +170,6 @@ static inline void dma_free_contiguous(struct device *dev, struct page *page,
 }
 #endif /* CONFIG_DMA_CMA*/
 
-#ifdef CONFIG_DMA_PERNUMA_CMA
-void dma_pernuma_cma_reserve(void);
-#else
-static inline void dma_pernuma_cma_reserve(void) { }
-#endif /* CONFIG_DMA_PERNUMA_CMA */
-
 #ifdef CONFIG_DMA_DECLARE_COHERENT
 int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 		dma_addr_t device_addr, size_t size);
@@ -277,10 +273,76 @@ static inline bool dev_is_dma_coherent(struct device *dev)
 }
 #endif /* CONFIG_ARCH_HAS_DMA_COHERENCE_H */
 
+/*
+ * Check whether potential kmalloc() buffers are safe for non-coherent DMA.
+ */
+static inline bool dma_kmalloc_safe(struct device *dev,
+				    enum dma_data_direction dir)
+{
+	/*
+	 * If DMA bouncing of kmalloc() buffers is disabled, the kmalloc()
+	 * caches have already been aligned to a DMA-safe size.
+	 */
+	if (!IS_ENABLED(CONFIG_DMA_BOUNCE_UNALIGNED_KMALLOC))
+		return true;
+
+	/*
+	 * kmalloc() buffers are DMA-safe irrespective of size if the device
+	 * is coherent or the direction is DMA_TO_DEVICE (non-desctructive
+	 * cache maintenance and benign cache line evictions).
+	 */
+	if (dev_is_dma_coherent(dev) || dir == DMA_TO_DEVICE)
+		return true;
+
+	return false;
+}
+
+/*
+ * Check whether the given size, assuming it is for a kmalloc()'ed buffer, is
+ * sufficiently aligned for non-coherent DMA.
+ */
+static inline bool dma_kmalloc_size_aligned(size_t size)
+{
+	/*
+	 * Larger kmalloc() sizes are guaranteed to be aligned to
+	 * ARCH_DMA_MINALIGN.
+	 */
+	if (size >= 2 * ARCH_DMA_MINALIGN ||
+	    IS_ALIGNED(kmalloc_size_roundup(size), dma_get_cache_alignment()))
+		return true;
+
+	return false;
+}
+
+/*
+ * Check whether the given object size may have originated from a kmalloc()
+ * buffer with a slab alignment below the DMA-safe alignment and needs
+ * bouncing for non-coherent DMA. The pointer alignment is not considered and
+ * in-structure DMA-safe offsets are the responsibility of the caller. Such
+ * code should use the static ARCH_DMA_MINALIGN for compiler annotations.
+ *
+ * The heuristics can have false positives, bouncing unnecessarily, though the
+ * buffers would be small. False negatives are theoretically possible if, for
+ * example, multiple small kmalloc() buffers are coalesced into a larger
+ * buffer that passes the alignment check. There are no such known constructs
+ * in the kernel.
+ */
+static inline bool dma_kmalloc_needs_bounce(struct device *dev, size_t size,
+					    enum dma_data_direction dir)
+{
+	return !dma_kmalloc_safe(dev, dir) && !dma_kmalloc_size_aligned(size);
+}
+
 void *arch_dma_alloc(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp, unsigned long attrs);
 void arch_dma_free(struct device *dev, size_t size, void *cpu_addr,
 		dma_addr_t dma_addr, unsigned long attrs);
+
+#ifdef CONFIG_ARCH_HAS_DMA_SET_MASK
+void arch_dma_set_mask(struct device *dev, u64 mask);
+#else
+#define arch_dma_set_mask(dev, mask)	do { } while (0)
+#endif
 
 #ifdef CONFIG_MMU
 /*
@@ -365,10 +427,10 @@ bool arch_dma_unmap_sg_direct(struct device *dev, struct scatterlist *sg,
 
 #ifdef CONFIG_ARCH_HAS_SETUP_DMA_OPS
 void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
-		const struct iommu_ops *iommu, bool coherent);
+		bool coherent);
 #else
 static inline void arch_setup_dma_ops(struct device *dev, u64 dma_base,
-		u64 size, const struct iommu_ops *iommu, bool coherent)
+		u64 size, bool coherent)
 {
 }
 #endif /* CONFIG_ARCH_HAS_SETUP_DMA_OPS */
@@ -382,10 +444,10 @@ static inline void arch_teardown_dma_ops(struct device *dev)
 #endif /* CONFIG_ARCH_HAS_TEARDOWN_DMA_OPS */
 
 #ifdef CONFIG_DMA_API_DEBUG
-void dma_debug_add_bus(struct bus_type *bus);
+void dma_debug_add_bus(const struct bus_type *bus);
 void debug_dma_dump_mappings(struct device *dev);
 #else
-static inline void dma_debug_add_bus(struct bus_type *bus)
+static inline void dma_debug_add_bus(const struct bus_type *bus)
 {
 }
 static inline void debug_dma_dump_mappings(struct device *dev)

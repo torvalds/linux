@@ -3,6 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/skbuff.h>
@@ -8164,28 +8165,6 @@ ath10k_wmi_10_2_4_op_gen_pdev_get_tpc_config(struct ath10k *ar, u32 param)
 	return skb;
 }
 
-size_t ath10k_wmi_fw_stats_num_peers(struct list_head *head)
-{
-	struct ath10k_fw_stats_peer *i;
-	size_t num = 0;
-
-	list_for_each_entry(i, head, list)
-		++num;
-
-	return num;
-}
-
-size_t ath10k_wmi_fw_stats_num_vdevs(struct list_head *head)
-{
-	struct ath10k_fw_stats_vdev *i;
-	size_t num = 0;
-
-	list_for_each_entry(i, head, list)
-		++num;
-
-	return num;
-}
-
 static void
 ath10k_wmi_fw_pdev_base_stats_fill(const struct ath10k_fw_stats_pdev *pdev,
 				   char *buf, u32 *length)
@@ -8462,8 +8441,8 @@ void ath10k_wmi_main_op_fw_stats_fill(struct ath10k *ar,
 		goto unlock;
 	}
 
-	num_peers = ath10k_wmi_fw_stats_num_peers(&fw_stats->peers);
-	num_vdevs = ath10k_wmi_fw_stats_num_vdevs(&fw_stats->vdevs);
+	num_peers = list_count_nodes(&fw_stats->peers);
+	num_vdevs = list_count_nodes(&fw_stats->vdevs);
 
 	ath10k_wmi_fw_pdev_base_stats_fill(pdev, buf, &len);
 	ath10k_wmi_fw_pdev_tx_stats_fill(pdev, buf, &len);
@@ -8520,8 +8499,8 @@ void ath10k_wmi_10x_op_fw_stats_fill(struct ath10k *ar,
 		goto unlock;
 	}
 
-	num_peers = ath10k_wmi_fw_stats_num_peers(&fw_stats->peers);
-	num_vdevs = ath10k_wmi_fw_stats_num_vdevs(&fw_stats->vdevs);
+	num_peers = list_count_nodes(&fw_stats->peers);
+	num_vdevs = list_count_nodes(&fw_stats->vdevs);
 
 	ath10k_wmi_fw_pdev_base_stats_fill(pdev, buf, &len);
 	ath10k_wmi_fw_pdev_extra_stats_fill(pdev, buf, &len);
@@ -8668,8 +8647,8 @@ void ath10k_wmi_10_4_op_fw_stats_fill(struct ath10k *ar,
 		goto unlock;
 	}
 
-	num_peers = ath10k_wmi_fw_stats_num_peers(&fw_stats->peers);
-	num_vdevs = ath10k_wmi_fw_stats_num_vdevs(&fw_stats->vdevs);
+	num_peers = list_count_nodes(&fw_stats->peers);
+	num_vdevs = list_count_nodes(&fw_stats->vdevs);
 
 	ath10k_wmi_fw_pdev_base_stats_fill(pdev, buf, &len);
 	ath10k_wmi_fw_pdev_extra_stats_fill(pdev, buf, &len);

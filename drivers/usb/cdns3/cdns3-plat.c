@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
@@ -86,16 +87,20 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 	cdns->dev_irq = platform_get_irq_byname(pdev, "peripheral");
 
 	if (cdns->dev_irq < 0)
-		return cdns->dev_irq;
+		return dev_err_probe(dev, cdns->dev_irq,
+				     "Failed to get peripheral IRQ\n");
 
 	regs = devm_platform_ioremap_resource_byname(pdev, "dev");
 	if (IS_ERR(regs))
-		return PTR_ERR(regs);
+		return dev_err_probe(dev, PTR_ERR(regs),
+				     "Failed to get dev base\n");
+
 	cdns->dev_regs	= regs;
 
 	cdns->otg_irq = platform_get_irq_byname(pdev, "otg");
 	if (cdns->otg_irq < 0)
-		return cdns->otg_irq;
+		return dev_err_probe(dev, cdns->otg_irq,
+				     "Failed to get otg IRQ\n");
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "otg");
 	if (!res) {
@@ -118,7 +123,8 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 
 	cdns->usb2_phy = devm_phy_optional_get(dev, "cdns3,usb2-phy");
 	if (IS_ERR(cdns->usb2_phy))
-		return PTR_ERR(cdns->usb2_phy);
+		return dev_err_probe(dev, PTR_ERR(cdns->usb2_phy),
+				     "Failed to get cdn3,usb2-phy\n");
 
 	ret = phy_init(cdns->usb2_phy);
 	if (ret)
@@ -126,7 +132,8 @@ static int cdns3_plat_probe(struct platform_device *pdev)
 
 	cdns->usb3_phy = devm_phy_optional_get(dev, "cdns3,usb3-phy");
 	if (IS_ERR(cdns->usb3_phy))
-		return PTR_ERR(cdns->usb3_phy);
+		return dev_err_probe(dev, PTR_ERR(cdns->usb3_phy),
+				     "Failed to get cdn3,usb3-phy\n");
 
 	ret = phy_init(cdns->usb3_phy);
 	if (ret)
@@ -175,7 +182,7 @@ err_phy3_init:
  *
  * Returns 0 on success otherwise negative errno
  */
-static int cdns3_plat_remove(struct platform_device *pdev)
+static void cdns3_plat_remove(struct platform_device *pdev)
 {
 	struct cdns *cdns = platform_get_drvdata(pdev);
 	struct device *dev = cdns->dev;
@@ -187,7 +194,6 @@ static int cdns3_plat_remove(struct platform_device *pdev)
 	set_phy_power_off(cdns);
 	phy_exit(cdns->usb2_phy);
 	phy_exit(cdns->usb3_phy);
-	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -256,9 +262,10 @@ static int cdns3_controller_resume(struct device *dev, pm_message_t msg)
 	cdns3_set_platform_suspend(cdns->dev, false, false);
 
 	spin_lock_irqsave(&cdns->lock, flags);
-	cdns_resume(cdns, !PMSG_IS_AUTO(msg));
+	cdns_resume(cdns);
 	cdns->in_lpm = false;
 	spin_unlock_irqrestore(&cdns->lock, flags);
+	cdns_set_active(cdns, !PMSG_IS_AUTO(msg));
 	if (cdns->wakeup_pending) {
 		cdns->wakeup_pending = false;
 		enable_irq(cdns->wakeup_irq);
@@ -320,7 +327,7 @@ MODULE_DEVICE_TABLE(of, of_cdns3_match);
 
 static struct platform_driver cdns3_driver = {
 	.probe		= cdns3_plat_probe,
-	.remove		= cdns3_plat_remove,
+	.remove_new	= cdns3_plat_remove,
 	.driver		= {
 		.name	= "cdns-usb3",
 		.of_match_table	= of_match_ptr(of_cdns3_match),

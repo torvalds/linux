@@ -179,7 +179,6 @@ config PCI_MVEBU
 	depends on MVEBU_MBUS
 	depends on ARM
 	depends on OF
-	depends on BROKEN
 	select PCI_BRIDGE_EMUL
 	help
 	 Add support for Marvell EBU PCIe controller. This PCIe controller
@@ -217,7 +216,7 @@ config PCIE_MT7621
 	  This selects a driver for the MediaTek MT7621 PCIe Controller.
 
 config PCIE_MICROCHIP_HOST
-	bool "Microchip AXI PCIe controller"
+	tristate "Microchip AXI PCIe controller"
 	depends on PCI_MSI && OF
 	select PCI_HOST_COMMON
 	help
@@ -324,6 +323,17 @@ config PCIE_XILINX
 	help
 	  Say 'Y' here if you want kernel to support the Xilinx AXI PCIe
 	  Host Bridge driver.
+
+config PCIE_XILINX_DMA_PL
+	bool "Xilinx DMA PL PCIe host bridge support"
+	depends on ARCH_ZYNQMP || COMPILE_TEST
+	depends on PCI_MSI
+	select PCI_HOST_COMMON
+	help
+	  Say 'Y' here if you want kernel support for the Xilinx PL DMA
+	  PCIe host bridge. The controller is a Soft IP which can act as
+	  Root Port. If your system provides Xilinx PCIe host controller
+	  bridge DMA as Soft IP say 'Y'; if you are not sure, say 'N'.
 
 config PCIE_XILINX_NWL
 	bool "Xilinx NWL PCIe controller"

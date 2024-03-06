@@ -16,7 +16,7 @@
  *	L	- lower subcluster; L0 - subcluster L0; L1 - subcluster L1
  * Try not to change the actual algorithm if possible for consistency.
  */
-#include <asm/export.h>
+#include <linux/export.h>
 #include <asm/regdef.h>
 
 	.set noreorder

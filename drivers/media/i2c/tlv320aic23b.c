@@ -197,7 +197,7 @@ static struct i2c_driver tlv320aic23b_driver = {
 	.driver = {
 		.name	= "tlv320aic23b",
 	},
-	.probe_new	= tlv320aic23b_probe,
+	.probe		= tlv320aic23b_probe,
 	.remove		= tlv320aic23b_remove,
 	.id_table	= tlv320aic23b_id,
 };

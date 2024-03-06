@@ -161,7 +161,7 @@ get_dfs_domain_radar_types(enum nl80211_dfs_regions region)
 struct channel_detector {
 	struct list_head head;
 	u16 freq;
-	struct pri_detector **detectors;
+	struct pri_detector *detectors[];
 };
 
 /* channel_detector_reset() - reset detector lines for a given channel */
@@ -183,14 +183,13 @@ static void channel_detector_exit(struct dfs_pattern_detector *dpd,
 	if (cd == NULL)
 		return;
 	list_del(&cd->head);
-	if (cd->detectors) {
-		for (i = 0; i < dpd->num_radar_types; i++) {
-			struct pri_detector *de = cd->detectors[i];
-			if (de != NULL)
-				de->exit(de);
-		}
+
+	for (i = 0; i < dpd->num_radar_types; i++) {
+		struct pri_detector *de = cd->detectors[i];
+		if (de != NULL)
+			de->exit(de);
 	}
-	kfree(cd->detectors);
+
 	kfree(cd);
 }
 
@@ -200,16 +199,12 @@ channel_detector_create(struct dfs_pattern_detector *dpd, u16 freq)
 	u32 i;
 	struct channel_detector *cd;
 
-	cd = kmalloc(sizeof(*cd), GFP_ATOMIC);
+	cd = kzalloc(struct_size(cd, detectors, dpd->num_radar_types), GFP_ATOMIC);
 	if (cd == NULL)
 		goto fail;
 
 	INIT_LIST_HEAD(&cd->head);
 	cd->freq = freq;
-	cd->detectors = kmalloc_array(dpd->num_radar_types,
-				      sizeof(*cd->detectors), GFP_ATOMIC);
-	if (cd->detectors == NULL)
-		goto fail;
 
 	for (i = 0; i < dpd->num_radar_types; i++) {
 		const struct radar_detector_specs *rs = &dpd->radar_spec[i];

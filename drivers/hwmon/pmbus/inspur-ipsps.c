@@ -215,7 +215,7 @@ static struct i2c_driver ipsps_driver = {
 		.name = "inspur-ipsps",
 		.of_match_table = of_match_ptr(ipsps_of_match),
 	},
-	.probe_new = ipsps_probe,
+	.probe = ipsps_probe,
 	.id_table = ipsps_id,
 };
 

@@ -68,7 +68,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: >
       Bitmask of channels to reserve for devices that need a specific
-      channel. These channels will only be assigned when explicitely
+      channel. These channels will only be assigned when explicitly
       requested by a client. The primary use for this is channels 0 and
       1, which can be configured to have special behaviour for NAND/BCH
       when using programmable firmware.

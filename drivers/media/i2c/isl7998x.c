@@ -1007,8 +1007,8 @@ static int isl7998x_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&isl7998x->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		format->format = *v4l2_subdev_get_try_format(sd, sd_state,
-							     format->pad);
+		format->format = *v4l2_subdev_state_get_format(sd_state,
+							       format->pad);
 		goto out;
 	}
 
@@ -1044,7 +1044,7 @@ static int isl7998x_set_fmt(struct v4l2_subdev *sd,
 	mf->field = mode->field;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(sd, sd_state, format->pad) = format->format;
+		*v4l2_subdev_state_get_format(sd_state, format->pad) = format->format;
 
 	mutex_unlock(&isl7998x->lock);
 
@@ -1611,10 +1611,10 @@ static const struct dev_pm_ops isl7998x_pm_ops = {
 static struct i2c_driver isl7998x_i2c_driver = {
 	.driver = {
 		.name = "isl7998x",
-		.of_match_table = of_match_ptr(isl7998x_of_match),
+		.of_match_table = isl7998x_of_match,
 		.pm = &isl7998x_pm_ops,
 	},
-	.probe_new	= isl7998x_probe,
+	.probe		= isl7998x_probe,
 	.remove		= isl7998x_remove,
 	.id_table	= isl7998x_id,
 };

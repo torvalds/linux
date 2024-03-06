@@ -442,8 +442,6 @@ static int adv7183_set_fmt(struct v4l2_subdev *sd,
 	}
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		decoder->fmt = *fmt;
-	else
-		sd_state->pads->try_fmt = *fmt;
 	return 0;
 }
 
@@ -631,7 +629,7 @@ static struct i2c_driver adv7183_driver = {
 	.driver = {
 		.name   = "adv7183",
 	},
-	.probe_new      = adv7183_probe,
+	.probe          = adv7183_probe,
 	.remove         = adv7183_remove,
 	.id_table       = adv7183_id,
 };

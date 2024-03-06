@@ -23,5 +23,5 @@
 };
 
 &proximity {
-	proximity-near-level = <5>;
+	proximity-near-level = <7>;
 };

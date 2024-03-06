@@ -1,0 +1,18 @@
+[
+    {
+        "BriefDescription": "Number of all entries allocated. Includes also retries.",
+        "EventCode": "0x35",
+        "EventName": "UNC_HAC_CBO_TOR_ALLOCATION.ALL",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "HAC_CBO"
+    },
+    {
+        "BriefDescription": "Asserted on coherent DRD + DRdPref  allocations into the queue. Cacheable only",
+        "EventCode": "0x35",
+        "EventName": "UNC_HAC_CBO_TOR_ALLOCATION.DRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "HAC_CBO"
+    }
+]

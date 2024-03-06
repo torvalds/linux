@@ -276,6 +276,11 @@ L_FETCH_2ND_TRAP:
 #endif
 	s_lshl_b64	[ttmp14, ttmp15], [ttmp14, ttmp15], 0x8
 
+	s_bitcmp1_b32	ttmp15, 0xF
+	s_cbranch_scc0	L_NO_SIGN_EXTEND_TMA
+	s_or_b32	ttmp15, ttmp15, 0xFFFF0000
+L_NO_SIGN_EXTEND_TMA:
+
 	s_load_dword    ttmp2, [ttmp14, ttmp15], 0x10 glc:1			// debug trap enabled flag
 	s_waitcnt       lgkmcnt(0)
 	s_lshl_b32      ttmp2, ttmp2, TTMP11_DEBUG_TRAP_ENABLED_SHIFT
@@ -364,6 +369,12 @@ L_SLEEP:
 	s_or_b32	s_save_pc_hi, s_save_pc_hi, s_save_tmp
 
 #if NO_SQC_STORE
+#if ASIC_FAMILY <= CHIP_SIENNA_CICHLID
+	// gfx10: If there was a VALU exception, the exception state must be
+	// cleared before executing the VALU instructions below.
+	v_clrexcp
+#endif
+
 	// Trap temporaries must be saved via VGPR but all VGPRs are in use.
 	// There is no ttmp space to hold the resource constant for VGPR save.
 	// Save v0 by itself since it requires only two SGPRs.
@@ -1093,7 +1104,7 @@ L_RETURN_WITHOUT_PRIV:
 	s_rfe_b64	s_restore_pc_lo						//Return to the main shader program and resume execution
 
 L_END_PGM:
-	s_endpgm
+	s_endpgm_saved
 end
 
 function write_hwreg_to_mem(s, s_rsrc, s_mem_offset)

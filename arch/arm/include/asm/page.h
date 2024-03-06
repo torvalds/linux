@@ -113,6 +113,28 @@ struct cpu_user_fns {
 			unsigned long vaddr, struct vm_area_struct *vma);
 };
 
+void fa_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void fa_clear_user_highpage(struct page *page, unsigned long vaddr);
+void feroceon_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void feroceon_clear_user_highpage(struct page *page, unsigned long vaddr);
+void v4_mc_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void v4_mc_clear_user_highpage(struct page *page, unsigned long vaddr);
+void v4wb_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void v4wb_clear_user_highpage(struct page *page, unsigned long vaddr);
+void v4wt_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void v4wt_clear_user_highpage(struct page *page, unsigned long vaddr);
+void xsc3_mc_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void xsc3_mc_clear_user_highpage(struct page *page, unsigned long vaddr);
+void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
+	unsigned long vaddr, struct vm_area_struct *vma);
+void xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr);
+
 #ifdef MULTI_USER
 extern struct cpu_user_fns cpu_user;
 
@@ -161,9 +183,9 @@ extern int pfn_valid(unsigned long);
 #define pfn_valid pfn_valid
 #endif
 
-#include <asm/memory.h>
-
 #endif /* !__ASSEMBLY__ */
+
+#include <asm/memory.h>
 
 #define VM_DATA_DEFAULT_FLAGS	VM_DATA_FLAGS_TSK_EXEC
 

@@ -1,8 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Common Flash Interface support:
  *   ST Advanced Architecture Command Set (ID 0x0020)
  *
- * (C) 2000 Red Hat. GPL'd
+ * (C) 2000 Red Hat.
  *
  * 10/10/2000	Nicolas Pitre <nico@fluxnic.net>
  * 	- completely revamped method functions so they are aware and

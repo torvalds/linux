@@ -189,7 +189,7 @@ static struct i2c_driver ibm_panel_driver = {
 		.name = DEVICE_NAME,
 		.of_match_table = ibm_panel_match,
 	},
-	.probe_new = ibm_panel_probe,
+	.probe = ibm_panel_probe,
 	.remove = ibm_panel_remove,
 };
 module_i2c_driver(ibm_panel_driver);

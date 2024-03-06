@@ -53,8 +53,7 @@ void aa_secid_update(u32 secid, struct aa_label *label)
 	xa_unlock_irqrestore(&aa_secids, flags);
 }
 
-/**
- *
+/*
  * see label for inverse aa_label_to_secid
  */
 struct aa_label *aa_secid_to_label(u32 secid)

@@ -1,0 +1,57 @@
+SPDX-License-Identifier: GPL-2.0
+
+Chinese translated version of Documentation/arch/arm64/tagged-pointers.rst
+
+If you have any comment or update to the content, please contact the
+original document maintainer directly.  However, if you have a problem
+communicating in English you can also ask the Chinese maintainer for
+help.  Contact the Chinese maintainer if this translation is outdated
+or if there is a problem with the translation.
+
+Maintainer: Will Deacon <will.deacon@arm.com>
+Chinese maintainer: Fu Wei <wefu@redhat.com>
+Traditional Chinese maintainer: Hu Haowen <2023002089@link.tyut.edu.cn>
+---------------------------------------------------------------------
+Documentation/arch/arm64/tagged-pointers.rst 的中文翻譯
+
+如果想評論或更新本文的內容，請直接聯繫原文檔的維護者。如果你使用英文
+交流有困難的話，也可以向中文版維護者求助。如果本翻譯更新不及時或者翻
+譯存在問題，請聯繫中文版維護者。
+
+英文版維護者： Will Deacon <will.deacon@arm.com>
+中文版維護者： 傅煒  Fu Wei <wefu@redhat.com>
+中文版翻譯者： 傅煒  Fu Wei <wefu@redhat.com>
+中文版校譯者： 傅煒  Fu Wei <wefu@redhat.com>
+繁體中文版校譯者： 胡皓文  Hu Haowen <2023002089@link.tyut.edu.cn>
+
+以下爲正文
+---------------------------------------------------------------------
+		Linux 在 AArch64 中帶標記的虛擬地址
+		=================================
+
+作者: Will Deacon <will.deacon@arm.com>
+日期: 2013 年 06 月 12 日
+
+本文檔簡述了在 AArch64 地址轉換系統中提供的帶標記的虛擬地址及其在
+AArch64 Linux 中的潛在用途。
+
+內核提供的地址轉換表配置使通過 TTBR0 完成的虛擬地址轉換（即用戶空間
+映射），其虛擬地址的最高 8 位（63:56）會被轉換硬件所忽略。這種機制
+讓這些位可供應用程序自由使用，其注意事項如下：
+
+	(1) 內核要求所有傳遞到 EL1 的用戶空間地址帶有 0x00 標記。
+	    這意味着任何攜帶用戶空間虛擬地址的系統調用（syscall）
+	    參數 *必須* 在陷入內核前使它們的最高字節被清零。
+
+	(2) 非零標記在傳遞信號時不被保存。這意味着在應用程序中利用了
+	    標記的信號處理函數無法依賴 siginfo_t 的用戶空間虛擬
+	    地址所攜帶的包含其內部域信息的標記。此規則的一個例外是
+	    當信號是在調試觀察點的異常處理程序中產生的，此時標記的
+	    信息將被保存。
+
+	(3) 當使用帶標記的指針時需特別留心，因爲僅對兩個虛擬地址
+	    的高字節，C 編譯器很可能無法判斷它們是不同的。
+
+此構架會阻止對帶標記的 PC 指針的利用，因此在異常返回時，其高字節
+將被設置成一個爲 “55” 的擴展符。
+

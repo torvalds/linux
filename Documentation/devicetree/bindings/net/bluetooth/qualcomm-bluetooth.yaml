@@ -16,14 +16,17 @@ description:
 properties:
   compatible:
     enum:
+      - qcom,qca2066-bt
       - qcom,qca6174-bt
       - qcom,qca9377-bt
+      - qcom,wcn3988-bt
       - qcom,wcn3990-bt
       - qcom,wcn3991-bt
       - qcom,wcn3998-bt
       - qcom,qca6390-bt
       - qcom,wcn6750-bt
       - qcom,wcn6855-bt
+      - qcom,wcn7850-bt
 
   enable-gpios:
     maxItems: 1
@@ -50,8 +53,14 @@ properties:
   vddch0-supply:
     description: VDD_CH0 supply regulator handle
 
+  vddch1-supply:
+    description: VDD_CH1 supply regulator handle
+
   vddaon-supply:
     description: VDD_AON supply regulator handle
+
+  vdddig-supply:
+    description: VDD_DIG supply regulator handle
 
   vddbtcxmx-supply:
     description: VDD_BT_CXMX supply regulator handle
@@ -67,6 +76,9 @@ properties:
 
   vddrfa1p2-supply:
     description: VDD_RFA_1P2 supply regulator handle
+
+  vddrfa1p9-supply:
+    description: VDD_RFA_1P9 supply regulator handle
 
   vddrfa2p2-supply:
     description: VDD_RFA_2P2 supply regulator handle
@@ -95,6 +107,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,qca2066-bt
               - qcom,qca6174-bt
     then:
       required:
@@ -106,6 +119,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,wcn3988-bt
               - qcom,wcn3990-bt
               - qcom,wcn3991-bt
               - qcom,wcn3998-bt
@@ -150,6 +164,22 @@ allOf:
         - vddrfa0p8-supply
         - vddrfa1p2-supply
         - vddrfa1p7-supply
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,wcn7850-bt
+    then:
+      required:
+        - enable-gpios
+        - swctrl-gpios
+        - vddio-supply
+        - vddaon-supply
+        - vdddig-supply
+        - vddrfa0p8-supply
+        - vddrfa1p2-supply
+        - vddrfa1p9-supply
 
 examples:
   - |

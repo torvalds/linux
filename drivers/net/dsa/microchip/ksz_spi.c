@@ -63,7 +63,7 @@ static int ksz_spi_probe(struct spi_device *spi)
 	else
 		regmap_config = ksz9477_regmap_config;
 
-	for (i = 0; i < ARRAY_SIZE(ksz8795_regmap_config); i++) {
+	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = regmap_config[i];
 		rc.lock_arg = &dev->regmap_mutex;
 		rc.wr_table = chip->wr_table;
@@ -114,10 +114,7 @@ static void ksz_spi_shutdown(struct spi_device *spi)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->reset)
-		dev->dev_ops->reset(dev);
-
-	dsa_switch_shutdown(dev->ds);
+	ksz_switch_shutdown(dev);
 
 	spi_set_drvdata(spi, NULL);
 }

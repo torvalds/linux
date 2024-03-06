@@ -167,15 +167,13 @@ static ssize_t match_busid_show(struct device_driver *drv, char *buf)
 static ssize_t match_busid_store(struct device_driver *dev, const char *buf,
 				 size_t count)
 {
-	int len;
 	char busid[BUSID_SIZE];
 
 	if (count < 5)
 		return -EINVAL;
 
 	/* busid needs to include \0 termination */
-	len = strlcpy(busid, buf + 4, BUSID_SIZE);
-	if (sizeof(busid) <= len)
+	if (strscpy(busid, buf + 4, BUSID_SIZE) < 0)
 		return -EINVAL;
 
 	if (!strncmp(buf, "add ", 4)) {
@@ -379,14 +377,14 @@ static int __init usbip_host_init(void)
 		goto err_usb_register;
 	}
 
-	ret = driver_create_file(&stub_driver.drvwrap.driver,
+	ret = driver_create_file(&stub_driver.driver,
 				 &driver_attr_match_busid);
 	if (ret) {
 		pr_err("driver_create_file failed\n");
 		goto err_create_file;
 	}
 
-	ret = driver_create_file(&stub_driver.drvwrap.driver,
+	ret = driver_create_file(&stub_driver.driver,
 				 &driver_attr_rebind);
 	if (ret) {
 		pr_err("driver_create_file failed\n");
@@ -404,10 +402,10 @@ err_usb_register:
 
 static void __exit usbip_host_exit(void)
 {
-	driver_remove_file(&stub_driver.drvwrap.driver,
+	driver_remove_file(&stub_driver.driver,
 			   &driver_attr_match_busid);
 
-	driver_remove_file(&stub_driver.drvwrap.driver,
+	driver_remove_file(&stub_driver.driver,
 			   &driver_attr_rebind);
 
 	/*

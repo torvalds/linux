@@ -39,7 +39,7 @@ void kvm_set_pmu_events(u32 set, struct perf_event_attr *attr)
 {
 	struct kvm_pmu_events *pmu = kvm_get_pmu_events();
 
-	if (!kvm_arm_support_pmu_v3() || !pmu || !kvm_pmu_switch_needed(attr))
+	if (!kvm_arm_support_pmu_v3() || !kvm_pmu_switch_needed(attr))
 		return;
 
 	if (!attr->exclude_host)
@@ -55,7 +55,7 @@ void kvm_clr_pmu_events(u32 clr)
 {
 	struct kvm_pmu_events *pmu = kvm_get_pmu_events();
 
-	if (!kvm_arm_support_pmu_v3() || !pmu)
+	if (!kvm_arm_support_pmu_v3())
 		return;
 
 	pmu->events_host &= ~clr;
@@ -208,4 +208,49 @@ void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu)
 
 	kvm_vcpu_pmu_enable_el0(events_host);
 	kvm_vcpu_pmu_disable_el0(events_guest);
+}
+
+/*
+ * With VHE, keep track of the PMUSERENR_EL0 value for the host EL0 on the pCPU
+ * where PMUSERENR_EL0 for the guest is loaded, since PMUSERENR_EL0 is switched
+ * to the value for the guest on vcpu_load().  The value for the host EL0
+ * will be restored on vcpu_put(), before returning to userspace.
+ * This isn't necessary for nVHE, as the register is context switched for
+ * every guest enter/exit.
+ *
+ * Return true if KVM takes care of the register. Otherwise return false.
+ */
+bool kvm_set_pmuserenr(u64 val)
+{
+	struct kvm_cpu_context *hctxt;
+	struct kvm_vcpu *vcpu;
+
+	if (!kvm_arm_support_pmu_v3() || !has_vhe())
+		return false;
+
+	vcpu = kvm_get_running_vcpu();
+	if (!vcpu || !vcpu_get_flag(vcpu, PMUSERENR_ON_CPU))
+		return false;
+
+	hctxt = &this_cpu_ptr(&kvm_host_data)->host_ctxt;
+	ctxt_sys_reg(hctxt, PMUSERENR_EL0) = val;
+	return true;
+}
+
+/*
+ * If we interrupted the guest to update the host PMU context, make
+ * sure we re-apply the guest EL0 state.
+ */
+void kvm_vcpu_pmu_resync_el0(void)
+{
+	struct kvm_vcpu *vcpu;
+
+	if (!has_vhe() || !in_interrupt())
+		return;
+
+	vcpu = kvm_get_running_vcpu();
+	if (!vcpu)
+		return;
+
+	kvm_make_request(KVM_REQ_RESYNC_PMU_EL0, vcpu);
 }

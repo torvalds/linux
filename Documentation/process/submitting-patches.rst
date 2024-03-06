@@ -327,9 +327,36 @@ politely and address the problems they have pointed out.  When sending a next
 version, add a ``patch changelog`` to the cover letter or to individual patches
 explaining difference against previous submission (see
 :ref:`the_canonical_patch_format`).
+Notify people that commented on your patch about new versions by adding them to
+the patches CC list.
 
 See Documentation/process/email-clients.rst for recommendations on email
 clients and mailing list etiquette.
+
+.. _interleaved_replies:
+
+Use trimmed interleaved replies in email discussions
+----------------------------------------------------
+Top-posting is strongly discouraged in Linux kernel development
+discussions. Interleaved (or "inline") replies make conversations much
+easier to follow. For more details see:
+https://en.wikipedia.org/wiki/Posting_style#Interleaved_style
+
+As is frequently quoted on the mailing list::
+
+  A: http://en.wikipedia.org/wiki/Top_post
+  Q: Were do I find info about this thing called top-posting?
+  A: Because it messes up the order in which people normally read text.
+  Q: Why is top-posting such a bad thing?
+  A: Top-posting.
+  Q: What is the most annoying thing in e-mail?
+
+Similarly, please trim all unneeded quotations that aren't relevant
+to your reply. This makes responses easier to find, and saves time and
+space. For more details see: http://daringfireball.net/2007/07/on_top ::
+
+  A: No.
+  Q: Should I include quotations after my reply?
 
 .. _resend_reminders:
 
@@ -341,10 +368,10 @@ busy people and may not get to your patch right away.
 
 Once upon a time, patches used to disappear into the void without comment,
 but the development process works more smoothly than that now.  You should
-receive comments within a week or so; if that does not happen, make sure
-that you have sent your patches to the right place.  Wait for a minimum of
-one week before resubmitting or pinging reviewers - possibly longer during
-busy times like merge windows.
+receive comments within a few weeks (typically 2-3); if that does not
+happen, make sure that you have sent your patches to the right place.
+Wait for a minimum of one week before resubmitting or pinging reviewers
+- possibly longer during busy times like merge windows.
 
 It's also ok to resend the patch or the patch series after a couple of
 weeks with the word "RESEND" added to the subject line::
@@ -763,10 +790,14 @@ Providing base tree information
 -------------------------------
 
 When other developers receive your patches and start the review process,
-it is often useful for them to know where in the tree history they
-should place your work. This is particularly useful for automated CI
-processes that attempt to run a series of tests in order to establish
-the quality of your submission before the maintainer starts the review.
+it is absolutely necessary for them to know what is the base
+commit/branch your work applies on, considering the sheer amount of
+maintainer trees present nowadays. Note again the **T:** entry in the
+MAINTAINERS file explained above.
+
+This is even more important for automated CI processes that attempt to
+run a series of tests in order to establish the quality of your
+submission before the maintainer starts the review.
 
 If you are using ``git format-patch`` to generate your patches, you can
 automatically include the base tree information in your submission by
@@ -809,6 +840,9 @@ letter or in the first patch of the series and it should be placed
 either below the ``---`` line or at the very bottom of all other
 content, right before your email signature.
 
+Make sure that base commit is in an official maintainer/mainline tree
+and not in some internal, accessible only to you tree - otherwise it
+would be worthless.
 
 References
 ----------

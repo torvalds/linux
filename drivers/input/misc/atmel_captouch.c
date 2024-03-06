@@ -263,7 +263,7 @@ static const struct i2c_device_id atmel_captouch_id[] = {
 MODULE_DEVICE_TABLE(i2c, atmel_captouch_id);
 
 static struct i2c_driver atmel_captouch_driver = {
-	.probe_new	= atmel_captouch_probe,
+	.probe		= atmel_captouch_probe,
 	.id_table	= atmel_captouch_id,
 	.driver		= {
 		.name	= "atmel_captouch",

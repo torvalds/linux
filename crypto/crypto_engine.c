@@ -7,14 +7,29 @@
  * Author: Baolin Wang <baolin.wang@linaro.org>
  */
 
+#include <crypto/internal/aead.h>
+#include <crypto/internal/akcipher.h>
+#include <crypto/internal/engine.h>
+#include <crypto/internal/hash.h>
+#include <crypto/internal/kpp.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <crypto/engine.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <uapi/linux/sched/types.h>
 #include "internal.h"
 
 #define CRYPTO_ENGINE_MAX_QLEN 10
+
+/* Temporary algorithm flag used to indicate an updated driver. */
+#define CRYPTO_ALG_ENGINE 0x200
+
+struct crypto_engine_alg {
+	struct crypto_alg base;
+	struct crypto_engine_op op;
+};
 
 /**
  * crypto_finalize_request - finalize one request if the request is done
@@ -26,9 +41,6 @@ static void crypto_finalize_request(struct crypto_engine *engine,
 				    struct crypto_async_request *req, int err)
 {
 	unsigned long flags;
-	bool finalize_req = false;
-	int ret;
-	struct crypto_engine_ctx *enginectx;
 
 	/*
 	 * If hardware cannot enqueue more requests
@@ -38,21 +50,11 @@ static void crypto_finalize_request(struct crypto_engine *engine,
 	if (!engine->retry_support) {
 		spin_lock_irqsave(&engine->queue_lock, flags);
 		if (engine->cur_req == req) {
-			finalize_req = true;
 			engine->cur_req = NULL;
 		}
 		spin_unlock_irqrestore(&engine->queue_lock, flags);
 	}
 
-	if (finalize_req || engine->retry_support) {
-		enginectx = crypto_tfm_ctx(req->tfm);
-		if (enginectx->op.prepare_request &&
-		    enginectx->op.unprepare_request) {
-			ret = enginectx->op.unprepare_request(engine, req);
-			if (ret)
-				dev_err(engine->dev, "failed to unprepare request\n");
-		}
-	}
 	lockdep_assert_in_softirq();
 	crypto_request_complete(req, err);
 
@@ -72,10 +74,11 @@ static void crypto_pump_requests(struct crypto_engine *engine,
 				 bool in_kthread)
 {
 	struct crypto_async_request *async_req, *backlog;
+	struct crypto_engine_alg *alg;
+	struct crypto_engine_op *op;
 	unsigned long flags;
 	bool was_busy = false;
 	int ret;
-	struct crypto_engine_ctx *enginectx;
 
 	spin_lock_irqsave(&engine->queue_lock, flags);
 
@@ -141,27 +144,21 @@ start_request:
 		ret = engine->prepare_crypt_hardware(engine);
 		if (ret) {
 			dev_err(engine->dev, "failed to prepare crypt hardware\n");
-			goto req_err_2;
+			goto req_err_1;
 		}
 	}
 
-	enginectx = crypto_tfm_ctx(async_req->tfm);
-
-	if (enginectx->op.prepare_request) {
-		ret = enginectx->op.prepare_request(engine, async_req);
-		if (ret) {
-			dev_err(engine->dev, "failed to prepare request: %d\n",
-				ret);
-			goto req_err_2;
-		}
-	}
-	if (!enginectx->op.do_one_request) {
+	if (async_req->tfm->__crt_alg->cra_flags & CRYPTO_ALG_ENGINE) {
+		alg = container_of(async_req->tfm->__crt_alg,
+				   struct crypto_engine_alg, base);
+		op = &alg->op;
+	} else {
 		dev_err(engine->dev, "failed to do request\n");
 		ret = -EINVAL;
 		goto req_err_1;
 	}
 
-	ret = enginectx->op.do_one_request(engine, async_req);
+	ret = op->do_one_request(engine, async_req);
 
 	/* Request unsuccessfully executed by hardware */
 	if (ret < 0) {
@@ -176,18 +173,6 @@ start_request:
 				"Failed to do one request from queue: %d\n",
 				ret);
 			goto req_err_1;
-		}
-		/*
-		 * If retry mechanism is supported,
-		 * unprepare current request and
-		 * enqueue it back into crypto-engine queue.
-		 */
-		if (enginectx->op.unprepare_request) {
-			ret = enginectx->op.unprepare_request(engine,
-							      async_req);
-			if (ret)
-				dev_err(engine->dev,
-					"failed to unprepare request\n");
 		}
 		spin_lock_irqsave(&engine->queue_lock, flags);
 		/*
@@ -204,13 +189,6 @@ start_request:
 	goto retry;
 
 req_err_1:
-	if (enginectx->op.unprepare_request) {
-		ret = enginectx->op.unprepare_request(engine, async_req);
-		if (ret)
-			dev_err(engine->dev, "failed to unprepare request\n");
-	}
-
-req_err_2:
 	crypto_request_complete(async_req, ret);
 
 retry:
@@ -574,22 +552,190 @@ EXPORT_SYMBOL_GPL(crypto_engine_alloc_init);
 /**
  * crypto_engine_exit - free the resources of hardware engine when exit
  * @engine: the hardware engine need to be freed
- *
- * Return 0 for success.
  */
-int crypto_engine_exit(struct crypto_engine *engine)
+void crypto_engine_exit(struct crypto_engine *engine)
 {
 	int ret;
 
 	ret = crypto_engine_stop(engine);
 	if (ret)
-		return ret;
+		return;
 
 	kthread_destroy_worker(engine->kworker);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_engine_exit);
+
+int crypto_engine_register_aead(struct aead_engine_alg *alg)
+{
+	if (!alg->op.do_one_request)
+		return -EINVAL;
+
+	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
+
+	return crypto_register_aead(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_aead);
+
+void crypto_engine_unregister_aead(struct aead_engine_alg *alg)
+{
+	crypto_unregister_aead(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_aead);
+
+int crypto_engine_register_aeads(struct aead_engine_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_engine_register_aead(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	crypto_engine_unregister_aeads(algs, i);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_aeads);
+
+void crypto_engine_unregister_aeads(struct aead_engine_alg *algs, int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_engine_unregister_aead(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_aeads);
+
+int crypto_engine_register_ahash(struct ahash_engine_alg *alg)
+{
+	if (!alg->op.do_one_request)
+		return -EINVAL;
+
+	alg->base.halg.base.cra_flags |= CRYPTO_ALG_ENGINE;
+
+	return crypto_register_ahash(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_ahash);
+
+void crypto_engine_unregister_ahash(struct ahash_engine_alg *alg)
+{
+	crypto_unregister_ahash(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_ahash);
+
+int crypto_engine_register_ahashes(struct ahash_engine_alg *algs, int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_engine_register_ahash(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	crypto_engine_unregister_ahashes(algs, i);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_ahashes);
+
+void crypto_engine_unregister_ahashes(struct ahash_engine_alg *algs,
+				      int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_engine_unregister_ahash(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_ahashes);
+
+int crypto_engine_register_akcipher(struct akcipher_engine_alg *alg)
+{
+	if (!alg->op.do_one_request)
+		return -EINVAL;
+
+	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
+
+	return crypto_register_akcipher(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_akcipher);
+
+void crypto_engine_unregister_akcipher(struct akcipher_engine_alg *alg)
+{
+	crypto_unregister_akcipher(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_akcipher);
+
+int crypto_engine_register_kpp(struct kpp_engine_alg *alg)
+{
+	if (!alg->op.do_one_request)
+		return -EINVAL;
+
+	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
+
+	return crypto_register_kpp(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_kpp);
+
+void crypto_engine_unregister_kpp(struct kpp_engine_alg *alg)
+{
+	crypto_unregister_kpp(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_kpp);
+
+int crypto_engine_register_skcipher(struct skcipher_engine_alg *alg)
+{
+	if (!alg->op.do_one_request)
+		return -EINVAL;
+
+	alg->base.base.cra_flags |= CRYPTO_ALG_ENGINE;
+
+	return crypto_register_skcipher(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_skcipher);
+
+void crypto_engine_unregister_skcipher(struct skcipher_engine_alg *alg)
+{
+	return crypto_unregister_skcipher(&alg->base);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_skcipher);
+
+int crypto_engine_register_skciphers(struct skcipher_engine_alg *algs,
+				     int count)
+{
+	int i, ret;
+
+	for (i = 0; i < count; i++) {
+		ret = crypto_engine_register_skcipher(&algs[i]);
+		if (ret)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	crypto_engine_unregister_skciphers(algs, i);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_engine_register_skciphers);
+
+void crypto_engine_unregister_skciphers(struct skcipher_engine_alg *algs,
+					int count)
+{
+	int i;
+
+	for (i = count - 1; i >= 0; --i)
+		crypto_engine_unregister_skcipher(&algs[i]);
+}
+EXPORT_SYMBOL_GPL(crypto_engine_unregister_skciphers);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Crypto hardware engine framework");

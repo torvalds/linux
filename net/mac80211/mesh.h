@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
+ * Copyright (C) 2023 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  *             Javier Cardona <javier@cozybit.com>
  */
@@ -211,7 +212,6 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 		   const u8 *addr, struct ieee80211s_hdr *mesh_hdr);
 bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie);
-void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 			 struct sk_buff *skb);
 int mesh_add_meshid_ie(struct ieee80211_sub_if_data *sdata,
@@ -252,11 +252,11 @@ void ieee80211_mesh_root_setup(struct ieee80211_if_mesh *ifmsh);
 const struct ieee80211_mesh_sync_ops *ieee80211_mesh_sync_ops_get(u8 method);
 /* wrapper for ieee80211_bss_info_change_notify() */
 void ieee80211_mbss_info_change_notify(struct ieee80211_sub_if_data *sdata,
-				       u32 changed);
+				       u64 changed);
 
 /* mesh power save */
-u32 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata);
-u32 ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
+u64 ieee80211_mps_local_status_update(struct ieee80211_sub_if_data *sdata);
+u64 ieee80211_mps_set_sta_local_pm(struct sta_info *sta,
 				   enum nl80211_mesh_power_mode pm);
 void ieee80211_mps_set_frame_flags(struct ieee80211_sub_if_data *sdata,
 				   struct sta_info *sta,
@@ -303,12 +303,12 @@ void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
 			   u8 *hw_addr, struct ieee802_11_elems *ie,
 			   struct ieee80211_rx_status *rx_status);
 bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
-u32 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
+u64 mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_timer(struct timer_list *t);
 void mesh_plink_broken(struct sta_info *sta);
-u32 mesh_plink_deactivate(struct sta_info *sta);
-u32 mesh_plink_open(struct sta_info *sta);
-u32 mesh_plink_block(struct sta_info *sta);
+u64 mesh_plink_deactivate(struct sta_info *sta);
+u64 mesh_plink_open(struct sta_info *sta);
+u64 mesh_plink_block(struct sta_info *sta);
 void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
 			 struct ieee80211_mgmt *mgmt, size_t len,
 			 struct ieee80211_rx_status *rx_status);
@@ -349,14 +349,14 @@ void mesh_path_refresh(struct ieee80211_sub_if_data *sdata,
 
 #ifdef CONFIG_MAC80211_MESH
 static inline
-u32 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
+u64 mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_inc(&sdata->u.mesh.estab_plinks);
 	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;
 }
 
 static inline
-u32 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
+u64 mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
 	atomic_dec(&sdata->u.mesh.estab_plinks);
 	return mesh_accept_plinks_update(sdata) | BSS_CHANGED_BEACON;

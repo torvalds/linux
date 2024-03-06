@@ -1151,7 +1151,7 @@ static int __init txx9dmac_chan_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int txx9dmac_chan_remove(struct platform_device *pdev)
+static void txx9dmac_chan_remove(struct platform_device *pdev)
 {
 	struct txx9dmac_chan *dc = platform_get_drvdata(pdev);
 
@@ -1162,7 +1162,6 @@ static int txx9dmac_chan_remove(struct platform_device *pdev)
 		tasklet_kill(&dc->tasklet);
 	}
 	dc->ddev->chan[pdev->id % TXX9_DMA_MAX_NR_CHANNELS] = NULL;
-	return 0;
 }
 
 static int __init txx9dmac_probe(struct platform_device *pdev)
@@ -1215,7 +1214,7 @@ static int __init txx9dmac_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int txx9dmac_remove(struct platform_device *pdev)
+static void txx9dmac_remove(struct platform_device *pdev)
 {
 	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
 
@@ -1224,7 +1223,6 @@ static int txx9dmac_remove(struct platform_device *pdev)
 		devm_free_irq(&pdev->dev, ddev->irq, ddev);
 		tasklet_kill(&ddev->tasklet);
 	}
-	return 0;
 }
 
 static void txx9dmac_shutdown(struct platform_device *pdev)
@@ -1262,14 +1260,14 @@ static const struct dev_pm_ops txx9dmac_dev_pm_ops = {
 };
 
 static struct platform_driver txx9dmac_chan_driver = {
-	.remove		= txx9dmac_chan_remove,
+	.remove_new	= txx9dmac_chan_remove,
 	.driver = {
 		.name	= "txx9dmac-chan",
 	},
 };
 
 static struct platform_driver txx9dmac_driver = {
-	.remove		= txx9dmac_remove,
+	.remove_new	= txx9dmac_remove,
 	.shutdown	= txx9dmac_shutdown,
 	.driver = {
 		.name	= "txx9dmac",

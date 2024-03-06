@@ -16,7 +16,7 @@ struct nvkm_i2c_bus {
 	const struct nvkm_i2c_bus_func *func;
 	struct nvkm_i2c_pad *pad;
 #define NVKM_I2C_BUS_CCB(n) /* 'n' is ccb index */                           (n)
-#define NVKM_I2C_BUS_EXT(n) /* 'n' is dcb external encoder type */ ((n) + 0x100)
+#define NVKM_I2C_BUS_EXT(n) /* 'n' is dcb external encoder type */  ((n) + 0x10)
 #define NVKM_I2C_BUS_PRI /* ccb primary comm. port */                        -1
 #define NVKM_I2C_BUS_SEC /* ccb secondary comm. port */                      -2
 	int id;
@@ -38,7 +38,7 @@ struct nvkm_i2c_aux {
 	const struct nvkm_i2c_aux_func *func;
 	struct nvkm_i2c_pad *pad;
 #define NVKM_I2C_AUX_CCB(n) /* 'n' is ccb index */                           (n)
-#define NVKM_I2C_AUX_EXT(n) /* 'n' is dcb external encoder type */ ((n) + 0x100)
+#define NVKM_I2C_AUX_EXT(n) /* 'n' is dcb external encoder type */  ((n) + 0x10)
 	int id;
 
 	struct mutex mutex;

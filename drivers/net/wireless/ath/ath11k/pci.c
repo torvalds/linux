@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2019-2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -15,6 +15,7 @@
 #include "mhi.h"
 #include "debug.h"
 #include "pcic.h"
+#include "qmi.h"
 
 #define ATH11K_PCI_BAR_NUM		0
 #define ATH11K_PCI_DMA_MASK		32
@@ -203,10 +204,10 @@ static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
 
 	/* read cookie */
 	val = ath11k_pcic_read32(ab, PCIE_Q6_COOKIE_ADDR);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "cookie:0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pcie_q6_cookie_addr 0x%x\n", val);
 
 	val = ath11k_pcic_read32(ab, WLAON_WARM_SW_ENTRY);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "WLAON_WARM_SW_ENTRY 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "wlaon_warm_sw_entry 0x%x\n", val);
 
 	/* TODO: exact time to sleep is uncertain */
 	mdelay(10);
@@ -218,13 +219,13 @@ static void ath11k_pci_clear_dbg_registers(struct ath11k_base *ab)
 	mdelay(10);
 
 	val = ath11k_pcic_read32(ab, WLAON_WARM_SW_ENTRY);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "WLAON_WARM_SW_ENTRY 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "wlaon_warm_sw_entry 0x%x\n", val);
 
 	/* A read clear register. clear the register to prevent
 	 * Q6 from entering wrong code path.
 	 */
 	val = ath11k_pcic_read32(ab, WLAON_SOC_RESET_CAUSE_REG);
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause:%d\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "soc reset cause %d\n", val);
 }
 
 static int ath11k_pci_set_link_reg(struct ath11k_base *ab,
@@ -312,14 +313,14 @@ static void ath11k_pci_enable_ltssm(struct ath11k_base *ab)
 		val = ath11k_pcic_read32(ab, PCIE_PCIE_PARF_LTSSM);
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci ltssm 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "ltssm 0x%x\n", val);
 
 	val = ath11k_pcic_read32(ab, GCC_GCC_PCIE_HOT_RST);
 	val |= GCC_GCC_PCIE_HOT_RST_VAL;
 	ath11k_pcic_write32(ab, GCC_GCC_PCIE_HOT_RST, val);
 	val = ath11k_pcic_read32(ab, GCC_GCC_PCIE_HOT_RST);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci pcie_hot_rst 0x%x\n", val);
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "pcie_hot_rst 0x%x\n", val);
 
 	mdelay(5);
 }
@@ -433,7 +434,7 @@ static int ath11k_pci_alloc_msi(struct ath11k_pci *ab_pci)
 		}
 		clear_bit(ATH11K_FLAG_MULTI_MSI_VECTORS, &ab->dev_flags);
 		ab->pci.msi.config = &msi_config_one_msi;
-		ath11k_dbg(ab, ATH11K_DBG_PCI, "request MSI one vector\n");
+		ath11k_dbg(ab, ATH11K_DBG_PCI, "request one msi vector\n");
 	}
 	ath11k_info(ab, "MSI vectors: %d\n", num_vectors);
 
@@ -487,7 +488,7 @@ static int ath11k_pci_config_msi_data(struct ath11k_pci *ab_pci)
 
 	ab_pci->ab->pci.msi.ep_base_data = msi_desc->msg.data;
 
-	ath11k_dbg(ab_pci->ab, ATH11K_DBG_PCI, "pci after request_irq msi_ep_base_data %d\n",
+	ath11k_dbg(ab_pci->ab, ATH11K_DBG_PCI, "after request_irq msi_ep_base_data %d\n",
 		   ab_pci->ab->pci.msi.ep_base_data);
 
 	return 0;
@@ -545,7 +546,7 @@ static int ath11k_pci_claim(struct ath11k_pci *ab_pci, struct pci_dev *pdev)
 
 	ab->mem_ce = ab->mem;
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot pci_mem 0x%pK\n", ab->mem);
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "pci_mem 0x%p\n", ab->mem);
 	return 0;
 
 release_region:
@@ -575,14 +576,14 @@ static void ath11k_pci_aspm_disable(struct ath11k_pci *ab_pci)
 	pcie_capability_read_word(ab_pci->pdev, PCI_EXP_LNKCTL,
 				  &ab_pci->link_ctl);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci link_ctl 0x%04x L0s %d L1 %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "link_ctl 0x%04x L0s %d L1 %d\n",
 		   ab_pci->link_ctl,
 		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L0S),
 		   u16_get_bits(ab_pci->link_ctl, PCI_EXP_LNKCTL_ASPM_L1));
 
 	/* disable L0s and L1 */
-	pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
-				   ab_pci->link_ctl & ~PCI_EXP_LNKCTL_ASPMC);
+	pcie_capability_clear_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+				   PCI_EXP_LNKCTL_ASPMC);
 
 	set_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags);
 }
@@ -590,8 +591,10 @@ static void ath11k_pci_aspm_disable(struct ath11k_pci *ab_pci)
 static void ath11k_pci_aspm_restore(struct ath11k_pci *ab_pci)
 {
 	if (test_and_clear_bit(ATH11K_PCI_ASPM_RESTORE, &ab_pci->flags))
-		pcie_capability_write_word(ab_pci->pdev, PCI_EXP_LNKCTL,
-					   ab_pci->link_ctl);
+		pcie_capability_clear_and_set_word(ab_pci->pdev, PCI_EXP_LNKCTL,
+						   PCI_EXP_LNKCTL_ASPMC,
+						   ab_pci->link_ctl &
+						   PCI_EXP_LNKCTL_ASPMC);
 }
 
 static int ath11k_pci_power_up(struct ath11k_base *ab)
@@ -709,7 +712,7 @@ static void ath11k_pci_read_hw_version(struct ath11k_base *ab, u32 *major, u32 *
 	*minor = FIELD_GET(TCSR_SOC_HW_VERSION_MINOR_MASK,
 			   soc_hw_version);
 
-	ath11k_dbg(ab, ATH11K_DBG_PCI, "pci tcsr_soc_hw_version major %d minor %d\n",
+	ath11k_dbg(ab, ATH11K_DBG_PCI, "tcsr_soc_hw_version major %d minor %d\n",
 		   *major, *minor);
 }
 
@@ -745,6 +748,7 @@ static int ath11k_pci_probe(struct pci_dev *pdev,
 	ab_pci->ab = ab;
 	ab_pci->pdev = pdev;
 	ab->hif.ops = &ath11k_pci_hif_ops;
+	ab->fw_mode = ATH11K_FIRMWARE_MODE_NORMAL;
 	pci_set_drvdata(pdev, ab);
 	spin_lock_init(&ab_pci->window_lock);
 
@@ -850,10 +854,16 @@ unsupported_wcn6855_soc:
 	if (ret)
 		goto err_pci_disable_msi;
 
+	ret = ath11k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
+	if (ret) {
+		ath11k_err(ab, "failed to set irq affinity %d\n", ret);
+		goto err_pci_disable_msi;
+	}
+
 	ret = ath11k_mhi_register(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to register mhi: %d\n", ret);
-		goto err_pci_disable_msi;
+		goto err_irq_affinity_cleanup;
 	}
 
 	ret = ath11k_hal_srng_init(ab);
@@ -874,12 +884,6 @@ unsupported_wcn6855_soc:
 		goto err_ce_free;
 	}
 
-	ret = ath11k_pci_set_irq_affinity_hint(ab_pci, cpumask_of(0));
-	if (ret) {
-		ath11k_err(ab, "failed to set irq affinity %d\n", ret);
-		goto err_free_irq;
-	}
-
 	/* kernel may allocate a dummy vector before request_irq and
 	 * then allocate a real vector when request_irq is called.
 	 * So get msi_data here again to avoid spurious interrupt
@@ -888,18 +892,16 @@ unsupported_wcn6855_soc:
 	ret = ath11k_pci_config_msi_data(ab_pci);
 	if (ret) {
 		ath11k_err(ab, "failed to config msi_data: %d\n", ret);
-		goto err_irq_affinity_cleanup;
+		goto err_free_irq;
 	}
 
 	ret = ath11k_core_init(ab);
 	if (ret) {
 		ath11k_err(ab, "failed to init core: %d\n", ret);
-		goto err_irq_affinity_cleanup;
+		goto err_free_irq;
 	}
+	ath11k_qmi_fwreset_from_cold_boot(ab);
 	return 0;
-
-err_irq_affinity_cleanup:
-	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 err_free_irq:
 	ath11k_pcic_free_irq(ab);
@@ -912,6 +914,9 @@ err_hal_srng_deinit:
 
 err_mhi_unregister:
 	ath11k_mhi_unregister(ab_pci);
+
+err_irq_affinity_cleanup:
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 
 err_pci_disable_msi:
 	ath11k_pci_free_msi(ab_pci);
@@ -1033,7 +1038,7 @@ static void ath11k_pci_exit(void)
 
 module_exit(ath11k_pci_exit);
 
-MODULE_DESCRIPTION("Driver support for Qualcomm Technologies 802.11ax WLAN PCIe devices");
+MODULE_DESCRIPTION("Driver support for Qualcomm Technologies PCIe 802.11ax WLAN devices");
 MODULE_LICENSE("Dual BSD/GPL");
 
 /* firmware files */

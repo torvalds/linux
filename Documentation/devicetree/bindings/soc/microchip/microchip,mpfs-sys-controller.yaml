@@ -12,7 +12,7 @@ maintainers:
 description: |
   PolarFire SoC devices include a microcontroller acting as the system controller,
   which provides "services" to the main processor and to the FPGA fabric. These
-  services include hardware rng, reprogramming of the FPGA and verfification of the
+  services include hardware rng, reprogramming of the FPGA and verification of the
   eNVM contents etc. More information on these services can be found online, at
   https://onlinedocs.microchip.com/pr/GUID-1409CF11-8EF9-4C24-A94E-70979A688632-en-US-1/index.html
 
@@ -25,6 +25,16 @@ properties:
 
   compatible:
     const: microchip,mpfs-sys-controller
+
+  microchip,bitstream-flash:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      The SPI flash connected to the system controller's QSPI controller.
+      The system controller may retrieve FPGA bitstreams from this flash to
+      perform In-Application Programming (IAP) or during device initialisation
+      for Auto Update. The MSS and system controller have separate QSPI
+      controllers and this flash is connected to both. Software running in the
+      MSS can write bitstreams to the flash.
 
 required:
   - compatible

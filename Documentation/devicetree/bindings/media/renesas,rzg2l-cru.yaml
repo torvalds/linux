@@ -137,7 +137,7 @@ examples:
 
                 cru_parallel_in: endpoint@0 {
                     reg = <0>;
-                    remote-endpoint= <&ov5642>;
+                    remote-endpoint = <&ov5642>;
                     hsync-active = <1>;
                     vsync-active = <1>;
                 };
@@ -150,7 +150,7 @@ examples:
 
                 cru_csi_in: endpoint@0 {
                     reg = <0>;
-                    remote-endpoint= <&csi_cru_in>;
+                    remote-endpoint = <&csi_cru_in>;
                 };
             };
         };

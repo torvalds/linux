@@ -87,9 +87,9 @@ CONFIG_ENERGY_MODEL must be enabled to use the EM framework.
 Registration of 'advanced' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The 'advanced' EM gets it's name due to the fact that the driver is allowed
+The 'advanced' EM gets its name due to the fact that the driver is allowed
 to provide more precised power model. It's not limited to some implemented math
-formula in the framework (like it's in 'simple' EM case). It can better reflect
+formula in the framework (like it is in 'simple' EM case). It can better reflect
 the real power measurements performed for each performance state. Thus, this
 registration method should be preferred in case considering EM static power
 (leakage) is important.

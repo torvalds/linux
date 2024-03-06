@@ -14,7 +14,6 @@
 #include <linux/interrupt.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
@@ -1145,13 +1144,15 @@ static void ltdc_crtc_disable_vblank(struct drm_crtc *crtc)
 
 static int ltdc_crtc_set_crc_source(struct drm_crtc *crtc, const char *source)
 {
-	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
+	struct ltdc_device *ldev;
 	int ret;
 
 	DRM_DEBUG_DRIVER("\n");
 
 	if (!crtc)
 		return -ENODEV;
+
+	ldev = crtc_to_ltdc(crtc);
 
 	if (source && strcmp(source, "auto") == 0) {
 		ldev->crc_active = true;

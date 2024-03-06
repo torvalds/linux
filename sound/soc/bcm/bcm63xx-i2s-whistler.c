@@ -225,7 +225,6 @@ static int bcm63xx_i2s_dev_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	void __iomem *regs;
-	struct resource *r_mem, *region;
 	struct bcm_i2s_priv *i2s_priv;
 	struct regmap *regmap_i2s;
 	struct clk *i2s_clk;
@@ -241,20 +240,7 @@ static int bcm63xx_i2s_dev_probe(struct platform_device *pdev)
 		return PTR_ERR(i2s_clk);
 	}
 
-	r_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!r_mem) {
-		dev_err(&pdev->dev, "Unable to get register resource.\n");
-		return -ENODEV;
-	}
-
-	region = devm_request_mem_region(&pdev->dev, r_mem->start,
-					resource_size(r_mem), DRV_NAME);
-	if (!region) {
-		dev_err(&pdev->dev, "Memory region already claimed\n");
-		return -EBUSY;
-	}
-
-	regs = devm_ioremap_resource(&pdev->dev, r_mem);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs)) {
 		ret = PTR_ERR(regs);
 		return ret;

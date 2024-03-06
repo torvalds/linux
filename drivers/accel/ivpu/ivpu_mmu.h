@@ -46,5 +46,6 @@ int ivpu_mmu_invalidate_tlb(struct ivpu_device *vdev, u16 ssid);
 
 void ivpu_mmu_irq_evtq_handler(struct ivpu_device *vdev);
 void ivpu_mmu_irq_gerr_handler(struct ivpu_device *vdev);
+void ivpu_mmu_evtq_dump(struct ivpu_device *vdev);
 
 #endif /* __IVPU_MMU_H__ */

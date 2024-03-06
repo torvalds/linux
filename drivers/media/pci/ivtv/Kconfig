@@ -48,9 +48,7 @@ config VIDEO_IVTV_ALSA
 config VIDEO_FB_IVTV
 	tristate "Conexant cx23415 framebuffer support"
 	depends on VIDEO_IVTV && FB
-	select FB_CFB_FILLRECT
-	select FB_CFB_COPYAREA
-	select FB_CFB_IMAGEBLIT
+	select FB_IOMEM_HELPERS
 	help
 	  This is a framebuffer driver for the Conexant cx23415 MPEG
 	  encoder/decoder.

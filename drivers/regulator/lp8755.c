@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
-#include <linux/gpio.h>
 #include <linux/regmap.h>
 #include <linux/uaccess.h>
 #include <linux/regulator/driver.h>
@@ -442,7 +441,7 @@ static struct i2c_driver lp8755_i2c_driver = {
 		   .name = LP8755_NAME,
 		   .probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		   },
-	.probe_new = lp8755_probe,
+	.probe = lp8755_probe,
 	.remove = lp8755_remove,
 	.id_table = lp8755_id,
 };

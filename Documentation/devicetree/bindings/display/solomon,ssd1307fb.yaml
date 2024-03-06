@@ -27,37 +27,11 @@ properties:
           - solomon,ssd1307
           - solomon,ssd1309
 
-  reg:
-    maxItems: 1
-
   pwms:
-    maxItems: 1
-
-  reset-gpios:
-    maxItems: 1
-
-  # Only required for SPI
-  dc-gpios:
-    description:
-      GPIO connected to the controller's D/C# (Data/Command) pin,
-      that is needed for 4-wire SPI to tell the controller if the
-      data sent is for a command register or the display data RAM
     maxItems: 1
 
   vbat-supply:
     description: The supply for VBAT
-
-  solomon,height:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    default: 16
-    description:
-      Height in pixel of the screen driven by the controller
-
-  solomon,width:
-    $ref: /schemas/types.yaml#/definitions/uint32
-    default: 96
-    description:
-      Width in pixel of the screen driven by the controller
 
   solomon,page-offset:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -148,7 +122,7 @@ required:
   - reg
 
 allOf:
-  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+  - $ref: solomon,ssd-common.yaml#
 
   - if:
       properties:
@@ -157,6 +131,10 @@ allOf:
             const: sinowealth,sh1106
     then:
       properties:
+        width:
+          default: 132
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:
@@ -171,6 +149,10 @@ allOf:
               - solomon,ssd1305
     then:
       properties:
+        width:
+          default: 132
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:
@@ -185,6 +167,10 @@ allOf:
               - solomon,ssd1306
     then:
       properties:
+        width:
+          default: 128
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:
@@ -199,6 +185,10 @@ allOf:
               - solomon,ssd1307
     then:
       properties:
+        width:
+          default: 128
+        height:
+          default: 39
         solomon,dclk-div:
           default: 2
         solomon,dclk-frq:
@@ -215,6 +205,10 @@ allOf:
               - solomon,ssd1309
     then:
       properties:
+        width:
+          default: 128
+        height:
+          default: 64
         solomon,dclk-div:
           default: 1
         solomon,dclk-frq:

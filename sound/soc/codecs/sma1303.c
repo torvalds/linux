@@ -7,6 +7,7 @@
 // Auther: Gyuhwa Park <gyuhwa.park@irondevice.com>
 //         Kiseok Jo <kiseok.jo@irondevice.com>
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -21,7 +22,6 @@
 #include <sound/soc.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
-#include <linux/of_device.h>
 #include <linux/slab.h>
 #include <asm/div64.h>
 
@@ -1807,7 +1807,7 @@ static struct i2c_driver sma1303_i2c_driver = {
 		.name = "sma1303",
 		.of_match_table = sma1303_of_match,
 	},
-	.probe_new = sma1303_i2c_probe,
+	.probe = sma1303_i2c_probe,
 	.remove = sma1303_i2c_remove,
 	.id_table = sma1303_i2c_id,
 };

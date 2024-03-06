@@ -2389,14 +2389,10 @@ xfs_rmap_query_range(
 	xfs_rmap_query_range_fn			fn,
 	void					*priv)
 {
-	union xfs_btree_irec			low_brec;
-	union xfs_btree_irec			high_brec;
-	struct xfs_rmap_query_range_info	query;
+	union xfs_btree_irec			low_brec = { .r = *low_rec };
+	union xfs_btree_irec			high_brec = { .r = *high_rec };
+	struct xfs_rmap_query_range_info	query = { .priv = priv, .fn = fn };
 
-	low_brec.r = *low_rec;
-	high_brec.r = *high_rec;
-	query.priv = priv;
-	query.fn = fn;
 	return xfs_btree_query_range(cur, &low_brec, &high_brec,
 			xfs_rmap_query_range_helper, &query);
 }
@@ -2571,7 +2567,7 @@ __xfs_rmap_add(
 	ri->ri_bmap = *bmap;
 
 	xfs_rmap_update_get_group(tp->t_mountp, ri);
-	xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_RMAP, &ri->ri_list);
+	xfs_defer_add(tp, &ri->ri_list, &xfs_rmap_update_defer_type);
 }
 
 /* Map an extent into a file. */

@@ -21,6 +21,7 @@ extern struct timeval bench__start, bench__end, bench__runtime;
 int bench_numa(int argc, const char **argv);
 int bench_sched_messaging(int argc, const char **argv);
 int bench_sched_pipe(int argc, const char **argv);
+int bench_sched_seccomp_notify(int argc, const char **argv);
 int bench_syscall_basic(int argc, const char **argv);
 int bench_syscall_getpgid(int argc, const char **argv);
 int bench_syscall_fork(int argc, const char **argv);
@@ -42,6 +43,9 @@ int bench_inject_build_id(int argc, const char **argv);
 int bench_evlist_open_close(int argc, const char **argv);
 int bench_breakpoint_thread(int argc, const char **argv);
 int bench_breakpoint_enable(int argc, const char **argv);
+int bench_uprobe_baseline(int argc, const char **argv);
+int bench_uprobe_empty(int argc, const char **argv);
+int bench_uprobe_trace_printk(int argc, const char **argv);
 int bench_pmu_scan(int argc, const char **argv);
 
 #define BENCH_FORMAT_DEFAULT_STR	"default"

@@ -19,32 +19,31 @@
  *
  *	(A) aplay   -D plughw:0,0 xxx.wav (MIX-0)
  *	(B) aplay   -D plughw:0,1 xxx.wav (MIX-1)
- *	(C) aplay   -D plughw:0,2 xxx.wav (TDM-0)
- *	(D) aplay   -D plughw:0,3 xxx.wav (TDM-1)
- *	(E) aplay   -D plughw:0,4 xxx.wav (TDM-2)
- *	(F) aplay   -D plughw:0,5 xxx.wav (TDM-3)
+ *	(C) aplay   -D plughw:1,0 xxx.wav (TDM-0)
+ *	(D) aplay   -D plughw:1,1 xxx.wav (TDM-1)
+ *	(E) aplay   -D plughw:1,2 xxx.wav (TDM-2)
+ *	(F) aplay   -D plughw:1,3 xxx.wav (TDM-3)
  *
  *	(A) arecord -D plughw:0,0 xxx.wav
- *	(G) arecord -D plughw:0,6 xxx.wav
+ *	(G) arecord -D plughw:1,4 xxx.wav
  */
+/ {
+	sound_card_kf: expand-sound {
+		compatible = "audio-graph-scu-card";
+		label = "snd-kf-split";
 
-&sound_card {
-	routing = "ak4613 Playback",   "DAI0 Playback",
-		  "ak4613 Playback",   "DAI1 Playback",
-		  "DAI0 Capture",      "ak4613 Capture",
-		  "pcm3168a Playback", "DAI2 Playback",
-		  "pcm3168a Playback", "DAI3 Playback",
-		  "pcm3168a Playback", "DAI4 Playback",
-		  "pcm3168a Playback", "DAI5 Playback";
+		routing = "pcm3168a Playback", "DAI2 Playback",
+			  "pcm3168a Playback", "DAI3 Playback",
+			  "pcm3168a Playback", "DAI4 Playback",
+			  "pcm3168a Playback", "DAI5 Playback";
 
-	dais = <&rsnd_port0 /* (A) CPU0 */
-		&rsnd_port1 /* (B) CPU1 */
-		&rsnd_port2 /* (C) CPU2 */
-		&rsnd_port3 /* (D) CPU3 */
-		&rsnd_port4 /* (E) CPU4 */
-		&rsnd_port5 /* (F) CPU5 */
-		&rsnd_port6 /* (G) GPU6 */
-	>;
+		dais = <&snd_kf1 /* (C) CPU2 */
+			&snd_kf2 /* (D) CPU3 */
+			&snd_kf3 /* (E) CPU4 */
+			&snd_kf4 /* (F) CPU5 */
+			&snd_kf5 /* (G) GPU6 */
+		>;
+	};
 };
 
 &pcm3168a {
@@ -103,13 +102,15 @@
 };
 
 &rcar_sound {
-	ports {
-		/* rsnd_port0-1 are defined in ulcb.dtsi */
+	ports@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
 
 		/*
 		 * (C) CPU2
 		 */
-		rsnd_port2: port@2 {
+		snd_kf1: port@2 {
 			reg = <2>;
 			rsnd_for_pcm3168a_play1: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_p1>;
@@ -121,7 +122,7 @@
 		/*
 		 * (D) CPU3
 		 */
-		rsnd_port3: port@3 {
+		snd_kf2: port@3 {
 			reg = <3>;
 			rsnd_for_pcm3168a_play2: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_p2>;
@@ -133,7 +134,7 @@
 		/*
 		 * (E) CPU4
 		 */
-		rsnd_port4: port@4 {
+		snd_kf3: port@4 {
 			reg = <4>;
 			rsnd_for_pcm3168a_play3: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_p3>;
@@ -145,7 +146,7 @@
 		/*
 		 * (F) CPU5
 		 */
-		rsnd_port5: port@5 {
+		snd_kf4: port@5 {
 			reg = <5>;
 			rsnd_for_pcm3168a_play4: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_p4>;
@@ -157,7 +158,7 @@
 		/*
 		 * (G) CPU6
 		 */
-		rsnd_port6: port@6 {
+		snd_kf5: port@6 {
 			reg = <6>;
 			rsnd_for_pcm3168a_capture: endpoint {
 				remote-endpoint = <&pcm3168a_endpoint_c>;

@@ -1960,7 +1960,7 @@ out_err:
 	return rc;
 }
 
-static int xgene_edac_remove(struct platform_device *pdev)
+static void xgene_edac_remove(struct platform_device *pdev)
 {
 	struct xgene_edac *edac = dev_get_drvdata(&pdev->dev);
 	struct xgene_edac_mc_ctx *mcu;
@@ -1981,8 +1981,6 @@ static int xgene_edac_remove(struct platform_device *pdev)
 
 	list_for_each_entry_safe(node, temp_node, &edac->socs, next)
 		xgene_edac_soc_remove(node);
-
-	return 0;
 }
 
 static const struct of_device_id xgene_edac_of_match[] = {
@@ -1993,7 +1991,7 @@ MODULE_DEVICE_TABLE(of, xgene_edac_of_match);
 
 static struct platform_driver xgene_edac_driver = {
 	.probe = xgene_edac_probe,
-	.remove = xgene_edac_remove,
+	.remove_new = xgene_edac_remove,
 	.driver = {
 		.name = "xgene-edac",
 		.of_match_table = xgene_edac_of_match,

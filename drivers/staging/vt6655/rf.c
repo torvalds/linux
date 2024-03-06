@@ -268,7 +268,7 @@ static bool RFbAL2230SelectChannel(struct vnt_private *priv, unsigned char byCha
  * Parameters:
  *  In:
  *      byBBType
- *      byRFType
+ *      rf_type
  *  Out:
  *      none
  *
@@ -279,7 +279,7 @@ bool RFbInit(struct vnt_private *priv)
 {
 	bool ret = true;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AIROHA:
 	case RF_AL2230S:
 		priv->max_pwr_level = AL2230_PWR_IDX_LEN;
@@ -300,7 +300,7 @@ bool RFbInit(struct vnt_private *priv)
  *
  * Parameters:
  *  In:
- *      byRFType
+ *      rf_type
  *      byChannel    - Channel number
  *  Out:
  *      none
@@ -308,12 +308,12 @@ bool RFbInit(struct vnt_private *priv)
  * Return Value: true if succeeded; false if failed.
  *
  */
-bool RFbSelectChannel(struct vnt_private *priv, unsigned char byRFType,
+bool RFbSelectChannel(struct vnt_private *priv, unsigned char rf_type,
 		      u16 byChannel)
 {
 	bool ret = true;
 
-	switch (byRFType) {
+	switch (rf_type) {
 	case RF_AIROHA:
 	case RF_AL2230S:
 		ret = RFbAL2230SelectChannel(priv, byChannel);
@@ -438,12 +438,12 @@ bool RFbSetPower(struct vnt_private *priv, unsigned int rate, u16 uCH)
 		break;
 	}
 
-	if (priv->byCurPwr == byPwr)
+	if (priv->cur_pwr == byPwr)
 		return true;
 
 	ret = RFbRawSetPower(priv, byPwr, rate);
 	if (ret)
-		priv->byCurPwr = byPwr;
+		priv->cur_pwr = byPwr;
 
 	return ret;
 }
@@ -470,7 +470,7 @@ bool RFbRawSetPower(struct vnt_private *priv, unsigned char byPwr,
 	if (byPwr >= priv->max_pwr_level)
 		return false;
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AIROHA:
 		ret &= IFRFbWriteEmbedded(priv, al2230_power_table[byPwr]);
 		if (rate <= RATE_11M)
@@ -521,7 +521,7 @@ RFvRSSITodBm(struct vnt_private *priv, unsigned char byCurrRSSI, long *pldBm)
 	long a = 0;
 	unsigned char abyAIROHARF[4] = {0, 18, 0, 40};
 
-	switch (priv->byRFType) {
+	switch (priv->rf_type) {
 	case RF_AIROHA:
 	case RF_AL2230S:
 		a = abyAIROHARF[byIdx];

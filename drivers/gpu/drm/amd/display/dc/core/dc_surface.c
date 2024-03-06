@@ -32,10 +32,12 @@
 #include "transform.h"
 #include "dpp.h"
 
+#include "dc_plane_priv.h"
+
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
+void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *plane_state)
 {
 	plane_state->ctx = ctx;
 
@@ -63,7 +65,7 @@ static void dc_plane_construct(struct dc_context *ctx, struct dc_plane_state *pl
 
 }
 
-static void dc_plane_destruct(struct dc_plane_state *plane_state)
+void dc_plane_destruct(struct dc_plane_state *plane_state)
 {
 	if (plane_state->gamma_correction != NULL) {
 		dc_gamma_release(&plane_state->gamma_correction);

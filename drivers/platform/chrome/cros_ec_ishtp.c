@@ -367,55 +367,33 @@ static void ish_event_cb(struct ishtp_cl_device *cl_device)
 /**
  * cros_ish_init() - Init function for ISHTP client
  * @cros_ish_cl: ISHTP client instance
+ * @reset: true if called from reset handler
  *
  * This function complete the initializtion of the client.
  *
  * Return: 0 for success, negative error code for failure.
  */
-static int cros_ish_init(struct ishtp_cl *cros_ish_cl)
+static int cros_ish_init(struct ishtp_cl *cros_ish_cl, bool reset)
 {
 	int rv;
-	struct ishtp_device *dev;
-	struct ishtp_fw_client *fw_client;
 	struct ishtp_cl_data *client_data = ishtp_get_client_data(cros_ish_cl);
 
-	rv = ishtp_cl_link(cros_ish_cl);
-	if (rv) {
-		dev_err(cl_data_to_dev(client_data),
-			"ishtp_cl_link failed\n");
-		return rv;
-	}
-
-	dev = ishtp_get_ishtp_device(cros_ish_cl);
-
-	/* Connect to firmware client */
-	ishtp_set_tx_ring_size(cros_ish_cl, CROS_ISH_CL_TX_RING_SIZE);
-	ishtp_set_rx_ring_size(cros_ish_cl, CROS_ISH_CL_RX_RING_SIZE);
-
-	fw_client = ishtp_fw_cl_get_client(dev, &cros_ec_ishtp_id_table[0].guid);
-	if (!fw_client) {
-		dev_err(cl_data_to_dev(client_data),
-			"ish client uuid not found\n");
-		rv = -ENOENT;
-		goto err_cl_unlink;
-	}
-
-	ishtp_cl_set_fw_client_id(cros_ish_cl,
-				  ishtp_get_fw_client_id(fw_client));
-	ishtp_set_connection_state(cros_ish_cl, ISHTP_CL_CONNECTING);
-
-	rv = ishtp_cl_connect(cros_ish_cl);
+	rv = ishtp_cl_establish_connection(cros_ish_cl,
+					   &cros_ec_ishtp_id_table[0].guid,
+					   CROS_ISH_CL_TX_RING_SIZE,
+					   CROS_ISH_CL_RX_RING_SIZE,
+					   reset);
 	if (rv) {
 		dev_err(cl_data_to_dev(client_data),
 			"client connect fail\n");
-		goto err_cl_unlink;
+		goto err_cl_disconnect;
 	}
 
 	ishtp_register_event_cb(client_data->cl_device, ish_event_cb);
 	return 0;
 
-err_cl_unlink:
-	ishtp_cl_unlink(cros_ish_cl);
+err_cl_disconnect:
+	ishtp_cl_destroy_connection(cros_ish_cl, reset);
 	return rv;
 }
 
@@ -427,10 +405,7 @@ err_cl_unlink:
  */
 static void cros_ish_deinit(struct ishtp_cl *cros_ish_cl)
 {
-	ishtp_set_connection_state(cros_ish_cl, ISHTP_CL_DISCONNECTING);
-	ishtp_cl_disconnect(cros_ish_cl);
-	ishtp_cl_unlink(cros_ish_cl);
-	ishtp_cl_flush_queues(cros_ish_cl);
+	ishtp_cl_destroy_connection(cros_ish_cl, false);
 
 	/* Disband and free all Tx and Rx client-level rings */
 	ishtp_cl_free(cros_ish_cl);
@@ -592,7 +567,6 @@ static void reset_handler(struct work_struct *work)
 	int rv;
 	struct device *dev;
 	struct ishtp_cl *cros_ish_cl;
-	struct ishtp_cl_device *cl_device;
 	struct ishtp_cl_data *client_data =
 		container_of(work, struct ishtp_cl_data, work_ishtp_reset);
 
@@ -600,26 +574,11 @@ static void reset_handler(struct work_struct *work)
 	down_write(&init_lock);
 
 	cros_ish_cl = client_data->cros_ish_cl;
-	cl_device = client_data->cl_device;
 
-	/* Unlink, flush queues & start again */
-	ishtp_cl_unlink(cros_ish_cl);
-	ishtp_cl_flush_queues(cros_ish_cl);
-	ishtp_cl_free(cros_ish_cl);
+	ishtp_cl_destroy_connection(cros_ish_cl, true);
 
-	cros_ish_cl = ishtp_cl_allocate(cl_device);
-	if (!cros_ish_cl) {
-		up_write(&init_lock);
-		return;
-	}
-
-	ishtp_set_drvdata(cl_device, cros_ish_cl);
-	ishtp_set_client_data(cros_ish_cl, client_data);
-	client_data->cros_ish_cl = cros_ish_cl;
-
-	rv = cros_ish_init(cros_ish_cl);
+	rv = cros_ish_init(cros_ish_cl, true);
 	if (rv) {
-		ishtp_cl_free(cros_ish_cl);
 		dev_err(cl_data_to_dev(client_data), "Reset Failed\n");
 		up_write(&init_lock);
 		return;
@@ -672,7 +631,7 @@ static int cros_ec_ishtp_probe(struct ishtp_cl_device *cl_device)
 	INIT_WORK(&client_data->work_ec_evt,
 		  ish_evt_handler);
 
-	rv = cros_ish_init(cros_ish_cl);
+	rv = cros_ish_init(cros_ish_cl, false);
 	if (rv)
 		goto end_ishtp_cl_init_error;
 
@@ -690,10 +649,7 @@ static int cros_ec_ishtp_probe(struct ishtp_cl_device *cl_device)
 	return 0;
 
 end_cros_ec_dev_init_error:
-	ishtp_set_connection_state(cros_ish_cl, ISHTP_CL_DISCONNECTING);
-	ishtp_cl_disconnect(cros_ish_cl);
-	ishtp_cl_unlink(cros_ish_cl);
-	ishtp_cl_flush_queues(cros_ish_cl);
+	ishtp_cl_destroy_connection(cros_ish_cl, false);
 	ishtp_put_device(cl_device);
 end_ishtp_cl_init_error:
 	ishtp_cl_free(cros_ish_cl);

@@ -25,7 +25,6 @@ menuconfig SWAP
 config ZSWAP
 	bool "Compressed cache for swap pages"
 	depends on SWAP
-	select FRONTSWAP
 	select CRYPTO
 	select ZPOOL
 	help
@@ -45,6 +44,36 @@ config ZSWAP_DEFAULT_ON
 
 	  The selection made here can be overridden by using the kernel
 	  command line 'zswap.enabled=' option.
+
+config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
+	bool "Invalidate zswap entries when pages are loaded"
+	depends on ZSWAP
+	help
+	  If selected, exclusive loads for zswap will be enabled at boot,
+	  otherwise it will be disabled.
+
+	  If exclusive loads are enabled, when a page is loaded from zswap,
+	  the zswap entry is invalidated at once, as opposed to leaving it
+	  in zswap until the swap entry is freed.
+
+	  This avoids having two copies of the same page in memory
+	  (compressed and uncompressed) after faulting in a page from zswap.
+	  The cost is that if the page was never dirtied and needs to be
+	  swapped out again, it will be re-compressed.
+
+config ZSWAP_SHRINKER_DEFAULT_ON
+	bool "Shrink the zswap pool on memory pressure"
+	depends on ZSWAP
+	default n
+	help
+	  If selected, the zswap shrinker will be enabled, and the pages
+	  stored in the zswap pool will become available for reclaim (i.e
+	  written back to the backing swap device) on memory pressure.
+
+	  This means that zswap writeback could happen even if the pool is
+	  not yet full, or the cgroup zswap limit has not been reached,
+	  reducing the chance that cold pages will reside in the zswap pool
+	  and consume memory indefinitely.
 
 choice
 	prompt "Default compressor"
@@ -115,6 +144,7 @@ config ZSWAP_COMPRESSOR_DEFAULT
 choice
 	prompt "Default allocator"
 	depends on ZSWAP
+	default ZSWAP_ZPOOL_DEFAULT_ZSMALLOC if MMU
 	default ZSWAP_ZPOOL_DEFAULT_ZBUD
 	help
 	  Selects the default allocator for the compressed cache for
@@ -210,42 +240,17 @@ config ZSMALLOC_CHAIN_SIZE
 
 	  For more information, see zsmalloc documentation.
 
-menu "SLAB allocator options"
-
-choice
-	prompt "Choose SLAB allocator"
-	default SLUB
-	help
-	   This option allows to select a slab allocator.
-
-config SLAB
-	bool "SLAB"
-	depends on !PREEMPT_RT
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
-	help
-	  The regular slab allocator that is established and known to work
-	  well in all environments. It organizes cache hot objects in
-	  per cpu and per node queues.
+menu "Slab allocator options"
 
 config SLUB
-	bool "SLUB (Unqueued Allocator)"
-	select HAVE_HARDENED_USERCOPY_ALLOCATOR
-	help
-	   SLUB is a slab allocator that minimizes cache line usage
-	   instead of managing queues of cached objects (SLAB approach).
-	   Per cpu caching is realized using slabs of objects instead
-	   of queues of objects. SLUB can use memory efficiently
-	   and has enhanced diagnostics. SLUB is the default choice for
-	   a slab allocator.
-
-endchoice
+	def_bool y
 
 config SLUB_TINY
-	bool "Configure SLUB for minimal memory footprint"
-	depends on SLUB && EXPERT
+	bool "Configure for minimal memory footprint"
+	depends on EXPERT
 	select SLAB_MERGE_DEFAULT
 	help
-	   Configures the SLUB allocator in a way to achieve minimal memory
+	   Configures the slab allocator in a way to achieve minimal memory
 	   footprint, sacrificing scalability, debugging and other features.
 	   This is intended only for the smallest system that had used the
 	   SLOB allocator and is not recommended for systems with more than
@@ -256,7 +261,6 @@ config SLUB_TINY
 config SLAB_MERGE_DEFAULT
 	bool "Allow slab caches to be merged"
 	default y
-	depends on SLAB || SLUB
 	help
 	  For reduced kernel memory fragmentation, slab caches can be
 	  merged when they share the same size and other characteristics.
@@ -270,7 +274,7 @@ config SLAB_MERGE_DEFAULT
 
 config SLAB_FREELIST_RANDOM
 	bool "Randomize slab freelist"
-	depends on SLAB || (SLUB && !SLUB_TINY)
+	depends on !SLUB_TINY
 	help
 	  Randomizes the freelist order used on creating new pages. This
 	  security feature reduces the predictability of the kernel slab
@@ -278,21 +282,19 @@ config SLAB_FREELIST_RANDOM
 
 config SLAB_FREELIST_HARDENED
 	bool "Harden slab freelist metadata"
-	depends on SLAB || (SLUB && !SLUB_TINY)
+	depends on !SLUB_TINY
 	help
 	  Many kernel heap attacks try to target slab cache metadata and
 	  other infrastructure. This options makes minor performance
 	  sacrifices to harden the kernel slab allocator against common
-	  freelist exploit methods. Some slab implementations have more
-	  sanity-checking than others. This option is most effective with
-	  CONFIG_SLUB.
+	  freelist exploit methods.
 
 config SLUB_STATS
 	default n
-	bool "Enable SLUB performance statistics"
-	depends on SLUB && SYSFS && !SLUB_TINY
+	bool "Enable performance statistics"
+	depends on SYSFS && !SLUB_TINY
 	help
-	  SLUB statistics are useful to debug SLUBs allocation behavior in
+	  The statistics are useful to debug slab allocation behavior in
 	  order find ways to optimize the allocator. This should never be
 	  enabled for production use since keeping statistics slows down
 	  the allocator by a few percentage points. The slabinfo command
@@ -302,8 +304,8 @@ config SLUB_STATS
 
 config SLUB_CPU_PARTIAL
 	default y
-	depends on SLUB && SMP && !SLUB_TINY
-	bool "SLUB per cpu partial cache"
+	depends on SMP && !SLUB_TINY
+	bool "Enable per cpu partial caches"
 	help
 	  Per cpu partial caches accelerate objects allocation and freeing
 	  that is local to a processor at the price of more indeterminism
@@ -311,7 +313,24 @@ config SLUB_CPU_PARTIAL
 	  which requires the taking of locks that may cause latency spikes.
 	  Typically one would choose no for a realtime system.
 
-endmenu # SLAB allocator options
+config RANDOM_KMALLOC_CACHES
+	default n
+	depends on !SLUB_TINY
+	bool "Randomize slab caches for normal kmalloc"
+	help
+	  A hardening feature that creates multiple copies of slab caches for
+	  normal kmalloc allocation and makes kmalloc randomly pick one based
+	  on code address, which makes the attackers more difficult to spray
+	  vulnerable memory objects on the heap for the purpose of exploiting
+	  memory vulnerabilities.
+
+	  Currently the number of copies is set to 16, a reasonably large value
+	  that effectively diverges the memory objects allocated for different
+	  subsystems or modules into different caches, at the expense of a
+	  limited degree of memory and CPU overhead that relates to hardware and
+	  system workload.
+
+endmenu # Slab allocator options
 
 config SHUFFLE_PAGE_ALLOCATOR
 	bool "Page allocator randomization"
@@ -324,7 +343,7 @@ config SHUFFLE_PAGE_ALLOCATOR
 	  the presence of a memory-side-cache. There are also incidental
 	  security benefits as it reduces the predictability of page
 	  allocations to compliment SLAB_FREELIST_RANDOM, but the
-	  default granularity of shuffling on the MAX_ORDER i.e, 10th
+	  default granularity of shuffling on the MAX_PAGE_ORDER i.e, 10th
 	  order of pages is selected based on cache utilization benefits
 	  on x86.
 
@@ -461,7 +480,10 @@ config SPARSEMEM_VMEMMAP
 # Select this config option from the architecture Kconfig, if it is preferred
 # to enable the feature of HugeTLB/dev_dax vmemmap optimization.
 #
-config ARCH_WANT_OPTIMIZE_VMEMMAP
+config ARCH_WANT_OPTIMIZE_DAX_VMEMMAP
+	bool
+
+config ARCH_WANT_OPTIMIZE_HUGETLB_VMEMMAP
 	bool
 
 config HAVE_MEMBLOCK_PHYS_MAP
@@ -542,6 +564,9 @@ config MHP_MEMMAP_ON_MEMORY
 	depends on ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
 
 endif # MEMORY_HOTPLUG
+
+config ARCH_MHP_MEMMAP_ON_MEMORY_ENABLE
+       bool
 
 # Heavily threaded applications may benefit from splitting the mm-wide
 # page_table_lock, so that faults on different parts of the user address
@@ -650,11 +675,22 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
 	  on a platform.
 
-	  Note that the pageblock_order cannot exceed MAX_ORDER and will be
-	  clamped down to MAX_ORDER.
+	  Note that the pageblock_order cannot exceed MAX_PAGE_ORDER and will be
+	  clamped down to MAX_PAGE_ORDER.
 
 config CONTIG_ALLOC
 	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
+
+config PCP_BATCH_SCALE_MAX
+	int "Maximum scale factor of PCP (Per-CPU pageset) batch allocate/free"
+	default 5
+	range 0 6
+	help
+	  In page allocator, PCP (Per-CPU pageset) is refilled and drained in
+	  batches.  The batch number is scaled automatically to improve page
+	  allocation/free throughput.  But too large scale factor may hurt
+	  latency.  This option sets the upper limit of scale factor to limit
+	  the maximum latency.
 
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT
@@ -696,7 +732,7 @@ config DEFAULT_MMAP_MIN_ADDR
 	  from userspace allocation.  Keeping a user from writing to low pages
 	  can help reduce the impact of kernel NULL pointer bugs.
 
-	  For most ia64, ppc64 and x86 users with lots of address space
+	  For most ppc64 and x86 users with lots of address space
 	  a value of 65536 is reasonable and should cause no problems.
 	  On arm and other archs it should not be higher than 32768.
 	  Programs which use vm86 functionality or have some need to map
@@ -799,6 +835,12 @@ choice
 	  madvise(MADV_HUGEPAGE) but it won't risk to increase the
 	  memory footprint of applications without a guaranteed
 	  benefit.
+
+	config TRANSPARENT_HUGEPAGE_NEVER
+		bool "never"
+	help
+	  Disable Transparent Hugepage by default. It can still be
+	  enabled at runtime via sysfs.
 endchoice
 
 config THP_SWAP
@@ -842,9 +884,6 @@ config USE_PERCPU_NUMA_NODE_ID
 	bool
 
 config HAVE_SETUP_PER_CPU_AREA
-	bool
-
-config FRONTSWAP
 	bool
 
 config CMA
@@ -1118,6 +1157,9 @@ config KMAP_LOCAL_NON_LINEAR_PTE_ARRAY
 config IO_MAPPING
 	bool
 
+config MEMFD_CREATE
+	bool "Enable memfd_create() system call" if EXPERT
+
 config SECRETMEM
 	default y
 	bool "Enable memfd_secret() system call" if EXPERT
@@ -1141,13 +1183,6 @@ config ANON_VMA_NAME
 	  area from being merged with adjacent virtual memory areas due to the
 	  difference in their name.
 
-config USERFAULTFD
-	bool "Enable userfaultfd() system call"
-	depends on MMU
-	help
-	  Enable the userfaultfd() system call that allows to intercept and
-	  handle page faults in userland.
-
 config HAVE_ARCH_USERFAULTFD_WP
 	bool
 	help
@@ -1158,6 +1193,14 @@ config HAVE_ARCH_USERFAULTFD_MINOR
 	help
 	  Arch has userfaultfd minor fault support
 
+menuconfig USERFAULTFD
+	bool "Enable userfaultfd() system call"
+	depends on MMU
+	help
+	  Enable the userfaultfd() system call that allows to intercept and
+	  handle page faults in userland.
+
+if USERFAULTFD
 config PTE_MARKER_UFFD_WP
 	bool "Userfaultfd write protection support for shmem/hugetlbfs"
 	default y
@@ -1167,6 +1210,7 @@ config PTE_MARKER_UFFD_WP
 	  Allows to create marker PTEs for userfaultfd write protection
 	  purposes.  It is required to enable userfaultfd write protection on
 	  file-backed memory types like shmem and hugetlbfs.
+endif # USERFAULTFD
 
 # multi-gen LRU {
 config LRU_GEN
@@ -1192,6 +1236,10 @@ config LRU_GEN_STATS
 	  from evicted generations for debugging purpose.
 
 	  This option has a per-memcg and per-node memory overhead.
+
+config LRU_GEN_WALKS_MMU
+	def_bool y
+	depends on LRU_GEN && ARCH_HAS_HW_PTE_YOUNG
 # }
 
 config ARCH_SUPPORTS_PER_VMA_LOCK
@@ -1205,6 +1253,13 @@ config PER_VMA_LOCK
 
 	  This feature allows locking each virtual memory area separately when
 	  handling page faults instead of taking mmap_lock.
+
+config LOCK_MM_AND_FIND_VMA
+	bool
+	depends on !STACK_GROWSUP
+
+config IOMMU_MM_DATA
+	bool
 
 source "mm/damon/Kconfig"
 

@@ -5,7 +5,7 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/domain.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/thread_info.h>
 
 	.macro	csdb

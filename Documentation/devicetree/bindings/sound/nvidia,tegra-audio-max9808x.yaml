@@ -35,12 +35,12 @@ properties:
     items:
       enum:
         # Board Connectors
-        - "Int Spk"
-        - "Headphone Jack"
-        - "Earpiece"
-        - "Headset Mic"
-        - "Internal Mic 1"
-        - "Internal Mic 2"
+        - Int Spk
+        - Headphone Jack
+        - Earpiece
+        - Headset Mic
+        - Internal Mic 1
+        - Internal Mic 2
 
         # CODEC Pins
         - HPL

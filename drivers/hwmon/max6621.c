@@ -12,7 +12,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 
 #define MAX6621_DRV_NAME		"max6621"
@@ -554,7 +554,7 @@ static struct i2c_driver max6621_driver = {
 		.name = MAX6621_DRV_NAME,
 		.of_match_table = of_match_ptr(max6621_of_match),
 	},
-	.probe_new	= max6621_probe,
+	.probe		= max6621_probe,
 	.id_table	= max6621_id,
 };
 

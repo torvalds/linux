@@ -546,7 +546,7 @@ static struct i2c_driver vpx3220_driver = {
 	.driver = {
 		.name	= "vpx3220",
 	},
-	.probe_new	= vpx3220_probe,
+	.probe		= vpx3220_probe,
 	.remove		= vpx3220_remove,
 	.id_table	= vpx3220_id,
 };

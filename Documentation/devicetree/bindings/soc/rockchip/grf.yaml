@@ -24,9 +24,12 @@ properties:
               - rockchip,rk3588-bigcore1-grf
               - rockchip,rk3588-ioc
               - rockchip,rk3588-php-grf
+              - rockchip,rk3588-pipe-phy-grf
               - rockchip,rk3588-sys-grf
               - rockchip,rk3588-pcie3-phy-grf
               - rockchip,rk3588-pcie3-pipe-grf
+              - rockchip,rk3588-vo-grf
+              - rockchip,rk3588-vop-grf
               - rockchip,rv1108-usbgrf
           - const: syscon
       - items:
@@ -52,6 +55,7 @@ properties:
               - rockchip,rk3399-pmugrf
               - rockchip,rk3568-grf
               - rockchip,rk3568-pmugrf
+              - rockchip,rk3588-usb2phy-grf
               - rockchip,rv1108-grf
               - rockchip,rv1108-pmugrf
               - rockchip,rv1126-grf
@@ -119,7 +123,7 @@ allOf:
         usbphy:
           type: object
 
-          $ref: "/schemas/phy/rockchip-usb-phy.yaml#"
+          $ref: /schemas/phy/rockchip-usb-phy.yaml#
 
           unevaluatedProperties: false
 
@@ -134,14 +138,14 @@ allOf:
         gpio:
           type: object
 
-          $ref: "/schemas/gpio/rockchip,rk3328-grf-gpio.yaml#"
+          $ref: /schemas/gpio/rockchip,rk3328-grf-gpio.yaml#
 
           unevaluatedProperties: false
 
         power-controller:
           type: object
 
-          $ref: "/schemas/power/rockchip,power-controller.yaml#"
+          $ref: /schemas/power/rockchip,power-controller.yaml#
 
           unevaluatedProperties: false
 
@@ -156,7 +160,7 @@ allOf:
         mipi-dphy-rx0:
           type: object
 
-          $ref: "/schemas/phy/rockchip-mipi-dphy-rx0.yaml#"
+          $ref: /schemas/phy/rockchip-mipi-dphy-rx0.yaml#
 
           unevaluatedProperties: false
 
@@ -184,7 +188,7 @@ allOf:
         reboot-mode:
           type: object
 
-          $ref: "/schemas/power/reset/syscon-reboot-mode.yaml#"
+          $ref: /schemas/power/reset/syscon-reboot-mode.yaml#
 
           unevaluatedProperties: false
 
@@ -199,6 +203,7 @@ allOf:
               - rockchip,rk3308-usb2phy-grf
               - rockchip,rk3328-usb2phy-grf
               - rockchip,rk3399-grf
+              - rockchip,rk3588-usb2phy-grf
               - rockchip,rv1108-grf
 
     then:
@@ -230,6 +235,7 @@ allOf:
               - rockchip,rk3399-grf
               - rockchip,rk3399-pmugrf
               - rockchip,rk3568-pmugrf
+              - rockchip,rk3588-pmugrf
               - rockchip,rv1108-grf
               - rockchip,rv1108-pmugrf
 
@@ -238,7 +244,7 @@ allOf:
         io-domains:
           type: object
 
-          $ref: "/schemas/power/rockchip-io-domain.yaml#"
+          $ref: /schemas/power/rockchip-io-domain.yaml#
 
           unevaluatedProperties: false
 

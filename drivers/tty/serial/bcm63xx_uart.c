@@ -201,7 +201,7 @@ static void bcm_uart_break_ctl(struct uart_port *port, int ctl)
 	unsigned long flags;
 	unsigned int val;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	val = bcm_uart_readl(port, UART_CTL_REG);
 	if (ctl)
@@ -210,7 +210,7 @@ static void bcm_uart_break_ctl(struct uart_port *port, int ctl)
 		val &= ~UART_CTL_XMITBRK_MASK;
 	bcm_uart_writel(port, val, UART_CTL_REG);
 
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /*
@@ -332,7 +332,7 @@ static irqreturn_t bcm_uart_interrupt(int irq, void *dev_id)
 	unsigned int irqstat;
 
 	port = dev_id;
-	spin_lock(&port->lock);
+	uart_port_lock(port);
 
 	irqstat = bcm_uart_readl(port, UART_IR_REG);
 	if (irqstat & UART_RX_INT_STAT)
@@ -353,7 +353,7 @@ static irqreturn_t bcm_uart_interrupt(int irq, void *dev_id)
 					       estat & UART_EXTINP_DCD_MASK);
 	}
 
-	spin_unlock(&port->lock);
+	uart_port_unlock(port);
 	return IRQ_HANDLED;
 }
 
@@ -451,9 +451,9 @@ static void bcm_uart_shutdown(struct uart_port *port)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 	bcm_uart_writel(port, 0, UART_IR_REG);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 
 	bcm_uart_disable(port);
 	bcm_uart_flush(port);
@@ -470,7 +470,7 @@ static void bcm_uart_set_termios(struct uart_port *port, struct ktermios *new,
 	unsigned long flags;
 	int tries;
 
-	spin_lock_irqsave(&port->lock, flags);
+	uart_port_lock_irqsave(port, &flags);
 
 	/* Drain the hot tub fully before we power it off for the winter. */
 	for (tries = 3; !bcm_uart_tx_empty(port) && tries; tries--)
@@ -546,7 +546,7 @@ static void bcm_uart_set_termios(struct uart_port *port, struct ktermios *new,
 
 	uart_update_timeout(port, new->c_cflag, baud);
 	bcm_uart_enable(port);
-	spin_unlock_irqrestore(&port->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 /*
@@ -712,9 +712,9 @@ static void bcm_console_write(struct console *co, const char *s,
 		/* bcm_uart_interrupt() already took the lock */
 		locked = 0;
 	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
+		locked = uart_port_trylock(port);
 	} else {
-		spin_lock(&port->lock);
+		uart_port_lock(port);
 		locked = 1;
 	}
 
@@ -725,7 +725,7 @@ static void bcm_console_write(struct console *co, const char *s,
 	wait_for_xmitr(port);
 
 	if (locked)
-		spin_unlock(&port->lock);
+		uart_port_unlock(port);
 	local_irq_restore(flags);
 }
 
@@ -832,14 +832,10 @@ static int bcm_uart_probe(struct platform_device *pdev)
 		return -EBUSY;
 	memset(port, 0, sizeof(*port));
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res_mem)
-		return -ENODEV;
-
-	port->mapbase = res_mem->start;
-	port->membase = devm_ioremap_resource(&pdev->dev, res_mem);
+	port->membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res_mem);
 	if (IS_ERR(port->membase))
 		return PTR_ERR(port->membase);
+	port->mapbase = res_mem->start;
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
@@ -872,7 +868,7 @@ static int bcm_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int bcm_uart_remove(struct platform_device *pdev)
+static void bcm_uart_remove(struct platform_device *pdev)
 {
 	struct uart_port *port;
 
@@ -880,7 +876,6 @@ static int bcm_uart_remove(struct platform_device *pdev)
 	uart_remove_one_port(&bcm_uart_driver, port);
 	/* mark port as free */
 	ports[pdev->id].membase = NULL;
-	return 0;
 }
 
 static const struct of_device_id bcm63xx_of_match[] = {
@@ -894,7 +889,7 @@ MODULE_DEVICE_TABLE(of, bcm63xx_of_match);
  */
 static struct platform_driver bcm_uart_platform_driver = {
 	.probe	= bcm_uart_probe,
-	.remove	= bcm_uart_remove,
+	.remove_new = bcm_uart_remove,
 	.driver	= {
 		.name  = "bcm63xx_uart",
 		.of_match_table = bcm63xx_of_match,

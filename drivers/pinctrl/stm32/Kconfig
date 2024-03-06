@@ -51,4 +51,10 @@ config PINCTRL_STM32MP157
 	depends on OF && HAS_IOMEM
 	default MACH_STM32MP157
 	select PINCTRL_STM32
+
+config PINCTRL_STM32MP257
+	bool "STMicroelectronics STM32MP257 pin control" if COMPILE_TEST && !MACH_STM32MP25
+	depends on OF && HAS_IOMEM
+	default MACH_STM32MP25
+	select PINCTRL_STM32
 endif

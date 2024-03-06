@@ -27,7 +27,9 @@
 
 #include <linux/types.h>
 
-#define RREG32_ENDPOINT(block, reg)		\
+struct cea_sad;
+
+#define RREG32_ENDPOINT(block, reg)				\
 	radeon_audio_endpoint_rreg(rdev, (block), (reg))
 #define WREG32_ENDPOINT(block, reg, v)	\
 	radeon_audio_endpoint_wreg(rdev, (block), (reg), (v))

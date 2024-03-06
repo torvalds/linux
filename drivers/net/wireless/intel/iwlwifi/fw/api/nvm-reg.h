@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -17,7 +17,13 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_ACCESS_COMPLETE = 0x0,
 
 	/**
-	 * @LARI_CONFIG_CHANGE: &struct iwl_lari_config_change_cmd
+	 * @LARI_CONFIG_CHANGE: &struct iwl_lari_config_change_cmd_v1,
+	 *	&struct iwl_lari_config_change_cmd_v2,
+	 *	&struct iwl_lari_config_change_cmd_v3,
+	 *	&struct iwl_lari_config_change_cmd_v4,
+	 *	&struct iwl_lari_config_change_cmd_v5,
+	 *	&struct iwl_lari_config_change_cmd_v6 or
+	 *	&struct iwl_lari_config_change_cmd_v7
 	 */
 	LARI_CONFIG_CHANGE = 0x1,
 
@@ -29,14 +35,19 @@ enum iwl_regulatory_and_nvm_subcmd_ids {
 	NVM_GET_INFO = 0x2,
 
 	/**
-	 * @TAS_CONFIG: &struct iwl_tas_config_cmd
+	 * @TAS_CONFIG: &union iwl_tas_config_cmd
 	 */
 	TAS_CONFIG = 0x3,
 
 	/**
-	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &iwl_sar_offset_mapping_cmd
+	 * @SAR_OFFSET_MAPPING_TABLE_CMD: &struct iwl_sar_offset_mapping_cmd
 	 */
 	SAR_OFFSET_MAPPING_TABLE_CMD = 0x4,
+
+	/**
+	 * @UATS_TABLE_CMD: &struct iwl_uats_table_cmd
+	 */
+	UATS_TABLE_CMD = 0x5,
 
 	/**
 	 * @PNVM_INIT_COMPLETE_NTFY: &struct iwl_pnvm_init_complete_ntfy
@@ -258,6 +269,9 @@ struct iwl_nvm_access_complete_cmd {
 	__le32 reserved;
 } __packed; /* NVM_ACCESS_COMPLETE_CMD_API_S_VER_1 */
 
+#define IWL_MCC_US	0x5553
+#define IWL_MCC_CANADA	0x4341
+
 /**
  * struct iwl_mcc_update_cmd - Request the device to update geographic
  * regulatory profile according to the given MCC (Mobile Country Code).
@@ -317,7 +331,7 @@ struct iwl_mcc_update_resp_v3 {
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_3 */
 
 /**
- * struct iwl_mcc_update_resp - response to MCC_UPDATE_CMD.
+ * struct iwl_mcc_update_resp_v4 - response to MCC_UPDATE_CMD.
  * Contains the new channel control profile map, if changed, and the new MCC
  * (mobile country code).
  * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
@@ -333,7 +347,7 @@ struct iwl_mcc_update_resp_v3 {
  * @channels: channel control data map, DWORD for each channel. Only the first
  *	16bits are used.
  */
-struct iwl_mcc_update_resp {
+struct iwl_mcc_update_resp_v4 {
 	__le32 status;
 	__le16 mcc;
 	__le16 cap;
@@ -344,6 +358,37 @@ struct iwl_mcc_update_resp {
 	__le32 n_channels;
 	__le32 channels[];
 } __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_4 */
+
+/**
+ * struct iwl_mcc_update_resp_v8 - response to MCC_UPDATE_CMD.
+ * Contains the new channel control profile map, if changed, and the new MCC
+ * (mobile country code).
+ * The new MCC may be different than what was requested in MCC_UPDATE_CMD.
+ * @status: see &enum iwl_mcc_update_status
+ * @mcc: the new applied MCC
+ * @padding: padding for 2 bytes.
+ * @cap: capabilities for all channels which matches the MCC
+ * @time: time elapsed from the MCC test start (in units of 30 seconds)
+ * @geo_info: geographic specific profile information
+ *     see &enum iwl_geo_information.
+ * @source_id: the MCC source, see iwl_mcc_source
+ * @reserved: for four bytes alignment.
+ * @n_channels: number of channels in @channels_data.
+ * @channels: channel control data map, DWORD for each channel. Only the first
+ *     16bits are used.
+ */
+struct iwl_mcc_update_resp_v8 {
+	__le32 status;
+	__le16 mcc;
+	u8 padding[2];
+	__le32 cap;
+	__le16 time;
+	__le16 geo_info;
+	u8 source_id;
+	u8 reserved[3];
+	__le32 n_channels;
+	__le32 channels[];
+} __packed; /* LAR_UPDATE_MCC_CMD_RESP_S_VER_8 */
 
 /**
  * struct iwl_mcc_chub_notif - chub notifies of mcc change
@@ -444,18 +489,20 @@ union iwl_tas_config_cmd {
 	struct iwl_tas_config_cmd_v4 v4;
 };
 /**
- * enum iwl_lari_configs - bit masks for the various LARI config operations
+ * enum iwl_lari_config_masks - bit masks for the various LARI config operations
  * @LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK: disable 11ac in ukraine
  * @LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK: ETSI 5.8GHz SRD passive scan
  * @LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK: ETSI 5.8GHz SRD disabled
  * @LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK: enable 5.15/5.35GHz bands in
  * 	Indonesia
+ * @LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK: enable 2022 china regulatory
  */
 enum iwl_lari_config_masks {
 	LARI_CONFIG_DISABLE_11AC_UKRAINE_MSK		= BIT(0),
 	LARI_CONFIG_CHANGE_ETSI_TO_PASSIVE_MSK		= BIT(1),
 	LARI_CONFIG_CHANGE_ETSI_TO_DISABLED_MSK		= BIT(2),
 	LARI_CONFIG_ENABLE_5G2_IN_INDONESIA_MSK		= BIT(3),
+	LARI_CONFIG_ENABLE_CHINA_22_REG_SUPPORT_MSK	= BIT(7),
 };
 
 #define IWL_11AX_UKRAINE_MASK 3
@@ -565,11 +612,63 @@ struct iwl_lari_config_change_cmd_v6 {
 } __packed; /* LARI_CHANGE_CONF_CMD_S_VER_6 */
 
 /**
+ * struct iwl_lari_config_change_cmd_v7 - change LARI configuration
+ * This structure is used also for lari cmd version 8.
+ * @config_bitmap: Bitmap of the config commands. Each bit will trigger a
+ *     different predefined FW config operation.
+ * @oem_uhb_allow_bitmap: Bitmap of UHB enabled MCC sets.
+ * @oem_11ax_allow_bitmap: Bitmap of 11ax allowed MCCs. There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate the value to use.
+ * @oem_unii4_allow_bitmap: Bitmap of unii4 allowed MCCs.There are two bits
+ *     per country, one to indicate whether to override and the other to
+ *     indicate allow/disallow unii4 channels.
+ * @chan_state_active_bitmap: Bitmap to enable different bands per country
+ *     or region.
+ *     Each bit represents a country or region, and a band to activate
+ *     according to the BIOS definitions.
+ *     For LARI cmd version 7 - bits 0:3 are supported.
+ *     For LARI cmd version 8 - bits 0:4 are supported.
+ * @force_disable_channels_bitmap: Bitmap of disabled bands/channels.
+ *     Each bit represents a set of channels in a specific band that should be
+ *     disabled
+ * @edt_bitmap: Bitmap of energy detection threshold table.
+ *	Disable/enable the EDT optimization method for different band.
+ */
+struct iwl_lari_config_change_cmd_v7 {
+	__le32 config_bitmap;
+	__le32 oem_uhb_allow_bitmap;
+	__le32 oem_11ax_allow_bitmap;
+	__le32 oem_unii4_allow_bitmap;
+	__le32 chan_state_active_bitmap;
+	__le32 force_disable_channels_bitmap;
+	__le32 edt_bitmap;
+} __packed;
+/* LARI_CHANGE_CONF_CMD_S_VER_7 */
+/* LARI_CHANGE_CONF_CMD_S_VER_8 */
+
+/* Activate UNII-1 (5.2GHz) for World Wide */
+#define ACTIVATE_5G2_IN_WW_MASK	BIT(4)
+
+/**
  * struct iwl_pnvm_init_complete_ntfy - PNVM initialization complete
  * @status: PNVM image loading status
  */
 struct iwl_pnvm_init_complete_ntfy {
 	__le32 status;
 } __packed; /* PNVM_INIT_COMPLETE_NTFY_S_VER_1 */
+
+#define UATS_TABLE_ROW_SIZE	26
+#define UATS_TABLE_COL_SIZE	13
+
+/**
+ * struct iwl_uats_table_cmd - struct for UATS_TABLE_CMD
+ * @offset_map: mapping a mcc to UHB AP type support (UATS) allowed
+ * @reserved: reserved
+ */
+struct iwl_uats_table_cmd {
+	u8 offset_map[UATS_TABLE_ROW_SIZE][UATS_TABLE_COL_SIZE];
+	__le16 reserved;
+} __packed; /* UATS_TABLE_CMD_S_VER_1 */
 
 #endif /* __iwl_fw_api_nvm_reg_h__ */

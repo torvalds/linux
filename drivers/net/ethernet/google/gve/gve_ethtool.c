@@ -15,7 +15,7 @@ static void gve_get_drvinfo(struct net_device *netdev,
 {
 	struct gve_priv *priv = netdev_priv(netdev);
 
-	strscpy(info->driver, "gve", sizeof(info->driver));
+	strscpy(info->driver, gve_driver_name, sizeof(info->driver));
 	strscpy(info->version, gve_version_str, sizeof(info->version));
 	strscpy(info->bus_info, pci_name(priv->pdev), sizeof(info->bus_info));
 }
@@ -519,7 +519,7 @@ static int gve_set_tunable(struct net_device *netdev,
 	case ETHTOOL_RX_COPYBREAK:
 	{
 		u32 max_copybreak = gve_is_gqi(priv) ?
-			(PAGE_SIZE / 2) : priv->data_buffer_size_dqo;
+			GVE_DEFAULT_RX_BUFFER_SIZE : priv->data_buffer_size_dqo;
 
 		len = *(u32 *)value;
 		if (len > max_copybreak)
@@ -590,6 +590,9 @@ static int gve_get_link_ksettings(struct net_device *netdev,
 		err = gve_adminq_report_link_speed(priv);
 
 	cmd->base.speed = priv->link_speed;
+
+	cmd->base.duplex = DUPLEX_FULL;
+
 	return err;
 }
 

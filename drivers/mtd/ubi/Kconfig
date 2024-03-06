@@ -104,4 +104,13 @@ config MTD_UBI_BLOCK
 
 	   If in doubt, say "N".
 
+config MTD_UBI_FAULT_INJECTION
+	bool "Fault injection capability of UBI device"
+	default n
+	depends on FAULT_INJECTION_DEBUG_FS
+	help
+	   This option enables fault-injection support for UBI devices for
+	   testing purposes.
+
+	   If in doubt, say "N".
 endif # MTD_UBI

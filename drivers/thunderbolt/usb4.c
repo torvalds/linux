@@ -15,6 +15,7 @@
 #include "tb.h"
 
 #define USB4_DATA_RETRIES		3
+#define USB4_DATA_DWORDS		16
 
 enum usb4_sb_target {
 	USB4_SB_TARGET_ROUTER,
@@ -112,7 +113,7 @@ static int __usb4_switch_op(struct tb_switch *sw, u16 opcode, u32 *metadata,
 {
 	const struct tb_cm_ops *cm_ops = sw->tb->cm_ops;
 
-	if (tx_dwords > NVM_DATA_DWORDS || rx_dwords > NVM_DATA_DWORDS)
+	if (tx_dwords > USB4_DATA_DWORDS || rx_dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	/*
@@ -231,11 +232,14 @@ static bool link_is_usb4(struct tb_port *port)
  * is not available for some reason (like that there is Thunderbolt 3
  * switch upstream) then the internal xHCI controller is enabled
  * instead.
+ *
+ * This does not set the configuration valid bit of the router. To do
+ * that call usb4_switch_configuration_valid().
  */
 int usb4_switch_setup(struct tb_switch *sw)
 {
-	struct tb_port *downstream_port;
-	struct tb_switch *parent;
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *down;
 	bool tbt3, xhci;
 	u32 val = 0;
 	int ret;
@@ -249,9 +253,8 @@ int usb4_switch_setup(struct tb_switch *sw)
 	if (ret)
 		return ret;
 
-	parent = tb_switch_parent(sw);
-	downstream_port = tb_port_at(tb_route(sw), parent);
-	sw->link_usb4 = link_is_usb4(downstream_port);
+	down = tb_switch_downstream_port(sw);
+	sw->link_usb4 = link_is_usb4(down);
 	tb_sw_dbg(sw, "link: %s\n", sw->link_usb4 ? "USB4" : "TBT");
 
 	xhci = val & ROUTER_CS_6_HCI;
@@ -287,8 +290,34 @@ int usb4_switch_setup(struct tb_switch *sw)
 	}
 
 	/* TBT3 supported by the CM */
-	val |= ROUTER_CS_5_C3S;
-	/* Tunneling configuration is ready now */
+	val &= ~ROUTER_CS_5_CNS;
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+}
+
+/**
+ * usb4_switch_configuration_valid() - Set tunneling configuration to be valid
+ * @sw: USB4 router
+ *
+ * Sets configuration valid bit for the router. Must be called before
+ * any tunnels can be set through the router and after
+ * usb4_switch_setup() has been called. Can be called to host and device
+ * routers (does nothing for the latter).
+ *
+ * Returns %0 in success and negative errno otherwise.
+ */
+int usb4_switch_configuration_valid(struct tb_switch *sw)
+{
+	u32 val;
+	int ret;
+
+	if (!tb_route(sw))
+		return 0;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
+	if (ret)
+		return ret;
+
 	val |= ROUTER_CS_5_CV;
 
 	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH, ROUTER_CS_5, 1);
@@ -703,7 +732,7 @@ int usb4_switch_credits_init(struct tb_switch *sw)
 	int max_usb3, min_dp_aux, min_dp_main, max_pcie, max_dma;
 	int ret, length, i, nports;
 	const struct tb_port *port;
-	u32 data[NVM_DATA_DWORDS];
+	u32 data[USB4_DATA_DWORDS];
 	u32 metadata = 0;
 	u8 status = 0;
 
@@ -1199,7 +1228,7 @@ static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 
 static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 {
-	if (dwords > NVM_DATA_DWORDS)
+	if (dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_read(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1209,7 +1238,7 @@ static int usb4_port_read_data(struct tb_port *port, void *data, size_t dwords)
 static int usb4_port_write_data(struct tb_port *port, const void *data,
 				size_t dwords)
 {
-	if (dwords > NVM_DATA_DWORDS)
+	if (dwords > USB4_DATA_DWORDS)
 		return -EINVAL;
 
 	return tb_port_write(port, data, TB_CFG_PORT, port->cap_usb4 + PORT_CS_2,
@@ -1423,6 +1452,112 @@ bool usb4_port_clx_supported(struct tb_port *port)
 		return false;
 
 	return !!(val & PORT_CS_18_CPS);
+}
+
+/**
+ * usb4_port_asym_supported() - If the port supports asymmetric link
+ * @port: USB4 port
+ *
+ * Checks if the port and the cable supports asymmetric link and returns
+ * %true in that case.
+ */
+bool usb4_port_asym_supported(struct tb_port *port)
+{
+	u32 val;
+
+	if (!port->cap_usb4)
+		return false;
+
+	if (tb_port_read(port, &val, TB_CFG_PORT, port->cap_usb4 + PORT_CS_18, 1))
+		return false;
+
+	return !!(val & PORT_CS_18_CSA);
+}
+
+/**
+ * usb4_port_asym_set_link_width() - Set link width to asymmetric or symmetric
+ * @port: USB4 port
+ * @width: Asymmetric width to configure
+ *
+ * Sets USB4 port link width to @width. Can be called for widths where
+ * usb4_port_asym_width_supported() returned @true.
+ */
+int usb4_port_asym_set_link_width(struct tb_port *port, enum tb_link_width width)
+{
+	u32 val;
+	int ret;
+
+	if (!port->cap_phy)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_phy + LANE_ADP_CS_1, 1);
+	if (ret)
+		return ret;
+
+	val &= ~LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK;
+	switch (width) {
+	case TB_LINK_WIDTH_DUAL:
+		val |= FIELD_PREP(LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK,
+				  LANE_ADP_CS_1_TARGET_WIDTH_ASYM_DUAL);
+		break;
+	case TB_LINK_WIDTH_ASYM_TX:
+		val |= FIELD_PREP(LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK,
+				  LANE_ADP_CS_1_TARGET_WIDTH_ASYM_TX);
+		break;
+	case TB_LINK_WIDTH_ASYM_RX:
+		val |= FIELD_PREP(LANE_ADP_CS_1_TARGET_WIDTH_ASYM_MASK,
+				  LANE_ADP_CS_1_TARGET_WIDTH_ASYM_RX);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
+}
+
+/**
+ * usb4_port_asym_start() - Start symmetry change and wait for completion
+ * @port: USB4 port
+ *
+ * Start symmetry change of the link to asymmetric or symmetric
+ * (according to what was previously set in tb_port_set_link_width().
+ * Wait for completion of the change.
+ *
+ * Returns %0 in case of success, %-ETIMEDOUT if case of timeout or
+ * a negative errno in case of a failure.
+ */
+int usb4_port_asym_start(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	val &= ~PORT_CS_19_START_ASYM;
+	val |= FIELD_PREP(PORT_CS_19_START_ASYM, 1);
+
+	ret = tb_port_write(port, &val, TB_CFG_PORT,
+			    port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	/*
+	 * Wait for PORT_CS_19_START_ASYM to be 0. This means the USB4
+	 * port started the symmetry transition.
+	 */
+	ret = usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_19,
+				     PORT_CS_19_START_ASYM, 0, 1000);
+	if (ret)
+		return ret;
+
+	/* Then wait for the transtion to be completed */
+	return usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_18,
+				      PORT_CS_18_TIP, 0, 5000);
 }
 
 /**
@@ -1845,7 +1980,7 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	int ret;
 
 	metadata = dwaddress << USB4_NVM_READ_OFFSET_SHIFT;
-	if (dwords < NVM_DATA_DWORDS)
+	if (dwords < USB4_DATA_DWORDS)
 		metadata |= dwords << USB4_NVM_READ_LENGTH_SHIFT;
 
 	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
@@ -1913,35 +2048,6 @@ int usb4_usb3_port_max_link_rate(struct tb_port *port)
 
 	lr = (val & ADP_USB3_CS_4_MSLR_MASK) >> ADP_USB3_CS_4_MSLR_SHIFT;
 	ret = lr == ADP_USB3_CS_4_MSLR_20G ? 20000 : 10000;
-
-	return usb4_usb3_port_max_bandwidth(port, ret);
-}
-
-/**
- * usb4_usb3_port_actual_link_rate() - Established USB3 link rate
- * @port: USB3 adapter port
- *
- * Return actual established link rate of a USB3 adapter in Mb/s. If the
- * link is not up returns %0 and negative errno in case of failure.
- */
-int usb4_usb3_port_actual_link_rate(struct tb_port *port)
-{
-	int ret, lr;
-	u32 val;
-
-	if (!tb_port_is_usb3_down(port) && !tb_port_is_usb3_up(port))
-		return -EINVAL;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_adap + ADP_USB3_CS_4, 1);
-	if (ret)
-		return ret;
-
-	if (!(val & ADP_USB3_CS_4_ULV))
-		return 0;
-
-	lr = val & ADP_USB3_CS_4_ALR_MASK;
-	ret = lr == ADP_USB3_CS_4_ALR_20G ? 20000 : 10000;
 
 	return usb4_usb3_port_max_bandwidth(port, ret);
 }
@@ -2205,13 +2311,13 @@ int usb4_usb3_port_release_bandwidth(struct tb_port *port, int *upstream_bw,
 		goto err_request;
 
 	/*
-	 * Always keep 1000 Mb/s to make sure xHCI has at least some
+	 * Always keep 900 Mb/s to make sure xHCI has at least some
 	 * bandwidth available for isochronous traffic.
 	 */
-	if (consumed_up < 1000)
-		consumed_up = 1000;
-	if (consumed_down < 1000)
-		consumed_down = 1000;
+	if (consumed_up < 900)
+		consumed_up = 900;
+	if (consumed_down < 900)
+		consumed_down = 900;
 
 	ret = usb4_usb3_port_write_allocated_bandwidth(port, consumed_up,
 						       consumed_down);
@@ -2265,13 +2371,14 @@ int usb4_dp_port_set_cm_id(struct tb_port *port, int cm_id)
 }
 
 /**
- * usb4_dp_port_bw_mode_supported() - Is the bandwidth allocation mode supported
+ * usb4_dp_port_bandwidth_mode_supported() - Is the bandwidth allocation mode
+ *					     supported
  * @port: DP IN adapter to check
  *
  * Can be called to any DP IN adapter. Returns true if the adapter
  * supports USB4 bandwidth allocation mode, false otherwise.
  */
-bool usb4_dp_port_bw_mode_supported(struct tb_port *port)
+bool usb4_dp_port_bandwidth_mode_supported(struct tb_port *port)
 {
 	int ret;
 	u32 val;
@@ -2288,13 +2395,14 @@ bool usb4_dp_port_bw_mode_supported(struct tb_port *port)
 }
 
 /**
- * usb4_dp_port_bw_mode_enabled() - Is the bandwidth allocation mode enabled
+ * usb4_dp_port_bandwidth_mode_enabled() - Is the bandwidth allocation mode
+ *					   enabled
  * @port: DP IN adapter to check
  *
  * Can be called to any DP IN adapter. Returns true if the bandwidth
  * allocation mode has been enabled, false otherwise.
  */
-bool usb4_dp_port_bw_mode_enabled(struct tb_port *port)
+bool usb4_dp_port_bandwidth_mode_enabled(struct tb_port *port)
 {
 	int ret;
 	u32 val;
@@ -2311,7 +2419,8 @@ bool usb4_dp_port_bw_mode_enabled(struct tb_port *port)
 }
 
 /**
- * usb4_dp_port_set_cm_bw_mode_supported() - Set/clear CM support for bandwidth allocation mode
+ * usb4_dp_port_set_cm_bandwidth_mode_supported() - Set/clear CM support for
+ *						    bandwidth allocation mode
  * @port: DP IN adapter
  * @supported: Does the CM support bandwidth allocation mode
  *
@@ -2320,7 +2429,8 @@ bool usb4_dp_port_bw_mode_enabled(struct tb_port *port)
  * otherwise. Specifically returns %-OPNOTSUPP if the passed in adapter
  * does not support this.
  */
-int usb4_dp_port_set_cm_bw_mode_supported(struct tb_port *port, bool supported)
+int usb4_dp_port_set_cm_bandwidth_mode_supported(struct tb_port *port,
+						 bool supported)
 {
 	u32 val;
 	int ret;
@@ -2594,7 +2704,7 @@ int usb4_dp_port_set_granularity(struct tb_port *port, int granularity)
 }
 
 /**
- * usb4_dp_port_set_estimated_bw() - Set estimated bandwidth
+ * usb4_dp_port_set_estimated_bandwidth() - Set estimated bandwidth
  * @port: DP IN adapter
  * @bw: Estimated bandwidth in Mb/s.
  *
@@ -2604,7 +2714,7 @@ int usb4_dp_port_set_granularity(struct tb_port *port, int granularity)
  * and negative errno otherwise. Specifically returns %-EOPNOTSUPP if
  * the adapter does not support this.
  */
-int usb4_dp_port_set_estimated_bw(struct tb_port *port, int bw)
+int usb4_dp_port_set_estimated_bandwidth(struct tb_port *port, int bw)
 {
 	u32 val, granularity;
 	int ret;
@@ -2630,14 +2740,14 @@ int usb4_dp_port_set_estimated_bw(struct tb_port *port, int bw)
 }
 
 /**
- * usb4_dp_port_allocated_bw() - Return allocated bandwidth
+ * usb4_dp_port_allocated_bandwidth() - Return allocated bandwidth
  * @port: DP IN adapter
  *
  * Reads and returns allocated bandwidth for @port in Mb/s (taking into
  * account the programmed granularity). Returns negative errno in case
  * of error.
  */
-int usb4_dp_port_allocated_bw(struct tb_port *port)
+int usb4_dp_port_allocated_bandwidth(struct tb_port *port)
 {
 	u32 val, granularity;
 	int ret;
@@ -2723,7 +2833,7 @@ static int usb4_dp_port_wait_and_clear_cm_ack(struct tb_port *port,
 }
 
 /**
- * usb4_dp_port_allocate_bw() - Set allocated bandwidth
+ * usb4_dp_port_allocate_bandwidth() - Set allocated bandwidth
  * @port: DP IN adapter
  * @bw: New allocated bandwidth in Mb/s
  *
@@ -2731,7 +2841,7 @@ static int usb4_dp_port_wait_and_clear_cm_ack(struct tb_port *port,
  * driver). Takes into account the programmed granularity. Returns %0 in
  * success and negative errno in case of error.
  */
-int usb4_dp_port_allocate_bw(struct tb_port *port, int bw)
+int usb4_dp_port_allocate_bandwidth(struct tb_port *port, int bw)
 {
 	u32 val, granularity;
 	int ret;
@@ -2765,7 +2875,7 @@ int usb4_dp_port_allocate_bw(struct tb_port *port, int bw)
 }
 
 /**
- * usb4_dp_port_requested_bw() - Read requested bandwidth
+ * usb4_dp_port_requested_bandwidth() - Read requested bandwidth
  * @port: DP IN adapter
  *
  * Reads the DPCD (graphics driver) requested bandwidth and returns it
@@ -2774,7 +2884,7 @@ int usb4_dp_port_allocate_bw(struct tb_port *port, int bw)
  * the adapter does not support bandwidth allocation mode, and %ENODATA
  * if there is no active bandwidth request from the graphics driver.
  */
-int usb4_dp_port_requested_bw(struct tb_port *port)
+int usb4_dp_port_requested_bandwidth(struct tb_port *port)
 {
 	u32 val, granularity;
 	int ret;
@@ -2796,4 +2906,35 @@ int usb4_dp_port_requested_bw(struct tb_port *port)
 		return -ENODATA;
 
 	return (val & ADP_DP_CS_8_REQUESTED_BW_MASK) * granularity;
+}
+
+/**
+ * usb4_pci_port_set_ext_encapsulation() - Enable/disable extended encapsulation
+ * @port: PCIe adapter
+ * @enable: Enable/disable extended encapsulation
+ *
+ * Enables or disables extended encapsulation used in PCIe tunneling. Caller
+ * needs to make sure both adapters support this before enabling. Returns %0 on
+ * success and negative errno otherwise.
+ */
+int usb4_pci_port_set_ext_encapsulation(struct tb_port *port, bool enable)
+{
+	u32 val;
+	int ret;
+
+	if (!tb_port_is_pcie_up(port) && !tb_port_is_pcie_down(port))
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_adap + ADP_PCIE_CS_1, 1);
+	if (ret)
+		return ret;
+
+	if (enable)
+		val |= ADP_PCIE_CS_1_EE;
+	else
+		val &= ~ADP_PCIE_CS_1_EE;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_adap + ADP_PCIE_CS_1, 1);
 }

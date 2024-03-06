@@ -282,7 +282,7 @@ static struct i2c_driver fsp3y_driver = {
 	.driver = {
 		   .name = "fsp3y",
 		   },
-	.probe_new = fsp3y_probe,
+	.probe = fsp3y_probe,
 	.id_table = fsp3y_id
 };
 

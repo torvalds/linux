@@ -1,7 +1,7 @@
 /*
  * Implementation of the access vector table type.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 
 /* Updated: Frank Mayer <mayerf@tresys.com> and Karl MacMillan <kmacmillan@tresys.com>
@@ -17,6 +17,7 @@
  *	Tuned number of hash slots for avtab to reduce memory usage
  */
 
+#include <linux/bitops.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/errno.h>
@@ -29,7 +30,7 @@ static struct kmem_cache *avtab_xperms_cachep __ro_after_init;
 /* Based on MurmurHash3, written by Austin Appleby and placed in the
  * public domain.
  */
-static inline int avtab_hash(const struct avtab_key *keyp, u32 mask)
+static inline u32 avtab_hash(const struct avtab_key *keyp, u32 mask)
 {
 	static const u32 c1 = 0xcc9e2d51;
 	static const u32 c2 = 0x1b873593;
@@ -66,8 +67,7 @@ static inline int avtab_hash(const struct avtab_key *keyp, u32 mask)
 }
 
 static struct avtab_node*
-avtab_insert_node(struct avtab *h, int hvalue,
-		  struct avtab_node *prev,
+avtab_insert_node(struct avtab *h, struct avtab_node **dst,
 		  const struct avtab_key *key, const struct avtab_datum *datum)
 {
 	struct avtab_node *newnode;
@@ -89,55 +89,59 @@ avtab_insert_node(struct avtab *h, int hvalue,
 		newnode->datum.u.data = datum->u.data;
 	}
 
-	if (prev) {
-		newnode->next = prev->next;
-		prev->next = newnode;
-	} else {
-		struct avtab_node **n = &h->htable[hvalue];
-
-		newnode->next = *n;
-		*n = newnode;
-	}
+	newnode->next = *dst;
+	*dst = newnode;
 
 	h->nel++;
 	return newnode;
 }
 
+static int avtab_node_cmp(const struct avtab_key *key1,
+			  const struct avtab_key *key2)
+{
+	u16 specified = key1->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
+
+	if (key1->source_type == key2->source_type &&
+	    key1->target_type == key2->target_type &&
+	    key1->target_class == key2->target_class &&
+	    (specified & key2->specified))
+		return 0;
+	if (key1->source_type < key2->source_type)
+		return -1;
+	if (key1->source_type == key2->source_type &&
+	    key1->target_type < key2->target_type)
+		return -1;
+	if (key1->source_type == key2->source_type &&
+	    key1->target_type == key2->target_type &&
+	    key1->target_class < key2->target_class)
+		return -1;
+	return 1;
+}
+
 static int avtab_insert(struct avtab *h, const struct avtab_key *key,
 			const struct avtab_datum *datum)
 {
-	int hvalue;
+	u32 hvalue;
 	struct avtab_node *prev, *cur, *newnode;
-	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
+	int cmp;
 
-	if (!h || !h->nslot)
+	if (!h || !h->nslot || h->nel == U32_MAX)
 		return -EINVAL;
 
 	hvalue = avtab_hash(key, h->mask);
 	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class == cur->key.target_class &&
-		    (specified & cur->key.specified)) {
-			/* extended perms may not be unique */
-			if (specified & AVTAB_XPERMS)
-				break;
+		cmp = avtab_node_cmp(key, &cur->key);
+		/* extended perms may not be unique */
+		if (cmp == 0 && !(key->specified & AVTAB_XPERMS))
 			return -EEXIST;
-		}
-		if (key->source_type < cur->key.source_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type < cur->key.target_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class < cur->key.target_class)
+		if (cmp <= 0)
 			break;
 	}
 
-	newnode = avtab_insert_node(h, hvalue, prev, key, datum);
+	newnode = avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+				    key, datum);
 	if (!newnode)
 		return -ENOMEM;
 
@@ -152,64 +156,22 @@ struct avtab_node *avtab_insert_nonunique(struct avtab *h,
 					  const struct avtab_key *key,
 					  const struct avtab_datum *datum)
 {
-	int hvalue;
+	u32 hvalue;
 	struct avtab_node *prev, *cur;
-	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
+	int cmp;
 
-	if (!h || !h->nslot)
+	if (!h || !h->nslot || h->nel == U32_MAX)
 		return NULL;
 	hvalue = avtab_hash(key, h->mask);
 	for (prev = NULL, cur = h->htable[hvalue];
 	     cur;
 	     prev = cur, cur = cur->next) {
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class == cur->key.target_class &&
-		    (specified & cur->key.specified))
-			break;
-		if (key->source_type < cur->key.source_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type < cur->key.target_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class < cur->key.target_class)
+		cmp = avtab_node_cmp(key, &cur->key);
+		if (cmp <= 0)
 			break;
 	}
-	return avtab_insert_node(h, hvalue, prev, key, datum);
-}
-
-struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *key)
-{
-	int hvalue;
-	struct avtab_node *cur;
-	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
-
-	if (!h || !h->nslot)
-		return NULL;
-
-	hvalue = avtab_hash(key, h->mask);
-	for (cur = h->htable[hvalue]; cur;
-	     cur = cur->next) {
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class == cur->key.target_class &&
-		    (specified & cur->key.specified))
-			return &cur->datum;
-
-		if (key->source_type < cur->key.source_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type < cur->key.target_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class < cur->key.target_class)
-			break;
-	}
-
-	return NULL;
+	return avtab_insert_node(h, prev ? &prev->next : &h->htable[hvalue],
+				 key, datum);
 }
 
 /* This search function returns a node pointer, and can be used in
@@ -218,9 +180,9 @@ struct avtab_datum *avtab_search(struct avtab *h, const struct avtab_key *key)
 struct avtab_node *avtab_search_node(struct avtab *h,
 				     const struct avtab_key *key)
 {
-	int hvalue;
+	u32 hvalue;
 	struct avtab_node *cur;
-	u16 specified = key->specified & ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
+	int cmp;
 
 	if (!h || !h->nslot)
 		return NULL;
@@ -228,49 +190,31 @@ struct avtab_node *avtab_search_node(struct avtab *h,
 	hvalue = avtab_hash(key, h->mask);
 	for (cur = h->htable[hvalue]; cur;
 	     cur = cur->next) {
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class == cur->key.target_class &&
-		    (specified & cur->key.specified))
+		cmp = avtab_node_cmp(key, &cur->key);
+		if (cmp == 0)
 			return cur;
-
-		if (key->source_type < cur->key.source_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type < cur->key.target_type)
-			break;
-		if (key->source_type == cur->key.source_type &&
-		    key->target_type == cur->key.target_type &&
-		    key->target_class < cur->key.target_class)
+		if (cmp < 0)
 			break;
 	}
 	return NULL;
 }
 
 struct avtab_node*
-avtab_search_node_next(struct avtab_node *node, int specified)
+avtab_search_node_next(struct avtab_node *node, u16 specified)
 {
+	struct avtab_key tmp_key;
 	struct avtab_node *cur;
+	int cmp;
 
 	if (!node)
 		return NULL;
-
-	specified &= ~(AVTAB_ENABLED|AVTAB_ENABLED_OLD);
+	tmp_key = node->key;
+	tmp_key.specified = specified;
 	for (cur = node->next; cur; cur = cur->next) {
-		if (node->key.source_type == cur->key.source_type &&
-		    node->key.target_type == cur->key.target_type &&
-		    node->key.target_class == cur->key.target_class &&
-		    (specified & cur->key.specified))
+		cmp = avtab_node_cmp(&tmp_key, &cur->key);
+		if (cmp == 0)
 			return cur;
-
-		if (node->key.source_type < cur->key.source_type)
-			break;
-		if (node->key.source_type == cur->key.source_type &&
-		    node->key.target_type < cur->key.target_type)
-			break;
-		if (node->key.source_type == cur->key.source_type &&
-		    node->key.target_type == cur->key.target_type &&
-		    node->key.target_class < cur->key.target_class)
+		if (cmp < 0)
 			break;
 	}
 	return NULL;
@@ -278,7 +222,7 @@ avtab_search_node_next(struct avtab_node *node, int specified)
 
 void avtab_destroy(struct avtab *h)
 {
-	int i;
+	u32 i;
 	struct avtab_node *cur, *temp;
 
 	if (!h)
@@ -330,13 +274,7 @@ int avtab_alloc(struct avtab *h, u32 nrules)
 	u32 nslot = 0;
 
 	if (nrules != 0) {
-		u32 shift = 1;
-		u32 work = nrules >> 3;
-		while (work) {
-			work >>= 1;
-			shift++;
-		}
-		nslot = 1 << shift;
+		nslot = nrules > 3 ? rounddown_pow_of_two(nrules / 2) : 2;
 		if (nslot > MAX_AVTAB_HASH_BUCKETS)
 			nslot = MAX_AVTAB_HASH_BUCKETS;
 
@@ -354,9 +292,10 @@ int avtab_alloc_dup(struct avtab *new, const struct avtab *orig)
 	return avtab_alloc_common(new, orig->nslot);
 }
 
-void avtab_hash_eval(struct avtab *h, char *tag)
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
+void avtab_hash_eval(struct avtab *h, const char *tag)
 {
-	int i, chain_len, slots_used, max_chain_len;
+	u32 i, chain_len, slots_used, max_chain_len;
 	unsigned long long chain2_len_sum;
 	struct avtab_node *cur;
 
@@ -375,15 +314,16 @@ void avtab_hash_eval(struct avtab *h, char *tag)
 
 			if (chain_len > max_chain_len)
 				max_chain_len = chain_len;
-			chain2_len_sum += chain_len * chain_len;
+			chain2_len_sum += (unsigned long long)chain_len * chain_len;
 		}
 	}
 
 	pr_debug("SELinux: %s:  %d entries and %d/%d buckets used, "
-	       "longest chain length %d sum of chain length^2 %llu\n",
+	       "longest chain length %d, sum of chain length^2 %llu\n",
 	       tag, h->nel, slots_used, h->nslot, max_chain_len,
 	       chain2_len_sum);
 }
+#endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 static const uint16_t spec_order[] = {
 	AVTAB_ALLOWED,
@@ -404,13 +344,13 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 {
 	__le16 buf16[4];
 	u16 enabled;
-	u32 items, items2, val, vers = pol->policyvers;
+	u32 items, items2, val, i;
 	struct avtab_key key;
 	struct avtab_datum datum;
 	struct avtab_extended_perms xperms;
 	__le32 buf32[ARRAY_SIZE(xperms.perms.p)];
-	int i, rc;
-	unsigned set;
+	int rc;
+	unsigned int set, vers = pol->policyvers;
 
 	memset(&key, 0, sizeof(struct avtab_key));
 	memset(&datum, 0, sizeof(struct avtab_datum));
@@ -507,11 +447,7 @@ int avtab_read_item(struct avtab *a, void *fp, struct policydb *pol,
 		return -EINVAL;
 	}
 
-	set = 0;
-	for (i = 0; i < ARRAY_SIZE(spec_order); i++) {
-		if (key.specified & spec_order[i])
-			set++;
-	}
+	set = hweight16(key.specified & (AVTAB_XPERMS | AVTAB_TYPE | AVTAB_AV));
 	if (!set || set > 1) {
 		pr_err("SELinux:  avtab:  more than one specifier\n");
 		return -EINVAL;
@@ -646,7 +582,7 @@ int avtab_write_item(struct policydb *p, const struct avtab_node *cur, void *fp)
 
 int avtab_write(struct policydb *p, struct avtab *a, void *fp)
 {
-	unsigned int i;
+	u32 i;
 	int rc = 0;
 	struct avtab_node *cur;
 	__le32 buf[1];

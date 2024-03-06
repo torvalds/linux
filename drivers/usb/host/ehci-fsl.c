@@ -22,7 +22,7 @@
 #include <linux/usb/otg.h>
 #include <linux/platform_device.h>
 #include <linux/fsl_devices.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/io.h>
 
 #include "ehci.h"
@@ -87,8 +87,7 @@ static int fsl_ehci_drv_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err2;
@@ -684,7 +683,7 @@ static const struct ehci_driver_overrides ehci_fsl_overrides __initconst = {
  *
  * Reverses the effect of usb_hcd_fsl_probe().
  */
-static int fsl_ehci_drv_remove(struct platform_device *pdev)
+static void fsl_ehci_drv_remove(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = dev_get_platdata(&pdev->dev);
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
@@ -703,13 +702,11 @@ static int fsl_ehci_drv_remove(struct platform_device *pdev)
 	if (pdata->exit)
 		pdata->exit(pdev);
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static struct platform_driver ehci_fsl_driver = {
 	.probe = fsl_ehci_drv_probe,
-	.remove = fsl_ehci_drv_remove,
+	.remove_new = fsl_ehci_drv_remove,
 	.shutdown = usb_hcd_platform_shutdown,
 	.driver = {
 		.name = DRV_NAME,

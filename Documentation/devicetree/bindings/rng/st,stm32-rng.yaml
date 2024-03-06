@@ -15,7 +15,9 @@ maintainers:
 
 properties:
   compatible:
-    const: st,stm32-rng
+    enum:
+      - st,stm32-rng
+      - st,stm32mp13-rng
 
   reg:
     maxItems: 1
@@ -30,10 +32,26 @@ properties:
     type: boolean
     description: If set enable the clock detection management
 
+  st,rng-lock-conf:
+    type: boolean
+    description: If set, the RNG configuration in RNG_CR, RNG_HTCR and
+                  RNG_NSCR will be locked.
+
 required:
   - compatible
   - reg
   - clocks
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32-rng
+    then:
+      properties:
+        st,rng-lock-conf: false
 
 additionalProperties: false
 

@@ -126,15 +126,21 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	return 0;
 }
 
-int dm_table_create(struct dm_table **result, fmode_t mode,
+int dm_table_create(struct dm_table **result, blk_mode_t mode,
 		    unsigned int num_targets, struct mapped_device *md)
 {
-	struct dm_table *t = kzalloc(sizeof(*t), GFP_KERNEL);
+	struct dm_table *t;
+
+	if (num_targets > DM_MAX_TARGETS)
+		return -EOVERFLOW;
+
+	t = kzalloc(sizeof(*t), GFP_KERNEL);
 
 	if (!t)
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&t->devices);
+	init_rwsem(&t->devices_lock);
 
 	if (!num_targets)
 		num_targets = KEYS_PER_NODE;
@@ -143,7 +149,7 @@ int dm_table_create(struct dm_table **result, fmode_t mode,
 
 	if (!num_targets) {
 		kfree(t);
-		return -ENOMEM;
+		return -EOVERFLOW;
 	}
 
 	if (alloc_targets(t, num_targets)) {
@@ -304,7 +310,7 @@ static int device_area_is_invalid(struct dm_target *ti, struct dm_dev *dev,
  * device and not to touch the existing bdev field in case
  * it is accessed concurrently.
  */
-static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
+static int upgrade_mode(struct dm_dev_internal *dd, blk_mode_t new_mode,
 			struct mapped_device *md)
 {
 	int r;
@@ -324,23 +330,13 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 }
 
 /*
- * Convert the path to a device
- */
-dev_t dm_get_dev_t(const char *path)
-{
-	dev_t dev;
-
-	if (lookup_bdev(path, &dev))
-		dev = name_to_dev_t(path);
-	return dev;
-}
-EXPORT_SYMBOL_GPL(dm_get_dev_t);
-
-/*
  * Add a device to the list, or just increment the usage count if
  * it's already present.
+ *
+ * Note: the __ref annotation is because this function can call the __init
+ * marked early_lookup_bdev when called during early boot code from dm-init.c.
  */
-int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+int __ref dm_get_device(struct dm_target *ti, const char *path, blk_mode_t mode,
 		  struct dm_dev **result)
 {
 	int r;
@@ -358,23 +354,31 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 		if (MAJOR(dev) != major || MINOR(dev) != minor)
 			return -EOVERFLOW;
 	} else {
-		dev = dm_get_dev_t(path);
-		if (!dev)
-			return -ENODEV;
+		r = lookup_bdev(path, &dev);
+#ifndef MODULE
+		if (r && system_state < SYSTEM_RUNNING)
+			r = early_lookup_bdev(path, &dev);
+#endif
+		if (r)
+			return r;
 	}
 	if (dev == disk_devt(t->md->disk))
 		return -EINVAL;
 
+	down_write(&t->devices_lock);
+
 	dd = find_device(&t->devices, dev);
 	if (!dd) {
 		dd = kmalloc(sizeof(*dd), GFP_KERNEL);
-		if (!dd)
-			return -ENOMEM;
+		if (!dd) {
+			r = -ENOMEM;
+			goto unlock_ret_r;
+		}
 
 		r = dm_get_table_device(t->md, dev, mode, &dd->dm_dev);
 		if (r) {
 			kfree(dd);
-			return r;
+			goto unlock_ret_r;
 		}
 
 		refcount_set(&dd->count, 1);
@@ -384,12 +388,17 @@ int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
 	} else if (dd->dm_dev->mode != (mode | dd->dm_dev->mode)) {
 		r = upgrade_mode(dd, mode, t->md);
 		if (r)
-			return r;
+			goto unlock_ret_r;
 	}
 	refcount_inc(&dd->count);
 out:
+	up_write(&t->devices_lock);
 	*result = dd->dm_dev;
 	return 0;
+
+unlock_ret_r:
+	up_write(&t->devices_lock);
+	return r;
 }
 EXPORT_SYMBOL(dm_get_device);
 
@@ -425,8 +434,11 @@ static int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 {
 	int found = 0;
-	struct list_head *devices = &ti->table->devices;
+	struct dm_table *t = ti->table;
+	struct list_head *devices = &t->devices;
 	struct dm_dev_internal *dd;
+
+	down_write(&t->devices_lock);
 
 	list_for_each_entry(dd, devices, list) {
 		if (dd->dm_dev == d) {
@@ -436,14 +448,17 @@ void dm_put_device(struct dm_target *ti, struct dm_dev *d)
 	}
 	if (!found) {
 		DMERR("%s: device %s not in table devices list",
-		      dm_device_name(ti->table->md), d->name);
-		return;
+		      dm_device_name(t->md), d->name);
+		goto unlock_ret;
 	}
 	if (refcount_dec_and_test(&dd->count)) {
-		dm_put_table_device(ti->table->md, d);
+		dm_put_table_device(t->md, d);
 		list_del(&dd->list);
 		kfree(dd);
 	}
+
+unlock_ret:
+	up_write(&t->devices_lock);
 }
 EXPORT_SYMBOL(dm_put_device);
 
@@ -668,7 +683,8 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 		t->singleton = true;
 	}
 
-	if (dm_target_always_writeable(ti->type) && !(t->mode & FMODE_WRITE)) {
+	if (dm_target_always_writeable(ti->type) &&
+	    !(t->mode & BLK_OPEN_WRITE)) {
 		ti->error = "target type may not be included in a read-only table";
 		goto bad;
 	}
@@ -833,7 +849,8 @@ static bool dm_table_supports_dax(struct dm_table *t,
 		if (!ti->type->direct_access)
 			return false;
 
-		if (!ti->type->iterate_devices ||
+		if (dm_target_is_wildcard(ti->type) ||
+		    !ti->type->iterate_devices ||
 		    ti->type->iterate_devices(ti, iterate_fn, NULL))
 			return false;
 	}
@@ -1567,13 +1584,18 @@ bool dm_table_has_no_data_devices(struct dm_table *t)
 	return true;
 }
 
-static int device_not_zoned_model(struct dm_target *ti, struct dm_dev *dev,
-				  sector_t start, sector_t len, void *data)
+static int device_not_zoned(struct dm_target *ti, struct dm_dev *dev,
+			    sector_t start, sector_t len, void *data)
 {
-	struct request_queue *q = bdev_get_queue(dev->bdev);
-	enum blk_zoned_model *zoned_model = data;
+	bool *zoned = data;
 
-	return blk_queue_zoned_model(q) != *zoned_model;
+	return bdev_is_zoned(dev->bdev) != *zoned;
+}
+
+static int device_is_zoned_model(struct dm_target *ti, struct dm_dev *dev,
+				 sector_t start, sector_t len, void *data)
+{
+	return bdev_is_zoned(dev->bdev);
 }
 
 /*
@@ -1583,19 +1605,30 @@ static int device_not_zoned_model(struct dm_target *ti, struct dm_dev *dev,
  * has the DM_TARGET_MIXED_ZONED_MODEL feature set, the devices can have any
  * zoned model with all zoned devices having the same zone size.
  */
-static bool dm_table_supports_zoned_model(struct dm_table *t,
-					  enum blk_zoned_model zoned_model)
+static bool dm_table_supports_zoned(struct dm_table *t, bool zoned)
 {
 	for (unsigned int i = 0; i < t->num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(t, i);
 
+		/*
+		 * For the wildcard target (dm-error), if we do not have a
+		 * backing device, we must always return false. If we have a
+		 * backing device, the result must depend on checking zoned
+		 * model, like for any other target. So for this, check directly
+		 * if the target backing device is zoned as we get "false" when
+		 * dm-error was set without a backing device.
+		 */
+		if (dm_target_is_wildcard(ti->type) &&
+		    !ti->type->iterate_devices(ti, device_is_zoned_model, NULL))
+			return false;
+
 		if (dm_target_supports_zoned_hm(ti->type)) {
 			if (!ti->type->iterate_devices ||
-			    ti->type->iterate_devices(ti, device_not_zoned_model,
-						      &zoned_model))
+			    ti->type->iterate_devices(ti, device_not_zoned,
+						      &zoned))
 				return false;
 		} else if (!dm_target_supports_mixed_zoned_model(ti->type)) {
-			if (zoned_model == BLK_ZONED_HM)
+			if (zoned)
 				return false;
 		}
 	}
@@ -1618,14 +1651,13 @@ static int device_not_matches_zone_sectors(struct dm_target *ti, struct dm_dev *
  * zone sectors, if the destination device is a zoned block device, it shall
  * have the specified zone_sectors.
  */
-static int validate_hardware_zoned_model(struct dm_table *t,
-					 enum blk_zoned_model zoned_model,
-					 unsigned int zone_sectors)
+static int validate_hardware_zoned(struct dm_table *t, bool zoned,
+				   unsigned int zone_sectors)
 {
-	if (zoned_model == BLK_ZONED_NONE)
+	if (!zoned)
 		return 0;
 
-	if (!dm_table_supports_zoned_model(t, zoned_model)) {
+	if (!dm_table_supports_zoned(t, zoned)) {
 		DMERR("%s: zoned model is not consistent across all devices",
 		      dm_device_name(t->md));
 		return -EINVAL;
@@ -1651,8 +1683,8 @@ int dm_calculate_queue_limits(struct dm_table *t,
 			      struct queue_limits *limits)
 {
 	struct queue_limits ti_limits;
-	enum blk_zoned_model zoned_model = BLK_ZONED_NONE;
 	unsigned int zone_sectors = 0;
+	bool zoned = false;
 
 	blk_set_stacking_limits(limits);
 
@@ -1674,12 +1706,12 @@ int dm_calculate_queue_limits(struct dm_table *t,
 		ti->type->iterate_devices(ti, dm_set_device_limits,
 					  &ti_limits);
 
-		if (zoned_model == BLK_ZONED_NONE && ti_limits.zoned != BLK_ZONED_NONE) {
+		if (!zoned && ti_limits.zoned) {
 			/*
 			 * After stacking all limits, validate all devices
 			 * in table support this zoned model and zone sectors.
 			 */
-			zoned_model = ti_limits.zoned;
+			zoned = ti_limits.zoned;
 			zone_sectors = ti_limits.chunk_sectors;
 		}
 
@@ -1712,18 +1744,18 @@ combine_limits:
 	 * Verify that the zoned model and zone sectors, as determined before
 	 * any .io_hints override, are the same across all devices in the table.
 	 * - this is especially relevant if .io_hints is emulating a disk-managed
-	 *   zoned model (aka BLK_ZONED_NONE) on host-managed zoned block devices.
+	 *   zoned model on host-managed zoned block devices.
 	 * BUT...
 	 */
-	if (limits->zoned != BLK_ZONED_NONE) {
+	if (limits->zoned) {
 		/*
 		 * ...IF the above limits stacking determined a zoned model
 		 * validate that all of the table's devices conform to it.
 		 */
-		zoned_model = limits->zoned;
+		zoned = limits->zoned;
 		zone_sectors = limits->chunk_sectors;
 	}
-	if (validate_hardware_zoned_model(t, zoned_model, zone_sectors))
+	if (validate_hardware_zoned(t, zoned, zone_sectors))
 		return -EINVAL;
 
 	return validate_hardware_logical_block_alignment(t, limits);
@@ -2039,7 +2071,7 @@ struct list_head *dm_table_get_devices(struct dm_table *t)
 	return &t->devices;
 }
 
-fmode_t dm_table_get_mode(struct dm_table *t)
+blk_mode_t dm_table_get_mode(struct dm_table *t)
 {
 	return t->mode;
 }

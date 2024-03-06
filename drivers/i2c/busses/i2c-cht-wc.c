@@ -529,15 +529,13 @@ remove_irq_domain:
 	return ret;
 }
 
-static int cht_wc_i2c_adap_i2c_remove(struct platform_device *pdev)
+static void cht_wc_i2c_adap_i2c_remove(struct platform_device *pdev)
 {
 	struct cht_wc_i2c_adap *adap = platform_get_drvdata(pdev);
 
 	i2c_unregister_device(adap->client);
 	i2c_del_adapter(&adap->adapter);
 	irq_domain_remove(adap->irq_domain);
-
-	return 0;
 }
 
 static const struct platform_device_id cht_wc_i2c_adap_id_table[] = {
@@ -548,7 +546,7 @@ MODULE_DEVICE_TABLE(platform, cht_wc_i2c_adap_id_table);
 
 static struct platform_driver cht_wc_i2c_adap_driver = {
 	.probe = cht_wc_i2c_adap_i2c_probe,
-	.remove = cht_wc_i2c_adap_i2c_remove,
+	.remove_new = cht_wc_i2c_adap_i2c_remove,
 	.driver = {
 		.name = "cht_wcove_ext_chgr",
 	},

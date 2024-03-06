@@ -36,7 +36,7 @@ int mlx5e_monitor_counter_supported(struct mlx5e_priv *priv)
 	return true;
 }
 
-void mlx5e_monitor_counter_arm(struct mlx5e_priv *priv)
+static void mlx5e_monitor_counter_arm(struct mlx5e_priv *priv)
 {
 	u32 in[MLX5_ST_SZ_DW(arm_monitor_counter_in)] = {};
 

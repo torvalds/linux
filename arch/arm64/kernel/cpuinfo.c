@@ -36,8 +36,6 @@ static struct cpuinfo_arm64 boot_cpu_data;
 static inline const char *icache_policy_str(int l1ip)
 {
 	switch (l1ip) {
-	case CTR_EL0_L1Ip_VPIPT:
-		return "VPIPT";
 	case CTR_EL0_L1Ip_VIPT:
 		return "VIPT";
 	case CTR_EL0_L1Ip_PIPT:
@@ -125,6 +123,11 @@ static const char *const hwcap_str[] = {
 	[KERNEL_HWCAP_SME_BI32I32]	= "smebi32i32",
 	[KERNEL_HWCAP_SME_B16B16]	= "smeb16b16",
 	[KERNEL_HWCAP_SME_F16F16]	= "smef16f16",
+	[KERNEL_HWCAP_MOPS]		= "mops",
+	[KERNEL_HWCAP_HBC]		= "hbc",
+	[KERNEL_HWCAP_SVE_B16B16]	= "sveb16b16",
+	[KERNEL_HWCAP_LRCPC3]		= "lrcpc3",
+	[KERNEL_HWCAP_LSE128]		= "lse128",
 };
 
 #ifdef CONFIG_COMPAT
@@ -383,9 +386,6 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 	switch (l1ip) {
 	case CTR_EL0_L1Ip_PIPT:
 		break;
-	case CTR_EL0_L1Ip_VPIPT:
-		set_bit(ICACHEF_VPIPT, &__icache_flags);
-		break;
 	case CTR_EL0_L1Ip_VIPT:
 	default:
 		/* Assume aliasing */
@@ -446,6 +446,7 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	info->reg_id_aa64mmfr0 = read_cpuid(ID_AA64MMFR0_EL1);
 	info->reg_id_aa64mmfr1 = read_cpuid(ID_AA64MMFR1_EL1);
 	info->reg_id_aa64mmfr2 = read_cpuid(ID_AA64MMFR2_EL1);
+	info->reg_id_aa64mmfr3 = read_cpuid(ID_AA64MMFR3_EL1);
 	info->reg_id_aa64pfr0 = read_cpuid(ID_AA64PFR0_EL1);
 	info->reg_id_aa64pfr1 = read_cpuid(ID_AA64PFR1_EL1);
 	info->reg_id_aa64zfr0 = read_cpuid(ID_AA64ZFR0_EL1);

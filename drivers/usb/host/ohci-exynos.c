@@ -149,8 +149,7 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_clk;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, res);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(hcd->regs)) {
 		err = PTR_ERR(hcd->regs);
 		goto fail_io;
@@ -198,7 +197,7 @@ fail_clk:
 	return err;
 }
 
-static int exynos_ohci_remove(struct platform_device *pdev)
+static void exynos_ohci_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct exynos_ohci_hcd *exynos_ohci = to_exynos_ohci(hcd);
@@ -212,8 +211,6 @@ static int exynos_ohci_remove(struct platform_device *pdev)
 	clk_disable_unprepare(exynos_ohci->clk);
 
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static void exynos_ohci_shutdown(struct platform_device *pdev)
@@ -285,7 +282,7 @@ MODULE_DEVICE_TABLE(of, exynos_ohci_match);
 
 static struct platform_driver exynos_ohci_driver = {
 	.probe		= exynos_ohci_probe,
-	.remove		= exynos_ohci_remove,
+	.remove_new	= exynos_ohci_remove,
 	.shutdown	= exynos_ohci_shutdown,
 	.driver = {
 		.name	= "exynos-ohci",

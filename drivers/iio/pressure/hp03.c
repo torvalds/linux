@@ -282,7 +282,7 @@ static struct i2c_driver hp03_driver = {
 		.name	= "hp03",
 		.of_match_table = hp03_of_match,
 	},
-	.probe_new	= hp03_probe,
+	.probe		= hp03_probe,
 	.id_table	= hp03_id,
 };
 module_i2c_driver(hp03_driver);

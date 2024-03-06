@@ -90,10 +90,12 @@ static void show_faulting_vma(unsigned long address)
 	 */
 	if (vma) {
 		char buf[ARC_PATH_MAX];
-		char *nm = "?";
+		char *nm = "anon";
 
 		if (vma->vm_file) {
-			nm = file_path(vma->vm_file, buf, ARC_PATH_MAX-1);
+			/* XXX: can we use %pD below and get rid of buf? */
+			nm = d_path(file_user_path(vma->vm_file), buf,
+				    ARC_PATH_MAX-1);
 			if (IS_ERR(nm))
 				nm = "?";
 		}
@@ -115,8 +117,8 @@ static void show_ecr_verbose(struct pt_regs *regs)
 	/* For Data fault, this is data address not instruction addr */
 	address = current->thread.fault_address;
 
-	vec = regs->ecr_vec;
-	cause_code = regs->ecr_cause;
+	vec = regs->ecr.vec;
+	cause_code = regs->ecr.cause;
 
 	/* For DTLB Miss or ProtV, display the memory involved too */
 	if (vec == ECR_V_DTLB_MISS) {
@@ -154,7 +156,7 @@ static void show_ecr_verbose(struct pt_regs *regs)
 		pr_cont("Misaligned r/w from 0x%08lx\n", address);
 #endif
 	} else if (vec == ECR_V_TRAP) {
-		if (regs->ecr_param == 5)
+		if (regs->ecr.param == 5)
 			pr_cont("gcc generated __builtin_trap\n");
 	} else {
 		pr_cont("Check Programmer's Manual\n");
@@ -184,9 +186,10 @@ void show_regs(struct pt_regs *regs)
 	if (user_mode(regs))
 		show_faulting_vma(regs->ret); /* faulting code, not data */
 
-	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\nSTAT: 0x%08lx",
-		regs->event, current->thread.fault_address, regs->ret,
-		regs->status32);
+	pr_info("ECR: 0x%08lx EFA: 0x%08lx ERET: 0x%08lx\n",
+		regs->ecr.full, current->thread.fault_address, regs->ret);
+
+	pr_info("STAT32: 0x%08lx", regs->status32);
 
 #define STS_BIT(r, bit)	r->status32 & STATUS_##bit##_MASK ? #bit" " : ""
 

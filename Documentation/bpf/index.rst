@@ -12,15 +12,16 @@ that goes into great technical depth about the BPF Architecture.
 .. toctree::
    :maxdepth: 1
 
-   instruction-set
    verifier
    libbpf/index
+   standardization/index
    btf
    faq
    syscall_api
    helpers
    kfuncs
    cpumasks
+   fs_kfuncs
    programs
    maps
    bpf_prog_run

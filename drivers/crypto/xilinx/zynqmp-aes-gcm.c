@@ -9,13 +9,14 @@
 #include <crypto/gcm.h>
 #include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
-
 #include <linux/dma-mapping.h>
-#include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
-
+#include <linux/err.h>
 #include <linux/firmware/xlnx-zynqmp.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
+#include <linux/string.h>
 
 #define ZYNQMP_DMA_BIT_MASK	32U
 
@@ -43,7 +44,7 @@ enum zynqmp_aead_keysrc {
 
 struct zynqmp_aead_drv_ctx {
 	union {
-		struct aead_alg aead;
+		struct aead_engine_alg aead;
 	} alg;
 	struct device *dev;
 	struct crypto_engine *engine;
@@ -60,7 +61,6 @@ struct zynqmp_aead_hw_req {
 };
 
 struct zynqmp_aead_tfm_ctx {
-	struct crypto_engine_ctx engine_ctx;
 	struct device *dev;
 	u8 key[ZYNQMP_AES_KEY_SIZE];
 	u8 *iv;
@@ -286,7 +286,7 @@ static int zynqmp_aes_aead_encrypt(struct aead_request *req)
 	struct zynqmp_aead_req_ctx *rq_ctx = aead_request_ctx(req);
 
 	rq_ctx->op = ZYNQMP_AES_ENCRYPT;
-	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead);
+	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead.base);
 
 	return crypto_transfer_aead_request_to_engine(drv_ctx->engine, req);
 }
@@ -299,7 +299,7 @@ static int zynqmp_aes_aead_decrypt(struct aead_request *req)
 	struct zynqmp_aead_req_ctx *rq_ctx = aead_request_ctx(req);
 
 	rq_ctx->op = ZYNQMP_AES_DECRYPT;
-	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead);
+	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead.base);
 
 	return crypto_transfer_aead_request_to_engine(drv_ctx->engine, req);
 }
@@ -312,20 +312,16 @@ static int zynqmp_aes_aead_init(struct crypto_aead *aead)
 	struct zynqmp_aead_drv_ctx *drv_ctx;
 	struct aead_alg *alg = crypto_aead_alg(aead);
 
-	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead);
+	drv_ctx = container_of(alg, struct zynqmp_aead_drv_ctx, alg.aead.base);
 	tfm_ctx->dev = drv_ctx->dev;
 
-	tfm_ctx->engine_ctx.op.do_one_request = zynqmp_handle_aes_req;
-	tfm_ctx->engine_ctx.op.prepare_request = NULL;
-	tfm_ctx->engine_ctx.op.unprepare_request = NULL;
-
-	tfm_ctx->fbk_cipher = crypto_alloc_aead(drv_ctx->alg.aead.base.cra_name,
+	tfm_ctx->fbk_cipher = crypto_alloc_aead(drv_ctx->alg.aead.base.base.cra_name,
 						0,
 						CRYPTO_ALG_NEED_FALLBACK);
 
 	if (IS_ERR(tfm_ctx->fbk_cipher)) {
 		pr_err("%s() Error: failed to allocate fallback for %s\n",
-		       __func__, drv_ctx->alg.aead.base.cra_name);
+		       __func__, drv_ctx->alg.aead.base.base.cra_name);
 		return PTR_ERR(tfm_ctx->fbk_cipher);
 	}
 
@@ -350,7 +346,7 @@ static void zynqmp_aes_aead_exit(struct crypto_aead *aead)
 }
 
 static struct zynqmp_aead_drv_ctx aes_drv_ctx = {
-	.alg.aead = {
+	.alg.aead.base = {
 		.setkey		= zynqmp_aes_aead_setkey,
 		.setauthsize	= zynqmp_aes_aead_setauthsize,
 		.encrypt	= zynqmp_aes_aead_encrypt,
@@ -372,7 +368,10 @@ static struct zynqmp_aead_drv_ctx aes_drv_ctx = {
 		.cra_ctxsize		= sizeof(struct zynqmp_aead_tfm_ctx),
 		.cra_module		= THIS_MODULE,
 		}
-	}
+	},
+	.alg.aead.op = {
+		.do_one_request = zynqmp_handle_aes_req,
+	},
 };
 
 static int zynqmp_aes_aead_probe(struct platform_device *pdev)
@@ -405,7 +404,7 @@ static int zynqmp_aes_aead_probe(struct platform_device *pdev)
 		goto err_engine;
 	}
 
-	err = crypto_register_aead(&aes_drv_ctx.alg.aead);
+	err = crypto_engine_register_aead(&aes_drv_ctx.alg.aead);
 	if (err < 0) {
 		dev_err(dev, "Failed to register AEAD alg.\n");
 		goto err_aead;
@@ -413,7 +412,7 @@ static int zynqmp_aes_aead_probe(struct platform_device *pdev)
 	return 0;
 
 err_aead:
-	crypto_unregister_aead(&aes_drv_ctx.alg.aead);
+	crypto_engine_unregister_aead(&aes_drv_ctx.alg.aead);
 
 err_engine:
 	if (aes_drv_ctx.engine)
@@ -422,12 +421,10 @@ err_engine:
 	return err;
 }
 
-static int zynqmp_aes_aead_remove(struct platform_device *pdev)
+static void zynqmp_aes_aead_remove(struct platform_device *pdev)
 {
 	crypto_engine_exit(aes_drv_ctx.engine);
-	crypto_unregister_aead(&aes_drv_ctx.alg.aead);
-
-	return 0;
+	crypto_engine_unregister_aead(&aes_drv_ctx.alg.aead);
 }
 
 static const struct of_device_id zynqmp_aes_dt_ids[] = {
@@ -438,7 +435,7 @@ MODULE_DEVICE_TABLE(of, zynqmp_aes_dt_ids);
 
 static struct platform_driver zynqmp_aes_driver = {
 	.probe	= zynqmp_aes_aead_probe,
-	.remove = zynqmp_aes_aead_remove,
+	.remove_new = zynqmp_aes_aead_remove,
 	.driver = {
 		.name		= "zynqmp-aes",
 		.of_match_table = zynqmp_aes_dt_ids,

@@ -7,13 +7,9 @@
 #include <linux/cpufeature.h>
 #include <linux/debugfs.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <soc/tegra/fuse.h>
@@ -126,20 +122,16 @@ int tegra_cbb_get_irq(struct platform_device *pdev, unsigned int *nonsec_irq,
 
 	if (num_intr == 2) {
 		irq = platform_get_irq(pdev, index);
-		if (irq <= 0) {
-			dev_err(&pdev->dev, "failed to get non-secure IRQ: %d\n", irq);
+		if (irq <= 0)
 			return -ENOENT;
-		}
 
 		*nonsec_irq = irq;
 		index++;
 	}
 
 	irq = platform_get_irq(pdev, index);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "failed to get secure IRQ: %d\n", irq);
+	if (irq <= 0)
 		return -ENOENT;
-	}
 
 	*sec_irq = irq;
 

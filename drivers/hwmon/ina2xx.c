@@ -31,7 +31,6 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/util_macros.h>
@@ -625,7 +624,7 @@ static int ina2xx_probe(struct i2c_client *client)
 	enum ina2xx_ids chip;
 
 	if (client->dev.of_node)
-		chip = (enum ina2xx_ids)of_device_get_match_data(&client->dev);
+		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = i2c_match_id(ina2xx_id, client)->driver_data;
 
@@ -721,7 +720,7 @@ static struct i2c_driver ina2xx_driver = {
 		.name	= "ina2xx",
 		.of_match_table = of_match_ptr(ina2xx_of_match),
 	},
-	.probe_new	= ina2xx_probe,
+	.probe		= ina2xx_probe,
 	.id_table	= ina2xx_id,
 };
 

@@ -71,7 +71,7 @@ static struct i2c_driver bmc150_magn_driver = {
 		.acpi_match_table = ACPI_PTR(bmc150_magn_acpi_match),
 		.pm	= &bmc150_magn_pm_ops,
 	},
-	.probe_new	= bmc150_magn_i2c_probe,
+	.probe		= bmc150_magn_i2c_probe,
 	.remove		= bmc150_magn_i2c_remove,
 	.id_table	= bmc150_magn_i2c_id,
 };

@@ -30,7 +30,7 @@
 #include "dce110/dce110_clk_mgr.h"
 #include "dce120_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
-#include "dce120/dce120_hw_sequencer.h"
+#include "dce120/dce120_hwseq.h"
 
 static const struct state_dependent_clocks dce120_max_clks_by_state[] = {
 /*ClocksStateInvalid - should not be used*/

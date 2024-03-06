@@ -32,8 +32,7 @@ static ssize_t force_power_store(struct device *dev,
 	mode = hex_to_bin(buf[0]);
 	dev_dbg(dev, "force_power: storing %#x\n", mode);
 	if (mode == 0 || mode == 1) {
-		status = wmi_evaluate_method(INTEL_WMI_THUNDERBOLT_GUID, 0, 1,
-					     &input, NULL);
+		status = wmidev_evaluate_method(to_wmi_device(dev), 0, 1, &input, NULL);
 		if (ACPI_FAILURE(status)) {
 			dev_dbg(dev, "force_power: failed to evaluate ACPI method\n");
 			return -ENODEV;

@@ -632,7 +632,7 @@ static int __init omap_pm_init(void)
 
 	error = sysfs_create_file(power_kobj, &sleep_while_idle_attr.attr);
 	if (error)
-		printk(KERN_ERR "sysfs_create_file failed: %d\n", error);
+		pr_err("sysfs_create_file failed: %d\n", error);
 
 	if (cpu_is_omap16xx()) {
 		/* configure LOW_PWR pin */

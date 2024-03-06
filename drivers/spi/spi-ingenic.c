@@ -12,7 +12,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
@@ -346,14 +346,17 @@ static bool spi_ingenic_can_dma(struct spi_controller *ctlr,
 static int spi_ingenic_request_dma(struct spi_controller *ctlr,
 				   struct device *dev)
 {
-	ctlr->dma_tx = dma_request_slave_channel(dev, "tx");
-	if (!ctlr->dma_tx)
-		return -ENODEV;
+	struct dma_chan *chan;
 
-	ctlr->dma_rx = dma_request_slave_channel(dev, "rx");
+	chan = dma_request_chan(dev, "tx");
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+	ctlr->dma_tx = chan;
 
-	if (!ctlr->dma_rx)
-		return -ENODEV;
+	chan = dma_request_chan(dev, "rx");
+	if (IS_ERR(chan))
+		return PTR_ERR(chan);
+	ctlr->dma_rx = chan;
 
 	ctlr->can_dma = spi_ingenic_can_dma;
 
@@ -392,7 +395,7 @@ static int spi_ingenic_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	ctlr = devm_spi_alloc_master(dev, sizeof(*priv));
+	ctlr = devm_spi_alloc_host(dev, sizeof(*priv));
 	if (!ctlr) {
 		dev_err(dev, "Unable to allocate SPI controller.\n");
 		return -ENOMEM;

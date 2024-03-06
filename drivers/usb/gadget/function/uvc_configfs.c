@@ -3414,7 +3414,7 @@ static ssize_t f_uvc_opts_string_##cname##_show(struct config_item *item,\
 	int result;							\
 									\
 	mutex_lock(&opts->lock);					\
-	result = snprintf(page, sizeof(opts->aname), "%s", opts->aname);\
+	result = scnprintf(page, sizeof(opts->aname), "%s", opts->aname);\
 	mutex_unlock(&opts->lock);					\
 									\
 	return result;							\

@@ -44,9 +44,7 @@ struct ism_dev {
 	u64 local_gid;
 	int ieq_idx;
 
-	atomic_t free_clients_cnt;
-	atomic_t add_dev_cnt;
-	wait_queue_head_t waitq;
+	struct ism_client *subs[MAX_CLIENTS];
 };
 
 struct ism_event {
@@ -68,9 +66,6 @@ struct ism_client {
 	 */
 	void (*handle_irq)(struct ism_dev *dev, unsigned int bit, u16 dmbemask);
 	/* Private area - don't touch! */
-	struct work_struct remove_work;
-	struct work_struct add_work;
-	struct ism_dev *tgt_ism;
 	u8 id;
 };
 
@@ -91,7 +86,6 @@ int  ism_register_dmb(struct ism_dev *dev, struct ism_dmb *dmb,
 int  ism_unregister_dmb(struct ism_dev *dev, struct ism_dmb *dmb);
 int  ism_move(struct ism_dev *dev, u64 dmb_tok, unsigned int idx, bool sf,
 	      unsigned int offset, void *data, unsigned int size);
-u8  *ism_get_seid(void);
 
 const struct smcd_ops *ism_get_smcd_ops(void);
 

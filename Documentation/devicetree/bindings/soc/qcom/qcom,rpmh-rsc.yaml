@@ -124,6 +124,7 @@ required:
   - qcom,tcs-offset
   - reg
   - reg-names
+  - power-domains
 
 additionalProperties: false
 
@@ -179,6 +180,7 @@ examples:
                           <SLEEP_TCS   1>,
                           <WAKE_TCS    1>,
                           <CONTROL_TCS 0>;
+        power-domains = <&CLUSTER_PD>;
     };
 
   - |

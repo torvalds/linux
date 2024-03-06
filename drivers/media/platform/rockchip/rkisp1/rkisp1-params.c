@@ -812,7 +812,7 @@ static void rkisp1_hst_config_v10(struct rkisp1_params *params,
 								weight[2], weight[3]));
 
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_HIST_WEIGHT_44_V10,
-		     weight[0] & 0x1F);
+		     weight[0] & 0x1f);
 }
 
 static void rkisp1_hst_config_v12(struct rkisp1_params *params,
@@ -1726,7 +1726,7 @@ static const struct rkisp1_params_ops rkisp1_v10_params_ops = {
 	.afm_config = rkisp1_afm_config_v10,
 };
 
-static struct rkisp1_params_ops rkisp1_v12_params_ops = {
+static const struct rkisp1_params_ops rkisp1_v12_params_ops = {
 	.lsc_matrix_config = rkisp1_lsc_matrix_config_v12,
 	.goc_config = rkisp1_goc_config_v12,
 	.awb_meas_config = rkisp1_awb_meas_config_v12,

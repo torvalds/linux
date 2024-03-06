@@ -704,7 +704,7 @@ void intel_dram_edram_detect(struct drm_i915_private *i915)
 	if (!(IS_HASWELL(i915) || IS_BROADWELL(i915) || GRAPHICS_VER(i915) >= 9))
 		return;
 
-	edram_cap = __raw_uncore_read32(&i915->uncore, HSW_EDRAM_CAP);
+	edram_cap = intel_uncore_read_fw(&i915->uncore, HSW_EDRAM_CAP);
 
 	/* NB: We can't write IDICR yet because we don't have gt funcs set up */
 

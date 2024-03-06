@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #ifndef __iwl_fw_runtime_h__
 #define __iwl_fw_runtime_h__
@@ -98,6 +98,8 @@ struct iwl_txf_iter_data {
  * @cur_fw_img: current firmware image, must be maintained by
  *	the driver by calling &iwl_fw_set_current_image()
  * @dump: debug dump data
+ * @uats_enabled: VLP or AFC AP is enabled
+ * @uats_table: AP type table
  */
 struct iwl_fw_runtime {
 	struct iwl_trans *trans;
@@ -146,12 +148,14 @@ struct iwl_fw_runtime {
 			u32 umac_minor;
 		} fw_ver;
 	} dump;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
 	struct {
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 		struct delayed_work wk;
 		u32 delay;
+#endif
 		u64 seq;
 	} timestamp;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 	bool tpc_enabled;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 #ifdef CONFIG_ACPI
@@ -169,6 +173,8 @@ struct iwl_fw_runtime {
 	struct iwl_sar_offset_mapping_cmd sgom_table;
 	bool sgom_enabled;
 	u8 reduced_power_flags;
+	bool uats_enabled;
+	struct iwl_uats_table_cmd uats_table;
 #endif
 };
 

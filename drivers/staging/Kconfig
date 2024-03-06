@@ -28,8 +28,6 @@ source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/olpc_dcon/Kconfig"
 
-source "drivers/staging/rtl8192u/Kconfig"
-
 source "drivers/staging/rtl8192e/Kconfig"
 
 source "drivers/staging/rtl8723bs/Kconfig"
@@ -73,8 +71,6 @@ source "drivers/staging/pi433/Kconfig"
 source "drivers/staging/axis-fifo/Kconfig"
 
 source "drivers/staging/fieldbus/Kconfig"
-
-source "drivers/staging/qlge/Kconfig"
 
 source "drivers/staging/vme_user/Kconfig"
 

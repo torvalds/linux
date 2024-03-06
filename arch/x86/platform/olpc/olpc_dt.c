@@ -234,7 +234,7 @@ static int __init olpc_dt_compatible_match(phandle node, const char *compat)
 	return 0;
 }
 
-void __init olpc_dt_fixup(void)
+static void __init olpc_dt_fixup(void)
 {
 	phandle node;
 	u32 board_rev;

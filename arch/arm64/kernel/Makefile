@@ -42,9 +42,9 @@ obj-$(CONFIG_COMPAT)			+= sigreturn32.o
 obj-$(CONFIG_COMPAT_ALIGNMENT_FIXUPS)	+= compat_alignment.o
 obj-$(CONFIG_KUSER_HELPERS)		+= kuser32.o
 obj-$(CONFIG_FUNCTION_TRACER)		+= ftrace.o entry-ftrace.o
-obj-$(CONFIG_MODULES)			+= module.o
-obj-$(CONFIG_ARM64_MODULE_PLTS)		+= module-plts.o
+obj-$(CONFIG_MODULES)			+= module.o module-plts.o
 obj-$(CONFIG_PERF_EVENTS)		+= perf_regs.o perf_callchain.o
+obj-$(CONFIG_HARDLOCKUP_DETECTOR_PERF)	+= watchdog_hld.o
 obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= hw_breakpoint.o
 obj-$(CONFIG_CPU_PM)			+= sleep.o suspend.o
 obj-$(CONFIG_CPU_IDLE)			+= cpuidle.o
@@ -73,7 +73,13 @@ obj-$(CONFIG_ARM64_MTE)			+= mte.o
 obj-y					+= vdso-wrap.o
 obj-$(CONFIG_COMPAT_VDSO)		+= vdso32-wrap.o
 obj-$(CONFIG_UNWIND_PATCH_PAC_INTO_SCS)	+= patch-scs.o
+
+# We need to prevent the SCS patching code from patching itself. Using
+# -mbranch-protection=none here to avoid the patchable PAC opcodes from being
+# generated triggers an issue with full LTO on Clang, which stops emitting PAC
+# instructions altogether. So disable LTO as well for the compilation unit.
 CFLAGS_patch-scs.o			+= -mbranch-protection=none
+CFLAGS_REMOVE_patch-scs.o		+= $(CC_FLAGS_LTO)
 
 # Force dependency (vdso*-wrap.S includes vdso.so through incbin)
 $(obj)/vdso-wrap.o: $(obj)/vdso/vdso.so

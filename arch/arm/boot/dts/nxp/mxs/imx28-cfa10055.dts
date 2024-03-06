@@ -1,0 +1,155 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Crystalfontz America, Inc.
+ * 				  Free Electrons
+ */
+
+/*
+ * The CFA-10055 is an expansion board for the CFA-10036 module and
+ * CFA-10037, thus we need to include the CFA-10037 DTS.
+ */
+#include "imx28-cfa10037.dts"
+
+/ {
+	model = "Crystalfontz CFA-10055 Board";
+	compatible = "crystalfontz,cfa10055", "crystalfontz,cfa10037", "crystalfontz,cfa10036", "fsl,imx28";
+
+	spi-2 {
+		compatible = "spi-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi2_pins_cfa10055>;
+		status = "okay";
+		sck-gpios = <&gpio2 16 0>;
+		mosi-gpios = <&gpio2 17 0>;
+		miso-gpios = <&gpio2 18 0>;
+		cs-gpios = <&gpio3 5 0>;
+		num-chipselects = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		hx8357: hx8357@0 {
+			compatible = "himax,hx8357b", "himax,hx8357";
+			reg = <0>;
+			spi-max-frequency = <100000>;
+			spi-cpol;
+			spi-cpha;
+			gpios-reset = <&gpio3 30 0>;
+		};
+	};
+
+	backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm 3 5000000 0>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <6>;
+	};
+};
+
+&lcdif {
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcdif_18bit_pins_cfa10055
+		     &lcdif_pins_cfa10055
+		     &lcdif_pins_cfa10055_pullup>;
+	display = <&display0>;
+	status = "okay";
+
+	display0: display0 {
+		bits-per-pixel = <32>;
+		bus-width = <18>;
+
+		display-timings {
+			native-mode = <&timing0>;
+			timing0: timing0 {
+				clock-frequency = <9216000>;
+				hactive = <320>;
+				vactive = <480>;
+				hback-porch = <2>;
+				hfront-porch = <2>;
+				vback-porch = <2>;
+				vfront-porch = <2>;
+				hsync-len = <15>;
+				vsync-len = <15>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <1>;
+				pixelclk-active = <1>;
+			};
+		};
+	};
+};
+
+&lradc {
+	fsl,lradc-touchscreen-wires = <4>;
+	status = "okay";
+};
+
+&pinctrl {
+	spi2_pins_cfa10055: spi2-cfa10055@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_SSP2_SCK__GPIO_2_16
+			MX28_PAD_SSP2_MOSI__GPIO_2_17
+			MX28_PAD_SSP2_MISO__GPIO_2_18
+			MX28_PAD_AUART1_TX__GPIO_3_5
+		>;
+		fsl,drive-strength = <MXS_DRIVE_8mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+
+	lcdif_18bit_pins_cfa10055: lcdif-18bit@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_D00__LCD_D0
+			MX28_PAD_LCD_D01__LCD_D1
+			MX28_PAD_LCD_D02__LCD_D2
+			MX28_PAD_LCD_D03__LCD_D3
+			MX28_PAD_LCD_D04__LCD_D4
+			MX28_PAD_LCD_D05__LCD_D5
+			MX28_PAD_LCD_D06__LCD_D6
+			MX28_PAD_LCD_D07__LCD_D7
+			MX28_PAD_LCD_D08__LCD_D8
+			MX28_PAD_LCD_D09__LCD_D9
+			MX28_PAD_LCD_D10__LCD_D10
+			MX28_PAD_LCD_D11__LCD_D11
+			MX28_PAD_LCD_D12__LCD_D12
+			MX28_PAD_LCD_D13__LCD_D13
+			MX28_PAD_LCD_D14__LCD_D14
+			MX28_PAD_LCD_D15__LCD_D15
+			MX28_PAD_LCD_D16__LCD_D16
+			MX28_PAD_LCD_D17__LCD_D17
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	lcdif_pins_cfa10055: lcdif-evk@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_RD_E__LCD_VSYNC
+			MX28_PAD_LCD_WR_RWN__LCD_HSYNC
+			MX28_PAD_LCD_RS__LCD_DOTCLK
+			MX28_PAD_LCD_CS__LCD_ENABLE
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_DISABLE>;
+	};
+
+	lcdif_pins_cfa10055_pullup: lcdif-10055-pullup@0 {
+		reg = <0>;
+		fsl,pinmux-ids = <
+			MX28_PAD_LCD_RESET__GPIO_3_30
+		>;
+		fsl,drive-strength = <MXS_DRIVE_4mA>;
+		fsl,voltage = <MXS_VOLTAGE_HIGH>;
+		fsl,pull-up = <MXS_PULL_ENABLE>;
+	};
+};
+
+&pwm {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm3_pins_b>;
+	status = "okay";
+};

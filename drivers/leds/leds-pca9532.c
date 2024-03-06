@@ -18,7 +18,6 @@
 #include <linux/leds-pca9532.h>
 #include <linux/gpio/driver.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 /* m =  num_leds*/
 #define PCA9532_REG_INPUT(i)	((i) >> 3)
@@ -102,7 +101,7 @@ static struct i2c_driver pca9532_driver = {
 		.name = "leds-pca953x",
 		.of_match_table = of_match_ptr(of_pca9532_leds_match),
 	},
-	.probe_new = pca9532_probe,
+	.probe = pca9532_probe,
 	.remove = pca9532_remove,
 	.id_table = pca9532_id,
 };

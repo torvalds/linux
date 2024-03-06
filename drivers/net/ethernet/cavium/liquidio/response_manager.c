@@ -52,12 +52,14 @@ int octeon_setup_response_list(struct octeon_device *oct)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(octeon_setup_response_list);
 
 void octeon_delete_response_list(struct octeon_device *oct)
 {
 	cancel_delayed_work_sync(&oct->dma_comp_wq.wk.work);
 	destroy_workqueue(oct->dma_comp_wq.wq);
 }
+EXPORT_SYMBOL_GPL(octeon_delete_response_list);
 
 int lio_process_ordered_list(struct octeon_device *octeon_dev,
 			     u32 force_quit)
@@ -219,6 +221,7 @@ int lio_process_ordered_list(struct octeon_device *octeon_dev,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(lio_process_ordered_list);
 
 static void oct_poll_req_completion(struct work_struct *work)
 {

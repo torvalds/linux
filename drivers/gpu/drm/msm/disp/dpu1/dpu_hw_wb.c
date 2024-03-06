@@ -3,6 +3,8 @@
   * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved
   */
 
+#include <drm/drm_managed.h>
+
 #include "dpu_hw_mdss.h"
 #include "dpu_hwio.h"
 #include "dpu_hw_catalog.h"
@@ -43,30 +45,12 @@
 #define WB_MUX                                0x150
 #define WB_CROP_CTRL                          0x154
 #define WB_CROP_OFFSET                        0x158
+#define WB_CLK_CTRL                           0x178
 #define WB_CSC_BASE                           0x260
 #define WB_DST_ADDR_SW_STATUS                 0x2B0
 #define WB_CDP_CNTL                           0x2B4
 #define WB_OUT_IMAGE_SIZE                     0x2C0
 #define WB_OUT_XY                             0x2C4
-
-/* WB_QOS_CTRL */
-#define WB_QOS_CTRL_DANGER_SAFE_EN            BIT(0)
-
-static const struct dpu_wb_cfg *_wb_offset(enum dpu_wb wb,
-		const struct dpu_mdss_cfg *m, void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->wb_count; i++) {
-		if (wb == m->wb[i].id) {
-			b->blk_addr = addr + m->wb[i].base;
-			b->log_mask = DPU_DBG_MASK_WB;
-			return &m->wb[i];
-		}
-	}
-	return ERR_PTR(-EINVAL);
-}
 
 static void dpu_hw_wb_setup_outaddress(struct dpu_hw_wb *ctx,
 		struct dpu_hw_wb_cfg *data)
@@ -104,6 +88,9 @@ static void dpu_hw_wb_setup_format(struct dpu_hw_wb *ctx,
 			!(ctx->caps->features & BIT(DPU_WB_PIPE_ALPHA)))
 			dst_format |= BIT(14); /* DST_ALPHA_X */
 	}
+
+	if (DPU_FORMAT_IS_YUV(fmt))
+		dst_format |= BIT(15);
 
 	pattern = (fmt->element[3] << 24) |
 		(fmt->element[2] << 16) |
@@ -151,58 +138,29 @@ static void dpu_hw_wb_roi(struct dpu_hw_wb *ctx, struct dpu_hw_wb_cfg *wb)
 }
 
 static void dpu_hw_wb_setup_qos_lut(struct dpu_hw_wb *ctx,
-		struct dpu_hw_wb_qos_cfg *cfg)
+		struct dpu_hw_qos_cfg *cfg)
 {
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	u32 qos_ctrl = 0;
-
 	if (!ctx || !cfg)
 		return;
 
-	DPU_REG_WRITE(c, WB_DANGER_LUT, cfg->danger_lut);
-	DPU_REG_WRITE(c, WB_SAFE_LUT, cfg->safe_lut);
-
-	/*
-	 * for chipsets not using DPU_WB_QOS_8LVL but still using DPU
-	 * driver such as msm8998, the reset value of WB_CREQ_LUT is
-	 * sufficient for writeback to work. SW doesn't need to explicitly
-	 * program a value.
-	 */
-	if (ctx->caps && test_bit(DPU_WB_QOS_8LVL, &ctx->caps->features)) {
-		DPU_REG_WRITE(c, WB_CREQ_LUT_0, cfg->creq_lut);
-		DPU_REG_WRITE(c, WB_CREQ_LUT_1, cfg->creq_lut >> 32);
-	}
-
-	if (cfg->danger_safe_en)
-		qos_ctrl |= WB_QOS_CTRL_DANGER_SAFE_EN;
-
-	DPU_REG_WRITE(c, WB_QOS_CTRL, qos_ctrl);
+	_dpu_hw_setup_qos_lut(&ctx->hw, WB_DANGER_LUT,
+			      test_bit(DPU_WB_QOS_8LVL, &ctx->caps->features),
+			      cfg);
 }
 
 static void dpu_hw_wb_setup_cdp(struct dpu_hw_wb *ctx,
-		struct dpu_hw_cdp_cfg *cfg)
+				const struct dpu_format *fmt,
+				bool enable)
 {
-	struct dpu_hw_blk_reg_map *c;
-	u32 cdp_cntl = 0;
-
-	if (!ctx || !cfg)
+	if (!ctx)
 		return;
 
-	c = &ctx->hw;
-
-	if (cfg->enable)
-		cdp_cntl |= BIT(0);
-	if (cfg->ubwc_meta_enable)
-		cdp_cntl |= BIT(1);
-	if (cfg->preload_ahead == DPU_WB_CDP_PRELOAD_AHEAD_64)
-		cdp_cntl |= BIT(3);
-
-	DPU_REG_WRITE(c, WB_CDP_CNTL, cdp_cntl);
+	dpu_setup_cdp(&ctx->hw, WB_CDP_CNTL, fmt, enable);
 }
 
 static void dpu_hw_wb_bind_pingpong_blk(
 		struct dpu_hw_wb *ctx,
-		bool enable, const enum dpu_pingpong pp)
+		const enum dpu_pingpong pp)
 {
 	struct dpu_hw_blk_reg_map *c;
 	int mux_cfg;
@@ -215,7 +173,7 @@ static void dpu_hw_wb_bind_pingpong_blk(
 	mux_cfg = DPU_REG_READ(c, WB_MUX);
 	mux_cfg &= ~0xf;
 
-	if (enable)
+	if (pp)
 		mux_cfg |= (pp - PINGPONG_0) & 0x7;
 	else
 		mux_cfg |= 0xf;
@@ -223,8 +181,18 @@ static void dpu_hw_wb_bind_pingpong_blk(
 	DPU_REG_WRITE(c, WB_MUX, mux_cfg);
 }
 
+static bool dpu_hw_wb_setup_clk_force_ctrl(struct dpu_hw_wb *ctx, bool enable)
+{
+	static const struct dpu_clk_ctrl_reg wb_clk_ctrl = {
+		.reg_off = WB_CLK_CTRL,
+		.bit_off = 0
+	};
+
+	return dpu_hw_clk_force_ctrl(&ctx->hw, &wb_clk_ctrl, enable);
+}
+
 static void _setup_wb_ops(struct dpu_hw_wb_ops *ops,
-		unsigned long features)
+		unsigned long features, const struct dpu_mdss_version *mdss_rev)
 {
 	ops->setup_outaddress = dpu_hw_wb_setup_outaddress;
 	ops->setup_outformat = dpu_hw_wb_setup_format;
@@ -240,38 +208,32 @@ static void _setup_wb_ops(struct dpu_hw_wb_ops *ops,
 
 	if (test_bit(DPU_WB_INPUT_CTRL, &features))
 		ops->bind_pingpong_blk = dpu_hw_wb_bind_pingpong_blk;
+
+	if (mdss_rev->core_major_ver >= 9)
+		ops->setup_clk_force_ctrl = dpu_hw_wb_setup_clk_force_ctrl;
 }
 
-struct dpu_hw_wb *dpu_hw_wb_init(enum dpu_wb idx,
-		void __iomem *addr, const struct dpu_mdss_cfg *m)
+struct dpu_hw_wb *dpu_hw_wb_init(struct drm_device *dev,
+				 const struct dpu_wb_cfg *cfg,
+				 void __iomem *addr,
+				 const struct dpu_mdss_version *mdss_rev)
 {
 	struct dpu_hw_wb *c;
-	const struct dpu_wb_cfg *cfg;
 
-	if (!addr || !m)
+	if (!addr)
 		return ERR_PTR(-EINVAL);
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _wb_offset(idx, m, addr, &c->hw);
-	if (IS_ERR(cfg)) {
-		WARN(1, "Unable to find wb idx=%d\n", idx);
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_WB;
 
 	/* Assign ops */
-	c->mdp = &m->mdp[0];
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->caps = cfg;
-	_setup_wb_ops(&c->ops, c->caps->features);
+	_setup_wb_ops(&c->ops, c->caps->features, mdss_rev);
 
 	return c;
-}
-
-void dpu_hw_wb_destroy(struct dpu_hw_wb *hw_wb)
-{
-	kfree(hw_wb);
 }

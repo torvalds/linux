@@ -36,6 +36,7 @@ struct mqstat;
 struct audit_watch;
 struct audit_tree;
 struct sk_buff;
+struct kern_ipc_perm;
 
 struct audit_krule {
 	u32			pflags;
@@ -117,6 +118,8 @@ enum audit_nfcfgop {
 	AUDIT_NFT_OP_OBJ_RESET,
 	AUDIT_NFT_OP_FLOWTABLE_REGISTER,
 	AUDIT_NFT_OP_FLOWTABLE_UNREGISTER,
+	AUDIT_NFT_OP_SETELEM_RESET,
+	AUDIT_NFT_OP_RULE_RESET,
 	AUDIT_NFT_OP_INVALID,
 };
 
@@ -129,8 +132,6 @@ extern unsigned compat_read_class[];
 extern unsigned compat_dir_class[];
 extern unsigned compat_chattr_class[];
 extern unsigned compat_signal_class[];
-
-extern int audit_classify_compat_syscall(int abi, unsigned syscall);
 
 /* audit_names->type values */
 #define	AUDIT_TYPE_UNKNOWN	0	/* we don't know yet */

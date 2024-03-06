@@ -94,8 +94,8 @@ config BAYCOM_SER_FDX
 	  driver, "BAYCOM ser12 half-duplex driver for AX.25" is the old
 	  driver and still provided in case this driver does not work with
 	  your serial interface chip. To configure the driver, use the sethdlc
-	  utility available in the standard ax25 utilities package. For
-	  information on the modems, see <http://www.baycom.de/> and
+	  utility available in the standard ax25 utilities package.
+	  For more information on the modems, see
 	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
@@ -112,8 +112,7 @@ config BAYCOM_SER_HDX
 	  still provided in case your serial interface chip does not work with
 	  the full-duplex driver. This driver is deprecated.  To configure
 	  the driver, use the sethdlc utility available in the standard ax25
-	  utilities package. For information on the modems, see
-	  <http://www.baycom.de/> and
+	  utilities package. For more information on the modems, see
 	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
@@ -127,8 +126,8 @@ config BAYCOM_PAR
 	  This is a driver for Baycom style simple amateur radio modems that
 	  connect to a parallel interface. The driver supports the picpar and
 	  par96 designs. To configure the driver, use the sethdlc utility
-	  available in the standard ax25 utilities package. For information on
-	  the modems, see <http://www.baycom.de/> and the file
+	  available in the standard ax25 utilities package.
+	  For more information on the modems, see
 	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module
@@ -142,8 +141,8 @@ config BAYCOM_EPP
 	  This is a driver for Baycom style simple amateur radio modems that
 	  connect to a parallel interface. The driver supports the EPP
 	  designs. To configure the driver, use the sethdlc utility available
-	  in the standard ax25 utilities package. For information on the
-	  modems, see <http://www.baycom.de/> and the file
+	  in the standard ax25 utilities package.
+	  For more information on the modems, see
 	  <file:Documentation/networking/device_drivers/hamradio/baycom.rst>.
 
 	  To compile this driver as a module, choose M here: the module

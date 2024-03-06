@@ -31,9 +31,11 @@
  * giving the size in the required units.  @buf should have room for
  * at least 9 bytes and will always be zero terminated.
  *
+ * Return value: number of characters of output that would have been written
+ * (which may be greater than len, if output was truncated).
  */
-void string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
-		     char *buf, int len)
+int string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
+		    char *buf, int len)
 {
 	static const char *const units_10[] = {
 		"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
@@ -126,8 +128,8 @@ void string_get_size(u64 size, u64 blk_size, const enum string_size_units units,
 	else
 		unit = units_str[units][i];
 
-	snprintf(buf, len, "%u%s %s", (u32)size,
-		 tmp, unit);
+	return snprintf(buf, len, "%u%s %s", (u32)size,
+			tmp, unit);
 }
 EXPORT_SYMBOL(string_get_size);
 
@@ -719,6 +721,21 @@ char *kstrdup_quotable_file(struct file *file, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(kstrdup_quotable_file);
 
+/*
+ * Returns duplicate string in which the @old characters are replaced by @new.
+ */
+char *kstrdup_and_replace(const char *src, char old, char new, gfp_t gfp)
+{
+	char *dst;
+
+	dst = kstrdup(src, gfp);
+	if (!dst)
+		return NULL;
+
+	return strreplace(dst, old, new);
+}
+EXPORT_SYMBOL_GPL(kstrdup_and_replace);
+
 /**
  * kasprintf_strarray - allocate and fill array of sequential strings
  * @gfp: flags for the slab allocator
@@ -979,18 +996,22 @@ EXPORT_SYMBOL(__sysfs_match_string);
 
 /**
  * strreplace - Replace all occurrences of character in string.
- * @s: The string to operate on.
+ * @str: The string to operate on.
  * @old: The character being replaced.
  * @new: The character @old is replaced with.
  *
- * Returns pointer to the nul byte at the end of @s.
+ * Replaces the each @old character with a @new one in the given string @str.
+ *
+ * Return: pointer to the string @str itself.
  */
-char *strreplace(char *s, char old, char new)
+char *strreplace(char *str, char old, char new)
 {
+	char *s = str;
+
 	for (; *s; ++s)
 		if (*s == old)
 			*s = new;
-	return s;
+	return str;
 }
 EXPORT_SYMBOL(strreplace);
 

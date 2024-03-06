@@ -40,6 +40,7 @@ properties:
   regulators:
     type: object
     $ref: /schemas/regulator/mediatek,mt6357-regulator.yaml
+    unevaluatedProperties: false
     description:
       List of MT6357 BUCKs and LDOs regulators.
 
@@ -59,6 +60,7 @@ properties:
   keys:
     type: object
     $ref: /schemas/input/mediatek,pmic-keys.yaml
+    unevaluatedProperties: false
     description:
       MT6357 power and home keys.
 

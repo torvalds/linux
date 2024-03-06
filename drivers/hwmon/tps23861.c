@@ -14,7 +14,7 @@
 #include <linux/hwmon.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 
 #define TEMPERATURE			0x2c
@@ -581,7 +581,7 @@ static const struct of_device_id __maybe_unused tps23861_of_match[] = {
 MODULE_DEVICE_TABLE(of, tps23861_of_match);
 
 static struct i2c_driver tps23861_driver = {
-	.probe_new		= tps23861_probe,
+	.probe			= tps23861_probe,
 	.remove			= tps23861_remove,
 	.driver = {
 		.name		= "tps23861",

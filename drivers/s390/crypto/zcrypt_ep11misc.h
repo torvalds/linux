@@ -12,7 +12,9 @@
 #include <asm/zcrypt.h>
 #include <asm/pkey.h>
 
-#define EP11_API_V 4  /* highest known and supported EP11 API version */
+#define EP11_API_V1 1  /* min EP11 API, default if no higher api required */
+#define EP11_API_V4 4  /* supported EP11 API for the ep11misc cprbs */
+#define EP11_API_V6 6  /* min EP11 API for some cprbs in SE environment */
 #define EP11_STRUCT_MAGIC 0x1234
 #define EP11_BLOB_PKEY_EXTRACTABLE 0x00200000
 
@@ -29,14 +31,7 @@ struct ep11keyblob {
 	union {
 		u8 session[32];
 		/* only used for PKEY_TYPE_EP11: */
-		struct {
-			u8  type;      /* 0x00 (TOKTYPE_NON_CCA) */
-			u8  res0;      /* unused */
-			u16 len;       /* total length in bytes of this blob */
-			u8  version;   /* 0x03 (TOKVER_EP11_AES) */
-			u8  res1;      /* unused */
-			u16 keybitlen; /* clear key bit len, 0 for unknown */
-		} head;
+		struct ep11kblob_header head;
 	};
 	u8  wkvp[16];  /* wrapping key verification pattern */
 	u64 attr;      /* boolean key attributes */
@@ -54,6 +49,12 @@ static inline bool is_ep11_keyblob(const u8 *key)
 
 	return (kb->version == EP11_STRUCT_MAGIC);
 }
+
+/*
+ * For valid ep11 keyblobs, returns a reference to the wrappingkey verification
+ * pattern. Otherwise NULL.
+ */
+const u8 *ep11_kb_wkvp(const u8 *kblob, size_t kbloblen);
 
 /*
  * Simple check if the key blob is a valid EP11 AES key blob with header.
@@ -114,13 +115,14 @@ int ep11_get_domain_info(u16 card, u16 domain, struct ep11_domain_info *info);
  * Generate (random) EP11 AES secure key.
  */
 int ep11_genaeskey(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
-		   u8 *keybuf, size_t *keybufsize);
+		   u8 *keybuf, size_t *keybufsize, u32 keybufver);
 
 /*
  * Generate EP11 AES secure key with given clear key value.
  */
 int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
-		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize);
+		     const u8 *clrkey, u8 *keybuf, size_t *keybufsize,
+		     u32 keytype);
 
 /*
  * Build a list of ep11 apqns meeting the following constrains:
@@ -131,14 +133,14 @@ int ep11_clr2keyblob(u16 cardnr, u16 domain, u32 keybitsize, u32 keygenflags,
  * - if minapi > 0 only apqns with API_ord_nr >= minapi
  * - if wkvp != NULL only apqns where the wkvp (EP11_WKVPLEN bytes) matches
  *   to the first EP11_WKVPLEN bytes of the wkvp of the current wrapping
- *   key for this domain. When a wkvp is given there will aways be a re-fetch
+ *   key for this domain. When a wkvp is given there will always be a re-fetch
  *   of the domain info for the potential apqn - so this triggers an request
  *   reply to each apqn eligible.
  * The array of apqn entries is allocated with kmalloc and returned in *apqns;
  * the number of apqns stored into the list is returned in *nr_apqns. One apqn
  * entry is simple a 32 bit value with 16 bit cardnr and 16 bit domain nr and
  * may be casted to struct pkey_apqn. The return value is either 0 for success
- * or a negative errno value. If no apqn meeting the criterias is found,
+ * or a negative errno value. If no apqn meeting the criteria is found,
  * -ENODEV is returned.
  */
 int ep11_findcard2(u32 **apqns, u32 *nr_apqns, u16 cardnr, u16 domain,

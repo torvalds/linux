@@ -100,7 +100,8 @@ properties:
 
 patternProperties:
   "^power-domain-":
-    $ref: "../power/power-domain.yaml#"
+    $ref: /schemas/power/power-domain.yaml#
+    unevaluatedProperties: false
 
     type: object
     description: |

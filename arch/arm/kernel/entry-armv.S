@@ -15,7 +15,7 @@
 #include <linux/init.h>
 
 #include <asm/assembler.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
@@ -446,257 +446,25 @@ ENDPROC(__irq_usr)
 __und_usr:
 	usr_entry uaccess=0
 
-	mov	r2, r4
-	mov	r3, r5
-
-	@ r2 = regs->ARM_pc, which is either 2 or 4 bytes ahead of the
-	@      faulting instruction depending on Thumb mode.
-	@ r3 = regs->ARM_cpsr
-	@
-	@ The emulation code returns using r9 if it has emulated the
-	@ instruction, or the more conventional lr if we are to treat
-	@ this as a real undefined instruction
-	@
-	badr	r9, ret_from_exception
-
 	@ IRQs must be enabled before attempting to read the instruction from
 	@ user space since that could cause a page/translation fault if the
 	@ page table was modified by another CPU.
 	enable_irq
 
-	tst	r3, #PSR_T_BIT			@ Thumb mode?
-	bne	__und_usr_thumb
-	sub	r4, r2, #4			@ ARM instr at LR - 4
-1:	ldrt	r0, [r4]
- ARM_BE8(rev	r0, r0)				@ little endian instruction
-
+	tst	r5, #PSR_T_BIT			@ Thumb mode?
+	mov	r1, #2				@ set insn size to 2 for Thumb
+	bne	0f				@ handle as Thumb undef exception
+#ifdef CONFIG_FPE_NWFPE
+	adr	r9, ret_from_exception
+	bl	call_fpe			@ returns via R9 on success
+#endif
+	mov	r1, #4				@ set insn size to 4 for ARM
+0:	mov	r0, sp
 	uaccess_disable ip
-
-	@ r0 = 32-bit ARM instruction which caused the exception
-	@ r2 = PC value for the following instruction (:= regs->ARM_pc)
-	@ r4 = PC value for the faulting instruction
-	@ lr = 32-bit undefined instruction function
-	badr	lr, __und_usr_fault_32
-	b	call_fpe
-
-__und_usr_thumb:
-	@ Thumb instruction
-	sub	r4, r2, #2			@ First half of thumb instr at LR - 2
-#if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
-/*
- * Thumb-2 instruction handling.  Note that because pre-v6 and >= v6 platforms
- * can never be supported in a single kernel, this code is not applicable at
- * all when __LINUX_ARM_ARCH__ < 6.  This allows simplifying assumptions to be
- * made about .arch directives.
- */
-#if __LINUX_ARM_ARCH__ < 7
-/* If the target CPU may not be Thumb-2-capable, a run-time check is needed: */
-	ldr_va	r5, cpu_architecture
-	cmp	r5, #CPU_ARCH_ARMv7
-	blo	__und_usr_fault_16		@ 16bit undefined instruction
-/*
- * The following code won't get run unless the running CPU really is v7, so
- * coding round the lack of ldrht on older arches is pointless.  Temporarily
- * override the assembler target arch with the minimum required instead:
- */
-	.arch	armv6t2
-#endif
-2:	ldrht	r5, [r4]
-ARM_BE8(rev16	r5, r5)				@ little endian instruction
-	cmp	r5, #0xe800			@ 32bit instruction if xx != 0
-	blo	__und_usr_fault_16_pan		@ 16bit undefined instruction
-3:	ldrht	r0, [r2]
-ARM_BE8(rev16	r0, r0)				@ little endian instruction
-	uaccess_disable ip
-	add	r2, r2, #2			@ r2 is PC + 2, make it PC + 4
-	str	r2, [sp, #S_PC]			@ it's a 2x16bit instr, update
-	orr	r0, r0, r5, lsl #16
-	badr	lr, __und_usr_fault_32
-	@ r0 = the two 16-bit Thumb instructions which caused the exception
-	@ r2 = PC value for the following Thumb instruction (:= regs->ARM_pc)
-	@ r4 = PC value for the first 16-bit Thumb instruction
-	@ lr = 32bit undefined instruction function
-
-#if __LINUX_ARM_ARCH__ < 7
-/* If the target arch was overridden, change it back: */
-#ifdef CONFIG_CPU_32v6K
-	.arch	armv6k
-#else
-	.arch	armv6
-#endif
-#endif /* __LINUX_ARM_ARCH__ < 7 */
-#else /* !(CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7) */
-	b	__und_usr_fault_16
-#endif
+	bl	__und_fault
+	b	ret_from_exception
  UNWIND(.fnend)
 ENDPROC(__und_usr)
-
-/*
- * The out of line fixup for the ldrt instructions above.
- */
-	.pushsection .text.fixup, "ax"
-	.align	2
-4:	str     r4, [sp, #S_PC]			@ retry current instruction
-	ret	r9
-	.popsection
-	.pushsection __ex_table,"a"
-	.long	1b, 4b
-#if CONFIG_ARM_THUMB && __LINUX_ARM_ARCH__ >= 6 && CONFIG_CPU_V7
-	.long	2b, 4b
-	.long	3b, 4b
-#endif
-	.popsection
-
-/*
- * Check whether the instruction is a co-processor instruction.
- * If yes, we need to call the relevant co-processor handler.
- *
- * Note that we don't do a full check here for the co-processor
- * instructions; all instructions with bit 27 set are well
- * defined.  The only instructions that should fault are the
- * co-processor instructions.  However, we have to watch out
- * for the ARM6/ARM7 SWI bug.
- *
- * NEON is a special case that has to be handled here. Not all
- * NEON instructions are co-processor instructions, so we have
- * to make a special case of checking for them. Plus, there's
- * five groups of them, so we have a table of mask/opcode pairs
- * to check against, and if any match then we branch off into the
- * NEON handler code.
- *
- * Emulators may wish to make use of the following registers:
- *  r0  = instruction opcode (32-bit ARM or two 16-bit Thumb)
- *  r2  = PC value to resume execution after successful emulation
- *  r9  = normal "successful" return address
- *  r10 = this threads thread_info structure
- *  lr  = unrecognised instruction return address
- * IRQs enabled, FIQs enabled.
- */
-	@
-	@ Fall-through from Thumb-2 __und_usr
-	@
-#ifdef CONFIG_NEON
-	get_thread_info r10			@ get current thread
-	adr	r6, .LCneon_thumb_opcodes
-	b	2f
-#endif
-call_fpe:
-	get_thread_info r10			@ get current thread
-#ifdef CONFIG_NEON
-	adr	r6, .LCneon_arm_opcodes
-2:	ldr	r5, [r6], #4			@ mask value
-	ldr	r7, [r6], #4			@ opcode bits matching in mask
-	cmp	r5, #0				@ end mask?
-	beq	1f
-	and	r8, r0, r5
-	cmp	r8, r7				@ NEON instruction?
-	bne	2b
-	mov	r7, #1
-	strb	r7, [r10, #TI_USED_CP + 10]	@ mark CP#10 as used
-	strb	r7, [r10, #TI_USED_CP + 11]	@ mark CP#11 as used
-	b	do_vfp				@ let VFP handler handle this
-1:
-#endif
-	tst	r0, #0x08000000			@ only CDP/CPRT/LDC/STC have bit 27
-	tstne	r0, #0x04000000			@ bit 26 set on both ARM and Thumb-2
-	reteq	lr
-	and	r8, r0, #0x00000f00		@ mask out CP number
-	mov	r7, #1
-	add	r6, r10, r8, lsr #8		@ add used_cp[] array offset first
-	strb	r7, [r6, #TI_USED_CP]		@ set appropriate used_cp[]
-#ifdef CONFIG_IWMMXT
-	@ Test if we need to give access to iWMMXt coprocessors
-	ldr	r5, [r10, #TI_FLAGS]
-	rsbs	r7, r8, #(1 << 8)		@ CP 0 or 1 only
-	movscs	r7, r5, lsr #(TIF_USING_IWMMXT + 1)
-	bcs	iwmmxt_task_enable
-#endif
- ARM(	add	pc, pc, r8, lsr #6	)
- THUMB(	lsr	r8, r8, #6		)
- THUMB(	add	pc, r8			)
-	nop
-
-	ret.w	lr				@ CP#0
-	W(b)	do_fpe				@ CP#1 (FPE)
-	W(b)	do_fpe				@ CP#2 (FPE)
-	ret.w	lr				@ CP#3
-	ret.w	lr				@ CP#4
-	ret.w	lr				@ CP#5
-	ret.w	lr				@ CP#6
-	ret.w	lr				@ CP#7
-	ret.w	lr				@ CP#8
-	ret.w	lr				@ CP#9
-#ifdef CONFIG_VFP
-	W(b)	do_vfp				@ CP#10 (VFP)
-	W(b)	do_vfp				@ CP#11 (VFP)
-#else
-	ret.w	lr				@ CP#10 (VFP)
-	ret.w	lr				@ CP#11 (VFP)
-#endif
-	ret.w	lr				@ CP#12
-	ret.w	lr				@ CP#13
-	ret.w	lr				@ CP#14 (Debug)
-	ret.w	lr				@ CP#15 (Control)
-
-#ifdef CONFIG_NEON
-	.align	6
-
-.LCneon_arm_opcodes:
-	.word	0xfe000000			@ mask
-	.word	0xf2000000			@ opcode
-
-	.word	0xff100000			@ mask
-	.word	0xf4000000			@ opcode
-
-	.word	0x00000000			@ mask
-	.word	0x00000000			@ opcode
-
-.LCneon_thumb_opcodes:
-	.word	0xef000000			@ mask
-	.word	0xef000000			@ opcode
-
-	.word	0xff100000			@ mask
-	.word	0xf9000000			@ opcode
-
-	.word	0x00000000			@ mask
-	.word	0x00000000			@ opcode
-#endif
-
-do_fpe:
-	add	r10, r10, #TI_FPSTATE		@ r10 = workspace
-	ldr_va	pc, fp_enter, tmp=r4		@ Call FP module USR entry point
-
-/*
- * The FP module is called with these registers set:
- *  r0  = instruction
- *  r2  = PC+4
- *  r9  = normal "successful" return address
- *  r10 = FP workspace
- *  lr  = unrecognised FP instruction return address
- */
-
-	.pushsection .data
-	.align	2
-ENTRY(fp_enter)
-	.word	no_fp
-	.popsection
-
-ENTRY(no_fp)
-	ret	lr
-ENDPROC(no_fp)
-
-__und_usr_fault_32:
-	mov	r1, #4
-	b	1f
-__und_usr_fault_16_pan:
-	uaccess_disable ip
-__und_usr_fault_16:
-	mov	r1, #2
-1:	mov	r0, sp
-	badr	lr, ret_from_exception
-	b	__und_fault
-ENDPROC(__und_usr_fault_32)
-ENDPROC(__und_usr_fault_16)
 
 	.align	5
 __pabt_usr:
@@ -875,7 +643,7 @@ ENDPROC(__bad_stack)
  * existing ones.  This mechanism should be used only for things that are
  * really small and justified, and not be abused freely.
  *
- * See Documentation/arm/kernel_user_helpers.rst for formal definitions.
+ * See Documentation/arch/arm/kernel_user_helpers.rst for formal definitions.
  */
  THUMB(	.arm	)
 

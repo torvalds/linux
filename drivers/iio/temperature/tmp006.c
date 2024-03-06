@@ -15,6 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
 
@@ -272,6 +273,12 @@ static int tmp006_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(tmp006_pm_ops, tmp006_suspend, tmp006_resume);
 
+static const struct of_device_id tmp006_of_match[] = {
+	{ .compatible = "ti,tmp006" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, tmp006_of_match);
+
 static const struct i2c_device_id tmp006_id[] = {
 	{ "tmp006", 0 },
 	{ }
@@ -281,9 +288,10 @@ MODULE_DEVICE_TABLE(i2c, tmp006_id);
 static struct i2c_driver tmp006_driver = {
 	.driver = {
 		.name	= "tmp006",
+		.of_match_table = tmp006_of_match,
 		.pm	= pm_sleep_ptr(&tmp006_pm_ops),
 	},
-	.probe_new = tmp006_probe,
+	.probe = tmp006_probe,
 	.id_table = tmp006_id,
 };
 module_i2c_driver(tmp006_driver);

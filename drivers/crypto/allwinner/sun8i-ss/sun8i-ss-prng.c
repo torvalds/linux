@@ -7,7 +7,7 @@
  *
  * This file handle the PRNG found in the SS
  *
- * You could find a link for the datasheet in Documentation/arm/sunxi.rst
+ * You could find a link for the datasheet in Documentation/arch/arm/sunxi.rst
  */
 #include "sun8i-ss.h"
 #include <linux/dma-mapping.h>

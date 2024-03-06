@@ -8,27 +8,6 @@
  *
  * linux-wlan
  *
- *   The contents of this file are subject to the Mozilla Public
- *   License Version 1.1 (the "License"); you may not use this file
- *   except in compliance with the License. You may obtain a copy of
- *   the License at http://www.mozilla.org/MPL/
- *
- *   Software distributed under the License is distributed on an "AS
- *   IS" basis, WITHOUT WARRANTY OF ANY KIND, either express or
- *   implied. See the License for the specific language governing
- *   rights and limitations under the License.
- *
- *   Alternatively, the contents of this file may be used under the
- *   terms of the GNU Public License version 2 (the "GPL"), in which
- *   case the provisions of the GPL are applicable instead of the
- *   above.  If you wish to allow the use of your version of this file
- *   only under the terms of the GPL and not to allow others to use
- *   your version of this file under the MPL, indicate your decision
- *   by deleting the provisions above and replace them with the notice
- *   and other provisions required by the GPL.  If you do not delete
- *   the provisions above, a recipient may use your version of this
- *   file under either the MPL or the GPL.
- *
  * --------------------------------------------------------------------
  *
  * Inquiries regarding the linux-wlan Open Source project can be
@@ -333,8 +312,8 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 				  payload_length - 4);
 		if (foo) {
 			/* de-wep failed, drop skb. */
-			pr_debug("Host de-WEP failed, dropping frame (%d).\n",
-				 foo);
+			netdev_dbg(netdev, "Host de-WEP failed, dropping frame (%d).\n",
+				   foo);
 			wlandev->rx.decrypt_err++;
 			return 2;
 		}
@@ -361,7 +340,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 	    (e_llc->dsap != 0xaa || e_llc->ssap != 0xaa) &&
 	    ((!ether_addr_equal_unaligned(daddr, e_hdr->daddr)) ||
 	     (!ether_addr_equal_unaligned(saddr, e_hdr->saddr)))) {
-		pr_debug("802.3 ENCAP len: %d\n", payload_length);
+		netdev_dbg(netdev, "802.3 ENCAP len: %d\n", payload_length);
 		/* 802.3 Encapsulated */
 		/* Test for an overlength frame */
 		if (payload_length > (netdev->mtu + ETH_HLEN)) {
@@ -388,7 +367,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		   (p80211_stt_findproto(be16_to_cpu(e_snap->type)))) ||
 		   (memcmp(e_snap->oui, oui_rfc1042, WLAN_IEEE_OUI_LEN) !=
 			0))) {
-		pr_debug("SNAP+RFC1042 len: %d\n", payload_length);
+		netdev_dbg(netdev, "SNAP+RFC1042 len: %d\n", payload_length);
 		/* it's a SNAP + RFC1042 frame && protocol is in STT */
 		/* build 802.3 + RFC1042 */
 
@@ -418,7 +397,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		(e_llc->dsap == 0xaa) &&
 		(e_llc->ssap == 0xaa) &&
 		(e_llc->ctl == 0x03)) {
-		pr_debug("802.1h/RFC1042 len: %d\n", payload_length);
+		netdev_dbg(netdev, "802.1h/RFC1042 len: %d\n", payload_length);
 		/* it's an 802.1h frame || (an RFC1042 && protocol not in STT)
 		 * build a DIXII + RFC894
 		 */
@@ -454,7 +433,7 @@ int skb_p80211_to_ether(struct wlandevice *wlandev, u32 ethconv,
 		/* chop off the 802.11 CRC */
 		skb_trim(skb, skb->len - WLAN_CRC_LEN);
 	} else {
-		pr_debug("NON-ENCAP len: %d\n", payload_length);
+		netdev_dbg(netdev, "NON-ENCAP len: %d\n", payload_length);
 		/* any NON-ENCAP */
 		/* it's a generic 80211+LLC or IPX 'Raw 802.3' */
 		/*  build an 802.3 frame */

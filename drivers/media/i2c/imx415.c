@@ -9,7 +9,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
@@ -353,8 +353,6 @@ struct imx415 {
 
 	const struct imx415_clk_params *clk_params;
 
-	bool streaming;
-
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
 
@@ -542,36 +540,46 @@ static int imx415_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_subdev_state *state;
 	unsigned int vmax;
 	unsigned int flip;
+	int ret;
 
-	if (!sensor->streaming)
+	if (!pm_runtime_get_if_in_use(sensor->dev))
 		return 0;
 
 	state = v4l2_subdev_get_locked_active_state(&sensor->subdev);
-	format = v4l2_subdev_get_pad_format(&sensor->subdev, state, 0);
+	format = v4l2_subdev_state_get_format(state, 0);
 
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* clamp the exposure value to VMAX. */
 		vmax = format->height + sensor->vblank->cur.val;
 		ctrl->val = min_t(int, ctrl->val, vmax);
-		return imx415_write(sensor, IMX415_SHR0, vmax - ctrl->val);
+		ret = imx415_write(sensor, IMX415_SHR0, vmax - ctrl->val);
+		break;
 
 	case V4L2_CID_ANALOGUE_GAIN:
 		/* analogue gain in 0.3 dB step size */
-		return imx415_write(sensor, IMX415_GAIN_PCG_0, ctrl->val);
+		ret = imx415_write(sensor, IMX415_GAIN_PCG_0, ctrl->val);
+		break;
 
 	case V4L2_CID_HFLIP:
 	case V4L2_CID_VFLIP:
 		flip = (sensor->hflip->val << IMX415_HREVERSE_SHIFT) |
 		       (sensor->vflip->val << IMX415_VREVERSE_SHIFT);
-		return imx415_write(sensor, IMX415_REVERSE, flip);
+		ret = imx415_write(sensor, IMX415_REVERSE, flip);
+		break;
 
 	case V4L2_CID_TEST_PATTERN:
-		return imx415_set_testpattern(sensor, ctrl->val);
+		ret = imx415_set_testpattern(sensor, ctrl->val);
+		break;
 
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+	pm_runtime_put(sensor->dev);
+
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops imx415_ctrl_ops = {
@@ -766,8 +774,6 @@ static int imx415_s_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_mark_last_busy(sensor->dev);
 		pm_runtime_put_autosuspend(sensor->dev);
 
-		sensor->streaming = false;
-
 		goto unlock;
 	}
 
@@ -778,13 +784,6 @@ static int imx415_s_stream(struct v4l2_subdev *sd, int enable)
 	ret = imx415_setup(sensor, state);
 	if (ret)
 		goto err_pm;
-
-	/*
-	 * Set streaming to true to ensure __v4l2_ctrl_handler_setup() will set
-	 * the controls. The flag is reset to false further down if an error
-	 * occurs.
-	 */
-	sensor->streaming = true;
 
 	ret = __v4l2_ctrl_handler_setup(&sensor->ctrls);
 	if (ret < 0)
@@ -807,7 +806,6 @@ err_pm:
 	 * likely has no other chance to recover.
 	 */
 	pm_runtime_put_sync(sensor->dev);
-	sensor->streaming = false;
 
 	goto unlock;
 }
@@ -830,7 +828,7 @@ static int imx415_enum_frame_size(struct v4l2_subdev *sd,
 {
 	const struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_pad_format(sd, state, fse->pad);
+	format = v4l2_subdev_state_get_format(state, fse->pad);
 
 	if (fse->index > 0 || fse->code != format->code)
 		return -EINVAL;
@@ -842,22 +840,13 @@ static int imx415_enum_frame_size(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx415_get_format(struct v4l2_subdev *sd,
-			     struct v4l2_subdev_state *state,
-			     struct v4l2_subdev_format *fmt)
-{
-	fmt->format = *v4l2_subdev_get_pad_format(sd, state, fmt->pad);
-
-	return 0;
-}
-
 static int imx415_set_format(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_state *state,
 			     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *format;
 
-	format = v4l2_subdev_get_pad_format(sd, state, fmt->pad);
+	format = v4l2_subdev_state_get_format(state, fmt->pad);
 
 	format->width = fmt->format.width;
 	format->height = fmt->format.height;
@@ -891,8 +880,8 @@ static int imx415_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
-static int imx415_init_cfg(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *state)
+static int imx415_init_state(struct v4l2_subdev *sd,
+			     struct v4l2_subdev_state *state)
 {
 	struct v4l2_subdev_format format = {
 		.format = {
@@ -913,15 +902,18 @@ static const struct v4l2_subdev_video_ops imx415_subdev_video_ops = {
 static const struct v4l2_subdev_pad_ops imx415_subdev_pad_ops = {
 	.enum_mbus_code = imx415_enum_mbus_code,
 	.enum_frame_size = imx415_enum_frame_size,
-	.get_fmt = imx415_get_format,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = imx415_set_format,
 	.get_selection = imx415_get_selection,
-	.init_cfg = imx415_init_cfg,
 };
 
 static const struct v4l2_subdev_ops imx415_subdev_ops = {
 	.video = &imx415_subdev_video_ops,
 	.pad = &imx415_subdev_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops imx415_internal_ops = {
+	.init_state = imx415_init_state,
 };
 
 static int imx415_subdev_init(struct imx415 *sensor)
@@ -930,6 +922,7 @@ static int imx415_subdev_init(struct imx415 *sensor)
 	int ret;
 
 	v4l2_i2c_subdev_init(&sensor->subdev, client, &imx415_subdev_ops);
+	sensor->subdev.internal_ops = &imx415_internal_ops;
 
 	ret = imx415_ctrls_init(sensor);
 	if (ret)
@@ -1283,7 +1276,7 @@ static const struct of_device_id imx415_of_match[] = {
 MODULE_DEVICE_TABLE(of, imx415_of_match);
 
 static struct i2c_driver imx415_driver = {
-	.probe_new = imx415_probe,
+	.probe = imx415_probe,
 	.remove = imx415_remove,
 	.driver = {
 		.name = "imx415",

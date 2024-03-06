@@ -23,6 +23,8 @@
 #include <asm/cacheflush.h>
 #include <asm/time.h>
 
+asmlinkage __init void secondary_start_kernel(void);
+
 static void (*smp_cross_call)(const struct cpumask *, unsigned int);
 
 unsigned long secondary_release = -1;

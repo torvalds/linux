@@ -119,7 +119,7 @@ DEFINE_CORESIGHT_DEVLIST(stm_devs, "stm");
  * @spinlock:		only one at a time pls.
  * @chs:		the channels accociated to this STM.
  * @stm:		structure associated to the generic STM interface.
- * @mode:		this tracer's mode, i.e sysFS, or disabled.
+ * @mode:		this tracer's mode (enum cs_mode), i.e sysFS, or disabled.
  * @traceid:		value of the current ID for this component.
  * @write_bytes:	Maximus bytes this STM can write at a time.
  * @stmsper:		settings for register STMSPER.
@@ -192,8 +192,8 @@ static void stm_enable_hw(struct stm_drvdata *drvdata)
 	CS_LOCK(drvdata->base);
 }
 
-static int stm_enable(struct coresight_device *csdev,
-		      struct perf_event *event, u32 mode)
+static int stm_enable(struct coresight_device *csdev, struct perf_event *event,
+		      enum cs_mode mode)
 {
 	u32 val;
 	struct stm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);

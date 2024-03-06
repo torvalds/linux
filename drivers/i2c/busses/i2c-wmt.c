@@ -74,9 +74,6 @@
 #define MCR_APB_96M		7
 #define MCR_APB_166M		12
 
-#define I2C_MODE_STANDARD	0
-#define I2C_MODE_FAST		1
-
 #define WMT_I2C_TIMEOUT		(msecs_to_jiffies(1000))
 
 struct wmt_i2c_dev {
@@ -85,7 +82,7 @@ struct wmt_i2c_dev {
 	struct device		*dev;
 	void __iomem		*base;
 	struct clk		*clk;
-	int			mode;
+	u16			tcr;
 	int			irq;
 	u16			cmd_status;
 };
@@ -109,6 +106,12 @@ static int wmt_i2c_wait_bus_not_busy(struct wmt_i2c_dev *i2c_dev)
 static int wmt_check_status(struct wmt_i2c_dev *i2c_dev)
 {
 	int ret = 0;
+	unsigned long wait_result;
+
+	wait_result = wait_for_completion_timeout(&i2c_dev->complete,
+						msecs_to_jiffies(500));
+	if (!wait_result)
+		return -ETIMEDOUT;
 
 	if (i2c_dev->cmd_status & ISR_NACK_ADDR)
 		ret = -EIO;
@@ -119,20 +122,12 @@ static int wmt_check_status(struct wmt_i2c_dev *i2c_dev)
 	return ret;
 }
 
-static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
+static int wmt_i2c_write(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg,
 			 int last)
 {
-	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	u16 val, tcr_val;
+	u16 val, tcr_val = i2c_dev->tcr;
 	int ret;
-	unsigned long wait_result;
 	int xfer_len = 0;
-
-	if (!(pmsg->flags & I2C_M_NOSTART)) {
-		ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
-		if (ret < 0)
-			return ret;
-	}
 
 	if (pmsg->len == 0) {
 		/*
@@ -148,19 +143,11 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	if (!(pmsg->flags & I2C_M_NOSTART)) {
 		val = readw(i2c_dev->base + REG_CR);
 		val &= ~CR_TX_END;
-		writew(val, i2c_dev->base + REG_CR);
-
-		val = readw(i2c_dev->base + REG_CR);
 		val |= CR_CPU_RDY;
 		writew(val, i2c_dev->base + REG_CR);
 	}
 
 	reinit_completion(&i2c_dev->complete);
-
-	if (i2c_dev->mode == I2C_MODE_STANDARD)
-		tcr_val = TCR_STANDARD_MODE;
-	else
-		tcr_val = TCR_FAST_MODE;
 
 	tcr_val |= (TCR_MASTER_WRITE | (pmsg->addr & TCR_SLAVE_ADDR_MASK));
 
@@ -173,12 +160,6 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	}
 
 	while (xfer_len < pmsg->len) {
-		wait_result = wait_for_completion_timeout(&i2c_dev->complete,
-							msecs_to_jiffies(500));
-
-		if (wait_result == 0)
-			return -ETIMEDOUT;
-
 		ret = wmt_check_status(i2c_dev);
 		if (ret)
 			return ret;
@@ -210,47 +191,24 @@ static int wmt_i2c_write(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	return 0;
 }
 
-static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
-			int last)
+static int wmt_i2c_read(struct wmt_i2c_dev *i2c_dev, struct i2c_msg *pmsg)
 {
-	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
-	u16 val, tcr_val;
+	u16 val, tcr_val = i2c_dev->tcr;
 	int ret;
-	unsigned long wait_result;
 	u32 xfer_len = 0;
 
-	if (!(pmsg->flags & I2C_M_NOSTART)) {
-		ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
-		if (ret < 0)
-			return ret;
-	}
-
 	val = readw(i2c_dev->base + REG_CR);
-	val &= ~CR_TX_END;
-	writew(val, i2c_dev->base + REG_CR);
+	val &= ~(CR_TX_END | CR_TX_NEXT_NO_ACK);
 
-	val = readw(i2c_dev->base + REG_CR);
-	val &= ~CR_TX_NEXT_NO_ACK;
-	writew(val, i2c_dev->base + REG_CR);
-
-	if (!(pmsg->flags & I2C_M_NOSTART)) {
-		val = readw(i2c_dev->base + REG_CR);
+	if (!(pmsg->flags & I2C_M_NOSTART))
 		val |= CR_CPU_RDY;
-		writew(val, i2c_dev->base + REG_CR);
-	}
 
-	if (pmsg->len == 1) {
-		val = readw(i2c_dev->base + REG_CR);
+	if (pmsg->len == 1)
 		val |= CR_TX_NEXT_NO_ACK;
-		writew(val, i2c_dev->base + REG_CR);
-	}
+
+	writew(val, i2c_dev->base + REG_CR);
 
 	reinit_completion(&i2c_dev->complete);
-
-	if (i2c_dev->mode == I2C_MODE_STANDARD)
-		tcr_val = TCR_STANDARD_MODE;
-	else
-		tcr_val = TCR_FAST_MODE;
 
 	tcr_val |= TCR_MASTER_READ | (pmsg->addr & TCR_SLAVE_ADDR_MASK);
 
@@ -263,12 +221,6 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 	}
 
 	while (xfer_len < pmsg->len) {
-		wait_result = wait_for_completion_timeout(&i2c_dev->complete,
-							msecs_to_jiffies(500));
-
-		if (!wait_result)
-			return -ETIMEDOUT;
-
 		ret = wmt_check_status(i2c_dev);
 		if (ret)
 			return ret;
@@ -276,15 +228,10 @@ static int wmt_i2c_read(struct i2c_adapter *adap, struct i2c_msg *pmsg,
 		pmsg->buf[xfer_len] = readw(i2c_dev->base + REG_CDR) >> 8;
 		xfer_len++;
 
-		if (xfer_len == pmsg->len - 1) {
-			val = readw(i2c_dev->base + REG_CR);
-			val |= (CR_TX_NEXT_NO_ACK | CR_CPU_RDY);
-			writew(val, i2c_dev->base + REG_CR);
-		} else {
-			val = readw(i2c_dev->base + REG_CR);
-			val |= CR_CPU_RDY;
-			writew(val, i2c_dev->base + REG_CR);
-		}
+		val = readw(i2c_dev->base + REG_CR) | CR_CPU_RDY;
+		if (xfer_len == pmsg->len - 1)
+			val |= CR_TX_NEXT_NO_ACK;
+		writew(val, i2c_dev->base + REG_CR);
 	}
 
 	return 0;
@@ -295,17 +242,22 @@ static int wmt_i2c_xfer(struct i2c_adapter *adap,
 			int num)
 {
 	struct i2c_msg *pmsg;
-	int i, is_last;
+	int i;
 	int ret = 0;
+	struct wmt_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 
 	for (i = 0; ret >= 0 && i < num; i++) {
-		is_last = ((i + 1) == num);
-
 		pmsg = &msgs[i];
+		if (!(pmsg->flags & I2C_M_NOSTART)) {
+			ret = wmt_i2c_wait_bus_not_busy(i2c_dev);
+			if (ret < 0)
+				return ret;
+		}
+
 		if (pmsg->flags & I2C_M_RD)
-			ret = wmt_i2c_read(adap, pmsg, is_last);
+			ret = wmt_i2c_read(i2c_dev, pmsg);
 		else
-			ret = wmt_i2c_write(adap, pmsg, is_last);
+			ret = wmt_i2c_write(i2c_dev, pmsg, (i + 1) == num);
 	}
 
 	return (ret < 0) ? ret : i;
@@ -359,10 +311,10 @@ static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
 	readw(i2c_dev->base + REG_CSR);		/* read clear */
 	writew(ISR_WRITE_ALL, i2c_dev->base + REG_ISR);
 
-	if (i2c_dev->mode == I2C_MODE_STANDARD)
-		writew(SCL_TIMEOUT(128) | TR_STD, i2c_dev->base + REG_TR);
-	else
+	if (i2c_dev->tcr == TCR_FAST_MODE)
 		writew(SCL_TIMEOUT(128) | TR_HS, i2c_dev->base + REG_TR);
+	else
+		writew(SCL_TIMEOUT(128) | TR_STD, i2c_dev->base + REG_TR);
 
 	return 0;
 }
@@ -372,7 +324,6 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	struct wmt_i2c_dev *i2c_dev;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	int err;
 	u32 clk_rate;
 
@@ -380,8 +331,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	if (!i2c_dev)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2c_dev->base = devm_ioremap_resource(&pdev->dev, res);
+	i2c_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
 	if (IS_ERR(i2c_dev->base))
 		return PTR_ERR(i2c_dev->base);
 
@@ -397,10 +347,9 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 		return PTR_ERR(i2c_dev->clk);
 	}
 
-	i2c_dev->mode = I2C_MODE_STANDARD;
 	err = of_property_read_u32(np, "clock-frequency", &clk_rate);
 	if (!err && (clk_rate == I2C_MAX_FAST_MODE_FREQ))
-		i2c_dev->mode = I2C_MODE_FAST;
+		i2c_dev->tcr = TCR_FAST_MODE;
 
 	i2c_dev->dev = &pdev->dev;
 
@@ -436,7 +385,7 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int wmt_i2c_remove(struct platform_device *pdev)
+static void wmt_i2c_remove(struct platform_device *pdev)
 {
 	struct wmt_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
 
@@ -444,8 +393,6 @@ static int wmt_i2c_remove(struct platform_device *pdev)
 	writew(0, i2c_dev->base + REG_IMR);
 	clk_disable_unprepare(i2c_dev->clk);
 	i2c_del_adapter(&i2c_dev->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id wmt_i2c_dt_ids[] = {
@@ -455,7 +402,7 @@ static const struct of_device_id wmt_i2c_dt_ids[] = {
 
 static struct platform_driver wmt_i2c_driver = {
 	.probe		= wmt_i2c_probe,
-	.remove		= wmt_i2c_remove,
+	.remove_new	= wmt_i2c_remove,
 	.driver		= {
 		.name	= "wmt-i2c",
 		.of_match_table = wmt_i2c_dt_ids,

@@ -710,7 +710,7 @@ static struct i2c_driver gp2ap002_driver = {
 		.of_match_table = gp2ap002_of_match,
 		.pm = pm_ptr(&gp2ap002_dev_pm_ops),
 	},
-	.probe_new = gp2ap002_probe,
+	.probe = gp2ap002_probe,
 	.remove = gp2ap002_remove,
 	.id_table = gp2ap002_id_table,
 };

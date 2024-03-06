@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/rtnetlink.h>
 
@@ -123,7 +124,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 			ar->state_11d = ATH11K_11D_IDLE;
 		}
 		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-			   "reg 11d scan wait left time %d\n", left);
+			   "11d scan wait left time %d\n", left);
 	}
 
 	if (wait &&
@@ -136,7 +137,7 @@ int ath11k_reg_update_chan_list(struct ath11k *ar, bool wait)
 				   "failed to receive hw scan complete: timed out\n");
 
 		ath11k_dbg(ar->ab, ATH11K_DBG_REG,
-			   "reg hw scan wait left time %d\n", left);
+			   "hw scan wait left time %d\n", left);
 	}
 
 	if (ar->state == ATH11K_STATE_RESTARTING)
@@ -348,6 +349,16 @@ static u32 ath11k_map_fw_reg_flags(u16 reg_flags)
 
 	if (reg_flags & REGULATORY_CHAN_NO_160MHZ)
 		flags |= NL80211_RRF_NO_160MHZ;
+
+	return flags;
+}
+
+static u32 ath11k_map_fw_phy_flags(u32 phy_flags)
+{
+	u32 flags = 0;
+
+	if (phy_flags & ATH11K_REG_PHY_BITMAP_NO11AX)
+		flags |= NL80211_RRF_NO_HE;
 
 	return flags;
 }
@@ -685,6 +696,7 @@ ath11k_reg_build_regd(struct ath11k_base *ab,
 		}
 
 		flags |= ath11k_map_fw_reg_flags(reg_rule->flags);
+		flags |= ath11k_map_fw_phy_flags(reg_info->phybitmap);
 
 		ath11k_reg_update_rule(tmp_regd->reg_rules + i,
 				       reg_rule->start_freq,

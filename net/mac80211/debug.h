@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Portions
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022 - 2023 Intel Corporation
  */
 #ifndef __MAC80211_DEBUG_H
 #define __MAC80211_DEBUG_H
@@ -136,7 +136,7 @@ do {									\
 
 #define link_info(link, fmt, ...)					\
 	do {								\
-		if ((link)->sdata->vif.valid_links)			\
+		if (ieee80211_vif_is_mld(&(link)->sdata->vif))          \
 			_sdata_info((link)->sdata, "[link %d] " fmt,	\
 				    (link)->link_id,			\
 				    ##__VA_ARGS__);			\
@@ -145,7 +145,7 @@ do {									\
 	} while (0)
 #define link_err(link, fmt, ...)					\
 	do {								\
-		if ((link)->sdata->vif.valid_links)			\
+		if (ieee80211_vif_is_mld(&(link)->sdata->vif))          \
 			_sdata_err((link)->sdata, "[link %d] " fmt,	\
 				   (link)->link_id,			\
 				   ##__VA_ARGS__);			\
@@ -154,7 +154,7 @@ do {									\
 	} while (0)
 #define link_dbg(link, fmt, ...)					\
 	do {								\
-		if ((link)->sdata->vif.valid_links)			\
+		if (ieee80211_vif_is_mld(&(link)->sdata->vif))          \
 			_sdata_dbg(1, (link)->sdata, "[link %d] " fmt,	\
 				   (link)->link_id,			\
 				   ##__VA_ARGS__);			\

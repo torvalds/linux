@@ -39,7 +39,7 @@ static struct proc_dir_entry * proc_gsc_root __read_mostly = NULL;
 static unsigned long pcxl_used_bytes __read_mostly;
 static unsigned long pcxl_used_pages __read_mostly;
 
-extern unsigned long pcxl_dma_start; /* Start of pcxl dma mapping area */
+unsigned long pcxl_dma_start __ro_after_init; /* pcxl dma mapping area start */
 static DEFINE_SPINLOCK(pcxl_res_lock);
 static char    *pcxl_res_map;
 static int     pcxl_res_hint;
@@ -164,7 +164,7 @@ static inline void unmap_uncached_pte(pmd_t * pmd, unsigned long vaddr,
 		pmd_clear(pmd);
 		return;
 	}
-	pte = pte_offset_map(pmd, vaddr);
+	pte = pte_offset_kernel(pmd, vaddr);
 	vaddr &= ~PMD_MASK;
 	end = vaddr + size;
 	if (end > PMD_SIZE)
@@ -245,7 +245,7 @@ static void unmap_uncached_pages(unsigned long vaddr, unsigned long size)
        PCXL_SEARCH_LOOP(idx, mask, size); \
 }
 
-unsigned long
+static unsigned long
 pcxl_alloc_range(size_t size)
 {
 	int res_idx;
@@ -381,7 +381,7 @@ pcxl_dma_init(void)
 	pcxl_res_map = (char *)__get_free_pages(GFP_KERNEL,
 					    get_order(pcxl_res_size));
 	memset(pcxl_res_map, 0, pcxl_res_size);
-	proc_gsc_root = proc_mkdir("gsc", NULL);
+	proc_gsc_root = proc_mkdir("bus/gsc", NULL);
 	if (!proc_gsc_root)
     		printk(KERN_WARNING
 			"pcxl_dma_init: Unable to create gsc /proc dir entry\n");
@@ -417,14 +417,6 @@ void *arch_dma_alloc(struct device *dev, size_t size,
 	map_uncached_pages(vaddr, size, paddr);
 	*dma_handle = (dma_addr_t) paddr;
 
-#if 0
-/* This probably isn't needed to support EISA cards.
-** ISA cards will certainly only support 24-bit DMA addressing.
-** Not clear if we can, want, or need to support ISA.
-*/
-	if (!dev || *dev->coherent_dma_mask < 0xffffffff)
-		gfp |= GFP_DMA;
-#endif
 	return (void *)vaddr;
 }
 

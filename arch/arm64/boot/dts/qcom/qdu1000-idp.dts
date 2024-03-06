@@ -448,6 +448,55 @@
 	status = "okay";
 };
 
+&reserved_memory {
+	ecc_meta_data_mem: ecc-meta-data@e0000000 {
+		reg = <0x0 0xe0000000 0x0 0x20000000>;
+		no-map;
+	};
+
+	harq_buffer_mem: harq-buffer@800000000 {
+		reg = <0x8 0x0 0x0 0x80000000>;
+		no-map;
+	};
+
+	tenx_sp_buffer_mem: tenx-sp-buffer@880000000 {
+		reg = <0x8 0x80000000 0x0 0x50000000>;
+		no-map;
+	};
+
+	fapi_buffer_mem: fapi-buffer@8d0000000 {
+		reg = <0x8 0xd0000000 0x0 0x20000000>;
+		no-map;
+	};
+};
+
+&sdhc {
+	pinctrl-0 = <&sdc_on_state>;
+	pinctrl-1 = <&sdc_off_state>;
+	pinctrl-names = "default", "sleep";
+
+	cap-mmc-hw-reset;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
+
+	non-removable;
+	no-sd;
+	no-sdio;
+
+	supports-cqe;
+
+	vmmc-supply = <&vreg_l10a_2p95>;
+	vqmmc-supply = <&vreg_l7a_1p8>;
+
+	status = "okay";
+};
+
+&tlmm {
+	gpio-reserved-ranges = <28 2>;
+};
+
 &uart7 {
 	status = "okay";
 };

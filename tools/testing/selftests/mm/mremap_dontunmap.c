@@ -7,6 +7,7 @@
  */
 #define _GNU_SOURCE
 #include <sys/mman.h>
+#include <linux/mman.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,10 +15,6 @@
 #include <unistd.h>
 
 #include "../kselftest.h"
-
-#ifndef MREMAP_DONTUNMAP
-#define MREMAP_DONTUNMAP 4
-#endif
 
 unsigned long page_size;
 char *page_buffer;

@@ -15,7 +15,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include "armada_ap_cp_helper.h"
@@ -253,12 +252,12 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 	 */
 	nclusters = 1;
 	for_each_of_cpu_node(dn) {
-		int cpu, err;
+		u64 cpu;
 
-		err = of_property_read_u32(dn, "reg", &cpu);
-		if (WARN_ON(err)) {
+		cpu = of_get_cpu_hwid(dn, 0);
+		if (WARN_ON(cpu == OF_BAD_ADDR)) {
 			of_node_put(dn);
-			return err;
+			return -EINVAL;
 		}
 
 		/* If cpu2 or cpu3 is enabled */
@@ -288,12 +287,12 @@ static int ap_cpu_clock_probe(struct platform_device *pdev)
 		struct clk_init_data init;
 		const char *parent_name;
 		struct clk *parent;
-		int cpu, err;
+		u64 cpu;
 
-		err = of_property_read_u32(dn, "reg", &cpu);
-		if (WARN_ON(err)) {
+		cpu = of_get_cpu_hwid(dn, 0);
+		if (WARN_ON(cpu == OF_BAD_ADDR)) {
 			of_node_put(dn);
-			return err;
+			return -EINVAL;
 		}
 
 		cluster_index = cpu & APN806_CLUSTER_NUM_MASK;

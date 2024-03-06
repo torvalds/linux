@@ -117,6 +117,20 @@ out_drop_write:
 	return rc;
 }
 
+static long smb_mnt_get_tcon_info(struct cifs_tcon *tcon, void __user *arg)
+{
+	int rc = 0;
+	struct smb_mnt_tcon_info tcon_inf;
+
+	tcon_inf.tid = tcon->tid;
+	tcon_inf.session_id = tcon->ses->Suid;
+
+	if (copy_to_user(arg, &tcon_inf, sizeof(struct smb_mnt_tcon_info)))
+		rc = -EFAULT;
+
+	return rc;
+}
+
 static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 				void __user *arg)
 {
@@ -129,6 +143,7 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 
 	fsinf->version = 1;
 	fsinf->protocol_id = tcon->ses->server->vals->protocol_id;
+	fsinf->tcon_flags = tcon->Flags;
 	fsinf->device_characteristics =
 			le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics);
 	fsinf->device_type = le32_to_cpu(tcon->fsDevInfo.DeviceType);
@@ -414,6 +429,17 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			tcon = tlink_tcon(pSMBFile->tlink);
 			rc = smb_mnt_get_fsinfo(xid, tcon, (void __user *)arg);
 			break;
+		case CIFS_IOC_GET_TCON_INFO:
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+			tcon = tlink_tcon(tlink);
+			rc = smb_mnt_get_tcon_info(tcon, (void __user *)arg);
+			cifs_put_tlink(tlink);
+			break;
 		case CIFS_ENUMERATE_SNAPSHOTS:
 			if (pSMBFile == NULL)
 				break;
@@ -433,16 +459,21 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 			 * Dump encryption keys. This is an old ioctl that only
 			 * handles AES-128-{CCM,GCM}.
 			 */
-			if (pSMBFile == NULL)
-				break;
 			if (!capable(CAP_SYS_ADMIN)) {
 				rc = -EACCES;
 				break;
 			}
 
-			tcon = tlink_tcon(pSMBFile->tlink);
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+			tcon = tlink_tcon(tlink);
 			if (!smb3_encryption_required(tcon)) {
 				rc = -EOPNOTSUPP;
+				cifs_put_tlink(tlink);
 				break;
 			}
 			pkey_inf.cipher_type =
@@ -459,6 +490,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EFAULT;
 			else
 				rc = 0;
+			cifs_put_tlink(tlink);
 			break;
 		case CIFS_DUMP_FULL_KEY:
 			/*
@@ -470,8 +502,16 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				rc = -EACCES;
 				break;
 			}
-			tcon = tlink_tcon(pSMBFile->tlink);
+			cifs_sb = CIFS_SB(inode->i_sb);
+			tlink = cifs_sb_tlink(cifs_sb);
+			if (IS_ERR(tlink)) {
+				rc = PTR_ERR(tlink);
+				break;
+			}
+
+			tcon = tlink_tcon(tlink);
 			rc = cifs_dump_full_key(tcon, (void __user *)arg);
+			cifs_put_tlink(tlink);
 			break;
 		case CIFS_IOC_NOTIFY:
 			if (!S_ISDIR(inode->i_mode)) {

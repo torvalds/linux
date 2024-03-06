@@ -383,7 +383,7 @@ int saa7164_s_frequency(struct saa7164_port *port,
 	else if (port->nr == SAA7164_PORT_ENC2)
 		tsport = &dev->ports[SAA7164_PORT_TS2];
 	else
-		BUG();
+		return -EINVAL; /* should not happen */
 
 	fe = tsport->dvb.frontend;
 

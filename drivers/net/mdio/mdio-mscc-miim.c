@@ -335,15 +335,13 @@ out_disable_clk:
 	return ret;
 }
 
-static int mscc_miim_remove(struct platform_device *pdev)
+static void mscc_miim_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
 	struct mscc_miim_dev *miim = bus->priv;
 
 	clk_disable_unprepare(miim->clk);
 	mdiobus_unregister(bus);
-
-	return 0;
 }
 
 static const struct mscc_miim_info mscc_ocelot_miim_info = {
@@ -371,7 +369,7 @@ MODULE_DEVICE_TABLE(of, mscc_miim_match);
 
 static struct platform_driver mscc_miim_driver = {
 	.probe = mscc_miim_probe,
-	.remove = mscc_miim_remove,
+	.remove_new = mscc_miim_remove,
 	.driver = {
 		.name = "mscc-miim",
 		.of_match_table = mscc_miim_match,

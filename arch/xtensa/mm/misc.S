@@ -47,6 +47,7 @@ ENTRY(clear_page)
 	abi_ret_default
 
 ENDPROC(clear_page)
+EXPORT_SYMBOL(clear_page)
 
 /*
  * copy_page and copy_user_page are the same for non-cache-aliased configs.
@@ -89,6 +90,7 @@ ENTRY(copy_page)
 	abi_ret_default
 
 ENDPROC(copy_page)
+EXPORT_SYMBOL(copy_page)
 
 #ifdef CONFIG_MMU
 /*
@@ -367,6 +369,7 @@ ENTRY(__invalidate_icache_range)
 	abi_ret_default
 
 ENDPROC(__invalidate_icache_range)
+EXPORT_SYMBOL(__invalidate_icache_range)
 
 /*
  * void __flush_invalidate_dcache_range(ulong start, ulong size)
@@ -397,6 +400,7 @@ ENTRY(__flush_dcache_range)
 	abi_ret_default
 
 ENDPROC(__flush_dcache_range)
+EXPORT_SYMBOL(__flush_dcache_range)
 
 /*
  * void _invalidate_dcache_range(ulong start, ulong size)
@@ -411,6 +415,7 @@ ENTRY(__invalidate_dcache_range)
 	abi_ret_default
 
 ENDPROC(__invalidate_dcache_range)
+EXPORT_SYMBOL(__invalidate_dcache_range)
 
 /*
  * void _invalidate_icache_all(void)

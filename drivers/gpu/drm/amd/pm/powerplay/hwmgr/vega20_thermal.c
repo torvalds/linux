@@ -131,7 +131,7 @@ int vega20_fan_ctrl_get_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 
 	tmp64 = (uint64_t)duty * 255;
 	do_div(tmp64, duty100);
-	*speed = MIN((uint32_t)tmp64, 255);
+	*speed = min_t(uint32_t, tmp64, 255);
 
 	return 0;
 }
@@ -144,7 +144,7 @@ int vega20_fan_ctrl_set_fan_speed_pwm(struct pp_hwmgr *hwmgr,
 	uint32_t duty;
 	uint64_t tmp64;
 
-	speed = MIN(speed, 255);
+	speed = min_t(uint32_t, speed, 255);
 
 	if (PP_CAP(PHM_PlatformCaps_MicrocodeFanControl))
 		vega20_fan_ctrl_stop_smc_fan_control(hwmgr);
@@ -263,7 +263,9 @@ static int vega20_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, THERM_IH_HW_ENA, 1);
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTH, high);
 	val = CGS_REG_SET_FIELD(val, THM_THERMAL_INT_CTRL, DIG_THERM_INTL, low);
-	val = val & (~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK);
+	val &= ~THM_THERMAL_INT_CTRL__THERM_TRIGGER_MASK_MASK;
+	val &= ~THM_THERMAL_INT_CTRL__THERM_INTH_MASK_MASK;
+	val &= ~THM_THERMAL_INT_CTRL__THERM_INTL_MASK_MASK;
 
 	WREG32_SOC15(THM, 0, mmTHM_THERMAL_INT_CTRL, val);
 

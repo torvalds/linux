@@ -42,6 +42,11 @@ properties:
           - const: arm,mali-t760
       - items:
           - enum:
+              - samsung,exynos7-mali
+          - const: samsung,exynos5433-mali
+          - const: arm,mali-t760
+      - items:
+          - enum:
               - rockchip,rk3399-mali
           - const: arm,mali-t860
 
@@ -92,7 +97,7 @@ properties:
   dma-coherent: true
 
   dynamic-power-coefficient:
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     description:
       A u32 value that represents the running time dynamic
       power coefficient in units of uW/MHz/V^2. The

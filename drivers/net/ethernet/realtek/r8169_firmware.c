@@ -151,9 +151,6 @@ void rtl_fw_write_firmware(struct rtl8169_private *tp, struct rtl_fw *rtl_fw)
 		u32 regno = (action & 0x0fff0000) >> 16;
 		enum rtl_fw_opcode opcode = action >> 28;
 
-		if (!action)
-			break;
-
 		switch (opcode) {
 		case PHY_READ:
 			predata = fw_read(tp, regno);

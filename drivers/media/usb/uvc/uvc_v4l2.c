@@ -45,7 +45,7 @@ static int uvc_control_add_xu_mapping(struct uvc_video_chain *chain,
 	map->menu_names = NULL;
 	map->menu_mapping = NULL;
 
-	map->menu_mask = BIT_MASK(xmap->menu_count);
+	map->menu_mask = GENMASK(xmap->menu_count - 1, 0);
 
 	size = xmap->menu_count * sizeof(*map->menu_mapping);
 	map->menu_mapping = kzalloc(size, GFP_KERNEL);
@@ -161,7 +161,7 @@ free_map:
  * the Video Probe and Commit negotiation, but some hardware don't implement
  * that feature.
  */
-static u32 uvc_try_frame_interval(struct uvc_frame *frame, u32 interval)
+static u32 uvc_try_frame_interval(const struct uvc_frame *frame, u32 interval)
 {
 	unsigned int i;
 
@@ -210,10 +210,11 @@ static u32 uvc_v4l2_get_bytesperline(const struct uvc_format *format,
 
 static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt, struct uvc_streaming_control *probe,
-	struct uvc_format **uvc_format, struct uvc_frame **uvc_frame)
+	const struct uvc_format **uvc_format,
+	const struct uvc_frame **uvc_frame)
 {
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	u16 rw, rh;
 	unsigned int d, maxd;
 	unsigned int i;
@@ -235,7 +236,7 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * format otherwise.
 	 */
 	for (i = 0; i < stream->nformats; ++i) {
-		format = &stream->format[i];
+		format = &stream->formats[i];
 		if (format->fcc == fmt->fmt.pix.pixelformat)
 			break;
 	}
@@ -255,14 +256,14 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	maxd = (unsigned int)-1;
 
 	for (i = 0; i < format->nframes; ++i) {
-		u16 w = format->frame[i].wWidth;
-		u16 h = format->frame[i].wHeight;
+		u16 w = format->frames[i].wWidth;
+		u16 h = format->frames[i].wHeight;
 
 		d = min(w, rw) * min(h, rh);
 		d = w*h + rw*rh - 2*d;
 		if (d < maxd) {
 			maxd = d;
-			frame = &format->frame[i];
+			frame = &format->frames[i];
 		}
 
 		if (maxd == 0)
@@ -319,8 +320,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 	 * accepted the requested format as-is.
 	 */
 	for (i = 0; i < stream->nformats; ++i) {
-		if (probe->bFormatIndex == stream->format[i].index) {
-			format = &stream->format[i];
+		if (probe->bFormatIndex == stream->formats[i].index) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
@@ -331,8 +332,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 			probe->bFormatIndex);
 
 	for (i = 0; i < format->nframes; ++i) {
-		if (probe->bFrameIndex == format->frame[i].bFrameIndex) {
-			frame = &format->frame[i];
+		if (probe->bFrameIndex == format->frames[i].bFrameIndex) {
+			frame = &format->frames[i];
 			break;
 		}
 	}
@@ -363,8 +364,8 @@ static int uvc_v4l2_try_format(struct uvc_streaming *stream,
 static int uvc_v4l2_get_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt)
 {
-	struct uvc_format *format;
-	struct uvc_frame *frame;
+	const struct uvc_format *format;
+	const struct uvc_frame *frame;
 	int ret = 0;
 
 	if (fmt->type != stream->type)
@@ -398,8 +399,8 @@ static int uvc_v4l2_set_format(struct uvc_streaming *stream,
 	struct v4l2_format *fmt)
 {
 	struct uvc_streaming_control probe;
-	struct uvc_format *format;
-	struct uvc_frame *frame;
+	const struct uvc_format *format;
+	const struct uvc_frame *frame;
 	int ret;
 
 	if (fmt->type != stream->type)
@@ -465,8 +466,8 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 {
 	struct uvc_streaming_control probe;
 	struct v4l2_fract timeperframe;
-	struct uvc_format *format;
-	struct uvc_frame *frame;
+	const struct uvc_format *format;
+	const struct uvc_frame *frame;
 	u32 interval, maxd;
 	unsigned int i;
 	int ret;
@@ -501,19 +502,19 @@ static int uvc_v4l2_set_streamparm(struct uvc_streaming *stream,
 	for (i = 0; i < format->nframes && maxd != 0; i++) {
 		u32 d, ival;
 
-		if (&format->frame[i] == stream->cur_frame)
+		if (&format->frames[i] == stream->cur_frame)
 			continue;
 
-		if (format->frame[i].wWidth != stream->cur_frame->wWidth ||
-		    format->frame[i].wHeight != stream->cur_frame->wHeight)
+		if (format->frames[i].wWidth != stream->cur_frame->wWidth ||
+		    format->frames[i].wHeight != stream->cur_frame->wHeight)
 			continue;
 
-		ival = uvc_try_frame_interval(&format->frame[i], interval);
+		ival = uvc_try_frame_interval(&format->frames[i], interval);
 		d = abs((s32)ival - interval);
 		if (d >= maxd)
 			continue;
 
-		frame = &format->frame[i];
+		frame = &format->frames[i];
 		probe.bFrameIndex = frame->bFrameIndex;
 		probe.dwFrameInterval = ival;
 		maxd = d;
@@ -697,7 +698,7 @@ static int uvc_ioctl_querycap(struct file *file, void *fh,
 static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 			      struct v4l2_fmtdesc *fmt)
 {
-	struct uvc_format *format;
+	const struct uvc_format *format;
 	enum v4l2_buf_type type = fmt->type;
 	u32 index = fmt->index;
 
@@ -708,7 +709,7 @@ static int uvc_ioctl_enum_fmt(struct uvc_streaming *stream,
 	fmt->index = index;
 	fmt->type = type;
 
-	format = &stream->format[fmt->index];
+	format = &stream->formats[fmt->index];
 	fmt->flags = 0;
 	if (format->flags & UVC_FMT_FLAG_COMPRESSED)
 		fmt->flags |= V4L2_FMT_FLAG_COMPRESSED;
@@ -1249,15 +1250,15 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 {
 	struct uvc_fh *handle = fh;
 	struct uvc_streaming *stream = handle->stream;
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	unsigned int index;
 	unsigned int i;
 
 	/* Look for the given pixel format */
 	for (i = 0; i < stream->nformats; i++) {
-		if (stream->format[i].fcc == fsize->pixel_format) {
-			format = &stream->format[i];
+		if (stream->formats[i].fcc == fsize->pixel_format) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
@@ -1266,10 +1267,10 @@ static int uvc_ioctl_enum_framesizes(struct file *file, void *fh,
 
 	/* Skip duplicate frame sizes */
 	for (i = 0, index = 0; i < format->nframes; i++) {
-		if (frame && frame->wWidth == format->frame[i].wWidth &&
-		    frame->wHeight == format->frame[i].wHeight)
+		if (frame && frame->wWidth == format->frames[i].wWidth &&
+		    frame->wHeight == format->frames[i].wHeight)
 			continue;
-		frame = &format->frame[i];
+		frame = &format->frames[i];
 		if (index == fsize->index)
 			break;
 		index++;
@@ -1289,16 +1290,16 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 {
 	struct uvc_fh *handle = fh;
 	struct uvc_streaming *stream = handle->stream;
-	struct uvc_format *format = NULL;
-	struct uvc_frame *frame = NULL;
+	const struct uvc_format *format = NULL;
+	const struct uvc_frame *frame = NULL;
 	unsigned int nintervals;
 	unsigned int index;
 	unsigned int i;
 
 	/* Look for the given pixel format and frame size */
 	for (i = 0; i < stream->nformats; i++) {
-		if (stream->format[i].fcc == fival->pixel_format) {
-			format = &stream->format[i];
+		if (stream->formats[i].fcc == fival->pixel_format) {
+			format = &stream->formats[i];
 			break;
 		}
 	}
@@ -1307,9 +1308,9 @@ static int uvc_ioctl_enum_frameintervals(struct file *file, void *fh,
 
 	index = fival->index;
 	for (i = 0; i < format->nframes; i++) {
-		if (format->frame[i].wWidth == fival->width &&
-		    format->frame[i].wHeight == fival->height) {
-			frame = &format->frame[i];
+		if (format->frames[i].wWidth == fival->width &&
+		    format->frames[i].wHeight == fival->height) {
+			frame = &format->frames[i];
 			nintervals = frame->bFrameIntervalType ?: 1;
 			if (index < nintervals)
 				break;

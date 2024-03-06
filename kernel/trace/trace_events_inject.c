@@ -217,7 +217,7 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 			char *addr = (char *)(unsigned long) val;
 
 			if (field->filter_type == FILTER_STATIC_STRING) {
-				strlcpy(entry + field->offset, addr, field->size);
+				strscpy(entry + field->offset, addr, field->size);
 			} else if (field->filter_type == FILTER_DYN_STRING ||
 				   field->filter_type == FILTER_RDYN_STRING) {
 				int str_len = strlen(addr) + 1;
@@ -232,7 +232,7 @@ static int parse_entry(char *str, struct trace_event_call *call, void **pentry)
 				}
 				entry = *pentry;
 
-				strlcpy(entry + (entry_size - str_len), addr, str_len);
+				strscpy(entry + (entry_size - str_len), addr, str_len);
 				str_item = (u32 *)(entry + field->offset);
 				if (field->filter_type == FILTER_RDYN_STRING)
 					str_loc -= field->offset + field->size;
@@ -328,7 +328,8 @@ event_inject_read(struct file *file, char __user *buf, size_t size,
 }
 
 const struct file_operations event_inject_fops = {
-	.open = tracing_open_generic,
+	.open = tracing_open_file_tr,
 	.read = event_inject_read,
 	.write = event_inject_write,
+	.release = tracing_release_file_tr,
 };

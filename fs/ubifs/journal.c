@@ -452,12 +452,12 @@ static void pack_inode(struct ubifs_info *c, struct ubifs_ino_node *ino,
 	ino->ch.node_type = UBIFS_INO_NODE;
 	ino_key_init_flash(c, &ino->key, inode->i_ino);
 	ino->creat_sqnum = cpu_to_le64(ui->creat_sqnum);
-	ino->atime_sec  = cpu_to_le64(inode->i_atime.tv_sec);
-	ino->atime_nsec = cpu_to_le32(inode->i_atime.tv_nsec);
-	ino->ctime_sec  = cpu_to_le64(inode->i_ctime.tv_sec);
-	ino->ctime_nsec = cpu_to_le32(inode->i_ctime.tv_nsec);
-	ino->mtime_sec  = cpu_to_le64(inode->i_mtime.tv_sec);
-	ino->mtime_nsec = cpu_to_le32(inode->i_mtime.tv_nsec);
+	ino->atime_sec  = cpu_to_le64(inode_get_atime_sec(inode));
+	ino->atime_nsec = cpu_to_le32(inode_get_atime_nsec(inode));
+	ino->ctime_sec  = cpu_to_le64(inode_get_ctime_sec(inode));
+	ino->ctime_nsec = cpu_to_le32(inode_get_ctime_nsec(inode));
+	ino->mtime_sec  = cpu_to_le64(inode_get_mtime_sec(inode));
+	ino->mtime_nsec = cpu_to_le32(inode_get_mtime_nsec(inode));
 	ino->uid   = cpu_to_le32(i_uid_read(inode));
 	ino->gid   = cpu_to_le32(i_gid_read(inode));
 	ino->mode  = cpu_to_le32(inode->i_mode);
@@ -1607,6 +1607,7 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 				ubifs_err(c, "bad data node (block %u, inode %lu)",
 					  blk, inode->i_ino);
 				ubifs_dump_node(c, dn, dn_size);
+				err = -EUCLEAN;
 				goto out_free;
 			}
 

@@ -51,8 +51,9 @@
 
 /* DWC PCIe controller capabilities */
 #define DW_PCIE_CAP_REQ_RES		0
-#define DW_PCIE_CAP_IATU_UNROLL		1
-#define DW_PCIE_CAP_CDM_CHECK		2
+#define DW_PCIE_CAP_EDMA_UNROLL		1
+#define DW_PCIE_CAP_IATU_UNROLL		2
+#define DW_PCIE_CAP_CDM_CHECK		3
 
 #define dw_pcie_cap_is(_pci, _cap) \
 	test_bit(DW_PCIE_CAP_ ## _cap, &(_pci)->caps)
@@ -288,10 +289,22 @@ enum dw_pcie_core_rst {
 	DW_PCIE_NUM_CORE_RSTS
 };
 
+enum dw_pcie_ltssm {
+	/* Need to align with PCIE_PORT_DEBUG0 bits 0:5 */
+	DW_PCIE_LTSSM_DETECT_QUIET = 0x0,
+	DW_PCIE_LTSSM_DETECT_ACT = 0x1,
+	DW_PCIE_LTSSM_L0 = 0x11,
+	DW_PCIE_LTSSM_L2_IDLE = 0x15,
+
+	DW_PCIE_LTSSM_UNKNOWN = 0xFFFFFFFF,
+};
+
 struct dw_pcie_host_ops {
-	int (*host_init)(struct dw_pcie_rp *pp);
-	void (*host_deinit)(struct dw_pcie_rp *pp);
-	int (*msi_host_init)(struct dw_pcie_rp *pp);
+	int (*init)(struct dw_pcie_rp *pp);
+	void (*deinit)(struct dw_pcie_rp *pp);
+	void (*post_init)(struct dw_pcie_rp *pp);
+	int (*msi_init)(struct dw_pcie_rp *pp);
+	void (*pme_turn_off)(struct dw_pcie_rp *pp);
 };
 
 struct dw_pcie_rp {
@@ -318,9 +331,11 @@ struct dw_pcie_rp {
 };
 
 struct dw_pcie_ep_ops {
-	void	(*ep_init)(struct dw_pcie_ep *ep);
+	void	(*pre_init)(struct dw_pcie_ep *ep);
+	void	(*init)(struct dw_pcie_ep *ep);
+	void	(*deinit)(struct dw_pcie_ep *ep);
 	int	(*raise_irq)(struct dw_pcie_ep *ep, u8 func_no,
-			     enum pci_epc_irq_type type, u16 interrupt_num);
+			     unsigned int type, u16 interrupt_num);
 	const struct pci_epc_features* (*get_features)(struct dw_pcie_ep *ep);
 	/*
 	 * Provide a method to implement the different func config space
@@ -329,7 +344,8 @@ struct dw_pcie_ep_ops {
 	 * return a 0, and implement code in callback function of platform
 	 * driver.
 	 */
-	unsigned int (*func_conf_select)(struct dw_pcie_ep *ep, u8 func_no);
+	unsigned int (*get_dbi_offset)(struct dw_pcie_ep *ep, u8 func_no);
+	unsigned int (*get_dbi2_offset)(struct dw_pcie_ep *ep, u8 func_no);
 };
 
 struct dw_pcie_ep_func {
@@ -364,6 +380,7 @@ struct dw_pcie_ops {
 	void    (*write_dbi2)(struct dw_pcie *pcie, void __iomem *base, u32 reg,
 			      size_t size, u32 val);
 	int	(*link_up)(struct dw_pcie *pcie);
+	enum dw_pcie_ltssm (*get_ltssm)(struct dw_pcie *pcie);
 	int	(*start_link)(struct dw_pcie *pcie);
 	void	(*stop_link)(struct dw_pcie *pcie);
 };
@@ -393,6 +410,7 @@ struct dw_pcie {
 	struct reset_control_bulk_data	app_rsts[DW_PCIE_NUM_APP_RSTS];
 	struct reset_control_bulk_data	core_rsts[DW_PCIE_NUM_CORE_RSTS];
 	struct gpio_desc		*pe_rst;
+	bool			suspended;
 };
 
 #define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)
@@ -430,6 +448,9 @@ void dw_pcie_iatu_detect(struct dw_pcie *pci);
 int dw_pcie_edma_detect(struct dw_pcie *pci);
 void dw_pcie_edma_remove(struct dw_pcie *pci);
 
+int dw_pcie_suspend_noirq(struct dw_pcie *pci);
+int dw_pcie_resume_noirq(struct dw_pcie *pci);
+
 static inline void dw_pcie_writel_dbi(struct dw_pcie *pci, u32 reg, u32 val)
 {
 	dw_pcie_write_dbi(pci, reg, 0x4, val);
@@ -463,6 +484,99 @@ static inline u8 dw_pcie_readb_dbi(struct dw_pcie *pci, u32 reg)
 static inline void dw_pcie_writel_dbi2(struct dw_pcie *pci, u32 reg, u32 val)
 {
 	dw_pcie_write_dbi2(pci, reg, 0x4, val);
+}
+
+static inline unsigned int dw_pcie_ep_get_dbi_offset(struct dw_pcie_ep *ep,
+						     u8 func_no)
+{
+	unsigned int dbi_offset = 0;
+
+	if (ep->ops->get_dbi_offset)
+		dbi_offset = ep->ops->get_dbi_offset(ep, func_no);
+
+	return dbi_offset;
+}
+
+static inline u32 dw_pcie_ep_read_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				      u32 reg, size_t size)
+{
+	unsigned int offset = dw_pcie_ep_get_dbi_offset(ep, func_no);
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	return dw_pcie_read_dbi(pci, offset + reg, size);
+}
+
+static inline void dw_pcie_ep_write_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					u32 reg, size_t size, u32 val)
+{
+	unsigned int offset = dw_pcie_ep_get_dbi_offset(ep, func_no);
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	dw_pcie_write_dbi(pci, offset + reg, size, val);
+}
+
+static inline void dw_pcie_ep_writel_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, u32 val)
+{
+	dw_pcie_ep_write_dbi(ep, func_no, reg, 0x4, val);
+}
+
+static inline u32 dw_pcie_ep_readl_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				       u32 reg)
+{
+	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x4);
+}
+
+static inline void dw_pcie_ep_writew_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, u16 val)
+{
+	dw_pcie_ep_write_dbi(ep, func_no, reg, 0x2, val);
+}
+
+static inline u16 dw_pcie_ep_readw_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				       u32 reg)
+{
+	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x2);
+}
+
+static inline void dw_pcie_ep_writeb_dbi(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, u8 val)
+{
+	dw_pcie_ep_write_dbi(ep, func_no, reg, 0x1, val);
+}
+
+static inline u8 dw_pcie_ep_readb_dbi(struct dw_pcie_ep *ep, u8 func_no,
+				      u32 reg)
+{
+	return dw_pcie_ep_read_dbi(ep, func_no, reg, 0x1);
+}
+
+static inline unsigned int dw_pcie_ep_get_dbi2_offset(struct dw_pcie_ep *ep,
+						      u8 func_no)
+{
+	unsigned int dbi2_offset = 0;
+
+	if (ep->ops->get_dbi2_offset)
+		dbi2_offset = ep->ops->get_dbi2_offset(ep, func_no);
+	else if (ep->ops->get_dbi_offset)     /* for backward compatibility */
+		dbi2_offset = ep->ops->get_dbi_offset(ep, func_no);
+
+	return dbi2_offset;
+}
+
+static inline void dw_pcie_ep_write_dbi2(struct dw_pcie_ep *ep, u8 func_no,
+					 u32 reg, size_t size, u32 val)
+{
+	unsigned int offset = dw_pcie_ep_get_dbi2_offset(ep, func_no);
+	struct dw_pcie *pci = to_dw_pcie_from_ep(ep);
+
+	dw_pcie_write_dbi2(pci, offset + reg, size, val);
+}
+
+static inline void dw_pcie_ep_writel_dbi2(struct dw_pcie_ep *ep, u8 func_no,
+					  u32 reg, u32 val)
+{
+	dw_pcie_ep_write_dbi2(ep, func_no, reg, 0x4, val);
 }
 
 static inline void dw_pcie_dbi_ro_wr_en(struct dw_pcie *pci)
@@ -499,6 +613,18 @@ static inline void dw_pcie_stop_link(struct dw_pcie *pci)
 {
 	if (pci->ops && pci->ops->stop_link)
 		pci->ops->stop_link(pci);
+}
+
+static inline enum dw_pcie_ltssm dw_pcie_get_ltssm(struct dw_pcie *pci)
+{
+	u32 val;
+
+	if (pci->ops && pci->ops->get_ltssm)
+		return pci->ops->get_ltssm(pci);
+
+	val = dw_pcie_readl_dbi(pci, PCIE_PORT_DEBUG0);
+
+	return (enum dw_pcie_ltssm)FIELD_GET(PORT_LOGIC_LTSSM_STATE_MASK, val);
 }
 
 #ifdef CONFIG_PCIE_DW_HOST
@@ -547,7 +673,7 @@ int dw_pcie_ep_init(struct dw_pcie_ep *ep);
 int dw_pcie_ep_init_complete(struct dw_pcie_ep *ep);
 void dw_pcie_ep_init_notify(struct dw_pcie_ep *ep);
 void dw_pcie_ep_exit(struct dw_pcie_ep *ep);
-int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no);
+int dw_pcie_ep_raise_intx_irq(struct dw_pcie_ep *ep, u8 func_no);
 int dw_pcie_ep_raise_msi_irq(struct dw_pcie_ep *ep, u8 func_no,
 			     u8 interrupt_num);
 int dw_pcie_ep_raise_msix_irq(struct dw_pcie_ep *ep, u8 func_no,
@@ -580,7 +706,7 @@ static inline void dw_pcie_ep_exit(struct dw_pcie_ep *ep)
 {
 }
 
-static inline int dw_pcie_ep_raise_legacy_irq(struct dw_pcie_ep *ep, u8 func_no)
+static inline int dw_pcie_ep_raise_intx_irq(struct dw_pcie_ep *ep, u8 func_no)
 {
 	return 0;
 }

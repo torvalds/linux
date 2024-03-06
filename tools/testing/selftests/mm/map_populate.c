@@ -17,9 +17,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifndef MMAP_SZ
 #define MMAP_SZ		4096
-#endif
 
 #define BUG_ON(condition, description)					\
 	do {								\
@@ -79,7 +77,7 @@ int main(int argc, char **argv)
 	unsigned long *smap;
 
 	ftmp = tmpfile();
-	BUG_ON(ftmp == 0, "tmpfile()");
+	BUG_ON(!ftmp, "tmpfile()");
 
 	ret = ftruncate(fileno(ftmp), MMAP_SZ);
 	BUG_ON(ret, "ftruncate()");

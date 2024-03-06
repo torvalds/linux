@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
@@ -181,7 +182,7 @@ static int kdwc3_remove_core(struct device *dev, void *c)
 	return 0;
 }
 
-static int kdwc3_remove(struct platform_device *pdev)
+static void kdwc3_remove(struct platform_device *pdev)
 {
 	struct dwc3_keystone *kdwc = platform_get_drvdata(pdev);
 	struct device_node *node = pdev->dev.of_node;
@@ -196,10 +197,6 @@ static int kdwc3_remove(struct platform_device *pdev)
 	phy_power_off(kdwc->usb3_phy);
 	phy_exit(kdwc->usb3_phy);
 	phy_pm_runtime_put_sync(kdwc->usb3_phy);
-
-	platform_set_drvdata(pdev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id kdwc3_of_match[] = {
@@ -211,7 +208,7 @@ MODULE_DEVICE_TABLE(of, kdwc3_of_match);
 
 static struct platform_driver kdwc3_driver = {
 	.probe		= kdwc3_probe,
-	.remove		= kdwc3_remove,
+	.remove_new	= kdwc3_remove,
 	.driver		= {
 		.name	= "keystone-dwc3",
 		.of_match_table	= kdwc3_of_match,

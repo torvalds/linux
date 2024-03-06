@@ -107,7 +107,6 @@ static int lgm_pwm_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops lgm_pwm_ops = {
 	.get_state = lgm_pwm_get_state,
 	.apply = lgm_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static void lgm_pwm_init(struct lgm_pwm_chip *pc)

@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(decrypt_blob);
  * Sign the specified data blob using the private key specified by params->key.
  * The signature is wrapped in an encoding if params->encoding is specified
  * (eg. "pkcs1").  If the encoding needs to know the digest type, this can be
- * passed through params->hash_algo (eg. "sha1").
+ * passed through params->hash_algo (eg. "sha512").
  *
  * Returns the length of the data placed in the signature buffer or an error.
  */

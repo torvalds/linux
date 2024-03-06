@@ -69,18 +69,18 @@ static int __init parse_tag_mem32(const struct tag *tag)
 
 __tagtable(ATAG_MEM, parse_tag_mem32);
 
-#if defined(CONFIG_VGA_CONSOLE) || defined(CONFIG_DUMMY_CONSOLE)
+#if defined(CONFIG_ARCH_FOOTBRIDGE) && defined(CONFIG_VGA_CONSOLE)
 static int __init parse_tag_videotext(const struct tag *tag)
 {
-	screen_info.orig_x            = tag->u.videotext.x;
-	screen_info.orig_y            = tag->u.videotext.y;
-	screen_info.orig_video_page   = tag->u.videotext.video_page;
-	screen_info.orig_video_mode   = tag->u.videotext.video_mode;
-	screen_info.orig_video_cols   = tag->u.videotext.video_cols;
-	screen_info.orig_video_ega_bx = tag->u.videotext.video_ega_bx;
-	screen_info.orig_video_lines  = tag->u.videotext.video_lines;
-	screen_info.orig_video_isVGA  = tag->u.videotext.video_isvga;
-	screen_info.orig_video_points = tag->u.videotext.video_points;
+	vgacon_screen_info.orig_x            = tag->u.videotext.x;
+	vgacon_screen_info.orig_y            = tag->u.videotext.y;
+	vgacon_screen_info.orig_video_page   = tag->u.videotext.video_page;
+	vgacon_screen_info.orig_video_mode   = tag->u.videotext.video_mode;
+	vgacon_screen_info.orig_video_cols   = tag->u.videotext.video_cols;
+	vgacon_screen_info.orig_video_ega_bx = tag->u.videotext.video_ega_bx;
+	vgacon_screen_info.orig_video_lines  = tag->u.videotext.video_lines;
+	vgacon_screen_info.orig_video_isVGA  = tag->u.videotext.video_isvga;
+	vgacon_screen_info.orig_video_points = tag->u.videotext.video_points;
 	return 0;
 }
 
@@ -127,7 +127,7 @@ static int __init parse_tag_cmdline(const struct tag *tag)
 #elif defined(CONFIG_CMDLINE_FORCE)
 	pr_warn("Ignoring tag cmdline (using the default kernel command line)\n");
 #else
-	strlcpy(default_command_line, tag->u.cmdline.cmdline,
+	strscpy(default_command_line, tag->u.cmdline.cmdline,
 		COMMAND_LINE_SIZE);
 #endif
 	return 0;
@@ -224,7 +224,7 @@ setup_machine_tags(void *atags_vaddr, unsigned int machine_nr)
 	}
 
 	/* parse_early_param needs a boot_command_line */
-	strlcpy(boot_command_line, from, COMMAND_LINE_SIZE);
+	strscpy(boot_command_line, from, COMMAND_LINE_SIZE);
 
 	return mdesc;
 }

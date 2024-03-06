@@ -4230,8 +4230,7 @@ static int oxu_drv_probe(struct platform_device *pdev)
 		return irq;
 	dev_dbg(&pdev->dev, "IRQ resource %d\n", irq);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(base)) {
 		ret = PTR_ERR(base);
 		goto error;
@@ -4278,14 +4277,12 @@ static void oxu_remove(struct platform_device *pdev, struct usb_hcd *hcd)
 	usb_put_hcd(hcd);
 }
 
-static int oxu_drv_remove(struct platform_device *pdev)
+static void oxu_drv_remove(struct platform_device *pdev)
 {
 	struct oxu_info *info = platform_get_drvdata(pdev);
 
 	oxu_remove(pdev, info->hcd[0]);
 	oxu_remove(pdev, info->hcd[1]);
-
-	return 0;
 }
 
 static void oxu_drv_shutdown(struct platform_device *pdev)
@@ -4317,7 +4314,7 @@ static int oxu_drv_resume(struct device *dev)
 
 static struct platform_driver oxu_driver = {
 	.probe		= oxu_drv_probe,
-	.remove		= oxu_drv_remove,
+	.remove_new	= oxu_drv_remove,
 	.shutdown	= oxu_drv_shutdown,
 	.suspend	= oxu_drv_suspend,
 	.resume		= oxu_drv_resume,

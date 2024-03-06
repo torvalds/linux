@@ -86,9 +86,18 @@ static int cclk_super_determine_rate(struct clk_hw *hw,
 	if (rate <= pllp_rate) {
 		if (super->flags & TEGRA20_SUPER_CLK)
 			rate = pllp_rate;
-		else
-			rate = tegra_clk_super_ops.round_rate(hw, rate,
-							      &pllp_rate);
+		else {
+			struct clk_rate_request parent = {
+				.rate = req->rate,
+				.best_parent_rate = pllp_rate,
+			};
+
+			clk_hw_get_rate_range(hw, &parent.min_rate,
+					      &parent.max_rate);
+			tegra_clk_super_ops.determine_rate(hw, &parent);
+			pllp_rate = parent.best_parent_rate;
+			rate = parent.rate;
+		}
 
 		req->best_parent_rate = pllp_rate;
 		req->best_parent_hw = pllp_hw;

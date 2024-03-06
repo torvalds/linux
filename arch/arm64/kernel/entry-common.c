@@ -126,7 +126,7 @@ static __always_inline void __exit_to_user_mode(void)
 	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 
-static __always_inline void prepare_exit_to_user_mode(struct pt_regs *regs)
+static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 {
 	unsigned long flags;
 
@@ -135,11 +135,13 @@ static __always_inline void prepare_exit_to_user_mode(struct pt_regs *regs)
 	flags = read_thread_flags();
 	if (unlikely(flags & _TIF_WORK_MASK))
 		do_notify_resume(regs, flags);
+
+	lockdep_sys_exit();
 }
 
 static __always_inline void exit_to_user_mode(struct pt_regs *regs)
 {
-	prepare_exit_to_user_mode(regs);
+	exit_to_user_mode_prepare(regs);
 	mte_check_tfsr_exit();
 	__exit_to_user_mode();
 }
@@ -352,6 +354,35 @@ static bool cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
 	return false;
 }
 #endif /* CONFIG_ARM64_ERRATUM_1463225 */
+
+/*
+ * As per the ABI exit SME streaming mode and clear the SVE state not
+ * shared with FPSIMD on syscall entry.
+ */
+static inline void fp_user_discard(void)
+{
+	/*
+	 * If SME is active then exit streaming mode.  If ZA is active
+	 * then flush the SVE registers but leave userspace access to
+	 * both SVE and SME enabled, otherwise disable SME for the
+	 * task and fall through to disabling SVE too.  This means
+	 * that after a syscall we never have any streaming mode
+	 * register state to track, if this changes the KVM code will
+	 * need updating.
+	 */
+	if (system_supports_sme())
+		sme_smstop_sm();
+
+	if (!system_supports_sve())
+		return;
+
+	if (test_thread_flag(TIF_SVE)) {
+		unsigned int sve_vq_minus_one;
+
+		sve_vq_minus_one = sve_vq_from_vl(task_get_sve_vl(current)) - 1;
+		sve_flush_live(true, sve_vq_minus_one);
+	}
+}
 
 UNHANDLED(el1t, 64, sync)
 UNHANDLED(el1t, 64, irq)
@@ -611,6 +642,14 @@ static void noinstr el0_bti(struct pt_regs *regs)
 	exit_to_user_mode(regs);
 }
 
+static void noinstr el0_mops(struct pt_regs *regs, unsigned long esr)
+{
+	enter_from_user_mode(regs);
+	local_daif_restore(DAIF_PROCCTX);
+	do_el0_mops(regs, esr);
+	exit_to_user_mode(regs);
+}
+
 static void noinstr el0_inv(struct pt_regs *regs, unsigned long esr)
 {
 	enter_from_user_mode(regs);
@@ -634,6 +673,8 @@ static void noinstr el0_svc(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
+	fp_user_discard();
+	local_daif_restore(DAIF_PROCCTX);
 	do_el0_svc(regs);
 	exit_to_user_mode(regs);
 }
@@ -687,6 +728,9 @@ asmlinkage void noinstr el0t_64_sync_handler(struct pt_regs *regs)
 		break;
 	case ESR_ELx_EC_BTI:
 		el0_bti(regs);
+		break;
+	case ESR_ELx_EC_MOPS:
+		el0_mops(regs, esr);
 		break;
 	case ESR_ELx_EC_BREAKPT_LOW:
 	case ESR_ELx_EC_SOFTSTP_LOW:
@@ -770,6 +814,7 @@ static void noinstr el0_svc_compat(struct pt_regs *regs)
 {
 	enter_from_user_mode(regs);
 	cortex_a76_erratum_1463225_svc_handler();
+	local_daif_restore(DAIF_PROCCTX);
 	do_el0_svc_compat(regs);
 	exit_to_user_mode(regs);
 }

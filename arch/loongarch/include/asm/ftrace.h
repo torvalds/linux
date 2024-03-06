@@ -63,7 +63,7 @@ ftrace_regs_get_instruction_pointer(struct ftrace_regs *fregs)
 static __always_inline void
 ftrace_regs_set_instruction_pointer(struct ftrace_regs *fregs, unsigned long ip)
 {
-	regs_set_return_value(&fregs->regs, ip);
+	instruction_pointer_set(&fregs->regs, ip);
 }
 
 #define ftrace_regs_get_argument(fregs, n) \
@@ -99,5 +99,27 @@ __arch_ftrace_set_direct_caller(struct pt_regs *regs, unsigned long addr)
 #endif /* __ASSEMBLY__ */
 
 #endif /* CONFIG_FUNCTION_TRACER */
+
+#ifndef __ASSEMBLY__
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+struct fgraph_ret_regs {
+	/* a0 - a1 */
+	unsigned long regs[2];
+
+	unsigned long fp;
+	unsigned long __unused;
+};
+
+static inline unsigned long fgraph_ret_regs_return_value(struct fgraph_ret_regs *ret_regs)
+{
+	return ret_regs->regs[0];
+}
+
+static inline unsigned long fgraph_ret_regs_frame_pointer(struct fgraph_ret_regs *ret_regs)
+{
+	return ret_regs->fp;
+}
+#endif /* ifdef CONFIG_FUNCTION_GRAPH_TRACER */
+#endif
 
 #endif /* _ASM_LOONGARCH_FTRACE_H */

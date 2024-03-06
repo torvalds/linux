@@ -870,7 +870,7 @@ static struct i2c_driver stusb160x_driver = {
 		.pm = &stusb160x_pm_ops,
 		.of_match_table = stusb160x_of_match,
 	},
-	.probe_new = stusb160x_probe,
+	.probe = stusb160x_probe,
 	.remove = stusb160x_remove,
 };
 module_i2c_driver(stusb160x_driver);

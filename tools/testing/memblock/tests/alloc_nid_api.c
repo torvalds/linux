@@ -2494,6 +2494,35 @@ static int alloc_nid_numa_split_all_reserved_generic_check(void)
 	return 0;
 }
 
+/*
+ * A simple test that tries to allocate a memory region through the
+ * memblock_alloc_node() on a NUMA node with id `nid`. Expected to have the
+ * correct NUMA node set for the new region.
+ */
+static int alloc_node_on_correct_nid(void)
+{
+	int nid_req = 2;
+	void *allocated_ptr = NULL;
+#ifdef CONFIG_NUMA
+	struct memblock_region *req_node = &memblock.memory.regions[nid_req];
+#endif
+	phys_addr_t size = SZ_512;
+
+	PREFIX_PUSH();
+	setup_numa_memblock(node_fractions);
+
+	allocated_ptr = memblock_alloc_node(size, SMP_CACHE_BYTES, nid_req);
+
+	ASSERT_NE(allocated_ptr, NULL);
+#ifdef CONFIG_NUMA
+	ASSERT_EQ(nid_req, req_node->nid);
+#endif
+
+	test_pass_pop();
+
+	return 0;
+}
+
 /* Test case wrappers for NUMA tests */
 static int alloc_nid_numa_simple_check(void)
 {
@@ -2632,6 +2661,15 @@ static int alloc_nid_numa_split_all_reserved_check(void)
 	return 0;
 }
 
+static int alloc_node_numa_on_correct_nid(void)
+{
+	test_print("\tRunning %s...\n", __func__);
+	run_top_down(alloc_node_on_correct_nid);
+	run_bottom_up(alloc_node_on_correct_nid);
+
+	return 0;
+}
+
 int __memblock_alloc_nid_numa_checks(void)
 {
 	test_print("Running %s NUMA tests...\n",
@@ -2651,6 +2689,8 @@ int __memblock_alloc_nid_numa_checks(void)
 	alloc_nid_numa_large_region_check();
 	alloc_nid_numa_reserved_full_merge_check();
 	alloc_nid_numa_split_all_reserved_check();
+
+	alloc_node_numa_on_correct_nid();
 
 	return 0;
 }

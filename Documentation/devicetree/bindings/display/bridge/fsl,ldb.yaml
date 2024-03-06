@@ -17,6 +17,7 @@ description: |
 properties:
   compatible:
     enum:
+      - fsl,imx6sx-ldb
       - fsl,imx8mp-ldb
       - fsl,imx93-ldb
 
@@ -64,7 +65,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: fsl,imx93-ldb
+            enum:
+              - fsl,imx6sx-ldb
+              - fsl,imx93-ldb
     then:
       properties:
         ports:

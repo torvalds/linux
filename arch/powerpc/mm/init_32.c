@@ -39,6 +39,7 @@
 #include <asm/hugetlb.h>
 #include <asm/kup.h>
 #include <asm/kasan.h>
+#include <asm/fixmap.h>
 
 #include <mm/mmu_decl.h>
 
@@ -125,6 +126,8 @@ void __init MMU_init(void)
 	kasan_mmu_init();
 
 	setup_kup();
+
+	update_mmu_feature_fixups(MMU_FTR_KUAP);
 
 	/* Shortly after that, the entire linear mapping will be available */
 	memblock_set_current_limit(lowmem_end_addr);

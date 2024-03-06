@@ -10,14 +10,8 @@
 
 #include "dp_aux.h"
 #include "dp_link.h"
-#include "dp_hpd.h"
 
 struct edid;
-
-#define DPRX_EXTENDED_DPCD_FIELD	0x2200
-
-#define DP_DOWNSTREAM_PORTS		4
-#define DP_DOWNSTREAM_CAP_SIZE		4
 
 struct dp_display_mode {
 	struct drm_display_mode drm_mode;
@@ -41,10 +35,8 @@ struct dp_panel_psr {
 
 struct dp_panel {
 	/* dpcd raw data */
-	u8 dpcd[DP_RECEIVER_CAP_SIZE + 1];
-	u8 ds_cap_info[DP_DOWNSTREAM_PORTS * DP_DOWNSTREAM_CAP_SIZE];
-	u32 ds_port_cnt;
-	u32 dfp_present;
+	u8 dpcd[DP_RECEIVER_CAP_SIZE];
+	u8 downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 
 	struct dp_link_info link_info;
 	struct drm_dp_desc desc;

@@ -42,6 +42,10 @@
 #define EM_AARCH64	183  /* ARM 64 bit */
 #endif
 
+#ifndef EM_LOONGARCH
+#define EM_LOONGARCH	258
+#endif
+
 #ifndef ELF32_ST_VISIBILITY
 #define ELF32_ST_VISIBILITY(o)	((o) & 0x03)
 #endif
@@ -435,6 +439,10 @@ static bool get_plt_sizes(struct dso *dso, GElf_Ehdr *ehdr, GElf_Shdr *shdr_plt,
 		*plt_entry_size = 12;
 		return true;
 	case EM_AARCH64:
+		*plt_header_size = 32;
+		*plt_entry_size = 16;
+		return true;
+	case EM_LOONGARCH:
 		*plt_header_size = 32;
 		*plt_entry_size = 16;
 		return true;
@@ -1384,16 +1392,15 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__set_start(map, shdr->sh_addr + ref_reloc(kmap));
 			map__set_end(map, map__start(map) + shdr->sh_size);
 			map__set_pgoff(map, shdr->sh_offset);
-			map__set_map_ip(map, map__dso_map_ip);
-			map__set_unmap_ip(map, map__dso_unmap_ip);
+			map__set_mapping_type(map, MAPPING_TYPE__DSO);
 			/* Ensure maps are correctly ordered */
 			if (kmaps) {
 				int err;
+				struct map *tmp = map__get(map);
 
-				map__get(map);
 				maps__remove(kmaps, map);
 				err = maps__insert(kmaps, map);
-				map__put(map);
+				map__put(tmp);
 				if (err)
 					return err;
 			}
@@ -1432,6 +1439,8 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		curr_dso->kernel = dso->kernel;
 		curr_dso->long_name = dso->long_name;
 		curr_dso->long_name_len = dso->long_name_len;
+		curr_dso->binary_type = dso->binary_type;
+		curr_dso->adjust_symbols = dso->adjust_symbols;
 		curr_map = map__new2(start, curr_dso);
 		dso__put(curr_dso);
 		if (curr_map == NULL)
@@ -1445,8 +1454,7 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 			map__set_end(curr_map, map__start(curr_map) + shdr->sh_size);
 			map__set_pgoff(curr_map, shdr->sh_offset);
 		} else {
-			map__set_map_ip(curr_map, identity__map_ip);
-			map__set_unmap_ip(curr_map, identity__map_ip);
+			map__set_mapping_type(curr_map, MAPPING_TYPE__IDENTITY);
 		}
 		curr_dso->symtab_type = dso->symtab_type;
 		if (maps__insert(kmaps, curr_map))
@@ -1504,8 +1512,10 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	}
 
 	if (elf_section_by_name(runtime_ss->elf, &runtime_ss->ehdr, &tshdr,
-				".text", NULL))
+				".text", NULL)) {
 		dso->text_offset = tshdr.sh_addr - tshdr.sh_offset;
+		dso->text_end = tshdr.sh_offset + tshdr.sh_size;
+	}
 
 	if (runtime_ss->opdsec)
 		opddata = elf_rawdata(runtime_ss->opdsec, NULL);

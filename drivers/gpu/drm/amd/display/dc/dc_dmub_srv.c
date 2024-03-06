@@ -31,6 +31,9 @@
 #include "core_types.h"
 #include "../basics/conversion.h"
 #include "cursor_reg_cache.h"
+#include "resource.h"
+#include "clk_mgr.h"
+#include "dc_state_priv.h"
 
 #define CTX dc_dmub_srv->ctx
 #define DC_LOGGER CTX->logger
@@ -65,47 +68,6 @@ void dc_dmub_srv_destroy(struct dc_dmub_srv **dmub_srv)
 	}
 }
 
-void dc_dmub_srv_cmd_queue(struct dc_dmub_srv *dc_dmub_srv,
-			   union dmub_rb_cmd *cmd)
-{
-	struct dmub_srv *dmub = dc_dmub_srv->dmub;
-	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
-	enum dmub_status status;
-
-	status = dmub_srv_cmd_queue(dmub, cmd);
-	if (status == DMUB_STATUS_OK)
-		return;
-
-	if (status != DMUB_STATUS_QUEUE_FULL)
-		goto error;
-
-	/* Execute and wait for queue to become empty again. */
-	dc_dmub_srv_cmd_execute(dc_dmub_srv);
-	dc_dmub_srv_wait_idle(dc_dmub_srv);
-
-	/* Requeue the command. */
-	status = dmub_srv_cmd_queue(dmub, cmd);
-	if (status == DMUB_STATUS_OK)
-		return;
-
-error:
-	DC_ERROR("Error queuing DMUB command: status=%d\n", status);
-	dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
-}
-
-void dc_dmub_srv_cmd_execute(struct dc_dmub_srv *dc_dmub_srv)
-{
-	struct dmub_srv *dmub = dc_dmub_srv->dmub;
-	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
-	enum dmub_status status;
-
-	status = dmub_srv_cmd_execute(dmub);
-	if (status != DMUB_STATUS_OK) {
-		DC_ERROR("Error starting DMUB execution: status=%d\n", status);
-		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
-	}
-}
-
 void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 {
 	struct dmub_srv *dmub = dc_dmub_srv->dmub;
@@ -119,106 +81,233 @@ void dc_dmub_srv_wait_idle(struct dc_dmub_srv *dc_dmub_srv)
 	}
 }
 
-void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dmub_srv)
+void dc_dmub_srv_clear_inbox0_ack(struct dc_dmub_srv *dc_dmub_srv)
 {
-	struct dmub_srv *dmub = dmub_srv->dmub;
-	struct dc_context *dc_ctx = dmub_srv->ctx;
+	struct dmub_srv *dmub = dc_dmub_srv->dmub;
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	enum dmub_status status = DMUB_STATUS_OK;
 
 	status = dmub_srv_clear_inbox0_ack(dmub);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error clearing INBOX0 ack: status=%d\n", status);
-		dc_dmub_srv_log_diagnostic_data(dmub_srv);
+		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
 	}
 }
 
-void dc_dmub_srv_wait_for_inbox0_ack(struct dc_dmub_srv *dmub_srv)
+void dc_dmub_srv_wait_for_inbox0_ack(struct dc_dmub_srv *dc_dmub_srv)
 {
-	struct dmub_srv *dmub = dmub_srv->dmub;
-	struct dc_context *dc_ctx = dmub_srv->ctx;
+	struct dmub_srv *dmub = dc_dmub_srv->dmub;
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	enum dmub_status status = DMUB_STATUS_OK;
 
 	status = dmub_srv_wait_for_inbox0_ack(dmub, 100000);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error waiting for INBOX0 HW Lock Ack\n");
-		dc_dmub_srv_log_diagnostic_data(dmub_srv);
+		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
 	}
 }
 
-void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dmub_srv,
-		union dmub_inbox0_data_register data)
+void dc_dmub_srv_send_inbox0_cmd(struct dc_dmub_srv *dc_dmub_srv,
+				 union dmub_inbox0_data_register data)
 {
-	struct dmub_srv *dmub = dmub_srv->dmub;
-	struct dc_context *dc_ctx = dmub_srv->ctx;
+	struct dmub_srv *dmub = dc_dmub_srv->dmub;
+	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
 	enum dmub_status status = DMUB_STATUS_OK;
 
 	status = dmub_srv_send_inbox0_cmd(dmub, data);
 	if (status != DMUB_STATUS_OK) {
 		DC_ERROR("Error sending INBOX0 cmd\n");
-		dc_dmub_srv_log_diagnostic_data(dmub_srv);
+		dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
 	}
 }
 
-bool dc_dmub_srv_cmd_with_reply_data(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd)
+bool dc_dmub_srv_cmd_list_queue_execute(struct dc_dmub_srv *dc_dmub_srv,
+		unsigned int count,
+		union dmub_rb_cmd *cmd_list)
 {
+	struct dc_context *dc_ctx;
 	struct dmub_srv *dmub;
 	enum dmub_status status;
+	int i;
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return false;
 
+	dc_ctx = dc_dmub_srv->ctx;
 	dmub = dc_dmub_srv->dmub;
 
-	status = dmub_srv_cmd_with_reply_data(dmub, cmd);
+	for (i = 0 ; i < count; i++) {
+		// Queue command
+		status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+
+		if (status == DMUB_STATUS_QUEUE_FULL) {
+			/* Execute and wait for queue to become empty again. */
+			status = dmub_srv_cmd_execute(dmub);
+			if (status == DMUB_STATUS_POWER_STATE_D3)
+				return false;
+
+			dmub_srv_wait_for_idle(dmub, 100000);
+
+			/* Requeue the command. */
+			status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+		}
+
+		if (status != DMUB_STATUS_OK) {
+			if (status != DMUB_STATUS_POWER_STATE_D3) {
+				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
+				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			}
+			return false;
+		}
+	}
+
+	status = dmub_srv_cmd_execute(dmub);
 	if (status != DMUB_STATUS_OK) {
-		DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
+		if (status != DMUB_STATUS_POWER_STATE_D3) {
+			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		}
 		return false;
 	}
 
 	return true;
 }
 
-void dc_dmub_srv_wait_phy_init(struct dc_dmub_srv *dc_dmub_srv)
-{
-	struct dmub_srv *dmub = dc_dmub_srv->dmub;
-	struct dc_context *dc_ctx = dc_dmub_srv->ctx;
-	enum dmub_status status;
-
-	for (;;) {
-		/* Wait up to a second for PHY init. */
-		status = dmub_srv_wait_for_phy_init(dmub, 1000000);
-		if (status == DMUB_STATUS_OK)
-			/* Initialization OK */
-			break;
-
-		DC_ERROR("DMCUB PHY init failed: status=%d\n", status);
-		ASSERT(0);
-
-		if (status != DMUB_STATUS_TIMEOUT)
-			/*
-			 * Server likely initialized or we don't have
-			 * DMCUB HW support - this won't end.
-			 */
-			break;
-
-		/* Continue spinning so we don't hang the ASIC. */
-	}
-}
-
-bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
-				    unsigned int stream_mask)
+bool dc_dmub_srv_wait_for_idle(struct dc_dmub_srv *dc_dmub_srv,
+		enum dm_dmub_wait_type wait_type,
+		union dmub_rb_cmd *cmd_list)
 {
 	struct dmub_srv *dmub;
-	const uint32_t timeout = 30;
+	enum dmub_status status;
 
 	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
 		return false;
 
 	dmub = dc_dmub_srv->dmub;
 
-	return dmub_srv_send_gpint_command(
-		       dmub, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
-		       stream_mask, timeout) == DMUB_STATUS_OK;
+	// Wait for DMUB to process command
+	if (wait_type != DM_DMUB_WAIT_TYPE_NO_WAIT) {
+		status = dmub_srv_wait_for_idle(dmub, 100000);
+
+		if (status != DMUB_STATUS_OK) {
+			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			return false;
+		}
+
+		// Copy data back from ring buffer into command
+		if (wait_type == DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)
+			dmub_rb_get_return_data(&dmub->inbox1_rb, cmd_list);
+	}
+
+	return true;
+}
+
+bool dc_dmub_srv_cmd_run(struct dc_dmub_srv *dc_dmub_srv, union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
+{
+	return dc_dmub_srv_cmd_run_list(dc_dmub_srv, 1, cmd, wait_type);
+}
+
+bool dc_dmub_srv_cmd_run_list(struct dc_dmub_srv *dc_dmub_srv, unsigned int count, union dmub_rb_cmd *cmd_list, enum dm_dmub_wait_type wait_type)
+{
+	struct dc_context *dc_ctx;
+	struct dmub_srv *dmub;
+	enum dmub_status status;
+	int i;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dc_ctx = dc_dmub_srv->ctx;
+	dmub = dc_dmub_srv->dmub;
+
+	for (i = 0 ; i < count; i++) {
+		// Queue command
+		status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+
+		if (status == DMUB_STATUS_QUEUE_FULL) {
+			/* Execute and wait for queue to become empty again. */
+			status = dmub_srv_cmd_execute(dmub);
+			if (status == DMUB_STATUS_POWER_STATE_D3)
+				return false;
+
+			dmub_srv_wait_for_idle(dmub, 100000);
+
+			/* Requeue the command. */
+			status = dmub_srv_cmd_queue(dmub, &cmd_list[i]);
+		}
+
+		if (status != DMUB_STATUS_OK) {
+			if (status != DMUB_STATUS_POWER_STATE_D3) {
+				DC_ERROR("Error queueing DMUB command: status=%d\n", status);
+				dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			}
+			return false;
+		}
+	}
+
+	status = dmub_srv_cmd_execute(dmub);
+	if (status != DMUB_STATUS_OK) {
+		if (status != DMUB_STATUS_POWER_STATE_D3) {
+			DC_ERROR("Error starting DMUB execution: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+		}
+		return false;
+	}
+
+	// Wait for DMUB to process command
+	if (wait_type != DM_DMUB_WAIT_TYPE_NO_WAIT) {
+		if (dc_dmub_srv->ctx->dc->debug.disable_timeout) {
+			do {
+				status = dmub_srv_wait_for_idle(dmub, 100000);
+			} while (status != DMUB_STATUS_OK);
+		} else
+			status = dmub_srv_wait_for_idle(dmub, 100000);
+
+		if (status != DMUB_STATUS_OK) {
+			DC_LOG_DEBUG("No reply for DMUB command: status=%d\n", status);
+			dc_dmub_srv_log_diagnostic_data(dc_dmub_srv);
+			return false;
+		}
+
+		// Copy data back from ring buffer into command
+		if (wait_type == DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)
+			dmub_rb_get_return_data(&dmub->inbox1_rb, cmd_list);
+	}
+
+	return true;
+}
+
+bool dc_dmub_srv_optimized_init_done(struct dc_dmub_srv *dc_dmub_srv)
+{
+	struct dmub_srv *dmub;
+	struct dc_context *dc_ctx;
+	union dmub_fw_boot_status boot_status;
+	enum dmub_status status;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	dmub = dc_dmub_srv->dmub;
+	dc_ctx = dc_dmub_srv->ctx;
+
+	status = dmub_srv_get_fw_boot_status(dmub, &boot_status);
+	if (status != DMUB_STATUS_OK) {
+		DC_ERROR("Error querying DMUB boot status: error=%d\n", status);
+		return false;
+	}
+
+	return boot_status.bits.optimized_init_done;
+}
+
+bool dc_dmub_srv_notify_stream_mask(struct dc_dmub_srv *dc_dmub_srv,
+				    unsigned int stream_mask)
+{
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	return dc_wake_and_execute_gpint(dc_dmub_srv->ctx, DMUB_GPINT__IDLE_OPT_NOTIFY_STREAM_MASK,
+					 stream_mask, NULL, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 bool dc_dmub_srv_is_restore_required(struct dc_dmub_srv *dc_dmub_srv)
@@ -267,9 +356,7 @@ void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal
 	cmd.drr_update.header.payload_bytes = sizeof(cmd.drr_update) - sizeof(cmd.drr_update.header);
 
 	// Send the command to the DMCUB.
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst)
@@ -283,9 +370,7 @@ void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst)
 	cmd.drr_update.header.payload_bytes = sizeof(cmd.drr_update) - sizeof(cmd.drr_update.header);
 
 	// Send the command to the DMCUB.
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 static uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *stream)
@@ -362,7 +447,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	for (i = 0, k = 0; context && i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->top_pipe && !pipe->prev_odm_pipe && pipe->stream && pipe->stream->fpo_in_use) {
+		if (resource_is_pipe_type(pipe, OTG_MASTER) && pipe->stream->fpo_in_use) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 			uint8_t min_refresh_in_hz = (pipe->stream->timing.min_refresh_in_uhz + 999999) / 1000000;
 
@@ -378,21 +463,17 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 		sizeof(cmd.fw_assisted_mclk_switch) - sizeof(cmd.fw_assisted_mclk_switch.header);
 
 	// Send the command to the DMCUB.
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 
 	return true;
 }
 
-void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
+void dc_dmub_srv_query_caps_cmd(struct dc_dmub_srv *dc_dmub_srv)
 {
 	union dmub_rb_cmd cmd = { 0 };
-	enum dmub_status status;
 
-	if (!dmub) {
+	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
 		return;
-	}
 
 	memset(&cmd, 0, sizeof(cmd));
 
@@ -402,15 +483,10 @@ void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 	cmd.query_feature_caps.header.ret_status = 1;
 	cmd.query_feature_caps.header.payload_bytes = sizeof(struct dmub_cmd_query_feature_caps_data);
 
-	/* Send command to fw */
-	status = dmub_srv_cmd_with_reply_data(dmub, &cmd);
-
-	ASSERT(status == DMUB_STATUS_OK);
-
 	/* If command was processed, copy feature caps to dmub srv */
-	if (status == DMUB_STATUS_OK &&
+	if (dc_wake_and_execute_dmub_cmd(dc_dmub_srv->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
 	    cmd.query_feature_caps.header.ret_status == 0) {
-		memcpy(&dmub->feature_caps,
+		memcpy(&dc_dmub_srv->dmub->feature_caps,
 		       &cmd.query_feature_caps.query_feature_caps_data,
 		       sizeof(struct dmub_feature_caps));
 	}
@@ -419,7 +495,6 @@ void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	union dmub_rb_cmd cmd = { 0 };
-	enum dmub_status status;
 	unsigned int panel_inst = 0;
 
 	dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst);
@@ -433,13 +508,8 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 	cmd.visual_confirm_color.header.payload_bytes = sizeof(struct dmub_cmd_visual_confirm_color_data);
 	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = panel_inst;
 
-	// Send command to fw
-	status = dmub_srv_cmd_with_reply_data(dc->ctx->dmub_srv->dmub, &cmd);
-
-	ASSERT(status == DMUB_STATUS_OK);
-
 	// If command was processed, copy feature caps to dmub srv
-	if (status == DMUB_STATUS_OK &&
+	if (dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY) &&
 		cmd.visual_confirm_color.header.ret_status == 0) {
 		memcpy(&dc->ctx->dmub_srv->dmub->visual_confirm_color,
 			&cmd.visual_confirm_color.visual_confirm_color_data,
@@ -450,10 +520,11 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
 /**
  * populate_subvp_cmd_drr_info - Helper to populate DRR pipe info for the DMCUB subvp command
  *
- * @dc: [in] current dc state
+ * @dc: [in] pointer to dc object
  * @subvp_pipe: [in] pipe_ctx for the SubVP pipe
  * @vblank_pipe: [in] pipe_ctx for the DRR pipe
  * @pipe_data: [in] Pipe data which stores the VBLANK/DRR info
+ * @context: [in] DC state for access to phantom stream
  *
  * Populate the DMCUB SubVP command with DRR pipe info. All the information
  * required for calculating the SubVP + DRR microschedule is populated here.
@@ -464,12 +535,14 @@ void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pi
  * 3. Populate the drr_info with the min and max supported vtotal values
  */
 static void populate_subvp_cmd_drr_info(struct dc *dc,
+		struct dc_state *context,
 		struct pipe_ctx *subvp_pipe,
 		struct pipe_ctx *vblank_pipe,
 		struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data)
 {
+	struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(context, subvp_pipe->stream);
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
-	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
+	struct dc_crtc_timing *phantom_timing = &phantom_stream->timing;
 	struct dc_crtc_timing *drr_timing = &vblank_pipe->stream->timing;
 	uint16_t drr_frame_us = 0;
 	uint16_t min_drr_supported_us = 0;
@@ -552,11 +625,12 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 
 		// We check for master pipe, but it shouldn't matter since we only need
 		// the pipe for timing info (stream should be same for any pipe splits)
-		if (!pipe->stream || !pipe->plane_state || pipe->top_pipe || pipe->prev_odm_pipe)
+		if (!resource_is_pipe_type(pipe, OTG_MASTER) ||
+				!resource_is_pipe_type(pipe, DPP_PIPE))
 			continue;
 
 		// Find the SubVP pipe
-		if (pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN)
 			break;
 	}
 
@@ -571,8 +645,9 @@ static void populate_subvp_cmd_vblank_pipe_info(struct dc *dc,
 	pipe_data->pipe_config.vblank_data.vblank_end =
 			vblank_pipe->stream->timing.v_total - vblank_pipe->stream->timing.v_front_porch - vblank_pipe->stream->timing.v_addressable;
 
-	if (vblank_pipe->stream->ignore_msa_timing_param)
-		populate_subvp_cmd_drr_info(dc, pipe, vblank_pipe, pipe_data);
+	if (vblank_pipe->stream->ignore_msa_timing_param &&
+		(vblank_pipe->stream->allow_freesync || vblank_pipe->stream->vrr_active_variable || vblank_pipe->stream->vrr_active_fixed))
+		populate_subvp_cmd_drr_info(dc, context, pipe, vblank_pipe, pipe_data);
 }
 
 /**
@@ -597,9 +672,16 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	uint32_t subvp0_prefetch_us = 0;
 	uint32_t subvp1_prefetch_us = 0;
 	uint32_t prefetch_delta_us = 0;
-	struct dc_crtc_timing *phantom_timing0 = &subvp_pipes[0]->stream->mall_stream_config.paired_stream->timing;
-	struct dc_crtc_timing *phantom_timing1 = &subvp_pipes[1]->stream->mall_stream_config.paired_stream->timing;
+	struct dc_stream_state *phantom_stream0 = NULL;
+	struct dc_stream_state *phantom_stream1 = NULL;
+	struct dc_crtc_timing *phantom_timing0 = NULL;
+	struct dc_crtc_timing *phantom_timing1 = NULL;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data = NULL;
+
+	phantom_stream0 = dc_state_get_paired_subvp_stream(context, subvp_pipes[0]->stream);
+	phantom_stream1 = dc_state_get_paired_subvp_stream(context, subvp_pipes[1]->stream);
+	phantom_timing0 = &phantom_stream0->timing;
+	phantom_timing1 = &phantom_stream1->timing;
 
 	subvp0_prefetch_us = div64_u64(((uint64_t)(phantom_timing0->v_total - phantom_timing0->v_front_porch) *
 			(uint64_t)phantom_timing0->h_total * 1000000),
@@ -650,8 +732,9 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	uint32_t j;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data =
 			&cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[cmd_pipe_index];
+	struct dc_stream_state *phantom_stream = dc_state_get_paired_subvp_stream(context, subvp_pipe->stream);
 	struct dc_crtc_timing *main_timing = &subvp_pipe->stream->timing;
-	struct dc_crtc_timing *phantom_timing = &subvp_pipe->stream->mall_stream_config.paired_stream->timing;
+	struct dc_crtc_timing *phantom_timing = &phantom_stream->timing;
 	uint32_t out_num_stream, out_den_stream, out_num_plane, out_den_plane, out_num, out_den;
 
 	pipe_data->mode = SUBVP;
@@ -664,7 +747,8 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 			main_timing->v_total - main_timing->v_front_porch - main_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.mall_region_lines = phantom_timing->v_addressable;
 	pipe_data->pipe_config.subvp_data.main_pipe_index = subvp_pipe->stream_res.tg->inst;
-	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param;
+	pipe_data->pipe_config.subvp_data.is_drr = subvp_pipe->stream->ignore_msa_timing_param &&
+		(subvp_pipe->stream->allow_freesync || subvp_pipe->stream->vrr_active_variable || subvp_pipe->stream->vrr_active_fixed);
 
 	/* Calculate the scaling factor from the src and dst height.
 	 * e.g. If 3840x2160 being downscaled to 1920x1080, the scaling factor is 1/2.
@@ -704,7 +788,7 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *phantom_pipe = &context->res_ctx.pipe_ctx[j];
 
-		if (phantom_pipe->stream == subvp_pipe->stream->mall_stream_config.paired_stream) {
+		if (phantom_pipe->stream == dc_state_get_paired_subvp_stream(context, subvp_pipe->stream)) {
 			pipe_data->pipe_config.subvp_data.phantom_pipe_index = phantom_pipe->stream_res.tg->inst;
 			if (phantom_pipe->bottom_pipe) {
 				pipe_data->pipe_config.subvp_data.phantom_split_pipe_index = phantom_pipe->bottom_pipe->plane_res.hubp->inst;
@@ -738,6 +822,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	union dmub_rb_cmd cmd;
 	struct pipe_ctx *subvp_pipes[2];
 	uint32_t wm_val_refclk = 0;
+	enum mall_stream_type pipe_mall_type;
 
 	memset(&cmd, 0, sizeof(cmd));
 	// FW command for SUBVP
@@ -749,13 +834,11 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (!pipe->stream)
-			continue;
-
 		/* For SubVP pipe count, only count the top most (ODM / MPC) pipe
 		 */
-		if (pipe->plane_state && !pipe->top_pipe && !pipe->prev_odm_pipe &&
-				pipe->stream->mall_stream_config.type == SUBVP_MAIN)
+		if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+				resource_is_pipe_type(pipe, DPP_PIPE) &&
+				dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN)
 			subvp_pipes[subvp_count++] = pipe;
 	}
 
@@ -763,6 +846,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		// For each pipe that is a "main" SUBVP pipe, fill in pipe data for DMUB SUBVP cmd
 		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+			pipe_mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 
 			if (!pipe->stream)
 				continue;
@@ -771,12 +855,13 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 			 * Any ODM or MPC splits being used in SubVP will be handled internally in
 			 * populate_subvp_cmd_pipe_info
 			 */
-			if (pipe->plane_state && pipe->stream->mall_stream_config.paired_stream &&
-					!pipe->top_pipe && !pipe->prev_odm_pipe &&
-					pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+					resource_is_pipe_type(pipe, DPP_PIPE) &&
+					pipe_mall_type == SUBVP_MAIN) {
 				populate_subvp_cmd_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
-			} else if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_NONE &&
-				    !pipe->top_pipe && !pipe->prev_odm_pipe) {
+			} else if (resource_is_pipe_type(pipe, OTG_MASTER) &&
+					resource_is_pipe_type(pipe, DPP_PIPE) &&
+					pipe_mall_type == SUBVP_NONE) {
 				// Don't need to check for ActiveDRAMClockChangeMargin < 0, not valid in cases where
 				// we run through DML without calculating "natural" P-state support
 				populate_subvp_cmd_vblank_pipe_info(dc, context, &cmd, pipe, cmd_pipe_index++);
@@ -797,9 +882,8 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 
 		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF;
 	}
-	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
-	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
-	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+
+	dc_wake_and_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_WAIT);
 }
 
 bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *diag_data)
@@ -823,74 +907,40 @@ void dc_dmub_srv_log_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv)
 		return;
 	}
 
-	DC_LOG_DEBUG(
-		"DMCUB STATE\n"
-		"    dmcub_version      : %08x\n"
-		"    scratch  [0]       : %08x\n"
-		"    scratch  [1]       : %08x\n"
-		"    scratch  [2]       : %08x\n"
-		"    scratch  [3]       : %08x\n"
-		"    scratch  [4]       : %08x\n"
-		"    scratch  [5]       : %08x\n"
-		"    scratch  [6]       : %08x\n"
-		"    scratch  [7]       : %08x\n"
-		"    scratch  [8]       : %08x\n"
-		"    scratch  [9]       : %08x\n"
-		"    scratch [10]       : %08x\n"
-		"    scratch [11]       : %08x\n"
-		"    scratch [12]       : %08x\n"
-		"    scratch [13]       : %08x\n"
-		"    scratch [14]       : %08x\n"
-		"    scratch [15]       : %08x\n"
-		"    pc                 : %08x\n"
-		"    unk_fault_addr     : %08x\n"
-		"    inst_fault_addr    : %08x\n"
-		"    data_fault_addr    : %08x\n"
-		"    inbox1_rptr        : %08x\n"
-		"    inbox1_wptr        : %08x\n"
-		"    inbox1_size        : %08x\n"
-		"    inbox0_rptr        : %08x\n"
-		"    inbox0_wptr        : %08x\n"
-		"    inbox0_size        : %08x\n"
-		"    is_enabled         : %d\n"
-		"    is_soft_reset      : %d\n"
-		"    is_secure_reset    : %d\n"
-		"    is_traceport_en    : %d\n"
-		"    is_cw0_en          : %d\n"
-		"    is_cw6_en          : %d\n",
-		diag_data.dmcub_version,
-		diag_data.scratch[0],
-		diag_data.scratch[1],
-		diag_data.scratch[2],
-		diag_data.scratch[3],
-		diag_data.scratch[4],
-		diag_data.scratch[5],
-		diag_data.scratch[6],
-		diag_data.scratch[7],
-		diag_data.scratch[8],
-		diag_data.scratch[9],
-		diag_data.scratch[10],
-		diag_data.scratch[11],
-		diag_data.scratch[12],
-		diag_data.scratch[13],
-		diag_data.scratch[14],
-		diag_data.scratch[15],
-		diag_data.pc,
-		diag_data.undefined_address_fault_addr,
-		diag_data.inst_fetch_fault_addr,
-		diag_data.data_write_fault_addr,
-		diag_data.inbox1_rptr,
-		diag_data.inbox1_wptr,
-		diag_data.inbox1_size,
-		diag_data.inbox0_rptr,
-		diag_data.inbox0_wptr,
-		diag_data.inbox0_size,
-		diag_data.is_dmcub_enabled,
-		diag_data.is_dmcub_soft_reset,
-		diag_data.is_dmcub_secure_reset,
-		diag_data.is_traceport_en,
-		diag_data.is_cw0_enabled,
-		diag_data.is_cw6_enabled);
+	DC_LOG_DEBUG("DMCUB STATE:");
+	DC_LOG_DEBUG("    dmcub_version      : %08x", diag_data.dmcub_version);
+	DC_LOG_DEBUG("    scratch  [0]       : %08x", diag_data.scratch[0]);
+	DC_LOG_DEBUG("    scratch  [1]       : %08x", diag_data.scratch[1]);
+	DC_LOG_DEBUG("    scratch  [2]       : %08x", diag_data.scratch[2]);
+	DC_LOG_DEBUG("    scratch  [3]       : %08x", diag_data.scratch[3]);
+	DC_LOG_DEBUG("    scratch  [4]       : %08x", diag_data.scratch[4]);
+	DC_LOG_DEBUG("    scratch  [5]       : %08x", diag_data.scratch[5]);
+	DC_LOG_DEBUG("    scratch  [6]       : %08x", diag_data.scratch[6]);
+	DC_LOG_DEBUG("    scratch  [7]       : %08x", diag_data.scratch[7]);
+	DC_LOG_DEBUG("    scratch  [8]       : %08x", diag_data.scratch[8]);
+	DC_LOG_DEBUG("    scratch  [9]       : %08x", diag_data.scratch[9]);
+	DC_LOG_DEBUG("    scratch [10]       : %08x", diag_data.scratch[10]);
+	DC_LOG_DEBUG("    scratch [11]       : %08x", diag_data.scratch[11]);
+	DC_LOG_DEBUG("    scratch [12]       : %08x", diag_data.scratch[12]);
+	DC_LOG_DEBUG("    scratch [13]       : %08x", diag_data.scratch[13]);
+	DC_LOG_DEBUG("    scratch [14]       : %08x", diag_data.scratch[14]);
+	DC_LOG_DEBUG("    scratch [15]       : %08x", diag_data.scratch[15]);
+	DC_LOG_DEBUG("    pc                 : %08x", diag_data.pc);
+	DC_LOG_DEBUG("    unk_fault_addr     : %08x", diag_data.undefined_address_fault_addr);
+	DC_LOG_DEBUG("    inst_fault_addr    : %08x", diag_data.inst_fetch_fault_addr);
+	DC_LOG_DEBUG("    data_fault_addr    : %08x", diag_data.data_write_fault_addr);
+	DC_LOG_DEBUG("    inbox1_rptr        : %08x", diag_data.inbox1_rptr);
+	DC_LOG_DEBUG("    inbox1_wptr        : %08x", diag_data.inbox1_wptr);
+	DC_LOG_DEBUG("    inbox1_size        : %08x", diag_data.inbox1_size);
+	DC_LOG_DEBUG("    inbox0_rptr        : %08x", diag_data.inbox0_rptr);
+	DC_LOG_DEBUG("    inbox0_wptr        : %08x", diag_data.inbox0_wptr);
+	DC_LOG_DEBUG("    inbox0_size        : %08x", diag_data.inbox0_size);
+	DC_LOG_DEBUG("    is_enabled         : %d", diag_data.is_dmcub_enabled);
+	DC_LOG_DEBUG("    is_soft_reset      : %d", diag_data.is_dmcub_soft_reset);
+	DC_LOG_DEBUG("    is_secure_reset    : %d", diag_data.is_dmcub_secure_reset);
+	DC_LOG_DEBUG("    is_traceport_en    : %d", diag_data.is_traceport_en);
+	DC_LOG_DEBUG("    is_cw0_en          : %d", diag_data.is_cw0_enabled);
+	DC_LOG_DEBUG("    is_cw6_en          : %d", diag_data.is_cw6_enabled);
 }
 
 static bool dc_can_pipe_disable_cursor(struct pipe_ctx *pipe_ctx)
@@ -953,6 +1003,9 @@ static bool dc_dmub_should_update_cursor_data(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->stream->ctx->dce_version >= DCN_VERSION_3_1)
 		return true;
 
+	if (pipe_ctx->stream->link->replay_settings.config.replay_supported)
+		return true;
+
 	return false;
 }
 
@@ -980,14 +1033,6 @@ static void dc_build_cursor_update_payload0(
 	payload->pipe_idx    = p_idx;
 	payload->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
 	payload->panel_inst  = panel_inst;
-}
-
-static void dc_send_cmd_to_dmu(struct dc_dmub_srv *dmub_srv,
-		union dmub_rb_cmd *cmd)
-{
-	dc_dmub_srv_cmd_queue(dmub_srv, cmd);
-	dc_dmub_srv_cmd_execute(dmub_srv);
-	dc_dmub_srv_wait_idle(dmub_srv);
 }
 
 static void dc_build_cursor_position_update_payload0(
@@ -1032,9 +1077,11 @@ static void dc_build_cursor_attribute_update_payload1(
 void dc_send_update_cursor_info_to_dmu(
 		struct pipe_ctx *pCtx, uint8_t pipe_idx)
 {
-	union dmub_rb_cmd cmd = { 0 };
-	union dmub_cmd_update_cursor_info_data *update_cursor_info =
-					&cmd.update_cursor_info.update_cursor_info_data;
+	union dmub_rb_cmd cmd[2];
+	union dmub_cmd_update_cursor_info_data *update_cursor_info_0 =
+					&cmd[0].update_cursor_info.update_cursor_info_data;
+
+	memset(cmd, 0, sizeof(cmd));
 
 	if (!dc_dmub_should_update_cursor_data(pCtx))
 		return;
@@ -1051,31 +1098,323 @@ void dc_send_update_cursor_info_to_dmu(
 
 	{
 		/* Build Payload#0 Header */
-		cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
-		cmd.update_cursor_info.header.payload_bytes =
-				sizeof(cmd.update_cursor_info.update_cursor_info_data);
-		cmd.update_cursor_info.header.multi_cmd_pending = 1; /* To combine multi dmu cmd, 1st cmd */
+		cmd[0].update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+		cmd[0].update_cursor_info.header.payload_bytes =
+				sizeof(cmd[0].update_cursor_info.update_cursor_info_data);
+		cmd[0].update_cursor_info.header.multi_cmd_pending = 1; //To combine multi dmu cmd, 1st cmd
 
 		/* Prepare Payload */
-		dc_build_cursor_update_payload0(pCtx, pipe_idx, &update_cursor_info->payload0);
+		dc_build_cursor_update_payload0(pCtx, pipe_idx, &update_cursor_info_0->payload0);
 
-		dc_build_cursor_position_update_payload0(&update_cursor_info->payload0, pipe_idx,
+		dc_build_cursor_position_update_payload0(&update_cursor_info_0->payload0, pipe_idx,
 				pCtx->plane_res.hubp, pCtx->plane_res.dpp);
-		/* Send update_curosr_info to queue */
-		dc_dmub_srv_cmd_queue(pCtx->stream->ctx->dmub_srv, &cmd);
-	}
+		}
 	{
 		/* Build Payload#1 Header */
-		memset(update_cursor_info, 0, sizeof(union dmub_cmd_update_cursor_info_data));
-		cmd.update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
-		cmd.update_cursor_info.header.payload_bytes = sizeof(struct cursor_attributes_cfg);
-		cmd.update_cursor_info.header.multi_cmd_pending = 0; /* Indicate it's the last command. */
+		cmd[1].update_cursor_info.header.type = DMUB_CMD__UPDATE_CURSOR_INFO;
+		cmd[1].update_cursor_info.header.payload_bytes = sizeof(struct cursor_attributes_cfg);
+		cmd[1].update_cursor_info.header.multi_cmd_pending = 0; //Indicate it's the last command.
 
 		dc_build_cursor_attribute_update_payload1(
-				&cmd.update_cursor_info.update_cursor_info_data.payload1.attribute_cfg,
+				&cmd[1].update_cursor_info.update_cursor_info_data.payload1.attribute_cfg,
 				pipe_idx, pCtx->plane_res.hubp, pCtx->plane_res.dpp);
 
 		/* Combine 2nd cmds update_curosr_info to DMU */
-		dc_send_cmd_to_dmu(pCtx->stream->ctx->dmub_srv, &cmd);
+		dc_wake_and_execute_dmub_cmd_list(pCtx->stream->ctx, 2, cmd, DM_DMUB_WAIT_TYPE_WAIT);
 	}
+}
+
+bool dc_dmub_check_min_version(struct dmub_srv *srv)
+{
+	if (!srv->hw_funcs.is_psrsu_supported)
+		return true;
+	return srv->hw_funcs.is_psrsu_supported(srv);
+}
+
+void dc_dmub_srv_enable_dpia_trace(const struct dc *dc)
+{
+	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub) {
+		DC_LOG_ERROR("%s: invalid parameters.", __func__);
+		return;
+	}
+
+	if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__SET_TRACE_BUFFER_MASK_WORD1,
+				       0x0010, NULL, DM_DMUB_WAIT_TYPE_WAIT)) {
+		DC_LOG_ERROR("timeout updating trace buffer mask word\n");
+		return;
+	}
+
+	if (!dc_wake_and_execute_gpint(dc->ctx, DMUB_GPINT__UPDATE_TRACE_BUFFER_MASK,
+				       0x0000, NULL, DM_DMUB_WAIT_TYPE_WAIT)) {
+		DC_LOG_ERROR("timeout updating trace buffer mask word\n");
+		return;
+	}
+
+	DC_LOG_DEBUG("Enabled DPIA trace\n");
+}
+
+void dc_dmub_srv_subvp_save_surf_addr(const struct dc_dmub_srv *dc_dmub_srv, const struct dc_plane_address *addr, uint8_t subvp_index)
+{
+	dmub_srv_subvp_save_surf_addr(dc_dmub_srv->dmub, addr, subvp_index);
+}
+
+bool dc_dmub_srv_is_hw_pwr_up(struct dc_dmub_srv *dc_dmub_srv, bool wait)
+{
+	struct dc_context *dc_ctx;
+	enum dmub_status status;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return true;
+
+	if (dc_dmub_srv->ctx->dc->debug.dmcub_emulation)
+		return true;
+
+	dc_ctx = dc_dmub_srv->ctx;
+
+	if (wait) {
+		if (dc_dmub_srv->ctx->dc->debug.disable_timeout) {
+			do {
+				status = dmub_srv_wait_for_hw_pwr_up(dc_dmub_srv->dmub, 500000);
+			} while (status != DMUB_STATUS_OK);
+		} else {
+			status = dmub_srv_wait_for_hw_pwr_up(dc_dmub_srv->dmub, 500000);
+			if (status != DMUB_STATUS_OK) {
+				DC_ERROR("Error querying DMUB hw power up status: error=%d\n", status);
+				return false;
+			}
+		}
+	} else
+		return dmub_srv_is_hw_pwr_up(dc_dmub_srv->dmub);
+
+	return true;
+}
+
+static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
+{
+	union dmub_rb_cmd cmd = {0};
+
+	if (dc->debug.dmcub_emulation)
+		return;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.idle_opt_notify_idle.header.type = DMUB_CMD__IDLE_OPT;
+	cmd.idle_opt_notify_idle.header.sub_type = DMUB_CMD__IDLE_OPT_DCN_NOTIFY_IDLE;
+	cmd.idle_opt_notify_idle.header.payload_bytes =
+		sizeof(cmd.idle_opt_notify_idle) -
+		sizeof(cmd.idle_opt_notify_idle.header);
+
+	cmd.idle_opt_notify_idle.cntl_data.driver_idle = allow_idle;
+
+	if (allow_idle) {
+		if (dc->hwss.set_idle_state)
+			dc->hwss.set_idle_state(dc, true);
+	}
+
+	/* NOTE: This does not use the "wake" interface since this is part of the wake path. */
+	/* We also do not perform a wait since DMCUB could enter idle after the notification. */
+	dm_execute_dmub_cmd(dc->ctx, &cmd, DM_DMUB_WAIT_TYPE_NO_WAIT);
+}
+
+static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
+{
+	uint32_t allow_state = 0;
+	uint32_t commit_state = 0;
+
+	if (dc->debug.dmcub_emulation)
+		return;
+
+	if (!dc->ctx->dmub_srv || !dc->ctx->dmub_srv->dmub)
+		return;
+
+	if (dc->hwss.get_idle_state &&
+		dc->hwss.set_idle_state &&
+		dc->clk_mgr->funcs->exit_low_power_state) {
+
+		allow_state = dc->hwss.get_idle_state(dc);
+		dc->hwss.set_idle_state(dc, false);
+
+		if (!(allow_state & DMUB_IPS2_ALLOW_MASK)) {
+			// Wait for evaluation time
+			for (;;) {
+				udelay(dc->debug.ips2_eval_delay_us);
+				commit_state = dc->hwss.get_idle_state(dc);
+				if (commit_state & DMUB_IPS2_ALLOW_MASK)
+					break;
+
+				/* allow was still set, retry eval delay */
+				dc->hwss.set_idle_state(dc, false);
+			}
+
+			if (!(commit_state & DMUB_IPS2_COMMIT_MASK)) {
+				// Tell PMFW to exit low power state
+				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+				// Wait for IPS2 entry upper bound
+				udelay(dc->debug.ips2_entry_delay_us);
+				dc->clk_mgr->funcs->exit_low_power_state(dc->clk_mgr);
+
+				for (;;) {
+					commit_state = dc->hwss.get_idle_state(dc);
+					if (commit_state & DMUB_IPS2_COMMIT_MASK)
+						break;
+
+					udelay(1);
+				}
+
+				if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
+					ASSERT(0);
+
+				/* TODO: See if we can return early here - IPS2 should go
+				 * back directly to IPS0 and clear the flags, but it will
+				 * be safer to directly notify DMCUB of this.
+				 */
+				allow_state = dc->hwss.get_idle_state(dc);
+			}
+		}
+
+		dc_dmub_srv_notify_idle(dc, false);
+		if (!(allow_state & DMUB_IPS1_ALLOW_MASK)) {
+			for (;;) {
+				commit_state = dc->hwss.get_idle_state(dc);
+				if (commit_state & DMUB_IPS1_COMMIT_MASK)
+					break;
+
+				udelay(1);
+			}
+		}
+	}
+
+	if (!dc_dmub_srv_is_hw_pwr_up(dc->ctx->dmub_srv, true))
+		ASSERT(0);
+}
+
+void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_cm_power_state powerState)
+{
+	struct dmub_srv *dmub;
+
+	if (!dc_dmub_srv)
+		return;
+
+	dmub = dc_dmub_srv->dmub;
+
+	if (powerState == DC_ACPI_CM_POWER_STATE_D0)
+		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D0);
+	else
+		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D3);
+}
+
+void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_idle)
+{
+	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return;
+
+	if (dc_dmub_srv->idle_allowed == allow_idle)
+		return;
+
+	/*
+	 * Entering a low power state requires a driver notification.
+	 * Powering up the hardware requires notifying PMFW and DMCUB.
+	 * Clearing the driver idle allow requires a DMCUB command.
+	 * DMCUB commands requires the DMCUB to be powered up and restored.
+	 *
+	 * Exit out early to prevent an infinite loop of DMCUB commands
+	 * triggering exit low power - use software state to track this.
+	 */
+	dc_dmub_srv->idle_allowed = allow_idle;
+
+	if (!allow_idle)
+		dc_dmub_srv_exit_low_power_state(dc);
+	else
+		dc_dmub_srv_notify_idle(dc, allow_idle);
+}
+
+bool dc_wake_and_execute_dmub_cmd(const struct dc_context *ctx, union dmub_rb_cmd *cmd,
+				  enum dm_dmub_wait_type wait_type)
+{
+	return dc_wake_and_execute_dmub_cmd_list(ctx, 1, cmd, wait_type);
+}
+
+bool dc_wake_and_execute_dmub_cmd_list(const struct dc_context *ctx, unsigned int count,
+				       union dmub_rb_cmd *cmd, enum dm_dmub_wait_type wait_type)
+{
+	struct dc_dmub_srv *dc_dmub_srv = ctx->dmub_srv;
+	bool result = false, reallow_idle = false;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	if (count == 0)
+		return true;
+
+	if (dc_dmub_srv->idle_allowed) {
+		dc_dmub_srv_apply_idle_power_optimizations(ctx->dc, false);
+		reallow_idle = true;
+	}
+
+	/*
+	 * These may have different implementations in DM, so ensure
+	 * that we guide it to the expected helper.
+	 */
+	if (count > 1)
+		result = dm_execute_dmub_cmd_list(ctx, count, cmd, wait_type);
+	else
+		result = dm_execute_dmub_cmd(ctx, cmd, wait_type);
+
+	if (result && reallow_idle)
+		dc_dmub_srv_apply_idle_power_optimizations(ctx->dc, true);
+
+	return result;
+}
+
+static bool dc_dmub_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_command command_code,
+				  uint16_t param, uint32_t *response, enum dm_dmub_wait_type wait_type)
+{
+	struct dc_dmub_srv *dc_dmub_srv = ctx->dmub_srv;
+	const uint32_t wait_us = wait_type == DM_DMUB_WAIT_TYPE_NO_WAIT ? 0 : 30;
+	enum dmub_status status;
+
+	if (response)
+		*response = 0;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	status = dmub_srv_send_gpint_command(dc_dmub_srv->dmub, command_code, param, wait_us);
+	if (status != DMUB_STATUS_OK) {
+		if (status == DMUB_STATUS_TIMEOUT && wait_type == DM_DMUB_WAIT_TYPE_NO_WAIT)
+			return true;
+
+		return false;
+	}
+
+	if (response && wait_type == DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY)
+		dmub_srv_get_gpint_response(dc_dmub_srv->dmub, response);
+
+	return true;
+}
+
+bool dc_wake_and_execute_gpint(const struct dc_context *ctx, enum dmub_gpint_command command_code,
+			       uint16_t param, uint32_t *response, enum dm_dmub_wait_type wait_type)
+{
+	struct dc_dmub_srv *dc_dmub_srv = ctx->dmub_srv;
+	bool result = false, reallow_idle = false;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	if (dc_dmub_srv->idle_allowed) {
+		dc_dmub_srv_apply_idle_power_optimizations(ctx->dc, false);
+		reallow_idle = true;
+	}
+
+	result = dc_dmub_execute_gpint(ctx, command_code, param, response, wait_type);
+
+	if (result && reallow_idle)
+		dc_dmub_srv_apply_idle_power_optimizations(ctx->dc, true);
+
+	return result;
 }

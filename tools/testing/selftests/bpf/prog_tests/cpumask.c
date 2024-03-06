@@ -10,6 +10,7 @@ static const char * const cpumask_success_testcases[] = {
 	"test_set_clear_cpu",
 	"test_setall_clear_cpu",
 	"test_first_firstzero_cpu",
+	"test_firstand_nocpu",
 	"test_test_and_set_clear",
 	"test_and_or_xor",
 	"test_intersects_subset",
@@ -17,6 +18,7 @@ static const char * const cpumask_success_testcases[] = {
 	"test_insert_leave",
 	"test_insert_remove_release",
 	"test_global_mask_rcu",
+	"test_cpumask_weight",
 };
 
 static void verify_success(const char *prog_name)
@@ -70,5 +72,6 @@ void test_cpumask(void)
 		verify_success(cpumask_success_testcases[i]);
 	}
 
+	RUN_TESTS(cpumask_success);
 	RUN_TESTS(cpumask_failure);
 }

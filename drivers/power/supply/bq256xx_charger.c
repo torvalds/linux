@@ -41,6 +41,9 @@
 #define BQ256XX_IINDPM_MAX_uA		3200000
 #define BQ256XX_IINDPM_DEF_uA		2400000
 
+#define BQ256XX_TS_IGNORE		BIT(6)
+#define BQ256XX_TS_IGNORE_SHIFT		6
+
 #define BQ256XX_VINDPM_MASK		GENMASK(3, 0)
 #define BQ256XX_VINDPM_STEP_uV		100000
 #define BQ256XX_VINDPM_OFFSET_uV	3900000
@@ -156,6 +159,7 @@
  * @vindpm: input voltage limit
  * @ichg_max: maximum fast charge current
  * @vbatreg_max: maximum charge voltage
+ * @ts_ignore: TS_IGNORE flag
  */
 struct bq256xx_init_data {
 	u32 ichg;
@@ -166,6 +170,7 @@ struct bq256xx_init_data {
 	u32 vindpm;
 	u32 ichg_max;
 	u32 vbatreg_max;
+	bool ts_ignore;
 };
 
 /**
@@ -263,6 +268,7 @@ struct bq256xx_device {
  * @bq256xx_set_iprechg: pointer to instance specific set_iprechg function
  * @bq256xx_set_vindpm: pointer to instance specific set_vindpm function
  * @bq256xx_set_charge_type: pointer to instance specific set_charge_type function
+ * @bq256xx_set_ts_ignore: pointer to instance specific set_ts_ignore function
  *
  * @bq256xx_def_ichg: default ichg value in microamps
  * @bq256xx_def_iindpm: default iindpm value in microamps
@@ -295,6 +301,7 @@ struct bq256xx_chip_info {
 	int (*bq256xx_set_iprechg)(struct bq256xx_device *bq, int iprechg);
 	int (*bq256xx_set_vindpm)(struct bq256xx_device *bq, int vindpm);
 	int (*bq256xx_set_charge_type)(struct bq256xx_device *bq, int type);
+	int (*bq256xx_set_ts_ignore)(struct bq256xx_device *bq, bool ts_ignore);
 
 	int bq256xx_def_ichg;
 	int bq256xx_def_iindpm;
@@ -694,6 +701,12 @@ static int bq25601d_set_chrg_volt(struct bq256xx_device *bq, int vbatreg)
 	return regmap_update_bits(bq->regmap, BQ256XX_BATTERY_VOLTAGE_LIMIT,
 				BQ256XX_VBATREG_MASK, vbatreg_reg_code <<
 						BQ256XX_VBATREG_BIT_SHIFT);
+}
+
+static int bq256xx_set_ts_ignore(struct bq256xx_device *bq, bool ts_ignore)
+{
+	return regmap_update_bits(bq->regmap, BQ256XX_INPUT_CURRENT_LIMIT,
+				BQ256XX_TS_IGNORE, (ts_ignore ? 1 : 0) << BQ256XX_TS_IGNORE_SHIFT);
 }
 
 static int bq256xx_get_prechrg_curr(struct bq256xx_device *bq)
@@ -1312,6 +1325,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_get_iterm = bq256xx_get_term_curr,
 		.bq256xx_get_iprechg = bq256xx_get_prechrg_curr,
 		.bq256xx_get_vindpm = bq256xx_get_input_volt_lim,
+		.bq256xx_set_ts_ignore = NULL,
 
 		.bq256xx_set_ichg = bq256xx_set_ichg_curr,
 		.bq256xx_set_iindpm = bq256xx_set_input_curr_lim,
@@ -1351,6 +1365,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
+		.bq256xx_set_ts_ignore = NULL,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1382,6 +1397,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
+		.bq256xx_set_ts_ignore = NULL,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1413,6 +1429,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
+		.bq256xx_set_ts_ignore = NULL,
 
 		.bq256xx_def_ichg = BQ2560X_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1444,6 +1461,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq256xx_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
+		.bq256xx_set_ts_ignore = bq256xx_set_ts_ignore,
 
 		.bq256xx_def_ichg = BQ25611D_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1475,6 +1493,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq25618_619_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
+		.bq256xx_set_ts_ignore = bq256xx_set_ts_ignore,
 
 		.bq256xx_def_ichg = BQ25618_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1506,6 +1525,7 @@ static const struct bq256xx_chip_info bq256xx_chip_info_tbl[] = {
 		.bq256xx_set_iprechg = bq25618_619_set_prechrg_curr,
 		.bq256xx_set_vindpm = bq256xx_set_input_volt_lim,
 		.bq256xx_set_charge_type = bq256xx_set_charge_type,
+		.bq256xx_set_ts_ignore = bq256xx_set_ts_ignore,
 
 		.bq256xx_def_ichg = BQ25618_ICHG_DEF_uA,
 		.bq256xx_def_iindpm = BQ256XX_IINDPM_DEF_uA,
@@ -1554,13 +1574,16 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 			wd_reg_val = i;
 			break;
 		}
-		if (bq->watchdog_timer > bq256xx_watchdog_time[i] &&
+		if (i + 1 < BQ256XX_NUM_WD_VAL &&
+		    bq->watchdog_timer > bq256xx_watchdog_time[i] &&
 		    bq->watchdog_timer < bq256xx_watchdog_time[i + 1])
 			wd_reg_val = i;
 	}
 	ret = regmap_update_bits(bq->regmap, BQ256XX_CHARGER_CONTROL_1,
 				 BQ256XX_WATCHDOG_MASK, wd_reg_val <<
 						BQ256XX_WDT_BIT_SHIFT);
+	if (ret)
+		return ret;
 
 	ret = power_supply_get_battery_info(bq->charger, &bat_info);
 	if (ret == -ENOMEM)
@@ -1622,6 +1645,12 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 	if (ret)
 		return ret;
 
+	if (bq->chip_info->bq256xx_set_ts_ignore) {
+		ret = bq->chip_info->bq256xx_set_ts_ignore(bq, bq->init_data.ts_ignore);
+		if (ret)
+			return ret;
+	}
+
 	power_supply_put_battery_info(bq->charger, bat_info);
 
 	return 0;
@@ -1656,6 +1685,8 @@ static int bq256xx_parse_dt(struct bq256xx_device *bq,
 	if (ret)
 		bq->init_data.iindpm = bq->chip_info->bq256xx_def_iindpm;
 
+	bq->init_data.ts_ignore = device_property_read_bool(bq->dev, "ti,no-thermistor");
+
 	return 0;
 }
 
@@ -1674,11 +1705,11 @@ static int bq256xx_probe(struct i2c_client *client)
 
 	bq->client = client;
 	bq->dev = dev;
-	bq->chip_info = &bq256xx_chip_info_tbl[id->driver_data];
+	bq->chip_info = i2c_get_match_data(client);
 
 	mutex_init(&bq->lock);
 
-	strncpy(bq->model_name, id->name, I2C_NAME_SIZE);
+	strscpy(bq->model_name, id->name, sizeof(bq->model_name));
 
 	bq->regmap = devm_regmap_init_i2c(client,
 					bq->chip_info->bq256xx_regmap_config);
@@ -1743,38 +1774,38 @@ static int bq256xx_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id bq256xx_i2c_ids[] = {
-	{ "bq25600", BQ25600 },
-	{ "bq25600d", BQ25600D },
-	{ "bq25601", BQ25601 },
-	{ "bq25601d", BQ25601D },
-	{ "bq25611d", BQ25611D },
-	{ "bq25618", BQ25618 },
-	{ "bq25619", BQ25619 },
-	{},
+	{ "bq25600", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600] },
+	{ "bq25600d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600D] },
+	{ "bq25601", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601] },
+	{ "bq25601d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601D] },
+	{ "bq25611d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25611D] },
+	{ "bq25618", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25618] },
+	{ "bq25619", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25619] },
+	{}
 };
 MODULE_DEVICE_TABLE(i2c, bq256xx_i2c_ids);
 
 static const struct of_device_id bq256xx_of_match[] = {
-	{ .compatible = "ti,bq25600", .data = (void *)BQ25600 },
-	{ .compatible = "ti,bq25600d", .data = (void *)BQ25600D },
-	{ .compatible = "ti,bq25601", .data = (void *)BQ25601 },
-	{ .compatible = "ti,bq25601d", .data = (void *)BQ25601D },
-	{ .compatible = "ti,bq25611d", .data = (void *)BQ25611D },
-	{ .compatible = "ti,bq25618", .data = (void *)BQ25618 },
-	{ .compatible = "ti,bq25619", .data = (void *)BQ25619 },
-	{ },
+	{ .compatible = "ti,bq25600", .data = &bq256xx_chip_info_tbl[BQ25600] },
+	{ .compatible = "ti,bq25600d", .data = &bq256xx_chip_info_tbl[BQ25600D] },
+	{ .compatible = "ti,bq25601", .data = &bq256xx_chip_info_tbl[BQ25601] },
+	{ .compatible = "ti,bq25601d", .data = &bq256xx_chip_info_tbl[BQ25601D] },
+	{ .compatible = "ti,bq25611d", .data = &bq256xx_chip_info_tbl[BQ25611D] },
+	{ .compatible = "ti,bq25618", .data = &bq256xx_chip_info_tbl[BQ25618] },
+	{ .compatible = "ti,bq25619", .data = &bq256xx_chip_info_tbl[BQ25619] },
+	{}
 };
 MODULE_DEVICE_TABLE(of, bq256xx_of_match);
 
 static const struct acpi_device_id bq256xx_acpi_match[] = {
-	{ "bq25600", BQ25600 },
-	{ "bq25600d", BQ25600D },
-	{ "bq25601", BQ25601 },
-	{ "bq25601d", BQ25601D },
-	{ "bq25611d", BQ25611D },
-	{ "bq25618", BQ25618 },
-	{ "bq25619", BQ25619 },
-	{},
+	{ "bq25600", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600] },
+	{ "bq25600d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25600D] },
+	{ "bq25601", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601] },
+	{ "bq25601d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25601D] },
+	{ "bq25611d", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25611D] },
+	{ "bq25618", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25618] },
+	{ "bq25619", (kernel_ulong_t)&bq256xx_chip_info_tbl[BQ25619] },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, bq256xx_acpi_match);
 
@@ -1784,7 +1815,7 @@ static struct i2c_driver bq256xx_driver = {
 		.of_match_table = bq256xx_of_match,
 		.acpi_match_table = bq256xx_acpi_match,
 	},
-	.probe_new = bq256xx_probe,
+	.probe = bq256xx_probe,
 	.id_table = bq256xx_i2c_ids,
 };
 module_i2c_driver(bq256xx_driver);

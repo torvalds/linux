@@ -54,6 +54,7 @@ try:
 	import audit
 	machine_to_id = {
 		'x86_64': audit.MACH_86_64,
+		'aarch64': audit.MACH_AARCH64,
 		'alpha'	: audit.MACH_ALPHA,
 		'ia64'	: audit.MACH_IA64,
 		'ppc'	: audit.MACH_PPC,
@@ -73,9 +74,9 @@ try:
 except:
 	if not audit_package_warned:
 		audit_package_warned = True
-		print("Install the audit-libs-python package to get syscall names.\n"
-                    "For example:\n  # apt-get install python-audit (Ubuntu)"
-                    "\n  # yum install audit-libs-python (Fedora)"
+		print("Install the python-audit package to get syscall names.\n"
+                    "For example:\n  # apt-get install python3-audit (Ubuntu)"
+                    "\n  # yum install python3-audit (Fedora)"
                     "\n  etc.\n")
 
 def syscall_name(id):

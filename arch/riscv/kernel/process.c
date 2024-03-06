@@ -24,6 +24,8 @@
 #include <asm/switch_to.h>
 #include <asm/thread_info.h>
 #include <asm/cpuidle.h>
+#include <asm/vector.h>
+#include <asm/cpufeature.h>
 
 register unsigned long gp_in_global __asm__("gp");
 
@@ -38,6 +40,23 @@ extern asmlinkage void ret_from_fork(void);
 void arch_cpu_idle(void)
 {
 	cpu_do_idle();
+}
+
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	if (!unaligned_ctl_available())
+		return -EINVAL;
+
+	tsk->thread.align_ctl = val;
+	return 0;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long adr)
+{
+	if (!unaligned_ctl_available())
+		return -EINVAL;
+
+	return put_user(tsk->thread.align_ctl, (unsigned long __user *)adr);
 }
 
 void __show_regs(struct pt_regs *regs)
@@ -146,12 +165,32 @@ void flush_thread(void)
 	fstate_off(current, task_pt_regs(current));
 	memset(&current->thread.fstate, 0, sizeof(current->thread.fstate));
 #endif
+#ifdef CONFIG_RISCV_ISA_V
+	/* Reset vector state */
+	riscv_v_vstate_ctrl_init(current);
+	riscv_v_vstate_off(task_pt_regs(current));
+	kfree(current->thread.vstate.datap);
+	memset(&current->thread.vstate, 0, sizeof(struct __riscv_v_ext_state));
+	clear_tsk_thread_flag(current, TIF_RISCV_V_DEFER_RESTORE);
+#endif
+}
+
+void arch_release_task_struct(struct task_struct *tsk)
+{
+	/* Free the vector context of datap. */
+	if (has_vector())
+		riscv_v_thread_free(tsk);
 }
 
 int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	fstate_save(src, task_pt_regs(src));
 	*dst = *src;
+	/* clear entire V context, including datap for a new task */
+	memset(&dst->thread.vstate, 0, sizeof(struct __riscv_v_ext_state));
+	memset(&dst->thread.kernel_vstate, 0, sizeof(struct __riscv_v_ext_state));
+	clear_tsk_thread_flag(dst, TIF_RISCV_V_DEFER_RESTORE);
+
 	return 0;
 }
 
@@ -176,6 +215,8 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		p->thread.s[1] = (unsigned long)args->fn_arg;
 	} else {
 		*childregs = *(current_pt_regs());
+		/* Turn off status.VS */
+		riscv_v_vstate_off(childregs);
 		if (usp) /* User fork */
 			childregs->sp = usp;
 		if (clone_flags & CLONE_SETTLS)
@@ -183,7 +224,15 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 		childregs->a0 = 0; /* Return value of fork() */
 		p->thread.s[0] = 0;
 	}
+	p->thread.riscv_v_flags = 0;
+	if (has_vector())
+		riscv_v_thread_alloc(p);
 	p->thread.ra = (unsigned long)ret_from_fork;
 	p->thread.sp = (unsigned long)childregs; /* kernel sp */
 	return 0;
+}
+
+void __init arch_task_cache_init(void)
+{
+	riscv_v_setup_ctx_cache();
 }

@@ -22,6 +22,8 @@
 #include "dm-ima.h"
 
 #define DM_RESERVED_MAX_IOS		1024
+#define DM_MAX_TARGETS			1048576
+#define DM_MAX_TARGET_PARAMS		1024
 
 struct dm_io;
 
@@ -207,14 +209,14 @@ struct dm_table {
 	unsigned integrity_added:1;
 
 	/*
-	 * Indicates the rw permissions for the new logical
-	 * device.  This should be a combination of FMODE_READ
-	 * and FMODE_WRITE.
+	 * Indicates the rw permissions for the new logical device.  This
+	 * should be a combination of BLK_OPEN_READ and BLK_OPEN_WRITE.
 	 */
-	fmode_t mode;
+	blk_mode_t mode;
 
 	/* a list of devices used by this table */
 	struct list_head devices;
+	struct rw_semaphore devices_lock;
 
 	/* events get handed up using this callback */
 	void (*event_fn)(void *data);
@@ -307,7 +309,8 @@ struct dm_io {
  */
 enum {
 	DM_IO_ACCOUNTED,
-	DM_IO_WAS_SPLIT
+	DM_IO_WAS_SPLIT,
+	DM_IO_BLK_STAT
 };
 
 static inline bool dm_io_flagged(struct dm_io *io, unsigned int bit)

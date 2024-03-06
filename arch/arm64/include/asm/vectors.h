@@ -62,7 +62,7 @@ DECLARE_PER_CPU_READ_MOSTLY(const char *, this_cpu_vector);
 static inline const char *
 arm64_get_bp_hardening_vector(enum arm64_bp_harden_el1_vectors slot)
 {
-	if (arm64_kernel_unmapped_at_el0())
+	if (cpus_have_cap(ARM64_UNMAP_KERNEL_AT_EL0))
 		return (char *)(TRAMP_VALIAS + SZ_2K * slot);
 
 	WARN_ON_ONCE(slot == EL1_VECTOR_KPTI);

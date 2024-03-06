@@ -5,9 +5,12 @@
  */
 
 #include <linux/errno.h>
+#include <linux/fb.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 
@@ -16,14 +19,24 @@
 #include "armada_fb.h"
 #include "armada_gem.h"
 
+static void armada_fbdev_fb_destroy(struct fb_info *info)
+{
+	struct drm_fb_helper *fbh = info->par;
+
+	drm_fb_helper_fini(fbh);
+
+	fbh->fb->funcs->destroy(fbh->fb);
+
+	drm_client_release(&fbh->client);
+	drm_fb_helper_unprepare(fbh);
+	kfree(fbh);
+}
+
 static const struct fb_ops armada_fb_ops = {
 	.owner		= THIS_MODULE,
+	FB_DEFAULT_IOMEM_OPS,
 	DRM_FB_HELPER_DEFAULT_OPS,
-	.fb_read	= drm_fb_helper_cfb_read,
-	.fb_write	= drm_fb_helper_cfb_write,
-	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
-	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
-	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
+	.fb_destroy	= armada_fbdev_fb_destroy,
 };
 
 static int armada_fbdev_create(struct drm_fb_helper *fbh,
@@ -117,56 +130,91 @@ static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
 	.fb_probe	= armada_fb_probe,
 };
 
-int armada_fbdev_init(struct drm_device *dev)
+/*
+ * Fbdev client and struct drm_client_funcs
+ */
+
+static void armada_fbdev_client_unregister(struct drm_client_dev *client)
 {
-	struct armada_private *priv = drm_to_armada_dev(dev);
-	struct drm_fb_helper *fbh;
-	int ret;
+	struct drm_fb_helper *fbh = drm_fb_helper_from_client(client);
 
-	fbh = devm_kzalloc(dev->dev, sizeof(*fbh), GFP_KERNEL);
-	if (!fbh)
-		return -ENOMEM;
-
-	priv->fbdev = fbh;
-
-	drm_fb_helper_prepare(dev, fbh, 32, &armada_fb_helper_funcs);
-
-	ret = drm_fb_helper_init(dev, fbh);
-	if (ret) {
-		DRM_ERROR("failed to initialize drm fb helper\n");
-		goto err_fb_helper;
+	if (fbh->info) {
+		drm_fb_helper_unregister_info(fbh);
+	} else {
+		drm_client_release(&fbh->client);
+		drm_fb_helper_unprepare(fbh);
+		kfree(fbh);
 	}
+}
 
-	ret = drm_fb_helper_initial_config(fbh);
-	if (ret) {
-		DRM_ERROR("failed to set initial config\n");
-		goto err_fb_setup;
-	}
+static int armada_fbdev_client_restore(struct drm_client_dev *client)
+{
+	drm_fb_helper_lastclose(client->dev);
 
 	return 0;
- err_fb_setup:
+}
+
+static int armada_fbdev_client_hotplug(struct drm_client_dev *client)
+{
+	struct drm_fb_helper *fbh = drm_fb_helper_from_client(client);
+	struct drm_device *dev = client->dev;
+	int ret;
+
+	if (dev->fb_helper)
+		return drm_fb_helper_hotplug_event(dev->fb_helper);
+
+	ret = drm_fb_helper_init(dev, fbh);
+	if (ret)
+		goto err_drm_err;
+
+	if (!drm_drv_uses_atomic_modeset(dev))
+		drm_helper_disable_unused_functions(dev);
+
+	ret = drm_fb_helper_initial_config(fbh);
+	if (ret)
+		goto err_drm_fb_helper_fini;
+
+	return 0;
+
+err_drm_fb_helper_fini:
 	drm_fb_helper_fini(fbh);
- err_fb_helper:
-	drm_fb_helper_unprepare(fbh);
-	priv->fbdev = NULL;
+err_drm_err:
+	drm_err(dev, "armada: Failed to setup fbdev emulation (ret=%d)\n", ret);
 	return ret;
 }
 
-void armada_fbdev_fini(struct drm_device *dev)
+static const struct drm_client_funcs armada_fbdev_client_funcs = {
+	.owner		= THIS_MODULE,
+	.unregister	= armada_fbdev_client_unregister,
+	.restore	= armada_fbdev_client_restore,
+	.hotplug	= armada_fbdev_client_hotplug,
+};
+
+void armada_fbdev_setup(struct drm_device *dev)
 {
-	struct armada_private *priv = drm_to_armada_dev(dev);
-	struct drm_fb_helper *fbh = priv->fbdev;
+	struct drm_fb_helper *fbh;
+	int ret;
 
-	if (fbh) {
-		drm_fb_helper_unregister_info(fbh);
+	drm_WARN(dev, !dev->registered, "Device has not been registered.\n");
+	drm_WARN(dev, dev->fb_helper, "fb_helper is already set!\n");
 
-		drm_fb_helper_fini(fbh);
+	fbh = kzalloc(sizeof(*fbh), GFP_KERNEL);
+	if (!fbh)
+		return;
+	drm_fb_helper_prepare(dev, fbh, 32, &armada_fb_helper_funcs);
 
-		if (fbh->fb)
-			fbh->fb->funcs->destroy(fbh->fb);
-
-		drm_fb_helper_unprepare(fbh);
-
-		priv->fbdev = NULL;
+	ret = drm_client_init(dev, &fbh->client, "fbdev", &armada_fbdev_client_funcs);
+	if (ret) {
+		drm_err(dev, "Failed to register client: %d\n", ret);
+		goto err_drm_client_init;
 	}
+
+	drm_client_register(&fbh->client);
+
+	return;
+
+err_drm_client_init:
+	drm_fb_helper_unprepare(fbh);
+	kfree(fbh);
+	return;
 }

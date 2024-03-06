@@ -169,7 +169,7 @@ Enabling "nested" (s390x)
     $ modprobe kvm nested=1
 
 .. note:: On s390x, the kernel parameter ``hpage`` is mutually exclusive
-          with the ``nested`` paramter — i.e. to be able to enable
+          with the ``nested`` parameter — i.e. to be able to enable
           ``nested``, the ``hpage`` parameter *must* be disabled.
 
 2. The guest hypervisor (L1) must be provided with the ``sie`` CPU

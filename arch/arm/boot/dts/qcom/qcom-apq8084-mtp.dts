@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "qcom-apq8084.dtsi"
+#include "pma8084.dtsi"
+
+/ {
+	model = "Qualcomm APQ 8084-MTP";
+	compatible = "qcom,apq8084-mtp", "qcom,apq8084";
+
+	aliases {
+		serial0 = &blsp2_uart2;
+		usid0 = &pma8084_0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	soc {
+		serial@f995e000 {
+			status = "okay";
+		};
+	};
+};

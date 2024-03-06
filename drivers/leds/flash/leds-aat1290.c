@@ -425,7 +425,7 @@ static void aat1290_init_v4l2_flash_config(struct aat1290_led *led,
 	struct led_classdev *led_cdev = &led->fled_cdev.led_cdev;
 	struct led_flash_setting *s;
 
-	strlcpy(v4l2_sd_cfg->dev_name, led_cdev->dev->kobj.name,
+	strscpy(v4l2_sd_cfg->dev_name, led_cdev->dev->kobj.name,
 		sizeof(v4l2_sd_cfg->dev_name));
 
 	s = &v4l2_sd_cfg->intensity;
@@ -522,7 +522,7 @@ err_flash_register:
 	return ret;
 }
 
-static int aat1290_led_remove(struct platform_device *pdev)
+static void aat1290_led_remove(struct platform_device *pdev)
 {
 	struct aat1290_led *led = platform_get_drvdata(pdev);
 
@@ -530,8 +530,6 @@ static int aat1290_led_remove(struct platform_device *pdev)
 	led_classdev_flash_unregister(&led->fled_cdev);
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct of_device_id aat1290_led_dt_match[] = {
@@ -542,7 +540,7 @@ MODULE_DEVICE_TABLE(of, aat1290_led_dt_match);
 
 static struct platform_driver aat1290_led_driver = {
 	.probe		= aat1290_led_probe,
-	.remove		= aat1290_led_remove,
+	.remove_new	= aat1290_led_remove,
 	.driver		= {
 		.name	= "aat1290",
 		.of_match_table = aat1290_led_dt_match,

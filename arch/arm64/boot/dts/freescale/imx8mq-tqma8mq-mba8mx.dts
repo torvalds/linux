@@ -11,6 +11,7 @@
 / {
 	model = "TQ-Systems GmbH i.MX8MQ TQMa8MQ on MBa8Mx";
 	compatible = "tq,imx8mq-tqma8mq-mba8mx", "tq,imx8mq-tqma8mq", "fsl,imx8mq";
+	chassis-type = "embedded";
 
 	aliases {
 		eeprom0 = &eeprom3;
@@ -24,7 +25,7 @@
 		compatible = "linux,extcon-usb-gpio";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_usbcon0>;
-		id-gpio = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
 	};
 
 	pcie0_refclk: pcie0-refclk {
@@ -108,8 +109,6 @@
 		 <&pcie0_refclk>,
 		 <&clk IMX8MQ_CLK_PCIE1_PHY>,
 		 <&clk IMX8MQ_CLK_PCIE1_AUX>;
-	epdev_on-supply = <&reg_vcc_3v3>;
-	hard-wired = <1>;
 	status = "okay";
 };
 
@@ -122,8 +121,6 @@
 		 <&pcie1_refclk>,
 		 <&clk IMX8MQ_CLK_PCIE2_PHY>,
 		 <&clk IMX8MQ_CLK_PCIE2_AUX>;
-	epdev_on-supply = <&reg_vcc_3v3>;
-	hard-wired = <1>;
 	status = "okay";
 };
 

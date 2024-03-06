@@ -9,6 +9,110 @@
 #include "cifsglob.h"
 #include "fs_context.h"
 #include "cifs_unicode.h"
+#include <linux/namei.h>
+
+#define DFS_INTERLINK(v) \
+	(((v) & DFSREF_REFERRAL_SERVER) && !((v) & DFSREF_STORAGE_SERVER))
+
+struct dfs_ref {
+	char *path;
+	char *full_path;
+	struct dfs_cache_tgt_list tl;
+	struct dfs_cache_tgt_iterator *tit;
+};
+
+struct dfs_ref_walk {
+	struct dfs_ref *ref;
+	struct dfs_ref refs[MAX_NESTED_LINKS];
+};
+
+#define ref_walk_start(w)	((w)->refs)
+#define ref_walk_end(w)	(&(w)->refs[ARRAY_SIZE((w)->refs) - 1])
+#define ref_walk_cur(w)	((w)->ref)
+#define ref_walk_descend(w)	(--ref_walk_cur(w) >= ref_walk_start(w))
+
+#define ref_walk_tit(w)	(ref_walk_cur(w)->tit)
+#define ref_walk_empty(w)	(!ref_walk_tit(w))
+#define ref_walk_path(w)	(ref_walk_cur(w)->path)
+#define ref_walk_fpath(w)	(ref_walk_cur(w)->full_path)
+#define ref_walk_tl(w)		(&ref_walk_cur(w)->tl)
+
+static inline struct dfs_ref_walk *ref_walk_alloc(void)
+{
+	struct dfs_ref_walk *rw;
+
+	rw = kmalloc(sizeof(*rw), GFP_KERNEL);
+	if (!rw)
+		return ERR_PTR(-ENOMEM);
+	return rw;
+}
+
+static inline void ref_walk_init(struct dfs_ref_walk *rw)
+{
+	memset(rw, 0, sizeof(*rw));
+	ref_walk_cur(rw) = ref_walk_start(rw);
+}
+
+static inline void __ref_walk_free(struct dfs_ref *ref)
+{
+	kfree(ref->path);
+	kfree(ref->full_path);
+	dfs_cache_free_tgts(&ref->tl);
+	memset(ref, 0, sizeof(*ref));
+}
+
+static inline void ref_walk_free(struct dfs_ref_walk *rw)
+{
+	struct dfs_ref *ref = ref_walk_start(rw);
+
+	for (; ref <= ref_walk_end(rw); ref++)
+		__ref_walk_free(ref);
+	kfree(rw);
+}
+
+static inline int ref_walk_advance(struct dfs_ref_walk *rw)
+{
+	struct dfs_ref *ref = ref_walk_cur(rw) + 1;
+
+	if (ref > ref_walk_end(rw))
+		return -ELOOP;
+	__ref_walk_free(ref);
+	ref_walk_cur(rw) = ref;
+	return 0;
+}
+
+static inline struct dfs_cache_tgt_iterator *
+ref_walk_next_tgt(struct dfs_ref_walk *rw)
+{
+	struct dfs_cache_tgt_iterator *tit;
+	struct dfs_ref *ref = ref_walk_cur(rw);
+
+	if (!ref->tit)
+		tit = dfs_cache_get_tgt_iterator(&ref->tl);
+	else
+		tit = dfs_cache_get_next_tgt(&ref->tl, ref->tit);
+	ref->tit = tit;
+	return tit;
+}
+
+static inline int ref_walk_get_tgt(struct dfs_ref_walk *rw,
+				   struct dfs_info3_param *tgt)
+{
+	zfree_dfs_info_param(tgt);
+	return dfs_cache_get_tgt_referral(ref_walk_path(rw) + 1,
+					  ref_walk_tit(rw), tgt);
+}
+
+static inline int ref_walk_num_tgts(struct dfs_ref_walk *rw)
+{
+	return dfs_cache_get_nr_tgts(ref_walk_tl(rw));
+}
+
+static inline void ref_walk_set_tgt_hint(struct dfs_ref_walk *rw)
+{
+	dfs_cache_noreq_update_tgthint(ref_walk_path(rw) + 1,
+				       ref_walk_tit(rw));
+}
 
 struct dfs_root_ses {
 	struct list_head list;
@@ -32,44 +136,6 @@ static inline int dfs_get_referral(struct cifs_mount_ctx *mnt_ctx, const char *p
 
 	return dfs_cache_find(mnt_ctx->xid, ctx->dfs_root_ses, cifs_sb->local_nls,
 			      cifs_remap(cifs_sb), path, ref, tl);
-}
-
-/* Return DFS full path out of a dentry set for automount */
-static inline char *dfs_get_automount_devname(struct dentry *dentry, void *page)
-{
-	struct cifs_sb_info *cifs_sb = CIFS_SB(dentry->d_sb);
-	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
-	struct TCP_Server_Info *server = tcon->ses->server;
-	size_t len;
-	char *s;
-
-	spin_lock(&server->srv_lock);
-	if (unlikely(!server->origin_fullpath)) {
-		spin_unlock(&server->srv_lock);
-		return ERR_PTR(-EREMOTE);
-	}
-	spin_unlock(&server->srv_lock);
-
-	s = dentry_path_raw(dentry, page, PATH_MAX);
-	if (IS_ERR(s))
-		return s;
-	/* for root, we want "" */
-	if (!s[1])
-		s++;
-
-	spin_lock(&server->srv_lock);
-	len = strlen(server->origin_fullpath);
-	if (s < (char *)page + len) {
-		spin_unlock(&server->srv_lock);
-		return ERR_PTR(-ENAMETOOLONG);
-	}
-
-	s -= len;
-	memcpy(s, server->origin_fullpath, len);
-	spin_unlock(&server->srv_lock);
-	convert_delimiter(s, '/');
-
-	return s;
 }
 
 static inline void dfs_put_root_smb_sessions(struct list_head *head)

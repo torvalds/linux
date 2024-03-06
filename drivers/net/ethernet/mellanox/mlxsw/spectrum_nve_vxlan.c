@@ -11,10 +11,12 @@
 #include "spectrum_nve.h"
 
 #define MLXSW_SP_NVE_VXLAN_IPV4_SUPPORTED_FLAGS (VXLAN_F_UDP_ZERO_CSUM_TX | \
-						 VXLAN_F_LEARN)
+						 VXLAN_F_LEARN | \
+						 VXLAN_F_LOCALBYPASS)
 #define MLXSW_SP_NVE_VXLAN_IPV6_SUPPORTED_FLAGS (VXLAN_F_IPV6 | \
 						 VXLAN_F_UDP_ZERO_CSUM6_TX | \
-						 VXLAN_F_UDP_ZERO_CSUM6_RX)
+						 VXLAN_F_UDP_ZERO_CSUM6_RX | \
+						 VXLAN_F_LOCALBYPASS)
 
 static bool mlxsw_sp_nve_vxlan_ipv4_flags_check(const struct vxlan_config *cfg,
 						struct netlink_ext_ack *extack)
@@ -308,8 +310,8 @@ const struct mlxsw_sp_nve_ops mlxsw_sp1_nve_vxlan_ops = {
 	.fdb_clear_offload = mlxsw_sp_nve_vxlan_clear_offload,
 };
 
-static bool mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
-					     bool learning_en)
+static int mlxsw_sp2_nve_vxlan_learning_set(struct mlxsw_sp *mlxsw_sp,
+					    bool learning_en)
 {
 	char tnpc_pl[MLXSW_REG_TNPC_LEN];
 

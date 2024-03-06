@@ -116,3 +116,4 @@ static void __exit ebtable_filter_fini(void)
 module_init(ebtable_filter_init);
 module_exit(ebtable_filter_fini);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ebtables legacy filter table");

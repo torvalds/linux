@@ -67,7 +67,7 @@ MDIO indirect accesses
 ----------------------
 
 Due to a limitation in how Broadcom switches have been designed, external
-Broadcom switches connected to a SF2 require the use of the DSA slave MDIO bus
+Broadcom switches connected to a SF2 require the use of the DSA user MDIO bus
 in order to properly configure them. By default, the SF2 pseudo-PHY address, and
 an external switch pseudo-PHY address will both be snooping for incoming MDIO
 transactions, since they are at the same address (30), resulting in some kind of

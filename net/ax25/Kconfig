@@ -10,7 +10,7 @@ menuconfig HAMRADIO
 	  If you want to connect your Linux box to an amateur radio, answer Y
 	  here. You want to read <https://www.tapr.org/>
 	  and more specifically about AX.25 on Linux
-	  <http://www.linux-ax25.org/>.
+	  <https://linux-ax25.in-berlin.de>.
 
 	  Note that the answer to this question won't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
@@ -61,7 +61,7 @@ config AX25_DAMA_SLAVE
 	  configuration. Linux cannot yet act as a DAMA server.  This option
 	  only compiles DAMA slave support into the kernel.  It still needs to
 	  be enabled at runtime.  For more about DAMA see
-	  <http://www.linux-ax25.org>.  If unsure, say Y.
+	  <https://linux-ax25.in-berlin.de>.  If unsure, say Y.
 
 # placeholder until implemented
 config AX25_DAMA_MASTER
@@ -87,9 +87,9 @@ config NETROM
 	  A comprehensive listing of all the software for Linux amateur radio
 	  users as well as information about how to configure an AX.25 port is
 	  contained in the Linux Ham Wiki, available from
-	  <http://www.linux-ax25.org>. You also might want to check out the
-	  file <file:Documentation/networking/ax25.rst>. More information about
-	  digital amateur radio in general is on the WWW at
+	  <https://linux-ax25.in-berlin.de>. You also might want to check out
+	  the file <file:Documentation/networking/ax25.rst>. More information
+	  about digital amateur radio in general is on the WWW at
 	  <https://www.tapr.org/>.
 
 	  To compile this driver as a module, choose M here: the
@@ -106,9 +106,9 @@ config ROSE
 	  A comprehensive listing of all the software for Linux amateur radio
 	  users as well as information about how to configure an AX.25 port is
 	  contained in the Linux Ham Wiki, available from
-	  <http://www.linux-ax25.org>.  You also might want to check out the
-	  file <file:Documentation/networking/ax25.rst>. More information about
-	  digital amateur radio in general is on the WWW at
+	  <https://linux-ax25.in-berlin.de>.  You also might want to check out
+	  the file <file:Documentation/networking/ax25.rst>. More information
+	  about digital amateur radio in general is on the WWW at
 	  <https://www.tapr.org/>.
 
 	  To compile this driver as a module, choose M here: the

@@ -442,10 +442,28 @@ static int ad74413r_set_channel_function(struct ad74413r_state *st,
 	int ret;
 
 	ret = regmap_update_bits(st->regmap,
+				 AD74413R_REG_CH_FUNC_SETUP_X(channel),
+				 AD74413R_CH_FUNC_SETUP_MASK,
+				 CH_FUNC_HIGH_IMPEDANCE);
+	if (ret)
+		return ret;
+
+	/* Set DAC code to 0 prior to changing channel function */
+	ret = ad74413r_set_channel_dac_code(st, channel, 0);
+	if (ret)
+		return ret;
+
+	/* Delay required before transition to new desired mode */
+	usleep_range(130, 150);
+
+	ret = regmap_update_bits(st->regmap,
 				  AD74413R_REG_CH_FUNC_SETUP_X(channel),
 				  AD74413R_CH_FUNC_SETUP_MASK, func);
 	if (ret)
 		return ret;
+
+	/* Delay required before updating the new DAC code */
+	usleep_range(150, 170);
 
 	if (func == CH_FUNC_CURRENT_INPUT_LOOP_POWER)
 		ret = regmap_set_bits(st->regmap,
@@ -705,8 +723,8 @@ static int ad74413r_get_input_current_scale(struct ad74413r_state *st,
 	return IIO_VAL_FRACTIONAL;
 }
 
-static int ad74413_get_input_current_offset(struct ad74413r_state *st,
-					    unsigned int channel, int *val)
+static int ad74413r_get_input_current_offset(struct ad74413r_state *st,
+					     unsigned int channel, int *val)
 {
 	unsigned int range;
 	int voltage_range;
@@ -991,7 +1009,7 @@ static int ad74413r_read_raw(struct iio_dev *indio_dev,
 			return ad74413r_get_input_voltage_offset(st,
 				chan->channel, val);
 		case IIO_CURRENT:
-			return ad74413_get_input_current_offset(st,
+			return ad74413r_get_input_current_offset(st,
 				chan->channel, val);
 		default:
 			return -EINVAL;
@@ -1317,13 +1335,14 @@ static int ad74413r_setup_gpios(struct ad74413r_state *st)
 		}
 
 		if (config->func == CH_FUNC_DIGITAL_INPUT_LOGIC ||
-		    config->func == CH_FUNC_DIGITAL_INPUT_LOOP_POWER)
+		    config->func == CH_FUNC_DIGITAL_INPUT_LOOP_POWER) {
 			st->comp_gpio_offsets[comp_gpio_i++] = i;
 
-		strength = config->drive_strength;
-		ret = ad74413r_set_comp_drive_strength(st, i, strength);
-		if (ret)
-			return ret;
+			strength = config->drive_strength;
+			ret = ad74413r_set_comp_drive_strength(st, i, strength);
+			if (ret)
+				return ret;
+		}
 
 		ret = ad74413r_set_gpo_config(st, i, gpo_config);
 		if (ret)

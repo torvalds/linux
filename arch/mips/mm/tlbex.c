@@ -253,7 +253,7 @@ static void output_pgtable_bits_defines(void)
 	pr_define("_PAGE_GLOBAL_SHIFT %d\n", _PAGE_GLOBAL_SHIFT);
 	pr_define("_PAGE_VALID_SHIFT %d\n", _PAGE_VALID_SHIFT);
 	pr_define("_PAGE_DIRTY_SHIFT %d\n", _PAGE_DIRTY_SHIFT);
-	pr_define("_PFN_SHIFT %d\n", _PFN_SHIFT);
+	pr_define("PFN_PTE_SHIFT %d\n", PFN_PTE_SHIFT);
 	pr_debug("\n");
 }
 
@@ -789,7 +789,7 @@ void build_get_pmde64(u32 **p, struct uasm_label **l, struct uasm_reloc **r,
 
 	if (check_for_high_segbits) {
 		/*
-		 * The kernel currently implicitely assumes that the
+		 * The kernel currently implicitly assumes that the
 		 * MIPS SEGBITS parameter for the processor is
 		 * (PGDIR_SHIFT+PGDIR_BITS) or less, and will never
 		 * allocate virtual addresses outside the maximum
@@ -1715,7 +1715,7 @@ iPTE_SW(u32 **p, struct uasm_reloc **r, unsigned int pte, unsigned int ptr,
 /*
  * Check if PTE is present, if not then jump to LABEL. PTR points to
  * the page table where this PTE is located, PTE will be re-loaded
- * with it's original value.
+ * with its original value.
  */
 static void
 build_pte_present(u32 **p, struct uasm_reloc **r,
@@ -2123,16 +2123,8 @@ static void build_r4000_tlb_load_handler(void)
 
 		uasm_i_tlbr(&p);
 
-		switch (current_cpu_type()) {
-		case CPU_CAVIUM_OCTEON:
-		case CPU_CAVIUM_OCTEON_PLUS:
-		case CPU_CAVIUM_OCTEON2:
-			break;
-		default:
-			if (cpu_has_mips_r2_exec_hazard)
-				uasm_i_ehb(&p);
-			break;
-		}
+		if (cpu_has_mips_r2_exec_hazard)
+			uasm_i_ehb(&p);
 
 		/* Examine  entrylo 0 or 1 based on ptr. */
 		if (use_bbit_insns()) {
@@ -2197,16 +2189,8 @@ static void build_r4000_tlb_load_handler(void)
 
 		uasm_i_tlbr(&p);
 
-		switch (current_cpu_type()) {
-		case CPU_CAVIUM_OCTEON:
-		case CPU_CAVIUM_OCTEON_PLUS:
-		case CPU_CAVIUM_OCTEON2:
-			break;
-		default:
-			if (cpu_has_mips_r2_exec_hazard)
-				uasm_i_ehb(&p);
-			break;
-		}
+		if (cpu_has_mips_r2_exec_hazard)
+			uasm_i_ehb(&p);
 
 		/* Examine  entrylo 0 or 1 based on ptr. */
 		if (use_bbit_insns()) {

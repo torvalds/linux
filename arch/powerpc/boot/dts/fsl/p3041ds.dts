@@ -41,7 +41,7 @@
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
 
-	aliases{
+	aliases {
 		phy_rgmii_0 = &phy_rgmii_0;
 		phy_rgmii_1 = &phy_rgmii_1;
 		phy_sgmii_1c = &phy_sgmii_1c;
@@ -165,7 +165,7 @@
 			};
 		};
 
-		fman@400000{
+		fman@400000 {
 			ethernet@e0000 {
 				phy-handle = <&phy_sgmii_1c>;
 				phy-connection-type = "sgmii";

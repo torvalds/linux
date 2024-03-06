@@ -456,7 +456,7 @@ static int intel_bts_process_queue(struct intel_bts_queue *btsq, u64 *timestamp)
 		thread = machine__find_thread(btsq->bts->machine, -1,
 					      btsq->tid);
 		if (thread)
-			btsq->pid = thread->pid_;
+			btsq->pid = thread__pid(thread);
 	} else {
 		thread = machine__findnew_thread(btsq->bts->machine, btsq->pid,
 						 btsq->tid);

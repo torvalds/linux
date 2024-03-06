@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx AXI GPIO controller
 
 maintainers:
-  - Neeli Srinivas <srinivas.neeli@xilinx.com>
+  - Neeli Srinivas <srinivas.neeli@amd.com>
 
 description:
   The AXI GPIO design provides a general purpose input/output interface
@@ -126,7 +126,7 @@ examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-        gpio@e000a000 {
+        gpio@a0020000 {
             compatible = "xlnx,xps-gpio-1.00.a";
             reg = <0xa0020000 0x10000>;
             #gpio-cells = <2>;

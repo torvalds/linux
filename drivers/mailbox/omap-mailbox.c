@@ -16,7 +16,7 @@
 #include <linux/kfifo.h>
 #include <linux/err.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/omap-mailbox.h>
@@ -865,19 +865,17 @@ unregister:
 	return ret;
 }
 
-static int omap_mbox_remove(struct platform_device *pdev)
+static void omap_mbox_remove(struct platform_device *pdev)
 {
 	struct omap_mbox_device *mdev = platform_get_drvdata(pdev);
 
 	pm_runtime_disable(mdev->dev);
 	omap_mbox_unregister(mdev);
-
-	return 0;
 }
 
 static struct platform_driver omap_mbox_driver = {
 	.probe	= omap_mbox_probe,
-	.remove	= omap_mbox_remove,
+	.remove_new = omap_mbox_remove,
 	.driver	= {
 		.name = "omap-mailbox",
 		.pm = &omap_mbox_pm_ops,

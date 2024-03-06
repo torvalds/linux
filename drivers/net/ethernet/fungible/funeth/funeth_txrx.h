@@ -5,6 +5,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/u64_stats_sync.h>
+#include <net/xdp.h>
 
 /* Tx descriptor size */
 #define FUNETH_SQE_SIZE 64U

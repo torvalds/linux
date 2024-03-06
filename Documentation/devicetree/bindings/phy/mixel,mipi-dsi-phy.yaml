@@ -32,15 +32,6 @@ properties:
   clock-names:
     const: phy_ref
 
-  assigned-clocks:
-    maxItems: 1
-
-  assigned-clock-parents:
-    maxItems: 1
-
-  assigned-clock-rates:
-    maxItems: 1
-
   "#phy-cells":
     const: 0
 

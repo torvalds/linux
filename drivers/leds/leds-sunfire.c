@@ -163,15 +163,13 @@ static int sunfire_led_generic_probe(struct platform_device *pdev,
 	return 0;
 }
 
-static int sunfire_led_generic_remove(struct platform_device *pdev)
+static void sunfire_led_generic_remove(struct platform_device *pdev)
 {
 	struct sunfire_drvdata *p = platform_get_drvdata(pdev);
 	int i;
 
 	for (i = 0; i < NUM_LEDS_PER_BOARD; i++)
 		led_classdev_unregister(&p->leds[i].led_cdev);
-
-	return 0;
 }
 
 static struct led_type clockboard_led_types[NUM_LEDS_PER_BOARD] = {
@@ -221,7 +219,7 @@ MODULE_ALIAS("platform:sunfire-fhc-leds");
 
 static struct platform_driver sunfire_clockboard_led_driver = {
 	.probe		= sunfire_clockboard_led_probe,
-	.remove		= sunfire_led_generic_remove,
+	.remove_new	= sunfire_led_generic_remove,
 	.driver		= {
 		.name	= "sunfire-clockboard-leds",
 	},
@@ -229,7 +227,7 @@ static struct platform_driver sunfire_clockboard_led_driver = {
 
 static struct platform_driver sunfire_fhc_led_driver = {
 	.probe		= sunfire_fhc_led_probe,
-	.remove		= sunfire_led_generic_remove,
+	.remove_new	= sunfire_led_generic_remove,
 	.driver		= {
 		.name	= "sunfire-fhc-leds",
 	},

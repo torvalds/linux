@@ -269,7 +269,7 @@ static int wdat_wdt_stop(struct watchdog_device *wdd)
 
 static int wdat_wdt_ping(struct watchdog_device *wdd)
 {
-	return wdat_wdt_run_action(to_wdat_wdt(wdd), ACPI_WDAT_RESET, 0, NULL);
+	return wdat_wdt_run_action(to_wdat_wdt(wdd), ACPI_WDAT_RESET, wdd->timeout, NULL);
 }
 
 static int wdat_wdt_set_timeout(struct watchdog_device *wdd,

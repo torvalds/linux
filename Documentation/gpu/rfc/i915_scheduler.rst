@@ -37,7 +37,7 @@ i915 with the DRM scheduler is:
 		* Watchdog hooks into DRM scheduler
 		* Lots of complexity of the GuC backend can be pulled out once
 		  integrated with DRM scheduler (e.g. state machine gets
-		  simplier, locking gets simplier, etc...)
+		  simpler, locking gets simpler, etc...)
 	* Execlists backend will minimum required to hook in the DRM scheduler
 		* Legacy interface
 		* Features like timeslicing / preemption / virtual engines would
@@ -135,8 +135,12 @@ Add I915_CONTEXT_ENGINES_EXT_PARALLEL_SUBMIT and
 drm_i915_context_engines_parallel_submit to the uAPI to implement this
 extension.
 
+.. c:namespace-push:: rfc
+
 .. kernel-doc:: include/uapi/drm/i915_drm.h
         :functions: i915_context_engines_parallel_submit
+
+.. c:namespace-pop::
 
 Extend execbuf2 IOCTL to support submitting N BBs in a single IOCTL
 -------------------------------------------------------------------

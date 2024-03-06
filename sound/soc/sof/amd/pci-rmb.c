@@ -25,6 +25,7 @@
 
 #define ACP6x_REG_START		0x1240000
 #define ACP6x_REG_END		0x125C000
+#define ACP6X_FUTURE_REG_ACLK_0	0x1854
 
 static const struct sof_amd_acp_desc rembrandt_chip_info = {
 	.rev		= 6,
@@ -34,8 +35,8 @@ static const struct sof_amd_acp_desc rembrandt_chip_info = {
 	.dsp_intr_base	= ACP6X_DSP_SW_INTR_BASE,
 	.sram_pte_offset = ACP6X_SRAM_PTE_OFFSET,
 	.hw_semaphore_offset = ACP6X_AXI2DAGB_SEM_0,
-	.acp_clkmux_sel = ACP6X_CLKMUX_SEL,
 	.fusion_dsp_offset = ACP6X_DSP_FUSION_RUNSTALL,
+	.probe_reg_offset = ACP6X_FUTURE_REG_ACLK_0,
 };
 
 static const struct sof_dev_desc rembrandt_desc = {
@@ -45,16 +46,16 @@ static const struct sof_dev_desc rembrandt_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info		= &rembrandt_chip_info,
-	.ipc_supported_mask     = BIT(SOF_IPC),
-	.ipc_default            = SOF_IPC,
+	.ipc_supported_mask     = BIT(SOF_IPC_TYPE_3),
+	.ipc_default            = SOF_IPC_TYPE_3,
 	.default_fw_path	= {
-		[SOF_IPC] = "amd/sof",
+		[SOF_IPC_TYPE_3] = "amd/sof",
 	},
 	.default_tplg_path	= {
-		[SOF_IPC] = "amd/sof-tplg",
+		[SOF_IPC_TYPE_3] = "amd/sof-tplg",
 	},
 	.default_fw_filename	= {
-		[SOF_IPC] = "sof-rmb.ri",
+		[SOF_IPC_TYPE_3] = "sof-rmb.ri",
 	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_rembrandt_ops,
@@ -64,6 +65,9 @@ static const struct sof_dev_desc rembrandt_desc = {
 static int acp_pci_rmb_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 {
 	unsigned int flag;
+
+	if (pci->revision != ACP_RMB_PCI_ID)
+		return -ENODEV;
 
 	flag = snd_amd_acp_find_config(pci);
 	if (flag != FLAG_AMD_SOF && flag != FLAG_AMD_SOF_ONLY_DMIC)

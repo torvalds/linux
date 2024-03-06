@@ -20,41 +20,84 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-
-
 void kgd_gfx_v9_program_sh_mem_settings(struct amdgpu_device *adev, uint32_t vmid,
 		uint32_t sh_mem_config,
 		uint32_t sh_mem_ape1_base, uint32_t sh_mem_ape1_limit,
-		uint32_t sh_mem_bases);
+		uint32_t sh_mem_bases, uint32_t inst);
 int kgd_gfx_v9_set_pasid_vmid_mapping(struct amdgpu_device *adev, u32 pasid,
-		unsigned int vmid);
-int kgd_gfx_v9_init_interrupts(struct amdgpu_device *adev, uint32_t pipe_id);
+		unsigned int vmid, uint32_t inst);
+int kgd_gfx_v9_init_interrupts(struct amdgpu_device *adev, uint32_t pipe_id,
+				uint32_t inst);
 int kgd_gfx_v9_hqd_load(struct amdgpu_device *adev, void *mqd, uint32_t pipe_id,
 			uint32_t queue_id, uint32_t __user *wptr,
 			uint32_t wptr_shift, uint32_t wptr_mask,
-			struct mm_struct *mm);
+			struct mm_struct *mm, uint32_t inst);
 int kgd_gfx_v9_hiq_mqd_load(struct amdgpu_device *adev, void *mqd,
 			    uint32_t pipe_id, uint32_t queue_id,
-			    uint32_t doorbell_off);
+			    uint32_t doorbell_off, uint32_t inst);
 int kgd_gfx_v9_hqd_dump(struct amdgpu_device *adev,
 			uint32_t pipe_id, uint32_t queue_id,
-			uint32_t (**dump)[2], uint32_t *n_regs);
+			uint32_t (**dump)[2], uint32_t *n_regs, uint32_t inst);
 bool kgd_gfx_v9_hqd_is_occupied(struct amdgpu_device *adev,
 			uint64_t queue_address, uint32_t pipe_id,
-			uint32_t queue_id);
+			uint32_t queue_id, uint32_t inst);
 int kgd_gfx_v9_hqd_destroy(struct amdgpu_device *adev, void *mqd,
 				enum kfd_preempt_type reset_type,
 				unsigned int utimeout, uint32_t pipe_id,
-				uint32_t queue_id);
+				uint32_t queue_id, uint32_t inst);
 int kgd_gfx_v9_wave_control_execute(struct amdgpu_device *adev,
 					uint32_t gfx_index_val,
-					uint32_t sq_cmd);
+					uint32_t sq_cmd, uint32_t inst);
 bool kgd_gfx_v9_get_atc_vmid_pasid_mapping_info(struct amdgpu_device *adev,
 					uint8_t vmid, uint16_t *p_pasid);
-
 void kgd_gfx_v9_set_vm_context_page_table_base(struct amdgpu_device *adev,
 			uint32_t vmid, uint64_t page_table_base);
 void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
-		int *pasid_wave_cnt, int *max_waves_per_cu);
+		int *pasid_wave_cnt, int *max_waves_per_cu, uint32_t inst);
 void kgd_gfx_v9_program_trap_handler_settings(struct amdgpu_device *adev,
-		uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr);
+		uint32_t vmid, uint64_t tba_addr, uint64_t tma_addr,
+		uint32_t inst);
+void kgd_gfx_v9_acquire_queue(struct amdgpu_device *adev, uint32_t pipe_id,
+				uint32_t queue_id, uint32_t inst);
+uint64_t kgd_gfx_v9_get_queue_mask(struct amdgpu_device *adev,
+				uint32_t pipe_id, uint32_t queue_id);
+void kgd_gfx_v9_release_queue(struct amdgpu_device *adev, uint32_t inst);
+void kgd_gfx_v9_set_wave_launch_stall(struct amdgpu_device *adev,
+					uint32_t vmid,
+					bool stall);
+uint32_t kgd_gfx_v9_enable_debug_trap(struct amdgpu_device *adev,
+				      bool restore_dbg_registers,
+				      uint32_t vmid);
+uint32_t kgd_gfx_v9_disable_debug_trap(struct amdgpu_device *adev,
+					bool keep_trap_enabled,
+					uint32_t vmid);
+int kgd_gfx_v9_validate_trap_override_request(struct amdgpu_device *adev,
+					     uint32_t trap_override,
+					     uint32_t *trap_mask_supported);
+uint32_t kgd_gfx_v9_set_wave_launch_mode(struct amdgpu_device *adev,
+					uint8_t wave_launch_mode,
+					uint32_t vmid);
+uint32_t kgd_gfx_v9_set_wave_launch_trap_override(struct amdgpu_device *adev,
+					     uint32_t vmid,
+					     uint32_t trap_override,
+					     uint32_t trap_mask_bits,
+					     uint32_t trap_mask_request,
+					     uint32_t *trap_mask_prev,
+					     uint32_t kfd_dbg_trap_cntl_prev);
+uint32_t kgd_gfx_v9_set_address_watch(struct amdgpu_device *adev,
+					uint64_t watch_address,
+					uint32_t watch_address_mask,
+					uint32_t watch_id,
+					uint32_t watch_mode,
+					uint32_t debug_vmid,
+					uint32_t inst);
+uint32_t kgd_gfx_v9_clear_address_watch(struct amdgpu_device *adev,
+					uint32_t watch_id);
+void kgd_gfx_v9_get_iq_wait_times(struct amdgpu_device *adev,
+				uint32_t *wait_times,
+				uint32_t inst);
+void kgd_gfx_v9_build_grace_period_packet_info(struct amdgpu_device *adev,
+					       uint32_t wait_times,
+					       uint32_t grace_period,
+					       uint32_t *reg_offset,
+					       uint32_t *reg_data);

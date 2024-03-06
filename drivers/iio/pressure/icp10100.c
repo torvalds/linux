@@ -648,7 +648,7 @@ static struct i2c_driver icp10100_driver = {
 		.pm = pm_ptr(&icp10100_pm),
 		.of_match_table = icp10100_of_match,
 	},
-	.probe_new = icp10100_probe,
+	.probe = icp10100_probe,
 	.id_table = icp10100_id,
 };
 module_i2c_driver(icp10100_driver);

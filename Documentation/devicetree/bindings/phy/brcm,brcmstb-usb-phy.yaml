@@ -115,8 +115,8 @@ allOf:
         compatible:
           contains:
             enum:
-              - const: brcm,bcm4908-usb-phy
-              - const: brcm,brcmstb-usb-phy
+              - brcm,bcm4908-usb-phy
+              - brcm,brcmstb-usb-phy
     then:
       properties:
         reg:

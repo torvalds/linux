@@ -252,7 +252,7 @@ static int pseries_eeh_cap_start(struct pci_dn *pdn)
 	if (!pdn)
 		return 0;
 
-	rtas_read_config(pdn, PCI_STATUS, 2, &status);
+	rtas_pci_dn_read_config(pdn, PCI_STATUS, 2, &status);
 	if (!(status & PCI_STATUS_CAP_LIST))
 		return 0;
 
@@ -270,11 +270,11 @@ static int pseries_eeh_find_cap(struct pci_dn *pdn, int cap)
 		return 0;
 
         while (cnt--) {
-		rtas_read_config(pdn, pos, 1, &pos);
+		rtas_pci_dn_read_config(pdn, pos, 1, &pos);
 		if (pos < 0x40)
 			break;
 		pos &= ~3;
-		rtas_read_config(pdn, pos + PCI_CAP_LIST_ID, 1, &id);
+		rtas_pci_dn_read_config(pdn, pos + PCI_CAP_LIST_ID, 1, &id);
 		if (id == 0xff)
 			break;
 		if (id == cap)
@@ -294,7 +294,7 @@ static int pseries_eeh_find_ecap(struct pci_dn *pdn, int cap)
 
 	if (!edev || !edev->pcie_cap)
 		return 0;
-	if (rtas_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+	if (rtas_pci_dn_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
 		return 0;
 	else if (!header)
 		return 0;
@@ -307,7 +307,7 @@ static int pseries_eeh_find_ecap(struct pci_dn *pdn, int cap)
 		if (pos < 256)
 			break;
 
-		if (rtas_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
+		if (rtas_pci_dn_read_config(pdn, pos, 4, &header) != PCIBIOS_SUCCESSFUL)
 			break;
 	}
 
@@ -412,8 +412,8 @@ static void pseries_eeh_init_edev(struct pci_dn *pdn)
 	if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_PCI) {
 		edev->mode |= EEH_DEV_BRIDGE;
 		if (edev->pcie_cap) {
-			rtas_read_config(pdn, edev->pcie_cap + PCI_EXP_FLAGS,
-					 2, &pcie_flags);
+			rtas_pci_dn_read_config(pdn, edev->pcie_cap + PCI_EXP_FLAGS,
+						2, &pcie_flags);
 			pcie_flags = (pcie_flags & PCI_EXP_FLAGS_TYPE) >> 4;
 			if (pcie_flags == PCI_EXP_TYPE_ROOT_PORT)
 				edev->mode |= EEH_DEV_ROOT_PORT;
@@ -676,7 +676,7 @@ static int pseries_eeh_read_config(struct eeh_dev *edev, int where, int size, u3
 {
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
-	return rtas_read_config(pdn, where, size, val);
+	return rtas_pci_dn_read_config(pdn, where, size, val);
 }
 
 /**
@@ -692,7 +692,7 @@ static int pseries_eeh_write_config(struct eeh_dev *edev, int where, int size, u
 {
 	struct pci_dn *pdn = eeh_dev_to_pdn(edev);
 
-	return rtas_write_config(pdn, where, size, val);
+	return rtas_pci_dn_write_config(pdn, where, size, val);
 }
 
 #ifdef CONFIG_PCI_IOV

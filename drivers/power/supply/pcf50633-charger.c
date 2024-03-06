@@ -441,7 +441,7 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int pcf50633_mbc_remove(struct platform_device *pdev)
+static void pcf50633_mbc_remove(struct platform_device *pdev)
 {
 	struct pcf50633_mbc *mbc = platform_get_drvdata(pdev);
 	int i;
@@ -453,8 +453,6 @@ static int pcf50633_mbc_remove(struct platform_device *pdev)
 	power_supply_unregister(mbc->usb);
 	power_supply_unregister(mbc->adapter);
 	power_supply_unregister(mbc->ac);
-
-	return 0;
 }
 
 static struct platform_driver pcf50633_mbc_driver = {
@@ -462,7 +460,7 @@ static struct platform_driver pcf50633_mbc_driver = {
 		.name = "pcf50633-mbc",
 	},
 	.probe = pcf50633_mbc_probe,
-	.remove = pcf50633_mbc_remove,
+	.remove_new = pcf50633_mbc_remove,
 };
 
 module_platform_driver(pcf50633_mbc_driver);

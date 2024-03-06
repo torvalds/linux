@@ -18,16 +18,17 @@
 struct isst_mmio_range {
 	int beg;
 	int end;
+	int size;
 };
 
 static struct isst_mmio_range mmio_range_devid_0[] = {
-	{0x04, 0x14},
-	{0x20, 0xD0},
+	{0x04, 0x14, 0x18},
+	{0x20, 0xD0, 0xD4},
 };
 
 static struct isst_mmio_range mmio_range_devid_1[] = {
-	{0x04, 0x14},
-	{0x20, 0x11C},
+	{0x04, 0x14, 0x18},
+	{0x20, 0x11C, 0x120},
 };
 
 struct isst_if_device {
@@ -93,6 +94,7 @@ static int isst_if_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct isst_if_device *punit_dev;
 	struct isst_if_cmd_cb cb;
 	u32 mmio_base, pcu_base;
+	struct resource r;
 	u64 base_addr;
 	int ret;
 
@@ -114,13 +116,16 @@ static int isst_if_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pcu_base &= GENMASK(10, 0);
 	base_addr = (u64)mmio_base << 23 | (u64) pcu_base << 12;
-	punit_dev->punit_mmio = devm_ioremap(&pdev->dev, base_addr, 256);
-	if (!punit_dev->punit_mmio)
-		return -ENOMEM;
+
+	punit_dev->mmio_range = (struct isst_mmio_range *) ent->driver_data;
+
+	r = DEFINE_RES_MEM(base_addr, punit_dev->mmio_range[1].size);
+	punit_dev->punit_mmio = devm_ioremap_resource(&pdev->dev, &r);
+	if (IS_ERR(punit_dev->punit_mmio))
+		return PTR_ERR(punit_dev->punit_mmio);
 
 	mutex_init(&punit_dev->mutex);
 	pci_set_drvdata(pdev, punit_dev);
-	punit_dev->mmio_range = (struct isst_mmio_range *) ent->driver_data;
 
 	memset(&cb, 0, sizeof(cb));
 	cb.cmd_size = sizeof(struct isst_if_io_reg);

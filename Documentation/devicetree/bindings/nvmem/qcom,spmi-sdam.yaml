@@ -16,6 +16,7 @@ description: |
 
 allOf:
   - $ref: nvmem.yaml#
+  - $ref: nvmem-deprecated-cells.yaml#
 
 properties:
   compatible:
@@ -24,12 +25,6 @@ properties:
 
   reg:
     maxItems: 1
-
-  "#address-cells":
-    const: 1
-
-  "#size-cells":
-    const: 1
 
   ranges: true
 

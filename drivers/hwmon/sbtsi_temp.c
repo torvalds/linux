@@ -13,7 +13,6 @@
 #include <linux/hwmon.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 
 /*
@@ -238,7 +237,7 @@ static struct i2c_driver sbtsi_driver = {
 		.name = "sbtsi",
 		.of_match_table = of_match_ptr(sbtsi_of_match),
 	},
-	.probe_new = sbtsi_probe,
+	.probe = sbtsi_probe,
 	.id_table = sbtsi_id,
 };
 

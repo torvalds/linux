@@ -95,7 +95,7 @@ properties:
               synchronization is selected.
             default: 1
 
-          field-active-even: true
+          field-even-active: true
 
           bus-width: true
 
@@ -144,7 +144,7 @@ properties:
                   synchronization is selected.
                 default: 1
 
-              field-active-even: true
+              field-even-active: true
 
               bus-width: true
 
@@ -303,11 +303,11 @@ examples:
 
                             vin0csi20: endpoint@0 {
                                     reg = <0>;
-                                    remote-endpoint= <&csi20vin0>;
+                                    remote-endpoint = <&csi20vin0>;
                             };
                             vin0csi40: endpoint@2 {
                                     reg = <2>;
-                                    remote-endpoint= <&csi40vin0>;
+                                    remote-endpoint = <&csi40vin0>;
                             };
                     };
             };

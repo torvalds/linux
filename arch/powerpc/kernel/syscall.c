@@ -46,7 +46,7 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 		iamr = mfspr(SPRN_IAMR);
 		regs->amr  = amr;
 		regs->iamr = iamr;
-		if (mmu_has_feature(MMU_FTR_BOOK3S_KUAP)) {
+		if (mmu_has_feature(MMU_FTR_KUAP)) {
 			mtspr(SPRN_AMR, AMR_KUAP_BLOCKED);
 			flush_needed = true;
 		}

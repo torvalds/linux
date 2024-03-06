@@ -72,7 +72,7 @@ high once achieves global guest_halt_poll_ns value).
 
 Default: Y
 
-The module parameters can be set from the debugfs files in::
+The module parameters can be set from the sysfs files in::
 
 	/sys/module/haltpoll/parameters/
 

@@ -318,8 +318,9 @@ static int write_begin_slow(struct address_space *mapping,
  * This is a helper function for 'ubifs_write_begin()' which allocates budget
  * for the operation. The budget is allocated differently depending on whether
  * this is appending, whether the page is dirty or not, and so on. This
- * function leaves the @ui->ui_mutex locked in case of appending. Returns zero
- * in case of success and %-ENOSPC in case of failure.
+ * function leaves the @ui->ui_mutex locked in case of appending.
+ *
+ * Returns: %0 in case of success and %-ENOSPC in case of failure.
  */
 static int allocate_budget(struct ubifs_info *c, struct page *page,
 			   struct ubifs_inode *ui, int appending)
@@ -600,7 +601,7 @@ out:
  * @bu: bulk-read information
  * @n: next zbranch slot
  *
- * This function returns %0 on success and a negative error code on failure.
+ * Returns: %0 on success and a negative error code on failure.
  */
 static int populate_page(struct ubifs_info *c, struct page *page,
 			 struct bu_info *bu, int *n)
@@ -711,7 +712,7 @@ out_err:
  * @bu: bulk-read information
  * @page1: first page to read
  *
- * This function returns %1 if the bulk-read is done, otherwise %0 is returned.
+ * Returns: %1 if the bulk-read is done, otherwise %0 is returned.
  */
 static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 			      struct page *page1)
@@ -821,7 +822,9 @@ out_bu_off:
  * Some flash media are capable of reading sequentially at faster rates. UBIFS
  * bulk-read facility is designed to take advantage of that, by reading in one
  * go consecutive data nodes that are also located consecutively in the same
- * LEB. This function returns %1 if a bulk-read is done and %0 otherwise.
+ * LEB.
+ *
+ * Returns: %1 if a bulk-read is done and %0 otherwise.
  */
 static int ubifs_bulk_read(struct page *page)
 {
@@ -1088,11 +1091,11 @@ static void do_attr_changes(struct inode *inode, const struct iattr *attr)
 	if (attr->ia_valid & ATTR_GID)
 		inode->i_gid = attr->ia_gid;
 	if (attr->ia_valid & ATTR_ATIME)
-		inode->i_atime = attr->ia_atime;
+		inode_set_atime_to_ts(inode, attr->ia_atime);
 	if (attr->ia_valid & ATTR_MTIME)
-		inode->i_mtime = attr->ia_mtime;
+		inode_set_mtime_to_ts(inode, attr->ia_mtime);
 	if (attr->ia_valid & ATTR_CTIME)
-		inode->i_ctime = attr->ia_ctime;
+		inode_set_ctime_to_ts(inode, attr->ia_ctime);
 	if (attr->ia_valid & ATTR_MODE) {
 		umode_t mode = attr->ia_mode;
 
@@ -1109,7 +1112,9 @@ static void do_attr_changes(struct inode *inode, const struct iattr *attr)
  * @attr: inode attribute changes description
  *
  * This function implements VFS '->setattr()' call when the inode is truncated
- * to a smaller size. Returns zero in case of success and a negative error code
+ * to a smaller size.
+ *
+ * Returns: %0 in case of success and a negative error code
  * in case of failure.
  */
 static int do_truncation(struct ubifs_info *c, struct inode *inode,
@@ -1192,7 +1197,7 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 	mutex_lock(&ui->ui_mutex);
 	ui->ui_size = inode->i_size;
 	/* Truncation changes inode [mc]time */
-	inode->i_mtime = inode->i_ctime = current_time(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	/* Other attributes may be changed at the same time as well */
 	do_attr_changes(inode, attr);
 	err = ubifs_jnl_truncate(c, inode, old_size, new_size);
@@ -1215,7 +1220,9 @@ out_budg:
  * @attr: inode attribute changes description
  *
  * This function implements VFS '->setattr()' call for all cases except
- * truncations to smaller size. Returns zero in case of success and a negative
+ * truncations to smaller size.
+ *
+ * Returns: %0 in case of success and a negative
  * error code in case of failure.
  */
 static int do_setattr(struct ubifs_info *c, struct inode *inode,
@@ -1239,7 +1246,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	mutex_lock(&ui->ui_mutex);
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* Truncation changes inode [mc]time */
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 		/* 'truncate_setsize()' changed @i_size, update @ui_size */
 		ui->ui_size = inode->i_size;
 	}
@@ -1360,12 +1367,16 @@ out:
  * This helper function checks if the inode mtime/ctime should be updated or
  * not. If current values of the time-stamps are within the UBIFS inode time
  * granularity, they are not updated. This is an optimization.
+ *
+ * Returns: %1 if time update is needed, %0 if not
  */
 static inline int mctime_update_needed(const struct inode *inode,
 				       const struct timespec64 *now)
 {
-	if (!timespec64_equal(&inode->i_mtime, now) ||
-	    !timespec64_equal(&inode->i_ctime, now))
+	struct timespec64 ctime = inode_get_ctime(inode);
+	struct timespec64 mtime = inode_get_mtime(inode);
+
+	if (!timespec64_equal(&mtime, now) || !timespec64_equal(&ctime, now))
 		return 1;
 	return 0;
 }
@@ -1373,11 +1384,14 @@ static inline int mctime_update_needed(const struct inode *inode,
 /**
  * ubifs_update_time - update time of inode.
  * @inode: inode to update
+ * @flags: time updating control flag determines updating
+ *	    which time fields of @inode
  *
  * This function updates time of the inode.
+ *
+ * Returns: %0 for success or a negative error code otherwise.
  */
-int ubifs_update_time(struct inode *inode, struct timespec64 *time,
-			     int flags)
+int ubifs_update_time(struct inode *inode, int flags)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -1385,21 +1399,17 @@ int ubifs_update_time(struct inode *inode, struct timespec64 *time,
 			.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 	int err, release;
 
-	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
-		return generic_update_time(inode, time, flags);
+	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT)) {
+		generic_update_time(inode, flags);
+		return 0;
+	}
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
 		return err;
 
 	mutex_lock(&ui->ui_mutex);
-	if (flags & S_ATIME)
-		inode->i_atime = *time;
-	if (flags & S_CTIME)
-		inode->i_ctime = *time;
-	if (flags & S_MTIME)
-		inode->i_mtime = *time;
-
+	inode_update_timestamps(inode, flags);
 	release = ui->dirty;
 	__mark_inode_dirty(inode, I_DIRTY_SYNC);
 	mutex_unlock(&ui->ui_mutex);
@@ -1413,7 +1423,9 @@ int ubifs_update_time(struct inode *inode, struct timespec64 *time,
  * @inode: inode to update
  *
  * This function updates mtime and ctime of the inode if it is not equivalent to
- * current time. Returns zero in case of success and a negative error code in
+ * current time.
+ *
+ * Returns: %0 in case of success and a negative error code in
  * case of failure.
  */
 static int update_mctime(struct inode *inode)
@@ -1432,7 +1444,7 @@ static int update_mctime(struct inode *inode)
 			return err;
 
 		mutex_lock(&ui->ui_mutex);
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 		release = ui->dirty;
 		mark_inode_dirty_sync(inode);
 		mutex_unlock(&ui->ui_mutex);
@@ -1570,7 +1582,7 @@ static vm_fault_t ubifs_vm_page_mkwrite(struct vm_fault *vmf)
 		struct ubifs_inode *ui = ubifs_inode(inode);
 
 		mutex_lock(&ui->ui_mutex);
-		inode->i_mtime = inode->i_ctime = current_time(inode);
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 		release = ui->dirty;
 		mark_inode_dirty_sync(inode);
 		mutex_unlock(&ui->ui_mutex);
@@ -1669,7 +1681,7 @@ const struct file_operations ubifs_file_operations = {
 	.mmap           = ubifs_file_mmap,
 	.fsync          = ubifs_fsync,
 	.unlocked_ioctl = ubifs_ioctl,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.open		= fscrypt_file_open,
 #ifdef CONFIG_COMPAT

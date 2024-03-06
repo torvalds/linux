@@ -299,12 +299,12 @@ config CROS_TYPEC_SWITCH
 source "drivers/platform/chrome/wilco_ec/Kconfig"
 
 # Kunit test cases
-config CROS_KUNIT
-	tristate "Kunit tests for ChromeOS" if !KUNIT_ALL_TESTS
+config CROS_KUNIT_EC_PROTO_TEST
+	tristate "Kunit tests for ChromeOS EC protocol" if !KUNIT_ALL_TESTS
 	depends on KUNIT && CROS_EC
 	default KUNIT_ALL_TESTS
 	select CROS_EC_PROTO
 	help
-	  ChromeOS Kunit tests.
+	  Kunit tests for ChromeOS EC protocol.
 
 endif # CHROMEOS_PLATFORMS

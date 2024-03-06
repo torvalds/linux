@@ -62,10 +62,10 @@
 	.endm
 
 	/*
-	 * int sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
-	 *			 int blocks)
+	 * int __sha1_ce_transform(struct sha1_ce_state *sst, u8 const *src,
+	 *			   int blocks)
 	 */
-SYM_FUNC_START(sha1_ce_transform)
+SYM_FUNC_START(__sha1_ce_transform)
 	/* load round constants */
 	loadrc		k0.4s, 0x5a827999, w6
 	loadrc		k1.4s, 0x6ed9eba1, w6
@@ -147,4 +147,4 @@ CPU_LE(	rev32		v11.16b, v11.16b	)
 	str		dgb, [x0, #16]
 	mov		w0, w2
 	ret
-SYM_FUNC_END(sha1_ce_transform)
+SYM_FUNC_END(__sha1_ce_transform)

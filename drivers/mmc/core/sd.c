@@ -1170,7 +1170,7 @@ static int sd_parse_ext_reg_perf(struct mmc_card *card, u8 fno, u8 page,
 		card->ext_perf.feature_support |= SD_EXT_PERF_HOST_MAINT;
 
 	/* Cache support at bit 0. */
-	if (reg_buf[4] & BIT(0))
+	if ((reg_buf[4] & BIT(0)) && !mmc_card_broken_sd_cache(card))
 		card->ext_perf.feature_support |= SD_EXT_PERF_CACHE;
 
 	/* Command queue support indicated via queue depth bits (0 to 4). */
@@ -1518,6 +1518,13 @@ retry:
 		 */
 		mmc_set_clock(host, mmc_sd_get_max_clock(card));
 
+		if (host->ios.timing == MMC_TIMING_SD_HS &&
+			host->ops->prepare_sd_hs_tuning) {
+			err = host->ops->prepare_sd_hs_tuning(host, card);
+			if (err)
+				goto free_card;
+		}
+
 		/*
 		 * Switch to wider bus (if supported).
 		 */
@@ -1528,6 +1535,13 @@ retry:
 				goto free_card;
 
 			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+		}
+
+		if (host->ios.timing == MMC_TIMING_SD_HS &&
+			host->ops->execute_sd_hs_tuning) {
+			err = host->ops->execute_sd_hs_tuning(host, card);
+			if (err)
+				goto free_card;
 		}
 	}
 cont:

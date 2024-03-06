@@ -4,9 +4,9 @@
  * Copyright (C) 2022 Marvell.
  */
 
+#include <crypto/skcipher.h>
 #include <linux/rtnetlink.h>
 #include <linux/bitfield.h>
-#include <net/macsec.h>
 #include "otx2_common.h"
 
 #define MCS_TCAM0_MAC_DA_MASK		GENMASK_ULL(47, 0)
@@ -42,6 +42,56 @@
 #define MCS_TCI_SCB			0x10 /* epon */
 #define MCS_TCI_E			0x08 /* encryption */
 #define MCS_TCI_C			0x04 /* changed text */
+
+#define CN10K_MAX_HASH_LEN		16
+#define CN10K_MAX_SAK_LEN		32
+
+static int cn10k_ecb_aes_encrypt(struct otx2_nic *pfvf, u8 *sak,
+				 u16 sak_len, u8 *hash)
+{
+	u8 data[CN10K_MAX_HASH_LEN] = { 0 };
+	struct skcipher_request *req = NULL;
+	struct scatterlist sg_src, sg_dst;
+	struct crypto_skcipher *tfm;
+	DECLARE_CRYPTO_WAIT(wait);
+	int err;
+
+	tfm = crypto_alloc_skcipher("ecb(aes)", 0, 0);
+	if (IS_ERR(tfm)) {
+		dev_err(pfvf->dev, "failed to allocate transform for ecb-aes\n");
+		return PTR_ERR(tfm);
+	}
+
+	req = skcipher_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		dev_err(pfvf->dev, "failed to allocate request for skcipher\n");
+		err = -ENOMEM;
+		goto free_tfm;
+	}
+
+	err = crypto_skcipher_setkey(tfm, sak, sak_len);
+	if (err) {
+		dev_err(pfvf->dev, "failed to set key for skcipher\n");
+		goto free_req;
+	}
+
+	/* build sg list */
+	sg_init_one(&sg_src, data, CN10K_MAX_HASH_LEN);
+	sg_init_one(&sg_dst, hash, CN10K_MAX_HASH_LEN);
+
+	skcipher_request_set_callback(req, 0, crypto_req_done, &wait);
+	skcipher_request_set_crypt(req, &sg_src, &sg_dst,
+				   CN10K_MAX_HASH_LEN, NULL);
+
+	err = crypto_skcipher_encrypt(req);
+	err = crypto_wait_req(err, &wait);
+
+free_req:
+	skcipher_request_free(req);
+free_tfm:
+	crypto_free_skcipher(tfm);
+	return err;
+}
 
 static struct cn10k_mcs_txsc *cn10k_mcs_get_txsc(struct cn10k_mcs_cfg *cfg,
 						 struct macsec_secy *secy)
@@ -212,6 +262,7 @@ static int cn10k_mcs_write_rx_secy(struct otx2_nic *pfvf,
 	struct mcs_secy_plcy_write_req *req;
 	struct mbox *mbox = &pfvf->mbox;
 	u64 policy;
+	u8 cipher;
 	int ret;
 
 	mutex_lock(&mbox->lock);
@@ -227,7 +278,21 @@ static int cn10k_mcs_write_rx_secy(struct otx2_nic *pfvf,
 		policy |= MCS_RX_SECY_PLCY_RP;
 
 	policy |= MCS_RX_SECY_PLCY_AUTH_ENA;
-	policy |= FIELD_PREP(MCS_RX_SECY_PLCY_CIP, MCS_GCM_AES_128);
+
+	switch (secy->key_len) {
+	case 16:
+		cipher = secy->xpn ? MCS_GCM_AES_XPN_128 : MCS_GCM_AES_128;
+		break;
+	case 32:
+		cipher = secy->xpn ? MCS_GCM_AES_XPN_256 : MCS_GCM_AES_256;
+		break;
+	default:
+		cipher = MCS_GCM_AES_128;
+		dev_warn(pfvf->dev, "Unsupported key length\n");
+		break;
+	}
+
+	policy |= FIELD_PREP(MCS_RX_SECY_PLCY_CIP, cipher);
 	policy |= FIELD_PREP(MCS_RX_SECY_PLCY_VAL, secy->validate_frames);
 
 	policy |= MCS_RX_SECY_PLCY_ENA;
@@ -316,16 +381,53 @@ fail:
 	return ret;
 }
 
+static int cn10k_mcs_write_keys(struct otx2_nic *pfvf,
+				struct macsec_secy *secy,
+				struct mcs_sa_plcy_write_req *req,
+				u8 *sak, u8 *salt, ssci_t ssci)
+{
+	u8 hash_rev[CN10K_MAX_HASH_LEN];
+	u8 sak_rev[CN10K_MAX_SAK_LEN];
+	u8 salt_rev[MACSEC_SALT_LEN];
+	u8 hash[CN10K_MAX_HASH_LEN];
+	u32 ssci_63_32;
+	int err, i;
+
+	err = cn10k_ecb_aes_encrypt(pfvf, sak, secy->key_len, hash);
+	if (err) {
+		dev_err(pfvf->dev, "Generating hash using ECB(AES) failed\n");
+		return err;
+	}
+
+	for (i = 0; i < secy->key_len; i++)
+		sak_rev[i] = sak[secy->key_len - 1 - i];
+
+	for (i = 0; i < CN10K_MAX_HASH_LEN; i++)
+		hash_rev[i] = hash[CN10K_MAX_HASH_LEN - 1 - i];
+
+	for (i = 0; i < MACSEC_SALT_LEN; i++)
+		salt_rev[i] = salt[MACSEC_SALT_LEN - 1 - i];
+
+	ssci_63_32 = (__force u32)cpu_to_be32((__force u32)ssci);
+
+	memcpy(&req->plcy[0][0], sak_rev, secy->key_len);
+	memcpy(&req->plcy[0][4], hash_rev, CN10K_MAX_HASH_LEN);
+	memcpy(&req->plcy[0][6], salt_rev, MACSEC_SALT_LEN);
+	req->plcy[0][7] |= (u64)ssci_63_32 << 32;
+
+	return 0;
+}
+
 static int cn10k_mcs_write_rx_sa_plcy(struct otx2_nic *pfvf,
 				      struct macsec_secy *secy,
 				      struct cn10k_mcs_rxsc *rxsc,
 				      u8 assoc_num, bool sa_in_use)
 {
-	unsigned char *src = rxsc->sa_key[assoc_num];
 	struct mcs_sa_plcy_write_req *plcy_req;
+	u8 *sak = rxsc->sa_key[assoc_num];
+	u8 *salt = rxsc->salt[assoc_num];
 	struct mcs_rx_sc_sa_map *map_req;
 	struct mbox *mbox = &pfvf->mbox;
-	u8 reg, key_len;
 	int ret;
 
 	mutex_lock(&mbox->lock);
@@ -343,11 +445,10 @@ static int cn10k_mcs_write_rx_sa_plcy(struct otx2_nic *pfvf,
 		goto fail;
 	}
 
-	for (reg = 0, key_len = 0; key_len < secy->key_len; key_len += 8) {
-		memcpy((u8 *)&plcy_req->plcy[0][reg],
-		       (src + reg * 8), 8);
-		reg++;
-	}
+	ret = cn10k_mcs_write_keys(pfvf, secy, plcy_req, sak,
+				   salt, rxsc->ssci[assoc_num]);
+	if (ret)
+		goto fail;
 
 	plcy_req->sa_index[0] = rxsc->hw_sa_id[assoc_num];
 	plcy_req->sa_cnt = 1;
@@ -400,12 +501,16 @@ static int cn10k_mcs_write_tx_secy(struct otx2_nic *pfvf,
 	struct mcs_secy_plcy_write_req *req;
 	struct mbox *mbox = &pfvf->mbox;
 	struct macsec_tx_sc *sw_tx_sc;
-	/* Insert SecTag after 12 bytes (DA+SA)*/
-	u8 tag_offset = 12;
 	u8 sectag_tci = 0;
+	u8 tag_offset;
 	u64 policy;
+	u8 cipher;
 	int ret;
 
+	/* Insert SecTag after 12 bytes (DA+SA) or 16 bytes
+	 * if VLAN tag needs to be sent in clear text.
+	 */
+	tag_offset = txsc->vlan_dev ? 16 : 12;
 	sw_tx_sc = &secy->tx_sc;
 
 	mutex_lock(&mbox->lock);
@@ -434,7 +539,21 @@ static int cn10k_mcs_write_tx_secy(struct otx2_nic *pfvf,
 	policy |= FIELD_PREP(MCS_TX_SECY_PLCY_ST_OFFSET, tag_offset);
 	policy |= MCS_TX_SECY_PLCY_INS_MODE;
 	policy |= MCS_TX_SECY_PLCY_AUTH_ENA;
-	policy |= FIELD_PREP(MCS_TX_SECY_PLCY_CIP, MCS_GCM_AES_128);
+
+	switch (secy->key_len) {
+	case 16:
+		cipher = secy->xpn ? MCS_GCM_AES_XPN_128 : MCS_GCM_AES_128;
+		break;
+	case 32:
+		cipher = secy->xpn ? MCS_GCM_AES_XPN_256 : MCS_GCM_AES_256;
+		break;
+	default:
+		cipher = MCS_GCM_AES_128;
+		dev_warn(pfvf->dev, "Unsupported key length\n");
+		break;
+	}
+
+	policy |= FIELD_PREP(MCS_TX_SECY_PLCY_CIP, cipher);
 
 	if (secy->protect_frames)
 		policy |= MCS_TX_SECY_PLCY_PROTECT;
@@ -542,10 +661,10 @@ static int cn10k_mcs_write_tx_sa_plcy(struct otx2_nic *pfvf,
 				      struct cn10k_mcs_txsc *txsc,
 				      u8 assoc_num)
 {
-	unsigned char *src = txsc->sa_key[assoc_num];
 	struct mcs_sa_plcy_write_req *plcy_req;
+	u8 *sak = txsc->sa_key[assoc_num];
+	u8 *salt = txsc->salt[assoc_num];
 	struct mbox *mbox = &pfvf->mbox;
-	u8 reg, key_len;
 	int ret;
 
 	mutex_lock(&mbox->lock);
@@ -556,10 +675,10 @@ static int cn10k_mcs_write_tx_sa_plcy(struct otx2_nic *pfvf,
 		goto fail;
 	}
 
-	for (reg = 0, key_len = 0; key_len < secy->key_len; key_len += 8) {
-		memcpy((u8 *)&plcy_req->plcy[0][reg], (src + reg * 8), 8);
-		reg++;
-	}
+	ret = cn10k_mcs_write_keys(pfvf, secy, plcy_req, sak,
+				   salt, txsc->ssci[assoc_num]);
+	if (ret)
+		goto fail;
 
 	plcy_req->plcy[0][8] = assoc_num;
 	plcy_req->sa_index[0] = txsc->hw_sa_id[assoc_num];
@@ -922,8 +1041,7 @@ static int cn10k_mcs_secy_tx_cfg(struct otx2_nic *pfvf, struct macsec_secy *secy
 {
 	if (sw_tx_sa) {
 		cn10k_mcs_write_tx_sa_plcy(pfvf, secy, txsc, sa_num);
-		cn10k_write_tx_sa_pn(pfvf, txsc, sa_num,
-				     sw_tx_sa->next_pn_halves.lower);
+		cn10k_write_tx_sa_pn(pfvf, txsc, sa_num, sw_tx_sa->next_pn);
 		cn10k_mcs_link_tx_sa2sc(pfvf, secy, txsc, sa_num,
 					sw_tx_sa->active);
 	}
@@ -959,7 +1077,7 @@ static int cn10k_mcs_secy_rx_cfg(struct otx2_nic *pfvf,
 			cn10k_mcs_write_rx_sa_plcy(pfvf, secy, mcs_rx_sc,
 						   sa_num, sw_rx_sa->active);
 			cn10k_mcs_write_rx_sa_pn(pfvf, mcs_rx_sc, sa_num,
-						 sw_rx_sa->next_pn_halves.lower);
+						 sw_rx_sa->next_pn);
 		}
 
 		cn10k_mcs_write_rx_flowid(pfvf, mcs_rx_sc, hw_secy_id);
@@ -1053,7 +1171,7 @@ static void cn10k_mcs_sync_stats(struct otx2_nic *pfvf, struct macsec_secy *secy
 
 static int cn10k_mdo_open(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	struct macsec_tx_sa *sw_tx_sa;
@@ -1077,7 +1195,7 @@ static int cn10k_mdo_open(struct macsec_context *ctx)
 
 static int cn10k_mdo_stop(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct cn10k_mcs_txsc *txsc;
 	int err;
@@ -1095,19 +1213,12 @@ static int cn10k_mdo_stop(struct macsec_context *ctx)
 
 static int cn10k_mdo_add_secy(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	struct cn10k_mcs_txsc *txsc;
 
 	if (secy->icv_len != MACSEC_DEFAULT_ICV_LEN)
-		return -EOPNOTSUPP;
-
-	/* Stick to 16 bytes key len until XPN support is added */
-	if (secy->key_len != 16)
-		return -EOPNOTSUPP;
-
-	if (secy->xpn)
 		return -EOPNOTSUPP;
 
 	txsc = cn10k_mcs_create_txsc(pfvf);
@@ -1118,6 +1229,7 @@ static int cn10k_mdo_add_secy(struct macsec_context *ctx)
 	txsc->encoding_sa = secy->tx_sc.encoding_sa;
 	txsc->last_validate_frames = secy->validate_frames;
 	txsc->last_replay_protect = secy->replay_protect;
+	txsc->vlan_dev = is_vlan_dev(ctx->netdev);
 
 	list_add(&txsc->entry, &cfg->txsc_list);
 
@@ -1129,7 +1241,7 @@ static int cn10k_mdo_add_secy(struct macsec_context *ctx)
 
 static int cn10k_mdo_upd_secy(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	struct macsec_tx_sa *sw_tx_sa;
@@ -1164,7 +1276,7 @@ static int cn10k_mdo_upd_secy(struct macsec_context *ctx)
 
 static int cn10k_mdo_del_secy(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct cn10k_mcs_txsc *txsc;
 
@@ -1183,7 +1295,7 @@ static int cn10k_mdo_del_secy(struct macsec_context *ctx)
 
 static int cn10k_mdo_add_txsa(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct macsec_tx_sa *sw_tx_sa = ctx->sa.tx_sa;
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
@@ -1202,6 +1314,9 @@ static int cn10k_mdo_add_txsa(struct macsec_context *ctx)
 		return -ENOSPC;
 
 	memcpy(&txsc->sa_key[sa_num], ctx->sa.key, secy->key_len);
+	memcpy(&txsc->salt[sa_num], sw_tx_sa->key.salt.bytes, MACSEC_SALT_LEN);
+	txsc->ssci[sa_num] = sw_tx_sa->ssci;
+
 	txsc->sa_bmap |= 1 << sa_num;
 
 	if (netif_running(secy->netdev)) {
@@ -1210,7 +1325,7 @@ static int cn10k_mdo_add_txsa(struct macsec_context *ctx)
 			return err;
 
 		err = cn10k_write_tx_sa_pn(pfvf, txsc, sa_num,
-					   sw_tx_sa->next_pn_halves.lower);
+					   sw_tx_sa->next_pn);
 		if (err)
 			return err;
 
@@ -1225,7 +1340,7 @@ static int cn10k_mdo_add_txsa(struct macsec_context *ctx)
 
 static int cn10k_mdo_upd_txsa(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct macsec_tx_sa *sw_tx_sa = ctx->sa.tx_sa;
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
@@ -1242,10 +1357,12 @@ static int cn10k_mdo_upd_txsa(struct macsec_context *ctx)
 
 	if (netif_running(secy->netdev)) {
 		/* Keys cannot be changed after creation */
-		err = cn10k_write_tx_sa_pn(pfvf, txsc, sa_num,
-					   sw_tx_sa->next_pn_halves.lower);
-		if (err)
-			return err;
+		if (ctx->sa.update_pn) {
+			err = cn10k_write_tx_sa_pn(pfvf, txsc, sa_num,
+						   sw_tx_sa->next_pn);
+			if (err)
+				return err;
+		}
 
 		err = cn10k_mcs_link_tx_sa2sc(pfvf, secy, txsc,
 					      sa_num, sw_tx_sa->active);
@@ -1258,7 +1375,7 @@ static int cn10k_mdo_upd_txsa(struct macsec_context *ctx)
 
 static int cn10k_mdo_del_txsa(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	u8 sa_num = ctx->sa.assoc_num;
 	struct cn10k_mcs_txsc *txsc;
@@ -1278,7 +1395,7 @@ static int cn10k_mdo_del_txsa(struct macsec_context *ctx)
 
 static int cn10k_mdo_add_rxsc(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	struct cn10k_mcs_rxsc *rxsc;
@@ -1312,7 +1429,7 @@ static int cn10k_mdo_add_rxsc(struct macsec_context *ctx)
 
 static int cn10k_mdo_upd_rxsc(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	bool enable = ctx->rx_sc->active;
@@ -1331,7 +1448,7 @@ static int cn10k_mdo_upd_rxsc(struct macsec_context *ctx)
 
 static int cn10k_mdo_del_rxsc(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct cn10k_mcs_rxsc *rxsc;
 
@@ -1349,11 +1466,10 @@ static int cn10k_mdo_del_rxsc(struct macsec_context *ctx)
 
 static int cn10k_mdo_add_rxsa(struct macsec_context *ctx)
 {
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct macsec_rx_sc *sw_rx_sc = ctx->sa.rx_sa->sc;
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_rx_sa *rx_sa = ctx->sa.rx_sa;
-	u64 next_pn = rx_sa->next_pn_halves.lower;
 	struct macsec_secy *secy = ctx->secy;
 	bool sa_in_use = rx_sa->active;
 	u8 sa_num = ctx->sa.assoc_num;
@@ -1371,6 +1487,9 @@ static int cn10k_mdo_add_rxsa(struct macsec_context *ctx)
 		return -ENOSPC;
 
 	memcpy(&rxsc->sa_key[sa_num], ctx->sa.key, ctx->secy->key_len);
+	memcpy(&rxsc->salt[sa_num], rx_sa->key.salt.bytes, MACSEC_SALT_LEN);
+	rxsc->ssci[sa_num] = rx_sa->ssci;
+
 	rxsc->sa_bmap |= 1 << sa_num;
 
 	if (netif_running(secy->netdev)) {
@@ -1379,7 +1498,8 @@ static int cn10k_mdo_add_rxsa(struct macsec_context *ctx)
 		if (err)
 			return err;
 
-		err = cn10k_mcs_write_rx_sa_pn(pfvf, rxsc, sa_num, next_pn);
+		err = cn10k_mcs_write_rx_sa_pn(pfvf, rxsc, sa_num,
+					       rx_sa->next_pn);
 		if (err)
 			return err;
 	}
@@ -1389,11 +1509,10 @@ static int cn10k_mdo_add_rxsa(struct macsec_context *ctx)
 
 static int cn10k_mdo_upd_rxsa(struct macsec_context *ctx)
 {
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct macsec_rx_sc *sw_rx_sc = ctx->sa.rx_sa->sc;
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_rx_sa *rx_sa = ctx->sa.rx_sa;
-	u64 next_pn = rx_sa->next_pn_halves.lower;
 	struct macsec_secy *secy = ctx->secy;
 	bool sa_in_use = rx_sa->active;
 	u8 sa_num = ctx->sa.assoc_num;
@@ -1412,7 +1531,11 @@ static int cn10k_mdo_upd_rxsa(struct macsec_context *ctx)
 		if (err)
 			return err;
 
-		err = cn10k_mcs_write_rx_sa_pn(pfvf, rxsc, sa_num, next_pn);
+		if (!ctx->sa.update_pn)
+			return 0;
+
+		err = cn10k_mcs_write_rx_sa_pn(pfvf, rxsc, sa_num,
+					       rx_sa->next_pn);
 		if (err)
 			return err;
 	}
@@ -1422,8 +1545,8 @@ static int cn10k_mdo_upd_rxsa(struct macsec_context *ctx)
 
 static int cn10k_mdo_del_rxsa(struct macsec_context *ctx)
 {
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct macsec_rx_sc *sw_rx_sc = ctx->sa.rx_sa->sc;
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	u8 sa_num = ctx->sa.assoc_num;
 	struct cn10k_mcs_rxsc *rxsc;
@@ -1445,8 +1568,8 @@ static int cn10k_mdo_del_rxsa(struct macsec_context *ctx)
 
 static int cn10k_mdo_get_dev_stats(struct macsec_context *ctx)
 {
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct mcs_secy_stats tx_rsp = { 0 }, rx_rsp = { 0 };
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	struct cn10k_mcs_txsc *txsc;
@@ -1481,7 +1604,7 @@ static int cn10k_mdo_get_dev_stats(struct macsec_context *ctx)
 
 static int cn10k_mdo_get_tx_sc_stats(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct mcs_sc_stats rsp = { 0 };
 	struct cn10k_mcs_txsc *txsc;
@@ -1502,7 +1625,7 @@ static int cn10k_mdo_get_tx_sc_stats(struct macsec_context *ctx)
 
 static int cn10k_mdo_get_tx_sa_stats(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct mcs_sa_stats rsp = { 0 };
 	u8 sa_num = ctx->sa.assoc_num;
@@ -1525,7 +1648,7 @@ static int cn10k_mdo_get_tx_sa_stats(struct macsec_context *ctx)
 
 static int cn10k_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 {
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct macsec_secy *secy = ctx->secy;
 	struct mcs_sc_stats rsp = { 0 };
@@ -1567,8 +1690,8 @@ static int cn10k_mdo_get_rx_sc_stats(struct macsec_context *ctx)
 
 static int cn10k_mdo_get_rx_sa_stats(struct macsec_context *ctx)
 {
+	struct otx2_nic *pfvf = macsec_netdev_priv(ctx->netdev);
 	struct macsec_rx_sc *sw_rx_sc = ctx->sa.rx_sa->sc;
-	struct otx2_nic *pfvf = netdev_priv(ctx->netdev);
 	struct cn10k_mcs_cfg *cfg = pfvf->macsec_cfg;
 	struct mcs_sa_stats rsp = { 0 };
 	u8 sa_num = ctx->sa.assoc_num;

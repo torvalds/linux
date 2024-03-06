@@ -143,7 +143,7 @@ struct pm860x_priv {
 	struct pm860x_det	det;
 
 	int			irq[4];
-	unsigned char		name[4][MAX_NAME_LEN+1];
+	unsigned char		name[4][MAX_NAME_LEN];
 };
 
 /* -9450dB to 0dB in 150dB steps ( mute instead of -9450dB) */
@@ -400,9 +400,9 @@ static int pm860x_dac_event(struct snd_soc_dapm_widget *w,
 	unsigned int dac = 0;
 	int data;
 
-	if (!strcmp(w->name, "Left DAC"))
+	if (!snd_soc_dapm_widget_name_cmp(w, "Left DAC"))
 		dac = DAC_LEFT;
-	if (!strcmp(w->name, "Right DAC"))
+	if (!snd_soc_dapm_widget_name_cmp(w, "Right DAC"))
 		dac = DAC_RIGHT;
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -1373,7 +1373,7 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 			return -EINVAL;
 		}
 		pm860x->irq[i] = res->start + chip->irq_base;
-		strncpy(pm860x->name[i], res->name, MAX_NAME_LEN);
+		strscpy(pm860x->name[i], res->name, MAX_NAME_LEN);
 	}
 
 	ret = devm_snd_soc_register_component(&pdev->dev,

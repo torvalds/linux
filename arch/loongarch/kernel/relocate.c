@@ -52,7 +52,7 @@ static inline void __init relocate_absolute(long random_offset)
 	for (p = begin; (void *)p < end; p++) {
 		long v = p->symvalue;
 		uint32_t lu12iw, ori, lu32id, lu52id;
-		union loongarch_instruction *insn = (void *)p - p->offset;
+		union loongarch_instruction *insn = (void *)p->pc;
 
 		lu12iw = (v >> 12) & 0xfffff;
 		ori    = v & 0xfff;
@@ -101,6 +101,14 @@ static inline __init unsigned long get_random_boot(void)
 
 	return hash;
 }
+
+static int __init nokaslr(char *p)
+{
+	pr_info("KASLR is disabled.\n");
+
+	return 0; /* Print a notice and silence the boot warning */
+}
+early_param("nokaslr", nokaslr);
 
 static inline __init bool kaslr_disabled(void)
 {
@@ -157,12 +165,11 @@ static inline void __init update_reloc_offset(unsigned long *addr, long random_o
 	*new_addr = (unsigned long)reloc_offset;
 }
 
-void * __init relocate_kernel(void)
+unsigned long __init relocate_kernel(void)
 {
 	unsigned long kernel_length;
 	unsigned long random_offset = 0;
 	void *location_new = _text; /* Default to original kernel start */
-	void *kernel_entry = start_kernel; /* Default to original kernel entry point */
 	char *cmdline = early_ioremap(fw_arg1, COMMAND_LINE_SIZE); /* Boot command line is passed in fw_arg1 */
 
 	strscpy(boot_command_line, cmdline, COMMAND_LINE_SIZE);
@@ -190,9 +197,6 @@ void * __init relocate_kernel(void)
 
 		reloc_offset += random_offset;
 
-		/* Return the new kernel's entry point */
-		kernel_entry = RELOCATED_KASLR(start_kernel);
-
 		/* The current thread is now within the relocated kernel */
 		__current_thread_info = RELOCATED_KASLR(__current_thread_info);
 
@@ -204,7 +208,7 @@ void * __init relocate_kernel(void)
 
 	relocate_absolute(random_offset);
 
-	return kernel_entry;
+	return random_offset;
 }
 
 /*

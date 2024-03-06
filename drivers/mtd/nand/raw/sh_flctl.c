@@ -17,7 +17,6 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/sh_dma.h>
@@ -1124,8 +1123,7 @@ static int flctl_probe(struct platform_device *pdev)
 	if (!flctl)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	flctl->reg = devm_ioremap_resource(&pdev->dev, res);
+	flctl->reg = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(flctl->reg))
 		return PTR_ERR(flctl->reg);
 	flctl->fifo = res->start + 0x24; /* FLDTFIFO */
@@ -1217,6 +1215,7 @@ static void flctl_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver flctl_driver = {
+	.probe		= flctl_probe,
 	.remove_new	= flctl_remove,
 	.driver = {
 		.name	= "sh_flctl",
@@ -1224,7 +1223,7 @@ static struct platform_driver flctl_driver = {
 	},
 };
 
-module_platform_driver_probe(flctl_driver, flctl_probe);
+module_platform_driver(flctl_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Yoshihiro Shimoda");

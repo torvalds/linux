@@ -56,6 +56,9 @@ properties:
       - const: clkext3
     minItems: 2
 
+  "#sound-dai-cells":
+    const: 0
+
 required:
   - compatible
   - reg

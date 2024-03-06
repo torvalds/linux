@@ -11,7 +11,7 @@
 #include <linux/platform_data/pm33xx.h>
 #include <asm/assembler.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 
 #include "cm33xx.h"
 #include "common.h"

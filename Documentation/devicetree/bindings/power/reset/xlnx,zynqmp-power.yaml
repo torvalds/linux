@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Xilinx Zynq MPSoC Power Management
 
 maintainers:
-  - Michal Simek <michal.simek@xilinx.com>
+  - Michal Simek <michal.simek@amd.com>
 
 description: |
   The zynqmp-power node describes the power management configurations.
@@ -57,7 +57,7 @@ examples:
 
     firmware {
       zynqmp-firmware {
-        zynqmp-power {
+        power-management {
           compatible = "xlnx,zynqmp-power";
           interrupts = <0 35 4>;
         };
@@ -70,7 +70,7 @@ examples:
 
     firmware {
       zynqmp-firmware {
-        zynqmp-power {
+        power-management {
           compatible = "xlnx,zynqmp-power";
           interrupt-parent = <&gic>;
           interrupts = <0 35 4>;

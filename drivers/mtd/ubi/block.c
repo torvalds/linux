@@ -227,9 +227,9 @@ static blk_status_t ubiblock_read(struct request *req)
 	return BLK_STS_OK;
 }
 
-static int ubiblock_open(struct block_device *bdev, fmode_t mode)
+static int ubiblock_open(struct gendisk *disk, blk_mode_t mode)
 {
-	struct ubiblock *dev = bdev->bd_disk->private_data;
+	struct ubiblock *dev = disk->private_data;
 	int ret;
 
 	mutex_lock(&dev->dev_mutex);
@@ -246,11 +246,10 @@ static int ubiblock_open(struct block_device *bdev, fmode_t mode)
 	 * It's just a paranoid check, as write requests will get rejected
 	 * in any case.
 	 */
-	if (mode & FMODE_WRITE) {
+	if (mode & BLK_OPEN_WRITE) {
 		ret = -EROFS;
 		goto out_unlock;
 	}
-
 	dev->desc = ubi_open_volume(dev->ubi_num, dev->vol_id, UBI_READONLY);
 	if (IS_ERR(dev->desc)) {
 		dev_err(disk_to_dev(dev->gd), "failed to open ubi volume %d_%d",
@@ -270,7 +269,7 @@ out_unlock:
 	return ret;
 }
 
-static void ubiblock_release(struct gendisk *gd, fmode_t mode)
+static void ubiblock_release(struct gendisk *gd)
 {
 	struct ubiblock *dev = gd->private_data;
 
@@ -435,7 +434,7 @@ out_remove_minor:
 	list_del(&dev->list);
 	idr_remove(&ubiblock_minor_idr, gd->first_minor);
 out_cleanup_disk:
-	put_disk(dev->gd);
+	put_disk(gd);
 out_free_tags:
 	blk_mq_free_tag_set(&dev->tag_set);
 out_free_dev:
@@ -448,13 +447,15 @@ out_unlock:
 
 static void ubiblock_cleanup(struct ubiblock *dev)
 {
+	int id = dev->gd->first_minor;
+
 	/* Stop new requests to arrive */
 	del_gendisk(dev->gd);
 	/* Finally destroy the blk queue */
 	dev_info(disk_to_dev(dev->gd), "released");
 	put_disk(dev->gd);
 	blk_mq_free_tag_set(&dev->tag_set);
-	idr_remove(&ubiblock_minor_idr, dev->gd->first_minor);
+	idr_remove(&ubiblock_minor_idr, id);
 }
 
 int ubiblock_remove(struct ubi_volume_info *vi)

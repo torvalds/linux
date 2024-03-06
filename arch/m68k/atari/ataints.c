@@ -52,6 +52,7 @@
 #include <asm/entry.h>
 #include <asm/io.h>
 
+#include "atari.h"
 
 /*
  * Atari interrupt handling scheme:
@@ -80,8 +81,6 @@ __ALIGN_STR "\n\t"
 "falcon_hblhandler:\n\t"
 	"orw	#0x200,%sp@\n\t"	/* set saved ipl to 2 */
 	"rte");
-
-extern void atari_microwire_cmd(int cmd);
 
 static unsigned int atari_irq_startup(struct irq_data *data)
 {

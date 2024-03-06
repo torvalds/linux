@@ -444,7 +444,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			DRM_DEBUG_KMS("timestamp is r6xx+ only!\n");
 			return -EINVAL;
 		}
-		value = (uint32_t*)&value64;
+		value = (uint32_t *)&value64;
 		value_size = sizeof(uint64_t);
 		value64 = radeon_get_gpu_clock_counter(rdev);
 		break;
@@ -543,18 +543,18 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		*value = rdev->vce.fb_version;
 		break;
 	case RADEON_INFO_NUM_BYTES_MOVED:
-		value = (uint32_t*)&value64;
+		value = (uint32_t *)&value64;
 		value_size = sizeof(uint64_t);
 		value64 = atomic64_read(&rdev->num_bytes_moved);
 		break;
 	case RADEON_INFO_VRAM_USAGE:
-		value = (uint32_t*)&value64;
+		value = (uint32_t *)&value64;
 		value_size = sizeof(uint64_t);
 		man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_VRAM);
 		value64 = ttm_resource_manager_usage(man);
 		break;
 	case RADEON_INFO_GTT_USAGE:
-		value = (uint32_t*)&value64;
+		value = (uint32_t *)&value64;
 		value_size = sizeof(uint64_t);
 		man = ttm_manager_type(&rdev->mman.bdev, TTM_PL_TT);
 		value64 = ttm_resource_manager_usage(man);
@@ -614,7 +614,7 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
 	}
-	if (copy_to_user(value_ptr, (char*)value, value_size)) {
+	if (copy_to_user(value_ptr, (char *)value, value_size)) {
 		DRM_ERROR("copy_to_user %s:%u\n", __func__, __LINE__);
 		return -EFAULT;
 	}

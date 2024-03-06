@@ -8,12 +8,12 @@
  * Severely hacked about by Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
+#include <linux/export.h>
 #include <linux/sys.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
-#include <asm/export.h>
 
 	.text
 

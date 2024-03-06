@@ -23,7 +23,7 @@ properties:
       headphone detect mode to HPDETL, ARIZONA_ACCDET_MODE_HPR/2 sets it
       to HPDETR.  If this node is not included or if the value is unknown,
       then headphone detection mode is set to HPDETL.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 1
     maximum: 2
 
@@ -51,7 +51,7 @@ properties:
     description:
       Additional software microphone detection debounce specified in
       milliseconds.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
 
   wlf,micd-pol-gpio:
     description:
@@ -63,7 +63,7 @@ properties:
     description:
       Time allowed for MICBIAS to startup prior to performing microphone
       detection, specified as per the ARIZONA_MICD_TIME_XXX defines.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 12
 
@@ -71,7 +71,7 @@ properties:
     description:
       Delay between successive microphone detection measurements, specified
       as per the ARIZONA_MICD_TIME_XXX defines.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 12
 
@@ -79,7 +79,7 @@ properties:
     description:
       Microphone detection hardware debounces specified as the number of
       measurements to take.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [2, 4]
 
   wlf,micd-timeout-ms:
@@ -97,7 +97,7 @@ properties:
       CTIA / OMTP headsets), the field can be of variable length but
       should always be a multiple of 3 cells long, each three cell group
       represents one polarity configuration.
-    $ref: "/schemas/types.yaml#/definitions/uint32-matrix"
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
     items:
       items:
         - description:
@@ -119,7 +119,7 @@ properties:
     description:
       Settings for the general purpose switch, set as one of the
       ARIZONA_GPSW_XXX defines.
-    $ref: "/schemas/types.yaml#/definitions/uint32"
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
 

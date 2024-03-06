@@ -161,7 +161,7 @@ static void __init pci_clock_check(void)
 #if defined(CONFIG_VT) && defined(CONFIG_VGA_CONSOLE)
 static void __init screen_info_setup(void)
 {
-	screen_info = (struct screen_info) {
+	static struct screen_info si = {
 		.orig_x = 0,
 		.orig_y = 25,
 		.ext_mem_k = 0,
@@ -175,6 +175,8 @@ static void __init screen_info_setup(void)
 		.orig_video_isVGA = VIDEO_TYPE_VGAC,
 		.orig_video_points = 16
 	};
+
+	vgacon_register_screen(&si);
 }
 #endif
 

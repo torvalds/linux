@@ -43,6 +43,15 @@ enum {
 	 * want the extent states to go away.
 	 */
 	ENUM_BIT(EXTENT_CLEAR_ALL_BITS),
+
+	/*
+	 * This must be last.
+	 *
+	 * Bit not representing a state but a request for NOWAIT semantics,
+	 * e.g. when allocating memory, and must be masked out from the other
+	 * bits.
+	 */
+	ENUM_BIT(EXTENT_NOWAIT)
 };
 
 #define EXTENT_DO_ACCOUNTING    (EXTENT_CLEAR_META_RESV | \
@@ -78,9 +87,17 @@ enum {
 
 struct extent_io_tree {
 	struct rb_root state;
-	struct btrfs_fs_info *fs_info;
-	/* Inode associated with this tree, or NULL. */
-	struct btrfs_inode *inode;
+	/*
+	 * The fs_info is needed for trace points, a tree attached to an inode
+	 * needs the inode.
+	 *
+	 * owner == IO_TREE_INODE_IO - then inode is valid and fs_info can be
+	 *                             accessed as inode->root->fs_info
+	 */
+	union {
+		struct btrfs_fs_info *fs_info;
+		struct btrfs_inode *inode;
+	};
 
 	/* Who owns this io tree, should be one of IO_TREE_* */
 	u8 owner;
@@ -103,6 +120,10 @@ struct extent_state {
 #endif
 };
 
+struct btrfs_inode *extent_io_tree_to_inode(struct extent_io_tree *tree);
+const struct btrfs_inode *extent_io_tree_to_inode_const(const struct extent_io_tree *tree);
+const struct btrfs_fs_info *extent_io_tree_to_fs_info(const struct extent_io_tree *tree);
+
 void extent_io_tree_init(struct btrfs_fs_info *fs_info,
 			 struct extent_io_tree *tree, unsigned int owner);
 void extent_io_tree_release(struct extent_io_tree *tree);
@@ -122,27 +143,26 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     struct extent_state **cached_state);
 
 void free_extent_state(struct extent_state *state);
-int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, int filled, struct extent_state *cached_state);
+bool test_range_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bit,
+		    struct extent_state *cached_state);
+bool test_range_bit_exists(struct extent_io_tree *tree, u64 start, u64 end, u32 bit);
 int clear_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			     u32 bits, struct extent_changeset *changeset);
 int __clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		       u32 bits, struct extent_state **cached, gfp_t mask,
+		       u32 bits, struct extent_state **cached,
 		       struct extent_changeset *changeset);
 
 static inline int clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				   u64 end, u32 bits,
 				   struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, bits, cached,
-				  GFP_NOFS, NULL);
+	return __clear_extent_bit(tree, start, end, bits, cached, NULL);
 }
 
 static inline int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end,
 				struct extent_state **cached)
 {
-	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached,
-				  GFP_NOFS, NULL);
+	return __clear_extent_bit(tree, start, end, EXTENT_LOCKED, cached, NULL);
 }
 
 static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
@@ -154,31 +174,13 @@ static inline int clear_extent_bits(struct extent_io_tree *tree, u64 start,
 int set_record_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 			   u32 bits, struct extent_changeset *changeset);
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   u32 bits, struct extent_state **cached_state, gfp_t mask);
-
-static inline int set_extent_bits_nowait(struct extent_io_tree *tree, u64 start,
-					 u64 end, u32 bits)
-{
-	return set_extent_bit(tree, start, end, bits, NULL, GFP_NOWAIT);
-}
-
-static inline int set_extent_bits(struct extent_io_tree *tree, u64 start,
-		u64 end, u32 bits)
-{
-	return set_extent_bit(tree, start, end, bits, NULL, GFP_NOFS);
-}
+		   u32 bits, struct extent_state **cached_state);
 
 static inline int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
 		u64 end, struct extent_state **cached_state)
 {
 	return __clear_extent_bit(tree, start, end, EXTENT_UPTODATE,
-				  cached_state, GFP_NOFS, NULL);
-}
-
-static inline int set_extent_dirty(struct extent_io_tree *tree, u64 start,
-		u64 end, gfp_t mask)
-{
-	return set_extent_bit(tree, start, end, EXTENT_DIRTY, NULL, mask);
+				  cached_state, NULL);
 }
 
 static inline int clear_extent_dirty(struct extent_io_tree *tree, u64 start,
@@ -193,32 +195,9 @@ int convert_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		       u32 bits, u32 clear_bits,
 		       struct extent_state **cached_state);
 
-static inline int set_extent_delalloc(struct extent_io_tree *tree, u64 start,
-				      u64 end, u32 extra_bits,
-				      struct extent_state **cached_state)
-{
-	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | extra_bits,
-			      cached_state, GFP_NOFS);
-}
-
-static inline int set_extent_defrag(struct extent_io_tree *tree, u64 start,
-		u64 end, struct extent_state **cached_state)
-{
-	return set_extent_bit(tree, start, end,
-			      EXTENT_DELALLOC | EXTENT_DEFRAG,
-			      cached_state, GFP_NOFS);
-}
-
-static inline int set_extent_new(struct extent_io_tree *tree, u64 start,
-		u64 end)
-{
-	return set_extent_bit(tree, start, end, EXTENT_NEW, NULL, GFP_NOFS);
-}
-
-int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
-			  u64 *start_ret, u64 *end_ret, u32 bits,
-			  struct extent_state **cached_state);
+bool find_first_extent_bit(struct extent_io_tree *tree, u64 start,
+			   u64 *start_ret, u64 *end_ret, u32 bits,
+			   struct extent_state **cached_state);
 void find_first_clear_extent_bit(struct extent_io_tree *tree, u64 start,
 				 u64 *start_ret, u64 *end_ret, u32 bits);
 int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
@@ -226,7 +205,5 @@ int find_contiguous_extent_bit(struct extent_io_tree *tree, u64 start,
 bool btrfs_find_delalloc_range(struct extent_io_tree *tree, u64 *start,
 			       u64 *end, u64 max_bytes,
 			       struct extent_state **cached_state);
-void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, u32 bits,
-		     struct extent_state **cached_state);
 
 #endif /* BTRFS_EXTENT_IO_TREE_H */

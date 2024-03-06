@@ -103,7 +103,7 @@ enum orangefs_vfs_op_states {
 #define ORANGEFS_CACHE_CREATE_FLAGS 0
 #endif
 
-extern const struct xattr_handler *orangefs_xattr_handlers[];
+extern const struct xattr_handler * const orangefs_xattr_handlers[];
 
 extern struct posix_acl *orangefs_get_acl(struct inode *inode, int type, bool rcu);
 extern int orangefs_set_acl(struct mnt_idmap *idmap,
@@ -370,7 +370,7 @@ int orangefs_getattr(struct mnt_idmap *idmap, const struct path *path,
 int orangefs_permission(struct mnt_idmap *idmap,
 			struct inode *inode, int mask);
 
-int orangefs_update_time(struct inode *, struct timespec64 *, int);
+int orangefs_update_time(struct inode *, int);
 
 /*
  * defined in xattr.c

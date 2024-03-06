@@ -112,6 +112,12 @@ pages:
 This also leads to limitations: there are only 31-10==21 bits available for a
 counter that increments 10 bits at a time.
 
+* Because of that limitation, special handling is applied to the zero pages
+  when using FOLL_PIN.  We only pretend to pin a zero page - we don't alter its
+  refcount or pincount at all (it is permanent, so there's no need).  The
+  unpinning functions also don't do anything to a zero page.  This is
+  transparent to the caller.
+
 * Callers must specifically request "dma-pinned tracking of pages". In other
   words, just calling get_user_pages() will not suffice; a new set of functions,
   pin_user_page() and related, must be used.
@@ -146,6 +152,8 @@ to set at the call site are: ::
 NOTE: Some pages, such as DAX pages, cannot be pinned with longterm pins. That's
 because DAX pages do not have a separate page cache, and so "pinning" implies
 locking down file system blocks, which is not (yet) supported in that way.
+
+.. _mmu-notifier-registration-case:
 
 CASE 3: MMU notifier registration, with or without page faulting hardware
 -------------------------------------------------------------------------

@@ -30,7 +30,7 @@ struct pca9570_chip_data {
 /**
  * struct pca9570 - GPIO driver data
  * @chip: GPIO controller chip
- * @p_data: GPIO controller platform data
+ * @chip_data: GPIO controller platform data
  * @lock: Protects write sequences
  * @out: Buffer for device register
  */
@@ -175,7 +175,7 @@ static struct i2c_driver pca9570_driver = {
 		.name = "pca9570",
 		.of_match_table = pca9570_of_match_table,
 	},
-	.probe_new = pca9570_probe,
+	.probe = pca9570_probe,
 	.id_table = pca9570_id_table,
 };
 module_i2c_driver(pca9570_driver);

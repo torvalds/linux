@@ -16,6 +16,7 @@
 
 MODULE_AUTHOR("Calvin Johnson <calvin.johnson@oss.nxp.com>");
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ACPI MDIO bus (Ethernet PHY) accessors");
 
 /**
  * __acpi_mdiobus_register - Register mii_bus and create PHYs from the ACPI ASL.

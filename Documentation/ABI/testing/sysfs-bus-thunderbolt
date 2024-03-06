@@ -1,7 +1,7 @@
 What:		/sys/bus/thunderbolt/devices/.../domainX/boot_acl
 Date:		Jun 2018
 KernelVersion:	4.17
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	Holds a comma separated list of device unique_ids that
 		are allowed to be connected automatically during system
 		startup (e.g boot devices). The list always contains
@@ -33,7 +33,7 @@ Description:	This attribute tells whether the system supports
 What:		/sys/bus/thunderbolt/devices/.../domainX/iommu_dma_protection
 Date:		Mar 2019
 KernelVersion:	4.21
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute tells whether the system uses IOMMU
 		for DMA protection. Value of 1 means IOMMU is used 0 means
 		it is not (DMA protection is solely based on Thunderbolt
@@ -42,7 +42,7 @@ Description:	This attribute tells whether the system uses IOMMU
 What:		/sys/bus/thunderbolt/devices/.../domainX/security
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute holds current Thunderbolt security level
 		set by the system BIOS. Possible values are:
 
@@ -64,7 +64,7 @@ Description:	This attribute holds current Thunderbolt security level
 What:		/sys/bus/thunderbolt/devices/.../authorized
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute is used to authorize Thunderbolt devices
 		after they have been connected. If the device is not
 		authorized, no PCIe devices are available to the system.
@@ -98,7 +98,7 @@ Description:	This attribute is used to authorize Thunderbolt devices
 What:		/sys/bus/thunderbolt/devices/.../boot
 Date:		Jun 2018
 KernelVersion:	4.17
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute contains 1 if Thunderbolt device was already
 		authorized on boot and 0 otherwise.
 
@@ -113,7 +113,7 @@ Description:	This attribute contains the generation of the Thunderbolt
 What:		/sys/bus/thunderbolt/devices/.../key
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	When a devices supports Thunderbolt secure connect it will
 		have this attribute. Writing 32 byte hex string changes
 		authorization to use the secure connection method instead.
@@ -123,14 +123,14 @@ Description:	When a devices supports Thunderbolt secure connect it will
 What:		/sys/bus/thunderbolt/devices/.../device
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute contains id of this device extracted from
 		the device DROM.
 
 What:		/sys/bus/thunderbolt/devices/.../device_name
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute contains name of this device extracted from
 		the device DROM.
 
@@ -172,21 +172,21 @@ Description:	This attribute reports number of TX lanes the device is
 What:		/sys/bus/thunderbolt/devices/.../vendor
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute contains vendor id of this device extracted
 		from the device DROM.
 
 What:		/sys/bus/thunderbolt/devices/.../vendor_name
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute contains vendor name of this device extracted
 		from the device DROM.
 
 What:		/sys/bus/thunderbolt/devices/.../unique_id
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This attribute contains unique_id string of this device.
 		This is either read from hardware registers (UUID on
 		newer hardware) or based on UID from the device DROM.
@@ -195,7 +195,7 @@ Description:	This attribute contains unique_id string of this device.
 What:		/sys/bus/thunderbolt/devices/.../nvm_version
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	If the device has upgradeable firmware the version
 		number is available here. Format: %x.%x, major.minor.
 		If the device is in safe mode reading the file returns
@@ -204,7 +204,7 @@ Description:	If the device has upgradeable firmware the version
 What:		/sys/bus/thunderbolt/devices/.../nvm_authenticate
 Date:		Sep 2017
 KernelVersion:	4.13
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	When new NVM image is written to the non-active NVM
 		area (through non_activeX NVMem device), the
 		authentication procedure is started by writing to
@@ -246,7 +246,7 @@ Description:	For supported devices, automatically authenticate the new Thunderbo
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/key
 Date:		Jan 2018
 KernelVersion:	4.15
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This contains name of the property directory the XDomain
 		service exposes. This entry describes the protocol in
 		question. Following directories are already reserved by
@@ -261,35 +261,35 @@ Description:	This contains name of the property directory the XDomain
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/modalias
 Date:		Jan 2018
 KernelVersion:	4.15
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	Stores the same MODALIAS value emitted by uevent for
 		the XDomain service. Format: tbtsvc:kSpNvNrN
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcid
 Date:		Jan 2018
 KernelVersion:	4.15
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This contains XDomain protocol identifier the XDomain
 		service supports.
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcvers
 Date:		Jan 2018
 KernelVersion:	4.15
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This contains XDomain protocol version the XDomain
 		service supports.
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcrevs
 Date:		Jan 2018
 KernelVersion:	4.15
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This contains XDomain software version the XDomain
 		service supports.
 
 What:		/sys/bus/thunderbolt/devices/<xdomain>.<service>/prtcstns
 Date:		Jan 2018
 KernelVersion:	4.15
-Contact:	thunderbolt-software@lists.01.org
+Contact:	Mika Westerberg <mika.westerberg@linux.intel.com>
 Description:	This contains XDomain service specific settings as
 		bitmask. Format: %x
 

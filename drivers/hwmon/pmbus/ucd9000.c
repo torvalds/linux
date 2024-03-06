@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/init.h>
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -512,8 +512,6 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 		return -ENOENT;
 
 	data->debugfs = debugfs_create_dir(client->name, debugfs);
-	if (!data->debugfs)
-		return -ENOENT;
 
 	/*
 	 * Of the chips this driver supports, only the UCD9090, UCD90160,
@@ -590,7 +588,7 @@ static int ucd9000_probe(struct i2c_client *client)
 	}
 
 	if (client->dev.of_node)
-		chip = (enum chips)of_device_get_match_data(&client->dev);
+		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = mid->driver_data;
 
@@ -695,7 +693,7 @@ static struct i2c_driver ucd9000_driver = {
 		.name = "ucd9000",
 		.of_match_table = of_match_ptr(ucd9000_of_match),
 	},
-	.probe_new = ucd9000_probe,
+	.probe = ucd9000_probe,
 	.id_table = ucd9000_id,
 };
 

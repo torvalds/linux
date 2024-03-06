@@ -13,7 +13,6 @@
 #include <linux/regmap.h>
 #include <linux/rtc.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
 
@@ -462,7 +461,7 @@ static struct i2c_driver rx6110_i2c_driver = {
 		.name = RX6110_DRIVER_NAME,
 		.acpi_match_table = rx6110_i2c_acpi_match,
 	},
-	.probe_new	= rx6110_i2c_probe,
+	.probe		= rx6110_i2c_probe,
 	.id_table	= rx6110_i2c_id,
 };
 

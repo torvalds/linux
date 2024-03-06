@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/rtc/isil,isl1208.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intersil ISL1209/19 I2C RTC/Alarm chip with event in
+
+maintainers:
+  - Biju Das <biju.das.jz@bp.renesas.com>
+  - Trent Piepho <tpiepho@gmail.com>
+
+description:
+  ISL12X9 have additional pins EVIN and EVDET for tamper detection, while the
+  ISL1208 and ISL1218 do not.
+
+properties:
+  compatible:
+    enum:
+      - isil,isl1208
+      - isil,isl1209
+      - isil,isl1218
+      - isil,isl1219
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    description: |
+      Use xin, if connected to an external crystal.
+      Use clkin, if connected to an external clock signal.
+    enum:
+      - xin
+      - clkin
+
+  interrupts:
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    minItems: 1
+    items:
+      - const: irq
+      - const: evdet
+
+  isil,ev-evienb:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [ 0, 1 ]
+    description: |
+      Enable or disable internal pull on EVIN pin
+      Default will leave the non-volatile configuration of the pullup
+      as is.
+        <0> : Enables internal pull-up on evin pin
+        <1> : Disables internal pull-up on evin pin
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: rtc.yaml#
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - isil,isl1209
+              - isil,isl1219
+    then:
+      properties:
+        interrupts:
+          maxItems: 2
+        interrupt-names:
+          items:
+            - const: irq
+            - const: evdet
+    else:
+      properties:
+        interrupts:
+          maxItems: 1
+        interrupt-names:
+          items:
+            - const: irq
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        rtc_twi: rtc@6f {
+            compatible = "isil,isl1208";
+            reg = <0x6f>;
+        };
+    };

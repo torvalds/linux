@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
 
@@ -330,7 +331,7 @@ err_clk:
 	return ret;
 }
 
-static int stm32_ipcc_remove(struct platform_device *pdev)
+static void stm32_ipcc_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 
@@ -338,8 +339,6 @@ static int stm32_ipcc_remove(struct platform_device *pdev)
 		dev_pm_clear_wake_irq(&pdev->dev);
 
 	device_set_wakeup_capable(dev, false);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -380,7 +379,7 @@ static struct platform_driver stm32_ipcc_driver = {
 		.of_match_table = stm32_ipcc_of_match,
 	},
 	.probe		= stm32_ipcc_probe,
-	.remove		= stm32_ipcc_remove,
+	.remove_new	= stm32_ipcc_remove,
 };
 
 module_platform_driver(stm32_ipcc_driver);

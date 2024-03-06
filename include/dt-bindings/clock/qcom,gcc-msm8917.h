@@ -169,6 +169,7 @@
 #define VFE0_CLK_SRC				162
 #define VFE1_CLK_SRC				163
 #define VSYNC_CLK_SRC				164
+#define GPLL0_SLEEP_CLK_SRC			165
 
 /* GCC block resets */
 #define GCC_CAMSS_MICRO_BCR			0

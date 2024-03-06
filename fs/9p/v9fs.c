@@ -545,8 +545,6 @@ void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses)
 	p9_client_begin_disconnect(v9ses->clnt);
 }
 
-extern int v9fs_error_init(void);
-
 static struct kobject *v9fs_kobj;
 
 #ifdef CONFIG_9P_FSCACHE
@@ -734,4 +732,5 @@ module_exit(exit_v9fs)
 MODULE_AUTHOR("Latchesar Ionkov <lucho@ionkov.net>");
 MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");
 MODULE_AUTHOR("Ron Minnich <rminnich@lanl.gov>");
+MODULE_DESCRIPTION("9P Client File System");
 MODULE_LICENSE("GPL");

@@ -36,11 +36,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/of_dma.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <linux/random.h>
 
@@ -1084,7 +1084,7 @@ err:
 	return retval;
 }
 
-static int mpc_dma_remove(struct platform_device *op)
+static void mpc_dma_remove(struct platform_device *op)
 {
 	struct device *dev = &op->dev;
 	struct mpc_dma *mdma = dev_get_drvdata(dev);
@@ -1099,8 +1099,6 @@ static int mpc_dma_remove(struct platform_device *op)
 	free_irq(mdma->irq, mdma);
 	irq_dispose_mapping(mdma->irq);
 	tasklet_kill(&mdma->tasklet);
-
-	return 0;
 }
 
 static const struct of_device_id mpc_dma_match[] = {
@@ -1112,7 +1110,7 @@ MODULE_DEVICE_TABLE(of, mpc_dma_match);
 
 static struct platform_driver mpc_dma_driver = {
 	.probe		= mpc_dma_probe,
-	.remove		= mpc_dma_remove,
+	.remove_new	= mpc_dma_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table	= mpc_dma_match,

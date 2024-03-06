@@ -540,6 +540,8 @@ struct module {
 	struct static_call_site *static_call_sites;
 #endif
 #if IS_ENABLED(CONFIG_KUNIT)
+	int num_kunit_init_suites;
+	struct kunit_suite **kunit_init_suites;
 	int num_kunit_suites;
 	struct kunit_suite **kunit_suites;
 #endif
@@ -668,7 +670,7 @@ extern void __module_get(struct module *module);
  * @module: the module we should check for
  *
  * Only try to get a module reference count if the module is not being removed.
- * This call will fail if the module is already being removed.
+ * This call will fail if the module is in the process of being removed.
  *
  * Care must also be taken to ensure the module exists and is alive prior to
  * usage of this call. This can be gauranteed through two means:
@@ -964,15 +966,6 @@ static inline const char *module_address_lookup(unsigned long addr,
 }
 
 static inline int lookup_module_symbol_name(unsigned long addr, char *symname)
-{
-	return -ERANGE;
-}
-
-static inline int lookup_module_symbol_attrs(unsigned long addr,
-					     unsigned long *size,
-					     unsigned long *offset,
-					     char *modname,
-					     char *name)
 {
 	return -ERANGE;
 }

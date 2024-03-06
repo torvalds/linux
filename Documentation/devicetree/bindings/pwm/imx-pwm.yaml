@@ -14,12 +14,10 @@ allOf:
 
 properties:
   "#pwm-cells":
-    description: |
-      Should be 2 for i.MX1 and 3 for i.MX27 and newer SoCs. See pwm.yaml
-      in this directory for a description of the cells format.
-    enum:
-      - 2
-      - 3
+    description:
+      The only third cell flag supported by this binding is
+      PWM_POLARITY_INVERTED. fsl,imx1-pwm does not support this flags.
+    const: 3
 
   compatible:
     oneOf:
@@ -43,6 +41,7 @@ properties:
               - fsl,imx8mn-pwm
               - fsl,imx8mp-pwm
               - fsl,imx8mq-pwm
+              - fsl,imx8qxp-pwm
           - const: fsl,imx27-pwm
 
   reg:
@@ -59,6 +58,9 @@ properties:
       - const: per
 
   interrupts:
+    maxItems: 1
+
+  power-domains:
     maxItems: 1
 
 required:

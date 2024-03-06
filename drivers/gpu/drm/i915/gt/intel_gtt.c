@@ -21,6 +21,11 @@
 #include "intel_gt_regs.h"
 #include "intel_gtt.h"
 
+bool i915_ggtt_require_binder(struct drm_i915_private *i915)
+{
+	/* Wa_13010847436 & Wa_14019519902 */
+	return MEDIA_VER_FULL(i915) == IP_VER(13, 0);
+}
 
 static bool intel_ggtt_update_needs_vtd_wa(struct drm_i915_private *i915)
 {
@@ -58,6 +63,9 @@ struct drm_i915_gem_object *alloc_pt_lmem(struct i915_address_space *vm, int sz)
 	if (!IS_ERR(obj)) {
 		obj->base.resv = i915_vm_resv_get(vm);
 		obj->shares_resv_from = vm;
+
+		if (vm->fpriv)
+			i915_drm_client_add_object(vm->fpriv->client, obj);
 	}
 
 	return obj;
@@ -79,6 +87,9 @@ struct drm_i915_gem_object *alloc_pt_dma(struct i915_address_space *vm, int sz)
 	if (!IS_ERR(obj)) {
 		obj->base.resv = i915_vm_resv_get(vm);
 		obj->shares_resv_from = vm;
+
+		if (vm->fpriv)
+			i915_drm_client_add_object(vm->fpriv->client, obj);
 	}
 
 	return obj;
@@ -89,7 +100,17 @@ int map_pt_dma(struct i915_address_space *vm, struct drm_i915_gem_object *obj)
 	enum i915_map_type type;
 	void *vaddr;
 
-	type = i915_coherent_map_type(vm->i915, obj, true);
+	type = intel_gt_coherent_map_type(vm->gt, obj, true);
+	/*
+	 * FIXME: It is suspected that some Address Translation Service (ATS)
+	 * issue on IOMMU is causing CAT errors to occur on some MTL workloads.
+	 * Applying a write barrier to the ppgtt set entry functions appeared
+	 * to have no effect, so we must temporarily use I915_MAP_WC here on
+	 * MTL until a proper ATS solution is found.
+	 */
+	if (IS_METEORLAKE(vm->i915))
+		type = I915_MAP_WC;
+
 	vaddr = i915_gem_object_pin_map_unlocked(obj, type);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
@@ -103,7 +124,17 @@ int map_pt_dma_locked(struct i915_address_space *vm, struct drm_i915_gem_object 
 	enum i915_map_type type;
 	void *vaddr;
 
-	type = i915_coherent_map_type(vm->i915, obj, true);
+	type = intel_gt_coherent_map_type(vm->gt, obj, true);
+	/*
+	 * FIXME: It is suspected that some Address Translation Service (ATS)
+	 * issue on IOMMU is causing CAT errors to occur on some MTL workloads.
+	 * Applying a write barrier to the ppgtt set entry functions appeared
+	 * to have no effect, so we must temporarily use I915_MAP_WC here on
+	 * MTL until a proper ATS solution is found.
+	 */
+	if (IS_METEORLAKE(vm->i915))
+		type = I915_MAP_WC;
+
 	vaddr = i915_gem_object_pin_map(obj, type);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
@@ -468,6 +499,44 @@ void gtt_write_workarounds(struct intel_gt *gt)
 	}
 }
 
+static void xelpmp_setup_private_ppat(struct intel_uncore *uncore)
+{
+	intel_uncore_write(uncore, XELPMP_PAT_INDEX(0),
+			   MTL_PPAT_L4_0_WB);
+	intel_uncore_write(uncore, XELPMP_PAT_INDEX(1),
+			   MTL_PPAT_L4_1_WT);
+	intel_uncore_write(uncore, XELPMP_PAT_INDEX(2),
+			   MTL_PPAT_L4_3_UC);
+	intel_uncore_write(uncore, XELPMP_PAT_INDEX(3),
+			   MTL_PPAT_L4_0_WB | MTL_2_COH_1W);
+	intel_uncore_write(uncore, XELPMP_PAT_INDEX(4),
+			   MTL_PPAT_L4_0_WB | MTL_3_COH_2W);
+
+	/*
+	 * Remaining PAT entries are left at the hardware-default
+	 * fully-cached setting
+	 */
+}
+
+static void xelpg_setup_private_ppat(struct intel_gt *gt)
+{
+	intel_gt_mcr_multicast_write(gt, XEHP_PAT_INDEX(0),
+				     MTL_PPAT_L4_0_WB);
+	intel_gt_mcr_multicast_write(gt, XEHP_PAT_INDEX(1),
+				     MTL_PPAT_L4_1_WT);
+	intel_gt_mcr_multicast_write(gt, XEHP_PAT_INDEX(2),
+				     MTL_PPAT_L4_3_UC);
+	intel_gt_mcr_multicast_write(gt, XEHP_PAT_INDEX(3),
+				     MTL_PPAT_L4_0_WB | MTL_2_COH_1W);
+	intel_gt_mcr_multicast_write(gt, XEHP_PAT_INDEX(4),
+				     MTL_PPAT_L4_0_WB | MTL_3_COH_2W);
+
+	/*
+	 * Remaining PAT entries are left at the hardware-default
+	 * fully-cached setting
+	 */
+}
+
 static void tgl_setup_private_ppat(struct intel_uncore *uncore)
 {
 	/* TGL doesn't support LLC or AGE settings */
@@ -603,7 +672,14 @@ void setup_private_pat(struct intel_gt *gt)
 
 	GEM_BUG_ON(GRAPHICS_VER(i915) < 8);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+	if (gt->type == GT_MEDIA) {
+		xelpmp_setup_private_ppat(gt->uncore);
+		return;
+	}
+
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 70))
+		xelpg_setup_private_ppat(gt);
+	else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
 		xehp_setup_private_ppat(gt);
 	else if (GRAPHICS_VER(i915) >= 12)
 		tgl_setup_private_ppat(uncore);
@@ -625,7 +701,7 @@ __vm_create_scratch_for_read(struct i915_address_space *vm, unsigned long size)
 	if (IS_ERR(obj))
 		return ERR_CAST(obj);
 
-	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
+	i915_gem_object_set_cache_coherency(obj, I915_CACHE_LLC);
 
 	vma = i915_vma_instance(obj, vm, NULL);
 	if (IS_ERR(vma)) {

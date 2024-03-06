@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/types.h>
+#include <linux/reboot.h>
 
 #include <asm/io.h>
 #include <asm/hardware.h>
@@ -145,23 +146,19 @@ static void __init lasi_led_init(unsigned long lasi_hpa)
  * 1 to PWR_ON_L in the Power Control Register
  * 
  */
-
-static unsigned long lasi_power_off_hpa __read_mostly;
-
-static void lasi_power_off(void)
+static int lasi_power_off(struct sys_off_data *data)
 {
-	unsigned long datareg;
+	struct gsc_asic *lasi = data->cb_data;
 
-	/* calculate addr of the Power Control Register */
-	datareg = lasi_power_off_hpa + 0x0000C000;
+	/* Power down the machine via Power Control Register */
+	gsc_writel(0x02, lasi->hpa + 0x0000C000);
 
-	/* Power down the machine */
-	gsc_writel(0x02, datareg);
+	/* might not be reached: */
+	return NOTIFY_DONE;
 }
 
 static int __init lasi_init_chip(struct parisc_device *dev)
 {
-	extern void (*chassis_power_off)(void);
 	struct gsc_asic *lasi;
 	int ret;
 
@@ -212,13 +209,10 @@ static int __init lasi_init_chip(struct parisc_device *dev)
 
 	gsc_fixup_irqs(dev, lasi, lasi_choose_irq);
 
-	/* initialize the power off function */
-	/* FIXME: Record the LASI HPA for the power off function.  This should
-	 * ensure that only the first LASI (the one controlling the power off)
-	 * should set the HPA here */
-	lasi_power_off_hpa = lasi->hpa;
-	chassis_power_off = lasi_power_off;
-	
+	/* register the LASI power off function */
+	register_sys_off_handler(SYS_OFF_MODE_POWER_OFF,
+		SYS_OFF_PRIO_DEFAULT, lasi_power_off, lasi);
+
 	return ret;
 }
 
@@ -226,9 +220,16 @@ static struct parisc_device_id lasi_tbl[] __initdata = {
 	{ HPHW_BA, HVERSION_REV_ANY_ID, HVERSION_ANY_ID, 0x00081 },
 	{ 0, }
 };
+MODULE_DEVICE_TABLE(parisc, lasi_tbl);
 
-struct parisc_driver lasi_driver __refdata = {
+static struct parisc_driver lasi_driver __refdata = {
 	.name =		"lasi",
 	.id_table =	lasi_tbl,
 	.probe =	lasi_init_chip,
 };
+
+static int __init lasi_init(void)
+{
+	return register_parisc_driver(&lasi_driver);
+}
+arch_initcall(lasi_init);

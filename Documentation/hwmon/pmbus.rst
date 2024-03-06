@@ -163,7 +163,7 @@ Emerson DS1200 power modules might look as follows::
 	.driver = {
 		   .name = "ds1200",
 		   },
-	.probe_new = ds1200_probe,
+	.probe = ds1200_probe,
 	.id_table = ds1200_id,
   };
 

@@ -113,8 +113,7 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
-	res =  platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(dev, res);
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
@@ -237,7 +236,7 @@ err_phy:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-static int ehci_hcd_omap_remove(struct platform_device *pdev)
+static void ehci_hcd_omap_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -254,8 +253,6 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	usb_put_hcd(hcd);
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
-
-	return 0;
 }
 
 static const struct of_device_id omap_ehci_dt_ids[] = {
@@ -267,7 +264,7 @@ MODULE_DEVICE_TABLE(of, omap_ehci_dt_ids);
 
 static struct platform_driver ehci_hcd_omap_driver = {
 	.probe			= ehci_hcd_omap_probe,
-	.remove			= ehci_hcd_omap_remove,
+	.remove_new		= ehci_hcd_omap_remove,
 	.shutdown		= usb_hcd_platform_shutdown,
 	/*.suspend		= ehci_hcd_omap_suspend, */
 	/*.resume		= ehci_hcd_omap_resume, */

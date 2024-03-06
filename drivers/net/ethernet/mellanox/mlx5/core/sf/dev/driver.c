@@ -3,9 +3,24 @@
 
 #include <linux/mlx5/driver.h>
 #include <linux/mlx5/device.h>
+#include <linux/mlx5/eswitch.h>
 #include "mlx5_core.h"
 #include "dev.h"
 #include "devlink.h"
+
+static int mlx5_core_peer_devlink_set(struct mlx5_sf_dev *sf_dev, struct devlink *devlink)
+{
+	struct mlx5_sf_peer_devlink_event_ctx event_ctx = {
+		.fn_id = sf_dev->fn_id,
+		.devlink = devlink,
+	};
+	int ret;
+
+	ret = mlx5_blocking_notifier_call_chain(sf_dev->parent_mdev,
+						MLX5_DRIVER_EVENT_SF_PEER_DEVLINK,
+						&event_ctx);
+	return ret == NOTIFY_OK ? event_ctx.err : 0;
+}
 
 static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxiliary_device_id *id)
 {
@@ -28,6 +43,10 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 	mdev->priv.adev_idx = adev->id;
 	sf_dev->mdev = mdev;
 
+	/* Only local SFs do light probe */
+	if (MLX5_ESWITCH_MANAGER(sf_dev->parent_mdev))
+		mlx5_dev_set_lightweight(mdev);
+
 	err = mlx5_mdev_init(mdev, MLX5_SF_PROF);
 	if (err) {
 		mlx5_core_warn(mdev, "mlx5_mdev_init on err=%d\n", err);
@@ -41,14 +60,29 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto remap_err;
 	}
 
-	err = mlx5_init_one(mdev);
+	if (MLX5_ESWITCH_MANAGER(sf_dev->parent_mdev))
+		err = mlx5_init_one_light(mdev);
+	else
+		err = mlx5_init_one(mdev);
 	if (err) {
 		mlx5_core_warn(mdev, "mlx5_init_one err=%d\n", err);
 		goto init_one_err;
 	}
+
+	err = mlx5_core_peer_devlink_set(sf_dev, devlink);
+	if (err) {
+		mlx5_core_warn(mdev, "mlx5_core_peer_devlink_set err=%d\n", err);
+		goto peer_devlink_set_err;
+	}
+
 	devlink_register(devlink);
 	return 0;
 
+peer_devlink_set_err:
+	if (mlx5_dev_is_lightweight(sf_dev->mdev))
+		mlx5_uninit_one_light(sf_dev->mdev);
+	else
+		mlx5_uninit_one(sf_dev->mdev);
 init_one_err:
 	iounmap(mdev->iseg);
 remap_err:
@@ -65,7 +99,10 @@ static void mlx5_sf_dev_remove(struct auxiliary_device *adev)
 
 	mlx5_drain_health_wq(sf_dev->mdev);
 	devlink_unregister(devlink);
-	mlx5_uninit_one(sf_dev->mdev);
+	if (mlx5_dev_is_lightweight(sf_dev->mdev))
+		mlx5_uninit_one_light(sf_dev->mdev);
+	else
+		mlx5_uninit_one(sf_dev->mdev);
 	iounmap(sf_dev->mdev->iseg);
 	mlx5_mdev_uninit(sf_dev->mdev);
 	mlx5_devlink_free(devlink);

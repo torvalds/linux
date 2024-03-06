@@ -100,7 +100,7 @@ static struct regmap_config dlpc_regmap_config = {
 	.max_register		= WR_DSI_PORT_EN,
 	.writeable_noinc_reg	= dlpc_writeable_noinc_reg,
 	.volatile_table		= &dlpc_volatile_table,
-	.cache_type		= REGCACHE_RBTREE,
+	.cache_type		= REGCACHE_MAPLE,
 	.name			= "dlpc3433",
 };
 
@@ -400,7 +400,7 @@ static const struct of_device_id dlpc3433_match_table[] = {
 MODULE_DEVICE_TABLE(of, dlpc3433_match_table);
 
 static struct i2c_driver dlpc3433_driver = {
-	.probe_new = dlpc3433_probe,
+	.probe = dlpc3433_probe,
 	.remove = dlpc3433_remove,
 	.id_table = dlpc3433_id,
 	.driver = {

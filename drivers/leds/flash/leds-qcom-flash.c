@@ -18,7 +18,8 @@
 #define FLASH_TYPE_VAL			0x18
 
 #define FLASH_SUBTYPE_REG		0x05
-#define FLASH_SUBTYPE_3CH_VAL		0x04
+#define FLASH_SUBTYPE_3CH_PM8150_VAL	0x04
+#define FLASH_SUBTYPE_3CH_PMI8998_VAL	0x03
 #define FLASH_SUBTYPE_4CH_VAL		0x07
 
 #define FLASH_STS_3CH_OTST1		BIT(0)
@@ -308,6 +309,10 @@ static int qcom_flash_strobe_set(struct led_classdev_flash *fled_cdev, bool stat
 	struct qcom_flash_led *led = flcdev_to_qcom_fled(fled_cdev);
 	int rc;
 
+	rc = set_flash_strobe(led, SW_STROBE, false);
+	if (rc)
+		return rc;
+
 	rc = set_flash_current(led, led->flash_current_ma, FLASH_MODE);
 	if (rc)
 		return rc;
@@ -415,6 +420,14 @@ static int qcom_flash_led_brightness_set(struct led_classdev *led_cdev,
 	u32 current_ma = brightness * led->max_torch_current_ma / LED_FULL;
 	bool enable = !!brightness;
 	int rc;
+
+	rc = set_flash_strobe(led, SW_STROBE, false);
+	if (rc)
+		return rc;
+
+	rc = set_flash_module_en(led, false);
+	if (rc)
+		return rc;
 
 	rc = set_flash_current(led, current_ma, TORCH_MODE);
 	if (rc)
@@ -529,9 +542,9 @@ static int qcom_flash_register_led_device(struct device *dev,
 	struct led_init_data init_data;
 	struct led_classdev_flash *flash = &led->flash;
 	struct led_flash_setting *brightness, *timeout;
-	u32 count, current_ua, timeout_us;
+	u32 current_ua, timeout_us;
 	u32 channels[4];
-	int i, rc;
+	int i, rc, count;
 
 	count = fwnode_property_count_u32(node, "led-sources");
 	if (count <= 0) {
@@ -682,7 +695,7 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 		return rc;
 	}
 
-	if (val == FLASH_SUBTYPE_3CH_VAL) {
+	if (val == FLASH_SUBTYPE_3CH_PM8150_VAL || val == FLASH_SUBTYPE_3CH_PMI8998_VAL) {
 		flash_data->hw_type = QCOM_MVFLASH_3CH;
 		flash_data->max_channels = 3;
 		regs = mvflash_3ch_regs;
@@ -736,12 +749,13 @@ static int qcom_flash_led_probe(struct platform_device *pdev)
 	return 0;
 
 release:
+	fwnode_handle_put(child);
 	while (flash_data->v4l2_flash[flash_data->leds_count] && flash_data->leds_count)
 		v4l2_flash_release(flash_data->v4l2_flash[flash_data->leds_count--]);
 	return rc;
 }
 
-static int qcom_flash_led_remove(struct platform_device *pdev)
+static void qcom_flash_led_remove(struct platform_device *pdev)
 {
 	struct qcom_flash_data *flash_data = platform_get_drvdata(pdev);
 
@@ -749,7 +763,6 @@ static int qcom_flash_led_remove(struct platform_device *pdev)
 		v4l2_flash_release(flash_data->v4l2_flash[flash_data->leds_count--]);
 
 	mutex_destroy(&flash_data->lock);
-	return 0;
 }
 
 static const struct of_device_id qcom_flash_led_match_table[] = {
@@ -764,7 +777,7 @@ static struct platform_driver qcom_flash_led_driver = {
 		.of_match_table = qcom_flash_led_match_table,
 	},
 	.probe = qcom_flash_led_probe,
-	.remove = qcom_flash_led_remove,
+	.remove_new = qcom_flash_led_remove,
 };
 
 module_platform_driver(qcom_flash_led_driver);

@@ -6,7 +6,7 @@
  */
 
 #include "habanalabs.h"
-#include "../include/common/hl_boot_if.h"
+#include <linux/habanalabs/hl_boot_if.h>
 
 #include <linux/firmware.h>
 #include <linux/crc32.h>
@@ -71,38 +71,124 @@ free_fw_ver:
 	return NULL;
 }
 
+/**
+ * extract_u32_until_given_char() - given a string of the format "<u32><char>*", extract the u32.
+ * @str: the given string
+ * @ver_num: the pointer to the extracted u32 to be returned to the caller.
+ * @given_char: the given char at the end of the u32 in the string
+ *
+ * Return: Upon success, return a pointer to the given_char in the string. Upon failure, return NULL
+ */
+static char *extract_u32_until_given_char(char *str, u32 *ver_num, char given_char)
+{
+	char num_str[8] = {}, *ch;
+
+	ch = strchrnul(str, given_char);
+	if (*ch == '\0' || ch == str || ch - str >= sizeof(num_str))
+		return NULL;
+
+	memcpy(num_str, str, ch - str);
+	if (kstrtou32(num_str, 10, ver_num))
+		return NULL;
+	return ch;
+}
+
+/**
+ * hl_get_sw_major_minor_subminor() - extract the FW's SW version major, minor, sub-minor
+ *				      from the version string
+ * @hdev: pointer to the hl_device
+ * @fw_str: the FW's version string
+ *
+ * The extracted version is set in the hdev fields: fw_sw_{major/minor/sub_minor}_ver.
+ *
+ * fw_str is expected to have one of two possible formats, examples:
+ * 1) 'Preboot version hl-gaudi2-1.9.0-fw-42.0.1-sec-3'
+ * 2) 'Preboot version hl-gaudi2-1.9.0-rc-fw-42.0.1-sec-3'
+ * In those examples, the SW major,minor,subminor are correspondingly: 1,9,0.
+ *
+ * Return: 0 for success or a negative error code for failure.
+ */
+static int hl_get_sw_major_minor_subminor(struct hl_device *hdev, const char *fw_str)
+{
+	char *end, *start;
+
+	end = strnstr(fw_str, "-rc-", VERSION_MAX_LEN);
+	if (end == fw_str)
+		return -EINVAL;
+
+	if (!end)
+		end = strnstr(fw_str, "-fw-", VERSION_MAX_LEN);
+
+	if (end == fw_str)
+		return -EINVAL;
+
+	if (!end)
+		return -EINVAL;
+
+	for (start = end - 1; start != fw_str; start--) {
+		if (*start == '-')
+			break;
+	}
+
+	if (start == fw_str)
+		return -EINVAL;
+
+	/* start/end point each to the starting and ending hyphen of the sw version e.g. -1.9.0- */
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_major_ver, '.');
+	if (!start)
+		goto err_zero_ver;
+
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_minor_ver, '.');
+	if (!start)
+		goto err_zero_ver;
+
+	start++;
+	start = extract_u32_until_given_char(start, &hdev->fw_sw_sub_minor_ver, '-');
+	if (!start)
+		goto err_zero_ver;
+
+	return 0;
+
+err_zero_ver:
+	hdev->fw_sw_major_ver = 0;
+	hdev->fw_sw_minor_ver = 0;
+	hdev->fw_sw_sub_minor_ver = 0;
+	return -EINVAL;
+}
+
+/**
+ * hl_get_preboot_major_minor() - extract the FW's version major, minor from the version string.
+ * @hdev: pointer to the hl_device
+ * @preboot_ver: the FW's version string
+ *
+ * preboot_ver is expected to be the format of <major>.<minor>.<sub minor>*, e.g: 42.0.1-sec-3
+ * The extracted version is set in the hdev fields: fw_inner_{major/minor}_ver.
+ *
+ * Return: 0 on success, negative error code for failure.
+ */
 static int hl_get_preboot_major_minor(struct hl_device *hdev, char *preboot_ver)
 {
-	char major[8], minor[8], *first_dot, *second_dot;
-	int rc;
-
-	first_dot = strnstr(preboot_ver, ".", 10);
-	if (first_dot) {
-		strscpy(major, preboot_ver, first_dot - preboot_ver + 1);
-		rc = kstrtou32(major, 10, &hdev->fw_major_version);
-	} else {
-		rc = -EINVAL;
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_major_ver, '.');
+	if (!preboot_ver) {
+		dev_err(hdev->dev, "Error parsing preboot major version\n");
+		goto err_zero_ver;
 	}
 
-	if (rc) {
-		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
-		return rc;
+	preboot_ver++;
+
+	preboot_ver = extract_u32_until_given_char(preboot_ver, &hdev->fw_inner_minor_ver, '.');
+	if (!preboot_ver) {
+		dev_err(hdev->dev, "Error parsing preboot minor version\n");
+		goto err_zero_ver;
 	}
+	return 0;
 
-	/* skip the first dot */
-	first_dot++;
-
-	second_dot = strnstr(first_dot, ".", 10);
-	if (second_dot) {
-		strscpy(minor, first_dot, second_dot - first_dot + 1);
-		rc = kstrtou32(minor, 10, &hdev->fw_minor_version);
-	} else {
-		rc = -EINVAL;
-	}
-
-	if (rc)
-		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
-	return rc;
+err_zero_ver:
+	hdev->fw_inner_major_ver = 0;
+	hdev->fw_inner_minor_ver = 0;
+	return -EINVAL;
 }
 
 static int hl_request_fw(struct hl_device *hdev,
@@ -505,6 +591,20 @@ void hl_fw_cpu_accessible_dma_pool_free(struct hl_device *hdev, size_t size,
 			size);
 }
 
+int hl_fw_send_soft_reset(struct hl_device *hdev)
+{
+	struct cpucp_packet pkt;
+	int rc;
+
+	memset(&pkt, 0, sizeof(pkt));
+	pkt.ctl = cpu_to_le32(CPUCP_PACKET_SOFT_RESET << CPUCP_PKT_CTL_OPCODE_SHIFT);
+	rc = hdev->asic_funcs->send_cpu_message(hdev, (u32 *) &pkt, sizeof(pkt), 0, NULL);
+	if (rc)
+		dev_err(hdev->dev, "failed to send soft-reset msg (err = %d)\n", rc);
+
+	return rc;
+}
+
 int hl_fw_send_device_activity(struct hl_device *hdev, bool open)
 {
 	struct cpucp_packet pkt;
@@ -546,39 +646,27 @@ int hl_fw_send_heartbeat(struct hl_device *hdev)
 	return rc;
 }
 
-static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
-								u32 sts_val)
+static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val, u32 sts_val)
 {
 	bool err_exists = false;
 
 	if (!(err_val & CPU_BOOT_ERR0_ENABLED))
 		return false;
 
-	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - DRAM initialization failed\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_DRAM_INIT_FAIL)
+		dev_err(hdev->dev, "Device boot error - DRAM initialization failed\n");
 
-	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED) {
+	if (err_val & CPU_BOOT_ERR0_FIT_CORRUPTED)
 		dev_err(hdev->dev, "Device boot error - FIT image corrupted\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - Thermal Sensor initialization failed\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_TS_INIT_FAIL)
+		dev_err(hdev->dev, "Device boot error - Thermal Sensor initialization failed\n");
 
 	if (err_val & CPU_BOOT_ERR0_BMC_WAIT_SKIPPED) {
 		if (hdev->bmc_enable) {
-			dev_err(hdev->dev,
-				"Device boot error - Skipped waiting for BMC\n");
-			err_exists = true;
+			dev_err(hdev->dev, "Device boot error - Skipped waiting for BMC\n");
 		} else {
-			dev_info(hdev->dev,
-				"Device boot message - Skipped waiting for BMC\n");
+			dev_info(hdev->dev, "Device boot message - Skipped waiting for BMC\n");
 			/* This is an info so we don't want it to disable the
 			 * device
 			 */
@@ -586,43 +674,29 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		}
 	}
 
-	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY) {
-		dev_err(hdev->dev,
-			"Device boot error - Serdes data from BMC not available\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_NIC_DATA_NOT_RDY)
+		dev_err(hdev->dev, "Device boot error - Serdes data from BMC not available\n");
 
-	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL) {
-		dev_err(hdev->dev,
-			"Device boot error - NIC F/W initialization failed\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_NIC_FW_FAIL)
+		dev_err(hdev->dev, "Device boot error - NIC F/W initialization failed\n");
 
-	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY) {
-		dev_err(hdev->dev,
-			"Device boot warning - security not ready\n");
-		err_exists = true;
-	}
+	if (err_val & CPU_BOOT_ERR0_SECURITY_NOT_RDY)
+		dev_err(hdev->dev, "Device boot warning - security not ready\n");
 
-	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_SECURITY_FAIL)
 		dev_err(hdev->dev, "Device boot error - security failure\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_EFUSE_FAIL)
 		dev_err(hdev->dev, "Device boot error - eFuse failure\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_SEC_IMG_VER_FAIL)
 		dev_err(hdev->dev, "Device boot error - Failed to load preboot secondary image\n");
-		err_exists = true;
-	}
 
-	if (err_val & CPU_BOOT_ERR0_PLL_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_PLL_FAIL)
 		dev_err(hdev->dev, "Device boot error - PLL failure\n");
-		err_exists = true;
-	}
+
+	if (err_val & CPU_BOOT_ERR0_TMP_THRESH_INIT_FAIL)
+		dev_err(hdev->dev, "Device boot error - Failed to set threshold for temperature sensor\n");
 
 	if (err_val & CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL) {
 		/* Ignore this bit, don't prevent driver loading */
@@ -630,52 +704,32 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
 	}
 
-	if (err_val & CPU_BOOT_ERR0_BINNING_FAIL) {
+	if (err_val & CPU_BOOT_ERR0_BINNING_FAIL)
 		dev_err(hdev->dev, "Device boot error - binning failure\n");
-		err_exists = true;
-	}
 
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
 		dev_dbg(hdev->dev, "Device status0 %#x\n", sts_val);
 
+	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED)
+		dev_err(hdev->dev, "Device boot warning - Skipped DRAM initialization\n");
+
+	if (err_val & CPU_BOOT_ERR_ENG_ARC_MEM_SCRUB_FAIL)
+		dev_err(hdev->dev, "Device boot error - ARC memory scrub failed\n");
+
+	/* All warnings should go here in order not to reach the unknown error validation */
 	if (err_val & CPU_BOOT_ERR0_EEPROM_FAIL) {
 		dev_err(hdev->dev, "Device boot error - EEPROM failure detected\n");
 		err_exists = true;
 	}
 
-	/* All warnings should go here in order not to reach the unknown error validation */
-	if (err_val & CPU_BOOT_ERR0_DRAM_SKIPPED) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Skipped DRAM initialization\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_DRAM_SKIPPED;
-	}
+	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL)
+		dev_warn(hdev->dev, "Device boot warning - Failed to load preboot primary image\n");
 
-	if (err_val & CPU_BOOT_ERR0_PRI_IMG_VER_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - Failed to load preboot primary image\n");
-		/* This is a warning so we don't want it to disable the
-		 * device as we have a secondary preboot image
-		 */
-		err_val &= ~CPU_BOOT_ERR0_PRI_IMG_VER_FAIL;
-	}
+	if (err_val & CPU_BOOT_ERR0_TPM_FAIL)
+		dev_warn(hdev->dev, "Device boot warning - TPM failure\n");
 
-	if (err_val & CPU_BOOT_ERR0_TPM_FAIL) {
-		dev_warn(hdev->dev,
-			"Device boot warning - TPM failure\n");
-		/* This is a warning so we don't want it to disable the
-		 * device
-		 */
-		err_val &= ~CPU_BOOT_ERR0_TPM_FAIL;
-	}
-
-	if (!err_exists && (err_val & ~CPU_BOOT_ERR0_ENABLED)) {
-		dev_err(hdev->dev,
-			"Device boot error - unknown ERR0 error 0x%08x\n", err_val);
+	if (err_val & CPU_BOOT_ERR_FATAL_MASK)
 		err_exists = true;
-	}
 
 	/* return error only if it's in the predefined mask */
 	if (err_exists && ((err_val & ~CPU_BOOT_ERR0_ENABLED) &
@@ -1268,8 +1322,10 @@ void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev)
 
 void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 {
-	struct static_fw_load_mgr *static_loader =
-			&hdev->fw_loader.static_loader;
+	struct fw_load_mgr *fw_loader = &hdev->fw_loader;
+	u32 status, cpu_boot_status_reg, cpu_timeout;
+	struct static_fw_load_mgr *static_loader;
+	struct pre_fw_load_props *pre_fw_load;
 	int rc;
 
 	if (hdev->device_cpu_is_halted)
@@ -1277,12 +1333,28 @@ void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev)
 
 	/* Stop device CPU to make sure nothing bad happens */
 	if (hdev->asic_prop.dynamic_fw_load) {
+		pre_fw_load = &fw_loader->pre_fw_load;
+		cpu_timeout = fw_loader->cpu_timeout;
+		cpu_boot_status_reg = pre_fw_load->cpu_boot_status_reg;
+
 		rc = hl_fw_dynamic_send_protocol_cmd(hdev, &hdev->fw_loader,
-				COMMS_GOTO_WFE, 0, false,
-				hdev->fw_loader.cpu_timeout);
-		if (rc)
+				COMMS_GOTO_WFE, 0, false, cpu_timeout);
+		if (rc) {
 			dev_err(hdev->dev, "Failed sending COMMS_GOTO_WFE\n");
+		} else {
+			rc = hl_poll_timeout(
+				hdev,
+				cpu_boot_status_reg,
+				status,
+				status == CPU_BOOT_STATUS_IN_WFE,
+				hdev->fw_poll_interval_usec,
+				cpu_timeout);
+			if (rc)
+				dev_err(hdev->dev, "Current status=%u. Timed-out updating to WFE\n",
+						status);
+		}
 	} else {
+		static_loader = &hdev->fw_loader.static_loader;
 		WREG32(static_loader->kmd_msg_to_cpu_reg, KMD_MSG_GOTO_WFE);
 		msleep(static_loader->cpu_reset_wait_msec);
 
@@ -1341,6 +1413,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 		dev_err(hdev->dev,
 			"Device boot progress - Stuck in preboot after security initialization\n");
 		break;
+	case CPU_BOOT_STATUS_FW_SHUTDOWN_PREP:
+		dev_err(hdev->dev,
+			"Device boot progress - Stuck in preparation for shutdown\n");
+		break;
 	default:
 		dev_err(hdev->dev,
 			"Device boot progress - Invalid or unexpected status code %d\n", status);
@@ -1351,8 +1427,9 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
 	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
-	u32 status;
-	int rc;
+	u32 status = 0, timeout;
+	int rc, tries = 1;
+	bool preboot_still_runs;
 
 	/* Need to check two possible scenarios:
 	 *
@@ -1362,6 +1439,8 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 	 * All other status values - for older firmwares where the uboot was
 	 * loaded from the FLASH
 	 */
+	timeout = pre_fw_load->wait_for_preboot_timeout;
+retry:
 	rc = hl_poll_timeout(
 		hdev,
 		pre_fw_load->cpu_boot_status_reg,
@@ -1370,7 +1449,24 @@ int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
 		hdev->fw_poll_interval_usec,
-		pre_fw_load->wait_for_preboot_timeout);
+		timeout);
+	/*
+	 * if F/W reports "security-ready" it means preboot might take longer.
+	 * If the field 'wait_for_preboot_extended_timeout' is non 0 we wait again
+	 * with that timeout
+	 */
+	preboot_still_runs = (status == CPU_BOOT_STATUS_SECURITY_READY ||
+				status == CPU_BOOT_STATUS_IN_PREBOOT ||
+				status == CPU_BOOT_STATUS_FW_SHUTDOWN_PREP ||
+				status == CPU_BOOT_STATUS_DRAM_RDY);
+
+	if (rc && tries && preboot_still_runs) {
+		tries--;
+		if (pre_fw_load->wait_for_preboot_extended_timeout) {
+			timeout = pre_fw_load->wait_for_preboot_extended_timeout;
+			goto retry;
+		}
+	}
 
 	if (rc) {
 		detect_cpu_boot_status(hdev, status);
@@ -2151,6 +2247,7 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	char *preboot_ver, *boot_ver;
 	char btl_ver[32];
+	int rc;
 
 	switch (fwc) {
 	case FW_COMP_BOOT_FIT:
@@ -2164,20 +2261,20 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 		break;
 	case FW_COMP_PREBOOT:
 		strscpy(prop->preboot_ver, fw_version, VERSION_MAX_LEN);
-		preboot_ver = strnstr(prop->preboot_ver, "Preboot",
-						VERSION_MAX_LEN);
+		preboot_ver = strnstr(prop->preboot_ver, "Preboot", VERSION_MAX_LEN);
+		dev_info(hdev->dev, "preboot full version: '%s'\n", preboot_ver);
+
 		if (preboot_ver && preboot_ver != prop->preboot_ver) {
 			strscpy(btl_ver, prop->preboot_ver,
 				min((int) (preboot_ver - prop->preboot_ver), 31));
 			dev_info(hdev->dev, "%s\n", btl_ver);
 		}
 
+		rc = hl_get_sw_major_minor_subminor(hdev, preboot_ver);
+		if (rc)
+			return rc;
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			int rc;
-
-			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
-
 			rc = hl_get_preboot_major_minor(hdev, preboot_ver);
 			kfree(preboot_ver);
 			if (rc)
@@ -2366,16 +2463,6 @@ static int hl_fw_dynamic_load_image(struct hl_device *hdev,
 				fw_loader->dynamic_loader.comm_desc.cur_fw_ver);
 	if (rc)
 		goto release_fw;
-
-	/* update state according to boot stage */
-	if (cur_fwc == FW_COMP_BOOT_FIT) {
-		struct cpu_dyn_regs *dyn_regs;
-
-		dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
-		hl_fw_boot_fit_update_state(hdev,
-				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
-				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
-	}
 
 	/* copy boot fit to space allocated by FW */
 	rc = hl_fw_dynamic_copy_image(hdev, fw, fw_loader);
@@ -2634,7 +2721,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (!(hdev->fw_components & FW_TYPE_BOOT_CPU)) {
 		struct lkd_fw_binning_info *binning_info;
 
-		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader, 0);
+		rc = hl_fw_dynamic_request_descriptor(hdev, fw_loader,
+							sizeof(struct lkd_msg_comms));
 		if (rc)
 			goto protocol_err;
 
@@ -2668,6 +2756,11 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 				hdev->decoder_binning, hdev->rotator_binning);
 		}
 
+		if (hdev->asic_prop.support_dynamic_resereved_fw_size) {
+			hdev->asic_prop.reserved_fw_mem_size =
+				le32_to_cpu(fw_loader->dynamic_loader.comm_desc.rsvd_mem_size_mb);
+		}
+
 		return 0;
 	}
 
@@ -2679,6 +2772,14 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 		goto protocol_err;
 	}
 
+	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
+	if (rc)
+		goto protocol_err;
+
+	hl_fw_boot_fit_update_state(hdev,
+			le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+			le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
+
 	/*
 	 * when testing FW load (without Linux) on PLDM we don't want to
 	 * wait until boot fit is active as it may take several hours.
@@ -2687,10 +2788,6 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 */
 	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
 		return 0;
-
-	rc = hl_fw_dynamic_wait_for_boot_fit_active(hdev, fw_loader);
-	if (rc)
-		goto protocol_err;
 
 	/* Enable DRAM scrambling before Linux boot and after successful
 	 *  UBoot
@@ -2725,7 +2822,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	if (rc)
 		goto protocol_err;
 
-	hl_fw_linux_update_state(hdev, le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
+	hl_fw_linux_update_state(hdev,
+				le32_to_cpu(dyn_regs->cpu_boot_dev_sts0),
 				le32_to_cpu(dyn_regs->cpu_boot_dev_sts1));
 
 	hl_fw_dynamic_update_linux_interrupt_if(hdev);
@@ -3144,6 +3242,14 @@ int hl_fw_get_sec_attest_info(struct hl_device *hdev, struct cpucp_sec_attest_in
 	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_SEC_ATTEST_GET, sec_attest_info,
 					sizeof(struct cpucp_sec_attest_info), nonce,
 					HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
+}
+
+int hl_fw_get_dev_info_signed(struct hl_device *hdev,
+			      struct cpucp_dev_info_signed *dev_info_signed, u32 nonce)
+{
+	return hl_fw_get_sec_attest_data(hdev, CPUCP_PACKET_INFO_SIGNED_GET, dev_info_signed,
+					 sizeof(struct cpucp_dev_info_signed), nonce,
+					 HL_CPUCP_SEC_ATTEST_INFO_TINEOUT_USEC);
 }
 
 int hl_fw_send_generic_request(struct hl_device *hdev, enum hl_passthrough_type sub_opcode,

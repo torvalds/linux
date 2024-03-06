@@ -249,7 +249,7 @@ void r300_ring_start(struct radeon_device *rdev, struct radeon_ring *ring)
 
 	/* Sub pixel 1/12 so we can have 4K rendering according to doc */
 	gb_tile_config = (R300_ENABLE_TILING | R300_TILE_SIZE_16);
-	switch(rdev->num_gb_pipes) {
+	switch (rdev->num_gb_pipes) {
 	case 2:
 		gb_tile_config |= R300_PIPE_COUNT_R300;
 		break;
@@ -589,7 +589,7 @@ int rv370_get_pcie_lanes(struct radeon_device *rdev)
 #if defined(CONFIG_DEBUG_FS)
 static int rv370_debugfs_pcie_gart_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_device *rdev = (struct radeon_device *)m->private;
+	struct radeon_device *rdev = m->private;
 	uint32_t tmp;
 
 	tmp = RREG32_PCIE(RADEON_PCIE_TX_GART_CNTL);
@@ -638,7 +638,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 	track = (struct r100_cs_track *)p->track;
 	idx_value = radeon_get_ib_value(p, idx);
 
-	switch(reg) {
+	switch (reg) {
 	case AVIVO_D1MODE_VLINE_START_END:
 	case RADEON_CRTC_GUI_TRIG_VLINE:
 		r = r100_cs_packet_parse_vline(p);
@@ -1180,7 +1180,7 @@ static int r300_packet3_check(struct radeon_cs_parser *p,
 	ib = p->ib.ptr;
 	idx = pkt->idx + 1;
 	track = (struct r100_cs_track *)p->track;
-	switch(pkt->opcode) {
+	switch (pkt->opcode) {
 	case PACKET3_3D_LOAD_VBPNTR:
 		r = r100_packet3_load_vbpntr(p, pkt, idx);
 		if (r)

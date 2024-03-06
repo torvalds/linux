@@ -284,7 +284,7 @@ static int read_powermode(struct w1_slave *sl);
  * trigger_bulk_read() - function to trigger a bulk read on the bus
  * @dev_master: the device master of the bus
  *
- * Send a SKIP ROM follow by a CONVERT T commmand on the bus.
+ * Send a SKIP ROM follow by a CONVERT T command on the bus.
  * It also set the status flag in each slave &struct w1_therm_family_data
  * to signal that a conversion is in progress.
  *
@@ -454,7 +454,7 @@ static const struct hwmon_channel_info w1_temp = {
 	.config = w1_temp_config,
 };
 
-static const struct hwmon_channel_info *w1_info[] = {
+static const struct hwmon_channel_info * const w1_info[] = {
 	&w1_temp,
 	NULL
 };
@@ -1159,29 +1159,26 @@ static int convert_t(struct w1_slave *sl, struct therm_info *info)
 
 			w1_write_8(dev_master, W1_CONVERT_TEMP);
 
-			if (strong_pullup) { /*some device need pullup */
+			if (SLAVE_FEATURES(sl) & W1_THERM_POLL_COMPLETION) {
+				ret = w1_poll_completion(dev_master, W1_POLL_CONVERT_TEMP);
+				if (ret) {
+					dev_dbg(&sl->dev, "%s: Timeout\n", __func__);
+					goto mt_unlock;
+				}
+				mutex_unlock(&dev_master->bus_mutex);
+			} else if (!strong_pullup) { /*no device need pullup */
 				sleep_rem = msleep_interruptible(t_conv);
 				if (sleep_rem != 0) {
 					ret = -EINTR;
 					goto mt_unlock;
 				}
 				mutex_unlock(&dev_master->bus_mutex);
-			} else { /*no device need pullup */
-				if (SLAVE_FEATURES(sl) & W1_THERM_POLL_COMPLETION) {
-					ret = w1_poll_completion(dev_master, W1_POLL_CONVERT_TEMP);
-					if (ret) {
-						dev_dbg(&sl->dev, "%s: Timeout\n", __func__);
-						goto mt_unlock;
-					}
-					mutex_unlock(&dev_master->bus_mutex);
-				} else {
-					/* Fixed delay */
-					mutex_unlock(&dev_master->bus_mutex);
-					sleep_rem = msleep_interruptible(t_conv);
-					if (sleep_rem != 0) {
-						ret = -EINTR;
-						goto dec_refcnt;
-					}
+			} else { /*some device need pullup */
+				mutex_unlock(&dev_master->bus_mutex);
+				sleep_rem = msleep_interruptible(t_conv);
+				if (sleep_rem != 0) {
+					ret = -EINTR;
+					goto dec_refcnt;
 				}
 			}
 			ret = read_scratchpad(sl, info);
@@ -1515,7 +1512,7 @@ static int trigger_bulk_read(struct w1_master *dev_master)
 		if (bulk_read_support(sl)) {
 			int t_cur = conversion_time(sl);
 
-			t_conv = t_cur > t_conv ? t_cur : t_conv;
+			t_conv = max(t_cur, t_conv);
 			strong_pullup = strong_pullup ||
 					(w1_strong_pullup == 2 ||
 					(!SLAVE_POWERMODE(sl) &&

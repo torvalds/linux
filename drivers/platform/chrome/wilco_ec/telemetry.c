@@ -372,7 +372,7 @@ static int telem_device_probe(struct platform_device *pdev)
 
 	dev_data = kzalloc(sizeof(*dev_data), GFP_KERNEL);
 	if (!dev_data) {
-		ida_simple_remove(&telem_ida, minor);
+		ida_free(&telem_ida, minor);
 		return -ENOMEM;
 	}
 
@@ -393,27 +393,25 @@ static int telem_device_probe(struct platform_device *pdev)
 	error = cdev_device_add(&dev_data->cdev, &dev_data->dev);
 	if (error) {
 		put_device(&dev_data->dev);
-		ida_simple_remove(&telem_ida, minor);
+		ida_free(&telem_ida, minor);
 		return error;
 	}
 
 	return 0;
 }
 
-static int telem_device_remove(struct platform_device *pdev)
+static void telem_device_remove(struct platform_device *pdev)
 {
 	struct telem_device_data *dev_data = platform_get_drvdata(pdev);
 
 	cdev_device_del(&dev_data->cdev, &dev_data->dev);
-	ida_simple_remove(&telem_ida, MINOR(dev_data->dev.devt));
+	ida_free(&telem_ida, MINOR(dev_data->dev.devt));
 	put_device(&dev_data->dev);
-
-	return 0;
 }
 
 static struct platform_driver telem_driver = {
 	.probe = telem_device_probe,
-	.remove = telem_device_remove,
+	.remove_new = telem_device_remove,
 	.driver = {
 		.name = DRV_NAME,
 	},

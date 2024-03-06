@@ -141,12 +141,6 @@ static inline void __printf(2, 0) ia_css_debug_vdtrace(unsigned int level,
 __printf(2, 3) void ia_css_debug_dtrace(unsigned int level,
 					const char *fmt, ...);
 
-/*! @brief Dump sp thread's stack contents
- * SP thread's stack contents are set to 0xcafecafe. This function dumps the
- * stack to inspect if the stack's boundaries are compromised.
- * @return	None
- */
-void ia_css_debug_dump_sp_stack_info(void);
 
 /*! @brief Function to set the global dtrace verbosity level.
  * @param[in]	trace_level	Maximum level of the messages to be traced.
@@ -160,18 +154,6 @@ void ia_css_debug_set_dtrace_level(
  */
 unsigned int ia_css_debug_get_dtrace_level(void);
 
-/*! @brief Dump isp hardware state.
- * Dumps the isp hardware state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_isp_state(void);
-
-/*! @brief Dump sp hardware state.
- * Dumps the sp hardware state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_sp_state(void);
-
 /* ISP2401 */
 /*! @brief Dump GAC hardware state.
  * Dumps the GAC ACB hardware registers. may be useful for
@@ -180,24 +162,11 @@ void ia_css_debug_dump_sp_state(void);
  */
 void ia_css_debug_dump_gac_state(void);
 
-/*! @brief Dump dma controller state.
- * Dumps the dma controller state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_dma_state(void);
-
 /*! @brief Dump internal sp software state.
  * Dumps the sp software state to tracing output.
  * @return	None
  */
 void ia_css_debug_dump_sp_sw_debug_info(void);
-
-/*! @brief Dump all related hardware state to the trace output
- * @param[in]  context	String to identify context in output.
- * @return	None
- */
-void ia_css_debug_dump_debug_info(
-    const char	*context);
 
 #if SP_DEBUG != SP_DEBUG_NONE
 void ia_css_debug_print_sp_debug_state(
@@ -212,24 +181,6 @@ void ia_css_debug_binary_print(
     const struct ia_css_binary *bi);
 
 void ia_css_debug_sp_dump_mipi_fifo_high_water(void);
-
-/*! @brief Dump isp gdc fifo state to the trace output
- * Dumps the isp gdc fifo state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_isp_gdc_fifo_state(void);
-
-/*! @brief Dump dma isp fifo state
- * Dumps the dma isp fifo state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_dma_isp_fifo_state(void);
-
-/*! @brief Dump dma sp fifo state
- * Dumps the dma sp fifo state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_dma_sp_fifo_state(void);
 
 /*! \brief Dump pif A isp fifo state
  * Dumps the primary input formatter state to tracing output.
@@ -249,29 +200,11 @@ void ia_css_debug_dump_pif_b_isp_fifo_state(void);
  */
 void ia_css_debug_dump_str2mem_sp_fifo_state(void);
 
-/*! @brief Dump isp sp fifo state
- * Dumps the isp sp fifo state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_isp_sp_fifo_state(void);
-
 /*! @brief Dump all fifo state info to the output
  * Dumps all fifo state to tracing output.
  * @return	None
  */
 void ia_css_debug_dump_all_fifo_state(void);
-
-/*! @brief Dump the rx state to the output
- * Dumps the rx state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_rx_state(void);
-
-/*! @brief Dump the input system state to the output
- * Dumps the input system state to tracing output.
- * @return	None
- */
-void ia_css_debug_dump_isys_state(void);
 
 /*! @brief Dump the frame info to the trace output
  * Dumps the frame info to tracing output.
@@ -305,18 +238,6 @@ void ia_css_debug_wake_up_sp(void);
  */
 void ia_css_debug_dump_isp_params(struct ia_css_stream *stream,
 				  unsigned int enable);
-
-/*! @brief Function to dump some sp performance counters.
- * Dump sp performance counters, currently input system errors.
- * @return	None
- */
-void ia_css_debug_dump_perf_counters(void);
-
-#ifdef HAS_WATCHDOG_SP_THREAD_DEBUG
-void sh_css_dump_thread_wait_info(void);
-void sh_css_dump_pipe_stage_info(void);
-void sh_css_dump_pipe_stripe_info(void);
-#endif
 
 void ia_css_debug_dump_isp_binary(void);
 
@@ -399,12 +320,6 @@ void ia_css_debug_dump_metadata_config(
 void ia_css_debug_dump_stream_config(
     const struct ia_css_stream_config *config,
     int num_pipes);
-
-/*! @brief Dump the state of the SP tagger
- * Dumps the internal state of the SP tagger
- * @return	None
- */
-void ia_css_debug_tagger_state(void);
 
 /**
  * @brief Initialize the debug mode.

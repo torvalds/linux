@@ -33,7 +33,6 @@ struct gss_krb5_enctype {
 	const u32		Ke_length;	/* encryption subkey length, in octets */
 	const u32		Ki_length;	/* integrity subkey length, in octets */
 
-	int (*import_ctx)(struct krb5_ctx *ctx, gfp_t gfp_mask);
 	int (*derive_key)(const struct gss_krb5_enctype *gk5e,
 			  const struct xdr_netobj *in,
 			  struct xdr_netobj *out,
@@ -85,24 +84,15 @@ struct krb5_ctx {
  * GSS Kerberos 5 mechanism Per-Message calls.
  */
 
-u32 gss_krb5_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
-			struct xdr_netobj *token);
 u32 gss_krb5_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 			struct xdr_netobj *token);
 
-u32 gss_krb5_verify_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,
-			   struct xdr_netobj *read_token);
 u32 gss_krb5_verify_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *message_buffer,
 			   struct xdr_netobj *read_token);
 
-u32 gss_krb5_wrap_v1(struct krb5_ctx *kctx, int offset,
-		     struct xdr_buf *buf, struct page **pages);
 u32 gss_krb5_wrap_v2(struct krb5_ctx *kctx, int offset,
 		     struct xdr_buf *buf, struct page **pages);
 
-u32 gss_krb5_unwrap_v1(struct krb5_ctx *kctx, int offset, int len,
-		       struct xdr_buf *buf, unsigned int *slack,
-		       unsigned int *align);
 u32 gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
 		       struct xdr_buf *buf, unsigned int *slack,
 		       unsigned int *align);
@@ -112,12 +102,6 @@ u32 gss_krb5_unwrap_v2(struct krb5_ctx *kctx, int offset, int len,
  */
 
 /* Key Derivation Functions */
-
-int krb5_derive_key_v1(const struct gss_krb5_enctype *gk5e,
-		       const struct xdr_netobj *inkey,
-		       struct xdr_netobj *outkey,
-		       const struct xdr_netobj *label,
-		       gfp_t gfp_mask);
 
 int krb5_derive_key_v2(const struct gss_krb5_enctype *gk5e,
 		       const struct xdr_netobj *inkey,
@@ -168,13 +152,6 @@ static inline int krb5_derive_key(struct krb5_ctx *kctx,
 	label_data[4] = seed;
 	return gk5e->derive_key(gk5e, inkey, outkey, &label, gfp_mask);
 }
-
-s32 krb5_make_seq_num(struct krb5_ctx *kctx, struct crypto_sync_skcipher *key,
-		      int direction, u32 seqnum, unsigned char *cksum,
-		      unsigned char *buf);
-
-s32 krb5_get_seq_num(struct krb5_ctx *kctx, unsigned char *cksum,
-		     unsigned char *buf, int *direction, u32 *seqnum);
 
 void krb5_make_confounder(u8 *p, int conflen);
 

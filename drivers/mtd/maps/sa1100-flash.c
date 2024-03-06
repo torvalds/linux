@@ -285,19 +285,17 @@ static int sa1100_mtd_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int sa1100_mtd_remove(struct platform_device *pdev)
+static void sa1100_mtd_remove(struct platform_device *pdev)
 {
 	struct sa_info *info = platform_get_drvdata(pdev);
 	struct flash_platform_data *plat = dev_get_platdata(&pdev->dev);
 
 	sa1100_destroy(info, plat);
-
-	return 0;
 }
 
 static struct platform_driver sa1100_mtd_driver = {
 	.probe		= sa1100_mtd_probe,
-	.remove		= sa1100_mtd_remove,
+	.remove_new	= sa1100_mtd_remove,
 	.driver		= {
 		.name	= "sa1100-mtd",
 	},

@@ -26,7 +26,7 @@ static inline int kvm_psci_version(struct kvm_vcpu *vcpu)
 	 * revisions. It is thus safe to return the latest, unless
 	 * userspace has instructed us otherwise.
 	 */
-	if (test_bit(KVM_ARM_VCPU_PSCI_0_2, vcpu->arch.features)) {
+	if (vcpu_has_feature(vcpu, KVM_ARM_VCPU_PSCI_0_2)) {
 		if (vcpu->kvm->arch.psci_version)
 			return vcpu->kvm->arch.psci_version;
 

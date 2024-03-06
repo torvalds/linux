@@ -47,9 +47,9 @@ struct kcm_stats {
 
 struct kcm_tx_msg {
 	unsigned int sent;
-	unsigned int fragidx;
 	unsigned int frag_offset;
 	unsigned int msg_flags;
+	bool started_tx;
 	struct sk_buff *frag_skb;
 	struct sk_buff *last_skb;
 };

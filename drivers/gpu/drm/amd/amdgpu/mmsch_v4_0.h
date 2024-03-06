@@ -35,13 +35,13 @@
 
 #define MMSCH_VF_ENGINE_STATUS__PASS 0x1
 
-#define MMSCH_VF_MAILBOX_RESP__OK 0x1
-#define MMSCH_VF_MAILBOX_RESP__INCOMPLETE 0x2
+#define MMSCH_VF_MAILBOX_RESP__OK                      0x1
+#define MMSCH_VF_MAILBOX_RESP__INCOMPLETE              0x2
+#define MMSCH_VF_MAILBOX_RESP__FAILED                  0x3
+#define MMSCH_VF_MAILBOX_RESP__FAILED_SMALL_CTX_SIZE   0x4
+#define MMSCH_VF_MAILBOX_RESP__UNKNOWN_CMD             0x5
 
-#define MMSCH_VF_ENGINE_STATUS__PASS 0x1
-
-#define MMSCH_VF_MAILBOX_RESP__OK 0x1
-#define MMSCH_VF_MAILBOX_RESP__INCOMPLETE 0x2
+#define MMSCH_V4_0_VCN_INSTANCES 0x2
 
 enum mmsch_v4_0_command_type {
 	MMSCH_COMMAND__DIRECT_REG_WRITE = 0,
@@ -60,7 +60,7 @@ struct mmsch_v4_0_table_info {
 struct mmsch_v4_0_init_header {
 	uint32_t version;
 	uint32_t total_size;
-	struct mmsch_v4_0_table_info inst[AMDGPU_MAX_VCN_INSTANCES];
+	struct mmsch_v4_0_table_info inst[MMSCH_V4_0_VCN_INSTANCES];
 	struct mmsch_v4_0_table_info jpegdec;
 };
 

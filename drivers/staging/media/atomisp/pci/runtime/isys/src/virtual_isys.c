@@ -17,7 +17,6 @@
 
 #include "system_global.h"
 
-#ifdef ISP2401
 
 #include "ia_css_isys.h"
 #include "ia_css_debug.h"
@@ -689,7 +688,7 @@ static bool calculate_be_cfg(
 		cfg->csi_mipi_cfg.comp_scheme = isys_cfg->csi_port_attr.comp_scheme;
 		cfg->csi_mipi_cfg.comp_predictor = isys_cfg->csi_port_attr.comp_predictor;
 		cfg->csi_mipi_cfg.comp_bit_idx = cfg->csi_mipi_cfg.data_type -
-						 MIPI_FORMAT_CUSTOM0;
+						 MIPI_FORMAT_2401_CUSTOM0;
 	}
 
 	return true;
@@ -856,14 +855,13 @@ static csi_mipi_packet_type_t get_csi_mipi_packet_type(
 
 	packet_type = CSI_MIPI_PACKET_TYPE_RESERVED;
 
-	if (data_type >= 0 && data_type <= MIPI_FORMAT_SHORT8)
+	if (data_type >= 0 && data_type <= MIPI_FORMAT_2401_SHORT8)
 		packet_type = CSI_MIPI_PACKET_TYPE_SHORT;
 
-	if (data_type > MIPI_FORMAT_SHORT8 && data_type <= N_MIPI_FORMAT)
+	if (data_type > MIPI_FORMAT_2401_SHORT8 && data_type <= N_MIPI_FORMAT_2401)
 		packet_type = CSI_MIPI_PACKET_TYPE_LONG;
 
 	return packet_type;
 }
 
 /* end of Private Methods */
-#endif

@@ -37,16 +37,14 @@ prototype in a header for the wrapper kfunc.
 An example is given below::
 
         /* Disables missing prototype warnings */
-        __diag_push();
-        __diag_ignore_all("-Wmissing-prototypes",
-                          "Global kfuncs as their definitions will be in BTF");
+        __bpf_kfunc_start_defs();
 
         __bpf_kfunc struct task_struct *bpf_find_get_task_by_vpid(pid_t nr)
         {
                 return find_get_task_by_vpid(nr);
         }
 
-        __diag_pop();
+        __bpf_kfunc_end_defs();
 
 A wrapper kfunc is often needed when we need to annotate parameters of the
 kfunc. Otherwise one may directly make the kfunc visible to the BPF program by
@@ -100,7 +98,7 @@ Hence, whenever a constant scalar argument is accepted by a kfunc which is not a
 size parameter, and the value of the constant matters for program safety, __k
 suffix should be used.
 
-2.2.2 __uninit Annotation
+2.2.3 __uninit Annotation
 -------------------------
 
 This annotation is used to indicate that the argument will be treated as
@@ -116,6 +114,51 @@ An example is given below::
 Here, the dynptr will be treated as an uninitialized dynptr. Without this
 annotation, the verifier will reject the program if the dynptr passed in is
 not initialized.
+
+2.2.4 __opt Annotation
+-------------------------
+
+This annotation is used to indicate that the buffer associated with an __sz or __szk
+argument may be null. If the function is passed a nullptr in place of the buffer,
+the verifier will not check that length is appropriate for the buffer. The kfunc is
+responsible for checking if this buffer is null before using it.
+
+An example is given below::
+
+        __bpf_kfunc void *bpf_dynptr_slice(..., void *buffer__opt, u32 buffer__szk)
+        {
+        ...
+        }
+
+Here, the buffer may be null. If buffer is not null, it at least of size buffer_szk.
+Either way, the returned buffer is either NULL, or of size buffer_szk. Without this
+annotation, the verifier will reject the program if a null pointer is passed in with
+a nonzero size.
+
+2.2.5 __str Annotation
+----------------------------
+This annotation is used to indicate that the argument is a constant string.
+
+An example is given below::
+
+        __bpf_kfunc bpf_get_file_xattr(..., const char *name__str, ...)
+        {
+        ...
+        }
+
+In this case, ``bpf_get_file_xattr()`` can be called as::
+
+        bpf_get_file_xattr(..., "xattr_name", ...);
+
+Or::
+
+        const char name[] = "xattr_name";  /* This need to be global */
+        int BPF_PROG(...)
+        {
+                ...
+                bpf_get_file_xattr(..., name, ...);
+                ...
+        }
 
 .. _BPF_kfunc_nodef:
 
@@ -206,22 +249,48 @@ absolutely no ABI stability guarantees.
 
 As mentioned above, a nested pointer obtained from walking a trusted pointer is
 no longer trusted, with one exception. If a struct type has a field that is
-guaranteed to be valid as long as its parent pointer is trusted, the
-``BTF_TYPE_SAFE_NESTED`` macro can be used to express that to the verifier as
-follows:
+guaranteed to be valid (trusted or rcu, as in KF_RCU description below) as long
+as its parent pointer is valid, the following macros can be used to express
+that to the verifier:
+
+* ``BTF_TYPE_SAFE_TRUSTED``
+* ``BTF_TYPE_SAFE_RCU``
+* ``BTF_TYPE_SAFE_RCU_OR_NULL``
+
+For example,
 
 .. code-block:: c
 
-	BTF_TYPE_SAFE_NESTED(struct task_struct) {
+	BTF_TYPE_SAFE_TRUSTED(struct socket) {
+		struct sock *sk;
+	};
+
+or
+
+.. code-block:: c
+
+	BTF_TYPE_SAFE_RCU(struct task_struct) {
 		const cpumask_t *cpus_ptr;
+		struct css_set __rcu *cgroups;
+		struct task_struct __rcu *real_parent;
+		struct task_struct *group_leader;
 	};
 
 In other words, you must:
 
-1. Wrap the trusted pointer type in the ``BTF_TYPE_SAFE_NESTED`` macro.
+1. Wrap the valid pointer type in a ``BTF_TYPE_SAFE_*`` macro.
 
-2. Specify the type and name of the trusted nested field. This field must match
+2. Specify the type and name of the valid nested field. This field must match
    the field in the original type definition exactly.
+
+A new type declared by a ``BTF_TYPE_SAFE_*`` macro also needs to be emitted so
+that it appears in BTF. For example, ``BTF_TYPE_SAFE_TRUSTED(struct socket)``
+is emitted in the ``type_is_trusted()`` function as follows:
+
+.. code-block:: c
+
+	BTF_TYPE_EMIT(BTF_TYPE_SAFE_TRUSTED(struct socket));
+
 
 2.4.5 KF_SLEEPABLE flag
 -----------------------

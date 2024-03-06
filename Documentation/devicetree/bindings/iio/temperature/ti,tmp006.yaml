@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/temperature/ti,tmp006.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: TI TMP006 IR thermopile sensor
+
+maintainers:
+  - Peter Meerwald <pmeerw@pmeerw.net>
+
+description: |
+  TI TMP006 - Infrared Thermopile Sensor in Chip-Scale Package.
+  https://cdn.sparkfun.com/datasheets/Sensors/Temp/tmp006.pdf
+
+properties:
+  compatible:
+    const: ti,tmp006
+
+  reg:
+    maxItems: 1
+
+  vdd-supply:
+    description: provide VDD power to the sensor.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        temperature-sensor@40 {
+            compatible = "ti,tmp006";
+            reg = <0x40>;
+            vdd-supply = <&ldo4_reg>;
+        };
+    };

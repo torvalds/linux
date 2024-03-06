@@ -815,7 +815,7 @@ int __kvm_arm_vcpu_get_events(struct kvm_vcpu *vcpu,
 			      struct kvm_vcpu_events *events)
 {
 	events->exception.serror_pending = !!(vcpu->arch.hcr_el2 & HCR_VSE);
-	events->exception.serror_has_esr = cpus_have_const_cap(ARM64_HAS_RAS_EXTN);
+	events->exception.serror_has_esr = cpus_have_final_cap(ARM64_HAS_RAS_EXTN);
 
 	if (events->exception.serror_pending && events->exception.serror_has_esr)
 		events->exception.serror_esr = vcpu_get_vsesr(vcpu);
@@ -837,7 +837,7 @@ int __kvm_arm_vcpu_set_events(struct kvm_vcpu *vcpu,
 	bool ext_dabt_pending = events->exception.ext_dabt_pending;
 
 	if (serror_pending && has_esr) {
-		if (!cpus_have_const_cap(ARM64_HAS_RAS_EXTN))
+		if (!cpus_have_final_cap(ARM64_HAS_RAS_EXTN))
 			return -EINVAL;
 
 		if (!((events->exception.serror_esr) & ~ESR_ELx_ISS_MASK))
@@ -874,7 +874,7 @@ u32 __attribute_const__ kvm_target_cpu(void)
 		break;
 	case ARM_CPU_IMP_APM:
 		switch (part_number) {
-		case APM_CPU_PART_POTENZA:
+		case APM_CPU_PART_XGENE:
 			return KVM_ARM_TARGET_XGENE_POTENZA;
 		}
 		break;
@@ -882,21 +882,6 @@ u32 __attribute_const__ kvm_target_cpu(void)
 
 	/* Return a default generic target */
 	return KVM_ARM_TARGET_GENERIC_V8;
-}
-
-void kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
-{
-	u32 target = kvm_target_cpu();
-
-	memset(init, 0, sizeof(*init));
-
-	/*
-	 * For now, we don't return any features.
-	 * In future, we might use features to return target
-	 * specific features available for the preferred
-	 * target type.
-	 */
-	init->target = (__u32)target;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)

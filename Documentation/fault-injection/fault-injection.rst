@@ -243,7 +243,7 @@ proc entries
 Error Injectable Functions
 --------------------------
 
-This part is for the kenrel developers considering to add a function to
+This part is for the kernel developers considering to add a function to
 ALLOW_ERROR_INJECTION() macro.
 
 Requirements for the Error Injectable Functions

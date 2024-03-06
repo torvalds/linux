@@ -34,7 +34,7 @@ struct i2s_interface_regs {
 	__le32 peak_level_in1;	/* 0x90 */
 	PAD(12);
 	/* total size: 0x100 bytes */
-}  __attribute__((__packed__));
+} __packed;
 
 /* interrupt register is just a bitfield with
  * interrupt enable and pending bits */

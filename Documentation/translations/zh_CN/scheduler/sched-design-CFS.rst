@@ -80,7 +80,7 @@ p->se.vruntime。一旦p->se.vruntime变得足够大，其它的任务将成为�
 CFS使用纳秒粒度的计时，不依赖于任何jiffies或HZ的细节。因此CFS并不像之前的调度器那样
 有“时间片”的概念，也没有任何启发式的设计。唯一可调的参数（你需要打开CONFIG_SCHED_DEBUG）是：
 
-   /sys/kernel/debug/sched/min_granularity_ns
+   /sys/kernel/debug/sched/base_slice_ns
 
 它可以用来将调度器从“桌面”模式（也就是低时延）调节为“服务器”（也就是高批处理）模式。
 它的默认设置是适合桌面的工作负载。SCHED_BATCH也被CFS调度器模块处理。
@@ -147,7 +147,7 @@ array）。
    这个函数的行为基本上是出队，紧接着入队，除非compat_yield sysctl被开启。在那种情况下，
    它将调度实体放在红黑树的最右端。
 
- - check_preempt_curr(...)
+ - wakeup_preempt(...)
 
    这个函数检查进入可运行状态的任务能否抢占当前正在运行的任务。
 
@@ -155,9 +155,9 @@ array）。
 
    这个函数选择接下来最适合运行的任务。
 
- - set_curr_task(...)
+ - set_next_task(...)
 
-   这个函数在任务改变调度类或改变任务组时被调用。
+   这个函数在任务改变调度类，改变任务组时，或者任务被调度时被调用。
 
  - task_tick(...)
 

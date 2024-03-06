@@ -20,7 +20,7 @@ struct {
 } hashmap1 SEC(".maps");
 
 /* will set before prog run */
-volatile const __u32 num_cpus = 0;
+volatile const __s32 num_cpus = 0;
 
 /* will collect results during prog run */
 __u32 key_sum_a = 0, key_sum_b = 0, key_sum_c = 0;

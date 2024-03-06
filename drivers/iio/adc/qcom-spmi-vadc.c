@@ -84,6 +84,7 @@
  *	that is an average of multiple measurements.
  * @scale_fn_type: Represents the scaling function to convert voltage
  *	physical units desired by the client for the channel.
+ * @channel_name: Channel name used in device tree.
  */
 struct vadc_channel_prop {
 	unsigned int channel;
@@ -93,6 +94,7 @@ struct vadc_channel_prop {
 	unsigned int hw_settle_time;
 	unsigned int avg_samples;
 	enum vadc_scale_fn_type scale_fn_type;
+	const char *channel_name;
 };
 
 /**
@@ -495,8 +497,18 @@ static int vadc_fwnode_xlate(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+static int vadc_read_label(struct iio_dev *indio_dev,
+			   struct iio_chan_spec const *chan, char *label)
+{
+	struct vadc_priv *vadc = iio_priv(indio_dev);
+	const char *name = vadc->chan_props[chan->address].channel_name;
+
+	return sysfs_emit(label, "%s\n", name);
+}
+
 static const struct iio_info vadc_info = {
 	.read_raw = vadc_read_raw,
+	.read_label = vadc_read_label,
 	.fwnode_xlate = vadc_fwnode_xlate,
 };
 
@@ -652,7 +664,7 @@ static int vadc_get_fw_channel_data(struct device *dev,
 				    struct vadc_channel_prop *prop,
 				    struct fwnode_handle *fwnode)
 {
-	const char *name = fwnode_get_name(fwnode);
+	const char *name = fwnode_get_name(fwnode), *label;
 	u32 chan, value, varr[2];
 	int ret;
 
@@ -666,6 +678,11 @@ static int vadc_get_fw_channel_data(struct device *dev,
 		dev_err(dev, "%s invalid channel number %d\n", name, chan);
 		return -EINVAL;
 	}
+
+	ret = fwnode_property_read_string(fwnode, "label", &label);
+	if (ret)
+		label = vadc_chans[chan].datasheet_name;
+	prop->channel_name = label;
 
 	/* the channel has DT description */
 	prop->channel = chan;

@@ -149,21 +149,37 @@ class SpecAttr(SpecElement):
     Represents a single attribute type within an attr space.
 
     Attributes:
+        type          string, attribute type
         value         numerical ID when serialized
         attr_set      Attribute Set containing this attr
         is_multi      bool, attr may repeat multiple times
         struct_name   string, name of struct definition
         sub_type      string, name of sub type
+        len           integer, optional byte length of binary types
+        display_hint  string, hint to help choose format specifier
+                      when displaying the value
+        sub_message   string, name of sub message type
+        selector      string, name of attribute used to select
+                      sub-message type
+
+        is_auto_scalar bool, attr is a variable-size scalar
     """
     def __init__(self, family, attr_set, yaml, value):
         super().__init__(family, yaml)
 
+        self.type = yaml['type']
         self.value = value
         self.attr_set = attr_set
         self.is_multi = yaml.get('multi-attr', False)
         self.struct_name = yaml.get('struct')
         self.sub_type = yaml.get('sub-type')
         self.byte_order = yaml.get('byte-order')
+        self.len = yaml.get('len')
+        self.display_hint = yaml.get('display-hint')
+        self.sub_message = yaml.get('sub-message')
+        self.selector = yaml.get('selector')
+
+        self.is_auto_scalar = self.type == "sint" or self.type == "uint"
 
 
 class SpecAttrSet(SpecElement):
@@ -226,11 +242,20 @@ class SpecStructMember(SpecElement):
     Represents a single struct member attribute.
 
     Attributes:
-        type    string, type of the member attribute
+        type        string, type of the member attribute
+        byte_order  string or None for native byte order
+        enum        string, name of the enum definition
+        len         integer, optional byte length of binary types
+        display_hint  string, hint to help choose format specifier
+                      when displaying the value
     """
     def __init__(self, family, yaml):
         super().__init__(family, yaml)
         self.type = yaml['type']
+        self.byte_order = yaml.get('byte-order')
+        self.enum = yaml.get('enum')
+        self.len = yaml.get('len')
+        self.display_hint = yaml.get('display-hint')
 
 
 class SpecStruct(SpecElement):
@@ -256,6 +281,47 @@ class SpecStruct(SpecElement):
 
     def items(self):
         return self.members.items()
+
+
+class SpecSubMessage(SpecElement):
+    """ Netlink sub-message definition
+
+    Represents a set of sub-message formats for polymorphic nlattrs
+    that contain type-specific sub messages.
+
+    Attributes:
+        name     string, name of sub-message definition
+        formats  dict of sub-message formats indexed by match value
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+
+        self.formats = collections.OrderedDict()
+        for elem in self.yaml['formats']:
+            format = self.new_format(family, elem)
+            self.formats[format.value] = format
+
+    def new_format(self, family, format):
+        return SpecSubMessageFormat(family, format)
+
+
+class SpecSubMessageFormat(SpecElement):
+    """ Netlink sub-message definition
+
+    Represents a set of sub-message formats for polymorphic nlattrs
+    that contain type-specific sub messages.
+
+    Attributes:
+        value         attribute value to match against type selector
+        fixed_header  string, name of fixed header, or None
+        attr_set      string, name of attribute set, or None
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+
+        self.value = yaml.get('value')
+        self.fixed_header = yaml.get('fixed-header')
+        self.attr_set = yaml.get('attribute-set')
 
 
 class SpecOperation(SpecElement):
@@ -308,6 +374,26 @@ class SpecOperation(SpecElement):
             self.attr_set = self.family.attr_sets[attr_set_name]
 
 
+class SpecMcastGroup(SpecElement):
+    """Netlink Multicast Group
+
+    Information about a multicast group.
+
+    Value is only used for classic netlink families that use the
+    netlink-raw schema. Genetlink families use dynamic ID allocation
+    where the ids of multicast groups get resolved at runtime. Value
+    will be None for genetlink families.
+
+    Attributes:
+        name      name of the mulitcast group
+        value     integer id of this multicast group for netlink-raw or None
+        yaml      raw spec as loaded from the spec file
+    """
+    def __init__(self, family, yaml):
+        super().__init__(family, yaml)
+        self.value = self.yaml.get('value')
+
+
 class SpecFamily(SpecElement):
     """ Netlink Family Spec class.
 
@@ -320,16 +406,19 @@ class SpecFamily(SpecElement):
 
     Attributes:
         proto     protocol type (e.g. genetlink)
+        msg_id_model   enum-model for operations (unified, directional etc.)
         license   spec license (loaded from an SPDX tag on the spec)
 
         attr_sets  dict of attribute sets
         msgs       dict of all messages (index by name)
-        msgs_by_value  dict of all messages (indexed by name)
+        sub_msgs   dict of all sub messages (index by name)
         ops        dict of all valid requests / responses
+        ntfs       dict of all async events
         consts     dict of all constants/enums
         fixed_header  string, optional name of family default fixed header struct
+        mcast_groups  dict of all multicast groups (index by name)
     """
-    def __init__(self, spec_path, schema_path=None):
+    def __init__(self, spec_path, schema_path=None, exclude_ops=None):
         with open(spec_path, "r") as stream:
             prefix = '# SPDX-License-Identifier: '
             first = stream.readline().strip()
@@ -344,7 +433,10 @@ class SpecFamily(SpecElement):
 
         super().__init__(self, spec)
 
+        self._exclude_ops = exclude_ops if exclude_ops else []
+
         self.proto = self.yaml.get('protocol', 'genetlink')
+        self.msg_id_model = self.yaml['operations'].get('enum-model', 'unified')
 
         if schema_path is None:
             schema_path = os.path.dirname(os.path.dirname(spec_path)) + f'/{self.proto}.yaml'
@@ -360,11 +452,14 @@ class SpecFamily(SpecElement):
             jsonschema.validate(self.yaml, schema)
 
         self.attr_sets = collections.OrderedDict()
+        self.sub_msgs = collections.OrderedDict()
         self.msgs = collections.OrderedDict()
         self.req_by_value = collections.OrderedDict()
         self.rsp_by_value = collections.OrderedDict()
         self.ops = collections.OrderedDict()
+        self.ntfs = collections.OrderedDict()
         self.consts = collections.OrderedDict()
+        self.mcast_groups = collections.OrderedDict()
 
         last_exception = None
         while len(self._resolution_list) > 0:
@@ -394,8 +489,14 @@ class SpecFamily(SpecElement):
     def new_struct(self, elem):
         return SpecStruct(self, elem)
 
+    def new_sub_message(self, elem):
+        return SpecSubMessage(self, elem);
+
     def new_operation(self, elem, req_val, rsp_val):
         return SpecOperation(self, elem, req_val, rsp_val)
+
+    def new_mcast_group(self, elem):
+        return SpecMcastGroup(self, elem)
 
     def add_unresolved(self, elem):
         self._resolution_list.append(elem)
@@ -416,7 +517,7 @@ class SpecFamily(SpecElement):
         self.fixed_header = self.yaml['operations'].get('fixed-header')
         req_val = rsp_val = 1
         for elem in self.yaml['operations']['list']:
-            if 'notify' in elem:
+            if 'notify' in elem or 'event' in elem:
                 if 'value' in elem:
                     rsp_val = elem['value']
                 req_val_next = req_val
@@ -438,7 +539,17 @@ class SpecFamily(SpecElement):
             else:
                 raise Exception("Can't parse directional ops")
 
-            op = self.new_operation(elem, req_val, rsp_val)
+            if req_val == req_val_next:
+                req_val = None
+            if rsp_val == rsp_val_next:
+                rsp_val = None
+
+            skip = False
+            for exclude in self._exclude_ops:
+                skip |= bool(exclude.match(elem['name']))
+            if not skip:
+                op = self.new_operation(elem, req_val, rsp_val)
+
             req_val = req_val_next
             rsp_val = rsp_val_next
 
@@ -469,10 +580,13 @@ class SpecFamily(SpecElement):
             attr_set = self.new_attr_set(elem)
             self.attr_sets[elem['name']] = attr_set
 
-        msg_id_model = self.yaml['operations'].get('enum-model', 'unified')
-        if msg_id_model == 'unified':
+        for elem in self.yaml.get('sub-messages', []):
+            sub_message = self.new_sub_message(elem)
+            self.sub_msgs[sub_message.name] = sub_message
+
+        if self.msg_id_model == 'unified':
             self._dictify_ops_unified()
-        elif msg_id_model == 'directional':
+        elif self.msg_id_model == 'directional':
             self._dictify_ops_directional()
 
         for op in self.msgs.values():
@@ -482,3 +596,11 @@ class SpecFamily(SpecElement):
                 self.rsp_by_value[op.rsp_value] = op
             if not op.is_async and 'attribute-set' in op:
                 self.ops[op.name] = op
+            elif op.is_async:
+                self.ntfs[op.name] = op
+
+        mcgs = self.yaml.get('mcast-groups')
+        if mcgs:
+            for elem in mcgs['list']:
+                mcg = self.new_mcast_group(elem)
+                self.mcast_groups[elem['name']] = mcg

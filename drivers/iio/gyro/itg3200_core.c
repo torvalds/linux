@@ -405,7 +405,7 @@ static struct i2c_driver itg3200_driver = {
 		.pm	= pm_sleep_ptr(&itg3200_pm_ops),
 	},
 	.id_table	= itg3200_id,
-	.probe_new	= itg3200_probe,
+	.probe		= itg3200_probe,
 	.remove		= itg3200_remove,
 };
 

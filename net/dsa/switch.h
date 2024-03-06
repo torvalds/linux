@@ -34,7 +34,7 @@ enum {
 	DSA_NOTIFIER_TAG_PROTO_DISCONNECT,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_ADD,
 	DSA_NOTIFIER_TAG_8021Q_VLAN_DEL,
-	DSA_NOTIFIER_MASTER_STATE_CHANGE,
+	DSA_NOTIFIER_CONDUIT_STATE_CHANGE,
 };
 
 /* DSA_NOTIFIER_AGEING_TIME */
@@ -105,11 +105,14 @@ struct dsa_notifier_tag_8021q_vlan_info {
 	u16 vid;
 };
 
-/* DSA_NOTIFIER_MASTER_STATE_CHANGE */
-struct dsa_notifier_master_state_info {
-	const struct net_device *master;
+/* DSA_NOTIFIER_CONDUIT_STATE_CHANGE */
+struct dsa_notifier_conduit_state_info {
+	const struct net_device *conduit;
 	bool operational;
 };
+
+struct dsa_vlan *dsa_vlan_find(struct list_head *vlan_list,
+			       const struct switchdev_obj_port_vlan *vlan);
 
 int dsa_tree_notify(struct dsa_switch_tree *dst, unsigned long e, void *v);
 int dsa_broadcast(unsigned long e, void *v);

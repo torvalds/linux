@@ -96,6 +96,27 @@ struct mptcp_out_options {
 #endif
 };
 
+#define MPTCP_SCHED_NAME_MAX	16
+#define MPTCP_SUBFLOWS_MAX	8
+
+struct mptcp_sched_data {
+	bool	reinject;
+	u8	subflows;
+	struct mptcp_subflow_context *contexts[MPTCP_SUBFLOWS_MAX];
+};
+
+struct mptcp_sched_ops {
+	int (*get_subflow)(struct mptcp_sock *msk,
+			   struct mptcp_sched_data *data);
+
+	char			name[MPTCP_SCHED_NAME_MAX];
+	struct module		*owner;
+	struct list_head	list;
+
+	void (*init)(struct mptcp_sock *msk);
+	void (*release)(struct mptcp_sock *msk);
+} ____cacheline_aligned_in_smp;
+
 #ifdef CONFIG_MPTCP
 void mptcp_init(void);
 

@@ -1271,7 +1271,7 @@ err_clk_disable:
 	return ret;
 }
 
-static int sun4i_dma_remove(struct platform_device *pdev)
+static void sun4i_dma_remove(struct platform_device *pdev)
 {
 	struct sun4i_dma_dev *priv = platform_get_drvdata(pdev);
 
@@ -1282,8 +1282,6 @@ static int sun4i_dma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&priv->slave);
 
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static const struct of_device_id sun4i_dma_match[] = {
@@ -1294,7 +1292,7 @@ MODULE_DEVICE_TABLE(of, sun4i_dma_match);
 
 static struct platform_driver sun4i_dma_driver = {
 	.probe	= sun4i_dma_probe,
-	.remove	= sun4i_dma_remove,
+	.remove_new = sun4i_dma_remove,
 	.driver	= {
 		.name		= "sun4i-dma",
 		.of_match_table	= sun4i_dma_match,

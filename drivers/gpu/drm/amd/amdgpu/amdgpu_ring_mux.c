@@ -397,7 +397,7 @@ void amdgpu_sw_ring_ib_begin(struct amdgpu_ring *ring)
 	struct amdgpu_ring_mux *mux = &adev->gfx.muxer;
 
 	WARN_ON(!ring->is_sw_ring);
-	if (ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT) {
+	if (adev->gfx.mcbp && ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT) {
 		if (amdgpu_mcbp_scan(mux) > 0)
 			amdgpu_mcbp_trigger_preempt(mux);
 		return;
@@ -422,6 +422,9 @@ void amdgpu_sw_ring_ib_mark_offset(struct amdgpu_ring *ring, enum amdgpu_ring_mu
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_ring_mux *mux = &adev->gfx.muxer;
 	unsigned offset;
+
+	if (ring->hw_prio > AMDGPU_RING_PRIO_DEFAULT)
+		return;
 
 	offset = ring->wptr & ring->buf_mask;
 

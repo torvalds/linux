@@ -36,6 +36,7 @@
 #include "link_dpcd.h"
 #include "link_dp_phy.h"
 #include "link_dp_capability.h"
+#include "link_ddc.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -46,42 +47,20 @@ void dp_fixed_vs_pe_read_lane_adjust(
 {
 	const uint8_t vendor_lttpr_write_data_vs[3] = {0x0, 0x53, 0x63};
 	const uint8_t vendor_lttpr_write_data_pe[3] = {0x0, 0x54, 0x63};
-	const uint8_t offset = dp_parse_lttpr_repeater_count(
-			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
-	uint32_t vendor_lttpr_write_address = 0xF004F;
-	uint32_t vendor_lttpr_read_address = 0xF0053;
 	uint8_t dprx_vs = 0;
 	uint8_t dprx_pe = 0;
 	uint8_t lane;
 
-	if (offset != 0xFF) {
-		vendor_lttpr_write_address +=
-				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
-		vendor_lttpr_read_address +=
-				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
-	}
-
 	/* W/A to read lane settings requested by DPRX */
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_vs[0],
-			sizeof(vendor_lttpr_write_data_vs));
-	core_link_read_dpcd(
-			link,
-			vendor_lttpr_read_address,
-			&dprx_vs,
-			1);
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_pe[0],
-			sizeof(vendor_lttpr_write_data_pe));
-	core_link_read_dpcd(
-			link,
-			vendor_lttpr_read_address,
-			&dprx_pe,
-			1);
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+
+	link_query_fixed_vs_pe_retimer(link->ddc, &dprx_vs, 1);
+
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
+
+	link_query_fixed_vs_pe_retimer(link->ddc, &dprx_pe, 1);
 
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
 		dpcd_lane_adjust[lane].bits.VOLTAGE_SWING_SET  = (dprx_vs >> (2 * lane)) & 0x3;
@@ -95,18 +74,10 @@ void dp_fixed_vs_pe_set_retimer_lane_settings(
 	const union dpcd_training_lane dpcd_lane_adjust[LANE_COUNT_DP_MAX],
 	uint8_t lane_count)
 {
-	const uint8_t offset = dp_parse_lttpr_repeater_count(
-			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_reset[4] = {0x1, 0x50, 0x63, 0xFF};
-	uint32_t vendor_lttpr_write_address = 0xF004F;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
 	uint8_t lane = 0;
-
-	if (offset != 0xFF) {
-		vendor_lttpr_write_address +=
-				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
-	}
 
 	for (lane = 0; lane < lane_count; lane++) {
 		vendor_lttpr_write_data_vs[3] |=
@@ -116,21 +87,14 @@ void dp_fixed_vs_pe_set_retimer_lane_settings(
 	}
 
 	/* Force LTTPR to output desired VS and PE */
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_reset[0],
-			sizeof(vendor_lttpr_write_data_reset));
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_vs[0],
-			sizeof(vendor_lttpr_write_data_vs));
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_pe[0],
-			sizeof(vendor_lttpr_write_data_pe));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_reset[0], sizeof(vendor_lttpr_write_data_reset));
+
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 }
 
 static enum link_training_result perform_fixed_vs_pe_nontransparent_training_sequence(
@@ -151,7 +115,7 @@ static enum link_training_result perform_fixed_vs_pe_nontransparent_training_seq
 		lt_settings->cr_pattern_time = 16000;
 
 	/* Fixed VS/PE specific: Toggle link rate */
-	apply_toggle_rate_wa = (link->vendor_specific_lttpr_link_rate_wa == target_rate);
+	apply_toggle_rate_wa = ((link->vendor_specific_lttpr_link_rate_wa == target_rate) || (link->vendor_specific_lttpr_link_rate_wa == 0));
 	target_rate = get_dpcd_link_rate(&lt_settings->link_settings);
 	toggle_rate = (target_rate == 0x6) ? 0xA : 0x6;
 
@@ -233,10 +197,15 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 			link->dpcd_caps.lttpr_caps.phy_repeater_cnt);
 	const uint8_t vendor_lttpr_write_data_intercept_en[4] = {0x1, 0x55, 0x63, 0x0};
 	const uint8_t vendor_lttpr_write_data_intercept_dis[4] = {0x1, 0x55, 0x63, 0x68};
-	uint32_t pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
+	uint32_t pre_disable_intercept_delay_ms = 0;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
-	uint32_t vendor_lttpr_write_address = 0xF004F;
+	const uint8_t vendor_lttpr_write_data_4lane_1[4] = {0x1, 0x6E, 0xF2, 0x19};
+	const uint8_t vendor_lttpr_write_data_4lane_2[4] = {0x1, 0x6B, 0xF2, 0x01};
+	const uint8_t vendor_lttpr_write_data_4lane_3[4] = {0x1, 0x6D, 0xF2, 0x18};
+	const uint8_t vendor_lttpr_write_data_4lane_4[4] = {0x1, 0x6C, 0xF2, 0x03};
+	const uint8_t vendor_lttpr_write_data_4lane_5[4] = {0x1, 0x03, 0xF3, 0x06};
+	const uint8_t vendor_lttpr_write_data_dpmf[4] = {0x1, 0x6, 0x70, 0x87};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	uint8_t lane = 0;
 	union down_spread_ctrl downspread = {0};
@@ -254,37 +223,27 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 	}
 
 	if (offset != 0xFF) {
-		vendor_lttpr_write_address +=
-				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+		if (offset == 2) {
+			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
 
 		/* Certain display and cable configuration require extra delay */
-		if (offset > 2)
+		} else if (offset > 2) {
 			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa * 2;
+		}
 	}
 
 	/* Vendor specific: Reset lane settings */
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_reset[0],
-			sizeof(vendor_lttpr_write_data_reset));
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_vs[0],
-			sizeof(vendor_lttpr_write_data_vs));
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_pe[0],
-			sizeof(vendor_lttpr_write_data_pe));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_reset[0], sizeof(vendor_lttpr_write_data_reset));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 
 	/* Vendor specific: Enable intercept */
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_intercept_en[0],
-			sizeof(vendor_lttpr_write_data_intercept_en));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_intercept_en[0], sizeof(vendor_lttpr_write_data_intercept_en));
+
 
 	/* 1. set link rate, lane count and spread. */
 
@@ -313,7 +272,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 	/* Vendor specific: Toggle link rate */
 	toggle_rate = (rate == 0x6) ? 0xA : 0x6;
 
-	if (link->vendor_specific_lttpr_link_rate_wa == rate) {
+	if (link->vendor_specific_lttpr_link_rate_wa == rate || link->vendor_specific_lttpr_link_rate_wa == 0) {
 		core_link_write_dpcd(
 				link,
 				DP_LINK_BW_SET,
@@ -335,6 +294,23 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 		DP_DOWNSPREAD_CTRL,
 		lt_settings->link_settings.link_spread);
 
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_dpmf[0],
+			sizeof(vendor_lttpr_write_data_dpmf));
+
+	if (lt_settings->link_settings.lane_count == LANE_COUNT_FOUR) {
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_1[0], sizeof(vendor_lttpr_write_data_4lane_1));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_2[0], sizeof(vendor_lttpr_write_data_4lane_2));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_3[0], sizeof(vendor_lttpr_write_data_4lane_3));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_4[0], sizeof(vendor_lttpr_write_data_4lane_4));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_5[0], sizeof(vendor_lttpr_write_data_4lane_5));
+	}
+
 	/* 2. Perform link training */
 
 	/* Perform Clock Recovery Sequence */
@@ -347,7 +323,6 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 		union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 		union lane_align_status_updated dpcd_lane_status_updated;
 		union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
-		enum dc_status dpcd_status = DC_OK;
 		uint8_t i = 0;
 
 		retries_cr = 0;
@@ -380,19 +355,14 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 						0);
 				/* Vendor specific: Disable intercept */
 				for (i = 0; i < max_vendor_dpcd_retries; i++) {
-					msleep(pre_disable_intercept_delay_ms);
-					dpcd_status = core_link_write_dpcd(
-							link,
-							vendor_lttpr_write_address,
+					if (pre_disable_intercept_delay_ms != 0)
+						msleep(pre_disable_intercept_delay_ms);
+					if (link_configure_fixed_vs_pe_retimer(link->ddc,
 							&vendor_lttpr_write_data_intercept_dis[0],
-							sizeof(vendor_lttpr_write_data_intercept_dis));
-
-					if (dpcd_status == DC_OK)
+							sizeof(vendor_lttpr_write_data_intercept_dis)))
 						break;
 
-					core_link_write_dpcd(
-							link,
-							vendor_lttpr_write_address,
+					link_configure_fixed_vs_pe_retimer(link->ddc,
 							&vendor_lttpr_write_data_intercept_en[0],
 							sizeof(vendor_lttpr_write_data_intercept_en));
 				}
@@ -408,16 +378,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 				}
 
 				/* Vendor specific: Update VS and PE to DPRX requested value */
-				core_link_write_dpcd(
-						link,
-						vendor_lttpr_write_address,
-						&vendor_lttpr_write_data_vs[0],
-						sizeof(vendor_lttpr_write_data_vs));
-				core_link_write_dpcd(
-						link,
-						vendor_lttpr_write_address,
-						&vendor_lttpr_write_data_pe[0],
-						sizeof(vendor_lttpr_write_data_pe));
+				link_configure_fixed_vs_pe_retimer(link->ddc,
+						&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+				link_configure_fixed_vs_pe_retimer(link->ddc,
+						&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 
 				dpcd_set_lane_settings(
 						link,
@@ -513,16 +477,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence_legacy(
 			}
 
 			/* Vendor specific: Update VS and PE to DPRX requested value */
-			core_link_write_dpcd(
-					link,
-					vendor_lttpr_write_address,
-					&vendor_lttpr_write_data_vs[0],
-					sizeof(vendor_lttpr_write_data_vs));
-			core_link_write_dpcd(
-					link,
-					vendor_lttpr_write_address,
-					&vendor_lttpr_write_data_pe[0],
-					sizeof(vendor_lttpr_write_data_pe));
+			link_configure_fixed_vs_pe_retimer(link->ddc,
+					&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+			link_configure_fixed_vs_pe_retimer(link->ddc,
+					&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 
 			/* 2. update DPCD*/
 			if (!retries_ch_eq)
@@ -591,11 +549,15 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	const uint8_t vendor_lttpr_write_data_adicora_eq1[4] = {0x1, 0x55, 0x63, 0x2E};
 	const uint8_t vendor_lttpr_write_data_adicora_eq2[4] = {0x1, 0x55, 0x63, 0x01};
 	const uint8_t vendor_lttpr_write_data_adicora_eq3[4] = {0x1, 0x55, 0x63, 0x68};
-	uint32_t pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
+	uint32_t pre_disable_intercept_delay_ms = 0;
 	uint8_t vendor_lttpr_write_data_vs[4] = {0x1, 0x51, 0x63, 0x0};
 	uint8_t vendor_lttpr_write_data_pe[4] = {0x1, 0x52, 0x63, 0x0};
-
-	uint32_t vendor_lttpr_write_address = 0xF004F;
+	const uint8_t vendor_lttpr_write_data_4lane_1[4] = {0x1, 0x6E, 0xF2, 0x19};
+	const uint8_t vendor_lttpr_write_data_4lane_2[4] = {0x1, 0x6B, 0xF2, 0x01};
+	const uint8_t vendor_lttpr_write_data_4lane_3[4] = {0x1, 0x6D, 0xF2, 0x18};
+	const uint8_t vendor_lttpr_write_data_4lane_4[4] = {0x1, 0x6C, 0xF2, 0x03};
+	const uint8_t vendor_lttpr_write_data_4lane_5[4] = {0x1, 0x03, 0xF3, 0x06};
+	const uint8_t vendor_lttpr_write_data_dpmf[4] = {0x1, 0x6, 0x70, 0x87};
 	enum link_training_result status = LINK_TRAINING_SUCCESS;
 	uint8_t lane = 0;
 	union down_spread_ctrl downspread = {0};
@@ -613,37 +575,26 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	}
 
 	if (offset != 0xFF) {
-		vendor_lttpr_write_address +=
-				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
+		if (offset == 2) {
+			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa;
 
 		/* Certain display and cable configuration require extra delay */
-		if (offset > 2)
+		} else if (offset > 2) {
 			pre_disable_intercept_delay_ms = link->dc->debug.fixed_vs_aux_delay_config_wa * 2;
+		}
 	}
 
 	/* Vendor specific: Reset lane settings */
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_reset[0],
-			sizeof(vendor_lttpr_write_data_reset));
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_vs[0],
-			sizeof(vendor_lttpr_write_data_vs));
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_pe[0],
-			sizeof(vendor_lttpr_write_data_pe));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_reset[0], sizeof(vendor_lttpr_write_data_reset));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 
 	/* Vendor specific: Enable intercept */
-	core_link_write_dpcd(
-			link,
-			vendor_lttpr_write_address,
-			&vendor_lttpr_write_data_intercept_en[0],
-			sizeof(vendor_lttpr_write_data_intercept_en));
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_intercept_en[0], sizeof(vendor_lttpr_write_data_intercept_en));
 
 	/* 1. set link rate, lane count and spread. */
 
@@ -672,7 +623,7 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 	/* Vendor specific: Toggle link rate */
 	toggle_rate = (rate == 0x6) ? 0xA : 0x6;
 
-	if (link->vendor_specific_lttpr_link_rate_wa == rate) {
+	if (link->vendor_specific_lttpr_link_rate_wa == rate || link->vendor_specific_lttpr_link_rate_wa == 0) {
 		core_link_write_dpcd(
 				link,
 				DP_LINK_BW_SET,
@@ -694,6 +645,23 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 		DP_DOWNSPREAD_CTRL,
 		lt_settings->link_settings.link_spread);
 
+	link_configure_fixed_vs_pe_retimer(link->ddc,
+			&vendor_lttpr_write_data_dpmf[0],
+			sizeof(vendor_lttpr_write_data_dpmf));
+
+	if (lt_settings->link_settings.lane_count == LANE_COUNT_FOUR) {
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_1[0], sizeof(vendor_lttpr_write_data_4lane_1));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_2[0], sizeof(vendor_lttpr_write_data_4lane_2));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_3[0], sizeof(vendor_lttpr_write_data_4lane_3));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_4[0], sizeof(vendor_lttpr_write_data_4lane_4));
+		link_configure_fixed_vs_pe_retimer(link->ddc,
+				&vendor_lttpr_write_data_4lane_5[0], sizeof(vendor_lttpr_write_data_4lane_5));
+	}
+
 	/* 2. Perform link training */
 
 	/* Perform Clock Recovery Sequence */
@@ -706,7 +674,6 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 		union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX];
 		union lane_align_status_updated dpcd_lane_status_updated;
 		union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
-		enum dc_status dpcd_status = DC_OK;
 		uint8_t i = 0;
 
 		retries_cr = 0;
@@ -739,19 +706,14 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 						0);
 				/* Vendor specific: Disable intercept */
 				for (i = 0; i < max_vendor_dpcd_retries; i++) {
-					msleep(pre_disable_intercept_delay_ms);
-					dpcd_status = core_link_write_dpcd(
-							link,
-							vendor_lttpr_write_address,
+					if (pre_disable_intercept_delay_ms != 0)
+						msleep(pre_disable_intercept_delay_ms);
+					if (link_configure_fixed_vs_pe_retimer(link->ddc,
 							&vendor_lttpr_write_data_intercept_dis[0],
-							sizeof(vendor_lttpr_write_data_intercept_dis));
-
-					if (dpcd_status == DC_OK)
+							sizeof(vendor_lttpr_write_data_intercept_dis)))
 						break;
 
-					core_link_write_dpcd(
-							link,
-							vendor_lttpr_write_address,
+					link_configure_fixed_vs_pe_retimer(link->ddc,
 							&vendor_lttpr_write_data_intercept_en[0],
 							sizeof(vendor_lttpr_write_data_intercept_en));
 				}
@@ -767,16 +729,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 				}
 
 				/* Vendor specific: Update VS and PE to DPRX requested value */
-				core_link_write_dpcd(
-						link,
-						vendor_lttpr_write_address,
-						&vendor_lttpr_write_data_vs[0],
-						sizeof(vendor_lttpr_write_data_vs));
-				core_link_write_dpcd(
-						link,
-						vendor_lttpr_write_address,
-						&vendor_lttpr_write_data_pe[0],
-						sizeof(vendor_lttpr_write_data_pe));
+				link_configure_fixed_vs_pe_retimer(link->ddc,
+						&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+				link_configure_fixed_vs_pe_retimer(link->ddc,
+						&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 
 				dpcd_set_lane_settings(
 						link,
@@ -849,16 +805,13 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 		union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};
 		union lane_adjust dpcd_lane_adjust[LANE_COUNT_DP_MAX] = {0};
 
-		core_link_write_dpcd(
-				link,
-				vendor_lttpr_write_address,
+		link_configure_fixed_vs_pe_retimer(link->ddc,
 				&vendor_lttpr_write_data_adicora_eq1[0],
 				sizeof(vendor_lttpr_write_data_adicora_eq1));
-		core_link_write_dpcd(
-				link,
-				vendor_lttpr_write_address,
+		link_configure_fixed_vs_pe_retimer(link->ddc,
 				&vendor_lttpr_write_data_adicora_eq2[0],
 				sizeof(vendor_lttpr_write_data_adicora_eq2));
+
 
 		/* Note: also check that TPS4 is a supported feature*/
 		tr_pattern = lt_settings->pattern_for_eq;
@@ -883,16 +836,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 			}
 
 			/* Vendor specific: Update VS and PE to DPRX requested value */
-			core_link_write_dpcd(
-					link,
-					vendor_lttpr_write_address,
-					&vendor_lttpr_write_data_vs[0],
-					sizeof(vendor_lttpr_write_data_vs));
-			core_link_write_dpcd(
-					link,
-					vendor_lttpr_write_address,
-					&vendor_lttpr_write_data_pe[0],
-					sizeof(vendor_lttpr_write_data_pe));
+			link_configure_fixed_vs_pe_retimer(link->ddc,
+					&vendor_lttpr_write_data_vs[0], sizeof(vendor_lttpr_write_data_vs));
+			link_configure_fixed_vs_pe_retimer(link->ddc,
+					&vendor_lttpr_write_data_pe[0], sizeof(vendor_lttpr_write_data_pe));
 
 			/* 2. update DPCD*/
 			if (!retries_ch_eq) {
@@ -905,11 +852,10 @@ enum link_training_result dp_perform_fixed_vs_pe_training_sequence(
 					lt_settings,
 					tr_pattern, 0);
 
-				core_link_write_dpcd(
-					link,
-					vendor_lttpr_write_address,
-					&vendor_lttpr_write_data_adicora_eq3[0],
-					sizeof(vendor_lttpr_write_data_adicora_eq3));
+				link_configure_fixed_vs_pe_retimer(link->ddc,
+						&vendor_lttpr_write_data_adicora_eq3[0],
+						sizeof(vendor_lttpr_write_data_adicora_eq3));
+
 			} else
 				dpcd_set_lane_settings(link, lt_settings, 0);
 

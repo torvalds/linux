@@ -31,7 +31,7 @@ static inline void kvm_nvhe_unwind_init(struct unwind_state *state,
 					unsigned long fp,
 					unsigned long pc)
 {
-	unwind_init_common(state, NULL);
+	unwind_init_common(state);
 
 	state->fp = fp;
 	state->pc = pc;

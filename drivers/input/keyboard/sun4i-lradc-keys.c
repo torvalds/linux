@@ -21,10 +21,11 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeirq.h>
 #include <linux/pm_wakeup.h>
+#include <linux/property.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
@@ -307,8 +308,7 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 
 	input_set_drvdata(lradc->input, lradc);
 
-	lradc->base = devm_ioremap_resource(dev,
-			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
+	lradc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lradc->base))
 		return PTR_ERR(lradc->base);
 

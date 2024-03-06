@@ -14,8 +14,8 @@
  *	BSD4.4 portable checksum routine
  */
 
+#include <linux/export.h>
 #include <asm/errno.h>
-#include <asm/export.h>
 
 #define CSUM_BIGCHUNK(buf, offset, sum, t0, t1, t2, t3, t4, t5)	\
 	ldd	[buf + offset + 0x00], t0;			\
@@ -453,5 +453,5 @@ ccslow:	cmp	%g1, 0
  * we only bother with faults on loads... */
 
 cc_fault:
-	ret
+	retl
 	 clr	%o0

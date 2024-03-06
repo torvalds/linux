@@ -38,6 +38,35 @@
 
 #define IP_TO_CP(ip) ((ip == 0) ? 0 : (((0x00001000uL | (ip & 0x00000FFFL)) << (((ip >> 12) & 0x000FL) + 4)) & 0xFFFF0000uL))
 
+// This is used to define hardware bit-fields (sub-registers) by combining
+// the bit shift and count with the actual register address. The passed
+// mask must represent a single run of adjacent bits.
+// The non-concatenating (_NC) variant should be used directly only for
+// sub-registers that do not follow the <register>_<field> naming pattern.
+#define SUB_REG_NC(reg, field, mask) \
+	enum { \
+		field ## _MASK = mask, \
+		field = reg | \
+			(__builtin_ctz(mask) << 16) | \
+			(__builtin_popcount(mask) << 24), \
+	};
+#define SUB_REG(reg, field, mask) SUB_REG_NC(reg, reg ## _ ## field, mask)
+
+// Macros for manipulating values of bit-fields declared using the above macros.
+// Best used with constant register addresses, as otherwise quite some code is
+// generated. The actual register read/write functions handle combined addresses
+// automatically, so use of these macros conveys no advantage when accessing a
+// single sub-register at a time.
+#define REG_SHIFT(r) (((r) >> 16) & 0x1f)
+#define REG_SIZE(r) (((r) >> 24) & 0x1f)
+#define REG_MASK0(r) ((1U << REG_SIZE(r)) - 1U)
+#define REG_MASK(r) (REG_MASK0(r) << REG_SHIFT(r))
+#define REG_VAL_GET(r, v) ((v & REG_MASK(r)) >> REG_SHIFT(r))
+#define REG_VAL_PUT(r, v) ((v) << REG_SHIFT(r))
+
+// List terminator for snd_emu10k1_ptr_write_multiple()
+#define REGLIST_END ~0
+
 // Audigy specify registers are prefixed with 'A_'
 
 /************************************************************************************************/
@@ -90,6 +119,10 @@
 #define IPR_MIDITRANSBUFEMPTY	0x00000100	/* MIDI UART transmit buffer empty		*/
 #define IPR_MIDIRECVBUFEMPTY	0x00000080	/* MIDI UART receive buffer empty		*/
 #define IPR_CHANNELLOOP		0x00000040	/* Channel (half) loop interrupt(s) pending	*/
+						/* The interrupt is triggered shortly after	*/
+						/* CCR_READADDRESS has crossed the boundary;	*/
+						/* due to the cache, this runs ahead of the	*/
+						/* actual playback position.			*/
 #define IPR_CHANNELNUMBERMASK	0x0000003f	/* When IPR_CHANNELLOOP is set, indicates the	*/
 						/* highest set channel in CLIPL, CLIPH, HLIPL,  */
 						/* or HLIPH.  When IPR is written with CL set,	*/
@@ -148,12 +181,10 @@
 #define INTE_MIDIRXENABLE	0x00000001	/* Enable MIDI receive-buffer-empty interrupts	*/
 
 #define WC			0x10		/* Wall Clock register				*/
-#define WC_SAMPLECOUNTER_MASK	0x03FFFFC0	/* Sample periods elapsed since reset		*/
-#define WC_SAMPLECOUNTER	0x14060010
-#define WC_CURRENTCHANNEL_MASK	0x0000003F	/* Channel [0..63] currently being serviced	*/
+SUB_REG(WC, SAMPLECOUNTER,	0x03FFFFC0)	/* Sample periods elapsed since reset		*/
+SUB_REG(WC, CURRENTCHANNEL,	0x0000003F)	/* Channel [0..63] currently being serviced	*/
 						/* NOTE: Each channel takes 1/64th of a sample	*/
 						/* period to be serviced.			*/
-#define WC_CURRENTCHANNEL	0x06000010
 
 #define HCFG			0x14		/* Hardware config register			*/
 						/* NOTE: There is no reason to use the legacy	*/
@@ -225,9 +256,8 @@
 						/* async audio source  				*/
 #define HCFG_LOCKSOUNDCACHE	0x00000008	/* 1 = Cancel bustmaster accesses to soundcache */
 						/* NOTE: This should generally never be used.  	*/
-#define HCFG_LOCKTANKCACHE_MASK	0x00000004	/* 1 = Cancel bustmaster accesses to tankcache	*/
+SUB_REG(HCFG, LOCKTANKCACHE,	0x00000004)	/* 1 = Cancel bustmaster accesses to tankcache	*/
 						/* NOTE: This should generally never be used.  	*/
-#define HCFG_LOCKTANKCACHE	0x01020014
 #define HCFG_MUTEBUTTONENABLE	0x00000002	/* 1 = Master mute button sets AUDIOENABLE = 0.	*/
 						/* NOTE: This is a 'cheap' way to implement a	*/
 						/* master mute function on the mute button, and	*/
@@ -381,56 +411,49 @@
 //   distortion), the modulation engine sets the target registers, towards
 //   which the current registers "swerve" gradually.
 
+// For the odd channel in a stereo pair, these registers are meaningless:
+//   CPF_STEREO, CPF_CURRENTPITCH, PTRX_PITCHTARGET, CCR_CACHEINVALIDSIZE,
+//   PSST_LOOPSTARTADDR, DSL_LOOPENDADDR, CCCA_CURRADDR
+// The somewhat non-obviously still meaningful ones are:
+//   CPF_STOP, CPF_FRACADDRESS, CCR_READADDRESS (!),
+//   CCCA_INTERPROM, CCCA_8BITSELECT (!)
+// (The envelope engine is ignored here, as stereo matters only for verbatim playback.)
+
 #define CPF			0x00		/* Current pitch and fraction register			*/
-#define CPF_CURRENTPITCH_MASK	0xffff0000	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
-#define CPF_CURRENTPITCH	0x10100000
+SUB_REG(CPF, CURRENTPITCH,	0xffff0000)	/* Current pitch (linear, 0x4000 == unity pitch shift) 	*/
 #define CPF_STEREO_MASK		0x00008000	/* 1 = Even channel interleave, odd channel locked	*/
-#define CPF_STOP_MASK		0x00004000	/* 1 = Current pitch forced to 0			*/
+SUB_REG(CPF, STOP,		0x00004000)	/* 1 = Current pitch forced to 0			*/
+						/* Can be set only while matching bit in SOLEx is 1	*/
 #define CPF_FRACADDRESS_MASK	0x00003fff	/* Linear fractional address of the current channel	*/
 
 #define PTRX			0x01		/* Pitch target and send A/B amounts register		*/
-#define PTRX_PITCHTARGET_MASK	0xffff0000	/* Pitch target of specified channel			*/
-#define PTRX_PITCHTARGET	0x10100001
-#define PTRX_FXSENDAMOUNT_A_MASK 0x0000ff00	/* Linear level of channel output sent to FX send bus A	*/
-#define PTRX_FXSENDAMOUNT_A	0x08080001
-#define PTRX_FXSENDAMOUNT_B_MASK 0x000000ff	/* Linear level of channel output sent to FX send bus B	*/
-#define PTRX_FXSENDAMOUNT_B	0x08000001
+SUB_REG(PTRX, PITCHTARGET,	0xffff0000)	/* Pitch target of specified channel			*/
+SUB_REG(PTRX, FXSENDAMOUNT_A,	0x0000ff00)	/* Linear level of channel output sent to FX send bus A	*/
+SUB_REG(PTRX, FXSENDAMOUNT_B,	0x000000ff)	/* Linear level of channel output sent to FX send bus B	*/
 
+// Note: the volumes are raw multpliers, so real 100% is impossible.
 #define CVCF			0x02		/* Current volume and filter cutoff register		*/
-#define CVCF_CURRENTVOL_MASK	0xffff0000	/* Current linear volume of specified channel		*/
-#define CVCF_CURRENTVOL		0x10100002
-#define CVCF_CURRENTFILTER_MASK	0x0000ffff	/* Current filter cutoff frequency of specified channel	*/
-#define CVCF_CURRENTFILTER	0x10000002
+SUB_REG(CVCF, CURRENTVOL,	0xffff0000)	/* Current linear volume of specified channel		*/
+SUB_REG(CVCF, CURRENTFILTER,	0x0000ffff)	/* Current filter cutoff frequency of specified channel	*/
 
 #define VTFT			0x03		/* Volume target and filter cutoff target register	*/
-#define VTFT_VOLUMETARGET_MASK	0xffff0000	/* Volume target of specified channel			*/
-#define VTFT_VOLUMETARGET	0x10100003
-#define VTFT_FILTERTARGET_MASK	0x0000ffff	/* Filter cutoff target of specified channel		*/
-#define VTFT_FILTERTARGET	0x10000003
+SUB_REG(VTFT, VOLUMETARGET,	0xffff0000)	/* Volume target of specified channel			*/
+SUB_REG(VTFT, FILTERTARGET,	0x0000ffff)	/* Filter cutoff target of specified channel		*/
 
 #define Z1			0x05		/* Filter delay memory 1 register			*/
 
 #define Z2			0x04		/* Filter delay memory 2 register			*/
 
 #define PSST			0x06		/* Send C amount and loop start address register	*/
-#define PSST_FXSENDAMOUNT_C_MASK 0xff000000	/* Linear level of channel output sent to FX send bus C	*/
-
-#define PSST_FXSENDAMOUNT_C	0x08180006
-
-#define PSST_LOOPSTARTADDR_MASK	0x00ffffff	/* Loop start address of the specified channel		*/
-#define PSST_LOOPSTARTADDR	0x18000006
+SUB_REG(PSST, FXSENDAMOUNT_C,	0xff000000)	/* Linear level of channel output sent to FX send bus C	*/
+SUB_REG(PSST, LOOPSTARTADDR,	0x00ffffff)	/* Loop start address of the specified channel		*/
 
 #define DSL			0x07		/* Send D amount and loop end address register	*/
-#define DSL_FXSENDAMOUNT_D_MASK	0xff000000	/* Linear level of channel output sent to FX send bus D	*/
-
-#define DSL_FXSENDAMOUNT_D	0x08180007
-
-#define DSL_LOOPENDADDR_MASK	0x00ffffff	/* Loop end address of the specified channel		*/
-#define DSL_LOOPENDADDR		0x18000007
+SUB_REG(DSL, FXSENDAMOUNT_D,	0xff000000)	/* Linear level of channel output sent to FX send bus D	*/
+SUB_REG(DSL, LOOPENDADDR,	0x00ffffff)	/* Loop end address of the specified channel		*/
 
 #define CCCA			0x08		/* Filter Q, interp. ROM, byte size, cur. addr register */
-#define CCCA_RESONANCE_MASK	0xf0000000	/* Lowpass filter resonance (Q) height			*/
-#define CCCA_RESONANCE		0x041c0008
+SUB_REG(CCCA, RESONANCE,	0xf0000000)	/* Lowpass filter resonance (Q) height			*/
 #define CCCA_INTERPROM_MASK	0x0e000000	/* Selects passband of interpolation ROM		*/
 						/* 1 == full band, 7 == lowpass				*/
 						/* ROM 0 is used when pitch shifting downward or less	*/
@@ -447,27 +470,24 @@
 #define CCCA_INTERPROM_7	0x0e000000	/* Select interpolation ROM 7				*/
 #define CCCA_8BITSELECT		0x01000000	/* 1 = Sound memory for this channel uses 8-bit samples	*/
 						/* 8-bit samples are unsigned, 16-bit ones signed	*/
-#define CCCA_CURRADDR_MASK	0x00ffffff	/* Current address of the selected channel		*/
-#define CCCA_CURRADDR		0x18000008
+SUB_REG(CCCA, CURRADDR,		0x00ffffff)	/* Current address of the selected channel		*/
 
 #define CCR			0x09		/* Cache control register				*/
-#define CCR_CACHEINVALIDSIZE	0x07190009
-#define CCR_CACHEINVALIDSIZE_MASK 0xfe000000	/* Number of invalid samples before the read address	*/
+SUB_REG(CCR, CACHEINVALIDSIZE,	0xfe000000)	/* Number of invalid samples before the read address	*/
 #define CCR_CACHELOOPFLAG	0x01000000	/* 1 = Cache has a loop service pending			*/
 #define CCR_INTERLEAVEDSAMPLES	0x00800000	/* 1 = A cache service will fetch interleaved samples	*/
 						/* Auto-set from CPF_STEREO_MASK			*/
 #define CCR_WORDSIZEDSAMPLES	0x00400000	/* 1 = A cache service will fetch word sized samples	*/
 						/* Auto-set from CCCA_8BITSELECT			*/
-#define CCR_READADDRESS		0x06100009
-#define CCR_READADDRESS_MASK	0x003f0000	/* Next cached sample to play				*/
-#define CCR_LOOPINVALSIZE	0x0000fe00	/* Number of invalid samples in cache prior to loop	*/
+SUB_REG(CCR, READADDRESS,	0x003f0000)	/* Next cached sample to play				*/
+SUB_REG(CCR, LOOPINVALSIZE,	0x0000fe00)	/* Number of invalid samples in cache prior to loop	*/
 						/* NOTE: This is valid only if CACHELOOPFLAG is set	*/
 #define CCR_LOOPFLAG		0x00000100	/* Set for a single sample period when a loop occurs	*/
-#define CCR_CACHELOOPADDRHI	0x000000ff	/* CLP_LOOPSTARTADDR's hi byte if CACHELOOPFLAG is set	*/
+SUB_REG(CCR, CACHELOOPADDRHI,	0x000000ff)	/* CLP_LOOPSTARTADDR's hi byte if CACHELOOPFLAG is set	*/
 
 #define CLP			0x0a		/* Cache loop register (valid if CCR_CACHELOOPFLAG = 1) */
 						/* NOTE: This register is normally not used		*/
-#define CLP_CACHELOOPADDR	0x0000ffff	/* Cache loop address low word				*/
+SUB_REG(CLP, CACHELOOPADDR,	0x0000ffff)	/* Cache loop address low word				*/
 
 #define FXRT			0x0b		/* Effects send routing register			*/
 						/* NOTE: It is illegal to assign the same routing to	*/
@@ -537,20 +557,17 @@
 #define IP_UNITY		0x0000e000	/* Unity pitch shift					*/
 
 #define IFATN			0x19		/* Initial filter cutoff and attenuation register	*/
-#define IFATN_FILTERCUTOFF_MASK	0x0000ff00	/* Initial filter cutoff frequency in exponential units	*/
+SUB_REG(IFATN, FILTERCUTOFF,	0x0000ff00)	/* Initial filter cutoff frequency in exponential units	*/
 						/* 6 most significant bits are semitones		*/
 						/* 2 least significant bits are fractions		*/
-#define IFATN_FILTERCUTOFF	0x08080019
-#define IFATN_ATTENUATION_MASK	0x000000ff	/* Initial attenuation in 0.375dB steps			*/
-#define IFATN_ATTENUATION	0x08000019
+SUB_REG(IFATN, ATTENUATION,	0x000000ff)	/* Initial attenuation in 0.375dB steps			*/
 
 #define PEFE			0x1a		/* Pitch envelope and filter envelope amount register	*/
-#define PEFE_PITCHAMOUNT_MASK	0x0000ff00	/* Pitch envlope amount					*/
+SUB_REG(PEFE, PITCHAMOUNT,	0x0000ff00)	/* Pitch envlope amount					*/
 						/* Signed 2's complement, +/- one octave peak extremes	*/
-#define PEFE_PITCHAMOUNT	0x0808001a
-#define PEFE_FILTERAMOUNT_MASK	0x000000ff	/* Filter envlope amount				*/
+SUB_REG(PEFE, FILTERAMOUNT,	0x000000ff)	/* Filter envlope amount				*/
 						/* Signed 2's complement, +/- six octaves peak extremes */
-#define PEFE_FILTERAMOUNT	0x0800001a
+
 
 #define FMMOD			0x1b		/* Vibrato/filter modulation from LFO register		*/
 #define FMMOD_MODVIBRATO	0x0000ff00	/* Vibrato LFO modulation depth				*/
@@ -577,24 +594,22 @@
 
 /* 0x1f: not used */
 
-#define CD0			0x20		/* Cache data 0 register				*/
-#define CD1			0x21		/* Cache data 1 register				*/
-#define CD2			0x22		/* Cache data 2 register				*/
-#define CD3			0x23		/* Cache data 3 register				*/
-#define CD4			0x24		/* Cache data 4 register				*/
-#define CD5			0x25		/* Cache data 5 register				*/
-#define CD6			0x26		/* Cache data 6 register				*/
-#define CD7			0x27		/* Cache data 7 register				*/
-#define CD8			0x28		/* Cache data 8 register				*/
-#define CD9			0x29		/* Cache data 9 register				*/
-#define CDA			0x2a		/* Cache data A register				*/
-#define CDB			0x2b		/* Cache data B register				*/
-#define CDC			0x2c		/* Cache data C register				*/
-#define CDD			0x2d		/* Cache data D register				*/
-#define CDE			0x2e		/* Cache data E register				*/
-#define CDF			0x2f		/* Cache data F register				*/
-
-/* 0x30-3f seem to be the same as 0x20-2f */
+// 32 cache registers (== 128 bytes) per channel follow.
+// In stereo mode, the two channels' caches are concatenated into one,
+// and hold the interleaved frames.
+// The cache holds 64 frames, so the upper half is not used in 8-bit mode.
+// All registers mentioned below count in frames.
+// The cache is a ring buffer; CCR_READADDRESS operates modulo 64.
+// The cache is filled from (CCCA_CURRADDR - CCR_CACHEINVALIDSIZE)
+// into (CCR_READADDRESS - CCR_CACHEINVALIDSIZE).
+// The engine has a fetch threshold of 32 bytes, so it tries to keep
+// CCR_CACHEINVALIDSIZE below 8 (16-bit stereo), 16 (16-bit mono,
+// 8-bit stereo), or 32 (8-bit mono). The actual transfers are pretty
+// unpredictable, especially if several voices are running.
+// Frames are consumed at CCR_READADDRESS, which is incremented afterwards,
+// along with CCCA_CURRADDR and CCR_CACHEINVALIDSIZE. This implies that the
+// actual playback position always lags CCCA_CURRADDR by exactly 64 frames.
+#define CD0			0x20		/* Cache data registers 0 .. 0x1f			*/
 
 #define PTB			0x40		/* Page table base register				*/
 #define PTB_MASK		0xfffff000	/* Physical address of the page table in host memory	*/
@@ -695,6 +710,8 @@
 #define ADCBS_BUFSIZE_57344	0x0000001e
 #define ADCBS_BUFSIZE_65536	0x0000001f
 
+// On Audigy, the FX send amounts are not applied instantly, but determine
+// targets towards which the following registers swerve gradually.
 #define A_CSBA			0x4c		/* FX send B & A current amounts			*/
 #define A_CSDC			0x4d		/* FX send D & C current amounts			*/
 #define A_CSFE			0x4e		/* FX send F & E current amounts			*/
@@ -755,6 +772,9 @@
 #define CLIPL			0x5a		/* Channel loop interrupt pending low register	*/
 #define CLIPH			0x5b		/* Channel loop interrupt pending high register	*/
 
+// These cause CPF_STOP_MASK to be set shortly after CCCA_CURRADDR passes DSL_LOOPENDADDR.
+// Subsequent changes to the address registers don't resume; clearing the bit here or in CPF does.
+// The registers are NOT synchronized; the next serviced channel picks up immediately.
 #define SOLEL			0x5c		/* Stop on loop enable low register		*/
 #define SOLEH			0x5d		/* Stop on loop enable high register		*/
 
@@ -793,22 +813,19 @@
 #define SRCS_SPDIFRATE_96	0x00080000
 
 #define MICIDX                  0x63            /* Microphone recording buffer index register   */
-#define MICIDX_MASK             0x0000ffff      /* 16-bit value                                 */
-#define MICIDX_IDX		0x10000063
+SUB_REG(MICIDX, IDX,		0x0000ffff)
 
 #define ADCIDX			0x64		/* ADC recording buffer index register		*/
-#define ADCIDX_MASK		0x0000ffff	/* 16 bit index field				*/
-#define ADCIDX_IDX		0x10000064
+SUB_REG(ADCIDX, IDX,		0x0000ffff)
 
 #define A_ADCIDX		0x63
-#define A_ADCIDX_IDX		0x10000063
+SUB_REG(A_ADCIDX, IDX,		0x0000ffff)
 
 #define A_MICIDX		0x64
-#define A_MICIDX_IDX		0x10000064
+SUB_REG(A_MICIDX, IDX,		0x0000ffff)
 
 #define FXIDX			0x65		/* FX recording buffer index register		*/
-#define FXIDX_MASK		0x0000ffff	/* 16-bit value					*/
-#define FXIDX_IDX		0x10000065
+SUB_REG(FXIDX, IDX,		0x0000ffff)
 
 /* The 32-bit HLIEx and HLIPx registers all have one bit per channel control/status      		*/
 #define HLIEL			0x66		/* Channel half loop interrupt enable low register	*/
@@ -852,8 +869,8 @@
 #define A_SPDIF_44100		0x00000080
 #define A_SPDIF_MUTED		0x000000c0
 
-#define A_I2S_CAPTURE_RATE_MASK	0x00000e00	/* This sets the capture PCM rate, but it is    */
-#define A_I2S_CAPTURE_RATE	0x03090076	/* unclear if this sets the ADC rate as well.	*/
+SUB_REG_NC(A_EHC, A_I2S_CAPTURE_RATE, 0x00000e00)  /* This sets the capture PCM rate, but it is  */
+						   /* unclear if this sets the ADC rate as well. */
 #define A_I2S_CAPTURE_48000	0x0
 #define A_I2S_CAPTURE_192000	0x1
 #define A_I2S_CAPTURE_96000	0x2
@@ -885,6 +902,11 @@
 #define A_TTDA			0x7a		/* Tank Table DMA Address			*/
 #define A_TTDD			0x7b		/* Tank Table DMA Data				*/
 
+// In A_FXRT1 & A_FXRT2, the 0x80 bit of each byte completely disables the
+// filter (CVCF_CURRENTFILTER) for the corresponding channel. There is no
+// effect on the volume (CVCF_CURRENTVOLUME) or the interpolator's filter
+// (CCCA_INTERPROM_MASK).
+
 #define A_FXRT2			0x7c
 #define A_FXRT_CHANNELE		0x0000003f	/* Effects send bus number for channel's effects send E	*/
 #define A_FXRT_CHANNELF		0x00003f00	/* Effects send bus number for channel's effects send F	*/
@@ -897,8 +919,6 @@
 #define A_FXSENDAMOUNT_G_MASK	0x0000FF00
 #define A_FXSENDAMOUNT_H_MASK	0x000000FF
 
-/* 0x7c, 0x7e "high bit is used for filtering" */
- 
 /* The send amounts for this one are the same as used with the emu10k1 */
 #define A_FXRT1			0x7e
 #define A_FXRT_CHANNELA		0x0000003f
@@ -975,6 +995,9 @@
 #define EMU_HANA_WCLOCK_4X		0x10
 #define EMU_HANA_WCLOCK_MULT_RESERVED	0x18
 
+// If the selected external clock source is/becomes invalid or incompatible
+// with the clock multiplier, the clock source is reset to this value, and
+// a WCLK_CHANGED interrupt is raised.
 #define EMU_HANA_DEFCLOCK	0x06	/* 000000x  1 bits Default Word Clock  */
 #define EMU_HANA_DEFCLOCK_48K		0x00
 #define EMU_HANA_DEFCLOCK_44_1K		0x01
@@ -1093,6 +1116,9 @@
 #define EMU_DOCK_BOARD_ID0		0x00	/* ID bit 0 */
 #define EMU_DOCK_BOARD_ID1		0x03	/* ID bit 1 */
 
+// The actual code disagrees about the bit width of the registers -
+// the formula used is freq = 0x1770000 / (((X_HI << 5) | X_LO) + 1)
+
 #define EMU_HANA_WC_SPDIF_HI	0x28	/* 0xxxxxx  6 bit  SPDIF IN Word clock, upper 6 bits */
 #define EMU_HANA_WC_SPDIF_LO	0x29	/* 0xxxxxx  6 bit  SPDIF IN Word clock, lower 6 bits */
 
@@ -1189,9 +1215,10 @@
  * physical outputs of Hana, or outputs going to Alice2/Tina for capture -
  * 16 x EMU_DST_ALICE2_EMU32_X (2x on rev2 boards). Which data is fed into
  * a channel depends on the mixer control setting for each destination - see
- * emumixer.c - snd_emu1010_output_enum_ctls[], snd_emu1010_input_enum_ctls[]
+ * the register arrays in emumixer.c.
  */
 #define EMU_DST_ALICE2_EMU32_0	0x000f	/* 16 EMU32 channels to Alice2 +0 to +0xf */
+					/* This channel is delayed by one sample. */
 #define EMU_DST_ALICE2_EMU32_1	0x0000	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 #define EMU_DST_ALICE2_EMU32_2	0x0001	/* 16 EMU32 channels to Alice2 +0 to +0xf */
 #define EMU_DST_ALICE2_EMU32_3	0x0002	/* 16 EMU32 channels to Alice2 +0 to +0xf */
@@ -1422,24 +1449,35 @@
 
 /* 0x600 and 0x700 no used */
 
+
+/* ------------------- CONSTANTS -------------------- */
+
+extern const char * const snd_emu10k1_fxbus[32];
+extern const char * const snd_emu10k1_sblive_ins[16];
+extern const char * const snd_emu10k1_audigy_ins[16];
+extern const char * const snd_emu10k1_sblive_outs[32];
+extern const char * const snd_emu10k1_audigy_outs[32];
+extern const s8 snd_emu10k1_sblive51_fxbus2_map[16];
+
 /* ------------------- STRUCTURES -------------------- */
 
 enum {
+	EMU10K1_UNUSED,  // This must be zero
 	EMU10K1_EFX,
+	EMU10K1_EFX_IRQ,
 	EMU10K1_PCM,
+	EMU10K1_PCM_IRQ,
 	EMU10K1_SYNTH,
-	EMU10K1_MIDI
+	EMU10K1_NUM_TYPES
 };
 
 struct snd_emu10k1;
 
 struct snd_emu10k1_voice {
-	int number;
-	unsigned int use: 1,
-	    pcm: 1,
-	    efx: 1,
-	    synth: 1,
-	    midi: 1;
+	unsigned char number;
+	unsigned char use;
+	unsigned char dirty;
+	unsigned char last;
 	void (*interrupt)(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 	struct snd_emu10k1_pcm *epcm;
@@ -1461,7 +1499,9 @@ struct snd_emu10k1_pcm {
 	struct snd_emu10k1_voice *extra;
 	unsigned short running;
 	unsigned short first_ptr;
+	snd_pcm_uframes_t resume_pos;
 	struct snd_util_memblk *memblk;
+	unsigned int pitch_target;
 	unsigned int start_addr;
 	unsigned int ccca_start_addr;
 	unsigned int capture_ipr;	/* interrupt acknowledge mask */
@@ -1479,6 +1519,8 @@ struct snd_emu10k1_pcm_mixer {
 	/* mono, left, right x 8 sends (4 on emu10k1) */
 	unsigned char send_routing[3][8];
 	unsigned char send_volume[3][8];
+	// 0x8000 is neutral. The mixer code rescales it to 0xffff to maintain
+	// backwards compatibility with user space.
 	unsigned short attn[3];
 	struct snd_emu10k1_pcm *epcm;
 };
@@ -1487,10 +1529,13 @@ struct snd_emu10k1_pcm_mixer {
 ((route[0] | (route[1] << 4) | (route[2] << 8) | (route[3] << 12)) << 16)
 
 #define snd_emu10k1_compose_audigy_fxrt1(route) \
-((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24))
+((unsigned int)route[0] | ((unsigned int)route[1] << 8) | ((unsigned int)route[2] << 16) | ((unsigned int)route[3] << 24) | 0x80808080)
 
 #define snd_emu10k1_compose_audigy_fxrt2(route) \
-((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24))
+((unsigned int)route[4] | ((unsigned int)route[5] << 8) | ((unsigned int)route[6] << 16) | ((unsigned int)route[7] << 24) | 0x80808080)
+
+#define snd_emu10k1_compose_audigy_sendamounts(vol) \
+(((unsigned int)vol[4] << 24) | ((unsigned int)vol[5] << 16) | ((unsigned int)vol[6] << 8) | (unsigned int)vol[7])
 
 struct snd_emu10k1_memblk {
 	struct snd_util_memblk mem;
@@ -1510,9 +1555,9 @@ struct snd_emu10k1_fx8010_ctl {
 	unsigned int vcount;
 	unsigned int count;		/* count of GPR (1..16) */
 	unsigned short gpr[32];		/* GPR number(s) */
-	unsigned int value[32];
-	unsigned int min;		/* minimum range */
-	unsigned int max;		/* maximum range */
+	int value[32];
+	int min;			/* minimum range */
+	int max;			/* maximum range */
 	unsigned int translation;	/* translation type (EMU10K1_GPR_TRANSLATION*) */
 	struct snd_kcontrol *kcontrol;
 };
@@ -1600,39 +1645,47 @@ struct snd_emu_chip_details {
 	u32 device;
 	u32 subsystem;
 	unsigned char revision;
-	unsigned char emu10k1_chip; /* Original SB Live. Not SB Live 24bit. */
-				    /* Redundant with emu10k2_chip being unset. */
-	unsigned char emu10k2_chip; /* Audigy 1 or Audigy 2. */
-	unsigned char ca0102_chip;  /* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
-				    /* Redundant with ca0108_chip being unset. */
-	unsigned char ca0108_chip;  /* Audigy 2 Value */
-	unsigned char ca_cardbus_chip; /* Audigy 2 ZS Notebook */
-	unsigned char ca0151_chip;  /* P16V */
-	unsigned char spk71;        /* Has 7.1 speakers */
-	unsigned char sblive51;	    /* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
-	unsigned char spdif_bug;    /* Has Spdif phasing bug */
-	unsigned char ac97_chip;    /* Has an AC97 chip: 1 = mandatory, 2 = optional */
-	unsigned char ecard;        /* APS EEPROM */
-	unsigned char emu_model;     /* EMU model type */
-	unsigned char spi_dac;      /* SPI interface for DAC; requires ca0108_chip */
-	unsigned char i2c_adc;      /* I2C interface for ADC; requires ca0108_chip */
-	unsigned char adc_1361t;    /* Use Philips 1361T ADC */
-	unsigned char invert_shared_spdif; /* analog/digital switch inverted */
+	unsigned char emu_model;	/* EMU model type */
+	unsigned int emu10k1_chip:1;	/* Original SB Live. Not SB Live 24bit. */
+					/* Redundant with emu10k2_chip being unset. */
+	unsigned int emu10k2_chip:1;	/* Audigy 1 or Audigy 2. */
+	unsigned int ca0102_chip:1;	/* Audigy 1 or Audigy 2. Not SB Audigy 2 Value. */
+					/* Redundant with ca0108_chip being unset. */
+	unsigned int ca0108_chip:1;	/* Audigy 2 Value */
+	unsigned int ca_cardbus_chip:1;	/* Audigy 2 ZS Notebook */
+	unsigned int ca0151_chip:1;	/* P16V */
+	unsigned int spk20:1;		/* Stereo only */
+	unsigned int spk71:1;		/* Has 7.1 speakers */
+	unsigned int no_adat:1;		/* Has no ADAT, only SPDIF */
+	unsigned int sblive51:1;	/* SBLive! 5.1 - extout 0x11 -> center, 0x12 -> lfe */
+	unsigned int spdif_bug:1;	/* Has Spdif phasing bug */
+	unsigned int ac97_chip:2;	/* Has an AC97 chip: 1 = mandatory, 2 = optional */
+	unsigned int ecard:1;		/* APS EEPROM */
+	unsigned int spi_dac:1;		/* SPI interface for DAC; requires ca0108_chip */
+	unsigned int i2c_adc:1;		/* I2C interface for ADC; requires ca0108_chip */
+	unsigned int adc_1361t:1;	/* Use Philips 1361T ADC */
+	unsigned int invert_shared_spdif:1;  /* analog/digital switch inverted */
 	const char *driver;
 	const char *name;
 	const char *id;		/* for backward compatibility - can be NULL if not needed */
 };
 
+#define NUM_OUTPUT_DESTS 28
+#define NUM_INPUT_DESTS 22
+
 struct snd_emu1010 {
-	unsigned int output_source[64];
-	unsigned int input_source[64];
+	unsigned char output_source[NUM_OUTPUT_DESTS];
+	unsigned char input_source[NUM_INPUT_DESTS];
 	unsigned int adc_pads; /* bit mask */
 	unsigned int dac_pads; /* bit mask */
-	unsigned int internal_clock; /* 44100 or 48000 */
+	unsigned int wclock;  /* Cached register value */
+	unsigned int word_clock;  /* Cached effective value */
+	unsigned int clock_source;
+	unsigned int clock_fallback;
 	unsigned int optical_in; /* 0:SPDIF, 1:ADAT */
 	unsigned int optical_out; /* 0:SPDIF, 1:ADAT */
-	struct delayed_work firmware_work;
-	u32 last_reg;
+	struct work_struct firmware_work;
+	struct work_struct clock_work;
 };
 
 struct snd_emu10k1 {
@@ -1653,7 +1706,6 @@ struct snd_emu10k1 {
 	unsigned int address_mode;		/* address mode */
 	unsigned long dma_mask;			/* PCI DMA mask */
 	bool iommu_workaround;			/* IOMMU workaround needed */
-	unsigned int delay_pcm_irq;		/* in samples */
 	int max_cache_pages;			/* max memory size / PAGE_SIZE */
 	struct snd_dma_buffer silent_page;	/* silent page */
 	struct snd_dma_buffer ptb_pages;	/* page table pages */
@@ -1708,6 +1760,7 @@ struct snd_emu10k1 {
 	struct snd_kcontrol *ctl_efx_send_routing;
 	struct snd_kcontrol *ctl_efx_send_volume;
 	struct snd_kcontrol *ctl_efx_attn;
+	struct snd_kcontrol *ctl_clock_source;
 
 	void (*hwvol_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*capture_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
@@ -1715,6 +1768,7 @@ struct snd_emu10k1 {
 	void (*capture_efx_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*spdif_interrupt)(struct snd_emu10k1 *emu, unsigned int status);
 	void (*dsp_interrupt)(struct snd_emu10k1 *emu);
+	void (*gpio_interrupt)(struct snd_emu10k1 *emu);
 	void (*p16v_interrupt)(struct snd_emu10k1 *emu);
 
 	struct snd_pcm_substream *pcm_capture_substream;
@@ -1775,6 +1829,7 @@ int snd_emu10k1_done(struct snd_emu10k1 * emu);
 /* I/O functions */
 unsigned int snd_emu10k1_ptr_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
+void snd_emu10k1_ptr_write_multiple(struct snd_emu10k1 *emu, unsigned int chn, ...);
 unsigned int snd_emu10k1_ptr20_read(struct snd_emu10k1 * emu, unsigned int reg, unsigned int chn);
 void snd_emu10k1_ptr20_write(struct snd_emu10k1 *emu, unsigned int reg, unsigned int chn, unsigned int data);
 int snd_emu10k1_spi_write(struct snd_emu10k1 * emu, unsigned int data);
@@ -1782,6 +1837,9 @@ int snd_emu10k1_i2c_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_write(struct snd_emu10k1 *emu, u32 reg, u32 value);
 void snd_emu1010_fpga_read(struct snd_emu10k1 *emu, u32 reg, u32 *value);
 void snd_emu1010_fpga_link_dst_src_write(struct snd_emu10k1 *emu, u32 dst, u32 src);
+u32 snd_emu1010_fpga_link_dst_src_read(struct snd_emu10k1 *emu, u32 dst);
+int snd_emu1010_get_raw_rate(struct snd_emu10k1 *emu, u8 src);
+void snd_emu1010_update_clock(struct snd_emu10k1 *emu);
 unsigned int snd_emu10k1_efx_read(struct snd_emu10k1 *emu, unsigned int pc);
 void snd_emu10k1_intr_enable(struct snd_emu10k1 *emu, unsigned int intrenb);
 void snd_emu10k1_intr_disable(struct snd_emu10k1 *emu, unsigned int intrenb);
@@ -1791,13 +1849,17 @@ void snd_emu10k1_voice_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_half_loop_intr_enable(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_half_loop_intr_disable(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_half_loop_intr_ack(struct snd_emu10k1 *emu, unsigned int voicenum);
+#if 0
 void snd_emu10k1_voice_set_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
 void snd_emu10k1_voice_clear_loop_stop(struct snd_emu10k1 *emu, unsigned int voicenum);
+#endif
+void snd_emu10k1_voice_set_loop_stop_multiple(struct snd_emu10k1 *emu, u64 voices);
+void snd_emu10k1_voice_clear_loop_stop_multiple(struct snd_emu10k1 *emu, u64 voices);
+int snd_emu10k1_voice_clear_loop_stop_multiple_atomic(struct snd_emu10k1 *emu, u64 voices);
 void snd_emu10k1_wait(struct snd_emu10k1 *emu, unsigned int wait);
 static inline unsigned int snd_emu10k1_wc(struct snd_emu10k1 *emu) { return (inl(emu->port + WC) >> 6) & 0xfffff; }
 unsigned short snd_emu10k1_ac97_read(struct snd_ac97 *ac97, unsigned short reg);
 void snd_emu10k1_ac97_write(struct snd_ac97 *ac97, unsigned short reg, unsigned short data);
-unsigned int snd_emu10k1_rate_to_pitch(unsigned int rate);
 
 #ifdef CONFIG_PM_SLEEP
 void snd_emu10k1_suspend_regs(struct snd_emu10k1 *emu);
@@ -1825,7 +1887,8 @@ int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_me
 int snd_emu10k1_memblk_map(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *blk);
 
 /* voice allocation */
-int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int pair, struct snd_emu10k1_voice **rvoice);
+int snd_emu10k1_voice_alloc(struct snd_emu10k1 *emu, int type, int count, int channels,
+			    struct snd_emu10k1_pcm *epcm, struct snd_emu10k1_voice **rvoice);
 int snd_emu10k1_voice_free(struct snd_emu10k1 *emu, struct snd_emu10k1_voice *pvoice);
 
 /* MIDI uart */

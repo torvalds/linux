@@ -773,15 +773,18 @@ err_put:
 	return ret;
 }
 
-static int atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
+static void atmel_hlcdc_dc_drm_remove(struct platform_device *pdev)
 {
 	struct drm_device *ddev = platform_get_drvdata(pdev);
 
 	drm_dev_unregister(ddev);
 	atmel_hlcdc_dc_unload(ddev);
 	drm_dev_put(ddev);
+}
 
-	return 0;
+static void atmel_hlcdc_dc_drm_shutdown(struct platform_device *pdev)
+{
+	drm_atomic_helper_shutdown(platform_get_drvdata(pdev));
 }
 
 static int atmel_hlcdc_dc_drm_suspend(struct device *dev)
@@ -826,7 +829,8 @@ static const struct of_device_id atmel_hlcdc_dc_of_match[] = {
 
 static struct platform_driver atmel_hlcdc_dc_platform_driver = {
 	.probe	= atmel_hlcdc_dc_drm_probe,
-	.remove	= atmel_hlcdc_dc_drm_remove,
+	.remove_new = atmel_hlcdc_dc_drm_remove,
+	.shutdown = atmel_hlcdc_dc_drm_shutdown,
 	.driver	= {
 		.name	= "atmel-hlcdc-display-controller",
 		.pm	= pm_sleep_ptr(&atmel_hlcdc_dc_drm_pm_ops),

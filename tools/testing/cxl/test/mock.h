@@ -15,9 +15,6 @@ struct cxl_mock_ops {
 					     acpi_string pathname,
 					     struct acpi_object_list *arguments,
 					     unsigned long long *data);
-	resource_size_t (*cxl_rcrb_to_component)(struct device *dev,
-						 resource_size_t rcrb,
-						 enum cxl_rcrb which);
 	struct acpi_pci_root *(*acpi_pci_find_root)(acpi_handle handle);
 	bool (*is_mock_bus)(struct pci_bus *bus);
 	bool (*is_mock_port)(struct device *dev);
@@ -28,6 +25,7 @@ struct cxl_mock_ops {
 	int (*devm_cxl_add_passthrough_decoder)(struct cxl_port *port);
 	int (*devm_cxl_enumerate_decoders)(
 		struct cxl_hdm *hdm, struct cxl_endpoint_dvsec_info *info);
+	void (*cxl_endpoint_parse_cdat)(struct cxl_port *port);
 };
 
 void register_cxl_mock_ops(struct cxl_mock_ops *ops);

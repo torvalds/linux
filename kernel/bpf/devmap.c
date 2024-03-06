@@ -65,7 +65,6 @@ struct xdp_dev_bulk_queue {
 struct bpf_dtab_netdev {
 	struct net_device *dev; /* must be first member, due to tracepoint */
 	struct hlist_node index_hlist;
-	struct bpf_dtab *dtab;
 	struct bpf_prog *xdp_prog;
 	struct rcu_head rcu;
 	unsigned int idx;
@@ -159,9 +158,6 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_dtab *dtab;
 	int err;
-
-	if (!capable(CAP_NET_ADMIN))
-		return ERR_PTR(-EPERM);
 
 	dtab = bpf_map_area_alloc(sizeof(*dtab), NUMA_NO_NODE);
 	if (!dtab)
@@ -421,6 +417,16 @@ void __dev_flush(void)
 		__list_del_clearprev(&bq->flush_node);
 	}
 }
+
+#ifdef CONFIG_DEBUG_NET
+bool dev_check_flush(void)
+{
+	if (list_empty(this_cpu_ptr(&dev_flush_list)))
+		return false;
+	__dev_flush();
+	return true;
+}
+#endif
 
 /* Elements are kept alive by RCU; either by rcu_read_lock() (from syscall) or
  * by local_bh_disable() (from XDP calls inside NAPI). The
@@ -877,7 +883,6 @@ static struct bpf_dtab_netdev *__dev_map_alloc_node(struct net *net,
 	}
 
 	dev->idx = idx;
-	dev->dtab = dtab;
 	if (prog) {
 		dev->xdp_prog = prog;
 		dev->val.bpf_prog.id = prog->aux->id;

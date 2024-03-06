@@ -160,9 +160,8 @@ __xfs_inobt_free_block(
 
 	xfs_inobt_mod_blockcount(cur, -1);
 	fsbno = XFS_DADDR_TO_FSB(cur->bc_mp, xfs_buf_daddr(bp));
-	return xfs_free_extent(cur->bc_tp, cur->bc_ag.pag,
-			XFS_FSB_TO_AGBNO(cur->bc_mp, fsbno), 1,
-			&XFS_RMAP_OINFO_INOBT, resv);
+	return xfs_free_extent_later(cur->bc_tp, fsbno, 1,
+			&XFS_RMAP_OINFO_INOBT, resv, false);
 }
 
 STATIC int

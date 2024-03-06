@@ -25,13 +25,11 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 				     const u64 olen,
 				     int no_time_update)
 {
-	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret;
 
 	inode_inc_iversion(inode);
 	if (!no_time_update) {
-		inode->i_mtime = current_time(inode);
-		inode->i_ctime = inode->i_mtime;
+		inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	}
 	/*
 	 * We round up to the block size at eof when determining which
@@ -44,7 +42,7 @@ static int clone_finish_inode_update(struct btrfs_trans_handle *trans,
 		btrfs_inode_safe_disk_i_size_write(BTRFS_I(inode), 0);
 	}
 
-	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
+	ret = btrfs_update_inode(trans, BTRFS_I(inode));
 	if (ret) {
 		btrfs_abort_transaction(trans, ret);
 		btrfs_end_transaction(trans);
@@ -143,9 +141,9 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (datal < block_size)
 		memzero_page(page, datal, block_size - datal);
 
-	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
-	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);
-	btrfs_page_set_dirty(fs_info, page, file_offset, block_size);
+	btrfs_folio_set_uptodate(fs_info, page_folio(page), file_offset, block_size);
+	btrfs_folio_clear_checked(fs_info, page_folio(page), file_offset, block_size);
+	btrfs_folio_set_dirty(fs_info, page_folio(page), file_offset, block_size);
 out_unlock:
 	if (page) {
 		unlock_page(page);

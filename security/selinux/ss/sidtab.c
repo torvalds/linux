@@ -2,7 +2,7 @@
 /*
  * Implementation of the SID table type.
  *
- * Original author: Stephen Smalley, <sds@tycho.nsa.gov>
+ * Original author: Stephen Smalley, <stephen.smalley.work@gmail.com>
  * Author: Ondrej Mosnacek, <omosnacek@gmail.com>
  *
  * Copyright (C) 2018 Red Hat, Inc.
@@ -25,7 +25,7 @@ struct sidtab_str_cache {
 	struct list_head lru_member;
 	struct sidtab_entry *parent;
 	u32 len;
-	char str[];
+	char str[] __counted_by(len);
 };
 
 #define index_to_sid(index) ((index) + SECINITSID_NUM + 1)

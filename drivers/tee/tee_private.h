@@ -47,8 +47,6 @@ struct tee_device {
 	struct tee_shm_pool *pool;
 };
 
-int tee_shm_init(void);
-
 int tee_shm_get_fd(struct tee_shm *shm);
 
 bool tee_device_get(struct tee_device *teedev);

@@ -453,15 +453,17 @@ gp100_vmm_valid(struct nvkm_vmm *vmm, void *argv, u32 argc,
 			return -EINVAL;
 		}
 
-		ret = nvkm_memory_tags_get(memory, device, tags,
-					   nvkm_ltc_tags_clear,
-					   &map->tags);
-		if (ret) {
-			VMM_DEBUG(vmm, "comp %d", ret);
-			return ret;
+		if (!map->no_comp) {
+			ret = nvkm_memory_tags_get(memory, device, tags,
+						   nvkm_ltc_tags_clear,
+						   &map->tags);
+			if (ret) {
+				VMM_DEBUG(vmm, "comp %d", ret);
+				return ret;
+			}
 		}
 
-		if (map->tags->mn) {
+		if (!map->no_comp && map->tags->mn) {
 			tags = map->tags->mn->offset + (map->offset >> 16);
 			map->ctag |= ((1ULL << page->shift) >> 16) << 36;
 			map->type |= tags << 36;
@@ -556,7 +558,7 @@ gp100_vmm_invalidate_pdb(struct nvkm_vmm *vmm, u64 addr)
 void
 gp100_vmm_flush(struct nvkm_vmm *vmm, int depth)
 {
-	u32 type = (5 /* CACHE_LEVEL_UP_TO_PDE3 */ - depth) << 24;
+	u32 type = 0;
 	if (atomic_read(&vmm->engref[NVKM_SUBDEV_BAR]))
 		type |= 0x00000004; /* HUB_ONLY */
 	type |= 0x00000001; /* PAGE_ALL */

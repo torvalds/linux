@@ -27,12 +27,12 @@
 #include "core_types.h"
 #include "resource.h"
 #include "custom_float.h"
-#include "dcn10_hw_sequencer.h"
-#include "dce110/dce110_hw_sequencer.h"
+#include "dcn10/dcn10_hwseq.h"
+#include "dce110/dce110_hwseq.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
 #include "dmcu.h"
-#include "dcn10_optc.h"
+#include "dcn10/dcn10_optc.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
 #include "timing_generator.h"
@@ -45,7 +45,8 @@
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 
-unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
+__printf(3, 4)
+unsigned int snprintf_count(char *pbuf, unsigned int bufsize, char *fmt, ...)
 {
 	int ret_vsnprintf;
 	unsigned int chars_printed;
@@ -53,15 +54,15 @@ unsigned int snprintf_count(char *pBuf, unsigned int bufSize, char *fmt, ...)
 	va_list args;
 	va_start(args, fmt);
 
-	ret_vsnprintf = vsnprintf(pBuf, bufSize, fmt, args);
+	ret_vsnprintf = vsnprintf(pbuf, bufsize, fmt, args);
 
 	va_end(args);
 
 	if (ret_vsnprintf > 0) {
-		if (ret_vsnprintf < bufSize)
+		if (ret_vsnprintf < bufsize)
 			chars_printed = ret_vsnprintf;
 		else
-			chars_printed = bufSize - 1;
+			chars_printed = bufsize - 1;
 	} else
 		chars_printed = 0;
 

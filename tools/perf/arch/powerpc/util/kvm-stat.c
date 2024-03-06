@@ -5,7 +5,7 @@
 #include "util/debug.h"
 #include "util/evsel.h"
 #include "util/evlist.h"
-#include "util/pmu.h"
+#include "util/pmus.h"
 
 #include "book3s_hv_exits.h"
 #include "book3s_hcalls.h"
@@ -204,7 +204,7 @@ int kvm_add_default_arch_event(int *argc, const char **argv)
 
 	parse_options(j, tmp, event_options, NULL, PARSE_OPT_KEEP_UNKNOWN);
 	if (!event) {
-		if (pmu_have_event("trace_imc", "trace_cycles")) {
+		if (perf_pmus__have_event("trace_imc", "trace_cycles")) {
 			argv[j++] = strdup("-e");
 			argv[j++] = strdup("trace_imc/trace_cycles/");
 			*argc += 2;

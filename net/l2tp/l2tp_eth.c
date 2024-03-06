@@ -37,12 +37,6 @@
 /* via netdev_priv() */
 struct l2tp_eth {
 	struct l2tp_session	*session;
-	atomic_long_t		tx_bytes;
-	atomic_long_t		tx_packets;
-	atomic_long_t		tx_dropped;
-	atomic_long_t		rx_bytes;
-	atomic_long_t		rx_packets;
-	atomic_long_t		rx_errors;
 };
 
 /* via l2tp_session_priv() */
@@ -79,10 +73,10 @@ static netdev_tx_t l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev
 	int ret = l2tp_xmit_skb(session, skb);
 
 	if (likely(ret == NET_XMIT_SUCCESS)) {
-		atomic_long_add(len, &priv->tx_bytes);
-		atomic_long_inc(&priv->tx_packets);
+		DEV_STATS_ADD(dev, tx_bytes, len);
+		DEV_STATS_INC(dev, tx_packets);
 	} else {
-		atomic_long_inc(&priv->tx_dropped);
+		DEV_STATS_INC(dev, tx_dropped);
 	}
 	return NETDEV_TX_OK;
 }
@@ -90,14 +84,12 @@ static netdev_tx_t l2tp_eth_dev_xmit(struct sk_buff *skb, struct net_device *dev
 static void l2tp_eth_get_stats64(struct net_device *dev,
 				 struct rtnl_link_stats64 *stats)
 {
-	struct l2tp_eth *priv = netdev_priv(dev);
-
-	stats->tx_bytes   = (unsigned long)atomic_long_read(&priv->tx_bytes);
-	stats->tx_packets = (unsigned long)atomic_long_read(&priv->tx_packets);
-	stats->tx_dropped = (unsigned long)atomic_long_read(&priv->tx_dropped);
-	stats->rx_bytes   = (unsigned long)atomic_long_read(&priv->rx_bytes);
-	stats->rx_packets = (unsigned long)atomic_long_read(&priv->rx_packets);
-	stats->rx_errors  = (unsigned long)atomic_long_read(&priv->rx_errors);
+	stats->tx_bytes   = DEV_STATS_READ(dev, tx_bytes);
+	stats->tx_packets = DEV_STATS_READ(dev, tx_packets);
+	stats->tx_dropped = DEV_STATS_READ(dev, tx_dropped);
+	stats->rx_bytes   = DEV_STATS_READ(dev, rx_bytes);
+	stats->rx_packets = DEV_STATS_READ(dev, rx_packets);
+	stats->rx_errors  = DEV_STATS_READ(dev, rx_errors);
 }
 
 static const struct net_device_ops l2tp_eth_netdev_ops = {
@@ -126,7 +118,6 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 {
 	struct l2tp_eth_sess *spriv = l2tp_session_priv(session);
 	struct net_device *dev;
-	struct l2tp_eth *priv;
 
 	if (!pskb_may_pull(skb, ETH_HLEN))
 		goto error;
@@ -144,12 +135,11 @@ static void l2tp_eth_dev_recv(struct l2tp_session *session, struct sk_buff *skb,
 	if (!dev)
 		goto error_rcu;
 
-	priv = netdev_priv(dev);
 	if (dev_forward_skb(dev, skb) == NET_RX_SUCCESS) {
-		atomic_long_inc(&priv->rx_packets);
-		atomic_long_add(data_len, &priv->rx_bytes);
+		DEV_STATS_INC(dev, rx_packets);
+		DEV_STATS_ADD(dev, rx_bytes, data_len);
 	} else {
-		atomic_long_inc(&priv->rx_errors);
+		DEV_STATS_INC(dev, rx_errors);
 	}
 	rcu_read_unlock();
 

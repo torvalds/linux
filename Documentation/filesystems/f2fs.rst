@@ -351,6 +351,22 @@ age_extent_cache	 Enable an age extent cache based on rb-tree. It records
 			 data block update frequency of the extent per inode, in
 			 order to provide better temperature hints for data block
 			 allocation.
+errors=%s		 Specify f2fs behavior on critical errors. This supports modes:
+			 "panic", "continue" and "remount-ro", respectively, trigger
+			 panic immediately, continue without doing anything, and remount
+			 the partition in read-only mode. By default it uses "continue"
+			 mode.
+			 ====================== =============== =============== ========
+			 mode			continue	remount-ro	panic
+			 ====================== =============== =============== ========
+			 access ops		normal		normal		N/A
+			 syscall errors		-EIO		-EROFS		N/A
+			 mount option		rw		ro		N/A
+			 pending dir write	keep		keep		N/A
+			 pending non-dir write	drop		keep		N/A
+			 pending node write	drop		keep		N/A
+			 pending meta write	keep		keep		N/A
+			 ====================== =============== =============== ========
 ======================== ============================================================
 
 Debugfs Entries
@@ -464,7 +480,7 @@ Note: please refer to the manpage of dump.f2fs(8) to get full option list.
 
 sload.f2fs
 ----------
-The sload.f2fs gives a way to insert files and directories in the exisiting disk
+The sload.f2fs gives a way to insert files and directories in the existing disk
 image. This tool is useful when building f2fs images given compiled files.
 
 Note: please refer to the manpage of sload.f2fs(8) to get full option list.
@@ -776,7 +792,7 @@ Allocating disk space
     as a method of optimally implementing that function.
 
 However, once F2FS receives ioctl(fd, F2FS_IOC_SET_PIN_FILE) in prior to
-fallocate(fd, DEFAULT_MODE), it allocates on-disk block addressess having
+fallocate(fd, DEFAULT_MODE), it allocates on-disk block addresses having
 zero or random data, which is useful to the below scenario where:
 
  1. create(fd)

@@ -8,11 +8,11 @@
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability",
+        "BriefDescription": "Cycles a demand request was blocked due to Fill Buffers unavailability",
         "CounterMask": "1",
         "EventCode": "0x48",
         "EventName": "L1D_PEND_MISS.FB_FULL",
-        "PublicDescription": "Cycles a demand request was blocked due to Fill Buffers inavailability.",
+        "PublicDescription": "Cycles a demand request was blocked due to Fill Buffers unavailability.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },

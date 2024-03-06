@@ -696,7 +696,7 @@ static struct i2c_driver ks0127_driver = {
 	.driver = {
 		.name	= "ks0127",
 	},
-	.probe_new	= ks0127_probe,
+	.probe		= ks0127_probe,
 	.remove		= ks0127_remove,
 	.id_table	= ks0127_id,
 };

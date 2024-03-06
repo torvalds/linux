@@ -6,34 +6,39 @@
 #include <linux/of_net.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/nvmem-consumer.h>
 #include <linux/etherdevice.h>
 #include "mt76.h"
 
-int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
+static int mt76_get_of_eeprom_data(struct mt76_dev *dev, void *eep, int len)
 {
-#if defined(CONFIG_OF) && defined(CONFIG_MTD)
+	struct device_node *np = dev->dev->of_node;
+	const void *data;
+	int size;
+
+	data = of_get_property(np, "mediatek,eeprom-data", &size);
+	if (!data)
+		return -ENOENT;
+
+	if (size > len)
+		return -EINVAL;
+
+	memcpy(eep, data, size);
+
+	return 0;
+}
+
+int mt76_get_of_data_from_mtd(struct mt76_dev *dev, void *eep, int offset, int len)
+{
+#ifdef CONFIG_MTD
 	struct device_node *np = dev->dev->of_node;
 	struct mtd_info *mtd;
 	const __be32 *list;
-	const void *data;
 	const char *part;
 	phandle phandle;
-	int size;
 	size_t retlen;
+	int size;
 	int ret;
-
-	if (!np)
-		return -ENOENT;
-
-	data = of_get_property(np, "mediatek,eeprom-data", &size);
-	if (data) {
-		if (size > len)
-			return -EINVAL;
-
-		memcpy(eep, data, size);
-
-		return 0;
-	}
 
 	list = of_get_property(np, "mediatek,mtd-eeprom", &size);
 	if (!list)
@@ -62,7 +67,7 @@ int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int offset, int len)
 		goto out_put_node;
 	}
 
-	offset = be32_to_cpup(list);
+	offset += be32_to_cpup(list);
 	ret = mtd_read(mtd, offset, len, &retlen, eep);
 	put_mtd_device(mtd);
 	if (mtd_is_bitflip(ret))
@@ -100,7 +105,59 @@ out_put_node:
 	return -ENOENT;
 #endif
 }
-EXPORT_SYMBOL_GPL(mt76_get_of_eeprom);
+EXPORT_SYMBOL_GPL(mt76_get_of_data_from_mtd);
+
+int mt76_get_of_data_from_nvmem(struct mt76_dev *dev, void *eep,
+				const char *cell_name, int len)
+{
+	struct device_node *np = dev->dev->of_node;
+	struct nvmem_cell *cell;
+	const void *data;
+	size_t retlen;
+	int ret = 0;
+
+	cell = of_nvmem_cell_get(np, cell_name);
+	if (IS_ERR(cell))
+		return PTR_ERR(cell);
+
+	data = nvmem_cell_read(cell, &retlen);
+	nvmem_cell_put(cell);
+
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+
+	if (retlen < len) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
+	memcpy(eep, data, len);
+
+exit:
+	kfree(data);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_get_of_data_from_nvmem);
+
+static int mt76_get_of_eeprom(struct mt76_dev *dev, void *eep, int len)
+{
+	struct device_node *np = dev->dev->of_node;
+	int ret;
+
+	if (!np)
+		return -ENOENT;
+
+	ret = mt76_get_of_eeprom_data(dev, eep, len);
+	if (!ret)
+		return 0;
+
+	ret = mt76_get_of_data_from_mtd(dev, eep, 0, len);
+	if (!ret)
+		return 0;
+
+	return mt76_get_of_data_from_nvmem(dev, eep, "eeprom", len);
+}
 
 void
 mt76_eeprom_override(struct mt76_phy *phy)
@@ -133,7 +190,7 @@ static bool mt76_string_prop_find(struct property *prop, const char *str)
 	return false;
 }
 
-static struct device_node *
+struct device_node *
 mt76_find_power_limits_node(struct mt76_dev *dev)
 {
 	struct device_node *np = dev->dev->of_node;
@@ -172,6 +229,7 @@ mt76_find_power_limits_node(struct mt76_dev *dev)
 	of_node_put(np);
 	return fallback;
 }
+EXPORT_SYMBOL_GPL(mt76_find_power_limits_node);
 
 static const __be32 *
 mt76_get_of_array(struct device_node *np, char *name, size_t *len, int min)
@@ -186,7 +244,7 @@ mt76_get_of_array(struct device_node *np, char *name, size_t *len, int min)
 	return prop->value;
 }
 
-static struct device_node *
+struct device_node *
 mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan)
 {
 	struct device_node *cur;
@@ -210,6 +268,8 @@ mt76_find_channel_node(struct device_node *np, struct ieee80211_channel *chan)
 
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(mt76_find_channel_node);
+
 
 static s8
 mt76_get_txs_delta(struct device_node *np, u8 nss)
@@ -321,7 +381,7 @@ s8 mt76_get_rate_power_limits(struct mt76_phy *phy,
 	if (!np)
 		return target_power;
 
-	txs_delta = mt76_get_txs_delta(np, hweight8(phy->antenna_mask));
+	txs_delta = mt76_get_txs_delta(np, hweight16(phy->chainmask));
 
 	val = mt76_get_of_array(np, "rates-cck", &len, ARRAY_SIZE(dest->cck));
 	mt76_apply_array_limit(dest->cck, ARRAY_SIZE(dest->cck), val,
@@ -354,6 +414,6 @@ mt76_eeprom_init(struct mt76_dev *dev, int len)
 	if (!dev->eeprom.data)
 		return -ENOMEM;
 
-	return !mt76_get_of_eeprom(dev, dev->eeprom.data, 0, len);
+	return !mt76_get_of_eeprom(dev, dev->eeprom.data, len);
 }
 EXPORT_SYMBOL_GPL(mt76_eeprom_init);

@@ -185,6 +185,7 @@ int led_trigger_set(struct led_classdev *led_cdev, struct led_trigger *trig)
 		led_cdev->trigger = NULL;
 		led_cdev->trigger_data = NULL;
 		led_cdev->activated = false;
+		led_cdev->flags &= ~LED_INIT_DEFAULT_TRIGGER;
 		led_set_brightness(led_cdev, LED_OFF);
 	}
 	if (trig) {
@@ -267,19 +268,6 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 	up_read(&triggers_list_lock);
 }
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
-
-void led_trigger_rename_static(const char *name, struct led_trigger *trig)
-{
-	/* new name must be on a temporary string to prevent races */
-	BUG_ON(name == trig->name);
-
-	down_write(&triggers_list_lock);
-	/* this assumes that trig->name was originaly allocated to
-	 * non constant storage */
-	strcpy((char *)trig->name, name);
-	up_write(&triggers_list_lock);
-}
-EXPORT_SYMBOL_GPL(led_trigger_rename_static);
 
 /* LED Trigger Interface */
 
@@ -393,8 +381,8 @@ void led_trigger_event(struct led_trigger *trig,
 EXPORT_SYMBOL_GPL(led_trigger_event);
 
 static void led_trigger_blink_setup(struct led_trigger *trig,
-			     unsigned long *delay_on,
-			     unsigned long *delay_off,
+			     unsigned long delay_on,
+			     unsigned long delay_off,
 			     int oneshot,
 			     int invert)
 {
@@ -406,25 +394,25 @@ static void led_trigger_blink_setup(struct led_trigger *trig,
 	rcu_read_lock();
 	list_for_each_entry_rcu(led_cdev, &trig->led_cdevs, trig_list) {
 		if (oneshot)
-			led_blink_set_oneshot(led_cdev, delay_on, delay_off,
+			led_blink_set_oneshot(led_cdev, &delay_on, &delay_off,
 					      invert);
 		else
-			led_blink_set(led_cdev, delay_on, delay_off);
+			led_blink_set_nosleep(led_cdev, delay_on, delay_off);
 	}
 	rcu_read_unlock();
 }
 
 void led_trigger_blink(struct led_trigger *trig,
-		       unsigned long *delay_on,
-		       unsigned long *delay_off)
+		       unsigned long delay_on,
+		       unsigned long delay_off)
 {
 	led_trigger_blink_setup(trig, delay_on, delay_off, 0, 0);
 }
 EXPORT_SYMBOL_GPL(led_trigger_blink);
 
 void led_trigger_blink_oneshot(struct led_trigger *trig,
-			       unsigned long *delay_on,
-			       unsigned long *delay_off,
+			       unsigned long delay_on,
+			       unsigned long delay_off,
 			       int invert)
 {
 	led_trigger_blink_setup(trig, delay_on, delay_off, 1, invert);

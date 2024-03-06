@@ -50,7 +50,7 @@
 
 #include <asm/io.h>
 
-#include "../fbdev/sticore.h"
+#include <video/sticore.h>
 
 /* switching to graphics mode */
 #define BLANK 0
@@ -156,7 +156,7 @@ static bool sticon_scroll(struct vc_data *conp, unsigned int t,
     return false;
 }
 
-static int sticon_set_def_font(int unit, struct console_font *op)
+static void sticon_set_def_font(int unit)
 {
 	if (font_data[unit] != STI_DEF_FONT) {
 		if (--FNTREFCOUNT(font_data[unit]) == 0) {
@@ -165,8 +165,6 @@ static int sticon_set_def_font(int unit, struct console_font *op)
 		}
 		font_data[unit] = STI_DEF_FONT;
 	}
-
-	return 0;
 }
 
 static int sticon_set_font(struct vc_data *vc, struct console_font *op,
@@ -246,7 +244,7 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 		  vc->vc_video_erase_char, font_data[vc->vc_num]);
 
 	/* delete old font in case it is a user font */
-	sticon_set_def_font(unit, NULL);
+	sticon_set_def_font(unit);
 
 	FNTREFCOUNT(cooked_font)++;
 	font_data[unit] = cooked_font;
@@ -264,7 +262,9 @@ static int sticon_set_font(struct vc_data *vc, struct console_font *op,
 
 static int sticon_font_default(struct vc_data *vc, struct console_font *op, char *name)
 {
-	return sticon_set_def_font(vc->vc_num, op);
+	sticon_set_def_font(vc->vc_num);
+
+	return 0;
 }
 
 static int sticon_font_set(struct vc_data *vc, struct console_font *font,
@@ -282,7 +282,7 @@ static void sticon_init(struct vc_data *c, int init)
     vc_cols = sti_onscreen_x(sti) / sti->font->width;
     vc_rows = sti_onscreen_y(sti) / sti->font->height;
     c->vc_can_do_color = 1;
-    
+
     if (init) {
 	c->vc_cols = vc_cols;
 	c->vc_rows = vc_rows;
@@ -297,7 +297,7 @@ static void sticon_deinit(struct vc_data *c)
 
     /* free memory used by user font */
     for (i = 0; i < MAX_NR_CONSOLES; i++)
-	sticon_set_def_font(i, NULL);
+	sticon_set_def_font(i);
 }
 
 static void sticon_clear(struct vc_data *conp, int sy, int sx, int height,
@@ -374,7 +374,7 @@ static const struct consw sti_con = {
 	.con_font_set		= sticon_font_set,
 	.con_font_default	= sticon_font_default,
 	.con_build_attr		= sticon_build_attr,
-	.con_invert_region	= sticon_invert_region, 
+	.con_invert_region	= sticon_invert_region,
 };
 
 

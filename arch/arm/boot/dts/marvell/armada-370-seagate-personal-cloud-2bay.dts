@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree file for Seagate Personal Cloud NAS 2-Bay (Armada 370 SoC).
+ *
+ * Copyright (C) 2015 Seagate
+ *
+ * Author: Simon Guinot <simon.guinot@sequanux.org>
+ */
+
+/*
+ * Here are some information allowing to identify the device:
+ *
+ * Product name                 : Seagate Personal Cloud 2-Bay
+ * Code name (board/PCB)        : Cumulus Max
+ * Model name (case sticker)    : SRN22C
+ * Material desc (product spec) : STCSxxxxxxx
+ */
+
+/dts-v1/;
+#include "armada-370-seagate-personal-cloud.dtsi"
+
+/ {
+	model = "Seagate Personal Cloud 2-Bay (Cumulus, SRN22C)";
+	compatible = "seagate,cumulus-max", "marvell,armada370", "marvell,armada-370-xp";
+
+	soc {
+		internal-regs {
+			sata@a0000 {
+				status = "okay";
+				nr-ports = <2>;
+			};
+		};
+	};
+
+	regulator-2 {
+		compatible = "regulator-fixed";
+		regulator-name = "SATA1 power";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+		regulator-boot-on;
+		gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+	};
+};

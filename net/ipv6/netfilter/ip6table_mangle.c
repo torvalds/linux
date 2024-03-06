@@ -31,10 +31,10 @@ static const struct xt_table packet_mangler = {
 static unsigned int
 ip6t_mangle_out(void *priv, struct sk_buff *skb, const struct nf_hook_state *state)
 {
-	unsigned int ret;
 	struct in6_addr saddr, daddr;
-	u_int8_t hop_limit;
-	u_int32_t flowlabel, mark;
+	unsigned int ret, verdict;
+	u32 flowlabel, mark;
+	u8 hop_limit;
 	int err;
 
 	/* save source/dest address, mark, hoplimit, flowlabel, priority,  */
@@ -47,8 +47,9 @@ ip6t_mangle_out(void *priv, struct sk_buff *skb, const struct nf_hook_state *sta
 	flowlabel = *((u_int32_t *)ipv6_hdr(skb));
 
 	ret = ip6t_do_table(priv, skb, state);
+	verdict = ret & NF_VERDICT_MASK;
 
-	if (ret != NF_DROP && ret != NF_STOLEN &&
+	if (verdict != NF_DROP && verdict != NF_STOLEN &&
 	    (!ipv6_addr_equal(&ipv6_hdr(skb)->saddr, &saddr) ||
 	     !ipv6_addr_equal(&ipv6_hdr(skb)->daddr, &daddr) ||
 	     skb->mark != mark ||

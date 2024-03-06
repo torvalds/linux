@@ -58,9 +58,19 @@
 	.text
 	.arm
 
+ENTRY(iwmmxt_undef_handler)
+	push		{r9, r10, lr}
+	get_thread_info	r10
+	mov		r9, pc
+	b		iwmmxt_task_enable
+	mov		r0, #0
+	pop		{r9, r10, pc}
+ENDPROC(iwmmxt_undef_handler)
+
 /*
  * Lazy switching of Concan coprocessor context
  *
+ * r0  = struct pt_regs pointer
  * r10 = struct thread_info pointer
  * r9  = ret_from_exception
  * lr  = undefined instr exit
@@ -84,12 +94,12 @@ ENTRY(iwmmxt_task_enable)
 	PJ4(mcr	p15, 0, r2, c1, c0, 2)
 
 	ldr	r3, =concan_owner
-	add	r0, r10, #TI_IWMMXT_STATE	@ get task Concan save area
-	ldr	r2, [sp, #60]			@ current task pc value
+	ldr	r2, [r0, #S_PC]			@ current task pc value
 	ldr	r1, [r3]			@ get current Concan owner
-	str	r0, [r3]			@ this task now owns Concan regs
 	sub	r2, r2, #4			@ adjust pc back
-	str	r2, [sp, #60]
+	str	r2, [r0, #S_PC]
+	add	r0, r10, #TI_IWMMXT_STATE	@ get task Concan save area
+	str	r0, [r3]			@ this task now owns Concan regs
 
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait

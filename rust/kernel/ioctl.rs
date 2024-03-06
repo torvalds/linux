@@ -2,7 +2,7 @@
 
 //! ioctl() number definitions
 //!
-//! C header: [`include/asm-generic/ioctl.h`](../../../../include/asm-generic/ioctl.h)
+//! C header: [`include/asm-generic/ioctl.h`](srctree/include/asm-generic/ioctl.h)
 
 #![allow(non_snake_case)]
 

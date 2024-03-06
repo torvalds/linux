@@ -17,7 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 
@@ -197,7 +197,7 @@ static const struct regmap_config chipone_regmap_config = {
 	.val_bits = 8,
 	.rd_table = &chipone_dsi_readable_table,
 	.wr_table = &chipone_dsi_writeable_table,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = MIPI_ATE_STATUS(1),
 };
 
@@ -795,7 +795,7 @@ static struct i2c_device_id chipone_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, chipone_i2c_id);
 
 static struct i2c_driver chipone_i2c_driver = {
-	.probe_new = chipone_i2c_probe,
+	.probe = chipone_i2c_probe,
 	.id_table = chipone_i2c_id,
 	.driver = {
 		.name = "chipone-icn6211-i2c",

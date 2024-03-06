@@ -182,15 +182,13 @@ dis_clk_reg:
 	return ret;
 }
 
-static int lpc18xx_serial_remove(struct platform_device *pdev)
+static void lpc18xx_serial_remove(struct platform_device *pdev)
 {
 	struct lpc18xx_uart_data *data = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(data->line);
 	clk_disable_unprepare(data->clk_uart);
 	clk_disable_unprepare(data->clk_reg);
-
-	return 0;
 }
 
 static const struct of_device_id lpc18xx_serial_match[] = {
@@ -201,7 +199,7 @@ MODULE_DEVICE_TABLE(of, lpc18xx_serial_match);
 
 static struct platform_driver lpc18xx_serial_driver = {
 	.probe  = lpc18xx_serial_probe,
-	.remove = lpc18xx_serial_remove,
+	.remove_new = lpc18xx_serial_remove,
 	.driver = {
 		.name = "lpc18xx-uart",
 		.of_match_table = lpc18xx_serial_match,

@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -769,6 +769,9 @@ static const struct of_device_id inno_dsidphy_of_match[] = {
 		.data = &max_1ghz_video_phy_plat_data,
 	}, {
 		.compatible = "rockchip,rk3568-dsi-dphy",
+		.data = &max_2_5ghz_video_phy_plat_data,
+	}, {
+		.compatible = "rockchip,rv1126-dsi-dphy",
 		.data = &max_2_5ghz_video_phy_plat_data,
 	},
 	{}

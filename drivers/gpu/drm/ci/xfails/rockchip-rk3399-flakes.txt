@@ -1,0 +1,7 @@
+kms_bw@linear-tiling-2-displays-1920x1080p
+kms_cursor_crc@cursor-offscreen-64x21
+kms_flip@dpms-vs-vblank-race-interruptible
+kms_flip@flip-vs-wf_vblank-interruptible
+kms_plane_cursor@overlay
+kms_plane_cursor@primary
+kms_plane_cursor@viewport

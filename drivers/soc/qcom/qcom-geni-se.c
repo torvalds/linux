@@ -199,7 +199,7 @@ u32 geni_se_get_qup_hw_version(struct geni_se *se)
 
 	return readl_relaxed(wrapper->base + QUP_HW_VER_REG);
 }
-EXPORT_SYMBOL(geni_se_get_qup_hw_version);
+EXPORT_SYMBOL_GPL(geni_se_get_qup_hw_version);
 
 static void geni_se_io_set_mode(void __iomem *base)
 {
@@ -272,7 +272,7 @@ void geni_se_init(struct geni_se *se, u32 rx_wm, u32 rx_rfr)
 	val |= S_COMMON_GENI_S_IRQ_EN;
 	writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
 }
-EXPORT_SYMBOL(geni_se_init);
+EXPORT_SYMBOL_GPL(geni_se_init);
 
 static void geni_se_select_fifo_mode(struct geni_se *se)
 {
@@ -281,27 +281,14 @@ static void geni_se_select_fifo_mode(struct geni_se *se)
 
 	geni_se_irq_clear(se);
 
-	/*
-	 * The RX path for the UART is asynchronous and so needs more
-	 * complex logic for enabling / disabling its interrupts.
-	 *
-	 * Specific notes:
-	 * - The done and TX-related interrupts are managed manually.
-	 * - We don't RX from the main sequencer (we use the secondary) so
-	 *   we don't need the RX-related interrupts enabled in the main
-	 *   sequencer for UART.
-	 */
+	/* UART driver manages enabling / disabling interrupts internally */
 	if (proto != GENI_SE_UART) {
+		/* Non-UART use only primary sequencer so dont bother about S_IRQ */
 		val_old = val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 		val |= M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN;
 		val |= M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN;
 		if (val != val_old)
 			writel_relaxed(val, se->base + SE_GENI_M_IRQ_EN);
-
-		val_old = val = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
-		val |= S_CMD_DONE_EN;
-		if (val != val_old)
-			writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
 	}
 
 	val_old = val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
@@ -317,17 +304,14 @@ static void geni_se_select_dma_mode(struct geni_se *se)
 
 	geni_se_irq_clear(se);
 
+	/* UART driver manages enabling / disabling interrupts internally */
 	if (proto != GENI_SE_UART) {
+		/* Non-UART use only primary sequencer so dont bother about S_IRQ */
 		val_old = val = readl_relaxed(se->base + SE_GENI_M_IRQ_EN);
 		val &= ~(M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN);
 		val &= ~(M_RX_FIFO_WATERMARK_EN | M_RX_FIFO_LAST_EN);
 		if (val != val_old)
 			writel_relaxed(val, se->base + SE_GENI_M_IRQ_EN);
-
-		val_old = val = readl_relaxed(se->base + SE_GENI_S_IRQ_EN);
-		val &= ~S_CMD_DONE_EN;
-		if (val != val_old)
-			writel_relaxed(val, se->base + SE_GENI_S_IRQ_EN);
 	}
 
 	val_old = val = readl_relaxed(se->base + SE_GENI_DMA_MODE_EN);
@@ -343,10 +327,6 @@ static void geni_se_select_gpi_mode(struct geni_se *se)
 	geni_se_irq_clear(se);
 
 	writel(0, se->base + SE_IRQ_EN);
-
-	val = readl(se->base + SE_GENI_S_IRQ_EN);
-	val &= ~S_CMD_DONE_EN;
-	writel(val, se->base + SE_GENI_S_IRQ_EN);
 
 	val = readl(se->base + SE_GENI_M_IRQ_EN);
 	val &= ~(M_CMD_DONE_EN | M_TX_FIFO_WATERMARK_EN |
@@ -384,7 +364,7 @@ void geni_se_select_mode(struct geni_se *se, enum geni_se_xfer_mode mode)
 		break;
 	}
 }
-EXPORT_SYMBOL(geni_se_select_mode);
+EXPORT_SYMBOL_GPL(geni_se_select_mode);
 
 /**
  * DOC: Overview
@@ -501,7 +481,7 @@ void geni_se_config_packing(struct geni_se *se, int bpw, int pack_words,
 	if (pack_words || bpw == 32)
 		writel_relaxed(bpw / 16, se->base + SE_GENI_BYTE_GRAN);
 }
-EXPORT_SYMBOL(geni_se_config_packing);
+EXPORT_SYMBOL_GPL(geni_se_config_packing);
 
 static void geni_se_clks_off(struct geni_se *se)
 {
@@ -532,7 +512,7 @@ int geni_se_resources_off(struct geni_se *se)
 	geni_se_clks_off(se);
 	return 0;
 }
-EXPORT_SYMBOL(geni_se_resources_off);
+EXPORT_SYMBOL_GPL(geni_se_resources_off);
 
 static int geni_se_clks_on(struct geni_se *se)
 {
@@ -573,7 +553,7 @@ int geni_se_resources_on(struct geni_se *se)
 
 	return ret;
 }
-EXPORT_SYMBOL(geni_se_resources_on);
+EXPORT_SYMBOL_GPL(geni_se_resources_on);
 
 /**
  * geni_se_clk_tbl_get() - Get the clock table to program DFS
@@ -614,7 +594,7 @@ int geni_se_clk_tbl_get(struct geni_se *se, unsigned long **tbl)
 	*tbl = se->clk_perf_tbl;
 	return se->num_clk_levels;
 }
-EXPORT_SYMBOL(geni_se_clk_tbl_get);
+EXPORT_SYMBOL_GPL(geni_se_clk_tbl_get);
 
 /**
  * geni_se_clk_freq_match() - Get the matching or closest SE clock frequency
@@ -676,12 +656,36 @@ int geni_se_clk_freq_match(struct geni_se *se, unsigned long req_freq,
 
 	return 0;
 }
-EXPORT_SYMBOL(geni_se_clk_freq_match);
+EXPORT_SYMBOL_GPL(geni_se_clk_freq_match);
 
 #define GENI_SE_DMA_DONE_EN BIT(0)
 #define GENI_SE_DMA_EOT_EN BIT(1)
 #define GENI_SE_DMA_AHB_ERR_EN BIT(2)
 #define GENI_SE_DMA_EOT_BUF BIT(0)
+
+/**
+ * geni_se_tx_init_dma() - Initiate TX DMA transfer on the serial engine
+ * @se:			Pointer to the concerned serial engine.
+ * @iova:		Mapped DMA address.
+ * @len:		Length of the TX buffer.
+ *
+ * This function is used to initiate DMA TX transfer.
+ */
+void geni_se_tx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len)
+{
+	u32 val;
+
+	val = GENI_SE_DMA_DONE_EN;
+	val |= GENI_SE_DMA_EOT_EN;
+	val |= GENI_SE_DMA_AHB_ERR_EN;
+	writel_relaxed(val, se->base + SE_DMA_TX_IRQ_EN_SET);
+	writel_relaxed(lower_32_bits(iova), se->base + SE_DMA_TX_PTR_L);
+	writel_relaxed(upper_32_bits(iova), se->base + SE_DMA_TX_PTR_H);
+	writel_relaxed(GENI_SE_DMA_EOT_BUF, se->base + SE_DMA_TX_ATTR);
+	writel(len, se->base + SE_DMA_TX_LEN);
+}
+EXPORT_SYMBOL_GPL(geni_se_tx_init_dma);
+
 /**
  * geni_se_tx_dma_prep() - Prepare the serial engine for TX DMA transfer
  * @se:			Pointer to the concerned serial engine.
@@ -697,7 +701,6 @@ int geni_se_tx_dma_prep(struct geni_se *se, void *buf, size_t len,
 			dma_addr_t *iova)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
-	u32 val;
 
 	if (!wrapper)
 		return -EINVAL;
@@ -706,17 +709,34 @@ int geni_se_tx_dma_prep(struct geni_se *se, void *buf, size_t len,
 	if (dma_mapping_error(wrapper->dev, *iova))
 		return -EIO;
 
+	geni_se_tx_init_dma(se, *iova, len);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(geni_se_tx_dma_prep);
+
+/**
+ * geni_se_rx_init_dma() - Initiate RX DMA transfer on the serial engine
+ * @se:			Pointer to the concerned serial engine.
+ * @iova:		Mapped DMA address.
+ * @len:		Length of the RX buffer.
+ *
+ * This function is used to initiate DMA RX transfer.
+ */
+void geni_se_rx_init_dma(struct geni_se *se, dma_addr_t iova, size_t len)
+{
+	u32 val;
+
 	val = GENI_SE_DMA_DONE_EN;
 	val |= GENI_SE_DMA_EOT_EN;
 	val |= GENI_SE_DMA_AHB_ERR_EN;
-	writel_relaxed(val, se->base + SE_DMA_TX_IRQ_EN_SET);
-	writel_relaxed(lower_32_bits(*iova), se->base + SE_DMA_TX_PTR_L);
-	writel_relaxed(upper_32_bits(*iova), se->base + SE_DMA_TX_PTR_H);
-	writel_relaxed(GENI_SE_DMA_EOT_BUF, se->base + SE_DMA_TX_ATTR);
-	writel(len, se->base + SE_DMA_TX_LEN);
-	return 0;
+	writel_relaxed(val, se->base + SE_DMA_RX_IRQ_EN_SET);
+	writel_relaxed(lower_32_bits(iova), se->base + SE_DMA_RX_PTR_L);
+	writel_relaxed(upper_32_bits(iova), se->base + SE_DMA_RX_PTR_H);
+	/* RX does not have EOT buffer type bit. So just reset RX_ATTR */
+	writel_relaxed(0, se->base + SE_DMA_RX_ATTR);
+	writel(len, se->base + SE_DMA_RX_LEN);
 }
-EXPORT_SYMBOL(geni_se_tx_dma_prep);
+EXPORT_SYMBOL_GPL(geni_se_rx_init_dma);
 
 /**
  * geni_se_rx_dma_prep() - Prepare the serial engine for RX DMA transfer
@@ -733,7 +753,6 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 			dma_addr_t *iova)
 {
 	struct geni_wrapper *wrapper = se->wrapper;
-	u32 val;
 
 	if (!wrapper)
 		return -EINVAL;
@@ -742,18 +761,10 @@ int geni_se_rx_dma_prep(struct geni_se *se, void *buf, size_t len,
 	if (dma_mapping_error(wrapper->dev, *iova))
 		return -EIO;
 
-	val = GENI_SE_DMA_DONE_EN;
-	val |= GENI_SE_DMA_EOT_EN;
-	val |= GENI_SE_DMA_AHB_ERR_EN;
-	writel_relaxed(val, se->base + SE_DMA_RX_IRQ_EN_SET);
-	writel_relaxed(lower_32_bits(*iova), se->base + SE_DMA_RX_PTR_L);
-	writel_relaxed(upper_32_bits(*iova), se->base + SE_DMA_RX_PTR_H);
-	/* RX does not have EOT buffer type bit. So just reset RX_ATTR */
-	writel_relaxed(0, se->base + SE_DMA_RX_ATTR);
-	writel(len, se->base + SE_DMA_RX_LEN);
+	geni_se_rx_init_dma(se, *iova, len);
 	return 0;
 }
-EXPORT_SYMBOL(geni_se_rx_dma_prep);
+EXPORT_SYMBOL_GPL(geni_se_rx_dma_prep);
 
 /**
  * geni_se_tx_dma_unprep() - Unprepare the serial engine after TX DMA transfer
@@ -770,7 +781,7 @@ void geni_se_tx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 	if (!dma_mapping_error(wrapper->dev, iova))
 		dma_unmap_single(wrapper->dev, iova, len, DMA_TO_DEVICE);
 }
-EXPORT_SYMBOL(geni_se_tx_dma_unprep);
+EXPORT_SYMBOL_GPL(geni_se_tx_dma_unprep);
 
 /**
  * geni_se_rx_dma_unprep() - Unprepare the serial engine after RX DMA transfer
@@ -787,7 +798,7 @@ void geni_se_rx_dma_unprep(struct geni_se *se, dma_addr_t iova, size_t len)
 	if (!dma_mapping_error(wrapper->dev, iova))
 		dma_unmap_single(wrapper->dev, iova, len, DMA_FROM_DEVICE);
 }
-EXPORT_SYMBOL(geni_se_rx_dma_unprep);
+EXPORT_SYMBOL_GPL(geni_se_rx_dma_unprep);
 
 int geni_icc_get(struct geni_se *se, const char *icc_ddr)
 {
@@ -816,7 +827,7 @@ err:
 	return err;
 
 }
-EXPORT_SYMBOL(geni_icc_get);
+EXPORT_SYMBOL_GPL(geni_icc_get);
 
 int geni_icc_set_bw(struct geni_se *se)
 {
@@ -834,7 +845,7 @@ int geni_icc_set_bw(struct geni_se *se)
 
 	return 0;
 }
-EXPORT_SYMBOL(geni_icc_set_bw);
+EXPORT_SYMBOL_GPL(geni_icc_set_bw);
 
 void geni_icc_set_tag(struct geni_se *se, u32 tag)
 {
@@ -843,7 +854,7 @@ void geni_icc_set_tag(struct geni_se *se, u32 tag)
 	for (i = 0; i < ARRAY_SIZE(se->icc_paths); i++)
 		icc_set_tag(se->icc_paths[i].path, tag);
 }
-EXPORT_SYMBOL(geni_icc_set_tag);
+EXPORT_SYMBOL_GPL(geni_icc_set_tag);
 
 /* To do: Replace this by icc_bulk_enable once it's implemented in ICC core */
 int geni_icc_enable(struct geni_se *se)
@@ -861,7 +872,7 @@ int geni_icc_enable(struct geni_se *se)
 
 	return 0;
 }
-EXPORT_SYMBOL(geni_icc_enable);
+EXPORT_SYMBOL_GPL(geni_icc_enable);
 
 int geni_icc_disable(struct geni_se *se)
 {
@@ -878,7 +889,7 @@ int geni_icc_disable(struct geni_se *se)
 
 	return 0;
 }
-EXPORT_SYMBOL(geni_icc_disable);
+EXPORT_SYMBOL_GPL(geni_icc_disable);
 
 static int geni_se_probe(struct platform_device *pdev)
 {

@@ -1,0 +1,69 @@
+#include <dt-bindings/power/raspberrypi-power.h>
+
+/ {
+	soc {
+		firmware: firmware {
+			compatible = "raspberrypi,bcm2835-firmware", "simple-mfd";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			mboxes = <&mailbox>;
+			dma-ranges;
+		};
+
+		power: power {
+			compatible = "raspberrypi,bcm2835-power";
+			firmware = <&firmware>;
+			#power-domain-cells = <1>;
+		};
+
+		vchiq: mailbox@7e00b840 {
+			compatible = "brcm,bcm2835-vchiq";
+			reg = <0x7e00b840 0x3c>;
+			interrupts = <0 2>;
+		};
+	};
+};
+
+&gpio {
+	gpioout: gpioout {
+		brcm,pins = <6>;
+		brcm,function = <BCM2835_FSEL_GPIO_OUT>;
+	};
+
+	alt0: alt0 {
+		brcm,pins = <4 5 7 8 9 10 11>;
+		brcm,function = <BCM2835_FSEL_ALT0>;
+	};
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_gpio0>;
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_gpio2>;
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&usb {
+	power-domains = <&power RPI_POWER_DOMAIN_USB>;
+};
+
+&vec {
+	power-domains = <&power RPI_POWER_DOMAIN_VEC>;
+	status = "okay";
+};
+
+&dsi0 {
+	power-domains = <&power RPI_POWER_DOMAIN_DSI0>;
+};
+
+&dsi1 {
+	power-domains = <&power RPI_POWER_DOMAIN_DSI1>;
+};

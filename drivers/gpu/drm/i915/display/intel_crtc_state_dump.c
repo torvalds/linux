@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_edid.h>
+#include <drm/drm_eld.h>
 
 #include "i915_drv.h"
 #include "intel_crtc_state_dump.h"
@@ -158,6 +159,45 @@ static void intel_dump_plane_state(const struct intel_plane_state *plane_state)
 			    DRM_RECT_ARG(&plane_state->uapi.dst));
 }
 
+static void
+ilk_dump_csc(struct drm_i915_private *i915, const char *name,
+	     const struct intel_csc_matrix *csc)
+{
+	int i;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s: pre offsets: 0x%04x 0x%04x 0x%04x\n", name,
+		    csc->preoff[0], csc->preoff[1], csc->preoff[2]);
+
+	for (i = 0; i < 3; i++)
+		drm_dbg_kms(&i915->drm,
+			    "%s: coefficients: 0x%04x 0x%04x 0x%04x\n", name,
+			    csc->coeff[3 * i + 0],
+			    csc->coeff[3 * i + 1],
+			    csc->coeff[3 * i + 2]);
+
+	if (DISPLAY_VER(i915) < 7)
+		return;
+
+	drm_dbg_kms(&i915->drm,
+		    "%s: post offsets: 0x%04x 0x%04x 0x%04x\n", name,
+		    csc->postoff[0], csc->postoff[1], csc->postoff[2]);
+}
+
+static void
+vlv_dump_csc(struct drm_i915_private *i915, const char *name,
+	     const struct intel_csc_matrix *csc)
+{
+	int i;
+
+	for (i = 0; i < 3; i++)
+		drm_dbg_kms(&i915->drm,
+			    "%s: coefficients: 0x%04x 0x%04x 0x%04x\n", name,
+			    csc->coeff[3 * i + 0],
+			    csc->coeff[3 * i + 1],
+			    csc->coeff[3 * i + 2]);
+}
+
 void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 			   struct intel_atomic_state *state,
 			   const char *context)
@@ -178,10 +218,11 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 
 	snprintf_output_types(buf, sizeof(buf), pipe_config->output_types);
 	drm_dbg_kms(&i915->drm,
-		    "active: %s, output_types: %s (0x%x), output format: %s\n",
+		    "active: %s, output_types: %s (0x%x), output format: %s, sink format: %s\n",
 		    str_yes_no(pipe_config->hw.active),
 		    buf, pipe_config->output_types,
-		    intel_output_format_name(pipe_config->output_format));
+		    intel_output_format_name(pipe_config->output_format),
+		    intel_output_format_name(pipe_config->sink_format));
 
 	drm_dbg_kms(&i915->drm,
 		    "cpu_transcoder: %s, pipe bpp: %i, dithering: %i\n",
@@ -218,6 +259,18 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		intel_dump_m_n_config(pipe_config, "dp m2_n2",
 				      pipe_config->lane_count,
 				      &pipe_config->dp_m2_n2);
+		drm_dbg_kms(&i915->drm, "fec: %s, enhanced framing: %s\n",
+			    str_enabled_disabled(pipe_config->fec_enable),
+			    str_enabled_disabled(pipe_config->enhanced_framing));
+
+		drm_dbg_kms(&i915->drm, "sdp split: %s\n",
+			    str_enabled_disabled(pipe_config->sdp_split_enable));
+
+		drm_dbg_kms(&i915->drm, "psr: %s, psr2: %s, panel replay: %s, selective fetch: %s\n",
+			    str_enabled_disabled(pipe_config->has_psr),
+			    str_enabled_disabled(pipe_config->has_psr2),
+			    str_enabled_disabled(pipe_config->has_panel_replay),
+			    str_enabled_disabled(pipe_config->enable_psr2_sel_fetch));
 	}
 
 	drm_dbg_kms(&i915->drm, "framestart delay: %d, MSA timing delay: %d\n",
@@ -324,6 +377,16 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 		    drm_color_lut_size(pipe_config->pre_csc_lut) : 0,
 		    pipe_config->post_csc_lut ?
 		    drm_color_lut_size(pipe_config->post_csc_lut) : 0);
+
+	if (DISPLAY_VER(i915) >= 11)
+		ilk_dump_csc(i915, "output csc", &pipe_config->output_csc);
+
+	if (!HAS_GMCH(i915))
+		ilk_dump_csc(i915, "pipe csc", &pipe_config->csc);
+	else if (IS_CHERRYVIEW(i915))
+		vlv_dump_csc(i915, "cgm csc", &pipe_config->csc);
+	else if (IS_VALLEYVIEW(i915))
+		vlv_dump_csc(i915, "wgc csc", &pipe_config->csc);
 
 dump_planes:
 	if (!state)

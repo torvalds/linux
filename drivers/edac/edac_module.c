@@ -67,7 +67,7 @@ char *edac_op_state_to_string(int opstate)
  * sysfs object: /sys/devices/system/edac
  *	need to export to other files
  */
-static struct bus_type edac_subsys = {
+static const struct bus_type edac_subsys = {
 	.name = "edac",
 	.dev_name = "edac",
 };
@@ -90,7 +90,7 @@ static void edac_subsys_exit(void)
 }
 
 /* return pointer to the 'edac' node in sysfs */
-struct bus_type *edac_get_sysfs_subsys(void)
+const struct bus_type *edac_get_sysfs_subsys(void)
 {
 	return &edac_subsys;
 }

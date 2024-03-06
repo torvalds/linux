@@ -72,7 +72,7 @@ extern void ext2_xattr_delete_inode(struct inode *);
 extern struct mb_cache *ext2_xattr_create_cache(void);
 extern void ext2_xattr_destroy_cache(struct mb_cache *cache);
 
-extern const struct xattr_handler *ext2_xattr_handlers[];
+extern const struct xattr_handler * const ext2_xattr_handlers[];
 
 # else  /* CONFIG_EXT2_FS_XATTR */
 

@@ -17,7 +17,7 @@ struct env env = {
 	.duration_sec = 5,
 	.affinity = false,
 	.quiet = false,
-	.consumer_cnt = 1,
+	.consumer_cnt = 0,
 	.producer_cnt = 1,
 };
 
@@ -279,6 +279,7 @@ extern struct argp bench_local_storage_rcu_tasks_trace_argp;
 extern struct argp bench_strncmp_argp;
 extern struct argp bench_hashmap_lookup_argp;
 extern struct argp bench_local_storage_create_argp;
+extern struct argp bench_htab_mem_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
@@ -290,6 +291,7 @@ static const struct argp_child bench_parsers[] = {
 		"local_storage RCU Tasks Trace slowdown benchmark", 0 },
 	{ &bench_hashmap_lookup_argp, 0, "Hashmap lookup benchmark", 0 },
 	{ &bench_local_storage_create_argp, 0, "local-storage-create benchmark", 0 },
+	{ &bench_htab_mem_argp, 0, "hash map memory benchmark", 0 },
 	{},
 };
 
@@ -441,12 +443,14 @@ static void setup_timer()
 static void set_thread_affinity(pthread_t thread, int cpu)
 {
 	cpu_set_t cpuset;
+	int err;
 
 	CPU_ZERO(&cpuset);
 	CPU_SET(cpu, &cpuset);
-	if (pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset)) {
+	err = pthread_setaffinity_np(thread, sizeof(cpuset), &cpuset);
+	if (err) {
 		fprintf(stderr, "setting affinity to CPU #%d failed: %d\n",
-			cpu, errno);
+			cpu, -err);
 		exit(1);
 	}
 }
@@ -467,7 +471,7 @@ static int next_cpu(struct cpu_set *cpu_set)
 		exit(1);
 	}
 
-	return cpu_set->next_cpu++;
+	return cpu_set->next_cpu++ % env.nr_cpus;
 }
 
 static struct bench_state {
@@ -518,6 +522,7 @@ extern const struct bench bench_local_storage_cache_hashmap_control;
 extern const struct bench bench_local_storage_tasks_trace;
 extern const struct bench bench_bpf_hashmap_lookup;
 extern const struct bench bench_local_storage_create;
+extern const struct bench bench_htab_mem;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -559,6 +564,7 @@ static const struct bench *benchs[] = {
 	&bench_local_storage_tasks_trace,
 	&bench_bpf_hashmap_lookup,
 	&bench_local_storage_create,
+	&bench_htab_mem,
 };
 
 static void find_benchmark(void)
@@ -605,7 +611,7 @@ static void setup_benchmark(void)
 				     bench->consumer_thread, (void *)(long)i);
 		if (err) {
 			fprintf(stderr, "failed to create consumer thread #%d: %d\n",
-				i, -errno);
+				i, -err);
 			exit(1);
 		}
 		if (env.affinity)
@@ -624,7 +630,7 @@ static void setup_benchmark(void)
 				     bench->producer_thread, (void *)(long)i);
 		if (err) {
 			fprintf(stderr, "failed to create producer thread #%d: %d\n",
-				i, -errno);
+				i, -err);
 			exit(1);
 		}
 		if (env.affinity)
@@ -657,6 +663,7 @@ static void collect_measurements(long delta_ns) {
 
 int main(int argc, char **argv)
 {
+	env.nr_cpus = get_nprocs();
 	parse_cmdline_args_init(argc, argv);
 
 	if (env.list) {

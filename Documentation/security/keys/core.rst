@@ -869,7 +869,7 @@ The keyctl syscall functions are:
 
 	 - ``char *hashname`` specifies the NUL terminated string identifying
 	   the hash used from the kernel crypto API and applied for the KDF
-	   operation. The KDF implemenation complies with SP800-56A as well
+	   operation. The KDF implementation complies with SP800-56A as well
 	   as with SP800-108 (the counter KDF).
 
 	 - ``char *otherinfo`` specifies the OtherInfo data as documented in

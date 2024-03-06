@@ -342,19 +342,17 @@ static const struct vz89x_chip_data vz89x_chips[] = {
 };
 
 static const struct of_device_id vz89x_dt_ids[] = {
-	{ .compatible = "sgx,vz89x", .data = (void *) VZ89X },
-	{ .compatible = "sgx,vz89te", .data = (void *) VZ89TE },
+	{ .compatible = "sgx,vz89x", .data = &vz89x_chips[VZ89X] },
+	{ .compatible = "sgx,vz89te", .data = &vz89x_chips[VZ89TE] },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, vz89x_dt_ids);
 
 static int vz89x_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct device *dev = &client->dev;
 	struct iio_dev *indio_dev;
 	struct vz89x_data *data;
-	int chip_id;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
@@ -369,14 +367,10 @@ static int vz89x_probe(struct i2c_client *client)
 	else
 		return -EOPNOTSUPP;
 
-	if (!dev_fwnode(dev))
-		chip_id = id->driver_data;
-	else
-		chip_id = (unsigned long)device_get_match_data(dev);
+	data->chip = i2c_get_match_data(client);
 
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
-	data->chip = &vz89x_chips[chip_id];
 	data->last_update = jiffies - HZ;
 	mutex_init(&data->lock);
 
@@ -391,8 +385,8 @@ static int vz89x_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id vz89x_id[] = {
-	{ "vz89x", VZ89X },
-	{ "vz89te", VZ89TE },
+	{ "vz89x", (kernel_ulong_t)&vz89x_chips[VZ89X] },
+	{ "vz89te", (kernel_ulong_t)&vz89x_chips[VZ89TE] },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, vz89x_id);
@@ -402,7 +396,7 @@ static struct i2c_driver vz89x_driver = {
 		.name	= "vz89x",
 		.of_match_table = vz89x_dt_ids,
 	},
-	.probe_new = vz89x_probe,
+	.probe = vz89x_probe,
 	.id_table = vz89x_id,
 };
 module_i2c_driver(vz89x_driver);

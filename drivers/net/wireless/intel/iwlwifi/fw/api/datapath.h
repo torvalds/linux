@@ -38,7 +38,9 @@ enum iwl_data_path_subcmd_ids {
 	WNM_80211V_TIMING_MEASUREMENT_CONFIG_CMD = 0x4,
 
 	/**
-	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd
+	 * @STA_HE_CTXT_CMD: &struct iwl_he_sta_context_cmd_v1,
+	 *	&struct iwl_he_sta_context_cmd_v2 or
+	 *	&struct iwl_he_sta_context_cmd_v3
 	 */
 	STA_HE_CTXT_CMD = 0x7,
 
@@ -447,7 +449,7 @@ struct iwl_sad_properties {
  * @phy_id: PHY index
  * @rlc: RLC properties, &struct iwl_rlc_properties
  * @sad: SAD (single antenna diversity) options, &struct iwl_sad_properties
- * @flags: flags, &enum iwl_rlc_flags
+ * @flags: flags (unused)
  * @reserved: reserved
  */
 struct iwl_rlc_config_cmd {

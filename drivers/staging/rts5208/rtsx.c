@@ -117,7 +117,7 @@ static int slave_configure(struct scsi_device *sdev)
 	} while (0)
 
 /* queue a command */
-/* This is always called with scsi_lock(host) held */
+/* This is always called with spin_lock_irq(host->host_lock) held */
 static int queuecommand_lck(struct scsi_cmnd *srb)
 {
 	void (*done)(struct scsi_cmnd *) = scsi_done;
@@ -159,18 +159,18 @@ static int command_abort(struct scsi_cmnd *srb)
 	struct rtsx_dev *dev = host_to_rtsx(host);
 	struct rtsx_chip *chip = dev->chip;
 
-	scsi_lock(host);
+	spin_lock_irq(host->host_lock);
 
 	/* Is this command still active? */
 	if (chip->srb != srb) {
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 		dev_info(&dev->pci->dev, "-- nothing to abort\n");
 		return FAILED;
 	}
 
 	rtsx_set_stat(chip, RTSX_STAT_ABORT);
 
-	scsi_unlock(host);
+	spin_unlock_irq(host->host_lock);
 
 	/* Wait for the aborted command to finish */
 	wait_for_completion(&dev->notify);
@@ -366,7 +366,7 @@ static int rtsx_control_thread(void *__dev)
 		}
 
 		/* lock access to the state */
-		scsi_lock(host);
+		spin_lock_irq(host->host_lock);
 
 		/* has the command aborted ? */
 		if (rtsx_chk_stat(chip, RTSX_STAT_ABORT)) {
@@ -374,7 +374,7 @@ static int rtsx_control_thread(void *__dev)
 			goto skip_for_abort;
 		}
 
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 
 		/* reject the command if the direction indicator
 		 * is UNKNOWN
@@ -382,33 +382,27 @@ static int rtsx_control_thread(void *__dev)
 		if (chip->srb->sc_data_direction == DMA_BIDIRECTIONAL) {
 			dev_err(&dev->pci->dev, "UNKNOWN data direction\n");
 			chip->srb->result = DID_ERROR << 16;
-		}
-
-		/* reject if target != 0 or if LUN is higher than
-		 * the maximum known LUN
-		 */
-		else if (chip->srb->device->id) {
+		} else if (chip->srb->device->id) {
+			/* reject if target != 0 or if LUN is higher than
+			 * the maximum known LUN
+			 */
 			dev_err(&dev->pci->dev, "Bad target number (%d:%d)\n",
 				chip->srb->device->id,
 				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
-		}
-
-		else if (chip->srb->device->lun > chip->max_lun) {
+		} else if (chip->srb->device->lun > chip->max_lun) {
 			dev_err(&dev->pci->dev, "Bad LUN (%d:%d)\n",
 				chip->srb->device->id,
 				(u8)chip->srb->device->lun);
 			chip->srb->result = DID_BAD_TARGET << 16;
-		}
-
-		/* we've got a command, let's do it! */
-		else {
+		} else {
+			/* we've got a command, let's do it! */
 			scsi_show_command(chip);
 			rtsx_invoke_transport(chip->srb, chip);
 		}
 
 		/* lock access to the state */
-		scsi_lock(host);
+		spin_lock_irq(host->host_lock);
 
 		/* did the command already complete because of a disconnect? */
 		if (!chip->srb)
@@ -430,7 +424,7 @@ skip_for_abort:
 
 		/* finished working on this command */
 		chip->srb = NULL;
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 
 		/* unlock the device pointers */
 		mutex_unlock(&dev->dev_mutex);
@@ -609,9 +603,9 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	 * interrupt a SCSI-scan or device-reset delay
 	 */
 	mutex_lock(&dev->dev_mutex);
-	scsi_lock(host);
+	spin_lock_irq(host->host_lock);
 	rtsx_set_stat(chip, RTSX_STAT_DISCONNECT);
-	scsi_unlock(host);
+	spin_unlock_irq(host->host_lock);
 	mutex_unlock(&dev->dev_mutex);
 	wake_up(&dev->delay_wait);
 	wait_for_completion(&dev->scanning_done);
@@ -627,10 +621,10 @@ static void quiesce_and_remove_host(struct rtsx_dev *dev)
 	mutex_lock(&dev->dev_mutex);
 	if (chip->srb) {
 		chip->srb->result = DID_NO_CONNECT << 16;
-		scsi_lock(host);
+		spin_lock_irq(host->host_lock);
 		scsi_done(dev->chip->srb);
 		chip->srb = NULL;
-		scsi_unlock(host);
+		spin_unlock_irq(host->host_lock);
 	}
 	mutex_unlock(&dev->dev_mutex);
 

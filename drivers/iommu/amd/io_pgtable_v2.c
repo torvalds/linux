@@ -2,7 +2,7 @@
 /*
  * CPU-agnostic AMD IO page table v2 allocator.
  *
- * Copyright (C) 2022 Advanced Micro Devices, Inc.
+ * Copyright (C) 2022, 2023 Advanced Micro Devices, Inc.
  * Author: Suravee Suthikulpanit <suravee.suthikulpanit@amd.com>
  * Author: Vasant Hegde <vasant.hegde@amd.com>
  */
@@ -244,7 +244,6 @@ static int iommu_v2_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 	unsigned long mapped_size = 0;
 	unsigned long o_iova = iova;
 	size_t size = pgcount << __ffs(pgsize);
-	int count = 0;
 	int ret = 0;
 	bool updated = false;
 
@@ -265,19 +264,14 @@ static int iommu_v2_map_pages(struct io_pgtable_ops *ops, unsigned long iova,
 
 		*pte = set_pte_attr(paddr, map_size, prot);
 
-		count++;
 		iova += map_size;
 		paddr += map_size;
 		mapped_size += map_size;
 	}
 
 out:
-	if (updated) {
-		if (count > 1)
-			amd_iommu_flush_tlb(&pdom->domain, 0);
-		else
-			amd_iommu_flush_page(&pdom->domain, 0, o_iova);
-	}
+	if (updated)
+		amd_iommu_domain_flush_pages(pdom, o_iova, size);
 
 	if (mapped)
 		*mapped += mapped_size;
@@ -363,10 +357,10 @@ static void v2_free_pgtable(struct io_pgtable *iop)
 	if (!(pdom->flags & PD_IOMMUV2_MASK))
 		return;
 
-	/*
-	 * Make changes visible to IOMMUs. No need to clear gcr3 entry
-	 * as gcr3 table is already freed.
-	 */
+	/* Clear gcr3 entry */
+	amd_iommu_domain_clear_gcr3(&pdom->domain, 0);
+
+	/* Make changes visible to IOMMUs */
 	amd_iommu_domain_update(pdom);
 
 	/* Free page table */

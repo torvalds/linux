@@ -92,7 +92,7 @@ struct nh_res_table {
 	u32			unbalanced_timer;
 
 	u16			num_nh_buckets;
-	struct nh_res_bucket	nh_buckets[];
+	struct nh_res_bucket	nh_buckets[] __counted_by(num_nh_buckets);
 };
 
 struct nh_grp_entry {
@@ -126,7 +126,7 @@ struct nh_group {
 	bool			has_v4;
 
 	struct nh_res_table __rcu *res_table;
-	struct nh_grp_entry	nh_entries[];
+	struct nh_grp_entry	nh_entries[] __counted_by(num_nh);
 };
 
 struct nexthop {
@@ -187,7 +187,7 @@ struct nh_notifier_grp_entry_info {
 struct nh_notifier_grp_info {
 	u16 num_nh;
 	bool is_fdb;
-	struct nh_notifier_grp_entry_info nh_entries[];
+	struct nh_notifier_grp_entry_info nh_entries[] __counted_by(num_nh);
 };
 
 struct nh_notifier_res_bucket_info {
@@ -200,7 +200,7 @@ struct nh_notifier_res_bucket_info {
 
 struct nh_notifier_res_table_info {
 	u16 num_nh_buckets;
-	struct nh_notifier_single_info nhs[];
+	struct nh_notifier_single_info nhs[] __counted_by(num_nh_buckets);
 };
 
 struct nh_notifier_info {

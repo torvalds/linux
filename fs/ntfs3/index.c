@@ -432,8 +432,8 @@ next_run:
 			nbits = 8 * (data_size - vbo);
 
 		ok = nbits > from ?
-				   (*fn)((ulong *)bh->b_data, from, nbits, ret) :
-				   false;
+			     (*fn)((ulong *)bh->b_data, from, nbits, ret) :
+			     false;
 		put_bh(bh);
 
 		if (ok) {
@@ -728,6 +728,9 @@ static struct NTFS_DE *hdr_find_e(const struct ntfs_index *indx,
 	u32 off = le32_to_cpu(hdr->de_off);
 	u32 total = le32_to_cpu(hdr->total);
 	u16 offs[128];
+
+	if (unlikely(!cmp))
+		return NULL;
 
 fill_table:
 	if (end > total)
@@ -1113,6 +1116,12 @@ ok:
 	*node = in;
 
 out:
+	if (err == -E_NTFS_CORRUPT) {
+		ntfs_inode_err(&ni->vfs_inode, "directory corrupted");
+		ntfs_set_state(ni->mi.sbi, NTFS_DIRTY_ERROR);
+		err = -EINVAL;
+	}
+
 	if (ib != in->index)
 		kfree(ib);
 
@@ -1453,7 +1462,7 @@ static int indx_create_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 		goto out2;
 
 	if (in->name == I30_NAME) {
-		ni->vfs_inode.i_size = data_size;
+		i_size_write(&ni->vfs_inode, data_size);
 		inode_set_bytes(&ni->vfs_inode, alloc_size);
 	}
 
@@ -1535,7 +1544,7 @@ static int indx_add_allocate(struct ntfs_index *indx, struct ntfs_inode *ni,
 	}
 
 	if (in->name == I30_NAME)
-		ni->vfs_inode.i_size = data_size;
+		i_size_write(&ni->vfs_inode, data_size);
 
 	*vbn = bit << indx->idx2vbn_bits;
 
@@ -1676,8 +1685,8 @@ static int indx_insert_into_root(struct ntfs_index *indx, struct ntfs_inode *ni,
 
 	/* Create alloc and bitmap attributes (if not). */
 	err = run_is_empty(&indx->alloc_run) ?
-			    indx_create_allocate(indx, ni, &new_vbn) :
-			    indx_add_allocate(indx, ni, &new_vbn);
+		      indx_create_allocate(indx, ni, &new_vbn) :
+		      indx_add_allocate(indx, ni, &new_vbn);
 
 	/* Layout of record may be changed, so rescan root. */
 	root = indx_get_root(indx, ni, &attr, &mi);
@@ -1868,8 +1877,8 @@ indx_insert_into_buffer(struct ntfs_index *indx, struct ntfs_inode *ni,
 		      (*indx->cmp)(new_de + 1, le16_to_cpu(new_de->key_size),
 				   up_e + 1, le16_to_cpu(up_e->key_size),
 				   ctx) < 0 ?
-				    hdr2 :
-				    hdr1,
+			      hdr2 :
+			      hdr1,
 		      new_de, NULL, ctx);
 
 	indx_mark_used(indx, ni, new_vbn >> indx->idx2vbn_bits);
@@ -2081,7 +2090,7 @@ static int indx_shrink(struct ntfs_index *indx, struct ntfs_inode *ni,
 		return err;
 
 	if (in->name == I30_NAME)
-		ni->vfs_inode.i_size = new_data;
+		i_size_write(&ni->vfs_inode, new_data);
 
 	bpb = bitmap_size(bit);
 	if (bpb * 8 == nbits)
@@ -2340,7 +2349,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 							      re, ctx,
 							      fnd->level - 1,
 							      fnd) :
-					    indx_insert_into_root(indx, ni, re, e,
+				      indx_insert_into_root(indx, ni, re, e,
 							    ctx, fnd, 0);
 			kfree(re);
 
@@ -2567,7 +2576,7 @@ int indx_delete_entry(struct ntfs_index *indx, struct ntfs_inode *ni,
 		err = attr_set_size(ni, ATTR_ALLOC, in->name, in->name_len,
 				    &indx->alloc_run, 0, NULL, false, NULL);
 		if (in->name == I30_NAME)
-			ni->vfs_inode.i_size = 0;
+			i_size_write(&ni->vfs_inode, 0);
 
 		err = ni_remove_attr(ni, ATTR_ALLOC, in->name, in->name_len,
 				     false, NULL);

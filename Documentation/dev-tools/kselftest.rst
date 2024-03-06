@@ -36,6 +36,7 @@ Running the selftests (hotplug tests are run in limited mode)
 
 To build the tests::
 
+  $ make headers
   $ make -C tools/testing/selftests
 
 To run the tests::
@@ -111,7 +112,7 @@ You can specify multiple tests to skip::
 You can also specify a restricted list of tests to run together with a
 dedicated skiplist::
 
-  $  make TARGETS="bpf breakpoints size timers" SKIP_TARGETS=bpf kselftest
+  $  make TARGETS="breakpoints size timers" SKIP_TARGETS=size kselftest
 
 See the top-level tools/testing/selftests/Makefile for the list of all
 possible targets.
@@ -164,9 +165,31 @@ To see the list of available tests, the `-l` option can be used::
 The `-c` option can be used to run all the tests from a test collection, or
 the `-t` option for specific single tests. Either can be used multiple times::
 
-   $ ./run_kselftest.sh -c bpf -c seccomp -t timers:posix_timers -t timer:nanosleep
+   $ ./run_kselftest.sh -c size -c seccomp -t timers:posix_timers -t timer:nanosleep
 
 For other features see the script usage output, seen with the `-h` option.
+
+Timeout for selftests
+=====================
+
+Selftests are designed to be quick and so a default timeout is used of 45
+seconds for each test. Tests can override the default timeout by adding
+a settings file in their directory and set a timeout variable there to the
+configured a desired upper timeout for the test. Only a few tests override
+the timeout with a value higher than 45 seconds, selftests strives to keep
+it that way. Timeouts in selftests are not considered fatal because the
+system under which a test runs may change and this can also modify the
+expected time it takes to run a test. If you have control over the systems
+which will run the tests you can configure a test runner on those systems to
+use a greater or lower timeout on the command line as with the `-o` or
+the `--override-timeout` argument. For example to use 165 seconds instead
+one would use:
+
+   $ ./run_kselftest.sh --override-timeout 165
+
+You can look at the TAP output to see if you ran into the timeout. Test
+runners which know a test must run under a specific time can then optionally
+treat these timeouts then as fatal.
 
 Packaging selftests
 ===================
@@ -187,7 +210,7 @@ option is supported, such as::
 tests by using variables specified in `Running a subset of selftests`_
 section::
 
-    $ make -C tools/testing/selftests gen_tar TARGETS="bpf" FORMAT=.xz
+    $ make -C tools/testing/selftests gen_tar TARGETS="size" FORMAT=.xz
 
 .. _tar's auto-compress: https://www.gnu.org/software/tar/manual/html_node/gzip.html#auto_002dcompress
 

@@ -221,7 +221,7 @@ int picolcd_fb_reset(struct picolcd_data *data, int clear)
 	return 0;
 }
 
-/* Update fb_vbitmap from the screen_base and send changed tiles to device */
+/* Update fb_vbitmap from the screen_buffer and send changed tiles to device */
 static void picolcd_fb_update(struct fb_info *info)
 {
 	int chip, tile, n;
@@ -281,54 +281,6 @@ static void picolcd_fb_update(struct fb_info *info)
 	}
 out:
 	mutex_unlock(&info->lock);
-}
-
-/* Stub to call the system default and update the image on the picoLCD */
-static void picolcd_fb_fillrect(struct fb_info *info,
-		const struct fb_fillrect *rect)
-{
-	if (!info->par)
-		return;
-	sys_fillrect(info, rect);
-
-	schedule_delayed_work(&info->deferred_work, 0);
-}
-
-/* Stub to call the system default and update the image on the picoLCD */
-static void picolcd_fb_copyarea(struct fb_info *info,
-		const struct fb_copyarea *area)
-{
-	if (!info->par)
-		return;
-	sys_copyarea(info, area);
-
-	schedule_delayed_work(&info->deferred_work, 0);
-}
-
-/* Stub to call the system default and update the image on the picoLCD */
-static void picolcd_fb_imageblit(struct fb_info *info, const struct fb_image *image)
-{
-	if (!info->par)
-		return;
-	sys_imageblit(info, image);
-
-	schedule_delayed_work(&info->deferred_work, 0);
-}
-
-/*
- * this is the slow path from userspace. they can seek and write to
- * the fb. it's inefficient to do anything less than a full screen draw
- */
-static ssize_t picolcd_fb_write(struct fb_info *info, const char __user *buf,
-		size_t count, loff_t *ppos)
-{
-	ssize_t ret;
-	if (!info->par)
-		return -ENODEV;
-	ret = fb_sys_write(info, buf, count, ppos);
-	if (ret >= 0)
-		schedule_delayed_work(&info->deferred_work, 0);
-	return ret;
 }
 
 static int picolcd_fb_blank(int blank, struct fb_info *info)
@@ -417,18 +369,31 @@ static int picolcd_set_par(struct fb_info *info)
 	return 0;
 }
 
+static void picolcdfb_ops_damage_range(struct fb_info *info, off_t off, size_t len)
+{
+	if (!info->par)
+		return;
+	schedule_delayed_work(&info->deferred_work, 0);
+}
+
+static void picolcdfb_ops_damage_area(struct fb_info *info, u32 x, u32 y, u32 width, u32 height)
+{
+	if (!info->par)
+		return;
+	schedule_delayed_work(&info->deferred_work, 0);
+}
+
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(picolcdfb_ops,
+				   picolcdfb_ops_damage_range,
+				   picolcdfb_ops_damage_area)
+
 static const struct fb_ops picolcdfb_ops = {
 	.owner        = THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(picolcdfb_ops),
 	.fb_destroy   = picolcd_fb_destroy,
-	.fb_read      = fb_sys_read,
-	.fb_write     = picolcd_fb_write,
 	.fb_blank     = picolcd_fb_blank,
-	.fb_fillrect  = picolcd_fb_fillrect,
-	.fb_copyarea  = picolcd_fb_copyarea,
-	.fb_imageblit = picolcd_fb_imageblit,
 	.fb_check_var = picolcd_fb_check_var,
 	.fb_set_par   = picolcd_set_par,
-	.fb_mmap      = fb_deferred_io_mmap,
 };
 
 
@@ -527,7 +492,6 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 	info->var = picolcdfb_var;
 	info->fix = picolcdfb_fix;
 	info->fix.smem_len   = PICOLCDFB_SIZE*8;
-	info->flags = FBINFO_FLAG_DEFAULT;
 
 	fbdata = info->par;
 	spin_lock_init(&fbdata->lock);
@@ -541,7 +505,8 @@ int picolcd_init_framebuffer(struct picolcd_data *data)
 		dev_err(dev, "can't get a free page for framebuffer\n");
 		goto err_nomem;
 	}
-	info->screen_base = (char __force __iomem *)fbdata->bitmap;
+	info->flags |= FBINFO_VIRTFB;
+	info->screen_buffer = fbdata->bitmap;
 	info->fix.smem_start = (unsigned long)fbdata->bitmap;
 	memset(fbdata->vbitmap, 0xff, PICOLCDFB_SIZE);
 	data->fb_info = info;

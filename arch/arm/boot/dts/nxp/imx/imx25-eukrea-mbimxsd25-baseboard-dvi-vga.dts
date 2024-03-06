@@ -1,0 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
+ */
+
+#include "imx25-eukrea-mbimxsd25-baseboard.dts"
+
+/ {
+	model = "Eukrea MBIMXSD25 with the DVI-VGA Display";
+	compatible = "eukrea,mbimxsd25-baseboard-dvi-vga", "eukrea,mbimxsd25-baseboard", "eukrea,cpuimx25", "fsl,imx25";
+
+	dvi_vga: display {
+		model = "DVI-VGA";
+		bits-per-pixel = <16>;
+		fsl,pcr = <0xfa208b80>;
+		bus-width = <18>;
+		display-timings {
+			native-mode = <&dvi_vga_timings>;
+			dvi_vga_timings: timing0 {
+				clock-frequency = <31250000>;
+				hactive = <640>;
+				vactive = <480>;
+				hback-porch = <100>;
+				hfront-porch = <100>;
+				vback-porch = <7>;
+				vfront-porch = <100>;
+				hsync-len = <7>;
+				vsync-len = <7>;
+			};
+		};
+	};
+};
+
+&lcdc {
+	display = <&dvi_vga>;
+	status = "okay";
+};

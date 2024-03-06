@@ -2,7 +2,7 @@
 /*
  * Implementation of the kernel access vector cache (AVC).
  *
- * Authors:  Stephen Smalley, <sds@tycho.nsa.gov>
+ * Authors:  Stephen Smalley, <stephen.smalley.work@gmail.com>
  *	     James Morris <jmorris@redhat.com>
  *
  * Update:   KaiGai, Kohei <kaigai@ak.jp.nec.com>
@@ -122,7 +122,7 @@ static struct kmem_cache *avc_xperms_data_cachep __ro_after_init;
 static struct kmem_cache *avc_xperms_decision_cachep __ro_after_init;
 static struct kmem_cache *avc_xperms_cachep __ro_after_init;
 
-static inline int avc_hash(u32 ssid, u32 tsid, u16 tclass)
+static inline u32 avc_hash(u32 ssid, u32 tsid, u16 tclass)
 {
 	return (ssid ^ (tsid<<2) ^ (tclass<<4)) & (AVC_CACHE_SLOTS - 1);
 }
@@ -523,7 +523,7 @@ static void avc_node_populate(struct avc_node *node, u32 ssid, u32 tsid, u16 tcl
 static inline struct avc_node *avc_search_node(u32 ssid, u32 tsid, u16 tclass)
 {
 	struct avc_node *node, *ret = NULL;
-	int hvalue;
+	u32 hvalue;
 	struct hlist_head *head;
 
 	hvalue = avc_hash(ssid, tsid, tclass);
@@ -566,7 +566,7 @@ static struct avc_node *avc_lookup(u32 ssid, u32 tsid, u16 tclass)
 	return NULL;
 }
 
-static int avc_latest_notif_update(int seqno, int is_insert)
+static int avc_latest_notif_update(u32 seqno, int is_insert)
 {
 	int ret = 0;
 	static DEFINE_SPINLOCK(notif_lock);
@@ -609,7 +609,7 @@ static void avc_insert(u32 ssid, u32 tsid, u16 tclass,
 		       struct av_decision *avd, struct avc_xperms_node *xp_node)
 {
 	struct avc_node *pos, *node = NULL;
-	int hvalue;
+	u32 hvalue;
 	unsigned long flag;
 	spinlock_t *lock;
 	struct hlist_head *head;
@@ -642,7 +642,6 @@ static void avc_insert(u32 ssid, u32 tsid, u16 tclass,
 	hlist_add_head_rcu(&node->list, head);
 found:
 	spin_unlock_irqrestore(lock, flag);
-	return;
 }
 
 /**
@@ -655,9 +654,9 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	struct selinux_audit_data *sad = ad->selinux_audit_data;
-	u32 av = sad->audited;
+	u32 av = sad->audited, perm;
 	const char *const *perms;
-	int i, perm;
+	u32 i;
 
 	audit_log_format(ab, "avc:  %s ", sad->denied ? "denied" : "granted");
 
@@ -834,7 +833,8 @@ static int avc_update_node(u32 event, u32 perms, u8 driver, u8 xperm, u32 ssid,
 			   struct extended_perms_decision *xpd,
 			   u32 flags)
 {
-	int hvalue, rc = 0;
+	u32 hvalue;
+	int rc = 0;
 	unsigned long flag;
 	struct avc_node *pos, *node, *orig = NULL;
 	struct hlist_head *head;
@@ -1202,23 +1202,4 @@ int avc_has_perm(u32 ssid, u32 tsid, u16 tclass,
 u32 avc_policy_seqno(void)
 {
 	return selinux_avc.avc_cache.latest_notif;
-}
-
-void avc_disable(void)
-{
-	/*
-	 * If you are looking at this because you have realized that we are
-	 * not destroying the avc_node_cachep it might be easy to fix, but
-	 * I don't know the memory barrier semantics well enough to know.  It's
-	 * possible that some other task dereferenced security_ops when
-	 * it still pointed to selinux operations.  If that is the case it's
-	 * possible that it is about to use the avc and is about to need the
-	 * avc_node_cachep.  I know I could wrap the security.c security_ops call
-	 * in an rcu_lock, but seriously, it's not worth it.  Instead I just flush
-	 * the cache and get that memory back.
-	 */
-	if (avc_node_cachep) {
-		avc_flush();
-		/* kmem_cache_destroy(avc_node_cachep); */
-	}
 }

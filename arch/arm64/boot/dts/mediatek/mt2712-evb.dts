@@ -11,6 +11,7 @@
 
 / {
 	model = "MediaTek MT2712 evaluation board";
+	chassis-type = "embedded";
 	compatible = "mediatek,mt2712-evb", "mediatek,mt2712";
 
 	aliases {

@@ -178,7 +178,6 @@ static int keembay_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 }
 
 static const struct pwm_ops keembay_pwm_ops = {
-	.owner = THIS_MODULE,
 	.apply = keembay_pwm_apply,
 	.get_state = keembay_pwm_get_state,
 };

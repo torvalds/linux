@@ -150,7 +150,7 @@ static struct i2c_driver bd2606mvv_driver = {
 		.name    = "leds-bd2606mvv",
 		.of_match_table = of_match_ptr(of_bd2606mvv_leds_match),
 	},
-	.probe_new = bd2606mvv_probe,
+	.probe = bd2606mvv_probe,
 };
 
 module_i2c_driver(bd2606mvv_driver);

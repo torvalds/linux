@@ -38,13 +38,11 @@
 	asmlinkage long __arm64_compat_sys_##sname(const struct pt_regs *__unused)
 
 #define COND_SYSCALL_COMPAT(name) 							\
+	asmlinkage long __arm64_compat_sys_##name(const struct pt_regs *regs);		\
 	asmlinkage long __weak __arm64_compat_sys_##name(const struct pt_regs *regs)	\
 	{										\
 		return sys_ni_syscall();						\
 	}
-
-#define COMPAT_SYS_NI(name) \
-	SYSCALL_ALIAS(__arm64_compat_sys_##name, sys_ni_posix_timers);
 
 #endif /* CONFIG_COMPAT */
 
@@ -73,11 +71,12 @@
 	asmlinkage long __arm64_sys_##sname(const struct pt_regs *__unused)
 
 #define COND_SYSCALL(name)							\
+	asmlinkage long __arm64_sys_##name(const struct pt_regs *regs);		\
 	asmlinkage long __weak __arm64_sys_##name(const struct pt_regs *regs)	\
 	{									\
 		return sys_ni_syscall();					\
 	}
 
-#define SYS_NI(name) SYSCALL_ALIAS(__arm64_sys_##name, sys_ni_posix_timers);
+asmlinkage long __arm64_sys_ni_syscall(const struct pt_regs *__unused);
 
 #endif /* __ASM_SYSCALL_WRAPPER_H */

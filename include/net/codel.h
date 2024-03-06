@@ -145,8 +145,8 @@ struct codel_vars {
  * @maxpacket:	largest packet we've seen so far
  * @drop_count:	temp count of dropped packets in dequeue()
  * @drop_len:	bytes of dropped packets in dequeue()
- * ecn_mark:	number of packets we ECN marked instead of dropping
- * ce_mark:	number of packets CE marked because sojourn time was above ce_threshold
+ * @ecn_mark:	number of packets we ECN marked instead of dropping
+ * @ce_mark:	number of packets CE marked because sojourn time was above ce_threshold
  */
 struct codel_stats {
 	u32		maxpacket;

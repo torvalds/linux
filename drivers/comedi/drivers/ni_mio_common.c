@@ -46,6 +46,12 @@
 #include <linux/comedi/comedi_8255.h>
 #include "mite.h"
 
+#ifdef PCIDMA
+#define IS_PCIMIO 1
+#else
+#define IS_PCIMIO 0
+#endif
+
 /* A timeout count */
 #define NI_TIMEOUT 1000
 
@@ -219,53 +225,71 @@ enum timebase_nanoseconds {
 
 static const int num_adc_stages_611x = 3;
 
+#ifdef PCIDMA
+
 static void ni_writel(struct comedi_device *dev, unsigned int data, int reg)
 {
-	if (dev->mmio)
-		writel(data, dev->mmio + reg);
-	else
-		outl(data, dev->iobase + reg);
+	writel(data, dev->mmio + reg);
 }
 
 static void ni_writew(struct comedi_device *dev, unsigned int data, int reg)
 {
-	if (dev->mmio)
-		writew(data, dev->mmio + reg);
-	else
-		outw(data, dev->iobase + reg);
+	writew(data, dev->mmio + reg);
 }
 
 static void ni_writeb(struct comedi_device *dev, unsigned int data, int reg)
 {
-	if (dev->mmio)
-		writeb(data, dev->mmio + reg);
-	else
-		outb(data, dev->iobase + reg);
+	writeb(data, dev->mmio + reg);
 }
 
 static unsigned int ni_readl(struct comedi_device *dev, int reg)
 {
-	if (dev->mmio)
-		return readl(dev->mmio + reg);
+	return readl(dev->mmio + reg);
+}
 
+static unsigned int ni_readw(struct comedi_device *dev, int reg)
+{
+	return readw(dev->mmio + reg);
+}
+
+static unsigned int ni_readb(struct comedi_device *dev, int reg)
+{
+	return readb(dev->mmio + reg);
+}
+
+#else /* PCIDMA */
+
+static void ni_writel(struct comedi_device *dev, unsigned int data, int reg)
+{
+	outl(data, dev->iobase + reg);
+}
+
+static void ni_writew(struct comedi_device *dev, unsigned int data, int reg)
+{
+	outw(data, dev->iobase + reg);
+}
+
+static void ni_writeb(struct comedi_device *dev, unsigned int data, int reg)
+{
+	outb(data, dev->iobase + reg);
+}
+
+static unsigned int ni_readl(struct comedi_device *dev, int reg)
+{
 	return inl(dev->iobase + reg);
 }
 
 static unsigned int ni_readw(struct comedi_device *dev, int reg)
 {
-	if (dev->mmio)
-		return readw(dev->mmio + reg);
-
 	return inw(dev->iobase + reg);
 }
 
 static unsigned int ni_readb(struct comedi_device *dev, int reg)
 {
-	if (dev->mmio)
-		return readb(dev->mmio + reg);
-
 	return inb(dev->iobase + reg);
 }
+
+#endif /* PCIDMA */
 
 /*
  * We automatically take advantage of STC registers that can be
@@ -5977,6 +6001,12 @@ static int ni_E_init(struct comedi_device *dev,
 	int i;
 	const char *dev_family = devpriv->is_m_series ? "ni_mseries"
 						      : "ni_eseries";
+	if (!IS_PCIMIO != !dev->mmio) {
+		dev_err(dev->class_dev,
+			"%s: bug! %s device not supported.\n",
+			KBUILD_MODNAME, board->name);
+		return -ENXIO;
+	}
 
 	/* prepare the device for globally-named routes. */
 	if (ni_assign_device_routes(dev_family, board->name,
@@ -6137,8 +6167,8 @@ static int ni_E_init(struct comedi_device *dev,
 	/* 8255 device */
 	s = &dev->subdevices[NI_8255_DIO_SUBDEV];
 	if (board->has_8255) {
-		ret = subdev_8255_init(dev, s, ni_8255_callback,
-				       NI_E_8255_BASE);
+		ret = subdev_8255_cb_init(dev, s, ni_8255_callback,
+					  NI_E_8255_BASE);
 		if (ret)
 			return ret;
 	} else {

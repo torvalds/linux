@@ -1,0 +1,68 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/light/ti,opt4001.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Texas Instruments OPT4001 Ambient Light Sensor
+
+maintainers:
+  - Stefan Windfeldt-Prytz <stefan.windfeldt-prytz@axis.com>
+
+description:
+  Ambient light sensor with an i2c interface.
+  Last part of compatible is for the packaging used.
+  Picostar is a 4 pinned SMT and sot-5x3 is a 8 pinned SOT.
+  https://www.ti.com/lit/gpn/opt4001
+
+properties:
+  compatible:
+    enum:
+      - ti,opt4001-picostar
+      - ti,opt4001-sot-5x3
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  vdd-supply:
+    description: Regulator that provides power to the sensor
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: ti,opt4001-sot-5x3
+    then:
+      properties:
+        interrupts:
+          maxItems: 1
+    else:
+      properties:
+        interrupts: false
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        light-sensor@44 {
+            compatible = "ti,opt4001-sot-5x3";
+            reg = <0x44>;
+            vdd-supply = <&vdd_reg>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <28 IRQ_TYPE_EDGE_FALLING>;
+        };
+    };
+...

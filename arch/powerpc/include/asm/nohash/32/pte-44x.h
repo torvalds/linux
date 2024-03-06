@@ -63,12 +63,12 @@
  */
 
 #define _PAGE_PRESENT	0x00000001		/* S: PTE valid */
-#define _PAGE_RW	0x00000002		/* S: Write permission */
+#define _PAGE_WRITE	0x00000002		/* S: Write permission */
 #define _PAGE_EXEC	0x00000004		/* H: Execute permission */
-#define _PAGE_ACCESSED	0x00000008		/* S: Page referenced */
+#define _PAGE_READ	0x00000008		/* S: Read permission */
 #define _PAGE_DIRTY	0x00000010		/* S: Page dirty */
 #define _PAGE_SPECIAL	0x00000020		/* S: Special page */
-#define _PAGE_USER	0x00000040		/* S: User page */
+#define _PAGE_ACCESSED	0x00000040		/* S: Page referenced */
 #define _PAGE_ENDIAN	0x00000080		/* H: E bit */
 #define _PAGE_GUARDED	0x00000100		/* H: G bit */
 #define _PAGE_COHERENT	0x00000200		/* H: M bit */
@@ -77,11 +77,6 @@
 
 /* No page size encoding in the linux PTE */
 #define _PAGE_PSIZE		0
-
-#define _PAGE_KERNEL_RO		0
-#define _PAGE_KERNEL_ROX	_PAGE_EXEC
-#define _PAGE_KERNEL_RW		(_PAGE_DIRTY | _PAGE_RW)
-#define _PAGE_KERNEL_RWX	(_PAGE_DIRTY | _PAGE_RW | _PAGE_EXEC)
 
 /* TODO: Add large page lowmem mapping support */
 #define _PMD_PRESENT	0
@@ -105,14 +100,7 @@
 #define _PAGE_BASE	(_PAGE_BASE_NC)
 #endif
 
-/* Permission masks used to generate the __P and __S table */
-#define PAGE_NONE	__pgprot(_PAGE_BASE)
-#define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW)
-#define PAGE_SHARED_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_RW | _PAGE_EXEC)
-#define PAGE_COPY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_COPY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
-#define PAGE_READONLY	__pgprot(_PAGE_BASE | _PAGE_USER)
-#define PAGE_READONLY_X	__pgprot(_PAGE_BASE | _PAGE_USER | _PAGE_EXEC)
+#include <asm/pgtable-masks.h>
 
 #endif /* __KERNEL__ */
 #endif /*  _ASM_POWERPC_NOHASH_32_PTE_44x_H */

@@ -559,7 +559,7 @@ err_clk_if_enable:
 	return ret;
 }
 
-static int rcar_gyroadc_remove(struct platform_device *pdev)
+static void rcar_gyroadc_remove(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
 	struct rcar_gyroadc *priv = iio_priv(indio_dev);
@@ -573,8 +573,6 @@ static int rcar_gyroadc_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(dev);
 	clk_disable_unprepare(priv->clk);
 	rcar_gyroadc_deinit_supplies(indio_dev);
-
-	return 0;
 }
 
 static int rcar_gyroadc_suspend(struct device *dev)
@@ -603,7 +601,7 @@ static const struct dev_pm_ops rcar_gyroadc_pm_ops = {
 
 static struct platform_driver rcar_gyroadc_driver = {
 	.probe          = rcar_gyroadc_probe,
-	.remove         = rcar_gyroadc_remove,
+	.remove_new     = rcar_gyroadc_remove,
 	.driver         = {
 		.name		= DRIVER_NAME,
 		.of_match_table	= rcar_gyroadc_match,

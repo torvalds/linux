@@ -26,10 +26,6 @@ struct nvm_auth_status {
 	u32 status;
 };
 
-static bool clx_enabled = true;
-module_param_named(clx, clx_enabled, bool, 0444);
-MODULE_PARM_DESC(clx, "allow low power states on the high-speed lanes (default: true)");
-
 /*
  * Hold NVM authentication failure status per switch This information
  * needs to stay around even when the switch gets power cycled so we
@@ -376,6 +372,7 @@ static int tb_switch_nvm_add(struct tb_switch *sw)
 		ret = tb_nvm_add_active(nvm, nvm_read);
 		if (ret)
 			goto err_nvm;
+		tb_sw_dbg(sw, "NVM version %x.%x\n", nvm->major, nvm->minor);
 	}
 
 	if (!sw->no_nvm_upgrade) {
@@ -727,7 +724,7 @@ static int tb_init_port(struct tb_port *port)
 		 * can be read from the path config space. Legacy
 		 * devices we use hard-coded value.
 		 */
-		if (tb_switch_is_usb4(port->sw)) {
+		if (port->cap_usb4) {
 			struct tb_regs_hop hop;
 
 			if (!tb_port_read(port, &hop, TB_CFG_HOPS, 0, 2))
@@ -907,15 +904,49 @@ int tb_port_get_link_speed(struct tb_port *port)
 
 	speed = (val & LANE_ADP_CS_1_CURRENT_SPEED_MASK) >>
 		LANE_ADP_CS_1_CURRENT_SPEED_SHIFT;
-	return speed == LANE_ADP_CS_1_CURRENT_SPEED_GEN3 ? 20 : 10;
+
+	switch (speed) {
+	case LANE_ADP_CS_1_CURRENT_SPEED_GEN4:
+		return 40;
+	case LANE_ADP_CS_1_CURRENT_SPEED_GEN3:
+		return 20;
+	default:
+		return 10;
+	}
+}
+
+/**
+ * tb_port_get_link_generation() - Returns link generation
+ * @port: Lane adapter
+ *
+ * Returns link generation as number or negative errno in case of
+ * failure. Does not distinguish between Thunderbolt 1 and Thunderbolt 2
+ * links so for those always returns 2.
+ */
+int tb_port_get_link_generation(struct tb_port *port)
+{
+	int ret;
+
+	ret = tb_port_get_link_speed(port);
+	if (ret < 0)
+		return ret;
+
+	switch (ret) {
+	case 40:
+		return 4;
+	case 20:
+		return 3;
+	default:
+		return 2;
+	}
 }
 
 /**
  * tb_port_get_link_width() - Get current link width
  * @port: Port to check (USB4 or CIO)
  *
- * Returns link width. Return values can be 1 (Single-Lane), 2 (Dual-Lane)
- * or negative errno in case of failure.
+ * Returns link width. Return the link width as encoded in &enum
+ * tb_link_width or negative errno in case of failure.
  */
 int tb_port_get_link_width(struct tb_port *port)
 {
@@ -930,11 +961,20 @@ int tb_port_get_link_width(struct tb_port *port)
 	if (ret)
 		return ret;
 
+	/* Matches the values in enum tb_link_width */
 	return (val & LANE_ADP_CS_1_CURRENT_WIDTH_MASK) >>
 		LANE_ADP_CS_1_CURRENT_WIDTH_SHIFT;
 }
 
-static bool tb_port_is_width_supported(struct tb_port *port, int width)
+/**
+ * tb_port_width_supported() - Is the given link width supported
+ * @port: Port to check
+ * @width: Widths to check (bitmask)
+ *
+ * Can be called to any lane adapter. Checks if given @width is
+ * supported by the hardware and returns %true if it is.
+ */
+bool tb_port_width_supported(struct tb_port *port, unsigned int width)
 {
 	u32 phy, widths;
 	int ret;
@@ -942,28 +982,36 @@ static bool tb_port_is_width_supported(struct tb_port *port, int width)
 	if (!port->cap_phy)
 		return false;
 
+	if (width & (TB_LINK_WIDTH_ASYM_TX | TB_LINK_WIDTH_ASYM_RX)) {
+		if (tb_port_get_link_generation(port) < 4 ||
+		    !usb4_port_asym_supported(port))
+			return false;
+	}
+
 	ret = tb_port_read(port, &phy, TB_CFG_PORT,
 			   port->cap_phy + LANE_ADP_CS_0, 1);
 	if (ret)
 		return false;
 
-	widths = (phy & LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK) >>
-		LANE_ADP_CS_0_SUPPORTED_WIDTH_SHIFT;
-
-	return !!(widths & width);
+	/*
+	 * The field encoding is the same as &enum tb_link_width (which is
+	 * passed to @width).
+	 */
+	widths = FIELD_GET(LANE_ADP_CS_0_SUPPORTED_WIDTH_MASK, phy);
+	return widths & width;
 }
 
 /**
  * tb_port_set_link_width() - Set target link width of the lane adapter
  * @port: Lane adapter
- * @width: Target link width (%1 or %2)
+ * @width: Target link width
  *
  * Sets the target link width of the lane adapter to @width. Does not
  * enable/disable lane bonding. For that call tb_port_set_lane_bonding().
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_port_set_link_width(struct tb_port *port, unsigned int width)
+int tb_port_set_link_width(struct tb_port *port, enum tb_link_width width)
 {
 	u32 val;
 	int ret;
@@ -978,14 +1026,25 @@ int tb_port_set_link_width(struct tb_port *port, unsigned int width)
 
 	val &= ~LANE_ADP_CS_1_TARGET_WIDTH_MASK;
 	switch (width) {
-	case 1:
+	case TB_LINK_WIDTH_SINGLE:
+		/* Gen 4 link cannot be single */
+		if (tb_port_get_link_generation(port) >= 4)
+			return -EOPNOTSUPP;
 		val |= LANE_ADP_CS_1_TARGET_WIDTH_SINGLE <<
 			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
 		break;
-	case 2:
+
+	case TB_LINK_WIDTH_DUAL:
+		if (tb_port_get_link_generation(port) >= 4)
+			return usb4_port_asym_set_link_width(port, width);
 		val |= LANE_ADP_CS_1_TARGET_WIDTH_DUAL <<
 			LANE_ADP_CS_1_TARGET_WIDTH_SHIFT;
 		break;
+
+	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
+		return usb4_port_asym_set_link_width(port, width);
+
 	default:
 		return -EINVAL;
 	}
@@ -1004,12 +1063,9 @@ int tb_port_set_link_width(struct tb_port *port, unsigned int width)
  * cases one should use tb_port_lane_bonding_enable() instead to enable
  * lane bonding.
  *
- * As a side effect sets @port->bonding accordingly (and does the same
- * for lane 1 too).
- *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
+static int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
 {
 	u32 val;
 	int ret;
@@ -1027,19 +1083,8 @@ int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
 	else
 		val &= ~LANE_ADP_CS_1_LB;
 
-	ret = tb_port_write(port, &val, TB_CFG_PORT,
-			    port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return ret;
-
-	/*
-	 * When lane 0 bonding is set it will affect lane 1 too so
-	 * update both.
-	 */
-	port->bonded = bonding;
-	port->dual_link_port->bonded = bonding;
-
-	return 0;
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_phy + LANE_ADP_CS_1, 1);
 }
 
 /**
@@ -1056,36 +1101,52 @@ int tb_port_set_lane_bonding(struct tb_port *port, bool bonding)
  */
 int tb_port_lane_bonding_enable(struct tb_port *port)
 {
+	enum tb_link_width width;
 	int ret;
 
 	/*
 	 * Enable lane bonding for both links if not already enabled by
 	 * for example the boot firmware.
 	 */
-	ret = tb_port_get_link_width(port);
-	if (ret == 1) {
-		ret = tb_port_set_link_width(port, 2);
+	width = tb_port_get_link_width(port);
+	if (width == TB_LINK_WIDTH_SINGLE) {
+		ret = tb_port_set_link_width(port, TB_LINK_WIDTH_DUAL);
 		if (ret)
 			goto err_lane0;
 	}
 
-	ret = tb_port_get_link_width(port->dual_link_port);
-	if (ret == 1) {
-		ret = tb_port_set_link_width(port->dual_link_port, 2);
+	width = tb_port_get_link_width(port->dual_link_port);
+	if (width == TB_LINK_WIDTH_SINGLE) {
+		ret = tb_port_set_link_width(port->dual_link_port,
+					     TB_LINK_WIDTH_DUAL);
 		if (ret)
 			goto err_lane0;
 	}
 
-	ret = tb_port_set_lane_bonding(port, true);
-	if (ret)
-		goto err_lane1;
+	/*
+	 * Only set bonding if the link was not already bonded. This
+	 * avoids the lane adapter to re-enter bonding state.
+	 */
+	if (width == TB_LINK_WIDTH_SINGLE && !tb_is_upstream_port(port)) {
+		ret = tb_port_set_lane_bonding(port, true);
+		if (ret)
+			goto err_lane1;
+	}
+
+	/*
+	 * When lane 0 bonding is set it will affect lane 1 too so
+	 * update both.
+	 */
+	port->bonded = true;
+	port->dual_link_port->bonded = true;
 
 	return 0;
 
 err_lane1:
-	tb_port_set_link_width(port->dual_link_port, 1);
+	tb_port_set_link_width(port->dual_link_port, TB_LINK_WIDTH_SINGLE);
 err_lane0:
-	tb_port_set_link_width(port, 1);
+	tb_port_set_link_width(port, TB_LINK_WIDTH_SINGLE);
+
 	return ret;
 }
 
@@ -1099,26 +1160,34 @@ err_lane0:
 void tb_port_lane_bonding_disable(struct tb_port *port)
 {
 	tb_port_set_lane_bonding(port, false);
-	tb_port_set_link_width(port->dual_link_port, 1);
-	tb_port_set_link_width(port, 1);
+	tb_port_set_link_width(port->dual_link_port, TB_LINK_WIDTH_SINGLE);
+	tb_port_set_link_width(port, TB_LINK_WIDTH_SINGLE);
+	port->dual_link_port->bonded = false;
+	port->bonded = false;
 }
 
 /**
  * tb_port_wait_for_link_width() - Wait until link reaches specific width
  * @port: Port to wait for
- * @width: Expected link width (%1 or %2)
+ * @width: Expected link width (bitmask)
  * @timeout_msec: Timeout in ms how long to wait
  *
  * Should be used after both ends of the link have been bonded (or
  * bonding has been disabled) to wait until the link actually reaches
- * the expected state. Returns %-ETIMEDOUT if the @width was not reached
- * within the given timeout, %0 if it did.
+ * the expected state. Returns %-ETIMEDOUT if the width was not reached
+ * within the given timeout, %0 if it did. Can be passed a mask of
+ * expected widths and succeeds if any of the widths is reached.
  */
-int tb_port_wait_for_link_width(struct tb_port *port, int width,
+int tb_port_wait_for_link_width(struct tb_port *port, unsigned int width,
 				int timeout_msec)
 {
 	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 	int ret;
+
+	/* Gen 4 link does not support single lane */
+	if ((width & TB_LINK_WIDTH_SINGLE) &&
+	    tb_port_get_link_generation(port) >= 4)
+		return -EOPNOTSUPP;
 
 	do {
 		ret = tb_port_get_link_width(port);
@@ -1130,7 +1199,7 @@ int tb_port_wait_for_link_width(struct tb_port *port, int width,
 			 */
 			if (ret != -EACCES)
 				return ret;
-		} else if (ret == width) {
+		} else if (ret & width) {
 			return 0;
 		}
 
@@ -1181,135 +1250,6 @@ int tb_port_update_credits(struct tb_port *port)
 	if (ret)
 		return ret;
 	return tb_port_do_update_credits(port->dual_link_port);
-}
-
-static int __tb_port_pm_secondary_set(struct tb_port *port, bool secondary)
-{
-	u32 phy;
-	int ret;
-
-	ret = tb_port_read(port, &phy, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return ret;
-
-	if (secondary)
-		phy |= LANE_ADP_CS_1_PMS;
-	else
-		phy &= ~LANE_ADP_CS_1_PMS;
-
-	return tb_port_write(port, &phy, TB_CFG_PORT,
-			     port->cap_phy + LANE_ADP_CS_1, 1);
-}
-
-static int tb_port_pm_secondary_enable(struct tb_port *port)
-{
-	return __tb_port_pm_secondary_set(port, true);
-}
-
-static int tb_port_pm_secondary_disable(struct tb_port *port)
-{
-	return __tb_port_pm_secondary_set(port, false);
-}
-
-/* Called for USB4 or Titan Ridge routers only */
-static bool tb_port_clx_supported(struct tb_port *port, unsigned int clx_mask)
-{
-	u32 val, mask = 0;
-	bool ret;
-
-	/* Don't enable CLx in case of two single-lane links */
-	if (!port->bonded && port->dual_link_port)
-		return false;
-
-	/* Don't enable CLx in case of inter-domain link */
-	if (port->xdomain)
-		return false;
-
-	if (tb_switch_is_usb4(port->sw)) {
-		if (!usb4_port_clx_supported(port))
-			return false;
-	} else if (!tb_lc_is_clx_supported(port)) {
-		return false;
-	}
-
-	if (clx_mask & TB_CL1) {
-		/* CL0s and CL1 are enabled and supported together */
-		mask |= LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
-	}
-	if (clx_mask & TB_CL2)
-		mask |= LANE_ADP_CS_0_CL2_SUPPORT;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_0, 1);
-	if (ret)
-		return false;
-
-	return !!(val & mask);
-}
-
-static int __tb_port_clx_set(struct tb_port *port, enum tb_clx clx, bool enable)
-{
-	u32 phy, mask;
-	int ret;
-
-	/* CL0s and CL1 are enabled and supported together */
-	if (clx == TB_CL1)
-		mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
-	else
-		/* For now we support only CL0s and CL1. Not CL2 */
-		return -EOPNOTSUPP;
-
-	ret = tb_port_read(port, &phy, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return ret;
-
-	if (enable)
-		phy |= mask;
-	else
-		phy &= ~mask;
-
-	return tb_port_write(port, &phy, TB_CFG_PORT,
-			     port->cap_phy + LANE_ADP_CS_1, 1);
-}
-
-static int tb_port_clx_disable(struct tb_port *port, enum tb_clx clx)
-{
-	return __tb_port_clx_set(port, clx, false);
-}
-
-static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
-{
-	return __tb_port_clx_set(port, clx, true);
-}
-
-/**
- * tb_port_is_clx_enabled() - Is given CL state enabled
- * @port: USB4 port to check
- * @clx_mask: Mask of CL states to check
- *
- * Returns true if any of the given CL states is enabled for @port.
- */
-bool tb_port_is_clx_enabled(struct tb_port *port, unsigned int clx_mask)
-{
-	u32 val, mask = 0;
-	int ret;
-
-	if (!tb_port_clx_supported(port, clx_mask))
-		return false;
-
-	if (clx_mask & TB_CL1)
-		mask |= LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
-	if (clx_mask & TB_CL2)
-		mask |= LANE_ADP_CS_1_CL2_ENABLE;
-
-	ret = tb_port_read(port, &val, TB_CFG_PORT,
-			   port->cap_phy + LANE_ADP_CS_1, 1);
-	if (ret)
-		return false;
-
-	return !!(val & mask);
 }
 
 static int tb_port_start_lane_initialization(struct tb_port *port)
@@ -1438,7 +1378,7 @@ int tb_pci_port_enable(struct tb_port *port, bool enable)
  * tb_dp_port_hpd_is_active() - Is HPD already active
  * @port: DP out port to check
  *
- * Checks if the DP OUT adapter port has HDP bit already set.
+ * Checks if the DP OUT adapter port has HPD bit already set.
  */
 int tb_dp_port_hpd_is_active(struct tb_port *port)
 {
@@ -1450,14 +1390,14 @@ int tb_dp_port_hpd_is_active(struct tb_port *port)
 	if (ret)
 		return ret;
 
-	return !!(data & ADP_DP_CS_2_HDP);
+	return !!(data & ADP_DP_CS_2_HPD);
 }
 
 /**
  * tb_dp_port_hpd_clear() - Clear HPD from DP IN port
  * @port: Port to clear HPD
  *
- * If the DP IN port has HDP set, this function can be used to clear it.
+ * If the DP IN port has HPD set, this function can be used to clear it.
  */
 int tb_dp_port_hpd_clear(struct tb_port *port)
 {
@@ -1469,7 +1409,7 @@ int tb_dp_port_hpd_clear(struct tb_port *port)
 	if (ret)
 		return ret;
 
-	data |= ADP_DP_CS_3_HDPC;
+	data |= ADP_DP_CS_3_HPDC;
 	return tb_port_write(port, &data, TB_CFG_PORT,
 			     port->cap_adap + ADP_DP_CS_3, 1);
 }
@@ -1911,20 +1851,57 @@ static ssize_t speed_show(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(rx_speed, 0444, speed_show, NULL);
 static DEVICE_ATTR(tx_speed, 0444, speed_show, NULL);
 
-static ssize_t lanes_show(struct device *dev, struct device_attribute *attr,
-			  char *buf)
+static ssize_t rx_lanes_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
 {
 	struct tb_switch *sw = tb_to_switch(dev);
+	unsigned int width;
 
-	return sysfs_emit(buf, "%u\n", sw->link_width);
+	switch (sw->link_width) {
+	case TB_LINK_WIDTH_SINGLE:
+	case TB_LINK_WIDTH_ASYM_TX:
+		width = 1;
+		break;
+	case TB_LINK_WIDTH_DUAL:
+		width = 2;
+		break;
+	case TB_LINK_WIDTH_ASYM_RX:
+		width = 3;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	return sysfs_emit(buf, "%u\n", width);
 }
+static DEVICE_ATTR(rx_lanes, 0444, rx_lanes_show, NULL);
 
-/*
- * Currently link has same amount of lanes both directions (1 or 2) but
- * expose them separately to allow possible asymmetric links in the future.
- */
-static DEVICE_ATTR(rx_lanes, 0444, lanes_show, NULL);
-static DEVICE_ATTR(tx_lanes, 0444, lanes_show, NULL);
+static ssize_t tx_lanes_show(struct device *dev, struct device_attribute *attr,
+			     char *buf)
+{
+	struct tb_switch *sw = tb_to_switch(dev);
+	unsigned int width;
+
+	switch (sw->link_width) {
+	case TB_LINK_WIDTH_SINGLE:
+	case TB_LINK_WIDTH_ASYM_RX:
+		width = 1;
+		break;
+	case TB_LINK_WIDTH_DUAL:
+		width = 2;
+		break;
+	case TB_LINK_WIDTH_ASYM_TX:
+		width = 3;
+		break;
+	default:
+		WARN_ON_ONCE(1);
+		return -EINVAL;
+	}
+
+	return sysfs_emit(buf, "%u\n", width);
+}
+static DEVICE_ATTR(tx_lanes, 0444, tx_lanes_show, NULL);
 
 static ssize_t nvm_authenticate_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
@@ -2189,8 +2166,9 @@ static int tb_switch_uevent(const struct device *dev, struct kobj_uevent_env *en
 	const struct tb_switch *sw = tb_to_switch(dev);
 	const char *type;
 
-	if (sw->config.thunderbolt_version == USB4_VERSION_1_0) {
-		if (add_uevent_var(env, "USB4_VERSION=1.0"))
+	if (tb_switch_is_usb4(sw)) {
+		if (add_uevent_var(env, "USB4_VERSION=%u.0",
+				   usb4_switch_version(sw)))
 			return -ENOMEM;
 	}
 
@@ -2256,46 +2234,47 @@ struct device_type tb_switch_type = {
 
 static int tb_switch_get_generation(struct tb_switch *sw)
 {
-	switch (sw->config.device_id) {
-	case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_EAGLE_RIDGE:
-	case PCI_DEVICE_ID_INTEL_LIGHT_PEAK:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
-	case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
-	case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
-	case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_4C_BRIDGE:
-		return 1;
+	if (tb_switch_is_usb4(sw))
+		return 4;
 
-	case PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
-		return 2;
+	if (sw->config.vendor_id == PCI_VENDOR_ID_INTEL) {
+		switch (sw->config.device_id) {
+		case PCI_DEVICE_ID_INTEL_LIGHT_RIDGE:
+		case PCI_DEVICE_ID_INTEL_EAGLE_RIDGE:
+		case PCI_DEVICE_ID_INTEL_LIGHT_PEAK:
+		case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_2C:
+		case PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C:
+		case PCI_DEVICE_ID_INTEL_PORT_RIDGE:
+		case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_REDWOOD_RIDGE_4C_BRIDGE:
+			return 1;
 
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
-	case PCI_DEVICE_ID_INTEL_ICL_NHI0:
-	case PCI_DEVICE_ID_INTEL_ICL_NHI1:
-		return 3;
+		case PCI_DEVICE_ID_INTEL_WIN_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE:
+			return 2;
 
-	default:
-		if (tb_switch_is_usb4(sw))
-			return 4;
-
-		/*
-		 * For unknown switches assume generation to be 1 to be
-		 * on the safe side.
-		 */
-		tb_sw_warn(sw, "unsupported switch device id %#x\n",
-			   sw->config.device_id);
-		return 1;
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_LP_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ALPINE_RIDGE_C_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_2C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_4C_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_TITAN_RIDGE_DD_BRIDGE:
+		case PCI_DEVICE_ID_INTEL_ICL_NHI0:
+		case PCI_DEVICE_ID_INTEL_ICL_NHI1:
+			return 3;
+		}
 	}
+
+	/*
+	 * For unknown switches assume generation to be 1 to be on the
+	 * safe side.
+	 */
+	tb_sw_warn(sw, "unsupported switch device id %#x\n",
+		   sw->config.device_id);
+	return 1;
 }
 
 static bool tb_switch_exceeds_max_depth(const struct tb_switch *sw, int depth)
@@ -2498,9 +2477,13 @@ int tb_switch_configure(struct tb_switch *sw)
 		/*
 		 * For USB4 devices, we need to program the CM version
 		 * accordingly so that it knows to expose all the
-		 * additional capabilities.
+		 * additional capabilities. Program it according to USB4
+		 * version to avoid changing existing (v1) routers behaviour.
 		 */
-		sw->config.cmuv = USB4_VERSION_1_0;
+		if (usb4_switch_version(sw) < 2)
+			sw->config.cmuv = ROUTER_CS_4_CMUV_V1;
+		else
+			sw->config.cmuv = ROUTER_CS_4_CMUV_V2;
 		sw->config.plug_events_delay = 0xa;
 
 		/* Enumerate the switch */
@@ -2528,6 +2511,22 @@ int tb_switch_configure(struct tb_switch *sw)
 		return ret;
 
 	return tb_plug_events_active(sw, true);
+}
+
+/**
+ * tb_switch_configuration_valid() - Set the tunneling configuration to be valid
+ * @sw: Router to configure
+ *
+ * Needs to be called before any tunnels can be setup through the
+ * router. Can be called to any router.
+ *
+ * Returns %0 in success and negative errno otherwise.
+ */
+int tb_switch_configuration_valid(struct tb_switch *sw)
+{
+	if (tb_switch_is_usb4(sw))
+		return usb4_switch_configuration_valid(sw);
+	return 0;
 }
 
 static int tb_switch_set_uuid(struct tb_switch *sw)
@@ -2744,6 +2743,51 @@ static int tb_switch_update_link_attributes(struct tb_switch *sw)
 	return 0;
 }
 
+/* Must be called after tb_switch_update_link_attributes() */
+static void tb_switch_link_init(struct tb_switch *sw)
+{
+	struct tb_port *up, *down;
+	bool bonded;
+
+	if (!tb_route(sw) || tb_switch_is_icm(sw))
+		return;
+
+	tb_sw_dbg(sw, "current link speed %u.0 Gb/s\n", sw->link_speed);
+	tb_sw_dbg(sw, "current link width %s\n", tb_width_name(sw->link_width));
+
+	bonded = sw->link_width >= TB_LINK_WIDTH_DUAL;
+
+	/*
+	 * Gen 4 links come up as bonded so update the port structures
+	 * accordingly.
+	 */
+	up = tb_upstream_port(sw);
+	down = tb_switch_downstream_port(sw);
+
+	up->bonded = bonded;
+	if (up->dual_link_port)
+		up->dual_link_port->bonded = bonded;
+	tb_port_update_credits(up);
+
+	down->bonded = bonded;
+	if (down->dual_link_port)
+		down->dual_link_port->bonded = bonded;
+	tb_port_update_credits(down);
+
+	if (tb_port_get_link_generation(up) < 4)
+		return;
+
+	/*
+	 * Set the Gen 4 preferred link width. This is what the router
+	 * prefers when the link is brought up. If the router does not
+	 * support asymmetric link configuration, this also will be set
+	 * to TB_LINK_WIDTH_DUAL.
+	 */
+	sw->preferred_link_width = sw->link_width;
+	tb_sw_dbg(sw, "preferred link width %s\n",
+		  tb_width_name(sw->preferred_link_width));
+}
+
 /**
  * tb_switch_lane_bonding_enable() - Enable lane bonding
  * @sw: Switch to enable lane bonding
@@ -2752,25 +2796,28 @@ static int tb_switch_update_link_attributes(struct tb_switch *sw)
  * switch. If conditions are correct and both switches support the feature,
  * lanes are bonded. It is safe to call this to any switch.
  */
-int tb_switch_lane_bonding_enable(struct tb_switch *sw)
+static int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_to_switch(sw->dev.parent);
 	struct tb_port *up, *down;
-	u64 route = tb_route(sw);
+	unsigned int width;
 	int ret;
-
-	if (!route)
-		return 0;
 
 	if (!tb_switch_lane_bonding_possible(sw))
 		return 0;
 
 	up = tb_upstream_port(sw);
-	down = tb_port_at(route, parent);
+	down = tb_switch_downstream_port(sw);
 
-	if (!tb_port_is_width_supported(up, 2) ||
-	    !tb_port_is_width_supported(down, 2))
+	if (!tb_port_width_supported(up, TB_LINK_WIDTH_DUAL) ||
+	    !tb_port_width_supported(down, TB_LINK_WIDTH_DUAL))
 		return 0;
+
+	/*
+	 * Both lanes need to be in CL0. Here we assume lane 0 already be in
+	 * CL0 and check just for lane 1.
+	 */
+	if (tb_wait_for_port(down->dual_link_port, false) <= 0)
+		return -ENOTCONN;
 
 	ret = tb_port_lane_bonding_enable(up);
 	if (ret) {
@@ -2785,18 +2832,11 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
 		return ret;
 	}
 
-	ret = tb_port_wait_for_link_width(down, 2, 100);
-	if (ret) {
-		tb_port_warn(down, "timeout enabling lane bonding\n");
-		return ret;
-	}
+	/* Any of the widths are all bonded */
+	width = TB_LINK_WIDTH_DUAL | TB_LINK_WIDTH_ASYM_TX |
+		TB_LINK_WIDTH_ASYM_RX;
 
-	tb_port_update_credits(down);
-	tb_port_update_credits(up);
-	tb_switch_update_link_attributes(sw);
-
-	tb_sw_dbg(sw, "lane bonding enabled\n");
-	return ret;
+	return tb_port_wait_for_link_width(down, width, 100);
 }
 
 /**
@@ -2806,20 +2846,27 @@ int tb_switch_lane_bonding_enable(struct tb_switch *sw)
  * Disables lane bonding between @sw and parent. This can be called even
  * if lanes were not bonded originally.
  */
-void tb_switch_lane_bonding_disable(struct tb_switch *sw)
+static int tb_switch_lane_bonding_disable(struct tb_switch *sw)
 {
-	struct tb_switch *parent = tb_to_switch(sw->dev.parent);
 	struct tb_port *up, *down;
-
-	if (!tb_route(sw))
-		return;
+	int ret;
 
 	up = tb_upstream_port(sw);
 	if (!up->bonded)
-		return;
+		return 0;
 
-	down = tb_port_at(tb_route(sw), parent);
+	/*
+	 * If the link is Gen 4 there is no way to switch the link to
+	 * two single lane links so avoid that here. Also don't bother
+	 * if the link is not up anymore (sw is unplugged).
+	 */
+	ret = tb_port_get_link_generation(up);
+	if (ret < 0)
+		return ret;
+	if (ret >= 4)
+		return -EOPNOTSUPP;
 
+	down = tb_switch_downstream_port(sw);
 	tb_port_lane_bonding_disable(up);
 	tb_port_lane_bonding_disable(down);
 
@@ -2827,14 +2874,160 @@ void tb_switch_lane_bonding_disable(struct tb_switch *sw)
 	 * It is fine if we get other errors as the router might have
 	 * been unplugged.
 	 */
-	if (tb_port_wait_for_link_width(down, 1, 100) == -ETIMEDOUT)
-		tb_sw_warn(sw, "timeout disabling lane bonding\n");
+	return tb_port_wait_for_link_width(down, TB_LINK_WIDTH_SINGLE, 100);
+}
+
+/* Note updating sw->link_width done in tb_switch_update_link_attributes() */
+static int tb_switch_asym_enable(struct tb_switch *sw, enum tb_link_width width)
+{
+	struct tb_port *up, *down, *port;
+	enum tb_link_width down_width;
+	int ret;
+
+	up = tb_upstream_port(sw);
+	down = tb_switch_downstream_port(sw);
+
+	if (width == TB_LINK_WIDTH_ASYM_TX) {
+		down_width = TB_LINK_WIDTH_ASYM_RX;
+		port = down;
+	} else {
+		down_width = TB_LINK_WIDTH_ASYM_TX;
+		port = up;
+	}
+
+	ret = tb_port_set_link_width(up, width);
+	if (ret)
+		return ret;
+
+	ret = tb_port_set_link_width(down, down_width);
+	if (ret)
+		return ret;
+
+	/*
+	 * Initiate the change in the router that one of its TX lanes is
+	 * changing to RX but do so only if there is an actual change.
+	 */
+	if (sw->link_width != width) {
+		ret = usb4_port_asym_start(port);
+		if (ret)
+			return ret;
+
+		ret = tb_port_wait_for_link_width(up, width, 100);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/* Note updating sw->link_width done in tb_switch_update_link_attributes() */
+static int tb_switch_asym_disable(struct tb_switch *sw)
+{
+	struct tb_port *up, *down;
+	int ret;
+
+	up = tb_upstream_port(sw);
+	down = tb_switch_downstream_port(sw);
+
+	ret = tb_port_set_link_width(up, TB_LINK_WIDTH_DUAL);
+	if (ret)
+		return ret;
+
+	ret = tb_port_set_link_width(down, TB_LINK_WIDTH_DUAL);
+	if (ret)
+		return ret;
+
+	/*
+	 * Initiate the change in the router that has three TX lanes and
+	 * is changing one of its TX lanes to RX but only if there is a
+	 * change in the link width.
+	 */
+	if (sw->link_width > TB_LINK_WIDTH_DUAL) {
+		if (sw->link_width == TB_LINK_WIDTH_ASYM_TX)
+			ret = usb4_port_asym_start(up);
+		else
+			ret = usb4_port_asym_start(down);
+		if (ret)
+			return ret;
+
+		ret = tb_port_wait_for_link_width(up, TB_LINK_WIDTH_DUAL, 100);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/**
+ * tb_switch_set_link_width() - Configure router link width
+ * @sw: Router to configure
+ * @width: The new link width
+ *
+ * Set device router link width to @width from router upstream port
+ * perspective. Supports also asymmetric links if the routers boths side
+ * of the link supports it.
+ *
+ * Does nothing for host router.
+ *
+ * Returns %0 in case of success, negative errno otherwise.
+ */
+int tb_switch_set_link_width(struct tb_switch *sw, enum tb_link_width width)
+{
+	struct tb_port *up, *down;
+	int ret = 0;
+
+	if (!tb_route(sw))
+		return 0;
+
+	up = tb_upstream_port(sw);
+	down = tb_switch_downstream_port(sw);
+
+	switch (width) {
+	case TB_LINK_WIDTH_SINGLE:
+		ret = tb_switch_lane_bonding_disable(sw);
+		break;
+
+	case TB_LINK_WIDTH_DUAL:
+		if (sw->link_width == TB_LINK_WIDTH_ASYM_TX ||
+		    sw->link_width == TB_LINK_WIDTH_ASYM_RX) {
+			ret = tb_switch_asym_disable(sw);
+			if (ret)
+				break;
+		}
+		ret = tb_switch_lane_bonding_enable(sw);
+		break;
+
+	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
+		ret = tb_switch_asym_enable(sw, width);
+		break;
+	}
+
+	switch (ret) {
+	case 0:
+		break;
+
+	case -ETIMEDOUT:
+		tb_sw_warn(sw, "timeout changing link width\n");
+		return ret;
+
+	case -ENOTCONN:
+	case -EOPNOTSUPP:
+	case -ENODEV:
+		return ret;
+
+	default:
+		tb_sw_dbg(sw, "failed to change link width: %d\n", ret);
+		return ret;
+	}
 
 	tb_port_update_credits(down);
 	tb_port_update_credits(up);
+
 	tb_switch_update_link_attributes(sw);
 
-	tb_sw_dbg(sw, "lane bonding disabled\n");
+	tb_sw_dbg(sw, "link width set to %s\n", tb_width_name(width));
+	return ret;
 }
 
 /**
@@ -2991,6 +3184,12 @@ int tb_switch_add(struct tb_switch *sw)
 		tb_switch_default_link_ports(sw);
 
 		ret = tb_switch_update_link_attributes(sw);
+		if (ret)
+			return ret;
+
+		tb_switch_link_init(sw);
+
+		ret = tb_switch_clx_init(sw);
 		if (ret)
 			return ret;
 
@@ -3246,13 +3445,8 @@ void tb_switch_suspend(struct tb_switch *sw, bool runtime)
 	/*
 	 * Actually only needed for Titan Ridge but for simplicity can be
 	 * done for USB4 device too as CLx is re-enabled at resume.
-	 * CL0s and CL1 are enabled and supported together.
 	 */
-	if (tb_switch_is_clx_enabled(sw, TB_CL1)) {
-		if (tb_switch_disable_clx(sw, TB_CL1))
-			tb_sw_warn(sw, "failed to disable %s on upstream port\n",
-				   tb_switch_clx_name(TB_CL1));
-	}
+	tb_switch_clx_disable(sw);
 
 	err = tb_plug_events_active(sw, false);
 	if (err)
@@ -3472,234 +3666,6 @@ struct tb_port *tb_switch_find_port(struct tb_switch *sw,
 	}
 
 	return NULL;
-}
-
-static int tb_switch_pm_secondary_resolve(struct tb_switch *sw)
-{
-	struct tb_switch *parent = tb_switch_parent(sw);
-	struct tb_port *up, *down;
-	int ret;
-
-	if (!tb_route(sw))
-		return 0;
-
-	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
-	ret = tb_port_pm_secondary_enable(up);
-	if (ret)
-		return ret;
-
-	return tb_port_pm_secondary_disable(down);
-}
-
-static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
-{
-	struct tb_switch *parent = tb_switch_parent(sw);
-	bool up_clx_support, down_clx_support;
-	struct tb_port *up, *down;
-	int ret;
-
-	if (!tb_switch_is_clx_supported(sw))
-		return 0;
-
-	/*
-	 * Enable CLx for host router's downstream port as part of the
-	 * downstream router enabling procedure.
-	 */
-	if (!tb_route(sw))
-		return 0;
-
-	/* Enable CLx only for first hop router (depth = 1) */
-	if (tb_route(parent))
-		return 0;
-
-	ret = tb_switch_pm_secondary_resolve(sw);
-	if (ret)
-		return ret;
-
-	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
-
-	up_clx_support = tb_port_clx_supported(up, clx);
-	down_clx_support = tb_port_clx_supported(down, clx);
-
-	tb_port_dbg(up, "%s %ssupported\n", tb_switch_clx_name(clx),
-		    up_clx_support ? "" : "not ");
-	tb_port_dbg(down, "%s %ssupported\n", tb_switch_clx_name(clx),
-		    down_clx_support ? "" : "not ");
-
-	if (!up_clx_support || !down_clx_support)
-		return -EOPNOTSUPP;
-
-	ret = tb_port_clx_enable(up, clx);
-	if (ret)
-		return ret;
-
-	ret = tb_port_clx_enable(down, clx);
-	if (ret) {
-		tb_port_clx_disable(up, clx);
-		return ret;
-	}
-
-	ret = tb_switch_mask_clx_objections(sw);
-	if (ret) {
-		tb_port_clx_disable(up, clx);
-		tb_port_clx_disable(down, clx);
-		return ret;
-	}
-
-	sw->clx = clx;
-
-	tb_port_dbg(up, "%s enabled\n", tb_switch_clx_name(clx));
-	return 0;
-}
-
-/**
- * tb_switch_enable_clx() - Enable CLx on upstream port of specified router
- * @sw: Router to enable CLx for
- * @clx: The CLx state to enable
- *
- * Enable CLx state only for first hop router. That is the most common
- * use-case, that is intended for better thermal management, and so helps
- * to improve performance. CLx is enabled only if both sides of the link
- * support CLx, and if both sides of the link are not configured as two
- * single lane links and only if the link is not inter-domain link. The
- * complete set of conditions is described in CM Guide 1.0 section 8.1.
- *
- * Return: Returns 0 on success or an error code on failure.
- */
-int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
-{
-	struct tb_switch *root_sw = sw->tb->root_switch;
-
-	if (!clx_enabled)
-		return 0;
-
-	/*
-	 * CLx is not enabled and validated on Intel USB4 platforms before
-	 * Alder Lake.
-	 */
-	if (root_sw->generation < 4 || tb_switch_is_tiger_lake(root_sw))
-		return 0;
-
-	switch (clx) {
-	case TB_CL1:
-		/* CL0s and CL1 are enabled and supported together */
-		return __tb_switch_enable_clx(sw, clx);
-
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-static int __tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
-{
-	struct tb_switch *parent = tb_switch_parent(sw);
-	struct tb_port *up, *down;
-	int ret;
-
-	if (!tb_switch_is_clx_supported(sw))
-		return 0;
-
-	/*
-	 * Disable CLx for host router's downstream port as part of the
-	 * downstream router enabling procedure.
-	 */
-	if (!tb_route(sw))
-		return 0;
-
-	/* Disable CLx only for first hop router (depth = 1) */
-	if (tb_route(parent))
-		return 0;
-
-	up = tb_upstream_port(sw);
-	down = tb_port_at(tb_route(sw), parent);
-	ret = tb_port_clx_disable(up, clx);
-	if (ret)
-		return ret;
-
-	ret = tb_port_clx_disable(down, clx);
-	if (ret)
-		return ret;
-
-	sw->clx = TB_CLX_DISABLE;
-
-	tb_port_dbg(up, "%s disabled\n", tb_switch_clx_name(clx));
-	return 0;
-}
-
-/**
- * tb_switch_disable_clx() - Disable CLx on upstream port of specified router
- * @sw: Router to disable CLx for
- * @clx: The CLx state to disable
- *
- * Return: Returns 0 on success or an error code on failure.
- */
-int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
-{
-	if (!clx_enabled)
-		return 0;
-
-	switch (clx) {
-	case TB_CL1:
-		/* CL0s and CL1 are enabled and supported together */
-		return __tb_switch_disable_clx(sw, clx);
-
-	default:
-		return -EOPNOTSUPP;
-	}
-}
-
-/**
- * tb_switch_mask_clx_objections() - Mask CLx objections for a router
- * @sw: Router to mask objections for
- *
- * Mask the objections coming from the second depth routers in order to
- * stop these objections from interfering with the CLx states of the first
- * depth link.
- */
-int tb_switch_mask_clx_objections(struct tb_switch *sw)
-{
-	int up_port = sw->config.upstream_port_number;
-	u32 offset, val[2], mask_obj, unmask_obj;
-	int ret, i;
-
-	/* Only Titan Ridge of pre-USB4 devices support CLx states */
-	if (!tb_switch_is_titan_ridge(sw))
-		return 0;
-
-	if (!tb_route(sw))
-		return 0;
-
-	/*
-	 * In Titan Ridge there are only 2 dual-lane Thunderbolt ports:
-	 * Port A consists of lane adapters 1,2 and
-	 * Port B consists of lane adapters 3,4
-	 * If upstream port is A, (lanes are 1,2), we mask objections from
-	 * port B (lanes 3,4) and unmask objections from Port A and vice-versa.
-	 */
-	if (up_port == 1) {
-		mask_obj = TB_LOW_PWR_C0_PORT_B_MASK;
-		unmask_obj = TB_LOW_PWR_C1_PORT_A_MASK;
-		offset = TB_LOW_PWR_C1_CL1;
-	} else {
-		mask_obj = TB_LOW_PWR_C1_PORT_A_MASK;
-		unmask_obj = TB_LOW_PWR_C0_PORT_B_MASK;
-		offset = TB_LOW_PWR_C3_CL1;
-	}
-
-	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
-			 sw->cap_lp + offset, ARRAY_SIZE(val));
-	if (ret)
-		return ret;
-
-	for (i = 0; i < ARRAY_SIZE(val); i++) {
-		val[i] |= mask_obj;
-		val[i] &= ~unmask_obj;
-	}
-
-	return tb_sw_write(sw, &val, TB_CFG_SWITCH,
-			   sw->cap_lp + offset, ARRAY_SIZE(val));
 }
 
 /*

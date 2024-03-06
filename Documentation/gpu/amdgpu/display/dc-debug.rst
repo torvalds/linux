@@ -75,3 +75,44 @@ change in real-time by using something like::
 
 When reporting a bug related to DC, consider attaching this log before and
 after you reproduce the bug.
+
+DMUB Firmware Debug
+===================
+
+Sometimes, dmesg logs aren't enough. This is especially true if a feature is
+implemented primarily in DMUB firmware. In such cases, all we see in dmesg when
+an issue arises is some generic timeout error. So, to get more relevant
+information, we can trace DMUB commands by enabling the relevant bits in
+`amdgpu_dm_dmub_trace_mask`.
+
+Currently, we support the tracing of the following groups:
+
+Trace Groups
+------------
+
+.. csv-table::
+   :header-rows: 1
+   :widths: 1, 1
+   :file: ./trace-groups-table.csv
+
+**Note: Not all ASICs support all of the listed trace groups**
+
+So, to enable just PSR tracing you can use the following command::
+
+  # echo 0x8020 > /sys/kernel/debug/dri/0/amdgpu_dm_dmub_trace_mask
+
+Then, you need to enable logging trace events to the buffer, which you can do
+using the following::
+
+  # echo 1 > /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+
+Lastly, after you are able to reproduce the issue you are trying to debug,
+you can disable tracing and read the trace log by using the following::
+
+  # echo 0 > /sys/kernel/debug/dri/0/amdgpu_dm_dmcub_trace_event_en
+  # cat /sys/kernel/debug/dri/0/amdgpu_dm_dmub_tracebuffer
+
+So, when reporting bugs related to features such as PSR and ABM, consider
+enabling the relevant bits in the mask before reproducing the issue and
+attach the log that you obtain from the trace buffer in any bug reports that you
+create.

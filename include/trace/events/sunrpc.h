@@ -139,36 +139,68 @@ DEFINE_RPC_CLNT_EVENT(release);
 DEFINE_RPC_CLNT_EVENT(replace_xprt);
 DEFINE_RPC_CLNT_EVENT(replace_xprt_err);
 
+TRACE_DEFINE_ENUM(RPC_XPRTSEC_NONE);
+TRACE_DEFINE_ENUM(RPC_XPRTSEC_TLS_X509);
+
+#define rpc_show_xprtsec_policy(policy)					\
+	__print_symbolic(policy,					\
+		{ RPC_XPRTSEC_NONE,		"none" },		\
+		{ RPC_XPRTSEC_TLS_ANON,		"tls-anon" },		\
+		{ RPC_XPRTSEC_TLS_X509,		"tls-x509" })
+
+#define rpc_show_create_flags(flags)					\
+	__print_flags(flags, "|",					\
+		{ RPC_CLNT_CREATE_HARDRTRY,	"HARDRTRY" },		\
+		{ RPC_CLNT_CREATE_AUTOBIND,	"AUTOBIND" },		\
+		{ RPC_CLNT_CREATE_NONPRIVPORT,	"NONPRIVPORT" },	\
+		{ RPC_CLNT_CREATE_NOPING,	"NOPING" },		\
+		{ RPC_CLNT_CREATE_DISCRTRY,	"DISCRTRY" },		\
+		{ RPC_CLNT_CREATE_QUIET,	"QUIET" },		\
+		{ RPC_CLNT_CREATE_INFINITE_SLOTS,			\
+						"INFINITE_SLOTS" },	\
+		{ RPC_CLNT_CREATE_NO_IDLE_TIMEOUT,			\
+						"NO_IDLE_TIMEOUT" },	\
+		{ RPC_CLNT_CREATE_NO_RETRANS_TIMEOUT,			\
+						"NO_RETRANS_TIMEOUT" },	\
+		{ RPC_CLNT_CREATE_SOFTERR,	"SOFTERR" },		\
+		{ RPC_CLNT_CREATE_REUSEPORT,	"REUSEPORT" })
+
 TRACE_EVENT(rpc_clnt_new,
 	TP_PROTO(
 		const struct rpc_clnt *clnt,
 		const struct rpc_xprt *xprt,
-		const char *program,
-		const char *server
+		const struct rpc_create_args *args
 	),
 
-	TP_ARGS(clnt, xprt, program, server),
+	TP_ARGS(clnt, xprt, args),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, client_id)
+		__field(unsigned long, xprtsec)
+		__field(unsigned long, flags)
+		__string(program, clnt->cl_program->name)
+		__string(server, xprt->servername)
 		__string(addr, xprt->address_strings[RPC_DISPLAY_ADDR])
 		__string(port, xprt->address_strings[RPC_DISPLAY_PORT])
-		__string(program, program)
-		__string(server, server)
 	),
 
 	TP_fast_assign(
 		__entry->client_id = clnt->cl_clid;
+		__entry->xprtsec = args->xprtsec.policy;
+		__entry->flags = args->flags;
+		__assign_str(program, clnt->cl_program->name);
+		__assign_str(server, xprt->servername);
 		__assign_str(addr, xprt->address_strings[RPC_DISPLAY_ADDR]);
 		__assign_str(port, xprt->address_strings[RPC_DISPLAY_PORT]);
-		__assign_str(program, program);
-		__assign_str(server, server);
 	),
 
-	TP_printk("client=" SUNRPC_TRACE_CLID_SPECIFIER
-		  " peer=[%s]:%s program=%s server=%s",
+	TP_printk("client=" SUNRPC_TRACE_CLID_SPECIFIER " peer=[%s]:%s"
+		" program=%s server=%s xprtsec=%s flags=%s",
 		__entry->client_id, __get_str(addr), __get_str(port),
-		__get_str(program), __get_str(server))
+		__get_str(program), __get_str(server),
+		rpc_show_xprtsec_policy(__entry->xprtsec),
+		rpc_show_create_flags(__entry->flags)
+	)
 );
 
 TRACE_EVENT(rpc_clnt_new_err,
@@ -1493,6 +1525,50 @@ TRACE_EVENT(rpcb_unregister,
 	)
 );
 
+/**
+ ** RPC-over-TLS tracepoints
+ **/
+
+DECLARE_EVENT_CLASS(rpc_tls_class,
+	TP_PROTO(
+		const struct rpc_clnt *clnt,
+		const struct rpc_xprt *xprt
+	),
+
+	TP_ARGS(clnt, xprt),
+
+	TP_STRUCT__entry(
+		__field(unsigned long, requested_policy)
+		__field(u32, version)
+		__string(servername, xprt->servername)
+		__string(progname, clnt->cl_program->name)
+	),
+
+	TP_fast_assign(
+		__entry->requested_policy = clnt->cl_xprtsec.policy;
+		__entry->version = clnt->cl_vers;
+		__assign_str(servername, xprt->servername);
+		__assign_str(progname, clnt->cl_program->name)
+	),
+
+	TP_printk("server=%s %sv%u requested_policy=%s",
+		__get_str(servername), __get_str(progname), __entry->version,
+		rpc_show_xprtsec_policy(__entry->requested_policy)
+	)
+);
+
+#define DEFINE_RPC_TLS_EVENT(name) \
+	DEFINE_EVENT(rpc_tls_class, rpc_tls_##name, \
+			TP_PROTO( \
+				const struct rpc_clnt *clnt, \
+				const struct rpc_xprt *xprt \
+			), \
+			TP_ARGS(clnt, xprt))
+
+DEFINE_RPC_TLS_EVENT(unavailable);
+DEFINE_RPC_TLS_EVENT(not_started);
+
+
 /* Record an xdr_buf containing a fully-formed RPC message */
 DECLARE_EVENT_CLASS(svc_xdr_msg_class,
 	TP_PROTO(
@@ -1599,9 +1675,7 @@ DEFINE_SVCXDRBUF_EVENT(sendto);
 	svc_rqst_flag(LOCAL)						\
 	svc_rqst_flag(USEDEFERRAL)					\
 	svc_rqst_flag(DROPME)						\
-	svc_rqst_flag(SPLICE_OK)					\
 	svc_rqst_flag(VICTIM)						\
-	svc_rqst_flag(BUSY)						\
 	svc_rqst_flag_end(DATA)
 
 #undef svc_rqst_flag
@@ -1630,7 +1704,7 @@ TRACE_DEFINE_ENUM(SVC_DENIED);
 TRACE_DEFINE_ENUM(SVC_PENDING);
 TRACE_DEFINE_ENUM(SVC_COMPLETE);
 
-#define svc_show_status(status)				\
+#define show_svc_auth_status(status)			\
 	__print_symbolic(status,			\
 		{ SVC_GARBAGE,	"SVC_GARBAGE" },	\
 		{ SVC_SYSERR,	"SVC_SYSERR" },		\
@@ -1667,7 +1741,10 @@ TRACE_DEFINE_ENUM(SVC_COMPLETE);
 		__entry->xid, __get_sockaddr(server), __get_sockaddr(client)
 
 TRACE_EVENT_CONDITION(svc_authenticate,
-	TP_PROTO(const struct svc_rqst *rqst, int auth_res),
+	TP_PROTO(
+		const struct svc_rqst *rqst,
+		enum svc_auth_status auth_res
+	),
 
 	TP_ARGS(rqst, auth_res),
 
@@ -1690,7 +1767,7 @@ TRACE_EVENT_CONDITION(svc_authenticate,
 	TP_printk(SVC_RQST_ENDPOINT_FORMAT
 		" auth_res=%s auth_stat=%s",
 		SVC_RQST_ENDPOINT_VARARGS,
-		svc_show_status(__entry->svc_status),
+		show_svc_auth_status(__entry->svc_status),
 		rpc_show_auth_stat(__entry->auth_stat))
 );
 
@@ -1842,25 +1919,42 @@ TRACE_EVENT(svc_stats_latency,
 		__get_str(procedure), __entry->execute)
 );
 
+/*
+ * from include/linux/sunrpc/svc_xprt.h
+ */
+#define SVC_XPRT_FLAG_LIST						\
+	svc_xprt_flag(BUSY)						\
+	svc_xprt_flag(CONN)						\
+	svc_xprt_flag(CLOSE)						\
+	svc_xprt_flag(DATA)						\
+	svc_xprt_flag(TEMP)						\
+	svc_xprt_flag(DEAD)						\
+	svc_xprt_flag(CHNGBUF)						\
+	svc_xprt_flag(DEFERRED)						\
+	svc_xprt_flag(OLD)						\
+	svc_xprt_flag(LISTENER)						\
+	svc_xprt_flag(CACHE_AUTH)					\
+	svc_xprt_flag(LOCAL)						\
+	svc_xprt_flag(KILL_TEMP)					\
+	svc_xprt_flag(CONG_CTRL)					\
+	svc_xprt_flag(HANDSHAKE)					\
+	svc_xprt_flag(TLS_SESSION)					\
+	svc_xprt_flag_end(PEER_AUTH)
+
+#undef svc_xprt_flag
+#undef svc_xprt_flag_end
+#define svc_xprt_flag(x)	TRACE_DEFINE_ENUM(XPT_##x);
+#define svc_xprt_flag_end(x)	TRACE_DEFINE_ENUM(XPT_##x);
+
+SVC_XPRT_FLAG_LIST
+
+#undef svc_xprt_flag
+#undef svc_xprt_flag_end
+#define svc_xprt_flag(x)	{ BIT(XPT_##x), #x },
+#define svc_xprt_flag_end(x)	{ BIT(XPT_##x), #x }
+
 #define show_svc_xprt_flags(flags)					\
-	__print_flags(flags, "|",					\
-		{ BIT(XPT_BUSY),		"BUSY" },		\
-		{ BIT(XPT_CONN),		"CONN" },		\
-		{ BIT(XPT_CLOSE),		"CLOSE" },		\
-		{ BIT(XPT_DATA),		"DATA" },		\
-		{ BIT(XPT_TEMP),		"TEMP" },		\
-		{ BIT(XPT_DEAD),		"DEAD" },		\
-		{ BIT(XPT_CHNGBUF),		"CHNGBUF" },		\
-		{ BIT(XPT_DEFERRED),		"DEFERRED" },		\
-		{ BIT(XPT_OLD),			"OLD" },		\
-		{ BIT(XPT_LISTENER),		"LISTENER" },		\
-		{ BIT(XPT_CACHE_AUTH),		"CACHE_AUTH" },		\
-		{ BIT(XPT_LOCAL),		"LOCAL" },		\
-		{ BIT(XPT_KILL_TEMP),		"KILL_TEMP" },		\
-		{ BIT(XPT_CONG_CTRL),		"CONG_CTRL" },		\
-		{ BIT(XPT_HANDSHAKE),		"HANDSHAKE" },		\
-		{ BIT(XPT_TLS_SESSION),		"TLS_SESSION" },	\
-		{ BIT(XPT_PEER_AUTH),		"PEER_AUTH" })
+	__print_flags(flags, "|", SVC_XPRT_FLAG_LIST)
 
 TRACE_EVENT(svc_xprt_create_err,
 	TP_PROTO(
@@ -1918,25 +2012,25 @@ TRACE_EVENT(svc_xprt_create_err,
 TRACE_EVENT(svc_xprt_enqueue,
 	TP_PROTO(
 		const struct svc_xprt *xprt,
-		const struct svc_rqst *rqst
+		unsigned long flags
 	),
 
-	TP_ARGS(xprt, rqst),
+	TP_ARGS(xprt, flags),
 
 	TP_STRUCT__entry(
 		SVC_XPRT_ENDPOINT_FIELDS(xprt)
-
-		__field(int, pid)
 	),
 
 	TP_fast_assign(
-		SVC_XPRT_ENDPOINT_ASSIGNMENTS(xprt);
-
-		__entry->pid = rqst? rqst->rq_task->pid : 0;
+		__assign_sockaddr(server, &xprt->xpt_local,
+				  xprt->xpt_locallen);
+		__assign_sockaddr(client, &xprt->xpt_remote,
+				  xprt->xpt_remotelen);
+		__entry->flags = flags;
+		__entry->netns_ino = xprt->xpt_net->ns.inum;
 	),
 
-	TP_printk(SVC_XPRT_ENDPOINT_FORMAT " pid=%d",
-		SVC_XPRT_ENDPOINT_VARARGS, __entry->pid)
+	TP_printk(SVC_XPRT_ENDPOINT_FORMAT, SVC_XPRT_ENDPOINT_VARARGS)
 );
 
 TRACE_EVENT(svc_xprt_dequeue,
@@ -2104,31 +2198,46 @@ DEFINE_SVC_DEFERRED_EVENT(drop);
 DEFINE_SVC_DEFERRED_EVENT(queue);
 DEFINE_SVC_DEFERRED_EVENT(recv);
 
-TRACE_EVENT(svcsock_new_socket,
+DECLARE_EVENT_CLASS(svcsock_lifetime_class,
 	TP_PROTO(
+		const void *svsk,
 		const struct socket *socket
 	),
-
-	TP_ARGS(socket),
-
+	TP_ARGS(svsk, socket),
 	TP_STRUCT__entry(
+		__field(unsigned int, netns_ino)
+		__field(const void *, svsk)
+		__field(const void *, sk)
 		__field(unsigned long, type)
 		__field(unsigned long, family)
-		__field(bool, listener)
+		__field(unsigned long, state)
 	),
-
 	TP_fast_assign(
-		__entry->type = socket->type;
-		__entry->family = socket->sk->sk_family;
-		__entry->listener = (socket->sk->sk_state == TCP_LISTEN);
-	),
+		struct sock *sk = socket->sk;
 
-	TP_printk("type=%s family=%s%s",
-		show_socket_type(__entry->type),
+		__entry->netns_ino = sock_net(sk)->ns.inum;
+		__entry->svsk = svsk;
+		__entry->sk = sk;
+		__entry->type = socket->type;
+		__entry->family = sk->sk_family;
+		__entry->state = sk->sk_state;
+	),
+	TP_printk("svsk=%p type=%s family=%s%s",
+		__entry->svsk, show_socket_type(__entry->type),
 		rpc_show_address_family(__entry->family),
-		__entry->listener ? " (listener)" : ""
+		__entry->state == TCP_LISTEN ? " (listener)" : ""
 	)
 );
+#define DEFINE_SVCSOCK_LIFETIME_EVENT(name) \
+	DEFINE_EVENT(svcsock_lifetime_class, name, \
+		TP_PROTO( \
+			const void *svsk, \
+			const struct socket *socket \
+		), \
+		TP_ARGS(svsk, socket))
+
+DEFINE_SVCSOCK_LIFETIME_EVENT(svcsock_new);
+DEFINE_SVCSOCK_LIFETIME_EVENT(svcsock_free);
 
 TRACE_EVENT(svcsock_marker,
 	TP_PROTO(

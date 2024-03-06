@@ -28,11 +28,11 @@ cleanup_files()
 	rm -f ${perfdata}
 	rm -f ${file}
 	rm -f "${perfdata}.old"
-	trap - exit term int
+	trap - EXIT TERM INT
 	exit $glb_err
 }
 
-trap cleanup_files exit term int
+trap cleanup_files EXIT TERM INT
 
 record_touch_file() {
 	echo "Recording trace (only user mode) with path: CPU$2 => $1"
@@ -89,7 +89,7 @@ is_device_sink() {
 	# cannot support perf PMU.
 	echo "$1" | grep -E -q -v "tpiu"
 
-	if [ $? -eq 0 -a -e "$1/enable_sink" ]; then
+	if [ $? -eq 0 ] && [ -e "$1/enable_sink" ]; then
 
 		pmu_dev="/sys/bus/event_source/devices/cs_etm/sinks/$2"
 
@@ -136,7 +136,9 @@ arm_cs_iterate_devices() {
 
 arm_cs_etm_traverse_path_test() {
 	# Iterate for every ETM device
-	for dev in /sys/bus/coresight/devices/etm*; do
+	for dev in /sys/bus/event_source/devices/cs_etm/cpu*; do
+		# Canonicalize the path
+		dev=`readlink -f $dev`
 
 		# Find the ETM device belonging to which CPU
 		cpu=`cat $dev/cpu`

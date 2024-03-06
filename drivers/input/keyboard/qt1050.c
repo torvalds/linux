@@ -213,7 +213,7 @@ static struct regmap_config qt1050_regmap_config = {
 	.val_bits = 8,
 	.max_register = QT1050_RES_CAL,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.wr_table = &qt1050_writeable_table,
 	.rd_table = &qt1050_readable_table,
@@ -588,7 +588,7 @@ static struct i2c_driver qt1050_driver = {
 		.of_match_table = of_match_ptr(qt1050_of_match),
 		.pm = pm_sleep_ptr(&qt1050_pm_ops),
 	},
-	.probe_new = qt1050_probe,
+	.probe = qt1050_probe,
 };
 
 module_i2c_driver(qt1050_driver);

@@ -27,21 +27,21 @@
 static void mock_insert_page(struct i915_address_space *vm,
 			     dma_addr_t addr,
 			     u64 offset,
-			     enum i915_cache_level level,
+			     unsigned int pat_index,
 			     u32 flags)
 {
 }
 
 static void mock_insert_entries(struct i915_address_space *vm,
 				struct i915_vma_resource *vma_res,
-				enum i915_cache_level level, u32 flags)
+				unsigned int pat_index, u32 flags)
 {
 }
 
 static void mock_bind_ppgtt(struct i915_address_space *vm,
 			    struct i915_vm_pt_stash *stash,
 			    struct i915_vma_resource *vma_res,
-			    enum i915_cache_level cache_level,
+			    unsigned int pat_index,
 			    u32 flags)
 {
 	GEM_BUG_ON(flags & I915_VMA_GLOBAL_BIND);
@@ -94,7 +94,7 @@ struct i915_ppgtt *mock_ppgtt(struct drm_i915_private *i915, const char *name)
 static void mock_bind_ggtt(struct i915_address_space *vm,
 			   struct i915_vm_pt_stash *stash,
 			   struct i915_vma_resource *vma_res,
-			   enum i915_cache_level cache_level,
+			   unsigned int pat_index,
 			   u32 flags)
 {
 }

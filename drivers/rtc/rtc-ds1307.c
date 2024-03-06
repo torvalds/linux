@@ -1744,7 +1744,7 @@ static int ds1307_probe(struct i2c_client *client)
 
 	match = device_get_match_data(&client->dev);
 	if (match) {
-		ds1307->type = (enum ds_type)match;
+		ds1307->type = (uintptr_t)match;
 		chip = &chips[ds1307->type];
 	} else if (id) {
 		chip = &chips[id->driver_data];
@@ -2011,7 +2011,7 @@ static struct i2c_driver ds1307_driver = {
 		.name	= "rtc-ds1307",
 		.of_match_table = ds1307_of_match,
 	},
-	.probe_new	= ds1307_probe,
+	.probe		= ds1307_probe,
 	.id_table	= ds1307_id,
 };
 

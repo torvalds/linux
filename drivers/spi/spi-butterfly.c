@@ -178,7 +178,7 @@ static void butterfly_attach(struct parport *p)
 	struct pardevice	*pd;
 	int			status;
 	struct butterfly	*pp;
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	struct device		*dev = p->physport->dev;
 	struct pardev_cb	butterfly_cb;
 
@@ -189,12 +189,12 @@ static void butterfly_attach(struct parport *p)
 	 * and no way to be selective about what it binds to.
 	 */
 
-	master = spi_alloc_master(dev, sizeof(*pp));
-	if (!master) {
+	host = spi_alloc_host(dev, sizeof(*pp));
+	if (!host) {
 		status = -ENOMEM;
 		goto done;
 	}
-	pp = spi_master_get_devdata(master);
+	pp = spi_controller_get_devdata(host);
 
 	/*
 	 * SPI and bitbang hookup
@@ -202,10 +202,10 @@ static void butterfly_attach(struct parport *p)
 	 * use default setup(), cleanup(), and transfer() methods; and
 	 * only bother implementing mode 0.  Start it later.
 	 */
-	master->bus_num = 42;
-	master->num_chipselect = 2;
+	host->bus_num = 42;
+	host->num_chipselect = 2;
 
-	pp->bitbang.master = master;
+	pp->bitbang.master = host;
 	pp->bitbang.chipselect = butterfly_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = butterfly_txrx_word_mode0;
 
@@ -280,7 +280,7 @@ clean2:
 clean1:
 	parport_unregister_device(pd);
 clean0:
-	spi_master_put(pp->bitbang.master);
+	spi_controller_put(host);
 done:
 	pr_debug("%s: butterfly probe, fail %d\n", p->name, status);
 }
@@ -308,7 +308,7 @@ static void butterfly_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	spi_master_put(pp->bitbang.master);
+	spi_controller_put(pp->bitbang.master);
 }
 
 static struct parport_driver butterfly_driver = {

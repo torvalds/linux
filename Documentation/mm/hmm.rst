@@ -163,16 +163,7 @@ use::
 
 It will trigger a page fault on missing or read-only entries if write access is
 requested (see below). Page faults use the generic mm page fault code path just
-like a CPU page fault.
-
-Both functions copy CPU page table entries into their pfns array argument. Each
-entry in that array corresponds to an address in the virtual range. HMM
-provides a set of flags to help the driver identify special CPU page table
-entries.
-
-Locking within the sync_cpu_device_pagetables() callback is the most important
-aspect the driver must respect in order to keep things properly synchronized.
-The usage pattern is::
+like a CPU page fault. The usage pattern is::
 
  int driver_populate_range(...)
  {
@@ -417,7 +408,7 @@ entries. Any attempt to access the swap entry results in a fault which is
 resovled by replacing the entry with the original mapping. A driver gets
 notified that the mapping has been changed by MMU notifiers, after which point
 it will no longer have exclusive access to the page. Exclusive access is
-guranteed to last until the driver drops the page lock and page reference, at
+guaranteed to last until the driver drops the page lock and page reference, at
 which point any CPU faults on the page may proceed as described.
 
 Memory cgroup (memcg) and rss accounting

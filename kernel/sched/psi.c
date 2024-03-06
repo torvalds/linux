@@ -140,7 +140,7 @@
 static int psi_bug __read_mostly;
 
 DEFINE_STATIC_KEY_FALSE(psi_disabled);
-DEFINE_STATIC_KEY_TRUE(psi_cgroups_enabled);
+static DEFINE_STATIC_KEY_TRUE(psi_cgroups_enabled);
 
 #ifdef CONFIG_PSI_DEFAULT_DISABLED
 static bool psi_enable;
@@ -160,7 +160,6 @@ __setup("psi=", setup_psi);
 #define EXP_300s	2034		/* 1/exp(2s/300s) */
 
 /* PSI trigger definitions */
-#define WINDOW_MIN_US 500000	/* Min window size is 500ms */
 #define WINDOW_MAX_US 10000000	/* Max window size is 10s */
 #define UPDATES_PER_WINDOW 10	/* 10 updates per window */
 
@@ -435,14 +434,13 @@ static u64 window_update(struct psi_window *win, u64 now, u64 value)
 	return growth;
 }
 
-static u64 update_triggers(struct psi_group *group, u64 now, bool *update_total,
+static void update_triggers(struct psi_group *group, u64 now,
 						   enum psi_aggregators aggregator)
 {
 	struct psi_trigger *t;
 	u64 *total = group->total[aggregator];
 	struct list_head *triggers;
 	u64 *aggregator_total;
-	*update_total = false;
 
 	if (aggregator == PSI_AVGS) {
 		triggers = &group->avg_triggers;
@@ -472,14 +470,6 @@ static u64 update_triggers(struct psi_group *group, u64 now, bool *update_total,
 		 * events without dropping any).
 		 */
 		if (new_stall) {
-			/*
-			 * Multiple triggers might be looking at the same state,
-			 * remember to update group->polling_total[] once we've
-			 * been through all of them. Also remember to extend the
-			 * polling time if we see new stall activity.
-			 */
-			*update_total = true;
-
 			/* Calculate growth since last update */
 			growth = window_update(&t->win, now, total[t->state]);
 			if (!t->pending_event) {
@@ -494,14 +484,16 @@ static u64 update_triggers(struct psi_group *group, u64 now, bool *update_total,
 			continue;
 
 		/* Generate an event */
-		if (cmpxchg(&t->event, 0, 1) == 0)
-			wake_up_interruptible(&t->event_wait);
+		if (cmpxchg(&t->event, 0, 1) == 0) {
+			if (t->of)
+				kernfs_notify(t->of->kn);
+			else
+				wake_up_interruptible(&t->event_wait);
+		}
 		t->last_event_time = now;
 		/* Reset threshold breach flag once event got generated */
 		t->pending_event = false;
 	}
-
-	return now + group->rtpoll_min_period;
 }
 
 static u64 update_averages(struct psi_group *group, u64 now)
@@ -562,7 +554,6 @@ static void psi_avgs_work(struct work_struct *work)
 	struct delayed_work *dwork;
 	struct psi_group *group;
 	u32 changed_states;
-	bool update_total;
 	u64 now;
 
 	dwork = to_delayed_work(work);
@@ -581,7 +572,7 @@ static void psi_avgs_work(struct work_struct *work)
 	 * go - see calc_avgs() and missed_periods.
 	 */
 	if (now >= group->avg_next_update) {
-		update_triggers(group, now, &update_total, PSI_AVGS);
+		update_triggers(group, now, PSI_AVGS);
 		group->avg_next_update = update_averages(group, now);
 	}
 
@@ -605,7 +596,7 @@ static void init_rtpoll_triggers(struct psi_group *group, u64 now)
 	group->rtpoll_next_update = now + group->rtpoll_min_period;
 }
 
-/* Schedule polling if it's not already scheduled or forced. */
+/* Schedule rtpolling if it's not already scheduled or forced. */
 static void psi_schedule_rtpoll_work(struct psi_group *group, unsigned long delay,
 				   bool force)
 {
@@ -637,7 +628,6 @@ static void psi_rtpoll_work(struct psi_group *group)
 {
 	bool force_reschedule = false;
 	u32 changed_states;
-	bool update_total;
 	u64 now;
 
 	mutex_lock(&group->rtpoll_trigger_lock);
@@ -646,37 +636,37 @@ static void psi_rtpoll_work(struct psi_group *group)
 
 	if (now > group->rtpoll_until) {
 		/*
-		 * We are either about to start or might stop polling if no
-		 * state change was recorded. Resetting poll_scheduled leaves
+		 * We are either about to start or might stop rtpolling if no
+		 * state change was recorded. Resetting rtpoll_scheduled leaves
 		 * a small window for psi_group_change to sneak in and schedule
-		 * an immediate poll_work before we get to rescheduling. One
-		 * potential extra wakeup at the end of the polling window
-		 * should be negligible and polling_next_update still keeps
+		 * an immediate rtpoll_work before we get to rescheduling. One
+		 * potential extra wakeup at the end of the rtpolling window
+		 * should be negligible and rtpoll_next_update still keeps
 		 * updates correctly on schedule.
 		 */
 		atomic_set(&group->rtpoll_scheduled, 0);
 		/*
-		 * A task change can race with the poll worker that is supposed to
+		 * A task change can race with the rtpoll worker that is supposed to
 		 * report on it. To avoid missing events, ensure ordering between
-		 * poll_scheduled and the task state accesses, such that if the poll
-		 * worker misses the state update, the task change is guaranteed to
-		 * reschedule the poll worker:
+		 * rtpoll_scheduled and the task state accesses, such that if the
+		 * rtpoll worker misses the state update, the task change is
+		 * guaranteed to reschedule the rtpoll worker:
 		 *
-		 * poll worker:
-		 *   atomic_set(poll_scheduled, 0)
+		 * rtpoll worker:
+		 *   atomic_set(rtpoll_scheduled, 0)
 		 *   smp_mb()
 		 *   LOAD states
 		 *
 		 * task change:
 		 *   STORE states
-		 *   if atomic_xchg(poll_scheduled, 1) == 0:
-		 *     schedule poll worker
+		 *   if atomic_xchg(rtpoll_scheduled, 1) == 0:
+		 *     schedule rtpoll worker
 		 *
 		 * The atomic_xchg() implies a full barrier.
 		 */
 		smp_mb();
 	} else {
-		/* Polling window is not over, keep rescheduling */
+		/* The rtpolling window is not over, keep rescheduling */
 		force_reschedule = true;
 	}
 
@@ -684,7 +674,7 @@ static void psi_rtpoll_work(struct psi_group *group)
 	collect_percpu_times(group, PSI_POLL, &changed_states);
 
 	if (changed_states & group->rtpoll_states) {
-		/* Initialize trigger windows when entering polling mode */
+		/* Initialize trigger windows when entering rtpolling mode */
 		if (now > group->rtpoll_until)
 			init_rtpoll_triggers(group, now);
 
@@ -703,10 +693,12 @@ static void psi_rtpoll_work(struct psi_group *group)
 	}
 
 	if (now >= group->rtpoll_next_update) {
-		group->rtpoll_next_update = update_triggers(group, now, &update_total, PSI_POLL);
-		if (update_total)
+		if (changed_states & group->rtpoll_states) {
+			update_triggers(group, now, PSI_POLL);
 			memcpy(group->rtpoll_total, group->total[PSI_POLL],
 				   sizeof(group->rtpoll_total));
+		}
+		group->rtpoll_next_update = now + group->rtpoll_min_period;
 	}
 
 	psi_schedule_rtpoll_work(group,
@@ -1006,6 +998,9 @@ void psi_account_irqtime(struct task_struct *task, u32 delta)
 	struct psi_group_cpu *groupc;
 	u64 now;
 
+	if (static_branch_likely(&psi_disabled))
+		return;
+
 	if (!task->pid)
 		return;
 
@@ -1272,8 +1267,9 @@ int psi_show(struct seq_file *m, struct psi_group *group, enum psi_res res)
 	return 0;
 }
 
-struct psi_trigger *psi_trigger_create(struct psi_group *group,
-			char *buf, enum psi_res res, struct file *file)
+struct psi_trigger *psi_trigger_create(struct psi_group *group, char *buf,
+				       enum psi_res res, struct file *file,
+				       struct kernfs_open_file *of)
 {
 	struct psi_trigger *t;
 	enum psi_states state;
@@ -1305,8 +1301,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 	if (state >= PSI_NONIDLE)
 		return ERR_PTR(-EINVAL);
 
-	if (window_us < WINDOW_MIN_US ||
-		window_us > WINDOW_MAX_US)
+	if (window_us == 0 || window_us > WINDOW_MAX_US)
 		return ERR_PTR(-EINVAL);
 
 	/*
@@ -1333,7 +1328,9 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 
 	t->event = 0;
 	t->last_event_time = 0;
-	init_waitqueue_head(&t->event_wait);
+	t->of = of;
+	if (!of)
+		init_waitqueue_head(&t->event_wait);
 	t->pending_event = false;
 	t->aggregator = privileged ? PSI_POLL : PSI_AVGS;
 
@@ -1390,7 +1387,10 @@ void psi_trigger_destroy(struct psi_trigger *t)
 	 * being accessed later. Can happen if cgroup is deleted from under a
 	 * polling process.
 	 */
-	wake_up_pollfree(&t->event_wait);
+	if (t->of)
+		kernfs_notify(t->of->kn);
+	else
+		wake_up_interruptible(&t->event_wait);
 
 	if (t->aggregator == PSI_AVGS) {
 		mutex_lock(&group->avgs_lock);
@@ -1409,11 +1409,16 @@ void psi_trigger_destroy(struct psi_trigger *t)
 			group->rtpoll_nr_triggers[t->state]--;
 			if (!group->rtpoll_nr_triggers[t->state])
 				group->rtpoll_states &= ~(1 << t->state);
-			/* reset min update period for the remaining triggers */
-			list_for_each_entry(tmp, &group->rtpoll_triggers, node)
-				period = min(period, div_u64(tmp->win.size,
-						UPDATES_PER_WINDOW));
-			group->rtpoll_min_period = period;
+			/*
+			 * Reset min update period for the remaining triggers
+			 * iff the destroying trigger had the min window size.
+			 */
+			if (group->rtpoll_min_period == div_u64(t->win.size, UPDATES_PER_WINDOW)) {
+				list_for_each_entry(tmp, &group->rtpoll_triggers, node)
+					period = min(period, div_u64(tmp->win.size,
+							UPDATES_PER_WINDOW));
+				group->rtpoll_min_period = period;
+			}
 			/* Destroy rtpoll_task when the last trigger is destroyed */
 			if (group->rtpoll_states == 0) {
 				group->rtpoll_until = 0;
@@ -1462,7 +1467,10 @@ __poll_t psi_trigger_poll(void **trigger_ptr,
 	if (!t)
 		return DEFAULT_POLLMASK | EPOLLERR | EPOLLPRI;
 
-	poll_wait(file, &t->event_wait, wait);
+	if (t->of)
+		kernfs_generic_poll(t->of, wait);
+	else
+		poll_wait(file, &t->event_wait, wait);
 
 	if (cmpxchg(&t->event, 1, 0) == 1)
 		ret |= EPOLLPRI;
@@ -1532,7 +1540,7 @@ static ssize_t psi_write(struct file *file, const char __user *user_buf,
 		return -EBUSY;
 	}
 
-	new = psi_trigger_create(&psi_system, buf, res, file);
+	new = psi_trigger_create(&psi_system, buf, res, file, NULL);
 	if (IS_ERR(new)) {
 		mutex_unlock(&seq->lock);
 		return PTR_ERR(new);

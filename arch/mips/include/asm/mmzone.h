@@ -20,4 +20,6 @@
 #define nid_to_addrbase(nid) 0
 #endif
 
+extern void setup_zero_pages(void);
+
 #endif /* _ASM_MMZONE_H_ */

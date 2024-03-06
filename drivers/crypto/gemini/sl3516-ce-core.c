@@ -6,22 +6,24 @@
  *
  * Core file which registers crypto algorithms supported by the CryptoEngine
  */
+
+#include <crypto/engine.h>
+#include <crypto/internal/rng.h>
+#include <crypto/internal/skcipher.h>
 #include <linux/clk.h>
-#include <linux/crypto.h>
 #include <linux/debugfs.h>
 #include <linux/dev_printk.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
-#include <crypto/internal/rng.h>
-#include <crypto/internal/skcipher.h>
 
 #include "sl3516-ce.h"
 
@@ -217,7 +219,7 @@ static struct sl3516_ce_alg_template ce_algs[] = {
 {
 	.type = CRYPTO_ALG_TYPE_SKCIPHER,
 	.mode = ECB_AES,
-	.alg.skcipher = {
+	.alg.skcipher.base = {
 		.base = {
 			.cra_name = "ecb(aes)",
 			.cra_driver_name = "ecb-aes-sl3516",
@@ -236,11 +238,13 @@ static struct sl3516_ce_alg_template ce_algs[] = {
 		.setkey		= sl3516_ce_aes_setkey,
 		.encrypt	= sl3516_ce_skencrypt,
 		.decrypt	= sl3516_ce_skdecrypt,
-	}
+	},
+	.alg.skcipher.op = {
+		.do_one_request = sl3516_ce_handle_cipher_request,
+	},
 },
 };
 
-#ifdef CONFIG_CRYPTO_DEV_SL3516_DEBUG
 static int sl3516_ce_debugfs_show(struct seq_file *seq, void *v)
 {
 	struct sl3516_ce_dev *ce = seq->private;
@@ -264,8 +268,8 @@ static int sl3516_ce_debugfs_show(struct seq_file *seq, void *v)
 		switch (ce_algs[i].type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			seq_printf(seq, "%s %s reqs=%lu fallback=%lu\n",
-				   ce_algs[i].alg.skcipher.base.cra_driver_name,
-				   ce_algs[i].alg.skcipher.base.cra_name,
+				   ce_algs[i].alg.skcipher.base.base.cra_driver_name,
+				   ce_algs[i].alg.skcipher.base.base.cra_name,
 				   ce_algs[i].stat_req, ce_algs[i].stat_fb);
 			break;
 		}
@@ -274,7 +278,6 @@ static int sl3516_ce_debugfs_show(struct seq_file *seq, void *v)
 }
 
 DEFINE_SHOW_ATTRIBUTE(sl3516_ce_debugfs);
-#endif
 
 static int sl3516_ce_register_algs(struct sl3516_ce_dev *ce)
 {
@@ -286,11 +289,11 @@ static int sl3516_ce_register_algs(struct sl3516_ce_dev *ce)
 		switch (ce_algs[i].type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			dev_info(ce->dev, "DEBUG: Register %s\n",
-				 ce_algs[i].alg.skcipher.base.cra_name);
-			err = crypto_register_skcipher(&ce_algs[i].alg.skcipher);
+				 ce_algs[i].alg.skcipher.base.base.cra_name);
+			err = crypto_engine_register_skcipher(&ce_algs[i].alg.skcipher);
 			if (err) {
 				dev_err(ce->dev, "Fail to register %s\n",
-					ce_algs[i].alg.skcipher.base.cra_name);
+					ce_algs[i].alg.skcipher.base.base.cra_name);
 				ce_algs[i].ce = NULL;
 				return err;
 			}
@@ -313,8 +316,8 @@ static void sl3516_ce_unregister_algs(struct sl3516_ce_dev *ce)
 		switch (ce_algs[i].type) {
 		case CRYPTO_ALG_TYPE_SKCIPHER:
 			dev_info(ce->dev, "Unregister %d %s\n", i,
-				 ce_algs[i].alg.skcipher.base.cra_name);
-			crypto_unregister_skcipher(&ce_algs[i].alg.skcipher);
+				 ce_algs[i].alg.skcipher.base.base.cra_name);
+			crypto_engine_unregister_skcipher(&ce_algs[i].alg.skcipher);
 			break;
 		}
 	}
@@ -473,13 +476,20 @@ static int sl3516_ce_probe(struct platform_device *pdev)
 
 	pm_runtime_put_sync(ce->dev);
 
+	if (IS_ENABLED(CONFIG_CRYPTO_DEV_SL3516_DEBUG)) {
+		struct dentry *dbgfs_dir __maybe_unused;
+		struct dentry *dbgfs_stats __maybe_unused;
+
+		/* Ignore error of debugfs */
+		dbgfs_dir = debugfs_create_dir("sl3516", NULL);
+		dbgfs_stats = debugfs_create_file("stats", 0444,
+						  dbgfs_dir, ce,
+						  &sl3516_ce_debugfs_fops);
 #ifdef CONFIG_CRYPTO_DEV_SL3516_DEBUG
-	/* Ignore error of debugfs */
-	ce->dbgfs_dir = debugfs_create_dir("sl3516", NULL);
-	ce->dbgfs_stats = debugfs_create_file("stats", 0444,
-					      ce->dbgfs_dir, ce,
-					      &sl3516_ce_debugfs_fops);
+		ce->dbgfs_dir = dbgfs_dir;
+		ce->dbgfs_stats = dbgfs_stats;
 #endif
+	}
 
 	return 0;
 error_pmuse:
@@ -495,7 +505,7 @@ error_pm:
 	return err;
 }
 
-static int sl3516_ce_remove(struct platform_device *pdev)
+static void sl3516_ce_remove(struct platform_device *pdev)
 {
 	struct sl3516_ce_dev *ce = platform_get_drvdata(pdev);
 
@@ -508,8 +518,6 @@ static int sl3516_ce_remove(struct platform_device *pdev)
 #ifdef CONFIG_CRYPTO_DEV_SL3516_DEBUG
 	debugfs_remove_recursive(ce->dbgfs_dir);
 #endif
-
-	return 0;
 }
 
 static const struct of_device_id sl3516_ce_crypto_of_match_table[] = {
@@ -520,7 +528,7 @@ MODULE_DEVICE_TABLE(of, sl3516_ce_crypto_of_match_table);
 
 static struct platform_driver sl3516_ce_driver = {
 	.probe		 = sl3516_ce_probe,
-	.remove		 = sl3516_ce_remove,
+	.remove_new	 = sl3516_ce_remove,
 	.driver		 = {
 		.name		= "sl3516-crypto",
 		.pm		= &sl3516_ce_pm_ops,

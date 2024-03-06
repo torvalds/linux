@@ -204,8 +204,6 @@ static int ti_syscon_reset_probe(struct platform_device *pdev)
 	data->controls = controls;
 	data->nr_controls = nr_controls;
 
-	platform_set_drvdata(pdev, data);
-
 	return devm_reset_controller_register(dev, &data->rcdev);
 }
 

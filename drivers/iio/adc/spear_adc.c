@@ -274,10 +274,9 @@ static int spear_adc_probe(struct platform_device *pdev)
 	int irq;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(struct spear_adc_state));
-	if (!indio_dev) {
-		dev_err(dev, "failed allocating iio device\n");
-		return -ENOMEM;
-	}
+	if (!indio_dev)
+		return dev_err_probe(dev, -ENOMEM,
+				     "failed allocating iio device\n");
 
 	st = iio_priv(indio_dev);
 
@@ -297,37 +296,24 @@ static int spear_adc_probe(struct platform_device *pdev)
 	st->adc_base_spear3xx =
 		(struct adc_regs_spear3xx __iomem *)st->adc_base_spear6xx;
 
-	st->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(st->clk)) {
-		dev_err(dev, "failed getting clock\n");
-		return PTR_ERR(st->clk);
-	}
-
-	ret = clk_prepare_enable(st->clk);
-	if (ret) {
-		dev_err(dev, "failed enabling clock\n");
-		return ret;
-	}
+	st->clk = devm_clk_get_enabled(dev, NULL);
+	if (IS_ERR(st->clk))
+		return dev_err_probe(dev, PTR_ERR(st->clk),
+				     "failed enabling clock\n");
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		ret = -EINVAL;
-		goto errout2;
-	}
+	if (irq < 0)
+		return irq;
 
 	ret = devm_request_irq(dev, irq, spear_adc_isr, 0, SPEAR_ADC_MOD_NAME,
 			       st);
-	if (ret < 0) {
-		dev_err(dev, "failed requesting interrupt\n");
-		goto errout2;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "failed requesting interrupt\n");
 
 	if (of_property_read_u32(np, "sampling-frequency",
-				 &st->sampling_freq)) {
-		dev_err(dev, "sampling-frequency missing in DT\n");
-		ret = -EINVAL;
-		goto errout2;
-	}
+				 &st->sampling_freq))
+		return dev_err_probe(dev, -EINVAL,
+				     "sampling-frequency missing in DT\n");
 
 	/*
 	 * Optional avg_samples defaults to 0, resulting in single data
@@ -343,8 +329,6 @@ static int spear_adc_probe(struct platform_device *pdev)
 
 	spear_adc_configure(st);
 
-	platform_set_drvdata(pdev, indio_dev);
-
 	init_completion(&st->completion);
 
 	indio_dev->name = SPEAR_ADC_MOD_NAME;
@@ -353,26 +337,11 @@ static int spear_adc_probe(struct platform_device *pdev)
 	indio_dev->channels = spear_adc_iio_channels;
 	indio_dev->num_channels = ARRAY_SIZE(spear_adc_iio_channels);
 
-	ret = iio_device_register(indio_dev);
+	ret = devm_iio_device_register(dev, indio_dev);
 	if (ret)
-		goto errout2;
+		return ret;
 
 	dev_info(dev, "SPEAR ADC driver loaded, IRQ %d\n", irq);
-
-	return 0;
-
-errout2:
-	clk_disable_unprepare(st->clk);
-	return ret;
-}
-
-static int spear_adc_remove(struct platform_device *pdev)
-{
-	struct iio_dev *indio_dev = platform_get_drvdata(pdev);
-	struct spear_adc_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-	clk_disable_unprepare(st->clk);
 
 	return 0;
 }
@@ -387,7 +356,6 @@ MODULE_DEVICE_TABLE(of, spear_adc_dt_ids);
 
 static struct platform_driver spear_adc_driver = {
 	.probe		= spear_adc_probe,
-	.remove		= spear_adc_remove,
 	.driver		= {
 		.name	= SPEAR_ADC_MOD_NAME,
 		.of_match_table = of_match_ptr(spear_adc_dt_ids),

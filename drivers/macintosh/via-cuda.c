@@ -235,8 +235,7 @@ int __init find_via_cuda(void)
 int __init find_via_cuda(void)
 {
     struct adb_request req;
-    phys_addr_t taddr;
-    const u32 *reg;
+    struct resource res;
     int err;
 
     if (vias)
@@ -245,17 +244,12 @@ int __init find_via_cuda(void)
     if (!vias)
 	return 0;
 
-    reg = of_get_property(vias, "reg", NULL);
-    if (reg == NULL) {
-	    printk(KERN_ERR "via-cuda: No \"reg\" property !\n");
+    err = of_address_to_resource(vias, 0, &res);
+    if (err) {
+	    printk(KERN_ERR "via-cuda: Error getting \"reg\" property !\n");
 	    goto fail;
     }
-    taddr = of_translate_address(vias, reg);
-    if (taddr == 0) {
-	    printk(KERN_ERR "via-cuda: Can't translate address !\n");
-	    goto fail;
-    }
-    via = ioremap(taddr, 0x2000);
+    via = ioremap(res.start, 0x2000);
     if (via == NULL) {
 	    printk(KERN_ERR "via-cuda: Can't map address !\n");
 	    goto fail;

@@ -7,6 +7,7 @@
  * minimal implementation based on egalax_ts.c and egalax_i2c.c
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -18,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/regulator/consumer.h>
 #include <linux/sizes.h>
 #include <linux/timer.h>
 #include <asm/unaligned.h>
@@ -323,16 +325,13 @@ static ssize_t type_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(type);
 
-static struct attribute *sysfs_attrs[] = {
+static struct attribute *exc3000_attrs[] = {
 	&dev_attr_fw_version.attr,
 	&dev_attr_model.attr,
 	&dev_attr_type.attr,
 	NULL
 };
-
-static struct attribute_group exc3000_attribute_group = {
-	.attrs = sysfs_attrs
-};
+ATTRIBUTE_GROUPS(exc3000);
 
 static int exc3000_probe(struct i2c_client *client)
 {
@@ -359,6 +358,12 @@ static int exc3000_probe(struct i2c_client *client)
 					      GPIOD_OUT_HIGH);
 	if (IS_ERR(data->reset))
 		return PTR_ERR(data->reset);
+
+	/* For proper reset sequence, enable power while reset asserted */
+	error = devm_regulator_get_enable(&client->dev, "vdd");
+	if (error && error != -ENODEV)
+		return dev_err_probe(&client->dev, error,
+				     "failed to request vdd regulator\n");
 
 	if (data->reset) {
 		msleep(EXC3000_RESET_MS);
@@ -429,10 +434,6 @@ static int exc3000_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, data);
 
-	error = devm_device_add_group(&client->dev, &exc3000_attribute_group);
-	if (error)
-		return error;
-
 	return 0;
 }
 
@@ -454,13 +455,23 @@ static const struct of_device_id exc3000_of_match[] = {
 MODULE_DEVICE_TABLE(of, exc3000_of_match);
 #endif
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id exc3000_acpi_match[] = {
+	{ "EGA00001", .driver_data = (kernel_ulong_t)&exc3000_info[EETI_EXC80H60] },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, exc3000_acpi_match);
+#endif
+
 static struct i2c_driver exc3000_driver = {
 	.driver = {
 		.name	= "exc3000",
+		.dev_groups = exc3000_groups,
 		.of_match_table = of_match_ptr(exc3000_of_match),
+		.acpi_match_table = ACPI_PTR(exc3000_acpi_match),
 	},
 	.id_table	= exc3000_id,
-	.probe_new	= exc3000_probe,
+	.probe		= exc3000_probe,
 };
 
 module_i2c_driver(exc3000_driver);

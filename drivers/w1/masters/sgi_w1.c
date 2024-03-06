@@ -93,7 +93,7 @@ static int sgi_w1_probe(struct platform_device *pdev)
 
 	pdata = dev_get_platdata(&pdev->dev);
 	if (pdata) {
-		strlcpy(sdev->dev_id, pdata->dev_id, sizeof(sdev->dev_id));
+		strscpy(sdev->dev_id, pdata->dev_id, sizeof(sdev->dev_id));
 		sdev->bus_master.dev_id = sdev->dev_id;
 	}
 

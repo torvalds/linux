@@ -1611,8 +1611,8 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 		goto exit_get_chap;
 	}
 
-	strlcpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
-	strlcpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
+	strscpy(password, chap_table->secret, QL4_CHAP_MAX_SECRET_LEN);
+	strscpy(username, chap_table->name, QL4_CHAP_MAX_NAME_LEN);
 	chap_table->cookie = cpu_to_le16(CHAP_VALID_COOKIE);
 
 exit_get_chap:
@@ -1732,8 +1732,8 @@ int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
 		goto exit_unlock_uni_chap;
 	}
 
-	strlcpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
-	strlcpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
+	strscpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
+	strscpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
 
 	rval = QLA_SUCCESS;
 

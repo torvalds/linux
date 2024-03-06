@@ -64,15 +64,13 @@ static const struct i2c_algo_bit_data i2c_versatile_algo = {
 static int i2c_versatile_probe(struct platform_device *dev)
 {
 	struct i2c_versatile *i2c;
-	struct resource *r;
 	int ret;
 
 	i2c = devm_kzalloc(&dev->dev, sizeof(struct i2c_versatile), GFP_KERNEL);
 	if (!i2c)
 		return -ENOMEM;
 
-	r = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	i2c->base = devm_ioremap_resource(&dev->dev, r);
+	i2c->base = devm_platform_get_and_ioremap_resource(dev, 0, NULL);
 	if (IS_ERR(i2c->base))
 		return PTR_ERR(i2c->base);
 
@@ -96,12 +94,11 @@ static int i2c_versatile_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int i2c_versatile_remove(struct platform_device *dev)
+static void i2c_versatile_remove(struct platform_device *dev)
 {
 	struct i2c_versatile *i2c = platform_get_drvdata(dev);
 
 	i2c_del_adapter(&i2c->adap);
-	return 0;
 }
 
 static const struct of_device_id i2c_versatile_match[] = {
@@ -112,7 +109,7 @@ MODULE_DEVICE_TABLE(of, i2c_versatile_match);
 
 static struct platform_driver i2c_versatile_driver = {
 	.probe		= i2c_versatile_probe,
-	.remove		= i2c_versatile_remove,
+	.remove_new	= i2c_versatile_remove,
 	.driver		= {
 		.name	= "versatile-i2c",
 		.of_match_table = i2c_versatile_match,

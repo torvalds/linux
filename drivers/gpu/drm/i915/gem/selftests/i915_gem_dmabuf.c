@@ -504,7 +504,7 @@ static int igt_dmabuf_export_vmap(void *arg)
 	}
 
 	if (memchr_inv(ptr, 0, dmabuf->size)) {
-		pr_err("Exported object not initialiased to zero!\n");
+		pr_err("Exported object not initialised to zero!\n");
 		err = -EINVAL;
 		goto out;
 	}

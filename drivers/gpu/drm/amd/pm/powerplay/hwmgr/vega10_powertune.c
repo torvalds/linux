@@ -30,8 +30,7 @@
 #include "pp_debug.h"
 #include "soc15_common.h"
 
-static const struct vega10_didt_config_reg SEDiDtTuningCtrlConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtTuningCtrlConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -55,8 +54,7 @@ static const struct vega10_didt_config_reg SEDiDtTuningCtrlConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEDiDtCtrl3Config_vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtCtrl3Config_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset               Mask                                                     Shift                                                            Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -120,8 +118,7 @@ static const struct vega10_didt_config_reg SEDiDtCtrl3Config_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEDiDtCtrl2Config_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtCtrl2Config_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                            Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -149,8 +146,7 @@ static const struct vega10_didt_config_reg SEDiDtCtrl2Config_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEDiDtCtrl1Config_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtCtrl1Config_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -172,8 +168,7 @@ static const struct vega10_didt_config_reg SEDiDtCtrl1Config_Vega10[] =
 };
 
 
-static const struct vega10_didt_config_reg SEDiDtWeightConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtWeightConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                  Shift                                                 Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -201,8 +196,7 @@ static const struct vega10_didt_config_reg SEDiDtWeightConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEDiDtCtrl0Config_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtCtrl0Config_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -260,8 +254,7 @@ static const struct vega10_didt_config_reg SEDiDtCtrl0Config_Vega10[] =
 };
 
 
-static const struct vega10_didt_config_reg SEDiDtStallCtrlConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtStallCtrlConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                   Mask                                                     Shift                                                      Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -293,8 +286,7 @@ static const struct vega10_didt_config_reg SEDiDtStallCtrlConfig_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEDiDtStallPatternConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg SEDiDtStallPatternConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                        Mask                                                      Shift                                                    Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -362,8 +354,7 @@ static const struct vega10_didt_config_reg SEDiDtStallPatternConfig_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SELCacConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SELCacConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -401,8 +392,7 @@ static const struct vega10_didt_config_reg SELCacConfig_Vega10[] =
 };
 
 
-static const struct vega10_didt_config_reg SEEDCStallPatternConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCStallPatternConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -431,8 +421,7 @@ static const struct vega10_didt_config_reg SEEDCStallPatternConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEEDCForceStallPatternConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCForceStallPatternConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -451,8 +440,7 @@ static const struct vega10_didt_config_reg SEEDCForceStallPatternConfig_Vega10[]
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEEDCStallDelayConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCStallDelayConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -478,8 +466,7 @@ static const struct vega10_didt_config_reg SEEDCStallDelayConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEEDCThresholdConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCThresholdConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -492,8 +479,7 @@ static const struct vega10_didt_config_reg SEEDCThresholdConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEEDCCtrlResetConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCCtrlResetConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -514,8 +500,7 @@ static const struct vega10_didt_config_reg SEEDCCtrlResetConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEEDCCtrlConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCCtrlConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -536,8 +521,7 @@ static const struct vega10_didt_config_reg SEEDCCtrlConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg SEEDCCtrlForceStallConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg SEEDCCtrlForceStallConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -571,8 +555,7 @@ static const struct vega10_didt_config_reg SEEDCCtrlForceStallConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg    GCDiDtDroopCtrlConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg    GCDiDtDroopCtrlConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -586,8 +569,7 @@ static const struct vega10_didt_config_reg    GCDiDtDroopCtrlConfig_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg    GCDiDtCtrl0Config_vega10[] =
-{
+static const struct vega10_didt_config_reg    GCDiDtCtrl0Config_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -601,8 +583,7 @@ static const struct vega10_didt_config_reg    GCDiDtCtrl0Config_vega10[] =
 };
 
 
-static const struct vega10_didt_config_reg   PSMSEEDCStallPatternConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMSEEDCStallPatternConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -621,8 +602,7 @@ static const struct vega10_didt_config_reg   PSMSEEDCStallPatternConfig_Vega10[]
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg   PSMSEEDCStallDelayConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMSEEDCStallDelayConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -651,8 +631,7 @@ static const struct vega10_didt_config_reg   PSMSEEDCStallDelayConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg   PSMSEEDCCtrlResetConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMSEEDCCtrlResetConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -673,8 +652,7 @@ static const struct vega10_didt_config_reg   PSMSEEDCCtrlResetConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg   PSMSEEDCCtrlConfig_Vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMSEEDCCtrlConfig_Vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -695,8 +673,7 @@ static const struct vega10_didt_config_reg   PSMSEEDCCtrlConfig_Vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg   PSMGCEDCDroopCtrlConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMGCEDCDroopCtrlConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -710,8 +687,7 @@ static const struct vega10_didt_config_reg   PSMGCEDCDroopCtrlConfig_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg   PSMGCEDCCtrlResetConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMGCEDCCtrlResetConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -726,8 +702,7 @@ static const struct vega10_didt_config_reg   PSMGCEDCCtrlResetConfig_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg   PSMGCEDCCtrlConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg   PSMGCEDCCtrlConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -742,8 +717,7 @@ static const struct vega10_didt_config_reg   PSMGCEDCCtrlConfig_vega10[] =
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg    AvfsPSMResetConfig_vega10[]=
-{
+static const struct vega10_didt_config_reg    AvfsPSMResetConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -756,8 +730,7 @@ static const struct vega10_didt_config_reg    AvfsPSMResetConfig_vega10[]=
 	{   0xFFFFFFFF  }  /* End of list */
 };
 
-static const struct vega10_didt_config_reg    AvfsPSMInitConfig_vega10[] =
-{
+static const struct vega10_didt_config_reg    AvfsPSMInitConfig_vega10[] = {
 /* ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
  *      Offset                             Mask                                                 Shift                                                  Value
  * ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -915,11 +888,11 @@ static int vega10_enable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (count = 0; count < num_se; count++) {
-		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
+		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | (count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
 		WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, data);
 
 		result =  vega10_program_didt_config_registers(hwmgr, SEDiDtStallCtrlConfig_vega10, VEGA10_CONFIGREG_DIDT);
@@ -940,7 +913,7 @@ static int vega10_enable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	return 0;
 }
@@ -949,11 +922,11 @@ static int vega10_disable_cac_driving_se_didt_config(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	return 0;
 }
@@ -966,11 +939,11 @@ static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (count = 0; count < num_se; count++) {
-		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
+		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | (count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
 		WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, data);
 
 		result = vega10_program_didt_config_registers(hwmgr, SEDiDtStallCtrlConfig_vega10, VEGA10_CONFIGREG_DIDT);
@@ -985,7 +958,7 @@ static int vega10_enable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	vega10_program_gc_didt_config_registers(hwmgr, GCDiDtDroopCtrlConfig_vega10);
 	if (PP_CAP(PHM_PlatformCaps_GCEDC))
@@ -1002,11 +975,11 @@ static int vega10_disable_psm_gc_didt_config(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t data;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		data = 0x00000000;
@@ -1027,11 +1000,11 @@ static int vega10_enable_se_edc_config(struct pp_hwmgr *hwmgr)
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (count = 0; count < num_se; count++) {
-		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
+		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | (count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
 		WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, data);
 		result = vega10_program_didt_config_registers(hwmgr, SEDiDtWeightConfig_Vega10, VEGA10_CONFIGREG_DIDT);
 		result |= vega10_program_didt_config_registers(hwmgr, SEEDCStallPatternConfig_Vega10, VEGA10_CONFIGREG_DIDT);
@@ -1048,7 +1021,7 @@ static int vega10_enable_se_edc_config(struct pp_hwmgr *hwmgr)
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	return 0;
 }
@@ -1057,11 +1030,11 @@ static int vega10_disable_se_edc_config(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	return 0;
 }
@@ -1075,13 +1048,13 @@ static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 
 	num_se = adev->gfx.config.max_shader_engines;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	vega10_program_gc_didt_config_registers(hwmgr, AvfsPSMResetConfig_vega10);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	for (count = 0; count < num_se; count++) {
-		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | ( count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
+		data = GRBM_GFX_INDEX__INSTANCE_BROADCAST_WRITES_MASK | GRBM_GFX_INDEX__SH_BROADCAST_WRITES_MASK | (count << GRBM_GFX_INDEX__SE_INDEX__SHIFT);
 		WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, data);
 		result = vega10_program_didt_config_registers(hwmgr, PSMSEEDCStallPatternConfig_Vega10, VEGA10_CONFIGREG_DIDT);
 		result |= vega10_program_didt_config_registers(hwmgr, PSMSEEDCStallDelayConfig_Vega10, VEGA10_CONFIGREG_DIDT);
@@ -1096,7 +1069,7 @@ static int vega10_enable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 
 	vega10_didt_set_mask(hwmgr, true);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	vega10_program_gc_didt_config_registers(hwmgr, PSMGCEDCDroopCtrlConfig_vega10);
 
@@ -1116,11 +1089,11 @@ static int vega10_disable_psm_gc_edc_config(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t data;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	if (PP_CAP(PHM_PlatformCaps_GCEDC)) {
 		data = 0x00000000;
@@ -1138,7 +1111,7 @@ static int vega10_enable_se_edc_force_stall_config(struct pp_hwmgr *hwmgr)
 	struct amdgpu_device *adev = hwmgr->adev;
 	int result;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	mutex_lock(&adev->grbm_idx_mutex);
 	WREG32_SOC15(GC, 0, mmGRBM_GFX_INDEX, 0xE0000000);
@@ -1151,7 +1124,7 @@ static int vega10_enable_se_edc_force_stall_config(struct pp_hwmgr *hwmgr)
 
 	vega10_didt_set_mask(hwmgr, false);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	return 0;
 }

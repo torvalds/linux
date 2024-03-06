@@ -477,115 +477,6 @@ enum {
 
 #define TCA_HFSC_MAX (__TCA_HFSC_MAX - 1)
 
-
-/* CBQ section */
-
-#define TC_CBQ_MAXPRIO		8
-#define TC_CBQ_MAXLEVEL		8
-#define TC_CBQ_DEF_EWMA		5
-
-struct tc_cbq_lssopt {
-	unsigned char	change;
-	unsigned char	flags;
-#define TCF_CBQ_LSS_BOUNDED	1
-#define TCF_CBQ_LSS_ISOLATED	2
-	unsigned char  	ewma_log;
-	unsigned char  	level;
-#define TCF_CBQ_LSS_FLAGS	1
-#define TCF_CBQ_LSS_EWMA	2
-#define TCF_CBQ_LSS_MAXIDLE	4
-#define TCF_CBQ_LSS_MINIDLE	8
-#define TCF_CBQ_LSS_OFFTIME	0x10
-#define TCF_CBQ_LSS_AVPKT	0x20
-	__u32		maxidle;
-	__u32		minidle;
-	__u32		offtime;
-	__u32		avpkt;
-};
-
-struct tc_cbq_wrropt {
-	unsigned char	flags;
-	unsigned char	priority;
-	unsigned char	cpriority;
-	unsigned char	__reserved;
-	__u32		allot;
-	__u32		weight;
-};
-
-struct tc_cbq_ovl {
-	unsigned char	strategy;
-#define	TC_CBQ_OVL_CLASSIC	0
-#define	TC_CBQ_OVL_DELAY	1
-#define	TC_CBQ_OVL_LOWPRIO	2
-#define	TC_CBQ_OVL_DROP		3
-#define	TC_CBQ_OVL_RCLASSIC	4
-	unsigned char	priority2;
-	__u16		pad;
-	__u32		penalty;
-};
-
-struct tc_cbq_police {
-	unsigned char	police;
-	unsigned char	__res1;
-	unsigned short	__res2;
-};
-
-struct tc_cbq_fopt {
-	__u32		split;
-	__u32		defmap;
-	__u32		defchange;
-};
-
-struct tc_cbq_xstats {
-	__u32		borrows;
-	__u32		overactions;
-	__s32		avgidle;
-	__s32		undertime;
-};
-
-enum {
-	TCA_CBQ_UNSPEC,
-	TCA_CBQ_LSSOPT,
-	TCA_CBQ_WRROPT,
-	TCA_CBQ_FOPT,
-	TCA_CBQ_OVL_STRATEGY,
-	TCA_CBQ_RATE,
-	TCA_CBQ_RTAB,
-	TCA_CBQ_POLICE,
-	__TCA_CBQ_MAX,
-};
-
-#define TCA_CBQ_MAX	(__TCA_CBQ_MAX - 1)
-
-/* dsmark section */
-
-enum {
-	TCA_DSMARK_UNSPEC,
-	TCA_DSMARK_INDICES,
-	TCA_DSMARK_DEFAULT_INDEX,
-	TCA_DSMARK_SET_TC_INDEX,
-	TCA_DSMARK_MASK,
-	TCA_DSMARK_VALUE,
-	__TCA_DSMARK_MAX,
-};
-
-#define TCA_DSMARK_MAX (__TCA_DSMARK_MAX - 1)
-
-/* ATM  section */
-
-enum {
-	TCA_ATM_UNSPEC,
-	TCA_ATM_FD,		/* file/socket descriptor */
-	TCA_ATM_PTR,		/* pointer to descriptor - later */
-	TCA_ATM_HDR,		/* LL header */
-	TCA_ATM_EXCESS,		/* excess traffic class (0 for CLP)  */
-	TCA_ATM_ADDR,		/* PVC address (for output only) */
-	TCA_ATM_STATE,		/* VC state (ATM_VS_*; for output only) */
-	__TCA_ATM_MAX,
-};
-
-#define TCA_ATM_MAX	(__TCA_ATM_MAX - 1)
-
 /* Network emulator */
 
 enum {
@@ -603,6 +494,7 @@ enum {
 	TCA_NETEM_JITTER64,
 	TCA_NETEM_SLOT,
 	TCA_NETEM_SLOT_DIST,
+	TCA_NETEM_PRNG_SEED,
 	__TCA_NETEM_MAX,
 };
 
@@ -940,15 +832,22 @@ enum {
 
 	TCA_FQ_HORIZON_DROP,	/* drop packets beyond horizon, or cap their EDT */
 
+	TCA_FQ_PRIOMAP,		/* prio2band */
+
+	TCA_FQ_WEIGHTS,		/* Weights for each band */
+
 	__TCA_FQ_MAX
 };
 
 #define TCA_FQ_MAX	(__TCA_FQ_MAX - 1)
 
+#define FQ_BANDS 3
+#define FQ_MIN_WEIGHT 16384
+
 struct tc_fq_qd_stats {
 	__u64	gc_flows;
-	__u64	highprio_packets;
-	__u64	tcp_retrans;
+	__u64	highprio_packets;	/* obsolete */
+	__u64	tcp_retrans;		/* obsolete */
 	__u64	throttled;
 	__u64	flows_plimit;
 	__u64	pkts_too_long;
@@ -961,6 +860,10 @@ struct tc_fq_qd_stats {
 	__u64	ce_mark;		/* packets above ce_threshold */
 	__u64	horizon_drops;
 	__u64	horizon_caps;
+	__u64	fastpath_packets;
+	__u64	band_drops[FQ_BANDS];
+	__u32	band_pkt_count[FQ_BANDS];
+	__u32	pad;
 };
 
 /* Heavy-Hitter Filter */
@@ -1257,6 +1160,16 @@ enum {
 	/* add new constants above here */
 	__TCA_TAPRIO_TC_ENTRY_CNT,
 	TCA_TAPRIO_TC_ENTRY_MAX = (__TCA_TAPRIO_TC_ENTRY_CNT - 1)
+};
+
+enum {
+	TCA_TAPRIO_OFFLOAD_STATS_PAD = 1,	/* u64 */
+	TCA_TAPRIO_OFFLOAD_STATS_WINDOW_DROPS,	/* u64 */
+	TCA_TAPRIO_OFFLOAD_STATS_TX_OVERRUNS,	/* u64 */
+
+	/* add new constants above here */
+	__TCA_TAPRIO_OFFLOAD_STATS_CNT,
+	TCA_TAPRIO_OFFLOAD_STATS_MAX = (__TCA_TAPRIO_OFFLOAD_STATS_CNT - 1)
 };
 
 enum {

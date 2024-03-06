@@ -24,6 +24,8 @@
 #include "priv.h"
 #include "pad.h"
 
+#include <subdev/gsp.h>
+
 static void
 gm200_aux_autodpcd(struct nvkm_i2c *i2c, int aux, bool enable)
 {
@@ -44,5 +46,8 @@ int
 gm200_i2c_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_i2c **pi2c)
 {
+	if (nvkm_gsp_rm(device->gsp))
+		return -ENODEV;
+
 	return nvkm_i2c_new_(&gm200_i2c, device, type, inst, pi2c);
 }

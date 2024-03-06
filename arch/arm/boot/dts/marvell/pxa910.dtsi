@@ -1,0 +1,177 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ *  Copyright (C) 2012 Marvell Technology Group Ltd.
+ *  Author: Haojian Zhuang <haojian.zhuang@marvell.com>
+ */
+
+#include <dt-bindings/clock/marvell,pxa910.h>
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	aliases {
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
+		i2c0 = &twsi1;
+		i2c1 = &twsi2;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		interrupt-parent = <&intc>;
+		ranges;
+
+		L2: l2-cache {
+			compatible = "marvell,tauros2-cache";
+			marvell,tauros2-cache-features = <0x3>;
+		};
+
+		axi@d4200000 {	/* AXI */
+			compatible = "mrvl,axi-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xd4200000 0x00200000>;
+			ranges;
+
+			intc: interrupt-controller@d4282000 {
+				compatible = "mrvl,mmp-intc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0xd4282000 0x1000>;
+				mrvl,intc-nr-irqs = <64>;
+			};
+
+		};
+
+		apb@d4000000 {	/* APB */
+			compatible = "mrvl,apb-bus", "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0xd4000000 0x00200000>;
+			ranges;
+
+			timer0: timer@d4014000 {
+				compatible = "mrvl,mmp-timer";
+				reg = <0xd4014000 0x100>;
+				interrupts = <13>;
+			};
+
+			timer1: timer@d4016000 {
+				compatible = "mrvl,mmp-timer";
+				reg = <0xd4016000 0x100>;
+				interrupts = <29>;
+				status = "disabled";
+			};
+
+			uart1: serial@d4017000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4017000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <27>;
+				clocks = <&soc_clocks PXA910_CLK_UART0>;
+				resets = <&soc_clocks PXA910_CLK_UART0>;
+				status = "disabled";
+			};
+
+			uart2: serial@d4018000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4018000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <28>;
+				clocks = <&soc_clocks PXA910_CLK_UART1>;
+				resets = <&soc_clocks PXA910_CLK_UART1>;
+				status = "disabled";
+			};
+
+			uart3: serial@d4036000 {
+				compatible = "mrvl,mmp-uart", "intel,xscale-uart";
+				reg = <0xd4036000 0x1000>;
+				reg-shift = <2>;
+				interrupts = <59>;
+				clocks = <&soc_clocks PXA910_CLK_UART2>;
+				resets = <&soc_clocks PXA910_CLK_UART2>;
+				status = "disabled";
+			};
+
+			gpio@d4019000 {
+				compatible = "marvell,mmp-gpio";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0xd4019000 0x1000>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupts = <49>;
+				interrupt-names = "gpio_mux";
+				clocks = <&soc_clocks PXA910_CLK_GPIO>;
+				resets = <&soc_clocks PXA910_CLK_GPIO>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				ranges;
+
+				gcb0: gpio@d4019000 {
+					reg = <0xd4019000 0x4>;
+				};
+
+				gcb1: gpio@d4019004 {
+					reg = <0xd4019004 0x4>;
+				};
+
+				gcb2: gpio@d4019008 {
+					reg = <0xd4019008 0x4>;
+				};
+
+				gcb3: gpio@d4019100 {
+					reg = <0xd4019100 0x4>;
+				};
+			};
+
+			twsi1: i2c@d4011000 {
+				compatible = "mrvl,mmp-twsi";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xd4011000 0x1000>;
+				interrupts = <7>;
+				clocks = <&soc_clocks PXA910_CLK_TWSI0>;
+				resets = <&soc_clocks PXA910_CLK_TWSI0>;
+				mrvl,i2c-fast-mode;
+				status = "disabled";
+			};
+
+			twsi2: i2c@d4037000 {
+				compatible = "mrvl,mmp-twsi";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0xd4037000 0x1000>;
+				interrupts = <54>;
+				clocks = <&soc_clocks PXA910_CLK_TWSI1>;
+				resets = <&soc_clocks PXA910_CLK_TWSI1>;
+				status = "disabled";
+			};
+
+			rtc: rtc@d4010000 {
+				compatible = "mrvl,mmp-rtc";
+				reg = <0xd4010000 0x1000>;
+				interrupts = <5>, <6>;
+				interrupt-names = "rtc 1Hz", "rtc alarm";
+				clocks = <&soc_clocks PXA910_CLK_RTC>;
+				resets = <&soc_clocks PXA910_CLK_RTC>;
+				status = "disabled";
+			};
+		};
+
+		soc_clocks: clocks {
+			compatible = "marvell,pxa910-clock";
+			reg = <0xd4050000 0x1000>,
+			      <0xd4282800 0x400>,
+			      <0xd4015000 0x1000>,
+			      <0xd403b000 0x1000>;
+			reg-names = "mpmu", "apmu", "apbc", "apbcp";
+			#clock-cells = <1>;
+			#reset-cells = <1>;
+		};
+	};
+};

@@ -6,7 +6,6 @@
 #include <asm/percpu.h>
 #include <asm/current.h>
 
-#include <linux/thread_info.h>
 #include <linux/static_call_types.h>
 
 /* We use the MSB mostly because its available */
@@ -31,11 +30,11 @@ static __always_inline void preempt_count_set(int pc)
 {
 	int old, new;
 
+	old = raw_cpu_read_4(pcpu_hot.preempt_count);
 	do {
-		old = raw_cpu_read_4(pcpu_hot.preempt_count);
 		new = (old & PREEMPT_NEED_RESCHED) |
 			(pc & ~PREEMPT_NEED_RESCHED);
-	} while (raw_cpu_cmpxchg_4(pcpu_hot.preempt_count, old, new) != old);
+	} while (!raw_cpu_try_cmpxchg_4(pcpu_hot.preempt_count, &old, new));
 }
 
 /*

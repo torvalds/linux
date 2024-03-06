@@ -25,6 +25,7 @@
 #include "priv.h"
 
 #include <core/ramht.h>
+#include <subdev/bar.h>
 
 struct nv04_instmem {
 	struct nvkm_instmem base;
@@ -154,6 +155,48 @@ nv04_instmem_wr32(struct nvkm_instmem *imem, u32 addr, u32 data)
 	nvkm_wr32(imem->subdev.device, 0x700000 + addr, data);
 }
 
+void
+nv04_instmem_resume(struct nvkm_instmem *imem)
+{
+	struct nvkm_instobj *iobj;
+
+	list_for_each_entry(iobj, &imem->boot, head) {
+		if (iobj->suspend)
+			nvkm_instobj_load(iobj);
+	}
+
+	nvkm_bar_bar2_init(imem->subdev.device);
+
+	list_for_each_entry(iobj, &imem->list, head) {
+		if (iobj->suspend)
+			nvkm_instobj_load(iobj);
+	}
+}
+
+int
+nv04_instmem_suspend(struct nvkm_instmem *imem)
+{
+	struct nvkm_instobj *iobj;
+
+	list_for_each_entry(iobj, &imem->list, head) {
+		if (iobj->preserve) {
+			int ret = nvkm_instobj_save(iobj);
+			if (ret)
+				return ret;
+		}
+	}
+
+	nvkm_bar_bar2_fini(imem->subdev.device);
+
+	list_for_each_entry(iobj, &imem->boot, head) {
+		int ret = nvkm_instobj_save(iobj);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int
 nv04_instmem_oneinit(struct nvkm_instmem *base)
 {
@@ -210,6 +253,8 @@ static const struct nvkm_instmem_func
 nv04_instmem = {
 	.dtor = nv04_instmem_dtor,
 	.oneinit = nv04_instmem_oneinit,
+	.suspend = nv04_instmem_suspend,
+	.resume = nv04_instmem_resume,
 	.rd32 = nv04_instmem_rd32,
 	.wr32 = nv04_instmem_wr32,
 	.memory_new = nv04_instobj_new,

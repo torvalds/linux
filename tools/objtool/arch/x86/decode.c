@@ -84,7 +84,7 @@ bool arch_pc_relative_reloc(struct reloc *reloc)
 	 * All relocation types where P (the address of the target)
 	 * is included in the computation.
 	 */
-	switch (reloc->type) {
+	switch (reloc_type(reloc)) {
 	case R_X86_64_PC8:
 	case R_X86_64_PC16:
 	case R_X86_64_PC32:
@@ -291,7 +291,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 		switch (modrm_reg & 7) {
 		case 5:
 			imm = -imm;
-			/* fallthrough */
+			fallthrough;
 		case 0:
 			/* add/sub imm, %rsp */
 			ADD_OP(op) {
@@ -375,7 +375,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* fallthrough */
+		fallthrough;
 	case 0x88:
 		if (!rex_w)
 			break;
@@ -623,11 +623,11 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			if (!immr || strcmp(immr->sym->name, "pv_ops"))
 				break;
 
-			idx = (immr->addend + 8) / sizeof(void *);
+			idx = (reloc_addend(immr) + 8) / sizeof(void *);
 
 			func = disp->sym;
 			if (disp->sym->type == STT_SECTION)
-				func = find_symbol_by_offset(disp->sym->sec, disp->addend);
+				func = find_symbol_by_offset(disp->sym->sec, reloc_addend(disp));
 			if (!func) {
 				WARN("no func for pv_ops[]");
 				return -1;
@@ -656,7 +656,7 @@ int arch_decode_instruction(struct objtool_file *file, const struct section *sec
 			break;
 		}
 
-		/* fallthrough */
+		fallthrough;
 
 	case 0xca: /* retf */
 	case 0xcb: /* retf */
@@ -825,4 +825,10 @@ bool arch_is_retpoline(struct symbol *sym)
 bool arch_is_rethunk(struct symbol *sym)
 {
 	return !strcmp(sym->name, "__x86_return_thunk");
+}
+
+bool arch_is_embedded_insn(struct symbol *sym)
+{
+	return !strcmp(sym->name, "retbleed_return_thunk") ||
+	       !strcmp(sym->name, "srso_safe_ret");
 }

@@ -206,7 +206,7 @@ static struct i2c_driver g760a_driver = {
 	.driver = {
 		.name	= "g760a",
 	},
-	.probe_new = g760a_probe,
+	.probe = g760a_probe,
 	.id_table = g760a_id,
 };
 

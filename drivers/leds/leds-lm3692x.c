@@ -139,7 +139,7 @@ static const struct regmap_config lm3692x_regmap_config = {
 	.max_register = LM3692X_FAULT_FLAGS,
 	.reg_defaults = lm3692x_reg_defs,
 	.num_reg_defaults = ARRAY_SIZE(lm3692x_reg_defs),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int lm3692x_fault_check(struct lm3692x_led *led)
@@ -518,7 +518,7 @@ static struct i2c_driver lm3692x_driver = {
 		.name	= "lm3692x",
 		.of_match_table = of_lm3692x_leds_match,
 	},
-	.probe_new	= lm3692x_probe,
+	.probe		= lm3692x_probe,
 	.remove		= lm3692x_remove,
 	.id_table	= lm3692x_id,
 };

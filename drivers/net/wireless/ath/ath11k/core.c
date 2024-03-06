@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "hif.h"
 #include "wow.h"
+#include "fw.h"
 
 unsigned int ath11k_debug_mask;
 EXPORT_SYMBOL(ath11k_debug_mask);
@@ -31,6 +32,10 @@ unsigned int ath11k_frame_mode = ATH11K_HW_TXRX_NATIVE_WIFI;
 module_param_named(frame_mode, ath11k_frame_mode, uint, 0644);
 MODULE_PARM_DESC(frame_mode,
 		 "Datapath frame mode (0: raw, 1: native wifi (default), 2: ethernet)");
+
+bool ath11k_ftm_mode;
+module_param_named(ftm_mode, ath11k_ftm_mode, bool, 0444);
+MODULE_PARM_DESC(ftm_mode, "Boots up in factory test mode");
 
 static const struct ath11k_hw_params ath11k_hw_params[] = {
 	{
@@ -82,7 +87,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.supports_sta_ps = false,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = true,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -163,7 +169,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.supports_sta_ps = false,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = true,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -244,7 +251,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -328,8 +336,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = false,
 		.idle_ps = false,
 		.supports_sta_ps = false,
-		.cold_boot_calib = false,
-		.cbcal_restart_fw = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = true,
+		.cbcal_restart_fw = true,
 		.fw_mem_mode = 2,
 		.num_vdevs = 8,
 		.num_peers = 128,
@@ -409,7 +418,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -491,7 +501,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = false,
+		.coldboot_cal_mm = false,
+		.coldboot_cal_ftm = false,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -574,7 +585,8 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_shadow_regs = true,
 		.idle_ps = true,
 		.supports_sta_ps = true,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
 		.cbcal_restart_fw = false,
 		.fw_mem_mode = 0,
 		.num_vdevs = 16 + 1,
@@ -663,7 +675,9 @@ static const struct ath11k_hw_params ath11k_hw_params[] = {
 		.supports_suspend = false,
 		.hal_params = &ath11k_hw_hal_params_ipq8074,
 		.single_pdev_only = false,
-		.cold_boot_calib = true,
+		.coldboot_cal_mm = true,
+		.coldboot_cal_ftm = true,
+		.cbcal_restart_fw = true,
 		.fix_l1ss = true,
 		.supports_dynamic_smps_6ghz = false,
 		.alloc_cacheable_memory = true,
@@ -742,6 +756,18 @@ void ath11k_fw_stats_free(struct ath11k_fw_stats *stats)
 	ath11k_fw_stats_pdevs_free(&stats->pdevs);
 	ath11k_fw_stats_vdevs_free(&stats->vdevs);
 	ath11k_fw_stats_bcn_free(&stats->bcn);
+}
+
+bool ath11k_core_coldboot_cal_support(struct ath11k_base *ab)
+{
+	if (!ath11k_cold_boot_cal)
+		return false;
+
+	if (ath11k_ftm_mode)
+		return ab->hw_params.coldboot_cal_ftm;
+
+	else
+		return ab->hw_params.coldboot_cal_mm;
 }
 
 int ath11k_core_suspend(struct ath11k_base *ab)
@@ -874,16 +900,16 @@ static void ath11k_core_check_cc_code_bdfext(const struct dmi_header *hdr, void 
 	case ATH11K_SMBIOS_CC_ISO:
 		ab->new_alpha2[0] = (smbios->cc_code >> 8) & 0xff;
 		ab->new_alpha2[1] = smbios->cc_code & 0xff;
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot smbios cc_code %c%c\n",
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "smbios cc_code %c%c\n",
 			   ab->new_alpha2[0], ab->new_alpha2[1]);
 		break;
 	case ATH11K_SMBIOS_CC_WW:
 		ab->new_alpha2[0] = '0';
 		ab->new_alpha2[1] = '0';
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot smbios worldwide regdomain\n");
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "smbios worldwide regdomain\n");
 		break;
 	default:
-		ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot ignore smbios country code setting %d\n",
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "ignore smbios country code setting %d\n",
 			   smbios->country_code_flag);
 		break;
 	}
@@ -960,8 +986,15 @@ int ath11k_core_check_dt(struct ath11k_base *ab)
 	return 0;
 }
 
+enum ath11k_bdf_name_type {
+	ATH11K_BDF_NAME_FULL,
+	ATH11K_BDF_NAME_BUS_NAME,
+	ATH11K_BDF_NAME_CHIP_ID,
+};
+
 static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
-					   size_t name_len, bool with_variant)
+					   size_t name_len, bool with_variant,
+					   enum ath11k_bdf_name_type name_type)
 {
 	/* strlen(',variant=') + strlen(ab->qmi.target.bdf_ext) */
 	char variant[9 + ATH11K_QMI_BDF_EXT_STR_LENGTH] = { 0 };
@@ -972,15 +1005,30 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 
 	switch (ab->id.bdf_search) {
 	case ATH11K_BDF_SEARCH_BUS_AND_BOARD:
-		scnprintf(name, name_len,
-			  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x,qmi-chip-id=%d,qmi-board-id=%d%s",
-			  ath11k_bus_str(ab->hif.bus),
-			  ab->id.vendor, ab->id.device,
-			  ab->id.subsystem_vendor,
-			  ab->id.subsystem_device,
-			  ab->qmi.target.chip_id,
-			  ab->qmi.target.board_id,
-			  variant);
+		switch (name_type) {
+		case ATH11K_BDF_NAME_FULL:
+			scnprintf(name, name_len,
+				  "bus=%s,vendor=%04x,device=%04x,subsystem-vendor=%04x,subsystem-device=%04x,qmi-chip-id=%d,qmi-board-id=%d%s",
+				  ath11k_bus_str(ab->hif.bus),
+				  ab->id.vendor, ab->id.device,
+				  ab->id.subsystem_vendor,
+				  ab->id.subsystem_device,
+				  ab->qmi.target.chip_id,
+				  ab->qmi.target.board_id,
+				  variant);
+			break;
+		case ATH11K_BDF_NAME_BUS_NAME:
+			scnprintf(name, name_len,
+				  "bus=%s",
+				  ath11k_bus_str(ab->hif.bus));
+			break;
+		case ATH11K_BDF_NAME_CHIP_ID:
+			scnprintf(name, name_len,
+				  "bus=%s,qmi-chip-id=%d",
+				  ath11k_bus_str(ab->hif.bus),
+				  ab->qmi.target.chip_id);
+			break;
+		}
 		break;
 	default:
 		scnprintf(name, name_len,
@@ -991,7 +1039,7 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 		break;
 	}
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot using board name '%s'\n", name);
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board name '%s'\n", name);
 
 	return 0;
 }
@@ -999,13 +1047,29 @@ static int __ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 static int ath11k_core_create_board_name(struct ath11k_base *ab, char *name,
 					 size_t name_len)
 {
-	return __ath11k_core_create_board_name(ab, name, name_len, true);
+	return __ath11k_core_create_board_name(ab, name, name_len, true,
+					       ATH11K_BDF_NAME_FULL);
 }
 
 static int ath11k_core_create_fallback_board_name(struct ath11k_base *ab, char *name,
 						  size_t name_len)
 {
-	return __ath11k_core_create_board_name(ab, name, name_len, false);
+	return __ath11k_core_create_board_name(ab, name, name_len, false,
+					       ATH11K_BDF_NAME_FULL);
+}
+
+static int ath11k_core_create_bus_type_board_name(struct ath11k_base *ab, char *name,
+						  size_t name_len)
+{
+	return __ath11k_core_create_board_name(ab, name, name_len, false,
+					       ATH11K_BDF_NAME_BUS_NAME);
+}
+
+static int ath11k_core_create_chip_id_board_name(struct ath11k_base *ab, char *name,
+						 size_t name_len)
+{
+	return __ath11k_core_create_board_name(ab, name, name_len, false,
+					       ATH11K_BDF_NAME_CHIP_ID);
 }
 
 const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
@@ -1024,7 +1088,7 @@ const struct firmware *ath11k_core_firmware_request(struct ath11k_base *ab,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot firmware request %s size %zu\n",
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "firmware request %s size %zu\n",
 		   path, fw->size);
 
 	return fw;
@@ -1085,7 +1149,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 
 			name_match_found = true;
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "boot found match %s for name '%s'",
+				   "found match %s for name '%s'",
 				   ath11k_bd_ie_type_str(ie_id),
 				   boardname);
 		} else if (board_ie_id == data_id) {
@@ -1094,7 +1158,7 @@ static int ath11k_core_parse_bd_ie_board(struct ath11k_base *ab,
 				goto next;
 
 			ath11k_dbg(ab, ATH11K_DBG_BOOT,
-				   "boot found %s for '%s'",
+				   "found %s for '%s'",
 				   ath11k_bd_ie_type_str(ie_id),
 				   boardname);
 
@@ -1252,31 +1316,43 @@ int ath11k_core_fetch_board_data_api_1(struct ath11k_base *ab,
 #define BOARD_NAME_SIZE 200
 int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 {
-	char boardname[BOARD_NAME_SIZE], fallback_boardname[BOARD_NAME_SIZE];
+	char *boardname = NULL, *fallback_boardname = NULL, *chip_id_boardname = NULL;
 	char *filename, filepath[100];
-	int ret;
+	int bd_api;
+	int ret = 0;
 
 	filename = ATH11K_BOARD_API2_FILE;
-
-	ret = ath11k_core_create_board_name(ab, boardname, sizeof(boardname));
-	if (ret) {
-		ath11k_err(ab, "failed to create board name: %d", ret);
-		return ret;
+	boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
+	if (!boardname) {
+		ret = -ENOMEM;
+		goto exit;
 	}
 
-	ab->bd_api = 2;
+	ret = ath11k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
+	if (ret) {
+		ath11k_err(ab, "failed to create board name: %d", ret);
+		goto exit;
+	}
+
+	bd_api = 2;
 	ret = ath11k_core_fetch_board_data_api_n(ab, bd, boardname,
 						 ATH11K_BD_IE_BOARD,
 						 ATH11K_BD_IE_BOARD_NAME,
 						 ATH11K_BD_IE_BOARD_DATA);
 	if (!ret)
-		goto success;
+		goto exit;
+
+	fallback_boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
+	if (!fallback_boardname) {
+		ret = -ENOMEM;
+		goto exit;
+	}
 
 	ret = ath11k_core_create_fallback_board_name(ab, fallback_boardname,
-						     sizeof(fallback_boardname));
+						     BOARD_NAME_SIZE);
 	if (ret) {
 		ath11k_err(ab, "failed to create fallback board name: %d", ret);
-		return ret;
+		goto exit;
 	}
 
 	ret = ath11k_core_fetch_board_data_api_n(ab, bd, fallback_boardname,
@@ -1284,9 +1360,30 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 						 ATH11K_BD_IE_BOARD_NAME,
 						 ATH11K_BD_IE_BOARD_DATA);
 	if (!ret)
-		goto success;
+		goto exit;
 
-	ab->bd_api = 1;
+	chip_id_boardname = kzalloc(BOARD_NAME_SIZE, GFP_KERNEL);
+	if (!chip_id_boardname) {
+		ret = -ENOMEM;
+		goto exit;
+	}
+
+	ret = ath11k_core_create_chip_id_board_name(ab, chip_id_boardname,
+						    BOARD_NAME_SIZE);
+	if (ret) {
+		ath11k_err(ab, "failed to create chip id board name: %d", ret);
+		goto exit;
+	}
+
+	ret = ath11k_core_fetch_board_data_api_n(ab, bd, chip_id_boardname,
+						 ATH11K_BD_IE_BOARD,
+						 ATH11K_BD_IE_BOARD_NAME,
+						 ATH11K_BD_IE_BOARD_DATA);
+
+	if (!ret)
+		goto exit;
+
+	bd_api = 1;
 	ret = ath11k_core_fetch_board_data_api_1(ab, bd, ATH11K_DEFAULT_BOARD_FILE);
 	if (ret) {
 		ath11k_core_create_firmware_path(ab, filename,
@@ -1297,19 +1394,27 @@ int ath11k_core_fetch_bdf(struct ath11k_base *ab, struct ath11k_board_data *bd)
 			ath11k_err(ab, "failed to fetch board data for %s from %s\n",
 				   fallback_boardname, filepath);
 
+		ath11k_err(ab, "failed to fetch board data for %s from %s\n",
+			   chip_id_boardname, filepath);
+
 		ath11k_err(ab, "failed to fetch board.bin from %s\n",
 			   ab->hw_params.fw.dir);
-		return ret;
 	}
 
-success:
-	ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board api %d\n", ab->bd_api);
-	return 0;
+exit:
+	kfree(boardname);
+	kfree(fallback_boardname);
+	kfree(chip_id_boardname);
+
+	if (!ret)
+		ath11k_dbg(ab, ATH11K_DBG_BOOT, "using board api %d\n", bd_api);
+
+	return ret;
 }
 
 int ath11k_core_fetch_regdb(struct ath11k_base *ab, struct ath11k_board_data *bd)
 {
-	char boardname[BOARD_NAME_SIZE];
+	char boardname[BOARD_NAME_SIZE], default_boardname[BOARD_NAME_SIZE];
 	int ret;
 
 	ret = ath11k_core_create_board_name(ab, boardname, BOARD_NAME_SIZE);
@@ -1320,6 +1425,21 @@ int ath11k_core_fetch_regdb(struct ath11k_base *ab, struct ath11k_board_data *bd
 	}
 
 	ret = ath11k_core_fetch_board_data_api_n(ab, bd, boardname,
+						 ATH11K_BD_IE_REGDB,
+						 ATH11K_BD_IE_REGDB_NAME,
+						 ATH11K_BD_IE_REGDB_DATA);
+	if (!ret)
+		goto exit;
+
+	ret = ath11k_core_create_bus_type_board_name(ab, default_boardname,
+						     BOARD_NAME_SIZE);
+	if (ret) {
+		ath11k_dbg(ab, ATH11K_DBG_BOOT,
+			   "failed to create default board name for regdb: %d", ret);
+		goto exit;
+	}
+
+	ret = ath11k_core_fetch_board_data_api_n(ab, bd, default_boardname,
 						 ATH11K_BD_IE_REGDB,
 						 ATH11K_BD_IE_REGDB_NAME,
 						 ATH11K_BD_IE_REGDB_DATA);
@@ -1353,6 +1473,11 @@ static void ath11k_core_stop(struct ath11k_base *ab)
 static int ath11k_core_soc_create(struct ath11k_base *ab)
 {
 	int ret;
+
+	if (ath11k_ftm_mode) {
+		ab->fw_mode = ATH11K_FIRMWARE_MODE_FTM;
+		ath11k_info(ab, "Booting in factory test mode\n");
+	}
 
 	ret = ath11k_qmi_init_service(ab);
 	if (ret) {
@@ -1580,7 +1705,7 @@ int ath11k_core_qmi_firmware_ready(struct ath11k_base *ab)
 {
 	int ret;
 
-	ret = ath11k_core_start_firmware(ab, ATH11K_FIRMWARE_MODE_NORMAL);
+	ret = ath11k_core_start_firmware(ab, ab->fw_mode);
 	if (ret) {
 		ath11k_err(ab, "failed to start firmware: %d\n", ret);
 		return ret;
@@ -1745,7 +1870,8 @@ void ath11k_core_pre_reconfigure_recovery(struct ath11k_base *ab)
 	for (i = 0; i < ab->num_radios; i++) {
 		pdev = &ab->pdevs[i];
 		ar = pdev->ar;
-		if (!ar || ar->state == ATH11K_STATE_OFF)
+		if (!ar || ar->state == ATH11K_STATE_OFF ||
+		    ar->state == ATH11K_STATE_FTM)
 			continue;
 
 		ieee80211_stop_queues(ar->hw);
@@ -1814,7 +1940,12 @@ static void ath11k_core_post_reconfigure_recovery(struct ath11k_base *ab)
 			ath11k_warn(ab,
 				    "device is wedged, will not restart radio %d\n", i);
 			break;
+		case ATH11K_STATE_FTM:
+			ath11k_dbg(ab, ATH11K_DBG_TESTMODE,
+				   "fw mode reset done radio %d\n", i);
+			break;
 		}
+
 		mutex_unlock(&ar->conf_mutex);
 	}
 	complete(&ab->driver_recovery);
@@ -1942,6 +2073,12 @@ int ath11k_core_pre_init(struct ath11k_base *ab)
 		return ret;
 	}
 
+	ret = ath11k_fw_pre_init(ab);
+	if (ret) {
+		ath11k_err(ab, "failed to pre init firmware: %d", ret);
+		return ret;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(ath11k_core_pre_init);
@@ -1972,6 +2109,7 @@ void ath11k_core_deinit(struct ath11k_base *ab)
 	ath11k_hif_power_down(ab);
 	ath11k_mac_destroy(ab);
 	ath11k_core_soc_destroy(ab);
+	ath11k_fw_destroy(ab);
 }
 EXPORT_SYMBOL(ath11k_core_deinit);
 

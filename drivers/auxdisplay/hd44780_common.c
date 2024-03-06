@@ -82,7 +82,15 @@ int hd44780_common_clear_display(struct charlcd *lcd)
 	hdc->write_cmd(hdc, LCD_CMD_DISPLAY_CLEAR);
 	/* datasheet says to wait 1,64 milliseconds */
 	long_sleep(2);
-	return 0;
+
+	/*
+	 * The Hitachi HD44780 controller (and compatible ones) reset the DDRAM
+	 * address when executing the DISPLAY_CLEAR command, thus the
+	 * following call is not required. However, other controllers do not
+	 * (e.g. NewHaven NHD-0220DZW-AG5), thus move the cursor to home
+	 * unconditionally to support both.
+	 */
+	return hd44780_common_home(lcd);
 }
 EXPORT_SYMBOL_GPL(hd44780_common_clear_display);
 

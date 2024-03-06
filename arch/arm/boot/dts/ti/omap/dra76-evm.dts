@@ -1,0 +1,567 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (C) 2017 Texas Instruments Incorporated - https://www.ti.com/
+ */
+/dts-v1/;
+
+#include "dra76x.dtsi"
+#include "dra7-evm-common.dtsi"
+#include "dra76x-mmc-iodelay.dtsi"
+#include <dt-bindings/net/ti-dp83867.h>
+
+/ {
+	model = "TI DRA762 EVM";
+	compatible = "ti,dra76-evm", "ti,dra762", "ti,dra7";
+
+	aliases {
+		display0 = &hdmi0;
+
+		sound0 = &sound0;
+		sound1 = &hdmi;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x80000000 0x0 0x80000000>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		ipu2_cma_pool: ipu2_cma@95800000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x95800000 0x0 0x3800000>;
+			reusable;
+			status = "okay";
+		};
+
+		dsp1_cma_pool: dsp1_cma@99000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x99000000 0x0 0x4000000>;
+			reusable;
+			status = "okay";
+		};
+
+		ipu1_cma_pool: ipu1_cma@9d000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x9d000000 0x0 0x2000000>;
+			reusable;
+			status = "okay";
+		};
+
+		dsp2_cma_pool: dsp2_cma@9f000000 {
+			compatible = "shared-dma-pool";
+			reg = <0x0 0x9f000000 0x0 0x800000>;
+			reusable;
+			status = "okay";
+		};
+	};
+
+	vsys_12v0: fixedregulator-vsys12v0 {
+		/* main supply */
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_12v0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vsys_5v0: fixedregulator-vsys5v0 {
+		/* Output of Cntlr B of TPS43351-Q1 on dra76-evm */
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&vsys_12v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vio_3v6: fixedregulator-vio_3v6 {
+		compatible = "regulator-fixed";
+		regulator-name = "vio_3v6";
+		regulator-min-microvolt = <3600000>;
+		regulator-max-microvolt = <3600000>;
+		vin-supply = <&vsys_5v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vsys_3v3: fixedregulator-vsys3v3 {
+		/* Output of Cntlr A of TPS43351-Q1 on dra76-evm */
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vsys_12v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vio_3v3: fixedregulator-vio_3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vio_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vsys_3v3>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vio_3v3_sd: fixedregulator-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "vio_3v3_sd";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vio_3v3>;
+		enable-active-high;
+		gpio = <&gpio4 21 GPIO_ACTIVE_HIGH>;
+	};
+
+	vio_1v8: fixedregulator-vio_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "vio_1v8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&smps5_reg>;
+	};
+
+	vmmcwl_fixed: fixedregulator-mmcwl {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmcwl_fixed";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		gpio = <&gpio5 8 0>;	/* gpio5_8 */
+		startup-delay-us = <70000>;
+		enable-active-high;
+	};
+
+	vtt_fixed: fixedregulator-vtt {
+		compatible = "regulator-fixed";
+		regulator-name = "vtt_fixed";
+		regulator-min-microvolt = <1350000>;
+		regulator-max-microvolt = <1350000>;
+		vin-supply = <&vsys_3v3>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	aic_dvdd: fixedregulator-aic_dvdd {
+		/* TPS77018DBVT */
+		compatible = "regulator-fixed";
+		regulator-name = "aic_dvdd";
+		vin-supply = <&vio_3v3>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	hdmi0: connector {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&tpd12s015_out>;
+			};
+		};
+	};
+
+	tpd12s015: encoder {
+		compatible = "ti,tpd12s015";
+
+		gpios = <&gpio7 30 GPIO_ACTIVE_HIGH>,   /* gpio7_30, CT CP HPD */
+			<&gpio7 31 GPIO_ACTIVE_HIGH>,   /* gpio7_31, LS OE */
+			<&gpio7 12 GPIO_ACTIVE_HIGH>;   /* gpio7_12/sp1_cs2, HPD */
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				tpd12s015_in: endpoint {
+					remote-endpoint = <&hdmi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				tpd12s015_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	tps65917: tps65917@58 {
+		compatible = "ti,tps65917";
+		reg = <0x58>;
+		ti,system-power-controller;
+		ti,palmas-override-powerhold;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+
+		tps65917_pmic {
+			compatible = "ti,tps65917-pmic";
+
+			smps12-in-supply = <&vsys_3v3>;
+			smps3-in-supply = <&vsys_3v3>;
+			smps4-in-supply = <&vsys_3v3>;
+			smps5-in-supply = <&vsys_3v3>;
+			ldo1-in-supply = <&vsys_3v3>;
+			ldo2-in-supply = <&vsys_3v3>;
+			ldo3-in-supply = <&vsys_5v0>;
+			ldo4-in-supply = <&vsys_5v0>;
+			ldo5-in-supply = <&vsys_3v3>;
+
+			tps65917_regulators: regulators {
+				smps12_reg: smps12 {
+					/* VDD_DSPEVE */
+					regulator-name = "smps12";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps3_reg: smps3 {
+					/* VDD_CORE */
+					regulator-name = "smps3";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				smps4_reg: smps4 {
+					/* VDD_IVA */
+					regulator-name = "smps4";
+					regulator-min-microvolt = <850000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				smps5_reg: smps5 {
+					/* VDDS1V8 */
+					regulator-name = "smps5";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo1_reg: ldo1 {
+					/* LDO1_OUT --> VDA_PHY1_1V8  */
+					regulator-name = "ldo1";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+					regulator-allow-bypass;
+				};
+
+				ldo2_reg: ldo2 {
+					/* LDO2_OUT --> VDA_PHY2_1V8 */
+					regulator-name = "ldo2";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-allow-bypass;
+					regulator-always-on;
+				};
+
+				ldo3_reg: ldo3 {
+					/* VDA_USB_3V3 */
+					regulator-name = "ldo3";
+					regulator-min-microvolt = <3300000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+
+				ldo5_reg: ldo5 {
+					/* VDDA_1V8_PLL */
+					regulator-name = "ldo5";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					regulator-always-on;
+					regulator-boot-on;
+				};
+
+				ldo4_reg: ldo4 {
+					/* VDD_SDIO_DV */
+					regulator-name = "ldo4";
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <3300000>;
+					regulator-boot-on;
+					regulator-always-on;
+				};
+			};
+		};
+
+		tps65917_power_button {
+			compatible = "ti,palmas-pwrbutton";
+			interrupt-parent = <&tps65917>;
+			interrupts = <1 IRQ_TYPE_NONE>;
+			wakeup-source;
+			ti,palmas-long-press-seconds = <6>;
+		};
+	};
+
+	lp87565: lp87565@60 {
+		compatible = "ti,lp87565-q1";
+		reg = <0x60>;
+
+		buck10-in-supply =<&vsys_3v3>;
+		buck23-in-supply =<&vsys_3v3>;
+
+		regulators: regulators {
+			buck10_reg: buck10 {
+				/*VDD_MPU*/
+				regulator-name = "buck10";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1250000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			buck23_reg: buck23 {
+				/* VDD_GPU*/
+				regulator-name = "buck23";
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1250000>;
+				regulator-boot-on;
+				regulator-always-on;
+			};
+		};
+	};
+
+	pcf_lcd: pcf8757@20 {
+		compatible = "nxp,pcf8575";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+	};
+
+	pcf_gpio_21: pcf8757@21 {
+		compatible = "nxp,pcf8575";
+		reg = <0x21>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+	};
+
+	pcf_hdmi: pcf8575@26 {
+		compatible = "nxp,pcf8575";
+		reg = <0x26>;
+		gpio-controller;
+		#gpio-cells = <2>;
+		hdmi-audio-hog {
+			/* vin6_sel_s0: high: VIN6, low: audio */
+			gpio-hog;
+			gpios = <1 GPIO_ACTIVE_HIGH>;
+			output-low;
+			line-name = "vin6_sel_s0";
+		};
+	};
+
+	tlv320aic3106: tlv320aic3106@19 {
+		#sound-dai-cells = <0>;
+		compatible = "ti,tlv320aic3106";
+		reg = <0x19>;
+		adc-settle-ms = <40>;
+		ai3x-micbias-vg = <1>;		/* 2.0V */
+		status = "okay";
+
+		/* Regulators */
+		AVDD-supply = <&vio_3v3>;
+		IOVDD-supply = <&vio_3v3>;
+		DRVDD-supply = <&vio_3v3>;
+		DVDD-supply = <&aic_dvdd>;
+	};
+};
+
+&cpu0 {
+	vdd-supply = <&buck10_reg>;
+};
+
+&mmc1 {
+	status = "okay";
+	vmmc-supply = <&vio_3v3_sd>;
+	vqmmc-supply = <&ldo4_reg>;
+	bus-width = <4>;
+	/*
+	 * SDCD signal is not being used here - using the fact that GPIO mode
+	 * is always hardwired.
+	 */
+	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default", "hs";
+	pinctrl-0 = <&mmc1_pins_default>;
+	pinctrl-1 = <&mmc1_pins_hs>;
+};
+
+&mmc2 {
+	status = "okay";
+	vmmc-supply = <&vio_1v8>;
+	vqmmc-supply = <&vio_1v8>;
+	bus-width = <8>;
+	non-removable;
+	pinctrl-names = "default", "hs", "ddr_1_8v", "hs200_1_8v";
+	pinctrl-0 = <&mmc2_pins_default>;
+	pinctrl-1 = <&mmc2_pins_default>;
+	pinctrl-2 = <&mmc2_pins_default>;
+	pinctrl-3 = <&mmc2_pins_hs200 &mmc2_iodelay_hs200_conf>;
+};
+
+&mmc4 {
+	status = "okay";
+	vmmc-supply = <&vio_3v6>;
+	vqmmc-supply = <&vmmcwl_fixed>;
+	pinctrl-names = "default", "hs", "sdr12", "sdr25";
+	pinctrl-0 = <&mmc4_pins_hs &mmc4_iodelay_default_conf>;
+	pinctrl-1 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
+	pinctrl-2 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
+	pinctrl-3 = <&mmc4_pins_hs &mmc4_iodelay_manual1_conf>;
+};
+
+/* No RTC on this device */
+&rtc {
+	status = "disabled";
+};
+
+&mac_sw {
+	status = "okay";
+};
+
+&cpsw_port1 {
+	phy-handle = <&dp83867_0>;
+	phy-mode = "rgmii-id";
+	ti,dual-emac-pvid = <1>;
+};
+
+&cpsw_port2 {
+	phy-handle = <&dp83867_1>;
+	phy-mode = "rgmii-id";
+	ti,dual-emac-pvid = <2>;
+};
+
+&davinci_mdio_sw {
+	dp83867_0: ethernet-phy@2 {
+		reg = <2>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_250_PS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_8_B_NIB>;
+		ti,min-output-impedance;
+		ti,dp83867-rxctrl-strap-quirk;
+	};
+
+	dp83867_1: ethernet-phy@3 {
+		reg = <3>;
+		ti,rx-internal-delay = <DP83867_RGMIIDCTL_2_25_NS>;
+		ti,tx-internal-delay = <DP83867_RGMIIDCTL_250_PS>;
+		ti,fifo-depth = <DP83867_PHYCR_FIFO_DEPTH_8_B_NIB>;
+		ti,min-output-impedance;
+		ti,dp83867-rxctrl-strap-quirk;
+	};
+};
+
+&usb2_phy1 {
+	phy-supply = <&ldo3_reg>;
+};
+
+&usb2_phy2 {
+	phy-supply = <&ldo3_reg>;
+};
+
+&dss {
+	status = "okay";
+	vdda_video-supply = <&ldo5_reg>;
+};
+
+&hdmi {
+	status = "okay";
+
+	vdda-supply = <&ldo1_reg>;
+
+	port {
+		hdmi_out: endpoint {
+			remote-endpoint = <&tpd12s015_in>;
+		};
+	};
+};
+
+&qspi {
+	spi-max-frequency = <96000000>;
+	flash@0 {
+		spi-max-frequency = <96000000>;
+	};
+};
+
+&pcie2_phy {
+	status = "okay";
+};
+
+&pcie1_rc {
+	num-lanes = <2>;
+	phys = <&pcie1_phy>, <&pcie2_phy>;
+	phy-names = "pcie-phy0", "pcie-phy1";
+};
+
+&pcie1_ep {
+	num-lanes = <2>;
+	phys = <&pcie1_phy>, <&pcie2_phy>;
+	phy-names = "pcie-phy0", "pcie-phy1";
+};
+
+&extcon_usb1 {
+	vbus-gpios = <&pcf_lcd 14 GPIO_ACTIVE_HIGH>;
+};
+
+&extcon_usb2 {
+	vbus-gpios = <&pcf_lcd 15 GPIO_ACTIVE_HIGH>;
+};
+
+&m_can0 {
+	can-transceiver {
+		max-bitrate = <5000000>;
+	};
+};
+
+&ipu2 {
+	status = "okay";
+	memory-region = <&ipu2_cma_pool>;
+};
+
+&ipu1 {
+	status = "okay";
+	memory-region = <&ipu1_cma_pool>;
+};
+
+&dsp1 {
+	status = "okay";
+	memory-region = <&dsp1_cma_pool>;
+};
+
+&dsp2 {
+	status = "okay";
+	memory-region = <&dsp2_cma_pool>;
+};

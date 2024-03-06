@@ -25,7 +25,6 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/sort.h>
 #include <linux/pm_wakeirq.h>
 
@@ -492,7 +491,7 @@ err_free_mem:
 	return err;
 }
 
-static int titsc_remove(struct platform_device *pdev)
+static void titsc_remove(struct platform_device *pdev)
 {
 	struct titsc *ts_dev = platform_get_drvdata(pdev);
 	u32 steps;
@@ -509,7 +508,6 @@ static int titsc_remove(struct platform_device *pdev)
 	input_unregister_device(ts_dev->input);
 
 	kfree(ts_dev);
-	return 0;
 }
 
 static int titsc_suspend(struct device *dev)
@@ -553,7 +551,7 @@ MODULE_DEVICE_TABLE(of, ti_tsc_dt_ids);
 
 static struct platform_driver ti_tsc_driver = {
 	.probe	= titsc_probe,
-	.remove	= titsc_remove,
+	.remove_new = titsc_remove,
 	.driver	= {
 		.name   = "TI-am335x-tsc",
 		.pm	= pm_sleep_ptr(&titsc_pm_ops),

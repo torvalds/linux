@@ -21,6 +21,8 @@ struct i2s_clk_config_data {
 	u32 sample_rate;
 };
 
+struct dw_i2s_dev;
+
 struct i2s_platform_data {
 	#define DWC_I2S_PLAY	(1 << 0)
 	#define DWC_I2S_RECORD	(1 << 1)
@@ -42,6 +44,7 @@ struct i2s_platform_data {
 	void *capture_dma_data;
 	bool (*filter)(struct dma_chan *chan, void *slave);
 	int (*i2s_clk_cfg)(struct i2s_clk_config_data *config);
+	int (*i2s_pd_init)(struct dw_i2s_dev *dev);
 };
 
 struct i2s_dma_data {

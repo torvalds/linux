@@ -52,7 +52,7 @@ static const struct mt7915_mem_region mt7916_mem_regions[] = {
 	},
 };
 
-static const struct mt7915_mem_region mt7986_mem_regions[] = {
+static const struct mt7915_mem_region mt798x_mem_regions[] = {
 	{
 		.start = 0x00800000,
 		.len = 0x0005ffff,
@@ -92,9 +92,10 @@ mt7915_coredump_get_mem_layout(struct mt7915_dev *dev, u32 *num)
 	case 0x7915:
 		*num = ARRAY_SIZE(mt7915_mem_regions);
 		return &mt7915_mem_regions[0];
+	case 0x7981:
 	case 0x7986:
-		*num = ARRAY_SIZE(mt7986_mem_regions);
-		return &mt7986_mem_regions[0];
+		*num = ARRAY_SIZE(mt798x_mem_regions);
+		return &mt798x_mem_regions[0];
 	case 0x7916:
 		*num = ARRAY_SIZE(mt7916_mem_regions);
 		return &mt7916_mem_regions[0];

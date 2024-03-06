@@ -12,14 +12,13 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/seq_file.h>
 
@@ -240,32 +239,32 @@ static struct lock_class_key pcs_request_class;
  * does not help in this case.
  */
 
-static unsigned __maybe_unused pcs_readb(void __iomem *reg)
+static unsigned int pcs_readb(void __iomem *reg)
 {
 	return readb(reg);
 }
 
-static unsigned __maybe_unused pcs_readw(void __iomem *reg)
+static unsigned int pcs_readw(void __iomem *reg)
 {
 	return readw(reg);
 }
 
-static unsigned __maybe_unused pcs_readl(void __iomem *reg)
+static unsigned int pcs_readl(void __iomem *reg)
 {
 	return readl(reg);
 }
 
-static void __maybe_unused pcs_writeb(unsigned val, void __iomem *reg)
+static void pcs_writeb(unsigned int val, void __iomem *reg)
 {
 	writeb(val, reg);
 }
 
-static void __maybe_unused pcs_writew(unsigned val, void __iomem *reg)
+static void pcs_writew(unsigned int val, void __iomem *reg)
 {
 	writew(val, reg);
 }
 
-static void __maybe_unused pcs_writel(unsigned val, void __iomem *reg)
+static void pcs_writel(unsigned int val, void __iomem *reg)
 {
 	writel(val, reg);
 }
@@ -1926,16 +1925,11 @@ free:
 	return ret;
 }
 
-static int pcs_remove(struct platform_device *pdev)
+static void pcs_remove(struct platform_device *pdev)
 {
 	struct pcs_device *pcs = platform_get_drvdata(pdev);
 
-	if (!pcs)
-		return 0;
-
 	pcs_free_resources(pcs);
-
-	return 0;
 }
 
 static const struct pcs_soc_data pinctrl_single_omap_wkup = {
@@ -1955,6 +1949,16 @@ static const struct pcs_soc_data pinctrl_single_am437x = {
 	.irq_status_mask = (1 << 30),   /* OMAP_WAKEUP_EVENT */
 };
 
+static const struct pcs_soc_data pinctrl_single_am654 = {
+	.flags = PCS_QUIRK_SHARED_IRQ | PCS_CONTEXT_LOSS_OFF,
+	.irq_enable_mask = (1 << 29),   /* WKUP_EN */
+	.irq_status_mask = (1 << 30),   /* WKUP_EVT */
+};
+
+static const struct pcs_soc_data pinctrl_single_j7200 = {
+	.flags = PCS_CONTEXT_LOSS_OFF,
+};
+
 static const struct pcs_soc_data pinctrl_single = {
 };
 
@@ -1963,11 +1967,13 @@ static const struct pcs_soc_data pinconf_single = {
 };
 
 static const struct of_device_id pcs_of_match[] = {
+	{ .compatible = "ti,am437-padconf", .data = &pinctrl_single_am437x },
+	{ .compatible = "ti,am654-padconf", .data = &pinctrl_single_am654 },
+	{ .compatible = "ti,dra7-padconf", .data = &pinctrl_single_dra7 },
 	{ .compatible = "ti,omap3-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap4-padconf", .data = &pinctrl_single_omap_wkup },
 	{ .compatible = "ti,omap5-padconf", .data = &pinctrl_single_omap_wkup },
-	{ .compatible = "ti,dra7-padconf", .data = &pinctrl_single_dra7 },
-	{ .compatible = "ti,am437-padconf", .data = &pinctrl_single_am437x },
+	{ .compatible = "ti,j7200-padconf", .data = &pinctrl_single_j7200 },
 	{ .compatible = "pinctrl-single", .data = &pinctrl_single },
 	{ .compatible = "pinconf-single", .data = &pinconf_single },
 	{ },
@@ -1976,7 +1982,7 @@ MODULE_DEVICE_TABLE(of, pcs_of_match);
 
 static struct platform_driver pcs_driver = {
 	.probe		= pcs_probe,
-	.remove		= pcs_remove,
+	.remove_new	= pcs_remove,
 	.driver = {
 		.name		= DRIVER_NAME,
 		.of_match_table	= pcs_of_match,

@@ -26,7 +26,7 @@ static int sample_ustack(struct perf_sample *sample,
 
 	sp = (unsigned long) regs[PERF_REG_ARM_SP];
 
-	map = maps__find(thread->maps, (u64)sp);
+	map = maps__find(thread__maps(thread), (u64)sp);
 	if (!map) {
 		pr_debug("failed to get stack map\n");
 		free(buf);

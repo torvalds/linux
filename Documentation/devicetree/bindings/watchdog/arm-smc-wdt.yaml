@@ -6,11 +6,11 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: ARM Secure Monitor Call based watchdog
 
-allOf:
-  - $ref: watchdog.yaml#
-
 maintainers:
   - Julius Werner <jwerner@chromium.org>
+
+allOf:
+  - $ref: watchdog.yaml#
 
 properties:
   compatible:

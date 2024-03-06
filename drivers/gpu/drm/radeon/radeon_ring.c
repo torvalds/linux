@@ -413,6 +413,7 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 			dev_err(rdev->dev, "(%d) ring map failed\n", r);
 			return r;
 		}
+		radeon_debugfs_ring_init(rdev, ring);
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->ring_free_dw = ring->ring_size / 4;
@@ -421,7 +422,6 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 		ring->next_rptr_gpu_addr = rdev->wb.gpu_addr + index;
 		ring->next_rptr_cpu_addr = &rdev->wb.wb[index/4];
 	}
-	radeon_debugfs_ring_init(rdev, ring);
 	radeon_ring_lockup_update(rdev, ring);
 	return 0;
 }
@@ -464,7 +464,7 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 
 static int radeon_debugfs_ring_info_show(struct seq_file *m, void *unused)
 {
-	struct radeon_ring *ring = (struct radeon_ring *) m->private;
+	struct radeon_ring *ring = m->private;
 	struct radeon_device *rdev = ring->rdev;
 
 	uint32_t rptr, wptr, rptr_next;

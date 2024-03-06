@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -312,6 +312,10 @@ void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			smps_mode = IEEE80211_SMPS_DYNAMIC;
 	}
 
+	/* SMPS is disabled in eSR */
+	if (mvmvif->esr_active)
+		smps_mode = IEEE80211_SMPS_OFF;
+
 	ieee80211_request_smps(vif, link_id, smps_mode);
 }
 
@@ -338,6 +342,60 @@ static bool iwl_wait_stats_complete(struct iwl_notif_wait_data *notif_wait,
 	return true;
 }
 
+static int iwl_mvm_request_system_statistics(struct iwl_mvm *mvm, bool clear,
+					     u8 cmd_ver)
+{
+	struct iwl_system_statistics_cmd system_cmd = {
+		.cfg_mask = clear ?
+			    cpu_to_le32(IWL_STATS_CFG_FLG_ON_DEMAND_NTFY_MSK) :
+			    cpu_to_le32(IWL_STATS_CFG_FLG_RESET_MSK |
+					IWL_STATS_CFG_FLG_ON_DEMAND_NTFY_MSK),
+		.type_id_mask = cpu_to_le32(IWL_STATS_NTFY_TYPE_ID_OPER |
+					    IWL_STATS_NTFY_TYPE_ID_OPER_PART1),
+	};
+	struct iwl_host_cmd cmd = {
+		.id = WIDE_ID(SYSTEM_GROUP, SYSTEM_STATISTICS_CMD),
+		.len[0] = sizeof(system_cmd),
+		.data[0] = &system_cmd,
+	};
+	struct iwl_notification_wait stats_wait;
+	static const u16 stats_complete[] = {
+		WIDE_ID(SYSTEM_GROUP, SYSTEM_STATISTICS_END_NOTIF),
+	};
+	int ret;
+
+	if (cmd_ver != 1) {
+		IWL_FW_CHECK_FAILED(mvm,
+				    "Invalid system statistics command version:%d\n",
+				    cmd_ver);
+		return -EOPNOTSUPP;
+	}
+
+	iwl_init_notification_wait(&mvm->notif_wait, &stats_wait,
+				   stats_complete, ARRAY_SIZE(stats_complete),
+				   NULL, NULL);
+
+	mvm->statistics_clear = clear;
+	ret = iwl_mvm_send_cmd(mvm, &cmd);
+	if (ret) {
+		iwl_remove_notification(&mvm->notif_wait, &stats_wait);
+		return ret;
+	}
+
+	/* 500ms for OPERATIONAL, PART1 and END notification should be enough
+	 * for FW to collect data from all LMACs and send
+	 * STATISTICS_NOTIFICATION to host
+	 */
+	ret = iwl_wait_notification(&mvm->notif_wait, &stats_wait, HZ / 2);
+	if (ret)
+		return ret;
+
+	if (clear)
+		iwl_mvm_accu_radio_stats(mvm);
+
+	return ret;
+}
+
 int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 {
 	struct iwl_statistics_cmd scmd = {
@@ -349,7 +407,14 @@ int iwl_mvm_request_statistics(struct iwl_mvm *mvm, bool clear)
 		.len[0] = sizeof(scmd),
 		.data[0] = &scmd,
 	};
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					   WIDE_ID(SYSTEM_GROUP,
+						   SYSTEM_STATISTICS_CMD),
+					   IWL_FW_CMD_VER_UNKNOWN);
 	int ret;
+
+	if (cmd_ver != IWL_FW_CMD_VER_UNKNOWN)
+		return iwl_mvm_request_system_statistics(mvm, clear, cmd_ver);
 
 	/* From version 15 - STATISTICS_NOTIFICATION, the reply for
 	 * STATISTICS_CMD is empty, and the response is with
@@ -413,16 +478,20 @@ static void iwl_mvm_diversity_iter(void *_data, u8 *mac,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_diversity_iter_data *data = _data;
-	int i;
+	int i, link_id;
 
-	if (mvmvif->deflink.phy_ctxt != data->ctxt)
-		return;
+	for_each_mvm_vif_valid_link(mvmvif, link_id) {
+		struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 
-	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
-		if (mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_STATIC ||
-		    mvmvif->deflink.smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
-			data->result = false;
-			break;
+		if (link_info->phy_ctxt != data->ctxt)
+			continue;
+
+		for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++) {
+			if (link_info->smps_requests[i] == IEEE80211_SMPS_STATIC ||
+			    link_info->smps_requests[i] == IEEE80211_SMPS_DYNAMIC) {
+				data->result = false;
+				break;
+			}
 		}
 	}
 }

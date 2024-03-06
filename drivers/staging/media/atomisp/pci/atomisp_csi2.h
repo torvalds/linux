@@ -18,16 +18,39 @@
 #ifndef __ATOMISP_CSI2_H__
 #define __ATOMISP_CSI2_H__
 
+#include <linux/gpio/consumer.h>
+#include <linux/property.h>
+
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ctrls.h>
+
+#include "../../include/linux/atomisp.h"
 
 #define CSI2_PAD_SINK		0
 #define CSI2_PAD_SOURCE		1
 #define CSI2_PADS_NUM		2
 
-struct atomisp_device;
+#define CSI2_MAX_ACPI_GPIOS	2u
+
+struct acpi_device;
 struct v4l2_device;
+
+struct atomisp_device;
 struct atomisp_sub_device;
+
+struct atomisp_csi2_acpi_gpio_map {
+	struct acpi_gpio_params params[CSI2_MAX_ACPI_GPIOS];
+	struct acpi_gpio_mapping mapping[CSI2_MAX_ACPI_GPIOS + 1];
+};
+
+struct atomisp_csi2_acpi_gpio_parsing_data {
+	struct acpi_device *adev;
+	struct atomisp_csi2_acpi_gpio_map *map;
+	u32 settings[CSI2_MAX_ACPI_GPIOS];
+	unsigned int settings_count;
+	unsigned int res_count;
+	unsigned int map_count;
+};
 
 struct atomisp_mipi_csi2_device {
 	struct v4l2_subdev subdev;
@@ -48,6 +71,8 @@ void atomisp_mipi_csi2_unregister_entities(
     struct atomisp_mipi_csi2_device *csi2);
 int atomisp_mipi_csi2_register_entities(struct atomisp_mipi_csi2_device *csi2,
 					struct v4l2_device *vdev);
+int atomisp_csi2_bridge_init(struct atomisp_device *isp);
+int atomisp_csi2_bridge_parse_firmware(struct atomisp_device *isp);
 
 void atomisp_csi2_configure(struct atomisp_sub_device *asd);
 

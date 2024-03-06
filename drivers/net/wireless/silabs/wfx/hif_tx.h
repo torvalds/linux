@@ -54,6 +54,7 @@ int wfx_hif_beacon_transmit(struct wfx_vif *wvif, bool enable);
 int wfx_hif_update_ie_beacon(struct wfx_vif *wvif, const u8 *ies, size_t ies_len);
 int wfx_hif_scan(struct wfx_vif *wvif, struct cfg80211_scan_request *req80211,
 		 int chan_start, int chan_num);
+int wfx_hif_scan_uniq(struct wfx_vif *wvif, struct ieee80211_channel *chan, int duration);
 int wfx_hif_stop_scan(struct wfx_vif *wvif);
 int wfx_hif_configuration(struct wfx_dev *wdev, const u8 *conf, size_t len);
 int wfx_hif_shutdown(struct wfx_dev *wdev);

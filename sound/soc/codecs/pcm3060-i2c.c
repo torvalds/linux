@@ -49,7 +49,7 @@ static struct i2c_driver pcm3060_i2c_driver = {
 #endif /* CONFIG_OF */
 	},
 	.id_table = pcm3060_i2c_id,
-	.probe_new = pcm3060_i2c_probe,
+	.probe = pcm3060_i2c_probe,
 };
 
 module_i2c_driver(pcm3060_i2c_driver);

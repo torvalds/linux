@@ -86,7 +86,7 @@ err:
  * This function frees all the resources allocated to the device.
  * Return: 0 always
  */
-static int ctucan_platform_remove(struct platform_device *pdev)
+static void ctucan_platform_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ctucan_priv *priv = netdev_priv(ndev);
@@ -97,8 +97,6 @@ static int ctucan_platform_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	netif_napi_del(&priv->napi);
 	free_candev(ndev);
-
-	return 0;
 }
 
 static SIMPLE_DEV_PM_OPS(ctucan_platform_pm_ops, ctucan_suspend, ctucan_resume);
@@ -113,7 +111,7 @@ MODULE_DEVICE_TABLE(of, ctucan_of_match);
 
 static struct platform_driver ctucanfd_driver = {
 	.probe	= ctucan_platform_probe,
-	.remove	= ctucan_platform_remove,
+	.remove_new = ctucan_platform_remove,
 	.driver	= {
 		.name = DRV_NAME,
 		.pm = &ctucan_platform_pm_ops,

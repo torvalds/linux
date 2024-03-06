@@ -7,6 +7,7 @@
 #define __CHAN_USER_H__
 
 #include <init.h>
+#include <linux/types.h>
 
 struct chan_opts {
 	void (*const announce)(char *dev_name, int dev);
@@ -19,8 +20,8 @@ struct chan_ops {
 	void *(*init)(char *, int, const struct chan_opts *);
 	int (*open)(int, int, int, void *, char **);
 	void (*close)(int, void *);
-	int (*read)(int, char *, void *);
-	int (*write)(int, const char *, int, void *);
+	int (*read)(int, __u8 *, void *);
+	int (*write)(int, const __u8 *, size_t, void *);
 	int (*console_write)(int, const char *, int);
 	int (*window_size)(int, void *, unsigned short *, unsigned short *);
 	void (*free)(void *);
@@ -31,8 +32,8 @@ extern const struct chan_ops fd_ops, null_ops, port_ops, pts_ops, pty_ops,
 	tty_ops, xterm_ops;
 
 extern void generic_close(int fd, void *unused);
-extern int generic_read(int fd, char *c_out, void *unused);
-extern int generic_write(int fd, const char *buf, int n, void *unused);
+extern int generic_read(int fd, __u8 *c_out, void *unused);
+extern int generic_write(int fd, const __u8 *buf, size_t n, void *unused);
 extern int generic_console_write(int fd, const char *buf, int n);
 extern int generic_window_size(int fd, void *unused, unsigned short *rows_out,
 			       unsigned short *cols_out);

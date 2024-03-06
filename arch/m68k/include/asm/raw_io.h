@@ -17,15 +17,15 @@
  * two accesses to memory, which may be undesirable for some devices.
  */
 #define in_8(addr) \
-    ({ u8 __v = (*(__force volatile u8 *) (unsigned long)(addr)); __v; })
+    ({ u8 __v = (*(__force const volatile u8 *) (unsigned long)(addr)); __v; })
 #define in_be16(addr) \
-    ({ u16 __v = (*(__force volatile u16 *) (unsigned long)(addr)); __v; })
+    ({ u16 __v = (*(__force const volatile u16 *) (unsigned long)(addr)); __v; })
 #define in_be32(addr) \
-    ({ u32 __v = (*(__force volatile u32 *) (unsigned long)(addr)); __v; })
+    ({ u32 __v = (*(__force const volatile u32 *) (unsigned long)(addr)); __v; })
 #define in_le16(addr) \
-    ({ u16 __v = le16_to_cpu(*(__force volatile __le16 *) (unsigned long)(addr)); __v; })
+    ({ u16 __v = le16_to_cpu(*(__force const volatile __le16 *) (unsigned long)(addr)); __v; })
 #define in_le32(addr) \
-    ({ u32 __v = le32_to_cpu(*(__force volatile __le32 *) (unsigned long)(addr)); __v; })
+    ({ u32 __v = le32_to_cpu(*(__force const volatile __le32 *) (unsigned long)(addr)); __v; })
 
 #define out_8(addr,b) (void)((*(__force volatile u8 *) (unsigned long)(addr)) = (b))
 #define out_be16(addr,w) (void)((*(__force volatile u16 *) (unsigned long)(addr)) = (w))
@@ -73,11 +73,11 @@
 
 #if defined(CONFIG_ATARI_ROM_ISA)
 #define rom_in_8(addr) \
-	({ u16 __v = (*(__force volatile u16 *) (addr)); __v >>= 8; __v; })
+	({ u16 __v = (*(__force const volatile u16 *) (addr)); __v >>= 8; __v; })
 #define rom_in_be16(addr) \
-	({ u16 __v = (*(__force volatile u16 *) (addr)); __v; })
+	({ u16 __v = (*(__force const volatile u16 *) (addr)); __v; })
 #define rom_in_le16(addr) \
-	({ u16 __v = le16_to_cpu(*(__force volatile u16 *) (addr)); __v; })
+	({ u16 __v = le16_to_cpu(*(__force const volatile u16 *) (addr)); __v; })
 
 #define rom_out_8(addr, b)	\
 	(void)({u8 __maybe_unused __w, __v = (b);  u32 _addr = ((u32) (addr)); \
@@ -98,7 +98,8 @@
 #define raw_rom_outw(val, port) rom_out_be16((port), (val))
 #endif /* CONFIG_ATARI_ROM_ISA */
 
-static inline void raw_insb(volatile u8 __iomem *port, u8 *buf, unsigned int len)
+static inline void raw_insb(const volatile u8 __iomem *port, u8 *buf,
+			    unsigned int len)
 {
 	unsigned int i;
 
@@ -146,7 +147,7 @@ static inline void raw_outsb(volatile u8 __iomem *port, const u8 *buf,
 	}
 }
 
-static inline void raw_insw(volatile u16 __iomem *port, u16 *buf, unsigned int nr)
+static inline void raw_insw(volatile const u16 __iomem *port, u16 *buf, unsigned int nr)
 {
 	unsigned int tmp;
 
@@ -225,7 +226,7 @@ static inline void raw_outsw(volatile u16 __iomem *port, const u16 *buf,
 	}
 }
 
-static inline void raw_insl(volatile u32 __iomem *port, u32 *buf, unsigned int nr)
+static inline void raw_insl(const volatile u32 __iomem *port, u32 *buf, unsigned int nr)
 {
 	unsigned int tmp;
 
@@ -305,7 +306,7 @@ static inline void raw_outsl(volatile u32 __iomem *port, const u32 *buf,
 }
 
 
-static inline void raw_insw_swapw(volatile u16 __iomem *port, u16 *buf,
+static inline void raw_insw_swapw(const volatile u16 __iomem *port, u16 *buf,
 				  unsigned int nr)
 {
     if ((nr) % 8)
@@ -413,7 +414,8 @@ static inline void raw_outsw_swapw(volatile u16 __iomem *port, const u16 *buf,
 
 
 #if defined(CONFIG_ATARI_ROM_ISA)
-static inline void raw_rom_insb(volatile u8 __iomem *port, u8 *buf, unsigned int len)
+static inline void raw_rom_insb(const volatile u8 __iomem *port, u8 *buf,
+				unsigned int len)
 {
 	unsigned int i;
 
@@ -430,7 +432,7 @@ static inline void raw_rom_outsb(volatile u8 __iomem *port, const u8 *buf,
 		rom_out_8(port, *buf++);
 }
 
-static inline void raw_rom_insw(volatile u16 __iomem *port, u16 *buf,
+static inline void raw_rom_insw(const volatile u16 __iomem *port, u16 *buf,
 				   unsigned int nr)
 {
 	unsigned int i;
@@ -448,7 +450,7 @@ static inline void raw_rom_outsw(volatile u16 __iomem *port, const u16 *buf,
 		rom_out_be16(port, *buf++);
 }
 
-static inline void raw_rom_insw_swapw(volatile u16 __iomem *port, u16 *buf,
+static inline void raw_rom_insw_swapw(const volatile u16 __iomem *port, u16 *buf,
 				   unsigned int nr)
 {
 	unsigned int i;

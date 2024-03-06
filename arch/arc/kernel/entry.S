@@ -80,11 +80,6 @@ ENTRY(instr_service)
 
 	EXCEPTION_PROLOGUE
 
-	lr  r0, [efa]
-	mov r1, sp
-
-	FAKE_RET_FROM_EXCPN
-
 	bl  do_insterror_or_kprobe
 	b   ret_from_exception
 END(instr_service)
@@ -95,16 +90,15 @@ END(instr_service)
 
 ENTRY(EV_MachineCheck)
 
-	EXCEPTION_PROLOGUE
+	EXCEPTION_PROLOGUE_KEEP_AE	; ECR returned in r10
 
-	lr  r2, [ecr]
 	lr  r0, [efa]
 	mov r1, sp
 
 	; MC excpetions disable MMU
 	ARC_MMU_REENABLE r3
 
-	lsr  	r3, r2, 8
+	lsr  	r3, r10, 8
 	bmsk 	r3, r3, 7
 	brne    r3, ECR_C_MCHK_DUP_TLB, 1f
 
@@ -129,11 +123,6 @@ ENTRY(EV_PrivilegeV)
 
 	EXCEPTION_PROLOGUE
 
-	lr  r0, [efa]
-	mov r1, sp
-
-	FAKE_RET_FROM_EXCPN
-
 	bl  do_privilege_fault
 	b   ret_from_exception
 END(EV_PrivilegeV)
@@ -145,11 +134,6 @@ ENTRY(EV_Extension)
 
 	EXCEPTION_PROLOGUE
 
-	lr  r0, [efa]
-	mov r1, sp
-
-	FAKE_RET_FROM_EXCPN
-
 	bl  do_extension_fault
 	b   ret_from_exception
 END(EV_Extension)
@@ -160,20 +144,19 @@ END(EV_Extension)
 ; syscall Tracing
 ; ---------------------------------------------
 tracesys:
-	; save EFA in case tracer wants the PC of traced task
-	; using ERET won't work since next-PC has already committed
+	; safekeep EFA (r12) if syscall tracer wanted PC
+	; for traps, ERET is pre-commit so points to next-PC
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r11
 	st  r12, [r11, THREAD_FAULT_ADDR]	; thread.fault_address
 
-	; PRE Sys Call Ptrace hook
-	mov r0, sp			; pt_regs needed
-	bl  @syscall_trace_entry
+	; PRE syscall trace hook
+	mov r0, sp				; pt_regs
+	bl  @syscall_trace_enter
 
 	; Tracing code now returns the syscall num (orig or modif)
 	mov r8, r0
 
 	; Do the Sys Call as we normally would.
-	; Validate the Sys Call number
 	cmp     r8,  NR_syscalls - 1
 	mov.hi  r0, -ENOSYS
 	bhi     tracesys_exit
@@ -190,37 +173,36 @@ tracesys:
 	ld  r6, [sp, PT_r6]
 	ld  r7, [sp, PT_r7]
 	ld.as   r9, [sys_call_table, r8]
-	jl      [r9]        ; Entry into Sys Call Handler
+	jl      [r9]
 
 tracesys_exit:
-	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
+	st  r0, [sp, PT_r0]
 
-	;POST Sys Call Ptrace Hook
+	; POST syscall trace hook
 	mov r0, sp		; pt_regs needed
 	bl  @syscall_trace_exit
-	b   ret_from_exception ; NOT ret_from_system_call at is saves r0 which
-	; we'd done before calling post hook above
+
+	; don't call ret_from_system_call as it saves r0, already done above
+	b   ret_from_exception
 
 ; ---------------------------------------------
 ; Breakpoint TRAP
 ; ---------------------------------------------
 trap_with_param:
 	mov r0, r12	; EFA in case ptracer/gdb wants stop_pc
-	mov r1, sp
+	mov r1, sp	; pt_regs
 
-	; Save callee regs in case gdb wants to have a look
-	; SP will grow up by size of CALLEE Reg-File
-	; NOTE: clobbers r12
+	; save callee regs in case tracer/gdb wants to peek
 	SAVE_CALLEE_SAVED_USER
 
-	; save location of saved Callee Regs @ thread_struct->pc
+	; safekeep ref to callee regs
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r10
 	st  sp, [r10, THREAD_CALLEE_REG]
 
-	; Call the trap handler
+	; call the non syscall trap handler
 	bl  do_non_swi_trap
 
-	; unwind stack to discard Callee saved Regs
+	; unwind stack to discard callee regs
 	DISCARD_CALLEE_SAVED_USER
 
 	b   ret_from_exception
@@ -232,37 +214,33 @@ trap_with_param:
 
 ENTRY(EV_Trap)
 
-	EXCEPTION_PROLOGUE
+	EXCEPTION_PROLOGUE_KEEP_AE
 
 	lr  r12, [efa]
 
 	FAKE_RET_FROM_EXCPN
 
-	;============ TRAP 1   :breakpoints
-	; Check ECR for trap with arg (PROLOGUE ensures r10 has ECR)
+	;============ TRAP N : breakpoints, kprobes etc
 	bmsk.f 0, r10, 7
 	bnz    trap_with_param
 
-	;============ TRAP  (no param): syscall top level
+	;============ TRAP 0 (no param): syscall
 
-	; If syscall tracing ongoing, invoke pre-post-hooks
+	; syscall tracing ongoing, invoke pre-post-hooks around syscall
 	GET_CURR_THR_INFO_FLAGS   r10
 	and.f 0, r10, _TIF_SYSCALL_WORK
 	bnz   tracesys  ; this never comes back
 
 	;============ Normal syscall case
 
-	; syscall num shd not exceed the total system calls avail
 	cmp     r8,  NR_syscalls - 1
 	mov.hi  r0, -ENOSYS
 	bhi     .Lret_from_system_call
 
-	; Offset into the syscall_table and call handler
 	ld.as   r9,[sys_call_table, r8]
-	jl      [r9]        ; Entry into Sys Call Handler
+	jl      [r9]
 
 .Lret_from_system_call:
-
 	st  r0, [sp, PT_r0]     ; sys call return value in pt_regs
 
 	; fall through to ret_from_exception
@@ -318,7 +296,7 @@ resume_user_mode_begin:
 	;      tracer might call PEEKUSR(CALLEE reg)
 	;
 	; NOTE: SP will grow up by size of CALLEE Reg-File
-	SAVE_CALLEE_SAVED_USER		; clobbers r12
+	SAVE_CALLEE_SAVED_USER
 
 	; save location of saved Callee Regs @ thread_struct->callee
 	GET_CURR_TASK_FIELD_PTR   TASK_THREAD, r10

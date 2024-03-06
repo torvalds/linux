@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2020 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -123,28 +123,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {		\
 #define FWRT_DEBUGFS_ADD_FILE(name, parent, mode) \
 	FWRT_DEBUGFS_ADD_FILE_ALIAS(#name, name, parent, mode)
 
-static int iwl_fw_send_timestamp_marker_cmd(struct iwl_fw_runtime *fwrt)
-{
-	struct iwl_mvm_marker marker = {
-		.dw_len = sizeof(struct iwl_mvm_marker) / 4,
-		.marker_id = MARKER_ID_SYNC_CLOCK,
-
-		/* the real timestamp is taken from the ftrace clock
-		 * this is for finding the match between fw and kernel logs
-		 */
-		.timestamp = cpu_to_le64(fwrt->timestamp.seq++),
-	};
-
-	struct iwl_host_cmd hcmd = {
-		.id = MARKER_CMD,
-		.flags = CMD_ASYNC,
-		.data[0] = &marker,
-		.len[0] = sizeof(marker),
-	};
-
-	return iwl_trans_send_cmd(fwrt->trans, &hcmd);
-}
-
 static int iwl_dbgfs_enabled_severities_write(struct iwl_fw_runtime *fwrt,
 					      char *buf, size_t count)
 {
@@ -163,7 +141,11 @@ static int iwl_dbgfs_enabled_severities_write(struct iwl_fw_runtime *fwrt,
 
 	event_cfg.enabled_severities = cpu_to_le32(enabled_severities);
 
-	ret = iwl_trans_send_cmd(fwrt->trans, &hcmd);
+	if (fwrt->ops && fwrt->ops->send_hcmd)
+		ret = fwrt->ops->send_hcmd(fwrt->ops_ctx, &hcmd);
+	else
+		ret = -EPERM;
+
 	IWL_INFO(fwrt,
 		 "sent host event cfg with enabled_severities: %u, ret: %d\n",
 		 enabled_severities, ret);
@@ -354,9 +336,24 @@ static int iwl_dbgfs_fw_info_seq_show(struct seq_file *seq, void *v)
 	const struct iwl_fw *fw = priv->fwrt->fw;
 	const struct iwl_fw_cmd_version *ver;
 	u32 cmd_id;
+	int has_capa;
 
-	if (!state->pos)
+	if (!state->pos) {
+		seq_puts(seq, "fw_capa:\n");
+		has_capa = fw_has_capa(&fw->ucode_capa,
+				       IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT) ? 1 : 0;
+		seq_printf(seq,
+			   "    %d: %d\n",
+			   IWL_UCODE_TLV_CAPA_PPAG_CHINA_BIOS_SUPPORT,
+			   has_capa);
+		has_capa = fw_has_capa(&fw->ucode_capa,
+				       IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT) ? 1 : 0;
+		seq_printf(seq,
+			   "    %d: %d\n",
+			   IWL_UCODE_TLV_CAPA_CHINA_22_REG_SUPPORT,
+			   has_capa);
 		seq_puts(seq, "fw_api_ver:\n");
+	}
 
 	ver = &fw->ucode_capa.cmd_versions[state->pos];
 

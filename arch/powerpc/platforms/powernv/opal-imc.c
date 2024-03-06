@@ -11,7 +11,6 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/crash_dump.h>
 #include <linux/debugfs.h>
 #include <asm/opal.h>

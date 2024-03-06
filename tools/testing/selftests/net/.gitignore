@@ -15,6 +15,7 @@ ip_local_port_range
 ipsec
 ipv6_flowlabel
 ipv6_flowlabel_mgr
+log.txt
 msg_zerocopy
 nettest
 psock_fanout
@@ -29,6 +30,7 @@ reuseport_bpf_numa
 reuseport_dualstack
 rxtimestamp
 sctp_hello
+scm_pidfd
 sk_bind_sendto_listen
 sk_connect_zero_addr
 socket
@@ -44,6 +46,7 @@ test_unix_oob
 timestamping
 tls
 toeplitz
+tools
 tun
 txring_overwrite
 txtimestamp

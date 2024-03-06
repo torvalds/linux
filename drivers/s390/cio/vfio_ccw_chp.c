@@ -115,7 +115,7 @@ static ssize_t vfio_ccw_crw_region_read(struct vfio_ccw_private *private,
 
 	/* Notify the guest if more CRWs are on our queue */
 	if (!list_empty(&private->crw) && private->crw_trigger)
-		eventfd_signal(private->crw_trigger, 1);
+		eventfd_signal(private->crw_trigger);
 
 	return ret;
 }

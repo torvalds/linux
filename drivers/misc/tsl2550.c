@@ -437,7 +437,7 @@ static struct i2c_driver tsl2550_driver = {
 		.of_match_table = tsl2550_of_match,
 		.pm	= TSL2550_PM_OPS,
 	},
-	.probe_new = tsl2550_probe,
+	.probe = tsl2550_probe,
 	.remove	= tsl2550_remove,
 	.id_table = tsl2550_id,
 };

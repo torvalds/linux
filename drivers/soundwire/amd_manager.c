@@ -910,9 +910,9 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	amd_manager->acp_mmio = devm_ioremap(dev, res->start, resource_size(res));
-	if (IS_ERR(amd_manager->mmio)) {
+	if (!amd_manager->acp_mmio) {
 		dev_err(dev, "mmio not found\n");
-		return PTR_ERR(amd_manager->mmio);
+		return -ENOMEM;
 	}
 	amd_manager->instance = pdata->instance;
 	amd_manager->mmio = amd_manager->acp_mmio +
@@ -926,6 +926,14 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	amd_manager->bus.compute_params = &amd_sdw_compute_params;
 	amd_manager->bus.clk_stop_timeout = 200;
 	amd_manager->bus.link_id = amd_manager->instance;
+
+	/*
+	 * Due to BIOS compatibility, the two links are exposed within
+	 * the scope of a single controller. If this changes, the
+	 * controller_id will have to be updated with drv_data
+	 * information.
+	 */
+	amd_manager->bus.controller_id = 0;
 
 	switch (amd_manager->instance) {
 	case ACP_SDW0:
@@ -942,13 +950,13 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 
 	amd_manager->reg_mask = &sdw_manager_reg_mask_array[amd_manager->instance];
 	params = &amd_manager->bus.params;
-	params->max_dr_freq = AMD_SDW_DEFAULT_CLK_FREQ * 2;
-	params->curr_dr_freq = AMD_SDW_DEFAULT_CLK_FREQ * 2;
+
 	params->col = AMD_SDW_DEFAULT_COLUMNS;
 	params->row = AMD_SDW_DEFAULT_ROWS;
 	prop = &amd_manager->bus.prop;
 	prop->clk_freq = &amd_sdw_freq_tbl[0];
 	prop->mclk_freq = AMD_SDW_BUS_BASE_FREQ;
+	prop->max_clk_freq = AMD_SDW_DEFAULT_CLK_FREQ;
 
 	ret = sdw_bus_master_add(&amd_manager->bus, dev, dev->fwnode);
 	if (ret) {
@@ -972,15 +980,18 @@ static int amd_sdw_manager_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int amd_sdw_manager_remove(struct platform_device *pdev)
+static void amd_sdw_manager_remove(struct platform_device *pdev)
 {
 	struct amd_sdw_manager *amd_manager = dev_get_drvdata(&pdev->dev);
+	int ret;
 
 	pm_runtime_disable(&pdev->dev);
 	cancel_work_sync(&amd_manager->probe_work);
 	amd_disable_sdw_interrupts(amd_manager);
 	sdw_bus_master_delete(&amd_manager->bus);
-	return amd_disable_sdw_manager(amd_manager);
+	ret = amd_disable_sdw_manager(amd_manager);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to disable device (%pe)\n", ERR_PTR(ret));
 }
 
 static int amd_sdw_clock_stop(struct amd_sdw_manager *amd_manager)
@@ -1194,7 +1205,7 @@ static const struct dev_pm_ops amd_pm = {
 
 static struct platform_driver amd_sdw_driver = {
 	.probe	= &amd_sdw_manager_probe,
-	.remove = &amd_sdw_manager_remove,
+	.remove_new = &amd_sdw_manager_remove,
 	.driver = {
 		.name	= "amd_sdw_manager",
 		.pm = &amd_pm,

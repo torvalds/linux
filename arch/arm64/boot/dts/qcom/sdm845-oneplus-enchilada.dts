@@ -39,7 +39,7 @@
 	max98927_codec: max98927@3a {
 		compatible = "maxim,max98927";
 		reg = <0x3a>;
-		#sound-dai-cells = <1>;
+		#sound-dai-cells = <0>;
 
 		pinctrl-0 = <&speaker_default>;
 		pinctrl-names = "default";
@@ -51,9 +51,13 @@
 	};
 };
 
+&pmi8998_charger {
+	monitored-battery = <&battery>;
+};
+
 &sound {
 	model = "OnePlus 6";
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 			"AMIC2", "MIC BIAS2",
 			"AMIC3", "MIC BIAS4",
 			"AMIC4", "MIC BIAS1",
@@ -62,7 +66,7 @@
 
 &speaker_playback_dai {
 	codec {
-		sound-dai = <&max98927_codec 0>;
+		sound-dai = <&max98927_codec>;
 	};
 };
 

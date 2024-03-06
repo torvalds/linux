@@ -272,7 +272,8 @@
 #define NIX_AF_DEBUG_NPC_RESP_DATAX(a)          (0x680 | (a) << 3)
 #define NIX_AF_SMQX_CFG(a)                      (0x700 | (a) << 16)
 #define NIX_AF_SQM_DBG_CTL_STATUS               (0x750)
-#define NIX_AF_DWRR_SDP_MTU                     (0x790)
+#define NIX_AF_DWRR_SDP_MTU                     (0x790) /* All CN10K except CN10KB */
+#define NIX_AF_DWRR_MTUX(a)			(0x790 | (a) << 16) /* Only for CN10KB */
 #define NIX_AF_DWRR_RPM_MTU                     (0x7A0)
 #define NIX_AF_PSE_CHANNEL_LEVEL                (0x800)
 #define NIX_AF_PSE_SHAPER_CFG                   (0x810)
@@ -436,6 +437,7 @@
 
 #define NIX_AF_LINKX_BASE_MASK		GENMASK_ULL(11, 0)
 #define NIX_AF_LINKX_RANGE_MASK		GENMASK_ULL(19, 16)
+#define NIX_AF_LINKX_MCS_CNT_MASK	GENMASK_ULL(33, 32)
 
 /* SSO */
 #define SSO_AF_CONST			(0x1000)
@@ -732,5 +734,7 @@
 #define APR_LMT_MAP_ENT_DIS_SCH_CMP_SHIFT	23
 #define APR_LMT_MAP_ENT_SCH_ENA_SHIFT		22
 #define APR_LMT_MAP_ENT_DIS_LINE_PREF_SHIFT	21
+#define LMTST_THROTTLE_MASK		GENMASK_ULL(38, 35)
+#define LMTST_WR_PEND_MAX		15
 
 #endif /* RVU_REG_H */

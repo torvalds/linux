@@ -10,7 +10,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/reset.h>
@@ -185,7 +185,6 @@ static const struct pwm_ops hibvt_pwm_ops = {
 	.get_state = hibvt_pwm_get_state,
 	.apply = hibvt_pwm_apply,
 
-	.owner = THIS_MODULE,
 };
 
 static int hibvt_pwm_probe(struct platform_device *pdev)

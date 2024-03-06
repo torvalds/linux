@@ -517,15 +517,16 @@ static void show_range(struct cpuid_range *range)
 static inline struct cpuid_func *index_to_func(u32 index)
 {
 	struct cpuid_range *range;
+	u32 func_idx;
 
 	range = (index & 0x80000000) ? leafs_ext : leafs_basic;
-	index &= 0x7FFFFFFF;
+	func_idx = index & 0xffff;
 
-	if (((index & 0xFFFF) + 1) > (u32)range->nr) {
+	if ((func_idx + 1) > (u32)range->nr) {
 		printf("ERR: invalid input index (0x%x)\n", index);
 		return NULL;
 	}
-	return &range->funcs[index];
+	return &range->funcs[func_idx];
 }
 
 static void show_info(void)

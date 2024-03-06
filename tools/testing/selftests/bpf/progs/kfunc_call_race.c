@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <vmlinux.h>
 #include <bpf/bpf_helpers.h>
-
-extern void bpf_testmod_test_mod_kfunc(int i) __ksym;
+#include "../bpf_testmod/bpf_testmod_kfunc.h"
 
 SEC("tc")
 int kfunc_call_fail(struct __sk_buff *ctx)

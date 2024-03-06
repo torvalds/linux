@@ -5,6 +5,9 @@
  * Copyright (C) 2019 Pengutronix, Michael Grzeschik <kernel@pengutronix.de>
  */
 
+#include <linux/mod_devicetable.h>
+#include <linux/property.h>
+
 #include "ksz8.h"
 #include "ksz_common.h"
 
@@ -104,6 +107,7 @@ static const struct regmap_config ksz8863_regmap_config[] = {
 		.cache_type = REGCACHE_NONE,
 		.lock = ksz_regmap_lock,
 		.unlock = ksz_regmap_unlock,
+		.max_register = U8_MAX,
 	},
 	{
 		.name = "#16",
@@ -113,6 +117,7 @@ static const struct regmap_config ksz8863_regmap_config[] = {
 		.cache_type = REGCACHE_NONE,
 		.lock = ksz_regmap_lock,
 		.unlock = ksz_regmap_unlock,
+		.max_register = U8_MAX,
 	},
 	{
 		.name = "#32",
@@ -122,11 +127,14 @@ static const struct regmap_config ksz8863_regmap_config[] = {
 		.cache_type = REGCACHE_NONE,
 		.lock = ksz_regmap_lock,
 		.unlock = ksz_regmap_unlock,
+		.max_register = U8_MAX,
 	}
 };
 
 static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 {
+	struct device *ddev = &mdiodev->dev;
+	const struct ksz_chip_data *chip;
 	struct regmap_config rc;
 	struct ksz_device *dev;
 	int ret;
@@ -136,9 +144,15 @@ static int ksz8863_smi_probe(struct mdio_device *mdiodev)
 	if (!dev)
 		return -ENOMEM;
 
-	for (i = 0; i < ARRAY_SIZE(ksz8863_regmap_config); i++) {
+	chip = device_get_match_data(ddev);
+	if (!chip)
+		return -EINVAL;
+
+	for (i = 0; i < __KSZ_NUM_REGMAPS; i++) {
 		rc = ksz8863_regmap_config[i];
 		rc.lock_arg = &dev->regmap_mutex;
+		rc.wr_table = chip->wr_table;
+		rc.rd_table = chip->rd_table;
 		dev->regmap[i] = devm_regmap_init(&mdiodev->dev,
 						  &regmap_smi[i], dev,
 						  &rc);

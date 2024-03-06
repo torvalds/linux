@@ -86,8 +86,8 @@ union CtRevisionId {
 union CtCommandResponse {
 	/* Structure is in Big Endian format */
 	struct {
-		uint32_t CmdRsp:16;
-		uint32_t Size:16;
+		__be16 CmdRsp;
+		__be16 Size;
 	} bits;
 	uint32_t word;
 };
@@ -124,7 +124,7 @@ struct lpfc_sli_ct_request {
 #define LPFC_CT_PREAMBLE	20	/* Size of CTReq + 4 up to here */
 
 	union {
-		uint32_t PortID;
+		__be32 PortID;
 		struct gid {
 			uint8_t PortType;	/* for GID_PT requests */
 #define GID_PT_N_PORT	1
@@ -365,7 +365,7 @@ struct lpfc_name {
 			uint8_t IEEE[6];	/* FC IEEE address */
 		} s;
 		uint8_t wwn[8];
-		uint64_t name;
+		uint64_t name __packed __aligned(4);
 	} u;
 };
 
@@ -764,6 +764,8 @@ typedef struct _PRLI {		/* Structure is in Big Endian format */
 #define PRLI_PREDEF_CONFIG    0x5
 #define PRLI_PARTIAL_SUCCESS  0x6
 #define PRLI_INVALID_PAGE_CNT 0x7
+#define PRLI_INV_SRV_PARM     0x8
+
 	uint8_t word0Reserved3;	/* FC Parm Word 0, bit 0:7 */
 
 	uint32_t origProcAssoc;	/* FC Parm Word 1, bit 0:31 */
@@ -850,7 +852,7 @@ typedef struct _ADISC {		/* Structure is in Big Endian format */
 	struct lpfc_name portName;
 	struct lpfc_name nodeName;
 	uint32_t DID;
-} __packed ADISC;
+} ADISC;
 
 typedef struct _FARP {		/* Structure is in Big Endian format */
 	uint32_t Mflags:8;
@@ -880,7 +882,7 @@ typedef struct _FAN {		/* Structure is in Big Endian format */
 	uint32_t Fdid;
 	struct lpfc_name FportName;
 	struct lpfc_name FnodeName;
-} __packed FAN;
+} FAN;
 
 typedef struct _SCR {		/* Structure is in Big Endian format */
 	uint8_t resvd1;
@@ -924,7 +926,7 @@ typedef struct _RNID {		/* Structure is in Big Endian format */
 	union {
 		RNID_TOP_DISC topologyDisc;	/* topology disc (0xdf) */
 	} un;
-} __packed RNID;
+} RNID;
 
 struct RLS {			/* Structure is in Big Endian format */
 	uint32_t rls;
@@ -1408,19 +1410,19 @@ struct entity_id_object {
 };
 
 struct app_id_object {
-	uint32_t port_id;
-	uint32_t app_id;
+	__be32 port_id;
+	__be32 app_id;
 	struct entity_id_object obj;
 };
 
 struct lpfc_vmid_rapp_ident_list {
-	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	__be32 no_of_objects;
+	struct entity_id_object obj[];
 };
 
 struct lpfc_vmid_dapp_ident_list {
-	uint32_t no_of_objects;
-	struct entity_id_object obj[1];
+	__be32 no_of_objects;
+	struct entity_id_object obj[];
 };
 
 #define GALLAPPIA_ID_LAST  0x80
@@ -1512,9 +1514,9 @@ struct lpfc_fdmi_hba_ident {
  * Registered Port List Format
  */
 struct lpfc_fdmi_reg_port_list {
-	uint32_t EntryCnt;
+	__be32 EntryCnt;
 	struct lpfc_fdmi_port_entry pe;
-} __packed;
+};
 
 /*
  * Register HBA(RHBA)

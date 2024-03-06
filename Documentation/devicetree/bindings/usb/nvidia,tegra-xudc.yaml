@@ -91,6 +91,7 @@ properties:
 
   phys:
     minItems: 1
+    maxItems: 2
     description:
       Must contain an entry for each entry in phy-names.
       See ../phy/phy-bindings.txt for details.
@@ -99,13 +100,7 @@ properties:
     minItems: 1
     items:
       - const: usb2-0
-      - const: usb2-1
-      - const: usb2-2
-      - const: usb2-3
       - const: usb3-0
-      - const: usb3-1
-      - const: usb3-2
-      - const: usb3-3
 
   avddio-usb-supply:
     description: PCIe/USB3 analog logic power supply. Must supply 1.05 V.

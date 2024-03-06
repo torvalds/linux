@@ -20,8 +20,9 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_dma.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include "virt-dma.h"
 
@@ -192,7 +193,7 @@ struct owl_dma_pchan {
 };
 
 /**
- * struct owl_dma_pchan - Wrapper for DMA ENGINE channel
+ * struct owl_dma_vchan - Wrapper for DMA ENGINE channel
  * @vc: wrapped virtual channel
  * @pchan: the physical channel utilized by this channel
  * @txd: active transaction on this channel
@@ -1116,7 +1117,7 @@ static int owl_dma_probe(struct platform_device *pdev)
 	dev_info(&pdev->dev, "dma-channels %d, dma-requests %d\n",
 		 nr_channels, nr_requests);
 
-	od->devid = (enum owl_dma_id)of_device_get_match_data(&pdev->dev);
+	od->devid = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	od->nr_pchans = nr_channels;
 	od->nr_vchans = nr_requests;
@@ -1230,7 +1231,7 @@ err_pool_free:
 	return ret;
 }
 
-static int owl_dma_remove(struct platform_device *pdev)
+static void owl_dma_remove(struct platform_device *pdev)
 {
 	struct owl_dma *od = platform_get_drvdata(pdev);
 
@@ -1247,13 +1248,11 @@ static int owl_dma_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(od->clk);
 	dma_pool_destroy(od->lli_pool);
-
-	return 0;
 }
 
 static struct platform_driver owl_dma_driver = {
 	.probe	= owl_dma_probe,
-	.remove	= owl_dma_remove,
+	.remove_new = owl_dma_remove,
 	.driver = {
 		.name = "dma-owl",
 		.of_match_table = of_match_ptr(owl_dma_match),

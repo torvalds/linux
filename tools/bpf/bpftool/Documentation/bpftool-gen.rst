@@ -260,9 +260,9 @@ EXAMPLES
 This is example BPF application with two BPF programs and a mix of BPF maps
 and global variables. Source code is split across two source code files.
 
-**$ clang -target bpf -g example1.bpf.c -o example1.bpf.o**
+**$ clang --target=bpf -g example1.bpf.c -o example1.bpf.o**
 
-**$ clang -target bpf -g example2.bpf.c -o example2.bpf.o**
+**$ clang --target=bpf -g example2.bpf.c -o example2.bpf.o**
 
 **$ bpftool gen object example.bpf.o example1.bpf.o example2.bpf.o**
 

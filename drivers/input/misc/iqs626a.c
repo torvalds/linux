@@ -19,8 +19,8 @@
 #include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -1822,7 +1822,7 @@ static struct i2c_driver iqs626_i2c_driver = {
 		.of_match_table = iqs626_of_match,
 		.pm = pm_sleep_ptr(&iqs626_pm),
 	},
-	.probe_new = iqs626_probe,
+	.probe = iqs626_probe,
 };
 module_i2c_driver(iqs626_i2c_driver);
 

@@ -96,6 +96,12 @@ Command-line Parsing
 .. kernel-doc:: lib/cmdline.c
    :export:
 
+Error Pointers
+--------------
+
+.. kernel-doc:: include/linux/err.h
+   :internal:
+
 Sorting
 -------
 
@@ -156,8 +162,10 @@ Base 2 log and power Functions
 .. kernel-doc:: include/linux/log2.h
    :internal:
 
-Integer power Functions
------------------------
+Integer log and power Functions
+-------------------------------
+
+.. kernel-doc:: include/linux/int_log.h
 
 .. kernel-doc:: lib/math/int_pow.c
    :export:
@@ -412,3 +420,15 @@ Read-Copy Update (RCU)
 .. kernel-doc:: include/linux/rcu_sync.h
 
 .. kernel-doc:: kernel/rcu/sync.c
+
+.. kernel-doc:: kernel/rcu/tasks.h
+
+.. kernel-doc:: kernel/rcu/tree_stall.h
+
+.. kernel-doc:: include/linux/rcupdate_trace.h
+
+.. kernel-doc:: include/linux/rcupdate_wait.h
+
+.. kernel-doc:: include/linux/rcuref.h
+
+.. kernel-doc:: include/linux/rcutree.h

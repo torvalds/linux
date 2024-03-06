@@ -167,6 +167,9 @@ struct thread_struct {
 	unsigned long		fault_address;	/* fault info */
 	unsigned long		fault_code;	/* ESR_EL1 value */
 	struct debug_info	debug;		/* debugging */
+
+	struct user_fpsimd_state	kernel_fpsimd_state;
+	unsigned int			kernel_fpsimd_cpu;
 #ifdef CONFIG_ARM64_PTR_AUTH
 	struct ptrauth_keys_user	keys_user;
 #ifdef CONFIG_ARM64_PTR_AUTH_KERNEL
@@ -357,14 +360,6 @@ static inline void prefetch(const void *ptr)
 static inline void prefetchw(const void *ptr)
 {
 	asm volatile("prfm pstl1keep, %a0\n" : : "p" (ptr));
-}
-
-#define ARCH_HAS_SPINLOCK_PREFETCH
-static inline void spin_lock_prefetch(const void *ptr)
-{
-	asm volatile(ARM64_LSE_ATOMIC_INSN(
-		     "prfm pstl1strm, %a0",
-		     "nop") : : "p" (ptr));
 }
 
 extern unsigned long __ro_after_init signal_minsigstksz; /* sigframe size */

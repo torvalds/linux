@@ -908,7 +908,6 @@ static struct ahash_alg dcp_sha1_alg = {
 			.cra_name		= "sha1",
 			.cra_driver_name	= "sha1-dcp",
 			.cra_priority		= 400,
-			.cra_alignmask		= 63,
 			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA1_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct dcp_async_ctx),
@@ -935,7 +934,6 @@ static struct ahash_alg dcp_sha256_alg = {
 			.cra_name		= "sha256",
 			.cra_driver_name	= "sha256-dcp",
 			.cra_priority		= 400,
-			.cra_alignmask		= 63,
 			.cra_flags		= CRYPTO_ALG_ASYNC,
 			.cra_blocksize		= SHA256_BLOCK_SIZE,
 			.cra_ctxsize		= sizeof(struct dcp_async_ctx),
@@ -1131,7 +1129,7 @@ err_destroy_sha_thread:
 	return ret;
 }
 
-static int mxs_dcp_remove(struct platform_device *pdev)
+static void mxs_dcp_remove(struct platform_device *pdev)
 {
 	struct dcp *sdcp = platform_get_drvdata(pdev);
 
@@ -1150,8 +1148,6 @@ static int mxs_dcp_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	global_sdcp = NULL;
-
-	return 0;
 }
 
 static const struct of_device_id mxs_dcp_dt_ids[] = {
@@ -1164,7 +1160,7 @@ MODULE_DEVICE_TABLE(of, mxs_dcp_dt_ids);
 
 static struct platform_driver mxs_dcp_driver = {
 	.probe	= mxs_dcp_probe,
-	.remove	= mxs_dcp_remove,
+	.remove_new = mxs_dcp_remove,
 	.driver	= {
 		.name		= "mxs-dcp",
 		.of_match_table	= mxs_dcp_dt_ids,

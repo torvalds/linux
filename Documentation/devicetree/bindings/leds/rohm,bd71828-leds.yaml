@@ -18,8 +18,6 @@ description: |
 
   The device has two LED outputs referred as GRNLED and AMBLED in data-sheet.
 
-select: false
-
 properties:
   compatible:
     const: rohm,bd71828-leds
@@ -32,7 +30,7 @@ patternProperties:
     properties:
       rohm,led-compatible:
         description: LED identification string
-        $ref: "/schemas/types.yaml#/definitions/string"
+        $ref: /schemas/types.yaml#/definitions/string
         enum:
           - bd71828-ambled
           - bd71828-grnled

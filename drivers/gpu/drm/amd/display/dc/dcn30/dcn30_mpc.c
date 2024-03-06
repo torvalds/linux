@@ -278,22 +278,10 @@ static void mpc3_program_ogam_pwl(
 {
 	uint32_t i;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
-	uint32_t last_base_value_red = rgb[num-1].red_reg + rgb[num-1].delta_red_reg;
-	uint32_t last_base_value_green = rgb[num-1].green_reg + rgb[num-1].delta_green_reg;
-	uint32_t last_base_value_blue = rgb[num-1].blue_reg + rgb[num-1].delta_blue_reg;
-
-	/*the entries of DCN3AG gamma LUTs take 18bit base values as opposed to
-	 *38 base+delta values per entry in earlier DCN architectures
-	 *last base value for our lut is compute by adding the last base value
-	 *in our data + last delta
-	 */
 
 	if (is_rgb_equal(rgb,  num)) {
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].red_reg);
-
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_red);
-
 	} else {
 
 		REG_UPDATE(MPCC_OGAM_LUT_CONTROL[mpcc_id],
@@ -301,8 +289,6 @@ static void mpc3_program_ogam_pwl(
 
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].red_reg);
-
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_red);
 
 		REG_SET(MPCC_OGAM_LUT_INDEX[mpcc_id], 0, MPCC_OGAM_LUT_INDEX, 0);
 
@@ -312,8 +298,6 @@ static void mpc3_program_ogam_pwl(
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].green_reg);
 
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_green);
-
 		REG_SET(MPCC_OGAM_LUT_INDEX[mpcc_id], 0, MPCC_OGAM_LUT_INDEX, 0);
 
 		REG_UPDATE(MPCC_OGAM_LUT_CONTROL[mpcc_id],
@@ -322,7 +306,6 @@ static void mpc3_program_ogam_pwl(
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].blue_reg);
 
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_blue);
 	}
 
 }

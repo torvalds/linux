@@ -316,7 +316,7 @@ bool hubp3_program_surface_flip_and_addr(
 	return true;
 }
 
-static void hubp3_program_tiling(
+void hubp3_program_tiling(
 	struct dcn20_hubp *hubp2,
 	const union dc_tiling_info *info,
 	const enum surface_pixel_format pixel_format)
@@ -448,6 +448,12 @@ void hubp3_read_state(struct hubp *hubp)
 		DPTE_GROUP_SIZE_C, &rq_regs->rq_regs_c.dpte_group_size,
 		SWATH_HEIGHT_C, &rq_regs->rq_regs_c.swath_height,
 		PTE_ROW_HEIGHT_LINEAR_C, &rq_regs->rq_regs_c.pte_row_height_linear);
+
+	if (REG(UCLK_PSTATE_FORCE))
+		s->uclk_pstate_force = REG_READ(UCLK_PSTATE_FORCE);
+
+	if (REG(DCHUBP_CNTL))
+		s->hubp_cntl = REG_READ(DCHUBP_CNTL);
 
 }
 

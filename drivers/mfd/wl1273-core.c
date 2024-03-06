@@ -232,7 +232,7 @@ static struct i2c_driver wl1273_core_driver = {
 	.driver = {
 		.name = WL1273_FM_DRIVER_NAME,
 	},
-	.probe_new = wl1273_core_probe,
+	.probe = wl1273_core_probe,
 	.id_table = wl1273_driver_id_table,
 };
 

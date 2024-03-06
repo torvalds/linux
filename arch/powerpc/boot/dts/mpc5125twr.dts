@@ -104,7 +104,7 @@
 			clock-names = "osc";
 		};
 
-		pmc@1000{  // Power Management Controller
+		pmc@1000 {  // Power Management Controller
 			compatible = "fsl,mpc5121-pmc";
 			reg = <0x1000 0x100>;
 			interrupts = <83 0x2>;

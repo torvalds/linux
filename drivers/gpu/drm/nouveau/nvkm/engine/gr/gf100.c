@@ -374,7 +374,7 @@ gf100_gr_chan = {
 };
 
 static int
-gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
+gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_chan *fifoch,
 		  const struct nvkm_oclass *oclass,
 		  struct nvkm_object **pobject)
 {
@@ -2032,18 +2032,18 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	}
 
 	/* Allocate global context buffers. */
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->pagepool_size,
-			      0x100, false, &gr->pagepool);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST_SR_LOST,
+			      gr->func->grctx->pagepool_size, 0x100, false, &gr->pagepool);
 	if (ret)
 		return ret;
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->bundle_size,
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST_SR_LOST, gr->func->grctx->bundle_size,
 			      0x100, false, &gr->bundle_cb);
 	if (ret)
 		return ret;
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->attrib_cb_size(gr),
-			      0x1000, false, &gr->attrib_cb);
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST_SR_LOST,
+			      gr->func->grctx->attrib_cb_size(gr), 0x1000, false, &gr->attrib_cb);
 	if (ret)
 		return ret;
 
@@ -2494,12 +2494,24 @@ gf100_gr_gpccs_ucode = {
 	.data.size = sizeof(gf100_grgpc_data),
 };
 
+static int
+gf100_gr_nonstall(struct nvkm_gr *base)
+{
+	struct gf100_gr *gr = gf100_gr(base);
+
+	if (gr->func->nonstall)
+		return gr->func->nonstall(gr);
+
+	return -EINVAL;
+}
+
 static const struct nvkm_gr_func
 gf100_gr_ = {
 	.dtor = gf100_gr_dtor,
 	.oneinit = gf100_gr_oneinit,
 	.init = gf100_gr_init_,
 	.fini = gf100_gr_fini,
+	.nonstall = gf100_gr_nonstall,
 	.reset = gf100_gr_reset,
 	.units = gf100_gr_units,
 	.chan_new = gf100_gr_chan_new,

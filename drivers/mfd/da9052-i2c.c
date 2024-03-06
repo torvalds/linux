@@ -13,14 +13,11 @@
 #include <linux/mfd/core.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/reg.h>
 
-#ifdef CONFIG_OF
-#include <linux/of.h>
-#include <linux/of_device.h>
-#endif
 
 /* I2C safe register check */
 static inline bool i2c_safe_reg(unsigned char reg)
@@ -176,7 +173,7 @@ static void da9052_i2c_remove(struct i2c_client *client)
 }
 
 static struct i2c_driver da9052_i2c_driver = {
-	.probe_new = da9052_i2c_probe,
+	.probe = da9052_i2c_probe,
 	.remove = da9052_i2c_remove,
 	.id_table = da9052_i2c_id,
 	.driver = {

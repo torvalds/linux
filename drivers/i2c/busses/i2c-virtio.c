@@ -243,7 +243,6 @@ static struct virtio_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(virtio, id_table);
 
-#ifdef CONFIG_PM_SLEEP
 static int virtio_i2c_freeze(struct virtio_device *vdev)
 {
 	virtio_i2c_del_vqs(vdev);
@@ -254,7 +253,6 @@ static int virtio_i2c_restore(struct virtio_device *vdev)
 {
 	return virtio_i2c_setup_vqs(vdev->priv);
 }
-#endif
 
 static const unsigned int features[] = {
 	VIRTIO_I2C_F_ZERO_LENGTH_REQUEST,
@@ -269,10 +267,8 @@ static struct virtio_driver virtio_i2c_driver = {
 	.driver			= {
 		.name	= "i2c_virtio",
 	},
-#ifdef CONFIG_PM_SLEEP
-	.freeze = virtio_i2c_freeze,
-	.restore = virtio_i2c_restore,
-#endif
+	.freeze			= pm_sleep_ptr(virtio_i2c_freeze),
+	.restore		= pm_sleep_ptr(virtio_i2c_restore),
 };
 module_virtio_driver(virtio_i2c_driver);
 

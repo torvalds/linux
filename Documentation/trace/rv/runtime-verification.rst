@@ -31,7 +31,7 @@ In Linux terms, the runtime verification monitors are encapsulated inside the
 *RV monitor* abstraction. A *RV monitor* includes a reference model of the
 system, a set of instances of the monitor (per-cpu monitor, per-task monitor,
 and so on), and the helper functions that glue the monitor to the system via
-trace, as depicted bellow::
+trace, as depicted below::
 
  Linux   +---- RV Monitor ----------------------------------+ Formal
   Realm  |                                                  |  Realm

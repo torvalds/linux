@@ -655,10 +655,10 @@ config TOUCHSCREEN_MTOUCH
 	  module will be called mtouch.
 
 config TOUCHSCREEN_NOVATEK_NVT_TS
-	tristate "Novatek NVT-ts touchscreen support"
+	tristate "Novatek NT11205 touchscreen support"
 	depends on I2C
 	help
-	  Say Y here if you have a Novatek NVT-ts touchscreen.
+	  Say Y here if you have a Novatek NT11205 touchscreen.
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
@@ -700,6 +700,7 @@ config TOUCHSCREEN_INEXIO
 
 config TOUCHSCREEN_MK712
 	tristate "ICS MicroClock MK712 touchscreen"
+	depends on ISA
 	help
 	  Say Y here if you have the ICS MicroClock MK712 touchscreen
 	  controller chip in your system.
@@ -1363,6 +1364,16 @@ config TOUCHSCREEN_IQS5XX
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called iqs5xx.
+
+config TOUCHSCREEN_IQS7211
+	tristate "Azoteq IQS7210A/7211A/E trackpad/touchscreen controller"
+	depends on I2C
+	help
+	  Say Y to enable support for the Azoteq IQS7210A/7211A/E
+	  family of trackpad/touchscreen controllers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called iqs7211.
 
 config TOUCHSCREEN_ZINITIX
 	tristate "Zinitix touchscreen support"

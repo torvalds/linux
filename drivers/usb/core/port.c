@@ -160,6 +160,16 @@ static ssize_t connect_type_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(connect_type);
 
+static ssize_t state_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
+{
+	struct usb_port *port_dev = to_usb_port(dev);
+	enum usb_device_state state = READ_ONCE(port_dev->state);
+
+	return sysfs_emit(buf, "%s\n", usb_state_string(state));
+}
+static DEVICE_ATTR_RO(state);
+
 static ssize_t over_current_count_show(struct device *dev,
 				       struct device_attribute *attr, char *buf)
 {
@@ -259,6 +269,7 @@ static DEVICE_ATTR_RW(usb3_lpm_permit);
 
 static struct attribute *port_dev_attrs[] = {
 	&dev_attr_connect_type.attr,
+	&dev_attr_state.attr,
 	&dev_attr_location.attr,
 	&dev_attr_quirks.attr,
 	&dev_attr_over_current_count.attr,
@@ -642,6 +653,7 @@ static void find_and_link_peer(struct usb_hub *hub, int port1)
 
 static int connector_bind(struct device *dev, struct device *connector, void *data)
 {
+	struct usb_port *port_dev = to_usb_port(dev);
 	int ret;
 
 	ret = sysfs_create_link(&dev->kobj, &connector->kobj, "connector");
@@ -649,16 +661,30 @@ static int connector_bind(struct device *dev, struct device *connector, void *da
 		return ret;
 
 	ret = sysfs_create_link(&connector->kobj, &dev->kobj, dev_name(dev));
-	if (ret)
+	if (ret) {
 		sysfs_remove_link(&dev->kobj, "connector");
+		return ret;
+	}
 
-	return ret;
+	port_dev->connector = data;
+
+	/*
+	 * If there is already USB device connected to the port, letting the
+	 * Type-C connector know about it immediately.
+	 */
+	if (port_dev->child)
+		typec_attach(port_dev->connector, &port_dev->child->dev);
+
+	return 0;
 }
 
 static void connector_unbind(struct device *dev, struct device *connector, void *data)
 {
+	struct usb_port *port_dev = to_usb_port(dev);
+
 	sysfs_remove_link(&connector->kobj, dev_name(dev));
 	sysfs_remove_link(&dev->kobj, "connector");
+	port_dev->connector = NULL;
 }
 
 static const struct component_ops connector_ops = {
@@ -687,6 +713,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 	set_bit(port1, hub->power_bits);
 	port_dev->dev.parent = hub->intfdev;
 	if (hub_is_superspeed(hdev)) {
+		port_dev->is_superspeed = 1;
 		port_dev->usb3_lpm_u1_permit = 1;
 		port_dev->usb3_lpm_u2_permit = 1;
 		port_dev->dev.groups = port_dev_usb3_group;
@@ -694,8 +721,6 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		port_dev->dev.groups = port_dev_group;
 	port_dev->dev.type = &usb_port_device_type;
 	port_dev->dev.driver = &usb_port_driver;
-	if (hub_is_superspeed(hub->hdev))
-		port_dev->is_superspeed = 1;
 	dev_set_name(&port_dev->dev, "%s-port%d", dev_name(&hub->hdev->dev),
 			port1);
 	mutex_init(&port_dev->status_lock);
@@ -705,19 +730,24 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		return retval;
 	}
 
+	port_dev->state_kn = sysfs_get_dirent(port_dev->dev.kobj.sd, "state");
+	if (!port_dev->state_kn) {
+		dev_err(&port_dev->dev, "failed to sysfs_get_dirent 'state'\n");
+		retval = -ENODEV;
+		goto err_unregister;
+	}
+
 	/* Set default policy of port-poweroff disabled. */
 	retval = dev_pm_qos_add_request(&port_dev->dev, port_dev->req,
 			DEV_PM_QOS_FLAGS, PM_QOS_FLAG_NO_POWER_OFF);
 	if (retval < 0) {
-		device_unregister(&port_dev->dev);
-		return retval;
+		goto err_put_kn;
 	}
 
 	retval = component_add(&port_dev->dev, &connector_ops);
 	if (retval) {
 		dev_warn(&port_dev->dev, "failed to add component\n");
-		device_unregister(&port_dev->dev);
-		return retval;
+		goto err_put_kn;
 	}
 
 	find_and_link_peer(hub, port1);
@@ -754,6 +784,13 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		port_dev->req = NULL;
 	}
 	return 0;
+
+err_put_kn:
+	sysfs_put(port_dev->state_kn);
+err_unregister:
+	device_unregister(&port_dev->dev);
+
+	return retval;
 }
 
 void usb_hub_remove_port_device(struct usb_hub *hub, int port1)
@@ -765,5 +802,6 @@ void usb_hub_remove_port_device(struct usb_hub *hub, int port1)
 	if (peer)
 		unlink_peers(port_dev, peer);
 	component_del(&port_dev->dev, &connector_ops);
+	sysfs_put(port_dev->state_kn);
 	device_unregister(&port_dev->dev);
 }

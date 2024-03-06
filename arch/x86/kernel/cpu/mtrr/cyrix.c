@@ -235,7 +235,7 @@ static void cyrix_set_arr(unsigned int reg, unsigned long base,
 }
 
 const struct mtrr_ops cyrix_mtrr_ops = {
-	.vendor            = X86_VENDOR_CYRIX,
+	.var_regs          = 8,
 	.set               = cyrix_set_arr,
 	.get               = cyrix_get_arr,
 	.get_free_region   = cyrix_get_free_region,

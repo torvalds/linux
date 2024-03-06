@@ -11,7 +11,7 @@
  * accidentally exposed.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 
 #define EXPORT_SYMBOL_RUST_GPL(sym) extern int sym; EXPORT_SYMBOL_GPL(sym)
 

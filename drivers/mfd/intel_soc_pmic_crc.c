@@ -263,7 +263,7 @@ static struct i2c_driver crystal_cove_i2c_driver = {
 		.pm = pm_sleep_ptr(&crystal_cove_pm_ops),
 		.acpi_match_table = crystal_cove_acpi_match,
 	},
-	.probe_new = crystal_cove_i2c_probe,
+	.probe = crystal_cove_i2c_probe,
 	.remove = crystal_cove_i2c_remove,
 	.shutdown = crystal_cove_shutdown,
 };

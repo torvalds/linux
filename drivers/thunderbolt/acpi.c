@@ -12,7 +12,7 @@
 #include "tb.h"
 
 static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
-				    void **return_value)
+				    void **ret)
 {
 	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct fwnode_handle *fwnode;
@@ -84,6 +84,7 @@ static acpi_status tb_acpi_add_link(acpi_handle handle, u32 level, void *data,
 		if (link) {
 			dev_dbg(&nhi->pdev->dev, "created link from %s\n",
 				dev_name(&pdev->dev));
+			*(bool *)ret = true;
 		} else {
 			dev_warn(&nhi->pdev->dev, "device link creation from %s failed\n",
 				 dev_name(&pdev->dev));
@@ -104,22 +105,29 @@ out_put:
  * Goes over ACPI namespace finding tunneled ports that reference to
  * @nhi ACPI node. For each reference a device link is added. The link
  * is automatically removed by the driver core.
+ *
+ * Returns %true if at least one link was created.
  */
-void tb_acpi_add_links(struct tb_nhi *nhi)
+bool tb_acpi_add_links(struct tb_nhi *nhi)
 {
 	acpi_status status;
+	bool ret = false;
 
 	if (!has_acpi_companion(&nhi->pdev->dev))
-		return;
+		return false;
 
 	/*
 	 * Find all devices that have usb4-host-controller interface
 	 * property that references to this NHI.
 	 */
 	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT, 32,
-				     tb_acpi_add_link, NULL, nhi, NULL);
-	if (ACPI_FAILURE(status))
+				     tb_acpi_add_link, NULL, nhi, (void **)&ret);
+	if (ACPI_FAILURE(status)) {
 		dev_warn(&nhi->pdev->dev, "failed to enumerate tunneled ports\n");
+		return false;
+	}
+
+	return ret;
 }
 
 /**
@@ -296,16 +304,15 @@ static bool tb_acpi_bus_match(struct device *dev)
 
 static struct acpi_device *tb_acpi_switch_find_companion(struct tb_switch *sw)
 {
+	struct tb_switch *parent_sw = tb_switch_parent(sw);
 	struct acpi_device *adev = NULL;
-	struct tb_switch *parent_sw;
 
 	/*
 	 * Device routers exists under the downstream facing USB4 port
 	 * of the parent router. Their _ADR is always 0.
 	 */
-	parent_sw = tb_switch_parent(sw);
 	if (parent_sw) {
-		struct tb_port *port = tb_port_at(tb_route(sw), parent_sw);
+		struct tb_port *port = tb_switch_downstream_port(sw);
 		struct acpi_device *port_adev;
 
 		port_adev = acpi_find_child_by_adr(ACPI_COMPANION(&parent_sw->dev),

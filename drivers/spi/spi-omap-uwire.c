@@ -315,7 +315,7 @@ static int uwire_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	int			div2;
 	int			status;
 
-	uwire = spi_master_get_devdata(spi->master);
+	uwire = spi_controller_get_devdata(spi->controller);
 
 	/* mode 0..3, clock inverted separately;
 	 * standard nCS signaling;
@@ -448,25 +448,25 @@ static void uwire_off(struct uwire_spi *uwire)
 {
 	uwire_write_reg(UWIRE_SR3, 0);
 	clk_disable_unprepare(uwire->ck);
-	spi_master_put(uwire->bitbang.master);
+	spi_controller_put(uwire->bitbang.master);
 }
 
 static int uwire_probe(struct platform_device *pdev)
 {
-	struct spi_master	*master;
+	struct spi_controller	*host;
 	struct uwire_spi	*uwire;
 	int			status;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*uwire));
-	if (!master)
+	host = spi_alloc_host(&pdev->dev, sizeof(*uwire));
+	if (!host)
 		return -ENODEV;
 
-	uwire = spi_master_get_devdata(master);
+	uwire = spi_controller_get_devdata(host);
 
 	uwire_base = devm_ioremap(&pdev->dev, UWIRE_BASE_PHYS, UWIRE_IO_SIZE);
 	if (!uwire_base) {
 		dev_dbg(&pdev->dev, "can't ioremap UWIRE\n");
-		spi_master_put(master);
+		spi_controller_put(host);
 		return -ENOMEM;
 	}
 
@@ -476,7 +476,7 @@ static int uwire_probe(struct platform_device *pdev)
 	if (IS_ERR(uwire->ck)) {
 		status = PTR_ERR(uwire->ck);
 		dev_dbg(&pdev->dev, "no functional clock?\n");
-		spi_master_put(master);
+		spi_controller_put(host);
 		return status;
 	}
 	clk_prepare_enable(uwire->ck);
@@ -484,16 +484,16 @@ static int uwire_probe(struct platform_device *pdev)
 	uwire_write_reg(UWIRE_SR3, 1);
 
 	/* the spi->mode bits understood by this driver: */
-	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
-	master->flags = SPI_MASTER_HALF_DUPLEX;
+	host->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	host->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 16);
+	host->flags = SPI_CONTROLLER_HALF_DUPLEX;
 
-	master->bus_num = 2;	/* "official" */
-	master->num_chipselect = 4;
-	master->setup = uwire_setup;
-	master->cleanup = uwire_cleanup;
+	host->bus_num = 2;	/* "official" */
+	host->num_chipselect = 4;
+	host->setup = uwire_setup;
+	host->cleanup = uwire_cleanup;
 
-	uwire->bitbang.master = master;
+	uwire->bitbang.master = host;
 	uwire->bitbang.chipselect = uwire_chipselect;
 	uwire->bitbang.setup_transfer = uwire_setup_transfer;
 	uwire->bitbang.txrx_bufs = uwire_txrx;

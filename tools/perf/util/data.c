@@ -17,6 +17,7 @@
 #include "util.h" // rm_rf_perf_data()
 #include "debug.h"
 #include "header.h"
+#include "rlimit.h"
 #include <internal/lib.h>
 
 static void close_dir(struct perf_data_file *files, int nr)
@@ -35,6 +36,7 @@ void perf_data__close_dir(struct perf_data *data)
 
 int perf_data__create_dir(struct perf_data *data, int nr)
 {
+	enum rlimit_action set_rlimit = NO_CHANGE;
 	struct perf_data_file *files = NULL;
 	int i, ret;
 
@@ -54,11 +56,21 @@ int perf_data__create_dir(struct perf_data *data, int nr)
 			goto out_err;
 		}
 
+retry_open:
 		ret = open(file->path, O_RDWR|O_CREAT|O_TRUNC, S_IRUSR|S_IWUSR);
 		if (ret < 0) {
+			/*
+			 * If using parallel threads to collect data,
+			 * perf record needs at least 6 fds per CPU.
+			 * When we run out of them try to increase the limits.
+			 */
+			if (errno == EMFILE && rlimit__increase_nofile(&set_rlimit))
+				goto retry_open;
+
 			ret = -errno;
 			goto out_err;
 		}
+		set_rlimit = NO_CHANGE;
 
 		file->fd = ret;
 	}

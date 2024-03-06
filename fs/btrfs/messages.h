@@ -4,13 +4,22 @@
 #define BTRFS_MESSAGES_H
 
 #include <linux/types.h>
+#include <linux/printk.h>
+#include <linux/bug.h>
 
 struct btrfs_fs_info;
+
+/*
+ * We want to be able to override this in btrfs-progs.
+ */
+#ifdef __KERNEL__
 
 static inline __printf(2, 3) __cold
 void btrfs_no_printk(const struct btrfs_fs_info *fs_info, const char *fmt, ...)
 {
 }
+
+#endif
 
 #ifdef CONFIG_PRINTK
 
@@ -160,7 +169,11 @@ do {								\
 } while (0)
 
 #ifdef CONFIG_BTRFS_ASSERT
-void __cold __noreturn btrfs_assertfail(const char *expr, const char *file, int line);
+
+#define btrfs_assertfail(expr, file, line)	({				\
+	pr_err("assertion failed: %s, in %s:%d\n", (expr), (file), (line));	\
+	BUG();								\
+})
 
 #define ASSERT(expr)						\
 	(likely(expr) ? (void)0 : btrfs_assertfail(#expr, __FILE__, __LINE__))
@@ -168,30 +181,28 @@ void __cold __noreturn btrfs_assertfail(const char *expr, const char *file, int 
 #define ASSERT(expr)	(void)(expr)
 #endif
 
-void __cold btrfs_print_v0_err(struct btrfs_fs_info *fs_info);
-
 __printf(5, 6)
 __cold
 void __btrfs_handle_fs_error(struct btrfs_fs_info *fs_info, const char *function,
-		     unsigned int line, int errno, const char *fmt, ...);
+		     unsigned int line, int error, const char *fmt, ...);
 
-const char * __attribute_const__ btrfs_decode_error(int errno);
+const char * __attribute_const__ btrfs_decode_error(int error);
 
-#define btrfs_handle_fs_error(fs_info, errno, fmt, args...)		\
+#define btrfs_handle_fs_error(fs_info, error, fmt, args...)		\
 	__btrfs_handle_fs_error((fs_info), __func__, __LINE__,		\
-				(errno), fmt, ##args)
+				(error), fmt, ##args)
 
 __printf(5, 6)
 __cold
-void __btrfs_panic(struct btrfs_fs_info *fs_info, const char *function,
-		   unsigned int line, int errno, const char *fmt, ...);
+void __btrfs_panic(const struct btrfs_fs_info *fs_info, const char *function,
+		   unsigned int line, int error, const char *fmt, ...);
 /*
  * If BTRFS_MOUNT_PANIC_ON_FATAL_ERROR is in mount_opt, __btrfs_panic
  * will panic().  Otherwise we BUG() here.
  */
-#define btrfs_panic(fs_info, errno, fmt, args...)			\
+#define btrfs_panic(fs_info, error, fmt, args...)			\
 do {									\
-	__btrfs_panic(fs_info, __func__, __LINE__, errno, fmt, ##args);	\
+	__btrfs_panic(fs_info, __func__, __LINE__, error, fmt, ##args);	\
 	BUG();								\
 } while (0)
 

@@ -514,7 +514,7 @@ int lima_device_suspend(struct device *dev)
 
 	/* check any task running */
 	for (i = 0; i < lima_pipe_num; i++) {
-		if (atomic_read(&ldev->pipe[i].base.hw_rq_count))
+		if (atomic_read(&ldev->pipe[i].base.credit_count))
 			return -EBUSY;
 	}
 

@@ -133,7 +133,7 @@ static struct i2c_driver ltc2485_driver = {
 	.driver = {
 		.name = "ltc2485",
 	},
-	.probe_new = ltc2485_probe,
+	.probe = ltc2485_probe,
 	.id_table = ltc2485_id,
 };
 module_i2c_driver(ltc2485_driver);

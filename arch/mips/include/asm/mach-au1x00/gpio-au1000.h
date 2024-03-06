@@ -435,7 +435,7 @@ static inline void alchemy_gpio2_disable_int(int gpio2)
 /**
  * alchemy_gpio2_enable -  Activate GPIO2 block.
  *
- * The GPIO2 block must be enabled excplicitly to work.	 On systems
+ * The GPIO2 block must be enabled explicitly to work.	 On systems
  * where this isn't done by the bootloader, this macro can be used.
  */
 static inline void alchemy_gpio2_enable(void)
@@ -498,11 +498,6 @@ static inline int alchemy_gpio_is_valid(int gpio)
 	return (gpio >= ALCHEMY_GPIO2_BASE) ?
 		alchemy_gpio2_is_valid(gpio) :
 		alchemy_gpio1_is_valid(gpio);
-}
-
-static inline int alchemy_gpio_cansleep(int gpio)
-{
-	return 0;	/* Alchemy never gets tired */
 }
 
 static inline int alchemy_gpio_to_irq(int gpio)

@@ -208,7 +208,7 @@ Not every problem needs a new ioctl:
    it's much quicker to push a driver-private interface than engaging in
    lengthy discussions for a more generic solution. And occasionally doing a
    private interface to spearhead a new concept is what's required. But in the
-   end, once the generic interface comes around you'll end up maintainer two
+   end, once the generic interface comes around you'll end up maintaining two
    interfaces. Indefinitely.
 
  * Consider other interfaces than ioctls. A sysfs attribute is much better for

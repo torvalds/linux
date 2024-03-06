@@ -62,6 +62,9 @@ config CAVIUM_PTP
 	  Precision Time Protocol or other purposes.  Timestamps can be used in
 	  BGX, TNS, GTI, and NIC blocks.
 
+config LIQUIDIO_CORE
+	tristate
+
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
 	depends on 64BIT && PCI
@@ -69,6 +72,7 @@ config LIQUIDIO
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select FW_LOADER
 	select LIBCRC32C
+	select LIQUIDIO_CORE
 	select NET_DEVLINK
 	help
 	  This driver supports Cavium LiquidIO Intelligent Server Adapters
@@ -92,6 +96,7 @@ config LIQUIDIO_VF
 	tristate "Cavium LiquidIO VF support"
 	depends on 64BIT && PCI_MSI
 	depends on PTP_1588_CLOCK_OPTIONAL
+	select LIQUIDIO_CORE
 	help
 	  This driver supports Cavium LiquidIO Intelligent Server Adapter
 	  based on CN23XX chips.

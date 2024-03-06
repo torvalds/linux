@@ -68,6 +68,7 @@
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
 	.errstr = "kptr access cannot have variable offset",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map_kptr: bpf_kptr_xchg non-const var_off",
@@ -121,6 +122,7 @@
 	.fixup_map_kptr = { 1 },
 	.result = REJECT,
 	.errstr = "kptr access misaligned expected=0 off=7",
+	.flags = F_NEEDS_EFFICIENT_UNALIGNED_ACCESS,
 },
 {
 	"map_kptr: reject var_off != 0",

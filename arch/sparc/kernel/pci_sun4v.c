@@ -15,7 +15,8 @@
 #include <linux/msi.h>
 #include <linux/export.h>
 #include <linux/log2.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/dma-map-ops.h>
 #include <asm/iommu-common.h>
 
@@ -193,7 +194,7 @@ static void *dma_4v_alloc_coherent(struct device *dev, size_t size,
 
 	size = IO_PAGE_ALIGN(size);
 	order = get_order(size);
-	if (unlikely(order > MAX_ORDER))
+	if (unlikely(order > MAX_PAGE_ORDER))
 		return NULL;
 
 	npages = size >> IO_PAGE_SHIFT;

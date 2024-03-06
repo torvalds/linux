@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/err.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -1008,7 +1008,7 @@ static struct i2c_driver isl29501_driver = {
 		.name	= "isl29501",
 	},
 	.id_table	= isl29501_id,
-	.probe_new	= isl29501_probe,
+	.probe		= isl29501_probe,
 };
 module_i2c_driver(isl29501_driver);
 

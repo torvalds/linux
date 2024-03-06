@@ -140,12 +140,11 @@ static int avs_probe_compr_set_params(struct snd_compr_stream *cstream,
 	bps = snd_pcm_format_physical_width(format);
 	if (bps < 0)
 		return bps;
-	format_val = snd_hdac_calc_stream_format(params->codec.sample_rate, params->codec.ch_out,
-						 format, bps, 0);
+	format_val = snd_hdac_stream_format(params->codec.ch_out, bps, params->codec.sample_rate);
 	ret = snd_hdac_stream_set_params(hdac_stream(host_stream), format_val);
 	if (ret < 0)
 		return ret;
-	ret = snd_hdac_stream_setup(hdac_stream(host_stream));
+	ret = snd_hdac_stream_setup(hdac_stream(host_stream), false);
 	if (ret < 0)
 		return ret;
 
@@ -249,12 +248,16 @@ static int avs_probe_compr_copy(struct snd_soc_component *comp, struct snd_compr
 	return count;
 }
 
-static const struct snd_soc_cdai_ops avs_probe_dai_ops = {
+static const struct snd_soc_cdai_ops avs_probe_cdai_ops = {
 	.startup = avs_probe_compr_open,
 	.shutdown = avs_probe_compr_free,
 	.set_params = avs_probe_compr_set_params,
 	.trigger = avs_probe_compr_trigger,
 	.pointer = avs_probe_compr_pointer,
+};
+
+static const struct snd_soc_dai_ops avs_probe_dai_ops = {
+	.compress_new = snd_soc_new_compress,
 };
 
 static const struct snd_compress_ops avs_probe_compress_ops = {
@@ -264,8 +267,8 @@ static const struct snd_compress_ops avs_probe_compress_ops = {
 static struct snd_soc_dai_driver probe_cpu_dais[] = {
 {
 	.name = "Probe Extraction CPU DAI",
-	.compress_new = snd_soc_new_compress,
-	.cops = &avs_probe_dai_ops,
+	.cops = &avs_probe_cdai_ops,
+	.ops  = &avs_probe_dai_ops,
 	.capture = {
 		.stream_name = "Probe Extraction",
 		.channels_min = 1,

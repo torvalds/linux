@@ -126,18 +126,6 @@ ATOMIC_OPS(xor, xor, "", K)
 #undef ATOMIC_OP_RETURN_RELAXED
 #undef ATOMIC_OP
 
-#define arch_atomic_cmpxchg(v, o, n) \
-	(arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic_cmpxchg_relaxed(v, o, n) \
-	arch_cmpxchg_relaxed(&((v)->counter), (o), (n))
-#define arch_atomic_cmpxchg_acquire(v, o, n) \
-	arch_cmpxchg_acquire(&((v)->counter), (o), (n))
-
-#define arch_atomic_xchg(v, new) \
-	(arch_xchg(&((v)->counter), new))
-#define arch_atomic_xchg_relaxed(v, new) \
-	arch_xchg_relaxed(&((v)->counter), (new))
-
 /**
  * atomic_fetch_add_unless - add unless the number is a given value
  * @v: pointer of type atomic_t
@@ -395,18 +383,6 @@ static __inline__ s64 arch_atomic64_dec_if_positive(atomic64_t *v)
 	return t;
 }
 #define arch_atomic64_dec_if_positive arch_atomic64_dec_if_positive
-
-#define arch_atomic64_cmpxchg(v, o, n) \
-	(arch_cmpxchg(&((v)->counter), (o), (n)))
-#define arch_atomic64_cmpxchg_relaxed(v, o, n) \
-	arch_cmpxchg_relaxed(&((v)->counter), (o), (n))
-#define arch_atomic64_cmpxchg_acquire(v, o, n) \
-	arch_cmpxchg_acquire(&((v)->counter), (o), (n))
-
-#define arch_atomic64_xchg(v, new) \
-	(arch_xchg(&((v)->counter), new))
-#define arch_atomic64_xchg_relaxed(v, new) \
-	arch_xchg_relaxed(&((v)->counter), (new))
 
 /**
  * atomic64_fetch_add_unless - add unless the number is a given value

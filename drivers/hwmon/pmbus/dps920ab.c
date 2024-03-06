@@ -9,7 +9,7 @@
 #include <linux/debugfs.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "pmbus.h"
 
 struct dps920ab_data {
@@ -195,7 +195,7 @@ static struct i2c_driver dps920ab_driver = {
 		   .name = "dps920ab",
 		   .of_match_table = of_match_ptr(dps920ab_of_match),
 	},
-	.probe_new = dps920ab_probe,
+	.probe = dps920ab_probe,
 };
 
 module_i2c_driver(dps920ab_driver);

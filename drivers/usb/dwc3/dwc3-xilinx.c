@@ -32,9 +32,6 @@
 #define XLNX_USB_TRAFFIC_ROUTE_CONFIG		0x005C
 #define XLNX_USB_TRAFFIC_ROUTE_FPD		0x1
 
-/* Versal USB Reset ID */
-#define VERSAL_USB_RESET_ID			0xC104036
-
 #define XLNX_USB_FPD_PIPE_CLK			0x7c
 #define PIPE_CLK_DESELECT			1
 #define PIPE_CLK_SELECT				0
@@ -72,20 +69,23 @@ static void dwc3_xlnx_mask_phy_rst(struct dwc3_xlnx *priv_data, bool mask)
 static int dwc3_xlnx_init_versal(struct dwc3_xlnx *priv_data)
 {
 	struct device		*dev = priv_data->dev;
+	struct reset_control	*crst;
 	int			ret;
+
+	crst = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(crst))
+		return dev_err_probe(dev, PTR_ERR(crst), "failed to get reset signal\n");
 
 	dwc3_xlnx_mask_phy_rst(priv_data, false);
 
 	/* Assert and De-assert reset */
-	ret = zynqmp_pm_reset_assert(VERSAL_USB_RESET_ID,
-				     PM_RESET_ACTION_ASSERT);
+	ret = reset_control_assert(crst);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "failed to assert Reset\n");
 		return ret;
 	}
 
-	ret = zynqmp_pm_reset_assert(VERSAL_USB_RESET_ID,
-				     PM_RESET_ACTION_RELEASE);
+	ret = reset_control_deassert(crst);
 	if (ret < 0) {
 		dev_err_probe(dev, ret, "failed to De-assert Reset\n");
 		return ret;
@@ -293,11 +293,15 @@ static int dwc3_xlnx_probe(struct platform_device *pdev)
 		goto err_clk_put;
 
 	pm_runtime_set_active(dev);
-	pm_runtime_enable(dev);
-	pm_suspend_ignore_children(dev, false);
-	pm_runtime_get_sync(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0)
+		goto err_pm_set_suspended;
 
-	return 0;
+	pm_suspend_ignore_children(dev, false);
+	return pm_runtime_resume_and_get(dev);
+
+err_pm_set_suspended:
+	pm_runtime_set_suspended(dev);
 
 err_clk_put:
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
@@ -305,7 +309,7 @@ err_clk_put:
 	return ret;
 }
 
-static int dwc3_xlnx_remove(struct platform_device *pdev)
+static void dwc3_xlnx_remove(struct platform_device *pdev)
 {
 	struct dwc3_xlnx	*priv_data = platform_get_drvdata(pdev);
 	struct device		*dev = &pdev->dev;
@@ -315,11 +319,8 @@ static int dwc3_xlnx_remove(struct platform_device *pdev)
 	clk_bulk_disable_unprepare(priv_data->num_clocks, priv_data->clks);
 	priv_data->num_clocks = 0;
 
-	pm_runtime_disable(dev);
 	pm_runtime_put_noidle(dev);
 	pm_runtime_set_suspended(dev);
-
-	return 0;
 }
 
 static int __maybe_unused dwc3_xlnx_runtime_suspend(struct device *dev)
@@ -388,7 +389,7 @@ static const struct dev_pm_ops dwc3_xlnx_dev_pm_ops = {
 
 static struct platform_driver dwc3_xlnx_driver = {
 	.probe		= dwc3_xlnx_probe,
-	.remove		= dwc3_xlnx_remove,
+	.remove_new	= dwc3_xlnx_remove,
 	.driver		= {
 		.name		= "dwc3-xilinx",
 		.of_match_table	= dwc3_xlnx_of_match,

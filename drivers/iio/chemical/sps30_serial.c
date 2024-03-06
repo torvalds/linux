@@ -74,8 +74,8 @@ static int sps30_serial_xfer(struct sps30_state *state, const unsigned char *buf
 }
 
 static const struct {
-	unsigned char byte;
-	unsigned char byte2;
+	u8 byte;
+	u8 byte2;
 } sps30_serial_bytes[] = {
 	{ 0x11, 0x31 },
 	{ 0x13, 0x33 },
@@ -83,7 +83,7 @@ static const struct {
 	{ 0x7d, 0x5d },
 };
 
-static int sps30_serial_put_byte(unsigned char *buf, unsigned char byte)
+static int sps30_serial_put_byte(u8 *buf, u8 byte)
 {
 	int i;
 
@@ -102,7 +102,7 @@ static int sps30_serial_put_byte(unsigned char *buf, unsigned char byte)
 	return 1;
 }
 
-static char sps30_serial_get_byte(bool escaped, unsigned char byte2)
+static u8 sps30_serial_get_byte(bool escaped, u8 byte2)
 {
 	int i;
 
@@ -130,8 +130,8 @@ static unsigned char sps30_serial_calc_chksum(const unsigned char *buf, size_t n
 	return ~chksum;
 }
 
-static int sps30_serial_prep_frame(unsigned char *buf, unsigned char cmd,
-				   const unsigned char *arg, size_t arg_size)
+static int sps30_serial_prep_frame(u8 *buf, u8 cmd, const u8 *arg,
+				   size_t arg_size)
 {
 	unsigned char chksum;
 	int num = 0;
@@ -210,14 +210,14 @@ static int sps30_serial_command(struct sps30_state *state, unsigned char cmd,
 	return rsp_size;
 }
 
-static int sps30_serial_receive_buf(struct serdev_device *serdev,
-				    const unsigned char *buf, size_t size)
+static ssize_t sps30_serial_receive_buf(struct serdev_device *serdev,
+					const u8 *buf, size_t size)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&serdev->dev);
 	struct sps30_serial_priv *priv;
 	struct sps30_state *state;
-	unsigned char byte;
 	size_t i;
+	u8 byte;
 
 	if (!indio_dev)
 		return 0;

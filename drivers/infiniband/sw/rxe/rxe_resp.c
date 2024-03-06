@@ -387,7 +387,10 @@ static enum resp_states rxe_resp_check_length(struct rxe_qp *qp,
 		}
 	}
 
-	return RESPST_CHK_RKEY;
+	if (pkt->mask & RXE_RDMA_OP_MASK)
+		return RESPST_CHK_RKEY;
+	else
+		return RESPST_EXECUTE;
 }
 
 /* if the reth length field is zero we can assume nothing
@@ -434,6 +437,10 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	enum resp_states state;
 	int access = 0;
 
+	/* parse RETH or ATMETH header for first/only packets
+	 * for va, length, rkey, etc. or use current value for
+	 * middle/last packets.
+	 */
 	if (pkt->mask & (RXE_READ_OR_WRITE_MASK | RXE_ATOMIC_WRITE_MASK)) {
 		if (pkt->mask & RXE_RETH_MASK)
 			qp_resp_from_reth(qp, pkt);
@@ -454,7 +461,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 		qp_resp_from_atmeth(qp, pkt);
 		access = IB_ACCESS_REMOTE_ATOMIC;
 	} else {
-		return RESPST_EXECUTE;
+		/* shouldn't happen */
+		WARN_ON(1);
 	}
 
 	/* A zero-byte read or write op is not required to
@@ -1449,7 +1457,20 @@ static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 	struct rxe_recv_wqe *wqe;
 	int err;
 
-	if (qp->srq)
+	if (qp->srq) {
+		if (notify && qp->ibqp.event_handler) {
+			struct ib_event ev;
+
+			ev.device = qp->ibqp.device;
+			ev.element.qp = &qp->ibqp;
+			ev.event = IB_EVENT_QP_LAST_WQE_REACHED;
+			qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
+		}
+		return;
+	}
+
+	/* recv queue not created. nothing to do. */
+	if (!qp->rq.queue)
 		return;
 
 	while ((wqe = queue_head(q, q->type))) {
@@ -1657,7 +1678,7 @@ int rxe_responder(struct rxe_qp *qp)
 	}
 
 	/* A non-zero return value will cause rxe_do_task to
-	 * exit its loop and end the tasklet. A zero return
+	 * exit its loop and end the work item. A zero return
 	 * will continue looping and return to rxe_responder
 	 */
 done:

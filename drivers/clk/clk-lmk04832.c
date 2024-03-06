@@ -134,6 +134,11 @@
 /* 0x14b - 0x152 Holdover */
 
 /* 0x153 - 0x15f PLL1 Configuration */
+#define LMK04832_REG_PLL1_LD		0x15f
+#define LMK04832_BIT_PLL1_LD_MUX		GENMASK(7, 3)
+#define LMK04832_VAL_PLL1_LD_MUX_SPI_RDBK		0x07
+#define LMK04832_BIT_PLL1_LD_TYPE		GENMASK(2, 0)
+#define LMK04832_VAL_PLL1_LD_TYPE_OUT_PP		0x03
 
 /* 0x160 - 0x16e PLL2 Configuration */
 #define LMK04832_REG_PLL2_R_MSB		0x160
@@ -206,6 +211,7 @@ enum lmk04832_rdbk_type {
 	RDBK_CLKIN_SEL0,
 	RDBK_CLKIN_SEL1,
 	RDBK_RESET,
+	RDBK_PLL1_LD,
 };
 
 struct lmk_dclk {
@@ -1279,6 +1285,7 @@ static const struct clk_ops lmk04832_clkout_ops = {
 	.is_enabled = lmk04832_clkout_is_enabled,
 	.prepare = lmk04832_clkout_prepare,
 	.unprepare = lmk04832_clkout_unprepare,
+	.determine_rate = __clk_mux_determine_rate,
 	.set_parent = lmk04832_clkout_set_parent,
 	.get_parent = lmk04832_clkout_get_parent,
 };
@@ -1296,6 +1303,7 @@ static int lmk04832_register_clkout(struct lmk04832 *lmk, const int num)
 		sprintf(dclk_name, "lmk-dclk%02d_%02d", num, num + 1);
 		init.name = dclk_name;
 		parent_names[0] = clk_hw_get_name(&lmk->vco);
+		init.parent_names = parent_names;
 		init.ops = &lmk04832_dclk_ops;
 		init.flags = CLK_SET_RATE_PARENT;
 		init.num_parents = 1;
@@ -1344,6 +1352,10 @@ static int lmk04832_set_spi_rdbk(const struct lmk04832 *lmk, const int rdbk_pin)
 {
 	int reg;
 	int ret;
+	int val = FIELD_PREP(LMK04832_BIT_CLKIN_SEL_MUX,
+			     LMK04832_VAL_CLKIN_SEL_MUX_SPI_RDBK) |
+		  FIELD_PREP(LMK04832_BIT_CLKIN_SEL_TYPE,
+			     LMK04832_VAL_CLKIN_SEL_TYPE_OUT);
 
 	dev_info(lmk->dev, "setting up 4-wire mode\n");
 	ret = regmap_write(lmk->regmap, LMK04832_REG_RST3W,
@@ -1361,15 +1373,18 @@ static int lmk04832_set_spi_rdbk(const struct lmk04832 *lmk, const int rdbk_pin)
 	case RDBK_RESET:
 		reg = LMK04832_REG_CLKIN_RST;
 		break;
+	case RDBK_PLL1_LD:
+		reg = LMK04832_REG_PLL1_LD;
+		val = FIELD_PREP(LMK04832_BIT_PLL1_LD_MUX,
+				 LMK04832_VAL_PLL1_LD_MUX_SPI_RDBK) |
+		      FIELD_PREP(LMK04832_BIT_PLL1_LD_TYPE,
+				 LMK04832_VAL_PLL1_LD_TYPE_OUT_PP);
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	return regmap_write(lmk->regmap, reg,
-			    FIELD_PREP(LMK04832_BIT_CLKIN_SEL_MUX,
-				       LMK04832_VAL_CLKIN_SEL_MUX_SPI_RDBK) |
-			    FIELD_PREP(LMK04832_BIT_CLKIN_SEL_TYPE,
-				       LMK04832_VAL_CLKIN_SEL_TYPE_OUT));
+	return regmap_write(lmk->regmap, reg, val);
 }
 
 static int lmk04832_probe(struct spi_device *spi)
@@ -1503,21 +1518,21 @@ static int lmk04832_probe(struct spi_device *spi)
 		ret = clk_set_rate(lmk->vco.clk, lmk->vco_rate);
 		if (ret) {
 			dev_err(lmk->dev, "failed to set VCO rate\n");
-			goto err_disable_vco;
+			goto err_disable_oscin;
 		}
 	}
 
 	ret = lmk04832_register_sclk(lmk);
 	if (ret) {
 		dev_err(lmk->dev, "failed to init SYNC/SYSREF clock path\n");
-		goto err_disable_vco;
+		goto err_disable_oscin;
 	}
 
 	for (i = 0; i < info->num_channels; i++) {
 		ret = lmk04832_register_clkout(lmk, i);
 		if (ret) {
 			dev_err(lmk->dev, "failed to register clk %d\n", i);
-			goto err_disable_vco;
+			goto err_disable_oscin;
 		}
 	}
 
@@ -1526,15 +1541,12 @@ static int lmk04832_probe(struct spi_device *spi)
 					  lmk->clk_data);
 	if (ret) {
 		dev_err(lmk->dev, "failed to add provider (%d)\n", ret);
-		goto err_disable_vco;
+		goto err_disable_oscin;
 	}
 
 	spi_set_drvdata(spi, lmk);
 
 	return 0;
-
-err_disable_vco:
-	clk_disable_unprepare(lmk->vco.clk);
 
 err_disable_oscin:
 	clk_disable_unprepare(lmk->oscin);

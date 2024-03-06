@@ -4,6 +4,9 @@
 
 #include <linux/types.h>
 
+#define MEMCPY_REAL_SIZE	PAGE_SIZE
+#define MEMCPY_REAL_MASK	PAGE_MASK
+
 struct iov_iter;
 
 extern unsigned long __memcpy_real_area;

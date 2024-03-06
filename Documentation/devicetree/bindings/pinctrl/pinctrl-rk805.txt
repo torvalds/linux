@@ -40,7 +40,7 @@ on default.
 
 Valid values for function properties are: gpio.
 
-Theres is also not customised properties for any GPIO.
+There are also not customised properties for any GPIO.
 
 Example:
 --------

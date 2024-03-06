@@ -25,7 +25,7 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 
 	orb = cp_get_orb(&private->cp, sch);
 	if (!orb) {
@@ -72,7 +72,7 @@ static int fsm_io_helper(struct vfio_ccw_private *private)
 		ret = ccode;
 	}
 out:
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 	return ret;
 }
 
@@ -83,7 +83,7 @@ static int fsm_do_halt(struct vfio_ccw_private *private)
 	int ccode;
 	int ret;
 
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 
 	VFIO_CCW_TRACE_EVENT(2, "haltIO");
 	VFIO_CCW_TRACE_EVENT(2, dev_name(&sch->dev));
@@ -111,7 +111,7 @@ static int fsm_do_halt(struct vfio_ccw_private *private)
 	default:
 		ret = ccode;
 	}
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 	return ret;
 }
 
@@ -122,7 +122,7 @@ static int fsm_do_clear(struct vfio_ccw_private *private)
 	int ccode;
 	int ret;
 
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 
 	VFIO_CCW_TRACE_EVENT(2, "clearIO");
 	VFIO_CCW_TRACE_EVENT(2, dev_name(&sch->dev));
@@ -147,7 +147,7 @@ static int fsm_do_clear(struct vfio_ccw_private *private)
 	default:
 		ret = ccode;
 	}
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 	return ret;
 }
 
@@ -376,18 +376,18 @@ static void fsm_open(struct vfio_ccw_private *private,
 	struct subchannel *sch = to_subchannel(private->vdev.dev->parent);
 	int ret;
 
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	sch->isc = VFIO_CCW_ISC;
 	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
 	if (ret)
 		goto err_unlock;
 
 	private->state = VFIO_CCW_STATE_IDLE;
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	return;
 
 err_unlock:
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
 }
 
@@ -397,7 +397,7 @@ static void fsm_close(struct vfio_ccw_private *private,
 	struct subchannel *sch = to_subchannel(private->vdev.dev->parent);
 	int ret;
 
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 
 	if (!sch->schib.pmcw.ena)
 		goto err_unlock;
@@ -409,12 +409,12 @@ static void fsm_close(struct vfio_ccw_private *private,
 		goto err_unlock;
 
 	private->state = VFIO_CCW_STATE_STANDBY;
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	cp_free(&private->cp);
 	return;
 
 err_unlock:
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_NOT_OPER);
 }
 

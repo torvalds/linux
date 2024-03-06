@@ -78,10 +78,8 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 	file_slot = io_fixed_file_slot(&ctx->file_table, slot_index);
 
 	if (file_slot->file_ptr) {
-		struct file *old_file;
-
-		old_file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-		ret = io_queue_rsrc_removal(ctx->file_data, slot_index, old_file);
+		ret = io_queue_rsrc_removal(ctx->file_data, slot_index,
+					    io_slot_file(file_slot));
 		if (ret)
 			return ret;
 
@@ -89,13 +87,10 @@ static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
 		io_file_bitmap_clear(&ctx->file_table, slot_index);
 	}
 
-	ret = io_scm_file_account(ctx, file);
-	if (!ret) {
-		*io_get_tag_slot(ctx->file_data, slot_index) = 0;
-		io_fixed_file_set(file_slot, file);
-		io_file_bitmap_set(&ctx->file_table, slot_index);
-	}
-	return ret;
+	*io_get_tag_slot(ctx->file_data, slot_index) = 0;
+	io_fixed_file_set(file_slot, file);
+	io_file_bitmap_set(&ctx->file_table, slot_index);
+	return 0;
 }
 
 int __io_fixed_fd_install(struct io_ring_ctx *ctx, struct file *file,
@@ -140,7 +135,6 @@ int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 {
 	struct io_fixed_file *file_slot;
-	struct file *file;
 	int ret;
 
 	if (unlikely(!ctx->file_data))
@@ -153,8 +147,8 @@ int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
 	if (!file_slot->file_ptr)
 		return -EBADF;
 
-	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-	ret = io_queue_rsrc_removal(ctx->file_data, offset, file);
+	ret = io_queue_rsrc_removal(ctx->file_data, offset,
+				    io_slot_file(file_slot));
 	if (ret)
 		return ret;
 

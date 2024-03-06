@@ -310,7 +310,7 @@ static void ipu_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		dev_warn(ipu_crtc->dev, "8-pixel align hactive %d -> %d\n",
 			 sig_cfg.mode.hactive, new_hactive);
 
-		sig_cfg.mode.hfront_porch = new_hactive - sig_cfg.mode.hactive;
+		sig_cfg.mode.hfront_porch -= new_hactive - sig_cfg.mode.hactive;
 		sig_cfg.mode.hactive = new_hactive;
 	}
 
@@ -441,10 +441,9 @@ static int ipu_drm_probe(struct platform_device *pdev)
 	return component_add(dev, &ipu_crtc_ops);
 }
 
-static int ipu_drm_remove(struct platform_device *pdev)
+static void ipu_drm_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &ipu_crtc_ops);
-	return 0;
 }
 
 struct platform_driver ipu_drm_driver = {
@@ -452,5 +451,5 @@ struct platform_driver ipu_drm_driver = {
 		.name = "imx-ipuv3-crtc",
 	},
 	.probe = ipu_drm_probe,
-	.remove = ipu_drm_remove,
+	.remove_new = ipu_drm_remove,
 };

@@ -207,7 +207,7 @@ static struct Qdisc_ops plug_qdisc_ops __read_mostly = {
 	.priv_size   =       sizeof(struct plug_sched_data),
 	.enqueue     =       plug_enqueue,
 	.dequeue     =       plug_dequeue,
-	.peek        =       qdisc_peek_head,
+	.peek        =       qdisc_peek_dequeued,
 	.init        =       plug_init,
 	.change      =       plug_change,
 	.reset       =	     qdisc_reset_queue,
@@ -226,3 +226,4 @@ static void __exit plug_module_exit(void)
 module_init(plug_module_init)
 module_exit(plug_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Qdisc to plug and unplug traffic via netlink control");

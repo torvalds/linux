@@ -42,6 +42,8 @@
 #define NSP_ETH_STATE_ANEG		GENMASK_ULL(25, 23)
 #define NSP_ETH_STATE_FEC		GENMASK_ULL(27, 26)
 #define NSP_ETH_STATE_ACT_FEC		GENMASK_ULL(29, 28)
+#define NSP_ETH_STATE_TX_PAUSE		BIT_ULL(31)
+#define NSP_ETH_STATE_RX_PAUSE		BIT_ULL(32)
 
 #define NSP_ETH_CTRL_CONFIGURED		BIT_ULL(0)
 #define NSP_ETH_CTRL_ENABLED		BIT_ULL(1)
@@ -52,6 +54,8 @@
 #define NSP_ETH_CTRL_SET_ANEG		BIT_ULL(6)
 #define NSP_ETH_CTRL_SET_FEC		BIT_ULL(7)
 #define NSP_ETH_CTRL_SET_IDMODE		BIT_ULL(8)
+#define NSP_ETH_CTRL_SET_TX_PAUSE	BIT_ULL(10)
+#define NSP_ETH_CTRL_SET_RX_PAUSE	BIT_ULL(11)
 
 enum nfp_eth_raw {
 	NSP_ETH_RAW_PORT = 0,
@@ -180,6 +184,15 @@ nfp_eth_port_translate(struct nfp_nsp *nsp, const union eth_table_entry *src,
 
 	dst->act_fec = FIELD_GET(NSP_ETH_STATE_ACT_FEC, state);
 	dst->supp_aneg = FIELD_GET(NSP_ETH_PORT_SUPP_ANEG, port);
+
+	if (nfp_nsp_get_abi_ver_minor(nsp) < 37) {
+		dst->tx_pause = true;
+		dst->rx_pause = true;
+		return;
+	}
+
+	dst->tx_pause = FIELD_GET(NSP_ETH_STATE_TX_PAUSE, state);
+	dst->rx_pause = FIELD_GET(NSP_ETH_STATE_RX_PAUSE, state);
 }
 
 static void
@@ -225,6 +238,30 @@ nfp_eth_calc_port_type(struct nfp_cpp *cpp, struct nfp_eth_table_port *entry)
 		entry->port_type = PORT_FIBRE;
 	else
 		entry->port_type = PORT_DA;
+}
+
+static void
+nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_nsp *nsp, struct nfp_eth_table_port *entry)
+{
+	struct nfp_eth_media_buf ethm = {
+		.eth_index = entry->eth_index,
+	};
+	unsigned int i;
+	int ret;
+
+	if (!nfp_nsp_has_read_media(nsp))
+		return;
+
+	ret = nfp_nsp_read_media(nsp, &ethm, sizeof(ethm));
+	if (ret) {
+		nfp_err(cpp, "Reading media link modes failed: %d\n", ret);
+		return;
+	}
+
+	for (i = 0; i < 2; i++) {
+		entry->link_modes_supp[i] = le64_to_cpu(ethm.supported_modes[i]);
+		entry->link_modes_ad[i] = le64_to_cpu(ethm.advertised_modes[i]);
+	}
 }
 
 /**
@@ -293,8 +330,10 @@ __nfp_eth_read_ports(struct nfp_cpp *cpp, struct nfp_nsp *nsp)
 					       &table->ports[j++]);
 
 	nfp_eth_calc_port_geometry(cpp, table);
-	for (i = 0; i < table->count; i++)
+	for (i = 0; i < table->count; i++) {
 		nfp_eth_calc_port_type(cpp, &table->ports[i]);
+		nfp_eth_read_media(cpp, nsp, &table->ports[i]);
+	}
 
 	kfree(entries);
 
@@ -471,7 +510,7 @@ int nfp_eth_set_configured(struct nfp_cpp *cpp, unsigned int idx, bool configed)
 static int
 nfp_eth_set_bit_config(struct nfp_nsp *nsp, unsigned int raw_idx,
 		       const u64 mask, const unsigned int shift,
-		       unsigned int val, const u64 ctrl_bit)
+		       u64 val, const u64 ctrl_bit)
 {
 	union eth_table_entry *entries = nfp_nsp_config_entries(nsp);
 	unsigned int idx = nfp_nsp_config_idx(nsp);
@@ -604,6 +643,81 @@ nfp_eth_set_fec(struct nfp_cpp *cpp, unsigned int idx, enum nfp_eth_fec mode)
 }
 
 /**
+ * __nfp_eth_set_txpause() - set tx pause control bit
+ * @nsp:	NFP NSP handle returned from nfp_eth_config_start()
+ * @tx_pause:	TX pause switch
+ *
+ * Set TX pause switch.
+ *
+ * Return: 0 or -ERRNO.
+ */
+static int __nfp_eth_set_txpause(struct nfp_nsp *nsp, unsigned int tx_pause)
+{
+	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_STATE, NSP_ETH_STATE_TX_PAUSE,
+				      tx_pause, NSP_ETH_CTRL_SET_TX_PAUSE);
+}
+
+/**
+ * __nfp_eth_set_rxpause() - set rx pause control bit
+ * @nsp:	NFP NSP handle returned from nfp_eth_config_start()
+ * @rx_pause:	RX pause switch
+ *
+ * Set RX pause switch.
+ *
+ * Return: 0 or -ERRNO.
+ */
+static int __nfp_eth_set_rxpause(struct nfp_nsp *nsp, unsigned int rx_pause)
+{
+	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_STATE, NSP_ETH_STATE_RX_PAUSE,
+				      rx_pause, NSP_ETH_CTRL_SET_RX_PAUSE);
+}
+
+/**
+ * nfp_eth_set_pauseparam() - Set TX/RX pause switch.
+ * @cpp:	NFP CPP handle
+ * @idx:	NFP chip-wide port index
+ * @tx_pause:	TX pause switch
+ * @rx_pause:	RX pause switch
+ *
+ * Return:
+ * 0 - configuration successful;
+ * 1 - no changes were needed;
+ * -ERRNO - configuration failed.
+ */
+int
+nfp_eth_set_pauseparam(struct nfp_cpp *cpp, unsigned int idx,
+		       unsigned int tx_pause, unsigned int rx_pause)
+{
+	struct nfp_nsp *nsp;
+	int err;
+
+	nsp = nfp_eth_config_start(cpp, idx);
+	if (IS_ERR(nsp))
+		return PTR_ERR(nsp);
+
+	if (nfp_nsp_get_abi_ver_minor(nsp) < 37) {
+		nfp_err(nfp_nsp_cpp(nsp),
+			"set pause parameter operation not supported, please update flash\n");
+		nfp_eth_config_cleanup_end(nsp);
+		return -EOPNOTSUPP;
+	}
+
+	err = __nfp_eth_set_txpause(nsp, tx_pause);
+	if (err) {
+		nfp_eth_config_cleanup_end(nsp);
+		return err;
+	}
+
+	err = __nfp_eth_set_rxpause(nsp, rx_pause);
+	if (err) {
+		nfp_eth_config_cleanup_end(nsp);
+		return err;
+	}
+
+	return nfp_eth_config_commit_end(nsp);
+}
+
+/**
  * __nfp_eth_set_speed() - set interface speed/rate
  * @nsp:	NFP NSP handle returned from nfp_eth_config_start()
  * @speed:	Desired speed (per lane)
@@ -646,30 +760,4 @@ int __nfp_eth_set_split(struct nfp_nsp *nsp, unsigned int lanes)
 {
 	return NFP_ETH_SET_BIT_CONFIG(nsp, NSP_ETH_RAW_PORT, NSP_ETH_PORT_LANES,
 				      lanes, NSP_ETH_CTRL_SET_LANES);
-}
-
-int nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_eth_media_buf *ethm)
-{
-	struct nfp_nsp *nsp;
-	int ret;
-
-	nsp = nfp_nsp_open(cpp);
-	if (IS_ERR(nsp)) {
-		nfp_err(cpp, "Failed to access the NSP: %pe\n", nsp);
-		return PTR_ERR(nsp);
-	}
-
-	if (!nfp_nsp_has_read_media(nsp)) {
-		nfp_warn(cpp, "Reading media link modes not supported. Please update flash\n");
-		ret = -EOPNOTSUPP;
-		goto exit_close_nsp;
-	}
-
-	ret = nfp_nsp_read_media(nsp, ethm, sizeof(*ethm));
-	if (ret)
-		nfp_err(cpp, "Reading media link modes failed: %pe\n", ERR_PTR(ret));
-
-exit_close_nsp:
-	nfp_nsp_close(nsp);
-	return ret;
 }

@@ -30,7 +30,7 @@ static u32 mt7921s_read_whcr(struct mt76_dev *dev)
 	return sdio_readl(dev->sdio.func, MCR_WHCR, NULL);
 }
 
-int mt7921s_wfsys_reset(struct mt7921_dev *dev)
+int mt7921s_wfsys_reset(struct mt792x_dev *dev)
 {
 	struct mt76_sdio *sdio = &dev->mt76.sdio;
 	u32 val, status;
@@ -71,7 +71,7 @@ int mt7921s_wfsys_reset(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921s_init_reset(struct mt7921_dev *dev)
+int mt7921s_init_reset(struct mt792x_dev *dev)
 {
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 
@@ -91,7 +91,7 @@ int mt7921s_init_reset(struct mt7921_dev *dev)
 	return 0;
 }
 
-int mt7921s_mac_reset(struct mt7921_dev *dev)
+int mt7921s_mac_reset(struct mt792x_dev *dev)
 {
 	int err;
 
@@ -107,7 +107,7 @@ int mt7921s_mac_reset(struct mt7921_dev *dev)
 	mt76_worker_disable(&dev->mt76.sdio.txrx_worker);
 	mt76_worker_disable(&dev->mt76.sdio.status_worker);
 	mt76_worker_disable(&dev->mt76.sdio.net_worker);
-	cancel_work_sync(&dev->mt76.sdio.stat_work);
+	mt76_worker_disable(&dev->mt76.sdio.stat_worker);
 
 	mt7921s_disable_irq(&dev->mt76);
 	mt7921s_wfsys_reset(dev);
@@ -115,6 +115,7 @@ int mt7921s_mac_reset(struct mt7921_dev *dev)
 	mt76_worker_enable(&dev->mt76.sdio.txrx_worker);
 	mt76_worker_enable(&dev->mt76.sdio.status_worker);
 	mt76_worker_enable(&dev->mt76.sdio.net_worker);
+	mt76_worker_enable(&dev->mt76.sdio.stat_worker);
 
 	dev->fw_assert = false;
 	clear_bit(MT76_MCU_RESET, &dev->mphy.state);

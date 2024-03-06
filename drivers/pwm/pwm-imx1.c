@@ -14,7 +14,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
 #include <linux/slab.h>
@@ -147,7 +146,6 @@ static int pwm_imx1_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops pwm_imx1_ops = {
 	.apply = pwm_imx1_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id pwm_imx1_dt_ids[] = {

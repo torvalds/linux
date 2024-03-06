@@ -16,6 +16,10 @@
 #define IP_LOCAL_PORT_RANGE 51
 #endif
 
+#ifndef IPPROTO_MPTCP
+#define IPPROTO_MPTCP 262
+#endif
+
 static __u32 pack_port_range(__u16 lo, __u16 hi)
 {
 	return (hi << 16) | (lo << 0);
@@ -146,6 +150,12 @@ FIXTURE_VARIANT_ADD(ip_local_port_range, ip4_stcp) {
 	.so_protocol	= IPPROTO_SCTP,
 };
 
+FIXTURE_VARIANT_ADD(ip_local_port_range, ip4_mptcp) {
+	.so_domain	= AF_INET,
+	.so_type	= SOCK_STREAM,
+	.so_protocol	= IPPROTO_MPTCP,
+};
+
 FIXTURE_VARIANT_ADD(ip_local_port_range, ip6_tcp) {
 	.so_domain	= AF_INET6,
 	.so_type	= SOCK_STREAM,
@@ -162,6 +172,12 @@ FIXTURE_VARIANT_ADD(ip_local_port_range, ip6_stcp) {
 	.so_domain	= AF_INET6,
 	.so_type	= SOCK_STREAM,
 	.so_protocol	= IPPROTO_SCTP,
+};
+
+FIXTURE_VARIANT_ADD(ip_local_port_range, ip6_mptcp) {
+	.so_domain	= AF_INET6,
+	.so_type	= SOCK_STREAM,
+	.so_protocol	= IPPROTO_MPTCP,
 };
 
 TEST_F(ip_local_port_range, invalid_option_value)

@@ -262,7 +262,7 @@ static int mtdblock_open(struct mtd_blktrans_dev *mbd)
 	}
 
 	if (mtd_type_is_nand(mbd->mtd))
-		pr_warn("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
+		pr_warn_ratelimited("%s: MTD device '%s' is NAND, please consider using UBI block devices instead.\n",
 			mbd->tr->name, mbd->mtd->name);
 
 	/* OK, it's not open. Create cache info for it */
@@ -294,7 +294,7 @@ static void mtdblock_release(struct mtd_blktrans_dev *mbd)
 		 * It was the last usage. Free the cache, but only sync if
 		 * opened for writing.
 		 */
-		if (mbd->file_mode & FMODE_WRITE)
+		if (mbd->writable)
 			mtd_sync(mbd->mtd);
 		vfree(mtdblk->cache_data);
 	}

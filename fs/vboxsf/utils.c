@@ -126,12 +126,12 @@ int vboxsf_init_inode(struct vboxsf_sbi *sbi, struct inode *inode,
 	do_div(allocated, 512);
 	inode->i_blocks = allocated;
 
-	inode->i_atime = ns_to_timespec64(
-				 info->access_time.ns_relative_to_unix_epoch);
-	inode->i_ctime = ns_to_timespec64(
-				 info->change_time.ns_relative_to_unix_epoch);
-	inode->i_mtime = ns_to_timespec64(
-			   info->modification_time.ns_relative_to_unix_epoch);
+	inode_set_atime_to_ts(inode,
+			      ns_to_timespec64(info->access_time.ns_relative_to_unix_epoch));
+	inode_set_ctime_to_ts(inode,
+			      ns_to_timespec64(info->change_time.ns_relative_to_unix_epoch));
+	inode_set_mtime_to_ts(inode,
+			      ns_to_timespec64(info->modification_time.ns_relative_to_unix_epoch));
 	return 0;
 }
 
@@ -194,7 +194,7 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 	struct vboxsf_sbi *sbi;
 	struct vboxsf_inode *sf_i;
 	struct shfl_fsobjinfo info;
-	struct timespec64 prev_mtime;
+	struct timespec64 mtime, prev_mtime;
 	struct inode *inode;
 	int err;
 
@@ -202,7 +202,7 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 		return -EINVAL;
 
 	inode = d_inode(dentry);
-	prev_mtime = inode->i_mtime;
+	prev_mtime = inode_get_mtime(inode);
 	sf_i = VBOXSF_I(inode);
 	sbi = VBOXSF_SBI(dentry->d_sb);
 	if (!sf_i->force_restat) {
@@ -225,7 +225,8 @@ int vboxsf_inode_revalidate(struct dentry *dentry)
 	 * page-cache for it.  Note this also gets triggered by our own writes,
 	 * this is unavoidable.
 	 */
-	if (timespec64_compare(&inode->i_mtime, &prev_mtime) > 0)
+	mtime = inode_get_mtime(inode);
+	if (timespec64_compare(&mtime, &prev_mtime) > 0)
 		invalidate_inode_pages2(inode->i_mapping);
 
 	return 0;
@@ -252,7 +253,7 @@ int vboxsf_getattr(struct mnt_idmap *idmap, const struct path *path,
 	if (err)
 		return err;
 
-	generic_fillattr(&nop_mnt_idmap, d_inode(dentry), kstat);
+	generic_fillattr(&nop_mnt_idmap, request_mask, d_inode(dentry), kstat);
 	return 0;
 }
 

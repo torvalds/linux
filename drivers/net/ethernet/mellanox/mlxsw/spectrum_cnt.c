@@ -24,7 +24,7 @@ struct mlxsw_sp_counter_pool {
 	spinlock_t counter_pool_lock; /* Protects counter pool allocations */
 	atomic_t active_entries_count;
 	unsigned int sub_pools_count;
-	struct mlxsw_sp_counter_sub_pool sub_pools[];
+	struct mlxsw_sp_counter_sub_pool sub_pools[] __counted_by(sub_pools_count);
 };
 
 static const struct mlxsw_sp_counter_sub_pool mlxsw_sp_counter_sub_pools[] = {

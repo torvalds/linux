@@ -27,6 +27,7 @@
 #include <asm/cachectl.h>
 #include <asm/traps.h>
 #include <asm/page.h>
+#include <asm/syscalls.h>
 #include <asm/unistd.h>
 #include <asm/cacheflush.h>
 
@@ -34,8 +35,7 @@
 
 #include <asm/tlb.h>
 
-asmlinkage int do_page_fault(struct pt_regs *regs, unsigned long address,
-			     unsigned long error_code);
+#include "../mm/fault.h"
 
 asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
 	unsigned long prot, unsigned long flags,
@@ -488,6 +488,8 @@ sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
 		if (!pmd_present(*pmd))
 			goto bad_access;
 		pte = pte_offset_map_lock(mm, pmd, (unsigned long)mem, &ptl);
+		if (!pte)
+			goto bad_access;
 		if (!pte_present(*pte) || !pte_dirty(*pte)
 		    || !pte_write(*pte)) {
 			pte_unmap_unlock(pte, ptl);

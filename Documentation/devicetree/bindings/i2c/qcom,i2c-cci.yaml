@@ -25,6 +25,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,sc7280-cci
               - qcom,sdm845-cci
               - qcom,sm6350-cci
               - qcom,sm8250-cci
@@ -159,6 +160,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,sc7280-cci
               - qcom,sm8250-cci
               - qcom,sm8450-cci
     then:
@@ -269,6 +271,7 @@ examples:
                 port {
                     ov7251_ep: endpoint {
                         data-lanes = <0 1>;
+                        link-frequencies = /bits/ 64 <240000000 319200000>;
                         remote-endpoint = <&csiphy3_ep>;
                     };
                 };

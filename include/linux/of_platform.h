@@ -7,11 +7,11 @@
  */
 
 #include <linux/mod_devicetable.h>
-#include <linux/of_device.h>
-#include <linux/platform_device.h>
 
 struct device;
+struct device_node;
 struct of_device_id;
+struct platform_device;
 
 /**
  * struct of_dev_auxdata - lookup table entry for device names & platform_data
@@ -125,12 +125,6 @@ static inline int devm_of_platform_populate(struct device *dev)
 }
 
 static inline void devm_of_platform_depopulate(struct device *dev) { }
-#endif
-
-#if defined(CONFIG_OF_DYNAMIC) && defined(CONFIG_OF_ADDRESS)
-extern void of_platform_register_reconfig_notifier(void);
-#else
-static inline void of_platform_register_reconfig_notifier(void) { }
 #endif
 
 #endif	/* _LINUX_OF_PLATFORM_H */

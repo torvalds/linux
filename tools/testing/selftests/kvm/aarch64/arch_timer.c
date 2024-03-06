@@ -19,7 +19,6 @@
  *
  * Copyright (c) 2021, Google LLC.
  */
-
 #define _GNU_SOURCE
 
 #include <stdlib.h>
@@ -155,11 +154,13 @@ static void guest_validate_irq(unsigned int intid,
 	xcnt_diff_us = cycles_to_usec(xcnt - shared_data->xcnt);
 
 	/* Make sure we are dealing with the correct timer IRQ */
-	GUEST_ASSERT_2(intid == timer_irq, intid, timer_irq);
+	GUEST_ASSERT_EQ(intid, timer_irq);
 
 	/* Basic 'timer condition met' check */
-	GUEST_ASSERT_3(xcnt >= cval, xcnt, cval, xcnt_diff_us);
-	GUEST_ASSERT_1(xctl & CTL_ISTATUS, xctl);
+	__GUEST_ASSERT(xcnt >= cval,
+		       "xcnt = 0x%llx, cval = 0x%llx, xcnt_diff_us = 0x%llx",
+		       xcnt, cval, xcnt_diff_us);
+	__GUEST_ASSERT(xctl & CTL_ISTATUS, "xcnt = 0x%llx", xcnt);
 
 	WRITE_ONCE(shared_data->nr_iter, shared_data->nr_iter + 1);
 }
@@ -192,8 +193,7 @@ static void guest_run_stage(struct test_vcpu_shared_data *shared_data,
 			TIMER_TEST_ERR_MARGIN_US);
 
 		irq_iter = READ_ONCE(shared_data->nr_iter);
-		GUEST_ASSERT_2(config_iter + 1 == irq_iter,
-				config_iter + 1, irq_iter);
+		GUEST_ASSERT_EQ(config_iter + 1, irq_iter);
 	}
 }
 
@@ -243,16 +243,12 @@ static void *test_vcpu_run(void *arg)
 		break;
 	case UCALL_ABORT:
 		sync_global_from_guest(vm, *shared_data);
-		REPORT_GUEST_ASSERT_N(uc, "values: %lu, %lu; %lu, vcpu %u; stage; %u; iter: %u",
-				      GUEST_ASSERT_ARG(uc, 0),
-				      GUEST_ASSERT_ARG(uc, 1),
-				      GUEST_ASSERT_ARG(uc, 2),
-				      vcpu_idx,
-				      shared_data->guest_stage,
-				      shared_data->nr_iter);
+		fprintf(stderr, "Guest assert failed,  vcpu %u; stage; %u; iter: %u\n",
+			vcpu_idx, shared_data->guest_stage, shared_data->nr_iter);
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	default:
-		TEST_FAIL("Unexpected guest exit\n");
+		TEST_FAIL("Unexpected guest exit");
 	}
 
 	return NULL;
@@ -291,7 +287,7 @@ static int test_migrate_vcpu(unsigned int vcpu_idx)
 
 	/* Allow the error where the vCPU thread is already finished */
 	TEST_ASSERT(ret == 0 || ret == ESRCH,
-		    "Failed to migrate the vCPU:%u to pCPU: %u; ret: %d\n",
+		    "Failed to migrate the vCPU:%u to pCPU: %u; ret: %d",
 		    vcpu_idx, new_pcpu, ret);
 
 	return ret;
@@ -330,12 +326,12 @@ static void test_run(struct kvm_vm *vm)
 
 	pthread_mutex_init(&vcpu_done_map_lock, NULL);
 	vcpu_done_map = bitmap_zalloc(test_args.nr_vcpus);
-	TEST_ASSERT(vcpu_done_map, "Failed to allocate vcpu done bitmap\n");
+	TEST_ASSERT(vcpu_done_map, "Failed to allocate vcpu done bitmap");
 
 	for (i = 0; i < (unsigned long)test_args.nr_vcpus; i++) {
 		ret = pthread_create(&pt_vcpu_run[i], NULL, test_vcpu_run,
 				     (void *)(unsigned long)i);
-		TEST_ASSERT(!ret, "Failed to create vCPU-%d pthread\n", i);
+		TEST_ASSERT(!ret, "Failed to create vCPU-%d pthread", i);
 	}
 
 	/* Spawn a thread to control the vCPU migrations */
@@ -344,7 +340,7 @@ static void test_run(struct kvm_vm *vm)
 
 		ret = pthread_create(&pt_vcpu_migration, NULL,
 					test_vcpu_migration, NULL);
-		TEST_ASSERT(!ret, "Failed to create the migration pthread\n");
+		TEST_ASSERT(!ret, "Failed to create the migration pthread");
 	}
 
 
@@ -388,7 +384,7 @@ static struct kvm_vm *test_vm_create(void)
 		if (kvm_has_cap(KVM_CAP_COUNTER_OFFSET))
 			vm_ioctl(vm, KVM_ARM_SET_COUNTER_OFFSET, &test_args.offset);
 		else
-			TEST_FAIL("no support for global offset\n");
+			TEST_FAIL("no support for global offset");
 	}
 
 	for (i = 0; i < nr_vcpus; i++)

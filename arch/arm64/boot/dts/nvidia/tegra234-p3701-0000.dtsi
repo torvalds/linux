@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "tegra234.dtsi"
+#include "tegra234-p3701.dtsi"
 
 / {
 	model = "NVIDIA Jetson AGX Orin";
@@ -126,7 +127,7 @@
 		regulator-name = "VDD_3V3_PCIE";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		gpio = <&gpio TEGRA234_MAIN_GPIO(Z, 2) GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio TEGRA234_MAIN_GPIO(H, 4) GPIO_ACTIVE_HIGH>;
 		regulator-boot-on;
 		enable-active-high;
 	};
@@ -138,5 +139,27 @@
 		regulator-max-microvolt = <12000000>;
 		gpio = <&gpio TEGRA234_MAIN_GPIO(A, 1) GPIO_ACTIVE_LOW>;
 		regulator-boot-on;
+	};
+
+	thermal-zones {
+		tj-thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <1000>;
+			status = "okay";
+
+			trips {
+				tj_trip_active0: active-0 {
+					temperature = <75000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+
+				tj_trip_active1: active-1 {
+					temperature = <95000>;
+					hysteresis = <4000>;
+					type = "active";
+				};
+			};
+		};
 	};
 };

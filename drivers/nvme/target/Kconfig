@@ -4,6 +4,8 @@ config NVME_TARGET
 	tristate "NVMe Target support"
 	depends on BLOCK
 	depends on CONFIGFS_FS
+	select NVME_KEYRING if NVME_TARGET_TCP_TLS
+	select KEYS if NVME_TARGET_TCP_TLS
 	select BLK_DEV_INTEGRITY_T10 if BLK_DEV_INTEGRITY
 	select SGL_ALLOC
 	help
@@ -84,17 +86,24 @@ config NVME_TARGET_TCP
 
 	  If unsure, say N.
 
-config NVME_TARGET_AUTH
-	bool "NVMe over Fabrics In-band Authentication support"
-	depends on NVME_TARGET
-	select NVME_COMMON
-	select CRYPTO
-	select CRYPTO_HMAC
-	select CRYPTO_SHA256
-	select CRYPTO_SHA512
-	select CRYPTO_DH
-	select CRYPTO_DH_RFC7919_GROUPS
+config NVME_TARGET_TCP_TLS
+	bool "NVMe over Fabrics TCP target TLS encryption support"
+	depends on NVME_TARGET_TCP
+	select NET_HANDSHAKE
 	help
-	  This enables support for NVMe over Fabrics In-band Authentication
+	  Enables TLS encryption for the NVMe TCP target using the netlink handshake API.
+
+	  The TLS handshake daemon is available at
+	  https://github.com/oracle/ktls-utils.
+
+	  If unsure, say N.
+
+config NVME_TARGET_AUTH
+	bool "NVMe over Fabrics In-band Authentication in target side"
+	depends on NVME_TARGET
+	select NVME_AUTH
+	help
+	  This enables support for NVMe over Fabrics In-band Authentication in
+	  target side.
 
 	  If unsure, say N.

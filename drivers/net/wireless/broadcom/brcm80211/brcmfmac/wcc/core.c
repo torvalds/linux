@@ -12,13 +12,13 @@
 
 static int brcmf_wcc_attach(struct brcmf_pub *drvr)
 {
-	pr_err("%s: executing\n", __func__);
+	pr_debug("%s: executing\n", __func__);
 	return 0;
 }
 
 static void brcmf_wcc_detach(struct brcmf_pub *drvr)
 {
-	pr_err("%s: executing\n", __func__);
+	pr_debug("%s: executing\n", __func__);
 }
 
 const struct brcmf_fwvid_ops brcmf_wcc_ops = {

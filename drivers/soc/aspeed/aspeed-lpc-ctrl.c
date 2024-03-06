@@ -332,14 +332,12 @@ err:
 	return rc;
 }
 
-static int aspeed_lpc_ctrl_remove(struct platform_device *pdev)
+static void aspeed_lpc_ctrl_remove(struct platform_device *pdev)
 {
 	struct aspeed_lpc_ctrl *lpc_ctrl = dev_get_drvdata(&pdev->dev);
 
 	misc_deregister(&lpc_ctrl->miscdev);
 	clk_disable_unprepare(lpc_ctrl->clk);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_lpc_ctrl_match[] = {
@@ -355,7 +353,7 @@ static struct platform_driver aspeed_lpc_ctrl_driver = {
 		.of_match_table = aspeed_lpc_ctrl_match,
 	},
 	.probe = aspeed_lpc_ctrl_probe,
-	.remove = aspeed_lpc_ctrl_remove,
+	.remove_new = aspeed_lpc_ctrl_remove,
 };
 
 module_platform_driver(aspeed_lpc_ctrl_driver);

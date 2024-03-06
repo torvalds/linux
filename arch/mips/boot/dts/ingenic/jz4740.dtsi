@@ -192,11 +192,8 @@
 		interrupt-parent = <&intc>;
 		interrupts = <18>;
 
-		clocks = <&cgu JZ4740_CLK_AIC>,
-			 <&cgu JZ4740_CLK_I2S>,
-			 <&cgu JZ4740_CLK_EXT>,
-			 <&cgu JZ4740_CLK_PLL_HALF>;
-		clock-names = "aic", "i2s", "ext", "pll half";
+		clocks = <&cgu JZ4740_CLK_AIC>, <&cgu JZ4740_CLK_I2S>;
+		clock-names = "aic", "i2s";
 
 		dmas = <&dmac 25 0xffffffff>, <&dmac 24 0xffffffff>;
 		dma-names = "rx", "tx";

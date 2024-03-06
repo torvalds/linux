@@ -33,7 +33,7 @@ properties:
           - usb424,9906   # SMSC9505A USB Ethernet Device (HAL)
           - usb424,9907   # SMSC9500 USB Ethernet Device (Alternate ID)
           - usb424,9908   # SMSC9500A USB Ethernet Device (Alternate ID)
-          - usb424,9909   # SMSC9512/9514 USB Hub & Ethernet Devic.  ID)
+          - usb424,9909   # SMSC9512/9514 USB Hub & Ethernet Device  ID)
           - usb424,9e00   # SMSC9500A USB Ethernet Device
           - usb424,9e01   # SMSC9505A USB Ethernet Device
           - usb424,9e08   # SMSC LAN89530 USB Ethernet Device
@@ -44,6 +44,8 @@ properties:
 
   local-mac-address: true
   mac-address: true
+  nvmem-cells: true
+  nvmem-cell-names: true
 
 required:
   - compatible

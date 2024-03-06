@@ -8,7 +8,7 @@
 
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
 
@@ -185,7 +185,7 @@ static struct i2c_driver ts4900_gpio_driver = {
 		.name = "ts4900-gpio",
 		.of_match_table = ts4900_gpio_of_match_table,
 	},
-	.probe_new = ts4900_gpio_probe,
+	.probe = ts4900_gpio_probe,
 	.id_table = ts4900_gpio_id_table,
 };
 module_i2c_driver(ts4900_gpio_driver);

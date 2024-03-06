@@ -84,7 +84,7 @@ static const struct regmap_config regmap = {
 	.rd_table = &rd_table,
 	.volatile_table = &volatile_table,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.num_reg_defaults_raw = FXL6408_REG_INT_STS + 1,
 };
 
@@ -148,7 +148,7 @@ static struct i2c_driver fxl6408_driver = {
 		.name	= "fxl6408",
 		.of_match_table = fxl6408_dt_ids,
 	},
-	.probe_new	= fxl6408_probe,
+	.probe		= fxl6408_probe,
 	.id_table	= fxl6408_id,
 };
 module_i2c_driver(fxl6408_driver);

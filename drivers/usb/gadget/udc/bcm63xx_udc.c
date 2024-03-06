@@ -2354,7 +2354,7 @@ report_request_failure:
  * bcm63xx_udc_remove - Remove the device from the system.
  * @pdev: Platform device struct from the bcm63xx BSP code.
  */
-static int bcm63xx_udc_remove(struct platform_device *pdev)
+static void bcm63xx_udc_remove(struct platform_device *pdev)
 {
 	struct bcm63xx_udc *udc = platform_get_drvdata(pdev);
 
@@ -2363,13 +2363,11 @@ static int bcm63xx_udc_remove(struct platform_device *pdev)
 	BUG_ON(udc->driver);
 
 	bcm63xx_uninit_udc_hw(udc);
-
-	return 0;
 }
 
 static struct platform_driver bcm63xx_udc_driver = {
 	.probe		= bcm63xx_udc_probe,
-	.remove		= bcm63xx_udc_remove,
+	.remove_new	= bcm63xx_udc_remove,
 	.driver		= {
 		.name	= DRV_MODULE_NAME,
 	},

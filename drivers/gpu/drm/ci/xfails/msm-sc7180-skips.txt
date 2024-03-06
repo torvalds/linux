@@ -1,0 +1,7 @@
+# Suspend to RAM seems to be broken on this machine
+.*suspend.*
+
+# Test incorrectly assumes that CTM support implies gamma/degamma
+# LUT support.  None of the subtests handle the case of only having
+# CTM support
+#kms_color.*

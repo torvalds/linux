@@ -67,7 +67,7 @@ static int iucv_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-struct bus_type iucv_bus = {
+const struct bus_type iucv_bus = {
 	.name = "iucv",
 	.match = iucv_bus_match,
 };
@@ -156,7 +156,7 @@ static char iucv_error_pathid[16] = "INVALID PATHID";
 static LIST_HEAD(iucv_handler_list);
 
 /*
- * iucv_path_table: an array of iucv_path structures.
+ * iucv_path_table: array of pointers to iucv_path structures.
  */
 static struct iucv_path **iucv_path_table;
 static unsigned long iucv_max_pathid;
@@ -544,7 +544,7 @@ static int iucv_enable(void)
 
 	cpus_read_lock();
 	rc = -ENOMEM;
-	alloc_size = iucv_max_pathid * sizeof(struct iucv_path);
+	alloc_size = iucv_max_pathid * sizeof(*iucv_path_table);
 	iucv_path_table = kzalloc(alloc_size, GFP_KERNEL);
 	if (!iucv_path_table)
 		goto out;
@@ -1823,7 +1823,7 @@ static int __init iucv_init(void)
 		rc = -EPROTONOSUPPORT;
 		goto out;
 	}
-	ctl_set_bit(0, 1);
+	system_ctl_set_bit(0, CR0_IUCV_BIT);
 	rc = iucv_query_maxconn();
 	if (rc)
 		goto out_ctl;
@@ -1871,7 +1871,7 @@ out_dev:
 out_int:
 	unregister_external_irq(EXT_IRQ_IUCV, iucv_external_interrupt);
 out_ctl:
-	ctl_clear_bit(0, 1);
+	system_ctl_clear_bit(0, 1);
 out:
 	return rc;
 }

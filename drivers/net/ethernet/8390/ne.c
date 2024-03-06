@@ -1,12 +1,10 @@
+// SPDX-License-Identifier: GPL-1.0+
 /* ne.c: A general non-shared-memory NS8390 ethernet driver for linux. */
 /*
     Written 1992-94 by Donald Becker.
 
     Copyright 1993 United States Government as represented by the
     Director, National Security Agency.
-
-    This software may be used and distributed according to the terms
-    of the GNU General Public License, incorporated herein by reference.
 
     The author may be reached as becker@scyld.com, or C/O
     Scyld Computing Corporation, 410 Severn Ave., Suite 210, Annapolis MD 21403
@@ -825,7 +823,7 @@ static int __init ne_drv_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ne_drv_remove(struct platform_device *pdev)
+static void ne_drv_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
@@ -844,7 +842,6 @@ static int ne_drv_remove(struct platform_device *pdev)
 		release_region(dev->base_addr, NE_IO_EXTENT);
 		free_netdev(dev);
 	}
-	return 0;
 }
 
 /* Remove unused devices or all if true. */
@@ -897,7 +894,7 @@ static int ne_drv_resume(struct platform_device *pdev)
 #endif
 
 static struct platform_driver ne_driver = {
-	.remove		= ne_drv_remove,
+	.remove_new	= ne_drv_remove,
 	.suspend	= ne_drv_suspend,
 	.resume		= ne_drv_resume,
 	.driver		= {

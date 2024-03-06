@@ -824,7 +824,7 @@ static void broadsheet_init_display(struct broadsheetfb_par *par)
 
 	broadsheet_burst_write(par, (panel_table[par->panel_index].w *
 					panel_table[par->panel_index].h)/2,
-					(u16 *) par->info->screen_base);
+					(u16 *)par->info->screen_buffer);
 
 	broadsheet_send_command(par, BS_CMD_LD_IMG_END);
 
@@ -865,7 +865,7 @@ static void broadsheetfb_dpy_update_pages(struct broadsheetfb_par *par,
 						u16 y1, u16 y2)
 {
 	u16 args[5];
-	unsigned char *buf = (unsigned char *)par->info->screen_base;
+	unsigned char *buf = par->info->screen_buffer;
 
 	mutex_lock(&(par->io_lock));
 	/* y1 must be a multiple of 4 so drop the lower bits */
@@ -913,7 +913,7 @@ static void broadsheetfb_dpy_update(struct broadsheetfb_par *par)
 	broadsheet_send_cmdargs(par, BS_CMD_WR_REG, 1, args);
 	broadsheet_burst_write(par, (panel_table[par->panel_index].w *
 					panel_table[par->panel_index].h)/2,
-					(u16 *) par->info->screen_base);
+					(u16 *)par->info->screen_buffer);
 
 	broadsheet_send_command(par, BS_CMD_LD_IMG_END);
 
@@ -970,90 +970,28 @@ static void broadsheetfb_dpy_deferred_io(struct fb_info *info, struct list_head 
 	}
 }
 
-static void broadsheetfb_fillrect(struct fb_info *info,
-				   const struct fb_fillrect *rect)
+static void broadsheetfb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
 {
 	struct broadsheetfb_par *par = info->par;
-
-	sys_fillrect(info, rect);
 
 	broadsheetfb_dpy_update(par);
 }
 
-static void broadsheetfb_copyarea(struct fb_info *info,
-				   const struct fb_copyarea *area)
+static void broadsheetfb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+					   u32 width, u32 height)
 {
 	struct broadsheetfb_par *par = info->par;
-
-	sys_copyarea(info, area);
 
 	broadsheetfb_dpy_update(par);
 }
 
-static void broadsheetfb_imageblit(struct fb_info *info,
-				const struct fb_image *image)
-{
-	struct broadsheetfb_par *par = info->par;
-
-	sys_imageblit(info, image);
-
-	broadsheetfb_dpy_update(par);
-}
-
-/*
- * this is the slow path from userspace. they can seek and write to
- * the fb. it's inefficient to do anything less than a full screen draw
- */
-static ssize_t broadsheetfb_write(struct fb_info *info, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct broadsheetfb_par *par = info->par;
-	unsigned long p = *ppos;
-	void *dst;
-	int err = 0;
-	unsigned long total_size;
-
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
-
-	total_size = info->fix.smem_len;
-
-	if (p > total_size)
-		return -EFBIG;
-
-	if (count > total_size) {
-		err = -EFBIG;
-		count = total_size;
-	}
-
-	if (count + p > total_size) {
-		if (!err)
-			err = -ENOSPC;
-
-		count = total_size - p;
-	}
-
-	dst = (void *)(info->screen_base + p);
-
-	if (copy_from_user(dst, buf, count))
-		err = -EFAULT;
-
-	if  (!err)
-		*ppos += count;
-
-	broadsheetfb_dpy_update(par);
-
-	return (err) ? err : count;
-}
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(broadsheetfb,
+				   broadsheetfb_defio_damage_range,
+				   broadsheetfb_defio_damage_area)
 
 static const struct fb_ops broadsheetfb_ops = {
-	.owner		= THIS_MODULE,
-	.fb_read        = fb_sys_read,
-	.fb_write	= broadsheetfb_write,
-	.fb_fillrect	= broadsheetfb_fillrect,
-	.fb_copyarea	= broadsheetfb_copyarea,
-	.fb_imageblit	= broadsheetfb_imageblit,
-	.fb_mmap	= fb_deferred_io_mmap,
+	.owner	= THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(broadsheetfb),
 };
 
 static struct fb_deferred_io broadsheetfb_defio = {
@@ -1109,7 +1047,7 @@ static int broadsheetfb_probe(struct platform_device *dev)
 	if (!videomemory)
 		goto err_fb_rel;
 
-	info->screen_base = (char *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &broadsheetfb_ops;
 
 	broadsheetfb_var.xres = dpyw;
@@ -1131,7 +1069,7 @@ static int broadsheetfb_probe(struct platform_device *dev)
 
 	mutex_init(&par->io_lock);
 
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
+	info->flags = FBINFO_VIRTFB;
 
 	info->fbdefio = &broadsheetfb_defio;
 	fb_deferred_io_init(info);
@@ -1200,12 +1138,12 @@ static void broadsheetfb_remove(struct platform_device *dev)
 	if (info) {
 		struct broadsheetfb_par *par = info->par;
 
-		device_remove_file(info->dev, &dev_attr_loadstore_waveform);
+		device_remove_file(info->device, &dev_attr_loadstore_waveform);
 		unregister_framebuffer(info);
 		fb_deferred_io_cleanup(info);
 		par->board->cleanup(par);
 		fb_dealloc_cmap(&info->cmap);
-		vfree((void *)info->screen_base);
+		vfree(info->screen_buffer);
 		module_put(par->board->owner);
 		framebuffer_release(info);
 	}
@@ -1223,3 +1161,5 @@ module_platform_driver(broadsheetfb_driver);
 MODULE_DESCRIPTION("fbdev driver for Broadsheet controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("broadsheet.wbf");

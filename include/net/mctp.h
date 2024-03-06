@@ -234,9 +234,9 @@ struct mctp_flow {
 struct mctp_route {
 	mctp_eid_t		min, max;
 
-	struct mctp_dev		*dev;
-	unsigned int		mtu;
 	unsigned char		type;
+	unsigned int		mtu;
+	struct mctp_dev		*dev;
 	int			(*output)(struct mctp_route *route,
 					  struct sk_buff *skb);
 
@@ -249,6 +249,7 @@ struct mctp_route {
 struct mctp_route *mctp_route_lookup(struct net *net, unsigned int dnet,
 				     mctp_eid_t daddr);
 
+/* always takes ownership of skb */
 int mctp_local_output(struct sock *sk, struct mctp_route *rt,
 		      struct sk_buff *skb, mctp_eid_t daddr, u8 req_tag);
 

@@ -14,7 +14,7 @@
  * @start: the start point of the iteration
  * @wrap: assume @n crossing @start terminates the iteration
  *
- * Returns >= nr_cpu_ids on completion
+ * Return: >= nr_cpu_ids on completion
  *
  * Note: the @wrap argument is required for the start condition when
  * we cannot assume @start is set in @mask.
@@ -45,10 +45,12 @@ EXPORT_SYMBOL(cpumask_next_wrap);
  * alloc_cpumask_var_node - allocate a struct cpumask on a given node
  * @mask: pointer to cpumask_var_t where the cpumask is returned
  * @flags: GFP_ flags
+ * @node: memory node from which to allocate or %NUMA_NO_NODE
  *
  * Only defined when CONFIG_CPUMASK_OFFSTACK=y, otherwise is
- * a nop returning a constant 1 (in <linux/cpumask.h>)
- * Returns TRUE if memory allocation succeeded, FALSE otherwise.
+ * a nop returning a constant 1 (in <linux/cpumask.h>).
+ *
+ * Return: TRUE if memory allocation succeeded, FALSE otherwise.
  *
  * In addition, mask will be NULL if this fails.  Note that gcc is
  * usually smart enough to know that mask can never be NULL if
@@ -114,7 +116,7 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
  * @i: index number
  * @node: local numa_node
  *
- * Returns online CPU according to a numa aware policy; local cpus are returned
+ * Return: online CPU according to a numa aware policy; local cpus are returned
  * first, followed by non-local ones, then it wraps around.
  *
  * For those who wants to enumerate all CPUs based on their NUMA distances,
@@ -145,9 +147,7 @@ unsigned int cpumask_local_spread(unsigned int i, int node)
 	/* Wrap: we always want a cpu. */
 	i %= num_online_cpus();
 
-	cpu = (node == NUMA_NO_NODE) ?
-		cpumask_nth(i, cpu_online_mask) :
-		sched_numa_find_nth_cpu(cpu_online_mask, i, node);
+	cpu = sched_numa_find_nth_cpu(cpu_online_mask, i, node);
 
 	WARN_ON(cpu >= nr_cpu_ids);
 	return cpu;
@@ -157,12 +157,14 @@ EXPORT_SYMBOL(cpumask_local_spread);
 static DEFINE_PER_CPU(int, distribute_cpu_mask_prev);
 
 /**
- * Returns an arbitrary cpu within srcp1 & srcp2.
+ * cpumask_any_and_distribute - Return an arbitrary cpu within src1p & src2p.
+ * @src1p: first &cpumask for intersection
+ * @src2p: second &cpumask for intersection
  *
  * Iterated calls using the same srcp1 and srcp2 will be distributed within
  * their intersection.
  *
- * Returns >= nr_cpu_ids if the intersection is empty.
+ * Return: >= nr_cpu_ids if the intersection is empty.
  */
 unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 			       const struct cpumask *src2p)
@@ -181,6 +183,12 @@ unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 }
 EXPORT_SYMBOL(cpumask_any_and_distribute);
 
+/**
+ * cpumask_any_distribute - Return an arbitrary cpu from srcp
+ * @srcp: &cpumask for selection
+ *
+ * Return: >= nr_cpu_ids if the intersection is empty.
+ */
 unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 {
 	unsigned int next, prev;

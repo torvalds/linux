@@ -24,6 +24,7 @@ patternProperties:
   '-pins$':
     type: object
     $ref: pinmux-node.yaml#
+    unevaluatedProperties: false
 
     properties:
       function:
@@ -36,10 +37,14 @@ patternProperties:
 
       pins:
         enum: [ gpio0, gpio1, gpio16, gpio17, gpio8, gpio9, gpio18, gpio19,
-                gpio22, gpio23, gpio30, gpio31, nand_grp, gpio35
+                gpio22, gpio23, gpio30, gpio31, nand_grp, gpio35,
                 dectpd_grp, vdsl_phy_override_0_grp,
                 vdsl_phy_override_1_grp, vdsl_phy_override_2_grp,
                 vdsl_phy_override_3_grp, dsl_gpio8, dsl_gpio9 ]
+
+    patternProperties:
+      '-pins$':
+        $ref: '#/patternProperties/-pins$'
 
 allOf:
   - $ref: pinctrl.yaml#
@@ -122,46 +127,46 @@ examples:
 
       pinctrl_nand: nand-pins {
         function = "nand";
-        group = "nand_grp";
+        pins = "nand_grp";
       };
 
       pinctrl_gpio35_alt: gpio35_alt-pins {
         function = "gpio35_alt";
-        pin = "gpio35";
+        pins = "gpio35";
       };
 
       pinctrl_dectpd: dectpd-pins {
         function = "dectpd";
-        group = "dectpd_grp";
+        pins = "dectpd_grp";
       };
 
       pinctrl_vdsl_phy_override_0: vdsl_phy_override_0-pins {
         function = "vdsl_phy_override_0";
-        group = "vdsl_phy_override_0_grp";
+        pins = "vdsl_phy_override_0_grp";
       };
 
       pinctrl_vdsl_phy_override_1: vdsl_phy_override_1-pins {
         function = "vdsl_phy_override_1";
-        group = "vdsl_phy_override_1_grp";
+        pins = "vdsl_phy_override_1_grp";
       };
 
       pinctrl_vdsl_phy_override_2: vdsl_phy_override_2-pins {
         function = "vdsl_phy_override_2";
-        group = "vdsl_phy_override_2_grp";
+        pins = "vdsl_phy_override_2_grp";
       };
 
       pinctrl_vdsl_phy_override_3: vdsl_phy_override_3-pins {
         function = "vdsl_phy_override_3";
-        group = "vdsl_phy_override_3_grp";
+        pins = "vdsl_phy_override_3_grp";
       };
 
       pinctrl_dsl_gpio8: dsl_gpio8-pins {
         function = "dsl_gpio8";
-        group = "dsl_gpio8";
+        pins = "dsl_gpio8";
       };
 
       pinctrl_dsl_gpio9: dsl_gpio9-pins {
         function = "dsl_gpio9";
-        group = "dsl_gpio9";
+        pins = "dsl_gpio9";
       };
     };

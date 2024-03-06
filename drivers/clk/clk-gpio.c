@@ -15,8 +15,8 @@
 #include <linux/gpio/consumer.h>
 #include <linux/err.h>
 #include <linux/device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 
 /**
  * DOC: basic gpio gated clock which can be enabled and disabled

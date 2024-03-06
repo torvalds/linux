@@ -1,3 +1,11 @@
+-- SPDX-License-Identifier: BSD-3-Clause
+--
+-- Copyright (C) 1990, 2002 IETF Trust and the persons identified as authors
+-- of the code
+--
+-- https://www.rfc-editor.org/rfc/rfc1157#section-4
+-- https://www.rfc-editor.org/rfc/rfc3416#section-3
+
 Message ::=
 	SEQUENCE {
 		version

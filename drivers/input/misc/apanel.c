@@ -201,7 +201,7 @@ static struct i2c_driver apanel_driver = {
 	.driver = {
 		.name = APANEL,
 	},
-	.probe_new	= apanel_probe,
+	.probe		= apanel_probe,
 	.shutdown	= apanel_shutdown,
 	.id_table	= apanel_id,
 };

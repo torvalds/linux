@@ -15,6 +15,8 @@ allOf:
 properties:
   compatible:
     enum:
+      - amlogic,c3-periphs-pinctrl
+      - amlogic,t7-periphs-pinctrl
       - amlogic,meson-a1-periphs-pinctrl
       - amlogic,meson-s4-periphs-pinctrl
 
@@ -35,6 +37,10 @@ patternProperties:
         items:
           - const: mux
           - const: gpio
+
+      gpio-line-names:
+        minItems: 62 # A1
+        maxItems: 82 # S4
 
 unevaluatedProperties:
   type: object

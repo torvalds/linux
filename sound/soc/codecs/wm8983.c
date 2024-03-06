@@ -995,7 +995,7 @@ static const struct regmap_config wm8983_regmap = {
 
 	.reg_defaults = wm8983_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8983_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = WM8983_MAX_REGISTER,
 
 	.writeable_reg = wm8983_writeable,
@@ -1068,7 +1068,7 @@ static struct i2c_driver wm8983_i2c_driver = {
 	.driver = {
 		.name = "wm8983",
 	},
-	.probe_new = wm8983_i2c_probe,
+	.probe = wm8983_i2c_probe,
 	.id_table = wm8983_i2c_id
 };
 #endif

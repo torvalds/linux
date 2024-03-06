@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Support for ColdFire CPU based boards using a NS8390 Ethernet device.
  *
@@ -5,9 +6,6 @@
  *
  *  (C) Copyright 2012,  Greg Ungerer <gerg@uclinux.org>
  *
- *  This file is subject to the terms and conditions of the GNU General Public
- *  License.  See the file COPYING in the main directory of the Linux
- *  distribution for more details.
  */
 
 #include <linux/module.h>
@@ -443,7 +441,7 @@ static int mcf8390_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mcf8390_remove(struct platform_device *pdev)
+static void mcf8390_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 	struct resource *mem;
@@ -452,7 +450,6 @@ static int mcf8390_remove(struct platform_device *pdev)
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
 	free_netdev(dev);
-	return 0;
 }
 
 static struct platform_driver mcf8390_drv = {
@@ -460,7 +457,7 @@ static struct platform_driver mcf8390_drv = {
 		.name	= "mcf8390",
 	},
 	.probe		= mcf8390_probe,
-	.remove		= mcf8390_remove,
+	.remove_new	= mcf8390_remove,
 };
 
 module_platform_driver(mcf8390_drv);

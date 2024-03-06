@@ -609,7 +609,7 @@ static struct i2c_driver tcs3472_driver = {
 		.name	= TCS3472_DRV_NAME,
 		.pm	= pm_sleep_ptr(&tcs3472_pm_ops),
 	},
-	.probe_new	= tcs3472_probe,
+	.probe		= tcs3472_probe,
 	.remove		= tcs3472_remove,
 	.id_table	= tcs3472_id,
 };

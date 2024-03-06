@@ -119,7 +119,7 @@ static int ptdump_pte_entry(pte_t *pte, unsigned long addr,
 			    unsigned long next, struct mm_walk *walk)
 {
 	struct ptdump_state *st = walk->private;
-	pte_t val = ptep_get(pte);
+	pte_t val = ptep_get_lockless(pte);
 
 	if (st->effective_prot)
 		st->effective_prot(st, 4, pte_val(val));

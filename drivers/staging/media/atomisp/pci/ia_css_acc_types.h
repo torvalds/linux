@@ -331,11 +331,7 @@ struct ia_css_sp_info {
 	of DDR debug queue */
 	u32 perf_counter_input_system_error; /** input system perf
 	counter array */
-#ifdef HAS_WATCHDOG_SP_THREAD_DEBUG
-	u32 debug_wait; /** thread/pipe post mortem debug */
-	u32 debug_stage; /** thread/pipe post mortem debug */
-	u32 debug_stripe; /** thread/pipe post mortem debug */
-#endif
+
 	u32 threads_stack; /** sp thread's stack pointers */
 	u32 threads_stack_size; /** sp thread's stack sizes */
 	u32 curr_binary_id;        /** current binary id */

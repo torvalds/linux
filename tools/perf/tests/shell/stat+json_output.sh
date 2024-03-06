@@ -8,20 +8,10 @@ set -e
 
 skip_test=0
 
+shelldir=$(dirname "$0")
+# shellcheck source=lib/setup_python.sh
+. "${shelldir}"/lib/setup_python.sh
 pythonchecker=$(dirname $0)/lib/perf_json_output_lint.py
-if [ "x$PYTHON" == "x" ]
-then
-	if which python3 > /dev/null
-	then
-		PYTHON=python3
-	elif which python > /dev/null
-	then
-		PYTHON=python
-	else
-		echo Skipping test, python not detected please set environment variable PYTHON.
-		exit 2
-	fi
-fi
 
 stat_output=$(mktemp /tmp/__perf_test.stat_output.json.XXXXX)
 
@@ -40,7 +30,7 @@ trap trap_cleanup EXIT TERM INT
 # Return true if perf_event_paranoid is > $1 and not running as root.
 function ParanoidAndNotRoot()
 {
-	 [ $(id -u) != 0 ] && [ $(cat /proc/sys/kernel/perf_event_paranoid) -gt $1 ]
+	 [ "$(id -u)" != 0 ] && [ "$(cat /proc/sys/kernel/perf_event_paranoid)" -gt $1 ]
 }
 
 check_no_args()
@@ -117,6 +107,18 @@ check_per_thread()
 	fi
 	perf stat -j --per-thread -a -o "${stat_output}" true
 	$PYTHON $pythonchecker --per-thread --file "${stat_output}"
+	echo "[Success]"
+}
+
+check_per_cache_instance()
+{
+	echo -n "Checking json output: per cache_instance "
+	if ParanoidAndNotRoot 0
+	then
+		echo "[Skip] paranoia and not root"
+		return
+	fi
+	perf stat -j --per-cache -a true 2>&1 | $PYTHON $pythonchecker --per-cache
 	echo "[Success]"
 }
 
@@ -197,6 +199,7 @@ if [ $skip_test -ne 1 ]
 then
 	check_system_wide_no_aggr
 	check_per_core
+	check_per_cache_instance
 	check_per_die
 	check_per_socket
 else

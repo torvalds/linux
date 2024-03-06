@@ -15,6 +15,13 @@ struct {
 } sock_map SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_SOCKMAP);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, __u64);
+} nop_map SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_SOCKHASH);
 	__uint(max_entries, 2);
 	__type(key, __u32);
@@ -28,12 +35,26 @@ struct {
 	__type(value, unsigned int);
 } verdict_map SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 1);
+	__type(key, int);
+	__type(value, int);
+} parser_map SEC(".maps");
+
 bool test_sockmap = false; /* toggled by user-space */
 bool test_ingress = false; /* toggled by user-space */
 
 SEC("sk_skb/stream_parser")
 int prog_stream_parser(struct __sk_buff *skb)
 {
+	int *value;
+	__u32 key = 0;
+
+	value = bpf_map_lookup_elem(&parser_map, &key);
+	if (value && *value)
+		return *value;
+
 	return skb->len;
 }
 

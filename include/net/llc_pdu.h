@@ -262,21 +262,19 @@ static inline void llc_pdu_header_init(struct sk_buff *skb, u8 type,
  */
 static inline void llc_pdu_decode_sa(struct sk_buff *skb, u8 *sa)
 {
-	if (skb->protocol == htons(ETH_P_802_2))
-		memcpy(sa, eth_hdr(skb)->h_source, ETH_ALEN);
+	memcpy(sa, eth_hdr(skb)->h_source, ETH_ALEN);
 }
 
 /**
  *	llc_pdu_decode_da - extracts dest address of input frame
  *	@skb: input skb that destination address must be extracted from it
- *	@sa: pointer to destination address (6 byte array).
+ *	@da: pointer to destination address (6 byte array).
  *
  *	This function extracts destination address(MAC) of input frame.
  */
 static inline void llc_pdu_decode_da(struct sk_buff *skb, u8 *da)
 {
-	if (skb->protocol == htons(ETH_P_802_2))
-		memcpy(da, eth_hdr(skb)->h_dest, ETH_ALEN);
+	memcpy(da, eth_hdr(skb)->h_dest, ETH_ALEN);
 }
 
 /**
@@ -321,7 +319,7 @@ static inline void llc_pdu_init_as_ui_cmd(struct sk_buff *skb)
 
 /**
  *	llc_pdu_init_as_test_cmd - sets PDU as TEST
- *	@skb - Address of the skb to build
+ *	@skb: Address of the skb to build
  *
  * 	Sets a PDU as TEST
  */
@@ -369,6 +367,8 @@ struct llc_xid_info {
 /**
  *	llc_pdu_init_as_xid_cmd - sets bytes 3, 4 & 5 of LLC header as XID
  *	@skb: input skb that header must be set into it.
+ *	@svcs_supported: The class of the LLC (I or II)
+ *	@rx_window: The size of the receive window of the LLC
  *
  *	This function sets third,fourth,fifth and sixth bytes of LLC header as
  *	a XID PDU.

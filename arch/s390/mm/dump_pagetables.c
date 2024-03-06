@@ -287,17 +287,17 @@ static int pt_dump_init(void)
 	 * kernel ASCE. We need this to keep the page table walker functions
 	 * from accessing non-existent entries.
 	 */
-	max_addr = (S390_lowcore.kernel_asce & _REGION_ENTRY_TYPE_MASK) >> 2;
+	max_addr = (S390_lowcore.kernel_asce.val & _REGION_ENTRY_TYPE_MASK) >> 2;
 	max_addr = 1UL << (max_addr * 11 + 31);
 	address_markers[IDENTITY_AFTER_END_NR].start_address = ident_map_size;
-	address_markers[AMODE31_START_NR].start_address = __samode31;
-	address_markers[AMODE31_END_NR].start_address = __eamode31;
+	address_markers[AMODE31_START_NR].start_address = (unsigned long)__samode31;
+	address_markers[AMODE31_END_NR].start_address = (unsigned long)__eamode31;
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
 	address_markers[MODULES_END_NR].start_address = MODULES_END;
 	address_markers[ABS_LOWCORE_NR].start_address = __abs_lowcore;
 	address_markers[ABS_LOWCORE_END_NR].start_address = __abs_lowcore + ABS_LOWCORE_MAP_SIZE;
 	address_markers[MEMCPY_REAL_NR].start_address = __memcpy_real_area;
-	address_markers[MEMCPY_REAL_END_NR].start_address = __memcpy_real_area + PAGE_SIZE;
+	address_markers[MEMCPY_REAL_END_NR].start_address = __memcpy_real_area + MEMCPY_REAL_SIZE;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMEMMAP_END_NR].start_address = (unsigned long)vmemmap + vmemmap_size;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;

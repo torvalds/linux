@@ -147,8 +147,7 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint8_t    ucCoolingID;
 };
 
-struct pp_atomfwctrl_smc_dpm_parameters
-{
+struct pp_atomfwctrl_smc_dpm_parameters {
   uint8_t  liquid1_i2c_address;
   uint8_t  liquid2_i2c_address;
   uint8_t  vr_i2c_address;

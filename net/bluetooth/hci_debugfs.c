@@ -22,6 +22,7 @@
 */
 
 #include <linux/debugfs.h>
+#include <linux/kstrtox.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
@@ -1045,10 +1046,12 @@ static int min_key_size_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
 
-	if (val > hdev->le_max_key_size || val < SMP_MIN_ENC_KEY_SIZE)
-		return -EINVAL;
-
 	hci_dev_lock(hdev);
+	if (val > hdev->le_max_key_size || val < SMP_MIN_ENC_KEY_SIZE) {
+		hci_dev_unlock(hdev);
+		return -EINVAL;
+	}
+
 	hdev->le_min_key_size = val;
 	hci_dev_unlock(hdev);
 
@@ -1073,10 +1076,12 @@ static int max_key_size_set(void *data, u64 val)
 {
 	struct hci_dev *hdev = data;
 
-	if (val > SMP_MAX_ENC_KEY_SIZE || val < hdev->le_min_key_size)
-		return -EINVAL;
-
 	hci_dev_lock(hdev);
+	if (val > SMP_MAX_ENC_KEY_SIZE || val < hdev->le_min_key_size) {
+		hci_dev_unlock(hdev);
+		return -EINVAL;
+	}
+
 	hdev->le_max_key_size = val;
 	hci_dev_unlock(hdev);
 
@@ -1152,7 +1157,7 @@ static ssize_t force_no_mitm_write(struct file *file,
 		return -EFAULT;
 
 	buf[buf_size] = '\0';
-	if (strtobool(buf, &enable))
+	if (kstrtobool(buf, &enable))
 		return -EINVAL;
 
 	if (enable == hci_dev_test_flag(hdev, HCI_FORCE_NO_MITM))

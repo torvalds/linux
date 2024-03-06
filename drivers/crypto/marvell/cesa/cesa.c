@@ -488,7 +488,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 
 	for (i = 0; i < caps->nengines; i++) {
 		struct mv_cesa_engine *engine = &cesa->engines[i];
-		char res_name[7];
+		char res_name[16];
 
 		engine->id = i;
 		spin_lock_init(&engine->lock);
@@ -509,7 +509,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		 * Not all platforms can gate the CESA clocks: do not complain
 		 * if the clock does not exist.
 		 */
-		snprintf(res_name, sizeof(res_name), "cesa%d", i);
+		snprintf(res_name, sizeof(res_name), "cesa%u", i);
 		engine->clk = devm_clk_get(dev, res_name);
 		if (IS_ERR(engine->clk)) {
 			engine->clk = devm_clk_get(dev, NULL);
@@ -517,7 +517,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 				engine->clk = NULL;
 		}
 
-		snprintf(res_name, sizeof(res_name), "cesaz%d", i);
+		snprintf(res_name, sizeof(res_name), "cesaz%u", i);
 		engine->zclk = devm_clk_get(dev, res_name);
 		if (IS_ERR(engine->zclk))
 			engine->zclk = NULL;
@@ -581,7 +581,7 @@ err_cleanup:
 	return ret;
 }
 
-static int mv_cesa_remove(struct platform_device *pdev)
+static void mv_cesa_remove(struct platform_device *pdev)
 {
 	struct mv_cesa_dev *cesa = platform_get_drvdata(pdev);
 	int i;
@@ -594,8 +594,6 @@ static int mv_cesa_remove(struct platform_device *pdev)
 		mv_cesa_put_sram(pdev, i);
 		irq_set_affinity_hint(cesa->engines[i].irq, NULL);
 	}
-
-	return 0;
 }
 
 static const struct platform_device_id mv_cesa_plat_id_table[] = {
@@ -606,7 +604,7 @@ MODULE_DEVICE_TABLE(platform, mv_cesa_plat_id_table);
 
 static struct platform_driver marvell_cesa = {
 	.probe		= mv_cesa_probe,
-	.remove		= mv_cesa_remove,
+	.remove_new	= mv_cesa_remove,
 	.id_table	= mv_cesa_plat_id_table,
 	.driver		= {
 		.name	= "marvell-cesa",

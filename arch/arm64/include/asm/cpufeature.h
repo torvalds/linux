@@ -15,11 +15,15 @@
 #define MAX_CPU_FEATURES	128
 #define cpu_feature(x)		KERNEL_HWCAP_ ## x
 
+#define ARM64_SW_FEATURE_OVERRIDE_NOKASLR	0
+#define ARM64_SW_FEATURE_OVERRIDE_HVHE		4
+
 #ifndef __ASSEMBLY__
 
 #include <linux/bug.h>
 #include <linux/jump_label.h>
 #include <linux/kernel.h>
+#include <linux/cpumask.h>
 
 /*
  * CPU feature register tracking
@@ -79,7 +83,7 @@ struct arm64_ftr_bits {
  * to full-0 denotes that this field has no override
  *
  * A @mask field set to full-0 with the corresponding @val field set
- * to full-1 denotes thath this field has an invalid override.
+ * to full-1 denotes that this field has an invalid override.
  */
 struct arm64_ftr_override {
 	u64		val;
@@ -107,7 +111,7 @@ extern struct arm64_ftr_reg arm64_ftr_reg_ctrel0;
  * CPU capabilities:
  *
  * We use arm64_cpu_capabilities to represent system features, errata work
- * arounds (both used internally by kernel and tracked in cpu_hwcaps) and
+ * arounds (both used internally by kernel and tracked in system_cpucaps) and
  * ELF HWCAPs (which are exposed to user).
  *
  * To support systems with heterogeneous CPUs, we need to make sure that we
@@ -377,6 +381,7 @@ struct arm64_cpu_capabilities {
 	 * method is robust against being called multiple times.
 	 */
 	const struct arm64_cpu_capabilities *match_list;
+	const struct cpumask *cpus;
 };
 
 static inline int cpucap_default_scope(const struct arm64_cpu_capabilities *cap)
@@ -419,12 +424,12 @@ static __always_inline bool is_hyp_code(void)
 	return is_vhe_hyp_code() || is_nvhe_hyp_code();
 }
 
-extern DECLARE_BITMAP(cpu_hwcaps, ARM64_NCAPS);
+extern DECLARE_BITMAP(system_cpucaps, ARM64_NCAPS);
 
-extern DECLARE_BITMAP(boot_capabilities, ARM64_NCAPS);
+extern DECLARE_BITMAP(boot_cpucaps, ARM64_NCAPS);
 
 #define for_each_available_cap(cap)		\
-	for_each_set_bit(cap, cpu_hwcaps, ARM64_NCAPS)
+	for_each_set_bit(cap, system_cpucaps, ARM64_NCAPS)
 
 bool this_cpu_has_cap(unsigned int cap);
 void cpu_set_feature(unsigned int num);
@@ -435,9 +440,14 @@ unsigned long cpu_get_elf_hwcap2(void);
 #define cpu_set_named_feature(name) cpu_set_feature(cpu_feature(name))
 #define cpu_have_named_feature(name) cpu_have_feature(cpu_feature(name))
 
+static __always_inline bool boot_capabilities_finalized(void)
+{
+	return alternative_has_cap_likely(ARM64_ALWAYS_BOOT);
+}
+
 static __always_inline bool system_capabilities_finalized(void)
 {
-	return alternative_has_feature_likely(ARM64_ALWAYS_SYSTEM);
+	return alternative_has_cap_likely(ARM64_ALWAYS_SYSTEM);
 }
 
 /*
@@ -447,71 +457,45 @@ static __always_inline bool system_capabilities_finalized(void)
  */
 static __always_inline bool cpus_have_cap(unsigned int num)
 {
+	if (__builtin_constant_p(num) && !cpucap_is_possible(num))
+		return false;
 	if (num >= ARM64_NCAPS)
 		return false;
-	return arch_test_bit(num, cpu_hwcaps);
+	return arch_test_bit(num, system_cpucaps);
 }
 
 /*
  * Test for a capability without a runtime check.
  *
- * Before capabilities are finalized, this returns false.
- * After capabilities are finalized, this is patched to avoid a runtime check.
+ * Before boot capabilities are finalized, this will BUG().
+ * After boot capabilities are finalized, this is patched to avoid a runtime
+ * check.
  *
  * @num must be a compile-time constant.
  */
-static __always_inline bool __cpus_have_const_cap(int num)
+static __always_inline bool cpus_have_final_boot_cap(int num)
 {
-	if (num >= ARM64_NCAPS)
-		return false;
-	return alternative_has_feature_unlikely(num);
+	if (boot_capabilities_finalized())
+		return alternative_has_cap_unlikely(num);
+	else
+		BUG();
 }
 
 /*
  * Test for a capability without a runtime check.
  *
- * Before capabilities are finalized, this will BUG().
- * After capabilities are finalized, this is patched to avoid a runtime check.
+ * Before system capabilities are finalized, this will BUG().
+ * After system capabilities are finalized, this is patched to avoid a runtime
+ * check.
  *
  * @num must be a compile-time constant.
  */
 static __always_inline bool cpus_have_final_cap(int num)
 {
 	if (system_capabilities_finalized())
-		return __cpus_have_const_cap(num);
+		return alternative_has_cap_unlikely(num);
 	else
 		BUG();
-}
-
-/*
- * Test for a capability, possibly with a runtime check for non-hyp code.
- *
- * For hyp code, this behaves the same as cpus_have_final_cap().
- *
- * For non-hyp code:
- * Before capabilities are finalized, this behaves as cpus_have_cap().
- * After capabilities are finalized, this is patched to avoid a runtime check.
- *
- * @num must be a compile-time constant.
- */
-static __always_inline bool cpus_have_const_cap(int num)
-{
-	if (is_hyp_code())
-		return cpus_have_final_cap(num);
-	else if (system_capabilities_finalized())
-		return __cpus_have_const_cap(num);
-	else
-		return cpus_have_cap(num);
-}
-
-static inline void cpus_set_cap(unsigned int num)
-{
-	if (num >= ARM64_NCAPS) {
-		pr_warn("Attempt to set an illegal CPU capability (%d >= %d)\n",
-			num, ARM64_NCAPS);
-	} else {
-		__set_bit(num, cpu_hwcaps);
-	}
 }
 
 static inline int __attribute_const__
@@ -633,7 +617,10 @@ static inline bool id_aa64pfr1_mte(u64 pfr1)
 	return val >= ID_AA64PFR1_EL1_MTE_MTE2;
 }
 
-void __init setup_cpu_features(void);
+void __init setup_boot_cpu_features(void);
+void __init setup_system_features(void);
+void __init setup_user_features(void);
+
 void check_local_cpu_capabilities(void);
 
 u64 read_sanitised_ftr_reg(u32 id);
@@ -670,7 +657,7 @@ static inline bool supports_clearbhb(int scope)
 		isar2 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR2_EL1);
 
 	return cpuid_feature_extract_unsigned_field(isar2,
-						    ID_AA64ISAR2_EL1_BC_SHIFT);
+						    ID_AA64ISAR2_EL1_CLRBHB_SHIFT);
 }
 
 const struct cpumask *system_32bit_el0_cpumask(void);
@@ -742,13 +729,12 @@ static inline bool system_supports_mixed_endian(void)
 
 static __always_inline bool system_supports_fpsimd(void)
 {
-	return !cpus_have_const_cap(ARM64_HAS_NO_FPSIMD);
+	return alternative_has_cap_likely(ARM64_HAS_FPSIMD);
 }
 
 static inline bool system_uses_hw_pan(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PAN) &&
-		cpus_have_const_cap(ARM64_HAS_PAN);
+	return alternative_has_cap_unlikely(ARM64_HAS_PAN);
 }
 
 static inline bool system_uses_ttbr0_pan(void)
@@ -759,26 +745,22 @@ static inline bool system_uses_ttbr0_pan(void)
 
 static __always_inline bool system_supports_sve(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SVE) &&
-		cpus_have_const_cap(ARM64_SVE);
+	return alternative_has_cap_unlikely(ARM64_SVE);
 }
 
 static __always_inline bool system_supports_sme(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SME) &&
-		cpus_have_const_cap(ARM64_SME);
+	return alternative_has_cap_unlikely(ARM64_SME);
 }
 
 static __always_inline bool system_supports_sme2(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SME) &&
-		cpus_have_const_cap(ARM64_SME2);
+	return alternative_has_cap_unlikely(ARM64_SME2);
 }
 
 static __always_inline bool system_supports_fa64(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_SME) &&
-		cpus_have_const_cap(ARM64_SME_FA64);
+	return alternative_has_cap_unlikely(ARM64_SME_FA64);
 }
 
 static __always_inline bool system_supports_tpidr2(void)
@@ -788,20 +770,17 @@ static __always_inline bool system_supports_tpidr2(void)
 
 static __always_inline bool system_supports_cnp(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_CNP) &&
-		cpus_have_const_cap(ARM64_HAS_CNP);
+	return alternative_has_cap_unlikely(ARM64_HAS_CNP);
 }
 
 static inline bool system_supports_address_auth(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
-		cpus_have_const_cap(ARM64_HAS_ADDRESS_AUTH);
+	return cpus_have_final_boot_cap(ARM64_HAS_ADDRESS_AUTH);
 }
 
 static inline bool system_supports_generic_auth(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PTR_AUTH) &&
-		cpus_have_const_cap(ARM64_HAS_GENERIC_AUTH);
+	return alternative_has_cap_unlikely(ARM64_HAS_GENERIC_AUTH);
 }
 
 static inline bool system_has_full_ptr_auth(void)
@@ -811,14 +790,12 @@ static inline bool system_has_full_ptr_auth(void)
 
 static __always_inline bool system_uses_irq_prio_masking(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_PSEUDO_NMI) &&
-	       cpus_have_const_cap(ARM64_HAS_GIC_PRIO_MASKING);
+	return alternative_has_cap_unlikely(ARM64_HAS_GIC_PRIO_MASKING);
 }
 
 static inline bool system_supports_mte(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_MTE) &&
-		cpus_have_const_cap(ARM64_MTE);
+	return alternative_has_cap_unlikely(ARM64_MTE);
 }
 
 static inline bool system_has_prio_mask_debugging(void)
@@ -829,13 +806,23 @@ static inline bool system_has_prio_mask_debugging(void)
 
 static inline bool system_supports_bti(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_BTI) && cpus_have_const_cap(ARM64_BTI);
+	return cpus_have_final_cap(ARM64_BTI);
+}
+
+static inline bool system_supports_bti_kernel(void)
+{
+	return IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) &&
+		cpus_have_final_boot_cap(ARM64_BTI);
 }
 
 static inline bool system_supports_tlb_range(void)
 {
-	return IS_ENABLED(CONFIG_ARM64_TLB_RANGE) &&
-		cpus_have_const_cap(ARM64_HAS_TLB_RANGE);
+	return alternative_has_cap_unlikely(ARM64_HAS_TLB_RANGE);
+}
+
+static inline bool system_supports_lpa2(void)
+{
+	return cpus_have_final_cap(ARM64_HAS_LPA2);
 }
 
 int do_emulate_mrs(struct pt_regs *regs, u32 sys_reg, u32 rt);
@@ -915,6 +902,7 @@ static inline unsigned int get_vmid_bits(u64 mmfr1)
 	return 8;
 }
 
+s64 arm64_ftr_safe_value(const struct arm64_ftr_bits *ftrp, s64 new, s64 cur);
 struct arm64_ftr_reg *get_arm64_ftr_reg(u32 sys_id);
 
 extern struct arm64_ftr_override id_aa64mmfr1_override;
@@ -924,6 +912,8 @@ extern struct arm64_ftr_override id_aa64zfr0_override;
 extern struct arm64_ftr_override id_aa64smfr0_override;
 extern struct arm64_ftr_override id_aa64isar1_override;
 extern struct arm64_ftr_override id_aa64isar2_override;
+
+extern struct arm64_ftr_override arm64_sw_feature_override;
 
 u32 get_kvm_ipa_limit(void);
 void dump_cpu_features(void);

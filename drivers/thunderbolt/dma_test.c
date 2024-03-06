@@ -101,7 +101,7 @@ struct dma_test {
 	unsigned int packets_sent;
 	unsigned int packets_received;
 	unsigned int link_speed;
-	unsigned int link_width;
+	enum tb_link_width link_width;
 	unsigned int crc_errors;
 	unsigned int buffer_overflow_errors;
 	enum dma_test_result result;
@@ -412,6 +412,7 @@ static void speed_get(const struct dma_test *dt, u64 *val)
 static int speed_validate(u64 val)
 {
 	switch (val) {
+	case 40:
 	case 20:
 	case 10:
 	case 0:
@@ -464,9 +465,9 @@ DMA_TEST_DEBUGFS_ATTR(packets_to_send, packets_to_send_get,
 static int dma_test_set_bonding(struct dma_test *dt)
 {
 	switch (dt->link_width) {
-	case 2:
+	case TB_LINK_WIDTH_DUAL:
 		return tb_xdomain_lane_bonding_enable(dt->xd);
-	case 1:
+	case TB_LINK_WIDTH_SINGLE:
 		tb_xdomain_lane_bonding_disable(dt->xd);
 		fallthrough;
 	default:
@@ -489,8 +490,7 @@ static void dma_test_check_errors(struct dma_test *dt, int ret)
 	if (!dt->error_code) {
 		if (dt->link_speed && dt->xd->link_speed != dt->link_speed) {
 			dt->error_code = DMA_TEST_SPEED_ERROR;
-		} else if (dt->link_width &&
-			   dt->xd->link_width != dt->link_width) {
+		} else if (dt->link_width && dt->link_width != dt->xd->link_width) {
 			dt->error_code = DMA_TEST_WIDTH_ERROR;
 		} else if (dt->packets_to_send != dt->packets_sent ||
 			 dt->packets_to_receive != dt->packets_received ||
@@ -756,5 +756,5 @@ module_exit(dma_test_exit);
 
 MODULE_AUTHOR("Isaac Hazan <isaac.hazan@intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
-MODULE_DESCRIPTION("DMA traffic test driver");
+MODULE_DESCRIPTION("Thunderbolt/USB4 DMA traffic test driver");
 MODULE_LICENSE("GPL v2");

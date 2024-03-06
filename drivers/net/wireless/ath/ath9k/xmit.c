@@ -94,7 +94,7 @@ static void ath_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (info->flags & (IEEE80211_TX_CTL_REQ_TX_STATUS |
 			   IEEE80211_TX_STATUS_EOSP)) {
-		ieee80211_tx_status(hw, skb);
+		ieee80211_tx_status_skb(hw, skb);
 		return;
 	}
 
@@ -466,9 +466,11 @@ static void ath_tx_count_frames(struct ath_softc *sc, struct ath_buf *bf,
 	*nframes = 0;
 
 	isaggr = bf_isaggr(bf);
+	memset(ba, 0, WME_BA_BMP_SIZE >> 3);
+
 	if (isaggr) {
 		seq_st = ts->ts_seqnum;
-		memcpy(ba, &ts->ba_low, WME_BA_BMP_SIZE >> 3);
+		memcpy(ba, &ts->ba, WME_BA_BMP_SIZE >> 3);
 	}
 
 	while (bf) {
@@ -551,7 +553,7 @@ static void ath_tx_complete_aggr(struct ath_softc *sc, struct ath_txq *txq,
 	if (isaggr && txok) {
 		if (ts->ts_flags & ATH9K_TX_BA) {
 			seq_st = ts->ts_seqnum;
-			memcpy(ba, &ts->ba_low, WME_BA_BMP_SIZE >> 3);
+			memcpy(ba, &ts->ba, WME_BA_BMP_SIZE >> 3);
 		} else {
 			/*
 			 * AR5416 can become deaf/mute when BA

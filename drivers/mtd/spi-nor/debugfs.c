@@ -27,6 +27,7 @@ static const char *const snor_f_names[] = {
 	SNOR_F_NAME(SWP_IS_VOLATILE),
 	SNOR_F_NAME(RWW),
 	SNOR_F_NAME(ECC),
+	SNOR_F_NAME(NO_WP),
 };
 #undef SNOR_F_NAME
 
@@ -137,7 +138,7 @@ static int spi_nor_params_show(struct seq_file *s, void *data)
 
 	if (!(nor->flags & SNOR_F_NO_OP_CHIP_ERASE)) {
 		string_get_size(params->size, 1, STRING_UNITS_2, buf, sizeof(buf));
-		seq_printf(s, " %02x (%s)\n", SPINOR_OP_CHIP_ERASE, buf);
+		seq_printf(s, " %02x (%s)\n", nor->params->die_erase_opcode, buf);
 	}
 
 	seq_puts(s, "\nsector map\n");

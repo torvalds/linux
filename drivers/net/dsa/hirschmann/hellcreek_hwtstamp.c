@@ -298,17 +298,10 @@ static void hellcreek_get_rxts(struct hellcreek *hellcreek,
 	struct sk_buff_head received;
 	unsigned long flags;
 
-	/* The latched timestamp belongs to one of the received frames. */
+	/* Construct Rx timestamps for all received PTP packets. */
 	__skb_queue_head_init(&received);
-
-	/* Lock & disable interrupts */
 	spin_lock_irqsave(&rxq->lock, flags);
-
-	/* Add the reception queue "rxq" to the "received" queue an reintialize
-	 * "rxq".  From now on, we deal with "received" not with "rxq"
-	 */
 	skb_queue_splice_tail_init(rxq, &received);
-
 	spin_unlock_irqrestore(&rxq->lock, flags);
 
 	for (; skb; skb = __skb_dequeue(&received)) {

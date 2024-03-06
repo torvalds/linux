@@ -282,7 +282,6 @@ static int virtsnd_pcm_prepare(struct snd_pcm_substream *substream)
 
 		vss->buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
 		vss->hw_ptr = 0;
-		vss->msg_last_enqueued = -1;
 	} else {
 		struct snd_pcm_runtime *runtime = substream->runtime;
 		unsigned int buffer_bytes = snd_pcm_lib_buffer_bytes(substream);
@@ -299,6 +298,11 @@ static int virtsnd_pcm_prepare(struct snd_pcm_substream *substream)
 	vss->xfer_xrun = false;
 	vss->suspended = false;
 	vss->msg_count = 0;
+
+	memset(&vss->pcm_indirect, 0, sizeof(vss->pcm_indirect));
+	vss->pcm_indirect.sw_buffer_size =
+		vss->pcm_indirect.hw_buffer_size =
+		snd_pcm_lib_buffer_bytes(substream);
 
 	msg = virtsnd_pcm_ctl_msg_alloc(vss, VIRTIO_SND_R_PCM_PREPARE,
 					GFP_KERNEL);
@@ -324,7 +328,7 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 	struct virtio_snd_queue *queue;
 	struct virtio_snd_msg *msg;
 	unsigned long flags;
-	int rc;
+	int rc = 0;
 
 	switch (command) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -333,7 +337,8 @@ static int virtsnd_pcm_trigger(struct snd_pcm_substream *substream, int command)
 
 		spin_lock_irqsave(&queue->lock, flags);
 		spin_lock(&vss->lock);
-		rc = virtsnd_pcm_msg_send(vss);
+		if (vss->direction == SNDRV_PCM_STREAM_CAPTURE)
+			rc = virtsnd_pcm_msg_send(vss, 0, vss->buffer_bytes);
 		if (!rc)
 			vss->xfer_enabled = true;
 		spin_unlock(&vss->lock);
@@ -428,37 +433,111 @@ static int virtsnd_pcm_sync_stop(struct snd_pcm_substream *substream)
 }
 
 /**
- * virtsnd_pcm_pointer() - Get the current hardware position for the PCM
- *                         substream.
+ * virtsnd_pcm_pb_pointer() - Get the current hardware position for the PCM
+ *                         substream for playback.
  * @substream: Kernel ALSA substream.
  *
- * Context: Any context. Takes and releases the VirtIO substream spinlock.
+ * Context: Any context.
  * Return: Hardware position in frames inside [0 ... buffer_size) range.
  */
 static snd_pcm_uframes_t
-virtsnd_pcm_pointer(struct snd_pcm_substream *substream)
+virtsnd_pcm_pb_pointer(struct snd_pcm_substream *substream)
 {
 	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
-	snd_pcm_uframes_t hw_ptr = SNDRV_PCM_POS_XRUN;
+
+	return snd_pcm_indirect_playback_pointer(substream,
+		&vss->pcm_indirect,
+		vss->hw_ptr);
+}
+
+/**
+ * virtsnd_pcm_cp_pointer() - Get the current hardware position for the PCM
+ *                         substream for capture.
+ * @substream: Kernel ALSA substream.
+ *
+ * Context: Any context.
+ * Return: Hardware position in frames inside [0 ... buffer_size) range.
+ */
+static snd_pcm_uframes_t
+virtsnd_pcm_cp_pointer(struct snd_pcm_substream *substream)
+{
+	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
+
+	return snd_pcm_indirect_capture_pointer(substream,
+		&vss->pcm_indirect,
+		vss->hw_ptr);
+}
+
+static void virtsnd_pcm_trans_copy(struct snd_pcm_substream *substream,
+				   struct snd_pcm_indirect *rec, size_t bytes)
+{
+	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
+
+	virtsnd_pcm_msg_send(vss, rec->sw_data, bytes);
+}
+
+static int virtsnd_pcm_pb_ack(struct snd_pcm_substream *substream)
+{
+	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
+	struct virtio_snd_queue *queue = virtsnd_pcm_queue(vss);
 	unsigned long flags;
+	int rc;
 
-	spin_lock_irqsave(&vss->lock, flags);
-	if (!vss->xfer_xrun)
-		hw_ptr = bytes_to_frames(substream->runtime, vss->hw_ptr);
-	spin_unlock_irqrestore(&vss->lock, flags);
+	spin_lock_irqsave(&queue->lock, flags);
+	spin_lock(&vss->lock);
 
-	return hw_ptr;
+	rc = snd_pcm_indirect_playback_transfer(substream, &vss->pcm_indirect,
+						virtsnd_pcm_trans_copy);
+
+	spin_unlock(&vss->lock);
+	spin_unlock_irqrestore(&queue->lock, flags);
+
+	return rc;
+}
+
+static int virtsnd_pcm_cp_ack(struct snd_pcm_substream *substream)
+{
+	struct virtio_pcm_substream *vss = snd_pcm_substream_chip(substream);
+	struct virtio_snd_queue *queue = virtsnd_pcm_queue(vss);
+	unsigned long flags;
+	int rc;
+
+	spin_lock_irqsave(&queue->lock, flags);
+	spin_lock(&vss->lock);
+
+	rc = snd_pcm_indirect_capture_transfer(substream, &vss->pcm_indirect,
+					       virtsnd_pcm_trans_copy);
+
+	spin_unlock(&vss->lock);
+	spin_unlock_irqrestore(&queue->lock, flags);
+
+	return rc;
 }
 
 /* PCM substream operators map. */
-const struct snd_pcm_ops virtsnd_pcm_ops = {
-	.open = virtsnd_pcm_open,
-	.close = virtsnd_pcm_close,
-	.ioctl = snd_pcm_lib_ioctl,
-	.hw_params = virtsnd_pcm_hw_params,
-	.hw_free = virtsnd_pcm_hw_free,
-	.prepare = virtsnd_pcm_prepare,
-	.trigger = virtsnd_pcm_trigger,
-	.sync_stop = virtsnd_pcm_sync_stop,
-	.pointer = virtsnd_pcm_pointer,
+const struct snd_pcm_ops virtsnd_pcm_ops[] = {
+	{
+		.open = virtsnd_pcm_open,
+		.close = virtsnd_pcm_close,
+		.ioctl = snd_pcm_lib_ioctl,
+		.hw_params = virtsnd_pcm_hw_params,
+		.hw_free = virtsnd_pcm_hw_free,
+		.prepare = virtsnd_pcm_prepare,
+		.trigger = virtsnd_pcm_trigger,
+		.sync_stop = virtsnd_pcm_sync_stop,
+		.pointer = virtsnd_pcm_pb_pointer,
+		.ack = virtsnd_pcm_pb_ack,
+	},
+	{
+		.open = virtsnd_pcm_open,
+		.close = virtsnd_pcm_close,
+		.ioctl = snd_pcm_lib_ioctl,
+		.hw_params = virtsnd_pcm_hw_params,
+		.hw_free = virtsnd_pcm_hw_free,
+		.prepare = virtsnd_pcm_prepare,
+		.trigger = virtsnd_pcm_trigger,
+		.sync_stop = virtsnd_pcm_sync_stop,
+		.pointer = virtsnd_pcm_cp_pointer,
+		.ack = virtsnd_pcm_cp_ack,
+	},
 };

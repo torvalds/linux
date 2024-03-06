@@ -64,6 +64,9 @@ OPTIONS
           perf-event-open  - Print perf_event_open() arguments and
                              return value
 
+--debug-file::
+	Write debug output to a specified file.
+
 DESCRIPTION
 -----------
 Performance counters for Linux are a new kernel-based subsystem

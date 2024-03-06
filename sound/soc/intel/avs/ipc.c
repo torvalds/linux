@@ -455,7 +455,7 @@ static void avs_dsp_send_tx(struct avs_dev *adev, struct avs_ipc_msg *tx, bool r
 }
 
 static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
-			       struct avs_ipc_msg *reply, int timeout)
+			       struct avs_ipc_msg *reply, int timeout, const char *name)
 {
 	struct avs_ipc *ipc = adev->ipc;
 	int ret;
@@ -482,6 +482,19 @@ static int avs_dsp_do_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request
 	}
 
 	ret = ipc->rx.rsp.status;
+	/*
+	 * If IPC channel is blocked e.g.: due to ongoing recovery,
+	 * -EPERM error code is expected and thus it's not an actual error.
+	 *
+	 * Unsupported IPCs are of no harm either.
+	 */
+	if (ret == -EPERM || ret == AVS_IPC_NOT_SUPPORTED)
+		dev_dbg(adev->dev, "%s (0x%08x 0x%08x) failed: %d\n",
+			name, request->glb.primary, request->glb.ext.val, ret);
+	else if (ret)
+		dev_err(adev->dev, "%s (0x%08x 0x%08x) failed: %d\n",
+			name, request->glb.primary, request->glb.ext.val, ret);
+
 	if (reply) {
 		reply->header = ipc->rx.header;
 		reply->size = ipc->rx.size;
@@ -496,7 +509,7 @@ exit:
 
 static int avs_dsp_send_msg_sequence(struct avs_dev *adev, struct avs_ipc_msg *request,
 				     struct avs_ipc_msg *reply, int timeout, bool wake_d0i0,
-				     bool schedule_d0ix)
+				     bool schedule_d0ix, const char *name)
 {
 	int ret;
 
@@ -507,7 +520,7 @@ static int avs_dsp_send_msg_sequence(struct avs_dev *adev, struct avs_ipc_msg *r
 			return ret;
 	}
 
-	ret = avs_dsp_do_send_msg(adev, request, reply, timeout);
+	ret = avs_dsp_do_send_msg(adev, request, reply, timeout, name);
 	if (ret)
 		return ret;
 
@@ -519,34 +532,37 @@ static int avs_dsp_send_msg_sequence(struct avs_dev *adev, struct avs_ipc_msg *r
 }
 
 int avs_dsp_send_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
-			     struct avs_ipc_msg *reply, int timeout)
+			     struct avs_ipc_msg *reply, int timeout, const char *name)
 {
 	bool wake_d0i0 = avs_dsp_op(adev, d0ix_toggle, request, true);
 	bool schedule_d0ix = avs_dsp_op(adev, d0ix_toggle, request, false);
 
-	return avs_dsp_send_msg_sequence(adev, request, reply, timeout, wake_d0i0, schedule_d0ix);
+	return avs_dsp_send_msg_sequence(adev, request, reply, timeout, wake_d0i0, schedule_d0ix,
+					 name);
 }
 
 int avs_dsp_send_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
-		     struct avs_ipc_msg *reply)
+		     struct avs_ipc_msg *reply, const char *name)
 {
-	return avs_dsp_send_msg_timeout(adev, request, reply, adev->ipc->default_timeout_ms);
+	return avs_dsp_send_msg_timeout(adev, request, reply, adev->ipc->default_timeout_ms, name);
 }
 
 int avs_dsp_send_pm_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
-				struct avs_ipc_msg *reply, int timeout, bool wake_d0i0)
+				struct avs_ipc_msg *reply, int timeout, bool wake_d0i0,
+				const char *name)
 {
-	return avs_dsp_send_msg_sequence(adev, request, reply, timeout, wake_d0i0, false);
+	return avs_dsp_send_msg_sequence(adev, request, reply, timeout, wake_d0i0, false, name);
 }
 
 int avs_dsp_send_pm_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
-			struct avs_ipc_msg *reply, bool wake_d0i0)
+			struct avs_ipc_msg *reply, bool wake_d0i0, const char *name)
 {
 	return avs_dsp_send_pm_msg_timeout(adev, request, reply, adev->ipc->default_timeout_ms,
-					   wake_d0i0);
+					   wake_d0i0, name);
 }
 
-static int avs_dsp_do_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request, int timeout)
+static int avs_dsp_do_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request, int timeout,
+				   const char *name)
 {
 	struct avs_ipc *ipc = adev->ipc;
 	int ret;
@@ -568,20 +584,24 @@ static int avs_dsp_do_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *req
 		ret = wait_for_completion_timeout(&ipc->done_completion, msecs_to_jiffies(timeout));
 		ret = ret ? 0 : -ETIMEDOUT;
 	}
+	if (ret)
+		dev_err(adev->dev, "%s (0x%08x 0x%08x) failed: %d\n",
+			name, request->glb.primary, request->glb.ext.val, ret);
 
 	mutex_unlock(&ipc->msg_mutex);
 
 	return ret;
 }
 
-int avs_dsp_send_rom_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request, int timeout)
+int avs_dsp_send_rom_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request, int timeout,
+				 const char *name)
 {
-	return avs_dsp_do_send_rom_msg(adev, request, timeout);
+	return avs_dsp_do_send_rom_msg(adev, request, timeout, name);
 }
 
-int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request)
+int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request, const char *name)
 {
-	return avs_dsp_send_rom_msg_timeout(adev, request, adev->ipc->default_timeout_ms);
+	return avs_dsp_send_rom_msg_timeout(adev, request, adev->ipc->default_timeout_ms, name);
 }
 
 void avs_dsp_interrupt_control(struct avs_dev *adev, bool enable)

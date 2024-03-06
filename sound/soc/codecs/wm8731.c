@@ -642,7 +642,7 @@ const struct regmap_config wm8731_regmap = {
 	.max_register = WM8731_RESET,
 	.volatile_reg = wm8731_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8731_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8731_reg_defaults),
 };

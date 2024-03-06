@@ -357,7 +357,8 @@ enabling SOF_TIMESTAMPING_OPT_ID and comparing the byte offset at
 send time with the value returned for each timestamp. It can prevent
 the situation by always flushing the TCP stack in between requests,
 for instance by enabling TCP_NODELAY and disabling TCP_CORK and
-autocork.
+autocork. After linux-4.7, a better way to prevent coalescing is
+to use MSG_EOR flag at sendmsg() time.
 
 These precautions ensure that the timestamp is generated only when all
 bytes have passed a timestamp point, assuming that the network stack

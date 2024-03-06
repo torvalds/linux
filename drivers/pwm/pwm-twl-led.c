@@ -172,10 +172,10 @@ static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * We cannot skip calling ->config even if state->period ==
 	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
 	 * because we might have exited early in the last call to
-	 * pwm_apply_state because of !state->enabled and so the two values in
+	 * pwm_apply_might_sleep because of !state->enabled and so the two values in
 	 * pwm->state might not be configured in hardware.
 	 */
-	ret = twl4030_pwmled_config(pwm->chip, pwm,
+	ret = twl4030_pwmled_config(chip, pwm,
 				    state->duty_cycle, state->period);
 	if (ret)
 		return ret;
@@ -189,7 +189,6 @@ static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops twl4030_pwmled_ops = {
 	.apply = twl4030_pwmled_apply,
-	.owner = THIS_MODULE,
 };
 
 static int twl6030_pwmled_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -276,7 +275,7 @@ static int twl6030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = twl6030_pwmled_config(pwm->chip, pwm,
+	err = twl6030_pwmled_config(chip, pwm,
 				    state->duty_cycle, state->period);
 	if (err)
 		return err;
@@ -342,7 +341,6 @@ static const struct pwm_ops twl6030_pwmled_ops = {
 	.apply = twl6030_pwmled_apply,
 	.request = twl6030_pwmled_request,
 	.free = twl6030_pwmled_free,
-	.owner = THIS_MODULE,
 };
 
 static int twl_pwmled_probe(struct platform_device *pdev)

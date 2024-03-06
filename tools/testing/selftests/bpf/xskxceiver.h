@@ -5,7 +5,10 @@
 #ifndef XSKXCEIVER_H_
 #define XSKXCEIVER_H_
 
+#include <limits.h>
+
 #include "xsk_xdp_progs.skel.h"
+#include "xsk_xdp_common.h"
 
 #ifndef SOL_XDP
 #define SOL_XDP 283
@@ -30,22 +33,15 @@
 #define TEST_PASS 0
 #define TEST_FAILURE -1
 #define TEST_CONTINUE 1
+#define TEST_SKIP 2
 #define MAX_INTERFACES 2
 #define MAX_INTERFACE_NAME_CHARS 16
-#define MAX_SOCKETS 2
-#define MAX_TEST_NAME_SIZE 32
+#define MAX_TEST_NAME_SIZE 48
 #define MAX_TEARDOWN_ITER 10
-#define PKT_HDR_SIZE (sizeof(struct ethhdr) + sizeof(struct iphdr) + \
-			sizeof(struct udphdr))
-#define MIN_ETH_PKT_SIZE 64
-#define ETH_FCS_SIZE 4
-#define MIN_PKT_SIZE (MIN_ETH_PKT_SIZE - ETH_FCS_SIZE)
-#define PKT_SIZE (MIN_PKT_SIZE)
-#define IP_PKT_SIZE (PKT_SIZE - sizeof(struct ethhdr))
-#define IP_PKT_VER 0x4
-#define IP_PKT_TOS 0x9
-#define UDP_PKT_SIZE (IP_PKT_SIZE - sizeof(struct iphdr))
-#define UDP_PKT_DATA_SIZE (UDP_PKT_SIZE - sizeof(struct udphdr))
+#define PKT_HDR_SIZE (sizeof(struct ethhdr) + 2) /* Just to align the data in the packet */
+#define MIN_PKT_SIZE 64
+#define MAX_ETH_PKT_SIZE 1518
+#define MAX_ETH_JUMBO_SIZE 9000
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
 #define BATCH_SIZE 64
@@ -55,8 +51,15 @@
 #define DEFAULT_UMEM_BUFFERS (DEFAULT_PKT_CNT / 4)
 #define RX_FULL_RXQSIZE 32
 #define UMEM_HEADROOM_TEST_SIZE 128
-#define XSK_UMEM__INVALID_FRAME_SIZE (XSK_UMEM__DEFAULT_FRAME_SIZE + 1)
+#define XSK_UMEM__INVALID_FRAME_SIZE (MAX_ETH_JUMBO_SIZE + 1)
+#define XSK_UMEM__LARGE_FRAME_SIZE (3 * 1024)
+#define XSK_UMEM__MAX_FRAME_SIZE (4 * 1024)
+#define XSK_DESC__INVALID_OPTION (0xffff)
+#define XSK_DESC__MAX_SKB_FRAGS 18
 #define HUGEPAGE_SIZE (2 * 1024 * 1024)
+#define PKT_DUMP_NB_TO_PRINT 16
+#define RUN_ALL_TESTS UINT_MAX
+#define NUM_MAC_ADDRESSES 4
 
 #define print_verbose(x...) do { if (opt_verbose) ksft_print_msg(x); } while (0)
 
@@ -64,42 +67,14 @@ enum test_mode {
 	TEST_MODE_SKB,
 	TEST_MODE_DRV,
 	TEST_MODE_ZC,
-	TEST_MODE_MAX
+	TEST_MODE_ALL
 };
-
-enum test_type {
-	TEST_TYPE_RUN_TO_COMPLETION,
-	TEST_TYPE_RUN_TO_COMPLETION_2K_FRAME,
-	TEST_TYPE_RUN_TO_COMPLETION_SINGLE_PKT,
-	TEST_TYPE_RX_POLL,
-	TEST_TYPE_TX_POLL,
-	TEST_TYPE_POLL_RXQ_TMOUT,
-	TEST_TYPE_POLL_TXQ_TMOUT,
-	TEST_TYPE_UNALIGNED,
-	TEST_TYPE_ALIGNED_INV_DESC,
-	TEST_TYPE_ALIGNED_INV_DESC_2K_FRAME,
-	TEST_TYPE_UNALIGNED_INV_DESC,
-	TEST_TYPE_UNALIGNED_INV_DESC_4K1_FRAME,
-	TEST_TYPE_HEADROOM,
-	TEST_TYPE_TEARDOWN,
-	TEST_TYPE_BIDI,
-	TEST_TYPE_STATS_RX_DROPPED,
-	TEST_TYPE_STATS_TX_INVALID_DESCS,
-	TEST_TYPE_STATS_RX_FULL,
-	TEST_TYPE_STATS_FILL_EMPTY,
-	TEST_TYPE_BPF_RES,
-	TEST_TYPE_XDP_DROP_HALF,
-	TEST_TYPE_XDP_METADATA_COUNT,
-	TEST_TYPE_MAX
-};
-
-static bool opt_pkt_dump;
-static bool opt_verbose;
 
 struct xsk_umem_info {
 	struct xsk_ring_prod fq;
 	struct xsk_ring_cons cq;
 	struct xsk_umem *umem;
+	u64 next_buffer;
 	u32 num_frames;
 	u32 frame_headroom;
 	void *buffer;
@@ -113,27 +88,36 @@ struct xsk_socket_info {
 	struct xsk_ring_prod tx;
 	struct xsk_umem_info *umem;
 	struct xsk_socket *xsk;
+	struct pkt_stream *pkt_stream;
 	u32 outstanding_tx;
 	u32 rxqsize;
+	u8 dst_mac[ETH_ALEN];
+	u8 src_mac[ETH_ALEN];
 };
 
 struct pkt {
-	u64 addr;
+	int offset;
 	u32 len;
-	u32 payload;
+	u32 pkt_nb;
 	bool valid;
+	u16 options;
 };
 
 struct pkt_stream {
 	u32 nb_pkts;
-	u32 rx_pkt_nb;
+	u32 current_pkt_nb;
 	struct pkt *pkts;
-	bool use_addr_for_fill;
+	u32 max_pkt_len;
+	u32 nb_rx_pkts;
+	u32 nb_valid_entries;
+	bool verbatim;
 };
 
 struct ifobject;
+struct test_spec;
 typedef int (*validation_func_t)(struct ifobject *ifobj);
 typedef void *(*thread_func_t)(void *arg);
+typedef int (*test_func_t)(struct test_spec *test);
 
 struct ifobject {
 	char ifname[MAX_INTERFACE_NAME_CHARS];
@@ -142,17 +126,14 @@ struct ifobject {
 	struct xsk_umem_info *umem;
 	thread_func_t func_ptr;
 	validation_func_t validation_func;
-	struct pkt_stream *pkt_stream;
 	struct xsk_xdp_progs *xdp_progs;
 	struct bpf_map *xskmap;
 	struct bpf_program *xdp_prog;
 	enum test_mode mode;
 	int ifindex;
-	u32 dst_ip;
-	u32 src_ip;
+	int mtu;
 	u32 bind_flags;
-	u16 src_port;
-	u16 dst_port;
+	u32 xdp_zc_max_segs;
 	bool tx_on;
 	bool rx_on;
 	bool use_poll;
@@ -161,8 +142,9 @@ struct ifobject {
 	bool release_rx;
 	bool shared_umem;
 	bool use_metadata;
-	u8 dst_mac[ETH_ALEN];
-	u8 src_mac[ETH_ALEN];
+	bool unaligned_supp;
+	bool multi_buff_supp;
+	bool multi_buff_zc_supp;
 };
 
 struct test_spec {
@@ -174,6 +156,8 @@ struct test_spec {
 	struct bpf_program *xdp_prog_tx;
 	struct bpf_map *xskmap_rx;
 	struct bpf_map *xskmap_tx;
+	test_func_t test_func;
+	int mtu;
 	u16 total_steps;
 	u16 current_step;
 	u16 nb_sockets;
@@ -184,8 +168,9 @@ struct test_spec {
 
 pthread_barrier_t barr;
 pthread_mutex_t pacing_mutex = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t pacing_cond = PTHREAD_COND_INITIALIZER;
 
 int pkts_in_flight;
+
+static const u8 g_mac[ETH_ALEN] = {0x55, 0x44, 0x33, 0x22, 0x11, 0x00};
 
 #endif				/* XSKXCEIVER_H_ */

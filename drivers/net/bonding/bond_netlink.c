@@ -85,7 +85,7 @@ nla_put_failure:
 }
 
 /* Limit the max delay range to 300s */
-static struct netlink_range_validation delay_range = {
+static const struct netlink_range_validation delay_range = {
 	.max = 300000,
 };
 

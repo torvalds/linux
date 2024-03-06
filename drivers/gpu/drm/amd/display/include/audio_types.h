@@ -64,7 +64,7 @@ enum audio_dto_source {
 /* PLL information required for AZALIA DTO calculation */
 
 struct audio_pll_info {
-	uint32_t dp_dto_source_clock_in_khz;
+	uint32_t audio_dto_source_clock_in_khz;
 	uint32_t feed_back_divider;
 	enum audio_dto_source dto_source;
 	bool ss_enabled;

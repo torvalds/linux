@@ -6,6 +6,10 @@
 
 #include <variant/core.h>
 
+#ifndef XCHAL_HAVE_DIV32
+#define XCHAL_HAVE_DIV32 0
+#endif
+
 #ifndef XCHAL_HAVE_EXCLUSIVE
 #define XCHAL_HAVE_EXCLUSIVE 0
 #endif
@@ -26,6 +30,14 @@
 #define XCHAL_SPANNING_WAY 0
 #endif
 
+#ifndef XCHAL_HAVE_TRAX
+#define XCHAL_HAVE_TRAX 0
+#endif
+
+#ifndef XCHAL_NUM_PERF_COUNTERS
+#define XCHAL_NUM_PERF_COUNTERS 0
+#endif
+
 #if XCHAL_HAVE_WINDOWED
 #if defined(CONFIG_USER_ABI_DEFAULT) || defined(CONFIG_USER_ABI_CALL0_PROBE)
 /* Whether windowed ABI is supported in userspace. */
@@ -42,6 +54,15 @@
 #define XTENSA_STACK_ALIGNMENT	XCHAL_DATA_WIDTH
 #else
 #define XTENSA_STACK_ALIGNMENT	16
+#endif
+
+#ifndef XCHAL_HW_MIN_VERSION
+#if defined(XCHAL_HW_MIN_VERSION_MAJOR) && defined(XCHAL_HW_MIN_VERSION_MINOR)
+#define XCHAL_HW_MIN_VERSION (XCHAL_HW_MIN_VERSION_MAJOR * 100 + \
+			      XCHAL_HW_MIN_VERSION_MINOR)
+#else
+#define XCHAL_HW_MIN_VERSION 0
+#endif
 #endif
 
 #endif

@@ -204,8 +204,8 @@ static void ubsan_prologue(struct source_location *loc, const char *reason)
 {
 	current->in_ubsan++;
 
-	pr_err("========================================"
-		"========================================\n");
+	pr_warn(CUT_HERE);
+
 	pr_err("UBSAN: %s in %s:%d:%d\n", reason, loc->file_name,
 		loc->line & LINE_MASK, loc->column & COLUMN_MASK);
 
@@ -215,8 +215,7 @@ static void ubsan_prologue(struct source_location *loc, const char *reason)
 static void ubsan_epilogue(void)
 {
 	dump_stack();
-	pr_err("========================================"
-		"========================================\n");
+	pr_warn("---[ end trace ]---\n");
 
 	current->in_ubsan--;
 
@@ -423,9 +422,6 @@ out:
 }
 EXPORT_SYMBOL(__ubsan_handle_load_invalid_value);
 
-void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
-					 unsigned long align,
-					 unsigned long offset);
 void __ubsan_handle_alignment_assumption(void *_data, unsigned long ptr,
 					 unsigned long align,
 					 unsigned long offset)

@@ -62,7 +62,7 @@ static ssize_t period_store(struct device *child,
 	mutex_lock(&export->lock);
 	pwm_get_state(pwm, &state);
 	state.period = val;
-	ret = pwm_apply_state(pwm, &state);
+	ret = pwm_apply_might_sleep(pwm, &state);
 	mutex_unlock(&export->lock);
 
 	return ret ? : size;
@@ -97,7 +97,7 @@ static ssize_t duty_cycle_store(struct device *child,
 	mutex_lock(&export->lock);
 	pwm_get_state(pwm, &state);
 	state.duty_cycle = val;
-	ret = pwm_apply_state(pwm, &state);
+	ret = pwm_apply_might_sleep(pwm, &state);
 	mutex_unlock(&export->lock);
 
 	return ret ? : size;
@@ -144,7 +144,7 @@ static ssize_t enable_store(struct device *child,
 		goto unlock;
 	}
 
-	ret = pwm_apply_state(pwm, &state);
+	ret = pwm_apply_might_sleep(pwm, &state);
 
 unlock:
 	mutex_unlock(&export->lock);
@@ -194,7 +194,7 @@ static ssize_t polarity_store(struct device *child,
 	mutex_lock(&export->lock);
 	pwm_get_state(pwm, &state);
 	state.polarity = polarity;
-	ret = pwm_apply_state(pwm, &state);
+	ret = pwm_apply_might_sleep(pwm, &state);
 	mutex_unlock(&export->lock);
 
 	return ret ? : size;
@@ -401,7 +401,7 @@ static int pwm_class_apply_state(struct pwm_export *export,
 				 struct pwm_device *pwm,
 				 struct pwm_state *state)
 {
-	int ret = pwm_apply_state(pwm, state);
+	int ret = pwm_apply_might_sleep(pwm, state);
 
 	/* release lock taken in pwm_class_get_state */
 	mutex_unlock(&export->lock);
@@ -423,6 +423,13 @@ static int pwm_class_resume_npwm(struct device *parent, unsigned int npwm)
 		export = pwm_class_get_state(parent, pwm, &state);
 		if (!export)
 			continue;
+
+		/* If pwmchip was not enabled before suspend, do nothing. */
+		if (!export->suspend.enabled) {
+			/* release lock taken in pwm_class_get_state */
+			mutex_unlock(&export->lock);
+			continue;
+		}
 
 		state.enabled = export->suspend.enabled;
 		ret = pwm_class_apply_state(export, pwm, &state);
@@ -448,7 +455,17 @@ static int pwm_class_suspend(struct device *parent)
 		if (!export)
 			continue;
 
+		/*
+		 * If pwmchip was not enabled before suspend, save
+		 * state for resume time and do nothing else.
+		 */
 		export->suspend = state;
+		if (!state.enabled) {
+			/* release lock taken in pwm_class_get_state */
+			mutex_unlock(&export->lock);
+			continue;
+		}
+
 		state.enabled = false;
 		ret = pwm_class_apply_state(export, pwm, &state);
 		if (ret < 0) {
@@ -493,7 +510,7 @@ void pwmchip_sysfs_export(struct pwm_chip *chip)
 	 * the kernel it's just not exported.
 	 */
 	parent = device_create(&pwm_class, chip->dev, MKDEV(0, 0), chip,
-			       "pwmchip%d", chip->base);
+			       "pwmchip%d", chip->id);
 	if (IS_ERR(parent)) {
 		dev_warn(chip->dev,
 			 "device_create failed for pwm_chip sysfs export\n");

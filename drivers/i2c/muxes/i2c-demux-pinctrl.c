@@ -32,7 +32,7 @@ struct i2c_demux_pinctrl_priv {
 	const char *bus_name;
 	struct i2c_adapter cur_adap;
 	struct i2c_algorithm algo;
-	struct i2c_demux_pinctrl_chan chan[];
+	struct i2c_demux_pinctrl_chan chan[] __counted_by(num_chan);
 };
 
 static int i2c_demux_master_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
@@ -61,7 +61,7 @@ static int i2c_demux_activate_master(struct i2c_demux_pinctrl_priv *priv, u32 ne
 	if (ret)
 		goto err;
 
-	adap = of_find_i2c_adapter_by_node(priv->chan[new_chan].parent_np);
+	adap = of_get_i2c_adapter_by_node(priv->chan[new_chan].parent_np);
 	if (!adap) {
 		ret = -ENODEV;
 		goto err_with_revert;
@@ -167,9 +167,9 @@ static ssize_t available_masters_show(struct device *dev,
 	int count = 0, i;
 
 	for (i = 0; i < priv->num_chan && count < PAGE_SIZE; i++)
-		count += scnprintf(buf + count, PAGE_SIZE - count, "%d:%pOF%c",
-				   i, priv->chan[i].parent_np,
-				   i == priv->num_chan - 1 ? '\n' : ' ');
+		count += sysfs_emit_at(buf, count, "%d:%pOF%c",
+				       i, priv->chan[i].parent_np,
+				       i == priv->num_chan - 1 ? '\n' : ' ');
 
 	return count;
 }
@@ -226,6 +226,8 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 	if (!priv || !props)
 		return -ENOMEM;
 
+	priv->num_chan = num_chan;
+
 	err = of_property_read_string(np, "i2c-bus-name", &priv->bus_name);
 	if (err)
 		return err;
@@ -243,15 +245,17 @@ static int i2c_demux_pinctrl_probe(struct platform_device *pdev)
 
 		props[i].name = devm_kstrdup(&pdev->dev, "status", GFP_KERNEL);
 		props[i].value = devm_kstrdup(&pdev->dev, "ok", GFP_KERNEL);
+		if (!props[i].name || !props[i].value) {
+			err = -ENOMEM;
+			goto err_rollback;
+		}
 		props[i].length = 3;
 
 		of_changeset_init(&priv->chan[i].chgset);
 		of_changeset_update_property(&priv->chan[i].chgset, adap_np, &props[i]);
 	}
 
-	priv->num_chan = num_chan;
 	priv->dev = &pdev->dev;
-
 	platform_set_drvdata(pdev, priv);
 
 	pm_runtime_no_callbacks(&pdev->dev);
@@ -282,7 +286,7 @@ err_rollback:
 	return err;
 }
 
-static int i2c_demux_pinctrl_remove(struct platform_device *pdev)
+static void i2c_demux_pinctrl_remove(struct platform_device *pdev)
 {
 	struct i2c_demux_pinctrl_priv *priv = platform_get_drvdata(pdev);
 	int i;
@@ -296,8 +300,6 @@ static int i2c_demux_pinctrl_remove(struct platform_device *pdev)
 		of_node_put(priv->chan[i].parent_np);
 		of_changeset_destroy(&priv->chan[i].chgset);
 	}
-
-	return 0;
 }
 
 static const struct of_device_id i2c_demux_pinctrl_of_match[] = {
@@ -312,7 +314,7 @@ static struct platform_driver i2c_demux_pinctrl_driver = {
 		.of_match_table = i2c_demux_pinctrl_of_match,
 	},
 	.probe	= i2c_demux_pinctrl_probe,
-	.remove	= i2c_demux_pinctrl_remove,
+	.remove_new = i2c_demux_pinctrl_remove,
 };
 module_platform_driver(i2c_demux_pinctrl_driver);
 

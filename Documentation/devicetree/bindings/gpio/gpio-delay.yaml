@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gpio/gpio-delay.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO delay controller
+
+maintainers:
+  - Alexander Stein <linux@ew.tq-group.com>
+
+description: |
+  This binding describes an electrical setup where setting an GPIO output
+  is delayed by some external setup, e.g. RC circuit.
+
+  +----------+                    +-----------+
+  |          |             VCC_B  |           |
+  |          |              |     |           |
+  |          | VCC_A        _     |           |
+  |  GPIO    |             | | R  |  Consumer |
+  |controller|        ___  |_|    |           |
+  |          |       |   |  |     |           |
+  |      [IOx|-------|   |--+-----|-----+     |
+  |          |       |___|  |     |   input   |
+  |          |              |     |           |
+  +----------+             --- C  +-----------+
+                           ---
+                            |
+                            -
+                           GND
+
+  If the input on the consumer is controlled by an open-drain signal
+  attached to an RC circuit the ramp-up delay is not under control
+  of the GPIO controller.
+
+properties:
+  compatible:
+    const: gpio-delay
+
+  "#gpio-cells":
+    description: |
+      Specifies the pin, ramp-up and ramp-down delays. The
+      delays are specified in microseconds.
+    const: 3
+
+  gpios:
+    description: Array of GPIOs which output signal change is delayed
+    minItems: 1
+    maxItems: 32
+
+  gpio-controller: true
+
+  gpio-line-names:
+    minItems: 1
+    maxItems: 32
+
+required:
+  - compatible
+  - "#gpio-cells"
+  - gpio-controller
+  - gpios
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    enable_delay: enable-delay {
+        compatible = "gpio-delay";
+        #gpio-cells = <3>;
+        gpio-controller;
+        gpios = <&gpio0 3 GPIO_ACTIVE_LOW>,
+                <&gpio3 1 GPIO_ACTIVE_HIGH>;
+    };
+
+    consumer {
+        enable-gpios = <&enable_delay 0 130000 30000>;
+    };

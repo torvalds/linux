@@ -258,6 +258,22 @@ Compressed Formats
         RV9 players - the format and decoder did not change, only
         the encoder did. As a result, it uses the same FourCC.
 
+    * .. _V4L2-PIX-FMT-AV1-FRAME:
+
+      - ``V4L2_PIX_FMT_AV1_FRAME``
+      - 'AV1F'
+      - AV1 parsed frame, including the frame header, as extracted from the container.
+        This format is adapted for stateless video decoders that implement a AV1
+        pipeline with the :ref:`stateless_decoder`. Metadata associated with the
+        frame to decode is required to be passed through the
+        ``V4L2_CID_STATELESS_AV1_SEQUENCE``, ``V4L2_CID_STATELESS_AV1_FRAME``,
+        and ``V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY`` controls.
+        See the :ref:`associated Codec Control IDs <v4l2-codec-stateless-av1>`.
+        Exactly one output and one capture buffer must be provided for use with
+        this pixel format. The output buffer must contain the appropriate number
+        of macroblocks to decode a full corresponding frame to the matching
+        capture buffer.
+
 .. raw:: latex
 
     \normalsize

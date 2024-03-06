@@ -106,7 +106,7 @@ examples:
     #include <dt-bindings/clock/qcom,videocc-sm8250.h>
     #include <dt-bindings/interconnect/qcom,sm8250.h>
     #include <dt-bindings/clock/qcom,gcc-sm8250.h>
-    #include <dt-bindings/power/qcom-rpmpd.h>
+    #include <dt-bindings/power/qcom,rpmhpd.h>
 
     venus: video-codec@aa00000 {
         compatible = "qcom,sm8250-venus";
@@ -114,7 +114,7 @@ examples:
         interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
         power-domains = <&videocc MVS0C_GDSC>,
                         <&videocc MVS0_GDSC>,
-                        <&rpmhpd SM8250_MX>;
+                        <&rpmhpd RPMHPD_MX>;
         power-domain-names = "venus", "vcodec0", "mx";
 
         clocks = <&gcc GCC_VIDEO_AXI0_CLK>,

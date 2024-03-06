@@ -22,10 +22,10 @@
 #define EUD_REG_VBUS_INT_CLR	0x0080
 #define EUD_REG_CSR_EUD_EN	0x1014
 #define EUD_REG_SW_ATTACH_DET	0x1018
-#define EUD_REG_EUD_EN2        0x0000
+#define EUD_REG_EUD_EN2		0x0000
 
 #define EUD_ENABLE		BIT(0)
-#define EUD_INT_PET_EUD	BIT(0)
+#define EUD_INT_PET_EUD		BIT(0)
 #define EUD_INT_VBUS		BIT(2)
 #define EUD_INT_SAFE_MODE	BIT(4)
 #define EUD_INT_ALL		(EUD_INT_VBUS | EUD_INT_SAFE_MODE)
@@ -205,6 +205,9 @@ static int eud_probe(struct platform_device *pdev)
 		return PTR_ERR(chip->mode_mgr);
 
 	chip->irq = platform_get_irq(pdev, 0);
+	if (chip->irq < 0)
+		return chip->irq;
+
 	ret = devm_request_threaded_irq(&pdev->dev, chip->irq, handle_eud_irq,
 			handle_eud_irq_thread, IRQF_ONESHOT, NULL, chip);
 	if (ret)
@@ -217,7 +220,7 @@ static int eud_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int eud_remove(struct platform_device *pdev)
+static void eud_remove(struct platform_device *pdev)
 {
 	struct eud_chip *chip = platform_get_drvdata(pdev);
 
@@ -226,8 +229,6 @@ static int eud_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, false);
 	disable_irq_wake(chip->irq);
-
-	return 0;
 }
 
 static const struct of_device_id eud_dt_match[] = {
@@ -238,7 +239,7 @@ MODULE_DEVICE_TABLE(of, eud_dt_match);
 
 static struct platform_driver eud_driver = {
 	.probe	= eud_probe,
-	.remove	= eud_remove,
+	.remove_new = eud_remove,
 	.driver	= {
 		.name = "qcom_eud",
 		.dev_groups = eud_groups,

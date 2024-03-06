@@ -890,7 +890,7 @@ static void bnx2x_set_one_mac_e2(struct bnx2x *bp,
 		(struct eth_classify_rules_ramrod_data *)(raw->rdata);
 	int rule_cnt = rule_idx + 1, cmd = elem->cmd_data.vlan_mac.cmd;
 	union eth_classify_rule_cmd *rule_entry = &data->rules[rule_idx];
-	bool add = (cmd == BNX2X_VLAN_MAC_ADD) ? true : false;
+	bool add = cmd == BNX2X_VLAN_MAC_ADD;
 	unsigned long *vlan_mac_flags = &elem->cmd_data.vlan_mac.vlan_mac_flags;
 	u8 *mac = elem->cmd_data.vlan_mac.u.mac.mac;
 
@@ -1075,7 +1075,7 @@ static void bnx2x_set_one_vlan_e2(struct bnx2x *bp,
 	int rule_cnt = rule_idx + 1;
 	union eth_classify_rule_cmd *rule_entry = &data->rules[rule_idx];
 	enum bnx2x_vlan_mac_cmd cmd = elem->cmd_data.vlan_mac.cmd;
-	bool add = (cmd == BNX2X_VLAN_MAC_ADD) ? true : false;
+	bool add = cmd == BNX2X_VLAN_MAC_ADD;
 	u16 vlan = elem->cmd_data.vlan_mac.u.vlan.vlan;
 
 	/* Reset the ramrod data buffer for the first rule */
@@ -1125,7 +1125,7 @@ static void bnx2x_set_one_vlan_mac_e2(struct bnx2x *bp,
 	int rule_cnt = rule_idx + 1;
 	union eth_classify_rule_cmd *rule_entry = &data->rules[rule_idx];
 	enum bnx2x_vlan_mac_cmd cmd = elem->cmd_data.vlan_mac.cmd;
-	bool add = (cmd == BNX2X_VLAN_MAC_ADD) ? true : false;
+	bool add = cmd == BNX2X_VLAN_MAC_ADD;
 	u16 vlan = elem->cmd_data.vlan_mac.u.vlan_mac.vlan;
 	u8 *mac = elem->cmd_data.vlan_mac.u.vlan_mac.mac;
 	u16 inner_mac;

@@ -33,7 +33,7 @@ AMD_DISPLAY_FILES += $(AMD_DAL_LINK)
 ###############################################################################
 # accessories
 ###############################################################################
-LINK_ACCESSORIES = link_dp_trace.o link_dp_cts.o link_fpga.o
+LINK_ACCESSORIES = link_dp_trace.o link_dp_cts.o
 
 AMD_DAL_LINK_ACCESSORIES = $(addprefix $(AMDDALPATH)/dc/link/accessories/, \
 $(LINK_ACCESSORIES))
@@ -42,7 +42,8 @@ AMD_DISPLAY_FILES += $(AMD_DAL_LINK_ACCESSORIES)
 ###############################################################################
 # hwss
 ###############################################################################
-LINK_HWSS = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o
+LINK_HWSS = link_hwss_dio.o link_hwss_dpia.o link_hwss_hpo_dp.o \
+link_hwss_dio_fixed_vs_pe_retimer.o link_hwss_hpo_fixed_vs_pe_retimer_dp.o
 
 AMD_DAL_LINK_HWSS = $(addprefix $(AMDDALPATH)/dc/link/hwss/, \
 $(LINK_HWSS))

@@ -283,10 +283,10 @@ static int max16601_get_id(struct i2c_client *client)
 		return -ENODEV;
 
 	/*
-	 * PMBUS_IC_DEVICE_ID is expected to return MAX1660[012]y.xx" or
-	 * "MAX16500y.xx".cdxxcccccccccc
+	 * PMBUS_IC_DEVICE_ID is expected to return MAX1660[012]y.xx",
+	 * "MAX16500y.xx".cdxxcccccccccc, or "MAX16508y.xx".
 	 */
-	if (!strncmp(buf, "MAX16500", 8)) {
+	if (!strncmp(buf, "MAX16500", 8) || !strncmp(buf, "MAX16508", 8)) {
 		id = max16508;
 	} else if (!strncmp(buf, "MAX16600", 8)) {
 		id = max16600;
@@ -357,7 +357,7 @@ static struct i2c_driver max16601_driver = {
 	.driver = {
 		   .name = "max16601",
 		   },
-	.probe_new = max16601_probe,
+	.probe = max16601_probe,
 	.id_table = max16601_id,
 };
 

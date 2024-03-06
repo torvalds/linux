@@ -323,7 +323,11 @@ static struct pc87360_data *pc87360_update_device(struct device *dev)
 		}
 
 		/* Voltages */
-		for (i = 0; i < data->innr; i++) {
+		/*
+		 * The min() below does not have any practical meaning and is
+		 * only needed to silence a warning observed with gcc 12+.
+		 */
+		for (i = 0; i < min(data->innr, ARRAY_SIZE(data->in)); i++) {
 			data->in_status[i] = pc87360_read_value(data, LD_IN, i,
 					     PC87365_REG_IN_STATUS);
 			/* Clear bits */
@@ -1586,14 +1590,12 @@ error:
 	return err;
 }
 
-static int pc87360_remove(struct platform_device *pdev)
+static void pc87360_remove(struct platform_device *pdev)
 {
 	struct pc87360_data *data = platform_get_drvdata(pdev);
 
 	hwmon_device_unregister(data->hwmon_dev);
 	pc87360_remove_files(&pdev->dev);
-
-	return 0;
 }
 
 /*
@@ -1604,7 +1606,7 @@ static struct platform_driver pc87360_driver = {
 		.name	= DRIVER_NAME,
 	},
 	.probe		= pc87360_probe,
-	.remove		= pc87360_remove,
+	.remove_new	= pc87360_remove,
 };
 
 /*

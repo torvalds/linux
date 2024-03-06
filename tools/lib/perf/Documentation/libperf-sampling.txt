@@ -97,7 +97,7 @@ In this case we will monitor all the available CPUs:
 
 [source,c]
 --
- 42         cpus = perf_cpu_map__new(NULL);
+ 42         cpus = perf_cpu_map__new_online_cpus();
  43         if (!cpus) {
  44                 fprintf(stderr, "failed to create cpus\n");
  45                 return -1;

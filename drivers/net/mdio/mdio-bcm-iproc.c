@@ -168,14 +168,12 @@ err_iproc_mdio:
 	return rc;
 }
 
-static int iproc_mdio_remove(struct platform_device *pdev)
+static void iproc_mdio_remove(struct platform_device *pdev)
 {
 	struct iproc_mdio_priv *priv = platform_get_drvdata(pdev);
 
 	mdiobus_unregister(priv->mii_bus);
 	mdiobus_free(priv->mii_bus);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -210,7 +208,7 @@ static struct platform_driver iproc_mdio_driver = {
 #endif
 	},
 	.probe = iproc_mdio_probe,
-	.remove = iproc_mdio_remove,
+	.remove_new = iproc_mdio_remove,
 };
 
 module_platform_driver(iproc_mdio_driver);

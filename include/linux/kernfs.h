@@ -316,6 +316,7 @@ struct kernfs_ops {
 			 struct poll_table_struct *pt);
 
 	int (*mmap)(struct kernfs_open_file *of, struct vm_area_struct *vma);
+	loff_t (*llseek)(struct kernfs_open_file *of, loff_t offset, int whence);
 };
 
 /*
@@ -548,6 +549,10 @@ static inline int kernfs_rename_ns(struct kernfs_node *kn,
 
 static inline int kernfs_setattr(struct kernfs_node *kn,
 				 const struct iattr *iattr)
+{ return -ENOSYS; }
+
+static inline __poll_t kernfs_generic_poll(struct kernfs_open_file *of,
+					   struct poll_table_struct *pt)
 { return -ENOSYS; }
 
 static inline void kernfs_notify(struct kernfs_node *kn) { }

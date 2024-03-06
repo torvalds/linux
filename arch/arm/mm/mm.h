@@ -45,7 +45,7 @@ struct mem_type {
 
 const struct mem_type *get_mem_type(unsigned int type);
 
-extern void __flush_dcache_page(struct address_space *mapping, struct page *page);
+void __flush_dcache_folio(struct address_space *mapping, struct folio *folio);
 
 /*
  * ARM specific vm_struct->flags bits.

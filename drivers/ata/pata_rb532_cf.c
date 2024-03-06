@@ -155,18 +155,16 @@ static int rb532_pata_driver_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int rb532_pata_driver_remove(struct platform_device *pdev)
+static void rb532_pata_driver_remove(struct platform_device *pdev)
 {
 	struct ata_host *ah = platform_get_drvdata(pdev);
 
 	ata_host_detach(ah);
-
-	return 0;
 }
 
 static struct platform_driver rb532_pata_platform_driver = {
 	.probe		= rb532_pata_driver_probe,
-	.remove		= rb532_pata_driver_remove,
+	.remove_new	= rb532_pata_driver_remove,
 	.driver	 = {
 		.name   = DRV_NAME,
 	},

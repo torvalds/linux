@@ -307,3 +307,4 @@ module_init(skbprio_module_init)
 module_exit(skbprio_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("SKB priority based scheduling qdisc");

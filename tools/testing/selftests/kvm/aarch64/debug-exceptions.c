@@ -116,12 +116,12 @@ static void reset_debug_state(void)
 
 	/* Reset all bcr/bvr/wcr/wvr registers */
 	dfr0 = read_sysreg(id_aa64dfr0_el1);
-	brps = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_BRPS), dfr0);
+	brps = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_BRPs), dfr0);
 	for (i = 0; i <= brps; i++) {
 		write_dbgbcr(i, 0);
 		write_dbgbvr(i, 0);
 	}
-	wrps = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_WRPS), dfr0);
+	wrps = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_WRPs), dfr0);
 	for (i = 0; i <= wrps; i++) {
 		write_dbgwcr(i, 0);
 		write_dbgwvr(i, 0);
@@ -365,7 +365,7 @@ static void guest_wp_handler(struct ex_regs *regs)
 
 static void guest_ss_handler(struct ex_regs *regs)
 {
-	GUEST_ASSERT_1(ss_idx < 4, ss_idx);
+	__GUEST_ASSERT(ss_idx < 4, "Expected index < 4, got '%u'", ss_idx);
 	ss_addr[ss_idx++] = regs->pc;
 	regs->pstate |= SPSR_SS;
 }
@@ -410,15 +410,15 @@ static void guest_code_ss(int test_cnt)
 		/* Userspace disables Single Step when the end is nigh. */
 		asm volatile("iter_ss_end:\n");
 
-		GUEST_ASSERT(bvr == w_bvr);
-		GUEST_ASSERT(wvr == w_wvr);
+		GUEST_ASSERT_EQ(bvr, w_bvr);
+		GUEST_ASSERT_EQ(wvr, w_wvr);
 	}
 	GUEST_DONE();
 }
 
 static int debug_version(uint64_t id_aa64dfr0)
 {
-	return FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_DEBUGVER), id_aa64dfr0);
+	return FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_DebugVer), id_aa64dfr0);
 }
 
 static void test_guest_debug_exceptions(uint8_t bpn, uint8_t wpn, uint8_t ctx_bpn)
@@ -450,7 +450,7 @@ static void test_guest_debug_exceptions(uint8_t bpn, uint8_t wpn, uint8_t ctx_bp
 	vcpu_run(vcpu);
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_DONE:
 		goto done;
@@ -539,14 +539,14 @@ void test_guest_debug_exceptions_all(uint64_t aa64dfr0)
 	int b, w, c;
 
 	/* Number of breakpoints */
-	brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_BRPS), aa64dfr0) + 1;
+	brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_BRPs), aa64dfr0) + 1;
 	__TEST_REQUIRE(brp_num >= 2, "At least two breakpoints are required");
 
 	/* Number of watchpoints */
-	wrp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_WRPS), aa64dfr0) + 1;
+	wrp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_WRPs), aa64dfr0) + 1;
 
 	/* Number of context aware breakpoints */
-	ctx_brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_CTX_CMPS), aa64dfr0) + 1;
+	ctx_brp_num = FIELD_GET(ARM64_FEATURE_MASK(ID_AA64DFR0_EL1_CTX_CMPs), aa64dfr0) + 1;
 
 	pr_debug("%s brp_num:%d, wrp_num:%d, ctx_brp_num:%d\n", __func__,
 		 brp_num, wrp_num, ctx_brp_num);

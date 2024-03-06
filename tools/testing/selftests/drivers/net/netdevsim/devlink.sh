@@ -31,36 +31,43 @@ devlink_wait()
 
 fw_flash_test()
 {
+	DUMMYFILE=$(find /lib/firmware -maxdepth 1 -type f  -printf '%f\n' |head -1)
 	RET=0
 
-	devlink dev flash $DL_HANDLE file dummy
+	if [ -z "$DUMMYFILE" ]
+	then
+		echo "SKIP: unable to find suitable dummy firmware file"
+		return
+	fi
+
+	devlink dev flash $DL_HANDLE file $DUMMYFILE
 	check_err $? "Failed to flash with status updates on"
 
-	devlink dev flash $DL_HANDLE file dummy component fw.mgmt
+	devlink dev flash $DL_HANDLE file $DUMMYFILE component fw.mgmt
 	check_err $? "Failed to flash with component attribute"
 
-	devlink dev flash $DL_HANDLE file dummy overwrite settings
+	devlink dev flash $DL_HANDLE file $DUMMYFILE overwrite settings
 	check_fail $? "Flash with overwrite settings should be rejected"
 
 	echo "1"> $DEBUGFS_DIR/fw_update_overwrite_mask
 	check_err $? "Failed to change allowed overwrite mask"
 
-	devlink dev flash $DL_HANDLE file dummy overwrite settings
+	devlink dev flash $DL_HANDLE file $DUMMYFILE overwrite settings
 	check_err $? "Failed to flash with settings overwrite enabled"
 
-	devlink dev flash $DL_HANDLE file dummy overwrite identifiers
+	devlink dev flash $DL_HANDLE file $DUMMYFILE overwrite identifiers
 	check_fail $? "Flash with overwrite settings should be identifiers"
 
 	echo "3"> $DEBUGFS_DIR/fw_update_overwrite_mask
 	check_err $? "Failed to change allowed overwrite mask"
 
-	devlink dev flash $DL_HANDLE file dummy overwrite identifiers overwrite settings
+	devlink dev flash $DL_HANDLE file $DUMMYFILE overwrite identifiers overwrite settings
 	check_err $? "Failed to flash with settings and identifiers overwrite enabled"
 
 	echo "n"> $DEBUGFS_DIR/fw_update_status
 	check_err $? "Failed to disable status updates"
 
-	devlink dev flash $DL_HANDLE file dummy
+	devlink dev flash $DL_HANDLE file $DUMMYFILE
 	check_err $? "Failed to flash with status updates off"
 
 	log_test "fw flash test"

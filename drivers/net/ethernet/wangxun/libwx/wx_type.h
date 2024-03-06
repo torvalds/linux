@@ -6,6 +6,9 @@
 
 #include <linux/bitfield.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
+#include <linux/phylink.h>
+#include <net/ip.h>
 
 #define WX_NCSI_SUP                             0x8000
 #define WX_NCSI_MASK                            0x8000
@@ -57,6 +60,25 @@
 #define WX_TS_ALARM_ST_DALARM        BIT(1)
 #define WX_TS_ALARM_ST_ALARM         BIT(0)
 
+/* statistic */
+#define WX_TX_FRAME_CNT_GOOD_BAD_L   0x1181C
+#define WX_TX_BC_FRAMES_GOOD_L       0x11824
+#define WX_TX_MC_FRAMES_GOOD_L       0x1182C
+#define WX_RX_FRAME_CNT_GOOD_BAD_L   0x11900
+#define WX_RX_BC_FRAMES_GOOD_L       0x11918
+#define WX_RX_MC_FRAMES_GOOD_L       0x11920
+#define WX_RX_CRC_ERROR_FRAMES_L     0x11928
+#define WX_RX_LEN_ERROR_FRAMES_L     0x11978
+#define WX_RX_UNDERSIZE_FRAMES_GOOD  0x11938
+#define WX_RX_OVERSIZE_FRAMES_GOOD   0x1193C
+#define WX_MAC_LXONOFFRXC            0x11E0C
+
+/*********************** Receive DMA registers **************************/
+#define WX_RDM_DRP_PKT               0x12500
+#define WX_RDM_PKT_CNT               0x12504
+#define WX_RDM_BYTE_CNT_LSB          0x12508
+#define WX_RDM_BMC2OS_CNT            0x12510
+
 /************************* Port Registers ************************************/
 /* port cfg Registers */
 #define WX_CFG_PORT_CTL              0x14400
@@ -64,6 +86,8 @@
 #define WX_CFG_PORT_CTL_QINQ         BIT(2)
 #define WX_CFG_PORT_CTL_D_VLAN       BIT(0) /* double vlan*/
 #define WX_CFG_TAG_TPID(_i)          (0x14430 + ((_i) * 4))
+#define WX_CFG_PORT_CTL_NUM_VT_MASK  GENMASK(13, 12) /* number of TVs */
+
 
 /* GPIO Registers */
 #define WX_GPIO_DR                   0x14800
@@ -79,7 +103,9 @@
 #define WX_GPIO_INTMASK              0x14834
 #define WX_GPIO_INTTYPE_LEVEL        0x14838
 #define WX_GPIO_POLARITY             0x1483C
+#define WX_GPIO_INTSTATUS            0x14844
 #define WX_GPIO_EOI                  0x1484C
+#define WX_GPIO_EXT                  0x14850
 
 /*********************** Transmit DMA registers **************************/
 /* transmit global control */
@@ -87,6 +113,11 @@
 /* TDM CTL BIT */
 #define WX_TDM_CTL_TE                BIT(0) /* Transmit Enable */
 #define WX_TDM_PB_THRE(_i)           (0x18020 + ((_i) * 4))
+#define WX_TDM_RP_IDX                0x1820C
+#define WX_TDM_PKT_CNT               0x18308
+#define WX_TDM_BYTE_CNT_LSB          0x1830C
+#define WX_TDM_OS2BMC_CNT            0x18314
+#define WX_TDM_RP_RATE               0x18404
 
 /***************************** RDB registers *********************************/
 /* receive packet buffer */
@@ -98,6 +129,17 @@
 /* statistic */
 #define WX_RDB_PFCMACDAL             0x19210
 #define WX_RDB_PFCMACDAH             0x19214
+#define WX_RDB_LXOFFTXC              0x19218
+#define WX_RDB_LXONTXC               0x1921C
+/* Flow Control Registers */
+#define WX_RDB_RFCV                  0x19200
+#define WX_RDB_RFCL                  0x19220
+#define WX_RDB_RFCL_XONE             BIT(31)
+#define WX_RDB_RFCH                  0x19260
+#define WX_RDB_RFCH_XOFFE            BIT(31)
+#define WX_RDB_RFCRT                 0x192A0
+#define WX_RDB_RFCC                  0x192A4
+#define WX_RDB_RFCC_RFCE_802_3X      BIT(3)
 /* ring assignment */
 #define WX_RDB_PL_CFG(_i)            (0x19300 + ((_i) * 4))
 #define WX_RDB_PL_CFG_L4HDR          BIT(1)
@@ -105,6 +147,16 @@
 #define WX_RDB_PL_CFG_L2HDR          BIT(3)
 #define WX_RDB_PL_CFG_TUN_TUNHDR     BIT(4)
 #define WX_RDB_PL_CFG_TUN_OUTL2HDR   BIT(5)
+#define WX_RDB_RSSTBL(_i)            (0x19400 + ((_i) * 4))
+#define WX_RDB_RSSRK(_i)             (0x19480 + ((_i) * 4))
+#define WX_RDB_RA_CTL                0x194F4
+#define WX_RDB_RA_CTL_RSS_EN         BIT(2) /* RSS Enable */
+#define WX_RDB_RA_CTL_RSS_IPV4_TCP   BIT(16)
+#define WX_RDB_RA_CTL_RSS_IPV4       BIT(17)
+#define WX_RDB_RA_CTL_RSS_IPV6       BIT(20)
+#define WX_RDB_RA_CTL_RSS_IPV6_TCP   BIT(21)
+#define WX_RDB_RA_CTL_RSS_IPV4_UDP   BIT(22)
+#define WX_RDB_RA_CTL_RSS_IPV6_UDP   BIT(23)
 
 /******************************* PSR Registers *******************************/
 /* psr control */
@@ -150,6 +202,13 @@
 #define WX_PSR_LAN_FLEX_DW_H(_i)     (0x15C04 + ((_i) * 16))
 #define WX_PSR_LAN_FLEX_MSK(_i)      (0x15C08 + ((_i) * 16))
 
+#define WX_PSR_WKUP_CTL              0x15B80
+/* Wake Up Filter Control Bit */
+#define WX_PSR_WKUP_CTL_MAG          BIT(1) /* Magic Packet Wakeup Enable */
+
+/* vlan tbl */
+#define WX_PSR_VLAN_TBL(_i)          (0x16000 + ((_i) * 4))
+
 /* mac switcher */
 #define WX_PSR_MAC_SWC_AD_L          0x16200
 #define WX_PSR_MAC_SWC_AD_H          0x16204
@@ -160,6 +219,15 @@
 #define WX_PSR_MAC_SWC_VM_H          0x1620C
 #define WX_PSR_MAC_SWC_IDX           0x16210
 #define WX_CLEAR_VMDQ_ALL            0xFFFFFFFFU
+
+/* vlan switch */
+#define WX_PSR_VLAN_SWC              0x16220
+#define WX_PSR_VLAN_SWC_VM_L         0x16224
+#define WX_PSR_VLAN_SWC_VM_H         0x16228
+#define WX_PSR_VLAN_SWC_IDX          0x16230         /* 64 vlan entries */
+/* VLAN pool filtering masks */
+#define WX_PSR_VLAN_SWC_VIEN         BIT(31)  /* filter is valid */
+#define WX_PSR_VLAN_SWC_ENTRIES      64
 
 /********************************* RSEC **************************************/
 /* general rsec */
@@ -179,6 +247,8 @@
 #define WX_TSC_CTL                   0x1D000
 #define WX_TSC_CTL_TX_DIS            BIT(1)
 #define WX_TSC_CTL_TSEC_DIS          BIT(0)
+#define WX_TSC_ST                    0x1D004
+#define WX_TSC_ST_SECTX_RDY          BIT(0)
 #define WX_TSC_BUF_AE                0x1D00C
 #define WX_TSC_BUF_AE_THR            GENMASK(9, 0)
 
@@ -190,6 +260,8 @@
 #define WX_MNG_MBOX_CTL              0x1E044
 #define WX_MNG_MBOX_CTL_SWRDY        BIT(0)
 #define WX_MNG_MBOX_CTL_FWRDY        BIT(2)
+#define WX_MNG_BMC2OS_CNT            0x1E090
+#define WX_MNG_OS2BMC_CNT            0x1E094
 
 /************************************* ETH MAC *****************************/
 #define WX_MAC_TX_CFG                0x11000
@@ -205,6 +277,25 @@
 #define WX_MAC_WDG_TIMEOUT           0x1100C
 #define WX_MAC_RX_FLOW_CTRL          0x11090
 #define WX_MAC_RX_FLOW_CTRL_RFE      BIT(0) /* receive fc enable */
+/* MDIO Registers */
+#define WX_MSCA                      0x11200
+#define WX_MSCA_RA(v)                FIELD_PREP(U16_MAX, v)
+#define WX_MSCA_PA(v)                FIELD_PREP(GENMASK(20, 16), v)
+#define WX_MSCA_DA(v)                FIELD_PREP(GENMASK(25, 21), v)
+#define WX_MSCC                      0x11204
+#define WX_MSCC_CMD(v)               FIELD_PREP(GENMASK(17, 16), v)
+
+enum WX_MSCA_CMD_value {
+	WX_MSCA_CMD_RSV = 0,
+	WX_MSCA_CMD_WRITE,
+	WX_MSCA_CMD_POST_READ,
+	WX_MSCA_CMD_READ,
+};
+
+#define WX_MSCC_SADDR                BIT(18)
+#define WX_MSCC_BUSY                 BIT(22)
+#define WX_MDIO_CLK(v)               FIELD_PREP(GENMASK(21, 19), v)
+#define WX_MDIO_CLAUSE_SELECT        0x11220
 #define WX_MMC_CONTROL               0x11800
 #define WX_MMC_CONTROL_RSTONRD       BIT(2) /* reset on read */
 
@@ -232,6 +323,7 @@
 #define WX_PX_IVAR_ALLOC_VAL         0x80 /* Interrupt Allocation valid */
 #define WX_7K_ITR                    595
 #define WX_12K_ITR                   336
+#define WX_20K_ITR                   200
 #define WX_SP_MAX_EITR               0x00000FF8U
 #define WX_EM_MAX_EITR               0x00007FFCU
 
@@ -254,7 +346,10 @@
 #define WX_PX_RR_WP(_i)              (0x01008 + ((_i) * 0x40))
 #define WX_PX_RR_RP(_i)              (0x0100C + ((_i) * 0x40))
 #define WX_PX_RR_CFG(_i)             (0x01010 + ((_i) * 0x40))
+#define WX_PX_MPRC(_i)               (0x01020 + ((_i) * 0x40))
 /* PX_RR_CFG bit definitions */
+#define WX_PX_RR_CFG_VLAN            BIT(31)
+#define WX_PX_RR_CFG_DROP_EN         BIT(30)
 #define WX_PX_RR_CFG_SPLIT_MODE      BIT(26)
 #define WX_PX_RR_CFG_RR_THER_SHIFT   16
 #define WX_PX_RR_CFG_RR_HDR_SZ       GENMASK(15, 12)
@@ -292,10 +387,49 @@
 #define WX_MAC_STATE_MODIFIED        0x2
 #define WX_MAC_STATE_IN_USE          0x4
 
+/* BitTimes (BT) conversion */
+#define WX_BT2KB(BT)         (((BT) + (8 * 1024 - 1)) / (8 * 1024))
+#define WX_B2BT(BT)          ((BT) * 8)
+
+/* Calculate Delay to respond to PFC */
+#define WX_PFC_D     672
+/* Calculate Cable Delay */
+#define WX_CABLE_DC  5556 /* Delay Copper */
+/* Calculate Delay incurred from higher layer */
+#define WX_HD        6144
+
+/* Calculate Interface Delay */
+#define WX_PHY_D     12800
+#define WX_MAC_D     4096
+#define WX_XAUI_D    (2 * 1024)
+#define WX_ID        (WX_MAC_D + WX_XAUI_D + WX_PHY_D)
+/* Calculate PCI Bus delay for low thresholds */
+#define WX_PCI_DELAY 10000
+
+/* Calculate delay value in bit times */
+#define WX_DV(_max_frame_link, _max_frame_tc) \
+	((36 * (WX_B2BT(_max_frame_link) + WX_PFC_D + \
+		(2 * WX_CABLE_DC) + (2 * WX_ID) + WX_HD) / 25 + 1) + \
+	 2 * WX_B2BT(_max_frame_tc))
+
+/* Calculate low threshold delay values */
+#define WX_LOW_DV(_max_frame_tc) \
+	(2 * (2 * WX_B2BT(_max_frame_tc) + (36 * WX_PCI_DELAY / 25) + 1))
+
+/* flow control */
+#define WX_DEFAULT_FCPAUSE           0xFFFF
+
 #define WX_MAX_RXD                   8192
 #define WX_MAX_TXD                   8192
+#define WX_MIN_RXD                   128
+#define WX_MIN_TXD                   128
+
+/* Number of Transmit and Receive Descriptors must be a multiple of 8 */
+#define WX_REQ_RX_DESCRIPTOR_MULTIPLE   8
+#define WX_REQ_TX_DESCRIPTOR_MULTIPLE   8
 
 #define WX_MAX_JUMBO_FRAME_SIZE      9432 /* max payload 9414 */
+#define VMDQ_P(p)                    p
 
 /* Supported Rx Buffer Sizes */
 #define WX_RXBUFFER_256      256    /* Used for skb receive header */
@@ -315,17 +449,64 @@
 #define TXD_USE_COUNT(S)     DIV_ROUND_UP((S), WX_MAX_DATA_PER_TXD)
 #define DESC_NEEDED          (MAX_SKB_FRAGS + 4)
 
-/* Ether Types */
-#define WX_ETH_P_CNM                 0x22E7
-
 #define WX_CFG_PORT_ST               0x14404
 
 /******************* Receive Descriptor bit definitions **********************/
 #define WX_RXD_STAT_DD               BIT(0) /* Done */
 #define WX_RXD_STAT_EOP              BIT(1) /* End of Packet */
+#define WX_RXD_STAT_VP               BIT(5) /* IEEE VLAN Pkt */
+#define WX_RXD_STAT_L4CS             BIT(7) /* L4 xsum calculated */
+#define WX_RXD_STAT_IPCS             BIT(8) /* IP xsum calculated */
+#define WX_RXD_STAT_OUTERIPCS        BIT(10) /* Cloud IP xsum calculated*/
 
+#define WX_RXD_ERR_OUTERIPER         BIT(26) /* CRC IP Header error */
 #define WX_RXD_ERR_RXE               BIT(29) /* Any MAC Error */
+#define WX_RXD_ERR_TCPE              BIT(30) /* TCP/UDP Checksum Error */
+#define WX_RXD_ERR_IPE               BIT(31) /* IP Checksum Error */
 
+/* RSS Hash results */
+#define WX_RXD_RSSTYPE_MASK          GENMASK(3, 0)
+#define WX_RXD_RSSTYPE_IPV4_TCP      0x00000001U
+#define WX_RXD_RSSTYPE_IPV6_TCP      0x00000003U
+#define WX_RXD_RSSTYPE_IPV4_SCTP     0x00000004U
+#define WX_RXD_RSSTYPE_IPV6_SCTP     0x00000006U
+#define WX_RXD_RSSTYPE_IPV4_UDP      0x00000007U
+#define WX_RXD_RSSTYPE_IPV6_UDP      0x00000008U
+
+#define WX_RSS_L4_TYPES_MASK \
+	((1ul << WX_RXD_RSSTYPE_IPV4_TCP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV4_UDP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV4_SCTP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV6_TCP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV6_UDP) | \
+	 (1ul << WX_RXD_RSSTYPE_IPV6_SCTP))
+/* TUN */
+#define WX_PTYPE_TUN_IPV4            0x80
+#define WX_PTYPE_TUN_IPV6            0xC0
+
+/* PKT for TUN */
+#define WX_PTYPE_PKT_IPIP            0x00 /* IP+IP */
+#define WX_PTYPE_PKT_IG              0x10 /* IP+GRE */
+#define WX_PTYPE_PKT_IGM             0x20 /* IP+GRE+MAC */
+#define WX_PTYPE_PKT_IGMV            0x30 /* IP+GRE+MAC+VLAN */
+/* PKT for !TUN */
+#define WX_PTYPE_PKT_MAC             0x10
+#define WX_PTYPE_PKT_IP              0x20
+
+/* TYP for PKT=mac */
+#define WX_PTYPE_TYP_MAC             0x01
+/* TYP for PKT=ip */
+#define WX_PTYPE_PKT_IPV6            0x08
+#define WX_PTYPE_TYP_IPFRAG          0x01
+#define WX_PTYPE_TYP_IP              0x02
+#define WX_PTYPE_TYP_UDP             0x03
+#define WX_PTYPE_TYP_TCP             0x04
+#define WX_PTYPE_TYP_SCTP            0x05
+
+#define WX_RXD_PKTTYPE(_rxd) \
+	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 9) & 0xFF)
+#define WX_RXD_IPV6EX(_rxd) \
+	((le32_to_cpu((_rxd)->wb.lower.lo_dword.data) >> 6) & 0x1)
 /*********************** Transmit Descriptor Config Masks ****************/
 #define WX_TXD_STAT_DD               BIT(0)  /* Descriptor Done */
 #define WX_TXD_DTYP_DATA             0       /* Adv Data Descriptor */
@@ -333,6 +514,113 @@
 #define WX_TXD_EOP                   BIT(24) /* End of Packet */
 #define WX_TXD_IFCS                  BIT(25) /* Insert FCS */
 #define WX_TXD_RS                    BIT(27) /* Report Status */
+
+/*********************** Adv Transmit Descriptor Config Masks ****************/
+#define WX_TXD_MAC_TSTAMP            BIT(19) /* IEEE1588 time stamp */
+#define WX_TXD_DTYP_CTXT             BIT(20) /* Adv Context Desc */
+#define WX_TXD_LINKSEC               BIT(26) /* enable linksec */
+#define WX_TXD_VLE                   BIT(30) /* VLAN pkt enable */
+#define WX_TXD_TSE                   BIT(31) /* TCP Seg enable */
+#define WX_TXD_CC                    BIT(7) /* Check Context */
+#define WX_TXD_IPSEC                 BIT(8) /* enable ipsec esp */
+#define WX_TXD_L4CS                  BIT(9)
+#define WX_TXD_IIPCS                 BIT(10)
+#define WX_TXD_EIPCS                 BIT(11)
+#define WX_TXD_PAYLEN_SHIFT          13 /* Adv desc PAYLEN shift */
+#define WX_TXD_MACLEN_SHIFT          9  /* Adv ctxt desc mac len shift */
+#define WX_TXD_TAG_TPID_SEL_SHIFT    11
+
+#define WX_TXD_L4LEN_SHIFT           8  /* Adv ctxt L4LEN shift */
+#define WX_TXD_MSS_SHIFT             16  /* Adv ctxt MSS shift */
+
+#define WX_TXD_OUTER_IPLEN_SHIFT     12 /* Adv ctxt OUTERIPLEN shift */
+#define WX_TXD_TUNNEL_LEN_SHIFT      21 /* Adv ctxt TUNNELLEN shift */
+#define WX_TXD_TUNNEL_TYPE_SHIFT     11 /* Adv Tx Desc Tunnel Type shift */
+#define WX_TXD_TUNNEL_UDP            FIELD_PREP(BIT(WX_TXD_TUNNEL_TYPE_SHIFT), 0)
+#define WX_TXD_TUNNEL_GRE            FIELD_PREP(BIT(WX_TXD_TUNNEL_TYPE_SHIFT), 1)
+
+enum wx_tx_flags {
+	/* cmd_type flags */
+	WX_TX_FLAGS_HW_VLAN	= 0x01,
+	WX_TX_FLAGS_TSO		= 0x02,
+	WX_TX_FLAGS_TSTAMP	= 0x04,
+
+	/* olinfo flags */
+	WX_TX_FLAGS_CC		= 0x08,
+	WX_TX_FLAGS_IPV4	= 0x10,
+	WX_TX_FLAGS_CSUM	= 0x20,
+	WX_TX_FLAGS_OUTER_IPV4	= 0x100,
+	WX_TX_FLAGS_LINKSEC	= 0x200,
+	WX_TX_FLAGS_IPSEC	= 0x400,
+};
+
+/* VLAN info */
+#define WX_TX_FLAGS_VLAN_MASK			GENMASK(31, 16)
+#define WX_TX_FLAGS_VLAN_SHIFT			16
+
+/* wx_dec_ptype.mac: outer mac */
+enum wx_dec_ptype_mac {
+	WX_DEC_PTYPE_MAC_IP	= 0,
+	WX_DEC_PTYPE_MAC_L2	= 2,
+	WX_DEC_PTYPE_MAC_FCOE	= 3,
+};
+
+/* wx_dec_ptype.[e]ip: outer&encaped ip */
+#define WX_DEC_PTYPE_IP_FRAG	0x4
+enum wx_dec_ptype_ip {
+	WX_DEC_PTYPE_IP_NONE = 0,
+	WX_DEC_PTYPE_IP_IPV4 = 1,
+	WX_DEC_PTYPE_IP_IPV6 = 2,
+	WX_DEC_PTYPE_IP_FGV4 = WX_DEC_PTYPE_IP_FRAG | WX_DEC_PTYPE_IP_IPV4,
+	WX_DEC_PTYPE_IP_FGV6 = WX_DEC_PTYPE_IP_FRAG | WX_DEC_PTYPE_IP_IPV6,
+};
+
+/* wx_dec_ptype.etype: encaped type */
+enum wx_dec_ptype_etype {
+	WX_DEC_PTYPE_ETYPE_NONE	= 0,
+	WX_DEC_PTYPE_ETYPE_IPIP	= 1,	/* IP+IP */
+	WX_DEC_PTYPE_ETYPE_IG	= 2,	/* IP+GRE */
+	WX_DEC_PTYPE_ETYPE_IGM	= 3,	/* IP+GRE+MAC */
+	WX_DEC_PTYPE_ETYPE_IGMV	= 4,	/* IP+GRE+MAC+VLAN */
+};
+
+/* wx_dec_ptype.proto: payload proto */
+enum wx_dec_ptype_prot {
+	WX_DEC_PTYPE_PROT_NONE	= 0,
+	WX_DEC_PTYPE_PROT_UDP	= 1,
+	WX_DEC_PTYPE_PROT_TCP	= 2,
+	WX_DEC_PTYPE_PROT_SCTP	= 3,
+	WX_DEC_PTYPE_PROT_ICMP	= 4,
+	WX_DEC_PTYPE_PROT_TS	= 5,	/* time sync */
+};
+
+/* wx_dec_ptype.layer: payload layer */
+enum wx_dec_ptype_layer {
+	WX_DEC_PTYPE_LAYER_NONE = 0,
+	WX_DEC_PTYPE_LAYER_PAY2 = 1,
+	WX_DEC_PTYPE_LAYER_PAY3 = 2,
+	WX_DEC_PTYPE_LAYER_PAY4 = 3,
+};
+
+struct wx_dec_ptype {
+	u32 known:1;
+	u32 mac:2;	/* outer mac */
+	u32 ip:3;	/* outer ip*/
+	u32 etype:3;	/* encaped type */
+	u32 eip:3;	/* encaped ip */
+	u32 prot:4;	/* payload proto */
+	u32 layer:3;	/* payload layer */
+};
+
+/* macro to make the table lines short */
+#define WX_PTT(mac, ip, etype, eip, proto, layer)\
+	      {1, \
+	       WX_DEC_PTYPE_MAC_##mac,		/* mac */\
+	       WX_DEC_PTYPE_IP_##ip,		/* ip */ \
+	       WX_DEC_PTYPE_ETYPE_##etype,	/* etype */\
+	       WX_DEC_PTYPE_IP_##eip,		/* eip */\
+	       WX_DEC_PTYPE_PROT_##proto,	/* proto */\
+	       WX_DEC_PTYPE_LAYER_##layer	/* layer */}
 
 /* Host Interface Command Structures */
 struct wx_hic_hdr {
@@ -398,6 +686,13 @@ enum wx_mac_type {
 	wx_mac_em
 };
 
+enum sp_media_type {
+	sp_media_unknown = 0,
+	sp_media_fiber,
+	sp_media_copper,
+	sp_media_backplane
+};
+
 enum em_mac_type {
 	em_mac_type_unknown = 0,
 	em_mac_type_mdi,
@@ -412,6 +707,8 @@ struct wx_mac_info {
 	u32 mta_shadow[128];
 	s32 mc_filter_type;
 	u32 mcft_size;
+	u32 vft_shadow[128];
+	u32 vft_size;
 	u32 num_rar_entries;
 	u32 rx_pb_size;
 	u32 tx_pb_size;
@@ -508,10 +805,25 @@ union wx_rx_desc {
 	} wb;  /* writeback */
 };
 
+struct wx_tx_context_desc {
+	__le32 vlan_macip_lens;
+	__le32 seqnum_seed;
+	__le32 type_tucmd_mlhl;
+	__le32 mss_l4len_idx;
+};
+
+/* if _flag is in _input, return _result */
+#define WX_SET_FLAG(_input, _flag, _result) \
+	(((_flag) <= (_result)) ? \
+	 ((u32)((_input) & (_flag)) * ((_result) / (_flag))) : \
+	 ((u32)((_input) & (_flag)) / ((_flag) / (_result))))
+
 #define WX_RX_DESC(R, i)     \
 	(&(((union wx_rx_desc *)((R)->desc))[i]))
 #define WX_TX_DESC(R, i)     \
 	(&(((union wx_tx_desc *)((R)->desc))[i]))
+#define WX_TX_CTXTDESC(R, i) \
+	(&(((struct wx_tx_context_desc *)((R)->desc))[i]))
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer
@@ -523,6 +835,8 @@ struct wx_tx_buffer {
 	unsigned short gso_segs;
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
+	__be16 protocol;
+	u32 tx_flags;
 };
 
 struct wx_rx_buffer {
@@ -531,12 +845,23 @@ struct wx_rx_buffer {
 	dma_addr_t page_dma;
 	struct page *page;
 	unsigned int page_offset;
-	u16 pagecnt_bias;
 };
 
 struct wx_queue_stats {
 	u64 packets;
 	u64 bytes;
+};
+
+struct wx_tx_queue_stats {
+	u64 restart_queue;
+	u64 tx_busy;
+};
+
+struct wx_rx_queue_stats {
+	u64 non_eop_descs;
+	u64 csum_good_cnt;
+	u64 csum_err;
+	u64 alloc_rx_buff_failed;
 };
 
 /* iterator for handling rings in ring container */
@@ -550,7 +875,6 @@ struct wx_ring_container {
 	u8 count;                       /* total number of rings in vector */
 	u8 itr;                         /* current ITR setting for ring */
 };
-
 struct wx_ring {
 	struct wx_ring *next;           /* pointer to next ring in q_vector */
 	struct wx_q_vector *q_vector;   /* backpointer to host q_vector */
@@ -580,6 +904,10 @@ struct wx_ring {
 
 	struct wx_queue_stats stats;
 	struct u64_stats_sync syncp;
+	union {
+		struct wx_tx_queue_stats tx_stats;
+		struct wx_rx_queue_stats rx_stats;
+	};
 } ____cacheline_internodealigned_in_smp;
 
 struct wx_q_vector {
@@ -598,7 +926,20 @@ struct wx_q_vector {
 	char name[IFNAMSIZ + 17];
 
 	/* for dynamic allocation of rings associated with this q_vector */
-	struct wx_ring ring[0] ____cacheline_internodealigned_in_smp;
+	struct wx_ring ring[] ____cacheline_internodealigned_in_smp;
+};
+
+struct wx_ring_feature {
+	u16 limit;      /* upper limit on feature indices */
+	u16 indices;    /* current value of indices */
+	u16 mask;       /* Mask used for feature to ring mapping */
+	u16 offset;     /* offset to start of feature */
+};
+
+enum wx_ring_f_enum {
+	RING_F_NONE = 0,
+	RING_F_RSS,
+	RING_F_ARRAY_SIZE  /* must be last in enum set */
 };
 
 enum wx_isb_idx {
@@ -609,15 +950,52 @@ enum wx_isb_idx {
 	WX_ISB_MAX
 };
 
+struct wx_fc_info {
+	u32 high_water; /* Flow Ctrl High-water */
+	u32 low_water; /* Flow Ctrl Low-water */
+};
+
+/* Statistics counters collected by the MAC */
+struct wx_hw_stats {
+	u64 gprc;
+	u64 gptc;
+	u64 gorc;
+	u64 gotc;
+	u64 tpr;
+	u64 tpt;
+	u64 bprc;
+	u64 bptc;
+	u64 mprc;
+	u64 mptc;
+	u64 roc;
+	u64 ruc;
+	u64 lxonoffrxc;
+	u64 lxontxc;
+	u64 lxofftxc;
+	u64 o2bgptc;
+	u64 b2ospc;
+	u64 o2bspc;
+	u64 b2ogprc;
+	u64 rdmdrop;
+	u64 crcerrs;
+	u64 rlec;
+	u64 qmprc;
+};
+
 struct wx {
+	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
+
+	void *priv;
 	u8 __iomem *hw_addr;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
 	struct wx_bus_info bus;
 	struct wx_mac_info mac;
 	enum em_mac_type mac_type;
+	enum sp_media_type media_type;
 	struct wx_eeprom_info eeprom;
 	struct wx_addr_filter_info addr_ctrl;
+	struct wx_fc_info fc;
 	struct wx_mac_addr *mac_table;
 	u16 device_id;
 	u16 vendor_id;
@@ -638,10 +1016,13 @@ struct wx {
 	int speed;
 	int duplex;
 	struct phy_device *phydev;
+	struct phylink *phylink;
+	struct phylink_config phylink_config;
 
-	bool wol_enabled;
+	bool wol_hw_supported;
 	bool ncsi_enabled;
 	bool gpio_ctrl;
+	raw_spinlock_t gpio_lock;
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -664,7 +1045,10 @@ struct wx {
 	struct wx_q_vector *q_vector[64];
 
 	unsigned int queues_per_pool;
-	struct msix_entry *msix_entries;
+	struct msix_entry *msix_q_entries;
+	struct msix_entry *msix_entry;
+	bool msix_in_use;
+	struct wx_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 
 	/* misc interrupt status block */
 	dma_addr_t isb_dma;
@@ -672,17 +1056,26 @@ struct wx {
 	u32 isb_tag[WX_ISB_MAX];
 
 #define WX_MAX_RETA_ENTRIES 128
+#define WX_RSS_INDIR_TBL_MAX 64
 	u8 rss_indir_tbl[WX_MAX_RETA_ENTRIES];
-
+	bool rss_enabled;
 #define WX_RSS_KEY_SIZE     40  /* size of RSS Hash Key in bytes */
 	u32 *rss_key;
 	u32 wol;
 
 	u16 bd_number;
+
+	struct wx_hw_stats stats;
+	u64 tx_busy;
+	u64 non_eop_descs;
+	u64 restart_queue;
+	u64 hw_csum_rx_good;
+	u64 hw_csum_rx_error;
+	u64 alloc_rx_buff_failed;
 };
 
 #define WX_INTR_ALL (~0ULL)
-#define WX_INTR_Q(i) BIT(i)
+#define WX_INTR_Q(i) BIT((i) + 1)
 
 /* register operations */
 #define wr32(a, reg, value)	writel((value), ((a)->hw_addr + (reg)))
@@ -712,6 +1105,17 @@ wr32m(struct wx *wx, u32 reg, u32 mask, u32 field)
 	wr32(wx, reg, val);
 }
 
+static inline u64
+rd64(struct wx *wx, u32 reg)
+{
+	u64 lsb, msb;
+
+	lsb = rd32(wx, reg);
+	msb = rd32(wx, reg + 4);
+
+	return (lsb | msb << 32);
+}
+
 /* On some domestic CPU platforms, sometimes IO is not synchronized with
  * flushing memory, here use readl() to flush PCI read and write.
  */
@@ -722,5 +1126,10 @@ wr32m(struct wx *wx, u32 reg, u32 mask, u32 field)
 
 #define wx_dbg(wx, fmt, arg...) \
 	dev_dbg(&(wx)->pdev->dev, fmt, ##arg)
+
+static inline struct wx *phylink_to_wx(struct phylink_config *config)
+{
+	return container_of(config, struct wx, phylink_config);
+}
 
 #endif /* _WX_TYPE_H_ */

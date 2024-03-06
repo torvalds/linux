@@ -56,7 +56,7 @@ static void __debug_save_trace(u64 *trfcr_el1)
 	*trfcr_el1 = 0;
 
 	/* Check if the TRBE is enabled */
-	if (!(read_sysreg_s(SYS_TRBLIMITR_EL1) & TRBLIMITR_ENABLE))
+	if (!(read_sysreg_s(SYS_TRBLIMITR_EL1) & TRBLIMITR_EL1_E))
 		return;
 	/*
 	 * Prohibit trace generation while we are in guest.

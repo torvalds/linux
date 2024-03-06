@@ -356,7 +356,7 @@ Description:
 		pkeys/<n>:		(RO) Displays the contents of the physical
 					key table n = 0..126
 
-		mcgs/:			(RO) Muticast group table
+		mcgs/:			(RO) Multicast group table
 
 		<m>/gid_idx/0:		(RO) Display the GID mapping m = 1..2
 

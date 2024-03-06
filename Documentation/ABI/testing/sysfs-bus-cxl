@@ -28,6 +28,23 @@ Description:
 		Payload in the CXL-2.0 specification.
 
 
+What:		/sys/bus/cxl/devices/memX/ram/qos_class
+Date:		May, 2023
+KernelVersion:	v6.8
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) For CXL host platforms that support "QoS Telemmetry"
+		this attribute conveys a comma delimited list of platform
+		specific cookies that identifies a QoS performance class
+		for the volatile partition of the CXL mem device. These
+		class-ids can be compared against a similar "qos_class"
+		published for a root decoder. While it is not required
+		that the endpoints map their local memory-class to a
+		matching platform class, mismatches are not recommended
+		and there are platform specific performance related
+		side-effects that may result. First class-id is displayed.
+
+
 What:		/sys/bus/cxl/devices/memX/pmem/size
 Date:		December, 2020
 KernelVersion:	v5.12
@@ -36,6 +53,23 @@ Description:
 		(RO) "Persistent Only Capacity" as bytes. Represents the
 		identically named field in the Identify Memory Device Output
 		Payload in the CXL-2.0 specification.
+
+
+What:		/sys/bus/cxl/devices/memX/pmem/qos_class
+Date:		May, 2023
+KernelVersion:	v6.8
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) For CXL host platforms that support "QoS Telemmetry"
+		this attribute conveys a comma delimited list of platform
+		specific cookies that identifies a QoS performance class
+		for the persistent partition of the CXL mem device. These
+		class-ids can be compared against a similar "qos_class"
+		published for a root decoder. While it is not required
+		that the endpoints map their local memory-class to a
+		matching platform class, mismatches are not recommended
+		and there are platform specific performance related
+		side-effects that may result. First class-id is displayed.
 
 
 What:		/sys/bus/cxl/devices/memX/serial
@@ -56,6 +90,65 @@ Description:
 		(RO) If NUMA is enabled and the platform has affinitized the
 		host PCI device for this memory device, emit the CPU node
 		affinity for this device.
+
+
+What:		/sys/bus/cxl/devices/memX/security/state
+Date:		June, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) Reading this file will display the CXL security state for
+		that device. Such states can be: 'disabled', 'sanitize', when
+		a sanitization is currently underway; or those available only
+		for persistent memory: 'locked', 'unlocked' or 'frozen'. This
+		sysfs entry is select/poll capable from userspace to notify
+		upon completion of a sanitize operation.
+
+
+What:           /sys/bus/cxl/devices/memX/security/sanitize
+Date:           June, 2023
+KernelVersion:  v6.5
+Contact:        linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a boolean 'true' string value to this attribute to
+		sanitize the device to securely re-purpose or decommission it.
+		This is done by ensuring that all user data and meta-data,
+		whether it resides in persistent capacity, volatile capacity,
+		or the LSA, is made permanently unavailable by whatever means
+		is appropriate for the media type. This functionality requires
+		the device to be disabled, that is, not actively decoding any
+		HPA ranges. This permits avoiding explicit global CPU cache
+		management, relying instead for it to be done when a region
+		transitions between software programmed and hardware committed
+		states. If this file is not present, then there is no hardware
+		support for the operation.
+
+
+What            /sys/bus/cxl/devices/memX/security/erase
+Date:           June, 2023
+KernelVersion:  v6.5
+Contact:        linux-cxl@vger.kernel.org
+Description:
+		(WO) Write a boolean 'true' string value to this attribute to
+		secure erase user data by changing the media encryption keys for
+		all user data areas of the device. This functionality requires
+		the device to be disabled, that is, not actively decoding any
+		HPA ranges. This permits avoiding explicit global CPU cache
+		management, relying instead for it to be done when a region
+		transitions between software programmed and hardware committed
+		states. If this file is not present, then there is no hardware
+		support for the operation.
+
+
+What:		/sys/bus/cxl/devices/memX/firmware/
+Date:		April, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Firmware uploader mechanism. The different files under
+		this directory can be used to upload and activate new
+		firmware for CXL devices. The interfaces under this are
+		documented in sysfs-class-firmware.
 
 
 What:		/sys/bus/cxl/devices/*/devtype
@@ -117,6 +210,21 @@ Description:
 		may target in its decode of CXL memory resources.  The 'Y'
 		integer reflects the hardware port unique-id used in the
 		hardware decoder target list.
+
+
+What:		/sys/bus/cxl/devices/portX/decoders_committed
+Date:		October, 2023
+KernelVersion:	v6.7
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) A memory device is considered active when any of its
+		decoders are in the "committed" state (See CXL 3.0 8.2.4.19.7
+		CXL HDM Decoder n Control Register). Hotplug and destructive
+		operations like "sanitize" are blocked while device is actively
+		decoding a Host Physical Address range. Note that this number
+		may be elevated without any regionX objects active or even
+		enumerated, as this may be due to decoders established by
+		platform firwmare or a previous kernel (kexec).
 
 
 What:		/sys/bus/cxl/devices/decoderX.Y
@@ -308,6 +416,21 @@ Contact:	linux-cxl@vger.kernel.org
 Description:
 		(WO) Write a string in the form 'regionZ' to delete that region,
 		provided it is currently idle / not bound to a driver.
+
+
+What:		/sys/bus/cxl/devices/decoderX.Y/qos_class
+Date:		May, 2023
+KernelVersion:	v6.5
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) For CXL host platforms that support "QoS Telemmetry" this
+		root-decoder-only attribute conveys a platform specific cookie
+		that identifies a QoS performance class for the CXL Window.
+		This class-id can be compared against a similar "qos_class"
+		published for each memory-type that an endpoint supports. While
+		it is not required that endpoints map their local memory-class
+		to a matching platform class, mismatches are not recommended and
+		there are platform specific side-effects that may result.
 
 
 What:		/sys/bus/cxl/devices/regionZ/uuid

@@ -1241,9 +1241,8 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	int i;
 	int r = -EINVAL;
 	char *origin_path, *cow_path;
-	dev_t origin_dev, cow_dev;
 	unsigned int args_used, num_flush_bios = 1;
-	fmode_t origin_mode = FMODE_READ;
+	blk_mode_t origin_mode = BLK_OPEN_READ;
 
 	if (argc < 4) {
 		ti->error = "requires 4 or more arguments";
@@ -1253,7 +1252,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	if (dm_target_is_snapshot_merge(ti)) {
 		num_flush_bios = 2;
-		origin_mode = FMODE_WRITE;
+		origin_mode = BLK_OPEN_WRITE;
 	}
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
@@ -1279,23 +1278,20 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Cannot get origin device";
 		goto bad_origin;
 	}
-	origin_dev = s->origin->bdev->bd_dev;
 
 	cow_path = argv[0];
 	argv++;
 	argc--;
 
-	cow_dev = dm_get_dev_t(cow_path);
-	if (cow_dev && cow_dev == origin_dev) {
-		ti->error = "COW device cannot be the same as origin device";
-		r = -EINVAL;
-		goto bad_cow;
-	}
-
 	r = dm_get_device(ti, cow_path, dm_table_get_mode(ti->table), &s->cow);
 	if (r) {
 		ti->error = "Cannot get COW device";
 		goto bad_cow;
+	}
+	if (s->cow->bdev && s->cow->bdev == s->origin->bdev) {
+		ti->error = "COW device cannot be the same as origin device";
+		r = -EINVAL;
+		goto bad_store;
 	}
 
 	r = dm_exception_store_create(ti, argc, argv, s, &args_used, &s->store);

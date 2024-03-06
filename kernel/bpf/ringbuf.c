@@ -23,15 +23,6 @@
 
 #define RINGBUF_MAX_RECORD_SZ (UINT_MAX/4)
 
-/* Maximum size of ring buffer area is limited by 32-bit page offset within
- * record header, counted in pages. Reserve 8 bits for extensibility, and take
- * into account few extra pages for consumer/producer pages and
- * non-mmap()'able parts. This gives 64GB limit, which seems plenty for single
- * ring buffer.
- */
-#define RINGBUF_MAX_DATA_SZ \
-	(((1ULL << 24) - RINGBUF_POS_PAGES - RINGBUF_PGOFF) * PAGE_SIZE)
-
 struct bpf_ringbuf {
 	wait_queue_head_t waitq;
 	struct irq_work work;
@@ -161,6 +152,17 @@ static void bpf_ringbuf_notify(struct irq_work *work)
 	wake_up_all(&rb->waitq);
 }
 
+/* Maximum size of ring buffer area is limited by 32-bit page offset within
+ * record header, counted in pages. Reserve 8 bits for extensibility, and
+ * take into account few extra pages for consumer/producer pages and
+ * non-mmap()'able parts, the current maximum size would be:
+ *
+ *     (((1ULL << 24) - RINGBUF_POS_PAGES - RINGBUF_PGOFF) * PAGE_SIZE)
+ *
+ * This gives 64GB limit, which seems plenty for single ring buffer. Now
+ * considering that the maximum value of data_sz is (4GB - 1), there
+ * will be no overflow, so just note the size limit in the comments.
+ */
 static struct bpf_ringbuf *bpf_ringbuf_alloc(size_t data_sz, int numa_node)
 {
 	struct bpf_ringbuf *rb;
@@ -192,12 +194,6 @@ static struct bpf_map *ringbuf_map_alloc(union bpf_attr *attr)
 	    !is_power_of_2(attr->max_entries) ||
 	    !PAGE_ALIGNED(attr->max_entries))
 		return ERR_PTR(-EINVAL);
-
-#ifdef CONFIG_64BIT
-	/* on 32-bit arch, it's impossible to overflow record's hdr->pgoff */
-	if (attr->max_entries > RINGBUF_MAX_DATA_SZ)
-		return ERR_PTR(-E2BIG);
-#endif
 
 	rb_map = bpf_map_area_alloc(sizeof(*rb_map), NUMA_NO_NODE);
 	if (!rb_map)
@@ -774,8 +770,7 @@ schedule_work_return:
 	/* Prevent the clearing of the busy-bit from being reordered before the
 	 * storing of any rb consumer or producer positions.
 	 */
-	smp_mb__before_atomic();
-	atomic_set(&rb->busy, 0);
+	atomic_set_release(&rb->busy, 0);
 
 	if (flags & BPF_RB_FORCE_WAKEUP)
 		irq_work_queue(&rb->work);

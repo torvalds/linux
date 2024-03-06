@@ -26,7 +26,7 @@ struct prison_region {
 struct dm_bio_prison {
 	mempool_t cell_pool;
 	unsigned int num_locks;
-	struct prison_region regions[];
+	struct prison_region regions[] __counted_by(num_locks);
 };
 
 static struct kmem_cache *_cell_cache;

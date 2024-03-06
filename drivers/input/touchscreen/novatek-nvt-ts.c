@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Driver for Novatek i2c touchscreen controller as found on
- * the Acer Iconia One 7 B1-750 tablet. The Touchscreen controller
- * model-number is unknown. Android calls this a "NVT-ts" touchscreen,
- * but that may apply to other Novatek controller models too.
+ * Driver for Novatek NT11205 i2c touchscreen controller as found
+ * on the Acer Iconia One 7 B1-750 tablet.
  *
  * Copyright (c) 2023 Hans de Goede <hdegoede@redhat.com>
  */
@@ -272,7 +270,7 @@ static int nvt_ts_probe(struct i2c_client *client)
 
 	error = input_register_device(input);
 	if (error) {
-		dev_err(dev, "failed to request irq: %d\n", error);
+		dev_err(dev, "failed to register input device: %d\n", error);
 		return error;
 	}
 
@@ -290,12 +288,12 @@ static struct i2c_driver nvt_ts_driver = {
 		.name	= "novatek-nvt-ts",
 		.pm	= pm_sleep_ptr(&nvt_ts_pm_ops),
 	},
-	.probe_new = nvt_ts_probe,
+	.probe = nvt_ts_probe,
 	.id_table = nvt_ts_i2c_id,
 };
 
 module_i2c_driver(nvt_ts_driver);
 
-MODULE_DESCRIPTION("Novatek NVT-ts touchscreen driver");
+MODULE_DESCRIPTION("Novatek NT11205 touchscreen driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
 MODULE_LICENSE("GPL");

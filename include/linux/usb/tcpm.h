@@ -173,5 +173,6 @@ void tcpm_pd_hard_reset(struct tcpm_port *port);
 void tcpm_tcpc_reset(struct tcpm_port *port);
 void tcpm_port_clean(struct tcpm_port *port);
 bool tcpm_port_is_toggling(struct tcpm_port *port);
+void tcpm_port_error_recovery(struct tcpm_port *port);
 
 #endif /* __LINUX_USB_TCPM_H */

@@ -61,11 +61,17 @@ struct amdgpu_job {
 	uint32_t		gds_base, gds_size;
 	uint32_t		gws_base, gws_size;
 	uint32_t		oa_base, oa_size;
-	uint32_t		vram_lost_counter;
+	uint64_t		generation;
 
 	/* user fence handling */
 	uint64_t		uf_addr;
 	uint64_t		uf_sequence;
+
+	/* virtual addresses for shadow/GDS/CSA */
+	uint64_t		shadow_va;
+	uint64_t		csa_va;
+	uint64_t		gds_va;
+	bool			init_shadow;
 
 	/* job_run_counter >= 1 means a resubmit job */
 	uint32_t		job_run_counter;

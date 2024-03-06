@@ -594,10 +594,8 @@ static int saa6752hs_set_fmt(struct v4l2_subdev *sd,
 	f->field = V4L2_FIELD_INTERLACED;
 	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		sd_state->pads->try_fmt = *f;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
-	}
 
 	/*
 	  FIXME: translate and round width/height into EMPRESS
@@ -781,7 +779,7 @@ static struct i2c_driver saa6752hs_driver = {
 	.driver = {
 		.name	= "saa6752hs",
 	},
-	.probe_new	= saa6752hs_probe,
+	.probe		= saa6752hs_probe,
 	.remove		= saa6752hs_remove,
 	.id_table	= saa6752hs_id,
 };

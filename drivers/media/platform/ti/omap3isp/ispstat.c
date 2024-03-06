@@ -1039,7 +1039,7 @@ static int isp_stat_init_entities(struct ispstat *stat, const char *name,
 	struct media_entity *me = &subdev->entity;
 
 	v4l2_subdev_init(subdev, sd_ops);
-	snprintf(subdev->name, V4L2_SUBDEV_NAME_SIZE, "OMAP3 ISP %s", name);
+	snprintf(subdev->name, sizeof(subdev->name), "OMAP3 ISP %s", name);
 	subdev->grp_id = BIT(16);	/* group ID for isp subdevs */
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;
 	v4l2_set_subdevdata(subdev, stat);

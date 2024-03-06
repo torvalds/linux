@@ -8,7 +8,6 @@
  * Copyright 2022 Google LLC
  * Author: Vipin Sharma <vipinsh@google.com>
  */
-
 #include "kvm_util.h"
 #include "processor.h"
 #include "hyperv.h"
@@ -43,6 +42,8 @@ int main(void)
 	struct kvm_vm *vm;
 	uint64_t *outval;
 	struct ucall uc;
+
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_CPUID));
 
 	/* Verify if extended hypercalls are supported */
 	if (!kvm_cpuid_has(kvm_get_supported_hv_cpuid(),
@@ -84,7 +85,7 @@ int main(void)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		REPORT_GUEST_ASSERT_2(uc, "arg1 = %ld, arg2 = %ld");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_DONE:
 		break;

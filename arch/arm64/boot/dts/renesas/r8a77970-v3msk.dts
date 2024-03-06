@@ -145,7 +145,7 @@
 	status = "okay";
 	clock-frequency = <400000>;
 
-	hdmi@39{
+	hdmi@39 {
 		compatible = "adi,adv7511w";
 		#sound-dai-cells = <0>;
 		reg = <0x39>;

@@ -192,7 +192,7 @@ static int parent(struct shared_info *info, pid_t pid)
 	 * to the child.
 	 */
 	ret = ptrace_read_regs(pid, NT_PPC_PKEY, regs, 3);
-	PARENT_SKIP_IF_UNSUPPORTED(ret, &info->child_sync);
+	PARENT_SKIP_IF_UNSUPPORTED(ret, &info->child_sync, "PKEYs not supported");
 	PARENT_FAIL_IF(ret, &info->child_sync);
 
 	info->amr1 = info->amr2 = regs[0];

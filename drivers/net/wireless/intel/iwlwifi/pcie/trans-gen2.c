@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-prph.h"
@@ -117,9 +117,14 @@ static void iwl_trans_pcie_fw_reset_handshake(struct iwl_trans *trans)
 				 trans_pcie->fw_reset_state != FW_RESET_REQUESTED,
 				 FW_RESET_TIMEOUT);
 	if (!ret || trans_pcie->fw_reset_state == FW_RESET_ERROR) {
-		IWL_INFO(trans,
-			 "firmware didn't ACK the reset - continue anyway\n");
-		iwl_trans_fw_error(trans, true);
+		u32 inta_hw = iwl_read32(trans, CSR_MSIX_HW_INT_CAUSES_AD);
+
+		IWL_ERR(trans,
+			"timeout waiting for FW reset ACK (inta_hw=0x%x)\n",
+			inta_hw);
+
+		if (!(inta_hw & MSIX_HW_INT_CAUSES_REG_RESET_DONE))
+			iwl_trans_fw_error(trans, true);
 	}
 
 	trans_pcie->fw_reset_state = FW_RESET_IDLE;
@@ -156,6 +161,7 @@ void _iwl_trans_pcie_gen2_stop_device(struct iwl_trans *trans)
 	if (test_and_clear_bit(STATUS_DEVICE_ENABLED, &trans->status)) {
 		IWL_DEBUG_INFO(trans,
 			       "DEVICE_ENABLED bit was set and is now cleared\n");
+		iwl_pcie_synchronize_irqs(trans);
 		iwl_pcie_rx_napi_sync(trans);
 		iwl_txq_gen2_tx_free(trans);
 		iwl_pcie_rx_stop(trans);
@@ -225,11 +231,14 @@ static int iwl_pcie_gen2_nic_init(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int queue_size = max_t(u32, IWL_CMD_QUEUE_SIZE,
 			       trans->cfg->min_txq_size);
+	int ret;
 
 	/* TODO: most of the logic can be removed in A0 - but not in Z0 */
 	spin_lock_bh(&trans_pcie->irq_lock);
-	iwl_pcie_gen2_apm_init(trans);
+	ret = iwl_pcie_gen2_apm_init(trans);
 	spin_unlock_bh(&trans_pcie->irq_lock);
+	if (ret)
+		return ret;
 
 	iwl_op_mode_nic_config(trans->op_mode);
 
@@ -280,6 +289,16 @@ static void iwl_pcie_get_rf_name(struct iwl_trans *trans)
 		break;
 	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_MS):
 		pos = scnprintf(buf, buflen, "MS");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_FM):
+		pos = scnprintf(buf, buflen, "FM");
+		break;
+	case CSR_HW_RFID_TYPE(CSR_HW_RF_ID_TYPE_WP):
+		if (SILICON_Z_STEP ==
+		    CSR_HW_RFID_STEP(trans->hw_rf_id))
+			pos = scnprintf(buf, buflen, "WHTC");
+		else
+			pos = scnprintf(buf, buflen, "WH");
 		break;
 	default:
 		return;

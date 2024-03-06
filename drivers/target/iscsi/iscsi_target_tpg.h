@@ -38,7 +38,6 @@ extern int iscsit_tpg_del_network_portal(struct iscsi_portal_group *,
 			struct iscsi_tpg_np *);
 extern int iscsit_ta_authentication(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_login_timeout(struct iscsi_portal_group *, u32);
-extern int iscsit_ta_netif_timeout(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_generate_node_acls(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_default_cmdsn_depth(struct iscsi_portal_group *, u32);
 extern int iscsit_ta_cache_dynamic_acls(struct iscsi_portal_group *, u32);

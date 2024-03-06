@@ -82,3 +82,4 @@ module_exit(exit_rc_map_tevii_nec)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("tevii-nec remote controller keytable");

@@ -699,8 +699,7 @@ static int pfuze100_regulator_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	if (client->dev.of_node) {
-		match = of_match_device(of_match_ptr(pfuze_dt_ids),
-				&client->dev);
+		match = of_match_device(pfuze_dt_ids, &client->dev);
 		if (!match) {
 			dev_err(&client->dev, "Error: No device match found\n");
 			return -ENODEV;
@@ -848,7 +847,7 @@ static struct i2c_driver pfuze_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = pfuze_dt_ids,
 	},
-	.probe_new = pfuze100_regulator_probe,
+	.probe = pfuze100_regulator_probe,
 };
 module_i2c_driver(pfuze_driver);
 

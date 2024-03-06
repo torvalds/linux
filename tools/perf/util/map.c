@@ -109,8 +109,7 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 	map__set_pgoff(map, pgoff);
 	map__set_reloc(map, 0);
 	map__set_dso(map, dso__get(dso));
-	map__set_map_ip(map, map__dso_map_ip);
-	map__set_unmap_ip(map, map__dso_unmap_ip);
+	map__set_mapping_type(map, MAPPING_TYPE__DSO);
 	map__set_erange_warned(map, false);
 	refcount_set(map__refcnt(map), 1);
 }
@@ -137,7 +136,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		no_dso = is_no_dso_memory(filename);
 		map->prot = prot;
 		map->flags = flags;
-		nsi = nsinfo__get(thread->nsinfo);
+		nsi = nsinfo__get(thread__nsinfo(thread));
 
 		if ((anon || no_dso) && nsi && (prot & PROT_EXEC)) {
 			snprintf(newfilename, sizeof(newfilename),
@@ -172,7 +171,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
-			map->map_ip = map->unmap_ip = identity__map_ip;
+			map->mapping_type = MAPPING_TYPE__IDENTITY;
 
 			/*
 			 * Set memory without DSO as loaded. All map__find_*
@@ -390,7 +389,7 @@ struct symbol *map__find_symbol(struct map *map, u64 addr)
 	return dso__find_symbol(map__dso(map), addr);
 }
 
-struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
+struct symbol *map__find_symbol_by_name_idx(struct map *map, const char *name, size_t *idx)
 {
 	struct dso *dso;
 
@@ -398,10 +397,16 @@ struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
 		return NULL;
 
 	dso = map__dso(map);
-	if (!dso__sorted_by_name(dso))
-		dso__sort_by_name(dso);
+	dso__sort_by_name(dso);
 
-	return dso__find_symbol_by_name(dso, name);
+	return dso__find_symbol_by_name(dso, name, idx);
+}
+
+struct symbol *map__find_symbol_by_name(struct map *map, const char *name)
+{
+	size_t idx;
+
+	return map__find_symbol_by_name_idx(map, name, &idx);
 }
 
 struct map *map__clone(struct map *from)
@@ -431,14 +436,21 @@ size_t map__fprintf(struct map *map, FILE *fp)
 		       map__start(map), map__end(map), map__pgoff(map), dso->name);
 }
 
-size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+static bool prefer_dso_long_name(const struct dso *dso, bool print_off)
+{
+	return dso->long_name &&
+	       (symbol_conf.show_kernel_path ||
+		(print_off && (dso->name[0] == '[' || dso__is_kcore(dso))));
+}
+
+static size_t __map__fprintf_dsoname(struct map *map, bool print_off, FILE *fp)
 {
 	char buf[symbol_conf.pad_output_len_dso + 1];
 	const char *dsoname = "[unknown]";
 	const struct dso *dso = map ? map__dso(map) : NULL;
 
 	if (dso) {
-		if (symbol_conf.show_kernel_path && dso->long_name)
+		if (prefer_dso_long_name(dso, print_off))
 			dsoname = dso->long_name;
 		else
 			dsoname = dso->name;
@@ -450,6 +462,27 @@ size_t map__fprintf_dsoname(struct map *map, FILE *fp)
 	}
 
 	return fprintf(fp, "%s", dsoname);
+}
+
+size_t map__fprintf_dsoname(struct map *map, FILE *fp)
+{
+	return __map__fprintf_dsoname(map, false, fp);
+}
+
+size_t map__fprintf_dsoname_dsoff(struct map *map, bool print_off, u64 addr, FILE *fp)
+{
+	const struct dso *dso = map ? map__dso(map) : NULL;
+	int printed = 0;
+
+	if (print_off && (!dso || !dso__is_object_file(dso)))
+		print_off = false;
+	printed += fprintf(fp, " (");
+	printed += __map__fprintf_dsoname(map, print_off, fp);
+	if (print_off)
+		printed += fprintf(fp, "+0x%" PRIx64, addr);
+	printed += fprintf(fp, ")");
+
+	return printed;
 }
 
 char *map__srcline(struct map *map, u64 addr, struct symbol *sym)
@@ -468,9 +501,9 @@ int map__fprintf_srcline(struct map *map, u64 addr, const char *prefix,
 
 	if (dso) {
 		char *srcline = map__srcline(map, addr, NULL);
-		if (strncmp(srcline, SRCLINE_UNKNOWN, strlen(SRCLINE_UNKNOWN)) != 0)
+		if (srcline != SRCLINE_UNKNOWN)
 			ret = fprintf(fp, "%s%s", prefix, srcline);
-		free_srcline(srcline);
+		zfree_srcline(&srcline);
 	}
 	return ret;
 }
@@ -595,19 +628,4 @@ struct maps *map__kmaps(struct map *map)
 		return NULL;
 	}
 	return kmap->kmaps;
-}
-
-u64 map__dso_map_ip(const struct map *map, u64 ip)
-{
-	return ip - map__start(map) + map__pgoff(map);
-}
-
-u64 map__dso_unmap_ip(const struct map *map, u64 ip)
-{
-	return ip + map__start(map) - map__pgoff(map);
-}
-
-u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)
-{
-	return ip;
 }

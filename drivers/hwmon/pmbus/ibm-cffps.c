@@ -13,7 +13,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pmbus.h>
 
 #include "pmbus.h"
@@ -489,7 +489,7 @@ static int ibm_cffps_probe(struct i2c_client *client)
 	const struct i2c_device_id *id;
 
 	if (md) {
-		vs = (enum versions)md;
+		vs = (uintptr_t)md;
 	} else {
 		id = i2c_match_id(ibm_cffps_id, client);
 		if (id)
@@ -605,7 +605,7 @@ static struct i2c_driver ibm_cffps_driver = {
 		.name = "ibm-cffps",
 		.of_match_table = ibm_cffps_of_match,
 	},
-	.probe_new = ibm_cffps_probe,
+	.probe = ibm_cffps_probe,
 	.id_table = ibm_cffps_id,
 };
 

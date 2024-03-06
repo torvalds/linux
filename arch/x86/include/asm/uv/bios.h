@@ -10,6 +10,7 @@
  * Copyright (c) Russ Anderson <rja@sgi.com>
  */
 
+#include <linux/efi.h>
 #include <linux/rtc.h>
 
 /*
@@ -115,7 +116,8 @@ struct uv_arch_type_entry {
 struct uv_systab {
 	char signature[4];	/* must be UV_SYSTAB_SIG */
 	u32 revision;		/* distinguish different firmware revs */
-	u64 function;		/* BIOS runtime callback function ptr */
+	u64 (__efiapi *function)(enum uv_bios_cmd, ...);
+				/* BIOS runtime callback function ptr */
 	u32 size;		/* systab size (starting with _VERSION_UV4) */
 	struct {
 		u32 type:8;	/* type of entry */

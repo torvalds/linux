@@ -34,6 +34,8 @@
 
 static void vmw_bo_release(struct vmw_bo *vbo)
 {
+	WARN_ON(vbo->tbo.base.funcs &&
+		kref_read(&vbo->tbo.base.refcount) != 0);
 	vmw_bo_unmap(vbo);
 	drm_gem_object_release(&vbo->tbo.base);
 }
@@ -497,10 +499,9 @@ static int vmw_user_bo_synccpu_release(struct drm_file *filp,
 		if (!(flags & drm_vmw_synccpu_allow_cs)) {
 			atomic_dec(&vmw_bo->cpu_writers);
 		}
-		ttm_bo_put(&vmw_bo->tbo);
+		vmw_user_bo_unref(&vmw_bo);
 	}
 
-	drm_gem_object_put(&vmw_bo->tbo.base);
 	return ret;
 }
 
@@ -540,8 +541,7 @@ int vmw_user_bo_synccpu_ioctl(struct drm_device *dev, void *data,
 			return ret;
 
 		ret = vmw_user_bo_synccpu_grab(vbo, arg->flags);
-		vmw_bo_unreference(&vbo);
-		drm_gem_object_put(&vbo->tbo.base);
+		vmw_user_bo_unref(&vbo);
 		if (unlikely(ret != 0)) {
 			if (ret == -ERESTARTSYS || ret == -EBUSY)
 				return -EBUSY;
@@ -614,7 +614,6 @@ int vmw_user_bo_lookup(struct drm_file *filp,
 	}
 
 	*out = to_vmw_bo(gobj);
-	ttm_bo_get(&(*out)->tbo);
 
 	return 0;
 }

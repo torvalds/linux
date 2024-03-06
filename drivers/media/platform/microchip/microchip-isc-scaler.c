@@ -33,8 +33,8 @@ static int isc_scaler_get_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *v4l2_try_fmt;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
-		v4l2_try_fmt = v4l2_subdev_get_try_format(sd, sd_state,
-							  format->pad);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    format->pad);
 		format->format = *v4l2_try_fmt;
 
 		return 0;
@@ -74,12 +74,12 @@ static int isc_scaler_set_fmt(struct v4l2_subdev *sd,
 	req_fmt->format.code = fmt->mbus_code;
 
 	if (req_fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		v4l2_try_fmt = v4l2_subdev_get_try_format(sd, sd_state,
-							  req_fmt->pad);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    req_fmt->pad);
 		*v4l2_try_fmt = req_fmt->format;
 		/* Trying on the sink pad makes the source pad change too */
-		v4l2_try_fmt = v4l2_subdev_get_try_format(sd, sd_state,
-							  ISC_SCALER_PAD_SOURCE);
+		v4l2_try_fmt = v4l2_subdev_state_get_format(sd_state,
+							    ISC_SCALER_PAD_SOURCE);
 		*v4l2_try_fmt = req_fmt->format;
 
 		v4l_bound_align_image(&v4l2_try_fmt->width,
@@ -145,17 +145,17 @@ static int isc_scaler_g_sel(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int isc_scaler_init_cfg(struct v4l2_subdev *sd,
-			       struct v4l2_subdev_state *sd_state)
+static int isc_scaler_init_state(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *v4l2_try_fmt =
-		v4l2_subdev_get_try_format(sd, sd_state, 0);
+		v4l2_subdev_state_get_format(sd_state, 0);
 	struct v4l2_rect *try_crop;
 	struct isc_device *isc = container_of(sd, struct isc_device, scaler_sd);
 
 	*v4l2_try_fmt = isc->scaler_format[ISC_SCALER_PAD_SOURCE];
 
-	try_crop = v4l2_subdev_get_try_crop(sd, sd_state, 0);
+	try_crop = v4l2_subdev_state_get_crop(sd_state, 0);
 
 	try_crop->top = 0;
 	try_crop->left = 0;
@@ -170,7 +170,6 @@ static const struct v4l2_subdev_pad_ops isc_scaler_pad_ops = {
 	.set_fmt = isc_scaler_set_fmt,
 	.get_fmt = isc_scaler_get_fmt,
 	.get_selection = isc_scaler_g_sel,
-	.init_cfg = isc_scaler_init_cfg,
 };
 
 static const struct media_entity_operations isc_scaler_entity_ops = {
@@ -181,11 +180,16 @@ static const struct v4l2_subdev_ops xisc_scaler_subdev_ops = {
 	.pad = &isc_scaler_pad_ops,
 };
 
+static const struct v4l2_subdev_internal_ops isc_scaler_internal_ops = {
+	.init_state = isc_scaler_init_state,
+};
+
 int isc_scaler_init(struct isc_device *isc)
 {
 	int ret;
 
 	v4l2_subdev_init(&isc->scaler_sd, &xisc_scaler_subdev_ops);
+	isc->scaler_sd.internal_ops = &isc_scaler_internal_ops;
 
 	isc->scaler_sd.owner = THIS_MODULE;
 	isc->scaler_sd.dev = isc->dev;

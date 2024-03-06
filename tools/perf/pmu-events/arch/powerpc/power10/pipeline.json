@@ -1,8 +1,13 @@
 [
   {
-    "EventCode": "0x100FE",
-    "EventName": "PM_INST_CMPL",
-    "BriefDescription": "PowerPC instructions completed."
+    "EventCode": "0x10004",
+    "EventName": "PM_EXEC_STALL_TRANSLATION",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline suffered a TLB miss or ERAT miss and waited for it to resolve."
+  },
+  {
+    "EventCode": "0x10006",
+    "EventName": "PM_DISP_STALL_HELD_OTHER_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch for any other reason."
   },
   {
     "EventCode": "0x1000C",
@@ -12,7 +17,7 @@
   {
     "EventCode": "0x1000E",
     "EventName": "PM_MMA_ISSUED",
-    "BriefDescription": "MMA instructions issued."
+    "BriefDescription": "MMA instruction issued."
   },
   {
     "EventCode": "0x10012",
@@ -30,14 +35,24 @@
     "BriefDescription": "Cycles in which an instruction reload is pending to satisfy a demand miss."
   },
   {
-    "EventCode": "0x10022",
-    "EventName": "PM_PMC2_SAVED",
-    "BriefDescription": "The conditions for the speculative event selected for PMC2 are met and PMC2 is charged."
+    "EventCode": "0x10028",
+    "EventName": "PM_NTC_FLUSH",
+    "BriefDescription": "The instruction was flushed after becoming next-to-complete (NTC)."
   },
   {
-    "EventCode": "0x10024",
-    "EventName": "PM_PMC5_OVERFLOW",
-    "BriefDescription": "The event selected for PMC5 caused the event counter to overflow."
+    "EventCode": "0x10038",
+    "EventName": "PM_DISP_STALL_TRANSLATION",
+    "BriefDescription": "Cycles when dispatch was stalled for this thread because the MMU was handling a translation miss."
+  },
+  {
+    "EventCode": "0x1003A",
+    "EventName": "PM_DISP_STALL_BR_MPRED_IC_L2",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L2 after suffering a branch mispredict."
+  },
+  {
+    "EventCode": "0x1003C",
+    "EventName": "PM_EXEC_STALL_DMISS_L2L3",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from either the local L2 or local L3."
   },
   {
     "EventCode": "0x10058",
@@ -55,9 +70,39 @@
     "BriefDescription": "Data ERAT Miss (Data TLB Access) page size 2M. Implies radix translation. When MMCR1[16]=0 this event counts only DERAT reloads for demand misses. When MMCR1[16]=1 this event includes demand misses and prefetches."
   },
   {
+    "EventCode": "0x1D05E",
+    "EventName": "PM_DISP_STALL_HELD_HALT_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because of power management."
+  },
+  {
+    "EventCode": "0x1E050",
+    "EventName": "PM_DISP_STALL_HELD_STF_MAPPER_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because the STF mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR."
+  },
+  {
+    "EventCode": "0x1E054",
+    "EventName": "PM_EXEC_STALL_DMISS_L21_L31",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from another core's L2 or L3 on the same chip."
+  },
+  {
+    "EventCode": "0x1E056",
+    "EventName": "PM_EXEC_STALL_STORE_PIPE",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was executing in the store unit. This does not include cycles spent handling store misses, PTESYNC instructions or TLBIE instructions."
+  },
+  {
     "EventCode": "0x1E05A",
     "EventName": "PM_CMPL_STALL_LWSYNC",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a lwsync waiting to complete."
+  },
+  {
+    "EventCode": "0x1F058",
+    "EventName": "PM_DISP_HELD_CYC",
+    "BriefDescription": "Cycles dispatch is held."
+  },
+  {
+    "EventCode": "0x10064",
+    "EventName": "PM_DISP_STALL_IC_L2",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L2."
   },
   {
     "EventCode": "0x10068",
@@ -70,9 +115,9 @@
     "BriefDescription": "Simple fixed point instruction issued to the store unit. Measured at finish time."
   },
   {
-    "EventCode": "0x1006C",
-    "EventName": "PM_RUN_CYC_ST_MODE",
-    "BriefDescription": "Cycles when the run latch is set and the core is in ST mode."
+    "EventCode": "0x100F8",
+    "EventName": "PM_DISP_STALL_CYC",
+    "BriefDescription": "Cycles the ICT has no itags assigned to this thread (no instructions were dispatched during these cycles)."
   },
   {
     "EventCode": "0x20004",
@@ -80,9 +125,9 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was dispatched but not issued yet."
   },
   {
-    "EventCode": "0x2000A",
-    "EventName": "PM_HYPERVISOR_CYC",
-    "BriefDescription": "Cycles when the thread is in Hypervisor state. MSR[S HV PR]=010."
+    "EventCode": "0x20006",
+    "EventName": "PM_DISP_STALL_HELD_ISSQ_FULL_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch due to Issue queue full. Includes issue queue and branch queue."
   },
   {
     "EventCode": "0x2000E",
@@ -90,9 +135,19 @@
     "BriefDescription": "LSU Finished an internal operation in LD1 port."
   },
   {
+    "EventCode": "0x2C010",
+    "EventName": "PM_EXEC_STALL_LSU",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was executing in the Load Store Unit. This does not include simple fixed point instructions."
+  },
+  {
     "EventCode": "0x2C014",
     "EventName": "PM_CMPL_STALL_SPECIAL",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline required special handling before completing."
+  },
+  {
+    "EventCode": "0x2C016",
+    "EventName": "PM_DISP_STALL_IERAT_ONLY_MISS",
+    "BriefDescription": "Cycles when dispatch was stalled while waiting to resolve an instruction ERAT miss."
   },
   {
     "EventCode": "0x2C018",
@@ -100,14 +155,39 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a source beyond the local L2 or local L3."
   },
   {
+    "EventCode": "0x2C01C",
+    "EventName": "PM_EXEC_STALL_DMISS_OFF_CHIP",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a remote chip."
+  },
+  {
+    "EventCode": "0x2C01E",
+    "EventName": "PM_DISP_STALL_BR_MPRED_IC_L3",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L3 after suffering a branch mispredict."
+  },
+  {
     "EventCode": "0x2D010",
     "EventName": "PM_LSU_ST1_FIN",
     "BriefDescription": "LSU Finished an internal operation in ST1 port."
   },
   {
+    "EventCode": "0x10016",
+    "EventName": "PM_VSU0_ISSUE",
+    "BriefDescription": "VSU instruction issued to VSU pipe 0."
+  },
+  {
     "EventCode": "0x2D012",
     "EventName": "PM_VSU1_ISSUE",
-    "BriefDescription": "VSU instructions issued to VSU pipe 1."
+    "BriefDescription": "VSU instruction issued to VSU pipe 1."
+  },
+  {
+    "EventCode": "0x2505C",
+    "EventName": "PM_VSU_ISSUE",
+    "BriefDescription": "At least one VSU instruction was issued to one of the VSU pipes. Up to 4 per cycle. Includes fixed point operations."
+  },
+  {
+    "EventCode": "0x4001C",
+    "EventName": "PM_VSU_FIN",
+    "BriefDescription": "VSU instruction finished."
   },
   {
     "EventCode": "0x2D018",
@@ -115,19 +195,34 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was executing in the VSU (includes FXU, VSU, CRU)."
   },
   {
+    "EventCode": "0x2D01A",
+    "EventName": "PM_DISP_STALL_IC_MISS",
+    "BriefDescription": "Cycles when dispatch was stalled for this thread due to an instruction cache miss."
+  },
+  {
     "EventCode": "0x2D01C",
     "EventName": "PM_CMPL_STALL_STCX",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a stcx waiting for resolution from the nest before completing."
   },
   {
-    "EventCode": "0x2E01E",
-    "EventName": "PM_EXEC_STALL_NTC_FLUSH",
-    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was executing in any unit before it was flushed. Note that if the flush of the oldest instruction happens after finish, the cycles from dispatch to issue will be included in PM_DISP_STALL and the cycles from issue to finish will be included in PM_EXEC_STALL and its corresponding children. This event will also count cycles when the previous NTF instruction is still completing and the new NTF instruction is stalled at dispatch."
+    "EventCode": "0x2E018",
+    "EventName": "PM_DISP_STALL_FETCH",
+    "BriefDescription": "Cycles when dispatch was stalled for this thread because Fetch was being held."
   },
   {
-    "EventCode": "0x2013C",
-    "EventName": "PM_MRK_FX_LSU_FIN",
-    "BriefDescription": "The marked instruction was simple fixed point that was issued to the store unit. Measured at finish time."
+    "EventCode": "0x2E01A",
+    "EventName": "PM_DISP_STALL_HELD_XVFC_MAPPER_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because the XVFC mapper/SRB was full."
+  },
+  {
+    "EventCode": "0x2E01C",
+    "EventName": "PM_EXEC_STALL_TLBIE",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a TLBIE instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "0x2E01E",
+    "EventName": "PM_EXEC_STALL_NTC_FLUSH",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was executing in any unit before it was flushed. Note that if the flush of the oldest instruction happens after finish, the cycles from dispatch to issue will be included in PM_DISP_STALL and the cycles from issue to finish will be included in PM_EXEC_STALL and its corresponding children. This event will also count cycles when the previous next-to-finish (NTF) instruction is still completing and the new NTF instruction is stalled at dispatch."
   },
   {
     "EventCode": "0x2405A",
@@ -135,14 +230,19 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline (NTC) finishes. Note that instructions can finish out of order, therefore not all the instructions that finish have a Next-to-complete status."
   },
   {
-    "EventCode": "0x201E2",
-    "EventName": "PM_MRK_LD_MISS_L1",
-    "BriefDescription": "Marked DL1 Demand Miss counted at finish time."
+    "EventCode": "0x20066",
+    "EventName": "PM_DISP_HELD_OTHER_CYC",
+    "BriefDescription": "Cycles dispatch is held for any other reason."
   },
   {
-    "EventCode": "0x200F4",
-    "EventName": "PM_RUN_CYC",
-    "BriefDescription": "Processor cycles gated by the run latch."
+    "EventCode": "0x2006A",
+    "EventName": "PM_DISP_HELD_STF_MAPPER_CYC",
+    "BriefDescription": "Cycles dispatch is held because the STF mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR."
+  },
+  {
+    "EventCode": "0x30004",
+    "EventName": "PM_DISP_STALL_FLUSH",
+    "BriefDescription": "Cycles when dispatch was stalled because of a flush that happened to an instruction(s) that was not yet next-to-complete (NTC). PM_EXEC_STALL_NTC_FLUSH only includes instructions that were flushed after becoming NTC."
   },
   {
     "EventCode": "0x30008",
@@ -150,34 +250,44 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting to finish in one of the execution units (BRU, LSU, VSU). Only cycles between issue and finish are counted in this category."
   },
   {
+    "EventCode": "0x30014",
+    "EventName": "PM_EXEC_STALL_STORE",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a store instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "0x30016",
+    "EventName": "PM_EXEC_STALL_DERAT_DTLB_MISS",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline suffered a TLB miss and waited for it resolve."
+  },
+  {
+    "EventCode": "0x30018",
+    "EventName": "PM_DISP_STALL_HELD_SCOREBOARD_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch while waiting on the Scoreboard. This event combines VSCR and FPSCR together."
+  },
+  {
     "EventCode": "0x3001A",
     "EventName": "PM_LSU_ST2_FIN",
     "BriefDescription": "LSU Finished an internal operation in ST2 port."
   },
   {
-    "EventCode": "0x30020",
-    "EventName": "PM_PMC2_REWIND",
-    "BriefDescription": "The speculative event selected for PMC2 rewinds and the counter for PMC2 is not charged."
-  },
-  {
-    "EventCode": "0x30022",
-    "EventName": "PM_PMC4_SAVED",
-    "BriefDescription": "The conditions for the speculative event selected for PMC4 are met and PMC4 is charged."
-  },
-  {
-    "EventCode": "0x30024",
-    "EventName": "PM_PMC6_OVERFLOW",
-    "BriefDescription": "The event selected for PMC6 caused the event counter to overflow."
+    "EventCode": "0x30026",
+    "EventName": "PM_EXEC_STALL_STORE_MISS",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a store whose cache line was not resident in the L1 and was waiting for allocation of the missing line into the L1."
   },
   {
     "EventCode": "0x30028",
     "EventName": "PM_CMPL_STALL_MEM_ECC",
-    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for the non-speculative finish of either a stcx waiting for its result or a load waiting for non-critical sectors of data and ECC."
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for the non-speculative finish of either a STCX waiting for its result or a load waiting for non-critical sectors of data and ECC."
   },
   {
     "EventCode": "0x30036",
     "EventName": "PM_EXEC_STALL_SIMPLE_FX",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a simple fixed point instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "0x30038",
+    "EventName": "PM_EXEC_STALL_DMISS_LMEM",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from the local memory, local OpenCAPI cache, or local OpenCAPI memory."
   },
   {
     "EventCode": "0x3003A",
@@ -187,17 +297,42 @@
   {
     "EventCode": "0x3F044",
     "EventName": "PM_VSU2_ISSUE",
-    "BriefDescription": "VSU instructions issued to VSU pipe 2."
+    "BriefDescription": "VSU instruction issued to VSU pipe 2."
   },
   {
     "EventCode": "0x30058",
     "EventName": "PM_TLBIE_FIN",
-    "BriefDescription": "TLBIE instructions finished in the LSU. Two TLBIEs can finish each cycle. All will be counted."
+    "BriefDescription": "TLBIE instruction finished in the LSU. Two TLBIEs can finish each cycle. All will be counted."
   },
   {
-    "EventCode": "0x3D058",
-    "EventName": "PM_SCALAR_FSQRT_FDIV_ISSUE",
-    "BriefDescription": "Scalar versions of four floating point operations: fdiv,fsqrt (xvdivdp, xvdivsp, xvsqrtdp, xvsqrtsp)."
+    "EventCode": "0x34054",
+    "EventName": "PM_EXEC_STALL_DMISS_L2L3_NOCONFLICT",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from the local L2 or local L3, without a dispatch conflict."
+  },
+  {
+    "EventCode": "0x34056",
+    "EventName": "PM_EXEC_STALL_LOAD_FINISH",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was finishing a load after its data was reloaded from a data source beyond the local L1; cycles in which the LSU was processing an L1-hit; cycles in which the next-to-finish (NTF) instruction merged with another load in the LMQ; cycles in which the NTF instruction is waiting for a data reload for a load miss, but the data comes back with a non-NTF instruction."
+  },
+  {
+    "EventCode": "0x34058",
+    "EventName": "PM_DISP_STALL_BR_MPRED_ICMISS",
+    "BriefDescription": "Cycles when dispatch was stalled after a mispredicted branch resulted in an instruction cache miss."
+  },
+  {
+    "EventCode": "0x3D05C",
+    "EventName": "PM_DISP_STALL_HELD_RENAME_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because the mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR and XVFC."
+  },
+  {
+    "EventCode": "0x3E052",
+    "EventName": "PM_DISP_STALL_IC_L3",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from the local L3."
+  },
+  {
+    "EventCode": "0x30060",
+    "EventName": "PM_DISP_HELD_XVFC_MAPPER_CYC",
+    "BriefDescription": "Cycles dispatch is held because the XVFC mapper/SRB was full."
   },
   {
     "EventCode": "0x30066",
@@ -215,9 +350,9 @@
     "BriefDescription": "Cycles in which both instructions in the ICT entry pair show as finished. These are the cycles between finish and completion for the oldest pair of instructions in the pipeline."
   },
   {
-    "EventCode": "0x40010",
-    "EventName": "PM_PMC3_OVERFLOW",
-    "BriefDescription": "The event selected for PMC3 caused the event counter to overflow."
+    "EventCode": "0x4C010",
+    "EventName": "PM_DISP_STALL_BR_MPRED_IC_L3MISS",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from sources beyond the local L3 after suffering a mispredicted branch."
   },
   {
     "EventCode": "0x4C012",
@@ -225,14 +360,34 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline suffered an ERAT miss and waited for it resolve."
   },
   {
+    "EventCode": "0x4C016",
+    "EventName": "PM_EXEC_STALL_DMISS_L2L3_CONFLICT",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from the local L2 or local L3, with a dispatch conflict."
+  },
+  {
     "EventCode": "0x4C018",
     "EventName": "PM_CMPL_STALL",
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline cannot complete because the thread was blocked for any reason."
   },
   {
+    "EventCode": "0x4C01A",
+    "EventName": "PM_EXEC_STALL_DMISS_OFF_NODE",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was waiting for a load miss to resolve from a distant chip."
+  },
+  {
     "EventCode": "0x4C01E",
     "EventName": "PM_LSU_ST3_FIN",
     "BriefDescription": "LSU Finished an internal operation in ST3 port."
+  },
+  {
+    "EventCode": "0x4D014",
+    "EventName": "PM_EXEC_STALL_LOAD",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a load instruction executing in the Load Store Unit."
+  },
+  {
+    "EventCode": "0x4D016",
+    "EventName": "PM_EXEC_STALL_PTESYNC",
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a PTESYNC instruction executing in the Load Store Unit."
   },
   {
     "EventCode": "0x4D018",
@@ -250,9 +405,24 @@
     "BriefDescription": "Cycles in which the oldest instruction in the pipeline was a TLBIEL instruction executing in the Load Store Unit. TLBIEL instructions have lower overhead than TLBIE instructions because they don't get set to the nest."
   },
   {
+    "EventCode": "0x4D01E",
+    "EventName": "PM_DISP_STALL_BR_MPRED",
+    "BriefDescription": "Cycles when dispatch was stalled for this thread due to a mispredicted branch."
+  },
+  {
+    "EventCode": "0x4E010",
+    "EventName": "PM_DISP_STALL_IC_L3MISS",
+    "BriefDescription": "Cycles when dispatch was stalled while the instruction was fetched from any source beyond the local L3."
+  },
+  {
     "EventCode": "0x4E012",
     "EventName": "PM_EXEC_STALL_UNKNOWN",
-    "BriefDescription": "Cycles in which the oldest instruction in the pipeline completed without an ntf_type pulse. The ntf_pulse was missed by the ISU because the NTF finishes and completions came too close together."
+    "BriefDescription": "Cycles in which the oldest instruction in the pipeline completed without an ntf_type pulse. The ntf_pulse was missed by the ISU because the next-to-finish (NTF) instruction finishes and completions came too close together."
+  },
+  {
+    "EventCode": "0x4E01A",
+    "EventName": "PM_DISP_STALL_HELD_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch for any reason."
   },
   {
     "EventCode": "0x4D020",
@@ -260,24 +430,24 @@
     "BriefDescription": "VSU instruction was issued to VSU pipe 3."
   },
   {
-    "EventCode": "0x40132",
-    "EventName": "PM_MRK_LSU_FIN",
-    "BriefDescription": "LSU marked instruction finish."
+    "EventCode": "0x4003C",
+    "EventName": "PM_DISP_STALL_HELD_SYNC_CYC",
+    "BriefDescription": "Cycles in which the next-to-complete (NTC) instruction is held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch."
   },
   {
     "EventCode": "0x45058",
     "EventName": "PM_IC_MISS_CMPL",
-    "BriefDescription": "Non-speculative icache miss, counted at completion."
+    "BriefDescription": "Non-speculative instruction cache miss, counted at completion."
   },
   {
-    "EventCode": "0x4D050",
-    "EventName": "PM_VSU_NON_FLOP_CMPL",
-    "BriefDescription": "Non-floating point VSU instructions completed."
+    "EventCode": "0x40060",
+    "EventName": "PM_DISP_HELD_SCOREBOARD_CYC",
+    "BriefDescription": "Cycles dispatch is held while waiting on the Scoreboard. This event combines VSCR and FPSCR together."
   },
   {
-    "EventCode": "0x4D052",
-    "EventName": "PM_2FLOP_CMPL",
-    "BriefDescription": "Double Precision vector version of fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg completed."
+    "EventCode": "0x40062",
+    "EventName": "PM_DISP_HELD_RENAME_CYC",
+    "BriefDescription": "Cycles dispatch is held because the mapper/SRB was full. Includes GPR (count, link, tar), VSR, VMR, FPR and XVFC."
   },
   {
     "EventCode": "0x400F2",

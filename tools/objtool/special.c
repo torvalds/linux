@@ -62,7 +62,7 @@ static void reloc_to_sec_off(struct reloc *reloc, struct section **sec,
 			     unsigned long *off)
 {
 	*sec = reloc->sym->sec;
-	*off = reloc->sym->offset + reloc->addend;
+	*off = reloc->sym->offset + reloc_addend(reloc);
 }
 
 static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
@@ -126,7 +126,7 @@ static int get_alt_entry(struct elf *elf, const struct special_entry *entry,
 				  sec, offset + entry->key);
 			return -1;
 		}
-		alt->key_addend = key_reloc->addend;
+		alt->key_addend = reloc_addend(key_reloc);
 	}
 
 	return 0;

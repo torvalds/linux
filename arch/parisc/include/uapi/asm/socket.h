@@ -129,6 +129,9 @@
 
 #define SO_RCVMARK		0x4049
 
+#define SO_PASSPIDFD		0x404A
+#define SO_PEERPIDFD		0x404B
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

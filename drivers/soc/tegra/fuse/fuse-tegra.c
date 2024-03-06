@@ -125,13 +125,10 @@ static int tegra_fuse_probe(struct platform_device *pdev)
 		return err;
 
 	/* take over the memory region from the early initialization */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	fuse->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(fuse->base))
+		return PTR_ERR(fuse->base);
 	fuse->phys = res->start;
-	fuse->base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(fuse->base)) {
-		err = PTR_ERR(fuse->base);
-		return err;
-	}
 
 	fuse->clk = devm_clk_get(&pdev->dev, "fuse");
 	if (IS_ERR(fuse->clk)) {

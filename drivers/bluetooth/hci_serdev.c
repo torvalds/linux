@@ -271,8 +271,8 @@ static void hci_uart_write_wakeup(struct serdev_device *serdev)
  *
  * Return: number of processed bytes
  */
-static int hci_uart_receive_buf(struct serdev_device *serdev, const u8 *data,
-				   size_t count)
+static ssize_t hci_uart_receive_buf(struct serdev_device *serdev,
+				    const u8 *data, size_t count)
 {
 	struct hci_uart *hu = serdev_device_get_drvdata(serdev);
 

@@ -710,7 +710,6 @@ static int admv1014_init(struct admv1014_state *st)
 
 static int admv1014_properties_parse(struct admv1014_state *st)
 {
-	const char *str;
 	unsigned int i;
 	struct spi_device *spi = st->spi;
 	int ret;
@@ -719,27 +718,21 @@ static int admv1014_properties_parse(struct admv1014_state *st)
 
 	st->p1db_comp = device_property_read_bool(&spi->dev, "adi,p1db-compensation-enable");
 
-	ret = device_property_read_string(&spi->dev, "adi,input-mode", &str);
-	if (ret) {
-		st->input_mode = ADMV1014_IQ_MODE;
-	} else {
-		ret = match_string(input_mode_names, ARRAY_SIZE(input_mode_names), str);
-		if (ret < 0)
-			return ret;
-
+	ret = device_property_match_property_string(&spi->dev, "adi,input-mode",
+						    input_mode_names,
+						    ARRAY_SIZE(input_mode_names));
+	if (ret >= 0)
 		st->input_mode = ret;
-	}
+	else
+		st->input_mode = ADMV1014_IQ_MODE;
 
-	ret = device_property_read_string(&spi->dev, "adi,quad-se-mode", &str);
-	if (ret) {
-		st->quad_se_mode = ADMV1014_SE_MODE_POS;
-	} else {
-		ret = match_string(quad_se_mode_names, ARRAY_SIZE(quad_se_mode_names), str);
-		if (ret < 0)
-			return ret;
-
+	ret = device_property_match_property_string(&spi->dev, "adi,quad-se-mode",
+						    quad_se_mode_names,
+						    ARRAY_SIZE(quad_se_mode_names));
+	if (ret >= 0)
 		st->quad_se_mode = ADMV1014_SE_MODE_POS + (ret * 3);
-	}
+	else
+		st->quad_se_mode = ADMV1014_SE_MODE_POS;
 
 	for (i = 0; i < ADMV1014_NUM_REGULATORS; ++i)
 		st->regulators[i].supply = admv1014_reg_name[i];

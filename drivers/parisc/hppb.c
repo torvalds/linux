@@ -96,9 +96,10 @@ static struct parisc_driver hppb_driver __refdata = {
 /**
  * hppb_init - HP-PB bus initialization procedure.
  *
- * Register this driver.   
+ * Register this driver.
  */
-void __init hppb_init(void)
+static int __init hppb_init(void)
 {
-        register_parisc_driver(&hppb_driver);
+        return register_parisc_driver(&hppb_driver);
 }
+arch_initcall(hppb_init);

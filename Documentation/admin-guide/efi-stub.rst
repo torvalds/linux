@@ -15,7 +15,7 @@ between architectures is in drivers/firmware/efi/libstub.
 
 For arm64, there is no compressed kernel support, so the Image itself
 masquerades as a PE/COFF image and the EFI stub is linked into the
-kernel. The arm64 EFI stub lives in arch/arm64/kernel/efi-entry.S
+kernel. The arm64 EFI stub lives in drivers/firmware/efi/libstub/arm64.c
 and drivers/firmware/efi/libstub/arm64-stub.c.
 
 By using the EFI boot stub it's possible to boot a Linux kernel

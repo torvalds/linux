@@ -53,20 +53,43 @@ extern "C" {
 #define DRM_IVPU_PARAM_CORE_CLOCK_RATE	    3
 #define DRM_IVPU_PARAM_NUM_CONTEXTS	    4
 #define DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS 5
-#define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6
+#define DRM_IVPU_PARAM_CONTEXT_PRIORITY	    6 /* Deprecated */
 #define DRM_IVPU_PARAM_CONTEXT_ID	    7
 #define DRM_IVPU_PARAM_FW_API_VERSION	    8
 #define DRM_IVPU_PARAM_ENGINE_HEARTBEAT	    9
 #define DRM_IVPU_PARAM_UNIQUE_INFERENCE_ID  10
 #define DRM_IVPU_PARAM_TILE_CONFIG	    11
 #define DRM_IVPU_PARAM_SKU		    12
+#define DRM_IVPU_PARAM_CAPABILITIES	    13
 
 #define DRM_IVPU_PLATFORM_TYPE_SILICON	    0
 
+/* Deprecated, use DRM_IVPU_JOB_PRIORITY */
 #define DRM_IVPU_CONTEXT_PRIORITY_IDLE	    0
 #define DRM_IVPU_CONTEXT_PRIORITY_NORMAL    1
 #define DRM_IVPU_CONTEXT_PRIORITY_FOCUS	    2
 #define DRM_IVPU_CONTEXT_PRIORITY_REALTIME  3
+
+#define DRM_IVPU_JOB_PRIORITY_DEFAULT  0
+#define DRM_IVPU_JOB_PRIORITY_IDLE     1
+#define DRM_IVPU_JOB_PRIORITY_NORMAL   2
+#define DRM_IVPU_JOB_PRIORITY_FOCUS    3
+#define DRM_IVPU_JOB_PRIORITY_REALTIME 4
+
+/**
+ * DRM_IVPU_CAP_METRIC_STREAMER
+ *
+ * Metric streamer support. Provides sampling of various hardware performance
+ * metrics like DMA bandwidth and cache miss/hits. Can be used for profiling.
+ */
+#define DRM_IVPU_CAP_METRIC_STREAMER	1
+/**
+ * DRM_IVPU_CAP_DMA_MEMORY_RANGE
+ *
+ * Driver has capability to allocate separate memory range
+ * accessible by hardware DMA.
+ */
+#define DRM_IVPU_CAP_DMA_MEMORY_RANGE	2
 
 /**
  * struct drm_ivpu_param - Get/Set VPU parameters
@@ -96,10 +119,6 @@ struct drm_ivpu_param {
 	 * %DRM_IVPU_PARAM_CONTEXT_BASE_ADDRESS:
 	 * Lowest VPU virtual address available in the current context (read-only)
 	 *
-	 * %DRM_IVPU_PARAM_CONTEXT_PRIORITY:
-	 * Value of current context scheduling priority (read-write).
-	 * See DRM_IVPU_CONTEXT_PRIORITY_* for possible values.
-	 *
 	 * %DRM_IVPU_PARAM_CONTEXT_ID:
 	 * Current context ID, always greater than 0 (read-only)
 	 *
@@ -119,6 +138,8 @@ struct drm_ivpu_param {
 	 * %DRM_IVPU_PARAM_SKU:
 	 * VPU SKU ID (read-only)
 	 *
+	 * %DRM_IVPU_PARAM_CAPABILITIES:
+	 * Supported capabilities (read-only)
 	 */
 	__u32 param;
 
@@ -129,8 +150,10 @@ struct drm_ivpu_param {
 	__u64 value;
 };
 
-#define DRM_IVPU_BO_HIGH_MEM   0x00000001
+#define DRM_IVPU_BO_SHAVE_MEM  0x00000001
+#define DRM_IVPU_BO_HIGH_MEM   DRM_IVPU_BO_SHAVE_MEM
 #define DRM_IVPU_BO_MAPPABLE   0x00000002
+#define DRM_IVPU_BO_DMA_MEM    0x00000004
 
 #define DRM_IVPU_BO_CACHED     0x00000000
 #define DRM_IVPU_BO_UNCACHED   0x00010000
@@ -140,6 +163,7 @@ struct drm_ivpu_param {
 #define DRM_IVPU_BO_FLAGS \
 	(DRM_IVPU_BO_HIGH_MEM | \
 	 DRM_IVPU_BO_MAPPABLE | \
+	 DRM_IVPU_BO_DMA_MEM | \
 	 DRM_IVPU_BO_CACHE_MASK)
 
 /**
@@ -175,7 +199,7 @@ struct drm_ivpu_bo_create {
 	 *
 	 * %DRM_IVPU_BO_UNCACHED:
 	 *
-	 * Allocated BO will not be cached on host side nor snooped on the VPU side.
+	 * Not supported. Use DRM_IVPU_BO_WC instead.
 	 *
 	 * %DRM_IVPU_BO_WC:
 	 *
@@ -265,10 +289,23 @@ struct drm_ivpu_submit {
 	 * to be executed. The offset has to be 8-byte aligned.
 	 */
 	__u32 commands_offset;
+
+	/**
+	 * @priority:
+	 *
+	 * Priority to be set for related job command queue, can be one of the following:
+	 * %DRM_IVPU_JOB_PRIORITY_DEFAULT
+	 * %DRM_IVPU_JOB_PRIORITY_IDLE
+	 * %DRM_IVPU_JOB_PRIORITY_NORMAL
+	 * %DRM_IVPU_JOB_PRIORITY_FOCUS
+	 * %DRM_IVPU_JOB_PRIORITY_REALTIME
+	 */
+	__u32 priority;
 };
 
 /* drm_ivpu_bo_wait job status codes */
 #define DRM_IVPU_JOB_STATUS_SUCCESS 0
+#define DRM_IVPU_JOB_STATUS_ABORTED 256
 
 /**
  * struct drm_ivpu_bo_wait - Wait for BO to become inactive

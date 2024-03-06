@@ -459,12 +459,12 @@ static int emit_ggtt_store_dw(struct i915_request *rq, u32 addr, u32 value)
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	if (GRAPHICS_VER(rq->engine->i915) >= 8) {
+	if (GRAPHICS_VER(rq->i915) >= 8) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = addr;
 		*cs++ = 0;
 		*cs++ = value;
-	} else if (GRAPHICS_VER(rq->engine->i915) >= 4) {
+	} else if (GRAPHICS_VER(rq->i915) >= 4) {
 		*cs++ = MI_STORE_DWORD_IMM_GEN4 | MI_USE_GGTT;
 		*cs++ = 0;
 		*cs++ = addr;
@@ -836,7 +836,7 @@ static int setup_watcher(struct hwsp_watcher *w, struct intel_gt *gt,
 		return PTR_ERR(obj);
 
 	/* keep the same cache settings as timeline */
-	i915_gem_object_set_cache_coherency(obj, tl->hwsp_ggtt->obj->cache_level);
+	i915_gem_object_set_pat_index(obj, tl->hwsp_ggtt->obj->pat_index);
 	w->map = i915_gem_object_pin_map_unlocked(obj,
 						  page_unmask_bits(tl->hwsp_ggtt->obj->mm.mapping));
 	if (IS_ERR(w->map)) {

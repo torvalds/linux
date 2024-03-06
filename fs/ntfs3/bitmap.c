@@ -124,7 +124,8 @@ void wnd_close(struct wnd_bitmap *wnd)
 {
 	struct rb_node *node, *next;
 
-	kfree(wnd->free_bits);
+	kvfree(wnd->free_bits);
+	wnd->free_bits = NULL;
 	run_close(&wnd->run);
 
 	node = rb_first(&wnd->start_tree);
@@ -287,8 +288,8 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			/* Check bits before 'bit'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
 					     bit < wnd->zone_end ?
-					   0 :
-					   wnd->zone_end;
+				     0 :
+				     wnd->zone_end;
 
 			while (bit > ib && wnd_is_free_hlp(wnd, bit - 1, 1)) {
 				bit -= 1;
@@ -298,8 +299,8 @@ static void wnd_add_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len,
 			/* Check bits after 'end_in'. */
 			ib = wnd->zone_bit == wnd->zone_end ||
 					     end_in > wnd->zone_bit ?
-					   wnd->nbits :
-					   wnd->zone_bit;
+				     wnd->nbits :
+				     wnd->zone_bit;
 
 			while (end_in < ib && wnd_is_free_hlp(wnd, end_in, 1)) {
 				end_in += 1;
@@ -418,7 +419,7 @@ static void wnd_remove_free_ext(struct wnd_bitmap *wnd, size_t bit, size_t len)
 		n3 = rb_first(&wnd->count_tree);
 		wnd->extent_max =
 			n3 ? rb_entry(n3, struct e_node, count.node)->count.key :
-				   0;
+			     0;
 		return;
 	}
 
@@ -659,7 +660,8 @@ int wnd_init(struct wnd_bitmap *wnd, struct super_block *sb, size_t nbits)
 		wnd->bits_last = wbits;
 
 	wnd->free_bits =
-		kcalloc(wnd->nwnd, sizeof(u16), GFP_NOFS | __GFP_NOWARN);
+		kvmalloc_array(wnd->nwnd, sizeof(u16), GFP_KERNEL | __GFP_ZERO);
+
 	if (!wnd->free_bits)
 		return -ENOMEM;
 
@@ -1358,7 +1360,7 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 		memcpy(new_free, wnd->free_bits, wnd->nwnd * sizeof(short));
 		memset(new_free + wnd->nwnd, 0,
 		       (new_wnd - wnd->nwnd) * sizeof(short));
-		kfree(wnd->free_bits);
+		kvfree(wnd->free_bits);
 		wnd->free_bits = new_free;
 	}
 

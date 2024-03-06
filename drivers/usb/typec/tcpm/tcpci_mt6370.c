@@ -147,7 +147,7 @@ static int mt6370_tcpc_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return dev_err_probe(dev, irq, "Failed to get irq\n");
+		return irq;
 
 	/* Assign TCPCI feature and ops */
 	priv->tcpci_data.auto_discharge_disconnect = 1;
@@ -178,12 +178,10 @@ static int mt6370_tcpc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mt6370_tcpc_remove(struct platform_device *pdev)
+static void mt6370_tcpc_remove(struct platform_device *pdev)
 {
 	dev_pm_clear_wake_irq(&pdev->dev);
 	device_init_wakeup(&pdev->dev, false);
-
-	return 0;
 }
 
 static const struct of_device_id mt6370_tcpc_devid_table[] = {
@@ -198,7 +196,7 @@ static struct platform_driver mt6370_tcpc_driver = {
 		.of_match_table = mt6370_tcpc_devid_table,
 	},
 	.probe = mt6370_tcpc_probe,
-	.remove = mt6370_tcpc_remove,
+	.remove_new = mt6370_tcpc_remove,
 };
 module_platform_driver(mt6370_tcpc_driver);
 

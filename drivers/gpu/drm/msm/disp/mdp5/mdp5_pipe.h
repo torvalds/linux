@@ -39,8 +39,8 @@ int mdp5_pipe_assign(struct drm_atomic_state *s, struct drm_plane *plane,
 		     struct mdp5_hw_pipe **r_hwpipe);
 int mdp5_pipe_release(struct drm_atomic_state *s, struct mdp5_hw_pipe *hwpipe);
 
-struct mdp5_hw_pipe *mdp5_pipe_init(enum mdp5_pipe pipe,
+struct mdp5_hw_pipe *mdp5_pipe_init(struct drm_device *dev,
+		enum mdp5_pipe pipe,
 		uint32_t reg_offset, uint32_t caps);
-void mdp5_pipe_destroy(struct mdp5_hw_pipe *hwpipe);
 
 #endif /* __MDP5_PIPE_H__ */

@@ -189,6 +189,8 @@ enum nfp_ethtool_link_mode_list {
  * @ports.enabled:	is enabled?
  * @ports.tx_enabled:	is TX enabled?
  * @ports.rx_enabled:	is RX enabled?
+ * @ports.rx_pause:	Switch of RX pause frame
+ * @ports.tx_pause:	Switch of Tx pause frame
  * @ports.override_changed: is media reconfig pending?
  *
  * @ports.port_type:	one of %PORT_* defines for ethtool
@@ -196,6 +198,9 @@ enum nfp_ethtool_link_mode_list {
  *			subports)
  * @ports.is_split:	is interface part of a split port
  * @ports.fec_modes_supported:	bitmap of FEC modes supported
+ *
+ * @ports.link_modes_supp:	bitmap of link modes supported
+ * @ports.link_modes_ad:	bitmap of link modes advertised
  */
 struct nfp_eth_table {
 	unsigned int count;
@@ -224,6 +229,8 @@ struct nfp_eth_table {
 		bool tx_enabled;
 		bool rx_enabled;
 		bool supp_aneg;
+		bool rx_pause;
+		bool tx_pause;
 
 		bool override_changed;
 
@@ -235,7 +242,10 @@ struct nfp_eth_table {
 		bool is_split;
 
 		unsigned int fec_modes_supported;
-	} ports[];
+
+		u64 link_modes_supp[2];
+		u64 link_modes_ad[2];
+	} ports[] __counted_by(count);
 };
 
 struct nfp_eth_table *nfp_eth_read_ports(struct nfp_cpp *cpp);
@@ -249,6 +259,8 @@ int
 nfp_eth_set_fec(struct nfp_cpp *cpp, unsigned int idx, enum nfp_eth_fec mode);
 
 int nfp_eth_set_idmode(struct nfp_cpp *cpp, unsigned int idx, bool state);
+int nfp_eth_set_pauseparam(struct nfp_cpp *cpp, unsigned int idx,
+			   unsigned int tx_pause, unsigned int rx_pause);
 
 static inline bool nfp_eth_can_support_fec(struct nfp_eth_table_port *eth_port)
 {
@@ -313,7 +325,6 @@ struct nfp_eth_media_buf {
 };
 
 int nfp_nsp_read_media(struct nfp_nsp *state, void *buf, unsigned int size);
-int nfp_eth_read_media(struct nfp_cpp *cpp, struct nfp_eth_media_buf *ethm);
 
 #define NFP_NSP_VERSION_BUFSZ	1024 /* reasonable size, not in the ABI */
 

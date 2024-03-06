@@ -21,21 +21,20 @@
  *
  * Always returns 0
  */
-ENTRY(__hibernate_cpu_resume)
+SYM_FUNC_START(__hibernate_cpu_resume)
 	/* switch to hibernated image's page table. */
 	csrw CSR_SATP, s0
 	sfence.vma
 
 	REG_L	a0, hibernate_cpu_context
 
-	suspend_restore_csrs
 	suspend_restore_regs
 
 	/* Return zero value. */
 	mv	a0, zero
 
 	ret
-END(__hibernate_cpu_resume)
+SYM_FUNC_END(__hibernate_cpu_resume)
 
 /*
  * Prepare to restore the image.
@@ -43,15 +42,15 @@ END(__hibernate_cpu_resume)
  * a1: satp of temporary page tables.
  * a2: cpu_resume.
  */
-ENTRY(hibernate_restore_image)
+SYM_FUNC_START(hibernate_restore_image)
 	mv	s0, a0
 	mv	s1, a1
 	mv	s2, a2
 	REG_L	s4, restore_pblist
 	REG_L	a1, relocated_restore_code
 
-	jalr	a1
-END(hibernate_restore_image)
+	jr	a1
+SYM_FUNC_END(hibernate_restore_image)
 
 /*
  * The below code will be executed from a 'safe' page.
@@ -59,7 +58,7 @@ END(hibernate_restore_image)
  * back to the original memory location. Finally, it jumps to __hibernate_cpu_resume()
  * to restore the CPU context.
  */
-ENTRY(hibernate_core_restore_code)
+SYM_FUNC_START(hibernate_core_restore_code)
 	/* switch to temp page table. */
 	csrw satp, s1
 	sfence.vma
@@ -73,5 +72,5 @@ ENTRY(hibernate_core_restore_code)
 	REG_L	s4, HIBERN_PBE_NEXT(s4)
 	bnez	s4, .Lcopy
 
-	jalr	s2
-END(hibernate_core_restore_code)
+	jr	s2
+SYM_FUNC_END(hibernate_core_restore_code)

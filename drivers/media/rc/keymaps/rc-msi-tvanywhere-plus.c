@@ -117,3 +117,4 @@ module_exit(exit_rc_map_msi_tvanywhere_plus)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("MSI TV@nywhere Plus remote controller keytable");

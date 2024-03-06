@@ -20,7 +20,6 @@
 #include <linux/mfd/max77686-private.h>
 #include <linux/err.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 static const struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
@@ -109,7 +108,7 @@ static const struct regmap_config max77802_regmap_config = {
 	.precious_reg = max77802_is_precious_reg,
 	.volatile_reg = max77802_is_volatile_reg,
 	.name = "max77802-pmic",
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_irq max77686_irqs[] = {
@@ -269,7 +268,7 @@ static struct i2c_driver max77686_i2c_driver = {
 		   .pm = pm_sleep_ptr(&max77686_pm),
 		   .of_match_table = max77686_pmic_dt_match,
 	},
-	.probe_new = max77686_i2c_probe,
+	.probe = max77686_i2c_probe,
 };
 
 module_i2c_driver(max77686_i2c_driver);

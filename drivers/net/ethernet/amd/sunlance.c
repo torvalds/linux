@@ -92,7 +92,7 @@ static char lancestr[] = "LANCE";
 #include <linux/bitops.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/gfp.h>
 #include <linux/pgtable.h>
 
@@ -1487,7 +1487,7 @@ static int sunlance_sbus_probe(struct platform_device *op)
 	return err;
 }
 
-static int sunlance_sbus_remove(struct platform_device *op)
+static void sunlance_sbus_remove(struct platform_device *op)
 {
 	struct lance_private *lp = platform_get_drvdata(op);
 	struct net_device *net_dev = lp->dev;
@@ -1497,8 +1497,6 @@ static int sunlance_sbus_remove(struct platform_device *op)
 	lance_free_hwresources(lp);
 
 	free_netdev(net_dev);
-
-	return 0;
 }
 
 static const struct of_device_id sunlance_sbus_match[] = {
@@ -1516,7 +1514,7 @@ static struct platform_driver sunlance_sbus_driver = {
 		.of_match_table = sunlance_sbus_match,
 	},
 	.probe		= sunlance_sbus_probe,
-	.remove		= sunlance_sbus_remove,
+	.remove_new	= sunlance_sbus_remove,
 };
 
 module_platform_driver(sunlance_sbus_driver);

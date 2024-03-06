@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
@@ -255,16 +254,6 @@ static int tps51632_probe(struct i2c_client *client)
 	int ret;
 	struct regulator_config config = { };
 
-	if (client->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_device(of_match_ptr(tps51632_of_match),
-				&client->dev);
-		if (!match) {
-			dev_err(&client->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
-	}
-
 	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
@@ -354,7 +343,7 @@ static struct i2c_driver tps51632_i2c_driver = {
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 		.of_match_table = of_match_ptr(tps51632_of_match),
 	},
-	.probe_new = tps51632_probe,
+	.probe = tps51632_probe,
 	.id_table = tps51632_id,
 };
 

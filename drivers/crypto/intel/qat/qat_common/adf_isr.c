@@ -132,6 +132,21 @@ static bool adf_handle_pm_int(struct adf_accel_dev *accel_dev)
 	return false;
 }
 
+static bool adf_handle_ras_int(struct adf_accel_dev *accel_dev)
+{
+	struct adf_ras_ops *ras_ops = &accel_dev->hw_device->ras_ops;
+	bool reset_required;
+
+	if (ras_ops->handle_interrupt &&
+	    ras_ops->handle_interrupt(accel_dev, &reset_required)) {
+		if (reset_required)
+			dev_err(&GET_DEV(accel_dev), "Fatal error, reset required\n");
+		return true;
+	}
+
+	return false;
+}
+
 static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 {
 	struct adf_accel_dev *accel_dev = dev_ptr;
@@ -143,6 +158,9 @@ static irqreturn_t adf_msix_isr_ae(int irq, void *dev_ptr)
 #endif /* CONFIG_PCI_IOV */
 
 	if (adf_handle_pm_int(accel_dev))
+		return IRQ_HANDLED;
+
+	if (adf_handle_ras_int(accel_dev))
 		return IRQ_HANDLED;
 
 	dev_dbg(&GET_DEV(accel_dev), "qat_dev%d spurious AE interrupt\n",
@@ -379,4 +397,10 @@ void adf_exit_misc_wq(void)
 bool adf_misc_wq_queue_work(struct work_struct *work)
 {
 	return queue_work(adf_misc_wq, work);
+}
+
+bool adf_misc_wq_queue_delayed_work(struct delayed_work *work,
+				    unsigned long delay)
+{
+	return queue_delayed_work(adf_misc_wq, work, delay);
 }

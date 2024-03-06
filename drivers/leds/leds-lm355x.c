@@ -516,7 +516,7 @@ static struct i2c_driver lm355x_i2c_driver = {
 		   .name = LM355x_NAME,
 		   .pm = NULL,
 		   },
-	.probe_new = lm355x_probe,
+	.probe = lm355x_probe,
 	.remove = lm355x_remove,
 	.id_table = lm355x_id,
 };

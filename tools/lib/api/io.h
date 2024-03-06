@@ -8,9 +8,11 @@
 #define __API_IO__
 
 #include <errno.h>
+#include <poll.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <linux/types.h>
 
 struct io {
 	/* File descriptor being read/ */
@@ -23,6 +25,8 @@ struct io {
 	char *end;
 	/* Currently accessed data pointer. */
 	char *data;
+	/* Read timeout, 0 implies no timeout. */
+	int timeout_ms;
 	/* Set true on when the end of file on read error. */
 	bool eof;
 };
@@ -35,6 +39,7 @@ static inline void io__init(struct io *io, int fd,
 	io->buf = buf;
 	io->end = buf;
 	io->data = buf;
+	io->timeout_ms = 0;
 	io->eof = false;
 }
 
@@ -47,7 +52,29 @@ static inline int io__get_char(struct io *io)
 		return -1;
 
 	if (ptr == io->end) {
-		ssize_t n = read(io->fd, io->buf, io->buf_len);
+		ssize_t n;
+
+		if (io->timeout_ms != 0) {
+			struct pollfd pfds[] = {
+				{
+					.fd = io->fd,
+					.events = POLLIN,
+				},
+			};
+
+			n = poll(pfds, 1, io->timeout_ms);
+			if (n == 0)
+				errno = ETIMEDOUT;
+			if (n > 0 && !(pfds[0].revents & POLLIN)) {
+				errno = EIO;
+				n = -1;
+			}
+			if (n <= 0) {
+				io->eof = true;
+				return -1;
+			}
+		}
+		n = read(io->fd, io->buf, io->buf_len);
 
 		if (n <= 0) {
 			io->eof = true;
@@ -114,8 +141,8 @@ static inline int io__get_dec(struct io *io, __u64 *dec)
 	}
 }
 
-/* Read up to and including the first newline following the pattern of getline. */
-static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
+/* Read up to and including the first delim. */
+static inline ssize_t io__getdelim(struct io *io, char **line_out, size_t *line_len_out, int delim)
 {
 	char buf[128];
 	int buf_pos = 0;
@@ -125,7 +152,7 @@ static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_l
 
 	/* TODO: reuse previously allocated memory. */
 	free(*line_out);
-	while (ch != '\n') {
+	while (ch != delim) {
 		ch = io__get_char(io);
 
 		if (ch < 0)
@@ -154,7 +181,13 @@ static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_l
 	return line_len;
 err_out:
 	free(line);
+	*line_out = NULL;
 	return -ENOMEM;
+}
+
+static inline ssize_t io__getline(struct io *io, char **line_out, size_t *line_len_out)
+{
+	return io__getdelim(io, line_out, line_len_out, /*delim=*/'\n');
 }
 
 #endif /* __API_IO__ */

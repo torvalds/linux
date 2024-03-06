@@ -147,9 +147,18 @@ struct mxc_isi_set_thd {
 	struct mxc_isi_panic_thd panic_set_thd_v;
 };
 
+struct mxc_gasket_ops {
+	void (*enable)(struct mxc_isi_dev *isi,
+		       const struct v4l2_mbus_frame_desc *fd,
+		       const struct v4l2_mbus_framefmt *fmt,
+		       const unsigned int port);
+	void (*disable)(struct mxc_isi_dev *isi, const unsigned int port);
+};
+
 enum model {
 	MXC_ISI_IMX8MN,
 	MXC_ISI_IMX8MP,
+	MXC_ISI_IMX93,
 };
 
 struct mxc_isi_plat_data {
@@ -159,10 +168,10 @@ struct mxc_isi_plat_data {
 	unsigned int reg_offset;
 	const struct mxc_isi_ier_reg  *ier_reg;
 	const struct mxc_isi_set_thd *set_thd;
+	const struct mxc_gasket_ops *gasket_ops;
 	const struct clk_bulk_data *clks;
 	unsigned int num_clks;
 	bool buf_active_reverse;
-	bool has_gasket;
 	bool has_36bit_dma;
 };
 
@@ -285,6 +294,9 @@ struct mxc_isi_dev {
 
 	struct dentry			*debugfs_root;
 };
+
+extern const struct mxc_gasket_ops mxc_imx8_gasket_ops;
+extern const struct mxc_gasket_ops mxc_imx93_gasket_ops;
 
 int mxc_isi_crossbar_init(struct mxc_isi_dev *isi);
 void mxc_isi_crossbar_cleanup(struct mxc_isi_crossbar *xbar);

@@ -53,7 +53,7 @@ static void __hot prepare_ftrace_return(unsigned long *parent,
 
 static ftrace_func_t ftrace_func;
 
-void notrace __hot ftrace_function_trampoline(unsigned long parent,
+asmlinkage void notrace __hot ftrace_function_trampoline(unsigned long parent,
 				unsigned long self_addr,
 				unsigned long org_sp_gr3,
 				struct ftrace_regs *fregs)
@@ -78,7 +78,7 @@ void notrace __hot ftrace_function_trampoline(unsigned long parent,
 #endif
 }
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+#if defined(CONFIG_DYNAMIC_FTRACE) && defined(CONFIG_FUNCTION_GRAPH_TRACER)
 int ftrace_enable_ftrace_graph_caller(void)
 {
 	static_key_enable(&ftrace_graph_enable.key);

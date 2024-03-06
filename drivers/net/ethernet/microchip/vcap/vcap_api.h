@@ -277,7 +277,4 @@ struct vcap_control {
 	struct list_head list; /* list of vcap instances */
 };
 
-/* Set client control interface on the API */
-int vcap_api_set_client(struct vcap_control *vctrl);
-
 #endif /* __VCAP_API__ */

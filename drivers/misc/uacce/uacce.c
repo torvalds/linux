@@ -7,9 +7,12 @@
 #include <linux/slab.h>
 #include <linux/uacce.h>
 
-static struct class *uacce_class;
 static dev_t uacce_devt;
 static DEFINE_XARRAY_ALLOC(uacce_xa);
+
+static const struct class uacce_class = {
+	.name = UACCE_NAME,
+};
 
 /*
  * If the parent driver or the device disappears, the queue state is invalid and
@@ -166,8 +169,8 @@ static int uacce_fops_open(struct inode *inode, struct file *filep)
 
 	init_waitqueue_head(&q->wait);
 	filep->private_data = q;
-	uacce->inode = inode;
 	q->state = UACCE_Q_INIT;
+	q->mapping = filep->f_mapping;
 	mutex_init(&q->mutex);
 	list_add(&q->list, &uacce->queues);
 	mutex_unlock(&uacce->mutex);
@@ -200,12 +203,15 @@ static int uacce_fops_release(struct inode *inode, struct file *filep)
 static void uacce_vma_close(struct vm_area_struct *vma)
 {
 	struct uacce_queue *q = vma->vm_private_data;
-	struct uacce_qfile_region *qfr = NULL;
 
-	if (vma->vm_pgoff < UACCE_MAX_REGION)
-		qfr = q->qfrs[vma->vm_pgoff];
+	if (vma->vm_pgoff < UACCE_MAX_REGION) {
+		struct uacce_qfile_region *qfr = q->qfrs[vma->vm_pgoff];
 
-	kfree(qfr);
+		mutex_lock(&q->mutex);
+		q->qfrs[vma->vm_pgoff] = NULL;
+		mutex_unlock(&q->mutex);
+		kfree(qfr);
+	}
 }
 
 static const struct vm_operations_struct uacce_vm_ops = {
@@ -527,7 +533,7 @@ struct uacce_device *uacce_alloc(struct device *parent,
 	mutex_init(&uacce->mutex);
 	device_initialize(&uacce->dev);
 	uacce->dev.devt = MKDEV(MAJOR(uacce_devt), uacce->dev_id);
-	uacce->dev.class = uacce_class;
+	uacce->dev.class = &uacce_class;
 	uacce->dev.groups = uacce_dev_groups;
 	uacce->dev.parent = uacce->parent;
 	uacce->dev.release = uacce_release;
@@ -574,12 +580,6 @@ void uacce_remove(struct uacce_device *uacce)
 
 	if (!uacce)
 		return;
-	/*
-	 * unmap remaining mapping from user space, preventing user still
-	 * access the mmaped area while parent device is already removed
-	 */
-	if (uacce->inode)
-		unmap_mapping_range(uacce->inode->i_mapping, 0, 0, 1);
 
 	/*
 	 * uacce_fops_open() may be running concurrently, even after we remove
@@ -597,6 +597,12 @@ void uacce_remove(struct uacce_device *uacce)
 		uacce_put_queue(q);
 		mutex_unlock(&q->mutex);
 		uacce_unbind_queue(q);
+
+		/*
+		 * unmap remaining mapping from user space, preventing user still
+		 * access the mmaped area while parent device is already removed
+		 */
+		unmap_mapping_range(q->mapping, 0, 0, 1);
 	}
 
 	/* disable sva now since no opened queues */
@@ -620,13 +626,13 @@ static int __init uacce_init(void)
 {
 	int ret;
 
-	uacce_class = class_create(UACCE_NAME);
-	if (IS_ERR(uacce_class))
-		return PTR_ERR(uacce_class);
+	ret = class_register(&uacce_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&uacce_devt, 0, MINORMASK, UACCE_NAME);
 	if (ret)
-		class_destroy(uacce_class);
+		class_unregister(&uacce_class);
 
 	return ret;
 }
@@ -634,7 +640,7 @@ static int __init uacce_init(void)
 static __exit void uacce_exit(void)
 {
 	unregister_chrdev_region(uacce_devt, MINORMASK);
-	class_destroy(uacce_class);
+	class_unregister(&uacce_class);
 }
 
 subsys_initcall(uacce_init);

@@ -7,11 +7,13 @@
  *
  * Author: Anshuman Khandual <anshuman.khandual@arm.com>
  */
+#include <linux/acpi.h>
 #include <linux/coresight.h>
 #include <linux/device.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/of.h>
+#include <linux/perf/arm_pmu.h>
 #include <linux/platform_device.h>
 #include <linux/smp.h>
 
@@ -23,14 +25,14 @@ static inline bool is_trbe_available(void)
 	unsigned int trbe = cpuid_feature_extract_unsigned_field(aa64dfr0,
 								 ID_AA64DFR0_EL1_TraceBuffer_SHIFT);
 
-	return trbe >= 0b0001;
+	return trbe >= ID_AA64DFR0_EL1_TraceBuffer_IMP;
 }
 
 static inline bool is_trbe_enabled(void)
 {
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
 
-	return trblimitr & TRBLIMITR_ENABLE;
+	return trblimitr & TRBLIMITR_EL1_E;
 }
 
 #define TRBE_EC_OTHERS		0
@@ -39,7 +41,7 @@ static inline bool is_trbe_enabled(void)
 
 static inline int get_trbe_ec(u64 trbsr)
 {
-	return (trbsr >> TRBSR_EC_SHIFT) & TRBSR_EC_MASK;
+	return (trbsr & TRBSR_EL1_EC_MASK) >> TRBSR_EL1_EC_SHIFT;
 }
 
 #define TRBE_BSC_NOT_STOPPED 0
@@ -48,63 +50,55 @@ static inline int get_trbe_ec(u64 trbsr)
 
 static inline int get_trbe_bsc(u64 trbsr)
 {
-	return (trbsr >> TRBSR_BSC_SHIFT) & TRBSR_BSC_MASK;
+	return (trbsr & TRBSR_EL1_BSC_MASK) >> TRBSR_EL1_BSC_SHIFT;
 }
 
 static inline void clr_trbe_irq(void)
 {
 	u64 trbsr = read_sysreg_s(SYS_TRBSR_EL1);
 
-	trbsr &= ~TRBSR_IRQ;
+	trbsr &= ~TRBSR_EL1_IRQ;
 	write_sysreg_s(trbsr, SYS_TRBSR_EL1);
 }
 
 static inline bool is_trbe_irq(u64 trbsr)
 {
-	return trbsr & TRBSR_IRQ;
+	return trbsr & TRBSR_EL1_IRQ;
 }
 
 static inline bool is_trbe_trg(u64 trbsr)
 {
-	return trbsr & TRBSR_TRG;
+	return trbsr & TRBSR_EL1_TRG;
 }
 
 static inline bool is_trbe_wrap(u64 trbsr)
 {
-	return trbsr & TRBSR_WRAP;
+	return trbsr & TRBSR_EL1_WRAP;
 }
 
 static inline bool is_trbe_abort(u64 trbsr)
 {
-	return trbsr & TRBSR_ABORT;
+	return trbsr & TRBSR_EL1_EA;
 }
 
 static inline bool is_trbe_running(u64 trbsr)
 {
-	return !(trbsr & TRBSR_STOP);
+	return !(trbsr & TRBSR_EL1_S);
 }
-
-#define TRBE_TRIG_MODE_STOP		0
-#define TRBE_TRIG_MODE_IRQ		1
-#define TRBE_TRIG_MODE_IGNORE		3
-
-#define TRBE_FILL_MODE_FILL		0
-#define TRBE_FILL_MODE_WRAP		1
-#define TRBE_FILL_MODE_CIRCULAR_BUFFER	3
 
 static inline bool get_trbe_flag_update(u64 trbidr)
 {
-	return trbidr & TRBIDR_FLAG;
+	return trbidr & TRBIDR_EL1_F;
 }
 
 static inline bool is_trbe_programmable(u64 trbidr)
 {
-	return !(trbidr & TRBIDR_PROG);
+	return !(trbidr & TRBIDR_EL1_P);
 }
 
 static inline int get_trbe_address_align(u64 trbidr)
 {
-	return (trbidr >> TRBIDR_ALIGN_SHIFT) & TRBIDR_ALIGN_MASK;
+	return (trbidr & TRBIDR_EL1_Align_MASK) >> TRBIDR_EL1_Align_SHIFT;
 }
 
 static inline unsigned long get_trbe_write_pointer(void)
@@ -121,7 +115,7 @@ static inline void set_trbe_write_pointer(unsigned long addr)
 static inline unsigned long get_trbe_limit_pointer(void)
 {
 	u64 trblimitr = read_sysreg_s(SYS_TRBLIMITR_EL1);
-	unsigned long addr = trblimitr & (TRBLIMITR_LIMIT_MASK << TRBLIMITR_LIMIT_SHIFT);
+	unsigned long addr = trblimitr & TRBLIMITR_EL1_LIMIT_MASK;
 
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	return addr;
@@ -130,7 +124,7 @@ static inline unsigned long get_trbe_limit_pointer(void)
 static inline unsigned long get_trbe_base_pointer(void)
 {
 	u64 trbbaser = read_sysreg_s(SYS_TRBBASER_EL1);
-	unsigned long addr = trbbaser & (TRBBASER_BASE_MASK << TRBBASER_BASE_SHIFT);
+	unsigned long addr = trbbaser & TRBBASER_EL1_BASE_MASK;
 
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	return addr;
@@ -139,7 +133,7 @@ static inline unsigned long get_trbe_base_pointer(void)
 static inline void set_trbe_base_pointer(unsigned long addr)
 {
 	WARN_ON(is_trbe_enabled());
-	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBBASER_BASE_SHIFT)));
+	WARN_ON(!IS_ALIGNED(addr, (1UL << TRBBASER_EL1_BASE_SHIFT)));
 	WARN_ON(!IS_ALIGNED(addr, PAGE_SIZE));
 	write_sysreg_s(addr, SYS_TRBBASER_EL1);
 }

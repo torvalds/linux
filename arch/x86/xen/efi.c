@@ -16,6 +16,8 @@
 #include <asm/setup.h>
 #include <asm/xen/hypercall.h>
 
+#include "xen-ops.h"
+
 static efi_char16_t vendor[100] __initdata;
 
 static efi_system_table_t efi_systab_xen __initdata = {
@@ -136,7 +138,7 @@ void __init xen_efi_init(struct boot_params *boot_params)
 	if (efi_systab_xen == NULL)
 		return;
 
-	strncpy((char *)&boot_params->efi_info.efi_loader_signature, "Xen",
+	strscpy((char *)&boot_params->efi_info.efi_loader_signature, "Xen",
 			sizeof(boot_params->efi_info.efi_loader_signature));
 	boot_params->efi_info.efi_systab = (__u32)__pa(efi_systab_xen);
 	boot_params->efi_info.efi_systab_hi = (__u32)(__pa(efi_systab_xen) >> 32);

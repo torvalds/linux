@@ -378,6 +378,34 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 	/* Encryption */
 	switch (x->props.ealgo) {
 	case SADB_EALG_NONE:
+		/* The xfrm descriptor for CHACAH20_POLY1305 does not set the algorithm id, which
+		 * is the default value SADB_EALG_NONE. In the branch of SADB_EALG_NONE, driver
+		 * uses algorithm name to identify CHACAH20_POLY1305's algorithm.
+		 */
+		if (x->aead && !strcmp(x->aead->alg_name, "rfc7539esp(chacha20,poly1305)")) {
+			if (nn->pdev->device != PCI_DEVICE_ID_NFP3800) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Unsupported encryption algorithm for offload");
+				return -EINVAL;
+			}
+			if (x->aead->alg_icv_len != 128) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "ICV must be 128bit with CHACHA20_POLY1305");
+				return -EINVAL;
+			}
+
+			/* Aead->alg_key_len includes 32-bit salt */
+			if (x->aead->alg_key_len - 32 != 256) {
+				NL_SET_ERR_MSG_MOD(extack, "Unsupported CHACHA20 key length");
+				return -EINVAL;
+			}
+
+			/* The CHACHA20's mode is not configured */
+			cfg->ctrl_word.hash = NFP_IPSEC_HASH_POLY1305_128;
+			cfg->ctrl_word.cipher = NFP_IPSEC_CIPHER_CHACHA20;
+			break;
+		}
+		fallthrough;
 	case SADB_EALG_NULL:
 		cfg->ctrl_word.cimode = NFP_IPSEC_CIMODE_CBC;
 		cfg->ctrl_word.cipher = NFP_IPSEC_CIPHER_NULL;
@@ -427,6 +455,7 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 	}
 
 	if (x->aead) {
+		int key_offset = 0;
 		int salt_len = 4;
 
 		key_len = DIV_ROUND_UP(x->aead->alg_key_len, BITS_PER_BYTE);
@@ -437,9 +466,19 @@ static int nfp_net_xfrm_add_state(struct xfrm_state *x,
 			return -EINVAL;
 		}
 
-		for (i = 0; i < key_len / sizeof(cfg->ciph_key[0]) ; i++)
-			cfg->ciph_key[i] = get_unaligned_be32(x->aead->alg_key +
-							      sizeof(cfg->ciph_key[0]) * i);
+		/* The CHACHA20's key order needs to be adjusted based on hardware design.
+		 * Other's key order: {K0, K1, K2, K3, K4, K5, K6, K7}
+		 * CHACHA20's key order: {K4, K5, K6, K7, K0, K1, K2, K3}
+		 */
+		if (!strcmp(x->aead->alg_name, "rfc7539esp(chacha20,poly1305)"))
+			key_offset = key_len / sizeof(cfg->ciph_key[0]) >> 1;
+
+		for (i = 0; i < key_len / sizeof(cfg->ciph_key[0]); i++) {
+			int index = (i + key_offset) % (key_len / sizeof(cfg->ciph_key[0]));
+
+			cfg->ciph_key[index] = get_unaligned_be32(x->aead->alg_key +
+								  sizeof(cfg->ciph_key[0]) * i);
+		}
 
 		/* Load up the salt */
 		cfg->aesgcm_fields.salt = get_unaligned_be32(x->aead->alg_key + key_len);

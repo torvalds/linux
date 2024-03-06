@@ -561,7 +561,7 @@ static int msp_log_status(struct v4l2_subdev *sd)
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	const char *p;
-	char prefix[V4L2_SUBDEV_NAME_SIZE + 20];
+	char prefix[sizeof(sd->name) + 20];
 
 	if (state->opmode == OPMODE_AUTOSELECT)
 		msp_detect_stereo(client);
@@ -892,7 +892,7 @@ static struct i2c_driver msp_driver = {
 		.name	= "msp3400",
 		.pm	= &msp3400_pm_ops,
 	},
-	.probe_new	= msp_probe,
+	.probe		= msp_probe,
 	.remove		= msp_remove,
 	.id_table	= msp_id,
 };

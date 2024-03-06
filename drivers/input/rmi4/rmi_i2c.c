@@ -377,7 +377,7 @@ static struct i2c_driver rmi_i2c_driver = {
 		.of_match_table = of_match_ptr(rmi_i2c_of_match),
 	},
 	.id_table	= rmi_id,
-	.probe_new	= rmi_i2c_probe,
+	.probe		= rmi_i2c_probe,
 };
 
 module_i2c_driver(rmi_i2c_driver);

@@ -617,7 +617,7 @@ MODULE_DEVICE_TABLE(of, zinitix_of_match);
 #endif
 
 static struct i2c_driver zinitix_ts_driver = {
-	.probe_new = zinitix_ts_probe,
+	.probe = zinitix_ts_probe,
 	.driver = {
 		.name = "Zinitix-TS",
 		.pm = pm_sleep_ptr(&zinitix_pm_ops),

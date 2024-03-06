@@ -1,0 +1,12 @@
+kms_cursor_legacy@basic-flip-after-cursor-atomic
+kms_cursor_legacy@basic-flip-before-cursor-varying-size
+kms_cursor_legacy@cursorA-vs-flipA-toggle
+kms_cursor_legacy@flip-vs-cursor-atomic-transitions
+kms_cursor_legacy@flip-vs-cursor-toggle
+kms_cursor_legacy@flip-vs-cursor-varying-size
+kms_cursor_legacy@short-flip-before-cursor-atomic-transitions
+kms_cursor_legacy@short-flip-before-cursor-toggle
+kms_flip@flip-vs-modeset-vs-hang
+kms_flip@flip-vs-panning-vs-hang
+kms_plane@pixel-format
+kms_plane@pixel-format-source-clamping

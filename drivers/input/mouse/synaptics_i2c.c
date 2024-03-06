@@ -650,7 +650,7 @@ static struct i2c_driver synaptics_i2c_driver = {
 		.pm	= pm_sleep_ptr(&synaptics_i2c_pm),
 	},
 
-	.probe_new	= synaptics_i2c_probe,
+	.probe		= synaptics_i2c_probe,
 	.remove		= synaptics_i2c_remove,
 
 	.id_table	= synaptics_i2c_id_table,

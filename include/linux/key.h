@@ -490,9 +490,6 @@ do {									\
 	rcu_assign_pointer((KEY)->payload.rcu_data0, (PAYLOAD));	\
 } while (0)
 
-#ifdef CONFIG_SYSCTL
-extern struct ctl_table key_sysctls[];
-#endif
 /*
  * the userspace interface
  */
@@ -518,6 +515,7 @@ extern void key_init(void);
 #define key_init()			do { } while(0)
 #define key_free_user_ns(ns)		do { } while(0)
 #define key_remove_domain(d)		do { } while(0)
+#define key_lookup(k)			NULL
 
 #endif /* CONFIG_KEYS */
 #endif /* __KERNEL__ */

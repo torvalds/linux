@@ -21,8 +21,8 @@
 #include <drm/drm_simple_kms_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_graph.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
 #include "vc4_drv.h"
@@ -219,17 +219,11 @@ struct vc4_vec {
 		writel(val, vec->regs + (offset));					\
 	} while (0)
 
-static inline struct vc4_vec *
-encoder_to_vc4_vec(struct drm_encoder *encoder)
-{
-	return container_of(encoder, struct vc4_vec, encoder.base);
-}
+#define encoder_to_vc4_vec(_encoder)					\
+	container_of_const(_encoder, struct vc4_vec, encoder.base)
 
-static inline struct vc4_vec *
-connector_to_vc4_vec(struct drm_connector *connector)
-{
-	return container_of(connector, struct vc4_vec, connector);
-}
+#define connector_to_vc4_vec(_connector)				\
+	container_of_const(_connector, struct vc4_vec, connector)
 
 enum vc4_vec_tv_mode_id {
 	VC4_VEC_TV_MODE_NTSC,
@@ -818,15 +812,14 @@ static int vc4_vec_dev_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &vc4_vec_ops);
 }
 
-static int vc4_vec_dev_remove(struct platform_device *pdev)
+static void vc4_vec_dev_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vc4_vec_ops);
-	return 0;
 }
 
 struct platform_driver vc4_vec_driver = {
 	.probe = vc4_vec_dev_probe,
-	.remove = vc4_vec_dev_remove,
+	.remove_new = vc4_vec_dev_remove,
 	.driver = {
 		.name = "vc4_vec",
 		.of_match_table = vc4_vec_dt_match,

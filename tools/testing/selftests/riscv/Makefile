@@ -5,7 +5,7 @@
 ARCH ?= $(shell uname -m 2>/dev/null || echo not)
 
 ifneq (,$(filter $(ARCH),riscv))
-RISCV_SUBTARGETS ?= hwprobe
+RISCV_SUBTARGETS ?= hwprobe vector mm
 else
 RISCV_SUBTARGETS :=
 endif
@@ -43,7 +43,7 @@ run_tests: all
 	done
 
 # Avoid any output on non riscv on emit_tests
-emit_tests: all
+emit_tests:
 	@for DIR in $(RISCV_SUBTARGETS); do				\
 		BUILD_TARGET=$(OUTPUT)/$$DIR;			\
 		$(MAKE) OUTPUT=$$BUILD_TARGET -C $$DIR $@;		\

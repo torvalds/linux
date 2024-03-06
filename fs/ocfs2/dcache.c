@@ -124,17 +124,10 @@ static int ocfs2_match_dentry(struct dentry *dentry,
 	if (!dentry->d_fsdata)
 		return 0;
 
-	if (!dentry->d_parent)
-		return 0;
-
 	if (skip_unhashed && d_unhashed(dentry))
 		return 0;
 
 	parent = d_inode(dentry->d_parent);
-	/* Negative parent dentry? */
-	if (!parent)
-		return 0;
-
 	/* Name is in a different directory. */
 	if (OCFS2_I(parent)->ip_blkno != parent_blkno)
 		return 0;

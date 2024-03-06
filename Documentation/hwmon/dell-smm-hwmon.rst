@@ -186,8 +186,7 @@ SMM Interface
 The driver uses the SMM interface to send commands to the system BIOS.
 This interface is normally used by Dell's 32-bit diagnostic program or
 on newer notebook models by the buildin BIOS diagnostics.
-The SMM is triggered by writing to the special ioports ``0xb2`` and ``0x84``,
-and may cause short hangs when the BIOS code is taking too long to
+The SMM may cause short hangs when the BIOS code is taking too long to
 execute.
 
 The SMM handler inside the system BIOS looks at the contents of the
@@ -210,7 +209,40 @@ The SMM handler can signal a failure by either:
 
 - setting the lower sixteen bits of ``eax`` to ``0xffff``
 - not modifying ``eax`` at all
-- setting the carry flag
+- setting the carry flag (legacy SMM interface only)
+
+Legacy SMM Interface
+--------------------
+
+When using the legacy SMM interface, a SMM is triggered by writing the least significant byte
+of the command code to the special ioports ``0xb2`` and ``0x84``. This interface is not
+described inside the ACPI tables and can thus only be detected by issuing a test SMM call.
+
+WMI SMM Interface
+-----------------
+
+On modern Dell machines, the SMM calls are done over ACPI WMI:
+
+::
+
+ #pragma namespace("\\\\.\\root\\dcim\\sysman\\diagnostics")
+ [WMI, Provider("Provider_DiagnosticsServices"), Dynamic, Locale("MS\\0x409"),
+  Description("RunDellDiag"), guid("{F1DDEE52-063C-4784-A11E-8A06684B9B01}")]
+ class LegacyDiags {
+  [key, read] string InstanceName;
+  [read] boolean Active;
+
+  [WmiMethodId(1), Implemented, read, write, Description("Legacy Method ")]
+  void Execute([in, out] uint32 EaxLen, [in, out, WmiSizeIs("EaxLen") : ToInstance] uint8 EaxVal[],
+               [in, out] uint32 EbxLen, [in, out, WmiSizeIs("EbxLen") : ToInstance] uint8 EbxVal[],
+               [in, out] uint32 EcxLen, [in, out, WmiSizeIs("EcxLen") : ToInstance] uint8 EcxVal[],
+               [in, out] uint32 EdxLen, [in, out, WmiSizeIs("EdxLen") : ToInstance] uint8 EdxVal[]);
+ };
+
+Some machines support only the WMI SMM interface, while some machines support both interfaces.
+The driver automatically detects which interfaces are present and will use the WMI SMM interface
+if the legacy SMM interface is not present. The WMI SMM interface is usually slower than the
+legacy SMM interface since ACPI methods need to be called in order to trigger a SMM.
 
 SMM command codes
 -----------------

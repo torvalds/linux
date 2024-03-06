@@ -122,14 +122,14 @@ properties:
   arm,vexpress,position:
     description: When daughterboards are stacked on one site, their position
       in the stack be be described this attribute.
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
 
   arm,vexpress,dcc:
     description: When describing tiles consisting of more than one DCC, its
       number can be specified with this attribute.
-    $ref: '/schemas/types.yaml#/definitions/uint32'
+    $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 3
 
@@ -143,7 +143,7 @@ patternProperties:
       "simple-bus". If the compatible is placed in the "motherboard-bus" node,
       it is stricter and always has two compatibles.
     type: object
-    $ref: '/schemas/simple-bus.yaml'
+    $ref: /schemas/simple-bus.yaml
     unevaluatedProperties: false
 
     properties:
@@ -180,13 +180,13 @@ patternProperties:
               - const: simple-bus
           arm,v2m-memory-map:
             description: This describes the memory map type.
-            $ref: '/schemas/types.yaml#/definitions/string'
+            $ref: /schemas/types.yaml#/definitions/string
             enum:
               - rs1
               - rs2
 
           arm,hbi:
-            $ref: '/schemas/types.yaml#/definitions/uint32'
+            $ref: /schemas/types.yaml#/definitions/uint32
             description: This indicates the ARM HBI (Hardware Board ID), this is
               ARM's unique board model ID, visible on the PCB's silkscreen.
 
@@ -197,7 +197,7 @@ patternProperties:
               property, describing the physical location of the children nodes.
               0 means motherboard site, while 1 and 2 are daughterboard sites, and
               0xf means "sisterboard" which is the site containing the main CPU tile.
-            $ref: '/schemas/types.yaml#/definitions/uint32'
+            $ref: /schemas/types.yaml#/definitions/uint32
             minimum: 0
             maximum: 15
 

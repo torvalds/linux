@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mmc/brcm,bcm2835-sdhost.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM2835 SDHOST controller
+
+maintainers:
+  - Stefan Wahren <stefan.wahren@i2se.com>
+
+allOf:
+  - $ref: mmc-controller.yaml
+
+properties:
+  compatible:
+    const: brcm,bcm2835-sdhost
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  dmas:
+    maxItems: 1
+
+  dma-names:
+    const: rx-tx
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/bcm2835.h>
+
+    sdhost: mmc@7e202000 {
+      compatible = "brcm,bcm2835-sdhost";
+      reg = <0x7e202000 0x100>;
+      interrupts = <2 24>;
+      clocks = <&clocks BCM2835_CLOCK_VPU>;
+      dmas = <&dma 13>;
+      dma-names = "rx-tx";
+      bus-width = <4>;
+    };

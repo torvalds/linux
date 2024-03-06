@@ -52,6 +52,7 @@ static void __exit exit_em_u32(void)
 	tcf_em_unregister(&em_u32_ops);
 }
 
+MODULE_DESCRIPTION("ematch skb classifier using 32 bit chunks of data");
 MODULE_LICENSE("GPL");
 
 module_init(init_em_u32);

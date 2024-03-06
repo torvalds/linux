@@ -40,20 +40,23 @@ static __le64
 nfp_nfdk_tx_tso(struct nfp_net_r_vector *r_vec, struct nfp_nfdk_tx_buf *txbuf,
 		struct sk_buff *skb)
 {
-	u32 segs, hdrlen, l3_offset, l4_offset;
+	u32 segs, hdrlen, l3_offset, l4_offset, l4_hdrlen;
 	struct nfp_nfdk_tx_desc txd;
 	u16 mss;
 
 	if (!skb->encapsulation) {
 		l3_offset = skb_network_offset(skb);
 		l4_offset = skb_transport_offset(skb);
-		hdrlen = skb_tcp_all_headers(skb);
+		l4_hdrlen = (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) ?
+			    sizeof(struct udphdr) : tcp_hdrlen(skb);
 	} else {
 		l3_offset = skb_inner_network_offset(skb);
 		l4_offset = skb_inner_transport_offset(skb);
-		hdrlen = skb_inner_tcp_all_headers(skb);
+		l4_hdrlen = (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4) ?
+			    sizeof(struct udphdr) : inner_tcp_hdrlen(skb);
 	}
 
+	hdrlen = l4_offset + l4_hdrlen;
 	segs = skb_shinfo(skb)->gso_segs;
 	mss = skb_shinfo(skb)->gso_size & NFDK_DESC_TX_MSS_MASK;
 
@@ -1189,7 +1192,7 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 				nfp_repr_inc_rx_stats(netdev, pkt_len);
 		}
 
-		skb = build_skb(rxbuf->frag, true_bufsz);
+		skb = napi_build_skb(rxbuf->frag, true_bufsz);
 		if (unlikely(!skb)) {
 			nfp_nfdk_rx_drop(dp, r_vec, rx_ring, rxbuf, NULL);
 			continue;

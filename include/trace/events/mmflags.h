@@ -144,7 +144,7 @@ IF_HAVE_PG_ARCH_X(arch_3)
 #define __VM_ARCH_SPECIFIC_1 {VM_PAT,     "pat"           }
 #elif defined(CONFIG_PPC)
 #define __VM_ARCH_SPECIFIC_1 {VM_SAO,     "sao"           }
-#elif defined(CONFIG_PARISC) || defined(CONFIG_IA64)
+#elif defined(CONFIG_PARISC)
 #define __VM_ARCH_SPECIFIC_1 {VM_GROWSUP,	"growsup"	}
 #elif !defined(CONFIG_MMU)
 #define __VM_ARCH_SPECIFIC_1 {VM_MAPPED_COPY,"mappedcopy"	}
@@ -223,8 +223,8 @@ IF_HAVE_VM_SOFTDIRTY(VM_SOFTDIRTY,	"softdirty"	)		\
 #define compact_result_to_feedback(result)	\
 ({						\
 	enum compact_result __result = result;	\
-	(compaction_failed(__result)) ? COMPACTION_FAILED : \
-		(compaction_withdrawn(__result)) ? COMPACTION_WITHDRAWN : COMPACTION_PROGRESS; \
+	(__result == COMPACT_COMPLETE) ? COMPACTION_FAILED : \
+		(__result == COMPACT_SUCCESS) ? COMPACTION_PROGRESS : COMPACTION_WITHDRAWN; \
 })
 
 #define COMPACTION_FEEDBACK		\

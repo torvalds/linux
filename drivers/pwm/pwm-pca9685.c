@@ -505,7 +505,6 @@ static const struct pwm_ops pca9685_pwm_ops = {
 	.get_state = pca9685_pwm_get_state,
 	.request = pca9685_pwm_request,
 	.free = pca9685_pwm_free,
-	.owner = THIS_MODULE,
 };
 
 static const struct regmap_config pca9685_regmap_i2c_config = {
@@ -665,7 +664,7 @@ static struct i2c_driver pca9685_i2c_driver = {
 		.of_match_table = of_match_ptr(pca9685_dt_ids),
 		.pm = &pca9685_pwm_pm,
 	},
-	.probe_new = pca9685_pwm_probe,
+	.probe = pca9685_pwm_probe,
 	.remove = pca9685_pwm_remove,
 	.id_table = pca9685_id,
 };

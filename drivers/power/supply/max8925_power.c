@@ -566,7 +566,7 @@ out:
 	return ret;
 }
 
-static int max8925_power_remove(struct platform_device *pdev)
+static void max8925_power_remove(struct platform_device *pdev)
 {
 	struct max8925_power_info *info = platform_get_drvdata(pdev);
 
@@ -576,12 +576,11 @@ static int max8925_power_remove(struct platform_device *pdev)
 		power_supply_unregister(info->battery);
 		max8925_deinit_charger(info);
 	}
-	return 0;
 }
 
 static struct platform_driver max8925_power_driver = {
 	.probe	= max8925_power_probe,
-	.remove	= max8925_power_remove,
+	.remove_new = max8925_power_remove,
 	.driver	= {
 		.name	= "max8925-power",
 	},

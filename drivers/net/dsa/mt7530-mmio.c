@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
@@ -62,15 +63,12 @@ mt7988_probe(struct platform_device *pdev)
 	return dsa_register_switch(priv->ds);
 }
 
-static int
-mt7988_remove(struct platform_device *pdev)
+static void mt7988_remove(struct platform_device *pdev)
 {
 	struct mt7530_priv *priv = platform_get_drvdata(pdev);
 
 	if (priv)
 		mt7530_remove_common(priv);
-
-	return 0;
 }
 
 static void mt7988_shutdown(struct platform_device *pdev)
@@ -87,7 +85,7 @@ static void mt7988_shutdown(struct platform_device *pdev)
 
 static struct platform_driver mt7988_platform_driver = {
 	.probe  = mt7988_probe,
-	.remove = mt7988_remove,
+	.remove_new = mt7988_remove,
 	.shutdown = mt7988_shutdown,
 	.driver = {
 		.name = "mt7530-mmio",

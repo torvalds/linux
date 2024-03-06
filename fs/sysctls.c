@@ -26,14 +26,12 @@ static struct ctl_table fs_shared_sysctls[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_MAXOLDUID,
 	},
-	{ }
 };
-
-DECLARE_SYSCTL_BASE(fs, fs_shared_sysctls);
 
 static int __init init_fs_sysctls(void)
 {
-	return register_sysctl_base(fs);
+	register_sysctl_init("fs", fs_shared_sysctls);
+	return 0;
 }
 
 early_initcall(init_fs_sysctls);

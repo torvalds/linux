@@ -1234,9 +1234,8 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 	struct bts_action *action;
 	struct bts_action_delay *delay;
 	u8 *fw_data;
-	int ret, fw_len, cmd_cnt;
+	int ret, fw_len;
 
-	cmd_cnt = 0;
 	set_bit(FM_FW_DW_INPROGRESS, &fmdev->flag);
 
 	ret = request_firmware(&fw_entry, fw_name,
@@ -1272,7 +1271,6 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 			if (ret)
 				goto rel_fw;
 
-			cmd_cnt++;
 			break;
 
 		case ACTION_DELAY:	/* Delay */
@@ -1284,7 +1282,8 @@ static int fm_download_firmware(struct fmdev *fmdev, const u8 *fw_name)
 		fw_data += (sizeof(struct bts_action) + (action->size));
 		fw_len -= (sizeof(struct bts_action) + (action->size));
 	}
-	fmdbg("Firmware commands(%d) loaded to chip\n", cmd_cnt);
+	fmdbg("Transferred only %d of %d bytes of the firmware to chip\n",
+	      fw_entry->size - fw_len, fw_entry->size);
 rel_fw:
 	release_firmware(fw_entry);
 	clear_bit(FM_FW_DW_INPROGRESS, &fmdev->flag);

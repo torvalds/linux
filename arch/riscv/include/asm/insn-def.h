@@ -180,19 +180,19 @@
 	INSN_R(OPCODE_SYSTEM, FUNC3(0), FUNC7(51),		\
 	       __RD(0), RS1(gaddr), RS2(vmid))
 
-#define CBO_inval(base)						\
+#define CBO_INVAL(base)						\
 	INSN_I(OPCODE_MISC_MEM, FUNC3(2), __RD(0),		\
 	       RS1(base), SIMM12(0))
 
-#define CBO_clean(base)						\
+#define CBO_CLEAN(base)						\
 	INSN_I(OPCODE_MISC_MEM, FUNC3(2), __RD(0),		\
 	       RS1(base), SIMM12(1))
 
-#define CBO_flush(base)						\
+#define CBO_FLUSH(base)						\
 	INSN_I(OPCODE_MISC_MEM, FUNC3(2), __RD(0),		\
 	       RS1(base), SIMM12(2))
 
-#define CBO_zero(base)						\
+#define CBO_ZERO(base)						\
 	INSN_I(OPCODE_MISC_MEM, FUNC3(2), __RD(0),		\
 	       RS1(base), SIMM12(4))
 

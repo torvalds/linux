@@ -10,7 +10,7 @@
  *   Thanks to the ALSA developers, they helped a lot working out
  * the ALSA part.
  *   Thanks also to Sourceforge for maintaining the old binary drivers,
- * and the forum, where developers could comunicate.
+ * and the forum, where developers could communicate.
  *
  * Now at least i can play Legacy DOOM with MIDI music :-)
  */

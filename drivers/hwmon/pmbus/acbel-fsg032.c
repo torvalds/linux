@@ -3,13 +3,50 @@
  * Copyright 2023 IBM Corp.
  */
 
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/i2c.h>
+#include <linux/minmax.h>
 #include <linux/module.h>
 #include <linux/pmbus.h>
 #include <linux/hwmon-sysfs.h>
 #include "pmbus.h"
+
+#define ACBEL_MFR_FW_REVISION	0xd9
+
+static ssize_t acbel_fsg032_debugfs_read(struct file *file, char __user *buf, size_t count,
+					 loff_t *ppos)
+{
+	struct i2c_client *client = file->private_data;
+	u8 data[I2C_SMBUS_BLOCK_MAX + 2] = { 0 };
+	char out[8];
+	int rc;
+
+	rc = i2c_smbus_read_block_data(client, ACBEL_MFR_FW_REVISION, data);
+	if (rc < 0)
+		return rc;
+
+	rc = snprintf(out, sizeof(out), "%*phN\n", min(rc, 3), data);
+	return simple_read_from_buffer(buf, count, ppos, out, rc);
+}
+
+static const struct file_operations acbel_debugfs_ops = {
+	.llseek = noop_llseek,
+	.read = acbel_fsg032_debugfs_read,
+	.write = NULL,
+	.open = simple_open,
+};
+
+static void acbel_fsg032_init_debugfs(struct i2c_client *client)
+{
+	struct dentry *debugfs = pmbus_get_debugfs_dir(client);
+
+	if (!debugfs)
+		return;
+
+	debugfs_create_file("fw_version", 0444, debugfs, client, &acbel_debugfs_ops);
+}
 
 static const struct i2c_device_id acbel_fsg032_id[] = {
 	{ "acbel_fsg032" },
@@ -59,6 +96,7 @@ static int acbel_fsg032_probe(struct i2c_client *client)
 	if (rc)
 		return rc;
 
+	acbel_fsg032_init_debugfs(client);
 	return 0;
 }
 
@@ -73,7 +111,7 @@ static struct i2c_driver acbel_fsg032_driver = {
 		.name = "acbel-fsg032",
 		.of_match_table = acbel_fsg032_of_match,
 	},
-	.probe_new = acbel_fsg032_probe,
+	.probe = acbel_fsg032_probe,
 	.id_table = acbel_fsg032_id,
 };
 

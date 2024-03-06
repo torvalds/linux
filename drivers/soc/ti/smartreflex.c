@@ -815,7 +815,6 @@ static int omap_sr_probe(struct platform_device *pdev)
 {
 	struct omap_sr *sr_info;
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
-	struct resource *mem;
 	struct dentry *nvalue_dir;
 	int i, ret = 0;
 
@@ -835,8 +834,7 @@ static int omap_sr_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sr_info->base = devm_ioremap_resource(&pdev->dev, mem);
+	sr_info->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sr_info->base))
 		return PTR_ERR(sr_info->base);
 
@@ -935,7 +933,7 @@ err_list_del:
 	return ret;
 }
 
-static int omap_sr_remove(struct platform_device *pdev)
+static void omap_sr_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct omap_sr *sr_info = platform_get_drvdata(pdev);
@@ -947,7 +945,6 @@ static int omap_sr_remove(struct platform_device *pdev)
 	pm_runtime_disable(dev);
 	clk_unprepare(sr_info->fck);
 	list_del(&sr_info->node);
-	return 0;
 }
 
 static void omap_sr_shutdown(struct platform_device *pdev)
@@ -972,7 +969,7 @@ MODULE_DEVICE_TABLE(of, omap_sr_match);
 
 static struct platform_driver smartreflex_driver = {
 	.probe		= omap_sr_probe,
-	.remove         = omap_sr_remove,
+	.remove_new     = omap_sr_remove,
 	.shutdown	= omap_sr_shutdown,
 	.driver		= {
 		.name	= DRIVER_NAME,

@@ -6,5 +6,4 @@
 #define MMP2_CLK_AUDIO_SSPA0		1
 #define MMP2_CLK_AUDIO_SSPA1		2
 
-#define MMP2_CLK_AUDIO_NR_CLKS		3
 #endif

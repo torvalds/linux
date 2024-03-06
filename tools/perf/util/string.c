@@ -301,3 +301,51 @@ unsigned int hex(char c)
 		return c - 'a' + 10;
 	return c - 'A' + 10;
 }
+
+/*
+ * Replace all occurrences of character 'needle' in string 'haystack' with
+ * string 'replace'
+ *
+ * The new string could be longer so a new string is returned which must be
+ * freed.
+ */
+char *strreplace_chars(char needle, const char *haystack, const char *replace)
+{
+	int replace_len = strlen(replace);
+	char *new_s, *to;
+	const char *loc = strchr(haystack, needle);
+	const char *from = haystack;
+	int num = 0;
+
+	/* Count occurrences */
+	while (loc) {
+		loc = strchr(loc + 1, needle);
+		num++;
+	}
+
+	/* Allocate enough space for replacements and reset first location */
+	new_s = malloc(strlen(haystack) + (num * (replace_len - 1) + 1));
+	if (!new_s)
+		return NULL;
+	loc = strchr(haystack, needle);
+	to = new_s;
+
+	while (loc) {
+		/* Copy original string up to found char and update positions */
+		memcpy(to, from, 1 + loc - from);
+		to += loc - from;
+		from = loc + 1;
+
+		/* Copy replacement string and update positions */
+		memcpy(to, replace, replace_len);
+		to += replace_len;
+
+		/* needle next occurrence or end of string */
+		loc = strchr(from, needle);
+	}
+
+	/* Copy any remaining chars + null */
+	strcpy(to, from);
+
+	return new_s;
+}

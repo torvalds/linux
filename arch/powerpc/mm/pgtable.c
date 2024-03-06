@@ -46,19 +46,19 @@ static inline int is_exec_fault(void)
  * and we avoid _PAGE_SPECIAL and cache inhibited pte. We also only do that
  * on userspace PTEs
  */
-static inline int pte_looks_normal(pte_t pte)
+static inline int pte_looks_normal(pte_t pte, unsigned long addr)
 {
 
 	if (pte_present(pte) && !pte_special(pte)) {
 		if (pte_ci(pte))
 			return 0;
-		if (pte_user(pte))
+		if (!is_kernel_addr(addr))
 			return 1;
 	}
 	return 0;
 }
 
-static struct page *maybe_pte_to_page(pte_t pte)
+static struct folio *maybe_pte_to_folio(pte_t pte)
 {
 	unsigned long pfn = pte_pfn(pte);
 	struct page *page;
@@ -68,7 +68,7 @@ static struct page *maybe_pte_to_page(pte_t pte)
 	page = pfn_to_page(pfn);
 	if (PageReserved(page))
 		return NULL;
-	return page;
+	return page_folio(page);
 }
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -79,17 +79,17 @@ static struct page *maybe_pte_to_page(pte_t pte)
  * support falls into the same category.
  */
 
-static pte_t set_pte_filter_hash(pte_t pte)
+static pte_t set_pte_filter_hash(pte_t pte, unsigned long addr)
 {
 	pte = __pte(pte_val(pte) & ~_PAGE_HPTEFLAGS);
-	if (pte_looks_normal(pte) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
-				       cpu_has_feature(CPU_FTR_NOEXECUTE))) {
-		struct page *pg = maybe_pte_to_page(pte);
-		if (!pg)
+	if (pte_looks_normal(pte, addr) && !(cpu_has_feature(CPU_FTR_COHERENT_ICACHE) ||
+					     cpu_has_feature(CPU_FTR_NOEXECUTE))) {
+		struct folio *folio = maybe_pte_to_folio(pte);
+		if (!folio)
 			return pte;
-		if (!test_bit(PG_dcache_clean, &pg->flags)) {
-			flush_dcache_icache_page(pg);
-			set_bit(PG_dcache_clean, &pg->flags);
+		if (!test_bit(PG_dcache_clean, &folio->flags)) {
+			flush_dcache_icache_folio(folio);
+			set_bit(PG_dcache_clean, &folio->flags);
 		}
 	}
 	return pte;
@@ -97,41 +97,43 @@ static pte_t set_pte_filter_hash(pte_t pte)
 
 #else /* CONFIG_PPC_BOOK3S */
 
-static pte_t set_pte_filter_hash(pte_t pte) { return pte; }
+static pte_t set_pte_filter_hash(pte_t pte, unsigned long addr) { return pte; }
 
 #endif /* CONFIG_PPC_BOOK3S */
 
 /* Embedded type MMU with HW exec support. This is a bit more complicated
  * as we don't have two bits to spare for _PAGE_EXEC and _PAGE_HWEXEC so
  * instead we "filter out" the exec permission for non clean pages.
+ *
+ * This is also called once for the folio. So only work with folio->flags here.
  */
-static inline pte_t set_pte_filter(pte_t pte)
+static inline pte_t set_pte_filter(pte_t pte, unsigned long addr)
 {
-	struct page *pg;
+	struct folio *folio;
 
 	if (radix_enabled())
 		return pte;
 
 	if (mmu_has_feature(MMU_FTR_HPTE_TABLE))
-		return set_pte_filter_hash(pte);
+		return set_pte_filter_hash(pte, addr);
 
 	/* No exec permission in the first place, move on */
-	if (!pte_exec(pte) || !pte_looks_normal(pte))
+	if (!pte_exec(pte) || !pte_looks_normal(pte, addr))
 		return pte;
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
-	pg = maybe_pte_to_page(pte);
-	if (unlikely(!pg))
+	folio = maybe_pte_to_folio(pte);
+	if (unlikely(!folio))
 		return pte;
 
 	/* If the page clean, we move on */
-	if (test_bit(PG_dcache_clean, &pg->flags))
+	if (test_bit(PG_dcache_clean, &folio->flags))
 		return pte;
 
 	/* If it's an exec fault, we flush the cache and make it clean */
 	if (is_exec_fault()) {
-		flush_dcache_icache_page(pg);
-		set_bit(PG_dcache_clean, &pg->flags);
+		flush_dcache_icache_folio(folio);
+		set_bit(PG_dcache_clean, &folio->flags);
 		return pte;
 	}
 
@@ -142,7 +144,7 @@ static inline pte_t set_pte_filter(pte_t pte)
 static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 				     int dirty)
 {
-	struct page *pg;
+	struct folio *folio;
 
 	if (IS_ENABLED(CONFIG_PPC_BOOK3S_64))
 		return pte;
@@ -168,17 +170,17 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 #endif /* CONFIG_DEBUG_VM */
 
 	/* If you set _PAGE_EXEC on weird pages you're on your own */
-	pg = maybe_pte_to_page(pte);
-	if (unlikely(!pg))
+	folio = maybe_pte_to_folio(pte);
+	if (unlikely(!folio))
 		goto bail;
 
 	/* If the page is already clean, we move on */
-	if (test_bit(PG_dcache_clean, &pg->flags))
+	if (test_bit(PG_dcache_clean, &folio->flags))
 		goto bail;
 
 	/* Clean the page and set PG_dcache_clean */
-	flush_dcache_icache_page(pg);
-	set_bit(PG_dcache_clean, &pg->flags);
+	flush_dcache_icache_folio(folio);
+	set_bit(PG_dcache_clean, &folio->flags);
 
  bail:
 	return pte_mkexec(pte);
@@ -187,23 +189,42 @@ static pte_t set_access_flags_filter(pte_t pte, struct vm_area_struct *vma,
 /*
  * set_pte stores a linux PTE into the linux page table.
  */
-void set_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
-		pte_t pte)
+void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+		pte_t pte, unsigned int nr)
 {
-	/*
-	 * Make sure hardware valid bit is not set. We don't do
-	 * tlb flush for this update.
-	 */
-	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
 	/* Note: mm->context.id might not yet have been assigned as
 	 * this context might not have been activated yet when this
-	 * is called.
+	 * is called. Filter the pte value and use the filtered value
+	 * to setup all the ptes in the range.
 	 */
-	pte = set_pte_filter(pte);
+	pte = set_pte_filter(pte, addr);
 
-	/* Perform the setting of the PTE */
-	__set_pte_at(mm, addr, ptep, pte, 0);
+	/*
+	 * We don't need to call arch_enter/leave_lazy_mmu_mode()
+	 * because we expect set_ptes to be only be used on not present
+	 * and not hw_valid ptes. Hence there is no translation cache flush
+	 * involved that need to be batched.
+	 */
+	for (;;) {
+
+		/*
+		 * Make sure hardware valid bit is not set. We don't do
+		 * tlb flush for this update.
+		 */
+		VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
+
+		/* Perform the setting of the PTE */
+		__set_pte_at(mm, addr, ptep, pte, 0);
+		if (--nr == 0)
+			break;
+		ptep++;
+		addr += PAGE_SIZE;
+		/*
+		 * increment the pfn.
+		 */
+		pte = pfn_pte(pte_pfn(pte) + 1, pte_pgprot((pte)));
+	}
 }
 
 void unmap_kernel_page(unsigned long va)
@@ -279,7 +300,8 @@ int huge_ptep_set_access_flags(struct vm_area_struct *vma,
 }
 
 #if defined(CONFIG_PPC_8xx)
-void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_t pte)
+void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
+		     pte_t pte, unsigned long sz)
 {
 	pmd_t *pmd = pmd_off(mm, addr);
 	pte_basic_t val;
@@ -292,7 +314,7 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr, pte_t *ptep, pte_
 	 */
 	VM_WARN_ON(pte_hw_valid(*ptep) && !pte_protnone(*ptep));
 
-	pte = set_pte_filter(pte);
+	pte = set_pte_filter(pte, addr);
 
 	val = pte_val(pte);
 
@@ -311,6 +333,8 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
+	pte_t *pte;
+	spinlock_t *ptl;
 
 	if (mm == &init_mm)
 		return;
@@ -329,8 +353,10 @@ void assert_pte_locked(struct mm_struct *mm, unsigned long addr)
 	 */
 	if (pmd_none(*pmd))
 		return;
-	BUG_ON(!pmd_present(*pmd));
-	assert_spin_locked(pte_lockptr(mm, pmd));
+	pte = pte_offset_map_nolock(mm, pmd, addr, &ptl);
+	BUG_ON(!pte);
+	assert_spin_locked(ptl);
+	pte_unmap(pte);
 }
 #endif /* CONFIG_DEBUG_VM */
 
@@ -479,7 +505,7 @@ const pgprot_t protection_map[16] = {
 	[VM_READ]					= PAGE_READONLY,
 	[VM_WRITE]					= PAGE_COPY,
 	[VM_WRITE | VM_READ]				= PAGE_COPY,
-	[VM_EXEC]					= PAGE_READONLY_X,
+	[VM_EXEC]					= PAGE_EXECONLY_X,
 	[VM_EXEC | VM_READ]				= PAGE_READONLY_X,
 	[VM_EXEC | VM_WRITE]				= PAGE_COPY_X,
 	[VM_EXEC | VM_WRITE | VM_READ]			= PAGE_COPY_X,
@@ -487,7 +513,7 @@ const pgprot_t protection_map[16] = {
 	[VM_SHARED | VM_READ]				= PAGE_READONLY,
 	[VM_SHARED | VM_WRITE]				= PAGE_SHARED,
 	[VM_SHARED | VM_WRITE | VM_READ]		= PAGE_SHARED,
-	[VM_SHARED | VM_EXEC]				= PAGE_READONLY_X,
+	[VM_SHARED | VM_EXEC]				= PAGE_EXECONLY_X,
 	[VM_SHARED | VM_EXEC | VM_READ]			= PAGE_READONLY_X,
 	[VM_SHARED | VM_EXEC | VM_WRITE]		= PAGE_SHARED_X,
 	[VM_SHARED | VM_EXEC | VM_WRITE | VM_READ]	= PAGE_SHARED_X

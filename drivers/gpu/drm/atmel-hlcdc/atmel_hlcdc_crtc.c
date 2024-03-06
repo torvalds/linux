@@ -68,13 +68,34 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 	struct atmel_hlcdc_crtc *crtc = drm_crtc_to_atmel_hlcdc_crtc(c);
 	struct regmap *regmap = crtc->dc->hlcdc->regmap;
 	struct drm_display_mode *adj = &c->state->adjusted_mode;
+	struct drm_encoder *encoder = NULL, *en_iter;
+	struct drm_connector *connector = NULL;
 	struct atmel_hlcdc_crtc_state *state;
+	struct drm_device *ddev = c->dev;
+	struct drm_connector_list_iter iter;
 	unsigned long mode_rate;
 	struct videomode vm;
 	unsigned long prate;
 	unsigned int mask = ATMEL_HLCDC_CLKDIV_MASK | ATMEL_HLCDC_CLKPOL;
 	unsigned int cfg = 0;
 	int div, ret;
+
+	/* get encoder from crtc */
+	drm_for_each_encoder(en_iter, ddev) {
+		if (en_iter->crtc == c) {
+			encoder = en_iter;
+			break;
+		}
+	}
+
+	if (encoder) {
+		/* Get the connector from encoder */
+		drm_connector_list_iter_begin(ddev, &iter);
+		drm_for_each_connector_iter(connector, &iter)
+			if (connector->encoder == encoder)
+				break;
+		drm_connector_list_iter_end(&iter);
+	}
 
 	ret = clk_prepare_enable(crtc->dc->hlcdc->sys_clk);
 	if (ret)
@@ -133,6 +154,10 @@ static void atmel_hlcdc_crtc_mode_set_nofb(struct drm_crtc *c)
 	}
 
 	cfg |= ATMEL_HLCDC_CLKDIV(div);
+
+	if (connector &&
+	    connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
+		cfg |= ATMEL_HLCDC_CLKPOL;
 
 	regmap_update_bits(regmap, ATMEL_HLCDC_CFG(0), mask, cfg);
 

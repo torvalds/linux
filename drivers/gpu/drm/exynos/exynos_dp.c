@@ -250,14 +250,12 @@ out:
 	return component_add(&pdev->dev, &exynos_dp_ops);
 }
 
-static int exynos_dp_remove(struct platform_device *pdev)
+static void exynos_dp_remove(struct platform_device *pdev)
 {
 	struct exynos_dp_device *dp = platform_get_drvdata(pdev);
 
 	component_del(&pdev->dev, &exynos_dp_ops);
 	analogix_dp_remove(dp->adp);
-
-	return 0;
 }
 
 static int exynos_dp_suspend(struct device *dev)
@@ -285,7 +283,7 @@ MODULE_DEVICE_TABLE(of, exynos_dp_match);
 
 struct platform_driver dp_driver = {
 	.probe		= exynos_dp_probe,
-	.remove		= exynos_dp_remove,
+	.remove_new	= exynos_dp_remove,
 	.driver		= {
 		.name	= "exynos-dp",
 		.owner	= THIS_MODULE,

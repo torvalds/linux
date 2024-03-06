@@ -2,7 +2,7 @@
 /*
  * Siemens SIMATIC IPC drivers
  *
- * Copyright (c) Siemens AG, 2018-2021
+ * Copyright (c) Siemens AG, 2018-2023
  *
  * Authors:
  *  Henning Schild <henning.schild@siemens.com>
@@ -32,8 +32,12 @@ enum simatic_ipc_station_ids {
 	SIMATIC_IPC_IPC477E = 0x00000A02,
 	SIMATIC_IPC_IPC127E = 0x00000D01,
 	SIMATIC_IPC_IPC227G = 0x00000F01,
+	SIMATIC_IPC_IPC277G = 0x00000F02,
 	SIMATIC_IPC_IPCBX_39A = 0x00001001,
 	SIMATIC_IPC_IPCPX_39A = 0x00001002,
+	SIMATIC_IPC_IPCBX_21A = 0x00001101,
+	SIMATIC_IPC_IPCBX_56A = 0x00001201,
+	SIMATIC_IPC_IPCBX_59A = 0x00001202,
 };
 
 static inline u32 simatic_ipc_get_station_id(u8 *data, int max_len)

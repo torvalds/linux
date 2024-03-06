@@ -973,7 +973,7 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 	la_start_blk = ocfs2_clusters_to_blocks(osb->sb,
 						le32_to_cpu(la->la_bm_off));
 	bitmap = la->la_bitmap;
-	start = count = bit_off = 0;
+	start = count = 0;
 	left = le32_to_cpu(alloc->id1.bitmap1.i_total);
 
 	while ((bit_off = ocfs2_find_next_zero_bit(bitmap, left, start))

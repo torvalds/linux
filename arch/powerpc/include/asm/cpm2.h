@@ -87,10 +87,6 @@
  */
 extern cpm_cpm2_t __iomem *cpmp; /* Pointer to comm processor */
 
-#define cpm_dpalloc cpm_muram_alloc
-#define cpm_dpfree cpm_muram_free
-#define cpm_dpram_addr cpm_muram_addr
-
 extern void cpm2_reset(void);
 
 /* Baud rate generators.
@@ -1079,6 +1075,9 @@ typedef struct im_idma {
 #define FCC1_MEM_OFFSET FCC_MEM_OFFSET(0)
 #define FCC2_MEM_OFFSET FCC_MEM_OFFSET(1)
 #define FCC3_MEM_OFFSET FCC_MEM_OFFSET(2)
+
+/* Pipeline Maximum Depth */
+#define MPC82XX_BCR_PLDP 0x00800000
 
 /* Clocks and GRG's */
 

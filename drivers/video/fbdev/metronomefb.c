@@ -181,7 +181,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	int mem_idx = 0;
 	struct waveform_hdr *wfm_hdr;
 	u8 *metromem = par->metromem_wfm;
-	struct device *dev = par->info->dev;
+	struct device *dev = par->info->device;
 
 	if (user_wfm_size)
 		epd_frame_table[par->dt].wfm_size = user_wfm_size;
@@ -438,7 +438,7 @@ static void metronomefb_dpy_update(struct metronomefb_par *par)
 {
 	int fbsize;
 	u16 cksum;
-	unsigned char *buf = (unsigned char __force *)par->info->screen_base;
+	unsigned char *buf = par->info->screen_buffer;
 
 	fbsize = par->info->fix.smem_len;
 	/* copy from vm to metromem */
@@ -453,7 +453,7 @@ static u16 metronomefb_dpy_update_page(struct metronomefb_par *par, int index)
 {
 	int i;
 	u16 csum = 0;
-	u16 *buf = (u16 __force *)(par->info->screen_base + index);
+	u16 *buf = (u16 *)(par->info->screen_buffer + index);
 	u16 *img = (u16 *)(par->metromem_img + index);
 
 	/* swizzle from vm to metromem and recalc cksum at the same time*/
@@ -483,86 +483,28 @@ static void metronomefb_dpy_deferred_io(struct fb_info *info, struct list_head *
 	metronome_display_cmd(par);
 }
 
-static void metronomefb_fillrect(struct fb_info *info,
-				   const struct fb_fillrect *rect)
+static void metronomefb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
 {
 	struct metronomefb_par *par = info->par;
 
-	sys_fillrect(info, rect);
 	metronomefb_dpy_update(par);
 }
 
-static void metronomefb_copyarea(struct fb_info *info,
-				   const struct fb_copyarea *area)
+static void metronomefb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+					  u32 width, u32 height)
 {
 	struct metronomefb_par *par = info->par;
 
-	sys_copyarea(info, area);
 	metronomefb_dpy_update(par);
 }
 
-static void metronomefb_imageblit(struct fb_info *info,
-				const struct fb_image *image)
-{
-	struct metronomefb_par *par = info->par;
-
-	sys_imageblit(info, image);
-	metronomefb_dpy_update(par);
-}
-
-/*
- * this is the slow path from userspace. they can seek and write to
- * the fb. it is based on fb_sys_write
- */
-static ssize_t metronomefb_write(struct fb_info *info, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct metronomefb_par *par = info->par;
-	unsigned long p = *ppos;
-	void *dst;
-	int err = 0;
-	unsigned long total_size;
-
-	if (info->state != FBINFO_STATE_RUNNING)
-		return -EPERM;
-
-	total_size = info->fix.smem_len;
-
-	if (p > total_size)
-		return -EFBIG;
-
-	if (count > total_size) {
-		err = -EFBIG;
-		count = total_size;
-	}
-
-	if (count + p > total_size) {
-		if (!err)
-			err = -ENOSPC;
-
-		count = total_size - p;
-	}
-
-	dst = (void __force *)(info->screen_base + p);
-
-	if (copy_from_user(dst, buf, count))
-		err = -EFAULT;
-
-	if  (!err)
-		*ppos += count;
-
-	metronomefb_dpy_update(par);
-
-	return (err) ? err : count;
-}
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(metronomefb,
+				   metronomefb_defio_damage_range,
+				   metronomefb_defio_damage_area)
 
 static const struct fb_ops metronomefb_ops = {
-	.owner		= THIS_MODULE,
-	.fb_write	= metronomefb_write,
-	.fb_fillrect	= metronomefb_fillrect,
-	.fb_copyarea	= metronomefb_copyarea,
-	.fb_imageblit	= metronomefb_imageblit,
-	.fb_mmap	= fb_deferred_io_mmap,
+	.owner	= THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(metronomefb),
 };
 
 static struct fb_deferred_io metronomefb_defio = {
@@ -599,7 +541,7 @@ static int metronomefb_probe(struct platform_device *dev)
 		goto err;
 
 	/* we have two blocks of memory.
-	info->screen_base which is vm, and is the fb used by apps.
+	info->screen_buffer which is vm, and is the fb used by apps.
 	par->metromem which is physically contiguous memory and
 	contains the display controller commands, waveform,
 	processed image data and padding. this is the data pulled
@@ -634,7 +576,7 @@ static int metronomefb_probe(struct platform_device *dev)
 	if (!videomemory)
 		goto err_fb_rel;
 
-	info->screen_base = (char __force __iomem *)videomemory;
+	info->screen_buffer = videomemory;
 	info->fbops = &metronomefb_ops;
 
 	metronomefb_fix.line_length = fw;
@@ -700,7 +642,7 @@ static int metronomefb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_free_irq;
 
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
+	info->flags = FBINFO_VIRTFB;
 
 	info->fbdefio = &metronomefb_defio;
 	fb_deferred_io_init(info);
@@ -756,7 +698,7 @@ static void metronomefb_remove(struct platform_device *dev)
 		fb_dealloc_cmap(&info->cmap);
 		par->board->cleanup(par);
 		vfree(par->csum_table);
-		vfree((void __force *)info->screen_base);
+		vfree(info->screen_buffer);
 		module_put(par->board->owner);
 		dev_dbg(&dev->dev, "calling release\n");
 		framebuffer_release(info);
@@ -778,3 +720,5 @@ MODULE_PARM_DESC(user_wfm_size, "Set custom waveform size");
 MODULE_DESCRIPTION("fbdev driver for Metronome controller");
 MODULE_AUTHOR("Jaya Kumar");
 MODULE_LICENSE("GPL");
+
+MODULE_FIRMWARE("metronome.wbf");

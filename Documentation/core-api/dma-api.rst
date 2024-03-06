@@ -448,7 +448,7 @@ DMA address entries returned.
 
 Synchronise a single contiguous or scatter/gather mapping for the CPU
 and device. With the sync_sg API, all the parameters must be the same
-as those passed into the single mapping API. With the sync_single API,
+as those passed into the sg mapping API. With the sync_single API,
 you can use dma_handle and size parameters that aren't identical to
 those passed into the single mapping API to do a partial sync.
 

@@ -982,7 +982,6 @@ static int mt9t112_set_fmt(struct v4l2_subdev *sd,
 
 	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		return mt9t112_s_fmt(sd, mf);
-	sd_state->pads->try_fmt = *mf;
 
 	return 0;
 }
@@ -1119,7 +1118,7 @@ static struct i2c_driver mt9t112_i2c_driver = {
 	.driver = {
 		.name = "mt9t112",
 	},
-	.probe_new = mt9t112_probe,
+	.probe    = mt9t112_probe,
 	.remove   = mt9t112_remove,
 	.id_table = mt9t112_id,
 };

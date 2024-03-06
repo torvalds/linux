@@ -78,7 +78,7 @@ static int write_ts_to_decoder(struct av7110 *av7110, int type, const u8 *buf, s
 
 int av7110_record_cb(struct dvb_filter_pes2ts *p2t, u8 *buf, size_t len)
 {
-	struct dvb_demux_feed *dvbdmxfeed = (struct dvb_demux_feed *) p2t->priv;
+	struct dvb_demux_feed *dvbdmxfeed = p2t->priv;
 
 	if (!(dvbdmxfeed->ts_type & TS_PACKET))
 		return 0;
@@ -837,7 +837,7 @@ static int write_ts_to_decoder(struct av7110 *av7110, int type, const u8 *buf, s
 int av7110_write_to_decoder(struct dvb_demux_feed *feed, const u8 *buf, size_t len)
 {
 	struct dvb_demux *demux = feed->demux;
-	struct av7110 *av7110 = (struct av7110 *) demux->priv;
+	struct av7110 *av7110 = demux->priv;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 

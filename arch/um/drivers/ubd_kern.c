@@ -108,9 +108,9 @@ static inline void ubd_set_bit(__u64 bit, unsigned char *data)
 static DEFINE_MUTEX(ubd_lock);
 static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
 
-static int ubd_open(struct block_device *bdev, fmode_t mode);
-static void ubd_release(struct gendisk *disk, fmode_t mode);
-static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
+static int ubd_open(struct gendisk *disk, blk_mode_t mode);
+static void ubd_release(struct gendisk *disk);
+static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
 
@@ -798,7 +798,6 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 		ubd_dev->cow.fd = err;
 	}
 	if (ubd_dev->no_trim == 0) {
-		ubd_dev->queue->limits.discard_granularity = SECTOR_SIZE;
 		blk_queue_max_discard_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 		blk_queue_max_write_zeroes_sectors(ubd_dev->queue, UBD_MAX_REQUEST);
 	}
@@ -1154,9 +1153,8 @@ static int __init ubd_driver_init(void){
 
 device_initcall(ubd_driver_init);
 
-static int ubd_open(struct block_device *bdev, fmode_t mode)
+static int ubd_open(struct gendisk *disk, blk_mode_t mode)
 {
-	struct gendisk *disk = bdev->bd_disk;
 	struct ubd *ubd_dev = disk->private_data;
 	int err = 0;
 
@@ -1171,19 +1169,12 @@ static int ubd_open(struct block_device *bdev, fmode_t mode)
 	}
 	ubd_dev->count++;
 	set_disk_ro(disk, !ubd_dev->openflags.w);
-
-	/* This should no more be needed. And it didn't work anyway to exclude
-	 * read-write remounting of filesystems.*/
-	/*if((mode & FMODE_WRITE) && !ubd_dev->openflags.w){
-	        if(--ubd_dev->count == 0) ubd_close_dev(ubd_dev);
-	        err = -EROFS;
-	}*/
 out:
 	mutex_unlock(&ubd_mutex);
 	return err;
 }
 
-static void ubd_release(struct gendisk *disk, fmode_t mode)
+static void ubd_release(struct gendisk *disk)
 {
 	struct ubd *ubd_dev = disk->private_data;
 
@@ -1397,7 +1388,7 @@ static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 	return 0;
 }
 
-static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
+static int ubd_ioctl(struct block_device *bdev, blk_mode_t mode,
 		     unsigned int cmd, unsigned long arg)
 {
 	struct ubd *ubd_dev = bdev->bd_disk->private_data;

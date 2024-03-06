@@ -453,3 +453,4 @@ module_dfl_driver(m10bmc_pmci_driver);
 MODULE_DESCRIPTION("MAX10 BMC PMCI-based interface");
 MODULE_AUTHOR("Intel Corporation");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(INTEL_M10_BMC_CORE);

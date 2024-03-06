@@ -6,13 +6,15 @@
  */
 
 #define pr_fmt(fmt) "X.509: "fmt
+#include <crypto/hash.h>
+#include <crypto/sm2.h>
+#include <keys/asymmetric-parser.h>
+#include <keys/asymmetric-subtype.h>
+#include <keys/system_keyring.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <keys/asymmetric-subtype.h>
-#include <keys/asymmetric-parser.h>
-#include <keys/system_keyring.h>
-#include <crypto/hash.h>
+#include <linux/string.h>
 #include "asymmetric_keys.h"
 #include "x509_parser.h"
 
@@ -29,9 +31,6 @@ int x509_get_sig_params(struct x509_certificate *cert)
 	int ret;
 
 	pr_devel("==>%s()\n", __func__);
-
-	sig->data = cert->tbs;
-	sig->data_size = cert->tbs_size;
 
 	sig->s = kmemdup(cert->raw_sig, cert->raw_sig_size, GFP_KERNEL);
 	if (!sig->s)
@@ -65,7 +64,21 @@ int x509_get_sig_params(struct x509_certificate *cert)
 
 	desc->tfm = tfm;
 
-	ret = crypto_shash_digest(desc, cert->tbs, cert->tbs_size, sig->digest);
+	if (strcmp(cert->pub->pkey_algo, "sm2") == 0) {
+		ret = strcmp(sig->hash_algo, "sm3") != 0 ? -EINVAL :
+		      crypto_shash_init(desc) ?:
+		      sm2_compute_z_digest(desc, cert->pub->key,
+					   cert->pub->keylen, sig->digest) ?:
+		      crypto_shash_init(desc) ?:
+		      crypto_shash_update(desc, sig->digest,
+					  sig->digest_size) ?:
+		      crypto_shash_finup(desc, cert->tbs, cert->tbs_size,
+					 sig->digest);
+	} else {
+		ret = crypto_shash_digest(desc, cert->tbs, cert->tbs_size,
+					  sig->digest);
+	}
+
 	if (ret < 0)
 		goto error_2;
 
@@ -115,6 +128,11 @@ int x509_check_for_self_signed(struct x509_certificate *cert)
 		if (((a && !b) || (b && !a)) &&
 		    cert->sig->auth_ids[0] && cert->sig->auth_ids[1])
 			goto out;
+	}
+
+	if (cert->unsupported_sig) {
+		ret = 0;
+		goto out;
 	}
 
 	ret = public_key_verify_signature(cert->pub, cert->sig);
@@ -244,15 +262,9 @@ static struct asymmetric_key_parser x509_key_parser = {
 /*
  * Module stuff
  */
-extern int __init certs_selftest(void);
 static int __init x509_key_init(void)
 {
-	int ret;
-
-	ret = register_asymmetric_key_parser(&x509_key_parser);
-	if (ret < 0)
-		return ret;
-	return fips_signature_selftest();
+	return register_asymmetric_key_parser(&x509_key_parser);
 }
 
 static void __exit x509_key_exit(void)

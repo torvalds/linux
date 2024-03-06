@@ -115,12 +115,4 @@ struct virq_info {
 	hrt_data		irq_status_reg[N_IRQ_ID];
 };
 
-struct irq_controller_state {
-	unsigned int	irq_edge;
-	unsigned int	irq_mask;
-	unsigned int	irq_status;
-	unsigned int	irq_enable;
-	unsigned int	irq_level_not_pulse;
-};
-
 #endif /* __IRQ_LOCAL_H_INCLUDED__ */

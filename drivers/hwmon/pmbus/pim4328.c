@@ -221,7 +221,7 @@ static struct i2c_driver pim4328_driver = {
 	.driver = {
 		   .name = "pim4328",
 		   },
-	.probe_new = pim4328_probe,
+	.probe = pim4328_probe,
 	.id_table = pim4328_id,
 };
 

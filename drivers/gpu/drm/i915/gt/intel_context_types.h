@@ -17,6 +17,7 @@
 #include "i915_utils.h"
 #include "intel_engine_types.h"
 #include "intel_sseu.h"
+#include "intel_wakeref.h"
 
 #include "uc/intel_guc_fwif.h"
 
@@ -57,6 +58,8 @@ struct intel_context_ops {
 	void (*exit)(struct intel_context *ce);
 
 	void (*sched_disable)(struct intel_context *ce);
+
+	void (*update_stats)(struct intel_context *ce);
 
 	void (*reset)(struct intel_context *ce);
 	void (*destroy)(struct kref *kref);
@@ -110,6 +113,7 @@ struct intel_context {
 	u32 ring_size;
 	struct intel_ring *ring;
 	struct intel_timeline *timeline;
+	intel_wakeref_t wakeref;
 
 	unsigned long flags;
 #define CONTEXT_BARRIER_BIT		0

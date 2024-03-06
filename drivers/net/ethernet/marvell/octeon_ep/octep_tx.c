@@ -21,7 +21,6 @@ static void octep_iq_reset_indices(struct octep_iq *iq)
 	iq->flush_index = 0;
 	iq->pkts_processed = 0;
 	iq->pkt_in_done = 0;
-	atomic_set(&iq->instr_pending, 0);
 }
 
 /**
@@ -69,12 +68,12 @@ int octep_iq_process_completions(struct octep_iq *iq, u16 budget)
 		compl_sg++;
 
 		dma_unmap_single(iq->dev, tx_buffer->sglist[0].dma_ptr[0],
-				 tx_buffer->sglist[0].len[0], DMA_TO_DEVICE);
+				 tx_buffer->sglist[0].len[3], DMA_TO_DEVICE);
 
 		i = 1; /* entry 0 is main skb, unmapped above */
 		while (frags--) {
 			dma_unmap_page(iq->dev, tx_buffer->sglist[i >> 2].dma_ptr[i & 3],
-				       tx_buffer->sglist[i >> 2].len[i & 3], DMA_TO_DEVICE);
+				       tx_buffer->sglist[i >> 2].len[3 - (i & 3)], DMA_TO_DEVICE);
 			i++;
 		}
 
@@ -82,7 +81,6 @@ int octep_iq_process_completions(struct octep_iq *iq, u16 budget)
 	}
 
 	iq->pkts_processed += compl_pkts;
-	atomic_sub(compl_pkts, &iq->instr_pending);
 	iq->stats.instr_completed += compl_pkts;
 	iq->stats.bytes_sent += compl_bytes;
 	iq->stats.sgentry_sent += compl_sg;
@@ -91,7 +89,7 @@ int octep_iq_process_completions(struct octep_iq *iq, u16 budget)
 	netdev_tx_completed_queue(iq->netdev_q, compl_pkts, compl_bytes);
 
 	if (unlikely(__netif_subqueue_stopped(iq->netdev, iq->q_no)) &&
-	    ((iq->max_count - atomic_read(&iq->instr_pending)) >
+	    (IQ_INSTR_SPACE(iq) >
 	     OCTEP_WAKE_QUEUE_THRESHOLD))
 		netif_wake_subqueue(iq->netdev, iq->q_no);
 	return !budget;
@@ -131,20 +129,19 @@ static void octep_iq_free_pending(struct octep_iq *iq)
 
 		dma_unmap_single(iq->dev,
 				 tx_buffer->sglist[0].dma_ptr[0],
-				 tx_buffer->sglist[0].len[0],
+				 tx_buffer->sglist[0].len[3],
 				 DMA_TO_DEVICE);
 
 		i = 1; /* entry 0 is main skb, unmapped above */
 		while (frags--) {
 			dma_unmap_page(iq->dev, tx_buffer->sglist[i >> 2].dma_ptr[i & 3],
-				       tx_buffer->sglist[i >> 2].len[i & 3], DMA_TO_DEVICE);
+				       tx_buffer->sglist[i >> 2].len[3 - (i & 3)], DMA_TO_DEVICE);
 			i++;
 		}
 
 		dev_kfree_skb_any(skb);
 	}
 
-	atomic_set(&iq->instr_pending, 0);
 	iq->flush_index = fi;
 	netdev_tx_reset_queue(netdev_get_tx_queue(iq->netdev, iq->q_no));
 }

@@ -31,11 +31,10 @@
 /**
  * DOC: flip utils
  *
- * Util to queue up work to run from work-queue context after flip/vblank.
+ * Utility to queue up work to run from work-queue context after flip/vblank.
  * Typically this can be used to defer unref of framebuffer's, cursor
- * bo's, etc until after vblank.  The APIs are all thread-safe.
- * Moreover, drm_flip_work_queue_task and drm_flip_work_queue can be called
- * in atomic context.
+ * bo's, etc until after vblank. The APIs are all thread-safe. Moreover,
+ * drm_flip_work_commit() can be called in atomic context.
  */
 
 struct drm_flip_work;
@@ -50,16 +49,6 @@ struct drm_flip_work;
  * drm_flip_work_commit() is called.
  */
 typedef void (*drm_flip_func_t)(struct drm_flip_work *work, void *val);
-
-/**
- * struct drm_flip_task - flip work task
- * @node: list entry element
- * @data: data to pass to &drm_flip_work.func
- */
-struct drm_flip_task {
-	struct list_head node;
-	void *data;
-};
 
 /**
  * struct drm_flip_work - flip work queue
@@ -79,9 +68,6 @@ struct drm_flip_work {
 	spinlock_t lock;
 };
 
-struct drm_flip_task *drm_flip_work_allocate_task(void *data, gfp_t flags);
-void drm_flip_work_queue_task(struct drm_flip_work *work,
-			      struct drm_flip_task *task);
 void drm_flip_work_queue(struct drm_flip_work *work, void *val);
 void drm_flip_work_commit(struct drm_flip_work *work,
 		struct workqueue_struct *wq);

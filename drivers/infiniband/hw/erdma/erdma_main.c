@@ -130,33 +130,6 @@ static irqreturn_t erdma_comm_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void erdma_dwqe_resource_init(struct erdma_dev *dev)
-{
-	int total_pages, type0, type1;
-
-	dev->attrs.grp_num = erdma_reg_read32(dev, ERDMA_REGS_GRP_NUM_REG);
-
-	if (dev->attrs.grp_num < 4)
-		dev->attrs.disable_dwqe = true;
-	else
-		dev->attrs.disable_dwqe = false;
-
-	/* One page contains 4 goups. */
-	total_pages = dev->attrs.grp_num * 4;
-
-	if (dev->attrs.grp_num >= ERDMA_DWQE_MAX_GRP_CNT) {
-		dev->attrs.grp_num = ERDMA_DWQE_MAX_GRP_CNT;
-		type0 = ERDMA_DWQE_TYPE0_CNT;
-		type1 = ERDMA_DWQE_TYPE1_CNT / ERDMA_DWQE_TYPE1_CNT_PER_PAGE;
-	} else {
-		type1 = total_pages / 3;
-		type0 = total_pages - type1 - 1;
-	}
-
-	dev->attrs.dwqe_pages = type0;
-	dev->attrs.dwqe_entries = type1 * ERDMA_DWQE_TYPE1_CNT_PER_PAGE;
-}
-
 static int erdma_request_vectors(struct erdma_dev *dev)
 {
 	int expect_irq_num = min(num_possible_cpus() + 1, ERDMA_NUM_MSIX_VEC);
@@ -199,16 +172,30 @@ static int erdma_device_init(struct erdma_dev *dev, struct pci_dev *pdev)
 {
 	int ret;
 
-	erdma_dwqe_resource_init(dev);
+	dev->resp_pool = dma_pool_create("erdma_resp_pool", &pdev->dev,
+					 ERDMA_HW_RESP_SIZE, ERDMA_HW_RESP_SIZE,
+					 0);
+	if (!dev->resp_pool)
+		return -ENOMEM;
 
 	ret = dma_set_mask_and_coherent(&pdev->dev,
 					DMA_BIT_MASK(ERDMA_PCI_WIDTH));
 	if (ret)
-		return ret;
+		goto destroy_pool;
 
 	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	return 0;
+
+destroy_pool:
+	dma_pool_destroy(dev->resp_pool);
+
+	return ret;
+}
+
+static void erdma_device_uninit(struct erdma_dev *dev)
+{
+	dma_pool_destroy(dev->resp_pool);
 }
 
 static void erdma_hw_reset(struct erdma_dev *dev)
@@ -302,7 +289,7 @@ static int erdma_probe_dev(struct pci_dev *pdev)
 
 	err = erdma_request_vectors(dev);
 	if (err)
-		goto err_iounmap_func_bar;
+		goto err_uninit_device;
 
 	err = erdma_comm_irq_init(dev);
 	if (err)
@@ -343,6 +330,9 @@ err_uninit_comm_irq:
 err_free_vectors:
 	pci_free_irq_vectors(dev->pdev);
 
+err_uninit_device:
+	erdma_device_uninit(dev);
+
 err_iounmap_func_bar:
 	devm_iounmap(&pdev->dev, dev->func_bar);
 
@@ -368,6 +358,7 @@ static void erdma_remove_dev(struct pci_dev *pdev)
 	erdma_aeq_destroy(dev);
 	erdma_comm_irq_uninit(dev);
 	pci_free_irq_vectors(dev->pdev);
+	erdma_device_uninit(dev);
 
 	devm_iounmap(&pdev->dev, dev->func_bar);
 	pci_release_selected_regions(pdev, ERDMA_BAR_MASK);
@@ -426,6 +417,22 @@ static int erdma_dev_attrs_init(struct erdma_dev *dev)
 	return err;
 }
 
+static int erdma_device_config(struct erdma_dev *dev)
+{
+	struct erdma_cmdq_config_device_req req = {};
+
+	if (!(dev->attrs.cap_flags & ERDMA_DEV_CAP_FLAGS_EXTEND_DB))
+		return 0;
+
+	erdma_cmdq_build_reqhdr(&req.hdr, CMDQ_SUBMOD_COMMON,
+				CMDQ_OPCODE_CONF_DEVICE);
+
+	req.cfg = FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PGSHIFT_MASK, PAGE_SHIFT) |
+		  FIELD_PREP(ERDMA_CMD_CONFIG_DEVICE_PS_EN_MASK, 1);
+
+	return erdma_post_cmd_wait(&dev->cmdq, &req, sizeof(req), NULL, NULL);
+}
+
 static int erdma_res_cb_init(struct erdma_dev *dev)
 {
 	int i, j;
@@ -461,6 +468,7 @@ static const struct ib_device_ops erdma_device_ops = {
 	.driver_id = RDMA_DRIVER_ERDMA,
 	.uverbs_abi_ver = ERDMA_ABI_VERSION,
 
+	.alloc_hw_port_stats = erdma_alloc_hw_port_stats,
 	.alloc_mr = erdma_ib_alloc_mr,
 	.alloc_pd = erdma_alloc_pd,
 	.alloc_ucontext = erdma_alloc_ucontext,
@@ -472,6 +480,7 @@ static const struct ib_device_ops erdma_device_ops = {
 	.destroy_cq = erdma_destroy_cq,
 	.destroy_qp = erdma_destroy_qp,
 	.get_dma_mr = erdma_get_dma_mr,
+	.get_hw_stats = erdma_get_hw_stats,
 	.get_port_immutable = erdma_get_port_immutable,
 	.iw_accept = erdma_accept,
 	.iw_add_ref = erdma_qp_get_ref,
@@ -512,6 +521,10 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	if (ret)
 		return ret;
 
+	ret = erdma_device_config(dev);
+	if (ret)
+		return ret;
+
 	ibdev->node_type = RDMA_NODE_RNIC;
 	memcpy(ibdev->node_desc, ERDMA_NODE_DESC, sizeof(ERDMA_NODE_DESC));
 
@@ -536,10 +549,6 @@ static int erdma_ib_device_add(struct pci_dev *pdev)
 	ret = erdma_res_cb_init(dev);
 	if (ret)
 		return ret;
-
-	spin_lock_init(&dev->db_bitmap_lock);
-	bitmap_zero(dev->sdb_page, ERDMA_DWQE_TYPE0_CNT);
-	bitmap_zero(dev->sdb_entry, ERDMA_DWQE_TYPE1_CNT);
 
 	atomic_set(&dev->num_ctx, 0);
 

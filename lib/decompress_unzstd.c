@@ -69,6 +69,8 @@
 # define UNZSTD_PREBOOT
 # include "xxhash.c"
 # include "zstd/decompress_sources.h"
+#else
+#include <linux/decompress/unzstd.h>
 #endif
 
 #include <linux/decompress/mm.h>

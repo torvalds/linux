@@ -4,10 +4,10 @@
 #
 
 # Leads to non-deterministic coverage that is not a function of syscall inputs.
-# In particualr, smp_apic_timer_interrupt() is called in random places.
+# In particular, smp_apic_timer_interrupt() is called in random places.
 KCOV_INSTRUMENT		:= n
 
-obj-$(CONFIG_X86_LOCAL_APIC)	+= apic.o apic_common.o apic_noop.o ipi.o vector.o
+obj-$(CONFIG_X86_LOCAL_APIC)	+= apic.o apic_common.o apic_noop.o ipi.o vector.o init.o
 obj-y				+= hw_nmi.o
 
 obj-$(CONFIG_X86_IO_APIC)	+= io_apic.o

@@ -381,6 +381,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/tempY_max_alarm
+Description:
+		Maximum temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_max
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/tempY_min
 Description:
 		Temperature min value.
@@ -388,6 +397,15 @@ Description:
 		Unit: millidegree Celsius
 
 		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_min_alarm
+Description:
+		Minimum temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_min
+
+		RO
 
 What:		/sys/class/hwmon/hwmonX/tempY_max_hyst
 Description:
@@ -434,12 +452,7 @@ Description:
 		- 0: OK
 		- 1: temperature has reached tempY_crit
 
-		RW
-
-		Contrary to regular alarm flags which clear themselves
-		automatically when read, this one sticks until cleared by
-		the user. This is done by writing 0 to the file. Writing
-		other values is unsupported.
+		RO
 
 What:		/sys/class/hwmon/hwmonX/tempY_crit_hyst
 Description:
@@ -461,6 +474,15 @@ Description:
 		Unit: millidegree Celsius
 
 		RW
+
+What:		/sys/class/hwmon/hwmonX/tempY_emergency_alarm
+Description:
+		Emergency high temperature alarm flag.
+
+		- 0: OK
+		- 1: temperature has reached tempY_emergency
+
+		RO
 
 What:		/sys/class/hwmon/hwmonX/tempY_emergency_hyst
 Description:
@@ -887,14 +909,14 @@ Description:
 
 		RW
 
-What:		/sys/class/hwmon/hwmonX/humidityY_input
+What:		/sys/class/hwmon/hwmonX/humidityY_alarm
 Description:
-		Humidity
+		Humidity limit detection
 
-		Unit: milli-percent (per cent mille, pcm)
+		- 0: OK
+		- 1: Humidity limit has been reached
 
 		RO
-
 
 What:		/sys/class/hwmon/hwmonX/humidityY_enable
 Description:
@@ -905,6 +927,74 @@ Description:
 
 		- 1: Enable
 		- 0: Disable
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_fault
+Description:
+		Reports a humidity sensor failure.
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_input
+Description:
+		Humidity
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_label
+Description:
+		Suggested humidity channel label.
+
+		Text string
+
+		Should only be created if the driver has hints about what
+		this humidity channel is being used for, and user-space
+		doesn't. In all other cases, the label is provided by
+		user-space.
+
+		RO
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max
+Description:
+		Humidity max value.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_max_hyst
+Description:
+		Humidity hysteresis value for max limit.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		Must be reported as an absolute humidity, NOT a delta
+		from the max value.
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min
+Description:
+		Humidity min value.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min_hyst
+Description:
+		Humidity hysteresis value for min limit.
+
+		Unit: milli-percent (per cent mille, pcm)
+
+		Must be reported as an absolute humidity, NOT a delta
+		from the min value.
 
 		RW
 

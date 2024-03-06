@@ -81,7 +81,7 @@ struct serial_state {
 	int			quot;
 	int			IER; 	/* Interrupt Enable Register */
 	int			MCR; 	/* Modem control register */
-	int			x_char;	/* xon/xoff character */
+	u8			x_char;	/* xon/xoff character */
 };
 
 static struct tty_driver *serial_driver;
@@ -178,9 +178,9 @@ static void receive_chars(struct serial_state *info)
 {
         int status;
 	int serdatr;
-	unsigned char ch, flag;
+	u8 ch, flag;
 	struct	async_icount *icount;
-	int oe = 0;
+	bool overrun = false;
 
 	icount = &info->icount;
 
@@ -230,7 +230,7 @@ static void receive_chars(struct serial_state *info)
 	   * should be ignored.
 	   */
 	  if (status & info->ignore_status_mask)
-	    goto out;
+		  return;
 
 	  status &= info->read_status_mask;
 
@@ -251,15 +251,13 @@ static void receive_chars(struct serial_state *info)
 	     * reported immediately, and doesn't
 	     * affect the current character
 	     */
-	     oe = 1;
+	     overrun = true;
 	  }
 	}
 	tty_insert_flip_char(&info->tport, ch, flag);
-	if (oe == 1)
+	if (overrun)
 		tty_insert_flip_char(&info->tport, 0, TTY_OVERRUN);
 	tty_flip_buffer_push(&info->tport);
-out:
-	return;
 }
 
 static void transmit_chars(struct serial_state *info)
@@ -696,7 +694,7 @@ static void change_speed(struct tty_struct *tty, struct serial_state *info,
 	local_irq_restore(flags);
 }
 
-static int rs_put_char(struct tty_struct *tty, unsigned char ch)
+static int rs_put_char(struct tty_struct *tty, u8 ch)
 {
 	struct serial_state *info;
 	unsigned long flags;
@@ -741,7 +739,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-static int rs_write(struct tty_struct * tty, const unsigned char *buf, int count)
+static ssize_t rs_write(struct tty_struct * tty, const u8 *buf, size_t count)
 {
 	int	c, ret = 0;
 	struct serial_state *info = tty->driver_data;
@@ -813,7 +811,7 @@ static void rs_flush_buffer(struct tty_struct *tty)
  * This function is used to send a high-priority XON/XOFF character to
  * the device
  */
-static void rs_send_xchar(struct tty_struct *tty, char ch)
+static void rs_send_xchar(struct tty_struct *tty, u8 ch)
 {
 	struct serial_state *info = tty->driver_data;
         unsigned long flags;

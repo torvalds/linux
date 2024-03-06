@@ -239,7 +239,7 @@ static struct i2c_driver stw481x_driver = {
 		.name	= "stw481x",
 		.of_match_table = stw481x_match,
 	},
-	.probe_new	= stw481x_probe,
+	.probe		= stw481x_probe,
 	.id_table	= stw481x_id,
 };
 

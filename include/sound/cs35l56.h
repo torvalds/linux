@@ -75,6 +75,7 @@
 #define CS35L56_DSP1_AHBM_WINDOW_DEBUG_0		0x25E2040
 #define CS35L56_DSP1_AHBM_WINDOW_DEBUG_1		0x25E2044
 #define CS35L56_DSP1_XMEM_UNPACKED24_0			0x2800000
+#define CS35L56_DSP1_FW_VER				0x2800010
 #define CS35L56_DSP1_HALO_STATE_A1			0x2801E58
 #define CS35L56_DSP1_HALO_STATE				0x28021E0
 #define CS35L56_DSP1_PM_CUR_STATE_A1			0x2804000
@@ -223,6 +224,7 @@
 
 #define CS35L56_MBOX_CMD_AUDIO_PLAY			0x0B000001
 #define CS35L56_MBOX_CMD_AUDIO_PAUSE			0x0B000002
+#define CS35L56_MBOX_CMD_AUDIO_REINIT			0x0B000003
 #define CS35L56_MBOX_CMD_HIBERNATE_NOW			0x02000001
 #define CS35L56_MBOX_CMD_WAKEUP				0x02000002
 #define CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE		0x02000003
@@ -240,10 +242,9 @@
 
 #define CS35L56_CONTROL_PORT_READY_US			2200
 #define CS35L56_HALO_STATE_POLL_US			1000
-#define CS35L56_HALO_STATE_TIMEOUT_US			50000
-#define CS35L56_HIBERNATE_WAKE_POLL_US			500
-#define CS35L56_HIBERNATE_WAKE_TIMEOUT_US		5000
+#define CS35L56_HALO_STATE_TIMEOUT_US			250000
 #define CS35L56_RESET_PULSE_MIN_US			1100
+#define CS35L56_WAKE_HOLD_TIME_US			1000
 
 #define CS35L56_SDW1_PLAYBACK_PORT			1
 #define CS35L56_SDW1_CAPTURE_PORT			3
@@ -251,15 +252,44 @@
 #define CS35L56_NUM_BULK_SUPPLIES			3
 #define CS35L56_NUM_DSP_REGIONS				5
 
+struct cs35l56_base {
+	struct device *dev;
+	struct regmap *regmap;
+	int irq;
+	struct mutex irq_lock;
+	u8 rev;
+	bool init_done;
+	bool fw_patched;
+	bool secured;
+	bool can_hibernate;
+	struct gpio_desc *reset_gpio;
+};
+
 extern struct regmap_config cs35l56_regmap_i2c;
 extern struct regmap_config cs35l56_regmap_spi;
 extern struct regmap_config cs35l56_regmap_sdw;
 
-extern const struct cs_dsp_region cs35l56_dsp1_regions[CS35L56_NUM_DSP_REGIONS];
 extern const char * const cs35l56_tx_input_texts[CS35L56_NUM_INPUT_SRC];
 extern const unsigned int cs35l56_tx_input_values[CS35L56_NUM_INPUT_SRC];
 
-void cs35l56_reread_firmware_registers(struct device *dev, struct regmap *regmap);
+int cs35l56_set_patch(struct cs35l56_base *cs35l56_base);
+int cs35l56_force_sync_asp1_registers_from_cache(struct cs35l56_base *cs35l56_base);
+int cs35l56_mbox_send(struct cs35l56_base *cs35l56_base, unsigned int command);
+int cs35l56_firmware_shutdown(struct cs35l56_base *cs35l56_base);
+int cs35l56_wait_for_firmware_boot(struct cs35l56_base *cs35l56_base);
+void cs35l56_wait_control_port_ready(void);
+void cs35l56_wait_min_reset_pulse(void);
+void cs35l56_system_reset(struct cs35l56_base *cs35l56_base, bool is_soundwire);
+int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq);
+irqreturn_t cs35l56_irq(int irq, void *data);
+int cs35l56_is_fw_reload_needed(struct cs35l56_base *cs35l56_base);
+int cs35l56_runtime_suspend_common(struct cs35l56_base *cs35l56_base);
+int cs35l56_runtime_resume_common(struct cs35l56_base *cs35l56_base, bool is_soundwire);
+void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_dsp);
+int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
+			     bool *fw_missing, unsigned int *fw_version);
+int cs35l56_hw_init(struct cs35l56_base *cs35l56_base);
+int cs35l56_get_speaker_id(struct cs35l56_base *cs35l56_base);
 int cs35l56_get_bclk_freq_id(unsigned int freq);
 void cs35l56_fill_supply_names(struct regulator_bulk_data *data);
 

@@ -3,7 +3,7 @@
  * A security identifier table (sidtab) is a lookup table
  * of security context structures indexed by SID value.
  *
- * Original author: Stephen Smalley, <sds@tycho.nsa.gov>
+ * Original author: Stephen Smalley, <stephen.smalley.work@gmail.com>
  * Author: Ondrej Mosnacek, <omosnacek@gmail.com>
  *
  * Copyright (C) 2018 Red Hat, Inc.

@@ -3,7 +3,9 @@
 # Cavium Liquidio ethernet device driver
 #
 
-common-objs :=	lio_ethtool.o		\
+obj-$(CONFIG_LIQUIDIO_CORE) += liquidio-core.o
+liquidio-core-y := \
+		lio_ethtool.o		\
 		lio_core.o		\
 		request_manager.o	\
 		response_manager.o	\
@@ -18,7 +20,7 @@ common-objs :=	lio_ethtool.o		\
 		octeon_nic.o
 
 obj-$(CONFIG_LIQUIDIO) += liquidio.o
-liquidio-y := lio_main.o octeon_console.o lio_vf_rep.o $(common-objs)
+liquidio-y := lio_main.o octeon_console.o lio_vf_rep.o
 
 obj-$(CONFIG_LIQUIDIO_VF) += liquidio_vf.o
-liquidio_vf-y := lio_vf_main.o $(common-objs)
+liquidio_vf-y := lio_vf_main.o

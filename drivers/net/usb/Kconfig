@@ -583,12 +583,10 @@ config USB_IPHETH
 	default n
 	help
 	  Module used to share Internet connection (tethering) from your
-	  iPhone (Original, 3G and 3GS) to your system.
-	  Note that you need userspace libraries and programs that are needed
-	  to pair your device with your system and that understand the iPhone
-	  protocol.
-
-	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
+	  iPhone to your system.
+	  Note that you need a corresponding userspace library/program
+	  to pair your device with your system, for example usbmuxd
+	  <https://github.com/libimobiledevice/usbmuxd>.
 
 config USB_SIERRA_NET
 	tristate "USB-to-WWAN Driver for Sierra Wireless modems"

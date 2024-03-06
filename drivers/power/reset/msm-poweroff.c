@@ -35,11 +35,7 @@ static void do_msm_poweroff(void)
 
 static int msm_restart_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	struct resource *mem;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	msm_ps_hold = devm_ioremap_resource(dev, mem);
+	msm_ps_hold = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
 
@@ -63,9 +59,4 @@ static struct platform_driver msm_restart_driver = {
 		.of_match_table = of_match_ptr(of_msm_restart_match),
 	},
 };
-
-static int __init msm_restart_init(void)
-{
-	return platform_driver_register(&msm_restart_driver);
-}
-device_initcall(msm_restart_init);
+builtin_platform_driver(msm_restart_driver);

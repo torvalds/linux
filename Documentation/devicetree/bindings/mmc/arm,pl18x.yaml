@@ -53,10 +53,11 @@ properties:
         items:
           - const: arm,pl18x
           - const: arm,primecell
-      - description: Entry for STMicroelectronics variant of PL18x.
-          This dedicated compatible is used by bootloaders.
+      - description: Entries for STMicroelectronics variant of PL18x.
         items:
-          - const: st,stm32-sdmmc2
+          - enum:
+              - st,stm32-sdmmc2
+              - st,stm32mp25-sdmmc2
           - const: arm,pl18x
           - const: arm,primecell
 
@@ -202,7 +203,7 @@ examples:
       bus-width = <4>;
       cap-sd-highspeed;
       cap-mmc-highspeed;
-      cd-gpios  = <&gpio2 31 0x4>;
+      cd-gpios = <&gpio2 31 0x4>;
       st,sig-dir-dat0;
       st,sig-dir-dat2;
       st,sig-dir-cmd;

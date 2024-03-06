@@ -308,6 +308,10 @@ static bool setup_engine(
 		     }
 	     }
 
+	if (dce_i2c_hw->masks->DC_I2C_DDC1_CLK_EN)
+		REG_UPDATE_N(SETUP, 1,
+			     FN(DC_I2C_DDC1_SETUP, DC_I2C_DDC1_CLK_EN), 1);
+
 	/* we have checked I2c not used by DMCU, set SW use I2C REQ to 1 to indicate SW using it*/
 	REG_UPDATE(DC_I2C_ARBITRATION, DC_I2C_SW_USE_I2C_REG_REQ, 1);
 
@@ -442,10 +446,9 @@ struct dce_i2c_hw *acquire_i2c_hw_engine(
 	return dce_i2c_hw;
 }
 
-static enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(
-	struct dce_i2c_hw *dce_i2c_hw,
-	uint32_t timeout,
-	enum i2c_channel_operation_result expected_result)
+static enum i2c_channel_operation_result dce_i2c_hw_engine_wait_on_operation_result(struct dce_i2c_hw *dce_i2c_hw,
+										    uint32_t timeout,
+										    enum i2c_channel_operation_result expected_result)
 {
 	enum i2c_channel_operation_result result;
 	uint32_t i = 0;
@@ -509,11 +512,10 @@ static uint32_t get_transaction_timeout_hw(
 	return period_timeout * num_of_clock_stretches;
 }
 
-static bool dce_i2c_hw_engine_submit_payload(
-	struct dce_i2c_hw *dce_i2c_hw,
-	struct i2c_payload *payload,
-	bool middle_of_transaction,
-	uint32_t speed)
+static bool dce_i2c_hw_engine_submit_payload(struct dce_i2c_hw *dce_i2c_hw,
+					     struct i2c_payload *payload,
+					     bool middle_of_transaction,
+					     uint32_t speed)
 {
 
 	struct i2c_request_transaction_data request;

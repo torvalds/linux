@@ -9,6 +9,7 @@
  * Common bits of the IOT2050 Basic variant, PG1 and PG2
  */
 
+#include "k3-am652.dtsi"
 #include "k3-am65-iot2050-common.dtsi"
 
 / {
@@ -17,25 +18,10 @@
 		/* 1G RAM */
 		reg = <0x00000000 0x80000000 0x00000000 0x40000000>;
 	};
-
-	cpus {
-		cpu-map {
-			/delete-node/ cluster1;
-		};
-		/delete-node/ cpu@100;
-		/delete-node/ cpu@101;
-	};
-
-	/delete-node/ l2-cache1;
-};
-
-/* eMMC */
-&sdhci0 {
-	status = "disabled";
 };
 
 &main_pmx0 {
-	main_uart0_pins_default: main-uart0-pins-default {
+	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			AM65X_IOPAD(0x01e4, PIN_INPUT,  0)  /* (AF11) UART0_RXD */
 			AM65X_IOPAD(0x01e8, PIN_OUTPUT, 0)  /* (AE11) UART0_TXD */

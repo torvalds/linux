@@ -10,7 +10,7 @@
 #
 # Makefile for dcn321.
 
-DCN321 = dcn321_resource.o dcn321_dio_link_encoder.o
+DCN321 = dcn321_dio_link_encoder.o
 
 AMD_DAL_DCN321 = $(addprefix $(AMDDALPATH)/dc/dcn321/,$(DCN321))
 

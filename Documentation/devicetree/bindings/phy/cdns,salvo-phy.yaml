@@ -31,6 +31,12 @@ properties:
   "#phy-cells":
     const: 0
 
+  cdns,usb2-disconnect-threshold-microvolt:
+    description: The microvolt threshold value utilized for detecting
+      USB disconnection event.
+    enum: [575, 610, 645]
+    default: 575
+
 required:
   - compatible
   - reg

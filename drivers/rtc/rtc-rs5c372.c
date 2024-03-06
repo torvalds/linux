@@ -12,7 +12,7 @@
 #include <linux/bcd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 
 /*
  * Ricoh has a family of I2C based RTCs, which differ only slightly from
@@ -826,8 +826,7 @@ static int rs5c372_probe(struct i2c_client *client)
 	rs5c372->client = client;
 	i2c_set_clientdata(client, rs5c372);
 	if (client->dev.of_node) {
-		rs5c372->type = (enum rtc_type)
-			of_device_get_match_data(&client->dev);
+		rs5c372->type = (uintptr_t)of_device_get_match_data(&client->dev);
 	} else {
 		const struct i2c_device_id *id = i2c_match_id(rs5c372_id, client);
 		rs5c372->type = id->driver_data;
@@ -921,7 +920,7 @@ static struct i2c_driver rs5c372_driver = {
 		.name	= "rtc-rs5c372",
 		.of_match_table = of_match_ptr(rs5c372_of_match),
 	},
-	.probe_new	= rs5c372_probe,
+	.probe		= rs5c372_probe,
 	.remove		= rs5c372_remove,
 	.id_table	= rs5c372_id,
 };

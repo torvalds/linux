@@ -1,0 +1,2 @@
+# Hangs machine
+kms_bw.*

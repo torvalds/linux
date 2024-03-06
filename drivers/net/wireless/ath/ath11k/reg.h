@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_REG_H
@@ -23,6 +24,9 @@ enum ath11k_dfs_region {
 	ATH11K_DFS_REG_MKK_N,
 	ATH11K_DFS_REG_UNDEF,
 };
+
+/* Phy bitmaps */
+#define ATH11K_REG_PHY_BITMAP_NO11AX	BIT(5)
 
 /* ATH11K Regulatory API's */
 void ath11k_reg_init(struct ath11k *ar);

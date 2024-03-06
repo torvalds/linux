@@ -32,6 +32,9 @@ struct efx_tc_counter {
 	u64 old_packets, old_bytes; /* Values last time passed to userspace */
 	/* jiffies of the last time we saw packets increase */
 	unsigned long touched;
+	struct work_struct work; /* For notifying encap actions */
+	/* owners of corresponding count actions */
+	struct list_head users;
 };
 
 struct efx_tc_counter_index {
@@ -46,6 +49,10 @@ int efx_tc_init_counters(struct efx_nic *efx);
 void efx_tc_destroy_counters(struct efx_nic *efx);
 void efx_tc_fini_counters(struct efx_nic *efx);
 
+struct efx_tc_counter *efx_tc_flower_allocate_counter(struct efx_nic *efx,
+						      int type);
+void efx_tc_flower_release_counter(struct efx_nic *efx,
+				   struct efx_tc_counter *cnt);
 struct efx_tc_counter_index *efx_tc_flower_get_counter_index(
 				struct efx_nic *efx, unsigned long cookie,
 				enum efx_tc_counter_type type);

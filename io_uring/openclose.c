@@ -31,13 +31,20 @@ struct io_close {
 	u32				file_slot;
 };
 
+struct io_fixed_install {
+	struct file			*file;
+	unsigned int			o_flags;
+};
+
 static bool io_openat_force_async(struct io_open *open)
 {
 	/*
 	 * Don't bother trying for O_TRUNC, O_CREAT, or O_TMPFILE open,
-	 * it'll always -EAGAIN
+	 * it'll always -EAGAIN. Note that we test for __O_TMPFILE because
+	 * O_TMPFILE includes O_DIRECTORY, which isn't a flag we need to force
+	 * async for.
 	 */
-	return open->how.flags & (O_TRUNC | O_CREAT | O_TMPFILE);
+	return open->how.flags & (O_TRUNC | O_CREAT | __O_TMPFILE);
 }
 
 static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -150,7 +157,6 @@ int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
 
 	if ((issue_flags & IO_URING_F_NONBLOCK) && !nonblock_set)
 		file->f_flags &= ~O_NONBLOCK;
-	fsnotify_open(file);
 
 	if (!fixed)
 		fd_install(ret, file);
@@ -219,7 +225,6 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct files_struct *files = current->files;
 	struct io_close *close = io_kiocb_to_cmd(req, struct io_close);
-	struct fdtable *fdt;
 	struct file *file;
 	int ret = -EBADF;
 
@@ -229,13 +234,7 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (close->fd >= fdt->max_fds) {
-		spin_unlock(&files->file_lock);
-		goto err;
-	}
-	file = rcu_dereference_protected(fdt->fd[close->fd],
-			lockdep_is_held(&files->file_lock));
+	file = files_lookup_fd_locked(files, close->fd);
 	if (!file || io_is_uring_fops(file)) {
 		spin_unlock(&files->file_lock);
 		goto err;
@@ -247,7 +246,7 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 	}
 
-	file = __close_fd_get_file(close->fd);
+	file = file_close_fd_locked(files, close->fd);
 	spin_unlock(&files->file_lock);
 	if (!file)
 		goto err;
@@ -255,6 +254,49 @@ int io_close(struct io_kiocb *req, unsigned int issue_flags)
 	/* No ->flush() or already async, safely close from here */
 	ret = filp_close(file, current->files);
 err:
+	if (ret < 0)
+		req_set_fail(req);
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
+}
+
+int io_install_fixed_fd_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
+{
+	struct io_fixed_install *ifi;
+	unsigned int flags;
+
+	if (sqe->off || sqe->addr || sqe->len || sqe->buf_index ||
+	    sqe->splice_fd_in || sqe->addr3)
+		return -EINVAL;
+
+	/* must be a fixed file */
+	if (!(req->flags & REQ_F_FIXED_FILE))
+		return -EBADF;
+
+	flags = READ_ONCE(sqe->install_fd_flags);
+	if (flags & ~IORING_FIXED_FD_NO_CLOEXEC)
+		return -EINVAL;
+
+	/* ensure the task's creds are used when installing/receiving fds */
+	if (req->flags & REQ_F_CREDS)
+		return -EPERM;
+
+	/* default to O_CLOEXEC, disable if IORING_FIXED_FD_NO_CLOEXEC is set */
+	ifi = io_kiocb_to_cmd(req, struct io_fixed_install);
+	ifi->o_flags = O_CLOEXEC;
+	if (flags & IORING_FIXED_FD_NO_CLOEXEC)
+		ifi->o_flags = 0;
+
+	return 0;
+}
+
+int io_install_fixed_fd(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_fixed_install *ifi;
+	int ret;
+
+	ifi = io_kiocb_to_cmd(req, struct io_fixed_install);
+	ret = receive_fd(req->file, NULL, ifi->o_flags);
 	if (ret < 0)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);

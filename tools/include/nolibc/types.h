@@ -8,13 +8,17 @@
 #define _NOLIBC_TYPES_H
 
 #include "std.h"
-#include <linux/time.h>
+#include <linux/mman.h>
+#include <linux/reboot.h> /* for LINUX_REBOOT_* */
 #include <linux/stat.h>
+#include <linux/time.h>
+#include <linux/wait.h>
+#include <linux/resource.h>
 
 
 /* Only the generic macros and types may be defined here. The arch-specific
- * ones such as the O_RDONLY and related macros used by fcntl() and open(), or
- * the layout of sys_stat_struct must not be defined here.
+ * ones such as the O_RDONLY and related macros used by fcntl() and open()
+ * must not be defined here.
  */
 
 /* stat flags (WARNING, octal here). We need to check for an existing
@@ -81,27 +85,30 @@
 #define MAXPATHLEN     (PATH_MAX)
 #endif
 
+/* flags for mmap */
+#ifndef MAP_FAILED
+#define MAP_FAILED ((void *)-1)
+#endif
+
 /* whence values for lseek() */
 #define SEEK_SET       0
 #define SEEK_CUR       1
 #define SEEK_END       2
 
-/* cmd for reboot() */
-#define LINUX_REBOOT_MAGIC1         0xfee1dead
-#define LINUX_REBOOT_MAGIC2         0x28121969
-#define LINUX_REBOOT_CMD_HALT       0xcdef0123
-#define LINUX_REBOOT_CMD_POWER_OFF  0x4321fedc
-#define LINUX_REBOOT_CMD_RESTART    0x01234567
-#define LINUX_REBOOT_CMD_SW_SUSPEND 0xd000fce2
+/* flags for reboot */
+#define RB_AUTOBOOT     LINUX_REBOOT_CMD_RESTART
+#define RB_HALT_SYSTEM  LINUX_REBOOT_CMD_HALT
+#define RB_ENABLE_CAD   LINUX_REBOOT_CMD_CAD_ON
+#define RB_DISABLE_CAD  LINUX_REBOOT_CMD_CAD_OFF
+#define RB_POWER_OFF    LINUX_REBOOT_CMD_POWER_OFF
+#define RB_SW_SUSPEND   LINUX_REBOOT_CMD_SW_SUSPEND
+#define RB_KEXEC        LINUX_REBOOT_CMD_KEXEC
 
 /* Macros used on waitpid()'s return status */
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #define WIFEXITED(status)   (((status) & 0x7f) == 0)
 #define WTERMSIG(status)    ((status) & 0x7f)
 #define WIFSIGNALED(status) ((status) - 1 < 0xff)
-
-/* waitpid() flags */
-#define WNOHANG      1
 
 /* standard exit() codes */
 #define EXIT_SUCCESS 0
@@ -172,26 +179,6 @@ struct linux_dirent64 {
 	char           d_name[];
 };
 
-/* needed by wait4() */
-struct rusage {
-	struct timeval ru_utime;
-	struct timeval ru_stime;
-	long   ru_maxrss;
-	long   ru_ixrss;
-	long   ru_idrss;
-	long   ru_isrss;
-	long   ru_minflt;
-	long   ru_majflt;
-	long   ru_nswap;
-	long   ru_inblock;
-	long   ru_oublock;
-	long   ru_msgsnd;
-	long   ru_msgrcv;
-	long   ru_nsignals;
-	long   ru_nvcsw;
-	long   ru_nivcsw;
-};
-
 /* The format of the struct as returned by the libc to the application, which
  * significantly differs from the format returned by the stat() syscall flavours.
  */
@@ -206,9 +193,9 @@ struct stat {
 	off_t     st_size;    /* total size, in bytes */
 	blksize_t st_blksize; /* blocksize for file system I/O */
 	blkcnt_t  st_blocks;  /* number of 512B blocks allocated */
-	time_t    st_atime;   /* time of last access */
-	time_t    st_mtime;   /* time of last modification */
-	time_t    st_ctime;   /* time of last status change */
+	union { time_t st_atime; struct timespec st_atim; }; /* time of last access */
+	union { time_t st_mtime; struct timespec st_mtim; }; /* time of last modification */
+	union { time_t st_ctime; struct timespec st_ctim; }; /* time of last status change */
 };
 
 /* WARNING, it only deals with the 4096 first majors and 256 first minors */

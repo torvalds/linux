@@ -1,0 +1,466 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Device tree for LEGO MINDSTORMS EV3
+ *
+ * Copyright (C) 2017 David Lechner <david@lechnology.com>
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/pwm/pwm.h>
+
+#include "da850.dtsi"
+
+/ {
+	compatible = "lego,ev3", "ti,da850";
+	model = "LEGO MINDSTORMS EV3";
+
+	aliases {
+		serial1 = &serial1;
+	};
+
+	memory@c0000000 {
+		device_type = "memory";
+		reg = <0xc0000000 0x04000000>;
+	};
+
+	/*
+	 * The buttons on the EV3 are mapped to keyboard keys.
+	 */
+	gpio_keys {
+		compatible = "gpio-keys";
+		label = "EV3 Brick Buttons";
+		pinctrl-names = "default";
+		pinctrl-0 = <&button_bias>;
+
+		center {
+			label = "Center";
+			linux,code = <KEY_ENTER>;
+			gpios = <&gpio 29 GPIO_ACTIVE_HIGH>;
+		};
+
+		left {
+			label = "Left";
+			linux,code = <KEY_LEFT>;
+			gpios = <&gpio 102 GPIO_ACTIVE_HIGH>;
+		};
+
+		back {
+			label = "Back";
+			linux,code = <KEY_BACKSPACE>;
+			gpios = <&gpio 106 GPIO_ACTIVE_HIGH>;
+		};
+
+		right {
+			label = "Right";
+			linux,code = <KEY_RIGHT>;
+			gpios = <&gpio 124 GPIO_ACTIVE_HIGH>;
+		};
+
+		down {
+			label = "Down";
+			linux,code = <KEY_DOWN>;
+			gpios = <&gpio 126 GPIO_ACTIVE_HIGH>;
+		};
+
+		up {
+			label = "Up";
+			linux,code = <KEY_UP>;
+			gpios = <&gpio 127 GPIO_ACTIVE_HIGH>;
+		};
+	};
+
+	/*
+	 * The EV3 has two built-in bi-color LEDs behind the buttons.
+	 */
+	leds {
+		compatible = "gpio-leds";
+
+		left_green {
+			label = "led0:green:brick-status";
+			/* GP6[13] */
+			gpios = <&gpio 103 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		right_red {
+			label = "led1:red:brick-status";
+			/* GP6[7] */
+			gpios = <&gpio 108 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		left_red {
+			label = "led0:red:brick-status";
+			/* GP6[12] */
+			gpios = <&gpio 109 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+
+		right_green {
+			label = "led1:green:brick-status";
+			/* GP6[14] */
+			gpios = <&gpio 110 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "default-on";
+		};
+	};
+
+	/*
+	 * The EV3 is powered down by turning off the main 5V supply.
+	 */
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio 107 GPIO_ACTIVE_LOW>;
+	};
+
+	sound {
+		compatible = "pwm-beeper";
+		pinctrl-names = "default";
+		pinctrl-0 = <&ehrpwm0b_pins>;
+		pwms = <&ehrpwm0 1 1000000 0>;
+		amp-supply = <&amp>;
+	};
+
+	cvdd: regulator0 {
+		compatible = "regulator-fixed";
+		regulator-name = "cvdd";
+		regulator-min-microvolt = <1200000>;
+		regulator-max-microvolt = <1200000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	/*
+	 * This is a 5V current limiting regulator that is shared by USB,
+	 * the sensor (input) ports, the motor (output) ports and the A/DC.
+	 */
+	vcc5v: regulator1 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&gpio 101 0>;
+		over-current-gpios = <&gpio 99 GPIO_ACTIVE_LOW>;
+		enable-active-high;
+		regulator-boot-on;
+	};
+
+	/*
+	 * This is a simple voltage divider on VCC5V to provide a 2.5V
+	 * reference signal to the ADC.
+	 */
+	adc_ref: regulator2 {
+		compatible = "regulator-fixed";
+		regulator-name = "adc ref";
+		regulator-min-microvolt = <2500000>;
+		regulator-max-microvolt = <2500000>;
+		regulator-boot-on;
+		vin-supply = <&vcc5v>;
+	};
+
+	/*
+	 * This is the amplifier for the speaker.
+	 */
+	amp: regulator3 {
+		compatible = "regulator-fixed";
+		regulator-name = "amp";
+		gpio = <&gpio 111 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	/*
+	 * The EV3 can use 6-AA batteries or a rechargeable Li-ion battery pack.
+	 */
+	battery {
+		compatible = "lego,ev3-battery";
+		io-channels = <&adc 4>, <&adc 3>;
+		io-channel-names = "voltage", "current";
+		rechargeable-gpios = <&gpio 136 GPIO_ACTIVE_LOW>;
+	};
+
+	bt_slow_clk: bt-clock {
+		pinctrl-names = "default";
+		pinctrl-0 = <&ecap2_pins>, <&bt_clock_bias>;
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		pwms = <&ecap2 0 30518 0>;
+	};
+
+	/* ARM local RAM */
+	memory@ffff0000 {
+		compatible = "syscon", "simple-mfd";
+		reg = <0xffff0000 0x2000>; /* 8k */
+
+		/*
+		 * The I2C bootloader looks for this magic value to either
+		 * boot normally or boot into a firmware update mode.
+		 */
+		reboot-mode {
+			compatible = "syscon-reboot-mode";
+			offset = <0x1ffc>;
+			mode-normal = <0x00000000>;
+			mode-loader = <0x5555aaaa>;
+		};
+	};
+};
+
+&ref_clk {
+	clock-frequency = <24000000>;
+};
+
+&cpu {
+	cpu-supply = <&cvdd>;
+};
+
+/* since we have a fixed regulator, we can't run at these points */
+&opp_100 {
+	status = "disabled";
+};
+
+&opp_200 {
+	status = "disabled";
+};
+
+/*
+ * The SoC is actually the 456MHz version, but because of the fixed regulator
+ * This is the fastest we can go.
+ */
+&opp_375 {
+	status = "okay";
+};
+
+&pmx_core {
+	status = "okay";
+
+	ev3_lcd_pins: lcd-pins {
+		pinctrl-single,bits = <
+			/* SIMO, CLK */
+			0x14 0x00100100 0x00f00f00
+		>;
+	};
+};
+
+&pinconf {
+	status = "okay";
+
+	/* Buttons have external pulldown resistors */
+	button_bias: button-bias-groups {
+		disable {
+			groups = "cp5", "cp24", "cp25", "cp28";
+			bias-disable;
+		};
+	};
+
+	bt_clock_bias: bt-clock-bias-groups {
+		disable {
+			groups = "cp2";
+			bias-disable;
+		};
+	};
+
+	bt_pic_bias: bt-pic-bias-groups {
+		disable {
+			groups = "cp20";
+			bias-disable;
+		};
+	};
+};
+
+/* Input port 1 */
+&serial1 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&serial1_rxtx_pins>;
+};
+
+&serial2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&serial2_rxtx_pins>, <&serial2_rtscts_pins>, <&bt_pic_bias>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "ti,cc2560";
+		clocks = <&bt_slow_clk>;
+		clock-names = "ext_clock";
+		enable-gpios = <&gpio 73 GPIO_ACTIVE_HIGH>;
+		max-speed = <2000000>;
+		nvmem-cells = <&bdaddr>;
+		nvmem-cell-names = "bd-address";
+	};
+};
+
+&rtc0 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins>;
+
+	/*
+	 * EEPROM contains the first stage bootloader, HW ID and Bluetooth MAC.
+	 */
+	eeprom@50 {
+		compatible = "microchip,24c128", "atmel,24c128";
+		pagesize = <64>;
+		read-only;
+		reg = <0x50>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		bdaddr: bdaddr@3f06 {
+			reg = <0x3f06 0x06>;
+		};
+	};
+};
+
+&wdt {
+	status = "okay";
+};
+
+&mmc0 {
+	status = "okay";
+	max-frequency = <50000000>;
+	bus-width = <4>;
+	cd-gpios = <&gpio 94 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc0_pins>;
+};
+
+&spi0 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi0_pins>, <&spi0_cs0_pin>, <&spi0_cs3_pin>;
+
+	flash@0 {
+		compatible = "n25q128a13", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		ti,spi-wdelay = <8>;
+
+		/* Partitions are based on the official firmware from LEGO */
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "U-Boot";
+				reg = <0 0x40000>;
+			};
+
+			partition@40000 {
+				label = "U-Boot Env";
+				reg = <0x40000 0x10000>;
+			};
+
+			partition@50000 {
+				label = "Kernel";
+				reg = <0x50000 0x200000>;
+			};
+
+			partition@250000 {
+				label = "Filesystem";
+				reg = <0x250000 0xa50000>;
+			};
+
+			partition@cb0000 {
+				label = "Storage";
+				reg = <0xcb0000 0x2f0000>;
+			};
+		};
+	};
+
+	adc: adc@3 {
+		compatible = "ti,ads7957";
+		reg = <3>;
+		#io-channel-cells = <1>;
+		spi-max-frequency = <1000000>;
+		ti,spi-wdelay = <63>;
+		vref-supply = <&adc_ref>;
+	};
+};
+
+&spi1 {
+	status = "okay";
+	pinctrl-0 = <&ev3_lcd_pins>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpio 44 GPIO_ACTIVE_LOW>;
+
+	display@0 {
+		compatible = "lego,ev3-lcd";
+		reg = <0>;
+		spi-max-frequency = <10000000>;
+		a0-gpios = <&gpio 43 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio 80 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&ecap2 {
+	status = "okay";
+};
+
+&ehrpwm0 {
+	status = "okay";
+};
+
+&gpio {
+	status = "okay";
+
+	/* Don't pull down battery voltage adc io channel */
+	batt_volt_en {
+		gpio-hog;
+		gpios = <6 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	/* Don't impede Bluetooth clock signal */
+	bt_clock_en {
+		gpio-hog;
+		gpios = <5 GPIO_ACTIVE_HIGH>;
+		input;
+	};
+
+	/*
+	 * There is a PIC microcontroller for interfacing with an Apple MFi
+	 * chip. This interferes with normal Bluetooth operation, so we need
+	 * to make sure it is turned off. Note: The publicly available
+	 * schematics from LEGO don't show that these pins are connected to
+	 * anything, but they are present in the source code from LEGO.
+	 */
+
+	bt_pic_en {
+		gpio-hog;
+		gpios = <51 GPIO_ACTIVE_HIGH>;
+		output-low;
+	};
+
+	bt_pic_rst {
+		gpio-hog;
+		gpios = <78 GPIO_ACTIVE_HIGH>;
+		output-high;
+	};
+
+	bt_pic_cts {
+		gpio-hog;
+		gpios = <87 GPIO_ACTIVE_HIGH>;
+		input;
+	};
+};
+
+&usb_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+	vbus-supply = <&vcc5v>;
+};

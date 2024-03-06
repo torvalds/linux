@@ -4,8 +4,9 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 
@@ -577,15 +578,13 @@ static int gxp_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int gxp_i2c_remove(struct platform_device *pdev)
+static void gxp_i2c_remove(struct platform_device *pdev)
 {
 	struct gxp_i2c_drvdata *drvdata = platform_get_drvdata(pdev);
 
 	/* Disable interrupt */
 	regmap_update_bits(i2cg_map, GXP_I2CINTEN, BIT(drvdata->engine), 0);
 	i2c_del_adapter(&drvdata->adapter);
-
-	return 0;
 }
 
 static const struct of_device_id gxp_i2c_of_match[] = {
@@ -596,7 +595,7 @@ MODULE_DEVICE_TABLE(of, gxp_i2c_of_match);
 
 static struct platform_driver gxp_i2c_driver = {
 	.probe	= gxp_i2c_probe,
-	.remove = gxp_i2c_remove,
+	.remove_new = gxp_i2c_remove,
 	.driver = {
 		.name = "gxp-i2c",
 		.of_match_table = gxp_i2c_of_match,

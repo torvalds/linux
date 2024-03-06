@@ -9,6 +9,14 @@
 	compatible = "samsung,gt510", "qcom,msm8916";
 	chassis-type = "tablet";
 
+	speaker_codec: audio-codec {
+		compatible = "maxim,max98357a";
+		sdmode-gpios = <&tlmm 55 GPIO_ACTIVE_HIGH>;
+		#sound-dai-cells = <0>;
+		pinctrl-0 = <&audio_sdmode_default>;
+		pinctrl-names = "default";
+	};
+
 	clk_pwm: pwm {
 		compatible = "clk-pwm";
 		#pwm-cells = <2>;
@@ -19,13 +27,26 @@
 		pinctrl-names = "default";
 	};
 
+	reg_lcd_vmipi: regulator-lcd-vmipi {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_vmipi";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+
+		gpio = <&tlmm 8 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&lcd_en_default>;
+		pinctrl-names = "default";
+	};
+
 	reg_motor_vdd: regulator-motor-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "motor_vdd";
 		regulator-min-microvolt = <3000000>;
 		regulator-max-microvolt = <3000000>;
 
-		gpio = <&msmgpio 76 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 76 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-0 = <&motor_en_default>;
@@ -38,7 +59,7 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
 		pinctrl-0 = <&tsp_en_default>;
@@ -51,8 +72,21 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
-		gpio = <&msmgpio 73 GPIO_ACTIVE_HIGH>;
+		gpio = <&tlmm 73 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	reg_vlcd_5p4v: regulator-vlcd-5p4v {
+		compatible = "regulator-fixed";
+		regulator-name = "vlcd_5p4v";
+		regulator-min-microvolt = <5400000>;
+		regulator-max-microvolt = <5400000>;
+
+		gpio = <&tlmm 51 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+
+		pinctrl-0 = <&buckbooster_en_default>;
+		pinctrl-names = "default";
 	};
 
 	vibrator {
@@ -71,20 +105,77 @@
 	touchscreen@4a {
 		compatible = "atmel,maxtouch";
 		reg = <0x4a>;
-		interrupt-parent = <&msmgpio>;
+		interrupt-parent = <&tlmm>;
 		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
 
 		vdd-supply = <&reg_tsp_1p8v>;
 		vdda-supply = <&reg_tsp_3p3v>;
 
-		reset-gpios = <&msmgpio 114 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&tlmm 114 GPIO_ACTIVE_LOW>;
 
 		pinctrl-0 = <&tsp_int_rst_default>;
 		pinctrl-names = "default";
+
+		linux,keycodes = <KEY_APPSELECT KEY_BACK>;
 	};
 };
 
-&msmgpio {
+&gpu {
+	status = "okay";
+};
+
+&mdss {
+	status = "okay";
+};
+
+&mdss_dsi0 {
+	pinctrl-0 = <&mdss_default>;
+	pinctrl-1 = <&mdss_sleep>;
+	pinctrl-names = "default", "sleep";
+
+	panel@0 {
+		compatible = "samsung,ltl101at01", "samsung,s6d7aa0";
+		reg = <0>;
+
+		power-supply = <&reg_vlcd_5p4v>;
+		vmipi-supply = <&reg_lcd_vmipi>;
+		reset-gpios = <&tlmm 97 GPIO_ACTIVE_LOW>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&mdss_dsi0_out>;
+			};
+		};
+	};
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+	remote-endpoint = <&panel_in>;
+};
+
+&sound {
+	model = "samsung-gt510";
+	pinctrl-0 = <&cdc_pdm_default &sec_mi2s_default>;
+	pinctrl-1 = <&cdc_pdm_sleep &sec_mi2s_sleep>;
+	pinctrl-names = "default", "sleep";
+};
+
+&tlmm {
+	audio_sdmode_default: audio-sdmode-default-state {
+		pins = "gpio55";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	buckbooster_en_default: buckbooster-en-default-state {
+		pins = "gpio51";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	motor_en_default: motor-en-default-state {
 		pins = "gpio76";
 		function = "gpio";
@@ -95,6 +186,27 @@
 	motor_pwm_default: motor-pwm-default-state {
 		pins = "gpio50";
 		function = "gcc_gp2_clk_a";
+	};
+
+	lcd_en_default: lcd-en-default-state {
+		pins = "gpio8";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	mdss_default: mdss-default-state {
+		pins = "gpio97";
+		function = "gpio";
+		drive-strength = <8>;
+		bias-disable;
+	};
+
+	mdss_sleep: mdss-sleep-state {
+		pins = "gpio97";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-pull-down;
 	};
 
 	tsp_en_default: tsp-en-default-state {

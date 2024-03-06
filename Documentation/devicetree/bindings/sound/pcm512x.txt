@@ -1,12 +1,12 @@
-PCM512x audio CODECs
+PCM512x and TAS575x audio CODECs/amplifiers
 
 These devices support both I2C and SPI (configured with pin strapping
-on the board).
+on the board). The TAS575x devices only support I2C.
 
 Required properties:
 
-  - compatible : One of "ti,pcm5121", "ti,pcm5122", "ti,pcm5141" or
-                 "ti,pcm5142"
+  - compatible : One of "ti,pcm5121", "ti,pcm5122", "ti,pcm5141",
+                 "ti,pcm5142", "ti,tas5754" or "ti,tas5756"
 
   - reg : the I2C address of the device for I2C, the chip select
           number for SPI.
@@ -25,6 +25,7 @@ Optional properties:
     through <6>.  The device will be configured for clock input on the
     given pll-in pin and PLL output on the given pll-out pin.  An
     external connection from the pll-out pin to the SCLK pin is assumed.
+    Caution: the TAS-desvices only support gpios 1,2 and 3
 
 Examples:
 

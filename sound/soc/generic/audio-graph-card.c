@@ -9,12 +9,9 @@
 
 #include <linux/clk.h>
 #include <linux/device.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/string.h>
@@ -27,7 +24,7 @@ static int graph_outdrv_event(struct snd_soc_dapm_widget *w,
 			      int event)
 {
 	struct snd_soc_dapm_context *dapm = w->dapm;
-	struct asoc_simple_priv *priv = snd_soc_card_get_drvdata(dapm->card);
+	struct simple_util_priv *priv = snd_soc_card_get_drvdata(dapm->card);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
@@ -50,141 +47,36 @@ static const struct snd_soc_dapm_widget graph_dapm_widgets[] = {
 };
 
 static const struct snd_soc_ops graph_ops = {
-	.startup	= asoc_simple_startup,
-	.shutdown	= asoc_simple_shutdown,
-	.hw_params	= asoc_simple_hw_params,
+	.startup	= simple_util_startup,
+	.shutdown	= simple_util_shutdown,
+	.hw_params	= simple_util_hw_params,
 };
-
-static int graph_get_dai_id(struct device_node *ep)
-{
-	struct device_node *node;
-	struct device_node *endpoint;
-	struct of_endpoint info;
-	int i, id;
-	const u32 *reg;
-	int ret;
-
-	/* use driver specified DAI ID if exist */
-	ret = snd_soc_get_dai_id(ep);
-	if (ret != -ENOTSUPP)
-		return ret;
-
-	/* use endpoint/port reg if exist */
-	ret = of_graph_parse_endpoint(ep, &info);
-	if (ret == 0) {
-		/*
-		 * Because it will count port/endpoint if it doesn't have "reg".
-		 * But, we can't judge whether it has "no reg", or "reg = <0>"
-		 * only of_graph_parse_endpoint().
-		 * We need to check "reg" property
-		 */
-		if (of_property_present(ep,   "reg"))
-			return info.id;
-
-		node = of_get_parent(ep);
-		reg = of_get_property(node, "reg", NULL);
-		of_node_put(node);
-		if (reg)
-			return info.port;
-	}
-	node = of_graph_get_port_parent(ep);
-
-	/*
-	 * Non HDMI sound case, counting port/endpoint on its DT
-	 * is enough. Let's count it.
-	 */
-	i = 0;
-	id = -1;
-	for_each_endpoint_of_node(node, endpoint) {
-		if (endpoint == ep)
-			id = i;
-		i++;
-	}
-
-	of_node_put(node);
-
-	if (id < 0)
-		return -ENODEV;
-
-	return id;
-}
 
 static bool soc_component_is_pcm(struct snd_soc_dai_link_component *dlc)
 {
 	struct snd_soc_dai *dai = snd_soc_find_dai_with_mutex(dlc);
 
 	if (dai && (dai->component->driver->pcm_construct ||
-		    dai->driver->pcm_new))
+		    (dai->driver->ops && dai->driver->ops->pcm_new)))
 		return true;
 
 	return false;
 }
 
-static int asoc_simple_parse_dai(struct device_node *ep,
-				 struct snd_soc_dai_link_component *dlc,
-				 int *is_single_link)
-{
-	struct device_node *node;
-	struct of_phandle_args args;
-	int ret;
-
-	if (!ep)
-		return 0;
-
-	node = of_graph_get_port_parent(ep);
-
-	/* Get dai->name */
-	args.np		= node;
-	args.args[0]	= graph_get_dai_id(ep);
-	args.args_count	= (of_graph_get_endpoint_count(node) > 1);
-
-	/*
-	 * FIXME
-	 *
-	 * Here, dlc->dai_name is pointer to CPU/Codec DAI name.
-	 * If user unbinded CPU or Codec driver, but not for Sound Card,
-	 * dlc->dai_name is keeping unbinded CPU or Codec
-	 * driver's pointer.
-	 *
-	 * If user re-bind CPU or Codec driver again, ALSA SoC will try
-	 * to rebind Card via snd_soc_try_rebind_card(), but because of
-	 * above reason, it might can't bind Sound Card.
-	 * Because Sound Card is pointing to released dai_name pointer.
-	 *
-	 * To avoid this rebind Card issue,
-	 * 1) It needs to alloc memory to keep dai_name eventhough
-	 *    CPU or Codec driver was unbinded, or
-	 * 2) user need to rebind Sound Card everytime
-	 *    if he unbinded CPU or Codec.
-	 */
-	ret = snd_soc_get_dai_name(&args, &dlc->dai_name);
-	if (ret < 0) {
-		of_node_put(node);
-		return ret;
-	}
-
-	dlc->of_node = node;
-
-	if (is_single_link)
-		*is_single_link = of_graph_get_endpoint_count(node) == 1;
-
-	return 0;
-}
-
 static void graph_parse_convert(struct device *dev,
 				struct device_node *ep,
-				struct asoc_simple_data *adata)
+				struct simple_util_data *adata)
 {
 	struct device_node *top = dev->of_node;
 	struct device_node *port = of_get_parent(ep);
 	struct device_node *ports = of_get_parent(port);
 	struct device_node *node = of_graph_get_port_parent(ep);
 
-	asoc_simple_parse_convert(top,   NULL,   adata);
+	simple_util_parse_convert(top,   NULL,   adata);
 	if (of_node_name_eq(ports, "ports"))
-		asoc_simple_parse_convert(ports, NULL, adata);
-	asoc_simple_parse_convert(port,  NULL,   adata);
-	asoc_simple_parse_convert(ep,    NULL,   adata);
+		simple_util_parse_convert(ports, NULL, adata);
+	simple_util_parse_convert(port,  NULL,   adata);
+	simple_util_parse_convert(ep,    NULL,   adata);
 
 	of_node_put(port);
 	of_node_put(ports);
@@ -208,7 +100,7 @@ static void graph_parse_mclk_fs(struct device_node *top,
 	of_node_put(ports);
 }
 
-static int graph_parse_node(struct asoc_simple_priv *priv,
+static int graph_parse_node(struct simple_util_priv *priv,
 			    struct device_node *ep,
 			    struct link_info *li,
 			    int *cpu)
@@ -218,35 +110,35 @@ static int graph_parse_node(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
 	struct snd_soc_dai_link_component *dlc;
-	struct asoc_simple_dai *dai;
+	struct simple_util_dai *dai;
 	int ret;
 
 	if (cpu) {
-		dlc = asoc_link_to_cpu(dai_link, 0);
+		dlc = snd_soc_link_to_cpu(dai_link, 0);
 		dai = simple_props_to_dai_cpu(dai_props, 0);
 	} else {
-		dlc = asoc_link_to_codec(dai_link, 0);
+		dlc = snd_soc_link_to_codec(dai_link, 0);
 		dai = simple_props_to_dai_codec(dai_props, 0);
 	}
 
 	graph_parse_mclk_fs(top, ep, dai_props);
 
-	ret = asoc_simple_parse_dai(ep, dlc, cpu);
+	ret = graph_util_parse_dai(dev, ep, dlc, cpu);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_tdm(ep, dai);
+	ret = simple_util_parse_tdm(ep, dai);
 	if (ret < 0)
 		return ret;
 
-	ret = asoc_simple_parse_clk(dev, ep, dai, dlc);
+	ret = simple_util_parse_clk(dev, ep, dai, dlc);
 	if (ret < 0)
 		return ret;
 
 	return 0;
 }
 
-static int graph_link_init(struct asoc_simple_priv *priv,
+static int graph_link_init(struct simple_util_priv *priv,
 			   struct device_node *cpu_ep,
 			   struct device_node *codec_ep,
 			   struct link_info *li,
@@ -256,20 +148,20 @@ static int graph_link_init(struct asoc_simple_priv *priv,
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
 	int ret;
 
-	ret = asoc_simple_parse_daifmt(dev, cpu_ep, codec_ep,
+	ret = simple_util_parse_daifmt(dev, cpu_ep, codec_ep,
 				       NULL, &dai_link->dai_fmt);
 	if (ret < 0)
 		return ret;
 
-	dai_link->init		= asoc_simple_dai_init;
+	dai_link->init		= simple_util_dai_init;
 	dai_link->ops		= &graph_ops;
 	if (priv->ops)
 		dai_link->ops	= priv->ops;
 
-	return asoc_simple_set_dailink_name(dev, dai_link, name);
+	return simple_util_set_dailink_name(dev, dai_link, name);
 }
 
-static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
+static int graph_dai_link_of_dpcm(struct simple_util_priv *priv,
 				  struct device_node *cpu_ep,
 				  struct device_node *codec_ep,
 				  struct link_info *li)
@@ -286,8 +178,8 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 	if (li->cpu) {
 		struct snd_soc_card *card = simple_priv_to_card(priv);
-		struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
-		struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
+		struct snd_soc_dai_link_component *cpus = snd_soc_link_to_cpu(dai_link, 0);
+		struct snd_soc_dai_link_component *platforms = snd_soc_link_to_platform(dai_link, 0);
 		int is_single_links = 0;
 
 		/* Codec is dummy */
@@ -314,14 +206,14 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 		 */
 		if (card->component_chaining && !soc_component_is_pcm(cpus)) {
 			dai_link->no_pcm = 1;
-			dai_link->be_hw_params_fixup = asoc_simple_be_hw_params_fixup;
+			dai_link->be_hw_params_fixup = simple_util_be_hw_params_fixup;
 		}
 
-		asoc_simple_canonicalize_cpu(cpus, is_single_links);
-		asoc_simple_canonicalize_platform(platforms, cpus);
+		simple_util_canonicalize_cpu(cpus, is_single_links);
+		simple_util_canonicalize_platform(platforms, cpus);
 	} else {
 		struct snd_soc_codec_conf *cconf = simple_props_to_codec_conf(dai_props, 0);
-		struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
+		struct snd_soc_dai_link_component *codecs = snd_soc_link_to_codec(dai_link, 0);
 		struct device_node *port;
 		struct device_node *ports;
 
@@ -329,7 +221,7 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 
 		/* BE settings */
 		dai_link->no_pcm		= 1;
-		dai_link->be_hw_params_fixup	= asoc_simple_be_hw_params_fixup;
+		dai_link->be_hw_params_fixup	= simple_util_be_hw_params_fixup;
 
 		ret = graph_parse_node(priv, codec_ep, li, NULL);
 		if (ret < 0)
@@ -363,16 +255,16 @@ static int graph_dai_link_of_dpcm(struct asoc_simple_priv *priv,
 	return ret;
 }
 
-static int graph_dai_link_of(struct asoc_simple_priv *priv,
+static int graph_dai_link_of(struct simple_util_priv *priv,
 			     struct device_node *cpu_ep,
 			     struct device_node *codec_ep,
 			     struct link_info *li)
 {
 	struct device *dev = simple_priv_to_dev(priv);
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
-	struct snd_soc_dai_link_component *cpus = asoc_link_to_cpu(dai_link, 0);
-	struct snd_soc_dai_link_component *codecs = asoc_link_to_codec(dai_link, 0);
-	struct snd_soc_dai_link_component *platforms = asoc_link_to_platform(dai_link, 0);
+	struct snd_soc_dai_link_component *cpus = snd_soc_link_to_cpu(dai_link, 0);
+	struct snd_soc_dai_link_component *codecs = snd_soc_link_to_codec(dai_link, 0);
+	struct snd_soc_dai_link_component *platforms = snd_soc_link_to_platform(dai_link, 0);
 	char dai_name[64];
 	int ret, is_single_links = 0;
 
@@ -389,8 +281,8 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	snprintf(dai_name, sizeof(dai_name),
 		 "%s-%s", cpus->dai_name, codecs->dai_name);
 
-	asoc_simple_canonicalize_cpu(cpus, is_single_links);
-	asoc_simple_canonicalize_platform(platforms, cpus);
+	simple_util_canonicalize_cpu(cpus, is_single_links);
+	simple_util_canonicalize_platform(platforms, cpus);
 
 	ret = graph_link_init(priv, cpu_ep, codec_ep, li, dai_name);
 	if (ret < 0)
@@ -401,9 +293,9 @@ static int graph_dai_link_of(struct asoc_simple_priv *priv,
 	return 0;
 }
 
-static inline bool parse_as_dpcm_link(struct asoc_simple_priv *priv,
+static inline bool parse_as_dpcm_link(struct simple_util_priv *priv,
 				      struct device_node *codec_port,
-				      struct asoc_simple_data *adata)
+				      struct simple_util_data *adata)
 {
 	if (priv->force_dpcm)
 		return true;
@@ -417,19 +309,19 @@ static inline bool parse_as_dpcm_link(struct asoc_simple_priv *priv,
 	 * or has convert-xxx property
 	 */
 	if ((of_get_child_count(codec_port) > 1) ||
-	    asoc_simple_is_convert_required(adata))
+	    simple_util_is_convert_required(adata))
 		return true;
 
 	return false;
 }
 
-static int __graph_for_each_link(struct asoc_simple_priv *priv,
+static int __graph_for_each_link(struct simple_util_priv *priv,
 			struct link_info *li,
-			int (*func_noml)(struct asoc_simple_priv *priv,
+			int (*func_noml)(struct simple_util_priv *priv,
 					 struct device_node *cpu_ep,
 					 struct device_node *codec_ep,
 					 struct link_info *li),
-			int (*func_dpcm)(struct asoc_simple_priv *priv,
+			int (*func_dpcm)(struct simple_util_priv *priv,
 					 struct device_node *cpu_ep,
 					 struct device_node *codec_ep,
 					 struct link_info *li))
@@ -442,7 +334,7 @@ static int __graph_for_each_link(struct asoc_simple_priv *priv,
 	struct device_node *codec_ep;
 	struct device_node *codec_port;
 	struct device_node *codec_port_old = NULL;
-	struct asoc_simple_data adata;
+	struct simple_util_data adata;
 	int rc, ret = 0;
 
 	/* loop for all listed CPU port */
@@ -497,13 +389,13 @@ static int __graph_for_each_link(struct asoc_simple_priv *priv,
 	return 0;
 }
 
-static int graph_for_each_link(struct asoc_simple_priv *priv,
+static int graph_for_each_link(struct simple_util_priv *priv,
 			       struct link_info *li,
-			       int (*func_noml)(struct asoc_simple_priv *priv,
+			       int (*func_noml)(struct simple_util_priv *priv,
 						struct device_node *cpu_ep,
 						struct device_node *codec_ep,
 						struct link_info *li),
-			       int (*func_dpcm)(struct asoc_simple_priv *priv,
+			       int (*func_dpcm)(struct simple_util_priv *priv,
 						struct device_node *cpu_ep,
 						struct device_node *codec_ep,
 						struct link_info *li))
@@ -530,78 +422,7 @@ static int graph_for_each_link(struct asoc_simple_priv *priv,
 	return ret;
 }
 
-static int graph_get_dais_count(struct asoc_simple_priv *priv,
-				struct link_info *li);
-
-int audio_graph_parse_of(struct asoc_simple_priv *priv, struct device *dev)
-{
-	struct snd_soc_card *card = simple_priv_to_card(priv);
-	struct link_info *li;
-	int ret;
-
-	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
-	if (!li)
-		return -ENOMEM;
-
-	card->owner = THIS_MODULE;
-	card->dev = dev;
-
-	ret = graph_get_dais_count(priv, li);
-	if (ret < 0)
-		return ret;
-
-	if (!li->link)
-		return -EINVAL;
-
-	ret = asoc_simple_init_priv(priv, li);
-	if (ret < 0)
-		return ret;
-
-	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
-	if (IS_ERR(priv->pa_gpio)) {
-		ret = PTR_ERR(priv->pa_gpio);
-		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
-		return ret;
-	}
-
-	ret = asoc_simple_parse_widgets(card, NULL);
-	if (ret < 0)
-		return ret;
-
-	ret = asoc_simple_parse_routing(card, NULL);
-	if (ret < 0)
-		return ret;
-
-	memset(li, 0, sizeof(*li));
-	ret = graph_for_each_link(priv, li,
-				  graph_dai_link_of,
-				  graph_dai_link_of_dpcm);
-	if (ret < 0)
-		goto err;
-
-	ret = asoc_simple_parse_card_name(card, NULL);
-	if (ret < 0)
-		goto err;
-
-	snd_soc_card_set_drvdata(card, priv);
-
-	asoc_simple_debug_info(priv);
-
-	ret = devm_snd_soc_register_card(dev, card);
-	if (ret < 0)
-		goto err;
-
-	devm_kfree(dev, li);
-	return 0;
-
-err:
-	asoc_simple_clean_reference(card);
-
-	return dev_err_probe(dev, ret, "parse error\n");
-}
-EXPORT_SYMBOL_GPL(audio_graph_parse_of);
-
-static int graph_count_noml(struct asoc_simple_priv *priv,
+static int graph_count_noml(struct simple_util_priv *priv,
 			    struct device_node *cpu_ep,
 			    struct device_node *codec_ep,
 			    struct link_info *li)
@@ -630,7 +451,7 @@ static int graph_count_noml(struct asoc_simple_priv *priv,
 	return 0;
 }
 
-static int graph_count_dpcm(struct asoc_simple_priv *priv,
+static int graph_count_dpcm(struct simple_util_priv *priv,
 			    struct device_node *cpu_ep,
 			    struct device_node *codec_ep,
 			    struct link_info *li)
@@ -663,7 +484,7 @@ static int graph_count_dpcm(struct asoc_simple_priv *priv,
 	return 0;
 }
 
-static int graph_get_dais_count(struct asoc_simple_priv *priv,
+static int graph_get_dais_count(struct simple_util_priv *priv,
 				struct link_info *li)
 {
 	/*
@@ -717,9 +538,77 @@ static int graph_get_dais_count(struct asoc_simple_priv *priv,
 				   graph_count_dpcm);
 }
 
+int audio_graph_parse_of(struct simple_util_priv *priv, struct device *dev)
+{
+	struct snd_soc_card *card = simple_priv_to_card(priv);
+	struct link_info *li;
+	int ret;
+
+	li = devm_kzalloc(dev, sizeof(*li), GFP_KERNEL);
+	if (!li)
+		return -ENOMEM;
+
+	card->owner = THIS_MODULE;
+	card->dev = dev;
+
+	ret = graph_get_dais_count(priv, li);
+	if (ret < 0)
+		return ret;
+
+	if (!li->link)
+		return -EINVAL;
+
+	ret = simple_util_init_priv(priv, li);
+	if (ret < 0)
+		return ret;
+
+	priv->pa_gpio = devm_gpiod_get_optional(dev, "pa", GPIOD_OUT_LOW);
+	if (IS_ERR(priv->pa_gpio)) {
+		ret = PTR_ERR(priv->pa_gpio);
+		dev_err(dev, "failed to get amplifier gpio: %d\n", ret);
+		return ret;
+	}
+
+	ret = simple_util_parse_widgets(card, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = simple_util_parse_routing(card, NULL);
+	if (ret < 0)
+		return ret;
+
+	memset(li, 0, sizeof(*li));
+	ret = graph_for_each_link(priv, li,
+				  graph_dai_link_of,
+				  graph_dai_link_of_dpcm);
+	if (ret < 0)
+		goto err;
+
+	ret = simple_util_parse_card_name(card, NULL);
+	if (ret < 0)
+		goto err;
+
+	snd_soc_card_set_drvdata(card, priv);
+
+	simple_util_debug_info(priv);
+
+	ret = devm_snd_soc_register_card(dev, card);
+	if (ret < 0)
+		goto err;
+
+	devm_kfree(dev, li);
+	return 0;
+
+err:
+	simple_util_clean_reference(card);
+
+	return dev_err_probe(dev, ret, "parse error\n");
+}
+EXPORT_SYMBOL_GPL(audio_graph_parse_of);
+
 static int graph_probe(struct platform_device *pdev)
 {
-	struct asoc_simple_priv *priv;
+	struct simple_util_priv *priv;
 	struct device *dev = &pdev->dev;
 	struct snd_soc_card *card;
 
@@ -731,7 +620,7 @@ static int graph_probe(struct platform_device *pdev)
 	card = simple_priv_to_card(priv);
 	card->dapm_widgets	= graph_dapm_widgets;
 	card->num_dapm_widgets	= ARRAY_SIZE(graph_dapm_widgets);
-	card->probe		= asoc_graph_card_probe;
+	card->probe		= graph_util_card_probe;
 
 	if (of_device_get_match_data(dev))
 		priv->dpcm_selectable = 1;
@@ -754,7 +643,7 @@ static struct platform_driver graph_card = {
 		.of_match_table = graph_of_match,
 	},
 	.probe = graph_probe,
-	.remove = asoc_simple_remove,
+	.remove_new = simple_util_remove,
 };
 module_platform_driver(graph_card);
 

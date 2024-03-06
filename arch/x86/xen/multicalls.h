@@ -26,7 +26,7 @@ static inline void xen_mc_batch(void)
 
 	/* need to disable interrupts until this entry is complete */
 	local_irq_save(flags);
-	trace_xen_mc_batch(paravirt_get_lazy_mode());
+	trace_xen_mc_batch(xen_get_lazy_mode());
 	__this_cpu_write(xen_mc_irq_flags, flags);
 }
 
@@ -44,7 +44,7 @@ static inline void xen_mc_issue(unsigned mode)
 {
 	trace_xen_mc_issue(mode);
 
-	if ((paravirt_get_lazy_mode() & mode) == 0)
+	if ((xen_get_lazy_mode() & mode) == 0)
 		xen_mc_flush();
 
 	/* restore flags saved in xen_mc_batch */

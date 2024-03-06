@@ -29,7 +29,7 @@ the validator will shoot a splat if incorrect.
 A lock-class's behavior is constructed by its instances collectively:
 when the first instance of a lock-class is used after bootup the class
 gets registered, then all (subsequent) instances will be mapped to the
-class and hence their usages and dependecies will contribute to those of
+class and hence their usages and dependencies will contribute to those of
 the class. A lock-class does not go away when a lock instance does, but
 it can be removed if the memory space of the lock class (static or
 dynamic) is reclaimed, this happens for example when a module is
@@ -105,7 +105,7 @@ exact case is for the lock as of the reporting time.
   +--------------+-------------+--------------+
 
 The character '-' suggests irq is disabled because if otherwise the
-charactor '?' would have been shown instead. Similar deduction can be
+character '?' would have been shown instead. Similar deduction can be
 applied for '+' too.
 
 Unused locks (e.g., mutexes) cannot be part of the cause of an error.

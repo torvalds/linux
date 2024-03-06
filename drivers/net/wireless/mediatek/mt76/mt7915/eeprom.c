@@ -11,6 +11,7 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 	u8 *eeprom = mdev->eeprom.data;
 	u32 val = eeprom[MT_EE_DO_PRE_CAL];
 	u32 offs;
+	int ret;
 
 	if (!dev->flash_mode)
 		return 0;
@@ -25,7 +26,11 @@ static int mt7915_eeprom_load_precal(struct mt7915_dev *dev)
 
 	offs = is_mt7915(&dev->mt76) ? MT_EE_PRECAL : MT_EE_PRECAL_V2;
 
-	return mt76_get_of_eeprom(mdev, dev->cal, offs, val);
+	ret = mt76_get_of_data_from_mtd(mdev, dev->cal, offs, val);
+	if (!ret)
+		return ret;
+
+	return mt76_get_of_data_from_nvmem(mdev, dev->cal, "precal", val);
 }
 
 static int mt7915_check_eeprom(struct mt7915_dev *dev)
@@ -39,6 +44,8 @@ static int mt7915_check_eeprom(struct mt7915_dev *dev)
 		return CHECK_EEPROM_ERR(is_mt7915(&dev->mt76));
 	case 0x7916:
 		return CHECK_EEPROM_ERR(is_mt7916(&dev->mt76));
+	case 0x7981:
+		return CHECK_EEPROM_ERR(is_mt7981(&dev->mt76));
 	case 0x7986:
 		return CHECK_EEPROM_ERR(is_mt7986(&dev->mt76));
 	default:
@@ -52,6 +59,9 @@ static char *mt7915_eeprom_name(struct mt7915_dev *dev)
 	case 0x7915:
 		return dev->dbdc_support ?
 		       MT7915_EEPROM_DEFAULT_DBDC : MT7915_EEPROM_DEFAULT;
+	case 0x7981:
+		/* mt7981 only supports mt7976 and only in DBDC mode */
+		return MT7981_EEPROM_MT7976_DEFAULT_DBDC;
 	case 0x7986:
 		switch (mt7915_check_adie(dev, true)) {
 		case MT7976_ONE_ADIE_DBDC:
@@ -215,7 +225,7 @@ void mt7915_eeprom_parse_hw_cap(struct mt7915_dev *dev,
 					eeprom[MT_EE_WIFI_CONF + 2 + band]);
 		}
 
-		if (!is_mt7986(&dev->mt76))
+		if (!is_mt798x(&dev->mt76))
 			nss_max = 2;
 	}
 

@@ -607,4 +607,5 @@ static void __exit eql_cleanup_module(void)
 
 module_init(eql_init_module);
 module_exit(eql_cleanup_module);
+MODULE_DESCRIPTION("Equalizer Load-balancer for serial network interfaces");
 MODULE_LICENSE("GPL");

@@ -1083,7 +1083,7 @@ static struct i2c_driver alc5623_i2c_driver = {
 		.name = "alc562x-codec",
 		.of_match_table = of_match_ptr(alc5623_of_match),
 	},
-	.probe_new = alc5623_i2c_probe,
+	.probe = alc5623_i2c_probe,
 	.id_table = alc5623_i2c_table,
 };
 

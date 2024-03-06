@@ -201,7 +201,7 @@ err_irq:
  *
  * Return: Always return 0
  */
-static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
+static void ehci_hcd_xilinx_of_remove(struct platform_device *op)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(op);
 
@@ -210,8 +210,6 @@ static int ehci_hcd_xilinx_of_remove(struct platform_device *op)
 	usb_remove_hcd(hcd);
 
 	usb_put_hcd(hcd);
-
-	return 0;
 }
 
 static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
@@ -222,7 +220,7 @@ MODULE_DEVICE_TABLE(of, ehci_hcd_xilinx_of_match);
 
 static struct platform_driver ehci_hcd_xilinx_of_driver = {
 	.probe		= ehci_hcd_xilinx_of_probe,
-	.remove		= ehci_hcd_xilinx_of_remove,
+	.remove_new	= ehci_hcd_xilinx_of_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver = {
 		.name = "xilinx-of-ehci",

@@ -23,7 +23,7 @@ static inline const char *erofs_xattr_prefix(unsigned int idx,
 {
 	const struct xattr_handler *handler = NULL;
 
-	static const struct xattr_handler *xattr_handler_map[] = {
+	static const struct xattr_handler * const xattr_handler_map[] = {
 		[EROFS_XATTR_INDEX_USER] = &erofs_xattr_user_handler,
 #ifdef CONFIG_EROFS_FS_POSIX_ACL
 		[EROFS_XATTR_INDEX_POSIX_ACL_ACCESS] = &nop_posix_acl_access,
@@ -44,7 +44,7 @@ static inline const char *erofs_xattr_prefix(unsigned int idx,
 	return xattr_prefix(handler);
 }
 
-extern const struct xattr_handler *erofs_xattr_handlers[];
+extern const struct xattr_handler * const erofs_xattr_handlers[];
 
 int erofs_xattr_prefixes_init(struct super_block *sb);
 void erofs_xattr_prefixes_cleanup(struct super_block *sb);

@@ -168,7 +168,21 @@ fail:
 	return err;
 }
 
-static struct class *misc_class;
+static char *misc_devnode(const struct device *dev, umode_t *mode)
+{
+	const struct miscdevice *c = dev_get_drvdata(dev);
+
+	if (mode && c->mode)
+		*mode = c->mode;
+	if (c->nodename)
+		return kstrdup(c->nodename, GFP_KERNEL);
+	return NULL;
+}
+
+static const struct class misc_class = {
+	.name		= "misc",
+	.devnode	= misc_devnode,
+};
 
 static const struct file_operations misc_fops = {
 	.owner		= THIS_MODULE,
@@ -226,7 +240,7 @@ int misc_register(struct miscdevice *misc)
 	dev = MKDEV(MISC_MAJOR, misc->minor);
 
 	misc->this_device =
-		device_create_with_groups(misc_class, misc->parent, dev,
+		device_create_with_groups(&misc_class, misc->parent, dev,
 					  misc, misc->groups, "%s", misc->name);
 	if (IS_ERR(misc->this_device)) {
 		if (is_dynamic) {
@@ -263,22 +277,11 @@ void misc_deregister(struct miscdevice *misc)
 
 	mutex_lock(&misc_mtx);
 	list_del(&misc->list);
-	device_destroy(misc_class, MKDEV(MISC_MAJOR, misc->minor));
+	device_destroy(&misc_class, MKDEV(MISC_MAJOR, misc->minor));
 	misc_minor_free(misc->minor);
 	mutex_unlock(&misc_mtx);
 }
 EXPORT_SYMBOL(misc_deregister);
-
-static char *misc_devnode(const struct device *dev, umode_t *mode)
-{
-	const struct miscdevice *c = dev_get_drvdata(dev);
-
-	if (mode && c->mode)
-		*mode = c->mode;
-	if (c->nodename)
-		return kstrdup(c->nodename, GFP_KERNEL);
-	return NULL;
-}
 
 static int __init misc_init(void)
 {
@@ -286,20 +289,18 @@ static int __init misc_init(void)
 	struct proc_dir_entry *ret;
 
 	ret = proc_create_seq("misc", 0, NULL, &misc_seq_ops);
-	misc_class = class_create("misc");
-	err = PTR_ERR(misc_class);
-	if (IS_ERR(misc_class))
+	err = class_register(&misc_class);
+	if (err)
 		goto fail_remove;
 
 	err = -EIO;
 	if (register_chrdev(MISC_MAJOR, "misc", &misc_fops))
 		goto fail_printk;
-	misc_class->devnode = misc_devnode;
 	return 0;
 
 fail_printk:
 	pr_err("unable to get major %d for misc devices\n", MISC_MAJOR);
-	class_destroy(misc_class);
+	class_unregister(&misc_class);
 fail_remove:
 	if (ret)
 		remove_proc_entry("misc", NULL);

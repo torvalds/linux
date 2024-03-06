@@ -831,16 +831,12 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 	struct request_queue *q = disk->queue;
 	u32 zone_blocks = sdkp->early_zone_info.zone_blocks;
 	unsigned int nr_zones = sdkp->early_zone_info.nr_zones;
-	u32 max_append;
 	int ret = 0;
 	unsigned int flags;
 
 	/*
 	 * For all zoned disks, initialize zone append emulation data if not
-	 * already done. This is necessary also for host-aware disks used as
-	 * regular disks due to the presence of partitions as these partitions
-	 * may be deleted and the disk zoned model changed back from
-	 * BLK_ZONED_NONE to BLK_ZONED_HA.
+	 * already done.
 	 */
 	if (sd_is_zoned(sdkp) && !sdkp->zone_wp_update_buf) {
 		ret = sd_zbc_init_disk(sdkp);
@@ -876,6 +872,11 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 		goto unlock;
 	}
 
+	blk_queue_chunk_sectors(q,
+			logical_to_sectors(sdkp->device, zone_blocks));
+	blk_queue_max_zone_append_sectors(q,
+			q->limits.max_segments << PAGE_SECTORS_SHIFT);
+
 	ret = blk_revalidate_disk_zones(disk, sd_zbc_revalidate_zones_cb);
 
 	memalloc_noio_restore(flags);
@@ -887,12 +888,6 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 		sdkp->capacity = 0;
 		goto unlock;
 	}
-
-	max_append = min_t(u32, logical_to_sectors(sdkp->device, zone_blocks),
-			   q->limits.max_segments << (PAGE_SHIFT - 9));
-	max_append = min_t(u32, max_append, queue_max_hw_sectors(q));
-
-	blk_queue_max_zone_append_sectors(q, max_append);
 
 	sd_zbc_print_zones(sdkp);
 
@@ -933,17 +928,6 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
 	sdkp->device->use_16_for_rw = 1;
 	sdkp->device->use_10_for_rw = 0;
 	sdkp->device->use_16_for_sync = 1;
-
-	if (!blk_queue_is_zoned(q)) {
-		/*
-		 * This can happen for a host aware disk with partitions.
-		 * The block device zone model was already cleared by
-		 * disk_set_zoned(). Only free the scsi disk zone
-		 * information and exit early.
-		 */
-		sd_zbc_free_zone_info(sdkp);
-		return 0;
-	}
 
 	/* Check zoned block device characteristics (unconstrained reads) */
 	ret = sd_zbc_check_zoned_characteristics(sdkp, buf);

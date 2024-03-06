@@ -89,6 +89,17 @@ static u8 mtk_clk_mux_get_parent(struct clk_hw *hw)
 	regmap_read(mux->regmap, mux->data->mux_ofs, &val);
 	val = (val >> mux->data->mux_shift) & mask;
 
+	if (mux->data->parent_index) {
+		int i;
+
+		for (i = 0; i < mux->data->num_parents; i++)
+			if (mux->data->parent_index[i] == val)
+				return i;
+
+		/* Not found: return an impossible index to generate error */
+		return mux->data->num_parents + 1;
+	}
+
 	return val;
 }
 
@@ -103,6 +114,9 @@ static int mtk_clk_mux_set_parent_setclr_lock(struct clk_hw *hw, u8 index)
 		spin_lock_irqsave(mux->lock, flags);
 	else
 		__acquire(mux->lock);
+
+	if (mux->data->parent_index)
+		index = mux->data->parent_index[index];
 
 	regmap_read(mux->regmap, mux->data->mux_ofs, &orig);
 	val = (orig & ~(mask << mux->data->mux_shift))
@@ -168,7 +182,7 @@ static struct clk_hw *mtk_clk_register_mux(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	init.name = mux->name;
-	init.flags = mux->flags | CLK_SET_RATE_PARENT;
+	init.flags = mux->flags;
 	init.parent_names = mux->parent_names;
 	init.num_parents = mux->num_parents;
 	init.ops = mux->ops;

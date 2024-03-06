@@ -7,7 +7,6 @@
 #define __CHTLS_H__
 
 #include <crypto/aes.h>
-#include <crypto/algapi.h>
 #include <crypto/hash.h>
 #include <crypto/sha1.h>
 #include <crypto/sha2.h>
@@ -22,6 +21,7 @@
 #include <crypto/internal/hash.h>
 #include <linux/tls.h>
 #include <net/tls.h>
+#include <net/tls_prot.h>
 #include <net/tls_toe.h>
 
 #include "t4fw_api.h"
@@ -568,8 +568,7 @@ void chtls_destroy_sock(struct sock *sk);
 int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size);
 int chtls_recvmsg(struct sock *sk, struct msghdr *msg,
 		  size_t len, int flags, int *addr_len);
-int chtls_sendpage(struct sock *sk, struct page *page,
-		   int offset, size_t size, int flags);
+void chtls_splice_eof(struct socket *sock);
 int send_tx_flowc_wr(struct sock *sk, int compl,
 		     u32 snd_nxt, u32 rcv_nxt);
 void chtls_tcp_push(struct sock *sk, int flags);

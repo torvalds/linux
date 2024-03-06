@@ -53,6 +53,13 @@ test_exit()
 	exit 1
 }
 
+cleanup_iface()
+{
+	ip link set $1 mtu $2
+	ip link set $1 xdp off
+	ip link set $1 xdpgeneric off
+}
+
 clear_configs()
 {
 	[ $(ip link show $1 &>/dev/null; echo $?;) == 0 ] &&
@@ -76,9 +83,11 @@ exec_xskxceiver()
 	fi
 
 	./${XSKOBJ} -i ${VETH0} -i ${VETH1} ${ARGS}
-
 	retval=$?
-	test_status $retval "${TEST_NAME}"
-	statusList+=($retval)
-	nameList+=(${TEST_NAME})
+
+	if [[ $list -ne 1 ]]; then
+	    test_status $retval "${TEST_NAME}"
+	    statusList+=($retval)
+	    nameList+=(${TEST_NAME})
+	fi
 }

@@ -337,7 +337,7 @@ typedef struct urb_priv {
 	u16			length;		// # tds in this request
 	u16			td_cnt;		// tds already serviced
 	struct list_head	pending;
-	struct td		*td[];		// all TDs in this request
+	struct td		*td[] __counted_by(length); // all TDs in this request
 
 } urb_priv_t;
 

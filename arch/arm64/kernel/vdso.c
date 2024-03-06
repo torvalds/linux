@@ -212,7 +212,7 @@ static int __setup_additional_pages(enum vdso_abi abi,
 	if (IS_ERR(ret))
 		goto up_fail;
 
-	if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) && system_supports_bti())
+	if (system_supports_bti_kernel())
 		gp_flags = VM_ARM64_BTI;
 
 	vdso_base += VVAR_NR_PAGES * PAGE_SIZE;

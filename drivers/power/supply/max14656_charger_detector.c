@@ -14,8 +14,8 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
+#include <linux/mod_devicetable.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <linux/workqueue.h>
 #include <linux/power_supply.h>
 #include <linux/devm-helpers.h>
@@ -316,7 +316,7 @@ static struct i2c_driver max14656_i2c_driver = {
 		.name	= "max14656",
 		.of_match_table = max14656_match_table,
 	},
-	.probe_new	= max14656_probe,
+	.probe		= max14656_probe,
 	.id_table	= max14656_id,
 };
 module_i2c_driver(max14656_i2c_driver);

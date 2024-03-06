@@ -26,13 +26,12 @@ struct dp_power {
  * dp_power_init() - enable power supplies for display controller
  *
  * @power: instance of power module
- * @flip: bool for flipping gpio direction
  * return: 0 if success or error if failure.
  *
  * This API will turn on the regulators and configures gpio's
  * aux/hpd.
  */
-int dp_power_init(struct dp_power *power, bool flip);
+int dp_power_init(struct dp_power *power);
 
 /**
  * dp_power_deinit() - turn off regulators and gpios.
@@ -80,17 +79,6 @@ int dp_power_clk_enable(struct dp_power *power, enum dp_pm_type pm_type,
  * modules.
  */
 int dp_power_client_init(struct dp_power *power);
-
-/**
- * dp_power_clinet_deinit() - de-initialize clock and regulator modules
- *
- * @power: instance of power module
- * return: 0 for success, error for failure.
- *
- * This API will de-initialize the DisplayPort's clocks and regulator
- * modules.
- */
-void dp_power_client_deinit(struct dp_power *power);
 
 /**
  * dp_power_get() - configure and get the DisplayPort power module data

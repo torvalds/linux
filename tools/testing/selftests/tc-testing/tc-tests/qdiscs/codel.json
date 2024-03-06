@@ -10,7 +10,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel",
         "expExitCode": "0",
@@ -18,8 +17,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -33,7 +31,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel limit 1500",
         "expExitCode": "0",
@@ -41,8 +38,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1500p target 5ms interval 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -56,7 +52,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel target 100ms",
         "expExitCode": "0",
@@ -64,8 +59,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 100ms interval 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -79,7 +73,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel interval 20ms",
         "expExitCode": "0",
@@ -87,8 +80,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 20ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -102,7 +94,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel ecn",
         "expExitCode": "0",
@@ -110,8 +101,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 100ms ecn",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -125,7 +115,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root codel ce_threshold 20ms",
         "expExitCode": "0",
@@ -133,8 +122,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms ce_threshold 20ms interval 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -148,7 +136,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root codel"
         ],
         "cmdUnderTest": "$TC qdisc del dev $DUMMY handle 1: root",
@@ -157,7 +144,6 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 1000p target 5ms interval 100ms",
         "matchCount": "0",
         "teardown": [
-            "$IP link del dev $DUMMY type dummy"
         ]
     },
     {
@@ -171,7 +157,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root codel"
         ],
         "cmdUnderTest": "$TC qdisc replace dev $DUMMY handle 1: root codel limit 5000",
@@ -180,8 +165,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 5000p target 5ms interval 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     },
     {
@@ -195,7 +179,6 @@
             "requires": "nsPlugin"
         },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true",
             "$TC qdisc add dev $DUMMY handle 1: root codel"
         ],
         "cmdUnderTest": "$TC qdisc change dev $DUMMY handle 1: root codel limit 100",
@@ -204,8 +187,7 @@
         "matchPattern": "qdisc codel 1: root refcnt [0-9]+ limit 100p target 5ms interval 100ms",
         "matchCount": "1",
         "teardown": [
-            "$TC qdisc del dev $DUMMY handle 1: root",
-            "$IP link del dev $DUMMY type dummy"
+            "$TC qdisc del dev $DUMMY handle 1: root"
         ]
     }
 ]

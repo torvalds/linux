@@ -1135,7 +1135,7 @@
        font-weight="bold"
        font-size="192"
        id="text202-7-5-3-27-6-5"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_report_dead()</text>
+       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcutree_report_cpu_dead()</text>
     <text
        xml:space="preserve"
        x="3745.7725"
@@ -1256,7 +1256,7 @@
        font-style="normal"
        y="3679.27"
        x="-3804.9949"
-       xml:space="preserve">rcu_cpu_starting()</text>
+       xml:space="preserve">rcutree_report_cpu_starting()</text>
     <g
        style="fill:none;stroke-width:0.025in"
        id="g3107-7-5-0"

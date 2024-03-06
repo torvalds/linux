@@ -61,9 +61,6 @@ static const struct snd_soc_dapm_route skl_hda_map[] = {
 	{ "Alt Analog CPU Capture", NULL, "Alt Analog Codec Capture" },
 };
 
-SND_SOC_DAILINK_DEF(dummy_codec,
-	DAILINK_COMP_ARRAY(COMP_CODEC("snd-soc-dummy", "snd-soc-dummy-dai")));
-
 static int skl_hda_card_late_probe(struct snd_soc_card *card)
 {
 	return skl_hda_hdmi_jack_init(card);
@@ -157,10 +154,11 @@ static int skl_hda_fill_card_info(struct snd_soc_acpi_mach_params *mach_params)
 		card->dapm_widgets = skl_hda_widgets;
 		card->num_dapm_widgets = ARRAY_SIZE(skl_hda_widgets);
 		if (!ctx->idisp_codec) {
+			card->dapm_routes = &skl_hda_map[IDISP_ROUTE_COUNT];
+			num_route -= IDISP_ROUTE_COUNT;
 			for (i = 0; i < IDISP_DAI_COUNT; i++) {
-				skl_hda_be_dai_links[i].codecs = dummy_codec;
-				skl_hda_be_dai_links[i].num_codecs =
-					ARRAY_SIZE(dummy_codec);
+				skl_hda_be_dai_links[i].codecs = &snd_soc_dummy_dlc;
+				skl_hda_be_dai_links[i].num_codecs = 1;
 			}
 		}
 	}
@@ -183,7 +181,7 @@ static void skl_set_hda_codec_autosuspend_delay(struct snd_soc_card *card)
 	for_each_card_rtds(card, rtd) {
 		if (!strstr(rtd->dai_link->codecs->name, "ehdaudio0D0"))
 			continue;
-		dai = asoc_rtd_to_codec(rtd, 0);
+		dai = snd_soc_rtd_to_codec(rtd, 0);
 		hda_pvt = snd_soc_component_get_drvdata(dai->component);
 		if (hda_pvt) {
 			/*

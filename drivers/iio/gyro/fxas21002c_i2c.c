@@ -56,7 +56,7 @@ static struct i2c_driver fxas21002c_i2c_driver = {
 		.pm = pm_ptr(&fxas21002c_pm_ops),
 		.of_match_table = fxas21002c_i2c_of_match,
 	},
-	.probe_new	= fxas21002c_i2c_probe,
+	.probe		= fxas21002c_i2c_probe,
 	.remove		= fxas21002c_i2c_remove,
 	.id_table	= fxas21002c_i2c_id,
 };

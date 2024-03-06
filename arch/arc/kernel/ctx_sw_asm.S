@@ -11,50 +11,54 @@
 #include <asm/entry.h>       /* For the SAVE_* macros */
 #include <asm/asm-offsets.h>
 
-#define KSP_WORD_OFF 	((TASK_THREAD + THREAD_KSP) / 4)
-
-;################### Low Level Context Switch ##########################
+; IN
+;  - r0: prev task (also current)
+;  - r1: next task
+; OUT
+;  - r0: prev task (so r0 not touched)
 
 	.section .sched.text,"ax",@progbits
-	.align 4
-	.global __switch_to
-	.type   __switch_to, @function
-__switch_to:
-	CFI_STARTPROC
+ENTRY_CFI(__switch_to)
 
-	/* Save regs on kernel mode stack of task */
-	st.a    blink, [sp, -4]
-	st.a    fp, [sp, -4]
+	/* save kernel stack frame regs of @prev task */
+	push	blink
+	CFI_DEF_CFA_OFFSET 4
+	CFI_OFFSET r31, -4
+
+	push	fp
+	CFI_DEF_CFA_OFFSET 8
+	CFI_OFFSET r27, -8
+
+	mov	fp, sp
+	CFI_DEF_CFA_REGISTER r27
+
+	/* kernel mode callee regs of @prev */
 	SAVE_CALLEE_SAVED_KERNEL
 
-	/* Save the now KSP in task->thread.ksp */
-#if KSP_WORD_OFF  <= 255
-	st.as  sp, [r0, KSP_WORD_OFF]
-#else
-	/* Workaround for NR_CPUS=4k as ST.as can only take s9 offset */
-	add2	r24, r0, KSP_WORD_OFF
-	st	sp, [r24]
-#endif
 	/*
-	* Return last task in r0 (return reg)
-	* On ARC, Return reg = First Arg reg = r0.
-	* Since we already have last task in r0,
-	* don't need to do anything special to return it
-	*/
-
-	/*
-	 * switch to new task, contained in r1
-	 * Temp reg r3 is required to get the ptr to store val
+	 * save final SP to @prev->thread_info.ksp
+	 * @prev is "current" so thread_info derived from SP
 	 */
-	SET_CURR_TASK_ON_CPU  r1, r3
+	GET_CURR_THR_INFO_FROM_SP  r10
+	st	sp,  [r10, THREAD_INFO_KSP]
 
-	/* reload SP with kernel mode stack pointer in task->thread.ksp */
-	ld.as  sp, [r1, (TASK_THREAD + THREAD_KSP)/4]
+	/* update @next in _current_task[] and GP register caching it */
+	SET_CURR_TASK_ON_CPU  r1, r10
 
-	/* restore the registers */
+	/* load SP from @next->thread_info.ksp */
+	ld	r10, [r1, TASK_THREAD_INFO]
+	ld	sp,  [r10, THREAD_INFO_KSP]
+
+	/* restore callee regs, stack frame regs of @next */
 	RESTORE_CALLEE_SAVED_KERNEL
-	ld.ab   fp, [sp, 4]
-	ld.ab   blink, [sp, 4]
-	j       [blink]
 
+	pop	fp
+	CFI_RESTORE r27
+	CFI_DEF_CFA r28, 4
+
+	pop	blink
+	CFI_RESTORE r31
+	CFI_DEF_CFA_OFFSET 0
+
+	j      [blink]
 END_CFI(__switch_to)

@@ -10,7 +10,7 @@ Optional properties:
   - ctrl-reg : Contains the initial value of the control register also
     called "Register B".
   - freq-reg : Contains the initial value of the frequency register also
-    called "Regsiter A".
+    called "Register A".
 
 "Register A" and "B" are usually initialized by the firmware (BIOS for
 instance). If this is not done, it can be performed by the driver.

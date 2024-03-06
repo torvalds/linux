@@ -2,7 +2,7 @@
 /*
  * Implementation of the hash table type.
  *
- * Author : Stephen Smalley, <sds@tycho.nsa.gov>
+ * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -103,14 +103,16 @@ int hashtab_map(struct hashtab *h,
 	return 0;
 }
 
-
+#ifdef CONFIG_SECURITY_SELINUX_DEBUG
 void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 {
 	u32 i, chain_len, slots_used, max_chain_len;
+	u64 chain2_len_sum;
 	struct hashtab_node *cur;
 
 	slots_used = 0;
 	max_chain_len = 0;
+	chain2_len_sum = 0;
 	for (i = 0; i < h->size; i++) {
 		cur = h->htable[i];
 		if (cur) {
@@ -123,12 +125,16 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 
 			if (chain_len > max_chain_len)
 				max_chain_len = chain_len;
+
+			chain2_len_sum += (u64)chain_len * chain_len;
 		}
 	}
 
 	info->slots_used = slots_used;
 	info->max_chain_len = max_chain_len;
+	info->chain2_len_sum = chain2_len_sum;
 }
+#endif /* CONFIG_SECURITY_SELINUX_DEBUG */
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		int (*copy)(struct hashtab_node *new,
@@ -137,7 +143,8 @@ int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
 		void *args)
 {
 	struct hashtab_node *cur, *tmp, *tail;
-	int i, rc;
+	u32 i;
+	int rc;
 
 	memset(new, 0, sizeof(*new));
 

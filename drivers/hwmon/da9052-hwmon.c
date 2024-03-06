@@ -479,7 +479,7 @@ exit_regulator:
 	return err;
 }
 
-static int da9052_hwmon_remove(struct platform_device *pdev)
+static void da9052_hwmon_remove(struct platform_device *pdev)
 {
 	struct da9052_hwmon *hwmon = platform_get_drvdata(pdev);
 
@@ -487,13 +487,11 @@ static int da9052_hwmon_remove(struct platform_device *pdev)
 		da9052_free_irq(hwmon->da9052, DA9052_IRQ_TSIREADY, hwmon);
 		regulator_disable(hwmon->tsiref);
 	}
-
-	return 0;
 }
 
 static struct platform_driver da9052_hwmon_driver = {
 	.probe = da9052_hwmon_probe,
-	.remove = da9052_hwmon_remove,
+	.remove_new = da9052_hwmon_remove,
 	.driver = {
 		.name = "da9052-hwmon",
 	},

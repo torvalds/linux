@@ -93,6 +93,12 @@ properties:
       the turn around line low at end of the control phase of the
       MDIO transaction.
 
+  clocks:
+    maxItems: 1
+    description:
+      External clock connected to the PHY. If not specified it is assumed
+      that the PHY uses a fixed crystal or an internal oscillator.
+
   enet-phy-lane-swap:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
@@ -104,7 +110,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates that PHY will disable swap of the
-      TX/RX lanes. This property allows the PHY to work correcly after
+      TX/RX lanes. This property allows the PHY to work correctly after
       e.g. wrong bootstrap configuration caused by issues in PCB
       layout design.
 

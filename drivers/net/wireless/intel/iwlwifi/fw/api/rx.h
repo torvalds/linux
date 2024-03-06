@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -292,7 +292,7 @@ enum iwl_rx_phy_he_data0 {
 /* TSF overload low dword */
 enum iwl_rx_phy_eht_data0 {
 	/* info type: EHT any */
-	/* 1 bits reserved */
+	IWL_RX_PHY_DATA0_EHT_VALIDATE				= BIT(0),
 	IWL_RX_PHY_DATA0_EHT_UPLINK				= BIT(1),
 	IWL_RX_PHY_DATA0_EHT_BSS_COLOR_MASK			= 0x000000fc,
 	IWL_RX_PHY_DATA0_ETH_SPATIAL_REUSE_MASK			= 0x00000f00,
@@ -367,11 +367,11 @@ enum iwl_rx_phy_eht_data1 {
 	/* number of EHT-LTF symbols 0 - 1 EHT-LTF, 1 - 2 EHT-LTFs, 2 - 4 EHT-LTFs,
 	 * 3 - 6 EHT-LTFs, 4 - 8 EHT-LTFs */
 	IWL_RX_PHY_DATA1_EHT_SIG_LTF_NUM		= 0x000000e0,
-	IWL_RX_PHY_DATA1_EHT_B0				= 0x00000100,
-	IWL_RX_PHY_DATA1_EHT_RU_B1_B7_ALLOC		= 0x0000fe00,
+	IWL_RX_PHY_DATA1_EHT_RU_ALLOC_B0		= 0x00000100,
+	IWL_RX_PHY_DATA1_EHT_RU_ALLOC_B1_B7		= 0x0000fe00,
 };
 
-/* goes into Metadata DW 7 */
+/* goes into Metadata DW 7 (Qu) or 8 (So or higher) */
 enum iwl_rx_phy_he_data2 {
 	/* info type: HE MU-EXT */
 	/* the a1/a2/... is what the PHY/firmware calls the values */
@@ -387,7 +387,7 @@ enum iwl_rx_phy_he_data2 {
 	IWL_RX_PHY_DATA2_HE_TB_EXT_SPTL_REUSE4		= 0x0000f000,
 };
 
-/* goes into Metadata DW 8 */
+/* goes into Metadata DW 8 (Qu) or 7 (So or higher) */
 enum iwl_rx_phy_he_data3 {
 	/* info type: HE MU-EXT */
 	IWL_RX_PHY_DATA3_HE_MU_EXT_CH1_RU1		= 0x000000ff, /* c1 */
@@ -408,10 +408,9 @@ enum iwl_rx_phy_he_he_data4 {
 	IWL_RX_PHY_DATA4_HE_MU_EXT_PREAMBLE_PUNC_TYPE_MASK	= 0x0600,
 };
 
-/* goes into Metadata DW 7 */
+/* goes into Metadata DW 8 (Qu has no EHT) */
 enum iwl_rx_phy_eht_data2 {
 	/* info type: EHT-MU-EXT */
-	/* OFDM_RX_VECTOR_COMMON_RU_ALLOC_0_OUT */
 	IWL_RX_PHY_DATA2_EHT_MU_EXT_RU_ALLOC_A1	= 0x000001ff,
 	IWL_RX_PHY_DATA2_EHT_MU_EXT_RU_ALLOC_A2	= 0x0003fe00,
 	IWL_RX_PHY_DATA2_EHT_MU_EXT_RU_ALLOC_B1	= 0x07fc0000,
@@ -420,11 +419,10 @@ enum iwl_rx_phy_eht_data2 {
 	IWL_RX_PHY_DATA2_EHT_TB_EXT_TRIG_SIGA1	= 0xffffffff,
 };
 
-/* goes into Metadata DW 8 */
+/* goes into Metadata DW 7 (Qu has no EHT) */
 enum iwl_rx_phy_eht_data3 {
+	/* note: low 8 bits cannot be used */
 	/* info type: EHT-MU-EXT */
-	/* OFDM_RX_VECTOR_COMMON_RU_ALLOC_1_OUT */
-	IWL_RX_PHY_DATA3_EHT_MU_EXT_RU_ALLOC_B2	= 0x000001ff,
 	IWL_RX_PHY_DATA3_EHT_MU_EXT_RU_ALLOC_C1	= 0x0003fe00,
 	IWL_RX_PHY_DATA3_EHT_MU_EXT_RU_ALLOC_C2	= 0x07fc0000,
 };
@@ -432,10 +430,10 @@ enum iwl_rx_phy_eht_data3 {
 /* goes into Metadata DW 4 */
 enum iwl_rx_phy_eht_data4 {
 	/* info type: EHT-MU-EXT */
-	/* OFDM_RX_VECTOR_COMMON_RU_ALLOC_2_OUT */
 	IWL_RX_PHY_DATA4_EHT_MU_EXT_RU_ALLOC_D1	= 0x000001ff,
 	IWL_RX_PHY_DATA4_EHT_MU_EXT_RU_ALLOC_D2	= 0x0003fe00,
 	IWL_RX_PHY_DATA4_EHT_MU_EXT_SIGB_MCS	= 0x000c0000,
+	IWL_RX_PHY_DATA4_EHT_MU_EXT_RU_ALLOC_B2	= 0x1ff00000,
 };
 
 /* goes into Metadata DW 16 */

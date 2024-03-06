@@ -43,7 +43,7 @@ static const struct regmap_config adau7118_regmap_config = {
 	.val_bits = 8,
 	.reg_defaults = adau7118_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adau7118_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = ADAU7118_REG_RESET,
 	.volatile_reg = adau7118_volatile,
 };
@@ -78,7 +78,7 @@ static struct i2c_driver adau7118_driver = {
 		.name = "adau7118",
 		.of_match_table = adau7118_of_match,
 	},
-	.probe_new = adau7118_probe_i2c,
+	.probe = adau7118_probe_i2c,
 	.id_table = adau7118_id,
 };
 module_i2c_driver(adau7118_driver);

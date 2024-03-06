@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
+
+#include <drm/drm_managed.h>
 
 #include "dpu_kms.h"
 #include "dpu_hw_catalog.h"
@@ -29,24 +31,6 @@
 #define LM_MISR_CTRL                     0x310
 #define LM_MISR_SIGNATURE                0x314
 
-
-static const struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
-		const struct dpu_mdss_cfg *m,
-		void __iomem *addr,
-		struct dpu_hw_blk_reg_map *b)
-{
-	int i;
-
-	for (i = 0; i < m->mixer_count; i++) {
-		if (mixer == m->mixer[i].id) {
-			b->blk_addr = addr + m->mixer[i].base;
-			b->log_mask = DPU_DBG_MASK_LM;
-			return &m->mixer[i];
-		}
-	}
-
-	return ERR_PTR(-ENOMEM);
-}
 
 /**
  * _stage_offset(): returns the relative offset of the blend registers
@@ -99,9 +83,9 @@ static void dpu_hw_lm_setup_border_color(struct dpu_hw_mixer *ctx,
 	}
 }
 
-static void dpu_hw_lm_setup_misr(struct dpu_hw_mixer *ctx, bool enable, u32 frame_count)
+static void dpu_hw_lm_setup_misr(struct dpu_hw_mixer *ctx)
 {
-	dpu_hw_setup_misr(&ctx->hw, LM_MISR_CTRL, enable, frame_count);
+	dpu_hw_setup_misr(&ctx->hw, LM_MISR_CTRL, 0x0);
 }
 
 static int dpu_hw_lm_collect_misr(struct dpu_hw_mixer *ctx, u32 *misr_value)
@@ -160,8 +144,7 @@ static void dpu_hw_lm_setup_color3(struct dpu_hw_mixer *ctx,
 	DPU_REG_WRITE(c, LM_OP_MODE, op_mode);
 }
 
-static void _setup_mixer_ops(const struct dpu_mdss_cfg *m,
-		struct dpu_hw_lm_ops *ops,
+static void _setup_mixer_ops(struct dpu_hw_lm_ops *ops,
 		unsigned long features)
 {
 	ops->setup_mixer_out = dpu_hw_lm_setup_out;
@@ -175,32 +158,28 @@ static void _setup_mixer_ops(const struct dpu_mdss_cfg *m,
 	ops->collect_misr = dpu_hw_lm_collect_misr;
 }
 
-struct dpu_hw_mixer *dpu_hw_lm_init(enum dpu_lm idx,
-		void __iomem *addr,
-		const struct dpu_mdss_cfg *m)
+struct dpu_hw_mixer *dpu_hw_lm_init(struct drm_device *dev,
+				    const struct dpu_lm_cfg *cfg,
+				    void __iomem *addr)
 {
 	struct dpu_hw_mixer *c;
-	const struct dpu_lm_cfg *cfg;
 
-	c = kzalloc(sizeof(*c), GFP_KERNEL);
+	if (cfg->pingpong == PINGPONG_NONE) {
+		DPU_DEBUG("skip mixer %d without pingpong\n", cfg->id);
+		return NULL;
+	}
+
+	c = drmm_kzalloc(dev, sizeof(*c), GFP_KERNEL);
 	if (!c)
 		return ERR_PTR(-ENOMEM);
 
-	cfg = _lm_offset(idx, m, addr, &c->hw);
-	if (IS_ERR_OR_NULL(cfg)) {
-		kfree(c);
-		return ERR_PTR(-EINVAL);
-	}
+	c->hw.blk_addr = addr + cfg->base;
+	c->hw.log_mask = DPU_DBG_MASK_LM;
 
 	/* Assign ops */
-	c->idx = idx;
+	c->idx = cfg->id;
 	c->cap = cfg;
-	_setup_mixer_ops(m, &c->ops, c->cap->features);
+	_setup_mixer_ops(&c->ops, c->cap->features);
 
 	return c;
-}
-
-void dpu_hw_lm_destroy(struct dpu_hw_mixer *lm)
-{
-	kfree(lm);
 }

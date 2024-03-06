@@ -17,11 +17,22 @@
 #include <linux/pci.h>
 #include <rdma/ib_verbs.h>
 #include <net/genetlink.h>
+#include <net/smc.h>
 
 #include "smc.h"
 #include "smc_ib.h"
+#include "smc_clc.h"
 
 #define SMC_RMBS_PER_LGR_MAX	255	/* max. # of RMBs per link group */
+#define SMC_CONN_PER_LGR_MIN	16	/* min. # of connections per link group */
+#define SMC_CONN_PER_LGR_MAX	255	/* max. # of connections per link group,
+					 * also is the default value for SMC-R v1 and v2.0
+					 */
+#define SMC_CONN_PER_LGR_PREFER	255	/* Preferred connections per link group used for
+					 * SMC-R v2.1 and later negotiation, vendors or
+					 * distrubutions may modify it to a value between
+					 * 16-255 as needed.
+					 */
 
 struct smc_lgr_list {			/* list of link group definition */
 	struct list_head	list;
@@ -164,6 +175,15 @@ struct smc_link {
  */
 #define SMC_LINKS_PER_LGR_MAX	3
 #define SMC_SINGLE_LINK		0
+#define SMC_LINKS_ADD_LNK_MIN	1	/* min. # of links per link group */
+#define SMC_LINKS_ADD_LNK_MAX	2	/* max. # of links per link group, also is the
+					 * default value for smc-r v1.0 and v2.0
+					 */
+#define SMC_LINKS_PER_LGR_MAX_PREFER	2	/* Preferred max links per link group used for
+						 * SMC-R v2.1 and later negotiation, vendors or
+						 * distrubutions may modify it to a value between
+						 * 1-2 as needed.
+						 */
 
 /* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
 struct smc_buf_desc {
@@ -331,9 +351,13 @@ struct smc_link_group {
 			__be32			saddr;
 						/* net namespace */
 			struct net		*net;
+			u8			max_conns;
+						/* max conn can be assigned to lgr */
+			u8			max_links;
+						/* max links can be added in lgr */
 		};
 		struct { /* SMC-D */
-			u64			peer_gid;
+			struct smcd_gid		peer_gid;
 						/* Peer GID (remote) */
 			struct smcd_dev		*smcd;
 						/* ISM device for VLAN reg. */
@@ -370,12 +394,21 @@ struct smc_init_info_smcrv2 {
 	struct smc_gidlist	gidlist;
 };
 
+#define SMC_MAX_V2_ISM_DEVS	SMCD_CLC_MAX_V2_GID_ENTRIES
+				/* max # of proposed non-native ISM devices,
+				 * which can't exceed the max # of CHID-GID
+				 * entries in CLC proposal SMC-Dv2 extension.
+				 */
 struct smc_init_info {
 	u8			is_smcd;
 	u8			smc_type_v1;
 	u8			smc_type_v2;
+	u8			release_nr;
+	u8			max_conns;
+	u8			max_links;
 	u8			first_contact_peer;
 	u8			first_contact_local;
+	u16			feature_mask;
 	unsigned short		vlan_id;
 	u32			rc;
 	u8			negotiated_eid[SMC_MAX_EID_LEN];
@@ -391,9 +424,9 @@ struct smc_init_info {
 	u32			ib_clcqpn;
 	struct smc_init_info_smcrv2 smcrv2;
 	/* SMC-D */
-	u64			ism_peer_gid[SMC_MAX_ISM_DEVS + 1];
-	struct smcd_dev		*ism_dev[SMC_MAX_ISM_DEVS + 1];
-	u16			ism_chid[SMC_MAX_ISM_DEVS + 1];
+	struct smcd_gid		ism_peer_gid[SMC_MAX_V2_ISM_DEVS + 1];
+	struct smcd_dev		*ism_dev[SMC_MAX_V2_ISM_DEVS + 1];
+	u16			ism_chid[SMC_MAX_V2_ISM_DEVS + 1];
 	u8			ism_offered_cnt; /* # of ISM devices offered */
 	u8			ism_selected;    /* index of selected ISM dev*/
 	u8			smcd_version;
@@ -519,7 +552,7 @@ void smc_lgr_hold(struct smc_link_group *lgr);
 void smc_lgr_put(struct smc_link_group *lgr);
 void smcr_port_add(struct smc_ib_device *smcibdev, u8 ibport);
 void smcr_port_err(struct smc_ib_device *smcibdev, u8 ibport);
-void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid,
+void smc_smcd_terminate(struct smcd_dev *dev, struct smcd_gid *peer_gid,
 			unsigned short vlan);
 void smc_smcd_terminate_all(struct smcd_dev *dev);
 void smc_smcr_terminate_all(struct smc_ib_device *smcibdev);
@@ -539,7 +572,6 @@ int smc_vlan_by_tcpsk(struct socket *clcsock, struct smc_init_info *ini);
 
 void smc_conn_free(struct smc_connection *conn);
 int smc_conn_create(struct smc_sock *smc, struct smc_init_info *ini);
-void smc_lgr_schedule_free_work_fast(struct smc_link_group *lgr);
 int smc_core_init(void);
 void smc_core_exit(void);
 

@@ -9,6 +9,7 @@
 
 / {
 	model = "Google juniper sku16 board";
+	chassis-type = "convertible";
 	compatible = "google,juniper-sku16", "google,juniper", "mediatek,mt8183";
 };
 

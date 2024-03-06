@@ -359,26 +359,36 @@ static bool efx_do_xdp(struct efx_nic *efx, struct efx_channel *channel,
 /* Handle a received packet.  Second half: Touches packet payload. */
 void __efx_rx_packet(struct efx_channel *channel)
 {
+	struct efx_rx_queue *rx_queue = efx_channel_get_rx_queue(channel);
 	struct efx_nic *efx = channel->efx;
 	struct efx_rx_buffer *rx_buf =
-		efx_rx_buffer(&channel->rx_queue, channel->rx_pkt_index);
+		efx_rx_buffer(rx_queue, channel->rx_pkt_index);
 	u8 *eh = efx_rx_buf_va(rx_buf);
 
 	/* Read length from the prefix if necessary.  This already
 	 * excludes the length of the prefix itself.
 	 */
-	if (rx_buf->flags & EFX_RX_PKT_PREFIX_LEN)
+	if (rx_buf->flags & EFX_RX_PKT_PREFIX_LEN) {
 		rx_buf->len = le16_to_cpup((__le16 *)
 					   (eh + efx->rx_packet_len_offset));
+		/* A known issue may prevent this being filled in;
+		 * if that happens, just drop the packet.
+		 * Must do that in the driver since passing a zero-length
+		 * packet up to the stack may cause a crash.
+		 */
+		if (unlikely(!rx_buf->len)) {
+			efx_free_rx_buffers(rx_queue, rx_buf,
+					    channel->rx_pkt_n_frags);
+			channel->n_rx_frm_trunc++;
+			goto out;
+		}
+	}
 
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here
 	 */
 	if (unlikely(efx->loopback_selftest)) {
-		struct efx_rx_queue *rx_queue;
-
 		efx_loopback_rx_packet(efx, eh, rx_buf->len);
-		rx_queue = efx_channel_get_rx_queue(channel);
 		efx_free_rx_buffers(rx_queue, rx_buf,
 				    channel->rx_pkt_n_frags);
 		goto out;

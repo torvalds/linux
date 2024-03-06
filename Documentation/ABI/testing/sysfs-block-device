@@ -95,3 +95,25 @@ Description:
 		This file does not exist if the HBA driver does not implement
 		support for the SATA NCQ priority feature, regardless of the
 		device support for this feature.
+
+
+What:		/sys/block/*/device/cdl_supported
+Date:		May, 2023
+KernelVersion:	v6.5
+Contact:	linux-scsi@vger.kernel.org
+Description:
+		(RO) Indicates if the device supports the command duration
+		limits feature found in some ATA and SCSI devices.
+
+
+What:		/sys/block/*/device/cdl_enable
+Date:		May, 2023
+KernelVersion:	v6.5
+Contact:	linux-scsi@vger.kernel.org
+Description:
+		(RW) For a device supporting the command duration limits
+		feature, write to the file to turn on or off the feature.
+		By default this feature is turned off.
+		Writing "1" to this file enables the use of command duration
+		limits for read and write commands in the kernel and turns on
+		the feature on the device. Writing "0" disables the feature.

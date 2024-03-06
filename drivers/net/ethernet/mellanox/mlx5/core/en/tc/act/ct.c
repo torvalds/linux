@@ -17,8 +17,10 @@ tc_act_parse_ct(struct mlx5e_tc_act_parse_state *parse_state,
 	if (err)
 		return err;
 
-	if (mlx5e_is_eswitch_flow(parse_state->flow))
+	if (mlx5e_is_eswitch_flow(parse_state->flow)) {
 		attr->esw_attr->split_count = attr->esw_attr->out_count;
+		parse_state->if_count = 0;
+	}
 
 	attr->flags |= MLX5_ATTR_FLAG_CT;
 

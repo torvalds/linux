@@ -88,8 +88,8 @@ void serial_test_trampoline_count(void)
 	if (!ASSERT_OK(err, "bpf_prog_test_run_opts"))
 		goto cleanup;
 
-	ASSERT_EQ(opts.retval & 0xffff, 4, "bpf_modify_return_test.result");
-	ASSERT_EQ(opts.retval >> 16, 1, "bpf_modify_return_test.side_effect");
+	ASSERT_EQ(opts.retval & 0xffff, 33, "bpf_modify_return_test.result");
+	ASSERT_EQ(opts.retval >> 16, 2, "bpf_modify_return_test.side_effect");
 
 cleanup:
 	for (; i >= 0; i--) {

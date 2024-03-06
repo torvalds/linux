@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
+config NVMEM_LAYOUTS
+	bool
+	depends on OF
+
+if NVMEM_LAYOUTS
+
 menu "Layout Types"
 
 config NVMEM_LAYOUT_SL28_VPD
@@ -21,3 +27,5 @@ config NVMEM_LAYOUT_ONIE_TLV
 	  If unsure, say N.
 
 endmenu
+
+endif

@@ -58,13 +58,7 @@ int riscv_hartid_to_cpuid(unsigned long hartid)
 		if (cpuid_to_hartid_map(i) == hartid)
 			return i;
 
-	pr_err("Couldn't find cpu id for hartid [%lu]\n", hartid);
 	return -ENOENT;
-}
-
-bool arch_match_cpu_phys_id(int cpu, u64 phys_id)
-{
-	return phys_id == cpuid_to_hartid_map(cpu);
 }
 
 static void ipi_stop(void)
@@ -87,7 +81,7 @@ static inline void ipi_cpu_crash_stop(unsigned int cpu, struct pt_regs *regs)
 
 #ifdef CONFIG_HOTPLUG_CPU
 	if (cpu_has_hotplug(cpu))
-		cpu_ops[cpu]->cpu_stop();
+		cpu_ops->cpu_stop();
 #endif
 
 	for(;;)

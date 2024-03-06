@@ -24,7 +24,6 @@
 #include <linux/types.h>
 
 struct ntxec_pwm {
-	struct device *dev;
 	struct ntxec *ec;
 	struct pwm_chip chip;
 };
@@ -127,7 +126,6 @@ static int ntxec_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm_dev,
 }
 
 static const struct pwm_ops ntxec_pwm_ops = {
-	.owner = THIS_MODULE,
 	.apply = ntxec_pwm_apply,
 	/*
 	 * No .get_state callback, because the current state cannot be read
@@ -141,14 +139,13 @@ static int ntxec_pwm_probe(struct platform_device *pdev)
 	struct ntxec_pwm *priv;
 	struct pwm_chip *chip;
 
-	pdev->dev.of_node = pdev->dev.parent->of_node;
+	device_set_of_node_from_dev(&pdev->dev, pdev->dev.parent);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->ec = ec;
-	priv->dev = &pdev->dev;
 
 	chip = &priv->chip;
 	chip->dev = &pdev->dev;

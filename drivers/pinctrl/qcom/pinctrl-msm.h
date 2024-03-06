@@ -8,27 +8,35 @@
 #include <linux/pm.h>
 #include <linux/types.h>
 
+#include <linux/pinctrl/pinctrl.h>
+
 struct platform_device;
 
 struct pinctrl_pin_desc;
 
-/**
- * struct msm_function - a pinmux function
- * @name:    Name of the pinmux function.
- * @groups:  List of pingroups for this function.
- * @ngroups: Number of entries in @groups.
- */
-struct msm_function {
-	const char *name;
-	const char * const *groups;
-	unsigned ngroups;
-};
+#define APQ_PIN_FUNCTION(fname)					\
+	[APQ_MUX_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define IPQ_PIN_FUNCTION(fname)					\
+	[IPQ_MUX_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define MSM_PIN_FUNCTION(fname) 				\
+	[msm_mux_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
+
+#define QCA_PIN_FUNCTION(fname)					\
+	[qca_mux_##fname] = PINCTRL_PINFUNCTION(#fname,		\
+					fname##_groups,		\
+					ARRAY_SIZE(fname##_groups))
 
 /**
  * struct msm_pingroup - Qualcomm pingroup definition
- * @name:                 Name of the pingroup.
- * @pins:	          A list of pins assigned to this pingroup.
- * @npins:	          Number of entries in @pins.
+ * @grp:                  Generic data of the pin group (name and pins)
  * @funcs:                A list of pinmux functions that can be selected for
  *                        this group. The index of the selected function is used
  *                        for programming the function selector.
@@ -50,7 +58,11 @@ struct msm_function {
  * @intr_enable_bit:      Offset in @intr_cfg_reg for enabling the interrupt for this group.
  * @intr_status_bit:      Offset in @intr_status_reg for reading and acking the interrupt
  *                        status.
+ * @intr_wakeup_present_bit: Offset in @intr_target_reg specifying the GPIO can generate
+ *			  wakeup events.
+ * @intr_wakeup_enable_bit: Offset in @intr_target_reg to enable wakeup events for the GPIO.
  * @intr_target_bit:      Offset in @intr_target_reg for configuring the interrupt routing.
+ * @intr_target_width:    Number of bits used for specifying interrupt routing target.
  * @intr_target_kpss_val: Value in @intr_target_bit for specifying that the interrupt from
  *                        this gpio should get routed to the KPSS processor.
  * @intr_raw_status_bit:  Offset in @intr_cfg_reg for the raw status bit.
@@ -61,9 +73,7 @@ struct msm_function {
  *                        otherwise 1.
  */
 struct msm_pingroup {
-	const char *name;
-	const unsigned *pins;
-	unsigned npins;
+	struct pingroup grp;
 
 	unsigned *funcs;
 	unsigned nfuncs;
@@ -93,7 +103,10 @@ struct msm_pingroup {
 	unsigned intr_status_bit:5;
 	unsigned intr_ack_high:1;
 
+	unsigned intr_wakeup_present_bit:5;
+	unsigned intr_wakeup_enable_bit:5;
 	unsigned intr_target_bit:5;
+	unsigned intr_target_width:5;
 	unsigned intr_target_kpss_val:5;
 	unsigned intr_raw_status_bit:5;
 	unsigned intr_polarity_bit:5;
@@ -138,7 +151,7 @@ struct msm_gpio_wakeirq_map {
 struct msm_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
-	const struct msm_function *functions;
+	const struct pinfunction *functions;
 	unsigned nfunctions;
 	const struct msm_pingroup *groups;
 	unsigned ngroups;
@@ -158,6 +171,6 @@ extern const struct dev_pm_ops msm_pinctrl_dev_pm_ops;
 
 int msm_pinctrl_probe(struct platform_device *pdev,
 		      const struct msm_pinctrl_soc_data *soc_data);
-int msm_pinctrl_remove(struct platform_device *pdev);
+void msm_pinctrl_remove(struct platform_device *pdev);
 
 #endif

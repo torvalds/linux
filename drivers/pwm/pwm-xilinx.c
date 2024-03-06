@@ -198,7 +198,6 @@ static int xilinx_pwm_get_state(struct pwm_chip *chip,
 static const struct pwm_ops xilinx_pwm_ops = {
 	.apply = xilinx_pwm_apply,
 	.get_state = xilinx_pwm_get_state,
-	.owner = THIS_MODULE,
 };
 
 static const struct regmap_config xilinx_pwm_regmap_config = {

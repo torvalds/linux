@@ -9,8 +9,8 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/platform_device.h>
@@ -85,7 +85,7 @@ int pci_host_common_probe(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(pci_host_common_probe);
 
-int pci_host_common_remove(struct platform_device *pdev)
+void pci_host_common_remove(struct platform_device *pdev)
 {
 	struct pci_host_bridge *bridge = platform_get_drvdata(pdev);
 
@@ -93,8 +93,6 @@ int pci_host_common_remove(struct platform_device *pdev)
 	pci_stop_root_bus(bridge->bus);
 	pci_remove_root_bus(bridge->bus);
 	pci_unlock_rescan_remove();
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(pci_host_common_remove);
 

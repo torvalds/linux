@@ -102,10 +102,14 @@ static inline bool mei_me_hw_use_polling(const struct mei_me_hw *hw)
  * @MEI_ME_PCH12_SPS_CFG:  Platform Controller Hub Gen12 5.0 and newer
  *                         servers platforms with quirk for
  *                         SPS firmware exclusion.
+ * @MEI_ME_PCH12_SPS_ITOUCH_CFG: Platform Controller Hub Gen12
+ *                         client platforms (iTouch)
  * @MEI_ME_PCH15_CFG:      Platform Controller Hub Gen15 and newer
  * @MEI_ME_PCH15_SPS_CFG:  Platform Controller Hub Gen15 and newer
  *                         servers platforms with quirk for
  *                         SPS firmware exclusion.
+ * @MEI_ME_GSC_CFG:        Graphics System Controller
+ * @MEI_ME_GSCFI_CFG:      Graphics System Controller Firmware Interface
  * @MEI_ME_NUM_CFG:        Upper Sentinel.
  */
 enum mei_cfg_idx {

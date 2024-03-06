@@ -32,6 +32,13 @@ OPTIONS
 
 .. include:: common_timerlat_aa.rst
 
+**--aa-only** *us*
+
+        Set stop tracing conditions and run without collecting and displaying statistics.
+        Print the auto-analysis if the system hits the stop tracing condition. This option
+        is useful to reduce rtla timerlat CPU, enabling the debug without the overhead of
+        collecting the statistics.
+
 EXAMPLE
 =======
 
@@ -110,7 +117,7 @@ syscall in a btrfs file system.
 The raw trace is saved in the **timerlat_trace.txt** file for further analysis.
 
 Note that **rtla timerlat** was dispatched without changing *timerlat* tracer
-threads' priority. That is generally not needed because these threads hava
+threads' priority. That is generally not needed because these threads have
 priority *FIFO:95* by default, which is a common priority used by real-time
 kernel developers to analyze scheduling delays.
 

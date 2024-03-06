@@ -741,7 +741,7 @@ static int qt2_tiocmset(struct tty_struct *tty,
 	return update_mctrl(port_priv, set, clear);
 }
 
-static void qt2_break_ctl(struct tty_struct *tty, int break_state)
+static int qt2_break_ctl(struct tty_struct *tty, int break_state)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct qt2_port_private *port_priv;
@@ -754,10 +754,14 @@ static void qt2_break_ctl(struct tty_struct *tty, int break_state)
 
 	status = qt2_control_msg(port->serial->dev, QT2_BREAK_CONTROL,
 				 val, port_priv->device_port);
-	if (status < 0)
+	if (status < 0) {
 		dev_warn(&port->dev,
 			 "%s - failed to send control message: %i\n", __func__,
 			 status);
+		return status;
+	}
+
+	return 0;
 }
 
 

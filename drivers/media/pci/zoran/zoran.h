@@ -219,7 +219,7 @@ struct zoran {
 	const struct tvnorm *timing;
 
 	unsigned short id;	/* number of this device */
-	char name[32];		/* name of this device */
+	char name[40];		/* name of this device */
 	struct pci_dev *pci_dev;	/* PCI device */
 	unsigned char revision;	/* revision of zr36057 */
 	unsigned char __iomem *zr36057_mem;/* pointer to mapped IO memory */

@@ -2527,16 +2527,11 @@ static void noflush_work(struct thin_c *tc, void (*fn)(struct work_struct *))
 
 /*----------------------------------------------------------------*/
 
-static bool passdown_enabled(struct pool_c *pt)
-{
-	return pt->adjusted_pf.discard_passdown;
-}
-
 static void set_discard_callbacks(struct pool *pool)
 {
 	struct pool_c *pt = pool->ti->private;
 
-	if (passdown_enabled(pt)) {
+	if (pt->adjusted_pf.discard_passdown) {
 		pool->process_discard_cell = process_discard_cell_passdown;
 		pool->process_prepared_discard = process_prepared_discard_passdown_pt1;
 		pool->process_prepared_discard_pt2 = process_prepared_discard_passdown_pt2;
@@ -2845,7 +2840,7 @@ static bool is_factor(sector_t block_size, uint32_t n)
  * If discard_passdown was enabled verify that the data device
  * supports discards.  Disable discard_passdown if not.
  */
-static void disable_passdown_if_not_supported(struct pool_c *pt)
+static void disable_discard_passdown_if_not_supported(struct pool_c *pt)
 {
 	struct pool *pool = pt->pool;
 	struct block_device *data_bdev = pt->data_dev->bdev;
@@ -3300,7 +3295,7 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned long block_size;
 	dm_block_t low_water_blocks;
 	struct dm_dev *metadata_dev;
-	fmode_t metadata_mode;
+	blk_mode_t metadata_mode;
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -3333,7 +3328,8 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto out_unlock;
 
-	metadata_mode = FMODE_READ | ((pf.mode == PM_READ_ONLY) ? 0 : FMODE_WRITE);
+	metadata_mode = BLK_OPEN_READ |
+		((pf.mode == PM_READ_ONLY) ? 0 : BLK_OPEN_WRITE);
 	r = dm_get_device(ti, argv[0], metadata_mode, &metadata_dev);
 	if (r) {
 		ti->error = "Error opening metadata block device";
@@ -3341,7 +3337,7 @@ static int pool_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	warn_if_metadata_device_too_big(metadata_dev->bdev);
 
-	r = dm_get_device(ti, argv[1], FMODE_READ | FMODE_WRITE, &data_dev);
+	r = dm_get_device(ti, argv[1], BLK_OPEN_READ | BLK_OPEN_WRITE, &data_dev);
 	if (r) {
 		ti->error = "Error getting data device";
 		goto out_metadata;
@@ -3445,7 +3441,6 @@ out_unlock:
 
 static int pool_map(struct dm_target *ti, struct bio *bio)
 {
-	int r;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 
@@ -3454,10 +3449,9 @@ static int pool_map(struct dm_target *ti, struct bio *bio)
 	 */
 	spin_lock_irq(&pool->lock);
 	bio_set_dev(bio, pt->data_dev->bdev);
-	r = DM_MAPIO_REMAPPED;
 	spin_unlock_irq(&pool->lock);
 
-	return r;
+	return DM_MAPIO_REMAPPED;
 }
 
 static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
@@ -4098,21 +4092,22 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	 * They get transferred to the live pool in bind_control_target()
 	 * called from pool_preresume().
 	 */
-	if (!pt->adjusted_pf.discard_enabled) {
+
+	if (pt->adjusted_pf.discard_enabled) {
+		disable_discard_passdown_if_not_supported(pt);
+		if (!pt->adjusted_pf.discard_passdown)
+			limits->max_discard_sectors = 0;
+		/*
+		 * The pool uses the same discard limits as the underlying data
+		 * device.  DM core has already set this up.
+		 */
+	} else {
 		/*
 		 * Must explicitly disallow stacking discard limits otherwise the
 		 * block layer will stack them if pool's data device has support.
 		 */
 		limits->discard_granularity = 0;
-		return;
 	}
-
-	disable_passdown_if_not_supported(pt);
-
-	/*
-	 * The pool uses the same discard limits as the underlying data
-	 * device.  DM core has already set this up.
-	 */
 }
 
 static struct target_type pool_target = {
@@ -4222,7 +4217,7 @@ static int thin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 			goto bad_origin_dev;
 		}
 
-		r = dm_get_device(ti, argv[2], FMODE_READ, &origin_dev);
+		r = dm_get_device(ti, argv[2], BLK_OPEN_READ, &origin_dev);
 		if (r) {
 			ti->error = "Error opening origin device";
 			goto bad_origin_dev;
@@ -4496,11 +4491,10 @@ static void thin_io_hints(struct dm_target *ti, struct queue_limits *limits)
 	struct thin_c *tc = ti->private;
 	struct pool *pool = tc->pool;
 
-	if (!pool->pf.discard_enabled)
-		return;
-
-	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
-	limits->max_discard_sectors = pool->sectors_per_block * BIO_PRISON_MAX_RANGE;
+	if (pool->pf.discard_enabled) {
+		limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
+		limits->max_discard_sectors = pool->sectors_per_block * BIO_PRISON_MAX_RANGE;
+	}
 }
 
 static struct target_type thin_target = {

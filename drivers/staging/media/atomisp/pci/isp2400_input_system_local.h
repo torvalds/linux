@@ -13,8 +13,8 @@
  * more details.
  */
 
-#ifndef __INPUT_SYSTEM_LOCAL_H_INCLUDED__
-#define __INPUT_SYSTEM_LOCAL_H_INCLUDED__
+#ifndef __INPUT_SYSTEM_2400_LOCAL_H_INCLUDED__
+#define __INPUT_SYSTEM_2400_LOCAL_H_INCLUDED__
 
 #include "input_system_defs.h"		/* HIVE_ISYS_GPREG_MULTICAST_A_IDX,... */
 
@@ -163,45 +163,39 @@ struct input_system_cfg2400_s {
 #define	_HRT_CSS_RECEIVER_DATA_TIMEOUT_IDX		_HRT_CSS_RECEIVER_2400_CSI2_DATA_TIMEOUT_IDX
 #define	_HRT_CSS_RECEIVER_DATA_TIMEOUT_BITS		_HRT_CSS_RECEIVER_2400_CSI2_DATA_TIMEOUT_BITS
 
-typedef struct capture_unit_state_s	capture_unit_state_t;
-typedef struct acquisition_unit_state_s	acquisition_unit_state_t;
-typedef struct ctrl_unit_state_s	ctrl_unit_state_t;
-
 typedef enum {
-	MIPI_FORMAT_RGB888 = 0,
-	MIPI_FORMAT_RGB555,
-	MIPI_FORMAT_RGB444,
-	MIPI_FORMAT_RGB565,
-	MIPI_FORMAT_RGB666,
-	MIPI_FORMAT_RAW8,		/* 5 */
-	MIPI_FORMAT_RAW10,
-	MIPI_FORMAT_RAW6,
-	MIPI_FORMAT_RAW7,
-	MIPI_FORMAT_RAW12,
-	MIPI_FORMAT_RAW14,		/* 10 */
-	MIPI_FORMAT_YUV420_8,
-	MIPI_FORMAT_YUV420_10,
-	MIPI_FORMAT_YUV422_8,
-	MIPI_FORMAT_YUV422_10,
-	MIPI_FORMAT_CUSTOM0,	/* 15 */
-	MIPI_FORMAT_YUV420_8_LEGACY,
-	MIPI_FORMAT_EMBEDDED,
-	MIPI_FORMAT_CUSTOM1,
-	MIPI_FORMAT_CUSTOM2,
-	MIPI_FORMAT_CUSTOM3,	/* 20 */
-	MIPI_FORMAT_CUSTOM4,
-	MIPI_FORMAT_CUSTOM5,
-	MIPI_FORMAT_CUSTOM6,
-	MIPI_FORMAT_CUSTOM7,
-	MIPI_FORMAT_YUV420_8_SHIFT,	/* 25 */
-	MIPI_FORMAT_YUV420_10_SHIFT,
-	MIPI_FORMAT_RAW16,
-	MIPI_FORMAT_RAW18,
-	N_MIPI_FORMAT,
-} mipi_format_t;
+	MIPI_FORMAT_2400_RGB888 = 0,
+	MIPI_FORMAT_2400_RGB555,
+	MIPI_FORMAT_2400_RGB444,
+	MIPI_FORMAT_2400_RGB565,
+	MIPI_FORMAT_2400_RGB666,
+	MIPI_FORMAT_2400_RAW8,		/* 5 */
+	MIPI_FORMAT_2400_RAW10,
+	MIPI_FORMAT_2400_RAW6,
+	MIPI_FORMAT_2400_RAW7,
+	MIPI_FORMAT_2400_RAW12,
+	MIPI_FORMAT_2400_RAW14,		/* 10 */
+	MIPI_FORMAT_2400_YUV420_8,
+	MIPI_FORMAT_2400_YUV420_10,
+	MIPI_FORMAT_2400_YUV422_8,
+	MIPI_FORMAT_2400_YUV422_10,
+	MIPI_FORMAT_2400_CUSTOM0,	/* 15 */
+	MIPI_FORMAT_2400_YUV420_8_LEGACY,
+	MIPI_FORMAT_2400_EMBEDDED,
+	MIPI_FORMAT_2400_CUSTOM1,
+	MIPI_FORMAT_2400_CUSTOM2,
+	MIPI_FORMAT_2400_CUSTOM3,	/* 20 */
+	MIPI_FORMAT_2400_CUSTOM4,
+	MIPI_FORMAT_2400_CUSTOM5,
+	MIPI_FORMAT_2400_CUSTOM6,
+	MIPI_FORMAT_2400_CUSTOM7,
+	MIPI_FORMAT_2400_YUV420_8_SHIFT,	/* 25 */
+	MIPI_FORMAT_2400_YUV420_10_SHIFT,
+	MIPI_FORMAT_2400_RAW16,
+	MIPI_FORMAT_2400_RAW18,
+	N_MIPI_FORMAT_2400,
+} mipi_format_2400_t;
 
-#define MIPI_FORMAT_JPEG		MIPI_FORMAT_CUSTOM0
-#define MIPI_FORMAT_BINARY_8	MIPI_FORMAT_CUSTOM0
 #define N_MIPI_FORMAT_CUSTOM	8
 
 /* The number of stores for compressed format types */
@@ -244,132 +238,6 @@ static const hrt_address __maybe_unused SUB_SYSTEM_OFFSET[N_SUB_SYSTEM_ID] = {
 	0x0000A000UL,
 	0x0000B000UL,
 	0x0000C000UL
-};
-
-struct capture_unit_state_s {
-	int	Packet_Length;
-	int	Received_Length;
-	int	Received_Short_Packets;
-	int	Received_Long_Packets;
-	int	Last_Command;
-	int	Next_Command;
-	int	Last_Acknowledge;
-	int	Next_Acknowledge;
-	int	FSM_State_Info;
-	int	StartMode;
-	int	Start_Addr;
-	int	Mem_Region_Size;
-	int	Num_Mem_Regions;
-	/*	int	Init;   write-only registers
-		int	Start;
-		int	Stop;      */
-};
-
-struct acquisition_unit_state_s {
-	/*	int	Init;   write-only register */
-	int	Received_Short_Packets;
-	int	Received_Long_Packets;
-	int	Last_Command;
-	int	Next_Command;
-	int	Last_Acknowledge;
-	int	Next_Acknowledge;
-	int	FSM_State_Info;
-	int	Int_Cntr_Info;
-	int	Start_Addr;
-	int	Mem_Region_Size;
-	int	Num_Mem_Regions;
-};
-
-struct ctrl_unit_state_s {
-	int	last_cmd;
-	int	next_cmd;
-	int	last_ack;
-	int	next_ack;
-	int	top_fsm_state;
-	int	captA_fsm_state;
-	int	captB_fsm_state;
-	int	captC_fsm_state;
-	int	acq_fsm_state;
-	int	captA_start_addr;
-	int	captB_start_addr;
-	int	captC_start_addr;
-	int	captA_mem_region_size;
-	int	captB_mem_region_size;
-	int	captC_mem_region_size;
-	int	captA_num_mem_regions;
-	int	captB_num_mem_regions;
-	int	captC_num_mem_regions;
-	int	acq_start_addr;
-	int	acq_mem_region_size;
-	int	acq_num_mem_regions;
-	/*	int	ctrl_init;  write only register */
-	int	capt_reserve_one_mem_region;
-};
-
-struct input_system_state_s {
-	int	str_multicastA_sel;
-	int	str_multicastB_sel;
-	int	str_multicastC_sel;
-	int	str_mux_sel;
-	int	str_mon_status;
-	int	str_mon_irq_cond;
-	int	str_mon_irq_en;
-	int	isys_srst;
-	int	isys_slv_reg_srst;
-	int	str_deint_portA_cnt;
-	int	str_deint_portB_cnt;
-	struct capture_unit_state_s		capture_unit[N_CAPTURE_UNIT_ID];
-	struct acquisition_unit_state_s	acquisition_unit[N_ACQUISITION_UNIT_ID];
-	struct ctrl_unit_state_s		ctrl_unit_state[N_CTRL_UNIT_ID];
-};
-
-struct mipi_port_state_s {
-	int	device_ready;
-	int	irq_status;
-	int	irq_enable;
-	u32	timeout_count;
-	u16	init_count;
-	u16	raw16_18;
-	u32	sync_count;		/*4 x uint8_t */
-	u32	rx_count;		/*4 x uint8_t */
-	u8		lane_sync_count[MIPI_4LANE_CFG];
-	u8		lane_rx_count[MIPI_4LANE_CFG];
-};
-
-struct rx_channel_state_s {
-	u32	comp_scheme0;
-	u32	comp_scheme1;
-	mipi_predictor_t		pred[N_MIPI_FORMAT_CUSTOM];
-	mipi_compressor_t		comp[N_MIPI_FORMAT_CUSTOM];
-};
-
-struct receiver_state_s {
-	u8	fs_to_ls_delay;
-	u8	ls_to_data_delay;
-	u8	data_to_le_delay;
-	u8	le_to_fe_delay;
-	u8	fe_to_fs_delay;
-	u8	le_to_fs_delay;
-	bool	is_two_ppc;
-	int	backend_rst;
-	u16	raw18;
-	bool		force_raw8;
-	u16	raw16;
-	struct mipi_port_state_s	mipi_port_state[N_MIPI_PORT_ID];
-	struct rx_channel_state_s	rx_channel_state[N_RX_CHANNEL_ID];
-	int	be_gsp_acc_ovl;
-	int	be_srst;
-	int	be_is_two_ppc;
-	int	be_comp_format0;
-	int	be_comp_format1;
-	int	be_comp_format2;
-	int	be_comp_format3;
-	int	be_sel;
-	int	be_raw16_config;
-	int	be_raw18_config;
-	int	be_force_raw8;
-	int	be_irq_status;
-	int	be_irq_clear;
 };
 
 #endif /* __INPUT_SYSTEM_LOCAL_H_INCLUDED__ */

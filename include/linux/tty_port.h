@@ -39,9 +39,10 @@ struct tty_port_operations {
 };
 
 struct tty_port_client_operations {
-	int (*receive_buf)(struct tty_port *port, const unsigned char *, const unsigned char *, size_t);
-	void (*lookahead_buf)(struct tty_port *port, const unsigned char *cp,
-			      const unsigned char *fp, unsigned int count);
+	size_t (*receive_buf)(struct tty_port *port, const u8 *cp, const u8 *fp,
+			      size_t count);
+	void (*lookahead_buf)(struct tty_port *port, const u8 *cp,
+			      const u8 *fp, size_t count);
 	void (*write_wakeup)(struct tty_port *port);
 };
 
@@ -113,8 +114,8 @@ struct tty_port {
 	unsigned char		console:1;
 	struct mutex		mutex;
 	struct mutex		buf_mutex;
-	unsigned char		*xmit_buf;
-	DECLARE_KFIFO_PTR(xmit_fifo, unsigned char);
+	u8			*xmit_buf;
+	DECLARE_KFIFO_PTR(xmit_fifo, u8);
 	unsigned int		close_delay;
 	unsigned int		closing_wait;
 	int			drain_delay;
@@ -148,10 +149,10 @@ struct device *tty_port_register_device_attr(struct tty_port *port,
 		const struct attribute_group **attr_grp);
 struct device *tty_port_register_device_serdev(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
-		struct device *device);
+		struct device *host, struct device *parent);
 struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
-		struct device *device, void *drvdata,
+		struct device *host, struct device *parent, void *drvdata,
 		const struct attribute_group **attr_grp);
 void tty_port_unregister_device(struct tty_port *port,
 		struct tty_driver *driver, unsigned index);

@@ -106,7 +106,7 @@
 #include <linux/kstrtox.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
@@ -2765,7 +2765,7 @@ static int lm90_probe(struct i2c_client *client)
 
 	/* Set the device type */
 	if (client->dev.of_node)
-		data->kind = (enum chips)of_device_get_match_data(&client->dev);
+		data->kind = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		data->kind = i2c_match_id(lm90_id, client)->driver_data;
 
@@ -2972,7 +2972,7 @@ static struct i2c_driver lm90_driver = {
 		.of_match_table = of_match_ptr(lm90_of_match),
 		.pm	= pm_sleep_ptr(&lm90_pm_ops),
 	},
-	.probe_new	= lm90_probe,
+	.probe		= lm90_probe,
 	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,

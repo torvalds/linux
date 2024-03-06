@@ -5,12 +5,11 @@ menu "S/390 network device drivers"
 config LCS
 	def_tristate m
 	prompt "Lan Channel Station Interface"
-	depends on CCW && NETDEVICES && (ETHERNET || FDDI)
+	depends on CCW && NETDEVICES && ETHERNET
 	help
 	  Select this option if you want to use LCS networking on IBM System z.
-	  This device driver supports FDDI (IEEE 802.7) and Ethernet.
 	  To compile as a module, choose M. The module name is lcs.
-	  If you do not know what it is, it's safe to choose Y.
+	  If you do not use LCS, choose N.
 
 config CTCM
 	def_tristate m
@@ -103,11 +102,12 @@ config CCWGROUP
 
 config ISM
 	tristate "Support for ISM vPCI Adapter"
-	depends on PCI && SMC
+	depends on PCI
+	imply SMC
 	default n
 	help
 	  Select this option if you want to use the Internal Shared Memory
-	  vPCI Adapter.
+	  vPCI Adapter. The adapter can be used with the SMC network protocol.
 
 	  To compile as a module choose M. The module name is ism.
 	  If unsure, choose N.

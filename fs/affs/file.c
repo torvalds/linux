@@ -15,6 +15,7 @@
 
 #include <linux/uio.h>
 #include <linux/blkdev.h>
+#include <linux/mpage.h>
 #include "affs.h"
 
 static struct buffer_head *affs_get_extblock_slow(struct inode *inode, u32 ext);
@@ -370,9 +371,10 @@ err_alloc:
 	return -ENOSPC;
 }
 
-static int affs_writepage(struct page *page, struct writeback_control *wbc)
+static int affs_writepages(struct address_space *mapping,
+			   struct writeback_control *wbc)
 {
-	return block_write_full_page(page, affs_get_block, wbc);
+	return mpage_writepages(mapping, wbc, affs_get_block);
 }
 
 static int affs_read_folio(struct file *file, struct folio *folio)
@@ -456,10 +458,11 @@ const struct address_space_operations affs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio = affs_read_folio,
-	.writepage = affs_writepage,
+	.writepages = affs_writepages,
 	.write_begin = affs_write_begin,
 	.write_end = affs_write_end,
 	.direct_IO = affs_direct_IO,
+	.migrate_folio = buffer_migrate_folio,
 	.bmap = _affs_bmap
 };
 
@@ -520,21 +523,20 @@ affs_getemptyblk_ino(struct inode *inode, int block)
 	return ERR_PTR(err);
 }
 
-static int
-affs_do_readpage_ofs(struct page *page, unsigned to, int create)
+static int affs_do_read_folio_ofs(struct folio *folio, size_t to, int create)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh;
-	unsigned pos = 0;
-	u32 bidx, boff, bsize;
+	size_t pos = 0;
+	size_t bidx, boff, bsize;
 	u32 tmp;
 
-	pr_debug("%s(%lu, %ld, 0, %d)\n", __func__, inode->i_ino,
-		 page->index, to);
-	BUG_ON(to > PAGE_SIZE);
+	pr_debug("%s(%lu, %ld, 0, %zu)\n", __func__, inode->i_ino,
+		 folio->index, to);
+	BUG_ON(to > folio_size(folio));
 	bsize = AFFS_SB(sb)->s_data_blksize;
-	tmp = page->index << PAGE_SHIFT;
+	tmp = folio_pos(folio);
 	bidx = tmp / bsize;
 	boff = tmp % bsize;
 
@@ -544,7 +546,7 @@ affs_do_readpage_ofs(struct page *page, unsigned to, int create)
 			return PTR_ERR(bh);
 		tmp = min(bsize - boff, to - pos);
 		BUG_ON(pos + tmp > to || tmp > bsize);
-		memcpy_to_page(page, pos, AFFS_DATA(bh) + boff, tmp);
+		memcpy_to_folio(folio, pos, AFFS_DATA(bh) + boff, tmp);
 		affs_brelse(bh);
 		bidx++;
 		pos += tmp;
@@ -624,25 +626,23 @@ out:
 	return PTR_ERR(bh);
 }
 
-static int
-affs_read_folio_ofs(struct file *file, struct folio *folio)
+static int affs_read_folio_ofs(struct file *file, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
-	u32 to;
+	struct inode *inode = folio->mapping->host;
+	size_t to;
 	int err;
 
-	pr_debug("%s(%lu, %ld)\n", __func__, inode->i_ino, page->index);
-	to = PAGE_SIZE;
-	if (((page->index + 1) << PAGE_SHIFT) > inode->i_size) {
-		to = inode->i_size & ~PAGE_MASK;
-		memset(page_address(page) + to, 0, PAGE_SIZE - to);
+	pr_debug("%s(%lu, %ld)\n", __func__, inode->i_ino, folio->index);
+	to = folio_size(folio);
+	if (folio_pos(folio) + to > inode->i_size) {
+		to = inode->i_size - folio_pos(folio);
+		folio_zero_segment(folio, to, folio_size(folio));
 	}
 
-	err = affs_do_readpage_ofs(page, to, 0);
+	err = affs_do_read_folio_ofs(folio, to, 0);
 	if (!err)
-		SetPageUptodate(page);
-	unlock_page(page);
+		folio_mark_uptodate(folio);
+	folio_unlock(folio);
 	return err;
 }
 
@@ -651,7 +651,7 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 				struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;
-	struct page *page;
+	struct folio *folio;
 	pgoff_t index;
 	int err = 0;
 
@@ -667,19 +667,20 @@ static int affs_write_begin_ofs(struct file *file, struct address_space *mapping
 	}
 
 	index = pos >> PAGE_SHIFT;
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
-	*pagep = page;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
+	*pagep = &folio->page;
 
-	if (PageUptodate(page))
+	if (folio_test_uptodate(folio))
 		return 0;
 
 	/* XXX: inefficient but safe in the face of short writes */
-	err = affs_do_readpage_ofs(page, PAGE_SIZE, 1);
+	err = affs_do_read_folio_ofs(folio, folio_size(folio), 1);
 	if (err) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 	}
 	return err;
 }
@@ -688,6 +689,7 @@ static int affs_write_end_ofs(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct super_block *sb = inode->i_sb;
 	struct buffer_head *bh, *prev_bh;
@@ -701,18 +703,18 @@ static int affs_write_end_ofs(struct file *file, struct address_space *mapping,
 	to = from + len;
 	/*
 	 * XXX: not sure if this can handle short copies (len < copied), but
-	 * we don't have to, because the page should always be uptodate here,
+	 * we don't have to, because the folio should always be uptodate here,
 	 * due to write_begin.
 	 */
 
 	pr_debug("%s(%lu, %llu, %llu)\n", __func__, inode->i_ino, pos,
 		 pos + len);
 	bsize = AFFS_SB(sb)->s_data_blksize;
-	data = page_address(page);
+	data = folio_address(folio);
 
 	bh = NULL;
 	written = 0;
-	tmp = (page->index << PAGE_SHIFT) + from;
+	tmp = (folio->index << PAGE_SHIFT) + from;
 	bidx = tmp / bsize;
 	boff = tmp % bsize;
 	if (boff) {
@@ -804,11 +806,11 @@ static int affs_write_end_ofs(struct file *file, struct address_space *mapping,
 		from += tmp;
 		bidx++;
 	}
-	SetPageUptodate(page);
+	folio_mark_uptodate(folio);
 
 done:
 	affs_brelse(bh);
-	tmp = (page->index << PAGE_SHIFT) + from;
+	tmp = (folio->index << PAGE_SHIFT) + from;
 	if (tmp > inode->i_size)
 		inode->i_size = AFFS_I(inode)->mmu_private = tmp;
 
@@ -819,8 +821,8 @@ done:
 	}
 
 err_first_bh:
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return written;
 
@@ -835,9 +837,10 @@ const struct address_space_operations affs_aops_ofs = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
 	.read_folio = affs_read_folio_ofs,
-	//.writepage = affs_writepage_ofs,
+	//.writepages = affs_writepages_ofs,
 	.write_begin = affs_write_begin_ofs,
-	.write_end = affs_write_end_ofs
+	.write_end = affs_write_end_ofs,
+	.migrate_folio = filemap_migrate_folio,
 };
 
 /* Free any preallocated blocks. */
@@ -1001,7 +1004,7 @@ const struct file_operations affs_file_operations = {
 	.open		= affs_file_open,
 	.release	= affs_file_release,
 	.fsync		= affs_file_fsync,
-	.splice_read	= generic_file_splice_read,
+	.splice_read	= filemap_splice_read,
 };
 
 const struct inode_operations affs_file_inode_operations = {

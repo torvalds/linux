@@ -138,19 +138,6 @@ static inline struct Qdisc *tcf_block_q(struct tcf_block *block)
 	return NULL;
 }
 
-static inline
-int tc_setup_cb_block_register(struct tcf_block *block, flow_setup_cb_t *cb,
-			       void *cb_priv)
-{
-	return 0;
-}
-
-static inline
-void tc_setup_cb_block_unregister(struct tcf_block *block, flow_setup_cb_t *cb,
-				  void *cb_priv)
-{
-}
-
 static inline int tcf_classify(struct sk_buff *skb,
 			       const struct tcf_block *block,
 			       const struct tcf_proto *tp,
@@ -866,8 +853,10 @@ struct tc_htb_qopt_offload {
 	u32 parent_classid;
 	u16 classid;
 	u16 qid;
+	u32 quantum;
 	u64 rate;
 	u64 ceil;
+	u8 prio;
 };
 
 #define TC_HTB_CLASSID_ROOT U32_MAX

@@ -708,9 +708,8 @@ int xvip_dma_init(struct xvip_composite_device *xdev, struct xvip_dma *dma,
 	snprintf(name, sizeof(name), "port%u", port);
 	dma->dma = dma_request_chan(dma->xdev->dev, name);
 	if (IS_ERR(dma->dma)) {
-		ret = PTR_ERR(dma->dma);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dma->xdev->dev, "no VDMA channel found\n");
+		ret = dev_err_probe(dma->xdev->dev, PTR_ERR(dma->dma),
+				    "no VDMA channel found\n");
 		goto error;
 	}
 

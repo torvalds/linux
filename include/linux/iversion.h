@@ -256,7 +256,7 @@ inode_peek_iversion(const struct inode *inode)
  * For filesystems without any sort of change attribute, the best we can
  * do is fake one up from the ctime:
  */
-static inline u64 time_to_chattr(struct timespec64 *t)
+static inline u64 time_to_chattr(const struct timespec64 *t)
 {
 	u64 chattr = t->tv_sec;
 

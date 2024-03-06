@@ -590,7 +590,7 @@
         "EventCode": "0x0C",
         "EventName": "UNC_I_TxS_REQUEST_OCCUPANCY",
         "PerPkg": "1",
-        "PublicDescription": "Outbound Request Queue Occupancy : Accumultes the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjuection with the allocations event in order to calculate average latency of outbound requests.",
+        "PublicDescription": "Outbound Request Queue Occupancy : Accumulates the number of outstanding outbound requests from the IRP to the switch (towards the devices).  This can be used in conjunction with the allocations event in order to calculate average latency of outbound requests.",
         "Unit": "IRP"
     },
     {
@@ -5570,7 +5570,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Regular : Channel 0",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Regular : Channel 0",
         "EventCode": "0x4D",
         "EventName": "UNC_M2M_WPQ_NO_REG_CRD.CHN0",
         "PerPkg": "1",
@@ -5578,7 +5578,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Regular : Channel 1",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Regular : Channel 1",
         "EventCode": "0x4D",
         "EventName": "UNC_M2M_WPQ_NO_REG_CRD.CHN1",
         "PerPkg": "1",
@@ -5586,7 +5586,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Regular : Channel 2",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Regular : Channel 2",
         "EventCode": "0x4D",
         "EventName": "UNC_M2M_WPQ_NO_REG_CRD.CHN2",
         "PerPkg": "1",
@@ -5594,7 +5594,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Special : Channel 0",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Special : Channel 0",
         "EventCode": "0x4E",
         "EventName": "UNC_M2M_WPQ_NO_SPEC_CRD.CHN0",
         "PerPkg": "1",
@@ -5602,7 +5602,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Special : Channel 1",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Special : Channel 1",
         "EventCode": "0x4E",
         "EventName": "UNC_M2M_WPQ_NO_SPEC_CRD.CHN1",
         "PerPkg": "1",
@@ -5610,7 +5610,7 @@
         "Unit": "M2M"
     },
     {
-        "BriefDescription": "M2M-&gt;iMC WPQ Cycles w/Credits - Special : Channel 2",
+        "BriefDescription": "M2M->iMC WPQ Cycles w/Credits - Special : Channel 2",
         "EventCode": "0x4E",
         "EventName": "UNC_M2M_WPQ_NO_SPEC_CRD.CHN2",
         "PerPkg": "1",

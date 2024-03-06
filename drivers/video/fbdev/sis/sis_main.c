@@ -27,7 +27,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/screen_info.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
 #include <linux/selection.h>
@@ -256,36 +255,6 @@ static void sisfb_search_mode(char *name, bool quiet)
 	if((!j) && !quiet)
 		printk(KERN_ERR "sisfb: Invalid mode '%s'\n", nameptr);
 }
-
-#ifndef MODULE
-static void sisfb_get_vga_mode_from_kernel(void)
-{
-#ifdef CONFIG_X86
-	char mymode[32];
-	int  mydepth = screen_info.lfb_depth;
-
-	if(screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB) return;
-
-	if( (screen_info.lfb_width >= 320) && (screen_info.lfb_width <= 2048) &&
-	    (screen_info.lfb_height >= 200) && (screen_info.lfb_height <= 1536) &&
-	    (mydepth >= 8) && (mydepth <= 32) ) {
-
-		if(mydepth == 24) mydepth = 32;
-
-		sprintf(mymode, "%ux%ux%u", screen_info.lfb_width,
-					screen_info.lfb_height,
-					mydepth);
-
-		printk(KERN_DEBUG
-			"sisfb: Using vga mode %s pre-set by kernel as default\n",
-			mymode);
-
-		sisfb_search_mode(mymode, true);
-	}
-#endif
-	return;
-}
-#endif
 
 static void __init
 sisfb_search_crt2type(const char *name)
@@ -1475,6 +1444,8 @@ sisfb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 	vtotal = var->upper_margin + var->lower_margin + var->vsync_len;
 
+	if (!var->pixclock)
+		return -EINVAL;
 	pixclock = var->pixclock;
 
 	if((var->vmode & FB_VMODE_MASK) == FB_VMODE_NONINTERLACED) {
@@ -1911,6 +1882,7 @@ static const struct fb_ops sisfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= sisfb_open,
 	.fb_release	= sisfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_check_var	= sisfb_check_var,
 	.fb_set_par	= sisfb_set_par,
 	.fb_setcolreg	= sisfb_setcolreg,
@@ -1923,7 +1895,8 @@ static const struct fb_ops sisfb_ops = {
 #ifdef SIS_NEW_CONFIG_COMPAT
 	.fb_compat_ioctl= sisfb_ioctl,
 #endif
-	.fb_ioctl	= sisfb_ioctl
+	.fb_ioctl	= sisfb_ioctl,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 /* ---------------- Chip generation dependent routines ---------------- */
@@ -5899,12 +5872,6 @@ static int sisfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	ivideo->subsysvendor = pdev->subsystem_vendor;
 	ivideo->subsysdevice = pdev->subsystem_device;
 
-#ifndef MODULE
-	if(sisfb_mode_idx == -1) {
-		sisfb_get_vga_mode_from_kernel();
-	}
-#endif
-
 	ivideo->chip = chipinfo->chip;
 	ivideo->chip_real_id = chipinfo->chip;
 	ivideo->sisvga_engine = chipinfo->vgaengine;
@@ -6472,14 +6439,11 @@ error_3:	vfree(ivideo->bios_abase);
 		sisfb_initaccel(ivideo);
 
 #if defined(FBINFO_HWACCEL_DISABLED) && defined(FBINFO_HWACCEL_XPAN)
-		sis_fb_info->flags = FBINFO_DEFAULT 		|
-				     FBINFO_HWACCEL_YPAN 	|
+		sis_fb_info->flags = FBINFO_HWACCEL_YPAN	|
 				     FBINFO_HWACCEL_XPAN 	|
 				     FBINFO_HWACCEL_COPYAREA 	|
 				     FBINFO_HWACCEL_FILLRECT 	|
 				     ((ivideo->accel) ? 0 : FBINFO_HWACCEL_DISABLED);
-#else
-		sis_fb_info->flags = FBINFO_FLAG_DEFAULT;
 #endif
 		sis_fb_info->var = ivideo->default_var;
 		sis_fb_info->fix = ivideo->sisfb_fix;

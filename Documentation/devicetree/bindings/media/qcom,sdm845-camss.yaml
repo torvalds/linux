@@ -219,7 +219,7 @@ examples:
       #address-cells = <2>;
       #size-cells = <2>;
 
-      camss: camss@a00000 {
+      camss: camss@acb3000 {
         compatible = "qcom,sdm845-camss";
 
         clocks = <&clock_camcc CAM_CC_CAMNOC_AXI_CLK>,

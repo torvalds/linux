@@ -243,7 +243,6 @@ static int pwm_lpss_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops pwm_lpss_ops = {
 	.apply = pwm_lpss_apply,
 	.get_state = pwm_lpss_get_state,
-	.owner = THIS_MODULE,
 };
 
 struct pwm_lpss_chip *devm_pwm_lpss_probe(struct device *dev, void __iomem *base,

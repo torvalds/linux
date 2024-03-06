@@ -2,8 +2,6 @@
 #ifndef _ARM_KEXEC_H
 #define _ARM_KEXEC_H
 
-#ifdef CONFIG_KEXEC
-
 /* Maximum physical address we can use pages from */
 #define KEXEC_SOURCE_MEMORY_LIMIT (-1UL)
 /* Maximum address we can reach in physical address mode */
@@ -81,7 +79,5 @@ static inline struct page *boot_pfn_to_page(unsigned long boot_pfn)
 #define boot_pfn_to_page boot_pfn_to_page
 
 #endif /* __ASSEMBLY__ */
-
-#endif /* CONFIG_KEXEC */
 
 #endif /* _ARM_KEXEC_H */

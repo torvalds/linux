@@ -11,8 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pwm.h>
@@ -351,7 +350,6 @@ static const struct pwm_ops fsl_pwm_ops = {
 	.request = fsl_pwm_request,
 	.free = fsl_pwm_free,
 	.apply = fsl_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static int fsl_pwm_init(struct fsl_pwm_chip *fpc)

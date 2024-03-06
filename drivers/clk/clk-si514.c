@@ -321,7 +321,7 @@ static bool si514_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config si514_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = SI514_REG_CONTROL,
 	.writeable_reg = si514_regmap_is_writeable,
 	.volatile_reg = si514_regmap_is_volatile,
@@ -387,7 +387,7 @@ static struct i2c_driver si514_driver = {
 		.name = "si514",
 		.of_match_table = clk_si514_of_match,
 	},
-	.probe_new	= si514_probe,
+	.probe		= si514_probe,
 	.id_table	= si514_id,
 };
 module_i2c_driver(si514_driver);

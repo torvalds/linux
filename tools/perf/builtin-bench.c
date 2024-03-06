@@ -21,6 +21,7 @@
 #include "builtin.h"
 #include "bench/bench.h"
 
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -46,6 +47,7 @@ static struct bench numa_benchmarks[] = {
 static struct bench sched_benchmarks[] = {
 	{ "messaging",	"Benchmark for scheduling and IPC",		bench_sched_messaging	},
 	{ "pipe",	"Benchmark for pipe() between two processes",	bench_sched_pipe	},
+	{ "seccomp-notify",	"Benchmark for seccomp user notify",	bench_sched_seccomp_notify},
 	{ "all",	"Run all scheduler benchmarks",		NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -103,6 +105,13 @@ static struct bench breakpoint_benchmarks[] = {
 	{ NULL,	NULL, NULL },
 };
 
+static struct bench uprobe_benchmarks[] = {
+	{ "baseline",	"Baseline libc usleep(1000) call",				bench_uprobe_baseline,	},
+	{ "empty",	"Attach empty BPF prog to uprobe on usleep, system wide",	bench_uprobe_empty,	},
+	{ "trace_printk", "Attach trace_printk BPF prog to uprobe on usleep syswide",	bench_uprobe_trace_printk,	},
+	{ NULL,	NULL, NULL },
+};
+
 struct collection {
 	const char	*name;
 	const char	*summary;
@@ -122,6 +131,7 @@ static struct collection collections[] = {
 #endif
 	{ "internals",	"Perf-internals benchmarks",			internals_benchmarks	},
 	{ "breakpoint",	"Breakpoint benchmarks",			breakpoint_benchmarks	},
+	{ "uprobe",	"uprobe benchmarks",				uprobe_benchmarks	},
 	{ "all",	"All benchmarks",				NULL			},
 	{ NULL,		NULL,						NULL			}
 };
@@ -260,6 +270,7 @@ int cmd_bench(int argc, const char **argv)
 
 	/* Unbuffered output */
 	setvbuf(stdout, NULL, _IONBF, 0);
+	setlocale(LC_ALL, "");
 
 	if (argc < 2) {
 		/* No collection specified. */

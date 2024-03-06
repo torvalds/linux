@@ -509,13 +509,6 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "optmem_max",
-		.data		= &sysctl_optmem_max,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec
-	},
-	{
 		.procname	= "tstamp_allow_data",
 		.data		= &sysctl_tstamp_allow_data,
 		.maxlen		= sizeof(int),
@@ -674,6 +667,14 @@ static struct ctl_table netns_core_table[] = {
 		.proc_handler	= proc_dointvec_minmax
 	},
 	{
+		.procname	= "optmem_max",
+		.data		= &init_net.core.sysctl_optmem_max,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.extra1		= SYSCTL_ZERO,
+		.proc_handler	= proc_dointvec_minmax
+	},
+	{
 		.procname	= "txrehash",
 		.data		= &init_net.core.sysctl_txrehash,
 		.maxlen		= sizeof(u8),
@@ -712,7 +713,8 @@ static __net_init int sysctl_core_net_init(struct net *net)
 			tmp->data += (char *)net - (char *)&init_net;
 	}
 
-	net->core.sysctl_hdr = register_net_sysctl(net, "net/core", tbl);
+	net->core.sysctl_hdr = register_net_sysctl_sz(net, "net/core", tbl,
+						      ARRAY_SIZE(netns_core_table));
 	if (net->core.sysctl_hdr == NULL)
 		goto err_reg;
 

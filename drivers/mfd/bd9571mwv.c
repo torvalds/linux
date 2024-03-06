@@ -278,7 +278,7 @@ static struct i2c_driver bd9571mwv_driver = {
 		.name	= "bd9571mwv",
 		.of_match_table = bd9571mwv_of_match_table,
 	},
-	.probe_new	= bd9571mwv_probe,
+	.probe		= bd9571mwv_probe,
 	.id_table       = bd9571mwv_id_table,
 };
 module_i2c_driver(bd9571mwv_driver);

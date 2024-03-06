@@ -13,6 +13,7 @@
 #include <dt-bindings/sound/sc7180-lpass.h>
 
 #include "sc7180.dtsi"
+#include "sc7180-firmware-tfa.dtsi"
 /* PMICs depend on spmi_bus label and so must come after sc7180.dtsi */
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
@@ -371,7 +372,6 @@
 
 	sound: sound {
 		compatible = "google,sc7180-trogdor";
-		model = "sc7180-rt5682-max98357a-1mic";
 
 		audio-routing =
 			"Headphone Jack", "HPOL",
@@ -705,20 +705,6 @@ ap_h1_spi: &spi0 {
 	status = "disabled";
 };
 
-&dsi0 {
-	status = "okay";
-	vdda-supply = <&vdda_mipi_dsi0_1p2>;
-};
-
-&dsi0_out {
-	data-lanes = <0 1 2 3>;
-};
-
-&dsi_phy {
-	status = "okay";
-	vdds-supply = <&vdda_mipi_dsi0_pll>;
-};
-
 ap_sar_sensor_i2c: &i2c5 {
 	clock-frequency = <400000>;
 
@@ -760,32 +746,10 @@ ap_tp_i2c: &i2c7 {
 hp_i2c: &i2c9 {
 	status = "okay";
 	clock-frequency = <400000>;
+};
 
-	alc5682: codec@1a {
-		compatible = "realtek,rt5682i";
-		reg = <0x1a>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&hp_irq>;
-
-		#sound-dai-cells = <1>;
-
-		interrupt-parent = <&tlmm>;
-		/*
-		 * This will get ignored because the interrupt type
-		 * is set in rt5682.c.
-		 */
-		interrupts = <28 IRQ_TYPE_EDGE_BOTH>;
-
-		AVDD-supply = <&pp1800_alc5682>;
-		DBVDD-supply = <&pp1800_alc5682>;
-		LDO1-IN-supply = <&pp1800_alc5682>;
-		MICVDD-supply = <&pp3300_codec>;
-		VBAT-supply = <&pp3300_audio>;
-
-		realtek,dmic1-data-pin = <1>;
-		realtek,dmic1-clk-pin = <1>;
-		realtek,jd-src = <1>;
-	};
+&lpasscc {
+	status = "okay";
 };
 
 &lpass_cpu {
@@ -813,7 +777,7 @@ hp_i2c: &i2c9 {
 	};
 };
 
-&mdp {
+&lpass_hm {
 	status = "okay";
 };
 
@@ -832,11 +796,26 @@ hp_i2c: &i2c9 {
 	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000>;
 };
 
+&mdss_dsi0 {
+	status = "okay";
+	vdda-supply = <&vdda_mipi_dsi0_1p2>;
+};
+
+&mdss_dsi0_out {
+	data-lanes = <0 1 2 3>;
+};
+
+&mdss_dsi0_phy {
+	status = "okay";
+	vdds-supply = <&vdda_mipi_dsi0_pll>;
+};
+
 &pm6150_adc {
-	charger-thermistor@4f {
+	channel@4f {
 		reg = <ADC5_AMUX_THM3_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "charger_therm";
 	};
 };
 
@@ -890,6 +869,11 @@ hp_i2c: &i2c9 {
 
 	qcom,halt-regs = <&tcsr_regs_1 0x3000 0x5000 0x4000>;
 	qcom,spare-regs = <&tcsr_regs_2 0xb3e4>;
+};
+
+&scm {
+	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
+	dma-coherent;
 };
 
 &sdhc_1 {

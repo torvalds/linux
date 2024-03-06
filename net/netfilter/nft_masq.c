@@ -20,7 +20,8 @@ struct nft_masq {
 };
 
 static const struct nla_policy nft_masq_policy[NFTA_MASQ_MAX + 1] = {
-	[NFTA_MASQ_FLAGS]		= { .type = NLA_U32 },
+	[NFTA_MASQ_FLAGS]		=
+		NLA_POLICY_MASK(NLA_BE32, NF_NAT_RANGE_MASK),
 	[NFTA_MASQ_REG_PROTO_MIN]	= { .type = NLA_U32 },
 	[NFTA_MASQ_REG_PROTO_MAX]	= { .type = NLA_U32 },
 };
@@ -47,11 +48,8 @@ static int nft_masq_init(const struct nft_ctx *ctx,
 	struct nft_masq *priv = nft_expr_priv(expr);
 	int err;
 
-	if (tb[NFTA_MASQ_FLAGS]) {
+	if (tb[NFTA_MASQ_FLAGS])
 		priv->flags = ntohl(nla_get_be32(tb[NFTA_MASQ_FLAGS]));
-		if (priv->flags & ~NF_NAT_RANGE_MASK)
-			return -EINVAL;
-	}
 
 	if (tb[NFTA_MASQ_REG_PROTO_MIN]) {
 		err = nft_parse_register_load(tb[NFTA_MASQ_REG_PROTO_MIN],

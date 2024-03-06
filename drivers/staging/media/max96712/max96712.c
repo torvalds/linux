@@ -30,6 +30,7 @@ struct max96712_priv {
 	struct regmap *regmap;
 	struct gpio_desc *gpiod_pwdn;
 
+	bool cphy;
 	struct v4l2_mbus_config_mipi_csi2 mipi;
 
 	struct v4l2_subdev sd;
@@ -127,10 +128,18 @@ static void max96712_mipi_configure(struct max96712_priv *priv)
 	/* Select 2x4 mode. */
 	max96712_write(priv, 0x8a0, 0x04);
 
-	/* Configure a 4-lane DPHY using PHY0 and PHY1. */
 	/* TODO: Add support for 2-lane and 1-lane configurations. */
-	/* TODO: Add support CPHY mode. */
-	max96712_write(priv, 0x94a, 0xc0);
+	if (priv->cphy) {
+		/* Configure a 3-lane C-PHY using PHY0 and PHY1. */
+		max96712_write(priv, 0x94a, 0xa0);
+
+		/* Configure C-PHY timings. */
+		max96712_write(priv, 0x8ad, 0x3f);
+		max96712_write(priv, 0x8ae, 0x7d);
+	} else {
+		/* Configure a 4-lane D-PHY using PHY0 and PHY1. */
+		max96712_write(priv, 0x94a, 0xc0);
+	}
 
 	/* Configure lane mapping for PHY0 and PHY1. */
 	/* TODO: Add support for lane swapping. */
@@ -332,8 +341,9 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 {
 	struct fwnode_handle *ep;
 	struct v4l2_fwnode_endpoint v4l2_ep = {
-		.bus_type = V4L2_MBUS_CSI2_DPHY
+		.bus_type = V4L2_MBUS_UNKNOWN,
 	};
+	unsigned int supported_lanes;
 	int ret;
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(&priv->client->dev), 4,
@@ -350,8 +360,24 @@ static int max96712_parse_dt(struct max96712_priv *priv)
 		return -EINVAL;
 	}
 
-	if (v4l2_ep.bus.mipi_csi2.num_data_lanes != 4) {
-		dev_err(&priv->client->dev, "Only 4 data lanes supported\n");
+	switch (v4l2_ep.bus_type) {
+	case V4L2_MBUS_CSI2_DPHY:
+		supported_lanes = 4;
+		priv->cphy = false;
+		break;
+	case V4L2_MBUS_CSI2_CPHY:
+		supported_lanes = 3;
+		priv->cphy = true;
+		break;
+	default:
+		dev_err(&priv->client->dev, "Unsupported bus-type %u\n",
+			v4l2_ep.bus_type);
+		return -EINVAL;
+	}
+
+	if (v4l2_ep.bus.mipi_csi2.num_data_lanes != supported_lanes) {
+		dev_err(&priv->client->dev, "Only %u data lanes supported\n",
+			supported_lanes);
 		return -EINVAL;
 	}
 
@@ -427,7 +453,7 @@ static struct i2c_driver max96712_i2c_driver = {
 		.name = "max96712",
 		.of_match_table	= of_match_ptr(max96712_of_table),
 	},
-	.probe_new = max96712_probe,
+	.probe = max96712_probe,
 	.remove = max96712_remove,
 };
 

@@ -723,6 +723,24 @@ enum {
 };
 #define MDBA_SET_ENTRY_MAX (__MDBA_SET_ENTRY_MAX - 1)
 
+/* [MDBA_GET_ENTRY] = {
+ *    struct br_mdb_entry
+ *    [MDBA_GET_ENTRY_ATTRS] = {
+ *       [MDBE_ATTR_SOURCE]
+ *          struct in_addr / struct in6_addr
+ *       [MDBE_ATTR_SRC_VNI]
+ *          u32
+ *    }
+ * }
+ */
+enum {
+	MDBA_GET_ENTRY_UNSPEC,
+	MDBA_GET_ENTRY,
+	MDBA_GET_ENTRY_ATTRS,
+	__MDBA_GET_ENTRY_MAX,
+};
+#define MDBA_GET_ENTRY_MAX (__MDBA_GET_ENTRY_MAX - 1)
+
 /* [MDBA_SET_ENTRY_ATTRS] = {
  *    [MDBE_ATTR_xxx]
  *    ...
@@ -739,6 +757,7 @@ enum {
 	MDBE_ATTR_VNI,
 	MDBE_ATTR_IFINDEX,
 	MDBE_ATTR_SRC_VNI,
+	MDBE_ATTR_STATE_MASK,
 	__MDBE_ATTR_MAX,
 };
 #define MDBE_ATTR_MAX (__MDBE_ATTR_MAX - 1)

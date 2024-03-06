@@ -77,6 +77,9 @@
  * Alder Lake-M (PCH)		0x54a3	32	hard	yes	yes	yes
  * Raptor Lake-S (PCH)		0x7a23	32	hard	yes	yes	yes
  * Meteor Lake-P (SOC)		0x7e22	32	hard	yes	yes	yes
+ * Meteor Lake SoC-S (SOC)	0xae22	32	hard	yes	yes	yes
+ * Meteor Lake PCH-S (PCH)	0x7f23	32	hard	yes	yes	yes
+ * Birch Stream (SOC)		0x5796	32	hard	yes	yes	yes
  *
  * Features supported by this driver:
  * Software PEC				no
@@ -229,10 +232,12 @@
 #define PCI_DEVICE_ID_INTEL_JASPER_LAKE_SMBUS		0x4da3
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_P_SMBUS		0x51a3
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_M_SMBUS		0x54a3
+#define PCI_DEVICE_ID_INTEL_BIRCH_STREAM_SMBUS		0x5796
 #define PCI_DEVICE_ID_INTEL_BROXTON_SMBUS		0x5ad4
 #define PCI_DEVICE_ID_INTEL_RAPTOR_LAKE_S_SMBUS		0x7a23
 #define PCI_DEVICE_ID_INTEL_ALDER_LAKE_S_SMBUS		0x7aa3
 #define PCI_DEVICE_ID_INTEL_METEOR_LAKE_P_SMBUS		0x7e22
+#define PCI_DEVICE_ID_INTEL_METEOR_LAKE_PCH_S_SMBUS	0x7f23
 #define PCI_DEVICE_ID_INTEL_LYNXPOINT_SMBUS		0x8c22
 #define PCI_DEVICE_ID_INTEL_WILDCATPOINT_SMBUS		0x8ca2
 #define PCI_DEVICE_ID_INTEL_WELLSBURG_SMBUS		0x8d22
@@ -250,6 +255,7 @@
 #define PCI_DEVICE_ID_INTEL_KABYLAKE_PCH_H_SMBUS	0xa2a3
 #define PCI_DEVICE_ID_INTEL_CANNONLAKE_H_SMBUS		0xa323
 #define PCI_DEVICE_ID_INTEL_COMETLAKE_V_SMBUS		0xa3a3
+#define PCI_DEVICE_ID_INTEL_METEOR_LAKE_SOC_S_SMBUS	0xae22
 
 struct i801_mux_config {
 	char *gpio_chip;
@@ -281,7 +287,6 @@ struct i801_priv {
 	u8 *data;
 
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
-	const struct i801_mux_config *mux_drvdata;
 	struct platform_device *mux_pdev;
 	struct gpiod_lookup_table *lookup;
 #endif
@@ -289,10 +294,9 @@ struct i801_priv {
 
 	/*
 	 * If set to true the host controller registers are reserved for
-	 * ACPI AML use. Protected by acpi_lock.
+	 * ACPI AML use.
 	 */
 	bool acpi_reserved;
-	struct mutex acpi_lock;
 };
 
 #define FEATURE_SMBUS_PEC	BIT(0)
@@ -494,11 +498,10 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 	/* Set block buffer mode */
 	outb_p(inb_p(SMBAUXCTL(priv)) | SMBAUXCTL_E32B, SMBAUXCTL(priv));
 
-	inb_p(SMBHSTCNT(priv)); /* reset the data buffer index */
-
 	if (read_write == I2C_SMBUS_WRITE) {
 		len = data->block[0];
 		outb_p(len, SMBHSTDAT0(priv));
+		inb_p(SMBHSTCNT(priv));	/* reset the data buffer index */
 		for (i = 0; i < len; i++)
 			outb_p(data->block[i+1], SMBBLKDAT(priv));
 	}
@@ -516,6 +519,7 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 		}
 
 		data->block[0] = len;
+		inb_p(SMBHSTCNT(priv));	/* reset the data buffer index */
 		for (i = 0; i < len; i++)
 			data->block[i + 1] = inb_p(SMBBLKDAT(priv));
 	}
@@ -675,15 +679,11 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 		return result ? priv->status : -ETIMEDOUT;
 	}
 
+	if (len == 1 && read_write == I2C_SMBUS_READ)
+		smbcmd |= SMBHSTCNT_LAST_BYTE;
+	outb_p(smbcmd | SMBHSTCNT_START, SMBHSTCNT(priv));
+
 	for (i = 1; i <= len; i++) {
-		if (i == len && read_write == I2C_SMBUS_READ)
-			smbcmd |= SMBHSTCNT_LAST_BYTE;
-		outb_p(smbcmd, SMBHSTCNT(priv));
-
-		if (i == 1)
-			outb_p(inb(SMBHSTCNT(priv)) | SMBHSTCNT_START,
-			       SMBHSTCNT(priv));
-
 		status = i801_wait_byte_done(priv);
 		if (status)
 			return status;
@@ -706,9 +706,12 @@ static int i801_block_transaction_byte_by_byte(struct i801_priv *priv,
 			data->block[0] = len;
 		}
 
-		/* Retrieve/store value in SMBBLKDAT */
-		if (read_write == I2C_SMBUS_READ)
+		if (read_write == I2C_SMBUS_READ) {
 			data->block[i] = inb_p(SMBBLKDAT(priv));
+			if (i == len - 1)
+				outb_p(smbcmd | SMBHSTCNT_LAST_BYTE, SMBHSTCNT(priv));
+		}
+
 		if (read_write == I2C_SMBUS_WRITE && i+1 <= len)
 			outb_p(data->block[i+1], SMBBLKDAT(priv));
 
@@ -871,11 +874,8 @@ static s32 i801_access(struct i2c_adapter *adap, u16 addr,
 	int hwpec, ret;
 	struct i801_priv *priv = i2c_get_adapdata(adap);
 
-	mutex_lock(&priv->acpi_lock);
-	if (priv->acpi_reserved) {
-		mutex_unlock(&priv->acpi_lock);
+	if (priv->acpi_reserved)
 		return -EBUSY;
-	}
 
 	pm_runtime_get_sync(&priv->pci_dev->dev);
 
@@ -916,7 +916,6 @@ out:
 
 	pm_runtime_mark_last_busy(&priv->pci_dev->dev);
 	pm_runtime_put_autosuspend(&priv->pci_dev->dev);
-	mutex_unlock(&priv->acpi_lock);
 	return ret;
 }
 
@@ -977,67 +976,70 @@ static const struct i2c_algorithm smbus_algorithm = {
 			 FEATURE_HOST_NOTIFY)
 
 static const struct pci_device_id i801_ids[] = {
-	{ PCI_DEVICE_DATA(INTEL, 82801AA_3,		0)				 },
-	{ PCI_DEVICE_DATA(INTEL, 82801AB_3,		0)				 },
-	{ PCI_DEVICE_DATA(INTEL, 82801BA_2,		0)				 },
-	{ PCI_DEVICE_DATA(INTEL, 82801CA_3,		FEATURE_HOST_NOTIFY)		 },
-	{ PCI_DEVICE_DATA(INTEL, 82801DB_3,		FEATURES_ICH4)			 },
-	{ PCI_DEVICE_DATA(INTEL, 82801EB_3,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ESB_4,			FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ICH6_16,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ICH7_17,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ESB2_17,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ICH8_5,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ICH9_6,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, EP80579_1,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ICH10_4,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, ICH10_5,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, 5_3400_SERIES_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, COUGARPOINT_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF0,	FEATURES_ICH5 | FEATURE_IDF)	 },
-	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF1,	FEATURES_ICH5 | FEATURE_IDF)	 },
-	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF2,	FEATURES_ICH5 | FEATURE_IDF)	 },
-	{ PCI_DEVICE_DATA(INTEL, DH89XXCC_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, PANTHERPOINT_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, LYNXPOINT_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, LYNXPOINT_LP_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, AVOTON_SMBUS,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS0,	FEATURES_ICH5 | FEATURE_IDF)	 },
-	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS1,	FEATURES_ICH5 | FEATURE_IDF)	 },
-	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS2,	FEATURES_ICH5 | FEATURE_IDF)	 },
-	{ PCI_DEVICE_DATA(INTEL, COLETOCREEK_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, GEMINILAKE_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, WILDCATPOINT_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, WILDCATPOINT_LP_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, BAYTRAIL_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, BRASWELL_SMBUS,	FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, SUNRISEPOINT_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, SUNRISEPOINT_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, CDF_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, DNV_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, EBG_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, BROXTON_SMBUS,		FEATURES_ICH5)			 },
-	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SSKU_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, KABYLAKE_PCH_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, ICELAKE_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, ICELAKE_N_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_V_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_SPT) },
-	{ PCI_DEVICE_DATA(INTEL, ELKHART_LAKE_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, TIGERLAKE_LP_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, TIGERLAKE_H_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, JASPER_LAKE_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_P_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_M_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, RAPTOR_LAKE_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
-	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_P_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, 82801AA_3,			0)				 },
+	{ PCI_DEVICE_DATA(INTEL, 82801AB_3,			0)				 },
+	{ PCI_DEVICE_DATA(INTEL, 82801BA_2,			0)				 },
+	{ PCI_DEVICE_DATA(INTEL, 82801CA_3,			FEATURE_HOST_NOTIFY)		 },
+	{ PCI_DEVICE_DATA(INTEL, 82801DB_3,			FEATURES_ICH4)			 },
+	{ PCI_DEVICE_DATA(INTEL, 82801EB_3,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ESB_4,				FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH6_16,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH7_17,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ESB2_17,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH8_5,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH9_6,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, EP80579_1,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH10_4,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, ICH10_5,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, 5_3400_SERIES_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, COUGARPOINT_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF0,		FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF1,		FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, PATSBURG_SMBUS_IDF2,		FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, DH89XXCC_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, PANTHERPOINT_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, LYNXPOINT_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, LYNXPOINT_LP_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, AVOTON_SMBUS,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS0,		FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS1,		FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, WELLSBURG_SMBUS_MS2,		FEATURES_ICH5 | FEATURE_IDF)	 },
+	{ PCI_DEVICE_DATA(INTEL, COLETOCREEK_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, GEMINILAKE_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WILDCATPOINT_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, WILDCATPOINT_LP_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, BAYTRAIL_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, BRASWELL_SMBUS,		FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, SUNRISEPOINT_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, SUNRISEPOINT_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, CDF_SMBUS,			FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, DNV_SMBUS,			FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, EBG_SMBUS,			FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, BROXTON_SMBUS,			FEATURES_ICH5)			 },
+	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, LEWISBURG_SSKU_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, KABYLAKE_PCH_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, CANNONLAKE_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ICELAKE_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ICELAKE_N_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, COMETLAKE_V_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_SPT) },
+	{ PCI_DEVICE_DATA(INTEL, ELKHART_LAKE_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, TIGERLAKE_LP_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, TIGERLAKE_H_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, JASPER_LAKE_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_S_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_P_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, ALDER_LAKE_M_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, RAPTOR_LAKE_S_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_P_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_SOC_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, METEOR_LAKE_PCH_S_SMBUS,	FEATURES_ICH5 | FEATURE_TCO_CNL) },
+	{ PCI_DEVICE_DATA(INTEL, BIRCH_STREAM_SMBUS,		FEATURES_ICH5 | FEATURE_TCO_CNL) },
 	{ 0, }
 };
 
@@ -1228,8 +1230,10 @@ static const struct {
 	 * Additional individual entries were added after verification.
 	 */
 	{ "Latitude 5480",      0x29 },
+	{ "Precision 3540",     0x29 },
 	{ "Vostro V131",        0x1d },
 	{ "Vostro 5568",        0x29 },
+	{ "XPS 15 7590",        0x29 },
 };
 
 static void register_dell_lis3lv02d_i2c_device(struct i801_priv *priv)
@@ -1282,7 +1286,7 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 
 	/* Instantiate SPD EEPROMs unless the SMBus is multiplexed */
 #if IS_ENABLED(CONFIG_I2C_MUX_GPIO)
-	if (!priv->mux_drvdata)
+	if (!priv->mux_pdev)
 #endif
 		i2c_register_spd(&priv->adapter);
 }
@@ -1384,11 +1388,14 @@ static void i801_add_mux(struct i801_priv *priv)
 	const struct i801_mux_config *mux_config;
 	struct i2c_mux_gpio_platform_data gpio_data;
 	struct gpiod_lookup_table *lookup;
+	const struct dmi_system_id *id;
 	int i;
 
-	if (!priv->mux_drvdata)
+	id = dmi_first_match(mux_dmi_table);
+	if (!id)
 		return;
-	mux_config = priv->mux_drvdata;
+
+	mux_config = id->driver_data;
 
 	/* Prepare the platform data */
 	memset(&gpio_data, 0, sizeof(struct i2c_mux_gpio_platform_data));
@@ -1432,35 +1439,9 @@ static void i801_del_mux(struct i801_priv *priv)
 	platform_device_unregister(priv->mux_pdev);
 	gpiod_remove_lookup_table(priv->lookup);
 }
-
-static unsigned int i801_get_adapter_class(struct i801_priv *priv)
-{
-	const struct dmi_system_id *id;
-	const struct i801_mux_config *mux_config;
-	unsigned int class = I2C_CLASS_HWMON | I2C_CLASS_SPD;
-	int i;
-
-	id = dmi_first_match(mux_dmi_table);
-	if (id) {
-		/* Remove branch classes from trunk */
-		mux_config = id->driver_data;
-		for (i = 0; i < mux_config->n_values; i++)
-			class &= ~mux_config->classes[i];
-
-		/* Remember for later */
-		priv->mux_drvdata = mux_config;
-	}
-
-	return class;
-}
 #else
 static inline void i801_add_mux(struct i801_priv *priv) { }
 static inline void i801_del_mux(struct i801_priv *priv) { }
-
-static inline unsigned int i801_get_adapter_class(struct i801_priv *priv)
-{
-	return I2C_CLASS_HWMON | I2C_CLASS_SPD;
-}
 #endif
 
 static struct platform_device *
@@ -1566,7 +1547,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	 * further access from the driver itself. This device is now owned
 	 * by the system firmware.
 	 */
-	mutex_lock(&priv->acpi_lock);
+	i2c_lock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
 
 	if (!priv->acpi_reserved && i801_acpi_is_smbus_ioport(priv, address)) {
 		priv->acpi_reserved = true;
@@ -1586,7 +1567,7 @@ i801_acpi_io_handler(u32 function, acpi_physical_address address, u32 bits,
 	else
 		status = acpi_os_write_port(address, (u32)*value, bits);
 
-	mutex_unlock(&priv->acpi_lock);
+	i2c_unlock_bus(&priv->adapter, I2C_LOCK_SEGMENT);
 
 	return status;
 }
@@ -1624,6 +1605,12 @@ static void i801_setup_hstcfg(struct i801_priv *priv)
 	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, hstcfg);
 }
 
+static void i801_restore_regs(struct i801_priv *priv)
+{
+	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
+	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, priv->original_hstcfg);
+}
+
 static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	int err, i;
@@ -1635,12 +1622,11 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 
 	i2c_set_adapdata(&priv->adapter, priv);
 	priv->adapter.owner = THIS_MODULE;
-	priv->adapter.class = i801_get_adapter_class(priv);
+	priv->adapter.class = I2C_CLASS_HWMON;
 	priv->adapter.algo = &smbus_algorithm;
 	priv->adapter.dev.parent = &dev->dev;
-	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&dev->dev));
+	acpi_use_parent_companion(&priv->adapter.dev);
 	priv->adapter.retries = 3;
-	mutex_init(&priv->acpi_lock);
 
 	priv->pci_dev = dev;
 	priv->features = id->driver_data;
@@ -1748,7 +1734,9 @@ static int i801_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		"SMBus I801 adapter at %04lx", priv->smba);
 	err = i2c_add_adapter(&priv->adapter);
 	if (err) {
+		platform_device_unregister(priv->tco_pdev);
 		i801_acpi_remove(priv);
+		i801_restore_regs(priv);
 		return err;
 	}
 
@@ -1773,18 +1761,18 @@ static void i801_remove(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
 	i801_disable_host_notify(priv);
 	i801_del_mux(priv);
 	i2c_del_adapter(&priv->adapter);
 	i801_acpi_remove(priv);
-	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
 
 	platform_device_unregister(priv->tco_pdev);
 
 	/* if acpi_reserved is set then usage_count is incremented already */
 	if (!priv->acpi_reserved)
 		pm_runtime_get_noresume(&dev->dev);
+
+	i801_restore_regs(priv);
 
 	/*
 	 * do not call pci_disable_device(dev) since it can cause hard hangs on
@@ -1796,19 +1784,18 @@ static void i801_shutdown(struct pci_dev *dev)
 {
 	struct i801_priv *priv = pci_get_drvdata(dev);
 
-	/* Restore config registers to avoid hard hang on some systems */
-	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
 	i801_disable_host_notify(priv);
-	pci_write_config_byte(dev, SMBHSTCFG, priv->original_hstcfg);
+	/* Restore config registers to avoid hard hang on some systems */
+	i801_restore_regs(priv);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int i801_suspend(struct device *dev)
 {
 	struct i801_priv *priv = dev_get_drvdata(dev);
 
-	outb_p(priv->original_hstcnt, SMBHSTCNT(priv));
-	pci_write_config_byte(priv->pci_dev, SMBHSTCFG, priv->original_hstcfg);
+	i2c_mark_adapter_suspended(&priv->adapter);
+	i801_restore_regs(priv);
+
 	return 0;
 }
 
@@ -1818,12 +1805,12 @@ static int i801_resume(struct device *dev)
 
 	i801_setup_hstcfg(priv);
 	i801_enable_host_notify(&priv->adapter);
+	i2c_mark_adapter_resumed(&priv->adapter);
 
 	return 0;
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(i801_pm_ops, i801_suspend, i801_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(i801_pm_ops, i801_suspend, i801_resume);
 
 static struct pci_driver i801_driver = {
 	.name		= DRV_NAME,
@@ -1832,21 +1819,16 @@ static struct pci_driver i801_driver = {
 	.remove		= i801_remove,
 	.shutdown	= i801_shutdown,
 	.driver		= {
-		.pm	= &i801_pm_ops,
+		.pm	= pm_sleep_ptr(&i801_pm_ops),
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	},
 };
 
-static int __init i2c_i801_init(void)
+static int __init i2c_i801_init(struct pci_driver *drv)
 {
 	if (dmi_name_in_vendors("FUJITSU"))
 		input_apanel_init();
-	return pci_register_driver(&i801_driver);
-}
-
-static void __exit i2c_i801_exit(void)
-{
-	pci_unregister_driver(&i801_driver);
+	return pci_register_driver(drv);
 }
 
 MODULE_AUTHOR("Mark D. Studebaker <mdsxyz123@yahoo.com>");
@@ -1854,5 +1836,4 @@ MODULE_AUTHOR("Jean Delvare <jdelvare@suse.de>");
 MODULE_DESCRIPTION("I801 SMBus driver");
 MODULE_LICENSE("GPL");
 
-module_init(i2c_i801_init);
-module_exit(i2c_i801_exit);
+module_driver(i801_driver, i2c_i801_init, pci_unregister_driver);

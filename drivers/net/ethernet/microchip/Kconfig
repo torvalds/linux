@@ -47,6 +47,7 @@ config LAN743X
 	depends on PCI
 	depends on PTP_1588_CLOCK_OPTIONAL
 	select PHYLIB
+	select FIXED_PHY
 	select CRC16
 	select CRC32
 	help

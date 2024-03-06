@@ -37,7 +37,7 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_atomic.h>
-#include "dcn10/dcn10_optc.h"
+#include "dc/inc/hw/optc.h"
 
 #include "dc/inc/core_types.h"
 

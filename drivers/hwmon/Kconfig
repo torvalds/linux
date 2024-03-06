@@ -40,7 +40,7 @@ comment "Native drivers"
 
 config SENSORS_ABITUGURU
 	tristate "Abit uGuru (rev 1 & 2)"
-	depends on X86 && DMI
+	depends on (X86 && DMI) || COMPILE_TEST
 	help
 	  If you say yes here you get support for the sensor part of the first
 	  and second revision of the Abit uGuru chip. The voltage and frequency
@@ -55,7 +55,7 @@ config SENSORS_ABITUGURU
 
 config SENSORS_ABITUGURU3
 	tristate "Abit uGuru (rev 3)"
-	depends on X86 && DMI
+	depends on (X86 && DMI) || COMPILE_TEST
 	help
 	  If you say yes here you get support for the sensor part of the
 	  third revision of the Abit uGuru chip. Only reading the sensors
@@ -255,10 +255,11 @@ config SENSORS_ADT7475
 	  will be called adt7475.
 
 config SENSORS_AHT10
-	tristate "Aosong AHT10"
+	tristate "Aosong AHT10, AHT20"
 	depends on I2C
+	select CRC8
 	help
-	  If you say yes here, you get support for the Aosong AHT10
+	  If you say yes here, you get support for the Aosong AHT10 and AHT20
 	  temperature and humidity sensors
 
 	  This driver can also be built as a module. If so, the module
@@ -511,6 +512,7 @@ config SENSORS_DS1621
 
 config SENSORS_DELL_SMM
 	tristate "Dell laptop SMM BIOS hwmon driver"
+	depends on ACPI_WMI
 	depends on X86
 	imply THERMAL
 	help
@@ -662,6 +664,16 @@ config SENSORS_FTSTEUTATES
 	  This driver can also be built as a module. If so, the module
 	  will be called ftsteutates.
 
+config SENSORS_GIGABYTE_WATERFORCE
+	tristate "Gigabyte Waterforce X240/X280/X360 AIO CPU coolers"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  Gigabyte Waterforce X240/X280/X360 all-in-one CPU liquid coolers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called gigabyte_waterforce.
+
 config SENSORS_GL518SM
 	tristate "Genesys Logic GL518SM"
 	depends on I2C
@@ -732,6 +744,16 @@ config SENSORS_HIH6130
 
 	  This driver can also be built as a module. If so, the module
 	  will be called hih6130.
+
+config SENSORS_HS3001
+	tristate "Renesas HS3001 humidity and temperature sensors"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Renesas HS3001,
+	  to HS3004 humidity and temperature sensors.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hs3001.
 
 config SENSORS_IBMAEM
 	tristate "IBM Active Energy Manager temperature/power sensors and control"
@@ -828,6 +850,16 @@ config SENSORS_JC42
 	  This driver can also be built as a module. If so, the module
 	  will be called jc42.
 
+config SENSORS_POWERZ
+	tristate "ChargerLAB POWER-Z USB-C tester"
+	depends on USB
+	help
+	  If you say yes here you get support for ChargerLAB POWER-Z series of
+	  USB-C charging testers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called powerz.
+
 config SENSORS_POWR1220
 	tristate "Lattice POWR1220 Power Monitoring"
 	depends on I2C
@@ -920,6 +952,17 @@ config SENSORS_LTC2990
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc2990.
+
+config SENSORS_LTC2991
+	tristate "Analog Devices LTC2991"
+	depends on I2C
+	help
+	  If you say yes here you get support for Analog Devices LTC2991
+	  Octal I2C Voltage, Current, and Temperature Monitor. The LTC2991
+	  supports a combination of voltage, current and temperature monitoring.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc2991.
 
 config SENSORS_LTC2992
 	tristate "Linear Technology LTC2992"
@@ -1096,6 +1139,17 @@ config SENSORS_MAX31760
 
 	  This driver can also be built as a module. If so, the module
 	  will be called max31760.
+
+config MAX31827
+	tristate "MAX31827 low-power temperature switch and similar devices"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for MAX31827, MAX31828 and
+	  MAX31829 low-power temperature switches and sensors connected with I2C.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max31827.
 
 config SENSORS_MAX6620
 	tristate "Maxim MAX6620 fan controller"
@@ -1887,6 +1941,7 @@ config SENSORS_SMSC47B397
 
 config SENSORS_SCH56XX_COMMON
 	tristate
+	select REGMAP
 
 config SENSORS_SCH5627
 	tristate "SMSC SCH5627"
@@ -1938,20 +1993,6 @@ config SENSORS_SFCTEMP
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sfctemp.
-
-config SENSORS_SMM665
-	tristate "Summit Microelectronics SMM665"
-	depends on I2C
-	help
-	  If you say yes here you get support for the hardware monitoring
-	  features of the Summit Microelectronics SMM665/SMM665B Six-Channel
-	  Active DC Output Controller / Monitor.
-
-	  Other supported chips are SMM465, SMM665C, SMM764, and SMM766.
-	  Support for those chips is untested.
-
-	  This driver can also be built as a module. If so, the module will
-	  be called smm665.
 
 config SENSORS_ADC128D818
 	tristate "Texas Instruments ADC128D818"
@@ -2408,6 +2449,18 @@ config SENSORS_ASUS_EC
 
 	  This driver can also be built as a module. If so, the module
 	  will be called asus_ec_sensors.
+
+config SENSORS_HP_WMI
+	tristate "HP WMI Sensors"
+	depends on ACPI_WMI
+	help
+	  If you say yes here you get support for the ACPI hardware monitoring
+	  interface found in HP (and some HP Compaq) business-class computers.
+	  Available sensors vary between systems. Temperature and fan speed
+	  sensors are the most common.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called hp_wmi_sensors.
 
 endif # ACPI
 

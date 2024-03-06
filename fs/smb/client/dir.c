@@ -680,9 +680,10 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 		 full_path, d_inode(direntry));
 
 again:
-	if (pTcon->posix_extensions)
-		rc = smb311_posix_get_inode_info(&newInode, full_path, parent_dir_inode->i_sb, xid);
-	else if (pTcon->unix_ext) {
+	if (pTcon->posix_extensions) {
+		rc = smb311_posix_get_inode_info(&newInode, full_path, NULL,
+						 parent_dir_inode->i_sb, xid);
+	} else if (pTcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&newInode, full_path,
 					      parent_dir_inode->i_sb, xid);
 	} else {
@@ -797,7 +798,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 
 const struct dentry_operations cifs_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
-	.d_automount = cifs_dfs_d_automount,
+	.d_automount = cifs_d_automount,
 /* d_delete:       cifs_d_delete,      */ /* not needed except for debugging */
 };
 
@@ -872,5 +873,5 @@ const struct dentry_operations cifs_ci_dentry_ops = {
 	.d_revalidate = cifs_d_revalidate,
 	.d_hash = cifs_ci_hash,
 	.d_compare = cifs_ci_compare,
-	.d_automount = cifs_dfs_d_automount,
+	.d_automount = cifs_d_automount,
 };

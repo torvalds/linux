@@ -170,6 +170,11 @@ asmlinkage void __init kasan_early_init(void)
 {
 	BUILD_BUG_ON(KASAN_SHADOW_OFFSET !=
 		KASAN_SHADOW_END - (1UL << (64 - KASAN_SHADOW_SCALE_SHIFT)));
+	/*
+	 * We cannot check the actual value of KASAN_SHADOW_START during build,
+	 * as it depends on vabits_actual. As a best-effort approach, check
+	 * potential values calculated based on VA_BITS and VA_BITS_MIN.
+	 */
 	BUILD_BUG_ON(!IS_ALIGNED(_KASAN_SHADOW_START(VA_BITS), PGDIR_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(_KASAN_SHADOW_START(VA_BITS_MIN), PGDIR_SIZE));
 	BUILD_BUG_ON(!IS_ALIGNED(KASAN_SHADOW_END, PGDIR_SIZE));
@@ -214,7 +219,7 @@ static void __init clear_pgds(unsigned long start,
 static void __init kasan_init_shadow(void)
 {
 	u64 kimg_shadow_start, kimg_shadow_end;
-	u64 mod_shadow_start, mod_shadow_end;
+	u64 mod_shadow_start;
 	u64 vmalloc_shadow_end;
 	phys_addr_t pa_start, pa_end;
 	u64 i;
@@ -223,7 +228,6 @@ static void __init kasan_init_shadow(void)
 	kimg_shadow_end = PAGE_ALIGN((u64)kasan_mem_to_shadow(KERNEL_END));
 
 	mod_shadow_start = (u64)kasan_mem_to_shadow((void *)MODULES_VADDR);
-	mod_shadow_end = (u64)kasan_mem_to_shadow((void *)MODULES_END);
 
 	vmalloc_shadow_end = (u64)kasan_mem_to_shadow((void *)VMALLOC_END);
 
@@ -246,17 +250,9 @@ static void __init kasan_init_shadow(void)
 	kasan_populate_early_shadow(kasan_mem_to_shadow((void *)PAGE_END),
 				   (void *)mod_shadow_start);
 
-	if (IS_ENABLED(CONFIG_KASAN_VMALLOC)) {
-		BUILD_BUG_ON(VMALLOC_START != MODULES_END);
-		kasan_populate_early_shadow((void *)vmalloc_shadow_end,
-					    (void *)KASAN_SHADOW_END);
-	} else {
-		kasan_populate_early_shadow((void *)kimg_shadow_end,
-					    (void *)KASAN_SHADOW_END);
-		if (kimg_shadow_start > mod_shadow_end)
-			kasan_populate_early_shadow((void *)mod_shadow_end,
-						    (void *)kimg_shadow_start);
-	}
+	BUILD_BUG_ON(VMALLOC_START != MODULES_END);
+	kasan_populate_early_shadow((void *)vmalloc_shadow_end,
+				    (void *)KASAN_SHADOW_END);
 
 	for_each_mem_range(i, &pa_start, &pa_end) {
 		void *start = (void *)__phys_to_virt(pa_start);
@@ -309,7 +305,11 @@ void __init kasan_init(void)
 	kasan_init_shadow();
 	kasan_init_depth();
 #if defined(CONFIG_KASAN_GENERIC)
-	/* CONFIG_KASAN_SW_TAGS also requires kasan_init_sw_tags(). */
+	/*
+	 * Generic KASAN is now fully initialized.
+	 * Software and Hardware Tag-Based modes still require
+	 * kasan_init_sw_tags() and kasan_init_hw_tags() correspondingly.
+	 */
 	pr_info("KernelAddressSanitizer initialized (generic)\n");
 #endif
 }

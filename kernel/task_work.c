@@ -78,6 +78,7 @@ int task_work_add(struct task_struct *task, struct callback_head *work,
  * task_work_cancel_match - cancel a pending work added by task_work_add()
  * @task: the task which should execute the work
  * @match: match function to call
+ * @data: data to be passed in to match function
  *
  * RETURNS:
  * The found work or NULL if not found.

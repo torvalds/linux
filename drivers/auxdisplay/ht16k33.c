@@ -351,17 +351,16 @@ static int ht16k33_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct ht16k33_priv *priv = info->par;
 	struct page *pages = virt_to_page(priv->fbdev.buffer);
 
+	vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
+
 	return vm_map_pages_zero(vma, &pages, 1);
 }
 
 static const struct fb_ops ht16k33_fb_ops = {
 	.owner = THIS_MODULE,
-	.fb_read = fb_sys_read,
-	.fb_write = fb_sys_write,
+	__FB_DEFAULT_SYSMEM_OPS_RDWR,
 	.fb_blank = ht16k33_blank,
-	.fb_fillrect = sys_fillrect,
-	.fb_copyarea = sys_copyarea,
-	.fb_imageblit = sys_imageblit,
+	__FB_DEFAULT_SYSMEM_OPS_DRAW,
 	.fb_mmap = ht16k33_mmap,
 };
 
@@ -640,13 +639,13 @@ static int ht16k33_fbdev_probe(struct device *dev, struct ht16k33_priv *priv,
 
 	INIT_DELAYED_WORK(&priv->work, ht16k33_fb_update);
 	fbdev->info->fbops = &ht16k33_fb_ops;
-	fbdev->info->screen_base = (char __iomem *) fbdev->buffer;
+	fbdev->info->flags |= FBINFO_VIRTFB;
+	fbdev->info->screen_buffer = fbdev->buffer;
 	fbdev->info->screen_size = HT16K33_FB_SIZE;
 	fbdev->info->fix = ht16k33_fb_fix;
 	fbdev->info->var = ht16k33_fb_var;
 	fbdev->info->bl_dev = bl;
 	fbdev->info->pseudo_palette = NULL;
-	fbdev->info->flags = FBINFO_FLAG_DEFAULT;
 	fbdev->info->par = priv;
 
 	err = register_framebuffer(fbdev->info);
@@ -820,7 +819,7 @@ static const struct of_device_id ht16k33_of_match[] = {
 MODULE_DEVICE_TABLE(of, ht16k33_of_match);
 
 static struct i2c_driver ht16k33_driver = {
-	.probe_new	= ht16k33_probe,
+	.probe		= ht16k33_probe,
 	.remove		= ht16k33_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,

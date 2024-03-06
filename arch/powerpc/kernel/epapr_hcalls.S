@@ -3,6 +3,7 @@
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
  */
 
+#include <linux/export.h>
 #include <linux/threads.h>
 #include <asm/epapr_hcalls.h>
 #include <asm/reg.h>
@@ -12,7 +13,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-compat.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 
 #ifndef CONFIG_PPC64
 /* epapr_ev_idle() was derived from e500_idle() */

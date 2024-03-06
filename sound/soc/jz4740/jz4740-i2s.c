@@ -328,6 +328,7 @@ static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 }
 
 static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
+	.probe = jz4740_i2s_dai_probe,
 	.startup = jz4740_i2s_startup,
 	.shutdown = jz4740_i2s_shutdown,
 	.trigger = jz4740_i2s_trigger,
@@ -341,7 +342,6 @@ static const struct snd_soc_dai_ops jz4740_i2s_dai_ops = {
 			 SNDRV_PCM_FMTBIT_S24_LE)
 
 static struct snd_soc_dai_driver jz4740_i2s_dai = {
-	.probe = jz4740_i2s_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
@@ -375,8 +375,15 @@ static const struct i2s_soc_info jz4760_i2s_soc_info = {
 	.field_i2sdiv_playback	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 0, 3),
 };
 
+static const struct i2s_soc_info x1000_i2s_soc_info = {
+	.dai = &jz4740_i2s_dai,
+	.field_rx_fifo_thresh	= REG_FIELD(JZ_REG_AIC_CONF, 24, 27),
+	.field_tx_fifo_thresh	= REG_FIELD(JZ_REG_AIC_CONF, 16, 20),
+	.field_i2sdiv_capture	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 0, 8),
+	.field_i2sdiv_playback	= REG_FIELD(JZ_REG_AIC_CLK_DIV, 0, 8),
+};
+
 static struct snd_soc_dai_driver jz4770_i2s_dai = {
-	.probe = jz4740_i2s_dai_probe,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 2,
@@ -486,6 +493,7 @@ static const struct of_device_id jz4740_of_matches[] = {
 	{ .compatible = "ingenic,jz4760-i2s", .data = &jz4760_i2s_soc_info },
 	{ .compatible = "ingenic,jz4770-i2s", .data = &jz4770_i2s_soc_info },
 	{ .compatible = "ingenic,jz4780-i2s", .data = &jz4780_i2s_soc_info },
+	{ .compatible = "ingenic,x1000-i2s", .data = &x1000_i2s_soc_info },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, jz4740_of_matches);

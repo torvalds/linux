@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: (GPL-2.0-or-later or MIT) */
+/* SPDX-License-Identifier: (GPL-2.0-or-later OR MIT) */
 /*
  * Author: David Heidelberg <david@ixit.cz>
  */

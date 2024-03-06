@@ -57,36 +57,79 @@ static struct perf_event_attr make_event_attr(void)
 #ifdef HAVE_BPF_SKEL
 #include <bpf/btf.h>
 
+static struct btf *btf;
+
+static bool btf__available(void)
+{
+	if (btf == NULL)
+		btf = btf__load_vmlinux_btf();
+
+	return btf != NULL;
+}
+
+static void btf__exit(void)
+{
+	btf__free(btf);
+	btf = NULL;
+}
+
+static const struct btf_member *__btf_type__find_member_by_name(int type_id, const char *member_name)
+{
+	const struct btf_type *t = btf__type_by_id(btf, type_id);
+	const struct btf_member *m;
+	int i;
+
+	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
+		const char *current_member_name = btf__name_by_offset(btf, m->name_off);
+		if (!strcmp(current_member_name, member_name))
+			return m;
+	}
+
+	return NULL;
+}
+
 static bool attr_has_sigtrap(void)
 {
-	bool ret = false;
-	struct btf *btf;
-	const struct btf_type *t;
-	const struct btf_member *m;
-	const char *name;
-	int i, id;
+	int id;
 
-	btf = btf__load_vmlinux_btf();
-	if (btf == NULL) {
+	if (!btf__available()) {
 		/* should be an old kernel */
 		return false;
 	}
 
 	id = btf__find_by_name_kind(btf, "perf_event_attr", BTF_KIND_STRUCT);
 	if (id < 0)
-		goto out;
+		return false;
 
-	t = btf__type_by_id(btf, id);
-	for (i = 0, m = btf_members(t); i < btf_vlen(t); i++, m++) {
-		name = btf__name_by_offset(btf, m->name_off);
-		if (!strcmp(name, "sigtrap")) {
-			ret = true;
-			break;
-		}
-	}
-out:
-	btf__free(btf);
-	return ret;
+	return __btf_type__find_member_by_name(id, "sigtrap") != NULL;
+}
+
+static bool kernel_with_sleepable_spinlocks(void)
+{
+	const struct btf_member *member;
+	const struct btf_type *type;
+	const char *type_name;
+	int id;
+
+	if (!btf__available())
+		return false;
+
+	id = btf__find_by_name_kind(btf, "spinlock", BTF_KIND_STRUCT);
+	if (id < 0)
+		return false;
+
+	// Only RT has a "lock" member for "struct spinlock"
+	member = __btf_type__find_member_by_name(id, "lock");
+	if (member == NULL)
+		return false;
+
+	// But check its type as well
+	type = btf__type_by_id(btf, member->type);
+	if (!type || !btf_is_struct(type))
+		return false;
+
+	type_name = btf__name_by_offset(btf, type->name_off);
+	return type_name && !strcmp(type_name, "rt_mutex_base");
 }
 #else  /* !HAVE_BPF_SKEL */
 static bool attr_has_sigtrap(void)
@@ -108,6 +151,15 @@ static bool attr_has_sigtrap(void)
 	}
 
 	return ret;
+}
+
+static bool kernel_with_sleepable_spinlocks(void)
+{
+	return false;
+}
+
+static void btf__exit(void)
+{
 }
 #endif  /* HAVE_BPF_SKEL */
 
@@ -147,7 +199,7 @@ static int run_test_threads(pthread_t *threads, pthread_barrier_t *barrier)
 
 static int run_stress_test(int fd, pthread_t *threads, pthread_barrier_t *barrier)
 {
-	int ret;
+	int ret, expected_sigtraps;
 
 	ctx.iterate_on = 3000;
 
@@ -156,7 +208,16 @@ static int run_stress_test(int fd, pthread_t *threads, pthread_barrier_t *barrie
 	ret = run_test_threads(threads, barrier);
 	TEST_ASSERT_EQUAL("disable failed", ioctl(fd, PERF_EVENT_IOC_DISABLE, 0), 0);
 
-	TEST_ASSERT_EQUAL("unexpected sigtraps", ctx.signal_count, NUM_THREADS * ctx.iterate_on);
+	expected_sigtraps = NUM_THREADS * ctx.iterate_on;
+
+	if (ctx.signal_count < expected_sigtraps && kernel_with_sleepable_spinlocks()) {
+		pr_debug("Expected %d sigtraps, got %d, running on a kernel with sleepable spinlocks.\n",
+			 expected_sigtraps, ctx.signal_count);
+		pr_debug("See https://lore.kernel.org/all/e368f2c848d77fbc8d259f44e2055fe469c219cf.camel@gmx.de/\n");
+		return TEST_SKIP;
+	} else
+		TEST_ASSERT_EQUAL("unexpected sigtraps", ctx.signal_count, expected_sigtraps);
+
 	TEST_ASSERT_EQUAL("missing signals or incorrectly delivered", ctx.tids_want_signal, 0);
 	TEST_ASSERT_VAL("unexpected si_addr", ctx.first_siginfo.si_addr == &ctx.iterate_on);
 #if 0 /* FIXME: enable when libc's signal.h has si_perf_{type,data} */
@@ -221,6 +282,7 @@ out_restore_sigaction:
 	sigaction(SIGTRAP, &oldact, NULL);
 out:
 	pthread_barrier_destroy(&barrier);
+	btf__exit();
 	return ret;
 }
 

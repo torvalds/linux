@@ -340,7 +340,7 @@ static struct i2c_driver adp5520_driver = {
 		.pm			= pm_sleep_ptr(&adp5520_pm),
 		.suppress_bind_attrs	= true,
 	},
-	.probe_new	= adp5520_probe,
+	.probe		= adp5520_probe,
 	.id_table	= adp5520_id,
 };
 builtin_i2c_driver(adp5520_driver);

@@ -22,8 +22,9 @@
 	start__ >= max__ || size__ > max__ - start__; \
 })
 
-#define DRM_BUDDY_RANGE_ALLOCATION (1 << 0)
-#define DRM_BUDDY_TOPDOWN_ALLOCATION (1 << 1)
+#define DRM_BUDDY_RANGE_ALLOCATION		BIT(0)
+#define DRM_BUDDY_TOPDOWN_ALLOCATION		BIT(1)
+#define DRM_BUDDY_CONTIGUOUS_ALLOCATION		BIT(2)
 
 struct drm_buddy_block {
 #define DRM_BUDDY_HEADER_OFFSET GENMASK_ULL(63, 12)
@@ -155,5 +156,4 @@ void drm_buddy_print(struct drm_buddy *mm, struct drm_printer *p);
 void drm_buddy_block_print(struct drm_buddy *mm,
 			   struct drm_buddy_block *block,
 			   struct drm_printer *p);
-
 #endif

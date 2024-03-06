@@ -402,4 +402,6 @@ extern int mips_set_process_fp_mode(struct task_struct *task,
 #define GET_FP_MODE(task)		mips_get_process_fp_mode(task)
 #define SET_FP_MODE(task,value)		mips_set_process_fp_mode(task, value)
 
+void show_registers(struct pt_regs *regs);
+
 #endif /* _ASM_PROCESSOR_H */

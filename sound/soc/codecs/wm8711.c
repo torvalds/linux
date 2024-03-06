@@ -9,6 +9,7 @@
  * Based on wm8731.c by Richard Purdie
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -18,7 +19,6 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -393,7 +393,7 @@ static const struct regmap_config wm8711_regmap = {
 
 	.reg_defaults = wm8711_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8711_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8711_volatile,
 };
@@ -464,7 +464,7 @@ static struct i2c_driver wm8711_i2c_driver = {
 		.name = "wm8711",
 		.of_match_table = wm8711_of_match,
 	},
-	.probe_new = wm8711_i2c_probe,
+	.probe = wm8711_i2c_probe,
 	.id_table = wm8711_i2c_id,
 };
 #endif

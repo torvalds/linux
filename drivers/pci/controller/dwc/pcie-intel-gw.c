@@ -9,9 +9,11 @@
 #include <linux/clk.h>
 #include <linux/gpio/consumer.h>
 #include <linux/iopoll.h>
+#include <linux/mod_devicetable.h>
 #include <linux/pci_regs.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 
 #include "../../pci.h"
@@ -340,15 +342,13 @@ static void __intel_pcie_remove(struct intel_pcie *pcie)
 	phy_exit(pcie->phy);
 }
 
-static int intel_pcie_remove(struct platform_device *pdev)
+static void intel_pcie_remove(struct platform_device *pdev)
 {
 	struct intel_pcie *pcie = platform_get_drvdata(pdev);
 	struct dw_pcie_rp *pp = &pcie->pci.pp;
 
 	dw_pcie_host_deinit(pp);
 	__intel_pcie_remove(pcie);
-
-	return 0;
 }
 
 static int intel_pcie_suspend_noirq(struct device *dev)
@@ -391,7 +391,7 @@ static const struct dw_pcie_ops intel_pcie_ops = {
 };
 
 static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
-	.host_init =		intel_pcie_rc_init,
+	.init = intel_pcie_rc_init,
 };
 
 static int intel_pcie_probe(struct platform_device *pdev)
@@ -443,7 +443,7 @@ static const struct of_device_id of_intel_pcie_match[] = {
 
 static struct platform_driver intel_pcie_driver = {
 	.probe = intel_pcie_probe,
-	.remove = intel_pcie_remove,
+	.remove_new = intel_pcie_remove,
 	.driver = {
 		.name = "intel-gw-pcie",
 		.of_match_table = of_intel_pcie_match,

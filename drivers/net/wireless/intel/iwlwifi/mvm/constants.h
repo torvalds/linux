@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
- * Copyright (C) 2013-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
 #ifndef __MVM_CONSTANTS_H
@@ -60,6 +60,7 @@
 #define IWL_MVM_UAPSD_NONAGG_PERIOD		5000 /* msecs */
 #define IWL_MVM_UAPSD_NOAGG_LIST_LEN		IWL_MVM_UAPSD_NOAGG_BSSIDS_NUM
 #define IWL_MVM_NON_TRANSMITTING_AP		0
+#define IWL_MVM_CONN_LISTEN_INTERVAL		10
 #define IWL_MVM_RS_NUM_TRY_BEFORE_ANT_TOGGLE    1
 #define IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE      2
 #define IWL_MVM_RS_HT_VHT_RETRIES_PER_RATE_TW   1
@@ -109,10 +110,6 @@
 #define IWL_MVM_USE_TWT				true
 #define IWL_MVM_AMPDU_CONSEC_DROPS_DELBA	20
 #define IWL_MVM_USE_NSSN_SYNC			0
-#define IWL_MVM_PHY_FILTER_CHAIN_A		0
-#define IWL_MVM_PHY_FILTER_CHAIN_B		0
-#define IWL_MVM_PHY_FILTER_CHAIN_C		0
-#define IWL_MVM_PHY_FILTER_CHAIN_D		0
 #define IWL_MVM_FTM_INITIATOR_ENABLE_SMOOTH     false
 #define IWL_MVM_FTM_INITIATOR_SMOOTH_ALPHA      40
 /*  20016 pSec is 6 meter RTT, meaning 3 meter range */
@@ -122,5 +119,6 @@
 #define IWL_MVM_DISABLE_AP_FILS			false
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_TIMEOUT       3000 /* in seconds */
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_ASSOC_TIMEOUT 60   /* in seconds */
+#define IWL_MVM_AUTO_EML_ENABLE                 true
 
 #endif /* __MVM_CONSTANTS_H */

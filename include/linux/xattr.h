@@ -114,13 +114,15 @@ struct simple_xattr {
 };
 
 void simple_xattrs_init(struct simple_xattrs *xattrs);
-void simple_xattrs_free(struct simple_xattrs *xattrs);
+void simple_xattrs_free(struct simple_xattrs *xattrs, size_t *freed_space);
+size_t simple_xattr_space(const char *name, size_t size);
 struct simple_xattr *simple_xattr_alloc(const void *value, size_t size);
+void simple_xattr_free(struct simple_xattr *xattr);
 int simple_xattr_get(struct simple_xattrs *xattrs, const char *name,
 		     void *buffer, size_t size);
-int simple_xattr_set(struct simple_xattrs *xattrs, const char *name,
-		     const void *value, size_t size, int flags,
-		     ssize_t *removed_size);
+struct simple_xattr *simple_xattr_set(struct simple_xattrs *xattrs,
+				      const char *name, const void *value,
+				      size_t size, int flags);
 ssize_t simple_xattr_list(struct inode *inode, struct simple_xattrs *xattrs,
 			  char *buffer, size_t size);
 void simple_xattr_add(struct simple_xattrs *xattrs,

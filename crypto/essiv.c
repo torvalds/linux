@@ -442,6 +442,7 @@ out:
 
 static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 {
+	struct skcipher_alg_common *skcipher_alg = NULL;
 	struct crypto_attr_type *algt;
 	const char *inner_cipher_name;
 	const char *shash_name;
@@ -450,7 +451,6 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	struct crypto_instance *inst;
 	struct crypto_alg *base, *block_base;
 	struct essiv_instance_ctx *ictx;
-	struct skcipher_alg *skcipher_alg = NULL;
 	struct aead_alg *aead_alg = NULL;
 	struct crypto_alg *_hash_alg;
 	struct shash_alg *hash_alg;
@@ -475,7 +475,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	mask = crypto_algt_inherited_mask(algt);
 
 	switch (type) {
-	case CRYPTO_ALG_TYPE_SKCIPHER:
+	case CRYPTO_ALG_TYPE_LSKCIPHER:
 		skcipher_inst = kzalloc(sizeof(*skcipher_inst) +
 					sizeof(*ictx), GFP_KERNEL);
 		if (!skcipher_inst)
@@ -489,9 +489,10 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 					   inner_cipher_name, 0, mask);
 		if (err)
 			goto out_free_inst;
-		skcipher_alg = crypto_spawn_skcipher_alg(&ictx->u.skcipher_spawn);
+		skcipher_alg = crypto_spawn_skcipher_alg_common(
+			&ictx->u.skcipher_spawn);
 		block_base = &skcipher_alg->base;
-		ivsize = crypto_skcipher_alg_ivsize(skcipher_alg);
+		ivsize = skcipher_alg->ivsize;
 		break;
 
 	case CRYPTO_ALG_TYPE_AEAD:
@@ -574,18 +575,17 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 	base->cra_alignmask	= block_base->cra_alignmask;
 	base->cra_priority	= block_base->cra_priority;
 
-	if (type == CRYPTO_ALG_TYPE_SKCIPHER) {
+	if (type == CRYPTO_ALG_TYPE_LSKCIPHER) {
 		skcipher_inst->alg.setkey	= essiv_skcipher_setkey;
 		skcipher_inst->alg.encrypt	= essiv_skcipher_encrypt;
 		skcipher_inst->alg.decrypt	= essiv_skcipher_decrypt;
 		skcipher_inst->alg.init		= essiv_skcipher_init_tfm;
 		skcipher_inst->alg.exit		= essiv_skcipher_exit_tfm;
 
-		skcipher_inst->alg.min_keysize	= crypto_skcipher_alg_min_keysize(skcipher_alg);
-		skcipher_inst->alg.max_keysize	= crypto_skcipher_alg_max_keysize(skcipher_alg);
+		skcipher_inst->alg.min_keysize	= skcipher_alg->min_keysize;
+		skcipher_inst->alg.max_keysize	= skcipher_alg->max_keysize;
 		skcipher_inst->alg.ivsize	= ivsize;
-		skcipher_inst->alg.chunksize	= crypto_skcipher_alg_chunksize(skcipher_alg);
-		skcipher_inst->alg.walksize	= crypto_skcipher_alg_walksize(skcipher_alg);
+		skcipher_inst->alg.chunksize	= skcipher_alg->chunksize;
 
 		skcipher_inst->free		= essiv_skcipher_free_instance;
 
@@ -616,7 +616,7 @@ static int essiv_create(struct crypto_template *tmpl, struct rtattr **tb)
 out_free_hash:
 	crypto_mod_put(_hash_alg);
 out_drop_skcipher:
-	if (type == CRYPTO_ALG_TYPE_SKCIPHER)
+	if (type == CRYPTO_ALG_TYPE_LSKCIPHER)
 		crypto_drop_skcipher(&ictx->u.skcipher_spawn);
 	else
 		crypto_drop_aead(&ictx->u.aead_spawn);

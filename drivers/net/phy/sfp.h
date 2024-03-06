@@ -19,6 +19,7 @@ struct sfp_socket_ops {
 	void (*detach)(struct sfp *sfp);
 	void (*start)(struct sfp *sfp);
 	void (*stop)(struct sfp *sfp);
+	void (*set_signal_rate)(struct sfp *sfp, unsigned int rate_kbd);
 	int (*module_info)(struct sfp *sfp, struct ethtool_modinfo *modinfo);
 	int (*module_eeprom)(struct sfp *sfp, struct ethtool_eeprom *ee,
 			     u8 *data);
@@ -36,7 +37,6 @@ int sfp_module_insert(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 void sfp_module_remove(struct sfp_bus *bus);
 int sfp_module_start(struct sfp_bus *bus);
 void sfp_module_stop(struct sfp_bus *bus);
-int sfp_link_configure(struct sfp_bus *bus, const struct sfp_eeprom_id *id);
 struct sfp_bus *sfp_register_socket(struct device *dev, struct sfp *sfp,
 				    const struct sfp_socket_ops *ops);
 void sfp_unregister_socket(struct sfp_bus *bus);

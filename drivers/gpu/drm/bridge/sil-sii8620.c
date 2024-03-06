@@ -2376,9 +2376,9 @@ MODULE_DEVICE_TABLE(i2c, sii8620_id);
 static struct i2c_driver sii8620_driver = {
 	.driver = {
 		.name	= "sii8620",
-		.of_match_table = of_match_ptr(sii8620_dt_match),
+		.of_match_table = sii8620_dt_match,
 	},
-	.probe_new	= sii8620_probe,
+	.probe		= sii8620_probe,
 	.remove		= sii8620_remove,
 	.id_table = sii8620_id,
 };

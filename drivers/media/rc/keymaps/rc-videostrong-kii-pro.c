@@ -81,3 +81,4 @@ module_exit(exit_rc_map_kii_pro)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mohammad Rasim <mohammad.rasim96@gmail.com>");
+MODULE_DESCRIPTION("Videostrong KII Pro STB remote controller keytable");

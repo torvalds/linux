@@ -3,13 +3,11 @@
  *  Copyright (C) 2012-2015 Altera Corporation
  */
 #include <linux/irqchip.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
 #include <linux/reboot.h>
 #include <linux/reset/socfpga.h>
 
-#include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/cacheflush.h>

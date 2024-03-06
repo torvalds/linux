@@ -24,7 +24,7 @@
 #include <asm/machdep.h>
 #include <asm/io.h>
 
-extern void mmu_emu_init (unsigned long bootmem_end);
+#include "../sun3/sun3.h"
 
 const char bad_pmd_string[] = "Bad pmd in pte_alloc: %08lx\n";
 
@@ -75,7 +75,7 @@ void __init paging_init(void)
 		/* now change pg_table to kernel virtual addresses */
 		pg_table = (pte_t *) __va ((unsigned long) pg_table);
 		for (i=0; i<PTRS_PER_PTE; ++i, ++pg_table) {
-			pte_t pte = pfn_pte(virt_to_pfn(address), PAGE_INIT);
+			pte_t pte = pfn_pte(virt_to_pfn((void *)address), PAGE_INIT);
 			if (address >= (unsigned long)high_memory)
 				pte_val (pte) = 0;
 			set_pte (pg_table, pte);

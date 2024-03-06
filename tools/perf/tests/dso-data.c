@@ -394,6 +394,15 @@ static int test__dso_data_reopen(struct test_suite *test __maybe_unused, int sub
 	return 0;
 }
 
-DEFINE_SUITE("DSO data read", dso_data);
-DEFINE_SUITE("DSO data cache", dso_data_cache);
-DEFINE_SUITE("DSO data reopen", dso_data_reopen);
+
+static struct test_case tests__dso_data[] = {
+	TEST_CASE("read", dso_data),
+	TEST_CASE("cache", dso_data_cache),
+	TEST_CASE("reopen", dso_data_reopen),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__dso_data = {
+	.desc = "DSO data tests",
+	.test_cases = tests__dso_data,
+};

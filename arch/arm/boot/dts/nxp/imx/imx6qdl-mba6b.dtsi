@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright 2013 Sascha Hauer, Pengutronix
+ *
+ * Copyright 2013-2021 TQ-Systems GmbH
+ * Author: Markus Niebel <Markus.Niebel@tq-group.com>
+ */
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet>;
+};
+
+&i2c1 {
+	clock-frequency = <100000>;
+	pinctrl-names = "default", "gpio";
+	pinctrl-0 = <&pinctrl_i2c1>;
+	pinctrl-1 = <&pinctrl_i2c1_recovery>;
+	scl-gpios = <&gpio5 27 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio5 26 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	status = "okay";
+};
+
+&i2c3 {
+	lm75: temperature-sensor@49 {
+		compatible = "national,lm75";
+		reg = <0x49>;
+		vs-supply = <&reg_mba6_3p3v>;
+	};
+
+	m24c64_57: eeprom@57 {
+		compatible = "atmel,24c64";
+		reg = <0x57>;
+		pagesize = <32>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		vcc-supply = <&reg_mba6_3p3v>;
+
+		mba_mac_address: mac-address@20 {
+			reg = <0x20 0x6>;
+		};
+	};
+
+	rtc0: rtc@68 {
+		compatible = "dallas,ds1339";
+		reg = <0x68>;
+	};
+};
+
+&iomuxc {
+	pinctrl_i2c1: i2c1grp {
+		fsl,pins = <
+			MX6QDL_PAD_CSI0_DAT8__I2C1_SDA 0x4001b899
+			MX6QDL_PAD_CSI0_DAT9__I2C1_SCL 0x4001b899
+		>;
+	};
+};

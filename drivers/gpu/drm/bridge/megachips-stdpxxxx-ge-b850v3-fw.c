@@ -65,12 +65,11 @@ struct ge_b850v3_lvds {
 
 static struct ge_b850v3_lvds *ge_b850v3_lvds_ptr;
 
-static u8 *stdp2690_get_edid(struct i2c_client *client)
+static int stdp2690_read_block(void *context, u8 *buf, unsigned int block, size_t len)
 {
+	struct i2c_client *client = context;
 	struct i2c_adapter *adapter = client->adapter;
-	unsigned char start = 0x00;
-	unsigned int total_size;
-	u8 *block = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	unsigned char start = block * EDID_LENGTH;
 
 	struct i2c_msg msgs[] = {
 		{
@@ -81,53 +80,15 @@ static u8 *stdp2690_get_edid(struct i2c_client *client)
 		}, {
 			.addr	= client->addr,
 			.flags	= I2C_M_RD,
-			.len	= EDID_LENGTH,
-			.buf	= block,
+			.len	= len,
+			.buf	= buf,
 		}
 	};
 
-	if (!block)
-		return NULL;
+	if (i2c_transfer(adapter, msgs, 2) != 2)
+		return -1;
 
-	if (i2c_transfer(adapter, msgs, 2) != 2) {
-		DRM_ERROR("Unable to read EDID.\n");
-		goto err;
-	}
-
-	if (!drm_edid_block_valid(block, 0, false, NULL)) {
-		DRM_ERROR("Invalid EDID data\n");
-		goto err;
-	}
-
-	total_size = (block[EDID_EXT_BLOCK_CNT] + 1) * EDID_LENGTH;
-	if (total_size > EDID_LENGTH) {
-		kfree(block);
-		block = kmalloc(total_size, GFP_KERNEL);
-		if (!block)
-			return NULL;
-
-		/* Yes, read the entire buffer, and do not skip the first
-		 * EDID_LENGTH bytes.
-		 */
-		start = 0x00;
-		msgs[1].len = total_size;
-		msgs[1].buf = block;
-
-		if (i2c_transfer(adapter, msgs, 2) != 2) {
-			DRM_ERROR("Unable to read EDID extension blocks.\n");
-			goto err;
-		}
-		if (!drm_edid_block_valid(block, 1, false, NULL)) {
-			DRM_ERROR("Invalid EDID data\n");
-			goto err;
-		}
-	}
-
-	return block;
-
-err:
-	kfree(block);
-	return NULL;
+	return 0;
 }
 
 static struct edid *ge_b850v3_lvds_get_edid(struct drm_bridge *bridge,
@@ -137,7 +98,7 @@ static struct edid *ge_b850v3_lvds_get_edid(struct drm_bridge *bridge,
 
 	client = ge_b850v3_lvds_ptr->stdp2690_i2c;
 
-	return (struct edid *)stdp2690_get_edid(client);
+	return drm_do_get_edid(connector, stdp2690_read_block, client);
 }
 
 static int ge_b850v3_lvds_get_modes(struct drm_connector *connector)
@@ -375,7 +336,7 @@ MODULE_DEVICE_TABLE(of, stdp4028_ge_b850v3_fw_match);
 
 static struct i2c_driver stdp4028_ge_b850v3_fw_driver = {
 	.id_table	= stdp4028_ge_b850v3_fw_i2c_table,
-	.probe_new	= stdp4028_ge_b850v3_fw_probe,
+	.probe		= stdp4028_ge_b850v3_fw_probe,
 	.remove		= stdp4028_ge_b850v3_fw_remove,
 	.driver		= {
 		.name		= "stdp4028-ge-b850v3-fw",
@@ -422,7 +383,7 @@ MODULE_DEVICE_TABLE(of, stdp2690_ge_b850v3_fw_match);
 
 static struct i2c_driver stdp2690_ge_b850v3_fw_driver = {
 	.id_table	= stdp2690_ge_b850v3_fw_i2c_table,
-	.probe_new	= stdp2690_ge_b850v3_fw_probe,
+	.probe		= stdp2690_ge_b850v3_fw_probe,
 	.remove		= stdp2690_ge_b850v3_fw_remove,
 	.driver		= {
 		.name		= "stdp2690-ge-b850v3-fw",

@@ -39,10 +39,10 @@ Most notable:
 1.1 The problem
 ---------------
 
-Realtime scheduling is all about determinism, a group has to be able to rely on
+Real-time scheduling is all about determinism, a group has to be able to rely on
 the amount of bandwidth (eg. CPU time) being constant. In order to schedule
-multiple groups of realtime tasks, each group must be assigned a fixed portion
-of the CPU time available.  Without a minimum guarantee a realtime group can
+multiple groups of real-time tasks, each group must be assigned a fixed portion
+of the CPU time available.  Without a minimum guarantee a real-time group can
 obviously fall short. A fuzzy upper limit is of no use since it cannot be
 relied upon. Which leaves us with just the single fixed portion.
 
@@ -50,14 +50,14 @@ relied upon. Which leaves us with just the single fixed portion.
 ----------------
 
 CPU time is divided by means of specifying how much time can be spent running
-in a given period. We allocate this "run time" for each realtime group which
-the other realtime groups will not be permitted to use.
+in a given period. We allocate this "run time" for each real-time group which
+the other real-time groups will not be permitted to use.
 
-Any time not allocated to a realtime group will be used to run normal priority
+Any time not allocated to a real-time group will be used to run normal priority
 tasks (SCHED_OTHER). Any allocated run time not used will also be picked up by
 SCHED_OTHER.
 
-Let's consider an example: a frame fixed realtime renderer must deliver 25
+Let's consider an example: a frame fixed real-time renderer must deliver 25
 frames a second, which yields a period of 0.04s per frame. Now say it will also
 have to play some music and respond to input, leaving it with around 80% CPU
 time dedicated for the graphics. We can then give this group a run time of 0.8
@@ -70,7 +70,7 @@ needs only about 3% CPU time to do so, it can do with a 0.03 * 0.005s =
 of 0.00015s.
 
 The remaining CPU time will be used for user input and other tasks. Because
-realtime tasks have explicitly allocated the CPU time they need to perform
+real-time tasks have explicitly allocated the CPU time they need to perform
 their tasks, buffer underruns in the graphics or audio can be eliminated.
 
 NOTE: the above example is not fully implemented yet. We still
@@ -87,18 +87,20 @@ lack an EDF scheduler to make non-uniform periods usable.
 The system wide settings are configured under the /proc virtual file system:
 
 /proc/sys/kernel/sched_rt_period_us:
-  The scheduling period that is equivalent to 100% CPU bandwidth
+  The scheduling period that is equivalent to 100% CPU bandwidth.
 
 /proc/sys/kernel/sched_rt_runtime_us:
-  A global limit on how much time realtime scheduling may use.  Even without
-  CONFIG_RT_GROUP_SCHED enabled, this will limit time reserved to realtime
-  processes. With CONFIG_RT_GROUP_SCHED it signifies the total bandwidth
-  available to all realtime groups.
+  A global limit on how much time real-time scheduling may use. This is always
+  less or equal to the period_us, as it denotes the time allocated from the
+  period_us for the real-time tasks. Even without CONFIG_RT_GROUP_SCHED enabled,
+  this will limit time reserved to real-time processes. With
+  CONFIG_RT_GROUP_SCHED=y it signifies the total bandwidth available to all
+  real-time groups.
 
   * Time is specified in us because the interface is s32. This gives an
     operating range from 1us to about 35 minutes.
   * sched_rt_period_us takes values from 1 to INT_MAX.
-  * sched_rt_runtime_us takes values from -1 to (INT_MAX - 1).
+  * sched_rt_runtime_us takes values from -1 to sched_rt_period_us.
   * A run time of -1 specifies runtime == period, ie. no limit.
 
 
@@ -108,7 +110,7 @@ The system wide settings are configured under the /proc virtual file system:
 The default values for sched_rt_period_us (1000000 or 1s) and
 sched_rt_runtime_us (950000 or 0.95s).  This gives 0.05s to be used by
 SCHED_OTHER (non-RT tasks). These defaults were chosen so that a run-away
-realtime tasks will not lock up the machine but leave a little time to recover
+real-time tasks will not lock up the machine but leave a little time to recover
 it.  By setting runtime to -1 you'd get the old behaviour back.
 
 By default all bandwidth is assigned to the root group and new groups get the
@@ -116,10 +118,10 @@ period from /proc/sys/kernel/sched_rt_period_us and a run time of 0. If you
 want to assign bandwidth to another group, reduce the root group's bandwidth
 and assign some or all of the difference to another group.
 
-Realtime group scheduling means you have to assign a portion of total CPU
-bandwidth to the group before it will accept realtime tasks. Therefore you will
-not be able to run realtime tasks as any user other than root until you have
-done that, even if the user has the rights to run processes with realtime
+Real-time group scheduling means you have to assign a portion of total CPU
+bandwidth to the group before it will accept real-time tasks. Therefore you will
+not be able to run real-time tasks as any user other than root until you have
+done that, even if the user has the rights to run processes with real-time
 priority!
 
 

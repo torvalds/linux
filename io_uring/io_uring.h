@@ -16,22 +16,15 @@
 #endif
 
 enum {
-	/* don't use deferred task_work */
-	IOU_F_TWQ_FORCE_NORMAL			= 1,
-
-	/*
-	 * A hint to not wake right away but delay until there are enough of
-	 * tw's queued to match the number of CQEs the task is waiting for.
-	 *
-	 * Must not be used wirh requests generating more than one CQE.
-	 * It's also ignored unless IORING_SETUP_DEFER_TASKRUN is set.
-	 */
-	IOU_F_TWQ_LAZY_WAKE			= 2,
-};
-
-enum {
 	IOU_OK			= 0,
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
+
+	/*
+	 * Requeue the task_work to restart operations on this request. The
+	 * actual value isn't important, should just be not an otherwise
+	 * valid error code, yet less than -MAX_ERRNO and valid internally.
+	 */
+	IOU_REQUEUE		= -3072,
 
 	/*
 	 * Intended only when both IO_URING_F_MULTISHOT is passed
@@ -41,14 +34,13 @@ enum {
 	IOU_STOP_MULTISHOT	= -ECANCELED,
 };
 
-struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx, bool overflow);
-bool io_req_cqe_overflow(struct io_kiocb *req);
+bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow);
+void io_req_cqe_overflow(struct io_kiocb *req);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
 void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
-bool io_aux_cqe(struct io_ring_ctx *ctx, bool defer, u64 user_data, s32 res, u32 cflags,
-		bool allow_overflow);
+bool io_fill_cqe_req_aux(struct io_kiocb *req, bool defer, s32 res, u32 cflags);
 void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
 struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
@@ -57,13 +49,7 @@ struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 
-static inline bool io_req_ffs_set(struct io_kiocb *req)
-{
-	return req->flags & REQ_F_FIXED_FILE;
-}
-
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags);
-bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_queue(struct io_kiocb *req);
 void io_queue_iowq(struct io_kiocb *req, struct io_tw_state *ts_dont_use);
@@ -75,10 +61,13 @@ __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 int io_uring_alloc_task_context(struct task_struct *task,
 				struct io_ring_ctx *ctx);
 
+int io_ring_add_registered_file(struct io_uring_task *tctx, struct file *file,
+				     int start, int end);
+
 int io_poll_issue(struct io_kiocb *req, struct io_tw_state *ts);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
-void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node);
+void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 int io_req_prep_async(struct io_kiocb *req);
 
 struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
@@ -92,20 +81,44 @@ bool __io_alloc_req_refill(struct io_ring_ctx *ctx);
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
 
-#define io_lockdep_assert_cq_locked(ctx)				\
-	do {								\
-		lockdep_assert(in_task());				\
-									\
-		if (ctx->flags & IORING_SETUP_IOPOLL) {			\
-			lockdep_assert_held(&ctx->uring_lock);		\
-		} else if (!ctx->task_complete) {			\
-			lockdep_assert_held(&ctx->completion_lock);	\
-		} else if (ctx->submitter_task->flags & PF_EXITING) {	\
-			lockdep_assert(current_work());			\
-		} else {						\
-			lockdep_assert(current == ctx->submitter_task);	\
-		}							\
-	} while (0)
+void *io_mem_alloc(size_t size);
+void io_mem_free(void *ptr);
+
+enum {
+	IO_EVENTFD_OP_SIGNAL_BIT,
+	IO_EVENTFD_OP_FREE_BIT,
+};
+
+void io_eventfd_ops(struct rcu_head *rcu);
+void io_activate_pollwq(struct io_ring_ctx *ctx);
+
+#if defined(CONFIG_PROVE_LOCKING)
+static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
+{
+	lockdep_assert(in_task());
+
+	if (ctx->flags & IORING_SETUP_IOPOLL) {
+		lockdep_assert_held(&ctx->uring_lock);
+	} else if (!ctx->task_complete) {
+		lockdep_assert_held(&ctx->completion_lock);
+	} else if (ctx->submitter_task) {
+		/*
+		 * ->submitter_task may be NULL and we can still post a CQE,
+		 * if the ring has been setup with IORING_SETUP_R_DISABLED.
+		 * Not from an SQE, as those cannot be submitted, but via
+		 * updating tagged resources.
+		 */
+		if (ctx->submitter_task->flags & PF_EXITING)
+			lockdep_assert(current_work());
+		else
+			lockdep_assert(current == ctx->submitter_task);
+	}
+}
+#else
+static inline void io_lockdep_assert_cq_locked(struct io_ring_ctx *ctx)
+{
+}
+#endif
 
 static inline void io_req_task_work_add(struct io_kiocb *req)
 {
@@ -115,33 +128,31 @@ static inline void io_req_task_work_add(struct io_kiocb *req)
 #define io_for_each_link(pos, head) \
 	for (pos = (head); pos; pos = pos->link)
 
-void io_cq_unlock_post(struct io_ring_ctx *ctx);
-
-static inline struct io_uring_cqe *io_get_cqe_overflow(struct io_ring_ctx *ctx,
-						       bool overflow)
+static inline bool io_get_cqe_overflow(struct io_ring_ctx *ctx,
+					struct io_uring_cqe **ret,
+					bool overflow)
 {
 	io_lockdep_assert_cq_locked(ctx);
 
-	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
-		struct io_uring_cqe *cqe = ctx->cqe_cached;
-
-		ctx->cached_cq_tail++;
-		ctx->cqe_cached++;
-		if (ctx->flags & IORING_SETUP_CQE32)
-			ctx->cqe_cached++;
-		return cqe;
+	if (unlikely(ctx->cqe_cached >= ctx->cqe_sentinel)) {
+		if (unlikely(!io_cqe_cache_refill(ctx, overflow)))
+			return false;
 	}
-
-	return __io_get_cqe(ctx, overflow);
+	*ret = ctx->cqe_cached;
+	ctx->cached_cq_tail++;
+	ctx->cqe_cached++;
+	if (ctx->flags & IORING_SETUP_CQE32)
+		ctx->cqe_cached++;
+	return true;
 }
 
-static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
+static inline bool io_get_cqe(struct io_ring_ctx *ctx, struct io_uring_cqe **ret)
 {
-	return io_get_cqe_overflow(ctx, false);
+	return io_get_cqe_overflow(ctx, ret, false);
 }
 
-static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
-				     struct io_kiocb *req)
+static __always_inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
+					    struct io_kiocb *req)
 {
 	struct io_uring_cqe *cqe;
 
@@ -150,37 +161,20 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 	 * submission (by quite a lot). Increment the overflow count in
 	 * the ring.
 	 */
-	cqe = io_get_cqe(ctx);
-	if (unlikely(!cqe))
+	if (unlikely(!io_get_cqe(ctx, &cqe)))
 		return false;
 
-	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags,
-				(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
-				(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
+	if (trace_io_uring_complete_enabled())
+		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
+					req->cqe.res, req->cqe.flags,
+					req->big_cqe.extra1, req->big_cqe.extra2);
 
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
-
 	if (ctx->flags & IORING_SETUP_CQE32) {
-		u64 extra1 = 0, extra2 = 0;
-
-		if (req->flags & REQ_F_CQE32_INIT) {
-			extra1 = req->extra1;
-			extra2 = req->extra2;
-		}
-
-		WRITE_ONCE(cqe->big_cqe[0], extra1);
-		WRITE_ONCE(cqe->big_cqe[1], extra2);
+		memcpy(cqe->big_cqe, &req->big_cqe, sizeof(*cqe));
+		memset(&req->big_cqe, 0, sizeof(req->big_cqe));
 	}
 	return true;
-}
-
-static inline bool io_fill_cqe_req(struct io_ring_ctx *ctx,
-				   struct io_kiocb *req)
-{
-	if (likely(__io_fill_cqe_req(ctx, req)))
-		return true;
-	return io_req_cqe_overflow(req);
 }
 
 static inline void req_set_fail(struct io_kiocb *req)
@@ -203,10 +197,10 @@ static inline bool req_has_async_data(struct io_kiocb *req)
 	return req->flags & REQ_F_ASYNC_DATA;
 }
 
-static inline void io_put_file(struct file *file)
+static inline void io_put_file(struct io_kiocb *req)
 {
-	if (file)
-		fput(file);
+	if (!(req->flags & REQ_F_FIXED_FILE) && req->file)
+		fput(req->file);
 }
 
 static inline void io_ring_submit_unlock(struct io_ring_ctx *ctx,
@@ -355,13 +349,13 @@ static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
 }
 
 extern struct kmem_cache *req_cachep;
+extern struct kmem_cache *io_buf_cachep;
 
 static inline struct io_kiocb *io_extract_req(struct io_ring_ctx *ctx)
 {
 	struct io_kiocb *req;
 
 	req = container_of(ctx->submit_state.free_list.next, struct io_kiocb, comp_list);
-	kasan_unpoison_object_data(req_cachep, req);
 	wq_stack_extract(&ctx->submit_state.free_list);
 	return req;
 }

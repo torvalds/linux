@@ -42,16 +42,16 @@ pre-allocation or re-sizing of any kernel data structures.
 dentry-state
 ------------
 
-This file shows the values in ``struct dentry_stat``, as defined in
-``linux/include/linux/dcache.h``::
+This file shows the values in ``struct dentry_stat_t``, as defined in
+``fs/dcache.c``::
 
   struct dentry_stat_t dentry_stat {
-        int nr_dentry;
-        int nr_unused;
-        int age_limit;         /* age in seconds */
-        int want_pages;        /* pages requested by system */
-        int nr_negative;       /* # of unused negative dentries */
-        int dummy;             /* Reserved for future use */
+        long nr_dentry;
+        long nr_unused;
+        long age_limit;         /* age in seconds */
+        long want_pages;        /* pages requested by system */
+        long nr_negative;       /* # of unused negative dentries */
+        long dummy;             /* Reserved for future use */
   };
 
 Dentries are dynamically allocated and deallocated.

@@ -306,8 +306,13 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (!sock)
 		return -ESHUTDOWN;
 
-	rt = ip_route_output_tunnel(skb, dev, bareudp->net, &saddr, info,
-				    IPPROTO_UDP, use_cache);
+	sport = udp_flow_src_port(bareudp->net, skb,
+				  bareudp->sport_min, USHRT_MAX,
+				  true);
+	rt = udp_tunnel_dst_lookup(skb, dev, bareudp->net, 0, &saddr, &info->key,
+				   sport, bareudp->port, key->tos,
+				   use_cache ?
+				   (struct dst_cache *)&info->dst_cache : NULL);
 
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
@@ -315,9 +320,6 @@ static int bareudp_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	skb_tunnel_check_pmtu(skb, &rt->dst,
 			      BAREUDP_IPV4_HLEN + info->options_len, false);
 
-	sport = udp_flow_src_port(bareudp->net, skb,
-				  bareudp->sport_min, USHRT_MAX,
-				  true);
 	tos = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
 	ttl = key->ttl;
 	df = key->tun_flags & TUNNEL_DONT_FRAGMENT ? htons(IP_DF) : 0;
@@ -369,17 +371,19 @@ static int bareudp6_xmit_skb(struct sk_buff *skb, struct net_device *dev,
 	if (!sock)
 		return -ESHUTDOWN;
 
-	dst = ip6_dst_lookup_tunnel(skb, dev, bareudp->net, sock, &saddr, info,
-				    IPPROTO_UDP, use_cache);
+	sport = udp_flow_src_port(bareudp->net, skb,
+				  bareudp->sport_min, USHRT_MAX,
+				  true);
+	dst = udp_tunnel6_dst_lookup(skb, dev, bareudp->net, sock, 0, &saddr,
+				     key, sport, bareudp->port, key->tos,
+				     use_cache ?
+				     (struct dst_cache *) &info->dst_cache : NULL);
 	if (IS_ERR(dst))
 		return PTR_ERR(dst);
 
 	skb_tunnel_check_pmtu(skb, dst, BAREUDP_IPV6_HLEN + info->options_len,
 			      false);
 
-	sport = udp_flow_src_port(bareudp->net, skb,
-				  bareudp->sport_min, USHRT_MAX,
-				  true);
 	prio = ip_tunnel_ecn_encap(key->tos, ip_hdr(skb), skb);
 	ttl = key->ttl;
 
@@ -476,15 +480,21 @@ static int bareudp_fill_metadata_dst(struct net_device *dev,
 	struct ip_tunnel_info *info = skb_tunnel_info(skb);
 	struct bareudp_dev *bareudp = netdev_priv(dev);
 	bool use_cache;
+	__be16 sport;
 
 	use_cache = ip_tunnel_dst_cache_usable(skb, info);
+	sport = udp_flow_src_port(bareudp->net, skb,
+				  bareudp->sport_min, USHRT_MAX,
+				  true);
 
 	if (!ipv6_mod_enabled() || ip_tunnel_info_af(info) == AF_INET) {
 		struct rtable *rt;
 		__be32 saddr;
 
-		rt = ip_route_output_tunnel(skb, dev, bareudp->net, &saddr,
-					    info, IPPROTO_UDP, use_cache);
+		rt = udp_tunnel_dst_lookup(skb, dev, bareudp->net, 0, &saddr,
+					   &info->key, sport, bareudp->port,
+					   info->key.tos,
+					   use_cache ? &info->dst_cache : NULL);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 
@@ -495,9 +505,10 @@ static int bareudp_fill_metadata_dst(struct net_device *dev,
 		struct in6_addr saddr;
 		struct socket *sock = rcu_dereference(bareudp->sock);
 
-		dst = ip6_dst_lookup_tunnel(skb, dev, bareudp->net, sock,
-					    &saddr, info, IPPROTO_UDP,
-					    use_cache);
+		dst = udp_tunnel6_dst_lookup(skb, dev, bareudp->net, sock,
+					     0, &saddr, &info->key,
+					     sport, bareudp->port, info->key.tos,
+					     use_cache ? &info->dst_cache : NULL);
 		if (IS_ERR(dst))
 			return PTR_ERR(dst);
 
@@ -507,9 +518,7 @@ static int bareudp_fill_metadata_dst(struct net_device *dev,
 		return -EINVAL;
 	}
 
-	info->key.tp_src = udp_flow_src_port(bareudp->net, skb,
-					     bareudp->sport_min,
-			USHRT_MAX, true);
+	info->key.tp_src = sport;
 	info->key.tp_dst = bareudp->port;
 	return 0;
 }

@@ -16,9 +16,9 @@
 #include <subcmd/exec-cmd.h>
 #include "util/event.h"  /* proc_map_timeout */
 #include "util/hist.h"  /* perf_hist_config */
-#include "util/llvm-utils.h"   /* perf_llvm_config */
 #include "util/stat.h"  /* perf_stat__set_big_num */
 #include "util/evsel.h"  /* evsel__hw_names, evsel__use_bpf_counters */
+#include "util/srcline.h"  /* addr2line_timeout_ms */
 #include "build-id.h"
 #include "debug.h"
 #include "config.h"
@@ -434,11 +434,13 @@ static int perf_buildid_config(const char *var, const char *value)
 	return 0;
 }
 
-static int perf_default_core_config(const char *var __maybe_unused,
-				    const char *value __maybe_unused)
+static int perf_default_core_config(const char *var, const char *value)
 {
 	if (!strcmp(var, "core.proc-map-timeout"))
 		proc_map_timeout = strtoul(value, NULL, 10);
+
+	if (!strcmp(var, "core.addr2line-timeout"))
+		addr2line_timeout_ms = strtoul(value, NULL, 10);
 
 	/* Add other config variables here. */
 	return 0;
@@ -482,9 +484,6 @@ int perf_default_config(const char *var, const char *value,
 
 	if (strstarts(var, "call-graph."))
 		return perf_callchain_config(var, value);
-
-	if (strstarts(var, "llvm."))
-		return perf_llvm_config(var, value);
 
 	if (strstarts(var, "buildid."))
 		return perf_buildid_config(var, value);
@@ -543,6 +542,7 @@ static char *home_perfconfig(void)
 	const char *home = NULL;
 	char *config;
 	struct stat st;
+	char path[PATH_MAX];
 
 	home = getenv("HOME");
 
@@ -554,7 +554,7 @@ static char *home_perfconfig(void)
 	if (!home || !*home || !perf_config_global())
 		return NULL;
 
-	config = strdup(mkpath("%s/.perfconfig", home));
+	config = strdup(mkpath(path, sizeof(path), "%s/.perfconfig", home));
 	if (config == NULL) {
 		pr_warning("Not enough memory to process %s/.perfconfig, ignoring it.\n", home);
 		return NULL;

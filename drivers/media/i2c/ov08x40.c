@@ -110,8 +110,6 @@ struct ov08x40_reg_list {
 
 /* Link frequency config */
 struct ov08x40_link_freq_config {
-	u32 pixels_per_line;
-
 	/* registers for this link frequency */
 	struct ov08x40_reg_list reg_list;
 };
@@ -127,6 +125,9 @@ struct ov08x40_mode {
 	/* V-timing */
 	u32 vts_def;
 	u32 vts_min;
+
+	/* HTS */
+	u32 hts;
 
 	/* Index of Link frequency config to be used */
 	u32 link_freq_index;
@@ -2391,6 +2392,7 @@ static const struct ov08x40_mode supported_modes[] = {
 		.height = 2416,
 		.vts_def = OV08X40_VTS_30FPS,
 		.vts_min = OV08X40_VTS_30FPS,
+		.hts = 640,
 		.lanes = 4,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3856x2416_regs),
@@ -2403,6 +2405,7 @@ static const struct ov08x40_mode supported_modes[] = {
 		.height = 1208,
 		.vts_def = OV08X40_VTS_BIN_30FPS,
 		.vts_min = OV08X40_VTS_BIN_30FPS,
+		.hts = 720,
 		.lanes = 4,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_1928x1208_regs),
@@ -2429,9 +2432,6 @@ struct ov08x40 {
 
 	/* Mutex for serialized access */
 	struct mutex mutex;
-
-	/* Streaming on/off */
-	bool streaming;
 };
 
 #define to_ov08x40(_sd)	container_of(_sd, struct ov08x40, sd)
@@ -2536,7 +2536,7 @@ static int ov08x40_open(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	const struct ov08x40_mode *default_mode = &supported_modes[0];
 	struct ov08x40 *ov08x = to_ov08x40(sd);
 	struct v4l2_mbus_framefmt *try_fmt =
-		v4l2_subdev_get_try_format(sd, fh->state, 0);
+		v4l2_subdev_state_get_format(fh->state, 0);
 
 	mutex_lock(&ov08x->mutex);
 
@@ -2774,10 +2774,9 @@ static int ov08x40_do_get_pad_format(struct ov08x40 *ov08x,
 				     struct v4l2_subdev_format *fmt)
 {
 	struct v4l2_mbus_framefmt *framefmt;
-	struct v4l2_subdev *sd = &ov08x->sd;
 
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		fmt->format = *framefmt;
 	} else {
 		ov08x40_update_pad_format(ov08x->cur_mode, fmt);
@@ -2826,7 +2825,7 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 				      fmt->format.width, fmt->format.height);
 	ov08x40_update_pad_format(mode, fmt);
 	if (fmt->which == V4L2_SUBDEV_FORMAT_TRY) {
-		framefmt = v4l2_subdev_get_try_format(sd, sd_state, fmt->pad);
+		framefmt = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 		*framefmt = fmt->format;
 	} else {
 		ov08x->cur_mode = mode;
@@ -2846,9 +2845,7 @@ ov08x40_set_pad_format(struct v4l2_subdev *sd,
 					 1,
 					 vblank_def);
 		__v4l2_ctrl_s_ctrl(ov08x->vblank, vblank_def);
-		h_blank =
-			link_freq_configs[mode->link_freq_index].pixels_per_line
-			 - ov08x->cur_mode->width;
+		h_blank = ov08x->cur_mode->hts;
 		__v4l2_ctrl_modify_range(ov08x->hblank, h_blank,
 					 h_blank, 1, h_blank);
 	}
@@ -2914,10 +2911,6 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret = 0;
 
 	mutex_lock(&ov08x->mutex);
-	if (ov08x->streaming == enable) {
-		mutex_unlock(&ov08x->mutex);
-		return 0;
-	}
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(&client->dev);
@@ -2936,7 +2929,6 @@ static int ov08x40_set_stream(struct v4l2_subdev *sd, int enable)
 		pm_runtime_put(&client->dev);
 	}
 
-	ov08x->streaming = enable;
 	mutex_unlock(&ov08x->mutex);
 
 	return ret;
@@ -2946,37 +2938,6 @@ err_rpm_put:
 err_unlock:
 	mutex_unlock(&ov08x->mutex);
 
-	return ret;
-}
-
-static int __maybe_unused ov08x40_suspend(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov08x40 *ov08x = to_ov08x40(sd);
-
-	if (ov08x->streaming)
-		ov08x40_stop_streaming(ov08x);
-
-	return 0;
-}
-
-static int __maybe_unused ov08x40_resume(struct device *dev)
-{
-	struct v4l2_subdev *sd = dev_get_drvdata(dev);
-	struct ov08x40 *ov08x = to_ov08x40(sd);
-	int ret;
-
-	if (ov08x->streaming) {
-		ret = ov08x40_start_streaming(ov08x);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-
-error:
-	ov08x40_stop_streaming(ov08x);
-	ov08x->streaming = false;
 	return ret;
 }
 
@@ -3074,8 +3035,7 @@ static int ov08x40_init_controls(struct ov08x40 *ov08x)
 					  OV08X40_VTS_MAX - mode->height, 1,
 					  vblank_def);
 
-	hblank = link_freq_configs[mode->link_freq_index].pixels_per_line -
-		 mode->width;
+	hblank = ov08x->cur_mode->hts;
 	ov08x->hblank = v4l2_ctrl_new_std(ctrl_hdlr, &ov08x40_ctrl_ops,
 					  V4L2_CID_HBLANK,
 					  hblank, hblank, 1, hblank);
@@ -3294,10 +3254,6 @@ static void ov08x40_remove(struct i2c_client *client)
 	pm_runtime_set_suspended(&client->dev);
 }
 
-static const struct dev_pm_ops ov08x40_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov08x40_suspend, ov08x40_resume)
-};
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id ov08x40_acpi_ids[] = {
 	{"OVTI08F4"},
@@ -3310,16 +3266,15 @@ MODULE_DEVICE_TABLE(acpi, ov08x40_acpi_ids);
 static struct i2c_driver ov08x40_i2c_driver = {
 	.driver = {
 		.name = "ov08x40",
-		.pm = &ov08x40_pm_ops,
 		.acpi_match_table = ACPI_PTR(ov08x40_acpi_ids),
 	},
-	.probe_new = ov08x40_probe,
+	.probe = ov08x40_probe,
 	.remove = ov08x40_remove,
 };
 
 module_i2c_driver(ov08x40_i2c_driver);
 
 MODULE_AUTHOR("Jason Chen <jason.z.chen@intel.com>");
-MODULE_AUTHOR("Shawn Tu <shawnx.tu@intel.com>");
+MODULE_AUTHOR("Shawn Tu");
 MODULE_DESCRIPTION("OmniVision OV08X40 sensor driver");
 MODULE_LICENSE("GPL");

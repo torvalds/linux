@@ -180,3 +180,81 @@ dummy_load_1ms_pd_init, which had the following code (on purpose)::
 		return 0;
 
 	}
+
+User-space interface
+---------------------------
+
+Timerlat allows user-space threads to use timerlat infra-structure to
+measure scheduling latency. This interface is accessible via a per-CPU
+file descriptor inside $tracing_dir/osnoise/per_cpu/cpu$ID/timerlat_fd.
+
+This interface is accessible under the following conditions:
+
+ - timerlat tracer is enable
+ - osnoise workload option is set to NO_OSNOISE_WORKLOAD
+ - The user-space thread is affined to a single processor
+ - The thread opens the file associated with its single processor
+ - Only one thread can access the file at a time
+
+The open() syscall will fail if any of these conditions are not met.
+After opening the file descriptor, the user space can read from it.
+
+The read() system call will run a timerlat code that will arm the
+timer in the future and wait for it as the regular kernel thread does.
+
+When the timer IRQ fires, the timerlat IRQ will execute, report the
+IRQ latency and wake up the thread waiting in the read. The thread will be
+scheduled and report the thread latency via tracer - as for the kernel
+thread.
+
+The difference from the in-kernel timerlat is that, instead of re-arming
+the timer, timerlat will return to the read() system call. At this point,
+the user can run any code.
+
+If the application rereads the file timerlat file descriptor, the tracer
+will report the return from user-space latency, which is the total
+latency. If this is the end of the work, it can be interpreted as the
+response time for the request.
+
+After reporting the total latency, timerlat will restart the cycle, arm
+a timer, and go to sleep for the following activation.
+
+If at any time one of the conditions is broken, e.g., the thread migrates
+while in user space, or the timerlat tracer is disabled, the SIG_KILL
+signal will be sent to the user-space thread.
+
+Here is an basic example of user-space code for timerlat::
+
+ int main(void)
+ {
+	char buffer[1024];
+	int timerlat_fd;
+	int retval;
+	long cpu = 0;   /* place in CPU 0 */
+	cpu_set_t set;
+
+	CPU_ZERO(&set);
+	CPU_SET(cpu, &set);
+
+	if (sched_setaffinity(gettid(), sizeof(set), &set) == -1)
+		return 1;
+
+	snprintf(buffer, sizeof(buffer),
+		"/sys/kernel/tracing/osnoise/per_cpu/cpu%ld/timerlat_fd",
+		cpu);
+
+	timerlat_fd = open(buffer, O_RDONLY);
+	if (timerlat_fd < 0) {
+		printf("error opening %s: %s\n", buffer, strerror(errno));
+		exit(1);
+	}
+
+	for (;;) {
+		retval = read(timerlat_fd, buffer, 1024);
+		if (retval < 0)
+			break;
+	}
+
+	close(timerlat_fd);
+	exit(0);
+ }

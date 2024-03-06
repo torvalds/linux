@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/memblock.h>
 #include <linux/platform_device.h>
+#include <linux/linkage.h>
 
 #include <asm/oplib.h>
 #include <asm/setup.h>
@@ -32,12 +33,13 @@
 #include <asm/irq.h>
 #include <asm/sections.h>
 #include <asm/sun3ints.h>
+#include <asm/config.h>
+
+#include "sun3.h"
 
 char sun3_reserved_pmeg[SUN3_PMEGS_NUM];
 
 static void sun3_sched_init(void);
-extern void sun3_get_model (char* model);
-extern int sun3_hwclk(int set, struct rtc_time *t);
 
 volatile char* clock_va;
 extern unsigned long availmem;
@@ -48,7 +50,7 @@ static void sun3_get_hardware_list(struct seq_file *m)
 	seq_printf(m, "PROM Revision:\t%s\n", romvec->pv_monid);
 }
 
-void __init sun3_init(void)
+asmlinkage void __init sun3_init(void)
 {
 	unsigned char enable_register;
 	int i;
@@ -107,13 +109,10 @@ static void sun3_halt (void)
 static void __init sun3_bootmem_alloc(unsigned long memory_start,
 				      unsigned long memory_end)
 {
-	unsigned long start_page;
-
 	/* align start/end to page boundaries */
 	memory_start = ((memory_start + (PAGE_SIZE-1)) & PAGE_MASK);
 	memory_end = memory_end & PAGE_MASK;
 
-	start_page = __pa(memory_start) >> PAGE_SHIFT;
 	max_pfn = num_pages = __pa(memory_end) >> PAGE_SHIFT;
 
 	high_memory = (void *)memory_end;
@@ -200,7 +199,7 @@ static const struct resource sun3_scsi_rsrc[] __initconst = {
 	},
 };
 
-int __init sun3_platform_init(void)
+static int __init sun3_platform_init(void)
 {
 	switch (idprom->id_machtype) {
 	case SM_SUN3 | SM_3_160:

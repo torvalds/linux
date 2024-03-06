@@ -18,6 +18,7 @@
 #include <linux/platform_data/leds-lp55xx.h>
 #include <linux/slab.h>
 #include <linux/gpio/consumer.h>
+#include <dt-bindings/leds/leds-lp55xx.h>
 
 #include "leds-lp55xx-common.h"
 
@@ -441,9 +442,9 @@ int lp55xx_init_device(struct lp55xx_chip *chip)
 		gpiod_direction_output(pdata->enable_gpiod, 0);
 
 		gpiod_set_consumer_name(pdata->enable_gpiod, "LP55xx enable");
-		gpiod_set_value(pdata->enable_gpiod, 0);
+		gpiod_set_value_cansleep(pdata->enable_gpiod, 0);
 		usleep_range(1000, 2000); /* Keep enable down at least 1ms */
-		gpiod_set_value(pdata->enable_gpiod, 1);
+		gpiod_set_value_cansleep(pdata->enable_gpiod, 1);
 		usleep_range(1000, 2000); /* 500us abs min. */
 	}
 
@@ -689,6 +690,14 @@ struct lp55xx_platform_data *lp55xx_of_populate_pdata(struct device *dev,
 			return ERR_PTR(-EINVAL);
 		}
 		i++;
+	}
+
+	if (of_property_read_u32(np, "ti,charge-pump-mode", &pdata->charge_pump_mode))
+		pdata->charge_pump_mode = LP55XX_CP_AUTO;
+
+	if (pdata->charge_pump_mode > LP55XX_CP_AUTO) {
+		dev_err(dev, "invalid charge pump mode %d\n", pdata->charge_pump_mode);
+		return ERR_PTR(-EINVAL);
 	}
 
 	of_property_read_string(np, "label", &pdata->label);

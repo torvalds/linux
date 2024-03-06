@@ -6,8 +6,14 @@
 #include <bpf/bpf_tracing.h>
 #include <../../../tools/include/linux/filter.h>
 #include <linux/btf.h>
+#include <string.h>
+#include <errno.h>
 
 char _license[] SEC("license") = "GPL";
+
+struct bpf_map {
+	int id;
+}  __attribute__((preserve_access_index));
 
 struct args {
 	__u64 log_buf;
@@ -26,6 +32,37 @@ struct args {
 #define BTF_TYPE_INT_ENC(name, encoding, bits_offset, bits, sz) \
 	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_INT, 0, 0), sz), \
 	BTF_INT_ENC(encoding, bits_offset, bits)
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, int);
+	__type(value, union bpf_attr);
+	__uint(max_entries, 1);
+} bpf_attr_array SEC(".maps");
+
+struct inner_map_type {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(key_size, 4);
+	__uint(value_size, 4);
+	__uint(max_entries, 1);
+} inner_map SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
+	__type(key, int);
+	__type(value, int);
+	__uint(max_entries, 1);
+	__array(values, struct inner_map_type);
+} outer_array_map SEC(".maps") = {
+	.values = {
+		[0] = &inner_map,
+	},
+};
+
+static inline __u64 ptr_to_u64(const void *ptr)
+{
+	return (__u64) (unsigned long) ptr;
+}
 
 static int btf_load(void)
 {
@@ -58,7 +95,7 @@ static int btf_load(void)
 }
 
 SEC("syscall")
-int bpf_prog(struct args *ctx)
+int load_prog(struct args *ctx)
 {
 	static char license[] = "GPL";
 	static struct bpf_insn insns[] = {
@@ -94,8 +131,8 @@ int bpf_prog(struct args *ctx)
 	map_create_attr.max_entries = ctx->max_entries;
 	map_create_attr.btf_fd = ret;
 
-	prog_load_attr.license = (long) license;
-	prog_load_attr.insns = (long) insns;
+	prog_load_attr.license = ptr_to_u64(license);
+	prog_load_attr.insns = ptr_to_u64(insns);
 	prog_load_attr.log_buf = ctx->log_buf;
 	prog_load_attr.log_size = ctx->log_size;
 	prog_load_attr.log_level = 1;
@@ -107,8 +144,8 @@ int bpf_prog(struct args *ctx)
 	insns[3].imm = ret;
 
 	map_update_attr.map_fd = ret;
-	map_update_attr.key = (long) &key;
-	map_update_attr.value = (long) &value;
+	map_update_attr.key = ptr_to_u64(&key);
+	map_update_attr.value = ptr_to_u64(&value);
 	ret = bpf_sys_bpf(BPF_MAP_UPDATE_ELEM, &map_update_attr, sizeof(map_update_attr));
 	if (ret < 0)
 		return ret;
@@ -118,4 +155,53 @@ int bpf_prog(struct args *ctx)
 		return ret;
 	ctx->prog_fd = ret;
 	return 1;
+}
+
+SEC("syscall")
+int update_outer_map(void *ctx)
+{
+	int zero = 0, ret = 0, outer_fd = -1, inner_fd = -1, err;
+	const int attr_sz = sizeof(union bpf_attr);
+	union bpf_attr *attr;
+
+	attr = bpf_map_lookup_elem((struct bpf_map *)&bpf_attr_array, &zero);
+	if (!attr)
+		goto out;
+
+	memset(attr, 0, attr_sz);
+	attr->map_id = ((struct bpf_map *)&outer_array_map)->id;
+	outer_fd = bpf_sys_bpf(BPF_MAP_GET_FD_BY_ID, attr, attr_sz);
+	if (outer_fd < 0)
+		goto out;
+
+	memset(attr, 0, attr_sz);
+	attr->map_type = BPF_MAP_TYPE_ARRAY;
+	attr->key_size = 4;
+	attr->value_size = 4;
+	attr->max_entries = 1;
+	inner_fd = bpf_sys_bpf(BPF_MAP_CREATE, attr, attr_sz);
+	if (inner_fd < 0)
+		goto out;
+
+	memset(attr, 0, attr_sz);
+	attr->map_fd = outer_fd;
+	attr->key = ptr_to_u64(&zero);
+	attr->value = ptr_to_u64(&inner_fd);
+	err = bpf_sys_bpf(BPF_MAP_UPDATE_ELEM, attr, attr_sz);
+	if (err)
+		goto out;
+
+	memset(attr, 0, attr_sz);
+	attr->map_fd = outer_fd;
+	attr->key = ptr_to_u64(&zero);
+	err = bpf_sys_bpf(BPF_MAP_DELETE_ELEM, attr, attr_sz);
+	if (err)
+		goto out;
+	ret = 1;
+out:
+	if (inner_fd >= 0)
+		bpf_sys_close(inner_fd);
+	if (outer_fd >= 0)
+		bpf_sys_close(outer_fd);
+	return ret;
 }

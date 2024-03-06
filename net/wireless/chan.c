@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018-2022	Intel Corporation
+ * Copyright 2018-2023	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -141,7 +141,7 @@ static bool cfg80211_edmg_chandef_valid(const struct cfg80211_chan_def *chandef)
 	return true;
 }
 
-static int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width)
+int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width)
 {
 	int mhz;
 
@@ -190,6 +190,7 @@ static int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width)
 	}
 	return mhz;
 }
+EXPORT_SYMBOL(nl80211_chan_width_to_mhz);
 
 static int cfg80211_chandef_get_width(const struct cfg80211_chan_def *c)
 {
@@ -514,9 +515,83 @@ static u32 cfg80211_get_end_freq(u32 center_freq,
 	return end_freq;
 }
 
+static bool
+cfg80211_dfs_permissive_check_wdev(struct cfg80211_registered_device *rdev,
+				   enum nl80211_iftype iftype,
+				   struct wireless_dev *wdev,
+				   struct ieee80211_channel *chan)
+{
+	unsigned int link_id;
+
+	for_each_valid_link(wdev, link_id) {
+		struct ieee80211_channel *other_chan = NULL;
+		struct cfg80211_chan_def chandef = {};
+		int ret;
+
+		/* In order to avoid daisy chaining only allow BSS STA */
+		if (wdev->iftype != NL80211_IFTYPE_STATION ||
+		    !wdev->links[link_id].client.current_bss)
+			continue;
+
+		other_chan =
+			wdev->links[link_id].client.current_bss->pub.channel;
+
+		if (!other_chan)
+			continue;
+
+		if (chan == other_chan)
+			return true;
+
+		/* continue if we can't get the channel */
+		ret = rdev_get_channel(rdev, wdev, link_id, &chandef);
+		if (ret)
+			continue;
+
+		if (cfg80211_is_sub_chan(&chandef, chan, false))
+			return true;
+	}
+
+	return false;
+}
+
+/*
+ * Check if P2P GO is allowed to operate on a DFS channel
+ */
+static bool cfg80211_dfs_permissive_chan(struct wiphy *wiphy,
+					 enum nl80211_iftype iftype,
+					 struct ieee80211_channel *chan)
+{
+	struct wireless_dev *wdev;
+	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+
+	lockdep_assert_held(&rdev->wiphy.mtx);
+
+	if (!wiphy_ext_feature_isset(&rdev->wiphy,
+				     NL80211_EXT_FEATURE_DFS_CONCURRENT) ||
+	    !(chan->flags & IEEE80211_CHAN_DFS_CONCURRENT))
+		return false;
+
+	/* only valid for P2P GO */
+	if (iftype != NL80211_IFTYPE_P2P_GO)
+		return false;
+
+	/*
+	 * Allow only if there's a concurrent BSS
+	 */
+	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
+		bool ret = cfg80211_dfs_permissive_check_wdev(rdev, iftype,
+							      wdev, chan);
+		if (ret)
+			return ret;
+	}
+
+	return false;
+}
+
 static int cfg80211_get_chans_dfs_required(struct wiphy *wiphy,
 					    u32 center_freq,
-					    u32 bandwidth)
+					    u32 bandwidth,
+					    enum nl80211_iftype iftype)
 {
 	struct ieee80211_channel *c;
 	u32 freq, start_freq, end_freq;
@@ -529,9 +604,11 @@ static int cfg80211_get_chans_dfs_required(struct wiphy *wiphy,
 		if (!c)
 			return -EINVAL;
 
-		if (c->flags & IEEE80211_CHAN_RADAR)
+		if (c->flags & IEEE80211_CHAN_RADAR &&
+		    !cfg80211_dfs_permissive_chan(wiphy, iftype, c))
 			return 1;
 	}
+
 	return 0;
 }
 
@@ -557,7 +634,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 
 		ret = cfg80211_get_chans_dfs_required(wiphy,
 					ieee80211_chandef_to_khz(chandef),
-					width);
+					width, iftype);
 		if (ret < 0)
 			return ret;
 		else if (ret > 0)
@@ -568,7 +645,7 @@ int cfg80211_chandef_dfs_required(struct wiphy *wiphy,
 
 		ret = cfg80211_get_chans_dfs_required(wiphy,
 					MHZ_TO_KHZ(chandef->center_freq2),
-					width);
+					width, iftype);
 		if (ret < 0)
 			return ret;
 		else if (ret > 0)
@@ -666,6 +743,7 @@ bool cfg80211_chandef_dfs_usable(struct wiphy *wiphy,
 
 	return (r1 + r2 > 0);
 }
+EXPORT_SYMBOL(cfg80211_chandef_dfs_usable);
 
 /*
  * Checks if center frequency of chan falls with in the bandwidth
@@ -713,7 +791,7 @@ bool cfg80211_beaconing_iface_active(struct wireless_dev *wdev)
 {
 	unsigned int link;
 
-	ASSERT_WDEV_LOCK(wdev);
+	lockdep_assert_wiphy(wdev->wiphy);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_AP:
@@ -782,18 +860,14 @@ static bool cfg80211_is_wiphy_oper_chan(struct wiphy *wiphy,
 {
 	struct wireless_dev *wdev;
 
-	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
-		wdev_lock(wdev);
-		if (!cfg80211_beaconing_iface_active(wdev)) {
-			wdev_unlock(wdev);
-			continue;
-		}
+	lockdep_assert_wiphy(wiphy);
 
-		if (cfg80211_wdev_on_sub_chan(wdev, chan, false)) {
-			wdev_unlock(wdev);
+	list_for_each_entry(wdev, &wiphy->wdev_list, list) {
+		if (!cfg80211_beaconing_iface_active(wdev))
+			continue;
+
+		if (cfg80211_wdev_on_sub_chan(wdev, chan, false))
 			return true;
-		}
-		wdev_unlock(wdev);
 	}
 
 	return false;
@@ -823,14 +897,18 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 	if (!(chan->flags & IEEE80211_CHAN_RADAR))
 		return false;
 
-	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+	for_each_rdev(rdev) {
+		bool found;
+
 		if (!reg_dfs_domain_same(wiphy, &rdev->wiphy))
 			continue;
 
-		if (cfg80211_is_wiphy_oper_chan(&rdev->wiphy, chan))
-			return true;
+		wiphy_lock(&rdev->wiphy);
+		found = cfg80211_is_wiphy_oper_chan(&rdev->wiphy, chan) ||
+			cfg80211_offchan_chain_is_active(rdev, chan);
+		wiphy_unlock(&rdev->wiphy);
 
-		if (cfg80211_offchan_chain_is_active(rdev, chan))
+		if (found)
 			return true;
 	}
 
@@ -965,6 +1043,7 @@ cfg80211_chandef_dfs_cac_time(struct wiphy *wiphy,
 
 	return max(t1, t2);
 }
+EXPORT_SYMBOL(cfg80211_chandef_dfs_cac_time);
 
 static bool cfg80211_secondary_chans_ok(struct wiphy *wiphy,
 					u32 center_freq, u32 bandwidth,
@@ -1162,8 +1241,7 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		if (!sband)
 			return false;
 
-		for (i = 0; i < sband->n_iftype_data; i++) {
-			iftd = &sband->iftype_data[i];
+		for_each_sband_iftype_data(sband, i, iftd) {
 			if (!iftd->eht_cap.has_eht)
 				continue;
 
@@ -1321,10 +1399,7 @@ static bool cfg80211_ir_permissive_chan(struct wiphy *wiphy,
 	list_for_each_entry(wdev, &rdev->wiphy.wdev_list, list) {
 		bool ret;
 
-		wdev_lock(wdev);
 		ret = cfg80211_ir_permissive_check_wdev(iftype, wdev, chan);
-		wdev_unlock(wdev);
-
 		if (ret)
 			return ret;
 	}
@@ -1338,15 +1413,19 @@ static bool _cfg80211_reg_can_beacon(struct wiphy *wiphy,
 				     bool check_no_ir)
 {
 	bool res;
-	u32 prohibited_flags = IEEE80211_CHAN_DISABLED |
-			       IEEE80211_CHAN_RADAR;
+	u32 prohibited_flags = IEEE80211_CHAN_DISABLED;
+	int dfs_required;
 
 	trace_cfg80211_reg_can_beacon(wiphy, chandef, iftype, check_no_ir);
 
 	if (check_no_ir)
 		prohibited_flags |= IEEE80211_CHAN_NO_IR;
 
-	if (cfg80211_chandef_dfs_required(wiphy, chandef, iftype) > 0 &&
+	dfs_required = cfg80211_chandef_dfs_required(wiphy, chandef, iftype);
+	if (dfs_required != 0)
+		prohibited_flags |= IEEE80211_CHAN_RADAR;
+
+	if (dfs_required > 0 &&
 	    cfg80211_chandef_dfs_available(wiphy, chandef)) {
 		/* We can skip IEEE80211_CHAN_NO_IR if chandef dfs available */
 		prohibited_flags = IEEE80211_CHAN_DISABLED;
@@ -1433,17 +1512,10 @@ EXPORT_SYMBOL(cfg80211_any_usable_channels);
 struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
 				       unsigned int link_id)
 {
-	/*
-	 * We need to sort out the locking here - in some cases
-	 * where we get here we really just don't care (yet)
-	 * about the valid links, but in others we do. But we
-	 * get here with various driver cases, so we cannot
-	 * easily require the wdev mutex.
-	 */
-	if (link_id || wdev->valid_links & BIT(0)) {
-		ASSERT_WDEV_LOCK(wdev);
-		WARN_ON(!(wdev->valid_links & BIT(link_id)));
-	}
+	lockdep_assert_wiphy(wdev->wiphy);
+
+	WARN_ON(wdev->valid_links && !(wdev->valid_links & BIT(link_id)));
+	WARN_ON(!wdev->valid_links && link_id > 0);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_MESH_POINT:

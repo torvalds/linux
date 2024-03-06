@@ -269,4 +269,10 @@ struct dtn_min_clk_info {
 	uint32_t min_memory_clock_khz;
 };
 
+enum dm_dmub_wait_type {
+	DM_DMUB_WAIT_TYPE_NO_WAIT,
+	DM_DMUB_WAIT_TYPE_WAIT,
+	DM_DMUB_WAIT_TYPE_WAIT_WITH_REPLY,
+};
+
 #endif

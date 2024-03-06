@@ -40,6 +40,6 @@ struct gsc_hwmon_platform_data {
 	unsigned int resolution;
 	unsigned int vreference;
 	unsigned int fan_base;
-	struct gsc_hwmon_channel channels[];
+	struct gsc_hwmon_channel channels[] __counted_by(nchannels);
 };
 #endif

@@ -145,12 +145,12 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
  * The divisor latch register exists at different address.
  * Override dl_read/write callbacks.
  */
-static int uniphier_serial_dl_read(struct uart_8250_port *up)
+static u32 uniphier_serial_dl_read(struct uart_8250_port *up)
 {
 	return readl(up->port.membase + UNIPHIER_UART_DLR);
 }
 
-static void uniphier_serial_dl_write(struct uart_8250_port *up, int value)
+static void uniphier_serial_dl_write(struct uart_8250_port *up, u32 value)
 {
 	writel(value, up->port.membase + UNIPHIER_UART_DLR);
 }
@@ -241,14 +241,12 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int uniphier_uart_remove(struct platform_device *pdev)
+static void uniphier_uart_remove(struct platform_device *pdev)
 {
 	struct uniphier8250_priv *priv = platform_get_drvdata(pdev);
 
 	serial8250_unregister_port(priv->line);
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static int __maybe_unused uniphier_uart_suspend(struct device *dev)
@@ -293,7 +291,7 @@ MODULE_DEVICE_TABLE(of, uniphier_uart_match);
 
 static struct platform_driver uniphier_uart_platform_driver = {
 	.probe		= uniphier_uart_probe,
-	.remove		= uniphier_uart_remove,
+	.remove_new	= uniphier_uart_remove,
 	.driver = {
 		.name	= "uniphier-uart",
 		.of_match_table = uniphier_uart_match,

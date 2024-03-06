@@ -52,7 +52,7 @@ static int sysv_handle_dirsync(struct inode *dir)
 }
 
 /*
- * Calls to dir_get_page()/put_and_unmap_page() must be nested according to the
+ * Calls to dir_get_page()/unmap_and_put_page() must be nested according to the
  * rules documented in mm/highmem.rst.
  *
  * NOTE: sysv_find_entry() and sysv_dotdot() act as calls to dir_get_page()
@@ -103,11 +103,11 @@ static int sysv_readdir(struct file *file, struct dir_context *ctx)
 			if (!dir_emit(ctx, name, strnlen(name,SYSV_NAMELEN),
 					fs16_to_cpu(SYSV_SB(sb), de->inode),
 					DT_UNKNOWN)) {
-				put_and_unmap_page(page, kaddr);
+				unmap_and_put_page(page, kaddr);
 				return 0;
 			}
 		}
-		put_and_unmap_page(page, kaddr);
+		unmap_and_put_page(page, kaddr);
 	}
 	return 0;
 }
@@ -131,7 +131,7 @@ static inline int namecompare(int len, int maxlen,
  * itself (as a parameter - res_dir). It does NOT read the inode of the
  * entry - you'll have to do that yourself if you want to.
  *
- * On Success put_and_unmap_page() should be called on *res_page.
+ * On Success unmap_and_put_page() should be called on *res_page.
  *
  * sysv_find_entry() acts as a call to dir_get_page() and must be treated
  * accordingly for nesting purposes.
@@ -166,7 +166,7 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 							name, de->name))
 					goto found;
 			}
-			put_and_unmap_page(page, kaddr);
+			unmap_and_put_page(page, kaddr);
 		}
 
 		if (++n >= npages)
@@ -209,7 +209,7 @@ int sysv_add_link(struct dentry *dentry, struct inode *inode)
 				goto out_page;
 			de++;
 		}
-		put_and_unmap_page(page, kaddr);
+		unmap_and_put_page(page, kaddr);
 	}
 	BUG();
 	return -EINVAL;
@@ -224,11 +224,11 @@ got_it:
 	memset (de->name + namelen, 0, SYSV_DIRSIZE - namelen - 2);
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
 	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	err = sysv_handle_dirsync(dir);
 out_page:
-	put_and_unmap_page(page, kaddr);
+	unmap_and_put_page(page, kaddr);
 	return err;
 out_unlock:
 	unlock_page(page);
@@ -249,7 +249,7 @@ int sysv_delete_entry(struct sysv_dir_entry *de, struct page *page)
 	}
 	de->inode = 0;
 	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
-	inode->i_ctime = inode->i_mtime = current_time(inode);
+	inode_set_mtime_to_ts(inode, inode_set_ctime_current(inode));
 	mark_inode_dirty(inode);
 	return sysv_handle_dirsync(inode);
 }
@@ -321,12 +321,12 @@ int sysv_empty_dir(struct inode * inode)
 			if (de->name[1] != '.' || de->name[2])
 				goto not_empty;
 		}
-		put_and_unmap_page(page, kaddr);
+		unmap_and_put_page(page, kaddr);
 	}
 	return 1;
 
 not_empty:
-	put_and_unmap_page(page, kaddr);
+	unmap_and_put_page(page, kaddr);
 	return 0;
 }
 
@@ -346,13 +346,13 @@ int sysv_set_link(struct sysv_dir_entry *de, struct page *page,
 	}
 	de->inode = cpu_to_fs16(SYSV_SB(inode->i_sb), inode->i_ino);
 	dir_commit_chunk(page, pos, SYSV_DIRSIZE);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	inode_set_mtime_to_ts(dir, inode_set_ctime_current(dir));
 	mark_inode_dirty(dir);
 	return sysv_handle_dirsync(inode);
 }
 
 /*
- * Calls to dir_get_page()/put_and_unmap_page() must be nested according to the
+ * Calls to dir_get_page()/unmap_and_put_page() must be nested according to the
  * rules documented in mm/highmem.rst.
  *
  * sysv_dotdot() acts as a call to dir_get_page() and must be treated
@@ -376,7 +376,7 @@ ino_t sysv_inode_by_name(struct dentry *dentry)
 	
 	if (de) {
 		res = fs16_to_cpu(SYSV_SB(dentry->d_sb), de->inode);
-		put_and_unmap_page(page, de);
+		unmap_and_put_page(page, de);
 	}
 	return res;
 }

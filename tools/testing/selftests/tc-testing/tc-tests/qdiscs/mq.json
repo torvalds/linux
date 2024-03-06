@@ -155,5 +155,28 @@
             "teardown": [
                 "echo \"1\" > /sys/bus/netdevsim/del_device"
             ]
-        }
+	},
+	{
+		"id": "0531",
+		"name": "Replace mq with invalid parent ID",
+		"category": [
+			"qdisc",
+			"mq"
+		],
+		"plugins": {
+			"requires": "nsPlugin"
+		},
+		"setup": [
+			"echo \"1 1 16\" > /sys/bus/netdevsim/new_device",
+			"$TC qdisc add dev $ETH root handle ffff: mq"
+		],
+		"cmdUnderTest": "$TC qdisc replace dev $ETH parent ffff:fff1 handle ffff: mq",
+		"expExitCode": "2",
+		"verifyCmd": "$TC qdisc show dev $ETH",
+		"matchPattern": "qdisc [a-zA-Z0-9_]+ 0: parent ffff",
+		"matchCount": "16",
+		"teardown": [
+			"echo \"1\" > /sys/bus/netdevsim/del_device"
+		]
+	}
 ]

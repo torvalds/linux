@@ -7,8 +7,8 @@
 
 #include <linux/interrupt.h>
 #include <linux/mfd/core.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 
 #include <linux/mfd/lp873x.h>
@@ -78,7 +78,7 @@ static struct i2c_driver lp873x_driver = {
 		.name	= "lp873x",
 		.of_match_table = of_lp873x_match_table,
 	},
-	.probe_new	= lp873x_probe,
+	.probe		= lp873x_probe,
 	.id_table	= lp873x_id_table,
 };
 module_i2c_driver(lp873x_driver);

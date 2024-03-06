@@ -1,4 +1,5 @@
 #PANIC
+#PANIC_STOP_IRQOFF Crashes entire system
 BUG kernel BUG at
 WARNING WARNING:
 WARNING_MESSAGE message trigger
@@ -7,7 +8,7 @@ EXCEPTION
 #EXHAUST_STACK Corrupts memory on failure
 #CORRUPT_STACK Crashes entire system on success
 #CORRUPT_STACK_STRONG Crashes entire system on success
-ARRAY_BOUNDS
+ARRAY_BOUNDS call trace:|UBSAN: array-index-out-of-bounds
 CORRUPT_LIST_ADD list_add corruption
 CORRUPT_LIST_DEL list_del corruption
 STACK_GUARD_PAGE_LEADING

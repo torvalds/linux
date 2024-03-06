@@ -238,7 +238,7 @@ The's IO is assigned by a unique tag, which is 1:1 mapping with IO
 request of ``/dev/ublkb*``.
 
 UAPI structure of ``ublksrv_io_desc`` is defined for describing each IO from
-the driver. A fixed mmaped area (array) on ``/dev/ublkc*`` is provided for
+the driver. A fixed mmapped area (array) on ``/dev/ublkc*`` is provided for
 exporting IO info to the server; such as IO offset, length, OP/flags and
 buffer address. Each ``ublksrv_io_desc`` instance can be indexed via queue id
 and IO tag directly.

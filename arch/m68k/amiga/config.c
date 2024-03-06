@@ -39,6 +39,8 @@
 #include <asm/io.h>
 #include <asm/config.h>
 
+#include "amiga.h"
+
 static unsigned long amiga_model;
 
 unsigned long amiga_eclock;
@@ -96,9 +98,7 @@ static char amiga_model_name[13] = "Amiga ";
 static void amiga_sched_init(void);
 static void amiga_get_model(char *model);
 static void amiga_get_hardware_list(struct seq_file *m);
-extern void amiga_mksound(unsigned int count, unsigned int ticks);
 static void amiga_reset(void);
-extern void amiga_init_sound(void);
 static void amiga_mem_console_write(struct console *co, const char *b,
 				    unsigned int count);
 #ifdef CONFIG_HEARTBEAT

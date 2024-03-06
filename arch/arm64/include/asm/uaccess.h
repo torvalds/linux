@@ -65,7 +65,6 @@ static inline void __uaccess_ttbr0_disable(void)
 	ttbr &= ~TTBR_ASID_MASK;
 	/* reserved_pg_dir placed before swapper_pg_dir */
 	write_sysreg(ttbr - RESERVED_SWAPPER_OFFSET, ttbr0_el1);
-	isb();
 	/* Set reserved ASID */
 	write_sysreg(ttbr, ttbr1_el1);
 	isb();
@@ -89,7 +88,6 @@ static inline void __uaccess_ttbr0_enable(void)
 	ttbr1 &= ~TTBR_ASID_MASK;		/* safety measure */
 	ttbr1 |= ttbr0 & TTBR_ASID_MASK;
 	write_sysreg(ttbr1, ttbr1_el1);
-	isb();
 
 	/* Restore user page table */
 	write_sysreg(ttbr0, ttbr0_el1);

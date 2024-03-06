@@ -545,7 +545,7 @@ struct hv_pcidev_description {
 struct hv_dr_state {
 	struct list_head list_entry;
 	u32 device_count;
-	struct hv_pcidev_description func[];
+	struct hv_pcidev_description func[] __counted_by(device_count);
 };
 
 struct hv_pci_dev {
@@ -649,13 +649,6 @@ static void hv_arch_irq_unmask(struct irq_data *data)
 			   (hbus->hdev->dev_instance.b[6] & 0xf8) |
 			   PCI_FUNC(pdev->devfn);
 	params->int_target.vector = hv_msi_get_int_vector(data);
-
-	/*
-	 * Honoring apic->delivery_mode set to APIC_DELIVERY_MODE_FIXED by
-	 * setting the HV_DEVICE_INTERRUPT_TARGET_MULTICAST flag results in a
-	 * spurious interrupt storm. Not doing so does not seem to have a
-	 * negative effect (yet?).
-	 */
 
 	if (hbus->protocol_version >= PCI_PROTOCOL_VERSION_1_2) {
 		/*
@@ -3982,6 +3975,9 @@ static int hv_pci_restore_msi_msg(struct pci_dev *pdev, void *arg)
 	struct irq_data *irq_data;
 	struct msi_desc *entry;
 	int ret = 0;
+
+	if (!pdev->msi_enabled && !pdev->msix_enabled)
+		return 0;
 
 	msi_lock_descs(&pdev->dev);
 	msi_for_each_desc(entry, &pdev->dev, MSI_DESC_ASSOCIATED) {

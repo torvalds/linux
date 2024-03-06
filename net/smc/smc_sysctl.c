@@ -21,6 +21,14 @@
 
 static int min_sndbuf = SMC_BUF_MIN_SIZE;
 static int min_rcvbuf = SMC_BUF_MIN_SIZE;
+static int max_sndbuf = INT_MAX / 2;
+static int max_rcvbuf = INT_MAX / 2;
+static const int net_smc_wmem_init = (64 * 1024);
+static const int net_smc_rmem_init = (64 * 1024);
+static int links_per_lgr_min = SMC_LINKS_ADD_LNK_MIN;
+static int links_per_lgr_max = SMC_LINKS_ADD_LNK_MAX;
+static int conns_per_lgr_min = SMC_CONN_PER_LGR_MIN;
+static int conns_per_lgr_max = SMC_CONN_PER_LGR_MAX;
 
 static struct ctl_table smc_table[] = {
 	{
@@ -53,6 +61,7 @@ static struct ctl_table smc_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_sndbuf,
+		.extra2		= &max_sndbuf,
 	},
 	{
 		.procname	= "rmem",
@@ -61,6 +70,25 @@ static struct ctl_table smc_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= &min_rcvbuf,
+		.extra2		= &max_rcvbuf,
+	},
+	{
+		.procname	= "smcr_max_links_per_lgr",
+		.data		= &init_net.smc.sysctl_max_links_per_lgr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &links_per_lgr_min,
+		.extra2		= &links_per_lgr_max,
+	},
+	{
+		.procname	= "smcr_max_conns_per_lgr",
+		.data		= &init_net.smc.sysctl_max_conns_per_lgr,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &conns_per_lgr_min,
+		.extra2		= &conns_per_lgr_max,
 	},
 	{  }
 };
@@ -81,15 +109,18 @@ int __net_init smc_sysctl_net_init(struct net *net)
 			table[i].data += (void *)net - (void *)&init_net;
 	}
 
-	net->smc.smc_hdr = register_net_sysctl(net, "net/smc", table);
+	net->smc.smc_hdr = register_net_sysctl_sz(net, "net/smc", table,
+						  ARRAY_SIZE(smc_table));
 	if (!net->smc.smc_hdr)
 		goto err_reg;
 
 	net->smc.sysctl_autocorking_size = SMC_AUTOCORKING_DEFAULT_SIZE;
 	net->smc.sysctl_smcr_buf_type = SMCR_PHYS_CONT_BUFS;
 	net->smc.sysctl_smcr_testlink_time = SMC_LLC_TESTLINK_DEFAULT_TIME;
-	WRITE_ONCE(net->smc.sysctl_wmem, READ_ONCE(net->ipv4.sysctl_tcp_wmem[1]));
-	WRITE_ONCE(net->smc.sysctl_rmem, READ_ONCE(net->ipv4.sysctl_tcp_rmem[1]));
+	WRITE_ONCE(net->smc.sysctl_wmem, net_smc_wmem_init);
+	WRITE_ONCE(net->smc.sysctl_rmem, net_smc_rmem_init);
+	net->smc.sysctl_max_links_per_lgr = SMC_LINKS_PER_LGR_MAX_PREFER;
+	net->smc.sysctl_max_conns_per_lgr = SMC_CONN_PER_LGR_PREFER;
 
 	return 0;
 

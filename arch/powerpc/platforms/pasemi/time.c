@@ -9,6 +9,8 @@
 
 #include <asm/time.h>
 
+#include "pasemi.h"
+
 time64_t __init pas_get_boot_time(void)
 {
 	/* Let's just return a fake date right now */

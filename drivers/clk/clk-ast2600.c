@@ -5,8 +5,8 @@
 #define pr_fmt(fmt) "clk-ast2600: " fmt
 
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -839,6 +839,7 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 				      ASPEED_G6_NUM_CLKS), GFP_KERNEL);
 	if (!aspeed_g6_clk_data)
 		return;
+	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;
 
 	/*
 	 * This way all clocks fetched before the platform device probes,
@@ -860,7 +861,6 @@ static void __init aspeed_g6_cc_init(struct device_node *np)
 	}
 
 	aspeed_g6_cc(map);
-	aspeed_g6_clk_data->num = ASPEED_G6_NUM_CLKS;
 	ret = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, aspeed_g6_clk_data);
 	if (ret)
 		pr_err("failed to add DT provider: %d\n", ret);

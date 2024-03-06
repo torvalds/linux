@@ -15,6 +15,7 @@
 #include <asm/vdso.h>
 #include <linux/time_namespace.h>
 #include <vdso/datapage.h>
+#include <vdso/vsyscall.h>
 
 enum vvar_pages {
 	VVAR_DATA_PAGE_OFFSET,

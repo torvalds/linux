@@ -253,6 +253,22 @@ struct rxe_qp {
 	struct execute_work	cleanup_work;
 };
 
+enum {
+	RXE_ACCESS_REMOTE	= IB_ACCESS_REMOTE_READ
+				| IB_ACCESS_REMOTE_WRITE
+				| IB_ACCESS_REMOTE_ATOMIC,
+	RXE_ACCESS_SUPPORTED_MR	= RXE_ACCESS_REMOTE
+				| IB_ACCESS_LOCAL_WRITE
+				| IB_ACCESS_MW_BIND
+				| IB_ACCESS_ON_DEMAND
+				| IB_ACCESS_FLUSH_GLOBAL
+				| IB_ACCESS_FLUSH_PERSISTENT
+				| IB_ACCESS_OPTIONAL,
+	RXE_ACCESS_SUPPORTED_QP	= RXE_ACCESS_SUPPORTED_MR,
+	RXE_ACCESS_SUPPORTED_MW	= RXE_ACCESS_SUPPORTED_MR
+				| IB_ZERO_BASED,
+};
+
 enum rxe_mr_state {
 	RXE_MR_STATE_INVALID,
 	RXE_MR_STATE_FREE,
@@ -267,6 +283,11 @@ enum rxe_mr_copy_dir {
 enum rxe_mr_lookup_type {
 	RXE_LOOKUP_LOCAL,
 	RXE_LOOKUP_REMOTE,
+};
+
+enum rxe_rereg {
+	RXE_MR_REREG_SUPPORTED	= IB_MR_REREG_PD
+				| IB_MR_REREG_ACCESS,
 };
 
 static inline int rkey_is_mw(u32 rkey)

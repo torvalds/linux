@@ -76,6 +76,14 @@
 		fprintf(stdout, fmt_str, val);		\
 }
 
+#define NET_DUMP_UINT_ONLY(str)				\
+{							\
+	if (json_output)				\
+		jsonw_uint(json_wtr, str);		\
+	else						\
+		fprintf(stdout, "%u ", str);		\
+}
+
 #define NET_DUMP_STR(name, fmt_str, str)		\
 {							\
 	if (json_output)				\

@@ -23,7 +23,6 @@
 #ifndef __AMDGPU_BO_LIST_H__
 #define __AMDGPU_BO_LIST_H__
 
-#include <drm/ttm/ttm_execbuf_util.h>
 #include <drm/amdgpu_drm.h>
 
 struct hmm_range;
@@ -36,7 +35,7 @@ struct amdgpu_bo_va;
 struct amdgpu_fpriv;
 
 struct amdgpu_bo_list_entry {
-	struct ttm_validate_buffer	tv;
+	struct amdgpu_bo		*bo;
 	struct amdgpu_bo_va		*bo_va;
 	uint32_t			priority;
 	struct page			**user_pages;
@@ -56,12 +55,12 @@ struct amdgpu_bo_list {
 	/* Protect access during command submission.
 	 */
 	struct mutex bo_list_mutex;
+
+	struct amdgpu_bo_list_entry entries[] __counted_by(num_entries);
 };
 
 int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,
 		       struct amdgpu_bo_list **result);
-void amdgpu_bo_list_get_list(struct amdgpu_bo_list *list,
-			     struct list_head *validated);
 void amdgpu_bo_list_put(struct amdgpu_bo_list *list);
 int amdgpu_bo_create_list_entry_array(struct drm_amdgpu_bo_list_in *in,
 				      struct drm_amdgpu_bo_list_entry **info_param);
@@ -72,22 +71,14 @@ int amdgpu_bo_list_create(struct amdgpu_device *adev,
 				 size_t num_entries,
 				 struct amdgpu_bo_list **list);
 
-static inline struct amdgpu_bo_list_entry *
-amdgpu_bo_list_array_entry(struct amdgpu_bo_list *list, unsigned index)
-{
-	struct amdgpu_bo_list_entry *array = (void *)&list[1];
-
-	return &array[index];
-}
-
 #define amdgpu_bo_list_for_each_entry(e, list) \
-	for (e = amdgpu_bo_list_array_entry(list, 0); \
-	     e != amdgpu_bo_list_array_entry(list, (list)->num_entries); \
+	for (e = list->entries; \
+	     e != &list->entries[list->num_entries]; \
 	     ++e)
 
 #define amdgpu_bo_list_for_each_userptr_entry(e, list) \
-	for (e = amdgpu_bo_list_array_entry(list, (list)->first_userptr); \
-	     e != amdgpu_bo_list_array_entry(list, (list)->num_entries); \
+	for (e = &list->entries[list->first_userptr]; \
+	     e != &list->entries[list->num_entries]; \
 	     ++e)
 
 #endif

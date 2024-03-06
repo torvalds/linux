@@ -14,6 +14,9 @@ root_check_run_with_sudo "$@"
 # Required param: -i dev in $DEV
 source ${basedir}/parameters.sh
 
+# Trap EXIT first
+trap_exit
+
 [ -z "$COUNT" ] && COUNT="100000" # Zero means indefinitely
 
 # Base Config

@@ -6,12 +6,25 @@
 
 struct iavf_adapter;
 
-/* State of Flow Director filter */
+/* State of Flow Director filter
+ *
+ * *_REQUEST states are used to mark filter to be sent to PF driver to perform
+ * an action (either add or delete filter). *_PENDING states are an indication
+ * that request was sent to PF and the driver is waiting for response.
+ *
+ * Both DELETE and DISABLE states are being used to delete a filter in PF.
+ * The difference is that after a successful response filter in DEL_PENDING
+ * state is being deleted from VF driver as well and filter in DIS_PENDING state
+ * is being changed to INACTIVE state.
+ */
 enum iavf_fdir_fltr_state_t {
 	IAVF_FDIR_FLTR_ADD_REQUEST,	/* User requests to add filter */
 	IAVF_FDIR_FLTR_ADD_PENDING,	/* Filter pending add by the PF */
 	IAVF_FDIR_FLTR_DEL_REQUEST,	/* User requests to delete filter */
 	IAVF_FDIR_FLTR_DEL_PENDING,	/* Filter pending delete by the PF */
+	IAVF_FDIR_FLTR_DIS_REQUEST,	/* Filter scheduled to be disabled */
+	IAVF_FDIR_FLTR_DIS_PENDING,	/* Filter pending disable by the PF */
+	IAVF_FDIR_FLTR_INACTIVE,	/* Filter inactive on link down */
 	IAVF_FDIR_FLTR_ACTIVE,		/* Filter is active */
 };
 
@@ -110,6 +123,8 @@ struct iavf_fdir_fltr {
 	struct virtchnl_fdir_add vc_add_msg;
 };
 
+int iavf_validate_fdir_fltr_masks(struct iavf_adapter *adapter,
+				  struct iavf_fdir_fltr *fltr);
 int iavf_fill_fdir_add_msg(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);
 void iavf_print_fdir_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);
 bool iavf_fdir_is_dup_fltr(struct iavf_adapter *adapter, struct iavf_fdir_fltr *fltr);

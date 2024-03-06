@@ -31,8 +31,6 @@ int rxe_cq_resize_queue(struct rxe_cq *cq, int new_cqe,
 
 int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited);
 
-void rxe_cq_disable(struct rxe_cq *cq);
-
 void rxe_cq_cleanup(struct rxe_pool_elem *elem);
 
 /* rxe_mcast.c */
@@ -136,12 +134,6 @@ static inline int qp_mtu(struct rxe_qp *qp)
 		return qp->attr.path_mtu;
 	else
 		return IB_MTU_4096;
-}
-
-static inline int rcv_wqe_size(int max_sge)
-{
-	return sizeof(struct rxe_recv_wqe) +
-		max_sge * sizeof(struct ib_sge);
 }
 
 void free_rd_atomic_resource(struct resp_res *res);

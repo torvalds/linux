@@ -566,15 +566,6 @@
        style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcutree_migrate_callbacks()</text>
     <text
        xml:space="preserve"
-       x="8335.4873"
-       y="5357.1006"
-       font-style="normal"
-       font-weight="bold"
-       font-size="192"
-       id="text202-7-9-6-0"
-       style="font-size:192px;font-style:normal;font-weight:bold;text-anchor:start;fill:#000000;stroke-width:0.025in;font-family:Courier">rcu_migrate_callbacks()</text>
-    <text
-       xml:space="preserve"
        x="8768.4678"
        y="6224.9038"
        font-style="normal"

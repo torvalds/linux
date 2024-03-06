@@ -20,12 +20,14 @@ enum ser_evt {
 	SER_EV_NONE,
 	SER_EV_STATE_IN,
 	SER_EV_STATE_OUT,
+	SER_EV_L1_RESET_PREPARE, /* pre-M0 */
 	SER_EV_L1_RESET, /* M1 */
 	SER_EV_DO_RECOVERY, /* M3 */
 	SER_EV_MAC_RESET_DONE, /* M5 */
 	SER_EV_L2_RESET,
 	SER_EV_L2_RECFG_DONE,
 	SER_EV_L2_RECFG_TIMEOUT,
+	SER_EV_M1_TIMEOUT,
 	SER_EV_M3_TIMEOUT,
 	SER_EV_FW_M5_TIMEOUT,
 	SER_EV_L0_RESET,
@@ -34,6 +36,7 @@ enum ser_evt {
 
 enum ser_state {
 	SER_IDLE_ST,
+	SER_L1_RESET_PRE_ST,
 	SER_RESET_TRX_ST,
 	SER_DO_HCI_ST,
 	SER_L2_RESET_ST,
@@ -300,6 +303,7 @@ static void ser_reset_vif(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 	rtw89_core_release_bit_map(rtwdev->hw_port, rtwvif->port);
 	rtwvif->net_type = RTW89_NET_TYPE_NO_LINK;
 	rtwvif->trigger = false;
+	rtwvif->tdls_peer = 0;
 }
 
 static void ser_sta_deinit_cam_iter(void *data, struct ieee80211_sta *sta)
@@ -338,6 +342,8 @@ static void ser_reset_mac_binding(struct rtw89_dev *rtwdev)
 	rtw89_core_release_all_bits_map(rtwdev->mac_id_map, RTW89_MAX_MAC_ID_NUM);
 	rtw89_for_each_rtwvif(rtwdev, rtwvif)
 		ser_reset_vif(rtwdev, rtwvif);
+
+	rtwdev->total_sta_assoc = 0;
 }
 
 /* hal function */
@@ -355,6 +361,9 @@ static int hal_enable_dma(struct rtw89_ser *ser)
 	ret = rtwdev->hci.ops->mac_lv1_rcvy(rtwdev, RTW89_LV1_RCVY_STEP_2);
 	if (!ret)
 		clear_bit(RTW89_SER_HAL_STOP_DMA, ser->flags);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "lv1 rcvy fail to start dma: %d\n", ret);
 
 	return ret;
 }
@@ -370,8 +379,18 @@ static int hal_stop_dma(struct rtw89_ser *ser)
 	ret = rtwdev->hci.ops->mac_lv1_rcvy(rtwdev, RTW89_LV1_RCVY_STEP_1);
 	if (!ret)
 		set_bit(RTW89_SER_HAL_STOP_DMA, ser->flags);
+	else
+		rtw89_debug(rtwdev, RTW89_DBG_SER,
+			    "lv1 rcvy fail to stop dma: %d\n", ret);
 
 	return ret;
+}
+
+static void hal_send_post_m0_event(struct rtw89_ser *ser)
+{
+	struct rtw89_dev *rtwdev = container_of(ser, struct rtw89_dev, ser);
+
+	rtw89_mac_set_err_status(rtwdev, MAC_AX_ERR_L1_RESET_START_DMAC);
 }
 
 static void hal_send_m2_event(struct rtw89_ser *ser)
@@ -396,7 +415,11 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 	switch (evt) {
 	case SER_EV_STATE_IN:
 		rtw89_hci_recovery_complete(rtwdev);
+		clear_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		clear_bit(RTW89_FLAG_CRASH_SIMULATING, rtwdev->flags);
+		break;
+	case SER_EV_L1_RESET_PREPARE:
+		ser_state_goto(ser, SER_L1_RESET_PRE_ST);
 		break;
 	case SER_EV_L1_RESET:
 		ser_state_goto(ser, SER_RESET_TRX_ST);
@@ -405,7 +428,30 @@ static void ser_idle_st_hdl(struct rtw89_ser *ser, u8 evt)
 		ser_state_goto(ser, SER_L2_RESET_ST);
 		break;
 	case SER_EV_STATE_OUT:
+		set_bit(RTW89_FLAG_SER_HANDLING, rtwdev->flags);
 		rtw89_hci_recovery_start(rtwdev);
+		break;
+	default:
+		break;
+	}
+}
+
+static void ser_l1_reset_pre_st_hdl(struct rtw89_ser *ser, u8 evt)
+{
+	switch (evt) {
+	case SER_EV_STATE_IN:
+		ser->prehandle_l1 = true;
+		hal_send_post_m0_event(ser);
+		ser_set_alarm(ser, 1000, SER_EV_M1_TIMEOUT);
+		break;
+	case SER_EV_L1_RESET:
+		ser_state_goto(ser, SER_RESET_TRX_ST);
+		break;
+	case SER_EV_M1_TIMEOUT:
+		ser_state_goto(ser, SER_L2_RESET_ST);
+		break;
+	case SER_EV_STATE_OUT:
+		ser_del_alarm(ser);
 		break;
 	default:
 		break;
@@ -489,6 +535,9 @@ static void ser_do_hci_st_hdl(struct rtw89_ser *ser, u8 evt)
 static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 			     u8 sel, u32 start_addr, u32 len)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
 	u32 *ptr = (u32 *)buf;
 	u32 base_addr, start_page, residue;
 	u32 cnt = 0;
@@ -496,14 +545,14 @@ static void ser_mac_mem_dump(struct rtw89_dev *rtwdev, u8 *buf,
 
 	start_page = start_addr / MAC_MEM_DUMP_PAGE_SIZE;
 	residue = start_addr % MAC_MEM_DUMP_PAGE_SIZE;
-	base_addr = rtw89_mac_mem_base_addrs[sel];
+	base_addr = mac->mem_base_addrs[sel];
 	base_addr += start_page * MAC_MEM_DUMP_PAGE_SIZE;
 
 	while (cnt < len) {
-		rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, base_addr);
+		rtw89_write32(rtwdev, filter_model_addr, base_addr);
 
-		for (i = R_AX_INDIR_ACCESS_ENTRY + residue;
-		     i < R_AX_INDIR_ACCESS_ENTRY + MAC_MEM_DUMP_PAGE_SIZE;
+		for (i = indir_access_addr + residue;
+		     i < indir_access_addr + MAC_MEM_DUMP_PAGE_SIZE;
 		     i += 4, ptr++) {
 			*ptr = rtw89_read32(rtwdev, i);
 			cnt += 4;
@@ -541,11 +590,22 @@ struct __fw_backtrace_info {
 static_assert(RTW89_FW_BACKTRACE_INFO_SIZE ==
 	      sizeof(struct __fw_backtrace_info));
 
+static u32 convert_addr_from_wcpu(u32 wcpu_addr)
+{
+	if (wcpu_addr < 0x30000000)
+		return wcpu_addr;
+
+	return wcpu_addr & GENMASK(28, 0);
+}
+
 static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 				       const struct __fw_backtrace_entry *ent)
 {
 	struct __fw_backtrace_info *ptr = (struct __fw_backtrace_info *)buf;
-	u32 fwbt_addr = ent->wcpu_addr & RTW89_WCPU_BASE_MASK;
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
+	u32 filter_model_addr = mac->filter_model_addr;
+	u32 indir_access_addr = mac->indir_access_addr;
+	u32 fwbt_addr = convert_addr_from_wcpu(ent->wcpu_addr);
 	u32 fwbt_size = ent->size;
 	u32 fwbt_key = ent->key;
 	u32 i;
@@ -570,10 +630,10 @@ static int rtw89_ser_fw_backtrace_dump(struct rtw89_dev *rtwdev, u8 *buf,
 	}
 
 	rtw89_debug(rtwdev, RTW89_DBG_SER, "dump fw backtrace start\n");
-	rtw89_write32(rtwdev, R_AX_FILTER_MODEL_ADDR, fwbt_addr);
+	rtw89_write32(rtwdev, filter_model_addr, fwbt_addr);
 
-	for (i = R_AX_INDIR_ACCESS_ENTRY;
-	     i < R_AX_INDIR_ACCESS_ENTRY + fwbt_size;
+	for (i = indir_access_addr;
+	     i < indir_access_addr + fwbt_size;
 	     i += RTW89_FW_BACKTRACE_INFO_SIZE, ptr++) {
 		*ptr = (struct __fw_backtrace_info){
 			.ra = rtw89_read32(rtwdev, i),
@@ -654,12 +714,14 @@ static const struct event_ent ser_ev_tbl[] = {
 	{SER_EV_NONE, "SER_EV_NONE"},
 	{SER_EV_STATE_IN, "SER_EV_STATE_IN"},
 	{SER_EV_STATE_OUT, "SER_EV_STATE_OUT"},
-	{SER_EV_L1_RESET, "SER_EV_L1_RESET"},
+	{SER_EV_L1_RESET_PREPARE, "SER_EV_L1_RESET_PREPARE pre-m0"},
+	{SER_EV_L1_RESET, "SER_EV_L1_RESET m1"},
 	{SER_EV_DO_RECOVERY, "SER_EV_DO_RECOVERY m3"},
 	{SER_EV_MAC_RESET_DONE, "SER_EV_MAC_RESET_DONE m5"},
 	{SER_EV_L2_RESET, "SER_EV_L2_RESET"},
 	{SER_EV_L2_RECFG_DONE, "SER_EV_L2_RECFG_DONE"},
 	{SER_EV_L2_RECFG_TIMEOUT, "SER_EV_L2_RECFG_TIMEOUT"},
+	{SER_EV_M1_TIMEOUT, "SER_EV_M1_TIMEOUT"},
 	{SER_EV_M3_TIMEOUT, "SER_EV_M3_TIMEOUT"},
 	{SER_EV_FW_M5_TIMEOUT, "SER_EV_FW_M5_TIMEOUT"},
 	{SER_EV_L0_RESET, "SER_EV_L0_RESET"},
@@ -668,6 +730,7 @@ static const struct event_ent ser_ev_tbl[] = {
 
 static const struct state_ent ser_st_tbl[] = {
 	{SER_IDLE_ST, "SER_IDLE_ST", ser_idle_st_hdl},
+	{SER_L1_RESET_PRE_ST, "SER_L1_RESET_PRE_ST", ser_l1_reset_pre_st_hdl},
 	{SER_RESET_TRX_ST, "SER_RESET_TRX_ST", ser_reset_trx_st_hdl},
 	{SER_DO_HCI_ST, "SER_DO_HCI_ST", ser_do_hci_st_hdl},
 	{SER_L2_RESET_ST, "SER_L2_RESET_ST", ser_l2_reset_st_hdl}
@@ -713,6 +776,9 @@ int rtw89_ser_notify(struct rtw89_dev *rtwdev, u32 err)
 	rtw89_info(rtwdev, "SER catches error: 0x%x\n", err);
 
 	switch (err) {
+	case MAC_AX_ERR_L1_PREERR_DMAC: /* pre-M0 */
+		event = SER_EV_L1_RESET_PREPARE;
+		break;
 	case MAC_AX_ERR_L1_ERR_DMAC:
 	case MAC_AX_ERR_L0_PROMOTE_TO_L1:
 		event = SER_EV_L1_RESET; /* M1 */

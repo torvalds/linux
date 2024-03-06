@@ -388,11 +388,6 @@ static unsigned int sbq_calc_wake_batch(struct sbitmap_queue *sbq,
 	unsigned int shallow_depth;
 
 	/*
-	 * For each batch, we wake up one queue. We need to make sure that our
-	 * batch size is small enough that the full depth of the bitmap,
-	 * potentially limited by a shallow depth, is enough to wake up all of
-	 * the queues.
-	 *
 	 * Each full word of the bitmap has bits_per_word bits, and there might
 	 * be a partial word. There are depth / bits_per_word full words and
 	 * depth % bits_per_word bits left over. In bitwise arithmetic:
@@ -550,7 +545,7 @@ EXPORT_SYMBOL_GPL(sbitmap_queue_min_shallow_depth);
 
 static void __sbitmap_queue_wake_up(struct sbitmap_queue *sbq, int nr)
 {
-	int i, wake_index;
+	int i, wake_index, woken;
 
 	if (!atomic_read(&sbq->ws_active))
 		return;
@@ -567,13 +562,12 @@ static void __sbitmap_queue_wake_up(struct sbitmap_queue *sbq, int nr)
 		 */
 		wake_index = sbq_index_inc(wake_index);
 
-		/*
-		 * It is sufficient to wake up at least one waiter to
-		 * guarantee forward progress.
-		 */
-		if (waitqueue_active(&ws->wait) &&
-		    wake_up_nr(&ws->wait, nr))
-			break;
+		if (waitqueue_active(&ws->wait)) {
+			woken = wake_up_nr(&ws->wait, nr);
+			if (woken == nr)
+				break;
+			nr -= woken;
+		}
 	}
 
 	if (wake_index != atomic_read(&sbq->wake_index))

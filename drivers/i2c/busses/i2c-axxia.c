@@ -131,6 +131,8 @@
  * @i2c_clk: clock reference for i2c input clock
  * @bus_clk_rate: current i2c bus clock rate
  * @last: a flag indicating is this is last message in transfer
+ * @slave: associated &i2c_client
+ * @irq: platform device IRQ number
  */
 struct axxia_i2c_dev {
 	void __iomem *base;
@@ -165,7 +167,7 @@ static void i2c_int_enable(struct axxia_i2c_dev *idev, u32 mask)
 	writel(int_en | mask, idev->base + MST_INT_ENABLE);
 }
 
-/**
+/*
  * ns_to_clk - Convert time (ns) to clock cycles for the given clock frequency.
  */
 static u32 ns_to_clk(u64 ns, u32 clk_mhz)
@@ -263,7 +265,7 @@ static int i2c_m_recv_len(const struct i2c_msg *msg)
 	return (msg->flags & I2C_M_RECV_LEN) != 0;
 }
 
-/**
+/*
  * axxia_i2c_empty_rx_fifo - Fetch data from RX FIFO and update SMBus block
  * transfer length if this is the first byte of such a transfer.
  */
@@ -295,7 +297,7 @@ static int axxia_i2c_empty_rx_fifo(struct axxia_i2c_dev *idev)
 	return 0;
 }
 
-/**
+/*
  * axxia_i2c_fill_tx_fifo - Fill TX FIFO from current message buffer.
  * @return: Number of bytes left to transfer.
  */
@@ -804,14 +806,12 @@ error_disable_clk:
 	return ret;
 }
 
-static int axxia_i2c_remove(struct platform_device *pdev)
+static void axxia_i2c_remove(struct platform_device *pdev)
 {
 	struct axxia_i2c_dev *idev = platform_get_drvdata(pdev);
 
 	clk_disable_unprepare(idev->i2c_clk);
 	i2c_del_adapter(&idev->adapter);
-
-	return 0;
 }
 
 /* Match table for of_platform binding */
@@ -824,7 +824,7 @@ MODULE_DEVICE_TABLE(of, axxia_i2c_of_match);
 
 static struct platform_driver axxia_i2c_driver = {
 	.probe = axxia_i2c_probe,
-	.remove = axxia_i2c_remove,
+	.remove_new = axxia_i2c_remove,
 	.driver = {
 		.name = "axxia-i2c",
 		.of_match_table = axxia_i2c_of_match,

@@ -90,7 +90,7 @@ ADT7476:
 
 ADT7490:
   * 6 voltage inputs
-  * 1 Imon input (not implemented)
+  * 1 Imon input
   * PECI support (not implemented)
   * 2 GPIO pins (not implemented)
   * system acoustics optimizations (not implemented)
@@ -107,6 +107,7 @@ in2  VCC    (4)  VCC    (4)  VCC  (4)  VCC  (3)
 in3  5VIN   (20) 5VIN   (20)
 in4  12VIN  (21) 12VIN  (21)
 in5  VTT    (8)
+in6  Imon   (19)
 ==== =========== =========== ========= ==========
 
 Special Features

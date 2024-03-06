@@ -24,6 +24,7 @@
 enum ieee802154_ongoing {
 	IEEE802154_IS_SCANNING = BIT(0),
 	IEEE802154_IS_BEACONING = BIT(1),
+	IEEE802154_IS_ASSOCIATING = BIT(2),
 };
 
 /* mac802154 device private data */
@@ -58,6 +59,7 @@ struct ieee802154_local {
 	/* Scanning */
 	u8 scan_page;
 	u8 scan_channel;
+	struct ieee802154_beacon_req_frame scan_beacon_req;
 	struct cfg802154_scan_request __rcu *scan_req;
 	struct delayed_work scan_work;
 
@@ -70,6 +72,15 @@ struct ieee802154_local {
 	/* Asynchronous tasks */
 	struct list_head rx_beacon_list;
 	struct work_struct rx_beacon_work;
+	struct list_head rx_mac_cmd_list;
+	struct work_struct rx_mac_cmd_work;
+
+	/* Association */
+	struct ieee802154_pan_device *assoc_dev;
+	struct completion assoc_done;
+	__le16 assoc_addr;
+	u8 assoc_status;
+	struct work_struct assoc_work;
 
 	bool started;
 	bool suspended;
@@ -152,6 +163,22 @@ static inline bool
 ieee802154_sdata_running(struct ieee802154_sub_if_data *sdata)
 {
 	return test_bit(SDATA_STATE_RUNNING, &sdata->state);
+}
+
+static inline int ieee802154_get_mac_cmd(struct sk_buff *skb, u8 *mac_cmd)
+{
+	struct ieee802154_mac_cmd_pl mac_pl;
+	int ret;
+
+	if (mac_cb(skb)->type != IEEE802154_FC_TYPE_MAC_CMD)
+		return -EINVAL;
+
+	ret = ieee802154_mac_cmd_pl_pull(skb, &mac_pl);
+	if (ret)
+		return ret;
+
+	*mac_cmd = mac_pl.cmd_id;
+	return 0;
 }
 
 extern struct ieee802154_mlme_ops mac802154_mlme_wpan;
@@ -274,6 +301,27 @@ static inline bool mac802154_is_beaconing(struct ieee802154_local *local)
 {
 	return test_bit(IEEE802154_IS_BEACONING, &local->ongoing);
 }
+
+void mac802154_rx_mac_cmd_worker(struct work_struct *work);
+
+int mac802154_perform_association(struct ieee802154_sub_if_data *sdata,
+				  struct ieee802154_pan_device *coord,
+				  __le16 *short_addr);
+int mac802154_process_association_resp(struct ieee802154_sub_if_data *sdata,
+				       struct sk_buff *skb);
+
+static inline bool mac802154_is_associating(struct ieee802154_local *local)
+{
+	return test_bit(IEEE802154_IS_ASSOCIATING, &local->ongoing);
+}
+
+int mac802154_send_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+					struct ieee802154_pan_device *target,
+					u8 reason);
+int mac802154_process_disassociation_notif(struct ieee802154_sub_if_data *sdata,
+					   struct sk_buff *skb);
+int mac802154_process_association_req(struct ieee802154_sub_if_data *sdata,
+				      struct sk_buff *skb);
 
 /* interface handling */
 int ieee802154_iface_init(void);

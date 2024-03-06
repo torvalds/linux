@@ -1491,10 +1491,12 @@ static int __init doc_probe(unsigned long physadr)
 	else
 		numchips = doc2001_init(mtd);
 
-	if ((ret = nand_scan(nand, numchips)) || (ret = doc->late_init(mtd))) {
-		/* DBB note: i believe nand_cleanup is necessary here, as
-		   buffers may have been allocated in nand_base.  Check with
-		   Thomas. FIX ME! */
+	ret = nand_scan(nand, numchips);
+	if (ret)
+		goto fail;
+
+	ret = doc->late_init(mtd);
+	if (ret) {
 		nand_cleanup(nand);
 		goto fail;
 	}

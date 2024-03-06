@@ -12,7 +12,7 @@
 #include <linux/clkdev.h>
 #include <linux/clk-provider.h>
 #include <linux/i2c.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -2714,7 +2714,7 @@ static struct i2c_driver da7219_i2c_driver = {
 		.of_match_table = of_match_ptr(da7219_of_match),
 		.acpi_match_table = ACPI_PTR(da7219_acpi_match),
 	},
-	.probe_new	= da7219_i2c_probe,
+	.probe		= da7219_i2c_probe,
 	.id_table	= da7219_i2c_id,
 };
 

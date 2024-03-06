@@ -383,8 +383,7 @@ static void sccnxp_set_bit(struct uart_port *port, int sig, int state)
 
 static void sccnxp_handle_rx(struct uart_port *port)
 {
-	u8 sr;
-	unsigned int ch, flag;
+	u8 sr, ch, flag;
 
 	for (;;) {
 		sr = sccnxp_port_read(port, SCCNXP_SR_REG);
@@ -880,14 +879,14 @@ MODULE_DEVICE_TABLE(platform, sccnxp_id_table);
 
 static int sccnxp_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct sccnxp_pdata *pdata = dev_get_platdata(&pdev->dev);
+	struct resource *res;
 	int i, ret, uartclk;
 	struct sccnxp_port *s;
 	void __iomem *membase;
 	struct clk *clk;
 
-	membase = devm_ioremap_resource(&pdev->dev, res);
+	membase = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(membase))
 		return PTR_ERR(membase);
 
@@ -1022,7 +1021,7 @@ err_out:
 	return ret;
 }
 
-static int sccnxp_remove(struct platform_device *pdev)
+static void sccnxp_remove(struct platform_device *pdev)
 {
 	int i;
 	struct sccnxp_port *s = platform_get_drvdata(pdev);
@@ -1037,10 +1036,11 @@ static int sccnxp_remove(struct platform_device *pdev)
 
 	uart_unregister_driver(&s->uart);
 
-	if (!IS_ERR(s->regulator))
-		return regulator_disable(s->regulator);
-
-	return 0;
+	if (!IS_ERR(s->regulator)) {
+		int ret = regulator_disable(s->regulator);
+		if (ret)
+			dev_err(&pdev->dev, "Failed to disable regulator\n");
+	}
 }
 
 static struct platform_driver sccnxp_uart_driver = {
@@ -1048,7 +1048,7 @@ static struct platform_driver sccnxp_uart_driver = {
 		.name	= SCCNXP_NAME,
 	},
 	.probe		= sccnxp_probe,
-	.remove		= sccnxp_remove,
+	.remove_new	= sccnxp_remove,
 	.id_table	= sccnxp_id_table,
 };
 module_platform_driver(sccnxp_uart_driver);

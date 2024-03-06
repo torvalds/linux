@@ -1253,7 +1253,7 @@ static const struct regmap_config wm8991_regmap = {
 	.volatile_reg = wm8991_volatile,
 	.reg_defaults = wm8991_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8991_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int wm8991_i2c_probe(struct i2c_client *i2c)
@@ -1323,7 +1323,7 @@ static struct i2c_driver wm8991_i2c_driver = {
 	.driver = {
 		.name = "wm8991",
 	},
-	.probe_new = wm8991_i2c_probe,
+	.probe = wm8991_i2c_probe,
 	.id_table = wm8991_i2c_id,
 };
 

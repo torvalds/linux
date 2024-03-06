@@ -13,187 +13,39 @@
 #include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/mmu.h>
 
+#ifdef __ASSEMBLY__
+
 #ifdef CONFIG_ISA_ARCOMPACT
 #include <asm/entry-compact.h>	/* ISA specific bits */
 #else
 #include <asm/entry-arcv2.h>
 #endif
 
-/* Note on the LD/ST addr modes with addr reg wback
- *
- * LD.a same as LD.aw
- *
- * LD.a    reg1, [reg2, x]  => Pre Incr
- *      Eff Addr for load = [reg2 + x]
- *
- * LD.ab   reg1, [reg2, x]  => Post Incr
- *      Eff Addr for load = [reg2]
+/*
+ * save user mode callee regs as struct callee_regs
+ *  - needed by fork/do_signal/unaligned-access-emulation.
  */
-
-.macro PUSH reg
-	st.a	\reg, [sp, -4]
-.endm
-
-.macro PUSHAX aux
-	lr	r9, [\aux]
-	PUSH	r9
-.endm
-
-.macro POP reg
-	ld.ab	\reg, [sp, 4]
-.endm
-
-.macro POPAX aux
-	POP	r9
-	sr	r9, [\aux]
-.endm
-
-/*--------------------------------------------------------------
- * Helpers to save/restore Scratch Regs:
- * used by Interrupt/Exception Prologue/Epilogue
- *-------------------------------------------------------------*/
-.macro  SAVE_R0_TO_R12
-	PUSH	r0
-	PUSH	r1
-	PUSH	r2
-	PUSH	r3
-	PUSH	r4
-	PUSH	r5
-	PUSH	r6
-	PUSH	r7
-	PUSH	r8
-	PUSH	r9
-	PUSH	r10
-	PUSH	r11
-	PUSH	r12
-.endm
-
-.macro RESTORE_R12_TO_R0
-	POP	r12
-	POP	r11
-	POP	r10
-	POP	r9
-	POP	r8
-	POP	r7
-	POP	r6
-	POP	r5
-	POP	r4
-	POP	r3
-	POP	r2
-	POP	r1
-	POP	r0
-
-.endm
-
-/*--------------------------------------------------------------
- * Helpers to save/restore callee-saved regs:
- * used by several macros below
- *-------------------------------------------------------------*/
-.macro SAVE_R13_TO_R24
-	PUSH	r13
-	PUSH	r14
-	PUSH	r15
-	PUSH	r16
-	PUSH	r17
-	PUSH	r18
-	PUSH	r19
-	PUSH	r20
-	PUSH	r21
-	PUSH	r22
-	PUSH	r23
-	PUSH	r24
-.endm
-
-.macro RESTORE_R24_TO_R13
-	POP	r24
-	POP	r23
-	POP	r22
-	POP	r21
-	POP	r20
-	POP	r19
-	POP	r18
-	POP	r17
-	POP	r16
-	POP	r15
-	POP	r14
-	POP	r13
-.endm
-
-/*--------------------------------------------------------------
- * Collect User Mode callee regs as struct callee_regs - needed by
- * fork/do_signal/unaligned-access-emulation.
- * (By default only scratch regs are saved on entry to kernel)
- *
- * Special handling for r25 if used for caching Task Pointer.
- * It would have been saved in task->thread.user_r25 already, but to keep
- * the interface same it is copied into regular r25 placeholder in
- * struct callee_regs.
- *-------------------------------------------------------------*/
 .macro SAVE_CALLEE_SAVED_USER
-
-	mov	r12, sp		; save SP as ref to pt_regs
-	SAVE_R13_TO_R24
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	; Retrieve orig r25 and save it with rest of callee_regs
-	ld	r12, [r12, PT_user_r25]
-	PUSH	r12
-#else
-	PUSH	r25
-#endif
-
+	SAVE_ABI_CALLEE_REGS
 .endm
 
-/*--------------------------------------------------------------
- * Save kernel Mode callee regs at the time of Contect Switch.
- *
- * Special handling for r25 if used for caching Task Pointer.
- * Kernel simply skips saving it since it will be loaded with
- * incoming task pointer anyways
- *-------------------------------------------------------------*/
-.macro SAVE_CALLEE_SAVED_KERNEL
-
-	SAVE_R13_TO_R24
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	sub     sp, sp, 4
-#else
-	PUSH	r25
-#endif
-.endm
-
-/*--------------------------------------------------------------
- * Opposite of SAVE_CALLEE_SAVED_KERNEL
- *-------------------------------------------------------------*/
-.macro RESTORE_CALLEE_SAVED_KERNEL
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	add     sp, sp, 4  /* skip usual r25 placeholder */
-#else
-	POP	r25
-#endif
-	RESTORE_R24_TO_R13
-.endm
-
-/*--------------------------------------------------------------
- * Opposite of SAVE_CALLEE_SAVED_USER
- *
- * ptrace tracer or unaligned-access fixup might have changed a user mode
- * callee reg which is saved back to usual r25 storage location
- *-------------------------------------------------------------*/
+/*
+ * restore user mode callee regs as struct callee_regs
+ *  - could have been changed by ptrace tracer or unaligned-access fixup
+ */
 .macro RESTORE_CALLEE_SAVED_USER
+	RESTORE_ABI_CALLEE_REGS
+.endm
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	POP	r12
-#else
-	POP	r25
-#endif
-	RESTORE_R24_TO_R13
+/*
+ * save/restore kernel mode callee regs at the time of context switch
+ */
+.macro SAVE_CALLEE_SAVED_KERNEL
+	SAVE_ABI_CALLEE_REGS
+.endm
 
-	; SP is back to start of pt_regs
-#ifdef CONFIG_ARC_CURR_IN_REG
-	st	r12, [sp, PT_user_r25]
-#endif
+.macro RESTORE_CALLEE_SAVED_KERNEL
+	RESTORE_ABI_CALLEE_REGS
 .endm
 
 /*--------------------------------------------------------------
@@ -229,10 +81,10 @@
 
 #ifdef CONFIG_SMP
 
-/*-------------------------------------------------
+/*
  * Retrieve the current running task on this CPU
- * 1. Determine curr CPU id.
- * 2. Use it to index into _current_task[ ]
+ *  - loads it from backing _current_task[] (and can't use the
+ *    caching reg for current task
  */
 .macro  GET_CURR_TASK_ON_CPU   reg
 	GET_CPU_ID  \reg
@@ -254,7 +106,7 @@
 	add2 \tmp, @_current_task, \tmp
 	st   \tsk, [\tmp]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	mov r25, \tsk
+	mov gp, \tsk
 #endif
 
 .endm
@@ -269,21 +121,20 @@
 .macro  SET_CURR_TASK_ON_CPU    tsk, tmp
 	st  \tsk, [@_current_task]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	mov r25, \tsk
+	mov gp, \tsk
 #endif
 .endm
 
 #endif /* SMP / UNI */
 
-/* ------------------------------------------------------------------
+/*
  * Get the ptr to some field of Current Task at @off in task struct
- *  -Uses r25 for Current task ptr if that is enabled
+ *  - Uses current task cached in reg if enabled
  */
-
 #ifdef CONFIG_ARC_CURR_IN_REG
 
 .macro GET_CURR_TASK_FIELD_PTR  off,  reg
-	add \reg, r25, \off
+	add \reg, gp, \off
 .endm
 
 #else
@@ -294,5 +145,24 @@
 .endm
 
 #endif	/* CONFIG_ARC_CURR_IN_REG */
+
+#else	/* !__ASSEMBLY__ */
+
+extern void do_signal(struct pt_regs *);
+extern void do_notify_resume(struct pt_regs *);
+extern int do_privilege_fault(unsigned long, struct pt_regs *);
+extern int do_extension_fault(unsigned long, struct pt_regs *);
+extern int insterror_is_error(unsigned long, struct pt_regs *);
+extern int do_memory_error(unsigned long, struct pt_regs *);
+extern int trap_is_brkpt(unsigned long, struct pt_regs *);
+extern int do_misaligned_error(unsigned long, struct pt_regs *);
+extern int do_trap5_error(unsigned long, struct pt_regs *);
+extern int do_misaligned_access(unsigned long, struct pt_regs *, struct callee_regs *);
+extern void do_machine_check_fault(unsigned long, struct pt_regs *);
+extern void do_non_swi_trap(unsigned long, struct pt_regs *);
+extern void do_insterror_or_kprobe(unsigned long, struct pt_regs *);
+extern void do_page_fault(unsigned long, struct pt_regs *);
+
+#endif
 
 #endif  /* __ASM_ARC_ENTRY_H */

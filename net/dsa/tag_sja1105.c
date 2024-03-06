@@ -58,11 +58,8 @@
 #define SJA1110_TX_TRAILER_LEN			4
 #define SJA1110_MAX_PADDING_LEN			15
 
-#define SJA1105_HWTS_RX_EN			0
-
 struct sja1105_tagger_private {
 	struct sja1105_tagger_data data; /* Must be first */
-	unsigned long state;
 	/* Protects concurrent access to the meta state machine
 	 * from taggers running on multiple ports on SMP systems
 	 */
@@ -118,8 +115,8 @@ static void sja1105_meta_unpack(const struct sk_buff *skb,
 	 * a unified unpacking command for both device series.
 	 */
 	packing(buf,     &meta->tstamp,     31, 0, 4, UNPACK, 0);
-	packing(buf + 4, &meta->dmac_byte_4, 7, 0, 1, UNPACK, 0);
-	packing(buf + 5, &meta->dmac_byte_3, 7, 0, 1, UNPACK, 0);
+	packing(buf + 4, &meta->dmac_byte_3, 7, 0, 1, UNPACK, 0);
+	packing(buf + 5, &meta->dmac_byte_4, 7, 0, 1, UNPACK, 0);
 	packing(buf + 6, &meta->source_port, 7, 0, 1, UNPACK, 0);
 	packing(buf + 7, &meta->switch_id,   7, 0, 1, UNPACK, 0);
 }
@@ -160,7 +157,7 @@ static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 		return NULL;
 
 	kthread_init_work(&xmit_work->work, xmit_work_fn);
-	/* Increase refcount so the kfree_skb in dsa_slave_xmit
+	/* Increase refcount so the kfree_skb in dsa_user_xmit
 	 * won't really free the packet.
 	 */
 	xmit_work->dp = dp;
@@ -213,7 +210,7 @@ static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 					      struct net_device *netdev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	struct dsa_port *dp = dsa_user_to_port(netdev);
 	unsigned int bridge_num = dsa_port_bridge_num_get(dp);
 	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	u16 tx_vid;
@@ -238,7 +235,7 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 
 /* Transform untagged control packets into pvid-tagged control packets so that
  * all packets sent by this tagger are VLAN-tagged and we can configure the
- * switch to drop untagged packets coming from the DSA master.
+ * switch to drop untagged packets coming from the DSA conduit.
  */
 static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
 						    struct sk_buff *skb, u8 pcp)
@@ -269,7 +266,7 @@ static struct sk_buff *sja1105_pvid_tag_control_pkt(struct dsa_port *dp,
 static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	struct dsa_port *dp = dsa_user_to_port(netdev);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
 	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
@@ -297,7 +294,7 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
 	struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
-	struct dsa_port *dp = dsa_slave_to_port(netdev);
+	struct dsa_port *dp = dsa_user_to_port(netdev);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
 	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
@@ -386,15 +383,11 @@ static struct sk_buff
 	 * Buffer it until we get its meta frame.
 	 */
 	if (is_link_local) {
-		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+		struct dsa_port *dp = dsa_user_to_port(skb->dev);
 		struct sja1105_tagger_private *priv;
 		struct dsa_switch *ds = dp->ds;
 
 		priv = sja1105_tagger_private(ds);
-
-		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
-			/* Do normal processing. */
-			return skb;
 
 		spin_lock(&priv->meta_lock);
 		/* Was this a link-local frame instead of the meta
@@ -403,7 +396,7 @@ static struct sk_buff
 		if (priv->stampable_skb) {
 			dev_err_ratelimited(ds->dev,
 					    "Expected meta frame, is %12llx "
-					    "in the DSA master multicast filter?\n",
+					    "in the DSA conduit multicast filter?\n",
 					    SJA1105_META_DMAC);
 			kfree_skb(priv->stampable_skb);
 		}
@@ -424,18 +417,12 @@ static struct sk_buff
 	 * frame, which serves no further purpose).
 	 */
 	} else if (is_meta) {
-		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
+		struct dsa_port *dp = dsa_user_to_port(skb->dev);
 		struct sja1105_tagger_private *priv;
 		struct dsa_switch *ds = dp->ds;
 		struct sk_buff *stampable_skb;
 
 		priv = sja1105_tagger_private(ds);
-
-		/* Drop the meta frame if we're not in the right state
-		 * to process it.
-		 */
-		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
-			return NULL;
 
 		spin_lock(&priv->meta_lock);
 
@@ -470,30 +457,6 @@ static struct sk_buff
 	}
 
 	return skb;
-}
-
-static bool sja1105_rxtstamp_get_state(struct dsa_switch *ds)
-{
-	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
-
-	return test_bit(SJA1105_HWTS_RX_EN, &priv->state);
-}
-
-static void sja1105_rxtstamp_set_state(struct dsa_switch *ds, bool on)
-{
-	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
-
-	if (on)
-		set_bit(SJA1105_HWTS_RX_EN, &priv->state);
-	else
-		clear_bit(SJA1105_HWTS_RX_EN, &priv->state);
-
-	/* Initialize the meta state machine to a known state */
-	if (!priv->stampable_skb)
-		return;
-
-	kfree_skb(priv->stampable_skb);
-	priv->stampable_skb = NULL;
 }
 
 static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
@@ -545,33 +508,53 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 	is_link_local = sja1105_is_link_local(skb);
 	is_meta = sja1105_is_meta_frame(skb);
 
-	if (sja1105_skb_has_tag_8021q(skb)) {
-		/* Normal traffic path. */
-		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vbid, &vid);
-	} else if (is_link_local) {
+	if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
 		 * the incl_srcpt options.
 		 */
 		source_port = hdr->h_dest[3];
 		switch_id = hdr->h_dest[4];
-		/* Clear the DMAC bytes that were mangled by the switch */
-		hdr->h_dest[3] = 0;
-		hdr->h_dest[4] = 0;
 	} else if (is_meta) {
 		sja1105_meta_unpack(skb, &meta);
 		source_port = meta.source_port;
 		switch_id = meta.switch_id;
-	} else {
+	}
+
+	/* Normal data plane traffic and link-local frames are tagged with
+	 * a tag_8021q VLAN which we have to strip
+	 */
+	if (sja1105_skb_has_tag_8021q(skb)) {
+		int tmp_source_port = -1, tmp_switch_id = -1;
+
+		sja1105_vlan_rcv(skb, &tmp_source_port, &tmp_switch_id, &vbid,
+				 &vid);
+		/* Preserve the source information from the INCL_SRCPT option,
+		 * if available. This allows us to not overwrite a valid source
+		 * port and switch ID with zeroes when receiving link-local
+		 * frames from a VLAN-unaware bridged port (non-zero vbid) or a
+		 * VLAN-aware bridged port (non-zero vid). Furthermore, the
+		 * tag_8021q source port information is only of trust when the
+		 * vbid is 0 (precise port). Otherwise, tmp_source_port and
+		 * tmp_switch_id will be zeroes.
+		 */
+		if (vbid == 0 && source_port == -1)
+			source_port = tmp_source_port;
+		if (vbid == 0 && switch_id == -1)
+			switch_id = tmp_switch_id;
+	} else if (source_port == -1 && switch_id == -1) {
+		/* Packets with no source information have no chance of
+		 * getting accepted, drop them straight away.
+		 */
 		return NULL;
 	}
 
-	if (vbid >= 1)
+	if (source_port != -1 && switch_id != -1)
+		skb->dev = dsa_conduit_find_user(netdev, switch_id, source_port);
+	else if (vbid >= 1)
 		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
-	else if (source_port == -1 || switch_id == -1)
-		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	else
-		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
+		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	if (!skb->dev) {
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
@@ -590,16 +573,16 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
 	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
 	struct sja1105_tagger_data *tagger_data;
-	struct net_device *master = skb->dev;
+	struct net_device *conduit = skb->dev;
 	struct dsa_port *cpu_dp;
 	struct dsa_switch *ds;
 	int i;
 
-	cpu_dp = master->dsa_ptr;
+	cpu_dp = conduit->dsa_ptr;
 	ds = dsa_switch_find(cpu_dp->dst->index, switch_id);
 	if (!ds) {
 		net_err_ratelimited("%s: cannot find switch id %d\n",
-				    master->name, switch_id);
+				    conduit->name, switch_id);
 		return NULL;
 	}
 
@@ -666,7 +649,7 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 
 		/* skb->len counts from skb->data, while start_of_padding
 		 * counts from the destination MAC address. Right now skb->data
-		 * is still as set by the DSA master, so to trim away the
+		 * is still as set by the DSA conduit, so to trim away the
 		 * padding and trailer we need to account for the fact that
 		 * skb->data points to skb_mac_header(skb) + ETH_HLEN.
 		 */
@@ -715,7 +698,7 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 	else if (source_port == -1 || switch_id == -1)
 		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	else
-		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
+		skb->dev = dsa_conduit_find_user(netdev, switch_id, source_port);
 	if (!skb->dev) {
 		netdev_warn(netdev, "Couldn't decode source port\n");
 		return NULL;
@@ -762,7 +745,6 @@ static void sja1105_disconnect(struct dsa_switch *ds)
 
 static int sja1105_connect(struct dsa_switch *ds)
 {
-	struct sja1105_tagger_data *tagger_data;
 	struct sja1105_tagger_private *priv;
 	struct kthread_worker *xmit_worker;
 	int err;
@@ -782,10 +764,6 @@ static int sja1105_connect(struct dsa_switch *ds)
 	}
 
 	priv->xmit_worker = xmit_worker;
-	/* Export functions for switch driver use */
-	tagger_data = &priv->data;
-	tagger_data->rxtstamp_get_state = sja1105_rxtstamp_get_state;
-	tagger_data->rxtstamp_set_state = sja1105_rxtstamp_set_state;
 	ds->tagger_data = priv;
 
 	return 0;
@@ -800,7 +778,7 @@ static const struct dsa_device_ops sja1105_netdev_ops = {
 	.disconnect = sja1105_disconnect,
 	.needed_headroom = VLAN_HLEN,
 	.flow_dissect = sja1105_flow_dissect,
-	.promisc_on_master = true,
+	.promisc_on_conduit = true,
 };
 
 DSA_TAG_DRIVER(sja1105_netdev_ops);
@@ -828,4 +806,5 @@ static struct dsa_tag_driver *sja1105_tag_driver_array[] = {
 
 module_dsa_tag_drivers(sja1105_tag_driver_array);
 
+MODULE_DESCRIPTION("DSA tag driver for NXP SJA1105 switches");
 MODULE_LICENSE("GPL v2");

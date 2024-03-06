@@ -12,10 +12,10 @@
  */
 #include <linux/init.h>
 #include <linux/acpi.h>
+#include <linux/cpu.h>
 #include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/export.h>
-#include <linux/screen_info.h>
 #include <linux/memblock.h>
 #include <linux/initrd.h>
 #include <linux/ioport.h>
@@ -37,7 +37,6 @@
 #include <asm/addrspace.h>
 #include <asm/alternative.h>
 #include <asm/bootinfo.h>
-#include <asm/bugs.h>
 #include <asm/cache.h>
 #include <asm/cpu.h>
 #include <asm/dma.h>
@@ -56,8 +55,6 @@
 #define SMBIOS_FREQLOW_MASK		0xFF
 #define SMBIOS_CORE_PACKAGE_OFFSET	0x23
 #define LOONGSON_EFI_ENABLE		(1 << 3)
-
-struct screen_info screen_info __section(".data");
 
 unsigned long fw_arg0, fw_arg1, fw_arg2;
 DEFINE_PER_CPU(unsigned long, kernelsp);
@@ -87,7 +84,7 @@ const char *get_system_type(void)
 	return "generic-loongson-machine";
 }
 
-void __init check_bugs(void)
+void __init arch_cpu_finalize_init(void)
 {
 	alternative_instructions();
 }
@@ -161,19 +158,19 @@ static void __init smbios_parse(void)
 }
 
 #ifdef CONFIG_ARCH_WRITECOMBINE
-pgprot_t pgprot_wc = PAGE_KERNEL_WUC;
+bool wc_enabled = true;
 #else
-pgprot_t pgprot_wc = PAGE_KERNEL_SUC;
+bool wc_enabled = false;
 #endif
 
-EXPORT_SYMBOL(pgprot_wc);
+EXPORT_SYMBOL(wc_enabled);
 
 static int __init setup_writecombine(char *p)
 {
 	if (!strcmp(p, "on"))
-		pgprot_wc = PAGE_KERNEL_WUC;
+		wc_enabled = true;
 	else if (!strcmp(p, "off"))
-		pgprot_wc = PAGE_KERNEL_SUC;
+		wc_enabled = false;
 	else
 		pr_warn("Unknown writecombine setting \"%s\".\n", p);
 
@@ -255,36 +252,23 @@ static void __init arch_reserve_vmcore(void)
 #endif
 }
 
-/* 2MB alignment for crash kernel regions */
-#define CRASH_ALIGN	SZ_2M
-#define CRASH_ADDR_MAX	SZ_4G
-
-static void __init arch_parse_crashkernel(void)
+static void __init arch_reserve_crashkernel(void)
 {
-#ifdef CONFIG_KEXEC
 	int ret;
-	unsigned long long total_mem;
+	unsigned long long low_size = 0;
 	unsigned long long crash_base, crash_size;
+	char *cmdline = boot_command_line;
+	bool high = false;
 
-	total_mem = memblock_phys_mem_size();
-	ret = parse_crashkernel(boot_command_line, total_mem, &crash_size, &crash_base);
-	if (ret < 0 || crash_size <= 0)
+	if (!IS_ENABLED(CONFIG_KEXEC_CORE))
 		return;
 
-	if (crash_base <= 0) {
-		crash_base = memblock_phys_alloc_range(crash_size, CRASH_ALIGN, CRASH_ALIGN, CRASH_ADDR_MAX);
-		if (!crash_base) {
-			pr_warn("crashkernel reservation failed - No suitable area found.\n");
-			return;
-		}
-	} else if (!memblock_phys_alloc_range(crash_size, CRASH_ALIGN, crash_base, crash_base + crash_size)) {
-		pr_warn("Invalid memory region reserved for crash kernel\n");
+	ret = parse_crashkernel(cmdline, memblock_phys_mem_size(),
+				&crash_size, &crash_base, &low_size, &high);
+	if (ret)
 		return;
-	}
 
-	crashk_res.start = crash_base;
-	crashk_res.end	 = crash_base + crash_size - 1;
-#endif
+	reserve_crashkernel_generic(cmdline, crash_size, crash_base, low_size, high);
 }
 
 static void __init fdt_setup(void)
@@ -296,8 +280,12 @@ static void __init fdt_setup(void)
 	if (acpi_os_get_root_pointer())
 		return;
 
-	/* Look for a device tree configuration table entry */
-	fdt_pointer = efi_fdt_pointer();
+	/* Prefer to use built-in dtb, checking its legality first. */
+	if (!fdt_check_header(__dtb_start))
+		fdt_pointer = __dtb_start;
+	else
+		fdt_pointer = efi_fdt_pointer(); /* Fallback to firmware dtb */
+
 	if (!fdt_pointer || fdt_check_header(fdt_pointer))
 		return;
 
@@ -331,9 +319,27 @@ static void __init bootcmdline_init(char **cmdline_p)
 		if (boot_command_line[0])
 			strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
 
-		strlcat(boot_command_line, init_command_line, COMMAND_LINE_SIZE);
+		if (!strstr(boot_command_line, init_command_line))
+			strlcat(boot_command_line, init_command_line, COMMAND_LINE_SIZE);
+
+		goto out;
 	}
 #endif
+
+	/*
+	 * Append built-in command line to the bootloader command line if
+	 * CONFIG_CMDLINE_EXTEND is enabled.
+	 */
+	if (IS_ENABLED(CONFIG_CMDLINE_EXTEND) && CONFIG_CMDLINE[0]) {
+		strlcat(boot_command_line, " ", COMMAND_LINE_SIZE);
+		strlcat(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
+	}
+
+	/*
+	 * Use built-in command line if the bootloader command line is empty.
+	 */
+	if (IS_ENABLED(CONFIG_CMDLINE_BOOTLOADER) && !boot_command_line[0])
+		strscpy(boot_command_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
 
 out:
 	*cmdline_p = boot_command_line;
@@ -342,7 +348,7 @@ out:
 void __init platform_init(void)
 {
 	arch_reserve_vmcore();
-	arch_parse_crashkernel();
+	arch_reserve_crashkernel();
 
 #ifdef CONFIG_ACPI_TABLE_UPGRADE
 	acpi_table_upgrade();
@@ -351,6 +357,8 @@ void __init platform_init(void)
 	acpi_gbl_use_default_register_widths = false;
 	acpi_boot_table_init();
 #endif
+
+	early_init_fdt_scan_reserved_mem();
 	unflatten_and_copy_device_tree();
 
 #ifdef CONFIG_NUMA
@@ -383,8 +391,6 @@ static void __init arch_mem_init(char **cmdline_p)
 		pr_info("User-defined physical RAM map overwrite\n");
 
 	check_kernel_sections_mem();
-
-	early_init_fdt_scan_reserved_mem();
 
 	/*
 	 * In order to reduce the possibility of kernel panic when failed to
@@ -452,15 +458,6 @@ static void __init resource_init(void)
 		request_resource(res, &data_resource);
 		request_resource(res, &bss_resource);
 	}
-
-#ifdef CONFIG_KEXEC
-	if (crashk_res.start < crashk_res.end) {
-		insert_resource(&iomem_resource, &crashk_res);
-		pr_info("Reserving %ldMB of memory at %ldMB for crashkernel\n",
-			(unsigned long)((crashk_res.end - crashk_res.start + 1) >> 20),
-			(unsigned long)(crashk_res.start  >> 20));
-	}
-#endif
 }
 
 static int __init add_legacy_isa_io(struct fwnode_handle *fwnode,
@@ -610,4 +607,8 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	paging_init();
+
+#ifdef CONFIG_KASAN
+	kasan_init();
+#endif
 }

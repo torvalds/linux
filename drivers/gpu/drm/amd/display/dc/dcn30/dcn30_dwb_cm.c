@@ -243,6 +243,9 @@ static bool dwb3_program_ogam_lut(
 		return false;
 	}
 
+	if (params->hw_points_num == 0)
+		return false;
+
 	REG_SET(DWB_OGAM_CONTROL, 0, DWB_OGAM_MODE, 2);
 
 	current_mode = dwb3_get_ogam_current(dwbc30);
@@ -280,7 +283,7 @@ bool dwb3_ogam_set_input_transfer_func(
 	dwb_ogam_lut = kzalloc(sizeof(*dwb_ogam_lut), GFP_KERNEL);
 
 	if (dwb_ogam_lut) {
-		cm_helper_translate_curve_to_hw_format(
+		cm_helper_translate_curve_to_hw_format(dwbc->ctx,
 			in_transfer_func_dwb_ogam,
 			dwb_ogam_lut, false);
 

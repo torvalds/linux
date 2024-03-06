@@ -14,15 +14,20 @@ tables. Access to higher level tables protected by mm->page_table_lock.
 There are helpers to lock/unlock a table and other accessor functions:
 
  - pte_offset_map_lock()
-	maps pte and takes PTE table lock, returns pointer to the taken
-	lock;
+	maps PTE and takes PTE table lock, returns pointer to PTE with
+	pointer to its PTE table lock, or returns NULL if no PTE table;
+ - pte_offset_map_nolock()
+	maps PTE, returns pointer to PTE with pointer to its PTE table
+	lock (not taken), or returns NULL if no PTE table;
+ - pte_offset_map()
+	maps PTE, returns pointer to PTE, or returns NULL if no PTE table;
+ - pte_unmap()
+	unmaps PTE table;
  - pte_unmap_unlock()
 	unlocks and unmaps PTE table;
  - pte_alloc_map_lock()
-	allocates PTE table if needed and take the lock, returns pointer
-	to taken lock or NULL if allocation failed;
- - pte_lockptr()
-	returns pointer to PTE table lock;
+	allocates PTE table if needed and takes its lock, returns pointer to
+	PTE with pointer to its lock, or returns NULL if allocation failed;
  - pmd_lock()
 	takes PMD table lock, returns pointer to taken lock;
  - pmd_lockptr()
@@ -53,7 +58,7 @@ Support of split page table lock by an architecture
 ===================================================
 
 There's no need in special enabling of PTE split page table lock: everything
-required is done by pgtable_pte_page_ctor() and pgtable_pte_page_dtor(), which
+required is done by pagetable_pte_ctor() and pagetable_pte_dtor(), which
 must be called on PTE table allocation / freeing.
 
 Make sure the architecture doesn't use slab allocator for page table
@@ -63,8 +68,8 @@ This field shares storage with page->ptl.
 PMD split lock only makes sense if you have more than two page table
 levels.
 
-PMD split lock enabling requires pgtable_pmd_page_ctor() call on PMD table
-allocation and pgtable_pmd_page_dtor() on freeing.
+PMD split lock enabling requires pagetable_pmd_ctor() call on PMD table
+allocation and pagetable_pmd_dtor() on freeing.
 
 Allocation usually happens in pmd_alloc_one(), freeing in pmd_free() and
 pmd_free_tlb(), but make sure you cover all PMD table allocation / freeing
@@ -72,7 +77,7 @@ paths: i.e X86_PAE preallocate few PMDs on pgd_alloc().
 
 With everything in place you can set CONFIG_ARCH_ENABLE_SPLIT_PMD_PTLOCK.
 
-NOTE: pgtable_pte_page_ctor() and pgtable_pmd_page_ctor() can fail -- it must
+NOTE: pagetable_pte_ctor() and pagetable_pmd_ctor() can fail -- it must
 be handled properly.
 
 page->ptl
@@ -92,7 +97,7 @@ trick:
    split lock with enabled DEBUG_SPINLOCK or DEBUG_LOCK_ALLOC, but costs
    one more cache line for indirect access;
 
-The spinlock_t allocated in pgtable_pte_page_ctor() for PTE table and in
-pgtable_pmd_page_ctor() for PMD table.
+The spinlock_t allocated in pagetable_pte_ctor() for PTE table and in
+pagetable_pmd_ctor() for PMD table.
 
 Please, never access page->ptl directly -- use appropriate helper.

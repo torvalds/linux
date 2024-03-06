@@ -135,7 +135,7 @@ inode.
 
 Character and block special devices do not exist in QNX as those files
 are handled by the QNX kernel/drivers and created in /dev independent of the
-underlaying filesystem.
+underlying filesystem.
 
 Long filenames
 --------------

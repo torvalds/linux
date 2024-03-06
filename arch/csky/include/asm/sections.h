@@ -7,4 +7,6 @@
 
 extern char _start[];
 
+asmlinkage void csky_start(unsigned int unused, void *dtb_start);
+
 #endif /* __ASM_SECTIONS_H */

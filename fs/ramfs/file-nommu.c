@@ -43,7 +43,7 @@ const struct file_operations ramfs_file_operations = {
 	.read_iter		= generic_file_read_iter,
 	.write_iter		= generic_file_write_iter,
 	.fsync			= noop_fsync,
-	.splice_read		= generic_file_splice_read,
+	.splice_read		= filemap_splice_read,
 	.splice_write		= iter_file_splice_write,
 	.llseek			= generic_file_llseek,
 };
@@ -70,7 +70,7 @@ int ramfs_nommu_expand_for_mapping(struct inode *inode, size_t newsize)
 
 	/* make various checks */
 	order = get_order(newsize);
-	if (unlikely(order > MAX_ORDER))
+	if (unlikely(order > MAX_PAGE_ORDER))
 		return -EFBIG;
 
 	ret = inode_newsize_ok(inode, newsize);

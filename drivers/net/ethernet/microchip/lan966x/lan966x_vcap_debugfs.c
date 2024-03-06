@@ -190,6 +190,26 @@ static void lan966x_vcap_is2_port_keys(struct lan966x_port *port,
 	out->prf(out->dst, "\n");
 }
 
+static void lan966x_vcap_es0_port_keys(struct lan966x_port *port,
+				       struct vcap_admin *admin,
+				       struct vcap_output_print *out)
+{
+	struct lan966x *lan966x = port->lan966x;
+	u32 val;
+
+	out->prf(out->dst, "  port[%d] (%s): ", port->chip_port,
+		 netdev_name(port->dev));
+
+	val = lan_rd(lan966x, REW_PORT_CFG(port->chip_port));
+	out->prf(out->dst, "\n    state: ");
+	if (REW_PORT_CFG_ES0_EN_GET(val))
+		out->prf(out->dst, "on");
+	else
+		out->prf(out->dst, "off");
+
+	out->prf(out->dst, "\n");
+}
+
 int lan966x_vcap_port_info(struct net_device *dev,
 			   struct vcap_admin *admin,
 			   struct vcap_output_print *out)
@@ -209,6 +229,9 @@ int lan966x_vcap_port_info(struct net_device *dev,
 		break;
 	case VCAP_TYPE_IS1:
 		lan966x_vcap_is1_port_keys(port, admin, out);
+		break;
+	case VCAP_TYPE_ES0:
+		lan966x_vcap_es0_port_keys(port, admin, out);
 		break;
 	default:
 		out->prf(out->dst, "  no info\n");

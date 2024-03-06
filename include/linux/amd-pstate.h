@@ -70,6 +70,10 @@ struct amd_cpudata {
 	u32	nominal_perf;
 	u32	lowest_nonlinear_perf;
 	u32	lowest_perf;
+	u32     min_limit_perf;
+	u32     max_limit_perf;
+	u32     min_limit_freq;
+	u32     max_limit_freq;
 
 	u32	max_freq;
 	u32	min_freq;
@@ -94,7 +98,8 @@ struct amd_cpudata {
  * enum amd_pstate_mode - driver working mode of amd pstate
  */
 enum amd_pstate_mode {
-	AMD_PSTATE_DISABLE = 0,
+	AMD_PSTATE_UNDEFINED = 0,
+	AMD_PSTATE_DISABLE,
 	AMD_PSTATE_PASSIVE,
 	AMD_PSTATE_ACTIVE,
 	AMD_PSTATE_GUIDED,
@@ -102,6 +107,7 @@ enum amd_pstate_mode {
 };
 
 static const char * const amd_pstate_mode_string[] = {
+	[AMD_PSTATE_UNDEFINED]   = "undefined",
 	[AMD_PSTATE_DISABLE]     = "disable",
 	[AMD_PSTATE_PASSIVE]     = "passive",
 	[AMD_PSTATE_ACTIVE]      = "active",

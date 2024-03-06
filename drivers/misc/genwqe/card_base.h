@@ -289,7 +289,7 @@ struct genwqe_dev {
 
 	/* char device */
 	dev_t  devnum_genwqe;		/* major/minor num card */
-	struct class *class_genwqe;	/* reference to class object */
+	const struct class *class_genwqe;	/* reference to class object */
 	struct device *dev;		/* for device creation */
 	struct cdev cdev_genwqe;	/* char device for card */
 

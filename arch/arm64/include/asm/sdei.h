@@ -17,6 +17,9 @@
 
 #include <asm/virt.h>
 
+DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_normal_event);
+DECLARE_PER_CPU(struct sdei_registered_event *, sdei_active_critical_event);
+
 extern unsigned long sdei_exit_mode;
 
 /* Software Delegated Exception entry point from firmware*/
@@ -28,6 +31,9 @@ asmlinkage void __sdei_asm_entry_trampoline(unsigned long event_num,
 						   unsigned long arg,
 						   unsigned long pc,
 						   unsigned long pstate);
+
+/* Abort a running handler. Context is discarded. */
+void __sdei_handler_abort(void);
 
 /*
  * The above entry point does the minimum to call C code. This function does

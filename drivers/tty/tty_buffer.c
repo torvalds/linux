@@ -69,12 +69,11 @@ EXPORT_SYMBOL_GPL(tty_buffer_lock_exclusive);
 void tty_buffer_unlock_exclusive(struct tty_port *port)
 {
 	struct tty_bufhead *buf = &port->buf;
-	int restart;
-
-	restart = buf->head->commit != buf->head->read;
+	bool restart = buf->head->commit != buf->head->read;
 
 	atomic_dec(&buf->priority);
 	mutex_unlock(&buf->lock);
+
 	if (restart)
 		queue_work(system_unbound_wq, &buf->work);
 }
@@ -177,8 +176,7 @@ static struct tty_buffer *tty_buffer_alloc(struct tty_port *port, size_t size)
 	 */
 	if (atomic_read(&port->buf.mem_used) > port->buf.mem_limit)
 		return NULL;
-	p = kmalloc(sizeof(struct tty_buffer) + 2 * size,
-		    GFP_ATOMIC | __GFP_NOWARN);
+	p = kmalloc(struct_size(p, data, 2 * size), GFP_ATOMIC | __GFP_NOWARN);
 	if (p == NULL)
 		return NULL;
 
@@ -263,38 +261,32 @@ static int __tty_buffer_request_room(struct tty_port *port, size_t size,
 				     bool flags)
 {
 	struct tty_bufhead *buf = &port->buf;
-	struct tty_buffer *b, *n;
-	int left, change;
+	struct tty_buffer *n, *b = buf->tail;
+	size_t left = (b->flags ? 1 : 2) * b->size - b->used;
+	bool change = !b->flags && flags;
 
-	b = buf->tail;
-	if (!b->flags)
-		left = 2 * b->size - b->used;
-	else
-		left = b->size - b->used;
+	if (!change && left >= size)
+		return size;
 
-	change = !b->flags && flags;
-	if (change || left < size) {
-		/* This is the slow path - looking for new buffers to use */
-		n = tty_buffer_alloc(port, size);
-		if (n != NULL) {
-			n->flags = flags;
-			buf->tail = n;
-			/*
-			 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
-			 * ensures they see all buffer data.
-			 */
-			smp_store_release(&b->commit, b->used);
-			/*
-			 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
-			 * ensures the latest commit value can be read before the head
-			 * is advanced to the next buffer.
-			 */
-			smp_store_release(&b->next, n);
-		} else if (change)
-			size = 0;
-		else
-			size = left;
-	}
+	/* This is the slow path - looking for new buffers to use */
+	n = tty_buffer_alloc(port, size);
+	if (n == NULL)
+		return change ? 0 : left;
+
+	n->flags = flags;
+	buf->tail = n;
+	/*
+	 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
+	 * ensures they see all buffer data.
+	 */
+	smp_store_release(&b->commit, b->used);
+	/*
+	 * Paired w/ acquire in flush_to_ldisc() and lookahead_bufs()
+	 * ensures the latest commit value can be read before the head
+	 * is advanced to the next buffer.
+	 */
+	smp_store_release(&b->next, n);
+
 	return size;
 }
 
@@ -304,108 +296,45 @@ int tty_buffer_request_room(struct tty_port *port, size_t size)
 }
 EXPORT_SYMBOL_GPL(tty_buffer_request_room);
 
-/**
- * tty_insert_flip_string_fixed_flag - add characters to the tty buffer
- * @port: tty port
- * @chars: characters
- * @flag: flag value for each character
- * @size: size
- *
- * Queue a series of bytes to the tty buffering. All the characters passed are
- * marked with the supplied flag.
- *
- * Returns: the number added.
- */
-int tty_insert_flip_string_fixed_flag(struct tty_port *port,
-		const unsigned char *chars, char flag, size_t size)
+size_t __tty_insert_flip_string_flags(struct tty_port *port, const u8 *chars,
+				      const u8 *flags, bool mutable_flags,
+				      size_t size)
 {
-	int copied = 0;
-	bool flags = flag != TTY_NORMAL;
+	bool need_flags = mutable_flags || flags[0] != TTY_NORMAL;
+	size_t copied = 0;
 
 	do {
-		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int space = __tty_buffer_request_room(port, goal, flags);
+		size_t goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
+		size_t space = __tty_buffer_request_room(port, goal, need_flags);
 		struct tty_buffer *tb = port->buf.tail;
 
 		if (unlikely(space == 0))
 			break;
+
 		memcpy(char_buf_ptr(tb, tb->used), chars, space);
-		if (tb->flags)
-			memset(flag_buf_ptr(tb, tb->used), flag, space);
+
+		if (mutable_flags) {
+			memcpy(flag_buf_ptr(tb, tb->used), flags, space);
+			flags += space;
+		} else if (tb->flags) {
+			memset(flag_buf_ptr(tb, tb->used), flags[0], space);
+		} else {
+			/* tb->flags should be available once requested */
+			WARN_ON_ONCE(need_flags);
+		}
+
 		tb->used += space;
 		copied += space;
 		chars += space;
+
 		/* There is a small chance that we need to split the data over
 		 * several buffers. If this is the case we must loop.
 		 */
 	} while (unlikely(size > copied));
+
 	return copied;
 }
-EXPORT_SYMBOL(tty_insert_flip_string_fixed_flag);
-
-/**
- * tty_insert_flip_string_flags	-	add characters to the tty buffer
- * @port: tty port
- * @chars: characters
- * @flags: flag bytes
- * @size: size
- *
- * Queue a series of bytes to the tty buffering. For each character the flags
- * array indicates the status of the character.
- *
- * Returns: the number added.
- */
-int tty_insert_flip_string_flags(struct tty_port *port,
-		const unsigned char *chars, const char *flags, size_t size)
-{
-	int copied = 0;
-
-	do {
-		int goal = min_t(size_t, size - copied, TTY_BUFFER_PAGE);
-		int space = tty_buffer_request_room(port, goal);
-		struct tty_buffer *tb = port->buf.tail;
-
-		if (unlikely(space == 0))
-			break;
-		memcpy(char_buf_ptr(tb, tb->used), chars, space);
-		memcpy(flag_buf_ptr(tb, tb->used), flags, space);
-		tb->used += space;
-		copied += space;
-		chars += space;
-		flags += space;
-		/* There is a small chance that we need to split the data over
-		 * several buffers. If this is the case we must loop.
-		 */
-	} while (unlikely(size > copied));
-	return copied;
-}
-EXPORT_SYMBOL(tty_insert_flip_string_flags);
-
-/**
- * __tty_insert_flip_char   -	add one character to the tty buffer
- * @port: tty port
- * @ch: character
- * @flag: flag byte
- *
- * Queue a single byte @ch to the tty buffering, with an optional flag. This is
- * the slow path of tty_insert_flip_char().
- */
-int __tty_insert_flip_char(struct tty_port *port, unsigned char ch, char flag)
-{
-	struct tty_buffer *tb;
-	bool flags = flag != TTY_NORMAL;
-
-	if (!__tty_buffer_request_room(port, 1, flags))
-		return 0;
-
-	tb = port->buf.tail;
-	if (tb->flags)
-		*flag_buf_ptr(tb, tb->used) = flag;
-	*char_buf_ptr(tb, tb->used++) = ch;
-
-	return 1;
-}
-EXPORT_SYMBOL(__tty_insert_flip_char);
+EXPORT_SYMBOL(__tty_insert_flip_string_flags);
 
 /**
  * tty_prepare_flip_string	-	make room for characters
@@ -421,10 +350,9 @@ EXPORT_SYMBOL(__tty_insert_flip_char);
  * Returns: the length available and buffer pointer (@chars) to the space which
  * is now allocated and accounted for as ready for normal characters.
  */
-int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
-		size_t size)
+size_t tty_prepare_flip_string(struct tty_port *port, u8 **chars, size_t size)
 {
-	int space = __tty_buffer_request_room(port, size, false);
+	size_t space = __tty_buffer_request_room(port, size, false);
 
 	if (likely(space)) {
 		struct tty_buffer *tb = port->buf.tail;
@@ -434,6 +362,7 @@ int tty_prepare_flip_string(struct tty_port *port, unsigned char **chars,
 			memset(flag_buf_ptr(tb, tb->used), TTY_NORMAL, space);
 		tb->used += space;
 	}
+
 	return space;
 }
 EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
@@ -450,13 +379,13 @@ EXPORT_SYMBOL_GPL(tty_prepare_flip_string);
  *
  * Returns: the number of bytes processed.
  */
-int tty_ldisc_receive_buf(struct tty_ldisc *ld, const unsigned char *p,
-			  const char *f, int count)
+size_t tty_ldisc_receive_buf(struct tty_ldisc *ld, const u8 *p, const u8 *f,
+			     size_t count)
 {
 	if (ld->ops->receive_buf2)
 		count = ld->ops->receive_buf2(ld->tty, p, f, count);
 	else {
-		count = min_t(int, count, ld->tty->receive_room);
+		count = min_t(size_t, count, ld->tty->receive_room);
 		if (count && ld->ops->receive_buf)
 			ld->ops->receive_buf(ld->tty, p, f, count);
 	}
@@ -489,7 +418,7 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 		}
 
 		if (port->client_ops->lookahead_buf) {
-			unsigned char *p, *f = NULL;
+			u8 *p, *f = NULL;
 
 			p = char_buf_ptr(head, head->lookahead);
 			if (head->flags)
@@ -502,12 +431,12 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 	}
 }
 
-static int
-receive_buf(struct tty_port *port, struct tty_buffer *head, int count)
+static size_t
+receive_buf(struct tty_port *port, struct tty_buffer *head, size_t count)
 {
-	unsigned char *p = char_buf_ptr(head, head->read);
-	const char *f = NULL;
-	int n;
+	u8 *p = char_buf_ptr(head, head->read);
+	const u8 *f = NULL;
+	size_t n;
 
 	if (head->flags)
 		f = flag_buf_ptr(head, head->read);
@@ -539,7 +468,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	while (1) {
 		struct tty_buffer *head = buf->head;
 		struct tty_buffer *next;
-		int count, rcvd;
+		size_t count, rcvd;
 
 		/* Ldisc or user is trying to gain exclusive access */
 		if (atomic_read(&buf->priority))
@@ -620,7 +549,7 @@ EXPORT_SYMBOL(tty_flip_buffer_push);
  * Returns: the number added.
  */
 int tty_insert_flip_string_and_push_buffer(struct tty_port *port,
-		const unsigned char *chars, size_t size)
+					   const u8 *chars, size_t size)
 {
 	struct tty_bufhead *buf = &port->buf;
 	unsigned long flags;

@@ -1163,48 +1163,8 @@ u32 efx_ethtool_get_rxfh_key_size(struct net_device *net_dev)
 	return efx->type->rx_hash_key_size;
 }
 
-int efx_ethtool_get_rxfh(struct net_device *net_dev, u32 *indir, u8 *key,
-			 u8 *hfunc)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-	int rc;
-
-	rc = efx->type->rx_pull_rss_config(efx);
-	if (rc)
-		return rc;
-
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (indir)
-		memcpy(indir, efx->rss_context.rx_indir_table,
-		       sizeof(efx->rss_context.rx_indir_table));
-	if (key)
-		memcpy(key, efx->rss_context.rx_hash_key,
-		       efx->type->rx_hash_key_size);
-	return 0;
-}
-
-int efx_ethtool_set_rxfh(struct net_device *net_dev, const u32 *indir,
-			 const u8 *key, const u8 hfunc)
-{
-	struct efx_nic *efx = efx_netdev_priv(net_dev);
-
-	/* Hash function is Toeplitz, cannot be changed */
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
-		return -EOPNOTSUPP;
-	if (!indir && !key)
-		return 0;
-
-	if (!key)
-		key = efx->rss_context.rx_hash_key;
-	if (!indir)
-		indir = efx->rss_context.rx_indir_table;
-
-	return efx->type->rx_push_rss_config(efx, true, indir, key);
-}
-
-int efx_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
-				 u8 *key, u8 *hfunc, u32 rss_context)
+static int efx_ethtool_get_rxfh_context(struct net_device *net_dev,
+					struct ethtool_rxfh_param *rxfh)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct efx_rss_context *ctx;
@@ -1214,7 +1174,7 @@ int efx_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
 		return -EOPNOTSUPP;
 
 	mutex_lock(&efx->rss_lock);
-	ctx = efx_find_rss_context_entry(efx, rss_context);
+	ctx = efx_find_rss_context_entry(efx, rxfh->rss_context);
 	if (!ctx) {
 		rc = -ENOENT;
 		goto out_unlock;
@@ -1223,37 +1183,60 @@ int efx_ethtool_get_rxfh_context(struct net_device *net_dev, u32 *indir,
 	if (rc)
 		goto out_unlock;
 
-	if (hfunc)
-		*hfunc = ETH_RSS_HASH_TOP;
-	if (indir)
-		memcpy(indir, ctx->rx_indir_table, sizeof(ctx->rx_indir_table));
-	if (key)
-		memcpy(key, ctx->rx_hash_key, efx->type->rx_hash_key_size);
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (rxfh->indir)
+		memcpy(rxfh->indir, ctx->rx_indir_table,
+		       sizeof(ctx->rx_indir_table));
+	if (rxfh->key)
+		memcpy(rxfh->key, ctx->rx_hash_key,
+		       efx->type->rx_hash_key_size);
 out_unlock:
 	mutex_unlock(&efx->rss_lock);
 	return rc;
 }
 
-int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
-				 const u32 *indir, const u8 *key,
-				 const u8 hfunc, u32 *rss_context,
-				 bool delete)
+int efx_ethtool_get_rxfh(struct net_device *net_dev,
+			 struct ethtool_rxfh_param *rxfh)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	int rc;
+
+	if (rxfh->rss_context)
+		return efx_ethtool_get_rxfh_context(net_dev, rxfh);
+
+	rc = efx->type->rx_pull_rss_config(efx);
+	if (rc)
+		return rc;
+
+	rxfh->hfunc = ETH_RSS_HASH_TOP;
+	if (rxfh->indir)
+		memcpy(rxfh->indir, efx->rss_context.rx_indir_table,
+		       sizeof(efx->rss_context.rx_indir_table));
+	if (rxfh->key)
+		memcpy(rxfh->key, efx->rss_context.rx_hash_key,
+		       efx->type->rx_hash_key_size);
+	return 0;
+}
+
+static int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
+					struct ethtool_rxfh_param *rxfh,
+					struct netlink_ext_ack *extack)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	u32 *rss_context = &rxfh->rss_context;
 	struct efx_rss_context *ctx;
+	u32 *indir = rxfh->indir;
 	bool allocated = false;
+	u8 *key = rxfh->key;
 	int rc;
 
 	if (!efx->type->rx_push_rss_context_config)
-		return -EOPNOTSUPP;
-	/* Hash function is Toeplitz, cannot be changed */
-	if (hfunc != ETH_RSS_HASH_NO_CHANGE && hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&efx->rss_lock);
 
 	if (*rss_context == ETH_RXFH_CONTEXT_ALLOC) {
-		if (delete) {
+		if (rxfh->rss_delete) {
 			/* alloc + delete == Nothing to do */
 			rc = -EINVAL;
 			goto out_unlock;
@@ -1276,7 +1259,7 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 		}
 	}
 
-	if (delete) {
+	if (rxfh->rss_delete) {
 		/* delete this context */
 		rc = efx->type->rx_push_rss_context_config(efx, ctx, NULL, NULL);
 		if (!rc)
@@ -1297,6 +1280,33 @@ int efx_ethtool_set_rxfh_context(struct net_device *net_dev,
 out_unlock:
 	mutex_unlock(&efx->rss_lock);
 	return rc;
+}
+
+int efx_ethtool_set_rxfh(struct net_device *net_dev,
+			 struct ethtool_rxfh_param *rxfh,
+			 struct netlink_ext_ack *extack)
+{
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
+	u32 *indir = rxfh->indir;
+	u8 *key = rxfh->key;
+
+	/* Hash function is Toeplitz, cannot be changed */
+	if (rxfh->hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	    rxfh->hfunc != ETH_RSS_HASH_TOP)
+		return -EOPNOTSUPP;
+
+	if (rxfh->rss_context)
+		return efx_ethtool_set_rxfh_context(net_dev, rxfh, extack);
+
+	if (!indir && !key)
+		return 0;
+
+	if (!key)
+		key = efx->rss_context.rx_hash_key;
+	if (!indir)
+		indir = efx->rss_context.rx_indir_table;
+
+	return efx->type->rx_push_rss_config(efx, true, indir, key);
 }
 
 int efx_ethtool_reset(struct net_device *net_dev, u32 *flags)

@@ -5,6 +5,7 @@
 # Kselftest framework requirement - SKIP code is 4.
 ksft_skip=4
 
+count_total=0
 count_pass=0
 count_fail=0
 count_skip=0
@@ -12,11 +13,15 @@ exitcode=0
 
 usage() {
 	cat <<EOF
-usage: ${BASH_SOURCE[0]:-$0} [ -h | -t "<categories>"]
+usage: ${BASH_SOURCE[0]:-$0} [ options ]
+
+  -a: run all tests, including extra ones
   -t: specify specific categories to tests to run
   -h: display this message
+  -n: disable TAP output
 
-The default behavior is to run all tests.
+The default behavior is to run required tests only.  If -a is specified,
+will run all tests.
 
 Alternatively, specific groups tests can be run by passing a string
 to the -t argument containing one or more of the following categories
@@ -24,7 +29,7 @@ separated by spaces:
 - mmap
 	tests for mmap(2)
 - gup_test
-	tests for gup using gup_test interface
+	tests for gup
 - userfaultfd
 	tests for  userfaultfd(2)
 - compaction
@@ -53,18 +58,35 @@ separated by spaces:
 	memory protection key tests
 - soft_dirty
 	test soft dirty page bit semantics
+- pagemap
+	test pagemap_scan IOCTL
 - cow
 	test copy-on-write semantics
+- thp
+	test transparent huge pages
+- migration
+	invoke move_pages(2) to exercise the migration entry code
+	paths in the kernel
+- mkdirty
+	test handling of code that might set PTE/PMD dirty in
+	read-only VMAs
+- mdwe
+	test prctl(PR_SET_MDWE, ...)
+
 example: ./run_vmtests.sh -t "hmm mmap ksm"
 EOF
 	exit 0
 }
 
+RUN_ALL=false
+TAP_PREFIX="# "
 
-while getopts "ht:" OPT; do
+while getopts "aht:n" OPT; do
 	case ${OPT} in
+		"a") RUN_ALL=true ;;
 		"h") usage ;;
 		"t") VM_SELFTEST_ITEMS=${OPTARG} ;;
+		"n") TAP_PREFIX= ;;
 	esac
 done
 shift $((OPTIND -1))
@@ -83,6 +105,30 @@ test_selected() {
 	else
 	        return 1
 	fi
+}
+
+run_gup_matrix() {
+    # -t: thp=on, -T: thp=off, -H: hugetlb=on
+    local hugetlb_mb=$(( needmem_KB / 1024 ))
+
+    for huge in -t -T "-H -m $hugetlb_mb"; do
+        # -u: gup-fast, -U: gup-basic, -a: pin-fast, -b: pin-basic, -L: pin-longterm
+        for test_cmd in -u -U -a -b -L; do
+            # -w: write=1, -W: write=0
+            for write in -w -W; do
+                # -S: shared
+                for share in -S " "; do
+                    # -n: How many pages to fetch together?  512 is special
+                    # because it's default thp size (or 2M on x86), 123 to
+                    # just test partial gup when hit a huge in whatever form
+                    for num in "-n 1" "-n 512" "-n 123"; do
+                        CATEGORY="gup_test" run_test ./gup_test \
+                                $huge $test_cmd $write $share $num
+                    done
+                done
+            done
+        done
+    done
 }
 
 # get huge pagesize and freepages from /proc/meminfo
@@ -142,29 +188,51 @@ fi
 VADDR64=0
 echo "$ARCH64STR" | grep "$ARCH" &>/dev/null && VADDR64=1
 
+tap_prefix() {
+	sed -e "s/^/${TAP_PREFIX}/"
+}
+
+tap_output() {
+	if [[ ! -z "$TAP_PREFIX" ]]; then
+		read str
+		echo $str
+	fi
+}
+
+pretty_name() {
+	echo "$*" | sed -e 's/^\(bash \)\?\.\///'
+}
+
 # Usage: run_test [test binary] [arbitrary test arguments...]
 run_test() {
 	if test_selected ${CATEGORY}; then
+		local test=$(pretty_name "$*")
 		local title="running $*"
 		local sep=$(echo -n "$title" | tr "[:graph:][:space:]" -)
-		printf "%s\n%s\n%s\n" "$sep" "$title" "$sep"
+		printf "%s\n%s\n%s\n" "$sep" "$title" "$sep" | tap_prefix
 
-		"$@"
-		local ret=$?
+		("$@" 2>&1) | tap_prefix
+		local ret=${PIPESTATUS[0]}
+		count_total=$(( count_total + 1 ))
 		if [ $ret -eq 0 ]; then
 			count_pass=$(( count_pass + 1 ))
-			echo "[PASS]"
+			echo "[PASS]" | tap_prefix
+			echo "ok ${count_total} ${test}" | tap_output
 		elif [ $ret -eq $ksft_skip ]; then
 			count_skip=$(( count_skip + 1 ))
-			echo "[SKIP]"
+			echo "[SKIP]" | tap_prefix
+			echo "ok ${count_total} ${test} # SKIP" | tap_output
 			exitcode=$ksft_skip
 		else
 			count_fail=$(( count_fail + 1 ))
-			echo "[FAIL]"
+			echo "[FAIL]" | tap_prefix
+			echo "not ok ${count_total} ${test} # exit=$ret" | tap_output
 			exitcode=1
 		fi
 	fi # test_selected
 }
+
+echo "TAP version 13" | tap_output
 
 CATEGORY="hugetlb" run_test ./hugepage-mmap
 
@@ -181,20 +249,32 @@ CATEGORY="hugetlb" run_test ./hugepage-mremap
 CATEGORY="hugetlb" run_test ./hugepage-vmemmap
 CATEGORY="hugetlb" run_test ./hugetlb-madvise
 
+nr_hugepages_tmp=$(cat /proc/sys/vm/nr_hugepages)
+# For this test, we need one and just one huge page
+echo 1 > /proc/sys/vm/nr_hugepages
+CATEGORY="hugetlb" run_test ./hugetlb_fault_after_madv
+# Restore the previous number of huge pages, since further tests rely on it
+echo "$nr_hugepages_tmp" > /proc/sys/vm/nr_hugepages
+
 if test_selected "hugetlb"; then
-	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"
-	echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for"
-	echo "      hugetlb regression testing."
+	echo "NOTE: These hugetlb tests provide minimal coverage.  Use"	  | tap_prefix
+	echo "      https://github.com/libhugetlbfs/libhugetlbfs.git for" | tap_prefix
+	echo "      hugetlb regression testing."			  | tap_prefix
 fi
 
 CATEGORY="mmap" run_test ./map_fixed_noreplace
 
-# get_user_pages_fast() benchmark
-CATEGORY="gup_test" run_test ./gup_test -u
-# pin_user_pages_fast() benchmark
-CATEGORY="gup_test" run_test ./gup_test -a
+if $RUN_ALL; then
+    run_gup_matrix
+else
+    # get_user_pages_fast() benchmark
+    CATEGORY="gup_test" run_test ./gup_test -u
+    # pin_user_pages_fast() benchmark
+    CATEGORY="gup_test" run_test ./gup_test -a
+fi
 # Dump pages 0, 19, and 4096, using pin_user_pages:
 CATEGORY="gup_test" run_test ./gup_test -ct -F 0x1 0 19 0x1000
+CATEGORY="gup_test" run_test ./gup_longterm
 
 CATEGORY="userfaultfd" run_test ./uffd-unit-tests
 uffd_stress_bin=./uffd-stress
@@ -242,24 +322,29 @@ if [ $VADDR64 -ne 0 ]; then
 	if [ "$ARCH" == "$ARCH_ARM64" ]; then
 		echo 6 > /proc/sys/vm/nr_hugepages
 	fi
-	CATEGORY="hugevm" run_test ./va_high_addr_switch.sh
+	CATEGORY="hugevm" run_test bash ./va_high_addr_switch.sh
 	if [ "$ARCH" == "$ARCH_ARM64" ]; then
 		echo $prev_nr_hugepages > /proc/sys/vm/nr_hugepages
 	fi
 fi # VADDR64
 
 # vmalloc stability smoke test
-CATEGORY="vmalloc" run_test ./test_vmalloc.sh smoke
+CATEGORY="vmalloc" run_test bash ./test_vmalloc.sh smoke
 
 CATEGORY="mremap" run_test ./mremap_dontunmap
 
-CATEGORY="hmm" run_test ./test_hmm.sh smoke
+CATEGORY="hmm" run_test bash ./test_hmm.sh smoke
 
 # MADV_POPULATE_READ and MADV_POPULATE_WRITE tests
 CATEGORY="madv_populate" run_test ./madv_populate
 
+(echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope 2>&1) | tap_prefix
 CATEGORY="memfd_secret" run_test ./memfd_secret
 
+# KSM KSM_MERGE_TIME_HUGE_PAGES test with size of 100
+CATEGORY="ksm" run_test ./ksm_tests -H -s 100
+# KSM KSM_MERGE_TIME test with size of 100
+CATEGORY="ksm" run_test ./ksm_tests -P -s 100
 # KSM MADV_MERGEABLE test with 10 identical pages
 CATEGORY="ksm" run_test ./ksm_tests -M -p 10
 # KSM unmerge test
@@ -275,8 +360,6 @@ CATEGORY="ksm_numa" run_test ./ksm_tests -N -m 0
 
 CATEGORY="ksm" run_test ./ksm_functional_tests
 
-run_test ./ksm_functional_tests
-
 # protection_keys tests
 if [ -x ./protection_keys_32 ]
 then
@@ -288,11 +371,31 @@ then
 	CATEGORY="pkey" run_test ./protection_keys_64
 fi
 
-CATEGORY="soft_dirty" run_test ./soft-dirty
+if [ -x ./soft-dirty ]
+then
+	CATEGORY="soft_dirty" run_test ./soft-dirty
+fi
+
+CATEGORY="pagemap" run_test ./pagemap_ioctl
 
 # COW tests
 CATEGORY="cow" run_test ./cow
 
-echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}"
+CATEGORY="thp" run_test ./khugepaged
+
+CATEGORY="thp" run_test ./khugepaged -s 2
+
+CATEGORY="thp" run_test ./transhuge-stress -d 20
+
+CATEGORY="thp" run_test ./split_huge_page_test
+
+CATEGORY="migration" run_test ./migration
+
+CATEGORY="mkdirty" run_test ./mkdirty
+
+CATEGORY="mdwe" run_test ./mdwe_test
+
+echo "SUMMARY: PASS=${count_pass} SKIP=${count_skip} FAIL=${count_fail}" | tap_prefix
+echo "1..${count_total}" | tap_output
 
 exit $exitcode

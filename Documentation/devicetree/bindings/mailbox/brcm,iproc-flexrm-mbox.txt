@@ -29,7 +29,7 @@ Required properties:
 		where N is the value specified by 2nd cell above. If FlexRM
 		does not get required number of completion messages in time
 		specified by this cell then it will inject one MSI interrupt
-		to CPU provided atleast one completion message is available.
+		to CPU provided at least one completion message is available.
 
 Optional properties:
 --------------------

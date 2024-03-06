@@ -673,19 +673,6 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 	return menu;
 }
 
-bool menu_has_help(struct menu *menu)
-{
-	return menu->help != NULL;
-}
-
-const char *menu_get_help(struct menu *menu)
-{
-	if (menu->help)
-		return menu->help;
-	else
-		return "";
-}
-
 static void get_def_str(struct gstr *r, struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
@@ -699,6 +686,11 @@ static void get_dep_str(struct gstr *r, struct expr *expr, const char *prefix)
 		expr_gstr_print(expr, r);
 		str_append(r, "\n");
 	}
+}
+
+int __attribute__((weak)) get_jump_key_char(void)
+{
+	return -1;
 }
 
 static void get_prompt_str(struct gstr *r, struct property *prop,
@@ -730,24 +722,27 @@ static void get_prompt_str(struct gstr *r, struct property *prop,
 	}
 	if (head && location) {
 		jump = xmalloc(sizeof(struct jump_key));
-
 		jump->target = location;
-
-		if (list_empty(head))
-			jump->index = 0;
-		else
-			jump->index = list_entry(head->prev, struct jump_key,
-						 entries)->index + 1;
-
 		list_add_tail(&jump->entries, head);
 	}
 
 	str_printf(r, "  Location:\n");
-	for (j = 4; --i >= 0; j += 2) {
+	for (j = 0; --i >= 0; j++) {
+		int jk = -1;
+		int indent = 2 * j + 4;
+
 		menu = submenu[i];
-		if (jump && menu == location)
+		if (jump && menu == location) {
 			jump->offset = strlen(r->s);
-		str_printf(r, "%*c-> %s", j, ' ', menu_get_prompt(menu));
+			jk = get_jump_key_char();
+		}
+
+		if (jk >= 0) {
+			str_printf(r, "(%c)", jk);
+			indent -= 3;
+		}
+
+		str_printf(r, "%*c-> %s", indent, ' ', menu_get_prompt(menu));
 		if (menu->sym) {
 			str_printf(r, " (%s [=%s])", menu->sym->name ?
 				menu->sym->name : "<choice>",
@@ -848,10 +843,10 @@ void menu_get_ext_help(struct menu *menu, struct gstr *help)
 	struct symbol *sym = menu->sym;
 	const char *help_text = nohelp_text;
 
-	if (menu_has_help(menu)) {
+	if (menu->help) {
 		if (sym->name)
 			str_printf(help, "%s%s:\n\n", CONFIG_, sym->name);
-		help_text = menu_get_help(menu);
+		help_text = menu->help;
 	}
 	str_printf(help, "%s\n", help_text);
 	if (sym)

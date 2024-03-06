@@ -94,9 +94,27 @@ config LEDS_ARIEL
 
 	  Say Y to if your machine is a Dell Wyse 3020 thin client.
 
+config LEDS_AW200XX
+	tristate "LED support for Awinic AW20036/AW20054/AW20072/AW20108"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for the Awinic AW200XX LED controllers.
+	  It is a matrix LED driver programmed via an I2C interface. Devices have
+	  a set of individually controlled LEDs and support 3 pattern controllers
+	  for auto breathing or group dimming control. Supported devices:
+	    - AW20036 (3x12) 36 LEDs
+	    - AW20054 (6x9)  54 LEDs
+	    - AW20072 (6x12) 72 LEDs
+	    - AW20108 (9x12) 108 LEDs
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-aw200xx.
+
 config LEDS_AW2013
 	tristate "LED support for Awinic AW2013"
 	depends on LEDS_CLASS && I2C && OF
+	select REGMAP_I2C
 	help
 	  This option enables support for the AW2013 3-channel
 	  LED driver.
@@ -121,6 +139,17 @@ config LEDS_BCM6358
 	help
 	  This option enables support for LEDs connected to the BCM6358
 	  LED HW controller accessed via MMIO registers.
+
+config LEDS_CHT_WCOVE
+	tristate "LED support for Intel Cherry Trail Whiskey Cove PMIC"
+	depends on LEDS_CLASS
+	depends on INTEL_SOC_PMIC_CHTWC
+	help
+	  This option enables support for charger and general purpose LEDs
+	  connected to the Intel Cherrytrail Whiskey Cove PMIC.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-cht-wcove.
 
 config LEDS_CPCAP
 	tristate "LED Support for Motorola CPCAP"
@@ -163,6 +192,7 @@ config LEDS_TURRIS_OMNIA
 	depends on I2C
 	depends on MACH_ARMADA_38X || COMPILE_TEST
 	depends on OF
+	select LEDS_TRIGGERS
 	help
 	  This option enables basic support for the LEDs found on the front
 	  side of CZ.NIC's Turris Omnia router. There are 12 RGB LEDs on the
@@ -272,6 +302,15 @@ config LEDS_COBALT_RAQ
 	select LEDS_TRIGGERS
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
+
+config LEDS_SUN50I_A100
+	tristate "LED support for Allwinner A100 RGB LED controller"
+	depends on LEDS_CLASS_MULTICOLOR
+	depends on ARCH_SUNXI || COMPILE_TEST
+	help
+	  This option enables support for the RGB LED controller found
+	  in some Allwinner sunxi SoCs, including A100, R329, and D1.
+	  It uses a one-wire interface to control up to 1024 LEDs.
 
 config LEDS_SUNFIRE
 	tristate "LED support for SunFire servers."
@@ -497,6 +536,15 @@ config LEDS_PCA963X
 	  LED driver chip accessed via the I2C bus. Supported
 	  devices include PCA9633 and PCA9634
 
+config LEDS_PCA995X
+	tristate "LED Support for PCA995x I2C chips"
+	depends on LEDS_CLASS
+	depends on I2C
+	help
+	  This option enables support for LEDs connected to PCA995x
+	  LED driver chips accessed via the I2C bus. Supported
+	  devices include PCA9955BTW, PCA9952TW and PCA9955TW.
+
 config LEDS_WM831X_STATUS
 	tristate "LED support for status LEDs on WM831x PMICs"
 	depends on LEDS_CLASS
@@ -604,6 +652,17 @@ config LEDS_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called leds-adp5520.
 
+config LEDS_MAX5970
+	tristate "LED Support for Maxim 5970"
+	depends on LEDS_CLASS
+	depends on MFD_MAX5970
+	help
+	  This option enables support for the Maxim MAX5970 & MAX5978 smart
+	  switch indication LEDs via the I2C bus.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called leds-max5970.
+
 config LEDS_MC13783
 	tristate "LED Support for MC13XXX PMIC"
 	depends on LEDS_CLASS
@@ -676,7 +735,7 @@ config LEDS_LM355x
 
 config LEDS_OT200
 	tristate "LED support for the Bachmann OT200"
-	depends on LEDS_CLASS && HAS_IOMEM && (X86_32 || COMPILE_TEST)
+	depends on LEDS_CLASS && HAS_IOPORT && (X86_32 || COMPILE_TEST)
 	help
 	  This option enables support for the LEDs on the Bachmann OT200.
 	  Say Y to enable LEDs on the Bachmann OT200.
@@ -807,8 +866,7 @@ config LEDS_SPI_BYTE
 	  supported: Ubiquiti airCube ISP microcontroller based LED controller.
 
 config LEDS_TI_LMU_COMMON
-	tristate "LED driver for TI LMU"
-	depends on LEDS_CLASS
+	tristate "LED driver for TI LMU" if COMPILE_TEST
 	select REGMAP
 	help
 	  Say Y to enable the LED driver for TI LMU devices.
@@ -817,16 +875,16 @@ config LEDS_TI_LMU_COMMON
 
 config LEDS_LM3697
 	tristate "LED driver for LM3697"
-	depends on LEDS_TI_LMU_COMMON
-	depends on I2C && OF
+	depends on LEDS_CLASS && I2C && OF
+	select LEDS_TI_LMU_COMMON
 	help
 	  Say Y to enable the LM3697 LED driver for TI LMU devices.
 	  This supports the LED device LM3697.
 
 config LEDS_LM36274
 	tristate "LED driver for LM36274"
-	depends on LEDS_TI_LMU_COMMON
-	depends on MFD_TI_LMU
+	depends on LEDS_CLASS && MFD_TI_LMU
+	select LEDS_TI_LMU_COMMON
 	help
 	  Say Y to enable the LM36274 LED driver for TI LMU devices.
 	  This supports the LED device LM36274.

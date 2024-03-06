@@ -31,6 +31,9 @@ err_ret=1
 # kselftest skip code is 4
 err_skip=4
 
+# umount required
+UMOUNT_DIR=""
+
 # cgroup RT scheduling prevents chrt commands from succeeding, which
 # induces failures in test wakeup tests.  Disable for the duration of
 # the tests.
@@ -45,6 +48,9 @@ setup() {
 
 cleanup() {
   echo $sched_rt_runtime_orig > $sched_rt_runtime
+  if [ -n "${UMOUNT_DIR}" ]; then
+    umount ${UMOUNT_DIR} ||:
+  fi
 }
 
 errexit() { # message
@@ -124,6 +130,7 @@ parse_opts() { # opts
     ;;
     --logdir|-l)
       LOG_DIR=$2
+      LINK_PTR=
       shift 2
     ;;
     *.tc)
@@ -160,11 +167,13 @@ if [ -z "$TRACING_DIR" ]; then
 	    mount -t tracefs nodev /sys/kernel/tracing ||
 	      errexit "Failed to mount /sys/kernel/tracing"
 	    TRACING_DIR="/sys/kernel/tracing"
+	    UMOUNT_DIR=${TRACING_DIR}
 	# If debugfs exists, then so does /sys/kernel/debug
 	elif [ -d "/sys/kernel/debug" ]; then
 	    mount -t debugfs nodev /sys/kernel/debug ||
 	      errexit "Failed to mount /sys/kernel/debug"
 	    TRACING_DIR="/sys/kernel/debug/tracing"
+	    UMOUNT_DIR=${TRACING_DIR}
 	else
 	    err_ret=$err_skip
 	    errexit "debugfs and tracefs are not configured in this kernel"
@@ -181,7 +190,10 @@ fi
 TOP_DIR=`absdir $0`
 TEST_DIR=$TOP_DIR/test.d
 TEST_CASES=`find_testcases $TEST_DIR`
-LOG_DIR=$TOP_DIR/logs/`date +%Y%m%d-%H%M%S`/
+LOG_TOP_DIR=$TOP_DIR/logs
+LOG_DATE=`date +%Y%m%d-%H%M%S`
+LOG_DIR=$LOG_TOP_DIR/$LOG_DATE/
+LINK_PTR=$LOG_TOP_DIR/latest
 KEEP_LOG=0
 KTAP=0
 DEBUG=0
@@ -207,6 +219,10 @@ else
   LOG_FILE=$LOG_DIR/ftracetest.log
   mkdir -p $LOG_DIR || errexit "Failed to make a log directory: $LOG_DIR"
   date > $LOG_FILE
+  if [ "x-$LINK_PTR" != "x-" ]; then
+    unlink $LINK_PTR
+    ln -fs $LOG_DATE $LINK_PTR
+  fi
 fi
 
 # Define text colors
@@ -301,7 +317,7 @@ ktaptest() { # result comment
     comment="# $comment"
   fi
 
-  echo $CASENO $result $INSTANCE$CASENAME $comment
+  echo $result $CASENO $INSTANCE$CASENAME $comment
 }
 
 eval_result() { # sigval

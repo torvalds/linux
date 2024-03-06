@@ -6,6 +6,7 @@
  * Copyright (C) 2010 Alexey Charkov <alchark@gmail.com>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -17,10 +18,6 @@
 #include <linux/clk.h>
 
 #include <asm/div64.h>
-
-#include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 
 /*
  * SoC architecture allocates register space for 4 PWMs but only
@@ -209,10 +206,10 @@ static int vt8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	 * We cannot skip calling ->config even if state->period ==
 	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
 	 * because we might have exited early in the last call to
-	 * pwm_apply_state because of !state->enabled and so the two values in
+	 * pwm_apply_might_sleep because of !state->enabled and so the two values in
 	 * pwm->state might not be configured in hardware.
 	 */
-	err = vt8500_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = vt8500_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 
@@ -224,7 +221,6 @@ static int vt8500_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 static const struct pwm_ops vt8500_pwm_ops = {
 	.apply = vt8500_pwm_apply,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id vt8500_pwm_dt_ids[] = {
@@ -239,10 +235,8 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	struct device_node *np = pdev->dev.of_node;
 	int ret;
 
-	if (!np) {
-		dev_err(&pdev->dev, "invalid devicetree node\n");
-		return -EINVAL;
-	}
+	if (!np)
+		return dev_err_probe(&pdev->dev, -EINVAL, "invalid devicetree node\n");
 
 	vt8500 = devm_kzalloc(&pdev->dev, sizeof(*vt8500), GFP_KERNEL);
 	if (vt8500 == NULL)
@@ -252,45 +246,23 @@ static int vt8500_pwm_probe(struct platform_device *pdev)
 	vt8500->chip.ops = &vt8500_pwm_ops;
 	vt8500->chip.npwm = VT8500_NR_PWMS;
 
-	vt8500->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(vt8500->clk)) {
-		dev_err(&pdev->dev, "clock source not specified\n");
-		return PTR_ERR(vt8500->clk);
-	}
+	vt8500->clk = devm_clk_get_prepared(&pdev->dev, NULL);
+	if (IS_ERR(vt8500->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(vt8500->clk), "clock source not specified\n");
 
 	vt8500->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(vt8500->base))
 		return PTR_ERR(vt8500->base);
 
-	ret = clk_prepare(vt8500->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to prepare clock\n");
-		return ret;
-	}
+	ret = devm_pwmchip_add(&pdev->dev, &vt8500->chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "failed to add PWM chip\n");
 
-	ret = pwmchip_add(&vt8500->chip);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add PWM chip\n");
-		clk_unprepare(vt8500->clk);
-		return ret;
-	}
-
-	platform_set_drvdata(pdev, vt8500);
-	return ret;
-}
-
-static void vt8500_pwm_remove(struct platform_device *pdev)
-{
-	struct vt8500_chip *vt8500 = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&vt8500->chip);
-
-	clk_unprepare(vt8500->clk);
+	return 0;
 }
 
 static struct platform_driver vt8500_pwm_driver = {
 	.probe		= vt8500_pwm_probe,
-	.remove_new	= vt8500_pwm_remove,
 	.driver		= {
 		.name	= "vt8500-pwm",
 		.of_match_table = vt8500_pwm_dt_ids,

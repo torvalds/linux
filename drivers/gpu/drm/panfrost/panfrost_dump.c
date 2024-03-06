@@ -220,16 +220,8 @@ void panfrost_core_dump(struct panfrost_job *job)
 
 		iter.hdr->bomap.data[0] = bomap - bomap_start;
 
-		for_each_sgtable_page(bo->base.sgt, &page_iter, 0) {
-			struct page *page = sg_page_iter_page(&page_iter);
-
-			if (!IS_ERR(page)) {
-				*bomap++ = page_to_phys(page);
-			} else {
-				dev_err(pfdev->dev, "Panfrost Dump: wrong page\n");
-				*bomap++ = 0;
-			}
-		}
+		for_each_sgtable_page(bo->base.sgt, &page_iter, 0)
+			*bomap++ = page_to_phys(sg_page_iter_page(&page_iter));
 
 		iter.hdr->bomap.iova = mapping->mmnode.start << PAGE_SHIFT;
 

@@ -24,7 +24,7 @@
 	};
 
 	cpus {
-		#address-cells = <2>;
+		#address-cells = <1>;
 		#size-cells = <0>;
 		cpu-map {
 			cluster0 {
@@ -39,19 +39,21 @@
 		cpu0: cpu@0 {
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
-			reg = <0x0 0x0>;
+			reg = <0x0>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
 		};
 		cpu1: cpu@1 {
 			compatible = "arm,cortex-a53";
 			device_type = "cpu";
-			reg = <0x0 0x1>;
+			reg = <0x1>;
 			enable-method = "psci";
 			next-level-cache = <&L2_0>;
 		};
 		L2_0: l2-cache0 {
 			compatible = "cache";
+			cache-level = <2>;
+			cache-unified;
 		};
 	};
 
@@ -61,7 +63,7 @@
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
-	psci {
+	psci: psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
 	};
@@ -467,14 +469,14 @@
 
 		switch: switch@600000000 {
 			compatible = "microchip,sparx5-switch";
-			reg =	<0x6 0 0x401000>,
-				<0x6 0x10004000 0x7fc000>,
-				<0x6 0x11010000 0xaf0000>;
+			reg = <0x6 0 0x401000>,
+			      <0x6 0x10004000 0x7fc000>,
+			      <0x6 0x11010000 0xaf0000>;
 			reg-names = "cpu", "dev", "gcb";
 			interrupt-names = "xtr", "fdma", "ptp";
-			interrupts =	<GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
-					<GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 25 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
 			resets = <&reset 0>;
 			reset-names = "switch";
 		};

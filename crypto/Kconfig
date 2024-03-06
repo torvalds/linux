@@ -71,18 +71,25 @@ config CRYPTO_AEAD
 config CRYPTO_AEAD2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_NULL2
-	select CRYPTO_RNG2
+
+config CRYPTO_SIG
+	tristate
+	select CRYPTO_SIG2
+	select CRYPTO_ALGAPI
+
+config CRYPTO_SIG2
+	tristate
+	select CRYPTO_ALGAPI2
 
 config CRYPTO_SKCIPHER
 	tristate
 	select CRYPTO_SKCIPHER2
 	select CRYPTO_ALGAPI
+	select CRYPTO_ECB
 
 config CRYPTO_SKCIPHER2
 	tristate
 	select CRYPTO_ALGAPI2
-	select CRYPTO_RNG2
 
 config CRYPTO_HASH
 	tristate
@@ -143,12 +150,14 @@ config CRYPTO_MANAGER
 
 config CRYPTO_MANAGER2
 	def_tristate CRYPTO_MANAGER || (CRYPTO_MANAGER!=n && CRYPTO_ALGAPI=y)
-	select CRYPTO_AEAD2
-	select CRYPTO_HASH2
-	select CRYPTO_SKCIPHER2
-	select CRYPTO_AKCIPHER2
-	select CRYPTO_KPP2
 	select CRYPTO_ACOMP2
+	select CRYPTO_AEAD2
+	select CRYPTO_AKCIPHER2
+	select CRYPTO_SIG2
+	select CRYPTO_HASH2
+	select CRYPTO_KPP2
+	select CRYPTO_RNG2
+	select CRYPTO_SKCIPHER2
 
 config CRYPTO_USER
 	tristate "Userspace cryptographic algorithm configuration"
@@ -652,15 +661,6 @@ config CRYPTO_CBC
 
 	  This block cipher mode is required for IPSec ESP (XFRM_ESP).
 
-config CRYPTO_CFB
-	tristate "CFB (Cipher Feedback)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  CFB (Cipher Feedback) mode (NIST SP800-38A)
-
-	  This block cipher mode is required for TPM2 Cryptography.
-
 config CRYPTO_CTR
 	tristate "CTR (Counter)"
 	select CRYPTO_SKCIPHER
@@ -681,7 +681,7 @@ config CRYPTO_CTS
 
 config CRYPTO_ECB
 	tristate "ECB (Electronic Codebook)"
-	select CRYPTO_SKCIPHER
+	select CRYPTO_SKCIPHER2
 	select CRYPTO_MANAGER
 	help
 	  ECB (Electronic Codebook) mode (NIST SP800-38A)
@@ -725,20 +725,6 @@ config CRYPTO_LRW
 	  rest is used to tie each cipher block to its logical position.
 
 	  See https://people.csail.mit.edu/rivest/pubs/LRW02.pdf
-
-config CRYPTO_OFB
-	tristate "OFB (Output Feedback)"
-	select CRYPTO_SKCIPHER
-	select CRYPTO_MANAGER
-	help
-	  OFB (Output Feedback) mode (NIST SP800-38A)
-
-	  This mode makes a block cipher into a synchronous
-	  stream cipher. It generates keystream blocks, which are then XORed
-	  with the plaintext blocks to get the ciphertext. Flipping a bit in the
-	  ciphertext produces a flipped bit in the plaintext at the same
-	  location. This property allows many error correcting codes to function
-	  normally even when applied before encryption.
 
 config CRYPTO_PCBC
 	tristate "PCBC (Propagating Cipher Block Chaining)"
@@ -833,13 +819,16 @@ config CRYPTO_GCM
 
 	  This is required for IPSec ESP (XFRM_ESP).
 
+config CRYPTO_GENIV
+	tristate
+	select CRYPTO_AEAD
+	select CRYPTO_NULL
+	select CRYPTO_MANAGER
+	select CRYPTO_RNG_DEFAULT
+
 config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_SKCIPHER
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
+	select CRYPTO_GENIV
 	help
 	  Sequence Number IV generator
 
@@ -850,10 +839,7 @@ config CRYPTO_SEQIV
 
 config CRYPTO_ECHAINIV
 	tristate "Encrypted Chain IV Generator"
-	select CRYPTO_AEAD
-	select CRYPTO_NULL
-	select CRYPTO_RNG_DEFAULT
-	select CRYPTO_MANAGER
+	select CRYPTO_GENIV
 	help
 	  Encrypted Chain IV generator
 
@@ -1277,6 +1263,7 @@ endif	# if CRYPTO_DRBG_MENU
 config CRYPTO_JITTERENTROPY
 	tristate "CPU Jitter Non-Deterministic RNG (Random Number Generator)"
 	select CRYPTO_RNG
+	select CRYPTO_SHA3
 	help
 	  CPU Jitter RNG (Random Number Generator) from the Jitterentropy library
 
@@ -1286,6 +1273,108 @@ config CRYPTO_JITTERENTROPY
 	  This RNG does not perform any cryptographic whitening of the generated
 
 	  See https://www.chronox.de/jent.html
+
+if CRYPTO_JITTERENTROPY
+if CRYPTO_FIPS && EXPERT
+
+choice
+	prompt "CPU Jitter RNG Memory Size"
+	default CRYPTO_JITTERENTROPY_MEMSIZE_2
+	help
+	  The Jitter RNG measures the execution time of memory accesses.
+	  Multiple consecutive memory accesses are performed. If the memory
+	  size fits into a cache (e.g. L1), only the memory access timing
+	  to that cache is measured. The closer the cache is to the CPU
+	  the less variations are measured and thus the less entropy is
+	  obtained. Thus, if the memory size fits into the L1 cache, the
+	  obtained entropy is less than if the memory size fits within
+	  L1 + L2, which in turn is less if the memory fits into
+	  L1 + L2 + L3. Thus, by selecting a different memory size,
+	  the entropy rate produced by the Jitter RNG can be modified.
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_2
+		bool "2048 Bytes (default)"
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_128
+		bool "128 kBytes"
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_1024
+		bool "1024 kBytes"
+
+	config CRYPTO_JITTERENTROPY_MEMSIZE_8192
+		bool "8192 kBytes"
+endchoice
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKS
+	int
+	default 64 if CRYPTO_JITTERENTROPY_MEMSIZE_2
+	default 512 if CRYPTO_JITTERENTROPY_MEMSIZE_128
+	default 1024 if CRYPTO_JITTERENTROPY_MEMSIZE_1024
+	default 4096 if CRYPTO_JITTERENTROPY_MEMSIZE_8192
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE
+	int
+	default 32 if CRYPTO_JITTERENTROPY_MEMSIZE_2
+	default 256 if CRYPTO_JITTERENTROPY_MEMSIZE_128
+	default 1024 if CRYPTO_JITTERENTROPY_MEMSIZE_1024
+	default 2048 if CRYPTO_JITTERENTROPY_MEMSIZE_8192
+
+config CRYPTO_JITTERENTROPY_OSR
+	int "CPU Jitter RNG Oversampling Rate"
+	range 1 15
+	default 1
+	help
+	  The Jitter RNG allows the specification of an oversampling rate (OSR).
+	  The Jitter RNG operation requires a fixed amount of timing
+	  measurements to produce one output block of random numbers. The
+	  OSR value is multiplied with the amount of timing measurements to
+	  generate one output block. Thus, the timing measurement is oversampled
+	  by the OSR factor. The oversampling allows the Jitter RNG to operate
+	  on hardware whose timers deliver limited amount of entropy (e.g.
+	  the timer is coarse) by setting the OSR to a higher value. The
+	  trade-off, however, is that the Jitter RNG now requires more time
+	  to generate random numbers.
+
+config CRYPTO_JITTERENTROPY_TESTINTERFACE
+	bool "CPU Jitter RNG Test Interface"
+	help
+	  The test interface allows a privileged process to capture
+	  the raw unconditioned high resolution time stamp noise that
+	  is collected by the Jitter RNG for statistical analysis. As
+	  this data is used at the same time to generate random bits,
+	  the Jitter RNG operates in an insecure mode as long as the
+	  recording is enabled. This interface therefore is only
+	  intended for testing purposes and is not suitable for
+	  production systems.
+
+	  The raw noise data can be obtained using the jent_raw_hires
+	  debugfs file. Using the option
+	  jitterentropy_testing.boot_raw_hires_test=1 the raw noise of
+	  the first 1000 entropy events since boot can be sampled.
+
+	  If unsure, select N.
+
+endif	# if CRYPTO_FIPS && EXPERT
+
+if !(CRYPTO_FIPS && EXPERT)
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKS
+	int
+	default 64
+
+config CRYPTO_JITTERENTROPY_MEMORY_BLOCKSIZE
+	int
+	default 32
+
+config CRYPTO_JITTERENTROPY_OSR
+	int
+	default 1
+
+config CRYPTO_JITTERENTROPY_TESTINTERFACE
+	bool
+
+endif	# if !(CRYPTO_FIPS && EXPERT)
+endif	# if CRYPTO_JITTERENTROPY
 
 config CRYPTO_KDF800108_CTR
 	tristate
@@ -1371,6 +1460,9 @@ config CRYPTO_STATS
 	depends on CRYPTO_USER
 	help
 	  Enable the gathering of crypto stats.
+
+	  Enabling this option reduces the performance of the crypto API.  It
+	  should only be enabled when there is actually a use case for it.
 
 	  This collects data sizes, numbers of requests, and numbers
 	  of errors processed by:

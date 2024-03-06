@@ -636,7 +636,7 @@ static struct i2c_driver auo_pixcir_driver = {
 		.pm	= pm_sleep_ptr(&auo_pixcir_pm_ops),
 		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),
 	},
-	.probe_new	= auo_pixcir_probe,
+	.probe		= auo_pixcir_probe,
 	.id_table	= auo_pixcir_idtable,
 };
 

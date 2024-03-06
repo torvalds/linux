@@ -9,14 +9,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/device.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/libata.h>
 #include <linux/ahci_platform.h>
-#include <linux/acpi.h>
 #include <linux/pci_ids.h>
 #include "ahci.h"
 
@@ -56,10 +56,10 @@ static int ahci_probe(struct platform_device *pdev)
 	if (rc)
 		return rc;
 
-	if (of_device_is_compatible(dev->of_node, "hisilicon,hisi-ahci"))
+	if (device_is_compatible(dev, "hisilicon,hisi-ahci"))
 		hpriv->flags |= AHCI_HFLAG_NO_FBS | AHCI_HFLAG_NO_NCQ;
 
-	port = acpi_device_get_match_data(dev);
+	port = device_get_match_data(dev);
 	if (!port)
 		port = &ahci_port_info;
 
@@ -96,7 +96,7 @@ MODULE_DEVICE_TABLE(acpi, ahci_acpi_match);
 
 static struct platform_driver ahci_driver = {
 	.probe = ahci_probe,
-	.remove = ata_platform_remove_one,
+	.remove_new = ata_platform_remove_one,
 	.shutdown = ahci_platform_shutdown,
 	.driver = {
 		.name = DRV_NAME,

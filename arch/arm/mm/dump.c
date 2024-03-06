@@ -15,7 +15,7 @@
 
 #include <asm/domain.h>
 #include <asm/fixmap.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/ptdump.h>
 
 static struct addr_marker address_markers[] = {

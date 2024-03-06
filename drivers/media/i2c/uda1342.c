@@ -88,7 +88,7 @@ static struct i2c_driver uda1342_driver = {
 	.driver = {
 		.name	= "uda1342",
 	},
-	.probe_new	= uda1342_probe,
+	.probe		= uda1342_probe,
 	.remove		= uda1342_remove,
 	.id_table	= uda1342_id,
 };

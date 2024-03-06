@@ -11,7 +11,8 @@ cout=""
 ksft_skip=4
 timeout_poll=30
 timeout_test=$((timeout_poll * 2 + 1))
-mptcp_connect=""
+iptables="iptables"
+ip6tables="ip6tables"
 
 sec=$(date +%s)
 rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
@@ -25,7 +26,7 @@ add_mark_rules()
 	local m=$2
 
 	local t
-	for t in iptables ip6tables; do
+	for t in ${iptables} ${ip6tables}; do
 		# just to debug: check we have multiple subflows connection requests
 		ip netns exec $ns $t -A OUTPUT -p tcp --syn -m mark --mark $m -j ACCEPT
 
@@ -95,14 +96,14 @@ if [ $? -ne 0 ];then
 	exit $ksft_skip
 fi
 
-iptables -V > /dev/null 2>&1
-if [ $? -ne 0 ];then
+# Use the legacy version if available to support old kernel versions
+if iptables-legacy -V &> /dev/null; then
+	iptables="iptables-legacy"
+	ip6tables="ip6tables-legacy"
+elif ! iptables -V &> /dev/null; then
 	echo "SKIP: Could not run all tests without iptables tool"
 	exit $ksft_skip
-fi
-
-ip6tables -V > /dev/null 2>&1
-if [ $? -ne 0 ];then
+elif ! ip6tables -V &> /dev/null; then
 	echo "SKIP: Could not run all tests without ip6tables tool"
 	exit $ksft_skip
 fi
@@ -112,10 +113,10 @@ check_mark()
 	local ns=$1
 	local af=$2
 
-	local tables=iptables
+	local tables=${iptables}
 
 	if [ $af -eq 6 ];then
-		tables=ip6tables
+		tables=${ip6tables}
 	fi
 
 	local counters values
@@ -126,43 +127,12 @@ check_mark()
 	for v in $values; do
 		if [ $v -ne 0 ]; then
 			echo "FAIL: got $tables $values in ns $ns , not 0 - not all expected packets marked" 1>&2
+			ret=1
 			return 1
 		fi
 	done
 
 	return 0
-}
-
-print_file_err()
-{
-	ls -l "$1" 1>&2
-	echo "Trailing bytes are: "
-	tail -c 27 "$1"
-}
-
-check_transfer()
-{
-	local in=$1
-	local out=$2
-	local what=$3
-
-	cmp "$in" "$out" > /dev/null 2>&1
-	if [ $? -ne 0 ] ;then
-		echo "[ FAIL ] $what does not match (in, out):"
-		print_file_err "$in"
-		print_file_err "$out"
-		ret=1
-
-		return 1
-	fi
-
-	return 0
-}
-
-# $1: IP address
-is_v6()
-{
-	[ -z "${1##*:*}" ]
 }
 
 do_transfer()
@@ -180,11 +150,13 @@ do_transfer()
 
 	local mptcp_connect="./mptcp_connect -r 20"
 
-	local local_addr
-	if is_v6 "${connect_addr}"; then
+	local local_addr ip
+	if mptcp_lib_is_v6 "${connect_addr}"; then
 		local_addr="::"
+		ip=ipv6
 	else
 		local_addr="0.0.0.0"
+		ip=ipv4
 	fi
 
 	cmsg="TIMESTAMPNS"
@@ -220,21 +192,25 @@ do_transfer()
 		echo -e "\nnetns ${connector_ns} socket stat for ${port}:" 1>&2
 		ip netns exec ${connector_ns} ss -Menita 1>&2 -o "dport = :$port"
 
+		mptcp_lib_result_fail "transfer ${ip}"
+
 		ret=1
 		return 1
 	fi
 
 	if [ $local_addr = "::" ];then
-		check_mark $listener_ns 6
-		check_mark $connector_ns 6
+		check_mark $listener_ns 6 || retc=1
+		check_mark $connector_ns 6 || retc=1
 	else
-		check_mark $listener_ns 4
-		check_mark $connector_ns 4
+		check_mark $listener_ns 4 || retc=1
+		check_mark $connector_ns 4 || retc=1
 	fi
 
-	check_transfer $cin $sout "file received by server"
-
+	mptcp_lib_check_transfer $cin $sout "file received by server"
 	rets=$?
+
+	mptcp_lib_result_code "${retc}" "mark ${ip}"
+	mptcp_lib_result_code "${rets}" "transfer ${ip}"
 
 	if [ $retc -eq 0 ] && [ $rets -eq 0 ];then
 		return 0
@@ -249,8 +225,7 @@ make_file()
 	local who=$2
 	local size=$3
 
-	dd if=/dev/urandom of="$name" bs=1024 count=$size 2> /dev/null
-	echo -e "\nMPTCP_TEST_FILE_END_MARKER" >> "$name"
+	mptcp_lib_make_file $name 1024 $size
 
 	echo "Created $name (size $size KB) containing data sent by $who"
 }
@@ -261,6 +236,7 @@ do_mptcp_sockopt_tests()
 
 	if ! mptcp_lib_kallsyms_has "mptcp_diag_fill_info$"; then
 		echo "INFO: MPTCP sockopt not supported: SKIP"
+		mptcp_lib_result_skip "sockopt"
 		return
 	fi
 
@@ -269,18 +245,22 @@ do_mptcp_sockopt_tests()
 
 	if [ $lret -ne 0 ]; then
 		echo "FAIL: SOL_MPTCP getsockopt" 1>&2
+		mptcp_lib_result_fail "sockopt v4"
 		ret=$lret
 		return
 	fi
+	mptcp_lib_result_pass "sockopt v4"
 
 	ip netns exec "$ns_sbox" ./mptcp_sockopt -6
 	lret=$?
 
 	if [ $lret -ne 0 ]; then
 		echo "FAIL: SOL_MPTCP getsockopt (ipv6)" 1>&2
+		mptcp_lib_result_fail "sockopt v6"
 		ret=$lret
 		return
 	fi
+	mptcp_lib_result_pass "sockopt v6"
 }
 
 run_tests()
@@ -307,10 +287,12 @@ do_tcpinq_test()
 	if [ $lret -ne 0 ];then
 		ret=$lret
 		echo "FAIL: mptcp_inq $@" 1>&2
+		mptcp_lib_result_fail "TCP_INQ: $*"
 		return $lret
 	fi
 
 	echo "PASS: TCP_INQ cmsg/ioctl $@"
+	mptcp_lib_result_pass "TCP_INQ: $*"
 	return $lret
 }
 
@@ -320,6 +302,7 @@ do_tcpinq_tests()
 
 	if ! mptcp_lib_kallsyms_has "mptcp_ioctl$"; then
 		echo "INFO: TCP_INQ not supported: SKIP"
+		mptcp_lib_result_skip "TCP_INQ"
 		return
 	fi
 
@@ -364,4 +347,6 @@ if [ $ret -eq 0 ];then
 fi
 
 do_tcpinq_tests
+
+mptcp_lib_result_print_all_tap
 exit $ret

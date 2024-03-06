@@ -581,15 +581,25 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 	int ret;
 
 	if (dissector->used_keys &
-	    ~(BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
-	      BIT(FLOW_DISSECTOR_KEY_META) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
-	      BIT(FLOW_DISSECTOR_KEY_VLAN) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
+	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_META) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS))) {
 		return -EOPNOTSUPP;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_META)) {
+		struct flow_match_meta match;
+
+		flow_rule_match_meta(rule, &match);
+		if (match.mask->l2_miss) {
+			NL_SET_ERR_MSG_MOD(extack, "Can't match on \"l2_miss\"");
+			return -EOPNOTSUPP;
+		}
 	}
 
 	/* For VCAP ES0 (egress rewriter) we can match on the ingress port */
@@ -631,12 +641,12 @@ ocelot_flower_parse_key(struct ocelot *ocelot, int port, bool ingress,
 		 * then just bail out
 		 */
 		if ((dissector->used_keys &
-		    (BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
-		     BIT(FLOW_DISSECTOR_KEY_BASIC) |
-		     BIT(FLOW_DISSECTOR_KEY_CONTROL))) !=
-		    (BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
-		     BIT(FLOW_DISSECTOR_KEY_BASIC) |
-		     BIT(FLOW_DISSECTOR_KEY_CONTROL)))
+		    (BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL))) !=
+		    (BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+		     BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL)))
 			return -EOPNOTSUPP;
 
 		flow_rule_match_eth_addrs(rule, &match);

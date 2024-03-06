@@ -463,7 +463,7 @@ static struct i2c_driver ads7924_driver = {
 		.name = "ads7924",
 		.of_match_table = ads7924_of_match,
 	},
-	.probe_new	= ads7924_probe,
+	.probe		= ads7924_probe,
 	.id_table	= ads7924_id,
 };
 

@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -33,23 +34,6 @@
 
 static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event);
-
-static int cs35l56_mbox_send(struct cs35l56_private *cs35l56, unsigned int command)
-{
-	unsigned int val;
-	int ret;
-
-	regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, command);
-	ret = regmap_read_poll_timeout(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
-				       val, (val == 0),
-				       CS35L56_MBOX_POLL_US, CS35L56_MBOX_TIMEOUT_US);
-	if (ret) {
-		dev_warn(cs35l56->dev, "MBOX command %#x failed: %d\n", command, ret);
-		return ret;
-	}
-
-	return 0;
-}
 
 static void cs35l56_wait_dsp_ready(struct cs35l56_private *cs35l56)
 {
@@ -77,6 +61,131 @@ static int cs35l56_dspwait_put_volsw(struct snd_kcontrol *kcontrol,
 	return snd_soc_put_volsw(kcontrol, ucontrol);
 }
 
+static const unsigned short cs35l56_asp1_mixer_regs[] = {
+	CS35L56_ASP1TX1_INPUT, CS35L56_ASP1TX2_INPUT,
+	CS35L56_ASP1TX3_INPUT, CS35L56_ASP1TX4_INPUT,
+};
+
+static const char * const cs35l56_asp1_mux_control_names[] = {
+	"ASP1 TX1 Source", "ASP1 TX2 Source", "ASP1 TX3 Source", "ASP1 TX4 Source"
+};
+
+static int cs35l56_sync_asp1_mixer_widgets_with_firmware(struct cs35l56_private *cs35l56)
+{
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(cs35l56->component);
+	const char *prefix = cs35l56->component->name_prefix;
+	char full_name[SNDRV_CTL_ELEM_ID_NAME_MAXLEN];
+	const char *name;
+	struct snd_kcontrol *kcontrol;
+	struct soc_enum *e;
+	unsigned int val[4];
+	int i, item, ret;
+
+	if (cs35l56->asp1_mixer_widgets_initialized)
+		return 0;
+
+	/*
+	 * Resume so we can read the registers from silicon if the regmap
+	 * cache has not yet been populated.
+	 */
+	ret = pm_runtime_resume_and_get(cs35l56->base.dev);
+	if (ret < 0)
+		return ret;
+
+	/* Wait for firmware download and reboot */
+	cs35l56_wait_dsp_ready(cs35l56);
+
+	ret = regmap_bulk_read(cs35l56->base.regmap, CS35L56_ASP1TX1_INPUT,
+			       val, ARRAY_SIZE(val));
+
+	pm_runtime_mark_last_busy(cs35l56->base.dev);
+	pm_runtime_put_autosuspend(cs35l56->base.dev);
+
+	if (ret) {
+		dev_err(cs35l56->base.dev, "Failed to read ASP1 mixer regs: %d\n", ret);
+		return ret;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cs35l56_asp1_mux_control_names); ++i) {
+		name = cs35l56_asp1_mux_control_names[i];
+
+		if (prefix) {
+			snprintf(full_name, sizeof(full_name), "%s %s", prefix, name);
+			name = full_name;
+		}
+
+		kcontrol = snd_soc_card_get_kcontrol_locked(dapm->card, name);
+		if (!kcontrol) {
+			dev_warn(cs35l56->base.dev, "Could not find control %s\n", name);
+			continue;
+		}
+
+		e = (struct soc_enum *)kcontrol->private_value;
+		item = snd_soc_enum_val_to_item(e, val[i] & CS35L56_ASP_TXn_SRC_MASK);
+		snd_soc_dapm_mux_update_power(dapm, kcontrol, item, e, NULL);
+	}
+
+	cs35l56->asp1_mixer_widgets_initialized = true;
+
+	return 0;
+}
+
+static int cs35l56_dspwait_asp1tx_get(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	int index = e->shift_l;
+	unsigned int addr, val;
+	int ret;
+
+	ret = cs35l56_sync_asp1_mixer_widgets_with_firmware(cs35l56);
+	if (ret)
+		return ret;
+
+	addr = cs35l56_asp1_mixer_regs[index];
+	ret = regmap_read(cs35l56->base.regmap, addr, &val);
+	if (ret)
+		return ret;
+
+	val &= CS35L56_ASP_TXn_SRC_MASK;
+	ucontrol->value.enumerated.item[0] = snd_soc_enum_val_to_item(e, val);
+
+	return 0;
+}
+
+static int cs35l56_dspwait_asp1tx_put(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component = snd_soc_dapm_kcontrol_component(kcontrol);
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
+	int item = ucontrol->value.enumerated.item[0];
+	int index = e->shift_l;
+	unsigned int addr, val;
+	bool changed;
+	int ret;
+
+	ret = cs35l56_sync_asp1_mixer_widgets_with_firmware(cs35l56);
+	if (ret)
+		return ret;
+
+	addr = cs35l56_asp1_mixer_regs[index];
+	val = snd_soc_enum_item_to_val(e, item);
+
+	ret = regmap_update_bits_check(cs35l56->base.regmap, addr,
+				       CS35L56_ASP_TXn_SRC_MASK, val, &changed);
+	if (ret)
+		return ret;
+
+	if (changed)
+		snd_soc_dapm_mux_update_power(dapm, kcontrol, item, e, NULL);
+
+	return changed;
+}
+
 static DECLARE_TLV_DB_SCALE(vol_tlv, -10000, 25, 0);
 
 static const struct snd_kcontrol_new cs35l56_controls[] = {
@@ -95,40 +204,44 @@ static const struct snd_kcontrol_new cs35l56_controls[] = {
 };
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx1_enum,
-				  CS35L56_ASP1TX1_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  0, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx1_mux =
-	SOC_DAPM_ENUM("ASP1TX1 SRC", cs35l56_asp1tx1_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX1 SRC", cs35l56_asp1tx1_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx2_enum,
-				  CS35L56_ASP1TX2_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  1, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx2_mux =
-	SOC_DAPM_ENUM("ASP1TX2 SRC", cs35l56_asp1tx2_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX2 SRC", cs35l56_asp1tx2_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx3_enum,
-				  CS35L56_ASP1TX3_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  2, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx3_mux =
-	SOC_DAPM_ENUM("ASP1TX3 SRC", cs35l56_asp1tx3_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX3 SRC", cs35l56_asp1tx3_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_asp1tx4_enum,
-				  CS35L56_ASP1TX4_INPUT,
-				  0, CS35L56_ASP_TXn_SRC_MASK,
+				  SND_SOC_NOPM,
+				  3, 0,
 				  cs35l56_tx_input_texts,
 				  cs35l56_tx_input_values);
 
 static const struct snd_kcontrol_new asp1_tx4_mux =
-	SOC_DAPM_ENUM("ASP1TX4 SRC", cs35l56_asp1tx4_enum);
+	SOC_DAPM_ENUM_EXT("ASP1TX4 SRC", cs35l56_asp1tx4_enum,
+			  cs35l56_dspwait_asp1tx_get, cs35l56_dspwait_asp1tx_put);
 
 static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx1_enum,
 				CS35L56_SWIRE_DP3_CH1_INPUT,
@@ -166,6 +279,21 @@ static SOC_VALUE_ENUM_SINGLE_DECL(cs35l56_sdw1tx4_enum,
 static const struct snd_kcontrol_new sdw1_tx4_mux =
 	SOC_DAPM_ENUM("SDW1TX4 SRC", cs35l56_sdw1tx4_enum);
 
+static int cs35l56_asp1_cfg_event(struct snd_soc_dapm_widget *w,
+				  struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		/* Override register values set by firmware boot */
+		return cs35l56_force_sync_asp1_registers_from_cache(&cs35l56->base);
+	default:
+		return 0;
+	}
+}
+
 static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event)
 {
@@ -174,25 +302,25 @@ static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 	unsigned int val;
 	int ret;
 
-	dev_dbg(cs35l56->dev, "play: %d\n", event);
+	dev_dbg(cs35l56->base.dev, "play: %d\n", event);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		/* Don't wait for ACK, we check in POST_PMU that it completed */
-		return regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
+		return regmap_write(cs35l56->base.regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
 				    CS35L56_MBOX_CMD_AUDIO_PLAY);
 	case SND_SOC_DAPM_POST_PMU:
 		/* Wait for firmware to enter PS0 power state */
-		ret = regmap_read_poll_timeout(cs35l56->regmap,
+		ret = regmap_read_poll_timeout(cs35l56->base.regmap,
 					       CS35L56_TRANSDUCER_ACTUAL_PS,
 					       val, (val == CS35L56_PS0),
 					       CS35L56_PS0_POLL_US,
 					       CS35L56_PS0_TIMEOUT_US);
 		if (ret)
-			dev_err(cs35l56->dev, "PS0 wait failed: %d\n", ret);
+			dev_err(cs35l56->base.dev, "PS0 wait failed: %d\n", ret);
 		return ret;
 	case SND_SOC_DAPM_POST_PMD:
-		return cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_AUDIO_PAUSE);
+		return cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_PAUSE);
 	default:
 		return 0;
 	}
@@ -201,6 +329,9 @@ static int cs35l56_play_event(struct snd_soc_dapm_widget *w,
 static const struct snd_soc_dapm_widget cs35l56_dapm_widgets[] = {
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_B", 0, 0),
 	SND_SOC_DAPM_REGULATOR_SUPPLY("VDD_AMP", 0, 0),
+
+	SND_SOC_DAPM_SUPPLY("ASP1 CFG", SND_SOC_NOPM, 0, 0, cs35l56_asp1_cfg_event,
+			    SND_SOC_DAPM_PRE_PMU),
 
 	SND_SOC_DAPM_SUPPLY("PLAY", SND_SOC_NOPM, 0, 0, cs35l56_play_event,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
@@ -269,6 +400,9 @@ static const struct snd_soc_dapm_route cs35l56_audio_map[] = {
 	{ "AMP", NULL, "VDD_B" },
 	{ "AMP", NULL, "VDD_AMP" },
 
+	{ "ASP1 Playback", NULL, "ASP1 CFG" },
+	{ "ASP1 Capture", NULL, "ASP1 CFG" },
+
 	{ "ASP1 Playback", NULL, "PLAY" },
 	{ "SDW1 Playback", NULL, "PLAY" },
 
@@ -310,109 +444,23 @@ static int cs35l56_dsp_event(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(cs35l56->dev, "%s: %d\n", __func__, event);
+	dev_dbg(cs35l56->base.dev, "%s: %d\n", __func__, event);
 
 	return wm_adsp_event(w, kcontrol, event);
 }
-
-irqreturn_t cs35l56_irq(int irq, void *data)
-{
-	struct cs35l56_private *cs35l56 = data;
-	unsigned int status1 = 0, status8 = 0, status20 = 0;
-	unsigned int mask1, mask8, mask20;
-	unsigned int val;
-	int rv;
-
-	irqreturn_t ret = IRQ_NONE;
-
-	if (!cs35l56->init_done)
-		return IRQ_NONE;
-
-	mutex_lock(&cs35l56->irq_lock);
-
-	rv = pm_runtime_resume_and_get(cs35l56->dev);
-	if (rv < 0) {
-		dev_err(cs35l56->dev, "irq: failed to get pm_runtime: %d\n", rv);
-		goto err_unlock;
-	}
-
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_STATUS, &val);
-	if ((val & CS35L56_IRQ1_STS_MASK) == 0) {
-		dev_dbg(cs35l56->dev, "Spurious IRQ: no pending interrupt\n");
-		goto err;
-	}
-
-	/* Ack interrupts */
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_EINT_1, &status1);
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_MASK_1, &mask1);
-	status1 &= ~mask1;
-	regmap_write(cs35l56->regmap, CS35L56_IRQ1_EINT_1, status1);
-
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_EINT_8, &status8);
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_MASK_8, &mask8);
-	status8 &= ~mask8;
-	regmap_write(cs35l56->regmap, CS35L56_IRQ1_EINT_8, status8);
-
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_EINT_20, &status20);
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_MASK_20, &mask20);
-	status20 &= ~mask20;
-	/* We don't want EINT20 but they default to unmasked: force mask */
-	regmap_write(cs35l56->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
-
-	dev_dbg(cs35l56->dev, "%s: %#x %#x\n", __func__, status1, status8);
-
-	/* Check to see if unmasked bits are active */
-	if (!status1 && !status8 && !status20)
-		goto err;
-
-	if (status1 & CS35L56_AMP_SHORT_ERR_EINT1_MASK)
-		dev_crit(cs35l56->dev, "Amp short error\n");
-
-	if (status8 & CS35L56_TEMP_ERR_EINT1_MASK)
-		dev_crit(cs35l56->dev, "Overtemp error\n");
-
-	ret = IRQ_HANDLED;
-
-err:
-	pm_runtime_put(cs35l56->dev);
-err_unlock:
-	mutex_unlock(&cs35l56->irq_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq, SND_SOC_CS35L56_CORE);
-
-int cs35l56_irq_request(struct cs35l56_private *cs35l56, int irq)
-{
-	int ret;
-
-	if (!irq)
-		return 0;
-
-	ret = devm_request_threaded_irq(cs35l56->dev, irq, NULL, cs35l56_irq,
-					IRQF_ONESHOT | IRQF_SHARED | IRQF_TRIGGER_LOW,
-					"cs35l56", cs35l56);
-	if (!ret)
-		cs35l56->irq = irq;
-	else
-		dev_err(cs35l56->dev, "Failed to get IRQ: %d\n", ret);
-
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_irq_request, SND_SOC_CS35L56_CORE);
 
 static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(codec_dai->component);
 	unsigned int val;
 
-	dev_dbg(cs35l56->dev, "%s: %#x\n", __func__, fmt);
+	dev_dbg(cs35l56->base.dev, "%s: %#x\n", __func__, fmt);
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
-		dev_err(cs35l56->dev, "Unsupported clock source mode\n");
+		dev_err(cs35l56->base.dev, "Unsupported clock source mode\n");
 		return -EINVAL;
 	}
 
@@ -426,7 +474,7 @@ static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int f
 		cs35l56->tdm_mode = false;
 		break;
 	default:
-		dev_err(cs35l56->dev, "Unsupported DAI format\n");
+		dev_err(cs35l56->base.dev, "Unsupported DAI format\n");
 		return -EINVAL;
 	}
 
@@ -443,39 +491,28 @@ static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int f
 	case SND_SOC_DAIFMT_NB_NF:
 		break;
 	default:
-		dev_err(cs35l56->dev, "Invalid clock invert\n");
+		dev_err(cs35l56->base.dev, "Invalid clock invert\n");
 		return -EINVAL;
 	}
 
-	regmap_update_bits(cs35l56->regmap,
+	regmap_update_bits(cs35l56->base.regmap,
 			   CS35L56_ASP1_CONTROL2,
 			   CS35L56_ASP_FMT_MASK |
 			   CS35L56_ASP_BCLK_INV_MASK | CS35L56_ASP_FSYNC_INV_MASK,
 			   val);
 
 	/* Hi-Z DOUT in unused slots and when all TX are disabled */
-	regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_CONTROL3,
+	regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL3,
 			   CS35L56_ASP1_DOUT_HIZ_CTRL_MASK,
 			   CS35L56_ASP_UNUSED_HIZ_OFF_HIZ);
 
 	return 0;
 }
 
-static void cs35l56_set_asp_slot_positions(struct cs35l56_private *cs35l56,
-					   unsigned int reg, unsigned long mask)
+static unsigned int cs35l56_make_tdm_config_word(unsigned int reg_val, unsigned long mask)
 {
-	unsigned int reg_val, channel_shift;
+	unsigned int channel_shift;
 	int bit_num;
-
-	/* Init all slots to 63 */
-	switch (reg) {
-	case CS35L56_ASP1_FRAME_CONTROL1:
-		reg_val = 0x3f3f3f3f;
-		break;
-	case CS35L56_ASP1_FRAME_CONTROL5:
-		reg_val = 0x3f3f3f;
-		break;
-	}
 
 	/* Enable consecutive TX1..TXn for each of the slots set in mask */
 	channel_shift = 0;
@@ -485,7 +522,7 @@ static void cs35l56_set_asp_slot_positions(struct cs35l56_private *cs35l56,
 		channel_shift += 8;
 	}
 
-	regmap_write(cs35l56->regmap, reg, reg_val);
+	return reg_val;
 }
 
 static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
@@ -494,20 +531,20 @@ static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
 
 	if ((slots == 0) || (slot_width == 0)) {
-		dev_dbg(cs35l56->dev, "tdm config cleared\n");
+		dev_dbg(cs35l56->base.dev, "tdm config cleared\n");
 		cs35l56->asp_slot_width = 0;
 		cs35l56->asp_slot_count = 0;
 		return 0;
 	}
 
 	if (slot_width > (CS35L56_ASP_RX_WIDTH_MASK >> CS35L56_ASP_RX_WIDTH_SHIFT)) {
-		dev_err(cs35l56->dev, "tdm invalid slot width %d\n", slot_width);
+		dev_err(cs35l56->base.dev, "tdm invalid slot width %d\n", slot_width);
 		return -EINVAL;
 	}
 
 	/* More than 32 slots would give an unsupportable BCLK frequency */
 	if (slots > 32) {
-		dev_err(cs35l56->dev, "tdm invalid slot count %d\n", slots);
+		dev_err(cs35l56->base.dev, "tdm invalid slot count %d\n", slots);
 		return -EINVAL;
 	}
 
@@ -521,10 +558,13 @@ static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx
 	if (rx_mask == 0)
 		rx_mask = 0xf;	// ASPTX1..TX4 in slots 0..3
 
-	cs35l56_set_asp_slot_positions(cs35l56, CS35L56_ASP1_FRAME_CONTROL1, rx_mask);
-	cs35l56_set_asp_slot_positions(cs35l56, CS35L56_ASP1_FRAME_CONTROL5, tx_mask);
+	/* Default unused slots to 63 */
+	regmap_write(cs35l56->base.regmap, CS35L56_ASP1_FRAME_CONTROL1,
+		     cs35l56_make_tdm_config_word(0x3f3f3f3f, rx_mask));
+	regmap_write(cs35l56->base.regmap, CS35L56_ASP1_FRAME_CONTROL5,
+		     cs35l56_make_tdm_config_word(0x3f3f3f, tx_mask));
 
-	dev_dbg(cs35l56->dev, "tdm slot width: %u count: %u tx_mask: %#x rx_mask: %#x\n",
+	dev_dbg(cs35l56->base.dev, "tdm slot width: %u count: %u tx_mask: %#x rx_mask: %#x\n",
 		cs35l56->asp_slot_width, cs35l56->asp_slot_count, tx_mask, rx_mask);
 
 	return 0;
@@ -544,7 +584,8 @@ static int cs35l56_asp_dai_hw_params(struct snd_pcm_substream *substream,
 	else
 		asp_width = asp_wl;
 
-	dev_dbg(cs35l56->dev, "%s: wl=%d, width=%d, rate=%d", __func__, asp_wl, asp_width, rate);
+	dev_dbg(cs35l56->base.dev, "%s: wl=%d, width=%d, rate=%d",
+		__func__, asp_wl, asp_width, rate);
 
 	if (!cs35l56->sysclk_set) {
 		unsigned int slots = cs35l56->asp_slot_count;
@@ -562,26 +603,26 @@ static int cs35l56_asp_dai_hw_params(struct snd_pcm_substream *substream,
 		bclk_freq = asp_width * slots * rate;
 		freq_id = cs35l56_get_bclk_freq_id(bclk_freq);
 		if (freq_id < 0) {
-			dev_err(cs35l56->dev, "%s: Invalid BCLK %u\n", __func__, bclk_freq);
+			dev_err(cs35l56->base.dev, "%s: Invalid BCLK %u\n", __func__, bclk_freq);
 			return -EINVAL;
 		}
 
-		regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_CONTROL1,
+		regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL1,
 				   CS35L56_ASP_BCLK_FREQ_MASK,
 				   freq_id << CS35L56_ASP_BCLK_FREQ_SHIFT);
 	}
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_CONTROL2,
+		regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL2,
 				   CS35L56_ASP_RX_WIDTH_MASK, asp_width <<
 				   CS35L56_ASP_RX_WIDTH_SHIFT);
-		regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_DATA_CONTROL5,
+		regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_DATA_CONTROL5,
 				   CS35L56_ASP_RX_WL_MASK, asp_wl);
 	} else {
-		regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_CONTROL2,
+		regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL2,
 				   CS35L56_ASP_TX_WIDTH_MASK, asp_width <<
 				   CS35L56_ASP_TX_WIDTH_SHIFT);
-		regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_DATA_CONTROL1,
+		regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_DATA_CONTROL1,
 				   CS35L56_ASP_TX_WL_MASK, asp_wl);
 	}
 
@@ -603,7 +644,7 @@ static int cs35l56_asp_dai_set_sysclk(struct snd_soc_dai *dai,
 	if (freq_id < 0)
 		return freq_id;
 
-	regmap_update_bits(cs35l56->regmap, CS35L56_ASP1_CONTROL1,
+	regmap_update_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL1,
 			   CS35L56_ASP_BCLK_FREQ_MASK,
 			   freq_id << CS35L56_ASP_BCLK_FREQ_SHIFT);
 	cs35l56->sysclk_set = true;
@@ -646,9 +687,9 @@ static int cs35l56_sdw_dai_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_port_config pconfig;
 	int ret;
 
-	dev_dbg(cs35l56->dev, "%s: rate %d\n", __func__, params_rate(params));
+	dev_dbg(cs35l56->base.dev, "%s: rate %d\n", __func__, params_rate(params));
 
-	if (!cs35l56->init_done)
+	if (!cs35l56->base.init_done)
 		return -ENODEV;
 
 	if (!sdw_stream)
@@ -761,86 +802,21 @@ static struct snd_soc_dai_driver cs35l56_dai[] = {
 	}
 };
 
-static int cs35l56_wait_for_firmware_boot(struct cs35l56_private *cs35l56)
+static void cs35l56_reinit_patch(struct cs35l56_private *cs35l56)
 {
-	unsigned int reg;
-	unsigned int val;
 	int ret;
 
-	if (cs35l56->rev < CS35L56_REVID_B0)
-		reg = CS35L56_DSP1_HALO_STATE_A1;
+	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
+	ret = wm_adsp_power_up(&cs35l56->dsp, true);
+	if (ret)
+		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
 	else
-		reg = CS35L56_DSP1_HALO_STATE;
-
-	ret = regmap_read_poll_timeout(cs35l56->regmap, reg,
-				       val,
-				       (val < 0xFFFF) && (val >= CS35L56_HALO_STATE_BOOT_DONE),
-				       CS35L56_HALO_STATE_POLL_US,
-				       CS35L56_HALO_STATE_TIMEOUT_US);
-
-	if ((ret < 0) && (ret != -ETIMEDOUT)) {
-		dev_err(cs35l56->dev, "Failed to read HALO_STATE: %d\n", ret);
-		return ret;
-	}
-
-	if ((ret == -ETIMEDOUT) || (val != CS35L56_HALO_STATE_BOOT_DONE)) {
-		dev_err(cs35l56->dev, "Firmware boot fail: HALO_STATE=%#x\n", val);
-		return -EIO;
-	}
-
-	return 0;
+		cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_AUDIO_REINIT);
 }
 
-static inline void cs35l56_wait_min_reset_pulse(void)
+static void cs35l56_patch(struct cs35l56_private *cs35l56, bool firmware_missing)
 {
-	/* Satisfy minimum reset pulse width spec */
-	usleep_range(CS35L56_RESET_PULSE_MIN_US, 2 * CS35L56_RESET_PULSE_MIN_US);
-}
-
-static const struct reg_sequence cs35l56_system_reset_seq[] = {
-	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_SYSTEM_RESET),
-};
-
-static void cs35l56_system_reset(struct cs35l56_private *cs35l56)
-{
-	cs35l56->soft_resetting = true;
-
-	/*
-	 * Must enter cache-only first so there can't be any more register
-	 * accesses other than the controlled system reset sequence below.
-	 */
-	regcache_cache_only(cs35l56->regmap, true);
-	regmap_multi_reg_write_bypassed(cs35l56->regmap,
-					cs35l56_system_reset_seq,
-					ARRAY_SIZE(cs35l56_system_reset_seq));
-
-	/* On SoundWire the registers won't be accessible until it re-enumerates. */
-	if (cs35l56->sdw_peripheral)
-		return;
-
-	usleep_range(CS35L56_CONTROL_PORT_READY_US, CS35L56_CONTROL_PORT_READY_US + 400);
-	regcache_cache_only(cs35l56->regmap, false);
-}
-
-static void cs35l56_dsp_work(struct work_struct *work)
-{
-	struct cs35l56_private *cs35l56 = container_of(work,
-						       struct cs35l56_private,
-						       dsp_work);
-	unsigned int reg;
-	unsigned int val;
-	int ret = 0;
-
-	if (!cs35l56->init_done)
-		return;
-
-	cs35l56->dsp.part = devm_kasprintf(cs35l56->dev, GFP_KERNEL, "cs35l56%s-%02x",
-					   cs35l56->secured ? "s" : "", cs35l56->rev);
-
-	if (!cs35l56->dsp.part)
-		return;
-
-	pm_runtime_get_sync(cs35l56->dev);
+	int ret;
 
 	/*
 	 * Disable SoundWire interrupts to prevent race with IRQ work.
@@ -856,35 +832,27 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		flush_work(&cs35l56->sdw_irq_work);
 	}
 
-	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_SHUTDOWN);
+	ret = cs35l56_firmware_shutdown(&cs35l56->base);
 	if (ret)
 		goto err;
 
-	if (cs35l56->rev < CS35L56_REVID_B0)
-		reg = CS35L56_DSP1_PM_CUR_STATE_A1;
-	else
-		reg = CS35L56_DSP1_PM_CUR_STATE;
-
-	ret = regmap_read_poll_timeout(cs35l56->regmap, reg,
-				       val, (val == CS35L56_HALO_STATE_SHUTDOWN),
-				       CS35L56_HALO_STATE_POLL_US,
-				       CS35L56_HALO_STATE_TIMEOUT_US);
-	if (ret < 0)
-		dev_err(cs35l56->dev, "Failed to poll PM_CUR_STATE to 1 is %d (ret %d)\n",
-			val, ret);
-
-	/* Use wm_adsp to load and apply the firmware patch and coefficient files */
-	ret = wm_adsp_power_up(&cs35l56->dsp);
+	/*
+	 * Use wm_adsp to load and apply the firmware patch and coefficient files,
+	 * but only if firmware is missing. If firmware is already patched just
+	 * power-up wm_adsp without downloading firmware.
+	 */
+	ret = wm_adsp_power_up(&cs35l56->dsp, !!firmware_missing);
 	if (ret) {
-		dev_dbg(cs35l56->dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
+		dev_dbg(cs35l56->base.dev, "%s: wm_adsp_power_up ret %d\n", __func__, ret);
 		goto err;
 	}
 
-	mutex_lock(&cs35l56->irq_lock);
+	mutex_lock(&cs35l56->base.irq_lock);
 
-	init_completion(&cs35l56->init_completion);
+	reinit_completion(&cs35l56->init_completion);
 
-	cs35l56_system_reset(cs35l56);
+	cs35l56->soft_resetting = true;
+	cs35l56_system_reset(&cs35l56->base, !!cs35l56->sdw_peripheral);
 
 	if (cs35l56->sdw_peripheral) {
 		/*
@@ -894,22 +862,21 @@ static void cs35l56_dsp_work(struct work_struct *work)
 		 */
 		if (!wait_for_completion_timeout(&cs35l56->init_completion,
 						 msecs_to_jiffies(5000))) {
-			dev_err(cs35l56->dev, "%s: init_completion timed out (SDW)\n", __func__);
+			dev_err(cs35l56->base.dev, "%s: init_completion timed out (SDW)\n",
+				__func__);
 			goto err_unlock;
 		}
 	} else if (cs35l56_init(cs35l56)) {
 		goto err_unlock;
 	}
 
-	regmap_clear_bits(cs35l56->regmap, CS35L56_PROTECTION_STATUS, CS35L56_FIRMWARE_MISSING);
-	cs35l56->fw_patched = true;
+	regmap_clear_bits(cs35l56->base.regmap, CS35L56_PROTECTION_STATUS,
+			  CS35L56_FIRMWARE_MISSING);
+	cs35l56->base.fw_patched = true;
 
 err_unlock:
-	mutex_unlock(&cs35l56->irq_lock);
+	mutex_unlock(&cs35l56->base.irq_lock);
 err:
-	pm_runtime_mark_last_busy(cs35l56->dev);
-	pm_runtime_put_autosuspend(cs35l56->dev);
-
 	/* Re-enable SoundWire interrupts */
 	if (cs35l56->sdw_peripheral) {
 		cs35l56->sdw_irq_no_unmask = false;
@@ -918,25 +885,106 @@ err:
 	}
 }
 
+static void cs35l56_dsp_work(struct work_struct *work)
+{
+	struct cs35l56_private *cs35l56 = container_of(work,
+						       struct cs35l56_private,
+						       dsp_work);
+	unsigned int firmware_version;
+	bool firmware_missing;
+	int ret;
+
+	if (!cs35l56->base.init_done)
+		return;
+
+	pm_runtime_get_sync(cs35l56->base.dev);
+
+	ret = cs35l56_read_prot_status(&cs35l56->base, &firmware_missing, &firmware_version);
+	if (ret)
+		goto err;
+
+	/* Populate fw file qualifier with the revision and security state */
+	kfree(cs35l56->dsp.fwf_name);
+	if (firmware_missing) {
+		cs35l56->dsp.fwf_name = kasprintf(GFP_KERNEL, "%02x-dsp1", cs35l56->base.rev);
+	} else {
+		/* Firmware files must match the running firmware version */
+		cs35l56->dsp.fwf_name = kasprintf(GFP_KERNEL,
+						  "%02x%s-%06x-dsp1",
+						  cs35l56->base.rev,
+						  cs35l56->base.secured ? "-s" : "",
+						  firmware_version);
+	}
+
+	if (!cs35l56->dsp.fwf_name)
+		goto err;
+
+	dev_dbg(cs35l56->base.dev, "DSP fwf name: '%s' system name: '%s'\n",
+		cs35l56->dsp.fwf_name, cs35l56->dsp.system_name);
+
+	/*
+	 * The firmware cannot be patched if it is already running from
+	 * patch RAM. In this case the firmware files are versioned to
+	 * match the running firmware version and will only contain
+	 * tunings. We do not need to shutdown the firmware to apply
+	 * tunings so can use the lower cost reinit sequence instead.
+	 */
+	if (!firmware_missing)
+		cs35l56_reinit_patch(cs35l56);
+	else
+		cs35l56_patch(cs35l56, firmware_missing);
+
+err:
+	pm_runtime_mark_last_busy(cs35l56->base.dev);
+	pm_runtime_put_autosuspend(cs35l56->base.dev);
+}
+
 static int cs35l56_component_probe(struct snd_soc_component *component)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 	struct dentry *debugfs_root = component->debugfs_root;
+	unsigned short vendor, device;
 
 	BUILD_BUG_ON(ARRAY_SIZE(cs35l56_tx_input_texts) != ARRAY_SIZE(cs35l56_tx_input_values));
 
+	if (!cs35l56->dsp.system_name &&
+	    (snd_soc_card_get_pci_ssid(component->card, &vendor, &device) == 0)) {
+		/* Append a speaker qualifier if there is a speaker ID */
+		if (cs35l56->speaker_id >= 0) {
+			cs35l56->dsp.system_name = devm_kasprintf(cs35l56->base.dev,
+								  GFP_KERNEL,
+								  "%04x%04x-spkid%d",
+								  vendor, device,
+								  cs35l56->speaker_id);
+		} else {
+			cs35l56->dsp.system_name = devm_kasprintf(cs35l56->base.dev,
+								  GFP_KERNEL,
+								  "%04x%04x",
+								  vendor, device);
+		}
+		if (!cs35l56->dsp.system_name)
+			return -ENOMEM;
+	}
+
 	if (!wait_for_completion_timeout(&cs35l56->init_completion,
 					 msecs_to_jiffies(5000))) {
-		dev_err(cs35l56->dev, "%s: init_completion timed out\n", __func__);
+		dev_err(cs35l56->base.dev, "%s: init_completion timed out\n", __func__);
 		return -ENODEV;
 	}
 
 	cs35l56->component = component;
 	wm_adsp2_component_probe(&cs35l56->dsp, component);
 
-	debugfs_create_bool("init_done", 0444, debugfs_root, &cs35l56->init_done);
-	debugfs_create_bool("can_hibernate", 0444, debugfs_root, &cs35l56->can_hibernate);
-	debugfs_create_bool("fw_patched", 0444, debugfs_root, &cs35l56->fw_patched);
+	debugfs_create_bool("init_done", 0444, debugfs_root, &cs35l56->base.init_done);
+	debugfs_create_bool("can_hibernate", 0444, debugfs_root, &cs35l56->base.can_hibernate);
+	debugfs_create_bool("fw_patched", 0444, debugfs_root, &cs35l56->base.fw_patched);
+
+	/*
+	 * The widgets for the ASP1TX mixer can't be initialized
+	 * until the firmware has been downloaded and rebooted.
+	 */
+	regcache_drop_region(cs35l56->base.regmap, CS35L56_ASP1TX1_INPUT, CS35L56_ASP1TX4_INPUT);
+	cs35l56->asp1_mixer_widgets_initialized = false;
 
 	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
 
@@ -948,6 +996,16 @@ static void cs35l56_component_remove(struct snd_soc_component *component)
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(component);
 
 	cancel_work_sync(&cs35l56->dsp_work);
+
+	if (cs35l56->dsp.cs_dsp.booted)
+		wm_adsp_power_down(&cs35l56->dsp);
+
+	wm_adsp2_component_remove(&cs35l56->dsp, component);
+
+	kfree(cs35l56->dsp.fwf_name);
+	cs35l56->dsp.fwf_name = NULL;
+
+	cs35l56->component = NULL;
 }
 
 static int cs35l56_set_bias_level(struct snd_soc_component *component,
@@ -988,171 +1046,18 @@ static const struct snd_soc_component_driver soc_component_dev_cs35l56 = {
 	.suspend_bias_off = 1, /* see cs35l56_system_resume() */
 };
 
-static const struct reg_sequence cs35l56_hibernate_seq[] = {
-	/* This must be the last register access */
-	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_HIBERNATE_NOW),
-};
-
-static const struct reg_sequence cs35l56_hibernate_wake_seq[] = {
-	REG_SEQ0(CS35L56_DSP_VIRTUAL1_MBOX_1, CS35L56_MBOX_CMD_WAKEUP),
-};
-
-int cs35l56_runtime_suspend(struct device *dev)
+static int __maybe_unused cs35l56_runtime_suspend_i2c_spi(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
-	unsigned int val;
-	int ret;
 
-	if (!cs35l56->init_done)
-		return 0;
-
-	/* Firmware must have entered a power-save state */
-	ret = regmap_read_poll_timeout(cs35l56->regmap,
-				       CS35L56_TRANSDUCER_ACTUAL_PS,
-				       val, (val >= CS35L56_PS3),
-				       CS35L56_PS3_POLL_US,
-				       CS35L56_PS3_TIMEOUT_US);
-	if (ret)
-		dev_warn(cs35l56->dev, "PS3 wait failed: %d\n", ret);
-
-	/* Clear BOOT_DONE so it can be used to detect a reboot */
-	regmap_write(cs35l56->regmap, CS35L56_IRQ1_EINT_4, CS35L56_OTP_BOOT_DONE_MASK);
-
-	if (!cs35l56->can_hibernate) {
-		regcache_cache_only(cs35l56->regmap, true);
-		dev_dbg(dev, "Suspended: no hibernate");
-
-		return 0;
-	}
-
-	/*
-	 * Enable auto-hibernate. If it is woken by some other wake source
-	 * it will automatically return to hibernate.
-	 */
-	cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_ALLOW_AUTO_HIBERNATE);
-
-	/*
-	 * Must enter cache-only first so there can't be any more register
-	 * accesses other than the controlled hibernate sequence below.
-	 */
-	regcache_cache_only(cs35l56->regmap, true);
-
-	regmap_multi_reg_write_bypassed(cs35l56->regmap,
-					cs35l56_hibernate_seq,
-					ARRAY_SIZE(cs35l56_hibernate_seq));
-
-	dev_dbg(dev, "Suspended: hibernate");
-
-	return 0;
+	return cs35l56_runtime_suspend_common(&cs35l56->base);
 }
-EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_suspend, SND_SOC_CS35L56_CORE);
 
 static int __maybe_unused cs35l56_runtime_resume_i2c_spi(struct device *dev)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(dev);
 
-	if (!cs35l56->init_done)
-		return 0;
-
-	return cs35l56_runtime_resume_common(cs35l56);
-}
-
-int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56)
-{
-	unsigned int val;
-	int ret;
-
-	if (!cs35l56->can_hibernate)
-		goto out_sync;
-
-	if (!cs35l56->sdw_peripheral) {
-		/*
-		 * Dummy transaction to trigger I2C/SPI auto-wake. This will NAK on I2C.
-		 * Must be done before releasing cache-only.
-		 */
-		regmap_multi_reg_write_bypassed(cs35l56->regmap,
-						cs35l56_hibernate_wake_seq,
-						ARRAY_SIZE(cs35l56_hibernate_wake_seq));
-
-		usleep_range(CS35L56_CONTROL_PORT_READY_US,
-			     CS35L56_CONTROL_PORT_READY_US + 400);
-	}
-
-out_sync:
-	regcache_cache_only(cs35l56->regmap, false);
-
-	ret = cs35l56_wait_for_firmware_boot(cs35l56);
-	if (ret) {
-		dev_err(cs35l56->dev, "Hibernate wake failed: %d\n", ret);
-		goto err;
-	}
-
-	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
-	if (ret)
-		goto err;
-
-	/* BOOT_DONE will be 1 if the amp reset */
-	regmap_read(cs35l56->regmap, CS35L56_IRQ1_EINT_4, &val);
-	if (val & CS35L56_OTP_BOOT_DONE_MASK) {
-		dev_dbg(cs35l56->dev, "Registers reset in suspend\n");
-		regcache_mark_dirty(cs35l56->regmap);
-	}
-
-	regcache_sync(cs35l56->regmap);
-
-	dev_dbg(cs35l56->dev, "Resumed");
-
-	return 0;
-
-err:
-	regmap_write(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1,
-		     CS35L56_MBOX_CMD_HIBERNATE_NOW);
-
-	regcache_cache_only(cs35l56->regmap, true);
-
-	return ret;
-}
-EXPORT_SYMBOL_NS_GPL(cs35l56_runtime_resume_common, SND_SOC_CS35L56_CORE);
-
-static int cs35l56_is_fw_reload_needed(struct cs35l56_private *cs35l56)
-{
-	unsigned int val;
-	int ret;
-
-	/* Nothing to re-patch if we haven't done any patching yet. */
-	if (!cs35l56->fw_patched)
-		return false;
-
-	/*
-	 * If we have control of RESET we will have asserted it so the firmware
-	 * will need re-patching.
-	 */
-	if (cs35l56->reset_gpio)
-		return true;
-
-	/*
-	 * In secure mode FIRMWARE_MISSING is cleared by the BIOS loader so
-	 * can't be used here to test for memory retention.
-	 * Assume that tuning must be re-loaded.
-	 */
-	if (cs35l56->secured)
-		return true;
-
-	ret = pm_runtime_resume_and_get(cs35l56->dev);
-	if (ret) {
-		dev_err(cs35l56->dev, "Failed to runtime_get: %d\n", ret);
-		return ret;
-	}
-
-	ret = regmap_read(cs35l56->regmap, CS35L56_PROTECTION_STATUS, &val);
-	if (ret)
-		dev_err(cs35l56->dev, "Failed to read PROTECTION_STATUS: %d\n", ret);
-	else
-		ret = !!(val & CS35L56_FIRMWARE_MISSING);
-
-	pm_runtime_put_autosuspend(cs35l56->dev);
-
-	return ret;
+	return cs35l56_runtime_resume_common(&cs35l56->base, false);
 }
 
 int cs35l56_system_suspend(struct device *dev)
@@ -1170,8 +1075,8 @@ int cs35l56_system_suspend(struct device *dev)
 	 * clear it. Prevent this race by temporarily disabling the parent irq
 	 * until we reach _no_irq.
 	 */
-	if (cs35l56->irq)
-		disable_irq(cs35l56->irq);
+	if (cs35l56->base.irq)
+		disable_irq(cs35l56->base.irq);
 
 	return pm_runtime_force_suspend(dev);
 }
@@ -1188,8 +1093,8 @@ int cs35l56_system_suspend_late(struct device *dev)
 	 * RESET is usually shared by all amps so it must not be asserted until
 	 * all driver instances have done their suspend() stage.
 	 */
-	if (cs35l56->reset_gpio) {
-		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+	if (cs35l56->base.reset_gpio) {
+		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 		cs35l56_wait_min_reset_pulse();
 	}
 
@@ -1206,8 +1111,8 @@ int cs35l56_system_suspend_no_irq(struct device *dev)
 	dev_dbg(dev, "system_suspend_no_irq\n");
 
 	/* Handlers are now disabled so the parent IRQ can safely be re-enabled. */
-	if (cs35l56->irq)
-		enable_irq(cs35l56->irq);
+	if (cs35l56->base.irq)
+		enable_irq(cs35l56->base.irq);
 
 	return 0;
 }
@@ -1226,8 +1131,8 @@ int cs35l56_system_resume_no_irq(struct device *dev)
 	 * clear it, until it has fully resumed. Prevent this race by temporarily
 	 * disabling the parent irq until we complete resume().
 	 */
-	if (cs35l56->irq)
-		disable_irq(cs35l56->irq);
+	if (cs35l56->base.irq)
+		disable_irq(cs35l56->base.irq);
 
 	return 0;
 }
@@ -1241,8 +1146,8 @@ int cs35l56_system_resume_early(struct device *dev)
 	dev_dbg(dev, "system_resume_early\n");
 
 	/* Ensure a spec-compliant RESET pulse. */
-	if (cs35l56->reset_gpio) {
-		gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+	if (cs35l56->base.reset_gpio) {
+		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 		cs35l56_wait_min_reset_pulse();
 	}
 
@@ -1254,7 +1159,7 @@ int cs35l56_system_resume_early(struct device *dev)
 	}
 
 	/* Release shared RESET before drivers start resume(). */
-	gpiod_set_value_cansleep(cs35l56->reset_gpio, 1);
+	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 1);
 
 	return 0;
 }
@@ -1267,10 +1172,16 @@ int cs35l56_system_resume(struct device *dev)
 
 	dev_dbg(dev, "system_resume\n");
 
+	/*
+	 * We might have done a hard reset or the CS35L56 was power-cycled
+	 * so wait for control port to be ready.
+	 */
+	cs35l56_wait_control_port_ready();
+
 	/* Undo pm_runtime_force_suspend() before re-enabling the irq */
 	ret = pm_runtime_force_resume(dev);
-	if (cs35l56->irq)
-		enable_irq(cs35l56->irq);
+	if (cs35l56->base.irq)
+		enable_irq(cs35l56->base.irq);
 
 	if (ret)
 		return ret;
@@ -1279,12 +1190,13 @@ int cs35l56_system_resume(struct device *dev)
 	if (!cs35l56->component)
 		return 0;
 
-	ret = cs35l56_is_fw_reload_needed(cs35l56);
-	dev_dbg(cs35l56->dev, "fw_reload_needed: %d\n", ret);
+	ret = cs35l56_is_fw_reload_needed(&cs35l56->base);
+	dev_dbg(cs35l56->base.dev, "fw_reload_needed: %d\n", ret);
 	if (ret < 1)
 		return ret;
 
-	cs35l56->fw_patched = false;
+	cs35l56->base.fw_patched = false;
+	wm_adsp_power_down(&cs35l56->dsp);
 	queue_work(cs35l56->dsp_wq, &cs35l56->dsp_work);
 
 	/*
@@ -1308,53 +1220,134 @@ static int cs35l56_dsp_init(struct cs35l56_private *cs35l56)
 	INIT_WORK(&cs35l56->dsp_work, cs35l56_dsp_work);
 
 	dsp = &cs35l56->dsp;
+	cs35l56_init_cs_dsp(&cs35l56->base, &dsp->cs_dsp);
 	dsp->part = "cs35l56";
-	dsp->cs_dsp.num = 1;
-	dsp->cs_dsp.type = WMFW_HALO;
-	dsp->cs_dsp.rev = 0;
 	dsp->fw = 12;
-	dsp->cs_dsp.dev = cs35l56->dev;
-	dsp->cs_dsp.regmap = cs35l56->regmap;
-	dsp->cs_dsp.base = CS35L56_DSP1_CORE_BASE;
-	dsp->cs_dsp.base_sysinfo = CS35L56_DSP1_SYS_INFO_ID;
-	dsp->cs_dsp.mem = cs35l56_dsp1_regions;
-	dsp->cs_dsp.num_mems = ARRAY_SIZE(cs35l56_dsp1_regions);
-	dsp->cs_dsp.no_core_startstop = true;
 	dsp->wmfw_optional = true;
 
-	dev_dbg(cs35l56->dev, "DSP system name: '%s'\n", dsp->system_name);
+	dev_dbg(cs35l56->base.dev, "DSP system name: '%s'\n", dsp->system_name);
 
 	ret = wm_halo_init(dsp);
 	if (ret != 0) {
-		dev_err(cs35l56->dev, "wm_halo_init failed\n");
+		dev_err(cs35l56->base.dev, "wm_halo_init failed\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static int cs35l56_acpi_get_name(struct cs35l56_private *cs35l56)
+static int cs35l56_get_firmware_uid(struct cs35l56_private *cs35l56)
 {
-	acpi_handle handle = ACPI_HANDLE(cs35l56->dev);
-	const char *sub;
+	struct device *dev = cs35l56->base.dev;
+	const char *prop;
+	int ret;
 
-	/* If there is no ACPI_HANDLE, there is no ACPI for this system, return 0 */
-	if (!handle)
+	ret = device_property_read_string(dev, "cirrus,firmware-uid", &prop);
+	/* If bad sw node property, return 0 and fallback to legacy firmware path */
+	if (ret < 0)
 		return 0;
 
-	sub = acpi_get_subsystem_id(handle);
-	if (IS_ERR(sub)) {
-		/* If bad ACPI, return 0 and fallback to legacy firmware path, otherwise fail */
-		if (PTR_ERR(sub) == -ENODATA)
-			return 0;
-		else
-			return PTR_ERR(sub);
-	}
+	/* Append a speaker qualifier if there is a speaker ID */
+	if (cs35l56->speaker_id >= 0)
+		cs35l56->dsp.system_name = devm_kasprintf(dev, GFP_KERNEL, "%s-spkid%d",
+							  prop, cs35l56->speaker_id);
+	else
+		cs35l56->dsp.system_name = devm_kstrdup(dev, prop, GFP_KERNEL);
 
-	cs35l56->dsp.system_name = sub;
-	dev_dbg(cs35l56->dev, "Subsystem ID: %s\n", cs35l56->dsp.system_name);
+	if (cs35l56->dsp.system_name == NULL)
+		return -ENOMEM;
+
+	dev_dbg(dev, "Firmware UID: %s\n", cs35l56->dsp.system_name);
 
 	return 0;
+}
+
+/*
+ * Some SoundWire laptops have a spk-id-gpios property but it points to
+ * the wrong ACPI Device node so can't be used to get the GPIO. Try to
+ * find the SDCA node containing the GpioIo resource and add a GPIO
+ * mapping to it.
+ */
+static const struct acpi_gpio_params cs35l56_af01_first_gpio = { 0, 0, false };
+static const struct acpi_gpio_mapping cs35l56_af01_spkid_gpios_mapping[] = {
+	{ "spk-id-gpios", &cs35l56_af01_first_gpio, 1 },
+	{ }
+};
+
+static void cs35l56_acpi_dev_release_driver_gpios(void *adev)
+{
+	acpi_dev_remove_driver_gpios(adev);
+}
+
+static int cs35l56_try_get_broken_sdca_spkid_gpio(struct cs35l56_private *cs35l56)
+{
+	struct fwnode_handle *af01_fwnode;
+	const union acpi_object *obj;
+	struct gpio_desc *desc;
+	int ret;
+
+	/* Find the SDCA node containing the GpioIo */
+	af01_fwnode = device_get_named_child_node(cs35l56->base.dev, "AF01");
+	if (!af01_fwnode) {
+		dev_dbg(cs35l56->base.dev, "No AF01 node\n");
+		return -ENOENT;
+	}
+
+	ret = acpi_dev_get_property(ACPI_COMPANION(cs35l56->base.dev),
+				    "spk-id-gpios", ACPI_TYPE_PACKAGE, &obj);
+	if (ret) {
+		dev_dbg(cs35l56->base.dev, "Could not get spk-id-gpios package: %d\n", ret);
+		return -ENOENT;
+	}
+
+	/* The broken properties we can handle are a 4-element package (one GPIO) */
+	if (obj->package.count != 4) {
+		dev_warn(cs35l56->base.dev, "Unexpected spk-id element count %d\n",
+			 obj->package.count);
+		return -ENOENT;
+	}
+
+	/* Add a GPIO mapping if it doesn't already have one */
+	if (!fwnode_property_present(af01_fwnode, "spk-id-gpios")) {
+		struct acpi_device *adev = to_acpi_device_node(af01_fwnode);
+
+		/*
+		 * Can't use devm_acpi_dev_add_driver_gpios() because the
+		 * mapping isn't being added to the node pointed to by
+		 * ACPI_COMPANION().
+		 */
+		ret = acpi_dev_add_driver_gpios(adev, cs35l56_af01_spkid_gpios_mapping);
+		if (ret) {
+			return dev_err_probe(cs35l56->base.dev, ret,
+					     "Failed to add gpio mapping to AF01\n");
+		}
+
+		ret = devm_add_action_or_reset(cs35l56->base.dev,
+					       cs35l56_acpi_dev_release_driver_gpios,
+					       adev);
+		if (ret)
+			return ret;
+
+		dev_dbg(cs35l56->base.dev, "Added spk-id-gpios mapping to AF01\n");
+	}
+
+	desc = fwnode_gpiod_get_index(af01_fwnode, "spk-id", 0, GPIOD_IN, NULL);
+	if (IS_ERR(desc)) {
+		ret = PTR_ERR(desc);
+		return dev_err_probe(cs35l56->base.dev, ret, "Get GPIO from AF01 failed\n");
+	}
+
+	ret = gpiod_get_value_cansleep(desc);
+	gpiod_put(desc);
+
+	if (ret < 0) {
+		dev_err_probe(cs35l56->base.dev, ret, "Error reading spk-id GPIO\n");
+		return ret;
+		}
+
+	dev_info(cs35l56->base.dev, "Got spk-id from AF01\n");
+
+	return ret;
 }
 
 int cs35l56_common_probe(struct cs35l56_private *cs35l56)
@@ -1362,62 +1355,75 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 	int ret;
 
 	init_completion(&cs35l56->init_completion);
-	mutex_init(&cs35l56->irq_lock);
+	mutex_init(&cs35l56->base.irq_lock);
+	cs35l56->speaker_id = -ENOENT;
 
-	dev_set_drvdata(cs35l56->dev, cs35l56);
+	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
 	cs35l56_fill_supply_names(cs35l56->supplies);
-	ret = devm_regulator_bulk_get(cs35l56->dev, ARRAY_SIZE(cs35l56->supplies),
+	ret = devm_regulator_bulk_get(cs35l56->base.dev, ARRAY_SIZE(cs35l56->supplies),
 				      cs35l56->supplies);
 	if (ret != 0)
-		return dev_err_probe(cs35l56->dev, ret, "Failed to request supplies\n");
+		return dev_err_probe(cs35l56->base.dev, ret, "Failed to request supplies\n");
 
 	/* Reset could be controlled by the BIOS or shared by multiple amps */
-	cs35l56->reset_gpio = devm_gpiod_get_optional(cs35l56->dev, "reset", GPIOD_OUT_LOW);
-	if (IS_ERR(cs35l56->reset_gpio)) {
-		ret = PTR_ERR(cs35l56->reset_gpio);
+	cs35l56->base.reset_gpio = devm_gpiod_get_optional(cs35l56->base.dev, "reset",
+							   GPIOD_OUT_LOW);
+	if (IS_ERR(cs35l56->base.reset_gpio)) {
+		ret = PTR_ERR(cs35l56->base.reset_gpio);
 		/*
 		 * If RESET is shared the first amp to probe will grab the reset
 		 * line and reset all the amps
 		 */
 		if (ret != -EBUSY)
-			return dev_err_probe(cs35l56->dev, ret, "Failed to get reset GPIO\n");
+			return dev_err_probe(cs35l56->base.dev, ret, "Failed to get reset GPIO\n");
 
-		dev_info(cs35l56->dev, "Reset GPIO busy, assume shared reset\n");
-		cs35l56->reset_gpio = NULL;
+		dev_info(cs35l56->base.dev, "Reset GPIO busy, assume shared reset\n");
+		cs35l56->base.reset_gpio = NULL;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
 	if (ret != 0)
-		return dev_err_probe(cs35l56->dev, ret, "Failed to enable supplies\n");
+		return dev_err_probe(cs35l56->base.dev, ret, "Failed to enable supplies\n");
 
-	if (cs35l56->reset_gpio) {
+	if (cs35l56->base.reset_gpio) {
+		/* ACPI can override GPIOD_OUT_LOW flag so force it to start low */
+		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 		cs35l56_wait_min_reset_pulse();
-		gpiod_set_value_cansleep(cs35l56->reset_gpio, 1);
+		gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 1);
 	}
 
-	ret = cs35l56_acpi_get_name(cs35l56);
+	ret = cs35l56_get_speaker_id(&cs35l56->base);
+	if (ACPI_COMPANION(cs35l56->base.dev) && cs35l56->sdw_peripheral && (ret == -ENOENT))
+		ret = cs35l56_try_get_broken_sdca_spkid_gpio(cs35l56);
+
+	if ((ret < 0) && (ret != -ENOENT))
+		goto err;
+
+	cs35l56->speaker_id = ret;
+
+	ret = cs35l56_get_firmware_uid(cs35l56);
 	if (ret != 0)
 		goto err;
 
 	ret = cs35l56_dsp_init(cs35l56);
 	if (ret < 0) {
-		dev_err_probe(cs35l56->dev, ret, "DSP init failed\n");
+		dev_err_probe(cs35l56->base.dev, ret, "DSP init failed\n");
 		goto err;
 	}
 
-	ret = devm_snd_soc_register_component(cs35l56->dev,
+	ret = devm_snd_soc_register_component(cs35l56->base.dev,
 					      &soc_component_dev_cs35l56,
 					      cs35l56_dai, ARRAY_SIZE(cs35l56_dai));
 	if (ret < 0) {
-		dev_err_probe(cs35l56->dev, ret, "Register codec failed\n");
+		dev_err_probe(cs35l56->base.dev, ret, "Register codec failed\n");
 		goto err;
 	}
 
 	return 0;
 
 err:
-	gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
 
 	return ret;
@@ -1427,7 +1433,6 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_common_probe, SND_SOC_CS35L56_CORE);
 int cs35l56_init(struct cs35l56_private *cs35l56)
 {
 	int ret;
-	unsigned int devid, revid, otpid, secured;
 
 	/*
 	 * Check whether the actions associated with soft reset or one time
@@ -1436,90 +1441,29 @@ int cs35l56_init(struct cs35l56_private *cs35l56)
 	if (cs35l56->soft_resetting)
 		goto post_soft_reset;
 
-	if (cs35l56->init_done)
+	if (cs35l56->base.init_done)
 		return 0;
 
-	pm_runtime_set_autosuspend_delay(cs35l56->dev, 100);
-	pm_runtime_use_autosuspend(cs35l56->dev);
-	pm_runtime_set_active(cs35l56->dev);
-	pm_runtime_enable(cs35l56->dev);
+	pm_runtime_set_autosuspend_delay(cs35l56->base.dev, 100);
+	pm_runtime_use_autosuspend(cs35l56->base.dev);
+	pm_runtime_set_active(cs35l56->base.dev);
+	pm_runtime_enable(cs35l56->base.dev);
 
-	/*
-	 * If the system is not using a reset_gpio then issue a
-	 * dummy read to force a wakeup.
-	 */
-	if (!cs35l56->reset_gpio)
-		regmap_read(cs35l56->regmap, CS35L56_DSP_VIRTUAL1_MBOX_1, &devid);
-
-	/* Wait for control port to be ready (datasheet tIRS). */
-	usleep_range(CS35L56_CONTROL_PORT_READY_US,
-		     CS35L56_CONTROL_PORT_READY_US + 400);
-
-	/*
-	 * The HALO_STATE register is in different locations on Ax and B0
-	 * devices so the REVID needs to be determined before waiting for the
-	 * firmware to boot.
-	 */
-	ret = regmap_read(cs35l56->regmap, CS35L56_REVID, &revid);
-	if (ret < 0) {
-		dev_err(cs35l56->dev, "Get Revision ID failed\n");
+	ret = cs35l56_hw_init(&cs35l56->base);
+	if (ret < 0)
 		return ret;
-	}
-	cs35l56->rev = revid & (CS35L56_AREVID_MASK | CS35L56_MTLREVID_MASK);
 
-	ret = cs35l56_wait_for_firmware_boot(cs35l56);
+	ret = cs35l56_set_patch(&cs35l56->base);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(cs35l56->regmap, CS35L56_DEVID, &devid);
-	if (ret < 0) {
-		dev_err(cs35l56->dev, "Get Device ID failed\n");
-		return ret;
-	}
-	devid &= CS35L56_DEVID_MASK;
-
-	switch (devid) {
-	case 0x35A56:
-		break;
-	default:
-		dev_err(cs35l56->dev, "Unknown device %x\n", devid);
-		return ret;
-	}
-
-	ret = regmap_read(cs35l56->regmap, CS35L56_DSP_RESTRICT_STS1, &secured);
-	if (ret) {
-		dev_err(cs35l56->dev, "Get Secure status failed\n");
-		return ret;
-	}
-
-	/* When any bus is restricted treat the device as secured */
-	if (secured & CS35L56_RESTRICTED_MASK)
-		cs35l56->secured = true;
-
-	ret = regmap_read(cs35l56->regmap, CS35L56_OTPID, &otpid);
-	if (ret < 0) {
-		dev_err(cs35l56->dev, "Get OTP ID failed\n");
-		return ret;
-	}
-
-	dev_info(cs35l56->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d\n",
-		 cs35l56->secured ? "s" : "", cs35l56->rev, otpid);
-
-	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
-	regmap_write(cs35l56->regmap, CS35L56_IRQ1_MASK_20, 0xffffffff);
-	regmap_update_bits(cs35l56->regmap, CS35L56_IRQ1_MASK_1,
-			   CS35L56_AMP_SHORT_ERR_EINT1_MASK,
-			   0);
-	regmap_update_bits(cs35l56->regmap, CS35L56_IRQ1_MASK_8,
-			   CS35L56_TEMP_ERR_EINT1_MASK,
-			   0);
-
-	if (!cs35l56->reset_gpio) {
-		dev_dbg(cs35l56->dev, "No reset gpio: using soft reset\n");
-		cs35l56_system_reset(cs35l56);
+	if (!cs35l56->base.reset_gpio) {
+		dev_dbg(cs35l56->base.dev, "No reset gpio: using soft reset\n");
+		cs35l56->soft_resetting = true;
+		cs35l56_system_reset(&cs35l56->base, !!cs35l56->sdw_peripheral);
 		if (cs35l56->sdw_peripheral) {
 			/* Keep alive while we wait for re-enumeration */
-			pm_runtime_get_noresume(cs35l56->dev);
+			pm_runtime_get_noresume(cs35l56->base.dev);
 			return 0;
 		}
 	}
@@ -1529,29 +1473,32 @@ post_soft_reset:
 		cs35l56->soft_resetting = false;
 
 		/* Done re-enumerating after one-time init so release the keep-alive */
-		if (cs35l56->sdw_peripheral && !cs35l56->init_done)
-			pm_runtime_put_noidle(cs35l56->dev);
+		if (cs35l56->sdw_peripheral && !cs35l56->base.init_done)
+			pm_runtime_put_noidle(cs35l56->base.dev);
 
-		regcache_mark_dirty(cs35l56->regmap);
-		ret = cs35l56_wait_for_firmware_boot(cs35l56);
+		regcache_mark_dirty(cs35l56->base.regmap);
+		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
 			return ret;
 
-		dev_dbg(cs35l56->dev, "Firmware rebooted after soft reset\n");
+		dev_dbg(cs35l56->base.dev, "Firmware rebooted after soft reset\n");
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
-	ret = cs35l56_mbox_send(cs35l56, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
+	ret = cs35l56_mbox_send(&cs35l56->base, CS35L56_MBOX_CMD_PREVENT_AUTO_HIBERNATE);
 	if (ret)
 		return ret;
 
-	/* Populate soft registers in the regmap cache */
-	cs35l56_reread_firmware_registers(cs35l56->dev, cs35l56->regmap);
-
 	/* Registers could be dirty after soft reset or SoundWire enumeration */
-	regcache_sync(cs35l56->regmap);
+	regcache_sync(cs35l56->base.regmap);
 
-	cs35l56->init_done = true;
+	/* Set ASP1 DOUT to high-impedance when it is not transmitting audio data. */
+	ret = regmap_set_bits(cs35l56->base.regmap, CS35L56_ASP1_CONTROL3,
+			      CS35L56_ASP1_DOUT_HIZ_CTRL_MASK);
+	if (ret)
+		return dev_err_probe(cs35l56->base.dev, ret, "Failed to write ASP1_CONTROL3\n");
+
+	cs35l56->base.init_done = true;
 	complete(&cs35l56->init_completion);
 
 	return 0;
@@ -1560,37 +1507,37 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_init, SND_SOC_CS35L56_CORE);
 
 void cs35l56_remove(struct cs35l56_private *cs35l56)
 {
-	cs35l56->init_done = false;
+	cs35l56->base.init_done = false;
 
 	/*
 	 * WAKE IRQs unmask if CS35L56 hibernates so free the handler to
 	 * prevent it racing with remove().
 	 */
-	if (cs35l56->irq)
-		devm_free_irq(cs35l56->dev, cs35l56->irq, cs35l56);
+	if (cs35l56->base.irq)
+		devm_free_irq(cs35l56->base.dev, cs35l56->base.irq, &cs35l56->base);
 
 	flush_workqueue(cs35l56->dsp_wq);
 	destroy_workqueue(cs35l56->dsp_wq);
 
-	pm_runtime_suspend(cs35l56->dev);
-	pm_runtime_disable(cs35l56->dev);
+	pm_runtime_dont_use_autosuspend(cs35l56->base.dev);
+	pm_runtime_suspend(cs35l56->base.dev);
+	pm_runtime_disable(cs35l56->base.dev);
 
-	regcache_cache_only(cs35l56->regmap, true);
+	regcache_cache_only(cs35l56->base.regmap, true);
 
-	kfree(cs35l56->dsp.system_name);
-
-	gpiod_set_value_cansleep(cs35l56->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l56->base.reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(cs35l56->supplies), cs35l56->supplies);
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_remove, SND_SOC_CS35L56_CORE);
 
-const struct dev_pm_ops cs35l56_pm_ops_i2c_spi = {
-	SET_RUNTIME_PM_OPS(cs35l56_runtime_suspend, cs35l56_runtime_resume_i2c_spi, NULL)
+#if IS_ENABLED(CONFIG_SND_SOC_CS35L56_I2C) || IS_ENABLED(CONFIG_SND_SOC_CS35L56_SPI)
+EXPORT_NS_GPL_DEV_PM_OPS(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE) = {
+	SET_RUNTIME_PM_OPS(cs35l56_runtime_suspend_i2c_spi, cs35l56_runtime_resume_i2c_spi, NULL)
 	SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend, cs35l56_system_resume)
 	LATE_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_late, cs35l56_system_resume_early)
 	NOIRQ_SYSTEM_SLEEP_PM_OPS(cs35l56_system_suspend_no_irq, cs35l56_system_resume_no_irq)
 };
-EXPORT_SYMBOL_NS_GPL(cs35l56_pm_ops_i2c_spi, SND_SOC_CS35L56_CORE);
+#endif
 
 MODULE_DESCRIPTION("ASoC CS35L56 driver");
 MODULE_IMPORT_NS(SND_SOC_CS35L56_SHARED);

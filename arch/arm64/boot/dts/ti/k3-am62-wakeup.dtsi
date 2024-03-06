@@ -7,6 +7,7 @@
 
 &cbass_wakeup {
 	wkup_conf: syscon@43000000 {
+		bootph-all;
 		compatible = "syscon", "simple-mfd";
 		reg = <0x00 0x43000000 0x00 0x20000>;
 		#address-cells = <1>;
@@ -14,6 +15,7 @@
 		ranges = <0x0 0x00 0x43000000 0x20000>;
 
 		chipid: chipid@14 {
+			bootph-all;
 			compatible = "ti,am654-chipid";
 			reg = <0x14 0x4>;
 		};
@@ -60,5 +62,13 @@
 		assigned-clock-parents = <&k3_clks 132 2>;
 		/* Used by DM firmware */
 		status = "reserved";
+	};
+
+	wkup_vtm0: temperature-sensor@b00000 {
+		compatible = "ti,j7200-vtm";
+		reg = <0x00 0xb00000 0x00 0x400>,
+		      <0x00 0xb01000 0x00 0x400>;
+		power-domains = <&k3_pds 95 TI_SCI_PD_EXCLUSIVE>;
+		#thermal-sensor-cells = <1>;
 	};
 };

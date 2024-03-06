@@ -118,11 +118,9 @@ ltq_mtd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ltq_mtd);
 
-	ltq_mtd->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!ltq_mtd->res) {
-		dev_err(&pdev->dev, "failed to get memory resource\n");
-		return -ENOENT;
-	}
+	ltq_mtd->map->virt = devm_platform_get_and_ioremap_resource(pdev, 0, &ltq_mtd->res);
+	if (IS_ERR(ltq_mtd->map->virt))
+		return PTR_ERR(ltq_mtd->map->virt);
 
 	ltq_mtd->map = devm_kzalloc(&pdev->dev, sizeof(struct map_info),
 				    GFP_KERNEL);
@@ -131,9 +129,6 @@ ltq_mtd_probe(struct platform_device *pdev)
 
 	ltq_mtd->map->phys = ltq_mtd->res->start;
 	ltq_mtd->map->size = resource_size(ltq_mtd->res);
-	ltq_mtd->map->virt = devm_ioremap_resource(&pdev->dev, ltq_mtd->res);
-	if (IS_ERR(ltq_mtd->map->virt))
-		return PTR_ERR(ltq_mtd->map->virt);
 
 	ltq_mtd->map->name = ltq_map_name;
 	ltq_mtd->map->bankwidth = 2;
@@ -171,8 +166,7 @@ err_destroy:
 	return err;
 }
 
-static int
-ltq_mtd_remove(struct platform_device *pdev)
+static void ltq_mtd_remove(struct platform_device *pdev)
 {
 	struct ltq_mtd *ltq_mtd = platform_get_drvdata(pdev);
 
@@ -180,7 +174,6 @@ ltq_mtd_remove(struct platform_device *pdev)
 		mtd_device_unregister(ltq_mtd->mtd);
 		map_destroy(ltq_mtd->mtd);
 	}
-	return 0;
 }
 
 static const struct of_device_id ltq_mtd_match[] = {
@@ -191,7 +184,7 @@ MODULE_DEVICE_TABLE(of, ltq_mtd_match);
 
 static struct platform_driver ltq_mtd_driver = {
 	.probe = ltq_mtd_probe,
-	.remove = ltq_mtd_remove,
+	.remove_new = ltq_mtd_remove,
 	.driver = {
 		.name = "ltq-nor",
 		.of_match_table = ltq_mtd_match,

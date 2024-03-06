@@ -19,11 +19,10 @@
 #include <linux/platform_device.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
+#include <linux/property.h>
 #include <linux/reset.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/delay.h>
@@ -859,7 +858,7 @@ static int
 mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 		  struct device *dev)
 {
-	const struct of_device_id *device;
+	const struct mv64xxx_i2c_regs *data;
 	struct device_node *np = dev->of_node;
 	u32 bus_freq, tclk;
 	int rc = 0;
@@ -897,11 +896,11 @@ mv64xxx_of_config(struct mv64xxx_i2c_data *drv_data,
 	 */
 	drv_data->adapter.timeout = HZ;
 
-	device = of_match_device(mv64xxx_i2c_of_match_table, dev);
-	if (!device)
+	data = device_get_match_data(dev);
+	if (!data)
 		return -ENODEV;
 
-	memcpy(&drv_data->reg_offsets, device->data, sizeof(drv_data->reg_offsets));
+	memcpy(&drv_data->reg_offsets, data, sizeof(drv_data->reg_offsets));
 
 	/*
 	 * For controllers embedded in new SoCs activate the
@@ -1084,7 +1083,7 @@ exit_disable_pm:
 	return rc;
 }
 
-static int
+static void
 mv64xxx_i2c_remove(struct platform_device *pd)
 {
 	struct mv64xxx_i2c_data		*drv_data = platform_get_drvdata(pd);
@@ -1094,8 +1093,6 @@ mv64xxx_i2c_remove(struct platform_device *pd)
 	pm_runtime_disable(&pd->dev);
 	if (!pm_runtime_status_suspended(&pd->dev))
 		mv64xxx_i2c_runtime_suspend(&pd->dev);
-
-	return 0;
 }
 
 static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
@@ -1107,7 +1104,7 @@ static const struct dev_pm_ops mv64xxx_i2c_pm_ops = {
 
 static struct platform_driver mv64xxx_i2c_driver = {
 	.probe	= mv64xxx_i2c_probe,
-	.remove	= mv64xxx_i2c_remove,
+	.remove_new = mv64xxx_i2c_remove,
 	.driver	= {
 		.name	= MV64XXX_I2C_CTLR_NAME,
 		.pm     = &mv64xxx_i2c_pm_ops,

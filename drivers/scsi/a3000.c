@@ -282,7 +282,7 @@ fail_alloc:
 	return error;
 }
 
-static int __exit amiga_a3000_scsi_remove(struct platform_device *pdev)
+static void __exit amiga_a3000_scsi_remove(struct platform_device *pdev)
 {
 	struct Scsi_Host *instance = platform_get_drvdata(pdev);
 	struct a3000_hostdata *hdata = shost_priv(instance);
@@ -293,11 +293,10 @@ static int __exit amiga_a3000_scsi_remove(struct platform_device *pdev)
 	free_irq(IRQ_AMIGA_PORTS, instance);
 	scsi_host_put(instance);
 	release_mem_region(res->start, resource_size(res));
-	return 0;
 }
 
 static struct platform_driver amiga_a3000_scsi_driver = {
-	.remove = __exit_p(amiga_a3000_scsi_remove),
+	.remove_new = __exit_p(amiga_a3000_scsi_remove),
 	.driver   = {
 		.name	= "amiga-a3000-scsi",
 	},

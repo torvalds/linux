@@ -136,7 +136,7 @@ static void siena_ptp_write_host_time(struct efx_nic *efx, u32 host_time)
 }
 
 static int siena_ptp_set_ts_config(struct efx_nic *efx,
-				   struct hwtstamp_config *init)
+				   struct kernel_hwtstamp_config *init)
 {
 	int rc;
 

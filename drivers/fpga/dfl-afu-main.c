@@ -932,15 +932,13 @@ exit:
 	return ret;
 }
 
-static int afu_remove(struct platform_device *pdev)
+static void afu_remove(struct platform_device *pdev)
 {
 	dev_dbg(&pdev->dev, "%s\n", __func__);
 
 	dfl_fpga_dev_ops_unregister(pdev);
 	dfl_fpga_dev_feature_uinit(pdev);
 	afu_dev_destroy(pdev);
-
-	return 0;
 }
 
 static const struct attribute_group *afu_dev_groups[] = {
@@ -956,7 +954,7 @@ static struct platform_driver afu_driver = {
 		.dev_groups = afu_dev_groups,
 	},
 	.probe   = afu_probe,
-	.remove  = afu_remove,
+	.remove_new = afu_remove,
 };
 
 static int __init afu_init(void)

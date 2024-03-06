@@ -4,7 +4,7 @@ Kernel Probes (Kprobes)
 
 :Author: Jim Keniston <jkenisto@us.ibm.com>
 :Author: Prasanna S Panchamukhi <prasanna.panchamukhi@gmail.com>
-:Author: Masami Hiramatsu <mhiramat@redhat.com>
+:Author: Masami Hiramatsu <mhiramat@kernel.org>
 
 .. CONTENTS
 
@@ -315,13 +315,13 @@ architectures:
 - i386 (Supports jump optimization)
 - x86_64 (AMD-64, EM64T) (Supports jump optimization)
 - ppc64
-- ia64 (Does not support probes on instruction slot1.)
 - sparc64 (Return probes not yet implemented.)
 - arm
 - ppc
 - mips
 - s390
 - parisc
+- loongarch
 
 Configuring Kprobes
 ===================

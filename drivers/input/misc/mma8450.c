@@ -11,7 +11,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 
 #define MMA8450_DRV_NAME	"mma8450"
 
@@ -202,7 +202,7 @@ static struct i2c_driver mma8450_driver = {
 		.name	= MMA8450_DRV_NAME,
 		.of_match_table = mma8450_dt_ids,
 	},
-	.probe_new	= mma8450_probe,
+	.probe		= mma8450_probe,
 	.id_table	= mma8450_id,
 };
 

@@ -30,7 +30,7 @@ struct chan {
 extern void chan_interrupt(struct line *line, int irq);
 extern int parse_chan_pair(char *str, struct line *line, int device,
 			   const struct chan_opts *opts, char **error_out);
-extern int write_chan(struct chan *chan, const char *buf, int len,
+extern int write_chan(struct chan *chan, const u8 *buf, size_t len,
 			     int write_irq);
 extern int console_write_chan(struct chan *chan, const char *buf, 
 			      int len);

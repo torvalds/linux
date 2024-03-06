@@ -187,8 +187,8 @@ _gb_connection_create(struct gb_host_device *hd, int hd_cport_id,
 	spin_lock_init(&connection->lock);
 	INIT_LIST_HEAD(&connection->operations);
 
-	connection->wq = alloc_workqueue("%s:%d", WQ_UNBOUND, 1,
-					 dev_name(&hd->dev), hd_cport_id);
+	connection->wq = alloc_ordered_workqueue("%s:%d", 0, dev_name(&hd->dev),
+						 hd_cport_id);
 	if (!connection->wq) {
 		ret = -ENOMEM;
 		goto err_free_connection;

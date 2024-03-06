@@ -19,16 +19,30 @@
 #include <asm-generic/atomic64.h>
 
 int arch_atomic_add_return(int, atomic_t *);
-int arch_atomic_fetch_add(int, atomic_t *);
-int arch_atomic_fetch_and(int, atomic_t *);
-int arch_atomic_fetch_or(int, atomic_t *);
-int arch_atomic_fetch_xor(int, atomic_t *);
-int arch_atomic_cmpxchg(atomic_t *, int, int);
-int arch_atomic_xchg(atomic_t *, int);
-int arch_atomic_fetch_add_unless(atomic_t *, int, int);
-void arch_atomic_set(atomic_t *, int);
+#define arch_atomic_add_return arch_atomic_add_return
 
+int arch_atomic_fetch_add(int, atomic_t *);
+#define arch_atomic_fetch_add arch_atomic_fetch_add
+
+int arch_atomic_fetch_and(int, atomic_t *);
+#define arch_atomic_fetch_and arch_atomic_fetch_and
+
+int arch_atomic_fetch_or(int, atomic_t *);
+#define arch_atomic_fetch_or arch_atomic_fetch_or
+
+int arch_atomic_fetch_xor(int, atomic_t *);
+#define arch_atomic_fetch_xor arch_atomic_fetch_xor
+
+int arch_atomic_cmpxchg(atomic_t *, int, int);
+#define arch_atomic_cmpxchg arch_atomic_cmpxchg
+
+int arch_atomic_xchg(atomic_t *, int);
+#define arch_atomic_xchg arch_atomic_xchg
+
+int arch_atomic_fetch_add_unless(atomic_t *, int, int);
 #define arch_atomic_fetch_add_unless arch_atomic_fetch_add_unless
+
+void arch_atomic_set(atomic_t *, int);
 
 #define arch_atomic_set_release(v, i)	arch_atomic_set((v), (i))
 

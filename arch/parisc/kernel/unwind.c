@@ -24,12 +24,13 @@
 #include <asm/unwind.h>
 #include <asm/switch_to.h>
 #include <asm/sections.h>
+#include <asm/ftrace.h>
 
 /* #define DEBUG 1 */
 #ifdef DEBUG
 #define dbg(x...) pr_debug(x)
 #else
-#define dbg(x...)
+#define dbg(x...) do { } while (0)
 #endif
 
 #define KERNEL_START (KERNEL_BINARY_TEXT_START)
@@ -179,7 +180,7 @@ void unwind_table_remove(struct unwind_table *table)
 /* Called from setup_arch to import the kernel unwind info */
 int __init unwind_init(void)
 {
-	long start, stop;
+	long start __maybe_unused, stop __maybe_unused;
 	register unsigned long gp __asm__ ("r27");
 
 	start = (long)&__start___unwind[0];
@@ -220,7 +221,6 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	 * Note: We could use dereference_kernel_function_descriptor()
 	 * instead but we want to keep it simple here.
 	 */
-	extern void * const handle_interruption;
 	extern void * const ret_from_kernel_thread;
 	extern void * const syscall_exit;
 	extern void * const intr_return;
@@ -237,13 +237,13 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 		return 1;
 	}
 
-	if (pc_is_kernel_fn(pc, ret_from_kernel_thread) ||
-	    pc_is_kernel_fn(pc, syscall_exit)) {
+	if (pc == (unsigned long)&ret_from_kernel_thread ||
+	    pc == (unsigned long)&syscall_exit) {
 		info->prev_sp = info->prev_ip = 0;
 		return 1;
 	}
 
-	if (pc_is_kernel_fn(pc, intr_return)) {
+	if (pc == (unsigned long)&intr_return) {
 		struct pt_regs *regs;
 
 		dbg("Found intr_return()\n");
@@ -255,14 +255,14 @@ static int unwind_special(struct unwind_frame_info *info, unsigned long pc, int 
 	}
 
 	if (pc_is_kernel_fn(pc, _switch_to) ||
-	    pc_is_kernel_fn(pc, _switch_to_ret)) {
+	    pc == (unsigned long)&_switch_to_ret) {
 		info->prev_sp = info->sp - CALLEE_SAVE_FRAME_SIZE;
 		info->prev_ip = *(unsigned long *)(info->prev_sp - RP_OFFSET);
 		return 1;
 	}
 
 #ifdef CONFIG_IRQSTACKS
-	if (pc_is_kernel_fn(pc, _call_on_stack)) {
+	if (pc == (unsigned long)&_call_on_stack) {
 		info->prev_sp = *(unsigned long *)(info->sp - FRAME_SIZE - REG_SZ);
 		info->prev_ip = *(unsigned long *)(info->sp - FRAME_SIZE - RP_OFFSET);
 		return 1;

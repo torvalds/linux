@@ -370,10 +370,11 @@ DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(rename_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(rmdir_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_eof_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_info_compound_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(set_reparse_compound_enter);
+DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(get_reparse_compound_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(delete_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(mkdir_enter);
 DEFINE_SMB3_INF_COMPOUND_ENTER_EVENT(tdis_enter);
-
 
 DECLARE_EVENT_CLASS(smb3_inf_compound_done_class,
 	TP_PROTO(unsigned int xid,
@@ -408,6 +409,8 @@ DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(rename_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(rmdir_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_eof_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_info_compound_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_reparse_compound_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(get_reparse_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(delete_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(mkdir_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(tdis_done);
@@ -451,6 +454,8 @@ DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(rename_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(rmdir_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_eof_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_info_compound_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_reparse_compound_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(get_reparse_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(mkdir_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(delete_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(tdis_err);
@@ -691,7 +696,7 @@ DEFINE_EVENT(smb3_tcon_class, smb3_##name,    \
 	TP_ARGS(xid, tid, sesid, unc_name, rc))
 
 DEFINE_SMB3_TCON_EVENT(tcon);
-
+DEFINE_SMB3_TCON_EVENT(qfs_done);
 
 /*
  * For smb2/smb3 open (including create and mkdir) calls
@@ -935,6 +940,8 @@ DEFINE_EVENT(smb3_connect_class, smb3_##name,  \
 	TP_ARGS(hostname, conn_id, addr))
 
 DEFINE_SMB3_CONNECT_EVENT(connect_done);
+DEFINE_SMB3_CONNECT_EVENT(smbd_connect_done);
+DEFINE_SMB3_CONNECT_EVENT(smbd_connect_err);
 
 DECLARE_EVENT_CLASS(smb3_connect_err_class,
 	TP_PROTO(char *hostname, __u64 conn_id,
@@ -1002,6 +1009,26 @@ DEFINE_EVENT(smb3_reconnect_class, smb3_##name,  \
 
 DEFINE_SMB3_RECONNECT_EVENT(reconnect);
 DEFINE_SMB3_RECONNECT_EVENT(partial_send_reconnect);
+
+DECLARE_EVENT_CLASS(smb3_ses_class,
+	TP_PROTO(__u64	sesid),
+	TP_ARGS(sesid),
+	TP_STRUCT__entry(
+		__field(__u64, sesid)
+	),
+	TP_fast_assign(
+		__entry->sesid = sesid;
+	),
+	TP_printk("sid=0x%llx",
+		__entry->sesid)
+)
+
+#define DEFINE_SMB3_SES_EVENT(name)        \
+DEFINE_EVENT(smb3_ses_class, smb3_##name,  \
+	TP_PROTO(__u64	sesid),				\
+	TP_ARGS(sesid))
+
+DEFINE_SMB3_SES_EVENT(ses_not_found);
 
 DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_PROTO(__u64	currmid,

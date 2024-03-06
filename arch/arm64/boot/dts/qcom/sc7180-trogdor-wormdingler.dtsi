@@ -110,7 +110,29 @@
 	};
 };
 
-&dsi0 {
+&i2c4 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ap_ts: touchscreen@1 {
+		compatible = "hid-over-i2c";
+		reg = <0x01>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_l>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
+
+		panel = <&panel>;
+		post-power-on-delay-ms = <70>;
+		hid-descr-addr = <0x0001>;
+
+		vdd-supply = <&pp3300_ts>;
+		vddl-supply = <&pp1800_ts>;
+	};
+};
+
+&mdss_dsi0 {
 
 	panel: panel@0 {
 		reg = <0>;
@@ -126,7 +148,7 @@
 
 		port {
 			panel_in: endpoint {
-				remote-endpoint = <&dsi0_out>;
+				remote-endpoint = <&mdss_dsi0_out>;
 			};
 		};
 	};
@@ -141,32 +163,12 @@
 	};
 };
 
-&i2c4 {
-	status = "okay";
-	clock-frequency = <400000>;
-
-	ap_ts: touchscreen@1 {
-		compatible = "hid-over-i2c";
-		reg = <0x01>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&ts_int_l>;
-
-		interrupt-parent = <&tlmm>;
-		interrupts = <9 IRQ_TYPE_EDGE_FALLING>;
-
-		post-power-on-delay-ms = <70>;
-		hid-descr-addr = <0x0001>;
-
-		vdd-supply = <&pp3300_ts>;
-		vddl-supply = <&pp1800_ts>;
-	};
-};
-
 &pm6150_adc {
-	skin-temp-thermistor@4d {
+	channel@4d {
 		reg = <ADC5_AMUX_THM1_100K_PU>;
 		qcom,ratiometric;
 		qcom,hw-settle-time = <200>;
+		label = "skin_therm";
 	};
 };
 

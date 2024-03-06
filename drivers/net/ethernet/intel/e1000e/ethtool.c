@@ -654,8 +654,8 @@ static void e1000_get_drvinfo(struct net_device *netdev,
 	 */
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%d.%d-%d",
-		 (adapter->eeprom_vers & 0xF000) >> 12,
-		 (adapter->eeprom_vers & 0x0FF0) >> 4,
+		 FIELD_GET(0xF000, adapter->eeprom_vers),
+		 FIELD_GET(0x0FF0, adapter->eeprom_vers),
 		 (adapter->eeprom_vers & 0x000F));
 
 	strscpy(drvinfo->bus_info, pci_name(adapter->pdev),
@@ -917,6 +917,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_pch_mtp:
 	case e1000_pch_lnp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 		mask |= BIT(18);
 		break;
 	default:
@@ -924,8 +925,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	}
 
 	if (mac->type >= e1000_pch_lpt)
-		wlock_mac = (er32(FWSM) & E1000_FWSM_WLOCK_MAC_MASK) >>
-		    E1000_FWSM_WLOCK_MAC_SHIFT;
+		wlock_mac = FIELD_GET(E1000_FWSM_WLOCK_MAC_MASK, er32(FWSM));
 
 	for (i = 0; i < mac->rar_entry_count; i++) {
 		if (mac->type >= e1000_pch_lpt) {
@@ -1585,6 +1585,7 @@ static void e1000_loopback_cleanup(struct e1000_adapter *adapter)
 	case e1000_pch_mtp:
 	case e1000_pch_lnp:
 	case e1000_pch_ptp:
+	case e1000_pch_nvp:
 		fext_nvm11 = er32(FEXTNVM11);
 		fext_nvm11 &= ~E1000_FEXTNVM11_DISABLE_MULR_FIX;
 		ew32(FEXTNVM11, fext_nvm11);

@@ -8,6 +8,7 @@ Card-Specific Information
    cmipci
    sb-live-mixer
    audigy-mixer
+   emu-mixer
    emu10k1-jack
    via82xx-mixer
    audiophile-usb
@@ -17,3 +18,4 @@ Card-Specific Information
    hdspm
    serial-u16550
    img-spdif-in
+   pcmtest

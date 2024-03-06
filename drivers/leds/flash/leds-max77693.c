@@ -1016,7 +1016,7 @@ err_register_led1:
 	return ret;
 }
 
-static int max77693_led_remove(struct platform_device *pdev)
+static void max77693_led_remove(struct platform_device *pdev)
 {
 	struct max77693_led_device *led = platform_get_drvdata(pdev);
 	struct max77693_sub_led *sub_leds = led->sub_leds;
@@ -1032,8 +1032,6 @@ static int max77693_led_remove(struct platform_device *pdev)
 	}
 
 	mutex_destroy(&led->lock);
-
-	return 0;
 }
 
 static const struct of_device_id max77693_led_dt_match[] = {
@@ -1044,7 +1042,7 @@ MODULE_DEVICE_TABLE(of, max77693_led_dt_match);
 
 static struct platform_driver max77693_led_driver = {
 	.probe		= max77693_led_probe,
-	.remove		= max77693_led_remove,
+	.remove_new	= max77693_led_remove,
 	.driver		= {
 		.name	= "max77693-led",
 		.of_match_table = max77693_led_dt_match,

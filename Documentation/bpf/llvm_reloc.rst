@@ -28,7 +28,7 @@ For example, for the following code::
     return g1 + g2 + l1 + l2;
   }
 
-Compiled with ``clang -target bpf -O2 -c test.c``, the following is
+Compiled with ``clang --target=bpf -O2 -c test.c``, the following is
 the code with ``llvm-objdump -dr test.o``::
 
        0:       18 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 r1 = 0 ll
@@ -48,7 +48,7 @@ the code with ``llvm-objdump -dr test.o``::
       14:       0f 10 00 00 00 00 00 00 r0 += r1
       15:       95 00 00 00 00 00 00 00 exit
 
-There are four relations in the above for four ``LD_imm64`` instructions.
+There are four relocations in the above for four ``LD_imm64`` instructions.
 The following ``llvm-readelf -r test.o`` shows the binary values of the four
 relocations::
 
@@ -79,14 +79,16 @@ The following is the symbol table with ``llvm-readelf -s test.o``::
 The 6th entry is global variable ``g1`` with value 0.
 
 Similarly, the second relocation is at ``.text`` offset ``0x18``, instruction 3,
-for global variable ``g2`` which has a symbol value 4, the offset
-from the start of ``.data`` section.
+has a type of ``R_BPF_64_64`` and refers to entry 7 in the symbol table.
+The second relocation resolves to global variable ``g2`` which has a symbol
+value 4. The symbol value represents the offset from the start of ``.data``
+section where the initial value of the global variable ``g2`` is stored.
 
-The third and fourth relocations refers to static variables ``l1``
-and ``l2``. From ``.rel.text`` section above, it is not clear
-which symbols they really refers to as they both refers to
+The third and fourth relocations refer to static variables ``l1``
+and ``l2``. From the ``.rel.text`` section above, it is not clear
+to which symbols they really refer as they both refer to
 symbol table entry 4, symbol ``sec``, which has ``STT_SECTION`` type
-and represents a section. So for static variable or function,
+and represents a section. So for a static variable or function,
 the section offset is written to the original insn
 buffer, which is called ``A`` (addend). Looking at
 above insn ``7`` and ``11``, they have section offset ``8`` and ``12``.
@@ -155,7 +157,7 @@ and ``call`` instructions. For example::
     return gfunc(a, b) +  lfunc(a, b) + global;
   }
 
-Compiled with ``clang -target bpf -O2 -c test.c``, we will have
+Compiled with ``clang --target=bpf -O2 -c test.c``, we will have
 following code with `llvm-objdump -dr test.o``::
 
   Disassembly of section .text:
@@ -201,7 +203,7 @@ The following is an example to show how R_BPF_64_ABS64 could be generated::
   int global() { return 0; }
   struct t { void *g; } gbl = { global };
 
-Compiled with ``clang -target bpf -O2 -g -c test.c``, we will see a
+Compiled with ``clang --target=bpf -O2 -g -c test.c``, we will see a
 relocation below in ``.data`` section with command
 ``llvm-readelf -r test.o``::
 
@@ -238,3 +240,307 @@ The .BTF/.BTF.ext sections has R_BPF_64_NODYLD32 relocations::
       Offset             Info             Type               Symbol's Value  Symbol's Name
   000000000000002c  0000000200000004 R_BPF_64_NODYLD32      0000000000000000 .text
   0000000000000040  0000000200000004 R_BPF_64_NODYLD32      0000000000000000 .text
+
+.. _btf-co-re-relocations:
+
+=================
+CO-RE Relocations
+=================
+
+From object file point of view CO-RE mechanism is implemented as a set
+of CO-RE specific relocation records. These relocation records are not
+related to ELF relocations and are encoded in .BTF.ext section.
+See :ref:`Documentation/bpf/btf.rst <BTF_Ext_Section>` for more
+information on .BTF.ext structure.
+
+CO-RE relocations are applied to BPF instructions to update immediate
+or offset fields of the instruction at load time with information
+relevant for target kernel.
+
+Field to patch is selected basing on the instruction class:
+
+* For BPF_ALU, BPF_ALU64, BPF_LD `immediate` field is patched;
+* For BPF_LDX, BPF_STX, BPF_ST `offset` field is patched;
+* BPF_JMP, BPF_JMP32 instructions **should not** be patched.
+
+Relocation kinds
+================
+
+There are several kinds of CO-RE relocations that could be split in
+three groups:
+
+* Field-based - patch instruction with field related information, e.g.
+  change offset field of the BPF_LDX instruction to reflect offset
+  of a specific structure field in the target kernel.
+
+* Type-based - patch instruction with type related information, e.g.
+  change immediate field of the BPF_ALU move instruction to 0 or 1 to
+  reflect if specific type is present in the target kernel.
+
+* Enum-based - patch instruction with enum related information, e.g.
+  change immediate field of the BPF_LD_IMM64 instruction to reflect
+  value of a specific enum literal in the target kernel.
+
+The complete list of relocation kinds is represented by the following enum:
+
+.. code-block:: c
+
+ enum bpf_core_relo_kind {
+	BPF_CORE_FIELD_BYTE_OFFSET = 0,  /* field byte offset */
+	BPF_CORE_FIELD_BYTE_SIZE   = 1,  /* field size in bytes */
+	BPF_CORE_FIELD_EXISTS      = 2,  /* field existence in target kernel */
+	BPF_CORE_FIELD_SIGNED      = 3,  /* field signedness (0 - unsigned, 1 - signed) */
+	BPF_CORE_FIELD_LSHIFT_U64  = 4,  /* bitfield-specific left bitshift */
+	BPF_CORE_FIELD_RSHIFT_U64  = 5,  /* bitfield-specific right bitshift */
+	BPF_CORE_TYPE_ID_LOCAL     = 6,  /* type ID in local BPF object */
+	BPF_CORE_TYPE_ID_TARGET    = 7,  /* type ID in target kernel */
+	BPF_CORE_TYPE_EXISTS       = 8,  /* type existence in target kernel */
+	BPF_CORE_TYPE_SIZE         = 9,  /* type size in bytes */
+	BPF_CORE_ENUMVAL_EXISTS    = 10, /* enum value existence in target kernel */
+	BPF_CORE_ENUMVAL_VALUE     = 11, /* enum value integer value */
+	BPF_CORE_TYPE_MATCHES      = 12, /* type match in target kernel */
+ };
+
+Notes:
+
+* ``BPF_CORE_FIELD_LSHIFT_U64`` and ``BPF_CORE_FIELD_RSHIFT_U64`` are
+  supposed to be used to read bitfield values using the following
+  algorithm:
+
+  .. code-block:: c
+
+     // To read bitfield ``f`` from ``struct s``
+     is_signed = relo(s->f, BPF_CORE_FIELD_SIGNED)
+     off = relo(s->f, BPF_CORE_FIELD_BYTE_OFFSET)
+     sz  = relo(s->f, BPF_CORE_FIELD_BYTE_SIZE)
+     l   = relo(s->f, BPF_CORE_FIELD_LSHIFT_U64)
+     r   = relo(s->f, BPF_CORE_FIELD_RSHIFT_U64)
+     // define ``v`` as signed or unsigned integer of size ``sz``
+     v = *({s|u}<sz> *)((void *)s + off)
+     v <<= l
+     v >>= r
+
+* The ``BPF_CORE_TYPE_MATCHES`` queries matching relation, defined as
+  follows:
+
+  * for integers: types match if size and signedness match;
+  * for arrays & pointers: target types are recursively matched;
+  * for structs & unions:
+
+    * local members need to exist in target with the same name;
+
+    * for each member we recursively check match unless it is already behind a
+      pointer, in which case we only check matching names and compatible kind;
+
+  * for enums:
+
+    * local variants have to have a match in target by symbolic name (but not
+      numeric value);
+
+    * size has to match (but enum may match enum64 and vice versa);
+
+  * for function pointers:
+
+    * number and position of arguments in local type has to match target;
+    * for each argument and the return value we recursively check match.
+
+CO-RE Relocation Record
+=======================
+
+Relocation record is encoded as the following structure:
+
+.. code-block:: c
+
+ struct bpf_core_relo {
+	__u32 insn_off;
+	__u32 type_id;
+	__u32 access_str_off;
+	enum bpf_core_relo_kind kind;
+ };
+
+* ``insn_off`` - instruction offset (in bytes) within a code section
+  associated with this relocation;
+
+* ``type_id`` - BTF type ID of the "root" (containing) entity of a
+  relocatable type or field;
+
+* ``access_str_off`` - offset into corresponding .BTF string section.
+  String interpretation depends on specific relocation kind:
+
+  * for field-based relocations, string encodes an accessed field using
+    a sequence of field and array indices, separated by colon (:). It's
+    conceptually very close to LLVM's `getelementptr <GEP_>`_ instruction's
+    arguments for identifying offset to a field. For example, consider the
+    following C code:
+
+    .. code-block:: c
+
+       struct sample {
+           int a;
+           int b;
+           struct { int c[10]; };
+       } __attribute__((preserve_access_index));
+       struct sample *s;
+
+    * Access to ``s[0].a`` would be encoded as ``0:0``:
+
+      * ``0``: first element of ``s`` (as if ``s`` is an array);
+      * ``0``: index of field ``a`` in ``struct sample``.
+
+    * Access to ``s->a`` would be encoded as ``0:0`` as well.
+    * Access to ``s->b`` would be encoded as ``0:1``:
+
+      * ``0``: first element of ``s``;
+      * ``1``: index of field ``b`` in ``struct sample``.
+
+    * Access to ``s[1].c[5]`` would be encoded as ``1:2:0:5``:
+
+      * ``1``: second element of ``s``;
+      * ``2``: index of anonymous structure field in ``struct sample``;
+      * ``0``: index of field ``c`` in anonymous structure;
+      * ``5``: access to array element #5.
+
+  * for type-based relocations, string is expected to be just "0";
+
+  * for enum value-based relocations, string contains an index of enum
+     value within its enum type;
+
+* ``kind`` - one of ``enum bpf_core_relo_kind``.
+
+.. _GEP: https://llvm.org/docs/LangRef.html#getelementptr-instruction
+
+.. _btf_co_re_relocation_examples:
+
+CO-RE Relocation Examples
+=========================
+
+For the following C code:
+
+.. code-block:: c
+
+ struct foo {
+   int a;
+   int b;
+   unsigned c:15;
+ } __attribute__((preserve_access_index));
+
+ enum bar { U, V };
+
+With the following BTF definitions:
+
+.. code-block::
+
+ ...
+ [2] STRUCT 'foo' size=8 vlen=2
+        'a' type_id=3 bits_offset=0
+        'b' type_id=3 bits_offset=32
+        'c' type_id=4 bits_offset=64 bitfield_size=15
+ [3] INT 'int' size=4 bits_offset=0 nr_bits=32 encoding=SIGNED
+ [4] INT 'unsigned int' size=4 bits_offset=0 nr_bits=32 encoding=(none)
+ ...
+ [16] ENUM 'bar' encoding=UNSIGNED size=4 vlen=2
+        'U' val=0
+        'V' val=1
+
+Field offset relocations are generated automatically when
+``__attribute__((preserve_access_index))`` is used, for example:
+
+.. code-block:: c
+
+  void alpha(struct foo *s, volatile unsigned long *g) {
+    *g = s->a;
+    s->a = 1;
+  }
+
+  00 <alpha>:
+    0:  r3 = *(s32 *)(r1 + 0x0)
+           00:  CO-RE <byte_off> [2] struct foo::a (0:0)
+    1:  *(u64 *)(r2 + 0x0) = r3
+    2:  *(u32 *)(r1 + 0x0) = 0x1
+           10:  CO-RE <byte_off> [2] struct foo::a (0:0)
+    3:  exit
+
+
+All relocation kinds could be requested via built-in functions.
+E.g. field-based relocations:
+
+.. code-block:: c
+
+  void bravo(struct foo *s, volatile unsigned long *g) {
+    *g = __builtin_preserve_field_info(s->b, 0 /* field byte offset */);
+    *g = __builtin_preserve_field_info(s->b, 1 /* field byte size */);
+    *g = __builtin_preserve_field_info(s->b, 2 /* field existence */);
+    *g = __builtin_preserve_field_info(s->b, 3 /* field signedness */);
+    *g = __builtin_preserve_field_info(s->c, 4 /* bitfield left shift */);
+    *g = __builtin_preserve_field_info(s->c, 5 /* bitfield right shift */);
+  }
+
+  20 <bravo>:
+     4:     r1 = 0x4
+            20:  CO-RE <byte_off> [2] struct foo::b (0:1)
+     5:     *(u64 *)(r2 + 0x0) = r1
+     6:     r1 = 0x4
+            30:  CO-RE <byte_sz> [2] struct foo::b (0:1)
+     7:     *(u64 *)(r2 + 0x0) = r1
+     8:     r1 = 0x1
+            40:  CO-RE <field_exists> [2] struct foo::b (0:1)
+     9:     *(u64 *)(r2 + 0x0) = r1
+    10:     r1 = 0x1
+            50:  CO-RE <signed> [2] struct foo::b (0:1)
+    11:     *(u64 *)(r2 + 0x0) = r1
+    12:     r1 = 0x31
+            60:  CO-RE <lshift_u64> [2] struct foo::c (0:2)
+    13:     *(u64 *)(r2 + 0x0) = r1
+    14:     r1 = 0x31
+            70:  CO-RE <rshift_u64> [2] struct foo::c (0:2)
+    15:     *(u64 *)(r2 + 0x0) = r1
+    16:     exit
+
+
+Type-based relocations:
+
+.. code-block:: c
+
+  void charlie(struct foo *s, volatile unsigned long *g) {
+    *g = __builtin_preserve_type_info(*s, 0 /* type existence */);
+    *g = __builtin_preserve_type_info(*s, 1 /* type size */);
+    *g = __builtin_preserve_type_info(*s, 2 /* type matches */);
+    *g = __builtin_btf_type_id(*s, 0 /* type id in this object file */);
+    *g = __builtin_btf_type_id(*s, 1 /* type id in target kernel */);
+  }
+
+  88 <charlie>:
+    17:     r1 = 0x1
+            88:  CO-RE <type_exists> [2] struct foo
+    18:     *(u64 *)(r2 + 0x0) = r1
+    19:     r1 = 0xc
+            98:  CO-RE <type_size> [2] struct foo
+    20:     *(u64 *)(r2 + 0x0) = r1
+    21:     r1 = 0x1
+            a8:  CO-RE <type_matches> [2] struct foo
+    22:     *(u64 *)(r2 + 0x0) = r1
+    23:     r1 = 0x2 ll
+            b8:  CO-RE <local_type_id> [2] struct foo
+    25:     *(u64 *)(r2 + 0x0) = r1
+    26:     r1 = 0x2 ll
+            d0:  CO-RE <target_type_id> [2] struct foo
+    28:     *(u64 *)(r2 + 0x0) = r1
+    29:     exit
+
+Enum-based relocations:
+
+.. code-block:: c
+
+  void delta(struct foo *s, volatile unsigned long *g) {
+    *g = __builtin_preserve_enum_value(*(enum bar *)U, 0 /* enum literal existence */);
+    *g = __builtin_preserve_enum_value(*(enum bar *)V, 1 /* enum literal value */);
+  }
+
+  f0 <delta>:
+    30:     r1 = 0x1 ll
+            f0:  CO-RE <enumval_exists> [16] enum bar::U = 0
+    32:     *(u64 *)(r2 + 0x0) = r1
+    33:     r1 = 0x1 ll
+            108:  CO-RE <enumval_value> [16] enum bar::V = 1
+    35:     *(u64 *)(r2 + 0x0) = r1
+    36:     exit

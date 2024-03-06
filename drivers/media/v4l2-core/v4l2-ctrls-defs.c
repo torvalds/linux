@@ -499,6 +499,40 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		NULL,
 	};
 
+	static const char * const av1_profile[] = {
+		"Main",
+		"High",
+		"Professional",
+		NULL,
+	};
+	static const char * const av1_level[] = {
+		"2.0",
+		"2.1",
+		"2.2",
+		"2.3",
+		"3.0",
+		"3.1",
+		"3.2",
+		"3.3",
+		"4.0",
+		"4.1",
+		"4.2",
+		"4.3",
+		"5.0",
+		"5.1",
+		"5.2",
+		"5.3",
+		"6.0",
+		"6.1",
+		"6.2",
+		"6.3",
+		"7.0",
+		"7.1",
+		"7.2",
+		"7.3",
+		NULL,
+	};
+
 	static const char * const hevc_profile[] = {
 		"Main",
 		"Main Still Picture",
@@ -704,6 +738,10 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return hevc_tier;
 	case V4L2_CID_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE:
 		return hevc_loop_filter_mode;
+	case V4L2_CID_MPEG_VIDEO_AV1_PROFILE:
+		return av1_profile;
+	case V4L2_CID_MPEG_VIDEO_AV1_LEVEL:
+		return av1_level;
 	case V4L2_CID_STATELESS_HEVC_DECODE_MODE:
 		return hevc_decode_mode;
 	case V4L2_CID_STATELESS_HEVC_START_CODE:
@@ -1004,6 +1042,10 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_REF_NUMBER_FOR_PFRAMES:	return "Reference Frames for a P-Frame";
 	case V4L2_CID_MPEG_VIDEO_PREPEND_SPSPPS_TO_IDR:		return "Prepend SPS and PPS to IDR";
 
+	/* AV1 controls */
+	case V4L2_CID_MPEG_VIDEO_AV1_PROFILE:			return "AV1 Profile";
+	case V4L2_CID_MPEG_VIDEO_AV1_LEVEL:			return "AV1 Level";
+
 	/* CAMERA controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
 	case V4L2_CID_CAMERA_CLASS:		return "Camera Controls";
@@ -1190,6 +1232,10 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_STATELESS_HEVC_DECODE_MODE:		return "HEVC Decode Mode";
 	case V4L2_CID_STATELESS_HEVC_START_CODE:		return "HEVC Start Code";
 	case V4L2_CID_STATELESS_HEVC_ENTRY_POINT_OFFSETS:	return "HEVC Entry Point Offsets";
+	case V4L2_CID_STATELESS_AV1_SEQUENCE:			return "AV1 Sequence Parameters";
+	case V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY:		return "AV1 Tile Group Entry";
+	case V4L2_CID_STATELESS_AV1_FRAME:			return "AV1 Frame Parameters";
+	case V4L2_CID_STATELESS_AV1_FILM_GRAIN:			return "AV1 Film Grain";
 
 	/* Colorimetry controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
@@ -1365,6 +1411,8 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_HEVC_SIZE_OF_LENGTH_FIELD:
 	case V4L2_CID_MPEG_VIDEO_HEVC_TIER:
 	case V4L2_CID_MPEG_VIDEO_HEVC_LOOP_FILTER_MODE:
+	case V4L2_CID_MPEG_VIDEO_AV1_PROFILE:
+	case V4L2_CID_MPEG_VIDEO_AV1_LEVEL:
 	case V4L2_CID_STATELESS_HEVC_DECODE_MODE:
 	case V4L2_CID_STATELESS_HEVC_START_CODE:
 	case V4L2_CID_STATELESS_H264_DECODE_MODE:
@@ -1530,6 +1578,19 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		break;
 	case V4L2_CID_STATELESS_VP9_FRAME:
 		*type = V4L2_CTRL_TYPE_VP9_FRAME;
+		break;
+	case V4L2_CID_STATELESS_AV1_SEQUENCE:
+		*type = V4L2_CTRL_TYPE_AV1_SEQUENCE;
+		break;
+	case V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY:
+		*type = V4L2_CTRL_TYPE_AV1_TILE_GROUP_ENTRY;
+		*flags |= V4L2_CTRL_FLAG_DYNAMIC_ARRAY;
+		break;
+	case V4L2_CID_STATELESS_AV1_FRAME:
+		*type = V4L2_CTRL_TYPE_AV1_FRAME;
+		break;
+	case V4L2_CID_STATELESS_AV1_FILM_GRAIN:
+		*type = V4L2_CTRL_TYPE_AV1_FILM_GRAIN;
 		break;
 	case V4L2_CID_UNIT_CELL_SIZE:
 		*type = V4L2_CTRL_TYPE_AREA;

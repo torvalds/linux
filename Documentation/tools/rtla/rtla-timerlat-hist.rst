@@ -29,15 +29,18 @@ OPTIONS
 
 .. include:: common_options.rst
 
+.. include:: common_timerlat_aa.rst
+
 EXAMPLE
 =======
 In the example below, **rtla timerlat hist** is set to run for *10* minutes,
 in the cpus *0-4*, *skipping zero* only lines. Moreover, **rtla timerlat
 hist** will change the priority of the *timerlat* threads to run under
-*SCHED_DEADLINE* priority, with a *10us* runtime every *1ms* period. The
-*1ms* period is also passed to the *timerlat* tracer::
+*SCHED_DEADLINE* priority, with a *100us* runtime every *1ms* period. The
+*1ms* period is also passed to the *timerlat* tracer. Auto-analysis is disabled
+to reduce overhead ::
 
-  [root@alien ~]# timerlat hist -d 10m -c 0-4 -P d:100us:1ms -p 1ms
+  [root@alien ~]# timerlat hist -d 10m -c 0-4 -P d:100us:1ms -p 1000 --no-aa
   # RTLA timerlat histogram
   # Time unit is microseconds (us)
   # Duration:   0 00:10:00

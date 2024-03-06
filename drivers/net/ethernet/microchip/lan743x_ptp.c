@@ -1493,6 +1493,10 @@ int lan743x_ptp_open(struct lan743x_adapter *adapter)
 	temp = lan743x_csr_read(adapter, PTP_TX_MOD2);
 	temp |= PTP_TX_MOD2_TX_PTP_CLR_UDPV4_CHKSUM_;
 	lan743x_csr_write(adapter, PTP_TX_MOD2, temp);
+
+	/* Default Timestamping */
+	lan743x_rx_set_tstamp_mode(adapter, HWTSTAMP_FILTER_NONE);
+
 	lan743x_ptp_enable(adapter);
 	lan743x_csr_write(adapter, INT_EN_SET, INT_BIT_1588_);
 	lan743x_csr_write(adapter, PTP_INT_EN_SET,
@@ -1653,6 +1657,9 @@ static void lan743x_ptp_disable(struct lan743x_adapter *adapter)
 {
 	struct lan743x_ptp *ptp = &adapter->ptp;
 
+	/* Disable Timestamping */
+	lan743x_rx_set_tstamp_mode(adapter, HWTSTAMP_FILTER_NONE);
+
 	mutex_lock(&ptp->command_lock);
 	if (!lan743x_ptp_is_enabled(adapter)) {
 		netif_warn(adapter, drv, adapter->netdev,
@@ -1784,6 +1791,8 @@ int lan743x_ptp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		ret = -EINVAL;
 		break;
 	}
+
+	ret = lan743x_rx_set_tstamp_mode(adapter, config.rx_filter);
 
 	if (!ret)
 		return copy_to_user(ifr->ifr_data, &config,

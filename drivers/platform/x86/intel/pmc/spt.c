@@ -134,7 +134,18 @@ const struct pmc_reg_map spt_reg_map = {
 	.pm_vric1_offset = SPT_PMC_VRIC1_OFFSET,
 };
 
-void spt_core_init(struct pmc_dev *pmcdev)
+int spt_core_init(struct pmc_dev *pmcdev)
 {
-	pmcdev->map = &spt_reg_map;
+	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+	int ret;
+
+	pmc->map = &spt_reg_map;
+
+	ret = get_primary_reg_base(pmc);
+	if (ret)
+		return ret;
+
+	pmc_core_get_low_power_modes(pmcdev);
+
+	return ret;
 }

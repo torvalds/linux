@@ -116,7 +116,7 @@ struct bcm_vk_wkent {
 	u32 usr_msg_id;
 	u32 to_v_blks;
 	u32 seq_num;
-	struct vk_msg_blk to_v_msg[];
+	struct vk_msg_blk to_v_msg[] __counted_by(to_v_blks);
 };
 
 /* queue stats counters */

@@ -31,7 +31,7 @@ config ARM_INTEGRATOR_LM
 
 config BRCMSTB_GISB_ARB
 	tristate "Broadcom STB GISB bus arbiter"
-	depends on ARM || ARM64 || MIPS
+	depends on ARCH_BRCMSTB || BMIPS_GENERIC
 	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  Driver for the Broadcom Set Top Box System-on-a-chip internal bus
@@ -210,7 +210,8 @@ config  TI_PWMSS
 
 config TI_SYSC
 	bool "TI sysc interconnect target module driver"
-	depends on ARCH_OMAP2PLUS
+	depends on ARCH_OMAP2PLUS || ARCH_K3
+	default y
 	help
 	  Generic driver for Texas Instruments interconnect target module
 	  found on many TI SoCs.

@@ -13,13 +13,13 @@ static int adf_ae_fw_load_images(struct adf_accel_dev *accel_dev, void *fw_addr,
 	struct adf_fw_loader_data *loader_data = accel_dev->fw_loader;
 	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
 	struct icp_qat_fw_loader_handle *loader;
-	char *obj_name;
+	const char *obj_name;
 	u32 num_objs;
 	u32 ae_mask;
 	int i;
 
 	loader = loader_data->fw_loader;
-	num_objs = hw_device->uof_get_num_objs();
+	num_objs = hw_device->uof_get_num_objs(accel_dev);
 
 	for (i = 0; i < num_objs; i++) {
 		obj_name = hw_device->uof_get_name(accel_dev, i);

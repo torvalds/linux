@@ -10,8 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/nvmem-consumer.h>
 #include <linux/nvmem-provider.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/random.h>
@@ -663,7 +661,7 @@ static const struct nvmem_keepout tegra234_fuse_keepouts[] = {
 
 static const struct tegra_fuse_info tegra234_fuse_info = {
 	.read = tegra30_fuse_read,
-	.size = 0x98c,
+	.size = 0xf90,
 	.spare = 0x280,
 };
 

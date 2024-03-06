@@ -124,6 +124,13 @@ Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
 Description:
 		The voltage the supply supports in millivolts.
 
+What:		/sys/class/usb_power_delivery/.../source-capabilities/<position>:fixed_supply/peak_current
+Date:		October 2023
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		This file shows the value of the Fixed Power Source Peak Current
+		Capability field.
+
 What:		/sys/class/usb_power_delivery/.../source-capabilities/<position>:fixed_supply/maximum_current
 Date:		May 2022
 Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>

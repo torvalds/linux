@@ -6,9 +6,6 @@
 #include "mpfs.dtsi"
 #include "mpfs-polarberry-fabric.dtsi"
 
-/* Clock frequency (in Hz) of the rtcclk */
-#define MTIMER_FREQ	1000000
-
 / {
 	model = "Sundance PolarBerry";
 	compatible = "sundance,polarberry", "microchip,mpfs";
@@ -20,10 +17,6 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
-	};
-
-	cpus {
-		timebase-frequency = <MTIMER_FREQ>;
 	};
 
 	ddrc_cache_lo: memory@80000000 {

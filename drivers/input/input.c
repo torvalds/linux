@@ -190,6 +190,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 				  unsigned int code, int *pval)
 {
 	struct input_mt *mt = dev->mt;
+	bool is_new_slot = false;
 	bool is_mt_event;
 	int *pold;
 
@@ -210,6 +211,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 		pold = &dev->absinfo[code].value;
 	} else if (mt) {
 		pold = &mt->slots[mt->slot].abs[code - ABS_MT_FIRST];
+		is_new_slot = mt->slot != dev->absinfo[ABS_MT_SLOT].value;
 	} else {
 		/*
 		 * Bypass filtering for multi-touch events when
@@ -228,8 +230,8 @@ static int input_handle_abs_event(struct input_dev *dev,
 	}
 
 	/* Flush pending "slot" event */
-	if (is_mt_event && mt && mt->slot != input_abs_get_val(dev, ABS_MT_SLOT)) {
-		input_abs_set_val(dev, ABS_MT_SLOT, mt->slot);
+	if (is_new_slot) {
+		dev->absinfo[ABS_MT_SLOT].value = mt->slot;
 		return INPUT_PASS_TO_HANDLERS | INPUT_SLOT;
 	}
 
@@ -1363,8 +1365,8 @@ static ssize_t input_dev_show_##name(struct device *dev,		\
 {									\
 	struct input_dev *input_dev = to_input_dev(dev);		\
 									\
-	return scnprintf(buf, PAGE_SIZE, "%s\n",			\
-			 input_dev->name ? input_dev->name : "");	\
+	return sysfs_emit(buf, "%s\n",					\
+			  input_dev->name ? input_dev->name : "");	\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, input_dev_show_##name, NULL)
 
@@ -1456,7 +1458,7 @@ static ssize_t inhibited_show(struct device *dev,
 {
 	struct input_dev *input_dev = to_input_dev(dev);
 
-	return scnprintf(buf, PAGE_SIZE, "%d\n", input_dev->inhibited);
+	return sysfs_emit(buf, "%d\n", input_dev->inhibited);
 }
 
 static ssize_t inhibited_store(struct device *dev,
@@ -1503,7 +1505,7 @@ static ssize_t input_dev_show_id_##name(struct device *dev,		\
 					char *buf)			\
 {									\
 	struct input_dev *input_dev = to_input_dev(dev);		\
-	return scnprintf(buf, PAGE_SIZE, "%04x\n", input_dev->id.name);	\
+	return sysfs_emit(buf, "%04x\n", input_dev->id.name);		\
 }									\
 static DEVICE_ATTR(name, S_IRUGO, input_dev_show_id_##name, NULL)
 

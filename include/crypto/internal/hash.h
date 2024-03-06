@@ -18,15 +18,13 @@ struct crypto_hash_walk {
 	char *data;
 
 	unsigned int offset;
-	unsigned int alignmask;
+	unsigned int flags;
 
 	struct page *pg;
 	unsigned int entrylen;
 
 	unsigned int total;
 	struct scatterlist *sg;
-
-	unsigned int flags;
 };
 
 struct ahash_instance {
@@ -149,6 +147,18 @@ static inline struct ahash_alg *__crypto_ahash_alg(struct crypto_alg *alg)
 			    halg);
 }
 
+static inline struct ahash_alg *crypto_ahash_alg(struct crypto_ahash *hash)
+{
+	return container_of(crypto_hash_alg_common(hash), struct ahash_alg,
+			    halg);
+}
+
+static inline void crypto_ahash_set_statesize(struct crypto_ahash *tfm,
+					      unsigned int size)
+{
+	tfm->statesize = size;
+}
+
 static inline void crypto_ahash_set_reqsize(struct crypto_ahash *tfm,
 					    unsigned int reqsize)
 {
@@ -255,11 +265,6 @@ static inline struct crypto_shash *crypto_spawn_shash(
 	struct crypto_shash_spawn *spawn)
 {
 	return crypto_spawn_tfm2(&spawn->base);
-}
-
-static inline void *crypto_shash_ctx_aligned(struct crypto_shash *tfm)
-{
-	return crypto_tfm_ctx_aligned(&tfm->base);
 }
 
 static inline struct crypto_shash *__crypto_shash_cast(struct crypto_tfm *tfm)

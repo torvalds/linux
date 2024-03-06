@@ -156,6 +156,9 @@ nvkm_cgrp_vctx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_c
 		atomic_inc(&vctx->vmm->engref[engn->engine->subdev.type]);
 
 	/* Allocate the HW structures. */
+	if (engn->func->ctor2) {
+		ret = engn->func->ctor2(engn, vctx, chan);
+	} else
 	if (engn->func->bind) {
 		ret = nvkm_object_bind(vctx->ectx->object, NULL, 0, &vctx->inst);
 		if (ret == 0 && engn->func->ctor)

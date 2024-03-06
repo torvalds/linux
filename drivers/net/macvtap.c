@@ -250,5 +250,6 @@ static void __exit macvtap_exit(void)
 module_exit(macvtap_exit);
 
 MODULE_ALIAS_RTNL_LINK("macvtap");
+MODULE_DESCRIPTION("MAC-VLAN based tap driver");
 MODULE_AUTHOR("Arnd Bergmann <arnd@arndb.de>");
 MODULE_LICENSE("GPL");

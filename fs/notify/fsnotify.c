@@ -124,7 +124,7 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 		 * d_flags to indicate parental interest (their parent is the
 		 * original inode) */
 		spin_lock(&alias->d_lock);
-		list_for_each_entry(child, &alias->d_subdirs, d_child) {
+		hlist_for_each_entry(child, &alias->d_children, d_sib) {
 			if (!child->d_inode)
 				continue;
 

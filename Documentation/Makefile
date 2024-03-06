@@ -59,6 +59,12 @@ PAPEROPT_letter = -D latex_paper_size=letter
 KERNELDOC       = $(srctree)/scripts/kernel-doc
 KERNELDOC_CONF  = -D kerneldoc_srctree=$(srctree) -D kerneldoc_bin=$(KERNELDOC)
 ALLSPHINXOPTS   =  $(KERNELDOC_CONF) $(PAPEROPT_$(PAPER)) $(SPHINXOPTS)
+ifneq ($(wildcard $(srctree)/.config),)
+ifeq ($(CONFIG_RUST),y)
+	# Let Sphinx know we will include rustdoc
+	ALLSPHINXOPTS   +=  -t rustdoc
+endif
+endif
 # the i18n builder cannot share the environment and doctrees with the others
 I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
@@ -91,9 +97,33 @@ quiet_cmd_sphinx = SPHINX  $@ --> file://$(abspath $(BUILDDIR)/$3/$4)
 		cp $(if $(patsubst /%,,$(DOCS_CSS)),$(abspath $(srctree)/$(DOCS_CSS)),$(DOCS_CSS)) $(BUILDDIR)/$3/_static/; \
 	fi
 
-htmldocs:
+YNL_INDEX:=$(srctree)/Documentation/networking/netlink_spec/index.rst
+YNL_RST_DIR:=$(srctree)/Documentation/networking/netlink_spec
+YNL_YAML_DIR:=$(srctree)/Documentation/netlink/specs
+YNL_TOOL:=$(srctree)/tools/net/ynl/ynl-gen-rst.py
+
+YNL_RST_FILES_TMP := $(patsubst %.yaml,%.rst,$(wildcard $(YNL_YAML_DIR)/*.yaml))
+YNL_RST_FILES := $(patsubst $(YNL_YAML_DIR)%,$(YNL_RST_DIR)%, $(YNL_RST_FILES_TMP))
+
+$(YNL_INDEX): $(YNL_RST_FILES)
+	$(Q)$(YNL_TOOL) -o $@ -x
+
+$(YNL_RST_DIR)/%.rst: $(YNL_YAML_DIR)/%.yaml $(YNL_TOOL)
+	$(Q)$(YNL_TOOL) -i $< -o $@
+
+htmldocs: $(YNL_INDEX)
 	@$(srctree)/scripts/sphinx-pre-install --version-check
 	@+$(foreach var,$(SPHINXDIRS),$(call loop_cmd,sphinx,html,$(var),,$(var)))
+
+# If Rust support is available and .config exists, add rustdoc generated contents.
+# If there are any, the errors from this make rustdoc will be displayed but
+# won't stop the execution of htmldocs
+
+ifneq ($(wildcard $(srctree)/.config),)
+ifeq ($(CONFIG_RUST),y)
+	$(Q)$(MAKE) rustdoc || true
+endif
+endif
 
 texinfodocs:
 	@$(srctree)/scripts/sphinx-pre-install --version-check

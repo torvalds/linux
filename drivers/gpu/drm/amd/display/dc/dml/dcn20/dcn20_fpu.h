@@ -61,9 +61,8 @@ void dcn20_update_bounding_box(struct dc *dc,
 			       unsigned int num_states);
 void dcn20_patch_bounding_box(struct dc *dc,
 			      struct _vcs_dpi_soc_bounding_box_st *bb);
-bool dcn20_validate_bandwidth_fp(struct dc *dc,
-				 struct dc_state *context,
-				 bool fast_validate);
+bool dcn20_validate_bandwidth_fp(struct dc *dc, struct dc_state *context,
+				 bool fast_validate, display_e2e_pipe_params_st *pipes);
 void dcn20_fpu_set_wm_ranges(int i,
 			     struct pp_smu_wm_range_sets *ranges,
 			     struct _vcs_dpi_soc_bounding_box_st *loaded_bb);
@@ -77,9 +76,8 @@ int dcn21_populate_dml_pipes_from_context(struct dc *dc,
 					  struct dc_state *context,
 					  display_e2e_pipe_params_st *pipes,
 					  bool fast_validate);
-bool dcn21_validate_bandwidth_fp(struct dc *dc,
-				 struct dc_state *context,
-				 bool fast_validate);
+bool dcn21_validate_bandwidth_fp(struct dc *dc, struct dc_state *context, bool
+				 fast_validate, display_e2e_pipe_params_st *pipes);
 void dcn21_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 
 void dcn21_clk_mgr_set_bw_params_wm_table(struct clk_bw_params *bw_params);

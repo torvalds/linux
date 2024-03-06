@@ -12,6 +12,7 @@
 
 / {
 	model = "MediaTek kodama sku288 board";
+	chassis-type = "tablet";
 	compatible = "google,kodama-sku288", "google,kodama", "mediatek,mt8183";
 };
 

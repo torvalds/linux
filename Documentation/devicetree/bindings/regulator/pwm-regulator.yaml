@@ -64,6 +64,7 @@ properties:
         defined, <100> is assumed, meaning that
         pwm-dutycycle-range contains values expressed in
         percent.
+    $ref: /schemas/types.yaml#/definitions/uint32
     default: 100
 
   pwm-dutycycle-range:

@@ -472,13 +472,7 @@ extern int pm860x_bulk_read(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_bulk_write(struct i2c_client *, int, int, unsigned char *);
 extern int pm860x_set_bits(struct i2c_client *, int, unsigned char,
 			   unsigned char);
-extern int pm860x_page_reg_read(struct i2c_client *, int);
 extern int pm860x_page_reg_write(struct i2c_client *, int, unsigned char);
 extern int pm860x_page_bulk_read(struct i2c_client *, int, int,
 				 unsigned char *);
-extern int pm860x_page_bulk_write(struct i2c_client *, int, int,
-				  unsigned char *);
-extern int pm860x_page_set_bits(struct i2c_client *, int, unsigned char,
-				unsigned char);
-
 #endif /* __LINUX_MFD_88PM860X_H */

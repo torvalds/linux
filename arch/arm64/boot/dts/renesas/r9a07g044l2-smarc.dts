@@ -6,6 +6,27 @@
  */
 
 /dts-v1/;
+
+/* Enable SCIF2 (SER0) on PMOD1 (CN7) */
+#define PMOD1_SER0	1
+
+/*
+ * To enable MTU3a PWM on PMOD0,
+ * Disable PMOD1_SER0 by setting "#define PMOD1_SER0	0" above and
+ * enable PMOD_MTU3 by setting "#define PMOD_MTU3	1" below.
+ */
+#define PMOD_MTU3	0
+
+#if (PMOD_MTU3 && PMOD1_SER0)
+#error "Cannot set as PMOD_MTU3 and PMOD1_SER0 are mutually exclusive "
+#endif
+
+#define MTU3_COUNTER_Z_PHASE_SIGNAL	0
+
+#if (!PMOD_MTU3 && MTU3_COUNTER_Z_PHASE_SIGNAL)
+#error "Cannot set 1 to MTU3_COUNTER_Z_PHASE_SIGNAL as PMOD_MTU3=0"
+#endif
+
 #include "r9a07g044l2.dtsi"
 #include "rzg2l-smarc-som.dtsi"
 #include "rzg2l-smarc-pinfunction.dtsi"

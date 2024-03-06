@@ -4,7 +4,7 @@
  *
  * Author: Lakshmi Ramasubramanian (nramas@linux.microsoft.com)
  *
- * Measure critical data structures maintainted by SELinux
+ * Measure critical data structures maintained by SELinux
  * using IMA subsystem.
  */
 
@@ -25,4 +25,4 @@ static inline void selinux_ima_measure_state_locked(void)
 }
 #endif
 
-#endif	/* _SELINUX_IMA_H_ */
+#endif /* _SELINUX_IMA_H_ */

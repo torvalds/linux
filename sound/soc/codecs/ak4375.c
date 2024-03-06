@@ -9,7 +9,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <sound/soc.h>
@@ -597,7 +597,7 @@ static struct i2c_driver ak4375_i2c_driver = {
 		.pm = &ak4375_pm,
 		.of_match_table = ak4375_of_match,
 	},
-	.probe_new = ak4375_i2c_probe,
+	.probe = ak4375_i2c_probe,
 	.remove = ak4375_i2c_remove,
 };
 module_i2c_driver(ak4375_i2c_driver);

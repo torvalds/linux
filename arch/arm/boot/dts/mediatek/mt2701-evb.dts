@@ -1,0 +1,253 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Copyright (c) 2015 MediaTek Inc.
+ * Author: Erin Lo <erin.lo@mediatek.com>
+ *
+ */
+
+/dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include "mt2701.dtsi"
+
+/ {
+	model = "MediaTek MT2701 evaluation board";
+	compatible = "mediatek,mt2701-evb", "mediatek,mt2701";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x80000000 0 0x40000000>;
+	};
+
+	sound:sound {
+		compatible = "mediatek,mt2701-cs42448-machine";
+		mediatek,platform = <&afe>;
+		/* CS42448 Machine name */
+		audio-routing =
+		"Line Out Jack", "AOUT1L",
+		"Line Out Jack", "AOUT1R",
+		"Line Out Jack", "AOUT2L",
+		"Line Out Jack", "AOUT2R",
+		"Line Out Jack", "AOUT3L",
+		"Line Out Jack", "AOUT3R",
+		"Line Out Jack", "AOUT4L",
+		"Line Out Jack", "AOUT4R",
+		"AIN1L", "AMIC",
+		"AIN1R", "AMIC",
+		"AIN2L", "Tuner In",
+		"AIN2R", "Tuner In",
+		"AIN3L", "Satellite Tuner In",
+		"AIN3R", "Satellite Tuner In",
+		"AIN3L", "AUX In",
+		"AIN3R", "AUX In";
+		mediatek,audio-codec = <&cs42448>;
+		mediatek,audio-codec-bt-mrg = <&bt_sco_codec>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&aud_pins_default>;
+		i2s1-in-sel-gpio1 = <&pio 53 0>;
+		i2s1-in-sel-gpio2 = <&pio 54 0>;
+		status = "okay";
+	};
+
+	bt_sco_codec:bt_sco_codec {
+		compatible = "linux,bt-sco";
+	};
+
+	backlight_lcd: backlight_lcd {
+		compatible = "pwm-backlight";
+		pwms = <&bls 0 100000>;
+		brightness-levels = <
+			  0  16  32  48  64  80  96 112
+			128 144 160 176 192 208 224 240
+			255
+		>;
+		default-brightness-level = <9>;
+	};
+
+	usb_vbus: regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		gpio = <&pio 45 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&auxadc {
+	status = "okay";
+};
+
+&bls {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_bls_gpio>;
+};
+
+&i2c0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c0_pins_a>;
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "okay";
+};
+
+&i2c2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c2_pins_a>;
+	status = "okay";
+	cs42448: cs42448@48 {
+		compatible = "cirrus,cs42448";
+		reg = <0x48>;
+		clocks = <&topckgen CLK_TOP_AUD_I2S1_MCLK>;
+		clock-names = "mclk";
+	};
+};
+
+&pio {
+	i2c0_pins_a: i2c0@0 {
+		pins1 {
+			pinmux = <MT2701_PIN_75_SDA0__FUNC_SDA0>,
+				 <MT2701_PIN_76_SCL0__FUNC_SCL0>;
+			bias-disable;
+		};
+	};
+
+	i2c1_pins_a: i2c1@0 {
+		pins1 {
+			pinmux = <MT2701_PIN_57_SDA1__FUNC_SDA1>,
+				 <MT2701_PIN_58_SCL1__FUNC_SCL1>;
+			bias-disable;
+		};
+	};
+
+	i2c2_pins_a: i2c2@0 {
+		pins1 {
+			pinmux = <MT2701_PIN_77_SDA2__FUNC_SDA2>,
+				 <MT2701_PIN_78_SCL2__FUNC_SCL2>;
+			bias-disable;
+		};
+	};
+
+	pwm_bls_gpio: pwm_bls_gpio {
+		pins_cmd_dat {
+			pinmux = <MT2701_PIN_208_AUD_EXT_CK1__FUNC_DISP_PWM>;
+		};
+	};
+
+	spi_pins_a: spi0@0 {
+		pins_spi {
+			pinmux = <MT2701_PIN_53_SPI0_CSN__FUNC_SPI0_CS>,
+				 <MT2701_PIN_54_SPI0_CK__FUNC_SPI0_CK>,
+				 <MT2701_PIN_55_SPI0_MI__FUNC_SPI0_MI>,
+				 <MT2701_PIN_56_SPI0_MO__FUNC_SPI0_MO>;
+			bias-disable;
+		};
+	};
+
+	aud_pins_default: audiodefault {
+		pins_cmd_dat {
+			pinmux = <MT2701_PIN_49_I2S0_DATA__FUNC_I2S0_DATA>,
+				 <MT2701_PIN_72_I2S0_DATA_IN__FUNC_I2S0_DATA_IN>,
+				 <MT2701_PIN_73_I2S0_LRCK__FUNC_I2S0_LRCK>,
+				 <MT2701_PIN_74_I2S0_BCK__FUNC_I2S0_BCK>,
+				 <MT2701_PIN_126_I2S0_MCLK__FUNC_I2S0_MCLK>,
+				 <MT2701_PIN_33_I2S1_DATA__FUNC_I2S1_DATA>,
+				 <MT2701_PIN_34_I2S1_DATA_IN__FUNC_I2S1_DATA_IN>,
+				 <MT2701_PIN_35_I2S1_BCK__FUNC_I2S1_BCK>,
+				 <MT2701_PIN_36_I2S1_LRCK__FUNC_I2S1_LRCK>,
+				 <MT2701_PIN_37_I2S1_MCLK__FUNC_I2S1_MCLK>,
+				 <MT2701_PIN_203_PWM0__FUNC_I2S2_DATA>,
+				 <MT2701_PIN_204_PWM1__FUNC_I2S3_DATA>,
+				 <MT2701_PIN_53_SPI0_CSN__FUNC_GPIO53>,
+				 <MT2701_PIN_54_SPI0_CK__FUNC_GPIO54>,
+				 <MT2701_PIN_18_PCM_CLK__FUNC_MRG_CLK>,
+				 <MT2701_PIN_19_PCM_SYNC__FUNC_MRG_SYNC>,
+				 <MT2701_PIN_20_PCM_RX__FUNC_MRG_TX>,
+				 <MT2701_PIN_21_PCM_TX__FUNC_MRG_RX>;
+			drive-strength = <MTK_DRIVE_12mA>;
+			bias-pull-down;
+		};
+	};
+
+	spi_pins_b: spi1@0 {
+		pins_spi {
+			pinmux = <MT2701_PIN_7_SPI1_CSN__FUNC_SPI1_CS>,
+				 <MT2701_PIN_8_SPI1_MI__FUNC_SPI1_MI>,
+				 <MT2701_PIN_9_SPI1_MO__FUNC_SPI1_MO>,
+				 <MT2701_PIN_199_SPI1_CLK__FUNC_SPI1_CK>;
+			bias-disable;
+		};
+	};
+
+	spi_pins_c: spi2@0 {
+		pins_spi {
+			pinmux = <MT2701_PIN_101_SPI2_CSN__FUNC_SPI2_CS>,
+				 <MT2701_PIN_102_SPI2_MI__FUNC_SPI2_MI>,
+				 <MT2701_PIN_103_SPI2_MO__FUNC_SPI2_MO>,
+				 <MT2701_PIN_104_SPI2_CLK__FUNC_SPI2_CK>;
+			bias-disable;
+		};
+	};
+};
+
+&spi0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_pins_a>;
+	status = "disabled";
+};
+
+&spi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_pins_b>;
+	status = "disabled";
+};
+
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi_pins_c>;
+	status = "disabled";
+};
+
+&nor_flash {
+	pinctrl-names = "default";
+	pinctrl-0 = <&nor_pins_default>;
+	status = "okay";
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+	};
+};
+
+&pio {
+	nor_pins_default: nor {
+		pins1 {
+			pinmux = <MT2701_PIN_240_EXT_XCS__FUNC_EXT_XCS>,
+				 <MT2701_PIN_241_EXT_SCK__FUNC_EXT_SCK>,
+				 <MT2701_PIN_239_EXT_SDIO0__FUNC_EXT_SDIO0>,
+				 <MT2701_PIN_238_EXT_SDIO1__FUNC_EXT_SDIO1>,
+				 <MT2701_PIN_237_EXT_SDIO2__FUNC_EXT_SDIO2>,
+				 <MT2701_PIN_236_EXT_SDIO3__FUNC_EXT_SDIO3>;
+			drive-strength = <MTK_DRIVE_4mA>;
+			bias-pull-up;
+		};
+	};
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usb2 {
+	status = "okay";
+	usb-role-switch;
+	connector {
+		compatible = "gpio-usb-b-connector", "usb-b-connector";
+		type = "micro";
+		id-gpios = <&pio 44 GPIO_ACTIVE_HIGH>;
+		vbus-supply = <&usb_vbus>;
+	};
+};

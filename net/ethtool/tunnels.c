@@ -212,15 +212,14 @@ err_unlock_rtnl:
 
 struct ethnl_tunnel_info_dump_ctx {
 	struct ethnl_req_info	req_info;
-	int			pos_hash;
-	int			pos_idx;
+	unsigned long		ifindex;
 };
 
 int ethnl_tunnel_info_start(struct netlink_callback *cb)
 {
 	const struct genl_dumpit_info *info = genl_dumpit_info(cb);
 	struct ethnl_tunnel_info_dump_ctx *ctx = (void *)cb->ctx;
-	struct nlattr **tb = info->attrs;
+	struct nlattr **tb = info->info.attrs;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(*ctx) > sizeof(cb->ctx));
@@ -243,56 +242,38 @@ int ethnl_tunnel_info_dumpit(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct ethnl_tunnel_info_dump_ctx *ctx = (void *)cb->ctx;
 	struct net *net = sock_net(skb->sk);
-	int s_idx = ctx->pos_idx;
-	int h, idx = 0;
+	struct net_device *dev;
 	int ret = 0;
 	void *ehdr;
 
 	rtnl_lock();
-	cb->seq = net->dev_base_seq;
-	for (h = ctx->pos_hash; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		struct hlist_head *head;
-		struct net_device *dev;
-
-		head = &net->dev_index_head[h];
-		idx = 0;
-		hlist_for_each_entry(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-
-			ehdr = ethnl_dump_put(skb, cb,
-					      ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY);
-			if (!ehdr) {
-				ret = -EMSGSIZE;
-				goto out;
-			}
-
-			ret = ethnl_fill_reply_header(skb, dev, ETHTOOL_A_TUNNEL_INFO_HEADER);
-			if (ret < 0) {
-				genlmsg_cancel(skb, ehdr);
-				goto out;
-			}
-
-			ctx->req_info.dev = dev;
-			ret = ethnl_tunnel_info_fill_reply(&ctx->req_info, skb);
-			ctx->req_info.dev = NULL;
-			if (ret < 0) {
-				genlmsg_cancel(skb, ehdr);
-				if (ret == -EOPNOTSUPP)
-					goto cont;
-				goto out;
-			}
-			genlmsg_end(skb, ehdr);
-cont:
-			idx++;
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		ehdr = ethnl_dump_put(skb, cb,
+				      ETHTOOL_MSG_TUNNEL_INFO_GET_REPLY);
+		if (!ehdr) {
+			ret = -EMSGSIZE;
+			break;
 		}
-	}
-out:
-	rtnl_unlock();
 
-	ctx->pos_hash = h;
-	ctx->pos_idx = idx;
-	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
+		ret = ethnl_fill_reply_header(skb, dev,
+					      ETHTOOL_A_TUNNEL_INFO_HEADER);
+		if (ret < 0) {
+			genlmsg_cancel(skb, ehdr);
+			break;
+		}
+
+		ctx->req_info.dev = dev;
+		ret = ethnl_tunnel_info_fill_reply(&ctx->req_info, skb);
+		ctx->req_info.dev = NULL;
+		if (ret < 0) {
+			genlmsg_cancel(skb, ehdr);
+			if (ret == -EOPNOTSUPP)
+				continue;
+			break;
+		}
+		genlmsg_end(skb, ehdr);
+	}
+	rtnl_unlock();
 
 	if (ret == -EMSGSIZE && skb->len)
 		return skb->len;

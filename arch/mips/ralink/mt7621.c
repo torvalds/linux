@@ -89,15 +89,6 @@ static void __init mt7621_memory_detect(void)
 	memblock_add(MT7621_HIGHMEM_BASE, MT7621_HIGHMEM_SIZE);
 }
 
-void __init ralink_of_remap(void)
-{
-	rt_sysc_membase = plat_of_remap_node("mediatek,mt7621-sysc");
-	rt_memc_membase = plat_of_remap_node("mediatek,mt7621-memc");
-
-	if (!rt_sysc_membase || !rt_memc_membase)
-		panic("Failed to remap core resources");
-}
-
 static unsigned int __init mt7621_get_soc_name0(void)
 {
 	return __raw_readl(MT7621_SYSC_BASE + SYSC_REG_CHIP_NAME0);
@@ -184,7 +175,7 @@ void __init prom_soc_init(struct ralink_soc_info *soc_info)
 		 * mips_cm_probe() wipes out bootloader
 		 * config for CM regions and we have to configure them
 		 * again. This SoC cannot talk to pamlbus devices
-		 * witout proper iocu region set up.
+		 * without proper iocu region set up.
 		 *
 		 * FIXME: it would be better to do this with values
 		 * from DT, but we need this very early because

@@ -38,7 +38,7 @@
 /* Initialize a kernel queue, including allocations of GART memory
  * needed for the queue.
  */
-static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
+static bool kq_initialize(struct kernel_queue *kq, struct kfd_node *dev,
 		enum kfd_queue_type type, unsigned int queue_size)
 {
 	struct queue_properties prop;
@@ -75,7 +75,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	if (!kq->mqd_mgr)
 		return false;
 
-	prop.doorbell_ptr = kfd_get_kernel_doorbell(dev, &prop.doorbell_off);
+	prop.doorbell_ptr = kfd_get_kernel_doorbell(dev->kfd, &prop.doorbell_off);
 
 	if (!prop.doorbell_ptr) {
 		pr_err("Failed to initialize doorbell");
@@ -112,7 +112,7 @@ static bool kq_initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->rptr_kernel = kq->rptr_mem->cpu_ptr;
 	kq->rptr_gpu_addr = kq->rptr_mem->gpu_addr;
 
-	retval = kfd_gtt_sa_allocate(dev, dev->device_info.doorbell_size,
+	retval = kfd_gtt_sa_allocate(dev, dev->kfd->device_info.doorbell_size,
 					&kq->wptr_mem);
 
 	if (retval != 0)
@@ -189,7 +189,7 @@ err_rptr_allocate_vidmem:
 err_eop_allocate_vidmem:
 	kfd_gtt_sa_free(dev, kq->pq);
 err_pq_allocate_vidmem:
-	kfd_release_kernel_doorbell(dev, prop.doorbell_ptr);
+	kfd_release_kernel_doorbell(dev->kfd, prop.doorbell_ptr);
 err_get_kernel_doorbell:
 	return false;
 
@@ -220,7 +220,7 @@ static void kq_uninitialize(struct kernel_queue *kq, bool hanging)
 	kfd_gtt_sa_free(kq->dev, kq->eop_mem);
 
 	kfd_gtt_sa_free(kq->dev, kq->pq);
-	kfd_release_kernel_doorbell(kq->dev,
+	kfd_release_kernel_doorbell(kq->dev->kfd,
 					kq->queue->properties.doorbell_ptr);
 	uninit_queue(kq->queue);
 }
@@ -298,7 +298,7 @@ void kq_submit_packet(struct kernel_queue *kq)
 	}
 	pr_debug("\n");
 #endif
-	if (kq->dev->device_info.doorbell_size == 8) {
+	if (kq->dev->kfd->device_info.doorbell_size == 8) {
 		*kq->wptr64_kernel = kq->pending_wptr64;
 		write_kernel_doorbell64(kq->queue->properties.doorbell_ptr,
 					kq->pending_wptr64);
@@ -311,7 +311,7 @@ void kq_submit_packet(struct kernel_queue *kq)
 
 void kq_rollback_packet(struct kernel_queue *kq)
 {
-	if (kq->dev->device_info.doorbell_size == 8) {
+	if (kq->dev->kfd->device_info.doorbell_size == 8) {
 		kq->pending_wptr64 = *kq->wptr64_kernel;
 		kq->pending_wptr = *kq->wptr_kernel %
 			(kq->queue->properties.queue_size / 4);
@@ -320,7 +320,7 @@ void kq_rollback_packet(struct kernel_queue *kq)
 	}
 }
 
-struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
+struct kernel_queue *kernel_queue_init(struct kfd_node *dev,
 					enum kfd_queue_type type)
 {
 	struct kernel_queue *kq;
@@ -345,7 +345,7 @@ void kernel_queue_uninit(struct kernel_queue *kq, bool hanging)
 }
 
 /* FIXME: Can this test be removed? */
-static __attribute__((unused)) void test_kq(struct kfd_dev *dev)
+static __attribute__((unused)) void test_kq(struct kfd_node *dev)
 {
 	struct kernel_queue *kq;
 	uint32_t *buffer, i;
