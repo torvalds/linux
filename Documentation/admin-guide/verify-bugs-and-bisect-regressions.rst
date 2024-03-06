@@ -192,8 +192,8 @@ will be considered the 'good' release and used to prepare the .config file.
 
        sudo rm -rf /lib/modules/6.0-rc1-local-gcafec0cacaca0
        sudo kernel-install -v remove 6.0-rc1-local-gcafec0cacaca0
-       # * Note, if kernel-install is missing, you will have to
-       #   manually remove the kernel image and related files.
+       # * Note, on some distributions kernel-install is missing
+       #   or does only part of the job.
 
   b) If you performed a bisection and successfully validated the result, feel
      free to remove all kernels built during the actual bisection (Segment 3 c);
@@ -348,11 +348,14 @@ Preparations: set up everything to build your own kernels
   one downloads less than 500 MByte, the other works better with unreliable
   internet connections.*
 
-  Execute the following command to retrieve a fresh mainline codebase::
+  Execute the following command to retrieve a fresh mainline codebase while
+  preparing things to add stable/longterm branches later::
 
     git clone -o mainline --no-checkout \
       https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git ~/linux/
     cd ~/linux/
+    git remote add -t master stable \
+      https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
   [:ref:`details<sources_bisref>`]
 
@@ -365,7 +368,7 @@ Preparations: set up everything to build your own kernels
   identifier using ``uname -r``.
 
   Afterwards check out the source code for the version earlier established as
-  'good' and create a .config file::
+  'good' (in this example this is assumed to be 6.0) and create a .config file::
 
     git checkout --detach v6.0
     make olddefconfig
@@ -462,8 +465,10 @@ Preparations: set up everything to build your own kernels
 
     [:ref:`details<configmods_distros_bisref>`].
 
-  * If you want to influence other aspects of the configuration, do so now
-    by using make targets like 'menuconfig' or 'xconfig'.
+  * If you want to influence other aspects of the configuration, do so now using
+    your preferred tool. Note, to use make targets like 'menuconfig' or
+    'nconfig', you will need to install the development files of ncurses; for
+    'xconfig' you likewise need the Qt5 or Qt6 headers.
 
     [:ref:`details<configmods_individual_bisref>`].
 
@@ -601,8 +606,8 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
 * Are you facing a problem within a stable/longterm release, but failed to
   reproduce it with the mainline kernel you just built? Then check if the latest
   codebase for the particular series might already fix the problem. To do so,
-  add the stable series Git branch for your 'good' kernel and check out the
-  latest version::
+  add the stable series Git branch for your 'good' kernel (again, this here is
+  assumed to be 6.0) and check out the latest version::
 
     cd ~/linux/
     git remote set-branches --add stable linux-6.0.y
@@ -652,7 +657,7 @@ otherwise would be a waste of time. [:ref:`details<introworkingcheck_bisref>`]
   regressed works as expected with it.
 
   Start by checking out the sources for the version earlier established as
-  'good'::
+  'good' (once again assumed to be 6.0 here)::
 
     cd ~/linux/
     git checkout --detach v6.0
@@ -697,15 +702,13 @@ each kernel on commodity x86 machines.
   stable branch, unless you already did so earlier::
 
     cd ~/linux/
-    git remote add -t master stable \
-      https://git.kernel.org/pub/scm/linux/kernel/git/stable/stable.git
     git remote set-branches --add stable linux-6.1.y
     git fetch stable
 
 .. _bisectstart_bissbs:
 
 * Start the bisection and tell Git about the versions earlier established as
-  'good' and 'bad'::
+  'good' (6.0 in the following example command) and 'bad' (6.1.5)::
 
     cd ~/linux/
     git bisect start
@@ -884,8 +887,9 @@ space might run out.
 
   On quite a few distributions this will delete all other kernel files installed
   while also removing the kernel's entry from the boot menu. But on some
-  distributions this command does not exist or will fail; in that case consult
-  the reference section, as your Linux distribution needs special care.
+  distributions kernel-install does not exist or leaves boot-loader entries or
+  kernel image and related files behind; in that case remove them as described
+  in the reference section.
 
   [:ref:`details<makeroom_bisref>`]
 
@@ -1015,8 +1019,6 @@ the right thing.
 
 [:ref:`back to step-by-step guide <bootworking_bissbs>`]
 
-.. _buildrequires_bisref:
-
 .. _diskspace_bisref:
 
 Space requirements
@@ -1060,7 +1062,7 @@ to do this as well, if you tried bisecting between 6.0.11 and 6.1.13.
 
 [:ref:`back to step-by-step guide <rangecheck_bissbs>`]
 
-.. _sources_bisref:
+.. _buildrequires_bisref:
 
 Install build requirements
 --------------------------
@@ -1076,72 +1078,103 @@ about to build.
 Here are a few examples what you typically need on some mainstream
 distributions:
 
+* Arch Linux and derivatives::
+
+    sudo pacman --needed -S bc binutils bison flex gcc git kmod libelf openssl \
+      pahole perl zlib ncurses qt6-base
+
 * Debian, Ubuntu, and derivatives::
 
-    sudo apt install bc binutils bison dwarves flex gcc git make openssl \
-      pahole perl-base libssl-dev libelf-dev
+    sudo apt install bc binutils bison dwarves flex gcc git kmod libelf-dev \
+      libssl-dev make openssl pahole perl-base pkg-config zlib1g-dev \
+      libncurses-dev qt6-base-dev g++
 
 * Fedora and derivatives::
 
-    sudo dnf install binutils /usr/include/{libelf.h,openssl/pkcs7.h} \
-      /usr/bin/{bc,bison,flex,gcc,git,openssl,make,perl,pahole}
+    sudo dnf install binutils \
+      /usr/bin/{bc,bison,flex,gcc,git,openssl,make,perl,pahole,rpmbuild} \
+      /usr/include/{libelf.h,openssl/pkcs7.h,zlib.h,ncurses.h,qt6/QtGui/QAction}
 
 * openSUSE and derivatives::
 
-    sudo zypper install bc binutils bison dwarves flex gcc git make perl-base \
-      openssl openssl-devel libelf-dev
+    sudo zypper install bc binutils bison dwarves flex gcc git \
+      kernel-install-tools libelf-devel make modutils openssl openssl-devel \
+      perl-base zlib-devel rpm-build ncurses-devel qt6-base-devel
 
-In case you wonder why these lists include openssl and its development headers:
-they are needed for the Secure Boot support, which many distributions enable in
-their kernel configuration for x86 machines.
-
-Sometimes you will need tools for compression formats like bzip2, gzip, lz4,
-lzma, lzo, xz, or zstd as well.
-
-In case you want to adjust the build configuration with make targets like
-'menuconfig' or 'xconfig' later, ensure to also install development headers for
-ncurses and Qt5.
+These commands install a few packages that are often, but not always needed. You
+for example might want to skip installing the development headers for ncurses,
+which you will only need in case you later might want to adjust the kernel build
+configuration using make the targets 'menuconfig' or 'nconfig'; likewise omit
+the headers of Qt6 is you do not plan to adjust the .config using 'xconfig'.
 
 You furthermore might need additional libraries and their development headers
-for tasks not covered in this guide. For example, zlib will be needed when
-building kernel tools from the tools/ directory;.
+for tasks not covered in this guide -- for example when building utilities from
+the kernel's tools/ directory.
 
 [:ref:`back to step-by-step guide <buildrequires_bissbs>`]
 
-Download the sources using git
+.. _sources_bisref:
+
+Download the sources using Git
 ------------------------------
 
   *Retrieve the Linux mainline sources.*
   [:ref:`...<sources_bissbs>`]
 
-The step-by-step guide outlines how to retrieve the Linux sources using a full
-Git clone of Linus' mainline repository. If you have an unreliable internet
-connection, you instead might want to use a 'Git bundle' to retrieve the
-sources; if downloading the complete repository would take too long or requires
-too much storage space, use a shallow clone instead.
+The step-by-step guide outlines how to download the Linux sources using a full
+Git clone of Linus' mainline repository. There is nothing more to say about
+that -- but there are two alternatives ways to retrieve the sources that might
+work better for you:
 
-Downloading Linux mainline using a bundle
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ * If you have an unreliable internet connection, consider
+   :ref:`using a 'Git bundle'<sources_bundle_bisref>`.
 
-Switch to you home directory and follow the instructions `kernel.org provides
-for this case <https://www.kernel.org/cloning-linux-from-a-bundle.html>`_.
+ * If downloading the complete repository would take too long or requires too
+   much storage space, consider :ref:`using a 'shallow
+   clone'<sources_shallow_bisref>`.
 
-Afterwards add the stable Git repository as remote and all required
-stable/branches as explained in the step-by-step guide.
+.. _sources_bundle_bisref:
 
-Downloading Linux mainline using a shallow clone
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Downloading Linux mainline sources using a bundle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Use the following commands to retrieve the Linux mainline sources using a
+bundle::
+
+    wget -c \
+      https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/clone.bundle
+    git clone --no-checkout clone.bundle ~/linux/
+    cd ~/linux/
+    git remote remove origin
+    git remote add mainline \
+      https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+    git fetch mainline
+    git remote add -t master stable \
+      https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+
+In case the 'wget' command fails, just re-execute it, it will pick up where
+it left off.
+
+[:ref:`back to step-by-step guide <sources_bissbs>`]
+[:ref:`back to section intro <sources_bisref>`]
+
+.. _sources_shallow_bisref:
+
+Downloading Linux mainline sources using a shallow clone
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 First, execute the following command to retrieve the latest mainline codebase::
 
     git clone -o mainline --no-checkout --depth 1 -b master \
       https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git ~/linux/
     cd ~/linux/
+    git remote add -t master stable \
+      https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
 Now deepen your clone's history to the second predecessor of the mainline
 release of your 'good' version. In case the latter are 6.0 or 6.0.11, 5.19 would
 be the first predecessor and 5.18 the second -- hence deepen the history up to
-the latter::
+that version::
 
     git fetch --shallow-exclude=v5.18 mainline
 
@@ -1150,7 +1183,7 @@ branches as explained in the step-by-step guide.
 
 Note, shallow clones have a few peculiar characteristics:
 
- * For bisections the history needs to be deepend a few mainline versions
+ * For bisections the history needs to be deepened a few mainline versions
    farther than it seems necessary, as explained above already. That's because
    Git otherwise will be unable to revert or describe most of the commits within
    a range (say v6.1..v6.2), as they are internally based on earlier kernels
