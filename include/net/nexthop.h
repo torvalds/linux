@@ -130,6 +130,7 @@ struct nh_group {
 	bool			resilient;
 	bool			fdb_nh;
 	bool			has_v4;
+	bool			hw_stats;
 
 	struct nh_res_table __rcu *res_table;
 	struct nh_grp_entry	nh_entries[] __counted_by(num_nh);
@@ -193,6 +194,7 @@ struct nh_notifier_grp_entry_info {
 struct nh_notifier_grp_info {
 	u16 num_nh;
 	bool is_fdb;
+	bool hw_stats;
 	struct nh_notifier_grp_entry_info nh_entries[] __counted_by(num_nh);
 };
 
@@ -206,6 +208,7 @@ struct nh_notifier_res_bucket_info {
 
 struct nh_notifier_res_table_info {
 	u16 num_nh_buckets;
+	bool hw_stats;
 	struct nh_notifier_single_info nhs[] __counted_by(num_nh_buckets);
 };
 

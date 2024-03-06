@@ -141,6 +141,7 @@ static int nh_notifier_mpath_info_init(struct nh_notifier_info *info,
 
 	info->nh_grp->num_nh = num_nh;
 	info->nh_grp->is_fdb = nhg->fdb_nh;
+	info->nh_grp->hw_stats = nhg->hw_stats;
 
 	for (i = 0; i < num_nh; i++) {
 		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
@@ -172,6 +173,7 @@ static int nh_notifier_res_table_info_init(struct nh_notifier_info *info,
 		return -ENOMEM;
 
 	info->nh_res_table->num_nh_buckets = num_nh_buckets;
+	info->nh_res_table->hw_stats = nhg->hw_stats;
 
 	for (i = 0; i < num_nh_buckets; i++) {
 		struct nh_res_bucket *bucket = &res_table->nh_buckets[i];
