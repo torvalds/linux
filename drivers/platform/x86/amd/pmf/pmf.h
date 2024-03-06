@@ -91,6 +91,29 @@ struct cookie_header {
 #define PMF_IF_V1		1
 #define PMF_IF_V2		2
 
+#define APTS_MAX_STATES		16
+
+/* APTS PMF BIOS Interface */
+struct amd_pmf_apts_output {
+	u16 table_version;
+	u32 fan_table_idx;
+	u32 pmf_ppt;
+	u32 ppt_pmf_apu_only;
+	u32 stt_min_limit;
+	u8 stt_skin_temp_limit_apu;
+	u8 stt_skin_temp_limit_hs2;
+} __packed;
+
+struct amd_pmf_apts_granular_output {
+	u16 size;
+	struct amd_pmf_apts_output val;
+} __packed;
+
+struct amd_pmf_apts_granular {
+	u16 size;
+	struct amd_pmf_apts_output val[APTS_MAX_STATES];
+};
+
 struct sbios_hb_event_v2 {
 	u16 size;
 	u8 load;
@@ -668,6 +691,8 @@ int apmf_update_fan_idx(struct amd_pmf_dev *pdev, bool manual, u32 idx);
 int amd_pmf_set_sps_power_limits(struct amd_pmf_dev *pmf);
 int apmf_get_static_slider_granular_v2(struct amd_pmf_dev *dev,
 				       struct apmf_static_slider_granular_output_v2 *data);
+int apts_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
+				       struct amd_pmf_apts_granular_output *data, u32 apts_idx);
 
 /* Auto Mode Layer */
 int apmf_get_auto_mode_def(struct amd_pmf_dev *pdev, struct apmf_auto_mode *data);

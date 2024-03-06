@@ -12,6 +12,7 @@
 
 static struct amd_pmf_static_slider_granular_v2 config_store_v2;
 static struct amd_pmf_static_slider_granular config_store;
+static struct amd_pmf_apts_granular apts_config_store;
 
 #ifdef CONFIG_AMD_PMF_DEBUG
 static const char *slider_v2_as_str(unsigned int state)
@@ -95,10 +96,54 @@ static void amd_pmf_dump_sps_defaults_v2(struct amd_pmf_static_slider_granular_v
 
 	pr_debug("Static Slider APTS state index data - END\n");
 }
+
+static void amd_pmf_dump_apts_sps_defaults(struct amd_pmf_apts_granular *info)
+{
+	int i;
+
+	pr_debug("Static Slider APTS index default values data - BEGIN");
+
+	for (i = 0; i < APTS_MAX_STATES; i++) {
+		pr_debug("Table Version[%d] = %u\n", i, info->val[i].table_version);
+		pr_debug("Fan Index[%d] = %u\n", i, info->val[i].fan_table_idx);
+		pr_debug("PPT[%d] = %u\n", i, info->val[i].pmf_ppt);
+		pr_debug("PPT APU[%d] = %u\n", i, info->val[i].ppt_pmf_apu_only);
+		pr_debug("STT Min[%d] = %u\n", i, info->val[i].stt_min_limit);
+		pr_debug("STT APU[%d] = %u\n", i, info->val[i].stt_skin_temp_limit_apu);
+		pr_debug("STT HS2[%d] = %u\n", i, info->val[i].stt_skin_temp_limit_hs2);
+	}
+
+	pr_debug("Static Slider APTS index default values data - END");
+}
 #else
 static void amd_pmf_dump_sps_defaults(struct amd_pmf_static_slider_granular *data) {}
 static void amd_pmf_dump_sps_defaults_v2(struct amd_pmf_static_slider_granular_v2 *data) {}
+static void amd_pmf_dump_apts_sps_defaults(struct amd_pmf_apts_granular *info) {}
 #endif
+
+static void amd_pmf_load_apts_defaults_sps_v2(struct amd_pmf_dev *pdev)
+{
+	struct amd_pmf_apts_granular_output output;
+	struct amd_pmf_apts_output *ps;
+	int i;
+
+	memset(&apts_config_store, 0, sizeof(apts_config_store));
+
+	ps = apts_config_store.val;
+
+	for (i = 0; i < APTS_MAX_STATES; i++) {
+		apts_get_static_slider_granular_v2(pdev, &output, i);
+		ps[i].table_version = output.val.table_version;
+		ps[i].fan_table_idx = output.val.fan_table_idx;
+		ps[i].pmf_ppt = output.val.pmf_ppt;
+		ps[i].ppt_pmf_apu_only = output.val.ppt_pmf_apu_only;
+		ps[i].stt_min_limit = output.val.stt_min_limit;
+		ps[i].stt_skin_temp_limit_apu = output.val.stt_skin_temp_limit_apu;
+		ps[i].stt_skin_temp_limit_hs2 = output.val.stt_skin_temp_limit_hs2;
+	}
+
+	amd_pmf_dump_apts_sps_defaults(&apts_config_store);
+}
 
 static void amd_pmf_load_defaults_sps_v2(struct amd_pmf_dev *dev)
 {
@@ -307,10 +352,12 @@ int amd_pmf_init_sps(struct amd_pmf_dev *dev)
 	dev->current_profile = PLATFORM_PROFILE_BALANCED;
 
 	if (is_apmf_func_supported(dev, APMF_FUNC_STATIC_SLIDER_GRANULAR)) {
-		if (dev->pmf_if_version == PMF_IF_V2)
+		if (dev->pmf_if_version == PMF_IF_V2) {
 			amd_pmf_load_defaults_sps_v2(dev);
-		else
+			amd_pmf_load_apts_defaults_sps_v2(dev);
+		} else {
 			amd_pmf_load_defaults_sps(dev);
+		}
 
 		/* update SPS balanced power mode thermals */
 		amd_pmf_set_sps_power_limits(dev);

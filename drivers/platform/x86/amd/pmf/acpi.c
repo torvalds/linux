@@ -90,10 +90,84 @@ out:
 	return err;
 }
 
+static union acpi_object *apts_if_call(struct amd_pmf_dev *pdev, u32 state_index)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	acpi_handle ahandle = ACPI_HANDLE(pdev->dev);
+	struct acpi_object_list apts_if_arg_list;
+	union acpi_object apts_if_args[3];
+	acpi_status status;
+
+	apts_if_arg_list.count = 3;
+	apts_if_arg_list.pointer = &apts_if_args[0];
+
+	apts_if_args[0].type = ACPI_TYPE_INTEGER;
+	apts_if_args[0].integer.value = 1;
+	apts_if_args[1].type = ACPI_TYPE_INTEGER;
+	apts_if_args[1].integer.value = state_index;
+	apts_if_args[2].type = ACPI_TYPE_INTEGER;
+	apts_if_args[2].integer.value = 0;
+
+	status = acpi_evaluate_object(ahandle, "APTS", &apts_if_arg_list, &buffer);
+	if (ACPI_FAILURE(status)) {
+		dev_err(pdev->dev, "APTS state_idx:%u call failed\n", state_index);
+		kfree(buffer.pointer);
+		return NULL;
+	}
+
+	return buffer.pointer;
+}
+
+static int apts_if_call_store_buffer(struct amd_pmf_dev *pdev,
+				     u32 index, void *data, size_t out_sz)
+{
+	union acpi_object *info;
+	size_t size;
+	int err = 0;
+
+	info = apts_if_call(pdev, index);
+	if (!info)
+		return -EIO;
+
+	if (info->type != ACPI_TYPE_BUFFER) {
+		dev_err(pdev->dev, "object is not a buffer\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	size = *(u16 *)info->buffer.pointer;
+	if (info->buffer.length < size) {
+		dev_err(pdev->dev, "buffer smaller than header size %u < %zu\n",
+			info->buffer.length, size);
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (size < out_sz) {
+		dev_err(pdev->dev, "buffer too small %zu\n", size);
+		err = -EINVAL;
+		goto out;
+	}
+
+	memcpy(data, info->buffer.pointer, out_sz);
+out:
+	kfree(info);
+	return err;
+}
+
 int is_apmf_func_supported(struct amd_pmf_dev *pdev, unsigned long index)
 {
 	/* If bit-n is set, that indicates function n+1 is supported */
 	return !!(pdev->supported_func & BIT(index - 1));
+}
+
+int apts_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
+				       struct amd_pmf_apts_granular_output *data, u32 apts_idx)
+{
+	if (!is_apmf_func_supported(pdev, APMF_FUNC_STATIC_SLIDER_GRANULAR))
+		return -EINVAL;
+
+	return apts_if_call_store_buffer(pdev, apts_idx, data, sizeof(*data));
 }
 
 int apmf_get_static_slider_granular_v2(struct amd_pmf_dev *pdev,
