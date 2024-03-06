@@ -1228,7 +1228,8 @@ static struct folio *alloc_migration_target_by_mpol(struct folio *src,
 		h = folio_hstate(src);
 		gfp = htlb_alloc_mask(h);
 		nodemask = policy_nodemask(gfp, pol, ilx, &nid);
-		return alloc_hugetlb_folio_nodemask(h, nid, nodemask, gfp);
+		return alloc_hugetlb_folio_nodemask(h, nid, nodemask, gfp,
+				htlb_allow_alloc_fallback(MR_MEMPOLICY_MBIND));
 	}
 
 	if (folio_test_large(src))
