@@ -430,9 +430,9 @@ static int lp8788_dvs_gpio_request(struct platform_device *pdev,
 		gpiod_set_consumer_name(buck->gpio1, "LP8788_B2_DVS1");
 
 		buck->gpio2 = devm_gpiod_get_index(dev, "dvs", 1, GPIOD_OUT_LOW);
-		if (IS_ERR(buck->gpio1))
-			return PTR_ERR(buck->gpio1);
-		gpiod_set_consumer_name(buck->gpio1, "LP8788_B2_DVS2");
+		if (IS_ERR(buck->gpio2))
+			return PTR_ERR(buck->gpio2);
+		gpiod_set_consumer_name(buck->gpio2, "LP8788_B2_DVS2");
 
 		buck->dvs = pdata->buck2_dvs;
 		break;
