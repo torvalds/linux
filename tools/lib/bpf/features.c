@@ -147,6 +147,25 @@ static int probe_kern_btf_datasec(int token_fd)
 					     strs, sizeof(strs), token_fd));
 }
 
+static int probe_kern_btf_qmark_datasec(int token_fd)
+{
+	static const char strs[] = "\0x\0?.data";
+	/* static int a; */
+	__u32 types[] = {
+		/* int */
+		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
+		/* VAR x */                                     /* [2] */
+		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_VAR, 0, 0), 1),
+		BTF_VAR_STATIC,
+		/* DATASEC ?.data */                            /* [3] */
+		BTF_TYPE_ENC(3, BTF_INFO_ENC(BTF_KIND_DATASEC, 0, 1), 4),
+		BTF_VAR_SECINFO_ENC(2, 0, 4),
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs), token_fd));
+}
+
 static int probe_kern_btf_float(int token_fd)
 {
 	static const char strs[] = "\0float";
@@ -533,6 +552,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_ARG_CTX_TAG] = {
 		"kernel-side __arg_ctx tag", probe_kern_arg_ctx_tag,
+	},
+	[FEAT_BTF_QMARK_DATASEC] = {
+		"BTF DATASEC names starting from '?'", probe_kern_btf_qmark_datasec,
 	},
 };
 

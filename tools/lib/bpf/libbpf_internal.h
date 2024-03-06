@@ -374,6 +374,8 @@ enum kern_feature_id {
 	FEAT_UPROBE_MULTI_LINK,
 	/* Kernel supports arg:ctx tag (__arg_ctx) for global subprogs natively */
 	FEAT_ARG_CTX_TAG,
+	/* Kernel supports '?' at the front of datasec names */
+	FEAT_BTF_QMARK_DATASEC,
 	__FEAT_CNT,
 };
 

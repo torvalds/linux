@@ -2869,6 +2869,11 @@ static bool section_have_execinstr(struct bpf_object *obj, int idx)
 	return sh->sh_flags & SHF_EXECINSTR;
 }
 
+static bool starts_with_qmark(const char *s)
+{
+	return s && s[0] == '?';
+}
+
 static bool btf_needs_sanitization(struct bpf_object *obj)
 {
 	bool has_func_global = kernel_supports(obj, FEAT_BTF_GLOBAL_FUNC);
@@ -2878,9 +2883,10 @@ static bool btf_needs_sanitization(struct bpf_object *obj)
 	bool has_decl_tag = kernel_supports(obj, FEAT_BTF_DECL_TAG);
 	bool has_type_tag = kernel_supports(obj, FEAT_BTF_TYPE_TAG);
 	bool has_enum64 = kernel_supports(obj, FEAT_BTF_ENUM64);
+	bool has_qmark_datasec = kernel_supports(obj, FEAT_BTF_QMARK_DATASEC);
 
 	return !has_func || !has_datasec || !has_func_global || !has_float ||
-	       !has_decl_tag || !has_type_tag || !has_enum64;
+	       !has_decl_tag || !has_type_tag || !has_enum64 || !has_qmark_datasec;
 }
 
 static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
@@ -2892,6 +2898,7 @@ static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 	bool has_decl_tag = kernel_supports(obj, FEAT_BTF_DECL_TAG);
 	bool has_type_tag = kernel_supports(obj, FEAT_BTF_TYPE_TAG);
 	bool has_enum64 = kernel_supports(obj, FEAT_BTF_ENUM64);
+	bool has_qmark_datasec = kernel_supports(obj, FEAT_BTF_QMARK_DATASEC);
 	int enum64_placeholder_id = 0;
 	struct btf_type *t;
 	int i, j, vlen;
@@ -2918,7 +2925,7 @@ static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 
 			name = (char *)btf__name_by_offset(btf, t->name_off);
 			while (*name) {
-				if (*name == '.')
+				if (*name == '.' || *name == '?')
 					*name = '_';
 				name++;
 			}
@@ -2933,6 +2940,14 @@ static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 				vt = (void *)btf__type_by_id(btf, v->type);
 				m->name_off = vt->name_off;
 			}
+		} else if (!has_qmark_datasec && btf_is_datasec(t) &&
+			   starts_with_qmark(btf__name_by_offset(btf, t->name_off))) {
+			/* replace '?' prefix with '_' for DATASEC names */
+			char *name;
+
+			name = (char *)btf__name_by_offset(btf, t->name_off);
+			if (name[0] == '?')
+				name[0] = '_';
 		} else if (!has_func && btf_is_func_proto(t)) {
 			/* replace FUNC_PROTO with ENUM */
 			vlen = btf_vlen(t);
