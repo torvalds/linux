@@ -129,6 +129,7 @@ static int memirq_alloc_pages(struct xe_memirq *memirq)
 				  ttm_bo_type_kernel,
 				  XE_BO_CREATE_SYSTEM_BIT |
 				  XE_BO_CREATE_GGTT_BIT |
+				  XE_BO_GGTT_INVALIDATE |
 				  XE_BO_NEEDS_UC |
 				  XE_BO_NEEDS_CPU_ACCESS);
 	if (IS_ERR(bo)) {

@@ -46,6 +46,7 @@
 #define XE_BO_NEEDS_CPU_ACCESS		BIT(13)
 #define XE_BO_NEEDS_UC			BIT(14)
 #define XE_BO_NEEDS_64K			BIT(15)
+#define XE_BO_GGTT_INVALIDATE		BIT(16)
 /* this one is trigger internally only */
 #define XE_BO_INTERNAL_TEST		BIT(30)
 #define XE_BO_INTERNAL_64K		BIT(31)
