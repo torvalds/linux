@@ -1228,9 +1228,10 @@ static int nmk_pinctrl_probe(struct platform_device *pdev)
 		if (IS_ERR(nmk_chip))
 			dev_err(&pdev->dev,
 				"could not populate nmk chip struct - continue anyway\n");
+		else
+			/* We are NOT compatible with mobileye,eyeq5-gpio. */
+			BUG_ON(nmk_chip->is_mobileye_soc);
 		fwnode_handle_put(gpio_fwnode);
-		/* We are NOT compatible with mobileye,eyeq5-gpio. */
-		BUG_ON(nmk_chip->is_mobileye_soc);
 	}
 
 	prcm_fwnode = fwnode_find_reference(fwnode, "prcm", 0);
