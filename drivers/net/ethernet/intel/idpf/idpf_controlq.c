@@ -516,6 +516,8 @@ post_buffs_out:
 			/* Wrap to end of end ring since current ntp is 0 */
 			cq->next_to_post = cq->ring_size - 1;
 
+		dma_wmb();
+
 		wr32(hw, cq->reg.tail, cq->next_to_post);
 	}
 
@@ -545,11 +547,6 @@ int idpf_ctlq_recv(struct idpf_ctlq_info *cq, u16 *num_q_msg,
 	struct idpf_ctlq_desc *desc;
 	int err = 0;
 	u16 i;
-
-	if (*num_q_msg == 0)
-		return 0;
-	else if (*num_q_msg > cq->ring_size)
-		return -EBADR;
 
 	/* take the lock before we start messing with the ring */
 	mutex_lock(&cq->cq_lock);
