@@ -249,15 +249,12 @@ static int ionic_adminq_check_err(struct ionic_lif *lif,
 
 static void ionic_adminq_clean(struct ionic_queue *q,
 			       struct ionic_desc_info *desc_info,
-			       struct ionic_cq_info *cq_info)
+			       struct ionic_admin_comp *comp)
 {
 	struct ionic_admin_ctx *ctx = desc_info->arg;
-	struct ionic_admin_comp *comp;
 
 	if (!ctx)
 		return;
-
-	comp = cq_info->cq_desc;
 
 	memcpy(&ctx->comp, comp, sizeof(*comp));
 
@@ -268,15 +265,16 @@ static void ionic_adminq_clean(struct ionic_queue *q,
 	complete_all(&ctx->work);
 }
 
-bool ionic_notifyq_service(struct ionic_cq *cq,
-			   struct ionic_cq_info *cq_info)
+bool ionic_notifyq_service(struct ionic_cq *cq)
 {
-	union ionic_notifyq_comp *comp = cq_info->cq_desc;
 	struct ionic_deferred_work *work;
+	union ionic_notifyq_comp *comp;
 	struct net_device *netdev;
 	struct ionic_queue *q;
 	struct ionic_lif *lif;
 	u64 eid;
+
+	comp = &((union ionic_notifyq_comp *)cq->base)[cq->tail_idx];
 
 	q = cq->bound_q;
 	lif = q->info[0].arg;
@@ -320,14 +318,14 @@ bool ionic_notifyq_service(struct ionic_cq *cq,
 	return true;
 }
 
-bool ionic_adminq_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
+bool ionic_adminq_service(struct ionic_cq *cq)
 {
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
 	struct ionic_admin_comp *comp;
 	u16 index;
 
-	comp = cq_info->cq_desc;
+	comp = &((struct ionic_admin_comp *)cq->base)[cq->tail_idx];
 
 	if (!color_match(comp->color, cq->done_color))
 		return false;
@@ -341,7 +339,7 @@ bool ionic_adminq_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 		if (likely(desc_info->arg))
-			ionic_adminq_clean(q, desc_info, cq_info);
+			ionic_adminq_clean(q, desc_info, comp);
 		desc_info->arg = NULL;
 	} while (index != le16_to_cpu(comp->comp_index));
 

@@ -433,8 +433,6 @@ static void ionic_qcq_free(struct ionic_lif *lif, struct ionic_qcq *qcq)
 	ionic_xdp_unregister_rxq_info(&qcq->q);
 	ionic_qcq_intr_free(lif, qcq);
 
-	vfree(qcq->cq.info);
-	qcq->cq.info = NULL;
 	vfree(qcq->q.info);
 	qcq->q.info = NULL;
 }
@@ -542,9 +540,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 {
 	struct ionic_dev *idev = &lif->ionic->idev;
 	struct device *dev = lif->ionic->dev;
-	dma_addr_t cq_base_pa = 0;
 	struct ionic_qcq *new;
-	void *cq_base;
 	int err;
 
 	*qcq = NULL;
@@ -578,19 +574,12 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 
 	err = ionic_alloc_qcq_interrupt(lif, new);
 	if (err)
-		goto err_out;
-
-	new->cq.info = vcalloc(num_descs, sizeof(*new->cq.info));
-	if (!new->cq.info) {
-		netdev_err(lif->netdev, "Cannot allocate completion queue info\n");
-		err = -ENOMEM;
-		goto err_out_free_irq;
-	}
+		goto err_out_free_q_info;
 
 	err = ionic_cq_init(lif, &new->cq, &new->intr, num_descs, cq_desc_size);
 	if (err) {
 		netdev_err(lif->netdev, "Cannot initialize completion queue\n");
-		goto err_out_free_cq_info;
+		goto err_out_free_irq;
 	}
 
 	if (flags & IONIC_QCQ_F_NOTIFYQ) {
@@ -608,15 +597,15 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 		if (!new->q_base) {
 			netdev_err(lif->netdev, "Cannot allocate qcq DMA memory\n");
 			err = -ENOMEM;
-			goto err_out_free_cq_info;
+			goto err_out_free_irq;
 		}
 		new->q.base = PTR_ALIGN(new->q_base, PAGE_SIZE);
 		new->q.base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
 
-		cq_base = PTR_ALIGN(new->q_base + q_size, PAGE_SIZE);
-		cq_base_pa = ALIGN(new->q_base_pa + q_size, PAGE_SIZE);
-		ionic_cq_map(&new->cq, cq_base, cq_base_pa);
-		ionic_cq_bind(&new->cq, &new->q);
+		/* Base the NotifyQ cq.base off of the ALIGNed q.base */
+		new->cq.base = PTR_ALIGN(new->q.base + q_size, PAGE_SIZE);
+		new->cq.base_pa = ALIGN(new->q_base_pa + q_size, PAGE_SIZE);
+		new->cq.bound_q = &new->q;
 	} else {
 		/* regular DMA q descriptors */
 		new->q_size = PAGE_SIZE + (num_descs * desc_size);
@@ -625,7 +614,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 		if (!new->q_base) {
 			netdev_err(lif->netdev, "Cannot allocate queue DMA memory\n");
 			err = -ENOMEM;
-			goto err_out_free_cq_info;
+			goto err_out_free_irq;
 		}
 		new->q.base = PTR_ALIGN(new->q_base, PAGE_SIZE);
 		new->q.base_pa = ALIGN(new->q_base_pa, PAGE_SIZE);
@@ -666,10 +655,9 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			err = -ENOMEM;
 			goto err_out_free_q;
 		}
-		cq_base = PTR_ALIGN(new->cq_base, PAGE_SIZE);
-		cq_base_pa = ALIGN(new->cq_base_pa, PAGE_SIZE);
-		ionic_cq_map(&new->cq, cq_base, cq_base_pa);
-		ionic_cq_bind(&new->cq, &new->q);
+		new->cq.base = PTR_ALIGN(new->cq_base, PAGE_SIZE);
+		new->cq.base_pa = ALIGN(new->cq_base_pa, PAGE_SIZE);
+		new->cq.bound_q = &new->q;
 	}
 
 	if (flags & IONIC_QCQ_F_SG) {
@@ -700,8 +688,6 @@ err_out_free_q:
 		ionic_put_cmb(lif, new->cmb_pgid, new->cmb_order);
 	}
 	dma_free_coherent(dev, new->q_size, new->q_base, new->q_base_pa);
-err_out_free_cq_info:
-	vfree(new->cq.info);
 err_out_free_irq:
 	if (flags & IONIC_QCQ_F_INTR) {
 		devm_free_irq(dev, new->intr.vector, &new->napi);
@@ -2889,7 +2875,6 @@ static void ionic_swap_queues(struct ionic_qcq *a, struct ionic_qcq *b)
 	swap(a->cq.desc_size, b->cq.desc_size);
 	swap(a->cq.base,      b->cq.base);
 	swap(a->cq.base_pa,   b->cq.base_pa);
-	swap(a->cq.info,      b->cq.info);
 	swap(a->cq_base,      b->cq_base);
 	swap(a->cq_base_pa,   b->cq_base_pa);
 	swap(a->cq_size,      b->cq_size);

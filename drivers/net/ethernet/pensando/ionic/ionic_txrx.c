@@ -23,7 +23,7 @@ static void ionic_tx_desc_unmap_bufs(struct ionic_queue *q,
 
 static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info);
+			   struct ionic_txq_comp *comp);
 
 static inline void ionic_txq_post(struct ionic_queue *q, bool ring_dbell,
 				  void *arg)
@@ -635,18 +635,15 @@ out_xdp_abort:
 
 static void ionic_rx_clean(struct ionic_queue *q,
 			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info)
+			   struct ionic_rxq_comp *comp)
 {
 	struct net_device *netdev = q->lif->netdev;
 	struct ionic_qcq *qcq = q_to_qcq(q);
 	struct ionic_rx_stats *stats;
-	struct ionic_rxq_comp *comp;
 	struct bpf_prog *xdp_prog;
 	unsigned int headroom;
 	struct sk_buff *skb;
 	u16 len;
-
-	comp = cq_info->cq_desc + qcq->cq.desc_size - sizeof(*comp);
 
 	stats = q_to_rx_stats(q);
 
@@ -722,7 +719,7 @@ static void ionic_rx_clean(struct ionic_queue *q,
 		u64 hwstamp;
 
 		cq_desc_hwstamp =
-			cq_info->cq_desc +
+			(void *)comp +
 			qcq->cq.desc_size -
 			sizeof(struct ionic_rxq_comp) -
 			IONIC_HWSTAMP_CQ_NEGOFFSET;
@@ -743,13 +740,13 @@ static void ionic_rx_clean(struct ionic_queue *q,
 		napi_gro_frags(&qcq->napi);
 }
 
-bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
+bool ionic_rx_service(struct ionic_cq *cq)
 {
 	struct ionic_queue *q = cq->bound_q;
 	struct ionic_desc_info *desc_info;
 	struct ionic_rxq_comp *comp;
 
-	comp = cq_info->cq_desc + cq->desc_size - sizeof(*comp);
+	comp = &((struct ionic_rxq_comp *)cq->base)[cq->tail_idx];
 
 	if (!color_match(comp->pkt_type_color, cq->done_color))
 		return false;
@@ -765,7 +762,7 @@ bool ionic_rx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info)
 	q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 
 	/* clean the related q entry, only one per qc completion */
-	ionic_rx_clean(q, desc_info, cq_info);
+	ionic_rx_clean(q, desc_info, comp);
 
 	desc_info->arg = NULL;
 
@@ -1181,7 +1178,7 @@ static void ionic_tx_desc_unmap_bufs(struct ionic_queue *q,
 
 static void ionic_tx_clean(struct ionic_queue *q,
 			   struct ionic_desc_info *desc_info,
-			   struct ionic_cq_info *cq_info)
+			   struct ionic_txq_comp *comp)
 {
 	struct ionic_tx_stats *stats = q_to_tx_stats(q);
 	struct ionic_qcq *qcq = q_to_qcq(q);
@@ -1204,13 +1201,13 @@ static void ionic_tx_clean(struct ionic_queue *q,
 		return;
 
 	if (unlikely(ionic_txq_hwstamp_enabled(q))) {
-		if (cq_info) {
+		if (comp) {
 			struct skb_shared_hwtstamps hwts = {};
 			__le64 *cq_desc_hwstamp;
 			u64 hwstamp;
 
 			cq_desc_hwstamp =
-				cq_info->cq_desc +
+				(void *)comp +
 				qcq->cq.desc_size -
 				sizeof(struct ionic_txq_comp) -
 				IONIC_HWSTAMP_CQ_NEGOFFSET;
@@ -1236,7 +1233,7 @@ static void ionic_tx_clean(struct ionic_queue *q,
 	napi_consume_skb(skb, 1);
 }
 
-static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info,
+static bool ionic_tx_service(struct ionic_cq *cq,
 			     unsigned int *total_pkts, unsigned int *total_bytes)
 {
 	struct ionic_queue *q = cq->bound_q;
@@ -1246,7 +1243,7 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info,
 	unsigned int pkts = 0;
 	u16 index;
 
-	comp = cq_info->cq_desc + cq->desc_size - sizeof(*comp);
+	comp = &((struct ionic_txq_comp *)cq->base)[cq->tail_idx];
 
 	if (!color_match(comp->color, cq->done_color))
 		return false;
@@ -1259,7 +1256,7 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info,
 		desc_info->bytes = 0;
 		index = q->tail_idx;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
-		ionic_tx_clean(q, desc_info, cq_info);
+		ionic_tx_clean(q, desc_info, comp);
 		if (desc_info->arg) {
 			pkts++;
 			bytes += desc_info->bytes;
@@ -1275,7 +1272,6 @@ static bool ionic_tx_service(struct ionic_cq *cq, struct ionic_cq_info *cq_info,
 
 unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 {
-	struct ionic_cq_info *cq_info;
 	unsigned int work_done = 0;
 	unsigned int bytes = 0;
 	unsigned int pkts = 0;
@@ -1283,12 +1279,10 @@ unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 	if (work_to_do == 0)
 		return 0;
 
-	cq_info = &cq->info[cq->tail_idx];
-	while (ionic_tx_service(cq, cq_info, &pkts, &bytes)) {
+	while (ionic_tx_service(cq, &pkts, &bytes)) {
 		if (cq->tail_idx == cq->num_descs - 1)
 			cq->done_color = !cq->done_color;
 		cq->tail_idx = (cq->tail_idx + 1) & (cq->num_descs - 1);
-		cq_info = &cq->info[cq->tail_idx];
 
 		if (++work_done >= work_to_do)
 			break;

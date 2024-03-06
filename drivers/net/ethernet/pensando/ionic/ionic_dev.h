@@ -177,14 +177,6 @@ struct ionic_dev {
 	struct ionic_devinfo dev_info;
 };
 
-struct ionic_cq_info {
-	union {
-		void *cq_desc;
-		struct ionic_admin_comp *admincq;
-		struct ionic_notifyq_event *notifyq;
-	};
-};
-
 struct ionic_queue;
 struct ionic_qcq;
 struct ionic_desc_info;
@@ -282,7 +274,6 @@ struct ionic_intr_info {
 
 struct ionic_cq {
 	struct ionic_lif *lif;
-	struct ionic_cq_info *info;
 	struct ionic_queue *bound_q;
 	struct ionic_intr_info *bound_intr;
 	u16 tail_idx;
@@ -365,7 +356,7 @@ int ionic_cq_init(struct ionic_lif *lif, struct ionic_cq *cq,
 		  unsigned int num_descs, size_t desc_size);
 void ionic_cq_map(struct ionic_cq *cq, void *base, dma_addr_t base_pa);
 void ionic_cq_bind(struct ionic_cq *cq, struct ionic_queue *q);
-typedef bool (*ionic_cq_cb)(struct ionic_cq *cq, struct ionic_cq_info *cq_info);
+typedef bool (*ionic_cq_cb)(struct ionic_cq *cq);
 typedef void (*ionic_cq_done_cb)(void *done_arg);
 unsigned int ionic_cq_service(struct ionic_cq *cq, unsigned int work_to_do,
 			      ionic_cq_cb cb, ionic_cq_done_cb done_cb,
