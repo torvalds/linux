@@ -113,8 +113,9 @@ static void amd_pmf_dbgfs_unregister(struct amd_pmf_dev *dev)
 static void amd_pmf_dbgfs_register(struct amd_pmf_dev *dev)
 {
 	dev->dbgfs_dir = debugfs_create_dir("amd_pmf", NULL);
-	debugfs_create_file("current_power_limits", 0644, dev->dbgfs_dir, dev,
-			    &current_power_limits_fops);
+	if (dev->pmf_if_version == PMF_IF_V1)
+		debugfs_create_file("current_power_limits", 0644, dev->dbgfs_dir, dev,
+				    &current_power_limits_fops);
 }
 
 int amd_pmf_get_power_source(void)
