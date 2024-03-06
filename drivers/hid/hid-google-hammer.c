@@ -255,7 +255,7 @@ out:
 	return retval;
 }
 
-static int cbas_ec_remove(struct platform_device *pdev)
+static void cbas_ec_remove(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 
@@ -266,7 +266,6 @@ static int cbas_ec_remove(struct platform_device *pdev)
 	cbas_ec_set_input(NULL);
 
 	mutex_unlock(&cbas_ec_reglock);
-	return 0;
 }
 
 static const struct acpi_device_id cbas_ec_acpi_ids[] = {
@@ -285,7 +284,7 @@ MODULE_DEVICE_TABLE(of, cbas_ec_of_match);
 
 static struct platform_driver cbas_ec_driver = {
 	.probe = cbas_ec_probe,
-	.remove = cbas_ec_remove,
+	.remove_new = cbas_ec_remove,
 	.driver = {
 		.name = "cbas_ec",
 		.acpi_match_table = ACPI_PTR(cbas_ec_acpi_ids),
