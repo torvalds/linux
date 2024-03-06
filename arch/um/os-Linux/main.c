@@ -184,6 +184,11 @@ int __init main(int argc, char **argv, char **envp)
 
 extern void *__real_malloc(int);
 
+/* workaround for -Wmissing-prototypes warnings */
+void *__wrap_malloc(int size);
+void *__wrap_calloc(int n, int size);
+void __wrap_free(void *ptr);
+
 void *__wrap_malloc(int size)
 {
 	void *ret;
