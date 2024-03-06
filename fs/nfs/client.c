@@ -76,10 +76,6 @@ const struct rpc_program nfs_program = {
 	.pipe_dir_name		= NFS_PIPE_DIRNAME,
 };
 
-struct rpc_stat nfs_rpcstat = {
-	.program		= &nfs_program
-};
-
 static struct nfs_subversion *find_nfs_version(unsigned int version)
 {
 	struct nfs_subversion *nfs;
