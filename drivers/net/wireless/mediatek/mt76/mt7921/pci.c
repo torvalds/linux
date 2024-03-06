@@ -24,6 +24,8 @@ static const struct pci_device_id mt7921_pci_device_table[] = {
 		.driver_data = (kernel_ulong_t)MT7921_FIRMWARE_WM },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x0616),
 		.driver_data = (kernel_ulong_t)MT7922_FIRMWARE_WM },
+	{ PCI_DEVICE(PCI_VENDOR_ID_MEDIATEK, 0x7920),
+		.driver_data = (kernel_ulong_t)MT7920_FIRMWARE_WM },
 	{ },
 };
 
@@ -269,9 +271,9 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	struct mt76_bus_ops *bus_ops;
 	struct mt792x_dev *dev;
 	struct mt76_dev *mdev;
+	u16 cmd, chipid;
 	u8 features;
 	int ret;
-	u16 cmd;
 
 	ret = pcim_enable_device(pdev);
 	if (ret)
@@ -345,7 +347,10 @@ static int mt7921_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_free_dev;
 
-	mdev->rev = (mt7921_l1_rr(dev, MT_HW_CHIPID) << 16) |
+	chipid = mt7921_l1_rr(dev, MT_HW_CHIPID);
+	if (chipid == 0x7961 && (mt7921_l1_rr(dev, MT_HW_BOUND) & BIT(7)))
+		chipid = 0x7920;
+	mdev->rev = (chipid << 16) |
 		    (mt7921_l1_rr(dev, MT_HW_REV) & 0xff);
 	dev_info(mdev->dev, "ASIC revision: %04x\n", mdev->rev);
 
@@ -551,6 +556,8 @@ static struct pci_driver mt7921_pci_driver = {
 module_pci_driver(mt7921_pci_driver);
 
 MODULE_DEVICE_TABLE(pci, mt7921_pci_device_table);
+MODULE_FIRMWARE(MT7920_FIRMWARE_WM);
+MODULE_FIRMWARE(MT7920_ROM_PATCH);
 MODULE_FIRMWARE(MT7921_FIRMWARE_WM);
 MODULE_FIRMWARE(MT7921_ROM_PATCH);
 MODULE_FIRMWARE(MT7922_FIRMWARE_WM);
