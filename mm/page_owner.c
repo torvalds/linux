@@ -865,8 +865,7 @@ static int stack_print(struct seq_file *m, void *v)
 	entries = stack_record->entries;
 	stack_count = refcount_read(&stack_record->count) - 1;
 
-	if (!nr_entries || nr_entries < 0 || stack_count < 1 ||
-	    stack_count < page_owner_stack_threshold)
+	if (stack_count < 1 || stack_count < page_owner_stack_threshold)
 		return 0;
 
 	for (i = 0; i < nr_entries; i++)
