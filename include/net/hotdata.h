@@ -22,6 +22,7 @@ struct net_hotdata {
 	int			tstamp_prequeue;
 	int			max_backlog;
 	int			dev_tx_weight;
+	int			dev_rx_weight;
 };
 
 extern struct net_hotdata net_hotdata;
