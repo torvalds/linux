@@ -2,6 +2,7 @@
 
 #include <test_progs.h>
 #include "struct_ops_autocreate.skel.h"
+#include "struct_ops_autocreate2.skel.h"
 
 static void cant_load_full_object(void)
 {
@@ -43,17 +44,19 @@ static void can_load_partial_object(void)
 	if (!ASSERT_OK_PTR(skel, "struct_ops_autocreate__open_opts"))
 		return;
 
-	err = bpf_program__set_autoload(skel->progs.test_2, false);
-	if (!ASSERT_OK(err, "bpf_program__set_autoload"))
-		goto cleanup;
-
 	err = bpf_map__set_autocreate(skel->maps.testmod_2, false);
 	if (!ASSERT_OK(err, "bpf_map__set_autocreate"))
 		goto cleanup;
 
+	ASSERT_TRUE(bpf_program__autoload(skel->progs.test_1), "test_1 default autoload");
+	ASSERT_TRUE(bpf_program__autoload(skel->progs.test_2), "test_2 default autoload");
+
 	err = struct_ops_autocreate__load(skel);
 	if (ASSERT_OK(err, "struct_ops_autocreate__load"))
 		goto cleanup;
+
+	ASSERT_TRUE(bpf_program__autoload(skel->progs.test_1), "test_1 actual autoload");
+	ASSERT_FALSE(bpf_program__autoload(skel->progs.test_2), "test_2 actual autoload");
 
 	link = bpf_map__attach_struct_ops(skel->maps.testmod_1);
 	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops"))
@@ -67,10 +70,50 @@ cleanup:
 	struct_ops_autocreate__destroy(skel);
 }
 
+/* Swap test_mod1->test_1 program from 'bar' to 'foo' using shadow vars.
+ * test_mod1 load should enable autoload for 'foo'.
+ */
+static void autoload_and_shadow_vars(void)
+{
+	struct struct_ops_autocreate2 *skel = NULL;
+	struct bpf_link *link = NULL;
+	int err;
+
+	skel = struct_ops_autocreate2__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_autocreate__open_opts"))
+		return;
+
+	ASSERT_FALSE(bpf_program__autoload(skel->progs.foo), "foo default autoload");
+	ASSERT_FALSE(bpf_program__autoload(skel->progs.bar), "bar default autoload");
+
+	/* loading map testmod_1 would switch foo's autoload to true */
+	skel->struct_ops.testmod_1->test_1 = skel->progs.foo;
+
+	err = struct_ops_autocreate2__load(skel);
+	if (ASSERT_OK(err, "struct_ops_autocreate__load"))
+		goto cleanup;
+
+	ASSERT_TRUE(bpf_program__autoload(skel->progs.foo), "foo actual autoload");
+	ASSERT_FALSE(bpf_program__autoload(skel->progs.bar), "bar actual autoload");
+
+	link = bpf_map__attach_struct_ops(skel->maps.testmod_1);
+	if (!ASSERT_OK_PTR(link, "bpf_map__attach_struct_ops"))
+		goto cleanup;
+
+	/* test_1() would be called from bpf_dummy_reg2() in bpf_testmod.c */
+	err = ASSERT_EQ(skel->bss->test_1_result, 42, "test_1_result");
+
+cleanup:
+	bpf_link__destroy(link);
+	struct_ops_autocreate2__destroy(skel);
+}
+
 void test_struct_ops_autocreate(void)
 {
 	if (test__start_subtest("cant_load_full_object"))
 		cant_load_full_object();
 	if (test__start_subtest("can_load_partial_object"))
 		can_load_partial_object();
+	if (test__start_subtest("autoload_and_shadow_vars"))
+		autoload_and_shadow_vars();
 }
