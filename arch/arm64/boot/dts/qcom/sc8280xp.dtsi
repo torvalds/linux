@@ -1731,6 +1731,8 @@
 			linux,pci-domain = <6>;
 			num-lanes = <1>;
 
+			msi-map = <0x0 &its 0xe0000 0x10000>;
+
 			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
@@ -1832,6 +1834,8 @@
 			linux,pci-domain = <5>;
 			num-lanes = <2>;
 
+			msi-map = <0x0 &its 0xd0000 0x10000>;
+
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
@@ -1930,6 +1934,8 @@
 
 			linux,pci-domain = <4>;
 			num-lanes = <4>;
+
+			msi-map = <0x0 &its 0xc0000 0x10000>;
 
 			interrupts = <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
@@ -2033,6 +2039,8 @@
 			linux,pci-domain = <3>;
 			num-lanes = <2>;
 
+			msi-map = <0x0 &its 0xb0000 0x10000>;
+
 			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
@@ -2131,6 +2139,8 @@
 
 			linux,pci-domain = <2>;
 			num-lanes = <4>;
+
+			msi-map = <0x0 &its 0xa0000 0x10000>;
 
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 523 IRQ_TYPE_LEVEL_HIGH>,
@@ -4804,7 +4814,7 @@
 			#size-cells = <2>;
 			ranges;
 
-			msi-controller@17a40000 {
+			its: msi-controller@17a40000 {
 				compatible = "arm,gic-v3-its";
 				reg = <0 0x17a40000 0 0x20000>;
 				msi-controller;
