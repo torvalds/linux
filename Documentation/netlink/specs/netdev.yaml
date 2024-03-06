@@ -328,6 +328,13 @@ attribute-sets:
         name: tx-bytes
         doc: Successfully sent bytes, see `tx-packets`.
         type: uint
+      -
+        name: rx-alloc-fail
+        doc: |
+          Number of times skb or buffer allocation failed on the Rx datapath.
+          Allocation failure may, or may not result in a packet drop, depending
+          on driver implementation and whether system recovers quickly.
+        type: uint
 
 operations:
   list:

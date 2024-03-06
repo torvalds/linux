@@ -4,9 +4,11 @@
 
 #include <linux/netdevice.h>
 
+/* See the netdev.yaml spec for definition of each statistic */
 struct netdev_queue_stats_rx {
 	u64 bytes;
 	u64 packets;
+	u64 alloc_fail;
 };
 
 struct netdev_queue_stats_tx {
