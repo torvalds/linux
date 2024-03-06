@@ -221,14 +221,11 @@ static int ns_update_nuse(struct nvme_ns *ns)
 
 	ret = nvme_identify_ns(ns->ctrl, ns->head->ns_id, &id);
 	if (ret)
-		goto out_free_id;
+		return ret;
 
 	ns->head->nuse = le64_to_cpu(id->nuse);
-
-out_free_id:
 	kfree(id);
-
-	return ret;
+	return 0;
 }
 
 static ssize_t nuse_show(struct device *dev, struct device_attribute *attr,
