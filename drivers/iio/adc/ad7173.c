@@ -61,10 +61,10 @@
 #define AD7173_AIN_TEMP_POS	17
 #define AD7173_AIN_TEMP_NEG	18
 
-#define AD7172_ID			0x00d0
-#define AD7173_ID			0x30d0
+#define AD7172_2_ID			0x00d0
 #define AD7175_ID			0x0cd0
 #define AD7176_ID			0x0c90
+#define AD7173_ID			0x30d0
 #define AD7173_ID_MASK			GENMASK(15, 4)
 
 #define AD7173_ADC_MODE_REF_EN		BIT(15)
@@ -190,7 +190,7 @@ static const unsigned int ad7175_sinc5_data_rates[] = {
 static const struct ad7173_device_info ad7173_device_info[] = {
 	[ID_AD7172_2] = {
 		.name = "ad7172-2",
-		.id = AD7172_ID,
+		.id = AD7172_2_ID,
 		.num_inputs = 5,
 		.num_channels = 4,
 		.num_configs = 4,
