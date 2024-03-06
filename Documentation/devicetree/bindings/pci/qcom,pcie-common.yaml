@@ -59,6 +59,9 @@ properties:
   power-domains:
     maxItems: 1
 
+  required-opps:
+    maxItems: 1
+
   resets:
     minItems: 1
     maxItems: 12

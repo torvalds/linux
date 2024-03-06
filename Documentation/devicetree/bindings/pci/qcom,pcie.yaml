@@ -105,6 +105,9 @@ properties:
     description: GPIO controlled connection to PERST# signal
     maxItems: 1
 
+  required-opps:
+    maxItems: 1
+
   wake-gpios:
     description: GPIO controlled connection to WAKE# signal
     maxItems: 1
