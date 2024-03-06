@@ -23,6 +23,9 @@ properties:
 
   compatible:
     enum:
+      - qcom,msm8909-bimc
+      - qcom,msm8909-pcnoc
+      - qcom,msm8909-snoc
       - qcom,msm8916-bimc
       - qcom,msm8916-pcnoc
       - qcom,msm8916-snoc
