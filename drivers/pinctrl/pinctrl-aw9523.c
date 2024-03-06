@@ -1099,6 +1099,7 @@ MODULE_DEVICE_TABLE(i2c, aw9523_i2c_id_table);
 
 static const struct of_device_id of_aw9523_i2c_match[] = {
 	{ .compatible = "awinic,aw9523-pinctrl", },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, of_aw9523_i2c_match);
 
