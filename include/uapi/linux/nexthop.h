@@ -60,6 +60,9 @@ enum {
 	/* nested; nexthop bucket attributes */
 	NHA_RES_BUCKET,
 
+	/* u32; operation-specific flags */
+	NHA_OP_FLAGS,
+
 	__NHA_MAX,
 };
 
