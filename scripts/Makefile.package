@@ -135,7 +135,7 @@ snap-pkg:
 	mkdir $(objtree)/snap
 	$(MAKE) clean
 	sed "s@KERNELRELEASE@$(KERNELRELEASE)@; \
-		s@SRCTREE@$(abs_srctree)@" \
+		s@SRCTREE@$(realpath $(srctree))@" \
 		$(srctree)/scripts/package/snapcraft.template > \
 		$(objtree)/snap/snapcraft.yaml
 	cd $(objtree)/snap && \

@@ -39,8 +39,8 @@ __all:
 # prepare rule.
 
 this-makefile := $(lastword $(MAKEFILE_LIST))
-export abs_srctree := $(realpath $(dir $(this-makefile)))
-export abs_objtree := $(CURDIR)
+abs_srctree := $(realpath $(dir $(this-makefile)))
+abs_objtree := $(CURDIR)
 
 ifneq ($(sub_make_done),1)
 
