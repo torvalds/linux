@@ -94,9 +94,6 @@
 /* some bits in ICR are reserved */
 #define I2C_CLEAR_ALL_INTS	0x131f007f
 
-/* first three msb bits are reserved */
-#define IRQ_MASK(mask)		(mask & 0x1fffffff)
-
 /* maximum threshold value */
 #define MAX_I2C_FIFO_THRESHOLD	15
 
@@ -249,8 +246,7 @@ static int flush_i2c_fifo(struct nmk_i2c_dev *priv)
  */
 static void disable_all_interrupts(struct nmk_i2c_dev *priv)
 {
-	u32 mask = IRQ_MASK(0);
-	writel(mask, priv->virtbase + I2C_IMSCR);
+	writel(0, priv->virtbase + I2C_IMSCR);
 }
 
 /**
@@ -259,9 +255,7 @@ static void disable_all_interrupts(struct nmk_i2c_dev *priv)
  */
 static void clear_all_interrupts(struct nmk_i2c_dev *priv)
 {
-	u32 mask;
-	mask = IRQ_MASK(I2C_CLEAR_ALL_INTS);
-	writel(mask, priv->virtbase + I2C_ICR);
+	writel(I2C_CLEAR_ALL_INTS, priv->virtbase + I2C_ICR);
 }
 
 /**
@@ -468,7 +462,7 @@ static int read_i2c(struct nmk_i2c_dev *priv, u16 flags)
 	else
 		irq_mask |= I2C_IT_MTDWS;
 
-	irq_mask = I2C_CLEAR_ALL_INTS & IRQ_MASK(irq_mask);
+	irq_mask &= I2C_CLEAR_ALL_INTS;
 
 	writel(readl(priv->virtbase + I2C_IMSCR) | irq_mask,
 	       priv->virtbase + I2C_IMSCR);
@@ -547,7 +541,7 @@ static int write_i2c(struct nmk_i2c_dev *priv, u16 flags)
 	else
 		irq_mask |= I2C_IT_MTDWS;
 
-	irq_mask = I2C_CLEAR_ALL_INTS & IRQ_MASK(irq_mask);
+	irq_mask &= I2C_CLEAR_ALL_INTS;
 
 	writel(readl(priv->virtbase + I2C_IMSCR) | irq_mask,
 	       priv->virtbase + I2C_IMSCR);
@@ -703,8 +697,8 @@ static int nmk_i2c_xfer(struct i2c_adapter *i2c_adap,
  */
 static int disable_interrupts(struct nmk_i2c_dev *priv, u32 irq)
 {
-	irq = IRQ_MASK(irq);
-	writel(readl(priv->virtbase + I2C_IMSCR) & ~(I2C_CLEAR_ALL_INTS & irq),
+	irq &= I2C_CLEAR_ALL_INTS;
+	writel(readl(priv->virtbase + I2C_IMSCR) & ~irq,
 	       priv->virtbase + I2C_IMSCR);
 	return 0;
 }
