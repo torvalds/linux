@@ -2576,7 +2576,7 @@ static int opal_get_discv(struct opal_dev *dev, struct opal_discovery *discv)
 	const struct opal_step discovery0_step = {
 		opal_discovery0, discv
 	};
-	int ret = 0;
+	int ret;
 
 	mutex_lock(&dev->dev_lock);
 	setup_opal_dev(dev);
@@ -3065,7 +3065,7 @@ bool opal_unlock_from_suspend(struct opal_dev *dev)
 {
 	struct opal_suspend_data *suspend;
 	bool was_failure = false;
-	int ret = 0;
+	int ret;
 
 	if (!dev)
 		return false;
