@@ -6,7 +6,7 @@ import json
 import pprint
 import time
 
-from lib import YnlFamily, Netlink
+from lib import YnlFamily, Netlink, NlError
 
 
 class YnlEncoder(json.JSONEncoder):
@@ -66,12 +66,16 @@ def main():
     if args.sleep:
         time.sleep(args.sleep)
 
-    if args.do:
-        reply = ynl.do(args.do, attrs, args.flags)
-        output(reply)
-    if args.dump:
-        reply = ynl.dump(args.dump, attrs)
-        output(reply)
+    try:
+        if args.do:
+            reply = ynl.do(args.do, attrs, args.flags)
+            output(reply)
+        if args.dump:
+            reply = ynl.dump(args.dump, attrs)
+            output(reply)
+    except NlError as e:
+        print(e)
+        exit(1)
 
     if args.ntf:
         ynl.check_ntf()
