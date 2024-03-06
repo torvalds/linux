@@ -687,14 +687,10 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 	return 0;
 }
 
-void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, void *arg)
+void ionic_q_post(struct ionic_queue *q, bool ring_doorbell)
 {
-	struct ionic_desc_info *desc_info;
 	struct ionic_lif *lif = q->lif;
 	struct device *dev = q->dev;
-
-	desc_info = &q->info[q->head_idx];
-	desc_info->arg = arg;
 
 	q->head_idx = (q->head_idx + 1) & (q->num_descs - 1);
 

@@ -536,6 +536,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 			   unsigned int num_descs, unsigned int desc_size,
 			   unsigned int cq_desc_size,
 			   unsigned int sg_desc_size,
+			   unsigned int desc_info_size,
 			   unsigned int pid, struct ionic_qcq **qcq)
 {
 	struct ionic_dev *idev = &lif->ionic->idev;
@@ -555,7 +556,7 @@ static int ionic_qcq_alloc(struct ionic_lif *lif, unsigned int type,
 	new->q.dev = dev;
 	new->flags = flags;
 
-	new->q.info = vcalloc(num_descs, sizeof(*new->q.info));
+	new->q.info = vcalloc(num_descs, desc_info_size);
 	if (!new->q.info) {
 		netdev_err(lif->netdev, "Cannot allocate queue info\n");
 		err = -ENOMEM;
@@ -713,7 +714,9 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 			      IONIC_ADMINQ_LENGTH,
 			      sizeof(struct ionic_admin_cmd),
 			      sizeof(struct ionic_admin_comp),
-			      0, lif->kern_pid, &lif->adminqcq);
+			      0,
+			      sizeof(struct ionic_admin_desc_info),
+			      lif->kern_pid, &lif->adminqcq);
 	if (err)
 		return err;
 	ionic_debugfs_add_qcq(lif, lif->adminqcq);
@@ -724,7 +727,9 @@ static int ionic_qcqs_alloc(struct ionic_lif *lif)
 				      flags, IONIC_NOTIFYQ_LENGTH,
 				      sizeof(struct ionic_notifyq_cmd),
 				      sizeof(union ionic_notifyq_comp),
-				      0, lif->kern_pid, &lif->notifyqcq);
+				      0,
+				      sizeof(struct ionic_admin_desc_info),
+				      lif->kern_pid, &lif->notifyqcq);
 		if (err)
 			goto err_out;
 		ionic_debugfs_add_qcq(lif, lif->notifyqcq);
@@ -942,6 +947,7 @@ int ionic_lif_create_hwstamp_txq(struct ionic_lif *lif)
 
 	err = ionic_qcq_alloc(lif, IONIC_QTYPE_TXQ, txq_i, "hwstamp_tx", flags,
 			      num_desc, desc_sz, comp_sz, sg_desc_sz,
+			      sizeof(struct ionic_tx_desc_info),
 			      lif->kern_pid, &txq);
 	if (err)
 		goto err_qcq_alloc;
@@ -1001,6 +1007,7 @@ int ionic_lif_create_hwstamp_rxq(struct ionic_lif *lif)
 
 	err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, rxq_i, "hwstamp_rx", flags,
 			      num_desc, desc_sz, comp_sz, sg_desc_sz,
+			      sizeof(struct ionic_rx_desc_info),
 			      lif->kern_pid, &rxq);
 	if (err)
 		goto err_qcq_alloc;
@@ -2027,6 +2034,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 	for (i = 0; i < lif->nxqs; i++) {
 		err = ionic_qcq_alloc(lif, IONIC_QTYPE_TXQ, i, "tx", flags,
 				      num_desc, desc_sz, comp_sz, sg_desc_sz,
+				      sizeof(struct ionic_tx_desc_info),
 				      lif->kern_pid, &lif->txqcqs[i]);
 		if (err)
 			goto err_out;
@@ -2058,6 +2066,7 @@ static int ionic_txrx_alloc(struct ionic_lif *lif)
 	for (i = 0; i < lif->nxqs; i++) {
 		err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
 				      num_desc, desc_sz, comp_sz, sg_desc_sz,
+				      sizeof(struct ionic_rx_desc_info),
 				      lif->kern_pid, &lif->rxqcqs[i]);
 		if (err)
 			goto err_out;
@@ -2938,6 +2947,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 				flags = IONIC_QCQ_F_TX_STATS | IONIC_QCQ_F_SG;
 				err = ionic_qcq_alloc(lif, IONIC_QTYPE_TXQ, i, "tx", flags,
 						      4, desc_sz, comp_sz, sg_desc_sz,
+						      sizeof(struct ionic_tx_desc_info),
 						      lif->kern_pid, &lif->txqcqs[i]);
 				if (err)
 					goto err_out;
@@ -2946,6 +2956,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 			flags = lif->txqcqs[i]->flags & ~IONIC_QCQ_F_INTR;
 			err = ionic_qcq_alloc(lif, IONIC_QTYPE_TXQ, i, "tx", flags,
 					      num_desc, desc_sz, comp_sz, sg_desc_sz,
+					      sizeof(struct ionic_tx_desc_info),
 					      lif->kern_pid, &tx_qcqs[i]);
 			if (err)
 				goto err_out;
@@ -2967,6 +2978,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 				flags = IONIC_QCQ_F_RX_STATS | IONIC_QCQ_F_SG;
 				err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
 						      4, desc_sz, comp_sz, sg_desc_sz,
+						      sizeof(struct ionic_rx_desc_info),
 						      lif->kern_pid, &lif->rxqcqs[i]);
 				if (err)
 					goto err_out;
@@ -2975,6 +2987,7 @@ int ionic_reconfigure_queues(struct ionic_lif *lif,
 			flags = lif->rxqcqs[i]->flags & ~IONIC_QCQ_F_INTR;
 			err = ionic_qcq_alloc(lif, IONIC_QTYPE_RXQ, i, "rx", flags,
 					      num_desc, desc_sz, comp_sz, sg_desc_sz,
+					      sizeof(struct ionic_rx_desc_info),
 					      lif->kern_pid, &rx_qcqs[i]);
 			if (err)
 				goto err_out;
@@ -3549,7 +3562,7 @@ static int ionic_lif_notifyq_init(struct ionic_lif *lif)
 	dev_dbg(dev, "notifyq->hw_index %d\n", q->hw_index);
 
 	/* preset the callback info */
-	q->info[0].arg = lif;
+	q->admin_info[0].ctx = lif;
 
 	qcq->flags |= IONIC_QCQ_F_INITED;
 
@@ -3801,6 +3814,7 @@ static void ionic_lif_queue_identify(struct ionic_lif *lif)
 	union ionic_q_identity __iomem *q_ident;
 	struct ionic *ionic = lif->ionic;
 	struct ionic_dev *idev;
+	u16 max_frags;
 	int qtype;
 	int err;
 
@@ -3868,17 +3882,16 @@ static void ionic_lif_queue_identify(struct ionic_lif *lif)
 		dev_dbg(ionic->dev, " qtype[%d].sg_desc_stride = %d\n",
 			qtype, qti->sg_desc_stride);
 
-		if (qti->max_sg_elems >= IONIC_MAX_FRAGS) {
-			qti->max_sg_elems = IONIC_MAX_FRAGS - 1;
-			dev_dbg(ionic->dev, "limiting qtype %d max_sg_elems to IONIC_MAX_FRAGS-1 %d\n",
-				qtype, qti->max_sg_elems);
-		}
+		if (qtype == IONIC_QTYPE_TXQ)
+			max_frags = IONIC_TX_MAX_FRAGS;
+		else if (qtype == IONIC_QTYPE_RXQ)
+			max_frags = IONIC_RX_MAX_FRAGS;
+		else
+			max_frags = 1;
 
-		if (qti->max_sg_elems > MAX_SKB_FRAGS) {
-			qti->max_sg_elems = MAX_SKB_FRAGS;
-			dev_dbg(ionic->dev, "limiting qtype %d max_sg_elems to MAX_SKB_FRAGS %d\n",
-				qtype, qti->max_sg_elems);
-		}
+		qti->max_sg_elems = min_t(u16, max_frags - 1, MAX_SKB_FRAGS);
+		dev_dbg(ionic->dev, "qtype %d max_sg_elems %d\n",
+			qtype, qti->max_sg_elems);
 	}
 }
 

@@ -179,7 +179,6 @@ struct ionic_dev {
 
 struct ionic_queue;
 struct ionic_qcq;
-struct ionic_desc_info;
 
 #define IONIC_MAX_BUF_LEN			((u16)-1)
 #define IONIC_PAGE_SIZE				PAGE_SIZE
@@ -199,15 +198,25 @@ struct ionic_buf_info {
 	u32 len;
 };
 
-#define IONIC_MAX_FRAGS			(1 + IONIC_TX_MAX_SG_ELEMS_V1)
+#define IONIC_TX_MAX_FRAGS			(1 + IONIC_TX_MAX_SG_ELEMS_V1)
+#define IONIC_RX_MAX_FRAGS			(1 + IONIC_RX_MAX_SG_ELEMS)
 
-struct ionic_desc_info {
+struct ionic_tx_desc_info {
 	unsigned int bytes;
 	unsigned int nbufs;
-	void *arg;
+	struct sk_buff *skb;
 	struct xdp_frame *xdpf;
 	enum xdp_action act;
 	struct ionic_buf_info bufs[MAX_SKB_FRAGS + 1];
+};
+
+struct ionic_rx_desc_info {
+	unsigned int nbufs;
+	struct ionic_buf_info bufs[IONIC_RX_MAX_FRAGS];
+};
+
+struct ionic_admin_desc_info {
+	void *ctx;
 };
 
 #define IONIC_QUEUE_NAME_MAX_SZ		16
@@ -215,7 +224,12 @@ struct ionic_desc_info {
 struct ionic_queue {
 	struct device *dev;
 	struct ionic_lif *lif;
-	struct ionic_desc_info *info;
+	union {
+		void *info;
+		struct ionic_tx_desc_info *tx_info;
+		struct ionic_rx_desc_info *rx_info;
+		struct ionic_admin_desc_info *admin_info;
+	};
 	u64 dbval;
 	unsigned long dbell_deadline;
 	unsigned long dbell_jiffies;
@@ -367,7 +381,7 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 		 struct ionic_queue *q, unsigned int index, const char *name,
 		 unsigned int num_descs, size_t desc_size,
 		 size_t sg_desc_size, unsigned int pid);
-void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, void *arg);
+void ionic_q_post(struct ionic_queue *q, bool ring_doorbell);
 bool ionic_q_is_posted(struct ionic_queue *q, unsigned int pos);
 
 int ionic_heartbeat_check(struct ionic *ionic);
