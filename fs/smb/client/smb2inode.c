@@ -561,8 +561,15 @@ finished:
 		case SMB2_OP_DELETE:
 			if (rc)
 				trace_smb3_delete_err(xid,  ses->Suid, tcon->tid, rc);
-			else
+			else {
+				/*
+				 * If dentry (hence, inode) is NULL, lease break is going to
+				 * take care of degrading leases on handles for deleted files.
+				 */
+				if (inode)
+					cifs_mark_open_handles_for_deleted_file(inode, full_path);
 				trace_smb3_delete_done(xid, ses->Suid, tcon->tid);
+			}
 			break;
 		case SMB2_OP_MKDIR:
 			if (rc)

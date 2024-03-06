@@ -894,6 +894,9 @@ cifs_get_file_info(struct file *filp)
 	struct cifsFileInfo *cfile = filp->private_data;
 	struct cifs_tcon *tcon = tlink_tcon(cfile->tlink);
 	struct TCP_Server_Info *server = tcon->ses->server;
+	struct dentry *dentry = filp->f_path.dentry;
+	void *page = alloc_dentry_path();
+	const unsigned char *path;
 
 	if (!server->ops->query_file_info)
 		return -ENOSYS;
@@ -908,7 +911,14 @@ cifs_get_file_info(struct file *filp)
 			data.symlink = true;
 			data.reparse.tag = IO_REPARSE_TAG_SYMLINK;
 		}
+		path = build_path_from_dentry(dentry, page);
+		if (IS_ERR(path)) {
+			free_dentry_path(page);
+			return PTR_ERR(path);
+		}
 		cifs_open_info_to_fattr(&fattr, &data, inode->i_sb);
+		if (fattr.cf_flags & CIFS_FATTR_DELETE_PENDING)
+			cifs_mark_open_handles_for_deleted_file(inode, path);
 		break;
 	case -EREMOTE:
 		cifs_create_junction_fattr(&fattr, inode->i_sb);
@@ -938,6 +948,7 @@ cifs_get_file_info(struct file *filp)
 	rc = cifs_fattr_to_inode(inode, &fattr, false);
 cgfi_exit:
 	cifs_free_open_info(&data);
+	free_dentry_path(page);
 	free_xid(xid);
 	return rc;
 }
@@ -1076,6 +1087,7 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 	struct kvec rsp_iov, *iov = NULL;
 	int rsp_buftype = CIFS_NO_BUFFER;
 	u32 tag = data->reparse.tag;
+	struct inode *inode = NULL;
 	int rc = 0;
 
 	if (!tag && server->ops->query_reparse_point) {
@@ -1115,8 +1127,12 @@ static int reparse_info_to_fattr(struct cifs_open_info_data *data,
 
 	if (tcon->posix_extensions)
 		smb311_posix_info_to_fattr(fattr, data, sb);
-	else
+	else {
 		cifs_open_info_to_fattr(fattr, data, sb);
+		inode = cifs_iget(sb, fattr);
+		if (inode && fattr->cf_flags & CIFS_FATTR_DELETE_PENDING)
+			cifs_mark_open_handles_for_deleted_file(inode, full_path);
+	}
 out:
 	fattr->cf_cifstag = data->reparse.tag;
 	free_rsp_buf(rsp_buftype, rsp_iov.iov_base);
@@ -1171,6 +1187,8 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 						   full_path, fattr);
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
+			if (fattr->cf_flags & CIFS_FATTR_DELETE_PENDING)
+				cifs_mark_open_handles_for_deleted_file(*inode, full_path);
 		}
 		break;
 	case -EREMOTE:
@@ -1851,16 +1869,20 @@ retry_std_delete:
 
 psx_del_no_retry:
 	if (!rc) {
-		if (inode)
+		if (inode) {
+			cifs_mark_open_handles_for_deleted_file(inode, full_path);
 			cifs_drop_nlink(inode);
+		}
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
 	} else if (rc == -EBUSY) {
 		if (server->ops->rename_pending_delete) {
 			rc = server->ops->rename_pending_delete(full_path,
 								dentry, xid);
-			if (rc == 0)
+			if (rc == 0) {
+				cifs_mark_open_handles_for_deleted_file(inode, full_path);
 				cifs_drop_nlink(inode);
+			}
 		}
 	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
