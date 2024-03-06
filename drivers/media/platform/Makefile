@@ -15,6 +15,7 @@ obj-y += chips-media/
 obj-y += intel/
 obj-y += marvell/
 obj-y += mediatek/
+obj-y += msm/
 obj-y += nvidia/
 obj-y += nxp/
 obj-y += qcom/

@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIRTIO_NPU
+	tristate "Virtio MSM Neural Processing Unit support"
+	depends on VIRTIO
+	help
+	  This is the virtual frontend driver for Neural Processing Unit
+	  which provides acceleration for neural network processing.
+	  This driver is based on virtio.
+	  Say Y if you want to support virtual NPU.
