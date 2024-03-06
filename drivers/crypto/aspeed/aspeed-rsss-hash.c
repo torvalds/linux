@@ -10,6 +10,24 @@
 
 //#define RSSS_SHA3_POLLING_MODE
 
+static int aspeed_sha3_self_test(struct aspeed_rsss_dev *rsss_dev)
+{
+	u32 pattern = 0xbeef;
+	u32 val;
+
+	ast_rsss_write(rsss_dev, pattern, ASPEED_SHA3_SRC_LO);
+	val = ast_rsss_read(rsss_dev, ASPEED_SHA3_SRC_LO);
+	if (val != pattern)
+		return -EIO;
+
+	ast_rsss_write(rsss_dev, 0x0, ASPEED_SHA3_SRC_LO);
+	val = ast_rsss_read(rsss_dev, ASPEED_SHA3_SRC_LO);
+	if (val)
+		return -EIO;
+
+	return 0;
+}
+
 static int aspeed_sha3_dma_prepare(struct aspeed_rsss_dev *rsss_dev)
 {
 	struct aspeed_engine_sha3 *sha3_engine = &rsss_dev->sha3_engine;
@@ -834,6 +852,11 @@ int aspeed_rsss_sha3_init(struct aspeed_rsss_dev *rsss_dev)
 	 * Set 0 to use direct mode.
 	 */
 	sha3_engine->sg_mode = 0;
+
+	/* Self-test */
+	rc = aspeed_sha3_self_test(rsss_dev);
+	if (rc)
+		goto err_engine_sha3_start;
 
 	/* Enable SHA3 interrupt */
 	val = ast_rsss_read(rsss_dev, ASPEED_RSSS_INT_EN);
