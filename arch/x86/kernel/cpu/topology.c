@@ -27,6 +27,7 @@
 #include <xen/xen.h>
 
 #include <asm/apic.h>
+#include <asm/hypervisor.h>
 #include <asm/io_apic.h>
 #include <asm/mpspec.h>
 #include <asm/smp.h>
@@ -157,6 +158,20 @@ static __init bool check_for_real_bsp(u32 apic_id)
 	return true;
 }
 
+static unsigned int topo_unit_count(u32 lvlid, enum x86_topology_domains at_level,
+				    unsigned long *map)
+{
+	unsigned int id, end, cnt = 0;
+
+	/* Calculate the exclusive end */
+	end = lvlid + (1U << x86_topo_system.dom_shifts[at_level]);
+
+	/* Unfortunately there is no bitmap_weight_range() */
+	for (id = find_next_bit(map, end, lvlid); id < end; id = find_next_bit(map, end, ++id))
+		cnt++;
+	return cnt;
+}
+
 static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 {
 	int cpu, dom;
@@ -178,6 +193,20 @@ static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 		cpuid_to_apicid[cpu] = apic_id;
 		topo_set_cpuids(cpu, apic_id, acpi_id);
 	} else {
+		u32 pkgid = topo_apicid(apic_id, TOPO_PKG_DOMAIN);
+
+		/*
+		 * Check for present APICs in the same package when running
+		 * on bare metal. Allow the bogosity in a guest.
+		 */
+		if (hypervisor_is_type(X86_HYPER_NATIVE) &&
+		    topo_unit_count(pkgid, TOPO_PKG_DOMAIN, phys_cpu_present_map)) {
+			pr_info_once("Ignoring hot-pluggable APIC ID %x in present package.\n",
+				     apic_id);
+			topo_info.nr_rejected_cpus++;
+			return;
+		}
+
 		topo_info.nr_disabled_cpus++;
 	}
 
@@ -280,7 +309,6 @@ unsigned int topology_unit_count(u32 apicid, enum x86_topology_domains which_uni
 {
 	/* Remove the bits below @at_level to get the proper level ID of @apicid */
 	unsigned int lvlid = topo_apicid(apicid, at_level);
-	unsigned int id, end, cnt = 0;
 
 	if (lvlid >= MAX_LOCAL_APIC)
 		return 0;
@@ -290,14 +318,7 @@ unsigned int topology_unit_count(u32 apicid, enum x86_topology_domains which_uni
 		return 0;
 	if (which_units == at_level)
 		return 1;
-
-	/* Calculate the exclusive end */
-	end = lvlid + (1U << x86_topo_system.dom_shifts[at_level]);
-	/* Unfortunately there is no bitmap_weight_range() */
-	for (id = find_next_bit(apic_maps[which_units].map, end, lvlid);
-	     id < end; id = find_next_bit(apic_maps[which_units].map, end, ++id))
-		cnt++;
-	return cnt;
+	return topo_unit_count(lvlid, at_level, apic_maps[which_units].map);
 }
 
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
