@@ -5,6 +5,7 @@
 #include <linux/types.h>
 #include <linux/static_key.h>
 #include <net/sock.h>
+#include <net/hotdata.h>
 
 #ifdef CONFIG_RPS
 
@@ -64,14 +65,11 @@ struct rps_sock_flow_table {
 
 #define RPS_NO_CPU 0xffff
 
-extern u32 rps_cpu_mask;
-extern struct rps_sock_flow_table __rcu *rps_sock_flow_table;
-
 static inline void rps_record_sock_flow(struct rps_sock_flow_table *table,
 					u32 hash)
 {
 	unsigned int index = hash & table->mask;
-	u32 val = hash & ~rps_cpu_mask;
+	u32 val = hash & ~net_hotdata.rps_cpu_mask;
 
 	/* We only give a hint, preemption can change CPU under us */
 	val |= raw_smp_processor_id();
@@ -93,7 +91,7 @@ static inline void sock_rps_record_flow_hash(__u32 hash)
 	if (!hash)
 		return;
 	rcu_read_lock();
-	sock_flow_table = rcu_dereference(rps_sock_flow_table);
+	sock_flow_table = rcu_dereference(net_hotdata.rps_sock_flow_table);
 	if (sock_flow_table)
 		rps_record_sock_flow(sock_flow_table, hash);
 	rcu_read_unlock();
