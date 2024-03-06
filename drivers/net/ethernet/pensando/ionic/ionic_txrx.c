@@ -948,13 +948,8 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 {
 	struct ionic_qcq *qcq = napi_to_qcq(napi);
 	struct ionic_cq *cq = napi_to_cq(napi);
-	struct ionic_dev *idev;
-	struct ionic_lif *lif;
 	u32 work_done = 0;
 	u32 flags = 0;
-
-	lif = cq->bound_q->lif;
-	idev = &lif->ionic->idev;
 
 	work_done = ionic_tx_cq_service(cq, budget);
 
@@ -969,7 +964,7 @@ int ionic_tx_napi(struct napi_struct *napi, int budget)
 
 	if (work_done || flags) {
 		flags |= IONIC_INTR_CRED_RESET_COALESCE;
-		ionic_intr_credits(idev->intr_ctrl,
+		ionic_intr_credits(cq->idev->intr_ctrl,
 				   cq->bound_intr->index,
 				   work_done, flags);
 	}
@@ -992,16 +987,11 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 {
 	struct ionic_qcq *qcq = napi_to_qcq(napi);
 	struct ionic_cq *cq = napi_to_cq(napi);
-	struct ionic_dev *idev;
-	struct ionic_lif *lif;
 	u32 work_done = 0;
 	u32 flags = 0;
 
 	if (unlikely(!budget))
 		return budget;
-
-	lif = cq->bound_q->lif;
-	idev = &lif->ionic->idev;
 
 	work_done = ionic_cq_service(cq, budget,
 				     ionic_rx_service, NULL, NULL);
@@ -1017,7 +1007,7 @@ int ionic_rx_napi(struct napi_struct *napi, int budget)
 
 	if (work_done || flags) {
 		flags |= IONIC_INTR_CRED_RESET_COALESCE;
-		ionic_intr_credits(idev->intr_ctrl,
+		ionic_intr_credits(cq->idev->intr_ctrl,
 				   cq->bound_intr->index,
 				   work_done, flags);
 	}
@@ -1034,7 +1024,6 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	struct ionic_cq *rxcq = napi_to_cq(napi);
 	unsigned int qi = rxcq->bound_q->index;
 	struct ionic_qcq *txqcq;
-	struct ionic_dev *idev;
 	struct ionic_lif *lif;
 	struct ionic_cq *txcq;
 	bool resched = false;
@@ -1043,7 +1032,6 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 	u32 flags = 0;
 
 	lif = rxcq->bound_q->lif;
-	idev = &lif->ionic->idev;
 	txqcq = lif->txqcqs[qi];
 	txcq = &lif->txqcqs[qi]->cq;
 
@@ -1066,7 +1054,7 @@ int ionic_txrx_napi(struct napi_struct *napi, int budget)
 
 	if (rx_work_done || flags) {
 		flags |= IONIC_INTR_CRED_RESET_COALESCE;
-		ionic_intr_credits(idev->intr_ctrl, rxcq->bound_intr->index,
+		ionic_intr_credits(rxcq->idev->intr_ctrl, rxcq->bound_intr->index,
 				   tx_work_done + rx_work_done, flags);
 	}
 
@@ -1310,12 +1298,11 @@ unsigned int ionic_tx_cq_service(struct ionic_cq *cq, unsigned int work_to_do)
 
 void ionic_tx_flush(struct ionic_cq *cq)
 {
-	struct ionic_dev *idev = &cq->lif->ionic->idev;
 	u32 work_done;
 
 	work_done = ionic_tx_cq_service(cq, cq->num_descs);
 	if (work_done)
-		ionic_intr_credits(idev->intr_ctrl, cq->bound_intr->index,
+		ionic_intr_credits(cq->idev->intr_ctrl, cq->bound_intr->index,
 				   work_done, IONIC_INTR_CRED_RESET_COALESCE);
 }
 

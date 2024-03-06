@@ -240,7 +240,6 @@ struct ionic_queue {
 	unsigned int max_sg_elems;
 	u64 features;
 	u64 drop;
-	struct ionic_dev *idev;
 	unsigned int type;
 	unsigned int hw_index;
 	unsigned int hw_type;
@@ -296,6 +295,7 @@ struct ionic_cq {
 	unsigned int desc_size;
 	void *base;
 	dma_addr_t base_pa;
+	struct ionic_dev *idev;
 } ____cacheline_aligned_in_smp;
 
 struct ionic;
