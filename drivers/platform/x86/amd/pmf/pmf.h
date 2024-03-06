@@ -235,6 +235,7 @@ struct amd_pmf_dev {
 	u64 policy_addr;
 	void __iomem *policy_base;
 	bool smart_pc_enabled;
+	u16 pmf_if_version;
 };
 
 struct apmf_sps_prop_granular {

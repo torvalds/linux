@@ -218,8 +218,10 @@ static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 		return err;
 
 	pdev->supported_func = output.supported_functions;
-	dev_dbg(pdev->dev, "supported functions:0x%x notifications:0x%x\n",
-		output.supported_functions, output.notification_mask);
+	dev_dbg(pdev->dev, "supported functions:0x%x notifications:0x%x version:%u\n",
+		output.supported_functions, output.notification_mask, output.version);
+
+	pdev->pmf_if_version = output.version;
 
 	return 0;
 }
