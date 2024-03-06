@@ -5271,23 +5271,22 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb,
 }
 
 /* called with rcu_read_lock() */
-static int in6_dump_addrs(struct inet6_dev *idev, struct sk_buff *skb,
+static int in6_dump_addrs(const struct inet6_dev *idev, struct sk_buff *skb,
 			  struct netlink_callback *cb, int s_ip_idx,
 			  struct inet6_fill_args *fillargs)
 {
-	struct ifmcaddr6 *ifmca;
-	struct ifacaddr6 *ifaca;
+	const struct ifmcaddr6 *ifmca;
+	const struct ifacaddr6 *ifaca;
 	int ip_idx = 0;
 	int err = 1;
 
-	read_lock_bh(&idev->lock);
 	switch (fillargs->type) {
 	case UNICAST_ADDR: {
-		struct inet6_ifaddr *ifa;
+		const struct inet6_ifaddr *ifa;
 		fillargs->event = RTM_NEWADDR;
 
 		/* unicast address incl. temp addr */
-		list_for_each_entry(ifa, &idev->addr_list, if_list) {
+		list_for_each_entry_rcu(ifa, &idev->addr_list, if_list) {
 			if (ip_idx < s_ip_idx)
 				goto next;
 			err = inet6_fill_ifaddr(skb, ifa, fillargs);
@@ -5300,7 +5299,6 @@ next:
 		break;
 	}
 	case MULTICAST_ADDR:
-		read_unlock_bh(&idev->lock);
 		fillargs->event = RTM_GETMULTICAST;
 
 		/* multicast address */
@@ -5313,7 +5311,6 @@ next:
 			if (err < 0)
 				break;
 		}
-		read_lock_bh(&idev->lock);
 		break;
 	case ANYCAST_ADDR:
 		fillargs->event = RTM_GETANYCAST;
@@ -5330,7 +5327,6 @@ next:
 	default:
 		break;
 	}
-	read_unlock_bh(&idev->lock);
 	cb->args[2] = ip_idx;
 	return err;
 }
