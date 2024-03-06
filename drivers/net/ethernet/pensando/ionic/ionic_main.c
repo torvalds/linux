@@ -191,6 +191,7 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 static void ionic_adminq_flush(struct ionic_lif *lif)
 {
 	struct ionic_desc_info *desc_info;
+	struct ionic_admin_cmd *desc;
 	unsigned long irqflags;
 	struct ionic_queue *q;
 
@@ -203,8 +204,9 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 	q = &lif->adminqcq->q;
 
 	while (q->tail_idx != q->head_idx) {
+		desc = &q->adminq[q->tail_idx];
 		desc_info = &q->info[q->tail_idx];
-		memset(desc_info->desc, 0, sizeof(union ionic_adminq_cmd));
+		memset(desc, 0, sizeof(union ionic_adminq_cmd));
 		desc_info->cb = NULL;
 		desc_info->cb_arg = NULL;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
@@ -298,7 +300,7 @@ bool ionic_adminq_poke_doorbell(struct ionic_queue *q)
 
 int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
-	struct ionic_desc_info *desc_info;
+	struct ionic_admin_cmd *desc;
 	unsigned long irqflags;
 	struct ionic_queue *q;
 	int err = 0;
@@ -320,8 +322,8 @@ int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	if (err)
 		goto err_out;
 
-	desc_info = &q->info[q->head_idx];
-	memcpy(desc_info->desc, &ctx->cmd, sizeof(ctx->cmd));
+	desc = &q->adminq[q->head_idx];
+	memcpy(desc, &ctx->cmd, sizeof(ctx->cmd));
 
 	dev_dbg(&lif->netdev->dev, "post admin queue command:\n");
 	dynamic_hex_dump("cmd ", DUMP_PREFIX_OFFSET, 16, 1,

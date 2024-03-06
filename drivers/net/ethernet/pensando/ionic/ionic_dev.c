@@ -708,38 +708,20 @@ int ionic_q_init(struct ionic_lif *lif, struct ionic_dev *idev,
 
 void ionic_q_map(struct ionic_queue *q, void *base, dma_addr_t base_pa)
 {
-	struct ionic_desc_info *cur;
-	unsigned int i;
-
 	q->base = base;
 	q->base_pa = base_pa;
-
-	for (i = 0, cur = q->info; i < q->num_descs; i++, cur++)
-		cur->desc = base + (i * q->desc_size);
 }
 
 void ionic_q_cmb_map(struct ionic_queue *q, void __iomem *base, dma_addr_t base_pa)
 {
-	struct ionic_desc_info *cur;
-	unsigned int i;
-
 	q->cmb_base = base;
 	q->cmb_base_pa = base_pa;
-
-	for (i = 0, cur = q->info; i < q->num_descs; i++, cur++)
-		cur->cmb_desc = base + (i * q->desc_size);
 }
 
 void ionic_q_sg_map(struct ionic_queue *q, void *base, dma_addr_t base_pa)
 {
-	struct ionic_desc_info *cur;
-	unsigned int i;
-
 	q->sg_base = base;
 	q->sg_base_pa = base_pa;
-
-	for (i = 0, cur = q->info; i < q->num_descs; i++, cur++)
-		cur->sg_desc = base + (i * q->sg_desc_size);
 }
 
 void ionic_q_post(struct ionic_queue *q, bool ring_doorbell, ionic_desc_cb cb,

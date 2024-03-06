@@ -122,11 +122,13 @@ static_assert(sizeof(struct ionic_log_event) == 64);
 /* I/O */
 static_assert(sizeof(struct ionic_txq_desc) == 16);
 static_assert(sizeof(struct ionic_txq_sg_desc) == 128);
+static_assert(sizeof(struct ionic_txq_sg_desc_v1) == 256);
 static_assert(sizeof(struct ionic_txq_comp) == 16);
 
 static_assert(sizeof(struct ionic_rxq_desc) == 16);
 static_assert(sizeof(struct ionic_rxq_sg_desc) == 128);
 static_assert(sizeof(struct ionic_rxq_comp) == 16);
+static_assert(sizeof(struct ionic_rxq_comp) == sizeof(struct ionic_txq_comp));
 
 /* SR/IOV */
 static_assert(sizeof(struct ionic_vf_setattr_cmd) == 64);
@@ -212,25 +214,13 @@ struct ionic_buf_info {
 #define IONIC_MAX_FRAGS			(1 + IONIC_TX_MAX_SG_ELEMS_V1)
 
 struct ionic_desc_info {
-	union {
-		void *desc;
-		struct ionic_txq_desc *txq_desc;
-		struct ionic_rxq_desc *rxq_desc;
-		struct ionic_admin_cmd *adminq_desc;
-	};
-	void __iomem *cmb_desc;
-	union {
-		void *sg_desc;
-		struct ionic_txq_sg_desc *txq_sg_desc;
-		struct ionic_rxq_sg_desc *rxq_sgl_desc;
-	};
 	unsigned int bytes;
 	unsigned int nbufs;
-	struct ionic_buf_info bufs[MAX_SKB_FRAGS + 1];
 	ionic_desc_cb cb;
 	void *cb_arg;
 	struct xdp_frame *xdpf;
 	enum xdp_action act;
+	struct ionic_buf_info bufs[MAX_SKB_FRAGS + 1];
 };
 
 #define IONIC_QUEUE_NAME_MAX_SZ		16
@@ -259,10 +249,15 @@ struct ionic_queue {
 		struct ionic_rxq_desc *rxq;
 		struct ionic_admin_cmd *adminq;
 	};
-	void __iomem *cmb_base;
+	union {
+		void __iomem *cmb_base;
+		struct ionic_txq_desc __iomem *cmb_txq;
+		struct ionic_rxq_desc __iomem *cmb_rxq;
+	};
 	union {
 		void *sg_base;
 		struct ionic_txq_sg_desc *txq_sgl;
+		struct ionic_txq_sg_desc_v1 *txq_sgl_v1;
 		struct ionic_rxq_sg_desc *rxq_sgl;
 	};
 	struct xdp_rxq_info *xdp_rxq_info;
