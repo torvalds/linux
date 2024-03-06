@@ -1013,6 +1013,10 @@ void intel_rps_boost(struct i915_request *rq)
 	if (i915_request_signaled(rq) || i915_request_has_waitboost(rq))
 		return;
 
+	/* Waitboost is not needed for contexts marked with a Freq hint */
+	if (test_bit(CONTEXT_LOW_LATENCY, &rq->context->flags))
+		return;
+
 	/* Serializes with i915_request_retire() */
 	if (!test_and_set_bit(I915_FENCE_FLAG_BOOST, &rq->fence.flags)) {
 		struct intel_rps *rps = &READ_ONCE(rq->engine)->gt->rps;

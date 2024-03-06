@@ -806,6 +806,12 @@ typedef struct drm_i915_irq_wait {
  */
 #define I915_PARAM_PXP_STATUS		 58
 
+/*
+ * Query if kernel allows marking a context to send a Freq hint to SLPC. This
+ * will enable use of the strategies allowed by the SLPC algorithm.
+ */
+#define I915_PARAM_HAS_CONTEXT_FREQ_HINT	59
+
 /* Must be kept compact -- no holes and well documented */
 
 /**
@@ -2148,6 +2154,15 @@ struct drm_i915_gem_context_param {
  * -EIO: The firmware did not succeed in creating the protected context.
  */
 #define I915_CONTEXT_PARAM_PROTECTED_CONTENT    0xd
+
+/*
+ * I915_CONTEXT_PARAM_LOW_LATENCY:
+ *
+ * Mark this context as a low latency workload which requires aggressive GT
+ * frequency scaling. Use I915_PARAM_HAS_CONTEXT_FREQ_HINT to check if the kernel
+ * supports this per context flag.
+ */
+#define I915_CONTEXT_PARAM_LOW_LATENCY		0xe
 /* Must be kept compact -- no holes and well documented */
 
 	/** @value: Context parameter value to be set or queried */
