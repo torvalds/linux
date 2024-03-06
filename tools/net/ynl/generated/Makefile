@@ -43,11 +43,11 @@ protos.a: $(OBJS)
 clean:
 	rm -f *.o
 
-hardclean: clean
+distclean: clean
 	rm -f *.c *.h *.a
 
 regen:
 	@../ynl-regen.sh
 
-.PHONY: all clean hardclean regen
+.PHONY: all clean distclean regen
 .DEFAULT_GOAL: all

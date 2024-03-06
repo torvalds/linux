@@ -28,8 +28,8 @@ $(BINS): ../lib/ynl.a ../generated/protos.a $(SRCS)
 clean:
 	rm -f *.o *.d *~
 
-hardclean: clean
+distclean: clean
 	rm -f $(BINS)
 
-.PHONY: all clean
+.PHONY: all clean distclean
 .DEFAULT_GOAL=all
