@@ -47,6 +47,8 @@ struct nh_config {
 	bool		nh_grp_res_has_idle_timer;
 	bool		nh_grp_res_has_unbalanced_timer;
 
+	bool		nh_hw_stats;
+
 	struct nlattr	*nh_encap;
 	u16		nh_encap_type;
 
