@@ -1208,7 +1208,7 @@ static int cmd_start(struct opal_dev *dev, const u8 *uid, const u8 *method)
 static int start_opal_session_cont(struct opal_dev *dev)
 {
 	u32 hsn, tsn;
-	int error = 0;
+	int error;
 
 	error = parse_and_check_status(dev);
 	if (error)
@@ -1350,7 +1350,7 @@ static int get_active_key_cont(struct opal_dev *dev)
 {
 	const char *activekey;
 	size_t keylen;
-	int error = 0;
+	int error;
 
 	error = parse_and_check_status(dev);
 	if (error)
