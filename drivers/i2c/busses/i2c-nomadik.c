@@ -6,6 +6,12 @@
  * I2C master mode controller driver, used in Nomadik 8815
  * and Ux500 platforms.
  *
+ * The Mobileye EyeQ5 platform is also supported; it uses
+ * the same Ux500/DB8500 IP block with two quirks:
+ *  - The memory bus only supports 32-bit accesses.
+ *  - A register must be configured for the I2C speed mode;
+ *    it is located in a shared register region called OLB.
+ *
  * Author: Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
  * Author: Sachin Verma <sachin.verma@st.com>
  */
@@ -22,6 +28,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define DRIVER_NAME "nmk-i2c"
 
@@ -110,6 +118,15 @@ enum i2c_freq_mode {
 	I2C_FREQ_MODE_FAST_PLUS,	/* up to 1 Mb/s */
 };
 
+/* Mobileye EyeQ5 offset into a shared register region (called OLB) */
+#define NMK_I2C_EYEQ5_OLB_IOCR2			0x0B8
+
+enum i2c_eyeq5_speed {
+	I2C_EYEQ5_SPEED_FAST,
+	I2C_EYEQ5_SPEED_FAST_PLUS,
+	I2C_EYEQ5_SPEED_HIGH_SPEED,
+};
+
 /**
  * struct i2c_vendor_data - per-vendor variations
  * @has_mtdws: variant has the MTDWS bit
@@ -174,6 +191,7 @@ struct i2c_nmk_client {
  * @xfer_wq: xfer done wait queue.
  * @xfer_done: xfer done boolean.
  * @result: controller propogated result.
+ * @has_32b_bus: controller is on a bus that only supports 32-bit accesses.
  */
 struct nmk_i2c_dev {
 	struct i2c_vendor_data		*vendor;
@@ -192,6 +210,7 @@ struct nmk_i2c_dev {
 	struct wait_queue_head		xfer_wq;
 	bool				xfer_done;
 	int				result;
+	bool				has_32b_bus;
 };
 
 /* controller's abort causes */
@@ -213,6 +232,24 @@ static inline void i2c_set_bit(void __iomem *reg, u32 mask)
 static inline void i2c_clr_bit(void __iomem *reg, u32 mask)
 {
 	writel(readl(reg) & ~mask, reg);
+}
+
+static inline u8 nmk_i2c_readb(const struct nmk_i2c_dev *priv,
+			       unsigned long reg)
+{
+	if (priv->has_32b_bus)
+		return readl(priv->virtbase + reg);
+	else
+		return readb(priv->virtbase + reg);
+}
+
+static inline void nmk_i2c_writeb(const struct nmk_i2c_dev *priv, u32 val,
+				  unsigned long reg)
+{
+	if (priv->has_32b_bus)
+		writel(val, priv->virtbase + reg);
+	else
+		writeb(val, priv->virtbase + reg);
 }
 
 /**
@@ -523,7 +560,7 @@ static void fill_tx_fifo(struct nmk_i2c_dev *priv, int no_bytes)
 			(priv->cli.count != 0);
 			count--) {
 		/* write to the Tx FIFO */
-		writeb(*priv->cli.buffer, priv->virtbase + I2C_TFR);
+		nmk_i2c_writeb(priv, *priv->cli.buffer, I2C_TFR);
 		priv->cli.buffer++;
 		priv->cli.count--;
 		priv->cli.xfer_bytes++;
@@ -792,7 +829,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	case I2C_IT_RXFNF:
 		for (count = rft; count > 0; count--) {
 			/* Read the Rx FIFO */
-			*priv->cli.buffer = readb(priv->virtbase + I2C_RFR);
+			*priv->cli.buffer = nmk_i2c_readb(priv, I2C_RFR);
 			priv->cli.buffer++;
 		}
 		priv->cli.count -= rft;
@@ -802,7 +839,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 	/* Rx FIFO full */
 	case I2C_IT_RXFF:
 		for (count = MAX_I2C_FIFO_THRESHOLD; count > 0; count--) {
-			*priv->cli.buffer = readb(priv->virtbase + I2C_RFR);
+			*priv->cli.buffer = nmk_i2c_readb(priv, I2C_RFR);
 			priv->cli.buffer++;
 		}
 		priv->cli.count -= MAX_I2C_FIFO_THRESHOLD;
@@ -818,7 +855,7 @@ static irqreturn_t i2c_irq_handler(int irq, void *arg)
 				if (priv->cli.count == 0)
 					break;
 				*priv->cli.buffer =
-					readb(priv->virtbase + I2C_RFR);
+					nmk_i2c_readb(priv, I2C_RFR);
 				priv->cli.buffer++;
 				priv->cli.count--;
 				priv->cli.xfer_bytes++;
@@ -996,6 +1033,44 @@ static void nmk_i2c_of_probe(struct device_node *np,
 		priv->timeout_usecs = 200 * USEC_PER_MSEC;
 }
 
+static const unsigned int nmk_i2c_eyeq5_masks[] = {
+	GENMASK(5, 4),
+	GENMASK(7, 6),
+	GENMASK(9, 8),
+	GENMASK(11, 10),
+	GENMASK(13, 12),
+};
+
+static int nmk_i2c_eyeq5_probe(struct nmk_i2c_dev *priv)
+{
+	struct device *dev = &priv->adev->dev;
+	struct device_node *np = dev->of_node;
+	unsigned int mask, speed_mode;
+	struct regmap *olb;
+	unsigned int id;
+
+	priv->has_32b_bus = true;
+
+	olb = syscon_regmap_lookup_by_phandle_args(np, "mobileye,olb", 1, &id);
+	if (IS_ERR(olb))
+		return PTR_ERR(olb);
+	if (id >= ARRAY_SIZE(nmk_i2c_eyeq5_masks))
+		return -ENOENT;
+
+	if (priv->clk_freq <= 400000)
+		speed_mode = I2C_EYEQ5_SPEED_FAST;
+	else if (priv->clk_freq <= 1000000)
+		speed_mode = I2C_EYEQ5_SPEED_FAST_PLUS;
+	else
+		speed_mode = I2C_EYEQ5_SPEED_HIGH_SPEED;
+
+	mask = nmk_i2c_eyeq5_masks[id];
+	regmap_update_bits(olb, NMK_I2C_EYEQ5_OLB_IOCR2,
+			   mask, speed_mode << __fls(mask));
+
+	return 0;
+}
+
 static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
@@ -1012,7 +1087,14 @@ static int nmk_i2c_probe(struct amba_device *adev, const struct amba_id *id)
 
 	priv->vendor = vendor;
 	priv->adev = adev;
+	priv->has_32b_bus = false;
 	nmk_i2c_of_probe(np, priv);
+
+	if (of_device_is_compatible(np, "mobileye,eyeq5-i2c")) {
+		ret = nmk_i2c_eyeq5_probe(priv);
+		if (ret)
+			return dev_err_probe(dev, ret, "failed OLB lookup\n");
+	}
 
 	if (priv->tft > max_fifo_threshold) {
 		dev_warn(dev, "requested TX FIFO threshold %u, adjusted down to %u\n",
