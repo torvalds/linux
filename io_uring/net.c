@@ -414,6 +414,17 @@ int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
+static void io_req_msg_cleanup(struct io_kiocb *req,
+			       struct io_async_msghdr *kmsg,
+			       unsigned int issue_flags)
+{
+	req->flags &= ~REQ_F_NEED_CLEANUP;
+	/* fast path, check for non-NULL to avoid function call */
+	if (kmsg->free_iov)
+		kfree(kmsg->free_iov);
+	io_netmsg_recycle(req, issue_flags);
+}
+
 int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req, struct io_sr_msg);
@@ -463,11 +474,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 			ret = -EINTR;
 		req_set_fail(req);
 	}
-	/* fast path, check for non-NULL to avoid function call */
-	if (kmsg->free_iov)
-		kfree(kmsg->free_iov);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
-	io_netmsg_recycle(req, issue_flags);
+	io_req_msg_cleanup(req, kmsg, issue_flags);
 	if (ret >= 0)
 		ret += sr->done_io;
 	else if (sr->done_io)
@@ -927,13 +934,9 @@ retry_multishot:
 	if (!io_recv_finish(req, &ret, &kmsg->msg, mshot_finished, issue_flags))
 		goto retry_multishot;
 
-	if (mshot_finished) {
-		/* fast path, check for non-NULL to avoid function call */
-		if (kmsg->free_iov)
-			kfree(kmsg->free_iov);
-		io_netmsg_recycle(req, issue_flags);
-		req->flags &= ~REQ_F_NEED_CLEANUP;
-	} else if (ret == -EAGAIN)
+	if (mshot_finished)
+		io_req_msg_cleanup(req, kmsg, issue_flags);
+	else if (ret == -EAGAIN)
 		return io_setup_async_msg(req, kmsg, issue_flags);
 
 	return ret;
