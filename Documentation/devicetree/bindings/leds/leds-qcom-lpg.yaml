@@ -32,6 +32,10 @@ properties:
           - qcom,pmk8550-pwm
       - items:
           - enum:
+              - qcom,pm6150l-lpg
+          - const: qcom,pm8150l-lpg
+      - items:
+          - enum:
               - qcom,pm8550-pwm
           - const: qcom,pm8350c-pwm
 
