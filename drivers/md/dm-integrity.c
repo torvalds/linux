@@ -3487,6 +3487,7 @@ static void dm_integrity_io_hints(struct dm_target *ti, struct queue_limits *lim
 		blk_limits_io_min(limits, ic->sectors_per_block << SECTOR_SHIFT);
 		limits->dma_alignment = limits->logical_block_size - 1;
 	}
+	limits->max_integrity_segments = USHRT_MAX;
 }
 
 static void calculate_journal_section_size(struct dm_integrity_c *ic)
@@ -3654,7 +3655,6 @@ static void dm_integrity_set(struct dm_target *ti, struct dm_integrity_c *ic)
 	bi.interval_exp = ic->sb->log2_sectors_per_block + SECTOR_SHIFT;
 
 	blk_integrity_register(disk, &bi);
-	blk_queue_max_integrity_segments(disk->queue, UINT_MAX);
 }
 
 static void dm_integrity_free_page_list(struct page_list *pl)
