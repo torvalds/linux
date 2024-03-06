@@ -239,10 +239,10 @@ struct ionic_queue {
 	unsigned int num_descs;
 	unsigned int max_sg_elems;
 	u64 features;
-	u64 drop;
 	unsigned int type;
 	unsigned int hw_index;
 	unsigned int hw_type;
+	bool xdp_flush;
 	union {
 		void *base;
 		struct ionic_txq_desc *txq;
@@ -262,10 +262,10 @@ struct ionic_queue {
 	};
 	struct xdp_rxq_info *xdp_rxq_info;
 	struct ionic_queue *partner;
-	bool xdp_flush;
 	dma_addr_t base_pa;
 	dma_addr_t cmb_base_pa;
 	dma_addr_t sg_base_pa;
+	u64 drop;
 	unsigned int desc_size;
 	unsigned int sg_desc_size;
 	unsigned int pid;
