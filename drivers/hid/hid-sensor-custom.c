@@ -1032,14 +1032,14 @@ err_remove_callback:
 	return ret;
 }
 
-static int hid_sensor_custom_remove(struct platform_device *pdev)
+static void hid_sensor_custom_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_custom *sensor_inst = platform_get_drvdata(pdev);
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
 
 	if (sensor_inst->custom_pdev) {
 		platform_device_unregister(sensor_inst->custom_pdev);
-		return 0;
+		return;
 	}
 
 	hid_sensor_custom_dev_if_remove(sensor_inst);
@@ -1047,8 +1047,6 @@ static int hid_sensor_custom_remove(struct platform_device *pdev)
 	sysfs_remove_group(&sensor_inst->pdev->dev.kobj,
 			   &enable_sensor_attr_group);
 	sensor_hub_remove_callback(hsdev, hsdev->usage);
-
-	return 0;
 }
 
 static const struct platform_device_id hid_sensor_custom_ids[] = {
@@ -1068,7 +1066,7 @@ static struct platform_driver hid_sensor_custom_platform_driver = {
 		.name	= KBUILD_MODNAME,
 	},
 	.probe		= hid_sensor_custom_probe,
-	.remove		= hid_sensor_custom_remove,
+	.remove_new	= hid_sensor_custom_remove,
 };
 module_platform_driver(hid_sensor_custom_platform_driver);
 
