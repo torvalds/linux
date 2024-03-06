@@ -200,6 +200,8 @@ int xe_ggtt_init_early(struct xe_ggtt *ggtt)
 	return drmm_add_action_or_reset(&xe->drm, ggtt_fini_early, ggtt);
 }
 
+static void xe_ggtt_invalidate(struct xe_ggtt *ggtt);
+
 static void xe_ggtt_initial_clear(struct xe_ggtt *ggtt)
 {
 	struct drm_mm_node *hole;
@@ -261,7 +263,7 @@ static void ggtt_invalidate_gt_tlb(struct xe_gt *gt)
 		drm_warn(&gt_to_xe(gt)->drm, "xe_gt_tlb_invalidation_ggtt error=%d", err);
 }
 
-void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
+static void xe_ggtt_invalidate(struct xe_ggtt *ggtt)
 {
 	/* Each GT in a tile has its own TLB to cache GGTT lookups */
 	ggtt_invalidate_gt_tlb(ggtt->tile->primary_gt);
