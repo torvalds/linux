@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * AD7172-2/AD7173-8/AD7175-2/AD7176-2 SPI ADC driver
+ * AD717x family SPI ADC driver
+ *
+ * Supported devices:
+ *  AD7172-2/AD7172-4/AD7173-8/AD7175-2
+ *  AD7175-8/AD7176-2/AD7177-2
+ *
  * Copyright (C) 2015, 2024 Analog Devices, Inc.
  */
 
@@ -64,7 +69,11 @@
 #define AD7172_2_ID			0x00d0
 #define AD7175_ID			0x0cd0
 #define AD7176_ID			0x0c90
+#define AD7175_2_ID			0x0cd0
+#define AD7172_4_ID			0x2050
 #define AD7173_ID			0x30d0
+#define AD7175_8_ID			0x3cd0
+#define AD7177_ID			0x4fd0
 #define AD7173_ID_MASK			GENMASK(15, 4)
 
 #define AD7173_ADC_MODE_REF_EN		BIT(15)
@@ -110,20 +119,25 @@
 #define AD7173_SETUP_REF_SEL_EXT_REF	0x0
 #define AD7173_VOLTAGE_INT_REF_uV	2500000
 #define AD7173_TEMP_SENSIIVITY_uV_per_C	477
+#define AD7177_ODR_START_VALUE		0x07
 
 #define AD7173_FILTER_ODR0_MASK		GENMASK(5, 0)
 #define AD7173_MAX_CONFIGS		8
 
 enum ad7173_ids {
 	ID_AD7172_2,
+	ID_AD7172_4,
 	ID_AD7173_8,
 	ID_AD7175_2,
+	ID_AD7175_8,
 	ID_AD7176_2,
+	ID_AD7177_2,
 };
 
 struct ad7173_device_info {
 	const unsigned int *sinc5_data_rates;
 	unsigned int num_sinc5_data_rates;
+	unsigned int odr_start_value;
 	unsigned int num_channels;
 	unsigned int num_configs;
 	unsigned int num_inputs;
@@ -131,6 +145,8 @@ struct ad7173_device_info {
 	unsigned int id;
 	char *name;
 	bool has_temp;
+	bool has_int_ref;
+	bool has_ref2;
 	u8 num_gpios;
 };
 
@@ -196,6 +212,19 @@ static const struct ad7173_device_info ad7173_device_info[] = {
 		.num_configs = 4,
 		.num_gpios = 2,
 		.has_temp = true,
+		.has_int_ref = true,
+		.clock = 2 * HZ_PER_MHZ,
+		.sinc5_data_rates = ad7173_sinc5_data_rates,
+		.num_sinc5_data_rates = ARRAY_SIZE(ad7173_sinc5_data_rates),
+	},
+	[ID_AD7172_4] = {
+		.id = AD7172_4_ID,
+		.num_inputs = 9,
+		.num_channels = 8,
+		.num_configs = 8,
+		.num_gpios = 4,
+		.has_temp = false,
+		.has_ref2 = true,
 		.clock = 2 * HZ_PER_MHZ,
 		.sinc5_data_rates = ad7173_sinc5_data_rates,
 		.num_sinc5_data_rates = ARRAY_SIZE(ad7173_sinc5_data_rates),
@@ -208,18 +237,34 @@ static const struct ad7173_device_info ad7173_device_info[] = {
 		.num_configs = 8,
 		.num_gpios = 4,
 		.has_temp = true,
+		.has_int_ref = true,
+		.has_ref2 = true,
 		.clock = 2 * HZ_PER_MHZ,
 		.sinc5_data_rates = ad7173_sinc5_data_rates,
 		.num_sinc5_data_rates = ARRAY_SIZE(ad7173_sinc5_data_rates),
 	},
 	[ID_AD7175_2] = {
 		.name = "ad7175-2",
-		.id = AD7175_ID,
+		.id = AD7175_2_ID,
 		.num_inputs = 5,
 		.num_channels = 4,
 		.num_configs = 4,
 		.num_gpios = 2,
 		.has_temp = true,
+		.has_int_ref = true,
+		.clock = 16 * HZ_PER_MHZ,
+		.sinc5_data_rates = ad7175_sinc5_data_rates,
+		.num_sinc5_data_rates = ARRAY_SIZE(ad7175_sinc5_data_rates),
+	},
+	[ID_AD7175_8] = {
+		.id = AD7175_8_ID,
+		.num_inputs = 17,
+		.num_channels = 16,
+		.num_configs = 8,
+		.num_gpios = 4,
+		.has_temp = true,
+		.has_int_ref = true,
+		.has_ref2 = true,
 		.clock = 16 * HZ_PER_MHZ,
 		.sinc5_data_rates = ad7175_sinc5_data_rates,
 		.num_sinc5_data_rates = ARRAY_SIZE(ad7175_sinc5_data_rates),
@@ -232,7 +277,21 @@ static const struct ad7173_device_info ad7173_device_info[] = {
 		.num_configs = 4,
 		.num_gpios = 2,
 		.has_temp = false,
+		.has_int_ref = true,
 		.clock = 16 * HZ_PER_MHZ,
+		.sinc5_data_rates = ad7175_sinc5_data_rates,
+		.num_sinc5_data_rates = ARRAY_SIZE(ad7175_sinc5_data_rates),
+	},
+	[ID_AD7177_2] = {
+		.id = AD7177_ID,
+		.num_inputs = 5,
+		.num_channels = 4,
+		.num_configs = 4,
+		.num_gpios = 2,
+		.has_temp = true,
+		.has_int_ref = true,
+		.clock = 16 * HZ_PER_MHZ,
+		.odr_start_value = AD7177_ODR_START_VALUE,
 		.sinc5_data_rates = ad7175_sinc5_data_rates,
 		.num_sinc5_data_rates = ARRAY_SIZE(ad7175_sinc5_data_rates),
 	},
@@ -656,7 +715,7 @@ static int ad7173_write_raw(struct iio_dev *indio_dev,
 	switch (info) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		freq = val * MILLI + val2 / MILLI;
-		for (i = 0; i < st->info->num_sinc5_data_rates - 1; i++)
+		for (i = st->info->odr_start_value; i < st->info->num_sinc5_data_rates - 1; i++)
 			if (freq >= st->info->sinc5_data_rates[i])
 				break;
 
@@ -908,11 +967,17 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 		else
 			ref_sel = ret;
 
-		if (ref_sel == AD7173_SETUP_REF_SEL_EXT_REF2 &&
-		    st->info->id != AD7173_ID) {
+		if (ref_sel == AD7173_SETUP_REF_SEL_INT_REF &&
+		    !st->info->has_int_ref) {
 			fwnode_handle_put(child);
 			return dev_err_probe(dev, -EINVAL,
-				"External reference 2 is only available on ad7173-8\n");
+				"Internal reference is not available on current model.\n");
+		}
+
+		if (ref_sel == AD7173_SETUP_REF_SEL_EXT_REF2 && !st->info->has_ref2) {
+			fwnode_handle_put(child);
+			return dev_err_probe(dev, -EINVAL,
+				"External reference 2 is not available on current model.\n");
 		}
 
 		ret = ad7173_get_ref_voltage_milli(st, ref_sel);
@@ -1080,21 +1145,30 @@ static int ad7173_probe(struct spi_device *spi)
 static const struct of_device_id ad7173_of_match[] = {
 	{ .compatible = "adi,ad7172-2",
 	  .data = &ad7173_device_info[ID_AD7172_2]},
+	{ .compatible = "adi,ad7172-4",
+	  .data = &ad7173_device_info[ID_AD7172_4]},
 	{ .compatible = "adi,ad7173-8",
 	  .data = &ad7173_device_info[ID_AD7173_8]},
 	{ .compatible = "adi,ad7175-2",
 	  .data = &ad7173_device_info[ID_AD7175_2]},
+	{ .compatible = "adi,ad7175-8",
+	  .data = &ad7173_device_info[ID_AD7175_8]},
 	{ .compatible = "adi,ad7176-2",
 	  .data = &ad7173_device_info[ID_AD7176_2]},
+	{ .compatible = "adi,ad7177-2",
+	  .data = &ad7173_device_info[ID_AD7177_2]},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ad7173_of_match);
 
 static const struct spi_device_id ad7173_id_table[] = {
 	{ "ad7172-2", (kernel_ulong_t)&ad7173_device_info[ID_AD7172_2]},
+	{ "ad7172-4", (kernel_ulong_t)&ad7173_device_info[ID_AD7172_4]},
 	{ "ad7173-8", (kernel_ulong_t)&ad7173_device_info[ID_AD7173_8]},
 	{ "ad7175-2", (kernel_ulong_t)&ad7173_device_info[ID_AD7175_2]},
+	{ "ad7175-8", (kernel_ulong_t)&ad7173_device_info[ID_AD7175_8]},
 	{ "ad7176-2", (kernel_ulong_t)&ad7173_device_info[ID_AD7176_2]},
+	{ "ad7177-2", (kernel_ulong_t)&ad7173_device_info[ID_AD7177_2]},
 	{ }
 };
 MODULE_DEVICE_TABLE(spi, ad7173_id_table);
