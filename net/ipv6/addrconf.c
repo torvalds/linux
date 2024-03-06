@@ -2728,7 +2728,7 @@ int addrconf_prefix_rcv_add_addr(struct net *net, struct net_device *dev,
 		if (update_lft) {
 			ifp->valid_lft = valid_lft;
 			ifp->prefered_lft = prefered_lft;
-			ifp->tstamp = now;
+			WRITE_ONCE(ifp->tstamp, now);
 			flags = ifp->flags;
 			ifp->flags &= ~IFA_F_DEPRECATED;
 			spin_unlock_bh(&ifp->lock);
@@ -4896,13 +4896,13 @@ static int inet6_addr_modify(struct net *net, struct inet6_ifaddr *ifp,
 			IFA_F_HOMEADDRESS | IFA_F_MANAGETEMPADDR |
 			IFA_F_NOPREFIXROUTE);
 	ifp->flags |= cfg->ifa_flags;
-	ifp->tstamp = jiffies;
-	ifp->valid_lft = cfg->valid_lft;
-	ifp->prefered_lft = cfg->preferred_lft;
-	ifp->ifa_proto = cfg->ifa_proto;
+	WRITE_ONCE(ifp->tstamp, jiffies);
+	WRITE_ONCE(ifp->valid_lft, cfg->valid_lft);
+	WRITE_ONCE(ifp->prefered_lft, cfg->preferred_lft);
+	WRITE_ONCE(ifp->ifa_proto, cfg->ifa_proto);
 
 	if (cfg->rt_priority && cfg->rt_priority != ifp->rt_priority)
-		ifp->rt_priority = cfg->rt_priority;
+		WRITE_ONCE(ifp->rt_priority, cfg->rt_priority);
 
 	if (new_peer)
 		ifp->peer_addr = *cfg->peer_pfx;
@@ -5123,17 +5123,21 @@ struct inet6_fill_args {
 	enum addr_type_t type;
 };
 
-static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
+static int inet6_fill_ifaddr(struct sk_buff *skb,
+			     const struct inet6_ifaddr *ifa,
 			     struct inet6_fill_args *args)
 {
-	struct nlmsghdr  *nlh;
+	struct nlmsghdr *nlh;
 	u32 preferred, valid;
+	u32 flags, priority;
+	u8 proto;
 
 	nlh = nlmsg_put(skb, args->portid, args->seq, args->event,
 			sizeof(struct ifaddrmsg), args->flags);
 	if (!nlh)
 		return -EMSGSIZE;
 
+	flags = READ_ONCE(ifa->flags);
 	put_ifaddrmsg(nlh, ifa->prefix_len, ifa->flags, rt_scope(ifa->scope),
 		      ifa->idev->dev->ifindex);
 
@@ -5141,13 +5145,14 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 	    nla_put_s32(skb, IFA_TARGET_NETNSID, args->netnsid))
 		goto error;
 
-	spin_lock_bh(&ifa->lock);
-	if (!((ifa->flags&IFA_F_PERMANENT) &&
-	      (ifa->prefered_lft == INFINITY_LIFE_TIME))) {
-		preferred = ifa->prefered_lft;
-		valid = ifa->valid_lft;
+	preferred = READ_ONCE(ifa->prefered_lft);
+	valid = READ_ONCE(ifa->valid_lft);
+
+	if (!((flags & IFA_F_PERMANENT) &&
+	      (preferred == INFINITY_LIFE_TIME))) {
 		if (preferred != INFINITY_LIFE_TIME) {
-			long tval = (jiffies - ifa->tstamp)/HZ;
+			long tval = (jiffies - READ_ONCE(ifa->tstamp)) / HZ;
+
 			if (preferred > tval)
 				preferred -= tval;
 			else
@@ -5163,28 +5168,29 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 		preferred = INFINITY_LIFE_TIME;
 		valid = INFINITY_LIFE_TIME;
 	}
-	spin_unlock_bh(&ifa->lock);
 
 	if (!ipv6_addr_any(&ifa->peer_addr)) {
 		if (nla_put_in6_addr(skb, IFA_LOCAL, &ifa->addr) < 0 ||
 		    nla_put_in6_addr(skb, IFA_ADDRESS, &ifa->peer_addr) < 0)
 			goto error;
-	} else
+	} else {
 		if (nla_put_in6_addr(skb, IFA_ADDRESS, &ifa->addr) < 0)
 			goto error;
+	}
 
-	if (ifa->rt_priority &&
-	    nla_put_u32(skb, IFA_RT_PRIORITY, ifa->rt_priority))
+	priority = READ_ONCE(ifa->rt_priority);
+	if (priority && nla_put_u32(skb, IFA_RT_PRIORITY, priority))
 		goto error;
 
-	if (put_cacheinfo(skb, ifa->cstamp, ifa->tstamp, preferred, valid) < 0)
+	if (put_cacheinfo(skb, ifa->cstamp, READ_ONCE(ifa->tstamp),
+			  preferred, valid) < 0)
 		goto error;
 
-	if (nla_put_u32(skb, IFA_FLAGS, ifa->flags) < 0)
+	if (nla_put_u32(skb, IFA_FLAGS, flags) < 0)
 		goto error;
 
-	if (ifa->ifa_proto &&
-	    nla_put_u8(skb, IFA_PROTO, ifa->ifa_proto))
+	proto = READ_ONCE(ifa->ifa_proto);
+	if (proto && nla_put_u8(skb, IFA_PROTO, proto))
 		goto error;
 
 	nlmsg_end(skb, nlh);
@@ -5195,12 +5201,13 @@ error:
 	return -EMSGSIZE;
 }
 
-static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
+static int inet6_fill_ifmcaddr(struct sk_buff *skb,
+			       const struct ifmcaddr6 *ifmca,
 			       struct inet6_fill_args *args)
 {
-	struct nlmsghdr  *nlh;
-	u8 scope = RT_SCOPE_UNIVERSE;
 	int ifindex = ifmca->idev->dev->ifindex;
+	u8 scope = RT_SCOPE_UNIVERSE;
+	struct nlmsghdr *nlh;
 
 	if (ipv6_addr_scope(&ifmca->mca_addr) & IFA_SITE)
 		scope = RT_SCOPE_SITE;
@@ -5218,7 +5225,7 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 
 	put_ifaddrmsg(nlh, 128, IFA_F_PERMANENT, scope, ifindex);
 	if (nla_put_in6_addr(skb, IFA_MULTICAST, &ifmca->mca_addr) < 0 ||
-	    put_cacheinfo(skb, ifmca->mca_cstamp, ifmca->mca_tstamp,
+	    put_cacheinfo(skb, ifmca->mca_cstamp, READ_ONCE(ifmca->mca_tstamp),
 			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0) {
 		nlmsg_cancel(skb, nlh);
 		return -EMSGSIZE;
@@ -5228,13 +5235,14 @@ static int inet6_fill_ifmcaddr(struct sk_buff *skb, struct ifmcaddr6 *ifmca,
 	return 0;
 }
 
-static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
+static int inet6_fill_ifacaddr(struct sk_buff *skb,
+			       const struct ifacaddr6 *ifaca,
 			       struct inet6_fill_args *args)
 {
 	struct net_device *dev = fib6_info_nh_dev(ifaca->aca_rt);
 	int ifindex = dev ? dev->ifindex : 1;
-	struct nlmsghdr  *nlh;
 	u8 scope = RT_SCOPE_UNIVERSE;
+	struct nlmsghdr *nlh;
 
 	if (ipv6_addr_scope(&ifaca->aca_addr) & IFA_SITE)
 		scope = RT_SCOPE_SITE;
@@ -5252,7 +5260,7 @@ static int inet6_fill_ifacaddr(struct sk_buff *skb, struct ifacaddr6 *ifaca,
 
 	put_ifaddrmsg(nlh, 128, IFA_F_PERMANENT, scope, ifindex);
 	if (nla_put_in6_addr(skb, IFA_ANYCAST, &ifaca->aca_addr) < 0 ||
-	    put_cacheinfo(skb, ifaca->aca_cstamp, ifaca->aca_tstamp,
+	    put_cacheinfo(skb, ifaca->aca_cstamp, READ_ONCE(ifaca->aca_tstamp),
 			  INFINITY_LIFE_TIME, INFINITY_LIFE_TIME) < 0) {
 		nlmsg_cancel(skb, nlh);
 		return -EMSGSIZE;
