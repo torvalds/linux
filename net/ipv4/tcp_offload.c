@@ -345,15 +345,14 @@ INDIRECT_CALLABLE_SCOPE int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 	return 0;
 }
 
-static const struct net_offload tcpv4_offload = {
-	.callbacks = {
-		.gso_segment	=	tcp4_gso_segment,
-		.gro_receive	=	tcp4_gro_receive,
-		.gro_complete	=	tcp4_gro_complete,
-	},
-};
-
 int __init tcpv4_offload_init(void)
 {
-	return inet_add_offload(&tcpv4_offload, IPPROTO_TCP);
+	net_hotdata.tcpv4_offload = (struct net_offload) {
+		.callbacks = {
+			.gso_segment	=	tcp4_gso_segment,
+			.gro_receive	=	tcp4_gro_receive,
+			.gro_complete	=	tcp4_gro_complete,
+		},
+	};
+	return inet_add_offload(&net_hotdata.tcpv4_offload, IPPROTO_TCP);
 }
