@@ -12,4 +12,6 @@ struct net_hotdata net_hotdata __cacheline_aligned = {
 	.netdev_budget = 300,
 	/* Must be at least 2 jiffes to guarantee 1 jiffy timeout */
 	.netdev_budget_usecs = 2 * USEC_PER_SEC / HZ,
+
+	.tstamp_prequeue = 1,
 };

@@ -499,7 +499,7 @@ static struct ctl_table net_core_table[] = {
 #endif
 	{
 		.procname	= "netdev_tstamp_prequeue",
-		.data		= &netdev_tstamp_prequeue,
+		.data		= &net_hotdata.tstamp_prequeue,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec

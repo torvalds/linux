@@ -10,6 +10,7 @@ struct net_hotdata {
 	int			gro_normal_batch;
 	int			netdev_budget;
 	int			netdev_budget_usecs;
+	int			tstamp_prequeue;
 };
 
 extern struct net_hotdata net_hotdata;
