@@ -135,12 +135,6 @@ static int ionic_rx_page_alloc(struct ionic_queue *q,
 	dev = q->dev;
 	stats = q_to_rx_stats(q);
 
-	if (unlikely(!buf_info)) {
-		net_err_ratelimited("%s: %s invalid buf_info in alloc\n",
-				    dev_name(dev), q->name);
-		return -EINVAL;
-	}
-
 	page = alloc_pages(IONIC_PAGE_GFP_MASK, 0);
 	if (unlikely(!page)) {
 		net_err_ratelimited("%s: %s page alloc failed\n",
