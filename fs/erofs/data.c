@@ -440,4 +440,5 @@ const struct file_operations erofs_file_fops = {
 	.read_iter	= erofs_file_read_iter,
 	.mmap		= erofs_file_mmap,
 	.splice_read	= generic_file_splice_read,
+	.get_unmapped_area = thp_get_unmapped_area,
 };
