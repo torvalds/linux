@@ -53,7 +53,46 @@
 #define EMAC_HW_vMAX 9
 
 #define EMAC_GDSC_EMAC_NAME "gdsc_emac"
+#define ETHQOS_CONFIG_PPSOUT_CMD 44
+#define ETHQOS_AVB_ALGORITHM 27
+#define MAC_PPS_CONTROL			0x00000b70
+#define PPS_MAXIDX(x)			((((x) + 1) * 8) - 1)
+#define PPS_MINIDX(x)			((x) * 8)
+#define MCGRENX(x)			BIT(PPS_MAXIDX(x))
+#define PPSEN0				BIT(4)
+#define MAC_PPSX_TARGET_TIME_SEC(x)	(0x00000b80 + ((x) * 0x10))
+#define MAC_PPSX_TARGET_TIME_NSEC(x)	(0x00000b84 + ((x) * 0x10))
+#define TRGTBUSY0			BIT(31)
+#define TTSL0				GENMASK(30, 0)
+#define MAC_PPSX_INTERVAL(x)		(0x00000b88 + ((x) * 0x10))
+#define MAC_PPSX_WIDTH(x)		(0x00000b8c + ((x) * 0x10))
 
+#define DWC_ETH_QOS_PPS_CH_2 2
+#define DWC_ETH_QOS_PPS_CH_3 3
+
+#define AVB_CLASS_A_POLL_DEV_NODE "avb_class_a_intr"
+
+#define AVB_CLASS_B_POLL_DEV_NODE "avb_class_b_intr"
+
+#define AVB_CLASS_A_CHANNEL_NUM 2
+#define AVB_CLASS_B_CHANNEL_NUM 3
+
+static inline u32 PPSCMDX(u32 x, u32 val)
+{
+	return (GENMASK(PPS_MINIDX(x) + 3, PPS_MINIDX(x)) &
+	((val) << PPS_MINIDX(x)));
+}
+
+static inline u32 TRGTMODSELX(u32 x, u32 val)
+{
+	return (GENMASK(PPS_MAXIDX(x) - 1, PPS_MAXIDX(x) - 2) &
+	((val) << (PPS_MAXIDX(x) - 2)));
+}
+
+static inline u32 PPSX_MASK(u32 x)
+{
+	return GENMASK(PPS_MAXIDX(x), PPS_MINIDX(x));
+}
 struct ethqos_emac_por {
 	unsigned int offset;
 	unsigned int value;
@@ -89,7 +128,28 @@ struct qcom_ethqos {
 	struct regulator *reg_rgmii;
 	struct regulator *reg_emac_phy;
 	struct regulator *reg_rgmii_io_pads;
+	int pps_class_a_irq;
+	int pps_class_b_irq;
 
+	struct pinctrl_state *emac_pps_0;
+
+	/* state of enabled wol options in PHY*/
+	u32 phy_wol_wolopts;
+	/* state of supported wol options in PHY*/
+	u32 phy_wol_supported;
+
+	/* avb_class_a dev node variables*/
+	dev_t avb_class_a_dev_t;
+	struct cdev *avb_class_a_cdev;
+	struct class *avb_class_a_class;
+
+	/* avb_class_b dev node variables*/
+	dev_t avb_class_b_dev_t;
+	struct cdev *avb_class_b_cdev;
+	struct class *avb_class_b_class;
+
+	unsigned long avb_class_a_intr_cnt;
+	unsigned long avb_class_b_intr_cnt;
 	int curr_serdes_speed;
 
 	/* Boolean to check if clock is suspended*/
@@ -121,9 +181,96 @@ struct ip_params {
 	bool is_valid_ipv6_addr;
 };
 
+struct pps_cfg {
+	unsigned int ptpclk_freq;
+	unsigned int ppsout_freq;
+	unsigned int ppsout_ch;
+	unsigned int ppsout_duty;
+	unsigned int ppsout_start;
+};
+
+struct ifr_data_struct {
+	unsigned int flags;
+	unsigned int qinx; /* dma channel no to be configured */
+	unsigned int cmd;
+	unsigned int context_setup;
+	unsigned int connected_speed;
+	unsigned int rwk_filter_values[8];
+	unsigned int rwk_filter_length;
+	int command_error;
+	int test_done;
+	void *ptr;
+};
+
+struct pps_info {
+	int channel_no;
+};
+
 int ethqos_init_regulators(struct qcom_ethqos *ethqos);
 void ethqos_disable_regulators(struct qcom_ethqos *ethqos);
 int ethqos_init_gpio(struct qcom_ethqos *ethqos);
 void ethqos_free_gpios(struct qcom_ethqos *ethqos);
 void *qcom_ethqos_get_priv(struct qcom_ethqos *ethqos);
+int create_pps_interrupt_device_node(dev_t *pps_dev_t,
+				     struct cdev **pps_cdev,
+				     struct class **pps_class,
+				     char *pps_dev_node_name);
+int ppsout_config(struct stmmac_priv *priv, struct ifr_data_struct *req);
+
+u16 dwmac_qcom_select_queue(struct net_device *dev,
+			    struct sk_buff *skb,
+			    struct net_device *sb_dev);
+
+#define QTAG_VLAN_ETH_TYPE_OFFSET 16
+#define QTAG_UCP_FIELD_OFFSET 14
+#define QTAG_ETH_TYPE_OFFSET 12
+#define PTP_UDP_EV_PORT 0x013F
+#define PTP_UDP_GEN_PORT 0x0140
+
+#define IPA_DMA_TX_CH 0
+#define IPA_DMA_RX_CH 0
+
+#define VLAN_TAG_UCP_SHIFT 13
+#define CLASS_A_TRAFFIC_UCP 3
+#define CLASS_A_TRAFFIC_TX_CHANNEL 3
+
+#define CLASS_B_TRAFFIC_UCP 2
+#define CLASS_B_TRAFFIC_TX_CHANNEL 2
+
+#define NON_TAGGED_IP_TRAFFIC_TX_CHANNEL 1
+#define ALL_OTHER_TRAFFIC_TX_CHANNEL 1
+#define ALL_OTHER_TX_TRAFFIC_IPA_DISABLED 0
+
+#define DEFAULT_INT_MOD 1
+#define AVB_INT_MOD 8
+#define IP_PKT_INT_MOD 32
+#define PTP_INT_MOD 1
+
+enum dwmac_qcom_queue_operating_mode {
+	DWMAC_QCOM_QDISABLED = 0X0,
+	DWMAC_QCOM_QAVB,
+	DWMAC_QCOM_QDCB,
+	DWMAC_QCOM_QGENERIC
+};
+
+struct dwmac_qcom_avb_algorithm_params {
+	unsigned int idle_slope;
+	unsigned int send_slope;
+	unsigned int hi_credit;
+	unsigned int low_credit;
+};
+
+struct dwmac_qcom_avb_algorithm {
+	unsigned int qinx;
+	unsigned int algorithm;
+	unsigned int cc;
+	struct dwmac_qcom_avb_algorithm_params speed100params;
+	struct dwmac_qcom_avb_algorithm_params speed1000params;
+	enum dwmac_qcom_queue_operating_mode op_mode;
+};
+
+void dwmac_qcom_program_avb_algorithm(struct stmmac_priv *priv,
+				      struct ifr_data_struct *req);
+unsigned int dwmac_qcom_get_plat_tx_coal_frames(struct sk_buff *skb);
+int ethqos_init_pps(void *priv);
 #endif

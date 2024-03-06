@@ -62,10 +62,13 @@
 #define	PTP_TCR_SNAPTYPSEL_1	BIT(16)
 /* Enable MAC address for PTP Frame Filtering */
 #define	PTP_TCR_TSENMACADDR	BIT(18)
+#define	PTP_TCR_AV8021ASMEN	BIT(28)
 
 /* SSIR defines */
 #define	PTP_SSIR_SSINC_MAX		0xff
 #define	GMAC4_PTP_SSIR_SSINC_SHIFT	16
+#define	PTP_SSIR_SNSINC_MASK		0xff
+#define	GMAC4_PTP_SSIR_SNSINC_SHIFT	8
 
 /* Auxiliary Control defines */
 #define	PTP_ACR_ATSFC		BIT(0)	/* Auxiliary Snapshot FIFO Clear */
