@@ -595,6 +595,16 @@ class YnlFamily(SpecFamily):
             decoded.append({ item.type: subattrs })
         return decoded
 
+    def _decode_nest_type_value(self, attr, attr_spec):
+        decoded = {}
+        value = attr
+        for name in attr_spec['type-value']:
+            value = NlAttr(value.raw, 0)
+            decoded[name] = value.type
+        subattrs = self._decode(NlAttrs(value.raw), attr_spec['nested-attributes'])
+        decoded.update(subattrs)
+        return decoded
+
     def _decode_unknown(self, attr):
         if attr.is_nest:
             return self._decode(NlAttrs(attr.raw), None)
@@ -686,6 +696,8 @@ class YnlFamily(SpecFamily):
                 decoded = {"value": value, "selector": selector}
             elif attr_spec["type"] == 'sub-message':
                 decoded = self._decode_sub_msg(attr, attr_spec, search_attrs)
+            elif attr_spec["type"] == 'nest-type-value':
+                decoded = self._decode_nest_type_value(attr, attr_spec)
             else:
                 if not self.process_unknown:
                     raise Exception(f'Unknown {attr_spec["type"]} with name {attr_spec["name"]}')
