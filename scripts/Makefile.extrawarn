@@ -187,7 +187,6 @@ KBUILD_CFLAGS += -Wpointer-arith
 KBUILD_CFLAGS += -Wredundant-decls
 KBUILD_CFLAGS += -Wsign-compare
 KBUILD_CFLAGS += -Wswitch-default
-KBUILD_CFLAGS += $(call cc-option, -Wpacked-bitfield-compat)
 
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN3
 
