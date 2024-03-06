@@ -1963,7 +1963,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 
 	snd_soc_dapm_mutex_assert_held(card);
 
-	trace_snd_soc_dapm_start(card);
+	trace_snd_soc_dapm_start(card, event);
 
 	for_each_card_dapms(card, d) {
 		if (dapm_idle_bias_off(d))
@@ -2088,7 +2088,7 @@ static int dapm_power_widgets(struct snd_soc_card *card, int event)
 		"DAPM sequencing finished, waiting %dms\n", card->pop_time);
 	pop_wait(card->pop_time);
 
-	trace_snd_soc_dapm_done(card);
+	trace_snd_soc_dapm_done(card, event);
 
 	return 0;
 }

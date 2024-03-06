@@ -57,34 +57,36 @@ DEFINE_EVENT(snd_soc_dapm, snd_soc_bias_level_done,
 
 DECLARE_EVENT_CLASS(snd_soc_dapm_basic,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card),
+	TP_ARGS(card, event),
 
 	TP_STRUCT__entry(
 		__string(	name,	card->name	)
+		__field(	int,	event		)
 	),
 
 	TP_fast_assign(
 		__assign_str(name, card->name);
+		__entry->event = event;
 	),
 
-	TP_printk("card=%s", __get_str(name))
+	TP_printk("card=%s event=%d", __get_str(name), (int)__entry->event)
 );
 
 DEFINE_EVENT(snd_soc_dapm_basic, snd_soc_dapm_start,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card)
+	TP_ARGS(card, event)
 
 );
 
 DEFINE_EVENT(snd_soc_dapm_basic, snd_soc_dapm_done,
 
-	TP_PROTO(struct snd_soc_card *card),
+	TP_PROTO(struct snd_soc_card *card, int event),
 
-	TP_ARGS(card)
+	TP_ARGS(card, event)
 
 );
 
