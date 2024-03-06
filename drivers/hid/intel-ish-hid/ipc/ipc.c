@@ -78,7 +78,7 @@ static bool check_generated_interrupt(struct ishtp_device *dev)
 	bool interrupt_generated = true;
 	uint32_t pisr_val = 0;
 
-	if (dev->pdev->device == CHV_DEVICE_ID) {
+	if (dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_CHV) {
 		pisr_val = ish_reg_read(dev, IPC_REG_PISR_CHV_AB);
 		interrupt_generated =
 			IPC_INT_FROM_ISH_TO_HOST_CHV_AB(pisr_val);
@@ -117,7 +117,7 @@ static bool ish_is_input_ready(struct ishtp_device *dev)
  */
 static void set_host_ready(struct ishtp_device *dev)
 {
-	if (dev->pdev->device == CHV_DEVICE_ID) {
+	if (dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_CHV) {
 		if (dev->pdev->revision == REVISION_ID_CHT_A0 ||
 				(dev->pdev->revision & REVISION_ID_SI_MASK) ==
 				REVISION_ID_CHT_Ax_SI)
@@ -909,11 +909,11 @@ static uint32_t ish_ipc_get_header(struct ishtp_device *dev, int length,
  */
 static bool _dma_no_cache_snooping(struct ishtp_device *dev)
 {
-	return (dev->pdev->device == EHL_Ax_DEVICE_ID ||
-		dev->pdev->device == TGL_LP_DEVICE_ID ||
-		dev->pdev->device == TGL_H_DEVICE_ID ||
-		dev->pdev->device == ADL_S_DEVICE_ID ||
-		dev->pdev->device == ADL_P_DEVICE_ID);
+	return (dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_EHL_Ax ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_TGL_LP ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_TGL_H ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_ADL_S ||
+		dev->pdev->device == PCI_DEVICE_ID_INTEL_ISH_ADL_P);
 }
 
 static const struct ishtp_hw_ops ish_hw_ops = {
