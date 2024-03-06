@@ -2153,7 +2153,7 @@ static int lock_unlock_locking_range(struct opal_dev *dev, void *data)
 	u8 lr_buffer[OPAL_UID_LENGTH];
 	struct opal_lock_unlock *lkul = data;
 	u8 read_locked = 1, write_locked = 1;
-	int err = 0;
+	int err;
 
 	if (build_locking_range(lr_buffer, sizeof(lr_buffer),
 				lkul->session.opal_key.lr) < 0)
