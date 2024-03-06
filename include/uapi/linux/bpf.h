@@ -42,6 +42,7 @@
 #define BPF_JSGE	0x70	/* SGE is signed '>=', GE in x86 */
 #define BPF_JSLT	0xc0	/* SLT is signed, '<' */
 #define BPF_JSLE	0xd0	/* SLE is signed, '<=' */
+#define BPF_JCOND	0xe0	/* conditional pseudo jumps: may_goto, goto_or_nop */
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 
@@ -49,6 +50,10 @@
 #define BPF_FETCH	0x01	/* not an opcode on its own, used to build others */
 #define BPF_XCHG	(0xe0 | BPF_FETCH)	/* atomic exchange */
 #define BPF_CMPXCHG	(0xf0 | BPF_FETCH)	/* atomic compare-and-write */
+
+enum bpf_cond_pseudo_jmp {
+	BPF_MAY_GOTO = 0,
+};
 
 /* Register numbers */
 enum {
