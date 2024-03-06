@@ -7,6 +7,7 @@
 /* Read mostly data used in network fast paths. */
 struct net_hotdata {
 	struct list_head	offload_base;
+	struct list_head	ptype_all;
 	int			gro_normal_batch;
 	int			netdev_budget;
 	int			netdev_budget_usecs;
