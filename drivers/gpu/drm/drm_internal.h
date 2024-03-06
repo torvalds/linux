@@ -21,6 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#ifndef __DRM_INTERNAL_H__
+#define __DRM_INTERNAL_H__
+
 #include <linux/kthread.h>
 #include <linux/types.h>
 
@@ -276,3 +279,5 @@ void drm_framebuffer_debugfs_init(struct drm_device *dev);
 /* drm_edid.c */
 void drm_edid_cta_sad_get(const struct cea_sad *cta_sad, u8 *sad);
 void drm_edid_cta_sad_set(struct cea_sad *cta_sad, const u8 *sad);
+
+#endif /* __DRM_INTERNAL_H__ */
