@@ -160,6 +160,13 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 		if (!raw_v6_match(net, sk, nexthdr, daddr, saddr,
 				  inet6_iif(skb), inet6_sdif(skb)))
 			continue;
+
+		if (atomic_read(&sk->sk_rmem_alloc) >=
+		    READ_ONCE(sk->sk_rcvbuf)) {
+			atomic_inc(&sk->sk_drops);
+			continue;
+		}
+
 		delivered = true;
 		switch (nexthdr) {
 		case IPPROTO_ICMPV6:
