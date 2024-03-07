@@ -466,6 +466,7 @@ rcu_torture_pipe_update_one(struct rcu_torture *rp)
 		i = RCU_TORTURE_PIPE_LEN;
 	atomic_inc(&rcu_torture_wcount[i]);
 	WRITE_ONCE(rp->rtort_pipe_count, i + 1);
+	ASSERT_EXCLUSIVE_WRITER(rp->rtort_pipe_count);
 	if (rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
 		rp->rtort_mbtest = 0;
 		return true;
@@ -1399,6 +1400,7 @@ rcu_torture_writer(void *arg)
 		if (rp == NULL)
 			continue;
 		rp->rtort_pipe_count = 0;
+		ASSERT_EXCLUSIVE_WRITER(rp->rtort_pipe_count);
 		rcu_torture_writer_state = RTWS_DELAY;
 		udelay(torture_random(&rand) & 0x3ff);
 		rcu_torture_writer_state = RTWS_REPLACE;
@@ -1414,6 +1416,7 @@ rcu_torture_writer(void *arg)
 			atomic_inc(&rcu_torture_wcount[i]);
 			WRITE_ONCE(old_rp->rtort_pipe_count,
 				   old_rp->rtort_pipe_count + 1);
+			ASSERT_EXCLUSIVE_WRITER(old_rp->rtort_pipe_count);
 
 			// Make sure readers block polled grace periods.
 			if (cur_ops->get_gp_state && cur_ops->poll_gp_state) {
