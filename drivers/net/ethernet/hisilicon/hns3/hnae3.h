@@ -820,6 +820,7 @@ struct hnae3_tc_info {
 	u8 max_tc; /* Total number of TCs */
 	u8 num_tc; /* Total number of enabled TCs */
 	bool mqprio_active;
+	bool mqprio_destroy;
 	bool dcb_ets_active;
 };
 
