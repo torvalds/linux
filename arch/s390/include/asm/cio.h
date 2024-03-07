@@ -365,6 +365,8 @@ extern struct device *cio_get_dma_css_dev(void);
 
 void *cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
 			size_t size);
+void *__cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
+			  size_t size, dma32_t *dma_handle);
 void cio_gp_dma_free(struct gen_pool *gp_dma, void *cpu_addr, size_t size);
 void cio_gp_dma_destroy(struct gen_pool *gp_dma, struct device *dma_dev);
 struct gen_pool *cio_gp_dma_create(struct device *dma_dev, int nr_pages);
