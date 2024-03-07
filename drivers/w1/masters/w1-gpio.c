@@ -91,18 +91,14 @@ static int w1_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ddata->gpiod = devm_gpiod_get_index(dev, NULL, 0, gflags);
-	if (IS_ERR(ddata->gpiod)) {
-		dev_err(dev, "gpio_request (pin) failed\n");
-		return PTR_ERR(ddata->gpiod);
-	}
+	if (IS_ERR(ddata->gpiod))
+		return dev_err_probe(dev, PTR_ERR(ddata->gpiod), "gpio_request (pin) failed\n");
 
 	ddata->pullup_gpiod =
 		devm_gpiod_get_index_optional(dev, NULL, 1, GPIOD_OUT_LOW);
-	if (IS_ERR(ddata->pullup_gpiod)) {
-		dev_err(dev, "gpio_request_one "
-			"(ext_pullup_enable_pin) failed\n");
-		return PTR_ERR(ddata->pullup_gpiod);
-	}
+	if (IS_ERR(ddata->pullup_gpiod))
+		return dev_err_probe(dev, PTR_ERR(ddata->pullup_gpiod),
+				     "gpio_request (ext_pullup_enable_pin) failed\n");
 
 	master->data = ddata;
 	master->read_bit = w1_gpio_read_bit;
@@ -119,10 +115,8 @@ static int w1_gpio_probe(struct platform_device *pdev)
 		master->set_pullup = w1_gpio_set_pullup;
 
 	err = w1_add_master_device(master);
-	if (err) {
-		dev_err(dev, "w1_add_master device failed\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "w1_add_master device failed\n");
 
 	if (ddata->pullup_gpiod)
 		gpiod_set_value(ddata->pullup_gpiod, 1);
