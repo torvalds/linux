@@ -2026,29 +2026,31 @@ static ssize_t q2spi_transfer(struct file *filp, const char __user *buf, size_t 
 			Q2SPI_DEBUG(q2spi, "%s ret:%d retry_count:%d retrying cur_q2spi_pkt:%p\n",
 				    __func__, ret, i + 1, cur_q2spi_pkt);
 			if (i == 0) {
+				xfer_timeout = msecs_to_jiffies(EXT_CR_TIMEOUT_MSECS);
+				reinit_completion(&q2spi->wait_for_ext_cr);
 				/* Send Wakeup signals on q2spi lines to wakeup Target */
-				q2spi_wakeup_hw_through_gpio(q2spi);
-			}
-			q2spi_unmap_doorbell_rx_buf(q2spi);
-			ret = q2spi_map_doorbell_rx_buf(q2spi);
-			if (ret) {
-				Q2SPI_ERROR(q2spi, "%s Err failed to alloc RX DMA buf\n", __func__);
-				pm_runtime_mark_last_busy(q2spi->dev);
-				pm_runtime_put_autosuspend(q2spi->dev);
-				Q2SPI_DEBUG(q2spi, "%s PM after put_autosuspend count:%d\n",
-					    __func__, atomic_read(&q2spi->dev->power.usage_count));
-				return ret;
-			}
+				ret = q2spi_wakeup_hw_through_gpio(q2spi);
+				if (ret) {
+					Q2SPI_ERROR(q2spi, "%s Err q2spi_wakeup_hw_through_gpio\n",
+						    __func__);
+					pm_runtime_mark_last_busy(q2spi->dev);
+					pm_runtime_put_autosuspend(q2spi->dev);
+					Q2SPI_DEBUG(q2spi, "%s PM after put_autosuspend cnt:%d\n",
+						    __func__,
+						    atomic_read(&q2spi->dev->power.usage_count));
+					return ret;
+				}
 
-			xfer_timeout = msecs_to_jiffies(EXT_CR_TIMEOUT_MSECS);
-			Q2SPI_DEBUG(q2spi, "%s Waiting for Extended CR\n", __func__);
-			reinit_completion(&q2spi->wait_for_ext_cr);
-			timeout = wait_for_completion_interruptible_timeout(&q2spi->wait_for_ext_cr,
-									    xfer_timeout);
-			if (timeout <= 0)
-				Q2SPI_ERROR(q2spi, "%s Err timeout for Extended CR\n", __func__);
-			else
-				Q2SPI_DEBUG(q2spi, "%s Received for Extended CR\n", __func__);
+				Q2SPI_DEBUG(q2spi, "%s Waiting for Extended CR\n", __func__);
+				timeout =
+				wait_for_completion_interruptible_timeout(&q2spi->wait_for_ext_cr,
+									  xfer_timeout);
+				if (timeout <= 0)
+					Q2SPI_ERROR(q2spi, "%s Err timeout for Extended CR\n",
+						    __func__);
+				else
+					Q2SPI_DEBUG(q2spi, "%s Received Extended CR\n", __func__);
+			}
 
 			/* Should not perform SOFT RESET when UWB sets reserved[0] bit 0 set */
 			if (!(q2spi_req.reserved[0] & BIT(0)) && i == 1)
@@ -4122,6 +4124,10 @@ int q2spi_wakeup_hw_through_gpio(struct q2spi_geni *q2spi)
 {
 	int ret = 0;
 
+	q2spi_unmap_doorbell_rx_buf(q2spi);
+	Q2SPI_DEBUG(q2spi, "%s Sending disconnect doorbell only\n", __func__);
+	geni_gsi_disconnect_doorbell_stop_ch(q2spi->gsi->tx_c, false);
+
 	ret = pinctrl_select_state(q2spi->geni_pinctrl, q2spi->geni_gpio_sleep);
 	if (ret) {
 		Q2SPI_ERROR(q2spi, "%s: Err failed to pinctrl state to gpio, ret:%d\n",
@@ -4159,6 +4165,8 @@ int q2spi_wakeup_hw_through_gpio(struct q2spi_geni *q2spi)
 			    __func__, ret);
 		return ret;
 	}
+
+	ret = q2spi_map_doorbell_rx_buf(q2spi);
 
 	return ret;
 }
@@ -4232,7 +4240,7 @@ static int q2spi_geni_runtime_suspend(struct device *dev)
 
 		q2spi_unmap_doorbell_rx_buf(q2spi);
 		Q2SPI_DEBUG(q2spi, "%s Sending disconnect doorbell cmd\n", __func__);
-		geni_gsi_ch_disconnect_doorbell(q2spi->gsi->tx_c);
+		geni_gsi_disconnect_doorbell_stop_ch(q2spi->gsi->tx_c, true);
 		ret = irq_set_irq_wake(q2spi->doorbell_irq, 1);
 		if (unlikely(ret))
 			Q2SPI_ERROR(q2spi, "%s Err Failed to set IRQ wake\n", __func__);

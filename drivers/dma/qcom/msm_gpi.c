@@ -1721,12 +1721,13 @@ int gpi_terminate_channel(struct gpii_chan *gpii_chan)
 }
 
 /*
- * geni_gsi_ch_disconenct_doorbell() - gsi channel commond to disconnect doorbell to GSI
+ * geni_gsi_disconnect_doorbell_stop_ch() - function to disconnect gsi doorbell and stop channel
  * @chan: gsi channel handle
+ * @stop_ch: stop channel if set to true
  *
  * Return: Returns success or failure
  */
-int geni_gsi_ch_disconnect_doorbell(struct dma_chan *chan)
+int geni_gsi_disconnect_doorbell_stop_ch(struct dma_chan *chan, bool stop_ch)
 {
 	struct gpii_chan *gpii_chan = to_gpii_chan(chan);
 	struct gpii *gpii = gpii_chan->gpii;
@@ -1745,6 +1746,14 @@ int geni_gsi_ch_disconnect_doorbell(struct dma_chan *chan)
 		error = true;
 		gpi_dump_debug_reg(gpii);
 	}
+
+	/* Disconnect only doorbell & free Rx chan desc */
+	if (!stop_ch) {
+		GPII_VERB(gpii, gpii_chan->chid, "Free RX chan desc\n");
+		gpi_free_chan_desc(&gpii->gpii_chan[1]);
+		return ret;
+	}
+
 	/* Stop RX channel */
 	GPII_INFO(gpii, gpii_chan->chid, "Stop RX chan\n");
 	ret = gpi_terminate_channel(&gpii->gpii_chan[1]);
@@ -1773,7 +1782,7 @@ int geni_gsi_ch_disconnect_doorbell(struct dma_chan *chan)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(geni_gsi_ch_disconnect_doorbell);
+EXPORT_SYMBOL_GPL(geni_gsi_disconnect_doorbell_stop_ch);
 
 /* program transfer ring DB register */
 static inline void gpi_write_ch_db(struct gpii_chan *gpii_chan,
