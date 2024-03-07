@@ -444,6 +444,7 @@ struct aspeed_i3c_master {
 		u32 i3c_pp_scl_freq;
 		u32 i3c_pp_scl_low;
 		u32 i3c_pp_scl_high;
+		u32 timed_reset_scl_low_ns;
 	} timing;
 	struct work_struct hj_work;
 };
@@ -1516,14 +1517,23 @@ static void aspeed_i3c_master_bus_cleanup(struct i3c_master_controller *m)
 static void aspeed_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
-	u32 reset;
 	int i;
 
 	if (master->base.jdec_spd) {
-		reset = RESET_CTRL_BUS |
-			FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE, BUS_RESET_TYPE_SCL_LOW);
-
-		writel(reset, master->regs + RESET_CTRL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_SW_MODE_OE, SCL_SW_MODE_OE);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_EN, SCL_OUT_SW_MODE_EN);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, 0);
+		mdelay(DIV_ROUND_UP(master->timing.timed_reset_scl_low_ns,
+				    1000000));
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
+				  SCL_OUT_SW_MODE_EN, 0);
 	} else {
 		regmap_write_bits(master->i3cg, I3CG_REG1(master->channel),
 				  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL,
@@ -2772,7 +2782,6 @@ static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
 					   struct device_node *np)
 {
 	u32 val, reg;
-	u32 timed_reset_scl_low_ns;
 	u32 sda_tx_hold_ns;
 
 	master->timing.core_rate = clk_get_rate(master->core_clk);
@@ -2787,7 +2796,7 @@ static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
 
 	/* setup default timing configuration */
 	sda_tx_hold_ns = SDA_TX_HOLD_MIN * master->timing.core_period;
-	timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
+	master->timing.timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
 
 	/* parse configurations from DT */
 	if (!of_property_read_u32(np, "i3c-pp-scl-hi-period-ns", &val))
@@ -2806,7 +2815,7 @@ static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
 		sda_tx_hold_ns = val;
 
 	if (!of_property_read_u32(np, "timed-reset-scl-low-ns", &val))
-		timed_reset_scl_low_ns = val;
+		master->timing.timed_reset_scl_low_ns = val;
 
 	val = clamp((u32)DIV_ROUND_CLOSEST(sda_tx_hold_ns,
 					   master->timing.core_period),
@@ -2816,7 +2825,7 @@ static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
 	reg |= FIELD_PREP(SDA_TX_HOLD, val);
 	writel(reg, master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
 
-	val = DIV_ROUND_CLOSEST(timed_reset_scl_low_ns,
+	val = DIV_ROUND_CLOSEST(master->timing.timed_reset_scl_low_ns,
 				master->timing.core_period);
 	writel(val, master->regs + SCL_LOW_MST_EXT_TIMEOUT);
 
