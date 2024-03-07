@@ -1,15 +1,76 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef PINCTRL_PINCTRL_NOMADIK_H
-#define PINCTRL_PINCTRL_NOMADIK_H
+#ifndef __LINUX_GPIO_NOMADIK_H
+#define __LINUX_GPIO_NOMADIK_H
 
-#include <linux/kernel.h>
-#include <linux/types.h>
-
-#include <linux/pinctrl/pinctrl.h>
+struct fwnode_handle;
 
 /* Package definitions */
 #define PINCTRL_NMK_STN8815	0
 #define PINCTRL_NMK_DB8500	1
+
+#define GPIO_BLOCK_SHIFT 5
+#define NMK_GPIO_PER_CHIP BIT(GPIO_BLOCK_SHIFT)
+#define NMK_MAX_BANKS DIV_ROUND_UP(512, NMK_GPIO_PER_CHIP)
+
+/* Register in the logic block */
+#define NMK_GPIO_DAT	0x00
+#define NMK_GPIO_DATS	0x04
+#define NMK_GPIO_DATC	0x08
+#define NMK_GPIO_PDIS	0x0c
+#define NMK_GPIO_DIR	0x10
+#define NMK_GPIO_DIRS	0x14
+#define NMK_GPIO_DIRC	0x18
+#define NMK_GPIO_SLPC	0x1c
+#define NMK_GPIO_AFSLA	0x20
+#define NMK_GPIO_AFSLB	0x24
+#define NMK_GPIO_LOWEMI	0x28
+
+#define NMK_GPIO_RIMSC	0x40
+#define NMK_GPIO_FIMSC	0x44
+#define NMK_GPIO_IS	0x48
+#define NMK_GPIO_IC	0x4c
+#define NMK_GPIO_RWIMSC	0x50
+#define NMK_GPIO_FWIMSC	0x54
+#define NMK_GPIO_WKS	0x58
+/* These appear in DB8540 and later ASICs */
+#define NMK_GPIO_EDGELEVEL 0x5C
+#define NMK_GPIO_LEVEL	0x60
+
+/* Pull up/down values */
+enum nmk_gpio_pull {
+	NMK_GPIO_PULL_NONE,
+	NMK_GPIO_PULL_UP,
+	NMK_GPIO_PULL_DOWN,
+};
+
+/* Sleep mode */
+enum nmk_gpio_slpm {
+	NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_WAKEUP_ENABLE = NMK_GPIO_SLPM_INPUT,
+	NMK_GPIO_SLPM_NOCHANGE,
+	NMK_GPIO_SLPM_WAKEUP_DISABLE = NMK_GPIO_SLPM_NOCHANGE,
+};
+
+struct nmk_gpio_chip {
+	struct gpio_chip chip;
+	void __iomem *addr;
+	struct clk *clk;
+	unsigned int bank;
+	void (*set_ioforce)(bool enable);
+	spinlock_t lock;
+	bool sleepmode;
+	bool is_mobileye_soc;
+	/* Keep track of configured edges */
+	u32 edge_rising;
+	u32 edge_falling;
+	u32 real_wake;
+	u32 rwimsc;
+	u32 fwimsc;
+	u32 rimsc;
+	u32 fimsc;
+	u32 pull_up;
+	u32 lowemi;
+};
 
 /* Alternate functions: function C is set in hw by setting both A and B */
 #define NMK_GPIO_ALT_GPIO	0
@@ -104,7 +165,7 @@ struct prcm_gpiocr_altcx_pin_desc {
 struct nmk_function {
 	const char *name;
 	const char * const *groups;
-	unsigned ngroups;
+	unsigned int ngroups;
 };
 
 /**
@@ -141,13 +202,13 @@ struct nmk_pingroup {
  */
 struct nmk_pinctrl_soc_data {
 	const struct pinctrl_pin_desc *pins;
-	unsigned npins;
+	unsigned int npins;
 	const struct nmk_function *functions;
-	unsigned nfunctions;
+	unsigned int nfunctions;
 	const struct nmk_pingroup *groups;
-	unsigned ngroups;
+	unsigned int ngroups;
 	const struct prcm_gpiocr_altcx_pin_desc *altcx_pins;
-	unsigned npins_altcx;
+	unsigned int npins_altcx;
 	const u16 *prcm_gpiocr_registers;
 };
 
@@ -177,4 +238,42 @@ nmk_pinctrl_db8500_init(const struct nmk_pinctrl_soc_data **soc)
 
 #endif
 
-#endif /* PINCTRL_PINCTRL_NOMADIK_H */
+#ifdef CONFIG_PINCTRL_DB8540
+
+void nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc);
+
+#else
+
+static inline void
+nmk_pinctrl_db8540_init(const struct nmk_pinctrl_soc_data **soc)
+{
+}
+
+#endif
+
+struct platform_device;
+
+/*
+ * Symbols declared in gpio-nomadik used by pinctrl-nomadik. If pinctrl-nomadik
+ * is enabled, then gpio-nomadik is enabled as well; the reverse if not always
+ * true.
+ */
+void nmk_gpio_dbg_show_one(struct seq_file *s, struct pinctrl_dev *pctldev,
+			   struct gpio_chip *chip, unsigned int offset,
+			   unsigned int gpio);
+void __nmk_gpio_make_output(struct nmk_gpio_chip *nmk_chip,
+			    unsigned int offset, int val);
+void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip, unsigned int offset,
+			 enum nmk_gpio_slpm mode);
+struct nmk_gpio_chip *nmk_gpio_populate_chip(struct fwnode_handle *fwnode,
+					     struct platform_device *pdev);
+
+/* Symbols declared in pinctrl-nomadik used by gpio-nomadik. */
+#ifdef CONFIG_PINCTRL_NOMADIK
+extern struct nmk_gpio_chip *nmk_gpio_chips[NMK_MAX_BANKS];
+extern spinlock_t nmk_gpio_slpm_lock;
+int __maybe_unused nmk_prcm_gpiocr_get_mode(struct pinctrl_dev *pctldev,
+					    int gpio);
+#endif
+
+#endif /* __LINUX_GPIO_NOMADIK_H */
