@@ -68,9 +68,9 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 			       sizeof(struct tcw), 0);
 	} else {
 		printk(KERN_WARNING "cio: orb indicates command mode\n");
-		if ((void *)(addr_t)orb->cmd.cpa ==
+		if (phys_to_virt(orb->cmd.cpa) ==
 		    &private->dma_area->sense_ccw ||
-		    (void *)(addr_t)orb->cmd.cpa ==
+		    phys_to_virt(orb->cmd.cpa) ==
 		    cdev->private->dma_area->iccws)
 			printk(KERN_WARNING "cio: last channel program "
 			       "(intern):\n");
