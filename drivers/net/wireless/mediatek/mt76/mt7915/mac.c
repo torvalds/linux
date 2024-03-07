@@ -1345,10 +1345,8 @@ mt7915_mac_restart(struct mt7915_dev *dev)
 	set_bit(MT76_RESET, &dev->mphy.state);
 	set_bit(MT76_MCU_RESET, &dev->mphy.state);
 	wake_up(&dev->mt76.mcu.wait);
-	if (ext_phy) {
+	if (ext_phy)
 		set_bit(MT76_RESET, &ext_phy->state);
-		set_bit(MT76_MCU_RESET, &ext_phy->state);
-	}
 
 	/* lock/unlock all queues to ensure that no tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
