@@ -1824,20 +1824,14 @@ static void aspeed_mctp_send_pcie_uevent(struct kobject *kobj, bool ready)
 
 static u16 aspeed_mctp_pcie_setup(struct aspeed_mctp *priv)
 {
-	u32 reg;
 	u16 bdf;
 
-	regmap_read(priv->pcie.map, ASPEED_PCIE_MISC_STS_1, &reg);
-
-	reg = reg & (PCI_BUS_NUM_MASK | PCI_DEV_NUM_MASK);
-	bdf = PCI_DEVID(GET_PCI_BUS_NUM(reg), GET_PCI_DEV_NUM(reg));
-	if (reg != 0)
+	bdf = _get_bdf(priv);
+	if (bdf != 0)
 		cancel_delayed_work(&priv->pcie.rst_dwork);
-	else {
+	else
 		schedule_delayed_work(&priv->pcie.rst_dwork,
 				      msecs_to_jiffies(1000));
-		bdf = 0;
-	}
 	return bdf;
 }
 
