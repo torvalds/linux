@@ -17,10 +17,8 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 
@@ -446,7 +444,7 @@ static int sdhci_s3c_parse_dt(struct device *dev,
 		return 0;
 	}
 
-	if (of_get_named_gpio(node, "cd-gpios", 0))
+	if (of_property_present(node, "cd-gpios"))
 		return 0;
 
 	/* assuming internal card detect that will be configured by pinctrl */
