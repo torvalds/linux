@@ -2629,6 +2629,7 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 	int i;
 	struct dc_stream_state *del_streams[MAX_PIPES];
 	int del_streams_count = 0;
+	struct dc_commit_streams_params params = {};
 
 	memset(del_streams, 0, sizeof(del_streams));
 
@@ -2655,7 +2656,9 @@ static enum dc_status amdgpu_dm_commit_zero_streams(struct dc *dc)
 			goto fail;
 	}
 
-	res = dc_commit_streams(dc, context->streams, context->stream_count);
+	params.streams = context->streams;
+	params.stream_count = context->stream_count;
+	res = dc_commit_streams(dc, &params);
 
 fail:
 	dc_state_release(context);
@@ -2877,6 +2880,7 @@ static int dm_resume(void *handle)
 	struct dc_state *dc_state;
 	int i, r, j, ret;
 	bool need_hotplug = false;
+	struct dc_commit_streams_params commit_params = {};
 
 	if (dm->dc->caps.ips_support) {
 		dc_dmub_srv_apply_idle_power_optimizations(dm->dc, false);
@@ -2926,7 +2930,9 @@ static int dm_resume(void *handle)
 			dc_enable_dmub_outbox(adev->dm.dc);
 		}
 
-		WARN_ON(!dc_commit_streams(dm->dc, dc_state->streams, dc_state->stream_count));
+		commit_params.streams = dc_state->streams;
+		commit_params.stream_count = dc_state->stream_count;
+		WARN_ON(!dc_commit_streams(dm->dc, &commit_params));
 
 		dm_gpureset_commit_state(dm->cached_dc_state, dm);
 
@@ -2943,7 +2949,7 @@ static int dm_resume(void *handle)
 	}
 	/* Recreate dc_state - DC invalidates it when setting power state to S3. */
 	dc_state_release(dm_state->context);
-	dm_state->context = dc_state_create(dm->dc);
+	dm_state->context = dc_state_create(dm->dc, NULL);
 	/* TODO: Remove dc_state->dccg, use dc->dccg directly. */
 
 	/* Before powering on DC we need to re-initialize DMUB. */
@@ -6802,7 +6808,7 @@ static enum dc_status dm_validate_stream_and_context(struct dc *dc,
 	if (!dc_plane_state)
 		goto cleanup;
 
-	dc_state = dc_state_create(dc);
+	dc_state = dc_state_create(dc, NULL);
 	if (!dc_state)
 		goto cleanup;
 
@@ -8857,6 +8863,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 	struct drm_connector *connector;
 	bool mode_set_reset_required = false;
 	u32 i;
+	struct dc_commit_streams_params params = {dc_state->streams, dc_state->stream_count};
 
 	/* Disable writeback */
 	for_each_old_connector_in_state(state, connector, old_con_state, i) {
@@ -8993,7 +9000,7 @@ static void amdgpu_dm_commit_streams(struct drm_atomic_state *state,
 
 	dm_enable_per_frame_crtc_master_sync(dc_state);
 	mutex_lock(&dm->dc_lock);
-	WARN_ON(!dc_commit_streams(dm->dc, dc_state->streams, dc_state->stream_count));
+	WARN_ON(!dc_commit_streams(dm->dc, &params));
 
 	/* Allow idle optimization when vblank count is 0 for display off */
 	if (dm->active_vblank_irq_count == 0)

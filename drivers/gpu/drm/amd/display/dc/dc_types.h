@@ -1175,4 +1175,20 @@ enum mall_stream_type {
 	SUBVP_MAIN, // subvp in use, this stream is main stream
 	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
 };
+
+enum dc_power_source_type {
+	DC_POWER_SOURCE_AC, // wall power
+	DC_POWER_SOURCE_DC, // battery power
+};
+
+struct dc_state_create_params {
+	enum dc_power_source_type power_source;
+};
+
+struct dc_commit_streams_params {
+	struct dc_stream_state **streams;
+	uint8_t stream_count;
+	enum dc_power_source_type power_source;
+};
+
 #endif /* DC_TYPES_H_ */

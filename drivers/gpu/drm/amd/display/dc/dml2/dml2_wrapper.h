@@ -215,6 +215,8 @@ struct dml2_configuration_options {
 	unsigned int max_segments_per_hubp;
 	unsigned int det_segment_size;
 	bool map_dc_pipes_with_callbacks;
+
+	bool use_clock_dc_limits;
 };
 
 /*
