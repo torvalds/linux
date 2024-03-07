@@ -3961,7 +3961,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 					       unsigned int blksize)
 {
 	struct dasd_eckd_private *private;
-	unsigned long *idaws;
+	dma64_t *idaws;
 	struct LO_eckd_data *LO_data;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -4039,8 +4039,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 			dasd_sfree_request(cqr, startdev);
 			return ERR_PTR(-EAGAIN);
 		}
-		idaws = (unsigned long *) (cqr->data +
-					   sizeof(struct PFX_eckd_data));
+		idaws = (dma64_t *)(cqr->data + sizeof(struct PFX_eckd_data));
 	} else {
 		if (define_extent(ccw++, cqr->data, first_trk,
 				  last_trk, cmd, basedev, 0) == -EAGAIN) {
@@ -4050,8 +4049,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_single(
 			dasd_sfree_request(cqr, startdev);
 			return ERR_PTR(-EAGAIN);
 		}
-		idaws = (unsigned long *) (cqr->data +
-					   sizeof(struct DE_eckd_data));
+		idaws = (dma64_t *)(cqr->data + sizeof(struct DE_eckd_data));
 	}
 	/* Build locate_record+read/write/ccws. */
 	LO_data = (struct LO_eckd_data *) (idaws + cidaw);
@@ -4152,7 +4150,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 					       unsigned int blk_per_trk,
 					       unsigned int blksize)
 {
-	unsigned long *idaws;
+	dma64_t *idaws;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
 	struct req_iterator iter;
@@ -4222,7 +4220,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_cmd_track(
 	 *   (or 2K blocks on 31-bit)
 	 * - the scope of a ccw and it's idal ends with the track boundaries
 	 */
-	idaws = (unsigned long *) (cqr->data + sizeof(struct PFX_eckd_data));
+	idaws = (dma64_t *)(cqr->data + sizeof(struct PFX_eckd_data));
 	recid = first_rec;
 	new_track = 1;
 	end_idaw = 0;
@@ -4738,11 +4736,11 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 	struct req_iterator iter;
 	struct dasd_ccw_req *cqr;
 	unsigned int trkcount;
-	unsigned long *idaws;
 	unsigned int size;
 	unsigned char cmd;
 	struct bio_vec bv;
 	struct ccw1 *ccw;
+	dma64_t *idaws;
 	int use_prefix;
 	void *data;
 	char *dst;
@@ -4823,7 +4821,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_raw(struct dasd_device *startdev,
 				  trkcount, cmd, basedev, 0, 0);
 	}
 
-	idaws = (unsigned long *)(cqr->data + size);
+	idaws = (dma64_t *)(cqr->data + size);
 	len_to_track_end = 0;
 	if (start_padding_sectors) {
 		ccw[-1].flags |= CCW_FLAG_CC;

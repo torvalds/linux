@@ -427,7 +427,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 						struct request *req)
 {
 	struct dasd_fba_private *private = block->base->private;
-	unsigned long *idaws;
+	dma64_t *idaws;
 	struct LO_fba_data *LO_data;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -487,7 +487,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 	define_extent(ccw++, cqr->data, rq_data_dir(req),
 		      block->bp_block, blk_rq_pos(req), blk_rq_sectors(req));
 	/* Build locate_record + read/write ccws. */
-	idaws = (unsigned long *) (cqr->data + sizeof(struct DE_fba_data));
+	idaws = (dma64_t *)(cqr->data + sizeof(struct DE_fba_data));
 	LO_data = (struct LO_fba_data *) (idaws + cidaw);
 	/* Locate record for all blocks for smart devices. */
 	if (private->rdc_data.mode.bits.data_chain != 0) {

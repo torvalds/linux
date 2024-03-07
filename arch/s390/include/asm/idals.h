@@ -18,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
+#include <asm/dma-types.h>
 #include <asm/cio.h>
 
 #define IDA_SIZE_SHIFT		12
@@ -31,7 +32,9 @@
  */
 static inline bool idal_is_needed(void *vaddr, unsigned int length)
 {
-	return ((__pa(vaddr) + length - 1) >> 31) != 0;
+	dma64_t paddr = virt_to_dma64(vaddr);
+
+	return (((__force unsigned long)(paddr) + length - 1) >> 31) != 0;
 }
 
 /*
@@ -63,16 +66,16 @@ static inline unsigned int idal_2k_nr_words(void *vaddr, unsigned int length)
 /*
  * Create the list of idal words for an address/length pair.
  */
-static inline unsigned long *idal_create_words(unsigned long *idaws, void *vaddr, unsigned int length)
+static inline dma64_t *idal_create_words(dma64_t *idaws, void *vaddr, unsigned int length)
 {
-	unsigned long paddr = __pa(vaddr);
+	dma64_t paddr = virt_to_dma64(vaddr);
 	unsigned int cidaw;
 
 	*idaws++ = paddr;
 	cidaw = idal_nr_words(vaddr, length);
-	paddr &= -IDA_BLOCK_SIZE;
+	paddr = dma64_and(paddr, -IDA_BLOCK_SIZE);
 	while (--cidaw > 0) {
-		paddr += IDA_BLOCK_SIZE;
+		paddr = dma64_add(paddr, IDA_BLOCK_SIZE);
 		*idaws++ = paddr;
 	}
 	return idaws;
@@ -85,7 +88,7 @@ static inline unsigned long *idal_create_words(unsigned long *idaws, void *vaddr
 static inline int set_normalized_cda(struct ccw1 *ccw, void *vaddr)
 {
 	unsigned int nridaws;
-	unsigned long *idal;
+	dma64_t *idal;
 
 	if (ccw->flags & CCW_FLAG_IDA)
 		return -EINVAL;
@@ -98,7 +101,7 @@ static inline int set_normalized_cda(struct ccw1 *ccw, void *vaddr)
 		ccw->flags |= CCW_FLAG_IDA;
 		vaddr = idal;
 	}
-	ccw->cda = (__u32)(unsigned long)vaddr;
+	ccw->cda = virt_to_dma32(vaddr);
 	return 0;
 }
 
@@ -108,7 +111,7 @@ static inline int set_normalized_cda(struct ccw1 *ccw, void *vaddr)
 static inline void clear_normalized_cda(struct ccw1 *ccw)
 {
 	if (ccw->flags & CCW_FLAG_IDA) {
-		kfree((void *)(unsigned long)ccw->cda);
+		kfree(dma32_to_virt(ccw->cda));
 		ccw->flags &= ~CCW_FLAG_IDA;
 	}
 	ccw->cda = 0;
@@ -120,7 +123,7 @@ static inline void clear_normalized_cda(struct ccw1 *ccw)
 struct idal_buffer {
 	size_t size;
 	size_t page_order;
-	void *data[];
+	dma64_t data[];
 };
 
 /*
@@ -130,6 +133,7 @@ static inline struct idal_buffer *idal_buffer_alloc(size_t size, int page_order)
 {
 	int nr_chunks, nr_ptrs, i;
 	struct idal_buffer *ib;
+	void *vaddr;
 
 	nr_ptrs = (size + IDA_BLOCK_SIZE - 1) >> IDA_SIZE_SHIFT;
 	nr_chunks = (PAGE_SIZE << page_order) >> IDA_SIZE_SHIFT;
@@ -140,18 +144,20 @@ static inline struct idal_buffer *idal_buffer_alloc(size_t size, int page_order)
 	ib->page_order = page_order;
 	for (i = 0; i < nr_ptrs; i++) {
 		if (i & (nr_chunks - 1)) {
-			ib->data[i] = ib->data[i - 1] + IDA_BLOCK_SIZE;
+			ib->data[i] = dma64_add(ib->data[i - 1], IDA_BLOCK_SIZE);
 			continue;
 		}
-		ib->data[i] = (void *)__get_free_pages(GFP_KERNEL, page_order);
-		if (!ib->data[i])
+		vaddr = (void *)__get_free_pages(GFP_KERNEL, page_order);
+		if (!vaddr)
 			goto error;
+		ib->data[i] = virt_to_dma64(vaddr);
 	}
 	return ib;
 error:
 	while (i >= nr_chunks) {
 		i -= nr_chunks;
-		free_pages((unsigned long)ib->data[i], ib->page_order);
+		vaddr = dma64_to_virt(ib->data[i]);
+		free_pages((unsigned long)vaddr, ib->page_order);
 	}
 	kfree(ib);
 	return ERR_PTR(-ENOMEM);
@@ -163,11 +169,14 @@ error:
 static inline void idal_buffer_free(struct idal_buffer *ib)
 {
 	int nr_chunks, nr_ptrs, i;
+	void *vaddr;
 
 	nr_ptrs = (ib->size + IDA_BLOCK_SIZE - 1) >> IDA_SIZE_SHIFT;
 	nr_chunks = (PAGE_SIZE << ib->page_order) >> IDA_SIZE_SHIFT;
-	for (i = 0; i < nr_ptrs; i += nr_chunks)
-		free_pages((unsigned long)ib->data[i], ib->page_order);
+	for (i = 0; i < nr_ptrs; i += nr_chunks) {
+		vaddr = dma64_to_virt(ib->data[i]);
+		free_pages((unsigned long)vaddr, ib->page_order);
+	}
 	kfree(ib);
 }
 
@@ -178,7 +187,7 @@ static inline bool __idal_buffer_is_needed(struct idal_buffer *ib)
 {
 	if (ib->size > (PAGE_SIZE << ib->page_order))
 		return true;
-	return idal_is_needed(ib->data[0], ib->size);
+	return idal_is_needed(dma64_to_virt(ib->data[0]), ib->size);
 }
 
 /*
@@ -186,13 +195,20 @@ static inline bool __idal_buffer_is_needed(struct idal_buffer *ib)
  */
 static inline void idal_buffer_set_cda(struct idal_buffer *ib, struct ccw1 *ccw)
 {
+	void *vaddr;
+
 	if (__idal_buffer_is_needed(ib)) {
 		/* Setup idals */
-		ccw->cda = (u32)(addr_t)ib->data;
+		ccw->cda = virt_to_dma32(ib->data);
 		ccw->flags |= CCW_FLAG_IDA;
 	} else {
-		/* No idals needed - use direct addressing. */
-		ccw->cda = (u32)(addr_t)ib->data[0];
+		/*
+		 * No idals needed - use direct addressing. Convert from
+		 * dma64_t to virt and then to dma32_t only because of type
+		 * checking. The physical address is known to be below 2GB.
+		 */
+		vaddr = dma64_to_virt(ib->data[0]);
+		ccw->cda = virt_to_dma32(vaddr);
 	}
 	ccw->count = ib->size;
 }
@@ -203,17 +219,20 @@ static inline void idal_buffer_set_cda(struct idal_buffer *ib, struct ccw1 *ccw)
 static inline size_t idal_buffer_to_user(struct idal_buffer *ib, void __user *to, size_t count)
 {
 	size_t left;
+	void *vaddr;
 	int i;
 
 	BUG_ON(count > ib->size);
 	for (i = 0; count > IDA_BLOCK_SIZE; i++) {
-		left = copy_to_user(to, ib->data[i], IDA_BLOCK_SIZE);
+		vaddr = dma64_to_virt(ib->data[i]);
+		left = copy_to_user(to, vaddr, IDA_BLOCK_SIZE);
 		if (left)
 			return left + count - IDA_BLOCK_SIZE;
 		to = (void __user *)to + IDA_BLOCK_SIZE;
 		count -= IDA_BLOCK_SIZE;
 	}
-	return copy_to_user(to, ib->data[i], count);
+	vaddr = dma64_to_virt(ib->data[i]);
+	return copy_to_user(to, vaddr, count);
 }
 
 /*
@@ -222,17 +241,20 @@ static inline size_t idal_buffer_to_user(struct idal_buffer *ib, void __user *to
 static inline size_t idal_buffer_from_user(struct idal_buffer *ib, const void __user *from, size_t count)
 {
 	size_t left;
+	void *vaddr;
 	int i;
 
 	BUG_ON(count > ib->size);
 	for (i = 0; count > IDA_BLOCK_SIZE; i++) {
-		left = copy_from_user(ib->data[i], from, IDA_BLOCK_SIZE);
+		vaddr = dma64_to_virt(ib->data[i]);
+		left = copy_from_user(vaddr, from, IDA_BLOCK_SIZE);
 		if (left)
 			return left + count - IDA_BLOCK_SIZE;
 		from = (void __user *)from + IDA_BLOCK_SIZE;
 		count -= IDA_BLOCK_SIZE;
 	}
-	return copy_from_user(ib->data[i], from, count);
+	vaddr = dma64_to_virt(ib->data[i]);
+	return copy_from_user(vaddr, from, count);
 }
 
 #endif
