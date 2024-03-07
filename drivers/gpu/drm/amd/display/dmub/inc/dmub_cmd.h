@@ -700,7 +700,8 @@ union dmub_shared_state_ips_fw_signals {
 	struct {
 		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
-		uint32_t reserved_bits : 30; /**< Reversed */
+		uint32_t in_idle : 1; /**< 1 if DMCUB is in idle */
+		uint32_t reserved_bits : 29; /**< Reversed */
 	} bits;
 	uint32_t all;
 };

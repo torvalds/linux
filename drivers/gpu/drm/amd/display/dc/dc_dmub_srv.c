@@ -1318,13 +1318,16 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		 */
 		dc_dmub_srv->needs_idle_wake = false;
 
-		if (prev_driver_signals.bits.allow_ips2) {
+		if (prev_driver_signals.bits.allow_ips2 &&
+		    (!dc->debug.optimize_ips_handshake ||
+		     ips_fw->signals.bits.ips2_commit || !ips_fw->signals.bits.in_idle)) {
 			DC_LOG_IPS(
 				"wait IPS2 eval (ips1_commit=%d ips2_commit=%d)",
 				ips_fw->signals.bits.ips1_commit,
 				ips_fw->signals.bits.ips2_commit);
 
-			udelay(dc->debug.ips2_eval_delay_us);
+			if (!dc->debug.optimize_ips_handshake || !ips_fw->signals.bits.ips2_commit)
+				udelay(dc->debug.ips2_eval_delay_us);
 
 			if (ips_fw->signals.bits.ips2_commit) {
 				DC_LOG_IPS(
