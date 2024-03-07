@@ -422,6 +422,8 @@ struct amdgpu_vm_manager {
 	 * look up VM of a page fault
 	 */
 	struct xarray				pasids;
+	/* Global registration of recent page fault information */
+	struct amdgpu_vm_fault_info	fault_info;
 };
 
 struct amdgpu_bo_va_mapping;

@@ -2924,6 +2924,14 @@ void amdgpu_vm_update_fault_cache(struct amdgpu_device *adev,
 	if (vm && status) {
 		vm->fault_info.addr = addr;
 		vm->fault_info.status = status;
+		/*
+		 * Update the fault information globally for later usage
+		 * when vm could be stale or freed.
+		 */
+		adev->vm_manager.fault_info.addr = addr;
+		adev->vm_manager.fault_info.vmhub = vmhub;
+		adev->vm_manager.fault_info.status = status;
+
 		if (AMDGPU_IS_GFXHUB(vmhub)) {
 			vm->fault_info.vmhub = AMDGPU_VMHUB_TYPE_GFX;
 			vm->fault_info.vmhub |=
