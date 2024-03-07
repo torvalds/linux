@@ -11,6 +11,7 @@
 
 #include <linux/acpi.h>
 #include <linux/component.h>
+#include <sound/hda_codec.h>
 
 #define HDA_MAX_COMPONENTS	4
 #define HDA_MAX_NAME_SIZE	50
