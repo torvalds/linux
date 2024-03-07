@@ -110,6 +110,8 @@ struct lbr_desc {
 	bool msr_passthrough;
 };
 
+extern struct x86_pmu_lbr vmx_lbr_caps;
+
 /*
  * The nested_vmx structure is part of vcpu_vmx, and holds information we need
  * for correct emulation of VMX (i.e., nested VMX) on this vcpu.
