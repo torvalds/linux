@@ -46,6 +46,8 @@ static int force_online_offline;
 static int auto_mode;
 static int fact_enable_fail;
 static int cgroupv2;
+static int max_die_id;
+static int max_punit_id;
 
 /* clos related */
 static int current_clos = -1;
@@ -562,6 +564,18 @@ void for_each_online_power_domain_in_set(void (*callback)(struct isst_id *, void
 	}
 
 	for (i = 0; i < MAX_PACKAGE_COUNT; i++) {
+		if (max_die_id == max_punit_id) {
+			for (k = 0; k < MAX_PUNIT_PER_DIE && k < MAX_DIE_PER_PACKAGE; k++) {
+				id.cpu = cpus[i][k][k];
+				id.pkg = i;
+				id.die = k;
+				id.punit = k;
+				if (isst_is_punit_valid(&id))
+					callback(&id, arg1, arg2, arg3, arg4);
+			}
+			continue;
+		}
+
 		for (j = 0; j < MAX_DIE_PER_PACKAGE; j++) {
 			/*
 			 * Fix me:
@@ -794,6 +808,12 @@ static void create_cpu_map(void)
 		cpu_map[i].initialized = 1;
 
 		cpu_cnt[pkg_id][die_id][punit_id]++;
+
+		if (max_die_id < die_id)
+			max_die_id = die_id;
+
+		if (max_punit_id < cpu_map[i].punit_id)
+			max_punit_id = cpu_map[i].punit_id;
 
 		debug_printf(
 			"map logical_cpu:%d core: %d die:%d pkg:%d punit:%d punit_cpu:%d punit_core:%d\n",
