@@ -542,12 +542,11 @@ static int aspeed_jtag_wait_shift_complete(struct aspeed_jtag *aspeed_jtag)
 	int res = 0;
 	u32 status = 0;
 	u32 iterations = 0;
-	u32 condition;
 
 	if (!aspeed_jtag->irq) {
-		condition = aspeed_jtag->flag &
-			    ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT;
-		res = wait_event_interruptible(aspeed_jtag->jtag_wq, condition);
+		res = wait_event_interruptible(aspeed_jtag->jtag_wq,
+					       aspeed_jtag->flag &
+						       ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT);
 		aspeed_jtag->flag &= ~ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT;
 	} else {
 		while ((status & ASPEED_JTAG_INTCTRL_SHCPL_IRQ_STAT) == 0) {
