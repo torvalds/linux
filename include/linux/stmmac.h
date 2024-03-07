@@ -296,5 +296,6 @@ struct plat_stmmacenet_data {
 	bool pcs_v3;
 	void (*phy_irq_enable)(void *priv);
 	void (*phy_irq_disable)(void *priv);
+	bool early_eth;
 };
 #endif
