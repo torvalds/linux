@@ -41,7 +41,7 @@ gsc_to_gt(struct xe_gsc *gsc)
 }
 
 /**
- * xe_gsc_get_host_session_id - Creates a random 64 bit host_session id with
+ * xe_gsc_create_host_session_id - Creates a random 64 bit host_session id with
  * bits 56-63 masked.
  *
  * Returns: random host_session_id which can be used to send messages to gsc cs
