@@ -30,6 +30,10 @@
 
 #define NUM_DCFCLK_STAS 5
 
+#if defined(CONFIG_DRM_AMD_DC_DCN3_51)
+#define NUM_DCFCLK_STAS_NEW 8
+#endif
+
 void dml2_init_ip_params(struct dml2_context *dml2, const struct dc *in_dc, struct ip_params_st *out)
 {
 	switch (dml2->v20.dml_core_ctx.project) {
@@ -254,11 +258,21 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	struct dml2_policy_build_synthetic_soc_states_scratch *s = &dml2->v20.scratch.create_scratch.build_synthetic_socbb_scratch;
 	struct dml2_policy_build_synthetic_soc_states_params *p = &dml2->v20.scratch.build_synthetic_socbb_params;
 	unsigned int dcfclk_stas_mhz[NUM_DCFCLK_STAS];
+#if defined(CONFIG_DRM_AMD_DC_DCN3_51)
+	unsigned int dcfclk_stas_mhz_new[NUM_DCFCLK_STAS_NEW];
+	unsigned int dml_project = dml2->v20.dml_core_ctx.project;
+#endif
 	unsigned int i = 0;
 	unsigned int transactions_per_mem_clock = 16; // project specific, depends on used Memory type
 
 	p->dcfclk_stas_mhz = dcfclk_stas_mhz;
 	p->num_dcfclk_stas = NUM_DCFCLK_STAS;
+#if defined(CONFIG_DRM_AMD_DC_DCN3_51)
+	if (dml_project == dml_project_dcn351) {
+		p->dcfclk_stas_mhz = dcfclk_stas_mhz_new;
+		p->num_dcfclk_stas = NUM_DCFCLK_STAS_NEW;
+	}
+#endif
 	p->in_bbox = in_bbox;
 	p->out_states = out;
 	p->in_states = &dml2->v20.scratch.create_scratch.in_states;
@@ -436,8 +450,7 @@ void dml2_init_soc_states(struct dml2_context *dml2, const struct dc *in_dc,
 	}
 
 	dml2_policy_build_synthetic_soc_states(s, p);
-	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35 ||
-		dml2->v20.dml_core_ctx.project == dml_project_dcn351) {
+	if (dml2->v20.dml_core_ctx.project == dml_project_dcn35) {
 		// Override last out_state with data from last in_state
 		// This will ensure that out_state contains max fclk
 		memcpy(&p->out_states->state_array[p->out_states->num_states - 1],
