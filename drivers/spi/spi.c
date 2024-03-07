@@ -1021,7 +1021,7 @@ static inline bool spi_is_last_cs(struct spi_device *spi)
 	bool last = false;
 
 	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-		if ((spi->cs_index_mask >> idx) & 0x01) {
+		if (spi->cs_index_mask & BIT(idx)) {
 			if (spi->controller->last_cs[idx] == spi_get_chipselect(spi, idx))
 				last = true;
 		}
@@ -1072,8 +1072,7 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 			 * into account.
 			 */
 			for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-				if (((spi->cs_index_mask >> idx) & 0x01) &&
-				    spi_get_csgpiod(spi, idx)) {
+				if ((spi->cs_index_mask & BIT(idx)) && spi_get_csgpiod(spi, idx)) {
 					if (has_acpi_companion(&spi->dev))
 						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
 									 !enable);
@@ -2456,14 +2455,10 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 		spi_set_chipselect(spi, idx, cs[idx]);
 
 	/*
-	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
-	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
-	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
-	 * spi->chip_select[0] will give the physical CS.
-	 * By default spi->chip_select[0] will hold the physical CS number so, set
-	 * spi->cs_index_mask as 0x01.
+	 * By default spi->chip_select[0] will hold the physical CS number,
+	 * so set bit 0 in spi->cs_index_mask.
 	 */
-	spi->cs_index_mask = 0x01;
+	spi->cs_index_mask = BIT(0);
 
 	/* Device speed */
 	if (!of_property_read_u32(nc, "spi-max-frequency", &value))
@@ -2587,14 +2582,10 @@ struct spi_device *spi_new_ancillary_device(struct spi_device *spi,
 	ancillary->max_speed_hz = spi->max_speed_hz;
 	ancillary->mode = spi->mode;
 	/*
-	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
-	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
-	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
-	 * spi->chip_select[0] will give the physical CS.
-	 * By default spi->chip_select[0] will hold the physical CS number so, set
-	 * spi->cs_index_mask as 0x01.
+	 * By default spi->chip_select[0] will hold the physical CS number,
+	 * so set bit 0 in spi->cs_index_mask.
 	 */
-	ancillary->cs_index_mask = 0x01;
+	ancillary->cs_index_mask = BIT(0);
 
 	WARN_ON(!mutex_is_locked(&ctlr->add_lock));
 
@@ -2841,14 +2832,10 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 	spi->irq		= lookup.irq;
 	spi->bits_per_word	= lookup.bits_per_word;
 	/*
-	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
-	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
-	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
-	 * spi->chip_select[0] will give the physical CS.
-	 * By default spi->chip_select[0] will hold the physical CS number so, set
-	 * spi->cs_index_mask as 0x01.
+	 * By default spi->chip_select[0] will hold the physical CS number,
+	 * so set bit 0 in spi->cs_index_mask.
 	 */
-	spi->cs_index_mask	= 0x01;
+	spi->cs_index_mask	= BIT(0);
 
 	return spi;
 }
