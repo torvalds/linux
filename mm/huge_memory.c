@@ -3052,6 +3052,9 @@ int split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
 	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
 
+	if (new_order >= folio_order(folio))
+		return -EINVAL;
+
 	/* Cannot split anonymous THP to order-1 */
 	if (new_order == 1 && folio_test_anon(folio)) {
 		VM_WARN_ONCE(1, "Cannot split to order-1 folio");
