@@ -42,6 +42,7 @@ struct stm32_timer_cnt {
 	bool enabled;
 	struct stm32_timer_regs bak;
 	bool has_encoder;
+	unsigned int nchannels;
 };
 
 static const enum counter_function stm32_count_functions[] = {
@@ -416,6 +417,20 @@ static struct counter_count stm32_counts = {
 	.num_ext = ARRAY_SIZE(stm32_count_ext)
 };
 
+static void stm32_timer_cnt_detect_channels(struct device *dev,
+					    struct stm32_timer_cnt *priv)
+{
+	u32 ccer, ccer_backup;
+
+	regmap_read(priv->regmap, TIM_CCER, &ccer_backup);
+	regmap_set_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE);
+	regmap_read(priv->regmap, TIM_CCER, &ccer);
+	regmap_write(priv->regmap, TIM_CCER, ccer_backup);
+	priv->nchannels = hweight32(ccer & TIM_CCER_CCXE);
+
+	dev_dbg(dev, "has %d cc channels\n", priv->nchannels);
+}
+
 /* encoder supported on TIM1 TIM2 TIM3 TIM4 TIM5 TIM8 */
 #define STM32_TIM_ENCODER_SUPPORTED	(BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(7))
 
@@ -483,6 +498,8 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 	ret = stm32_timer_cnt_probe_encoder(dev, priv);
 	if (ret)
 		return ret;
+
+	stm32_timer_cnt_detect_channels(dev, priv);
 
 	counter->name = dev_name(dev);
 	counter->parent = dev;
