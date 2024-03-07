@@ -845,6 +845,15 @@ ssize_t mfill_atomic_zeropage(struct userfaultfd_ctx *ctx,
 ssize_t mfill_atomic_continue(struct userfaultfd_ctx *ctx, unsigned long start,
 			      unsigned long len, uffd_flags_t flags)
 {
+
+	/*
+	 * A caller might reasonably assume that UFFDIO_CONTINUE contains an
+	 * smp_wmb() to ensure that any writes to the about-to-be-mapped page by
+	 * the thread doing the UFFDIO_CONTINUE are guaranteed to be visible to
+	 * subsequent loads from the page through the newly mapped address range.
+	 */
+	smp_wmb();
+
 	return mfill_atomic(ctx, start, 0, len,
 			    uffd_flags_set_mode(flags, MFILL_ATOMIC_CONTINUE));
 }
