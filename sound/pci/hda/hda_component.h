@@ -6,8 +6,12 @@
  *                    Cirrus Logic International Semiconductor Ltd.
  */
 
+#ifndef __HDA_COMPONENT_H__
+#define __HDA_COMPONENT_H__
+
 #include <linux/acpi.h>
 #include <linux/component.h>
+#include <sound/hda_codec.h>
 
 #define HDA_MAX_COMPONENTS	4
 #define HDA_MAX_NAME_SIZE	50
@@ -82,3 +86,5 @@ static inline void hda_component_manager_unbind(struct hda_codec *cdc,
 {
 	component_unbind_all(hda_codec_dev(cdc), comps);
 }
+
+#endif /* ifndef __HDA_COMPONENT_H__ */
