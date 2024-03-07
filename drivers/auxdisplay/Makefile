@@ -15,3 +15,4 @@ obj-$(CONFIG_PARPORT_PANEL)	+= panel.o
 obj-$(CONFIG_LCD2S)		+= lcd2s.o
 obj-$(CONFIG_LINEDISP)		+= line-display.o
 obj-$(CONFIG_MAX6959)		+= max6959.o
+obj-$(CONFIG_SEG_LED_GPIO)	+= seg-led-gpio.o
