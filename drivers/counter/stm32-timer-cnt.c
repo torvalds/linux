@@ -11,6 +11,7 @@
 #include <linux/mfd/stm32-timers.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
@@ -38,6 +39,7 @@ struct stm32_timer_cnt {
 	u32 max_arr;
 	bool enabled;
 	struct stm32_timer_regs bak;
+	bool has_encoder;
 };
 
 static const enum counter_function stm32_count_functions[] = {
@@ -111,12 +113,18 @@ static int stm32_count_function_write(struct counter_device *counter,
 		sms = TIM_SMCR_SMS_SLAVE_MODE_DISABLED;
 		break;
 	case COUNTER_FUNCTION_QUADRATURE_X2_A:
+		if (!priv->has_encoder)
+			return -EOPNOTSUPP;
 		sms = TIM_SMCR_SMS_ENCODER_MODE_1;
 		break;
 	case COUNTER_FUNCTION_QUADRATURE_X2_B:
+		if (!priv->has_encoder)
+			return -EOPNOTSUPP;
 		sms = TIM_SMCR_SMS_ENCODER_MODE_2;
 		break;
 	case COUNTER_FUNCTION_QUADRATURE_X4:
+		if (!priv->has_encoder)
+			return -EOPNOTSUPP;
 		sms = TIM_SMCR_SMS_ENCODER_MODE_3;
 		break;
 	default:
@@ -388,6 +396,49 @@ static struct counter_count stm32_counts = {
 	.num_ext = ARRAY_SIZE(stm32_count_ext)
 };
 
+/* encoder supported on TIM1 TIM2 TIM3 TIM4 TIM5 TIM8 */
+#define STM32_TIM_ENCODER_SUPPORTED	(BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(7))
+
+static const char * const stm32_timer_trigger_compat[] = {
+	"st,stm32-timer-trigger",
+	"st,stm32h7-timer-trigger",
+};
+
+static int stm32_timer_cnt_probe_encoder(struct device *dev,
+					 struct stm32_timer_cnt *priv)
+{
+	struct device *parent = dev->parent;
+	struct device_node *tnode = NULL, *pnode = parent->of_node;
+	int i, ret;
+	u32 idx;
+
+	/*
+	 * Need to retrieve the trigger node index from DT, to be able
+	 * to determine if the counter supports encoder mode. It also
+	 * enforce backward compatibility, and allow to support other
+	 * counter modes in this driver (when the timer doesn't support
+	 * encoder).
+	 */
+	for (i = 0; i < ARRAY_SIZE(stm32_timer_trigger_compat) && !tnode; i++)
+		tnode = of_get_compatible_child(pnode, stm32_timer_trigger_compat[i]);
+	if (!tnode) {
+		dev_err(dev, "Can't find trigger node\n");
+		return -ENODATA;
+	}
+
+	ret = of_property_read_u32(tnode, "reg", &idx);
+	if (ret) {
+		dev_err(dev, "Can't get index (%d)\n", ret);
+		return ret;
+	}
+
+	priv->has_encoder = !!(STM32_TIM_ENCODER_SUPPORTED & BIT(idx));
+
+	dev_dbg(dev, "encoder support: %s\n", priv->has_encoder ? "yes" : "no");
+
+	return 0;
+}
+
 static int stm32_timer_cnt_probe(struct platform_device *pdev)
 {
 	struct stm32_timers *ddata = dev_get_drvdata(pdev->dev.parent);
@@ -408,6 +459,10 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
+
+	ret = stm32_timer_cnt_probe_encoder(dev, priv);
+	if (ret)
+		return ret;
 
 	counter->name = dev_name(dev);
 	counter->parent = dev;
