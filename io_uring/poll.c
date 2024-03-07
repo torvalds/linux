@@ -540,14 +540,6 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 	poll->wait.private = (void *) wqe_private;
 
 	if (poll->events & EPOLLEXCLUSIVE) {
-		/*
-		 * Exclusive waits may only wake a limited amount of entries
-		 * rather than all of them, this may interfere with lazy
-		 * wake if someone does wait(events > 1). Ensure we don't do
-		 * lazy wake for those, as we need to process each one as they
-		 * come in.
-		 */
-		req->flags |= REQ_F_POLL_NO_LAZY;
 		add_wait_queue_exclusive(head, &poll->wait);
 	} else {
 		add_wait_queue(head, &poll->wait);
@@ -615,6 +607,17 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 	/* io-wq doesn't hold uring_lock */
 	if (issue_flags & IO_URING_F_UNLOCKED)
 		req->flags &= ~REQ_F_HASH_LOCKED;
+
+
+	/*
+	 * Exclusive waits may only wake a limited amount of entries
+	 * rather than all of them, this may interfere with lazy
+	 * wake if someone does wait(events > 1). Ensure we don't do
+	 * lazy wake for those, as we need to process each one as they
+	 * come in.
+	 */
+	if (poll->events & EPOLLEXCLUSIVE)
+		req->flags |= REQ_F_POLL_NO_LAZY;
 
 	mask = vfs_poll(req->file, &ipt->pt) & poll->events;
 
