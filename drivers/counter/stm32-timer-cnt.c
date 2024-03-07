@@ -23,6 +23,7 @@
 
 #define STM32_CH1_SIG		0
 #define STM32_CH2_SIG		1
+#define STM32_CLOCK_SIG		2
 
 struct stm32_timer_regs {
 	u32 cr1;
@@ -226,6 +227,10 @@ static struct counter_comp stm32_count_ext[] = {
 			     stm32_count_ceiling_write),
 };
 
+static const enum counter_synapse_action stm32_clock_synapse_actions[] = {
+	COUNTER_SYNAPSE_ACTION_RISING_EDGE,
+};
+
 static const enum counter_synapse_action stm32_synapse_actions[] = {
 	COUNTER_SYNAPSE_ACTION_NONE,
 	COUNTER_SYNAPSE_ACTION_BOTH_EDGES
@@ -246,7 +251,10 @@ static int stm32_action_read(struct counter_device *counter,
 	switch (function) {
 	case COUNTER_FUNCTION_INCREASE:
 		/* counts on internal clock when CEN=1 */
-		*action = COUNTER_SYNAPSE_ACTION_NONE;
+		if (synapse->signal->id == STM32_CLOCK_SIG)
+			*action = COUNTER_SYNAPSE_ACTION_RISING_EDGE;
+		else
+			*action = COUNTER_SYNAPSE_ACTION_NONE;
 		return 0;
 	case COUNTER_FUNCTION_QUADRATURE_X2_A:
 		/* counts up/down on TI1FP1 edge depending on TI2FP2 level */
@@ -264,7 +272,10 @@ static int stm32_action_read(struct counter_device *counter,
 		return 0;
 	case COUNTER_FUNCTION_QUADRATURE_X4:
 		/* counts up/down on both TI1FP1 and TI2FP2 edges */
-		*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
+		if (synapse->signal->id == STM32_CH1_SIG || synapse->signal->id == STM32_CH2_SIG)
+			*action = COUNTER_SYNAPSE_ACTION_BOTH_EDGES;
+		else
+			*action = COUNTER_SYNAPSE_ACTION_NONE;
 		return 0;
 	default:
 		return -EINVAL;
@@ -279,7 +290,30 @@ static const struct counter_ops stm32_timer_cnt_ops = {
 	.action_read = stm32_action_read,
 };
 
+static int stm32_count_clk_get_freq(struct counter_device *counter,
+				    struct counter_signal *signal, u64 *freq)
+{
+	struct stm32_timer_cnt *const priv = counter_priv(counter);
+
+	*freq = clk_get_rate(priv->clk);
+
+	return 0;
+}
+
+static struct counter_comp stm32_count_clock_ext[] = {
+	COUNTER_COMP_FREQUENCY(stm32_count_clk_get_freq),
+};
+
 static struct counter_signal stm32_signals[] = {
+	/*
+	 * Need to declare all the signals as a static array, and keep the signals order here,
+	 * even if they're unused or unexisting on some timer instances. It's an abstraction,
+	 * e.g. high level view of the counter features.
+	 *
+	 * Userspace programs may rely on signal0 to be "Channel 1", signal1 to be "Channel 2",
+	 * and so on. When a signal is unexisting, the COUNTER_SYNAPSE_ACTION_NONE can be used,
+	 * to indicate that a signal doesn't affect the counter.
+	 */
 	{
 		.id = STM32_CH1_SIG,
 		.name = "Channel 1"
@@ -287,7 +321,13 @@ static struct counter_signal stm32_signals[] = {
 	{
 		.id = STM32_CH2_SIG,
 		.name = "Channel 2"
-	}
+	},
+	{
+		.id = STM32_CLOCK_SIG,
+		.name = "Clock",
+		.ext = stm32_count_clock_ext,
+		.num_ext = ARRAY_SIZE(stm32_count_clock_ext),
+	},
 };
 
 static struct counter_synapse stm32_count_synapses[] = {
@@ -300,7 +340,12 @@ static struct counter_synapse stm32_count_synapses[] = {
 		.actions_list = stm32_synapse_actions,
 		.num_actions = ARRAY_SIZE(stm32_synapse_actions),
 		.signal = &stm32_signals[STM32_CH2_SIG]
-	}
+	},
+	{
+		.actions_list = stm32_clock_synapse_actions,
+		.num_actions = ARRAY_SIZE(stm32_clock_synapse_actions),
+		.signal = &stm32_signals[STM32_CLOCK_SIG]
+	},
 };
 
 static struct counter_count stm32_counts = {
