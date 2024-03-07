@@ -2079,7 +2079,6 @@ static int rtl8169_get_eee(struct net_device *dev, struct ethtool_keee *data)
 		return ret;
 
 	data->tx_lpi_timer = r8169_get_tx_lpi_timer_us(tp);
-	data->tx_lpi_enabled = data->tx_lpi_timer ? data->eee_enabled : false;
 
 	return 0;
 }
@@ -5174,7 +5173,7 @@ static int r8169_mdio_register(struct rtl8169_private *tp)
 
 	tp->phydev->mac_managed_pm = true;
 	if (rtl_supports_eee(tp))
-		phy_advertise_eee_all(tp->phydev);
+		phy_support_eee(tp->phydev);
 	phy_support_asym_pause(tp->phydev);
 
 	/* PHY will be woken up in rtl_open() */
