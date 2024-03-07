@@ -690,13 +690,13 @@ static void dml2_apply_debug_options(const struct dc *dc, struct dml2_context *d
 	}
 }
 
-bool dml2_validate(const struct dc *in_dc, struct dc_state *context, bool fast_validate)
+bool dml2_validate(const struct dc *in_dc, struct dc_state *context, struct dml2_context *dml2, bool fast_validate)
 {
 	bool out = false;
 
-	if (!(context->bw_ctx.dml2))
+	if (!dml2)
 		return false;
-	dml2_apply_debug_options(in_dc, context->bw_ctx.dml2);
+	dml2_apply_debug_options(in_dc, dml2);
 
 
 	/* Use dml_validate_only for fast_validate path */

@@ -268,6 +268,7 @@ void dml2_reinit(const struct dc *in_dc,
  */
 bool dml2_validate(const struct dc *in_dc,
 				   struct dc_state *context,
+				   struct dml2_context *dml2,
 				   bool fast_validate);
 
 /*

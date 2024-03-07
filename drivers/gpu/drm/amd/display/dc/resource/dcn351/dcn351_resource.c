@@ -1714,7 +1714,7 @@ static bool dcn351_validate_bandwidth(struct dc *dc,
 {
 	bool out = false;
 
-	out = dml2_validate(dc, context, fast_validate);
+	out = dml2_validate(dc, context, context->bw_ctx.dml2, fast_validate);
 
 	if (fast_validate)
 		return out;

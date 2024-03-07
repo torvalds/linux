@@ -1799,7 +1799,7 @@ bool dcn32_validate_bandwidth(struct dc *dc,
 	bool out = false;
 
 	if (dc->debug.using_dml2)
-		out = dml2_validate(dc, context, fast_validate);
+		out = dml2_validate(dc, context, context->bw_ctx.dml2, fast_validate);
 	else
 		out = dml1_validate(dc, context, fast_validate);
 	return out;
