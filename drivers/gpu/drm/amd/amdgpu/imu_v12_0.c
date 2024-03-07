@@ -30,6 +30,7 @@
 
 #include "gc/gc_12_0_0_offset.h"
 #include "gc/gc_12_0_0_sh_mask.h"
+#include "mmhub/mmhub_4_1_0_offset.h"
 
 MODULE_FIRMWARE("amdgpu/gc_12_0_1_imu.bin");
 
@@ -295,6 +296,43 @@ static u32 imu_v12_0_grbm_gfx_index_remap(struct amdgpu_device *adev,
 	return val;
 }
 
+static u32 imu_v12_init_gfxhub_settings(struct amdgpu_device *adev,
+					u32 reg, u32 data)
+{
+	if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_FB_LOCATION_BASE))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_FB_LOCATION_BASE);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_FB_LOCATION_TOP))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_FB_LOCATION_TOP);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_FB_OFFSET))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_FB_OFFSET);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_AGP_BASE))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_BASE);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_AGP_BOT))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_BOT);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_AGP_TOP))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_AGP_TOP);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_MX_L1_TLB_CNTL))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_MX_L1_TLB_CNTL);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_SYSTEM_APERTURE_LOW_ADDR))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_SYSTEM_APERTURE_LOW_ADDR);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_SYSTEM_APERTURE_HIGH_ADDR))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_SYSTEM_APERTURE_HIGH_ADDR);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_LOCAL_FB_ADDRESS_START))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_LOCAL_FB_ADDRESS_START);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_LOCAL_FB_ADDRESS_END))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_LOCAL_FB_ADDRESS_END);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_LOCAL_SYSMEM_ADDRESS_START))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_LOCAL_SYSMEM_ADDRESS_START);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_LOCAL_SYSMEM_ADDRESS_END))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_LOCAL_SYSMEM_ADDRESS_END);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB);
+	else if (reg == SOC15_REG_OFFSET(GC, 0, regGCMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB))
+		return RREG32_SOC15(MMHUB, 0, regMMMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB);
+	else
+		return data;
+}
+
 static void program_imu_rlc_ram(struct amdgpu_device *adev,
 				const u32 *regs,
 				const u32 array_size)
@@ -308,6 +346,7 @@ static void program_imu_rlc_ram(struct amdgpu_device *adev,
 	for (i = 0; i < array_size; i += 3) {
 		reg = regs[i + 0];
 		data = regs[i + 2];
+		data = imu_v12_init_gfxhub_settings(adev, reg, data);
 		if (reg == SOC15_REG_OFFSET(GC, 0, regGRBM_GFX_INDEX)) {
 			val_l = imu_v12_0_grbm_gfx_index_remap(adev, data, false);
 			val_h = imu_v12_0_grbm_gfx_index_remap(adev, data, true);
