@@ -248,15 +248,18 @@ get_handled_fs_accesses(const struct landlock_ruleset *const domain)
 	       LANDLOCK_ACCESS_FS_INITIALLY_DENIED;
 }
 
-static const struct landlock_ruleset *get_current_fs_domain(void)
+static const struct landlock_ruleset *
+get_fs_domain(const struct landlock_ruleset *const domain)
 {
-	const struct landlock_ruleset *const dom =
-		landlock_get_current_domain();
-
-	if (!dom || !get_raw_handled_fs_accesses(dom))
+	if (!domain || !get_raw_handled_fs_accesses(domain))
 		return NULL;
 
-	return dom;
+	return domain;
+}
+
+static const struct landlock_ruleset *get_current_fs_domain(void)
+{
+	return get_fs_domain(landlock_get_current_domain());
 }
 
 /*
@@ -1334,7 +1337,8 @@ static int hook_file_open(struct file *const file)
 	layer_mask_t layer_masks[LANDLOCK_NUM_ACCESS_FS] = {};
 	access_mask_t open_access_request, full_access_request, allowed_access;
 	const access_mask_t optional_access = LANDLOCK_ACCESS_FS_TRUNCATE;
-	const struct landlock_ruleset *const dom = get_current_fs_domain();
+	const struct landlock_ruleset *const dom =
+		get_fs_domain(landlock_cred(file->f_cred)->domain);
 
 	if (!dom)
 		return 0;
