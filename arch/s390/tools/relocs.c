@@ -276,6 +276,8 @@ static int do_reloc(struct section *sec, Elf_Rel *rel)
 	case R_390_PC32DBL:
 	case R_390_PLT32DBL:
 	case R_390_GOTENT:
+	case R_390_GOTPCDBL:
+	case R_390_GOTOFF64:
 		break;
 	case R_390_64:
 		add_reloc(&relocs64, offset);
