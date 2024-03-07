@@ -2568,11 +2568,12 @@ int udp_v4_early_demux(struct sk_buff *skb)
 					     uh->source, iph->saddr, dif, sdif);
 	}
 
-	if (!sk || !refcount_inc_not_zero(&sk->sk_refcnt))
+	if (!sk)
 		return 0;
 
 	skb->sk = sk;
-	skb->destructor = sock_efree;
+	DEBUG_NET_WARN_ON_ONCE(sk_is_refcounted(sk));
+	skb->destructor = sock_pfree;
 	dst = rcu_dereference(sk->sk_rx_dst);
 
 	if (dst)
