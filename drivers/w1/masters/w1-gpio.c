@@ -85,8 +85,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	if (device_property_present(dev, "linux,open-drain"))
 		gflags = GPIOD_OUT_LOW;
 
-	master = devm_kzalloc(dev, sizeof(struct w1_bus_master),
-			GFP_KERNEL);
+	master = devm_kzalloc(dev, sizeof(*master), GFP_KERNEL);
 	if (!master)
 		return -ENOMEM;
 
