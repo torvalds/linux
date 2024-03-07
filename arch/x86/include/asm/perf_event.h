@@ -555,6 +555,7 @@ struct x86_pmu_lbr {
 	unsigned int	from;
 	unsigned int	to;
 	unsigned int	info;
+	bool		has_callstack;
 };
 
 extern void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap);
