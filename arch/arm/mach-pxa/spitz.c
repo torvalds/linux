@@ -585,6 +585,9 @@ static struct gpiod_lookup_table spitz_spi_gpio_table = {
 
 static void __init spitz_spi_init(void)
 {
+	struct platform_device *pd;
+	int id = 2;
+
 	if (machine_is_akita())
 		gpiod_add_lookup_table(&akita_lcdcon_gpio_table);
 	else
@@ -592,7 +595,16 @@ static void __init spitz_spi_init(void)
 
 	gpiod_add_lookup_table(&spitz_ads7846_gpio_table);
 	gpiod_add_lookup_table(&spitz_spi_gpio_table);
-	pxa2xx_set_spi_info(2, &spitz_spi_info);
+
+	/* pxa2xx-spi platform-device ID equals respective SSP platform-device ID + 1 */
+	pd = platform_device_alloc("pxa2xx-spi", id);
+	if (pd == NULL) {
+		pr_err("pxa2xx-spi: failed to allocate device id %d\n", id);
+	} else {
+		pd->dev.platform_data = &spitz_spi_info;
+		platform_device_add(pd);
+	}
+
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
 }
 #else
