@@ -37,7 +37,7 @@ typedef u64 __bitwise dma64_t;
  */
 static inline dma32_t virt_to_dma32(void *ptr)
 {
-	return (__force dma32_t)__pa(ptr);
+	return (__force dma32_t)__pa32(ptr);
 }
 
 static inline void *dma32_to_virt(dma32_t addr)
