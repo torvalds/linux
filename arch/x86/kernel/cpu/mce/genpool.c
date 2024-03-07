@@ -16,14 +16,14 @@
  * used to save error information organized in a lock-less list.
  *
  * This memory pool is only to be used to save MCE records in MCE context.
- * MCE events are rare, so a fixed size memory pool should be enough. Use
- * 2 pages to save MCE events for now (~80 MCE records at most).
+ * MCE events are rare, so a fixed size memory pool should be enough.
+ * Allocate on a sliding scale based on number of CPUs.
  */
-#define MCE_POOLSZ	(2 * PAGE_SIZE)
+#define MCE_MIN_ENTRIES	80
+#define MCE_PER_CPU	2
 
 static struct gen_pool *mce_evt_pool;
 static LLIST_HEAD(mce_event_llist);
-static char gen_pool_buf[MCE_POOLSZ];
 
 /*
  * Compare the record "t" with each of the records on list "l" to see if
@@ -118,22 +118,32 @@ int mce_gen_pool_add(struct mce *mce)
 
 static int mce_gen_pool_create(void)
 {
-	struct gen_pool *tmpp;
+	int mce_numrecords, mce_poolsz, order;
+	struct gen_pool *gpool;
 	int ret = -ENOMEM;
+	void *mce_pool;
 
-	tmpp = gen_pool_create(ilog2(sizeof(struct mce_evt_llist)), -1);
-	if (!tmpp)
-		goto out;
+	order = order_base_2(sizeof(struct mce_evt_llist));
+	gpool = gen_pool_create(order, -1);
+	if (!gpool)
+		return ret;
 
-	ret = gen_pool_add(tmpp, (unsigned long)gen_pool_buf, MCE_POOLSZ, -1);
+	mce_numrecords = max(MCE_MIN_ENTRIES, num_possible_cpus() * MCE_PER_CPU);
+	mce_poolsz = mce_numrecords * (1 << order);
+	mce_pool = kmalloc(mce_poolsz, GFP_KERNEL);
+	if (!mce_pool) {
+		gen_pool_destroy(gpool);
+		return ret;
+	}
+	ret = gen_pool_add(gpool, (unsigned long)mce_pool, mce_poolsz, -1);
 	if (ret) {
-		gen_pool_destroy(tmpp);
-		goto out;
+		gen_pool_destroy(gpool);
+		kfree(mce_pool);
+		return ret;
 	}
 
-	mce_evt_pool = tmpp;
+	mce_evt_pool = gpool;
 
-out:
 	return ret;
 }
 
