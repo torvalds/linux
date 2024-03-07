@@ -158,9 +158,9 @@ static void guest_validate_irq(unsigned int intid,
 
 	/* Basic 'timer condition met' check */
 	__GUEST_ASSERT(xcnt >= cval,
-		       "xcnt = 0x%llx, cval = 0x%llx, xcnt_diff_us = 0x%llx",
+		       "xcnt = 0x%lx, cval = 0x%lx, xcnt_diff_us = 0x%lx",
 		       xcnt, cval, xcnt_diff_us);
-	__GUEST_ASSERT(xctl & CTL_ISTATUS, "xcnt = 0x%llx", xcnt);
+	__GUEST_ASSERT(xctl & CTL_ISTATUS, "xctl = 0x%lx", xctl);
 
 	WRITE_ONCE(shared_data->nr_iter, shared_data->nr_iter + 1);
 }

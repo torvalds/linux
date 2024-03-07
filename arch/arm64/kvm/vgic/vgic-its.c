@@ -1342,8 +1342,8 @@ static int vgic_its_cmd_handle_inv(struct kvm *kvm, struct vgic_its *its,
 }
 
 /**
- * vgic_its_invall - invalidate all LPIs targetting a given vcpu
- * @vcpu: the vcpu for which the RD is targetted by an invalidation
+ * vgic_its_invall - invalidate all LPIs targeting a given vcpu
+ * @vcpu: the vcpu for which the RD is targeted by an invalidation
  *
  * Contrary to the INVALL command, this targets a RD instead of a
  * collection, and we don't need to hold the its_lock, since no ITS is
