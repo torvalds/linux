@@ -117,8 +117,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	if (err)
 		return dev_err_probe(dev, err, "w1_add_master device failed\n");
 
-	if (ddata->pullup_gpiod)
-		gpiod_set_value(ddata->pullup_gpiod, 1);
+	gpiod_set_value(ddata->pullup_gpiod, 1);
 
 	platform_set_drvdata(pdev, master);
 
@@ -130,8 +129,7 @@ static void w1_gpio_remove(struct platform_device *pdev)
 	struct w1_bus_master *master = platform_get_drvdata(pdev);
 	struct w1_gpio_ddata *ddata = master->data;
 
-	if (ddata->pullup_gpiod)
-		gpiod_set_value(ddata->pullup_gpiod, 0);
+	gpiod_set_value(ddata->pullup_gpiod, 0);
 
 	w1_remove_master_device(master);
 }
