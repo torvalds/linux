@@ -1646,7 +1646,6 @@ int of_parse_phandle_with_args_map(const struct device_node *np,
 		out_args->np = new;
 		of_node_put(cur);
 		cur = new;
-		new = NULL;
 	}
 put:
 	of_node_put(cur);

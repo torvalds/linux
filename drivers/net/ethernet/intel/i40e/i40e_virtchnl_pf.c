@@ -152,32 +152,6 @@ void i40e_vc_notify_reset(struct i40e_pf *pf)
 			     (u8 *)&pfe, sizeof(struct virtchnl_pf_event));
 }
 
-#ifdef CONFIG_PCI_IOV
-void i40e_restore_all_vfs_msi_state(struct pci_dev *pdev)
-{
-	u16 vf_id;
-	u16 pos;
-
-	/* Continue only if this is a PF */
-	if (!pdev->is_physfn)
-		return;
-
-	if (!pci_num_vf(pdev))
-		return;
-
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
-	if (pos) {
-		struct pci_dev *vf_dev = NULL;
-
-		pci_read_config_word(pdev, pos + PCI_SRIOV_VF_DID, &vf_id);
-		while ((vf_dev = pci_get_device(pdev->vendor, vf_id, vf_dev))) {
-			if (vf_dev->is_virtfn && vf_dev->physfn == pdev)
-				pci_restore_msi_state(vf_dev);
-		}
-	}
-}
-#endif /* CONFIG_PCI_IOV */
-
 /**
  * i40e_vc_notify_vf_reset
  * @vf: pointer to the VF structure
@@ -3477,16 +3451,16 @@ static int i40e_validate_cloud_filter(struct i40e_vf *vf,
 	bool found = false;
 	int bkt;
 
-	if (tc_filter->action != VIRTCHNL_ACTION_TC_REDIRECT) {
+	if (!tc_filter->action) {
 		dev_info(&pf->pdev->dev,
-			 "VF %d: ADQ doesn't support this action (%d)\n",
-			 vf->vf_id, tc_filter->action);
+			 "VF %d: Currently ADq doesn't support Drop Action\n",
+			 vf->vf_id);
 		goto err;
 	}
 
 	/* action_meta is TC number here to which the filter is applied */
 	if (!tc_filter->action_meta ||
-	    tc_filter->action_meta > vf->num_tc) {
+	    tc_filter->action_meta > I40E_MAX_VF_VSI) {
 		dev_info(&pf->pdev->dev, "VF %d: Invalid TC number %u\n",
 			 vf->vf_id, tc_filter->action_meta);
 		goto err;

@@ -22,6 +22,10 @@
 #define IF_RS_SENT	0x10
 #define IF_READY	0x80000000
 
+/* prefix flags */
+#define IF_PREFIX_ONLINK	0x01
+#define IF_PREFIX_AUTOCONF	0x02
+
 enum {
 	INET6_IFADDR_STATE_PREDAD,
 	INET6_IFADDR_STATE_DAD,

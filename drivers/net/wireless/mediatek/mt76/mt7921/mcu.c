@@ -1036,26 +1036,21 @@ int __mt7921_mcu_set_clc(struct mt7921_dev *dev, u8 *alpha2,
 		u8 type[2];
 		u8 rsvd[64];
 	} __packed req = {
-		.ver = 1,
 		.idx = idx,
 		.env = env_cap,
 	};
 	int ret, valid_cnt = 0;
-	u16 buf_len = 0;
-	u8 *pos;
+	u8 i, *pos;
 
 	if (!clc)
 		return 0;
 
-	buf_len = le16_to_cpu(clc->len) - sizeof(*clc);
 	pos = clc->data;
-	while (buf_len > 16) {
+	for (i = 0; i < clc->nr_country; i++) {
 		struct mt7921_clc_rule *rule = (struct mt7921_clc_rule *)pos;
 		u16 len = le16_to_cpu(rule->len);
-		u16 offset = len + sizeof(*rule);
 
-		pos += offset;
-		buf_len -= offset;
+		pos += len + sizeof(*rule);
 		if (rule->alpha2[0] != alpha2[0] ||
 		    rule->alpha2[1] != alpha2[1])
 			continue;

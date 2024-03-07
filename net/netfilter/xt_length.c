@@ -21,7 +21,7 @@ static bool
 length_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_length_info *info = par->matchinfo;
-	u32 pktlen = skb_ip_totlen(skb);
+	u_int16_t pktlen = ntohs(ip_hdr(skb)->tot_len);
 
 	return (pktlen >= info->min && pktlen <= info->max) ^ info->invert;
 }

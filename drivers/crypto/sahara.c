@@ -44,6 +44,7 @@
 #define FLAGS_MODE_MASK		0x000f
 #define FLAGS_ENCRYPT		BIT(0)
 #define FLAGS_CBC		BIT(1)
+#define FLAGS_NEW_KEY		BIT(3)
 
 #define SAHARA_HDR_BASE			0x00800000
 #define SAHARA_HDR_SKHA_ALG_AES	0
@@ -141,6 +142,8 @@ struct sahara_hw_link {
 };
 
 struct sahara_ctx {
+	unsigned long flags;
+
 	/* AES-specific context */
 	int keylen;
 	u8 key[AES_KEYSIZE_128];
@@ -149,7 +152,6 @@ struct sahara_ctx {
 
 struct sahara_aes_reqctx {
 	unsigned long mode;
-	u8 iv_out[AES_BLOCK_SIZE];
 	struct skcipher_request fallback_req;	// keep at the end
 };
 
@@ -445,24 +447,27 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	int ret;
 	int i, j;
 	int idx = 0;
-	u32 len;
 
-	memcpy(dev->key_base, ctx->key, ctx->keylen);
+	/* Copy new key if necessary */
+	if (ctx->flags & FLAGS_NEW_KEY) {
+		memcpy(dev->key_base, ctx->key, ctx->keylen);
+		ctx->flags &= ~FLAGS_NEW_KEY;
 
-	if (dev->flags & FLAGS_CBC) {
-		dev->hw_desc[idx]->len1 = AES_BLOCK_SIZE;
-		dev->hw_desc[idx]->p1 = dev->iv_phys_base;
-	} else {
-		dev->hw_desc[idx]->len1 = 0;
-		dev->hw_desc[idx]->p1 = 0;
+		if (dev->flags & FLAGS_CBC) {
+			dev->hw_desc[idx]->len1 = AES_BLOCK_SIZE;
+			dev->hw_desc[idx]->p1 = dev->iv_phys_base;
+		} else {
+			dev->hw_desc[idx]->len1 = 0;
+			dev->hw_desc[idx]->p1 = 0;
+		}
+		dev->hw_desc[idx]->len2 = ctx->keylen;
+		dev->hw_desc[idx]->p2 = dev->key_phys_base;
+		dev->hw_desc[idx]->next = dev->hw_phys_desc[1];
+
+		dev->hw_desc[idx]->hdr = sahara_aes_key_hdr(dev);
+
+		idx++;
 	}
-	dev->hw_desc[idx]->len2 = ctx->keylen;
-	dev->hw_desc[idx]->p2 = dev->key_phys_base;
-	dev->hw_desc[idx]->next = dev->hw_phys_desc[1];
-	dev->hw_desc[idx]->hdr = sahara_aes_key_hdr(dev);
-
-	idx++;
-
 
 	dev->nb_in_sg = sg_nents_for_len(dev->in_sg, dev->total);
 	if (dev->nb_in_sg < 0) {
@@ -484,27 +489,24 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 			 DMA_TO_DEVICE);
 	if (!ret) {
 		dev_err(dev->device, "couldn't map in sg\n");
-		return -EINVAL;
+		goto unmap_in;
 	}
-
 	ret = dma_map_sg(dev->device, dev->out_sg, dev->nb_out_sg,
 			 DMA_FROM_DEVICE);
 	if (!ret) {
 		dev_err(dev->device, "couldn't map out sg\n");
-		goto unmap_in;
+		goto unmap_out;
 	}
 
 	/* Create input links */
 	dev->hw_desc[idx]->p1 = dev->hw_phys_link[0];
 	sg = dev->in_sg;
-	len = dev->total;
 	for (i = 0; i < dev->nb_in_sg; i++) {
-		dev->hw_link[i]->len = min(len, sg->length);
+		dev->hw_link[i]->len = sg->length;
 		dev->hw_link[i]->p = sg->dma_address;
 		if (i == (dev->nb_in_sg - 1)) {
 			dev->hw_link[i]->next = 0;
 		} else {
-			len -= min(len, sg->length);
 			dev->hw_link[i]->next = dev->hw_phys_link[i + 1];
 			sg = sg_next(sg);
 		}
@@ -513,14 +515,12 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 	/* Create output links */
 	dev->hw_desc[idx]->p2 = dev->hw_phys_link[i];
 	sg = dev->out_sg;
-	len = dev->total;
 	for (j = i; j < dev->nb_out_sg + i; j++) {
-		dev->hw_link[j]->len = min(len, sg->length);
+		dev->hw_link[j]->len = sg->length;
 		dev->hw_link[j]->p = sg->dma_address;
 		if (j == (dev->nb_out_sg + i - 1)) {
 			dev->hw_link[j]->next = 0;
 		} else {
-			len -= min(len, sg->length);
 			dev->hw_link[j]->next = dev->hw_phys_link[j + 1];
 			sg = sg_next(sg);
 		}
@@ -539,6 +539,9 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 
 	return 0;
 
+unmap_out:
+	dma_unmap_sg(dev->device, dev->out_sg, dev->nb_out_sg,
+		DMA_FROM_DEVICE);
 unmap_in:
 	dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
 		DMA_TO_DEVICE);
@@ -546,24 +549,8 @@ unmap_in:
 	return -EINVAL;
 }
 
-static void sahara_aes_cbc_update_iv(struct skcipher_request *req)
-{
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
-	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
-	unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
-
-	/* Update IV buffer to contain the last ciphertext block */
-	if (rctx->mode & FLAGS_ENCRYPT) {
-		sg_pcopy_to_buffer(req->dst, sg_nents(req->dst), req->iv,
-				   ivsize, req->cryptlen - ivsize);
-	} else {
-		memcpy(req->iv, rctx->iv_out, ivsize);
-	}
-}
-
 static int sahara_aes_process(struct skcipher_request *req)
 {
-	struct crypto_skcipher *skcipher = crypto_skcipher_reqtfm(req);
 	struct sahara_dev *dev = dev_ptr;
 	struct sahara_ctx *ctx;
 	struct sahara_aes_reqctx *rctx;
@@ -585,17 +572,8 @@ static int sahara_aes_process(struct skcipher_request *req)
 	rctx->mode &= FLAGS_MODE_MASK;
 	dev->flags = (dev->flags & ~FLAGS_MODE_MASK) | rctx->mode;
 
-	if ((dev->flags & FLAGS_CBC) && req->iv) {
-		unsigned int ivsize = crypto_skcipher_ivsize(skcipher);
-
-		memcpy(dev->iv_base, req->iv, ivsize);
-
-		if (!(dev->flags & FLAGS_ENCRYPT)) {
-			sg_pcopy_to_buffer(req->src, sg_nents(req->src),
-					   rctx->iv_out, ivsize,
-					   req->cryptlen - ivsize);
-		}
-	}
+	if ((dev->flags & FLAGS_CBC) && req->iv)
+		memcpy(dev->iv_base, req->iv, AES_KEYSIZE_128);
 
 	/* assign new context to device */
 	dev->ctx = ctx;
@@ -608,19 +586,15 @@ static int sahara_aes_process(struct skcipher_request *req)
 
 	timeout = wait_for_completion_timeout(&dev->dma_completion,
 				msecs_to_jiffies(SAHARA_TIMEOUT_MS));
-
-	dma_unmap_sg(dev->device, dev->out_sg, dev->nb_out_sg,
-		DMA_FROM_DEVICE);
-	dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
-		DMA_TO_DEVICE);
-
 	if (!timeout) {
 		dev_err(dev->device, "AES timeout\n");
 		return -ETIMEDOUT;
 	}
 
-	if ((dev->flags & FLAGS_CBC) && req->iv)
-		sahara_aes_cbc_update_iv(req);
+	dma_unmap_sg(dev->device, dev->out_sg, dev->nb_out_sg,
+		DMA_FROM_DEVICE);
+	dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
+		DMA_TO_DEVICE);
 
 	return 0;
 }
@@ -635,6 +609,7 @@ static int sahara_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	/* SAHARA only supports 128bit keys */
 	if (keylen == AES_KEYSIZE_128) {
 		memcpy(ctx->key, key, keylen);
+		ctx->flags |= FLAGS_NEW_KEY;
 		return 0;
 	}
 
@@ -650,39 +625,11 @@ static int sahara_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 	return crypto_skcipher_setkey(ctx->fallback, key, keylen);
 }
 
-static int sahara_aes_fallback(struct skcipher_request *req, unsigned long mode)
-{
-	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
-	struct sahara_ctx *ctx = crypto_skcipher_ctx(
-		crypto_skcipher_reqtfm(req));
-
-	skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
-	skcipher_request_set_callback(&rctx->fallback_req,
-				      req->base.flags,
-				      req->base.complete,
-				      req->base.data);
-	skcipher_request_set_crypt(&rctx->fallback_req, req->src,
-				   req->dst, req->cryptlen, req->iv);
-
-	if (mode & FLAGS_ENCRYPT)
-		return crypto_skcipher_encrypt(&rctx->fallback_req);
-
-	return crypto_skcipher_decrypt(&rctx->fallback_req);
-}
-
 static int sahara_aes_crypt(struct skcipher_request *req, unsigned long mode)
 {
 	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
-	struct sahara_ctx *ctx = crypto_skcipher_ctx(
-		crypto_skcipher_reqtfm(req));
 	struct sahara_dev *dev = dev_ptr;
 	int err = 0;
-
-	if (!req->cryptlen)
-		return 0;
-
-	if (unlikely(ctx->keylen != AES_KEYSIZE_128))
-		return sahara_aes_fallback(req, mode);
 
 	dev_dbg(dev->device, "nbytes: %d, enc: %d, cbc: %d\n",
 		req->cryptlen, !!(mode & FLAGS_ENCRYPT), !!(mode & FLAGS_CBC));
@@ -706,21 +653,81 @@ static int sahara_aes_crypt(struct skcipher_request *req, unsigned long mode)
 
 static int sahara_aes_ecb_encrypt(struct skcipher_request *req)
 {
+	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
+	struct sahara_ctx *ctx = crypto_skcipher_ctx(
+		crypto_skcipher_reqtfm(req));
+
+	if (unlikely(ctx->keylen != AES_KEYSIZE_128)) {
+		skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
+		skcipher_request_set_callback(&rctx->fallback_req,
+					      req->base.flags,
+					      req->base.complete,
+					      req->base.data);
+		skcipher_request_set_crypt(&rctx->fallback_req, req->src,
+					   req->dst, req->cryptlen, req->iv);
+		return crypto_skcipher_encrypt(&rctx->fallback_req);
+	}
+
 	return sahara_aes_crypt(req, FLAGS_ENCRYPT);
 }
 
 static int sahara_aes_ecb_decrypt(struct skcipher_request *req)
 {
+	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
+	struct sahara_ctx *ctx = crypto_skcipher_ctx(
+		crypto_skcipher_reqtfm(req));
+
+	if (unlikely(ctx->keylen != AES_KEYSIZE_128)) {
+		skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
+		skcipher_request_set_callback(&rctx->fallback_req,
+					      req->base.flags,
+					      req->base.complete,
+					      req->base.data);
+		skcipher_request_set_crypt(&rctx->fallback_req, req->src,
+					   req->dst, req->cryptlen, req->iv);
+		return crypto_skcipher_decrypt(&rctx->fallback_req);
+	}
+
 	return sahara_aes_crypt(req, 0);
 }
 
 static int sahara_aes_cbc_encrypt(struct skcipher_request *req)
 {
+	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
+	struct sahara_ctx *ctx = crypto_skcipher_ctx(
+		crypto_skcipher_reqtfm(req));
+
+	if (unlikely(ctx->keylen != AES_KEYSIZE_128)) {
+		skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
+		skcipher_request_set_callback(&rctx->fallback_req,
+					      req->base.flags,
+					      req->base.complete,
+					      req->base.data);
+		skcipher_request_set_crypt(&rctx->fallback_req, req->src,
+					   req->dst, req->cryptlen, req->iv);
+		return crypto_skcipher_encrypt(&rctx->fallback_req);
+	}
+
 	return sahara_aes_crypt(req, FLAGS_ENCRYPT | FLAGS_CBC);
 }
 
 static int sahara_aes_cbc_decrypt(struct skcipher_request *req)
 {
+	struct sahara_aes_reqctx *rctx = skcipher_request_ctx(req);
+	struct sahara_ctx *ctx = crypto_skcipher_ctx(
+		crypto_skcipher_reqtfm(req));
+
+	if (unlikely(ctx->keylen != AES_KEYSIZE_128)) {
+		skcipher_request_set_tfm(&rctx->fallback_req, ctx->fallback);
+		skcipher_request_set_callback(&rctx->fallback_req,
+					      req->base.flags,
+					      req->base.complete,
+					      req->base.data);
+		skcipher_request_set_crypt(&rctx->fallback_req, req->src,
+					   req->dst, req->cryptlen, req->iv);
+		return crypto_skcipher_decrypt(&rctx->fallback_req);
+	}
+
 	return sahara_aes_crypt(req, FLAGS_CBC);
 }
 
@@ -777,7 +784,6 @@ static int sahara_sha_hw_links_create(struct sahara_dev *dev,
 				       int start)
 {
 	struct scatterlist *sg;
-	unsigned int len;
 	unsigned int i;
 	int ret;
 
@@ -799,14 +805,12 @@ static int sahara_sha_hw_links_create(struct sahara_dev *dev,
 	if (!ret)
 		return -EFAULT;
 
-	len = rctx->total;
 	for (i = start; i < dev->nb_in_sg + start; i++) {
-		dev->hw_link[i]->len = min(len, sg->length);
+		dev->hw_link[i]->len = sg->length;
 		dev->hw_link[i]->p = sg->dma_address;
 		if (i == (dev->nb_in_sg + start - 1)) {
 			dev->hw_link[i]->next = 0;
 		} else {
-			len -= min(len, sg->length);
 			dev->hw_link[i]->next = dev->hw_phys_link[i + 1];
 			sg = sg_next(sg);
 		}
@@ -887,6 +891,24 @@ static int sahara_sha_hw_context_descriptor_create(struct sahara_dev *dev,
 	return 0;
 }
 
+static int sahara_walk_and_recalc(struct scatterlist *sg, unsigned int nbytes)
+{
+	if (!sg || !sg->length)
+		return nbytes;
+
+	while (nbytes && sg) {
+		if (nbytes <= sg->length) {
+			sg->length = nbytes;
+			sg_mark_end(sg);
+			break;
+		}
+		nbytes -= sg->length;
+		sg = sg_next(sg);
+	}
+
+	return nbytes;
+}
+
 static int sahara_sha_prepare_request(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
@@ -923,20 +945,36 @@ static int sahara_sha_prepare_request(struct ahash_request *req)
 					hash_later, 0);
 	}
 
-	rctx->total = len - hash_later;
+	/* nbytes should now be multiple of blocksize */
+	req->nbytes = req->nbytes - hash_later;
+
+	sahara_walk_and_recalc(req->src, req->nbytes);
+
 	/* have data from previous operation and current */
 	if (rctx->buf_cnt && req->nbytes) {
 		sg_init_table(rctx->in_sg_chain, 2);
 		sg_set_buf(rctx->in_sg_chain, rctx->rembuf, rctx->buf_cnt);
+
 		sg_chain(rctx->in_sg_chain, 2, req->src);
+
+		rctx->total = req->nbytes + rctx->buf_cnt;
 		rctx->in_sg = rctx->in_sg_chain;
+
+		req->src = rctx->in_sg_chain;
 	/* only data from previous operation */
 	} else if (rctx->buf_cnt) {
-		rctx->in_sg = rctx->in_sg_chain;
+		if (req->src)
+			rctx->in_sg = req->src;
+		else
+			rctx->in_sg = rctx->in_sg_chain;
+		/* buf was copied into rembuf above */
 		sg_init_one(rctx->in_sg, rctx->rembuf, rctx->buf_cnt);
+		rctx->total = rctx->buf_cnt;
 	/* no data from previous operation */
 	} else {
 		rctx->in_sg = req->src;
+		rctx->total = req->nbytes;
+		req->src = rctx->in_sg;
 	}
 
 	/* on next call, we only have the remaining data in the buffer */
@@ -957,10 +995,7 @@ static int sahara_sha_process(struct ahash_request *req)
 		return ret;
 
 	if (rctx->first) {
-		ret = sahara_sha_hw_data_descriptor_create(dev, rctx, req, 0);
-		if (ret)
-			return ret;
-
+		sahara_sha_hw_data_descriptor_create(dev, rctx, req, 0);
 		dev->hw_desc[0]->next = 0;
 		rctx->first = 0;
 	} else {
@@ -968,10 +1003,7 @@ static int sahara_sha_process(struct ahash_request *req)
 
 		sahara_sha_hw_context_descriptor_create(dev, rctx, req, 0);
 		dev->hw_desc[0]->next = dev->hw_phys_desc[1];
-		ret = sahara_sha_hw_data_descriptor_create(dev, rctx, req, 1);
-		if (ret)
-			return ret;
-
+		sahara_sha_hw_data_descriptor_create(dev, rctx, req, 1);
 		dev->hw_desc[1]->next = 0;
 	}
 
@@ -984,19 +1016,18 @@ static int sahara_sha_process(struct ahash_request *req)
 
 	timeout = wait_for_completion_timeout(&dev->dma_completion,
 				msecs_to_jiffies(SAHARA_TIMEOUT_MS));
-
-	if (rctx->sg_in_idx)
-		dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
-			     DMA_TO_DEVICE);
-
 	if (!timeout) {
 		dev_err(dev->device, "SHA timeout\n");
 		return -ETIMEDOUT;
 	}
 
+	if (rctx->sg_in_idx)
+		dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
+			     DMA_TO_DEVICE);
+
 	memcpy(rctx->context, dev->context_base, rctx->context_size);
 
-	if (req->result && rctx->last)
+	if (req->result)
 		memcpy(req->result, rctx->context, rctx->digest_size);
 
 	return 0;
@@ -1140,7 +1171,8 @@ static int sahara_sha_import(struct ahash_request *req, const void *in)
 static int sahara_sha_cra_init(struct crypto_tfm *tfm)
 {
 	crypto_ahash_set_reqsize(__crypto_ahash_cast(tfm),
-				 sizeof(struct sahara_sha_reqctx));
+				 sizeof(struct sahara_sha_reqctx) +
+				 SHA_BUFFER_LEN + SHA256_BLOCK_SIZE);
 
 	return 0;
 }

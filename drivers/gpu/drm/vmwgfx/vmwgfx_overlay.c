@@ -457,7 +457,8 @@ int vmw_overlay_ioctl(struct drm_device *dev, void *data,
 
 	ret = vmw_overlay_update_stream(dev_priv, buf, arg, true);
 
-	vmw_user_bo_unref(&buf);
+	vmw_bo_unreference(&buf);
+	drm_gem_object_put(&buf->base.base);
 
 out_unlock:
 	mutex_unlock(&overlay->mutex);

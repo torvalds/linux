@@ -2314,10 +2314,12 @@ static int hci_conn_auth(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 		hci_send_cmd(conn->hdev, HCI_OP_AUTH_REQUESTED,
 			     sizeof(cp), &cp);
 
-		/* Set the ENCRYPT_PEND to trigger encryption after
-		 * authentication.
+		/* If we're already encrypted set the REAUTH_PEND flag,
+		 * otherwise set the ENCRYPT_PEND.
 		 */
-		if (!test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+		if (test_bit(HCI_CONN_ENCRYPT, &conn->flags))
+			set_bit(HCI_CONN_REAUTH_PEND, &conn->flags);
+		else
 			set_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 	}
 

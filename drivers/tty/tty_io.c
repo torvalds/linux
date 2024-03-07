@@ -939,7 +939,7 @@ void tty_write_unlock(struct tty_struct *tty)
 	wake_up_interruptible_poll(&tty->write_wait, EPOLLOUT);
 }
 
-int tty_write_lock(struct tty_struct *tty, bool ndelay)
+int tty_write_lock(struct tty_struct *tty, int ndelay)
 {
 	if (!mutex_trylock(&tty->atomic_write_lock)) {
 		if (ndelay)
@@ -1153,7 +1153,7 @@ int tty_send_xchar(struct tty_struct *tty, char ch)
 		return 0;
 	}
 
-	if (tty_write_lock(tty, false) < 0)
+	if (tty_write_lock(tty, 0) < 0)
 		return -ERESTARTSYS;
 
 	down_read(&tty->termios_rwsem);
@@ -2472,25 +2472,22 @@ static int send_break(struct tty_struct *tty, unsigned int duration)
 		return 0;
 
 	if (tty->driver->flags & TTY_DRIVER_HARDWARE_BREAK)
-		return tty->ops->break_ctl(tty, duration);
-
-	/* Do the work ourselves */
-	if (tty_write_lock(tty, false) < 0)
-		return -EINTR;
-
-	retval = tty->ops->break_ctl(tty, -1);
-	if (!retval) {
-		msleep_interruptible(duration);
+		retval = tty->ops->break_ctl(tty, duration);
+	else {
+		/* Do the work ourselves */
+		if (tty_write_lock(tty, 0) < 0)
+			return -EINTR;
+		retval = tty->ops->break_ctl(tty, -1);
+		if (retval)
+			goto out;
+		if (!signal_pending(current))
+			msleep_interruptible(duration);
 		retval = tty->ops->break_ctl(tty, 0);
-	} else if (retval == -EOPNOTSUPP) {
-		/* some drivers can tell only dynamically */
-		retval = 0;
+out:
+		tty_write_unlock(tty);
+		if (signal_pending(current))
+			retval = -EINTR;
 	}
-	tty_write_unlock(tty);
-
-	if (signal_pending(current))
-		retval = -EINTR;
-
 	return retval;
 }
 

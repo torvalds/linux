@@ -612,12 +612,14 @@ static int f2fs_set_lz4hc_level(struct f2fs_sb_info *sbi, const char *str)
 {
 #ifdef CONFIG_F2FS_FS_LZ4HC
 	unsigned int level;
+#endif
 
 	if (strlen(str) == 3) {
 		F2FS_OPTION(sbi).compress_level = 0;
 		return 0;
 	}
 
+#ifdef CONFIG_F2FS_FS_LZ4HC
 	str += 3;
 
 	if (str[0] != ':') {
@@ -635,10 +637,6 @@ static int f2fs_set_lz4hc_level(struct f2fs_sb_info *sbi, const char *str)
 	F2FS_OPTION(sbi).compress_level = level;
 	return 0;
 #else
-	if (strlen(str) == 3) {
-		F2FS_OPTION(sbi).compress_level = 0;
-		return 0;
-	}
 	f2fs_info(sbi, "kernel doesn't support lz4hc compression");
 	return -EINVAL;
 #endif
@@ -652,7 +650,7 @@ static int f2fs_set_zstd_level(struct f2fs_sb_info *sbi, const char *str)
 	int len = 4;
 
 	if (strlen(str) == len) {
-		F2FS_OPTION(sbi).compress_level = F2FS_ZSTD_DEFAULT_CLEVEL;
+		F2FS_OPTION(sbi).compress_level = 0;
 		return 0;
 	}
 
@@ -665,7 +663,7 @@ static int f2fs_set_zstd_level(struct f2fs_sb_info *sbi, const char *str)
 	if (kstrtouint(str + 1, 10, &level))
 		return -EINVAL;
 
-	if (level < zstd_min_clevel() || level > zstd_max_clevel()) {
+	if (!level || level > zstd_max_clevel()) {
 		f2fs_info(sbi, "invalid zstd compress level: %d", level);
 		return -EINVAL;
 	}

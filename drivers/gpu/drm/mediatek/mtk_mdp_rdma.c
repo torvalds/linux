@@ -223,7 +223,8 @@ int mtk_mdp_rdma_clk_enable(struct device *dev)
 {
 	struct mtk_mdp_rdma *rdma = dev_get_drvdata(dev);
 
-	return clk_prepare_enable(rdma->clk);
+	clk_prepare_enable(rdma->clk);
+	return 0;
 }
 
 void mtk_mdp_rdma_clk_disable(struct device *dev)

@@ -104,8 +104,6 @@ static int dvb_device_open(struct inode *inode, struct file *file)
 			err = file->f_op->open(inode, file);
 		up_read(&minor_rwsem);
 		mutex_unlock(&dvbdev_mutex);
-		if (err)
-			dvb_device_put(dvbdev);
 		return err;
 	}
 fail:

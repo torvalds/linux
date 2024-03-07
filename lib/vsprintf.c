@@ -2092,20 +2092,15 @@ char *fwnode_full_name_string(struct fwnode_handle *fwnode, char *buf,
 
 	/* Loop starting from the root node to the current node. */
 	for (depth = fwnode_count_parents(fwnode); depth >= 0; depth--) {
-		/*
-		 * Only get a reference for other nodes (i.e. parent nodes).
-		 * fwnode refcount may be 0 here.
-		 */
-		struct fwnode_handle *__fwnode = depth ?
-			fwnode_get_nth_parent(fwnode, depth) : fwnode;
+		struct fwnode_handle *__fwnode =
+			fwnode_get_nth_parent(fwnode, depth);
 
 		buf = string(buf, end, fwnode_get_name_prefix(__fwnode),
 			     default_str_spec);
 		buf = string(buf, end, fwnode_get_name(__fwnode),
 			     default_str_spec);
 
-		if (depth)
-			fwnode_handle_put(__fwnode);
+		fwnode_handle_put(__fwnode);
 	}
 
 	return buf;

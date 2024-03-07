@@ -3400,8 +3400,7 @@ static int try_release_extent_state(struct extent_io_tree *tree,
 		ret = 0;
 	} else {
 		u32 clear_bits = ~(EXTENT_LOCKED | EXTENT_NODATASUM |
-				   EXTENT_DELALLOC_NEW | EXTENT_CTLBITS |
-				   EXTENT_QGROUP_RESERVED);
+				   EXTENT_DELALLOC_NEW | EXTENT_CTLBITS);
 
 		/*
 		 * At this point we can safely clear everything except the

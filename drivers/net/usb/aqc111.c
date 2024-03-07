@@ -1079,17 +1079,17 @@ static int aqc111_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 	u16 pkt_count = 0;
 	u64 desc_hdr = 0;
 	u16 vlan_tag = 0;
-	u32 skb_len;
+	u32 skb_len = 0;
 
 	if (!skb)
 		goto err;
 
-	skb_len = skb->len;
-	if (skb_len < sizeof(desc_hdr))
+	if (skb->len == 0)
 		goto err;
 
+	skb_len = skb->len;
 	/* RX Descriptor Header */
-	skb_trim(skb, skb_len - sizeof(desc_hdr));
+	skb_trim(skb, skb->len - sizeof(desc_hdr));
 	desc_hdr = le64_to_cpup((u64 *)skb_tail_pointer(skb));
 
 	/* Check these packets */

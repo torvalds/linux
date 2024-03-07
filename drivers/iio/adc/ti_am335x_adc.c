@@ -671,10 +671,8 @@ static int tiadc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, indio_dev);
 
 	err = tiadc_request_dma(pdev, adc_dev);
-	if (err && err != -ENODEV) {
-		dev_err_probe(&pdev->dev, err, "DMA request failed\n");
+	if (err && err == -EPROBE_DEFER)
 		goto err_dma;
-	}
 
 	return 0;
 

@@ -403,8 +403,7 @@ static int _cdns_mhdp_hdcp_disable(struct cdns_mhdp_device *mhdp)
 
 static int _cdns_mhdp_hdcp_enable(struct cdns_mhdp_device *mhdp, u8 content_type)
 {
-	int ret = -EINVAL;
-	int tries = 3;
+	int ret, tries = 3;
 	u32 i;
 
 	for (i = 0; i < tries; i++) {

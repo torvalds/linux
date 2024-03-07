@@ -132,10 +132,8 @@ int dma_declare_coherent_memory(struct device *dev, phys_addr_t phys_addr,
 
 void dma_release_coherent_memory(struct device *dev)
 {
-	if (dev) {
+	if (dev)
 		_dma_release_coherent_memory(dev->dma_mem);
-		dev->dma_mem = NULL;
-	}
 }
 
 static void *__dma_alloc_from_coherent(struct device *dev,

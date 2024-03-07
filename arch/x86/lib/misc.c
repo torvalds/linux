@@ -6,7 +6,7 @@
  */
 int num_digits(int val)
 {
-	long long m = 10;
+	int m = 10;
 	int d = 1;
 
 	if (val < 0) {

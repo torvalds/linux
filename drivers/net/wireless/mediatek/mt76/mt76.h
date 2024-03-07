@@ -564,7 +564,8 @@ struct mt76_sdio {
 	struct mt76_worker txrx_worker;
 	struct mt76_worker status_worker;
 	struct mt76_worker net_worker;
-	struct mt76_worker stat_worker;
+
+	struct work_struct stat_work;
 
 	u8 *xmit_buf;
 	u32 xmit_buf_sz;

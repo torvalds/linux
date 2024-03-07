@@ -17,7 +17,7 @@ u32 rtl92c_phy_query_bb_reg(struct ieee80211_hw *hw, u32 regaddr, u32 bitmask)
 	rtl_dbg(rtlpriv, COMP_RF, DBG_TRACE, "regaddr(%#x), bitmask(%#x)\n",
 		regaddr, bitmask);
 	originalvalue = rtl_read_dword(rtlpriv, regaddr);
-	bitshift = calculate_bit_shift(bitmask);
+	bitshift = _rtl92c_phy_calculate_bit_shift(bitmask);
 	returnvalue = (originalvalue & bitmask) >> bitshift;
 
 	rtl_dbg(rtlpriv, COMP_RF, DBG_TRACE,
@@ -40,7 +40,7 @@ void rtl92c_phy_set_bb_reg(struct ieee80211_hw *hw,
 
 	if (bitmask != MASKDWORD) {
 		originalvalue = rtl_read_dword(rtlpriv, regaddr);
-		bitshift = calculate_bit_shift(bitmask);
+		bitshift = _rtl92c_phy_calculate_bit_shift(bitmask);
 		data = ((originalvalue & (~bitmask)) | (data << bitshift));
 	}
 
@@ -142,6 +142,14 @@ void _rtl92c_phy_rf_serial_write(struct ieee80211_hw *hw,
 		data_and_addr);
 }
 EXPORT_SYMBOL(_rtl92c_phy_rf_serial_write);
+
+u32 _rtl92c_phy_calculate_bit_shift(u32 bitmask)
+{
+	u32 i = ffs(bitmask);
+
+	return i ? i - 1 : 32;
+}
+EXPORT_SYMBOL(_rtl92c_phy_calculate_bit_shift);
 
 static void _rtl92c_phy_bb_config_1t(struct ieee80211_hw *hw)
 {

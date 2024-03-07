@@ -20,7 +20,7 @@ struct btrfs_ordered_sum {
 	/*
 	 * this is the length in bytes covered by the sums array below.
 	 */
-	u32 len;
+	int len;
 	struct list_head list;
 	/* last field is a variable length array of csums */
 	u8 sums[];

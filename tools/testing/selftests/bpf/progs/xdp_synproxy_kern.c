@@ -447,13 +447,13 @@ static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bo
 		unsigned long status = ct->status;
 
 		bpf_ct_release(ct);
-		if (status & IPS_CONFIRMED)
+		if (status & IPS_CONFIRMED_BIT)
 			return XDP_PASS;
 	} else if (ct_lookup_opts.error != -ENOENT) {
 		return XDP_ABORTED;
 	}
 
-	/* error == -ENOENT || !(status & IPS_CONFIRMED) */
+	/* error == -ENOENT || !(status & IPS_CONFIRMED_BIT) */
 	return XDP_TX;
 }
 

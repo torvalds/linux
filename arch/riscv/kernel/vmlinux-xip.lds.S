@@ -29,12 +29,10 @@ SECTIONS
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
 	/* we have to discard exit text and such at runtime, not link time */
-	__exittext_begin = .;
 	.exit.text :
 	{
 		EXIT_TEXT
 	}
-	__exittext_end = .;
 
 	.text : {
 		_text = .;

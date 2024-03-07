@@ -251,10 +251,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 	snd_pcm_set_sync(substream);
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->stream);
-	if (!mconfig) {
-		kfree(dma_params);
+	if (!mconfig)
 		return -EINVAL;
-	}
 
 	skl_tplg_d0i3_get(skl, mconfig->d0i3_caps);
 
@@ -1473,7 +1471,6 @@ int skl_platform_register(struct device *dev)
 		dais = krealloc(skl->dais, sizeof(skl_fe_dai) +
 				sizeof(skl_platform_dai), GFP_KERNEL);
 		if (!dais) {
-			kfree(skl->dais);
 			ret = -ENOMEM;
 			goto err;
 		}
@@ -1486,10 +1483,8 @@ int skl_platform_register(struct device *dev)
 
 	ret = devm_snd_soc_register_component(dev, &skl_component,
 					 skl->dais, num_dais);
-	if (ret) {
-		kfree(skl->dais);
+	if (ret)
 		dev_err(dev, "soc component registration failed %d\n", ret);
-	}
 err:
 	return ret;
 }

@@ -172,12 +172,11 @@ int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 	struct rb_node *node;
 	struct btrfs_ordered_extent *entry;
 	int ret;
-	u64 qgroup_rsv = 0;
 
 	if (flags &
 	    ((1 << BTRFS_ORDERED_NOCOW) | (1 << BTRFS_ORDERED_PREALLOC))) {
 		/* For nocow write, we can release the qgroup rsv right now */
-		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes, &qgroup_rsv);
+		ret = btrfs_qgroup_free_data(inode, NULL, file_offset, num_bytes);
 		if (ret < 0)
 			return ret;
 		ret = 0;
@@ -186,7 +185,7 @@ int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 		 * The ordered extent has reserved qgroup space, release now
 		 * and pass the reserved number for qgroup_record to free.
 		 */
-		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes, &qgroup_rsv);
+		ret = btrfs_qgroup_release_data(inode, file_offset, num_bytes);
 		if (ret < 0)
 			return ret;
 	}
@@ -204,7 +203,7 @@ int btrfs_add_ordered_extent(struct btrfs_inode *inode, u64 file_offset,
 	entry->inode = igrab(&inode->vfs_inode);
 	entry->compress_type = compress_type;
 	entry->truncated_len = (u64)-1;
-	entry->qgroup_rsv = qgroup_rsv;
+	entry->qgroup_rsv = ret;
 	entry->physical = (u64)-1;
 
 	ASSERT((flags & ~BTRFS_ORDERED_TYPE_FLAGS) == 0);
@@ -545,9 +544,7 @@ void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
 			release = entry->disk_num_bytes;
 		else
 			release = entry->num_bytes;
-		btrfs_delalloc_release_metadata(btrfs_inode, release,
-						test_bit(BTRFS_ORDERED_IOERR,
-							 &entry->flags));
+		btrfs_delalloc_release_metadata(btrfs_inode, release, false);
 	}
 
 	percpu_counter_add_batch(&fs_info->ordered_bytes, -entry->num_bytes,

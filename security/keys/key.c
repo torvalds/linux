@@ -294,7 +294,6 @@ struct key *key_alloc(struct key_type *type, const char *desc,
 	key->uid = uid;
 	key->gid = gid;
 	key->perm = perm;
-	key->expiry = TIME64_MAX;
 	key->restrict_link = restrict_link;
 	key->last_used_at = ktime_get_real_seconds();
 
@@ -464,7 +463,10 @@ static int __key_instantiate_and_link(struct key *key,
 			if (authkey)
 				key_invalidate(authkey);
 
-			key_set_expiry(key, prep->expiry);
+			if (prep->expiry != TIME64_MAX) {
+				key->expiry = prep->expiry;
+				key_schedule_gc(prep->expiry + key_gc_delay);
+			}
 		}
 	}
 
@@ -604,7 +606,8 @@ int key_reject_and_link(struct key *key,
 		atomic_inc(&key->user->nikeys);
 		mark_key_instantiated(key, -error);
 		notify_key(key, NOTIFY_KEY_INSTANTIATED, -error);
-		key_set_expiry(key, ktime_get_real_seconds() + timeout);
+		key->expiry = ktime_get_real_seconds() + timeout;
+		key_schedule_gc(key->expiry + key_gc_delay);
 
 		if (test_and_clear_bit(KEY_FLAG_USER_CONSTRUCT, &key->flags))
 			awaken = 1;
@@ -719,14 +722,16 @@ found_kernel_type:
 
 void key_set_timeout(struct key *key, unsigned timeout)
 {
-	time64_t expiry = TIME64_MAX;
+	time64_t expiry = 0;
 
 	/* make the changes with the locks held to prevent races */
 	down_write(&key->sem);
 
 	if (timeout > 0)
 		expiry = ktime_get_real_seconds() + timeout;
-	key_set_expiry(key, expiry);
+
+	key->expiry = expiry;
+	key_schedule_gc(key->expiry + key_gc_delay);
 
 	up_write(&key->sem);
 }

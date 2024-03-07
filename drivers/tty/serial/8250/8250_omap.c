@@ -1476,7 +1476,7 @@ static int omap8250_remove(struct platform_device *pdev)
 
 	err = pm_runtime_resume_and_get(&pdev->dev);
 	if (err)
-		dev_err(&pdev->dev, "Failed to resume hardware\n");
+		return err;
 
 	serial8250_unregister_port(priv->line);
 	priv->line = -ENODEV;

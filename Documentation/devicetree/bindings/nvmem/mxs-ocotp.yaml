@@ -14,11 +14,9 @@ allOf:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - fsl,imx23-ocotp
-          - fsl,imx28-ocotp
-      - const: fsl,ocotp
+    enum:
+      - fsl,imx23-ocotp
+      - fsl,imx28-ocotp
 
   "#address-cells":
     const: 1
@@ -42,7 +40,7 @@ additionalProperties: false
 examples:
   - |
     ocotp: efuse@8002c000 {
-        compatible = "fsl,imx28-ocotp", "fsl,ocotp";
+        compatible = "fsl,imx28-ocotp";
         #address-cells = <1>;
         #size-cells = <1>;
         reg = <0x8002c000 0x2000>;

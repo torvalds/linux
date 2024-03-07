@@ -268,8 +268,7 @@ void pvr2_context_disconnect(struct pvr2_context *mp)
 {
 	pvr2_hdw_disconnect(mp->hdw);
 	mp->disconnect_flag = !0;
-	if (!pvr2_context_shutok())
-		pvr2_context_notify(mp);
+	pvr2_context_notify(mp);
 }
 
 

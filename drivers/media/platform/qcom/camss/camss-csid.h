@@ -19,13 +19,8 @@
 #include <media/v4l2-subdev.h>
 
 #define MSM_CSID_PAD_SINK 0
-#define MSM_CSID_PAD_FIRST_SRC 1
-#define MSM_CSID_PADS_NUM 5
-
-#define MSM_CSID_PAD_SRC (MSM_CSID_PAD_FIRST_SRC)
-
-/* CSID hardware can demultiplex up to 4 outputs */
-#define MSM_CSID_MAX_SRC_STREAMS	4
+#define MSM_CSID_PAD_SRC 1
+#define MSM_CSID_PADS_NUM 2
 
 #define DATA_TYPE_EMBEDDED_DATA_8BIT	0x12
 #define DATA_TYPE_YUV420_8BIT		0x18
@@ -86,8 +81,6 @@ struct csid_phy_config {
 	u8 csiphy_id;
 	u8 lane_cnt;
 	u32 lane_assign;
-	u32 en_vc;
-	u8 need_vc_update;
 };
 
 struct csid_device;

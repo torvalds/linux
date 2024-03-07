@@ -128,10 +128,7 @@ struct cgx {
 	struct pci_dev		*pdev;
 	u8			cgx_id;
 	u8			lmac_count;
-	/* number of LMACs per MAC could be 4 or 8 */
-	u8			max_lmac_per_mac;
-#define MAX_LMAC_COUNT		8
-	struct lmac             *lmac_idmap[MAX_LMAC_COUNT];
+	struct lmac		*lmac_idmap[MAX_LMAC_PER_CGX];
 	struct			work_struct cgx_cmd_work;
 	struct			workqueue_struct *cgx_cmd_workq;
 	struct list_head	cgx_list;

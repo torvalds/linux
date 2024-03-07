@@ -140,21 +140,13 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 	unsigned int *box_offset, *ids;
 	int i;
 
-	if (!unit->ctl || !unit->ctl_offset || !unit->ctr_offset) {
-		pr_info("Invalid address is detected for uncore type %d box %d, "
-			"Disable the uncore unit.\n",
-			unit->box_type, unit->box_id);
+	if (WARN_ON_ONCE(!unit->ctl || !unit->ctl_offset || !unit->ctr_offset))
 		return;
-	}
 
 	if (parsed) {
 		type = search_uncore_discovery_type(unit->box_type);
-		if (!type) {
-			pr_info("A spurious uncore type %d is detected, "
-				"Disable the uncore type.\n",
-				unit->box_type);
+		if (WARN_ON_ONCE(!type))
 			return;
-		}
 		/* Store the first box of each die */
 		if (!type->box_ctrl_die[die])
 			type->box_ctrl_die[die] = unit->ctl;
@@ -189,12 +181,8 @@ uncore_insert_box_info(struct uncore_unit_discovery *unit,
 		ids[i] = type->ids[i];
 		box_offset[i] = type->box_offset[i];
 
-		if (unit->box_id == ids[i]) {
-			pr_info("Duplicate uncore type %d box ID %d is detected, "
-				"Drop the duplicate uncore unit.\n",
-				unit->box_type, unit->box_id);
+		if (WARN_ON_ONCE(unit->box_id == ids[i]))
 			goto free_ids;
-		}
 	}
 	ids[i] = unit->box_id;
 	box_offset[i] = unit->ctl - type->box_ctrl;

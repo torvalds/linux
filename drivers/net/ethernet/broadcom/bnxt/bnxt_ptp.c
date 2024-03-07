@@ -506,8 +506,9 @@ static int bnxt_hwrm_ptp_cfg(struct bnxt *bp)
 
 	if (netif_running(bp->dev)) {
 		if (ptp->rx_filter == HWTSTAMP_FILTER_ALL) {
-			bnxt_close_nic(bp, false, false);
-			rc = bnxt_open_nic(bp, false, false);
+			rc = bnxt_close_nic(bp, false, false);
+			if (!rc)
+				rc = bnxt_open_nic(bp, false, false);
 		} else {
 			bnxt_ptp_cfg_tstamp_filters(bp);
 		}

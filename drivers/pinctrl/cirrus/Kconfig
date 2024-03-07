@@ -1,8 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_LOCHNAGAR
 	tristate "Cirrus Logic Lochnagar pinctrl driver"
-	# Avoid clash caused by MIPS defining RST, which is used in the driver
-	depends on MFD_LOCHNAGAR && !MIPS
+	depends on MFD_LOCHNAGAR
 	select GPIOLIB
 	select PINMUX
 	select PINCONF

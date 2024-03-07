@@ -24,8 +24,8 @@
 
 static int kvmclock __initdata = 1;
 static int kvmclock_vsyscall __initdata = 1;
-static int msr_kvm_system_time __ro_after_init;
-static int msr_kvm_wall_clock __ro_after_init;
+static int msr_kvm_system_time __ro_after_init = MSR_KVM_SYSTEM_TIME;
+static int msr_kvm_wall_clock __ro_after_init = MSR_KVM_WALL_CLOCK;
 static u64 kvm_sched_clock_offset __ro_after_init;
 
 static int __init parse_no_kvmclock(char *arg)
@@ -195,8 +195,7 @@ static void kvm_setup_secondary_clock(void)
 
 void kvmclock_disable(void)
 {
-	if (msr_kvm_system_time)
-		native_write_msr(msr_kvm_system_time, 0, 0);
+	native_write_msr(msr_kvm_system_time, 0, 0);
 }
 
 static void __init kvmclock_init_mem(void)
@@ -295,10 +294,7 @@ void __init kvmclock_init(void)
 	if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE2)) {
 		msr_kvm_system_time = MSR_KVM_SYSTEM_TIME_NEW;
 		msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK_NEW;
-	} else if (kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE)) {
-		msr_kvm_system_time = MSR_KVM_SYSTEM_TIME;
-		msr_kvm_wall_clock = MSR_KVM_WALL_CLOCK;
-	} else {
+	} else if (!kvm_para_has_feature(KVM_FEATURE_CLOCKSOURCE)) {
 		return;
 	}
 

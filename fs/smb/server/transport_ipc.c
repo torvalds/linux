@@ -229,7 +229,7 @@ static struct ksmbd_ipc_msg *ipc_msg_alloc(size_t sz)
 	struct ksmbd_ipc_msg *msg;
 	size_t msg_sz = sz + sizeof(struct ksmbd_ipc_msg);
 
-	msg = kvzalloc(msg_sz, GFP_KERNEL);
+	msg = kvmalloc(msg_sz, GFP_KERNEL | __GFP_ZERO);
 	if (msg)
 		msg->sz = sz;
 	return msg;
@@ -268,7 +268,7 @@ static int handle_response(int type, void *payload, size_t sz)
 			       entry->type + 1, type);
 		}
 
-		entry->response = kvzalloc(sz, GFP_KERNEL);
+		entry->response = kvmalloc(sz, GFP_KERNEL | __GFP_ZERO);
 		if (!entry->response) {
 			ret = -ENOMEM;
 			break;

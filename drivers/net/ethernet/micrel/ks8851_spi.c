@@ -287,18 +287,6 @@ static void ks8851_wrfifo_spi(struct ks8851_net *ks, struct sk_buff *txp,
 }
 
 /**
- * calc_txlen - calculate size of message to send packet
- * @len: Length of data
- *
- * Returns the size of the TXFIFO message needed to send
- * this packet.
- */
-static unsigned int calc_txlen(unsigned int len)
-{
-	return ALIGN(len + 4, 4);
-}
-
-/**
  * ks8851_rx_skb_spi - receive skbuff
  * @ks: The device state
  * @skb: The skbuff
@@ -317,9 +305,7 @@ static void ks8851_rx_skb_spi(struct ks8851_net *ks, struct sk_buff *skb)
  */
 static void ks8851_tx_work(struct work_struct *work)
 {
-	unsigned int dequeued_len = 0;
 	struct ks8851_net_spi *kss;
-	unsigned short tx_space;
 	struct ks8851_net *ks;
 	unsigned long flags;
 	struct sk_buff *txb;
@@ -336,8 +322,6 @@ static void ks8851_tx_work(struct work_struct *work)
 		last = skb_queue_empty(&ks->txq);
 
 		if (txb) {
-			dequeued_len += calc_txlen(txb->len);
-
 			ks8851_wrreg16_spi(ks, KS_RXQCR,
 					   ks->rc_rxqcr | RXQCR_SDA);
 			ks8851_wrfifo_spi(ks, txb, last);
@@ -347,13 +331,6 @@ static void ks8851_tx_work(struct work_struct *work)
 			ks8851_done_tx(ks, txb);
 		}
 	}
-
-	tx_space = ks8851_rdreg16_spi(ks, KS_TXMIR);
-
-	spin_lock(&ks->statelock);
-	ks->queued_len -= dequeued_len;
-	ks->tx_space = tx_space;
-	spin_unlock(&ks->statelock);
 
 	ks8851_unlock_spi(ks, &flags);
 }
@@ -367,6 +344,18 @@ static void ks8851_flush_tx_work_spi(struct ks8851_net *ks)
 	struct ks8851_net_spi *kss = to_ks8851_spi(ks);
 
 	flush_work(&kss->tx_work);
+}
+
+/**
+ * calc_txlen - calculate size of message to send packet
+ * @len: Length of data
+ *
+ * Returns the size of the TXFIFO message needed to send
+ * this packet.
+ */
+static unsigned int calc_txlen(unsigned int len)
+{
+	return ALIGN(len + 4, 4);
 }
 
 /**
@@ -397,17 +386,16 @@ static netdev_tx_t ks8851_start_xmit_spi(struct sk_buff *skb,
 
 	spin_lock(&ks->statelock);
 
-	if (ks->queued_len + needed > ks->tx_space) {
+	if (needed > ks->tx_space) {
 		netif_stop_queue(dev);
 		ret = NETDEV_TX_BUSY;
 	} else {
-		ks->queued_len += needed;
+		ks->tx_space -= needed;
 		skb_queue_tail(&ks->txq, skb);
 	}
 
 	spin_unlock(&ks->statelock);
-	if (ret == NETDEV_TX_OK)
-		schedule_work(&kss->tx_work);
+	schedule_work(&kss->tx_work);
 
 	return ret;
 }

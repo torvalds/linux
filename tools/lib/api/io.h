@@ -9,7 +9,6 @@
 
 #include <stdlib.h>
 #include <unistd.h>
-#include <linux/types.h>
 
 struct io {
 	/* File descriptor being read/ */

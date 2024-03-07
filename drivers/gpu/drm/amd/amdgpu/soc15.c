@@ -1411,11 +1411,9 @@ static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 	if (amdgpu_sriov_vf(adev))
 		*flags = 0;
 
-	if (adev->nbio.funcs && adev->nbio.funcs->get_clockgating_state)
-		adev->nbio.funcs->get_clockgating_state(adev, flags);
+	adev->nbio.funcs->get_clockgating_state(adev, flags);
 
-	if (adev->hdp.funcs && adev->hdp.funcs->get_clock_gating_state)
-		adev->hdp.funcs->get_clock_gating_state(adev, flags);
+	adev->hdp.funcs->get_clock_gating_state(adev, flags);
 
 	if (adev->ip_versions[MP0_HWIP][0] != IP_VERSION(13, 0, 2)) {
 
@@ -1431,11 +1429,9 @@ static void soc15_common_get_clockgating_state(void *handle, u64 *flags)
 	}
 
 	/* AMD_CG_SUPPORT_ROM_MGCG */
-	if (adev->smuio.funcs && adev->smuio.funcs->get_clock_gating_state)
-		adev->smuio.funcs->get_clock_gating_state(adev, flags);
+	adev->smuio.funcs->get_clock_gating_state(adev, flags);
 
-	if (adev->df.funcs && adev->df.funcs->get_clockgating_state)
-		adev->df.funcs->get_clockgating_state(adev, flags);
+	adev->df.funcs->get_clockgating_state(adev, flags);
 }
 
 static int soc15_common_set_powergating_state(void *handle,

@@ -21,10 +21,6 @@ MODULE_DESCRIPTION("HID driver for Glorious PC Gaming Race mice");
  * Glorious Model O and O- specify the const flag in the consumer input
  * report descriptor, which leads to inputs being ignored. Fix this
  * by patching the descriptor.
- *
- * Glorious Model I incorrectly specifes the Usage Minimum for its
- * keyboard HID report, causing keycodes to be misinterpreted.
- * Fix this by setting Usage Minimum to 0 in that report.
  */
 static __u8 *glorious_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		unsigned int *rsize)
@@ -35,10 +31,6 @@ static __u8 *glorious_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 		hid_info(hdev, "patching Glorious Model O consumer control report descriptor\n");
 		rdesc[85] = rdesc[113] = rdesc[141] = \
 			HID_MAIN_ITEM_VARIABLE | HID_MAIN_ITEM_RELATIVE;
-	}
-	if (*rsize == 156 && rdesc[41] == 1) {
-		hid_info(hdev, "patching Glorious Model I keyboard report descriptor\n");
-		rdesc[41] = 0;
 	}
 	return rdesc;
 }
@@ -52,8 +44,6 @@ static void glorious_update_name(struct hid_device *hdev)
 		model = "Model O"; break;
 	case USB_DEVICE_ID_GLORIOUS_MODEL_D:
 		model = "Model D"; break;
-	case USB_DEVICE_ID_GLORIOUS_MODEL_I:
-		model = "Model I"; break;
 	}
 
 	snprintf(hdev->name, sizeof(hdev->name), "%s %s", "Glorious", model);
@@ -76,12 +66,10 @@ static int glorious_probe(struct hid_device *hdev,
 }
 
 static const struct hid_device_id glorious_devices[] = {
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SINOWEALTH,
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLORIOUS,
 		USB_DEVICE_ID_GLORIOUS_MODEL_O) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_SINOWEALTH,
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GLORIOUS,
 		USB_DEVICE_ID_GLORIOUS_MODEL_D) },
-	{ HID_USB_DEVICE(USB_VENDOR_ID_LAVIEW,
-		USB_DEVICE_ID_GLORIOUS_MODEL_I) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, glorious_devices);

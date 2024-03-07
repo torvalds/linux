@@ -580,8 +580,6 @@ retry:
 		nfs4_delete_deviceid(node->ld, node->nfs_client, id);
 		goto retry;
 	}
-
-	nfs4_put_deviceid_node(node);
 	return ERR_PTR(-ENODEV);
 }
 
@@ -895,9 +893,10 @@ bl_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *req)
 	}
 
 	if (pgio->pg_dreq == NULL)
-		wb_size = pnfs_num_cont_bytes(pgio->pg_inode, req->wb_index);
+		wb_size = pnfs_num_cont_bytes(pgio->pg_inode,
+					      req->wb_index);
 	else
-		wb_size = nfs_dreq_bytes_left(pgio->pg_dreq, req_offset(req));
+		wb_size = nfs_dreq_bytes_left(pgio->pg_dreq);
 
 	pnfs_generic_pg_init_write(pgio, req, wb_size);
 

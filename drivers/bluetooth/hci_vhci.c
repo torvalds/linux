@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <asm/unaligned.h>
 
-#include <linux/atomic.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -45,7 +44,6 @@ struct vhci_data {
 	bool wakeup;
 	__u16 msft_opcode;
 	bool aosp_capable;
-	atomic_t initialized;
 };
 
 static int vhci_open_dev(struct hci_dev *hdev)
@@ -77,10 +75,11 @@ static int vhci_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
+	mutex_lock(&data->open_mutex);
 	skb_queue_tail(&data->readq, skb);
+	mutex_unlock(&data->open_mutex);
 
-	if (atomic_read(&data->initialized))
-		wake_up_interruptible(&data->read_wait);
+	wake_up_interruptible(&data->read_wait);
 	return 0;
 }
 
@@ -364,8 +363,7 @@ static int __vhci_create_device(struct vhci_data *data, __u8 opcode)
 	skb_put_u8(skb, 0xff);
 	skb_put_u8(skb, opcode);
 	put_unaligned_le16(hdev->id, skb_put(skb, 2));
-	skb_queue_head(&data->readq, skb);
-	atomic_inc(&data->initialized);
+	skb_queue_tail(&data->readq, skb);
 
 	wake_up_interruptible(&data->read_wait);
 	return 0;

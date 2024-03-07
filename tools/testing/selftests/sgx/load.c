@@ -136,11 +136,11 @@ static bool encl_ioc_add_pages(struct encl *encl, struct encl_segment *seg)
  */
 uint64_t encl_get_entry(struct encl *encl, const char *symbol)
 {
-	Elf64_Sym *symtab = NULL;
-	char *sym_names = NULL;
 	Elf64_Shdr *sections;
+	Elf64_Sym *symtab;
 	Elf64_Ehdr *ehdr;
-	int num_sym = 0;
+	char *sym_names;
+	int num_sym;
 	int i;
 
 	ehdr = encl->bin;
@@ -160,9 +160,6 @@ uint64_t encl_get_entry(struct encl *encl, const char *symbol)
 			break;
 		}
 	}
-
-	if (!symtab || !sym_names)
-		return 0;
 
 	for (i = 0; i < num_sym; i++) {
 		Elf64_Sym *sym = &symtab[i];

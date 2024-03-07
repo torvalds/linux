@@ -429,6 +429,8 @@ static void qh_lines(struct fotg210_hcd *fotg210, struct fotg210_qh *qh,
 			temp = size;
 		size -= temp;
 		next += temp;
+		if (temp == size)
+			goto done;
 	}
 
 	temp = snprintf(next, size, "\n");
@@ -438,6 +440,7 @@ static void qh_lines(struct fotg210_hcd *fotg210, struct fotg210_qh *qh,
 	size -= temp;
 	next += temp;
 
+done:
 	*sizep = size;
 	*nextp = next;
 }

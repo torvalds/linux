@@ -116,8 +116,6 @@ vdso_install:
 
 all:	$(notdir $(KBUILD_IMAGE))
 
-vmlinuz.efi: vmlinux.efi
-
 vmlinux.elf vmlinux.efi vmlinuz.efi: vmlinux
 	$(Q)$(MAKE) $(build)=$(boot) $(bootvars-y) $(boot)/$@
 

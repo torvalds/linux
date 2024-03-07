@@ -742,9 +742,9 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 				max(totlen_src, totlen_dst));
 			return -EINVAL;
 		}
-		if (sreq->nr_src > 0 &&
-		    !dma_map_sg(priv->dev, src, sreq->nr_src, DMA_BIDIRECTIONAL))
-			return -EIO;
+		if (sreq->nr_src > 0)
+			dma_map_sg(priv->dev, src, sreq->nr_src,
+				   DMA_BIDIRECTIONAL);
 	} else {
 		if (unlikely(totlen_src && (sreq->nr_src <= 0))) {
 			dev_err(priv->dev, "Source buffer not large enough (need %d bytes)!",
@@ -752,9 +752,8 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			return -EINVAL;
 		}
 
-		if (sreq->nr_src > 0 &&
-		    !dma_map_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE))
-			return -EIO;
+		if (sreq->nr_src > 0)
+			dma_map_sg(priv->dev, src, sreq->nr_src, DMA_TO_DEVICE);
 
 		if (unlikely(totlen_dst && (sreq->nr_dst <= 0))) {
 			dev_err(priv->dev, "Dest buffer not large enough (need %d bytes)!",
@@ -763,11 +762,9 @@ static int safexcel_send_req(struct crypto_async_request *base, int ring,
 			goto unmap;
 		}
 
-		if (sreq->nr_dst > 0 &&
-		    !dma_map_sg(priv->dev, dst, sreq->nr_dst, DMA_FROM_DEVICE)) {
-			ret = -EIO;
-			goto unmap;
-		}
+		if (sreq->nr_dst > 0)
+			dma_map_sg(priv->dev, dst, sreq->nr_dst,
+				   DMA_FROM_DEVICE);
 	}
 
 	memcpy(ctx->base.ctxr->data, ctx->key, ctx->key_len);

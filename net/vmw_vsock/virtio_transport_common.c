@@ -358,8 +358,6 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 	struct virtio_vsock_sock *vvs = vsk->trans;
 	struct virtio_vsock_pkt *pkt;
 	size_t bytes, total = 0;
-	u32 fwd_cnt_delta;
-	bool low_rx_bytes;
 	u32 free_space;
 	int err = -EFAULT;
 
@@ -392,10 +390,7 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 		}
 	}
 
-	fwd_cnt_delta = vvs->fwd_cnt - vvs->last_fwd_cnt;
-	free_space = vvs->buf_alloc - fwd_cnt_delta;
-	low_rx_bytes = (vvs->rx_bytes <
-			sock_rcvlowat(sk_vsock(vsk), 0, INT_MAX));
+	free_space = vvs->buf_alloc - (vvs->fwd_cnt - vvs->last_fwd_cnt);
 
 	spin_unlock_bh(&vvs->rx_lock);
 
@@ -405,11 +400,9 @@ virtio_transport_stream_do_dequeue(struct vsock_sock *vsk,
 	 * too high causes extra messages. Too low causes transmitter
 	 * stalls. As stalls are in theory more expensive than extra
 	 * messages, we set the limit to a high value. TODO: experiment
-	 * with different values. Also send credit update message when
-	 * number of bytes in rx queue is not enough to wake up reader.
+	 * with different values.
 	 */
-	if (fwd_cnt_delta &&
-	    (free_space < VIRTIO_VSOCK_MAX_PKT_BUF_SIZE || low_rx_bytes))
+	if (free_space < VIRTIO_VSOCK_MAX_PKT_BUF_SIZE)
 		virtio_transport_send_credit_update(vsk);
 
 	return total;
@@ -576,7 +569,7 @@ static s64 virtio_transport_has_space(struct vsock_sock *vsk)
 	struct virtio_vsock_sock *vvs = vsk->trans;
 	s64 bytes;
 
-	bytes = (s64)vvs->peer_buf_alloc - (vvs->tx_cnt - vvs->peer_fwd_cnt);
+	bytes = vvs->peer_buf_alloc - (vvs->tx_cnt - vvs->peer_fwd_cnt);
 	if (bytes < 0)
 		bytes = 0;
 

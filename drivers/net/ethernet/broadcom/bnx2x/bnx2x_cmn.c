@@ -1923,7 +1923,8 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb,
 
 		/* Skip VLAN tag if present */
 		if (ether_type == ETH_P_8021Q) {
-			struct vlan_ethhdr *vhdr = skb_vlan_eth_hdr(skb);
+			struct vlan_ethhdr *vhdr =
+				(struct vlan_ethhdr *)skb->data;
 
 			ether_type = ntohs(vhdr->h_vlan_encapsulated_proto);
 		}

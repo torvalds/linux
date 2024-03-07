@@ -65,7 +65,8 @@ static bool page_cache_pipe_buf_try_steal(struct pipe_inode_info *pipe,
 		 */
 		folio_wait_writeback(folio);
 
-		if (!filemap_release_folio(folio, GFP_KERNEL))
+		if (folio_has_private(folio) &&
+		    !filemap_release_folio(folio, GFP_KERNEL))
 			goto out_unlock;
 
 		/*

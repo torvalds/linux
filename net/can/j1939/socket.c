@@ -974,7 +974,6 @@ static void __j1939_sk_errqueue(struct j1939_session *session, struct sock *sk,
 	struct sock_exterr_skb *serr;
 	struct sk_buff *skb;
 	char *state = "UNK";
-	u32 tsflags;
 	int err;
 
 	jsk = j1939_sk(sk);
@@ -982,14 +981,13 @@ static void __j1939_sk_errqueue(struct j1939_session *session, struct sock *sk,
 	if (!(jsk->state & J1939_SOCK_ERRQUEUE))
 		return;
 
-	tsflags = READ_ONCE(sk->sk_tsflags);
 	switch (type) {
 	case J1939_ERRQUEUE_TX_ACK:
-		if (!(tsflags & SOF_TIMESTAMPING_TX_ACK))
+		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_ACK))
 			return;
 		break;
 	case J1939_ERRQUEUE_TX_SCHED:
-		if (!(tsflags & SOF_TIMESTAMPING_TX_SCHED))
+		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_TX_SCHED))
 			return;
 		break;
 	case J1939_ERRQUEUE_TX_ABORT:
@@ -999,7 +997,7 @@ static void __j1939_sk_errqueue(struct j1939_session *session, struct sock *sk,
 	case J1939_ERRQUEUE_RX_DPO:
 		fallthrough;
 	case J1939_ERRQUEUE_RX_ABORT:
-		if (!(tsflags & SOF_TIMESTAMPING_RX_SOFTWARE))
+		if (!(sk->sk_tsflags & SOF_TIMESTAMPING_RX_SOFTWARE))
 			return;
 		break;
 	default:
@@ -1056,7 +1054,7 @@ static void __j1939_sk_errqueue(struct j1939_session *session, struct sock *sk,
 	}
 
 	serr->opt_stats = true;
-	if (tsflags & SOF_TIMESTAMPING_OPT_ID)
+	if (sk->sk_tsflags & SOF_TIMESTAMPING_OPT_ID)
 		serr->ee.ee_data = session->tskey;
 
 	netdev_dbg(session->priv->ndev, "%s: 0x%p tskey: %i, state: %s\n",

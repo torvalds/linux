@@ -186,7 +186,7 @@ SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_MONOMIX, 0, 1, 0),
 
 /* Boost mixer */
 static const struct snd_kcontrol_new wm8974_boost_mixer[] = {
-SOC_DAPM_SINGLE("PGA Switch", WM8974_INPPGA, 6, 1, 1),
+SOC_DAPM_SINGLE("Aux Switch", WM8974_INPPGA, 6, 1, 1),
 };
 
 /* Input PGA */
@@ -246,8 +246,8 @@ static const struct snd_soc_dapm_route wm8974_dapm_routes[] = {
 
 	/* Boost Mixer */
 	{"ADC", NULL, "Boost Mixer"},
-	{"Boost Mixer", NULL, "Aux Input"},
-	{"Boost Mixer", "PGA Switch", "Input PGA"},
+	{"Boost Mixer", "Aux Switch", "Aux Input"},
+	{"Boost Mixer", NULL, "Input PGA"},
 	{"Boost Mixer", NULL, "MICP"},
 
 	/* Input PGA */

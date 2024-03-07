@@ -744,15 +744,14 @@ error_1:
  * sdw_ml_sync_bank_switch: Multilink register bank switch
  *
  * @bus: SDW bus instance
- * @multi_link: whether this is a multi-link stream with hardware-based sync
  *
  * Caller function should free the buffers on error
  */
-static int sdw_ml_sync_bank_switch(struct sdw_bus *bus, bool multi_link)
+static int sdw_ml_sync_bank_switch(struct sdw_bus *bus)
 {
 	unsigned long time_left;
 
-	if (!multi_link)
+	if (!bus->multi_link)
 		return 0;
 
 	/* Wait for completion of transfer */
@@ -849,7 +848,7 @@ static int do_bank_switch(struct sdw_stream_runtime *stream)
 			bus->bank_switch_timeout = DEFAULT_BANK_SWITCH_TIMEOUT;
 
 		/* Check if bank switch was successful */
-		ret = sdw_ml_sync_bank_switch(bus, multi_link);
+		ret = sdw_ml_sync_bank_switch(bus);
 		if (ret < 0) {
 			dev_err(bus->dev,
 				"multi link bank switch failed: %d\n", ret);

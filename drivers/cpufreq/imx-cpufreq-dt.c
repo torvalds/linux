@@ -89,7 +89,7 @@ static int imx_cpufreq_dt_probe(struct platform_device *pdev)
 
 	cpu_dev = get_cpu_device(0);
 
-	if (!of_property_present(cpu_dev->of_node, "cpu-supply"))
+	if (!of_find_property(cpu_dev->of_node, "cpu-supply", NULL))
 		return -ENODEV;
 
 	if (of_machine_is_compatible("fsl,imx7ulp")) {

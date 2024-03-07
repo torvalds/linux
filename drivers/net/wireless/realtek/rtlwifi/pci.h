@@ -236,6 +236,11 @@ struct mp_adapter {
 	u16 pcibridge_vendorid;
 	u16 pcibridge_deviceid;
 
+	u8 num4bytes;
+
+	u8 pcibridge_pciehdr_offset;
+	u8 pcibridge_linkctrlreg;
+
 	bool amd_l1_patch;
 };
 
