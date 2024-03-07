@@ -91,8 +91,8 @@ struct chsc_scssc_area {
 	u16:16;
 	u32:32;
 	u32:32;
-	u64 summary_indicator_addr;
-	u64 subchannel_indicator_addr;
+	dma64_t summary_indicator_addr;
+	dma64_t subchannel_indicator_addr;
 	u32 ks:4;
 	u32 kc:4;
 	u32:21;
