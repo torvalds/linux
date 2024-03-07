@@ -4475,6 +4475,11 @@
 			#thermal-sensor-cells = <1>;
 		};
 
+		restart@c264000 {
+			compatible = "qcom,pshold";
+			reg = <0 0x0c264000 0 0x4>;
+		};
+
 		tsens1: thermal-sensor@c265000 {
 			compatible = "qcom,sc8280xp-tsens", "qcom,tsens-v2";
 			reg = <0 0x0c265000 0 0x1ff>, /* TM */
