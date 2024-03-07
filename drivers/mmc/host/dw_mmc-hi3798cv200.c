@@ -87,7 +87,6 @@ static int dw_mci_hi3798cv200_execute_tuning(struct dw_mci_slot *slot,
 			goto tuning_out;
 
 		prev_err = err;
-		err = 0;
 	}
 
 tuning_out:
