@@ -207,6 +207,21 @@ int cmdq_pkt_mem_move(struct cmdq_pkt *pkt, dma_addr_t src_addr, dma_addr_t dst_
 int cmdq_pkt_wfe(struct cmdq_pkt *pkt, u16 event, bool clear);
 
 /**
+ * cmdq_pkt_acquire_event() - append acquire event command to the CMDQ packet
+ * @pkt:	the CMDQ packet
+ * @event:	the desired event to be acquired
+ *
+ * User can use cmdq_pkt_acquire_event() as `mutex_lock` and cmdq_pkt_clear_event()
+ * as `mutex_unlock` to protect some `critical section` instructions between them.
+ * cmdq_pkt_acquire_event() would wait for event to be cleared.
+ * After event is cleared by cmdq_pkt_clear_event in other GCE threads,
+ * cmdq_pkt_acquire_event() would set event and keep executing next instruction.
+ *
+ * Return: 0 for success; else the error code is returned
+ */
+int cmdq_pkt_acquire_event(struct cmdq_pkt *pkt, u16 event);
+
+/**
  * cmdq_pkt_clear_event() - append clear event command to the CMDQ packet
  * @pkt:	the CMDQ packet
  * @event:	the desired event to be cleared
