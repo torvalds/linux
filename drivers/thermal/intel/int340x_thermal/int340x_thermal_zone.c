@@ -58,7 +58,8 @@ static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
 
 static void int340x_thermal_critical(struct thermal_zone_device *zone)
 {
-	dev_dbg(&zone->device, "%s: critical temperature reached\n", zone->type);
+	dev_dbg(thermal_zone_device(zone), "%s: critical temperature reached\n",
+		thermal_zone_device_type(zone));
 }
 
 static inline void *int_to_trip_priv(int i)
