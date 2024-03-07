@@ -81,15 +81,6 @@ bool io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	struct io_buffer_list *bl;
 	struct io_buffer *buf;
 
-	/*
-	 * For legacy provided buffer mode, don't recycle if we already did
-	 * IO to this buffer. For ring-mapped provided buffer mode, we should
-	 * increment ring->head to explicitly monopolize the buffer to avoid
-	 * multiple use.
-	 */
-	if (req->flags & REQ_F_PARTIAL_IO)
-		return false;
-
 	io_ring_submit_lock(ctx, issue_flags);
 
 	buf = req->kbuf;

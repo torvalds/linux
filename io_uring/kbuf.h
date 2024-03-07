@@ -73,21 +73,9 @@ static inline bool io_kbuf_recycle_ring(struct io_kiocb *req)
 	 * to monopolize the buffer.
 	 */
 	if (req->buf_list) {
-		if (req->flags & REQ_F_PARTIAL_IO) {
-			/*
-			 * If we end up here, then the io_uring_lock has
-			 * been kept held since we retrieved the buffer.
-			 * For the io-wq case, we already cleared
-			 * req->buf_list when the buffer was retrieved,
-			 * hence it cannot be set here for that case.
-			 */
-			req->buf_list->head++;
-			req->buf_list = NULL;
-		} else {
-			req->buf_index = req->buf_list->bgid;
-			req->flags &= ~REQ_F_BUFFER_RING;
-			return true;
-		}
+		req->buf_index = req->buf_list->bgid;
+		req->flags &= ~REQ_F_BUFFER_RING;
+		return true;
 	}
 	return false;
 }
@@ -101,6 +89,8 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 
 static inline bool io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 {
+	if (req->flags & REQ_F_BL_NO_RECYCLE)
+		return false;
 	if (req->flags & REQ_F_BUFFER_SELECTED)
 		return io_kbuf_recycle_legacy(req, issue_flags);
 	if (req->flags & REQ_F_BUFFER_RING)
