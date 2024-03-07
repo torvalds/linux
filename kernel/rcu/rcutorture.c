@@ -467,7 +467,7 @@ rcu_torture_pipe_update_one(struct rcu_torture *rp)
 	atomic_inc(&rcu_torture_wcount[i]);
 	WRITE_ONCE(rp->rtort_pipe_count, i + 1);
 	ASSERT_EXCLUSIVE_WRITER(rp->rtort_pipe_count);
-	if (rp->rtort_pipe_count >= RCU_TORTURE_PIPE_LEN) {
+	if (i + 1 >= RCU_TORTURE_PIPE_LEN) {
 		rp->rtort_mbtest = 0;
 		return true;
 	}
