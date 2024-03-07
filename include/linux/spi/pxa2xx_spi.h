@@ -17,7 +17,7 @@ struct dma_chan;
  * (resides in device.platform_data).
  */
 struct pxa2xx_spi_controller {
-	u16 num_chipselect;
+	u8 num_chipselect;
 	u8 enable_dma;
 	u8 dma_burst_size;
 	bool is_target;
