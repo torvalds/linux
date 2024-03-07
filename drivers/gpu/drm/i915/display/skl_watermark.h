@@ -65,7 +65,9 @@ struct intel_dbuf_state {
 struct intel_dbuf_state *
 intel_atomic_get_dbuf_state(struct intel_atomic_state *state);
 
-#define to_intel_dbuf_state(x) container_of((x), struct intel_dbuf_state, base)
+#define to_intel_dbuf_state(global_state) \
+	container_of_const((global_state), struct intel_dbuf_state, base)
+
 #define intel_atomic_get_old_dbuf_state(state) \
 	to_intel_dbuf_state(intel_atomic_get_old_global_obj_state(state, &to_i915(state->base.dev)->display.dbuf.obj))
 #define intel_atomic_get_new_dbuf_state(state) \

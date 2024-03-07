@@ -52,7 +52,8 @@ struct intel_bw_state {
 	u8 num_active_planes[I915_MAX_PIPES];
 };
 
-#define to_intel_bw_state(x) container_of((x), struct intel_bw_state, base)
+#define to_intel_bw_state(global_state) \
+	container_of_const((global_state), struct intel_bw_state, base)
 
 struct intel_bw_state *
 intel_atomic_get_old_bw_state(struct intel_atomic_state *state);

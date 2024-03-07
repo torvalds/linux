@@ -80,7 +80,9 @@ int intel_cdclk_state_set_joined_mbus(struct intel_atomic_state *state, bool joi
 struct intel_cdclk_state *
 intel_atomic_get_cdclk_state(struct intel_atomic_state *state);
 
-#define to_intel_cdclk_state(x) container_of((x), struct intel_cdclk_state, base)
+#define to_intel_cdclk_state(global_state) \
+	container_of_const((global_state), struct intel_cdclk_state, base)
+
 #define intel_atomic_get_old_cdclk_state(state) \
 	to_intel_cdclk_state(intel_atomic_get_old_global_obj_state(state, &to_i915(state->base.dev)->display.cdclk.obj))
 #define intel_atomic_get_new_cdclk_state(state) \

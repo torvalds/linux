@@ -193,7 +193,7 @@ to_intel_sdvo_connector(struct drm_connector *connector)
 }
 
 #define to_intel_sdvo_connector_state(conn_state) \
-	container_of((conn_state), struct intel_sdvo_connector_state, base.base)
+	container_of_const((conn_state), struct intel_sdvo_connector_state, base.base)
 
 static bool
 intel_sdvo_output_setup(struct intel_sdvo *intel_sdvo);

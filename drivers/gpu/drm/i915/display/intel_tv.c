@@ -885,7 +885,8 @@ struct intel_tv_connector_state {
 	bool bypass_vfilter;
 };
 
-#define to_intel_tv_connector_state(x) container_of(x, struct intel_tv_connector_state, base)
+#define to_intel_tv_connector_state(conn_state) \
+	container_of_const((conn_state), struct intel_tv_connector_state, base)
 
 static struct drm_connector_state *
 intel_tv_connector_duplicate_state(struct drm_connector *connector)
