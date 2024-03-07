@@ -88,7 +88,8 @@ DECLARE_EVENT_CLASS(tcp_event_sk_skb,
 			      sk->sk_v6_rcv_saddr, sk->sk_v6_daddr);
 	),
 
-	TP_printk("family=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c state=%s",
+	TP_printk("skbaddr=%p skaddr=%p family=%s sport=%hu dport=%hu saddr=%pI4 daddr=%pI4 saddrv6=%pI6c daddrv6=%pI6c state=%s",
+		  __entry->skbaddr, __entry->skaddr,
 		  show_family_name(__entry->family),
 		  __entry->sport, __entry->dport, __entry->saddr, __entry->daddr,
 		  __entry->saddr_v6, __entry->daddr_v6,
@@ -361,7 +362,8 @@ DECLARE_EVENT_CLASS(tcp_event_skb,
 		TP_STORE_ADDR_PORTS_SKB(__entry, skb);
 	),
 
-	TP_printk("src=%pISpc dest=%pISpc", __entry->saddr, __entry->daddr)
+	TP_printk("skbaddr=%p src=%pISpc dest=%pISpc",
+		  __entry->skbaddr, __entry->saddr, __entry->daddr)
 );
 
 DEFINE_EVENT(tcp_event_skb, tcp_bad_csum,
