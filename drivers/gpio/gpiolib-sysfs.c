@@ -593,7 +593,7 @@ int gpiod_export(struct gpio_desc *desc, bool direction_may_change)
 	if (!guard.gc)
 		return -ENODEV;
 
-	if (!test_and_set_bit(FLAG_EXPORT, &desc->flags))
+	if (test_and_set_bit(FLAG_EXPORT, &desc->flags))
 		return -EPERM;
 
 	gdev = desc->gdev;
