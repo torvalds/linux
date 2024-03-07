@@ -34,6 +34,17 @@ The repo also contains additional userspace tools which can be used to
 inspect a vdo target's on-disk metadata. Fortunately, these tools are
 rarely needed except by dm-vdo developers.
 
+Metadata requirements
+=====================
+
+Each vdo volume reserves 3GB of space for metadata, or more depending on
+its configuration. It is helpful to check that the space saved by
+deduplication and compression is not cancelled out by the metadata
+requirements. An estimation of the space saved for a specific dataset can
+be computed with the vdo estimator tool, which is available at:
+
+https://github.com/dm-vdo/vdoestimator/
+
 Target interface
 ================
 
