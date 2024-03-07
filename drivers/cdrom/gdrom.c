@@ -831,7 +831,7 @@ probe_fail_no_mem:
 	return err;
 }
 
-static int remove_gdrom(struct platform_device *devptr)
+static void remove_gdrom(struct platform_device *devptr)
 {
 	blk_mq_free_tag_set(&gd.tag_set);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);
@@ -842,13 +842,11 @@ static int remove_gdrom(struct platform_device *devptr)
 	unregister_cdrom(gd.cd_info);
 	kfree(gd.cd_info);
 	kfree(gd.toc);
-
-	return 0;
 }
 
 static struct platform_driver gdrom_driver = {
 	.probe = probe_gdrom,
-	.remove = remove_gdrom,
+	.remove_new = remove_gdrom,
 	.driver = {
 			.name = GDROM_DEV_NAME,
 	},
