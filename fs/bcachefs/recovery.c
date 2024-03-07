@@ -950,7 +950,7 @@ use_clean:
 			bch2_journal_seq_blacklist_add(c,
 					blacklist_seq, journal_seq);
 		if (ret) {
-			bch_err(c, "error creating new journal seq blacklist entry");
+			bch_err_msg(c, ret, "error creating new journal seq blacklist entry");
 			goto err;
 		}
 	}
