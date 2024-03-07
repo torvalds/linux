@@ -120,10 +120,8 @@ static ssize_t xe_devcoredump_read(char *buffer, loff_t offset,
 		if (coredump->snapshot.hwe[i])
 			xe_hw_engine_snapshot_print(coredump->snapshot.hwe[i],
 						    &p);
-	if (coredump->snapshot.vm) {
-		drm_printf(&p, "\n**** VM state ****\n");
-		xe_vm_snapshot_print(coredump->snapshot.vm, &p);
-	}
+	drm_printf(&p, "\n**** VM state ****\n");
+	xe_vm_snapshot_print(coredump->snapshot.vm, &p);
 
 	return count - iter.remain;
 }
