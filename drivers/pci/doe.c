@@ -383,11 +383,13 @@ static void pci_doe_task_complete(struct pci_doe_task *task)
 	complete(task->private);
 }
 
-static int pci_doe_discovery(struct pci_doe_mb *doe_mb, u8 *index, u16 *vid,
+static int pci_doe_discovery(struct pci_doe_mb *doe_mb, u8 capver, u8 *index, u16 *vid,
 			     u8 *protocol)
 {
 	u32 request_pl = FIELD_PREP(PCI_DOE_DATA_OBJECT_DISC_REQ_3_INDEX,
-				    *index);
+				    *index) |
+			 FIELD_PREP(PCI_DOE_DATA_OBJECT_DISC_REQ_3_VER,
+				    (capver >= 2) ? 2 : 0);
 	__le32 request_pl_le = cpu_to_le32(request_pl);
 	__le32 response_pl_le;
 	u32 response_pl;
@@ -421,13 +423,17 @@ static int pci_doe_cache_protocols(struct pci_doe_mb *doe_mb)
 {
 	u8 index = 0;
 	u8 xa_idx = 0;
+	u32 hdr = 0;
+
+	pci_read_config_dword(doe_mb->pdev, doe_mb->cap_offset, &hdr);
 
 	do {
 		int rc;
 		u16 vid;
 		u8 prot;
 
-		rc = pci_doe_discovery(doe_mb, &index, &vid, &prot);
+		rc = pci_doe_discovery(doe_mb, PCI_EXT_CAP_VER(hdr), &index,
+				       &vid, &prot);
 		if (rc)
 			return rc;
 
