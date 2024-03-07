@@ -23,7 +23,8 @@ config LEDS_AS3645A
 config LEDS_KTD2692
 	tristate "LED support for Kinetic KTD2692 flash LED controller"
 	depends on OF
-	depends on GPIOLIB || COMPILE_TEST
+	depends on GPIOLIB
+	select LEDS_EXPRESSWIRE
 	help
 	  This option enables support for Kinetic KTD2692 LED flash connected
 	  through ExpressWire interface.
