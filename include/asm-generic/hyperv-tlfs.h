@@ -818,6 +818,29 @@ struct hv_input_unmap_device_interrupt {
 #define HV_SOURCE_SHADOW_BRIDGE_BUS_RANGE   0x1
 
 /*
+ * Version info reported by hypervisor
+ */
+union hv_hypervisor_version_info {
+	struct {
+		u32 build_number;
+
+		u32 minor_version : 16;
+		u32 major_version : 16;
+
+		u32 service_pack;
+
+		u32 service_number : 24;
+		u32 service_branch : 8;
+	};
+	struct {
+		u32 eax;
+		u32 ebx;
+		u32 ecx;
+		u32 edx;
+	};
+};
+
+/*
  * The whole argument should fit in a page to be able to pass to the hypervisor
  * in one hypercall.
  */

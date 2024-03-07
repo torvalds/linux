@@ -278,6 +278,14 @@ static void hv_kmsg_dump_register(void)
 int __init hv_common_init(void)
 {
 	int i;
+	union hv_hypervisor_version_info version;
+
+	/* Get information about the Hyper-V host version */
+	if (!hv_get_hypervisor_version(&version))
+		pr_info("Hyper-V: Host Build %d.%d.%d.%d-%d-%d\n",
+			version.major_version, version.minor_version,
+			version.build_number, version.service_number,
+			version.service_pack, version.service_branch);
 
 	if (hv_is_isolation_supported())
 		sysctl_record_panic_msg = 0;
