@@ -985,10 +985,10 @@ static int phy_check_link_status(struct phy_device *phydev)
 		phydev->state = PHY_RUNNING;
 		err = genphy_c45_eee_is_active(phydev,
 					       NULL, NULL, NULL);
-		if (err < 0)
+		if (err <= 0)
 			phydev->enable_tx_lpi = false;
 		else
-			phydev->enable_tx_lpi = (err & phydev->eee_cfg.tx_lpi_enabled);
+			phydev->enable_tx_lpi = phydev->eee_cfg.tx_lpi_enabled;
 
 		phy_link_up(phydev);
 	} else if (!phydev->link && phydev->state != PHY_NOLINK) {
