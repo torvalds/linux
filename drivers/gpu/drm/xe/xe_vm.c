@@ -3458,12 +3458,15 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 	unsigned long i, j;
 
 	for (i = 0; i < snap->num_snaps; i++) {
-		if (IS_ERR(snap->snap[i].data))
-			goto uncaptured;
-
 		drm_printf(p, "[%llx].length: 0x%lx\n", snap->snap[i].ofs, snap->snap[i].len);
-		drm_printf(p, "[%llx].data: ",
-			   snap->snap[i].ofs);
+
+		if (IS_ERR(snap->snap[i].data)) {
+			drm_printf(p, "[%llx].error: %li\n", snap->snap[i].ofs,
+				   PTR_ERR(snap->snap[i].data));
+			continue;
+		}
+
+		drm_printf(p, "[%llx].data: ", snap->snap[i].ofs);
 
 		for (j = 0; j < snap->snap[i].len; j += sizeof(u32)) {
 			u32 *val = snap->snap[i].data + j;
@@ -3473,12 +3476,6 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 		}
 
 		drm_puts(p, "\n");
-		continue;
-
-uncaptured:
-		drm_printf(p, "Unable to capture range [%llx-%llx]: %li\n",
-			   snap->snap[i].ofs, snap->snap[i].ofs + snap->snap[i].len - 1,
-			   PTR_ERR(snap->snap[i].data));
 	}
 }
 
