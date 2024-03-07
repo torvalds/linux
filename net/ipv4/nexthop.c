@@ -3491,10 +3491,6 @@ static int rtm_dump_nexthop(struct sk_buff *skb, struct netlink_callback *cb)
 
 	err = rtm_dump_walk_nexthops(skb, cb, root, ctx,
 				     &rtm_dump_nexthop_cb, &filter);
-	if (err < 0) {
-		if (likely(skb->len))
-			err = skb->len;
-	}
 
 	cb->seq = net->nexthop.seq;
 	nl_dump_check_consistent(cb, nlmsg_hdr(skb));
@@ -3686,11 +3682,6 @@ static int rtm_dump_nexthop_bucket(struct sk_buff *skb,
 
 		err = rtm_dump_walk_nexthops(skb, cb, root, &ctx->nh,
 					     &rtm_dump_nexthop_bucket_cb, &dd);
-	}
-
-	if (err < 0) {
-		if (likely(skb->len))
-			err = skb->len;
 	}
 
 	cb->seq = net->nexthop.seq;
