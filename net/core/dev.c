@@ -9074,28 +9074,6 @@ bool netdev_port_same_parent_id(struct net_device *a, struct net_device *b)
 }
 EXPORT_SYMBOL(netdev_port_same_parent_id);
 
-static void netdev_dpll_pin_assign(struct net_device *dev, struct dpll_pin *dpll_pin)
-{
-#if IS_ENABLED(CONFIG_DPLL)
-	rtnl_lock();
-	rcu_assign_pointer(dev->dpll_pin, dpll_pin);
-	rtnl_unlock();
-#endif
-}
-
-void netdev_dpll_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin)
-{
-	WARN_ON(!dpll_pin);
-	netdev_dpll_pin_assign(dev, dpll_pin);
-}
-EXPORT_SYMBOL(netdev_dpll_pin_set);
-
-void netdev_dpll_pin_clear(struct net_device *dev)
-{
-	netdev_dpll_pin_assign(dev, NULL);
-}
-EXPORT_SYMBOL(netdev_dpll_pin_clear);
-
 /**
  *	dev_change_proto_down - set carrier according to proto_down.
  *

@@ -20207,8 +20207,8 @@ F:	Documentation/devicetree/bindings/net/socionext,uniphier-ave4.yaml
 F:	drivers/net/ethernet/socionext/sni_ave.c
 
 SOCIONEXT (SNI) NETSEC NETWORK DRIVER
-M:	Jassi Brar <jaswinder.singh@linaro.org>
 M:	Ilias Apalodimas <ilias.apalodimas@linaro.org>
+M:	Masahisa Kojima <kojima.masahisa@socionext.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/net/socionext,synquacer-netsec.yaml

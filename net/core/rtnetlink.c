@@ -1057,7 +1057,7 @@ static size_t rtnl_dpll_pin_size(const struct net_device *dev)
 {
 	size_t size = nla_total_size(0); /* nest IFLA_DPLL_PIN */
 
-	size += dpll_msg_pin_handle_size(netdev_dpll_pin(dev));
+	size += dpll_netdev_pin_handle_size(dev);
 
 	return size;
 }
@@ -1792,7 +1792,7 @@ static int rtnl_fill_dpll_pin(struct sk_buff *skb,
 	if (!dpll_pin_nest)
 		return -EMSGSIZE;
 
-	ret = dpll_msg_add_pin_handle(skb, netdev_dpll_pin(dev));
+	ret = dpll_netdev_add_pin_handle(skb, dev);
 	if (ret < 0)
 		goto nest_cancel;
 

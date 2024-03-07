@@ -42,11 +42,6 @@ struct dpll_pin_registration {
 	void *priv;
 };
 
-struct dpll_pin *netdev_dpll_pin(const struct net_device *dev)
-{
-	return rcu_dereference_rtnl(dev->dpll_pin);
-}
-
 struct dpll_device *dpll_device_get_by_id(int id)
 {
 	if (xa_get_mark(&dpll_device_xa, id, DPLL_REGISTERED))
@@ -512,6 +507,26 @@ err_pin_prop:
 	kfree(pin);
 	return ERR_PTR(ret);
 }
+
+static void dpll_netdev_pin_assign(struct net_device *dev, struct dpll_pin *dpll_pin)
+{
+	rtnl_lock();
+	rcu_assign_pointer(dev->dpll_pin, dpll_pin);
+	rtnl_unlock();
+}
+
+void dpll_netdev_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin)
+{
+	WARN_ON(!dpll_pin);
+	dpll_netdev_pin_assign(dev, dpll_pin);
+}
+EXPORT_SYMBOL(dpll_netdev_pin_set);
+
+void dpll_netdev_pin_clear(struct net_device *dev)
+{
+	dpll_netdev_pin_assign(dev, NULL);
+}
+EXPORT_SYMBOL(dpll_netdev_pin_clear);
 
 /**
  * dpll_pin_get - find existing or create new dpll pin

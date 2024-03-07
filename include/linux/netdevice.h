@@ -79,8 +79,6 @@ struct xdp_buff;
 struct xdp_frame;
 struct xdp_metadata_ops;
 struct xdp_md;
-/* DPLL specific */
-struct dpll_pin;
 
 typedef u32 xdp_features_t;
 
@@ -3499,6 +3497,16 @@ static inline void netdev_queue_set_dql_min_limit(struct netdev_queue *dev_queue
 #endif
 }
 
+static inline int netdev_queue_dql_avail(const struct netdev_queue *txq)
+{
+#ifdef CONFIG_BQL
+	/* Non-BQL migrated drivers will return 0, too. */
+	return dql_avail(&txq->dql);
+#else
+	return 0;
+#endif
+}
+
 /**
  *	netdev_txq_bql_enqueue_prefetchw - prefetch bql data for write
  *	@dev_queue: pointer to transmit queue
@@ -4032,8 +4040,6 @@ int dev_get_mac_address(struct sockaddr *sa, struct net *net, char *dev_name);
 int dev_get_port_parent_id(struct net_device *dev,
 			   struct netdev_phys_item_id *ppid, bool recurse);
 bool netdev_port_same_parent_id(struct net_device *a, struct net_device *b);
-void netdev_dpll_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin);
-void netdev_dpll_pin_clear(struct net_device *dev);
 
 struct sk_buff *validate_xmit_skb_list(struct sk_buff *skb, struct net_device *dev, bool *again);
 struct sk_buff *dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev,
