@@ -2378,7 +2378,7 @@ intel_sdvo_connector_atomic_get_property(struct drm_connector *connector,
 					 u64 *val)
 {
 	struct intel_sdvo_connector *intel_sdvo_connector = to_intel_sdvo_connector(connector);
-	const struct intel_sdvo_connector_state *sdvo_state = to_intel_sdvo_connector_state((void *)state);
+	const struct intel_sdvo_connector_state *sdvo_state = to_intel_sdvo_connector_state(state);
 
 	if (property == intel_sdvo_connector->tv_format) {
 		int i;
