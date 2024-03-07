@@ -1793,7 +1793,7 @@ static int setup_gcr3_table(struct gcr3_tbl_info *gcr3_info,
 	/* Allocate per device domain ID */
 	gcr3_info->domid = domain_id_alloc();
 
-	gcr3_info->gcr3_tbl = alloc_pgtable_page(nid, GFP_KERNEL);
+	gcr3_info->gcr3_tbl = alloc_pgtable_page(nid, GFP_ATOMIC);
 	if (gcr3_info->gcr3_tbl == NULL) {
 		domain_id_free(gcr3_info->domid);
 		return -ENOMEM;
