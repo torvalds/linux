@@ -32,6 +32,7 @@
  * and are not exported to drivers.
  */
 
+#include <linux/err.h>
 #include <linux/types.h>
 
 enum drm_color_encoding;
@@ -54,6 +55,7 @@ struct drm_mode_object;
 struct drm_mode_set;
 struct drm_plane;
 struct drm_plane_state;
+struct drm_printer;
 struct drm_property;
 struct edid;
 struct fwnode_handle;
