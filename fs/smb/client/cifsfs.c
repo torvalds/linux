@@ -1240,7 +1240,7 @@ static int cifs_flush_folio(struct inode *inode, loff_t pos, loff_t *_fstart, lo
 	int rc = 0;
 
 	folio = filemap_get_folio(inode->i_mapping, index);
-	if (IS_ERR(folio))
+	if (!folio)
 		return 0;
 
 	size = folio_size(folio);

@@ -142,6 +142,9 @@ int mlxbf_gige_rx_init(struct mlxbf_gige *priv)
 	writeq(MLXBF_GIGE_RX_MAC_FILTER_COUNT_PASS_EN,
 	       priv->base + MLXBF_GIGE_RX_MAC_FILTER_COUNT_PASS);
 
+	writeq(ilog2(priv->rx_q_entries),
+	       priv->base + MLXBF_GIGE_RX_WQE_SIZE_LOG2);
+
 	/* Clear MLXBF_GIGE_INT_MASK 'receive pkt' bit to
 	 * indicate readiness to receive interrupts
 	 */
@@ -153,9 +156,6 @@ int mlxbf_gige_rx_init(struct mlxbf_gige *priv)
 	data = readq(priv->base + MLXBF_GIGE_RX_DMA);
 	data |= MLXBF_GIGE_RX_DMA_EN;
 	writeq(data, priv->base + MLXBF_GIGE_RX_DMA);
-
-	writeq(ilog2(priv->rx_q_entries),
-	       priv->base + MLXBF_GIGE_RX_WQE_SIZE_LOG2);
 
 	return 0;
 
@@ -267,6 +267,13 @@ static bool mlxbf_gige_rx_packet(struct mlxbf_gige *priv, int *rx_pkts)
 		priv->stats.rx_truncate_errors++;
 	}
 
+	/* Read receive consumer index before replenish so that this routine
+	 * returns accurate return value even if packet is received into
+	 * just-replenished buffer prior to exiting this routine.
+	 */
+	rx_ci = readq(priv->base + MLXBF_GIGE_RX_CQE_PACKET_CI);
+	rx_ci_rem = rx_ci % priv->rx_q_entries;
+
 	/* Let hardware know we've replenished one buffer */
 	rx_pi++;
 
@@ -279,8 +286,6 @@ static bool mlxbf_gige_rx_packet(struct mlxbf_gige *priv, int *rx_pkts)
 	rx_pi_rem = rx_pi % priv->rx_q_entries;
 	if (rx_pi_rem == 0)
 		priv->valid_polarity ^= 1;
-	rx_ci = readq(priv->base + MLXBF_GIGE_RX_CQE_PACKET_CI);
-	rx_ci_rem = rx_ci % priv->rx_q_entries;
 
 	if (skb)
 		netif_receive_skb(skb);

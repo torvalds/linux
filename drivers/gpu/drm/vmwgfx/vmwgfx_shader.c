@@ -177,7 +177,7 @@ static int vmw_gb_shader_init(struct vmw_private *dev_priv,
 
 	res->backup_size = size;
 	if (byte_code) {
-		res->backup = vmw_bo_reference(byte_code);
+		res->backup = vmw_user_bo_ref(byte_code);
 		res->backup_offset = offset;
 	}
 	shader->size = size;
@@ -806,8 +806,7 @@ static int vmw_shader_define(struct drm_device *dev, struct drm_file *file_priv,
 				    shader_type, num_input_sig,
 				    num_output_sig, tfile, shader_handle);
 out_bad_arg:
-	vmw_bo_unreference(&buffer);
-	drm_gem_object_put(&buffer->base.base);
+	vmw_user_bo_unref(&buffer);
 	return ret;
 }
 

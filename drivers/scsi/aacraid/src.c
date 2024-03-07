@@ -493,10 +493,6 @@ static int aac_src_deliver_message(struct fib *fib)
 #endif
 
 	u16 vector_no;
-	struct scsi_cmnd *scmd;
-	u32 blk_tag;
-	struct Scsi_Host *shost = dev->scsi_host_ptr;
-	struct blk_mq_queue_map *qmap;
 
 	atomic_inc(&q->numpending);
 
@@ -509,25 +505,8 @@ static int aac_src_deliver_message(struct fib *fib)
 		if ((dev->comm_interface == AAC_COMM_MESSAGE_TYPE3)
 			&& dev->sa_firmware)
 			vector_no = aac_get_vector(dev);
-		else {
-			if (!fib->vector_no || !fib->callback_data) {
-				if (shost && dev->use_map_queue) {
-					qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
-					vector_no = qmap->mq_map[raw_smp_processor_id()];
-				}
-				/*
-				 *	We hardcode the vector_no for
-				 *	reserved commands as a valid shost is
-				 *	absent during the init
-				 */
-				else
-					vector_no = 0;
-			} else {
-				scmd = (struct scsi_cmnd *)fib->callback_data;
-				blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
-				vector_no = blk_mq_unique_tag_to_hwq(blk_tag);
-			}
-		}
+		else
+			vector_no = fib->vector_no;
 
 		if (native_hba) {
 			if (fib->flags & FIB_CONTEXT_FLAG_NATIVE_HBA_TMF) {

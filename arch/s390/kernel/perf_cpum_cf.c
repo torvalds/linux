@@ -2,7 +2,7 @@
 /*
  * Performance event support for s390x - CPU-measurement Counter Facility
  *
- *  Copyright IBM Corp. 2012, 2021
+ *  Copyright IBM Corp. 2012, 2022
  *  Author(s): Hendrik Brueckner <brueckner@linux.ibm.com>
  *	       Thomas Richter <tmricht@linux.ibm.com>
  */
@@ -434,6 +434,12 @@ static void cpumf_hw_inuse(void)
 	mutex_unlock(&pmc_reserve_mutex);
 }
 
+static int is_userspace_event(u64 ev)
+{
+	return cpumf_generic_events_user[PERF_COUNT_HW_CPU_CYCLES] == ev ||
+	       cpumf_generic_events_user[PERF_COUNT_HW_INSTRUCTIONS] == ev;
+}
+
 static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 {
 	struct perf_event_attr *attr = &event->attr;
@@ -456,19 +462,26 @@ static int __hw_perf_event_init(struct perf_event *event, unsigned int type)
 		if (is_sampling_event(event))	/* No sampling support */
 			return -ENOENT;
 		ev = attr->config;
-		/* Count user space (problem-state) only */
 		if (!attr->exclude_user && attr->exclude_kernel) {
-			if (ev >= ARRAY_SIZE(cpumf_generic_events_user))
-				return -EOPNOTSUPP;
-			ev = cpumf_generic_events_user[ev];
-
-		/* No support for kernel space counters only */
+			/*
+			 * Count user space (problem-state) only
+			 * Handle events 32 and 33 as 0:u and 1:u
+			 */
+			if (!is_userspace_event(ev)) {
+				if (ev >= ARRAY_SIZE(cpumf_generic_events_user))
+					return -EOPNOTSUPP;
+				ev = cpumf_generic_events_user[ev];
+			}
 		} else if (!attr->exclude_kernel && attr->exclude_user) {
+			/* No support for kernel space counters only */
 			return -EOPNOTSUPP;
-		} else {	/* Count user and kernel space */
-			if (ev >= ARRAY_SIZE(cpumf_generic_events_basic))
-				return -EOPNOTSUPP;
-			ev = cpumf_generic_events_basic[ev];
+		} else {
+			/* Count user and kernel space, incl. events 32 + 33 */
+			if (!is_userspace_event(ev)) {
+				if (ev >= ARRAY_SIZE(cpumf_generic_events_basic))
+					return -EOPNOTSUPP;
+				ev = cpumf_generic_events_basic[ev];
+			}
 		}
 		break;
 

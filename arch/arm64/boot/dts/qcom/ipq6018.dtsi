@@ -146,7 +146,7 @@
 		ranges;
 
 		rpm_msg_ram: memory@60000 {
-			reg = <0x0 0x60000 0x0 0x6000>;
+			reg = <0x0 0x00060000 0x0 0x6000>;
 			no-map;
 		};
 
@@ -181,7 +181,7 @@
 
 		prng: qrng@e1000 {
 			compatible = "qcom,prng-ee";
-			reg = <0x0 0xe3000 0x0 0x1000>;
+			reg = <0x0 0x000e3000 0x0 0x1000>;
 			clocks = <&gcc GCC_PRNG_AHB_CLK>;
 			clock-names = "core";
 		};
@@ -201,8 +201,8 @@
 			compatible = "qcom,crypto-v5.1";
 			reg = <0x0 0x0073a000 0x0 0x6000>;
 			clocks = <&gcc GCC_CRYPTO_AHB_CLK>,
-				<&gcc GCC_CRYPTO_AXI_CLK>,
-				<&gcc GCC_CRYPTO_CLK>;
+				 <&gcc GCC_CRYPTO_AXI_CLK>,
+				 <&gcc GCC_CRYPTO_CLK>;
 			clock-names = "iface", "bus", "core";
 			dmas = <&cryptobam 2>, <&cryptobam 3>;
 			dma-names = "rx", "tx";
@@ -272,7 +272,7 @@
 			reg = <0x0 0x078b1000 0x0 0x200>;
 			interrupts = <GIC_SPI 306 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc GCC_BLSP1_UART3_APPS_CLK>,
-				<&gcc GCC_BLSP1_AHB_CLK>;
+				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			status = "disabled";
 		};
@@ -285,7 +285,7 @@
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
-				<&gcc GCC_BLSP1_AHB_CLK>;
+				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
 			dma-names = "tx", "rx";
@@ -300,7 +300,7 @@
 			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP2_SPI_APPS_CLK>,
-				<&gcc GCC_BLSP1_AHB_CLK>;
+				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
 			dma-names = "tx", "rx";
@@ -358,8 +358,8 @@
 			clock-names = "core", "aon";
 
 			dmas = <&qpic_bam 0>,
-				<&qpic_bam 1>,
-				<&qpic_bam 2>;
+			       <&qpic_bam 1>,
+			       <&qpic_bam 2>;
 			dma-names = "tx", "rx", "cmd";
 			pinctrl-0 = <&qpic_pins>;
 			pinctrl-names = "default";
@@ -372,10 +372,10 @@
 			#size-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <0x3>;
-			reg =   <0x0 0x0b000000 0x0 0x1000>,  /*GICD*/
-				<0x0 0x0b002000 0x0 0x1000>,  /*GICC*/
-				<0x0 0x0b001000 0x0 0x1000>,  /*GICH*/
-				<0x0 0x0b004000 0x0 0x1000>;  /*GICV*/
+			reg = <0x0 0x0b000000 0x0 0x1000>,  /*GICD*/
+			      <0x0 0x0b002000 0x0 0x1000>,  /*GICC*/
+			      <0x0 0x0b001000 0x0 0x1000>,  /*GICH*/
+			      <0x0 0x0b004000 0x0 0x1000>;  /*GICV*/
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
 			ranges = <0 0 0 0xb00a000 0 0xffd>;
 
@@ -388,7 +388,7 @@
 
 		pcie_phy: phy@84000 {
 			compatible = "qcom,ipq6018-qmp-pcie-phy";
-			reg = <0x0 0x84000 0x0 0x1bc>; /* Serdes PLL */
+			reg = <0x0 0x00084000 0x0 0x1bc>; /* Serdes PLL */
 			status = "disabled";
 			#address-cells = <2>;
 			#size-cells = <2>;
@@ -404,9 +404,10 @@
 				      "common";
 
 			pcie_phy0: phy@84200 {
-				reg = <0x0 0x84200 0x0 0x16c>, /* Serdes Tx */
-				      <0x0 0x84400 0x0 0x200>, /* Serdes Rx */
-				      <0x0 0x84800 0x0 0x4f4>; /* PCS: Lane0, COM, PCIE */
+				reg = <0x0 0x00084200 0x0 0x16c>, /* Serdes Tx */
+				      <0x0 0x00084400 0x0 0x200>, /* Serdes Rx */
+				      <0x0 0x00084800 0x0 0x1f0>, /* PCS: Lane0, COM, PCIE */
+				      <0x0 0x00084c00 0x0 0xf4>; /* pcs_misc */
 				#phy-cells = <0>;
 
 				clocks = <&gcc GCC_PCIE0_PIPE_CLK>;
@@ -628,7 +629,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "qcom,ipq6018-mdio", "qcom,ipq4019-mdio";
-			reg = <0x0 0x90000 0x0 0x64>;
+			reg = <0x0 0x00090000 0x0 0x64>;
 			clocks = <&gcc GCC_MDIO_AHB_CLK>;
 			clock-names = "gcc_mdio_ahb_clk";
 			status = "disabled";
@@ -636,7 +637,7 @@
 
 		qusb_phy_1: qusb@59000 {
 			compatible = "qcom,ipq6018-qusb2-phy";
-			reg = <0x0 0x059000 0x0 0x180>;
+			reg = <0x0 0x00059000 0x0 0x180>;
 			#phy-cells = <0>;
 
 			clocks = <&gcc GCC_USB1_PHY_CFG_AHB_CLK>,
@@ -668,23 +669,23 @@
 			status = "disabled";
 
 			dwc_1: usb@7000000 {
-			       compatible = "snps,dwc3";
-			       reg = <0x0 0x7000000 0x0 0xcd00>;
-			       interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
-			       phys = <&qusb_phy_1>;
-			       phy-names = "usb2-phy";
-			       tx-fifo-resize;
-			       snps,is-utmi-l1-suspend;
-			       snps,hird-threshold = /bits/ 8 <0x0>;
-			       snps,dis_u2_susphy_quirk;
-			       snps,dis_u3_susphy_quirk;
-			       dr_mode = "host";
+				compatible = "snps,dwc3";
+				reg = <0x0 0x07000000 0x0 0xcd00>;
+				interrupts = <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
+				phys = <&qusb_phy_1>;
+				phy-names = "usb2-phy";
+				tx-fifo-resize;
+				snps,is-utmi-l1-suspend;
+				snps,hird-threshold = /bits/ 8 <0x0>;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
+				dr_mode = "host";
 			};
 		};
 
 		ssphy_0: ssphy@78000 {
 			compatible = "qcom,ipq6018-qmp-usb3-phy";
-			reg = <0x0 0x78000 0x0 0x1C4>;
+			reg = <0x0 0x00078000 0x0 0x1c4>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -701,7 +702,7 @@
 			usb0_ssphy: phy@78200 {
 				reg = <0x0 0x00078200 0x0 0x130>, /* Tx */
 				      <0x0 0x00078400 0x0 0x200>, /* Rx */
-				      <0x0 0x00078800 0x0 0x1F8>, /* PCS */
+				      <0x0 0x00078800 0x0 0x1f8>, /* PCS */
 				      <0x0 0x00078600 0x0 0x044>; /* PCS misc */
 				#phy-cells = <0>;
 				#clock-cells = <0>;
@@ -713,7 +714,7 @@
 
 		qusb_phy_0: qusb@79000 {
 			compatible = "qcom,ipq6018-qusb2-phy";
-			reg = <0x0 0x079000 0x0 0x180>;
+			reg = <0x0 0x00079000 0x0 0x180>;
 			#phy-cells = <0>;
 
 			clocks = <&gcc GCC_USB0_PHY_CFG_AHB_CLK>,
@@ -726,7 +727,7 @@
 
 		usb3: usb@8af8800 {
 			compatible = "qcom,ipq6018-dwc3", "qcom,dwc3";
-			reg = <0x0 0x8AF8800 0x0 0x400>;
+			reg = <0x0 0x8af8800 0x0 0x400>;
 			#address-cells = <2>;
 			#size-cells = <2>;
 			ranges;
@@ -745,14 +746,14 @@
 					  <&gcc GCC_USB0_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
 					       <133330000>,
-					       <20000000>;
+					       <24000000>;
 
 			resets = <&gcc GCC_USB0_BCR>;
 			status = "disabled";
 
 			dwc_0: usb@8a00000 {
 				compatible = "snps,dwc3";
-				reg = <0x0 0x8A00000 0x0 0xcd00>;
+				reg = <0x0 0x8a00000 0x0 0xcd00>;
 				interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 				phys = <&qusb_phy_0>, <&usb0_ssphy>;
 				phy-names = "usb2-phy", "usb3-phy";
