@@ -114,8 +114,6 @@ static inline int gpio_to_irq(unsigned gpio)
 }
 
 int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
-int gpio_request_array(const struct gpio *array, size_t num);
-void gpio_free_array(const struct gpio *array, size_t num);
 
 /* CONFIG_GPIOLIB: bindings for managed devices that want to request gpios */
 
@@ -146,20 +144,7 @@ static inline int gpio_request_one(unsigned gpio,
 	return -ENOSYS;
 }
 
-static inline int gpio_request_array(const struct gpio *array, size_t num)
-{
-	return -ENOSYS;
-}
-
 static inline void gpio_free(unsigned gpio)
-{
-	might_sleep();
-
-	/* GPIO can never have been requested */
-	WARN_ON(1);
-}
-
-static inline void gpio_free_array(const struct gpio *array, size_t num)
 {
 	might_sleep();
 
