@@ -31,8 +31,6 @@ struct es8326_priv {
 	 * while enabling or disabling or during an irq.
 	 */
 	struct mutex lock;
-	u8 mic1_src;
-	u8 mic2_src;
 	u8 jack_pol;
 	u8 interrupt_src;
 	u8 interrupt_clk;
@@ -1092,20 +1090,6 @@ static int es8326_probe(struct snd_soc_component *component)
 	es8326->jd_inverted = device_property_read_bool(component->dev,
 							"everest,jack-detect-inverted");
 
-	ret = device_property_read_u8(component->dev, "everest,mic1-src", &es8326->mic1_src);
-	if (ret != 0) {
-		dev_dbg(component->dev, "mic1-src return %d", ret);
-		es8326->mic1_src = ES8326_ADC_AMIC;
-	}
-	dev_dbg(component->dev, "mic1-src %x", es8326->mic1_src);
-
-	ret = device_property_read_u8(component->dev, "everest,mic2-src", &es8326->mic2_src);
-	if (ret != 0) {
-		dev_dbg(component->dev, "mic2-src return %d", ret);
-		es8326->mic2_src = ES8326_ADC_DMIC;
-	}
-	dev_dbg(component->dev, "mic2-src %x", es8326->mic2_src);
-
 	ret = device_property_read_u8(component->dev, "everest,jack-pol", &es8326->jack_pol);
 	if (ret != 0) {
 		dev_dbg(component->dev, "jack-pol return %d", ret);
@@ -1125,7 +1109,7 @@ static int es8326_probe(struct snd_soc_component *component)
 				      &es8326->interrupt_clk);
 	if (ret != 0) {
 		dev_dbg(component->dev, "interrupt-clk return %d", ret);
-		es8326->interrupt_clk = 0x45;
+		es8326->interrupt_clk = 0x00;
 	}
 	dev_dbg(component->dev, "interrupt-clk %x", es8326->interrupt_clk);
 
