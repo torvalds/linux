@@ -645,8 +645,12 @@ static int hclge_get_sset_count(struct hnae3_handle *handle, int stringset)
 			handle->flags |= HNAE3_SUPPORT_APP_LOOPBACK;
 		}
 
-		count += 1;
-		handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
+		if (hdev->ae_dev->dev_specs.hilink_version !=
+		    HCLGE_HILINK_H60) {
+			count += 1;
+			handle->flags |= HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
+		}
+
 		count += 1;
 		handle->flags |= HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
 		count += 1;
@@ -1358,6 +1362,7 @@ static void hclge_parse_dev_specs(struct hclge_dev *hdev,
 	ae_dev->dev_specs.umv_size = le16_to_cpu(req1->umv_size);
 	ae_dev->dev_specs.mc_mac_size = le16_to_cpu(req1->mc_mac_size);
 	ae_dev->dev_specs.tnl_num = req1->tnl_num;
+	ae_dev->dev_specs.hilink_version = req1->hilink_version;
 }
 
 static void hclge_check_dev_specs(struct hclge_dev *hdev)

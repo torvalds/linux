@@ -388,6 +388,7 @@ struct hnae3_dev_specs {
 	u16 mc_mac_size;
 	u32 mac_stats_num;
 	u8 tnl_num;
+	u8 hilink_version;
 };
 
 struct hnae3_client_ops {

@@ -256,6 +256,12 @@ enum HCLGE_MAC_DUPLEX {
 	HCLGE_MAC_FULL
 };
 
+/* hilink version */
+enum hclge_hilink_version {
+	HCLGE_HILINK_H32 = 0,
+	HCLGE_HILINK_H60 = 1,
+};
+
 #define QUERY_SFP_SPEED		0
 #define QUERY_ACTIVE_SPEED	1
 
