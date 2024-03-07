@@ -425,15 +425,9 @@ static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
 {
 	switch (kvm_vcpu_trap_get_fault(vcpu)) {
 	case ESR_ELx_FSC_EXTABT:
-	case ESR_ELx_FSC_SEA_TTW0:
-	case ESR_ELx_FSC_SEA_TTW1:
-	case ESR_ELx_FSC_SEA_TTW2:
-	case ESR_ELx_FSC_SEA_TTW3:
+	case ESR_ELx_FSC_SEA_TTW(-1) ... ESR_ELx_FSC_SEA_TTW(3):
 	case ESR_ELx_FSC_SECC:
-	case ESR_ELx_FSC_SECC_TTW0:
-	case ESR_ELx_FSC_SECC_TTW1:
-	case ESR_ELx_FSC_SECC_TTW2:
-	case ESR_ELx_FSC_SECC_TTW3:
+	case ESR_ELx_FSC_SECC_TTW(-1) ... ESR_ELx_FSC_SECC_TTW(3):
 		return true;
 	default:
 		return false;

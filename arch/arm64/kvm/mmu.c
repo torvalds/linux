@@ -805,7 +805,7 @@ static int get_user_mapping_size(struct kvm *kvm, u64 addr)
 		.pgd		= (kvm_pteref_t)kvm->mm->pgd,
 		.ia_bits	= vabits_actual,
 		.start_level	= (KVM_PGTABLE_LAST_LEVEL -
-				   CONFIG_PGTABLE_LEVELS + 1),
+				   ARM64_HW_PGTABLE_LEVELS(pgt.ia_bits) + 1),
 		.mm_ops		= &kvm_user_mm_ops,
 	};
 	unsigned long flags;
@@ -1874,16 +1874,9 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
 	/*
-	 * The ID map may be configured to use an extended virtual address
-	 * range. This is only the case if system RAM is out of range for the
-	 * currently configured page size and VA_BITS_MIN, in which case we will
-	 * also need the extended virtual range for the HYP ID map, or we won't
-	 * be able to enable the EL2 MMU.
-	 *
-	 * However, in some cases the ID map may be configured for fewer than
-	 * the number of VA bits used by the regular kernel stage 1. This
-	 * happens when VA_BITS=52 and the kernel image is placed in PA space
-	 * below 48 bits.
+	 * The ID map is always configured for 48 bits of translation, which
+	 * may be fewer than the number of VA bits used by the regular kernel
+	 * stage 1, when VA_BITS=52.
 	 *
 	 * At EL2, there is only one TTBR register, and we can't switch between
 	 * translation tables *and* update TCR_EL2.T0SZ at the same time. Bottom
@@ -1894,7 +1887,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 	 * 1 VA bits to assure that the hypervisor can both ID map its code page
 	 * and map any kernel memory.
 	 */
-	idmap_bits = 64 - ((idmap_t0sz & TCR_T0SZ_MASK) >> TCR_T0SZ_OFFSET);
+	idmap_bits = IDMAP_VA_BITS;
 	kernel_bits = vabits_actual;
 	*hyp_va_bits = max(idmap_bits, kernel_bits);
 

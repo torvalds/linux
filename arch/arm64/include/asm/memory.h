@@ -54,7 +54,11 @@
 #define FIXADDR_TOP		(-UL(SZ_8M))
 
 #if VA_BITS > 48
+#ifdef CONFIG_ARM64_16K_PAGES
+#define VA_BITS_MIN		(47)
+#else
 #define VA_BITS_MIN		(48)
+#endif
 #else
 #define VA_BITS_MIN		(VA_BITS)
 #endif
@@ -209,9 +213,20 @@
 #include <asm/boot.h>
 #include <asm/bug.h>
 #include <asm/sections.h>
+#include <asm/sysreg.h>
+
+static inline u64 __pure read_tcr(void)
+{
+	u64  tcr;
+
+	// read_sysreg() uses asm volatile, so avoid it here
+	asm("mrs %0, tcr_el1" : "=r"(tcr));
+	return tcr;
+}
 
 #if VA_BITS > 48
-extern u64			vabits_actual;
+// For reasons of #include hell, we can't use TCR_T1SZ_OFFSET/TCR_T1SZ_MASK here
+#define vabits_actual		(64 - ((read_tcr() >> 16) & 63))
 #else
 #define vabits_actual		((u64)VA_BITS)
 #endif

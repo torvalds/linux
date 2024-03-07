@@ -20,12 +20,40 @@
 #include <asm/cpufeature.h>
 #include <asm/daifflags.h>
 #include <asm/proc-fns.h>
-#include <asm-generic/mm_hooks.h>
 #include <asm/cputype.h>
 #include <asm/sysreg.h>
 #include <asm/tlbflush.h>
 
 extern bool rodata_full;
+
+static inline int arch_dup_mmap(struct mm_struct *oldmm,
+				struct mm_struct *mm)
+{
+	return 0;
+}
+
+static inline void arch_exit_mmap(struct mm_struct *mm)
+{
+}
+
+static inline void arch_unmap(struct mm_struct *mm,
+			unsigned long start, unsigned long end)
+{
+}
+
+static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
+		bool write, bool execute, bool foreign)
+{
+	if (IS_ENABLED(CONFIG_ARM64_WXN) && execute &&
+	    (vma->vm_flags & (VM_WRITE | VM_EXEC)) == (VM_WRITE | VM_EXEC)) {
+		pr_warn_ratelimited(
+			"process %s (%d) attempted to execute from writable memory\n",
+			current->comm, current->pid);
+		/* disallow unless the nowxn override is set */
+		return !arm64_wxn_enabled();
+	}
+	return true;
+}
 
 static inline void contextidr_thread_switch(struct task_struct *next)
 {
@@ -61,11 +89,9 @@ static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
 }
 
 /*
- * TCR.T0SZ value to use when the ID map is active. Usually equals
- * TCR_T0SZ(VA_BITS), unless system RAM is positioned very high in
- * physical memory, in which case it will be smaller.
+ * TCR.T0SZ value to use when the ID map is active.
  */
-extern int idmap_t0sz;
+#define idmap_t0sz	TCR_T0SZ(IDMAP_VA_BITS)
 
 /*
  * Ensure TCR.T0SZ is set to the provided value.
@@ -110,18 +136,13 @@ static inline void cpu_uninstall_idmap(void)
 		cpu_switch_mm(mm->pgd, mm);
 }
 
-static inline void __cpu_install_idmap(pgd_t *idmap)
+static inline void cpu_install_idmap(void)
 {
 	cpu_set_reserved_ttbr0();
 	local_flush_tlb_all();
 	cpu_set_idmap_tcr_t0sz();
 
-	cpu_switch_mm(lm_alias(idmap), &init_mm);
-}
-
-static inline void cpu_install_idmap(void)
-{
-	__cpu_install_idmap(idmap_pg_dir);
+	cpu_switch_mm(lm_alias(idmap_pg_dir), &init_mm);
 }
 
 /*
@@ -148,51 +169,21 @@ static inline void cpu_install_ttbr0(phys_addr_t ttbr0, unsigned long t0sz)
 	isb();
 }
 
-/*
- * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
- * avoiding the possibility of conflicting TLB entries being allocated.
- */
-static inline void __cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap, bool cnp)
-{
-	typedef void (ttbr_replace_func)(phys_addr_t);
-	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
-	ttbr_replace_func *replace_phys;
-	unsigned long daif;
-
-	/* phys_to_ttbr() zeros lower 2 bits of ttbr with 52-bit PA */
-	phys_addr_t ttbr1 = phys_to_ttbr(virt_to_phys(pgdp));
-
-	if (cnp)
-		ttbr1 |= TTBR_CNP_BIT;
-
-	replace_phys = (void *)__pa_symbol(idmap_cpu_replace_ttbr1);
-
-	__cpu_install_idmap(idmap);
-
-	/*
-	 * We really don't want to take *any* exceptions while TTBR1 is
-	 * in the process of being replaced so mask everything.
-	 */
-	daif = local_daif_save();
-	replace_phys(ttbr1);
-	local_daif_restore(daif);
-
-	cpu_uninstall_idmap();
-}
+void __cpu_replace_ttbr1(pgd_t *pgdp, bool cnp);
 
 static inline void cpu_enable_swapper_cnp(void)
 {
-	__cpu_replace_ttbr1(lm_alias(swapper_pg_dir), idmap_pg_dir, true);
+	__cpu_replace_ttbr1(lm_alias(swapper_pg_dir), true);
 }
 
-static inline void cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap)
+static inline void cpu_replace_ttbr1(pgd_t *pgdp)
 {
 	/*
 	 * Only for early TTBR1 replacement before cpucaps are finalized and
 	 * before we've decided whether to use CNP.
 	 */
 	WARN_ON(system_capabilities_finalized());
-	__cpu_replace_ttbr1(pgdp, idmap, false);
+	__cpu_replace_ttbr1(pgdp, false);
 }
 
 /*
