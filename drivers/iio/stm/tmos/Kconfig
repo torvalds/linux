@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# IIO tmos drivers configuration
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Tmos"
+
+source "drivers/iio/stm/tmos/st_sths34pf80/Kconfig"
+
+endmenu

@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config IIO_ST_LSM6DSOX
+	tristate "STMicroelectronics LSM6DSOX sensor"
+	depends on (I2C || SPI)
+	select IIO_BUFFER
+	select IIO_KFIFO_BUF
+	select IIO_ST_LSM6DSOX_I2C if (I2C)
+	select IIO_ST_LSM6DSOX_SPI if (SPI_MASTER)
+	select IIO_ST_LSM6DSOX_I3C if (I3C)
+	help
+	  Say yes here to build support for STMicroelectronics
+	  LSM6DSO/LSM6DSOX/LSM6DSO32/LSM6DSO32X imu sensors.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called st_lsm6dsox.
+
+config IIO_ST_LSM6DSOX_I2C
+	tristate
+	select REGMAP_I2C
+	depends on IIO_ST_LSM6DSOX
+
+config IIO_ST_LSM6DSOX_SPI
+	tristate
+	select REGMAP_SPI
+	depends on IIO_ST_LSM6DSOX
+
+config IIO_ST_LSM6DSOX_I3C
+	tristate
+	depends on IIO_ST_LSM6DSOX
+	select REGMAP_I3C
+
+config IIO_ST_LSM6DSOX_ASYNC_HW_TIMESTAMP
+	bool "Enable async hw timestamp read"
+	depends on IIO_ST_LSM6DSOX
+	help
+	  Enable async task that sends over hw timestamp events.
+

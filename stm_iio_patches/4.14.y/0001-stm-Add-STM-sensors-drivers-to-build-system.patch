@@ -1,0 +1,34 @@
+From 048fe8d4c7069bf74d9382964373e44cafc6e344 Mon Sep 17 00:00:00 2001
+From: mario tesi <mario.tesi@st.com>
+Date: Thu, 16 Sep 2021 14:42:13 +0200
+Subject: [PATCH] Added STMEMS sensor to build system
+
+Signed-off-by: mario tesi <mario.tesi@st.com>
+---
+ drivers/iio/Kconfig  | 1 +
+ drivers/iio/Makefile | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/drivers/iio/Kconfig b/drivers/iio/Kconfig
+index b3c8c6e..f34f97a 100644
+--- a/drivers/iio/Kconfig
++++ b/drivers/iio/Kconfig
+@@ -93,5 +93,6 @@ source "drivers/iio/potentiostat/Kconfig"
+ source "drivers/iio/pressure/Kconfig"
+ source "drivers/iio/proximity/Kconfig"
+ source "drivers/iio/temperature/Kconfig"
++source "drivers/iio/stm/Kconfig"
+ 
+ endif # IIO
+diff --git a/drivers/iio/Makefile b/drivers/iio/Makefile
+index b16b2e9..b8596a9 100644
+--- a/drivers/iio/Makefile
++++ b/drivers/iio/Makefile
+@@ -37,3 +37,4 @@ obj-y += pressure/
+ obj-y += proximity/
+ obj-y += temperature/
+ obj-y += trigger/
++obj-y += stm/
+-- 
+2.7.4
+

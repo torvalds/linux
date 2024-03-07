@@ -1,0 +1,57 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Magnetometer sensors
+#
+# When adding new entries keep the list in alphabetical order
+
+menu "Magnetometer sensors"
+
+config ST_MAG3D_IIO
+        tristate "STMicroelectronics LIS3MDL/LSM9DS1 mag sensor"
+        depends on (I2C || SPI) && SYSFS
+        select IIO_BUFFER
+        select IIO_TRIGGERED_BUFFER
+        select ST_MAG3D_I2C_IIO if (I2C)
+        select ST_MAG3D_SPI_IIO if (SPI)
+        help
+          Say yes here to build support for STMicroelectronics magnetometers:
+          LIS3MDL, LSM9DS1 mag sensor
+
+          To compile this driver as a module, choose M here. The module
+          will be called st_mag3d
+
+config ST_MAG3D_I2C_IIO
+        tristate
+        depends on ST_MAG3D_IIO
+        depends on I2C
+
+config ST_MAG3D_SPI_IIO
+        tristate
+        depends on ST_MAG3D_IIO
+        depends on SPI
+
+config ST_MAG40_IIO
+	tristate "STMicroelectronics LIS2MDL/LSM303AH/LSM303AGR/ISM303DAC/IIS2MDC sensor"
+	depends on (I2C || SPI) && SYSFS
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select ST_MAG40_I2C_IIO if (I2C)
+	select ST_MAG40_SPI_IIO if (SPI)
+	help
+	  Say yes here to build support for STMicroelectronics magnetometers:
+	  LIS2MDL, LSM303AH, LSM303AGR, ISM303DAC, IIS2MDC.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called st_mag40.
+
+config ST_MAG40_I2C_IIO
+	tristate
+	depends on ST_MAG40_IIO
+	depends on I2C
+
+config ST_MAG40_SPI_IIO
+	tristate
+	depends on ST_MAG40_IIO
+	depends on SPI
+
+endmenu
