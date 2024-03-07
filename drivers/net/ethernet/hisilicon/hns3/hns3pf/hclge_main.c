@@ -884,7 +884,7 @@ static const struct hclge_speed_bit_map speed_bit_map[] = {
 	{HCLGE_MAC_SPEED_40G, HCLGE_SUPPORT_40G_BIT},
 	{HCLGE_MAC_SPEED_50G, HCLGE_SUPPORT_50G_BITS},
 	{HCLGE_MAC_SPEED_100G, HCLGE_SUPPORT_100G_BITS},
-	{HCLGE_MAC_SPEED_200G, HCLGE_SUPPORT_200G_BIT},
+	{HCLGE_MAC_SPEED_200G, HCLGE_SUPPORT_200G_BITS},
 };
 
 static int hclge_get_speed_bit(u32 speed, u32 *speed_bit)
@@ -940,7 +940,7 @@ static void hclge_update_fec_support(struct hclge_mac *mac)
 				 mac->supported);
 }
 
-static const struct hclge_link_mode_bmap hclge_sr_link_mode_bmap[8] = {
+static const struct hclge_link_mode_bmap hclge_sr_link_mode_bmap[] = {
 	{HCLGE_SUPPORT_10G_BIT, ETHTOOL_LINK_MODE_10000baseSR_Full_BIT},
 	{HCLGE_SUPPORT_25G_BIT, ETHTOOL_LINK_MODE_25000baseSR_Full_BIT},
 	{HCLGE_SUPPORT_40G_BIT, ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT},
@@ -948,10 +948,12 @@ static const struct hclge_link_mode_bmap hclge_sr_link_mode_bmap[8] = {
 	{HCLGE_SUPPORT_50G_R1_BIT, ETHTOOL_LINK_MODE_50000baseSR_Full_BIT},
 	{HCLGE_SUPPORT_100G_R4_BIT, ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT},
 	{HCLGE_SUPPORT_100G_R2_BIT, ETHTOOL_LINK_MODE_100000baseSR2_Full_BIT},
-	{HCLGE_SUPPORT_200G_BIT, ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_EXT_BIT,
+	 ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_BIT, ETHTOOL_LINK_MODE_200000baseSR4_Full_BIT},
 };
 
-static const struct hclge_link_mode_bmap hclge_lr_link_mode_bmap[6] = {
+static const struct hclge_link_mode_bmap hclge_lr_link_mode_bmap[] = {
 	{HCLGE_SUPPORT_10G_BIT, ETHTOOL_LINK_MODE_10000baseLR_Full_BIT},
 	{HCLGE_SUPPORT_40G_BIT, ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT},
 	{HCLGE_SUPPORT_50G_R1_BIT, ETHTOOL_LINK_MODE_50000baseLR_ER_FR_Full_BIT},
@@ -959,11 +961,13 @@ static const struct hclge_link_mode_bmap hclge_lr_link_mode_bmap[6] = {
 	 ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT},
 	{HCLGE_SUPPORT_100G_R2_BIT,
 	 ETHTOOL_LINK_MODE_100000baseLR2_ER2_FR2_Full_BIT},
-	{HCLGE_SUPPORT_200G_BIT,
+	{HCLGE_SUPPORT_200G_R4_EXT_BIT,
+	 ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_BIT,
 	 ETHTOOL_LINK_MODE_200000baseLR4_ER4_FR4_Full_BIT},
 };
 
-static const struct hclge_link_mode_bmap hclge_cr_link_mode_bmap[8] = {
+static const struct hclge_link_mode_bmap hclge_cr_link_mode_bmap[] = {
 	{HCLGE_SUPPORT_10G_BIT, ETHTOOL_LINK_MODE_10000baseCR_Full_BIT},
 	{HCLGE_SUPPORT_25G_BIT, ETHTOOL_LINK_MODE_25000baseCR_Full_BIT},
 	{HCLGE_SUPPORT_40G_BIT, ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT},
@@ -971,10 +975,12 @@ static const struct hclge_link_mode_bmap hclge_cr_link_mode_bmap[8] = {
 	{HCLGE_SUPPORT_50G_R1_BIT, ETHTOOL_LINK_MODE_50000baseCR_Full_BIT},
 	{HCLGE_SUPPORT_100G_R4_BIT, ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT},
 	{HCLGE_SUPPORT_100G_R2_BIT, ETHTOOL_LINK_MODE_100000baseCR2_Full_BIT},
-	{HCLGE_SUPPORT_200G_BIT, ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_EXT_BIT,
+	 ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_BIT, ETHTOOL_LINK_MODE_200000baseCR4_Full_BIT},
 };
 
-static const struct hclge_link_mode_bmap hclge_kr_link_mode_bmap[9] = {
+static const struct hclge_link_mode_bmap hclge_kr_link_mode_bmap[] = {
 	{HCLGE_SUPPORT_1G_BIT, ETHTOOL_LINK_MODE_1000baseKX_Full_BIT},
 	{HCLGE_SUPPORT_10G_BIT, ETHTOOL_LINK_MODE_10000baseKR_Full_BIT},
 	{HCLGE_SUPPORT_25G_BIT, ETHTOOL_LINK_MODE_25000baseKR_Full_BIT},
@@ -983,7 +989,9 @@ static const struct hclge_link_mode_bmap hclge_kr_link_mode_bmap[9] = {
 	{HCLGE_SUPPORT_50G_R1_BIT, ETHTOOL_LINK_MODE_50000baseKR_Full_BIT},
 	{HCLGE_SUPPORT_100G_R4_BIT, ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT},
 	{HCLGE_SUPPORT_100G_R2_BIT, ETHTOOL_LINK_MODE_100000baseKR2_Full_BIT},
-	{HCLGE_SUPPORT_200G_BIT, ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_EXT_BIT,
+	 ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT},
+	{HCLGE_SUPPORT_200G_R4_BIT, ETHTOOL_LINK_MODE_200000baseKR4_Full_BIT},
 };
 
 static void hclge_convert_setting_sr(u16 speed_ability,
@@ -1154,7 +1162,7 @@ static void hclge_parse_link_mode(struct hclge_dev *hdev, u16 speed_ability)
 
 static u32 hclge_get_max_speed(u16 speed_ability)
 {
-	if (speed_ability & HCLGE_SUPPORT_200G_BIT)
+	if (speed_ability & HCLGE_SUPPORT_200G_BITS)
 		return HCLGE_MAC_SPEED_200G;
 
 	if (speed_ability & HCLGE_SUPPORT_100G_BITS)
