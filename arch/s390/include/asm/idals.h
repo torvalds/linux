@@ -41,7 +41,7 @@ static inline unsigned int idal_nr_words(void *vaddr, unsigned int length)
 {
 	unsigned int cidaw;
 
-	cidaw = __pa(vaddr) & (IDA_BLOCK_SIZE - 1);
+	cidaw = (unsigned long)vaddr & (IDA_BLOCK_SIZE - 1);
 	cidaw += length + IDA_BLOCK_SIZE - 1;
 	cidaw >>= IDA_SIZE_SHIFT;
 	return cidaw;
@@ -54,7 +54,7 @@ static inline unsigned int idal_2k_nr_words(void *vaddr, unsigned int length)
 {
 	unsigned int cidaw;
 
-	cidaw = __pa(vaddr) & (IDA_2K_BLOCK_SIZE - 1);
+	cidaw = (unsigned long)vaddr & (IDA_2K_BLOCK_SIZE - 1);
 	cidaw += length + IDA_2K_BLOCK_SIZE - 1;
 	cidaw >>= IDA_2K_SIZE_SHIFT;
 	return cidaw;
