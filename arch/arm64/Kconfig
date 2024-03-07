@@ -120,6 +120,7 @@ config ARM64
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select CPUMASK_OFFSTACK if NR_CPUS > 256
 	select CRC32
 	select DCACHE_WORD_ACCESS
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
@@ -198,7 +199,7 @@ config ARM64
 		if DYNAMIC_FTRACE_WITH_ARGS && DYNAMIC_FTRACE_WITH_CALL_OPS
 	select HAVE_DYNAMIC_FTRACE_WITH_CALL_OPS \
 		if (DYNAMIC_FTRACE_WITH_ARGS && !CFI_CLANG && \
-		    !CC_OPTIMIZE_FOR_SIZE)
+		    (CC_IS_CLANG || !CC_OPTIMIZE_FOR_SIZE))
 	select FTRACE_MCOUNT_USE_PATCHABLE_FUNCTION_ENTRY \
 		if DYNAMIC_FTRACE_WITH_ARGS
 	select HAVE_SAMPLE_FTRACE_DIRECT
@@ -229,6 +230,7 @@ config ARM64
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select MMU_GATHER_RCU_TABLE_FREE
 	select HAVE_RSEQ
+	select HAVE_RUST if CPU_LITTLE_ENDIAN
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_KPROBES
@@ -547,9 +549,8 @@ config ARM64_ERRATUM_832075
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_834220
-	bool "Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault"
+	bool "Cortex-A57: 834220: Stage 2 translation fault might be incorrectly reported in presence of a Stage 1 fault (rare)"
 	depends on KVM
-	default y
 	help
 	  This option adds an alternative code sequence to work around ARM
 	  erratum 834220 on Cortex-A57 parts up to r1p2.
@@ -565,7 +566,7 @@ config ARM64_ERRATUM_834220
 	  as it depends on the alternative framework, which will only patch
 	  the kernel if an affected CPU is detected.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1742098
 	bool "Cortex-A57/A72: 1742098: ELR recorded incorrectly on interrupt taken between cryptographic instructions in a sequence"
@@ -692,8 +693,7 @@ config ARM64_WORKAROUND_REPEAT_TLBI
 	bool
 
 config ARM64_ERRATUM_2441007
-	bool "Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI"
-	default y
+	bool "Cortex-A55: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare)"
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  This option adds a workaround for ARM Cortex-A55 erratum #2441007.
@@ -706,11 +706,10 @@ config ARM64_ERRATUM_2441007
 	  Work around this by adding the affected CPUs to the list that needs
 	  TLB sequences to be done twice.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1286807
-	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation"
-	default y
+	bool "Cortex-A76: Modification of the translation table for a virtual address might lead to read-after-read ordering violation (rare)"
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  This option adds a workaround for ARM Cortex-A76 erratum 1286807.
@@ -723,6 +722,8 @@ config ARM64_ERRATUM_1286807
 	  TLBI+DSB completes before a read using the translation being
 	  invalidated has been observed by other observers. The
 	  workaround repeats the TLBI+DSB operation.
+
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1463225
 	bool "Cortex-A76: Software Step might prevent interrupt recognition"
@@ -743,8 +744,7 @@ config ARM64_ERRATUM_1463225
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_1542419
-	bool "Neoverse-N1: workaround mis-ordering of instruction fetches"
-	default y
+	bool "Neoverse-N1: workaround mis-ordering of instruction fetches (rare)"
 	help
 	  This option adds a workaround for ARM Neoverse-N1 erratum
 	  1542419.
@@ -756,7 +756,7 @@ config ARM64_ERRATUM_1542419
 	  Workaround the issue by hiding the DIC feature from EL0. This
 	  forces user-space to perform cache maintenance.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_1508412
 	bool "Cortex-A77: 1508412: workaround deadlock on sequence of NC/Device load and store exclusive or PAR read"
@@ -931,8 +931,7 @@ config ARM64_ERRATUM_2224489
 	  If unsure, say Y.
 
 config ARM64_ERRATUM_2441009
-	bool "Cortex-A510: Completion of affected memory accesses might not be guaranteed by completion of a TLBI"
-	default y
+	bool "Cortex-A510: Completion of affected memory accesses might not be guaranteed by completion of a TLBI (rare)"
 	select ARM64_WORKAROUND_REPEAT_TLBI
 	help
 	  This option adds a workaround for ARM Cortex-A510 erratum #2441009.
@@ -945,7 +944,7 @@ config ARM64_ERRATUM_2441009
 	  Work around this by adding the affected CPUs to the list that needs
 	  TLB sequences to be done twice.
 
-	  If unsure, say Y.
+	  If unsure, say N.
 
 config ARM64_ERRATUM_2064142
 	bool "Cortex-A510: 2064142: workaround TRBE register writes while disabled"
@@ -1427,7 +1426,7 @@ config SCHED_SMT
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	default "256"
+	default "512"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"

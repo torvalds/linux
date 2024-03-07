@@ -36,6 +36,8 @@ PROVIDE(__pi___memcpy			= __pi_memcpy);
 PROVIDE(__pi___memmove			= __pi_memmove);
 PROVIDE(__pi___memset			= __pi_memset);
 
+PROVIDE(__pi_vabits_actual		= vabits_actual);
+
 #ifdef CONFIG_KVM
 
 /*

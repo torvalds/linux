@@ -30,8 +30,8 @@
  * keep a constant PAGE_OFFSET and "fallback" to using the higher end
  * of the VMEMMAP where 52-bit support is not available in hardware.
  */
-#define VMEMMAP_SHIFT	(PAGE_SHIFT - STRUCT_PAGE_MAX_SHIFT)
-#define VMEMMAP_SIZE	((_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET) >> VMEMMAP_SHIFT)
+#define VMEMMAP_RANGE	(_PAGE_END(VA_BITS_MIN) - PAGE_OFFSET)
+#define VMEMMAP_SIZE	((VMEMMAP_RANGE >> PAGE_SHIFT) * sizeof(struct page))
 
 /*
  * PAGE_OFFSET - the virtual address of the start of the linear map, at the
@@ -47,11 +47,11 @@
 #define MODULES_END		(MODULES_VADDR + MODULES_VSIZE)
 #define MODULES_VADDR		(_PAGE_END(VA_BITS_MIN))
 #define MODULES_VSIZE		(SZ_2G)
-#define VMEMMAP_START		(-(UL(1) << (VA_BITS - VMEMMAP_SHIFT)))
-#define VMEMMAP_END		(VMEMMAP_START + VMEMMAP_SIZE)
-#define PCI_IO_END		(VMEMMAP_START - SZ_8M)
-#define PCI_IO_START		(PCI_IO_END - PCI_IO_SIZE)
-#define FIXADDR_TOP		(VMEMMAP_START - SZ_32M)
+#define VMEMMAP_START		(VMEMMAP_END - VMEMMAP_SIZE)
+#define VMEMMAP_END		(-UL(SZ_1G))
+#define PCI_IO_START		(VMEMMAP_END + SZ_8M)
+#define PCI_IO_END		(PCI_IO_START + PCI_IO_SIZE)
+#define FIXADDR_TOP		(-UL(SZ_8M))
 
 #if VA_BITS > 48
 #define VA_BITS_MIN		(48)

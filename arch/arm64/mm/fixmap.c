@@ -16,6 +16,9 @@
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>
 
+/* ensure that the fixmap region does not grow down into the PCI I/O region */
+static_assert(FIXADDR_TOT_START > PCI_IO_END);
+
 #define NR_BM_PTE_TABLES \
 	SPAN_NR_ENTRIES(FIXADDR_TOT_START, FIXADDR_TOP, PMD_SHIFT)
 #define NR_BM_PMD_TABLES \
