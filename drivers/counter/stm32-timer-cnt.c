@@ -8,6 +8,7 @@
  *
  */
 #include <linux/counter.h>
+#include <linux/interrupt.h>
 #include <linux/mfd/stm32-timers.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -43,6 +44,9 @@ struct stm32_timer_cnt {
 	struct stm32_timer_regs bak;
 	bool has_encoder;
 	unsigned int nchannels;
+	unsigned int nr_irqs;
+	spinlock_t lock; /* protects nb_ovf */
+	u64 nb_ovf;
 };
 
 static const enum counter_function stm32_count_functions[] = {
@@ -258,6 +262,32 @@ static int stm32_count_prescaler_write(struct counter_device *counter,
 	return regmap_write(priv->regmap, TIM_PSC, psc);
 }
 
+static int stm32_count_nb_ovf_read(struct counter_device *counter,
+				   struct counter_count *count, u64 *val)
+{
+	struct stm32_timer_cnt *const priv = counter_priv(counter);
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&priv->lock, irqflags);
+	*val = priv->nb_ovf;
+	spin_unlock_irqrestore(&priv->lock, irqflags);
+
+	return 0;
+}
+
+static int stm32_count_nb_ovf_write(struct counter_device *counter,
+				    struct counter_count *count, u64 val)
+{
+	struct stm32_timer_cnt *const priv = counter_priv(counter);
+	unsigned long irqflags;
+
+	spin_lock_irqsave(&priv->lock, irqflags);
+	priv->nb_ovf = val;
+	spin_unlock_irqrestore(&priv->lock, irqflags);
+
+	return 0;
+}
+
 static struct counter_comp stm32_count_ext[] = {
 	COUNTER_COMP_DIRECTION(stm32_count_direction_read),
 	COUNTER_COMP_ENABLE(stm32_count_enable_read, stm32_count_enable_write),
@@ -265,6 +295,7 @@ static struct counter_comp stm32_count_ext[] = {
 			     stm32_count_ceiling_write),
 	COUNTER_COMP_COUNT_U64("prescaler", stm32_count_prescaler_read,
 			       stm32_count_prescaler_write),
+	COUNTER_COMP_COUNT_U64("num_overflows", stm32_count_nb_ovf_read, stm32_count_nb_ovf_write),
 };
 
 static const enum counter_synapse_action stm32_clock_synapse_actions[] = {
@@ -322,12 +353,57 @@ static int stm32_action_read(struct counter_device *counter,
 	}
 }
 
+static int stm32_count_events_configure(struct counter_device *counter)
+{
+	struct stm32_timer_cnt *const priv = counter_priv(counter);
+	struct counter_event_node *event_node;
+	u32 dier = 0;
+
+	list_for_each_entry(event_node, &counter->events_list, l) {
+		switch (event_node->event) {
+		case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
+			/* first clear possibly latched UIF before enabling */
+			if (!regmap_test_bits(priv->regmap, TIM_DIER, TIM_DIER_UIE))
+				regmap_write(priv->regmap, TIM_SR, (u32)~TIM_SR_UIF);
+			dier |= TIM_DIER_UIE;
+			break;
+		default:
+			/* should never reach this path */
+			return -EINVAL;
+		}
+	}
+
+	/* Enable / disable all events at once, from events_list, so write all DIER bits */
+	regmap_write(priv->regmap, TIM_DIER, dier);
+
+	return 0;
+}
+
+static int stm32_count_watch_validate(struct counter_device *counter,
+				      const struct counter_watch *watch)
+{
+	struct stm32_timer_cnt *const priv = counter_priv(counter);
+
+	/* Interrupts are optional */
+	if (!priv->nr_irqs)
+		return -EOPNOTSUPP;
+
+	switch (watch->event) {
+	case COUNTER_EVENT_OVERFLOW_UNDERFLOW:
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static const struct counter_ops stm32_timer_cnt_ops = {
 	.count_read = stm32_count_read,
 	.count_write = stm32_count_write,
 	.function_read = stm32_count_function_read,
 	.function_write = stm32_count_function_write,
 	.action_read = stm32_action_read,
+	.events_configure = stm32_count_events_configure,
+	.watch_validate = stm32_count_watch_validate,
 };
 
 static int stm32_count_clk_get_freq(struct counter_device *counter,
@@ -417,6 +493,37 @@ static struct counter_count stm32_counts = {
 	.num_ext = ARRAY_SIZE(stm32_count_ext)
 };
 
+static irqreturn_t stm32_timer_cnt_isr(int irq, void *ptr)
+{
+	struct counter_device *counter = ptr;
+	struct stm32_timer_cnt *const priv = counter_priv(counter);
+	u32 clr = GENMASK(31, 0); /* SR flags can be cleared by writing 0 (wr 1 has no effect) */
+	u32 sr, dier;
+
+	regmap_read(priv->regmap, TIM_SR, &sr);
+	regmap_read(priv->regmap, TIM_DIER, &dier);
+	/*
+	 * Some status bits in SR don't match with the enable bits in DIER. Only take care of
+	 * the possibly enabled bits in DIER (that matches in between SR and DIER).
+	 */
+	dier &= TIM_DIER_UIE;
+	sr &= dier;
+
+	if (sr & TIM_SR_UIF) {
+		spin_lock(&priv->lock);
+		priv->nb_ovf++;
+		spin_unlock(&priv->lock);
+		counter_push_event(counter, COUNTER_EVENT_OVERFLOW_UNDERFLOW, 0);
+		dev_dbg(counter->parent, "COUNTER_EVENT_OVERFLOW_UNDERFLOW\n");
+		/* SR flags can be cleared by writing 0, only clear relevant flag */
+		clr &= ~TIM_SR_UIF;
+	}
+
+	regmap_write(priv->regmap, TIM_SR, clr);
+
+	return IRQ_HANDLED;
+};
+
 static void stm32_timer_cnt_detect_channels(struct device *dev,
 					    struct stm32_timer_cnt *priv)
 {
@@ -480,7 +587,7 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct stm32_timer_cnt *priv;
 	struct counter_device *counter;
-	int ret;
+	int i, ret;
 
 	if (IS_ERR_OR_NULL(ddata))
 		return -EINVAL;
@@ -494,6 +601,7 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 	priv->regmap = ddata->regmap;
 	priv->clk = ddata->clk;
 	priv->max_arr = ddata->max_arr;
+	priv->nr_irqs = ddata->nr_irqs;
 
 	ret = stm32_timer_cnt_probe_encoder(dev, priv);
 	if (ret)
@@ -509,7 +617,35 @@ static int stm32_timer_cnt_probe(struct platform_device *pdev)
 	counter->signals = stm32_signals;
 	counter->num_signals = ARRAY_SIZE(stm32_signals);
 
+	spin_lock_init(&priv->lock);
+
 	platform_set_drvdata(pdev, priv);
+
+	/* STM32 Timers can have either 1 global, or 4 dedicated interrupts (optional) */
+	if (priv->nr_irqs == 1) {
+		/* All events reported through the global interrupt */
+		ret = devm_request_irq(&pdev->dev, ddata->irq[0], stm32_timer_cnt_isr,
+				       0, dev_name(dev), counter);
+		if (ret) {
+			dev_err(dev, "Failed to request irq %d (err %d)\n",
+				ddata->irq[0], ret);
+			return ret;
+		}
+	} else {
+		for (i = 0; i < priv->nr_irqs; i++) {
+			/* Only take care of update IRQ for overflow events */
+			if (i != STM32_TIMERS_IRQ_UP)
+				continue;
+
+			ret = devm_request_irq(&pdev->dev, ddata->irq[i], stm32_timer_cnt_isr,
+					       0, dev_name(dev), counter);
+			if (ret) {
+				dev_err(dev, "Failed to request irq %d (err %d)\n",
+					ddata->irq[i], ret);
+				return ret;
+			}
+		}
+	}
 
 	/* Reset input selector to its default input */
 	regmap_write(priv->regmap, TIM_TISEL, 0x0);
