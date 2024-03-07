@@ -190,7 +190,7 @@ static bool page_array_iova_pinned(struct page_array *pa, u64 iova, u64 length)
 }
 /* Create the list of IDAL words for a page_array. */
 static inline void page_array_idal_create_words(struct page_array *pa,
-						unsigned long *idaws)
+						dma64_t *idaws)
 {
 	int i;
 
@@ -203,10 +203,10 @@ static inline void page_array_idal_create_words(struct page_array *pa,
 	 */
 
 	for (i = 0; i < pa->pa_nr; i++) {
-		idaws[i] = page_to_phys(pa->pa_page[i]);
+		idaws[i] = virt_to_dma64(page_to_virt(pa->pa_page[i]));
 
 		/* Incorporate any offset from each starting address */
-		idaws[i] += pa->pa_iova[i] & (PAGE_SIZE - 1);
+		idaws[i] = dma64_add(idaws[i], pa->pa_iova[i] & ~PAGE_MASK);
 	}
 }
 
@@ -227,7 +227,7 @@ static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
 			pccw1->flags = ccw0.flags;
 			pccw1->count = ccw0.count;
 		}
-		pccw1->cda = ccw0.cda;
+		pccw1->cda = u32_to_dma32(ccw0.cda);
 		pccw1++;
 	}
 }
@@ -299,11 +299,12 @@ static inline int ccw_does_data_transfer(struct ccw1 *ccw)
  *
  * Returns 1 if yes, 0 if no.
  */
-static inline int is_cpa_within_range(u32 cpa, u32 head, int len)
+static inline int is_cpa_within_range(dma32_t cpa, u32 head, int len)
 {
 	u32 tail = head + (len - 1) * sizeof(struct ccw1);
+	u32 gcpa = dma32_to_u32(cpa);
 
-	return (head <= cpa && cpa <= tail);
+	return head <= gcpa && gcpa <= tail;
 }
 
 static inline int is_tic_within_range(struct ccw1 *ccw, u32 head, int len)
@@ -356,7 +357,7 @@ static void ccwchain_cda_free(struct ccwchain *chain, int idx)
 	if (ccw_is_tic(ccw))
 		return;
 
-	kfree(phys_to_virt(ccw->cda));
+	kfree(dma32_to_virt(ccw->cda));
 }
 
 /**
@@ -417,15 +418,17 @@ static int tic_target_chain_exists(struct ccw1 *tic, struct channel_program *cp)
 static int ccwchain_loop_tic(struct ccwchain *chain,
 			     struct channel_program *cp);
 
-static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
+static int ccwchain_handle_ccw(dma32_t cda, struct channel_program *cp)
 {
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
 	struct ccwchain *chain;
 	int len, ret;
+	u32 gcda;
 
+	gcda = dma32_to_u32(cda);
 	/* Copy 2K (the most we support today) of possible CCWs */
-	ret = vfio_dma_rw(vdev, cda, cp->guest_cp, CCWCHAIN_LEN_MAX * sizeof(struct ccw1), false);
+	ret = vfio_dma_rw(vdev, gcda, cp->guest_cp, CCWCHAIN_LEN_MAX * sizeof(struct ccw1), false);
 	if (ret)
 		return ret;
 
@@ -434,7 +437,7 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 		convert_ccw0_to_ccw1(cp->guest_cp, CCWCHAIN_LEN_MAX);
 
 	/* Count the CCWs in the current chain */
-	len = ccwchain_calc_length(cda, cp);
+	len = ccwchain_calc_length(gcda, cp);
 	if (len < 0)
 		return len;
 
@@ -444,7 +447,7 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 		return -ENOMEM;
 
 	chain->ch_len = len;
-	chain->ch_iova = cda;
+	chain->ch_iova = gcda;
 
 	/* Copy the actual CCWs into the new chain */
 	memcpy(chain->ch_ccw, cp->guest_cp, len * sizeof(struct ccw1));
@@ -487,13 +490,13 @@ static int ccwchain_fetch_tic(struct ccw1 *ccw,
 			      struct channel_program *cp)
 {
 	struct ccwchain *iter;
-	u32 ccw_head;
+	u32 cda, ccw_head;
 
 	list_for_each_entry(iter, &cp->ccwchain_list, next) {
 		ccw_head = iter->ch_iova;
 		if (is_cpa_within_range(ccw->cda, ccw_head, iter->ch_len)) {
-			ccw->cda = (__u32) (addr_t) (((char *)iter->ch_ccw) +
-						     (ccw->cda - ccw_head));
+			cda = (u64)iter->ch_ccw + dma32_to_u32(ccw->cda) - ccw_head;
+			ccw->cda = u32_to_dma32(cda);
 			return 0;
 		}
 	}
@@ -501,14 +504,12 @@ static int ccwchain_fetch_tic(struct ccw1 *ccw,
 	return -EFAULT;
 }
 
-static unsigned long *get_guest_idal(struct ccw1 *ccw,
-				     struct channel_program *cp,
-				     int idaw_nr)
+static dma64_t *get_guest_idal(struct ccw1 *ccw, struct channel_program *cp, int idaw_nr)
 {
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
-	unsigned long *idaws;
-	unsigned int *idaws_f1;
+	dma64_t *idaws;
+	dma32_t *idaws_f1;
 	int idal_len = idaw_nr * sizeof(*idaws);
 	int idaw_size = idal_is_2k(cp) ? PAGE_SIZE / 2 : PAGE_SIZE;
 	int idaw_mask = ~(idaw_size - 1);
@@ -520,7 +521,7 @@ static unsigned long *get_guest_idal(struct ccw1 *ccw,
 
 	if (ccw_is_idal(ccw)) {
 		/* Copy IDAL from guest */
-		ret = vfio_dma_rw(vdev, ccw->cda, idaws, idal_len, false);
+		ret = vfio_dma_rw(vdev, dma32_to_u32(ccw->cda), idaws, idal_len, false);
 		if (ret) {
 			kfree(idaws);
 			return ERR_PTR(ret);
@@ -528,14 +529,18 @@ static unsigned long *get_guest_idal(struct ccw1 *ccw,
 	} else {
 		/* Fabricate an IDAL based off CCW data address */
 		if (cp->orb.cmd.c64) {
-			idaws[0] = ccw->cda;
-			for (i = 1; i < idaw_nr; i++)
-				idaws[i] = (idaws[i - 1] + idaw_size) & idaw_mask;
+			idaws[0] = u64_to_dma64(dma32_to_u32(ccw->cda));
+			for (i = 1; i < idaw_nr; i++) {
+				idaws[i] = dma64_add(idaws[i - 1], idaw_size);
+				idaws[i] = dma64_and(idaws[i], idaw_mask);
+			}
 		} else {
-			idaws_f1 = (unsigned int *)idaws;
+			idaws_f1 = (dma32_t *)idaws;
 			idaws_f1[0] = ccw->cda;
-			for (i = 1; i < idaw_nr; i++)
-				idaws_f1[i] = (idaws_f1[i - 1] + idaw_size) & idaw_mask;
+			for (i = 1; i < idaw_nr; i++) {
+				idaws_f1[i] = dma32_add(idaws_f1[i - 1], idaw_size);
+				idaws_f1[i] = dma32_and(idaws_f1[i], idaw_mask);
+			}
 		}
 	}
 
@@ -572,7 +577,7 @@ static int ccw_count_idaws(struct ccw1 *ccw,
 	if (ccw_is_idal(ccw)) {
 		/* Read first IDAW to check its starting address. */
 		/* All subsequent IDAWs will be 2K- or 4K-aligned. */
-		ret = vfio_dma_rw(vdev, ccw->cda, &iova, size, false);
+		ret = vfio_dma_rw(vdev, dma32_to_u32(ccw->cda), &iova, size, false);
 		if (ret)
 			return ret;
 
@@ -583,7 +588,7 @@ static int ccw_count_idaws(struct ccw1 *ccw,
 		if (!cp->orb.cmd.c64)
 			iova = iova >> 32;
 	} else {
-		iova = ccw->cda;
+		iova = dma32_to_u32(ccw->cda);
 	}
 
 	/* Format-1 IDAWs operate on 2K each */
@@ -604,8 +609,8 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 {
 	struct vfio_device *vdev =
 		&container_of(cp, struct vfio_ccw_private, cp)->vdev;
-	unsigned long *idaws;
-	unsigned int *idaws_f1;
+	dma64_t *idaws;
+	dma32_t *idaws_f1;
 	int ret;
 	int idaw_nr;
 	int i;
@@ -636,12 +641,12 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 	 * Copy guest IDAWs into page_array, in case the memory they
 	 * occupy is not contiguous.
 	 */
-	idaws_f1 = (unsigned int *)idaws;
+	idaws_f1 = (dma32_t *)idaws;
 	for (i = 0; i < idaw_nr; i++) {
 		if (cp->orb.cmd.c64)
-			pa->pa_iova[i] = idaws[i];
+			pa->pa_iova[i] = dma64_to_u64(idaws[i]);
 		else
-			pa->pa_iova[i] = idaws_f1[i];
+			pa->pa_iova[i] = dma32_to_u32(idaws_f1[i]);
 	}
 
 	if (ccw_does_data_transfer(ccw)) {
@@ -652,7 +657,7 @@ static int ccwchain_fetch_ccw(struct ccw1 *ccw,
 		pa->pa_nr = 0;
 	}
 
-	ccw->cda = (__u32) virt_to_phys(idaws);
+	ccw->cda = virt_to_dma32(idaws);
 	ccw->flags |= CCW_FLAG_IDA;
 
 	/* Populate the IDAL with pinned/translated addresses from page */
@@ -874,7 +879,7 @@ union orb *cp_get_orb(struct channel_program *cp, struct subchannel *sch)
 
 	chain = list_first_entry(&cp->ccwchain_list, struct ccwchain, next);
 	cpa = chain->ch_ccw;
-	orb->cmd.cpa = (__u32)virt_to_phys(cpa);
+	orb->cmd.cpa = virt_to_dma32(cpa);
 
 	return orb;
 }
@@ -896,7 +901,7 @@ union orb *cp_get_orb(struct channel_program *cp, struct subchannel *sch)
 void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 {
 	struct ccwchain *chain;
-	u32 cpa = scsw->cmd.cpa;
+	dma32_t cpa = scsw->cmd.cpa;
 	u32 ccw_head;
 
 	if (!cp->initialized)
@@ -919,9 +924,10 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
 			 * (cpa - ccw_head) is the offset value of the host
 			 * physical ccw to its chain head.
 			 * Adding this value to the guest physical ccw chain
-			 * head gets us the guest cpa.
+			 * head gets us the guest cpa:
+			 * cpa = chain->ch_iova + (cpa - ccw_head)
 			 */
-			cpa = chain->ch_iova + (cpa - ccw_head);
+			cpa = dma32_add(cpa, chain->ch_iova - ccw_head);
 			break;
 		}
 	}
