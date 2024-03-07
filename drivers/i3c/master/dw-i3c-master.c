@@ -1033,21 +1033,8 @@ static int dw_i3c_master_bus_reset(struct i3c_master_controller *m)
 {
 	struct dw_i3c_master *master = to_dw_i3c_master(m);
 
-	if (master->base.bus.context == I3C_BUS_CONTEXT_JESD403) {
-		u32 reset = RESET_CTRL_BUS |
-			    FIELD_PREP(RESET_CTRL_BUS_RESET_TYPE,
-				       BUS_RESET_TYPE_SCL_LOW);
-		u32 timeout = readl(master->regs + SCL_LOW_MST_EXT_TIMEOUT);
-		u32 status;
+	master->platform_ops->gen_target_reset_pattern(master);
 
-		timeout = timeout * master->timing.core_period + 1000000;
-		writel(reset, master->regs + RESET_CTRL);
-		readl_poll_timeout_atomic(master->regs + RESET_CTRL, status,
-					  !(status & RESET_CTRL_BUS), 10,
-					  timeout);
-	} else {
-		master->platform_ops->gen_target_reset_pattern(master);
-	}
 	return 0;
 }
 
@@ -2212,7 +2199,7 @@ static const struct dw_i3c_platform_ops dw_i3c_platform_ops_default = {
 static int dw_i3c_of_populate_bus_timing(struct dw_i3c_master *master,
 					 struct device_node *np)
 {
-	u32 val, reg, sda_tx_hold_ns, timed_reset_scl_low_ns;
+	u32 val, reg, sda_tx_hold_ns;
 
 	master->timing.core_rate = clk_get_rate(master->core_clk);
 	if (!master->timing.core_rate) {
@@ -2241,9 +2228,9 @@ static int dw_i3c_of_populate_bus_timing(struct dw_i3c_master *master,
 	if (!of_property_read_u32(np, "sda-tx-hold-ns", &val))
 		sda_tx_hold_ns = val;
 
-	timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
+	master->timing.timed_reset_scl_low_ns = JESD403_TIMED_RESET_NS_DEF;
 	if (!of_property_read_u32(np, "timed-reset-scl-low-ns", &val))
-		timed_reset_scl_low_ns = val;
+		master->timing.timed_reset_scl_low_ns = val;
 
 	val = clamp((u32)DIV_ROUND_CLOSEST(sda_tx_hold_ns,
 					   master->timing.core_period),
@@ -2253,7 +2240,7 @@ static int dw_i3c_of_populate_bus_timing(struct dw_i3c_master *master,
 	reg |= FIELD_PREP(SDA_TX_HOLD, val);
 	writel(reg, master->regs + SDA_HOLD_SWITCH_DLY_TIMING);
 
-	val = DIV_ROUND_CLOSEST(timed_reset_scl_low_ns,
+	val = DIV_ROUND_CLOSEST(master->timing.timed_reset_scl_low_ns,
 				master->timing.core_period);
 	writel(val, master->regs + SCL_LOW_MST_EXT_TIMEOUT);
 

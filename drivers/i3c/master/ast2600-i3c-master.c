@@ -240,6 +240,30 @@ static void ast2600_i3c_gen_target_reset_pattern(struct dw_i3c_master *dw)
 	struct ast2600_i3c *i3c = to_ast2600_i3c(dw);
 	int i;
 
+	if (dw->base.bus.context == I3C_BUS_CONTEXT_JESD403) {
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_SW_MODE_OE, SCL_SW_MODE_OE);
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_EN, SCL_OUT_SW_MODE_EN);
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_VAL, 0);
+		mdelay(DIV_ROUND_UP(dw->timing.timed_reset_scl_low_ns,
+				    1000000));
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_VAL, SCL_OUT_SW_MODE_VAL);
+		regmap_write_bits(i3c->global_regs,
+				  AST2600_I3CG_REG1(i3c->global_idx),
+				  SCL_OUT_SW_MODE_EN, 0);
+		return;
+	}
+
 	regmap_write_bits(i3c->global_regs, AST2600_I3CG_REG1(i3c->global_idx),
 			  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL,
 			  SDA_OUT_SW_MODE_VAL | SCL_OUT_SW_MODE_VAL);
