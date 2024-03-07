@@ -3064,9 +3064,6 @@ int btrfs_qgroup_check_inherit(struct btrfs_fs_info *fs_info,
 	if (inherit->num_ref_copies > 0 || inherit->num_excl_copies > 0)
 		return -EINVAL;
 
-	if (inherit->num_qgroups > PAGE_SIZE)
-		return -EINVAL;
-
 	if (size != struct_size(inherit, qgroups, inherit->num_qgroups))
 		return -EINVAL;
 
