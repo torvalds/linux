@@ -1404,7 +1404,7 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 			for (i = 0;
 			     i < aob->sb_count && i < queue->max_elements;
 			     i++) {
-				void *data = phys_to_virt(aob->sba[i]);
+				void *data = dma64_to_virt(aob->sba[i]);
 
 				if (test_bit(i, buf->from_kmem_cache) && data)
 					kmem_cache_free(qeth_core_header_cache,
