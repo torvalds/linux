@@ -1237,6 +1237,24 @@ static inline bool skb_unref(struct sk_buff *skb)
 	return true;
 }
 
+static inline bool skb_data_unref(const struct sk_buff *skb,
+				  struct skb_shared_info *shinfo)
+{
+	int bias;
+
+	if (!skb->cloned)
+		return true;
+
+	bias = skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1;
+
+	if (atomic_read(&shinfo->dataref) == bias)
+		smp_rmb();
+	else if (atomic_sub_return(bias, &shinfo->dataref))
+		return false;
+
+	return true;
+}
+
 void __fix_address
 kfree_skb_reason(struct sk_buff *skb, enum skb_drop_reason reason);
 

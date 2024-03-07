@@ -1115,9 +1115,7 @@ static void skb_release_data(struct sk_buff *skb, enum skb_drop_reason reason,
 	struct skb_shared_info *shinfo = skb_shinfo(skb);
 	int i;
 
-	if (skb->cloned &&
-	    atomic_sub_return(skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1,
-			      &shinfo->dataref))
+	if (!skb_data_unref(skb, shinfo))
 		goto exit;
 
 	if (skb_zcopy(skb)) {
