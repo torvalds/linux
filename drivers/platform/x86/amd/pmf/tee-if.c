@@ -458,8 +458,10 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 	amd_pmf_hex_dump_pb(dev);
 
 	dev->prev_data = kzalloc(sizeof(*dev->prev_data), GFP_KERNEL);
-	if (!dev->prev_data)
+	if (!dev->prev_data) {
+		ret = -ENOMEM;
 		goto error;
+	}
 
 	ret = amd_pmf_start_policy_engine(dev);
 	if (ret)
