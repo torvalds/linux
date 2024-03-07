@@ -20,16 +20,6 @@
 
 #include "generic.h"
 
-/*
- * helper for sa1100fb
- */
-static struct gpio h3600_lcd_gpio[] = {
-	{ H3XXX_EGPIO_LCD_ON,	GPIOF_OUT_INIT_LOW,	"LCD power" },
-	{ H3600_EGPIO_LCD_PCI,	GPIOF_OUT_INIT_LOW,	"LCD control" },
-	{ H3600_EGPIO_LCD_5V_ON, GPIOF_OUT_INIT_LOW,	"LCD 5v" },
-	{ H3600_EGPIO_LVDD_ON,	GPIOF_OUT_INIT_LOW,	"LCD 9v/-6.5v" },
-};
-
 static bool h3600_lcd_request(void)
 {
 	static bool h3600_lcd_ok;
@@ -38,7 +28,42 @@ static bool h3600_lcd_request(void)
 	if (h3600_lcd_ok)
 		return true;
 
-	rc = gpio_request_array(h3600_lcd_gpio, ARRAY_SIZE(h3600_lcd_gpio));
+	rc = gpio_request(H3XXX_EGPIO_LCD_ON, "LCD power");
+	if (rc)
+		goto out;
+	rc = gpio_direction_output(H3XXX_EGPIO_LCD_ON, 0);
+	if (rc)
+		goto out_free_on;
+	rc = gpio_request(H3600_EGPIO_LCD_PCI, "LCD control");
+	if (rc)
+		goto out_free_on;
+	rc = gpio_direction_output(H3600_EGPIO_LCD_PCI, 0);
+	if (rc)
+		goto out_free_pci;
+	rc = gpio_request(H3600_EGPIO_LCD_5V_ON, "LCD 5v");
+	if (rc)
+		goto out_free_pci;
+	rc = gpio_direction_output(H3600_EGPIO_LCD_5V_ON, 0);
+	if (rc)
+		goto out_free_5v_on;
+	rc = gpio_request(H3600_EGPIO_LVDD_ON, "LCD 9v/-6.5v");
+	if (rc)
+		goto out_free_5v_on;
+	rc = gpio_direction_output(H3600_EGPIO_LVDD_ON, 0);
+	if (rc)
+		goto out_free_lvdd_on;
+
+	goto out;
+
+out_free_lvdd_on:
+	gpio_free(H3600_EGPIO_LVDD_ON);
+out_free_5v_on:
+	gpio_free(H3600_EGPIO_LCD_5V_ON);
+out_free_pci:
+	gpio_free(H3600_EGPIO_LCD_PCI);
+out_free_on:
+	gpio_free(H3XXX_EGPIO_LCD_ON);
+out:
 	if (rc)
 		pr_err("%s: can't request GPIOs\n", __func__);
 	else
