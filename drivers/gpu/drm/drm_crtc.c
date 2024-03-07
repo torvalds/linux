@@ -107,18 +107,6 @@ int drm_crtc_force_disable(struct drm_crtc *crtc)
 	return drm_mode_set_config_internal(&set);
 }
 
-static unsigned int drm_num_crtcs(struct drm_device *dev)
-{
-	unsigned int num = 0;
-	struct drm_crtc *tmp;
-
-	drm_for_each_crtc(tmp, dev) {
-		num++;
-	}
-
-	return num;
-}
-
 int drm_crtc_register_all(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
@@ -278,8 +266,7 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
 	if (name) {
 		crtc->name = kvasprintf(GFP_KERNEL, name, ap);
 	} else {
-		crtc->name = kasprintf(GFP_KERNEL, "crtc-%d",
-				       drm_num_crtcs(dev));
+		crtc->name = kasprintf(GFP_KERNEL, "crtc-%d", config->num_crtc);
 	}
 	if (!crtc->name) {
 		drm_mode_object_unregister(dev, &crtc->base);
