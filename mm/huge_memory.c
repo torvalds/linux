@@ -3486,6 +3486,9 @@ static int split_huge_pages_pid(int pid, unsigned long vaddr_start,
 		if (!is_transparent_hugepage(folio))
 			goto next;
 
+		if (new_order >= folio_order(folio))
+			goto next;
+
 		total++;
 		/*
 		 * For folios with private, split_huge_page_to_list_to_order()
@@ -3552,6 +3555,9 @@ static int split_huge_pages_in_file(const char *file_path, pgoff_t off_start,
 
 		total++;
 		nr_pages = folio_nr_pages(folio);
+
+		if (new_order >= folio_order(folio))
+			goto next;
 
 		if (!folio_trylock(folio))
 			goto next;
