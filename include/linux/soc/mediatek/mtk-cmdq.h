@@ -271,6 +271,22 @@ int cmdq_pkt_poll_mask(struct cmdq_pkt *pkt, u8 subsys,
 int cmdq_pkt_assign(struct cmdq_pkt *pkt, u16 reg_idx, u32 value);
 
 /**
+ * cmdq_pkt_poll_addr() - Append blocking POLL command to CMDQ packet
+ * @pkt:	the CMDQ packet
+ * @addr:	the hardware register address
+ * @value:	the specified target register value
+ * @mask:	the specified target register mask
+ *
+ * Appends a polling (POLL) command to the CMDQ packet and asks the GCE
+ * to execute an instruction that checks for the specified `value` (with
+ * or without `mask`) to appear in the specified hardware register `addr`.
+ * All GCE threads will be blocked by this instruction.
+ *
+ * Return: 0 for success or negative error code
+ */
+int cmdq_pkt_poll_addr(struct cmdq_pkt *pkt, dma_addr_t addr, u32 value, u32 mask);
+
+/**
  * cmdq_pkt_jump_abs() - Append jump command to the CMDQ packet, ask GCE
  *			 to execute an instruction that change current thread
  *			 PC to a absolute physical address which should
@@ -417,6 +433,11 @@ static inline int cmdq_pkt_poll_mask(struct cmdq_pkt *pkt, u8 subsys,
 }
 
 static inline int cmdq_pkt_assign(struct cmdq_pkt *pkt, u16 reg_idx, u32 value)
+{
+	return -EINVAL;
+}
+
+static inline int cmdq_pkt_poll_addr(struct cmdq_pkt *pkt, dma_addr_t addr, u32 value, u32 mask)
 {
 	return -EINVAL;
 }
