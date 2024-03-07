@@ -318,7 +318,7 @@ static int smu_v13_0_4_get_smu_metrics_data(struct smu_context *smu,
 		*value = metrics->GfxActivity / 100;
 		break;
 	case METRICS_AVERAGE_VCNACTIVITY:
-		*value = metrics->UvdActivity;
+		*value = metrics->UvdActivity / 100;
 		break;
 	case METRICS_AVERAGE_SOCKETPOWER:
 		*value = (metrics->AverageSocketPower << 8) / 1000;
@@ -570,6 +570,12 @@ static int smu_v13_0_4_read_sensor(struct smu_context *smu,
 		ret = smu_v13_0_4_get_smu_metrics_data(smu,
 						       METRICS_AVERAGE_GFXACTIVITY,
 						       (uint32_t *)data);
+		*size = 4;
+		break;
+	case AMDGPU_PP_SENSOR_VCN_LOAD:
+		ret = smu_v13_0_4_get_smu_metrics_data(smu,
+							METRICS_AVERAGE_VCNACTIVITY,
+							(uint32_t *)data);
 		*size = 4;
 		break;
 	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
