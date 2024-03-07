@@ -729,7 +729,7 @@ xrep_update_qflags(
 	xfs_trans_log_buf(sc->tp, bp, 0, sizeof(struct xfs_dsb) - 1);
 
 no_update:
-	mutex_unlock(&sc->mp->m_quotainfo->qi_quotaofflock);
+	mutex_unlock(&mp->m_quotainfo->qi_quotaofflock);
 }
 
 /* Force a quotacheck the next time we mount. */
