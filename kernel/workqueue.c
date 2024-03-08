@@ -7246,25 +7246,27 @@ static ssize_t __wq_cpumask_show(struct device *dev,
 	return written;
 }
 
-static ssize_t wq_unbound_cpumask_show(struct device *dev,
+static ssize_t cpumask_requested_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return __wq_cpumask_show(dev, attr, buf, wq_requested_unbound_cpumask);
+}
+static DEVICE_ATTR_RO(cpumask_requested);
+
+static ssize_t cpumask_isolated_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return __wq_cpumask_show(dev, attr, buf, wq_isolated_cpumask);
+}
+static DEVICE_ATTR_RO(cpumask_isolated);
+
+static ssize_t cpumask_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	return __wq_cpumask_show(dev, attr, buf, wq_unbound_cpumask);
 }
 
-static ssize_t wq_requested_cpumask_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return __wq_cpumask_show(dev, attr, buf, wq_requested_unbound_cpumask);
-}
-
-static ssize_t wq_isolated_cpumask_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return __wq_cpumask_show(dev, attr, buf, wq_isolated_cpumask);
-}
-
-static ssize_t wq_unbound_cpumask_store(struct device *dev,
+static ssize_t cpumask_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	cpumask_var_t cpumask;
@@ -7280,36 +7282,19 @@ static ssize_t wq_unbound_cpumask_store(struct device *dev,
 	free_cpumask_var(cpumask);
 	return ret ? ret : count;
 }
+static DEVICE_ATTR_RW(cpumask);
 
-static struct device_attribute wq_sysfs_cpumask_attrs[] = {
-	__ATTR(cpumask, 0644, wq_unbound_cpumask_show,
-	       wq_unbound_cpumask_store),
-	__ATTR(cpumask_requested, 0444, wq_requested_cpumask_show, NULL),
-	__ATTR(cpumask_isolated, 0444, wq_isolated_cpumask_show, NULL),
-	__ATTR_NULL,
+static struct attribute *wq_sysfs_cpumask_attrs[] = {
+	&dev_attr_cpumask.attr,
+	&dev_attr_cpumask_requested.attr,
+	&dev_attr_cpumask_isolated.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(wq_sysfs_cpumask);
 
 static int __init wq_sysfs_init(void)
 {
-	struct device *dev_root;
-	int err;
-
-	err = subsys_virtual_register(&wq_subsys, NULL);
-	if (err)
-		return err;
-
-	dev_root = bus_get_dev_root(&wq_subsys);
-	if (dev_root) {
-		struct device_attribute *attr;
-
-		for (attr = wq_sysfs_cpumask_attrs; attr->attr.name; attr++) {
-			err = device_create_file(dev_root, attr);
-			if (err)
-				break;
-		}
-		put_device(dev_root);
-	}
-	return err;
+	return subsys_virtual_register(&wq_subsys, wq_sysfs_cpumask_groups);
 }
 core_initcall(wq_sysfs_init);
 
