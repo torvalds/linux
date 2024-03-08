@@ -304,11 +304,24 @@ static int vmap_range_noflush(unsigned long addr, unsigned long end,
 	return err;
 }
 
+int vmap_page_range(unsigned long addr, unsigned long end,
+		    phys_addr_t phys_addr, pgprot_t prot)
+{
+	int err;
+
+	err = vmap_range_noflush(addr, end, phys_addr, pgprot_nx(prot),
+				 ioremap_max_page_shift);
+	flush_cache_vmap(addr, end);
+	if (!err)
+		err = kmsan_ioremap_page_range(addr, end, phys_addr, prot,
+					       ioremap_max_page_shift);
+	return err;
+}
+
 int ioremap_page_range(unsigned long addr, unsigned long end,
 		phys_addr_t phys_addr, pgprot_t prot)
 {
 	struct vm_struct *area;
-	int err;
 
 	area = find_vm_area((void *)addr);
 	if (!area || !(area->flags & VM_IOREMAP)) {
@@ -322,13 +335,7 @@ int ioremap_page_range(unsigned long addr, unsigned long end,
 			  (long)area->addr + get_vm_area_size(area));
 		return -ERANGE;
 	}
-	err = vmap_range_noflush(addr, end, phys_addr, pgprot_nx(prot),
-				 ioremap_max_page_shift);
-	flush_cache_vmap(addr, end);
-	if (!err)
-		err = kmsan_ioremap_page_range(addr, end, phys_addr, prot,
-					       ioremap_max_page_shift);
-	return err;
+	return vmap_page_range(addr, end, phys_addr, prot);
 }
 
 static void vunmap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
