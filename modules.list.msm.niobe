@@ -54,6 +54,8 @@ nvmem_qcom-spmi-sdam.ko
 rtc-pm8xxx.ko
 pmic-pon-log.ko
 ufs_qcom.ko
+cqhci.ko
+sdhci-msm.ko
 llcc-qcom.ko
 gcc-niobe.ko
 tcsrcc-niobe.ko
