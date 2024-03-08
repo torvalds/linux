@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -311,7 +311,8 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_byte0_clk_src = {
 		.ops = &clk_byte2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_disp_cx,
+		.vdd_classes = disp_cc_1_niobe_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_1_niobe_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 140630000,
@@ -335,7 +336,8 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_byte1_clk_src = {
 		.ops = &clk_byte2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_disp_cx,
+		.vdd_classes = disp_cc_1_niobe_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_1_niobe_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 140630000,
@@ -355,10 +357,12 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_dptx0_aux_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_dptx0_aux_clk_src",
 		.parent_data = disp_cc_1_parent_data_1,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_1),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_disp_cx,
+		.vdd_classes = disp_cc_1_niobe_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_1_niobe_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000},
@@ -379,7 +383,8 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_dptx0_link_clk_src = {
 		.ops = &clk_byte2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_disp_cx,
+		.vdd_classes = disp_cc_1_niobe_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_1_niobe_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000,
@@ -447,6 +452,7 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_dptx1_aux_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_dptx1_aux_clk_src",
 		.parent_data = disp_cc_1_parent_data_1,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_1),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
@@ -539,6 +545,7 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_dptx2_aux_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_dptx2_aux_clk_src",
 		.parent_data = disp_cc_1_parent_data_1,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_1),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
@@ -632,6 +639,7 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_dptx3_aux_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_dptx3_aux_clk_src",
 		.parent_data = disp_cc_1_parent_data_1,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_1),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
@@ -701,10 +709,12 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_esc0_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_esc0_clk_src",
 		.parent_data = disp_cc_1_parent_data_4,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_4),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_disp_cx,
+		.vdd_classes = disp_cc_1_niobe_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_1_niobe_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000},
@@ -721,10 +731,12 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_esc1_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_esc1_clk_src",
 		.parent_data = disp_cc_1_parent_data_4,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_4),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
-		.vdd_class = &vdd_disp_cx,
+		.vdd_classes = disp_cc_1_niobe_regulators,
+		.num_vdd_classes = ARRAY_SIZE(disp_cc_1_niobe_regulators),
 		.num_rate_max = VDD_NUM,
 		.rate_max = (unsigned long[VDD_NUM]) {
 			[VDD_LOWER_D1] = 19200000},
@@ -833,6 +845,7 @@ static struct clk_rcg2 mdss_1_disp_cc_mdss_vsync_clk_src = {
 		.name = "mdss_1_disp_cc_mdss_vsync_clk_src",
 		.parent_data = disp_cc_1_parent_data_1,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_1),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 	.clkr.vdd_data = {
@@ -872,6 +885,7 @@ static struct clk_rcg2 mdss_1_disp_cc_xo_clk_src = {
 		.name = "mdss_1_disp_cc_xo_clk_src",
 		.parent_data = disp_cc_1_parent_data_1_ao,
 		.num_parents = ARRAY_SIZE(disp_cc_1_parent_data_1_ao),
+		.flags = CLK_SET_RATE_PARENT,
 		.ops = &clk_rcg2_ops,
 	},
 };
@@ -1616,7 +1630,7 @@ static struct clk_branch mdss_1_disp_cc_mdss_mdp_clk = {
 
 static struct clk_branch mdss_1_disp_cc_mdss_mdp_lut1_clk = {
 	.halt_reg = 0xa010,
-	.halt_check = BRANCH_HALT,
+	.halt_check = BRANCH_HALT_VOTED,
 	.clkr = {
 		.enable_reg = 0xa010,
 		.enable_mask = BIT(0),
