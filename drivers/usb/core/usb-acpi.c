@@ -154,7 +154,7 @@ usb_acpi_get_connect_type(struct usb_port *port_dev, acpi_handle *handle)
 	enum usb_port_connect_type connect_type = USB_PORT_CONNECT_TYPE_UNKNOWN;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *upc = NULL;
-	struct acpi_pld_info *pld;
+	struct acpi_pld_info *pld = NULL;
 	acpi_status status;
 
 	/*
