@@ -885,8 +885,12 @@ static int tas2781_system_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
+	mutex_lock(&tas_hda->priv->codec_lock);
+
 	/* Shutdown chip before system suspend */
 	tasdevice_tuning_switch(tas_hda->priv, 1);
+
+	mutex_unlock(&tas_hda->priv->codec_lock);
 
 	/*
 	 * Reset GPIO may be shared, so cannot reset here.
