@@ -9379,6 +9379,18 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env, int subprog,
 				bpf_log(log, "arg#%d is expected to be non-NULL\n", i);
 				return -EINVAL;
 			}
+		} else if (base_type(arg->arg_type) == ARG_PTR_TO_ARENA) {
+			/*
+			 * Can pass any value and the kernel won't crash, but
+			 * only PTR_TO_ARENA or SCALAR make sense. Everything
+			 * else is a bug in the bpf program. Point it out to
+			 * the user at the verification time instead of
+			 * run-time debug nightmare.
+			 */
+			if (reg->type != PTR_TO_ARENA && reg->type != SCALAR_VALUE) {
+				bpf_log(log, "R%d is not a pointer to arena or scalar.\n", regno);
+				return -EINVAL;
+			}
 		} else if (arg->arg_type == (ARG_PTR_TO_DYNPTR | MEM_RDONLY)) {
 			ret = process_dynptr_func(env, regno, -1, arg->arg_type, 0);
 			if (ret)
@@ -20448,6 +20460,9 @@ static int do_check_common(struct bpf_verifier_env *env, int subprog)
 				reg->btf = bpf_get_btf_vmlinux(); /* can't fail at this point */
 				reg->btf_id = arg->btf_id;
 				reg->id = ++env->id_gen;
+			} else if (base_type(arg->arg_type) == ARG_PTR_TO_ARENA) {
+				/* caller can pass either PTR_TO_ARENA or SCALAR */
+				mark_reg_unknown(env, regs, i);
 			} else {
 				WARN_ONCE(1, "BUG: unhandled arg#%d type %d\n",
 					  i - BPF_REG_1, arg->arg_type);
