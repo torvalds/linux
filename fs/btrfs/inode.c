@@ -8779,6 +8779,9 @@ static int btrfs_getattr(struct mnt_idmap *idmap,
 	generic_fillattr(idmap, request_mask, inode, stat);
 	stat->dev = BTRFS_I(inode)->root->anon_dev;
 
+	stat->subvol = BTRFS_I(inode)->root->root_key.objectid;
+	stat->result_mask |= STATX_SUBVOL;
+
 	spin_lock(&BTRFS_I(inode)->lock);
 	delalloc_bytes = BTRFS_I(inode)->new_delalloc_bytes;
 	inode_bytes = inode_get_bytes(inode);
