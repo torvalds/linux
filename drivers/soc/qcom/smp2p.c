@@ -2,7 +2,7 @@
 /*
  * Copyright (c) 2015, Sony Mobile Communications AB.
  * Copyright (c) 2012-2013, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/interrupt.h>
@@ -172,6 +172,8 @@ static void *ilc;
 #define SMP2P_INFO(x, ...)	\
 	ipc_log_string(ilc, "[%s]: "x, __func__, ##__VA_ARGS__)
 
+static bool smp2p_suspend_in_progress;
+
 static void qcom_smp2p_kick(struct qcom_smp2p *smp2p)
 {
 	/* Make sure any updated data is written before the kick */
@@ -282,6 +284,14 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 		/* No changes of this entry? */
 		if (!status)
 			continue;
+
+		if (smp2p_suspend_in_progress) {
+			pr_info("SMP2P [name:%s] remote: entry:%s status:%0lx\n",
+			    smp2p->irq_devname,
+			    entry->name, status);
+
+			smp2p_suspend_in_progress = false;
+		}
 
 		for_each_set_bit(i, &status, 32) {
 			if ((val & BIT(i) && test_bit(i, entry->irq_rising)) ||
@@ -664,7 +674,8 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	qcom_smp2p_kick(smp2p);
 
 	smp2p->irq = irq;
-	smp2p->irq_devname = kasprintf(GFP_KERNEL, "smp2p_%d", smp2p->remote_pid);
+	smp2p->irq_devname = kasprintf(GFP_KERNEL, "%s", pdev->dev.of_node->name);
+
 	if (!smp2p->irq_devname) {
 		ret = -ENOMEM;
 		goto unwind_interfaces;
@@ -827,7 +838,21 @@ static int qcom_smp2p_freeze(struct device *dev)
 	return 0;
 }
 
+static int qcom_smp2p_suspend_no_irq(struct device *dev)
+{
+	smp2p_suspend_in_progress = true;
+	return 0;
+}
+
+static int qcom_smp2p_resume(struct device *dev)
+{
+	smp2p_suspend_in_progress = false;
+	return 0;
+}
+
 static const struct dev_pm_ops qcom_smp2p_pm_ops = {
+	.suspend_noirq = qcom_smp2p_suspend_no_irq,
+	.resume = qcom_smp2p_resume,
 	.freeze = qcom_smp2p_freeze,
 	.restore = qcom_smp2p_restore,
 	.thaw = qcom_smp2p_restore,
