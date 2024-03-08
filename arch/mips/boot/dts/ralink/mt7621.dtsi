@@ -123,6 +123,9 @@
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			no-loopback-test;
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_pins>;
 		};
 
 		spi0: spi@b00 {
