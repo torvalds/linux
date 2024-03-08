@@ -883,14 +883,6 @@ void ipv6_exthdrs_exit(void)
   Hop-by-hop options.
  **********************************/
 
-/*
- * Note: we cannot rely on skb_dst(skb) before we assign it in ip6_route_input().
- */
-static inline struct net *ipv6_skb_net(struct sk_buff *skb)
-{
-	return skb_dst(skb) ? dev_net(skb_dst(skb)->dev) : dev_net(skb->dev);
-}
-
 /* Router Alert as of RFC 2711 */
 
 static bool ipv6_hop_ra(struct sk_buff *skb, int optoff)
@@ -941,7 +933,7 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 			goto drop;
 
 		/* Ignore if the IOAM namespace is unknown */
-		ns = ioam6_namespace(ipv6_skb_net(skb), trace->namespace_id);
+		ns = ioam6_namespace(dev_net(skb->dev), trace->namespace_id);
 		if (!ns)
 			goto ignore;
 
