@@ -26,6 +26,9 @@
  * implementation details and are not exported to drivers.
  */
 
+#ifndef __DRM_CRTC_HELPER_INTERNAL_H__
+#define __DRM_CRTC_HELPER_INTERNAL_H__
+
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
@@ -44,3 +47,5 @@ drm_connector_mode_valid(struct drm_connector *connector,
 
 struct drm_encoder *
 drm_connector_get_single_encoder(struct drm_connector *connector);
+
+#endif /* __DRM_CRTC_HELPER_INTERNAL_H__ */
