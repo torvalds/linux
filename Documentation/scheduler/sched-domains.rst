@@ -34,7 +34,7 @@ out of balance are tasks moved between groups.
 In kernel/sched/core.c, trigger_load_balance() is run periodically on each CPU
 through scheduler_tick(). It raises a softirq after the next regularly scheduled
 rebalancing event for the current runqueue has arrived. The actual load
-balancing workhorse, run_rebalance_domains()->rebalance_domains(), is then run
+balancing workhorse, sched_balance_softirq()->rebalance_domains(), is then run
 in softirq context (SCHED_SOFTIRQ).
 
 The latter function takes two arguments: the runqueue of current CPU and whether
