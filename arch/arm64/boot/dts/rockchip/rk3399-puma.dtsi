@@ -79,6 +79,26 @@
 		regulator-max-microvolt = <5000000>;
 	};
 
+	vcca_0v9: vcca-0v9-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcca_0v9";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <900000>;
+		regulator-max-microvolt = <900000>;
+		vin-supply = <&vcc_1v8>;
+	};
+
+	vcca_1v8: vcca-1v8-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcca_1v8";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vcc3v3_sys>;
+	};
+
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
 		pwms = <&pwm2 0 25000 1>;
@@ -414,6 +434,12 @@
 	audio-supply = <&vcc_1v8>;
 	sdmmc-supply = <&vcc_sd>;
 	gpio1830-supply = <&vcc_1v8>;
+};
+
+&pcie0 {
+	/* PCIe PHY supplies */
+	vpcie0v9-supply = <&vcca_0v9>;
+	vpcie1v8-supply = <&vcca_1v8>;
 };
 
 &pcie_clkreqn_cpm {
