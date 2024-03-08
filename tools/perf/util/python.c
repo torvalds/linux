@@ -103,6 +103,16 @@ int perf_pmu__scan_file(const struct perf_pmu *pmu, const char *name, const char
 	return EOF;
 }
 
+const char *perf_pmu__name_from_config(struct perf_pmu *pmu __maybe_unused, u64 config __maybe_unused)
+{
+	return NULL;
+}
+
+struct perf_pmu *perf_pmus__find_by_type(unsigned int type __maybe_unused)
+{
+	return NULL;
+}
+
 int perf_pmus__num_core_pmus(void)
 {
 	return 1;
