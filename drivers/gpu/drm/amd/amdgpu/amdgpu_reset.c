@@ -29,6 +29,42 @@
 #include "sienna_cichlid.h"
 #include "smu_v13_0_10.h"
 
+const char *hw_ip_names[MAX_HWIP] = {
+	[GC_HWIP]		= "GC",
+	[HDP_HWIP]		= "HDP",
+	[SDMA0_HWIP]		= "SDMA0",
+	[SDMA1_HWIP]		= "SDMA1",
+	[SDMA2_HWIP]		= "SDMA2",
+	[SDMA3_HWIP]		= "SDMA3",
+	[SDMA4_HWIP]		= "SDMA4",
+	[SDMA5_HWIP]		= "SDMA5",
+	[SDMA6_HWIP]		= "SDMA6",
+	[SDMA7_HWIP]		= "SDMA7",
+	[LSDMA_HWIP]		= "LSDMA",
+	[MMHUB_HWIP]		= "MMHUB",
+	[ATHUB_HWIP]		= "ATHUB",
+	[NBIO_HWIP]		= "NBIO",
+	[MP0_HWIP]		= "MP0",
+	[MP1_HWIP]		= "MP1",
+	[UVD_HWIP]		= "UVD/JPEG/VCN",
+	[VCN1_HWIP]		= "VCN1",
+	[VCE_HWIP]		= "VCE",
+	[VPE_HWIP]		= "VPE",
+	[DF_HWIP]		= "DF",
+	[DCE_HWIP]		= "DCE",
+	[OSSSYS_HWIP]		= "OSSSYS",
+	[SMUIO_HWIP]		= "SMUIO",
+	[PWR_HWIP]		= "PWR",
+	[NBIF_HWIP]		= "NBIF",
+	[THM_HWIP]		= "THM",
+	[CLK_HWIP]		= "CLK",
+	[UMC_HWIP]		= "UMC",
+	[RSMU_HWIP]		= "RSMU",
+	[XGMI_HWIP]		= "XGMI",
+	[DCI_HWIP]		= "DCI",
+	[PCIE_HWIP]		= "PCIE",
+};
+
 int amdgpu_reset_init(struct amdgpu_device *adev)
 {
 	int ret = 0;
@@ -195,6 +231,30 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 		drm_printf(&p, "process_name: %s PID: %d\n",
 			   coredump->reset_task_info.process_name,
 			   coredump->reset_task_info.pid);
+
+	/* GPU IP's information of the SOC */
+	if (coredump->adev) {
+		drm_printf(&p, "\nIP Information\n");
+		drm_printf(&p, "SOC Family: %d\n", coredump->adev->family);
+		drm_printf(&p, "SOC Revision id: %d\n", coredump->adev->rev_id);
+		drm_printf(&p, "SOC External Revision id: %d\n",
+			   coredump->adev->external_rev_id);
+
+		for (int i = 1; i < MAX_HWIP; i++) {
+			for (int j = 0; j < HWIP_MAX_INSTANCE; j++) {
+				int ver = coredump->adev->ip_versions[i][j];
+
+				if (ver)
+					drm_printf(&p, "HWIP: %s[%d][%d]: v%d.%d.%d.%d.%d\n",
+						   hw_ip_names[i], i, j,
+						   IP_VERSION_MAJ(ver),
+						   IP_VERSION_MIN(ver),
+						   IP_VERSION_REV(ver),
+						   IP_VERSION_VARIANT(ver),
+						   IP_VERSION_SUBREV(ver));
+			}
+		}
+	}
 
 	if (coredump->ring) {
 		drm_printf(&p, "\nRing timed out details\n");
