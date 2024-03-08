@@ -452,7 +452,9 @@ fail_test()
 {
 	ret=1
 
-	print_fail "${@}"
+	if [ ${#} -gt 0 ]; then
+		print_fail "${@}"
+	fi
 
 	# just in case a test is marked twice as failed
 	if [ ${last_test_failed} -eq 0 ]; then
@@ -2834,7 +2836,8 @@ verify_listener_events()
 		print_ok
 		return 0
 	fi
-	fail_test "$e_type:$type $e_family:$family $e_saddr:$saddr $e_sport:$sport"
+	print_fail "$e_type:$type $e_family:$family $e_saddr:$saddr $e_sport:$sport"
+	fail_test
 }
 
 add_addr_ports_tests()

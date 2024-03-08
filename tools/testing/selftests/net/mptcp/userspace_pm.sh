@@ -85,7 +85,10 @@ test_skip()
 # $1: msg
 test_fail()
 {
-	mptcp_lib_pr_fail "${@}"
+	if [ ${#} -gt 0 ]
+	then
+		mptcp_lib_pr_fail "${@}"
+	fi
 	ret=1
 	mptcp_lib_result_fail "${test_name}"
 }
@@ -239,7 +242,7 @@ check_expected_one()
 
 	if [ "${prev_ret}" = "0" ]
 	then
-		test_fail
+		mptcp_lib_pr_fail
 	fi
 
 	mptcp_lib_print_err "\tExpected value for '${var}': '${!exp}', got '${!var}'."
@@ -263,6 +266,7 @@ check_expected()
 		return 0
 	fi
 
+	test_fail
 	return 1
 }
 
@@ -412,7 +416,7 @@ test_remove()
 	then
 		test_pass
 	else
-		test_fail
+		test_fail "unexpected type: ${type}"
 	fi
 
 	# RM_ADDR using an invalid addr id should result in no action
@@ -425,7 +429,7 @@ test_remove()
 	then
 		test_pass
 	else
-		test_fail
+		test_fail "unexpected type: ${type}"
 	fi
 
 	# RM_ADDR from the client to server machine
