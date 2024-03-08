@@ -36,6 +36,7 @@
  * See "http://www.siliconimage.com/docs/SiI-DS-0021-E-164.pdf".
  */
 struct sil164_encoder_params {
+	/* private: FIXME: document the members */
 	enum {
 		SIL164_INPUT_EDGE_FALLING = 0,
 		SIL164_INPUT_EDGE_RISING
