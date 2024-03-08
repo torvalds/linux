@@ -1034,7 +1034,7 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 
 	clks[AST2700_SOC0_CLK_GATE_D1CLK] =
 		ast2700_clk_hw_register_gate(NULL, "d1clk-gate", NULL,
-					     0, clk_base + AST2700_SOC0_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC0_CLK_STOP,
 					     5, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC0_CLK_GATE_REFCLK] =
@@ -1060,7 +1060,7 @@ static int ast2700_soc0_clk_init(struct device_node *soc0_node)
 
 	clks[AST2700_SOC0_CLK_GATE_D2CLK] =
 		ast2700_clk_hw_register_gate(NULL, "d2clk-gate", NULL,
-					     0, clk_base + AST2700_SOC0_CLK_STOP,
+					     CLK_IS_CRITICAL, clk_base + AST2700_SOC0_CLK_STOP,
 					     10, 0, &ast2700_clk_lock);
 
 	clks[AST2700_SOC0_CLK_GATE_YCLK] =
