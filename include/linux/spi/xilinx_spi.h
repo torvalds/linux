@@ -2,6 +2,10 @@
 #ifndef __LINUX_SPI_XILINX_SPI_H
 #define __LINUX_SPI_XILINX_SPI_H
 
+#include <linux/types.h>
+
+struct spi_board_info;
+
 /**
  * struct xspi_platform_data - Platform data of the Xilinx SPI driver
  * @num_chipselect:	Number of chip select by the IP.
