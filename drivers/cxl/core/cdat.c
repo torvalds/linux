@@ -580,3 +580,9 @@ void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 			DIV_ROUND_UP(cxlr->coord[i].write_latency, 1000);
 	}
 }
+
+int cxl_update_hmat_access_coordinates(int nid, struct cxl_region *cxlr,
+				       enum access_coordinate_class access)
+{
+	return hmat_update_target_coordinates(nid, &cxlr->coord[access], access);
+}
