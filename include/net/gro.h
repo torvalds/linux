@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 
-#ifndef _NET_IPV6_GRO_H
-#define _NET_IPV6_GRO_H
+#ifndef _NET_GRO_H
+#define _NET_GRO_H
 
 #include <linux/indirect_call_wrapper.h>
 #include <linux/ip.h>
@@ -494,4 +494,7 @@ static inline void inet6_get_iif_sdif(const struct sk_buff *skb, int *iif, int *
 #endif
 }
 
-#endif /* _NET_IPV6_GRO_H */
+struct packet_offload *gro_find_receive_by_type(__be16 type);
+struct packet_offload *gro_find_complete_by_type(__be16 type);
+
+#endif /* _NET_GRO_H */
