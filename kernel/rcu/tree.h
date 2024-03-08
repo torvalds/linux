@@ -273,9 +273,9 @@ struct rcu_data {
 	bool rcu_iw_pending;		/* Is ->rcu_iw pending? */
 	unsigned long rcu_iw_gp_seq;	/* ->gp_seq associated with ->rcu_iw. */
 	unsigned long rcu_ofl_gp_seq;	/* ->gp_seq at last offline. */
-	short rcu_ofl_gp_flags;		/* ->gp_flags at last offline. */
+	short rcu_ofl_gp_state;		/* ->gp_state at last offline. */
 	unsigned long rcu_onl_gp_seq;	/* ->gp_seq at last online. */
-	short rcu_onl_gp_flags;		/* ->gp_flags at last online. */
+	short rcu_onl_gp_state;		/* ->gp_state at last online. */
 	unsigned long last_fqs_resched;	/* Time of last rcu_resched(). */
 	unsigned long last_sched_clock;	/* Jiffies of last rcu_sched_clock_irq(). */
 	struct rcu_snap_record snap_record; /* Snapshot of core stats at half of */

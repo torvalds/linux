@@ -841,8 +841,8 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 				__func__, rnp1->grplo, rnp1->grphi, rnp1->qsmask, rnp1->qsmaskinit, rnp1->qsmaskinitnext, rnp1->rcu_gp_init_mask);
 		pr_info("%s %d: %c online: %ld(%d) offline: %ld(%d)\n",
 			__func__, rdp->cpu, ".o"[rcu_rdp_cpu_online(rdp)],
-			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_flags,
-			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_flags);
+			(long)rdp->rcu_onl_gp_seq, rdp->rcu_onl_gp_state,
+			(long)rdp->rcu_ofl_gp_seq, rdp->rcu_ofl_gp_state);
 		return 1; /* Break things loose after complaining. */
 	}
 
@@ -4420,9 +4420,9 @@ rcu_boot_init_percpu_data(int cpu)
 	WARN_ON_ONCE(rcu_dynticks_in_eqs(rcu_dynticks_snap(cpu)));
 	rdp->barrier_seq_snap = rcu_state.barrier_sequence;
 	rdp->rcu_ofl_gp_seq = rcu_state.gp_seq;
-	rdp->rcu_ofl_gp_flags = RCU_GP_CLEANED;
+	rdp->rcu_ofl_gp_state = RCU_GP_CLEANED;
 	rdp->rcu_onl_gp_seq = rcu_state.gp_seq;
-	rdp->rcu_onl_gp_flags = RCU_GP_CLEANED;
+	rdp->rcu_onl_gp_state = RCU_GP_CLEANED;
 	rdp->last_sched_clock = jiffies;
 	rdp->cpu = cpu;
 	rcu_boot_init_nocb_percpu_data(rdp);
@@ -4682,7 +4682,7 @@ void rcutree_report_cpu_starting(unsigned int cpu)
 	ASSERT_EXCLUSIVE_WRITER(rcu_state.ncpus);
 	rcu_gpnum_ovf(rnp, rdp); /* Offline-induced counter wrap? */
 	rdp->rcu_onl_gp_seq = READ_ONCE(rcu_state.gp_seq);
-	rdp->rcu_onl_gp_flags = READ_ONCE(rcu_state.gp_flags);
+	rdp->rcu_onl_gp_state = READ_ONCE(rcu_state.gp_state);
 
 	/* An incoming CPU should never be blocking a grace period. */
 	if (WARN_ON_ONCE(rnp->qsmask & mask)) { /* RCU waiting on incoming CPU? */
@@ -4733,7 +4733,7 @@ void rcutree_report_cpu_dead(void)
 	arch_spin_lock(&rcu_state.ofl_lock);
 	raw_spin_lock_irqsave_rcu_node(rnp, flags); /* Enforce GP memory-order guarantee. */
 	rdp->rcu_ofl_gp_seq = READ_ONCE(rcu_state.gp_seq);
-	rdp->rcu_ofl_gp_flags = READ_ONCE(rcu_state.gp_flags);
+	rdp->rcu_ofl_gp_state = READ_ONCE(rcu_state.gp_state);
 	if (rnp->qsmask & mask) { /* RCU waiting on outgoing CPU? */
 		/* Report quiescent state -before- changing ->qsmaskinitnext! */
 		rcu_disable_urgency_upon_qs(rdp);
