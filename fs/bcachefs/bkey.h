@@ -362,10 +362,7 @@ static inline struct bpos bkey_start_pos(const struct bkey *k)
 static inline unsigned bkeyp_key_u64s(const struct bkey_format *format,
 				      const struct bkey_packed *k)
 {
-	unsigned ret = bkey_packed(k) ? format->key_u64s : BKEY_U64s;
-
-	EBUG_ON(k->u64s < ret);
-	return ret;
+	return bkey_packed(k) ? format->key_u64s : BKEY_U64s;
 }
 
 static inline unsigned bkeyp_key_bytes(const struct bkey_format *format,

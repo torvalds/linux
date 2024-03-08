@@ -840,6 +840,9 @@ static bool __bkey_valid(struct bch_fs *c, struct btree *b,
 	if (k->format > KEY_FORMAT_CURRENT)
 		return false;
 
+	if (k->u64s < bkeyp_key_u64s(&b->format, k))
+		return false;
+
 	struct printbuf buf = PRINTBUF;
 	struct bkey tmp;
 	struct bkey_s u = __bkey_disassemble(b, k, &tmp);
@@ -881,7 +884,13 @@ static int validate_bset_keys(struct bch_fs *c, struct btree *b,
 				 "invalid bkey format %u", k->format))
 			goto drop_this_key;
 
-		/* XXX: validate k->u64s */
+		if (btree_err_on(k->u64s < bkeyp_key_u64s(&b->format, k),
+				 -BCH_ERR_btree_node_read_err_fixable,
+				 c, NULL, b, i,
+				 btree_node_bkey_bad_u64s,
+				 "k->u64s too small (%u < %u)", k->u64s, bkeyp_key_u64s(&b->format, k)))
+			goto drop_this_key;
+
 		if (!write)
 			bch2_bkey_compat(b->c.level, b->c.btree_id, version,
 				    BSET_BIG_ENDIAN(i), write,
